@@ -1,224 +1,129 @@
 # Frontier
 
-> ## MF 갱신 — 2026-08-17
->
-> C011(막기)이 닫히고 Damage Type 층의 설계 원본이 도착한 것을 반영했다.
->
-> ```text
-> FR-GUARD-TRADES-BODY-FOR-RESOURCE   SELECTED → CLOSED    cycles/C011-… COMPLETE
-> FR-MATCHUP-MAKES-THE-CHOICE         DEFERRED → SELECTED  설계 원본 도착으로 대기 해제
-> ```
->
-> **정정** — 2026-08-17 한때 이 파일에 "층 높이를 보지 않아 선택 근거로 쓸 수 없다" 는
-> HOLD 배너가 붙었다. 그것은 오독이었다. 아래 "추천 순서" 는 각 층이 막힌 이유를
-> 이미 층 단위로 적고 있었고 마지막 줄이 `이후 순서는 R1 §14 를 따른다` 로 닫는다.
-> 실제 문제는 판단이 아니라 **갱신 지연**이었고, 이번 MF 로 해소했다. 배너는 걷었다.
->
-> 남은 어긋남 하나 — `overlay.md` 의 MC-GUARD 가 아직 MISSING 이다.
-> C011 08-verification.md 의 MASTER FEEDBACK 이 승격 근거를 냈으나 아직 반영 전이다.
-
 Frontier 는 Graph 의 절대 Leaf 가 아니라 **현재 세계 기준으로 아직 없는 가장 작은
 플레이 가능한 Capability 단위**다. Human 이 여기서 하나를 골라 다음 Cycle Goal 로 삼는다.
 
-출처: `design/Design-Combat-OffenseDefense-R0.md` **R1 (2026-08-17 전면 개정)** §14 확장 순서
-+ `overlay.md`
+    기준 Overlay   master/overlay.md — C012 닫힘 (2026-08-18) 시점
+    사다리 원본    design/Design-Combat-OffenseDefense-R0.md **R1** §14 확장 순서 · §15 층 그림
+    층 세부 원본   각 층이 자기 문서를 가진다 (아래 "층별 원본" 참조)
 
-> **번호 주의** — R1 문서는 저장소 Cycle 번호에 맞춰 재번호되었다: 기본 공식 = **C010**
-> (2026-08-17 `C010-stats-decide-the-damage` 로 닫힘), §14 확장 사다리 = C011~C016.
-> 롤백으로 무효가 된 C010·C011 번호는 Human 결정(2026-08-17)으로 재사용한다 —
-> C010 은 이미 재사용되었고 C011 이 다음 재사용 대상이다. 구분은 전체 ID(번호+이름)로
-> 하며 구 `C010-guard-trades-body-for-resource` · `C011-perfect-guard-turns-the-table` 은
-> git history 에만 존재한다. §14 의 C011 이후 번호는 **계획 번호**라 다른 트랙의 Cycle 이
-> 끼어들면 밀릴 수 있다 — 그래서 이 파일과 Master 는 확장 층을 번호가 아니라 **이름**
-> (Critical · Defense Action · Damage Type · Penetration · Active Defense · Aura/Nen)으로
-> 가리킨다.
+## 지금 어디까지 왔는가
 
-> **R1 개정 + 롤백 반영 (2026-08-17)** — Human 이 전투 기획을 "가장 단순한 공격/방어
-> 공식 먼저" 로 재정의하고, 층 순서와 어긋나게 먼저 올라갔던 C010·C011(막기 계열) 구현을
-> 롤백하기로 결정했다. Constraint 는 R1 기준으로 재작성되었다 (`constraints/` —
-> Active 4종 · 보류 3종). Critical 층(계획 C011)은 DC-COMBAT-PLAYER-CAUSALITY 와 충돌하므로
-> 후보로 올리지 않았다 → `open-questions.md` Q11.
-
-> **C010 닫힘 반영 (2026-08-17, MF)** — 기본 공식 층이 닫혔다
-> (`cycles/C010-stats-decide-the-damage`). R1 §14 가 요구한 "기본 공식이 플레이로
-> 검증된 다음" 조건이 충족되었으므로 **Defense Action(Guard) 층의 이연이 풀린다.**
-> MC-DEFENSE-MITIGATION 이 IMPLEMENTED 가 되면서 막기 후보가 요구하는 것은
-> MC-GUARD 하나로 줄었다.
-
-## 후보 조건
+전투는 설계 §14 가 정한 순서대로 한 층씩 올린다. 저장소 Cycle 번호는 설계의 층 번호와
+다르다 — Critical 층을 건너뛰었기 때문이다. 층은 번호가 아니라 **이름**으로 가리킨다.
 
 ```text
-1. Existing World 에서 아직 완전히 제공되지 않는다
-2. 하나 이상의 상위 Goal/Possibility 를 실제로 전진시킨다
-3. Client 에서 직접 플레이하고 결과를 확인할 수 있다
-4. 하나의 Cycle 안에서 의미적으로 폐쇄 가능하다
-5. 단순 코드 Task 가 아니라 새로운 World/Game Capability 다
-6. 적용되는 Active Constraint 와 양립한다
-7. 완료 후 공유 World 에 재사용 가능한 Capability 로 누적할 수 있다
+설계 §14 층          저장소 Cycle                            상태
+──────────────────────────────────────────────────────────────────────────────
+Basic Damage         C010-stats-decide-the-damage            CLOSED  2026-08-17
+Critical             —                                       SKIPPED  Q11 (아래)
+Defense Action       C011-guard-trades-body-for-resource     CLOSED  2026-08-17
+Damage Type          C012-damage-type-chooses-the-defense    CLOSED  2026-08-18
+Penetration          (다음 Cycle 후보)                        ← 여기
+Active Defense       —                                       대기
+Aura / Nen           —                                       대기
 ```
+
+세 층이 닫히면서 **Possibility 세 개가 실제로 플레이 가능해졌다** —
+MP-OUTGROW-THE-OPPONENT · MP-TRADE-BODY-FOR-RESOURCE · MP-MATCH-WEAPON-TO-ARMOR.
 
 ## 후보
 
-### FR-GUARD-TRADES-BODY-FOR-RESOURCE
-    Playable Result      플레이어가 앞을 향해 막아 들어온 공격을 생명 대신 기력으로 받아내고,
-                         막을 기력이 다하면 방어가 무너져 그대로 얻어맞는다
-    Source Goal          MG-SURVIVE-ENEMY-OFFENSIVE
-    Source Possibility   MP-TRADE-BODY-FOR-RESOURCE
-    Missing / Partial    MC-GUARD (MISSING) — **이것 하나뿐이다**.
-                         MP-TRADE-BODY-FOR-RESOURCE 가 요구하는 나머지 3종
-                         (MC-DEFENSE-MITIGATION · MC-CP-ECONOMY · MC-BODY-FACING)은
-                         이미 세계에 있다 (MC-DEFENSE-MITIGATION 은 C010 이 채웠다)
-    원본 근거            구판 §8.1 · R1 §14 Defense Action 층
-                         (Guard → Damage Taken × 0.5 수준에서 재시작)
-    Active Constraints   DC-COMBAT-PLAYER-CAUSALITY · DC-COMBAT-ONE-FORMULA ·
-                         DC-COMBAT-ONE-LAYER-AT-A-TIME · DC-COMBAT-SHARED-BUDGET ·
-                         DC-WORLD-OWNS-THE-SURFACE-LIST (2026-08-17 승격 — GLOBAL)
-    Constraint Eval      SATISFIED — 막기는 확률이 아니라 선택한 행동의 결과이고(난수 없음),
-                         새 피해 공식을 만들지 않고 C010 의 결과값에 한 가지 의미만 더하며
-                         (DC-COMBAT-ONE-FORMULA — 핵심 원칙의 "Guard → Final Damage 를
-                         감소시킨다"), 한 층만 올리고, 전용 게이지 없이 기존 기력을 쓴다
-                         (DC-COMBAT-SHARED-BUDGET)
-                         주의 — DC-COMBAT-DEFENSE-IS-ACTIVE 는 현재 보류(DRAFT)다.
-                         이 Cycle 이 그 DC 의 근거 층이므로, 닫은 뒤 재승인 여부를
-                         Human 이 판단할 자리가 생긴다
-    Observable Result    막는 동안 들어온 공격의 피해가 줄어든 값으로 들어가는 것이
-                         계산 내역으로 보이고, 그만큼 기력이 줄어드는 것이 보이며,
-                         기력이 바닥나 방어가 무너지는 순간이 드러난다
-    Why one Cycle        새 행동 1종(막기) + C010 공식의 결과값에 배율 하나.
-                         새 자원도 새 공식도 없다 — 기력·피해 계산·행동 구조가 모두 이미 있다.
-                         한 번 구현되었던 이력이 있어 재구축 비용도 낮다
-                         (git history 의 cycles/C010-guard-trades-body-for-resource)
-    Status               **CLOSED** — 2026-08-17 `cycles/C011-guard-trades-body-for-resource`
-                         COMPLETE (Human Play 확인). Defense Action 층이 닫혔다.
-                         MC-GUARD 승격 근거는 그 Cycle 의 08-verification.md MASTER FEEDBACK 이며
-                         overlay.md 반영은 아직이다. 후보 목록에서 소진 처리
-
-### FR-PERFECT-GUARD-TURNS-THE-TABLE (Guard 다음)
-    Playable Result      플레이어가 공격이 닿기 직전에 막아 피해를 전혀 받지 않고,
-                         상대를 잠시 열린 상태로 만들어 되받아친다
+### FR-PENETRATION-DEVALUES-THE-WALL
+    Playable Result      플레이어가 방어를 두껍게 굳혀 벽처럼 버티는 상대 앞에서,
+                         그 방어를 얼마간 통하지 않게 만들어 제 피해를 넣는다
     Source Goal          MG-OVERCOME-SUPERIOR-OPPONENT
-    Source Possibility   MP-READ-AND-COUNTER
-    Missing / Partial    MC-PERFECT-GUARD (MISSING) · MC-COUNTER (MISSING)
-    원본 근거            구판 §8.2 · §8.4 · R1 §14 Active Defense 층 (Guard 검증 뒤)
-    Depends On           FR-GUARD-TRADES-BODY-FOR-RESOURCE
-    Status               DEFERRED — Depends On 은 2026-08-17 C011 로 **충족되었다.**
-                         그래도 아직 열리지 않는다. R1 §15 층 그림에서 Active Defense 는
-                         Damage Type · Penetration **위**에 있고, 그 두 층이 아직 서지 않았다.
-                         의존성이 풀린 것과 차례가 온 것은 다르다.
-                         C011(구) 로 한 번 닫혔다가 롤백 — 재구축 시 git history 의
-                         cycles/C011-perfect-guard-turns-the-table 산출물을 참조할 수 있다
-
-### FR-MATCHUP-MAKES-THE-CHOICE
-    Playable Result      플레이어가 상대의 방어 형태에 맞는 공격 형태를 골라
-                         같은 스킬로 다른 결과를 만든다
-    Source Goal          MG-OVERCOME-SUPERIOR-OPPONENT
-    Source Possibility   MP-MATCH-WEAPON-TO-ARMOR
-    Missing / Partial    MC-ATTACK-ARMOR-MATCHUP (MISSING) — **이것 하나뿐이다**.
-                         MP-MATCH-WEAPON-TO-ARMOR 가 요구하는 나머지
-                         (MC-COMBAT-STRIKE)는 이미 세계에 있다.
-                         지식 MK-OPPONENT-DEFENSE-SHAPE 는 이 Cycle 이 세계에 세운다 —
-                         "상대가 어떤 공격 형태에 덜 버티는지를 안다.
-                          이 지식이 없으면 무기 선택은 취향이고, 있으면 선택이 된다"
-    원본 근거            **design/Design-Combat-DamageType-R0.md** (2026-08-17 도착) ·
-                         R1 §14 Damage Type 층 · 구판 §6
+    Source Possibility   MP-PIERCE-THE-HARD-DEFENSE
+    Missing / Partial    MC-PENETRATION (MISSING) — **이것 하나뿐이다**.
+                         MP-PIERCE-THE-HARD-DEFENSE 가 요구하는 나머지 3종
+                         (MC-ATTACK-ARMOR-MATCHUP · MC-DEFENSE-MITIGATION ·
+                         MC-COMBAT-STRIKE)과 지식 MK-OPPONENT-DEFENSE-SHAPE 는
+                         이미 세계에 있다 — 마지막 둘을 C012 가 채웠다
+    원본 근거            R1 §14 Penetration (무엇을 더하는가) ·
+                         design/Design-Combat-DamageType-R0.md §15 (어디에 붙는가 ·
+                         무엇을 하면 안 되는가) · R1 핵심 원칙 (새 공식을 만들지 않는다)
     Active Constraints   DC-COMBAT-PLAYER-CAUSALITY · DC-COMBAT-ONE-FORMULA ·
                          DC-COMBAT-ONE-LAYER-AT-A-TIME · DC-WORLD-OWNS-THE-SURFACE-LIST
-    Constraint Eval      SATISFIED — 타입은 새 공식을 만들지 않고 **같은 공식에 넣을 입력을
-                         고를 뿐**이다 (DC-COMBAT-ONE-FORMULA). 난수가 없고 Resistance 를
-                         저항 확률로 해석하지 않는다 (DC-COMBAT-PLAYER-CAUSALITY).
-                         관통·능동 방어의 타입별 효율은 건드리지 않는다
-                         (DC-COMBAT-ONE-LAYER-AT-A-TIME). 약점 판정을 세계가 내놓는다
+    Constraint Eval      SATISFIED — 관통은 방어를 **확률로 무시**하지 않고 마주한 방어를
+                         결정적으로 깎는다 (DC-COMBAT-PLAYER-CAUSALITY). 새 피해 공식을
+                         만들지 않고 기존 감쇄식이 읽는 방어 값 하나를 바꿀 뿐이다
+                         (DC-COMBAT-ONE-FORMULA · R1 핵심 원칙). 타입 대응이 고른 방어에만
+                         작용하고 Damage Type 자체나 능동 방어의 효율은 건드리지 않는다
+                         (DC-COMBAT-ONE-LAYER-AT-A-TIME · DamageType §15).
+                         깎이기 전후의 방어를 세계가 이름과 함께 관찰에 싣는다
                          (DC-WORLD-OWNS-THE-SURFACE-LIST).
-                         주의 — DC-COMBAT-MATCHUP-SOFT 는 현재 보류(DRAFT)다.
-                         이 Cycle 이 그 DC 의 근거 층이므로, 닫은 뒤 재승인 여부를
-                         Human 이 판단할 자리가 생긴다
-    Observable Result    상대의 두 방어와 어느 쪽이 더 단단한지가 보이고, 두 스킬을 같은
-                         상대에게 썼을 때 서로 다른 피해가 나오며, 그 차이가 어느 능력을
-                         읽었는지로 계산 내역에 설명된다
-    Why one Cycle        새 공식이 없다. 능력치가 둘에서 넷으로 갈리고 스킬이 자기 방식을
-                         가지며, 고르는 단계 하나가 기존 계산 앞에 선다.
-                         오라 스킬 1종은 선택이 성립하는 최소 콘텐츠이며 새 모션 자산도
-                         필요 없다 (기존 스킬 구조를 그대로 쓴다)
-    Status               **SELECTED** — 2026-08-17. 설계 원본 도착으로 대기가 풀렸다.
-                         Cycle = C012-damage-type-chooses-the-defense
+                         참고 — DC-COMBAT-MATCHUP-SOFT 는 DRAFT(보류)다. 이 층은 그 DC 가
+                         정한 "상성은 별도 배율표가 아니다" 를 유지해야 하지만, 현재
+                         Active 가 아니므로 판정 근거로 세지 않는다 → Q12
+    Observable Result    같은 상대·같은 스킬인데 관통을 지닌 쪽이 더 큰 피해를 넣고,
+                         그 차이가 "상대 방어가 얼마나 통하지 않았는가" 로 계산 내역에
+                         설명되며, 방어가 두꺼운 상대일수록 그 몫이 커지고 무른 상대에게는
+                         거의 달라지지 않는 것이 보인다
+    Why one Cycle        새 공식이 없다. 계산 앞에 고르는 단계를 하나 더 세우는 것도 아니다 —
+                         C012 가 이미 고른 방어 값에, 그 값을 깎는 의미 하나가 붙는다.
+                         새 행동도 새 모션 자산도 필요 없다
+    7 조건               1 아직 없다 (MC-PENETRATION MISSING) ·
+                         2 MG-OVERCOME-SUPERIOR-OPPONENT 의 네 번째 경로를 연다 ·
+                         3 두 존재의 관통·방어를 바꿔 보며 Client 에서 확인된다 ·
+                         4 한 Cycle 에 닫힌다 (위 Why one Cycle) ·
+                         5 코드 Task 가 아니라 "방어를 올리는 것만으로는 안전하지 않다" 는
+                           새 World 규칙이다 · 6 Active 4종과 양립 (위 Constraint Eval) ·
+                         7 Active Defense 층이 그대로 얹힌다
+    Status               PROPOSED — Human 선택 대기
 
-### FR-BREAK-OPENS-THE-BURST-WINDOW
-    Playable Result      플레이어가 압박을 이어 상대의 균형을 무너뜨리고,
-                         무너져 있는 짧은 동안 모아 둔 기력을 쏟아붓는다
-    Source Goal          MG-OVERCOME-SUPERIOR-OPPONENT
-    Source Possibility   MP-BREAK-THE-GUARD
-    Missing / Partial    MC-BREAK (MISSING)
-    원본 근거            구판 §9 (R1 에서 세부 삭제 — 확장 시점에 재설계)
-    Status               DEFERRED — 기본 공식 검증 조건은 C010 으로 충족되었으나,
-                         R1 이 이 층의 세부(균형 누적·붕괴)를 삭제했다.
-                         재설계 문서가 나온 뒤 후보로 세운다
+## 지금 열 수 없는 것
 
-### FR-FLOW-OPENS-THE-BODY
-    Playable Result      플레이어가 힘을 공격에 몰면 그동안 몸이 실제로 열리고,
-                         상대가 힘을 몬 순간을 읽어 그 틈을 때릴 수 있다
-    Source Goal          MG-OVERCOME-SUPERIOR-OPPONENT
-    Source Possibility   MP-EXPLOIT-OPEN-BODY
-    Missing / Partial    MC-COMBAT-FLOW (MISSING) · MC-COMBAT-CAUSE-READING (PARTIAL)
-    원본 근거            구판 §7 (R1 §14 Aura/Nen 층 집중으로 재설계 예정)
-    Status               DEFERRED — R1 §14 Aura/Nen 층
+각각 막힌 이유가 다르다. 이유가 사라지면 후보로 올린다.
 
-### FR-VOW-BUYS-POWER-WITH-RISK
-    Playable Result      플레이어가 스스로 제약을 건 스킬로 규칙 위의 한 방을 내고,
-                         제약을 지키지 못하면 정의된 대가를 그 자리에서 치른다
-    Source Goal          MG-OVERCOME-SUPERIOR-OPPONENT
-    Source Possibility   MP-STAKE-EVERYTHING-ON-ONE-BLOW
-    Missing / Partial    MC-VOW (MISSING) · MC-CONDITION-STACKING (MISSING)
-    원본 근거            구판 §10 · §12 (R1 §14 Aura/Nen 층 조건·제약·서약으로 유지)
-    Depends On           선행 층들 (R1 §14 — Aura 는 마지막 층이다)
-    Status               DEFERRED — R1 §14 Aura/Nen 층
+| 층 / 후보 | 무엇이 막고 있는가 |
+|---|---|
+| Critical | DC-COMBAT-PLAYER-CAUSALITY 와 충돌 — Human 결정 대기 (Q11). R1 자신이 건너뛰기를 허용한다 ("Basic Damage 는 Critical 없이도 완전히 동작해야 한다") |
+| Active Defense (완벽한 막기·되받아치기) | 의존성(Guard)은 C011 로 풀렸으나 차례가 아니다 — R1 §15 층 그림에서 Penetration **위**다. 결손은 MC-PERFECT-GUARD · MC-COUNTER 둘 |
+| Aura / Nen (집중·조건·제약·서약) | 사다리의 맨 위다. 아래 층이 서야 의미가 생긴다. 결손 MC-COMBAT-FLOW · MC-CONDITION-STACKING · MC-VOW · MC-FORTIFY |
+| Break (균형 붕괴) | R1 이 이 층의 세부(균형 누적·붕괴)를 삭제했다. 재설계 문서 대기 |
+| Evade (회피) · Weak Point · Rear Attack | R1 §13 이 이번 사다리의 범위에서 제외했다 |
 
-## 추천 순서와 근거
+### 층을 후보로 세우는 조건
+
+한 층은 원본이 다음 셋을 지정할 때 후보가 된다. 셋 중 하나라도 없으면 Cycle 이
+없는 설계를 지어내 메우게 된다.
 
 ```text
-1  FR-MATCHUP-MAKES-THE-CHOICE   SELECTED — R1 §14 가 Defense Action 바로 위에 둔
-                                 Damage Type 층이다. 아래 두 층이 닫혔고(C010 기본 공식 ·
-                                 C011 막기) 이 층을 막고 있던 것은 세부 설계의 부재 하나였는데,
-                                 2026-08-17 Design-Combat-DamageType-R0.md 로 해소되었다.
-                                 요구 Capability 가 MC-ATTACK-ARMOR-MATCHUP 하나로 줄어
-                                 지금 가장 가까운 후보다.
-
-지금 세울 수 있는 후보는 이것 하나다. 나머지가 막혀 있는 이유는 각각 다르다.
-
-  Critical 층        DC-COMBAT-PLAYER-CAUSALITY 와 충돌 — Human 결정 대기 (Q11).
-                     결정 전에는 후보로 올리지 않는다.
-                     R1 §14 의 순서상 Damage Type 아래이지만, 건너뛴 채 위층을 올리는 것은
-                     R1 자신이 허용한다 — "C010 은 Critical 없이도 완전히 동작해야 한다".
-  Penetration 층     Damage Type 이 먼저다. 관통은 타입 대응이 고른 방어 능력에 작용하므로
-                     (설계 §15) 고를 방어가 둘이 되기 전에는 대상이 없다.
-                     세부 설계도 아직 R1 §14 의 두 줄뿐이다.
-  Active Defense 층  Depends On(Guard)은 C011 로 풀렸으나 차례가 아니다 —
-                     R1 §15 층 그림에서 Damage Type · Penetration 위에 있다.
-  Aura/Nen 층        가장 위다. 아래 층들이 서야 의미가 생긴다.
-
-이후 순서는 R1 §14 와 §15 층 그림을 따른다. 각 층은 **자기 세부 설계 문서가 도착한 뒤에**
-후보로 세운다 — 원본이 몇 단어뿐인 층을 열면 Cycle 이 없는 설계를 지어내 메우게 된다.
-Damage Type 층이 그 규칙대로 기다렸다가 열린 첫 사례다.
+1. 무엇을 더하는가        그 층이 세계에 세우는 의미
+2. 어디에 붙는가          기존 공식·구조의 어느 지점에 작용하는가
+3. 무엇을 하면 안 되는가   아래 층을 어떻게 침범하지 않는가
 ```
+
+Penetration 은 셋을 모두 갖추었다 — R1 §14 가 1, DamageType R0 §15 가 2 와 3 이다.
+(2026-08-18 명확화 — 이전 문안은 "층마다 자기 문서가 도착해야 한다" 였고, 그래서
+§14 + 다른 층 문서의 경계 규정으로 이미 셋이 채워진 Penetration 이 근거 없이 막혀 있었다.)
 
 ## 선택 기록
 
-| Frontier | 결정 | Cycle | 비고 |
-|---|---|---|---|
-| FR-GUARD-TRADES-BODY-FOR-RESOURCE | SELECTED | C010-guard-trades-body-for-resource | 검사 통과 후 **2026-08-17 Human 결정으로 롤백** — R1 층 순서와 어긋남. 산출물은 git history |
-| FR-PERFECT-GUARD-TURNS-THE-TABLE | SELECTED | C011-perfect-guard-turns-the-table | 검사 통과 후 **2026-08-17 Human 결정으로 롤백** — 위와 같음 |
-| FR-STATS-DECIDE-THE-DAMAGE | **CLOSED** | C010-stats-decide-the-damage | 2026-08-17 **COMPLETE** — Human Play 확인. MC-ATTACK-POWER · MC-SKILL-SCALING · MC-DEFENSE-MITIGATION 승격. 후보 목록에서 소진 처리 |
-| FR-GUARD-TRADES-BODY-FOR-RESOURCE | SELECTED | C011-guard-trades-body-for-resource | 2026-08-17 Human 선택. R1 §14 Defense Action 층. 구 C011(완벽한 막기)과는 전체 ID 로 구분하며, 롤백된 구 C010(막기)의 산출물이 git history 에 있어 참조 가능하다 |
-| FR-GUARD-TRADES-BODY-FOR-RESOURCE | **CLOSED** | C011-guard-trades-body-for-resource | 2026-08-17 **COMPLETE** — Human Play 확인. MC-GUARD 승격 근거 확보(overlay.md 반영은 아직). 후보 목록에서 소진 처리 |
-| FR-MATCHUP-MAKES-THE-CHOICE | SELECTED | C012-damage-type-chooses-the-defense | 2026-08-17. Damage Type 층 세부 설계(Design-Combat-DamageType-R0.md) 도착으로 대기 해제 |
+| Frontier | Cycle | 결과 |
+|---|---|---|
+| FR-STATS-DECIDE-THE-DAMAGE | C010-stats-decide-the-damage | **CLOSED** 2026-08-17 — MC-ATTACK-POWER · MC-SKILL-SCALING · MC-DEFENSE-MITIGATION 승격 |
+| FR-GUARD-TRADES-BODY-FOR-RESOURCE | C011-guard-trades-body-for-resource | **CLOSED** 2026-08-17 — MC-GUARD 승격 (overlay 반영 2026-08-18) |
+| FR-MATCHUP-MAKES-THE-CHOICE | C012-damage-type-chooses-the-defense | **CLOSED** 2026-08-18 — MC-ATTACK-ARMOR-MATCHUP 승격 · MK-OPPONENT-DEFENSE-SHAPE 확립 |
 
-### 소진된 후보에서 배운 것
+    롤백된 것 (2026-08-17 Human 결정 — R1 층 순서와 어긋나 되돌렸다. 산출물은 git history)
+        구 C010-guard-trades-body-for-resource · 구 C011-perfect-guard-turns-the-table
+        Active Defense 층을 재구축할 때 그 산출물을 참조할 수 있다.
 
-    FR-STATS-DECIDE-THE-DAMAGE 의 Playable Result 는 능력치 차이를 "장비·성장으로"
-    만든다고 적었으나, 그 층(장비·성장)은 R1 §13 이 제외한 범위였다. Cycle 은
-    C009 디버그 명령을 수단으로 삼아 닫았고 Human 이 승인했다 (C010 05-review.md).
+### 배운 것
 
-    교훈 — Playable Result 에는 **이번 층에서 실제로 제공되는 수단**을 적는다.
-    아직 없는 층의 수단을 적으면 Cycle Definition 이 해석으로 메워야 한다.
+    Playable Result 에는 **이번 층에서 실제로 제공되는 수단**을 적는다.
+    FR-STATS-DECIDE-THE-DAMAGE 는 능력치 차이를 "장비·성장으로" 만든다고 적었으나 그 층은
+    R1 §13 이 제외한 범위였고, Cycle 이 C009 디버그 명령으로 메워야 했다 (C010 05-review.md).
+
+    Overlay 를 미루면 Frontier 가 거짓말을 한다.
+    C011·C012 가 닫히는 동안 MF 가 밀려 이미 채워진 Capability 가 결손으로 남아 있었고,
+    그 상태의 Frontier 는 "다음에 할 것이 없다" 로 읽혔다. Cycle 이 닫히면 MF 를 먼저 돌린다.
+
+    Graph 에 노드가 없으면 그 층은 Frontier 에 나타나지 못한다.
+    Penetration 이 그랬다 — 설계가 다음 층으로 지정하고 있는데도 MC-*/MP-* 가 없어
+    Overlay 의 MISSING 목록에 들어가지 못했고, 결과적으로 후보가 될 길이 없었다.
+    설계가 예고한 층은 닫히기 전에 **노드로 먼저 세워 둔다** (M2).
 
 ## 규칙
 

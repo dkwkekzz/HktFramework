@@ -20,7 +20,7 @@ nodes:
     type: capability
     semantic: >
       휘두른 몸이 닿은 상대의 생명을 정해진 만큼 덜어내고, 맞은 몸은 하던 행동이 끊기고 밀려난다.
-    required_by: [MP-BREAK-THE-GUARD, MP-EXPLOIT-OPEN-BODY, MP-STRIKE-THE-VULNERABLE-SPOT, MP-MATCH-WEAPON-TO-ARMOR, MP-OUTGROW-THE-OPPONENT]
+    required_by: [MP-BREAK-THE-GUARD, MP-EXPLOIT-OPEN-BODY, MP-STRIKE-THE-VULNERABLE-SPOT, MP-MATCH-WEAPON-TO-ARMOR, MP-OUTGROW-THE-OPPONENT, MP-PIERCE-THE-HARD-DEFENSE]
     constraints: [DC-COMBAT-PLAYER-CAUSALITY]
     constraint_evaluation:
       DC-COMBAT-PLAYER-CAUSALITY: SATISFIED    # 정해진 만큼 덜어낸다 — 난수 없는 결정적 피해 (C007 실측 · R1 §6)
@@ -69,8 +69,9 @@ nodes:
     constraint_evaluation:
       DC-COMBAT-DEFENSE-IS-ACTIVE: SATISFIED   # 막기는 수치가 아니라 행동이다 (구판 §8.1) — DC 는 현재 보류
       DC-COMBAT-SHARED-BUDGET: SATISFIED       # 전용 게이지 없이 같은 기력으로 받아낸다 (구판 §11)
-    overlay: MISSING
-    # C010 으로 닫혔다가 2026-08-17 Human 결정으로 롤백 — R1 §14 Defense Action(Guard) 층에서 재구축한다.
+    overlay: IMPLEMENTED
+    # C011-guard-trades-body-for-resource 가 R1 §14 Defense Action 층으로 닫았다 (2026-08-17).
+    # 구 C010(막기)은 2026-08-17 롤백된 다른 Cycle 이다. 근거는 ../overlay.md.
 
   - id: MC-PERFECT-GUARD
     type: capability
@@ -102,14 +103,14 @@ nodes:
     semantic: >
       맞은 피해를 줄인다. 공격을 빗나가게 하지 않으며, 아무리 두꺼워도 피해를 0 으로
       만들지는 못하고, 두꺼워질수록 추가 방어의 효과는 점차 완만해진다.
-    required_by: [MP-TRADE-BODY-FOR-RESOURCE, MP-HOLD-FORTIFIED, MP-OUTGROW-THE-OPPONENT]
+    required_by: [MP-TRADE-BODY-FOR-RESOURCE, MP-HOLD-FORTIFIED, MP-OUTGROW-THE-OPPONENT, MP-PIERCE-THE-HARD-DEFENSE]
     constraints: [DC-COMBAT-PLAYER-CAUSALITY]
     constraint_evaluation:
       DC-COMBAT-PLAYER-CAUSALITY: SATISFIED    # 빗나가게(확률 회피) 하지 않고 맞은 피해를 결정적으로 줄인다 (R1 §4 · §6)
     overlay: IMPLEMENTED
     # C010-stats-decide-the-damage 가 R1 §4 의 체감(diminishing) 형태로 닫았다.
     # 구 C010(감산식)은 2026-08-17 롤백된 다른 Cycle 이다. 근거는 ../overlay.md.
-    # 이것은 **수동 감쇄**다 — 막기 같은 능동 방어는 MC-GUARD 이며 여전히 MISSING 이다.
+    # 이것은 **수동 감쇄**다 — 막기 같은 능동 방어는 MC-GUARD 이며 별개 노드다 (C011 로 닫혔다).
 
   # ── R1 이 지정한 다음 층 (아직 세계에 없는 것) ────────────────────────
 
@@ -194,13 +195,27 @@ nodes:
     semantic: >
       무엇으로 무엇을 때렸는지가 결과를 바꾼다. 상성의 이득은 제한되며,
       강한 감각은 피해량보다 균형을 무너뜨리는 효율 쪽에 실린다.
-    required_by: [MP-MATCH-WEAPON-TO-ARMOR]
+    required_by: [MP-MATCH-WEAPON-TO-ARMOR, MP-PIERCE-THE-HARD-DEFENSE]
     constraints: [DC-COMBAT-MATCHUP-SOFT, DC-COMBAT-PLAYER-CAUSALITY]
     constraint_evaluation:
       DC-COMBAT-MATCHUP-SOFT: SATISFIED        # semantic 이 이미 이득 제한과 균형 붕괴 쪽 배치를 담는다 (구판 §6.2)
       DC-COMBAT-PLAYER-CAUSALITY: SATISFIED    # 같은 조합이면 같은 결과 — 결정적 상성이다 (구판 §6)
+    overlay: IMPLEMENTED
+    # C012-damage-type-chooses-the-defense 가 R1 §14 Damage Type 층으로 닫았다 (2026-08-18).
+    # 공격 형태 둘 · 방어 형태 둘이 존재하고 타입 대응이 계산의 입력을 고른다. 근거는 ../overlay.md.
+
+  - id: MC-PENETRATION
+    type: capability
+    semantic: >
+      상대의 방어 중 내 공격이 마주한 쪽을 얼마간 통하지 않게 만든다. 방어를 없애지는 못하고,
+      마주하지 않은 다른 방어에는 닿지 않으며, 두껍게 굳힌 상대일수록 무력화의 몫이 커진다.
+    required_by: [MP-PIERCE-THE-HARD-DEFENSE]
+    constraints: [DC-COMBAT-PLAYER-CAUSALITY]
+    constraint_evaluation:
+      DC-COMBAT-PLAYER-CAUSALITY: SATISFIED    # 관통은 확률로 방어를 무시하는 것이 아니라 마주한 방어를 결정적으로 깎는다 (R1 §14 Penetration · DamageType R0 §15)
     overlay: MISSING
-    # R1 §14 Damage Type 층(Physical/Magic · Armor/Resistance)으로 재편 예정.
+    # R1 §14 Penetration 층. 작용 지점은 DamageType R0 §15 가 지정한다 —
+    # 타입 대응이 고른 방어에만 작용하고 Damage Type 자체를 바꾸지 않는다.
 
   - id: MC-WEAK-POINT
     type: capability

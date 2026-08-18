@@ -11,7 +11,7 @@ Human 이 답한다    DECISION 줄
 답이 정해지면 해당 Node/Constraint 에 반영하고 이 항목을 `CLOSED` 로 바꾼다.
 항목은 지우지 않는다 — 왜 그렇게 정했는지의 기록이다.
 
-미해결 **4건** (Q2 · Q3 · Q8 · Q11) · 닫힌 것 7건.
+미해결 **5건** (Q2 · Q3 · Q8 · Q11 · Q12) · 닫힌 것 7건.
 
 ---
 
@@ -133,6 +133,35 @@ Human 이 답한다    DECISION 줄
     Expected      결정 전까지 Frontier 에 확률 Critical 후보를 올리지 않는다 (현재 상태).
 
     DECISION      <PENDING>
+
+---
+
+## Q12. 보류(DRAFT) 중인 DC 2종의 근거 층이 실재하게 되었다 — 재승인할 것인가 — OPEN
+
+    무엇          DC-COMBAT-DEFENSE-IS-ACTIVE 와 DC-COMBAT-MATCHUP-SOFT 는 2026-08-17
+                  Human 지시로 DRAFT(보류)가 되었다. 사유는 "해당 층이 R1 로 이연되어
+                  아직 세계에 없다" 였다. 그 전제가 사라졌다 —
+                      DEFENSE-IS-ACTIVE 의 근거 층 = Defense Action  → C011 로 닫혔다
+                      MATCHUP-SOFT 의 근거 층    = Damage Type      → C012 로 닫혔다
+                  두 Cycle 모두 08-verification 에서 해당 DC 를 SATISFIED 로 실측 판정했다.
+
+    영향          지금 두 DC 는 Active 가 아니므로 Frontier 의 Constraint Eval 에서
+                  구속력이 없다. 특히 Active Defense 층(완벽한 막기·되받아치기)이
+                  DEFENSE-IS-ACTIVE 의 두 번째 요구(방어 성공이 공격 기회를 만든다)를
+                  정면으로 다루는 층인데, 그 층을 열 때 이 DC 가 보류인 채면
+                  "방어 성공이 공격권을 뒤집어야 하는가" 를 Cycle 이 임의로 정하게 된다.
+
+    선택지        (a) 두 DC 를 APPROVED 로 재승인 → Active 5종 → 7종.
+                      Active Defense · Penetration Cycle 이 이 형태 아래에서 설계된다
+                  (b) 문안을 손봐 REVISED 로 승인 → 특히 DEFENSE-IS-ACTIVE 의 두 번째
+                      요구는 아직 세계에 없다(MC-PERFECT-GUARD·MC-COUNTER 는 MISSING)
+                  (c) 계속 보류 → 각 Cycle 이 그때그때 판단한다
+
+    Expected      결정 전까지 Frontier 는 두 DC 를 "참고(DRAFT)" 로만 적고
+                  Constraint Eval 의 근거로 삼지 않는다 (현재 상태).
+
+    DECISION      <PENDING>
+
 
 ---
 

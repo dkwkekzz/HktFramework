@@ -4,7 +4,7 @@
 [PASS] World Rule Execution
 [PASS] Projection
 [PASS] View Binding
-[    ] Playable          기계 왕복은 통과 — **Human Play 확인만 남았다**
+[PASS] Playable          기계 왕복 + Human Play 확인 (2026-08-18)
 [PASS] Regression
 
 ## NEW BEHAVIOR
@@ -255,13 +255,14 @@
     [x] Server + Client 연결 시 실제 플레이가 가능하다      ws 왕복 실측 (PLAYABLE)
     [x] Runtime 결과를 Goal / Possibility / Intent 까지 추적할 수 있다
                                                             RULE_* · INTENT_DAMAGE_TYPE_* 식별자
-    [ ] 인간이 실제 게임에서 Cycle Goal 달성을 확인했다     ← **남았다**
+    [x] 인간이 실제 게임에서 Cycle Goal 달성을 확인했다     2026-08-18 Human 확인
     [x] 결과를 다음 Cycle 에서 그대로 재사용할 수 있다      Penetration 층이 고른
                                                             defenseStat 에 얹힌다
 
 ## STATUS
 
-    IN PROGRESS — 기계 검증 14항 전부 통과. Human Play 확인 하나만 남았다.
+    COMPLETE — 2026-08-18. Completion Gate 15항 전부 참이다.
+    기계 검증 14항이 통과했고 마지막 한 항(Human Play)을 Human 이 확인했다.
 
-    확인 방법 — `npm run dev` (또는 run.sh) 로 띄우고 위 PLAYABLE 의 일곱 항목을 본다.
-    확인되면 이 문서와 01-cycle.md 의 STATUS 를 COMPLETE 로 바꾼다.
+    Damage Type 층이 닫혔다. 다음 층은 Penetration —
+    이 Cycle 이 고른 defenseStat 에 관통이 작용한다 (설계 §15 경계).
