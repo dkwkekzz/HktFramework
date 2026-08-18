@@ -3,7 +3,6 @@
 #        Class/Item/Actor 가 grants 로 연결된다) ·
 #   §35 (Class 와 Item 은 동일한 Capability Network 에 연결된다) ·
 #   §42 Anti-pattern (Class 마다 같은 Capability 를 복제한다)
-# 2026-08-18 Inject — 같은 날 Human 일괄 승인 (Q13 → HISTORY.md).
 id: DC-GROWTH-NO-CAPABILITY-DUPLICATION
 type: constraint
 

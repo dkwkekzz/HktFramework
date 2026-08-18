@@ -2,7 +2,6 @@
 #   §34 (Growth Graph 가 Goal 을 대신하지 않는다 — 현재 Goal 달성을 위해 성장하는
 #        것이 의미 있을 때만 Growth Possibility 를 만든다) ·
 #   §42 Anti-pattern (다음 Class 를 얻어야 한다 → 그래서 Quest 를 만든다)
-# 2026-08-18 Inject — 같은 날 Human 일괄 승인 (Q13 → HISTORY.md).
 id: DC-GROWTH-GOAL-FIRST
 type: constraint
 
