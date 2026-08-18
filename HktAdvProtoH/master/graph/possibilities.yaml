@@ -322,4 +322,4 @@ nodes:
 # 탐색하지 않은 Dimension — 이 문서는 Combat 안에서만 대안을 제시한다.
 # 같은 Goal(상대를 넘어선다)을 Exploration / Economy / Social / Faction / Knowledge 로
 # 달성하는 경로는 이 문서의 범위 밖이며, 여기에 억지로 만들어 넣지 않았다.
-# 그 폭은 World Cause 와 Root Goal 이 정해진 뒤 M2 확장이 다룬다.
+# 그 폭은 World Cause 와 Root Goal 이 정해진 뒤 WHY/OPTIONS 확장이 다룬다.

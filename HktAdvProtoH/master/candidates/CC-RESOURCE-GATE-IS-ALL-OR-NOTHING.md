@@ -1,6 +1,6 @@
 # CC-RESOURCE-GATE-IS-ALL-OR-NOTHING
 
-접수: 2026-08-18 (MF) — C011-guard-trades-body-for-resource 의 MASTER FEEDBACK 이 보고한
+접수: 2026-08-18 (Feedback) — C011-guard-trades-body-for-resource 의 MASTER FEEDBACK 이 보고한
 반복 패턴이다. Cycle Agent 는 관찰만 보고했고, 승격 판단은 Human 이 한다.
 
 ## CANDIDATE STATEMENT

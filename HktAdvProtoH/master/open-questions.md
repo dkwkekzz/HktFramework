@@ -21,13 +21,14 @@ Human 이 답한다    DECISION 줄
                   MA-HOSTILE-COMBATANT 의 `wants` 도 비어 있다 — 왜 앞을 막는지 모른다.
                   원본이 전투 규칙 문서라 세계의 사정을 공급하지 않기 때문이다.
 
-    영향          Goal Quality Gate(§25.2) 와 Narrative Gate(§25.4) 를 통과하지 못한다.
+    영향          WHY Quality Gate(정책 §15)의 "왜 원하는지 설명할 수 있는가" 를 채우지 못한다.
+                  (Narrative 는 개정 정책에서 보조 규칙(§11)이 되어 별도 Gate 가 아니다.)
                   Cycle 을 도는 데는 지장이 없다 — Frontier 는 Possibility 까지만 요구한다.
                   그러나 "왜 이 기능이 존재하는가" 의 최상단이 비어 있는 상태로 누적된다.
 
     필요한 것     master/root.md 의 Root Game Goal · World Premise (Human 소유)
 
-    선택지        (a) 지금 root.md 를 채우고 M2 로 World Cause 를 확장한 뒤 Cycle 을 연다
+    선택지        (a) 지금 root.md 를 채우고 WHY 단계로 World Cause 를 확장한 뒤 Cycle 을 연다
                   (b) 전투 Cycle 을 먼저 돌리고 World Cause 는 나중에 붙인다
                       — 그때 기존 MG 의 의미가 흔들릴 수 있다
 
@@ -40,8 +41,9 @@ Human 이 답한다    DECISION 줄
     무엇          Belief 가 0 건이다. 원본은 결과를 만든 모든 원인을 공개하는 쪽이고(§15.1),
                   그러면 오독이 성립하지 않는다.
 
-    영향          Narrative Gate 의 "Belief 와 객관적 WorldState 가 다를 가능성" 항목.
-                  Mystery · Investigation · Reversal 이 전투 층에서는 생기지 않는다.
+    영향          개정 정책에서 Belief 는 필요할 때만 만드는 보조 Node 다(§5.3 · §11) —
+                  차단은 아니나, Mystery · Investigation · Reversal 이 전투 층에서는
+                  생기지 않는다는 설계 폭의 문제는 그대로 남는다.
 
     선택지        (a) 전투는 완전 공개, 오독은 전투 밖(조사·정보)에서만
                   (b) 전투에도 오독의 여지를 둔다 (상대의 의도는 보이되 상태는 추정)
@@ -60,7 +62,7 @@ Human 이 답한다    DECISION 줄
                   다만 "이 상대를 넘어서는 방법이 싸움뿐인가" 는 MMORPG 설계 결정이다.
 
     선택지        (a) 전투는 전투로만 푼다
-                  (b) 전투 밖 경로를 Graph 에 연다 → root.md 와 M2 확장이 선행 (Q2 와 같은 입력)
+                  (b) 전투 밖 경로를 Graph 에 연다 → root.md 와 WHY/OPTIONS 확장이 선행 (Q2 와 같은 입력)
 
     DECISION      <PENDING>
 

@@ -1,6 +1,6 @@
 # CC-WORLD-OWNS-THE-SURFACE-LIST
 
-접수: 2026-08-17 (MF) — C010-stats-decide-the-damage 의 MASTER FEEDBACK 이 보고한
+접수: 2026-08-17 (Feedback) — C010-stats-decide-the-damage 의 MASTER FEEDBACK 이 보고한
 반복 패턴이다. Cycle Agent 는 관찰만 보고했고, 승격 판단은 Human 이 한다.
 
 ## CANDIDATE STATEMENT

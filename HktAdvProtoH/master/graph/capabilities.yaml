@@ -268,6 +268,6 @@ nodes:
 #
 # R1 의 수치·공식(§3 Raw Damage · §4 Defense Multiplier · §5 최종 공식 · §11 밸런스 기준)은
 # 여기에 올리지 않았다 — Cycle 의 03-world-semantic.md 가 소유한다
-# (Master-Intent-Graph-Policy §22 · §26.3). 원본은 위 design/ 문서에 남아 있다.
+# (Master-Intent-Graph-Policy §7.2 · §16). 원본은 위 design/ 문서에 남아 있다.
 #
 # overlay 필드 갱신 근거: C010·C011 롤백 (2026-08-17 Human 결정 — ../overlay.md 참조).

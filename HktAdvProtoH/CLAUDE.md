@@ -19,10 +19,11 @@ mmorpg에서 컨텐츠를 구성하기 위한 구조를 설계한다.
 Workflow 는 두 층이다. 무엇을 왜 만들지 정하는 층과, 그것을 실제로 닫는 층을 분리한다.
 
 ```text
-MASTER LAYER   master/    무엇을 왜 만들 것인가 · 어떤 다른 방법이 있는가 · 어떤 Constraint 아래인가
+MASTER LAYER   master/    WHY → OPTIONS → NEED → NEXT — 무엇을 왜 만들지 결정한다
                지속적으로 자라는 하나의 Typed Graph. History 가 아니라 현재 상태다
-                   Constraint → Goal → (OR) Possibility → (AND) Capability
+                   Goal → (OR) Possibility → (AND) Capability
                    → Existing World Overlay → Frontier
+                   Constraint 는 각 선택 지점의 Filter 다 — 단계가 아니다
 
 CYCLE LAYER    cycles/    선택된 하나의 플레이 결과를 World Semantic 과 Rule 로 폐쇄한다
                기존 8 Stage. Master 도입으로 이 공정은 변경되지 않는다
@@ -115,17 +116,22 @@ Intent 가 Goal 과 불일치    → Cycle Definition (Human)
 Cycle Goal 이 상위 Possibility / Constraint 와 어긋남 → MASTER (Human)
 ```
 
-## Master Stage 인덱스
+## Master Step 인덱스
 
-| Stage | Guide | Artifact |
+Master 의 기본 절차는 `WHY → OPTIONS → NEED → NEXT` 4단계뿐이다 (정책 §9).
+
+| Step | Guide | Artifact |
 |---|---|---|
-| M1. Constraint | [guides/master-constraint.md](guides/master-constraint.md) | `master/constraints/DC-*.yaml` |
-| M2. Graph Expansion | [guides/master-graph.md](guides/master-graph.md) | `master/graph/*.yaml` |
-| M3. Capability Overlay | [guides/master-overlay.md](guides/master-overlay.md) | `master/overlay.md` |
-| M4. Frontier | [guides/master-frontier.md](guides/master-frontier.md) | `master/frontier.md` |
-| M5. Human Selection | Human | `frontier.md` 의 `SELECTED` → Cycle Stage 1 |
-| MF. Feedback | [guides/master-feedback.md](guides/master-feedback.md) | `overlay.md` · `frontier.md` · `candidates/` |
+| 1. WHY — World/Actor/Goal | [guides/master-graph.md](guides/master-graph.md) | `master/graph/` world-state·actors·knowledge·goals |
+| 2. OPTIONS — 대안 Possibility | [guides/master-graph.md](guides/master-graph.md) | `master/graph/possibilities.yaml` |
+| 3. NEED — Capability + Overlay | [guides/master-graph.md](guides/master-graph.md) · [guides/master-overlay.md](guides/master-overlay.md) | `master/graph/capabilities.yaml` · `master/overlay.md` |
+| 4. NEXT — Frontier 후보 | [guides/master-frontier.md](guides/master-frontier.md) | `master/frontier.md` |
+| Human Select | Human | `frontier.md` 의 `SELECTED` → Cycle Stage 1 |
+| Feedback (위쪽 접합점) | [guides/master-feedback.md](guides/master-feedback.md) | `overlay.md` · `frontier.md` · `candidates/` |
+| Inject (기반 기획 주입) | [guides/master-inject.md](guides/master-inject.md) | `constraints/`(DRAFT) · `graph/`(§ provenance) · `overlay.md` · `open-questions.md` |
 
+Constraint 정비는 Step 이 아니다 — Human 요청 시에만
+[guides/master-constraint.md](guides/master-constraint.md) (`master/constraints/DC-*.yaml`).
 Root Game Goal / World Premise (`master/root.md`) 와 Constraint 승인은 Human 소유다.
 파일 형식의 단일 출처는 [master/SCHEMA.md](master/SCHEMA.md) 다.
 
@@ -177,7 +183,7 @@ Artifact 이름 · 단계 구분 · Agent 실행 방식   → Design-CycleExecut
 ```
 
 `Design-Workflow` / `Design-CycleWorkflow` 의 Goal/Possibility 는 **Cycle-local** 의미로 읽는다.
-지속적인 상위 Goal/Possibility 는 `master/` 가 소유한다 (Master-Intent-Graph-Policy §19).
+지속적인 상위 Goal/Possibility 는 `master/` 가 소유한다 (Master-Intent-Graph-Policy §13).
 
 `Design-CycleWorkflow.md` 의 §33(Artifact 이름 5종)과 §19(Implementation 단일 단계)는
 `Design-CycleExecution.md` 가 대체한다 — 실제 규격은 `01-cycle.md` ~ `08-verification.md` 8종,

@@ -1,78 +1,48 @@
-# Master Graph Expansion Stage Guide  (M2)
+# Master Graph Guide (WHY · OPTIONS · NEED)
 
 ## Role
 
-World Cause → Actor / Knowledge·Belief → Actor-owned Goal → 대안 Possibility →
-필요한 Capability 를 Typed Graph 로 확장한다.
+기본 4단계 중 Graph 를 만드는 부분을 담당한다.
+NEED 의 Overlay 판정은 `master-overlay.md`, NEXT 는 `master-frontier.md` 가 잇는다.
 
-**시스템 목록에서 출발하지 않는다.** 누가 왜 무엇을 원하는지에서 출발한다.
+```text
+WHY       누가 무엇을 왜 원하는가            → MW / MA / (필요시 MK·MB) / MG
+OPTIONS   같은 Goal 의 의미 있게 다른 방법    → MP (OR)
+NEED      각 Possibility 에 필요한 것        → Requirement (AND) · MC
+```
 
 ## Input
 
-- `master/root.md`
-- `master/constraints/` — Active Constraint
-- `master/graph/` — 기존 Node (중복 검사용)
-- 확장 대상 (Human 이 지정한 Root Goal · Content Region · 기존 MG-*)
+`root.md` · `constraints/`(Active DC — Filter) · 기존 `graph/`(중복 검사) · 확장 대상
 
 ## Do
 
-`design/Master-Intent-Graph-Policy.md` §24 의 12 Step 을 순서대로 수행한다.
-
-```text
-Step 0   Active Constraint 확인          GLOBAL / Domain / Content-specific
-Step 1   Goal Owner / Motivation 확인    누가·왜·어떤 World State·어떤 Belief
-Step 2   Possibility 를 폭으로 확장       의미가 다른 여러 방법
-Step 3   Constraint Evaluation           SATISFIED / VIOLATED / NOT_APPLICABLE / UNRESOLVED
-Step 4   Requirements 도출                Goal · Capability · Knowledge · WorldState ·
-                                         Relationship · Resource  (AND)
-Step 5   Existing Registry 중복 검사      같은 의미를 새 이름으로 만들지 않는다
-Step 6   Actor Conflict 검사              누구를 돕고 누구를 방해하는가
-Step 7   Consequence 정의                 성공하면 무엇이 실제로 바뀌는가
-Step 8   Reveal / Reframe / New Goal 검사
-Step 9   Constraint Discovery             반복 패턴 → candidates/CC-*.md
-```
-
-Step 10~12 (Overlay · Frontier · Human Selection) 는 M3 · M4 가 담당한다.
-
-Possibility 확장 시 검토할 Dimension:
-
-```text
-Direct action  Combat  Exploration  Economy  Craft  Social cooperation
-Faction / diplomacy  Knowledge / investigation  World manipulation
-Alternative supply / substitution
-```
+1. **WHY** — Goal Owner(MA)·왜(motivation / caused_by)·무엇이 달라지기를(desired_state).
+   Knowledge / Belief 는 실제로 필요할 때만 만든다 (정책 §5).
+2. **OPTIONS** — 같은 Goal 을 다르게 달성하는 Possibility 를 폭으로 탐색한다.
+   Gameplay / Cost / Risk / Relationship / Consequence 중 하나 이상이 실질적으로 달라야
+   대안이다 — 동의어는 대안이 아니다. Active DC 로 걸러 명백한 `VIOLATED` 는
+   정상 경로에서 제거한다 (정책 §6).
+3. **NEED** — 각 Possibility 의 Requirement 를 필요한 것만 기록한다.
+   재사용 가능한 플레이 의미는 MC-* 로 세운다. `semantic` 에 이유를 쓰지 않는다 —
+   상위 Goal/Possibility 경로가 설명한다 (정책 §7).
+4. 새 Node 전에 기존 Registry 를 검색한다. 보조 규칙(Conflict / Consequence /
+   Reveal / Reframe / CC)은 실제 결정에 영향을 줄 때만 쓴다 (정책 §11).
 
 ## Output
 
-`master/graph/*.yaml` — 해당하는 Node 파일에 추가/갱신.
-노드 안에서 표현되지 않는 관계는 `edges.yaml`.
-
-Constraint Candidate 를 발견하면 `master/candidates/CC-*.md`.
-
-형식은 `master/SCHEMA.md` 가 단일 출처다.
-
-## Must
-
-- 상위 Goal 은 Actor-owned 로 표현한다 — 누가 왜 원하는지에 답할 수 있어야 한다.
-- 하나의 Goal 아래 **의미 있게 다른** Possibility 를 탐색한다 (OR).
-- 각 Possibility 의 Requirements 를 명시한다 (AND).
-- 새 Node 를 만들기 전에 기존 Graph 를 검색한다.
-- 각 Possibility/Capability 에 Constraint Evaluation 을 기록한다.
-- 재사용 가능한 저수준 플레이 의미는 Goal 이 아니라 Capability 로 둔다.
+`master/graph/*.yaml` (+ `edges.yaml` · 발견 시 `candidates/CC-*.md`) — 형식은 `master/SCHEMA.md`
 
 ## Must Not
 
-- 숫자를 맞추려 억지 Possibility 를 만들지 않는다 — 동의어는 대안이 아니다.
-- `VIOLATED` 후보를 정상 경로로 흘려보내지 않는다 (Design Conflict 로 제시할 수는 있다).
-- `UNRESOLVED` 를 임의로 `SATISFIED` 로 간주하지 않는다.
-- Cycle 의 수치·공식·State 이름을 Graph 에 복사하지 않는다.
-- Capability 의 `semantic` 에 구현 모듈명을 쓰지 않는다.
-- 같은 Goal/Capability 를 Branch·Content 마다 복제하지 않는다.
+- 숫자를 맞추려 억지 Possibility 를 만들지 않는다.
+- `UNRESOLVED` 를 `SATISFIED` 로 간주하지 않는다.
+- 수치·공식·구현 모듈명을 Graph 에 쓰지 않는다.
+- Constraint 에서 Capability 목록을 도출하지 않는다 — 필요성은 Possibility 에서 온다.
+- 같은 Goal/Capability 를 이름만 바꿔 복제하지 않는다.
 
 ## Done When
 
-- `Master-Intent-Graph-Policy.md` §25.2 Goal · §25.3 Possibility · §25.4 Narrative ·
-  §25.5 DAG/Reuse Quality Gate 가 모두 참이다.
-- 각 Possibility 가 어떤 Capability 를 요구하는지 읽힌다.
+- 정책 §15 의 WHY · OPTIONS · NEED Quality Gate 가 참이다.
 - 각 Capability 가 왜 필요한지 Goal/Possibility 경로로 역추적된다.
-- Constraint 가 실제로 어떤 후보를 걸러냈는지 기록에서 보인다.
+- Constraint 가 어떤 후보를 걸러냈는지 기록에서 보인다.

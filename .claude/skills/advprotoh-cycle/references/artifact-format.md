@@ -315,6 +315,6 @@ before / after / reason` 을 노출한다. 별도 World 접근 경로를 만들�
 통과 주장이 아니라 실행 결과를 적는다. STATUS 는 Human Play 확인 이후에만 `COMPLETE` 다.
 
 `MASTER FEEDBACK` 은 위층으로의 **보고**다. Cycle Agent 는 여기까지만 하고
-`master/` 파일을 직접 편집하지 않는다 — 반영은 Master Feedback Stage(`guides/master-feedback.md`)가
+`master/` 파일을 직접 편집하지 않는다 — 반영은 Master Feedback 작업(`guides/master-feedback.md`)이
 한다. Master Layer 를 쓰지 않는 Cycle 이면 각 항목에 `해당 없음` 을 적는다.
 의미는 `HktAdvProtoH/design/Master-Intent-Graph-Policy.md` §29.2 가 소유한다.

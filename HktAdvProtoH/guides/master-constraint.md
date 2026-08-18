@@ -1,9 +1,17 @@
-# Master Constraint Stage Guide  (M1)
+# Master Constraint Guide
 
 ## Role
 
 게임의 설계 공간을 제한하는 **Design Constraint** 를 정리·기록한다.
-Constraint 는 Design Plane 의 1급 개념이며 Human 이 소유한다.
+Constraint 는 Human 이 소유한다.
+
+Constraint 는 기본 절차(WHY → OPTIONS → NEED → NEXT)의 단계가 아니라
+각 선택 지점에 적용되는 **Filter** 다 (정책 §2.3 · §10). 이 Guide 는 Filter 자체를
+정비하는 작업 — 신설·재작성·승격·충돌 노출 — 을 다루며,
+**Human 이 명시적으로 요청할 때만** 수행한다.
+
+기반 기획 문서에서 원칙을 추출하는 작업은 주입(`master-inject.md`)의 1단계로 일어난다 —
+그때도 이 Guide 의 규칙(특히 "원본보다 세게 쓰지 않는다")을 그대로 따른다.
 
 ## Input
 
@@ -47,6 +55,8 @@ Constraint 는 Design Plane 의 1급 개념이며 Human 이 소유한다.
 
 ## Done When
 
-- `design/Master-Intent-Graph-Policy.md` §25.1 Constraint Quality Gate 12항이 모두 참이다.
+- 정책 §10 Constraint 정책과 정합한다 —
+  statement/rationale 설명 가능 / requires·prohibits·prefers 구분 /
+  수치 없음 / 시스템 목록 없음 / status 명시.
 - 각 Constraint 를 읽고 "무엇이 금지되고 무엇이 요구되는가"에 답할 수 있다.
 - 충돌이 있다면 숨겨지지 않고 노출되어 있다.
