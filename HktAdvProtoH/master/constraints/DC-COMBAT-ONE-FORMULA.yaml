@@ -3,7 +3,9 @@
 #   결과값에 한 가지 의미만 추가한다") · §15 전체 구조 ("가장 아래의 공식은 계속 유지한다.
 #   위의 시스템은 아래 공식을 수정할 뿐 교체하지 않는다") · §0 ("C010(기본 공식)이 이후
 #   모든 공격/방어 시스템의 공통 계산 기반이 된다")
-# 2026-08-17 Human 지시(R1 반영)로 신설.
+# 교차 근거: design/Design-Combat-DamageType-R0.md §5 (타입별로 다른 공식을 만드는 것이
+#   아니라 하나의 공식이 타입에 따라 입력 능력치만 선택한다) · §17
+# 2026-08-17 Human 지시(R1 반영)로 신설. 2026-08-18 Q12 — DT 교차 근거 추가.
 id: DC-COMBAT-ONE-FORMULA
 type: constraint
 
@@ -15,6 +17,7 @@ rationale: >
   난잡해지는 것을 막을 수 있다 (R1 §15). Critical 은 Final Damage 를 증폭하고,
   Guard 는 Final Damage 를 감소시키고, Penetration 은 Defense 를 감소시키고,
   Aura 는 Attack/Defense 를 변화시키는 식이다 (R1 핵심 원칙).
+  Damage Type 층이 그 첫 사례다 — 공식을 늘리지 않고 입력 능력치의 선택만 더했다 (DT §5 · §17).
 
 scope:
   - COMBAT

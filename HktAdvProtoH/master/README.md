@@ -30,20 +30,31 @@ CYCLE LAYER    선택된 하나의 플레이 결과를 World Semantic 과 Rule �
 
 ## 현재 상태
 
-전투 영역 주입 — 원본 `design/Design-Combat-OffenseDefense-R0.md` **R1** (§14 확장 순서가
-Cycle 사다리다). 기준 시점 **C012 닫힘 (2026-08-18)**.
+전투 영역 주입 — 근거 문서는 **둘뿐이다** (2026-08-18 Q12 결정).
 
 ```text
-Constraint    8     APPROVED 5 (Active) · DRAFT 3 (보류 — Q12)
+R1   design/Design-Combat-OffenseDefense-R0.md   §14 확장 순서가 Cycle 사다리다
+DT   design/Design-Combat-DamageType-R0.md       §15 가 이후 확장의 경계를 긋는다
+```
+
+두 문서가 이름조차 대지 않는 의미는 Graph·Constraint 에 두지 않는다 — 보류가 아니라
+삭제한다. 기준 시점 **C012 닫힘 (2026-08-18)** · Q12 정비 반영.
+
+```text
+Constraint    6     APPROVED 6 (COMBAT 5 · GLOBAL 1) · DRAFT 0
 Candidate     3     APPROVED 1 (→ DC) · PENDING 2
 Actor         2     Knowledge 2 · Belief 0
-Goal          2     Possibility 11
-Capability   20     IMPLEMENTED 7 · PARTIAL 2 · MISSING 11
+Goal          2     Possibility 10
+Capability   18     IMPLEMENTED 7 · PARTIAL 2 · MISSING 9
 Frontier      1     PROPOSED — FR-PENETRATION-DEVALUES-THE-WALL (Human 선택 대기)
 WorldState    0     비어 있다 (아래)
 
-Open Question 5   → open-questions.md (Q2 · Q3 · Q8 · Q11 · Q12)
+Open Question 4   → open-questions.md (Q2 · Q3 · Q8 · Q11)
 ```
+
+무엇이 언제 왜 바뀌었는지는 `HISTORY.md` 가 소유한다. 살아 있는 문서(`overlay.md` ·
+`frontier.md` · `open-questions.md` · `constraints/README.md`)에는 **지금 할 일과 현재
+상태만** 남긴다 — 닫힌 것은 그 자리에서 지우고 HISTORY 로 옮긴다.
 
 닫힌 Possibility 3종 — MP-OUTGROW-THE-OPPONENT(C010) · MP-TRADE-BODY-FOR-RESOURCE(C011) ·
 MP-MATCH-WEAPON-TO-ARMOR(C012). 요구 Capability 가 하나도 비어 있지 않은 경로들이다.
@@ -78,6 +89,10 @@ master/     현재 상태    world/ view/ 처럼 계속 갱신된다
 | [frontier.md](frontier.md) | `FR-*` 후보 + Human 선택 기록 | Agent 제안 / **Human** 선택 |
 | [candidates/](candidates/) | `CC-*.md` — 미승인 Constraint Candidate | Agent 제안 / **Human** 승인 |
 | [open-questions.md](open-questions.md) | 승인 대기 · Constraint 충돌 · 설계 공백 · Trade-off | Agent 제기 / **Human** 결정 |
+| [HISTORY.md](HISTORY.md) | 닫힌 것들의 보관소 — 평소에 읽지 않는다 | Master Design Agent |
+
+위 문서들은 **지금 할 일과 현재 상태만** 담는다. 닫힌 항목은 그 자리에서 지우고
+`HISTORY.md` 로 옮긴다 — 그래야 매번 읽는 문서가 가볍게 유지된다.
 
 ## 두 층의 접합점
 

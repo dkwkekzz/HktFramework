@@ -8,10 +8,11 @@ Agent 가 쓴다      질문 · 영향 범위 · 선택지 · 각 선택의 결�
 Human 이 답한다    DECISION 줄
 ```
 
-답이 정해지면 해당 Node/Constraint 에 반영하고 이 항목을 `CLOSED` 로 바꾼다.
-항목은 지우지 않는다 — 왜 그렇게 정했는지의 기록이다.
+답이 정해지면 해당 Node/Constraint 에 반영하고 **이 파일에서 지운 뒤 결정 내용을
+[HISTORY.md](HISTORY.md) 로 옮긴다.** 여기에는 아직 답이 없는 것만 남는다 —
+닫힌 질문이 쌓이면 매번 읽어야 하는 문서가 무거워진다.
 
-미해결 **5건** (Q2 · Q3 · Q8 · Q11 · Q12) · 닫힌 것 7건.
+미해결 **4건** — Q2 · Q3 · Q8 · Q11 (닫힌 질문은 HISTORY.md).
 
 ---
 
@@ -68,54 +69,6 @@ Human 이 답한다    DECISION 줄
 
 ---
 
-## Q9. 반영된 DC 5종의 문안 확정 — CLOSED
-
-    무엇          2026-08-15 Human 지시로 전투 기획서의 명시 원칙 5종을 constraints/ 에
-                  반영했다 (PLAYER-CAUSALITY · DEFENSE-IS-ACTIVE · POWER-HAS-COST ·
-                  SHARED-BUDGET · MATCHUP-SOFT). 반영 자체는 지시받았으나
-                  statement / requires / prohibits / prefers 의 **문안은 Agent 추출**이다.
-                  첫 반영이 원본보다 세게 써서 제거된 이력이 있으므로 문안 검토가 필요하다.
-
-    영향          차단 아님 — Graph 평가와 Frontier 조건 6 판정은 이 문안 기준으로 이미
-                  수행됐다. 문안이 REVISED 되면 해당 평가만 다시 본다.
-
-    선택지        (a) 문안 유지 (APPROVED 확정)
-                  (b) 개별 DC 를 REVISED — 어느 항목이 원본과 다른지 지목
-
-    DECISION      CLOSED (2026-08-17) — 기획서가 R1 로 전면 개정되어 구판 기준 문안 확정이
-                  무의미해졌다. R1 기준 재작성(Q10)이 이 질문을 대체한다.
-
----
-
-## Q10. R1 전면 개정 뒤 DC 5종의 지위 — CLOSED
-
-    무엇          2026-08-17 Human 이 전투 기획서를 R1 로 전면 개정했다
-                  ("가장 단순한 공격/방어 공식 먼저"). DC 5종이 인용하는 구판(R0) § 번호와
-                  일부 근거(공방 심리전 §1.1 · Flow §7 · Vow §12 · 상성 §6)가 현행 문서에서
-                  삭제되거나 §14 확장 순서로 이연되었다. DC 의 방향 자체(능동 방어 ·
-                  집중의 대가 · 공유 예산 · 소프트 상성)는 R1 §14·§15·핵심 원칙과 일치하나,
-                  개정 후 문안·인용 재확정은 Human 소유다 (Q9 문안 검토와 병합 가능).
-
-    영향          차단 아님 — R1 이 지정한 다음 층(기본 공식)에 실질 적용되는 DC 는
-                  DC-COMBAT-PLAYER-CAUSALITY 뿐이고 SATISFIED 다.
-                  DC-COMBAT-DEFENSE-IS-ACTIVE 는 C010·C011 로 이미 세계에서 충족되어 있어
-                  "이번 층의 방어는 능력치다"(R1 §8) 와 충돌하지 않는다 — DC 주석이
-                  수동 감쇄 바닥을 명시적으로 허용한다.
-
-    선택지        (a) DC 5종 유지 — 인용은 구판 표기로 읽는다 (현재 상태)
-                  (b) R1 기준으로 해당 DC 를 REVISED — 인용과 문안을 현행 문서로 재추출
-                  (c) 이연 층에만 근거를 둔 DC(MATCHUP-SOFT · POWER-HAS-COST)를
-                      해당 층의 재설계 문서가 나올 때까지 보류 표시
-
-    DECISION      (b)+(c) — 2026-08-17 Human 지시 ("새로운 기획으로 constraints 다시 작성").
-                  CAUSALITY · SHARED-BUDGET 은 R1 기준 재정합(APPROVED 유지),
-                  ONE-FORMULA · ONE-LAYER-AT-A-TIME 신설(R1 핵심 원칙 · §14·§16),
-                  이연 층 근거의 DEFENSE-IS-ACTIVE · MATCHUP-SOFT · POWER-HAS-COST 는
-                  DRAFT 보류 — 해당 층 재설계 시 재승인. 같은 지시로 C010·C011 구현도
-                  롤백했다 (frontier.md 선택 기록 참조).
-
----
-
 ## Q11. R1 §14 Critical 층(Critical Chance) 는 DC-COMBAT-PLAYER-CAUSALITY 와 충돌 — OPEN
 
     Conflict      R1 §14 Critical 층은 Critical Chance / Critical Damage 를 예고하지만
@@ -124,65 +77,15 @@ Human 이 답한다    DECISION 줄
                   다시 판단한다 · C010(기본 공식)은 Critical 없이도 완전히 동작해야 한다" 고
                   유보했다.
 
-    Affected      DC-COMBAT-PLAYER-CAUSALITY · R1 §14 Critical 층 · (참고) 구판 §10 의
-                  조건부 Critical(비확률) 설계와 MC-CONDITION-STACKING
+    Affected      DC-COMBAT-PLAYER-CAUSALITY · R1 §14 Critical 층 · MC-CONDITION-STACKING
 
-    Trade-off     (a) 확률 Critical 을 넣지 않는다 — 그 층을 건너뛰거나 구판 §10 방향의
-                      조건부(비확률) Critical 로 재설계 → DC 유지, 전투 정체성 유지
+    Trade-off     (a) 확률 Critical 을 넣지 않는다 — 그 층을 건너뛰거나, 조건부(비확률)
+                      Critical 로 재설계한다. 후자를 고르면 그 층의 설계 문서가 먼저
+                      필요하다 (2026-08-18 Q12 — 근거는 현행 두 문서에서만 온다)
+                      → DC 유지, 전투 정체성 유지
                   (b) DC 를 REVISED 하여 확률 Critical 허용 → 전통 MMORPG 감각을 얻는 대신
                       "같은 상태 → 같은 결과" 원칙과 기존 Cycle 검증 근거가 흔들린다
 
     Expected      결정 전까지 Frontier 에 확률 Critical 후보를 올리지 않는다 (현재 상태).
 
     DECISION      <PENDING>
-
----
-
-## Q12. 보류(DRAFT) 중인 DC 2종의 근거 층이 실재하게 되었다 — 재승인할 것인가 — OPEN
-
-    무엇          DC-COMBAT-DEFENSE-IS-ACTIVE 와 DC-COMBAT-MATCHUP-SOFT 는 2026-08-17
-                  Human 지시로 DRAFT(보류)가 되었다. 사유는 "해당 층이 R1 로 이연되어
-                  아직 세계에 없다" 였다. 그 전제가 사라졌다 —
-                      DEFENSE-IS-ACTIVE 의 근거 층 = Defense Action  → C011 로 닫혔다
-                      MATCHUP-SOFT 의 근거 층    = Damage Type      → C012 로 닫혔다
-                  두 Cycle 모두 08-verification 에서 해당 DC 를 SATISFIED 로 실측 판정했다.
-
-    영향          지금 두 DC 는 Active 가 아니므로 Frontier 의 Constraint Eval 에서
-                  구속력이 없다. 특히 Active Defense 층(완벽한 막기·되받아치기)이
-                  DEFENSE-IS-ACTIVE 의 두 번째 요구(방어 성공이 공격 기회를 만든다)를
-                  정면으로 다루는 층인데, 그 층을 열 때 이 DC 가 보류인 채면
-                  "방어 성공이 공격권을 뒤집어야 하는가" 를 Cycle 이 임의로 정하게 된다.
-
-    선택지        (a) 두 DC 를 APPROVED 로 재승인 → Active 5종 → 7종.
-                      Active Defense · Penetration Cycle 이 이 형태 아래에서 설계된다
-                  (b) 문안을 손봐 REVISED 로 승인 → 특히 DEFENSE-IS-ACTIVE 의 두 번째
-                      요구는 아직 세계에 없다(MC-PERFECT-GUARD·MC-COUNTER 는 MISSING)
-                  (c) 계속 보류 → 각 Cycle 이 그때그때 판단한다
-
-    Expected      결정 전까지 Frontier 는 두 DC 를 "참고(DRAFT)" 로만 적고
-                  Constraint Eval 의 근거로 삼지 않는다 (현재 상태).
-
-    DECISION      <PENDING>
-
-
----
-
-## 닫힌 질문
-
-    Q1  DRAFT Constraint 3종 승인 여부
-    Q4  상대가 내 위험을 읽지 못하면 제약이 위험이 아니다
-    Q5  상성을 Break 로 옮기면 Break 가 지배 전략이 되는가
-    Q6  Guard 와 Perfect Guard 를 한 Cycle 로 묶는가
-    Q7  Constraint Candidate 3종 승격 여부
-
-    CLOSED 사유 (5건 공통)
-        Human 지시로 전투 기획서에서 산출한 DC 4종 · CC 3종을 제거했다.
-        위 질문들은 전부 그 Constraint 들이 있어야 성립하는 질문이었으므로 함께 닫는다.
-
-        특히 Q4 는 원본에 없는 요구에서 나온 질문이었다 —
-        원본 §7 은 "플레이어가 상대의 Flow 를 읽는다" 고 할 뿐
-        "모든 위험은 상대가 읽을 수 있어야 한다" 고 하지 않는다.
-        그 요구를 Agent 가 세웠기 때문에 생긴 문제이며, 요구가 사라지면 문제도 사라진다.
-
-        Q6 의 실질(Guard 와 Perfect Guard 를 묶을지)은 Constraint 와 무관하게 남아 있다 —
-        frontier.md 의 추천 순서에 판단 재료로 남겼다.

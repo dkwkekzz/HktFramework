@@ -33,6 +33,14 @@ NEED      각 Possibility 에 필요한 것        → Requirement (AND) · MC
 
 `master/graph/*.yaml` (+ `edges.yaml` · 발견 시 `candidates/CC-*.md`) — 형식은 `master/SCHEMA.md`
 
+## Must
+
+- 근거 문서가 다음 층으로 **예고한 것**은 그 층이 열리기 전에 노드로 세워 둔다.
+  Graph 에 노드가 없으면 Overlay 의 결손 목록에도, Frontier 후보에도 나타나지 못한다
+  (Penetration 이 그랬다 — 설계가 지정한 다음 층인데 후보가 될 길이 없었다).
+- 노드의 의미는 근거 문서의 문장에서만 가져온다. 문서가 이름만 댄 층은 이름과 작용
+  지점까지만 적고 세부는 그 층의 설계 문서를 기다린다.
+
 ## Must Not
 
 - 숫자를 맞추려 억지 Possibility 를 만들지 않는다.

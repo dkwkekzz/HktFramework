@@ -213,11 +213,10 @@ nodes:
     PARTIAL      일부만 닫혔거나, 닫혔지만 이번 Possibility 가 요구하는 형태에 못 미친다
     MISSING      세계에 그 의미가 없다
 
-## 이번 갱신
-    <MASTER FEEDBACK 에서 반영한 변화 · 없으면 `없음`>
 ```
 
 근거 칸에 Cycle 또는 실측을 적는다. **주장만 적지 않는다.**
+이 파일에는 **현재 상태만** 둔다 — 무엇이 언제 바뀌었는지는 `HISTORY.md` 가 소유한다.
 
 ---
 
@@ -239,12 +238,10 @@ nodes:
     Observable Result    무엇을 보고 성공/실패를 아는가
     Why one Cycle        왜 한 Cycle 안에서 닫히는가
     Status               PROPOSED       # PROPOSED | SELECTED | DEFERRED | DROPPED
-
-## 선택 기록
-    | Frontier | 결정 | Cycle | 비고 |
-    |---|---|---|---|
-    | FR-... | SELECTED | C010-perfect-guard | |
 ```
+
+이 파일에는 **지금 고를 수 있는 후보만** 둔다. Cycle 이 닫히면 그 `FR-*` 를 지우고
+결과를 `HISTORY.md` 에 적는다.
 
 `VIOLATED` 후보를 여기에 올리지 않는다 — Design Conflict 로 Human 에게 따로 제시한다.
 Agent 는 후보와 근거를 제공하되 우선순위를 확정하지 않는다.
@@ -267,8 +264,22 @@ Agent 가 임의로 결정하지 않고 남긴 것 — Constraint 승인 대기 
 ```
 
 `차단` 표시는 이것이 답해지기 전에는 다음 단계로 갈 수 없다는 뜻이다.
-답이 정해지면 해당 Node/Constraint 에 반영하고 `CLOSED` 로 바꾼다.
-항목은 지우지 않는다 — 왜 그렇게 정했는지의 기록이다.
+답이 정해지면 해당 Node/Constraint 에 반영하고 **이 파일에서 지운 뒤 `DECISION` 을 담아
+`HISTORY.md` 로 옮긴다.** 기록은 남기되 여기에는 아직 답이 없는 것만 둔다.
+
+---
+
+## HISTORY.md
+
+닫힌 것들의 보관소다. 살아 있는 문서가 가벼워야 매번 읽는 비용이 낮으므로,
+무언가 닫히면 그 자리에서 지우고 여기로 옮긴다. Agent 는 평소 이 파일을 읽지 않는다.
+
+```text
+닫힌 Open Question      DECISION 을 그대로 옮긴다
+Frontier 선택 기록       어떤 FR-* 가 어느 Cycle 로 닫혔는가 · 거기서 배운 것
+Overlay 갱신 이력        무엇이 언제 승격·삭제되었는가와 그 근거
+Constraint 반영 이력     신설·재작성·삭제와 그 사유
+```
 
 Agent 는 여기에 질문을 남길 뿐 스스로 답하지 않는다.
 특히 Constraint 충돌은 해결하지 말고 Conflict · Affected Nodes · Trade-off ·

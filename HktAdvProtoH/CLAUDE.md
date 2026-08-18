@@ -155,7 +155,8 @@ Root Game Goal / World Premise (`master/root.md`) 와 Constraint 승인은 Human
 | 경로 | 내용 | 수명 |
 |---|---|---|
 | [guides/](guides/) | Stage Guide — 단계별 작업 방법·완료 조건 | 공정이 바뀔 때만 |
-| [master/](master/) | Master Intent Graph — Constraint · Graph · Overlay · Frontier | 현재 상태, 계속 자란다 |
+| [master/](master/) | Master Intent Graph — Constraint · Graph · Overlay · Frontier | 현재 상태만, 닫히면 지운다 |
+| [master/HISTORY.md](master/HISTORY.md) | 닫힌 질문·선택·갱신의 보관소 | 조회용, 평소 읽지 않는다 |
 | [cycles/](cycles/) | Cycle Artifact — 진행 기록 | History, 수정하지 않는다 |
 | [world/](world/) | Authoritative World 구현 (Server) | 현재 게임, 계속 발전 |
 | [view/](view/) | Client View 구현 | 현재 게임, 계속 발전 |
