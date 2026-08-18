@@ -21,6 +21,7 @@ import {
   actorModifiers,
   defenseShape,
   defenseMultiplier,
+  effectiveDefense,
   isDowned,
   isGuardBroken,
   rawDamage,
@@ -103,8 +104,25 @@ export function projectObserverView(
           auraAttack: actor.auraAttack,
           armor: actor.armor,
           resistance: actor.resistance,
+          // C013 — 관통 둘. 상대의 관통도 실린다 — 저 존재가 내 방어를 얼마나
+          // 무력화하는지는 내가 얼마나 위험한지를 아는 일이다 (INTENT-PENETRATION-OBSERVE-001).
+          armorPenetration: actor.armorPenetration,
+          resistancePenetration: actor.resistancePenetration,
           armorMultiplier: defenseMultiplier(actor.armor),
           resistanceMultiplier: defenseMultiplier(actor.resistance),
+        },
+        // 이 존재의 두 방어가 보는 이의 관통에게 얼마로 읽히는가 (C013 ADDED).
+        // 세계가 계산해 내놓는다 — View 가 두 수를 곱하지 않는다
+        // (DC-WORLD-OWNS-THE-SURFACE-LIST). 치기 전에 보여야 고르는 일이 판단이 된다.
+        versusObserver: {
+          armor: effectiveDefense(actor.armor, self.armorPenetration),
+          resistance: effectiveDefense(actor.resistance, self.resistancePenetration),
+          armorMultiplier: defenseMultiplier(
+            effectiveDefense(actor.armor, self.armorPenetration),
+          ),
+          resistanceMultiplier: defenseMultiplier(
+            effectiveDefense(actor.resistance, self.resistancePenetration),
+          ),
         },
         // 어느 쪽이 더 단단한가 (C012) — 세계가 계산해 내놓는 판정이다
         // (INTENT-DAMAGE-TYPE-OBSERVE-001 · DC-WORLD-OWNS-THE-SURFACE-LIST).
@@ -322,6 +340,14 @@ export function projectObserverView(
       { id: 'self.combat.auraAttack', kind: 'counter', value: self.auraAttack },
       { id: 'self.combat.armor', kind: 'counter', value: self.armor },
       { id: 'self.combat.resistance', kind: 'counter', value: self.resistance },
+      // C013 — 내 관통. 0 인 쪽도 싣는다. 없다는 것을 아는 것이
+      // "그쪽으로는 벽을 깎을 수 없다" 를 아는 것이다.
+      { id: 'self.combat.armorPenetration', kind: 'counter', value: self.armorPenetration },
+      {
+        id: 'self.combat.resistancePenetration',
+        kind: 'counter',
+        value: self.resistancePenetration,
+      },
       { id: 'self.combat.armorMultiplier', kind: 'counter', value: defenseMultiplier(self.armor) },
       {
         id: 'self.combat.resistanceMultiplier',

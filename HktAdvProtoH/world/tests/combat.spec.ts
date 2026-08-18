@@ -459,10 +459,21 @@ describe('INTENT-ATTRIBUTE-OBSERVE-001 — 세계는 어떤 속성도 숨기지 
       control: 'autonomous',
       tempoStats: { moveSpeed: 2.5, runSpeedMultiplier: 1.4, actionSpeed: 0.85 },
       modifiers: { energyCharge: 1, energyConsume: 1, moveSpeed: 1, actionSpeed: 1 },
-      // C010 → C012 — 새 속성도 예외 없이 실린다. 네 능력과 두 배율이 모두 실린다
+      // C010 → C012 → C013 — 새 속성도 예외 없이 실린다.
+      // 여섯 능력과 두 배율이 모두 실린다
       combatStats: {
         physicalAttack: 40,
         auraAttack: 15,
+        armor: 30,
+        resistance: 90,
+        armorPenetration: 60,
+        resistancePenetration: 0,
+        armorMultiplier: 100 / 130,
+        resistanceMultiplier: 100 / 190,
+      },
+      // C013 — 이 존재의 방어가 보는 이(rabbit-swordsman, 관통 0)에게 얼마로 읽히는가.
+      // 보는 이에게 관통이 없으므로 원래 값과 같다 — 같다는 것 자체가 관찰이다
+      versusObserver: {
         armor: 30,
         resistance: 90,
         armorMultiplier: 100 / 130,
@@ -505,6 +516,9 @@ describe('INTENT-ATTRIBUTE-MUTATE-001 — 세계가 허용하면 속성을 바�
       'auraAttack',
       'armor',
       'resistance',
+      // C013 — 관통 둘이 더해진다. 목록이 바뀔 뿐 계약은 그대로다
+      'armorPenetration',
+      'resistancePenetration',
       'moveSpeed',
       'runSpeedMultiplier',
       'actionSpeed',

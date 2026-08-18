@@ -249,6 +249,9 @@ describe('INTENT-DAMAGE-BREAKDOWN-001 (CHANGED) — 무엇을 골랐는지가 �
       attackContribution: 20,
       rawDamage: 26,
       defenseStat: { name: 'armor', value: 30 },
+      // C013 — 치는 쪽에 관통이 없다. 걷히기 전과 걷힌 뒤가 같다
+      penetrationStat: { name: 'armorPenetration', value: 0 },
+      effectiveDefense: 30,
       defenseMultiplier: 100 / 130,
       finalDamage: 20,
       appliedDamage: 20,
@@ -263,6 +266,9 @@ describe('INTENT-DAMAGE-BREAKDOWN-001 (CHANGED) — 무엇을 골랐는지가 �
       attackContribution: 20,
       rawDamage: 26,
       defenseStat: { name: 'resistance', value: 90 },
+      // C013 — 오라 쪽 관통도 없다. 방식이 고른 쪽의 관통만 실린다
+      penetrationStat: { name: 'resistancePenetration', value: 0 },
+      effectiveDefense: 90,
       defenseMultiplier: 100 / 190,
       finalDamage: 14,
       appliedDamage: 14,
@@ -286,6 +292,8 @@ describe('INTENT-DAMAGE-TYPE-OBSERVE-001 — 고를 근거가 보인다', () => 
       auraAttack: 15,
       armor: 30,
       resistance: 90,
+      armorPenetration: 60, // C013
+      resistancePenetration: 0,
       armorMultiplier: 100 / 130,
       resistanceMultiplier: 100 / 190,
     });

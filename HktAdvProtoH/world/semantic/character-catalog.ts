@@ -40,11 +40,15 @@ export interface ResourceSpec {
 
 // 전투 능력치 (C010 → C012 CHANGED) — 한 방의 크기를 정하는 네 값.
 // 어느 둘을 읽을지는 그 타격의 방식이 정한다 (RULE-DAMAGE-CALCULATE-001 Step 0).
+// C013 CHANGED — 여섯 값. 관통 둘은 상대 방어의 값어치를 떨어뜨리는 능력이며
+// 자기 피해를 키우지 않는다 (INTENT-PENETRATION-001).
 export interface CombatSpec {
   physicalAttack: number; // 물리 방식 피해를 키운다
   auraAttack: number; // 오라 방식 피해를 키운다
   armor: number; // 물리 방식 피해를 줄인다
   resistance: number; // 오라 방식 피해를 줄인다
+  armorPenetration: number; // 상대의 Armor 를 통하지 않게 만든다 (C013)
+  resistancePenetration: number; // 상대의 Resistance 를 통하지 않게 만든다 (C013)
 }
 
 export interface CharacterDefinition {
@@ -75,7 +79,15 @@ export const CHARACTER_CATALOG: Readonly<Record<string, CharacterDefinition>> = 
     resources: { hpMax: 200, cpMax: 100, cpStart: 30 },
     // C012 — 물리 이행값(40 · 50)은 C010 그대로다. 오라 쪽이 새로 선다.
     // 검을 쓰는 단단한 몸이지만 오라를 받아내는 데는 약하다 (Resistance 20).
-    combat: { physicalAttack: 40, auraAttack: 40, armor: 50, resistance: 20 },
+    // C013 — 관통을 지니지 않는다. 이 종류가 내는 모든 피해는 C012 와 완전히 같다.
+    combat: {
+      physicalAttack: 40,
+      auraAttack: 40,
+      armor: 50,
+      resistance: 20,
+      armorPenetration: 0,
+      resistancePenetration: 0,
+    },
     attackRange: 2.0,
     perceptionRange: 9.0,
   },
@@ -87,7 +99,16 @@ export const CHARACTER_CATALOG: Readonly<Record<string, CharacterDefinition>> = 
     resources: { hpMax: 120, cpMax: 60, cpStart: 20 },
     // C012 — 물리 이행값(40 · 30)은 C010 그대로다.
     // 몸은 무르나 오라는 거의 통하지 않고(Resistance 90), 오라로 치는 힘도 약하다.
-    combat: { physicalAttack: 40, auraAttack: 15, armor: 30, resistance: 90 },
+    // C013 — 오라로 치는 힘이 약해 상대의 무른 오라 방어로 피해 갈 수 없다.
+    // 남은 길은 마주한 갑주의 값어치를 떨어뜨리는 것뿐이다 (MP-PIERCE-THE-HARD-DEFENSE).
+    combat: {
+      physicalAttack: 40,
+      auraAttack: 15,
+      armor: 30,
+      resistance: 90,
+      armorPenetration: 60,
+      resistancePenetration: 0,
+    },
     attackRange: 2.0,
     perceptionRange: 9.0,
   },
@@ -99,7 +120,15 @@ export const DEFAULT_CHARACTER: CharacterDefinition = {
   facing: { x: 0, z: 1 },
   tempo: { moveSpeed: 2.5, runSpeedMultiplier: 1.4, actionSpeed: 0.85 },
   resources: { hpMax: 120, cpMax: 60, cpStart: 20 },
-  combat: { physicalAttack: 40, auraAttack: 15, armor: 30, resistance: 90 }, // C012 — wanderer 와 같다
+  // C012 · C013 — wanderer 와 같다 (플레이어가 관통을 지닌 쪽이다)
+  combat: {
+    physicalAttack: 40,
+    auraAttack: 15,
+    armor: 30,
+    resistance: 90,
+    armorPenetration: 60,
+    resistancePenetration: 0,
+  },
   attackRange: 2.0,
   perceptionRange: 9.0,
 };

@@ -71,6 +71,9 @@ describe('INTENT-ATTACK-POWER-001 — 공격 능력이 피해를 키운다', () 
       auraAttack: 40,
       armor: 50,
       resistance: 20,
+      // C013 — rabbit-swordsman 은 관통을 지니지 않는다
+      armorPenetration: 0,
+      resistancePenetration: 0,
       armorMultiplier: 100 / 150,
       resistanceMultiplier: 100 / 120,
     });
@@ -79,6 +82,9 @@ describe('INTENT-ATTACK-POWER-001 — 공격 능력이 피해를 키운다', () 
       auraAttack: 15,
       armor: 30,
       resistance: 90,
+      // C013 — wanderer 는 갑주만 깎을 수 있다
+      armorPenetration: 60,
+      resistancePenetration: 0,
       armorMultiplier: 100 / 130,
       resistanceMultiplier: 100 / 190,
     });
@@ -206,6 +212,10 @@ describe('INTENT-DAMAGE-BREAKDOWN-001 — 한 방의 크기가 나온 경위가 
       attackContribution: 20, // 40 × 0.5
       rawDamage: 26,
       defenseStat: { name: 'armor', value: 30 },
+      // C013 — 치는 쪽(rabbit-swordsman)에게 관통이 없으므로 걷힌 것이 없다.
+      // 그래도 두 항목은 실린다 — 통하지 않았다는 사실도 관찰이어야 한다
+      penetrationStat: { name: 'armorPenetration', value: 0 },
+      effectiveDefense: 30,
       defenseMultiplier: 100 / 130,
       finalDamage: 20,
       // C011 AFFECTED — 실제로 빠진 값이 경위에 함께 실린다.

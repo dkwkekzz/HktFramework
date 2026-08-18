@@ -110,6 +110,14 @@ function applyNumeric(actor: ActorState, id: string, value: number): void {
     case 'resistance':
       actor.resistance = value;
       return;
+    // C013 — 관통 둘. 이 값도 다른 값을 끌고 오지 않는다. 상대의 방어를 두껍게 만들고
+    // 자기 관통을 올려 보는 것이 이 층을 플레이로 확인하는 경로다 (01 SCOPE NOTE).
+    case 'armorPenetration':
+      actor.armorPenetration = value;
+      return;
+    case 'resistancePenetration':
+      actor.resistancePenetration = value;
+      return;
     case 'moveSpeed':
       actor.moveSpeed = value;
       return;
