@@ -23,7 +23,7 @@
    Graph `master/graph/*.yaml` · Overlay `master/overlay.md` · Frontier `master/frontier.md`.
    이번 R1 개정과 함께 갱신되었다.
 5. §3·§4·§5·§11 의 수치·공식은 Master 에 올리지 않는다
-   (Master-Intent-Graph-Policy §22 · §26.3). 그것들은 이 문서에 남아 있다가
+   (Master-Intent-Graph-Policy §7.2 · §16). 그것들은 이 문서에 남아 있다가
    해당 Cycle 의 `03-world-semantic.md` 가 소유한다. 이 파일이 그 수치의 원본이다.
 6. Constraint — 2026-08-17 Human 지시로 이 개정에 맞춰 재작성되었다 (`master/constraints/`).
    Active 4종: PLAYER-CAUSALITY · ONE-FORMULA · ONE-LAYER-AT-A-TIME · SHARED-BUDGET.

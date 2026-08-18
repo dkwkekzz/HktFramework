@@ -109,7 +109,7 @@ master/     현재 상태    world/ view/ 처럼 계속 갱신된다
 ```
 
 Cycle Agent 는 `master/` 를 **직접 편집하지 않는다**. 보고까지가 Cycle 의 책임이고,
-반영은 Master Feedback Stage 가 한다.
+반영은 Master Feedback 작업이 한다.
 
 ## 절대 규칙
 

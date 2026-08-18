@@ -1,15 +1,16 @@
-# Frontier Stage Guide  (M4)
+# Master NEXT Step Guide
 
 ## Role
 
-Missing / Partial Capability 중 **한 Cycle 안에서 닫히는 플레이 가능한 단위**를
-Frontier 후보로 만든다. 이것이 다음 Cycle Goal 의 후보다.
+NEED 가 판정한 Missing / Partial Capability 중 **한 Cycle 안에서 닫히는 플레이 가능한
+단위**를 Frontier(FR-*) 후보로 만든다. 이것이 다음 Cycle Goal 의 후보다.
+선택은 Human 이 한다 (Human Select → 기존 8 Stage Cycle).
 
 ## Input
 
 - `master/overlay.md`
 - `master/graph/possibilities.yaml` · `capabilities.yaml`
-- `master/constraints/` — Active Constraint
+- `master/constraints/` — Active Constraint (Filter)
 - `master/frontier.md` — 기존 후보와 선택 기록
 
 ## Do
@@ -22,10 +23,10 @@ BAD    Perfect Guard 시스템 구현
 GOOD   Player 가 적의 공격 직전에 Guard 하여 피해를 받지 않고 상대를 노출시킬 수 있다
 ```
 
-3. 7 조건으로 검사한다.
+3. 7 조건으로 검사한다 (정책 §8).
 
 ```text
-1. Existing World 에서 아직 완전히 제공되지 않는가
+1. MISSING 이거나 필요한 수준에 못 미치는 PARTIAL 인가
 2. 하나 이상의 상위 Goal/Possibility 를 실제로 전진시키는가
 3. Client 에서 직접 플레이하고 결과를 확인할 수 있는가
 4. 하나의 Cycle 안에서 의미적으로 폐쇄 가능한가
@@ -47,7 +48,7 @@ GOOD   Player 가 적의 공격 직전에 Guard 하여 피해를 받지 않고 �
 
 ## Handoff — Cycle Layer 로
 
-Human 이 하나를 `SELECTED` 로 정하면 그것이 Cycle Definition 의 입력이 된다.
+Human 이 하나를 `SELECTED` 로 정하면 그것이 Cycle Definition 의 입력이 된다 (정책 §12.1).
 `01-cycle.md` 의 `MASTER TRACE` 에 다음이 그대로 옮겨진다.
 
 ```text
@@ -73,6 +74,8 @@ Frontier 선택 이후는 **기존 8 Stage Cycle Workflow 를 변경 없이** �
 
 ## Done When
 
-- `Master-Intent-Graph-Policy.md` §25.6 Frontier Quality Gate 7항이 후보마다 참이다.
+- 정책 §15 NEXT Quality Gate 가 후보마다 참이다 —
+  상위 Goal/Possibility 전진 / Client 플레이 가능 / 한 Cycle 검증 가능 /
+  코드 Task 아님 / Constraint 양립 / 재사용 Capability 로 누적.
 - 각 후보 한 문장을 읽고 "이번 Cycle 이 끝나면 무엇을 플레이할 수 있는가"에 답할 수 있다.
 - Human 이 근거를 보고 하나를 고를 수 있는 상태다.

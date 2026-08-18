@@ -61,10 +61,10 @@ CYCLE LAYER (advprotoh-cycle)   선택된 NEXT 를 World Semantic 과 Rule 로 �
 
 | Step | Guide | 입력 | 출력 |
 |---|---|---|---|
-| WHY | `guides/master-graph.md` | `root.md` · Active DC · 기존 Graph | `graph/` world-state · actors · knowledge · goals |
-| OPTIONS | `guides/master-graph.md` | Goal · Active DC (Filter) | `graph/possibilities.yaml` (+ CC-*) |
-| NEED | `guides/master-graph.md` · `guides/master-overlay.md` | Possibility · Cycle 실측 | `graph/capabilities.yaml` · `master/overlay.md` |
-| NEXT | `guides/master-frontier.md` | `overlay.md` · Graph · Active DC | `master/frontier.md` |
+| WHY | `guides/master-why.md` | `root.md` · Active DC · 기존 Graph | `graph/` world-state · actors · knowledge · goals |
+| OPTIONS | `guides/master-options.md` | Goal · Active DC (Filter) | `graph/possibilities.yaml` (+ CC-*) |
+| NEED | `guides/master-need.md` | Possibility · Cycle 실측 | `graph/capabilities.yaml` · `master/overlay.md` |
+| NEXT | `guides/master-next.md` | `overlay.md` · Graph · Active DC | `master/frontier.md` |
 | Human Select | — | `frontier.md` | **Human 전용 — Agent 가 고르지 않는다** |
 | Feedback | `guides/master-feedback.md` | `08-verification.md` MASTER FEEDBACK | overlay · frontier · CC 갱신 |
 

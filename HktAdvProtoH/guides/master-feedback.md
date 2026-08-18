@@ -1,9 +1,11 @@
-# Master Feedback Stage Guide  (MF)
+# Master Feedback Guide
 
 ## Role
 
-닫힌 Cycle 의 결과를 Master Layer 에 되돌린다.
-Cycle 은 **보고**까지 하고, 반영은 이 단계가 한다.
+닫힌 Cycle 의 결과를 Master Layer 에 되돌린다 — 두 층의 위쪽 접합점이다 (정책 §12.2).
+Cycle 은 **보고**까지 하고, 반영은 이 작업이 한다.
+기본 절차(WHY → OPTIONS → NEED → NEXT)의 단계가 아니며, 처리되지 않은
+`MASTER FEEDBACK` 이 있으면 다른 Master 작업보다 먼저 돌린다.
 
 ## Input
 
@@ -53,11 +55,11 @@ MC-PERFECT-GUARD   MISSING → IMPLEMENTED   근거 C010 08-verification
 - Constraint 를 자동 승격하지 않는다.
 - Constraint 충돌·Master Gap 을 임의로 해결하지 않는다.
 - Cycle 이 보고하지 않은 것을 코드를 뒤져 추측으로 반영하지 않는다.
-  근거가 필요하면 Overlay 단계(M3)로 정식 재판정한다.
+  근거가 필요하면 NEED 단계(Overlay 재판정)로 정식 재판정한다.
 
 ## Done When
 
 - 이번 Cycle 이 바꾼 Capability 상태가 Overlay 에 반영되어 있다.
 - Frontier 의 소진/신규가 정리되어 있다.
 - 제출된 Candidate 와 Gap 이 Human 결정 대기 상태로 노출되어 있다.
-- 다음 M2/M4 실행이 이 상태만 보고 이어질 수 있다.
+- 다음 WHY → OPTIONS → NEED → NEXT 실행이 이 상태만 보고 이어질 수 있다.

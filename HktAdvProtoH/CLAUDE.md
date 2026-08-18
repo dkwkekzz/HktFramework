@@ -122,10 +122,10 @@ Master 의 기본 절차는 `WHY → OPTIONS → NEED → NEXT` 4단계뿐이다
 
 | Step | Guide | Artifact |
 |---|---|---|
-| 1. WHY — World/Actor/Goal | [guides/master-graph.md](guides/master-graph.md) | `master/graph/` world-state·actors·knowledge·goals |
-| 2. OPTIONS — 대안 Possibility | [guides/master-graph.md](guides/master-graph.md) | `master/graph/possibilities.yaml` |
-| 3. NEED — Capability + Overlay | [guides/master-graph.md](guides/master-graph.md) · [guides/master-overlay.md](guides/master-overlay.md) | `master/graph/capabilities.yaml` · `master/overlay.md` |
-| 4. NEXT — Frontier 후보 | [guides/master-frontier.md](guides/master-frontier.md) | `master/frontier.md` |
+| 1. WHY — World/Actor/Goal | [guides/master-why.md](guides/master-why.md) | `master/graph/` world-state·actors·knowledge·goals |
+| 2. OPTIONS — 대안 Possibility | [guides/master-options.md](guides/master-options.md) | `master/graph/possibilities.yaml` |
+| 3. NEED — Capability + Overlay | [guides/master-need.md](guides/master-need.md) | `master/graph/capabilities.yaml` · `master/overlay.md` |
+| 4. NEXT — Frontier 후보 | [guides/master-next.md](guides/master-next.md) | `master/frontier.md` |
 | Human Select | Human | `frontier.md` 의 `SELECTED` → Cycle Stage 1 |
 | Feedback (위쪽 접합점) | [guides/master-feedback.md](guides/master-feedback.md) | `overlay.md` · `frontier.md` · `candidates/` |
 

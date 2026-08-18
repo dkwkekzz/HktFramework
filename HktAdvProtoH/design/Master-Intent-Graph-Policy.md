@@ -920,9 +920,10 @@ HktAdvProtoH/
 │   └── Master-Intent-Graph-Policy.md
 │
 ├── guides/
-│   ├── master-graph.md
-│   ├── master-overlay.md
-│   ├── master-frontier.md
+│   ├── master-why.md
+│   ├── master-options.md
+│   ├── master-need.md
+│   ├── master-next.md
 │   ├── master-feedback.md
 │   └── cycle-definition.md ~ verification.md
 │
