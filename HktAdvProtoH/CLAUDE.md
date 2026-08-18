@@ -122,10 +122,10 @@ Master 의 기본 절차는 `WHY → OPTIONS → NEED → NEXT` 4단계뿐이다
 
 | Step | Guide | Artifact |
 |---|---|---|
-| 1. WHY — World/Actor/Goal | [guides/master-why.md](guides/master-why.md) | `master/graph/` world-state·actors·knowledge·goals |
-| 2. OPTIONS — 대안 Possibility | [guides/master-options.md](guides/master-options.md) | `master/graph/possibilities.yaml` |
-| 3. NEED — Capability + Overlay | [guides/master-need.md](guides/master-need.md) | `master/graph/capabilities.yaml` · `master/overlay.md` |
-| 4. NEXT — Frontier 후보 | [guides/master-next.md](guides/master-next.md) | `master/frontier.md` |
+| 1. WHY — World/Actor/Goal | [guides/master-graph.md](guides/master-graph.md) | `master/graph/` world-state·actors·knowledge·goals |
+| 2. OPTIONS — 대안 Possibility | [guides/master-graph.md](guides/master-graph.md) | `master/graph/possibilities.yaml` |
+| 3. NEED — Capability + Overlay | [guides/master-graph.md](guides/master-graph.md) · [guides/master-overlay.md](guides/master-overlay.md) | `master/graph/capabilities.yaml` · `master/overlay.md` |
+| 4. NEXT — Frontier 후보 | [guides/master-frontier.md](guides/master-frontier.md) | `master/frontier.md` |
 | Human Select | Human | `frontier.md` 의 `SELECTED` → Cycle Stage 1 |
 | Feedback (위쪽 접합점) | [guides/master-feedback.md](guides/master-feedback.md) | `overlay.md` · `frontier.md` · `candidates/` |
 | Inject (기반 기획 주입) | [guides/master-inject.md](guides/master-inject.md) | `constraints/`(DRAFT) · `graph/`(§ provenance) · `overlay.md` · `open-questions.md` |
@@ -133,7 +133,7 @@ Master 의 기본 절차는 `WHY → OPTIONS → NEED → NEXT` 4단계뿐이다
 Constraint 는 단계가 아니라 Filter 다 — 작업이 필요할 때만
 [guides/master-constraint.md](guides/master-constraint.md) 로 수행한다 (`master/constraints/DC-*.yaml`).
 기반 기획 문서(`design/Design-*.md`)의 반영은 4단계 탐색이 아니라 **주입**이다 —
-Human 문서가 원본이며 문서에 없는 의미를 지어내지 않는다 (정책 §9 예외 절차).
+Human 문서가 원본이며 문서에 없는 의미를 지어내지 않는다.
 Root Game Goal / World Premise (`master/root.md`) 와 Constraint 승인은 Human 소유다.
 파일 형식의 단일 출처는 [master/SCHEMA.md](master/SCHEMA.md) 다.
 
@@ -162,9 +162,6 @@ Root Game Goal / World Premise (`master/root.md`) 와 Constraint 승인은 Human
 | [world/](world/) | Authoritative World 구현 (Server) | 현재 게임, 계속 발전 |
 | [view/](view/) | Client View 구현 | 현재 게임, 계속 발전 |
 | [protocol/](protocol/) | World ↔ View 경계 타입만 | 현재 게임, 계속 발전 |
-| [motions/](motions/) | Kind 별 모션 자산 (`motions/<kind>/`) | 현재 게임, 계속 발전 |
-| [app/](app/) · [server/](server/) | Client / Server 실행 진입점 | 현재 게임, 계속 발전 |
-| [tools/](tools/) | catalog · motion-atlas 등 보조 도구 | 필요할 때만 |
 | [design/](design/) | 원본 설계 — 경계 사례에서만 참조 | 원본 |
 
 ## 기준 문서 (Source of Truth)

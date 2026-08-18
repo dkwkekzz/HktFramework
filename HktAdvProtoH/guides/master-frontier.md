@@ -1,4 +1,4 @@
-# Master NEXT Step Guide
+# Master Frontier Guide (NEXT)
 
 ## Role
 

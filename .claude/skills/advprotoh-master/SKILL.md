@@ -50,7 +50,7 @@ CYCLE LAYER (advprotoh-cycle)   선택된 NEXT 를 World Semantic 과 Rule 로 �
 ### 4단계가 아닌 것 — 기반 기획 주입 (Inject)
 
 Human 이 기반 기획 문서(`design/Design-*.md` — 전투 규칙 등)를 쓰거나 개정하고
-그 **반영**을 지시하면, 그것은 4단계 탐색이 아니라 **주입**이다 (정책 §9 예외 절차).
+그 **반영**을 지시하면, 그것은 4단계 탐색이 아니라 **주입**이다.
 
 ```text
 탐색 (기본 4단계)   Graph 가 원본. 새 의미를 찾는다
@@ -75,10 +75,10 @@ Human 이 기반 기획 문서(`design/Design-*.md` — 전투 규칙 등)를 �
 
 | Step | Guide | 입력 | 출력 |
 |---|---|---|---|
-| WHY | `guides/master-why.md` | `root.md` · Active DC · 기존 Graph | `graph/` world-state · actors · knowledge · goals |
-| OPTIONS | `guides/master-options.md` | Goal · Active DC (Filter) | `graph/possibilities.yaml` (+ CC-*) |
-| NEED | `guides/master-need.md` | Possibility · Cycle 실측 | `graph/capabilities.yaml` · `master/overlay.md` |
-| NEXT | `guides/master-next.md` | `overlay.md` · Graph · Active DC | `master/frontier.md` |
+| WHY | `guides/master-graph.md` | `root.md` · Active DC · 기존 Graph | `graph/` world-state · actors · knowledge · goals |
+| OPTIONS | `guides/master-graph.md` | Goal · Active DC (Filter) | `graph/possibilities.yaml` (+ CC-*) |
+| NEED | `guides/master-graph.md · guides/master-overlay.md` | Possibility · Cycle 실측 | `graph/capabilities.yaml` · `master/overlay.md` |
+| NEXT | `guides/master-frontier.md` | `overlay.md` · Graph · Active DC | `master/frontier.md` |
 | Human Select | — | `frontier.md` | **Human 전용 — Agent 가 고르지 않는다** |
 | Feedback | `guides/master-feedback.md` | `08-verification.md` MASTER FEEDBACK | overlay · frontier · CC 갱신 |
 | Inject | `guides/master-inject.md` | Human 지정 기반 기획 문서 · 기존 Graph/DC | constraints(DRAFT) · graph(§ provenance) · overlay · open-questions |

@@ -35,7 +35,7 @@ Agent 가 지어내게 된다.
    - WHY / OPTIONS / NEED Guide 의 MUST / MUST NOT 은 동일하게 적용된다.
      단, "폭으로 탐색"은 하지 않는다 — 문서에 있는 의미만 옮긴다.
 3. **Overlay 정합** — 주입·변경된 Capability 를 현재 세계와 겹쳐 판정한다
-   (`master-need.md` 의 Overlay 절차와 판정 기준).
+   (`master-overlay.md` 의 절차와 판정 기준).
 4. **기존 노드와의 충돌** — 문서 개정이 기존 노드·DC 의미와 어긋나면 임의로 고치지 않고
    Conflict · Affected Nodes · Trade-off 로 `open-questions.md` 에 노출한다.
    (예: R1 개정이 기존 DC 5종의 근거를 바꿔 Q10 이 열렸다.)
