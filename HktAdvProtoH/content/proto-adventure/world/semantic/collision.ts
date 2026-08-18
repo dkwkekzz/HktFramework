@@ -7,10 +7,15 @@
 // 휘두름 구간 동안 호를 그리며 쓸고 지나간다 (R1 — Human Play 반환 반영).
 // 상수는 결정론에 영향을 주므로 헤더 상수로 고정한다.
 
+import { arcSweepCollider } from '../../../../engine/physics/sweep';
+import { CENTER_EPSILON, normalized } from '../../../../engine/physics/vec';
 import { actionProgress } from './action';
 import type { ActorState } from './actor';
 import { isSkillKind } from './combat';
 import type { WorldPosition } from './position';
+
+// 0 나눗셈 방지 한계는 엔진 물리의 것이다 — 같은 이름으로 그대로 쓴다 (P6).
+export { CENTER_EPSILON } from '../../../../engine/physics/vec';
 
 // Actor.Body 의 종류별 반경·높이·질량과 스폰 시 기본 방향은
 // character-catalog.ts 로 옮겨졌다 — 종류가 정하는 값의 단일 출처는 그쪽이다.
@@ -36,9 +41,6 @@ export function swingReach(attackRange: number): number {
   return attackRange - SWING_BLADE_RADIUS;
 }
 
-// 중심이 완전히 일치했을 때의 방향 판정 한계 (결정론 — 0 나눗셈 방지)
-export const CENTER_EPSILON = 1e-9;
-
 // ActionCollider (파생 상태) — 행동이 만든 충돌체.
 // 저장하지 않고 CurrentAction 에서 유도되므로 행동이 끝나면 함께 사라진다.
 export interface ActionCollider {
@@ -50,35 +52,27 @@ export interface ActionCollider {
 
 // attack 진행 중인 Actor 마다 하나. 칼끝은 Facing 기준 +SWING_ARC/2 에서
 // -SWING_ARC/2 로 쓸고 지나간다 (구간 밖에서는 경계 각에 고정 = 예비/여운 자세).
+// P6 CHANGED — 호 스윕 기하는 엔진 솔버(physics/sweep)가 한다. 이 세계가 정하는 것은
+// 각·반경·구간 상수와 "어느 행동이 칼끝을 만드는가"(스킬) 다.
 export function actionCollider(actor: ActorState): ActionCollider | null {
   // C007 — 스킬이 둘로 늘었다. 충돌체 구조는 그대로이며 어느 스킬이든 같은 칼끝을 만든다.
   if (!isSkillKind(actor.currentAction.kind)) return null;
   const progress = actionProgress(actor.currentAction);
   if (progress === null) return null;
 
-  // 구간 안 진행도 0..1 (구간 밖은 경계에 고정)
-  const sweep = Math.min(1, Math.max(0, (progress - SWING_BEGIN) / (SWING_END - SWING_BEGIN)));
-  const theta = SWING_ARC / 2 - SWING_ARC * sweep;
+  const sweep = arcSweepCollider(actor.position, actor.facing, progress, {
+    arc: SWING_ARC,
+    tipRadius: SWING_BLADE_RADIUS,
+    reach: swingReach(actor.attackRange),
+    begin: SWING_BEGIN,
+    end: SWING_END,
+  });
 
-  const f = actor.facing;
-  const cos = Math.cos(theta);
-  const sin = Math.sin(theta);
-  // 지면 평면(x, z)에서 Facing 을 theta 만큼 회전한 방향
-  const dx = f.x * cos - f.z * sin;
-  const dz = f.x * sin + f.z * cos;
-  const reach = swingReach(actor.attackRange);
-
-  return {
-    ownerId: actor.id,
-    center: { x: actor.position.x + dx * reach, z: actor.position.z + dz * reach },
-    radius: SWING_BLADE_RADIUS,
-    active: progress >= SWING_BEGIN && progress <= SWING_END,
-  };
+  return { ownerId: actor.id, center: sweep.center, radius: sweep.radius, active: sweep.active };
 }
 
 // RULE-BODY-FACING-001 (R1) — 몸을 그 방향으로 돌린다. 영벡터는 무시한다 (방향이 없다).
 export function faceToward(actor: ActorState, dx: number, dz: number): void {
-  const len = Math.sqrt(dx * dx + dz * dz);
-  if (len < CENTER_EPSILON) return;
-  actor.facing = { x: dx / len, z: dz / len };
+  const direction = normalized(dx, dz);
+  if (direction) actor.facing = direction;
 }

@@ -13,10 +13,13 @@
 //
 // C007 CHANGED — 휘두름은 이제 피해를 실어 나르고, 맞혀야 기력이 돈다.
 // 쓰러진 몸은 대상에서 빠진다 — 더 이상 타격의 대상이 아니다 (INTENT-DOWNED-001).
+// P6 CHANGED — 접촉 판정과 충격은 엔진 솔버(physics/sweep)가 한다. 이 Rule 이 소유하는
+// 것은 접촉의 **의미**다: 누가 대상인가(자신·기격·쓰러진 몸 제외), 닿으면 무슨 일이
+// 일어나는가(피격·피해·기력 수지).
 
-import { actionCollider, CENTER_EPSILON, SWING_IMPULSE } from '../semantic/collision';
+import { applyRadialImpulse, circleHits } from '../../../../engine/physics/sweep';
+import { actionCollider, SWING_IMPULSE } from '../semantic/collision';
 import { isDowned, isSkillKind } from '../semantic/combat';
-import { distance } from '../semantic/position';
 import type { WorldState } from '../semantic/world-state';
 import { ruleHit } from '../rules/attack';
 import { ruleSkillBudget } from '../rules/skill';
@@ -39,21 +42,14 @@ export function ruleSwingStrike(state: WorldState): number {
       if (struck.includes(target.id)) continue;
       if (isDowned(target)) continue; // 쓰러진 몸은 대상이 아니다 (C007)
 
-      const d = distance(collider.center, target.position);
-      if (d > collider.radius + target.bodyRadius) continue;
+      if (!circleHits(collider.center, collider.radius, target)) continue;
 
       struck.push(target.id);
 
       ruleHit(target);
 
-      // 밀쳐냄은 휘두른 몸의 중심에서 멀어지는 방사 방향 (칼끝이 아니라 몸에서)
-      const px = target.position.x - attacker.position.x;
-      const pz = target.position.z - attacker.position.z;
-      const pd = Math.sqrt(px * px + pz * pz);
-      const nx = pd > CENTER_EPSILON ? px / pd : 1;
-      const nz = pd > CENTER_EPSILON ? pz / pd : 0;
-      target.velocity.x += nx * (SWING_IMPULSE / target.bodyMass);
-      target.velocity.z += nz * (SWING_IMPULSE / target.bodyMass);
+      // 밀쳐냄은 휘두른 몸의 중심에서 멀어지는 방사 방향 (칼끝이 아니라 몸에서) — P6: 엔진 솔버
+      applyRadialImpulse(attacker.position, target, SWING_IMPULSE);
 
       // C007 — 고정 피해가 들어가고, 이 휘두름의 첫 타격이면 기력 수지를 낸다.
       ruleStrikeDamage(state, attacker, target, skill);

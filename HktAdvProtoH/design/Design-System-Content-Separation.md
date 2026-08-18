@@ -21,6 +21,9 @@ blank 로 바꾼 상태의 typecheck·빌드도 통과한다.
 ```text
 engine/                      기반. content/ 를 import 하지 않는다
   world-kernel/              시계·참여/이탈/표식 인과·요청 큐·request-reply·Tick 프레임·커널
+  physics/                   기본 세계의 규칙 솔버 — vec·seek(추적 이동)·push(밀어내기)·
+                             momentum(관성)·sweep(호 스윕 접촉·충격). 커널 단계가 아니라
+                             팩의 시스템이 조합해 부르는 순수 함수 도구상자다 (P6)
   protocol-core/             Snapshot 봉투 · ActionRequest 코어 · transport · 엔진 semantic-id
   view-kernel/               renderer·hud·input·net·camera·motion 재생·scene(Render Plan)·
                              명령 표면 기계장치·collision/facing/link/session presentation
@@ -51,6 +54,31 @@ content/<packId>/            컨텐츠 팩 = 교체 단위
 
 관찰자의 몸(spawnObserverBody)·투영(projectObserver)·tickInterval 도 팩이
 `WorldContent` 계약(`engine/world-kernel/content.ts`)으로 등록한다.
+
+## 엔진 물리 (engine/physics) 와 승격 규칙
+
+특정 세계관이 아닌 **기본 세계의 규칙**(밀어내기·관성·추적 이동·호 스윕 접촉)은 엔진이
+순수 솔버로 제공하고, 팩은 그것을 조합해 자기 시스템을 만든다. 소유 경계:
+
+```text
+엔진 솔버가 소유    수식과 결정론 성질 — 제2/3법칙, 중심 일치 시 고정 방향, 스냅 도착
+팩이 소유          상수(강성·마찰·충격량·호 각 — 그 세계의 결정론 값),
+                   대상 선택(누가 밀리는가), 접촉의 의미(닿으면 무슨 일이 일어나는가)
+```
+
+솔버는 커널 파이프라인의 단계가 아니다 — 물리 없는 팩(blank 급)도 성립해야 하므로
+팩의 시스템이 골라 부르는 라이브러리다. 예: proto-adventure 의 RULE-SWING-STRIKE-001 은
+`arcSweepCollider`(엔진)로 접촉 목록을 얻고 피격·피해·기력 수지(팩 의미)를 적용한다.
+
+팩 코드를 엔진으로 올리는 **승격 규칙**:
+
+1. **rule of two** — 두 번째 팩이 같은 기계장치를 실제로 요구할 때 올린다.
+   하나의 게임에서 일반화하면 그 게임의 가정이 엔진에 박제된다.
+2. **라이브러리 형태** — 커널 필수 단계가 아니라 팩이 조합하는 순수 함수로 올린다.
+3. **게임 무지 문장 검증** — 그 변경을 게임 명사 없이 서술할 수 있어야 한다.
+   ("호를 그리며 닿은 몸 목록을 돌려준다" ✓ / "칼끝에 맞으면 피해를 준다" ✗)
+4. 승격은 Cycle 이 아니라 기반 트랙 커밋으로 하며, 팩의 공개 API 와 결정론
+   (동일 부동소수점 연산 순서)을 보존해 기존 테스트가 그대로 증거가 되게 한다.
 
 ## 경계의 기계적 강제
 

@@ -47,8 +47,9 @@ Master Agent 는 `world/` `view/` 를 편집하지 않는다 — Overlay 판정�
 ([design/Design-System-Content-Separation.md](design/Design-System-Content-Separation.md)).
 
 ```text
-engine/            기반 — world-kernel · view-kernel · protocol-core.
-                   컨텐츠 작업 중 어떤 Agent 도 편집하지 않는다 (기반 트랙 전용)
+engine/            기반 — world-kernel · physics(기본 세계 규칙 솔버) · view-kernel ·
+                   protocol-core. 컨텐츠 작업 중 어떤 Agent 도 편집하지 않는다 (기반 트랙
+                   전용). 팩의 시스템은 physics 솔버를 조합해 만든다 — 직접 재구현하지 않는다
 content/<pack>/    컨텐츠 팩 = 교체 단위 — master/ cycles/ world/ view/ protocol/ motions/
 hkt.pack.json      활성 팩 선언 (공정·도구용) — 코드 조립은 content/active*.ts 가 맡는다
 ```

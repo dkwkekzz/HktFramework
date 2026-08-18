@@ -5,11 +5,8 @@ export interface WorldPosition {
   z: number;
 }
 
-export function distance(a: WorldPosition, b: WorldPosition): number {
-  const dx = a.x - b.x;
-  const dz = a.z - b.z;
-  return Math.sqrt(dx * dx + dz * dz);
-}
+// 거리 계산은 엔진 물리의 것이다 — 같은 이름으로 그대로 쓴다 (P6).
+export { distance } from '../../../../engine/physics/vec';
 
 export interface WorldBounds {
   minX: number;

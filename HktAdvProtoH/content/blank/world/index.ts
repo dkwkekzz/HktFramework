@@ -11,6 +11,7 @@ import type {
 } from '../../../engine/protocol-core/gameview';
 import type { WorldContent } from '../../../engine/world-kernel/content';
 import { createWorldKernel, type World } from '../../../engine/world-kernel/kernel';
+import { integrateSeek } from '../../../engine/physics/seek';
 import {
   findObserver,
   presentObserverCount,
@@ -48,20 +49,12 @@ function walkerOfObserver(state: WorldState, observerId: string): WalkerState | 
 }
 
 // 이동 진행 — 목표를 향해 일정 속도로 간다. 도착하면 목표가 사라진다.
+// 적분은 엔진 솔버(physics/seek)가 한다 — 이 세계가 정하는 것은 속도와 도착의 의미다 (P6).
 function ruleWalkProgress(state: WorldState, dt: number): void {
   for (const walker of state.walkers) {
     if (!walker.target) continue;
-    const dx = walker.target.x - walker.position.x;
-    const dz = walker.target.z - walker.position.z;
-    const distance = Math.hypot(dx, dz);
-    const step = MOVE_SPEED * dt;
-    if (distance <= step + ARRIVE_EPSILON) {
-      walker.position = { x: walker.target.x, z: walker.target.z };
-      delete walker.target;
-      continue;
-    }
-    walker.position.x += (dx / distance) * step;
-    walker.position.z += (dz / distance) * step;
+    const seek = integrateSeek(walker, walker.target, MOVE_SPEED * dt, ARRIVE_EPSILON);
+    if (seek.arrived) delete walker.target;
   }
 }
 

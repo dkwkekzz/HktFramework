@@ -6,7 +6,11 @@
 //                Facing = 이동 방향                                        ← C007 CHANGED
 //                도달하면 Position = TargetPosition, CurrentAction = idle
 // Result         Progress | Arrived
+//
+// P6 CHANGED — 적분 자체는 엔진 솔버(physics/seek)가 한다. 이 Rule 이 소유하는 것은
+// 걸음의 크기(이 세계의 능력치·배율)와 도착의 의미(행동이 idle 로 끝난다)다.
 
+import { integrateSeek } from '../../../../engine/physics/seek';
 import { idleAction } from '../semantic/action';
 import type { ActorState } from '../semantic/actor';
 import { faceToward } from '../semantic/collision';
@@ -17,25 +21,17 @@ export function ruleMoveProgressActor(actor: ActorState, dt: number): 'progress'
   const action = actor.currentAction;
   if (action.kind !== 'move' || !action.targetPosition) return 'none';
 
-  const dx = action.targetPosition.x - actor.position.x;
-  const dz = action.targetPosition.z - actor.position.z;
-  const dist = Math.sqrt(dx * dx + dz * dz);
   // C007 CHANGED — 빠르기는 이동 속도 능력치 × 배율 × (달리는 중이면 달리기 배율) 이다
   // (INTENT-TEMPO-MOVE-001 · INTENT-RUN-001).
   const step = effectiveMoveSpeed(actor) * dt;
+  const seek = integrateSeek(actor, action.targetPosition, step);
 
-  faceToward(actor, dx, dz); // RULE-BODY-FACING-001 — 움직이는 방향을 향한다 (C006 R1)
+  faceToward(actor, seek.dx, seek.dz); // RULE-BODY-FACING-001 — 움직이는 방향을 향한다 (C006 R1)
 
-  if (dist <= step) {
-    actor.position = { x: action.targetPosition.x, z: action.targetPosition.z };
+  if (seek.arrived) {
     actor.currentAction = idleAction();
     return 'arrived';
   }
-
-  actor.position = {
-    x: actor.position.x + (dx / dist) * step,
-    z: actor.position.z + (dz / dist) * step,
-  };
   return 'progress';
 }
 
