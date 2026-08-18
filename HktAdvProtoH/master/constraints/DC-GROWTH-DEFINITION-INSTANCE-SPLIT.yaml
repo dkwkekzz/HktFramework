@@ -5,7 +5,7 @@
 #   §29 (II-* 는 Runtime Entity) · §31 (모든 조합 결과를 사전에 Node 로 만들지 않는다) ·
 #   §32 (Schema 유한 · Runtime Graph 유한 · 가능한 Growth 무한) ·
 #   §30 · §41 (obtained_from / composed_from 으로 provenance 추적 가능)
-# 2026-08-18 Inject — Human 승인 대기 (open-questions Q13).
+# 2026-08-18 Inject — 같은 날 Human 일괄 승인 (Q13 → HISTORY.md).
 id: DC-GROWTH-DEFINITION-INSTANCE-SPLIT
 type: constraint
 
@@ -32,7 +32,7 @@ prohibits:
   - plain_numeric_option_as_growth_node    # "공격력 +13" 을 IM-*/IP-* 로 (GR §28.3)
 prefers: []
 
-status: DRAFT
+status: APPROVED
 provenance:
   - HUMAN_DESIGN          # 2026-08-18 Human 지시로 GR 주입
 

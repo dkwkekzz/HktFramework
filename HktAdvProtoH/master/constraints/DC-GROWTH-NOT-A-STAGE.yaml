@@ -3,7 +3,7 @@
 #   §22.1 (Growth 는 별도 Workflow Stage 가 아니다 — GROWTH 라는 Master Stage 를
 #          만들지 않는다 · NEED 의 Capability 에 획득 경로를 Overlay 한다) ·
 #   §39 (Master ↔ Growth ↔ Cycle 책임 분리)
-# 2026-08-18 Inject — Human 승인 대기 (open-questions Q13).
+# 2026-08-18 Inject — 같은 날 Human 일괄 승인 (Q13 → HISTORY.md).
 id: DC-GROWTH-NOT-A-STAGE
 type: constraint
 
@@ -26,7 +26,7 @@ prohibits:
   - new_master_stage_for_growth         # WHY→OPTIONS→NEED→NEXT 에 GROWTH 단계 추가 (GR §22.1)
 prefers: []
 
-status: DRAFT
+status: APPROVED
 provenance:
   - HUMAN_DESIGN          # 2026-08-18 Human 지시로 GR 주입
 

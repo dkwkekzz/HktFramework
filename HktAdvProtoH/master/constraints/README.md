@@ -2,18 +2,19 @@
 
 파일 하나 = Constraint 하나. 이름은 `DC-<NAME>.yaml`. 형식은 [../SCHEMA.md](../SCHEMA.md).
 
-현재: **Active(APPROVED) 5종 + 승인 대기(DRAFT) 6종** (2026-08-18 GR 주입 — Q13).
+현재: **Active(APPROVED) 11종** — 전투 5종 + 성장 6종. 보류(DRAFT)는 없다.
 
-근거 문서는 **둘뿐이다** (2026-08-18 Human 결정 — 전투 영역).
+근거 문서 — 전투 영역은 **둘뿐이다** (2026-08-18 Human 결정). 성장(GROWTH scope) 영역은
+GR 이 근거다 (2026-08-18 GR 주입 · 같은 날 Q13 일괄 승인).
 
 ```text
 R1 §x   design/Design-Combat-OffenseDefense-R0.md   2026-08-17 R1 전면 개정판
 DT §x   design/Design-Combat-DamageType-R0.md
+GR §x   design/Master-Intent-Graph-Growth.md         성장(GROWTH) 영역 한정
 ```
 
-2026-08-18 GR(`design/Master-Intent-Graph-Growth.md`) 주입으로 아래 DRAFT 6종이
-GR 을 인용한다 — GR 을 셋째 근거로 공식 추가할지는 **Q15 대기** 다.
-결정 전에는 전투 노드(graph/)에 GR 인용을 섞지 않는다.
+GR 을 전투 노드(graph/ 의 기존 MC/MP/MG)의 근거로도 쓸지는 **Q15 대기** 다 —
+결정 전에는 전투 노드에 GR 인용을 섞지 않는다.
 
 삭제된 구판(R0)은 더 이상 근거가 아니다. 구판에만 근거가 있던 Constraint 는 보류가 아니라
 **삭제**한다 — 필요해지면 그 층의 설계 문서가 나온 뒤 새로 만든다.
@@ -28,7 +29,7 @@ GR 을 인용한다 — GR 을 셋째 근거로 공식 추가할지는 **Q15 대
 | DC-COMBAT-SHARED-BUDGET | 전투 행동은 하나의 기력 예산을 나눈다 — 행동별 전용 게이지 신설 금지 | R1 §1 · §11 · §14 Aura/Nen · 핵심 원칙 |
 | DC-COMBAT-MATCHUP-SOFT | 상성은 선택을 만들되 지배하지 않는다 — 배율표가 아니라 대응 능력치 차이로만 | DT §4 · §5 · §7 · §14-7 · §14-10 |
 
-### 승인 대기 — DRAFT (Growth · 2026-08-18 GR 주입 · Q13)
+### Active — APPROVED (Growth · 2026-08-18 GR 주입 · 같은 날 Q13 일괄 승인)
 
 | Constraint | 한 줄 | 근거 |
 |---|---|---|

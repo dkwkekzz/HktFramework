@@ -3,7 +3,7 @@
 #   §24.2 (Class 에는 반드시 하나 이상의 origin_trace 가 존재한다 ·
 #          Class 를 제거해도 원인 세계 요소는 그대로 존재해야 한다) ·
 #   §41 Growth Quality Gate (Class 절)
-# 2026-08-18 Inject — Human 승인 대기 (open-questions Q13).
+# 2026-08-18 Inject — 같은 날 Human 일괄 승인 (Q13 → HISTORY.md).
 id: DC-GROWTH-CLASS-ORIGIN-TRACE
 type: constraint
 
@@ -26,7 +26,7 @@ prohibits:
   - class_without_world_cause             # 세계 인과 없이 세워지는 Class (GR §42)
 prefers: []
 
-status: DRAFT
+status: APPROVED
 provenance:
   - HUMAN_DESIGN          # 2026-08-18 Human 지시로 GR 주입
 

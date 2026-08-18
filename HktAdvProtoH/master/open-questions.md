@@ -12,7 +12,7 @@ Human 이 답한다    DECISION 줄
 [HISTORY.md](HISTORY.md) 로 옮긴다.** 여기에는 아직 답이 없는 것만 남는다 —
 닫힌 질문이 쌓이면 매번 읽어야 하는 문서가 무거워진다.
 
-미해결 **8건** — Q2 · Q3 · Q8 · Q11 · Q13 · Q14 · Q15 · Q16 (닫힌 질문은 HISTORY.md).
+미해결 **7건** — Q2 · Q3 · Q8 · Q11 · Q14 · Q15 · Q16 (닫힌 질문은 HISTORY.md).
 
 ---
 
@@ -27,7 +27,7 @@ Human 이 답한다    DECISION 줄
                   Cycle 을 도는 데는 지장이 없다 — Frontier 는 Possibility 까지만 요구한다.
                   그러나 "왜 이 기능이 존재하는가" 의 최상단이 비어 있는 상태로 누적된다.
                   2026-08-18 GR(Growth) 주입 이후 무게가 늘었다 — Class/Item 은
-                  origin_trace(World Cause) 필수라서(DC-GROWTH-CLASS-ORIGIN-TRACE DRAFT)
+                  origin_trace(World Cause) 필수라서(DC-GROWTH-CLASS-ORIGIN-TRACE APPROVED)
                   이것이 닫히기 전에는 성장 콘텐츠 노드(CL-*/IT-*)를 한 개도 만들 수 없다.
 
     필요한 것     master/root.md 의 Root Game Goal · World Premise (Human 소유)
@@ -90,25 +90,6 @@ Human 이 답한다    DECISION 줄
                       "같은 상태 → 같은 결과" 원칙과 기존 Cycle 검증 근거가 흔들린다
 
     Expected      결정 전까지 Frontier 에 확률 Critical 후보를 올리지 않는다 (현재 상태).
-
-    DECISION      <PENDING>
-
----
-
-## Q13. DC-GROWTH 6종(DRAFT) + growth/ 스키마 확장 승인 — OPEN
-
-    무엇          GR(design/Master-Intent-Graph-Growth.md) 주입으로 만든
-                  DC-GROWTH-NEED-FROM-POSSIBILITY · CLASS-ORIGIN-TRACE ·
-                  NO-CAPABILITY-DUPLICATION · DEFINITION-INSTANCE-SPLIT ·
-                  NOT-A-STAGE · GOAL-FIRST 6종이 DRAFT 다.
-                  SCHEMA.md 의 growth/ 확장(CL/IT/IP/IM 양식 · II- Runtime 전용)도
-                  같은 문서의 번역이므로 함께 확인 대상이다.
-
-    영향          승인 전에는 Growth 관련 선택 지점에서 이 Filter 들이 작동하지 않는다.
-                  다만 성장 콘텐츠 생성 자체가 Q2 로 막혀 있어 당장 충돌은 없다.
-
-    선택지        (a) 6종 일괄 APPROVED → Growth Filter 가 즉시 활성화된다
-                  (b) 일부만 승인 / 문구 수정(REVISED) → 수정 지점을 지정해 달라
 
     DECISION      <PENDING>
 
