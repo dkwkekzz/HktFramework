@@ -1,210 +1,226 @@
 {
-  "specId": "VIEW-DEBUG-COMMAND-001",
-  "scene": "mining-field",
-  "observer": {
-    "id": "observer-1",
-    "characterId": "player-1",
-    "acknowledgedMark": 12
+ "specId": "VIEW-DEBUG-COMMAND-001",
+ "scene": "mining-field",
+ "observer": {
+  "id": "observer-1",
+  "characterId": "player-1",
+  "acknowledgedMark": 12
+ },
+ "entities": [
+  {
+   "id": "player-1",
+   "role": "player-character",
+   "state": "idle",
+   "name": "나",
+   "kind": "rabbit-swordsman",
+   "position": {
+    "x": 0,
+    "z": 0
+   },
+   "vitality": {
+    "health": 180,
+    "healthMaximum": 200,
+    "downed": false
+   },
+   "body": {
+    "radius": 0.4,
+    "height": 1.8,
+    "mass": 1,
+    "facing": {
+     "x": 1,
+     "z": 0
+    },
+    "velocity": {
+     "x": 0,
+     "z": 0
+    }
+   },
+   "attributes": {
+    "energy": 40,
+    "energyMaximum": 100,
+    "moveMode": "walk",
+    "control": "player",
+    "tempoStats": {
+     "moveSpeed": 6,
+     "runSpeedMultiplier": 1.8,
+     "actionSpeed": 1
+    },
+    "modifiers": {
+     "energyCharge": 1,
+     "energyConsume": 1,
+     "moveSpeed": 1,
+     "actionSpeed": 1
+    },
+    "combatStats": {
+     "physicalAttack": 40,
+     "auraAttack": 40,
+     "armor": 50,
+     "resistance": 50,
+     "armorPenetration": 0,
+     "resistancePenetration": 0,
+     "armorMultiplier": 0.666667,
+     "resistanceMultiplier": 0.666667
+    },
+    "versusObserver": {
+     "armor": 50,
+     "resistance": 50,
+     "armorMultiplier": 0.666667,
+     "resistanceMultiplier": 0.666667
+    },
+    "guard": {
+     "guarding": false,
+     "broken": false
+    },
+    "defenseShape": "even"
+   }
   },
-  "entities": [
+  {
+   "id": "npc-1",
+   "role": "npc-character",
+   "state": "idle",
+   "name": "허수아비",
+   "kind": "rabbit-swordsman",
+   "position": {
+    "x": 3,
+    "z": 0
+   },
+   "vitality": {
+    "health": 60,
+    "healthMaximum": 60,
+    "downed": false
+   },
+   "body": {
+    "radius": 0.4,
+    "height": 1.8,
+    "mass": 1,
+    "facing": {
+     "x": -1,
+     "z": 0
+    },
+    "velocity": {
+     "x": 0,
+     "z": 0
+    }
+   },
+   "attributes": {
+    "energy": 40,
+    "energyMaximum": 100,
+    "moveMode": "walk",
+    "control": "autonomous",
+    "tempoStats": {
+     "moveSpeed": 6,
+     "runSpeedMultiplier": 1.8,
+     "actionSpeed": 1
+    },
+    "modifiers": {
+     "energyCharge": 1,
+     "energyConsume": 1,
+     "moveSpeed": 1,
+     "actionSpeed": 1
+    },
+    "combatStats": {
+     "physicalAttack": 40,
+     "auraAttack": 40,
+     "armor": 30,
+     "resistance": 30,
+     "armorPenetration": 0,
+     "resistancePenetration": 0,
+     "armorMultiplier": 0.769231,
+     "resistanceMultiplier": 0.769231
+    },
+    "versusObserver": {
+     "armor": 30,
+     "resistance": 30,
+     "armorMultiplier": 0.769231,
+     "resistanceMultiplier": 0.769231
+    },
+    "guard": {
+     "guarding": false,
+     "broken": false
+    },
+    "defenseShape": "even"
+   }
+  }
+ ],
+ "interactions": [
+  {
+   "id": "move",
+   "role": "move-to",
+   "available": true
+  },
+  {
+   "id": "set-attribute",
+   "role": "debug-set-attribute",
+   "available": true
+  }
+ ],
+ "hud": [],
+ "strikes": [],
+ "debug": {
+  "open": true
+ },
+ "commands": [
+  {
+   "id": "set-attribute",
+   "effect": "set-attribute",
+   "available": true,
+   "parameters": [
     {
-      "id": "player-1",
-      "role": "player-character",
-      "state": "idle",
-      "name": "나",
-      "kind": "rabbit-swordsman",
-      "position": {
-        "x": 0,
-        "z": 0
-      },
-      "vitality": {
-        "health": 180,
-        "healthMaximum": 200,
-        "downed": false
-      },
-      "body": {
-        "radius": 0.4,
-        "height": 1.8,
-        "mass": 1,
-        "facing": {
-          "x": 1,
-          "z": 0
-        },
-        "velocity": {
-          "x": 0,
-          "z": 0
-        }
-      },
-      "attributes": {
-        "energy": 40,
-        "energyMaximum": 100,
-        "moveMode": "walk",
-        "control": "player",
-        "tempoStats": {
-          "moveSpeed": 6,
-          "runSpeedMultiplier": 1.8,
-          "actionSpeed": 1
-        },
-        "modifiers": {
-          "energyCharge": 1,
-          "energyConsume": 1,
-          "moveSpeed": 1,
-          "actionSpeed": 1
-        },
-        "combatStats": {
-          "physicalAttack": 40,
-          "auraAttack": 40,
-          "armor": 50,
-          "resistance": 50,
-          "armorMultiplier": 0.666667,
-          "resistanceMultiplier": 0.666667
-        },
-        "guard": {
-          "guarding": false,
-          "broken": false
-        },
-        "defenseShape": "even"
-      }
+     "id": "target",
+     "required": false,
+     "omittedMeaning": "self",
+     "domain": {
+      "kind": "entity",
+      "refers": "character"
+     }
     },
     {
-      "id": "npc-1",
-      "role": "npc-character",
-      "state": "idle",
-      "name": "허수아비",
-      "kind": "rabbit-swordsman",
-      "position": {
-        "x": 3,
-        "z": 0
-      },
-      "vitality": {
-        "health": 60,
-        "healthMaximum": 60,
-        "downed": false
-      },
-      "body": {
-        "radius": 0.4,
-        "height": 1.8,
-        "mass": 1,
-        "facing": {
-          "x": -1,
-          "z": 0
-        },
-        "velocity": {
-          "x": 0,
-          "z": 0
+     "id": "attribute",
+     "required": true,
+     "domain": {
+      "kind": "choice",
+      "options": [
+       {
+        "name": "hp",
+        "thenDomain": {
+         "kind": "number",
+         "minimum": 0,
+         "maximum": 100000
         }
-      },
-      "attributes": {
-        "energy": 40,
-        "energyMaximum": 100,
-        "moveMode": "walk",
-        "control": "autonomous",
-        "tempoStats": {
-          "moveSpeed": 6,
-          "runSpeedMultiplier": 1.8,
-          "actionSpeed": 1
-        },
-        "modifiers": {
-          "energyCharge": 1,
-          "energyConsume": 1,
-          "moveSpeed": 1,
-          "actionSpeed": 1
-        },
-        "combatStats": {
-          "physicalAttack": 40,
-          "auraAttack": 40,
-          "armor": 30,
-          "resistance": 30,
-          "armorMultiplier": 0.769231,
-          "resistanceMultiplier": 0.769231
-        },
-        "guard": {
-          "guarding": false,
-          "broken": false
-        },
-        "defenseShape": "even"
-      }
-    }
-  ],
-  "interactions": [
-    {
-      "id": "move",
-      "role": "move-to",
-      "available": true
-    },
-    {
-      "id": "set-attribute",
-      "role": "debug-set-attribute",
-      "available": true
-    }
-  ],
-  "hud": [],
-  "strikes": [],
-  "debug": {
-    "open": true
-  },
-  "commands": [
-    {
-      "id": "set-attribute",
-      "effect": "set-attribute",
-      "available": true,
-      "parameters": [
-        {
-          "id": "target",
-          "required": false,
-          "omittedMeaning": "self",
-          "domain": {
-            "kind": "entity",
-            "refers": "character"
-          }
-        },
-        {
-          "id": "attribute",
-          "required": true,
-          "domain": {
-            "kind": "choice",
-            "options": [
-              {
-                "name": "hp",
-                "thenDomain": {
-                  "kind": "number",
-                  "minimum": 0,
-                  "maximum": 100000
-                }
-              },
-              {
-                "name": "moveSpeed",
-                "thenDomain": {
-                  "kind": "number",
-                  "minimum": 0,
-                  "maximum": 100
-                }
-              },
-              {
-                "name": "moveMode",
-                "thenDomain": {
-                  "kind": "choice",
-                  "options": [
-                    {
-                      "name": "walk"
-                    },
-                    {
-                      "name": "run"
-                    }
-                  ]
-                }
-              }
-            ]
-          }
-        },
-        {
-          "id": "value",
-          "required": true,
-          "domain": {
-            "kind": "from-previous-choice"
-          }
+       },
+       {
+        "name": "moveSpeed",
+        "thenDomain": {
+         "kind": "number",
+         "minimum": 0,
+         "maximum": 100
         }
+       },
+       {
+        "name": "moveMode",
+        "thenDomain": {
+         "kind": "choice",
+         "options": [
+          {
+           "name": "walk"
+          },
+          {
+           "name": "run"
+          }
+         ]
+        }
+       }
       ]
+     }
+    },
+    {
+     "id": "value",
+     "required": true,
+     "domain": {
+      "kind": "from-previous-choice"
+     }
     }
-  ]
+   ]
+  }
+ ]
 }

@@ -129,10 +129,12 @@ describe('hud.self — 자기 자원·능력치·배율은 늘 눈앞에 있다'
     expect(lines[0]).toContain('물리 방어 50');
     expect(lines[0]).toContain('받는 피해 67%'); // 100/150 — 체감을 백분율로 읽는다
     expect(lines[1]).toContain('오라 공격 40');
-    expect(lines[2]).toContain('내 약점');
-    expect(lines[3]).toContain('이동 속도 6');
-    expect(lines[3]).toContain('달리기 ×1.8');
-    expect(lines[4]).toBe('공격 속도 ×1');
+    // C013 — 내 관통이 능력치 두 줄 바로 뒤에 온다. 0 인 쪽도 쓴다
+    expect(lines[2]).toBe('관통 물리 0 · 오라 0');
+    expect(lines[3]).toContain('내 약점');
+    expect(lines[4]).toContain('이동 속도 6');
+    expect(lines[4]).toContain('달리기 ×1.8');
+    expect(lines[5]).toBe('공격 속도 ×1');
   });
 
   it('1 이 아닌 배율만 줄이 된다 — 걸린 것이 있을 때만 드러난다', () => {

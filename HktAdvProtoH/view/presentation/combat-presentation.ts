@@ -49,12 +49,26 @@ export function inspectLines(entity: EntityView): string[] | undefined {
     // C010 → C012 — 능력이 방식별로 갈렸다. 방어는 체감식이라 수치만으로는 효과를
     // 알 수 없으므로 남는 비율을 함께 쓴다. 두 줄로 나눈 것은 고를 때 견주는 축이
     // 공격/방어가 아니라 **물리/오라** 이기 때문이다.
+    // C013 — 방어 뒤에 "그런데 나에게는 얼마로 읽히는가" 가 붙는다.
+    // 두 값이 같으면(내 관통이 0 이거나 상대 방어가 0) 붙지 않는다 — 같다는 것은
+    // versusText 가 없는 것으로 읽힌다. 걷힌 값을 여기서 곱해 만들지 않는다
+    // (04 versusObserver.meaning · DC-WORLD-OWNS-THE-SURFACE-LIST).
     `물리 공격 ${round(a.combatStats.physicalAttack)}` +
       ` · 물리 방어 ${round(a.combatStats.armor)}` +
-      ` (받는 피해 ${percent(a.combatStats.armorMultiplier)})`,
+      ` (받는 피해 ${percent(a.combatStats.armorMultiplier)})` +
+      versusText(a.combatStats.armor, a.versusObserver.armor, a.versusObserver.armorMultiplier),
     `오라 공격 ${round(a.combatStats.auraAttack)}` +
       ` · 오라 방어 ${round(a.combatStats.resistance)}` +
-      ` (받는 피해 ${percent(a.combatStats.resistanceMultiplier)})`,
+      ` (받는 피해 ${percent(a.combatStats.resistanceMultiplier)})` +
+      versusText(
+        a.combatStats.resistance,
+        a.versusObserver.resistance,
+        a.versusObserver.resistanceMultiplier,
+      ),
+    // C013 — 이 존재가 지닌 관통. 상대의 것도 본다 — 저쪽이 내 방어를 얼마나
+    // 무력화하는지는 내가 얼마나 위험한지를 아는 일이다.
+    `관통 물리 ${round(a.combatStats.armorPenetration)}` +
+      ` · 오라 ${round(a.combatStats.resistancePenetration)}`,
     // C012 — 어느 쪽이 더 단단한지는 **세계가 판정한 값**이다.
     // 여기서 두 수치를 비교해 만들어내지 않는다 (04 defenseShape.meaning).
     `약점 ${codeText(a.defenseShape)}`,
@@ -64,6 +78,13 @@ export function inspectLines(entity: EntityView): string[] | undefined {
     // 막으며 걷는 존재는 state 가 move 이면서 막고 있다.
     `막기 ${guardText(a.guard) ?? '없음'}`,
   ];
+}
+
+// 이 방어가 보는 이의 관통에게 얼마로 읽히는가 (C013) — 세계가 계산해 보낸 값이다.
+// 원래 값과 같으면 아무 말도 하지 않는다. 통하지 않았다는 것은 화살표가 없는 것으로 읽힌다.
+function versusText(own: number, versus: number, versusMultiplier: number): string {
+  if (versus === own) return '';
+  return ` → 나에게 ${round(versus)} (${percent(versusMultiplier)})`;
 }
 
 // 막기 상태의 문구 (C011) — 막지도 무너지지도 않았으면 쓸 말이 없다.
@@ -130,10 +151,19 @@ function breakdownLine(event: StrikeEventView): string {
     `${codeText(b.damageType)} · ` +
     `${round(b.baseDamage)}+${round(b.attackContribution)}=${round(b.rawDamage)}` +
     ` (${codeText(b.offenseStat.name)} ${round(b.offenseStat.value)})` +
-    ` ×${percent(b.defenseMultiplier)}(${codeText(b.defenseStat.name)} ${round(
-      b.defenseStat.value,
-    )})` +
+    ` ×${percent(b.defenseMultiplier)}(${defenseText(b)})` +
     ` = ${Math.round(b.finalDamage)}`
+  );
+}
+
+// 방어가 어떻게 읽혔는가 (C013) — 걷히기 전 · 작용한 관통 · 걷힌 뒤 세 값을 함께 쓴다.
+// 관통이 0 이어도 세 값을 모두 쓴다. `armor 50 · 관통 0 → 50` 이 보이는 것이
+// "이 상대에게는 통하지 않았다" 의 관찰이며, 항목을 감추면 그 사실을 볼 수 없다
+// (04 strikeEvents.meaning). 걷힌 뒤 값이 감쇄율의 근거다 — 걷히기 전 값으로 검산하면 어긋난다.
+function defenseText(b: StrikeEventView['breakdown']): string {
+  return (
+    `${codeText(b.defenseStat.name)} ${round(b.defenseStat.value)}` +
+    ` · 관통 ${round(b.penetrationStat.value)} → ${round(b.effectiveDefense)}`
   );
 }
 
@@ -158,6 +188,10 @@ export function selfPanel(snapshot: GameViewSnapshot): SceneSelf | undefined {
     `오라 공격 ${round(Number(value('self.combat.auraAttack') ?? 0))}` +
       ` · 오라 방어 ${round(Number(value('self.combat.resistance') ?? 0))}` +
       ` (받는 피해 ${percent(Number(value('self.combat.resistanceMultiplier') ?? 1))})`,
+    // C013 — 내 관통. 0 인 쪽도 쓴다. 없다는 것을 아는 것이
+    // "그쪽으로는 벽을 깎을 수 없다" 를 아는 것이다 (04 hud.self.combatStats.meaning).
+    `관통 물리 ${round(Number(value('self.combat.armorPenetration') ?? 0))}` +
+      ` · 오라 ${round(Number(value('self.combat.resistancePenetration') ?? 0))}`,
     // 상대도 같은 규칙으로 나를 고른다 — 내 약점도 세계가 판정해 보낸다
     `내 약점 ${codeText(String(value('self.combat.defenseShape') ?? 'even'))}`,
     `이동 속도 ${round(Number(value('self.tempo.moveSpeed') ?? 0))}` +
