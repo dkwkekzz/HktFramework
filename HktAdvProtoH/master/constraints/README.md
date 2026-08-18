@@ -2,7 +2,7 @@
 
 파일 하나 = Constraint 하나. 이름은 `DC-<NAME>.yaml`. 형식은 [../SCHEMA.md](../SCHEMA.md).
 
-현재: **Active(APPROVED) 11종** — 전투 5종 + 성장 6종. 보류(DRAFT)는 없다.
+현재: **Active(APPROVED) 12종** — 전투 5종 · 성장 6종 · GLOBAL 1종. 보류(DRAFT)는 없다.
 
 근거 문서:
 

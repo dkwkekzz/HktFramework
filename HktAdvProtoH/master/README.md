@@ -10,10 +10,10 @@
 > Human 이 직접 세운 것은 `constraints/` 뿐이다. `graph/` `overlay.md` `frontier.md` 는
 > R1 개정 때 설계 문서의 의미를 옮겨 둔 것이며 Master 를 처음부터 세운 결과가 아니다.
 >
-> **2026-08-18 — 이 지시 아래에서 Graph 확장을 한 번 실행했다.** OffenseDefense 트랙 자신의
-> 다음 층(Penetration)이 Graph 에 노드가 없어 Frontier 에 나타나지 못하고 있었다.
-> 새 영역이 아니라 **진행 중인 트랙의 결손**이므로 위 제한의 취지에 어긋나지 않는다고
-> 판단했다 — MC-PENETRATION · MP-PIERCE-THE-HARD-DEFENSE 2종. 이견이 있으면 되돌린다.
+> **이 지시와 성장(GROWTH) 영역의 관계가 아직 정리되지 않았다.** Human 이 GR 을 직접
+> 주입해(Q13) 성장 영역이 열렸고, 전투 트랙은 다음 층(Active Defense)의 설계 문서가 없어
+> 멈춰 있다. 지금 유일한 Frontier 후보가 성장 쪽이므로 이 지시를 그대로 둘지 갱신할지는
+> Human 결정이다 → [open-questions.md](open-questions.md) Q17.
 
 이 디렉터리는 **Master Layer** 의 산출물이다.
 
@@ -30,34 +30,39 @@ CYCLE LAYER    선택된 하나의 플레이 결과를 World Semantic 과 Rule �
 
 ## 현재 상태
 
-전투 영역 주입 — 근거 문서는 **둘뿐이다** (2026-08-18 Q12 결정).
+주입된 영역은 둘이며 **근거는 영역을 넘지 않는다** (2026-08-18 Q12 · Q15 결정).
 
 ```text
-R1   design/Design-Combat-OffenseDefense-R0.md   §14 확장 순서가 Cycle 사다리다
-DT   design/Design-Combat-DamageType-R0.md       §15 가 이후 확장의 경계를 긋는다
+전투   R1   design/Design-Combat-OffenseDefense-R0.md   §14 확장 순서가 Cycle 사다리다
+       DT   design/Design-Combat-DamageType-R0.md       §15 가 이후 확장의 경계를 긋는다
+성장   GR   design/Master-Intent-Graph-Growth.md        획득 경로(Class · Item)의 형태
 ```
 
-두 문서가 이름조차 대지 않는 의미는 Graph·Constraint 에 두지 않는다 — 보류가 아니라
-삭제한다. 기준 시점 **C012 닫힘 (2026-08-18)** · Q12 정비 반영.
+해당 영역의 문서가 이름조차 대지 않는 의미는 Graph·Constraint 에 두지 않는다 — 보류가
+아니라 삭제한다. 기준 시점 **C013 닫힘 (2026-08-18)**.
 
 ```text
-Constraint    6     APPROVED 6 (COMBAT 5 · GLOBAL 1) · DRAFT 0
-Candidate     3     APPROVED 1 (→ DC) · PENDING 2
+Constraint   12     APPROVED 12 (COMBAT 5 · GROWTH 6 · GLOBAL 1) · DRAFT 0
+Candidate     4     APPROVED 1 (→ DC) · PENDING 3
 Actor         2     Knowledge 2 · Belief 0
 Goal          2     Possibility 10
-Capability   18     IMPLEMENTED 7 · PARTIAL 2 · MISSING 9
-Frontier      1     PROPOSED — FR-PENETRATION-DEVALUES-THE-WALL (Human 선택 대기)
+Capability   18     IMPLEMENTED 9 · PARTIAL 1 · MISSING 8
+획득 경로     0     CL-* 0 · IT-* 0 — 능력치를 세계 안에서 얻는 길이 없다 (growth/growth-graph.md)
+Frontier      1     PROPOSED — FR-WHAT-I-HOLD-CHANGES-MY-BLOW (Human 선택 대기)
 WorldState    0     비어 있다 (아래)
 
-Open Question 4   → open-questions.md (Q2 · Q3 · Q8 · Q11)
+Open Question 5   → open-questions.md (Q2 · Q3 · Q8 · Q11 · Q17)
 ```
 
 무엇이 언제 왜 바뀌었는지는 `HISTORY.md` 가 소유한다. 살아 있는 문서(`overlay.md` ·
 `frontier.md` · `open-questions.md` · `constraints/README.md`)에는 **지금 할 일과 현재
 상태만** 남긴다 — 닫힌 것은 그 자리에서 지우고 HISTORY 로 옮긴다.
 
-닫힌 Possibility 3종 — MP-OUTGROW-THE-OPPONENT(C010) · MP-TRADE-BODY-FOR-RESOURCE(C011) ·
-MP-MATCH-WEAPON-TO-ARMOR(C012). 요구 Capability 가 하나도 비어 있지 않은 경로들이다.
+요구 Capability 가 하나도 비어 있지 않은 경로 4종 — MP-OUTGROW-THE-OPPONENT(C010) ·
+MP-TRADE-BODY-FOR-RESOURCE(C011) · MP-MATCH-WEAPON-TO-ARMOR(C012) ·
+MP-PIERCE-THE-HARD-DEFENSE(C013). 다만 앞뒤 둘은 그 능력치를 세계 안에서 **얻는 경로**가
+없어 플레이어가 고를 수 없다 — 두 축의 차이는 [overlay.md](overlay.md) 와
+[growth/growth-graph.md](growth/growth-graph.md) 가 나눠 가진다.
 
 아직 비어 있는 것 — 지어내지 않고 남긴 자리다:
 
@@ -85,6 +90,7 @@ master/     현재 상태    world/ view/ 처럼 계속 갱신된다
 | [root.md](root.md) | Root Game Goal · World Premise | **Human** |
 | [constraints/](constraints/) | `DC-*.yaml` — 승인된 Design Constraint | **Human** 승인 |
 | [graph/](graph/) | MW · MA · MK · MB · MG · MP · MC · edges | Master Design Agent |
+| [growth/](growth/) | CL · IT · IP · IM 정의 + 획득 경로 Overlay | Master Design Agent |
 | [overlay.md](overlay.md) | Capability × 현재 구현 상태 (IMPLEMENTED/PARTIAL/MISSING) | Master Design Agent |
 | [frontier.md](frontier.md) | `FR-*` 후보 + Human 선택 기록 | Agent 제안 / **Human** 선택 |
 | [candidates/](candidates/) | `CC-*.md` — 미승인 Constraint Candidate | Agent 제안 / **Human** 승인 |

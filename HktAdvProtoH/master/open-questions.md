@@ -12,7 +12,7 @@ Human 이 답한다    DECISION 줄
 [HISTORY.md](HISTORY.md) 로 옮긴다.** 여기에는 아직 답이 없는 것만 남는다 —
 닫힌 질문이 쌓이면 매번 읽어야 하는 문서가 무거워진다.
 
-미해결 **4건** — Q2 · Q3 · Q8 · Q11 (닫힌 질문은 HISTORY.md).
+미해결 **5건** — Q2 · Q3 · Q8 · Q11 · Q17 (닫힌 질문은 HISTORY.md).
 
 ---
 
@@ -26,9 +26,10 @@ Human 이 답한다    DECISION 줄
                   (Narrative 는 개정 정책에서 보조 규칙(§11)이 되어 별도 Gate 가 아니다.)
                   Cycle 을 도는 데는 지장이 없다 — Frontier 는 Possibility 까지만 요구한다.
                   그러나 "왜 이 기능이 존재하는가" 의 최상단이 비어 있는 상태로 누적된다.
-                  2026-08-18 GR(Growth) 주입 이후 무게가 늘었다 — Class/Item 은
+                  2026-08-18 GR(Growth) 주입 이후 무게가 늘었다 — Class 는
                   origin_trace(World Cause) 필수라서(DC-GROWTH-CLASS-ORIGIN-TRACE APPROVED)
-                  이것이 닫히기 전에는 성장 콘텐츠 노드(CL-*/IT-*)를 한 개도 만들 수 없다.
+                  이것이 닫히기 전에는 CL-* 를 한 개도 만들 수 없다.
+                  Item(IT-*)의 막힘 정도는 다르다 — Q17 이 그 경계를 다룬다.
 
     필요한 것     master/root.md 의 Root Game Goal · World Premise (Human 소유)
 
@@ -93,3 +94,34 @@ Human 이 답한다    DECISION 줄
 
     DECISION      <PENDING>
 
+---
+
+## Q17. 첫 획득 경로를 Q2 이전에 Item 으로 열 것인가 — OPEN
+
+    무엇          세계의 모든 능력치는 지금 존재 종류가 정한 값이거나 디버그 명령으로만
+                  바뀐다 — 획득 경로가 0 개다 (growth/growth-graph.md).
+                  Class(CL-*)는 origin_trace(MW → MG → MP) 필수라 Q2 가 닫히기 전에는
+                  한 개도 만들 수 없다. 그러나 Item(IT-*)은 Master 에 의미(semantic)만
+                  요구하고 출처 추적은 Runtime Instance 의 `obtained_from` 이다
+                  (GR §28.1 · §29 · §30 · §41 Item 절) — 세계에 이미 있는 획득 원천에
+                  붙이면 Q2 이전에도 성립한다.
+
+    영향          이 결정이 frontier.md 의 유일한 후보
+                  (FR-WHAT-I-HOLD-CHANGES-MY-BLOW)를 열거나 닫는다.
+                  닫으면 전투 층은 Active Defense 설계 문서 대기, 성장 층은 Q2 대기가 되어
+                  **지금 고를 수 있는 Cycle 이 하나도 남지 않는다.**
+                  master/README.md 의 진행 순서 지시("전투 트랙 마무리 전에는 새 영역으로
+                  넓히지 않는다")와의 관계도 함께 정해진다 — GR 주입(Q13)이 성장 영역을
+                  이미 열었으나 그 지시 문안은 갱신되지 않았다.
+
+    선택지        (a) Item 경로를 먼저 연다 — Q2 없이도 성립한다.
+                      그러면 그 무기가 세계의 어디서 오는지를 함께 골라야 한다.
+                          a-1  쓰러진 자율 존재가 남긴다 (MA-* 가 원천 — GR §30)
+                          a-2  세계의 자리에서 채집·제작한다 (C001 채집이 이미 있다)
+                          a-3  둘 다
+                  (b) Q2(root.md)를 먼저 채우고 Class·Item 을 함께 연다
+                      → 세계관에 뿌리내린 성장이 되지만 그때까지 Cycle 이 멈춘다
+                  (c) 성장을 미루고 Active Defense 설계 문서를 먼저 쓴다 (Human 집필)
+                      → 전투 사다리를 계속 올린다. 성장 결손은 그대로 남는다
+
+    DECISION      <PENDING>

@@ -391,3 +391,60 @@ ONE-LAYER-AT-A-TIME 신설, 이연 층 근거의 3종은 DRAFT 보류.
 수치·공식은 옮기지 않았다(정책 §7.2). SCHEMA.md 에 growth/ 양식(CL/IT/IP/IM · II- Runtime
 전용)을 추가했고 growth/growth-graph.md 가 Growth Overlay(획득 경로 판정)를 소유한다.
 
+
+2026-08-18 (C013 Feedback + NEED 재판정 + NEXT) — **Penetration 층이 닫히고 결손 축이 바뀌었다.**
+
+```text
+Overlay 승격  MC-PENETRATION            MISSING → IMPLEMENTED
+              근거  C013 08-verification — 마주한 방어가 결정적으로 깎이고(90 → 56.25 ·
+                    피해 14 대 17), 마주하지 않은 방어에는 닿지 않으며(물리 타격 20 무변경),
+                    두꺼울수록 걷어내는 양이 커지고(0/7.5/33.75/112.5), 방어를 없애지는 못한다.
+                    C013 은 기계 검증 7항 통과 · Human Play 9항 확인 대기 상태다.
+              MC-ATTACK-ARMOR-MATCHUP · MC-DEFENSE-MITIGATION · MC-COMBAT-STRIKE 는 유지.
+
+Overlay 승격  MC-COMBAT-CAUSE-READING   PARTIAL → IMPLEMENTED   (NEED 재판정)
+              보고가 아니라 재판정이다 — C010 이 이 Capability 를 보고하지 않아 오래
+              "재판정 필요" 로 남아 있었다. 근거는 세 Cycle 의 실측이다:
+              C010 6항 breakdown 5종 + 화면 경위 · C012 의 damageType·offenseStat·defenseStat
+              (이름과 함께) · C013 의 penetrationStat·effectiveDefense (걷히기 전/뒤).
+              공식에 들어간 모든 값이 이름과 함께 관찰된다.
+
+Constraint    MC-PENETRATION 의 constraints 를 1종 → 5종으로 넓혔다 (실제로 형태를 제한한 것만) —
+              ONE-FORMULA · ONE-LAYER-AT-A-TIME · MATCHUP-SOFT · WORLD-OWNS-THE-SURFACE-LIST
+              를 C013 실측 근거와 함께 SATISFIED 로 기록했다.
+
+Candidate     CC-THE-WORLD-OWNS-THE-RELATION 신설 (PENDING) — C013 제안.
+              두 존재 사이에서만 정해지는 값(versusObserver)도 세계가 계산해 싣는다.
+              DC-WORLD-OWNS-THE-SURFACE-LIST 의 확장인지 별개 문안인지는 Human 결정.
+
+Frontier      FR-PENETRATION-DEVALUES-THE-WALL 소진 — C013 으로 닫혔다. 파일에서 제거.
+              배운 것: 관통을 **어느 종류에 주는가**를 틀렸을 때 기계 검증 306 tests 가
+              전부 통과했다. 계산이 아니라 주어가 틀린 것은 어떤 자동 검사도 잡지 못한다
+              (C013 CORRECTION). Human 의 "플레이어에 영향을 주는가" 질문이 잡았다.
+
+              FR-WHAT-I-HOLD-CHANGES-MY-BLOW 신설 (PROPOSED) — 결손의 축이 바뀌었다.
+              전투 층의 다음 칸(Active Defense)은 원본이 이름만 대어 막혀 있고,
+              대신 R1 이 스스로 예고한 깊이 순서("장비 성장 → 빌드 → 능동 방어 → 기력 운용
+              → 넨식")의 **첫 칸이 비어 있다**. MP-OUTGROW-THE-OPPONENT 의
+              requires.resource("능력치를 올릴 장비·성장의 원천")가 미충족이라는 사실을
+              growth-graph.md 와 C013 MASTER FEEDBACK(FR-EARN-THE-PIERCING)이 양쪽에서 가리켰다.
+
+Overlay 정정  MP-OUTGROW-THE-OPPONENT · MP-PIERCE-THE-HARD-DEFENSE 를 "닫혔다 = 플레이 가능"
+              으로 읽던 표기를 고쳤다. 요구 Capability 는 모두 섰지만 그 능력치를 세계 안에서
+              **얻는 경로가 없다** — 두 축(구현 / 획득)을 표에서 갈라 적었다.
+
+Q17 신설      첫 획득 경로를 Q2 이전에 Item 으로 열 것인가. Class(CL-*)는 origin_trace 필수라
+              Q2 에 막히지만 Item(IT-*)은 Master 에 semantic 만 요구하고 출처 추적은 Runtime
+              obtained_from 이다 (GR §28.1 · §29 · §30 · §41) — 막힘 정도가 다르다.
+              Q2 의 "CL-*/IT-* 를 한 개도 만들 수 없다" 문안도 이에 맞춰 정정했다.
+
+frontier.md   근거 문서 표기를 Q15(영역 분리)에 맞춰 갱신했다 — "둘뿐(R1·DT)" 은 전투 영역에
+              한한 규칙이었는데 문서 전체 규칙처럼 적혀 있었다. 이제 전투 R1/DT · 성장 GR 이며
+              근거는 영역을 넘지 않는다.
+```
+
+2026-08-18 (README 정리) — master/README.md 의 진행 순서 지시에 붙어 있던 완료 기록을
+여기로 옮긴다. "이 지시 아래에서 Graph 확장을 한 번 실행했다 — OffenseDefense 트랙 자신의
+다음 층(Penetration)이 Graph 에 노드가 없어 Frontier 에 나타나지 못하고 있었고, 새 영역이
+아니라 진행 중인 트랙의 결손이므로 제한의 취지에 어긋나지 않는다고 판단해
+MC-PENETRATION · MP-PIERCE-THE-HARD-DEFENSE 2종을 세웠다." 그 판단은 C013 으로 닫혔다.
