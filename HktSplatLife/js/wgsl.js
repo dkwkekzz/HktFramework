@@ -31,7 +31,7 @@ struct SimParams {
 };
 `;
 
-	// 개체 유전자 160B — engine.js ENTITY_STRIDE(40 float) 와 바이트 일치 필수
+	// 개체 유전자 192B — engine.js ENTITY_STRIDE(48 float) 와 바이트 일치 필수
 	const ENTITY_STRUCT = /* wgsl */`
 struct Entity {
 	emitter : vec3f,   cohesion : f32,
@@ -43,7 +43,18 @@ struct Entity {
 	colorA : vec4f,    colorB : vec4f,
 	size : f32,        stretch : f32,   opacity : f32,   luminosity : f32,
 	spec : f32,        specPow : f32,   rim : f32,       wrap : f32,   // R1 재질: 스펙큘러·광택·림·랩 확산
+	// F1 이펙트 유전자 — 이펙트의 정체성은 전부 여기 있다 (fxK 0 = 이펙트 개체가 아님).
+	// 이벤트(언제·어디서)는 fxEvents 테이블, 게놈(무엇인가)은 이 8개 값.
+	fxK : f32,         burst : f32,     cone : f32,      swirl : f32,  // 응답 강도·방사 속도·지향성·와류
+	shell : f32,       grow : f32,      curve : f32,     ember : f32,  // 구각 집중·팽창·소멸 곡선·잔불 비율
 };
+`;
+
+	// F1 이펙트 이벤트 테이블 — engine.js MAX_FX/FX_STRIDE 와 바이트 일치 필수.
+	// 슬롯당 vec4 3개: [3k]=(원점, t0) · [3k+1]=(축, 세기) · [3k+2]=(초기 반경, 시드, 스케일, _).
+	// t0 <= 0 = 비활성 슬롯. 스플랫은 제 슬롯을 rest.w 로 안다 (L6 뼈 친화와 동형).
+	const FX_CONST = /* wgsl */`
+const FX_SLOTS : u32 = 16u;
 `;
 
 	// 고정 격자 상수 — L2/L4/L5 이웃 탐색 (전 개체 공유 dense grid + 셀당 고정 슬롯)
@@ -95,7 +106,7 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
 `;
 
 	// ── 시뮬 패스: L1 자율 + L2 이웃 + L4 성장/연소 + L5 개체 간 열 전달 + L6 뼈대 SDF 살 ──
-	const SIM = SPLAT_STRUCT + SIM_PARAMS + ENTITY_STRUCT + GRID_CONST + /* wgsl */`
+	const SIM = SPLAT_STRUCT + SIM_PARAMS + ENTITY_STRUCT + GRID_CONST + FX_CONST + /* wgsl */`
 @group(0) @binding(0) var<storage, read_write> splats : array<Splat>;
 @group(0) @binding(1) var<uniform> P : SimParams;
 @group(0) @binding(2) var<storage, read_write> gridCount : array<atomic<u32>>;
@@ -107,6 +118,9 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
 // 없으면 1×1 더미 + on=0 → 평면 바닥(floorY) 폴백 (engine.js setHeightfield)
 @group(0) @binding(7) var hfTex : texture_2d<f32>;
 @group(0) @binding(8) var<uniform> HF : HfParams;
+// F1 이펙트 이벤트: 슬롯당 vec4 3개 (원점·t0 / 축·세기 / 반경·시드·스케일).
+// 이펙트 스플랫의 유일한 외부 입력 — 뼈대(bones)가 살의 형태 입력인 것과 같은 자리다.
+@group(0) @binding(9) var<storage, read> fxEvents : array<vec4f>;
 
 struct HfParams {
 	origin : vec2f, cell : f32, res : f32, // 월드 xz 원점, 텍셀 크기, 한 변 텍셀 수
@@ -147,6 +161,84 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
 	if (i >= P.count) { return; }
 	let E = entities[i / P.sliceSize];
 	var s = splats[i];
+
+	// ── F1 이펙트 경로: 이벤트 구동 세포 ──────────────────────────────────
+	// 이펙트도 세포다 — "모양을 그리는" 코드는 여기에도 없다. 스플랫은 제 이벤트 슬롯
+	// (rest.w, L6 뼈 친화와 동형)만 알고, 이벤트가 켜지는 순간 *시드 해시*에서 발생
+	// 방향·속도를 유도해 태어난다. 이후는 평범한 운동(난류·부력·중력·감쇠)이고,
+	// 에너지는 수명 위상의 함수다 — 색·크기·불투명도는 렌더가 그 에너지에서 유도한다.
+	// 타격이냐 폭발이냐는 코드가 아니라 유전자(cone/burst/shell/grow/curve/ember)가 정한다.
+	if (E.fxK > 0.0) {
+		let slot = min(u32(rest[i].w), FX_SLOTS - 1u);
+		let ev0 = fxEvents[slot * 3u];       // 원점.xyz, t0
+		let ev1 = fxEvents[slot * 3u + 1u];  // 축.xyz, 세기
+		let ev2 = fxEvents[slot * 3u + 2u];  // 초기 반경, 시드, 스케일
+		let t0 = ev0.w;
+		let life = max(E.lifeBase, 1e-3);
+		let age = P.time - t0;
+		if (t0 <= 0.0 || age < 0.0 || age > life) {
+			// 비활성: 격자 밖(저 아래)에 주차 — 이웃 탐색·렌더에서 완전히 빠진다(에너지 0)
+			s.pos = vec3f(0.0, -1000.0, 0.0);
+			s.vel = vec3f(0.0);
+			s.age = life;
+			s.misc.x = 0.0;
+			splats[i] = s;
+			return;
+		}
+		// 세대 도장: life 에 제 이벤트의 t0 를 새긴다 — 다르면 "아직 안 태어난 세대"
+		if (s.life != t0) {
+			let sd = s.misc.y + ev2.y;
+			let h = hash31(sd * 1.913);
+			let h2 = hash31(sd * 3.719 + 11.3);
+			// 균등 구면 방향 (z 균등 + 방위 균등)
+			let cz = h.x * 2.0 - 1.0;
+			let sr = sqrt(max(1.0 - cz * cz, 0.0));
+			let ph = h.y * 6.2831853;
+			let iso = vec3f(sr * cos(ph), sr * sin(ph), cz);
+			var ax = vec3f(0.0, 1.0, 0.0);
+			let al = length(ev1.xyz);
+			if (al > 1e-5) { ax = ev1.xyz / al; }
+			// 지향성(cone): 0 = 등방(폭발) … 1 근처 = 축으로 몰린 분사(타격 스파크)
+			var dv = mix(iso, ax, clamp(E.cone, 0.0, 0.95));
+			let dvl = length(dv);
+			var dir = ax;
+			if (dvl > 1e-4) { dir = dv / dvl; }
+			// 구각 집중(shell): 0 = 부피 균등(꽉 찬 구, 세제곱근 분포) … 1 = 같은 속도(팽창 구각)
+			let sp0 = E.burst * mix(pow(max(h2.x, 1e-4), 0.3333), 1.0, clamp(E.shell, 0.0, 1.0));
+			let tang = cross(ax, dir); // 와류: 축 둘레 접선 — 화구가 말려 오르는 결
+			s.pos = ev0.xyz + dir * (ev2.x * ev2.z);
+			s.vel = (dir * sp0 + tang * (E.swirl * E.burst)) * ev1.w * E.fxK;
+			s.life = t0;
+			s.misc.z = 0.0; // 연소 채널 미사용 (색은 개체 램프에서 유도)
+			s.misc.w = 1.0;
+		}
+		let u = clamp(age / life, 0.0, 1.0);
+		// 잔불(ember): 시드 일부는 탄도 파편 — 중력을 세게 받아 아래로 흩어진다
+		let he = hash31(s.misc.y * 5.101 + 3.3);
+		var emb = 0.0;
+		if (he.x < clamp(E.ember, 0.0, 1.0)) { emb = 1.0; }
+		var acc = flow(s.pos * E.flowFreq, P.time * E.flowSpeed) * E.volatility;
+		// 부력은 식으면서 잦아들고(1-u), 중력은 잔불에서 세진다 — 불꽃/파편 분화
+		acc.y += E.updraft * (1.0 - u) - E.gravity * (1.0 + emb * 3.0);
+		if (P.pull.w > 0.0) {
+			let dp = P.pull.xyz - s.pos;
+			acc += dp * P.pull.w * exp(-dot(dp, dp) * 3.0);
+		}
+		s.vel = (s.vel + acc * P.dt) * exp(-E.damping * P.dt);
+		let spx = length(s.vel);
+		if (spx > 40.0) { s.vel *= 40.0 / spx; } // 이펙트는 생명보다 빠르다 (전역 상한 10 → 40)
+		s.pos += s.vel * P.dt;
+		let gy = terrainH(s.pos.xz);
+		if (s.pos.y < gy) {
+			s.pos.y = gy;
+			s.vel = vec3f(s.vel.x, abs(s.vel.y) * 0.25, s.vel.z) * exp(-8.0 * P.dt);
+		}
+		s.age = age; // 렌더가 수명 위상(u)을 다시 유도하는 유일한 근거
+		// 수명 곡선: 점화(smoothstep)는 짧게, 소멸(curve)은 유전자가 정한다
+		s.misc.x = pow(1.0 - u, max(E.curve, 0.05)) * smoothstep(0.0, 0.04, u);
+		splats[i] = s;
+		return;
+	}
 
 	// ── L4 나무 경로: 성장(휴면 스플랫 활성화) + 연소 전파 + 재생 ──
 	// 형태는 rest 골격, 시점은 birth 가 결정한다.
@@ -627,9 +719,17 @@ fn vs(@builtin(vertex_index) vi : u32, @builtin(instance_index) ii : u32) -> VOu
 	// ── 시뮬 상태 → 3D 공분산 유도 ──
 	let speed = length(s.vel);
 	let elong = 1.0 + E.stretch * speed;
-	let base = E.size * (0.35 + 0.65 * energy); // 에너지로 크기 맥동
+	var base = E.size * (0.35 + 0.65 * energy); // 에너지로 크기 맥동
 	let isFlesh = E.fleshK > 0.0 && C.boneCount > 0u;
 	let lit = isFlesh && C.light.w > 0.0;
+	// F1 이펙트: 수명 위상 u = age/lifeBase — 시뮬이 s.age 에 남긴 값에서 *다시 유도*한다.
+	// 팽창(grow)은 화구·연기가 부풀어 오르는 결이고, 램프 보간 인자도 이 u 다 (불 → 연기).
+	let isFx = E.fxK > 0.0;
+	var fxU = 0.0;
+	if (isFx) {
+		fxU = clamp(s.age / max(E.lifeBase, 1e-3), 0.0, 1.0);
+		base *= 1.0 + E.grow * fxU;
+	}
 
 	// R1 살 법선: 제 뼈(rest.w) 축 위 최근접점에서의 방사 방향 — 현재 위치 기준이라
 	// 지연 추종(출렁임)까지 법선에 실린다. 캡슐 끝단(t 클램프)은 구면 법선으로 자연 연속.
@@ -720,6 +820,7 @@ fn vs(@builtin(vertex_index) vi : u32, @builtin(instance_index) ii : u32) -> VOu
 	// 소매 끝·반바지 밑단 같은 *의상 경계*가 축 그라데이션으로 생긴다 (여전히 유도값, 원칙 1).
 	var f = heat;
 	if (isFlesh) { f = tAx; }
+	if (isFx) { f = fxU; } // 이펙트: 램프 = 수명 위상 (탄생색 → 소멸색)
 	var rgb = mix(cA, cB, f);
 	if (lit) {
 		// R1 조명 합성 (linear 공간): 램프는 albedo — sRGB→linear 근사(γ2).

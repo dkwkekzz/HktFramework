@@ -43,6 +43,16 @@
 		specPow:    ['광택 지수',   1,    128,  1],
 		rim:        ['림 라이트',   0,    1,    0.02],
 		wrap:       ['랩 확산',     0,    1,    0.05],
+		// ── F1: 이펙트 유전자 (이벤트 구동 개체 전용 — fxK 0 이면 전부 무시) ──
+		// 이펙트의 정체성은 오직 이 8개 값이다. 타격이냐 폭발이냐는 코드가 아니라 여기서 갈린다.
+		fxK:        ['이펙트 응답', 0,    4,    0.1],
+		burst:      ['방사 속도',   0,    30,   0.5],
+		cone:       ['지향성',      0,    0.95, 0.05],
+		swirl:      ['와류',        0,    2,    0.05],
+		shell:      ['구각 집중',   0,    1,    0.05],
+		grow:       ['팽창',        0,    6,    0.1],
+		curve:      ['소멸 곡선',   0.2,  6,    0.1],
+		ember:      ['잔불 비율',   0,    1,    0.05],
 	};
 
 	// ── 원소 프리셋: 유전자 값만 다르고 시스템은 동일 — 속성이 형태를 만든다 ──
@@ -121,7 +131,7 @@
 	// R1 재질 등 신설 유전자 미지정 프리셋은 0 폴백 (specPow 만 pow 가드 1) — NaN 업로드 방지.
 	function materialize(p, emitter) {
 		const g = {};
-		for (const k of Object.keys(GENE_DEFS)) g[k] = p[k] != null ? p[k] : (k === 'specPow' ? 1 : 0);
+		for (const k of Object.keys(GENE_DEFS)) g[k] = p[k] != null ? p[k] : (k === 'specPow' || k === 'curve' ? 1 : 0);
 		g.colorA = hexToVec4(p.colorA);
 		g.colorB = hexToVec4(p.colorB);
 		g.form = p.form || 0;
