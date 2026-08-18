@@ -61,7 +61,9 @@ nodes:
       DC-COMBAT-PLAYER-CAUSALITY: SATISFIED    # explainable_result 요구를 직접 실현하는 능력이다
                                                # (DT §10 관찰 계약 — Strike Event 가 선택된 능력치와
                                                #  계산 경위를 싣는다 · DT §14-9 수용 기준)
-    overlay: PARTIAL
+    overlay: IMPLEMENTED
+    # 2026-08-18 NEED 재판정 — C010(계산 내역) · C012(능력치 이름) · C013(걷히기 전/뒤)의 실측으로
+    # 공식에 들어간 모든 값이 이름과 함께 관찰된다. 근거는 ../overlay.md.
 
   - id: MC-GUARD
     type: capability
@@ -213,12 +215,17 @@ nodes:
       상대의 방어 중 내 공격이 마주한 쪽을 얼마간 통하지 않게 만든다. 방어를 없애지는 못하고,
       마주하지 않은 다른 방어에는 닿지 않으며, 두껍게 굳힌 상대일수록 무력화의 몫이 커진다.
     required_by: [MP-PIERCE-THE-HARD-DEFENSE]
-    constraints: [DC-COMBAT-PLAYER-CAUSALITY]
+    constraints: [DC-COMBAT-PLAYER-CAUSALITY, DC-COMBAT-ONE-FORMULA, DC-COMBAT-ONE-LAYER-AT-A-TIME, DC-COMBAT-MATCHUP-SOFT, DC-WORLD-OWNS-THE-SURFACE-LIST]
     constraint_evaluation:
-      DC-COMBAT-PLAYER-CAUSALITY: SATISFIED    # 관통은 확률로 방어를 무시하는 것이 아니라 마주한 방어를 결정적으로 깎는다 (R1 §14 Penetration · DT §15)
-    overlay: MISSING
-    # R1 §14 Penetration 층. 작용 지점은 DT §15 가 지정한다 —
-    # 타입 대응이 고른 방어에만 작용하고 Damage Type 자체를 바꾸지 않는다.
+      DC-COMBAT-PLAYER-CAUSALITY: SATISFIED    # 관통은 확률로 방어를 무시하는 것이 아니라 마주한 방어를 결정적으로 깎는다 — 5회 반복 동일 (C013 실측)
+      DC-COMBAT-ONE-FORMULA: SATISFIED         # 감쇄식·DefenseConstant·하한 1 이 한 글자도 바뀌지 않았다. 식이 읽는 방어 값 하나만 바뀐다 (C013)
+      DC-COMBAT-ONE-LAYER-AT-A-TIME: SATISFIED # 고르지 않은 방어에는 닿지 않는다 — 물리 타격의 C010 값 20 무변경. 막기는 관통을 읽지 않는다 (C013)
+      DC-COMBAT-MATCHUP-SOFT: SATISFIED        # 타입별 관통 배율표 없음 · 면역 없음(하한 1) · 깎인 방어값이 관찰된다 (C013)
+      DC-WORLD-OWNS-THE-SURFACE-LIST: SATISFIED # 걷히기 전·관통·걷힌 뒤를 세계가 이름과 함께 실었다. View 는 곱하지 않는다 (C013)
+    overlay: IMPLEMENTED
+    # C013-penetration-devalues-the-wall 이 R1 §14 Penetration 층으로 닫았다 (2026-08-18).
+    # 작용 지점은 DT §15 가 지정한다 — 타입 대응이 고른 방어에만 작용하고 Damage Type 자체를 바꾸지 않는다.
+    # 획득 경로는 없다 — ../growth/growth-graph.md (구현되어 있는가와 얻을 수 있는가는 다른 축이다).
 
   - id: MC-CONDITION-STACKING
     type: capability
