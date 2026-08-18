@@ -55,6 +55,11 @@ const setAttribute = (world: WorldDriver, id: string, value: number, targetEntit
 const strikeWith = (interactionId: string, setup: (world: WorldDriver) => void = () => {}) => {
   const world = driveWorld({ npcs: [dummyAt(1.5, 0)] });
   aimRight(world);
+  // C013 — 이 층(Damage Type)의 기준값은 **관통이 없는 조합**이다.
+  // C013 이 관찰자에게 오라 관통을 주었으므로 여기서 0 으로 되돌린다.
+  // 각 층은 위층 없이도 그대로 서 있어야 한다 (DC-COMBAT-ONE-LAYER-AT-A-TIME).
+  setAttribute(world, 'armorPenetration', 0);
+  setAttribute(world, 'resistancePenetration', 0);
   setup(world);
   world.dispatch({ interactionId });
   tickFor(world, AFTER_SWING_OPEN);
@@ -249,6 +254,9 @@ describe('INTENT-DAMAGE-BREAKDOWN-001 (CHANGED) — 무엇을 골랐는지가 �
       attackContribution: 20,
       rawDamage: 26,
       defenseStat: { name: 'armor', value: 30 },
+      // C013 — 치는 쪽에 관통이 없다. 걷히기 전과 걷힌 뒤가 같다
+      penetrationStat: { name: 'armorPenetration', value: 0 },
+      effectiveDefense: 30,
       defenseMultiplier: 100 / 130,
       finalDamage: 20,
       appliedDamage: 20,
@@ -263,6 +271,9 @@ describe('INTENT-DAMAGE-BREAKDOWN-001 (CHANGED) — 무엇을 골랐는지가 �
       attackContribution: 20,
       rawDamage: 26,
       defenseStat: { name: 'resistance', value: 90 },
+      // C013 — 오라 쪽 관통도 없다. 방식이 고른 쪽의 관통만 실린다
+      penetrationStat: { name: 'resistancePenetration', value: 0 },
+      effectiveDefense: 90,
       defenseMultiplier: 100 / 190,
       finalDamage: 14,
       appliedDamage: 14,
@@ -286,6 +297,8 @@ describe('INTENT-DAMAGE-TYPE-OBSERVE-001 — 고를 근거가 보인다', () => 
       auraAttack: 15,
       armor: 30,
       resistance: 90,
+      armorPenetration: 0, // C013 — wanderer 는 관통을 지니지 않는다
+      resistancePenetration: 0,
       armorMultiplier: 100 / 130,
       resistanceMultiplier: 100 / 190,
     });

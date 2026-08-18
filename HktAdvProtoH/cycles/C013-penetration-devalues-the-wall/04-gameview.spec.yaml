@@ -1,0 +1,272 @@
+# CYCLE C013 — GameView Specification
+#
+# 이번 Cycle 은 계약에 새 표면을 열지 않는다. 새 행동도 새 스킬도 없다.
+# 이미 있는 두 자리 — ① 존재의 속성  ② 맞은 자리의 타격 결과 — 에 실리는 내용이 넓어지고,
+# 존재의 속성 쪽에 **관계** 하나가 더해진다.
+#
+# 중심은 **한 값이 두 값이 되는 것**이다. C012 가 "어느 방어로 계산되었는가" 를 실었다면
+# C013 은 그 방어가 하나의 수가 아니라는 것을 싣는다 —
+# 상대가 지닌 방어와, 그 방어가 나에게 읽히는 값이 다르다.
+# 이 둘이 함께 보이지 않으면 관통은 그저 피해가 조금 커진 일로 보이고,
+# "상대 방어가 얼마나 통하지 않았는가" 는 플레이어가 역산해야 하는 수수께끼가 된다.
+id: VIEW-PENETRATION-DEVALUES-THE-WALL-001
+observer: player
+
+delta:
+  reused:
+    - scene.mining-field
+    - entities.character                      # 위치·역할·이름·모션·body·swing 계약 그대로
+    - entities.deposit
+    - entityHud                               # 몸 위의 이름·생명 그대로
+    - entities.character.vitality
+    - entities.character.attributes.defenseShape   # C012 그대로 — 상대의 성질이다
+    - entities.character.attributes.guard          # C011 그대로
+    - entities.character.attributes.tempoStats / modifiers
+    - debugObserve / debugAuthority
+    - observer / session / delivery / identity / telemetry
+    - interactions.move / mine / moveMode / setAttribute
+    - interactions.attack / skillHeavy / skillAura  # C012 그대로 — 새 스킬이 없다
+    - interactions.*.profile                       # damageType 포함 그대로
+    - interactions.guardBegin / guardRelease       # C011 그대로 — 막기는 관통을 읽지 않는다
+    - commandCatalog                               # C009 그대로 — 구조 무변경 (COMMAND NOTE)
+    - hud.inventory / tool / playerAction / worldTime / observers
+    - hud.self.vitality / moveMode / tempoStats / modifiers / guard
+    - strikeEvents.attacker / target / skill / at / since
+    - strikeEvents.amount                          # C011 STRIKE NOTE 의 관계 그대로
+    - strikeEvents.breakdown.damageType / offenseStat              # C012 그대로
+    - strikeEvents.breakdown.baseDamage / attackContribution / rawDamage
+    - strikeEvents.breakdown.defenseMultiplier / finalDamage / appliedDamage
+    - strikeEvents.breakdown.guard                 # C011 4항목 그대로 — 관통과 무관하다
+  added:
+    - entities.character.attributes.versusObserver      # 이 존재의 방어가 나에게 얼마로 읽히는가
+    - strikeEvents.breakdown.penetrationStat            # 이 타격에서 작용한 관통 (이름 + 값)
+    - strikeEvents.breakdown.effectiveDefense           # 걷힌 뒤 — 감쇄식에 실제로 들어간 값
+  changed:
+    - entities.character.attributes.combatStats         # 네 값 → 여섯 값
+    - hud.self.combatStats                              # 위와 같음
+    - strikeEvents.breakdown.defenseStat                # 의미가 고정된다 — **걷히기 전** 방어
+                                                        # (DEFENSE STAT NOTE)
+
+scene: mining-field
+
+# ─────────────────────────────────────────────────────────────────
+# entities.character — 상대의 방어와, 그 방어의 나에 대한 값어치
+#   C007 R2 의 원칙 그대로다 — 세계는 어떤 속성도 숨기지 않는다.
+#   여기에 하나가 더해진다. 관통은 **관계**이므로, 상대의 값만으로도
+#   내 값만으로도 알 수 없다. 그 관계를 세계가 계산해 싣는다.
+# ─────────────────────────────────────────────────────────────────
+entities:
+  character:
+    attributes:
+      combatStats:                            # C013 CHANGED — C012 의 네 값에 둘이 더해진다
+        physicalAttack: { source: Actor.PhysicalAttack }          # REUSED
+        auraAttack: { source: Actor.AuraAttack }                  # REUSED
+        armor: { source: Actor.Armor }                            # REUSED
+        resistance: { source: Actor.Resistance }                  # REUSED
+        armorPenetration: { source: Actor.ArmorPenetration }      # C013 ADDED
+        resistancePenetration: { source: Actor.ResistancePenetration }   # C013 ADDED
+        meaning:
+          - 여섯 값 모두 실린다. 자기 것도 남의 것도 숨기지 않는다
+          - 관통은 공격 쪽 능력이지만 **피해를 키우는 값이 아니다.**
+            View 가 이것을 공격력 옆에 세워 "세기" 로 읽히게 하면 잘못된 의미를 가르친다 —
+            이 값이 하는 일은 상대 방어의 값어치를 떨어뜨리는 것뿐이다
+          - 상대의 관통도 실린다. 저 존재가 내 방어를 얼마나 무력화하는지는
+            내가 얼마나 위험한지를 아는 일이다
+
+      versusObserver:                         # C013 ADDED — 세계가 계산한 관계
+        armor: { source: Actor.VersusObserver.Armor }
+        resistance: { source: Actor.VersusObserver.Resistance }
+        armorMultiplier: { source: Actor.VersusObserver.ArmorMultiplier }
+        resistanceMultiplier: { source: Actor.VersusObserver.ResistanceMultiplier }
+        meaning:
+          - 이 존재의 두 방어가 **보는 이의 관통에게** 얼마로 읽히는가다.
+            오라 방어 90 인 상대가 나에게는 56.25 로 읽힌다 — 그 56.25 가 여기 실린다
+          - 이 값은 **세계가 계산한 것**이다. View 가 combatStats.armor 와
+            내 armorPenetration 을 곱해 만들어내서는 안 된다
+            (DC-WORLD-OWNS-THE-SURFACE-LIST). 세계가 몫을 정하는 규칙을 바꾸면
+            View 를 고치지 않고도 화면이 따라 바뀌어야 한다
+          - 치기 전에 보인다. 타격 결과를 기다려 역산하는 것이 아니다 —
+            그래야 무엇으로 칠지 고르는 일이 판단이 된다
+          - 내 관통이 0 이면 이 값들은 combatStats 의 값과 **같다.**
+            같다는 것 자체가 관찰이다 — "이 상대에게 나는 아무것도 통하지 않는다"
+          - 모든 존재에 실린다. 내 몸에 실린 값은 내 관통으로 내 방어를 본 것이라
+            쓸 데가 없지만, 그래도 싣는다 (C011 의 guard 관찰과 같은 원칙)
+          - defenseShape 는 여기에 들어가지 않는다. 어느 쪽이 단단한가는
+            상대가 지닌 성질이고, 걷힌 값은 나와 상대 사이의 관계다.
+            관통으로 판정이 뒤집혀 보이면 상대의 성질이 나에 따라 달라지는 것처럼 읽힌다
+
+      defenseShape:                           # C012 REUSED — 무변경
+        source: Actor.DefenseShape
+        meaning:
+          - 판정 기준은 **걷히기 전** 두 방어다. 관통이 이 판정을 흔들지 않는다
+
+      # guard · tempoStats · modifiers · vitality 는 C007~C011 그대로
+
+# ─────────────────────────────────────────────────────────────────
+# interactions — 이번 Cycle 이 여는 표면이 없다
+#   attack · skillHeavy · skillAura 세 스킬 그대로, 관문도 사유 목록도 그대로.
+#   관통은 스킬이 지닌 성질이 아니므로 profile 에 나타나지 않는다 (03 WORLD STATE).
+#   set-attribute 로 바꿀 수 있는 속성이 둘 늘지만 그것은 세계가 싣는 목록이다
+#   (COMMAND NOTE).
+# ─────────────────────────────────────────────────────────────────
+interactions:
+  # C012 계약 그대로. 이 Cycle 은 interactions 에 아무것도 더하지 않는다.
+  change: NONE
+
+# ─────────────────────────────────────────────────────────────────
+# strikeEvents — 방어가 한 값이 아니라 세 값으로 읽힌다 (C013 ADDED / CHANGED)
+# ─────────────────────────────────────────────────────────────────
+strikeEvents:
+  cardinality: many
+  source: World.StrikeEvents
+  # attacker · target · skill · at · since · amount 는 C007~C012 그대로
+  breakdown:
+    damageType: { source: StrikeEvent.Breakdown.DamageType }        # REUSED
+    offenseStat:                                                     # REUSED
+      name: { source: StrikeEvent.Breakdown.OffenseStat.Name }
+      value: { source: StrikeEvent.Breakdown.OffenseStat.Value }
+    baseDamage: { source: StrikeEvent.Breakdown.BaseDamage }         # REUSED
+    attackContribution: { source: StrikeEvent.Breakdown.AttackContribution }
+    rawDamage: { source: StrikeEvent.Breakdown.RawDamage }
+    defenseStat:                                                     # C013 CHANGED — 의미 고정
+      name: { source: StrikeEvent.Breakdown.DefenseStat.Name }
+      value: { source: StrikeEvent.Breakdown.DefenseStat.Value }     # **걷히기 전**
+    penetrationStat:                                                 # C013 ADDED
+      name: { source: StrikeEvent.Breakdown.PenetrationStat.Name }
+      value: { source: StrikeEvent.Breakdown.PenetrationStat.Value }
+    effectiveDefense: { source: StrikeEvent.Breakdown.EffectiveDefense }   # C013 ADDED
+    defenseMultiplier: { source: StrikeEvent.Breakdown.DefenseMultiplier } # REUSED (입력만 바뀐다)
+    finalDamage: { source: StrikeEvent.Breakdown.FinalDamage }
+    appliedDamage: { source: StrikeEvent.Breakdown.AppliedDamage }
+    guard:                                                           # C011 그대로
+      blocked: { source: StrikeEvent.Breakdown.Guard.Blocked }
+      broken: { source: StrikeEvent.Breakdown.Guard.Broken }
+      cpPaid: { source: StrikeEvent.Breakdown.Guard.CpPaid }
+      prevented: { source: StrikeEvent.Breakdown.Guard.Prevented }
+  meaning:
+    - C007·C010·C011·C012 의 요구는 전부 그대로다
+    - C013 — 방어 쪽이 **세 값의 이야기**로 읽혀야 한다.
+      `오라 방어 90 · 관통 60 · 남은 방어 56.25` 처럼 걷히기 전과 걷힌 뒤가
+      한자리에 함께 있어야 "상대 방어가 얼마나 통하지 않았는가" 에 답할 수 있다.
+      걷힌 뒤 값만 실으면 관통이 있었다는 사실 자체가 사라지고,
+      플레이어는 상대의 방어가 원래 그만큼이었다고 배운다
+    - C013 — 관통이 0 인 타격에서도 세 값이 모두 읽혀야 한다.
+      `50 · 관통 0 · 50` 이 보이는 것이 "이 상대에게는 통하지 않았다" 의 관찰이다.
+      값이 같다고 항목을 감추면 통하지 않았다는 사실을 관찰할 수 없다
+    - C013 — 관통은 공격 피해(rawDamage)를 바꾸지 않는다.
+      View 가 관통을 공격 쪽 기여로 보이게 하면 계산 경위가 거짓이 된다
+    - C013 — 막기 표시는 관통과 무관하게 지금과 똑같아야 한다.
+      관통이 큰 타격을 막아도 막기의 모습은 달라지지 않는다.
+      다르게 보이면 있지도 않은 규칙을 보는 이가 배운다
+
+# ─────────────────────────────────────────────────────────────────
+# hud.self — 내 관통을 늘 눈앞에 (C013 CHANGED)
+# ─────────────────────────────────────────────────────────────────
+hud:
+  self:
+    combatStats:                              # C013 CHANGED — 네 값 → 여섯 값
+      physicalAttack: { source: ObserverCharacter.PhysicalAttack }
+      auraAttack: { source: ObserverCharacter.AuraAttack }
+      armor: { source: ObserverCharacter.Armor }
+      resistance: { source: ObserverCharacter.Resistance }
+      armorPenetration: { source: ObserverCharacter.ArmorPenetration }
+      resistancePenetration: { source: ObserverCharacter.ResistancePenetration }
+      meaning:
+        - 내 관통이 어느 쪽에 얼마나 있는지를 늘 알 수 있어야 한다.
+          고르는 일은 상대의 두 방어와 내 두 관통을 함께 보는 일이 되었다
+        - 내 관통이 0 인 쪽도 실린다. 없다는 것을 아는 것이
+          "그쪽으로는 벽을 깎을 수 없다" 를 아는 것이다
+    # vitality · moveMode · tempoStats · modifiers · guard 는 C007~C011 그대로
+    # 새 자원도 새 막대도 없다. 관통은 아무 자원도 쓰지 않는다
+
+# ─────────────────────────────────────────────────────────────────
+# DEFENSE STAT NOTE — defenseStat.value 의 의미를 못박는다
+# ─────────────────────────────────────────────────────────────────
+# C012 에서 `defenseStat.value` 는 "감쇄식에 들어간 방어" 였고, 그것은 동시에
+# "상대가 지닌 방어" 이기도 했다. 둘이 언제나 같았기 때문에 구분할 필요가 없었다.
+# 이제 갈라진다.
+#
+#   C012    defenseStat: { name: resistance, value: 90 }   → 감쇄식에 90 이 들어갔다
+#   C013    defenseStat: { name: resistance, value: 90 }   → 상대가 지닌 방어는 90
+#           penetrationStat: { name: resistancePenetration, value: 60 }
+#           effectiveDefense: 56.25                        → 감쇄식에 들어간 값은 56.25
+#
+# defenseStat.value 의 이름을 바꾸지 않고 **걷히기 전** 으로 고정하는 쪽을 택했다.
+# 그 값이 상대의 속성(combatStats.armor)과 같은 것을 가리키기 때문이다 —
+# 두 자리에서 다른 수가 보이면 어느 쪽이 상대의 방어인지 흐려진다.
+# 감쇄식의 입력은 새 이름(effectiveDefense)이 가진다. 계산에 쓰인 값에는
+# 언제나 자기 이름이 있어야 한다는 C012 의 판단과 같다.
+#
+# defenseMultiplier 는 이름도 자리도 그대로지만 이제 effectiveDefense 로 계산된다.
+# View 가 defenseStat.value 로 이 값을 검산하면 어긋난다 — 검산은 effectiveDefense 로 한다.
+
+# ─────────────────────────────────────────────────────────────────
+# COMMAND NOTE — commandCatalog 계약 모양은 바뀌지 않는다
+# ─────────────────────────────────────────────────────────────────
+# set-attribute 로 바꿀 수 있는 속성이 12개에서 14개가 된다 —
+# armorPenetration · resistancePenetration 이 들어간다.
+#
+# 그러나 이 계약은 바뀌지 않는다. commandCatalog 는 **세계가 실어 보내는 목록**이고
+# View 는 그것을 읽어 화면을 만든다 (C009 · DC-WORLD-OWNS-THE-SURFACE-LIST).
+# C012 가 네 능력으로 바꿨을 때와 같은 일이다.
+#
+# 이 경로가 이 Cycle 의 확인 수단이다 (01 SCOPE NOTE) —
+# 상대의 두 방어를 모두 두껍게 만들어 "피할 무른 쪽이 없는" 상황을 만들고,
+# 내 관통을 올려 그 벽의 값어치를 떨어뜨려 본다.
+
+# ─────────────────────────────────────────────────────────────────
+# OBSERVABLE PROJECTION NOTE
+# ─────────────────────────────────────────────────────────────────
+#   03 의 Observable Semantic 대응
+#     모든 Actor 에 대해
+#       ArmorPenetration · ResistancePenetration
+#                                        → entities.character.attributes.combatStats
+#       VersusObserver 4값                → entities.character.attributes.versusObserver
+#       (Armor · Resistance · DefenseShape · 네 능력은 C012 자리 그대로)
+#     관찰자 자신에 대해 추가로
+#       관통 두 값                        → hud.self.combatStats
+#     세계
+#       Breakdown.PenetrationStat         → strikeEvents.breakdown.penetrationStat
+#       Breakdown.EffectiveDefense        → strikeEvents.breakdown.effectiveDefense
+#     명령
+#       변경 가능 속성 목록                → commandCatalog (세계가 싣는다 — COMMAND NOTE)
+#
+#   투영하지 않는 것
+#     World.PenetrationConstant = 100 — 세계 상수다. 관찰되는 것은 상수가 아니라
+#       그 결과인 effectiveDefense 와 versusObserver 다
+#       (C010 이 DefenseConstant 에 내린 판단 그대로).
+#     걷힌 몫(90 → 56.25 의 차이 33.75) — 두 값이 함께 실리므로 보는 이가 뺄 수 있다.
+#       세계가 정하는 것은 남는 값이고, 얼마나 걷혔는지는 그 값의 다른 표현일 뿐이다.
+#       계산 규칙이 아니므로 계약에 넣지 않는다.
+#
+#   03 의 Observable Semantic 중 투영되지 않은 것은 없다.
+
+# ─────────────────────────────────────────────────────────────────
+# PLAYABILITY NOTE — 이 계약만으로 Cycle Goal 이 플레이되는가
+# ─────────────────────────────────────────────────────────────────
+# 플레이어(관찰자의 몸 = rabbit-swordsman · resistancePenetration 60)는
+# 이 계약만 받고 다음을 할 수 있다.
+#   1. 자기 hud 를 본다. armorPenetration 0 · resistancePenetration 60 —
+#      나는 오라 방어만 깎을 수 있고 갑주에는 손대지 못한다
+#   2. 자율 존재(wanderer)를 본다.
+#      combatStats 에 armor 30 · resistance 90, defenseShape 는 aura-tougher —
+#      오라 쪽이 벽이다. 내 auraAttack 은 40 이나 되는데 그 벽 때문에 쓸 수 없었다.
+#      **깎아야 할 벽이 화면에 있다**
+#   3. 같은 존재의 versusObserver 를 본다. resistance 56.25 — 나에게는 90 이 아니라
+#      56.25 로 읽힌다. 치기 전에 이미 보인다
+#   4. 오라 스킬로 친다. breakdown 에
+#      defenseStat { resistance, 90 } · penetrationStat { resistancePenetration, 60 } ·
+#      effectiveDefense 56.25 · finalDamage 17.
+#      관통이 없었다면 14 였을 값이다 — 그 차이가 세 값으로 설명되어 있다
+#   5. 물리 스킬로 친다. penetrationStat { armorPenetration, 0 } ·
+#      defenseStat { armor, 30 } · effectiveDefense 30 — 두 값이 같고 피해는 20 이다.
+#      내 관통이 그쪽에는 없다는 것이 그 자리에서 읽히고, C010 의 값이 그대로다
+#   6. set-attribute 로 내 resistancePenetration 을 0 으로 되돌린다.
+#      versusObserver 가 90 으로 돌아오고 다음 오라 타격은 14 다 — C012 와 같아진다
+#   7. set-attribute 로 상대의 resistance 를 0 으로 만든다. versusObserver 도 0 이 되고,
+#      다음 타격의 피해는 관통이 없을 때와 **완전히 같다** (26) —
+#      무른 상대에게 관통은 아무 일도 하지 않는다
+#   8. set-attribute 로 상대의 resistance 를 300 으로 올린다. 피할 곳이 없는 벽이다.
+#      versusObserver 는 187.5 로 읽히고, 그 벽을 상대로 내 피해는 7 이 아니라 9 다
+#   9. 막아 본다. 관통이 큰 타격을 막아도 C011 과 똑같이 절반이 되고 같은 기력을 치른다
+# 화면 구성 방식은 View 의 선택이다. 이 계약은 무엇이 보여야 하는지만 정한다.

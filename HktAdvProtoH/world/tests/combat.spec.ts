@@ -459,14 +459,26 @@ describe('INTENT-ATTRIBUTE-OBSERVE-001 — 세계는 어떤 속성도 숨기지 
       control: 'autonomous',
       tempoStats: { moveSpeed: 2.5, runSpeedMultiplier: 1.4, actionSpeed: 0.85 },
       modifiers: { energyCharge: 1, energyConsume: 1, moveSpeed: 1, actionSpeed: 1 },
-      // C010 → C012 — 새 속성도 예외 없이 실린다. 네 능력과 두 배율이 모두 실린다
+      // C010 → C012 → C013 — 새 속성도 예외 없이 실린다.
+      // 여섯 능력과 두 배율이 모두 실린다
       combatStats: {
         physicalAttack: 40,
         auraAttack: 15,
         armor: 30,
         resistance: 90,
+        armorPenetration: 0,
+        resistancePenetration: 0,
         armorMultiplier: 100 / 130,
         resistanceMultiplier: 100 / 190,
+      },
+      // C013 — 이 존재의 방어가 보는 이(관찰자)에게 얼마로 읽히는가.
+      // 관찰자는 오라 관통 60 을 지니므로 오라 방어 90 이 56.25 로 읽힌다.
+      // 물리 쪽은 관통이 0 이라 원래 값과 같다 — 같다는 것 자체가 관찰이다
+      versusObserver: {
+        armor: 30,
+        resistance: 90 * (100 / 160),
+        armorMultiplier: 100 / 130,
+        resistanceMultiplier: 100 / (100 + 90 * (100 / 160)),
       },
       // C012 — 어느 쪽이 더 단단한지도 세계가 판정해 싣는다.
       // wanderer 는 오라 쪽(90)이 물리 쪽(30)보다 단단하다
@@ -505,6 +517,9 @@ describe('INTENT-ATTRIBUTE-MUTATE-001 — 세계가 허용하면 속성을 바�
       'auraAttack',
       'armor',
       'resistance',
+      // C013 — 관통 둘이 더해진다. 목록이 바뀔 뿐 계약은 그대로다
+      'armorPenetration',
+      'resistancePenetration',
       'moveSpeed',
       'runSpeedMultiplier',
       'actionSpeed',

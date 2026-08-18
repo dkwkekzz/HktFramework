@@ -18,7 +18,7 @@
     "z": 0
    },
    "vitality": {
-    "health": 106,
+    "health": 103,
     "healthMaximum": 120,
     "downed": false
    },
@@ -50,9 +50,9 @@
     },
     "versusObserver": {
      "armor": 30,
-     "resistance": 90,
+     "resistance": 56.25,
      "armorMultiplier": 0.7692307692307693,
-     "resistanceMultiplier": 0.5263157894736842
+     "resistanceMultiplier": 0.64
     },
     "defenseShape": "aura-tougher",
     "guard": {
@@ -112,15 +112,15 @@
      "armor": 50,
      "resistance": 20,
      "armorPenetration": 0,
-     "resistancePenetration": 0,
+     "resistancePenetration": 60,
      "armorMultiplier": 0.6666666666666666,
      "resistanceMultiplier": 0.8333333333333334
     },
     "versusObserver": {
      "armor": 50,
-     "resistance": 20,
+     "resistance": 12.5,
      "armorMultiplier": 0.6666666666666666,
-     "resistanceMultiplier": 0.8333333333333334
+     "resistanceMultiplier": 0.8888888888888888
     },
     "defenseShape": "physical-tougher",
     "guard": {
@@ -331,6 +331,16 @@
    "value": 20
   },
   {
+   "id": "self.combat.armorPenetration",
+   "kind": "counter",
+   "value": 0
+  },
+  {
+   "id": "self.combat.resistancePenetration",
+   "kind": "counter",
+   "value": 60
+  },
+  {
    "id": "self.combat.armorMultiplier",
    "kind": "counter",
    "value": 0.6666666666666666
@@ -386,7 +396,7 @@
    "attackerId": "player-1",
    "targetId": "npc-1",
    "skill": "aura-strike",
-   "amount": 14,
+   "amount": 17,
    "at": {
     "x": 1.6608049382716046,
     "z": 0
@@ -407,12 +417,12 @@
     },
     "penetrationStat": {
      "name": "resistancePenetration",
-     "value": 0
+     "value": 60
     },
-    "effectiveDefense": 90,
-    "defenseMultiplier": 0.5263157894736842,
-    "finalDamage": 14,
-    "appliedDamage": 14
+    "effectiveDefense": 56.25,
+    "defenseMultiplier": 0.64,
+    "finalDamage": 17,
+    "appliedDamage": 17
    }
   }
  ],
@@ -498,6 +508,22 @@
        },
        {
         "name": "resistance",
+        "thenDomain": {
+         "kind": "number",
+         "minimum": 0,
+         "maximum": 100000
+        }
+       },
+       {
+        "name": "armorPenetration",
+        "thenDomain": {
+         "kind": "number",
+         "minimum": 0,
+         "maximum": 100000
+        }
+       },
+       {
+        "name": "resistancePenetration",
         "thenDomain": {
          "kind": "number",
          "minimum": 0,

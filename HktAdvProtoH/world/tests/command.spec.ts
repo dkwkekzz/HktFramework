@@ -78,6 +78,9 @@ describe('INTENT-COMMAND-CATALOG-001 — 세계가 걸 수 있는 것을 밝힌�
       'auraAttack',
       'armor',
       'resistance',
+      // C013 — 관통 둘이 더해져도 View 는 고치지 않는다
+      'armorPenetration',
+      'resistancePenetration',
       'moveSpeed',
       'runSpeedMultiplier',
       'actionSpeed',

@@ -61,9 +61,26 @@ export interface AttributesView {
   // 고르지 않은 쪽도 보여야 "저쪽으로 쳤다면 어땠을까" 를 견줄 수 있다.
   // 두 Multiplier 는 파생값이다. 방어가 체감식이라 수치만 보고는 효과를 알 수 없어
   // "그래서 몇 할로 받는가" 를 함께 싣는다 (0 초과 1 이하 — 0 이 되지 않는다).
+  // C013 CHANGED — 관통 둘이 더해져 여섯 값이다. 관통은 공격 쪽 능력이지만
+  // **피해를 키우는 값이 아니다** — 하는 일은 상대 방어의 값어치를 떨어뜨리는 것뿐이다.
   combatStats: {
     physicalAttack: number;
     auraAttack: number;
+    armor: number;
+    resistance: number;
+    armorPenetration: number;
+    resistancePenetration: number;
+    armorMultiplier: number;
+    resistanceMultiplier: number;
+  };
+  // 이 존재의 두 방어가 **보는 이의 관통에게** 얼마로 읽히는가 (C013 ADDED).
+  // armor 50 인 상대가 나에게는 31.25 로 읽힌다 — 그 31.25 가 여기 실린다.
+  // **세계가 계산한 값이다.** View 가 combatStats.armor 와 자기 관통을 곱해
+  // 만들어내서는 안 된다 (DC-WORLD-OWNS-THE-SURFACE-LIST).
+  // 보는 이의 관통이 0 이면 combatStats 의 값과 같다 — 같다는 것 자체가 관찰이다.
+  // 모든 존재에 실린다. 자기 몸에 실린 값은 쓸 데가 없지만 그래도 싣는다 —
+  // "지금은 볼 대상이 아니다" 와 "세계가 안 알려준다" 는 다른 일이다.
+  versusObserver: {
     armor: number;
     resistance: number;
     armorMultiplier: number;
@@ -161,8 +178,17 @@ export interface DamageBreakdownView {
   // C012 CHANGED — C010 의 targetDefense 를 대신한다. 방어가 둘이 되면서 값만으로는
   // 무엇을 읽었는지 알 수 없다 — 30 이 물리 방어인지 오라 방어인지가 결과를 가른다.
   // 옛 이름은 별칭으로도 남기지 않는다 (설계 §9).
+  // C013 — 이 값의 의미를 **걷히기 전** 으로 고정한다 (상대가 지닌 방어와 같은 수).
+  // 감쇄식에 실제로 들어간 값은 effectiveDefense 가 가진다.
   defenseStat: TypedStatView;
-  defenseMultiplier: number; // 고른 방어가 남긴 비율 (0 초과 1 이하)
+  // C013 ADDED — 이 타격에서 작용한 관통. 값이 0 이어도 실린다.
+  // 이름이 없으면 "왜 안 걷혔는가" 를 알 수 없다.
+  penetrationStat: TypedStatView;
+  // C013 ADDED — 걷힌 뒤의 방어. defenseMultiplier 가 실제로 읽은 값이다.
+  // defenseStat.value 와 같다는 것이 "이 상대에게는 통하지 않았다" 의 관찰이며,
+  // View 가 defenseMultiplier 를 검산한다면 defenseStat 이 아니라 이 값으로 해야 한다.
+  effectiveDefense: number;
+  defenseMultiplier: number; // 걷힌 방어가 남긴 비율 (0 초과 1 이하)
   // C011 CHANGED — 의미는 그대로다(공식이 내놓은 값). 다만 그것은 이제
   // "막지 않았다면 들어왔을 값" 이기도 하다. 실제로 빠진 값은 appliedDamage 다.
   finalDamage: number;
@@ -172,7 +198,9 @@ export interface DamageBreakdownView {
 
 // 방식이 고른 능력 하나 (C012 ADDED) — 무엇을 얼마로 읽었는가.
 export interface TypedStatView {
-  name: string; // physicalAttack | auraAttack | armor | resistance
+  // physicalAttack | auraAttack | armor | resistance |
+  // armorPenetration | resistancePenetration (C013)
+  name: string;
   value: number;
 }
 

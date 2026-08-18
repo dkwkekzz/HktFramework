@@ -23,15 +23,21 @@ export type DamageType = 'physical' | 'aura';
 
 // 타입 대응표 (C012 ADDED, 설계 §4) — 방식이 고를 두 능력의 이름.
 // 이 표가 대응의 단일 출처다. 규칙 코드에 방식별 분기를 따로 두지 않는다.
+// C013 CHANGED — 표에 관통 한 칸이 더해진다. 관통도 같은 대응을 따르므로
+// 대응의 단일 출처는 여전히 이 표 하나다 (INTENT-PENETRATION-MATCH-001).
 export const DAMAGE_TYPE_STATS: Readonly<
-  Record<DamageType, { offense: OffenseStatName; defense: DefenseStatName }>
+  Record<
+    DamageType,
+    { offense: OffenseStatName; defense: DefenseStatName; penetration: PenetrationStatName }
+  >
 > = {
-  physical: { offense: 'physicalAttack', defense: 'armor' },
-  aura: { offense: 'auraAttack', defense: 'resistance' },
+  physical: { offense: 'physicalAttack', defense: 'armor', penetration: 'armorPenetration' },
+  aura: { offense: 'auraAttack', defense: 'resistance', penetration: 'resistancePenetration' },
 };
 
 export type OffenseStatName = 'physicalAttack' | 'auraAttack';
 export type DefenseStatName = 'armor' | 'resistance';
+export type PenetrationStatName = 'armorPenetration' | 'resistancePenetration'; // C013 ADDED
 
 // C010 CHANGED — 스킬은 더 이상 혼자 피해를 정하지 않는다 (INTENT-SKILL-SCALING-001).
 // damage 하나가 baseDamage(스킬 자체의 강함)와 attackRatio(공격 능력을 피해로 바꾸는 정도)로
@@ -163,6 +169,34 @@ export function defenseMultiplier(defenseValue: number): number {
   return DEFENSE_CONSTANT / (DEFENSE_CONSTANT + defenseValue);
 }
 
+/**
+ * World.PenetrationConstant (C013 ADDED) — 걷히는 몫을 정하는 세계 상수.
+ * DefenseConstant 와 같은 값이지만 **다른 이름으로 둔다** — 한쪽을 조정할 때
+ * 다른 쪽이 따라 움직이면 안 되기 때문이다. 결정론에 영향을 주므로 헤더 상수다 (CVar 아님).
+ */
+export const PENETRATION_CONSTANT = 100;
+
+/**
+ * 관통 앞에서 방어가 **남기는 비율** (C013 ADDED, INTENT-EFFECTIVE-DEFENSE-001).
+ * 방어에 이미 걸려 있는 그 곡선을 그대로 쓴다 — 새 곡선을 만들지 않는다
+ * (DC-COMBAT-ONE-FORMULA · R1 핵심 원칙).
+ * 관통 0 이면 1 이고, 아무리 커도 0 에 이르지 않는다 — 방어를 통째로 걷어내는 값은 없다.
+ */
+export function penetrationRemainingRatio(penetrationValue: number): number {
+  return PENETRATION_CONSTANT / (PENETRATION_CONSTANT + penetrationValue);
+}
+
+/**
+ * EffectiveDefense (파생, C013 ADDED) — 걷히고 남은 방어. 감쇄식에 실제로 들어가는 값이다.
+ * 걷히는 것은 정해진 양이 아니라 **몫**이므로 두꺼운 방어일수록 많이 걷히고,
+ * 방어가 0 인 상대에게서는 걷어낼 것이 없어 아무 일도 일어나지 않는다.
+ * 정수로 반올림하지 않는다 — 보이는 값과 계산에 쓰인 값이 어긋나면 안 된다
+ * (defenseMultiplier 도 같은 이유로 정수가 아닌 채 관찰에 실린다).
+ */
+export function effectiveDefense(defenseValue: number, penetrationValue: number): number {
+  return defenseValue * penetrationRemainingRatio(penetrationValue);
+}
+
 // Actor.DefenseShape (파생 상태, C012 ADDED, INTENT-DAMAGE-TYPE-OBSERVE-001) —
 // 두 방어 중 어느 쪽이 더 단단한가. **세계가 계산해** 내놓는 판정이다 —
 // 보는 이가 종류 이름이나 생김새로 약점을 짐작하지 않게 한다
@@ -184,6 +218,12 @@ export function offenseStatValue(actor: ActorState, type: DamageType): number {
 // 이 방식이 이 Actor 에게서 고르는 방어 능력의 값 (C012 ADDED).
 export function defenseStatValue(actor: ActorState, type: DamageType): number {
   return type === 'physical' ? actor.armor : actor.resistance;
+}
+
+// 이 방식이 이 Actor 에게서 고르는 관통 능력의 값 (C013 ADDED).
+// 고르지 않은 관통은 그 타격에서 한 번도 읽히지 않는다 (INTENT-PENETRATION-MATCH-001).
+export function penetrationStatValue(actor: ActorState, type: DamageType): number {
+  return type === 'physical' ? actor.armorPenetration : actor.resistancePenetration;
 }
 
 // 지금 이 Actor 가 이 스킬을 쓰면 나오는 공격 피해 (파생, C010 ADDED / C012 CHANGED).
@@ -208,10 +248,22 @@ export interface DamageBreakdown {
   rawDamage: number;
   /**
    * 방식이 고른 방어 능력 (C012 CHANGED — C010 의 targetDefense 를 대신한다).
+   * C013 — 이 값의 의미를 **걷히기 전** 으로 고정한다. 상대가 지닌 방어와 같은 수이며,
+   * 감쇄식에 실제로 들어간 값은 아래 effectiveDefense 가 가진다.
    * 값만으로는 무엇을 읽었는지 알 수 없게 되었다 — 30 이 물리 방어인지 오라 방어인지가
    * 결과를 완전히 가른다. 옛 이름은 별칭으로도 남기지 않는다 (설계 §9).
    */
   defenseStat: { name: DefenseStatName; value: number };
+  /**
+   * 이 타격에서 작용한 관통 (C013 ADDED). 값이 0 이어도 실린다 —
+   * 이름이 없으면 "왜 안 걷혔는가" 를 알 수 없다 (INTENT-DAMAGE-BREAKDOWN-001).
+   */
+  penetrationStat: { name: PenetrationStatName; value: number };
+  /**
+   * 걷힌 뒤의 방어 (C013 ADDED) — defenseMultiplier 가 실제로 읽은 값이다.
+   * defenseStat.value 와 이 값이 같다는 것이 "이 상대에게는 통하지 않았다" 의 관찰이다.
+   */
+  effectiveDefense: number;
   defenseMultiplier: number;
   finalDamage: number;
   /** 실제로 생명에서 빠진 값 (C011). 막지 않은 타격에서는 finalDamage 와 같다 */
@@ -299,6 +351,8 @@ export type MutableAttributeId =
   | 'auraAttack'
   | 'armor'
   | 'resistance'
+  | 'armorPenetration'
+  | 'resistancePenetration'
   | 'moveSpeed'
   | 'runSpeedMultiplier'
   | 'actionSpeed'
@@ -324,6 +378,10 @@ export const MUTABLE_ATTRIBUTES: readonly MutableAttribute[] = [
   { id: 'auraAttack', min: 0, max: 100000 },
   { id: 'armor', min: 0, max: 100000 },
   { id: 'resistance', min: 0, max: 100000 },
+  // C013 ADDED — 관통 둘. 하한 0 은 "관통이 없다" 가 별도 상태가 아니라 값 0 이라는 뜻이며,
+  // 음수 관통(방어를 두껍게 만드는 공격)은 이 층에서 만들지 않는다.
+  { id: 'armorPenetration', min: 0, max: 100000 },
+  { id: 'resistancePenetration', min: 0, max: 100000 },
   { id: 'moveSpeed', min: 0, max: 100 },
   { id: 'runSpeedMultiplier', min: 0.1, max: 10 },
   { id: 'actionSpeed', min: 0.1, max: 10 },
