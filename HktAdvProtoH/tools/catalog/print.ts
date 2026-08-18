@@ -14,7 +14,7 @@ import {
   CHARACTER_CATALOG,
   DEFAULT_CHARACTER,
   type CharacterDefinition,
-} from '../../world/semantic/character-catalog';
+} from '../../content/proto-adventure/world/semantic/character-catalog';
 import {
   DEFAULT_KIND_PRESENTATION,
   KIND_PRESENTATIONS,

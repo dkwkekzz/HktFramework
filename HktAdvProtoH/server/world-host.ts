@@ -13,8 +13,8 @@
 
 import type { ActionRequest } from '../protocol/actions';
 import type { GameViewSnapshot, RequestOutcomeView } from '../protocol/gameview';
-import { startWorldClock, type WorldClock } from '../world/clock';
-import { createWorld, type World, type WorldSetup } from '../world/index';
+import { startWorldClock, type WorldClock } from '../engine/world-kernel/clock';
+import { createWorld, TICK_INTERVAL, type World, type WorldSetup } from '../content/active';
 
 export type Observer = (snapshot: GameViewSnapshot) => void;
 
@@ -106,7 +106,7 @@ export function createWorldHost(setup: WorldSetup = {}): WorldHost {
     },
     startClock(now) {
       if (clock) return;
-      clock = startWorldClock(world, emit, now);
+      clock = startWorldClock(world, emit, TICK_INTERVAL, now);
     },
     stop() {
       clock?.stop();
