@@ -79,14 +79,21 @@ export const CHARACTER_CATALOG: Readonly<Record<string, CharacterDefinition>> = 
     resources: { hpMax: 200, cpMax: 100, cpStart: 30 },
     // C012 — 물리 이행값(40 · 50)은 C010 그대로다. 오라 쪽이 새로 선다.
     // 검을 쓰는 단단한 몸이지만 오라를 받아내는 데는 약하다 (Resistance 20).
-    // C013 — 관통을 지니지 않는다. 이 종류가 내는 모든 피해는 C012 와 완전히 같다.
+    // C013 — 오라를 실은 검이 오라 방어를 가른다.
+    // 관찰자의 몸이 이 종류다 (RULE-OBSERVER-JOIN-001) — 플레이어가 관통을 지닌 쪽이다.
+    // 오라 쪽에 둔 이유: 이 종류가 마주하는 wanderer 의 단단한 쪽이 Resistance 90 이고,
+    // 이 종류는 AuraAttack 40 을 지니고도 그 벽 때문에 오라를 쓸 수 없었다.
+    // 관통은 그 벽을 깎아 통과하는 것이다 (MP-PIERCE-THE-HARD-DEFENSE).
+    // 물리 쪽은 0 이다 — 아래 층들(C007·C010·C011)의 기준값이 물리 타격이며,
+    // 그 값들이 흔들리지 않아야 각 층이 위층 없이도 서 있는 것이 확인된다
+    // (DC-COMBAT-ONE-LAYER-AT-A-TIME).
     combat: {
       physicalAttack: 40,
       auraAttack: 40,
       armor: 50,
       resistance: 20,
       armorPenetration: 0,
-      resistancePenetration: 0,
+      resistancePenetration: 60,
     },
     attackRange: 2.0,
     perceptionRange: 9.0,
@@ -99,14 +106,13 @@ export const CHARACTER_CATALOG: Readonly<Record<string, CharacterDefinition>> = 
     resources: { hpMax: 120, cpMax: 60, cpStart: 20 },
     // C012 — 물리 이행값(40 · 30)은 C010 그대로다.
     // 몸은 무르나 오라는 거의 통하지 않고(Resistance 90), 오라로 치는 힘도 약하다.
-    // C013 — 오라로 치는 힘이 약해 상대의 무른 오라 방어로 피해 갈 수 없다.
-    // 남은 길은 마주한 갑주의 값어치를 떨어뜨리는 것뿐이다 (MP-PIERCE-THE-HARD-DEFENSE).
+    // C013 — 관통을 지니지 않는다. 이 종류가 내는 모든 피해는 C012 와 완전히 같다.
     combat: {
       physicalAttack: 40,
       auraAttack: 15,
       armor: 30,
       resistance: 90,
-      armorPenetration: 60,
+      armorPenetration: 0,
       resistancePenetration: 0,
     },
     attackRange: 2.0,
@@ -120,13 +126,14 @@ export const DEFAULT_CHARACTER: CharacterDefinition = {
   facing: { x: 0, z: 1 },
   tempo: { moveSpeed: 2.5, runSpeedMultiplier: 1.4, actionSpeed: 0.85 },
   resources: { hpMax: 120, cpMax: 60, cpStart: 20 },
-  // C012 · C013 — wanderer 와 같다 (플레이어가 관통을 지닌 쪽이다)
+  // C012 · C013 — wanderer 와 같다. 미등록 종류의 폴백이며 관찰자의 몸이 아니다
+  // (관찰자는 RULE-OBSERVER-JOIN-001 이 rabbit-swordsman 으로 세운다).
   combat: {
     physicalAttack: 40,
     auraAttack: 15,
     armor: 30,
     resistance: 90,
-    armorPenetration: 60,
+    armorPenetration: 0,
     resistancePenetration: 0,
   },
   attackRange: 2.0,

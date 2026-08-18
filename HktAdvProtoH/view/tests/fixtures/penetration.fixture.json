@@ -14,11 +14,11 @@
    "name": "Wanderer 1",
    "kind": "wanderer",
    "position": {
-    "x": 2.334682482304527,
+    "x": 2.1732410864197527,
     "z": 0
    },
    "vitality": {
-    "health": 98,
+    "health": 103,
     "healthMaximum": 120,
     "downed": false
    },
@@ -43,16 +43,16 @@
      "auraAttack": 15,
      "armor": 30,
      "resistance": 90,
-     "armorPenetration": 60,
+     "armorPenetration": 0,
      "resistancePenetration": 0,
      "armorMultiplier": 0.7692307692307693,
      "resistanceMultiplier": 0.5263157894736842
     },
     "versusObserver": {
-     "armor": 18.75,
-     "resistance": 90,
-     "armorMultiplier": 0.8421052631578947,
-     "resistanceMultiplier": 0.5263157894736842
+     "armor": 30,
+     "resistance": 56.25,
+     "armorMultiplier": 0.7692307692307693,
+     "resistanceMultiplier": 0.64
     },
     "defenseShape": "aura-tougher",
     "guard": {
@@ -70,7 +70,7 @@
      "z": 1
     },
     "velocity": {
-     "x": 5.6540779456790125,
+     "x": 5.465985580246914,
      "z": 0
     }
    }
@@ -78,11 +78,11 @@
   {
    "id": "player-1",
    "role": "player-character",
-   "state": "attack",
+   "state": "aura-strike",
    "name": "Player 1",
    "kind": "rabbit-swordsman",
    "position": {
-    "x": 0.04531751769547335,
+    "x": 0.006758913580246965,
     "z": 0
    },
    "vitality": {
@@ -111,16 +111,16 @@
      "auraAttack": 40,
      "armor": 50,
      "resistance": 20,
-     "armorPenetration": 60,
-     "resistancePenetration": 0,
+     "armorPenetration": 0,
+     "resistancePenetration": 60,
      "armorMultiplier": 0.6666666666666666,
      "resistanceMultiplier": 0.8333333333333334
     },
     "versusObserver": {
-     "armor": 31.25,
-     "resistance": 20,
-     "armorMultiplier": 0.7619047619047619,
-     "resistanceMultiplier": 0.8333333333333334
+     "armor": 50,
+     "resistance": 12.5,
+     "armorMultiplier": 0.6666666666666666,
+     "resistanceMultiplier": 0.8888888888888888
     },
     "defenseShape": "physical-tougher",
     "guard": {
@@ -138,13 +138,13 @@
      "z": 0
     },
     "velocity": {
-     "x": -0.5340779456790123,
+     "x": -0.3459855802469136,
      "z": 0
     }
    },
    "swing": {
     "center": {
-     "x": 1.1314516725322905,
+     "x": 1.0928930684170641,
      "z": 0.7143616714920481
     },
     "radius": 0.7,
@@ -257,13 +257,13 @@
   {
    "id": "player.action",
    "kind": "label",
-   "value": "attack",
+   "value": "aura-strike",
    "progress": 0.38888888888888884
   },
   {
    "id": "world.time",
    "kind": "counter",
-   "value": 0.3
+   "value": 0.26666666666666666
   },
   {
    "id": "observers.present",
@@ -333,12 +333,12 @@
   {
    "id": "self.combat.armorPenetration",
    "kind": "counter",
-   "value": 60
+   "value": 0
   },
   {
    "id": "self.combat.resistancePenetration",
    "kind": "counter",
-   "value": 0
+   "value": 60
   },
   {
    "id": "self.combat.armorMultiplier",
@@ -395,34 +395,34 @@
   {
    "attackerId": "player-1",
    "targetId": "npc-1",
-   "skill": "attack",
-   "amount": 22,
+   "skill": "aura-strike",
+   "amount": 17,
    "at": {
-    "x": 1.8046126748971194,
+    "x": 1.6608049382716046,
     "z": 0
    },
-   "since": 0.2333333333333333,
+   "since": 0.19999999999999998,
    "breakdown": {
-    "damageType": "physical",
+    "damageType": "aura",
     "offenseStat": {
-     "name": "physicalAttack",
+     "name": "auraAttack",
      "value": 40
     },
     "baseDamage": 6,
     "attackContribution": 20,
     "rawDamage": 26,
     "defenseStat": {
-     "name": "armor",
-     "value": 30
+     "name": "resistance",
+     "value": 90
     },
     "penetrationStat": {
-     "name": "armorPenetration",
+     "name": "resistancePenetration",
      "value": 60
     },
-    "effectiveDefense": 18.75,
-    "defenseMultiplier": 0.8421052631578947,
-    "finalDamage": 22,
-    "appliedDamage": 22
+    "effectiveDefense": 56.25,
+    "defenseMultiplier": 0.64,
+    "finalDamage": 17,
+    "appliedDamage": 17
    }
   }
  ],

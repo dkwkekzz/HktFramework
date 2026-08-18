@@ -38,3 +38,16 @@
 
     기록 주의      이 승인은 항목별 검토가 아니라 **제시된 묶음에 대한 진행 지시**다.
                    Stage 8 의 Human Play 확인에서 의미가 어긋나면 그때 되돌린다.
+
+## 정정 — 2026-08-18 (이 기록은 남기고 전제만 바로잡는다)
+
+    위 판단 2 는 **틀린 전제 위에 제시되었다.** "플레이어(wanderer)" 라고 적었으나
+    관찰자의 몸은 rabbit-swordsman 이다 (RULE-OBSERVER-JOIN-001). 그대로 구현한 결과
+    관통을 지닌 쪽이 자율 존재가 되어 Cycle Goal 의 주어가 뒤집혀 있었다.
+
+    Human 이 "플레이어에 영향을 주는 속성이 명료한가" 를 물어 드러났고,
+    Human 의 지시("고쳐")로 03 World Semantic 의 BALANCE 를 다시 정했다 —
+    관통을 관찰자의 몸(rabbit-swordsman)의 **오라 쪽**에 둔다.
+    판단 1(곡선)과 판단 3(versusObserver)은 그대로 유효하다.
+
+    경위와 그 이유는 08-verification.md 의 CORRECTION 절이 소유한다.

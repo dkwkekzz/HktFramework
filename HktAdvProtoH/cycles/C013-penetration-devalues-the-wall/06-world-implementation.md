@@ -46,8 +46,10 @@
 ## AFFECTED UPDATED
 
     CombatSpec 네 값 → 여섯 값            world/semantic/character-catalog.ts
-    CHARACTER_CATALOG                    rabbit-swordsman 0/0 · wanderer 60/0 ·
-                                         DEFAULT_CHARACTER 는 wanderer 와 같다 (03 BALANCE)
+    CHARACTER_CATALOG                    rabbit-swordsman(= 관찰자의 몸) 0 / 60 ·
+                                         wanderer 0 / 0 · DEFAULT_CHARACTER 는 wanderer 와
+                                         같다 (미등록 종류의 폴백이며 관찰자의 몸이 아니다) —
+                                         03 BALANCE
     spawnActor                           world/semantic/spawn.ts — 종류가 정하는 관통 둘
     MUTABLE_ATTRIBUTES                   world/semantic/combat.ts — 12개 → 14개
     MutableAttributeId                   world/semantic/combat.ts
@@ -83,28 +85,34 @@
 
     world/tests/penetration.spec.ts  23 tests (신설)
         INTENT-PENETRATION-001          종류가 정하는 관통 둘 · 공격 피해 불변 · 없음 = 값 0
-        INTENT-PENETRATION-MATCH-001    물리는 물리 관통만 · 오라는 오라 관통만 ·
-                                        관통이 방식을 바꾸지 못한다
+        INTENT-PENETRATION-MATCH-001    오라는 오라 관통만 · 물리는 물리 관통만(그래서 C010 의
+                                        20 이 그대로다) · 관통이 방식을 바꾸지 못한다
         INTENT-EFFECTIVE-DEFENSE-001    몫이다(비율 실측) · 방어 0 이면 아무 일 없음 ·
                                         끝이 있다(관통 100000 에서도 남는다) · 최소 1 ·
                                         계산이 상태를 바꾸지 않는다(두 번째 타격이 첫 번째와 같다)
-        INTENT-DAMAGE-CALCULATE-001     같은 raw·같은 상대에서 17 vs 20 (관통만 다르다) ·
-                                        두께별 이득 0/2/3 · 걷힌 양 0/11.25/18.75/112.5 ·
+        INTENT-DAMAGE-CALCULATE-001     같은 raw·같은 상대에서 14 vs 17 (관통만 다르다) ·
+                                        걷힌 양 0/7.5/33.75/112.5 (단조) · 무른 상대 차이 0 ·
                                         5회 반복 동일값(결정론) · 감쇄율이 걷힌 값으로 계산됨
         INTENT-DAMAGE-BREAKDOWN-001     관통 60 타격의 경위 전체 · 관통 0 에서도 두 항목이 실림
         INTENT-PENETRATION-OBSERVE-001  versusObserver 실측 · 관통 0 이면 원래 값과 같음 ·
                                         DefenseShape 가 흔들리지 않음 · hud 에 실림
-        REGRESSION                      rabbit-swordsman 의 5개 조합이 C012 값 그대로
-                                        (20 · 55 · 14 · 17 · 22) · wanderer 오라 11
+        REGRESSION                      물리 타격 20 · 55 · 17 (C010·C012 그대로) ·
+                                        wanderer 오라 11 · 달라진 것은 관찰자의 오라 14→17 · 22→23
 
-    기존 테스트 갱신 (형상 단언 4곳 — 값이 아니라 항목이 늘어난 것이다)
+    기존 테스트 갱신 (형상 단언 — 값이 아니라 항목이 늘어난 것이다)
         world/tests/damage.spec.ts       combatStats 두 존재 · breakdown 형상
-        world/tests/damage-type.spec.ts  breakdown 물리/오라 · combatStats
-        world/tests/combat.spec.ts       attributes 전체 형상(versusObserver 포함) ·
+        world/tests/damage-type.spec.ts  breakdown 물리/오라 · combatStats.
+                                         **strikeWith 헬퍼가 관찰자의 관통을 0 으로 되돌린다** —
+                                         이 층(Damage Type)의 기준값은 관통이 없는 조합이며,
+                                         각 층은 위층 없이도 그대로 서 있어야 한다
+                                         (DC-COMBAT-ONE-LAYER-AT-A-TIME)
+        world/tests/combat.spec.ts       attributes 전체 형상(versusObserver 포함 —
+                                         관찰자의 오라 관통 60 으로 90 이 56.25 로 읽힌다) ·
                                          MUTABLE 목록 12 → 14
         world/tests/command.spec.ts      commandCatalog 목록 12 → 14
+        world/tests/guard.spec.ts        무변경 — 막기의 기준값은 물리 타격이라 흔들리지 않았다
 
-    world 전체    17 files · 304 tests 통과
+    world 전체    17 files · 306 tests 통과
     npm run catalog:check    카탈로그 3원소 정합
     npx tsc --noEmit         world/ · protocol/ · server/ 오류 0
                              (view/tests 5건은 View 쪽 fixture 다 — Stage 7 이 닫는다)
@@ -112,7 +120,7 @@
 ## NOTES
 
     ① 왜 반올림하지 않는가
-       effectiveDefense 는 31.25 처럼 정수가 아닌 값이 된다. 반올림하면 관찰에 실리는 수는
+       effectiveDefense 는 56.25 처럼 정수가 아닌 값이 된다. 반올림하면 관찰에 실리는 수는
        예뻐지지만 계산에 쓰인 값과 어긋나거나(관찰이 거짓이 된다), 방어 1 에 관통이 크면
        0 으로 내려앉아 "방어가 사라졌다" 가 된다. C010 의 defenseMultiplier 도 이미
        정수가 아닌 채 관찰에 실리고 있으므로 선례를 따랐다. 자릿수 정리는 View 의 일이다.
@@ -133,7 +141,7 @@
        그 분기는 세계의 의미가 아니라 투영의 사정이 된다 (C011 의 guard 와 같은 판단).
 
     ⑤ Semantic 에 없는 것을 만들지 않았다
-       걷힌 몫(50 - 31.25 = 18.75)을 계산해 싣지 않았다. 두 값이 함께 실리므로
+       걷힌 몫(90 - 56.25 = 33.75)을 계산해 싣지 않았다. 두 값이 함께 실리므로
        보는 이가 뺄 수 있고, 세계가 정하는 것은 남는 값이다 (04 OBSERVABLE PROJECTION NOTE).
 
     GAP 없음.

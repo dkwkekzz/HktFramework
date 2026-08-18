@@ -5,9 +5,9 @@
 [PASS] World Semantic            (감쇄식 무변경 · 들어가는 방어 값만 걷힌다)
 [PASS] GameView Specification    (한 방어가 세 값으로 읽힌다 · 새 표면 없음)
 [PASS] Human Semantic Review     (2026-08-18 APPROVED — 판단 3건 진행 지시)
-[PASS] World Implementation      (world 304 tests 통과 · 감쇄식 무변경)
-[PASS] View Implementation       (view 222 tests · 전체 532 · 새 표면 없음)
-[PASS] Verification              (기계 검증 7항 · Human Play 확인 대기)
+[PASS] World Implementation      (world 306 tests · 감쇄식 무변경 · 관통은 관찰자의 오라 쪽)
+[PASS] View Implementation       (view 233 tests · 전체 534 · 새 표면 없음)
+[PASS] Verification              (기계 검증 7항 · 밸런스 정정 반영 · Human Play 확인 대기)
 
 STATUS  IN PROGRESS
 
@@ -83,10 +83,17 @@ STATUS  IN PROGRESS
         따라서 관통 두 종의 초기값을 종류별로 정한다 — 기계적 복제도 일괄 0 도 아니다.
         구체적인 값은 Stage 3 이 밸런스로 소유한다.
 
+        관통을 지니는 쪽은 **플레이어여야 한다** — Cycle Goal 의 주어가 플레이어다.
+        관찰자의 몸은 rabbit-swordsman 이다 (RULE-OBSERVER-JOIN-001).
+
         이 결정은 대가를 하나 낳는다. 관통을 0 이 아니게 받은 종류는 이전 Cycle 의
         피해 실측값이 달라진다. 그것은 이 층이 세계에 실제로 작용한다는 증거이며,
         Verification 은 "옛 숫자가 그대로다" 가 아니라 **"관통이 0 인 조합에서 옛 숫자가
         그대로다"** 를 Regression 기준으로 삼는다.
+
+        어느 쪽 관통을 줄지는 그 대가의 크기가 정한다 — 아래 세 층(C007 체감 ·
+        C010 공식 · C011 막기)의 기준값이 전부 물리 타격이므로, 관찰자에게는 오라 쪽
+        관통을 준다. 값은 Stage 3 이 소유한다 (03 BALANCE).
 
     포함하지 않는다 — 양쪽 방어가 모두 두꺼운 새 존재
         MP-PIERCE-THE-HARD-DEFENSE 가 가장 선명해지는 상황("피할 무른 쪽이 없다")은
@@ -125,7 +132,7 @@ STATUS  IN PROGRESS
                           Stage 3 이 정한다
     방어는 사라지지 않는다   관통이 아무리 커도 Effective Defense 는 음수가 되지 않고,
                           양의 Raw Damage 는 최소 1 을 남긴다 (DC-COMBAT-MATCHUP-SOFT)
-    관통 초기값 분포        종류별로 정한다 (SCOPE NOTE)
+    관통 초기값 분포        종류별로 정한다. 관통을 지니는 쪽은 플레이어다 (SCOPE NOTE)
     피해 경위 관찰          타격 기록에 **깎기 전 방어 · 적용된 관통 · 깎은 뒤 방어**가
                           이름과 함께 실린다. 관통이 0 인 타격에서도 무엇이 읽혔는지가
                           모호해지지 않아야 한다

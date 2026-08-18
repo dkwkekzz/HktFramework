@@ -466,18 +466,19 @@ describe('INTENT-ATTRIBUTE-OBSERVE-001 — 세계는 어떤 속성도 숨기지 
         auraAttack: 15,
         armor: 30,
         resistance: 90,
-        armorPenetration: 60,
+        armorPenetration: 0,
         resistancePenetration: 0,
         armorMultiplier: 100 / 130,
         resistanceMultiplier: 100 / 190,
       },
-      // C013 — 이 존재의 방어가 보는 이(rabbit-swordsman, 관통 0)에게 얼마로 읽히는가.
-      // 보는 이에게 관통이 없으므로 원래 값과 같다 — 같다는 것 자체가 관찰이다
+      // C013 — 이 존재의 방어가 보는 이(관찰자)에게 얼마로 읽히는가.
+      // 관찰자는 오라 관통 60 을 지니므로 오라 방어 90 이 56.25 로 읽힌다.
+      // 물리 쪽은 관통이 0 이라 원래 값과 같다 — 같다는 것 자체가 관찰이다
       versusObserver: {
         armor: 30,
-        resistance: 90,
+        resistance: 90 * (100 / 160),
         armorMultiplier: 100 / 130,
-        resistanceMultiplier: 100 / 190,
+        resistanceMultiplier: 100 / (100 + 90 * (100 / 160)),
       },
       // C012 — 어느 쪽이 더 단단한지도 세계가 판정해 싣는다.
       // wanderer 는 오라 쪽(90)이 물리 쪽(30)보다 단단하다

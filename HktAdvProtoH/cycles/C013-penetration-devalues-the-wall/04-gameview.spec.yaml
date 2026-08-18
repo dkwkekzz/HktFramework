@@ -80,7 +80,7 @@ entities:
         resistanceMultiplier: { source: Actor.VersusObserver.ResistanceMultiplier }
         meaning:
           - 이 존재의 두 방어가 **보는 이의 관통에게** 얼마로 읽히는가다.
-            armor 50 인 상대가 나에게는 31.25 로 읽힌다 — 그 31.25 가 여기 실린다
+            오라 방어 90 인 상대가 나에게는 56.25 로 읽힌다 — 그 56.25 가 여기 실린다
           - 이 값은 **세계가 계산한 것**이다. View 가 combatStats.armor 와
             내 armorPenetration 을 곱해 만들어내서는 안 된다
             (DC-WORLD-OWNS-THE-SURFACE-LIST). 세계가 몫을 정하는 규칙을 바꾸면
@@ -146,7 +146,7 @@ strikeEvents:
   meaning:
     - C007·C010·C011·C012 의 요구는 전부 그대로다
     - C013 — 방어 쪽이 **세 값의 이야기**로 읽혀야 한다.
-      `물리 방어 50 · 관통 60 · 남은 방어 31.25` 처럼 걷히기 전과 걷힌 뒤가
+      `오라 방어 90 · 관통 60 · 남은 방어 56.25` 처럼 걷히기 전과 걷힌 뒤가
       한자리에 함께 있어야 "상대 방어가 얼마나 통하지 않았는가" 에 답할 수 있다.
       걷힌 뒤 값만 실으면 관통이 있었다는 사실 자체가 사라지고,
       플레이어는 상대의 방어가 원래 그만큼이었다고 배운다
@@ -186,10 +186,10 @@ hud:
 # "상대가 지닌 방어" 이기도 했다. 둘이 언제나 같았기 때문에 구분할 필요가 없었다.
 # 이제 갈라진다.
 #
-#   C012    defenseStat: { name: armor, value: 50 }        → 감쇄식에 50 이 들어갔다
-#   C013    defenseStat: { name: armor, value: 50 }        → 상대가 지닌 방어는 50
-#           penetrationStat: { name: armorPenetration, value: 60 }
-#           effectiveDefense: 31.25                        → 감쇄식에 들어간 값은 31.25
+#   C012    defenseStat: { name: resistance, value: 90 }   → 감쇄식에 90 이 들어갔다
+#   C013    defenseStat: { name: resistance, value: 90 }   → 상대가 지닌 방어는 90
+#           penetrationStat: { name: resistancePenetration, value: 60 }
+#           effectiveDefense: 56.25                        → 감쇄식에 들어간 값은 56.25
 #
 # defenseStat.value 의 이름을 바꾸지 않고 **걷히기 전** 으로 고정하는 쪽을 택했다.
 # 그 값이 상대의 속성(combatStats.armor)과 같은 것을 가리키기 때문이다 —
@@ -235,7 +235,7 @@ hud:
 #     World.PenetrationConstant = 100 — 세계 상수다. 관찰되는 것은 상수가 아니라
 #       그 결과인 effectiveDefense 와 versusObserver 다
 #       (C010 이 DefenseConstant 에 내린 판단 그대로).
-#     걷힌 몫(50 → 31.25 의 차이 18.75) — 두 값이 함께 실리므로 보는 이가 뺄 수 있다.
+#     걷힌 몫(90 → 56.25 의 차이 33.75) — 두 값이 함께 실리므로 보는 이가 뺄 수 있다.
 #       세계가 정하는 것은 남는 값이고, 얼마나 걷혔는지는 그 값의 다른 표현일 뿐이다.
 #       계산 규칙이 아니므로 계약에 넣지 않는다.
 #
@@ -244,29 +244,29 @@ hud:
 # ─────────────────────────────────────────────────────────────────
 # PLAYABILITY NOTE — 이 계약만으로 Cycle Goal 이 플레이되는가
 # ─────────────────────────────────────────────────────────────────
-# 플레이어(wanderer — armorPenetration 60)는 이 계약만 받고 다음을 할 수 있다.
-#   1. 자기 hud 를 본다. armorPenetration 60 · resistancePenetration 0 —
-#      나는 갑주만 깎을 수 있고 오라 방어에는 손대지 못한다
-#   2. 다른 관찰자(rabbit-swordsman)를 본다.
-#      combatStats 에 armor 50 · resistance 20, defenseShape 는 physical-tougher —
-#      갑주가 더 단단하다. 그런데 내 auraAttack 은 15 뿐이라 무른 쪽으로 갈 수도 없다.
-#      **피할 곳이 없는 처지가 화면에 있다**
-#   3. 같은 존재의 versusObserver 를 본다. armor 31.25 — 나에게는 50 이 아니라
-#      31.25 로 읽힌다. 치기 전에 이미 보인다
-#   4. 기본 스킬로 친다. breakdown 에
-#      defenseStat { armor, 50 } · penetrationStat { armorPenetration, 60 } ·
-#      effectiveDefense 31.25 · finalDamage 20.
-#      관통이 없었다면 17 이었을 값이다 — 그 차이가 세 값으로 설명되어 있다
-#   5. 관통이 없는 쪽과 견준다. rabbit-swordsman 이 같은 스킬로 같은 종류를 칠 때 17 이다.
-#      공격력도 스킬도 상대도 같고 관통만 다르다
-#   6. 오라 스킬로 친다. penetrationStat { resistancePenetration, 0 } ·
-#      defenseStat { resistance, 20 } · effectiveDefense 20 — 두 값이 같다.
-#      내 관통이 그쪽에는 없다는 것이 그 자리에서 읽힌다
-#   7. set-attribute 로 상대의 armor 를 0 으로 만든다. versusObserver.armor 도 0 이 되고,
-#      다음 타격의 피해는 관통이 없을 때와 **완전히 같다** —
+# 플레이어(관찰자의 몸 = rabbit-swordsman · resistancePenetration 60)는
+# 이 계약만 받고 다음을 할 수 있다.
+#   1. 자기 hud 를 본다. armorPenetration 0 · resistancePenetration 60 —
+#      나는 오라 방어만 깎을 수 있고 갑주에는 손대지 못한다
+#   2. 자율 존재(wanderer)를 본다.
+#      combatStats 에 armor 30 · resistance 90, defenseShape 는 aura-tougher —
+#      오라 쪽이 벽이다. 내 auraAttack 은 40 이나 되는데 그 벽 때문에 쓸 수 없었다.
+#      **깎아야 할 벽이 화면에 있다**
+#   3. 같은 존재의 versusObserver 를 본다. resistance 56.25 — 나에게는 90 이 아니라
+#      56.25 로 읽힌다. 치기 전에 이미 보인다
+#   4. 오라 스킬로 친다. breakdown 에
+#      defenseStat { resistance, 90 } · penetrationStat { resistancePenetration, 60 } ·
+#      effectiveDefense 56.25 · finalDamage 17.
+#      관통이 없었다면 14 였을 값이다 — 그 차이가 세 값으로 설명되어 있다
+#   5. 물리 스킬로 친다. penetrationStat { armorPenetration, 0 } ·
+#      defenseStat { armor, 30 } · effectiveDefense 30 — 두 값이 같고 피해는 20 이다.
+#      내 관통이 그쪽에는 없다는 것이 그 자리에서 읽히고, C010 의 값이 그대로다
+#   6. set-attribute 로 내 resistancePenetration 을 0 으로 되돌린다.
+#      versusObserver 가 90 으로 돌아오고 다음 오라 타격은 14 다 — C012 와 같아진다
+#   7. set-attribute 로 상대의 resistance 를 0 으로 만든다. versusObserver 도 0 이 되고,
+#      다음 타격의 피해는 관통이 없을 때와 **완전히 같다** (26) —
 #      무른 상대에게 관통은 아무 일도 하지 않는다
-#   8. set-attribute 로 상대의 armor 와 resistance 를 둘 다 300 으로 올린다.
-#      피할 무른 쪽이 사라진 벽이다. versusObserver.armor 는 187.5 로 읽히고,
-#      그 벽을 상대로 내 피해는 7 이 아니라 9 다
-#   9. 내 armorPenetration 을 0 으로 되돌린다. 모든 값이 C012 와 같아진다
+#   8. set-attribute 로 상대의 resistance 를 300 으로 올린다. 피할 곳이 없는 벽이다.
+#      versusObserver 는 187.5 로 읽히고, 그 벽을 상대로 내 피해는 7 이 아니라 9 다
+#   9. 막아 본다. 관통이 큰 타격을 막아도 C011 과 똑같이 절반이 되고 같은 기력을 치른다
 # 화면 구성 방식은 View 의 선택이다. 이 계약은 무엇이 보여야 하는지만 정한다.

@@ -71,9 +71,9 @@ describe('INTENT-ATTACK-POWER-001 — 공격 능력이 피해를 키운다', () 
       auraAttack: 40,
       armor: 50,
       resistance: 20,
-      // C013 — rabbit-swordsman 은 관통을 지니지 않는다
+      // C013 — 관찰자의 몸이다. 오라를 실은 검이 오라 방어를 가른다
       armorPenetration: 0,
-      resistancePenetration: 0,
+      resistancePenetration: 60,
       armorMultiplier: 100 / 150,
       resistanceMultiplier: 100 / 120,
     });
@@ -82,8 +82,8 @@ describe('INTENT-ATTACK-POWER-001 — 공격 능력이 피해를 키운다', () 
       auraAttack: 15,
       armor: 30,
       resistance: 90,
-      // C013 — wanderer 는 갑주만 깎을 수 있다
-      armorPenetration: 60,
+      // C013 — wanderer 는 관통을 지니지 않는다
+      armorPenetration: 0,
       resistancePenetration: 0,
       armorMultiplier: 100 / 130,
       resistanceMultiplier: 100 / 190,

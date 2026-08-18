@@ -16,7 +16,7 @@
 
     entities.character.attributes.versusObserver
         → `inspectLines()` 의 두 방어 줄 끝에 붙는다
-          `물리 공격 40 · 물리 방어 30 (받는 피해 77%) → 나에게 18.75 (84%)`
+          `오라 공격 15 · 오라 방어 90 (받는 피해 53%) → 나에게 56.25 (64%)`
           원래 값과 같으면 아무 말도 붙지 않는다 (`versusText()` 가 빈 문자열).
           같다는 것은 화살표가 **없는 것**으로 읽힌다 — 통하지 않았다는 뜻이다.
           **곱셈을 하지 않는다.** 세계가 보낸 값을 그대로 쓴다
@@ -24,8 +24,8 @@
 
     strikeEvents.breakdown.penetrationStat · effectiveDefense
         → `breakdownLine()` 안의 새 조각 `defenseText()`
-          `×84%(물리 방어 30 · 관통 60 → 18.75)`
-          관통이 0 이어도 세 값을 모두 쓴다 — `물리 방어 90 · 관통 0 → 90`
+          `×64%(오라 방어 90 · 관통 60 → 56.25)`
+          관통이 0 이어도 세 값을 모두 쓴다 — `물리 방어 30 · 관통 0 → 30`
 
     hud.self.combatStats (관통 둘)
         → `selfPanel()` 의 세 번째 줄 `관통 물리 60 · 오라 0`
@@ -56,8 +56,8 @@
 ## FIXTURE TESTS
 
     view/tests/penetration.spec.ts  11 tests (신설)
-        strikeEvents.breakdown       관통이 작용한 타격 -22 (관통 없었다면 20) ·
-                                     세 값이 한 줄에 (30 · 관통 60 → 18.75) ·
+        strikeEvents.breakdown       관통이 작용한 타격 -17 (관통 없었다면 14) ·
+                                     세 값이 한 줄에 (90 · 관통 60 → 56.25) ·
                                      관통 0 fixture 에서도 `관통 0 → 90` 이 나온다 ·
                                      rawDamage 가 그대로다 (관통이 공격 기여로 보이지 않는다)
         versusObserver               상대 방어 뒤에 나에게 읽히는 값이 붙는다 ·
@@ -68,8 +68,8 @@
         hud.self                     관통 두 값이 능력치 두 줄 뒤에 온다 · 0 인 쪽도 쓴다
 
     view/tests/fixtures/penetration.fixture.json (신설)
-        세계에서 받아 적은 한 순간이다 — 관찰자에게 set-attribute 로 armorPenetration 60 을
-        준 뒤 기본 스킬로 wanderer 를 친 결과. 손으로 지어낸 수가 아니다.
+        세계에서 받아 적은 한 순간이다 — 관찰자(오라 관통 60 은 종류가 정한 값이다)가
+        오라 스킬로 wanderer(Resistance 90)를 친 결과. 손으로 지어낸 수가 아니다.
 
     기존 fixture 6종 갱신
         combat · command · damage-type · guard · guard-broken 의 attributes 에
@@ -83,8 +83,8 @@
         view/tests/combat.spec.ts · damage.spec.ts · damage-type.spec.ts · guard.spec.ts
         self 패널 줄 번호가 하나씩 밀리고, 경위 줄의 방어 자리가 세 값이 되었다.
 
-    view 전체    15 files · 222 tests 통과 (World 미기동)
-    전체          34 files · 532 tests 통과
+    view 전체    16 files · 233 tests 통과 (World 미기동)
+    전체          34 files · 534 tests 통과
     npm run build tsc --noEmit + vite build 통과
 
 ## NOTES
@@ -99,11 +99,11 @@
     ② 검산의 기준이 바뀌었다
        C012 까지 `defenseMultiplier` 는 `defenseStat.value` 로 검산할 수 있었다.
        이제 아니다 — 걷힌 뒤 값(effectiveDefense)이 그 근거다. 표시 문자열이
-       `방어 30 · 관통 60 → 18.75` 다음에 `×84%` 를 두는 순서인 것은 그 때문이다.
-       읽는 이가 84% 를 30 이 아니라 18.75 와 짝지어 읽게 된다.
+       `방어 90 · 관통 60 → 56.25` 다음에 `×64%` 를 두는 순서인 것은 그 때문이다.
+       읽는 이가 64% 를 90 이 아니라 56.25 와 짝지어 읽게 된다.
 
     ③ 소수점
-       걷힌 방어는 18.75 처럼 정수가 아니다. 기존 `round()` (정수면 그대로, 아니면
+       걷힌 방어는 56.25 처럼 정수가 아니다. 기존 `round()` (정수면 그대로, 아니면
        소수 둘째 자리)를 그대로 썼다 — 자릿수 정리는 View 의 일이라는 판단은 C010 부터
        같고, 세계가 보낸 값과 다른 수를 보이지 않는다.
 
