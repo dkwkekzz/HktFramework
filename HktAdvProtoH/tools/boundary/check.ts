@@ -34,7 +34,7 @@ function layerOf(relPath: string): Layer | null {
   if (top === 'engine') return { kind: 'engine' };
   if (top === 'content') {
     // content/active.ts 는 조립의 것이다 — "어느 팩인가" 를 아는 단 하나의 파일.
-    if (parts.length === 2 && (parts[1] === 'active.ts' || parts[1] === 'active-view.ts'))
+    if (parts.length === 2 && (['active.ts', 'active-view.ts', 'active-catalog.ts'].includes(parts[1] ?? '')))
       return { kind: 'assembly' };
     const pack = parts[1];
     return pack ? { kind: 'content', pack } : null;

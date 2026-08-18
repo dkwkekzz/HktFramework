@@ -9,6 +9,7 @@ import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative, sep } from 'node:path';
 import { parseMotionPath } from '../../engine/view-kernel/motion/motion-format';
 import type { MotionAtlas, MotionFrameGeometry, MotionGeometry } from '../../engine/view-kernel/motion/motion-geometry';
+import { activePackDir } from '../active-pack';
 import { detectSheet, type DetectedSheet } from './detect-frames';
 import { readPngAlpha } from './png-alpha';
 
@@ -118,7 +119,7 @@ function normalize(detected: DetectedSheet, declaredFrames: number): MotionGeome
 }
 
 export function buildAtlas(projectRoot: string): AtlasBuildResult {
-  const motionsDir = join(projectRoot, 'motions');
+  const motionsDir = join(activePackDir(projectRoot), 'motions');
   const files = collectSheets(motionsDir);
 
   const atlas: Record<string, MotionGeometry> = {};
@@ -163,7 +164,7 @@ export function buildAtlas(projectRoot: string): AtlasBuildResult {
 
 /** motions/ 안 파일들의 크기·수정시각 지문 — 다시 만들지 판단하는 값싼 기준 */
 export function motionsFingerprint(projectRoot: string): string {
-  const files = collectSheets(join(projectRoot, 'motions'));
+  const files = collectSheets(join(activePackDir(projectRoot), 'motions'));
   const hash = createHash('sha256');
   for (const file of files) {
     const s = statSync(file);

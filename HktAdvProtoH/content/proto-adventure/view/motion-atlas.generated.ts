@@ -6,13 +6,13 @@
 // 개발 서버와 빌드가 시작할 때 motions/ 가 바뀌었으면 자동으로 다시 만든다.
 // 값의 의미는 view/motion/motion-geometry.ts 를 보라.
 
-import type { MotionAtlas } from './motion-geometry';
+import type { MotionAtlas } from '../../../engine/view-kernel/motion/motion-geometry';
 
 /** 분석에 쓰인 motions/ 내용 지문 — 값이 다르면 다시 만들어야 한다 */
-export const MOTION_ATLAS_INPUT_HASH = "8cc287e2200c59dc";
+export const MOTION_ATLAS_INPUT_HASH = "daebd9c837cf2673";
 
 export const MOTION_ATLAS: MotionAtlas = {
-  "/motions/rabbit-swordsman/attack.3x3.9f.12fps.png": {
+  "/content/proto-adventure/motions/rabbit-swordsman/attack.3x3.9f.12fps.png": {
     sheet: [1254, 1254],
     cols: 3,
     rows: 3,
@@ -30,7 +30,7 @@ export const MOTION_ATLAS: MotionAtlas = {
     ],
     warnings: [],
   },
-  "/motions/rabbit-swordsman/downed.3x3.9f.8fps.once.png": {
+  "/content/proto-adventure/motions/rabbit-swordsman/downed.3x3.9f.8fps.once.png": {
     sheet: [1254, 1254],
     cols: 3,
     rows: 3,
@@ -48,7 +48,7 @@ export const MOTION_ATLAS: MotionAtlas = {
     ],
     warnings: [],
   },
-  "/motions/rabbit-swordsman/hit.3x3.9f.12fps.png": {
+  "/content/proto-adventure/motions/rabbit-swordsman/hit.3x3.9f.12fps.png": {
     sheet: [1285, 1224],
     cols: 3,
     rows: 3,
@@ -66,7 +66,7 @@ export const MOTION_ATLAS: MotionAtlas = {
     ],
     warnings: [],
   },
-  "/motions/rabbit-swordsman/idle.3x3.9f.8fps.png": {
+  "/content/proto-adventure/motions/rabbit-swordsman/idle.3x3.9f.8fps.png": {
     sheet: [1518, 1452],
     cols: 3,
     rows: 3,
@@ -84,7 +84,7 @@ export const MOTION_ATLAS: MotionAtlas = {
     ],
     warnings: [],
   },
-  "/motions/rabbit-swordsman/move.3x3.9f.8fps.png": {
+  "/content/proto-adventure/motions/rabbit-swordsman/move.3x3.9f.8fps.png": {
     sheet: [1282, 1227],
     cols: 3,
     rows: 3,
@@ -102,7 +102,7 @@ export const MOTION_ATLAS: MotionAtlas = {
     ],
     warnings: [],
   },
-  "/motions/wanderer/attack.3x3.9f.12fps.png": {
+  "/content/proto-adventure/motions/wanderer/attack.3x3.9f.12fps.png": {
     sheet: [1254, 1254],
     cols: 3,
     rows: 3,
@@ -120,7 +120,7 @@ export const MOTION_ATLAS: MotionAtlas = {
     ],
     warnings: [],
   },
-  "/motions/wanderer/downed.3x3.9f.8fps.once.png": {
+  "/content/proto-adventure/motions/wanderer/downed.3x3.9f.8fps.once.png": {
     sheet: [1254, 1254],
     cols: 3,
     rows: 3,
@@ -138,7 +138,7 @@ export const MOTION_ATLAS: MotionAtlas = {
     ],
     warnings: [],
   },
-  "/motions/wanderer/hit.3x3.9f.12fps.png": {
+  "/content/proto-adventure/motions/wanderer/hit.3x3.9f.12fps.png": {
     sheet: [1285, 1224],
     cols: 3,
     rows: 3,
@@ -156,7 +156,7 @@ export const MOTION_ATLAS: MotionAtlas = {
     ],
     warnings: [],
   },
-  "/motions/wanderer/idle.3x3.9f.8fps.png": {
+  "/content/proto-adventure/motions/wanderer/idle.3x3.9f.8fps.png": {
     sheet: [1518, 1452],
     cols: 3,
     rows: 3,
@@ -174,7 +174,7 @@ export const MOTION_ATLAS: MotionAtlas = {
     ],
     warnings: [],
   },
-  "/motions/wanderer/move.3x3.9f.8fps.png": {
+  "/content/proto-adventure/motions/wanderer/move.3x3.9f.8fps.png": {
     sheet: [1282, 1227],
     cols: 3,
     rows: 3,

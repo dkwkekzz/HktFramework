@@ -7,7 +7,7 @@
 //
 // 새 종류 추가는 정확히 세 곳이다 (kind 정적 데이터 3원소 — CLAUDE.md):
 //   1. 여기 한 항목                                  (시뮬레이션)
-//   2. view/presentation/kind-presentation.ts 한 항목 (표현)
+//   2. view/kind-presentation.ts (팩) 한 항목 (표현)
 //   3. motions/<kind>/ 폴더                          (그림 — 없으면 placeholder 로 그려진다)
 // 전체는 `npm run catalog` 로 한눈에 관찰한다 (tools/catalog).
 //

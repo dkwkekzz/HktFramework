@@ -41,6 +41,23 @@ Master Agent 는 `world/` `view/` 를 편집하지 않는다 — Overlay 판정�
 
 정책 원본: [design/Master-Intent-Graph-Policy.md](design/Master-Intent-Graph-Policy.md)
 
+## 기반 / 컨텐츠 경로 규약
+
+기반(Engine)과 컨텐츠(팩)는 물리적으로 분리되어 있다
+([design/Design-System-Content-Separation.md](design/Design-System-Content-Separation.md)).
+
+```text
+engine/            기반 — world-kernel · view-kernel · protocol-core.
+                   컨텐츠 작업 중 어떤 Agent 도 편집하지 않는다 (기반 트랙 전용)
+content/<pack>/    컨텐츠 팩 = 교체 단위 — master/ cycles/ world/ view/ protocol/ motions/
+hkt.pack.json      활성 팩 선언 (공정·도구용) — 코드 조립은 content/active*.ts 가 맡는다
+```
+
+이 문서와 `guides/` 의 `master/` `cycles/` `world/` `view/` 경로는 **활성 팩 루트 기준**이다
+(현재: `content/proto-adventure/`). `guides/` `design/` `tools/` 는 프로젝트 루트 기준.
+다른 Master Graph Root 로 작업한다 = 새 팩을 만든다 — 기반은 그대로 둔다.
+경계는 `npm run boundary:check` 가 강제한다 (engine→content import 금지 · 팩 간 격리).
+
 ## 읽는 순서
 
 모든 Agent 는 다음 셋만 읽고 작업한다.
@@ -155,15 +172,19 @@ Root Game Goal / World Premise (`master/root.md`) 와 Constraint 승인은 Human
 
 ## 디렉터리 인덱스
 
+팩 경로는 활성 팩 루트(`content/proto-adventure/`) 기준이다.
+
 | 경로 | 내용 | 수명 |
 |---|---|---|
 | [guides/](guides/) | Stage Guide — 단계별 작업 방법·완료 조건 | 공정이 바뀔 때만 |
-| [master/](master/) | Master Intent Graph — Constraint · Graph · Overlay · Frontier | 현재 상태만, 닫히면 지운다 |
-| [master/HISTORY.md](master/HISTORY.md) | 닫힌 질문·선택·갱신의 보관소 | 조회용, 평소 읽지 않는다 |
-| [cycles/](cycles/) | Cycle Artifact — 진행 기록 | History, 수정하지 않는다 |
-| [world/](world/) | Authoritative World 구현 (Server) | 현재 게임, 계속 발전 |
-| [view/](view/) | Client View 구현 | 현재 게임, 계속 발전 |
-| [protocol/](protocol/) | World ↔ View 경계 타입만 | 현재 게임, 계속 발전 |
+| `<pack>/master/` | Master Intent Graph — Constraint · Graph · Overlay · Frontier | 현재 상태만, 닫히면 지운다 |
+| `<pack>/master/HISTORY.md` | 닫힌 질문·선택·갱신의 보관소 | 조회용, 평소 읽지 않는다 |
+| `<pack>/cycles/` | Cycle Artifact — 진행 기록 | History, 수정하지 않는다 |
+| `<pack>/world/` | Authoritative World 구현 (Server) — 팩의 Rule·Semantic·투영 | 현재 게임, 계속 발전 |
+| `<pack>/view/` | Client View 결정 Layer — presentation 표·문구·바인딩 | 현재 게임, 계속 발전 |
+| `<pack>/protocol/` | 팩의 GameView·Action 확장 타입 | 현재 게임, 계속 발전 |
+| `<pack>/motions/` | 모션 시트 — 폴더 규약 자동 발견 | 현재 게임, 계속 발전 |
+| [engine/](engine/) | 기반 — 커널·Capability·봉투. 컨텐츠 작업에서 편집 금지 | 기반 트랙 전용 |
 | [design/](design/) | 원본 설계 — 경계 사례에서만 참조 | 원본 |
 
 ## 기준 문서 (Source of Truth)

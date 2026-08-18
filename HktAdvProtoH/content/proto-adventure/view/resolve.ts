@@ -9,7 +9,7 @@ import type { GameViewSnapshot as CoreGameViewSnapshot } from '../../../engine/p
 import type { GameViewSnapshot } from '../protocol/gameview';
 import { screenSideValue } from '../../../engine/view-kernel/camera/orientation';
 import { facingDecision, type ScreenSide } from '../../../engine/view-kernel/presentation/facing-presentation';
-import { motionLibrary } from '../../../engine/view-kernel/motion/motion-source';
+import { motionLibrary } from './motion-source';
 import type { MotionLibrary } from '../../../engine/view-kernel/motion/motion-library';
 import type {
   SceneCommandHistoryLine,

@@ -2,11 +2,11 @@
 // 04-gameview.spec.yaml 의 motion 계약(selectedBy · progress · fallback)이 대상이다.
 
 import { describe, expect, it } from 'vitest';
-import { parseMotionPath } from '../motion/motion-format';
-import { createMotionLibrary } from '../motion/motion-library';
-import { motionFrameIndex, motionFrameUv } from '../motion/motion-frame';
-import { motionLibrary } from '../motion/motion-source';
-import type { SceneMotion } from '../scene/scene-state';
+import { parseMotionPath } from '../../../../engine/view-kernel/motion/motion-format';
+import { createMotionLibrary } from '../../../../engine/view-kernel/motion/motion-library';
+import { motionFrameIndex, motionFrameUv } from '../../../../engine/view-kernel/motion/motion-frame';
+import { motionLibrary } from '../motion-source';
+import type { SceneMotion } from '../../../../engine/view-kernel/scene/scene-state';
 
 describe('parseMotionPath — 데이터 주입 포맷 v1', () => {
   it('폴더 = 캐릭터 종류, 파일 첫 토큰 = 행동', () => {

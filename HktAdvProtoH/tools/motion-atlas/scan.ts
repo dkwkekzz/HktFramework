@@ -7,11 +7,15 @@
 
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { dirname, join, resolve } from 'node:path';
+import { dirname, join, relative, resolve } from 'node:path';
+import { activePackDir } from '../active-pack';
 import { buildAtlas, type SheetReport } from './build-atlas';
 import { renderAtlasModule, writeIfChanged } from './emit';
 
-export const ATLAS_MODULE_PATH = join('engine', 'view-kernel', 'motion', 'motion-atlas.generated.ts');
+/** 생성물이 놓이는 자리 — 활성 팩의 view/ 다 (P4: 모션 데이터는 팩 소유) */
+export function atlasModulePath(root: string): string {
+  return join(activePackDir(root), 'view', 'motion-atlas.generated.ts');
+}
 
 export function projectRoot(): string {
   return resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -24,7 +28,7 @@ export function scanMotions(root = projectRoot()): {
   warnings: number;
 } {
   const { atlas, reports, inputHash } = buildAtlas(root);
-  const changed = writeIfChanged(join(root, ATLAS_MODULE_PATH), renderAtlasModule(atlas, inputHash));
+  const changed = writeIfChanged(atlasModulePath(root), renderAtlasModule(atlas, inputHash));
   const warnings = reports.reduce(
     (n, r) => n + (r.geometry?.warnings.length ?? 0) + (r.skipped ? 1 : 0),
     0,
@@ -59,18 +63,19 @@ function formatReport(reports: SheetReport[]): string {
 if (process.argv[1] && import.meta.url === `file://${resolve(process.argv[1])}`) {
   const checkOnly = process.argv.includes('--check');
   const root = projectRoot();
+  const atlasPath = relative(root, atlasModulePath(root));
 
   if (checkOnly) {
     // 쓰지 않고 최신인지만 본다 — 생성물을 커밋해 두었으므로 어긋나면 알려야 한다.
     const { atlas, reports, inputHash } = buildAtlas(root);
     const expected = renderAtlasModule(atlas, inputHash);
-    const current = readFileSync(join(root, ATLAS_MODULE_PATH), 'utf8').toString();
+    const current = readFileSync(atlasModulePath(root), 'utf8').toString();
     console.log(formatReport(reports));
     if (current !== expected) {
-      console.error(`\n  [오류] ${ATLAS_MODULE_PATH} 가 motions/ 와 어긋난다 — npm run motions:scan 을 실행하라.`);
+      console.error(`\n  [오류] ${atlasPath} 가 motions/ 와 어긋난다 — npm run motions:scan 을 실행하라.`);
       process.exit(1);
     }
-    console.log(`\n  ${ATLAS_MODULE_PATH} 는 motions/ 와 일치한다.`);
+    console.log(`\n  ${atlasPath} 는 motions/ 와 일치한다.`);
     process.exit(0);
   }
 
@@ -81,7 +86,7 @@ if (process.argv[1] && import.meta.url === `file://${resolve(process.argv[1])}`)
   console.log(formatReport(reports));
   console.log('  ' + '-'.repeat(96));
   console.log(
-    `  시트 ${reports.length}장 · 경고 ${warnings}건 · ${ATLAS_MODULE_PATH} ${
+    `  시트 ${reports.length}장 · 경고 ${warnings}건 · ${atlasPath} ${
       changed ? '갱신됨' : '이미 최신'
     }`,
   );

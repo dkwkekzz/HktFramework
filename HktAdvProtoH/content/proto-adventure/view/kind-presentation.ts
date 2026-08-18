@@ -5,7 +5,7 @@
 // 세계는 kind 라는 이름만 알고, 그 종류의 그림이 어떻게 생겼는지는 그림을 가진 이쪽이 안다.
 //
 // 새 종류 추가는 정확히 세 곳이다 (kind 정적 데이터 3원소 — CLAUDE.md):
-//   1. world/semantic/character-catalog.ts 한 항목 (시뮬레이션)
+//   1. world/semantic/character-catalog.ts (팩) 한 항목 (시뮬레이션)
 //   2. 여기 한 항목                                 (표현)
 //   3. motions/<kind>/ 폴더                         (그림 — 없으면 placeholder 로 그려진다)
 // 전체는 `npm run catalog` 로 한눈에 관찰한다 (tools/catalog).

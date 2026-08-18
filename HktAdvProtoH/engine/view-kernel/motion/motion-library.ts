@@ -7,7 +7,6 @@
 // 어떤 모션이 존재하는지는 World 가 아니라 여기(주입된 데이터)가 안다.
 // 데이터가 없으면 null 을 돌려주고, 그리기는 절차 생성 Asset(placeholder)이 맡는다.
 
-import { MOTION_ATLAS } from './motion-atlas.generated';
 import { parseMotionPath, type MotionAsset } from './motion-format';
 import type { MotionGeometry } from './motion-geometry';
 
@@ -24,7 +23,8 @@ export interface MotionLibrary {
 
 export function createMotionLibrary(
   sources: Record<string, string>,
-  atlas: Readonly<Record<string, MotionGeometry>> = MOTION_ATLAS,
+  // 프레임 기하(정적 분석 생성물)는 팩이 주입한다 (P4) — 없으면 균등 분할로 그린다.
+  atlas: Readonly<Record<string, MotionGeometry>> = {},
 ): MotionLibrary {
   const assets: MotionAsset[] = [];
   for (const path of Object.keys(sources).sort()) {

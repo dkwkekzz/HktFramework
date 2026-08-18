@@ -5,7 +5,11 @@ description: HktAdvProtoH 의 Master Layer 작업을 실행한다 — WHY(World�
 
 # HktAdvProtoH Master Layer Runner
 
-**작업 디렉토리: `HktAdvProtoH/`** — 이하 상대 경로는 이 폴더 기준.
+**작업 디렉토리: `HktAdvProtoH/`** — `guides/` `design/` `engine/` `tools/` 는 이 폴더 기준.
+**컨텐츠 경로는 활성 팩 루트 기준** — `hkt.pack.json` 의 active 가 가리키는
+`content/<active>/` 아래에 `master/` `cycles/` `world/` `view/` `protocol/`(팩 확장) 이 있다.
+`engine/` 과 `engine/protocol-core/` 는 기반이다 — **컨텐츠 작업 중에 편집하지 않는다**
+(`npm run boundary:check` 가 경계를 강제한다). 기반 변경은 별도 기반 트랙으로만 한다.
 
 이 프로젝트의 Workflow 는 두 층이다.
 

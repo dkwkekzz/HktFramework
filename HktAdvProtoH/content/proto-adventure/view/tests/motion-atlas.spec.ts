@@ -7,18 +7,18 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { buildAtlas } from '../../../tools/motion-atlas/build-atlas';
-import { detectSheet } from '../../../tools/motion-atlas/detect-frames';
-import { renderAtlasModule } from '../../../tools/motion-atlas/emit';
-import { readPngAlpha } from '../../../tools/motion-atlas/png-alpha';
-import { ATLAS_MODULE_PATH, projectRoot } from '../../../tools/motion-atlas/scan';
-import { MOTION_ATLAS } from '../motion/motion-atlas.generated';
+import { buildAtlas } from '../../../../tools/motion-atlas/build-atlas';
+import { detectSheet } from '../../../../tools/motion-atlas/detect-frames';
+import { renderAtlasModule } from '../../../../tools/motion-atlas/emit';
+import { readPngAlpha } from '../../../../tools/motion-atlas/png-alpha';
+import { atlasModulePath, projectRoot } from '../../../../tools/motion-atlas/scan';
+import { MOTION_ATLAS } from '../motion-atlas.generated';
 import {
   frameUv,
   frameWorldSize,
   uniformGeometry,
   type MotionFrameGeometry,
-} from '../motion/motion-geometry';
+} from '../../../../engine/view-kernel/motion/motion-geometry';
 
 const ROOT = projectRoot();
 
@@ -28,12 +28,12 @@ function detect(path: string, cols: number, rows: number) {
 
 describe('실제 시트 — 절단선이 그림을 관통하지 않는다', () => {
   const clean = [
-    'motions/rabbit-swordsman/idle.3x3.9f.8fps.png',
-    'motions/rabbit-swordsman/attack.3x3.9f.12fps.png',
-    'motions/rabbit-swordsman/hit.3x3.9f.12fps.png',
+    'content/proto-adventure/motions/rabbit-swordsman/idle.3x3.9f.8fps.png',
+    'content/proto-adventure/motions/rabbit-swordsman/attack.3x3.9f.12fps.png',
+    'content/proto-adventure/motions/rabbit-swordsman/hit.3x3.9f.12fps.png',
     // move 는 한때 1·2행이 맞닿아 valley 로 잘렸으나 재추출되어 빈 줄이 생겼다
     // (커밋 420111a). 지금은 네 시트 모두 gutter 로 깨끗하게 나뉜다.
-    'motions/rabbit-swordsman/move.3x3.9f.8fps.png',
+    'content/proto-adventure/motions/rabbit-swordsman/move.3x3.9f.8fps.png',
   ];
 
   for (const path of clean) {
@@ -46,7 +46,7 @@ describe('실제 시트 — 절단선이 그림을 관통하지 않는다', () =
 
   it('균등 분할이었다면 관통했을 자리를 실제로 피해 간다', () => {
     // attack 은 균등 분할 절단선(418, 836)이 넷 다 그림을 관통했다.
-    const detected = detect('motions/rabbit-swordsman/attack.3x3.9f.12fps.png', 3, 3);
+    const detected = detect('content/proto-adventure/motions/rabbit-swordsman/attack.3x3.9f.12fps.png', 3, 3);
     const xs = detected.frames.map((f) => f.rect.x);
     const ys = detected.frames.map((f) => f.rect.y);
 
@@ -62,7 +62,7 @@ describe('생성물이 motions/ 와 일치한다', () => {
   it('motion-atlas.generated.ts 가 최신이다 (아니면 npm run motions:scan)', () => {
     const { atlas, inputHash } = buildAtlas(ROOT);
     const expected = renderAtlasModule(atlas, inputHash);
-    expect(readFileSync(join(ROOT, ATLAS_MODULE_PATH), 'utf8')).toBe(expected);
+    expect(readFileSync(atlasModulePath(ROOT), 'utf8')).toBe(expected);
   });
 
   it('주입된 시트마다 기하가 하나씩 있다', () => {
