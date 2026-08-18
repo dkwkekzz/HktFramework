@@ -5,6 +5,10 @@ Master Capability(`graph/capabilities.yaml`) 를 현재 `world/` `view/` 구현 
 
 기준 시점: **C012-damage-type-chooses-the-defense 닫힘 (2026-08-18)** — 코드는 그 Cycle 완료 시점 상태다.
 
+근거 문서는 둘뿐이다 (2026-08-18 Q12 결정) — `design/Design-Combat-OffenseDefense-R0.md`(R1) ·
+`design/Design-Combat-DamageType-R0.md`. 두 문서가 이름조차 대지 않는 Capability 는
+"없는 것"이 아니라 **노드가 아니다** — 표에서 삭제한다.
+
 ## 상태
 
 | Capability | 상태 | 근거 | 부족한 것 |
@@ -20,13 +24,11 @@ Master Capability(`graph/capabilities.yaml`) 를 현재 `world/` `view/` 구현 
 | MC-PERFECT-GUARD | MISSING | — | 막기는 C011 로 생겼으나 그 **시작 시각**을 판정하는 의미가 없다 (R1 §14 Active Defense 층 — 구 C011 로 닫혔다가 2026-08-17 롤백, 산출물은 git history) |
 | MC-COUNTER | MISSING | — | 노출 상태(Exposed)가 없다 (R1 §14 Active Defense 층 — 구 C011 로 닫혔다가 2026-08-17 롤백, 산출물은 git history) |
 | MC-EVADE | MISSING | — | 회피 행동이 없다 (R1 §13 이연) |
-| MC-BREAK | MISSING | — | 균형 누적값·붕괴 상태가 없다 (R1 이연 — 재설계 대기) |
+| MC-BREAK | MISSING | — | 방어를 무너뜨리는 의미가 없다 (R1 §14 Active Defense 층이 이름만 예고 — Guard Break) |
 | MC-COMBAT-FLOW | MISSING | — | 공격/방어 배분 상태가 없다 (R1 §14 Aura/Nen 층으로 재설계 예정) |
 | MC-FORTIFY | MISSING | — | Flow 가 없으므로 방어 쪽에 몰아 둔 자세도 없다 (R1 §14 Aura/Nen 층) |
 | MC-ATTACK-ARMOR-MATCHUP | IMPLEMENTED | C012 08-verification — 공격 형태 둘·방어 형태 둘이 존재하고 타입 대응이 계산의 입력을 고른다. 같은 스킬 값이 상대에 따라 20/14 ↔ 17/22 로 갈리는 것이 실측 | — |
 | MC-PENETRATION | MISSING | — | 마주한 방어를 깎는 의미가 없다. 작용 대상인 두 방어는 C012 로 생겼으므로 이제 이것 하나만 없다 (R1 §14 Penetration 층 · 작용 지점은 DamageType R0 §15) |
-| MC-WEAK-POINT | MISSING | — | 몸이 단일 캡슐이라 부위 구분이 없다 (C006 `bodyRadius/bodyHeight`) (R1 이연) |
-| MC-REAR-ATTACK | MISSING | — | facing 은 있으나 타격 판정이 방향을 보지 않는다 (R1 이연) |
 | MC-CONDITION-STACKING | MISSING | — | 조건이라는 개념 자체가 없다 (R1 §14 Aura/Nen 층) |
 | MC-VOW | MISSING | — | 제약·실패 대가가 없다 (R1 §14 Aura/Nen 층) |
 
@@ -50,16 +52,57 @@ Constraint Violation 과 혼동하지 않는다 — 여기는 **있는가/없는
 | MP-OUTGROW-THE-OPPONENT | **없음** | **C010 으로 닫혔다** — 요구 Capability 3종이 모두 IMPLEMENTED. 이 경로는 지금 플레이 가능하다 |
 | MP-TRADE-BODY-FOR-RESOURCE | **없음** | **C011 로 닫혔다** — 요구 Capability 4종이 모두 IMPLEMENTED. 이 경로는 지금 플레이 가능하다 |
 | MP-READ-AND-COUNTER | MC-PERFECT-GUARD · MC-COUNTER | C011 이 MC-GUARD 를 채워 셋에서 둘로 줄었다. R1 §15 층 그림에서 Active Defense 는 Penetration 위다 |
-| MP-EVADE-BY-MOVING-THE-BODY | MC-EVADE | R1 §13 이연 |
-| MP-BREAK-THE-GUARD | MC-BREAK | R1 이연 — 재설계 대기 |
+| MP-EVADE-BY-MOVING-THE-BODY | MC-EVADE | R1 §13 이 Dodge 를 이후 확장으로만 지정 — §14 순서에 자리가 없다 |
+| MP-BREAK-THE-GUARD | MC-BREAK | R1 §14 Active Defense 층 — 그 층의 설계 문서 대기 |
 | MP-EXPLOIT-OPEN-BODY | MC-COMBAT-FLOW | R1 §14 Aura/Nen 층으로 이연 |
 | MP-MATCH-WEAPON-TO-ARMOR | **없음** | **C012 로 닫혔다** — 요구 Capability 2종과 지식 1종이 모두 섰다. 이 경로는 지금 플레이 가능하다 |
 | MP-PIERCE-THE-HARD-DEFENSE | MC-PENETRATION | **하나만 남았다** — C012 가 관통이 작용할 두 방어를 세웠다. R1 §14 Penetration 층이며 지금 가장 가까운 경로다 |
 | MP-HOLD-FORTIFIED | MC-FORTIFY · MC-COMBAT-FLOW | R1 §14 Aura/Nen 층으로 이연 (MC-DEFENSE-MITIGATION 은 C010 으로 채워졌다) |
-| MP-STRIKE-THE-VULNERABLE-SPOT | MC-WEAK-POINT · MC-REAR-ATTACK | R1 이연 |
 | MP-STAKE-EVERYTHING-ON-ONE-BLOW | MC-VOW · MC-CONDITION-STACKING · MC-COMBAT-FLOW | R1 §14 Aura/Nen 층 — 가장 멀다 |
 
 ## 이번 갱신
+
+    2026-08-18 (Q12 결정 — 근거 문서를 둘로 못 박았다)
+
+    Human 결정: "지금의 근거는 오로지 Design-Combat-OffenseDefense-R0.md(R1) 와
+    Design-Combat-DamageType-R0.md 이며, 관련 없으면 남기지 말고 없앤다."
+    삭제된 구판(R0)에만 근거가 있던 것을 보류가 아니라 **삭제**했다.
+
+    노드 삭제 2종 — 두 문서가 이 의미를 이름조차 대지 않는다
+        MC-WEAK-POINT     몸의 특정 자리에 닿으면 더 큰 결과   (구판 §13.1 유래)
+        MC-REAR-ATTACK    방어가 향하지 않은 쪽에서의 공격     (구판 §13.2 유래)
+        → 이 둘만 요구하던 MP-STRIKE-THE-VULNERABLE-SPOT 도 함께 삭제.
+        R1 §13 의 "하지 않을 것" 목록에도 이 둘은 없다 — 이연된 것이 아니라 근거가 없다.
+
+    Constraint 삭제 2종 (constraints/README.md 반영 이력 참조)
+        DC-COMBAT-DEFENSE-IS-ACTIVE   구판 §1.1·§3.2·§8 뿐. 현행 R1 §8 은 오히려
+                                      "이번 단계의 방어는 버튼을 누르는 행동이 아니다" 다
+        DC-COMBAT-POWER-HAS-COST      구판 §3.3·§7·§12·§21 뿐. 현행 R1 §14 Aura/Nen 은
+                                      예시 한 줄만 두고 원칙을 규정하지 않는다
+        → 두 DC 를 참조하던 노드 7종의 constraints · constraint_evaluation 항목 제거.
+
+    Constraint 재승인 1종
+        DC-COMBAT-MATCHUP-SOFT  DRAFT → APPROVED. DT §7 이 문안을 직접 제시하고,
+                                근거 층(Damage Type)은 C012 로 닫혔다.
+                                구판 유래 break_efficiency 는 DT §7 지시대로 삭제.
+        → Active Constraint 4종 + GLOBAL 1종 = **5종**. 보류(DRAFT)는 이제 없다.
+
+    문안 정리 — 구판에만 있던 세부를 노드에서 걷어냈다
+        MC-GUARD          "균형 부담" 삭제 (C011 구현에도 없다)
+        MC-PERFECT-GUARD  "상대를 노출시켜 공격권을 뒤집는다" 삭제 — R1 §14 는 이름만 예고
+        MC-COUNTER        "더 큰 균형 부담" 삭제
+        MC-BREAK          "균형 누적·폭발 구간" → "방어를 무너뜨린다" 로 축소
+        MC-ATTACK-ARMOR-MATCHUP  "강한 감각은 균형 붕괴 효율 쪽" 삭제 —
+                          DT §7 이 break_efficiency 를 채택하지 않는다고 명시한다
+        MP-BREAK-THE-GUARD · MP-STAKE-EVERYTHING-ON-ONE-BLOW 도 같은 기준으로 축소.
+        구판 § 인용은 Graph·Constraint 전체에서 0 건이 되었다 (판정 기록의 provenance 제외).
+
+    **현재 IMPLEMENTED 7 · PARTIAL 2 · MISSING 9 (전체 18종).**
+    Penetration Cycle 의 전제는 이 삭제로 달라지지 않는다 — MC-PENETRATION 은 R1 §14 와
+    DT §15 라는 현행 근거를 가진 유일한 결손이며, 이제 MATCHUP-SOFT 가 Active 로서
+    그 설계를 구속한다 (배율표가 아니라 대응 방어값을 깎아야 한다).
+
+    ── 이전 갱신 ────────────────────────────────────────────────────
 
     2026-08-18 (Feedback) — C011-guard-trades-body-for-resource · C012-damage-type-chooses-the-defense
     두 Cycle 의 MASTER FEEDBACK 을 한 번에 반영했다. 두 Cycle 이 닫히는 동안 Feedback 이 밀려
@@ -98,12 +141,12 @@ Constraint Violation 과 혼동하지 않는다 — 여기는 **있는가/없는
         CC-RESOURCE-GATE-IS-ALL-OR-NOTHING   C011 제안 — 관찰 2회
         CC-THE-WORLD-NAMES-WHAT-IT-READ      C012 제안 — 관찰 1회
 
-    Human 판단 자리 2개가 열렸다 → open-questions.md Q12
+    Human 판단 자리 2개가 열렸다 → open-questions.md Q12 (2026-08-18 CLOSED)
         DC-COMBAT-DEFENSE-IS-ACTIVE (DRAFT) 의 근거 층이 C011 로 실재하게 되었다.
         DC-COMBAT-MATCHUP-SOFT (DRAFT) 의 근거 층이 C012 로 실재하게 되었다.
-        재승인은 Constraint 작업(Filter — Human 소유)이며 이 단계가 대신하지 않는다.
+        → 결정: MATCHUP-SOFT 는 DT §7 기준 재승인, DEFENSE-IS-ACTIVE 는 삭제 (위 참조).
 
-    현재 IMPLEMENTED 7 · PARTIAL 2 · MISSING 11 (전체 20종).
+    (그 시점 IMPLEMENTED 7 · PARTIAL 2 · MISSING 11 — 전체 20종)
 
     ── 이전 갱신 ────────────────────────────────────────────────────
 

@@ -25,11 +25,16 @@
 5. §3·§4·§5·§11 의 수치·공식은 Master 에 올리지 않는다
    (Master-Intent-Graph-Policy §7.2 · §16). 그것들은 이 문서에 남아 있다가
    해당 Cycle 의 `03-world-semantic.md` 가 소유한다. 이 파일이 그 수치의 원본이다.
-6. Constraint — 2026-08-17 Human 지시로 이 개정에 맞춰 재작성되었다 (`master/constraints/`).
-   Active 4종: PLAYER-CAUSALITY · ONE-FORMULA · ONE-LAYER-AT-A-TIME · SHARED-BUDGET.
-   보류(DRAFT) 3종: DEFENSE-IS-ACTIVE · MATCHUP-SOFT · POWER-HAS-COST — §14 의 해당
-   확장 층 재설계 시 재승인한다. §14 Critical 층(C011 계획)과 PLAYER-CAUSALITY 의
-   random_critical 금지 충돌은 미해결 → `master/open-questions.md` Q11.
+6. Constraint — 2026-08-17 Human 지시로 이 개정에 맞춰 재작성되었고, 2026-08-18 Human
+   결정(open-questions.md Q12)으로 보류 상태를 없앴다 (`master/constraints/`).
+   근거 문서는 **이 파일과 `Design-Combat-DamageType-R0.md` 둘뿐이다** — 삭제된 구판(R0)에만
+   근거가 있던 것은 보류가 아니라 삭제한다.
+   Active 5종: PLAYER-CAUSALITY · ONE-FORMULA · ONE-LAYER-AT-A-TIME · SHARED-BUDGET ·
+   MATCHUP-SOFT(DamageType §7 기준 재승인). 여기에 Cycle 관찰에서 승격된 GLOBAL 1종
+   (WORLD-OWNS-THE-SURFACE-LIST)이 있다.
+   삭제 2종: DEFENSE-IS-ACTIVE · POWER-HAS-COST — 근거가 구판뿐이었다. 필요해지면 §14 의
+   해당 확장 층(Active Defense · Aura/Nen) 설계 문서가 나온 뒤 그 문서를 근거로 새로 만든다.
+   §14 Critical 층과 PLAYER-CAUSALITY 의 random_critical 금지 충돌은 미해결 → Q11.
 -->
 
 # SYSTEM DESIGN DOCUMENT

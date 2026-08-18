@@ -4,9 +4,11 @@ Frontier 는 Graph 의 절대 Leaf 가 아니라 **현재 세계 기준으로 �
 플레이 가능한 Capability 단위**다. 기본 절차 **NEXT** 단계의 산출물이며,
 Human 이 여기서 하나를 골라 다음 Cycle Goal 로 삼는다 (Human Select → 8 Stage Cycle).
 
-    기준 Overlay   master/overlay.md — C012 닫힘 (2026-08-18) 시점
-    사다리 원본    design/Design-Combat-OffenseDefense-R0.md **R1** §14 확장 순서 · §15 층 그림
-    층 세부 원본   각 층이 자기 문서를 가진다 (아래 "층별 원본" 참조)
+    기준 Overlay   master/overlay.md — C012 닫힘 (2026-08-18) · Q12 정비 반영
+    근거 문서      **둘뿐이다** (2026-08-18 Q12 결정)
+                       R1  design/Design-Combat-OffenseDefense-R0.md  §14 확장 순서 · §15 층 그림
+                       DT  design/Design-Combat-DamageType-R0.md      §15 이후 확장 경계
+                   두 문서가 이름조차 대지 않는 층은 후보로도 대기열로도 두지 않는다
 
 ## 지금 어디까지 왔는가
 
@@ -44,7 +46,9 @@ MP-OUTGROW-THE-OPPONENT · MP-TRADE-BODY-FOR-RESOURCE · MP-MATCH-WEAPON-TO-ARMO
                          design/Design-Combat-DamageType-R0.md §15 (어디에 붙는가 ·
                          무엇을 하면 안 되는가) · R1 핵심 원칙 (새 공식을 만들지 않는다)
     Active Constraints   DC-COMBAT-PLAYER-CAUSALITY · DC-COMBAT-ONE-FORMULA ·
-                         DC-COMBAT-ONE-LAYER-AT-A-TIME · DC-WORLD-OWNS-THE-SURFACE-LIST
+                         DC-COMBAT-ONE-LAYER-AT-A-TIME · DC-COMBAT-MATCHUP-SOFT ·
+                         DC-WORLD-OWNS-THE-SURFACE-LIST
+                         (SHARED-BUDGET 은 이 층이 자원을 쓰지 않으므로 무관하다)
     Constraint Eval      SATISFIED — 관통은 방어를 **확률로 무시**하지 않고 마주한 방어를
                          결정적으로 깎는다 (DC-COMBAT-PLAYER-CAUSALITY). 새 피해 공식을
                          만들지 않고 기존 감쇄식이 읽는 방어 값 하나를 바꿀 뿐이다
@@ -53,9 +57,11 @@ MP-OUTGROW-THE-OPPONENT · MP-TRADE-BODY-FOR-RESOURCE · MP-MATCH-WEAPON-TO-ARMO
                          (DC-COMBAT-ONE-LAYER-AT-A-TIME · DamageType §15).
                          깎이기 전후의 방어를 세계가 이름과 함께 관찰에 싣는다
                          (DC-WORLD-OWNS-THE-SURFACE-LIST).
-                         참고 — DC-COMBAT-MATCHUP-SOFT 는 DRAFT(보류)다. 이 층은 그 DC 가
-                         정한 "상성은 별도 배율표가 아니다" 를 유지해야 하지만, 현재
-                         Active 가 아니므로 판정 근거로 세지 않는다 → Q12
+                         DC-COMBAT-MATCHUP-SOFT 는 2026-08-18 Q12 로 APPROVED 가 되어
+                         이제 이 층을 실제로 구속한다 — 관통은 타입별 배율표를 만들 수 없고
+                         (type_bonus_multiplier_table 금지), 아무리 깎여도 최소 1 은 남으며
+                         (positive_damage_always_lands_at_least_one), 깎인 방어값이
+                         관찰 가능해야 한다 (weakness_is_observable · DT §7-4 · §10)
     Observable Result    같은 상대·같은 스킬인데 관통을 지닌 쪽이 더 큰 피해를 넣고,
                          그 차이가 "상대 방어가 얼마나 통하지 않았는가" 로 계산 내역에
                          설명되며, 방어가 두꺼운 상대일수록 그 몫이 커지고 무른 상대에게는
@@ -79,10 +85,11 @@ MP-OUTGROW-THE-OPPONENT · MP-TRADE-BODY-FOR-RESOURCE · MP-MATCH-WEAPON-TO-ARMO
 | 층 / 후보 | 무엇이 막고 있는가 |
 |---|---|
 | Critical | DC-COMBAT-PLAYER-CAUSALITY 와 충돌 — Human 결정 대기 (Q11). R1 자신이 건너뛰기를 허용한다 ("Basic Damage 는 Critical 없이도 완전히 동작해야 한다") |
-| Active Defense (완벽한 막기·되받아치기) | 의존성(Guard)은 C011 로 풀렸으나 차례가 아니다 — R1 §15 층 그림에서 Penetration **위**다. 결손은 MC-PERFECT-GUARD · MC-COUNTER 둘 |
-| Aura / Nen (집중·조건·제약·서약) | 사다리의 맨 위다. 아래 층이 서야 의미가 생긴다. 결손 MC-COMBAT-FLOW · MC-CONDITION-STACKING · MC-VOW · MC-FORTIFY |
-| Break (균형 붕괴) | R1 이 이 층의 세부(균형 누적·붕괴)를 삭제했다. 재설계 문서 대기 |
-| Evade (회피) · Weak Point · Rear Attack | R1 §13 이 이번 사다리의 범위에서 제외했다 |
+| Active Defense (완벽한 막기·되받아치기) | 의존성(Guard)은 C011 로 풀렸으나 차례가 아니다 — R1 §15 층 그림에서 Penetration **위**다. 결손은 MC-PERFECT-GUARD · MC-COUNTER 둘. 두 문서는 이 층의 **이름만** 예고한다 (R1 §14 · DT §15 "이 문서는 그 효율을 정하지 않는다") — 세부는 그 층의 설계 문서가 와야 한다 |
+| Break (가드 브레이크) | 같은 층(Active Defense)의 일부이며 역시 이름만 있다. 구판의 세부(균형 누적·붕괴)는 2026-08-18 삭제했다 |
+| Aura / Nen (집중·조건·제약·서약) | 사다리의 맨 위다. 아래 층이 서야 의미가 생긴다. 결손 MC-COMBAT-FLOW · MC-CONDITION-STACKING · MC-VOW · MC-FORTIFY. R1 §14 가 예시 한 줄(Attack ×1.3 · Defense ×0.7 · CP -5/sec)만 공급한다 |
+| Evade (회피) | R1 §13 이 이후 확장으로만 지정하고 §14 확장 순서에는 자리를 주지 않았다 |
+| ~~Weak Point · Rear Attack~~ | **노드를 삭제했다** (2026-08-18 Q12) — 두 문서가 이 의미를 이름조차 대지 않는다. 필요해지면 설계 문서가 먼저 온다 |
 
 ### 층을 후보로 세우는 조건
 
@@ -112,6 +119,11 @@ Penetration 은 셋을 모두 갖추었다 — R1 §14 가 1, DamageType R0 §15
         Active Defense 층을 재구축할 때 그 산출물을 참조할 수 있다.
 
 ### 배운 것
+
+    근거 없는 것을 "대기" 로 두면 대기열이 거짓말을 한다.
+    Weak Point · Rear Attack 은 "R1 §13 이 범위에서 제외했다" 는 사유로 대기열에 있었으나,
+    §13 목록에 그 둘은 없었다 — Agent 가 구판에서 옮겨 온 뒤 사유를 지어 붙인 것이다.
+    2026-08-18 Human 결정으로 삭제했다. 대기 사유는 문서의 문장으로 확인되어야 한다.
 
     Playable Result 에는 **이번 층에서 실제로 제공되는 수단**을 적는다.
     FR-STATS-DECIDE-THE-DAMAGE 는 능력치 차이를 "장비·성장으로" 만든다고 적었으나 그 층은

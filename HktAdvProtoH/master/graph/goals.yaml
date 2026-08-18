@@ -31,14 +31,16 @@ nodes:
     belief_context: []
     stakes:
       - 버티지 못하면 쓰러진다
-      - 버티기만 하면 자원이 말라 결국 무너진다      # 구판 §8.1 유래 — 해당 층(R1 §14 Defense Action)에서 다시 성립한다
+      - 버티기만 하면 자원이 말라 결국 무너진다      # 기력 루프가 전투의 바닥이다 (R1 §11 · §16-3)
     caused_by: []
     constraints: []
 
-# 주입 근거: design/Design-Combat-OffenseDefense-R0.md 구판(R0) §1.1 · §4 · §23
-# R1 (2026-08-17 전면 개정) 재확인 — 두 Goal 은 유지된다. R1 §16 의 성공 조건
-# ("더 세다" · "덜 아프다")이 같은 Goal 을 능력치 성장 경로(MP-OUTGROW-THE-OPPONENT)로 지지한다.
+# 주입 근거 — 이 둘이 전부다 (2026-08-18 Q12 결정)
+#   R1  design/Design-Combat-OffenseDefense-R0.md  §0 · §12 성장 · §16 성공 조건
+#   DT  design/Design-Combat-DamageType-R0.md      §0 (상대에 따라 준비를 다시 고른다)
+# R1 §16 의 성공 조건("더 세다" · "덜 아프다")이 MG-OVERCOME-SUPERIOR-OPPONENT 를
+# 능력치 성장 경로(MP-OUTGROW-THE-OPPONENT)로 지지한다. 구판(R0) 인용은 2026-08-18 제거했다.
 #
 # 판정 — 이 두 Goal 은 Actor-owned Desired State 이므로 Goal 이 맞다.
-# 원본의 설계 원칙("랜덤이 크리티컬을 만들지 않는다" 등)은 Actor 가 원하는 상태가 아니므로
-# Goal 로 넣지 않았다. Constraint 로 세울지는 Human 이 정한다 — 지금 constraints/ 는 비어 있다.
+# 두 문서의 설계 원칙("난수를 쓰지 않는다" 등)은 Actor 가 원하는 상태가 아니므로 Goal 이
+# 아니라 Constraint 다 — constraints/ 에 Active 5종이 있다.

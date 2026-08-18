@@ -11,7 +11,7 @@ Human 이 답한다    DECISION 줄
 답이 정해지면 해당 Node/Constraint 에 반영하고 이 항목을 `CLOSED` 로 바꾼다.
 항목은 지우지 않는다 — 왜 그렇게 정했는지의 기록이다.
 
-미해결 **5건** (Q2 · Q3 · Q8 · Q11 · Q12) · 닫힌 것 7건.
+미해결 **4건** (Q2 · Q3 · Q8 · Q11) · 닫힌 것 8건.
 
 ---
 
@@ -124,11 +124,12 @@ Human 이 답한다    DECISION 줄
                   다시 판단한다 · C010(기본 공식)은 Critical 없이도 완전히 동작해야 한다" 고
                   유보했다.
 
-    Affected      DC-COMBAT-PLAYER-CAUSALITY · R1 §14 Critical 층 · (참고) 구판 §10 의
-                  조건부 Critical(비확률) 설계와 MC-CONDITION-STACKING
+    Affected      DC-COMBAT-PLAYER-CAUSALITY · R1 §14 Critical 층 · MC-CONDITION-STACKING
 
-    Trade-off     (a) 확률 Critical 을 넣지 않는다 — 그 층을 건너뛰거나 구판 §10 방향의
-                      조건부(비확률) Critical 로 재설계 → DC 유지, 전투 정체성 유지
+    Trade-off     (a) 확률 Critical 을 넣지 않는다 — 그 층을 건너뛰거나, 조건부(비확률)
+                      Critical 로 재설계한다. 후자를 고르면 그 층의 설계 문서가 먼저
+                      필요하다 (2026-08-18 Q12 — 근거는 현행 두 문서에서만 온다)
+                      → DC 유지, 전투 정체성 유지
                   (b) DC 를 REVISED 하여 확률 Critical 허용 → 전통 MMORPG 감각을 얻는 대신
                       "같은 상태 → 같은 결과" 원칙과 기존 Cycle 검증 근거가 흔들린다
 
@@ -138,7 +139,7 @@ Human 이 답한다    DECISION 줄
 
 ---
 
-## Q12. 보류(DRAFT) 중인 DC 2종의 근거 층이 실재하게 되었다 — 재승인할 것인가 — OPEN
+## Q12. 보류(DRAFT) 중인 DC 2종의 근거 층이 실재하게 되었다 — 재승인할 것인가 — CLOSED
 
     무엇          DC-COMBAT-DEFENSE-IS-ACTIVE 와 DC-COMBAT-MATCHUP-SOFT 는 2026-08-17
                   Human 지시로 DRAFT(보류)가 되었다. 사유는 "해당 층이 R1 로 이연되어
@@ -159,16 +160,44 @@ Human 이 답한다    DECISION 줄
                       요구는 아직 세계에 없다(MC-PERFECT-GUARD·MC-COUNTER 는 MISSING)
                   (c) 계속 보류 → 각 Cycle 이 그때그때 판단한다
 
-    Expected      결정 전까지 Frontier 는 두 DC 를 "참고(DRAFT)" 로만 적고
-                  Constraint Eval 의 근거로 삼지 않는다 (현재 상태).
+    DECISION      CLOSED (2026-08-18) — Human 지시: "기존 기획에 관련된 내용은 배제하고
+                  남아 있다면 전부 삭제. 지금의 근거는 오로지
+                  design/Design-Combat-OffenseDefense-R0.md 와
+                  design/Design-Combat-DamageType-R0.md 이며 관련 없다면 그냥 없앤다."
 
-    DECISION      <PENDING>
+                  선택지 (a)(b)(c) 중 어느 것도 아니다 — **보류라는 상태 자체를 없앴다.**
+                  근거가 현행 두 문서에 있으면 승인하고, 없으면 삭제한다.
+
+                      DC-COMBAT-MATCHUP-SOFT        → APPROVED
+                          DT §7 이 문안을 직접 제시한다("상성은 별도 피해 배율이 아니라
+                          대응 공격·방어 능력치의 차이로 표현한다"). 근거 층은 C012 로 닫혔다.
+                          구판 유래 break_efficiency 는 DT §7 의 명시 지시대로 삭제했다.
+
+                      DC-COMBAT-DEFENSE-IS-ACTIVE   → 삭제
+                          근거가 구판 §1.1 · §3.2 · §8 뿐이다. 현행 R1 §8 은 오히려
+                          "이번 단계의 방어는 버튼을 누르는 행동이 아니다" 라고 하고,
+                          §14 Active Defense 층은 이름만 예고하며, DT §15 는 "이 문서는
+                          그 효율을 정하지 않는다" 고 못 박는다. 남길 근거가 없다.
+
+                      DC-COMBAT-POWER-HAS-COST      → 삭제
+                          같은 결정으로 함께 삭제했다 (질문에는 없었으나 같은 사유다).
+                          근거가 구판 §3.3 · §7 · §12 · §21 뿐이다.
+
+                  이 질문이 걱정했던 것 — "Active Defense 층을 열 때 방어 성공이 공격권을
+                  뒤집어야 하는가를 Cycle 이 임의로 정하게 된다" — 는 남는다. 다만 답은
+                  보류된 DC 를 되살리는 것이 아니라 **그 층의 설계 문서를 Human 이 쓰는
+                  것**이다. 문서가 오면 그것을 근거로 Constraint 를 새로 만든다.
+
+                  같은 기준을 Graph 에도 적용했다 — 구판에만 근거가 있던
+                  MC-WEAK-POINT · MC-REAR-ATTACK · MP-STRIKE-THE-VULNERABLE-SPOT 삭제.
+                  상세는 overlay.md "이번 갱신" · constraints/README.md "반영 이력".
 
 
 ---
 
 ## 닫힌 질문
 
+    Q12 보류 중인 DC 2종의 재승인 여부 (2026-08-18 — 보류 상태 자체를 없앴다)
     Q1  DRAFT Constraint 3종 승인 여부
     Q4  상대가 내 위험을 읽지 못하면 제약이 위험이 아니다
     Q5  상성을 Break 로 옮기면 Break 가 지배 전략이 되는가

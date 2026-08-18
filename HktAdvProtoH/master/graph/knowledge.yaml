@@ -10,7 +10,7 @@ nodes:
     holder:
       - MA-PLAYER
     statement: >
-      상대의 어떤 행동이 어느 구간에서 힘을 공격에 몰아 몸을 여는지를 안다.
+      상대가 어느 구간에서 힘을 공격에 몰아 방어가 낮아지는지를 안다.
       외운 스킬 이름이 아니라 관찰로 얻는 지식이며, 이것이 있어야 되받아치는 순간을 고른다.
     contradicts: []
     revealed_by:
@@ -29,11 +29,14 @@ nodes:
       - MP-MATCH-WEAPON-TO-ARMOR
       - MP-PIERCE-THE-HARD-DEFENSE
 
-# 원본 문서는 Belief(틀릴 수 있는 믿음)를 공급하지 않는다.
-# 전투 층에서 Belief 가 성립하려면 상대의 상태를 잘못 읽을 수 있어야 하는데,
-# 원본 문서는 모든 원인을 관찰 가능하게 공개하는 쪽이다 (구판 §15.1 — R1 개정 후에도
-# 이 요구는 DC-COMBAT-PLAYER-CAUSALITY 의 explainable_result 로 존속한다).
+# 근거 문서는 둘뿐이다 (2026-08-18 Human 결정) —
+#   R1  design/Design-Combat-OffenseDefense-R0.md · DT  design/Design-Combat-DamageType-R0.md
+#
+# 두 문서는 Belief(틀릴 수 있는 믿음)를 공급하지 않는다. 전투 층에서 Belief 가 성립하려면
+# 상대의 상태를 잘못 읽을 수 있어야 하는데, 두 문서는 모든 원인을 관찰 가능하게 공개하는
+# 쪽이다 (DT §10 관찰 계약 · §14-9 — 관찰 결과만으로 계산 경위를 설명할 수 있어야 한다).
 # MK-OPPONENT-DEFENSE-SHAPE 는 2026-08-18 C012 로 세계에 세워졌다 (Actor 의 방어 형태가
-# 모든 관찰에 실린다). MK-OPPONENT-FLOW-PATTERN(Flow)의 대상은 R1 §14 Aura/Nen 층으로
-# 이연되어 있다 — 노드는 해당 층의 재설계 때 개정한다.
+# 모든 관찰에 실린다 — DT §10 Actor 관찰 계약).
+# MK-OPPONENT-FLOW-PATTERN 이 읽는 대상(힘의 배분)은 R1 §14 Aura/Nen 층이 예고한다 —
+# 그 층의 설계 문서가 나올 때 노드를 개정한다.
 # 오독의 여지를 어디까지 둘지는 Human 결정 대상이다 → open-questions.md Q3

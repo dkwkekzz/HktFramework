@@ -2,8 +2,11 @@
 #   §1 (CP 는 기본 능력치) · §11 (기본 공격 CP Charge · 고급 공격 CP Cost) ·
 #   §16-3 (기본 공격으로 모으고 강한 공격으로 쓰는 루프가 그대로 동작해야 성공)
 # 2026-08-15 Human 지시로 구판(R0)에서 최초 반영 → 2026-08-17 Human 지시로 R1 기준 재정합.
-# "행동별 전용 게이지 신설 금지" 는 구판 §11 의 명시 금지 유래다 — R1 은 재서술하지
-# 않았으나 CP 루프를 성공 조건으로 유지하므로 함께 유지한다.
+# "행동별 전용 게이지 신설 금지" 의 근거는 R1 §14 Aura/Nen 층과 핵심 원칙이다 —
+# 새 층의 예시가 새 게이지가 아니라 기존 CP 를 소비하고(공격 집중 CP -5/sec),
+# 핵심 원칙이 새 시스템은 기존 값(Attack · Defense · CP · Skill Ratio)을 변화시키는
+# 상위 규칙이어야 한다고 못 박는다.
+# 2026-08-18 Q12 — 구판(R0) 인용을 제거하고 현행 문서로만 재근거했다.
 id: DC-COMBAT-SHARED-BUDGET
 type: constraint
 
@@ -13,7 +16,8 @@ statement: >
 rationale: >
   기본 공격으로 CP 를 모으고 강한 공격으로 CP 를 쓰는 루프가 전투의 바닥이며,
   이 루프가 그대로 동작하는 것이 성공 조건이다 (R1 §11 · §16-3).
-  예산이 쪼개지면 각 행동이 자기 게이지 안에서 공짜가 된다 (구판 §8.1 · §11 유래).
+  새 층은 새 자원을 만들지 않고 기존 CP 를 쓴다 (R1 §14 Aura/Nen · 핵심 원칙).
+  예산이 쪼개지면 각 행동이 자기 게이지 안에서 공짜가 된다.
 
 scope:
   - COMBAT
@@ -21,7 +25,7 @@ scope:
 requires:
   - combat_actions_share_one_budget   # 전투 행동이 한 CP 예산을 나눈다 (R1 §1 · §11)
 prohibits:
-  - per_action_dedicated_gauge        # 행동별 별도 게이지 신설 (구판 §11 명시 유래)
+  - per_action_dedicated_gauge        # 행동별 별도 게이지 신설 (R1 §14 Aura/Nen · 핵심 원칙)
 prefers: []
 
 status: APPROVED
