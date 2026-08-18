@@ -2,14 +2,18 @@
 
 파일 하나 = Constraint 하나. 이름은 `DC-<NAME>.yaml`. 형식은 [../SCHEMA.md](../SCHEMA.md).
 
-현재: **Active(APPROVED) 5종** — 보류(DRAFT)는 없다.
+현재: **Active(APPROVED) 5종 + 승인 대기(DRAFT) 6종** (2026-08-18 GR 주입 — Q13).
 
-근거 문서는 **둘뿐이다** (2026-08-18 Human 결정).
+근거 문서는 **둘뿐이다** (2026-08-18 Human 결정 — 전투 영역).
 
 ```text
 R1 §x   design/Design-Combat-OffenseDefense-R0.md   2026-08-17 R1 전면 개정판
 DT §x   design/Design-Combat-DamageType-R0.md
 ```
+
+2026-08-18 GR(`design/Master-Intent-Graph-Growth.md`) 주입으로 아래 DRAFT 6종이
+GR 을 인용한다 — GR 을 셋째 근거로 공식 추가할지는 **Q15 대기** 다.
+결정 전에는 전투 노드(graph/)에 GR 인용을 섞지 않는다.
 
 삭제된 구판(R0)은 더 이상 근거가 아니다. 구판에만 근거가 있던 Constraint 는 보류가 아니라
 **삭제**한다 — 필요해지면 그 층의 설계 문서가 나온 뒤 새로 만든다.
@@ -23,6 +27,17 @@ DT §x   design/Design-Combat-DamageType-R0.md
 | DC-COMBAT-ONE-LAYER-AT-A-TIME | 한 번에 한 층 — 현재 층이 플레이로 검증되기 전에 다음 층을 올리지 않는다 | R1 §0 · §13 · §14 · §16 · DT §13 · §15 |
 | DC-COMBAT-SHARED-BUDGET | 전투 행동은 하나의 기력 예산을 나눈다 — 행동별 전용 게이지 신설 금지 | R1 §1 · §11 · §14 Aura/Nen · 핵심 원칙 |
 | DC-COMBAT-MATCHUP-SOFT | 상성은 선택을 만들되 지배하지 않는다 — 배율표가 아니라 대응 능력치 차이로만 | DT §4 · §5 · §7 · §14-7 · §14-10 |
+
+### 승인 대기 — DRAFT (Growth · 2026-08-18 GR 주입 · Q13)
+
+| Constraint | 한 줄 | 근거 |
+|---|---|---|
+| DC-GROWTH-NEED-FROM-POSSIBILITY | Class/Item 은 획득 경로일 뿐 — Capability 필요성은 항상 Goal→Possibility 에서 | GR §22.2 · §27.1 · §42 |
+| DC-GROWTH-CLASS-ORIGIN-TRACE | Class 는 세계 인과의 결과 — origin_trace 필수, 제거해도 원인 세계 요소 성립 | GR §24.2 · §41 |
+| DC-GROWTH-NO-CAPABILITY-DUPLICATION | 같은 Capability 를 Source 별로 복제 금지 — 하나의 MC 에 여러 경로가 grants | GR §33 · §35 · §42 |
+| DC-GROWTH-DEFINITION-INSTANCE-SPLIT | Master 는 유한 Definition 만 — II-*/조합 결과는 Runtime, 사전 생성 금지 | GR §28~§32 · §42 |
+| DC-GROWTH-NOT-A-STAGE | Growth 는 Master Stage 가 아니라 NEED 위의 Overlay | GR §21 · §22.1 |
+| DC-GROWTH-GOAL-FIRST | 성장 자체를 Goal 로 세우지 않는다 — 현재 Goal 의 Possibility 로만 | GR §34 · §42 |
 
 `DC-WORLD-OWNS-THE-SURFACE-LIST` 는 위 표와 성격이 다르다 — 전투 기획서가 아니라
 Cycle 관찰(C007 → C009 → C010)에서 승격된 GLOBAL Constraint 다. 근거는

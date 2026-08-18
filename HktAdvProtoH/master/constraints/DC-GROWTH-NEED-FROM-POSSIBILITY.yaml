@@ -1,0 +1,33 @@
+# 원본 근거: design/Master-Intent-Graph-Growth.md (GR)
+#   §22.2 (Class 와 Item 은 Capability 의 필요성을 만들지 않는다) ·
+#   §27.1 (Item 역시 Capability 의 존재 이유를 만들지 않는다) ·
+#   §42 Anti-pattern (Class 를 먼저 만들고 설정을 붙인다) · §43 최종 정의
+# 2026-08-18 Inject — Human 승인 대기 (open-questions Q13).
+id: DC-GROWTH-NEED-FROM-POSSIBILITY
+type: constraint
+
+statement: >
+  Class 와 Item 은 Capability 를 획득하는 세계 내 경로일 뿐이다.
+  Capability 의 필요성은 항상 기존 Master 인과(Goal → Possibility --requires-->)에서
+  나오며, Class 나 Item 이 존재한다는 이유로 Capability 를 만들지 않는다.
+rationale: >
+  획득 경로가 필요성을 만들기 시작하면 Class/Item 은 세계 밖에서 Skill 을 공급하는
+  메뉴가 된다 (GR §43). "심연의 버서커가 존재한다 → 심연 스킬이 필요하다" 방향을
+  허용하면 세계 인과와 무관한 콘텐츠가 그래프에 쌓인다 (GR §22.2 BAD 예).
+
+scope:
+  - GROWTH
+
+requires:
+  - capability_need_originates_from_possibility   # MC-* 의 required_by 경로가 먼저 존재한다 (GR §22.2)
+prohibits:
+  - capability_created_to_justify_class_or_item   # Class/Item 을 위해 역방향으로 MC-* 생성 (GR §27.1 · §42)
+prefers: []
+
+status: DRAFT
+provenance:
+  - HUMAN_DESIGN          # 2026-08-18 Human 지시로 GR 주입
+
+relations:
+  supports: []
+  conflicts_with: []

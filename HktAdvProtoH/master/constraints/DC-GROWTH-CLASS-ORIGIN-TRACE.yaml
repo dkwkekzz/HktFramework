@@ -1,0 +1,35 @@
+# 원본 근거: design/Master-Intent-Graph-Growth.md (GR)
+#   §24.1 (Class 는 Skill Container 가 아니라 의미 있는 성장 상태) ·
+#   §24.2 (Class 에는 반드시 하나 이상의 origin_trace 가 존재한다 ·
+#          Class 를 제거해도 원인 세계 요소는 그대로 존재해야 한다) ·
+#   §41 Growth Quality Gate (Class 절)
+# 2026-08-18 Inject — Human 승인 대기 (open-questions Q13).
+id: DC-GROWTH-CLASS-ORIGIN-TRACE
+type: constraint
+
+statement: >
+  Class 는 세계와 Actor 가 상호작용한 결과다. 모든 Class 는 하나 이상의
+  origin_trace(WorldState → Goal → Possibility)를 가지며, 그 Class 를 제거해도
+  원인이 된 세계 요소는 독립적으로 성립해야 한다.
+rationale: >
+  Class 가 세계의 원인이 되면(Class 먼저 → 설정 나중) 세계는 Class 목록의
+  배경 장식으로 전락한다. 원인 세계 요소가 Class 없이도 성립할 때만
+  세계가 스스로 굴러가는 규칙과 상태로 남는다 (GR §24.2 · §42).
+
+scope:
+  - GROWTH
+
+requires:
+  - class_has_origin_trace                # world_state·goal·possibility 역추적 가능 (GR §24.2)
+  - world_cause_survives_class_removal    # Class 삭제 후에도 원인 MW-*/MG-*/MP- 성립 (GR §24.2)
+prohibits:
+  - class_without_world_cause             # 세계 인과 없이 세워지는 Class (GR §42)
+prefers: []
+
+status: DRAFT
+provenance:
+  - HUMAN_DESIGN          # 2026-08-18 Human 지시로 GR 주입
+
+relations:
+  supports: [DC-GROWTH-NEED-FROM-POSSIBILITY]
+  conflicts_with: []
