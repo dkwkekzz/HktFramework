@@ -40,14 +40,18 @@
           "actionSpeed": 1
         },
         "combatStats": {
-          "attack": 40,
-          "defense": 50,
-          "defenseMultiplier": 0.6666666666666666
+          "physicalAttack": 40,
+          "auraAttack": 40,
+          "armor": 50,
+          "resistance": 50,
+          "armorMultiplier": 0.666667,
+          "resistanceMultiplier": 0.666667
         },
         "guard": {
           "guarding": true,
           "broken": false
-        }
+        },
+        "defenseShape": "even"
       },
       "body": {
         "radius": 0.5,
@@ -95,14 +99,18 @@
           "actionSpeed": 1
         },
         "combatStats": {
-          "attack": 40,
-          "defense": 30,
-          "defenseMultiplier": 0.7692307692307693
+          "physicalAttack": 40,
+          "auraAttack": 40,
+          "armor": 30,
+          "resistance": 30,
+          "armorMultiplier": 0.769231,
+          "resistanceMultiplier": 0.769231
         },
         "guard": {
           "guarding": false,
           "broken": false
-        }
+        },
+        "defenseShape": "even"
       },
       "body": {
         "radius": 0.5,
@@ -150,14 +158,18 @@
           "actionSpeed": 1
         },
         "combatStats": {
-          "attack": 40,
-          "defense": 30,
-          "defenseMultiplier": 0.7692307692307693
+          "physicalAttack": 40,
+          "auraAttack": 40,
+          "armor": 30,
+          "resistance": 30,
+          "armorMultiplier": 0.769231,
+          "resistanceMultiplier": 0.769231
         },
         "guard": {
           "guarding": false,
           "broken": false
-        }
+        },
+        "defenseShape": "even"
       },
       "body": {
         "radius": 0.5,
@@ -189,7 +201,8 @@
         "attackRatio": 0.5,
         "rawDamage": 26,
         "charge": 12,
-        "cost": 0
+        "cost": 0,
+        "damageType": "physical"
       },
       "reason": "guarding"
     },
@@ -203,7 +216,8 @@
         "attackRatio": 1.0,
         "rawDamage": 72,
         "charge": 8,
-        "cost": 30
+        "cost": 30,
+        "damageType": "physical"
       }
     },
     {
@@ -269,19 +283,39 @@
       "value": "run"
     },
     {
-      "id": "self.combat.attack",
+      "id": "self.combat.physicalAttack",
       "kind": "counter",
       "value": 40
     },
     {
-      "id": "self.combat.defense",
+      "id": "self.combat.auraAttack",
+      "kind": "counter",
+      "value": 40
+    },
+    {
+      "id": "self.combat.armor",
       "kind": "counter",
       "value": 50
     },
     {
-      "id": "self.combat.defenseMultiplier",
+      "id": "self.combat.resistance",
+      "kind": "counter",
+      "value": 50
+    },
+    {
+      "id": "self.combat.armorMultiplier",
       "kind": "counter",
       "value": 0.6666666666666666
+    },
+    {
+      "id": "self.combat.resistanceMultiplier",
+      "kind": "counter",
+      "value": 0.6666666666666666
+    },
+    {
+      "id": "self.combat.defenseShape",
+      "kind": "label",
+      "value": "even"
     },
     {
       "id": "self.tempo.moveSpeed",
@@ -341,10 +375,18 @@
       },
       "since": 12.1,
       "breakdown": {
+        "damageType": "physical",
+        "offenseStat": {
+          "name": "physicalAttack",
+          "value": 80
+        },
         "baseDamage": 32,
         "attackContribution": 40,
         "rawDamage": 72,
-        "targetDefense": 30,
+        "defenseStat": {
+          "name": "armor",
+          "value": 30
+        },
         "defenseMultiplier": 0.7692307692307693,
         "finalDamage": 55,
         "appliedDamage": 55
@@ -361,10 +403,18 @@
       },
       "since": 11.6,
       "breakdown": {
+        "damageType": "physical",
+        "offenseStat": {
+          "name": "physicalAttack",
+          "value": 40
+        },
         "baseDamage": 6,
         "attackContribution": 20,
         "rawDamage": 26,
-        "targetDefense": 50,
+        "defenseStat": {
+          "name": "armor",
+          "value": 50
+        },
         "defenseMultiplier": 0.6666666666666666,
         "finalDamage": 17,
         "appliedDamage": 9,
@@ -387,10 +437,18 @@
       },
       "since": 12.4,
       "breakdown": {
+        "damageType": "physical",
+        "offenseStat": {
+          "name": "physicalAttack",
+          "value": 40
+        },
         "baseDamage": 6,
         "attackContribution": 20,
         "rawDamage": 26,
-        "targetDefense": 50,
+        "defenseStat": {
+          "name": "armor",
+          "value": 50
+        },
         "defenseMultiplier": 0.6666666666666666,
         "finalDamage": 17,
         "appliedDamage": 17,

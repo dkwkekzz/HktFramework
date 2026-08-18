@@ -1,5 +1,19 @@
 # master/ — Master Intent Graph
 
+> ## 진행 순서 — 2026-08-17 Human 지시
+>
+> 전투 기본 규칙(OffenseDefense) 트랙을 마무리하는 것이 먼저다. 그 전에는 이 디렉터리를
+> **새로 세우는** 작업(M2 Graph 확장 · Constraint 신설)을 시작하지 않는다.
+> 닫힌 Cycle 을 반영하는 MF Feedback 은 그 제한에 걸리지 않는다 — 그것을 미루면
+> `frontier.md` 와 `overlay.md` 가 현재 세계와 어긋나 다음 선택을 흐린다.
+>
+> Human 이 직접 세운 것은 `constraints/` 뿐이다. `graph/` `overlay.md` `frontier.md` 는
+> R1 개정 때 설계 문서의 의미를 옮겨 둔 것이며 Master 를 처음부터 세운 결과가 아니다.
+>
+> 현재 어긋나 있는 것 — `overlay.md` 의 MC-GUARD 가 아직 MISSING 이다.
+> C011 08-verification.md 가 승격 근거를 냈으나 반영 전이다.
+> (`frontier.md` 는 2026-08-17 MF 로 갱신되었다.)
+
 이 디렉터리는 **Master Layer** 의 산출물이다.
 
 ```text

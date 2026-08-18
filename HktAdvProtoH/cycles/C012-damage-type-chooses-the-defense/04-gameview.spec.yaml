@@ -1,0 +1,267 @@
+# CYCLE C012 — GameView Specification
+#
+# 이번 Cycle 은 계약에 표면 하나(오라 스킬)를 열고, 이미 있는 두 자리 —
+# ① 존재의 속성  ② 맞은 자리의 타격 결과 — 에 실리는 내용을 바꾼다.
+#
+# 중심은 **고르기 전에 보이는 것**이다. C010 이 "이 숫자가 어디서 왔는가" 를,
+# C011 이 "내가 막아서 이렇게 줄었다" 를 실었다면, C012 는 그 앞에 있다 —
+# "어느 쪽으로 쳐야 하는가" 다. 상대의 두 방어가 보이지 않으면 고르는 일은
+# 찍기가 되고, 이 층은 이름만 늘린 것이 된다.
+id: VIEW-DAMAGE-TYPE-CHOOSES-THE-DEFENSE-001
+observer: player
+
+delta:
+  reused:
+    - scene.mining-field
+    - entities.character                      # 위치·역할·이름·모션·body·swing 계약 그대로
+    - entities.deposit
+    - entityHud                               # 몸 위의 이름·생명 그대로
+    - entities.character.vitality
+    - entities.character.attributes.guard     # C011 그대로
+    - entities.character.attributes.tempoStats / modifiers
+    - debugObserve / debugAuthority
+    - observer / session / delivery / identity / telemetry
+    - interactions.move / mine / moveMode / setAttribute
+    - interactions.guardBegin / guardRelease  # C011 그대로 — 막기는 방식을 읽지 않는다
+    - commandCatalog                          # C009 그대로 — 구조 무변경 (COMMAND NOTE)
+    - hud.inventory / tool / playerAction / worldTime / observers
+    - hud.self.vitality / moveMode / tempoStats / modifiers / guard
+    - strikeEvents.attacker / target / skill / at / since
+    - strikeEvents.amount                     # C011 STRIKE NOTE 의 관계 그대로
+    - strikeEvents.breakdown.baseDamage / attackContribution / rawDamage
+    - strikeEvents.breakdown.defenseMultiplier / finalDamage / appliedDamage
+    - strikeEvents.breakdown.guard            # C011 4항목 그대로 — 방식과 무관하다
+  added:
+    - entities.character.attributes.defenseShape   # 어느 쪽이 더 단단한가 (세계가 판정)
+    - interactions.skillAura                       # 오라 방식으로 친다
+    - strikeEvents.breakdown.damageType            # 이 타격의 방식
+    - strikeEvents.breakdown.offenseStat           # 방식이 고른 공격 능력 (이름 + 값)
+    - interactions.*.profile.damageType            # 각 스킬이 어떤 방식인가
+  changed:
+    - entities.character.attributes.combatStats    # 두 값 → 네 값 (C010 자리를 대체)
+    - hud.self.combatStats                         # 위와 같음
+    - strikeEvents.breakdown.defenseStat           # C010 의 targetDefense 를 대체한다
+                                                   # (이름이 붙는다 — DEFENSE STAT NOTE)
+
+scene: mining-field
+
+# ─────────────────────────────────────────────────────────────────
+# entities.character — 고를 근거가 모든 존재에 실린다
+#   C007 R2 의 원칙 그대로다 — 세계는 어떤 속성도 숨기지 않는다.
+#   상대의 방어를 볼 수 없으면 이 Cycle 의 Goal 은 플레이될 수 없다.
+# ─────────────────────────────────────────────────────────────────
+entities:
+  character:
+    attributes:
+      combatStats:                            # C012 CHANGED — C010 의 두 값을 대체한다
+        physicalAttack: { source: Actor.PhysicalAttack }
+        auraAttack: { source: Actor.AuraAttack }
+        armor: { source: Actor.Armor }
+        resistance: { source: Actor.Resistance }
+        meaning:
+          - C010 의 attack · defense 는 이 네 값으로 **대체된다.**
+            두 이름을 함께 싣지 않는다 — 어느 값이 계산의 권위인지 흐려진다
+          - 네 값 모두 실린다. 고르지 않은 쪽도 보여야
+            "저쪽으로 쳤다면 어땠을까" 를 보는 이가 견줄 수 있다
+          - 자율 존재의 값도 실린다. 상대의 방어를 읽는 것이 이 Cycle 의 플레이다
+
+      defenseShape:                           # C012 ADDED
+        source: Actor.DefenseShape
+        values:
+          - physical-tougher   # 물리 쪽이 더 단단하다 → 오라가 통한다
+          - aura-tougher       # 오라 쪽이 더 단단하다 → 물리가 통한다
+          - even               # 두 방어가 같다
+        meaning:
+          - 이 판정은 **세계가 계산한 것**이다. View 가 armor 와 resistance 를
+            비교해 만들어내서는 안 된다. 존재의 이름·색·생김새로 짐작하는 것도 안 된다
+            (DC-WORLD-OWNS-THE-SURFACE-LIST)
+          - 두 방어의 값이 함께 실리므로 이것 없이도 견줄 수는 있다.
+            그래도 세계가 판정을 내놓는 이유는, 무엇이 약점인지 정하는 권한이
+            세계에 있다는 것을 계약으로 못박기 위해서다
+          - even 은 "정보 없음" 이 아니라 "정말로 같다" 는 뜻이다
+
+      # guard · tempoStats · modifiers · vitality 는 C007~C011 그대로
+
+# ─────────────────────────────────────────────────────────────────
+# interactions — 오라 스킬이 표면 하나로 열린다 (C012 ADDED)
+#   세계가 목록에 싣고 View 는 읽을 뿐이다. 사유 목록도 세계가 정한다.
+# ─────────────────────────────────────────────────────────────────
+interactions:
+  skillAura:                                  # C012 ADDED
+    role: skill-aura
+    available: { source: Skill.Availability }
+    unavailableReason: { source: Skill.FailureReason }
+    reasons:                                  # 기존 스킬과 **같은 목록**이다
+      - downed
+      - guarding
+      - action-busy
+      - insufficient-cp
+    profile:
+      damageType: { source: SkillDefinition.DamageType }    # aura
+      baseDamage: { source: SkillDefinition.BaseDamage }
+      attackRatio: { source: SkillDefinition.AttackRatio }
+      cpCharge: { source: SkillDefinition.CpCharge }
+      cpCost: { source: SkillDefinition.CpCost }
+    meaning:
+      - 새 관문도 새 사유도 없다. 이 스킬은 기존 스킬이 지나는 자리를 그대로 지난다 —
+        다른 것은 그것이 만드는 피해의 방식뿐이다
+      - 기본 스킬과 값이 모두 같다. 그래서 둘 중 무엇을 고를지는
+        **오직 상대의 방어**로 갈린다. View 가 둘을 세기 차이로 보이게 하면
+        이 Cycle 이 만든 의미가 사라진다
+
+  attack:
+    role: skill-basic                         # REUSED
+    available: { source: Skill.Availability }
+    unavailableReason: { source: Skill.FailureReason }
+    profile:
+      damageType: { source: SkillDefinition.DamageType }    # C012 ADDED — physical
+      # baseDamage · attackRatio · cpCharge · cpCost 는 C010 그대로
+
+  skillHeavy:
+    role: skill-heavy                         # REUSED
+    available: { source: Skill.Availability }
+    unavailableReason: { source: Skill.FailureReason }
+    profile:
+      damageType: { source: SkillDefinition.DamageType }    # C012 ADDED — physical
+      # 나머지 C010 그대로
+
+  # move · mine · moveMode · setAttribute · guardBegin · guardRelease 는
+  # C002~C011 계약 그대로다.
+  # setAttribute 로 바꿀 수 있는 속성 목록이 바뀌지만 그것은 commandCatalog 가
+  # 세계에서 받아 싣는 값이다 — 계약의 모양은 바뀌지 않는다 (COMMAND NOTE)
+
+# ─────────────────────────────────────────────────────────────────
+# strikeEvents — 무엇을 골랐고 그것이 무엇을 읽었는가 (C012 ADDED / CHANGED)
+# ─────────────────────────────────────────────────────────────────
+strikeEvents:
+  cardinality: many
+  source: World.StrikeEvents
+  # attacker · target · skill · at · since · amount 는 C007~C011 그대로
+  breakdown:
+    damageType: { source: StrikeEvent.Breakdown.DamageType }        # C012 ADDED
+    offenseStat:                                                     # C012 ADDED
+      name: { source: StrikeEvent.Breakdown.OffenseStat.Name }
+      value: { source: StrikeEvent.Breakdown.OffenseStat.Value }
+    baseDamage: { source: StrikeEvent.Breakdown.BaseDamage }         # REUSED
+    attackContribution: { source: StrikeEvent.Breakdown.AttackContribution }
+    rawDamage: { source: StrikeEvent.Breakdown.RawDamage }
+    defenseStat:                                                     # C012 CHANGED
+      name: { source: StrikeEvent.Breakdown.DefenseStat.Name }
+      value: { source: StrikeEvent.Breakdown.DefenseStat.Value }
+    defenseMultiplier: { source: StrikeEvent.Breakdown.DefenseMultiplier }
+    finalDamage: { source: StrikeEvent.Breakdown.FinalDamage }
+    appliedDamage: { source: StrikeEvent.Breakdown.AppliedDamage }
+    guard:                                                           # C011 그대로
+      blocked: { source: StrikeEvent.Breakdown.Guard.Blocked }
+      broken: { source: StrikeEvent.Breakdown.Guard.Broken }
+      cpPaid: { source: StrikeEvent.Breakdown.Guard.CpPaid }
+      prevented: { source: StrikeEvent.Breakdown.Guard.Prevented }
+  meaning:
+    - C007·C010·C011 의 요구는 전부 그대로다
+    - C012 — 한 타격의 방식(damageType)이 읽혀야 한다.
+      같은 자리에 뜬 두 숫자가 왜 다른지는 방식이 달라서이고,
+      그것이 보이지 않으면 값이 흔들린 것처럼 보인다
+    - C012 — 그 방식이 **무엇을 골랐는지**가 이름과 함께 읽혀야 한다.
+      `물리 공격력 40` 과 `물리 방어 30` 처럼 어느 능력을 얼마로 읽었는지가
+      드러나야 "왜 저쪽이 아니라 이쪽으로 계산되었는가" 에 답할 수 있다.
+      값만 있고 이름이 없으면 C010 과 구분되지 않는다
+    - C012 — 막기 표시는 방식과 무관하게 지금과 똑같아야 한다.
+      오라 타격을 막아도 물리 타격을 막은 것과 같은 모습이어야 한다.
+      다르게 보이면 있지도 않은 규칙을 보는 이가 배운다
+
+# ─────────────────────────────────────────────────────────────────
+# hud.self — 내 네 능력을 늘 눈앞에 (C012 CHANGED)
+# ─────────────────────────────────────────────────────────────────
+hud:
+  self:
+    combatStats:                              # C012 CHANGED — C010 의 두 값을 대체
+      physicalAttack: { source: ObserverCharacter.PhysicalAttack }
+      auraAttack: { source: ObserverCharacter.AuraAttack }
+      armor: { source: ObserverCharacter.Armor }
+      resistance: { source: ObserverCharacter.Resistance }
+      meaning:
+        - 내가 어느 쪽으로 더 세게 치는지를 늘 알 수 있어야 한다.
+          고르는 일은 상대의 방어와 내 공격 능력을 함께 보는 일이다
+        - 내 두 방어도 실린다 — 상대가 나를 어느 쪽으로 칠지도 같은 규칙이기 때문이다
+    # vitality · moveMode · tempoStats · modifiers · guard 는 C007~C011 그대로
+    # 새 자원도 새 막대도 없다. 오라 스킬은 기존 기력을 쓴다
+
+# ─────────────────────────────────────────────────────────────────
+# DEFENSE STAT NOTE — targetDefense 가 defenseStat 으로 바뀐다
+# ─────────────────────────────────────────────────────────────────
+# C010 은 `targetDefense` 하나를 실었다. 그때는 방어가 하나뿐이라 이름이 필요 없었다.
+# 이제는 둘이므로 **값만으로는 무엇을 읽었는지 알 수 없다** —
+# 30 이 물리 방어인지 오라 방어인지가 결과를 완전히 가른다.
+#
+#   C010    targetDefense: 30
+#   C012    defenseStat: { name: armor, value: 30 }
+#
+# 옛 이름을 별칭으로 남기지 않는다. 남기면 두 값이 같은 것을 가리키는 것처럼 읽히고,
+# 어느 쪽이 계약인지 모호해진다 (03 SEMANTIC DELTA 의 판단과 같다).
+# offenseStat 도 같은 이유로 이름을 함께 싣는다 — C010 에는 아예 없던 자리다.
+
+# ─────────────────────────────────────────────────────────────────
+# COMMAND NOTE — commandCatalog 계약 모양은 바뀌지 않는다
+# ─────────────────────────────────────────────────────────────────
+# set-attribute 로 바꿀 수 있는 속성이 10개에서 12개가 된다 —
+# attack · defense 가 빠지고 physicalAttack · auraAttack · armor · resistance 가 들어간다.
+#
+# 그러나 이 계약은 바뀌지 않는다. commandCatalog 는 **세계가 실어 보내는 목록**이고
+# View 는 그것을 읽어 화면을 만든다 (C009 · DC-WORLD-OWNS-THE-SURFACE-LIST).
+# C010 이 두 능력을 더했을 때 View 를 고치지 않고도 목록에 나타났던 것과 같은 일이다.
+# View 가 속성 이름을 코드에 박아 두었다면 이 Cycle 에서 드러난다 —
+# 그것은 이 계약의 위반이지 이번 변경의 부작용이 아니다.
+#
+# damageType 은 set-attribute 의 대상이 아니다. 그것은 스킬이 지닌 성질이지
+# 존재가 지닌 값이 아니다 (03 WORLD STATE).
+
+# ─────────────────────────────────────────────────────────────────
+# OBSERVABLE PROJECTION NOTE
+# ─────────────────────────────────────────────────────────────────
+#   03 의 Observable Semantic 대응
+#     모든 Actor 에 대해
+#       PhysicalAttack · AuraAttack · Armor · Resistance
+#                                        → entities.character.attributes.combatStats
+#       DefenseShape                     → entities.character.attributes.defenseShape
+#     관찰자 자신에 대해 추가로
+#       위 네 값                          → hud.self.combatStats
+#       Skill.Availability / FailureReason → interactions.skillAura (기존 스킬과 같은 목록)
+#     스킬
+#       SkillDefinition.DamageType        → interactions.*.profile.damageType
+#     세계
+#       Breakdown.DamageType              → strikeEvents.breakdown.damageType
+#       Breakdown.OffenseStat             → strikeEvents.breakdown.offenseStat
+#       Breakdown.DefenseStat             → strikeEvents.breakdown.defenseStat
+#     명령
+#       변경 가능 속성 목록                → commandCatalog (세계가 싣는다 — COMMAND NOTE)
+#
+#   투영하지 않는 것
+#     World.DefenseConstant = 100 — 세계 상수다. 관찰되는 것은 상수가 아니라
+#       그 결과인 defenseMultiplier 다 (C010 이 내린 판단 그대로).
+#     DamageType 의 표시 이름 — 세계는 `physical` / `aura` 라는 값만 싣는다.
+#       그것을 사람이 읽는 말로 바꾸는 것은 View 의 일이다 (설계 §16.3-1).
+#       단 **무엇이 무엇에 대응하는지**는 View 가 정하지 않는다 — 그것은 위의
+#       offenseStat.name / defenseStat.name 이 이미 싣고 있다.
+#
+#   03 의 Observable Semantic 중 투영되지 않은 것은 없다.
+
+# ─────────────────────────────────────────────────────────────────
+# PLAYABILITY NOTE — 이 계약만으로 Cycle Goal 이 플레이되는가
+# ─────────────────────────────────────────────────────────────────
+# 플레이어는 이 계약만 받고 다음을 할 수 있다.
+#   1. 자율 존재(wanderer)를 본다. attributes.combatStats 에 armor 30 · resistance 90 이,
+#      defenseShape 에 aura-tougher 가 실린다 — 오라 쪽이 더 단단하다
+#   2. 기본 스킬로 친다. breakdown 에 damageType physical ·
+#      offenseStat { physicalAttack, 40 } · defenseStat { armor, 30 } · finalDamage 20
+#   3. 오라 스킬로 친다. damageType aura · offenseStat { auraAttack, 40 } ·
+#      defenseStat { resistance, 90 } · finalDamage 14 — 같은 값으로 쳤는데 덜 아프다.
+#      경위를 읽으면 왜인지가 그 자리에 있다
+#   4. 다른 관찰자(rabbit-swordsman)를 본다. armor 50 · resistance 20 ·
+#      defenseShape physical-tougher — **반대다**
+#   5. 그쪽으로 두 스킬을 써 본다. 물리 17 · 오라 22 — 답이 뒤집힌다.
+#      이것이 이 Cycle 이 만든 선택이다
+#   6. set-attribute 로 상대의 resistance 를 바꿔 본다. defenseShape 가 따라 바뀌고
+#      다음 타격의 값도 바뀐다 — 약점은 고정된 성질이 아니라 값의 관계다
+#   7. 오라 타격을 막아 본다. C011 과 똑같이 절반이 되고 같은 기력을 치른다 —
+#      막기는 방식을 읽지 않는다
+# 화면 구성 방식은 View 의 선택이다. 이 계약은 무엇이 보여야 하는지만 정한다.

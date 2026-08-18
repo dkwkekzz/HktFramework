@@ -46,9 +46,18 @@ export function inspectLines(entity: EntityView): string[] | undefined {
       a.tempoStats.runSpeedMultiplier,
     )}`,
     `공속 ×${round(a.tempoStats.actionSpeed)}`,
-    // C010 — 방어는 체감식이라 수치만으로는 효과를 알 수 없다. 남는 비율을 함께 쓴다.
-    `공격 ${round(a.combatStats.attack)} · 방어 ${round(a.combatStats.defense)}` +
-      ` (받는 피해 ${percent(a.combatStats.defenseMultiplier)})`,
+    // C010 → C012 — 능력이 방식별로 갈렸다. 방어는 체감식이라 수치만으로는 효과를
+    // 알 수 없으므로 남는 비율을 함께 쓴다. 두 줄로 나눈 것은 고를 때 견주는 축이
+    // 공격/방어가 아니라 **물리/오라** 이기 때문이다.
+    `물리 공격 ${round(a.combatStats.physicalAttack)}` +
+      ` · 물리 방어 ${round(a.combatStats.armor)}` +
+      ` (받는 피해 ${percent(a.combatStats.armorMultiplier)})`,
+    `오라 공격 ${round(a.combatStats.auraAttack)}` +
+      ` · 오라 방어 ${round(a.combatStats.resistance)}` +
+      ` (받는 피해 ${percent(a.combatStats.resistanceMultiplier)})`,
+    // C012 — 어느 쪽이 더 단단한지는 **세계가 판정한 값**이다.
+    // 여기서 두 수치를 비교해 만들어내지 않는다 (04 defenseShape.meaning).
+    `약점 ${codeText(a.defenseShape)}`,
     `배율 충전×${round(a.modifiers.energyCharge)} 소비×${round(a.modifiers.energyConsume)}`,
     `배율 이동×${round(a.modifiers.moveSpeed)} 공속×${round(a.modifiers.actionSpeed)}`,
     // C011 — 막기는 행동(state)과 별개라서 몸의 상태 표시로는 드러나지 않는다.
@@ -111,13 +120,19 @@ function guardLine(event: StrikeEventView): string | undefined {
   );
 }
 
-// 한 방의 경위를 한 줄로 — 스킬이 얼마 + 공격력이 얼마를 보태 = 얼마였고,
-// 상대 방어가 그것을 몇 할로 줄여 = 얼마가 되었다.
+// 한 방의 경위를 한 줄로 — 어떤 방식으로 쳤고, 스킬이 얼마 + 그 방식의 공격 능력이
+// 얼마를 보태 = 얼마였고, 그 방식에 대응하는 상대 방어가 몇 할로 줄여 = 얼마가 되었다.
+// C012 — 고른 능력의 **이름**이 함께 나온다. 값만 있으면 왜 이쪽으로 계산되었는지
+// 알 수 없다 (04 strikeEvents.meaning).
 function breakdownLine(event: StrikeEventView): string {
   const b = event.breakdown;
   return (
+    `${codeText(b.damageType)} · ` +
     `${round(b.baseDamage)}+${round(b.attackContribution)}=${round(b.rawDamage)}` +
-    ` ×${percent(b.defenseMultiplier)}(방어 ${round(b.targetDefense)})` +
+    ` (${codeText(b.offenseStat.name)} ${round(b.offenseStat.value)})` +
+    ` ×${percent(b.defenseMultiplier)}(${codeText(b.defenseStat.name)} ${round(
+      b.defenseStat.value,
+    )})` +
     ` = ${Math.round(b.finalDamage)}`
   );
 }
@@ -135,10 +150,16 @@ export function selfPanel(snapshot: GameViewSnapshot): SceneSelf | undefined {
   const moveModeCode = String(value('self.moveMode') ?? 'walk');
 
   const lines: string[] = [
-    // C010 — 내가 얼마나 세게 때리고 얼마나 덜 맞는가. 값을 바꾸면 여기서 바로 확인된다.
-    `공격력 ${round(Number(value('self.combat.attack') ?? 0))}` +
-      ` · 방어력 ${round(Number(value('self.combat.defense') ?? 0))}` +
-      ` (받는 피해 ${percent(Number(value('self.combat.defenseMultiplier') ?? 1))})`,
+    // C010 → C012 — 내가 어느 쪽으로 더 세게 때리고 어느 쪽으로 덜 맞는가.
+    // 고르는 일은 상대의 방어와 내 공격 능력을 함께 보는 일이므로 둘 다 눈앞에 둔다.
+    `물리 공격 ${round(Number(value('self.combat.physicalAttack') ?? 0))}` +
+      ` · 물리 방어 ${round(Number(value('self.combat.armor') ?? 0))}` +
+      ` (받는 피해 ${percent(Number(value('self.combat.armorMultiplier') ?? 1))})`,
+    `오라 공격 ${round(Number(value('self.combat.auraAttack') ?? 0))}` +
+      ` · 오라 방어 ${round(Number(value('self.combat.resistance') ?? 0))}` +
+      ` (받는 피해 ${percent(Number(value('self.combat.resistanceMultiplier') ?? 1))})`,
+    // 상대도 같은 규칙으로 나를 고른다 — 내 약점도 세계가 판정해 보낸다
+    `내 약점 ${codeText(String(value('self.combat.defenseShape') ?? 'even'))}`,
     `이동 속도 ${round(Number(value('self.tempo.moveSpeed') ?? 0))}` +
       ` · 달리기 ×${round(Number(value('self.tempo.runSpeedMultiplier') ?? 1))}`,
     `공격 속도 ×${round(Number(value('self.tempo.actionSpeed') ?? 1))}`,

@@ -124,12 +124,15 @@ describe('hud.self — 자기 자원·능력치·배율은 늘 눈앞에 있다'
   it('전투 능력치와 템포 능력치가 줄로 실린다', () => {
     const lines = plan().self?.lines ?? [];
     // C010 — 내가 얼마나 세게 때리고 얼마나 덜 맞는가가 맨 위에 온다
-    expect(lines[0]).toContain('공격력 40');
-    expect(lines[0]).toContain('방어력 50');
+    // C012 — 능력이 방식별로 갈렸다. 첫 줄은 물리 쪽이다
+    expect(lines[0]).toContain('물리 공격 40');
+    expect(lines[0]).toContain('물리 방어 50');
     expect(lines[0]).toContain('받는 피해 67%'); // 100/150 — 체감을 백분율로 읽는다
-    expect(lines[1]).toContain('이동 속도 6');
-    expect(lines[1]).toContain('달리기 ×1.8');
-    expect(lines[2]).toBe('공격 속도 ×1');
+    expect(lines[1]).toContain('오라 공격 40');
+    expect(lines[2]).toContain('내 약점');
+    expect(lines[3]).toContain('이동 속도 6');
+    expect(lines[3]).toContain('달리기 ×1.8');
+    expect(lines[4]).toBe('공격 속도 ×1');
   });
 
   it('1 이 아닌 배율만 줄이 된다 — 걸린 것이 있을 때만 드러난다', () => {

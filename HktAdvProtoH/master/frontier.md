@@ -1,5 +1,22 @@
 # Frontier
 
+> ## MF 갱신 — 2026-08-17
+>
+> C011(막기)이 닫히고 Damage Type 층의 설계 원본이 도착한 것을 반영했다.
+>
+> ```text
+> FR-GUARD-TRADES-BODY-FOR-RESOURCE   SELECTED → CLOSED    cycles/C011-… COMPLETE
+> FR-MATCHUP-MAKES-THE-CHOICE         DEFERRED → SELECTED  설계 원본 도착으로 대기 해제
+> ```
+>
+> **정정** — 2026-08-17 한때 이 파일에 "층 높이를 보지 않아 선택 근거로 쓸 수 없다" 는
+> HOLD 배너가 붙었다. 그것은 오독이었다. 아래 "추천 순서" 는 각 층이 막힌 이유를
+> 이미 층 단위로 적고 있었고 마지막 줄이 `이후 순서는 R1 §14 를 따른다` 로 닫는다.
+> 실제 문제는 판단이 아니라 **갱신 지연**이었고, 이번 MF 로 해소했다. 배너는 걷었다.
+>
+> 남은 어긋남 하나 — `overlay.md` 의 MC-GUARD 가 아직 MISSING 이다.
+> C011 08-verification.md 의 MASTER FEEDBACK 이 승격 근거를 냈으나 아직 반영 전이다.
+
 Frontier 는 Graph 의 절대 Leaf 가 아니라 **현재 세계 기준으로 아직 없는 가장 작은
 플레이 가능한 Capability 단위**다. Human 이 여기서 하나를 골라 다음 Cycle Goal 로 삼는다.
 
@@ -71,9 +88,10 @@ Frontier 는 Graph 의 절대 Leaf 가 아니라 **현재 세계 기준으로 �
                          새 자원도 새 공식도 없다 — 기력·피해 계산·행동 구조가 모두 이미 있다.
                          한 번 구현되었던 이력이 있어 재구축 비용도 낮다
                          (git history 의 cycles/C010-guard-trades-body-for-resource)
-    Status               SELECTED — 2026-08-17 Human 선택. 다음 Cycle = C011 (번호 재사용).
-                         2026-08-17 MF 에서 이연 해제되었고, R1 §14 가 요구한
-                         "기본 공식이 플레이로 검증된 뒤" 조건이 C010 으로 충족되었다
+    Status               **CLOSED** — 2026-08-17 `cycles/C011-guard-trades-body-for-resource`
+                         COMPLETE (Human Play 확인). Defense Action 층이 닫혔다.
+                         MC-GUARD 승격 근거는 그 Cycle 의 08-verification.md MASTER FEEDBACK 이며
+                         overlay.md 반영은 아직이다. 후보 목록에서 소진 처리
 
 ### FR-PERFECT-GUARD-TURNS-THE-TABLE (Guard 다음)
     Playable Result      플레이어가 공격이 닿기 직전에 막아 피해를 전혀 받지 않고,
@@ -83,9 +101,11 @@ Frontier 는 Graph 의 절대 Leaf 가 아니라 **현재 세계 기준으로 �
     Missing / Partial    MC-PERFECT-GUARD (MISSING) · MC-COUNTER (MISSING)
     원본 근거            구판 §8.2 · §8.4 · R1 §14 Active Defense 층 (Guard 검증 뒤)
     Depends On           FR-GUARD-TRADES-BODY-FOR-RESOURCE
-    Status               DEFERRED — R1 §14 Active Defense 층. Guard 가 닫힌 뒤에 열린다
-                         (막기가 없으면 "막기 시작 시각" 도 없다).
-                         C011 로 한 번 닫혔다가 롤백 — 재구축 시 git history 의
+    Status               DEFERRED — Depends On 은 2026-08-17 C011 로 **충족되었다.**
+                         그래도 아직 열리지 않는다. R1 §15 층 그림에서 Active Defense 는
+                         Damage Type · Penetration **위**에 있고, 그 두 층이 아직 서지 않았다.
+                         의존성이 풀린 것과 차례가 온 것은 다르다.
+                         C011(구) 로 한 번 닫혔다가 롤백 — 재구축 시 git history 의
                          cycles/C011-perfect-guard-turns-the-table 산출물을 참조할 수 있다
 
 ### FR-MATCHUP-MAKES-THE-CHOICE
@@ -93,9 +113,34 @@ Frontier 는 Graph 의 절대 Leaf 가 아니라 **현재 세계 기준으로 �
                          같은 스킬로 다른 결과를 만든다
     Source Goal          MG-OVERCOME-SUPERIOR-OPPONENT
     Source Possibility   MP-MATCH-WEAPON-TO-ARMOR
-    Missing / Partial    MC-ATTACK-ARMOR-MATCHUP (MISSING)
-    원본 근거            구판 §6 (R1 §14 Damage Type 층으로 재편 예정)
-    Status               DEFERRED — R1 §14 Damage Type 층 재설계 대기
+    Missing / Partial    MC-ATTACK-ARMOR-MATCHUP (MISSING) — **이것 하나뿐이다**.
+                         MP-MATCH-WEAPON-TO-ARMOR 가 요구하는 나머지
+                         (MC-COMBAT-STRIKE)는 이미 세계에 있다.
+                         지식 MK-OPPONENT-DEFENSE-SHAPE 는 이 Cycle 이 세계에 세운다 —
+                         "상대가 어떤 공격 형태에 덜 버티는지를 안다.
+                          이 지식이 없으면 무기 선택은 취향이고, 있으면 선택이 된다"
+    원본 근거            **design/Design-Combat-DamageType-R0.md** (2026-08-17 도착) ·
+                         R1 §14 Damage Type 층 · 구판 §6
+    Active Constraints   DC-COMBAT-PLAYER-CAUSALITY · DC-COMBAT-ONE-FORMULA ·
+                         DC-COMBAT-ONE-LAYER-AT-A-TIME · DC-WORLD-OWNS-THE-SURFACE-LIST
+    Constraint Eval      SATISFIED — 타입은 새 공식을 만들지 않고 **같은 공식에 넣을 입력을
+                         고를 뿐**이다 (DC-COMBAT-ONE-FORMULA). 난수가 없고 Resistance 를
+                         저항 확률로 해석하지 않는다 (DC-COMBAT-PLAYER-CAUSALITY).
+                         관통·능동 방어의 타입별 효율은 건드리지 않는다
+                         (DC-COMBAT-ONE-LAYER-AT-A-TIME). 약점 판정을 세계가 내놓는다
+                         (DC-WORLD-OWNS-THE-SURFACE-LIST).
+                         주의 — DC-COMBAT-MATCHUP-SOFT 는 현재 보류(DRAFT)다.
+                         이 Cycle 이 그 DC 의 근거 층이므로, 닫은 뒤 재승인 여부를
+                         Human 이 판단할 자리가 생긴다
+    Observable Result    상대의 두 방어와 어느 쪽이 더 단단한지가 보이고, 두 스킬을 같은
+                         상대에게 썼을 때 서로 다른 피해가 나오며, 그 차이가 어느 능력을
+                         읽었는지로 계산 내역에 설명된다
+    Why one Cycle        새 공식이 없다. 능력치가 둘에서 넷으로 갈리고 스킬이 자기 방식을
+                         가지며, 고르는 단계 하나가 기존 계산 앞에 선다.
+                         오라 스킬 1종은 선택이 성립하는 최소 콘텐츠이며 새 모션 자산도
+                         필요 없다 (기존 스킬 구조를 그대로 쓴다)
+    Status               **SELECTED** — 2026-08-17. 설계 원본 도착으로 대기가 풀렸다.
+                         Cycle = C012-damage-type-chooses-the-defense
 
 ### FR-BREAK-OPENS-THE-BURST-WINDOW
     Playable Result      플레이어가 압박을 이어 상대의 균형을 무너뜨리고,
@@ -130,21 +175,29 @@ Frontier 는 Graph 의 절대 Leaf 가 아니라 **현재 세계 기준으로 �
 ## 추천 순서와 근거
 
 ```text
-1  FR-GUARD-TRADES-BODY-FOR-RESOURCE   SELECTED — R1 §14 가 기본 공식 바로 위에 둔 층이고,
-                                       C010 이 그 조건(기본 공식의 플레이 검증)을 채웠다.
-                                       요구 Capability 가 MC-GUARD 하나로 줄어 지금 가장 가까운
-                                       후보다. 한 번 구현된 이력이 있어 재구축 비용도 낮다.
+1  FR-MATCHUP-MAKES-THE-CHOICE   SELECTED — R1 §14 가 Defense Action 바로 위에 둔
+                                 Damage Type 층이다. 아래 두 층이 닫혔고(C010 기본 공식 ·
+                                 C011 막기) 이 층을 막고 있던 것은 세부 설계의 부재 하나였는데,
+                                 2026-08-17 Design-Combat-DamageType-R0.md 로 해소되었다.
+                                 요구 Capability 가 MC-ATTACK-ARMOR-MATCHUP 하나로 줄어
+                                 지금 가장 가까운 후보다.
 
 지금 세울 수 있는 후보는 이것 하나다. 나머지가 막혀 있는 이유는 각각 다르다.
 
   Critical 층        DC-COMBAT-PLAYER-CAUSALITY 와 충돌 — Human 결정 대기 (Q11).
                      결정 전에는 후보로 올리지 않는다.
-  Damage Type 층     R1 §14 로 재편 예정이나 세부 설계가 아직 없다.
-                     문서 개정이 나온 뒤 후보로 세운다.
-  Active Defense 층  Guard 가 먼저다 — 막기가 없으면 완벽한 막기의 시점도 없다.
+                     R1 §14 의 순서상 Damage Type 아래이지만, 건너뛴 채 위층을 올리는 것은
+                     R1 자신이 허용한다 — "C010 은 Critical 없이도 완전히 동작해야 한다".
+  Penetration 층     Damage Type 이 먼저다. 관통은 타입 대응이 고른 방어 능력에 작용하므로
+                     (설계 §15) 고를 방어가 둘이 되기 전에는 대상이 없다.
+                     세부 설계도 아직 R1 §14 의 두 줄뿐이다.
+  Active Defense 층  Depends On(Guard)은 C011 로 풀렸으나 차례가 아니다 —
+                     R1 §15 층 그림에서 Damage Type · Penetration 위에 있다.
   Aura/Nen 층        가장 위다. 아래 층들이 서야 의미가 생긴다.
 
-이후 순서는 R1 §14 를 따른다 — 각 층은 그 시점의 문서 개정이 나온 뒤 후보로 세운다.
+이후 순서는 R1 §14 와 §15 층 그림을 따른다. 각 층은 **자기 세부 설계 문서가 도착한 뒤에**
+후보로 세운다 — 원본이 몇 단어뿐인 층을 열면 Cycle 이 없는 설계를 지어내 메우게 된다.
+Damage Type 층이 그 규칙대로 기다렸다가 열린 첫 사례다.
 ```
 
 ## 선택 기록
@@ -154,7 +207,9 @@ Frontier 는 Graph 의 절대 Leaf 가 아니라 **현재 세계 기준으로 �
 | FR-GUARD-TRADES-BODY-FOR-RESOURCE | SELECTED | C010-guard-trades-body-for-resource | 검사 통과 후 **2026-08-17 Human 결정으로 롤백** — R1 층 순서와 어긋남. 산출물은 git history |
 | FR-PERFECT-GUARD-TURNS-THE-TABLE | SELECTED | C011-perfect-guard-turns-the-table | 검사 통과 후 **2026-08-17 Human 결정으로 롤백** — 위와 같음 |
 | FR-STATS-DECIDE-THE-DAMAGE | **CLOSED** | C010-stats-decide-the-damage | 2026-08-17 **COMPLETE** — Human Play 확인. MC-ATTACK-POWER · MC-SKILL-SCALING · MC-DEFENSE-MITIGATION 승격. 후보 목록에서 소진 처리 |
-| FR-GUARD-TRADES-BODY-FOR-RESOURCE | SELECTED | C011 (예정 — 번호 재사용) | 2026-08-17 Human 선택. R1 §14 Defense Action 층. 구 C011(완벽한 막기)과는 전체 ID 로 구분하며, 롤백된 구 C010(막기)의 산출물이 git history 에 있어 참조 가능하다 |
+| FR-GUARD-TRADES-BODY-FOR-RESOURCE | SELECTED | C011-guard-trades-body-for-resource | 2026-08-17 Human 선택. R1 §14 Defense Action 층. 구 C011(완벽한 막기)과는 전체 ID 로 구분하며, 롤백된 구 C010(막기)의 산출물이 git history 에 있어 참조 가능하다 |
+| FR-GUARD-TRADES-BODY-FOR-RESOURCE | **CLOSED** | C011-guard-trades-body-for-resource | 2026-08-17 **COMPLETE** — Human Play 확인. MC-GUARD 승격 근거 확보(overlay.md 반영은 아직). 후보 목록에서 소진 처리 |
+| FR-MATCHUP-MAKES-THE-CHOICE | SELECTED | C012-damage-type-chooses-the-defense | 2026-08-17. Damage Type 층 세부 설계(Design-Combat-DamageType-R0.md) 도착으로 대기 해제 |
 
 ### 소진된 후보에서 배운 것
 

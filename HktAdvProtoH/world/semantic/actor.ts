@@ -44,8 +44,13 @@ export interface ActorState {
   cpMax: number;
   // 전투 능력치 (C010) — 종류가 초기값을 정한다. 한 방의 크기를 정하는 두 값이며
   // RULE-DAMAGE-CALCULATE-001 만이 읽는다.
-  attack: number; // 공격을 얼마나 강하게 만들어 내는가 (INTENT-ATTACK-POWER-001)
-  defense: number; // 들어오는 피해를 얼마나 줄여 받는가 (INTENT-DEFENSE-001)
+  // C012 CHANGED — C010 의 attack/defense 두 값이 방식별 네 값으로 갈린다.
+  // 일반 attack/defense 는 남기지 않는다 — 두 이름이 공존하면 어느 값이 계산의
+  // 권위인지 모호해진다 (설계 §9).
+  physicalAttack: number; // 물리 방식 피해를 키운다 (INTENT-TYPED-OFFENSE-001)
+  auraAttack: number; // 오라 방식 피해를 키운다 (INTENT-TYPED-OFFENSE-001)
+  armor: number; // 물리 방식 피해를 줄인다 (INTENT-TYPED-DEFENSE-001)
+  resistance: number; // 오라 방식 피해를 줄인다 (INTENT-TYPED-DEFENSE-001)
   // 막기 (C011) — 행동과 나란한 몸의 상태다. CurrentAction 자리를 쓰지 않는다.
   // 막으면서 걸을 수 있어야 하는데, 행동 자리를 쓰면 걷기와 자리를 다투게 되어
   // INTENT-ACTION-STATE-001("언제나 정확히 하나의 행동")을 깨야 하기 때문이다.

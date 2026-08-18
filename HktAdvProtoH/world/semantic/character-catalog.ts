@@ -38,10 +38,13 @@ export interface ResourceSpec {
   cpStart: number;
 }
 
-// 전투 능력치 (C010) — 한 방의 크기를 정하는 두 값 (RULE-DAMAGE-CALCULATE-001)
+// 전투 능력치 (C010 → C012 CHANGED) — 한 방의 크기를 정하는 네 값.
+// 어느 둘을 읽을지는 그 타격의 방식이 정한다 (RULE-DAMAGE-CALCULATE-001 Step 0).
 export interface CombatSpec {
-  attack: number; // 공격을 얼마나 강하게 만들어 내는가
-  defense: number; // 들어오는 피해를 얼마나 줄여 받는가
+  physicalAttack: number; // 물리 방식 피해를 키운다
+  auraAttack: number; // 오라 방식 피해를 키운다
+  armor: number; // 물리 방식 피해를 줄인다
+  resistance: number; // 오라 방식 피해를 줄인다
 }
 
 export interface CharacterDefinition {
@@ -70,7 +73,9 @@ export const CHARACTER_CATALOG: Readonly<Record<string, CharacterDefinition>> = 
     facing: { x: 0, z: 1 },
     tempo: { moveSpeed: 6.0, runSpeedMultiplier: 1.8, actionSpeed: 1.0 },
     resources: { hpMax: 200, cpMax: 100, cpStart: 30 },
-    combat: { attack: 40, defense: 50 }, // C010 — 단단한 몸
+    // C012 — 물리 이행값(40 · 50)은 C010 그대로다. 오라 쪽이 새로 선다.
+    // 검을 쓰는 단단한 몸이지만 오라를 받아내는 데는 약하다 (Resistance 20).
+    combat: { physicalAttack: 40, auraAttack: 40, armor: 50, resistance: 20 },
     attackRange: 2.0,
     perceptionRange: 9.0,
   },
@@ -80,7 +85,9 @@ export const CHARACTER_CATALOG: Readonly<Record<string, CharacterDefinition>> = 
     // 자율 존재는 더 느리게 움직인다 — 행동 관찰이 목적
     tempo: { moveSpeed: 2.5, runSpeedMultiplier: 1.4, actionSpeed: 0.85 },
     resources: { hpMax: 120, cpMax: 60, cpStart: 20 },
-    combat: { attack: 40, defense: 30 }, // C010 — 같은 힘으로 치되 덜 단단하다
+    // C012 — 물리 이행값(40 · 30)은 C010 그대로다.
+    // 몸은 무르나 오라는 거의 통하지 않고(Resistance 90), 오라로 치는 힘도 약하다.
+    combat: { physicalAttack: 40, auraAttack: 15, armor: 30, resistance: 90 },
     attackRange: 2.0,
     perceptionRange: 9.0,
   },
@@ -92,7 +99,7 @@ export const DEFAULT_CHARACTER: CharacterDefinition = {
   facing: { x: 0, z: 1 },
   tempo: { moveSpeed: 2.5, runSpeedMultiplier: 1.4, actionSpeed: 0.85 },
   resources: { hpMax: 120, cpMax: 60, cpStart: 20 },
-  combat: { attack: 40, defense: 30 }, // C010
+  combat: { physicalAttack: 40, auraAttack: 15, armor: 30, resistance: 90 }, // C012 — wanderer 와 같다
   attackRange: 2.0,
   perceptionRange: 9.0,
 };
