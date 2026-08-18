@@ -16,6 +16,10 @@
 
 	let genes = null, sceneEntities = null, reseed = null, simTime = 0;
 	let lastPreset = '히키토';
+	// F1 이펙트: 이벤트 구동 이펙트 개체들이 스플랫 풀의 슬라이스를 나눠 갖는다.
+	// 새 이펙트를 만들고 싶으면 fx.js FX_PRESETS 에 게놈 한 줄 — 여기 코드는 손대지 않는다.
+	const fx = new HktGenesisFx.FxSystem();
+	let lastBones = null; // 이펙트 발생점(타격 부위)을 뼈에서 잡기 위한 마지막 포즈
 	// 외부 FBX 리그(Mixamo 등) — 있으면 살(히키토)의 뼈대를 이 클립이 구동한다(없으면 built-in FK).
 	// three(r147) 는 FBX 파싱/FK 입력만 — 렌더·시뮬은 여전히 자체 WebGPU (절대 원칙 유지).
 	let extSkel = null, useExternal = false;
@@ -35,7 +39,8 @@
 		genes.genome = skel.genome;
 		HktGenesisGenome.applyMatter(genes, skel.genome); // 게놈 ③ 재질 차분 (미지정 = 무변경)
 		if (genes.form === 3) genes.bindBones = bindBones(); // 살: 뼈 친화 시드 기준 세그먼트
-		sceneEntities = [genes];
+		// 장면 = 기반 개체 슬라이스 + 이펙트 개체 슬라이스 (총 8, 각 16384 스플랫)
+		sceneEntities = fx.compose(genes);
 		if (reseed) reseed();
 	}
 	// 게놈(체형·채색·부속) 전환 — 부속은 세그먼트 수를 바꾸므로 항상 재시드(applyPreset 경유)
@@ -60,8 +65,8 @@
 
 		const engine = new HktGenesisEngine(device, context, format);
 		const camera = new HktOrbitCamera(canvas); camera.radius = 4.5;
-		reseed = () => { engine.setScene(N, sceneEntities); simTime = 0; };
-		engine.setScene(N, [materialize(PRESETS['히키토'])]); // 초기 장면
+		reseed = () => { engine.setScene(N, sceneEntities); simTime = 0; fx.clear(); };
+		engine.setScene(N, fx.compose(materialize(PRESETS['히키토']))); // 초기 장면 (기반 + 이펙트 슬라이스)
 		applyPreset('히키토');
 
 		// 프리셋 버튼
@@ -80,6 +85,56 @@
 			gbox.appendChild(b);
 		}
 		document.getElementById('bones').addEventListener('change', (e) => { skel.bones = e.target.checked; });
+
+		// ── F1 이펙트 발생 UI ────────────────────────────────────────────────
+		// 발생점(anchor)은 "어디서 터지는가" 라는 *게임 쪽* 관심사라 앱이 정한다 —
+		// 이펙트의 정체성(게놈)과 발생 사건(이벤트)의 분리를 지키기 위함.
+		const TORSO = HktGenesisGenome.GROUP_IDS.indexOf('torso');
+		const HAND = HktGenesisGenome.GROUP_IDS.indexOf('hand');
+		function bonePoint(groupId, fallback) {
+			if (lastBones) for (const sg of lastBones) if (sg.g === groupId) return sg.b.slice();
+			return fallback.slice();
+		}
+		function towardCamera(org) {
+			const e = camera._eye();
+			return [e[0] - org[0], e[1] - org[1], e[2] - org[2]];
+		}
+		// 이펙트 이름 → 발생 사건. 미등록 이펙트는 캐릭터 앞 기본 지점에서 위로 터진다.
+		const FX_AIM = {
+			// 타격: 몸통을 맞고 파편이 *때린 쪽*(카메라)으로 튄다
+			'타격': () => { const o = bonePoint(TORSO, [0, 1.15, 0]); return { origin: o, dir: towardCamera(o), strength: 1 }; },
+			// 파이어볼: 손 근처에서 터진다 (없으면 캐릭터 옆)
+			'파이어볼 폭발': () => ({ origin: bonePoint(HAND, [0.75, 1.0, 0]), dir: [0, 1, 0], strength: 1 }),
+			// 회복 오라: 발밑에서 솟는다
+			'회복 오라': () => ({ origin: [0, 0.05, 0], dir: [0, 1, 0], strength: 1, radius: 0.35 }),
+		};
+		function fire(name) {
+			const aim = (FX_AIM[name] || (() => ({ origin: [0, 1.0, 0], dir: [0, 1, 0] })))();
+			aim.time = simTime;
+			fx.trigger(name, aim);
+		}
+		const fbox = document.getElementById('fxButtons');
+		Object.keys(HktGenesisFx.FX_PRESETS).forEach((name, i) => {
+			const b = document.createElement('button');
+			b.textContent = `${name} (${i + 1})`;
+			b.addEventListener('click', () => fire(name));
+			fbox.appendChild(b);
+		});
+		// 자동 반복 — 게놈 차이(짧은 타격 / 긴 폭발)가 시간축에서 드러나게
+		let autoFx = null;
+		document.getElementById('fxAuto').addEventListener('change', (e) => {
+			if (autoFx) { clearInterval(autoFx); autoFx = null; }
+			if (!e.target.checked) return;
+			const names = Object.keys(HktGenesisFx.FX_PRESETS);
+			let k = 0;
+			autoFx = setInterval(() => fire(names[k++ % names.length]), 700);
+		});
+		window.addEventListener('keydown', (e) => {
+			const names = Object.keys(HktGenesisFx.FX_PRESETS);
+			const i = '123456789'.indexOf(e.key);
+			if (i >= 0 && i < names.length) fire(names[i]);
+		});
+		window.__hktFire = fire; // 하니스/콘솔 훅
 
 		// ── 외부 FBX 리그: 드롭/샘플/복귀 + 클립 선택 ──────────────────────────
 		const setStatus = (html) => { document.getElementById('skelStatus').innerHTML = html; };
@@ -157,17 +212,18 @@
 				bones = (useExternal && extSkel)
 					? extSkel.pose(dt, skel.speed, skel.fat, skel.genome)         // 외부 FBX: 증분 시간(dt)으로 믹서 진행
 					: skeleton.pose(skel.clip, simTime, skel.speed, skel.fat, skel.genome); // 내장: 절대 시간
+				lastBones = bones; // 이펙트 발생점(타격 부위)의 근거
 			}
 			engine.frame({
 				dt, time: simTime, genes, entities: sceneEntities, paused: false, pull: [0, 0, 0, 0],
-				bones, showBones: skel.bones,
+				bones, showBones: skel.bones, fxEvents: fx.buffer(),
 				view: camera.view(), proj: camera.proj(aspect),
 				viewport: [canvas.width, canvas.height], focal: [focalY, focalY],
 			});
 			// 하니스 훅 (present 전 같은 태스크에서 readback)
 			if (window.__hktAfterFrame) window.__hktAfterFrame({ device, context, canvas, camera, engine });
 			fpsAvg = fpsAvg * 0.95 + (1 / Math.max(dt, 1e-4)) * 0.05;
-			fpsEl.textContent = `${fpsAvg.toFixed(0)} fps · ${(engine.count / 1024).toFixed(0)}k splats`;
+			fpsEl.textContent = `${fpsAvg.toFixed(0)} fps · ${(engine.count / 1024).toFixed(0)}k splats · fx ${fx.activeCount(simTime)}`;
 			requestAnimationFrame(tick);
 		}
 		requestAnimationFrame(tick);

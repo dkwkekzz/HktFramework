@@ -26,11 +26,15 @@
 ### 불변 조건 (깨지면 화면이 즉시 무너짐)
 
 - 스플랫 수 N = **2의 거듭제곱** (바이토닉 정렬 전제), 슬라이스 256 배수.
-- 셰이더↔엔진 **바이트 일치**: `Splat` 48B=`SPLAT_STRIDE` 12 float · `Entity` 160B(40, R1 재질 포함) ·
-  `Cluster` 96B(24) · `CamParams` 256B(fog+조명) · 격자 상수(GD=64, SLOTS=16) · `CLUSTER_K`=256 ·
-  `GROUP_COUNT`=14(=genome.js GROUP_IDS 길이) — `wgsl.js`↔`engine.js`↔`genome.js` 동기 필수.
+- 셰이더↔엔진 **바이트 일치**: `Splat` 48B=`SPLAT_STRIDE` 12 float · `Entity` 192B(48, R1 재질 +
+  F1 이펙트 포함) · `Cluster` 96B(24) · `CamParams` 256B(fog+조명) · 격자 상수(GD=64, SLOTS=16) ·
+  `CLUSTER_K`=256 · `GROUP_COUNT`=14(=genome.js GROUP_IDS 길이) · F1 이벤트 슬롯 `MAX_FX`=16 ×
+  `FX_STRIDE` 12 float(=vec4 3개, wgsl.js `FX_SLOTS` 와 동기) — `wgsl.js`↔`engine.js`↔`genome.js`
+  ↔`fx.js` 동기 필수.
 - L6 살 뼈 세그먼트 상한 `MAX_BONES`=512 (render 셰이더 `rest.w` clamp 511u 와 동기).
 - L6 살 = 자리 스프링 + 친화 분포 + 임계 감쇠 전제 — 셋 중 하나라도 무너지면 살이 방울로 붕괴한다.
+- F1 이펙트 이벤트 `t0` 는 **> 0** 이어야 한다 (`t0 <= 0` = 비활성 슬롯 규약). 이펙트 스플랫의
+  `life` 는 수명이 아니라 *세대 도장*(제가 태어난 이벤트의 t0) — 다른 용도로 쓰면 재발생이 깨진다.
 - 정렬 far→near (back-to-front), 블렌딩 premultiplied over.
 
 ### 컨벤션
@@ -45,10 +49,14 @@
 - 무-빌드 classic `<script>` 전역 네임스페이스(`HktGenesisEngine`/`HktGenesisWGSL`/`HktMat`/
   `HktGenesisSkeleton` 등), 빌드 스텝 없음, 주석 한국어.
 - 튜닝 노브는 하드코딩 금지 — 게놈 슬라이더(`GENE_DEFS`)로 노출 (UE CVar 관례의 웹 대응).
+- **이펙트도 세포다** — 이펙트 = 게놈(무엇인가) + 이벤트(언제·어디서). 스프라이트 시트·키프레임
+  커브·"모양을 그리는" 코드 없음. 새 이펙트는 `js/fx.js` `FX_PRESETS` 에 게놈 한 줄로 추가하고,
+  코드(셰이더·엔진·UI)는 손대지 않는다. 발생점(anchor)만 게임 쪽(앱)이 정한다.
 
 ## 작업 방식
 
 1. 세션 시작 시 [STATE.md](STATE.md) 를 읽어 현재 명제·작업 상태를 확인한다.
 2. 한 번에 하나의 명제(feature)만 다룬다 — 구현/논의 후 STATE.md 의 상태를 갱신한다.
 3. 검증은 `test/life-shot.js` 로 픽셀 임계 + GPU 오류 0 을 판정한다 (살이 뼈대를 덮는가).
+   이펙트는 시간축 현상이라 `test/fx-shot.js` 로 판정한다 (켜지는가 · 꺼지는가 · 게놈만으로 갈리는가).
 4. 세부 설계·함정의 원본은 코드 주석(특히 `wgsl.js` SIM L6, `skeleton.js` 살 문법)이다.

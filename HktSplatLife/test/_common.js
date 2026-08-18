@@ -71,7 +71,7 @@ const HARNESS_ROUTE = (req, res) => {
 	res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
 	res.end('<!doctype html><meta charset="utf-8"><canvas id="gpu" width="640" height="640"></canvas><canvas id="c2d" width="640" height="640"></canvas>'
 		+ '<script src="/js/math.js"><\/script><script src="/js/genome.js"><\/script><script src="/js/skeleton.js"><\/script><script src="/js/anim.js"><\/script><script src="/js/presets.js"><\/script>'
-		+ '<script src="/js/wgsl.js"><\/script><script src="/js/engine.js"><\/script>');
+		+ '<script src="/js/wgsl.js"><\/script><script src="/js/engine.js"><\/script><script src="/js/fx.js"><\/script>');
 };
 
 // 페이지 컨텍스트에서 쓸 촬영 루프 소스 — new Function 으로 주입한다.

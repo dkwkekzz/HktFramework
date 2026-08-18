@@ -13,8 +13,12 @@
 	const GRID_DIM = 64;
 	const CLUSTER_K = 256;       // 클러스터 크기 (wgsl.js K 와 일치)
 	const CLUSTER_STRIDE = 24;   // u32/f32 24개 = 96B (wgsl.js Cluster 와 일치)
-	const ENTITY_STRIDE = 40;    // f32 40개 = 160B (wgsl.js Entity 와 일치 — R1 재질 vec4 포함)
+	const ENTITY_STRIDE = 48;    // f32 48개 = 192B (wgsl.js Entity 와 일치 — R1 재질 + F1 이펙트 vec4 포함)
 	const MAX_ENTITIES = 8;
+	// F1 이펙트 이벤트 슬롯 — *장면 전체* 동시 발생 상한. 이펙트 스플랫은 제 슬롯을
+	// rest.w 로 알고(L6 뼈 친화와 동형), 슬롯이 켜지면 그 세대가 태어난다.
+	const MAX_FX = 16;
+	const FX_STRIDE = 12;        // f32 12개 = 48B (wgsl.js FX 이벤트 vec4 3개와 일치)
 	// L6 뼈 세그먼트 상한 — 단일 스켈레톤(휴머노이드 ~52 / Mixamo 풀 리그 ~65)이 아니라
 	// *장면 전체*의 뼈 합계 상한이다. 살 개체마다 제 위치에 스켈레톤 인스턴스를 세우고
 	// (editor 다중 히키토), 전 인스턴스를 이 단일 boneBuf 에 이어붙이므로 개체 수(≤8)만큼
@@ -96,6 +100,11 @@
 		// L6 뼈대 세그먼트 테이블 — 세그먼트당 vec4 2개 (a.xyz+r1, b.xyz+r2)
 		this.boneBuf = d.createBuffer({ size: MAX_BONES * 32, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST });
 		this._boneCount = 0;
+		// F1 이펙트 이벤트 테이블 — 전 슬롯 비활성(t0 = -1)으로 시작
+		this.fxBuf = d.createBuffer({ size: MAX_FX * FX_STRIDE * 4, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST });
+		const fx0 = new Float32Array(MAX_FX * FX_STRIDE);
+		for (let k = 0; k < MAX_FX; k++) fx0[k * FX_STRIDE + 3] = -1;
+		d.queue.writeBuffer(this.fxBuf, 0, fx0);
 		// C3 부위 채색: 뼈 인덱스 → 그룹 id (u32/뼈), 그룹 → 램프 양 끝 (vec4 2개/그룹)
 		this.boneGroupBuf = d.createBuffer({ size: MAX_BONES * 4, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST });
 		this.groupColorBuf = d.createBuffer({ size: GROUP_COUNT * 2 * 16, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST });
@@ -253,6 +262,7 @@
 		const init = (genes.form === 1) ? this._initGolem(slice, genes)
 			: (genes.form === 2) ? this._initTree(slice, genes)
 			: (genes.form === 3) ? this._initFleshCloud(slice, genes)
+			: (genes.form === 4) ? this._initFxCloud(slice, genes)
 			: this._initCloud(slice, genes);
 		const cPer = slice / CLUSTER_K, cBase = ei * cPer;
 		const cu = new Uint32Array(init.cluster.buffer);
@@ -360,8 +370,17 @@
 				{ binding: 6, resource: { buffer: this.boneBuf } },
 				{ binding: 7, resource: this.hfTex.createView() },
 				{ binding: 8, resource: { buffer: this.hfUB } },
+				{ binding: 9, resource: { buffer: this.fxBuf } }, // F1: 이펙트 이벤트 테이블
 			],
 		});
+	};
+
+	// F1 이펙트 이벤트 업로드 — ev = Float32Array(MAX_FX × 12) (fx.js FxSystem.buffer()).
+	// 슬롯 하나를 갈아끼우는 것이 "이펙트 발생"의 전부다 (스플랫은 GPU 에 상주한 채로 태어난다).
+	HktGenesisEngine.prototype.setFxEvents = function (ev) {
+		if (!ev) return;
+		const n = Math.min(ev.length, MAX_FX * FX_STRIDE);
+		this.device.queue.writeBuffer(this.fxBuf, 0, ev, 0, n);
 	};
 
 	// S2 지형 heightfield 설치/해제 — hf = { data: Float32Array(res²), res, originX, originZ, cell } | null
@@ -431,6 +450,9 @@
 			a.set([g.size, g.stretch, g.opacity, g.luminosity], o + 32);
 			// R1 재질: 스펙큘러·광택 지수·림·랩 확산 (미지정은 무광 폴백 — specPow 는 pow 가드 ≥1)
 			a.set([g.spec || 0, Math.max(g.specPow || 1, 1), g.rim || 0, g.wrap || 0], o + 36);
+			// F1 이펙트: fxK 0 = 이펙트 개체가 아님 (기존 프리셋 전부 여기 해당 — 회귀 0)
+			a.set([g.fxK || 0, g.burst || 0, g.cone || 0, g.swirl || 0], o + 40);
+			a.set([g.shell || 0, g.grow || 0, g.curve != null ? g.curve : 1, g.ember || 0], o + 44);
 		});
 		return a;
 	};
@@ -584,6 +606,27 @@
 		return init;
 	};
 
+	// form 4 — F1 이벤트 구동 이펙트 구름: 스플랫은 태어날 때 "어느 이벤트 슬롯의 세포인지"만
+	// 정해지고(rest.w = 슬롯 *절대* 인덱스 — L6 뼈 친화와 같은 자리), 위치·속도는 이벤트가
+	// 켜지는 순간 SIM 이 시드에서 유도한다. 초기 상태는 비활성(에너지 0, 격자 밖 주차) —
+	// 이펙트는 "생성"되는 것이 아니라 이미 GPU 에 상주한 채 *깨어난다* (할당 0, 왕복 0).
+	HktGenesisEngine.prototype._initFxCloud = function (n, genes) {
+		const a = new Float32Array(n * SPLAT_STRIDE);
+		const restA = new Float32Array(n * 4);
+		const base = Math.max(0, Math.min(genes.fxSlotBase || 0, MAX_FX - 1));
+		const slots = Math.max(1, Math.min(genes.fxSlots || 1, MAX_FX - base));
+		for (let i = 0; i < n; i++) {
+			const o = i * SPLAT_STRIDE;
+			a[o + 1] = -1000;                 // 격자 밖 주차 (이웃 탐색·렌더에서 빠짐)
+			a[o + 7] = 0;                     // life = 세대 도장(t0). 0 = 어느 이벤트에도 속하지 않음
+			a[o + 9] = Math.random() * 100;   // seed — 발생 방향·속도·잔불 여부의 유일한 근거
+			a[o + 11] = 1;                    // fuel
+			// 슬롯을 연속 블록으로 나눈다 (같은 슬롯 = 인접 인덱스 → 메모리 결)
+			restA[i * 4 + 3] = base + Math.min(Math.floor(i * slots / n), slots - 1);
+		}
+		return { splat: a, rest: restA, cluster: this._emptyClusters(n) };
+	};
+
 	// form 2 — 나무: 재귀 가지 골격을 절차 생성하고 스플랫마다 (부착점, 성장 시점) 부여.
 	// "증식"은 실제 할당이 아니라 휴면 스플랫의 활성화 — birth(뿌리로부터의 그래프 거리)
 	// 순서로 깨어나므로 뿌리→가지끝으로 자라 보인다.
@@ -715,6 +758,8 @@
 		}
 		d.queue.writeBuffer(this.simUB, 0, sim);
 		d.queue.writeBuffer(this.entityBuf, 0, this._packEntities(ents));
+		// F1: 이펙트 이벤트 테이블 (768B tiny 업로드) — 없는 프레임은 이전 상태 유지
+		if (opts.fxEvents) this.setFxEvents(opts.fxEvents);
 
 		// KeyParams (32B) — view 의 z-행
 		const v = opts.view;
@@ -827,5 +872,8 @@
 		d.queue.submit([enc.finish()]);
 	};
 
+	HktGenesisEngine.MAX_FX = MAX_FX;             // fx.js 가 슬롯 예산을 나눌 때 참조
+	HktGenesisEngine.FX_STRIDE = FX_STRIDE;
+	HktGenesisEngine.MAX_ENTITIES = MAX_ENTITIES; // 슬라이스 예산 상한
 	global.HktGenesisEngine = HktGenesisEngine;
 })(window);
