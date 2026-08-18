@@ -1,9 +1,9 @@
 # CYCLE C013 — Penetration Devalues the Wall
 
 [PASS] Cycle Definition
-[    ] Intent
-[    ] World Semantic
-[    ] GameView Specification
+[PASS] Intent                    (관통은 계산 앞이 아니라 대응 뒤에 붙는다)
+[PASS] World Semantic            (감쇄식 무변경 · 들어가는 방어 값만 걷힌다)
+[PASS] GameView Specification    (한 방어가 세 값으로 읽힌다 · 새 표면 없음)
 [    ] Human Semantic Review
 [    ] World Implementation
 [    ] View Implementation
