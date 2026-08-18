@@ -44,6 +44,10 @@ CAUSALITY 의 random_critical 금지 충돌은 미해결 → ../open-questions.m
 게임의 Goal/Possibility/Capability/World Rule 이 **어떤 형태로 존재할 수 있는지** 제한하거나
 방향짓는 Human-owned Design Intent. Actor 의 Goal 이 아니다.
 
+Constraint 는 Master 기본 절차(WHY → OPTIONS → NEED → NEXT)의 **단계가 아니다** —
+각 선택 지점에서 적용되는 Filter 다 (정책 §2.3 · §10). Constraint 작업(신설·재작성·승인)은
+Human 이 요청할 때만 별도로 수행한다.
+
 ```text
 Goal        Actor 가 어떤 이유로 원하는 Desired State
 Constraint  그 Goal 과 해결 방법이 어떤 설계 원칙 안에서 만들어져야 하는지

@@ -3,14 +3,14 @@
 > ## 진행 순서 — 2026-08-17 Human 지시 (2026-08-18 갱신)
 >
 > 전투 기본 규칙(OffenseDefense) 트랙을 마무리하는 것이 먼저다. 그 전에는 이 디렉터리를
-> **새 영역으로** 넓히는 작업(다른 주제의 M2 Graph 확장 · Constraint 신설)을 시작하지 않는다.
-> 닫힌 Cycle 을 반영하는 MF Feedback 은 그 제한에 걸리지 않는다 — 그것을 미루면
+> **새 영역으로** 넓히는 작업(다른 주제의 WHY/OPTIONS/NEED Graph 확장 · Constraint 신설)을
+> 시작하지 않는다. 닫힌 Cycle 을 반영하는 Feedback 은 그 제한에 걸리지 않는다 — 그것을 미루면
 > `frontier.md` 와 `overlay.md` 가 현재 세계와 어긋나 다음 선택을 흐린다.
 >
 > Human 이 직접 세운 것은 `constraints/` 뿐이다. `graph/` `overlay.md` `frontier.md` 는
 > R1 개정 때 설계 문서의 의미를 옮겨 둔 것이며 Master 를 처음부터 세운 결과가 아니다.
 >
-> **2026-08-18 — 이 지시 아래에서 M2 를 한 번 실행했다.** OffenseDefense 트랙 자신의
+> **2026-08-18 — 이 지시 아래에서 Graph 확장을 한 번 실행했다.** OffenseDefense 트랙 자신의
 > 다음 층(Penetration)이 Graph 에 노드가 없어 Frontier 에 나타나지 못하고 있었다.
 > 새 영역이 아니라 **진행 중인 트랙의 결손**이므로 위 제한의 취지에 어긋나지 않는다고
 > 판단했다 — MC-PENETRATION · MP-PIERCE-THE-HARD-DEFENSE 2종. 이견이 있으면 되돌린다.
@@ -18,9 +18,31 @@
 이 디렉터리는 **Master Layer** 의 산출물이다.
 
 ```text
-MASTER LAYER   무엇을 왜 만들 것인가 · 어떤 다른 방법이 있는가 · 어떤 Constraint 아래인가
+MASTER LAYER   WHY → OPTIONS → NEED → NEXT — 무엇을 왜 만들지 결정한다
 CYCLE LAYER    선택된 하나의 플레이 결과를 World Semantic 과 Rule 로 폐쇄한다  → cycles/
 ```
+
+## 기본 절차 — 4단계
+
+Master 는 네 단계만 기본 절차로 사용한다 (정책 §9). 각 단계의 산출물이 이 디렉터리다.
+
+```text
+1. WHY        World / Actor / Goal — 누가 무엇을 왜 원하는가      → graph/ (world-state·actors·knowledge·goals)
+       ↓
+2. OPTIONS    Goal 을 달성하는 의미 있게 다른 여러 Possibility     → graph/possibilities.yaml
+       ↓
+3. NEED       각 Possibility 에 필요한 Capability
+              + Existing World 에 이미 있는지 확인                → graph/capabilities.yaml · overlay.md
+       ↓
+4. NEXT       Missing / Partial 중 Frontier 후보 선택             → frontier.md
+       ↓
+   Human Select  →  기존 8 Stage Cycle
+```
+
+Constraint 는 단계가 아니라 각 선택 지점에 적용되는 **Filter** 다 (정책 §2.3 · §10).
+Feedback(아래 접합점)은 닫힌 Cycle 의 사실을 반영하는 작업이며 기본 4단계에 들어가지 않는다.
+Knowledge / Belief · Conflict · Consequence · Reveal / Reframe · Constraint Candidate 는
+실제 설계 결정에 영향을 줄 때만 쓰는 보조 규칙이다 (정책 §11).
 
 정책 원본은 [../design/Master-Intent-Graph-Policy.md](../design/Master-Intent-Graph-Policy.md) 다.
 파일 형식의 단일 출처는 [SCHEMA.md](SCHEMA.md) 다.

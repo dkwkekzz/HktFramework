@@ -1,7 +1,8 @@
 # Frontier
 
 Frontier 는 Graph 의 절대 Leaf 가 아니라 **현재 세계 기준으로 아직 없는 가장 작은
-플레이 가능한 Capability 단위**다. Human 이 여기서 하나를 골라 다음 Cycle Goal 로 삼는다.
+플레이 가능한 Capability 단위**다. 기본 절차 **NEXT** 단계의 산출물이며,
+Human 이 여기서 하나를 골라 다음 Cycle Goal 로 삼는다 (Human Select → 8 Stage Cycle).
 
     기준 Overlay   master/overlay.md — C012 닫힘 (2026-08-18) 시점
     사다리 원본    design/Design-Combat-OffenseDefense-R0.md **R1** §14 확장 순서 · §15 층 그림
@@ -123,7 +124,7 @@ Penetration 은 셋을 모두 갖추었다 — R1 §14 가 1, DamageType R0 §15
     Graph 에 노드가 없으면 그 층은 Frontier 에 나타나지 못한다.
     Penetration 이 그랬다 — 설계가 다음 층으로 지정하고 있는데도 MC-*/MP-* 가 없어
     Overlay 의 MISSING 목록에 들어가지 못했고, 결과적으로 후보가 될 길이 없었다.
-    설계가 예고한 층은 닫히기 전에 **노드로 먼저 세워 둔다** (M2).
+    설계가 예고한 층은 닫히기 전에 **노드로 먼저 세워 둔다** (OPTIONS/NEED — Graph 확장).
 
 ## 규칙
 

@@ -1,7 +1,7 @@
 # Capability Overlay
 
 Master Capability(`graph/capabilities.yaml`) 를 현재 `world/` `view/` 구현 상태와 겹쳐 본 결과다.
-Frontier 는 여기서 나온다.
+기본 절차 **NEED** 단계의 산출물이며, NEXT(Frontier) 는 여기서 나온다.
 
 기준 시점: **C012-damage-type-chooses-the-defense 닫힘 (2026-08-18)** — 코드는 그 Cycle 완료 시점 상태다.
 
@@ -12,7 +12,7 @@ Frontier 는 여기서 나온다.
 | MC-COMBAT-STRIKE | IMPLEMENTED | C007 `RULE-STRIKE-DAMAGE-001` · C010 이 그 피해 산정을 하나의 공식으로 교체 (R1 §9 CHANGED 완료) | — |
 | MC-BODY-FACING | IMPLEMENTED | C006 `RULE-BODY-FACING-001` · `ActorState.facing` (`world/semantic/actor.ts`) | — |
 | MC-CP-ECONOMY | PARTIAL | C007 `hp/cp` · `SkillDefinition.cpCharge/cpCost` · `RUN_CP_DRAIN` · **C011 막기가 같은 예산을 쓴다** | 기력을 쓰는 자리가 셋(고급 스킬·달리기·막기)이 되어 공격과 방어가 경쟁하기 시작했다. 그러나 기력이 스스로 돌아오지 않는 결손은 그대로다 (C007 EXCLUDED) — C011 이 승격을 보고하지 않았다 |
-| MC-COMBAT-CAUSE-READING | PARTIAL | C007 `World.StrikeEvents` · C007 R2 속성 전체 관찰 · C009 명령 대답 | **M3 재판정 필요** — C010 이 계산 내역(기본 피해 · Attack 기여 · Defense 배율)을 관찰 계약에 실었으나 C010 의 MASTER FEEDBACK 이 이 Capability 를 보고하지 않았다. 보고 없는 승격은 하지 않는다 (MF Guide) |
+| MC-COMBAT-CAUSE-READING | PARTIAL | C007 `World.StrikeEvents` · C007 R2 속성 전체 관찰 · C009 명령 대답 | **NEED(Overlay) 재판정 필요** — C010 이 계산 내역(기본 피해 · Attack 기여 · Defense 배율)을 관찰 계약에 실었으나 C010 의 MASTER FEEDBACK 이 이 Capability 를 보고하지 않았다. 보고 없는 승격은 하지 않는다 (Feedback Guide) |
 | MC-ATTACK-POWER | IMPLEMENTED | C010 08-verification — 공격력 40→80 변경이 피해 20→35 로 실측 | — |
 | MC-SKILL-SCALING | IMPLEMENTED | C010 08-verification — 계수가 큰 스킬이 같은 공격 증가에 더 크게 자라는 것이 실측 | — |
 | MC-DEFENSE-MITIGATION | IMPLEMENTED | C010 08-verification — 방어 0/100/200/300 에서 피해 26/13/9/7, 감소폭 단조 감소, 방어 100000 에서도 최소 1 | — (단 이것은 **수동 감쇄**다. 막는 행동은 MC-GUARD 이며 별개다) |
@@ -61,8 +61,8 @@ Constraint Violation 과 혼동하지 않는다 — 여기는 **있는가/없는
 
 ## 이번 갱신
 
-    2026-08-18 (MF) — C011-guard-trades-body-for-resource · C012-damage-type-chooses-the-defense
-    두 Cycle 의 MASTER FEEDBACK 을 한 번에 반영했다. 두 Cycle 이 닫히는 동안 MF 가 밀려
+    2026-08-18 (Feedback) — C011-guard-trades-body-for-resource · C012-damage-type-chooses-the-defense
+    두 Cycle 의 MASTER FEEDBACK 을 한 번에 반영했다. 두 Cycle 이 닫히는 동안 Feedback 이 밀려
     Overlay 가 2 Cycle 뒤처져 있었고, 그 때문에 Frontier 가 이미 채워진 Capability 를
     결손으로 계속 표시했다. 이번 갱신으로 해소했다.
 
@@ -78,7 +78,7 @@ Constraint Violation 과 혼동하지 않는다 — 여기는 **있는가/없는
         MK-OPPONENT-DEFENSE-SHAPE — C012 의 Actor 방어 형태가 모든 관찰에 실린다.
         Knowledge 는 Overlay 표의 대상이 아니므로 여기 기록으로만 남긴다.
 
-    신규 노드 2종 (M2 — 이번에 Graph 에 추가했다)
+    신규 노드 2종 (Graph 확장 — 이번에 추가했다)
         MC-PENETRATION              MISSING
         MP-PIERCE-THE-HARD-DEFENSE  (MG-OVERCOME-SUPERIOR-OPPONENT 를 달성하는 새 경로)
 
@@ -90,9 +90,9 @@ Constraint Violation 과 혼동하지 않는다 — 여기는 **있는가/없는
     승격하지 않은 것
         MC-CP-ECONOMY 는 PARTIAL 로 둔다. C011 로 기력을 쓰는 자리가 셋이 되었으나
         C011 자신이 승격을 보고하지 않았고(기력이 스스로 돌아오지 않는 결손은 그대로다),
-        보고 없는 승격은 하지 않는다 (MF Guide MUST NOT).
+        보고 없는 승격은 하지 않는다 (Feedback Guide MUST NOT).
         MC-COMBAT-CAUSE-READING 도 PARTIAL 로 둔다 — C010 에 이어 C012 가 계산 내역을
-        더 두껍게 실었으나(고른 능력의 **이름**까지) 역시 보고가 없다. M3 재판정 대상이다.
+        더 두껍게 실었으나(고른 능력의 **이름**까지) 역시 보고가 없다. NEED(Overlay) 재판정 대상이다.
 
     Constraint Candidate 접수 2건 (둘 다 PENDING)
         CC-RESOURCE-GATE-IS-ALL-OR-NOTHING   C011 제안 — 관찰 2회
@@ -101,13 +101,13 @@ Constraint Violation 과 혼동하지 않는다 — 여기는 **있는가/없는
     Human 판단 자리 2개가 열렸다 → open-questions.md Q12
         DC-COMBAT-DEFENSE-IS-ACTIVE (DRAFT) 의 근거 층이 C011 로 실재하게 되었다.
         DC-COMBAT-MATCHUP-SOFT (DRAFT) 의 근거 층이 C012 로 실재하게 되었다.
-        재승인은 M1 이며 Human 소유다 — 이 단계가 대신하지 않는다.
+        재승인은 Constraint 작업(Filter — Human 소유)이며 이 단계가 대신하지 않는다.
 
     현재 IMPLEMENTED 7 · PARTIAL 2 · MISSING 11 (전체 20종).
 
     ── 이전 갱신 ────────────────────────────────────────────────────
 
-    2026-08-17 (MF) — C010-stats-decide-the-damage 의 MASTER FEEDBACK 을 반영했다.
+    2026-08-17 (Feedback) — C010-stats-decide-the-damage 의 MASTER FEEDBACK 을 반영했다.
 
     승격 3종 (근거: 그 Cycle 의 08-verification 실측)
         MC-ATTACK-POWER        MISSING → IMPLEMENTED
@@ -122,7 +122,7 @@ Constraint Violation 과 혼동하지 않는다 — 여기는 **있는가/없는
         MC-COMBAT-CAUSE-READING 은 PARTIAL 로 둔다. C010 이 계산 내역을 관찰 계약에
         실었으므로 이 행의 "부족한 것" 은 실질적으로 해소된 것으로 보이나,
         C010 의 MASTER FEEDBACK 이 이 Capability 를 보고하지 않았다.
-        보고 없이 코드를 근거로 승격하지 않는다 (MF Guide MUST NOT) — M3 재판정 대상이다.
+        보고 없이 코드를 근거로 승격하지 않는다 (Feedback Guide MUST NOT) — NEED(Overlay) 재판정 대상이다.
 
     Constraint Candidate 접수 1건 → **승격**
         CC-WORLD-OWNS-THE-SURFACE-LIST 를 접수하고, 같은 날 Human 이 승인했다.
@@ -152,7 +152,7 @@ Constraint Violation 과 혼동하지 않는다 — 여기는 **있는가/없는
 ```text
 cycles/<CycleId>/08-verification.md 의 MASTER FEEDBACK
         ↓
-guides/master-feedback.md (MF Stage)
+guides/master-feedback.md (Feedback — 위쪽 접합점 반영)
         ↓
 이 파일 + graph/capabilities.yaml 의 overlay 필드
 ```

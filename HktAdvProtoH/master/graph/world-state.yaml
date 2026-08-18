@@ -15,4 +15,4 @@ nodes: []
 # Exposed · Broken 같은 전투 상태는 여기 오지 않는다. 그것은 Actor 의 순간 상태이며
 # Cycle 의 World State 다. MW-* 는 "Forest 가 오염되었다" 층위의 세계 사실이다.
 #
-# 채워지는 경로: master/root.md 의 Root Game Goal / World Premise → M2 Graph Expansion.
+# 채워지는 경로: master/root.md 의 Root Game Goal / World Premise → WHY (Graph 확장).

@@ -1,6 +1,6 @@
 # CC-THE-WORLD-NAMES-WHAT-IT-READ
 
-접수: 2026-08-18 (MF) — C012-damage-type-chooses-the-defense 의 MASTER FEEDBACK 이 보고한
+접수: 2026-08-18 (Feedback) — C012-damage-type-chooses-the-defense 의 MASTER FEEDBACK 이 보고한
 패턴이다. Cycle Agent 는 관찰만 보고했고, 승격 판단은 Human 이 한다.
 
 ## CANDIDATE STATEMENT
