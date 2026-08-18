@@ -12,8 +12,7 @@ DT §x   design/Design-Combat-DamageType-R0.md        전투 영역
 GR §x   design/Master-Intent-Graph-Growth.md         성장(GROWTH) 영역 한정
 ```
 
-GR 을 전투 노드(graph/ 의 기존 MC/MP/MG)의 근거로도 쓸지는 **Q15 대기** 다 —
-결정 전에는 전투 노드에 GR 인용을 섞지 않는다.
+근거는 영역을 넘지 않는다 — 전투 노드에 GR 을, 성장 노드에 R1/DT 를 인용하지 않는다.
 
 삭제된 구판(R0)은 근거가 아니다. 구판에만 근거가 있던 Constraint 는 보류가 아니라
 **삭제**한다 — 필요해지면 그 층의 설계 문서가 나온 뒤 새로 만든다.

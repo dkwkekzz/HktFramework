@@ -140,6 +140,24 @@ constraints/README.md   현재 Active Constraint        → 반영 이력은 여
     DECISION      질문 제거 — 2026-08-18 Human 지시. 심연 예시는 삽화로 남는다(비주입 유지).
                   실제 세계관은 root.md 가 채워질 때 새로 정한다.
 
+## Q15. GR 을 셋째 근거 문서로 추가할 것인가 — CLOSED
+
+    무엇          Q12 는 근거 문서를 R1·DT 둘로 한정했는데, Growth 주입 산출물이
+                  GR 을 인용하게 되어 GR 의 지위를 물었다.
+
+    DECISION      (b) 영역 분리 — 2026-08-18 Human 승인. GR 은 성장(GROWTH) 영역 한정
+                  근거다. 근거는 영역을 넘지 않는다 — 전투 노드에 GR 금지, 성장 노드에
+                  R1/DT 금지. constraints/README 에 상시 규칙으로 반영.
+
+## Q16. GR §41 Growth Quality Gate 의 guides/ 반영 — CLOSED
+
+    무엇          GR §41 체크리스트(Class/Item/Growth 완료 조건)를 가이드 문서에
+                  복사할지, 원본 참조로 둘지를 물었다.
+
+    DECISION      (c) 복사하지 않는다 — 2026-08-18 Human 승인. 이중 관리를 피하기 위해
+                  GR §41 을 직접 참조한다. SCHEMA.md growth 절에 "생성·변경 시 §41 통과"
+                  상시 규칙 한 줄로 반영.
+
 ## 사유만 남은 질문 (Q1 · Q4~Q7)
 
     Q12 보류 중인 DC 2종의 재승인 여부 (2026-08-18 — 보류 상태 자체를 없앴다)

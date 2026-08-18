@@ -219,6 +219,8 @@ growth/
 ```
 
 디렉터리는 첫 노드가 생길 때 만든다 (GR §40).
+CL/IT/IP/IM 노드는 생성·변경 시 **GR §41 Growth Quality Gate** 를 통과해야 한다 —
+체크리스트는 가이드에 복사하지 않고 원본을 직접 참조한다.
 
 ### growth/classes/CL-*.yaml
 
