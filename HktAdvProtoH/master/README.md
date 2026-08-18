@@ -1,18 +1,19 @@
 # master/ — Master Intent Graph
 
-> ## 진행 순서 — 2026-08-17 Human 지시
+> ## 진행 순서 — 2026-08-17 Human 지시 (2026-08-18 갱신)
 >
 > 전투 기본 규칙(OffenseDefense) 트랙을 마무리하는 것이 먼저다. 그 전에는 이 디렉터리를
-> **새로 세우는** 작업(M2 Graph 확장 · Constraint 신설)을 시작하지 않는다.
+> **새 영역으로** 넓히는 작업(다른 주제의 M2 Graph 확장 · Constraint 신설)을 시작하지 않는다.
 > 닫힌 Cycle 을 반영하는 MF Feedback 은 그 제한에 걸리지 않는다 — 그것을 미루면
 > `frontier.md` 와 `overlay.md` 가 현재 세계와 어긋나 다음 선택을 흐린다.
 >
 > Human 이 직접 세운 것은 `constraints/` 뿐이다. `graph/` `overlay.md` `frontier.md` 는
 > R1 개정 때 설계 문서의 의미를 옮겨 둔 것이며 Master 를 처음부터 세운 결과가 아니다.
 >
-> 현재 어긋나 있는 것 — `overlay.md` 의 MC-GUARD 가 아직 MISSING 이다.
-> C011 08-verification.md 가 승격 근거를 냈으나 반영 전이다.
-> (`frontier.md` 는 2026-08-17 MF 로 갱신되었다.)
+> **2026-08-18 — 이 지시 아래에서 M2 를 한 번 실행했다.** OffenseDefense 트랙 자신의
+> 다음 층(Penetration)이 Graph 에 노드가 없어 Frontier 에 나타나지 못하고 있었다.
+> 새 영역이 아니라 **진행 중인 트랙의 결손**이므로 위 제한의 취지에 어긋나지 않는다고
+> 판단했다 — MC-PENETRATION · MP-PIERCE-THE-HARD-DEFENSE 2종. 이견이 있으면 되돌린다.
 
 이 디렉터리는 **Master Layer** 의 산출물이다.
 
@@ -27,24 +28,23 @@ CYCLE LAYER    선택된 하나의 플레이 결과를 World Semantic 과 Rule �
 
 ## 현재 상태
 
-전투 영역 주입 — 원본 `design/Design-Combat-OffenseDefense-R0.md` (본문 바이트 단위 보존).
-Graph 는 Quality Gate 자가 점검(정책 §25)까지 돌렸다.
-**Constraint 층은 비어 있다** — Agent 가 원본에서 산출했던 DC/CC 를 Human 지시로 제거했다.
+전투 영역 주입 — 원본 `design/Design-Combat-OffenseDefense-R0.md` **R1** (§14 확장 순서가
+Cycle 사다리다). 기준 시점 **C012 닫힘 (2026-08-18)**.
 
 ```text
-Constraint    0     제거됨 — Human 이 세운다 (constraints/README.md)
-Candidate     0     제거됨
+Constraint    8     APPROVED 5 (Active) · DRAFT 3 (보류 — Q12)
+Candidate     3     APPROVED 1 (→ DC) · PENDING 2
 Actor         2     Knowledge 2 · Belief 0
-Goal          2     Possibility 9
-Capability   17     IMPLEMENTED 2 · PARTIAL 2 · MISSING 13
-Frontier      6     전부 PROPOSED — 선택 없음
+Goal          2     Possibility 11
+Capability   20     IMPLEMENTED 7 · PARTIAL 2 · MISSING 11
+Frontier      1     PROPOSED — FR-PENETRATION-DEVALUES-THE-WALL (Human 선택 대기)
 WorldState    0     비어 있다 (아래)
 
-Open Question 3   → open-questions.md
+Open Question 5   → open-questions.md (Q2 · Q3 · Q8 · Q11 · Q12)
 ```
 
-Constraint 가 없으므로 Graph 의 `constraints` · `constraint_evaluation` 은 전부 비어 있고,
-Frontier 의 후보 조건 6번(Active Constraint 와 양립)은 판정되지 않는다.
+닫힌 Possibility 3종 — MP-OUTGROW-THE-OPPONENT(C010) · MP-TRADE-BODY-FOR-RESOURCE(C011) ·
+MP-MATCH-WEAPON-TO-ARMOR(C012). 요구 Capability 가 하나도 비어 있지 않은 경로들이다.
 
 아직 비어 있는 것 — 지어내지 않고 남긴 자리다:
 
