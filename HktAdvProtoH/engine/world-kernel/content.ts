@@ -5,8 +5,8 @@
 // 인과의 순서(참여 → 요청 → 진행 → 시간 → 투영)뿐이고, 각 자리에서 무슨 일이
 // 일어나는지는 전부 여기 등록된 것이 정한다.
 
-import type { ActionRequest, ActionResult } from '../../protocol/actions';
-import type { GameViewSnapshot } from '../../protocol/gameview';
+import type { ActionRequest, ActionResult } from '../protocol-core/actions';
+import type { GameViewSnapshot } from '../protocol-core/gameview';
 import type { CoreWorldState } from './state';
 
 /**

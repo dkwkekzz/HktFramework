@@ -4,7 +4,7 @@
 //   actionColliders → 칼끝 충돌 구 (활성/비활성 구분) + 맞은 몸 표시
 // 색·투명도·구체 높이·화살표 배율은 전부 여기의 표현 결정이다 — World 의 의미가 아니다.
 
-import type { EntityView, GameViewSnapshot } from '../../../protocol/gameview';
+import type { EntityView, GameViewSnapshot } from '../../protocol-core/gameview';
 import type {
   SceneColliderDebug,
   SceneDebugCapsule,

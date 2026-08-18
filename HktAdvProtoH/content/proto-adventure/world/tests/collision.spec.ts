@@ -3,7 +3,7 @@
 //            INTENT-COLLISION-OBSERVE-001
 
 import { describe, expect, it } from 'vitest';
-import type { GameViewSnapshot } from '../../../../protocol/gameview';
+import type { GameViewSnapshot } from '../../protocol/gameview';
 import { characterDefinition } from '../semantic/character-catalog';
 import { TICK_INTERVAL } from '../semantic/world-state';
 import { driveWorld, PLAYER, type WorldDriver } from './drive';

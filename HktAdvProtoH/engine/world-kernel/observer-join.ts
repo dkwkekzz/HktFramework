@@ -13,8 +13,8 @@
 // P1 CHANGED — 몸의 내용(종류·자리·소지품)은 컨텐츠 팩의 spawnObserverBody 가 정한다.
 // 이 Rule 이 소유하는 것은 참여의 인과다: 언제 몸이 생기고, 재참여면 왜 안 생기는가.
 
-import type { ActionResult } from '../../protocol/actions';
-import { RULE_OBSERVER_JOIN } from '../../protocol/semantic-id';
+import type { ActionResult } from '../protocol-core/actions';
+import { RULE_OBSERVER_JOIN } from '../protocol-core/semantic-id';
 import { MAX_OBSERVER_ID_LENGTH } from './observer';
 import { findObserver, type CoreWorldState } from './state';
 

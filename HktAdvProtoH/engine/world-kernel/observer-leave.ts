@@ -12,8 +12,8 @@
 // RULE-NPC-DECIDE-001 의 대상이 되지 않는다. 보는 이가 없는 몸은 스스로 새 행동을
 // 시작하지 않는다 (INTENT-OBSERVER-LEAVE-001).
 
-import type { ActionResult } from '../../protocol/actions';
-import { RULE_OBSERVER_LEAVE } from '../../protocol/semantic-id';
+import type { ActionResult } from '../protocol-core/actions';
+import { RULE_OBSERVER_LEAVE } from '../protocol-core/semantic-id';
 import { findObserver, type CoreWorldState } from './state';
 
 export function ruleObserverLeave(state: CoreWorldState, observerId: string): ActionResult {

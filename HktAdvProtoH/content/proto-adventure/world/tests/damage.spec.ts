@@ -14,7 +14,7 @@
 // 바뀐 것은 속성 이름(attack→physicalAttack · defense→armor)과 경위의 항목뿐이다.
 
 import { describe, expect, it } from 'vitest';
-import type { GameViewSnapshot } from '../../../../protocol/gameview';
+import type { GameViewSnapshot } from '../../protocol/gameview';
 import { SWING_BEGIN } from '../semantic/collision';
 import { SKILL_DEFINITIONS } from '../semantic/combat';
 import { TICK_INTERVAL } from '../semantic/world-state';

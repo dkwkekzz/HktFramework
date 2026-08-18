@@ -19,8 +19,8 @@
 // 내고 있었고, 그것을 받아 갈 곳이 없어 버려졌을 뿐이다 (C007 R2 의 "그 이유를 남긴다"
 // 와 "그 이유가 닿는다" 사이에 없던 길).
 
-import type { ActionRequest, ActionResult } from '../../protocol/actions';
-import type { RequestOutcomeView } from '../../protocol/gameview';
+import type { ActionRequest, ActionResult } from '../protocol-core/actions';
+import type { RequestOutcomeView } from '../protocol-core/gameview';
 
 /** 대답 하나와 그것이 갈 관찰자 */
 export interface AddressedOutcome {

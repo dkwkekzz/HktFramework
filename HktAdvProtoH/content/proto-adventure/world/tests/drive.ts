@@ -7,8 +7,8 @@
 // C004 — 조종되는 몸은 관찰자가 들어와야 생긴다. 그래서 이 Driver 는
 // 관찰자 하나를 들여보낸 뒤 시작한다. 그 관찰자의 몸이 PLAYER 다.
 
-import type { ActionRequest, ActionResult } from '../../../../protocol/actions';
-import type { GameViewSnapshot, RequestOutcomeView } from '../../../../protocol/gameview';
+import type { ActionRequest, ActionResult } from '../../protocol/actions';
+import type { GameViewSnapshot, RequestOutcomeView } from '../../protocol/gameview';
 import { createWorld, type World, type WorldSetup } from '../index';
 
 /** 검증용 기본 관찰자 */
@@ -72,7 +72,8 @@ export function driveWorld(setup: WorldSetup = {}): WorldDriver {
     observe(observerId = OBSERVER) {
       const snapshot = world.latestObservation(observerId);
       if (!snapshot) throw new Error(`관찰 결과가 없다 — ${observerId}`);
-      return snapshot;
+      // 이 세계의 투영은 팩 계약(04 spec)의 형태다 — 봉투 형에서 팩 형으로 좁힌다 (P2)
+      return snapshot as GameViewSnapshot;
     },
     world,
   };

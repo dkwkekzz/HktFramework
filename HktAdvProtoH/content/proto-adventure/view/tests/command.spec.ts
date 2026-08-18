@@ -4,7 +4,7 @@
 // 검증하는 것은 "세계가 밝힌 목록이 사람이 읽고 쓸 수 있는 것이 되는가" 다.
 
 import { describe, expect, it } from 'vitest';
-import type { GameViewSnapshot } from '../../../../protocol/gameview';
+import type { GameViewSnapshot } from '../../protocol/gameview';
 import {
   commandEntries,
   composeCommand,

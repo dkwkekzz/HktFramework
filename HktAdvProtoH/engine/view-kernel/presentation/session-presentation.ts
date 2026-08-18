@@ -7,7 +7,7 @@
 // 정상일 때도 이어짐 패널이 보인다. 좋을 때의 값을 알아야 나빠진 것을 알아볼 수 있다
 // (INTENT-LINK-ALWAYS-SHOWN-001). 수치와 신원 줄이 여기에 함께 실린다.
 
-import type { LinkState } from '../../../protocol/transport';
+import type { LinkState } from '../../protocol-core/transport';
 import type { LinkLine } from './link-presentation';
 
 export interface SessionPresentation {

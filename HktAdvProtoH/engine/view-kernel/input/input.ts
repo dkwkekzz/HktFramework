@@ -2,7 +2,7 @@
 // 어떤 interaction 이 entity/지형 대상인지는 Snapshot 의 지시(targetEntityId /
 // terrainTarget)가 정하고, 여기는 그 지시대로 요청을 보낼 뿐이다.
 
-import type { ActionRequest } from '../../../protocol/actions';
+import type { ActionRequest } from '../../protocol-core/actions';
 import type { GameRenderer } from '../renderer/renderer';
 import type { SceneState } from '../scene/scene-state';
 

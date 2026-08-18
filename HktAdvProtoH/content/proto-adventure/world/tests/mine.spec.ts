@@ -2,7 +2,7 @@
 // C002 CHANGED — 채굴은 즉시가 아니라 시간이 걸리는 행동이고, 완료 시점에 획득한다.
 
 import { describe, expect, it } from 'vitest';
-import type { GameViewSnapshot } from '../../../../protocol/gameview';
+import type { GameViewSnapshot } from '../../protocol/gameview';
 import { driveWorld, PLAYER } from './drive';
 
 const solo = { npcs: [] };

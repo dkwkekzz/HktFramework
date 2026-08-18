@@ -7,7 +7,7 @@
 // 칼끝은 Facing 기준 ±SWING_ARC/2 호를 쓸고 지나가며, 등 뒤는 맞지 않는다.
 
 import { describe, expect, it } from 'vitest';
-import type { GameViewSnapshot } from '../../../../protocol/gameview';
+import type { GameViewSnapshot } from '../../protocol/gameview';
 import { SWING_BEGIN } from '../semantic/collision';
 import { TICK_INTERVAL } from '../semantic/world-state';
 import { driveWorld, PLAYER, type WorldDriver } from './drive';

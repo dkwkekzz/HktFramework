@@ -19,7 +19,7 @@ import {
   TRANSPORT_PATH,
   type ObservationMessage,
   type OutcomeMessage,
-} from '../protocol/transport';
+} from '../engine/protocol-core/transport';
 import type { WorldHost } from './world-host';
 
 export interface AttachedServer {

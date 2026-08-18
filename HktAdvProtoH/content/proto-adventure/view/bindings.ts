@@ -4,6 +4,7 @@
 // 여기 있는 것은 장면을 읽어 요청을 골라야 하는 둘뿐이다.
 
 import type { KeyBinding } from '../../../engine/view-kernel/input/bindings';
+import type { ActionRequest } from '../protocol/actions';
 
 // 막기 (C011) — 세계에는 걸기와 놓기가 따로 있다. 화면에서는 한 키로 오간다.
 // 세계가 지금 무엇이라고 알려 주었는지를 보고 반대를 요청한다.
@@ -27,7 +28,11 @@ function moveModeToggle(code: string): KeyBinding {
       const moveMode = scene.interactions.find((i) => i.id === 'move-mode');
       if (!moveMode) return;
       const current = scene.self?.moveModeCode ?? 'walk';
-      send({ interactionId: moveMode.id, mode: current === 'run' ? 'walk' : 'run' });
+      const action: ActionRequest = {
+        interactionId: moveMode.id,
+        mode: current === 'run' ? 'walk' : 'run',
+      };
+      send(action);
     },
   };
 }

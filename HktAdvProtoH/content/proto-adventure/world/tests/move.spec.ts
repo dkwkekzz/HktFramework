@@ -2,7 +2,7 @@
 // C002 CHANGED — 이동은 CurrentAction 의 한 종류다 (state: 'move')
 
 import { describe, expect, it } from 'vitest';
-import type { GameViewSnapshot } from '../../../../protocol/gameview';
+import type { GameViewSnapshot } from '../../protocol/gameview';
 import { driveWorld, PLAYER } from './drive';
 
 const solo = { npcs: [] };

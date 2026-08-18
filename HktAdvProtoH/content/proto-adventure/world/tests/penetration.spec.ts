@@ -13,7 +13,7 @@
 //   Resistance 90 이고, 관찰자는 AuraAttack 40 을 지니고도 그 벽 때문에 오라를 쓸 수 없었다.
 
 import { describe, expect, it } from 'vitest';
-import type { GameViewSnapshot } from '../../../../protocol/gameview';
+import type { GameViewSnapshot } from '../../protocol/gameview';
 import { SWING_BEGIN } from '../semantic/collision';
 import { effectiveDefense, penetrationRemainingRatio, SKILL_DEFINITIONS } from '../semantic/combat';
 import { TICK_INTERVAL } from '../semantic/world-state';

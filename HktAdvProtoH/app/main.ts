@@ -8,7 +8,7 @@
 //
 // world/ 를 import 하지 않는다 — 이제는 규율이 아니라 물리적 사실이다.
 
-import { TRANSPORT_PATH } from '../protocol/transport';
+import { TRANSPORT_PATH } from '../engine/protocol-core/transport';
 import { createCommandConsole } from '../engine/view-kernel/hud/command-console';
 import { createHud, type EntityLabel, type EntityPlate, type StrikeMark } from '../engine/view-kernel/hud/hud';
 import { createTouchPad } from '../engine/view-kernel/hud/touch-pad';

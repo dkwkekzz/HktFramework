@@ -3,7 +3,7 @@
 // debugAuthority.inspect(속성 펼쳐 보기) 의 표현 결정을 검증한다.
 
 import { describe, expect, it } from 'vitest';
-import type { GameViewSnapshot } from '../../../../protocol/gameview';
+import type { GameViewSnapshot } from '../../protocol/gameview';
 import { resolvePresentation } from '../resolve';
 import fixture from './fixtures/combat.fixture.json';
 

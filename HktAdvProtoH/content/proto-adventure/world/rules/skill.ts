@@ -21,8 +21,8 @@
 //
 // 허공을 가른 휘두름은 정산하지 않는다 — 맞아야 기력이 돈다 (붉은보석식 수지).
 
-import type { ActionResult } from '../../../../protocol/actions';
-import { RULE_SKILL_BEGIN, RULE_SKILL_BUDGET } from '../../../../protocol/semantic-id';
+import type { ActionResult } from '../../protocol/actions';
+import { RULE_SKILL_BEGIN, RULE_SKILL_BUDGET } from '../../protocol/semantic-id';
 import type { ActorState } from '../semantic/actor';
 import {
   actorModifiers,

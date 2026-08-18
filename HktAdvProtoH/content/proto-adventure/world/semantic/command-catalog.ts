@@ -19,7 +19,7 @@ import type {
   CommandDomainView,
   CommandParameterView,
   CommandView,
-} from '../../../../protocol/gameview';
+} from '../../protocol/gameview';
 import { MUTABLE_ATTRIBUTES } from './combat';
 
 /** 세계가 정의하는 명령 하나. available 은 State 로 판정되므로 여기에 없다. */

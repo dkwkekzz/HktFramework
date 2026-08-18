@@ -8,7 +8,7 @@
 //
 // 요청의 주체가 누구의 몸인지 푸는 일은 팩의 몫이다 — 몸(Actor)은 Engine 의 개념이 아니다.
 
-import type { ActionRequest, ActionResult } from '../../protocol/actions';
+import type { ActionRequest, ActionResult } from '../protocol-core/actions';
 import type { InteractionHandler } from './content';
 import { findObserver, type CoreWorldState } from './state';
 

@@ -1,7 +1,7 @@
 // RULE-NPC-DECIDE-001 World 단독 테스트 — Implements INTENT-NPC-AUTONOMY-001
 
 import { describe, expect, it } from 'vitest';
-import type { GameViewSnapshot } from '../../../../protocol/gameview';
+import type { GameViewSnapshot } from '../../protocol/gameview';
 import type { WorldSetup } from '../index';
 import { driveWorld } from './drive';
 

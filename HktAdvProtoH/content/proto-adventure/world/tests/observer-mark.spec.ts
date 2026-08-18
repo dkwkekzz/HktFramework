@@ -5,7 +5,7 @@
 // 왕복 시간 · 도착률 · 보낸 양 · 다시 이은 횟수는 세계의 것이 아니므로 여기에 없다.
 
 import { describe, expect, it } from 'vitest';
-import type { GameViewSnapshot } from '../../../../protocol/gameview';
+import type { GameViewSnapshot } from '../../protocol/gameview';
 import { createWorld, type World, type WorldSetup } from '../index';
 
 const A = 'observer-a';
@@ -15,7 +15,8 @@ const solo: WorldSetup = { npcs: [] };
 const see = (w: World, observerId: string): GameViewSnapshot => {
   const snapshot = w.latestObservation(observerId);
   if (!snapshot) throw new Error(`관찰 결과가 없다 — ${observerId}`);
-  return snapshot;
+  // 이 세계의 투영은 팩 계약(04 spec)의 형태다 — 봉투 형에서 팩 형으로 좁힌다 (P2)
+  return snapshot as GameViewSnapshot;
 };
 
 function joined(setup: WorldSetup = solo, ...observers: string[]): World {

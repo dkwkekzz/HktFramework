@@ -3,7 +3,7 @@
 // 핵심 명제 검증 포함: 같은 role 의 결정은 단일 항목이며, 미등록 항목도 기본 결정으로 소화한다.
 
 import { describe, expect, it } from 'vitest';
-import type { GameViewSnapshot } from '../../../../protocol/gameview';
+import type { GameViewSnapshot } from '../../protocol/gameview';
 import { resolvePresentation } from '../resolve';
 import { createMotionLibrary } from '../../../../engine/view-kernel/motion/motion-library';
 import available from './fixtures/mining-available.fixture.json';

@@ -11,8 +11,8 @@
 // Transition     ResourceAmount -= 1, Inventory.Items[stone].Count += 1
 // Result         Success | Failure(deposit-depleted)
 
-import type { ActionResult } from '../../../../protocol/actions';
-import { RULE_MINE, RULE_MINE_COMPLETE } from '../../../../protocol/semantic-id';
+import type { ActionResult } from '../../protocol/actions';
+import { RULE_MINE, RULE_MINE_COMPLETE } from '../../protocol/semantic-id';
 import type { ActorState } from '../semantic/actor';
 import type { DepositState } from '../semantic/deposit';
 import { hasMiningTool, itemCount } from '../semantic/inventory';

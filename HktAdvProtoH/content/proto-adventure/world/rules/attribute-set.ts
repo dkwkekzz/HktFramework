@@ -19,8 +19,8 @@
 //
 // 바꾸는 것은 언제나 세계다. 요청하는 이는 상태를 직접 건드리지 않는다 (World Authority).
 
-import type { ActionResult } from '../../../../protocol/actions';
-import { RULE_ATTRIBUTE_SET } from '../../../../protocol/semantic-id';
+import type { ActionResult } from '../../protocol/actions';
+import { RULE_ATTRIBUTE_SET } from '../../protocol/semantic-id';
 import { idleAction } from '../semantic/action';
 import type { ActorState } from '../semantic/actor';
 import { findMutableAttribute, isDowned, type MoveMode } from '../semantic/combat';

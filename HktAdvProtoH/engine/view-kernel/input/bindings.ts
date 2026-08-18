@@ -7,7 +7,7 @@
 //
 // 조립 루트는 code 가 맞으면 invoke 를 부를 뿐, 그 안에서 무엇이 골라지는지 모른다.
 
-import type { ActionRequest } from '../../../protocol/actions';
+import type { ActionRequest } from '../../protocol-core/actions';
 import type { SceneState } from '../scene/scene-state';
 
 export interface KeyBinding {

@@ -6,7 +6,7 @@
 // 관찰자 하나를 들여보낸 뒤 시작한다. 세계의 진행은 관찰자와 무관하다는 성질은 그대로다.
 
 import { describe, expect, it } from 'vitest';
-import type { GameViewSnapshot } from '../../../../protocol/gameview';
+import type { GameViewSnapshot } from '../../protocol/gameview';
 import { createWorld, type World, type WorldSetup } from '../index';
 import { OBSERVER, PLAYER } from './drive';
 
@@ -26,7 +26,8 @@ function joinedWorld(setup: WorldSetup = {}): World {
 const observe = (world: World): GameViewSnapshot => {
   const snapshot = world.latestObservation(OBSERVER);
   if (!snapshot) throw new Error('관찰 결과가 없다');
-  return snapshot;
+  // 이 세계의 투영은 팩 계약(04 spec)의 형태다 — 봉투 형에서 팩 형으로 좁힌다 (P2)
+  return snapshot as GameViewSnapshot;
 };
 
 describe('INTENT-WORLD-CLOCK-001 — 세계는 자기 시계로 진행한다', () => {

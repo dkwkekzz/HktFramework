@@ -13,8 +13,8 @@
 // 모르는 관찰자의 표식은 아무것도 바꾸지 못한다 — 요청과 같은 규율이다
 // (INTENT-REQUEST-ATTRIBUTION-001).
 
-import type { ActionResult } from '../../protocol/actions';
-import { RULE_OBSERVER_MARK } from '../../protocol/semantic-id';
+import type { ActionResult } from '../protocol-core/actions';
+import { RULE_OBSERVER_MARK } from '../protocol-core/semantic-id';
 import { findObserver, type CoreWorldState } from './state';
 
 export function ruleObserverMark(

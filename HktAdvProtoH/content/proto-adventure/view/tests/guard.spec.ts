@@ -6,7 +6,7 @@
 // guard-broken.fixture.json 방어가 무너져 아직 다시 들지 못하는 순간
 
 import { describe, expect, it } from 'vitest';
-import type { GameViewSnapshot } from '../../../../protocol/gameview';
+import type { GameViewSnapshot } from '../../protocol/gameview';
 import { resolvePresentation } from '../resolve';
 import brokenFixture from './fixtures/guard-broken.fixture.json';
 import guardFixture from './fixtures/guard.fixture.json';

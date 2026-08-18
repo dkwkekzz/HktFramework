@@ -9,7 +9,7 @@
 //   자율 존재 wanderer       AuraAtk 15 · Armor 30 · Resist 90 · 관통 0 / 0
 
 import { describe, expect, it } from 'vitest';
-import type { GameViewSnapshot } from '../../../../protocol/gameview';
+import type { GameViewSnapshot } from '../../protocol/gameview';
 import { resolvePresentation } from '../resolve';
 import fixture from './fixtures/penetration.fixture.json';
 import noPenetrationFixture from './fixtures/damage-type.fixture.json';

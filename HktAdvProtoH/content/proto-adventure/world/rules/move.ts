@@ -7,8 +7,8 @@
 //
 // C002 CHANGED — MoveTarget 설정이 아니라 "이동 행동에 진입" 이다.
 
-import type { ActionResult } from '../../../../protocol/actions';
-import { RULE_MOVE } from '../../../../protocol/semantic-id';
+import type { ActionResult } from '../../protocol/actions';
+import { RULE_MOVE } from '../../protocol/semantic-id';
 import type { ActorState } from '../semantic/actor';
 import { inBounds, type WorldPosition } from '../semantic/position';
 import type { WorldState } from '../semantic/world-state';

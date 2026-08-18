@@ -2,7 +2,7 @@
 // Implements INTENT-OBSERVER-LINK-001 · INTENT-OBSERVER-IDENTITY-001
 
 import { describe, expect, it } from 'vitest';
-import type { GameViewSnapshot } from '../../../protocol/gameview';
+import type { GameViewSnapshot } from '../../protocol-core/gameview';
 import {
   createWorldLink,
   MARK_INTERVAL_MS,
@@ -22,7 +22,6 @@ const snapshot = (time: number, acknowledged = 0): GameViewSnapshot => ({
   ],
   interactions: [],
   hud: [{ id: 'world.time', kind: 'counter', value: time }],
-  strikes: [],
   debug: { open: false }, commands: [],
 });
 

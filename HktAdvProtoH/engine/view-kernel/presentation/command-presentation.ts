@@ -16,7 +16,7 @@ import type {
   CommandParameterView,
   CommandView,
   GameViewSnapshot,
-} from '../../../protocol/gameview';
+} from '../../protocol-core/gameview';
 import type {
   SceneCommandComposition,
   SceneCommandEntry,

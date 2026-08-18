@@ -35,8 +35,8 @@
 // 입력에 난수원이 없다. World.Time 은 결과를 정하는 데 쓰이지 않고
 // 무너진 뒤의 회복 시점을 세우는 데만 쓰인다 (DC-COMBAT-PLAYER-CAUSALITY).
 
-import type { ActionResult } from '../../../../protocol/actions';
-import { RULE_GUARD_BEGIN, RULE_GUARD_RELEASE } from '../../../../protocol/semantic-id';
+import type { ActionResult } from '../../protocol/actions';
+import { RULE_GUARD_BEGIN, RULE_GUARD_RELEASE } from '../../protocol/semantic-id';
 import type { ActorState } from '../semantic/actor';
 import {
   GUARD_ARC_COS,

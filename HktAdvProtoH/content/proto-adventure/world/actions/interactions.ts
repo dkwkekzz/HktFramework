@@ -11,7 +11,7 @@
 //   속성 변경만은 주체가 아니라 "지목한 존재" 를 대상으로 한다 (INTENT-ATTRIBUTE-MUTATE-001).
 //   그래도 요청의 귀속은 그대로다 — 세계가 모르는 관찰자는 아무것도 바꾸지 못한다.
 
-import type { ActionRequest, ActionResult } from '../../../../protocol/actions';
+import type { ActionRequest, ActionResult } from '../../protocol/actions';
 import type { InteractionHandler } from '../../../../engine/world-kernel/content';
 import { ruleAttributeSet } from '../rules/attribute-set';
 import { ruleGuardBegin, ruleGuardRelease } from '../rules/guard';

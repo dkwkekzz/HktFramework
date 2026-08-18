@@ -6,7 +6,7 @@
 // 세계가 모든 속성을 보낸다고 해서 전부 늘 띄우지는 않는다 (04 entityHud.notShownByDefault) —
 // 감춘 것이 아니라 몸 위를 채우지 않기 위한 표시 선택이며, 속성 관찰을 켜면 그 자리에서 펼쳐진다.
 
-import type { EntityView, GameViewSnapshot, StrikeEventView } from '../../../protocol/gameview';
+import type { EntityView, GameViewSnapshot, StrikeEventView } from '../protocol/gameview';
 import type { SceneNameplate, SceneSelf, SceneStrike } from '../../../engine/view-kernel/scene/scene-state';
 import { codeText } from './code-text';
 

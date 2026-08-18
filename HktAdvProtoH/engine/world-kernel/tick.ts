@@ -24,8 +24,8 @@
 // 이 프레임이 소유하는 것은 인과의 순서뿐이다. 어느 시스템이 어느 시스템보다 앞서야
 // 하는지(예: 의도한 이동 → 물리 보정 → 기력 정산)는 팩의 배열 선언이 말한다.
 
-import type { ActionRequest, ActionResult } from '../../protocol/actions';
-import type { GameViewSnapshot, RequestOutcomeView } from '../../protocol/gameview';
+import type { ActionRequest, ActionResult } from '../protocol-core/actions';
+import type { GameViewSnapshot, RequestOutcomeView } from '../protocol-core/gameview';
 import type { InteractionHandler, WorldContent } from './content';
 import { dispatchAction } from './dispatch';
 import { ruleObserverJoin } from './observer-join';

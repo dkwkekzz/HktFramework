@@ -6,7 +6,7 @@
 //
 // P1 CHANGED — 주기(tickInterval)는 컨텐츠 팩의 결정론 상수다. 시계는 받은 주기로 돈다.
 
-import type { GameViewSnapshot, RequestOutcomeView } from '../../protocol/gameview';
+import type { GameViewSnapshot, RequestOutcomeView } from '../protocol-core/gameview';
 import type { World } from './kernel';
 
 // C004 CHANGED — 한 Tick 이 내보내는 것은 관찰 결과 하나가 아니라

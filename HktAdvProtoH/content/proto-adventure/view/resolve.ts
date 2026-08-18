@@ -5,7 +5,8 @@
 // 결정은 전부 *-presentation.ts 의 role/id 단위 단일 항목과 주입된 Motion Library 에서 온다.
 // 이 파일과 capability 코드는 Cycle 이 늘어도 수정되지 않는다.
 
-import type { GameViewSnapshot } from '../../../protocol/gameview';
+import type { GameViewSnapshot as CoreGameViewSnapshot } from '../../../engine/protocol-core/gameview';
+import type { GameViewSnapshot } from '../protocol/gameview';
 import { screenSideValue } from '../../../engine/view-kernel/camera/orientation';
 import { facingDecision, type ScreenSide } from '../../../engine/view-kernel/presentation/facing-presentation';
 import { motionLibrary } from '../../../engine/view-kernel/motion/motion-source';
@@ -114,10 +115,13 @@ function commandSurface(
 }
 
 export function resolvePresentation(
-  snapshot: GameViewSnapshot,
+  observed: CoreGameViewSnapshot,
   motions: MotionLibrary = motionLibrary,
   options: PresentationOptions = {},
 ): SceneState {
+  // 이 세계의 관찰 결과는 팩 계약(04 spec — Snapshot.specId)의 형태다.
+  // 봉투 형으로 도착한 것을 팩 형으로 좁히는 자리는 결정 Layer 의 진입점 하나뿐이다 (P2).
+  const snapshot = observed as GameViewSnapshot;
   return {
     specId: snapshot.specId,
     terrain: snapshot.scene,

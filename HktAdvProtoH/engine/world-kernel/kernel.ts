@@ -6,8 +6,8 @@
 // 무엇이 있는 세계인지(초기 배치·Rule·투영)는 컨텐츠 팩이 WorldContent 로 등록하고,
 // 이 커널은 그 계약 위에서 인과의 순서만 돌린다.
 
-import type { ActionRequest } from '../../protocol/actions';
-import type { GameViewSnapshot } from '../../protocol/gameview';
+import type { ActionRequest } from '../protocol-core/actions';
+import type { GameViewSnapshot } from '../protocol-core/gameview';
 import type { InteractionHandler, WorldContent } from './content';
 import type { CoreWorldState } from './state';
 import {

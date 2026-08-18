@@ -4,7 +4,7 @@
 //            INTENT-PER-OBSERVER-PROJECTION-001 · INTENT-REQUEST-ATTRIBUTION-001
 
 import { describe, expect, it } from 'vitest';
-import type { GameViewSnapshot } from '../../../../protocol/gameview';
+import type { GameViewSnapshot } from '../../protocol/gameview';
 import { createWorld, type World, type WorldSetup } from '../index';
 import { MAX_OBSERVER_ID_LENGTH } from '../../../../engine/world-kernel/observer';
 
@@ -19,7 +19,8 @@ function world(setup: WorldSetup = solo): World {
 const see = (w: World, observerId: string): GameViewSnapshot => {
   const snapshot = w.latestObservation(observerId);
   if (!snapshot) throw new Error(`관찰 결과가 없다 — ${observerId}`);
-  return snapshot;
+  // 이 세계의 투영은 팩 계약(04 spec)의 형태다 — 봉투 형에서 팩 형으로 좁힌다 (P2)
+  return snapshot as GameViewSnapshot;
 };
 
 const entity = (v: GameViewSnapshot, id: string) => v.entities.find((e) => e.id === id);

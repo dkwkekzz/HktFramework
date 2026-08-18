@@ -10,7 +10,8 @@
 // World 단독이다 — View 없이 돈다.
 
 import { describe, expect, it } from 'vitest';
-import type { CommandView } from '../../../../protocol/gameview';
+import type { ActionRequest } from '../../protocol/actions';
+import type { CommandView } from '../../protocol/gameview';
 import { driveWorld, OBSERVER, OBSERVER_2, PLAYER, PLAYER_2 } from './drive';
 
 function dummyAt(x: number, z: number) {
@@ -224,10 +225,11 @@ describe('INTENT-REQUEST-REPLY-001 — 세계가 요청에 대답한다', () => 
     world.join(OBSERVER_2);
     world.tick(0);
 
-    world.world.request(OBSERVER_2, {
+    const setHp: ActionRequest = {
       interactionId: 'set-attribute',
       attribute: { id: 'hp', value: 7 },
-    });
+    };
+    world.world.request(OBSERVER_2, setHp);
     const outcomes = world.world.tick(0).outcomes;
 
     expect(outcomes.get(OBSERVER_2)).toHaveLength(1);
@@ -251,16 +253,18 @@ describe('INTENT-REPLY-CORRESPONDENCE-001 — 어느 요청의 대답인지 짚�
   it('한 Tick 에 연달아 건 요청들이 각자 자기 표식으로 구분된다', () => {
     const world = driveWorld({ npcs: [] });
 
-    world.world.request(OBSERVER, {
+    const first: ActionRequest = {
       interactionId: 'set-attribute',
       attribute: { id: 'moveSpeed', value: 20 },
       mark: 1,
-    });
-    world.world.request(OBSERVER, {
+    };
+    const second: ActionRequest = {
       interactionId: 'set-attribute',
       attribute: { id: 'moveSpeed', value: 9999 },
       mark: 2,
-    });
+    };
+    world.world.request(OBSERVER, first);
+    world.world.request(OBSERVER, second);
     const outcomes = world.world.tick(0).outcomes.get(OBSERVER)!;
 
     expect(outcomes).toHaveLength(2);

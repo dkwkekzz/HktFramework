@@ -14,7 +14,7 @@
 //   막았을 때        applied = round(17 × 0.5) = 9,  cost = ceil(17 × 0.6) = 11
 
 import { describe, expect, it } from 'vitest';
-import type { GameViewSnapshot } from '../../../../protocol/gameview';
+import type { GameViewSnapshot } from '../../protocol/gameview';
 import { SWING_BEGIN } from '../semantic/collision';
 import { GUARD_BREAK_RECOVERY, SKILL_DEFINITIONS } from '../semantic/combat';
 import { spawnActor } from '../semantic/spawn';

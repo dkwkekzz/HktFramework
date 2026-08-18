@@ -2,7 +2,7 @@
 // INTENT-ACTION-STATE-001 · INTENT-ACTION-PROGRESS-001 · INTENT-ACTION-EXCLUSIVE-001
 
 import { describe, expect, it } from 'vitest';
-import type { GameViewSnapshot } from '../../../../protocol/gameview';
+import type { GameViewSnapshot } from '../../protocol/gameview';
 import { driveWorld, PLAYER } from './drive';
 
 const solo = { npcs: [] };

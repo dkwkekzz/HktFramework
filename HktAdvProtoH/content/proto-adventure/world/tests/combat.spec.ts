@@ -9,7 +9,7 @@
 //            INTENT-STRIKE-OBSERVE-001 · INTENT-ATTRIBUTE-OBSERVE-001 · INTENT-ATTRIBUTE-MUTATE-001
 
 import { describe, expect, it } from 'vitest';
-import type { GameViewSnapshot } from '../../../../protocol/gameview';
+import type { GameViewSnapshot } from '../../protocol/gameview';
 import {
   HIT_CHARGE_FACTOR,
   RUN_CHARGE_FACTOR,

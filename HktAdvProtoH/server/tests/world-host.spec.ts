@@ -4,8 +4,9 @@
 // 세계가 참여를 판정한 다음 Tick 에 온다.
 
 import { describe, expect, it } from 'vitest';
-import type { GameViewSnapshot, RequestOutcomeView } from '../../protocol/gameview';
-import { parseClientMessage, parseServerMessage } from '../../protocol/transport';
+import type { GameViewSnapshot, RequestOutcomeView } from '../../engine/protocol-core/gameview';
+import type { ActionRequest } from '../../content/proto-adventure/protocol/actions';
+import { parseClientMessage, parseServerMessage } from '../../engine/protocol-core/transport';
 import { createWorldHost } from '../world-host';
 
 const A = 'observer-a';
@@ -226,7 +227,8 @@ describe('WorldHost — 세계의 대답이 요청한 이에게 닿는다 (C009)
     const a = attachWithOutcomes(host, A);
     host.advance(0);
 
-    host.receive(A, { interactionId: 'set-attribute', attribute: { id: 'hp', value: 42 }, mark: 5 });
+    const setHp42: ActionRequest = { interactionId: 'set-attribute', attribute: { id: 'hp', value: 42 }, mark: 5 };
+    host.receive(A, setHp42);
     host.advance(0);
 
     expect(a.outcomes).toEqual([[{ accepted: true, rule: 'RULE-ATTRIBUTE-SET-001', mark: 5 }]]);
@@ -244,7 +246,8 @@ describe('WorldHost — 세계의 대답이 요청한 이에게 닿는다 (C009)
     host.advance(0);
     order.length = 0;
 
-    host.receive(A, { interactionId: 'set-attribute', attribute: { id: 'hp', value: 3 } });
+    const setHp3: ActionRequest = { interactionId: 'set-attribute', attribute: { id: 'hp', value: 3 } };
+    host.receive(A, setHp3);
     host.advance(0);
 
     expect(order).toEqual(['outcome', 'observation']);
@@ -256,7 +259,8 @@ describe('WorldHost — 세계의 대답이 요청한 이에게 닿는다 (C009)
     const b = attachWithOutcomes(host, B);
     host.advance(0);
 
-    host.receive(B, { interactionId: 'set-attribute', attribute: { id: 'hp', value: 8 } });
+    const setHp8: ActionRequest = { interactionId: 'set-attribute', attribute: { id: 'hp', value: 8 } };
+    host.receive(B, setHp8);
     host.advance(0);
 
     expect(b.outcomes).toHaveLength(1);
@@ -280,7 +284,8 @@ describe('WorldHost — 세계의 대답이 요청한 이에게 닿는다 (C009)
     host.attach(A, (s) => received.push(s)); // onOutcomes 없음 — C009 이전과 같은 붙임
     host.advance(0);
 
-    host.receive(A, { interactionId: 'set-attribute', attribute: { id: 'hp', value: 4 } });
+    const setHp4: ActionRequest = { interactionId: 'set-attribute', attribute: { id: 'hp', value: 4 } };
+    host.receive(A, setHp4);
     expect(() => host.advance(0)).not.toThrow();
     expect(received.length).toBeGreaterThan(0);
   });

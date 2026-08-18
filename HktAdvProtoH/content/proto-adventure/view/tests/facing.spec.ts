@@ -3,7 +3,7 @@
 // World 미기동 — Semantic Fixture 와 시점 각만으로 "어느 쪽을 보이는가" 를 검증한다.
 
 import { describe, expect, it } from 'vitest';
-import type { GameViewSnapshot } from '../../../../protocol/gameview';
+import type { GameViewSnapshot } from '../../protocol/gameview';
 import {
   AMBIGUOUS_BAND,
   DEFAULT_SPRITE_BASELINE,

@@ -8,7 +8,7 @@
 // 의미만 투영한다 — role/state/값/사유 코드. 표현(sprite·모션 파일·크기·라벨 형식·문구)은
 // View 의 Presentation 결정 Layer 책임이며 여기 싣지 않는다.
 
-import type { EntityView, GameViewSnapshot, InteractionView } from '../../../../protocol/gameview';
+import type { EntityView, GameViewSnapshot, InteractionView } from '../../protocol/gameview';
 import { actionProgress, actionTargetId } from '../semantic/action';
 import { actionCollider } from '../semantic/collision';
 import { evaluateAttributeSetAvailability } from '../rules/attribute-set';

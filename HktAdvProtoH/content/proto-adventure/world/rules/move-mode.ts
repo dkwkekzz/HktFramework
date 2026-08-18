@@ -13,8 +13,8 @@
 // 요청한 것이 달리기이므로 요청한 쪽이 이긴다. RULE-GUARD-BEGIN-001 의
 // 반대 방향(막기를 걸면 걷기로 내려온다)과 짝을 이룬다.
 
-import type { ActionResult } from '../../../../protocol/actions';
-import { RULE_MOVE_MODE } from '../../../../protocol/semantic-id';
+import type { ActionResult } from '../../protocol/actions';
+import { RULE_MOVE_MODE } from '../../protocol/semantic-id';
 import type { ActorState } from '../semantic/actor';
 import { isDowned, type MoveMode } from '../semantic/combat';
 
