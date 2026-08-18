@@ -52,9 +52,9 @@ WorldState    0     비어 있다 (아래)
 Open Question 4   → open-questions.md (Q2 · Q3 · Q8 · Q11)
 ```
 
-2026-08-18 Q12 정비로 삭제한 것 — DC-COMBAT-DEFENSE-IS-ACTIVE · DC-COMBAT-POWER-HAS-COST ·
-MC-WEAK-POINT · MC-REAR-ATTACK · MP-STRIKE-THE-VULNERABLE-SPOT. 전부 삭제된 구판(R0)에만
-근거가 있었다. 상세는 `overlay.md` "이번 갱신" · `constraints/README.md` "반영 이력".
+무엇이 언제 왜 바뀌었는지는 `HISTORY.md` 가 소유한다. 살아 있는 문서(`overlay.md` ·
+`frontier.md` · `open-questions.md` · `constraints/README.md`)에는 **지금 할 일과 현재
+상태만** 남긴다 — 닫힌 것은 그 자리에서 지우고 HISTORY 로 옮긴다.
 
 닫힌 Possibility 3종 — MP-OUTGROW-THE-OPPONENT(C010) · MP-TRADE-BODY-FOR-RESOURCE(C011) ·
 MP-MATCH-WEAPON-TO-ARMOR(C012). 요구 Capability 가 하나도 비어 있지 않은 경로들이다.
@@ -89,6 +89,10 @@ master/     현재 상태    world/ view/ 처럼 계속 갱신된다
 | [frontier.md](frontier.md) | `FR-*` 후보 + Human 선택 기록 | Agent 제안 / **Human** 선택 |
 | [candidates/](candidates/) | `CC-*.md` — 미승인 Constraint Candidate | Agent 제안 / **Human** 승인 |
 | [open-questions.md](open-questions.md) | 승인 대기 · Constraint 충돌 · 설계 공백 · Trade-off | Agent 제기 / **Human** 결정 |
+| [HISTORY.md](HISTORY.md) | 닫힌 것들의 보관소 — 평소에 읽지 않는다 | Master Design Agent |
+
+위 문서들은 **지금 할 일과 현재 상태만** 담는다. 닫힌 항목은 그 자리에서 지우고
+`HISTORY.md` 로 옮긴다 — 그래야 매번 읽는 문서가 가볍게 유지된다.
 
 ## 두 층의 접합점
 

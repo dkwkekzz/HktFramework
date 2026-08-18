@@ -11,7 +11,7 @@ NEED 가 판정한 Missing / Partial Capability 중 **한 Cycle 안에서 닫히
 - `master/overlay.md`
 - `master/graph/possibilities.yaml` · `capabilities.yaml`
 - `master/constraints/` — Active Constraint (Filter)
-- `master/frontier.md` — 기존 후보와 선택 기록
+- `master/frontier.md` — 기존 후보 (닫힌 Cycle 의 선택 기록은 `master/HISTORY.md`)
 
 ## Do
 

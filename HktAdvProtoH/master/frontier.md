@@ -16,19 +16,18 @@ Human 이 여기서 하나를 골라 다음 Cycle Goal 로 삼는다 (Human Sele
 다르다 — Critical 층을 건너뛰었기 때문이다. 층은 번호가 아니라 **이름**으로 가리킨다.
 
 ```text
-설계 §14 층          저장소 Cycle                            상태
-──────────────────────────────────────────────────────────────────────────────
-Basic Damage         C010-stats-decide-the-damage            CLOSED  2026-08-17
-Critical             —                                       SKIPPED  Q11 (아래)
-Defense Action       C011-guard-trades-body-for-resource     CLOSED  2026-08-17
-Damage Type          C012-damage-type-chooses-the-defense    CLOSED  2026-08-18
-Penetration          (다음 Cycle 후보)                        ← 여기
-Active Defense       —                                       대기
-Aura / Nen           —                                       대기
+설계 §14 층          지금
+────────────────────────────────────────────
+Basic Damage         섰다
+Critical             건너뛰었다 — Q11
+Defense Action       섰다
+Damage Type          섰다
+Penetration          ← 다음 후보 (아래)
+Active Defense       대기 — 사유는 "지금 열 수 없는 것"
+Aura / Nen           대기 — 사유는 "지금 열 수 없는 것"
 ```
 
-세 층이 닫히면서 **Possibility 세 개가 실제로 플레이 가능해졌다** —
-MP-OUTGROW-THE-OPPONENT · MP-TRADE-BODY-FOR-RESOURCE · MP-MATCH-WEAPON-TO-ARMOR.
+어느 Cycle 이 어느 층을 닫았는지는 [HISTORY.md](HISTORY.md) 에 있다.
 
 ## 후보
 
@@ -106,42 +105,15 @@ Penetration 은 셋을 모두 갖추었다 — R1 §14 가 1, DamageType R0 §15
 (2026-08-18 명확화 — 이전 문안은 "층마다 자기 문서가 도착해야 한다" 였고, 그래서
 §14 + 다른 층 문서의 경계 규정으로 이미 셋이 채워진 Penetration 이 근거 없이 막혀 있었다.)
 
-## 선택 기록
-
-| Frontier | Cycle | 결과 |
-|---|---|---|
-| FR-STATS-DECIDE-THE-DAMAGE | C010-stats-decide-the-damage | **CLOSED** 2026-08-17 — MC-ATTACK-POWER · MC-SKILL-SCALING · MC-DEFENSE-MITIGATION 승격 |
-| FR-GUARD-TRADES-BODY-FOR-RESOURCE | C011-guard-trades-body-for-resource | **CLOSED** 2026-08-17 — MC-GUARD 승격 (overlay 반영 2026-08-18) |
-| FR-MATCHUP-MAKES-THE-CHOICE | C012-damage-type-chooses-the-defense | **CLOSED** 2026-08-18 — MC-ATTACK-ARMOR-MATCHUP 승격 · MK-OPPONENT-DEFENSE-SHAPE 확립 |
-
-    롤백된 것 (2026-08-17 Human 결정 — R1 층 순서와 어긋나 되돌렸다. 산출물은 git history)
-        구 C010-guard-trades-body-for-resource · 구 C011-perfect-guard-turns-the-table
-        Active Defense 층을 재구축할 때 그 산출물을 참조할 수 있다.
-
-### 배운 것
-
-    근거 없는 것을 "대기" 로 두면 대기열이 거짓말을 한다.
-    Weak Point · Rear Attack 은 "R1 §13 이 범위에서 제외했다" 는 사유로 대기열에 있었으나,
-    §13 목록에 그 둘은 없었다 — Agent 가 구판에서 옮겨 온 뒤 사유를 지어 붙인 것이다.
-    2026-08-18 Human 결정으로 삭제했다. 대기 사유는 문서의 문장으로 확인되어야 한다.
-
-    Playable Result 에는 **이번 층에서 실제로 제공되는 수단**을 적는다.
-    FR-STATS-DECIDE-THE-DAMAGE 는 능력치 차이를 "장비·성장으로" 만든다고 적었으나 그 층은
-    R1 §13 이 제외한 범위였고, Cycle 이 C009 디버그 명령으로 메워야 했다 (C010 05-review.md).
-
-    Overlay 를 미루면 Frontier 가 거짓말을 한다.
-    C011·C012 가 닫히는 동안 Feedback 이 밀려 이미 채워진 Capability 가 결손으로 남아 있었고,
-    그 상태의 Frontier 는 "다음에 할 것이 없다" 로 읽혔다. Cycle 이 닫히면 Feedback 을 먼저 돌린다.
-
-    Graph 에 노드가 없으면 그 층은 Frontier 에 나타나지 못한다.
-    Penetration 이 그랬다 — 설계가 다음 층으로 지정하고 있는데도 MC-*/MP-* 가 없어
-    Overlay 의 MISSING 목록에 들어가지 못했고, 결과적으로 후보가 될 길이 없었다.
-    설계가 예고한 층은 닫히기 전에 **노드로 먼저 세워 둔다** (OPTIONS/NEED — Graph 확장).
-
 ## 규칙
 
 ```text
 Constraint 를 VIOLATE 하는 후보를 여기에 올리지 않는다 — Design Conflict 로 따로 제시한다.
 Agent 는 후보와 근거를 제공하되 개발 우선순위를 확정하지 않는다.
 선택된 FR-* 는 cycles/<CycleId>/01-cycle.md 의 MASTER TRACE 로 이어진다.
+Cycle 이 닫히면 그 FR-* 를 이 파일에서 지우고 HISTORY.md 에 결과를 적는다.
+대기 사유는 근거 문서의 문장으로 확인되어야 한다 — 지어내지 않는다.
 ```
+
+이 파일은 **지금 고를 수 있는 것**만 담는다. 닫힌 Cycle 의 선택 기록과 거기서 배운 것은
+[HISTORY.md](HISTORY.md) 가 소유한다.

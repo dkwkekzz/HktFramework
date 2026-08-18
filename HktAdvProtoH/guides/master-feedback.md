@@ -23,8 +23,8 @@ Cycle 은 **보고**까지 하고, 반영은 이 작업이 한다.
 MC-PERFECT-GUARD   MISSING → IMPLEMENTED   근거 C010 08-verification
 ```
 
-2. **Frontier 정리** — 소진된 후보를 닫고, Cycle 결과로 새로 열린/닫힌 후보를 반영한다.
-   선택 기록 표에 Cycle ID 를 남긴다.
+2. **Frontier 정리** — 소진된 후보를 `frontier.md` 에서 **지우고**, 그 결과(어느 Cycle 로
+   닫혔는가 · 배운 것)를 `HISTORY.md` 에 적는다. Cycle 결과로 새로 열린 후보를 반영한다.
 3. **Constraint Evaluation 기록** — Constraint 가 실제 구현 형태에 영향을 주었다면
    해당 Capability/Possibility 의 `constraint_evaluation` 을 판정 결과로 갱신한다.
    영향이 없었다면 남기지 않는다 (무차별 Edge 금지).
@@ -38,15 +38,20 @@ MC-PERFECT-GUARD   MISSING → IMPLEMENTED   근거 C010 08-verification
 
 ## Output
 
-- `master/overlay.md` (갱신)
+- `master/overlay.md` (현재 상태 갱신)
 - `master/graph/capabilities.yaml` 의 `overlay` · `constraint_evaluation` (갱신)
-- `master/frontier.md` (갱신)
+- `master/frontier.md` (닫힌 후보 제거 · 새 후보 반영)
+- `master/HISTORY.md` (이번에 무엇이 왜 바뀌었는지 · 닫힌 후보의 결과)
 - `master/candidates/CC-*.md` (있으면 신규)
 
 ## Must
 
 - Overlay 승격 근거는 Cycle 의 **실측 기록**이다.
-- 무엇이 이번에 바뀌었는지 `overlay.md` 의 `이번 갱신` 에 남긴다.
+- Cycle 이 닫히면 다음 Cycle 을 시작하기 전에 Feedback 을 돌린다. 밀리면 Overlay 가
+  이미 채워진 Capability 를 결손으로 표시하고, 그 상태의 Frontier 는 "다음에 할 것이 없다"
+  로 읽힌다 (C011·C012 에서 실제로 일어났다).
+- 무엇이 이번에 왜 바뀌었는지 `HISTORY.md` 에 남긴다 — `overlay.md` 에는 결과만 반영한다.
+- 살아 있는 문서(`overlay.md` · `frontier.md` · `open-questions.md`)에 닫힌 것을 쌓지 않는다.
 - Candidate 는 `PENDING` 으로 둔다.
 
 ## Must Not

@@ -44,6 +44,9 @@ Constraint 는 기본 절차(WHY → OPTIONS → NEED → NEXT)의 단계가 아
 - `rationale` 을 설명할 수 있어야 한다 — 설명 못 하면 취향이지 Constraint 가 아니다.
 - Scope 로 "어떤 Node 에 적용되는가"를 판정할 수 있어야 한다.
 - 승인 상태를 `status` 로 명시한다. Human 승인 전에는 `DRAFT` 다.
+- 근거 문서가 그 의미를 더 이상 공급하지 않으면 **보류하지 말고 삭제한다** (Human 결정).
+  삭제 사유와 이력은 `master/HISTORY.md` 에 적는다 — `constraints/README.md` 에는
+  지금 살아 있는 Constraint 만 남긴다.
 
 ## Must Not
 
