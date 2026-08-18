@@ -938,16 +938,22 @@ C###-*       Cycle
 
 ```text
 HktAdvProtoH/
-├── design/
-│   └── Master-Intent-Graph-Policy.md
+├── design/                        원본 설계 — Human 소유
+│   ├── Master-Intent-Graph-Policy.md      ← 이 문서
+│   ├── Design-Concept.md
+│   ├── Design-Workflow.md
+│   ├── Design-CycleWorkflow.md
+│   ├── Design-CycleExecution.md
+│   └── Design-Combat-*.md                 기반 기획 문서 — Inject 의 원본
 │
 ├── guides/
 │   ├── master-why.md
 │   ├── master-options.md
 │   ├── master-need.md
 │   ├── master-next.md
-│   ├── master-feedback.md
-│   ├── master-inject.md
+│   ├── master-feedback.md                 접합점 반영 — 기본 4단계 밖
+│   ├── master-inject.md                   기반 기획 주입 — 기본 4단계 밖
+│   ├── master-constraint.md               Filter 정비 — 기본 실행 순서 밖
 │   └── cycle-definition.md ~ verification.md
 │
 ├── master/
@@ -958,9 +964,17 @@ HktAdvProtoH/
 │   ├── graph/
 │   ├── overlay.md
 │   ├── frontier.md
+│   ├── open-questions.md
 │   └── candidates/
 │
-└── cycles/
+├── cycles/                        완료된 Cycle History
+│
+├── world/                         Authoritative World 구현 (Server)
+├── view/                          Client View 구현
+├── protocol/                      World ↔ View 경계 타입
+├── motions/                       Kind 별 모션 자산
+├── app/ · server/                 Client / Server 실행 진입점
+└── tools/                         catalog · motion-atlas 등 보조 도구
 ```
 
 `master/` 는 History 가 아니라 현재 상태다.

@@ -162,6 +162,9 @@ Root Game Goal / World Premise (`master/root.md`) 와 Constraint 승인은 Human
 | [world/](world/) | Authoritative World 구현 (Server) | 현재 게임, 계속 발전 |
 | [view/](view/) | Client View 구현 | 현재 게임, 계속 발전 |
 | [protocol/](protocol/) | World ↔ View 경계 타입만 | 현재 게임, 계속 발전 |
+| [motions/](motions/) | Kind 별 모션 자산 (`motions/<kind>/`) | 현재 게임, 계속 발전 |
+| [app/](app/) · [server/](server/) | Client / Server 실행 진입점 | 현재 게임, 계속 발전 |
+| [tools/](tools/) | catalog · motion-atlas 등 보조 도구 | 필요할 때만 |
 | [design/](design/) | 원본 설계 — 경계 사례에서만 참조 | 원본 |
 
 ## 기준 문서 (Source of Truth)
