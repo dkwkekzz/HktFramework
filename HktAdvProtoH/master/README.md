@@ -44,6 +44,12 @@ Feedback(아래 접합점)은 닫힌 Cycle 의 사실을 반영하는 작업이�
 Knowledge / Belief · Conflict · Consequence · Reveal / Reframe · Constraint Candidate 는
 실제 설계 결정에 영향을 줄 때만 쓰는 보조 규칙이다 (정책 §11).
 
+기반 기획 문서(전투 규칙 등 `design/Design-*.md`)의 반영은 4단계 탐색이 아니라
+**주입(Inject)** 이다 — Human 문서가 원본이며, 문서의 원칙은 Constraint 로,
+플레이 의미는 노드(문서 § provenance)로 옮기고, 문서에 없는 것은 지어내지 않는다
+(정책 §9 예외 절차 · `guides/master-inject.md`). 아래 "현재 상태"의 전투 영역이
+이 공정으로 들어온 것이다. 주입이 끝나면 성장과 선택은 기본 4단계로 복귀한다.
+
 정책 원본은 [../design/Master-Intent-Graph-Policy.md](../design/Master-Intent-Graph-Policy.md) 다.
 파일 형식의 단일 출처는 [SCHEMA.md](SCHEMA.md) 다.
 작업 방법은 `../guides/master-*.md` 가, 실행은 `advprotoh-master` 스킬이 담당한다.

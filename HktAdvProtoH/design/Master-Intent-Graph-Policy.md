@@ -509,6 +509,28 @@ WHY → OPTIONS → NEED → NEXT → Human Select → Cycle
 
 이것이 Master 의 전체 기본 Workflow 다.
 
+### 예외 절차 — 기반 기획 주입 (Inject)
+
+Human 이 기반 기획 문서(전투 규칙 등 `design/Design-*.md`)를 작성·개정하면
+그 반영은 4단계 탐색이 아니라 **주입**으로 수행한다.
+
+```text
+탐색 (기본 4단계)   Graph 가 원본. 새 의미를 찾는다
+주입 (예외 절차)    Human 문서가 원본. 문서에 있는 의미만 옮긴다 — 번역이지 창작이 아니다
+```
+
+주입은 Human 지시로만 시작하며 다음을 산출한다.
+
+```text
+문서의 명시 원칙      → Constraint 후보 (DRAFT — Human 승인)
+문서의 플레이 의미     → Graph Node (문서 § provenance)
+예고된 확장 층        → 미리 세운 노드 — 없으면 Overlay 에도 Frontier 에도 나타나지 못한다
+문서가 공급 안 한 것   → Open Question — 지어내지 않는다
+수치·공식             → 옮기지 않는다 — 문서에 남고 Cycle 이 소유한다
+```
+
+주입이 끝나면 성장과 선택은 기본 4단계로 복귀한다.
+
 ---
 
 ## 10. Constraint 정책
@@ -925,6 +947,7 @@ HktAdvProtoH/
 │   ├── master-need.md
 │   ├── master-next.md
 │   ├── master-feedback.md
+│   ├── master-inject.md
 │   └── cycle-definition.md ~ verification.md
 │
 ├── master/
@@ -970,6 +993,7 @@ Master 실행은 항상 `WHY → OPTIONS → NEED → NEXT` 로 표현한다.
 18. 수치와 공식은 Master 가 아니라 Cycle / World Rule 이 소유한다.
 19. 반복되는 Design Pattern 은 Candidate 로만 제안하고 Human 이 승인한다.
 20. Runtime 은 가능한 한 `WHY → OPTION → NEED → CYCLE → RULE → RUNTIME` 으로 역추적 가능해야 한다.
+21. 기반 기획 문서의 반영은 탐색이 아니라 주입이다 — Human 문서가 원본이며 문서에 없는 의미를 지어내지 않는다.
 
 ---
 

@@ -1,6 +1,6 @@
 ---
 name: advprotoh-master
-description: HktAdvProtoH 의 Master Layer 작업을 실행한다 — WHY(World·Actor·Goal) / OPTIONS(대안 Possibility) / NEED(필요 Capability + Existing World Overlay) / NEXT(Frontier 후보) 4단계 기본 절차와, 닫힌 Cycle 의 Master Feedback 반영. Constraint 는 단계가 아니라 각 선택 지점의 Filter 다. Cycle Goal 이 어디서 오는지를 담당하는 위층이며, Frontier 선택(Human) 이후는 advprotoh-cycle 스킬이 이어받는다. 사용자가 "Master Graph 확장 / Constraint 정리 / Frontier 뽑아줘 / Overlay 갱신 / 다음 Cycle 뭐 할지 / Master 피드백 반영 / AdvProtoH master" 를 요청하면 사용.
+description: HktAdvProtoH 의 Master Layer 작업을 실행한다 — WHY(World·Actor·Goal) / OPTIONS(대안 Possibility) / NEED(필요 Capability + Existing World Overlay) / NEXT(Frontier 후보) 4단계 기본 절차와, 닫힌 Cycle 의 Master Feedback 반영, 그리고 Human 이 지목한 기반 기획 문서의 주입(Inject — 탐색이 아니라 번역: 문서에 있는 의미만 Constraint·Graph 로 옮긴다). Constraint 는 단계가 아니라 각 선택 지점의 Filter 다. Cycle Goal 이 어디서 오는지를 담당하는 위층이며, Frontier 선택(Human) 이후는 advprotoh-cycle 스킬이 이어받는다. 사용자가 "Master Graph 확장 / Constraint 정리 / Frontier 뽑아줘 / Overlay 갱신 / 다음 Cycle 뭐 할지 / Master 피드백 반영 / 기획 문서 반영·주입 / AdvProtoH master" 를 요청하면 사용.
 ---
 
 # HktAdvProtoH Master Layer Runner
@@ -47,17 +47,31 @@ CYCLE LAYER (advprotoh-cycle)   선택된 NEXT 를 World Semantic 과 Rule 로 �
   실제 설계 결정에 영향을 줄 때만 쓰는 **보조 규칙**이다 (정책 §11).
 - Feedback(위 접합점)은 닫힌 Cycle 의 사실을 반영하는 작업이며 기본 4단계에 들어가지 않는다.
 
+### 4단계가 아닌 것 — 기반 기획 주입 (Inject)
+
+Human 이 기반 기획 문서(`design/Design-*.md` — 전투 규칙 등)를 쓰거나 개정하고
+그 **반영**을 지시하면, 그것은 4단계 탐색이 아니라 **주입**이다 (정책 §9 예외 절차).
+
+```text
+탐색 (기본 4단계)   Graph 가 원본. 새 의미를 찾는다
+주입 (Inject)       Human 문서가 원본. 문서에 있는 의미만 옮긴다 — 번역이지 창작이 아니다
+```
+
+주입 요청을 4단계로 처리해 문서에 없는 Goal/Possibility 를 지어내지 마라.
+반대로, 문서 없이 4단계를 주입처럼 굴려 탐색을 건너뛰지도 마라.
+
 ## 1. 대상 Step 판정
 
 인자로 Step 이 지정되면 그것을 쓴다. 지정되지 않으면 아래 순서로 판정한다.
 
-1. 처리되지 않은 `08-verification.md` 의 `MASTER FEEDBACK` 이 있으면 → **Feedback** 을 먼저 돌린다
-2. `master/root.md` 가 비어 있으면 → **멈추고 Human 에게 Root Goal / World Premise 를 요청**
-3. Goal 의 주체·이유가 비어 있거나 이번 요청이 새 영역이면 → **WHY**
-4. Goal 은 있는데 의미 있게 다른 Possibility 가 탐색되지 않았으면 → **OPTIONS**
-5. Possibility 의 Requirement 가 비어 있거나 `overlay.md` 가 오래됐으면 → **NEED**
-6. Overlay 는 최신인데 `frontier.md` 에 후보가 없으면 → **NEXT**
-7. 후보가 있으면 → **멈추고 Human 에게 선택을 요청**
+1. 이번 요청이 Human 이 지목한 기반 기획 문서의 반영·주입이면 → **Inject**
+2. 처리되지 않은 `08-verification.md` 의 `MASTER FEEDBACK` 이 있으면 → **Feedback** 을 먼저 돌린다
+3. `master/root.md` 가 비어 있으면 → **멈추고 Human 에게 Root Goal / World Premise 를 요청**
+4. Goal 의 주체·이유가 비어 있거나 이번 요청이 새 영역이면 → **WHY**
+5. Goal 은 있는데 의미 있게 다른 Possibility 가 탐색되지 않았으면 → **OPTIONS**
+6. Possibility 의 Requirement 가 비어 있거나 `overlay.md` 가 오래됐으면 → **NEED**
+7. Overlay 는 최신인데 `frontier.md` 에 후보가 없으면 → **NEXT**
+8. 후보가 있으면 → **멈추고 Human 에게 선택을 요청**
 
 | Step | Guide | 입력 | 출력 |
 |---|---|---|---|
@@ -67,6 +81,7 @@ CYCLE LAYER (advprotoh-cycle)   선택된 NEXT 를 World Semantic 과 Rule 로 �
 | NEXT | `guides/master-next.md` | `overlay.md` · Graph · Active DC | `master/frontier.md` |
 | Human Select | — | `frontier.md` | **Human 전용 — Agent 가 고르지 않는다** |
 | Feedback | `guides/master-feedback.md` | `08-verification.md` MASTER FEEDBACK | overlay · frontier · CC 갱신 |
+| Inject | `guides/master-inject.md` | Human 지정 기반 기획 문서 · 기존 Graph/DC | constraints(DRAFT) · graph(§ provenance) · overlay · open-questions |
 
 Constraint 자체의 작업(신설·재작성·승인·충돌 Trade-off)은 Step 이 아니다 —
 Human 이 명시적으로 요청할 때만 `guides/master-constraint.md` 로 수행한다
@@ -119,6 +134,7 @@ world/ view/ 코드를 수정하지 않는다 — Overlay 판정을 위해 읽�
 cycles/ 의 Artifact 를 수정하지 않는다 — History 다.
 다음 Cycle Goal 을 자동 확정하지 않는다 — Human 이 고른다.
 UNRESOLVED 를 SATISFIED 로 간주하지 않는다.
+기반 기획 문서의 반영을 4단계 탐색으로 대신하지 않는다 — 주입은 문서에 있는 의미만 옮긴다.
 ```
 
 ### 막히면 — 지어내지 않는다

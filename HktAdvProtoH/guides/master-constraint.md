@@ -10,6 +10,9 @@ Constraint 는 기본 절차(WHY → OPTIONS → NEED → NEXT)의 단계가 아
 정비하는 작업 — 신설·재작성·승격·충돌 노출 — 을 다루며,
 **Human 이 명시적으로 요청할 때만** 수행한다.
 
+기반 기획 문서에서 원칙을 추출하는 작업은 주입(`master-inject.md`)의 1단계로 일어난다 —
+그때도 이 Guide 의 규칙(특히 "원본보다 세게 쓰지 않는다")을 그대로 따른다.
+
 ## Input
 
 - `master/root.md` — Root Game Goal · World Premise
