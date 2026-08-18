@@ -4,22 +4,23 @@
 // 검증하는 것은 "세계가 밝힌 목록이 사람이 읽고 쓸 수 있는 것이 되는가" 다.
 
 import { describe, expect, it } from 'vitest';
-import type { GameViewSnapshot } from '../../protocol/gameview';
+import type { GameViewSnapshot } from '../../../../protocol/gameview';
 import {
   commandEntries,
   composeCommand,
   invocationOf,
-} from '../presentation/command-presentation';
-import { commandActionRequest } from '../input/command-request';
-import { resolvePresentation } from '../presentation/resolve';
+} from '../../../../engine/view-kernel/presentation/command-presentation';
+import { commandActionRequest } from '../command-request';
+import { codeText } from '../code-text';
+import { resolvePresentation } from '../resolve';
 import fixture from './fixtures/command.fixture.json';
 
 const snapshot = fixture as GameViewSnapshot;
 const OFF = { 'collider-observe': false, 'attribute-inspect': false } as const;
-const entries = commandEntries(snapshot, OFF);
+const entries = commandEntries(snapshot, OFF, codeText);
 
 function compose(text: string, states = OFF) {
-  return composeCommand(text, commandEntries(snapshot, states), snapshot, states);
+  return composeCommand(text, commandEntries(snapshot, states, codeText), snapshot, states, codeText);
 }
 
 describe('목록 (04 commandSurface.browse) — 외우는 것이 아니라 보이는 것이다', () => {
@@ -61,10 +62,11 @@ describe('목록 (04 commandSurface.browse) — 외우는 것이 아니라 보�
   });
 
   it('관찰자 쪽 명령은 지금 켜져 있는지가 보인다', () => {
-    const on = commandEntries(snapshot, {
-      'collider-observe': true,
-      'attribute-inspect': false,
-    });
+    const on = commandEntries(
+      snapshot,
+      { 'collider-observe': true, 'attribute-inspect': false },
+      codeText,
+    );
     expect(on.find((e) => e.id === 'collider-observe')?.stateText).toBe('켜짐');
     expect(on.find((e) => e.id === 'attribute-inspect')?.stateText).toBe('꺼짐');
   });
@@ -75,7 +77,7 @@ describe('목록 (04 commandSurface.browse) — 외우는 것이 아니라 보�
       debug: { open: false },
       commands: [{ ...snapshot.commands[0]!, available: false, reason: 'debug-closed' }],
     } as GameViewSnapshot;
-    const entry = commandEntries(closed, OFF).find((e) => e.id === 'set-attribute')!;
+    const entry = commandEntries(closed, OFF, codeText).find((e) => e.id === 'set-attribute')!;
 
     expect(entry.available).toBe(false);
     expect(entry.unavailableText).toBe('이 세계는 속성 변경을 허용하지 않는다');
@@ -84,7 +86,7 @@ describe('목록 (04 commandSurface.browse) — 외우는 것이 아니라 보�
 
   it('세계가 밝히지 않은 명령은 목록에 없다 — View 가 지어내지 않는다', () => {
     const bare = { ...snapshot, commands: [] } as GameViewSnapshot;
-    const ids = commandEntries(bare, OFF).map((e) => e.id);
+    const ids = commandEntries(bare, OFF, codeText).map((e) => e.id);
 
     expect(ids).not.toContain('set-attribute');
     expect(ids).toEqual(['collider-observe', 'attribute-inspect']); // 관찰자 쪽 것만 남는다
@@ -200,7 +202,7 @@ describe('지목 (04 commandSurface.designation)', () => {
         { id: 'deposit-1', role: 'resource-deposit', state: 'available', position: { x: 8, z: -6 } },
       ],
     } as GameViewSnapshot;
-    const slots = commandEntries(withDeposit, OFF).find((e) => e.id === 'set-attribute')!.slots;
+    const slots = commandEntries(withDeposit, OFF, codeText).find((e) => e.id === 'set-attribute')!.slots;
 
     expect(slots[0]?.hint).toContain('npc-1');
     expect(slots[0]?.hint).not.toContain('deposit-1');

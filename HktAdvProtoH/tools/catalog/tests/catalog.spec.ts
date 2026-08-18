@@ -4,7 +4,7 @@
 
 import { describe, expect, it } from 'vitest';
 import { CHARACTER_CATALOG } from '../../../content/proto-adventure/world/semantic/character-catalog';
-import { KIND_PRESENTATIONS } from '../../../view/presentation/kind-presentation';
+import { KIND_PRESENTATIONS } from '../../../content/proto-adventure/view/kind-presentation';
 import { findDrift, scanMotionFolders } from '../print';
 
 describe('Character Catalog — 3원소 정합', () => {

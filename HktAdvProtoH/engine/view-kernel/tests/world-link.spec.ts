@@ -2,7 +2,7 @@
 // Implements INTENT-OBSERVER-LINK-001 · INTENT-OBSERVER-IDENTITY-001
 
 import { describe, expect, it } from 'vitest';
-import type { GameViewSnapshot } from '../../protocol/gameview';
+import type { GameViewSnapshot } from '../../../protocol/gameview';
 import {
   createWorldLink,
   MARK_INTERVAL_MS,

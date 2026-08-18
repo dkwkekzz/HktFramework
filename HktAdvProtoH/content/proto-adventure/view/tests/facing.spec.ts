@@ -3,16 +3,19 @@
 // World 미기동 — Semantic Fixture 와 시점 각만으로 "어느 쪽을 보이는가" 를 검증한다.
 
 import { describe, expect, it } from 'vitest';
-import type { GameViewSnapshot } from '../../protocol/gameview';
+import type { GameViewSnapshot } from '../../../../protocol/gameview';
 import {
   AMBIGUOUS_BAND,
   DEFAULT_SPRITE_BASELINE,
   facingDecision,
   readSide,
-  spriteBaseline,
-} from '../presentation/facing-presentation';
-import { screenSideValue } from '../camera/orientation';
-import { resolvePresentation } from '../presentation/resolve';
+} from '../../../../engine/view-kernel/presentation/facing-presentation';
+import { kindPresentation } from '../kind-presentation';
+
+// 종류 → 그림 기준 방향 — 팩의 kind 표가 정한다 (P3: 엔진은 baseline 을 인자로 받는다)
+const spriteBaseline = (kind: string | undefined) => kindPresentation(kind).spriteBaseline;
+import { screenSideValue } from '../../../../engine/view-kernel/camera/orientation';
+import { resolvePresentation } from '../resolve';
 import facing from './fixtures/facing.fixture.json';
 
 const QUARTER = Math.PI / 2;
@@ -30,8 +33,8 @@ describe('그림의 기준 방향 (C008 spriteOrientation)', () => {
   });
 
   it('읽힌 쪽이 기준 방향과 같으면 원본 그대로, 다르면 뒤집는다', () => {
-    expect(facingDecision('rabbit-swordsman', 1, undefined)).toEqual({ side: 'right', flip: false });
-    expect(facingDecision('rabbit-swordsman', -1, undefined)).toEqual({ side: 'left', flip: true });
+    expect(facingDecision(spriteBaseline('rabbit-swordsman'), 1, undefined)).toEqual({ side: 'right', flip: false });
+    expect(facingDecision(spriteBaseline('rabbit-swordsman'), -1, undefined)).toEqual({ side: 'left', flip: true });
   });
 });
 

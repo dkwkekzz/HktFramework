@@ -11,7 +11,7 @@ import { dirname, join, resolve } from 'node:path';
 import { buildAtlas, type SheetReport } from './build-atlas';
 import { renderAtlasModule, writeIfChanged } from './emit';
 
-export const ATLAS_MODULE_PATH = join('view', 'motion', 'motion-atlas.generated.ts');
+export const ATLAS_MODULE_PATH = join('engine', 'view-kernel', 'motion', 'motion-atlas.generated.ts');
 
 export function projectRoot(): string {
   return resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');

@@ -10,9 +10,9 @@
 //   자율 존재 wanderer       PhysicalAttack 40 · AuraAttack 15 · Armor 30 · Resistance 90
 
 import { describe, expect, it } from 'vitest';
-import type { GameViewSnapshot } from '../../protocol/gameview';
-import { interactionPresentation } from '../presentation/interaction-presentation';
-import { resolvePresentation } from '../presentation/resolve';
+import type { GameViewSnapshot } from '../../../../protocol/gameview';
+import { interactionPresentation } from '../interaction-presentation';
+import { resolvePresentation } from '../resolve';
 import fixture from './fixtures/damage-type.fixture.json';
 
 const snapshot = fixture as unknown as GameViewSnapshot;

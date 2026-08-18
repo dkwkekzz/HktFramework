@@ -8,7 +8,7 @@
 // 그래서 명령이 늘면 이 표에 한 줄이 는다. 세계 쪽 dispatch 의 분기와 짝을 이루며,
 // 목록·안내·기록 표면은 그대로다 (07 NOTES 참조).
 
-import type { ActionRequest } from '../../protocol/actions';
+import type { ActionRequest } from '../../../protocol/actions';
 
 type RequestBuilder = (values: Record<string, string>) => ActionRequest | null;
 

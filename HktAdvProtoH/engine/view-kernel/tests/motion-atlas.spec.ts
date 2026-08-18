@@ -7,11 +7,11 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { buildAtlas } from '../../tools/motion-atlas/build-atlas';
-import { detectSheet } from '../../tools/motion-atlas/detect-frames';
-import { renderAtlasModule } from '../../tools/motion-atlas/emit';
-import { readPngAlpha } from '../../tools/motion-atlas/png-alpha';
-import { ATLAS_MODULE_PATH, projectRoot } from '../../tools/motion-atlas/scan';
+import { buildAtlas } from '../../../tools/motion-atlas/build-atlas';
+import { detectSheet } from '../../../tools/motion-atlas/detect-frames';
+import { renderAtlasModule } from '../../../tools/motion-atlas/emit';
+import { readPngAlpha } from '../../../tools/motion-atlas/png-alpha';
+import { ATLAS_MODULE_PATH, projectRoot } from '../../../tools/motion-atlas/scan';
 import { MOTION_ATLAS } from '../motion/motion-atlas.generated';
 import {
   frameUv,

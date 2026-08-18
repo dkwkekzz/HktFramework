@@ -16,13 +16,16 @@ import type {
   CommandParameterView,
   CommandView,
   GameViewSnapshot,
-} from '../../protocol/gameview';
+} from '../../../protocol/gameview';
 import type {
   SceneCommandComposition,
   SceneCommandEntry,
   SceneCommandSlot,
 } from '../scene/scene-state';
-import { codeText } from './code-text';
+// 의미 코드 → 문구 변환은 컨텐츠 팩의 결정이다 (P3 CHANGED) — 주입받는다.
+// 주지 않으면 코드가 그대로 보인다 (표현 누락이 게임을 멈추지 않는다).
+export type CodeTextFn = (code: string) => string;
+const RAW_CODE: CodeTextFn = (code) => code;
 
 // ── 관찰자 쪽 명령 (04 observerCommands.items) ───────────────────────
 // 세계로 가지 않는다. 세계는 이런 것이 걸렸다는 사실조차 알지 못한다.
@@ -128,15 +131,16 @@ function slotOf(
   parameter: CommandParameterView,
   domain: CommandDomainView | undefined,
   snapshot: GameViewSnapshot | null,
+  textOf: CodeTextFn,
 ): SceneCommandSlot {
   const options = domainOptions(domain);
   return {
-    id: codeText(`param:${parameter.id}`),
+    id: textOf(`param:${parameter.id}`),
     required: parameter.required,
     hint: domainHint(domain, snapshot),
     ...(options.length > 0 ? { options } : {}),
     ...(parameter.omittedMeaning
-      ? { omittedMeaning: codeText(`omitted:${parameter.omittedMeaning}`) }
+      ? { omittedMeaning: textOf(`omitted:${parameter.omittedMeaning}`) }
       : {}),
   };
 }
@@ -153,23 +157,24 @@ function usageOf(command: CommandView): string {
 export function commandEntries(
   snapshot: GameViewSnapshot | null,
   observerStates: ObserverCommandStates,
+  textOf: CodeTextFn = RAW_CODE,
 ): SceneCommandEntry[] {
   const world: SceneCommandEntry[] = (snapshot?.commands ?? []).map((command) => ({
     id: command.id,
-    title: codeText(command.effect),
+    title: textOf(command.effect),
     origin: 'world' as const,
     available: command.available,
-    ...(command.reason ? { unavailableText: codeText(command.reason) } : {}),
+    ...(command.reason ? { unavailableText: textOf(command.reason) } : {}),
     usage: usageOf(command),
     slots: command.parameters.map((parameter, index) =>
-      slotOf(parameter, effectiveDomain(command.parameters, index, []), snapshot),
+      slotOf(parameter, effectiveDomain(command.parameters, index, []), snapshot, textOf),
     ),
   }));
 
   // 관찰자 쪽 명령은 언제나 걸 수 있다 — 세계의 허용과 무관하다.
   const observer: SceneCommandEntry[] = OBSERVER_COMMANDS.map((command) => ({
     id: command.id,
-    title: codeText(command.effect),
+    title: textOf(command.effect),
     origin: 'observer' as const,
     available: true,
     usage: command.id,
@@ -274,6 +279,7 @@ export function composeCommand(
   entries: readonly SceneCommandEntry[],
   snapshot: GameViewSnapshot | null,
   observerStates: ObserverCommandStates,
+  textOf: CodeTextFn = RAW_CODE,
 ): SceneCommandComposition {
   const { words, typingNew } = tokenize(text);
   const typed = words[0] ?? '';
@@ -385,7 +391,7 @@ export function composeCommand(
   return {
     text,
     candidates: [entry],
-    ...(nextParameter ? { nextSlot: slotOf(nextParameter, nextDomain, snapshot) } : {}),
+    ...(nextParameter ? { nextSlot: slotOf(nextParameter, nextDomain, snapshot, textOf) } : {}),
     suggestions,
     ...(problem ? { problem } : {}),
     submittable: !missing && allFit && problem === undefined,

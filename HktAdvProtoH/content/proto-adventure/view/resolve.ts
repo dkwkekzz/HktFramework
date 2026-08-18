@@ -5,19 +5,19 @@
 // 결정은 전부 *-presentation.ts 의 role/id 단위 단일 항목과 주입된 Motion Library 에서 온다.
 // 이 파일과 capability 코드는 Cycle 이 늘어도 수정되지 않는다.
 
-import type { GameViewSnapshot } from '../../protocol/gameview';
-import { screenSideValue } from '../camera/orientation';
-import { facingDecision, type ScreenSide } from './facing-presentation';
-import { motionLibrary } from '../motion/motion-source';
-import type { MotionLibrary } from '../motion/motion-library';
+import type { GameViewSnapshot } from '../../../protocol/gameview';
+import { screenSideValue } from '../../../engine/view-kernel/camera/orientation';
+import { facingDecision, type ScreenSide } from '../../../engine/view-kernel/presentation/facing-presentation';
+import { motionLibrary } from '../../../engine/view-kernel/motion/motion-source';
+import type { MotionLibrary } from '../../../engine/view-kernel/motion/motion-library';
 import type {
   SceneCommandHistoryLine,
   SceneCommandSurface,
   SceneMotion,
   SceneState,
-} from '../scene/scene-state';
-import { collisionDebug } from './collision-presentation';
-import { commandEntries, composeCommand } from './command-presentation';
+} from '../../../engine/view-kernel/scene/scene-state';
+import { collisionDebug } from '../../../engine/view-kernel/presentation/collision-presentation';
+import { commandEntries, composeCommand } from '../../../engine/view-kernel/presentation/command-presentation';
 import {
   inspectLines,
   isSelfHudId,
@@ -28,6 +28,7 @@ import {
 import { hudPresentation } from './hud-presentation';
 import { interactionPresentation } from './interaction-presentation';
 import { codeText } from './code-text';
+import { kindPresentation } from './kind-presentation';
 import { rolePresentation } from './role-presentation';
 
 // 관찰자 쪽 표시 선택 (C006) — 충돌체 디버그 관찰을 켤지. World 에 아무것도 요청하지 않는다.
@@ -102,12 +103,12 @@ function commandSurface(
     'collider-observe': options.debugObserve ?? false,
     'attribute-inspect': options.inspect ?? false,
   } as const;
-  const entries = commandEntries(snapshot, states);
+  const entries = commandEntries(snapshot, states, codeText);
   const input = options.command;
   return {
     open: input?.open ?? false,
     entries,
-    composition: composeCommand(input?.text ?? '', entries, snapshot, states),
+    composition: composeCommand(input?.text ?? '', entries, snapshot, states, codeText),
     history: [...(input?.history ?? [])],
   };
 }
@@ -146,7 +147,7 @@ export function resolvePresentation(
       const facing = e.body?.facing;
       const decided = facing
         ? facingDecision(
-            e.kind,
+            kindPresentation(e.kind).spriteBaseline,
             screenSideValue(options.viewTurn ?? 0, facing),
             options.facingSides?.[e.id],
           )

@@ -7,8 +7,8 @@
 import { createHash } from 'node:crypto';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative, sep } from 'node:path';
-import { parseMotionPath } from '../../view/motion/motion-format';
-import type { MotionAtlas, MotionFrameGeometry, MotionGeometry } from '../../view/motion/motion-geometry';
+import { parseMotionPath } from '../../engine/view-kernel/motion/motion-format';
+import type { MotionAtlas, MotionFrameGeometry, MotionGeometry } from '../../engine/view-kernel/motion/motion-geometry';
 import { detectSheet, type DetectedSheet } from './detect-frames';
 import { readPngAlpha } from './png-alpha';
 

@@ -6,8 +6,8 @@
 // 자율 존재는 wanderer (Attack 40 · Defense 30) 다.
 
 import { describe, expect, it } from 'vitest';
-import type { GameViewSnapshot } from '../../protocol/gameview';
-import { resolvePresentation } from '../presentation/resolve';
+import type { GameViewSnapshot } from '../../../../protocol/gameview';
+import { resolvePresentation } from '../resolve';
 import fixture from './fixtures/combat.fixture.json';
 
 const snapshot = fixture as GameViewSnapshot;

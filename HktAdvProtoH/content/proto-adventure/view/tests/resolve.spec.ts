@@ -3,9 +3,9 @@
 // 핵심 명제 검증 포함: 같은 role 의 결정은 단일 항목이며, 미등록 항목도 기본 결정으로 소화한다.
 
 import { describe, expect, it } from 'vitest';
-import type { GameViewSnapshot } from '../../protocol/gameview';
-import { resolvePresentation } from '../presentation/resolve';
-import { createMotionLibrary } from '../motion/motion-library';
+import type { GameViewSnapshot } from '../../../../protocol/gameview';
+import { resolvePresentation } from '../resolve';
+import { createMotionLibrary } from '../../../../engine/view-kernel/motion/motion-library';
 import available from './fixtures/mining-available.fixture.json';
 import characterAction from './fixtures/character-action.fixture.json';
 import depleted from './fixtures/deposit-depleted.fixture.json';
@@ -195,7 +195,7 @@ describe('결정 Layer 의 유연 대응 — 미등록 항목도 기본 결정�
   });
 
   it('결정이 참조하는 sprite 들은 Asset Registry 에 등록되어 있다', async () => {
-    const { REGISTERED_SPRITE_IDS } = await import('../assets/registry');
+    const { REGISTERED_SPRITE_IDS } = await import('../sprites');
     for (const id of [
       'player-pickaxe:idle',
       'player-pickaxe:moving',

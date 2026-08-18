@@ -11,15 +11,15 @@
 //
 // 소켓 자체는 주입받는다 — 전송 수단 없이 검증할 수 있어야 하기 때문이다.
 
-import type { ActionRequest } from '../../protocol/actions';
-import type { GameViewSnapshot, RequestOutcomeView } from '../../protocol/gameview';
+import type { ActionRequest } from '../../../protocol/actions';
+import type { GameViewSnapshot, RequestOutcomeView } from '../../../protocol/gameview';
 import {
   parseServerMessage,
   type ActionMessage,
   type JoinMessage,
   type LinkState,
   type MarkMessage,
-} from '../../protocol/transport';
+} from '../../../protocol/transport';
 import { createLinkTelemetry, type LinkTelemetry } from './link-telemetry';
 
 export interface LinkSocket {

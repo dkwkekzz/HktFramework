@@ -9,27 +9,34 @@
 // world/ 를 import 하지 않는다 — 이제는 규율이 아니라 물리적 사실이다.
 
 import { TRANSPORT_PATH } from '../protocol/transport';
-import { createCommandConsole } from '../view/hud/command-console';
-import { createHud, type EntityLabel, type EntityPlate, type StrikeMark } from '../view/hud/hud';
-import { createTouchPad } from '../view/hud/touch-pad';
-import { commandActionRequest } from '../view/input/command-request';
-import { attachInput } from '../view/input/input';
-import { attachKeyboard } from '../view/input/keyboard';
-import { attachPointerLook } from '../view/input/pointer';
-import { attachTouchControls } from '../view/input/touch';
-import type { ScreenSide } from '../view/presentation/facing-presentation';
-import { browserIdentityStorage, resolveObserverId } from '../view/net/observer-identity';
-import { browserSocketFactory, createWorldLink } from '../view/net/world-link';
-import { bindingLines, telemetryLines } from '../view/presentation/link-presentation';
-import { codeText } from '../view/presentation/code-text';
+import { createCommandConsole } from '../engine/view-kernel/hud/command-console';
+import { createHud, type EntityLabel, type EntityPlate, type StrikeMark } from '../engine/view-kernel/hud/hud';
+import { createTouchPad } from '../engine/view-kernel/hud/touch-pad';
+
+import { attachInput } from '../engine/view-kernel/input/input';
+import { attachKeyboard } from '../engine/view-kernel/input/keyboard';
+import { attachPointerLook } from '../engine/view-kernel/input/pointer';
+import { attachTouchControls } from '../engine/view-kernel/input/touch';
+import type { ScreenSide } from '../engine/view-kernel/presentation/facing-presentation';
+import { browserIdentityStorage, resolveObserverId } from '../engine/view-kernel/net/observer-identity';
+import { browserSocketFactory, createWorldLink } from '../engine/view-kernel/net/world-link';
+import { bindingLines, telemetryLines } from '../engine/view-kernel/presentation/link-presentation';
+
 import {
   invocationOf,
   type ObserverCommandId,
-} from '../view/presentation/command-presentation';
-import { resolvePresentation } from '../view/presentation/resolve';
-import { sessionPresentation } from '../view/presentation/session-presentation';
-import { createRenderer } from '../view/renderer/renderer';
-import type { SceneCommandHistoryLine, SceneState } from '../view/scene/scene-state';
+} from '../engine/view-kernel/presentation/command-presentation';
+import {
+  codeText,
+  commandActionRequest,
+  KEY_BINDINGS,
+  resolvePresentation,
+  SPRITE_SHEET,
+} from '../content/active-view';
+import { registerSprites } from '../engine/view-kernel/assets/registry';
+import { sessionPresentation } from '../engine/view-kernel/presentation/session-presentation';
+import { createRenderer } from '../engine/view-kernel/renderer/renderer';
+import type { SceneCommandHistoryLine, SceneState } from '../engine/view-kernel/scene/scene-state';
 
 const container = document.getElementById('game');
 if (!container) throw new Error('#game 컨테이너가 없다');
@@ -47,6 +54,9 @@ const link = createWorldLink(
   undefined,
   worldAddress, // C005 binding.worldAddress — 어느 세계에 이어져 있는가
 );
+
+// 팩의 스프라이트 표를 그리기 장치에 등록한다 (P3 — 설계 반전 ⑤)
+registerSprites(SPRITE_SHEET);
 
 const renderer = createRenderer(container);
 const hud = createHud(container);
@@ -210,14 +220,7 @@ function drainOutcomes(): void {
   }
 }
 
-// 이동 모드 (C007) — 요청은 토글이 아니라 명시값이므로(walk | run),
-// 지금 무엇인지를 보고 반대값을 보낸다. 정하는 것은 세계다.
-const MOVE_MODE_KEYS = ['ShiftLeft', 'ShiftRight'];
-
-// 막기 (C011) — 걸기와 놓기를 한 키로 오간다. 키 자체는
-// presentation/interaction-presentation.ts 의 guard-begin 항목이 정하고,
-// 여기서는 그 키를 받아 어느 쪽을 요청할지만 고른다.
-const GUARD_KEY = 'KeyQ';
+// 팩 고유 특수 키(막기 토글·이동 모드 전환)는 KEY_BINDINGS 가 나른다 (P3).
 
 // 타격 결과가 화면에 떠 있는 시간 — 세계의 STRIKE_EVENT_TTL 과 같은 값을 볼 필요는 없다.
 // 세계가 보내 주는 동안 그리고, 나이에 따라 옅어질 뿐이다.
@@ -337,24 +340,11 @@ function frame(now: number): void {
       inspect = !inspect;
       continue;
     }
-    // 막기 (C011) — 세계에는 걸기와 놓기가 따로 있다. 화면에서는 한 키로 오간다.
-    // 이동 모드와 같은 판단이다 — 세계가 지금 무엇이라고 알려 주었는지를 보고 반대를 요청한다.
-    // 무너진 동안에는 걸기가 가용하지 않으므로 세계가 사유와 함께 거절한다 (View 가 판정하지 않는다).
-    if (code === GUARD_KEY) {
-      const guarding = latestScene.self?.guard.guarding ?? false;
-      const wanted = guarding ? 'guard-release' : 'guard-begin';
-      const guard = latestScene.interactions.find((i) => i.id === wanted);
-      if (guard) link.send({ interactionId: guard.id });
-      continue;
-    }
-    // 이동 모드 (C007) — 값을 실어 보내야 하므로 여기서 직접 다룬다.
-    // 세계가 지금 무엇이라고 알려 주었는지를 보고 그 반대를 요청한다.
-    if (MOVE_MODE_KEYS.includes(code)) {
-      const moveMode = latestScene.interactions.find((i) => i.id === 'move-mode');
-      if (moveMode) {
-        const current = latestScene.self?.moveModeCode ?? 'walk';
-        link.send({ interactionId: moveMode.id, mode: current === 'run' ? 'walk' : 'run' });
-      }
+    // 팩 고유 특수 키 (P3) — 장면을 읽어 요청을 고르는 규칙은 팩이 등록한다.
+    // 여기서는 code 가 맞는 바인딩을 부를 뿐, 그 안에서 무엇이 골라지는지 모른다.
+    const binding = KEY_BINDINGS.find((b) => b.code === code);
+    if (binding) {
+      binding.invoke(latestScene, (action) => link.send(action));
       continue;
     }
     const keyed = latestScene.interactions.filter((i) => i.key === code);

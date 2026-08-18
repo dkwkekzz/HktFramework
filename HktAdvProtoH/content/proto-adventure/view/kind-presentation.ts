@@ -10,7 +10,7 @@
 //   3. motions/<kind>/ 폴더                         (그림 — 없으면 placeholder 로 그려진다)
 // 전체는 `npm run catalog` 로 한눈에 관찰한다 (tools/catalog).
 
-import type { ScreenSide } from './facing-presentation';
+import type { ScreenSide } from '../../../engine/view-kernel/presentation/facing-presentation';
 
 export interface KindPresentation {
   /**

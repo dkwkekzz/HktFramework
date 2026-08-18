@@ -5,7 +5,7 @@
 
 import { writeFileSync, readFileSync, mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
-import type { MotionAtlas } from '../../view/motion/motion-geometry';
+import type { MotionAtlas } from '../../engine/view-kernel/motion/motion-geometry';
 
 const HEADER = `// 이 파일은 생성물이다 — 직접 고치지 마라.
 //

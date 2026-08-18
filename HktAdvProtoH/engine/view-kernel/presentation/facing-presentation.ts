@@ -1,16 +1,15 @@
 // Facing Presentation — 몸이 향한 방향을 그림의 좌우로 옮기는 결정 (C008).
 // 04-gameview.spec.yaml 의 `entities.character.facing.read` 와 `spriteOrientation` 이 원본이다.
-// 종류별 그림의 기준 방향은 kind-presentation.ts(종의 표현 단일 출처)에서 온다.
+// 종류별 그림의 기준 방향은 컨텐츠 팩의 kind-presentation(종의 표현 단일 출처)이 정해
+// 인자로 들어온다 — 이 파일은 좌우 읽기의 기계장치만 소유한다 (P3 CHANGED).
 //
 // 여기서 정하는 것은 "보이는 방향" 하나뿐이다. 세계의 몸 방향은 이 파일이 건드리지 않는다 —
 // 순서는 언제나 몸 방향 → 화면 좌우 → 그림이며, 뒤집히지 않는다 (02 INTENT-STRIKE-LEGIBLE-001).
 
-import { DEFAULT_KIND_PRESENTATION, kindPresentation } from './kind-presentation';
-
 export type ScreenSide = 'left' | 'right';
 
 /** 등록되지 않은 종류의 기본값 (04 spriteOrientation.baseline.default) */
-export const DEFAULT_SPRITE_BASELINE: ScreenSide = DEFAULT_KIND_PRESENTATION.spriteBaseline;
+export const DEFAULT_SPRITE_BASELINE: ScreenSide = 'right';
 
 /**
  * 좌우 어느 쪽도 아니라고 볼 폭 (04 ambiguous: keep-previous).
@@ -18,10 +17,6 @@ export const DEFAULT_SPRITE_BASELINE: ScreenSide = DEFAULT_KIND_PRESENTATION.spr
  * 이 폭 안에서는 직전에 읽힌 쪽을 그대로 쓴다.
  */
 export const AMBIGUOUS_BAND = 0.12;
-
-export function spriteBaseline(kind: string | undefined): ScreenSide {
-  return kindPresentation(kind).spriteBaseline;
-}
 
 /**
  * 화면 좌우 성분 → 읽히는 쪽.
@@ -44,13 +39,12 @@ export interface FacingDecision {
   flip: boolean;
 }
 
-/** 몸 방향의 화면 좌우 성분과 존재 종류로부터 그림 지시를 만든다 */
+/** 몸 방향의 화면 좌우 성분과 그림 기준 방향으로부터 그림 지시를 만든다 */
 export function facingDecision(
-  kind: string | undefined,
+  baseline: ScreenSide,
   screenSide: number,
   previous: ScreenSide | undefined,
 ): FacingDecision {
-  const baseline = spriteBaseline(kind);
   const side = readSide(screenSide, previous, baseline);
   return { side, flip: side !== baseline };
 }

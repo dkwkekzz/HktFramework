@@ -2,8 +2,8 @@
 // debugObserve 계약(bodies 캡슐 / 칼끝 구 / struck / velocity)의 표현 결정을 검증한다.
 
 import { describe, expect, it } from 'vitest';
-import type { GameViewSnapshot } from '../../protocol/gameview';
-import { resolvePresentation } from '../presentation/resolve';
+import type { GameViewSnapshot } from '../../../../protocol/gameview';
+import { resolvePresentation } from '../resolve';
 import fixture from './fixtures/collision-debug.fixture.json';
 
 const snapshot = fixture as GameViewSnapshot;

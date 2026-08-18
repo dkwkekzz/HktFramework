@@ -19,13 +19,13 @@ import {
   DEFAULT_KIND_PRESENTATION,
   KIND_PRESENTATIONS,
   type KindPresentation,
-} from '../../view/presentation/kind-presentation';
+} from '../../content/proto-adventure/view/kind-presentation';
 import {
   DEFAULT_ROLE_SIZE,
   ROLE_PRESENTATIONS,
-} from '../../view/presentation/role-presentation';
-import { REGISTERED_SPRITE_IDS } from '../../view/assets/registry';
-import { parseMotionPath, ROOT_DIR, type MotionAsset } from '../../view/motion/motion-format';
+} from '../../content/proto-adventure/view/role-presentation';
+import { REGISTERED_SPRITE_IDS } from '../../content/proto-adventure/view/sprites';
+import { parseMotionPath, ROOT_DIR, type MotionAsset } from '../../engine/view-kernel/motion/motion-format';
 
 export function projectRoot(): string {
   return resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
