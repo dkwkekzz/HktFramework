@@ -26,6 +26,9 @@ Human 이 답한다    DECISION 줄
                   (Narrative 는 개정 정책에서 보조 규칙(§11)이 되어 별도 Gate 가 아니다.)
                   Cycle 을 도는 데는 지장이 없다 — Frontier 는 Possibility 까지만 요구한다.
                   그러나 "왜 이 기능이 존재하는가" 의 최상단이 비어 있는 상태로 누적된다.
+                  2026-08-18 GR(Growth) 주입 이후 무게가 늘었다 — Class/Item 은
+                  origin_trace(World Cause) 필수라서(DC-GROWTH-CLASS-ORIGIN-TRACE APPROVED)
+                  이것이 닫히기 전에는 성장 콘텐츠 노드(CL-*/IT-*)를 한 개도 만들 수 없다.
 
     필요한 것     master/root.md 의 Root Game Goal · World Premise (Human 소유)
 
@@ -89,3 +92,4 @@ Human 이 답한다    DECISION 줄
     Expected      결정 전까지 Frontier 에 확률 Critical 후보를 올리지 않는다 (현재 상태).
 
     DECISION      <PENDING>
+

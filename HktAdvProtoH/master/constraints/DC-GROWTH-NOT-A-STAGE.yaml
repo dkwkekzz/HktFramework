@@ -1,0 +1,34 @@
+# 원본 근거: design/Master-Intent-Graph-Growth.md (GR)
+#   §21 (기존 Master 중심 인과를 변경하지 않는다 · 새 Stage 를 추가하지 않는다) ·
+#   §22.1 (Growth 는 별도 Workflow Stage 가 아니다 — GROWTH 라는 Master Stage 를
+#          만들지 않는다 · NEED 의 Capability 에 획득 경로를 Overlay 한다) ·
+#   §39 (Master ↔ Growth ↔ Cycle 책임 분리)
+id: DC-GROWTH-NOT-A-STAGE
+type: constraint
+
+statement: >
+  Growth 는 별도 Master Stage 가 아니다. 기본 절차 WHY → OPTIONS → NEED → NEXT 는
+  그대로 유지되고, Growth Graph 는 NEED 에서 발견된 Capability 에 대해
+  "세계에서 어떻게 얻는가"를 덧씌우는 보조 Overlay 로만 존재한다.
+rationale: >
+  Growth 를 Stage 로 만들면 성장 경로가 Goal/Possibility 와 나란한 독립 공정이 되어
+  Capability 필요성의 단일 출처(Possibility)가 둘로 쪼개진다. Master 의 중심 인과
+  (Goal → Possibility → Capability → Frontier → Cycle)를 바꾸지 않는 것이
+  이 확장의 전제다 (GR §21).
+
+scope:
+  - GROWTH
+
+requires:
+  - growth_as_capability_overlay        # Capability 기준의 역방향 조회로만 존재 (GR §21 · §22.1)
+prohibits:
+  - new_master_stage_for_growth         # WHY→OPTIONS→NEED→NEXT 에 GROWTH 단계 추가 (GR §22.1)
+prefers: []
+
+status: APPROVED
+provenance:
+  - HUMAN_DESIGN          # 2026-08-18 Human 지시로 GR 주입
+
+relations:
+  supports: []
+  conflicts_with: []

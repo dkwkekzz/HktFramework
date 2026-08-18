@@ -1,0 +1,33 @@
+# 원본 근거: design/Master-Intent-Graph-Growth.md (GR)
+#   §34 (Growth Graph 가 Goal 을 대신하지 않는다 — 현재 Goal 달성을 위해 성장하는
+#        것이 의미 있을 때만 Growth Possibility 를 만든다) ·
+#   §42 Anti-pattern (다음 Class 를 얻어야 한다 → 그래서 Quest 를 만든다)
+id: DC-GROWTH-GOAL-FIRST
+type: constraint
+
+statement: >
+  성장(새 Class · Item · Capability 의 획득) 자체를 Goal 로 세우지 않는다.
+  성장은 Actor 의 현재 Goal 을 현재 Capability 로 달성하기 어려울 때,
+  그 Goal 을 달성하는 하나의 Possibility 로만 성립한다.
+rationale: >
+  "다음 Class 를 얻어야 한다 → Quest 를 만든다" 방향을 허용하면 성장이 목적이 되고
+  세계는 성장의 소품이 된다. Goal 이 먼저 있고, 부족한 Capability 가 드러나고,
+  그때 Class/Item/Actor 를 통한 획득 경로가 대안(Possibility)으로 나타나는
+  순서만 허용한다 (GR §34 · §42 GOOD 예).
+
+scope:
+  - GROWTH
+
+requires:
+  - growth_possibility_serves_current_goal   # 성장 Possibility 는 기존 MG-* 를 achieves (GR §34)
+prohibits:
+  - growth_target_as_goal                    # Class/Item 획득 자체를 MG-* 로 (GR §42)
+prefers: []
+
+status: APPROVED
+provenance:
+  - HUMAN_DESIGN          # 2026-08-18 Human 지시로 GR 주입
+
+relations:
+  supports: [DC-GROWTH-NEED-FROM-POSSIBILITY]
+  conflicts_with: []

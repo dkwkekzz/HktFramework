@@ -113,6 +113,51 @@ constraints/README.md   현재 Active Constraint        → 반영 이력은 여
                   MC-WEAK-POINT · MC-REAR-ATTACK · MP-STRIKE-THE-VULNERABLE-SPOT 삭제.
                   상세는 overlay.md "이번 갱신" · constraints/README.md "반영 이력".
 
+## Q13. DC-GROWTH 6종(DRAFT) + growth/ 스키마 확장 승인 — CLOSED
+
+    무엇          GR(design/Master-Intent-Graph-Growth.md — 성장: Class/Item) 주입으로 만든
+                  DC-GROWTH-NEED-FROM-POSSIBILITY · CLASS-ORIGIN-TRACE ·
+                  NO-CAPABILITY-DUPLICATION · DEFINITION-INSTANCE-SPLIT ·
+                  NOT-A-STAGE · GOAL-FIRST 6종이 DRAFT 였다.
+                  SCHEMA.md 의 growth/ 확장(CL/IT/IP/IM 양식 · II- Runtime 전용)도
+                  같은 문서의 번역이므로 함께 확인 대상이었다.
+
+    DECISION      (a) 6종 일괄 APPROVED — 2026-08-18 Human 지시 ("모두 승인처리").
+                  growth/ 스키마 확장도 함께 확정. Active 는 5종 → 11종.
+                  승인 전 Agent 평가(대화 기록): ①NEED-FROM-POSSIBILITY ·
+                  ②CLASS-ORIGIN-TRACE · ④DEFINITION-INSTANCE-SPLIT 이 척추,
+                  ③NO-CAPABILITY-DUPLICATION · ⑥GOAL-FIRST 가 프로젝트 야망 보호,
+                  ⑤NOT-A-STAGE 는 정책 §22.1 과 중복인 공정 보호 — Human 이
+                  중복을 알고도 6종 전부를 승인했다.
+                  GR 은 성장(GROWTH scope) 영역의 근거 문서가 된다 — 전투 노드에도
+                  쓸지는 Q15 로 남는다.
+
+## Q14. 심연(Abyss) 예시의 지위 — 삽화인가 세계 설정의 씨앗인가 — CLOSED
+
+    무엇          GR 은 심연·가론·심연의 버서커 계보(§24.2 · §30 · §36)로 구조를 설명한다.
+                  주입 시 삽화로 판정해 그래프에 옮기지 않았고, 씨앗으로 쓸지를 물었다.
+
+    DECISION      질문 제거 — 2026-08-18 Human 지시. 심연 예시는 삽화로 남는다(비주입 유지).
+                  실제 세계관은 root.md 가 채워질 때 새로 정한다.
+
+## Q15. GR 을 셋째 근거 문서로 추가할 것인가 — CLOSED
+
+    무엇          Q12 는 근거 문서를 R1·DT 둘로 한정했는데, Growth 주입 산출물이
+                  GR 을 인용하게 되어 GR 의 지위를 물었다.
+
+    DECISION      (b) 영역 분리 — 2026-08-18 Human 승인. GR 은 성장(GROWTH) 영역 한정
+                  근거다. 근거는 영역을 넘지 않는다 — 전투 노드에 GR 금지, 성장 노드에
+                  R1/DT 금지. constraints/README 에 상시 규칙으로 반영.
+
+## Q16. GR §41 Growth Quality Gate 의 guides/ 반영 — CLOSED
+
+    무엇          GR §41 체크리스트(Class/Item/Growth 완료 조건)를 가이드 문서에
+                  복사할지, 원본 참조로 둘지를 물었다.
+
+    DECISION      (c) 복사하지 않는다 — 2026-08-18 Human 승인. 이중 관리를 피하기 위해
+                  GR §41 을 직접 참조한다. SCHEMA.md growth 절에 "생성·변경 시 §41 통과"
+                  상시 규칙 한 줄로 반영.
+
 ## 사유만 남은 질문 (Q1 · Q4~Q7)
 
     Q12 보류 중인 DC 2종의 재승인 여부 (2026-08-18 — 보류 상태 자체를 없앴다)
@@ -330,4 +375,19 @@ ONE-LAYER-AT-A-TIME 신설, 이연 층 근거의 3종은 DRAFT 보류.
 두 DC 를 참조하던 Graph 노드의 `constraints` · `constraint_evaluation` 항목도 함께
 제거했다. 이 DC 들이 필요해지면 해당 층(Active Defense · Aura/Nen)의 설계 문서가 나온 뒤
 그 문서를 근거로 새로 만든다 — 근거 없는 문안을 보존해 두지 않는다.
+
+2026-08-18 (GR 주입 · Q13) — **성장 영역 DC-GROWTH 6종 신설 → 같은 날 일괄 APPROVED.**
+
+```text
+신설  DC-GROWTH-NEED-FROM-POSSIBILITY     GR §22.2 · §27.1 · §42 — Class/Item 은 획득 경로일 뿐
+신설  DC-GROWTH-CLASS-ORIGIN-TRACE        GR §24.2 · §41 — Class 는 세계 인과의 결과
+신설  DC-GROWTH-NO-CAPABILITY-DUPLICATION GR §33 · §35 · §42 — Source 별 Capability 복제 금지
+신설  DC-GROWTH-DEFINITION-INSTANCE-SPLIT GR §28~§32 · §42 — Master 는 유한 Definition 만
+신설  DC-GROWTH-NOT-A-STAGE               GR §21 · §22.1 — Growth 는 Stage 가 아니라 Overlay
+신설  DC-GROWTH-GOAL-FIRST                GR §34 · §42 — 성장 자체를 Goal 로 세우지 않는다
+```
+
+주입에서 문서의 심연 예시(§24.2 · §30 · §36)는 삽화로 판정해 Graph 에 옮기지 않았다(Q14 대기).
+수치·공식은 옮기지 않았다(정책 §7.2). SCHEMA.md 에 growth/ 양식(CL/IT/IP/IM · II- Runtime
+전용)을 추가했고 growth/growth-graph.md 가 Growth Overlay(획득 경로 판정)를 소유한다.
 

@@ -16,7 +16,13 @@ MW-*    Master WorldState       MP-*    Master Possibility
 MA-*    Master Actor            MC-*    Master Capability
 MK-*    Master Knowledge        FR-*    Frontier Candidate
 MB-*    Master Belief           CC-*    Constraint Candidate
+
+CL-*    Class Definition        IT-*    Item Type          (growth/ — GR §37)
+IP-*    Item Property           IM-*    Item Modifier
 ```
+
+`II-*`(Item Instance)는 **Runtime World ID 다** — Master Registry 의 정적 Node 로
+만들지 않는다 (GR §29 · §37). GR = `design/Master-Intent-Graph-Growth.md`.
 
 Cycle-local 표기(`GOAL-*` `POSSIBILITY-*` `INTENT-*` `RULE-*` `C###-<name>`)는 기존 그대로다.
 Master 와 Cycle-local 을 같은 Prefix 로 섞지 않는다.
@@ -192,6 +198,102 @@ nodes:
   to:   MC-<NAME>             # SUPPORTS OPPOSES CHANGES REVEALS REFRAMES CREATES_GOAL
   note: ''                    # CONSTRAINS SUPPORTS_CONSTRAINT CONFLICTS_WITH
 ```
+
+---
+
+## growth/ — Growth Graph (Class · Item Definition)
+
+Capability 를 "세계에서 어떻게 얻는가"의 획득 경로 **Definition** 이다
+(원본: GR = `design/Master-Intent-Graph-Growth.md`).
+Definition 만 여기 둔다 — Runtime 에 실제로 생성된 Item Instance(`II-*`)와
+모든 조합 결과의 사전 생성은 Master 에 오지 않는다 (GR §28~§29 · §31~§32).
+
+```text
+growth/
+├── classes/          CL-*.yaml   (파일 하나 = Class 하나)
+├── items/
+│   ├── types/        IT-*.yaml
+│   ├── properties/   IP-*.yaml
+│   └── modifiers/    IM-*.yaml
+└── growth-graph.md   Growth Overlay — Capability 획득 경로 판정
+```
+
+디렉터리는 첫 노드가 생길 때 만든다 (GR §40).
+CL/IT/IP/IM 노드는 생성·변경 시 **GR §41 Growth Quality Gate** 를 통과해야 한다 —
+체크리스트는 가이드에 복사하지 않고 원본을 직접 참조한다.
+
+### growth/classes/CL-*.yaml
+
+```yaml
+id: CL-<NAME>
+type: class
+
+semantic: >
+  이 Class 가 어떤 의미 있는 성장 상태인가.
+  Skill 목록을 담는 Container 가 아니다 (GR §24.1)
+
+origin_trace:               # 필수 — Class 는 세계와 Actor 가 상호작용한 결과다 (GR §24.2)
+  world_state: [MW-...]
+  goal:        [MG-...]
+  possibility: [MP-...]
+
+requires: [MC-...]          # 되기 전에 갖춰야 하는 것 — MC / MW / 관계 / Item (GR §26)
+grants:   [MC-...]          # 되고 나서 쓸 수 있게 되는 것 — 기존 MC-* 를 가리킨다.
+                            # Source 별 Capability 복제 금지 (GR §33)
+transitions_to:             # Class Change — Tree 일 필요 없다. 진입 경로 복수 허용 (GR §25)
+  - to: CL-<NAME>
+    requires: [...]         # MC / MW / Item / 관계 / 기존 Class
+
+constraints: [DC-...]
+constraint_evaluation:
+  DC-...: UNRESOLVED
+```
+
+### growth/items/ — IT- / IP- / IM-
+
+```yaml
+# types/IT-*.yaml — 아이템의 기본 의미 (GR §28.1)
+id: IT-<NAME>
+type: item_type
+semantic: >
+  <이 종류의 아이템이 세계에서 무엇인가>
+
+# properties/IP-*.yaml — 세계적 성질만. 수치 옵션은 Node 가 아니다 (GR §28.2~§28.3)
+id: IP-<NAME>
+type: item_property
+semantic: >
+  <세계에서 의미를 가지는 성질 — Fire / Cursed / Living …>
+
+# modifiers/IM-*.yaml — 행동·Capability 를 의미 있게 바꾸는 조합 요소 (GR §28.3)
+id: IM-<NAME>
+type: item_modifier
+requires: [IP-...]
+grants:   [MC-...]
+```
+
+구체 수치(공격력 +13 등)는 Cycle / World Rule 이 소유한다 (GR §28.2 · §39 — 정책 §7.2 와 동일).
+
+### growth/growth-graph.md — Growth Overlay
+
+```markdown
+# Growth Overlay
+
+기준 시점: <갱신한 시점>
+
+| Capability | 획득 경로 (grants 하는 CL-* / IT-* / MA-*) | 근거 | 부족한 것 |
+|---|---|---|---|
+| MC-... | 없음 | ... | ... |
+```
+
+기존 `overlay.md`(그 의미가 세계에 **구현되어 있는가**)와 축이 다르다 —
+여기는 그 Capability 를 세계 안에서 **얻는 경로가 존재하는가**다 (GR §22.1 · §39).
+Growth 는 별도 Master Stage 가 아니다 — NEED 에서 발견된 Capability 위의 Overlay 다.
+
+### Growth Edge 규칙
+
+`grants` · `transitions_to` · `requires` 는 노드 안 필드로 표현한다 — `edges.yaml` 에
+중복하지 않는다. `obtained_from` · `composed_from` · `owned_by` · `equips` 는
+Runtime Instance 의 관계이며 Master 에 오지 않는다 (GR §38).
 
 ---
 

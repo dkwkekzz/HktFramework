@@ -85,6 +85,9 @@ Master Stage   advprotoh-master 스킬
     직접 만들지 않는다. Capability 의 필요성은 Possibility 에서 나온다.
 18. Master 에는 플레이 의미를, Cycle 에는 수치·공식·판정을 둔다.
 19. Constraint 의 승격·변경과 다음 Cycle Goal 선택은 Human 이 결정한다.
+20. 살아 있는 문서(README·overlay·frontier·open-questions·graph 본문)에는 **현재 상태만**
+    둔다. 완료·승인·삭제의 경위와 날짜를 본문에 남기지 않는다 — 닫힌 것은 그 자리에서
+    지우고 master/HISTORY.md 로만 옮긴다. 상태 필드(status: APPROVED 등)가 곧 기록이다.
 ```
 
 ## Kind 정적 데이터
