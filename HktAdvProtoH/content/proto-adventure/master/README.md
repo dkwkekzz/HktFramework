@@ -103,9 +103,54 @@ master/     현재 상태    world/ view/ 처럼 계속 갱신된다
 | [candidates/](candidates/) | `CC-*.md` — 미승인 Constraint Candidate | Agent 제안 / **Human** 승인 |
 | [open-questions.md](open-questions.md) | 승인 대기 · Constraint 충돌 · 설계 공백 · Trade-off | Agent 제기 / **Human** 결정 |
 | [HISTORY.md](HISTORY.md) | 닫힌 것들의 보관소 — 평소에 읽지 않는다 | Master Design Agent |
+| [graph/GRAPH.md](graph/GRAPH.md) | Graph 스냅샷 (Mermaid · 표) — **생성물, 손으로 고치지 않는다** | `npm run master:graph` |
 
 위 문서들은 **지금 할 일과 현재 상태만** 담는다. 닫힌 항목은 그 자리에서 지우고
 `HISTORY.md` 로 옮긴다 — 그래야 매번 읽는 문서가 가볍게 유지된다.
+
+## 관찰
+
+Graph 를 눈으로 보려면 프로젝트 루트에서 다음을 실행한다. 원본은 아무것도 바뀌지 않는다.
+
+```text
+npm run master:graph         GRAPH.md 와 graph/graph-view.html 을 다시 만든다
+npm run master:graph:check   정합성 + GRAPH.md 최신 여부만 확인한다 (아무것도 쓰지 않는다)
+```
+
+세 산출물이 나온다. 뒤의 둘은 생성물이라 커밋하지 않는다.
+
+| 파일 | 보는 곳 |
+|---|---|
+| `graph/GRAPH.md` | GitHub · 에디터 — Mermaid 와 표. **이것만 커밋한다** |
+| `graph/graph-view.html` | 브라우저 — 인터랙티브 뷰어 (서버 없이 `file://` 로 열린다) |
+| `graph/graph-view.artifact.html` | Artifact 게시용 — 아래 고정 링크에 덮어쓸 때 이 파일을 올린다 |
+
+뷰어는 층(WorldState → Goal → Possibility → Capability)으로 배치하고, Capability 는
+overlay 색으로, Possibility 는 **준비도**(요구 Capability 중 세계에 이미 있는 것의 비율)로
+보여 준다. 노드를 고르면 그 인과 경로만 남고 원문이 열린다. Constraint 를 고르면 그 원칙
+아래 있는 노드만 남는다. 빈 인과 필드(구멍)에는 주황 점이 찍힌다.
+
+### 고정 링크 — Artifact
+
+브라우저만 있으면 어디서나 열리는 뷰어다. **링크는 이 하나이며 바뀌지 않는다.**
+
+```text
+https://claude.ai/code/artifact/c3c54815-4a6a-47e7-83ce-2cd169acdef5
+```
+
+`graph/` 나 `constraints/` 를 고친 Agent 는 재생성 후 이 링크를 갱신한다.
+
+```text
+Artifact 도구에 file_path = graph/graph-view.artifact.html
+                 url       = 위 링크          ← 반드시 함께 넘긴다
+```
+
+`url` 을 빼면 **같은 링크에 덮어쓰지 않고 새 아티팩트가 새 주소로 생긴다.** 링크가 하나로
+유지되는 것은 이 인자 덕분이므로 생략하지 않는다. Artifact 도구가 없는 환경이면 게시를
+건너뛰고 그 사실을 보고한다 — 다른 주소로 올려 링크를 늘리지 않는다.
+
+같은 통과에서 참조 무결성도 검사한다 — 존재하지 않는 ID 참조, `requires` ↔ `required_by`
+비대칭, 없는 Constraint 참조, 고아 Possibility/Capability.
 
 ## 두 층의 접합점
 
