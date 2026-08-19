@@ -667,6 +667,43 @@ ONE-LAYER-AT-A-TIME 신설, 이연 층 근거의 3종은 DRAFT 보류.
 수치·공식은 옮기지 않았다(정책 §7.2). SCHEMA.md 에 growth/ 양식(CL/IT/IP/IM · II- Runtime
 전용)을 추가했고 growth/growth-graph.md 가 Growth Overlay(획득 경로 판정)를 소유한다.
 
+    2026-08-19 CC 승격 2종 — Cycle 관찰에서 올라온 GLOBAL Constraint
+
+```text
+신설  DC-WORLD-OWNS-THE-CHANCE              C015 — 우연을 다루는 형태 네 조각
+신설  DC-CONDITION-OPENS-WITHOUT-RECORDING  C016 — 조건이 여는 것은 기록하지 않는다
+```
+
+    이로써 Active 는 17종 → **19종** 이고 GLOBAL 무리가 셋이 되었다
+    (SURFACE-LIST · OWNS-THE-CHANCE · CONDITION-OPENS).
+
+    **승격 조건 첫 항(반복)을 면제한 첫 사례다.** 둘 다 관찰 1회뿐이다.
+    근거는 반복이 아니라 **비가역성**이었다.
+
+        OWNS-THE-CHANCE 의 ④    "이미 정해진 판정에서 우연의 원천을 소비하지 않는다" 는
+                                 두 번째 우연이 들어온 뒤에 세우면 그때까지의 모든
+                                 재현이 깨진다. C015 는 확률 0 인 세계가 C013 과
+                                 완전히 같다는 것을 실측해 이 조각을 선점했다.
+        CONDITION-OPENS          한 번 기록형으로 만든 뒤 조건형으로 되돌리려면
+                                 저장된 데이터의 이전이 따라붙는다.
+
+    같은 예외를 다시 쓸 때는 그 비가역성을 먼저 보인다 — 관찰 1회를 일반 통로로 만들지
+    않는다. 이 단서를 `candidates/README.md` 와 `constraints/README.md` 양쪽에 적었다.
+
+    합치지 않고 둘로 세운 이유: 뿌리는 같으나(안 써도 되는 상태는 쓰지 않는다)
+    적용 대상이 우연과 조건으로 갈린다. `relations.supports` 로 이어 두었다.
+    DC-COMBAT-PLAYER-CAUSALITY 와도 충돌이 아니라 분업이다 —
+    그쪽이 **범위**(어디에 허용하는가), OWNS-THE-CHANCE 가 **형태**(어떻게 다루는가)다.
+
+    함께 세운 문서 규칙 — SCHEMA.md **"읽히게 쓴다"** (CC · DC 공통)
+
+        Human 지적: 두 CC 가 "무슨 말인지 모르겠다". 원칙 문장만으로는 읽히지 않고,
+        읽히지 않는 원칙은 지켜지지 않는다. 그래서 CC 에 `무엇을 말하는가 (예시)` 절을
+        **필수**로 세우고 5항 규칙을 SCHEMA 에 두었다 — 나쁜 방식 대비 · 실물 코드 인용 ·
+        무엇이 달라지나 · 가장 안 읽히는 조각 지목 · 경계 긋기.
+        `statement`/`requires`/`prohibits`/`prefers` 는 판정용이므로 압축을 유지하고,
+        설명은 CC 의 예시 절과 DC 의 `rationale` 이 진다.
+        guides/master-constraint.md · master-feedback.md 가 이 규칙을 가리킨다.
 
 ---
 

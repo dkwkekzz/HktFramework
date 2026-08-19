@@ -2,7 +2,7 @@
 
 파일 하나 = 후보 하나. 이름은 `CC-<NAME>.md`. 형식은 [../SCHEMA.md](../SCHEMA.md).
 
-현재: **PENDING 7종**
+현재: **PENDING 5종**
 
 | 후보 | 출처 | 관찰 | 상태 |
 |---|---|---|---|
@@ -10,9 +10,7 @@
 | CC-THE-WORLD-NAMES-WHAT-IT-READ | C012 | 1회 (C012 · C010 은 전조) | PENDING |
 | CC-THE-WORLD-OWNS-THE-RELATION | C013 | 1회 (C013 — 관계 형태는 처음) | PENDING |
 | CC-THE-WORLD-NAMES-WHAT-IT-WITHHELD | C014 | 1회 (C014 · C011 은 전조) | PENDING |
-| CC-WORLD-OWNS-THE-CHANCE | C015 | 1회 (C015 — 우연은 처음) | PENDING |
 | CC-A-NEW-WAY-OF-KNOWING-IS-NOT-A-GATE | C016 | **2회** (C014 · C016) | PENDING |
-| CC-CONDITION-OPENS-WITHOUT-RECORDING | C016 | 1회 (C015 는 다른 영역의 같은 종류) | PENDING |
 
 세 무리로 읽는다.
 
@@ -26,12 +24,20 @@
 후보다. `DC-WORLD-PLAYER-UNFIXED-PATH` 의 정보판이며, 승격하면 다음 Cycle 이 바로
 그 제약을 받는다.
 
-**상태 무리 (2종)** — WORLD-OWNS-THE-CHANCE 의 ④ 와
-CONDITION-OPENS-WITHOUT-RECORDING 이 같은 문장일 수 있다: 이미 정해진 것·조건이 여는
-것에는 상태를 남기지 않는다. 둘을 합칠지 가를지도 판단에 든다.
+**상태 무리 (2종 — 둘 다 승격 완료)** — WORLD-OWNS-THE-CHANCE 와
+CONDITION-OPENS-WITHOUT-RECORDING 은 뿌리가 같지만(안 써도 되는 상태는 쓰지 않는다)
+적용 대상이 달라 합치지 않고 둘로 세웠다 (우연 ↔ 조건).
 
-승격된 것 1종 — CC-WORLD-OWNS-THE-SURFACE-LIST (2026-08-17 APPROVED →
-`../constraints/DC-WORLD-OWNS-THE-SURFACE-LIST.yaml`). 파일은 기록으로 남긴다.
+승격된 것 3종 — 파일은 전부 기록으로 남긴다.
+
+| 후보 | 승격 | 근거 |
+|---|---|---|
+| CC-WORLD-OWNS-THE-SURFACE-LIST | 2026-08-17 | 관찰 3회 (C007 → C009 → C010) |
+| CC-WORLD-OWNS-THE-CHANCE | 2026-08-19 | 관찰 1회 — **비가역성**으로 첫 항 면제 |
+| CC-CONDITION-OPENS-WITHOUT-RECORDING | 2026-08-19 | 관찰 1회 — 같은 사유 |
+
+뒤의 둘은 승격 조건 첫 항(반복)을 면제한 사례다. 나중에 세우면 이미 쌓인 것을 깨야
+하기 때문이며, 같은 예외를 다시 쓸 때는 그 비가역성을 먼저 보인다.
 
 전투 Graph 에서 발견해 올렸던 CC 3종은 Human 지시로 제거했다.
 
