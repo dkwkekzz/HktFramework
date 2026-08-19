@@ -62,7 +62,8 @@
         "guard": {
           "guarding": false,
           "broken": false
-        }
+        },
+        "insight": 0
       },
       "body": {
         "radius": 0.7,
@@ -119,7 +120,8 @@
         "guard": {
           "guarding": false,
           "broken": false
-        }
+        },
+        "insight": 0
       },
       "body": {
         "radius": 0.7,
@@ -190,7 +192,8 @@
         "guard": {
           "guarding": false,
           "broken": false
-        }
+        },
+        "insight": 0
       },
       "body": {
         "radius": 0.85,

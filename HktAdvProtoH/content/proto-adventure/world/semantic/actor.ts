@@ -62,6 +62,11 @@ export interface ActorState {
   // RULE-CRITICAL-STRIKE-001 에서만 읽힌다. "터뜨릴 수 없다" 는 값 0 이다.
   criticalChance: number; // 0~1 — 이 몸의 타격이 크게 터질 가능성
   criticalDamage: number; // 1 이상 — 터졌을 때 최종 피해에 걸리는 배율
+  // C016 ADDED — 통찰. 살펴보지 않고도 상대의 어느 자리까지 아는가를 정한다
+  // (INTENT-INSIGHT-001). 겨루는 힘이 아니라 **아는 힘**이며 어떤 계산에도 들어가지
+  // 않는다 — 피해·기력·속도·판정 어디에도 이 값이 없다. 읽히는 곳은 가려짐 관문
+  // 하나뿐이다 (RULE-INSIGHT-REVEAL-001). "다가가야만 안다" 는 값 0 이다.
+  insight: number; // 0~100 — 살펴보지 않고도 아는 범위를 정한다
   // 막기 (C011) — 행동과 나란한 몸의 상태다. CurrentAction 자리를 쓰지 않는다.
   // 막으면서 걸을 수 있어야 하는데, 행동 자리를 쓰면 걷기와 자리를 다투게 되어
   // INTENT-ACTION-STATE-001("언제나 정확히 하나의 행동")을 깨야 하기 때문이다.

@@ -1,5 +1,5 @@
 {
-  "specId": "VIEW-BASIC-COMBAT-POLICY-001",
+  "specId": "VIEW-INSIGHT-SEES-BEFORE-LOOKING-001",
   "scene": "mining-field",
   "observer": {
     "id": "observer-1",
@@ -14,11 +14,11 @@
       "name": "Wanderer 1",
       "kind": "wanderer",
       "position": {
-        "x": 2.676303085840984,
-        "z": 1.8610661048668329
+        "x": 3,
+        "z": 0
       },
       "vitality": {
-        "health": 100,
+        "health": 120,
         "healthMaximum": 120,
         "downed": false
       },
@@ -74,23 +74,23 @@
           "z": 1
         },
         "velocity": {
-          "x": 0.2847239590382573,
-          "z": 0.20670334075219718
+          "x": 0,
+          "z": 0
         }
       }
     },
     {
       "id": "npc-2",
       "role": "npc-character",
-      "state": "hit",
+      "state": "idle",
       "name": "Wanderer 2",
       "kind": "wanderer",
       "position": {
-        "x": 2.607902603493902,
-        "z": -1.8114088569908169
+        "x": -3,
+        "z": 0
       },
       "vitality": {
-        "health": 80,
+        "health": 120,
         "healthMaximum": 120,
         "downed": false
       },
@@ -105,39 +105,29 @@
           "actionSpeed": 0.85
         },
         "modifiers": {
-          "energyCharge": 0.2,
+          "energyCharge": 1,
           "energyConsume": 1,
           "moveSpeed": 1,
           "actionSpeed": 1
         },
-        "acquainted": true,
-        "concealed": [],
-        "combatStats": {
-          "physicalAttack": 40,
-          "auraAttack": 15,
-          "armor": 30,
-          "resistance": 90,
-          "armorPenetration": 0,
-          "resistancePenetration": 0,
-          "armorMultiplier": 0.7692307692307693,
-          "resistanceMultiplier": 0.5263157894736842,
-          "criticalChance": 0,
-          "criticalDamage": 1
+        "acquainted": false,
+        "concealed": [
+          "combatStats"
+        ],
+        "unacquaintedReason": "not-observed",
+        "guard": {
+          "guarding": false,
+          "broken": false
         },
+        "insight": 0,
         "versusObserver": {
           "armor": 30,
           "resistance": 56.25,
           "armorMultiplier": 0.7692307692307693,
           "resistanceMultiplier": 0.64
         },
-        "defenseShape": "aura-tougher",
-        "guard": {
-          "guarding": false,
-          "broken": false
-        },
-        "insight": 0
+        "defenseShape": "aura-tougher"
       },
-      "progress": 0.8571428571428572,
       "body": {
         "radius": 0.7,
         "height": 2.8,
@@ -147,8 +137,8 @@
           "z": 1
         },
         "velocity": {
-          "x": 0.6951268531207454,
-          "z": -0.5046468280082937
+          "x": 0,
+          "z": 0
         }
       }
     },
@@ -159,7 +149,7 @@
       "name": "Player 1",
       "kind": "rabbit-swordsman",
       "position": {
-        "x": 0.11277359724484481,
+        "x": 0,
         "z": 0
       },
       "vitality": {
@@ -168,7 +158,7 @@
         "downed": false
       },
       "attributes": {
-        "energy": 42,
+        "energy": 30,
         "energyMaximum": 100,
         "moveMode": "walk",
         "control": "player",
@@ -194,7 +184,7 @@
           "resistancePenetration": 60,
           "armorMultiplier": 0.6666666666666666,
           "resistanceMultiplier": 0.8333333333333334,
-          "criticalChance": 0.5,
+          "criticalChance": 0.25,
           "criticalDamage": 2
         },
         "versusObserver": {
@@ -208,15 +198,15 @@
           "guarding": false,
           "broken": false
         },
-        "insight": 0
+        "insight": 60
       },
       "body": {
         "radius": 0.85,
         "height": 3.4,
         "mass": 1,
         "facing": {
-          "x": 1,
-          "z": 0
+          "x": 0,
+          "z": 1
         },
         "velocity": {
           "x": 0,
@@ -248,8 +238,7 @@
       "id": "observe",
       "role": "observe-character",
       "targetEntityId": "npc-2",
-      "available": false,
-      "reason": "already-known"
+      "available": true
     },
     {
       "id": "observe",
@@ -354,7 +343,7 @@
     {
       "id": "world.time",
       "kind": "counter",
-      "value": 2.7333333333333334
+      "value": 1.0333333333333332
     },
     {
       "id": "observers.present",
@@ -374,7 +363,7 @@
     {
       "id": "self.cp",
       "kind": "counter",
-      "value": 42
+      "value": 30
     },
     {
       "id": "self.cpMax",
@@ -447,14 +436,9 @@
       "value": "physical-tougher"
     },
     {
-      "id": "self.combat.criticalChance",
+      "id": "self.insight",
       "kind": "counter",
-      "value": 0.5
-    },
-    {
-      "id": "self.combat.criticalDamage",
-      "kind": "counter",
-      "value": 2
+      "value": 60
     },
     {
       "id": "self.tempo.moveSpeed",
@@ -492,86 +476,7 @@
       "value": 1
     }
   ],
-  "strikes": [
-    {
-      "attackerId": "player-1",
-      "targetId": "npc-1",
-      "skill": "attack",
-      "amount": 20,
-      "at": {
-        "x": 1.6447781947927462,
-        "z": 1.112201689771835
-      },
-      "since": 2.2666666666666684,
-      "breakdown": {
-        "damageType": "physical",
-        "offenseStat": {
-          "name": "physicalAttack",
-          "value": 40
-        },
-        "baseDamage": 6,
-        "attackContribution": 20,
-        "rawDamage": 26,
-        "defenseStat": {
-          "name": "armor",
-          "value": 30
-        },
-        "penetrationStat": {
-          "name": "armorPenetration",
-          "value": 0
-        },
-        "effectiveDefense": 30,
-        "defenseMultiplier": 0.7692307692307693,
-        "finalDamage": 20,
-        "appliedDamage": 20,
-        "critical": {
-          "occurred": false,
-          "chance": 0.5,
-          "multiplier": 2,
-          "damageBeforeCritical": 20
-        }
-      }
-    },
-    {
-      "attackerId": "player-1",
-      "targetId": "npc-2",
-      "skill": "attack",
-      "amount": 40,
-      "at": {
-        "x": 1.6447781947927462,
-        "z": -1.112201689771835
-      },
-      "since": 2.4000000000000012,
-      "breakdown": {
-        "damageType": "physical",
-        "offenseStat": {
-          "name": "physicalAttack",
-          "value": 40
-        },
-        "baseDamage": 6,
-        "attackContribution": 20,
-        "rawDamage": 26,
-        "defenseStat": {
-          "name": "armor",
-          "value": 30
-        },
-        "penetrationStat": {
-          "name": "armorPenetration",
-          "value": 0
-        },
-        "effectiveDefense": 30,
-        "defenseMultiplier": 0.7692307692307693,
-        "finalDamage": 40,
-        "appliedDamage": 40,
-        "critical": {
-          "occurred": true,
-          "chance": 0.5,
-          "multiplier": 2,
-          "damageBeforeCritical": 20
-        }
-      }
-    }
-  ],
+  "strikes": [],
   "debug": {
     "open": true
   },
@@ -674,22 +579,6 @@
                   "kind": "number",
                   "minimum": 0,
                   "maximum": 100000
-                }
-              },
-              {
-                "name": "criticalChance",
-                "thenDomain": {
-                  "kind": "number",
-                  "minimum": 0,
-                  "maximum": 1
-                }
-              },
-              {
-                "name": "criticalDamage",
-                "thenDomain": {
-                  "kind": "number",
-                  "minimum": 1,
-                  "maximum": 100
                 }
               },
               {

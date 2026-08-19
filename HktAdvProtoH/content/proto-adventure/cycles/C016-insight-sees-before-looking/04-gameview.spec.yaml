@@ -1,0 +1,282 @@
+# CYCLE C016 — GameView Specification
+#
+# C014 는 이 계약에 **없음**을 더했다. 그때 없음은 통짜였다 — 세 자리가 함께 오거나
+# 함께 없었고, 그래서 View 는 "안다 / 모른다" 두 그림만 그리면 되었다.
+#
+# 이 Cycle 이 더하는 것은 그 사이다. 이제 한 존재가 **일부만 열린 채로** 온다.
+# 계약의 모양은 하나도 바뀌지 않는다 — C014 가 `concealed` 를 목록으로 둔 그 판단이
+# 여기서 값을 한다 (그 문서가 예고한 그대로: "앞으로 앎이 부분적으로 열리는 층이 오면
+# acquainted 하나로는 답할 수 없다"). 바뀌는 것은 **View 가 그려야 하는 경우의 수**다.
+#
+# 그러므로 이 계약의 중심은 하나다:
+#   세 자리는 **서로 독립적으로** 온다. View 는 어느 조합이든 그릴 수 있어야 하고,
+#   한 자리가 없다고 다른 자리를 함께 감추어서는 안 된다.
+id: VIEW-INSIGHT-SEES-BEFORE-LOOKING-001
+observer: player
+
+delta:
+  reused:
+    - scene.mining-field
+    - entities.character                      # 위치·역할·이름·종류·모션·body·swing 그대로
+    - entities.deposit
+    - entityHud                               # 몸 위의 이름·생명 그대로
+    - entities.character.vitality
+    - entities.character.attributes.energy / moveMode / control
+    - entities.character.attributes.tempoStats / modifiers / guard
+    - entities.character.attributes.unacquaintedReason   # 사유는 그대로 not-observed
+    - interactions.move / mine / moveMode / setAttribute
+    - interactions.attack / skillHeavy / skillAura       # 관문도 사유도 그대로
+    - interactions.*.profile
+    - interactions.guardBegin / guardRelease
+    - interactions.forgetAcquaintance                    # 요청도 사유도 그대로
+    - commandCatalog                                     # 구조 무변경 (COMMAND NOTE)
+    - hud.inventory / tool / worldTime / observers
+    - hud.playerAction
+    - strikeEvents.*                                     # 타격 경위는 하나도 가려지지 않는다
+    - debugObserve / debugAuthority
+    - observer / session / delivery / identity / telemetry
+  added:
+    - entities.character.attributes.insight              # 그 존재의 통찰 — 가려지지 않는다
+    - hud.self.insight                                   # 내 통찰
+  changed:
+    - entities.character.attributes.acquainted           # 뜻이 "가려진 자리가 없다" 로
+    - entities.character.attributes.concealed            # **부분 목록**이 될 수 있다
+    - entities.character.attributes.defenseShape         # presence 가 자리별로 갈린다
+    - entities.character.attributes.versusObserver       # presence 가 자리별로 갈린다
+    - entities.character.attributes.combatStats          # presence 가 자리별로 갈린다
+    - interactions.observe                               # already-known 의 뜻이 넓어진다
+
+scene: mining-field
+
+# ─────────────────────────────────────────────────────────────────
+# entities.character — 이제 한 존재는 여덟 모습으로 온다
+#
+#   세 자리가 각각 열리거나 가려지므로 경우의 수는 2³ 이다. 다만 세계가 실제로
+#   내놓는 것은 문턱의 차례를 따르는 넷뿐이다 (아래 SEAT NOTE).
+#   View 는 그 넷을 모두 그릴 수 있어야 하며, 어느 쪽일지 짐작하지 않는다.
+# ─────────────────────────────────────────────────────────────────
+entities:
+  character:
+    cardinality: many
+    source: World.Actors
+
+    attributes:
+      # ── 통찰 (C016 ADDED) — 모든 존재에 언제나 실린다 ──
+      insight:
+        source: Actor.Insight
+        meaning:
+          - 이 존재가 살펴보지 않고도 얼마나 아는가. 0 … 100
+          - 이 자리는 **가려지지 않는다** — 겨루는 힘이 아니라 아는 힘이며, 가려질 수 있는
+            자리의 목록은 C014 가 정한 셋 그대로다 (01 EXCLUDED)
+          - 남의 통찰도 그 존재의 이름이나 생명처럼 그대로 실린다.
+            지금 그것을 쓰는 자율 존재가 없으므로 플레이에 영향이 없다
+          - 이 값이 화면에서 읽혀야 **가려진 목록이 왜 그 길이인지**가 설명된다.
+            내 통찰은 hud.self 에서도 읽힌다
+
+      # ── 앎의 상태 (C014 ADDED · C016 CHANGED) ──
+      acquainted:
+        source: Acquaintance(Observer, Actor)
+        meaning:
+          - CHANGED — 뜻이 넓어진다. "이 존재를 살펴봤다" 가 아니라
+            **"이 존재에 대해 가려진 자리가 하나도 없다"** 다
+          - 참이 되는 길은 셋이다 — 살펴봤거나 · 통찰이 세 문턱을 모두 넘었거나 ·
+            자기 몸이거나
+          - 알든 모르든 언제나 실린다 (C014 그대로)
+          - 일부만 열린 존재에서는 **거짓이다** — View 가 이것 하나로
+            "값이 오는가" 를 판단해서는 안 된다 — 그 판단은 자리마다 다르다
+
+      concealed:
+        source: World.ConcealedKeys(Observer, Actor)
+        meaning:
+          - CHANGED — 이제 **부분 목록**일 수 있다.
+            통찰 0 이면 `[combatStats, versusObserver, defenseShape]`,
+            통찰 30 이면 `[combatStats, versusObserver]`,
+            통찰 60 이면 `[combatStats]`, 통찰 90 이거나 살펴봤으면 `[]`
+          - 목록의 단일 출처는 여전히 세계다. View 는 문턱 수(30·60·90)도,
+            어느 자리가 어느 문턱인지도 자기 코드에 적지 않는다
+            (DC-WORLD-OWNS-THE-SURFACE-LIST). 세계가 문턱을 바꾸면
+            View 를 고치지 않고 화면이 따라와야 한다
+          - 이 목록이 이 Cycle 의 **주 관찰 대상**이다. 통찰을 올리면 짧아지고
+            내리면 길어지는 것이 곧 통찰이 한 일이다
+
+      unacquaintedReason:
+        presence: concealed 가 비어 있지 않을 때만
+        values:
+          - not-observed
+        meaning:
+          - REUSED — 새 사유를 만들지 않는다. 통찰이 미치지 못한 자리도
+            **살펴보면 열리므로** 이 사유가 참이다 (03 NOTE ④)
+          - 사유는 "무엇을 하면 열리는가" 를 말한다. 살펴봄은 어느 자리에나 통한다
+
+      # ── 겨루는 힘 (C010~C015) — presence 가 자리마다 따로 정해진다 (C016 CHANGED) ──
+      defenseShape:
+        presence: concealed 에 `defenseShape` 가 없을 때
+        source: Actor.DefenseShape
+        meaning:
+          - 값의 뜻은 C012 그대로 — 어느 쪽이 더 단단한가를 세계가 계산한 판정이다
+          - CHANGED — 세 자리 중 **가장 얕다.** 통찰이 조금만 있어도 이것부터 열린다
+          - 이 자리만 열린 존재가 있다. 그때 화면에는 약점 한 줄이 있고
+            수치와 관계값 자리에는 가려짐이 있다
+
+      versusObserver:
+        presence: concealed 에 `versusObserver` 가 없을 때
+        armor: { source: Actor.VersusObserver.Armor }
+        resistance: { source: Actor.VersusObserver.Resistance }
+        armorMultiplier: { source: Actor.VersusObserver.ArmorMultiplier }
+        resistanceMultiplier: { source: Actor.VersusObserver.ResistanceMultiplier }
+        meaning:
+          - 값의 뜻은 C013 그대로 — 이 존재의 방어가 보는 이의 관통에게 얼마로 읽히는가
+          - CHANGED — `combatStats` 와 **따로 온다.** C014 까지는 둘이 늘 함께였다.
+            이제 관계값만 열리고 수치는 가려진 존재가 있다
+          - View 가 내 관통과 상대 방어를 곱해 만들어내지 않는다는 금지는 그대로다.
+            이 Cycle 에서 그 금지가 실제로 시험된다 — 수치가 가려진 채
+            관계값만 온 존재에서는 곱할 재료조차 없다
+
+      combatStats:
+        presence: concealed 에 `combatStats` 가 없을 때
+        physicalAttack: { source: Actor.PhysicalAttack }
+        auraAttack: { source: Actor.AuraAttack }
+        armor: { source: Actor.Armor }
+        resistance: { source: Actor.Resistance }
+        armorPenetration: { source: Actor.ArmorPenetration }
+        resistancePenetration: { source: Actor.ResistancePenetration }
+        armorMultiplier: { source: Actor.ArmorMultiplier }
+        resistanceMultiplier: { source: Actor.ResistanceMultiplier }
+        criticalChance: { source: Actor.CriticalChance }
+        criticalDamage: { source: Actor.CriticalDamage }
+        meaning:
+          - 값의 뜻은 C010·C012·C013·C015 그대로. 달라지는 것은 언제 실리는가 뿐이다
+          - CHANGED — 세 자리 중 **가장 깊다.** 통찰만으로 여기까지 오려면 90 이 든다
+          - 열린 뒤에는 그 순간의 값이 실린다. 통찰로 열렸어도 같다 —
+            베껴 둔 숫자가 아니다
+
+      # energy · moveMode · control · tempoStats · modifiers · guard 는 그대로.
+      # 몸과 움직임에서 바로 읽히는 것이므로 가려지지 않는다 (C014 의 선 무변경)
+
+    vitality:
+      change: NONE
+
+# ─────────────────────────────────────────────────────────────────
+# SEAT NOTE — 세 자리는 독립이다. 그러나 세계가 내놓는 조합은 넷이다
+#
+#   계약이 보장하는 것   자리마다 presence 가 따로 정해진다
+#   세계가 실제로 내놓는 것
+#       []                                            전부 열림 (살펴봤거나 통찰 ≥ 90)
+#       [combatStats]                                 통찰 ≥ 60
+#       [combatStats, versusObserver]                 통찰 ≥ 30
+#       [combatStats, versusObserver, defenseShape]   통찰 < 30
+#
+#   목록의 차례는 세계가 소유한 CONCEALABLE_ATTRIBUTE_KEYS 의 차례이며 (C014 그대로),
+#   열리는 차례(얕은 것부터)와는 별개다 — View 는 둘 다 자기 코드에 적지 않는다.
+#
+#   View 는 **네 조합을 세지 않는다.** 자리마다 "왔는가" 를 보고 그릴 뿐이다.
+#   조합을 코드에 적으면 세계가 문턱을 바꾸거나 자리를 늘릴 때 화면이 어긋난다.
+#
+#   특히 C014 판 View 가 하던 방식 — 겨루는 힘 줄을 그릴 때 combatStats 와
+#   versusObserver 가 **둘 다** 있어야 값을 그리고 아니면 통짜로 가려짐 한 줄 —
+#   은 이 계약에서 성립하지 않는다. 관계값만 온 존재에서 화면이 전부를 가려 버린다.
+# ─────────────────────────────────────────────────────────────────
+
+# ─────────────────────────────────────────────────────────────────
+# EMPTY-SLOT NOTE — C014 의 원칙이 자리 단위로 이어진다
+#
+#   가려진 자리는 사라지지 않는다. 그 자리에 **무엇이 가려졌는지의 이름**이 온다.
+#   줄이 사라지면 플레이어는 세계에 그 값이 없다고 배운다.
+#
+#   이제 한 존재에서 열린 자리와 가려진 자리가 **함께** 보인다.
+#   그것이 이 Cycle 의 화면이다 — "약점은 알겠는데 얼마나 센지는 모른다".
+#
+#   가려진 자리를 다른 자리의 값으로 채우지 않는다. 특히:
+#     · 타격 경위(strikeEvents)의 defenseStat 으로 combatStats 를 채우지 않는다 (C014)
+#     · versusObserver 와 내 관통으로 상대 방어를 되짚어 그리지 않는다
+#       (플레이어가 머리로 하는 추론은 자유다 — 화면이 대신 해 주지 않는다. 03 NOTE ②)
+# ─────────────────────────────────────────────────────────────────
+
+# ─────────────────────────────────────────────────────────────────
+# interactions — 새 요청이 없다
+# ─────────────────────────────────────────────────────────────────
+interactions:
+  observe:                                    # C016 CHANGED — 거절의 뜻만 넓어진다
+    role: observe-character
+    cardinality: many
+    targetEntityId: { source: Actor.Id }
+    available: { source: ObserveBegin.Availability }
+    reason: { source: ObserveBegin.FailureReason }
+    values:
+      - out-of-range
+      - already-known       # CHANGED — "더 열 자리가 없다"
+      - action-busy
+      - target-is-self
+    meaning:
+      - 값도 사유 목록도 그대로다. 바뀌는 것은 already-known 이 언제 나오는가다 —
+        살펴본 존재뿐 아니라 **통찰이 세 문턱을 모두 넘은 존재**에도 나온다
+      - 일부만 열린 존재에는 available 이 참이다. 아직 열 자리가 남았기 때문이다 —
+        통찰이 있어도 더 알기 위해 다가가는 길이 남아 있다
+      - View 는 이 판정을 그대로 싣는다. 통찰과 문턱을 비교해 스스로 정하지 않는다
+
+  setAttribute:                               # REUSED — 목록에 하나가 는다
+    meaning:
+      - 바꿀 수 있는 성질에 `insight` 가 더해진다 (0 … 100).
+        C013 이 12개를 14개로, C015 가 14개를 16개로 늘렸을 때와 같은 일이다
+      - 이것이 이 Cycle 의 **확인 수단**이다 — 통찰을 올렸다 내리며
+        같은 존재의 concealed 가 줄고 느는 것을 본다
+
+  forgetAcquaintance:                         # REUSED — 요청도 사유도 그대로
+    meaning:
+      - 지우는 것은 살펴봄의 장부뿐이다. 되돌린 뒤 concealed 에 다시 나타나는 것은
+        **통찰이 미치지 못하는 자리들**이며, 통찰이 연 자리는 남아 있다
+      - 두 길이 갈리는 것을 화면에서 보는 자리다 (03 국면 ②)
+
+  # move · mine · attack · skillHeavy · skillAura · guardBegin · guardRelease ·
+  # moveMode 는 그대로. 통찰이 다른 행동의 조건이 되지 않는다 —
+  # 통찰 0 으로도 세 스킬과 막기가 그대로 가용하다 (DC-WORLD-PLAYER-UNFIXED-PATH)
+
+# ─────────────────────────────────────────────────────────────────
+# hud — 새 막대도 새 자원도 없다. 한 줄이 는다
+# ─────────────────────────────────────────────────────────────────
+hud:
+  self:
+    insight:                                  # C016 ADDED
+      source: Actor.Insight (self)
+      meaning:
+        - 내 통찰. self.combat.* 와 같은 자리의 한 줄이다
+        - 값을 바꾼 직후 이 자리에서 즉시 확인되어야
+          "올렸더니 가려진 목록이 짧아졌다" 가 한 화면에서 읽힌다
+        - 0 도 싣는다 — 없다는 것을 아는 것이 "나는 다가가야만 안다" 를 아는 것이다
+          (C013 이 관통 0 을, C015 가 가능성 0 을 실은 판단 그대로)
+  playerAction:
+    change: NONE
+  inventory:
+    change: NONE
+
+strikeEvents:
+  change: NONE
+  meaning:
+    - C014 그대로 — 타격 경위는 가려지지 않는다. 통찰이 낮아도 때린 한 방의
+      경위는 전부 실리고, 그것으로 그 존재를 알게 되지도 않는다
+
+# ─────────────────────────────────────────────────────────────────
+# COMMAND NOTE — commandCatalog 계약 모양은 바뀌지 않는다
+# ─────────────────────────────────────────────────────────────────
+# 바꿀 수 있는 성질 목록에 insight 가 하나 더해질 뿐이다.
+# 목록은 세계의 것이고 View 는 읽을 뿐이므로 계약 모양은 그대로다
+# (C009 · DC-WORLD-OWNS-THE-SURFACE-LIST).
+
+# ─────────────────────────────────────────────────────────────────
+# OBSERVABLE PROJECTION NOTE — 투영하지 않는 것
+# ─────────────────────────────────────────────────────────────────
+# INSIGHT_REVEAL_THRESHOLDS (30 · 60 · 90)
+#     문턱 값 자체는 투영하지 않는다. View 가 문턱을 알면 "다음 자리까지 얼마"
+#     같은 화면을 만들 수 있지만, 그것은 View 가 세계의 규칙을 자기 안에 복제하는 것이다.
+#     세계가 이미 답(concealed)을 싣고 있으므로 근거를 함께 보낼 필요가 없다.
+#     "다음 문턱이 얼마인가" 를 화면에 세우려면 세계가 그 답을 계산해 싣는 것이
+#     옳고, 그것은 이 Cycle 의 일이 아니다 (01 EXCLUDED — 통찰을 기르는 경로)
+#
+# 자리가 열린 경로 (살펴봄인가 통찰인가)
+#     싣지 않는다. 열린 자리의 값은 어느 길로 열렸든 완전히 같다
+#     (03 INTENT-INSIGHT-OPENS-001). 경로를 실으면 View 가 두 앎을 다르게 그리게 되고,
+#     "통찰로 안 것은 덜 확실하다" 는 뜻이 없는 세계에 생긴다.
+#     되돌림으로 두 길을 가르는 확인 경로가 이미 있다
+#
+# 다른 관찰자의 통찰이 무엇을 열었는가
+#     싣지 않는다. concealed 는 언제나 **이 관찰자** 기준이다 (C004 · C014 그대로)

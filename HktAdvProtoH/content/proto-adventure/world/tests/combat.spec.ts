@@ -470,6 +470,9 @@ describe('INTENT-ATTRIBUTE-OBSERVE-001 — 세계가 무엇이 언제 실리는�
       acquainted: false,
       concealed: ['combatStats', 'versusObserver', 'defenseShape'],
       unacquaintedReason: 'not-observed',
+      // C016 — 통찰도 가려지지 않는다. 겨루는 힘이 아니라 아는 힘이며,
+      // 이 존재는 아무것도 기르지 않았으므로 0 이다
+      insight: 0,
     });
   });
 
@@ -518,6 +521,8 @@ describe('INTENT-ATTRIBUTE-OBSERVE-001 — 세계가 무엇이 언제 실리는�
       // C014 — 알게 되었으므로 가려진 것이 없다
       acquainted: true,
       concealed: [],
+      // C016 — 살펴봄으로 열렸든 통찰로 열렸든 실리는 값은 같다
+      insight: 0,
     });
   });
 
@@ -556,6 +561,8 @@ describe('INTENT-ATTRIBUTE-MUTATE-001 — 세계가 허용하면 속성을 바�
       // 계약은 그대로다 — 범위는 원래부터 세계가 목록과 함께 싣는 것이다
       'criticalChance',
       'criticalDamage',
+      // C016 — 통찰이 목록에 더해진다. 이것이 이 Cycle 의 확인 경로다
+      'insight',
       'moveSpeed',
       'runSpeedMultiplier',
       'actionSpeed',

@@ -52,26 +52,28 @@ describe('strikeEvents.breakdown — 상대 방어가 얼마나 통하지 않았
   });
 });
 
+// C016 — inspect 줄 번호가 하나씩 밀렸다. 겨루는 힘 위에 통찰 한 줄이 생겼기 때문이며
+// (04 insight.meaning), 줄의 내용과 순서는 그대로다.
 describe('entities.attributes.versusObserver — 치기 전에 무엇이 통할지 보인다', () => {
   it('상대의 방어 뒤에 나에게 읽히는 값이 붙는다', () => {
     const lines = inspectLines('npc-1');
-    expect(lines?.[4]).toBe('오라 공격 15 · 오라 방어 90 (받는 피해 53%) → 나에게 56.25 (64%)');
+    expect(lines?.[5]).toBe('오라 공격 15 · 오라 방어 90 (받는 피해 53%) → 나에게 56.25 (64%)');
   });
 
   it('내 관통이 없는 쪽에는 아무 말도 붙지 않는다 — 같다는 것은 화살표가 없는 것이다', () => {
     const lines = inspectLines('npc-1');
-    expect(lines?.[3]).toBe('물리 공격 40 · 물리 방어 30 (받는 피해 77%)');
-    expect(lines?.[3]).not.toContain('나에게');
+    expect(lines?.[4]).toBe('물리 공격 40 · 물리 방어 30 (받는 피해 77%)');
+    expect(lines?.[4]).not.toContain('나에게');
   });
 
   it('그 존재가 지닌 관통도 한 줄로 읽힌다', () => {
-    expect(inspectLines('npc-1')?.[5]).toBe('관통 물리 0 · 오라 0');
+    expect(inspectLines('npc-1')?.[6]).toBe('관통 물리 0 · 오라 0');
   });
 
   it('약점 판정은 걷히기 전 방어로 한다 — 관통이 그것을 흔들지 않는다', () => {
     // wanderer 는 Armor 30 · Resistance 90 — 오라 쪽이 단단하므로 물리에 약하다.
     // 내 오라 관통이 그 벽을 56.25 로 만들어도 판정은 30 과 90 을 견준 결과 그대로다
-    expect(inspectLines('npc-1')?.[6]).toBe('약점 물리에 약하다');
+    expect(inspectLines('npc-1')?.[7]).toBe('약점 물리에 약하다');
   });
 
   it('걷힌 값을 View 가 만들어내지 않는다 — 세계가 보낸 값을 그대로 쓴다', () => {
@@ -92,7 +94,7 @@ describe('entities.attributes.versusObserver — 치기 전에 무엇이 통할�
     const lines = resolvePresentation(stripped, undefined, { inspect: true }).entities.find(
       (e) => e.id === 'npc-1',
     )?.inspect;
-    expect(lines?.[4]).toBe('오라 공격 15 · 오라 방어 90 (받는 피해 53%)');
+    expect(lines?.[5]).toBe('오라 공격 15 · 오라 방어 90 (받는 피해 53%)');
   });
 });
 

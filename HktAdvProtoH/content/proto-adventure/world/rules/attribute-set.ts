@@ -127,6 +127,12 @@ function applyNumeric(actor: ActorState, id: string, value: number): void {
     case 'criticalDamage':
       actor.criticalDamage = value;
       return;
+    // C016 — 통찰. 이 값도 다른 값을 끌고 오지 않는다. 다만 다른 성질들과 달리
+    // 겨루는 계산이 아니라 **가려짐 관문**에 즉시 반영된다 (RULE-INSIGHT-REVEAL-001) —
+    // 올렸다 내리며 가려진 자리가 줄고 느는 것이 이 층을 플레이로 확인하는 경로다.
+    case 'insight':
+      actor.insight = value;
+      return;
     case 'moveSpeed':
       actor.moveSpeed = value;
       return;

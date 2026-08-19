@@ -4,7 +4,11 @@
 //                2. 대상 Id 의 존재가 세계에 있다        (no-such-target)
 //                3. 대상이 자기 몸이 아니다             (target-is-self)
 //                4. 두 몸 중심 거리 ≤ OBSERVE_RANGE     (out-of-range)
-//                5. 아직 그 존재를 알지 못한다          (already-known)
+//                5. 아직 열 자리가 남아 있다            (already-known)
+//                   C016 CHANGED — "그 존재를 아는가" 가 아니라 "가려진 자리가
+//                   남았는가" 다. 통찰로 일부만 열린 상대는 살펴볼 수 있고,
+//                   통찰이 세 문턱을 모두 넘은 상대는 처음부터 거절된다.
+//                   사유 코드는 그대로다 — 뜻이 "더 열 자리가 없다" 로 읽힌다.
 //                6. 현재 행동이 대체 가능하다            (action-busy)
 // Transition     CurrentAction = observe(대상)
 // Result         Success | Failure(reason)
@@ -36,7 +40,7 @@ import {
   RULE_OBSERVE_COMPLETE,
   RULE_OBSERVE_FORGET,
 } from '../../protocol/semantic-id';
-import { forgetActor, isAcquainted, learnActor } from '../semantic/acquaintance';
+import { concealedKeys, forgetActor, isAcquainted, learnActor } from '../semantic/acquaintance';
 import type { ActorState } from '../semantic/actor';
 import { distance } from '../semantic/position';
 import {
@@ -74,7 +78,10 @@ export function evaluateObserveBegin(
   if (target.id === self.id) return 'target-is-self';
 
   if (distance(self.position, target.position) > OBSERVE_RANGE) return 'out-of-range';
-  if (isAcquainted(state.acquaintances, observerId, target.id, self.id)) return 'already-known';
+  // C016 — 더 열 자리가 없을 때만 거절한다 (RULE-INSIGHT-REVEAL-001 의 결과를 그대로 쓴다).
+  // 통찰과 문턱을 여기서 다시 비교하지 않는다 — 판정은 한 곳에만 있어야 한다.
+  const acquainted = isAcquainted(state.acquaintances, observerId, target.id, self.id);
+  if (concealedKeys(acquainted, self.insight).length === 0) return 'already-known';
 
   return evaluateActionBegin(self);
 }

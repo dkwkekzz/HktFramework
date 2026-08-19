@@ -43,17 +43,30 @@ export interface VitalityView {
 // 실린다고 해서 늘 화면에 띄우라는 뜻은 아니다. 표시 기본값은 View 가 정한다.
 export interface AttributesView {
   // ── 앎의 상태 (C014 ADDED) — 아는 존재에도 모르는 존재에도 언제나 실린다 ──
-  /** 이 관찰자가 이 존재의 겨루는 힘을 아는가. 자기 몸은 언제나 참이다 */
+  /**
+   * C016 CHANGED — 이 존재에 대해 **가려진 자리가 하나도 없는가.**
+   * 참이 되는 길은 셋이다: 살펴봤거나 · 통찰이 세 문턱을 모두 넘었거나 · 자기 몸이거나.
+   * 일부만 열린 존재에서는 거짓이므로, View 는 이것 하나로 "값이 오는가" 를
+   * 판단하지 않는다 — 그 판단은 자리마다 다르다 (04 SEAT NOTE).
+   */
   acquainted: boolean;
   /**
-   * 지금 이 존재에 대해 **가려진 항목의 이름들**. 알 때는 빈 배열이다.
+   * 지금 이 존재에 대해 **가려진 항목의 이름들**. 전부 열렸으면 빈 배열이다.
    * 이 목록의 단일 출처는 세계다 (world/semantic/acquaintance.ts) —
    * View 가 "가려질 수 있는 것은 이 셋" 을 자기 코드에 적지 않는다
    * (DC-WORLD-OWNS-THE-SURFACE-LIST).
+   * C016 CHANGED — **부분 목록**일 수 있다. 통찰이 얕은 자리부터 열기 때문이다.
+   * 문턱 값(30·60·90)은 싣지 않는다 — 세계가 이미 답을 싣고 있으므로 View 가
+   * 규칙을 자기 안에 복제할 자리가 없다 (04 OBSERVABLE PROJECTION NOTE).
    */
   concealed: string[];
   /** 왜 비어 있는가 (not-observed). 가려진 것이 있을 때만 실린다 */
   unacquaintedReason?: string;
+  /**
+   * C016 ADDED — 이 존재의 통찰 (0~100). 살펴보지 않고도 얼마나 아는가.
+   * 가려지지 않는다 — 겨루는 힘이 아니라 아는 힘이다. 남의 것도 그대로 실린다.
+   */
+  insight: number;
   energy: number;
   energyMaximum: number;
   moveMode: string; // walk | run

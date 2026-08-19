@@ -63,6 +63,11 @@ export interface CharacterDefinition {
   combat: CombatSpec; // C010
   attackRange: number; // RULE-ATTACK-001 Precondition 2 의 거리 한계
   perceptionRange: number; // RULE-NPC-DECIDE-001 의 인지 거리 — control = autonomous 일 때만 의미
+  // C016 ADDED — 통찰. combat 안에 두지 않는다: 겨루는 힘이 아니라 아는 힘이며
+  // 가려지는 목록(CONCEALABLE_ATTRIBUTE_KEYS)에 들어가지 않기 때문이다.
+  // 인지 거리(perceptionRange)가 "몸이 무엇을 알아채는가" 라면 이것은
+  // "눈이 무엇을 읽어내는가" 다 — 나란한 자리에 둔다.
+  insight: number; // 0~100 — 살펴보지 않고도 아는 범위 (INTENT-INSIGHT-001)
 }
 
 // 자원 균형 (C007 → C010 재서술) — 피해가 고정값이 아니라 공식의 결과가 되었으므로
@@ -106,6 +111,10 @@ export const CHARACTER_CATALOG: Readonly<Record<string, CharacterDefinition>> = 
     },
     attackRange: 2.0,
     perceptionRange: 9.0,
+    // C016 — 0 으로 시작한다. 기른 적이 없는 눈이며, 이 값이 0 인 동안
+    // 세계는 C015 와 한 톨도 다르지 않다 (03 BALANCE · Regression 기준).
+    // 통찰을 올리는 경로는 아직 세계에 없다 — 지금은 디버그 명령이 유일하다.
+    insight: 0,
   },
   wanderer: {
     body: { radius: 0.7, height: 2.8, mass: 1.0 },
@@ -133,6 +142,10 @@ export const CHARACTER_CATALOG: Readonly<Record<string, CharacterDefinition>> = 
     },
     attackRange: 2.0,
     perceptionRange: 9.0,
+    // C016 — 자율 존재는 이 값을 쓰지 않는다. 그들은 관찰 계약이 아니라
+    // 세계 상태를 직접 읽으므로 가려짐 관문 밖이다 (RULE-NPC-DECIDE-001 무변경).
+    // 그래도 값을 지닌다 — 몸이 지니는 성질이지 조종자의 것이 아니기 때문이다.
+    insight: 0,
   },
 };
 
@@ -156,6 +169,7 @@ export const DEFAULT_CHARACTER: CharacterDefinition = {
   },
   attackRange: 2.0,
   perceptionRange: 9.0,
+  insight: 0,
 };
 
 export function characterDefinition(kind: CharacterKind): CharacterDefinition {

@@ -28,7 +28,7 @@ import {
   rawDamage,
   skillDefinition,
 } from '../semantic/combat';
-import { concealedKeys, isAcquainted } from '../semantic/acquaintance';
+import { concealedKeys, isAcquainted, isSeatOpen } from '../semantic/acquaintance';
 import { projectCommandCatalog } from '../semantic/command-catalog';
 import { hasMiningTool, itemCount } from '../semantic/inventory';
 import {
@@ -60,11 +60,19 @@ export function projectObserverView(
     const target = actionTargetId(actor.currentAction);
     const isSelf = actor.id === self.id;
     const isOtherPlayer = !isSelf && actor.control === 'player';
-    // C014 — 이 관찰자가 이 존재의 겨루는 힘을 아는가 (INTENT-OBSERVE-KNOWLEDGE-001).
+    // C014 — 이 관찰자가 이 존재를 살펴봤는가 (INTENT-OBSERVE-KNOWLEDGE-001).
     // 자기 몸은 언제나 참이다. 아는 것은 값이 아니라 자리이므로, 열려 있으면
     // 아래에서 **그 순간의 Actor** 를 읽는다 — 살펴본 때의 숫자를 베껴 두지 않는다.
-    const acquainted = isAcquainted(state.acquaintances, observerId, actor.id, self.id);
-    const concealed = concealedKeys(acquainted);
+    const learned = isAcquainted(state.acquaintances, observerId, actor.id, self.id);
+    // C016 — 가려짐이 자리마다 갈린다 (RULE-INSIGHT-REVEAL-001).
+    // 여는 통찰은 **보는 이가 지금 조종하는 몸**의 것이다 (INTENT-INSIGHT-001) —
+    // 앎은 사람에게 남고 통찰은 몸에 붙어 있으므로 한 칸을 되짚어 읽는다.
+    const concealed = concealedKeys(learned, self.insight);
+    // C016 CHANGED — 뜻이 "살펴봤다" 에서 **"가려진 자리가 하나도 없다"** 로 넓어진다.
+    // 살펴봤거나 · 통찰이 세 문턱을 모두 넘었거나 · 자기 몸이면 참이다.
+    const acquainted = concealed.length === 0;
+    const seatOpen = (key: 'combatStats' | 'versusObserver' | 'defenseShape') =>
+      isSeatOpen(key, learned, self.insight);
     // Collision.ActionColliders (C006) — attack 진행 중에만 존재하는 파생 상태
     const swing = actionCollider(actor);
     // C007 R2 — 모든 Actor 의 모든 속성을 싣는다. 가리는 경계를 두지 않는다
@@ -114,11 +122,18 @@ export function projectObserverView(
         concealed,
         // 왜 비어 있는가. 사유 코드로 둔다 — 값 하나로 굳히면 다음 사유가 생길 때 계약이 깨진다.
         ...(acquainted ? {} : { unacquaintedReason: 'not-observed' }),
+        // C016 ADDED — 통찰 (INTENT-INSIGHT-OBSERVE-001). 모든 존재에 언제나 실린다.
+        // 가려지는 목록에 넣지 않는다 — 겨루는 힘이 아니라 아는 힘이고, 목록은
+        // C014 가 정한 셋 그대로다 (01 EXCLUDED). 이 값이 보여야 가려진 목록이
+        // 왜 그 길이인지가 설명된다.
+        insight: actor.insight,
         // 전투 능력치 (C010 → C012 → C014) — 네 값과 두 방어 배율. 체감식이라 수치만
         // 보고는 효과를 알 수 없기 때문이다 (INTENT-TYPED-DEFENSE-001).
         // C014 CHANGED — 남의 것은 살펴본 뒤에만 실린다. 값의 뜻은 그대로이고
         // 달라지는 것은 **언제 실리는가** 뿐이다 (INTENT-UNSEEN-CAPABILITY-001).
-        ...(acquainted
+        // C016 CHANGED — 세 자리가 **따로** 실린다. 통찰이 얕은 자리부터 열기 때문에
+        // 관계값만 온 존재와 형태만 온 존재가 있다 (04 SEAT NOTE).
+        ...(seatOpen('combatStats')
           ? {
               combatStats: {
                 physicalAttack: actor.physicalAttack,
@@ -138,10 +153,15 @@ export function projectObserverView(
                 criticalChance: actor.criticalChance,
                 criticalDamage: actor.criticalDamage,
               },
-              // 이 존재의 두 방어가 보는 이의 관통에게 얼마로 읽히는가 (C013 ADDED).
-              // 세계가 계산해 내놓는다 — View 가 두 수를 곱하지 않는다
-              // (DC-WORLD-OWNS-THE-SURFACE-LIST). 치기 전에 보여야 고르는 일이 판단이 된다.
-              // C014 — 두 존재 사이의 값이므로 한쪽을 모르는 채로는 성립하지 않는다.
+            }
+          : {}),
+        // 이 존재의 두 방어가 보는 이의 관통에게 얼마로 읽히는가 (C013 ADDED).
+        // 세계가 계산해 내놓는다 — View 가 두 수를 곱하지 않는다
+        // (DC-WORLD-OWNS-THE-SURFACE-LIST). 치기 전에 보여야 고르는 일이 판단이 된다.
+        // C014 — 두 존재 사이의 값이므로 한쪽을 모르는 채로는 성립하지 않는다.
+        // C016 — combatStats 보다 얕은 자리다. 수치가 가려진 채 이것만 오는 존재가 있다.
+        ...(seatOpen('versusObserver')
+          ? {
               versusObserver: {
                 armor: effectiveDefense(actor.armor, self.armorPenetration),
                 resistance: effectiveDefense(actor.resistance, self.resistancePenetration),
@@ -152,13 +172,14 @@ export function projectObserverView(
                   effectiveDefense(actor.resistance, self.resistancePenetration),
                 ),
               },
-              // 어느 쪽이 더 단단한가 (C012) — 세계가 계산해 내놓는 판정이다
-              // (INTENT-DAMAGE-TYPE-OBSERVE-001 · DC-WORLD-OWNS-THE-SURFACE-LIST).
-              // C014 — 이것이 가려지지 않으면 "무엇으로 칠지" 의 답이 그대로 새어 나가고
-              // 살펴봄이 할 일이 없어진다.
-              defenseShape: defenseShape(actor),
             }
           : {}),
+        // 어느 쪽이 더 단단한가 (C012) — 세계가 계산해 내놓는 판정이다
+        // (INTENT-DAMAGE-TYPE-OBSERVE-001 · DC-WORLD-OWNS-THE-SURFACE-LIST).
+        // C014 — 이것이 가려지지 않으면 "무엇으로 칠지" 의 답이 그대로 새어 나가고
+        // 살펴봄이 할 일이 없어진다.
+        // C016 — 세 자리 중 가장 얕다. 통찰이 조금만 있어도 이것부터 열린다.
+        ...(seatOpen('defenseShape') ? { defenseShape: defenseShape(actor) } : {}),
         // 막기 (C011) — 모든 존재에 실린다. 자율 존재는 이번 Cycle 에서 막지 않으므로
         // 늘 거짓이지만 그래도 싣는다. "지금은 아무도 안 막는다" 와
         // "세계가 안 알려준다" 는 다른 일이다 (INTENT-GUARD-OBSERVE-001).
@@ -419,6 +440,11 @@ export function projectObserverView(
       // 값을 바꾼 직후 이 자리에서 즉시 확인되어야 "빈도와 크기가 달라진다" 가 읽힌다.
       { id: 'self.combat.criticalChance', kind: 'counter', value: self.criticalChance },
       { id: 'self.combat.criticalDamage', kind: 'counter', value: self.criticalDamage },
+      // C016 — 내 통찰. 0 도 싣는다 — 없다는 것을 아는 것이 "나는 다가가야만 안다" 를
+      // 아는 것이다 (C013 이 관통 0 을, C015 가 가능성 0 을 실은 판단 그대로).
+      // 값을 바꾼 직후 이 자리에서 즉시 확인되어야 "올렸더니 가려진 목록이 짧아졌다" 가
+      // 한 화면에서 읽힌다. combat 이 아닌 자기 자리를 쓴다 — 겨루는 힘이 아니다.
+      { id: 'self.insight', kind: 'counter', value: self.insight },
       { id: 'self.tempo.moveSpeed', kind: 'counter', value: self.moveSpeed },
       { id: 'self.tempo.runSpeedMultiplier', kind: 'counter', value: self.runSpeedMultiplier },
       { id: 'self.tempo.actionSpeed', kind: 'counter', value: self.actionSpeed },

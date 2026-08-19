@@ -63,7 +63,8 @@
           "guarding": false,
           "broken": true
         },
-        "defenseShape": "even"
+        "defenseShape": "even",
+        "insight": 0
       },
       "body": {
         "radius": 0.5,
@@ -134,7 +135,8 @@
           "guarding": false,
           "broken": false
         },
-        "defenseShape": "even"
+        "defenseShape": "even",
+        "insight": 0
       },
       "body": {
         "radius": 0.5,
@@ -205,7 +207,8 @@
           "guarding": false,
           "broken": false
         },
-        "defenseShape": "even"
+        "defenseShape": "even",
+        "insight": 0
       },
       "body": {
         "radius": 0.5,

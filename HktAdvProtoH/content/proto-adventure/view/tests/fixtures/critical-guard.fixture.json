@@ -48,7 +48,8 @@
         "guard": {
           "guarding": false,
           "broken": false
-        }
+        },
+        "insight": 0
       },
       "progress": 0.28333333333333327,
       "body": {
@@ -131,7 +132,8 @@
         "guard": {
           "guarding": true,
           "broken": false
-        }
+        },
+        "insight": 0
       },
       "progress": 0,
       "body": {

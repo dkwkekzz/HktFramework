@@ -48,6 +48,7 @@ export function spawnActor(spawn: ActorSpawn): ActorState {
     resistancePenetration: def.combat.resistancePenetration,
     criticalChance: def.combat.criticalChance, // C015 — 종류가 정하는 Critical 둘
     criticalDamage: def.combat.criticalDamage,
+    insight: def.insight, // C016 — 종류가 정하는 통찰 (지금은 모두 0)
     guarding: false, // C011 — 막기는 종류가 정하는 값이 아니다. 누구나 안 든 채로 태어난다
     guardBrokenUntil: 0,
     moveMode: 'walk',
