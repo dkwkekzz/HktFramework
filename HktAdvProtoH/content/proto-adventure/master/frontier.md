@@ -18,7 +18,7 @@ Basic Damage         섰다
 Critical             열렸다 — Q11(b) 확률 허용 ← 후보 (아래)
 Defense Action       섰다
 Damage Type          섰다
-Penetration          C013 이 닫았다 — Human Play 확인 대기 (Feedback 미실행)
+Penetration          섰다 — 단 관통을 **얻는** 경로가 없다 ← 후보 (아래)
 Active Defense       대기 — 사유는 "지금 열 수 없는 것"
 Aura / Nen           대기 — 사유는 "지금 열 수 없는 것"
 ```
@@ -39,35 +39,47 @@ WILD ~ UNKNOWN       대기 — 아래 층부터 순서대로
 
 ## 후보
 
-### FR-PENETRATION-DEVALUES-THE-WALL
-    Playable Result      플레이어가 방어를 두껍게 굳혀 벽처럼 버티는 상대 앞에서,
-                         그 방어를 얼마간 통하지 않게 만들어 제 피해를 넣는다
+### FR-EARN-THE-PIERCING
+    Playable Result      플레이어가 그 벽을 뚫기 위해 무언가를 하고, 그 결과로 자기 관통이
+                         달라진다 — 지금은 종류가 정해 준 값을 그대로 지니고 있을 뿐이다
     Source Goal          MG-OVERCOME-SUPERIOR-OPPONENT
     Source Possibility   MP-PIERCE-THE-HARD-DEFENSE
-    Missing / Partial    MC-PENETRATION (MISSING) — 이것 하나뿐이다.
-                         나머지 요구 3종과 지식 1종은 이미 세계에 있다 (C012 까지)
-    원본 근거            R1 §14 Penetration · DT §15 (어디에 붙는가 · 금지) ·
-                         R1 핵심 원칙 (새 공식을 만들지 않는다)
-    Active Constraints   DC-COMBAT-PLAYER-CAUSALITY(REVISED) · DC-COMBAT-ONE-FORMULA ·
-                         DC-COMBAT-ONE-LAYER-AT-A-TIME · DC-COMBAT-MATCHUP-SOFT ·
-                         DC-WORLD-OWNS-THE-SURFACE-LIST
-    Constraint Eval      SATISFIED — 관통은 방어를 확률로 무시하지 않고 결정적으로 깎는다
-                         (CAUSALITY 의 Critical 예외와 무관한 결정 경로). 새 공식 없이
-                         기존 감쇄식이 읽는 방어 값 하나를 바꾼다 (ONE-FORMULA).
-                         타입 대응이 고른 방어에만 작용한다 (ONE-LAYER · DT §15).
-                         배율표 금지·최소 1 피해·깎인 값 관찰 가능 (MATCHUP-SOFT).
-                         깎이기 전후의 방어를 세계가 관찰에 싣는다 (SURFACE-LIST)
-    Observable Result    같은 상대·같은 스킬인데 관통을 지닌 쪽이 더 큰 피해를 넣고,
-                         그 차이가 계산 내역으로 설명되며, 두꺼운 상대일수록 몫이 커진다
-    Why one Cycle        새 공식·새 행동·새 모션이 없다 — C012 가 고른 방어 값에
-                         그 값을 깎는 의미 하나가 붙는다
-    7 조건               1 MISSING · 2 네 번째 전투 경로를 연다 · 3 Client 실측 가능 ·
-                         4 한 Cycle · 5 새 World 규칙("방어만으로 안전하지 않다") ·
-                         6 Active 와 양립 · 7 Active Defense 층이 그대로 얹힌다
-    Status               SELECTED   (2026-08-18 Human Select → C013-penetration-devalues-the-wall)
-                         C013 이 기계 검증을 통과했고 Human Play 확인만 남았다.
-                         그 확인 뒤 Feedback 이 이 카드를 지우고 MC-PENETRATION 을 승격한다 —
-                         지금 다시 고를 대상이 아니다
+    Missing / Partial    없음 — 요구 Capability 4종은 C013 으로 전부 IMPLEMENTED 다.
+                         결손은 Capability 가 아니라 **획득 경로**다 (growth/growth-graph.md
+                         가 "성장이라는 행위 자체가 아직 세계 안에 없다" 로 이미 적어 둔 공백)
+    원본 근거            C013 08 MASTER FEEDBACK 의 제안 · 같은 문서의 Possibility 주의
+                         ("그 Possibility 를 열었을 뿐 아직 좁다 — 플레이어가 관통을 얻는
+                          경로가 세계에 없다. 디버그 명령뿐이다") ·
+                         DC-WORLD-PROGRESSION-IS-REACH 의 requires
+                         (`resource_can_open_capability_route`)
+    Active Constraints   DC-GROWTH-GOAL-FIRST · DC-GROWTH-NEED-FROM-POSSIBILITY ·
+                         DC-GROWTH-NOT-A-STAGE · DC-WORLD-PROGRESSION-IS-REACH ·
+                         DC-COMBAT-MATCHUP-SOFT
+    Constraint Eval      UNRESOLVED — **무엇으로 얻는가가 정해지지 않았다.**
+                         장비인지 성장인지 준비 행동인지를 근거 문서가 정하지 않았고
+                         (C013 08 의 주의), 그 선택에 따라 걸리는 판정이 달라진다.
+                         다만 형태와 무관하게 이미 걸려 있는 것 셋:
+                         GOAL-FIRST — "관통을 얻는다" 를 Goal 로 세우지 않는다.
+                           MG-OVERCOME-SUPERIOR-OPPONENT 를 달성하는 Possibility 로만 성립한다
+                         NEED-FROM-POSSIBILITY — 장비·Class 가 있다는 이유로 새 Capability 를
+                           만들지 않는다. MC-PENETRATION 은 이미 MP-PIERCE 가 요구해서 있다
+                         MATCHUP-SOFT — 그 경로가 유일한 문이 되면 하드 카운터다.
+                           관통을 얻지 못한 쪽도 계속 싸울 수 있어야 한다
+                         나머지는 Human 이 형태를 정하면 판정한다 — 지어내지 않는다
+    Observable Result    무언가를 한 뒤 내 관통이 달라지고, 같은 벽을 상대로 피해가
+                         달라지는 것이 계산 내역으로 설명된다
+    Why one Cycle        관통 자체는 이미 서 있다 — 더해지는 것은 그 값을 바꾸는 세계 내
+                         행위 하나다. 다만 형태가 정해지지 않아 크기를 아직 알 수 없다
+    7 조건               1 **해당 없음** (Capability 결손이 아니라 획득 경로 결손이다) ·
+                         2 MP-PIERCE 를 넓힌다 · 3 Client 실측 가능 · 4 형태에 따라 다르다 ·
+                         5 새 World 규칙 · 6 형태 미정으로 UNRESOLVED · 7 다른 능력치의
+                         획득 경로가 같은 자리에 얹힌다
+    Note                 이 후보는 다른 후보들과 **성질이 다르다** — overlay(구현되어 있는가)의
+                         결손이 아니라 growth overlay(얻는 경로가 있는가)의 결손이다.
+                         FR-INSIGHT-SEES-BEFORE-LOOKING 과 같은 뿌리이며(둘 다
+                         `resource_can_open_capability_route` 를 겨냥한다), 형태를 먼저
+                         정하면 두 후보가 한 층으로 합쳐질 수도 있다
+    Status               PROPOSED
 
 ### FR-CRITICAL-AMPLIFIES-THE-BLOW
     Playable Result      같은 공격이 이따금 크게 증폭되어 터지고, 플레이어는 성장·장비로
@@ -174,9 +186,9 @@ WILD ~ UNKNOWN       대기 — 아래 층부터 순서대로
                                       분산 축은 언제 넣어도 얹힌다
 ```
 
-FR-PENETRATION-DEVALUES-THE-WALL 은 이 목록에서 빠졌다 — **C013 이 이미 구현했고
-Human Play 확인만 남아 있다.** 그 확인이 끝나면 Feedback 이 이 후보를 지우고
-MC-PENETRATION 을 승격한다 (HISTORY 참조). 지금 다시 고를 대상이 아니다.
+FR-EARN-THE-PIERCING 은 순서에 넣지 않았다 — Constraint Eval 이 `UNRESOLVED` 다.
+무엇으로 관통을 얻는지(장비·성장·준비 행동)를 Human 이 정하기 전에는 크기도 제약도
+판정되지 않는다. 형태가 정해지면 순서에 들어온다.
 
 ## 지금 열 수 없는 것
 
@@ -185,6 +197,7 @@ MC-PENETRATION 을 승격한다 (HISTORY 참조). 지금 다시 고를 대상이
 | 층 / 후보 | 무엇이 막고 있는가 |
 |---|---|
 | FRINGE 진입 완주 (MP-VENTURE-INTO-FRINGE) | 결손 MC-USE-TERRAIN + 지역(SAFE↔FRINGE 경계)이라는 세계 기반. MC-PREDICT 는 위 후보다 |
+| 능력치 획득 경로 전반 (관통·공격력·통찰 …) | **성장이라는 행위 자체가 세계에 없다** — 능력치가 존재하고 계산에 반영되는 것(구현)과 그것을 플레이로 올릴 수 있는 것(획득 경로)은 다르다 (growth/growth-graph.md). 형태(장비·성장·준비 행동)를 Human 이 정해야 후보가 판정된다 — FR-EARN-THE-PIERCING 이 그 첫 사례다 |
 | 아이템으로 아는 경로 (감정 도구 등) | **아이템을 "쓴다" 는 개념이 세계에 없다** — 소지 개수만 있고(C001 Inventory) 소모·사용 Rule 이 0건이다. 그 개념 + 감정 도구 + 부분 공개를 한 Cycle 에 넣으면 셋이 된다. FR-INSIGHT-SEES-BEFORE-LOOKING 이 부분 공개를 먼저 세우면 남는 것은 "아이템 사용" 하나다 (2026-08-19 Human 이 이 방향도 지시했다) |
 | WILD 이하 진입 (MP-VENTURE-INTO-WILD ~ UNKNOWN) | 윗층 진입이 먼저다 (MW-DEPTH-GRADIENT). 각 층 결손 4~6종 |
 | Active Defense (완벽한 막기·되받아치기·Break) | R1 §15 층 그림에서 Penetration 위다. 두 문서는 이름만 예고 — 그 층의 설계 문서가 와야 한다 |

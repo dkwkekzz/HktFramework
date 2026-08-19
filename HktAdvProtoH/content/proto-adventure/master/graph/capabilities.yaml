@@ -234,12 +234,20 @@ nodes:
       상대의 방어 중 내 공격이 마주한 쪽을 얼마간 통하지 않게 만든다. 방어를 없애지는 못하고,
       마주하지 않은 다른 방어에는 닿지 않으며, 두껍게 굳힌 상대일수록 무력화의 몫이 커진다.
     required_by: [MP-PIERCE-THE-HARD-DEFENSE]
-    constraints: [DC-COMBAT-PLAYER-CAUSALITY]
+    constraints: [DC-COMBAT-PLAYER-CAUSALITY, DC-COMBAT-ONE-FORMULA,
+                  DC-COMBAT-ONE-LAYER-AT-A-TIME, DC-COMBAT-MATCHUP-SOFT,
+                  DC-WORLD-OWNS-THE-SURFACE-LIST]
     constraint_evaluation:
-      DC-COMBAT-PLAYER-CAUSALITY: SATISFIED    # 관통은 확률로 방어를 무시하는 것이 아니라 마주한 방어를 결정적으로 깎는다 (R1 §14 Penetration · DT §15)
-    overlay: MISSING
+      DC-COMBAT-PLAYER-CAUSALITY: SATISFIED    # 난수원 없음 — 언제나 같은 몫을 걷어낸다 (C013 5회 반복 동일)
+      DC-COMBAT-ONE-FORMULA: SATISFIED         # 감쇄식·DefenseConstant 100·하한 1 무변경. 걷는 곡선도 세계가 이미 쓰는 것을 재사용했다
+      DC-COMBAT-ONE-LAYER-AT-A-TIME: SATISFIED # Penetration 층 하나만 올렸다 — 막기는 관통을 읽지 않고 관통은 막기를 뚫지 않는다
+      DC-COMBAT-MATCHUP-SOFT: SATISFIED        # 타입별 배율표 없음 · 면역 없음(하한 1) · 깎인 값이 관찰 가능
+      DC-WORLD-OWNS-THE-SURFACE-LIST: SATISFIED # 두 존재 사이의 값(versusObserver)도 세계가 계산해 실었다
+    overlay: IMPLEMENTED
     # R1 §14 Penetration 층. 작용 지점은 DT §15 가 지정한다 —
     # 타입 대응이 고른 방어에만 작용하고 Damage Type 자체를 바꾸지 않는다.
+    # C013 08-verification 실측 — 마주한 방어 90 → 56.25 · 마주하지 않은 방어 불변
+    # (물리 C010 값 20 유지) · 두께에 비례(0/7.5/33.75/112.5) · 관통 100000 에서도 남는다.
 
   - id: MC-CONDITION-STACKING
     type: capability

@@ -4,11 +4,11 @@
 [PASS] World Rule Execution
 [PASS] Projection
 [PASS] View Binding
-[PASS] Playable          기계 왕복 확인 · **Human Play 확인 대기**
+[PASS] Playable          기계 왕복 확인 · Human 완료 지시 2026-08-19
 [PASS] Regression
 [PASS] Catalog
 
-STATUS  VERIFIED (기계) — Human Play 확인 전
+STATUS  COMPLETE (2026-08-19)
 
 ## NEW BEHAVIOR
 
@@ -279,4 +279,14 @@ STATUS  VERIFIED (기계) — Human Play 확인 전
 
 ## STATUS
 
-    VERIFIED (기계) — 아홉 항목의 Human Play 확인 뒤 COMPLETE 로 바꾼다.
+    COMPLETE   (2026-08-19)
+        기계 검증 7항 통과 + Human 완료 지시 ("C013도 완료처리해줘").
+        아홉 항목의 화면 확인을 Agent 가 대신 수행한 것은 아니다 — 그 판단은 Human 이
+        내렸고 이 기록은 그 지시를 옮긴 것이다. 위 목록은 이후 회귀 확인의 기준으로 남긴다.
+
+        Master Feedback 은 같은 날 반영되었다 —
+        MC-PENETRATION MISSING → IMPLEMENTED · MP-PIERCE-THE-HARD-DEFENSE 닫힘 ·
+        CC-THE-WORLD-OWNS-THE-RELATION 접수(PENDING) ·
+        FR-EARN-THE-PIERCING 후보 등록(Constraint Eval UNRESOLVED — 형태 미정) ·
+        획득 경로 부재를 overlay 와 growth/growth-graph.md 에 남겼다.
+        경위는 master/HISTORY.md 의 C013 절이 소유한다.

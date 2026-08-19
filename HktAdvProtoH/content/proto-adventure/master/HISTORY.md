@@ -523,6 +523,62 @@ ONE-LAYER-AT-A-TIME 신설, 이연 층 근거의 3종은 DRAFT 보류.
 
 ---
 
+# C013 — Penetration Devalues the Wall (Feedback 반영 2026-08-19)
+
+## Frontier 선택과 결과
+
+    FR-PENETRATION-DEVALUES-THE-WALL   2026-08-18 Human Select
+        → C013-penetration-devalues-the-wall (8 Stage 통과 · Human 지시로 COMPLETE)
+        이 후보는 frontier.md 에서 지웠다.
+
+    닫은 것   MC-PENETRATION  MISSING → **IMPLEMENTED**
+              근거는 C013 08-verification 의 실측 — 마주한 방어가 90 → 56.25 로 깎이고,
+              마주하지 않은 방어에는 닿지 않으며(물리 타격의 C010 값 20 유지),
+              두께에 비례해 걷히고(0/7.5/33.75/112.5), 관통 100000 에서도 방어가 남는다.
+              MC-PENETRATION semantic 의 세 문장이 그대로 실측되었다.
+
+    경로     MP-PIERCE-THE-HARD-DEFENSE 가 닫혔다 — 요구 4종이 모두 IMPLEMENTED.
+             전투 영역에서 열린 경로가 넷이 되었다 (OUTGROW · TRADE-BODY · MATCH-WEAPON ·
+             PIERCE).
+
+## 이 승격에 붙은 주의 — 열렸을 뿐 좁다
+
+    C013 08 이 직접 보고한 것이다: 관통을 지닌 존재가 관찰자의 몸 하나이고,
+    플레이어가 관통을 **얻는** 경로가 세계에 없다 (종류가 정한 초기값이거나
+    디버그 명령뿐이다). Possibility 는 열렸지만 그 경로를 **고를** 수는 없다.
+
+    이 주의를 두 곳에 반영했다.
+        overlay.md              MC-PENETRATION 의 "부족한 것" 칸에 획득 경로 부재를 남겼다
+        growth/growth-graph.md  MC-PENETRATION 행을 추가했다 (획득 경로 = 없음)
+    그리고 Frontier 후보 FR-EARN-THE-PIERCING 으로 올렸다 — Constraint Eval 은
+    `UNRESOLVED` 다. 장비인지 성장인지 준비 행동인지를 근거 문서가 정하지 않았고,
+    형태가 정해지기 전에는 제약도 크기도 판정되지 않는다. 지어내지 않았다.
+
+## 배운 것
+
+    ① **한 층은 새 곡선을 만들지 않을 수 있다** — 걷는 데 쓴 곡선도 세계가 이미 쓰는
+       `100/(100+x)` 였다. 감쇄식·상수 100·하한 1 이 한 글자도 바뀌지 않은 채로
+       "방어만으로는 안전하지 않다" 라는 새 규칙이 섰다 (DC-COMBAT-ONE-FORMULA 의
+       가장 강한 형태).
+    ② **두 존재 사이의 값은 세계가 소유해야 한다** — versusObserver.
+       View 가 곱셈으로 만들 수 있기 때문에 계약에서 빠뜨리기 쉽다.
+       CC-THE-WORLD-OWNS-THE-RELATION 으로 제출했다. 이 판단이 C014 에서 값을 했다 —
+       상대를 모를 때 combatStats 가 실리지 않는데, View 가 곱셈을 했다면
+       **가려진 자리가 뚫렸을 것이다.**
+    ③ **계산에 쓰인 값에는 자기 이름이 있어야 한다** — `defenseStat`(걷히기 전)을
+       상대의 속성과 같은 수로 고정하고, 감쇄식의 입력에 새 이름
+       `effectiveDefense` 를 주었다. 한 이름이 두 뜻을 가지면 검산이 어긋난다.
+    ④ **어느 종류에 주는가는 어떤 검사도 잡지 못한다** — 처음 구현은 관통을 자율
+       존재에게 주어 Cycle Goal 의 주어가 뒤집혀 있었고, 306 tests 가 전부 통과했다.
+       Human 의 질문("플레이어에 영향을 주는 속성이 명료한가")이 잡았다.
+       경위는 C013 08-verification 의 CORRECTION 절이 소유한다.
+
+## Master Gap
+    없음. R1 §14 가 배정한 한 줄(`Penetration → Defense 를 감소시킨다`)과 DT §15 의
+    작용 지점(대응 뒤 · 선택된 방어에만 · Damage Type 불변)을 그대로 따랐다.
+
+---
+
 # C014 — Observe Reveals the Opponent (Feedback 반영 2026-08-19)
 
 ## Frontier 선택과 결과
@@ -588,10 +644,9 @@ ONE-LAYER-AT-A-TIME 신설, 이연 층 근거의 3종은 DRAFT 보류.
     없음. Stage 5 가 확인한 판단 둘(C007 R2 개정 범위 · DT §10 조정)이 승인되어
     반환 조건이 발생하지 않았다.
 
-## 미실행 Feedback — C013 (Penetration)
+## C013 Feedback — 같은 날 해소되었다
 
-    C013 은 기계 검증을 통과했으나 **Human Play 확인 대기**여서 그 Feedback 을 돌리지
-    않았다. 그래서 지금 overlay 의 MC-PENETRATION 은 여전히 MISSING 이고
-    frontier.md 의 FR-PENETRATION-DEVALUES-THE-WALL 은 `SELECTED` 로 남아 있다 —
-    코드는 이미 들어가 있으므로 **overlay 와 현재 세계가 그 한 줄에서 어긋난 상태**다.
-    Play 확인이 끝나면 그 Feedback 을 돌려 승격·정리한다.
+    C014 반영 시점에는 C013(관통)이 Play 확인 대기여서 그 Feedback 을 돌리지 못했고,
+    overlay 의 MC-PENETRATION 이 코드와 어긋난 채(MISSING) 남아 있었다.
+    같은 날 Human 이 C013 도 완료 처리하도록 지시해 그 Feedback 을 돌렸다 —
+    위의 C013 절이 그 기록이다. 어긋남은 해소되었다.

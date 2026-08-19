@@ -18,6 +18,7 @@ Class(`CL-*`) 노드는 아직 없고, Item 노드는 BW §10 이 직접 명명�
 
 | Capability | 획득 경로 (grants 하는 CL-* / IT-* / MA-*) | 근거 | 부족한 것 |
 |---|---|---|---|
+| MC-PENETRATION | 없음 | C013 08-verification 은 관통 값의 변경을 **디버그 명령**으로 실측했다 (RULE-ATTRIBUTE-SET-001). 종류가 정한 초기값 외에 이 값을 바꾸는 세계 내 행위가 없다 — 08 이 그 사실을 Possibility 주의로 직접 보고했다 | 관통을 얻는 경로 전부. 형태(장비·성장·준비 행동)가 정해지지 않았다 — Frontier 후보 FR-EARN-THE-PIERCING 이 그 판단을 Human 에게 걸어 두었다 |
 | MC-ATTACK-POWER | 없음 | C010 08-verification 은 공격력 40→80 변경을 세계 밖 값 조작으로 실측했다 — semantic 이 말하는 "장비·성장·버프가 이 값을 올린다"의 세계 내 행위가 존재하지 않는다 | 이 값을 올리는 세계 내 경로 전부 — 장착할 Item 도, 될 Class 도, 배울 Actor 도 없다 |
 | MC-CUT-ABNORMAL-STRUCTURE | IT-BOUNDARY-BLADE (예고 — BW §17) | BW §10 · §17 이 경계결정 → Boundary Blade → 이 Capability 사슬을 명시한다 | grants 는 스키마상 IM-*/CL-* 소유다 — 제작(조합 규칙)이 정해져 IM 이 서기 전까지 배선 없음. 세계 구현도 전무 (overlay MISSING) |
 | MC-RESTORE-BIOLOGICAL-STATE | 없음 | BW §8 은 원천(회귀초 — MW-HYPER-PREDATION 적응)만 명시하고 Item ID 를 명명하지 않았다 | 회귀초의 IT-* 노드와 획득·사용 규칙 전부 — 문서가 ID 를 주지 않아 세우지 않았다 (지어내지 않는다) |
