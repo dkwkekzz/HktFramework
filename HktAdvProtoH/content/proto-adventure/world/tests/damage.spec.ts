@@ -153,7 +153,7 @@ describe('INTENT-DEFENSE-001 — 방어 능력이 피해를 줄인다', () => {
     world.tick(TICK_INTERVAL);
 
     const view = world.observe();
-    expect(actor(view, PLAYER)?.attributes?.combatStats.armorMultiplier).toBe(0.5);
+    expect(actor(view, PLAYER)?.attributes?.combatStats?.armorMultiplier).toBe(0.5);
     expect(hud(view, 'self.combat.armor')).toBe(100);
     expect(hud(view, 'self.combat.armorMultiplier')).toBe(0.5);
   });

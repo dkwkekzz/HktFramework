@@ -27,6 +27,12 @@ const BUILDERS: Record<string, RequestBuilder> = {
       attribute: { id: attribute, value },
     };
   },
+  // C014 — 되돌림. 지목하지 않으면 알고 있는 전부다 (omittedMeaning: all-known).
+  // 그래서 target 이 없으면 아무것도 싣지 않는다 — 세계가 그 뜻을 안다.
+  'forget-acquaintance': (values) => ({
+    interactionId: 'forget-acquaintance',
+    ...(values.target ? { targetEntityId: values.target } : {}),
+  }),
 };
 
 /**

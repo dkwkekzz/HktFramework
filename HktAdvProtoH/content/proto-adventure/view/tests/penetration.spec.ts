@@ -79,12 +79,13 @@ describe('entities.attributes.versusObserver — 치기 전에 무엇이 통할�
     // View 가 combatStats.armor 와 내 관통을 곱하고 있었다면 여전히 나타난다
     const stripped = JSON.parse(JSON.stringify(snapshot)) as GameViewSnapshot;
     for (const entity of stripped.entities) {
-      if (entity.attributes) {
+      const combat = entity.attributes?.combatStats;
+      if (entity.attributes && combat) {
         entity.attributes.versusObserver = {
-          armor: entity.attributes.combatStats.armor,
-          resistance: entity.attributes.combatStats.resistance,
-          armorMultiplier: entity.attributes.combatStats.armorMultiplier,
-          resistanceMultiplier: entity.attributes.combatStats.resistanceMultiplier,
+          armor: combat.armor,
+          resistance: combat.resistance,
+          armorMultiplier: combat.armorMultiplier,
+          resistanceMultiplier: combat.resistanceMultiplier,
         };
       }
     }
