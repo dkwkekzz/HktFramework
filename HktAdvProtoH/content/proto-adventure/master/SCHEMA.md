@@ -96,15 +96,67 @@ nodes:
 
 아래 절의 예시는 그 `nodes:` 아래에 들어가는 **항목 하나**의 형태다.
 
+### 모든 Node 공통 — 읽히는 형태와 구현 정합
+
+Graph 는 설계자만 보는 메모가 아니라 Cycle 이 소비하는 입력이다. 읽어서 무슨 말인지
+모르는 노드는 Cycle 로 내려가지 못한다. 따라서 모든 Node 는 **세 겹**으로 쓴다.
+
+```text
+① 한 줄       무엇인가            statement / desired_state / semantic / meaningful_difference
+② 풀어서      detail:             왜 그런가 · 무엇이 뒤따르는가 · 무엇과 헷갈리면 안 되는가
+③ 세계에서    world_shape:        이 노드가 "세계에 실제로 있다" 를 무엇으로 확인하는가
+```
+
+`detail` 규칙 — 여기가 가독성을 책임진다.
+
+```text
+평서문으로 쓴다. 도식(↓ 화살표 나열)과 명사 나열로 대신하지 않는다.
+영문 대문자 용어를 문장 주어로 쓰지 않는다 — "FREE WORLD PRESSURE 는" 이 아니라
+  "아직 무엇으로도 굳지 않은 세계압은" 으로 쓰고 괄호로 원어를 붙인다.
+독자는 이 프로젝트를 처음 보는 사람이다. 앞 노드를 읽었다고 가정하지 않는다.
+원문 인용(BW §x)은 문장 끝 괄호에 둔다. 인용이 문장을 대신하지 않는다.
+분량은 3~6 문장. 한 문장으로 충분하면 detail 을 생략하지 말고 그 한 문장을 쓴다.
+```
+
+`world_shape` 규칙 — 여기가 구현 정합을 책임진다.
+
+```text
+관찰 가능한 조건으로 쓴다 — "플레이어가 X 하면 Y 가 보인다".
+구현 모듈명·파일명·함수명을 쓰지 않는다 (그것은 Cycle 소유다).
+수치·공식을 쓰지 않는다 (Cycle 의 03-world-semantic.md 소유다).
+이 칸이 비면 그 노드는 Cycle 이 받아 갈 수 없다 — 사유를 적는다.
+Cycle 은 이 칸을 만족시켰는지로 08-verification 을 쓰고, 그 결과가 overlay 로 돌아온다.
+```
+
+`implemented:` 는 그 `world_shape` 가 지금 `world/` `view/` 에 있는가다.
+
+```text
+PRESENT | PARTIAL | ABSENT       근거는 overlay.md 가 소유한다 (여기에는 값만)
+```
+
+Capability 의 기존 `overlay:` 필드가 같은 역할을 한다 — Capability 는 `overlay:` 를
+쓰고 나머지 Node 는 `implemented:` 를 쓴다. 두 이름을 통일하지 않는 이유는
+`overlay:` 가 이미 닫힌 Cycle 13 개의 피드백 경로에 쓰이고 있어서다.
+
 ### graph/world-state.yaml — MW-
 
 ```yaml
 - id: MW-FOREST-CORRUPTED
   type: world_state
   statement: Forest 가 Corrupted 상태다
+  detail: >
+    <풀어서 — 왜 그렇게 되었고 무엇이 뒤따르는가>
+  world_shape: >
+    <이 상태가 세계에 있다는 것을 무엇으로 확인하는가>
+  implemented: ABSENT         # PRESENT | PARTIAL | ABSENT — 근거는 overlay.md
+  arises_from: [MW-...]       # 이 상태를 낳은 상위 세계 상태 (World → World 인과)
   causes: [MG-...]            # 이 상태가 발생시키는 Goal
   changed_by: [MP-...]        # 이 상태를 바꾸는 Possibility
 ```
+
+`arises_from` 이 세계의 인과 척추다. 어떤 상태가 왜 존재하는지를 **간선으로** 남긴다 —
+`statement` 안에 한국어로 "A 때문에 B" 라고 써 두는 것으로 대신하지 않는다. 그렇게 하면
+그래프가 아니라 주석 달린 목록이 된다. 최상위 전제만 `arises_from: []` 이다.
 
 ### graph/actors.yaml — MA-
 
@@ -114,6 +166,11 @@ nodes:
   kind: NPC                   # PLAYER | NPC | CREATURE | FACTION | GUILD | SETTLEMENT
   perspective: >
     이 주체가 세계를 어떻게 보는가 · 무엇을 이해관계로 삼는가
+  detail: >
+    <풀어서 — 이 주체가 무엇을 알고 무엇을 모르는가 · 무엇을 두려워하는가>
+  world_shape: >
+    <이 주체가 세계에 있다는 것을 무엇으로 확인하는가>
+  implemented: ABSENT         # PRESENT | PARTIAL | ABSENT
   wants: [MG-...]
   knows:    [MK-...]
   believes: [MB-...]
@@ -127,6 +184,12 @@ nodes:
   holder: [MA-...]
   statement: >
     확보한 정보(knowledge) 또는 사실이라 믿는 것(belief)
+  detail: >
+    <풀어서 — 이것을 아는 사람과 모르는 사람의 판단이 무엇이 갈리는가>
+  world_shape: >
+    <이 정보가 세계에 있다는 것을 무엇으로 확인하는가 —
+     모를 때 무엇이 가려져 있고 알고 나면 무엇이 보이는가>
+  implemented: ABSENT         # PRESENT | PARTIAL | ABSENT
   contradicts: []             # belief 인 경우 어긋나는 MW-*
   revealed_by: [MP-...]
 ```
@@ -138,12 +201,21 @@ nodes:
   type: goal
   owner: MA-PLAYER
   desired_state: <원하는 세계의 상태>
-  motivation: [MG-...]        # 왜 원하는가 — 상위 Goal 또는 서술
+  detail: >
+    <풀어서 — 이 Goal 을 가진 사람이 실제로 무엇을 바라는가>
+  world_shape: >
+    <이 Goal 이 세계에서 성립한다는 것을 무엇으로 확인하는가 — 달성 판정의 관찰 조건>
+  implemented: ABSENT         # PRESENT | PARTIAL | ABSENT
+  motivation: [MG-...]        # 왜 원하는가 — 상위 Goal 또는 서술. 여러 개를 병렬로 둔다.
+                              # 하나로 고정하지 않는다는 것은 0 개로 둔다는 뜻이 아니다
   belief_context: [MB-...]
   stakes: [<실패하면 잃는 것>]
   caused_by: [MW-...]
   constraints: [DC-...]
 ```
+
+`stakes` 가 비면 Goal 이 아니다 — 잃을 것이 없으면 아무도 그것을 원하지 않는다.
+채울 수 없으면 그 노드는 Goal 이 아니라 Capability 인지 다시 검사한다.
 
 ### graph/possibilities.yaml — MP-
 
@@ -154,6 +226,11 @@ nodes:
   meaningful_difference: >
     다른 Possibility 와 Gameplay/Cost/Risk/Relationship/Consequence 중
     무엇이 실질적으로 다른가. 답할 수 없으면 동의어이지 대안이 아니다
+  detail: >
+    <풀어서 — 이 경로를 고른 플레이어가 실제로 무엇을 하게 되는가>
+  world_shape: >
+    <이 경로가 세계에서 열려 있다는 것을 무엇으로 확인하는가>
+  implemented: ABSENT         # PRESENT | PARTIAL | ABSENT
   requires:                   # AND
     goals: []
     capabilities: [MC-...]
@@ -179,6 +256,11 @@ nodes:
   semantic: >
     재사용 가능한 플레이 의미 한 문단. 왜 필요한지는 쓰지 않는다 —
     그것은 Goal/Possibility 경로가 설명한다
+  detail: >
+    <풀어서 — 이 능력이 있는 몸과 없는 몸이 무엇이 다른가.
+     비슷한 다른 Capability 와 무엇으로 갈리는가>
+  world_shape: >
+    <이 능력이 세계에 있다는 것을 무엇으로 확인하는가 — Cycle 이 이 칸을 닫는다>
   required_by: [MP-...]
   constraints: [DC-...]
   constraint_evaluation:

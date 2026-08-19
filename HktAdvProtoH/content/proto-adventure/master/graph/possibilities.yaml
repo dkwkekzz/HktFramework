@@ -1,24 +1,28 @@
 # Master Possibility — MP-*
 # Goal 을 달성·진전시키는 의미 있게 다른 후보 방법. Goal→Possibility 는 OR,
-# Possibility→Requirements 는 AND 다.
+# Possibility→requires 는 AND 다.
 # Gameplay/Cost/Risk/Relationship/Consequence 중 하나 이상이 실질적으로 달라야
 # 별도 Possibility 다. 동의어를 늘리지 않는다.
 # 형식: ../SCHEMA.md
 #
-# 인용 표기 — 근거 문서는 둘뿐이다 (2026-08-18 Human 결정).
-#   R1 §x   design/Design-Combat-OffenseDefense-R0.md   2026-08-17 R1 전면 개정판
-#   DT §x   design/Design-Combat-DamageType-R0.md
-# 삭제된 구판(R0)은 근거가 아니다. 구판 인용은 전부 제거했고, 구판에만 근거가 있던
-# MP-STRIKE-THE-VULNERABLE-SPOT 도 삭제했다 (요구 Capability 2종이 함께 삭제되었다).
+# 인용 — BW = design/Master-World-Beira.md (탐험) ·
+#        R1 = design/Design-Combat-OffenseDefense-R0.md · DT = design/Design-Combat-DamageType-R0.md (전투)
 #
-# C010·C011 롤백 (2026-08-17 Human 결정) — 막기 계열 구현이 되돌려져
-# MP-TRADE-BODY-FOR-RESOURCE · MP-READ-AND-COUNTER 도 다시 열린 경로가 아니다.
-# DC 삭제 (2026-08-18 Q12) — DEFENSE-IS-ACTIVE · POWER-HAS-COST 는 근거가 구판뿐이라
-# 삭제했다. 이 노드들의 해당 constraints · constraint_evaluation 항목도 함께 제거했다.
+# ── 이 파일을 읽는 법 ────────────────────────────────────────────────────
+# Goal 하나에 매달린 여러 MP-* 는 "둘 다 해야 하는 단계" 가 아니라 "골라서 하는 갈래" 다.
+# 그러니 한 Goal 아래를 세로로 읽으면서 "나라면 어느 쪽을 고를까" 를 물으면 된다.
+# 각 노드의 meaningful_difference 가 그 선택의 근거이고, detail 이 그것을 풀어 쓴 것이다.
+#
+#   MG-OVERCOME-SUPERIOR-OPPONENT   앞을 막는 강한 상대를 넘어선다      → 갈래 10
+#   MG-SURVIVE-ENEMY-OFFENSIVE      밀리는 국면을 버티고 되돌린다        → 갈래 3
+#   MG-EXPLORE-BEIRA                대응 가능한 세계를 넓힌다            → 갈래 6
+#   MG-ACQUIRE-RARE-ORGAN           특정 생물의 기관을 얻는다            → 갈래 5
 version: 1
 nodes:
 
-  # ── MG-OVERCOME-SUPERIOR-OPPONENT 를 달성하는 방법들 (OR) ──────────────
+  # ══════════════════════════════════════════════════════════════════════
+  # MG-OVERCOME-SUPERIOR-OPPONENT — 넘을 수 없어 보이는 상대를 넘어서는 갈래들
+  # ══════════════════════════════════════════════════════════════════════
 
   - id: MP-OUTGROW-THE-OPPONENT
     type: possibility
@@ -28,10 +32,23 @@ nodes:
       이것은 전투 밖에서 기른 공격·방어 능력치로 정면 교환 자체를 유리하게 만든다.
       손의 정확함이 아니라 축적을 요구하고, 같은 행동이 성장 전후로 다른 결과를 낸다 —
       전투가 시작되기 전에 이미 절반이 결정되는 유일한 경로다.
+    detail: >
+      가장 단순한 갈래다. 더 세게 때리고 더 잘 버티는 몸이 되어서 이긴다.
+      플레이어가 전투 중에 특별히 잘할 필요가 없고, 대신 그 몸을 만들기까지의 축적이
+      필요하다. 이 갈래의 값어치는 그것이 쉬워서가 아니라 **다른 갈래들의 기준선**이기
+      때문이다 — "성장만으로도 되는데 왜 굳이 읽고 깨고 고르는가" 에 답할 수 있어야
+      나머지 아홉 갈래가 존재 이유를 갖는다. 그래서 이 갈래는 언제나 성립하되
+      가장 비싸야 한다.
+    world_shape: >
+      능력치를 올리면 같은 스킬·같은 상대에 대한 결과가 실제로 좋아지고, 그 변화가
+      계산 내역으로 설명되어야 한다. 그리고 그 능력치를 **세계 안의 행위로** 올릴 수
+      있어야 한다 — 올릴 방법이 세계 밖에 있으면 이 경로는 열린 것이 아니다.
+    implemented: PARTIAL
+    # 능력치가 결과를 바꾸는 것은 실측으로 닫혔다 (C010). 그러나 그 능력치를 플레이로
+    # 올리는 경로가 세계에 없다 — 디버그 명령뿐이다. 근거는 overlay.md · growth/growth-graph.md.
     requires:
       goals: []
       capabilities: [MC-ATTACK-POWER, MC-SKILL-SCALING, MC-DEFENSE-MITIGATION, MC-COMBAT-STRIKE, MC-CP-ECONOMY]
-      # 기본 공격이 기력을 벌고 고급 공격이 쓰는 기존 루프 위에서 성장이 작동해야 한다 (R1 §11 · §16)
       knowledge: []
       world_state: []
       relationship: []
@@ -46,82 +63,6 @@ nodes:
     constraint_evaluation:
       DC-COMBAT-PLAYER-CAUSALITY: SATISFIED    # 같은 능력치·같은 스킬·같은 상대면 항상 같은 피해 — 난수 없음 (R1 §6)
 
-  - id: MP-READ-AND-COUNTER
-    type: possibility
-    achieves: [MG-OVERCOME-SUPERIOR-OPPONENT]
-    meaningful_difference: >
-      상대의 공격을 피하거나 견디는 것이 아니라 그 공격 자체를 자원으로 바꾼다.
-      비용은 낮고(성공하면 자원을 오히려 얻는다) 요구되는 것은 정확한 시점이다 —
-      실패하면 그대로 맞는 고위험 저비용 경로다. 다른 어떤 경로보다 상대의 행동에 의존한다.
-    requires:
-      goals: []
-      capabilities: [MC-GUARD, MC-PERFECT-GUARD, MC-COUNTER, MC-CP-ECONOMY]
-      knowledge: [MK-OPPONENT-FLOW-PATTERN]
-      world_state: []
-      relationship: []
-      resource: []
-    supports: [MG-SURVIVE-ENEMY-OFFENSIVE]
-    opposes: []
-    changes:
-      - 공격권이 상대에서 나에게 넘어온다
-      - 상대가 잠시 취약해진다
-    reveals: [MK-OPPONENT-FLOW-PATTERN]
-    creates_goal: []
-    constraints: [DC-COMBAT-PLAYER-CAUSALITY]
-    constraint_evaluation:
-      DC-COMBAT-PLAYER-CAUSALITY: SATISFIED    # 성패가 확률이 아니라 시점 관계로 갈린다 (R1 §6)
-    # C011 로 닫혔다가 2026-08-17 롤백 — R1 §14 Active Defense 층에서 재구축한다.
-
-  - id: MP-BREAK-THE-GUARD
-    type: possibility
-    achieves: [MG-OVERCOME-SUPERIOR-OPPONENT]
-    meaningful_difference: >
-      상대의 실수를 기다리지 않고 상대의 방어 자체를 무너뜨려 이긴다. 방어가 성립하지 않는
-      구간을 스스로 만들므로 상대의 대응에 덜 의존한다 — 파티가 함께 쓸 수 있는 경로다.
-    requires:
-      goals: []
-      capabilities: [MC-BREAK, MC-COMBAT-STRIKE, MC-CP-ECONOMY]
-      knowledge: []
-      world_state: []
-      relationship: []
-      resource: [축적된 CP]
-    supports: []
-    opposes: [MG-SURVIVE-ENEMY-OFFENSIVE]   # 압박을 유지하려면 방어에 쓸 자원과 거리를 포기해야 한다
-    changes:
-      - 상대의 방어가 일시적으로 성립하지 않는다
-    reveals: []
-    creates_goal: []
-    constraints: [DC-COMBAT-PLAYER-CAUSALITY]
-    constraint_evaluation:
-      DC-COMBAT-PLAYER-CAUSALITY: SATISFIED    # 무너뜨리는 조건이 명시적이다 — 난수가 아니다 (R1 §6)
-    # R1 §14 Active Defense 층이 이름만 예고한다 (Guard Break). 압박 누적·폭발 구간 같은
-    # 세부는 구판에만 있었으므로 2026-08-18 삭제했다 — 그 층의 설계 문서가 다시 공급해야 한다.
-
-  - id: MP-EXPLOIT-OPEN-BODY
-    type: possibility
-    achieves: [MG-OVERCOME-SUPERIOR-OPPONENT]
-    meaningful_difference: >
-      상대가 스스로 만든 취약 구간을 노린다. 자원도 위치도 요구하지 않고 오직 관찰과 대기가
-      비용이다 — 기다리는 동안 아무것도 얻지 못한다. 되받아치기와 달리 상대의 공격을 받아낼
-      필요가 없다.
-    requires:
-      goals: []
-      capabilities: [MC-COMBAT-FLOW, MC-COMBAT-STRIKE, MC-COMBAT-CAUSE-READING]
-      knowledge: [MK-OPPONENT-FLOW-PATTERN]
-      world_state: []
-      relationship: []
-      resource: []
-    supports: [MP-READ-AND-COUNTER]
-    opposes: []
-    changes:
-      - 상대가 힘을 몰았던 순간의 대가를 실제로 치른다
-    reveals: [MK-OPPONENT-FLOW-PATTERN]
-    creates_goal: []
-    constraints: [DC-COMBAT-PLAYER-CAUSALITY]
-    constraint_evaluation:
-      DC-COMBAT-PLAYER-CAUSALITY: SATISFIED    # 열림은 배분 상태라는 관찰 가능한 원인이다 — 난수가 아니다 (R1 §6)
-    # R1 §14 Aura/Nen 층이 예고한다 — 공격 집중이 Defense ×0.7 로 반대쪽을 실제로 비운다.
-
   - id: MP-MATCH-WEAPON-TO-ARMOR
     type: possibility
     achieves: [MG-OVERCOME-SUPERIOR-OPPONENT]
@@ -129,6 +70,19 @@ nodes:
       전투 중의 실행이 아니라 전투 전의 선택으로 이긴다. 준비 단계에서 결정되며 교전 중에는
       바꿀 수 없다. 성장의 축적(MP-OUTGROW-THE-OPPONENT)과 달리 상대별로 다시 고르는
       판단이다 — 같은 능력치로도 상대에 따라 결과가 달라진다.
+    detail: >
+      상대의 방어에는 형태가 있고, 그 형태마다 덜 버티는 공격 형태가 있다. 그래서
+      싸우기 전에 상대를 보고 무엇을 들고 갈지 고른다. 이 갈래가 성립하려면 두 가지가
+      필요하다 — 상대의 방어 형태를 알 수 있어야 하고(MK-OPPONENT-DEFENSE-SHAPE),
+      고른 것이 실제로 결과를 바꿔야 한다. 주의할 것은 이것이 "약점 부위 때리기" 가
+      아니라는 점이다. 어디를 때리는가가 아니라 **무엇으로** 때리는가의 선택이다.
+      그리고 상성은 배율표가 아니라 대응 능력치 차이로 생겨야 한다 (DT §4 · §7) —
+      표로 만들면 외우면 끝나는 정답이 되고 선택이 사라진다.
+    world_shape: >
+      상대마다 방어 형태가 다르고, 같은 스킬 값이 상대에 따라 다른 결과를 내며,
+      그 차이가 계산 내역으로 설명되어야 한다. 그리고 어느 한쪽이 완전 면역이 아니어야 한다.
+    implemented: PRESENT
+    # C012 — 공격 형태 둘·방어 형태 둘이 존재하고 타입 대응이 계산의 입력을 고른다.
     requires:
       goals: []
       capabilities: [MC-ATTACK-ARMOR-MATCHUP, MC-COMBAT-STRIKE]
@@ -146,7 +100,6 @@ nodes:
     constraint_evaluation:
       DC-COMBAT-PLAYER-CAUSALITY: SATISFIED    # 상성은 결정적이다 — 같은 조합이면 같은 결과 (DT §8)
       DC-COMBAT-MATCHUP-SOFT: SATISFIED        # 배율표·면역 없이 대응 능력치 차이로만 상성이 생긴다 (DT §4 · §7)
-    # C012-damage-type-chooses-the-defense 가 R1 §14 Damage Type 층으로 닫았다 (2026-08-18).
 
   - id: MP-PIERCE-THE-HARD-DEFENSE
     type: possibility
@@ -154,15 +107,26 @@ nodes:
     meaningful_difference: >
       고를 무른 쪽이 없을 때 남는 유일한 길이다. 상성 선택(MP-MATCH-WEAPON-TO-ARMOR)이 상대의
       무른 쪽으로 피해 가는 것이라면 이것은 마주한 단단한 쪽을 깎아 통과한다 — 상대가 한쪽으로
-      극단으로 굳혔거나 양쪽이 모두 두꺼워 피할 곳이 없을 때 성립한다. 성장의 축적
-      (MP-OUTGROW-THE-OPPONENT)과도 다르다. 내 세기를 키우는 것이 아니라 상대 방어의 값어치를
-      떨어뜨리므로, 두껍게 굳힌 상대일수록 이득이 커지고 무른 상대에게는 거의 의미가 없다 —
-      상대에 따라 값이 달라지는 투자다.
+      극단으로 굳혔거나 양쪽이 모두 두꺼워 피할 곳이 없을 때 성립한다. 내 세기를 키우는 것이
+      아니라 상대 방어의 값어치를 떨어뜨리므로, 두껍게 굳힌 상대일수록 이득이 커지고 무른
+      상대에게는 거의 의미가 없다 — 상대에 따라 값이 달라지는 투자다.
+    detail: >
+      상성 선택과 헷갈리기 쉬우니 나란히 두고 보면 좋다. 상성은 "저 사람은 이쪽이 무르니
+      이쪽으로 가자" 이고, 관통은 "무른 쪽이 없으니 단단한 쪽을 얇게 만들자" 다.
+      그래서 관통은 상대가 방어에 투자를 많이 했을수록 이득이 커진다 — 방어를 두껍게
+      굳히는 것만으로는 안전하지 않다는 규칙을 세계에 세우는 갈래다.
+      관통은 방어를 없애지 못하고, 마주한 쪽에만 작용하며, 확률로 무시하는 것이 아니라
+      언제나 같은 몫을 걷어낸다.
+    world_shape: >
+      같은 상대·같은 스킬인데 관통을 지닌 쪽이 더 큰 피해를 넣고, 그 차이가 계산 내역으로
+      설명되며, 두꺼운 상대일수록 그 몫이 커져야 한다. 관통이 아무리 커도 방어가
+      완전히 사라지지는 않아야 한다.
+    implemented: PRESENT
+    # C013 — 마주한 방어만 결정적으로 깎이고, 마주하지 않은 방어에는 닿지 않으며,
+    # 두껍게 굳힌 상대일수록 걷어내는 양이 커지는 것이 실측되었다.
     requires:
       goals: []
       capabilities: [MC-PENETRATION, MC-ATTACK-ARMOR-MATCHUP, MC-DEFENSE-MITIGATION, MC-COMBAT-STRIKE]
-      # 관통은 타입 대응이 고른 방어에 작용한다 — 고를 방어가 둘이 되기 전에는 작용 대상이 없다
-      # (DamageType R0 §15). 줄일 대상인 방어 감쇄도 먼저 있어야 한다.
       knowledge: [MK-OPPONENT-DEFENSE-SHAPE]
       world_state: []
       relationship: []
@@ -176,169 +140,117 @@ nodes:
     creates_goal: []
     constraints: [DC-COMBAT-PLAYER-CAUSALITY]
     constraint_evaluation:
-      DC-COMBAT-PLAYER-CAUSALITY: SATISFIED    # 방어를 확률로 무시하는 것이 아니라 결정적으로 깎는다 — 같은 조합이면 같은 결과 (R1 §6 · §14 Penetration)
-    # R1 §14 Penetration 층. 작용 지점과 금지 사항은 DamageType R0 §15 가 지정한다.
+      DC-COMBAT-PLAYER-CAUSALITY: SATISFIED    # 방어를 확률로 무시하는 것이 아니라 결정적으로 깎는다 (R1 §6 · §14 Penetration)
 
-  - id: MP-STAKE-EVERYTHING-ON-ONE-BLOW
+  - id: MP-BREAK-THE-GUARD
     type: possibility
     achieves: [MG-OVERCOME-SUPERIOR-OPPONENT]
     meaningful_difference: >
-      다른 모든 경로가 반복 가능한 데 비해 이것은 한 번이다. 스스로 제약을 걸어 조건을
-      좁히고 실패하면 정의된 대가를 즉시 치른다. 위험을 자원처럼 지불하는 유일한 경로다.
+      상대의 실수를 기다리지 않고 상대의 방어 자체를 무너뜨려 이긴다. 방어가 성립하지 않는
+      구간을 스스로 만들므로 상대의 대응에 덜 의존한다 — 파티가 함께 쓸 수 있는 경로다.
+    detail: >
+      되받아치기(MP-READ-AND-COUNTER)가 상대가 열리기를 기다리는 것이라면, 이것은
+      열리지 않는 상대를 열리게 만드는 것이다. 기다림이 필요 없으니 여럿이 함께
+      압박을 넣을 때 특히 강하고, 대신 무너뜨리는 동안 내가 자원과 거리를 내준다.
+      무너뜨리는 조건은 명시적이어야 한다 — 확률로 뚫리면 이 갈래는 도박이 되고
+      "스스로 구간을 만든다" 는 성격을 잃는다.
+    world_shape: >
+      상대의 방어가 성립하지 않게 되는 구간이 존재하고, 그 구간이 플레이어의 행동으로
+      만들어져야 한다. 그리고 무엇 때문에 무너졌는지가 관찰 가능해야 한다.
+    implemented: PARTIAL
+    # 방어가 무너지는 상태 자체는 세계에 있다 — 막는 데 드는 기력이 마르면 방어가
+    # 풀리고 잠시 다시 세우지 못하며 그 타격은 그대로 들어간다 (C011). 그러나 그것은
+    # 상대가 자원을 다 쓴 결과일 뿐, 무너뜨리기 위한 **행동**이 없다. 근거는 overlay.md.
     requires:
       goals: []
-      capabilities: [MC-VOW, MC-COMBAT-FLOW, MC-CP-ECONOMY, MC-CONDITION-STACKING]
+      capabilities: [MC-BREAK, MC-COMBAT-STRIKE, MC-CP-ECONOMY]
       knowledge: []
       world_state: []
       relationship: []
-      resource: [축적된 CP, 제약이 요구하는 자기 상태]
+      resource: [축적된 CP]
     supports: []
-    opposes: [MG-SURVIVE-ENEMY-OFFENSIVE]   # 제약이 대개 자기 방어를 포기하게 만든다
+    opposes: [MG-SURVIVE-ENEMY-OFFENSIVE]   # 압박을 유지하려면 방어에 쓸 자원과 거리를 포기해야 한다
     changes:
-      - 규칙 안의 상한을 넘는 한 번의 결과가 나온다
-      - 실패하면 방어권·자원 등 정의된 것을 잃는다
+      - 상대의 방어가 일시적으로 성립하지 않는다
     reveals: []
-    creates_goal:
-      - MG-SURVIVE-ENEMY-OFFENSIVE
-      # 실패의 대가가 곧바로 다음 국면을 만든다
+    creates_goal: []
     constraints: [DC-COMBAT-PLAYER-CAUSALITY]
     constraint_evaluation:
-      DC-COMBAT-PLAYER-CAUSALITY: SATISFIED    # 큰 결과는 스스로 만든 조건들의 합이지 난수가 아니다 (R1 §6 · §14 Aura/Nen)
-    # R1 §14 Aura/Nen 층이 이름만 예고한다 (조건 · 제약 · 서약). 대가·상한의 세부는
-    # 구판에만 있었으므로 2026-08-18 삭제했다 — 그 층의 설계 문서가 다시 공급해야 한다.
+      DC-COMBAT-PLAYER-CAUSALITY: SATISFIED    # 무너뜨리는 조건이 명시적이다 — 난수가 아니다 (R1 §6)
+    # R1 §14 Active Defense 층이 이름만 예고한다 (Guard Break) — 그 층의 설계 문서 대기.
 
-  # ── MG-SURVIVE-ENEMY-OFFENSIVE 를 달성하는 방법들 (OR) ─────────────────
-
-  - id: MP-TRADE-BODY-FOR-RESOURCE
-    type: possibility
-    achieves: [MG-SURVIVE-ENEMY-OFFENSIVE]
-    meaningful_difference: >
-      피해를 피하지 않고 받되 생명이 아닌 자원으로 받는다. 즉시 성립하고 정확함을 요구하지
-      않지만, 계속 쓰면 자원이 말라 더 나쁜 붕괴로 끝난다 — 시간을 사는 선택이다.
-    requires:
-      goals: []
-      capabilities: [MC-GUARD, MC-DEFENSE-MITIGATION, MC-CP-ECONOMY, MC-BODY-FACING]
-      # 막기는 피해를 0 으로 만들지 않고 줄인다 — 줄일 대상인 피해 감쇄가 먼저 있어야 한다 (R1 §4 · §14 Defense Action)
-      knowledge: []
-      world_state: []
-      relationship: []
-      resource: [남은 CP]
-    supports: []
-    opposes: [MP-STAKE-EVERYTHING-ON-ONE-BLOW, MP-BREAK-THE-GUARD]   # 같은 CP 를 놓고 경쟁한다
-    changes:
-      - 생명 대신 자원이 줄어든다
-      - 자원이 바닥나면 방어 자체가 무너진다
-    reveals: []
-    creates_goal: []
-    constraints: [DC-COMBAT-SHARED-BUDGET]
-    constraint_evaluation:
-      DC-COMBAT-SHARED-BUDGET: SATISFIED       # 생명 대신 같은 기력 예산으로 받아 마르면 무너진다 (R1 §1 · §11)
-    # C011-guard-trades-body-for-resource 가 R1 §14 Defense Action 층으로 닫았다 (2026-08-17).
-
-  - id: MP-EVADE-BY-MOVING-THE-BODY
-    type: possibility
-    achieves: [MG-SURVIVE-ENEMY-OFFENSIVE]
-    meaningful_difference: >
-      막지 않고 그 자리에 없다. 자원을 쓰고 위치가 바뀌므로 다음 공격 거리도 함께 잃거나 얻는다.
-      막기와 달리 상대의 압박을 누적시키지 않는다.
-    requires:
-      goals: []
-      capabilities: [MC-EVADE, MC-CP-ECONOMY]
-      knowledge: []
-      world_state: []
-      relationship: []
-      resource: [남은 CP]
-    supports: []
-    opposes: []
-    changes:
-      - 내 위치가 바뀐다
-      - 상대의 공격이 빗나가되 상대는 대가를 치르지 않는다
-    reveals: []
-    creates_goal: []
-    constraints: [DC-COMBAT-PLAYER-CAUSALITY, DC-COMBAT-SHARED-BUDGET]
-    constraint_evaluation:
-      DC-COMBAT-PLAYER-CAUSALITY: SATISFIED    # 확률 회피가 아니라 실제 위치 이동으로 벗어난다 — random_evade 금지와 양립 (R1 §6)
-      DC-COMBAT-SHARED-BUDGET: SATISFIED       # 기동도 새 게이지가 아니라 같은 기력 예산을 쓴다 (R1 §1 · §11)
-    # R1 §13 이 Dodge 를 이후 확장으로만 지정한다 — §14 확장 순서에는 아직 자리가 없다.
-
-  - id: MP-HOLD-FORTIFIED
-    type: possibility
-    achieves: [MG-SURVIVE-ENEMY-OFFENSIVE]
-    meaningful_difference: >
-      한 번의 방어가 아니라 자세를 유지한다. 매 순간 자원을 흘리는 대신 판정마다 정확할
-      필요가 없다 — 손이 아니라 자원으로 사는 안정성이다. 그동안 내 공격은 약해진다.
-    requires:
-      goals: []
-      capabilities: [MC-FORTIFY, MC-DEFENSE-MITIGATION, MC-COMBAT-FLOW, MC-CP-ECONOMY]
-      # 자세는 방어력에 배율을 건다 — 곱할 방어력이 없으면 자세도 의미가 없다 (R1 §4 · §14 Aura/Nen)
-      knowledge: []
-      world_state: []
-      relationship: []
-      resource: [지속 공급되는 CP]
-    supports: []
-    opposes: [MG-OVERCOME-SUPERIOR-OPPONENT]   # 버티는 동안 상대를 넘어서지는 못한다
-    changes:
-      - 버티는 동안 안정되지만 공격이 약해진다
-    reveals: []
-    creates_goal: []
-    constraints: [DC-COMBAT-SHARED-BUDGET]
-    constraint_evaluation:
-      DC-COMBAT-SHARED-BUDGET: SATISFIED       # 자세 유지가 새 게이지가 아니라 같은 기력 예산을 흘린다 (R1 §1 · §11)
-    # R1 §14 Aura/Nen 층이 예고한다 — 방어 집중은 Defense 를 올리고 Attack 을 낮추며 CP 를 흘린다.
-
-  - id: MP-BET-ON-THE-CRITICAL-BLOW
+  - id: MP-READ-AND-COUNTER
     type: possibility
     achieves: [MG-OVERCOME-SUPERIOR-OPPONENT]
     meaningful_difference: >
-      다른 모든 경로가 확실한 결과를 쌓는 데 비해, 이것은 확률적으로 터지는 큰 증폭에
-      기대를 건다. 준비(Critical 확률·증폭을 키우는 성장·장비)로 기대값을 올리되
-      개별 결과는 확률이 정한다 — 전투 전체에서 유일하게 분산(variance)이 축인 경로다.
-      (Q11(b) 결정으로 열림 — R1 §14 C011 층)
+      상대의 공격을 피하거나 견디는 것이 아니라 그 공격 자체를 자원으로 바꾼다.
+      비용은 낮고(성공하면 자원을 오히려 얻는다) 요구되는 것은 정확한 시점이다 —
+      실패하면 그대로 맞는 고위험 저비용 경로다. 다른 어떤 경로보다 상대의 행동에 의존한다.
+    detail: >
+      상대가 때리러 오는 그 순간에 맞춰 받아넘기면 피해를 치르지 않을 뿐 아니라
+      공격권이 이쪽으로 넘어온다. 자원을 거의 쓰지 않으므로 잘하는 플레이어에게는
+      가장 값싼 갈래이고, 시점을 놓치면 그대로 맞으므로 가장 위험한 갈래이기도 하다.
+      이 갈래는 상대의 행동에 완전히 의존한다 — 상대가 공격해 오지 않으면 아무것도
+      할 수 없다. 그래서 상대의 힘이 언제 공격 쪽으로 몰리는지를 아는 지식이 전제다.
+    world_shape: >
+      막기가 성립하는 좁은 시점이 따로 있고, 그 시점에 맞추면 피해를 치르지 않으며
+      상대가 잠시 취약해져야 한다. 그리고 그 시점이 확률이 아니라 관계로 판정되어야 한다.
+    implemented: ABSENT
+    # 막기는 있으나 시점 판정이 없다 — 켜 두는 자세이고 결과는 "막힘 또는 무너짐" 둘뿐이다.
+    # 상대를 취약하게 만드는 노출 상태도 없다.
     requires:
       goals: []
-      capabilities: [MC-CRITICAL-STRIKE, MC-COMBAT-STRIKE, MC-ATTACK-POWER]
-      knowledge: []
-      world_state: []
-      relationship: []
-      resource: [Critical 성질을 올릴 성장·장비의 원천]
-    supports: [MP-OUTGROW-THE-OPPONENT]   # 같은 성장 축 위에서 작동한다 (R1 §12)
-    opposes: []
-    changes:
-      - 같은 교환에서 이따금 상한을 넘는 결과가 터진다
-    reveals: []
-    creates_goal: []
-    constraints: [DC-COMBAT-PLAYER-CAUSALITY, DC-COMBAT-ONE-FORMULA]
-    constraint_evaluation:
-      DC-COMBAT-PLAYER-CAUSALITY: SATISFIED    # REVISED 예외 — Critical 만 확률 허용 · 발생 여부와 증폭이 계산 경위에 드러난다 (Q11(b))
-      DC-COMBAT-ONE-FORMULA: SATISFIED         # 새 공식이 아니라 Final Damage 를 증폭하는 결과값 수정이다 (R1 핵심 원칙)
-
-  # ── Q18(a) OPTIONS 산출 — BW §28 분기 중 기존에 없던 3종 (2026-08-19) ──
-  # §28 의 8분기 중 5종은 기존 전투 MP 와 매핑 확정(파일 끝 매핑표), 아래 3종만 신규다.
-  # 요구 Capability 는 베이라 사다리의 기존 노드를 재사용한다 — 복제하지 않는다.
-
-  - id: MP-CONTROL-MOVEMENT
-    type: possibility
-    achieves: [MG-OVERCOME-SUPERIOR-OPPONENT]
-    meaningful_difference: >
-      상대를 이기는 것이 아니라 상대의 위치 선택을 빼앗아 이긴다. 피해 교환 없이
-      상대를 불리한 자리로 강제하는 것이 수단이며, 세기·시점·상성 어느 것도 아닌
-      공간이 승부 축이다. (BW §28)
-    requires:
-      goals: []
-      capabilities: [MC-FORCE-MOVEMENT, MC-CONTROL-SPACE, MC-REPOSITION]
-      knowledge: []
+      capabilities: [MC-GUARD, MC-PERFECT-GUARD, MC-COUNTER, MC-CP-ECONOMY]
+      knowledge: [MK-OPPONENT-FLOW-PATTERN]
       world_state: []
       relationship: []
       resource: []
-    supports: [MP-WEAPONIZE-ENVIRONMENT]   # 몰아넣을 곳이 위험 요소면 두 경로가 결합한다
+    supports: [MG-SURVIVE-ENEMY-OFFENSIVE]
     opposes: []
     changes:
-      - 상대가 원하지 않는 자리에서 싸우게 된다
-    reveals: []
+      - 공격권이 상대에서 나에게 넘어온다
+      - 상대가 잠시 취약해진다
+    reveals: [MK-OPPONENT-FLOW-PATTERN]
     creates_goal: []
     constraints: [DC-COMBAT-PLAYER-CAUSALITY]
     constraint_evaluation:
-      DC-COMBAT-PLAYER-CAUSALITY: SATISFIED    # 강제 이동은 명시 조건의 결과다 — 난수가 아니다
+      DC-COMBAT-PLAYER-CAUSALITY: SATISFIED    # 성패가 확률이 아니라 시점 관계로 갈린다 (R1 §6)
+
+  - id: MP-EXPLOIT-OPEN-BODY
+    type: possibility
+    achieves: [MG-OVERCOME-SUPERIOR-OPPONENT]
+    meaningful_difference: >
+      상대가 스스로 만든 취약 구간을 노린다. 자원도 위치도 요구하지 않고 오직 관찰과 대기가
+      비용이다 — 기다리는 동안 아무것도 얻지 못한다. 되받아치기와 달리 상대의 공격을 받아낼
+      필요가 없다.
+    detail: >
+      되받아치기와 나란히 두면 차이가 분명하다. 되받아치기는 상대의 공격을 **받아내면서**
+      뒤집는 것이고, 이것은 상대가 공격에 힘을 몰아 방어가 얇아진 구간을 **옆에서**
+      때리는 것이다. 그래서 맞을 필요가 없다. 대신 그 구간이 올 때까지 기다려야 하고,
+      기다리는 동안은 아무 이득도 없다. 상대가 힘을 어디에 몰고 있는지가 보여야
+      성립하므로, 공격·방어 배분이라는 상태가 세계에 있어야 한다.
+    world_shape: >
+      상대가 공격에 힘을 몰면 방어 쪽이 실제로 얇아지고, 그 상태가 관찰 가능하며,
+      그 구간에 넣은 공격이 다른 때보다 잘 들어가야 한다.
+    implemented: ABSENT
+    # 공격/방어에 힘을 배분하는 상태 자체가 없다 — 몰 곳이 없으니 열릴 것도 없다.
+    requires:
+      goals: []
+      capabilities: [MC-COMBAT-FLOW, MC-COMBAT-STRIKE, MC-COMBAT-CAUSE-READING]
+      knowledge: [MK-OPPONENT-FLOW-PATTERN]
+      world_state: []
+      relationship: []
+      resource: []
+    supports: [MP-READ-AND-COUNTER]
+    opposes: []
+    changes:
+      - 상대가 힘을 몰았던 순간의 대가를 실제로 치른다
+    reveals: [MK-OPPONENT-FLOW-PATTERN]
+    creates_goal: []
+    constraints: [DC-COMBAT-PLAYER-CAUSALITY]
+    constraint_evaluation:
+      DC-COMBAT-PLAYER-CAUSALITY: SATISFIED    # 열림은 배분 상태라는 관찰 가능한 원인이다 (R1 §6)
+    # R1 §14 Aura/Nen 층이 예고한다.
 
   - id: MP-INTERRUPT
     type: possibility
@@ -347,6 +259,18 @@ nodes:
       상대의 행동이 완성되기 전에 끊는다. 완성된 공격을 받아내는 모든 경로와 달리
       결과 자체를 존재하지 않게 만들며, 요구되는 것은 상대 행동의 시작을 읽는
       시점 판단이다. (BW §28)
+    detail: >
+      막기·회피·감쇄는 모두 "이미 날아온 것" 을 처리하는 갈래다. 이것만 유일하게
+      날아오지 못하게 한다. 그래서 상대가 크고 느린 행동을 준비할수록 값어치가 커진다.
+      되받아치기와 다른 점은 맞을 필요가 없고 정확한 한 순간이 아니라 상대 행동의
+      진행 중이면 성립한다는 것이다 — 시점의 폭이 다르다.
+    world_shape: >
+      상대의 행동에 시작과 완성 사이의 진행 구간이 있고, 그 구간에 개입하면 행동이
+      완성되지 못해야 한다. 그리고 무엇이 끊겼는지가 관찰 가능해야 한다.
+    implemented: PARTIAL
+    # 타격을 받으면 하던 행동이 끊기고 피격 동작으로 대체되는 규칙이 있다 —
+    # 즉 끊기는 일 자체는 세계에서 일어난다. 그러나 그것은 아무 타격에나 따라오는
+    # 부수 효과이고, 끊는 것을 **노리는** 수단과 그 판단이 없다. 근거는 overlay.md.
     requires:
       goals: []
       capabilities: [MC-INTERRUPT]
@@ -364,6 +288,43 @@ nodes:
     constraint_evaluation:
       DC-COMBAT-PLAYER-CAUSALITY: SATISFIED    # 시점 관계로 판정된다 — 난수가 아니다
 
+  - id: MP-CONTROL-MOVEMENT
+    type: possibility
+    achieves: [MG-OVERCOME-SUPERIOR-OPPONENT]
+    meaningful_difference: >
+      상대를 이기는 것이 아니라 상대의 위치 선택을 빼앗아 이긴다. 피해 교환 없이
+      상대를 불리한 자리로 강제하는 것이 수단이며, 세기·시점·상성 어느 것도 아닌
+      공간이 승부 축이다. (BW §28)
+    detail: >
+      다른 갈래들이 "어떻게 때릴 것인가" 를 다룬다면 이것은 "어디서 싸울 것인가" 를
+      다룬다. 상대를 원하지 않는 자리로 밀어 넣고, 상대가 쓰고 싶은 공간을 좁히고,
+      나는 유리한 자리를 잡는다. 피해를 한 점도 주지 않고도 판을 유리하게 만들 수
+      있다는 것이 이 갈래의 성격이다. 위험 지형이 있는 곳에서는 다음 갈래
+      (MP-WEAPONIZE-ENVIRONMENT)와 결합해 훨씬 강해진다.
+    world_shape: >
+      위치가 결과를 실제로 가르고(어디에 서 있는지가 판정을 바꾸고), 상대의 위치를
+      내 행동으로 바꿀 수 있으며, 상대가 쓸 수 있는 공간을 좁히는 수단이 있어야 한다.
+    implemented: PARTIAL
+    # 위치는 이미 결과를 가른다 — 휘두르는 궤적이 훑는 자리, 막기가 성립하는 정면
+    # 범위, 타격이 밀어내는 힘이 모두 위치로 판정된다. 그러나 상대를 원하는 자리로
+    # **몰아넣는** 수단과 공간을 좁히는 수단이 없다. 근거는 overlay.md.
+    requires:
+      goals: []
+      capabilities: [MC-FORCE-MOVEMENT, MC-CONTROL-SPACE, MC-REPOSITION]
+      knowledge: []
+      world_state: []
+      relationship: []
+      resource: []
+    supports: [MP-WEAPONIZE-ENVIRONMENT]   # 몰아넣을 곳이 위험 요소면 두 경로가 결합한다
+    opposes: []
+    changes:
+      - 상대가 원하지 않는 자리에서 싸우게 된다
+    reveals: []
+    creates_goal: []
+    constraints: [DC-COMBAT-PLAYER-CAUSALITY]
+    constraint_evaluation:
+      DC-COMBAT-PLAYER-CAUSALITY: SATISFIED    # 강제 이동은 명시 조건의 결과다 — 난수가 아니다
+
   - id: MP-WEAPONIZE-ENVIRONMENT
     type: possibility
     achieves: [MG-OVERCOME-SUPERIOR-OPPONENT]
@@ -371,12 +332,22 @@ nodes:
       내 힘이 아니라 환경의 위험을 무기로 쓴다. 내 능력치와 무관하게 환경이 낼 수
       있는 결과를 빌리므로, 나보다 강한 상대에게도 성립하는 유일한 전투 경로다 —
       대신 그 환경이 있는 곳에서만 가능하다. (BW §28)
+    detail: >
+      이 갈래만 유일하게 내 능력치를 거치지 않는다. 그래서 성장이 한참 뒤처진 플레이어도
+      지형만 맞으면 강한 상대를 처리할 수 있다 — 대신 그 지형이 없는 곳에서는
+      아무 쓸모가 없다. 장소에 완전히 의존하는 것이 비용이다.
+      이것이 성립하려면 환경 위험이 플레이어와 상대 **양쪽에** 작용해야 한다.
+      플레이어만 피해를 입는 장애물이면 그냥 불편함이고, 상대만 걸리면 퍼즐이다.
+    world_shape: >
+      스스로 피해를 주는 환경 요소가 존재하고, 그것이 플레이어와 상대 모두에게 같은
+      규칙으로 작용하며, 누가 그것을 더 잘 쓰는가가 승패를 가를 수 있어야 한다.
+    implemented: ABSENT
+    # 환경이 무언가에 해를 입히는 일이 세계에 없다 — 피해의 출처는 타격 하나뿐이다.
     requires:
       goals: []
       capabilities: [MC-READ-ENVIRONMENT, MC-USE-HAZARD]
       knowledge: []
       world_state: [MW-ZONE-DANGER]
-      # Hazard 가 생물·지형과 결합해 존재하는 층이 있어야 성립한다 (BW §23)
       relationship: []
       resource: []
     supports: []
@@ -389,12 +360,207 @@ nodes:
     constraint_evaluation:
       DC-COMBAT-PLAYER-CAUSALITY: SATISFIED    # 환경 위험의 발동 조건은 세계의 관찰 가능한 규칙이다
 
-  # ── MG-EXPLORE-BEIRA 를 진전시키는 방법들 — 깊이별 진입 (BW §16 · §19~§25) ──
-  # 노드 ID 는 Agent 명명이다(문서는 층 이름만 준다). 그러나 의미는 전부 문서 것이다 —
-  # §16 탐험 Loop(EXPLORE → 발견 → Local Goal → Capability → 더 깊은 지역)와
-  # §21~§25 의 "필요:"(층마다 요구 Capability 명시)를 배선으로 옮겼다.
-  # 같은 Goal 의 OR 이면서 사다리다 — 깊은 층일수록 요구가 무겁다 (MW-DEPTH-GRADIENT).
-  # SAFE 층(§20)은 출발지라 진입 MP 가 없다 — MW-SAFE-FRONTIER 가 그 자리다.
+  - id: MP-BET-ON-THE-CRITICAL-BLOW
+    type: possibility
+    achieves: [MG-OVERCOME-SUPERIOR-OPPONENT]
+    meaningful_difference: >
+      다른 모든 경로가 확실한 결과를 쌓는 데 비해, 이것은 확률적으로 터지는 큰 증폭에
+      기대를 건다. 준비(Critical 확률·증폭을 키우는 성장·장비)로 기대값을 올리되
+      개별 결과는 확률이 정한다 — 전투 전체에서 유일하게 분산(variance)이 축인 경로다.
+    detail: >
+      이 세계의 전투는 원칙적으로 난수를 쓰지 않는다 — 같은 조건이면 같은 결과다.
+      이 갈래만 그 원칙의 유일한 예외로 열려 있다 (Human 결정). 그래서 다른 갈래와
+      성격이 근본적으로 다르다. 나머지는 "이렇게 하면 이렇게 된다" 를 배우는 것이고,
+      이것은 "여러 번 하면 평균적으로 이득" 을 고르는 것이다. 예외인 만큼 조건이
+      붙는다 — 터졌는지 여부와 얼마나 증폭됐는지가 계산 내역에 반드시 드러나야 한다.
+      숨은 주사위는 허용되지 않는다.
+    world_shape: >
+      같은 조건을 반복하면 대부분 같은 피해가 나오다가 이따금 증폭된 피해가 나오고,
+      그 타격의 계산 내역에 증폭 여부와 배율이 찍혀야 한다. 그리고 증폭 관련 성질을
+      올리면 빈도와 크기가 달라지는 것이 보여야 한다.
+    implemented: ABSENT
+    # 세계에 난수원이 하나도 없다 — 증폭이라는 개념 자체가 없다.
+    requires:
+      goals: []
+      capabilities: [MC-CRITICAL-STRIKE, MC-COMBAT-STRIKE, MC-ATTACK-POWER]
+      knowledge: []
+      world_state: []
+      relationship: []
+      resource: [Critical 성질을 올릴 성장·장비의 원천]
+    supports: [MP-OUTGROW-THE-OPPONENT]   # 같은 성장 축 위에서 작동한다 (R1 §12)
+    opposes: []
+    changes:
+      - 같은 교환에서 이따금 상한을 넘는 결과가 터진다
+    reveals: []
+    creates_goal: []
+    constraints: [DC-COMBAT-PLAYER-CAUSALITY, DC-COMBAT-ONE-FORMULA]
+    constraint_evaluation:
+      DC-COMBAT-PLAYER-CAUSALITY: SATISFIED    # REVISED 예외 — Critical 만 확률 허용 · 발생 여부와 증폭이 계산 경위에 드러난다
+      DC-COMBAT-ONE-FORMULA: SATISFIED         # 새 공식이 아니라 Final Damage 를 증폭하는 결과값 수정이다
+
+  - id: MP-STAKE-EVERYTHING-ON-ONE-BLOW
+    type: possibility
+    achieves: [MG-OVERCOME-SUPERIOR-OPPONENT]
+    meaningful_difference: >
+      다른 모든 경로가 반복 가능한 데 비해 이것은 한 번이다. 스스로 제약을 걸어 조건을
+      좁히고 실패하면 정의된 대가를 즉시 치른다. 위험을 자원처럼 지불하는 유일한 경로다.
+    detail: >
+      스스로에게 제약을 건다. "이 싸움에서 물러나지 않는다", "이 조건이 아니면 쓰지
+      않는다" 처럼 자기 선택지를 좁히고, 그 대가로 규칙 안의 상한을 넘는 한 번의 결과를
+      얻는다. 실패하면 걸었던 것을 잃는다. 중요한 것은 큰 결과가 운이 아니라
+      **스스로 만든 조건들의 합**이라는 점이다 — 그래서 이것은 도박이 아니라 설계다.
+      전투 사다리의 가장 위층이라 아래가 다 서야 의미가 생긴다.
+    world_shape: >
+      플레이어가 스스로 제약을 선언할 수 있고, 그 제약이 실제로 자기 선택지를 좁히며,
+      대가로 얻는 결과가 제약의 무게에 비례해야 한다. 그리고 실패의 대가가 즉시 치러져야 한다.
+    implemented: ABSENT
+    # 제약을 거는 개념도, 조건이 쌓이는 개념도 세계에 없다.
+    requires:
+      goals: []
+      capabilities: [MC-VOW, MC-COMBAT-FLOW, MC-CP-ECONOMY, MC-CONDITION-STACKING]
+      knowledge: []
+      world_state: []
+      relationship: []
+      resource: [축적된 CP, 제약이 요구하는 자기 상태]
+    supports: []
+    opposes: [MG-SURVIVE-ENEMY-OFFENSIVE]   # 제약이 대개 자기 방어를 포기하게 만든다
+    changes:
+      - 규칙 안의 상한을 넘는 한 번의 결과가 나온다
+      - 실패하면 방어권·자원 등 정의된 것을 잃는다
+    reveals: []
+    creates_goal:
+      - MG-SURVIVE-ENEMY-OFFENSIVE   # 실패의 대가가 곧바로 다음 국면을 만든다
+    constraints: [DC-COMBAT-PLAYER-CAUSALITY]
+    constraint_evaluation:
+      DC-COMBAT-PLAYER-CAUSALITY: SATISFIED    # 큰 결과는 스스로 만든 조건들의 합이지 난수가 아니다
+    # R1 §14 Aura/Nen 층이 이름만 예고한다 — 그 층의 설계 문서 대기.
+
+  # ══════════════════════════════════════════════════════════════════════
+  # MG-SURVIVE-ENEMY-OFFENSIVE — 밀리는 국면을 버티고 되돌리는 갈래들
+  # ══════════════════════════════════════════════════════════════════════
+
+  - id: MP-TRADE-BODY-FOR-RESOURCE
+    type: possibility
+    achieves: [MG-SURVIVE-ENEMY-OFFENSIVE]
+    meaningful_difference: >
+      피해를 피하지 않고 받되 생명이 아닌 자원으로 받는다. 즉시 성립하고 정확함을 요구하지
+      않지만, 계속 쓰면 자원이 말라 더 나쁜 붕괴로 끝난다 — 시간을 사는 선택이다.
+    detail: >
+      막기다. 정확한 시점을 요구하지 않으므로 누구나 즉시 쓸 수 있고, 그래서 가장
+      기본적인 생존 수단이다. 대가는 명확하다 — 막을 때마다 기력이 줄고, 기력이 마르면
+      방어가 무너지면서 그 타격을 온전히 맞는다. 즉 막기는 문제를 해결하는 것이 아니라
+      **미루는** 것이다. 그 미룬 시간 동안 무엇을 할지가 이 갈래의 실제 내용이다.
+      그리고 막는 데 쓰는 기력은 공격에 쓰는 기력과 같은 예산이라, 방어를 많이 할수록
+      반격할 밑천이 준다.
+    world_shape: >
+      피해를 줄이는 행동이 있고 그것이 자원을 쓰며, 자원이 마르면 그 방어가 무너져야 한다.
+      그리고 그 자원이 공격에 쓰는 것과 같은 예산이어야 한다.
+    implemented: PRESENT
+    # C011 — 막기가 행동으로 존재하고 정면 판정이 방향을 가르며, 막힌 타격이 줄고
+    # 기력을 치르며, 기력이 마르면 방어가 무너지는 것이 실측되었다.
+    requires:
+      goals: []
+      capabilities: [MC-GUARD, MC-DEFENSE-MITIGATION, MC-CP-ECONOMY, MC-BODY-FACING]
+      knowledge: []
+      world_state: []
+      relationship: []
+      resource: [남은 CP]
+    supports: []
+    opposes: [MP-STAKE-EVERYTHING-ON-ONE-BLOW, MP-BREAK-THE-GUARD]   # 같은 CP 를 놓고 경쟁한다
+    changes:
+      - 생명 대신 자원이 줄어든다
+      - 자원이 바닥나면 방어 자체가 무너진다
+    reveals: []
+    creates_goal: []
+    constraints: [DC-COMBAT-SHARED-BUDGET]
+    constraint_evaluation:
+      DC-COMBAT-SHARED-BUDGET: SATISFIED       # 생명 대신 같은 기력 예산으로 받아 마르면 무너진다 (R1 §1 · §11)
+
+  - id: MP-EVADE-BY-MOVING-THE-BODY
+    type: possibility
+    achieves: [MG-SURVIVE-ENEMY-OFFENSIVE]
+    meaningful_difference: >
+      막지 않고 그 자리에 없다. 자원을 쓰고 위치가 바뀌므로 다음 공격 거리도 함께 잃거나 얻는다.
+      막기와 달리 상대의 압박을 누적시키지 않는다.
+    detail: >
+      막기와 나란히 두면 성격이 갈린다. 막기는 제자리에서 받아내는 것이라 위치가
+      그대로지만 자원이 계속 깎인다. 회피는 자원을 쓰되 위치가 바뀌어서, 잘 쓰면
+      다음 공격에 좋은 자리를 얻고 잘못 쓰면 반격 거리를 잃는다. 중요한 것은 이것이
+      확률 회피가 아니라는 점이다 — 주사위로 빗나가는 것이 아니라 실제로 그 자리에
+      없어서 안 맞는다. 그래야 플레이어의 판단이 결과를 만든다.
+    world_shape: >
+      공격이 특정 공간에만 닿고, 그 공간에서 몸을 빼면 실제로 맞지 않아야 한다.
+      빗맞음이 확률 판정으로 결정되면 이 갈래가 아니다.
+    implemented: ABSENT
+    # 회피 행동이 없다. (다만 공격이 공간 판정이라는 전제 자체는 이미 세계에 있다 —
+    # 휘두르는 궤적이 훑은 자리에 있는 몸만 맞는다. 얹을 바닥은 서 있는 셈이다.)
+    requires:
+      goals: []
+      capabilities: [MC-EVADE, MC-CP-ECONOMY]
+      knowledge: []
+      world_state: []
+      relationship: []
+      resource: [남은 CP]
+    supports: []
+    opposes: []
+    changes:
+      - 내 위치가 바뀐다
+      - 상대의 공격이 빗나가되 상대는 대가를 치르지 않는다
+    reveals: []
+    creates_goal: []
+    constraints: [DC-COMBAT-PLAYER-CAUSALITY, DC-COMBAT-SHARED-BUDGET]
+    constraint_evaluation:
+      DC-COMBAT-PLAYER-CAUSALITY: SATISFIED    # 확률 회피가 아니라 실제 위치 이동으로 벗어난다 (R1 §6)
+      DC-COMBAT-SHARED-BUDGET: SATISFIED       # 기동도 새 게이지가 아니라 같은 기력 예산을 쓴다 (R1 §1 · §11)
+    # R1 §13 이 Dodge 를 이후 확장으로만 지정한다 — §14 확장 순서에는 아직 자리가 없다.
+
+  - id: MP-HOLD-FORTIFIED
+    type: possibility
+    achieves: [MG-SURVIVE-ENEMY-OFFENSIVE]
+    meaningful_difference: >
+      한 번의 방어가 아니라 자세를 유지한다. 매 순간 자원을 흘리는 대신 판정마다 정확할
+      필요가 없다 — 손이 아니라 자원으로 사는 안정성이다. 그동안 내 공격은 약해진다.
+    detail: >
+      막기가 타격 하나하나에 대응하는 것이라면, 이것은 아예 방어 쪽으로 몸을 기울여
+      두는 것이다. 매 순간 자원이 새지만 그동안은 판정마다 잘할 필요가 없다.
+      대가는 공격이다 — 방어에 힘을 몰아 두면 그만큼 때리는 쪽이 약해진다.
+      그래서 이 갈래는 "지금은 못 이기니 상황이 바뀔 때까지 안전하게 있는다" 를
+      고르는 것이고, 상황을 바꿀 다른 수가 없으면 그냥 지는 길이기도 하다.
+    world_shape: >
+      방어 쪽으로 기울인 자세가 상태로 존재하고, 유지하는 동안 자원이 지속적으로 들며,
+      그 대가로 공격이 실제로 약해져야 한다.
+    implemented: ABSENT
+    # 힘을 배분하는 개념이 없어 기울일 곳이 없다. (막기 중에는 걷기만 되고 스킬을 쓸 수
+    # 없다는 제약이 있어 "자세" 의 씨앗은 있으나, 방어력이 오르지도 공격이 약해지지도 않는다.)
+    requires:
+      goals: []
+      capabilities: [MC-FORTIFY, MC-DEFENSE-MITIGATION, MC-COMBAT-FLOW, MC-CP-ECONOMY]
+      knowledge: []
+      world_state: []
+      relationship: []
+      resource: [지속 공급되는 CP]
+    supports: []
+    opposes: [MG-OVERCOME-SUPERIOR-OPPONENT]   # 버티는 동안 상대를 넘어서지는 못한다
+    changes:
+      - 버티는 동안 안정되지만 공격이 약해진다
+    reveals: []
+    creates_goal: []
+    constraints: [DC-COMBAT-SHARED-BUDGET]
+    constraint_evaluation:
+      DC-COMBAT-SHARED-BUDGET: SATISFIED       # 자세 유지가 새 게이지가 아니라 같은 기력 예산을 흘린다 (R1 §1 · §11)
+    # R1 §14 Aura/Nen 층이 예고한다.
+
+  # ══════════════════════════════════════════════════════════════════════
+  # MG-EXPLORE-BEIRA — 대응 가능한 세계를 넓히는 갈래들
+  # ══════════════════════════════════════════════════════════════════════
+  # 아래 다섯(MP-VENTURE-INTO-*)은 순수한 대안이 아니라 **사다리**다 — 아래층부터
+  # 순서대로 열린다 (MW-DEPTH-GRADIENT). 여섯 번째(MP-ADAPT-BY-RESOURCE)만 진짜
+  # 대안 축이다: 같은 층을 내 기술로 뚫는 대신 세계가 만든 적응을 빌려 들어간다.
+  # 이 비대칭은 알고 둔 것이다 — open-questions.md 의 열린 질문을 보라.
+  #
+  # 각 층이 요구하는 Capability 목록의 원본은 BW §21~§25 의 "필요:" 다.
+  # 다섯 모두 reveals 로 MK-LOCAL-WORLDSTATE 를 낳는다 — 이것이 BW §16 탐험 Loop 의
+  # "DISCOVERY → NEW WORLDSTATE" 칸이고, 거기서 다음 목적이 생긴다.
 
   - id: MP-VENTURE-INTO-FRINGE
     type: possibility
@@ -403,6 +569,18 @@ nodes:
       가장 얕은 진입이다 — 위험은 강한 토착 포식자뿐이고, 요구되는 것은 힘이 아니라
       관찰·예측·지형 활용이라는 정보 능력이다. 다른 층 진입과 달리 문명권의 기본
       전투 능력만으로도 생존 여지가 있다. (BW §21)
+    detail: >
+      베이라의 첫 칸이다. 여기서 마주치는 것은 이상한 존재가 아니라 그냥 나보다 강한
+      짐승이라, 인간이 알던 싸움 방식이 아직 통한다. 다만 정면으로는 진다. 그래서 이
+      층이 가르치는 것은 "더 세지기" 가 아니라 "보고 나서 움직이기" 다. 관찰하고,
+      다음 행동을 읽고, 지형을 내 편으로 만드는 세 가지가 여기서 처음 필요해진다.
+      이 층을 넘으면 플레이어는 그 세 가지를 몸에 익힌 채 다음 층으로 간다.
+    world_shape: >
+      문명권 밖의 영역이 존재하고, 거기에 정면 전투력이 우위인 존재가 있으며,
+      관찰·예측·지형 선택으로 그 우위를 뒤집을 수 있어야 한다. 그리고 들어가 본 결과로
+      그 영역에 대해 알게 된 것이 남아야 한다.
+    implemented: ABSENT
+    # 영역이라는 것이 세계에 없다 — 무대는 40×40 하나이고 그 밖이 없다.
     requires:
       goals: []
       capabilities: [MC-OBSERVE, MC-PREDICT, MC-USE-TERRAIN]
@@ -414,9 +592,10 @@ nodes:
     opposes: []
     changes:
       - 이해·대응 가능한 세계의 범위가 FRINGE 까지 넓어진다 (BW §32)
-    reveals: []
-    creates_goal: []
-    # 발견이 만드는 구체 Local Goal / Knowledge 는 BW 가 명명하지 않았다 — WHY 몫 (§16)
+    reveals: [MK-LOCAL-WORLDSTATE]
+    creates_goal:
+      - MG-OVERCOME-SUPERIOR-OPPONENT   # 길을 막는 포식자를 만난다 (BW §21 · §27)
+      - MG-SURVIVE-ENEMY-OFFENSIVE      # 그 포식자가 침입자를 사냥한다 (BW §21 · §27)
     constraints: [DC-WORLD-PROGRESSION-IS-REACH]
     constraint_evaluation:
       DC-WORLD-PROGRESSION-IS-REACH: SATISFIED    # 진입 조건이 Level 이 아니라 Capability 다 (BW §32)
@@ -428,10 +607,21 @@ nodes:
       정보만으로는 부족해지는 첫 층이다 — 특수 갑각·독·비정상 감각에 대해 방어를
       깨고 약점을 찾고 부위를 노리고 공간을 통제하는 개입 능력이 필요하다.
       처음으로 가치 있는 특수 소재가 보상으로 걸린다. (BW §22)
+    detail: >
+      앞 층에서는 잘 보면 이길 수 있었는데, 여기서는 잘 봐도 때릴 방법이 없는 상대가
+      나온다. 몸이 인간의 무기 상식에 맞지 않게 생겼기 때문이다. 그래서 필요한 것이
+      관찰에서 개입으로 넘어간다 — 방어를 깨고, 통하는 지점을 스스로 찾아내고,
+      노린 곳에 정확히 넣고, 상대가 쓸 공간을 좁힌다. 동시에 이 층이 인간에게 값진
+      것이 처음 나오는 층이다. 그 생물들을 이상하게 만든 적응이 곧 인간에게는
+      자원이기 때문이다 — 위험과 보상이 같은 것에서 나온다는 이 세계의 규칙이
+      플레이어에게 처음 체감되는 지점이다.
+    world_shape: >
+      기본 공격이 통하지 않는 방어 형태를 가진 존재가 있고, 그 존재를 상대하는 방법을
+      플레이어가 찾아낼 수 있어야 하며, 그 몸에서 인간이 쓸 수 있는 것이 나와야 한다.
+    implemented: ABSENT
     requires:
       goals: []
       capabilities: [MC-BREAK, MC-DISCOVER-WEAKNESS, MC-PRECISE-TARGETING, MC-CONTROL-SPACE]
-      # MC-BREAK 는 기존 전투 노드 재사용이다 — semantic 폭(Guard ↔ 갑각) 확정은 Q18
       knowledge: []
       world_state: [MW-ZONE-WILD]
       relationship: []
@@ -441,11 +631,12 @@ nodes:
     changes:
       - 이해·대응 가능한 세계의 범위가 WILD 까지 넓어진다
       - 특수 생물 소재에 닿는다 (BW §22)
-    reveals: []
-    creates_goal: []
+    reveals: [MK-LOCAL-WORLDSTATE]
+    creates_goal:
+      - MG-ACQUIRE-RARE-ORGAN   # 값진 기관을 가진 생물을 만난다 (BW §22 · §27)
     constraints: [DC-WORLD-PROGRESSION-IS-REACH]
     constraint_evaluation:
-      DC-WORLD-PROGRESSION-IS-REACH: SATISFIED    # 진입 조건이 Level 이 아니라 Capability 다 (BW §32)
+      DC-WORLD-PROGRESSION-IS-REACH: SATISFIED
 
   - id: MP-VENTURE-INTO-DANGER
     type: possibility
@@ -454,6 +645,15 @@ nodes:
       상대가 생물만이 아니게 되는 층이다 — Hazard·Creature·Terrain 이 결합해,
       환경을 읽고 위험 요소를 내 수단으로 쓰고 상대를 그리로 몰아넣는 능력이
       필요하다. 환경 Property 를 가진 Resource 가 걸린다. (BW §23)
+    detail: >
+      앞의 두 층에서는 장소가 배경이었다. 여기서는 장소가 상대의 일부다. 땅 자체가
+      해를 입히고, 생물이 그것을 알고 이용하며, 플레이어도 이용할 수 있다.
+      그래서 "이 상대를 어떻게 이길까" 가 "이 자리에서 이 상대를 어떻게 다룰까" 로
+      바뀐다. 이 층부터 자원도 순수하지 않다 — 그 환경의 성질을 몸에 지닌 채 나온다.
+    world_shape: >
+      플레이어와 상대 모두에게 같은 규칙으로 작용하는 환경 위험이 있고, 그것을 읽고
+      이용하고 상대를 그리로 유도할 수 있어야 한다.
+    implemented: ABSENT
     requires:
       goals: []
       capabilities: [MC-READ-ENVIRONMENT, MC-FORCE-MOVEMENT, MC-USE-HAZARD, MC-INTERRUPT]
@@ -466,11 +666,12 @@ nodes:
     changes:
       - 이해·대응 가능한 세계의 범위가 DANGER 까지 넓어진다
       - 환경 Property 를 가진 Resource 에 닿는다 (BW §23)
-    reveals: []
+    reveals: [MK-LOCAL-WORLDSTATE]
     creates_goal: []
+    # 이 층이 만드는 구체 Goal 을 BW 가 명명하지 않았다 — WHY 확장 몫이다.
     constraints: [DC-WORLD-PROGRESSION-IS-REACH]
     constraint_evaluation:
-      DC-WORLD-PROGRESSION-IS-REACH: SATISFIED    # 진입 조건이 Level 이 아니라 Capability 다 (BW §32)
+      DC-WORLD-PROGRESSION-IS-REACH: SATISFIED
 
   - id: MP-VENTURE-INTO-DEEP
     type: possibility
@@ -479,6 +680,17 @@ nodes:
       인간의 전투 상식이 통하지 않는 층이다 — 재생·공생 Network·생체 영역을 체계로
       읽고, 능력의 성립 자체를 끊고, 압박을 유지하고, 특정 부위를 노려야 한다.
       특히 강력한 Resource 가 걸린다. (BW §24)
+    detail: >
+      여기서는 "때려서 체력을 0 으로 만든다" 가 통하지 않는다. 상대가 회복하고,
+      몸의 구조를 바꾸고, 여러 개체가 하나처럼 묶여 있고, 자기 영역 안에서는 규칙이
+      다르기 때문이다. 그래서 플레이어가 해야 하는 일이 바뀐다 — 상대를 하나의
+      **체계**로 이해하고, 그 체계가 성립하는 조건을 끊고, 끊긴 동안 압박을 유지한다.
+      앞 층들이 "어떻게 때릴까" 였다면 여기는 "무엇을 끊어야 이 존재가 성립하지
+      않는가" 다.
+    world_shape: >
+      체력을 깎는 것만으로는 해결되지 않는 존재가 있고, 그 존재를 성립시키는 구조를
+      플레이어가 파악해 끊을 수 있어야 한다.
+    implemented: ABSENT
     requires:
       goals: []
       capabilities: [MC-DISCOVER-WEAKNESS, MC-DISRUPT-ABILITY, MC-MAINTAIN-PRESSURE, MC-TARGET-SPECIFIC-PART, MC-READ-CREATURE-SYSTEM]
@@ -491,11 +703,11 @@ nodes:
     changes:
       - 이해·대응 가능한 세계의 범위가 DEEP 까지 넓어진다
       - 특히 강력한 Resource 에 닿는다 (BW §24)
-    reveals: []
+    reveals: [MK-LOCAL-WORLDSTATE]
     creates_goal: []
     constraints: [DC-WORLD-PROGRESSION-IS-REACH]
     constraint_evaluation:
-      DC-WORLD-PROGRESSION-IS-REACH: SATISFIED    # 진입 조건이 Level 이 아니라 Capability 다 (BW §32)
+      DC-WORLD-PROGRESSION-IS-REACH: SATISFIED
 
   - id: MP-VENTURE-INTO-UNKNOWN
     type: possibility
@@ -504,6 +716,16 @@ nodes:
       위협이 몸을 넘는 층이다 — 기억·감각·인식·Identity·공간 자체가 공격면이 되어,
       지각을 지키고 실재를 검증하고 자기를 붙들어 두는, 다른 층에는 없는 종류의
       능력이 필요하다. 상상을 초월하는 Resource 가 걸린다. (BW §25)
+    detail: >
+      사다리의 끝이다. 여기서는 플레이어가 보고 있는 것 자체를 믿을 수 없다.
+      기억이 먹히고, 정체성이 뺏기고, 공간이 누군가의 둥지이고, 관찰하는 행위 자체가
+      추적당한다. 그래서 필요한 능력의 성격이 다른 모든 층과 다르다 — 때리거나 피하는
+      것이 아니라, 지각을 지키고 지금 보는 것이 실재인지 검증하고 자기를 붙들어 둔다.
+      그리고 이런 것들을 견디도록 적응한 기관은 인간에게 상상을 초월하는 자원이 된다.
+    world_shape: >
+      플레이어가 받는 정보 자체가 훼손될 수 있고, 그것을 의심하고 검증할 수단이
+      있어야 한다. 표현만 기괴하고 판정은 여전히 체력 깎기면 이 층이 아니다.
+    implemented: ABSENT
     requires:
       goals: []
       capabilities: [MC-PROTECT-PERCEPTION, MC-VERIFY-REALITY, MC-IDENTITY-ANCHOR, MC-RESIST-INFLUENCE, MC-BREAK-BIOLOGICAL-LINK, MC-ESCAPE-ALTERED-SPACE]
@@ -516,17 +738,63 @@ nodes:
     changes:
       - 이해·대응 가능한 세계의 범위가 UNKNOWN 까지 넓어진다
       - 상상을 초월하는 Resource 에 닿는다 (BW §25)
-    reveals: []
+    reveals: [MK-LOCAL-WORLDSTATE]
     creates_goal: []
     constraints: [DC-WORLD-PROGRESSION-IS-REACH]
     constraint_evaluation:
-      DC-WORLD-PROGRESSION-IS-REACH: SATISFIED    # 진입 조건이 Level 이 아니라 Capability 다 (BW §32)
+      DC-WORLD-PROGRESSION-IS-REACH: SATISFIED
 
-  # ── MG-ACQUIRE-RARE-ORGAN 를 달성하는 방법들 (OR) ──────────────────────
-  # BW §27 (design/Master-World-Beira.md — 2026-08-19 주입) 이 다섯을 직접 명명했다.
-  # 전투는 그중 하나다 — DC-WORLD-COMBAT-IS-ONE-POSSIBILITY (DRAFT) 의 원형 사례.
-  # 다섯 모두 requires 배선이 비어 있다 — BW 는 대안 구조만 공급하고 각 경로의
-  # 요구 Capability 를 명명하지 않는다. 배선은 OPTIONS/NEED 탐색 몫이다.
+  - id: MP-ADAPT-BY-RESOURCE
+    type: possibility
+    achieves: [MG-EXPLORE-BEIRA]
+    meaningful_difference: >
+      다섯 진입 경로가 모두 "내 기술로 그 층을 감당한다" 인 데 비해, 이것은 그 층이
+      만들어 낸 적응을 빌려서 들어간다. 요구되는 것은 실력도 성장도 아니고 **먼저
+      다녀온 자리에서 얻은 자원**이다 — 탐험의 결과가 다음 탐험의 조건이 되는 유일한
+      경로이며, 그래서 순환을 닫는다. (BW §17)
+    detail: >
+      BW §17 이 "Capability Gate" 라고 부른 것이다. 독성 지역에서 독에 적응한 생물의
+      정화 기관을 얻으면 더 강한 독성 지역에 들어갈 수 있게 되고, 공간이 어긋나는
+      지역에서 경계결정을 얻어 무기를 만들면 전에는 부술 수 없던 것을 상대할 수 있게
+      된다 — 이런 식이다. 중요한 것은 방향이다. 자원이 있으니 능력을 만드는 것이
+      아니라, 그 층을 넘으려면 그 능력이 필요하고 그 능력의 획득 경로 중 하나가
+      자원인 것이다 (BW §18). 이 순서를 뒤집으면 자원은 다시 보상 목록이 된다.
+    world_shape: >
+      어떤 지역에서 얻은 것이 다른 지역에 들어갈 수 있게 만들어야 한다. 그 자원의
+      효과가 그것이 견디고 살아남은 것과 이어져야 하고, 단순한 수치 상승이면 안 된다.
+    implemented: ABSENT
+    # 자원은 광석 하나뿐이고 아무 데도 쓰이지 않는다 — 세어지기만 하는 숫자다.
+    # 제작도 장착도 사용도 없다. 근거는 overlay.md · growth/growth-graph.md.
+    requires:
+      goals: []
+      capabilities: [MC-RESTORE-BIOLOGICAL-STATE, MC-CUT-ABNORMAL-STRUCTURE]
+      # BW §8 · §10 이 직접 명명한 두 자원 유래 능력이다. 문서가 명명하지 않은
+      # 다른 게이트(독 적응 등)는 삽화라 노드로 세우지 않았다 (HISTORY Q14).
+      knowledge: [MK-LOCAL-WORLDSTATE]
+      world_state: []
+      relationship: []
+      resource: [베이라에서 얻은 Bound Pressure 유래 자원]
+    supports: [MP-VENTURE-INTO-DEEP, MP-VENTURE-INTO-UNKNOWN]
+    opposes: []
+    changes:
+      - 전에는 감당할 수 없던 층을 감당할 수 있게 된다
+      - 자원이 판매용 전리품이 아니라 다음 탐험의 조건이 된다 (BW §17)
+    reveals: []
+    creates_goal: []
+    constraints: [DC-WORLD-PROGRESSION-IS-REACH, DC-WORLD-RESOURCE-ADAPTATION-TRACE]
+    constraint_evaluation:
+      DC-WORLD-PROGRESSION-IS-REACH: SATISFIED         # 자원이 Capability 획득 Route 가 되는 것이 이 Constraint 의 requires 다 (BW §17 · §32)
+      DC-WORLD-RESOURCE-ADAPTATION-TRACE: SATISFIED    # 두 자원 모두 Trace 를 문서가 공급한다 (BW §8~§10)
+
+  # ══════════════════════════════════════════════════════════════════════
+  # MG-ACQUIRE-RARE-ORGAN — 특정 생물의 기관을 얻는 갈래들
+  # ══════════════════════════════════════════════════════════════════════
+  # BW §27 이 다섯을 직접 명명했다. 이 절 전체가 "전투는 Goal 이 아니라 다섯 중
+  # 하나의 방법일 뿐" 이라는 주장의 실물이다 — DC-WORLD-COMBAT-IS-ONE-POSSIBILITY 의 원형.
+  #
+  # 다섯 중 넷은 requires 가 비어 있다. BW 는 대안의 **구조**만 공급하고 각 경로가
+  # 무엇을 요구하는지는 말하지 않기 때문이다. 배선은 OPTIONS/NEED 탐색 몫이며,
+  # 그때까지 이 넷은 Overlay 판정 대상이 아니다 (없는 것이 아니라 아직 재지 않은 것).
 
   - id: MP-KILL-CREATURE
     type: possibility
@@ -534,11 +802,19 @@ nodes:
     meaningful_difference: >
       Creature 를 죽여 기관을 얻는다. 다섯 대안 중 유일하게 전투를 요구하고,
       기다림·관계·탐색 대신 위험을 비용으로 치른다. (BW §27)
+    detail: >
+      가장 직접적이고 가장 비싼 길이다. 확실하지만 죽을 수도 있고, 성공하면 그 개체가
+      세계에서 사라진다 — 되돌릴 수 없다. 어떻게 죽일 것인가는 이 노드가 정하지 않는다.
+      상대를 넘어서는 갈래 열 가지(MG-OVERCOME-SUPERIOR-OPPONENT 아래)가 그것을
+      소유하고, 이 노드는 그중 무엇이든 하나가 성립하면 된다고만 말한다.
+    world_shape: >
+      생물을 쓰러뜨릴 수 있고, 쓰러진 생물의 몸에서 그 생물이 지녔던 것을 얻을 수
+      있어야 한다. 쓰러뜨려도 아무것도 남지 않으면 이 경로는 열린 것이 아니다.
+    implemented: PARTIAL
+    # 쓰러뜨리는 것까지는 된다. 그러나 쓰러진 몸에서 아무것도 나오지 않고,
+    # 그 몸은 치워지지도 않은 채 세계에 남아 장애물이 된다. 근거는 overlay.md.
     requires:
       goals: [MG-OVERCOME-SUPERIOR-OPPONENT]
-      # Q18(a) 확정 (2026-08-19): BW §28 의 MP-DEFEAT-BY-COMBAT + 8분기는 별도 노드가
-      # 아니라 이 Goal 아래의 기존 전투 Possibility 서브트리다 — 죽이려면 그 상대를
-      # 전투로 넘어서야 하고, 어떻게 넘어서는가는 그 서브트리(OR)가 소유한다.
       capabilities: []
       knowledge: []
       world_state: []
@@ -552,7 +828,7 @@ nodes:
     creates_goal: []
     constraints: [DC-WORLD-COMBAT-IS-ONE-POSSIBILITY]
     constraint_evaluation:
-      DC-WORLD-COMBAT-IS-ONE-POSSIBILITY: SATISFIED    # Goal 의 원인이 세계 상태(MW-ZONE-WILD)이고 대안 4종이 병렬로 서 있다 (BW §27)
+      DC-WORLD-COMBAT-IS-ONE-POSSIBILITY: SATISFIED    # Goal 의 원인이 세계 상태이고 대안 4종이 병렬로 서 있다 (BW §27)
 
   - id: MP-TAKE-SHED-ORGAN
     type: possibility
@@ -560,6 +836,16 @@ nodes:
     meaningful_difference: >
       Creature 가 탈락시킨 기관을 줍는다. 죽이지 않으므로 전투 위험이 없지만
       탈락이 일어나는 때와 곳을 알아야 한다 — 관찰과 대기가 비용이다. (BW §27)
+    detail: >
+      싸우지 않고 얻는 길이다. 위험이 없는 대신 지식이 든다 — 그 생물이 언제 어디서
+      무엇을 떨구는지 알아야 하고, 그때까지 기다려야 한다. 전투를 아예 못 하는
+      플레이어에게도 열려 있다는 점이 이 갈래의 값어치이고, 급할 때 쓸 수 없다는 것이
+      한계다. 이 경로가 성립하려면 생물이 플레이어와 무관하게 자기 생활을 하고 있어야
+      한다 — 관찰할 대상이 있어야 관찰이 의미를 갖는다.
+    world_shape: >
+      생물이 플레이어와 무관하게 시간에 따라 무언가를 하고, 그 결과로 세계에 남는
+      것이 있으며, 그 시점과 장소를 알아낼 수 있어야 한다.
+    implemented: ABSENT
     requires:
       goals: []
       capabilities: []
@@ -582,6 +868,16 @@ nodes:
     meaningful_difference: >
       그 기관을 가진 다른 Actor 와 거래한다. 유일하게 전투도 현장 탐색도 요구하지
       않고 관계와 대가를 비용으로 치른다. (BW §27)
+    detail: >
+      베이라에 직접 들어가지 않고도 그 산물을 얻는 길이다. 대신 대가를 치러야 하고,
+      그 대가를 마련하는 과정이 또 다른 플레이가 된다. 그리고 거래할 상대가 있어야
+      하므로 관계가 자원이 된다. 다섯 갈래 중 유일하게 다른 사람을 필요로 한다는
+      점에서, 이 경로가 열리면 세계에 경제와 사회가 생긴다.
+    world_shape: >
+      플레이어 외의 주체가 물건을 가지고 있고, 대가를 주고받아 소유가 옮겨질 수
+      있어야 한다. 그리고 그 상대와의 관계가 거래 조건에 영향을 주어야 한다.
+    implemented: ABSENT
+    # 주체 사이에 물건이 옮겨 가는 경로가 세계에 없다.
     requires:
       goals: []
       capabilities: []
@@ -596,7 +892,7 @@ nodes:
     creates_goal: []
     constraints: [DC-WORLD-COMBAT-IS-ONE-POSSIBILITY]
     constraint_evaluation:
-      DC-WORLD-COMBAT-IS-ONE-POSSIBILITY: SATISFIED    # 전투 없는 대안으로서 병렬 성립 (BW §27)
+      DC-WORLD-COMBAT-IS-ONE-POSSIBILITY: SATISFIED
 
   - id: MP-FIND-DEAD-SPECIMEN
     type: possibility
@@ -604,6 +900,16 @@ nodes:
     meaningful_difference: >
       이미 죽은 개체를 찾아 기관을 얻는다. 죽이는 위험도 거래 대가도 없지만
       발견을 보장할 수 없다 — 탐색 자체가 비용이고 운이 아니라 지식이 성패를 가른다. (BW §27)
+    detail: >
+      베이라는 끊임없이 무언가가 죽는 곳이다 (MW-FREE-PRESSURE). 그러니 찾아다니면
+      이미 죽은 것을 만날 수 있다. 위험도 대가도 없는 대신 확실하지 않다.
+      중요한 것은 이것이 운이 아니어야 한다는 점이다 — 어디서 무엇이 죽는지를 아는
+      사람이 더 잘 찾아야 한다. 그래야 탐색이 도박이 아니라 지식의 행사가 된다.
+    world_shape: >
+      플레이어의 개입 없이도 세계에서 생물이 죽고 그 흔적이 남으며, 그것이 어디에
+      생기는지가 세계의 규칙과 이어져 있어 알 수 있어야 한다.
+    implemented: ABSENT
+    # 플레이어 밖의 원인으로 무언가가 죽는 일이 없다 — 피해의 출처는 타격뿐이다.
     requires:
       goals: []
       capabilities: []
@@ -618,7 +924,7 @@ nodes:
     creates_goal: []
     constraints: [DC-WORLD-COMBAT-IS-ONE-POSSIBILITY]
     constraint_evaluation:
-      DC-WORLD-COMBAT-IS-ONE-POSSIBILITY: SATISFIED    # 전투 없는 대안으로서 병렬 성립 (BW §27)
+      DC-WORLD-COMBAT-IS-ONE-POSSIBILITY: SATISFIED
 
   - id: MP-FORCE-CREATURE-TO-RELEASE
     type: possibility
@@ -626,6 +932,15 @@ nodes:
     meaningful_difference: >
       죽이지 않고 Creature 가 기관을 내놓게 만든다. 전투 압박·환경·유인 무엇으로든
       개체를 살려 둔 채 목적만 달성한다 — 죽이기보다 어렵지만 생태를 소모하지 않는다. (BW §27)
+    detail: >
+      가장 어려운 길이고 세계에 가장 친절한 길이다. 상대를 살려 두면 그 개체가 계속
+      존재하므로 다음에 또 얻을 수 있다 — 죽이는 길이 한 번으로 끝나는 것과 대비된다.
+      압박해서 뱉게 하든, 환경으로 몰아 떨구게 하든, 유인해서 벗게 하든 수단은 열려
+      있다. 이 갈래가 성립하면 플레이어가 생태를 관리하는 선택을 할 수 있게 된다.
+    world_shape: >
+      생물이 죽지 않고도 지녔던 것을 잃을 수 있고, 그렇게 만드는 수단이 여럿이며,
+      살려 둔 개체가 세계에 남아 계속 자기 일을 해야 한다.
+    implemented: ABSENT
     requires:
       goals: []
       capabilities: []
@@ -641,38 +956,30 @@ nodes:
     creates_goal: []
     constraints: [DC-WORLD-COMBAT-IS-ONE-POSSIBILITY]
     constraint_evaluation:
-      DC-WORLD-COMBAT-IS-ONE-POSSIBILITY: SATISFIED    # 전투 없는 대안으로서 병렬 성립 (BW §27)
+      DC-WORLD-COMBAT-IS-ONE-POSSIBILITY: SATISFIED
 
-# 주입 근거 — 영역별로 분리된다 (근거는 영역을 넘지 않는다 — HISTORY Q15)
-#   탐험: BW  design/Master-World-Beira.md  §27 (MG-ACQUIRE-RARE-ORGAN 의 대안 5종)
-#
-#   BW §28 범용 Combat Graph 매핑 — Q18(a) 확정 (2026-08-19 Human 승인).
-#   MP-DEFEAT-BY-COMBAT 는 별도 노드가 아니라 MG-OVERCOME-SUPERIOR-OPPONENT 아래의
-#   기존 전투 Possibility 서브트리 전체다. 8분기 매핑:
+# ── BW §28 범용 Combat Graph 매핑 (HISTORY Q18(a) 확정) ──────────────────
+# BW §28 의 MP-DEFEAT-BY-COMBAT 는 별도 노드가 아니라 MG-OVERCOME-SUPERIOR-OPPONENT
+# 아래의 전투 서브트리 전체다. 8분기 매핑:
 #     MP-BREAK-DEFENSE     ≙ MP-BREAK-THE-GUARD
 #     MP-READ-AND-PUNISH   ≙ MP-READ-AND-COUNTER
 #     MP-OVERWHELM         ≙ MP-OUTGROW-THE-OPPONENT
 #     MP-EXPLOIT-WEAKNESS  ≙ MP-EXPLOIT-OPEN-BODY / MP-MATCH-WEAPON-TO-ARMOR (분산)
 #     MP-OUTLAST           ≙ MP-HOLD-FORTIFIED
-#     MP-CONTROL-MOVEMENT · MP-INTERRUPT · MP-WEAPONIZE-ENVIRONMENT — 신규 노드 (위 OPTIONS 절)
-#   BW 는 매핑된 전투 노드의 보조 근거로 허용된다 (Q15 영역 규칙의 예외 — Q18(a)).
+#     MP-CONTROL-MOVEMENT · MP-INTERRUPT · MP-WEAPONIZE-ENVIRONMENT — 신규 노드
+# BW 는 매핑된 전투 노드의 보조 근거로 허용된다 (Q15 영역 규칙의 예외 — Q18(a)).
 #
-#   MG-EXPLORE-BEIRA 의 Possibility 는 MP-VENTURE-INTO-* 5종으로 세웠다 —
-#   §16 탐험 Loop 와 §21~§25 의 층별 "필요:" 를 배선으로 옮긴 것이다 (ID 만 Agent 명명).
-#   층 진입 밖의 탐험 방식(안내인 · 교역로 · 정보 구매 등)은 문서에 없다 — OPTIONS 몫.
+# ── 근거 문서 ────────────────────────────────────────────────────────────
+#   탐험  BW  design/Master-World-Beira.md
+#         §16 탐험 Loop · §17 Capability Gate · §19~§25 깊이별 층 · §27 대안 5종 · §28 전투 분기
+#   전투  R1  design/Design-Combat-OffenseDefense-R0.md
+#         §0~§5 · §8 · §11 · §12 · §16 → MP-OUTGROW-THE-OPPONENT
+#         §13 하지 않을 것 · §14 확장 순서 · §15 층 그림 → 아직 열리지 않은 경로들
+#         DT  design/Design-Combat-DamageType-R0.md
+#         §0 · §6 · §7 · §17 → MP-MATCH-WEAPON-TO-ARMOR · §15 → MP-PIERCE-THE-HARD-DEFENSE
 #
-# 전투 영역 주입 근거 (2026-08-18 Q12 결정 상태 유지)
-#   R1  design/Design-Combat-OffenseDefense-R0.md
-#       §0~§5 · §8 · §11 · §12 · §16 → MP-OUTGROW-THE-OPPONENT
-#       §13 하지 않을 것 · §14 확장 순서 · §15 층 그림 → 아직 열리지 않은 경로들
-#   DT  design/Design-Combat-DamageType-R0.md
-#       §0 · §6 · §7 · §17 → MP-MATCH-WEAPON-TO-ARMOR · §15 Penetration → MP-PIERCE-THE-HARD-DEFENSE
+# 두 전투 문서가 이름조차 대지 않는 경로는 노드로 두지 않는다. 예고만 된 층은 이름까지만
+# 적고 세부는 그 층의 설계 문서를 기다린다.
 #
-#   두 문서가 이름조차 대지 않는 경로는 노드로 두지 않는다 — MP-STRIKE-THE-VULNERABLE-SPOT
-#   (약점 부위 · 후방 공격)을 2026-08-18 삭제했다. 예고만 된 층은 이름까지만 적고
-#   세부는 그 층의 설계 문서를 기다린다.
-#
-# 탐색하지 않은 Dimension — 이 문서는 Combat 안에서만 대안을 제시한다.
-# 같은 Goal(상대를 넘어선다)을 Exploration / Economy / Social / Faction / Knowledge 로
-# 달성하는 경로는 이 문서의 범위 밖이며, 여기에 억지로 만들어 넣지 않았다.
-# 그 폭은 World Cause 와 Root Goal 이 정해진 뒤 WHY/OPTIONS 확장이 다룬다.
+# 탐색하지 않은 Dimension — 같은 Goal(상대를 넘어선다)을 Economy / Social / Faction 으로
+# 달성하는 경로는 근거 문서의 범위 밖이라 여기에 만들어 넣지 않았다.

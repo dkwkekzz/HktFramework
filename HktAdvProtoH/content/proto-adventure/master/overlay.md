@@ -1,63 +1,16 @@
 # Capability Overlay
 
-Master Capability(`graph/capabilities.yaml`) 를 현재 `world/` `view/` 구현 상태와 겹쳐 본 결과다.
-기본 절차 **NEED** 단계의 산출물이며, NEXT(Frontier) 는 여기서 나온다.
+Master Graph 를 현재 `world/` `view/` 구현과 겹쳐 본 결과다. 기본 절차 **NEED** 단계의
+산출물이며, NEXT(Frontier) 는 여기서 나온다.
 
-기준 시점: **BW(베이라 세계관) 주입 (2026-08-19)** — 코드는 C012 완료 시점 상태 그대로다
-(주입은 Graph 만 넓혔고 세계 구현은 바뀌지 않았다).
+각 노드의 `world_shape`(그 의미가 세계에 있다는 것을 무엇으로 확인하는가)가 판정 기준이고,
+이 문서는 그 칸이 지금 닫혀 있는가만 답한다.
 
-근거 문서는 영역별로 분리된다 (근거는 영역을 넘지 않는다 — HISTORY Q15).
+    기준 코드   world/ 27 파일 · view/ 12 파일 (C013 관통까지 반영된 상태)
+    근거 문서   전투 R1 · DT · 탐험 BW · 성장 GR — 근거는 영역을 넘지 않는다 (HISTORY Q15)
 
-```text
-전투   R1  design/Design-Combat-OffenseDefense-R0.md · DT  design/Design-Combat-DamageType-R0.md
-탐험   BW  design/Master-World-Beira.md  (2026-08-19 Human 지시로 주입)
-성장   GR  design/Master-Intent-Graph-Growth.md
-```
-
-해당 영역 문서가 이름조차 대지 않는 Capability 는 "없는 것"이 아니라 **노드가 아니다** —
+해당 영역 문서가 이름조차 대지 않는 Capability 는 "없는 것" 이 아니라 **노드가 아니다** —
 표에서 삭제한다.
-
-## 상태 — 전투 영역
-
-| Capability | 상태 | 근거 | 부족한 것 |
-|---|---|---|---|
-| MC-COMBAT-STRIKE | IMPLEMENTED | C007 `RULE-STRIKE-DAMAGE-001` · C010 이 그 피해 산정을 하나의 공식으로 교체 (R1 §9 CHANGED 완료) | — |
-| MC-BODY-FACING | IMPLEMENTED | C006 `RULE-BODY-FACING-001` · `ActorState.facing` (`world/semantic/actor.ts`) | — |
-| MC-CP-ECONOMY | PARTIAL | C007 `hp/cp` · `SkillDefinition.cpCharge/cpCost` · `RUN_CP_DRAIN` · **C011 막기가 같은 예산을 쓴다** | 기력을 쓰는 자리가 셋(고급 스킬·달리기·막기)이 되어 공격과 방어가 경쟁하기 시작했다. 그러나 기력이 스스로 돌아오지 않는 결손은 그대로다 (C007 EXCLUDED) — C011 이 승격을 보고하지 않았다 |
-| MC-COMBAT-CAUSE-READING | PARTIAL | C007 `World.StrikeEvents` · C007 R2 속성 전체 관찰 · C009 명령 대답 | **NEED(Overlay) 재판정 필요** — C010 이 계산 내역(기본 피해 · Attack 기여 · Defense 배율)을 관찰 계약에 실었으나 C010 의 MASTER FEEDBACK 이 이 Capability 를 보고하지 않았다. 보고 없는 승격은 하지 않는다 (Feedback Guide) |
-| MC-ATTACK-POWER | IMPLEMENTED | C010 08-verification — 공격력 40→80 변경이 피해 20→35 로 실측 | — |
-| MC-SKILL-SCALING | IMPLEMENTED | C010 08-verification — 계수가 큰 스킬이 같은 공격 증가에 더 크게 자라는 것이 실측 | — |
-| MC-DEFENSE-MITIGATION | IMPLEMENTED | C010 08-verification — 방어 0/100/200/300 에서 피해 26/13/9/7, 감소폭 단조 감소, 방어 100000 에서도 최소 1 | — (단 이것은 **수동 감쇄**다. 막는 행동은 MC-GUARD 이며 별개다) |
-| MC-GUARD | IMPLEMENTED | C011 08-verification — 막기가 행동으로 존재하고(`RULE-GUARD-BEGIN-001`) 정면 판정이 방향을 가르며, 막힌 타격이 절반으로 줄고 기력을 치르며, 기력이 마르면 방어가 무너지는 것이 실측 | — |
-| MC-PERFECT-GUARD | MISSING | — | 막기는 C011 로 생겼으나 그 **시작 시각**을 판정하는 의미가 없다 (R1 §14 Active Defense 층 — 구 C011 로 닫혔다가 2026-08-17 롤백, 산출물은 git history) |
-| MC-COUNTER | MISSING | — | 노출 상태(Exposed)가 없다 (R1 §14 Active Defense 층 — 구 C011 로 닫혔다가 2026-08-17 롤백, 산출물은 git history) |
-| MC-EVADE | MISSING | — | 회피 행동이 없다 (R1 §13 이연) |
-| MC-BREAK | MISSING | — | 방어를 무너뜨리는 의미가 없다 (R1 §14 Active Defense 층이 이름만 예고 — Guard Break) |
-| MC-COMBAT-FLOW | MISSING | — | 공격/방어 배분 상태가 없다 (R1 §14 Aura/Nen 층으로 재설계 예정) |
-| MC-FORTIFY | MISSING | — | Flow 가 없으므로 방어 쪽에 몰아 둔 자세도 없다 (R1 §14 Aura/Nen 층) |
-| MC-ATTACK-ARMOR-MATCHUP | IMPLEMENTED | C012 08-verification — 공격 형태 둘·방어 형태 둘이 존재하고 타입 대응이 계산의 입력을 고른다. 같은 스킬 값이 상대에 따라 20/14 ↔ 17/22 로 갈리는 것이 실측 | — |
-| MC-PENETRATION | MISSING | — | 마주한 방어를 깎는 의미가 없다. 작용 대상인 두 방어는 C012 로 생겼으므로 이제 이것 하나만 없다 (R1 §14 Penetration 층 · 작용 지점은 DamageType R0 §15) |
-| MC-CONDITION-STACKING | MISSING | — | 조건이라는 개념 자체가 없다 (R1 §14 Aura/Nen 층) |
-| MC-VOW | MISSING | — | 제약·실패 대가가 없다 (R1 §14 Aura/Nen 층) |
-| MC-CRITICAL-STRIKE | MISSING | — | Critical 이라는 개념이 없다 (R1 §14 C011 층 — Q11(b) 로 열렸다) |
-
-## 상태 — 탐험 영역 (BW 주입 2026-08-19)
-
-현재 세계(`world/` `view/`)는 전투 프로토타입이다 — 지역·이동·생태·자원·채집·거래의
-의미가 하나도 없다. 따라서 BW 유래 Capability 는 **전부 MISSING** 이며, 개별 근거
-실측이 아직 존재할 수 없으므로 행마다 같은 근거를 반복하지 않고 층으로 묶어 판정한다.
-개별 행 분리는 첫 관련 Cycle 이 닫힐 때 한다.
-
-| Capability (층) | 상태 | 근거 | 부족한 것 |
-|---|---|---|---|
-| MC-REPOSITION (SAFE §20) | MISSING | — | 위치를 잡는 이동 의미가 없다 (걷기·달리기는 있으나 위치의 유불리가 판정에 쓰이지 않는다) |
-| MC-OBSERVE · MC-PREDICT · MC-USE-TERRAIN (FRINGE §21) | MISSING | — | 관찰·예측이 행동으로 존재하지 않고, 지형이 판정에 쓰이지 않는다 |
-| MC-DISCOVER-WEAKNESS · MC-PRECISE-TARGETING · MC-CONTROL-SPACE (WILD §22) | MISSING | — | 약점 발견·부위 조준·공간 통제의 의미가 없다 (MC-BREAK 는 전투 표에서 판정) |
-| MC-READ-ENVIRONMENT · MC-FORCE-MOVEMENT · MC-USE-HAZARD · MC-INTERRUPT (DANGER §23) | MISSING | — | 환경 Hazard 라는 개념 자체가 세계에 없다 |
-| MC-DISRUPT-ABILITY · MC-MAINTAIN-PRESSURE · MC-TARGET-SPECIFIC-PART · MC-READ-CREATURE-SYSTEM (DEEP §24) | MISSING | — | 재생·공생·부위라는 개념 자체가 없다 |
-| MC-PROTECT-PERCEPTION · MC-VERIFY-REALITY · MC-IDENTITY-ANCHOR · MC-RESIST-INFLUENCE · MC-BREAK-BIOLOGICAL-LINK · MC-ESCAPE-ALTERED-SPACE (UNKNOWN §25) | MISSING | — | 지각·Identity·공간 변형이라는 개념 자체가 없다 |
-| MC-RESTORE-BIOLOGICAL-STATE (자원 §8) | MISSING | — | 회귀초도, 생체 상태의 보존·복원 의미도 없다 |
-| MC-CUT-ABNORMAL-STRUCTURE (자원 §10 · §17) | MISSING | — | 경계결정·제작·구조 절단 의미가 없다 (획득 경로 현황은 growth/growth-graph.md) |
 
 ## 판정 기준
 
@@ -67,46 +20,138 @@ PARTIAL       일부만 닫혔거나, 닫혔지만 이번 Possibility 가 요구
 MISSING       세계에 그 의미가 없다
 ```
 
-근거 칸에는 Cycle ID 또는 실측을 적는다. 주장만 적지 않는다.
+근거 칸에는 Cycle ID 또는 코드 실측을 적는다. **주장만 적지 않는다.**
 Constraint Violation 과 혼동하지 않는다 — 여기는 **있는가/없는가**이지 **허용되는가**가 아니다.
+
+## Capability — 전투 영역
+
+| Capability | 상태 | 근거 | 부족한 것 |
+|---|---|---|---|
+| MC-COMBAT-STRIKE | IMPLEMENTED | C007 · C010 이 피해 산정을 하나의 공식으로 교체 | — |
+| MC-BODY-FACING | IMPLEMENTED | C006 — 몸이 향한 방향이 막기 판정에 쓰인다 | — |
+| MC-CP-ECONOMY | PARTIAL | C007 · C011 — 기력을 쓰는 자리가 셋(고급 스킬·달리기·막기)이라 공격과 방어가 실제로 경쟁한다 | **기력이 스스로 돌아오지 않는다.** 회복 경로는 "타격을 성공시킨다" 하나뿐이라, 빗나가면 아무것도 벌지 못하고 쉬어도 차지 않는다 |
+| MC-COMBAT-CAUSE-READING | IMPLEMENTED | 코드 대조 — 모든 타격이 고른 능력치 이름·값, 기본 피해, 공격 기여, 방어 값, 관통, 유효 방어, 감쇄 배율, 최종·적용 피해, 막기 결과까지 관찰에 싣는다 | — (승격 확인 대기 · open-questions.md) |
+| MC-ATTACK-POWER | PARTIAL | C010 — 공격력 40→80 변경이 피해 20→35 로 실측 | **세계 안에서 이 값을 올릴 방법이 없다.** 장착할 장비도, 될 Class 도, 배울 상대도 없고 디버그 명령이 유일한 경로다 |
+| MC-SKILL-SCALING | IMPLEMENTED | C010 — 계수가 큰 스킬이 같은 공격 증가에 더 크게 자라는 것이 실측 | — |
+| MC-DEFENSE-MITIGATION | IMPLEMENTED | C010 — 방어 0/100/200/300 에서 피해 26/13/9/7, 감소폭 단조 감소, 극단값에서도 최소 1 | — (이것은 **수동 감쇄**다. 막는 행동은 MC-GUARD 로 별개) |
+| MC-ATTACK-ARMOR-MATCHUP | IMPLEMENTED | C012 — 같은 스킬 값이 상대에 따라 20/14 ↔ 17/22 로 갈리는 것이 실측 | — |
+| MC-GUARD | IMPLEMENTED | C011 — 막기가 행동으로 존재하고 정면 판정이 방향을 가르며, 막힌 타격이 절반으로 줄고 기력을 치르며, 기력이 마르면 방어가 무너진다 | — |
+| MC-PENETRATION | IMPLEMENTED | C013 — 마주한 방어가 90 → 56.25 로 깎이고, 마주하지 않은 방어는 그대로이며(물리 20 유지), 두꺼울수록 걷어내는 양이 커지고(0/7.5/33.75/112.5), 극단값에서도 방어가 남는다 | — (C013 Human Play 대기 · open-questions.md) |
+| MC-BREAK | PARTIAL | 코드 대조 — 막는 기력이 모자라면 방어가 풀리고 일정 시간 다시 세우지 못하며 그 타격은 그대로 들어간다 (C011) | 무너뜨리기 위한 **행동**이 없다. 지금은 상대가 자원을 다 쓴 결과로만 일어나므로 플레이어가 만들어 내는 구간이 아니다 |
+| MC-CONDITION-STACKING | PARTIAL | 코드 대조 — 조건들을 곱해 합성하고 상·하한으로 묶는 얼개가 있다 | 조건의 출처가 둘(달리는 중·피격 중)뿐이고 둘 다 기력 회복량에만 작용한다. 이름 붙은 조건도, 지속 시간도, 겹침도, 플레이어가 조건을 **만드는** 수단도 없다 |
+| MC-CRITICAL-STRIKE | MISSING | — | 세계에 난수원이 하나도 없다 — 증폭이라는 개념 자체가 없다 (R1 §14 C011 층 · Q11(b) 로 열렸다) |
+| MC-PERFECT-GUARD | MISSING | — | 막기는 있으나 **시작 시각**이 판정에 쓰이지 않는다. 막기는 켜 두는 자세이고 결과는 막힘/무너짐 둘뿐이다 (R1 §14 Active Defense 층) |
+| MC-COUNTER | MISSING | — | 취약 상태(Exposed)라는 개념이 없다 (R1 §14 Active Defense 층) |
+| MC-EVADE | MISSING | — | 회피 행동이 없다. 다만 공격이 이미 공간 판정이라 얹힐 바닥은 서 있다 (R1 §13 이연) |
+| MC-COMBAT-FLOW | MISSING | — | 공격/방어에 힘을 배분하는 상태가 없다 (R1 §14 Aura/Nen 층) |
+| MC-FORTIFY | MISSING | — | 배분이 없으므로 방어 쪽에 몰아 둔 자세도 없다 (R1 §14 Aura/Nen 층) |
+| MC-VOW | MISSING | — | 제약·실패 대가가 없다 (R1 §14 Aura/Nen 층) |
+
+## Capability — 탐험 영역 (BW)
+
+현재 세계는 무대 하나짜리 전투 프로토타입이다. 지역·이동 범위·생태·환경 위험·자원
+순환의 의미가 거의 없어 BW 유래 Capability 는 대부분 MISSING 이다. 다만 이전 판정이
+**"전부 MISSING" 이라고 뭉뚱그린 것은 부정확했다** — 아래 네 줄은 코드에 이미 얹힐
+바닥이 있어 PARTIAL 로 정정한다.
+
+| Capability (층) | 상태 | 근거 | 부족한 것 |
+|---|---|---|---|
+| MC-REPOSITION (SAFE §20) | PARTIAL | 코드 대조 — 위치가 판정에 깊이 쓰인다: 휘두른 무기 끝이 훑는 궤적 안의 몸만 맞고, 막기는 정면에서 온 것만 막으며, 채집은 거리 안에서만 된다 | 유리한 자리를 **빠르게·의도적으로** 잡는 전용 수단. 걸어가서 만들 수는 있다 |
+| MC-FORCE-MOVEMENT (DANGER §23) | PARTIAL | 코드 대조 — 타격이 상대를 때린 자리 바깥으로 밀어내고 그 힘이 관성·마찰로 이어진다 | **어디로** 보낼지 고르는 수단. 밀림 방향이 언제나 때린 자리의 반대쪽으로 고정이다 |
+| MC-INTERRUPT (DANGER §23) | PARTIAL | 코드 대조 — 타격을 받으면 하던 행동이 끊기고 피격 동작으로 대체된다 | 끊는 것을 **노리는** 수단. 지금은 아무 타격에나 따라오는 부수 효과라 "언제 끊을까" 라는 판단이 없다 |
+| MC-BREAK (WILD §22) | PARTIAL | 전투 표에서 판정 (같은 노드 재사용) | 위와 같음 |
+| MC-OBSERVE (FRINGE §21) | MISSING | 코드 대조 — 세계가 모든 Actor 의 모든 속성을 모든 관찰자에게 무조건 싣는다 | 가려진 것이 하나도 없어 관찰이라는 행위가 성립할 자리가 없다 |
+| MC-PREDICT (FRINGE §21) | MISSING | — | 상대 행동에 읽을 예고 구간이 노출되지 않는다 |
+| MC-USE-TERRAIN (FRINGE §21) | MISSING | — | 지형이 없다 — 무대는 아무 성질도 없는 평평한 사각형 하나다 |
+| MC-DISCOVER-WEAKNESS · MC-PRECISE-TARGETING · MC-CONTROL-SPACE (WILD §22) | MISSING | — | 약점 발견·부위 조준·공간 통제의 의미가 없다 |
+| MC-READ-ENVIRONMENT · MC-USE-HAZARD (DANGER §23) | MISSING | — | 환경 위험이라는 개념 자체가 없다 — 피해의 출처는 타격 하나뿐이다 |
+| MC-DISRUPT-ABILITY · MC-MAINTAIN-PRESSURE · MC-TARGET-SPECIFIC-PART · MC-READ-CREATURE-SYSTEM (DEEP §24) | MISSING | — | 재생·공생·부위라는 개념 자체가 없다 |
+| MC-PROTECT-PERCEPTION · MC-VERIFY-REALITY · MC-IDENTITY-ANCHOR · MC-RESIST-INFLUENCE · MC-BREAK-BIOLOGICAL-LINK · MC-ESCAPE-ALTERED-SPACE (UNKNOWN §25) | MISSING | — | 지각·정체성·공간 변형이라는 개념 자체가 없다 |
+| MC-RESTORE-BIOLOGICAL-STATE (자원 §8) | MISSING | — | 회복이라는 개념이 없다 — 생명은 줄기만 하고 되돌리는 경로는 디버그뿐이다 |
+| MC-CUT-ABNORMAL-STRUCTURE (자원 §10 · §17) | MISSING | — | 제작·장착이 없고, 통하지 않는 구조라는 개념도 없다 |
+
+## World / Actor / Knowledge — 세계 자체는 얼마나 서 있는가
+
+Capability 만 보면 전투가 꽤 찬 것처럼 보이지만, 그 전투가 놓일 **세계**가 거의 없다.
+이 표가 그것을 드러낸다 (각 노드의 `implemented` 필드와 같은 값이다).
+
+| Node | 상태 | 지금 세계에 있는 것 / 없는 것 |
+|---|---|---|
+| MW-PRIMAL-WORLD | PRESENT | 전제이므로 어긋나는 규칙이 없으면 성립 |
+| MW-WORLD-PRESSURE · MW-FREE-PRESSURE · MW-BOUND-PRESSURE | ABSENT | 지역이라는 개념이 없어 "여기는 얼마나 변할 수 있는 곳인가" 가 표현될 자리가 없다 |
+| MW-SAFE-FRONTIER | ABSENT | 안전한 곳과 위험한 곳의 구분이 없다 — 무대가 하나다 |
+| MW-DEPTH-GRADIENT · MW-ZONE-WILD/DANGER/DEEP/UNKNOWN | ABSENT | 깊이도 층도 없다 |
+| MW-ZONE-FRINGE | PARTIAL | 정면 전투력이 우위인 적대 존재는 있다. 그것이 사는 **층**이 없고, 우위를 힘 아닌 것으로 뒤집을 수단도 없다 |
+| MW-HYPER-PREDATION · MW-SPATIAL-SHEAR | ABSENT | 대표 지역 둘 다 없다 |
+| MA-PLAYER | PARTIAL | 몸이 한 종류로 고정이라 고를 갈래 자체가 없다 |
+| MA-HOSTILE-COMBATANT | PARTIAL | 스스로 순찰·추격·공격하고 플레이어와 같은 전투 규칙을 쓴다. 지킬 영역 개념이 없어 순찰 경로가 곧 영역이다 |
+| MK-LOCAL-WORLDSTATE | ABSENT | 모르는 상태가 없다 — 세계가 모든 것을 모두에게 보낸다 |
+| MK-OPPONENT-DEFENSE-SHAPE | PARTIAL | 방어 형태와 관통 반영값까지 관찰에 실린다 (C012 · C013). 그러나 처음부터 전부 보이므로 **알게 되는 과정**이 없다 |
+| MK-OPPONENT-FLOW-PATTERN | ABSENT | 힘을 배분하는 상태가 없다 |
 
 ## Possibility 별로 본 상태
 
 어느 경로가 지금 얼마나 닫혀 있는가 — Frontier 는 이 표에서 고른다.
 
-| Possibility | 요구 Capability 중 없는 것 | 비고 |
+### MG-OVERCOME-SUPERIOR-OPPONENT (10 갈래)
+
+| Possibility | 요구 중 없는 것 | 비고 |
 |---|---|---|
-| MP-OUTGROW-THE-OPPONENT | **없음** | **C010 으로 닫혔다** — 요구 Capability 3종이 모두 IMPLEMENTED. 이 경로는 지금 플레이 가능하다 |
-| MP-TRADE-BODY-FOR-RESOURCE | **없음** | **C011 로 닫혔다** — 요구 Capability 4종이 모두 IMPLEMENTED. 이 경로는 지금 플레이 가능하다 |
-| MP-READ-AND-COUNTER | MC-PERFECT-GUARD · MC-COUNTER | C011 이 MC-GUARD 를 채워 셋에서 둘로 줄었다. R1 §15 층 그림에서 Active Defense 는 Penetration 위다 |
-| MP-EVADE-BY-MOVING-THE-BODY | MC-EVADE | R1 §13 이 Dodge 를 이후 확장으로만 지정 — §14 순서에 자리가 없다 |
-| MP-BREAK-THE-GUARD | MC-BREAK | R1 §14 Active Defense 층 — 그 층의 설계 문서 대기 |
-| MP-EXPLOIT-OPEN-BODY | MC-COMBAT-FLOW | R1 §14 Aura/Nen 층으로 이연 |
-| MP-MATCH-WEAPON-TO-ARMOR | **없음** | **C012 로 닫혔다** — 요구 Capability 2종과 지식 1종이 모두 섰다. 이 경로는 지금 플레이 가능하다 |
-| MP-PIERCE-THE-HARD-DEFENSE | MC-PENETRATION | **하나만 남았다** — C012 가 관통이 작용할 두 방어를 세웠다. R1 §14 Penetration 층이며 지금 가장 가까운 경로다 |
-| MP-HOLD-FORTIFIED | MC-FORTIFY · MC-COMBAT-FLOW | R1 §14 Aura/Nen 층으로 이연 (MC-DEFENSE-MITIGATION 은 C010 으로 채워졌다) |
-| MP-STAKE-EVERYTHING-ON-ONE-BLOW | MC-VOW · MC-CONDITION-STACKING · MC-COMBAT-FLOW | R1 §14 Aura/Nen 층 — 가장 멀다 |
-| MP-BET-ON-THE-CRITICAL-BLOW | MC-CRITICAL-STRIKE | **하나만 없다** — Q11(b) 로 열린 R1 §14 C011 층. 나머지 2종은 IMPLEMENTED |
+| MP-MATCH-WEAPON-TO-ARMOR | **없음** | **C012 로 닫혔다** — 지금 플레이 가능하다 |
+| MP-PIERCE-THE-HARD-DEFENSE | **없음** | **C013 로 닫혔다** — 지금 플레이 가능하다 |
+| MP-OUTGROW-THE-OPPONENT | MC-ATTACK-POWER(PARTIAL) + 성장의 원천 | 능력치가 결과를 바꾸는 것은 닫혔으나 **그 값을 플레이로 올릴 수 없다.** 이전 판정 "닫혔다" 는 이 결손을 빠뜨렸다 |
+| MP-BET-ON-THE-CRITICAL-BLOW | MC-CRITICAL-STRIKE | **하나만 없다** — 나머지 2종 IMPLEMENTED |
+| MP-INTERRUPT | MC-INTERRUPT(PARTIAL) | **하나만 없고 그마저 절반 서 있다** — 끊김 규칙은 있고 노리는 수단만 없다. 현재 전투 세계 안에서 닫을 수 있다 |
+| MP-BREAK-THE-GUARD | MC-BREAK(PARTIAL) | 무너지는 상태는 있고 무너뜨리는 행동만 없다 (R1 §14 Active Defense 층) |
+| MP-READ-AND-COUNTER | MC-PERFECT-GUARD · MC-COUNTER | R1 §15 층 그림에서 Active Defense 는 Penetration 위다 |
+| MP-EXPLOIT-OPEN-BODY | MC-COMBAT-FLOW | R1 §14 Aura/Nen 층 |
+| MP-CONTROL-MOVEMENT | MC-CONTROL-SPACE + MC-FORCE-MOVEMENT·MC-REPOSITION(둘 다 PARTIAL) | 셋 중 둘이 절반 서 있다 |
+| MP-STAKE-EVERYTHING-ON-ONE-BLOW | MC-VOW · MC-COMBAT-FLOW + MC-CONDITION-STACKING(PARTIAL) | Aura/Nen 층 — 가장 멀다 |
+| MP-WEAPONIZE-ENVIRONMENT | MC-READ-ENVIRONMENT · MC-USE-HAZARD + MW-ZONE-DANGER | 환경 위험 개념 자체가 없다 |
 
-탐험 영역 (BW — MG-EXPLORE-BEIRA 깊이 진입 5종 + MG-ACQUIRE-RARE-ORGAN 대안 5종):
+### MG-SURVIVE-ENEMY-OFFENSIVE (3 갈래)
 
-| Possibility | 요구 Capability 중 없는 것 | 비고 |
+| Possibility | 요구 중 없는 것 | 비고 |
 |---|---|---|
-| MP-VENTURE-INTO-FRINGE | MC-OBSERVE · MC-PREDICT · MC-USE-TERRAIN | **3종 전부 없다** — 그러나 이 층이 탐험 사다리의 첫 칸이다 (BW §21). 지역·이동이라는 세계 기반 자체도 없다 |
-| MP-VENTURE-INTO-WILD | MC-BREAK · MC-DISCOVER-WEAKNESS · MC-PRECISE-TARGETING · MC-CONTROL-SPACE | 4종 전부 없다 (BW §22) |
-| MP-VENTURE-INTO-DANGER | MC-READ-ENVIRONMENT · MC-FORCE-MOVEMENT · MC-USE-HAZARD · MC-INTERRUPT | 4종 전부 없다 (BW §23) |
-| MP-VENTURE-INTO-DEEP | MC-DISCOVER-WEAKNESS · MC-DISRUPT-ABILITY · MC-MAINTAIN-PRESSURE · MC-TARGET-SPECIFIC-PART · MC-READ-CREATURE-SYSTEM | 5종 전부 없다 (BW §24) |
-| MP-VENTURE-INTO-UNKNOWN | 6종 전부 (MC-PROTECT-PERCEPTION 외) | 사다리의 끝 — 가장 멀다 (BW §25) |
-| MP-KILL-CREATURE | (requires.goals: MG-OVERCOME-SUPERIOR-OPPONENT — 전투 서브트리로 연결, Q18(a)) | 전투 서브트리 중 열린 경로 3종이 있으므로 세계 구현 기준으로는 성립한다. 단 상위 Goal 의 원인(MW-ZONE-WILD 지역)이 세계에 없다 |
-| MP-TAKE-SHED-ORGAN · MP-TRADE-WITH-ACTOR · MP-FIND-DEAD-SPECIMEN · MP-FORCE-CREATURE-TO-RELEASE | **판정 불가 — requires 미배선** | BW §27 은 대안 구조만 공급했다. 요구 Capability 배선(OPTIONS/NEED)이 끝나야 판정된다 |
+| MP-TRADE-BODY-FOR-RESOURCE | **없음** | **C011 로 닫혔다** — 지금 플레이 가능하다 |
+| MP-EVADE-BY-MOVING-THE-BODY | MC-EVADE | R1 §13 이 이후 확장으로만 지정 |
+| MP-HOLD-FORTIFIED | MC-FORTIFY · MC-COMBAT-FLOW | Aura/Nen 층 |
 
-Q18(a) OPTIONS 산출 (전투 — MG-OVERCOME-SUPERIOR-OPPONENT 의 추가 경로):
+### MG-EXPLORE-BEIRA (6 갈래)
 
-| Possibility | 요구 Capability 중 없는 것 | 비고 |
+| Possibility | 요구 중 없는 것 | 비고 |
 |---|---|---|
-| MP-CONTROL-MOVEMENT | MC-FORCE-MOVEMENT · MC-CONTROL-SPACE · MC-REPOSITION | 3종 전부 없다 |
-| MP-INTERRUPT | MC-INTERRUPT | **하나만 없다** — 시점 판단 기반이라 현재 전투 세계 안에서 닫을 수 있다 |
-| MP-WEAPONIZE-ENVIRONMENT | MC-READ-ENVIRONMENT · MC-USE-HAZARD (+ MW-ZONE-DANGER 라는 세계 기반) | 환경 Hazard 개념 자체가 없다 — 가장 멀다 |
+| MP-VENTURE-INTO-FRINGE | MC-OBSERVE · MC-PREDICT · MC-USE-TERRAIN | 3종 전부 없다. 그러나 사다리의 첫 칸이다. 지역·이동이라는 세계 기반도 없다 |
+| MP-VENTURE-INTO-WILD | MC-DISCOVER-WEAKNESS · MC-PRECISE-TARGETING · MC-CONTROL-SPACE + MC-BREAK(PARTIAL) | 윗층이 먼저다 |
+| MP-VENTURE-INTO-DANGER | MC-READ-ENVIRONMENT · MC-USE-HAZARD + MC-FORCE-MOVEMENT·MC-INTERRUPT(PARTIAL) | 윗층이 먼저다 |
+| MP-VENTURE-INTO-DEEP | 5종 전부 | 윗층이 먼저다 |
+| MP-VENTURE-INTO-UNKNOWN | 6종 전부 | 사다리의 끝 — 가장 멀다 |
+| MP-ADAPT-BY-RESOURCE | MC-RESTORE-BIOLOGICAL-STATE · MC-CUT-ABNORMAL-STRUCTURE + MK-LOCAL-WORLDSTATE + 자원 | **탐험 순환을 닫는 노드인데 요구가 전부 비어 있다.** 자원이 세계에서 아무 일도 하지 않는 것이 근본 원인이다 (아래) |
+
+### MG-ACQUIRE-RARE-ORGAN (5 갈래)
+
+| Possibility | 요구 중 없는 것 | 비고 |
+|---|---|---|
+| MP-KILL-CREATURE | 상위 Goal 은 열려 있음 | 쓰러뜨리는 것까지는 된다. **쓰러진 몸에서 아무것도 나오지 않고** 그 몸은 치워지지도 않아 영구 장애물로 남는다 |
+| MP-TAKE-SHED-ORGAN · MP-TRADE-WITH-ACTOR · MP-FIND-DEAD-SPECIMEN · MP-FORCE-CREATURE-TO-RELEASE | **판정 불가 — requires 미배선** | BW §27 은 대안 구조만 공급했다. 요구 배선(OPTIONS/NEED)이 끝나야 판정된다 |
+
+## 지금 세계에서 가장 큰 구멍
+
+표 전체를 관통하는 것이 셋 있다. 개별 Capability 결손이 아니라 구조적 공백이다.
+
+```text
+1. 자원이 아무 일도 하지 않는다
+   광석 하나를 캘 수 있고 세어진다. 그것으로 만들 것도, 장착할 것도, 팔 것도 없다.
+   그래서 BW §17 의 순환(탐험 → 자원 → 능력 → 더 깊은 탐험)이 시작조차 못 한다.
+
+2. 성장이 세계 밖에 있다
+   능력치가 결과를 바꾸는 것은 닫혔지만 그 값을 올리는 유일한 경로가 디버그 명령이다.
+   MP-OUTGROW-THE-OPPONENT 가 "닫힌 경로" 로 보였던 것은 이 구분을 놓쳤기 때문이다.
+
+3. 모르는 것이 없다
+   세계가 모든 Actor 의 모든 속성을 모든 관찰자에게 무조건 보낸다. 그래서 관찰·예측·
+   발견·검증이 전부 얹힐 자리가 없고, BW §32 의 "관찰 → 이해 → 대응" 첫 칸이 비어 있다.
+```
 
 ## 갱신 경로
 
@@ -115,13 +160,9 @@ cycles/<CycleId>/08-verification.md 의 MASTER FEEDBACK
         ↓
 guides/master-feedback.md (Feedback — 위쪽 접합점 반영)
         ↓
-이 파일 + graph/capabilities.yaml 의 overlay 필드
+이 파일 + graph/ 각 노드의 overlay / implemented 필드
         ↓
 갱신 내역은 HISTORY.md 로 (이 파일에는 현재 상태만 남긴다)
 ```
-
-이 파일은 **지금 무엇이 있고 무엇이 없는가**만 담는다. 무엇이 언제 어떻게 바뀌었는지는
-[HISTORY.md](HISTORY.md) 가 소유한다 — 갱신 내역을 여기 쌓으면 표를 보러 온 사람이
-매번 이력을 지나쳐야 한다.
 
 Cycle Agent 가 이 파일을 직접 편집하지 않는다.
