@@ -4,8 +4,8 @@
 [PASS] Intent                    (아는 것이 하는 일이 된다 · 가린 것을 밝힌다)
 [PASS] World Semantic            (행동 하나 · 장부 하나 · 투영 관문 하나 · 계산 무변경)
 [PASS] GameView Specification    (비어 있음이 값처럼 실린다 · concealed 목록은 세계 것)
-[    ] Human Semantic Review
-[    ] World Implementation
+[PASS] Human Semantic Review     (2026-08-19 APPROVED — 판단 3건 진행 지시)
+[PASS] World Implementation      (world 300 tests · 계산 무변경 · 중단은 RULE-HIT-001 이 만든다)
 [    ] View Implementation
 [    ] Verification
 

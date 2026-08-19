@@ -12,6 +12,7 @@ import type { EntityView, GameViewSnapshot, InteractionView } from '../../protoc
 import { actionProgress, actionTargetId } from '../semantic/action';
 import { actionCollider } from '../semantic/collision';
 import { evaluateAttributeSetAvailability } from '../rules/attribute-set';
+import { evaluateForgetAcquaintance, evaluateObserveBegin } from '../rules/observe';
 import { evaluateMinePreconditions } from '../rules/mine';
 import { evaluateMoveAvailability } from '../rules/move';
 import { evaluateGuardBegin } from '../rules/guard';
@@ -27,6 +28,7 @@ import {
   rawDamage,
   skillDefinition,
 } from '../semantic/combat';
+import { concealedKeys, isAcquainted } from '../semantic/acquaintance';
 import { projectCommandCatalog } from '../semantic/command-catalog';
 import { hasMiningTool, itemCount } from '../semantic/inventory';
 import {
@@ -58,6 +60,11 @@ export function projectObserverView(
     const target = actionTargetId(actor.currentAction);
     const isSelf = actor.id === self.id;
     const isOtherPlayer = !isSelf && actor.control === 'player';
+    // C014 — 이 관찰자가 이 존재의 겨루는 힘을 아는가 (INTENT-OBSERVE-KNOWLEDGE-001).
+    // 자기 몸은 언제나 참이다. 아는 것은 값이 아니라 자리이므로, 열려 있으면
+    // 아래에서 **그 순간의 Actor** 를 읽는다 — 살펴본 때의 숫자를 베껴 두지 않는다.
+    const acquainted = isAcquainted(state.acquaintances, observerId, actor.id, self.id);
+    const concealed = concealedKeys(acquainted);
     // Collision.ActionColliders (C006) — attack 진행 중에만 존재하는 파생 상태
     const swing = actionCollider(actor);
     // C007 R2 — 모든 Actor 의 모든 속성을 싣는다. 가리는 경계를 두지 않는다
@@ -96,37 +103,57 @@ export function projectObserverView(
           moveSpeed: modifiers.moveSpeed,
           actionSpeed: modifiers.actionSpeed,
         },
-        // 전투 능력치 (C010 → C012) — 네 값과 두 방어 배율. 체감식이라 수치만 보고는
-        // 효과를 알 수 없기 때문이다 (INTENT-TYPED-DEFENSE-001).
-        // 상대의 값도 실린다 — 방어를 읽는 것이 이 Cycle 의 플레이다.
-        combatStats: {
-          physicalAttack: actor.physicalAttack,
-          auraAttack: actor.auraAttack,
-          armor: actor.armor,
-          resistance: actor.resistance,
-          // C013 — 관통 둘. 상대의 관통도 실린다 — 저 존재가 내 방어를 얼마나
-          // 무력화하는지는 내가 얼마나 위험한지를 아는 일이다 (INTENT-PENETRATION-OBSERVE-001).
-          armorPenetration: actor.armorPenetration,
-          resistancePenetration: actor.resistancePenetration,
-          armorMultiplier: defenseMultiplier(actor.armor),
-          resistanceMultiplier: defenseMultiplier(actor.resistance),
-        },
-        // 이 존재의 두 방어가 보는 이의 관통에게 얼마로 읽히는가 (C013 ADDED).
-        // 세계가 계산해 내놓는다 — View 가 두 수를 곱하지 않는다
-        // (DC-WORLD-OWNS-THE-SURFACE-LIST). 치기 전에 보여야 고르는 일이 판단이 된다.
-        versusObserver: {
-          armor: effectiveDefense(actor.armor, self.armorPenetration),
-          resistance: effectiveDefense(actor.resistance, self.resistancePenetration),
-          armorMultiplier: defenseMultiplier(
-            effectiveDefense(actor.armor, self.armorPenetration),
-          ),
-          resistanceMultiplier: defenseMultiplier(
-            effectiveDefense(actor.resistance, self.resistancePenetration),
-          ),
-        },
-        // 어느 쪽이 더 단단한가 (C012) — 세계가 계산해 내놓는 판정이다
-        // (INTENT-DAMAGE-TYPE-OBSERVE-001 · DC-WORLD-OWNS-THE-SURFACE-LIST).
-        defenseShape: defenseShape(actor),
+        // C014 ADDED — 앎의 상태. 아는 존재에도 모르는 존재에도 **언제나** 실린다.
+        // "지금은 아무도 안 막는다" 와 "세계가 안 알려준다" 를 가른 C011 의 원칙과
+        // 같은 이유다 — 모른다는 것 자체가 관찰이어야 한다
+        // (INTENT-UNSEEN-IS-OBSERVABLE-001).
+        acquainted,
+        // 가려진 항목의 이름들. 목록의 단일 출처는 세계다 (semantic/acquaintance.ts) —
+        // View 가 "가려질 수 있는 것은 이 셋" 을 자기 코드에 적지 않는다
+        // (DC-WORLD-OWNS-THE-SURFACE-LIST).
+        concealed,
+        // 왜 비어 있는가. 사유 코드로 둔다 — 값 하나로 굳히면 다음 사유가 생길 때 계약이 깨진다.
+        ...(acquainted ? {} : { unacquaintedReason: 'not-observed' }),
+        // 전투 능력치 (C010 → C012 → C014) — 네 값과 두 방어 배율. 체감식이라 수치만
+        // 보고는 효과를 알 수 없기 때문이다 (INTENT-TYPED-DEFENSE-001).
+        // C014 CHANGED — 남의 것은 살펴본 뒤에만 실린다. 값의 뜻은 그대로이고
+        // 달라지는 것은 **언제 실리는가** 뿐이다 (INTENT-UNSEEN-CAPABILITY-001).
+        ...(acquainted
+          ? {
+              combatStats: {
+                physicalAttack: actor.physicalAttack,
+                auraAttack: actor.auraAttack,
+                armor: actor.armor,
+                resistance: actor.resistance,
+                // C013 — 관통 둘. 상대의 관통도 실린다 — 저 존재가 내 방어를 얼마나
+                // 무력화하는지는 내가 얼마나 위험한지를 아는 일이다
+                // (INTENT-PENETRATION-OBSERVE-001).
+                armorPenetration: actor.armorPenetration,
+                resistancePenetration: actor.resistancePenetration,
+                armorMultiplier: defenseMultiplier(actor.armor),
+                resistanceMultiplier: defenseMultiplier(actor.resistance),
+              },
+              // 이 존재의 두 방어가 보는 이의 관통에게 얼마로 읽히는가 (C013 ADDED).
+              // 세계가 계산해 내놓는다 — View 가 두 수를 곱하지 않는다
+              // (DC-WORLD-OWNS-THE-SURFACE-LIST). 치기 전에 보여야 고르는 일이 판단이 된다.
+              // C014 — 두 존재 사이의 값이므로 한쪽을 모르는 채로는 성립하지 않는다.
+              versusObserver: {
+                armor: effectiveDefense(actor.armor, self.armorPenetration),
+                resistance: effectiveDefense(actor.resistance, self.resistancePenetration),
+                armorMultiplier: defenseMultiplier(
+                  effectiveDefense(actor.armor, self.armorPenetration),
+                ),
+                resistanceMultiplier: defenseMultiplier(
+                  effectiveDefense(actor.resistance, self.resistancePenetration),
+                ),
+              },
+              // 어느 쪽이 더 단단한가 (C012) — 세계가 계산해 내놓는 판정이다
+              // (INTENT-DAMAGE-TYPE-OBSERVE-001 · DC-WORLD-OWNS-THE-SURFACE-LIST).
+              // C014 — 이것이 가려지지 않으면 "무엇으로 칠지" 의 답이 그대로 새어 나가고
+              // 살펴봄이 할 일이 없어진다.
+              defenseShape: defenseShape(actor),
+            }
+          : {}),
         // 막기 (C011) — 모든 존재에 실린다. 자율 존재는 이번 Cycle 에서 막지 않으므로
         // 늘 거짓이지만 그래도 싣는다. "지금은 아무도 안 막는다" 와
         // "세계가 안 알려준다" 는 다른 일이다 (INTENT-GUARD-OBSERVE-001).
@@ -159,6 +186,21 @@ export function projectObserverView(
             },
           }
         : {}),
+    });
+
+    // interactions.observe (C014 ADDED) — 존재마다 하나. mine 이 광맥마다 실리는 것과
+    // 같은 형태다: 무엇을 살펴볼지가 이 행동의 전부이므로 대상 없는 자리가 될 수 없다.
+    // 자기 몸에도 실린다 — available 이 거짓이고 사유가 target-is-self 다.
+    // 왜 자기는 못 하는지도 세계가 말한다 (INTENT-UNSEEN-IS-OBSERVABLE-001).
+    // 사유를 세계가 내놓는 이유: View 가 거리를 재서 판정하면 세계가 그 거리를 바꿔도
+    // 화면이 따라오지 않는다 (DC-WORLD-OWNS-THE-SURFACE-LIST).
+    const observeFailure = evaluateObserveBegin(state, observerId, actor.id);
+    interactions.push({
+      id: 'observe',
+      role: 'observe-character',
+      targetEntityId: actor.id,
+      available: observeFailure === null,
+      ...(observeFailure ? { reason: observeFailure } : {}),
     });
   }
 
@@ -266,6 +308,17 @@ export function projectObserverView(
     role: 'debug-set-attribute',
     available: attributeFailure === null,
     ...(attributeFailure ? { reason: attributeFailure } : {}),
+  });
+
+  // interactions.forgetAcquaintance (C014 ADDED) — 알게 된 것을 되돌린다.
+  // 대상을 받지 않는 자리다(지목은 요청에서 한다) — set-attribute 와 같은 모양이며
+  // 같은 관문(World.DebugAuthority)을 지난다. 살펴보기 전과 후를 견주는 경로다.
+  const forgetFailure = evaluateForgetAcquaintance(state);
+  interactions.push({
+    id: 'forget-acquaintance',
+    role: 'debug-forget-acquaintance',
+    available: forgetFailure === null,
+    ...(forgetFailure ? { reason: forgetFailure } : {}),
   });
 
   // entities.deposit + interactions.mine
@@ -384,8 +437,11 @@ export function projectObserverView(
     // available 이 거짓이어도 무엇을 할 수 있는 세계인지는 알 수 있어야 한다.
     // 무엇을 어디까지 바꿀 수 있는지(구 mutableAttributes)는 set-attribute 가 받는
     // 값의 Domain 으로 이 안에 들어 있다 — View 가 목록을 만들지 않는다는 규율은 그대로다.
-    commands: projectCommandCatalog((commandId) =>
-      commandId === 'set-attribute' ? evaluateAttributeSetAvailability(state) : null,
-    ),
+    commands: projectCommandCatalog((commandId) => {
+      if (commandId === 'set-attribute') return evaluateAttributeSetAvailability(state);
+      // C014 — 되돌림도 같은 권한을 지난다
+      if (commandId === 'forget-acquaintance') return evaluateForgetAcquaintance(state);
+      return null;
+    }),
   };
 }

@@ -10,6 +10,8 @@
 import type { ActionRequest, ActionResult } from '../../protocol/actions';
 import type { GameViewSnapshot, RequestOutcomeView } from '../../protocol/gameview';
 import { createWorld, type World, type WorldSetup } from '../index';
+import { ACTION_DEFINITIONS } from '../semantic/action';
+import { TICK_INTERVAL } from '../semantic/world-state';
 
 /** 검증용 기본 관찰자 */
 export const OBSERVER = 'observer-1';
@@ -38,6 +40,23 @@ export interface WorldDriver {
   /** 그 관찰자에게 마지막으로 나간 관찰 결과 */
   observe(observerId?: string): GameViewSnapshot;
   world: World;
+}
+
+/**
+ * 살펴봄을 끝까지 마친다 (C014). 남의 겨루는 힘은 살펴본 뒤에만 관찰에 실리므로
+ * 그 값을 읽는 기존 검증들이 이 헬퍼를 앞에 둔다 — 세계를 약하게 만드는 것이 아니라
+ * **관찰한 뒤 같은 값이 나오는지**가 이 Cycle 이후의 Regression 기준이다
+ * (cycles/C014-.../03-world-semantic.md BALANCE).
+ */
+export function observeFully(
+  world: WorldDriver,
+  targetEntityId: string,
+  observerId: string = OBSERVER,
+): void {
+  world.dispatch({ interactionId: 'observe', targetEntityId }, observerId);
+  const duration = ACTION_DEFINITIONS.observe.duration ?? 1;
+  const steps = Math.ceil(duration / TICK_INTERVAL) + 1;
+  for (let i = 0; i < steps; i++) world.tick(TICK_INTERVAL);
 }
 
 export function driveWorld(setup: WorldSetup = {}): WorldDriver {

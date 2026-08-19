@@ -7,6 +7,10 @@
 // (INTENT-REQUEST-ATTRIBUTION-001). 요청 자체는 주체를 지정하지 않는다 —
 // 지정할 수단이 없다. 세계가 모르는 관찰자의 요청은 아무것도 바꾸지 못한다.
 //
+// C014 ADDED — 살펴봄 · 되돌림. 이 둘만은 withActor 를 쓰지 않는다:
+//   앎은 몸의 것이 아니라 **관찰자의 것**이므로 Rule 이 ObserverId 를 받아야 한다
+//   (INTENT-OBSERVE-KNOWLEDGE-001). 몸으로 좁히면 그 정보가 사라진다.
+//
 // C007 ADDED — 스킬 2종(attack · heavy-attack) · 이동 모드 · 속성 변경.
 //   속성 변경만은 주체가 아니라 "지목한 존재" 를 대상으로 한다 (INTENT-ATTRIBUTE-MUTATE-001).
 //   그래도 요청의 귀속은 그대로다 — 세계가 모르는 관찰자는 아무것도 바꾸지 못한다.
@@ -18,6 +22,7 @@ import { ruleGuardBegin, ruleGuardRelease } from '../rules/guard';
 import { ruleMine } from '../rules/mine';
 import { ruleMove } from '../rules/move';
 import { ruleMoveMode } from '../rules/move-mode';
+import { ruleObserveBegin, ruleObserveForget } from '../rules/observe';
 import { ruleSkillBegin } from '../rules/skill';
 import { actorOfObserver, type WorldState } from '../semantic/world-state';
 import type { ActorState } from '../semantic/actor';
@@ -85,6 +90,23 @@ export const INTERACTIONS: readonly InteractionHandler<WorldState>[] = [
       if (!action.mode) return { status: 'failure', rule: DISPATCH, reason: 'missing-mode' };
       return ruleMoveMode(actor, action.mode);
     }),
+  },
+  {
+    // C014 — 살펴본다. 대상은 반드시 지목해야 한다: 무엇을 살펴볼지가 이 행동의 전부다.
+    id: 'observe',
+    handle: (state, observerId, action) => {
+      if (!action.targetEntityId)
+        return { status: 'failure', rule: DISPATCH, reason: 'missing-target' };
+      return ruleObserveBegin(state, observerId, action.targetEntityId);
+    },
+  },
+  {
+    // C014 — 알게 된 것을 되돌린다. 지목하지 않으면 알고 있는 전부다.
+    // 세계 안의 행동이 아니라 살펴보기 전과 후를 견주기 위해 밖에서 손대는 자리이며,
+    // set-attribute 와 같은 관문(World.DebugAuthority)을 지난다.
+    id: 'forget-acquaintance',
+    handle: (state, observerId, action) =>
+      ruleObserveForget(state, observerId, action.targetEntityId),
   },
   {
     id: 'set-attribute',

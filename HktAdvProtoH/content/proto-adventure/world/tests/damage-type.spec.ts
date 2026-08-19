@@ -17,7 +17,7 @@ import { SKILL_DEFINITIONS } from '../semantic/combat';
 import { TICK_INTERVAL } from '../semantic/world-state';
 import { ruleGuardBlock } from '../rules/guard';
 import { spawnActor } from '../semantic/spawn';
-import { driveWorld, PLAYER, type WorldDriver } from './drive';
+import { observeFully, driveWorld, PLAYER, type WorldDriver } from './drive';
 
 const BASIC = SKILL_DEFINITIONS.attack;
 const AURA = SKILL_DEFINITIONS['aura-strike'];
@@ -79,12 +79,14 @@ describe('INTENT-DAMAGE-TYPE-001 — 스킬이 자기 피해 방식을 지닌다
   });
 
   it('방식은 스킬이 지닌 성질이다 — 어떤 Actor 도 방식을 갖지 않는다', () => {
-    const view = driveWorld({ npcs: [dummyAt(3, 0)] }).observe();
+    const world = driveWorld({ npcs: [dummyAt(3, 0)] });
+    observeFully(world, 'npc-1'); // C014 — 남의 겨루는 힘은 살펴본 뒤에 실린다
+    const view = world.observe();
     const attributes = actor(view, PLAYER)?.attributes as unknown as Record<string, unknown>;
     expect(attributes.damageType).toBeUndefined();
     // 모든 Actor 는 네 능력을 **모두** 지닌다 — 물리 존재도 오라 존재도 없다
-    expect(actor(view, 'npc-1')?.attributes?.combatStats.auraAttack).toBeTypeOf('number');
-    expect(actor(view, 'npc-1')?.attributes?.combatStats.armor).toBeTypeOf('number');
+    expect(actor(view, 'npc-1')?.attributes?.combatStats?.auraAttack).toBeTypeOf('number');
+    expect(actor(view, 'npc-1')?.attributes?.combatStats?.armor).toBeTypeOf('number');
   });
 });
 
@@ -290,9 +292,10 @@ describe('INTENT-DAMAGE-BREAKDOWN-001 (CHANGED) — 무엇을 골랐는지가 �
 });
 
 describe('INTENT-DAMAGE-TYPE-OBSERVE-001 — 고를 근거가 보인다', () => {
-  it('네 능력과 두 배율이 모든 존재에 실린다', () => {
-    const view = driveWorld({ npcs: [dummyAt(3, 0)] }).observe();
-    expect(actor(view, 'npc-1')?.attributes?.combatStats).toEqual({
+  it('네 능력과 두 배율이 모든 존재에 실린다 (C014 — 살펴본 뒤)', () => {
+    const world = driveWorld({ npcs: [dummyAt(3, 0)] });
+    observeFully(world, 'npc-1');
+    expect(actor(world.observe(), 'npc-1')?.attributes?.combatStats).toEqual({
       physicalAttack: 40,
       auraAttack: 15,
       armor: 30,
@@ -304,8 +307,10 @@ describe('INTENT-DAMAGE-TYPE-OBSERVE-001 — 고를 근거가 보인다', () => 
     });
   });
 
-  it('어느 쪽이 단단한지를 세계가 판정한다', () => {
-    const view = driveWorld({ npcs: [dummyAt(3, 0)] }).observe();
+  it('어느 쪽이 단단한지를 세계가 판정한다 (C014 — 남은 살펴본 뒤 · 자기는 언제나)', () => {
+    const world = driveWorld({ npcs: [dummyAt(3, 0)] });
+    observeFully(world, 'npc-1');
+    const view = world.observe();
     // wanderer — 오라 쪽(90)이 물리 쪽(30)보다 단단하다
     expect(actor(view, 'npc-1')?.attributes?.defenseShape).toBe('aura-tougher');
     // rabbit-swordsman — 물리 쪽(50)이 오라 쪽(20)보다 단단하다
@@ -315,6 +320,7 @@ describe('INTENT-DAMAGE-TYPE-OBSERVE-001 — 고를 근거가 보인다', () => 
 
   it('약점은 고정된 성질이 아니라 값의 관계다 — 바꾸면 판정이 따라 바뀐다', () => {
     const world = driveWorld({ npcs: [dummyAt(3, 0)] });
+    observeFully(world, 'npc-1'); // C014
     setAttribute(world, 'resistance', 10, 'npc-1'); // 30 > 10
     world.tick(TICK_INTERVAL);
     expect(actor(world.observe(), 'npc-1')?.attributes?.defenseShape).toBe('physical-tougher');
