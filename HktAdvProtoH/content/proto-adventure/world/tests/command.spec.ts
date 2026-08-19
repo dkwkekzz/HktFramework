@@ -86,6 +86,7 @@ describe('INTENT-COMMAND-CATALOG-001 — 세계가 걸 수 있는 것을 밝힌�
       // 그 범위도 세계가 목록과 함께 싣는다 (DC-WORLD-OWNS-THE-SURFACE-LIST)
       'criticalChance',
       'criticalDamage',
+      'insight', // C016
       'moveSpeed',
       'runSpeedMultiplier',
       'actionSpeed',

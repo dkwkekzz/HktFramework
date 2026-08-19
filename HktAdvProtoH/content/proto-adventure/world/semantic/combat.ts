@@ -427,6 +427,7 @@ export type MutableAttributeId =
   | 'resistancePenetration'
   | 'criticalChance'
   | 'criticalDamage'
+  | 'insight'
   | 'moveSpeed'
   | 'runSpeedMultiplier'
   | 'actionSpeed'
@@ -462,6 +463,11 @@ export const MUTABLE_ATTRIBUTES: readonly MutableAttribute[] = [
   // 두 끝(0 · 1)이 모두 범위 안이라 "이 세계에 흔들림은 한 자리뿐" 을 직접 만들어 볼 수 있다.
   { id: 'criticalChance', min: 0, max: 1 },
   { id: 'criticalDamage', min: 1, max: 100 },
+  // C016 ADDED — 통찰. 겨루는 힘이 아니라 아는 힘이며, 이 목록에 있는 다른 값들과 달리
+  // 어떤 계산에도 들어가지 않는다. 상한 100 이 곧 "전부 읽는 눈" 이다 —
+  // 세 문턱(30·60·90)을 모두 넘는 값이 범위 안에 있어야 "통찰만으로 전부 아는 몸" 을
+  // 만들어 보고 그때 살펴봄이 거절되는 것까지 확인할 수 있다 (03 BALANCE).
+  { id: 'insight', min: 0, max: 100 },
   { id: 'moveSpeed', min: 0, max: 100 },
   { id: 'runSpeedMultiplier', min: 0.1, max: 10 },
   { id: 'actionSpeed', min: 0.1, max: 10 },
