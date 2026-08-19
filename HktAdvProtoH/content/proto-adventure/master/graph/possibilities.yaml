@@ -7,6 +7,7 @@
 #
 # 인용 — BW = design/Master-World-Beira.md (탐험) ·
 #        R1 = design/Design-Combat-OffenseDefense-R0.md · DT = design/Design-Combat-DamageType-R0.md (전투)
+#        TG = design/Design-Targeting-R0.md (지목)
 #
 # ── 이 파일을 읽는 법 ────────────────────────────────────────────────────
 # Goal 하나에 매달린 여러 MP-* 는 "둘 다 해야 하는 단계" 가 아니라 "골라서 하는 갈래" 다.
@@ -591,9 +592,13 @@ nodes:
     # 모르는 상태가 없고(세계가 모든 것을 다 보낸다) 익히는 경로도 없다.
     requires:
       goals: []
-      capabilities: [MC-OBSERVE, MC-PREDICT]
+      capabilities: [MC-OBSERVE, MC-PREDICT, MC-DESIGNATE-TARGET, MC-WATCH-TARGET]
       # 무엇을 익힐지는 층마다 다르지만(각 층의 demands), 익히는 행위 자체가 요구하는
       # 것은 보는 것과 읽는 것이다 — BW §32 의 첫 두 칸.
+      # CHANGED (TG 주입) — 뒤의 둘이 더해졌다. 살펴봄은 무엇을 살펴볼지를 정하는
+      # 것이 행동의 전부이고(TG §3.3), 겪어서 알아내려면 고른 그 상대의 상태와
+      # 지금 되는 것·안 되는 사유를 계속 읽어야 한다(TG §3.2 · §4.2). 문서가 이
+      # 갈래의 이름을 대지는 않았다 — 배선 판단은 open-questions Q27 로 노출했다.
       knowledge: []
       world_state: [MW-DEPTH-GRADIENT]
       relationship: []

@@ -4,9 +4,9 @@
 > 원본은 `graph/*.yaml` 과 `constraints/DC-*.yaml` 이다.
 > 인터랙티브 관찰(필터 · 서브그래프 · 상세)은 같은 명령이 만드는 `graph-view.html` 을 연다.
 
-노드 87 — WorldState 13 · Actor 2 · Goal 5 · Possibility 22 · Capability 42 · Knowledge 3
+노드 89 — WorldState 13 · Actor 2 · Goal 5 · Possibility 22 · Capability 44 · Knowledge 3
 
-Capability 구현 상태 — ■ IMPLEMENTED 8 · ▨ PARTIAL 8 · □ MISSING 26
+Capability 구현 상태 — ■ IMPLEMENTED 8 · ▨ PARTIAL 9 · □ MISSING 27
 
 ## 인과 뼈대 — WorldState → Goal → Possibility
 
@@ -136,7 +136,7 @@ flowchart LR
 | `CONTROL-MOVEMENT` | OVERCOME-SUPERIOR-OPPONENT | ●●○○○ 0/3 | FORCE-MOVEMENT · CONTROL-SPACE · REPOSITION |
 | `STAKE-EVERYTHING-ON-ONE-BLOW` | OVERCOME-SUPERIOR-OPPONENT | ●○○○○ 0/4 | VOW · COMBAT-FLOW · CP-ECONOMY · CONDITION-STACKING |
 | `EVADE-BY-MOVING-THE-BODY` | SURVIVE-ENEMY-OFFENSIVE | ●○○○○ 0/2 | EVADE · CP-ECONOMY |
-| `LEARN-TO-HANDLE-THE-LAYER` | EXPLORE-BEIRA | ●○○○○ 0/2 | OBSERVE · PREDICT |
+| `LEARN-TO-HANDLE-THE-LAYER` | EXPLORE-BEIRA | ●○○○○ 0/4 | OBSERVE · PREDICT · DESIGNATE-TARGET · WATCH-TARGET |
 | `WEAPONIZE-ENVIRONMENT` | OVERCOME-SUPERIOR-OPPONENT | ○○○○○ 0/2 | READ-ENVIRONMENT · USE-HAZARD |
 | `ADAPT-BY-RESOURCE` | EXPLORE-BEIRA | ○○○○○ 0/2 | RESTORE-BIOLOGICAL-STATE · CUT-ABNORMAL-STRUCTURE |
 | `PREPARE-IN-CIVILIZATION` | EXPLORE-BEIRA | 요구 미기재 | 없음 |
@@ -181,6 +181,8 @@ flowchart LR
   MC-INTERRUPT["▨ INTERRUPT"]
   MC-RESTORE-BIOLOGICAL-STATE["□ RESTORE-BIOLOGICAL-STATE"]
   MC-CUT-ABNORMAL-STRUCTURE["□ CUT-ABNORMAL-STRUCTURE"]
+  MC-DESIGNATE-TARGET["□ DESIGNATE-TARGET"]
+  MC-WATCH-TARGET["▨ WATCH-TARGET"]
   MP-OUTGROW-THE-OPPONENT["OUTGROW-THE-OPPONENT"]
   MP-MATCH-WEAPON-TO-ARMOR["MATCH-WEAPON-TO-ARMOR"]
   MP-PIERCE-THE-HARD-DEFENSE["PIERCE-THE-HARD-DEFENSE"]
@@ -244,6 +246,8 @@ flowchart LR
   MP-HOLD-FORTIFIED --> MC-CP-ECONOMY
   MP-LEARN-TO-HANDLE-THE-LAYER --> MC-OBSERVE
   MP-LEARN-TO-HANDLE-THE-LAYER --> MC-PREDICT
+  MP-LEARN-TO-HANDLE-THE-LAYER --> MC-DESIGNATE-TARGET
+  MP-LEARN-TO-HANDLE-THE-LAYER --> MC-WATCH-TARGET
   MP-ADAPT-BY-RESOURCE --> MC-RESTORE-BIOLOGICAL-STATE
   MP-ADAPT-BY-RESOURCE --> MC-CUT-ABNORMAL-STRUCTURE
 
@@ -252,8 +256,8 @@ flowchart LR
   classDef miss fill:#2a2a2e,stroke:#5c5c66,color:#b8b8c2;
   classDef poss fill:#1c3330,stroke:#3f7d6f,color:#d6f0e9;
   class MC-COMBAT-STRIKE,MC-BODY-FACING,MC-COMBAT-CAUSE-READING,MC-GUARD,MC-DEFENSE-MITIGATION,MC-SKILL-SCALING,MC-ATTACK-ARMOR-MATCHUP,MC-PENETRATION impl;
-  class MC-CP-ECONOMY,MC-ATTACK-POWER,MC-BREAK,MC-CONDITION-STACKING,MC-REPOSITION,MC-OBSERVE,MC-FORCE-MOVEMENT,MC-INTERRUPT part;
-  class MC-CRITICAL-STRIKE,MC-PERFECT-GUARD,MC-COUNTER,MC-COMBAT-FLOW,MC-FORTIFY,MC-EVADE,MC-VOW,MC-PREDICT,MC-CONTROL-SPACE,MC-READ-ENVIRONMENT,MC-USE-HAZARD,MC-RESTORE-BIOLOGICAL-STATE,MC-CUT-ABNORMAL-STRUCTURE miss;
+  class MC-CP-ECONOMY,MC-ATTACK-POWER,MC-BREAK,MC-CONDITION-STACKING,MC-REPOSITION,MC-OBSERVE,MC-FORCE-MOVEMENT,MC-INTERRUPT,MC-WATCH-TARGET part;
+  class MC-CRITICAL-STRIKE,MC-PERFECT-GUARD,MC-COUNTER,MC-COMBAT-FLOW,MC-FORTIFY,MC-EVADE,MC-VOW,MC-PREDICT,MC-CONTROL-SPACE,MC-READ-ENVIRONMENT,MC-USE-HAZARD,MC-RESTORE-BIOLOGICAL-STATE,MC-CUT-ABNORMAL-STRUCTURE,MC-DESIGNATE-TARGET miss;
   class MP-OUTGROW-THE-OPPONENT,MP-MATCH-WEAPON-TO-ARMOR,MP-PIERCE-THE-HARD-DEFENSE,MP-BREAK-THE-GUARD,MP-READ-AND-COUNTER,MP-EXPLOIT-OPEN-BODY,MP-INTERRUPT,MP-CONTROL-MOVEMENT,MP-WEAPONIZE-ENVIRONMENT,MP-BET-ON-THE-CRITICAL-BLOW,MP-STAKE-EVERYTHING-ON-ONE-BLOW,MP-TRADE-BODY-FOR-RESOURCE,MP-EVADE-BY-MOVING-THE-BODY,MP-HOLD-FORTIFIED,MP-LEARN-TO-HANDLE-THE-LAYER,MP-ADAPT-BY-RESOURCE poss;
 ```
 
@@ -274,9 +278,10 @@ Constraint 는 단계가 아니라 각 선택 지점의 Filter 다. 아래는 �
 | `GROWTH-NEED-FROM-POSSIBILITY` | GROWTH | APPROVED | 0 | Class 와 Item 은 Capability 를 획득하는 세계 내 경로일 뿐이다. Capability 의 필요성은 항상 기존 Master 인과(Goal → Possibility --requires-->)에서 나오며, Class 나 Item 이 존재한다는 이유로 Capability 를 만들지 않는다. |
 | `GROWTH-NO-CAPABILITY-DUPLICATION` | GROWTH | APPROVED | 0 | 같은 플레이 의미의 Capability 를 획득 Source(Class / Item / Actor)별로 복제하지 않는다. 하나의 MC-* 에 여러 획득 경로가 grants 로 연결된다. |
 | `GROWTH-NOT-A-STAGE` | GROWTH | APPROVED | 0 | Growth 는 별도 Master Stage 가 아니다. 기본 절차 WHY → OPTIONS → NEED → NEXT 는 그대로 유지되고, Growth Graph 는 NEED 에서 발견된 Capability 에 대해 "세계에서 어떻게 얻는가"를 덧씌우는 보조 Overlay 로만 존재한다. |
+| `TARGET-IS-INTENT-NOT-AIM` | GLOBAL | DRAFT | 2 | 대상을 지목하는 것은 플레이어가 지금 누구에게 의도를 두었는지를 세계에 밝히는 관계일 뿐이다. 지목 자체는 명중·피해·정보·위협을 만들지 않으며, 세계가 플레이어를 대신해 다가가거나 따라가지 않는다. |
 | `WORLD-COMBAT-IS-ONE-POSSIBILITY` | WORLD | APPROVED | 7 | Creature 의 발견·존재만으로 처치 Goal 을 만들지 않는다. Goal 은 WorldState (자원을 지킨다 · 길을 막는다 · 사냥한다 · 기관이 필요하다)에서 발생하며, 전투는 그 Goal 을 달성하는 Possibility 중 하나로만 성립한다. |
 | `WORLD-CREATURE-FROM-PRESSURE` | WORLD | APPROVED | 1 | 전투 Creature 를 먼저 만들지 않는다. Creature 의 Capability 는 세계압이 만든 환경과 생존 압력에 대한 적응의 결과이며, Player 의 Capability Requirement 는 그 Creature 와의 조우가 만든 Goal 과 Combat Possibility 에서만 파생된다. |
-| `WORLD-OWNS-THE-SURFACE-LIST` | GLOBAL | APPROVED | 0 | 무엇을 할 수 있고 그 값이 어디까지 허용되는지의 목록은 세계가 소유하고 관찰 결과에 실어 보낸다. 관찰자(View)는 그 목록을 스스로 만들지 않는다. |
+| `WORLD-OWNS-THE-SURFACE-LIST` | GLOBAL | APPROVED | 2 | 무엇을 할 수 있고 그 값이 어디까지 허용되는지의 목록은 세계가 소유하고 관찰 결과에 실어 보낸다. 관찰자(View)는 그 목록을 스스로 만들지 않는다. |
 | `WORLD-PLAYER-UNFIXED-PATH` | WORLD | APPROVED | 4 | Player 의 역할·Class·진영·전투 방식과 탐험의 이유를 하나로 고정하지 않는다. Root Goal(베이라를 탐험한다) 아래의 Local Goal 은 Actor 와 상황마다 발견된 세계 상태로부터 생성된다. |
 | `WORLD-PROGRESSION-IS-REACH` | WORLD | APPROVED | 5 | Progression 의 핵심은 수치 Level 의 상승이 아니라, 관찰과 이해로 대응 방법을 발견하고 Capability 와 Resource 를 얻어 이전에는 갈 수 없던 세계 범위에 도달하게 되는 확장이다. |
 | `WORLD-RESOURCE-ADAPTATION-TRACE` | WORLD | APPROVED | 3 | 중요한 베이라 Resource 는 World Pressure → Environment → Survival Pressure → Adaptation → Special Property → Resource 의 인과 Trace 로 설명할 수 있어야 하며, 좋은 아이템을 위험한 곳에 배치하는 방향으로 만들지 않는다. |

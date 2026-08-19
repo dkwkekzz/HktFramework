@@ -8,7 +8,7 @@ Master Graph 를 현재 `world/` `view/` 구현과 겹쳐 본 결과다. 기본 
 
     기준 시점   C013(관통) · C014(살펴봄) 완료 — 전투 사다리는 Penetration 층까지,
                 탐험은 FRINGE 의 첫 칸(살펴봄)까지 세계에 서 있다
-    근거 문서   전투 R1 · DT · 탐험 BW · 성장 GR — 근거는 영역을 넘지 않는다 (HISTORY Q15)
+    근거 문서   전투 R1 · DT · 탐험 BW · 성장 GR · 지목 TG — 근거는 영역을 넘지 않는다 (HISTORY Q15)
 
 해당 영역 문서가 이름조차 대지 않는 Capability 는 "없는 것" 이 아니라 **노드가 아니다** —
 표에서 삭제한다.
@@ -71,6 +71,16 @@ Constraint Violation 과 혼동하지 않는다 — 여기는 **있는가/없는
 | MC-RESTORE-BIOLOGICAL-STATE (자원 §8) | MISSING | — | 회복이라는 개념이 없다 — 생명은 줄기만 하고 되돌리는 경로는 디버그뿐이다 |
 | MC-CUT-ABNORMAL-STRUCTURE (자원 §10 · §17) | MISSING | — | 제작·장착이 없고, 통하지 않는 구조라는 개념도 없다 |
 
+## Capability — 지목 영역 (TG)
+
+`design/Design-Targeting-R0.md` 주입으로 선 노드 둘이다. 층(BW)에 속하지 않는다 —
+어느 층에서든 "지금 누구에게 하는가" 를 세계에 두는 자리다. 판정은 코드 대조로 했다.
+
+| Capability | 상태 | 근거 | 부족한 것 |
+|---|---|---|---|
+| MC-DESIGNATE-TARGET | MISSING | 코드 대조 — 요청마다 대상 Id 를 실어 보낼 수는 있으나 세계가 "지금 이 관찰자가 누구를 고르고 있는가" 를 지니는 자리가 없다. 공격은 대상을 아예 받지 않고 휘두른 자리에 닿은 몸이 맞는다 | 고른 관계 그 자체 · 그 관계를 살펴봄/채집/공격이 함께 쓰는 것 · 대상이 사라졌을 때의 정리 |
+| MC-WATCH-TARGET | PARTIAL | 코드 대조 — 존재마다 살펴봄·채집의 가용 여부와 불가 사유가 이미 관찰에 실리고, 이름·생명은 몸 위에 늘 보이며, 가려진 항목의 목록도 함께 온다 (C014 · C016) | 그 조각들이 **고른 대상 하나로 모이는 자리.** 지금은 대상별 사유가 흩어져 있어 "왜 지금 저것을 못 치는가" 를 한자리에서 읽을 수 없다 |
+
 ## World / Actor / Knowledge — 세계 자체는 얼마나 서 있는가
 
 Capability 만 보면 전투가 꽤 찬 것처럼 보이지만, 그 전투가 놓일 **세계**가 거의 없다.
@@ -125,7 +135,7 @@ Capability 만 보면 전투가 꽤 찬 것처럼 보이지만, 그 전투가 �
 
 | Possibility | 요구 중 없는 것 | 비고 |
 |---|---|---|
-| MP-LEARN-TO-HANDLE-THE-LAYER | MC-PREDICT (+ MC-OBSERVE 는 PARTIAL) | **C014 가 첫 칸을 세웠다** — 둘에서 하나로 줄었다. 탐험의 기본 갈래이자 다른 둘의 앞이다 (먼저 겪은 사람이 없으면 살 정보도 가져올 자원도 없다) |
+| MP-LEARN-TO-HANDLE-THE-LAYER | MC-PREDICT · MC-DESIGNATE-TARGET (+ MC-OBSERVE · MC-WATCH-TARGET 는 PARTIAL) | **C014 가 첫 칸을 세웠다** — 둘에서 하나로 줄었다. 탐험의 기본 갈래이자 다른 둘의 앞이다 (먼저 겪은 사람이 없으면 살 정보도 가져올 자원도 없다). TG 주입으로 요구 둘이 더해졌다 — 배선 판단은 open-questions Q27 |
 | MP-ADAPT-BY-RESOURCE | MC-RESTORE-BIOLOGICAL-STATE · MC-CUT-ABNORMAL-STRUCTURE + MK-LOCAL-WORLDSTATE + 자원 | **설계상 획득 경로는 Q22 로 섰다** (경계결정 → IM-BOUNDARY-EDGED). 세계에 제작·장착이 없다 |
 | MP-PREPARE-IN-CIVILIZATION | MK-LOCAL-WORLDSTATE + MW-SAFE-FRONTIER + 관계·대가 | 요구 Capability 가 없다 (BW §14 는 활동만 열거) — 막는 것은 능력이 아니라 문명권·거래라는 세계 기반이다 |
 
