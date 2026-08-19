@@ -520,3 +520,78 @@ ONE-LAYER-AT-A-TIME 신설, 이연 층 근거의 3종은 DRAFT 보류.
     이로써 탐험 영역에 Goal → Possibility → Capability 척추가 섰다
     (MG-EXPLORE-BEIRA → 깊이 진입 5 → 사다리 21). 여전히 남는 공백(§27 대안의
     requires · 층별 Local Goal)은 문서가 실제로 공급하지 않는 것들이다.
+
+---
+
+# C014 — Observe Reveals the Opponent (Feedback 반영 2026-08-19)
+
+## Frontier 선택과 결과
+
+    FR-OBSERVE-REVEALS-THE-OPPONENT   2026-08-19 Human Select
+        → C014-observe-reveals-the-opponent (8 Stage 전부 통과 · Human 지시로 COMPLETE)
+        이 후보는 frontier.md 에서 지웠다.
+
+    닫은 것   살펴봄이 세계에 섰다. 남의 겨루는 힘(공격 둘·방어 둘·관통 둘·배율 둘·
+              versusObserver·defenseShape)은 살펴본 뒤에만 관찰에 실리고,
+              무엇을 아는가는 관찰자마다 다르다.
+
+## Overlay 판정 — MC-OBSERVE 는 IMPLEMENTED 가 아니라 PARTIAL 이다
+
+    C014 의 08-verification 은 `MISSING → IMPLEMENTED` 로 보고하면서 주의를 함께 적었다 —
+    "MC-OBSERVE 의 semantic 이 말한 행동·습성 중 **습성**은 세계에 아직 개념이 없다".
+    Feedback 이 그 주의를 적용해 **PARTIAL** 로 판정했다. semantic 은 셋을 말하는데
+    (`행동·습성·상태`) 이번에 닫힌 것은 상태뿐이다.
+
+    남은 결손 둘
+        행동·습성   자율 존재의 행동 패턴을 읽는 의미가 없다 → MC-PREDICT 와 같은 자리
+        경로 하나   앎에 이르는 길이 살펴봄뿐이고, 앎이 존재 단위(ActorId 집합)여서
+                    "일부만 안다" 가 세계에 없다 (C014 06 NOTES)
+
+    이 판정이 곧 새 후보 둘의 근거가 되었다 — PARTIAL 은 Frontier 후보 자격이다
+    (7조건 1: "MISSING 이거나 필요한 수준에 못 미치는 PARTIAL 인가").
+
+    MC-COMBAT-CAUSE-READING 은 PARTIAL 을 유지했다 — C014 는 계산 내역을 넓히지 않고
+    누가 볼 수 있는지만 정했으므로 승격을 보고하지 않았다. C010 의 보고 없는 승격 보류도
+    그대로 남는다.
+
+## 배운 것
+
+    ① **없음을 계약에 싣는 방식** — 가려진 자리를 지우지 않고 무엇을 왜 가렸는지를 함께
+       싣는다. 세계가 그 목록(`concealed`)을 소유하므로 셋에서 하나로 줄이면 화면이
+       따라왔다 (View 코드 변경 0). DC-WORLD-OWNS-THE-SURFACE-LIST 의 다섯 번째 증거이며
+       CC-THE-WORLD-NAMES-WHAT-IT-WITHHELD 로 제출했다.
+    ② **앎은 값이 아니라 자리다** — 장부에 Id 만 담고 투영이 매 tick 현재 값을 읽는다.
+       그래서 살펴본 뒤 상대의 능력이 바뀌면 바뀐 값이 보인다. 값을 베꼈다면
+       "능력치로 미리 안다" 같은 후속 경로가 아예 성립하지 않았다 —
+       이 성질이 FR-INSIGHT-SEES-BEFORE-LOOKING 을 가능하게 한 전제다.
+    ③ **의미가 바뀐 테스트는 지우지 않고 다시 쓴다** — C007 R2 의 "세계는 어떤 속성도
+       숨기지 않는다" 검증을 새 경계로 둘로 갈랐다. 그 자리가 "무엇이 **여전히**
+       안 가려지는가" 의 기록이 되었다.
+
+## 새 후보 (같은 날 Human 지시로 추가)
+
+    Human: "상황에 따라서 아이템을 쓴다거나 나의 능력치 및 스킬에 따라 미리 알 수도 있어?
+    그럴 여지만 있으면 됨." → "후보로 올리고 완료처리해줘"
+
+    FR-INSIGHT-SEES-BEFORE-LOOKING     기른 통찰이 살펴봄 없이 일부를 보여준다.
+                                       MC-OBSERVE(PARTIAL)의 **경로** 결손을 닫는다.
+                                       DC-WORLD-PROGRESSION-IS-REACH 의 requires 를
+                                       세계에서 처음 만족시키는 자리다
+    FR-PREDICT-READS-THE-NEXT-BLOW     C014 08 이 제안한 것. MC-PREDICT + MC-OBSERVE 의
+                                       **습성** 결손이 같은 자리다
+
+    아이템 경로는 후보로 올리지 않고 "지금 열 수 없는 것" 에 사유와 함께 두었다 —
+    **아이템을 "쓴다" 는 개념이 세계에 없다** (소지 개수만 있고 사용·소모 Rule 0건).
+    부분 공개가 먼저 서면 남는 것은 "아이템 사용" 하나이므로 그때 후보가 된다.
+
+## Master Gap
+    없음. Stage 5 가 확인한 판단 둘(C007 R2 개정 범위 · DT §10 조정)이 승인되어
+    반환 조건이 발생하지 않았다.
+
+## 미실행 Feedback — C013 (Penetration)
+
+    C013 은 기계 검증을 통과했으나 **Human Play 확인 대기**여서 그 Feedback 을 돌리지
+    않았다. 그래서 지금 overlay 의 MC-PENETRATION 은 여전히 MISSING 이고
+    frontier.md 의 FR-PENETRATION-DEVALUES-THE-WALL 은 `SELECTED` 로 남아 있다 —
+    코드는 이미 들어가 있으므로 **overlay 와 현재 세계가 그 한 줄에서 어긋난 상태**다.
+    Play 확인이 끝나면 그 Feedback 을 돌려 승격·정리한다.

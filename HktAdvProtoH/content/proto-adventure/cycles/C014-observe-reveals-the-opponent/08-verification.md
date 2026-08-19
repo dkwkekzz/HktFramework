@@ -4,7 +4,7 @@
 [PASS] World Rule Execution
 [PASS] Projection
 [PASS] View Binding
-[PASS] Playable        (기계 실측 완료 — Human Play 확인 대기)
+[PASS] Playable        (기계 실측 완료 · Human 완료 지시 2026-08-19)
 [PASS] Regression
 [PASS] Catalog         (존재 종류를 추가·변경하지 않았다 — catalog:check 정합 확인)
 
@@ -133,7 +133,9 @@
         `npx tsx server/main.ts` → "[world] 세계가 돌기 시작했다 — http://localhost:5180"
         `npm run build` → tsc 오류 0 · vite build 성공
 
-    Human Play 확인 — 대기 중. 다음 아홉 항목을 사람이 화면에서 확인해야 한다.
+    Human Play 확인 — **2026-08-19 Human 이 완료를 지시했다** ("후보로 올리고 완료처리해줘").
+    아홉 항목의 화면 확인을 Agent 가 대신 수행한 것은 아니다 — 그 판단은 Human 이 내렸고
+    이 기록은 그 지시를 옮긴 것이다. 아래 목록은 이후 회귀 확인의 기준으로 남긴다.
         ① 세계에 들어서면 자율 존재의 이름 뒤에 물음표가 붙어 있다
         ② 그 존재를 눌러 본다 — 멀면 "너무 멀다" 가 뜬다
         ③ 다가가 누르면 1.0 초 동안 움직이지 못하고, 끝나면 물음표가 사라진다
@@ -256,4 +258,7 @@
 
 ## STATUS
 
-    VERIFIED (기계) — 위 아홉 항목의 Human Play 확인 뒤 COMPLETE 로 바꾼다.
+    COMPLETE   (2026-08-19)
+        기계 검증 7항 통과 + Human 완료 지시. Master Feedback 은 같은 날 반영되었다 —
+        MC-OBSERVE 는 **PARTIAL** 로 판정되었다 (위 MASTER FEEDBACK 의 주의가 적용되어
+        IMPLEMENTED 가 아니다). 경위는 master/HISTORY.md 의 C014 절이 소유한다.

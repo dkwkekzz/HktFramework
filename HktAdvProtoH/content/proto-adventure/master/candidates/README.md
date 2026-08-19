@@ -2,12 +2,17 @@
 
 파일 하나 = 후보 하나. 이름은 `CC-<NAME>.md`. 형식은 [../SCHEMA.md](../SCHEMA.md).
 
-현재: **PENDING 2종**
+현재: **PENDING 3종**
 
 | 후보 | 출처 | 관찰 | 상태 |
 |---|---|---|---|
 | CC-RESOURCE-GATE-IS-ALL-OR-NOTHING | C011 | 2회 (C007 · C011) | PENDING |
 | CC-THE-WORLD-NAMES-WHAT-IT-READ | C012 | 1회 (C012 · C010 은 전조) | PENDING |
+| CC-THE-WORLD-NAMES-WHAT-IT-WITHHELD | C014 | 1회 (C014 · C011 은 전조) | PENDING |
+
+PENDING 셋 중 둘(NAMES-WHAT-IT-READ · NAMES-WHAT-IT-WITHHELD)과 C013 이 제안한
+CC-THE-WORLD-OWNS-THE-RELATION 은 모두 **DC-WORLD-OWNS-THE-SURFACE-LIST 의 확장**
+후보다 — 한 문안으로 합칠지 따로 세울지는 Human 판단이다.
 
 승격된 것 1종 — CC-WORLD-OWNS-THE-SURFACE-LIST (2026-08-17 APPROVED →
 `../constraints/DC-WORLD-OWNS-THE-SURFACE-LIST.yaml`). 파일은 기록으로 남긴다.

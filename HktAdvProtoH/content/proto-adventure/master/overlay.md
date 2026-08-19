@@ -3,8 +3,9 @@
 Master Capability(`graph/capabilities.yaml`) 를 현재 `world/` `view/` 구현 상태와 겹쳐 본 결과다.
 기본 절차 **NEED** 단계의 산출물이며, NEXT(Frontier) 는 여기서 나온다.
 
-기준 시점: **BW(베이라 세계관) 주입 (2026-08-19)** — 코드는 C012 완료 시점 상태 그대로다
-(주입은 Graph 만 넓혔고 세계 구현은 바뀌지 않았다).
+기준 시점: **C014 완료 (2026-08-19)** — 살펴봄이 세계에 섰다.
+C013(관통)은 기계 검증을 통과했으나 Human Play 확인 대기이므로 그 승격은 아직 반영하지 않는다
+(HISTORY 참조).
 
 근거 문서는 영역별로 분리된다 (근거는 영역을 넘지 않는다 — HISTORY Q15).
 
@@ -51,7 +52,8 @@ Master Capability(`graph/capabilities.yaml`) 를 현재 `world/` `view/` 구현 
 | Capability (층) | 상태 | 근거 | 부족한 것 |
 |---|---|---|---|
 | MC-REPOSITION (SAFE §20) | MISSING | — | 위치를 잡는 이동 의미가 없다 (걷기·달리기는 있으나 위치의 유불리가 판정에 쓰이지 않는다) |
-| MC-OBSERVE · MC-PREDICT · MC-USE-TERRAIN (FRINGE §21) | MISSING | — | 관찰·예측이 행동으로 존재하지 않고, 지형이 판정에 쓰이지 않는다 |
+| MC-OBSERVE (FRINGE §21) | PARTIAL | C014 08-verification — 살펴봄이 행동으로 존재하고(`RULE-OBSERVE-BEGIN/COMPLETE-001`), 살펴본 뒤에만 상대의 겨루는 힘이 관찰에 실리며, 앎이 관찰자마다 다른 것이 실측 | semantic 이 말한 셋 중 **상태**만 닫혔다. ① **행동·습성** — 자율 존재의 행동 패턴을 읽는 의미가 없다 (MC-PREDICT 와 같은 자리) ② **경로가 하나** — 앎에 이르는 길이 살펴봄뿐이고, 앎이 존재 단위여서 부분 공개가 없다 (C014 06 NOTES) |
+| MC-PREDICT · MC-USE-TERRAIN (FRINGE §21) | MISSING | — | 예측이 행동으로 존재하지 않고, 지형이 판정에 쓰이지 않는다 |
 | MC-DISCOVER-WEAKNESS · MC-PRECISE-TARGETING · MC-CONTROL-SPACE (WILD §22) | MISSING | — | 약점 발견·부위 조준·공간 통제의 의미가 없다 (MC-BREAK 는 전투 표에서 판정) |
 | MC-READ-ENVIRONMENT · MC-FORCE-MOVEMENT · MC-USE-HAZARD · MC-INTERRUPT (DANGER §23) | MISSING | — | 환경 Hazard 라는 개념 자체가 세계에 없다 |
 | MC-DISRUPT-ABILITY · MC-MAINTAIN-PRESSURE · MC-TARGET-SPECIFIC-PART · MC-READ-CREATURE-SYSTEM (DEEP §24) | MISSING | — | 재생·공생·부위라는 개념 자체가 없다 |
@@ -92,7 +94,7 @@ Constraint Violation 과 혼동하지 않는다 — 여기는 **있는가/없는
 
 | Possibility | 요구 Capability 중 없는 것 | 비고 |
 |---|---|---|
-| MP-VENTURE-INTO-FRINGE | MC-OBSERVE · MC-PREDICT · MC-USE-TERRAIN | **3종 전부 없다** — 그러나 이 층이 탐험 사다리의 첫 칸이다 (BW §21). 지역·이동이라는 세계 기반 자체도 없다 |
+| MP-VENTURE-INTO-FRINGE | MC-PREDICT · MC-USE-TERRAIN (+ MC-OBSERVE 는 PARTIAL) | **C014 가 첫 칸을 세웠다** — 셋에서 둘로 줄었다. MC-OBSERVE 는 상태를 아는 일까지 닫혔고 습성·경로가 남는다. 지역·이동이라는 세계 기반은 여전히 없다 |
 | MP-VENTURE-INTO-WILD | MC-BREAK · MC-DISCOVER-WEAKNESS · MC-PRECISE-TARGETING · MC-CONTROL-SPACE | 4종 전부 없다 (BW §22) |
 | MP-VENTURE-INTO-DANGER | MC-READ-ENVIRONMENT · MC-FORCE-MOVEMENT · MC-USE-HAZARD · MC-INTERRUPT | 4종 전부 없다 (BW §23) |
 | MP-VENTURE-INTO-DEEP | MC-DISCOVER-WEAKNESS · MC-DISRUPT-ABILITY · MC-MAINTAIN-PRESSURE · MC-TARGET-SPECIFIC-PART · MC-READ-CREATURE-SYSTEM | 5종 전부 없다 (BW §24) |
