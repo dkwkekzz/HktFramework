@@ -1112,19 +1112,25 @@ Implementation Agent
 
 World는 TypeScript 기반 Server Runtime으로 구현한다.
 
+세계의 껍데기(요청 큐·관찰자 인과·Tick 프레임)는 기반(`engine/world-kernel/`)이 소유하고,
+컨텐츠 팩은 **무엇이 있는 세계인지**를 계약으로 등록한다. 아래는 팩이 소유하는 구조다.
+
 개념 구조:
 
 ```text
 world/
 
-    semantic/
-    rules/
-    simulation/
-    projection/
-    actions/
-    capabilities/
+    semantic/     State 정의
+    rules/        World Rule — 한 번의 판정과 상태 전이
+    simulation/   Tick 마다 도는 자동 법칙 (시간 진행 · 물리 보정 · 자율 결정)
+    projection/   Observer Projection
+    actions/      Interaction Registry — Action Request 수용
+    index.ts      조립 — 초기 배치 · interaction 목록 · 시스템 순서 배열 · 투영 등록
 
 ```
+
+상태를 바꾸는 원천은 둘이며 폴더가 그 둘을 가른다 — 밖에서 온 요청(`actions/`)과
+안에서 도는 시계(`simulation/`). 둘 다 자기가 상태를 바꾸지 않고 `rules/` 를 부른다.
 
 핵심 흐름:
 
@@ -1147,20 +1153,18 @@ World 테스트는 View 없이 실행 가능해야 한다.
 
 View는 TypeScript 기반 Web Client로 구현한다.
 
+View 도 같은 구도다. 그리는 능력(renderer·scene·sprites·terrain·camera·input·hud·assets)은
+기반(`engine/view-kernel/`)이 소유하고, 팩의 `view/` 는 **결정 Layer** 만 소유한다.
+
 개념 구조:
 
 ```text
 view/
 
-    renderer/
-    scene/
-    sprites/
-    terrain/
-    camera/
-    input/
-    hud/
-    assets/
-    gameview/
+    resolve                 Presentation Resolver — Snapshot → Render Plan
+    *-presentation          role · kind · interaction · HUD · 전투 값의 표시 결정
+    code-text               의미 코드 → 플레이어 문구
+    bindings · sprites      키 규칙 · Sprite 표
 
 ```
 

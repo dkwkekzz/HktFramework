@@ -9,6 +9,7 @@
 - `cycles/<CycleId>/03-world-semantic.md`
 - 관련 기존 World 구현 (`world/`)
 - `protocol/` 경계 타입
+- `engine/world-kernel/content.ts` — 팩이 세계를 등록하는 계약 (읽기 전용)
 
 ## Do
 
@@ -40,13 +41,30 @@ GameView Specification
 
 ```text
 world/
-    semantic/     State 정의
-    rules/        World Rule
-    simulation/   시간 진행 / 자동 법칙
-    projection/   Observer Projection → GameView Specification
-    actions/      Action Request 수용
-    capabilities/ Cycle 이 추가한 가능성
+    semantic/   State 정의 — 팩 State · 상수 · 카탈로그
+    rules/      World Rule — 한 번의 판정과 상태 전이 (Precondition → Transition → Result)
+    simulation/ Tick 마다 도는 자동 법칙 — 시간 진행 · 물리 보정 · 자율 결정
+    projection/ Observer Projection → GameView Specification
+    actions/    Interaction Registry — Action Request 수용 (검증 → 주체 해석 → rules 호출)
+    index.ts    조립 — 초기 배치 + interaction 목록 + 시스템 순서 배열 + 투영을 등록한다
 ```
+
+World 가 상태를 바꾸는 원천은 둘이고, 폴더가 그 둘을 가른다.
+
+```text
+밖에서 온 요청   actions/     요청 1회마다   → rules/ 를 부른다
+안에서 도는 시계 simulation/  Tick 마다 dt 로 → rules/ 를 부른다
+```
+
+`rules/` 는 둘이 공유하는 판정의 본체다. 자율 존재도 요청 경로가 아니라
+`simulation/npc-decide` 를 지나 **같은 `rules/`** 를 부른다 — 조종 여부가 규칙을 가르지 않는다.
+
+세계의 껍데기는 팩의 것이 아니다. 요청 큐 · 참여/이탈/표식의 인과 · Tick 프레임 ·
+요청 회신은 `engine/world-kernel/` 이 소유하고, 팩은 `WorldContent` 계약으로
+**무엇이 있는 세계인지**만 등록한다 (`index.ts`). 밀어내기 · 관성 · 추적 이동 · 호 스윕
+접촉은 `engine/physics/` 솔버를 조합해 쓰고 재구현하지 않는다 — 팩이 소유하는 것은
+상수와 대상 선택과 접촉의 **의미**다. 경계의 단일 출처는
+[design/Design-System-Content-Separation.md](../design/Design-System-Content-Separation.md).
 
 ## Output
 
@@ -65,6 +83,7 @@ world/
   kind 별 분기·상수를 두지 않고, Actor 생성은 `semantic/spawn.ts` 를 거친다.
   미등록 종류도 `DEFAULT_CHARACTER` 로 스폰된다 — 기본값 폴백을 깨지 않는다.
   현재 등록 전체는 `npm run catalog` 로 관찰한다.
+- Tick 진행 순서는 `index.ts` 의 **한 배열**이 소유한다 — 시스템 파일에 우선순위를 흩지 않는다.
 - Rule 구현에는 Intent ID 를 주석/메타로 남긴다 (Traceability).
 - World 는 View 없이 테스트 가능해야 한다.
 - 코드는 `03-world-semantic.md` 의 이름과 의미를 그대로 따른다.
@@ -75,6 +94,8 @@ world/
 - `view/` 를 import 하지 않는다 — World 와 View 가 공유하는 것은 `protocol/` 뿐이다.
 - Semantic 에 없는 State 나 Rule 을 임의로 추가하지 않는다.
 - 이유 없는 직접 상태 변경(`stone++`)을 만들지 않는다.
+- `engine/` 을 편집하지 않는다 — 기반이 부족하면 그 사유를 적고 기반 트랙으로 반환한다.
+- `actions/` 에서 상태를 직접 바꾸지 않는다 — 수용층은 검증하고 `rules/` 를 부를 뿐이다.
 - 이번 Cycle 과 무관한 기존 코드를 의미까지 바꾸는 리팩터링을 하지 않는다.
 
 ## Done When
