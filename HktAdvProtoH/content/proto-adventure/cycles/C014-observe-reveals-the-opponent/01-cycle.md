@@ -1,9 +1,9 @@
 # CYCLE C014 — Observe Reveals the Opponent
 
 [PASS] Cycle Definition
-[    ] Intent
-[    ] World Semantic
-[    ] GameView Specification
+[PASS] Intent                    (아는 것이 하는 일이 된다 · 가린 것을 밝힌다)
+[PASS] World Semantic            (행동 하나 · 장부 하나 · 투영 관문 하나 · 계산 무변경)
+[PASS] GameView Specification    (비어 있음이 값처럼 실린다 · concealed 목록은 세계 것)
 [    ] Human Semantic Review
 [    ] World Implementation
 [    ] View Implementation
