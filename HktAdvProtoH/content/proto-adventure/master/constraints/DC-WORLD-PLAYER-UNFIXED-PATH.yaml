@@ -1,0 +1,34 @@
+# 원본 근거: design/Master-World-Beira.md (BW)
+#   §1 (MA-PLAYER — fixed_role/class/faction/combat_style: none) ·
+#   §15 (Player 의 이유를 하나로 고정하지 않는다 — Root 아래 수많은 Local Goal) ·
+#   §31 (왜 베이라를 탐험하는가 — 병 치료·부·강함·무기·발견·호기심이 병렬이다)
+# 2026-08-19 Human 지시(BW 주입)로 신설 — DRAFT, 승인 대기 (open-questions.md Q17).
+id: DC-WORLD-PLAYER-UNFIXED-PATH
+type: constraint
+
+statement: >
+  Player 의 역할·Class·진영·전투 방식과 탐험의 이유를 하나로 고정하지 않는다.
+  Root Goal(베이라를 탐험한다) 아래의 Local Goal 은 Actor 와 상황마다
+  발견된 세계 상태로부터 생성된다.
+rationale: >
+  Player 는 임무를 받고 파견된 사람이 아니라 자신의 목적과 방식으로 탐험하는
+  Actor 다 (BW §1). 이유를 하나로 고정하면 베이라가 가진 극단적인 가능성이
+  하나의 퀘스트 라인으로 좁아진다 — 수많은 Goal 이 발생할 수 있어야 한다 (BW §15 · §31).
+
+scope:
+  - WORLD
+
+requires:
+  - local_goals_emerge_from_discovered_world_state   # Local Goal 은 발견한 WorldState 에서 생성된다 (BW §1 · §16)
+prohibits:
+  - fixed_player_role_class_faction_style            # 고정 역할·Class·진영·전투 방식 (BW §1)
+  - single_mandated_reason_to_explore                # 탐험 이유를 하나로 강제 (BW §15)
+prefers: []
+
+status: DRAFT
+provenance:
+  - HUMAN_DESIGN          # 2026-08-19 Human 지시로 BW 주입
+
+relations:
+  supports: []
+  conflicts_with: []

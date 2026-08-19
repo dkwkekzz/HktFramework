@@ -2,7 +2,8 @@
 
 파일 하나 = Constraint 하나. 이름은 `DC-<NAME>.yaml`. 형식은 [../SCHEMA.md](../SCHEMA.md).
 
-현재: **Active(APPROVED) 11종** — 전투 5종 + 성장 6종. 보류(DRAFT)는 없다.
+현재: **Active(APPROVED) 11종** — 전투 5종 + 성장 6종. **DRAFT 5종** — 세계(WORLD)
+영역, 승인 대기 (open-questions.md Q17).
 
 근거 문서:
 
@@ -10,6 +11,7 @@
 R1 §x   design/Design-Combat-OffenseDefense-R0.md   전투 영역
 DT §x   design/Design-Combat-DamageType-R0.md        전투 영역
 GR §x   design/Master-Intent-Graph-Growth.md         성장(GROWTH) 영역 한정
+BW §x   design/Master-World-Beira.md                 세계(WORLD) 영역 한정 — 2026-08-19 주입
 ```
 
 근거는 영역을 넘지 않는다 — 전투 노드에 GR 을, 성장 노드에 R1/DT 를 인용하지 않는다.
@@ -37,6 +39,16 @@ GR §x   design/Master-Intent-Graph-Growth.md         성장(GROWTH) 영역 한�
 | DC-GROWTH-DEFINITION-INSTANCE-SPLIT | Master 는 유한 Definition 만 — II-*/조합 결과는 Runtime, 사전 생성 금지 | GR §28~§32 · §42 |
 | DC-GROWTH-NOT-A-STAGE | Growth 는 Master Stage 가 아니라 NEED 위의 Overlay | GR §21 · §22.1 |
 | DC-GROWTH-GOAL-FIRST | 성장 자체를 Goal 로 세우지 않는다 — 현재 Goal 의 Possibility 로만 | GR §34 · §42 |
+
+### DRAFT — 승인 대기 (세계 — BW 주입 2026-08-19 · Q17)
+
+| Constraint | 한 줄 | 근거 |
+|---|---|---|
+| DC-WORLD-RESOURCE-ADAPTATION-TRACE | 중요 자원은 세계압→적응 Trace 로 설명 — 배치형 설계·위험=등급 직결 금지 | BW §6 · §11 · §12 · §33 · §34 |
+| DC-WORLD-CREATURE-FROM-PRESSURE | 전투 Creature 를 먼저 만들지 않는다 — 능력은 적응의 결과 | BW §26 |
+| DC-WORLD-COMBAT-IS-ONE-POSSIBILITY | Creature 존재만으로 처치 Goal 금지 — Goal 은 WorldState 에서, 전투는 대안 중 하나 | BW §27 · §28 |
+| DC-WORLD-PLAYER-UNFIXED-PATH | Player 의 역할·Class·진영·탐험 이유를 하나로 고정하지 않는다 | BW §1 · §15 · §31 |
+| DC-WORLD-PROGRESSION-IS-REACH | Progression 은 Level 이 아니라 대응 가능한 세계 범위의 확장 | BW §1 · §17 · §32 |
 
 `DC-WORLD-OWNS-THE-SURFACE-LIST` 는 위 표와 성격이 다르다 — 전투 기획서가 아니라
 Cycle 관찰(C007 → C009 → C010)에서 승격된 GLOBAL Constraint 다. 근거는

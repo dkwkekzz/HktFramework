@@ -12,7 +12,7 @@ Human 이 답한다    DECISION 줄
 [HISTORY.md](HISTORY.md) 로 옮긴다.** 여기에는 아직 답이 없는 것만 남는다 —
 닫힌 질문이 쌓이면 매번 읽어야 하는 문서가 무거워진다.
 
-미해결 **4건** — Q2 · Q3 · Q8 · Q11 (닫힌 질문은 HISTORY.md).
+미해결 **7건** — Q2 · Q3 · Q8 · Q11 · Q17 · Q18 · Q19 (닫힌 질문은 HISTORY.md).
 
 ---
 
@@ -32,9 +32,14 @@ Human 이 답한다    DECISION 줄
 
     필요한 것     master/root.md 의 Root Game Goal · World Premise (Human 소유)
 
-    선택지        (a) 지금 root.md 를 채우고 WHY 단계로 World Cause 를 확장한 뒤 Cycle 을 연다
-                  (b) 전투 Cycle 을 먼저 돌리고 World Cause 는 나중에 붙인다
-                      — 그때 기존 MG 의 의미가 흔들릴 수 있다
+    갱신          2026-08-19 BW(베이라 세계관) 주입으로 입력이 도착했다 — root.md 가
+                  채워졌고(Q19) MW-* 6종과 일반 원리(조우 → Goal — BW §26~§27)가 생겼다.
+                  남은 것은 배선이다: 기존 전투 Goal 을 베이라의 어떤 세계 사정
+                  (어느 지역의 어떤 조우)에 잇는가 — 이것은 주입이 아니라 WHY 확장
+                  몫이며 BW 는 구체 조우 상태를 명명하지 않았다.
+
+    선택지        (a) WHY 확장을 실행해 전투 Goal 의 caused_by / motivation 을 배선한다
+                  (b) 전투 트랙(Penetration 등)을 먼저 마무리하고 배선은 그 뒤에 한다
 
     DECISION      <PENDING>
 
@@ -65,8 +70,13 @@ Human 이 답한다    DECISION 줄
     영향          원본이 전투 문서이므로 당연한 결과이며 억지로 만들지 않았다.
                   다만 "이 상대를 넘어서는 방법이 싸움뿐인가" 는 MMORPG 설계 결정이다.
 
+    갱신          2026-08-19 BW 주입으로 전투 밖 경로의 원형이 Graph 에 생겼다 —
+                  MG-ACQUIRE-RARE-ORGAN 의 대안 5종 중 4종이 비전투다 (BW §27).
+                  다만 "같은 상대를 넘어서는"(MG-OVERCOME-SUPERIOR-OPPONENT) 비전투
+                  경로는 여전히 없다 — 그 확장은 OPTIONS 몫이다.
+
     선택지        (a) 전투는 전투로만 푼다
-                  (b) 전투 밖 경로를 Graph 에 연다 → root.md 와 WHY/OPTIONS 확장이 선행 (Q2 와 같은 입력)
+                  (b) 전투 밖 경로를 Graph 에 연다 → WHY/OPTIONS 확장이 선행 (Q2 와 같은 입력)
 
     DECISION      <PENDING>
 
@@ -93,3 +103,81 @@ Human 이 답한다    DECISION 줄
 
     DECISION      <PENDING>
 
+---
+
+## Q17. BW(베이라 세계관) 주입 DC 5종(DRAFT) 승인 — OPEN · 차단
+
+    무엇          2026-08-19 design/Master-World-Beira.md(BW) 주입으로 만든
+                  DC-WORLD-RESOURCE-ADAPTATION-TRACE · CREATURE-FROM-PRESSURE ·
+                  COMBAT-IS-ONE-POSSIBILITY · PLAYER-UNFIXED-PATH ·
+                  PROGRESSION-IS-REACH 5종이 DRAFT 다. 문안(statement / requires /
+                  prohibits / prefers)은 Agent 추출이다 — BW 의 GOOD/BAD 명시 원칙만
+                  옮겼고 "가능하면"(§11)은 prefers 로 남겨 원본보다 세게 쓰지 않았다.
+
+    영향          차단 — 승인 전에는 BW 유래 노드의 constraint_evaluation 이
+                  UNRESOLVED 로 남고, WORLD scope 의 Filter 로 쓸 수 없다.
+                  UNRESOLVED 를 SATISFIED 로 간주하지 않으므로 탐험 영역 Frontier
+                  후보도 이 승인 전에는 세우지 않는다.
+
+    선택지        (a) 5종 일괄 APPROVED
+                  (b) 개별 REVISED — 어느 항목이 원본과 다른지 지목
+                  (c) 일부 REJECTED
+
+    DECISION      <PENDING>
+
+---
+
+## Q18. BW 의 전투 교차분 — 기존 전투 노드와의 매핑 — OPEN
+
+    무엇          BW 는 세계관 문서지만 §20~§28 이 전투 이름들을 명명하며, 다수가
+                  기존 전투 노드와 같은 의미로 보인다. 같은 의미를 새 이름으로 만들지
+                  않기 위해(DC-GROWTH-NO-CAPABILITY-DUPLICATION · 주입 Guide Must)
+                  아래는 주입하지 않고 매핑 후보로만 남겼다. 근거 영역 분리 규칙
+                  (HISTORY Q15 — 전투 노드의 근거는 R1/DT)이 있어 Agent 가 확정하지
+                  않는다.
+
+                  Agent 매핑 판단 (≙ = 같은 의미로 재사용 제안):
+                    MG-OVERCOME-CREATURE        ≙ MG-OVERCOME-SUPERIOR-OPPONENT (§26)
+                    MP-DEFEAT-BY-COMBAT + 8분기 (§28):
+                      MP-BREAK-DEFENSE          ≙ MP-BREAK-THE-GUARD
+                      MP-READ-AND-PUNISH        ≙ MP-READ-AND-COUNTER
+                      MP-OVERWHELM              ≙ MP-OUTGROW-THE-OPPONENT (근사)
+                      MP-EXPLOIT-WEAKNESS       ≙ MP-EXPLOIT-OPEN-BODY / MP-MATCH-WEAPON-TO-ARMOR (분산)
+                      MP-OUTLAST                ≙ MP-HOLD-FORTIFIED (근사)
+                      MP-CONTROL-MOVEMENT · MP-INTERRUPT · MP-WEAPONIZE-ENVIRONMENT
+                                                — 기존에 없음 (신규 후보)
+                    MC-ATTACK ≙ MC-COMBAT-STRIKE · MC-DEFEND ≙ MC-GUARD ·
+                    MC-EVADE ≙ MC-EVADE(기존) · MC-BREAK ≙ MC-BREAK(기존 — 단
+                    기존 semantic 은 Guard 무너뜨리기로 좁고 BW §22 는 갑각 파괴를
+                    요구한다. 넓히려면 REVISED 가 필요하다)
+
+    영향          차단 아님 — 전투 트랙은 기존 노드로 계속 돈다. 다만 결정 전에는
+                  MP-KILL-CREATURE 의 requires 배선(전투 스타일 분기)과 BW 를 전투
+                  영역 근거로 인용하는 것을 하지 않는다.
+
+    선택지        (a) 매핑 승인 — 기존 노드 재사용 + BW 를 해당 노드의 보조 근거로 허용
+                      (Q15 영역 규칙에 예외 추가) + 신규 3종은 OPTIONS 탐색으로 검토
+                  (b) 매핑만 승인, 근거는 계속 분리 (BW 인용은 탐험 노드에만)
+                  (c) BW §28 을 별도 노드로 세운다 — 같은 의미의 이중 등록을 감수
+
+    DECISION      <PENDING>
+
+---
+
+## Q19. root.md 문안 확인 — BW 주입으로 채워졌다 — OPEN
+
+    무엇          root.md 는 Human 소유인데 비어 있었고, BW §1 이 ROOT GAME GOAL 을,
+                  §35~§36 이 WORLD PREMISE 를 직접 선언한다. HISTORY Q14 의 결정
+                  ("실제 세계관은 root.md 가 채워질 때 새로 정한다")이 예고한 그
+                  세계관 문서가 도착한 것으로 판단해, 문서의 문장을 그대로 옮겨
+                  root.md 를 채웠다 — Agent 창작 문안은 없다.
+
+    영향          차단 아님 — 그러나 이 문안이 곧 모든 Goal 의 최종 상위 근거가
+                  되므로, 틀렸다면 빨리 고쳐야 한다.
+
+    선택지        (a) 문안 확정 (그대로 둔다)
+                  (b) Human 이 직접 수정
+                  (c) 되돌린다 (root.md 를 다시 비운다 — BW 주입 산출물 중 MW/MG 의
+                      상위 근거가 다시 사라진다)
+
+    DECISION      <PENDING>

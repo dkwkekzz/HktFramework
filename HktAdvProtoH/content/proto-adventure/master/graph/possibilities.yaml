@@ -286,7 +286,141 @@ nodes:
       DC-COMBAT-SHARED-BUDGET: SATISFIED       # 자세 유지가 새 게이지가 아니라 같은 기력 예산을 흘린다 (R1 §1 · §11)
     # R1 §14 Aura/Nen 층이 예고한다 — 방어 집중은 Defense 를 올리고 Attack 을 낮추며 CP 를 흘린다.
 
-# 주입 근거 — 이 둘이 전부다 (2026-08-18 Q12 결정)
+  # ── MG-ACQUIRE-RARE-ORGAN 를 달성하는 방법들 (OR) ──────────────────────
+  # BW §27 (design/Master-World-Beira.md — 2026-08-19 주입) 이 다섯을 직접 명명했다.
+  # 전투는 그중 하나다 — DC-WORLD-COMBAT-IS-ONE-POSSIBILITY (DRAFT) 의 원형 사례.
+  # 다섯 모두 requires 배선이 비어 있다 — BW 는 대안 구조만 공급하고 각 경로의
+  # 요구 Capability 를 명명하지 않는다. 배선은 OPTIONS/NEED 탐색 몫이다.
+
+  - id: MP-KILL-CREATURE
+    type: possibility
+    achieves: [MG-ACQUIRE-RARE-ORGAN]
+    meaningful_difference: >
+      Creature 를 죽여 기관을 얻는다. 다섯 대안 중 유일하게 전투를 요구하고,
+      기다림·관계·탐색 대신 위험을 비용으로 치른다. (BW §27)
+    requires:
+      goals: []
+      capabilities: []
+      # 전투 스타일 분기는 BW §28 범용 Combat Graph 가 예고하나, 기존 전투 MP 와의
+      # 매핑이 Human 결정 대기라 여기 배선하지 않았다 → open-questions.md Q18
+      knowledge: []
+      world_state: []
+      relationship: []
+      resource: []
+    supports: []
+    opposes: []
+    changes:
+      - 그 Creature 가 세계에서 사라진다
+    reveals: []
+    creates_goal: []
+    constraints: [DC-WORLD-COMBAT-IS-ONE-POSSIBILITY]
+    constraint_evaluation:
+      DC-WORLD-COMBAT-IS-ONE-POSSIBILITY: UNRESOLVED   # DC 가 DRAFT 다 (Q17). 대안 4종이 병렬로 서 있어 승인 시 SATISFIED 전망
+
+  - id: MP-TAKE-SHED-ORGAN
+    type: possibility
+    achieves: [MG-ACQUIRE-RARE-ORGAN]
+    meaningful_difference: >
+      Creature 가 탈락시킨 기관을 줍는다. 죽이지 않으므로 전투 위험이 없지만
+      탈락이 일어나는 때와 곳을 알아야 한다 — 관찰과 대기가 비용이다. (BW §27)
+    requires:
+      goals: []
+      capabilities: []
+      knowledge: []
+      world_state: []
+      relationship: []
+      resource: []
+    supports: []
+    opposes: []
+    changes: []
+    reveals: []
+    creates_goal: []
+    constraints: [DC-WORLD-COMBAT-IS-ONE-POSSIBILITY]
+    constraint_evaluation:
+      DC-WORLD-COMBAT-IS-ONE-POSSIBILITY: UNRESOLVED   # DC DRAFT (Q17)
+
+  - id: MP-TRADE-WITH-ACTOR
+    type: possibility
+    achieves: [MG-ACQUIRE-RARE-ORGAN]
+    meaningful_difference: >
+      그 기관을 가진 다른 Actor 와 거래한다. 유일하게 전투도 현장 탐색도 요구하지
+      않고 관계와 대가를 비용으로 치른다. (BW §27)
+    requires:
+      goals: []
+      capabilities: []
+      knowledge: []
+      world_state: []
+      relationship: [기관을 가진 Actor 와의 거래 관계]
+      resource: [거래 대가]
+    supports: []
+    opposes: []
+    changes: []
+    reveals: []
+    creates_goal: []
+    constraints: [DC-WORLD-COMBAT-IS-ONE-POSSIBILITY]
+    constraint_evaluation:
+      DC-WORLD-COMBAT-IS-ONE-POSSIBILITY: UNRESOLVED   # DC DRAFT (Q17)
+
+  - id: MP-FIND-DEAD-SPECIMEN
+    type: possibility
+    achieves: [MG-ACQUIRE-RARE-ORGAN]
+    meaningful_difference: >
+      이미 죽은 개체를 찾아 기관을 얻는다. 죽이는 위험도 거래 대가도 없지만
+      발견을 보장할 수 없다 — 탐색 자체가 비용이고 운이 아니라 지식이 성패를 가른다. (BW §27)
+    requires:
+      goals: []
+      capabilities: []
+      knowledge: []
+      world_state: []
+      relationship: []
+      resource: []
+    supports: []
+    opposes: []
+    changes: []
+    reveals: []
+    creates_goal: []
+    constraints: [DC-WORLD-COMBAT-IS-ONE-POSSIBILITY]
+    constraint_evaluation:
+      DC-WORLD-COMBAT-IS-ONE-POSSIBILITY: UNRESOLVED   # DC DRAFT (Q17)
+
+  - id: MP-FORCE-CREATURE-TO-RELEASE
+    type: possibility
+    achieves: [MG-ACQUIRE-RARE-ORGAN]
+    meaningful_difference: >
+      죽이지 않고 Creature 가 기관을 내놓게 만든다. 전투 압박·환경·유인 무엇으로든
+      개체를 살려 둔 채 목적만 달성한다 — 죽이기보다 어렵지만 생태를 소모하지 않는다. (BW §27)
+    requires:
+      goals: []
+      capabilities: []
+      knowledge: []
+      world_state: []
+      relationship: []
+      resource: []
+    supports: []
+    opposes: []
+    changes:
+      - Creature 는 살아 있고 기관만 세계에 나온다
+    reveals: []
+    creates_goal: []
+    constraints: [DC-WORLD-COMBAT-IS-ONE-POSSIBILITY]
+    constraint_evaluation:
+      DC-WORLD-COMBAT-IS-ONE-POSSIBILITY: UNRESOLVED   # DC DRAFT (Q17)
+
+# 주입 근거 — 영역별로 분리된다 (근거는 영역을 넘지 않는다 — HISTORY Q15)
+#   탐험: BW  design/Master-World-Beira.md  §27 (MG-ACQUIRE-RARE-ORGAN 의 대안 5종)
+#
+#   BW §28 범용 Combat Graph(MP-DEFEAT-BY-COMBAT + 8 분기)는 주입하지 않았다 —
+#   8 분기 중 다수가 기존 전투 MP 와 같은 의미로 보인다 (BREAK-DEFENSE ≙ BREAK-THE-GUARD ·
+#   READ-AND-PUNISH ≙ READ-AND-COUNTER · OUTLAST ≙ HOLD-FORTIFIED · OVERWHELM ≙
+#   OUTGROW-THE-OPPONENT · EXPLOIT-WEAKNESS ≙ EXPLOIT-OPEN-BODY/MATCH-WEAPON-TO-ARMOR).
+#   같은 의미를 새 이름으로 만들지 않는다(주입 Guide Must) — 매핑 승인과 신규 3종
+#   (CONTROL-MOVEMENT · INTERRUPT · WEAPONIZE-ENVIRONMENT)의 처리는 Human 결정 대기다
+#   → open-questions.md Q18.
+#
+#   MG-EXPLORE-BEIRA 의 Possibility(어디로 · 어떻게 나가는가)는 BW 가 명명하지 않는다 —
+#   §16 탐험 Loop 는 순환 구조만 공급한다. OPTIONS 탐색 몫이다.
+#
+# 전투 영역 주입 근거 (2026-08-18 Q12 결정 상태 유지)
 #   R1  design/Design-Combat-OffenseDefense-R0.md
 #       §0~§5 · §8 · §11 · §12 · §16 → MP-OUTGROW-THE-OPPONENT
 #       §13 하지 않을 것 · §14 확장 순서 · §15 층 그림 → 아직 열리지 않은 경로들

@@ -391,3 +391,38 @@ ONE-LAYER-AT-A-TIME 신설, 이연 층 근거의 3종은 DRAFT 보류.
 수치·공식은 옮기지 않았다(정책 §7.2). SCHEMA.md 에 growth/ 양식(CL/IT/IP/IM · II- Runtime
 전용)을 추가했고 growth/growth-graph.md 가 Growth Overlay(획득 경로 판정)를 소유한다.
 
+
+---
+
+# 4. 주입(Inject) 이력
+
+    2026-08-19 BW — design/Master-World-Beira.md (세계관: 세계압·탐험·자원·전투 파생)
+
+    Human 지시로 주입. 세계(WORLD) 영역이 열렸다. 산출물:
+        root.md            채움 — BW §1 (Root Game Goal) · §35~§36 (World Premise).
+                           문안은 전부 문서의 문장이다. 확인 대기 → Q19
+        constraints/       DC-WORLD-* 5종 DRAFT (RESOURCE-ADAPTATION-TRACE ·
+                           CREATURE-FROM-PRESSURE · COMBAT-IS-ONE-POSSIBILITY ·
+                           PLAYER-UNFIXED-PATH · PROGRESSION-IS-REACH) → Q17
+        graph/             MW 6종 (PRIMAL-WORLD · WORLD-PRESSURE · SAFE-FRONTIER ·
+                           DEPTH-GRADIENT · HYPER-PREDATION · SPATIAL-SHEAR) ·
+                           MG 2종 (EXPLORE-BEIRA · ACQUIRE-RARE-ORGAN) ·
+                           MP 5종 (§27 대안 — requires 미배선) ·
+                           MC 23종 (§20~§25 사다리 21 + 자원 유래 2 — required_by 미배선)
+        growth/items/      IP-BOUNDARY-STABLE · IT-BOUNDARY-BLADE (§10 — 문서 명명)
+        MA-PLAYER          CHANGED — BW §1 탐험 Actor 정의를 원본으로, R1 전투 관점 유지
+
+    옮기지 않은 것과 사유:
+        BW §28 범용 Combat Graph (MP-DEFEAT-BY-COMBAT + 8분기) · §26 MG-OVERCOME-CREATURE ·
+        §20~§22 의 MC-ATTACK/DEFEND/EVADE/BREAK — 기존 전투 노드와 같은 의미로 보여
+        중복 등록하지 않았다. 매핑은 Human 결정 대기 → Q18
+        BW §17~§18 독성 예시 (MC-DETOXIFY · MA-TOXIN-SCHOLAR · IT-PURIFICATION-ORGAN ·
+        CL-???) — Growth Overlay 작동 방식을 설명하는 삽화 (Q14 심연 선례)
+        회귀초의 IT-* — 문서가 Item ID 를 명명하지 않았다 (Capability 만 명명)
+        BW §18 "Resource 가 있다는 이유만으로 Capability 를 만들지 않는다" —
+        기존 DC-GROWTH-NEED-FROM-POSSIBILITY(APPROVED)와 같은 원칙이라 REUSED (신설 없음)
+        수치·공식 — 없음 (BW 는 수치를 두지 않는 문서다 · 정책 §7.2)
+
+    탐험 영역 Frontier 후보는 세우지 않았다 — DC 승인(Q17)과 requires/required_by
+    배선(OPTIONS/NEED)이 선행이다. 기존 전투 후보 FR-PENETRATION-DEVALUES-THE-WALL 은
+    이 주입의 영향을 받지 않는다.

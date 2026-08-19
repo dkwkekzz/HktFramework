@@ -2,17 +2,78 @@
 # 세계에서 현재 참인 의미 있는 상태. Goal 과 Possibility 를 발생시키는 원인이 될 수 있다.
 # 자료구조가 아니다 — 자료구조는 Cycle 의 03-world-semantic.md 가 소유한다.
 # 형식: ../SCHEMA.md
+#
+# 인용 표기 — BW §x = design/Master-World-Beira.md (2026-08-19 Human 지시로 주입).
+# MW-PRIMAL-WORLD · MW-WORLD-PRESSURE · MW-HYPER-PREDATION · MW-SPATIAL-SHEAR ·
+# MW-SAFE-FRONTIER 의 ID 는 문서가 직접 명명한 것이다.
 version: 1
-nodes: []
+nodes:
 
-# 비어 있는 이유 (지어내지 않는다)
-#
-# 주입된 첫 문서(design/Design-Combat-OffenseDefense-R0.md)는 전투 규칙 문서다.
-# 세계에 무엇이 참인지(어떤 세력이 어디를 막고 있는지, 무엇이 부족한지)를 공급하지 않는다.
-# 그래서 MG-OVERCOME-SUPERIOR-OPPONENT 의 `caused_by` 도 비어 있다 —
-# 플레이어가 왜 그 상대와 마주하게 되었는지는 아직 세계의 사정으로 존재하지 않는다.
-#
-# Exposed · Broken 같은 전투 상태는 여기 오지 않는다. 그것은 Actor 의 순간 상태이며
-# Cycle 의 World State 다. MW-* 는 "Forest 가 오염되었다" 층위의 세계 사실이다.
-#
-# 채워지는 경로: master/root.md 의 Root Game Goal / World Premise → WHY (Graph 확장).
+  # ── 상위 Root Cause (BW §30) ──────────────────────────────────────────
+  # 이 둘은 상태라기보다 성질(Premise)에 가깝다 — root.md WORLD PREMISE 와 겹친다.
+  # 그러나 BW §30 이 "베이라 Graph 의 최상위 인과" 로 직접 노드 명명했으므로 번역해 둔다.
+
+  - id: MW-PRIMAL-WORLD
+    type: world_state
+    statement: >
+      세계는 본래 높은 변화 가능성을 가진다. (BW §30)
+    causes: []
+    changed_by: []
+
+  - id: MW-WORLD-PRESSURE
+    type: world_state
+    statement: >
+      세계압이 생명과 물질의 변화 가능성을 증가시키고 있다. 같은 Root 에서
+      Free Pressure(환경 변화 → 생존 압력 → 극단 적응 → 위험한 생태)와
+      Bound Pressure(안정된 Property → 희귀 자원)가 동시에 발생한다. (BW §3 · §5 · §30)
+    causes: []
+    changed_by: []
+
+  # ── 베이라의 구조 (BW §14 · §19) ──────────────────────────────────────
+
+  - id: MW-SAFE-FRONTIER
+    type: world_state
+    statement: >
+      Player 가 출발하는 문명권은 Free World Pressure 가 낮아 생태가 안정되어 있고
+      휴식·교역·제작·정보 획득·전투 훈련·탐험 준비가 가능하다. 그러나 세계압이 낮아
+      문명권 내부에서는 얻기 어려운 것들이 존재한다. (BW §4 · §7 · §14)
+    causes: [MG-EXPLORE-BEIRA]   # 문명권의 한계가 베이라로 나가는 이유를 만든다 (BW §7 · §15)
+    changed_by: []
+
+  - id: MW-DEPTH-GRADIENT
+    type: world_state
+    statement: >
+      베이라는 SAFE FRONTIER → FRINGE → WILD → DANGER → DEEP → UNKNOWN 의 위험
+      Gradient 를 가지며 일반적으로 깊어질수록 Free World Pressure 가 높아진다.
+      정확한 수치적 거리 공식이 아니다 — 지역마다 Local WorldState 가 다를 수 있다. (BW §19)
+    causes: []
+    changed_by: []
+    # 각 깊이가 요구하는 Capability 사다리(BW §20~§25)는 capabilities.yaml 의
+    # "베이라 사다리" 절이 소유한다.
+
+  # ── 대표 지역 상태 — 극단 환경과 자원이 같은 인과에서 (BW §8~§10) ─────
+
+  - id: MW-HYPER-PREDATION
+    type: world_state
+    statement: >
+      어떤 베이라 지역에서는 극단적인 포식 경쟁으로 생명체가 일상적으로 치명적인
+      육체 손상을 입는다. 그 생존 압력에 대한 적응으로, 안정되어 있던 이전 생체
+      상태를 유지하는 방향으로 적응한 식물(회귀초)이 존재한다. (BW §8 · §9)
+    causes: []
+    changed_by: []
+    # 회귀초의 Capability 는 MC-RESTORE-BIOLOGICAL-STATE (capabilities.yaml).
+    # 이 지역이 어떤 Goal 을 발생시키는지는 WHY/OPTIONS 탐색 몫이다 — 지어내지 않는다.
+
+  - id: MW-SPATIAL-SHEAR
+    type: world_state
+    statement: >
+      어떤 지역에서는 공간 자체의 경계가 반복적으로 어긋나 대부분의 물질이 소멸하고,
+      공간 변화 속에서도 자신의 구조를 유지하는 광물(경계결정)만 잔존한다. (BW §10)
+    causes: []
+    changed_by: []
+    # 경계결정의 Property 는 growth/items/properties/IP-BOUNDARY-STABLE.yaml,
+    # 제작물은 growth/items/types/IT-BOUNDARY-BLADE.yaml.
+
+# 전투 Goal(MG-OVERCOME-SUPERIOR-OPPONENT 등)의 caused_by 배선은 이 주입이 하지 않았다 —
+# BW §26~§27 은 일반 원리(조우 → Goal)만 공급하고 구체 지역·조우 상태를 명명하지 않는다.
+# 그 배선은 WHY 확장 몫이다 → open-questions.md Q2 (입력 도착 상태로 갱신).

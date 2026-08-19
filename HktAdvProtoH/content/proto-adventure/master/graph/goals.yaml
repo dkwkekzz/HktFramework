@@ -5,6 +5,43 @@
 # 형식: ../SCHEMA.md
 version: 1
 nodes:
+
+  # ── 탐험 영역 (BW = design/Master-World-Beira.md — 2026-08-19 주입) ────
+
+  - id: MG-EXPLORE-BEIRA
+    type: goal
+    owner: MA-PLAYER
+    desired_state: >
+      자신이 이해하고 대응할 수 있는 세계의 범위가 지금보다 넓다 —
+      이전에는 갈 수 없던 베이라의 영역에 닿는다. (BW §1 · §32)
+    motivation: []
+    # 이유를 하나로 고정하지 않는다 (BW §15 · DC-WORLD-PLAYER-UNFIXED-PATH) —
+    # 병 치료·부·강함·무기·발견·호기심이 Actor 마다 다른 motivation 으로 병렬한다 (BW §31).
+    # 구체 motivation Goal 은 WHY 확장이 Actor 별로 세운다.
+    belief_context: []
+    stakes:
+      - 나가지 않으면 문명권의 한계 안에 머문다 — 그 안에서 얻을 수 없는 것에 닿지 못한다 (BW §7)
+    caused_by: [MW-SAFE-FRONTIER]   # 문명권의 낮은 세계압 = 좁은 가능성의 폭 (BW §4 · §7)
+    constraints: [DC-WORLD-PLAYER-UNFIXED-PATH, DC-WORLD-PROGRESSION-IS-REACH]
+    # 두 DC 는 DRAFT 다 — 승인 전 평가는 UNRESOLVED (open-questions.md Q17)
+
+  - id: MG-ACQUIRE-RARE-ORGAN
+    type: goal
+    owner: MA-PLAYER
+    desired_state: >
+      특정 Creature 의 희귀 기관을 손에 넣는다. (BW §27)
+    motivation: [MG-EXPLORE-BEIRA]   # 탐험 중 발견한 세계 상태가 이 Local Goal 을 만든다 (BW §16)
+    belief_context: []
+    stakes:
+      - 없음 — 무엇이 걸려 있는지는 이 기관이 왜 필요한지가 정해질 때 나온다 (BW 는 패턴만 공급)
+    caused_by: []
+    # "Creature 의 특정 기관이 필요하다" 는 WorldState 에서 발생한다 (BW §27) —
+    # 그 구체 상태(MW-*)는 문서가 명명하지 않았다. WHY 확장 몫이다.
+    constraints: [DC-WORLD-COMBAT-IS-ONE-POSSIBILITY]
+    # DRAFT — 승인 전 평가는 UNRESOLVED (open-questions.md Q17)
+
+  # ── 전투 영역 (R1 · DT — 2026-08-18 Q12 정비 상태 유지) ────────────────
+
   - id: MG-OVERCOME-SUPERIOR-OPPONENT
     type: goal
     owner: MA-PLAYER
@@ -35,9 +72,15 @@ nodes:
     caused_by: []
     constraints: []
 
-# 주입 근거 — 이 둘이 전부다 (2026-08-18 Q12 결정)
-#   R1  design/Design-Combat-OffenseDefense-R0.md  §0 · §12 성장 · §16 성공 조건
-#   DT  design/Design-Combat-DamageType-R0.md      §0 (상대에 따라 준비를 다시 고른다)
+# 주입 근거 — 영역별로 분리된다 (근거는 영역을 넘지 않는다 — HISTORY Q15)
+#   전투: R1  design/Design-Combat-OffenseDefense-R0.md  §0 · §12 성장 · §16 성공 조건
+#         DT  design/Design-Combat-DamageType-R0.md      §0 (상대에 따라 준비를 다시 고른다)
+#   탐험: BW  design/Master-World-Beira.md               §1 · §7 · §15 · §16 · §27 · §31 · §32
+#
+# 전투 Goal 을 탐험 Root(MG-EXPLORE-BEIRA)의 motivation 으로 잇는 배선은 이 주입이
+# 하지 않았다 — BW §26 은 일반 원리(조우 → Goal)만 공급한다. WHY 확장 몫이다 (Q2).
+# BW §26 의 MG-OVERCOME-CREATURE 는 기존 MG-OVERCOME-SUPERIOR-OPPONENT 와 같은 의미로
+# 보이나 영역 교차 매핑이므로 Human 결정 대기다 → open-questions.md Q18.
 # R1 §16 의 성공 조건("더 세다" · "덜 아프다")이 MG-OVERCOME-SUPERIOR-OPPONENT 를
 # 능력치 성장 경로(MP-OUTGROW-THE-OPPONENT)로 지지한다. 구판(R0) 인용은 2026-08-18 제거했다.
 #

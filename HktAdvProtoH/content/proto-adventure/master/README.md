@@ -14,6 +14,11 @@
 > 다음 층(Penetration)이 Graph 에 노드가 없어 Frontier 에 나타나지 못하고 있었다.
 > 새 영역이 아니라 **진행 중인 트랙의 결손**이므로 위 제한의 취지에 어긋나지 않는다고
 > 판단했다 — MC-PENETRATION · MP-PIERCE-THE-HARD-DEFENSE 2종. 이견이 있으면 되돌린다.
+>
+> **2026-08-19 — Human 지시로 세계관 문서를 주입했다.** `design/Master-World-Beira.md`(BW)
+> 의 주입(Inject)은 Agent 주도 확장이 아니라 Human 지목 반영이므로 위 제한에 걸리지
+> 않는다. 세계(WORLD) 영역이 열렸다 — 아래 "현재 상태" 참조. 위 제한은 Agent 주도의
+> 새 영역 **탐색**(WHY/OPTIONS 확장)에는 계속 적용된다.
 
 이 디렉터리는 **Master Layer** 의 산출물이다.
 
@@ -30,26 +35,30 @@ CYCLE LAYER    선택된 하나의 플레이 결과를 World Semantic 과 Rule �
 
 ## 현재 상태
 
-전투 영역 주입 — 근거 문서는 **둘뿐이다** (2026-08-18 Q12 결정).
+근거 문서는 영역별로 분리된다 — 근거는 영역을 넘지 않는다 (Q15).
 
 ```text
-R1   design/Design-Combat-OffenseDefense-R0.md   §14 확장 순서가 Cycle 사다리다
-DT   design/Design-Combat-DamageType-R0.md       §15 가 이후 확장의 경계를 긋는다
+전투   R1  design/Design-Combat-OffenseDefense-R0.md   §14 확장 순서가 Cycle 사다리다
+       DT  design/Design-Combat-DamageType-R0.md       §15 가 이후 확장의 경계를 긋는다
+성장   GR  design/Master-Intent-Graph-Growth.md        GROWTH scope 한정
+세계   BW  design/Master-World-Beira.md                2026-08-19 주입 — 세계압·탐험·자원
 ```
 
-두 문서가 이름조차 대지 않는 의미는 Graph·Constraint 에 두지 않는다 — 보류가 아니라
-삭제한다. 기준 시점 **C012 닫힘 (2026-08-18)** · Q12 정비 반영.
+해당 영역 문서가 이름조차 대지 않는 의미는 Graph·Constraint 에 두지 않는다 — 보류가
+아니라 삭제한다. 기준 시점 **BW 주입 (2026-08-19)** — 코드는 C012 닫힘 상태 그대로다.
 
 ```text
-Constraint    6     APPROVED 6 (COMBAT 5 · GLOBAL 1) · DRAFT 0
+Constraint   17     APPROVED 12 (COMBAT 5 · GROWTH 6 · GLOBAL 1) · DRAFT 5 (WORLD — Q17)
 Candidate     3     APPROVED 1 (→ DC) · PENDING 2
 Actor         2     Knowledge 2 · Belief 0
-Goal          2     Possibility 10
-Capability   18     IMPLEMENTED 7 · PARTIAL 2 · MISSING 9
+Goal          4     Possibility 15 (전투 10 · 탐험 5 — 탐험 5종은 requires 미배선)
+Capability   41     IMPLEMENTED 7 · PARTIAL 2 · MISSING 32 (베이라 사다리 21 + 자원 유래 2 포함)
+Item Def      2     IP-BOUNDARY-STABLE · IT-BOUNDARY-BLADE (growth/items/)
 Frontier      1     PROPOSED — FR-PENETRATION-DEVALUES-THE-WALL (Human 선택 대기)
-WorldState    0     비어 있다 (아래)
+WorldState    6     BW 주입 — MW-PRIMAL-WORLD · WORLD-PRESSURE · SAFE-FRONTIER ·
+                    DEPTH-GRADIENT · HYPER-PREDATION · SPATIAL-SHEAR
 
-Open Question 4   → open-questions.md (Q2 · Q3 · Q8 · Q11)
+Open Question 7   → open-questions.md (Q2 · Q3 · Q8 · Q11 · Q17 · Q18 · Q19)
 ```
 
 무엇이 언제 왜 바뀌었는지는 `HISTORY.md` 가 소유한다. 살아 있는 문서(`overlay.md` ·
@@ -62,11 +71,12 @@ MP-MATCH-WEAPON-TO-ARMOR(C012). 요구 Capability 가 하나도 비어 있지 �
 아직 비어 있는 것 — 지어내지 않고 남긴 자리다:
 
 ```text
-root.md                  Root Game Goal · World Premise — Human 소유. 비어 있다
-graph/world-state.yaml   World Cause 가 없다. 주입된 문서가 전투 규칙 문서이기 때문이다.
-                         그래서 Goal 의 caused_by / motivation 도 비어 있다  → Q2
-Belief                   오독의 여지를 어디까지 둘지가 미정이다              → Q3
-전투 밖 경로             같은 상대를 싸움 밖으로 넘어서는 길이 없다          → Q8
+전투 Goal 의 World Cause   BW 가 일반 원리(조우 → Goal)만 공급했다 — 구체 배선은 WHY 몫  → Q2
+탐험 MP 의 requires        BW §27 은 대안 구조만 공급했다 — 배선은 OPTIONS/NEED 몫
+베이라 사다리 required_by  BW §20~§25 는 사다리만 예고했다 — 경로(MP)가 아직 없다
+Belief                     오독의 여지를 어디까지 둘지가 미정이다                       → Q3
+같은 상대의 전투 밖 경로    MG-OVERCOME-SUPERIOR-OPPONENT 의 비전투 대안이 없다          → Q8
+BW 전투 교차 매핑          §26~§28 의 전투 이름 ↔ 기존 전투 노드                        → Q18
 ```
 
 ## 수명
