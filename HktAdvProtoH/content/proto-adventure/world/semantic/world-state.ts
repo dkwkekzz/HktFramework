@@ -5,6 +5,7 @@
 // 이 팩의 세계에 무엇이 있는지(Actor·광맥·타격 결과·권한)는 여기가 확장해 정의한다.
 
 import type { CoreWorldState } from '../../../../engine/world-kernel/state';
+import type { AcquaintanceState } from './acquaintance';
 import type { ActorState } from './actor';
 import type { StrikeEvent } from './combat';
 import type { DepositState } from './deposit';
@@ -31,10 +32,19 @@ export interface WorldState extends CoreWorldState {
   deposits: DepositState[];
   strikeEvents: StrikeEvent[]; // World.StrikeEvents — 최근 타격 결과들 (C007 ADDED)
   debugAuthority: DebugAuthority; // C007 R2 ADDED
+  // World.Acquaintances (C014 ADDED) — 누가 어떤 존재의 겨루는 힘을 아는가.
+  // 항목이 없는 관찰자는 아무것도 모른다 (semantic/acquaintance.ts).
+  acquaintances: AcquaintanceState[];
 }
 
 // InteractionRange — RULE-MINE-001 Precondition 2 의 거리 한계
 export const INTERACTION_RANGE = 2.0;
+
+// ObserveRange — RULE-OBSERVE-BEGIN-001 Precondition 4 의 거리 한계 (C014 ADDED).
+// 사거리(2.0)보다 멀고 인지 거리(9.0)보다 가깝다: 살펴봄은 칼이 아니라 눈으로 하는
+// 일이므로 사거리까지 붙을 필요는 없지만, 인지 거리 안이므로 **자율 존재는 반드시
+// 다가온다** — 알기 위해 상대가 나를 알아채는 거리까지 들어가는 것이 대가다 (03 BALANCE).
+export const OBSERVE_RANGE = 5.0;
 
 // Actor.MoveSpeed · AttackRange · PerceptionRange 는 종류가 정하는 값이다 —
 // character-catalog.ts 가 단일 출처다 (구 MOVE_SPEED/NPC_MOVE_SPEED/ATTACK_RANGE/PERCEPTION_RANGE).

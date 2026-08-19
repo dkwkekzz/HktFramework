@@ -27,6 +27,9 @@ describe('목록 (04 commandSurface.browse) — 외우는 것이 아니라 보�
   it('세계가 밝힌 명령과 관찰자 쪽 명령이 한 목록에 있다', () => {
     expect(entries.map((entry) => entry.id)).toEqual([
       'set-attribute',
+      // C014 — 항목이 하나 더해질 뿐이다. 목록·안내·기록 표면은 그대로다
+      // (04 COMMAND NOTE · INTENT-COMMAND-CATALOG-001)
+      'forget-acquaintance',
       'collider-observe',
       'attribute-inspect',
     ]);
@@ -34,6 +37,7 @@ describe('목록 (04 commandSurface.browse) — 외우는 것이 아니라 보�
 
   it('각 항목이 세계로 가는지 여기서 끝나는지 구분된다', () => {
     expect(entries.find((e) => e.id === 'set-attribute')?.origin).toBe('world');
+    expect(entries.find((e) => e.id === 'forget-acquaintance')?.origin).toBe('world'); // C014
     expect(entries.find((e) => e.id === 'collider-observe')?.origin).toBe('observer');
     expect(entries.find((e) => e.id === 'attribute-inspect')?.origin).toBe('observer');
   });
@@ -95,7 +99,8 @@ describe('목록 (04 commandSurface.browse) — 외우는 것이 아니라 보�
 
 describe('쓰는 중 안내 (04 commandSurface.guide)', () => {
   it('아무것도 안 썼으면 전부가 후보다', () => {
-    expect(compose('').candidates).toHaveLength(3);
+    // C014 — 명령이 하나 늘어 넷이다. 안내의 모양은 그대로다
+    expect(compose('').candidates).toHaveLength(4);
   });
 
   it('이름을 쓰기 시작하면 후보가 좁혀진다', () => {
@@ -243,7 +248,8 @@ describe('표면 전체 (resolvePresentation)', () => {
   it('명령 표면은 늘 만들어지되 기본은 닫혀 있다', () => {
     const scene = resolvePresentation(snapshot, undefined, {});
     expect(scene.commandSurface.open).toBe(false);
-    expect(scene.commandSurface.entries).toHaveLength(3);
+    // C014 — 되돌림이 더해져 넷이다. 표면의 모양은 그대로다 (04 COMMAND NOTE)
+    expect(scene.commandSurface.entries).toHaveLength(4);
   });
 
   it('열고 쓰고 있는 것이 표면에 그대로 반영된다', () => {

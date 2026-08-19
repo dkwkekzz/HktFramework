@@ -141,6 +141,9 @@ nodes:
     constraints: [DC-COMBAT-PLAYER-CAUSALITY]
     constraint_evaluation:
       DC-COMBAT-PLAYER-CAUSALITY: SATISFIED    # 방어를 확률로 무시하는 것이 아니라 결정적으로 깎는다 (R1 §6 · §14 Penetration)
+                                               # C013 실측 — changes 두 문장이 세계에서 성립한다 (resistance 300 → 187.5 · 피해 7 → 9)
+    # C013-penetration-devalues-the-wall 이 R1 §14 Penetration 층으로 닫았다 — 요구 4종 모두 IMPLEMENTED.
+    # 다만 경로가 아직 좁다: 플레이어가 관통을 **얻는** 선택이 세계에 없다 (종류가 정한 값과 디버그뿐).
 
   - id: MP-BREAK-THE-GUARD
     type: possibility

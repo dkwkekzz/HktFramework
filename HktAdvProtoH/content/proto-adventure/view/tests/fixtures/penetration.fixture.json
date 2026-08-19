@@ -1,584 +1,588 @@
 {
- "specId": "VIEW-BASIC-COMBAT-POLICY-001",
- "scene": "mining-field",
- "observer": {
-  "id": "observer-1",
-  "characterId": "player-1",
-  "acknowledgedMark": 0
- },
- "entities": [
-  {
-   "id": "npc-1",
-   "role": "npc-character",
-   "state": "hit",
-   "name": "Wanderer 1",
-   "kind": "wanderer",
-   "position": {
-    "x": 2.1732410864197527,
-    "z": 0
-   },
-   "vitality": {
-    "health": 103,
-    "healthMaximum": 120,
-    "downed": false
-   },
-   "attributes": {
-    "energy": 20,
-    "energyMaximum": 60,
-    "moveMode": "walk",
-    "control": "autonomous",
-    "tempoStats": {
-     "moveSpeed": 2.5,
-     "runSpeedMultiplier": 1.4,
-     "actionSpeed": 0.85
-    },
-    "modifiers": {
-     "energyCharge": 0.2,
-     "energyConsume": 1,
-     "moveSpeed": 1,
-     "actionSpeed": 1
-    },
-    "combatStats": {
-     "physicalAttack": 40,
-     "auraAttack": 15,
-     "armor": 30,
-     "resistance": 90,
-     "armorPenetration": 0,
-     "resistancePenetration": 0,
-     "armorMultiplier": 0.7692307692307693,
-     "resistanceMultiplier": 0.5263157894736842
-    },
-    "versusObserver": {
-     "armor": 30,
-     "resistance": 56.25,
-     "armorMultiplier": 0.7692307692307693,
-     "resistanceMultiplier": 0.64
-    },
-    "defenseShape": "aura-tougher",
-    "guard": {
-     "guarding": false,
-     "broken": false
-    }
-   },
-   "progress": 0.09523809523809525,
-   "body": {
-    "radius": 0.7,
-    "height": 2.8,
-    "mass": 1,
-    "facing": {
-     "x": 0,
-     "z": 1
-    },
-    "velocity": {
-     "x": 5.465985580246914,
-     "z": 0
-    }
-   }
+  "specId": "VIEW-BASIC-COMBAT-POLICY-001",
+  "scene": "mining-field",
+  "observer": {
+    "id": "observer-1",
+    "characterId": "player-1",
+    "acknowledgedMark": 0
   },
-  {
-   "id": "player-1",
-   "role": "player-character",
-   "state": "aura-strike",
-   "name": "Player 1",
-   "kind": "rabbit-swordsman",
-   "position": {
-    "x": 0.006758913580246965,
-    "z": 0
-   },
-   "vitality": {
-    "health": 200,
-    "healthMaximum": 200,
-    "downed": false
-   },
-   "attributes": {
-    "energy": 42,
-    "energyMaximum": 100,
-    "moveMode": "walk",
-    "control": "player",
-    "tempoStats": {
-     "moveSpeed": 6,
-     "runSpeedMultiplier": 1.8,
-     "actionSpeed": 1
-    },
-    "modifiers": {
-     "energyCharge": 1,
-     "energyConsume": 1,
-     "moveSpeed": 1,
-     "actionSpeed": 1
-    },
-    "combatStats": {
-     "physicalAttack": 40,
-     "auraAttack": 40,
-     "armor": 50,
-     "resistance": 20,
-     "armorPenetration": 0,
-     "resistancePenetration": 60,
-     "armorMultiplier": 0.6666666666666666,
-     "resistanceMultiplier": 0.8333333333333334
-    },
-    "versusObserver": {
-     "armor": 50,
-     "resistance": 12.5,
-     "armorMultiplier": 0.6666666666666666,
-     "resistanceMultiplier": 0.8888888888888888
-    },
-    "defenseShape": "physical-tougher",
-    "guard": {
-     "guarding": false,
-     "broken": false
-    }
-   },
-   "progress": 0.38888888888888884,
-   "body": {
-    "radius": 0.85,
-    "height": 3.4,
-    "mass": 1,
-    "facing": {
-     "x": 1,
-     "z": 0
-    },
-    "velocity": {
-     "x": -0.3459855802469136,
-     "z": 0
-    }
-   },
-   "swing": {
-    "center": {
-     "x": 1.0928930684170641,
-     "z": 0.7143616714920481
-    },
-    "radius": 0.7,
-    "active": true,
-    "struck": [
-     "npc-1"
-    ]
-   }
-  },
-  {
-   "id": "deposit-1",
-   "role": "resource-deposit",
-   "state": "available",
-   "kind": "stone",
-   "position": {
-    "x": 8,
-    "z": -6
-   },
-   "labelValue": 5
-  }
- ],
- "interactions": [
-  {
-   "id": "move",
-   "role": "move-to",
-   "available": false,
-   "reason": "action-busy"
-  },
-  {
-   "id": "attack",
-   "role": "skill-basic",
-   "available": false,
-   "reason": "action-busy",
-   "profile": {
-    "baseDamage": 6,
-    "attackRatio": 0.5,
-    "rawDamage": 26,
-    "charge": 12,
-    "cost": 0,
-    "damageType": "physical"
-   }
-  },
-  {
-   "id": "skill-heavy",
-   "role": "skill-heavy",
-   "available": false,
-   "reason": "action-busy",
-   "profile": {
-    "baseDamage": 32,
-    "attackRatio": 1,
-    "rawDamage": 72,
-    "charge": 8,
-    "cost": 30,
-    "damageType": "physical"
-   }
-  },
-  {
-   "id": "skill-aura",
-   "role": "skill-aura",
-   "available": false,
-   "reason": "action-busy",
-   "profile": {
-    "baseDamage": 6,
-    "attackRatio": 0.5,
-    "rawDamage": 26,
-    "charge": 12,
-    "cost": 0,
-    "damageType": "aura"
-   }
-  },
-  {
-   "id": "guard-begin",
-   "role": "guard-begin",
-   "available": true
-  },
-  {
-   "id": "guard-release",
-   "role": "guard-release",
-   "available": true
-  },
-  {
-   "id": "move-mode",
-   "role": "set-move-mode",
-   "available": true
-  },
-  {
-   "id": "set-attribute",
-   "role": "debug-set-attribute",
-   "available": true
-  },
-  {
-   "id": "mine",
-   "role": "mine-deposit",
-   "targetEntityId": "deposit-1",
-   "available": false,
-   "reason": "out-of-range"
-  }
- ],
- "hud": [
-  {
-   "id": "inventory.stone",
-   "kind": "counter",
-   "value": 0
-  },
-  {
-   "id": "tool.hasMiningTool",
-   "kind": "flag",
-   "value": true
-  },
-  {
-   "id": "player.action",
-   "kind": "label",
-   "value": "aura-strike",
-   "progress": 0.38888888888888884
-  },
-  {
-   "id": "world.time",
-   "kind": "counter",
-   "value": 0.26666666666666666
-  },
-  {
-   "id": "observers.present",
-   "kind": "counter",
-   "value": 1
-  },
-  {
-   "id": "self.hp",
-   "kind": "counter",
-   "value": 200
-  },
-  {
-   "id": "self.hpMax",
-   "kind": "counter",
-   "value": 200
-  },
-  {
-   "id": "self.cp",
-   "kind": "counter",
-   "value": 42
-  },
-  {
-   "id": "self.cpMax",
-   "kind": "counter",
-   "value": 100
-  },
-  {
-   "id": "self.downed",
-   "kind": "flag",
-   "value": false
-  },
-  {
-   "id": "self.moveMode",
-   "kind": "label",
-   "value": "walk"
-  },
-  {
-   "id": "self.guard.guarding",
-   "kind": "flag",
-   "value": false
-  },
-  {
-   "id": "self.guard.broken",
-   "kind": "flag",
-   "value": false
-  },
-  {
-   "id": "self.combat.physicalAttack",
-   "kind": "counter",
-   "value": 40
-  },
-  {
-   "id": "self.combat.auraAttack",
-   "kind": "counter",
-   "value": 40
-  },
-  {
-   "id": "self.combat.armor",
-   "kind": "counter",
-   "value": 50
-  },
-  {
-   "id": "self.combat.resistance",
-   "kind": "counter",
-   "value": 20
-  },
-  {
-   "id": "self.combat.armorPenetration",
-   "kind": "counter",
-   "value": 0
-  },
-  {
-   "id": "self.combat.resistancePenetration",
-   "kind": "counter",
-   "value": 60
-  },
-  {
-   "id": "self.combat.armorMultiplier",
-   "kind": "counter",
-   "value": 0.6666666666666666
-  },
-  {
-   "id": "self.combat.resistanceMultiplier",
-   "kind": "counter",
-   "value": 0.8333333333333334
-  },
-  {
-   "id": "self.combat.defenseShape",
-   "kind": "label",
-   "value": "physical-tougher"
-  },
-  {
-   "id": "self.tempo.moveSpeed",
-   "kind": "counter",
-   "value": 6
-  },
-  {
-   "id": "self.tempo.runSpeedMultiplier",
-   "kind": "counter",
-   "value": 1.8
-  },
-  {
-   "id": "self.tempo.actionSpeed",
-   "kind": "counter",
-   "value": 1
-  },
-  {
-   "id": "self.modifier.cpCharge",
-   "kind": "counter",
-   "value": 1
-  },
-  {
-   "id": "self.modifier.cpConsume",
-   "kind": "counter",
-   "value": 1
-  },
-  {
-   "id": "self.modifier.moveSpeed",
-   "kind": "counter",
-   "value": 1
-  },
-  {
-   "id": "self.modifier.actionSpeed",
-   "kind": "counter",
-   "value": 1
-  }
- ],
- "strikes": [
-  {
-   "attackerId": "player-1",
-   "targetId": "npc-1",
-   "skill": "aura-strike",
-   "amount": 17,
-   "at": {
-    "x": 1.6608049382716046,
-    "z": 0
-   },
-   "since": 0.19999999999999998,
-   "breakdown": {
-    "damageType": "aura",
-    "offenseStat": {
-     "name": "auraAttack",
-     "value": 40
-    },
-    "baseDamage": 6,
-    "attackContribution": 20,
-    "rawDamage": 26,
-    "defenseStat": {
-     "name": "resistance",
-     "value": 90
-    },
-    "penetrationStat": {
-     "name": "resistancePenetration",
-     "value": 60
-    },
-    "effectiveDefense": 56.25,
-    "defenseMultiplier": 0.64,
-    "finalDamage": 17,
-    "appliedDamage": 17
-   }
-  }
- ],
- "debug": {
-  "open": true
- },
- "commands": [
-  {
-   "id": "set-attribute",
-   "effect": "set-attribute",
-   "available": true,
-   "parameters": [
+  "entities": [
     {
-     "id": "target",
-     "required": false,
-     "omittedMeaning": "self",
-     "domain": {
-      "kind": "entity",
-      "refers": "character"
-     }
+      "id": "npc-1",
+      "role": "npc-character",
+      "state": "hit",
+      "name": "Wanderer 1",
+      "kind": "wanderer",
+      "position": {
+        "x": 2.1732410864197527,
+        "z": 0
+      },
+      "vitality": {
+        "health": 103,
+        "healthMaximum": 120,
+        "downed": false
+      },
+      "attributes": {
+        "energy": 20,
+        "energyMaximum": 60,
+        "moveMode": "walk",
+        "control": "autonomous",
+        "tempoStats": {
+          "moveSpeed": 2.5,
+          "runSpeedMultiplier": 1.4,
+          "actionSpeed": 0.85
+        },
+        "modifiers": {
+          "energyCharge": 0.2,
+          "energyConsume": 1,
+          "moveSpeed": 1,
+          "actionSpeed": 1
+        },
+        "acquainted": true,
+        "concealed": [],
+        "combatStats": {
+          "physicalAttack": 40,
+          "auraAttack": 15,
+          "armor": 30,
+          "resistance": 90,
+          "armorPenetration": 0,
+          "resistancePenetration": 0,
+          "armorMultiplier": 0.7692307692307693,
+          "resistanceMultiplier": 0.5263157894736842
+        },
+        "versusObserver": {
+          "armor": 30,
+          "resistance": 56.25,
+          "armorMultiplier": 0.7692307692307693,
+          "resistanceMultiplier": 0.64
+        },
+        "defenseShape": "aura-tougher",
+        "guard": {
+          "guarding": false,
+          "broken": false
+        }
+      },
+      "progress": 0.09523809523809525,
+      "body": {
+        "radius": 0.7,
+        "height": 2.8,
+        "mass": 1,
+        "facing": {
+          "x": 0,
+          "z": 1
+        },
+        "velocity": {
+          "x": 5.465985580246914,
+          "z": 0
+        }
+      }
     },
     {
-     "id": "attribute",
-     "required": true,
-     "domain": {
-      "kind": "choice",
-      "options": [
-       {
-        "name": "hp",
-        "thenDomain": {
-         "kind": "number",
-         "minimum": 0,
-         "maximum": 100000
+      "id": "player-1",
+      "role": "player-character",
+      "state": "aura-strike",
+      "name": "Player 1",
+      "kind": "rabbit-swordsman",
+      "position": {
+        "x": 0.006758913580246965,
+        "z": 0
+      },
+      "vitality": {
+        "health": 200,
+        "healthMaximum": 200,
+        "downed": false
+      },
+      "attributes": {
+        "energy": 42,
+        "energyMaximum": 100,
+        "moveMode": "walk",
+        "control": "player",
+        "tempoStats": {
+          "moveSpeed": 6,
+          "runSpeedMultiplier": 1.8,
+          "actionSpeed": 1
+        },
+        "modifiers": {
+          "energyCharge": 1,
+          "energyConsume": 1,
+          "moveSpeed": 1,
+          "actionSpeed": 1
+        },
+        "acquainted": true,
+        "concealed": [],
+        "combatStats": {
+          "physicalAttack": 40,
+          "auraAttack": 40,
+          "armor": 50,
+          "resistance": 20,
+          "armorPenetration": 0,
+          "resistancePenetration": 60,
+          "armorMultiplier": 0.6666666666666666,
+          "resistanceMultiplier": 0.8333333333333334
+        },
+        "versusObserver": {
+          "armor": 50,
+          "resistance": 12.5,
+          "armorMultiplier": 0.6666666666666666,
+          "resistanceMultiplier": 0.8888888888888888
+        },
+        "defenseShape": "physical-tougher",
+        "guard": {
+          "guarding": false,
+          "broken": false
         }
-       },
-       {
-        "name": "hpMax",
-        "thenDomain": {
-         "kind": "number",
-         "minimum": 1,
-         "maximum": 100000
+      },
+      "progress": 0.38888888888888884,
+      "body": {
+        "radius": 0.85,
+        "height": 3.4,
+        "mass": 1,
+        "facing": {
+          "x": 1,
+          "z": 0
+        },
+        "velocity": {
+          "x": -0.3459855802469136,
+          "z": 0
         }
-       },
-       {
-        "name": "cp",
-        "thenDomain": {
-         "kind": "number",
-         "minimum": 0,
-         "maximum": 100000
-        }
-       },
-       {
-        "name": "cpMax",
-        "thenDomain": {
-         "kind": "number",
-         "minimum": 1,
-         "maximum": 100000
-        }
-       },
-       {
-        "name": "physicalAttack",
-        "thenDomain": {
-         "kind": "number",
-         "minimum": 0,
-         "maximum": 100000
-        }
-       },
-       {
-        "name": "auraAttack",
-        "thenDomain": {
-         "kind": "number",
-         "minimum": 0,
-         "maximum": 100000
-        }
-       },
-       {
-        "name": "armor",
-        "thenDomain": {
-         "kind": "number",
-         "minimum": 0,
-         "maximum": 100000
-        }
-       },
-       {
-        "name": "resistance",
-        "thenDomain": {
-         "kind": "number",
-         "minimum": 0,
-         "maximum": 100000
-        }
-       },
-       {
-        "name": "armorPenetration",
-        "thenDomain": {
-         "kind": "number",
-         "minimum": 0,
-         "maximum": 100000
-        }
-       },
-       {
-        "name": "resistancePenetration",
-        "thenDomain": {
-         "kind": "number",
-         "minimum": 0,
-         "maximum": 100000
-        }
-       },
-       {
-        "name": "moveSpeed",
-        "thenDomain": {
-         "kind": "number",
-         "minimum": 0,
-         "maximum": 100
-        }
-       },
-       {
-        "name": "runSpeedMultiplier",
-        "thenDomain": {
-         "kind": "number",
-         "minimum": 0.1,
-         "maximum": 10
-        }
-       },
-       {
-        "name": "actionSpeed",
-        "thenDomain": {
-         "kind": "number",
-         "minimum": 0.1,
-         "maximum": 10
-        }
-       },
-       {
-        "name": "moveMode",
-        "thenDomain": {
-         "kind": "choice",
-         "options": [
-          {
-           "name": "walk"
-          },
-          {
-           "name": "run"
+      },
+      "swing": {
+        "center": {
+          "x": 1.0928930684170641,
+          "z": 0.7143616714920481
+        },
+        "radius": 0.7,
+        "active": true,
+        "struck": [
+          "npc-1"
+        ]
+      }
+    },
+    {
+      "id": "deposit-1",
+      "role": "resource-deposit",
+      "state": "available",
+      "kind": "stone",
+      "position": {
+        "x": 8,
+        "z": -6
+      },
+      "labelValue": 5
+    }
+  ],
+  "interactions": [
+    {
+      "id": "move",
+      "role": "move-to",
+      "available": false,
+      "reason": "action-busy"
+    },
+    {
+      "id": "attack",
+      "role": "skill-basic",
+      "available": false,
+      "reason": "action-busy",
+      "profile": {
+        "baseDamage": 6,
+        "attackRatio": 0.5,
+        "rawDamage": 26,
+        "charge": 12,
+        "cost": 0,
+        "damageType": "physical"
+      }
+    },
+    {
+      "id": "skill-heavy",
+      "role": "skill-heavy",
+      "available": false,
+      "reason": "action-busy",
+      "profile": {
+        "baseDamage": 32,
+        "attackRatio": 1,
+        "rawDamage": 72,
+        "charge": 8,
+        "cost": 30,
+        "damageType": "physical"
+      }
+    },
+    {
+      "id": "skill-aura",
+      "role": "skill-aura",
+      "available": false,
+      "reason": "action-busy",
+      "profile": {
+        "baseDamage": 6,
+        "attackRatio": 0.5,
+        "rawDamage": 26,
+        "charge": 12,
+        "cost": 0,
+        "damageType": "aura"
+      }
+    },
+    {
+      "id": "guard-begin",
+      "role": "guard-begin",
+      "available": true
+    },
+    {
+      "id": "guard-release",
+      "role": "guard-release",
+      "available": true
+    },
+    {
+      "id": "move-mode",
+      "role": "set-move-mode",
+      "available": true
+    },
+    {
+      "id": "set-attribute",
+      "role": "debug-set-attribute",
+      "available": true
+    },
+    {
+      "id": "mine",
+      "role": "mine-deposit",
+      "targetEntityId": "deposit-1",
+      "available": false,
+      "reason": "out-of-range"
+    }
+  ],
+  "hud": [
+    {
+      "id": "inventory.stone",
+      "kind": "counter",
+      "value": 0
+    },
+    {
+      "id": "tool.hasMiningTool",
+      "kind": "flag",
+      "value": true
+    },
+    {
+      "id": "player.action",
+      "kind": "label",
+      "value": "aura-strike",
+      "progress": 0.38888888888888884
+    },
+    {
+      "id": "world.time",
+      "kind": "counter",
+      "value": 0.26666666666666666
+    },
+    {
+      "id": "observers.present",
+      "kind": "counter",
+      "value": 1
+    },
+    {
+      "id": "self.hp",
+      "kind": "counter",
+      "value": 200
+    },
+    {
+      "id": "self.hpMax",
+      "kind": "counter",
+      "value": 200
+    },
+    {
+      "id": "self.cp",
+      "kind": "counter",
+      "value": 42
+    },
+    {
+      "id": "self.cpMax",
+      "kind": "counter",
+      "value": 100
+    },
+    {
+      "id": "self.downed",
+      "kind": "flag",
+      "value": false
+    },
+    {
+      "id": "self.moveMode",
+      "kind": "label",
+      "value": "walk"
+    },
+    {
+      "id": "self.guard.guarding",
+      "kind": "flag",
+      "value": false
+    },
+    {
+      "id": "self.guard.broken",
+      "kind": "flag",
+      "value": false
+    },
+    {
+      "id": "self.combat.physicalAttack",
+      "kind": "counter",
+      "value": 40
+    },
+    {
+      "id": "self.combat.auraAttack",
+      "kind": "counter",
+      "value": 40
+    },
+    {
+      "id": "self.combat.armor",
+      "kind": "counter",
+      "value": 50
+    },
+    {
+      "id": "self.combat.resistance",
+      "kind": "counter",
+      "value": 20
+    },
+    {
+      "id": "self.combat.armorPenetration",
+      "kind": "counter",
+      "value": 0
+    },
+    {
+      "id": "self.combat.resistancePenetration",
+      "kind": "counter",
+      "value": 60
+    },
+    {
+      "id": "self.combat.armorMultiplier",
+      "kind": "counter",
+      "value": 0.6666666666666666
+    },
+    {
+      "id": "self.combat.resistanceMultiplier",
+      "kind": "counter",
+      "value": 0.8333333333333334
+    },
+    {
+      "id": "self.combat.defenseShape",
+      "kind": "label",
+      "value": "physical-tougher"
+    },
+    {
+      "id": "self.tempo.moveSpeed",
+      "kind": "counter",
+      "value": 6
+    },
+    {
+      "id": "self.tempo.runSpeedMultiplier",
+      "kind": "counter",
+      "value": 1.8
+    },
+    {
+      "id": "self.tempo.actionSpeed",
+      "kind": "counter",
+      "value": 1
+    },
+    {
+      "id": "self.modifier.cpCharge",
+      "kind": "counter",
+      "value": 1
+    },
+    {
+      "id": "self.modifier.cpConsume",
+      "kind": "counter",
+      "value": 1
+    },
+    {
+      "id": "self.modifier.moveSpeed",
+      "kind": "counter",
+      "value": 1
+    },
+    {
+      "id": "self.modifier.actionSpeed",
+      "kind": "counter",
+      "value": 1
+    }
+  ],
+  "strikes": [
+    {
+      "attackerId": "player-1",
+      "targetId": "npc-1",
+      "skill": "aura-strike",
+      "amount": 17,
+      "at": {
+        "x": 1.6608049382716046,
+        "z": 0
+      },
+      "since": 0.19999999999999998,
+      "breakdown": {
+        "damageType": "aura",
+        "offenseStat": {
+          "name": "auraAttack",
+          "value": 40
+        },
+        "baseDamage": 6,
+        "attackContribution": 20,
+        "rawDamage": 26,
+        "defenseStat": {
+          "name": "resistance",
+          "value": 90
+        },
+        "penetrationStat": {
+          "name": "resistancePenetration",
+          "value": 60
+        },
+        "effectiveDefense": 56.25,
+        "defenseMultiplier": 0.64,
+        "finalDamage": 17,
+        "appliedDamage": 17
+      }
+    }
+  ],
+  "debug": {
+    "open": true
+  },
+  "commands": [
+    {
+      "id": "set-attribute",
+      "effect": "set-attribute",
+      "available": true,
+      "parameters": [
+        {
+          "id": "target",
+          "required": false,
+          "omittedMeaning": "self",
+          "domain": {
+            "kind": "entity",
+            "refers": "character"
           }
-         ]
+        },
+        {
+          "id": "attribute",
+          "required": true,
+          "domain": {
+            "kind": "choice",
+            "options": [
+              {
+                "name": "hp",
+                "thenDomain": {
+                  "kind": "number",
+                  "minimum": 0,
+                  "maximum": 100000
+                }
+              },
+              {
+                "name": "hpMax",
+                "thenDomain": {
+                  "kind": "number",
+                  "minimum": 1,
+                  "maximum": 100000
+                }
+              },
+              {
+                "name": "cp",
+                "thenDomain": {
+                  "kind": "number",
+                  "minimum": 0,
+                  "maximum": 100000
+                }
+              },
+              {
+                "name": "cpMax",
+                "thenDomain": {
+                  "kind": "number",
+                  "minimum": 1,
+                  "maximum": 100000
+                }
+              },
+              {
+                "name": "physicalAttack",
+                "thenDomain": {
+                  "kind": "number",
+                  "minimum": 0,
+                  "maximum": 100000
+                }
+              },
+              {
+                "name": "auraAttack",
+                "thenDomain": {
+                  "kind": "number",
+                  "minimum": 0,
+                  "maximum": 100000
+                }
+              },
+              {
+                "name": "armor",
+                "thenDomain": {
+                  "kind": "number",
+                  "minimum": 0,
+                  "maximum": 100000
+                }
+              },
+              {
+                "name": "resistance",
+                "thenDomain": {
+                  "kind": "number",
+                  "minimum": 0,
+                  "maximum": 100000
+                }
+              },
+              {
+                "name": "armorPenetration",
+                "thenDomain": {
+                  "kind": "number",
+                  "minimum": 0,
+                  "maximum": 100000
+                }
+              },
+              {
+                "name": "resistancePenetration",
+                "thenDomain": {
+                  "kind": "number",
+                  "minimum": 0,
+                  "maximum": 100000
+                }
+              },
+              {
+                "name": "moveSpeed",
+                "thenDomain": {
+                  "kind": "number",
+                  "minimum": 0,
+                  "maximum": 100
+                }
+              },
+              {
+                "name": "runSpeedMultiplier",
+                "thenDomain": {
+                  "kind": "number",
+                  "minimum": 0.1,
+                  "maximum": 10
+                }
+              },
+              {
+                "name": "actionSpeed",
+                "thenDomain": {
+                  "kind": "number",
+                  "minimum": 0.1,
+                  "maximum": 10
+                }
+              },
+              {
+                "name": "moveMode",
+                "thenDomain": {
+                  "kind": "choice",
+                  "options": [
+                    {
+                      "name": "walk"
+                    },
+                    {
+                      "name": "run"
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "value",
+          "required": true,
+          "domain": {
+            "kind": "from-previous-choice"
+          }
         }
-       }
       ]
-     }
-    },
-    {
-     "id": "value",
-     "required": true,
-     "domain": {
-      "kind": "from-previous-choice"
-     }
     }
-   ]
-  }
- ]
+  ]
 }

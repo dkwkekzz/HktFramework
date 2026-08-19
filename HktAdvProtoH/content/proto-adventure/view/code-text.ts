@@ -64,6 +64,27 @@ const CODE_TEXT: Record<string, string> = {
   'param:value': '값',
   // 비워 두면 무엇이 되는가 (C009 — Parameter.OmittedMeaning)
   'omitted:self': '내 몸',
+  // ── 살펴봄 (C014) ──
+  // 행동 코드
+  observe: '살펴봄',
+  // 가려진 항목의 이름 — 세계가 보낸 concealed 의 원소들이다.
+  // 무엇이 가려졌는지를 사람 말로 옮기기만 한다. 목록을 여기서 만들지 않는다
+  combatStats: '겨루는 힘',
+  versusObserver: '나에게 읽히는 방어',
+  defenseShape: '약점',
+  // 왜 비어 있는가 (Attributes.UnacquaintedReason)
+  'not-observed': '아직 살펴보지 않았다',
+  // 불가 사유 — 살펴봄
+  'already-known': '이미 알고 있다',
+  'target-is-self': '자기 자신은 살펴볼 대상이 아니다',
+  'no-such-target': '그런 존재가 없다',
+  'no-body': '세계에 내 몸이 없다',
+  'not-known': '아직 모르는 존재다',
+  'no-observer': '세계가 나를 알지 못한다',
+  // 명령이 무엇을 하는가 (Command.Effect)
+  'forget-acquaintance': '이 존재를 다시 모르는 상태로 되돌린다',
+  // 비워 두면 무엇이 되는가
+  'omitted:all-known': '알고 있는 전부',
 };
 
 export function codeText(code: string): string {

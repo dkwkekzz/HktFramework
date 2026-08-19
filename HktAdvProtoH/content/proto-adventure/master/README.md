@@ -45,16 +45,18 @@ CYCLE LAYER    선택된 하나의 플레이 결과를 World Semantic 과 Rule �
 ```
 
 해당 영역 문서가 이름조차 대지 않는 의미는 Graph·Constraint 에 두지 않는다 — 보류가
-아니라 삭제한다. 기준 시점 **BW 주입 (2026-08-19)** — 코드는 C012 닫힘 상태 그대로다.
+아니라 삭제한다. 기준 시점 **C013 · C014 닫힘** — 전투 사다리는 Penetration 층까지,
+탐험 사다리는 FRINGE 의 첫 칸(살펴봄)까지 서 있다.
 
 ```text
 Constraint   17     Active 17 (APPROVED 16 · REVISED 1 — PLAYER-CAUSALITY, Critical 예외) · DRAFT 0
-Candidate     3     APPROVED 1 (→ DC) · PENDING 2
+Candidate     5     APPROVED 1 (→ DC) · PENDING 4 (넷 중 셋이 SURFACE-LIST 경계 판단 대기)
 Actor         2     Knowledge 2 · Belief 0 (Belief 는 도입하지 않는다 — Q3 결정)
 Goal          5     Possibility 24 (전투 14 · 탐험 10) — §27 기관 대안 4종만 requires 미배선
-Capability   42     IMPLEMENTED 7 · PARTIAL 2 · MISSING 33 (베이라 사다리 21 · 자원 2 · Critical 1 포함)
+Capability   42     IMPLEMENTED 8 · PARTIAL 3 (MC-OBSERVE 추가 — C014) ·
+                    MISSING 31 (베이라 사다리 20 · 자원 2 · Critical 1 포함)
 Item Def      2     IP-BOUNDARY-STABLE · IT-BOUNDARY-BLADE (growth/items/)
-Frontier      3     PROPOSED — PENETRATION · CRITICAL · OBSERVE (Human 선택 대기)
+Frontier      3     PROPOSED — INSIGHT · PREDICT · CRITICAL (Human 선택 대기)
 WorldState   11     상위 인과 2 (PRIMAL-WORLD · WORLD-PRESSURE) · 구조 2
                     (SAFE-FRONTIER · DEPTH-GRADIENT) · 깊이 층 5 (ZONE-FRINGE ~ ZONE-UNKNOWN) ·
                     대표 지역 2 (HYPER-PREDATION · SPATIAL-SHEAR)
@@ -66,8 +68,9 @@ Open Question 0   → 지금 Human 을 기다리는 것은 frontier.md 의 선�
 `frontier.md` · `open-questions.md` · `constraints/README.md`)에는 **지금 할 일과 현재
 상태만** 남긴다 — 닫힌 것은 그 자리에서 지우고 HISTORY 로 옮긴다.
 
-닫힌 Possibility 3종 — MP-OUTGROW-THE-OPPONENT(C010) · MP-TRADE-BODY-FOR-RESOURCE(C011) ·
-MP-MATCH-WEAPON-TO-ARMOR(C012). 요구 Capability 가 하나도 비어 있지 않은 경로들이다.
+닫힌 Possibility 4종 — MP-OUTGROW-THE-OPPONENT(C010) · MP-TRADE-BODY-FOR-RESOURCE(C011) ·
+MP-MATCH-WEAPON-TO-ARMOR(C012) · MP-PIERCE-THE-HARD-DEFENSE(C013).
+요구 Capability 가 하나도 비어 있지 않은 경로들이다.
 
 아직 비어 있는 것 — 지어내지 않고 남긴 자리다:
 
@@ -103,9 +106,54 @@ master/     현재 상태    world/ view/ 처럼 계속 갱신된다
 | [candidates/](candidates/) | `CC-*.md` — 미승인 Constraint Candidate | Agent 제안 / **Human** 승인 |
 | [open-questions.md](open-questions.md) | 승인 대기 · Constraint 충돌 · 설계 공백 · Trade-off | Agent 제기 / **Human** 결정 |
 | [HISTORY.md](HISTORY.md) | 닫힌 것들의 보관소 — 평소에 읽지 않는다 | Master Design Agent |
+| [graph/GRAPH.md](graph/GRAPH.md) | Graph 스냅샷 (Mermaid · 표) — **생성물, 손으로 고치지 않는다** | `npm run master:graph` |
 
 위 문서들은 **지금 할 일과 현재 상태만** 담는다. 닫힌 항목은 그 자리에서 지우고
 `HISTORY.md` 로 옮긴다 — 그래야 매번 읽는 문서가 가볍게 유지된다.
+
+## 관찰
+
+Graph 를 눈으로 보려면 프로젝트 루트에서 다음을 실행한다. 원본은 아무것도 바뀌지 않는다.
+
+```text
+npm run master:graph         GRAPH.md 와 graph/graph-view.html 을 다시 만든다
+npm run master:graph:check   정합성 + GRAPH.md 최신 여부만 확인한다 (아무것도 쓰지 않는다)
+```
+
+세 산출물이 나온다. 뒤의 둘은 생성물이라 커밋하지 않는다.
+
+| 파일 | 보는 곳 |
+|---|---|
+| `graph/GRAPH.md` | GitHub · 에디터 — Mermaid 와 표. **이것만 커밋한다** |
+| `graph/graph-view.html` | 브라우저 — 인터랙티브 뷰어 (서버 없이 `file://` 로 열린다) |
+| `graph/graph-view.artifact.html` | Artifact 게시용 — 아래 고정 링크에 덮어쓸 때 이 파일을 올린다 |
+
+뷰어는 층(WorldState → Goal → Possibility → Capability)으로 배치하고, Capability 는
+overlay 색으로, Possibility 는 **준비도**(요구 Capability 중 세계에 이미 있는 것의 비율)로
+보여 준다. 노드를 고르면 그 인과 경로만 남고 원문이 열린다. Constraint 를 고르면 그 원칙
+아래 있는 노드만 남는다. 빈 인과 필드(구멍)에는 주황 점이 찍힌다.
+
+### 고정 링크 — Artifact
+
+브라우저만 있으면 어디서나 열리는 뷰어다. **링크는 이 하나이며 바뀌지 않는다.**
+
+```text
+https://claude.ai/code/artifact/c3c54815-4a6a-47e7-83ce-2cd169acdef5
+```
+
+`graph/` 나 `constraints/` 를 고친 Agent 는 재생성 후 이 링크를 갱신한다.
+
+```text
+Artifact 도구에 file_path = graph/graph-view.artifact.html
+                 url       = 위 링크          ← 반드시 함께 넘긴다
+```
+
+`url` 을 빼면 **같은 링크에 덮어쓰지 않고 새 아티팩트가 새 주소로 생긴다.** 링크가 하나로
+유지되는 것은 이 인자 덕분이므로 생략하지 않는다. Artifact 도구가 없는 환경이면 게시를
+건너뛰고 그 사실을 보고한다 — 다른 주소로 올려 링크를 늘리지 않는다.
+
+같은 통과에서 참조 무결성도 검사한다 — 존재하지 않는 ID 참조, `requires` ↔ `required_by`
+비대칭, 없는 Constraint 참조, 고아 Possibility/Capability.
 
 ## 두 층의 접합점
 

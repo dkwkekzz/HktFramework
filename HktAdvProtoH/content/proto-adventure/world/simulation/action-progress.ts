@@ -5,7 +5,9 @@
 //                Elapsed >= Duration 이면 완료 효과 Rule 적용 후 CurrentAction = idle
 // Result         Progress | Completed
 //
-// 완료 효과 Rule   mine   → RULE-MINE-COMPLETE-001
+// 완료 효과 Rule   mine    → RULE-MINE-COMPLETE-001
+//                  observe → RULE-OBSERVE-COMPLETE-001 (C014 — 끝까지 간 살펴봄만 앎을 남긴다.
+//                            맞아서 hit 으로 갈린 살펴봄은 이 자리에 오지 못한다)
 //                  attack → 없음 (C006 CHANGED — 타격은 완료가 아니라 휘두름 구간의
 //                           접촉이 정한다. RULE-SWING-STRIKE-001, simulation/swing-strike.ts)
 //                  hit    → 없음 (그냥 끝나고 대기로 돌아간다)
@@ -17,6 +19,7 @@ import { idleAction, type CurrentAction } from '../semantic/action';
 import type { ActorState } from '../semantic/actor';
 import type { WorldState } from '../semantic/world-state';
 import { ruleMineComplete } from '../rules/mine';
+import { ruleObserveComplete } from '../rules/observe';
 
 export function ruleActionProgress(state: WorldState, dt: number): void {
   const advancing: Array<{ actor: ActorState; action: CurrentAction }> = state.actors.map(
@@ -31,6 +34,7 @@ export function ruleActionProgress(state: WorldState, dt: number): void {
     if (action.elapsed < action.duration) continue;
 
     if (action.kind === 'mine') ruleMineComplete(state, actor);
+    if (action.kind === 'observe') ruleObserveComplete(state, actor); // C014
 
     // 완료 효과가 이 Actor 의 행동을 바꿨다면(스스로 맞은 경우 등) 덮지 않는다.
     if (actor.currentAction === action) actor.currentAction = idleAction();

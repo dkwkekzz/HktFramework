@@ -11,7 +11,7 @@
 # 각 노드의 world_shape 가 "이것이 있다" 의 판정 기준이고, Cycle 이 그 칸을 닫는다.
 # overlay 는 그 칸이 지금 닫혀 있는가다 — 근거는 ../overlay.md 가 소유한다.
 #
-#   전투 (R1 · DT)          이미 선 것 9 · 예고된 층 10
+#   전투 (R1 · DT)          이미 선 것 10 · 예고된 층 9
 #   베이라 사다리 (BW)      SAFE 1 · FRINGE 3 · WILD 3 · DANGER 4 · DEEP 4 · UNKNOWN 6
 #   자원 유래 (BW §8~§17)   2
 version: 1
@@ -101,9 +101,8 @@ nodes:
     constraint_evaluation:
       DC-COMBAT-PLAYER-CAUSALITY: SATISFIED    # explainable_result 요구를 직접 실현하는 능력이다 (DT §10 · §14-9)
     overlay: IMPLEMENTED
-    # 승격 (코드 대조 2026 — ../overlay.md 참조): 모든 타격이 고른 능력치 이름과 값,
-    # 기본 피해, 공격 기여, 방어 값, 관통, 유효 방어, 감쇄 배율, 최종·적용 피해,
-    # 막기 결과까지 관찰에 싣는다. Human 확인 항목으로 open-questions.md 에 올려 두었다.
+    # 모든 타격이 고른 능력치 이름과 값, 기본 피해, 공격 기여, 방어 값, 관통,
+    # 유효 방어, 감쇄 배율, 최종·적용 피해, 막기 결과까지 관찰에 싣는다 (Q20 확정).
 
   - id: MC-GUARD
     type: capability
@@ -225,14 +224,14 @@ nodes:
       관통이 아무리 커도 방어가 완전히 사라지지 않아야 한다.
     required_by: [MP-PIERCE-THE-HARD-DEFENSE]
     demanded_by: []
-    constraints: [DC-COMBAT-PLAYER-CAUSALITY]
+    constraints: [DC-COMBAT-PLAYER-CAUSALITY, DC-COMBAT-ONE-FORMULA, DC-COMBAT-MATCHUP-SOFT]
     constraint_evaluation:
       DC-COMBAT-PLAYER-CAUSALITY: SATISFIED    # 확률로 무시하는 것이 아니라 결정적으로 깎는다 (R1 §14 Penetration · DT §15)
+                                               # C013 실측 — 난수원 없음, 같은 조건 5회 반복이 모두 같은 값
+      DC-COMBAT-ONE-FORMULA: SATISFIED         # C013 실측 — 감쇄식·DefenseConstant 100·하한 1 이 그대로다. 바뀐 것은 그 식이 읽는 방어 값 하나다
+      DC-COMBAT-MATCHUP-SOFT: SATISFIED        # C013 실측 — 타입별 관통 배율표 없음, 면역 없음(하한 1 유지), 깎이기 전후의 방어가 관찰된다
     overlay: IMPLEMENTED
-    # 승격 (C013 — ../overlay.md 참조): 마주한 방어만 결정적으로 깎이고, 마주하지 않은
-    # 방어에는 닿지 않으며, 두껍게 굳힌 상대일수록 걷어내는 양이 커지고, 관통이 극단으로
-    # 커도 방어가 남는 것이 실측되었다. C013 은 Human Play 확인 대기 상태이므로
-    # 이 승격의 확정은 open-questions.md 에 Human 항목으로 올려 두었다.
+    # C013-penetration-devalues-the-wall 이 R1 §14 Penetration 층으로 닫았다.
 
   # ══════════════════════════════════════════════════════════════════════
   # 전투 — R1 §13 · §14 가 예고한, 아직 서지 않은 층
@@ -466,19 +465,27 @@ nodes:
       행동하기 전에 대상을 관찰하여 그 행동·습성·상태의 정보를 얻는다.
     detail: >
       탐험 축 전체의 첫 칸이다. 이 노드의 값어치는 정보를 주는 데 있는 것이 아니라
-      **정보를 얻는 데 대가가 들게** 하는 데 있다. 지금처럼 모든 것이 처음부터 보이면
-      관찰이라는 행위가 존재할 수 없고, "관찰 → 이해 → 대응" 이라는 진행 구조(BW §32)의
-      첫 칸이 비어 버린다. 그래서 이것은 새 정보 표시가 아니라 정보 공개 시점의 규칙이다.
+      **정보를 얻는 데 대가가 들게** 하는 데 있다. 모든 것이 처음부터 보이면 관찰이라는
+      행위가 존재할 수 없고, "관찰 → 이해 → 대응" 이라는 진행 구조(BW §32)의 첫 칸이
+      비어 버린다. 그래서 이것은 새 정보 표시가 아니라 정보 공개 시점의 규칙이다.
     world_shape: >
       관찰하기 전에는 대상에 대해 모르는 것이 있고, 관찰이라는 행동을 한 뒤에 그것이
       드러나며, 그 차이가 플레이어의 다음 선택을 바꿔야 한다.
     required_by: [MP-LEARN-TO-HANDLE-THE-LAYER]
     demanded_by: [MW-ZONE-FRINGE]
-    constraints: []
-    constraint_evaluation: {}
-    overlay: MISSING
-    # 세계가 모든 Actor 의 모든 속성을 모든 관찰자에게 무조건 싣는다 — 가려진 것이
-    # 하나도 없어서 관찰이라는 행위가 성립할 자리가 없다.
+    constraints: [DC-WORLD-PROGRESSION-IS-REACH, DC-COMBAT-MATCHUP-SOFT,
+                  DC-WORLD-PLAYER-UNFIXED-PATH]
+    constraint_evaluation:
+      DC-WORLD-PROGRESSION-IS-REACH: SATISFIED   # 진행이 수치가 아니라 "고를 근거" 로 나타났다 — BW §32 사슬의 첫 칸 (C014)
+      DC-COMBAT-MATCHUP-SOFT: SATISFIED          # weakness_is_observable 이 "관찰 행동을 하면 알 수 있다" 로 유지된다. 관찰은 계산에 한 글자도 더하지 않는다
+      DC-WORLD-PLAYER-UNFIXED-PATH: SATISFIED    # 살펴봄이 다른 행동의 조건이 아니다 — 모르는 채로도 싸운다
+    overlay: PARTIAL
+    # C014 로 **상태**(겨루는 힘)를 아는 일이 섰다. semantic 이 말한 셋 중 둘이 남는다:
+    #   행동·습성  자율 존재의 행동 패턴을 읽는 의미가 세계에 없다 (MC-PREDICT 와 같은 자리)
+    #   경로 하나  앎에 이르는 길이 살펴봄뿐이고, 앎이 존재 단위여서 부분 공개가 없다
+    # C014 08 은 IMPLEMENTED 로 보고하면서 "습성은 아직 없다" 를 함께 보고했다 —
+    # Feedback 이 그 주의를 적용해 PARTIAL 로 판정했다.
+    # DC-WORLD-OWNS-THE-SURFACE-LIST 도 SATISFIED 이나 GLOBAL 이므로 Edge 를 더하지 않았다.
 
   - id: MC-PREDICT
     type: capability

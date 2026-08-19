@@ -13,4 +13,7 @@ export interface ActionRequest extends CoreActionRequest {
   // C007 R2 — 속성 변경 (디버그 조작의 기반). 무엇을 어떤 값으로 바꿀지가 실린다.
   // 요청일 뿐이다 — 받아들일지는 World Rule 이 정한다 (RULE-ATTRIBUTE-SET-001).
   attribute?: { id: string; value: number | string };
+  // C014 — 살펴봄과 되돌림은 봉투의 targetEntityId 를 그대로 쓴다.
+  // 새 파라미터가 필요하지 않다: 살펴볼 대상도, 잊을 대상도 존재 하나를 지목하는 일이며
+  // 그것은 이미 봉투가 실을 수 있다 (INTENT-ENTITY-ADDRESSABLE-001).
 }

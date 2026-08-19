@@ -18,7 +18,7 @@ import type { GameViewSnapshot } from '../../protocol/gameview';
 import { SWING_BEGIN } from '../semantic/collision';
 import { SKILL_DEFINITIONS } from '../semantic/combat';
 import { TICK_INTERVAL } from '../semantic/world-state';
-import { driveWorld, PLAYER, type WorldDriver } from './drive';
+import { observeFully, driveWorld, PLAYER, type WorldDriver } from './drive';
 
 const BASIC = SKILL_DEFINITIONS.attack;
 const AFTER_SWING_OPEN = SWING_BEGIN * BASIC.baseDuration + 2 * TICK_INTERVAL;
@@ -64,8 +64,10 @@ const setAttribute = (world: WorldDriver, id: string, value: number, targetEntit
 
 describe('INTENT-ATTACK-POWER-001 — 공격 능력이 피해를 키운다', () => {
   it('모든 존재가 자기 종류의 두 능력을 갖고 시작한다', () => {
-    const view = driveWorld({ npcs: [dummyAt(3, 0)] }).observe();
+    const world = driveWorld({ npcs: [dummyAt(3, 0)] });
+    const view = world.observe();
 
+    // 자기 것은 언제나 실린다
     expect(actor(view, PLAYER)?.attributes?.combatStats).toEqual({
       physicalAttack: 40,
       auraAttack: 40,
@@ -77,7 +79,9 @@ describe('INTENT-ATTACK-POWER-001 — 공격 능력이 피해를 키운다', () 
       armorMultiplier: 100 / 150,
       resistanceMultiplier: 100 / 120,
     });
-    expect(actor(view, 'npc-1')?.attributes?.combatStats).toEqual({
+    // C014 — 남의 것은 살펴본 뒤에 실린다. 값은 그대로다
+    observeFully(world, 'npc-1');
+    expect(actor(world.observe(), 'npc-1')?.attributes?.combatStats).toEqual({
       physicalAttack: 40,
       auraAttack: 15,
       armor: 30,
@@ -149,7 +153,7 @@ describe('INTENT-DEFENSE-001 — 방어 능력이 피해를 줄인다', () => {
     world.tick(TICK_INTERVAL);
 
     const view = world.observe();
-    expect(actor(view, PLAYER)?.attributes?.combatStats.armorMultiplier).toBe(0.5);
+    expect(actor(view, PLAYER)?.attributes?.combatStats?.armorMultiplier).toBe(0.5);
     expect(hud(view, 'self.combat.armor')).toBe(100);
     expect(hud(view, 'self.combat.armorMultiplier')).toBe(0.5);
   });

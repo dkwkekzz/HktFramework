@@ -6,7 +6,12 @@
 // 세계가 모든 속성을 보낸다고 해서 전부 늘 띄우지는 않는다 (04 entityHud.notShownByDefault) —
 // 감춘 것이 아니라 몸 위를 채우지 않기 위한 표시 선택이며, 속성 관찰을 켜면 그 자리에서 펼쳐진다.
 
-import type { EntityView, GameViewSnapshot, StrikeEventView } from '../protocol/gameview';
+import type {
+  AttributesView,
+  EntityView,
+  GameViewSnapshot,
+  StrikeEventView,
+} from '../protocol/gameview';
 import type { SceneNameplate, SceneSelf, SceneStrike } from '../../../engine/view-kernel/scene/scene-state';
 import { codeText } from './code-text';
 
@@ -25,7 +30,11 @@ export function nameplate(entity: EntityView, spriteSize: number): SceneNameplat
   if (!entity.vitality || entity.name === undefined) return undefined;
   const { health, healthMaximum, downed } = entity.vitality;
   return {
-    name: entity.name,
+    // C014 — 아직 살펴보지 않은 존재는 이름 뒤에 물음표가 붙는다.
+    // 속성 관찰을 켜지 않아도 **모른다는 것이 화면에서 읽혀야** 하기 때문이다
+    // (04 EMPTY-SLOT NOTE). 켜야만 보이면 플레이어는 자기가 무엇을 모르는지 모른다.
+    // 어떤 표시로 그릴지는 View 의 결정이다 — 세계가 보낸 것은 acquainted 뿐이다.
+    name: entity.attributes?.acquainted === false ? `${entity.name} ?` : entity.name,
     health: Math.round(health),
     healthMaximum: Math.round(healthMaximum),
     healthRatio: healthMaximum > 0 ? Math.max(0, Math.min(1, health / healthMaximum)) : 0,
@@ -46,6 +55,32 @@ export function inspectLines(entity: EntityView): string[] | undefined {
       a.tempoStats.runSpeedMultiplier,
     )}`,
     `공속 ×${round(a.tempoStats.actionSpeed)}`,
+    // C014 — 겨루는 힘은 **아는 존재에만** 나오고, 모르는 존재에는 그 자리에
+    // "무엇을 모르는지" 가 온다. 자리를 비우지 않는 것이 핵심이다 —
+    // 줄이 사라지면 플레이어는 세계에 그 값이 없다고 배운다 (04 EMPTY-SLOT NOTE).
+    ...contestedLines(a),
+    `배율 충전×${round(a.modifiers.energyCharge)} 소비×${round(a.modifiers.energyConsume)}`,
+    `배율 이동×${round(a.modifiers.moveSpeed)} 공속×${round(a.modifiers.actionSpeed)}`,
+    // C011 — 막기는 행동(state)과 별개라서 몸의 상태 표시로는 드러나지 않는다.
+    // 막으며 걷는 존재는 state 가 move 이면서 막고 있다.
+    `막기 ${guardText(a.guard) ?? '없음'}`,
+  ];
+}
+
+// 겨루는 힘의 자리 (C010 → C014) — 아는 존재면 값이, 모르는 존재면 모름이 온다.
+// 무엇이 가려졌는지의 목록(concealed)은 세계의 것이다 — 여기서 이름을 적지 않는다
+// (DC-WORLD-OWNS-THE-SURFACE-LIST). 0 으로 채우거나 종류 이름으로 짐작하거나
+// 타격 경위(strikeEvents)에서 값을 끌어오지 않는다 (04 EMPTY-SLOT NOTE).
+function contestedLines(a: AttributesView): string[] {
+  const combat = a.combatStats;
+  const versus = a.versusObserver;
+  if (!combat || !versus) {
+    const names = a.concealed.length > 0 ? a.concealed : ['combatStats'];
+    return [
+      `${names.map(codeText).join(' · ')} — ${codeText(a.unacquaintedReason ?? 'not-observed')}`,
+    ];
+  }
+  return [
     // C010 → C012 — 능력이 방식별로 갈렸다. 방어는 체감식이라 수치만으로는 효과를
     // 알 수 없으므로 남는 비율을 함께 쓴다. 두 줄로 나눈 것은 고를 때 견주는 축이
     // 공격/방어가 아니라 **물리/오라** 이기 때문이다.
@@ -53,30 +88,21 @@ export function inspectLines(entity: EntityView): string[] | undefined {
     // 두 값이 같으면(내 관통이 0 이거나 상대 방어가 0) 붙지 않는다 — 같다는 것은
     // versusText 가 없는 것으로 읽힌다. 걷힌 값을 여기서 곱해 만들지 않는다
     // (04 versusObserver.meaning · DC-WORLD-OWNS-THE-SURFACE-LIST).
-    `물리 공격 ${round(a.combatStats.physicalAttack)}` +
-      ` · 물리 방어 ${round(a.combatStats.armor)}` +
-      ` (받는 피해 ${percent(a.combatStats.armorMultiplier)})` +
-      versusText(a.combatStats.armor, a.versusObserver.armor, a.versusObserver.armorMultiplier),
-    `오라 공격 ${round(a.combatStats.auraAttack)}` +
-      ` · 오라 방어 ${round(a.combatStats.resistance)}` +
-      ` (받는 피해 ${percent(a.combatStats.resistanceMultiplier)})` +
-      versusText(
-        a.combatStats.resistance,
-        a.versusObserver.resistance,
-        a.versusObserver.resistanceMultiplier,
-      ),
+    `물리 공격 ${round(combat.physicalAttack)}` +
+      ` · 물리 방어 ${round(combat.armor)}` +
+      ` (받는 피해 ${percent(combat.armorMultiplier)})` +
+      versusText(combat.armor, versus.armor, versus.armorMultiplier),
+    `오라 공격 ${round(combat.auraAttack)}` +
+      ` · 오라 방어 ${round(combat.resistance)}` +
+      ` (받는 피해 ${percent(combat.resistanceMultiplier)})` +
+      versusText(combat.resistance, versus.resistance, versus.resistanceMultiplier),
     // C013 — 이 존재가 지닌 관통. 상대의 것도 본다 — 저쪽이 내 방어를 얼마나
     // 무력화하는지는 내가 얼마나 위험한지를 아는 일이다.
-    `관통 물리 ${round(a.combatStats.armorPenetration)}` +
-      ` · 오라 ${round(a.combatStats.resistancePenetration)}`,
+    `관통 물리 ${round(combat.armorPenetration)}` +
+      ` · 오라 ${round(combat.resistancePenetration)}`,
     // C012 — 어느 쪽이 더 단단한지는 **세계가 판정한 값**이다.
     // 여기서 두 수치를 비교해 만들어내지 않는다 (04 defenseShape.meaning).
-    `약점 ${codeText(a.defenseShape)}`,
-    `배율 충전×${round(a.modifiers.energyCharge)} 소비×${round(a.modifiers.energyConsume)}`,
-    `배율 이동×${round(a.modifiers.moveSpeed)} 공속×${round(a.modifiers.actionSpeed)}`,
-    // C011 — 막기는 행동(state)과 별개라서 몸의 상태 표시로는 드러나지 않는다.
-    // 막으며 걷는 존재는 state 가 move 이면서 막고 있다.
-    `막기 ${guardText(a.guard) ?? '없음'}`,
+    `약점 ${codeText(a.defenseShape ?? '')}`,
   ];
 }
 

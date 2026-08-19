@@ -13,5 +13,6 @@ Human 이 답한다    DECISION 줄
 
 미해결 **0건** — 닫힌 질문은 HISTORY.md.
 
-지금 Human 을 기다리는 것은 질문이 아니라 **Frontier 선택**이다 →
-[frontier.md](frontier.md) 의 후보 4종 중 하나를 고르면 다음 Cycle 이 시작된다.
+Frontier 선택도 끝났다 — [frontier.md](frontier.md) 의 `SELECTED` 가
+`FR-INSIGHT-SEES-BEFORE-LOOKING` 이다. 다음은 Cycle Stage 1 이며
+Master 가 할 일은 없다 (Cycle 이 닫히면 Feedback 으로 돌아온다).

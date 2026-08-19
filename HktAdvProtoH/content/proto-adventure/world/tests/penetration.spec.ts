@@ -19,7 +19,7 @@ import { effectiveDefense, penetrationRemainingRatio, SKILL_DEFINITIONS } from '
 import { TICK_INTERVAL } from '../semantic/world-state';
 import { ruleDamageCalculate } from '../rules/damage-calculate';
 import { spawnActor } from '../semantic/spawn';
-import { driveWorld, PLAYER, type WorldDriver } from './drive';
+import { driveWorld, observeFully, PLAYER, type WorldDriver } from './drive';
 
 const AURA = SKILL_DEFINITIONS['aura-strike'];
 const AFTER_SWING_OPEN = SWING_BEGIN * AURA.baseDuration + 2 * TICK_INTERVAL;
@@ -90,14 +90,17 @@ const breakdownOf = (
 
 describe('INTENT-PENETRATION-001 — 관통은 존재가 지니는 능력이다', () => {
   it('모든 존재가 자기 종류의 관통 둘을 갖고 시작한다', () => {
-    const view = driveWorld({ npcs: [dummyAt(3, 0)] }).observe();
+    const world = driveWorld({ npcs: [dummyAt(3, 0)] });
+    const view = world.observe();
 
-    // 관찰자의 몸(rabbit-swordsman) — 오라 쪽 관통을 지닌다
-    expect(actor(view, PLAYER)?.attributes?.combatStats.armorPenetration).toBe(0);
-    expect(actor(view, PLAYER)?.attributes?.combatStats.resistancePenetration).toBe(60);
-    // wanderer — 관통을 지니지 않는다
-    expect(actor(view, 'npc-1')?.attributes?.combatStats.armorPenetration).toBe(0);
-    expect(actor(view, 'npc-1')?.attributes?.combatStats.resistancePenetration).toBe(0);
+    // 관찰자의 몸(rabbit-swordsman) — 오라 쪽 관통을 지닌다. 자기 것은 언제나 보인다
+    expect(actor(view, PLAYER)?.attributes?.combatStats?.armorPenetration).toBe(0);
+    expect(actor(view, PLAYER)?.attributes?.combatStats?.resistancePenetration).toBe(60);
+    // wanderer — 관통을 지니지 않는다. C014 — 남의 것은 살펴본 뒤에 실린다
+    observeFully(world, 'npc-1');
+    const seen = world.observe();
+    expect(actor(seen, 'npc-1')?.attributes?.combatStats?.armorPenetration).toBe(0);
+    expect(actor(seen, 'npc-1')?.attributes?.combatStats?.resistancePenetration).toBe(0);
   });
 
   it('관통은 그 자체로 아무것도 일으키지 않는다 — 공격 피해를 한 톨도 키우지 않는다', () => {
@@ -296,30 +299,34 @@ describe('INTENT-DAMAGE-BREAKDOWN-001 (CHANGED) — 걷히기 전과 걷힌 뒤�
 });
 
 describe('INTENT-PENETRATION-OBSERVE-001 — 치기 전에 무엇이 통할지 보인다', () => {
-  it('상대의 방어가 나에게 얼마로 읽히는지를 세계가 계산해 싣는다', () => {
-    const npc = actor(driveWorld({ npcs: [dummyAt(3, 0)] }).observe(), 'npc-1');
+  it('상대의 방어가 나에게 얼마로 읽히는지를 세계가 계산해 싣는다 (C014 — 살펴본 뒤)', () => {
+    const world = driveWorld({ npcs: [dummyAt(3, 0)] });
+    observeFully(world, 'npc-1');
+    const npc = actor(world.observe(), 'npc-1');
 
-    expect(npc?.attributes?.combatStats.resistance).toBe(90); // 상대가 지닌 값
-    expect(npc?.attributes?.versusObserver.resistance).toBe(56.25); // 나에게 읽히는 값
-    expect(npc?.attributes?.versusObserver.resistanceMultiplier).toBe(100 / 156.25);
+    expect(npc?.attributes?.combatStats?.resistance).toBe(90); // 상대가 지닌 값
+    expect(npc?.attributes?.versusObserver?.resistance).toBe(56.25); // 나에게 읽히는 값
+    expect(npc?.attributes?.versusObserver?.resistanceMultiplier).toBe(100 / 156.25);
     // 물리 쪽은 내 관통이 0 이라 그대로다
-    expect(npc?.attributes?.versusObserver.armor).toBe(30);
-    expect(npc?.attributes?.versusObserver.armorMultiplier).toBe(100 / 130);
+    expect(npc?.attributes?.versusObserver?.armor).toBe(30);
+    expect(npc?.attributes?.versusObserver?.armorMultiplier).toBe(100 / 130);
   });
 
   it('내 관통이 0 이면 읽히는 값이 상대의 값과 같다 — 같다는 것 자체가 관찰이다', () => {
     const world = driveWorld({ npcs: [dummyAt(3, 0)] });
+    observeFully(world, 'npc-1'); // C014
     setAttribute(world, 'resistancePenetration', 0);
     world.tick(TICK_INTERVAL);
     const npc = actor(world.observe(), 'npc-1');
-    expect(npc?.attributes?.versusObserver.resistance).toBe(
-      npc?.attributes?.combatStats.resistance,
+    expect(npc?.attributes?.versusObserver?.resistance).toBe(
+      npc?.attributes?.combatStats?.resistance,
     );
-    expect(npc?.attributes?.versusObserver.armor).toBe(npc?.attributes?.combatStats.armor);
+    expect(npc?.attributes?.versusObserver?.armor).toBe(npc?.attributes?.combatStats?.armor);
   });
 
   it('관통이 상대의 DefenseShape 판정을 흔들지 않는다', () => {
     const world = driveWorld({ npcs: [dummyAt(3, 0)] });
+    observeFully(world, 'npc-1'); // C014
     setAttribute(world, 'resistancePenetration', 100000);
     world.tick(TICK_INTERVAL);
     // wanderer 는 Armor 30 · Resistance 90 — 관통이 아무리 커도 오라 쪽이 단단하다
