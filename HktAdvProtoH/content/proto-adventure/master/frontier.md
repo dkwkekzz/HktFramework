@@ -4,8 +4,7 @@ Frontier 는 Graph 의 절대 Leaf 가 아니라 **현재 세계 기준으로 �
 플레이 가능한 Capability 단위**다. 기본 절차 **NEXT** 단계의 산출물이며,
 Human 이 여기서 하나를 골라 다음 Cycle Goal 로 삼는다 (Human Select → 8 Stage Cycle).
 
-    기준 Overlay   master/overlay.md — BW 주입 + Q2·Q3·Q8·Q11·Q17~Q19 결정 반영 (2026-08-19)
-                   **C013 은 아직 반영되어 있지 않다** — 아래 "선택되어 진행 중" 참조
+    기준 Overlay   master/overlay.md — C013 완료 반영 (전투 사다리는 Penetration 층까지 섰다)
     근거 문서      전투 R1·DT · 세계 BW (매핑된 전투 노드에는 BW 보조 근거 허용 — Q18(a))
 
 ## 지금 어디까지 왔는가
@@ -19,7 +18,7 @@ Basic Damage         섰다
 Critical             열렸다 — Q11(b) 확률 허용 ← 후보 (아래)
 Defense Action       섰다
 Damage Type          섰다
-Penetration          C013 진행 중 — Human Play 확인이 남았다 (아래)
+Penetration          섰다
 Active Defense       대기 — 사유는 "지금 열 수 없는 것"
 Aura / Nen           대기 — 사유는 "지금 열 수 없는 것"
 ```
@@ -35,21 +34,6 @@ WILD ~ UNKNOWN       대기 — 아래 층부터 순서대로
 ```
 
 어느 Cycle 이 어느 층을 닫았는지는 [HISTORY.md](HISTORY.md) 에 있다.
-
-## 선택되어 진행 중
-
-고를 수 있는 것이 아니다. Cycle 이 닫히고 Feedback 이 돌면 이 항목은 지워지고
-결과가 [HISTORY.md](HISTORY.md) 로 간다.
-
-### FR-PENETRATION-DEVALUES-THE-WALL
-    Status               SELECTED → cycles/C013-penetration-devalues-the-wall
-    지금                 8 Stage 전부 [PASS] · 08-verification 은 VERIFIED (기계) ·
-                         남은 것은 Human Play 확인 아홉 항목 하나다
-    Target Capability    MC-PENETRATION — overlay.md 는 아직 MISSING 으로 둔다.
-                         IMPLEMENTED 승격은 Cycle 이 COMPLETE 로 닫힌 뒤 Feedback 이 한다
-    선택 근거            Playable Result · Constraint Eval · 7 조건은
-                         `01-cycle.md` 의 MASTER TRACE 와 GOAL 이 소유한다 —
-                         여기에 복제해 두지 않는다
 
 ## 후보
 
@@ -111,9 +95,6 @@ WILD ~ UNKNOWN       대기 — 아래 층부터 순서대로
 
 ## 추천 순서 (Agent 제안 — 확정은 Human)
 
-C013 이 닫히기 전까지는 다음 Cycle 을 시작하지 않는다 (Feedback 을 먼저 돌린다 —
-밀리면 Overlay 가 이미 채워진 Capability 를 결손으로 표시한다).
-
 ```text
 1. FR-OBSERVE-REVEALS-THE-OPPONENT    탐험 축의 첫 삽 — Q3 결정(부분 공개)을 세계 규칙로
                                       세우고, 이후 FRINGE 진입·베이라 확장의 기반이 된다
@@ -129,7 +110,8 @@ C013 이 닫히기 전까지는 다음 Cycle 을 시작하지 않는다 (Feedbac
 |---|---|
 | FRINGE 진입 완주 (MP-VENTURE-INTO-FRINGE) | 결손 MC-PREDICT · MC-USE-TERRAIN + 지역(SAFE↔FRINGE 경계)이라는 세계 기반. MC-OBSERVE Cycle 이 먼저다 |
 | WILD 이하 진입 (MP-VENTURE-INTO-WILD ~ UNKNOWN) | 윗층 진입이 먼저다 (MW-DEPTH-GRADIENT). 각 층 결손 4~6종 |
-| Active Defense (완벽한 막기·되받아치기·Break) | R1 §15 층 그림에서 Penetration 위다. 두 문서는 이름만 예고 — 그 층의 설계 문서가 와야 한다 |
+| Active Defense (완벽한 막기·되받아치기·Break) | R1 §15 층 그림에서 Penetration 위이고 그 아래층은 C013 으로 섰다. 이제 막는 것은 설계 문서다 — 두 문서는 이름만 예고한다 |
+| FR-EARN-THE-PIERCING (C013 이 제안) | 관통은 종류가 정한 값이거나 디버그 명령으로만 바뀐다 — 플레이어가 "그 벽을 뚫기 위해 무언가를 한다" 는 선택이 없다. 이것이 장비인지 성장인지 준비 행동인지를 근거 문서가 정하지 않았고, R1 §14 는 다음 층으로 Active Defense 를 지정한다. 형태와 순서 판단은 Human 의 몫 |
 | Aura / Nen (집중·조건·제약·서약) | 사다리의 맨 위 — 아래 층이 서야 의미가 생긴다 |
 | Evade (회피) | R1 §13 이 이후 확장으로만 지정 — §14 순서에 자리가 없다 |
 | MG-ACQUIRE-RARE-ORGAN 의 대안 4종 (줍기·거래·사체·강제) | requires 미배선 (BW 는 구조만 공급) + WILD 지역·기관·거래 상대라는 세계 기반이 없다 — OPTIONS/NEED 와 지역 기반 후속 |

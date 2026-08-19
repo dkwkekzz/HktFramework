@@ -3,8 +3,8 @@
 Master Capability(`graph/capabilities.yaml`) 를 현재 `world/` `view/` 구현 상태와 겹쳐 본 결과다.
 기본 절차 **NEED** 단계의 산출물이며, NEXT(Frontier) 는 여기서 나온다.
 
-기준 시점: **BW(베이라 세계관) 주입 (2026-08-19)** — 코드는 C012 완료 시점 상태 그대로다
-(주입은 Graph 만 넓혔고 세계 구현은 바뀌지 않았다).
+기준 시점: **C013 완료** — 전투 사다리의 Penetration 층까지 세계에 서 있다.
+Graph 범위는 BW(베이라 세계관) 주입 상태 그대로다 (주입은 Graph 만 넓혔다).
 
 근거 문서는 영역별로 분리된다 (근거는 영역을 넘지 않는다 — HISTORY Q15).
 
@@ -36,7 +36,7 @@ Master Capability(`graph/capabilities.yaml`) 를 현재 `world/` `view/` 구현 
 | MC-COMBAT-FLOW | MISSING | — | 공격/방어 배분 상태가 없다 (R1 §14 Aura/Nen 층으로 재설계 예정) |
 | MC-FORTIFY | MISSING | — | Flow 가 없으므로 방어 쪽에 몰아 둔 자세도 없다 (R1 §14 Aura/Nen 층) |
 | MC-ATTACK-ARMOR-MATCHUP | IMPLEMENTED | C012 08-verification — 공격 형태 둘·방어 형태 둘이 존재하고 타입 대응이 계산의 입력을 고른다. 같은 스킬 값이 상대에 따라 20/14 ↔ 17/22 로 갈리는 것이 실측 | — |
-| MC-PENETRATION | MISSING | — | 마주한 방어를 깎는 의미가 없다. 작용 대상인 두 방어는 C012 로 생겼으므로 이제 이것 하나만 없다 (R1 §14 Penetration 층 · 작용 지점은 DamageType R0 §15) |
+| MC-PENETRATION | IMPLEMENTED | C013 08-verification — 마주한 방어가 결정적으로 깎이고(resistance 90 → 56.25), 마주하지 않은 방어에는 닿지 않으며(물리 타격의 C010 값 20 이 그대로), 두껍게 굳힐수록 걷히는 몫이 커진다(0/7.5/33.75/112.5). 방어를 없애지는 못한다(관통 100000 에서도 남는다) | — |
 | MC-CONDITION-STACKING | MISSING | — | 조건이라는 개념 자체가 없다 (R1 §14 Aura/Nen 층) |
 | MC-VOW | MISSING | — | 제약·실패 대가가 없다 (R1 §14 Aura/Nen 층) |
 | MC-CRITICAL-STRIKE | MISSING | — | Critical 이라는 개념이 없다 (R1 §14 C011 층 — Q11(b) 로 열렸다) |
@@ -78,12 +78,12 @@ Constraint Violation 과 혼동하지 않는다 — 여기는 **있는가/없는
 |---|---|---|
 | MP-OUTGROW-THE-OPPONENT | **없음** | **C010 으로 닫혔다** — 요구 Capability 3종이 모두 IMPLEMENTED. 이 경로는 지금 플레이 가능하다 |
 | MP-TRADE-BODY-FOR-RESOURCE | **없음** | **C011 로 닫혔다** — 요구 Capability 4종이 모두 IMPLEMENTED. 이 경로는 지금 플레이 가능하다 |
-| MP-READ-AND-COUNTER | MC-PERFECT-GUARD · MC-COUNTER | C011 이 MC-GUARD 를 채워 셋에서 둘로 줄었다. R1 §15 층 그림에서 Active Defense 는 Penetration 위다 |
+| MP-READ-AND-COUNTER | MC-PERFECT-GUARD · MC-COUNTER | C011 이 MC-GUARD 를 채워 셋에서 둘로 줄었다. R1 §15 층 그림에서 Active Defense 는 Penetration 위이고, 그 아래층은 C013 으로 섰다 — 이제 그 층의 설계 문서만 없다 |
 | MP-EVADE-BY-MOVING-THE-BODY | MC-EVADE | R1 §13 이 Dodge 를 이후 확장으로만 지정 — §14 순서에 자리가 없다 |
 | MP-BREAK-THE-GUARD | MC-BREAK | R1 §14 Active Defense 층 — 그 층의 설계 문서 대기 |
 | MP-EXPLOIT-OPEN-BODY | MC-COMBAT-FLOW | R1 §14 Aura/Nen 층으로 이연 |
 | MP-MATCH-WEAPON-TO-ARMOR | **없음** | **C012 로 닫혔다** — 요구 Capability 2종과 지식 1종이 모두 섰다. 이 경로는 지금 플레이 가능하다 |
-| MP-PIERCE-THE-HARD-DEFENSE | MC-PENETRATION | **하나만 남았다** — C012 가 관통이 작용할 두 방어를 세웠다. R1 §14 Penetration 층이며 지금 가장 가까운 경로다 |
+| MP-PIERCE-THE-HARD-DEFENSE | **없음** | **C013 으로 닫혔다** — 요구 Capability 4종이 모두 IMPLEMENTED. 이 경로는 지금 플레이 가능하다. 다만 아직 좁다 — 플레이어가 관통을 **얻는** 경로가 세계에 없다 (종류가 정한 값과 디버그 명령뿐) |
 | MP-HOLD-FORTIFIED | MC-FORTIFY · MC-COMBAT-FLOW | R1 §14 Aura/Nen 층으로 이연 (MC-DEFENSE-MITIGATION 은 C010 으로 채워졌다) |
 | MP-STAKE-EVERYTHING-ON-ONE-BLOW | MC-VOW · MC-CONDITION-STACKING · MC-COMBAT-FLOW | R1 §14 Aura/Nen 층 — 가장 멀다 |
 | MP-BET-ON-THE-CRITICAL-BLOW | MC-CRITICAL-STRIKE | **하나만 없다** — Q11(b) 로 열린 R1 §14 C011 층. 나머지 2종은 IMPLEMENTED |
