@@ -1,0 +1,20 @@
+# HUMAN_DIRECTED 확장 (Q22).
+id: IT-SEVERING-BLADE
+type: item_type
+
+semantic: >
+  불연정을 날로 삼은 무기. 생체 연결 사이에 끼어들어 이어짐을 끝낸다.
+detail: >
+  경계결정 무기(IT-BOUNDARY-BLADE)와 나란히 두면 대상이 다르다. 그쪽은 물질의
+  구조적 연결을, 이쪽은 살아 있는 것들 사이의 연결을 다룬다. 그리고 이것은
+  베어서 끊는 것이 아니라 사이에 있음으로써 끊는다 — 날을 대고 있는 동안 연결이
+  성립하지 않는다.
+world_shape: >
+  여럿이 하나처럼 묶여 있는 상대에게 이것을 쓰면 묶임이 풀려 낱개로 움직여야 한다.
+  피해를 주는 것만으로는 이 노드가 아니다.
+
+origin_trace:
+  world_state: [MW-ZONE-DEEP]
+  property:    [IP-BIOLOGICALLY-CLOSED]
+  human_value: >
+    공생 Network 로 묶인 상대를 낱개로 되돌린다.

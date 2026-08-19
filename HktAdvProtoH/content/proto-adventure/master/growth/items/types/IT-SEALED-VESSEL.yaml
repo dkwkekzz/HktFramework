@@ -1,0 +1,20 @@
+# HUMAN_DIRECTED 확장 (Q22).
+id: IT-SEALED-VESSEL
+type: item_type
+
+semantic: >
+  불식광으로 만든 그릇. 삭이는 것과 독을 담아도 그릇이 상하지 않는다.
+detail: >
+  무기도 방어구도 아닌 첫 제작물이다. 이것이 있어야 베이라의 산물을 상하게 하지
+  않고 문명권까지 가지고 나올 수 있다 — 즉 이 그릇은 전투가 아니라 **교역과
+  제작의 전제**다. 자원이 판매용 전리품이 아니라 다음 무언가의 재료가 되려면
+  먼저 옮겨질 수 있어야 한다.
+world_shape: >
+  담은 것이 시간이 지나도 변하지 않고, 그릇 자체도 상하지 않아야 한다.
+  이것 없이 옮긴 것과 담아서 옮긴 것이 달라야 한다.
+
+origin_trace:
+  world_state: [MW-ZONE-WILD]
+  property:    [IP-UNREACTIVE]
+  human_value: >
+    베이라의 산물을 문명권으로 가지고 나오는 수단.

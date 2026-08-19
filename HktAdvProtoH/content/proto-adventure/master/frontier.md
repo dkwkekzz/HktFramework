@@ -36,7 +36,9 @@ WILD ~ UNKNOWN       대기 — 아래 층부터 순서대로
 **세계 순환** (BW §16 · §17) — 이번 대조로 드러난 축이다:
 
 ```text
-탐험 → 자원 → 능력 → 더 깊은 탐험     네 칸 모두 비어 있다. 후보 D 가 첫 삽이다
+탐험 → 자원 → 능력 → 더 깊은 탐험
+설계    Q22 로 닫혔다 — 광물 6종 · grants 3건 (growth/growth-graph.md)
+구현    네 칸 모두 비어 있다. 후보 D 가 첫 삽이다
 ```
 
 ## 진행 중
@@ -136,20 +138,21 @@ WILD ~ UNKNOWN       대기 — 아래 층부터 순서대로
     Active Constraints   DC-WORLD-PROGRESSION-IS-REACH · DC-WORLD-RESOURCE-ADAPTATION-TRACE ·
                          DC-COMBAT-ONE-FORMULA · DC-GROWTH-GOAL-FIRST ·
                          DC-GROWTH-CLASS-ORIGIN-TRACE
-    Constraint Eval      UNRESOLVED — Human 판단이 필요하다. 지금 세계의 유일한 자원(돌)은
-                         MW-SPATIAL-SHEAR 도 MW-HYPER-PREDATION 도 아닌, 세계 인과가 없는
-                         채집물이다. 그것으로 능력치를 올리면 RESOURCE-ADAPTATION-TRACE 의
-                         `resource_placed_without_world_cause` 에 걸릴 수 있다.
-                         → 선택지: (a) 돌에 세계 유래를 먼저 부여한다 (b) 능력치가 아니라
-                         제작(곡괭이 → 무기)으로 좁힌다 (c) 이 후보를 지역 기반 뒤로 미룬다
+    Constraint Eval      SATISFIED — Q22 로 닫혔다. 지금 캐는 돌은 IT-COMMON-STONE 이고
+                         MW-SAFE-FRONTIER 유래를 갖는다. 아무 성질이 없는 것이 그 땅의
+                         세계 법칙이 낳은 결과이므로 `resource_placed_without_world_cause`
+                         에 걸리지 않는다. 다만 그 성격이 이 Cycle 의 형태를 정한다 —
+                         평범한 돌은 기적을 주지 않으므로, 여는 것은 **제작**(돌 → 도구·무기)
+                         이지 능력치 직접 상승이 아니다. 기적적인 성장은 베이라 광물의 몫이다
+                         (growth/growth-graph.md 광물 표)
     Observable Result    캐거나 얻은 것을 쓰기 전과 후에 같은 상대·같은 스킬의 피해가
                          달라지고, 그 차이가 계산 내역으로 설명된다
     Why one Cycle        새 전투 규칙이 없다 — 이미 있는 능력치에 그것을 바꾸는 세계 내
                          행위 하나가 붙는다
     7 조건               1 PARTIAL · 2 성장이라는 축 전체를 연다 · 3 Client 실측 가능 ·
-                         4 한 Cycle · 5 새 World 규칙 · 6 Constraint 판단 필요(위) ·
+                         4 한 Cycle · 5 새 World 규칙 · 6 Q22 로 Constraint 닫힘 ·
                          7 BW §17 순환의 첫 칸이 된다
-    Status               PROPOSED — Constraint 판단 선행
+    Status               PROPOSED
 
 ## 추천 순서 (Agent 제안 — 확정은 Human)
 
@@ -159,7 +162,7 @@ WILD ~ UNKNOWN       대기 — 아래 층부터 순서대로
 
 2. D  FR-WHAT-YOU-GATHER-CHANGES-YOUR-BODY  가장 크게 막힌 것을 푼다. 성장이 세계 밖에
                                           있는 한 "닫혔다" 고 적은 전투 경로들도 실은
-                                          절반이다. 단 Constraint 판단이 먼저다
+                                          절반이다. Q22 로 Constraint 판단이 닫혔다
 
 3. B  FR-OBSERVE-REVEALS-THE-OPPONENT     탐험 축의 첫 삽. 파급이 크므로(관찰 계약 전체)
                                           범위를 좁게 잡아야 한다
@@ -176,7 +179,7 @@ WILD ~ UNKNOWN       대기 — 아래 층부터 순서대로
 |---|---|
 | FRINGE 진입 완주 (MP-VENTURE-INTO-FRINGE) | 결손 MC-PREDICT · MC-USE-TERRAIN + 지역(SAFE↔FRINGE 경계)이라는 세계 기반. 후보 B 가 먼저다 |
 | WILD 이하 진입 | 윗층 진입이 먼저다 (MW-DEPTH-GRADIENT). 각 층 결손 3~6종 |
-| MP-ADAPT-BY-RESOURCE 완주 (BW §17 순환) | 요구 2종의 획득 경로가 전무하고 지역도 없다. 후보 D 가 그 순환의 첫 칸이다 |
+| MP-ADAPT-BY-RESOURCE 완주 (BW §17 순환) | Q22 로 **설계상 획득 경로는 섰다**(경계결정 → IM-BOUNDARY-EDGED → MC-CUT-ABNORMAL-STRUCTURE). 남은 것은 지역·제작이라는 세계 구현이다. 후보 D 가 그 첫 칸이다 |
 | Active Defense (완벽한 막기·되받아치기·Guard Break) | R1 §15 층 그림에서 Penetration 위다. 두 문서는 이름만 예고 — 그 층의 설계 문서가 와야 한다 |
 | Aura / Nen (집중·조건·제약·서약) | 사다리의 맨 위 — 아래 층이 서야 의미가 생긴다 |
 | Evade (회피) | R1 §13 이 이후 확장으로만 지정 — §14 순서에 자리가 없다 |

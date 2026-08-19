@@ -520,3 +520,52 @@ ONE-LAYER-AT-A-TIME 신설, 이연 층 근거의 3종은 DRAFT 보류.
     이로써 탐험 영역에 Goal → Possibility → Capability 척추가 섰다
     (MG-EXPLORE-BEIRA → 깊이 진입 5 → 사다리 21). 여전히 남는 공백(§27 대안의
     requires · 층별 Local Goal)은 문서가 실제로 공급하지 않는 것들이다.
+
+---
+
+## Q20. 코드 대조로 올라간 Overlay 판정 2건 — CLOSED
+
+    DECISION      (a) 둘 다 확정 (Human)
+
+    MC-PENETRATION          MISSING → IMPLEMENTED
+        C013 의 08-verification 이 기록한 실측. C013 은 Human Play 확인 후 닫힌다.
+    MC-COMBAT-CAUSE-READING PARTIAL → IMPLEMENTED
+        C010 이 계산 내역을 관찰 계약에 실었으나 그 Cycle 의 FEEDBACK 이 이 Capability 를
+        보고하지 않아 PARTIAL 로 남아 있던 것. 코드에는 고른 능력치 이름·값부터
+        막기 결과까지 전부 실린다.
+
+    배운 것: Cycle FEEDBACK 이 빠뜨린 Capability 는 다음 Cycle 이 그것을 건드리기 전까지
+    조용히 낡는다. 주기적인 코드 대조가 필요하다는 근거가 되었다.
+
+## Q22. 지금 세계의 유일한 자원(돌)에 세계 유래를 부여하는가 — CLOSED
+
+    DECISION      세계에 있어야 할 광물을 더 정의하고 연결한다 (Human)
+
+    선택지 (a)(b)(c) 중 어느 하나가 아니라 범위를 넓히는 답이었다 — 돌 하나를
+    구제하는 대신 광물 계통 자체를 세웠다.
+
+    세운 것 (growth/items/)
+        IP  5종  BOUNDARY-STABLE(기존) · UNREACTIVE · SHOCK-DISPERSING ·
+                 BIOLOGICALLY-CLOSED · SELF-IDENTICAL
+        IT  6종  COMMON-STONE · BOUNDARY-BLADE(기존) · SEALED-VESSEL ·
+                 WARDING-PLATE · SEVERING-BLADE · ANCHOR-STONE
+        IM  3종  BOUNDARY-EDGED · BIO-SEVERING · IDENTITY-ANCHORED
+
+    원래 질문(돌)의 답: IT-COMMON-STONE 은 MW-SAFE-FRONTIER 에서 나온다.
+    "굳지 않은 세계압이 적어 변화가 없는 땅" 이므로 아무 성질이 없는 것이 정상이고,
+    그것이 곧 세계 유래다. 특별하지 않다는 사실 자체가 세계 법칙의 결과이므로
+    DC-WORLD-RESOURCE-ADAPTATION-TRACE 를 위반하지 않는다. 베이라 광물들의 기준선 노릇을 한다.
+
+    지킨 원칙
+        grants 3건 전부 **이미 어떤 Possibility 가 요구하던** MC-* 를 가리킨다 —
+        MC-CUT-ABNORMAL-STRUCTURE · MC-BREAK-BIOLOGICAL-LINK · MC-IDENTITY-ANCHOR.
+        광물을 정당화하려고 새 MC-* 를 만들지 않았다
+        (DC-GROWTH-NEED-FROM-POSSIBILITY · BW §18).
+        불식광·산격석은 요구하는 경로가 없어 grants 를 비우고 사유를 적었다 —
+        능력을 열지 않는 자원은 정상이다 (BW §12).
+
+    효과: BW §17 순환(탐험 → 자원 → 능력 → 더 깊은 탐험)이 그래프에서 처음으로 닫혔다.
+    grants 배선 0건 → 3건. 다만 세계 구현에는 여전히 제작·장착·거래가 없다.
+
+    SCHEMA 변경: IP/IT 에 origin_trace 필수, IM 에 grants 규칙 명시.
+    유래를 주석이 아니라 필드로 남긴다 — 이번 정비 전체의 교훈과 같다.

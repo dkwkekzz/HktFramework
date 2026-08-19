@@ -334,24 +334,63 @@ constraint_evaluation:
 ### growth/items/ — IT- / IP- / IM-
 
 ```yaml
-# types/IT-*.yaml — 아이템의 기본 의미 (GR §28.1)
-id: IT-<NAME>
-type: item_type
-semantic: >
-  <이 종류의 아이템이 세계에서 무엇인가>
-
 # properties/IP-*.yaml — 세계적 성질만. 수치 옵션은 Node 가 아니다 (GR §28.2~§28.3)
 id: IP-<NAME>
 type: item_property
 semantic: >
   <세계에서 의미를 가지는 성질 — Fire / Cursed / Living …>
+detail: >
+  <풀어서 — 비슷한 다른 성질과 무엇으로 갈리는가>
+world_shape: >
+  <이 성질이 있다는 것을 무엇으로 확인하는가>
+origin_trace:                 # 필수 — BW §11 · §33 · DC-WORLD-RESOURCE-ADAPTATION-TRACE
+  world_state: [MW-...]       # 어느 세계 상태에서 나왔는가
+  pressure: >
+    <그곳의 무엇이 물질을 몰아붙였는가. 없으면 "없음" 과 그 사유>
+  why_it_remains: >
+    <왜 이것만 남았는가 — 물질은 살아남는 것이 아니라 잔존하는 것이다>
+  human_value: >
+    <문명권에서는 불가능한 어떤 문제를 푸는가>
+
+# types/IT-*.yaml — 아이템의 기본 의미 (GR §28.1)
+id: IT-<NAME>
+type: item_type
+semantic: >
+  <이 종류의 아이템이 세계에서 무엇인가>
+detail: >
+  <풀어서>
+world_shape: >
+  <이것이 세계에 있다는 것을 무엇으로 확인하는가>
+origin_trace:
+  world_state: [MW-...]
+  property:    [IP-...]       # 어느 성질에서 이 쓸모가 나왔는가
+  human_value: >
+    <왜 값진가>
 
 # modifiers/IM-*.yaml — 행동·Capability 를 의미 있게 바꾸는 조합 요소 (GR §28.3)
 id: IM-<NAME>
 type: item_modifier
+semantic: >
+  <이 조합 요소가 무엇인가>
+detail: >
+  <풀어서>
 requires: [IP-...]
-grants:   [MC-...]
+grants:   [MC-...]            # 반드시 **기존** MC-* 를 가리킨다
 ```
+
+`grants` 규칙 — 여기가 Growth 의 방향을 지킨다.
+
+```text
+grants 는 이미 어떤 Possibility 가 요구하고 있는 MC-* 만 가리킨다.
+이 Item 을 정당화하려고 새 MC-* 를 만들지 않는다 (DC-GROWTH-NEED-FROM-POSSIBILITY · BW §18).
+가리킬 기존 MC-* 가 없으면 grants 를 비우고 `grants_note` 에 그 사유를 적는다 —
+성질만 있고 능력을 열지 않는 자원은 정상이다. 세계압은 가능성을 늘릴 뿐
+Loot 를 보장하지 않는다 (BW §12).
+같은 의미의 MC-* 를 Source 별로 복제하지 않는다 (DC-GROWTH-NO-CAPABILITY-DUPLICATION).
+```
+
+`origin_trace` 가 비면 그 Item 은 "좋은 것을 위험한 곳에 배치한" 것이 된다 —
+BW §11 · §34 가 금지하는 바로 그 방향이다 (DC-WORLD-RESOURCE-ADAPTATION-TRACE).
 
 구체 수치(공격력 +13 등)는 Cycle / World Rule 이 소유한다 (GR §28.2 · §39 — 정책 §7.2 와 동일).
 

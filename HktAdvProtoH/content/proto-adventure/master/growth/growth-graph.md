@@ -9,60 +9,72 @@ Master Capability 를 **"세계 안에서 어떻게 얻는가"**(Class / Item / 
 ```
 
 둘을 헷갈리면 안 된다. 공격력이 피해를 바꾸는 것(구현됨)과 플레이어가 공격력을 올릴 수
-있는 것(획득 경로)은 다른 이야기이고, **지금 이 프로젝트가 정확히 그 사이에 걸려 있다.**
+있는 것(획득 경로)은 다른 이야기이고, 지금 이 프로젝트가 정확히 그 사이에 걸려 있다.
 
 GR = `design/Master-Intent-Graph-Growth.md`. 형식: [../SCHEMA.md](../SCHEMA.md).
 
-## 지금 상태 — 한 줄로
+## 광물 — 어디서 왔고 무엇을 여는가
 
-세계 안에서 무언가를 **가지게 되는** 경로가 하나도 없다. 획득 경로 표가 전부 "없음" 인
-것은 노드를 아직 안 세워서가 아니라, 세계에 그런 종류의 사건이 없기 때문이다.
+Q22 로 세계의 광물을 정의했다. 각 광물은 **어떤 압력이 그것만 남겼는가**를 갖는다 —
+좋은 것을 위험한 곳에 배치한 것이 아니라, 그 환경이 남긴 것이 인간에게 값진 것이다
+(BW §11 · §33 · DC-WORLD-RESOURCE-ADAPTATION-TRACE).
+
+| 광물 | 유래 | 왜 그것만 남았나 | 성질 | 제작물 | 여는 Capability |
+|---|---|---|---|---|---|
+| 평범한 돌 | MW-SAFE-FRONTIER | 변화시키는 압력이 없어 그냥 남았다 — 겪은 일이 없다 | 없음 (그것이 요점) | IT-COMMON-STONE | 없음 |
+| 경계결정 | MW-SPATIAL-SHEAR | 공간이 어긋나도 구조적 연속성을 유지했다 | IP-BOUNDARY-STABLE | IT-BOUNDARY-BLADE | **MC-CUT-ABNORMAL-STRUCTURE** (IM-BOUNDARY-EDGED) |
+| 불식광 | MW-ZONE-WILD | 독과 삭임이 만연해 반응하는 것은 다 사라졌다 | IP-UNREACTIVE | IT-SEALED-VESSEL | 없음 (사유 아래) |
+| 산격석 | MW-ZONE-DANGER | 충격을 한 점에 받는 구조는 부서지고 흩어 보내는 것만 남았다 | IP-SHOCK-DISPERSING | IT-WARDING-PLATE | 없음 (사유 아래) |
+| 불연정 | MW-ZONE-DEEP | 공생 Network 에 끌려 들어간 것은 그 체계의 일부가 되었고, 끌려 들어가지 않은 것만 광물로 남았다 | IP-BIOLOGICALLY-CLOSED | IT-SEVERING-BLADE | **MC-BREAK-BIOLOGICAL-LINK** (IM-BIO-SEVERING) |
+| 정박정 | MW-ZONE-UNKNOWN | 정체가 흔들린 것은 더 이상 그것이 아니게 되고, 자기 동일성을 잃지 않은 것만 같은 것으로 남았다 | IP-SELF-IDENTICAL | IT-ANCHOR-STONE | **MC-IDENTITY-ANCHOR** (IM-IDENTITY-ANCHORED) |
+
+### 왜 둘은 아무 능력도 열지 않는가
+
+불식광과 산격석은 성질과 제작물만 있고 `grants` 가 비어 있다. 빠뜨린 것이 아니다.
+
+지금 어떤 Possibility 도 "삭임을 견딘다" 나 "환경 위험을 견딘다" 를 요구하지 않는다.
+요구가 없는데 자원이 있다는 이유로 Capability 를 만들면 그 순간 방향이 뒤집힌다 —
+`DC-GROWTH-NEED-FROM-POSSIBILITY` 와 BW §18 이 금지하는 바로 그 형태다.
+요구하는 경로가 생기면 그때 잇는다. 그때까지 이 둘은 재료이고, 그것으로 충분하다.
+세계압은 가능성을 늘릴 뿐 전리품을 보장하지 않는다 (BW §12).
+
+### BW §17 순환이 그래프에서 닫혔다
+
+세 개의 `grants` 배선이 "한 층의 산물이 다음 층의 조건이 된다" 를 실제 간선으로 만든다.
 
 ```text
-Class(CL-*)      노드 0 개
-Item(IT-* IP-*)  노드 2 개 — BW §10 이 직접 명명한 경계결정 계열뿐
-Modifier(IM-*)   노드 0 개
-grants 배선      0 건 — 따라서 모든 Capability 의 획득 경로가 미완이다
+MW-SPATIAL-SHEAR   → 경계결정 → MC-CUT-ABNORMAL-STRUCTURE  → MP-ADAPT-BY-RESOURCE
+MW-ZONE-DEEP       → 불연정   → MC-BREAK-BIOLOGICAL-LINK   → MP-VENTURE-INTO-UNKNOWN
+MW-ZONE-UNKNOWN    → 정박정   → MC-IDENTITY-ANCHOR         → MP-VENTURE-INTO-UNKNOWN
 ```
 
-## 표
+세 경우 모두 **필요가 먼저 있었고 경로가 나중에 붙었다.** 세 Capability 전부
+이 광물들을 세우기 전부터 어떤 Possibility 가 요구하고 있던 노드다.
 
-경로 노드가 없는 Capability 를 전부 나열하지 않는다. 경로가 문서로 예고되었거나
-부재가 코드로 확인된 것만 판정한다.
+## 아직 경로가 없는 것
 
 | Capability | 획득 경로 | 근거 | 부족한 것 |
 |---|---|---|---|
-| MC-ATTACK-POWER | **없음** | 코드 대조 — 능력치를 바꾸는 유일한 규칙이 디버그 명령이다. 장착도 소모품도 훈련도 레벨도 없고, 스폰 시 종류별 기본값이 정해진 뒤 그대로다 | 이 값을 올리는 세계 내 경로 전부 |
-| MC-CUT-ABNORMAL-STRUCTURE | IT-BOUNDARY-BLADE (예고 — BW §17) | BW §10 · §17 이 경계결정 → Boundary Blade → 이 Capability 사슬을 명시한다 | `grants` 는 스키마상 IM-*/CL-* 소유다. 제작(조합 규칙)이 정해져 IM 이 서기 전까지 배선 없음. 세계 구현도 전무 |
-| MC-RESTORE-BIOLOGICAL-STATE | **없음** | BW §8 은 원천(회귀초 — MW-HYPER-PREDATION 적응)만 명시하고 Item ID 를 명명하지 않았다 | 회귀초의 IT-* 노드와 획득·사용 규칙 전부. 문서가 ID 를 주지 않아 세우지 않았다 (지어내지 않는다) |
-| 전투 Capability 전반 | **없음** | 코드 대조 — 배우거나 얻거나 되는 사건이 세계에 없다 | 위와 같음 |
+| MC-ATTACK-POWER | **없음** | 코드 대조 — 능력치를 바꾸는 유일한 규칙이 디버그 명령이다. 장착도 소모품도 훈련도 레벨도 없고, 스폰 시 종류별 기본값이 정해진 뒤 그대로다 | 이 값을 올리는 세계 내 경로 전부. 광물을 세워도 **쓰는 규칙**이 없으면 그대로다 |
+| MC-RESTORE-BIOLOGICAL-STATE | **없음** | BW §8 은 원천(회귀초)만 명시하고 Item ID 를 명명하지 않았다 | 회귀초의 IT-* 와 획득·사용 규칙. 문서가 ID 를 주지 않아 세우지 않았다 — 광물은 Q22 로 정의했으나 식물은 Human 지시 범위 밖이었다 |
+| 전투 Capability 전반 | **없음** | 코드 대조 — 배우거나 얻거나 되는 사건이 세계에 없다 | Class(CL-*) 노드 0 개 |
 
 ### 채집은 있는데 왜 획득 경로가 없다고 하는가
 
-세계에 채집이 하나 있다 — 곡괭이를 들고 광맥에 다가가 돌을 캔다. 그런데 그 돌은
-개수만 세어지고 아무 데도 쓰이지 않는다. 만들 것도, 장착할 것도, 팔 상대도 없다.
-곡괭이 자체도 시작할 때 그냥 주어지고 닳지 않는다.
+세계에 채집이 하나 있다 — 곡괭이를 들고 광맥에 다가가 돌을 캔다. 그 돌이 이제
+`IT-COMMON-STONE` 으로 세계 유래를 갖게 되었지만, 여전히 개수만 세어지고 아무 데도
+쓰이지 않는다. 만들 것도, 장착할 것도, 팔 상대도 없다.
 
 그러니 세계에는 **물건을 얻는 행위**는 있고 **그 물건으로 달라지는 것**이 없다.
 Growth 의 관점에서 이것은 경로가 아니라 경로의 앞부분 한 칸이다.
+설계에서 순환이 닫힌 것과 세계에서 순환이 도는 것은 다르다.
 
-## 이것이 막고 있는 것
+## 구현 현황
 
-`MP-ADAPT-BY-RESOURCE`(possibilities.yaml) 가 이 공백의 정확한 피해자다.
-그 노드는 BW §17 의 순환 — 탐험에서 얻은 자원이 다음 탐험의 조건이 된다 — 을 그래프에
-세운 것인데, 요구하는 두 Capability 가 모두 획득 경로 없음이라 순환이 시작되지 않는다.
-
-```text
-BW §17 이 말하는 순환                        지금 끊긴 자리
-────────────────────────────────────────────────────────────
-지역에 들어간다                              지역이 없다
-  ↓
-자원을 얻는다                                광석 하나만 · 쓸모 없음   ← 끊김
-  ↓
-그 자원이 능력을 준다                        grants 배선 0 건          ← 끊김
-  ↓
-그 능력으로 더 깊은 지역에 간다              지역이 없다
-```
+| 층 | 상태 |
+|---|---|
+| 설계 (이 문서) | IP 5 · IT 6 · IM 3 · grants 3 건 — BW §17 순환이 그래프에서 닫혔다 |
+| 세계 (`world/`) | 광물 1 종(돌)만 존재하고 쓰임이 없다. 제작·장착·거래 규칙 전무 |
 
 ## 채워지는 경로
 
@@ -73,13 +85,13 @@ WHY — 세계 사실(MW-*)이 생긴다
       ↓
 OPTIONS / NEED — 그 세계에서 Possibility 와 필요 Capability 가 나온다
       ↓
-탐색 4단계가 origin_trace 를 갖춘 CL-* / IT-* 노드를 세운다   ← 주입이 아니다
+그 필요를 채우는 CL-* / IT-* / IM-* 가 origin_trace 를 갖추고 선다   ← 역방향 금지
       ↓
 이 표에 획득 경로가 채워진다
 ```
 
-Class / Item 노드는 `origin_trace`(World Cause) 필수다 (DC-GROWTH-CLASS-ORIGIN-TRACE).
-IT-BOUNDARY-BLADE · IP-BOUNDARY-STABLE 은 MW-SPATIAL-SHEAR trace 로 섰다.
+Class 노드는 `origin_trace`(World Cause) 필수다 (DC-GROWTH-CLASS-ORIGIN-TRACE).
+Item 도 같은 요구를 SCHEMA 의 `origin_trace` 로 진다 (GR §41 Item Gate).
 
 이 파일에는 **현재 상태만** 둔다 — 갱신 이력은 [../HISTORY.md](../HISTORY.md) 소유다.
 Cycle Agent 는 이 파일을 직접 편집하지 않는다.

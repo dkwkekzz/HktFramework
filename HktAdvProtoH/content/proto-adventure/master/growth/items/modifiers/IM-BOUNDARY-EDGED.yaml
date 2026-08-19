@@ -1,0 +1,15 @@
+# 원본 근거: BW §10 · §17 — 경계결정 → 무기 → "기존에는 파괴할 수 없던 생물·구조 대응".
+# grants 는 기존 Capability 를 가리킨다. 이 조합을 위해 새 MC-* 를 만들지 않았다
+# (DC-GROWTH-NEED-FROM-POSSIBILITY · DC-GROWTH-NO-CAPABILITY-DUPLICATION).
+id: IM-BOUNDARY-EDGED
+type: item_modifier
+
+semantic: >
+  경계결정을 날·촉으로 마감한 것. 무엇에 붙이든 그 물건이 구조적 연결에 작용하게 된다.
+detail: >
+  이 노드가 BW §17 Capability Gate 의 실물이다 — 지역에서 얻은 광물이 제작을 거쳐
+  능력이 되고, 그 능력이 다음 층을 연다. 검에 붙이면 검이, 촉에 붙이면 화살이
+  같은 일을 한다는 점이 중요하다: 능력은 물건 종류가 아니라 성질에서 나온다.
+
+requires: [IP-BOUNDARY-STABLE]
+grants:   [MC-CUT-ABNORMAL-STRUCTURE]
