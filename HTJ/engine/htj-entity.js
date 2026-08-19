@@ -44,7 +44,13 @@
       entity.cy = wrap(entity.cy, opts.N);
       entity.cz = wrap(entity.cz, opts.N);
     }
-    // 질량·운동량 P·각운동량 L·내부E·총E 는 자유 운동에서 *불변* — 손대지 않는다(위치만 변함).
+    // (RG1·B안 게이트) 방향각 θ 적분 — 강체 분자가 스핀으로 *돈다*: ω=Lz/I → θ += ω·dt(2D, z축 스핀).
+    //   `theta` 가 *있는 개체에만* 적용(없으면 undefined!=null=false → skip) → 기존 모든 개체 byte 동일(회귀 0).
+    //   design/rigid-ground.md §4 — 껍질이 분자를 따라 돌게 하는 빠진 상태값. inertia 없으면 회전 0.
+    if (entity.theta != null && entity.inertia != null && entity.inertia > EPS) {
+      entity.theta += (entity.Lz || 0) / entity.inertia * dt;
+    }
+    // 질량·운동량 P·각운동량 L·내부E·총E 는 자유 운동에서 *불변* — 손대지 않는다(위치/각도만 변함).
     return entity;
   }
 
@@ -258,6 +264,91 @@
       e.energy = e.KEcm + e.internalE;
     }
     return entities;
+  }
+
+  // 강체 운동E(병진+스핀) — 감쇠 소산 회계용. I 없으면 회전항 0.
+  function rigidKE(e, m, I) {
+    const t = (e.px * e.px + e.py * e.py + (e.pz || 0) * (e.pz || 0)) / (2 * m);
+    return t + (I != null && I > EPS ? 0.5 * (e.Lz || 0) * (e.Lz || 0) / I : 0);
+  }
+
+  // (RG1) 강체 분자 껍질 접촉 — 합쳐진 *분자 하나*(단일 강체)가 자기 DNA *구조*를 충돌 껍질로 쓰고,
+  //   접촉 반작용을 그 분자 하나로 합산(합력 + 토크)한다. design/rigid-ground.md §4·§5 RG1.
+  //   분자는 끝까지 한 엔티티 — *안 쪼갠다*. 껍질 점은 물리 개체가 아니라 body-frame 구조 오프셋(shell)이며,
+  //   매 호출 분자 자세(CoM + 회전 theta)로 월드에 놓여 충돌 표면을 이룬다. 자유 구성원이 없으니 자기중력
+  //   붕괴·불도저 산개가 *원천 불가*(design §3). 다른 개체(캐릭터)가 껍질에 닿으면:
+  //     반발(Hooke)+감쇠 충격량 J 를 *접촉점 p*(개체 표면)에서 잡아 —
+  //       분자엔   +J(병진) + 토크 (p−분자CoM)×J  (스핀 Lz),
+  //       개체엔   −J(병진) + 토크 (p−개체중심)×(−J).
+  //     같은 접촉점·equal-opposite → **원점 기준 계 총 운동량·각운동량 정확 보존**(고정/핀 아님 = 진짜 자유
+  //     강체). 감쇠는 잃은 KE(병진+스핀)를 두 개체 internalE 로(비가역·역전 금지 클램프).
+  //   body: 분자 {cx,cy,cz,theta?,inertia?,px,py,pz,Lz,mass,internalE}. shell: [{ox,oy,r}] body-frame 오프셋(2D·z=0).
+  //   others: 껍질과 충돌할 개체들(예: [캐릭터]). opts: { k(반발·기본 0→early-return 회귀 0), cDamp(감쇠·기본 0) }.
+  //   theta/inertia 없으면 회전 0(A안 폴백). body·others 를 제자리 변형(반환 없음).
+  function applyShellContact(others, body, shell, dt, opts) {
+    opts = opts || {};
+    const k = opts.k != null ? opts.k : 0;
+    const c = opts.cDamp != null ? opts.cDamp : 0;
+    if (!shell || shell.length === 0 || (k === 0 && c === 0)) return;   // 노브/껍질 0 → 회귀 0
+    const th = body.theta != null ? body.theta : 0;
+    const cs = Math.cos(th), sn = Math.sin(th);
+    const Ib = (body.inertia != null && body.inertia > EPS) ? body.inertia : null;
+    const wb = Ib != null ? (body.Lz || 0) / Ib : 0;                    // 분자 각속도(스핀)
+    const Mb = body.mass > EPS ? body.mass : 1;
+    if (body.internalE == null) body.internalE = 0;
+    for (let si = 0; si < shell.length; si++) {
+      const s = shell[si];
+      const rx = cs * s.ox - sn * s.oy, ry = sn * s.ox + cs * s.oy;     // 회전된 오프셋 → 껍질 점 위치
+      const sx = body.cx + rx, sy = body.cy + ry;
+      for (let ei = 0; ei < others.length; ei++) {
+        const e = others[ei];
+        if (e === body) continue;
+        const dx = sx - e.cx, dy = sy - e.cy;                           // e → 껍질 점
+        const d = Math.sqrt(dx * dx + dy * dy);
+        const overlap = (e.radius + s.r) - d;
+        if (overlap <= 0 || d < EPS) continue;
+        const nx = dx / d, ny = dy / d;                                 // 법선(e→shell)
+        const me = e.mass > EPS ? e.mass : 1;
+        if (e.internalE == null) e.internalE = 0;
+        if (e.Lz == null) e.Lz = 0;
+        // 접촉점 p = e 표면 위(양쪽이 *같은 p* 만 쓰면 보존은 정확). 각 body 의 lever 는 p−자기중심.
+        const px = e.cx + nx * e.radius, py = e.cy + ny * e.radius;
+        const lbx = px - body.cx, lby = py - body.cy;                   // 분자 lever
+        const lex = px - e.cx, ley = py - e.cy;                         // 개체 lever
+        // 접촉점 표면 속도(스핀 포함): v = v_cm + ω × r  (2D: ω×r=(−ω·ry, ω·rx)).
+        const Ie = (e.inertia != null && e.inertia > EPS) ? e.inertia : null;
+        const we = Ie != null ? (e.Lz || 0) / Ie : 0;
+        const vbx = body.px / Mb - wb * lby, vby = body.py / Mb + wb * lbx;
+        const vex = e.px / me - we * ley, vey = e.py / me + we * lex;
+        let Jx = 0, Jy = 0;
+        if (k !== 0) { const jr = k * overlap * dt; Jx += jr * nx; Jy += jr * ny; }   // ① 반발(분자 +n·e −n)
+        if (c !== 0) {                                                  // ② 감쇠(법선 상대속도 → 0 까지)
+          const vn = (vbx - vex) * nx + (vby - vey) * ny;              // 분자표면 − e (접근=음)
+          const mu = (Mb * me) / (Mb + me);
+          let Jd = -c * vn * dt; const Jzero = -mu * vn;
+          if (Math.abs(Jd) > Math.abs(Jzero)) Jd = Jzero;             // 역전 방지(소산 ≥0)
+          Jx += Jd * nx; Jy += Jd * ny;
+        }
+        const KE0 = rigidKE(body, Mb, Ib) + rigidKE(e, me, Ie);
+        // 분자에 +J at p · e 에 −J at p(접촉점 동일·equal-opposite → Σp·ΣL 정확 보존).
+        body.px += Jx; body.py += Jy;
+        body.Lz = (body.Lz || 0) + (lbx * Jy - lby * Jx);              // 토크 (p−CoM)×J
+        e.px -= Jx; e.py -= Jy;
+        e.Lz = (e.Lz || 0) + (lex * (-Jy) - ley * (-Jx));             // 토크 (p−e중심)×(−J)
+        const KE1 = rigidKE(body, Mb, Ib) + rigidKE(e, me, Ie);
+        const dissip = KE0 - KE1;                                      // 잃은 KE → 열(비가역)
+        if (dissip > 0) { body.internalE += 0.5 * dissip; e.internalE += 0.5 * dissip; }
+      }
+    }
+    // KEcm·energy 재계산(병진 자기일관: energy=KEcm+internalE·스핀 KE 는 Lz 로 별도 추적).
+    body.KEcm = 0.5 * (body.px * body.px + body.py * body.py + (body.pz || 0) * (body.pz || 0)) / Mb;
+    body.energy = body.KEcm + body.internalE;
+    for (let ei = 0; ei < others.length; ei++) {
+      const e = others[ei]; if (e === body) continue;
+      const me = e.mass > EPS ? e.mass : 1;
+      e.KEcm = 0.5 * (e.px * e.px + e.py * e.py + (e.pz || 0) * (e.pz || 0)) / me;
+      e.energy = e.KEcm + (e.internalE || 0);
+    }
   }
 
   // 접촉 탄성 퍼텐셜 에너지 U = Σ_{i<j} ½·k·overlap²(겹친 쌍만) — 반발 힘과 일관(F=−dU/d(overlap)).
@@ -604,5 +695,5 @@
     return { entities: out, merges };
   }
 
-  return { stepEntity, stepEntities, applyEntityGravity, pairPotentialEnergy, velocity, mergeEntities, equivalentRadius, applyEntityContact, contactPotentialEnergy, applyEntityFriction, applyEntityRollingResistance, fragmentEntity, fragmentOnImpact, adaptLOD, coalesceSettled, VERSION: 12 };
+  return { stepEntity, stepEntities, applyEntityGravity, pairPotentialEnergy, velocity, mergeEntities, equivalentRadius, applyEntityContact, applyShellContact, contactPotentialEnergy, applyEntityFriction, applyEntityRollingResistance, fragmentEntity, fragmentOnImpact, adaptLOD, coalesceSettled, VERSION: 13 };
 });
