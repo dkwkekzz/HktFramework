@@ -5,7 +5,7 @@
 
 import { writeFileSync, readFileSync, mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
-import type { MotionAtlas } from '../../view/motion/motion-geometry';
+import type { MotionAtlas } from '../../engine/view-kernel/motion/motion-geometry';
 
 const HEADER = `// 이 파일은 생성물이다 — 직접 고치지 마라.
 //
@@ -46,7 +46,7 @@ export function renderAtlasModule(atlas: MotionAtlas, inputHash: string): string
     .join('\n');
 
   return `${HEADER}
-import type { MotionAtlas } from './motion-geometry';
+import type { MotionAtlas } from '../../../engine/view-kernel/motion/motion-geometry';
 
 /** 분석에 쓰인 motions/ 내용 지문 — 값이 다르면 다시 만들어야 한다 */
 export const MOTION_ATLAS_INPUT_HASH = ${JSON.stringify(inputHash)};

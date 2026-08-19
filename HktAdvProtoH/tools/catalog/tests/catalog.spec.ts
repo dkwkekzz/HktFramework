@@ -3,8 +3,8 @@
 // 한쪽 카탈로그에만 등록한 종류는 여기서 걸린다.
 
 import { describe, expect, it } from 'vitest';
-import { CHARACTER_CATALOG } from '../../../world/semantic/character-catalog';
-import { KIND_PRESENTATIONS } from '../../../view/presentation/kind-presentation';
+import { CHARACTER_CATALOG } from '../../../content/active-catalog';
+import { KIND_PRESENTATIONS } from '../../../content/active-catalog';
 import { findDrift, scanMotionFolders } from '../print';
 
 describe('Character Catalog — 3원소 정합', () => {

@@ -10,7 +10,7 @@
 import type { Server as HttpServer } from 'node:http';
 import { defineConfig, type Plugin } from 'vite';
 import { motionAtlasPlugin } from './tools/motion-atlas/vite-plugin';
-import { TRANSPORT_PATH } from './protocol/transport';
+import { TRANSPORT_PATH } from './engine/protocol-core/transport';
 import { attachWorldServer } from './server/attach';
 import { createWorldHost } from './server/world-host';
 

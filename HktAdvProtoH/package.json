@@ -11,7 +11,8 @@
     "motions:check": "tsx tools/motion-atlas/scan.ts --check",
     "catalog": "tsx tools/catalog/print.ts",
     "catalog:check": "tsx tools/catalog/print.ts --check",
-    "test": "vitest run"
+    "boundary:check": "tsx tools/boundary/check.ts",
+    "test": "tsx tools/boundary/check.ts && vitest run"
   },
   "dependencies": {
     "three": "^0.168.0",

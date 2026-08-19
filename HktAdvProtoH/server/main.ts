@@ -8,7 +8,7 @@ import { createReadStream, existsSync, statSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { extname, join, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { TRANSPORT_PATH } from '../protocol/transport';
+import { TRANSPORT_PATH } from '../engine/protocol-core/transport';
 import { attachWorldServer } from './attach';
 import { createWorldHost } from './world-host';
 

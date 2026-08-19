@@ -11,10 +11,10 @@
 // 이 파일은 전송 수단(WebSocket)을 모른다 — 관찰자를 "관찰 결과를 받는 함수"로만 본다.
 // 덕분에 소켓 없이 테스트할 수 있다.
 
-import type { ActionRequest } from '../protocol/actions';
-import type { GameViewSnapshot, RequestOutcomeView } from '../protocol/gameview';
-import { startWorldClock, type WorldClock } from '../world/clock';
-import { createWorld, type World, type WorldSetup } from '../world/index';
+import type { ActionRequest } from '../engine/protocol-core/actions';
+import type { GameViewSnapshot, RequestOutcomeView } from '../engine/protocol-core/gameview';
+import { startWorldClock, type WorldClock } from '../engine/world-kernel/clock';
+import { createWorld, TICK_INTERVAL, type World, type WorldSetup } from '../content/active';
 
 export type Observer = (snapshot: GameViewSnapshot) => void;
 
@@ -106,7 +106,7 @@ export function createWorldHost(setup: WorldSetup = {}): WorldHost {
     },
     startClock(now) {
       if (clock) return;
-      clock = startWorldClock(world, emit, now);
+      clock = startWorldClock(world, emit, TICK_INTERVAL, now);
     },
     stop() {
       clock?.stop();

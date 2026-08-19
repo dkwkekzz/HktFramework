@@ -14,18 +14,19 @@ import {
   CHARACTER_CATALOG,
   DEFAULT_CHARACTER,
   type CharacterDefinition,
-} from '../../world/semantic/character-catalog';
+} from '../../content/active-catalog';
 import {
   DEFAULT_KIND_PRESENTATION,
   KIND_PRESENTATIONS,
   type KindPresentation,
-} from '../../view/presentation/kind-presentation';
+} from '../../content/active-catalog';
 import {
   DEFAULT_ROLE_SIZE,
   ROLE_PRESENTATIONS,
-} from '../../view/presentation/role-presentation';
-import { REGISTERED_SPRITE_IDS } from '../../view/assets/registry';
-import { parseMotionPath, ROOT_DIR, type MotionAsset } from '../../view/motion/motion-format';
+} from '../../content/active-catalog';
+import { REGISTERED_SPRITE_IDS } from '../../content/active-catalog';
+import { activePackDir } from '../active-pack';
+import { parseMotionPath, ROOT_DIR, type MotionAsset } from '../../engine/view-kernel/motion/motion-format';
 
 export function projectRoot(): string {
   return resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -34,7 +35,7 @@ export function projectRoot(): string {
 /** motions/<kind>/ 를 파일 규약 그대로 읽는다 — Vite glob 과 같은 것을 fs 로 본다 */
 export function scanMotionFolders(root = projectRoot()): Map<string, MotionAsset[]> {
   const byKind = new Map<string, MotionAsset[]>();
-  const motionsDir = join(root, ROOT_DIR);
+  const motionsDir = join(activePackDir(root), ROOT_DIR);
   let kinds: string[] = [];
   try {
     kinds = readdirSync(motionsDir).filter((name) =>
@@ -134,10 +135,10 @@ export function findDrift(motions: Map<string, MotionAsset[]>): CatalogDrift {
 
   for (const kind of worldKinds)
     if (!viewKinds.includes(kind))
-      errors.push(`world 카탈로그의 '${kind}' 가 view/presentation/kind-presentation.ts 에 없다`);
+      errors.push(`world 카탈로그의 '${kind}' 가 view/kind-presentation.ts (팩) 에 없다`);
   for (const kind of viewKinds)
     if (!worldKinds.includes(kind))
-      errors.push(`view 표현의 '${kind}' 가 world/semantic/character-catalog.ts 에 없다`);
+      errors.push(`view 표현의 '${kind}' 가 world/semantic/character-catalog.ts (팩) 에 없다`);
 
   for (const kind of worldKinds)
     if (!motions.has(kind) || motions.get(kind)!.length === 0)
@@ -176,7 +177,7 @@ export function renderCatalog(motions: Map<string, MotionAsset[]>): string {
   lines.push(`    world    ${d1}`, `             ${d2}`, `             ${d3}`);
   lines.push(`    view     그림 기준 방향 ${DEFAULT_KIND_PRESENTATION.spriteBaseline}`);
   lines.push('');
-  lines.push('  Role Presentations — 역할별 표현 (view/presentation/role-presentation.ts)');
+  lines.push('  Role Presentations — 역할별 표현 (view/role-presentation.ts (팩))');
   lines.push('  ' + '-'.repeat(96));
   lines.push(formatRoleTable());
   lines.push('');
