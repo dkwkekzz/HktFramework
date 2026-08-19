@@ -19,15 +19,24 @@
 `V1 → V2 → V0 → V4 → V3 → O1 → O2 → O0 → S0 → S1 → S2 → S3 → D0 → D1 → D2 → D3 → D4 → D5 → P0 → R0 → P1 → R1 → P2 → P3 → P4 → P5 → R2 → R3 → R4 → R5 → R6 → E0`
 이고, **"착수 가능" 목록은 E1 을 계산한다**(`node packages/scenarios/verify/v0.ts`).
 
+**Cycle 축 (WORKFLOW §12, 2026-08-04 v3 신설)**: 지금은 **Cycle 1(관통 — 《국경 협곡》)**,
+막 A(사건이 보인다) 진입 전이다. 단계 0~3 의 32개 모듈은 Cycle 1 충족으로 소급 인정(재작업
+없음)이나 **게임 판정 3문 기준 게임은 아직 0개**다. 진행 단위는
+[design/cycles/cycle-1.md](design/cycles/cycle-1.md) 의 막·Step 이고, Cycle 1 완주 게이트는
+원문 §21 장면의 게임화다. Cycle 1 완주 전 어느 모듈도 C2 작업에 착수하지 않는다.
+
 ## 문서
 
 | 문서 | 역할 | 상태 |
 |---|---|---|
 | [design/Design-MasterPlan.md](design/Design-MasterPlan.md) | 세계 설계도 (원문) | 작성 완료 |
 | [design/Design-ModulePlan.md](design/Design-ModulePlan.md) | 모듈 분할 및 점진적 구현 계획 (원문) | 작성 완료 |
+| [design/Design-CyclePlan.md](design/Design-CyclePlan.md) | **Cycle·Step 진행 설계도 (마스터)** — Cycle 정의·목표 게임·막 구조 | 작성 완료 |
+| [design/cycles/cycle-1.md](design/cycles/cycle-1.md) | Cycle 1 상세 설계도 — 막 A~E 전 Step 의 구현 수준 분할 | 작성 완료 |
 | [modules/WORKFLOW.md](modules/WORKFLOW.md) | 작업 방식 설계 (파생) | 작성 완료 |
 | [modules/MODULES.md](modules/MODULES.md) | 모듈 레지스트리 — V~A 전 모듈 입력·출력·상태 원소·시각화 (파생) | 작성 완료 |
 | [modules/MODULE-TEMPLATE.yaml](modules/MODULE-TEMPLATE.yaml) | 모듈 계약 서식 (파생) | 작성 완료 |
+| [modules/STEP-TEMPLATE.md](modules/STEP-TEMPLATE.md) | Step 블록 서식 (WORKFLOW §11) — Cycle 설계도 안 Step 의 4절 | 작성 완료 |
 | [progress/deferred.md](progress/deferred.md) | **유예 장부** — 각 계층이 뒤에 넘긴 자리 (갚을 계층별 색인) | 갱신 중 |
 | [progress/closed-issues.md](progress/closed-issues.md) | 닫힌 이슈 · 상환된 소급 부채 | 갱신 중 |
 | [progress/renderers.md](progress/renderers.md) | 공용 렌더러 5종 구현·소비 이력 | 갱신 중 |
@@ -35,8 +44,10 @@
 구현 루트는 [app/](app/) — npm workspaces 모노레포, Node ≥22.18 네이티브 TS 타입 스트리핑으로
 빌드 없이 `.ts` 를 실행한다 (런타임 의존성 0개, `typescript`·`@types/node` 는 타입 검사 전용).
 
-모든 작업은 [modules/WORKFLOW.md](modules/WORKFLOW.md)의 8단계 사이클을 따른다:
-작업 카드 없이 착수 금지, 커밋 1개 = 작업 1개, 완료 판정은 증거 파일로만.
+Workflow 는 **① 설계도 분할 → ② 구현** 이다 (WORKFLOW §11). 구현은
+[modules/WORKFLOW.md](modules/WORKFLOW.md)의 8단계 사이클을 따른다:
+Step 블록 없는 구간 착수 금지, 작업 카드 없이 착수 금지, 커밋 1개 = 작업 1개,
+완료 판정은 증거 파일로만, 막 이정표는 게임 판정 3문으로만 (§12-1).
 실행 방아쇠: 작업 한 바퀴는 `/advproto-step`, 단계 리뷰는 `/advproto-review` (규정 원본은 WORKFLOW).
 
 ## 모듈 현황 — 한 줄
@@ -117,15 +128,35 @@
 
 ## TODO
 
+### ⓪ WORKFLOW v3 전환 — 설계도 분할(§11) + Cycle(§12)
+
+규정은 [modules/WORKFLOW.md](modules/WORKFLOW.md) §11·§12, 설계도는
+[design/Design-CyclePlan.md](design/Design-CyclePlan.md)(마스터) +
+[design/cycles/cycle-1.md](design/cycles/cycle-1.md)(Cycle 1 상세)로 확정됐다.
+기계 강제는 아래 카드가 세운다 — 그전까지 cycle 필드는 문서 규정으로만 동작한다.
+
+- **[WF3-a] 계약 cycle 필드 소급 태깅** —
+  목적: 기존 계약 전부에 `cycle: 1` 을 달고 V0 파서·verify 대시보드가 cycle 을 읽어 표시하게 한다.
+  입력: `contracts/*.yaml` 33개 · 출력: cycle 열이 붙은 레지스트리 대시보드.
+  검증 장면: `npm run verify` 32/32 유지 + 대시보드에 `VERIFIED@C1` 표기.
+  주의: 계약 파일 변경이 소스 해시에 걸려 증거가 낡는지 먼저 확인하고, 낡으면 재생성을 같은
+  커밋에 포함한다. 상태 원소: `ModuleContract.cycle`. 시각화: 기존 V0 diff 대조표에 열 추가.
+- **[WF3-b] GS-1 모듈 등록** — 막 A 의 게임 표면(관전 화면)을 MODULES.md 에 행으로 등록한다
+  (X2·X4 의 앞당긴 조각, `client/` 소속 — WORKFLOW §12-2 · cycle-1.md 막 A). GS-1 계약
+  yaml 선등록까지.
+
 ### ① 단계 3 리뷰 대기
 
 R0·R1·R2·R3·R4·D5·R5·R6 여덟이 전부 VERIFIED 다. 리뷰는 **사용자가 요청할 때만** 진행한다
 (`/advproto-review` — WORKFLOW §10). 자동으로 쓰지 않는다.
 
-### ② [E1] 사회적 상호작용 — 다음 작업 (착수 시 6필드를 확정한다)
+### ② [E1@C1] 사회적 상호작용 — 다음 작업 (Cycle 1 막 A 첫 모듈 Step)
 
 계약은 `contracts/E1.yaml` 에 PLANNED 로 선등록돼 있고(레지스트리 "착수 가능" 이 E1 을 계산한다),
-**게이트는 비어 있다** — E0 가 증거로 닫혔다.
+**게이트는 비어 있다** — E0 가 증거로 닫혔다. **Step 블록은
+[design/cycles/cycle-1.md](design/cycles/cycle-1.md) 막 A 에 있다** — 하위 작업 카드
+(E1-a·b·c)와 시뮬레이션 기대값을 거기서 꺼낸다. 아래 초안은 그 블록으로 대체됐고 참고용이다.
+깊이 상한(WORKFLOW §12-4): 점수식은 6요소 가중 합 최단형, 인스턴스는 §21 캐스트 분량만.
 
 - 목적: 상황에서 사회적 상호작용 8종(요청·거래·협박·기만·동맹·고용·배신·복종) 중 하나를 고르게 한다.
 - 입력: `Situation`·`SituationPair`(E0) · `Relationship`(R5) · `PossibilityGrammar`(P2) ·

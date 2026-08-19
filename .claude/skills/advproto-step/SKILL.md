@@ -6,8 +6,10 @@ description: HktAdvProtoF 작업 한 바퀴(모듈 1개 — 하위 작업으로 
 # HktAdvProtoF 작업 한 바퀴 — 실행 절차
 
 **작업 디렉토리: `HktAdvProtoF/`** — 이하 상대 경로는 이 폴더 기준.
-**규정 원본은 [modules/WORKFLOW.md](../../HktAdvProtoF/modules/WORKFLOW.md)** 다 — 불변 원칙 4(§0)·
-작업 카드 6필드(§2)·분할 규칙(§3)·계약 서식(§4)·8단계 사이클(§5)·상태 원소 규칙(§6)·단계 게이트(§7).
+**규정 원본은 [modules/WORKFLOW.md](../../HktAdvProtoF/modules/WORKFLOW.md)** 다 — 불변 원칙 5(§0)·
+작업 카드 6필드(§2)·분할 규칙(§3)·계약 서식(§4)·8단계 사이클(§5)·상태 원소 규칙(§6)·단계 게이트(§7)·
+설계도 분할(§11)·Cycle(§12). 진행 설계도는 `design/Design-CyclePlan.md`(마스터) +
+`design/cycles/cycle-N.md`(Step 블록 — 작업 카드의 출처).
 이 스킬은 그 규정을 효율적 순서로 실행하는 방아쇠일 뿐, 규정을 중복 기재하지 않는다.
 어긋나면 WORKFLOW 가 이긴다.
 
@@ -30,16 +32,23 @@ description: HktAdvProtoF 작업 한 바퀴(모듈 1개 — 하위 작업으로 
    "착수 전" 조건**(있으면 그것이 이번 작업이다), TODO 의 다음 작업. 그 다음 `modules/MODULES.md` 는
    **해당 모듈 행만**, 원문(`design/`)은 해당 모듈 절만 부분 읽기. 선행 모듈이 전부 VERIFIED 인지
    계약(`app/packages/contracts/*.yaml`)으로 확인 — 아니면 착수 금지 (WORKFLOW §5-1).
-2. **카드** — 작업 카드 6필드(목적·입력·출력·검증 장면·상태 원소·시각화)를 STATE.md TODO 에 쓴다.
-   분할 신호(§3)에 걸리면 하위 작업으로 쪼개고 **조각 전부의 카드를 이때 한 번에 적는다** —
-   조각마다 커밋은 나뉘지만 바퀴는 이어진다(위 "한 바퀴의 크기").
+2. **Step 블록 · 카드** — `design/cycles/cycle-N.md` 의 해당 Step 블록을 읽는다(§11 — 4절:
+   개념→구현 표 · 시뮬레이션 표 · 예상 화면 · 깊이/유예. 서식: `modules/STEP-TEMPLATE.md`).
+   블록이 없으면 설계도 분할이 먼저다 — 임의 착수 금지. 작업 카드 6필드(목적·입력·출력·검증
+   장면·상태 원소·시각화)를 STATE.md TODO 에 쓴다 — 제목에 Cycle 을 달고(`[E1@C1]`), 하위
+   작업은 블록 ①의 표에서 꺼내 **조각 전부의 카드를 이때 한 번에 적는다** — 조각마다 커밋은
+   나뉘지만 바퀴는 이어진다(위 "한 바퀴의 크기"). 기대값은 블록 ②의 것을 쓴다 (실행값을
+   설계도에 옮겨 적는 것은 금지). 깊이는 이번 Cycle 상한(§12-4)까지만 — 깎은 자리는
+   deferred.md 에 갚을 Cycle 과 함께 적립.
    새 계층의 첫 계약이면 CLAUDE.md **북극성 2개에 어떻게 기여하는지** 한 줄 답을 카드에 남긴다.
 3. **계약** — `app/packages/contracts/<모듈ID>.yaml` 작성/갱신 (서식: `modules/MODULE-TEMPLATE.yaml`).
    입출력은 MODULES.md 행과 일치해야 한다 — 다르면 MODULES.md 갱신을 별도 작업으로 먼저.
 4. **구현** — `app/packages/core/` 우선. core 순수성(§1): I/O·DOM·`Date.now()`·`Math.random()` 금지,
    난수는 V1 SeededRandom·시간은 V1 TickClock 만. lab/scenarios 는 core 를 소비만 한다.
-5. **검증 3종** — 시나리오 정상 1+실패 1+경계 1 (`scenarios/suites/`), 결정성(같은 시드 반복 → 같은 해시),
-   Lab 페이지 화면 7요소 (§5.1). 기존 검증도 깨지지 않아야 한다: `npm test` 전체 통과.
+5. **검증 3종** — 시나리오 정상 1+실패 1+경계 1 (`scenarios/suites/`, 기대값은 Step 블록 ②의
+   것), 결정성(같은 시드 반복 → 같은 해시), Lab 페이지 화면 7요소 + 블록 ③ 예상 화면 대조
+   (§5.1·§11-2). 기존 검증도 깨지지 않아야 한다: `npm test` 전체 통과.
+   막의 마지막 Step 이면 **게임 이정표를 게임 판정 3문으로 확인**한다 (§12-1 — Lab 로 대신 불가).
 6. **증거** — `npm run verify` 실행. **exit 0 이 커밋의 전제 조건이다** — 대시보드에 VERIFIED 아닌
    모듈이 하나라도 있으면 원인을 해소하기 전에 커밋하지 않는다 (V3 강등 사건 #662 의 교훈).
    커밋 직전 `git status` 로 증거·스냅샷 재생성분이 전부 스테이징됐는지 확인.
