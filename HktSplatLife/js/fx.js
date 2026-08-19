@@ -53,15 +53,31 @@
 	// 기존 유전자도 그대로 쓴다: lifeBase=지속시간, damping=공기 저항, gravity/updraft=부력,
 	// volatility·flowFreq·flowSpeed=난류 결, size/stretch/opacity/luminosity/colorA·B=외형 재료.
 	const FX_PRESETS = {
-		// ① 물리적 타격 — 짧고 날카로운 지향성 분사. 임팩트 순간 흰-노랑 섬광이 터지고
-		//    파편(ember 45%)이 중력을 받아 아래로 흩어진다. 타격 축(법선)으로 몰린다(cone 0.7).
+		// ① 물리적 타격 — 맞은 중심점에서 *사방으로 날카롭게* 터지는 방사 성게별(임팩트 플래시).
+		//    레퍼런스: 애니메이션 타격 섬광 — 불규칙한 길이의 흰 가시가 중심에서 바깥으로만 뻗는다.
+		//    "오목한 분수"로 읽히던 옛 좌표의 원인 셋을 전부 걷어냈다:
+		//      · cone 0.7 → 0 — 축 분사(호스 물줄기)가 아니라 방사. 대신 disc 0.9 로 타격 면에
+		//        눕힌다(법선이 카메라를 향하면 별이 정면으로 보인다 — 레퍼런스와 같은 구도).
+		//      · gravity 6 + ember 0.45 → 0 — 파편이 포물선으로 떨어지는 것이 곧 분수 실루엣이었다.
+		//        (섬광 0.3s 안에서 낙하는 모양만 해치고 타격감엔 기여하지 않는다 — 눈검증.)
+		//      · swirl 0.12 → 0 — 축 둘레로 감기는 속도는 가시를 휘게 해 오목하게 읽힌다.
+		//    "중심에서 바깥으로만"의 두 조건(CLAUDE.md·검격과 동일): shell 0(속도 0..burst 로
+		//    중심부터 채움) + grow 3.0(안쪽 끝이 중심에서 떨어져 나가지 않게 수명 따라 신장).
+		//    날카로움은 색이 아니라 분포다(F3/F4): shredFreq 24 로 방위를 96조각으로 양자화하고
+		//    shred 0.8 + shredPow 2.4 로 소수의 조각만 멀리 쏜다(= 길이가 들쭉날쭉한 가시별).
+		//    tear 0.3 이 가시 사이 어두운 틈을 낸다. 바늘 결은 rayLen/rayThin (신축 상한 —
+		//    stretch 를 1 이상 올리는 EWA 사각별 함정 회피).
+		//    눈검증 실측(+0.1s): 무게중심 발생점 잔류 · 36섹터 도달/밀도/밝기 축:대각 비 ≈ 1.00
+		//    (완전 방사) · 중심 원반(r<70px) 채움 ~14k px (오목 금지).
 		'타격': {
-			lifeBase: 0.3, damping: 3.2, gravity: 6.0, updraft: 0.6,
-			volatility: 1.4, flowFreq: 4.0, flowSpeed: 2.4,
-			size: 0.011, stretch: 2.6, opacity: 0.2, luminosity: 2.0,
-			fxK: 1, burst: 5.5, cone: 0.7, swirl: 0.12, shell: 0.15, grow: 0.5, curve: 2.6, ember: 0.45,
-			colorA: '#fff6d8', colorB: '#ff3c0a', form: 4,
-			// 물리적 타격 = 파편(이것) + 칼자국(검격) + 공기 굴절(굴절 파면) — 한 사건, 세 게놈
+			lifeBase: 0.3, damping: 3.6, gravity: 0.0, updraft: 0.0,
+			volatility: 0.06, flowFreq: 2.0, flowSpeed: 0.5,
+			size: 0.012, stretch: 0.55, opacity: 0.8, luminosity: 4.2,
+			fxK: 1, burst: 6.5, cone: 0.0, swirl: 0.0, shell: 0.0, grow: 3.0, curve: 2.8, ember: 0,
+			shred: 0.8, shredFreq: 24, tear: 0.3, shredPow: 2.4,
+			disc: 0.9, discThick: 0.3, rayLen: 4, rayThin: 1.5,
+			colorA: '#ffffff', colorB: '#9fb4d8', form: 4, // 흰 섬광 → 서늘한 회청 잔광 (레퍼런스)
+			// 물리적 타격 = 방사 가시(이것) + 칼자국(검격) + 공기 굴절(굴절 파면) — 한 사건, 세 게놈
 			with: ['검격', '굴절 파면'],
 		},
 		// ② 파이어볼 폭발 — 등방(cone 0) 화구가 부풀며(grow 2.4) 부력으로 말려 오른다(swirl 0.35).
