@@ -75,7 +75,8 @@
           "guarding": false,
           "broken": false
         },
-        "defenseShape": "even"
+        "defenseShape": "even",
+        "insight": 0
       }
     },
     {
@@ -146,7 +147,8 @@
           "guarding": false,
           "broken": false
         },
-        "defenseShape": "even"
+        "defenseShape": "even",
+        "insight": 0
       }
     }
   ],

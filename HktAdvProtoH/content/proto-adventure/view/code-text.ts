@@ -78,8 +78,12 @@ const CODE_TEXT: Record<string, string> = {
   versusObserver: '나에게 읽히는 방어',
   defenseShape: '약점',
   // 왜 비어 있는가 (Attributes.UnacquaintedReason)
+  // C016 — 통찰이 미치지 못한 자리도 이 사유다. 그 자리도 살펴보면 열리므로
+  // 틀린 말이 아니며, 사유는 "무엇을 하면 열리는가" 를 말한다 (03 NOTE ④)
   'not-observed': '아직 살펴보지 않았다',
   // 불가 사유 — 살펴봄
+  // C016 — 뜻이 "더 열 자리가 없다" 로 넓어졌다. 살펴본 존재뿐 아니라
+  // 통찰이 세 문턱을 모두 넘은 존재에도 나온다 (04 interactions.observe)
   'already-known': '이미 알고 있다',
   'target-is-self': '자기 자신은 살펴볼 대상이 아니다',
   'no-such-target': '그런 존재가 없다',

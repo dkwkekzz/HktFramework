@@ -30,7 +30,9 @@ export function nameplate(entity: EntityView, spriteSize: number): SceneNameplat
   if (!entity.vitality || entity.name === undefined) return undefined;
   const { health, healthMaximum, downed } = entity.vitality;
   return {
-    // C014 — 아직 살펴보지 않은 존재는 이름 뒤에 물음표가 붙는다.
+    // C014 — 아직 다 알지 못하는 존재는 이름 뒤에 물음표가 붙는다.
+    // C016 — 세계가 보내는 acquainted 의 뜻이 "가려진 자리가 없다" 로 넓어졌으므로,
+    // 통찰로 일부만 열린 존재에도 물음표가 남는다 — 아직 모르는 것이 있다는 뜻이다.
     // 속성 관찰을 켜지 않아도 **모른다는 것이 화면에서 읽혀야** 하기 때문이다
     // (04 EMPTY-SLOT NOTE). 켜야만 보이면 플레이어는 자기가 무엇을 모르는지 모른다.
     // 어떤 표시로 그릴지는 View 의 결정이다 — 세계가 보낸 것은 acquainted 뿐이다.
@@ -55,6 +57,9 @@ export function inspectLines(entity: EntityView): string[] | undefined {
       a.tempoStats.runSpeedMultiplier,
     )}`,
     `공속 ×${round(a.tempoStats.actionSpeed)}`,
+    // C016 — 이 존재의 통찰. 가려지지 않는 값이며, 겨루는 힘 바로 위에 둔다 —
+    // 아래 줄들이 왜 그만큼만 열려 있는지를 이 줄이 설명한다 (04 insight.meaning).
+    `통찰 ${round(a.insight)}`,
     // C014 — 겨루는 힘은 **아는 존재에만** 나오고, 모르는 존재에는 그 자리에
     // "무엇을 모르는지" 가 온다. 자리를 비우지 않는 것이 핵심이다 —
     // 줄이 사라지면 플레이어는 세계에 그 값이 없다고 배운다 (04 EMPTY-SLOT NOTE).
@@ -67,20 +72,22 @@ export function inspectLines(entity: EntityView): string[] | undefined {
   ];
 }
 
-// 겨루는 힘의 자리 (C010 → C014) — 아는 존재면 값이, 모르는 존재면 모름이 온다.
+// 겨루는 힘의 자리 (C010 → C014 → C016) — 자리마다 따로 온다.
 // 무엇이 가려졌는지의 목록(concealed)은 세계의 것이다 — 여기서 이름을 적지 않는다
 // (DC-WORLD-OWNS-THE-SURFACE-LIST). 0 으로 채우거나 종류 이름으로 짐작하거나
 // 타격 경위(strikeEvents)에서 값을 끌어오지 않는다 (04 EMPTY-SLOT NOTE).
+//
+// C016 CHANGED — **세 자리가 독립이다.** C014 판은 combatStats 와 versusObserver 가
+// 둘 다 있어야 값을 그리고 아니면 통짜로 가려짐 한 줄을 냈다. 통찰이 얕은 자리부터
+// 열기 때문에 그 방식은 관계값만 온 존재에서 화면 전체를 가려 버린다 (04 SEAT NOTE).
+// 이제 자리마다 "왔는가" 를 묻고, 온 것을 그리고, 안 온 것은 이름으로 남긴다.
+// 조합의 가짓수를 여기서 세지 않는다 — 세계가 문턱을 바꿔도 이 코드는 그대로다.
 function contestedLines(a: AttributesView): string[] {
   const combat = a.combatStats;
   const versus = a.versusObserver;
-  if (!combat || !versus) {
-    const names = a.concealed.length > 0 ? a.concealed : ['combatStats'];
-    return [
-      `${names.map(codeText).join(' · ')} — ${codeText(a.unacquaintedReason ?? 'not-observed')}`,
-    ];
-  }
-  return [
+  const lines: string[] = [];
+
+  if (combat) {
     // C010 → C012 — 능력이 방식별로 갈렸다. 방어는 체감식이라 수치만으로는 효과를
     // 알 수 없으므로 남는 비율을 함께 쓴다. 두 줄로 나눈 것은 고를 때 견주는 축이
     // 공격/방어가 아니라 **물리/오라** 이기 때문이다.
@@ -88,26 +95,51 @@ function contestedLines(a: AttributesView): string[] {
     // 두 값이 같으면(내 관통이 0 이거나 상대 방어가 0) 붙지 않는다 — 같다는 것은
     // versusText 가 없는 것으로 읽힌다. 걷힌 값을 여기서 곱해 만들지 않는다
     // (04 versusObserver.meaning · DC-WORLD-OWNS-THE-SURFACE-LIST).
-    `물리 공격 ${round(combat.physicalAttack)}` +
-      ` · 물리 방어 ${round(combat.armor)}` +
-      ` (받는 피해 ${percent(combat.armorMultiplier)})` +
-      versusText(combat.armor, versus.armor, versus.armorMultiplier),
-    `오라 공격 ${round(combat.auraAttack)}` +
-      ` · 오라 방어 ${round(combat.resistance)}` +
-      ` (받는 피해 ${percent(combat.resistanceMultiplier)})` +
-      versusText(combat.resistance, versus.resistance, versus.resistanceMultiplier),
-    // C013 — 이 존재가 지닌 관통. 상대의 것도 본다 — 저쪽이 내 방어를 얼마나
-    // 무력화하는지는 내가 얼마나 위험한지를 아는 일이다.
-    `관통 물리 ${round(combat.armorPenetration)}` +
-      ` · 오라 ${round(combat.resistancePenetration)}`,
-    // C012 — 어느 쪽이 더 단단한지는 **세계가 판정한 값**이다.
-    // 여기서 두 수치를 비교해 만들어내지 않는다 (04 defenseShape.meaning).
-    `약점 ${codeText(a.defenseShape ?? '')}`,
-    // C015 — 이 존재가 얼마나 자주 얼마나 크게 터뜨리는가.
-    // 앞의 네 줄이 "이 상대를 어떻게 칠까" 라면 이 줄은 "이 상대가 나를 어떻게 치는가" 다 —
-    // 방어 읽기가 끝난 뒤에 온다. 이것도 겨루는 힘이므로 살펴본 뒤에만 닿는다 (C014 관문 그대로).
-    criticalText(combat.criticalChance, combat.criticalDamage),
-  ];
+    // C016 — 관계값이 아직 안 왔으면 그 꼬리만 없다. 수치 줄은 그대로 그린다.
+    lines.push(
+      `물리 공격 ${round(combat.physicalAttack)}` +
+        ` · 물리 방어 ${round(combat.armor)}` +
+        ` (받는 피해 ${percent(combat.armorMultiplier)})` +
+        (versus ? versusText(combat.armor, versus.armor, versus.armorMultiplier) : ''),
+      `오라 공격 ${round(combat.auraAttack)}` +
+        ` · 오라 방어 ${round(combat.resistance)}` +
+        ` (받는 피해 ${percent(combat.resistanceMultiplier)})` +
+        (versus
+          ? versusText(combat.resistance, versus.resistance, versus.resistanceMultiplier)
+          : ''),
+      // C013 — 이 존재가 지닌 관통. 상대의 것도 본다 — 저쪽이 내 방어를 얼마나
+      // 무력화하는지는 내가 얼마나 위험한지를 아는 일이다.
+      `관통 물리 ${round(combat.armorPenetration)}` + ` · 오라 ${round(combat.resistancePenetration)}`,
+    );
+  } else if (versus) {
+    // C016 — 수치는 아직 가려졌고 관계만 열린 자리. 저 방어가 **나에게** 얼마로
+    // 읽히는지는 알지만 그 방어가 원래 얼마인지는 모른다. 되짚어 계산하지 않는다 —
+    // 플레이어가 머리로 하는 추론은 자유지만 화면이 대신 해 주지 않는다 (04 EMPTY-SLOT NOTE).
+    lines.push(
+      `나에게 읽히는 물리 방어 ${round(versus.armor)} (받는 피해 ${percent(versus.armorMultiplier)})`,
+      `나에게 읽히는 오라 방어 ${round(versus.resistance)}` +
+        ` (받는 피해 ${percent(versus.resistanceMultiplier)})`,
+    );
+  }
+
+  // C012 — 어느 쪽이 더 단단한지는 **세계가 판정한 값**이다.
+  // 여기서 두 수치를 비교해 만들어내지 않는다 (04 defenseShape.meaning).
+  // C016 — 세 자리 중 가장 얕다. 수치가 가려진 채 이 줄만 있는 존재가 흔하다.
+  if (a.defenseShape !== undefined) lines.push(`약점 ${codeText(a.defenseShape)}`);
+
+  // C015 — 이 존재가 얼마나 자주 얼마나 크게 터뜨리는가.
+  // 앞의 줄들이 "이 상대를 어떻게 칠까" 라면 이 줄은 "이 상대가 나를 어떻게 치는가" 다.
+  if (combat) lines.push(criticalText(combat.criticalChance, combat.criticalDamage));
+
+  // 아직 가려진 자리들 — 열린 것 아래에 이름으로 남는다. 자리가 사라지면
+  // 플레이어는 세계에 그 값이 없다고 배운다 (04 EMPTY-SLOT NOTE).
+  if (a.concealed.length > 0) {
+    lines.push(
+      `${a.concealed.map(codeText).join(' · ')} — ${codeText(a.unacquaintedReason ?? 'not-observed')}`,
+    );
+  }
+
+  return lines;
 }
 
 // 터뜨리는 힘 (C015) — 빈도와 크기를 함께 쓴다. 둘은 따로 자라므로 한쪽만으로는
@@ -269,6 +301,10 @@ export function selfPanel(snapshot: GameViewSnapshot): SceneSelf | undefined {
     `이동 속도 ${round(Number(value('self.tempo.moveSpeed') ?? 0))}` +
       ` · 달리기 ×${round(Number(value('self.tempo.runSpeedMultiplier') ?? 1))}`,
     `공격 속도 ×${round(Number(value('self.tempo.actionSpeed') ?? 1))}`,
+    // C016 — 내 통찰. 0 도 쓴다 — 없다는 것을 아는 것이 "나는 다가가야만 안다" 를
+    // 아는 것이다 (04 hud.self.insight.meaning). 값을 바꾸면 이 줄과 남의 몸 위
+    // 가려짐 목록이 같은 화면에서 함께 움직이는 것이 이 Cycle 의 확인 경로다.
+    `통찰 ${round(Number(value('self.insight') ?? 0))}`,
   ];
 
   const modifiers: Array<[string, number]> = [
