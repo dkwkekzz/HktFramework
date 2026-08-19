@@ -15,7 +15,7 @@
 #
 #   MG-OVERCOME-SUPERIOR-OPPONENT   앞을 막는 강한 상대를 넘어선다      → 갈래 10
 #   MG-SURVIVE-ENEMY-OFFENSIVE      밀리는 국면을 버티고 되돌린다        → 갈래 3
-#   MG-EXPLORE-BEIRA                대응 가능한 세계를 넓힌다            → 갈래 6
+#   MG-EXPLORE-BEIRA                대응 가능한 세계를 넓힌다            → 갈래 3
 #   MG-ACQUIRE-RARE-ORGAN           특정 생물의 기관을 얻는다            → 갈래 5
 version: 1
 nodes:
@@ -553,228 +553,96 @@ nodes:
   # ══════════════════════════════════════════════════════════════════════
   # MG-EXPLORE-BEIRA — 대응 가능한 세계를 넓히는 갈래들
   # ══════════════════════════════════════════════════════════════════════
-  # 아래 다섯(MP-VENTURE-INTO-*)은 순수한 대안이 아니라 **사다리**다 — 아래층부터
-  # 순서대로 열린다 (MW-DEPTH-GRADIENT). 여섯 번째(MP-ADAPT-BY-RESOURCE)만 진짜
-  # 대안 축이다: 같은 층을 내 기술로 뚫는 대신 세계가 만든 적응을 빌려 들어간다.
-  # 이 비대칭은 알고 둔 것이다 — open-questions.md 의 열린 질문을 보라.
+  # 여기 있는 셋은 **어떻게 넓히는가**다. 어디로 가는가는 여기 없다 —
+  # 층(MW-ZONE-*)은 세계 상태이고, 각 층이 무엇을 요구하는지는 그 노드의
+  # demands 가 소유한다. 같은 층을 세 방법 중 무엇으로든 감당할 수 있다는 것이
+  # 이 분리의 요점이다.
   #
-  # 각 층이 요구하는 Capability 목록의 원본은 BW §21~§25 의 "필요:" 다.
-  # 다섯 모두 reveals 로 MK-LOCAL-WORLDSTATE 를 낳는다 — 이것이 BW §16 탐험 Loop 의
-  # "DISCOVERY → NEW WORLDSTATE" 칸이고, 거기서 다음 목적이 생긴다.
+  #   익힌다        그 층이 요구하는 대응을 스스로 배워 감당한다      BW §32
+  #   빌린다        세계가 만든 적응을 자원으로 가져와 감당한다        BW §17
+  #   준비해 간다   문명권에서 미리 갖추고 들어간다                    BW §14
+  #
+  # 셋은 배타적이지 않다 — 섞어 쓸 수 있고, 무엇에 얼마나 기대는지가 플레이어마다
+  # 다른 것이 정상이다. 그러나 비용과 위험이 서로 달라서 고르는 일이 생긴다.
 
-  - id: MP-VENTURE-INTO-FRINGE
+  - id: MP-LEARN-TO-HANDLE-THE-LAYER
     type: possibility
     achieves: [MG-EXPLORE-BEIRA]
     meaningful_difference: >
-      가장 얕은 진입이다 — 위험은 강한 토착 포식자뿐이고, 요구되는 것은 힘이 아니라
-      관찰·예측·지형 활용이라는 정보 능력이다. 다른 층 진입과 달리 문명권의 기본
-      전투 능력만으로도 생존 여지가 있다. (BW §21)
+      들어가서 겪으며 그 층이 무엇을 요구하는지 알아내고, 그 대응을 스스로 익혀
+      감당한다. 셋 중 유일하게 미리 갖추지 않고 시작하며, 그래서 가장 위험하고
+      가장 싸다 — 치르는 것은 자원이 아니라 시간과 실패다. (BW §32)
     detail: >
-      베이라의 첫 칸이다. 여기서 마주치는 것은 이상한 존재가 아니라 그냥 나보다 강한
-      짐승이라, 인간이 알던 싸움 방식이 아직 통한다. 다만 정면으로는 진다. 그래서 이
-      층이 가르치는 것은 "더 세지기" 가 아니라 "보고 나서 움직이기" 다. 관찰하고,
-      다음 행동을 읽고, 지형을 내 편으로 만드는 세 가지가 여기서 처음 필요해진다.
-      이 층을 넘으면 플레이어는 그 세 가지를 몸에 익힌 채 다음 층으로 간다.
+      이 게임의 기본 진행 방식이다. BW §32 가 진행을 "관찰한다 → 이해한다 →
+      대응 방법을 발견한다 → 능력을 얻는다" 로 정의하는데, 그 네 칸이 통째로
+      이 갈래다. 준비물이 없어도 시작할 수 있다는 점이 값어치이고, 알아낼 때까지
+      계속 죽는다는 점이 비용이다. 그리고 알아낸 것은 그 층에 대한 앎으로 남아
+      다음에 그 층을 훨씬 싸게 감당하게 한다 (MK-LOCAL-WORLDSTATE).
+      나머지 두 갈래와 결정적으로 다른 점은, 이것만이 **새로운 층에 처음 들어갈 때**
+      쓸 수 있다는 것이다 — 아직 아무도 모르는 곳에는 살 정보도 빌릴 자원도 없다.
     world_shape: >
-      문명권 밖의 영역이 존재하고, 거기에 정면 전투력이 우위인 존재가 있으며,
-      관찰·예측·지형 선택으로 그 우위를 뒤집을 수 있어야 한다. 그리고 들어가 본 결과로
-      그 영역에 대해 알게 된 것이 남아야 한다.
+      플레이어가 모르는 상태로 들어갈 수 있고, 겪은 것으로부터 그 층이 무엇을
+      요구하는지 알아낼 수 있으며, 알아낸 대응을 익혀 다음에는 감당할 수 있어야 한다.
+      알아내는 과정 없이 처음부터 요구 목록이 주어지면 이 갈래가 아니다.
     implemented: ABSENT
-    # 영역이라는 것이 세계에 없다 — 무대는 40×40 하나이고 그 밖이 없다.
+    # 모르는 상태가 없고(세계가 모든 것을 다 보낸다) 익히는 경로도 없다.
     requires:
       goals: []
-      capabilities: [MC-OBSERVE, MC-PREDICT, MC-USE-TERRAIN]
+      capabilities: [MC-OBSERVE, MC-PREDICT]
+      # 무엇을 익힐지는 층마다 다르지만(각 층의 demands), 익히는 행위 자체가 요구하는
+      # 것은 보는 것과 읽는 것이다 — BW §32 의 첫 두 칸.
       knowledge: []
-      world_state: [MW-ZONE-FRINGE]
+      world_state: [MW-DEPTH-GRADIENT]
       relationship: []
       resource: []
-    supports: []
+    supports: [MP-ADAPT-BY-RESOURCE, MP-PREPARE-IN-CIVILIZATION]
+    # 먼저 겪어 본 사람이 있어야 살 정보도 가져올 자원도 생긴다 — 이 갈래가 다른 둘의 앞이다.
     opposes: []
     changes:
-      - 이해·대응 가능한 세계의 범위가 FRINGE 까지 넓어진다 (BW §32)
+      - 이해·대응 가능한 세계의 범위가 그 층까지 넓어진다 (BW §32)
     reveals: [MK-LOCAL-WORLDSTATE]
     creates_goal:
-      - MG-OVERCOME-SUPERIOR-OPPONENT   # 길을 막는 포식자를 만난다 (BW §21 · §27)
-      - MG-SURVIVE-ENEMY-OFFENSIVE      # 그 포식자가 침입자를 사냥한다 (BW §21 · §27)
-    constraints: [DC-WORLD-PROGRESSION-IS-REACH]
+      - MG-OVERCOME-SUPERIOR-OPPONENT   # 길을 막는 것을 만난다 (BW §21 · §27)
+      - MG-SURVIVE-ENEMY-OFFENSIVE      # 사냥당한다 (BW §21 · §27)
+      - MG-ACQUIRE-RARE-ORGAN           # 값진 것을 가진 생물을 본다 (BW §22 · §27)
+    constraints: [DC-WORLD-PROGRESSION-IS-REACH, DC-WORLD-PLAYER-UNFIXED-PATH]
     constraint_evaluation:
-      DC-WORLD-PROGRESSION-IS-REACH: SATISFIED    # 진입 조건이 Level 이 아니라 Capability 다 (BW §32)
-
-  - id: MP-VENTURE-INTO-WILD
-    type: possibility
-    achieves: [MG-EXPLORE-BEIRA]
-    meaningful_difference: >
-      정보만으로는 부족해지는 첫 층이다 — 특수 갑각·독·비정상 감각에 대해 방어를
-      깨고 약점을 찾고 부위를 노리고 공간을 통제하는 개입 능력이 필요하다.
-      처음으로 가치 있는 특수 소재가 보상으로 걸린다. (BW §22)
-    detail: >
-      앞 층에서는 잘 보면 이길 수 있었는데, 여기서는 잘 봐도 때릴 방법이 없는 상대가
-      나온다. 몸이 인간의 무기 상식에 맞지 않게 생겼기 때문이다. 그래서 필요한 것이
-      관찰에서 개입으로 넘어간다 — 방어를 깨고, 통하는 지점을 스스로 찾아내고,
-      노린 곳에 정확히 넣고, 상대가 쓸 공간을 좁힌다. 동시에 이 층이 인간에게 값진
-      것이 처음 나오는 층이다. 그 생물들을 이상하게 만든 적응이 곧 인간에게는
-      자원이기 때문이다 — 위험과 보상이 같은 것에서 나온다는 이 세계의 규칙이
-      플레이어에게 처음 체감되는 지점이다.
-    world_shape: >
-      기본 공격이 통하지 않는 방어 형태를 가진 존재가 있고, 그 존재를 상대하는 방법을
-      플레이어가 찾아낼 수 있어야 하며, 그 몸에서 인간이 쓸 수 있는 것이 나와야 한다.
-    implemented: ABSENT
-    requires:
-      goals: []
-      capabilities: [MC-BREAK, MC-DISCOVER-WEAKNESS, MC-PRECISE-TARGETING, MC-CONTROL-SPACE]
-      knowledge: []
-      world_state: [MW-ZONE-WILD]
-      relationship: []
-      resource: []
-    supports: []
-    opposes: []
-    changes:
-      - 이해·대응 가능한 세계의 범위가 WILD 까지 넓어진다
-      - 특수 생물 소재에 닿는다 (BW §22)
-    reveals: [MK-LOCAL-WORLDSTATE]
-    creates_goal:
-      - MG-ACQUIRE-RARE-ORGAN   # 값진 기관을 가진 생물을 만난다 (BW §22 · §27)
-    constraints: [DC-WORLD-PROGRESSION-IS-REACH]
-    constraint_evaluation:
-      DC-WORLD-PROGRESSION-IS-REACH: SATISFIED
-
-  - id: MP-VENTURE-INTO-DANGER
-    type: possibility
-    achieves: [MG-EXPLORE-BEIRA]
-    meaningful_difference: >
-      상대가 생물만이 아니게 되는 층이다 — Hazard·Creature·Terrain 이 결합해,
-      환경을 읽고 위험 요소를 내 수단으로 쓰고 상대를 그리로 몰아넣는 능력이
-      필요하다. 환경 Property 를 가진 Resource 가 걸린다. (BW §23)
-    detail: >
-      앞의 두 층에서는 장소가 배경이었다. 여기서는 장소가 상대의 일부다. 땅 자체가
-      해를 입히고, 생물이 그것을 알고 이용하며, 플레이어도 이용할 수 있다.
-      그래서 "이 상대를 어떻게 이길까" 가 "이 자리에서 이 상대를 어떻게 다룰까" 로
-      바뀐다. 이 층부터 자원도 순수하지 않다 — 그 환경의 성질을 몸에 지닌 채 나온다.
-    world_shape: >
-      플레이어와 상대 모두에게 같은 규칙으로 작용하는 환경 위험이 있고, 그것을 읽고
-      이용하고 상대를 그리로 유도할 수 있어야 한다.
-    implemented: ABSENT
-    requires:
-      goals: []
-      capabilities: [MC-READ-ENVIRONMENT, MC-FORCE-MOVEMENT, MC-USE-HAZARD, MC-INTERRUPT]
-      knowledge: []
-      world_state: [MW-ZONE-DANGER]
-      relationship: []
-      resource: []
-    supports: []
-    opposes: []
-    changes:
-      - 이해·대응 가능한 세계의 범위가 DANGER 까지 넓어진다
-      - 환경 Property 를 가진 Resource 에 닿는다 (BW §23)
-    reveals: [MK-LOCAL-WORLDSTATE]
-    creates_goal: []
-    # 이 층이 만드는 구체 Goal 을 BW 가 명명하지 않았다 — WHY 확장 몫이다.
-    constraints: [DC-WORLD-PROGRESSION-IS-REACH]
-    constraint_evaluation:
-      DC-WORLD-PROGRESSION-IS-REACH: SATISFIED
-
-  - id: MP-VENTURE-INTO-DEEP
-    type: possibility
-    achieves: [MG-EXPLORE-BEIRA]
-    meaningful_difference: >
-      인간의 전투 상식이 통하지 않는 층이다 — 재생·공생 Network·생체 영역을 체계로
-      읽고, 능력의 성립 자체를 끊고, 압박을 유지하고, 특정 부위를 노려야 한다.
-      특히 강력한 Resource 가 걸린다. (BW §24)
-    detail: >
-      여기서는 "때려서 체력을 0 으로 만든다" 가 통하지 않는다. 상대가 회복하고,
-      몸의 구조를 바꾸고, 여러 개체가 하나처럼 묶여 있고, 자기 영역 안에서는 규칙이
-      다르기 때문이다. 그래서 플레이어가 해야 하는 일이 바뀐다 — 상대를 하나의
-      **체계**로 이해하고, 그 체계가 성립하는 조건을 끊고, 끊긴 동안 압박을 유지한다.
-      앞 층들이 "어떻게 때릴까" 였다면 여기는 "무엇을 끊어야 이 존재가 성립하지
-      않는가" 다.
-    world_shape: >
-      체력을 깎는 것만으로는 해결되지 않는 존재가 있고, 그 존재를 성립시키는 구조를
-      플레이어가 파악해 끊을 수 있어야 한다.
-    implemented: ABSENT
-    requires:
-      goals: []
-      capabilities: [MC-DISCOVER-WEAKNESS, MC-DISRUPT-ABILITY, MC-MAINTAIN-PRESSURE, MC-TARGET-SPECIFIC-PART, MC-READ-CREATURE-SYSTEM]
-      knowledge: []
-      world_state: [MW-ZONE-DEEP]
-      relationship: []
-      resource: []
-    supports: []
-    opposes: []
-    changes:
-      - 이해·대응 가능한 세계의 범위가 DEEP 까지 넓어진다
-      - 특히 강력한 Resource 에 닿는다 (BW §24)
-    reveals: [MK-LOCAL-WORLDSTATE]
-    creates_goal: []
-    constraints: [DC-WORLD-PROGRESSION-IS-REACH]
-    constraint_evaluation:
-      DC-WORLD-PROGRESSION-IS-REACH: SATISFIED
-
-  - id: MP-VENTURE-INTO-UNKNOWN
-    type: possibility
-    achieves: [MG-EXPLORE-BEIRA]
-    meaningful_difference: >
-      위협이 몸을 넘는 층이다 — 기억·감각·인식·Identity·공간 자체가 공격면이 되어,
-      지각을 지키고 실재를 검증하고 자기를 붙들어 두는, 다른 층에는 없는 종류의
-      능력이 필요하다. 상상을 초월하는 Resource 가 걸린다. (BW §25)
-    detail: >
-      사다리의 끝이다. 여기서는 플레이어가 보고 있는 것 자체를 믿을 수 없다.
-      기억이 먹히고, 정체성이 뺏기고, 공간이 누군가의 둥지이고, 관찰하는 행위 자체가
-      추적당한다. 그래서 필요한 능력의 성격이 다른 모든 층과 다르다 — 때리거나 피하는
-      것이 아니라, 지각을 지키고 지금 보는 것이 실재인지 검증하고 자기를 붙들어 둔다.
-      그리고 이런 것들을 견디도록 적응한 기관은 인간에게 상상을 초월하는 자원이 된다.
-    world_shape: >
-      플레이어가 받는 정보 자체가 훼손될 수 있고, 그것을 의심하고 검증할 수단이
-      있어야 한다. 표현만 기괴하고 판정은 여전히 체력 깎기면 이 층이 아니다.
-    implemented: ABSENT
-    requires:
-      goals: []
-      capabilities: [MC-PROTECT-PERCEPTION, MC-VERIFY-REALITY, MC-IDENTITY-ANCHOR, MC-RESIST-INFLUENCE, MC-BREAK-BIOLOGICAL-LINK, MC-ESCAPE-ALTERED-SPACE]
-      knowledge: []
-      world_state: [MW-ZONE-UNKNOWN]
-      relationship: []
-      resource: []
-    supports: []
-    opposes: []
-    changes:
-      - 이해·대응 가능한 세계의 범위가 UNKNOWN 까지 넓어진다
-      - 상상을 초월하는 Resource 에 닿는다 (BW §25)
-    reveals: [MK-LOCAL-WORLDSTATE]
-    creates_goal: []
-    constraints: [DC-WORLD-PROGRESSION-IS-REACH]
-    constraint_evaluation:
-      DC-WORLD-PROGRESSION-IS-REACH: SATISFIED
+      DC-WORLD-PROGRESSION-IS-REACH: SATISFIED    # 관찰 → 이해 → 대응 → 도달이 그대로 이 노드다 (BW §32)
+      DC-WORLD-PLAYER-UNFIXED-PATH: SATISFIED     # 무엇을 익힐지 세계가 지시하지 않는다 — 겪은 것에서 나온다
 
   - id: MP-ADAPT-BY-RESOURCE
     type: possibility
     achieves: [MG-EXPLORE-BEIRA]
     meaningful_difference: >
-      다섯 진입 경로가 모두 "내 기술로 그 층을 감당한다" 인 데 비해, 이것은 그 층이
-      만들어 낸 적응을 빌려서 들어간다. 요구되는 것은 실력도 성장도 아니고 **먼저
-      다녀온 자리에서 얻은 자원**이다 — 탐험의 결과가 다음 탐험의 조건이 되는 유일한
-      경로이며, 그래서 순환을 닫는다. (BW §17)
+      그 층이 요구하는 대응을 스스로 익히는 대신, 세계가 이미 만들어 낸 적응을
+      자원으로 가져와 대신하게 한다. 실력도 시간도 아닌 **먼저 다녀온 자리에서
+      얻은 것**이 조건이며, 그래서 탐험의 결과가 다음 탐험의 조건이 되는 유일한
+      경로다. (BW §17)
     detail: >
-      BW §17 이 "Capability Gate" 라고 부른 것이다. 독성 지역에서 독에 적응한 생물의
-      정화 기관을 얻으면 더 강한 독성 지역에 들어갈 수 있게 되고, 공간이 어긋나는
-      지역에서 경계결정을 얻어 무기를 만들면 전에는 부술 수 없던 것을 상대할 수 있게
-      된다 — 이런 식이다. 중요한 것은 방향이다. 자원이 있으니 능력을 만드는 것이
-      아니라, 그 층을 넘으려면 그 능력이 필요하고 그 능력의 획득 경로 중 하나가
-      자원인 것이다 (BW §18). 이 순서를 뒤집으면 자원은 다시 보상 목록이 된다.
+      BW §17 이 "Capability Gate" 라고 부른 것이다. 독에 적응한 생물의 정화 기관을
+      얻으면 더 강한 독성 지역에 들어갈 수 있게 되고, 공간이 어긋나는 지역에서
+      경계결정을 얻어 무기를 만들면 전에는 부술 수 없던 것을 상대할 수 있게 된다.
+      익히는 갈래와 견주면 성격이 분명하다 — 저쪽은 내가 할 줄 알게 되는 것이고
+      이쪽은 물건이 대신해 주는 것이다. 그래서 물건을 잃으면 도로 못 하게 된다.
+      방향을 뒤집으면 안 된다 (BW §18): 자원이 있으니 능력을 만드는 것이 아니라,
+      그 층을 넘으려면 그 능력이 필요하고 그 획득 경로 중 하나가 자원인 것이다.
     world_shape: >
-      어떤 지역에서 얻은 것이 다른 지역에 들어갈 수 있게 만들어야 한다. 그 자원의
+      어떤 지역에서 얻은 것이 다른 지역을 감당할 수 있게 만들어야 한다. 그 자원의
       효과가 그것이 견디고 살아남은 것과 이어져야 하고, 단순한 수치 상승이면 안 된다.
     implemented: ABSENT
-    # 자원은 광석 하나뿐이고 아무 데도 쓰이지 않는다 — 세어지기만 하는 숫자다.
-    # 제작도 장착도 사용도 없다. 근거는 overlay.md · growth/growth-graph.md.
+    # 자원은 광석 하나뿐이고 아무 데도 쓰이지 않는다 — 제작도 장착도 사용도 없다.
+    # 설계상 획득 경로는 Q22 로 섰다 (growth/growth-graph.md 광물 표).
     requires:
       goals: []
       capabilities: [MC-RESTORE-BIOLOGICAL-STATE, MC-CUT-ABNORMAL-STRUCTURE]
-      # BW §8 · §10 이 직접 명명한 두 자원 유래 능력이다. 문서가 명명하지 않은
-      # 다른 게이트(독 적응 등)는 삽화라 노드로 세우지 않았다 (HISTORY Q14).
+      # BW §8 · §10 이 직접 명명한 두 자원 유래 능력이다. 다른 게이트(독 적응 등)는
+      # 삽화라 노드로 세우지 않았다 (HISTORY Q14).
       knowledge: [MK-LOCAL-WORLDSTATE]
+      # 어디서 무엇이 나는지를 모르면 가져올 수 없다 — 익히는 갈래가 앞선다.
       world_state: []
       relationship: []
       resource: [베이라에서 얻은 Bound Pressure 유래 자원]
-    supports: [MP-VENTURE-INTO-DEEP, MP-VENTURE-INTO-UNKNOWN]
+    supports: []
     opposes: []
     changes:
       - 전에는 감당할 수 없던 층을 감당할 수 있게 된다
@@ -783,8 +651,49 @@ nodes:
     creates_goal: []
     constraints: [DC-WORLD-PROGRESSION-IS-REACH, DC-WORLD-RESOURCE-ADAPTATION-TRACE]
     constraint_evaluation:
-      DC-WORLD-PROGRESSION-IS-REACH: SATISFIED         # 자원이 Capability 획득 Route 가 되는 것이 이 Constraint 의 requires 다 (BW §17 · §32)
+      DC-WORLD-PROGRESSION-IS-REACH: SATISFIED         # 자원이 Capability 획득 Route 가 되는 것이 이 Constraint 의 requires 다
       DC-WORLD-RESOURCE-ADAPTATION-TRACE: SATISFIED    # 두 자원 모두 Trace 를 문서가 공급한다 (BW §8~§10)
+
+  - id: MP-PREPARE-IN-CIVILIZATION
+    type: possibility
+    achieves: [MG-EXPLORE-BEIRA]
+    meaningful_difference: >
+      들어가기 전에 문명권에서 갖춘다 — 다녀온 사람에게 정보를 사고, 필요한 것을
+      교역으로 구하고, 만들고, 훈련한다. 셋 중 유일하게 베이라 밖에서 이루어지고
+      유일하게 돈과 관계를 비용으로 치른다. 위험이 가장 낮고 값이 가장 비싸다. (BW §14)
+    detail: >
+      BW §14 가 안전권에서 가능한 활동으로 든 것들 — 휴식·교역·제작·정보 획득·
+      Actor 관계·전투 훈련·Item 거래·성장 경로 탐색·탐험 준비 — 이 전부 이 갈래다.
+      이것이 있어야 문명권이 "시작 지점" 이 아니라 계속 돌아올 이유가 있는 곳이 된다.
+      그리고 다른 플레이어와 NPC 가 의미를 갖는 유일한 탐험 경로이기도 하다 —
+      정보를 파는 사람이 있으려면 먼저 겪은 사람이 있어야 하므로, 이 갈래는
+      익히는 갈래 위에 얹혀 세계에 경제와 사회를 만든다.
+      한계도 분명하다. 아무도 가 본 적 없는 층에 대해서는 살 정보도 만들 장비도 없다.
+    world_shape: >
+      베이라 밖에서 준비하는 행위가 존재하고(정보·교역·제작·훈련), 준비한 쪽과
+      준비하지 않은 쪽이 같은 층에서 다른 결과를 내야 한다. 그리고 그 준비의
+      원천이 다른 주체여야 한다 — 혼자 다 되면 이 갈래가 아니다.
+    implemented: ABSENT
+    # 문명권이라는 장소도, 다른 주체와 무언가를 주고받는 경로도 없다.
+    requires:
+      goals: []
+      capabilities: []
+      # BW §14 는 활동을 열거하고 Capability 를 명명하지 않는다 — 배선은 OPTIONS 몫이다.
+      knowledge: [MK-LOCAL-WORLDSTATE]
+      world_state: [MW-SAFE-FRONTIER]
+      relationship: [정보·물자를 내줄 Actor 와의 관계]
+      resource: [거래 대가]
+    supports: []
+    opposes: []
+    changes:
+      - 들어가기 전에 이미 그 층의 요구 일부가 채워져 있다
+    reveals: [MK-LOCAL-WORLDSTATE]
+    # 겪어서 아는 것이 아니라 사서 아는 것 — 같은 앎에 이르는 다른 경로다.
+    creates_goal: []
+    constraints: [DC-WORLD-PROGRESSION-IS-REACH, DC-WORLD-PLAYER-UNFIXED-PATH]
+    constraint_evaluation:
+      DC-WORLD-PROGRESSION-IS-REACH: SATISFIED    # 준비의 결과도 "감당 가능한 범위" 로 나타난다 (BW §14 · §32)
+      DC-WORLD-PLAYER-UNFIXED-PATH: SATISFIED     # 무엇을 준비할지는 플레이어가 고른다
 
   # ══════════════════════════════════════════════════════════════════════
   # MG-ACQUIRE-RARE-ORGAN — 특정 생물의 기관을 얻는 갈래들
@@ -971,7 +880,9 @@ nodes:
 #
 # ── 근거 문서 ────────────────────────────────────────────────────────────
 #   탐험  BW  design/Master-World-Beira.md
-#         §16 탐험 Loop · §17 Capability Gate · §19~§25 깊이별 층 · §27 대안 5종 · §28 전투 분기
+#         §14 문명권의 준비 · §16 탐험 Loop · §17 Capability Gate · §27 대안 5종 · §28 전투 분기
+#         §19~§25 의 깊이별 층은 Possibility 가 아니라 세계 상태다 —
+#         graph/world-state.yaml 의 MW-ZONE-* 와 그 demands 가 소유한다 (HISTORY Q21)
 #   전투  R1  design/Design-Combat-OffenseDefense-R0.md
 #         §0~§5 · §8 · §11 · §12 · §16 → MP-OUTGROW-THE-OPPONENT
 #         §13 하지 않을 것 · §14 확장 순서 · §15 층 그림 → 아직 열리지 않은 경로들

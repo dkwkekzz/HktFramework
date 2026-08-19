@@ -569,3 +569,47 @@ ONE-LAYER-AT-A-TIME 신설, 이연 층 근거의 3종은 DRAFT 보류.
 
     SCHEMA 변경: IP/IT 에 origin_trace 필수, IM 에 grants 규칙 명시.
     유래를 주석이 아니라 필드로 남긴다 — 이번 정비 전체의 교훈과 같다.
+
+## Q21. 탐험의 갈래가 "방법" 이 아니라 "장소" 로 되어 있다 — CLOSED
+
+    DECISION      (b) 장소를 빼고 방법만 남긴다 (Human)
+
+    무엇이 문제였나
+        MG-EXPLORE-BEIRA 아래 다섯 갈래가 MP-VENTURE-INTO-FRINGE ~ UNKNOWN 이었다.
+        Possibility 는 "한 목적을 이루는 서로 다른 방법" 인데 그 자리에 장소가 들어가
+        있었고, 게다가 서로 대안도 아니었다(순서대로만 열린다).
+        원인은 설계 판단이 아니라 주입 과정의 부작용이다 — BW §21~§25 의 층별 "필요:"
+        목록을 매달 곳이 필요해서 층마다 Possibility 를 만든 것이고, 그 다섯은
+        방법이 아니라 능력 목록의 옷걸이였다.
+
+    무엇을 했나
+        층은 세계 상태로 되돌렸다. MW-ZONE-* 와 MW-SAFE-FRONTIER 에 demands 필드를
+        신설해 BW §21~§25 · §20 의 "필요:" 목록을 그 층이 직접 소유하게 했다.
+        Capability 쪽 거울은 demanded_by 다.
+
+            demands     이곳을 감당하려면 무엇이 필요한가      — 장소의 조건
+            requires    이 방법을 쓰려면 무엇이 필요한가        — 방법의 조건
+
+        MP-VENTURE-INTO-* 5종을 삭제하고 MG-EXPLORE-BEIRA 의 갈래를 방법 3종으로 세웠다.
+        셋 다 BW 가 실제로 말한 것이다 — 지어내지 않았다.
+
+            MP-LEARN-TO-HANDLE-THE-LAYER   들어가 겪으며 익혀 감당한다      BW §32
+            MP-ADAPT-BY-RESOURCE           세계가 만든 적응을 빌린다        BW §17
+            MP-PREPARE-IN-CIVILIZATION     문명권에서 미리 갖추고 들어간다  BW §14
+
+        비용과 위험이 서로 다르다 — 익히는 쪽은 싸고 위험하며 유일하게 아무도 가 본 적
+        없는 곳에 쓸 수 있고, 준비하는 쪽은 안전하고 비싸며 먼저 겪은 사람을 전제한다.
+        그래서 익히는 갈래가 나머지 둘의 앞이고(supports), 그 의존이 세계에 경제와
+        사회가 생기는 자리가 된다.
+
+    딸려 온 것
+        MK-LOCAL-WORLDSTATE 의 revealed_by 가 둘이 되었다 — 겪어서 알거나 사서 알거나.
+        발견이 목적을 만드는 배선(creates_goal 3종)은 익히는 갈래가 이어받았다 (BW §16).
+        SCHEMA: world_state 에 demands, capability 에 demanded_by 를 추가하고,
+        "required_by 와 demanded_by 가 둘 다 비면 그 Capability 는 노드가 아니다" 를
+        명시했다 — 필요가 먼저임을 지키는 검사점이다.
+
+    배운 것
+        목록을 매달 곳이 필요하다는 이유로 노드 종류를 잘못 고르면, 그 오류는 문법
+        오류가 아니라 **읽어도 말이 안 되는 그래프**로 나타난다. 노드를 세우기 전에
+        "이것은 방법인가 장소인가 상태인가" 를 먼저 묻는다.

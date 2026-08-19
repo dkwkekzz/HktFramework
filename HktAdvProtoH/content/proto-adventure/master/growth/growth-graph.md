@@ -44,12 +44,16 @@ Q22 로 세계의 광물을 정의했다. 각 광물은 **어떤 압력이 그�
 
 ```text
 MW-SPATIAL-SHEAR   → 경계결정 → MC-CUT-ABNORMAL-STRUCTURE  → MP-ADAPT-BY-RESOURCE
-MW-ZONE-DEEP       → 불연정   → MC-BREAK-BIOLOGICAL-LINK   → MP-VENTURE-INTO-UNKNOWN
-MW-ZONE-UNKNOWN    → 정박정   → MC-IDENTITY-ANCHOR         → MP-VENTURE-INTO-UNKNOWN
+MW-ZONE-DEEP       → 불연정   → MC-BREAK-BIOLOGICAL-LINK   → MW-ZONE-UNKNOWN 의 demands
+MW-ZONE-UNKNOWN    → 정박정   → MC-IDENTITY-ANCHOR         → MW-ZONE-UNKNOWN 의 demands
 ```
 
 세 경우 모두 **필요가 먼저 있었고 경로가 나중에 붙었다.** 세 Capability 전부
-이 광물들을 세우기 전부터 어떤 Possibility 가 요구하고 있던 노드다.
+이 광물들을 세우기 전부터 어떤 Possibility 나 층이 요구하고 있던 노드다.
+
+아래 둘은 특히 순환이 좁게 도는 경우다 — DEEP 에서 얻은 것이 UNKNOWN 을 열고,
+UNKNOWN 에서 얻은 것이 다시 UNKNOWN 을 더 감당하게 한다. 한 번 다녀와 본 사람만
+제대로 들어갈 수 있다는 형태이며, BW §16 탐험 Loop 가 층 안에서도 도는 경우다.
 
 ## 아직 경로가 없는 것
 

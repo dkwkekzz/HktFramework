@@ -23,14 +23,17 @@ Active Defense       대기 — 그 층의 설계 문서가 와야 한다
 Aura / Nen           대기 — 아래 층이 서야 의미가 생긴다
 ```
 
-**탐험 사다리** (BW §19~§25):
+**탐험** — 층(어디)과 방법(어떻게)이 분리되었다 (HISTORY Q21):
 
 ```text
-BW 층                지금
+방법 3종                            지금
 ────────────────────────────────────────────
-SAFE FRONTIER        전투 프로토타입이 사실상 이 층이다
-FRINGE 진입          첫 결손 MC-OBSERVE 가 후보 B
-WILD ~ UNKNOWN       대기 — 아래 층부터 순서대로
+익힌다 (MP-LEARN-…)                 결손 2 — 첫 칸 MC-OBSERVE 가 후보 B
+자원으로 빌린다 (MP-ADAPT-…)        설계는 섰고(Q22) 세계에 제작이 없다
+문명권에서 준비한다 (MP-PREPARE-…)  문명권·거래라는 세계 기반이 없다
+
+층이 요구하는 것 (MW-ZONE-*.demands)   SAFE 2/4 · FRINGE 0/3 · WILD 0/4
+                                       DANGER 0/4 · DEEP 0/5 · UNKNOWN 0/6
 ```
 
 **세계 순환** (BW §16 · §17) — 이번 대조로 드러난 축이다:
@@ -80,11 +83,11 @@ WILD ~ UNKNOWN       대기 — 아래 층부터 순서대로
                          정보 일부가 관찰해야만 드러난다 — 보지 않고 덤비는 플레이어와
                          관찰하고 덤비는 플레이어가 다른 정보를 가진 채 싸운다
     Source Goal          MG-EXPLORE-BEIRA
-    Source Possibility   MP-VENTURE-INTO-FRINGE
-    Missing / Partial    MC-OBSERVE (MISSING) — 진입 요구 3종 중 첫 하나로 쪼갰다.
-                         쪼갠 사유: 셋을 한 Cycle 에 닫으면 관찰·예측·지형이 각각
-                         검증되지 않는다. MC-OBSERVE 는 지역 기반 없이 현재 전투 세계
-                         안에서 닫을 수 있는 유일한 조각이다
+    Source Possibility   MP-LEARN-TO-HANDLE-THE-LAYER
+    Missing / Partial    MC-OBSERVE (MISSING) — 이 방법이 요구하는 둘 중 첫째다
+                         (나머지는 MC-PREDICT). 둘을 한 Cycle 에 닫으면 관찰과 예측이
+                         각각 검증되지 않아 쪼갰다. MC-OBSERVE 는 지역 기반 없이
+                         현재 전투 세계 안에서 닫을 수 있다
     원본 근거            BW §21 (FRINGE — 관찰·예측·지형) · §32 (관찰 → 이해 → 대응)
     Active Constraints   DC-WORLD-PROGRESSION-IS-REACH · DC-COMBAT-MATCHUP-SOFT ·
                          DC-WORLD-OWNS-THE-SURFACE-LIST · DC-WORLD-PLAYER-UNFIXED-PATH
@@ -177,8 +180,9 @@ WILD ~ UNKNOWN       대기 — 아래 층부터 순서대로
 
 | 층 / 후보 | 무엇이 막고 있는가 |
 |---|---|
-| FRINGE 진입 완주 (MP-VENTURE-INTO-FRINGE) | 결손 MC-PREDICT · MC-USE-TERRAIN + 지역(SAFE↔FRINGE 경계)이라는 세계 기반. 후보 B 가 먼저다 |
-| WILD 이하 진입 | 윗층 진입이 먼저다 (MW-DEPTH-GRADIENT). 각 층 결손 3~6종 |
+| 익히는 갈래 완주 (MP-LEARN-TO-HANDLE-THE-LAYER) | 결손 MC-PREDICT + 층이라는 세계 기반(MW-DEPTH-GRADIENT). 후보 B 가 먼저다 |
+| 문명권에서 준비하는 갈래 (MP-PREPARE-IN-CIVILIZATION) | 문명권이라는 장소도, 주체 사이에 무언가가 오가는 경로도 없다. 요구 Capability 는 없으므로 막는 것은 전부 세계 기반이다 |
+| 각 층 감당 (MW-ZONE-* 의 demands) | FRINGE 0/3 · WILD 0/4 · DANGER 0/4 · DEEP 0/5 · UNKNOWN 0/6. 얕은 층부터 채운다 (MW-DEPTH-GRADIENT) |
 | MP-ADAPT-BY-RESOURCE 완주 (BW §17 순환) | Q22 로 **설계상 획득 경로는 섰다**(경계결정 → IM-BOUNDARY-EDGED → MC-CUT-ABNORMAL-STRUCTURE). 남은 것은 지역·제작이라는 세계 구현이다. 후보 D 가 그 첫 칸이다 |
 | Active Defense (완벽한 막기·되받아치기·Guard Break) | R1 §15 층 그림에서 Penetration 위다. 두 문서는 이름만 예고 — 그 층의 설계 문서가 와야 한다 |
 | Aura / Nen (집중·조건·제약·서약) | 사다리의 맨 위 — 아래 층이 서야 의미가 생긴다 |

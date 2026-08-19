@@ -133,6 +133,10 @@ nodes:
     arises_from: [MW-BOUND-PRESSURE]
     causes: [MG-EXPLORE-BEIRA]
     changed_by: []
+    demands: [MC-COMBAT-STRIKE, MC-GUARD, MC-EVADE, MC-REPOSITION]
+    # BW §20 — 평범한 생태·예측 가능한 전투를 감당하는 기본기.
+    # 앞의 셋은 기존 전투 노드 재사용이다 (MC-ATTACK ≙ MC-COMBAT-STRIKE ·
+    # MC-DEFEND ≙ MC-GUARD · MC-EVADE 그대로) — HISTORY Q18(a).
 
   # ══ 베이라의 깊이 (BW §19) ═════════════════════════════════════════════
 
@@ -156,13 +160,17 @@ nodes:
     arises_from: [MW-FREE-PRESSURE]
     causes: []
     changed_by: []
-    # 각 층의 생태는 아래 MW-ZONE-* 5종이, 각 층이 요구하는 Capability 사다리는
-    # capabilities.yaml 의 "베이라 사다리" 절이 소유한다.
+    # 각 층의 생태와 그 층이 요구하는 것(demands)은 아래 MW-ZONE-* 5종이 소유한다 —
+    # BW §21~§25 의 "필요:" 목록이 그 원본이다.
     # SAFE FRONTIER 층은 MW-SAFE-FRONTIER 가 그 자리다 (BW §14 · §20).
 
   # ══ 깊이별 층 (BW §21~§25) ═════════════════════════════════════════════
-  # BW 가 한 절씩 서술한 세계 사실이다. 각 층이 요구하는 능력은 그 절의 "필요:" 목록이
-  # 원본이고, 배선은 possibilities.yaml 의 MP-VENTURE-INTO-* 가 소유한다.
+  # BW 가 한 절씩 서술한 세계 사실이다. 각 층의 demands 가 그 절의 "필요:" 목록이다.
+  #
+  # demands 는 "그곳을 감당하려면 무엇이 필요한가" 이지 "어떻게 가는가" 가 아니다.
+  # 어떻게 감당할 것인가는 MG-EXPLORE-BEIRA 아래의 방법 3종이 소유한다
+  # (익힌다 · 자원으로 빌린다 · 문명권에서 준비한다). 같은 층을 여러 방법으로
+  # 감당할 수 있다는 것이 이 분리의 요점이다.
 
   - id: MW-ZONE-FRINGE
     type: world_state
@@ -183,6 +191,8 @@ nodes:
     arises_from: [MW-DEPTH-GRADIENT]
     causes: [MG-OVERCOME-SUPERIOR-OPPONENT, MG-SURVIVE-ENEMY-OFFENSIVE, MG-HOLD-HUNTING-GROUND]
     changed_by: []
+    demands: [MC-OBSERVE, MC-PREDICT, MC-USE-TERRAIN]
+    # BW §21 — 힘이 아니라 정보로 우위를 뒤집는 층이다.
 
   - id: MW-ZONE-WILD
     type: world_state
@@ -202,6 +212,9 @@ nodes:
     arises_from: [MW-DEPTH-GRADIENT]
     causes: [MG-ACQUIRE-RARE-ORGAN]
     changed_by: []
+    demands: [MC-BREAK, MC-DISCOVER-WEAKNESS, MC-PRECISE-TARGETING, MC-CONTROL-SPACE]
+    # BW §22 — 관찰만으로는 부족해지고 개입이 필요해진다.
+    # MC-BREAK 는 전투 노드 재사용이다 (semantic 을 방어 구조 전반으로 넓혀 둔 것).
 
   - id: MW-ZONE-DANGER
     type: world_state
@@ -221,6 +234,8 @@ nodes:
     causes: []
     # 이 층이 만드는 구체 Goal 을 BW 가 명명하지 않았다 — WHY 확장 몫이다.
     changed_by: []
+    demands: [MC-READ-ENVIRONMENT, MC-FORCE-MOVEMENT, MC-USE-HAZARD, MC-INTERRUPT]
+    # BW §23 — 장소가 상대의 일부이므로 환경을 다루는 능력이 요구된다.
 
   - id: MW-ZONE-DEEP
     type: world_state
@@ -240,6 +255,9 @@ nodes:
     arises_from: [MW-DEPTH-GRADIENT]
     causes: []
     changed_by: []
+    demands: [MC-DISCOVER-WEAKNESS, MC-DISRUPT-ABILITY, MC-MAINTAIN-PRESSURE, MC-TARGET-SPECIFIC-PART, MC-READ-CREATURE-SYSTEM]
+    # BW §24 — 상대를 체계로 읽고 그 성립 조건을 끊어야 한다.
+    # MC-DISCOVER-WEAKNESS 는 WILD 와 공유한다 (§22 · §24 가 같은 이름을 두 번 든다).
 
   - id: MW-ZONE-UNKNOWN
     type: world_state
@@ -259,6 +277,8 @@ nodes:
     arises_from: [MW-DEPTH-GRADIENT]
     causes: []
     changed_by: []
+    demands: [MC-PROTECT-PERCEPTION, MC-VERIFY-REALITY, MC-IDENTITY-ANCHOR, MC-RESIST-INFLUENCE, MC-BREAK-BIOLOGICAL-LINK, MC-ESCAPE-ALTERED-SPACE]
+    # BW §25 — 지켜야 하는 것이 몸이 아니라 지각·정체다.
     # §25 의 "기억을 먹는 생명 · 관찰자를 추적하는 생명" 등은 예시다 — 개체 노드로
     # 세우지 않는다 (지어내지 않는다 · HISTORY Q14 삽화 선례).
 

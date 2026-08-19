@@ -152,7 +152,19 @@ Capability 의 기존 `overlay:` 필드가 같은 역할을 한다 — Capabilit
   arises_from: [MW-...]       # 이 상태를 낳은 상위 세계 상태 (World → World 인과)
   causes: [MG-...]            # 이 상태가 발생시키는 Goal
   changed_by: [MP-...]        # 이 상태를 바꾸는 Possibility
+  demands: [MC-...]           # 이곳에서 살아남거나 일하려면 갖춰야 하는 Capability
 ```
+
+`demands` 는 **장소가 요구하는 것**이다. Possibility 의 `requires` 와 헷갈리면 안 된다.
+
+```text
+requires   이 방법을 쓰려면 무엇이 필요한가      — 방법의 조건
+demands    이곳을 감당하려면 무엇이 필요한가      — 장소의 조건
+```
+
+둘을 섞으면 "그 지역에 들어간다" 가 Possibility 로 올라온다. 장소는 방법이 아니다 —
+같은 장소를 여러 방법으로 감당할 수 있어야 Possibility 가 OR 갈래로 성립한다.
+Capability 쪽 거울은 `demanded_by` 다 (`required_by` 와 같은 방식의 쌍).
 
 `arises_from` 이 세계의 인과 척추다. 어떤 상태가 왜 존재하는지를 **간선으로** 남긴다 —
 `statement` 안에 한국어로 "A 때문에 B" 라고 써 두는 것으로 대신하지 않는다. 그렇게 하면
@@ -261,7 +273,8 @@ Capability 의 기존 `overlay:` 필드가 같은 역할을 한다 — Capabilit
      비슷한 다른 Capability 와 무엇으로 갈리는가>
   world_shape: >
     <이 능력이 세계에 있다는 것을 무엇으로 확인하는가 — Cycle 이 이 칸을 닫는다>
-  required_by: [MP-...]
+  required_by:  [MP-...]      # 이 능력을 요구하는 방법
+  demanded_by:  [MW-...]      # 이 능력을 요구하는 장소
   constraints: [DC-...]
   constraint_evaluation:
     DC-...: UNRESOLVED
@@ -269,6 +282,11 @@ Capability 의 기존 `overlay:` 필드가 같은 역할을 한다 — Capabilit
 ```
 
 구현 모듈명(`world/combat/guard.ts`)을 `semantic` 에 쓰지 않는다.
+
+`required_by` 와 `demanded_by` 가 **둘 다 비면** 그 Capability 는 노드가 아니다 —
+아무도 요구하지 않는 능력은 세계가 필요로 하지 않는 것이다. 어느 쪽이든 하나는
+차 있어야 하고, 그것이 "필요가 먼저" 를 지키는 검사점이다
+(DC-GROWTH-NEED-FROM-POSSIBILITY — Item 의 `grants` 도 이 둘 중 하나가 찬 MC-* 만 가리킨다).
 
 ### graph/edges.yaml
 

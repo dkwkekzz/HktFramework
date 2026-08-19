@@ -117,16 +117,29 @@ Capability 만 보면 전투가 꽤 찬 것처럼 보이지만, 그 전투가 �
 | MP-EVADE-BY-MOVING-THE-BODY | MC-EVADE | R1 §13 이 이후 확장으로만 지정 |
 | MP-HOLD-FORTIFIED | MC-FORTIFY · MC-COMBAT-FLOW | Aura/Nen 층 |
 
-### MG-EXPLORE-BEIRA (6 갈래)
+### MG-EXPLORE-BEIRA (3 갈래)
+
+층 진입은 더 이상 Possibility 가 아니다 — 층은 세계 상태이고 그 요구는 `demands` 가
+소유한다 (HISTORY Q21). 여기 셋은 **어떻게 감당하는가**다.
 
 | Possibility | 요구 중 없는 것 | 비고 |
 |---|---|---|
-| MP-VENTURE-INTO-FRINGE | MC-OBSERVE · MC-PREDICT · MC-USE-TERRAIN | 3종 전부 없다. 그러나 사다리의 첫 칸이다. 지역·이동이라는 세계 기반도 없다 |
-| MP-VENTURE-INTO-WILD | MC-DISCOVER-WEAKNESS · MC-PRECISE-TARGETING · MC-CONTROL-SPACE + MC-BREAK(PARTIAL) | 윗층이 먼저다 |
-| MP-VENTURE-INTO-DANGER | MC-READ-ENVIRONMENT · MC-USE-HAZARD + MC-FORCE-MOVEMENT·MC-INTERRUPT(PARTIAL) | 윗층이 먼저다 |
-| MP-VENTURE-INTO-DEEP | 5종 전부 | 윗층이 먼저다 |
-| MP-VENTURE-INTO-UNKNOWN | 6종 전부 | 사다리의 끝 — 가장 멀다 |
-| MP-ADAPT-BY-RESOURCE | MC-RESTORE-BIOLOGICAL-STATE · MC-CUT-ABNORMAL-STRUCTURE + MK-LOCAL-WORLDSTATE + 자원 | **탐험 순환을 닫는 노드인데 요구가 전부 비어 있다.** 자원이 세계에서 아무 일도 하지 않는 것이 근본 원인이다 (아래) |
+| MP-LEARN-TO-HANDLE-THE-LAYER | MC-OBSERVE · MC-PREDICT + MW-DEPTH-GRADIENT | 탐험의 기본 갈래이자 다른 둘의 앞이다 — 먼저 겪은 사람이 없으면 살 정보도 가져올 자원도 없다. 결손 2종 중 MC-OBSERVE 가 후보 B |
+| MP-ADAPT-BY-RESOURCE | MC-RESTORE-BIOLOGICAL-STATE · MC-CUT-ABNORMAL-STRUCTURE + MK-LOCAL-WORLDSTATE + 자원 | **설계상 획득 경로는 Q22 로 섰다** (경계결정 → IM-BOUNDARY-EDGED). 세계에 제작·장착이 없다 |
+| MP-PREPARE-IN-CIVILIZATION | MK-LOCAL-WORLDSTATE + MW-SAFE-FRONTIER + 관계·대가 | 요구 Capability 가 없다 (BW §14 는 활동만 열거) — 막는 것은 능력이 아니라 문명권·거래라는 세계 기반이다 |
+
+### 층이 요구하는 것 — MW-ZONE-* 의 demands
+
+각 층을 감당하려면 무엇이 있어야 하는가. 위 세 방법 중 무엇으로 채우든 상관없다.
+
+| 층 | demands | 지금 채워진 것 |
+|---|---|---|
+| MW-SAFE-FRONTIER (§20) | MC-COMBAT-STRIKE · MC-GUARD · MC-EVADE · MC-REPOSITION | 2 / 4 (EVADE 없음 · REPOSITION 절반) |
+| MW-ZONE-FRINGE (§21) | MC-OBSERVE · MC-PREDICT · MC-USE-TERRAIN | 0 / 3 |
+| MW-ZONE-WILD (§22) | MC-BREAK · MC-DISCOVER-WEAKNESS · MC-PRECISE-TARGETING · MC-CONTROL-SPACE | 0 / 4 (BREAK 절반) |
+| MW-ZONE-DANGER (§23) | MC-READ-ENVIRONMENT · MC-FORCE-MOVEMENT · MC-USE-HAZARD · MC-INTERRUPT | 0 / 4 (FORCE-MOVEMENT · INTERRUPT 절반) |
+| MW-ZONE-DEEP (§24) | MC-DISCOVER-WEAKNESS · MC-DISRUPT-ABILITY · MC-MAINTAIN-PRESSURE · MC-TARGET-SPECIFIC-PART · MC-READ-CREATURE-SYSTEM | 0 / 5 |
+| MW-ZONE-UNKNOWN (§25) | MC-PROTECT-PERCEPTION · MC-VERIFY-REALITY · MC-IDENTITY-ANCHOR · MC-RESIST-INFLUENCE · MC-BREAK-BIOLOGICAL-LINK · MC-ESCAPE-ALTERED-SPACE | 0 / 6 |
 
 ### MG-ACQUIRE-RARE-ORGAN (5 갈래)
 
