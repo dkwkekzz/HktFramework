@@ -1,56 +1,71 @@
 # CC-THE-WORLD-OWNS-THE-RELATION
 
+접수: 2026-08-19 (Feedback) — C013-penetration-devalues-the-wall 의 MASTER FEEDBACK 이
+보고한 관찰이다. Cycle Agent 는 관찰만 보고했고, 승격 판단은 Human 이 한다.
+
 ## CANDIDATE STATEMENT
+
     두 존재 사이에서만 정해지는 값도 세계가 계산해 관찰에 싣는다.
     View 는 관찰값끼리 계산해 새 의미를 만들지 않는다.
 
 ## OBSERVED REPEATING PATTERN
-    C013 (1회 · 직접) — 이 Cycle 의 새 관찰값은 한 존재의 속성이 아니라 **두 존재
-        사이의 값**이었다: `versusObserver` — 저 상대의 방어가 **나의 관통에게**
-        얼마로 읽히는가. 세계가 계산해 실었고 View 는 곱셈을 하지 않는다.
-        fixture 에서 versusObserver 를 되돌리면 표시가 사라지는 것이 그 증거다
-        (view/tests/penetration.spec.ts).
 
-    C012 (전조) — `defenseShape`(어느 쪽이 더 단단한가)를 세계가 계산해 실었다.
-        그것은 한 존재의 성질이었으므로 관계는 아니었지만, "View 가 두 수치를
-        비교해 만들어내지 않는다" 는 같은 규율이 그때 처음 섰다.
+    관찰은 아직 **한 번**이다. 반복이 확인되지 않았다는 것을 먼저 적는다.
+
+    C013     이 Cycle 의 새 관찰값은 한 존재의 속성이 아니라 두 존재 사이의 값이었다 —
+             "그 상대의 방어가 **나에게는** 얼마로 읽히는가" (versusObserver).
+             그런 값은 View 가 자기 관통과 상대 방어를 "그냥 곱하면" 만들 수 있어
+             계약에 넣지 않고 지나치기 쉽다. 세계가 계산해 실었고, View 는 곱하지 않는다.
+             fixture 에서 versusObserver 를 되돌리면 표시가 사라진다
+             (view/tests/penetration.spec.ts) — 화면이 세계의 값에 매여 있다는 증거다.
+
+    앞선 세 Cycle 은 **한 존재의** 표면이었다 (속성 추가 C010 · interaction 추가 C011 ·
+    삭제와 분할 C012). 관계 형태의 값은 C013 이 처음이다.
 
 ## AFFECTED NODES
-    MC-PENETRATION (IMPLEMENTED — C013) · MP-PIERCE-THE-HARD-DEFENSE
-    앞으로 두 존재 사이에서 정해지는 값을 내놓는 모든 Capability
-    (상성·저항·인지·거리 판정 — 관계값은 전투 밖에서도 계속 온다)
+
+    직접   두 존재 사이에서만 값이 정해지는 모든 Capability —
+           지금은 MC-PENETRATION · MC-ATTACK-ARMOR-MATCHUP 이 그렇다
+    간접   앞으로 상대에 따라 값이 달라지는 것 전부 —
+           관찰(MC-OBSERVE) · 거래 · 관계 · 지역별 보정
 
 ## EXPECTED SCOPE
-    GLOBAL — World → View 경계 전반의 성질이다.
+
+    GLOBAL — 전투에 한정되지 않는다. World → View 경계 전반의 성질이다.
 
 ## REQUIRES
-    두 존재 사이에서만 정해지는 값을 세계가 계산해 관찰 계약에 싣는다
-    그 값이 원래 값과 같을 때에도 싣는다 (같다는 것 자체가 관찰이다)
+
+    - 두 존재 사이에서만 정해지는 값을 세계가 계산해 관찰 계약에 싣는다
+    - 그 값이 무엇과 무엇 사이의 값인지가 관찰에서 읽힌다
 
 ## PROHIBITS
-    View 가 관찰값 둘을 곱하거나 견주어 새 의미를 만들어내는 것
+
+    - View 가 관찰값 둘을 조합해 세계에 없는 세 번째 의미를 만드는 것
 
 ## PREFERS
-    관계값에 자기 이름을 주는 것 — 계산에 쓰인 값에는 언제나 이름이 있어야 한다
-    (C012·C013 이 `effectiveDefense` 에 내린 판단과 같다)
+
+    - 관계 값과 그 재료(걷히기 전 · 걷는 값 · 걷힌 뒤)가 함께 관찰되는 것 —
+      보는 이가 결과에서 재료를 역산하지 않아도 된다
 
 ## POTENTIAL CONFLICTS
-    없음. DC-WORLD-OWNS-THE-SURFACE-LIST 의 **확장**이며 별개 문안이 아닐 수도 있다 —
-    그 DC 는 "무엇을 할 수 있는가의 목록" 을 세계에 두었고 이것은 "두 존재 사이의
-    값" 을 같은 자리에 둔다. CC-THE-WORLD-NAMES-WHAT-IT-READ(C012) ·
-    CC-THE-WORLD-NAMES-WHAT-IT-WITHHELD(C014) 와 같은 처지다.
-    Human 이 넷을 한 문안으로 합칠지 판단할 자리다.
+
+    DC-WORLD-OWNS-THE-SURFACE-LIST (APPROVED · GLOBAL) 과 겹칠 수 있다.
+    C013 은 이것을 그 Constraint 의 **네 번째 증거**로도 판정했다 (08-verification).
+    별개 문안이 아니라 기존 문안의 확장·명확화일 가능성이 있다 — 그렇다면 새 DC 를
+    세우는 것이 아니라 기존 DC 의 문안을 고치는 편이 맞다.
 
 ## WHY THIS SHOULD BECOME A CONSTRAINT
-    관계값은 **View 가 만들 수 있기 때문에** 계약에 넣지 않고 지나치기 쉽다.
-    상대의 방어와 내 관통이 둘 다 화면에 있으면 곱셈 한 줄이면 되기 때문이다.
-    그러나 곱하는 순간 세계가 몫을 정하는 규칙을 바꿔도 화면이 따라오지 않고,
-    두 곳의 계산이 어긋나면 플레이어는 세계가 하지 않은 약속을 배운다.
 
-    C014 가 이 위험을 실제로 키웠다 — 상대를 모를 때 `combatStats` 가 실리지 않는데,
-    View 가 곱셈으로 관계값을 만들려 했다면 **가려진 자리가 뚫렸을 것이다.**
-    관계값을 세계가 소유한 덕에 앎의 경계가 한 곳에서만 지켜진다.
+    관계 값은 View 가 스스로 만들 수 있기 때문에 목록형 표면보다 새기 쉽다.
+    한 번 곱하기 시작하면, 세계가 몫을 정하는 규칙을 바꿔도 화면이 따라오지 않는다.
+
+    반대로 지금 세우기에는 근거가 얇다 — 관찰이 한 Cycle 뿐이고, 기존 DC 와의 경계가
+    정리되지 않았다. Cycle 은 승격하지 않고 후보로만 제출했다.
 
 ## HUMAN DECISION
+
     PENDING
     Reason
+        판단할 것 둘 — ① 별개 DC 인가, DC-WORLD-OWNS-THE-SURFACE-LIST 의 문안 확장인가
+                       ② 관찰 한 번으로 승격할 것인가, 관계 값을 다루는 Cycle 을
+                          하나 더 본 뒤로 미룰 것인가

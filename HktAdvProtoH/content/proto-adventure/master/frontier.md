@@ -4,7 +4,8 @@ Frontier 는 Graph 의 절대 Leaf 가 아니라 **현재 세계 기준으로 �
 플레이 가능한 Capability 단위**다. 기본 절차 **NEXT** 단계의 산출물이며,
 Human 이 여기서 하나를 골라 다음 Cycle Goal 로 삼는다 (Human Select → 8 Stage Cycle).
 
-    기준 Overlay   master/overlay.md — C014 완료 반영 (2026-08-19)
+    기준 Overlay   master/overlay.md — C013 · C014 완료 반영
+                   (전투 사다리는 Penetration 층까지 · 탐험 사다리는 FRINGE 첫 칸까지 섰다)
     근거 문서      전투 R1·DT · 세계 BW (매핑된 전투 노드에는 BW 보조 근거 허용 — Q18(a))
 
 ## 지금 어디까지 왔는가
@@ -18,12 +19,12 @@ Basic Damage         섰다
 Critical             열렸다 — Q11(b) 확률 허용 ← 후보 (아래)
 Defense Action       섰다
 Damage Type          섰다
-Penetration          섰다 — 단 관통을 **얻는** 경로가 없다 ← 후보 (아래)
+Penetration          섰다
 Active Defense       대기 — 사유는 "지금 열 수 없는 것"
 Aura / Nen           대기 — 사유는 "지금 열 수 없는 것"
 ```
 
-**탐험 사다리** (BW §19~§25 — 이번에 열린 새 축):
+**탐험 사다리** (BW §19~§25):
 
 ```text
 BW 층                지금
@@ -39,46 +40,74 @@ WILD ~ UNKNOWN       대기 — 아래 층부터 순서대로
 
 ## 후보
 
-### FR-EARN-THE-PIERCING
-    Playable Result      플레이어가 그 벽을 뚫기 위해 무언가를 하고, 그 결과로 자기 관통이
-                         달라진다 — 지금은 종류가 정해 준 값을 그대로 지니고 있을 뿐이다
-    Source Goal          MG-OVERCOME-SUPERIOR-OPPONENT
-    Source Possibility   MP-PIERCE-THE-HARD-DEFENSE
-    Missing / Partial    없음 — 요구 Capability 4종은 C013 으로 전부 IMPLEMENTED 다.
-                         결손은 Capability 가 아니라 **획득 경로**다 (growth/growth-graph.md
-                         가 "성장이라는 행위 자체가 아직 세계 안에 없다" 로 이미 적어 둔 공백)
-    원본 근거            C013 08 MASTER FEEDBACK 의 제안 · 같은 문서의 Possibility 주의
-                         ("그 Possibility 를 열었을 뿐 아직 좁다 — 플레이어가 관통을 얻는
-                          경로가 세계에 없다. 디버그 명령뿐이다") ·
+### FR-INSIGHT-SEES-BEFORE-LOOKING
+    Playable Result      플레이어가 기른 통찰이 높으면 상대의 일부가 살펴보지 않아도 이미
+                         보이고, 낮으면 여전히 다가가 살펴봐야 한다 — 같은 상대 앞에서
+                         내가 무엇을 아는지가 내 능력에 따라 달라진다
+    Source Goal          MG-EXPLORE-BEIRA
+    Source Possibility   MP-VENTURE-INTO-FRINGE
+    Missing / Partial    MC-OBSERVE (PARTIAL) — 남은 결손 둘 중 **경로 쪽**을 닫는다.
+                         앎에 이르는 길이 살펴봄 하나뿐이고, 앎이 존재 단위여서
+                         "일부만 안다" 가 세계에 없다 (C014 06 NOTES)
+    원본 근거            BW §32 (관찰 → 이해 → 대응 발견 — 진행이 대응 범위의 확장이다) ·
                          DC-WORLD-PROGRESSION-IS-REACH 의 requires
-                         (`resource_can_open_capability_route`)
-    Active Constraints   DC-GROWTH-GOAL-FIRST · DC-GROWTH-NEED-FROM-POSSIBILITY ·
-                         DC-GROWTH-NOT-A-STAGE · DC-WORLD-PROGRESSION-IS-REACH ·
-                         DC-COMBAT-MATCHUP-SOFT
-    Constraint Eval      UNRESOLVED — **무엇으로 얻는가가 정해지지 않았다.**
-                         장비인지 성장인지 준비 행동인지를 근거 문서가 정하지 않았고
-                         (C013 08 의 주의), 그 선택에 따라 걸리는 판정이 달라진다.
-                         다만 형태와 무관하게 이미 걸려 있는 것 셋:
-                         GOAL-FIRST — "관통을 얻는다" 를 Goal 로 세우지 않는다.
-                           MG-OVERCOME-SUPERIOR-OPPONENT 를 달성하는 Possibility 로만 성립한다
-                         NEED-FROM-POSSIBILITY — 장비·Class 가 있다는 이유로 새 Capability 를
-                           만들지 않는다. MC-PENETRATION 은 이미 MP-PIERCE 가 요구해서 있다
-                         MATCHUP-SOFT — 그 경로가 유일한 문이 되면 하드 카운터다.
-                           관통을 얻지 못한 쪽도 계속 싸울 수 있어야 한다
-                         나머지는 Human 이 형태를 정하면 판정한다 — 지어내지 않는다
-    Observable Result    무언가를 한 뒤 내 관통이 달라지고, 같은 벽을 상대로 피해가
-                         달라지는 것이 계산 내역으로 설명된다
-    Why one Cycle        관통 자체는 이미 서 있다 — 더해지는 것은 그 값을 바꾸는 세계 내
-                         행위 하나다. 다만 형태가 정해지지 않아 크기를 아직 알 수 없다
-    7 조건               1 **해당 없음** (Capability 결손이 아니라 획득 경로 결손이다) ·
-                         2 MP-PIERCE 를 넓힌다 · 3 Client 실측 가능 · 4 형태에 따라 다르다 ·
-                         5 새 World 규칙 · 6 형태 미정으로 UNRESOLVED · 7 다른 능력치의
-                         획득 경로가 같은 자리에 얹힌다
-    Note                 이 후보는 다른 후보들과 **성질이 다르다** — overlay(구현되어 있는가)의
-                         결손이 아니라 growth overlay(얻는 경로가 있는가)의 결손이다.
-                         FR-INSIGHT-SEES-BEFORE-LOOKING 과 같은 뿌리이며(둘 다
-                         `resource_can_open_capability_route` 를 겨냥한다), 형태를 먼저
-                         정하면 두 후보가 한 층으로 합쳐질 수도 있다
+                         (`progression_expands_reachable_world` ·
+                          `resource_can_open_capability_route`) ·
+                         2026-08-19 Human 지시 ("아이템이나 내 능력치·스킬에 따라
+                         미리 알 수도 있어야 한다 — 그럴 여지만 있으면 됨")
+    Active Constraints   DC-WORLD-PROGRESSION-IS-REACH · DC-COMBAT-MATCHUP-SOFT ·
+                         DC-WORLD-OWNS-THE-SURFACE-LIST · DC-WORLD-PLAYER-UNFIXED-PATH
+    Constraint Eval      SATISFIED — 진행의 결과가 수치가 아니라 **대응 가능한 범위**로
+                         나타난다 (PROGRESSION-IS-REACH: 통찰이 오르면 아는 상대가 늘고
+                         고를 근거가 늘어난다). 얻는 것은 여전히 정보뿐이고 계산에는
+                         닿지 않으며, 통찰이 낮은 쪽도 살펴봄으로 똑같이 알 수 있다 —
+                         능력이 유일한 문이 되지 않는다 (MATCHUP-SOFT 의 정보판 ·
+                         PLAYER-UNFIXED-PATH). 무엇이 열렸고 무엇이 아직 가려졌는지의
+                         목록은 C014 가 세운 그 자리(`concealed`)가 그대로 나른다
+                         (SURFACE-LIST — 계약 변경 없음)
+    Observable Result    통찰을 올리면 살펴보지 않은 상대의 가려진 항목이 줄어드는 것이
+                         보이고, 내리면 다시 가려진다. 두 플레이어가 같은 상대 앞에서
+                         서로 다른 만큼 알고 서 있다
+    Why one Cycle        새 능력치 하나와, 이미 있는 앎 판정에 붙는 절 하나다 —
+                         C014 가 세운 장부·관문·계약을 그대로 쓴다. 다만 장부를
+                         존재 단위에서 **항목 단위**로 넓히는 일이 함께 온다
+                         (계약은 이미 목록을 나르므로 View 는 그대로다)
+    7 조건               1 PARTIAL · 2 MP-VENTURE-INTO-FRINGE 전진 + PROGRESSION-IS-REACH 의
+                         requires 를 세계에서 처음 만족시킨다 · 3 Client 실측 가능
+                         (통찰을 바꿔 가며 가려짐이 변하는 것) · 4 한 Cycle ·
+                         5 새 World 규칙("아는 만큼이 능력이다") · 6 Active 와 양립 (위) ·
+                         7 아이템 경로·습성 관찰이 이 위에 얹힌다
+    Note                 FR-EARN-THE-PIERCING("관통을 얻는 경로")과 **같은 뿌리다** —
+                         둘 다 `resource_can_open_capability_route` 를 겨냥한다.
+                         이쪽은 형태가 정해져 있어(능력치) 지금 고를 수 있고, 그쪽은
+                         형태 미정으로 대기열에 있다. 이 Cycle 이 형태의 선례를 만든다
+    Status               PROPOSED
+
+### FR-PREDICT-READS-THE-NEXT-BLOW
+    Playable Result      살펴본 상대가 다음에 무엇을 할지가 미리 읽히고, 그것을 근거로
+                         막거나 물러나거나 먼저 친다 — 관찰이 이해로 이어진다
+    Source Goal          MG-EXPLORE-BEIRA
+    Source Possibility   MP-VENTURE-INTO-FRINGE
+    Missing / Partial    MC-PREDICT (MISSING) — 진입 요구 셋 중 둘째.
+                         MC-OBSERVE (PARTIAL) 의 남은 조각 **행동·습성**도 이 자리다
+    원본 근거            BW §21 (FRINGE — 관찰·예측·지형) · §32 (관찰 → 이해 →
+                         대응 발견) · C014 08 MASTER FEEDBACK 의 제안
+    Active Constraints   DC-WORLD-PROGRESSION-IS-REACH · DC-COMBAT-PLAYER-CAUSALITY ·
+                         DC-WORLD-OWNS-THE-SURFACE-LIST · DC-WORLD-PLAYER-UNFIXED-PATH
+    Constraint Eval      SATISFIED — 예측은 사슬의 둘째 칸이며 진행이 이해의 확장으로
+                         나타난다 (PROGRESSION-IS-REACH · BW §32). 읽히는 것은 세계가
+                         이미 결정한 다음 행동이므로 새 난수가 없다 (PLAYER-CAUSALITY).
+                         무엇이 읽히고 무엇이 아직 안 읽히는지를 세계가 싣는다
+                         (SURFACE-LIST). 읽지 않고 싸우는 길이 남는다 (UNFIXED-PATH)
+    Observable Result    같은 상대를 앞에 두고 예측 전에는 다음 행동 자리가 비어 있고,
+                         예측이 서면 그 자리가 채워지며, 그 정보로 막기 시점이 달라진다
+    Why one Cycle        지역 기반을 요구하지 않는다 — 자율 존재의 행동은 이미 세계에 있다
+                         (RULE-NPC-DECIDE-001). 읽을 대상이 이미 굴러가고 있다
+    7 조건               1 MISSING · 2 FRINGE 진입을 둘에서 하나로 줄인다 · 3 Client
+                         실측 가능 · 4 한 Cycle · 5 새 World 규칙 · 6 Active 와 양립 ·
+                         7 FRINGE 진입 완주가 이 위에 얹힌다
+    Judgment for Human   MC-OBSERVE 의 "습성" 을 이 Cycle 에 함께 닫을지, 습성 관찰을
+                         먼저 따로 볼지는 Human 의 몫이다 (C014 08 이 남긴 판단)
     Status               PROPOSED
 
 ### FR-CRITICAL-AMPLIFIES-THE-BLOW
@@ -108,77 +137,13 @@ WILD ~ UNKNOWN       대기 — 아래 층부터 순서대로
                          6 REVISED CAUSALITY 와 양립 · 7 이후 층이 그대로 얹힌다
     Status               PROPOSED
 
-### FR-INSIGHT-SEES-BEFORE-LOOKING
-    Playable Result      플레이어가 기른 통찰이 높으면 상대의 일부가 살펴보지 않아도 이미
-                         보이고, 낮으면 여전히 다가가 살펴봐야 한다 — 같은 상대 앞에서
-                         내가 무엇을 아는지가 내 능력에 따라 달라진다
-    Source Goal          MG-EXPLORE-BEIRA
-    Source Possibility   MP-VENTURE-INTO-FRINGE
-    Missing / Partial    MC-OBSERVE (PARTIAL) — 결손 둘 중 **경로 쪽**을 닫는다.
-                         앎에 이르는 길이 살펴봄 하나뿐이고, 앎이 존재 단위여서
-                         "일부만 안다" 가 세계에 없다 (C014 06 NOTES)
-    원본 근거            BW §32 (관찰 → 이해 → 대응 발견 — 진행이 대응 범위의 확장이다) ·
-                         DC-WORLD-PROGRESSION-IS-REACH 의 requires
-                         (`progression_expands_reachable_world`) ·
-                         2026-08-19 Human 지시 ("아이템이나 내 능력치·스킬에 따라
-                         미리 알 수도 있어야 한다 — 그럴 여지만 있으면 됨")
-    Active Constraints   DC-WORLD-PROGRESSION-IS-REACH · DC-COMBAT-MATCHUP-SOFT ·
-                         DC-WORLD-OWNS-THE-SURFACE-LIST · DC-WORLD-PLAYER-UNFIXED-PATH
-    Constraint Eval      SATISFIED — 진행의 결과가 수치가 아니라 **대응 가능한 범위**로
-                         나타난다 (PROGRESSION-IS-REACH: 통찰이 오르면 아는 상대가 늘고
-                         고를 근거가 늘어난다). 얻는 것은 여전히 정보뿐이고 계산에는
-                         닿지 않는다 (MATCHUP-SOFT). 무엇이 열렸고 무엇이 아직 가려졌는지의
-                         목록은 C014 가 세운 그 자리(`concealed`)가 그대로 나른다
-                         (SURFACE-LIST — 계약 변경 없음). 통찰이 낮은 쪽도 살펴봄으로
-                         똑같이 알 수 있다 — 능력이 유일한 문이 되지 않는다
-                         (PLAYER-UNFIXED-PATH · MATCHUP-SOFT 의 정보판)
-    Observable Result    통찰을 올리면 살펴보지 않은 상대의 가려진 항목이 줄어드는 것이
-                         보이고, 내리면 다시 가려진다. 두 플레이어가 같은 상대 앞에서
-                         서로 다른 만큼 알고 서 있다
-    Why one Cycle        새 능력치 하나와, 이미 있는 앎 판정에 붙는 절 하나다 —
-                         C014 가 세운 장부·관문·계약을 그대로 쓴다. 다만 장부를
-                         존재 단위에서 **항목 단위**로 넓히는 일이 함께 온다
-                         (계약은 이미 목록을 나르므로 View 는 그대로다)
-    7 조건               1 PARTIAL · 2 MP-VENTURE-INTO-FRINGE 전진 + PROGRESSION-IS-REACH 의
-                         requires 를 세계에서 처음 만족시킨다 · 3 Client 실측 가능
-                         (통찰을 바꿔 가며 가려짐이 변하는 것) · 4 한 Cycle ·
-                         5 새 World 규칙("아는 만큼이 능력이다") · 6 Active 와 양립 (위) ·
-                         7 아이템 경로·습성 관찰이 이 위에 얹힌다
-    Status               PROPOSED
-
-### FR-PREDICT-READS-THE-NEXT-BLOW
-    Playable Result      살펴본 상대가 다음에 무엇을 할지가 미리 읽히고, 그것을 근거로
-                         막거나 물러나거나 먼저 친다 — 관찰이 이해로 이어진다
-    Source Goal          MG-EXPLORE-BEIRA
-    Source Possibility   MP-VENTURE-INTO-FRINGE
-    Missing / Partial    MC-PREDICT (MISSING) — FRINGE 진입 요구 셋 중 둘째.
-                         MC-OBSERVE (PARTIAL) 의 남은 조각 **행동·습성**도 이 자리다
-    원본 근거            BW §21 (FRINGE — 관찰·예측·지형) · §32 (관찰 → 이해 →
-                         대응 발견) · C014 08 MASTER FEEDBACK 의 제안
-    Active Constraints   DC-WORLD-PROGRESSION-IS-REACH · DC-COMBAT-PLAYER-CAUSALITY ·
-                         DC-WORLD-OWNS-THE-SURFACE-LIST · DC-WORLD-PLAYER-UNFIXED-PATH
-    Constraint Eval      SATISFIED — 예측은 사슬의 둘째 칸이며 진행이 이해의 확장으로
-                         나타난다 (PROGRESSION-IS-REACH · BW §32). 읽히는 것은 세계가
-                         이미 결정한 다음 행동이므로 새 난수가 없다 (PLAYER-CAUSALITY).
-                         무엇이 읽히고 무엇이 아직 안 읽히는지를 세계가 싣는다
-                         (SURFACE-LIST). 읽지 않고 싸우는 길이 남는다 (UNFIXED-PATH)
-    Observable Result    같은 상대를 앞에 두고 예측 전에는 다음 행동 자리가 비어 있고,
-                         예측이 서면 그 자리가 채워지며, 그 정보로 막기 시점이 달라진다
-    Why one Cycle        지역 기반을 요구하지 않는다 — 자율 존재의 행동은 이미 세계에 있다
-                         (RULE-NPC-DECIDE-001). 읽을 대상이 이미 굴러가고 있다
-    7 조건               1 MISSING · 2 FRINGE 진입을 둘에서 하나로 줄인다 · 3 Client
-                         실측 가능 · 4 한 Cycle · 5 새 World 규칙 · 6 Active 와 양립 ·
-                         7 FRINGE 진입 완주가 이 위에 얹힌다
-    Judgment for Human   MC-OBSERVE 의 "습성" 을 이 Cycle 에 함께 닫을지, 습성 관찰을
-                         먼저 따로 볼지는 Human 의 몫이다 (C014 08 이 남긴 판단)
-    Status               PROPOSED
-
 ## 추천 순서 (Agent 제안 — 확정은 Human)
 
 ```text
 1. FR-INSIGHT-SEES-BEFORE-LOOKING     C014 가 방금 세운 자리 위에 바로 얹힌다 — 장부·관문·
                                       계약이 이미 있어 가장 작고, PROGRESSION-IS-REACH 의
-                                      requires 를 세계에서 처음 만족시킨다.
+                                      requires 를 세계에서 처음 만족시킨다. 그 형태가
+                                      FR-EARN-THE-PIERCING 의 선례도 된다.
                                       2026-08-19 Human 이 이 방향을 지시했다
 2. FR-PREDICT-READS-THE-NEXT-BLOW     탐험 사다리의 다음 칸 — FRINGE 진입을 둘에서 하나로
                                       줄인다. 지역 기반을 요구하지 않는 마지막 조각이다
@@ -186,21 +151,17 @@ WILD ~ UNKNOWN       대기 — 아래 층부터 순서대로
                                       분산 축은 언제 넣어도 얹힌다
 ```
 
-FR-EARN-THE-PIERCING 은 순서에 넣지 않았다 — Constraint Eval 이 `UNRESOLVED` 다.
-무엇으로 관통을 얻는지(장비·성장·준비 행동)를 Human 이 정하기 전에는 크기도 제약도
-판정되지 않는다. 형태가 정해지면 순서에 들어온다.
-
 ## 지금 열 수 없는 것
 
 각각 막힌 이유가 다르다. 이유가 사라지면 후보로 올린다.
 
 | 층 / 후보 | 무엇이 막고 있는가 |
 |---|---|
-| FRINGE 진입 완주 (MP-VENTURE-INTO-FRINGE) | 결손 MC-USE-TERRAIN + 지역(SAFE↔FRINGE 경계)이라는 세계 기반. MC-PREDICT 는 위 후보다 |
-| 능력치 획득 경로 전반 (관통·공격력·통찰 …) | **성장이라는 행위 자체가 세계에 없다** — 능력치가 존재하고 계산에 반영되는 것(구현)과 그것을 플레이로 올릴 수 있는 것(획득 경로)은 다르다 (growth/growth-graph.md). 형태(장비·성장·준비 행동)를 Human 이 정해야 후보가 판정된다 — FR-EARN-THE-PIERCING 이 그 첫 사례다 |
-| 아이템으로 아는 경로 (감정 도구 등) | **아이템을 "쓴다" 는 개념이 세계에 없다** — 소지 개수만 있고(C001 Inventory) 소모·사용 Rule 이 0건이다. 그 개념 + 감정 도구 + 부분 공개를 한 Cycle 에 넣으면 셋이 된다. FR-INSIGHT-SEES-BEFORE-LOOKING 이 부분 공개를 먼저 세우면 남는 것은 "아이템 사용" 하나다 (2026-08-19 Human 이 이 방향도 지시했다) |
+| FRINGE 진입 완주 (MP-VENTURE-INTO-FRINGE) | 결손 MC-USE-TERRAIN + 지역(SAFE↔FRINGE 경계)이라는 세계 기반. MC-PREDICT 는 위 후보다 (C014 로 MC-OBSERVE 가 섰다) |
 | WILD 이하 진입 (MP-VENTURE-INTO-WILD ~ UNKNOWN) | 윗층 진입이 먼저다 (MW-DEPTH-GRADIENT). 각 층 결손 4~6종 |
-| Active Defense (완벽한 막기·되받아치기·Break) | R1 §15 층 그림에서 Penetration 위다. 두 문서는 이름만 예고 — 그 층의 설계 문서가 와야 한다 |
+| Active Defense (완벽한 막기·되받아치기·Break) | R1 §15 층 그림에서 Penetration 위이고 그 아래층은 C013 으로 섰다. 이제 막는 것은 설계 문서다 — 두 문서는 이름만 예고한다 |
+| FR-EARN-THE-PIERCING (C013 이 제안) | 관통은 종류가 정한 값이거나 디버그 명령으로만 바뀐다 — 플레이어가 "그 벽을 뚫기 위해 무언가를 한다" 는 선택이 없다. 이것이 장비인지 성장인지 준비 행동인지를 근거 문서가 정하지 않았고, R1 §14 는 다음 층으로 Active Defense 를 지정한다. 형태와 순서 판단은 Human 의 몫 |
+| 아이템으로 아는 경로 (감정 도구 등) | **아이템을 "쓴다" 는 개념이 세계에 없다** — 소지 개수만 있고(C001 Inventory) 소모·사용 Rule 이 0건이다. 그 개념 + 감정 도구 + 부분 공개를 한 Cycle 에 넣으면 셋이 된다. FR-INSIGHT-SEES-BEFORE-LOOKING 이 부분 공개를 먼저 세우면 남는 것은 "아이템 사용" 하나다 (2026-08-19 Human 이 이 방향도 지시했다) |
 | Aura / Nen (집중·조건·제약·서약) | 사다리의 맨 위 — 아래 층이 서야 의미가 생긴다 |
 | Evade (회피) | R1 §13 이 이후 확장으로만 지정 — §14 순서에 자리가 없다 |
 | MG-ACQUIRE-RARE-ORGAN 의 대안 4종 (줍기·거래·사체·강제) | requires 미배선 (BW 는 구조만 공급) + WILD 지역·기관·거래 상대라는 세계 기반이 없다 — OPTIONS/NEED 와 지역 기반 후속 |
@@ -212,9 +173,10 @@ FR-EARN-THE-PIERCING 은 순서에 넣지 않았다 — Constraint Eval 이 `UNR
 Constraint 를 VIOLATE 하는 후보를 여기에 올리지 않는다 — Design Conflict 로 따로 제시한다.
 Agent 는 후보와 근거를 제공하되 개발 우선순위를 확정하지 않는다.
 선택된 FR-* 는 cycles/<CycleId>/01-cycle.md 의 MASTER TRACE 로 이어진다.
+선택된 FR-* 는 Cycle 이 도는 동안 "선택되어 진행 중" 에 남는다 — 근거는 복제하지 않는다.
 Cycle 이 닫히면 그 FR-* 를 이 파일에서 지우고 HISTORY.md 에 결과를 적는다.
 대기 사유는 근거 문서의 문장으로 확인되어야 한다 — 지어내지 않는다.
 ```
 
-이 파일은 **지금 고를 수 있는 것**만 담는다. 닫힌 Cycle 의 선택 기록과 거기서 배운 것은
-[HISTORY.md](HISTORY.md) 가 소유한다.
+이 파일은 **지금 고를 수 있는 것**과 **지금 도는 것**만 담는다. 닫힌 Cycle 의 선택 기록과
+거기서 배운 것은 [HISTORY.md](HISTORY.md) 가 소유한다.

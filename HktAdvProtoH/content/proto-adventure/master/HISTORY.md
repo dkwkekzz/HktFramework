@@ -264,6 +264,8 @@ constraints/README.md   현재 Active Constraint        → 반영 이력은 여
 | FR-STATS-DECIDE-THE-DAMAGE | C010-stats-decide-the-damage | **CLOSED** 2026-08-17 — MC-ATTACK-POWER · MC-SKILL-SCALING · MC-DEFENSE-MITIGATION 승격 |
 | FR-GUARD-TRADES-BODY-FOR-RESOURCE | C011-guard-trades-body-for-resource | **CLOSED** 2026-08-17 — MC-GUARD 승격 (overlay 반영 2026-08-18) |
 | FR-MATCHUP-MAKES-THE-CHOICE | C012-damage-type-chooses-the-defense | **CLOSED** 2026-08-18 — MC-ATTACK-ARMOR-MATCHUP 승격 · MK-OPPONENT-DEFENSE-SHAPE 확립 |
+| FR-PENETRATION-DEVALUES-THE-WALL | C013-penetration-devalues-the-wall | **CLOSED** 2026-08-19 — MC-PENETRATION 승격 · MP-PIERCE-THE-HARD-DEFENSE 닫힘 (요구 4종 완비) |
+| FR-OBSERVE-REVEALS-THE-OPPONENT | C014-observe-reveals-the-opponent | **CLOSED** 2026-08-19 — MC-OBSERVE 승격 (IMPLEMENTED 가 아니라 **PARTIAL** — 아래 Overlay 이력) · 탐험 사다리의 첫 칸 |
 
     롤백된 것 (2026-08-17 Human 결정 — R1 층 순서와 어긋나 되돌렸다. 산출물은 git history)
         구 C010-guard-trades-body-for-resource · 구 C011-perfect-guard-turns-the-table
@@ -292,7 +294,55 @@ constraints/README.md   현재 Active Constraint        → 반영 이력은 여
 
 ---
 
+    없음을 계약에 실을 때는 무엇을 왜 뺐는지를 함께 싣는다. (C014)
+    가려진 자리를 지우면 보는 이가 "0 인가 · 아직 안 왔나 · 세계가 안 주나" 를 구별할 수
+    없고, 결국 자기 코드에 "이 종류는 이럴 것이다" 를 적기 시작한다. 세계가 가린 항목의
+    이름 목록을 실은 덕에 그 목록을 셋에서 하나로 줄였을 때 화면이 따라왔다 (View 변경 0).
+
+    앎은 값이 아니라 자리로 둔다. (C014)
+    장부에 Id 만 담고 투영이 매 tick 현재 값을 읽는다. 값을 베꼈다면 살펴본 뒤 상대의
+    능력이 바뀌어도 옛 숫자가 남았을 것이고, "능력치로 미리 안다" 같은 후속 경로가
+    아예 성립하지 않았다.
+
+    의미가 바뀐 테스트는 지우지 않고 새 경계로 다시 쓴다. (C014)
+    C007 R2 의 "세계는 어떤 속성도 숨기지 않는다" 검증을 둘로 갈랐다 —
+    그 자리가 "무엇이 **여전히** 안 가려지는가" 의 기록이 되었다.
+
 # 3. Overlay 갱신 이력
+
+    2026-08-19 (C013 Feedback — Penetration 층)
+
+    승격 1종
+        MC-PENETRATION   MISSING → IMPLEMENTED
+        근거  C013 08-verification — 마주한 방어가 결정적으로 깎이고(resistance 90 → 56.25),
+              마주하지 않은 방어에는 닿지 않으며(물리 타격의 C010 값 20 이 그대로),
+              두껍게 굳힐수록 걷히는 몫이 커진다(0/7.5/33.75/112.5).
+              방어를 없애지는 못한다(관통 100000 에서도 남는다).
+
+    닫힌 Possibility 1종
+        MP-PIERCE-THE-HARD-DEFENSE   요구 Capability 4종이 모두 IMPLEMENTED.
+        단 경로는 아직 좁다 — 플레이어가 관통을 **얻는** 선택이 세계에 없다
+        (종류가 정한 값과 디버그 명령뿐). Cycle 이 FR-EARN-THE-PIERCING 을 제안했고,
+        형태(장비·성장·준비 행동)를 근거 문서가 정하지 않아 frontier 의 대기열로 갔다.
+
+    넓어진 Knowledge 1종
+        MK-OPPONENT-DEFENSE-SHAPE   새로 세운 것이 아니다. C012 의 DefenseShape 위에
+        "그 방어가 나에게 얼마인가" 가 얹혔다 — 같은 지식의 관계 형태다.
+
+    Constraint Evaluation 갱신
+        MC-PENETRATION 에 DC-COMBAT-ONE-FORMULA · DC-COMBAT-MATCHUP-SOFT 판정을 더했다.
+        둘 다 이 Capability 의 구현 형태를 실제로 제한했다 —
+        새 공식을 만들지 않고 기존 감쇄식이 읽는 값 하나를 바꿨고(ONE-FORMULA),
+        타입별 배율표·면역 없이 깎이기 전후가 관찰된다(MATCHUP-SOFT).
+        DC-COMBAT-ONE-LAYER-AT-A-TIME · DC-WORLD-OWNS-THE-SURFACE-LIST 도 SATISFIED 이나
+        노드에 Edge 를 더하지 않았다 — 전자는 Cycle 선택의 제약이고 후자는 GLOBAL 이다.
+
+    Constraint Candidate 접수 1종
+        CC-THE-WORLD-OWNS-THE-RELATION (PENDING) — 두 존재 사이에서만 정해지는 값도
+        세계가 계산해 관찰에 싣는다. 관찰 1회이고 기존
+        DC-WORLD-OWNS-THE-SURFACE-LIST 와의 경계가 정리되지 않아 승격하지 않았다.
+
+    Master Gap 없음.
 
     2026-08-18 (Q12 결정 — 근거 문서를 둘로 못 박았다)
 
@@ -418,6 +468,59 @@ constraints/README.md   현재 Active Constraint        → 반영 이력은 여
 
 ---
 
+    2026-08-19 (C014 Feedback — 탐험 사다리 첫 칸 · 살펴봄)
+
+    승격 1종 — **IMPLEMENTED 가 아니라 PARTIAL 이다**
+        MC-OBSERVE   MISSING → PARTIAL
+        근거  C014 08-verification — 살펴봄이 행동으로 존재하고
+              (RULE-OBSERVE-BEGIN/COMPLETE-001), 살펴본 뒤에만 상대의 겨루는 힘이
+              관찰에 실리며, 무엇을 아는가가 관찰자마다 다르다.
+        판정  Cycle 은 `IMPLEMENTED` 로 보고하면서 주의를 함께 보고했다 —
+              "semantic 이 말한 행동·습성 중 **습성**은 세계에 아직 개념이 없다".
+              Feedback 이 그 주의를 적용해 PARTIAL 로 낮췄다. semantic 은 셋을 말하는데
+              (`행동·습성·상태`) 닫힌 것은 상태뿐이다.
+        남은 결손 둘
+              행동·습성   자율 존재의 행동 패턴을 읽는 의미가 없다 (MC-PREDICT 와 같은 자리)
+              경로 하나   앎에 이르는 길이 살펴봄뿐이고, 앎이 존재 단위여서 부분 공개가 없다
+        이 판정이 곧 새 후보 둘의 근거가 되었다 — PARTIAL 은 Frontier 후보 자격이다.
+
+    유지 1종
+        MC-COMBAT-CAUSE-READING   PARTIAL 유지. C014 는 계산 내역을 넓히지 않고
+        **누가 볼 수 있는지**만 정했으므로 승격을 보고하지 않았다. C010 의 보고 없는
+        승격 보류도 그대로 남는다.
+
+    Possibility
+        MP-VENTURE-INTO-FRINGE   요구 3종 → 2종 (MC-PREDICT · MC-USE-TERRAIN).
+        지역·이동이라는 세계 기반은 여전히 없다.
+
+    Constraint Evaluation 갱신
+        MC-OBSERVE 에 DC-WORLD-PROGRESSION-IS-REACH · DC-COMBAT-MATCHUP-SOFT ·
+        DC-WORLD-PLAYER-UNFIXED-PATH 판정을 더했다. 셋 다 구현 형태를 실제로 제한했다 —
+        진행이 수치가 아니라 고를 근거로 나타나야 했고(PROGRESSION-IS-REACH),
+        살펴봄이 계산에 닿지 않아야 했고(MATCHUP-SOFT: 실측 17 이 C013 과 동일),
+        살펴봄이 다른 행동의 관문이 되어서는 안 됐다(UNFIXED-PATH).
+        DC-WORLD-OWNS-THE-SURFACE-LIST 도 SATISFIED 이나 GLOBAL 이므로 Edge 를 더하지
+        않았다 — C013 Feedback 이 세운 기준과 같다.
+
+    Constraint Candidate 접수 1종
+        CC-THE-WORLD-NAMES-WHAT-IT-WITHHELD (PENDING) — 세계가 관찰에서 무엇을 뺐다면
+        무엇을 왜 뺐는지를 함께 싣는다. 관찰 1회이고 기존
+        DC-WORLD-OWNS-THE-SURFACE-LIST 와의 경계가 정리되지 않아 승격하지 않았다.
+        이로써 그 DC 와 경계를 다투는 후보가 셋이 되었다 (READ · RELATION · WITHHELD).
+
+    새 후보 2종 (같은 날 Human 지시)
+        Human: "아이템을 쓴다거나 나의 능력치 및 스킬에 따라 미리 알 수도 있어?
+        그럴 여지만 있으면 됨." → "후보로 올리고 완료처리해줘"
+        FR-INSIGHT-SEES-BEFORE-LOOKING   기른 통찰이 살펴봄 없이 일부를 보여준다.
+                                         MC-OBSERVE(PARTIAL)의 **경로** 결손을 닫는다
+        FR-PREDICT-READS-THE-NEXT-BLOW   MC-PREDICT + MC-OBSERVE 의 **습성** 결손이 같은 자리
+        아이템 경로는 후보로 올리지 않고 frontier 의 "지금 열 수 없는 것" 에 사유를 적었다 —
+        **아이템을 "쓴다" 는 개념이 세계에 없다** (소지 개수만 있고 사용·소모 Rule 0건).
+        부분 공개가 먼저 서면 남는 것은 "아이템 사용" 하나이므로 그때 후보가 된다.
+
+    Master Gap 없음. Stage 5 가 확인한 판단 둘(C007 R2 개정 범위 · DT §10 조정)이
+    승인되어 반환 조건이 발생하지 않았다.
+
 # 4. Constraint 반영 이력
 
 첫 반영(DC 4종)은 Agent 의 해석이 원본보다 강한 곳이 있어 Human 지시로 제거됐다 —
@@ -520,133 +623,3 @@ ONE-LAYER-AT-A-TIME 신설, 이연 층 근거의 3종은 DRAFT 보류.
     이로써 탐험 영역에 Goal → Possibility → Capability 척추가 섰다
     (MG-EXPLORE-BEIRA → 깊이 진입 5 → 사다리 21). 여전히 남는 공백(§27 대안의
     requires · 층별 Local Goal)은 문서가 실제로 공급하지 않는 것들이다.
-
----
-
-# C013 — Penetration Devalues the Wall (Feedback 반영 2026-08-19)
-
-## Frontier 선택과 결과
-
-    FR-PENETRATION-DEVALUES-THE-WALL   2026-08-18 Human Select
-        → C013-penetration-devalues-the-wall (8 Stage 통과 · Human 지시로 COMPLETE)
-        이 후보는 frontier.md 에서 지웠다.
-
-    닫은 것   MC-PENETRATION  MISSING → **IMPLEMENTED**
-              근거는 C013 08-verification 의 실측 — 마주한 방어가 90 → 56.25 로 깎이고,
-              마주하지 않은 방어에는 닿지 않으며(물리 타격의 C010 값 20 유지),
-              두께에 비례해 걷히고(0/7.5/33.75/112.5), 관통 100000 에서도 방어가 남는다.
-              MC-PENETRATION semantic 의 세 문장이 그대로 실측되었다.
-
-    경로     MP-PIERCE-THE-HARD-DEFENSE 가 닫혔다 — 요구 4종이 모두 IMPLEMENTED.
-             전투 영역에서 열린 경로가 넷이 되었다 (OUTGROW · TRADE-BODY · MATCH-WEAPON ·
-             PIERCE).
-
-## 이 승격에 붙은 주의 — 열렸을 뿐 좁다
-
-    C013 08 이 직접 보고한 것이다: 관통을 지닌 존재가 관찰자의 몸 하나이고,
-    플레이어가 관통을 **얻는** 경로가 세계에 없다 (종류가 정한 초기값이거나
-    디버그 명령뿐이다). Possibility 는 열렸지만 그 경로를 **고를** 수는 없다.
-
-    이 주의를 두 곳에 반영했다.
-        overlay.md              MC-PENETRATION 의 "부족한 것" 칸에 획득 경로 부재를 남겼다
-        growth/growth-graph.md  MC-PENETRATION 행을 추가했다 (획득 경로 = 없음)
-    그리고 Frontier 후보 FR-EARN-THE-PIERCING 으로 올렸다 — Constraint Eval 은
-    `UNRESOLVED` 다. 장비인지 성장인지 준비 행동인지를 근거 문서가 정하지 않았고,
-    형태가 정해지기 전에는 제약도 크기도 판정되지 않는다. 지어내지 않았다.
-
-## 배운 것
-
-    ① **한 층은 새 곡선을 만들지 않을 수 있다** — 걷는 데 쓴 곡선도 세계가 이미 쓰는
-       `100/(100+x)` 였다. 감쇄식·상수 100·하한 1 이 한 글자도 바뀌지 않은 채로
-       "방어만으로는 안전하지 않다" 라는 새 규칙이 섰다 (DC-COMBAT-ONE-FORMULA 의
-       가장 강한 형태).
-    ② **두 존재 사이의 값은 세계가 소유해야 한다** — versusObserver.
-       View 가 곱셈으로 만들 수 있기 때문에 계약에서 빠뜨리기 쉽다.
-       CC-THE-WORLD-OWNS-THE-RELATION 으로 제출했다. 이 판단이 C014 에서 값을 했다 —
-       상대를 모를 때 combatStats 가 실리지 않는데, View 가 곱셈을 했다면
-       **가려진 자리가 뚫렸을 것이다.**
-    ③ **계산에 쓰인 값에는 자기 이름이 있어야 한다** — `defenseStat`(걷히기 전)을
-       상대의 속성과 같은 수로 고정하고, 감쇄식의 입력에 새 이름
-       `effectiveDefense` 를 주었다. 한 이름이 두 뜻을 가지면 검산이 어긋난다.
-    ④ **어느 종류에 주는가는 어떤 검사도 잡지 못한다** — 처음 구현은 관통을 자율
-       존재에게 주어 Cycle Goal 의 주어가 뒤집혀 있었고, 306 tests 가 전부 통과했다.
-       Human 의 질문("플레이어에 영향을 주는 속성이 명료한가")이 잡았다.
-       경위는 C013 08-verification 의 CORRECTION 절이 소유한다.
-
-## Master Gap
-    없음. R1 §14 가 배정한 한 줄(`Penetration → Defense 를 감소시킨다`)과 DT §15 의
-    작용 지점(대응 뒤 · 선택된 방어에만 · Damage Type 불변)을 그대로 따랐다.
-
----
-
-# C014 — Observe Reveals the Opponent (Feedback 반영 2026-08-19)
-
-## Frontier 선택과 결과
-
-    FR-OBSERVE-REVEALS-THE-OPPONENT   2026-08-19 Human Select
-        → C014-observe-reveals-the-opponent (8 Stage 전부 통과 · Human 지시로 COMPLETE)
-        이 후보는 frontier.md 에서 지웠다.
-
-    닫은 것   살펴봄이 세계에 섰다. 남의 겨루는 힘(공격 둘·방어 둘·관통 둘·배율 둘·
-              versusObserver·defenseShape)은 살펴본 뒤에만 관찰에 실리고,
-              무엇을 아는가는 관찰자마다 다르다.
-
-## Overlay 판정 — MC-OBSERVE 는 IMPLEMENTED 가 아니라 PARTIAL 이다
-
-    C014 의 08-verification 은 `MISSING → IMPLEMENTED` 로 보고하면서 주의를 함께 적었다 —
-    "MC-OBSERVE 의 semantic 이 말한 행동·습성 중 **습성**은 세계에 아직 개념이 없다".
-    Feedback 이 그 주의를 적용해 **PARTIAL** 로 판정했다. semantic 은 셋을 말하는데
-    (`행동·습성·상태`) 이번에 닫힌 것은 상태뿐이다.
-
-    남은 결손 둘
-        행동·습성   자율 존재의 행동 패턴을 읽는 의미가 없다 → MC-PREDICT 와 같은 자리
-        경로 하나   앎에 이르는 길이 살펴봄뿐이고, 앎이 존재 단위(ActorId 집합)여서
-                    "일부만 안다" 가 세계에 없다 (C014 06 NOTES)
-
-    이 판정이 곧 새 후보 둘의 근거가 되었다 — PARTIAL 은 Frontier 후보 자격이다
-    (7조건 1: "MISSING 이거나 필요한 수준에 못 미치는 PARTIAL 인가").
-
-    MC-COMBAT-CAUSE-READING 은 PARTIAL 을 유지했다 — C014 는 계산 내역을 넓히지 않고
-    누가 볼 수 있는지만 정했으므로 승격을 보고하지 않았다. C010 의 보고 없는 승격 보류도
-    그대로 남는다.
-
-## 배운 것
-
-    ① **없음을 계약에 싣는 방식** — 가려진 자리를 지우지 않고 무엇을 왜 가렸는지를 함께
-       싣는다. 세계가 그 목록(`concealed`)을 소유하므로 셋에서 하나로 줄이면 화면이
-       따라왔다 (View 코드 변경 0). DC-WORLD-OWNS-THE-SURFACE-LIST 의 다섯 번째 증거이며
-       CC-THE-WORLD-NAMES-WHAT-IT-WITHHELD 로 제출했다.
-    ② **앎은 값이 아니라 자리다** — 장부에 Id 만 담고 투영이 매 tick 현재 값을 읽는다.
-       그래서 살펴본 뒤 상대의 능력이 바뀌면 바뀐 값이 보인다. 값을 베꼈다면
-       "능력치로 미리 안다" 같은 후속 경로가 아예 성립하지 않았다 —
-       이 성질이 FR-INSIGHT-SEES-BEFORE-LOOKING 을 가능하게 한 전제다.
-    ③ **의미가 바뀐 테스트는 지우지 않고 다시 쓴다** — C007 R2 의 "세계는 어떤 속성도
-       숨기지 않는다" 검증을 새 경계로 둘로 갈랐다. 그 자리가 "무엇이 **여전히**
-       안 가려지는가" 의 기록이 되었다.
-
-## 새 후보 (같은 날 Human 지시로 추가)
-
-    Human: "상황에 따라서 아이템을 쓴다거나 나의 능력치 및 스킬에 따라 미리 알 수도 있어?
-    그럴 여지만 있으면 됨." → "후보로 올리고 완료처리해줘"
-
-    FR-INSIGHT-SEES-BEFORE-LOOKING     기른 통찰이 살펴봄 없이 일부를 보여준다.
-                                       MC-OBSERVE(PARTIAL)의 **경로** 결손을 닫는다.
-                                       DC-WORLD-PROGRESSION-IS-REACH 의 requires 를
-                                       세계에서 처음 만족시키는 자리다
-    FR-PREDICT-READS-THE-NEXT-BLOW     C014 08 이 제안한 것. MC-PREDICT + MC-OBSERVE 의
-                                       **습성** 결손이 같은 자리다
-
-    아이템 경로는 후보로 올리지 않고 "지금 열 수 없는 것" 에 사유와 함께 두었다 —
-    **아이템을 "쓴다" 는 개념이 세계에 없다** (소지 개수만 있고 사용·소모 Rule 0건).
-    부분 공개가 먼저 서면 남는 것은 "아이템 사용" 하나이므로 그때 후보가 된다.
-
-## Master Gap
-    없음. Stage 5 가 확인한 판단 둘(C007 R2 개정 범위 · DT §10 조정)이 승인되어
-    반환 조건이 발생하지 않았다.
-
-## C013 Feedback — 같은 날 해소되었다
-
-    C014 반영 시점에는 C013(관통)이 Play 확인 대기여서 그 Feedback 을 돌리지 못했고,
-    overlay 의 MC-PENETRATION 이 코드와 어긋난 채(MISSING) 남아 있었다.
-    같은 날 Human 이 C013 도 완료 처리하도록 지시해 그 Feedback 을 돌렸다 —
-    위의 C013 절이 그 기록이다. 어긋남은 해소되었다.
