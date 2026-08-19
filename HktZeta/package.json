@@ -1,0 +1,16 @@
+{
+  "name": "hkt-zeta",
+  "version": "0.1.0",
+  "description": "수열(궤적)로 세계를 표현하는 오픈월드 MMORPG — 하나의 산술 함수(오라클 Ω)가 모든 존재의 다음 결정을 내리는 공통 원천이 된다",
+  "type": "module",
+  "scripts": {
+    "test": "node --test",
+    "demo": "node tools/demo.mjs",
+    "scene": "node tools/build-scene.mjs",
+    "serve": "node tools/serve.mjs",
+    "shot": "node tools/shot.mjs"
+  },
+  "dependencies": {
+    "three": "^0.180.0"
+  }
+}
