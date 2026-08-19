@@ -45,16 +45,18 @@ CYCLE LAYER    선택된 하나의 플레이 결과를 World Semantic 과 Rule �
 ```
 
 해당 영역 문서가 이름조차 대지 않는 의미는 Graph·Constraint 에 두지 않는다 — 보류가
-아니라 삭제한다. 기준 시점 **C013 닫힘** — 전투 사다리는 Penetration 층까지 서 있다.
+아니라 삭제한다. 기준 시점 **C013 · C014 닫힘** — 전투 사다리는 Penetration 층까지,
+탐험 사다리는 FRINGE 의 첫 칸(살펴봄)까지 서 있다.
 
 ```text
 Constraint   17     Active 17 (APPROVED 16 · REVISED 1 — PLAYER-CAUSALITY, Critical 예외) · DRAFT 0
-Candidate     4     APPROVED 1 (→ DC) · PENDING 3
+Candidate     5     APPROVED 1 (→ DC) · PENDING 4 (넷 중 셋이 SURFACE-LIST 경계 판단 대기)
 Actor         2     Knowledge 2 · Belief 0 (Belief 는 도입하지 않는다 — Q3 결정)
 Goal          5     Possibility 24 (전투 14 · 탐험 10) — §27 기관 대안 4종만 requires 미배선
-Capability   42     IMPLEMENTED 8 · PARTIAL 2 · MISSING 32 (베이라 사다리 21 · 자원 2 · Critical 1 포함)
+Capability   42     IMPLEMENTED 8 · PARTIAL 3 (MC-OBSERVE 추가 — C014) ·
+                    MISSING 31 (베이라 사다리 20 · 자원 2 · Critical 1 포함)
 Item Def      2     IP-BOUNDARY-STABLE · IT-BOUNDARY-BLADE (growth/items/)
-Frontier      2     PROPOSED — OBSERVE · CRITICAL (Human 선택 대기)
+Frontier      3     PROPOSED — INSIGHT · PREDICT · CRITICAL (Human 선택 대기)
 WorldState   11     상위 인과 2 (PRIMAL-WORLD · WORLD-PRESSURE) · 구조 2
                     (SAFE-FRONTIER · DEPTH-GRADIENT) · 깊이 층 5 (ZONE-FRINGE ~ ZONE-UNKNOWN) ·
                     대표 지역 2 (HYPER-PREDATION · SPATIAL-SHEAR)

@@ -75,6 +75,23 @@ export const COMMAND_CATALOG: readonly CommandDefinition[] = [
       },
     ],
   },
+  {
+    // C014 ADDED — 알게 된 것을 되돌린다 (INTENT-OBSERVE-FORGET-001).
+    // 항목이 하나 더해질 뿐이다: Command / Parameter 구조도, 이것을 소비하는 쪽도
+    // 바뀌지 않는다 (INTENT-COMMAND-CATALOG-001).
+    id: 'forget-acquaintance',
+    effect: 'forget-acquaintance', // 이 존재를 다시 모르는 상태로 되돌린다
+    parameters: [
+      {
+        id: 'target',
+        required: false,
+        // 지목하지 않으면 알고 있는 전부다 — set-attribute 의 'self' 와 다른 뜻이므로
+        // 그 뜻을 이 자리가 밝힌다.
+        omittedMeaning: 'all-known',
+        domain: { kind: 'entity', refers: 'character' },
+      },
+    ],
+  },
 ];
 
 /**

@@ -301,9 +301,20 @@ nodes:
     semantic: >
       행동하기 전에 대상을 관찰하여 그 행동·습성·상태의 정보를 얻는다.
     required_by: [MP-VENTURE-INTO-FRINGE]
-    constraints: []
-    constraint_evaluation: {}
-    overlay: MISSING
+    constraints: [DC-WORLD-PROGRESSION-IS-REACH, DC-COMBAT-MATCHUP-SOFT,
+                  DC-WORLD-PLAYER-UNFIXED-PATH]
+    constraint_evaluation:
+      DC-WORLD-PROGRESSION-IS-REACH: SATISFIED   # 진행이 수치가 아니라 "고를 근거" 로 나타났다 — BW §32 사슬의 첫 칸 (C014)
+      DC-COMBAT-MATCHUP-SOFT: SATISFIED          # weakness_is_observable 이 "관찰 행동을 하면 알 수 있다" 로 유지된다. 관찰은 계산에 한 글자도 더하지 않는다
+      DC-WORLD-PLAYER-UNFIXED-PATH: SATISFIED    # 살펴봄이 다른 행동의 조건이 아니다 — 모르는 채로도 싸운다
+    overlay: PARTIAL
+    # C014 로 **상태**(겨루는 힘)를 아는 일이 섰다. semantic 이 말한 셋 중 둘이 남는다:
+    #   행동·습성  자율 존재의 행동 패턴을 읽는 의미가 세계에 없다 (MC-PREDICT 와 같은 자리)
+    #   경로 하나  앎에 이르는 길이 살펴봄뿐이고, 앎이 존재 단위여서 부분 공개가 없다
+    # C014 08 은 IMPLEMENTED 로 보고하면서 "습성은 아직 없다" 를 함께 보고했다 —
+    # Feedback 이 그 주의를 적용해 PARTIAL 로 판정했다 (2026-08-19).
+    # DC-WORLD-OWNS-THE-SURFACE-LIST 도 SATISFIED 이나 GLOBAL 이므로 Edge 를 더하지 않았다
+    # (C013 Feedback 이 세운 기준과 같다).
 
   - id: MC-PREDICT
     type: capability

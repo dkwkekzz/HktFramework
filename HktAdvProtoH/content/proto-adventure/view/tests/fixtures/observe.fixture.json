@@ -10,15 +10,15 @@
     {
       "id": "npc-1",
       "role": "npc-character",
-      "state": "hit",
+      "state": "idle",
       "name": "Wanderer 1",
       "kind": "wanderer",
       "position": {
-        "x": 2.1732410864197527,
+        "x": 3,
         "z": 0
       },
       "vitality": {
-        "health": 103,
+        "health": 120,
         "healthMaximum": 120,
         "downed": false
       },
@@ -33,7 +33,7 @@
           "actionSpeed": 0.85
         },
         "modifiers": {
-          "energyCharge": 0.2,
+          "energyCharge": 1,
           "energyConsume": 1,
           "moveSpeed": 1,
           "actionSpeed": 1
@@ -62,7 +62,6 @@
           "broken": false
         }
       },
-      "progress": 0.09523809523809525,
       "body": {
         "radius": 0.7,
         "height": 2.8,
@@ -72,7 +71,64 @@
           "z": 1
         },
         "velocity": {
-          "x": 5.465985580246914,
+          "x": 0,
+          "z": 0
+        }
+      }
+    },
+    {
+      "id": "npc-2",
+      "role": "npc-character",
+      "state": "idle",
+      "name": "Wanderer 2",
+      "kind": "wanderer",
+      "position": {
+        "x": -3,
+        "z": 0
+      },
+      "vitality": {
+        "health": 120,
+        "healthMaximum": 120,
+        "downed": false
+      },
+      "attributes": {
+        "energy": 20,
+        "energyMaximum": 60,
+        "moveMode": "walk",
+        "control": "autonomous",
+        "tempoStats": {
+          "moveSpeed": 2.5,
+          "runSpeedMultiplier": 1.4,
+          "actionSpeed": 0.85
+        },
+        "modifiers": {
+          "energyCharge": 1,
+          "energyConsume": 1,
+          "moveSpeed": 1,
+          "actionSpeed": 1
+        },
+        "acquainted": false,
+        "concealed": [
+          "combatStats",
+          "versusObserver",
+          "defenseShape"
+        ],
+        "unacquaintedReason": "not-observed",
+        "guard": {
+          "guarding": false,
+          "broken": false
+        }
+      },
+      "body": {
+        "radius": 0.7,
+        "height": 2.8,
+        "mass": 1,
+        "facing": {
+          "x": 0,
+          "z": 1
+        },
+        "velocity": {
+          "x": 0,
           "z": 0
         }
       }
@@ -80,11 +136,11 @@
     {
       "id": "player-1",
       "role": "player-character",
-      "state": "aura-strike",
+      "state": "idle",
       "name": "Player 1",
       "kind": "rabbit-swordsman",
       "position": {
-        "x": 0.006758913580246965,
+        "x": 0,
         "z": 0
       },
       "vitality": {
@@ -93,7 +149,7 @@
         "downed": false
       },
       "attributes": {
-        "energy": 42,
+        "energy": 30,
         "energyMaximum": 100,
         "moveMode": "walk",
         "control": "player",
@@ -132,30 +188,18 @@
           "broken": false
         }
       },
-      "progress": 0.38888888888888884,
       "body": {
         "radius": 0.85,
         "height": 3.4,
         "mass": 1,
         "facing": {
-          "x": 1,
-          "z": 0
+          "x": 0,
+          "z": 1
         },
         "velocity": {
-          "x": -0.3459855802469136,
+          "x": 0,
           "z": 0
         }
-      },
-      "swing": {
-        "center": {
-          "x": 1.0928930684170641,
-          "z": 0.7143616714920481
-        },
-        "radius": 0.7,
-        "active": true,
-        "struck": [
-          "npc-1"
-        ]
       }
     },
     {
@@ -172,16 +216,34 @@
   ],
   "interactions": [
     {
+      "id": "observe",
+      "role": "observe-character",
+      "targetEntityId": "npc-1",
+      "available": false,
+      "reason": "already-known"
+    },
+    {
+      "id": "observe",
+      "role": "observe-character",
+      "targetEntityId": "npc-2",
+      "available": true
+    },
+    {
+      "id": "observe",
+      "role": "observe-character",
+      "targetEntityId": "player-1",
+      "available": false,
+      "reason": "target-is-self"
+    },
+    {
       "id": "move",
       "role": "move-to",
-      "available": false,
-      "reason": "action-busy"
+      "available": true
     },
     {
       "id": "attack",
       "role": "skill-basic",
-      "available": false,
-      "reason": "action-busy",
+      "available": true,
       "profile": {
         "baseDamage": 6,
         "attackRatio": 0.5,
@@ -194,8 +256,7 @@
     {
       "id": "skill-heavy",
       "role": "skill-heavy",
-      "available": false,
-      "reason": "action-busy",
+      "available": true,
       "profile": {
         "baseDamage": 32,
         "attackRatio": 1,
@@ -208,8 +269,7 @@
     {
       "id": "skill-aura",
       "role": "skill-aura",
-      "available": false,
-      "reason": "action-busy",
+      "available": true,
       "profile": {
         "baseDamage": 6,
         "attackRatio": 0.5,
@@ -240,6 +300,11 @@
       "available": true
     },
     {
+      "id": "forget-acquaintance",
+      "role": "debug-forget-acquaintance",
+      "available": true
+    },
+    {
       "id": "mine",
       "role": "mine-deposit",
       "targetEntityId": "deposit-1",
@@ -261,13 +326,12 @@
     {
       "id": "player.action",
       "kind": "label",
-      "value": "aura-strike",
-      "progress": 0.38888888888888884
+      "value": "idle"
     },
     {
       "id": "world.time",
       "kind": "counter",
-      "value": 0.26666666666666666
+      "value": 1.0333333333333332
     },
     {
       "id": "observers.present",
@@ -287,7 +351,7 @@
     {
       "id": "self.cp",
       "kind": "counter",
-      "value": 42
+      "value": 30
     },
     {
       "id": "self.cpMax",
@@ -395,41 +459,7 @@
       "value": 1
     }
   ],
-  "strikes": [
-    {
-      "attackerId": "player-1",
-      "targetId": "npc-1",
-      "skill": "aura-strike",
-      "amount": 17,
-      "at": {
-        "x": 1.6608049382716046,
-        "z": 0
-      },
-      "since": 0.19999999999999998,
-      "breakdown": {
-        "damageType": "aura",
-        "offenseStat": {
-          "name": "auraAttack",
-          "value": 40
-        },
-        "baseDamage": 6,
-        "attackContribution": 20,
-        "rawDamage": 26,
-        "defenseStat": {
-          "name": "resistance",
-          "value": 90
-        },
-        "penetrationStat": {
-          "name": "resistancePenetration",
-          "value": 60
-        },
-        "effectiveDefense": 56.25,
-        "defenseMultiplier": 0.64,
-        "finalDamage": 17,
-        "appliedDamage": 17
-      }
-    }
-  ],
+  "strikes": [],
   "debug": {
     "open": true
   },
@@ -580,6 +610,22 @@
           "required": true,
           "domain": {
             "kind": "from-previous-choice"
+          }
+        }
+      ]
+    },
+    {
+      "id": "forget-acquaintance",
+      "effect": "forget-acquaintance",
+      "available": true,
+      "parameters": [
+        {
+          "id": "target",
+          "required": false,
+          "omittedMeaning": "all-known",
+          "domain": {
+            "kind": "entity",
+            "refers": "character"
           }
         }
       ]

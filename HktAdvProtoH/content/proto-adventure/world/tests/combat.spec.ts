@@ -19,7 +19,7 @@ import {
 } from '../semantic/combat';
 import { SWING_BEGIN } from '../semantic/collision';
 import { TICK_INTERVAL } from '../semantic/world-state';
-import { driveWorld, PLAYER, type WorldDriver } from './drive';
+import { driveWorld, observeFully, PLAYER, type WorldDriver } from './drive';
 
 const BASIC = SKILL_DEFINITIONS.attack;
 const HEAVY = SKILL_DEFINITIONS['heavy-attack'];
@@ -447,10 +447,36 @@ describe('INTENT-STRIKE-OBSERVE-001 — 타격 결과가 잠시 드러났다 사
   });
 });
 
-describe('INTENT-ATTRIBUTE-OBSERVE-001 — 세계는 어떤 속성도 숨기지 않는다', () => {
-  it('남의 속성도 모두 관찰된다', () => {
+// C014 CHANGED — 이 describe 의 의미가 바뀌었다.
+// "세계는 어떤 속성도 숨기지 않는다"(C007 R2)에서 "세계가 무엇이 언제 실리는지를
+// 정하고, 가린 것이 있으면 가렸다는 사실을 밝힌다"로 옮겨간다 (Q3 · C014 02-intent).
+// 테스트를 지우지 않고 새 경계로 다시 쓴다 — 무엇이 **여전히** 안 가려지는가가 이 자리다.
+describe('INTENT-ATTRIBUTE-OBSERVE-001 — 세계가 무엇이 언제 실리는지를 정한다 (C014 CHANGED)', () => {
+  it('살펴보기 전에도 몸에서 읽히는 속성은 하나도 가려지지 않는다', () => {
     const view = driveWorld({ npcs: [dummyAt(3, 0)] }).observe();
     const npc = actor(view, 'npc-1');
+
+    expect(npc?.attributes).toEqual({
+      energy: 20,
+      energyMaximum: 60,
+      moveMode: 'walk',
+      control: 'autonomous',
+      tempoStats: { moveSpeed: 2.5, runSpeedMultiplier: 1.4, actionSpeed: 0.85 },
+      modifiers: { energyCharge: 1, energyConsume: 1, moveSpeed: 1, actionSpeed: 1 },
+      // C011 — 자율 존재는 막지 않지만 그 사실도 실린다
+      guard: { guarding: false, broken: false },
+      // C014 — 겨루는 힘 셋만 살펴봄 뒤로 갔고, 가렸다는 사실이 그 자리를 대신한다.
+      // 몰래 가리지 않는다 — 무엇을 모르는지를 모르는 일은 없다
+      acquainted: false,
+      concealed: ['combatStats', 'versusObserver', 'defenseShape'],
+      unacquaintedReason: 'not-observed',
+    });
+  });
+
+  it('살펴본 뒤에는 그 셋도 예외 없이 실린다', () => {
+    const world = driveWorld({ npcs: [dummyAt(3, 0)] });
+    observeFully(world, 'npc-1');
+    const npc = actor(world.observe(), 'npc-1');
 
     expect(npc?.attributes).toEqual({
       energy: 20,
@@ -486,6 +512,9 @@ describe('INTENT-ATTRIBUTE-OBSERVE-001 — 세계는 어떤 속성도 숨기지 
       // C011 — 자율 존재는 막지 않지만 그 사실도 실린다.
       // "지금은 아무도 안 막는다" 와 "세계가 안 알려준다" 는 다른 일이다
       guard: { guarding: false, broken: false },
+      // C014 — 알게 되었으므로 가려진 것이 없다
+      acquainted: true,
+      concealed: [],
     });
   });
 
