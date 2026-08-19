@@ -1,0 +1,15 @@
+# HUMAN_DIRECTED 확장 (Q22). grants 는 기존 Capability 다 —
+# MC-IDENTITY-ANCHOR 는 MW-ZONE-UNKNOWN 이 이미 demands 로 요구하고 있었고
+# 획득 경로가 없던 노드다 (growth-graph.md).
+id: IM-IDENTITY-ANCHORED
+type: item_modifier
+
+semantic: >
+  정박정을 박아 넣은 것. 지닌 사람이 자기 동일성을 붙들 기준점을 갖는다.
+detail: >
+  UNKNOWN 에서 얻은 광물이 같은 층의 demands 를 채운다. 순환이 층을 건너뛰지
+  않는다는 점에서 앞의 둘과 다르다 — 한 번 들어가 본 사람만 다시 제대로 들어갈
+  수 있다는 형태이며, BW §16 탐험 Loop 가 층 안에서도 도는 경우다.
+
+requires: [IP-SELF-IDENTICAL]
+grants:   [MC-IDENTITY-ANCHOR]

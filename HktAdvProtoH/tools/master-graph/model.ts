@@ -48,6 +48,7 @@ export interface GraphEdge {
 export type EdgeKind =
   | 'causes' // MW → MG   이 상태가 Goal 을 발생시킨다
   | 'changed_by' // MW → MP   이 상태를 바꾸는 Possibility
+  | 'demands' // MW → MC   이곳을 감당하려면 갖춰야 하는 Capability
   | 'wants' // MA → MG
   | 'knows' // MA → MK
   | 'believes' // MA → MB
@@ -128,8 +129,13 @@ const HOLE_FIELDS: Record<string, string[]> = {
   world_state: ['causes', 'changed_by'],
   actor: ['wants', 'knows', 'believes'],
   possibility: ['achieves'],
-  capability: ['required_by'],
+  capability: [], // required_by / demanded_by 는 아래 ORPHAN_CAPABILITY 가 함께 본다
 };
+
+/** `MW-…` `MG-…` 처럼 Node ID 형태인가 — 아니면 자유 서술이다 */
+export function isNodeId(v: string): boolean {
+  return /^[A-Z]{2}-[A-Z0-9-]+$/.test(v.trim());
+}
 
 /** requires 중 ID 를 담는 버킷 — 나머지(relationship · resource)는 자유 서술이라 엣지가 아니다 */
 export const ID_REQUIRE_BUCKETS = ['goals', 'capabilities', 'knowledge', 'world_state'] as const;
@@ -239,6 +245,7 @@ function deriveEdges(nodes: Map<string, GraphNode>): GraphEdge[] {
       case 'world_state':
         for (const t of asList(r.causes)) push(node.id, t, 'causes');
         for (const t of asList(r.changed_by)) push(node.id, t, 'changed_by');
+        for (const t of asList(r.demands)) push(node.id, t, 'demands');
         break;
       case 'actor':
         for (const t of asList(r.wants)) push(node.id, t, 'wants');
@@ -246,7 +253,8 @@ function deriveEdges(nodes: Map<string, GraphNode>): GraphEdge[] {
         for (const t of asList(r.believes)) push(node.id, t, 'believes');
         break;
       case 'goal':
-        for (const t of asList(r.motivation)) push(node.id, t, 'motivation');
+        // motivation 은 "상위 Goal 또는 서술" 이다 (SCHEMA.md) — ID 형태만 관계가 된다
+        for (const t of asList(r.motivation)) if (isNodeId(t)) push(node.id, t, 'motivation');
         // caused_by 는 MW 쪽 causes 와 같은 관계다 — 한 번만 만든다 (아래에서 보강)
         for (const t of asList(r.caused_by)) {
           const already = edges.some((e) => e.from === t && e.to === node.id && e.kind === 'causes');
@@ -354,6 +362,34 @@ function checkIntegrity(
     }
   }
 
+  // ①-b demands ↔ demanded_by 양방향 일치 (SCHEMA.md — requires↔required_by 와 같은 쌍)
+  for (const node of nodes.values()) {
+    if (node.type === 'world_state') {
+      for (const capId of asList(node.raw.demands)) {
+        const cap = nodes.get(capId);
+        if (cap && !asList(cap.raw.demanded_by).includes(node.id)) {
+          problems.push({
+            severity: 'ERROR',
+            code: 'ASYMMETRIC_DEMANDS',
+            message: `${node.id} 가 ${capId} 를 요구하는데 ${capId}.demanded_by 에 ${node.id} 가 없다`,
+          });
+        }
+      }
+    }
+    if (node.type === 'capability') {
+      for (const wId of asList(node.raw.demanded_by)) {
+        const w = nodes.get(wId);
+        if (w && !asList(w.raw.demands).includes(node.id)) {
+          problems.push({
+            severity: 'ERROR',
+            code: 'ASYMMETRIC_DEMANDS',
+            message: `${node.id}.demanded_by 가 ${wId} 를 적었는데 ${wId}.demands 에 ${node.id} 가 없다`,
+          });
+        }
+      }
+    }
+  }
+
   // ② requires ↔ required_by 양방향 일치 (SCHEMA.md 가 양쪽에 적게 한 유일한 관계)
   for (const node of nodes.values()) {
     if (node.type === 'possibility') {
@@ -441,11 +477,17 @@ function checkIntegrity(
         message: `${node.id} 가 어떤 Goal 도 achieves 하지 않는다`,
       });
     }
-    if (node.type === 'capability' && asList(node.raw.required_by).length === 0) {
+    if (
+      node.type === 'capability' &&
+      asList(node.raw.required_by).length === 0 &&
+      asList(node.raw.demanded_by).length === 0
+    ) {
+      // 방법이 요구하거나(required_by) 장소가 요구하거나(demanded_by) 둘 중 하나는 있어야 한다.
+      // 둘 다 비면 아무도 필요로 하지 않는 능력이다 (SCHEMA.md · DC-GROWTH-NEED-FROM-POSSIBILITY).
       problems.push({
         severity: 'WARN',
         code: 'ORPHAN_CAPABILITY',
-        message: `${node.id} 를 요구하는 Possibility 가 없다 — 왜 필요한지 경로가 설명하지 못한다`,
+        message: `${node.id} 를 요구하는 Possibility 도 장소도 없다 — 왜 필요한지 경로가 설명하지 못한다`,
       });
     }
   }

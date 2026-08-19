@@ -1,0 +1,19 @@
+# HUMAN_DIRECTED 확장 (Q22).
+id: IT-WARDING-PLATE
+type: item_type
+
+semantic: >
+  산격석을 덧댄 판. 큰 충격 한 번을 흩어 보낸다.
+detail: >
+  방어구지만 방어력을 올리는 물건이 아니다. 큰 것을 흘리고 작은 것에는 약하다는
+  성격이 그대로 온다 (IP-SHOCK-DISPERSING). 그래서 이것을 지닌 사람은
+  "무엇을 맞을 것인가" 를 고르게 된다 — 방어의 양이 아니라 종류가 선택지가 된다.
+world_shape: >
+  큰 충격에는 유효하고 잦은 작은 타격에는 유효하지 않아야 한다.
+  모든 피해를 고르게 줄이면 이 노드가 아니다.
+
+origin_trace:
+  world_state: [MW-ZONE-DANGER]
+  property:    [IP-SHOCK-DISPERSING]
+  human_value: >
+    환경 위험이 상시인 곳에서 버티는 수단.

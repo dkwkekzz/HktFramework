@@ -1,0 +1,14 @@
+# HUMAN_DIRECTED 확장 (Q22). grants 는 기존 Capability 다 —
+# MC-BREAK-BIOLOGICAL-LINK 는 MW-ZONE-UNKNOWN 이 이미 demands 로 요구하고 있었고
+# 획득 경로가 없던 노드다 (growth-graph.md). 필요가 먼저, 경로가 나중이다.
+id: IM-BIO-SEVERING
+type: item_modifier
+
+semantic: >
+  불연정을 날·면으로 마감한 것. 이것이 사이에 있는 동안 생체 연결이 성립하지 않는다.
+detail: >
+  DEEP 에서 얻은 광물이 UNKNOWN 층의 demands 하나를 채운다 — 한 층의 산물이
+  다음 층의 조건이 되는 BW §17 순환의 두 번째 실물이다.
+
+requires: [IP-BIOLOGICALLY-CLOSED]
+grants:   [MC-BREAK-BIOLOGICAL-LINK]

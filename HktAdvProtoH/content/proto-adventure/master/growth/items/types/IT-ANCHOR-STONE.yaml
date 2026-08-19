@@ -1,0 +1,20 @@
+# HUMAN_DIRECTED 확장 (Q22).
+id: IT-ANCHOR-STONE
+type: item_type
+
+semantic: >
+  정박정을 깎아 몸에 지니는 돌. 지닌 사람이 자기가 무엇이었는지의 기준점을 잃지 않는다.
+detail: >
+  무기도 방어구도 아니고 도구도 아니다. 기준점이다. 이것 자체는 아무 일도 하지
+  않지만, 주변이 전부 흔들릴 때 흔들리지 않은 것이 하나 있다는 사실만으로
+  무엇이 바뀌었는지를 알 수 있게 된다. 가장 깊은 곳에서 인간이 잃는 것이
+  생명이 아니라 자기 자신이기 때문에 필요한 물건이다 (BW §25).
+world_shape: >
+  인식·정체가 뒤바뀌는 상황에서 이것을 지닌 쪽과 지니지 않은 쪽이 달라야 하고,
+  이것을 기준으로 무엇이 바뀌었는지 알 수 있어야 한다.
+
+origin_trace:
+  world_state: [MW-ZONE-UNKNOWN]
+  property:    [IP-SELF-IDENTICAL]
+  human_value: >
+    가장 깊은 층에서 자기를 붙들어 둔다.

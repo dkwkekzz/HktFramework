@@ -9,10 +9,10 @@ Human 이 답한다    DECISION 줄
 ```
 
 답이 정해지면 해당 Node/Constraint 에 반영하고 **이 파일에서 지운 뒤 결정 내용을
-[HISTORY.md](HISTORY.md) 로 옮긴다.** 여기에는 아직 답이 없는 것만 남는다 —
-닫힌 질문이 쌓이면 매번 읽어야 하는 문서가 무거워진다.
+[HISTORY.md](HISTORY.md) 로 옮긴다.**
 
 미해결 **0건** — 닫힌 질문은 HISTORY.md.
 
-지금 Human 을 기다리는 것은 질문이 아니라 **Frontier 선택**이다 →
-[frontier.md](frontier.md) 의 후보 3종 중 하나를 고르면 다음 Cycle 이 시작된다.
+Frontier 선택도 끝났다 — [frontier.md](frontier.md) 의 `SELECTED` 가
+`FR-INSIGHT-SEES-BEFORE-LOOKING` 이다. 다음은 Cycle Stage 1 이며
+Master 가 할 일은 없다 (Cycle 이 닫히면 Feedback 으로 돌아온다).

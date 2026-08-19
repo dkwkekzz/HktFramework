@@ -623,3 +623,96 @@ ONE-LAYER-AT-A-TIME 신설, 이연 층 근거의 3종은 DRAFT 보류.
     이로써 탐험 영역에 Goal → Possibility → Capability 척추가 섰다
     (MG-EXPLORE-BEIRA → 깊이 진입 5 → 사다리 21). 여전히 남는 공백(§27 대안의
     requires · 층별 Local Goal)은 문서가 실제로 공급하지 않는 것들이다.
+
+---
+
+## Q20. 코드 대조로 올라간 Overlay 판정 2건 — CLOSED
+
+    DECISION      (a) 둘 다 확정 (Human)
+
+    MC-PENETRATION          MISSING → IMPLEMENTED
+        C013 의 08-verification 이 기록한 실측. C013 은 Human Play 확인 후 닫힌다.
+    MC-COMBAT-CAUSE-READING PARTIAL → IMPLEMENTED
+        C010 이 계산 내역을 관찰 계약에 실었으나 그 Cycle 의 FEEDBACK 이 이 Capability 를
+        보고하지 않아 PARTIAL 로 남아 있던 것. 코드에는 고른 능력치 이름·값부터
+        막기 결과까지 전부 실린다.
+
+    배운 것: Cycle FEEDBACK 이 빠뜨린 Capability 는 다음 Cycle 이 그것을 건드리기 전까지
+    조용히 낡는다. 주기적인 코드 대조가 필요하다는 근거가 되었다.
+
+## Q22. 지금 세계의 유일한 자원(돌)에 세계 유래를 부여하는가 — CLOSED
+
+    DECISION      세계에 있어야 할 광물을 더 정의하고 연결한다 (Human)
+
+    선택지 (a)(b)(c) 중 어느 하나가 아니라 범위를 넓히는 답이었다 — 돌 하나를
+    구제하는 대신 광물 계통 자체를 세웠다.
+
+    세운 것 (growth/items/)
+        IP  5종  BOUNDARY-STABLE(기존) · UNREACTIVE · SHOCK-DISPERSING ·
+                 BIOLOGICALLY-CLOSED · SELF-IDENTICAL
+        IT  6종  COMMON-STONE · BOUNDARY-BLADE(기존) · SEALED-VESSEL ·
+                 WARDING-PLATE · SEVERING-BLADE · ANCHOR-STONE
+        IM  3종  BOUNDARY-EDGED · BIO-SEVERING · IDENTITY-ANCHORED
+
+    원래 질문(돌)의 답: IT-COMMON-STONE 은 MW-SAFE-FRONTIER 에서 나온다.
+    "굳지 않은 세계압이 적어 변화가 없는 땅" 이므로 아무 성질이 없는 것이 정상이고,
+    그것이 곧 세계 유래다. 특별하지 않다는 사실 자체가 세계 법칙의 결과이므로
+    DC-WORLD-RESOURCE-ADAPTATION-TRACE 를 위반하지 않는다. 베이라 광물들의 기준선 노릇을 한다.
+
+    지킨 원칙
+        grants 3건 전부 **이미 어떤 Possibility 가 요구하던** MC-* 를 가리킨다 —
+        MC-CUT-ABNORMAL-STRUCTURE · MC-BREAK-BIOLOGICAL-LINK · MC-IDENTITY-ANCHOR.
+        광물을 정당화하려고 새 MC-* 를 만들지 않았다
+        (DC-GROWTH-NEED-FROM-POSSIBILITY · BW §18).
+        불식광·산격석은 요구하는 경로가 없어 grants 를 비우고 사유를 적었다 —
+        능력을 열지 않는 자원은 정상이다 (BW §12).
+
+    효과: BW §17 순환(탐험 → 자원 → 능력 → 더 깊은 탐험)이 그래프에서 처음으로 닫혔다.
+    grants 배선 0건 → 3건. 다만 세계 구현에는 여전히 제작·장착·거래가 없다.
+
+    SCHEMA 변경: IP/IT 에 origin_trace 필수, IM 에 grants 규칙 명시.
+    유래를 주석이 아니라 필드로 남긴다 — 이번 정비 전체의 교훈과 같다.
+
+## Q21. 탐험의 갈래가 "방법" 이 아니라 "장소" 로 되어 있다 — CLOSED
+
+    DECISION      (b) 장소를 빼고 방법만 남긴다 (Human)
+
+    무엇이 문제였나
+        MG-EXPLORE-BEIRA 아래 다섯 갈래가 MP-VENTURE-INTO-FRINGE ~ UNKNOWN 이었다.
+        Possibility 는 "한 목적을 이루는 서로 다른 방법" 인데 그 자리에 장소가 들어가
+        있었고, 게다가 서로 대안도 아니었다(순서대로만 열린다).
+        원인은 설계 판단이 아니라 주입 과정의 부작용이다 — BW §21~§25 의 층별 "필요:"
+        목록을 매달 곳이 필요해서 층마다 Possibility 를 만든 것이고, 그 다섯은
+        방법이 아니라 능력 목록의 옷걸이였다.
+
+    무엇을 했나
+        층은 세계 상태로 되돌렸다. MW-ZONE-* 와 MW-SAFE-FRONTIER 에 demands 필드를
+        신설해 BW §21~§25 · §20 의 "필요:" 목록을 그 층이 직접 소유하게 했다.
+        Capability 쪽 거울은 demanded_by 다.
+
+            demands     이곳을 감당하려면 무엇이 필요한가      — 장소의 조건
+            requires    이 방법을 쓰려면 무엇이 필요한가        — 방법의 조건
+
+        MP-VENTURE-INTO-* 5종을 삭제하고 MG-EXPLORE-BEIRA 의 갈래를 방법 3종으로 세웠다.
+        셋 다 BW 가 실제로 말한 것이다 — 지어내지 않았다.
+
+            MP-LEARN-TO-HANDLE-THE-LAYER   들어가 겪으며 익혀 감당한다      BW §32
+            MP-ADAPT-BY-RESOURCE           세계가 만든 적응을 빌린다        BW §17
+            MP-PREPARE-IN-CIVILIZATION     문명권에서 미리 갖추고 들어간다  BW §14
+
+        비용과 위험이 서로 다르다 — 익히는 쪽은 싸고 위험하며 유일하게 아무도 가 본 적
+        없는 곳에 쓸 수 있고, 준비하는 쪽은 안전하고 비싸며 먼저 겪은 사람을 전제한다.
+        그래서 익히는 갈래가 나머지 둘의 앞이고(supports), 그 의존이 세계에 경제와
+        사회가 생기는 자리가 된다.
+
+    딸려 온 것
+        MK-LOCAL-WORLDSTATE 의 revealed_by 가 둘이 되었다 — 겪어서 알거나 사서 알거나.
+        발견이 목적을 만드는 배선(creates_goal 3종)은 익히는 갈래가 이어받았다 (BW §16).
+        SCHEMA: world_state 에 demands, capability 에 demanded_by 를 추가하고,
+        "required_by 와 demanded_by 가 둘 다 비면 그 Capability 는 노드가 아니다" 를
+        명시했다 — 필요가 먼저임을 지키는 검사점이다.
+
+    배운 것
+        목록을 매달 곳이 필요하다는 이유로 노드 종류를 잘못 고르면, 그 오류는 문법
+        오류가 아니라 **읽어도 말이 안 되는 그래프**로 나타난다. 노드를 세우기 전에
+        "이것은 방법인가 장소인가 상태인가" 를 먼저 묻는다.

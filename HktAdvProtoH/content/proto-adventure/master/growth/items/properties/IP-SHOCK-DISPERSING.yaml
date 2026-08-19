@@ -1,0 +1,29 @@
+# HUMAN_DIRECTED 확장 (Q22). 유래의 뼈대는 BW §26 이 직접 든 예다 —
+# "높은 충격 환경 → 충격 저항 생태". 같은 압력이 물질에 남긴 쪽을 세웠다.
+id: IP-SHOCK-DISPERSING
+type: item_property
+
+semantic: >
+  받은 충격을 한 점에 담아 두지 않고 전체로 흩어 보낸다.
+detail: >
+  충격이 반복해서 내리치는 곳에서 남은 방식이다. 단단함과 다르다 — 단단한 것은
+  버티다 한 번에 깨지고, 이 성질은 버티지 않고 흘려보낸다. 그래서 큰 한 방에는
+  강하지만 갉는 것에는 약하다는 성격이 함께 온다.
+world_shape: >
+  같은 크기의 충격을 받았을 때 이 성질을 가진 것만 한 점에서 부서지지 않아야 한다.
+
+origin_trace:
+  world_state: [MW-ZONE-DANGER]
+  pressure: >
+    환경 위험이 생물·지형과 얽힌 채 반복해서 발동하고, 그중 충격을 내리치는 것이
+    이 지역의 상시 조건이다. (BW §23 · §26)
+  why_it_remains: >
+    충격을 한 점에 받는 구조는 부서져 사라지고, 흩어 보내는 결정 구조만 잔존했다.
+  human_value: >
+    환경 위험이 상시인 곳에서 몸과 장비를 지탱하는 소재. 같은 압력이 생물 쪽에
+    남긴 것이 특수 갑각이므로(BW §26), 인간은 그 갑각을 상대할 때도 이것을 쓴다.
+
+grants_note: >
+  여는 Capability 없음 — IP-UNREACTIVE 와 같은 사유
+  (DC-GROWTH-NEED-FROM-POSSIBILITY). 환경 위험을 견디는 것을 요구하는 Possibility 가
+  아직 없다. MW-ZONE-DANGER 의 demands 넷은 견딤이 아니라 개입이다.
