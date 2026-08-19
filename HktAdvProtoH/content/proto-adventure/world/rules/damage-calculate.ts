@@ -6,7 +6,7 @@
 // Input          공격자 Actor, 대상 Actor, SkillKind
 // Preconditions  없음 — 이것은 값을 정하는 계산이며 세계를 바꾸지 않는다
 // Transition     없음 (World State 를 변경하지 않는다)
-// Result         DamageBreakdown
+// Result         DamageCalculation — 흔들림도 막기도 모르는, 판정 이전의 값
 //
 //     Step 0 (C012 ADDED) — 타입 대응
 //         DamageType  = Skill.DamageType
@@ -41,12 +41,15 @@
 // 결과의 차이는 오직 고른 두 값의 크기에서만 나온다 (DC-COMBAT-MATCHUP-SOFT).
 //
 // 앞으로의 전투 시스템도 새 공식을 만들지 않고 이 공식의 입력값이나 결과값에
-// 한 가지 의미만 더한다 — Critical 은 FinalDamage 를, Guard 는 FinalDamage 를
+// 한 가지 의미만 더한다 — Critical 은 FinalDamage 를 (C015 —
+// RULE-CRITICAL-STRIKE-001, 이 함수 밖에서), Guard 는 FinalDamage 를
 // (RULE-GUARD-BLOCK-001, 이 함수 밖에서), Penetration 은 고른 DefenseStat 을 (C013 — Step 1),
 // Aura 는 고른 OffenseStat 을 건드리는 식이다.
 //
 // 입력에 세계 시각도 난수원도 없다 — 같은 공격자·같은 스킬·같은 대상이면
-// 언제나 같은 값이 나온다 (DC-COMBAT-PLAYER-CAUSALITY).
+// 언제나 같은 값이 나온다. C015 가 세계에 흔들림을 들인 뒤에도 **이 계산만은
+// 그대로다** — 흔들리는 것은 이 값이 아니라 이 값에 얹히는 판정이다
+// (DC-COMBAT-PLAYER-CAUSALITY · INTENT-DAMAGE-CALCULATE-001 CHANGED).
 // Resistance 는 막아낼 **확률**이 아니라 Armor 와 같은 감쇄식에 들어가는 값이다.
 
 import type { ActorState } from '../semantic/actor';
@@ -58,7 +61,7 @@ import {
   offenseStatValue,
   penetrationStatValue,
   skillDefinition,
-  type DamageBreakdown,
+  type DamageCalculation,
   type SkillKind,
 } from '../semantic/combat';
 
@@ -66,7 +69,7 @@ export function ruleDamageCalculate(
   attacker: ActorState,
   target: ActorState,
   kind: SkillKind,
-): DamageBreakdown {
+): DamageCalculation {
   const skill = skillDefinition(kind);
 
   // ── Step 0 — 타입 대응 (C012) ────────────────────────────────────
@@ -111,6 +114,8 @@ export function ruleDamageCalculate(
     // C011 — 이 계산은 막기를 모른다. 막지 않은 타격의 값을 미리 채워 두고,
     // 막힌 타격이면 RULE-STRIKE-DAMAGE-001 이 RULE-GUARD-BLOCK-001 의 결과로 덮는다.
     // C012 — 막기는 방식을 읽지 않는다. 오라 타격도 물리 타격과 똑같이 처리된다.
+    // C015 — 이 계산은 흔들림도 모른다. 터진 타격이면 같은 자리에서
+    // RULE-CRITICAL-STRIKE-001 의 결과로 덮인다.
     appliedDamage: finalDamage,
   };
 }

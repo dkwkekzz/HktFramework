@@ -1,5 +1,5 @@
 // proto-adventure 팩의 World — C001 Stone Mining · C002 Character Action · C003 Server
-//                                Separation · C004 Multi Observer … C013 Penetration
+//                                Separation · C004 Multi Observer … C015 Critical
 //
 // P1 CHANGED — 세계의 껍데기(요청 큐·관찰자 인과·Tick 프레임)는 Engine 의
 // world-kernel 이 소유한다. 이 파일은 이 팩의 세계에 **무엇이 있는지**를 등록한다:
@@ -14,6 +14,7 @@ import type { ActorState } from './semantic/actor';
 import type { WorldPosition } from './semantic/position';
 import { spawnActor } from './semantic/spawn';
 import {
+  DEFAULT_CHANCE_SEED,
   SPAWN_POINTS,
   TICK_INTERVAL,
   WORLD_BOUNDS,
@@ -49,6 +50,13 @@ export interface WorldSetup {
   npcs?: NpcSetup[];
   /** C007 R2 — 속성 변경을 허용할 것인가 (World.DebugAuthority). 요청으로는 바꿀 수 없다 */
   debugAuthority?: boolean;
+  /**
+   * C015 — 이 세계가 지닐 흔들림의 뿌리 (World.ChanceSeed). 요청으로는 바꿀 수 없다 —
+   * DebugAuthority 와 같은 자리, 즉 세계를 띄우는 쪽의 결정이다.
+   * 밝히지 않으면 세계의 기본 뿌리다. 같은 뿌리 + 같은 순서 = 같은 이야기이므로
+   * 되짚기는 여기서 뿌리를 지정해 하는 일이지 관찰로 하는 일이 아니다.
+   */
+  chanceSeed?: number;
 }
 
 // 세계의 기본 배치 — 자율 캐릭터 둘이 각자의 순회 경로를 돈다.
@@ -132,6 +140,10 @@ export function createWorld(setup: WorldSetup = {}): World {
     // C014 — 아무도 아무것도 모르는 채로 세계가 시작된다.
     // 항목이 없다는 것이 곧 "아무것도 모른다" 다 (semantic/acquaintance.ts).
     acquaintances: [],
+    // C015 — 세계가 지닌 흔들림. 뿌리는 세계 밖이 정하고, 커서는 0 에서 시작해
+    // RULE-CRITICAL-STRIKE-001 만이 나아가게 한다 (INTENT-WORLD-CHANCE-001).
+    chanceSeed: setup.chanceSeed ?? DEFAULT_CHANCE_SEED,
+    chanceCursor: 0,
   };
 
   // 관찰자의 몸이 처음 만들어질 때 쓰는 기본값 — 세계의 초기 설정이다.

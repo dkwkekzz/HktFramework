@@ -78,6 +78,9 @@ describe('INTENT-ATTACK-POWER-001 — 공격 능력이 피해를 키운다', () 
       resistancePenetration: 60,
       armorMultiplier: 100 / 150,
       resistanceMultiplier: 100 / 120,
+      // C015 — 관찰자의 몸이다. 넷에 하나꼴로 두 배가 터진다
+      criticalChance: 0.25,
+      criticalDamage: 2,
     });
     // C014 — 남의 것은 살펴본 뒤에 실린다. 값은 그대로다
     observeFully(world, 'npc-1');
@@ -91,6 +94,9 @@ describe('INTENT-ATTACK-POWER-001 — 공격 능력이 피해를 키운다', () 
       resistancePenetration: 0,
       armorMultiplier: 100 / 130,
       resistanceMultiplier: 100 / 190,
+      // C015 — wanderer 는 터뜨리지 못한다. 그래서 관찰자가 맞는 값은 흔들리지 않는다
+      criticalChance: 0,
+      criticalDamage: 1,
     });
   });
 
@@ -222,6 +228,11 @@ describe('INTENT-DAMAGE-BREAKDOWN-001 — 한 방의 크기가 나온 경위가 
       effectiveDefense: 30,
       defenseMultiplier: 100 / 130,
       finalDamage: 20,
+      // C015 AFFECTED — 터졌는가가 경위에 함께 실린다. 이 타격은 터지지 않았고
+      // (세계의 첫 흔들림이 0.25 를 넘었다) 그래서 damageBeforeCritical 과 finalDamage 가
+      // 같다 — **그것을 읽는 것이 "이 숫자는 흔들리지 않았다" 의 관찰이다.**
+      // chance 가 0 이 아니라는 것도 함께 실린다: 터질 리 없는 몸이 아니라 이번에 안 터진 것이다
+      critical: { occurred: false, chance: 0.25, multiplier: 2, damageBeforeCritical: 20 },
       // C011 AFFECTED — 실제로 빠진 값이 경위에 함께 실린다.
       // 막지 않은 타격이므로 finalDamage 와 같고, guard 는 실리지 않는다
       appliedDamage: 20,

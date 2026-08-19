@@ -4,8 +4,8 @@
 [PASS] Intent                    (흔들림은 계산 밖에 선다 · 대가는 세계가 지닌 원천)
 [PASS] World Semantic            (계산 무변경 · 판정은 계산과 막기 사이 · 두 끝은 결정론)
 [PASS] GameView Specification    (커지기 전과 뒤를 나란히 · 흔들림의 뿌리는 싣지 않는다)
-[    ] Human Semantic Review
-[    ] World Implementation
+[PASS] Human Semantic Review      (2026-08-19 APPROVED — 판단 3건 진행 지시)
+[PASS] World Implementation       (world 338 tests · 계산 무변경 · 막기 규칙 무변경)
 [    ] View Implementation
 [    ] Verification
 

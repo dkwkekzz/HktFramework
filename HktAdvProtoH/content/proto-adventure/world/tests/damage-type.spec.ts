@@ -261,6 +261,8 @@ describe('INTENT-DAMAGE-BREAKDOWN-001 (CHANGED) — 무엇을 골랐는지가 �
       effectiveDefense: 30,
       defenseMultiplier: 100 / 130,
       finalDamage: 20,
+      // C015 — 터지지 않은 타격. 커지기 전과 커진 뒤가 같다
+      critical: { occurred: false, chance: 0.25, multiplier: 2, damageBeforeCritical: 20 },
       appliedDamage: 20,
     });
   });
@@ -278,6 +280,8 @@ describe('INTENT-DAMAGE-BREAKDOWN-001 (CHANGED) — 무엇을 골랐는지가 �
       effectiveDefense: 90,
       defenseMultiplier: 100 / 190,
       finalDamage: 14,
+      // C015 — 터지지 않은 타격. 방식이 판정을 바꾸지 않는다 (물리와 같은 chance 다)
+      critical: { occurred: false, chance: 0.25, multiplier: 2, damageBeforeCritical: 14 },
       appliedDamage: 14,
     });
   });
@@ -304,6 +308,9 @@ describe('INTENT-DAMAGE-TYPE-OBSERVE-001 — 고를 근거가 보인다', () => 
       resistancePenetration: 0,
       armorMultiplier: 100 / 130,
       resistanceMultiplier: 100 / 190,
+      // C015 — wanderer 는 터뜨리지 못한다. 그래서 관찰자가 맞는 값은 흔들리지 않는다
+      criticalChance: 0,
+      criticalDamage: 1,
     });
   });
 

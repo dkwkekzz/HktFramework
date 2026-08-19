@@ -111,6 +111,9 @@ describe('INTENT-UNSEEN-CAPABILITY-001 — 살펴보지 않은 존재의 겨루�
       resistancePenetration: 60,
       armorMultiplier: 100 / 150,
       resistanceMultiplier: 100 / 120,
+      // C015 — 관찰자의 몸이다. 넷에 하나꼴로 두 배가 터진다
+      criticalChance: 0.25,
+      criticalDamage: 2,
     });
     expect(me?.attributes?.defenseShape).toBe('physical-tougher');
   });
@@ -237,6 +240,9 @@ describe('RULE-OBSERVE-COMPLETE-001 — 끝까지 간 살펴봄이 앎을 남긴
       resistancePenetration: 0,
       armorMultiplier: 100 / 130,
       resistanceMultiplier: 100 / 190,
+      // C015 — wanderer 는 터뜨리지 못한다. 그래서 관찰자가 맞는 값은 흔들리지 않는다
+      criticalChance: 0,
+      criticalDamage: 1,
     });
     // 관찰자의 오라 관통 60 이 Resistance 90 을 56.25 로 읽는다 (C013 그대로)
     expect(npc?.attributes?.versusObserver?.resistance).toBeCloseTo(90 * (100 / 160), 10);

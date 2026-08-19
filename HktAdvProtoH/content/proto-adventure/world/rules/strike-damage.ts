@@ -2,12 +2,24 @@
 // Input          공격자 Actor, 대상 Actor, SkillKind, World
 // Preconditions  대상이 쓰러지지 않았다 (쓰러진 몸은 더 이상 타격 대상이 아니다)
 // Transition     Breakdown = RULE-DAMAGE-CALCULATE-001(공격자, 대상, 스킬)
+//                Critical  = RULE-CRITICAL-STRIKE-001(World, 공격자, Breakdown.FinalDamage)
+//                Breakdown.Critical    = Critical.Outcome
+//                Breakdown.FinalDamage = Critical.Amplified
 //                Guard     = RULE-GUARD-BLOCK-001(대상, 공격자, Breakdown.FinalDamage)
 //                Breakdown.AppliedDamage = Guard.AppliedDamage
 //                대상.Hp = max(0, Hp - Breakdown.AppliedDamage)
 //                World.StrikeEvents += { 공격자, 대상, 스킬, Amount, Breakdown, 위치, 시각 }
 //                Hp 가 0 이면 RULE-DOWNED-001
 // Result         Damaged(AppliedDamage)
+//
+// C015 CHANGED — 계산과 막기 사이에 판정 하나가 놓인다. 터진 타격은 계산이 낸 값이
+// 커진 채로 막기를 마주한다. 그래서 크게 터진 한 방은 막아도 더 아프고(같은 비율의 더 큰
+// 몫이 남는다) 막는 데 더 든다(대가는 덜어내기 전 값으로 매겨지며 그 값이 커졌다).
+// **막기의 규칙은 한 줄도 바뀌지 않았다** — 마주하는 크기만 달라졌다.
+// 터지지 않은 타격의 값은 이 층이 생기기 전과 완전히 같다.
+// 한 휘두름이 여럿에게 닿으면 이 규칙이 몸마다 따로 도는 것도 그대로이므로 판정도 몸마다
+// 따로다 — 한 사람에게 터졌다고 옆 사람에게도 터지지 않는다. 대상의 순서가 정해져 있으므로
+// 흔들림이 소비되는 순서도 정해져 있다.
 //
 // C011 CHANGED — 공식이 내놓은 값을 그대로 덜어내지 않고 막기 판정을 한 번 거친다.
 // 막지 않았으면 AppliedDamage = FinalDamage 로 C010 과 완전히 같다.
@@ -18,7 +30,9 @@
 // 한 번의 휘두름이 여럿에게 닿으면 이 규칙이 맞은 몸마다 따로 돌아간다 —
 // 각자의 방어 능력으로 각자의 값이 나온다.
 //
-// R1/C010 — 피해에 흔들림이 없으므로 우연을 소비하지 않는다. 같은 입력이면 언제나 같은 결과다.
+// R1/C010 — 계산 자체에는 흔들림이 없다. RULE-DAMAGE-CALCULATE-001 은 이 Cycle 뒤에도
+// 같은 입력이면 언제나 같은 값을 내놓는다. 우연을 소비하는 것은 이 함수가 부르는
+// RULE-CRITICAL-STRIKE-001 하나뿐이다 (C015).
 //
 // RULE-DOWNED-001 — Implements INTENT-DOWNED-001
 // Input          Hp 가 0 이 된 Actor
@@ -29,10 +43,11 @@
 // downed 가 대체 불가능하므로 모든 행동 시작이 자동으로 막힌다 —
 // RULE-ACTION-BEGIN-001 에 예외를 더하지 않는다.
 
-import { isDowned, type SkillKind } from '../semantic/combat';
+import { isDowned, type DamageBreakdown, type SkillKind } from '../semantic/combat';
 import type { ActorState } from '../semantic/actor';
 import type { WorldState } from '../semantic/world-state';
 import { beginAction } from './action-begin';
+import { ruleCriticalStrike } from './critical-strike';
 import { ruleDamageCalculate } from './damage-calculate';
 import { ruleGuardBlock } from './guard';
 
@@ -50,7 +65,19 @@ export function ruleStrikeDamage(
 ): number | null {
   if (isDowned(target)) return null;
 
-  const breakdown = ruleDamageCalculate(attacker, target, kind);
+  const calculation = ruleDamageCalculate(attacker, target, kind);
+
+  // C015 — 증폭도 공식 밖에서 그 결과값에 작용한다 (DC-COMBAT-ONE-FORMULA).
+  // 막기보다 **먼저**다: 두 값 모두 FinalDamage 에 걸리므로 순서가 막기의 기력 대가를
+  // 가르며(대가는 덜어내기 전 값으로 매겨진다 — C011), 커진 값을 막기가 마주하는 것이
+  // R1 핵심 원칙의 `Critical → 증폭` · `Guard → 감소` 순서다.
+  const critical = ruleCriticalStrike(state, attacker, calculation.finalDamage);
+  const breakdown: DamageBreakdown = {
+    ...calculation,
+    critical: critical.outcome,
+    finalDamage: critical.amplified,
+    appliedDamage: critical.amplified,
+  };
 
   // C011 — 막기는 공식 밖에서 그 결과값에 작용한다 (DC-COMBAT-ONE-FORMULA).
   const block = ruleGuardBlock(target, attacker, breakdown.finalDamage, state.time);
