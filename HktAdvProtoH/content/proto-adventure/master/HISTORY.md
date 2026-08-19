@@ -495,6 +495,10 @@ ONE-LAYER-AT-A-TIME 신설, 이연 층 근거의 3종은 DRAFT 보류.
         BW §17~§18 독성 예시 (MC-DETOXIFY · MA-TOXIN-SCHOLAR · IT-PURIFICATION-ORGAN ·
         CL-???) — Growth Overlay 작동 방식을 설명하는 삽화 (Q14 심연 선례)
         회귀초의 IT-* — 문서가 Item ID 를 명명하지 않았다 (Capability 만 명명)
+        BW §7 자원 가능성 예시 8종(불치병 치료 식물·노화 지연 물질 등) · §15 탐험 이유
+        11종 · §25 UNKNOWN 생명 예시 5종 — 전부 "예:" 로 제시된 가능성 목록이다.
+        노드로 세우면 목록이 세계가 된다(§15 는 고정 금지가 원칙) — 각각 root/DC/MW
+        노드의 의미로만 반영하고 개별 항목은 비주입 (Q14 삽화 선례와 같은 기준)
         BW §18 "Resource 가 있다는 이유만으로 Capability 를 만들지 않는다" —
         기존 DC-GROWTH-NEED-FROM-POSSIBILITY(APPROVED)와 같은 원칙이라 REUSED (신설 없음)
         수치·공식 — 없음 (BW 는 수치를 두지 않는 문서다 · 정책 §7.2)

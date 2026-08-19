@@ -34,9 +34,10 @@ nodes:
   - id: MW-SAFE-FRONTIER
     type: world_state
     statement: >
-      Player 가 출발하는 문명권은 Free World Pressure 가 낮아 생태가 안정되어 있고
-      휴식·교역·제작·정보 획득·전투 훈련·탐험 준비가 가능하다. 그러나 세계압이 낮아
-      문명권 내부에서는 얻기 어려운 것들이 존재한다. (BW §4 · §7 · §14)
+      Player 가 출발하는 문명권은 Free World Pressure 가 낮아 평범한 생태와 기본적인
+      Resource 위에서 휴식·교역·제작·정보 획득·Actor 관계·전투 훈련·Item 거래·
+      Growth Route 탐색·탐험 준비가 가능하다. 그러나 세계압이 낮아 문명권 내부에서는
+      얻기 어려운 것들이 존재한다. (BW §4 · §7 · §14 · §20)
     causes: [MG-EXPLORE-BEIRA]   # 문명권의 한계가 베이라로 나가는 이유를 만든다 (BW §7 · §15)
     changed_by: []
 
@@ -44,7 +45,9 @@ nodes:
     type: world_state
     statement: >
       베이라는 SAFE FRONTIER → FRINGE → WILD → DANGER → DEEP → UNKNOWN → ? 의 위험
-      Gradient 를 가지며 일반적으로 깊어질수록 Free World Pressure 가 높아진다.
+      Gradient 를 가지며 일반적으로 깊어질수록 Free World Pressure 가 높아진다 —
+      더 위험해지는 동시에 더 기적적인 발견의 가능성도 커진다. 단 세계압은 가능성을
+      늘릴 뿐 모든 위험 지역이 가치 있는 Resource 를 보장하지는 않는다 (BW §12).
       정확한 수치적 거리 공식이 아니다 — 지역마다 Local WorldState 가 다를 수 있고,
       UNKNOWN 너머(?)는 문서도 열어 둔다. (BW §19)
     causes: []
