@@ -131,12 +131,13 @@
 
     두 문구 모두 View 의 결정이다 — 세계가 보낸 것은 `chance` 하나다.
 
-    ── 발견한 것 (이 Cycle 밖)
+    ── 발견한 것 (이 Cycle 밖 — 이후 닫혔다)
 
-    `npm test` 가 `tools/master-graph/tests/graph.spec.ts` 하나를 실패시킨다 —
-    `master/graph/GRAPH.md` 가 `graph/*.yaml` 과 어긋나 있다.
-    **이 Cycle 이 만든 것이 아니다** — 작업 시작 전 상태에서도 같은 실패가 재현되고,
+    이 Stage 시점에 `npm test` 가 `tools/master-graph/tests/graph.spec.ts` 하나를
+    실패시켰다 — `master/graph/GRAPH.md` 가 `graph/*.yaml` 과 어긋나 있었다.
+    **이 Cycle 이 만든 것이 아니었다** — 작업 시작 전 상태에서도 같은 실패가 재현되었고,
     Cycle Agent 는 `master/` 를 편집하지 않는다 (CLAUDE.md).
-    Stage 8 의 MASTER FEEDBACK 으로 위층에 보고한다.
+    Stage 8 의 MASTER FEEDBACK 으로 보고했고, main 의 Master Feedback 작업이
+    재생성물을 갱신하면서 닫혔다.
 
     GAP 없음. `engine/` 을 편집하지 않았다. `world/` 를 import 하지 않았다.

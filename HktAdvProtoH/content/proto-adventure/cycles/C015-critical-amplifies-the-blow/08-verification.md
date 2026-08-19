@@ -181,8 +181,11 @@
         `observer.spec.ts` · `observer-mark.spec.ts` · `world-tick.spec.ts` 통과.
         세계가 지닌 흔들림은 관찰에 실리지 않는다
 
-    전체 — `npm test` → **41 파일 중 40 파일 · 678 tests 중 677 통과.**
-    실패 1건은 이 Cycle 밖이다 (아래 MASTER FEEDBACK · FAILURES).
+    전체 — `npm test` → **41 파일 678 tests 전부 통과.**
+    (검증 시점에는 이 Cycle 밖의 실패가 1건 있었다 — `master/graph/GRAPH.md` 가
+     `graph/*.yaml` 과 어긋나 있었다. 그 뒤 main 의 Master Feedback 작업이
+     C013 · C014 를 반영하며 재생성물을 갱신했고, 그 main 을 이 브랜치에 병합한
+     시점에 닫혔다. 아래 MASTER FEEDBACK 참조.)
 
 ## MASTER FEEDBACK
 
@@ -244,24 +247,29 @@
     Master Gap
         없음 — 상위 의미와 어긋난 지점을 발견하지 못했다.
 
-    Master 도구 상태 (이 Cycle 밖 — 위층이 처리할 일)
-        `npm test` 의 실패 1건은 `tools/master-graph/tests/graph.spec.ts` 다 —
-        `master/graph/GRAPH.md` 가 `graph/*.yaml` 과 어긋나 있다.
-        **이 Cycle 이 만든 것이 아니다**: 작업 시작 전 상태(stash)에서도 같은 실패가
-        재현되며, 이 Cycle 은 `master/` 를 한 파일도 건드리지 않았다.
-        `npm run master:graph` 로 재생성하면 닫히지만, 그것은 Master Layer 의 일이다
-        (CLAUDE.md — Cycle Agent 는 `master/` 를 편집하지 않는다).
-        함께 보고된 정합 경고 `ORPHAN_CAPABILITY — MC-CUT-ABNORMAL-STRUCTURE 를 요구하는
-        Possibility 가 없다` 도 같은 자리다.
+    Master 도구 상태 (이 Cycle 밖 — 위층이 이미 처리했다 · CLOSED)
+        검증 시점에는 `tools/master-graph/tests/graph.spec.ts` 가 실패했다 —
+        `master/graph/GRAPH.md` 가 `graph/*.yaml` 과 어긋나 있었다.
+        **이 Cycle 이 만든 것이 아니었다**: 작업 시작 전 상태(stash)에서도 같은 실패가
+        재현되었고, 이 Cycle 은 `master/` 를 한 파일도 건드리지 않았다.
+        그 뒤 main 에서 Master Feedback 작업(C013 · C014 반영)이 재생성물을 갱신했고,
+        그 main 을 이 브랜치에 병합한 시점에 닫혔다 — `npm test` 678 tests 전부 통과.
+        예상대로 Master Layer 의 일이었다 (CLAUDE.md — Cycle Agent 는 `master/` 를
+        편집하지 않는다).
+
+    Master Layer 에 남은 기록 (편집하지 않고 보고만 한다)
+        `master/frontier.md` 의 `FR-CRITICAL-AMPLIFIES-THE-BLOW` 가 아직
+        `Status PROPOSED` 이고 추천 순서 3번에 남아 있다. Human 이 이것을 골라
+        C015 가 돌았으므로(01 MASTER TRACE — 2026-08-19 Human Select) 그 항목은
+        "선택되어 진행 중" 이어야 한다 (frontier.md 규칙).
+        C015 의 Master Feedback 작업이 그 자리에서 함께 정리할 일이다.
 
 ## FAILURES
 
-    이 Cycle 의 검증 실패 없음.
+    없음. `npm test` 41 파일 678 tests 전부 통과한다.
 
-    [FAIL] tools/master-graph/tests/graph.spec.ts — 이 Cycle 밖
-    Missing   master/graph/GRAPH.md 가 graph/*.yaml 과 어긋나 있다 (재생성물 미갱신)
-    Reason    작업 시작 전 상태에서도 재현된다. 이 Cycle 은 master/ 를 편집하지 않았다
-    Return To MASTER (Human) — `npm run master:graph` 는 Master Layer 의 작업이다
+    검증 시점에 열려 있던 `[FAIL] tools/master-graph/tests/graph.spec.ts` 는
+    이 Cycle 밖의 것이었고 main 병합으로 닫혔다 (MASTER FEEDBACK 참조).
 
 ## STATUS
 
