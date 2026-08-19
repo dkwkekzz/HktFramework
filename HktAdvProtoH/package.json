@@ -11,6 +11,8 @@
     "motions:check": "tsx tools/motion-atlas/scan.ts --check",
     "catalog": "tsx tools/catalog/print.ts",
     "catalog:check": "tsx tools/catalog/print.ts --check",
+    "master:graph": "tsx tools/master-graph/build.ts",
+    "master:graph:check": "tsx tools/master-graph/build.ts --check",
     "boundary:check": "tsx tools/boundary/check.ts",
     "test": "tsx tools/boundary/check.ts && vitest run"
   },
@@ -25,6 +27,7 @@
     "tsx": "^4.23.12",
     "typescript": "^5.5.4",
     "vite": "^5.4.8",
-    "vitest": "^2.1.1"
+    "vitest": "^2.1.1",
+    "yaml": "^2.9.0"
   }
 }

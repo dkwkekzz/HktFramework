@@ -1,2 +1,5 @@
 node_modules/
 dist/
+
+# Master Graph 뷰어 — npm run master:graph 가 만드는 생성물 (GRAPH.md 만 커밋한다)
+content/*/master/graph/graph-view.html

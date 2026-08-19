@@ -103,9 +103,28 @@ master/     현재 상태    world/ view/ 처럼 계속 갱신된다
 | [candidates/](candidates/) | `CC-*.md` — 미승인 Constraint Candidate | Agent 제안 / **Human** 승인 |
 | [open-questions.md](open-questions.md) | 승인 대기 · Constraint 충돌 · 설계 공백 · Trade-off | Agent 제기 / **Human** 결정 |
 | [HISTORY.md](HISTORY.md) | 닫힌 것들의 보관소 — 평소에 읽지 않는다 | Master Design Agent |
+| [graph/GRAPH.md](graph/GRAPH.md) | Graph 스냅샷 (Mermaid · 표) — **생성물, 손으로 고치지 않는다** | `npm run master:graph` |
 
 위 문서들은 **지금 할 일과 현재 상태만** 담는다. 닫힌 항목은 그 자리에서 지우고
 `HISTORY.md` 로 옮긴다 — 그래야 매번 읽는 문서가 가볍게 유지된다.
+
+## 관찰
+
+Graph 를 눈으로 보려면 프로젝트 루트에서 다음을 실행한다. 원본은 아무것도 바뀌지 않는다.
+
+```text
+npm run master:graph         GRAPH.md 와 graph/graph-view.html 을 다시 만든다
+npm run master:graph:check   정합성 + GRAPH.md 최신 여부만 확인한다 (아무것도 쓰지 않는다)
+```
+
+`graph-view.html` 은 브라우저로 여는 인터랙티브 뷰어다 (생성물 — 커밋하지 않는다).
+층(WorldState → Goal → Possibility → Capability)으로 배치하고, Capability 는 overlay 색으로,
+Possibility 는 **준비도**(요구 Capability 중 세계에 이미 있는 것의 비율)로 보여 준다.
+노드를 고르면 그 인과 경로만 남고 원문이 열린다. Constraint 를 고르면 그 원칙 아래 있는
+노드만 남는다. 빈 인과 필드(구멍)에는 주황 점이 찍힌다.
+
+같은 통과에서 참조 무결성도 검사한다 — 존재하지 않는 ID 참조, `requires` ↔ `required_by`
+비대칭, 없는 Constraint 참조, 고아 Possibility/Capability.
 
 ## 두 층의 접합점
 
