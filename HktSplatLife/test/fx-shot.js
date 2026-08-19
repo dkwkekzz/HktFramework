@@ -9,7 +9,7 @@
 //   ④ 굴절한다 — F2 굴절 파면은 색이 아니라 *빛의 경로*다: 기준 프레임 대비 화면이 크게
 //                 어긋나지만(diffPx) 밝기 총합은 거의 늘지 않는다(lumAdd ≪ 폭발). 수명이
 //                 지나면 화면이 기준으로 되돌아온다 = 변위가 남지 않는다.
-//   ⑤ 링이다   — F4 충격파(빛살)는 축에 수직인 원판으로 방사되므로 *가운데가 빈다*:
+//   ⑤ 링이다   — F4 물결파(빛살)는 축에 수직인 원판으로 방사되므로 *가운데가 빈다*:
 //                 발생점 둘레 고리의 픽셀이 중심 원반보다 압도적으로 많아야 한다.
 //   ⑥ GPU 오류 0
 // 사용: node fx-shot.js [outPrefix=fx] [N=16384]
@@ -76,12 +76,16 @@ async function driveFx({ FRAMES, N, entities, shots, events, eye, center, makeBo
 		}
 		keepPx[g.name] = px.slice(); // unmap 뒤에도 남는 사본
 		// 링 판정용 반경별 픽셀 수 — 화면 중심(발생점) 기준 중심 원반 vs 고리
-		let inner = 0, annulus = 0;
+		// 축별 퍼짐(sx, sy)은 칼자국 판정용 — 부채꼴이면 한 축으로만 길다
+		let inner = 0, annulus = 0, sxx = 0, syy = 0;
 		for (let k = 0; k < xs.length; k++) {
 			const dx = xs[k] - 320, dy = ys[k] - 320, rr = Math.hypot(dx, dy);
+			sxx += dx * dx; syy += dy * dy;
 			if (rr < 70) inner++;
 			else if (rr < 300) annulus++;
 		}
+		const spx = xs.length ? Math.sqrt(sxx / xs.length) : 0; // 가로 퍼짐 (sx 는 위에서 무게중심 합계로 쓰인다)
+		const spy = xs.length ? Math.sqrt(syy / xs.length) : 0;
 		const mx = n ? sx / n : 320, my = n ? sy / n : 320;
 		let v = 0;
 		for (let k = 0; k < xs.length; k++) v += (xs[k] - mx) * (xs[k] - mx) + (ys[k] - my) * (ys[k] - my);
@@ -99,7 +103,7 @@ async function driveFx({ FRAMES, N, entities, shots, events, eye, center, makeBo
 			c2d.putImageData(img, 0, 0);
 			dataUrl = document.getElementById('c2d').toDataURL('image/png');
 		}
-		out.push({ name: g.name, lit: n, hot, cx: mx, cy: my, spread, inner, annulus, lum: Math.round(lum / 1000), diffBase: g.diffBase, dataUrl });
+		out.push({ name: g.name, lit: n, hot, cx: mx, cy: my, spread, inner, annulus, sx: spx, sy: spy, lum: Math.round(lum / 1000), diffBase: g.diffBase, dataUrl });
 		g.rb.unmap();
 	}
 	// ── 굴절 지표 ── 굴절은 "색을 더한 것"이 아니라 "화면을 옮긴 것"이라 한 장의 픽셀 수로는
@@ -206,16 +210,22 @@ async function driveFx({ FRAMES, N, entities, shots, events, eye, center, makeBo
 		eval(DRIVE);
 		const inert = HktGenesisGenes.materialize(HktGenesisGenes.PRESETS['물']);
 		inert.opacity = 0; inert.binding = 0; inert.form = 0;
-		const fx = new HktGenesisFx.FxSystem({ names: ['충격파'], slices: 2, slots: 1 });
+		const fx = new HktGenesisFx.FxSystem({ names: ['물결파', '검격'], slices: 4, slots: 1 });
 		const ents = fx.compose(inert);
 		return await driveFx({
-			FRAMES: 60, N, entities: { ents, fx }, eye: [0, 1.0, 3.2], center: [0, 1.0, 0],
-			// 축 = 카메라 쪽 → 원판이 화면과 나란해져 링이 정면으로 보인다
-			events: [{ frame: 10, name: '충격파', at: { origin: [0, 1.0, 0], dir: [0, 0, 1], radius: 0.1 } }],
+			FRAMES: 105, N, entities: { ents, fx }, eye: [0, 1.0, 3.2], center: [0, 1.0, 0],
+			// 축 = 카메라 쪽 → 원판이 화면과 나란해져 링·칼자국이 정면으로 보인다.
+			// 검격은 roll 0 → 기준 방향이 화면 가로 = 가로 베기.
+			events: [
+				{ frame: 10, name: '물결파', at: { origin: [0, 1.0, 0], dir: [0, 0, 1], radius: 0.1 } },
+				{ frame: 70, name: '검격', at: { origin: [0, 1.0, 0], dir: [0, 0, 1], radius: 0.08, roll: 0 } },
+			],
 			shots: [
 				{ name: 'ringBefore', frame: 9 },
-				{ name: 'ring', frame: 20, save: true },   // +0.17s
+				{ name: 'ring', frame: 20, save: true },   // 물결파 +0.17s
 				{ name: 'ringGone', frame: 55 },           // 수명(0.45s=27f) 뒤
+				{ name: 'slash', frame: 76, save: true },  // 검격 +0.1s
+				{ name: 'slashGone', frame: 100 },         // 수명(0.3s=18f) 뒤
 			],
 		});
 	}, { N: parseInt(nArg), DRIVE: DRIVE_FX });
@@ -223,7 +233,8 @@ async function driveFx({ FRAMES, N, entities, shots, events, eye, center, makeBo
 	for (const s of ring.shots) {
 		R[s.name] = s;
 		if (s.dataUrl) savePng(s.dataUrl, path.resolve(`${outPrefix}-${s.name}.png`));
-		console.log(`${s.name.padEnd(11)} 픽셀 ${String(s.lit).padStart(6)} · 중심원반 ${String(s.inner).padStart(5)} · 고리 ${String(s.annulus).padStart(6)}`);
+		console.log(`${s.name.padEnd(11)} 픽셀 ${String(s.lit).padStart(6)} · 중심원반 ${String(s.inner).padStart(5)} · 고리 ${String(s.annulus).padStart(6)}`
+			+ ` · 가로퍼짐 ${s.sx.toFixed(0)}px · 세로퍼짐 ${s.sy.toFixed(0)}px`);
 	}
 	result.gpuErrs = result.gpuErrs.concat(ring.gpuErrs);
 
@@ -261,6 +272,9 @@ async function driveFx({ FRAMES, N, entities, shots, events, eye, center, makeBo
 		['빛살 링(고리가 중심 원반의 4배 이상)', R.ring.annulus > R.ring.inner * 4 && R.ring.annulus > 3000],
 		['빛살 발생 전 정적', R.ringBefore.lit < 50],
 		['빛살 소멸(수명 후 0)', R.ringGone.lit < 50],
+		// F5 검격: 온 고리가 아니라 한 줄로 몰린다 — 칼자국이면 한 축으로만 길다
+		['검격 칼자국(가로 퍼짐이 세로의 1.6배 이상)', R.slash.sx > R.slash.sy * 1.6 && R.slash.lit > 3000],
+		['검격 소멸(수명 후 0)', R.slashGone.lit < 50],
 		['페이지 오류 0', real.length === 0],
 	];
 	for (const [label, ok] of gates) console.log(`판정: ${label} → ${ok ? 'OK' : '실패'}`);

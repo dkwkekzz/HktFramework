@@ -71,6 +71,9 @@
 		discThick:  ['원판 두께',   0,    1.5,  0.05],
 		rayLen:     ['바늘 길이',   0,    40,   0.5],
 		rayThin:    ['바늘 가늘기', 0,    3,    0.1],
+		// ── F5: 방위 유전자 (평면 안에서 어디로 몰리는가 — arc 0 이면 온 고리) ──
+		arc:        ['방위 집중',   0,    0.98, 0.02],
+		arcSharp:   ['부채꼴 뾰족함', 0.2, 4,   0.1],
 	};
 
 	// ── 원소 프리셋: 유전자 값만 다르고 시스템은 동일 — 속성이 형태를 만든다 ──
@@ -149,7 +152,8 @@
 	// R1 재질 등 신설 유전자 미지정 프리셋은 0 폴백 (specPow 만 pow 가드 1) — NaN 업로드 방지.
 	function materialize(p, emitter) {
 		const g = {};
-		for (const k of Object.keys(GENE_DEFS)) g[k] = p[k] != null ? p[k] : (k === 'specPow' || k === 'curve' || k === 'shredPow' ? 1 : 0);
+		for (const k of Object.keys(GENE_DEFS)) g[k] = p[k] != null ? p[k]
+			: (k === 'specPow' || k === 'curve' || k === 'shredPow' || k === 'arcSharp' ? 1 : 0);
 		g.colorA = hexToVec4(p.colorA);
 		g.colorB = hexToVec4(p.colorB);
 		g.form = p.form || 0;

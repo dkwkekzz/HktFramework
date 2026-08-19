@@ -57,11 +57,15 @@ struct Entity {
 	// 가운데가 빈 링을 만들고(구면이면 투영이 원반으로 차서 중심이 비지 않는다), ray* 는
 	// 스플랫을 진행 방향으로 늘여 바늘로 만든다 (disc 0 · rayLen 0 = 기존 구면·기존 신축).
 	disc : f32,        discThick : f32, rayLen : f32,    rayThin : f32, // 평면 집중·평면 두께·바늘 길이 상한·가늘기
+	// F5 방위 유전자 — 평면 안에서 어느 쪽으로 몰리는가. arc 0 = 온 고리(물결파),
+	// 1 근처 = 한 줄로 몰린 부채꼴(검격 = 칼자국). 기준 방향은 이벤트 롤(ev2.w)이 정한다.
+	arc : f32,         arcSharp : f32,  _f5a : f32,      _f5b : f32,   // 방위 집중·집중의 뾰족함·예비
 };
 `;
 
 	// F1 이펙트 이벤트 테이블 — engine.js MAX_FX/FX_STRIDE 와 바이트 일치 필수.
-	// 슬롯당 vec4 3개: [3k]=(원점, t0) · [3k+1]=(축, 세기) · [3k+2]=(초기 반경, 시드, 스케일, _).
+	// 슬롯당 vec4 3개: [3k]=(원점, t0) · [3k+1]=(축, 세기) · [3k+2]=(초기 반경, 시드, 스케일, 롤).
+	// 롤(rad) = 축 둘레 회전 — 평면 안의 기준 방향을 돌린다(검격의 칼날 각도).
 	// t0 <= 0 = 비활성 슬롯. 스플랫은 제 슬롯을 rest.w 로 안다 (L6 뼈 친화와 동형).
 	const FX_CONST = /* wgsl */`
 const FX_SLOTS : u32 = 16u;
@@ -222,7 +226,30 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
 			if (E.disc > 0.0) {
 				let inPlane = dv - ax * dot(dv, ax);
 				let pl = length(inPlane);
-				if (pl > 1e-4) { dv = mix(dv, inPlane / pl, clamp(E.disc, 0.0, 1.0)); }
+				if (pl > 1e-4) {
+					var planar = inPlane / pl;
+					// F5 방위 집중(arc): 평면 안에서 기준 방향 둘레로 몰아 *칼자국*(부채꼴)을 만든다.
+					// 양쪽 대칭이라 베인 자국처럼 남는다. 기준 방향은 축 둘레 롤(ev2.w)로 돌린다 —
+					// 같은 규칙이 가로 베기·대각 베기를 모두 낸다(발생 쪽이 각도만 준다).
+					if (E.arc > 0.0) {
+						var b1 = vec3f(1.0, 0.0, 0.0);
+						if (abs(ax.y) < 0.9) { b1 = normalize(cross(ax, vec3f(0.0, 1.0, 0.0))); }
+						else { b1 = normalize(cross(ax, vec3f(1.0, 0.0, 0.0))); }
+						let b2 = cross(ax, b1);
+						let rc = cos(ev2.w);
+						let rs = sin(ev2.w);
+						let r1 = b1 * rc + b2 * rs;   // 칼날 방향 (롤 적용)
+						let r2 = b2 * rc - b1 * rs;   // 그 수직 (부채꼴이 벌어지는 쪽)
+						let cv = dot(planar, r1);
+						var sv = dot(planar, r2);
+						// |수직 성분|을 눌러 기준 방향으로 몰아준다. arcSharp 가 크면 더 뾰족한 부채꼴.
+						sv = sign(sv) * pow(abs(sv), max(E.arcSharp, 0.05)) * (1.0 - clamp(E.arc, 0.0, 0.98));
+						let pv = r1 * cv + r2 * sv;
+						let pl2 = length(pv);
+						if (pl2 > 1e-5) { planar = pv / pl2; }
+					}
+					dv = mix(dv, planar, clamp(E.disc, 0.0, 1.0));
+				}
 				dv += ax * ((h4.x - 0.5) * E.discThick);
 			}
 			let dvl = length(dv);

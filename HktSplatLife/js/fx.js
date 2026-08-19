@@ -43,6 +43,9 @@
 	// 읽는 법 (F3 유전자 — 파열: 파면이 균질하지 않다 = 타격감):
 	//   shred 조각별 속도 편차(0 매끈한 구면 ↔ 1 앞뒤로 크게 갈림) · shredFreq 조각 크기
 	//   tear  통째로 사라지는 조각 비율(= 파면에 뚫린 틈) · shredPow 빠른 조각의 희소성
+	// 읽는 법 (F5 유전자 — 방위: 평면 안에서 어디로 몰리는가):
+	//   arc 방위 집중(0 온 고리=물결파 ↔ 0.9 근처 한 줄=검격) · arcSharp 부채꼴의 뾰족함
+	//   기준 방향은 이벤트의 roll(축 둘레 회전) — 가로 베기·대각 베기를 각도로만 가른다
 	// 읽는 법 (F4 유전자 — 광선: 파면을 빛살로 세운다):
 	//   disc  축에 수직인 평면 집중(0 구면 ↔ 1 종잇장 링 — 가운데가 빈다) · discThick 평면 두께
 	//   rayLen 바늘 길이 상한(속도 신축의 상한) · rayThin 바늘 가늘기(횡방향 수축 지수)
@@ -58,8 +61,8 @@
 			size: 0.011, stretch: 2.6, opacity: 0.2, luminosity: 2.0,
 			fxK: 1, burst: 5.5, cone: 0.7, swirl: 0.12, shell: 0.15, grow: 0.5, curve: 2.6, ember: 0.45,
 			colorA: '#fff6d8', colorB: '#ff3c0a', form: 4,
-			// 물리적 타격 = 파편(이것) + 빛살 링(충격파) + 공기 굴절(굴절 파면) — 한 사건, 세 게놈
-			with: ['충격파', '굴절 파면'],
+			// 물리적 타격 = 파편(이것) + 칼자국(검격) + 공기 굴절(굴절 파면) — 한 사건, 세 게놈
+			with: ['검격', '굴절 파면'],
 		},
 		// ② 파이어볼 폭발 — 등방(cone 0) 화구가 부풀며(grow 2.4) 부력으로 말려 오른다(swirl 0.35).
 		//    수명이 길고(1.5s) 소멸이 완만해(curve 1.6) 밝은 화구 → 검은 연기로 식는다.
@@ -73,14 +76,15 @@
 		// ③ 회복 오라 — 같은 규칙, 다른 좌표일 뿐임을 보이는 세 번째 게놈 (새 코드 0).
 		//    위로 몰린 구각(cone 0.85·shell 0.8)이 느리게 소용돌이치며 떠오른다.
 		'회복 오라': {
+			demo: false, // 기본 세트 제외 — 슬라이스 예산은 타격 계열에 몰아준다(names 로 명시하면 사용)
 			lifeBase: 1.8, damping: 1.2, gravity: 0.0, updraft: 1.4,
 			volatility: 0.9, flowFreq: 2.2, flowSpeed: 0.7,
 			size: 0.022, stretch: 0.4, opacity: 0.14, luminosity: 1.3,
 			fxK: 1, burst: 1.8, cone: 0.85, swirl: 0.85, shell: 0.8, grow: 0.8, curve: 1.1, ember: 0,
 			colorA: '#9dffc0', colorB: '#2f7bff', form: 4,
 		},
-		// ④ 충격파 — 타격 지점에서 *빛살 링*이 터진다. 레퍼런스: 가운데가 빈 고리 +
-		//    사방으로 뻗은 가는 빛살, 길이가 제각각.
+		// ④ 물결파 — 타격 지점에서 *빛살 링*이 사방으로 번진다. 온 고리(arc 0)라 방향이 없다:
+		//    파문·충격 확산처럼 "퍼지는" 사건에 쓴다. 레퍼런스: 가운데가 빈 고리 + 가는 빛살.
 		//    ⓐ 가운데가 비는 근거는 disc 0.96 — 방사 방향을 타격 축에 수직인 평면으로 눕힌다.
 		//       구면으로 쏘면 투영이 원반으로 꽉 차 중심이 비지 않는다(눈검증: 링 vs 원반).
 		//    ⓑ 빛살(가는 결)의 근거는 shell 0.55 + shredFreq 70 — 방위를 280칸으로 나눠
@@ -91,7 +95,7 @@
 		//       화면에서 극단적으로 길어지고, 그때 EWA 투영이 화면 축 기준 *사각별*을 만든다
 		//       (카메라를 45° 돌려도 별이 화면을 따라가고, 시뮬은 완전 방사임을 readback 으로
 		//        확인 — 즉 렌더 한계다). 빛살 길이는 신축이 아니라 ⓑ 의 반경 퍼짐으로 낸다.
-		'충격파': {
+		'물결파': {
 			lifeBase: 0.45, damping: 2.2, gravity: 0.0, updraft: 0.0,
 			volatility: 0.05, flowFreq: 2.0, flowSpeed: 0.6,
 			size: 0.014, stretch: 0.55, opacity: 0.8, luminosity: 4.0,
@@ -101,6 +105,26 @@
 			colorA: '#ffffff', colorB: '#3d8bff', form: 4, // 흰 섬광 → 푸른 잔광
 			slots: 1, // 슬라이스를 통째로 = 한 번에 배로 촘촘 (동시 발생은 1회로 족하다)
 			with: ['굴절 파면'], // 단독 발생 때도 공기 굴절이 함께 (타격은 제 목록으로 켠다)
+		},
+		// ⑥ 검격 — 같은 규칙, 방위만 몰아 세운 *칼자국*. 물결파가 온 고리라면 이것은 한 줄이다:
+		//    arc 0.86 이 방사 방향을 칼날 축 둘레로 몰아 양쪽으로 벌어진 부채꼴을 만들고
+		//    (기준 각도는 발생 쪽이 roll 로 준다 — 가로 베기·대각 베기가 같은 게놈에서 나온다),
+		//    shell 0.8 + shredFreq 90 이 갈래마다 길이가 크게 갈리는 *뾰족한 살*을 세운다.
+		//    (부채꼴로 몰면 같은 갈래 수가 좁은 각에 겹친다 — 물결파보다 조각을 잘게 나눠야
+		//     덩어리가 아니라 베인 결로 읽힌다: 눈검증에서 22 → 90 으로 올렸다.)
+		//    lifeBase 0.3 · curve 3.0 = 번쩍이고 곧장 꺼진다(검격의 짧은 타격감).
+		//    날카로움은 색이 아니라 분포다 — 길이 편차(shred 0.7)와 빈 갈래(tear 0.2)가
+		//    고른 부채가 아니라 *베인 자국*으로 읽히게 한다.
+		'검격': {
+			lifeBase: 0.3, damping: 3.0, gravity: 0.0, updraft: 0.0,
+			volatility: 0.04, flowFreq: 2.0, flowSpeed: 0.5,
+			size: 0.011, stretch: 1.1, opacity: 0.85, luminosity: 4.6,
+			fxK: 1, burst: 6.2, cone: 0.0, swirl: 0.0, shell: 0.8, grow: 0.15, curve: 3.0, ember: 0,
+			shred: 0.8, shredFreq: 90, tear: 0.06, shredPow: 1.8,
+			disc: 0.97, discThick: 0.1, rayLen: 5, rayThin: 1.6,
+			arc: 0.96, arcSharp: 3.0,
+			colorA: '#ffffff', colorB: '#8fd0ff', form: 4, // 흰 섬광 → 서늘한 강철빛
+			slots: 1,
 		},
 		// ⑤ 굴절 파면 — 색이 없는 이펙트(refract>0 이면 색 패스에서 빠진다): 보이는 것은
 		//    오직 휘어진 배경이다. 빛살 링과 같은 사건에서 함께 깨어나 "공기가 밀린" 층을 만든다.
@@ -135,7 +159,9 @@
 	//   engine.frame({ ..., fxEvents: fx.buffer() });
 	function FxSystem(opts) {
 		opts = opts || {};
-		this.names = (opts.names || Object.keys(FX_PRESETS)).slice();
+		// 기본 세트는 demo:false 를 뺀다 — 슬라이스(=개체 슬롯)는 8개뿐이고, 남는 만큼이
+		// 기반 개체(캐릭터)의 밀도다. 필요하면 opts.names 로 명시해 되살린다.
+		this.names = (opts.names || Object.keys(FX_PRESETS).filter((n) => FX_PRESETS[n].demo !== false)).slice();
 		this.slices = opts.slices || (global.HktGenesisEngine && global.HktGenesisEngine.MAX_ENTITIES) || 8;
 		// 슬라이스당 이벤트 슬롯 수 = 그 슬라이스의 스플랫을 몇 갈래로 나눌지.
 		// 많을수록 동시 발생이 늘고, 적을수록 한 번의 이펙트가 촘촘해진다 (같은 예산의 교환).
@@ -183,6 +209,7 @@
 	//   dir     축 — 타격이면 충돌 법선(파편이 튀는 쪽), 폭발/오라면 보통 위(0,1,0)
 	//   time    시뮬 시각 (engine.frame 의 opts.time 과 같은 시계여야 한다)
 	//   strength 세기 배율(속도) · scale 크기 배율(초기 반경) · radius 초기 반경
+	//   roll     축 둘레 회전(rad) — 부채꼴(arc>0) 이펙트의 기준 각도 = 칼날 각도
 	// 반환: 사용한 슬롯 인덱스 (미등록 이펙트면 -1)
 	// 동반 이펙트(FX_PRESETS[name].with)는 *같은 사건*으로 함께 켜진다 — 타격의 파편과
 	// 공기 충격파처럼 한 사건이 여러 게놈으로 나타나는 경우. 미등록 동반은 조용히 무시된다
@@ -203,7 +230,9 @@
 		this._events.set([org[0], org[1], org[2], Math.max(ev.time || 0, 1e-4)], o);
 		this._events.set([d[0] / dl, d[1] / dl, d[2] / dl, ev.strength != null ? ev.strength : 1], o + 4);
 		// 시드 오프셋: 같은 슬롯을 다시 켜도 파편 패턴이 반복되지 않게 한다 (결정론은 시퀀스로 유지)
-		this._events.set([ev.radius != null ? ev.radius : 0.06, (++this._seq) * 7.13, ev.scale != null ? ev.scale : 1, 0], o + 8);
+		// w = 롤(rad): 축 둘레 기준 방향 — 검격의 칼날 각도 (온 고리 이펙트는 무시한다)
+		this._events.set([ev.radius != null ? ev.radius : 0.06, (++this._seq) * 7.13,
+			ev.scale != null ? ev.scale : 1, ev.roll || 0], o + 8);
 		return slot;
 	};
 
