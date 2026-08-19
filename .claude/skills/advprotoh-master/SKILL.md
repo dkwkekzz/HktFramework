@@ -152,6 +152,10 @@ Cycle 결과가 상위 의미와 어긋난다         → Human (MASTER GAP)
 
 ## 4. 닫기
 
+* `graph/` 나 `constraints/` 를 고쳤으면 `npm run master:graph` 를 돌려
+  `graph/GRAPH.md` 를 다시 만들고 **같은 커밋에** 넣는다. 그 출력이 정합 문제도 알려 준다 —
+  없는 ID 참조 · `requires`↔`required_by` 비대칭 · 없는 Constraint 참조 · 고아 노드.
+  ERROR 가 있으면 지어내서 덮지 말고 그 노드를 고치거나 Human 에게 되돌린다.
 * 커밋 메시지 형식: `HktAdvProtoH: Master <Step> — <한 줄 요약>`
 * NEXT 를 끝냈으면 후보와 추천 근거를 제시하고 **Human 선택을 기다린다**.
 * 선택 이후의 작업은 이 스킬이 아니라 `advprotoh-cycle` 이다.

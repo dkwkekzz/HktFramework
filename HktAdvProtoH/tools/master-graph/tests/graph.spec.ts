@@ -2,6 +2,7 @@
 // 그림의 모양이 아니라 "그림이 무엇을 말하는가" 를 고정한다.
 
 import { describe, expect, it } from 'vitest';
+import { readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { loadMasterGraph } from '../model';
@@ -89,6 +90,11 @@ describe('renderMermaid', () => {
 
   it('같은 입력이면 같은 출력이다 — --check 가 성립하려면 결정적이어야 한다', () => {
     expect(renderMermaid(loadMasterGraph(masterDir))).toBe(md);
+  });
+
+  it('커밋된 GRAPH.md 가 현재 graph/*.yaml 과 일치한다 (master:graph:check 동치)', () => {
+    // graph/*.yaml 을 고치고 npm run master:graph 를 잊으면 여기서 걸린다
+    expect(readFileSync(join(masterDir, 'graph', 'GRAPH.md'), 'utf8')).toBe(md);
   });
 });
 
