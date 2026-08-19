@@ -59,7 +59,7 @@ struct Entity {
 	disc : f32,        discThick : f32, rayLen : f32,    rayThin : f32, // 평면 집중·평면 두께·바늘 길이 상한·가늘기
 	// F5 방위 유전자 — 평면 안에서 어느 쪽으로 몰리는가. arc 0 = 온 고리(물결파),
 	// 1 근처 = 한 줄로 몰린 부채꼴(검격 = 칼자국). 기준 방향은 이벤트 롤(ev2.w)이 정한다.
-	arc : f32,         arcSharp : f32,  _f5a : f32,      _f5b : f32,   // 방위 집중·집중의 뾰족함·예비
+	arc : f32,         arcSharp : f32,  rayAlign : f32,  _f5b : f32,   // 방위 집중·집중의 뾰족함·가시 정렬·예비
 };
 `;
 
@@ -274,6 +274,18 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
 				let cellA = floor((az + 3.14159265) / 6.28318531 * max(E.shredFreq, 0.5) * 4.0);
 				let cellP = floor(po / 3.14159265 * max(E.shredFreq, 0.5) * 2.0);
 				let hs = hash31(cellA * 7.13 + cellP * 131.77 + ev2.y * 0.37);
+				// F5 가시 정렬(rayAlign): 조각 안 방향을 조각 *중심*으로 스냅한다. 스냅이 없으면
+				// 한 조각은 미세하게 엇갈린 평행 바늘 다발이고, 다발들의 겹침 포락선이 굽은 결로
+				// 읽힌다(타격 눈검증 — 시뮬은 완전 방사인데 화면 줄기가 휘어 보이는 원인).
+				// 방향 양자화(F3)의 연장: 속도·밀도에 이어 방향도 같은 격자에서 유도한다.
+				if (E.rayAlign > 0.0) {
+					let azc = ((cellA + 0.5) / (max(E.shredFreq, 0.5) * 4.0)) * 6.28318531 - 3.14159265;
+					let poc = ((cellP + 0.5) / (max(E.shredFreq, 0.5) * 2.0)) * 3.14159265;
+					let dc = ax * cos(poc) + (t1 * cos(azc) + t2 * sin(azc)) * sin(poc);
+					let dm = mix(dir, dc, clamp(E.rayAlign, 0.0, 1.0));
+					let dml = length(dm);
+					if (dml > 1e-4) { dir = dm / dml; }
+				}
 				// 속도: 앞서 나가는 조각과 뒤처지는 조각 — shredPow 가 크면 소수만 크게 튄다
 				sp0 *= mix(1.0 - E.shred, 1.0 + E.shred, pow(hs.x, max(E.shredPow, 0.05)));
 				// 밀도: 하위 tear 비율의 조각은 통째로 사라진다 = 파면에 뚫린 틈
@@ -763,8 +775,13 @@ fn ewaProject(t : vec3f, clip : vec4f, Vrk : mat3x3f, view : mat4x4f, focal : ve
 	e.major = vec2f(0.0);
 	e.minor = vec2f(0.0);
 	e.ok = false;
+	// 함정(부호): 뷰 공간은 카메라가 -z 를 본다(t.z < 0). ndc.x = f·x/(-t.z) 이므로
+	// ∂u/∂x = -f/t.z 여야 NDC 와 같은 손이 된다. +f/t.z 로 두면 u 축만 거울상이 되어
+	// 공분산 off-diagonal 부호가 뒤집히고 *타원의 방향*이 화면 X축 기준 좌우 반전된다 —
+	// 원형 스플랫에선 안 보이지만 바늘(신축)에선 화면 대각선 방향 바늘이 접선으로 눕는다.
+	// (velocity-방사 바늘이 0°/90° 에서만 옳고 45° 에서 수직 — "화면 축 사각별"의 정체.)
 	let J = mat3x3f(
-		vec3f(focal.x / t.z, 0.0, -(focal.x * t.x) / (t.z * t.z)),
+		vec3f(-focal.x / t.z, 0.0, (focal.x * t.x) / (t.z * t.z)),
 		vec3f(0.0, -focal.y / t.z, (focal.y * t.y) / (t.z * t.z)),
 		vec3f(0.0, 0.0, 0.0));
 	let W = mat3x3f(view[0].xyz, view[1].xyz, view[2].xyz);

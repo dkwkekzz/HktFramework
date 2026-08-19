@@ -260,7 +260,9 @@ async function driveFx({ FRAMES, N, entities, shots, events, eye, center, makeBo
 		['타격 중심 채움(오목 금지)', S.impact.inner > 800],
 		['타격 가시(중심 밖으로 뻗는다)', S.impact.annulus > 2000],
 		['폭발 등방(무게중심 원점 근방)', Math.abs(S.blast.cx - 320) < 60],
-		['폭발이 더 크게 퍼짐', S.blast.spread > S.impact.spread * 1.3],
+		// 타격은 성긴 광선(도달은 멀지만 면적이 작다), 폭발은 꽉 찬 화구(면적이 압도적) —
+		// 퍼짐(rms)은 광선이 멀리 뻗으면 둘이 비슷해져 가르지 못한다. 면적으로 가른다.
+		['폭발이 더 크게 덮음(면적 4배 이상)', S.blast.lit > S.impact.lit * 4],
 		['합성: 살이 살아 있다(캐릭터 픽셀>3000)', C.char.lit > 3000],
 		['합성: 타격이 얹힌다(고휘도 +300)', C.charHit.hot > C.char.hot + 300],
 		['합성: 타격이 픽셀을 더한다', C.charHit.lit > C.char.lit],

@@ -62,20 +62,21 @@
 		//        (섬광 0.3s 안에서 낙하는 모양만 해치고 타격감엔 기여하지 않는다 — 눈검증.)
 		//      · swirl 0.12 → 0 — 축 둘레로 감기는 속도는 가시를 휘게 해 오목하게 읽힌다.
 		//    "중심에서 바깥으로만"의 두 조건(CLAUDE.md·검격과 동일): shell 0(속도 0..burst 로
-		//    중심부터 채움) + grow 3.0(안쪽 끝이 중심에서 떨어져 나가지 않게 수명 따라 신장).
-		//    날카로움은 색이 아니라 분포다(F3/F4): shredFreq 24 로 방위를 96조각으로 양자화하고
-		//    shred 0.8 + shredPow 2.4 로 소수의 조각만 멀리 쏜다(= 길이가 들쭉날쭉한 가시별).
-		//    tear 0.3 이 가시 사이 어두운 틈을 낸다. 바늘 결은 rayLen/rayThin (신축 상한 —
-		//    stretch 를 1 이상 올리는 EWA 사각별 함정 회피).
+		//    중심부터 채움) + grow(안쪽 끝이 중심에서 떨어져 나가지 않게 수명 따라 신장).
+		//    빛의 위계가 곧 형태다(F3): shredPow 4 + shred 0.95 로 대다수 조각은 *저속*(= 밝은
+		//    중심 코어로 남는다), 소수만 멀리 쏜다(= 길이가 들쭉날쭉한 긴 광선). tear 0.45 가
+		//    광선 사이를 확실히 비워 이웃 조각이 호(arc)로 합쳐지는 것을 막는다.
+		//    rayAlign 1 은 조각 안 방향을 조각 중심으로 스냅 — 다발(엇갈린 평행 바늘)이 아니라
+		//    *한 줄기* 광선이 선다. 수명 0.24s + curve 3: 비기 전에 죽는다(링으로 수렴 금지).
 		//    눈검증 실측(+0.1s): 무게중심 발생점 잔류 · 36섹터 도달/밀도/밝기 축:대각 비 ≈ 1.00
-		//    (완전 방사) · 중심 원반(r<70px) 채움 ~14k px (오목 금지).
+		//    (완전 방사) · CPU 선분 대조군과 GPU 렌더 일치(ewaProject 부호 수정 후 — wgsl.js 참조).
 		'타격': {
-			lifeBase: 0.3, damping: 3.6, gravity: 0.0, updraft: 0.0,
-			volatility: 0.06, flowFreq: 2.0, flowSpeed: 0.5,
-			size: 0.012, stretch: 0.55, opacity: 0.8, luminosity: 4.2,
-			fxK: 1, burst: 6.5, cone: 0.0, swirl: 0.0, shell: 0.0, grow: 3.0, curve: 2.8, ember: 0,
-			shred: 0.8, shredFreq: 24, tear: 0.3, shredPow: 2.4,
-			disc: 0.9, discThick: 0.3, rayLen: 4, rayThin: 1.5,
+			lifeBase: 0.24, damping: 3.0, gravity: 0.0, updraft: 0.0,
+			volatility: 0.05, flowFreq: 2.0, flowSpeed: 0.5,
+			size: 0.016, stretch: 0.7, opacity: 0.9, luminosity: 4.5,
+			fxK: 1, burst: 8.5, cone: 0.0, swirl: 0.0, shell: 0.0, grow: 2.0, curve: 3.0, ember: 0,
+			shred: 0.95, shredFreq: 40, tear: 0.45, shredPow: 4.0,
+			disc: 0.92, discThick: 0.12, rayLen: 4, rayThin: 1.0, rayAlign: 1.0,
 			colorA: '#ffffff', colorB: '#9fb4d8', form: 4, // 흰 섬광 → 서늘한 회청 잔광 (레퍼런스)
 			// 물리적 타격 = 방사 가시(이것) + 칼자국(검격) + 공기 굴절(굴절 파면) — 한 사건, 세 게놈
 			with: ['검격', '굴절 파면'],
@@ -107,10 +108,9 @@
 		//       갈래를 만들고(=갈래 수), 한 갈래 *안에서* 스플랫이 반경으로 퍼지게 한다.
 		//       퍼진 스플랫들이 줄지어 하나의 빛살이 된다. shred 0.4 로 갈래마다 길이가 갈리고
 		//       tear 0.08 로 드문드문 빈다.
-		//    ⓒ stretch 0.55 는 결을 세우는 정도까지만 — 이 값을 1 이상으로 올리면 스플랫이
-		//       화면에서 극단적으로 길어지고, 그때 EWA 투영이 화면 축 기준 *사각별*을 만든다
-		//       (카메라를 45° 돌려도 별이 화면을 따라가고, 시뮬은 완전 방사임을 readback 으로
-		//        확인 — 즉 렌더 한계다). 빛살 길이는 신축이 아니라 ⓑ 의 반경 퍼짐으로 낸다.
+		//    ⓒ stretch 0.55 는 결을 세우는 정도까지만. (기록 정정: "1 이상이면 화면 축 사각별"은
+		//       렌더 한계가 아니라 ewaProject 야코비안 부호 버그였다 — 수정됨, wgsl.js 주석 참조.
+		//       그래도 빛살 길이는 신축보다 ⓑ 의 반경 퍼짐이 촘촘하고 예쁘다 — 문법은 유지.)
 		'물결파': {
 			lifeBase: 0.45, damping: 2.2, gravity: 0.0, updraft: 0.0,
 			volatility: 0.05, flowFreq: 2.0, flowSpeed: 0.6,

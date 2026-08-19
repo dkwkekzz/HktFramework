@@ -538,8 +538,8 @@
 			a.set([g.shred || 0, g.shredFreq || 0, g.tear || 0, g.shredPow != null ? g.shredPow : 1], o + 52);
 			// F4 광선: disc 0 = 구면 방사, rayLen 0 = 신축 상한 없음 (기존 이펙트 전부 — 회귀 0)
 			a.set([g.disc || 0, g.discThick || 0, g.rayLen || 0, g.rayThin || 0], o + 56);
-			// F5 방위: arc 0 = 평면 전체(온 고리) — 기존 이펙트 전부 여기 해당 (회귀 0)
-			a.set([g.arc || 0, g.arcSharp != null ? g.arcSharp : 1, 0, 0], o + 60);
+			// F5 방위: arc 0 = 평면 전체(온 고리), rayAlign 0 = 조각 방향 스냅 없음 (기존 회귀 0)
+			a.set([g.arc || 0, g.arcSharp != null ? g.arcSharp : 1, g.rayAlign || 0, 0], o + 60);
 		});
 		return a;
 	};
