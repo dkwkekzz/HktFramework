@@ -51,25 +51,31 @@ CYCLE LAYER    선택된 하나의 플레이 결과를 World Semantic 과 Rule �
 ```text
 Constraint   17     Active 17 (APPROVED 16 · REVISED 1 — PLAYER-CAUSALITY, Critical 예외) · DRAFT 0
 Candidate     5     APPROVED 1 (→ DC) · PENDING 4 (넷 중 셋이 SURFACE-LIST 경계 판단 대기)
-Actor         2     Knowledge 2 · Belief 0 (Belief 는 도입하지 않는다 — Q3 결정)
-Goal          5     Possibility 24 (전투 14 · 탐험 10) — §27 기관 대안 4종만 requires 미배선
-Capability   42     IMPLEMENTED 8 · PARTIAL 3 (MC-OBSERVE 추가 — C014) ·
-                    MISSING 31 (베이라 사다리 20 · 자원 2 · Critical 1 포함)
-Item Def      2     IP-BOUNDARY-STABLE · IT-BOUNDARY-BLADE (growth/items/)
-Frontier      3     PROPOSED — INSIGHT · PREDICT · CRITICAL (Human 선택 대기)
-WorldState   11     상위 인과 2 (PRIMAL-WORLD · WORLD-PRESSURE) · 구조 2
-                    (SAFE-FRONTIER · DEPTH-GRADIENT) · 깊이 층 5 (ZONE-FRINGE ~ ZONE-UNKNOWN) ·
-                    대표 지역 2 (HYPER-PREDATION · SPATIAL-SHEAR)
+Actor         2     Knowledge 3 · Belief 0 (Belief 는 도입하지 않는다 — Q3 결정)
+Goal          5     Possibility 22 — 상대 넘어서기 11 · 밀리는 국면 3 · 탐험 3 · 기관 획득 5
+                    탐험 3 은 **방법**이다 (익힌다 · 빌린다 · 준비해 간다 — Q21).
+                    층은 Possibility 가 아니라 MW-ZONE-* 의 demands 다
+                    §27 기관 대안 4종만 requires 미배선
+Capability   42     IMPLEMENTED 8 · PARTIAL 8 · MISSING 26
+                    요구처는 둘이다 — 방법의 required_by · 장소의 demanded_by
+Item Def     14     IP 5 · IT 6 · IM 3 (growth/items/) — Q22 광물 계통.
+                    grants 3건으로 BW §17 순환이 그래프에서 닫혔다
+Frontier      5     SELECTED 1 (INSIGHT) · PROPOSED 4
+                    (PREDICT · CRITICAL · WHAT-YOU-GATHER · INTERRUPT)
+WorldState   13     상위 인과 2 (PRIMAL-WORLD · WORLD-PRESSURE) · 세계압 두 갈래 2
+                    (FREE-PRESSURE · BOUND-PRESSURE) · 구조 2 (SAFE-FRONTIER · DEPTH-GRADIENT) ·
+                    깊이 층 5 (ZONE-FRINGE ~ ZONE-UNKNOWN) · 대표 지역 2
 
-Open Question 0   → 지금 Human 을 기다리는 것은 frontier.md 의 선택이다
+Open Question 0   → Frontier 선택도 끝났다. 다음은 Cycle Stage 1 이다
 ```
 
 무엇이 언제 왜 바뀌었는지는 `HISTORY.md` 가 소유한다. 살아 있는 문서(`overlay.md` ·
 `frontier.md` · `open-questions.md` · `constraints/README.md`)에는 **지금 할 일과 현재
 상태만** 남긴다 — 닫힌 것은 그 자리에서 지우고 HISTORY 로 옮긴다.
 
-닫힌 Possibility 4종 — MP-OUTGROW-THE-OPPONENT(C010) · MP-TRADE-BODY-FOR-RESOURCE(C011) ·
-MP-MATCH-WEAPON-TO-ARMOR(C012) · MP-PIERCE-THE-HARD-DEFENSE(C013).
+닫힌 Possibility 3종 — MP-TRADE-BODY-FOR-RESOURCE(C011) · MP-MATCH-WEAPON-TO-ARMOR(C012) ·
+MP-PIERCE-THE-HARD-DEFENSE(C013). MP-OUTGROW-THE-OPPONENT 은 코드 대조로 PARTIAL 로
+되돌렸다 — 능력치가 결과를 바꾸는 것은 닫혔으나 그 값을 플레이로 올릴 경로가 없다.
 요구 Capability 가 하나도 비어 있지 않은 경로들이다.
 
 아직 비어 있는 것 — 지어내지 않고 남긴 자리다:
@@ -141,7 +147,13 @@ overlay 색으로, Possibility 는 **준비도**(요구 Capability 중 세계에
 https://claude.ai/code/artifact/c3c54815-4a6a-47e7-83ce-2cd169acdef5
 ```
 
-`graph/` 나 `constraints/` 를 고친 Agent 는 재생성 후 이 링크를 갱신한다.
+`graph/` 나 `constraints/` 를 고친 Agent 는 재생성 후 이 링크를 갱신한다 —
+**단 그 변경이 main 에 들어간 뒤다.** 이 링크는 main 의 그래프를 가리킨다.
+
+작업 브랜치에서 그래프를 보여 줘야 하면 이 링크를 덮어쓰지 말고 **별도 Artifact 를
+새로 올린다** (Artifact 도구에 `url` 을 넘기지 않으면 새 주소가 생긴다). 그 링크는
+그 PR 안에서만 쓰고 README 에 적지 않는다 — 병합되면 쓸모가 없어진다.
+브랜치의 그래프를 덮어쓰면 main 을 보는 사람이 아직 없는 것을 보게 된다.
 
 ```text
 Artifact 도구에 file_path = graph/graph-view.artifact.html
