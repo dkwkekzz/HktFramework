@@ -181,7 +181,8 @@ async function driveFx({ FRAMES, N, entities, shots, events, eye, center, makeBo
 	}, { N: parseInt(nArg) * 4, DRIVE: DRIVE_FX });
 	const fmt = (s) => `${s.name.padEnd(11)} 픽셀 ${String(s.lit).padStart(6)} · 고휘도 ${String(s.hot).padStart(6)}`
 		+ ` · 무게중심 (${s.cx.toFixed(0)}, ${s.cy.toFixed(0)}) · 퍼짐 ${s.spread.toFixed(1)}px`
-		+ (s.diffPx != null ? ` · 변화 ${String(s.diffPx).padStart(6)}px · 밝기증가 ${String(s.lumAdd).padStart(6)}` : '');
+		+ (s.diffPx != null ? ` · 변화 ${String(s.diffPx).padStart(6)}px · 밝기증가 ${String(s.lumAdd).padStart(6)}`
+			+ ` · 픽셀당 ${(s.lumAdd / Math.max(s.diffPx, 1)).toFixed(3)}` : '');
 	for (const s of comp.shots) {
 		if (s.dataUrl) savePng(s.dataUrl, path.resolve(`${outPrefix}-${s.name}.png`));
 		console.log(fmt(s));
@@ -215,7 +216,11 @@ async function driveFx({ FRAMES, N, entities, shots, events, eye, center, makeBo
 		// F2 굴절: 켜진다 · 되돌아온다 · 색이 아니다
 		['충격파 굴절(화면이 일그러진다)', C.shock.diffPx > 4000 && C.shock.diffPx > C.drift.diffPx * 5],
 		['충격파 소멸(변화가 표류 수준으로 되돌아온다)', C.shockGone.diffPx < C.drift.diffPx * 1.5 + 400],
-		['충격파는 색이 아니다(밝기 증가 ≪ 폭발)', C.shock.lumAdd < C.charBlast.lumAdd * 0.25],
+		// 절대 밝기로 재면 이펙트가 화면을 크게 덮을수록 불리해진다(면적과 성질이 뒤섞인다).
+		// 굴절의 성질은 *옮긴 픽셀 한 장당 더한 밝기*가 작다는 것 — 면적으로 나눠 재야 한다.
+		['충격파는 색이 아니다(픽셀당 밝기 증가가 폭발의 1/2 미만)',
+			(C.shock.lumAdd / C.shock.diffPx) < (C.charBlast.lumAdd / C.charBlast.diffPx) * 0.5
+			&& C.shock.lumAdd < C.charBlast.lumAdd * 0.4],
 		['페이지 오류 0', real.length === 0],
 	];
 	for (const [label, ok] of gates) console.log(`판정: ${label} → ${ok ? 'OK' : '실패'}`);

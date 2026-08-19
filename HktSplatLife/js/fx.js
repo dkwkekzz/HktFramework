@@ -40,6 +40,9 @@
 	// 읽는 법 (F2 유전자 — 굴절 이펙트):
 	//   refract 굴절 세기(0 = 색 이펙트) · chroma 색 분산(프리즘) · caustic 집광 밝기
 	//   rarefy  희박파 비율(0 압축=안으로 꺾임 ↔ 1 희박=밖으로 꺾임, 0.5 는 상쇄)
+	// 읽는 법 (F3 유전자 — 파열: 파면이 균질하지 않다 = 타격감):
+	//   shred 조각별 속도 편차(0 매끈한 구면 ↔ 1 앞뒤로 크게 갈림) · shredFreq 조각 크기
+	//   tear  통째로 사라지는 조각 비율(= 파면에 뚫린 틈) · shredPow 빠른 조각의 희소성
 	//   동반 발생: with = ['다른 이펙트'] — 한 *사건*이 여러 게놈을 켠다(같은 원점·축·시각)
 	// 기존 유전자도 그대로 쓴다: lifeBase=지속시간, damping=공기 저항, gravity/updraft=부력,
 	// volatility·flowFreq·flowSpeed=난류 결, size/stretch/opacity/luminosity/colorA·B=외형 재료.
@@ -83,16 +86,25 @@
 		//                    (도달 반경 = burst/damping ≈ 2.8 · 감속은 지수적 = 실제 충격파의 결).
 		//      grow 0.3    — 파면이 퍼져도 두꺼워지지 않는다(얇게 유지 = 링으로 읽힌다).
 		//      size 0.045  — 파면 두께가 반경의 몇 % 수준이라 테두리가 선으로 보인다.
+		//    타격감은 F3 파열에서 온다 — 매끈한 동심원은 "퍼짐"은 되어도 "맞았다"가 안 된다.
+		//    shred 0.3 = 조각마다 속도가 ±30% 갈려 파면 테두리가 톱니처럼 찢기고, tear 0.25 =
+		//    조각의 1/4 이 통째로 비어 갈래 사이가 뚫린다(=이어지지 않은 호). shredFreq 2.6 =
+		//    조각이 큼직해 "찢긴 조각"으로 읽힌다. shredPow 1.6 = 소수의 갈래만 멀리 튄다.
+		//    눈검증에서 확인한 균형: shred 를 0.5 이상 주면 조각이 반경 방향으로 흩어져
+		//    "찢긴 파면"이 아니라 그냥 *알갱이 구름*이 된다 — 파면의 결속을 유지한 채 테두리만
+		//    갈라야 타격으로 읽힌다. 대신 조각이 빠진 만큼 refract·caustic 을 올려 호를 진하게.
+		//    (shred 0 = 매끈한 구면 = 이전 동작 그대로 — 파열은 게놈으로 켜고 끈다.)
 		//    함정: stretch(속도 방향 신축)는 0 이어야 한다 — 방사 속도가 큰 얇은 파면에서
 		//    스플랫이 방사 방향으로 늘어나면 파면이 구가 아니라 *팔면체*로 보인다(눈검증 확인).
 		//    난류(volatility)는 파면을 울퉁불퉁하게만 하고 형태는 깨지 않는다 — 다만 크면
 		//    파면 안쪽에 잔물결이 남아 링이 흐려지므로 0.2 이하로.
 		'충격파': {
-			lifeBase: 0.9, damping: 1.3, gravity: 0.0, updraft: 0.0,
+			lifeBase: 0.8, damping: 1.35, gravity: 0.0, updraft: 0.0,
 			volatility: 0.18, flowFreq: 2.6, flowSpeed: 1.0,
 			size: 0.045, stretch: 0.0, opacity: 0.55, luminosity: 0,
-			fxK: 1, burst: 3.6, cone: 0.3, swirl: 0.03, shell: 1.0, grow: 0.3, curve: 1.2, ember: 0,
-			refract: 2.2, chroma: 0.3, caustic: 1.15, rarefy: 0.0,
+			fxK: 1, burst: 4.2, cone: 0.3, swirl: 0.03, shell: 1.0, grow: 0.3, curve: 1.2, ember: 0,
+			refract: 3.0, chroma: 0.32, caustic: 1.4, rarefy: 0.0,
+			shred: 0.3, shredFreq: 2.6, tear: 0.25, shredPow: 1.6,
 			colorA: '#ffffff', colorB: '#ffffff', form: 4, // 색은 쓰이지 않는다 (굴절 개체)
 		},
 	};

@@ -50,6 +50,9 @@ struct Entity {
 	// F2 굴절 유전자 — 이 스플랫이 *빛*을 어떻게 휘게 하는가 (refract 0 = 색 패스에 그대로 남는다).
 	// 색을 더하는 대신 화면 변위를 더하는 개체의 정체성. DISTORT 패스만 읽는다.
 	refract : f32,     chroma : f32,    caustic : f32,   rarefy : f32, // 굴절 세기·색 분산·집광·희박파(반전)
+	// F3 파열 유전자 — 파면이 *균질하지 않다*. 방사 방향을 성긴 격자로 나눠 조각(shard)마다
+	// 속도와 밀도를 갈라 놓는다: 매끈한 구면이 찢긴 갈래로 부서진다 (shred 0 = 예전 구면 그대로).
+	shred : f32,       shredFreq : f32, tear : f32,      shredPow : f32, // 속도 편차·조각 크기·틈 비율·빠른 조각의 희소성
 };
 `;
 
@@ -207,13 +210,25 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
 			var dir = ax;
 			if (dvl > 1e-4) { dir = dv / dvl; }
 			// 구각 집중(shell): 0 = 부피 균등(꽉 찬 구, 세제곱근 분포) … 1 = 같은 속도(팽창 구각)
-			let sp0 = E.burst * mix(pow(max(h2.x, 1e-4), 0.3333), 1.0, clamp(E.shell, 0.0, 1.0));
+			var sp0 = E.burst * mix(pow(max(h2.x, 1e-4), 0.3333), 1.0, clamp(E.shell, 0.0, 1.0));
+			// F3 파열: 방사 *방향*을 성긴 격자로 양자화해 조각(shard)을 만든다. 같은 조각의
+			// 스플랫은 같은 속도 배율·같은 밀도를 갖는다 — 조각 경계가 곧 찢긴 자리다.
+			// (스플랫마다 난수를 주면 파면이 그냥 흐려질 뿐 "찢어지지" 않는다. 덩어리째 갈라야 한다.)
+			var dens = 1.0;
+			if (E.shred > 0.0 || E.tear > 0.0) {
+				let cell = floor(dir * max(E.shredFreq, 0.5) + 0.5);
+				let hs = hash31(dot(cell, vec3f(127.1, 311.7, 74.7)) + ev2.y * 0.37);
+				// 속도: 앞서 나가는 조각과 뒤처지는 조각 — shredPow 가 크면 소수만 크게 튄다
+				sp0 *= mix(1.0 - E.shred, 1.0 + E.shred, pow(hs.x, max(E.shredPow, 0.05)));
+				// 밀도: 하위 tear 비율의 조각은 통째로 사라진다 = 파면에 뚫린 틈
+				dens = smoothstep(clamp(E.tear, 0.0, 0.95), clamp(E.tear, 0.0, 0.95) + 0.12, hs.y);
+			}
 			let tang = cross(ax, dir); // 와류: 축 둘레 접선 — 화구가 말려 오르는 결
 			s.pos = ev0.xyz + dir * (ev2.x * ev2.z);
 			s.vel = (dir * sp0 + tang * (E.swirl * E.burst)) * ev1.w * E.fxK;
 			s.life = t0;
 			s.misc.z = 0.0; // 연소 채널 미사용 (색은 개체 램프에서 유도)
-			s.misc.w = 1.0;
+			s.misc.w = dens; // 조각 밀도 (파열 없으면 1 — 기존 이펙트 회귀 0)
 		}
 		let u = clamp(age / life, 0.0, 1.0);
 		// 잔불(ember): 시드 일부는 탄도 파편 — 중력을 세게 받아 아래로 흩어진다
@@ -237,8 +252,9 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
 			s.vel = vec3f(s.vel.x, abs(s.vel.y) * 0.25, s.vel.z) * exp(-8.0 * P.dt);
 		}
 		s.age = age; // 렌더가 수명 위상(u)을 다시 유도하는 유일한 근거
-		// 수명 곡선: 점화(smoothstep)는 짧게, 소멸(curve)은 유전자가 정한다
-		s.misc.x = pow(1.0 - u, max(E.curve, 0.05)) * smoothstep(0.0, 0.04, u);
+		// 수명 곡선: 점화(smoothstep)는 짧게, 소멸(curve)은 유전자가 정한다.
+		// 조각 밀도(misc.w)를 곱해 찢긴 자리는 애초에 옅다 — 굴절 밀도의 근거도 이 값이다.
+		s.misc.x = pow(1.0 - u, max(E.curve, 0.05)) * smoothstep(0.0, 0.04, u) * s.misc.w;
 		splats[i] = s;
 		return;
 	}

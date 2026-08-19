@@ -26,8 +26,8 @@
 ### 불변 조건 (깨지면 화면이 즉시 무너짐)
 
 - 스플랫 수 N = **2의 거듭제곱** (바이토닉 정렬 전제), 슬라이스 256 배수.
-- 셰이더↔엔진 **바이트 일치**: `Splat` 48B=`SPLAT_STRIDE` 12 float · `Entity` 208B(52, R1 재질 +
-  F1 이펙트 + F2 굴절 포함) · `Cluster` 96B(24) · `CamParams` 256B(fog+조명) · 격자 상수(GD=64, SLOTS=16) ·
+- 셰이더↔엔진 **바이트 일치**: `Splat` 48B=`SPLAT_STRIDE` 12 float · `Entity` 224B(56, R1 재질 +
+  F1 이펙트 + F2 굴절 + F3 파열 포함) · `Cluster` 96B(24) · `CamParams` 256B(fog+조명) · 격자 상수(GD=64, SLOTS=16) ·
   `CLUSTER_K`=256 · `GROUP_COUNT`=14(=genome.js GROUP_IDS 길이) · F1 이벤트 슬롯 `MAX_FX`=16 ×
   `FX_STRIDE` 12 float(=vec4 3개, wgsl.js `FX_SLOTS` 와 동기) — `wgsl.js`↔`engine.js`↔`genome.js`
   ↔`fx.js` 동기 필수.
@@ -60,6 +60,9 @@
   스플랫 밀도의 기울기(`-∇exp(-|q|²)`)에서 유도한다 — "링을 그리는" 코드는 없다. 세기는
   유전자(`refract`/`chroma`/`caustic`/`rarefy`) × 시뮬 상태(에너지), 누적은 광학 두께로
   정규화한다(스플랫 *예산*이 굴절 세기를 바꾸면 안 된다).
+- **파열도 유도값이다(F3)** — "찢어진 파면"은 그려 넣는 모양이 아니라 *방사 방향의 불균질*이다.
+  방향을 성긴 격자로 양자화해 조각을 만들고 조각마다 속도·밀도를 가른다(`shred`/`shredFreq`/
+  `tear`/`shredPow`). 스플랫마다 난수를 주면 흐려질 뿐이라 반드시 *덩어리째* 갈라야 한다.
 
 ## 작업 방식
 

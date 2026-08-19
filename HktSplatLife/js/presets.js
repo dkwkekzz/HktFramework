@@ -60,6 +60,12 @@
 		chroma:     ['색 분산',     0,    1,    0.02],
 		caustic:    ['집광 밝기',   0,    2,    0.05],
 		rarefy:     ['희박파(반전)', 0,   1,    0.05],
+		// ── F3: 파열 유전자 (파면이 균질하지 않다 — shred 0 이면 매끈한 구면) ──
+		// 타격감의 근거. 방사 방향을 격자로 나눠 조각마다 속도·밀도를 갈라 파면을 찢는다.
+		shred:      ['파열(속도 편차)', 0, 1,   0.05],
+		shredFreq:  ['조각 크기',   0.5,  12,   0.5],
+		tear:       ['틈 비율',     0,    0.9,  0.05],
+		shredPow:   ['빠른 조각 희소성', 0.2, 6, 0.1],
 	};
 
 	// ── 원소 프리셋: 유전자 값만 다르고 시스템은 동일 — 속성이 형태를 만든다 ──
@@ -138,7 +144,7 @@
 	// R1 재질 등 신설 유전자 미지정 프리셋은 0 폴백 (specPow 만 pow 가드 1) — NaN 업로드 방지.
 	function materialize(p, emitter) {
 		const g = {};
-		for (const k of Object.keys(GENE_DEFS)) g[k] = p[k] != null ? p[k] : (k === 'specPow' || k === 'curve' ? 1 : 0);
+		for (const k of Object.keys(GENE_DEFS)) g[k] = p[k] != null ? p[k] : (k === 'specPow' || k === 'curve' || k === 'shredPow' ? 1 : 0);
 		g.colorA = hexToVec4(p.colorA);
 		g.colorB = hexToVec4(p.colorB);
 		g.form = p.form || 0;
