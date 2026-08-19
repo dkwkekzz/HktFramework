@@ -9,7 +9,7 @@ export {
   CHARACTER_CATALOG,
   DEFAULT_CHARACTER,
   type CharacterDefinition,
-} from './proto-adventure/world/semantic/character-catalog';
+} from './proto-adventure/world/base/character-catalog';
 export {
   DEFAULT_KIND_PRESENTATION,
   KIND_PRESENTATIONS,

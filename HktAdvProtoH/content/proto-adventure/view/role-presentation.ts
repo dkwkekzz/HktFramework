@@ -21,7 +21,9 @@ export interface RolePresentation {
 
 // 역할별 표현 결정 — 종(kind)이 정하는 표현은 kind-presentation.ts 가 맡는다.
 // 전체는 `npm run catalog` 로 한눈에 관찰한다 (tools/catalog).
+// 항목마다 그 role 을 내놓는 World 도메인을 [ ] 로 표기한다 (View 재편 1단계).
 export const ROLE_PRESENTATIONS: Readonly<Record<string, RolePresentation>> = {
+  // [base] — 존재의 몸은 어느 도메인도 없이 세계 골격이 내놓는다
   'player-character': { sprite: 'player-pickaxe', size: 3.4, cameraFollow: true, trail: true },
   // 다른 관찰자의 몸 (C004) — 내 몸과 같은 시트를 쓰되 색으로 구분한다.
   // 카메라는 따라가지 않는다. 카메라가 따라가는 것은 내 몸 하나뿐이다.
@@ -35,8 +37,8 @@ export const ROLE_PRESENTATIONS: Readonly<Record<string, RolePresentation>> = {
   },
   // NPC 는 현재 플레이어와 같은 모션 시트를 쓴다 — 누가 내 캐릭터인지 보이도록 색을 달리한다.
   // NPC 전용 시트가 들어오면 tint 를 지워도 된다.
-  'npc-character': { sprite: 'wanderer', size: 2.8, tint: 0x9fb6ff },
-  'resource-deposit': { sprite: 'stone-deposit', size: 3.4, labelFormat: (v) => `돌 ${v}` },
+  'npc-character': { sprite: 'wanderer', size: 2.8, tint: 0x9fb6ff }, // [base] (control = autonomous)
+  'resource-deposit': { sprite: 'stone-deposit', size: 3.4, labelFormat: (v) => `돌 ${v}` }, // [mining]
 };
 
 // 미등록 role 의 기본 결정 — sprite 키는 role 그대로 (Asset placeholder 로 폴백)

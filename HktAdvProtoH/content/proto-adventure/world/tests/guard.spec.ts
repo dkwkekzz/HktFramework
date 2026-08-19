@@ -15,11 +15,11 @@
 
 import { describe, expect, it } from 'vitest';
 import type { GameViewSnapshot } from '../../protocol/gameview';
-import { SWING_BEGIN } from '../semantic/collision';
-import { GUARD_BREAK_RECOVERY, SKILL_DEFINITIONS } from '../semantic/combat';
-import { spawnActor } from '../semantic/spawn';
-import { TICK_INTERVAL } from '../semantic/world-state';
-import { ruleGuardBegin, ruleGuardBlock, ruleGuardRelease } from '../rules/guard';
+import { SWING_BEGIN } from '../domains/combat/swing';
+import { GUARD_BREAK_RECOVERY, SKILL_DEFINITIONS } from '../domains/combat/combat';
+import { spawnActor } from '../base/spawn';
+import { TICK_INTERVAL } from '../base/world-state';
+import { ruleGuardBegin, ruleGuardBlock, ruleGuardRelease } from '../domains/combat/guard';
 import { driveWorld, OBSERVER, OBSERVER_2, PLAYER, PLAYER_2, type WorldDriver } from './drive';
 
 const BASIC = SKILL_DEFINITIONS.attack;

@@ -1,0 +1,389 @@
+// World Semantic — Combat (C007 ADDED)
+//
+// 전투 자원(생명 hp · 기력 cp)과 스킬, 그리고 템포 능력치와 배율 합성.
+// R1 — 피해는 판정 없이 스킬이 정한 고정값이다 (INTENT-STRIKE-DAMAGE-001).
+//      확률로 갈리는 것이 없으므로 세계는 지금까지대로 완전한 결정론이다.
+// 상수는 결정론에 영향을 주므로 헤더 상수로 고정한다.
+
+import type { ActionKind } from '../../base/action';
+import type { ActorState } from '../../base/actor';
+import type { WorldPosition } from '../../base/position';
+
+// Actor.MoveMode 는 이동 도메인의 것이다 — domains/movement/move-mode.ts 가 소유한다.
+// 여기서는 값을 읽기만 한다 (actorModifiers · effectiveMoveSpeed).
+
+// 스킬 = 휘두르는 행동. 기존 attack 이 기본 스킬이고, heavy-attack 이 고급 스킬,
+// aura-strike 가 C012 에서 더해진 오라 방식 스킬이다.
+export type SkillKind = Extract<ActionKind, 'attack' | 'heavy-attack' | 'aura-strike'>;
+
+// DamageType (C012 ADDED, INTENT-DAMAGE-TYPE-001) — 피해를 만드는 방식.
+// 값은 둘뿐이고 한 타격은 정확히 하나를 가진다. 혼합 피해는 세계에 없다.
+// 이것은 Actor 의 상태가 아니다 — 방식은 스킬이 지니고 모든 Actor 는 네 능력을 모두 지닌다.
+export type DamageType = 'physical' | 'aura';
+
+// 타입 대응표 (C012 ADDED, 설계 §4) — 방식이 고를 두 능력의 이름.
+// 이 표가 대응의 단일 출처다. 규칙 코드에 방식별 분기를 따로 두지 않는다.
+// C013 CHANGED — 표에 관통 한 칸이 더해진다. 관통도 같은 대응을 따르므로
+// 대응의 단일 출처는 여전히 이 표 하나다 (INTENT-PENETRATION-MATCH-001).
+export const DAMAGE_TYPE_STATS: Readonly<
+  Record<
+    DamageType,
+    { offense: OffenseStatName; defense: DefenseStatName; penetration: PenetrationStatName }
+  >
+> = {
+  physical: { offense: 'physicalAttack', defense: 'armor', penetration: 'armorPenetration' },
+  aura: { offense: 'auraAttack', defense: 'resistance', penetration: 'resistancePenetration' },
+};
+
+export type OffenseStatName = 'physicalAttack' | 'auraAttack';
+export type DefenseStatName = 'armor' | 'resistance';
+export type PenetrationStatName = 'armorPenetration' | 'resistancePenetration'; // C013 ADDED
+
+// C010 CHANGED — 스킬은 더 이상 혼자 피해를 정하지 않는다 (INTENT-SKILL-SCALING-001).
+// damage 하나가 baseDamage(스킬 자체의 강함)와 attackRatio(공격 능력을 피해로 바꾸는 정도)로
+// 나뉜다. 그래야 Actor 의 성장과 스킬의 성장을 따로 조절할 수 있다.
+export interface SkillDefinition {
+  baseDuration: number; // ActionSpeed 가 걸리기 전의 행동 길이
+  baseDamage: number; // 스킬 자체의 강함 (C010 — 구 damage)
+  attackRatio: number; // 공격 능력을 얼마나 피해로 바꾸는가 (C010 ADDED)
+  cpCharge: number; // 한 번의 타격이 채우는 기력
+  cpCost: number; // 한 번의 타격이 소모하는 기력
+  damageType: DamageType; // 이 스킬이 피해를 만드는 방식 (C012 ADDED)
+}
+
+// C010 — 값은 재밸런싱이 아니라 C007 의 체감을 보존하는 방향으로 역산했다.
+// 관찰자(Attack 40) → 자율 존재(Defense 30) 기준:
+//   기본  (6 + 40×0.5)  = 26 × 100/130 = 20   ← C007 의 고정 20 과 같다
+//   고급  (32 + 40×1.0) = 72 × 100/130 = 55   ← C007 의 고정 55 와 같다
+// 계수가 큰 스킬일수록 공격 능력이 오를 때 더 크게 자란다 (빠른 기술은 낮게, 강한 기술은 높게).
+// C012 — 기존 두 스킬은 설계 §9 의 이행 규칙대로 전부 physical 이다. 그 밖의 값은
+// 한 톨도 바뀌지 않았으므로 물리 타격의 피해 결과가 C010 과 완전히 같다 (수용 기준 §14-8).
+export const SKILL_DEFINITIONS: Readonly<Record<SkillKind, SkillDefinition>> = {
+  // 기본 스킬 — 소모 없이 충전한다. 이것을 모아야 고급 스킬이 나간다.
+  attack: {
+    baseDuration: 0.6,
+    baseDamage: 6,
+    attackRatio: 0.5,
+    cpCharge: 12,
+    cpCost: 0,
+    damageType: 'physical',
+  },
+  // 고급 스킬 — 충전하면서 더 크게 소모한다 (붉은보석식 수지). 순수지 -22.
+  'heavy-attack': {
+    baseDuration: 0.9,
+    baseDamage: 32,
+    attackRatio: 1.0,
+    cpCharge: 8,
+    cpCost: 30,
+    damageType: 'physical',
+  },
+  // 오라 스킬 (C012 ADDED) — 기본 스킬과 **모든 값이 같고 방식만 다르다**.
+  // 일부러 그렇게 두었다: 값이 다르면 결과 차이가 방식 때문인지 값 때문인지 갈리지 않는다.
+  // 이 층이 만드는 것은 세기의 차이가 아니라 선택 하나다 (INTENT-AURA-SKILL-001).
+  'aura-strike': {
+    baseDuration: 0.6,
+    baseDamage: 6,
+    attackRatio: 0.5,
+    cpCharge: 12,
+    cpCost: 0,
+    damageType: 'aura',
+  },
+};
+
+export function isSkillKind(kind: ActionKind): kind is SkillKind {
+  return kind === 'attack' || kind === 'heavy-attack' || kind === 'aura-strike';
+}
+
+export function skillDefinition(kind: SkillKind): SkillDefinition {
+  return SKILL_DEFINITIONS[kind];
+}
+
+// CharacterKind 가 정하는 자원·템포 능력치(구 COMBAT_PROFILES)는
+// character-catalog.ts 로 옮겨졌다 — 종류가 정하는 값의 단일 출처는 그쪽이다.
+
+// RULE-CP-RUN-DRAIN-001 — 달리는 동안 초당 흘러나가는 기력
+export const RUN_CP_DRAIN = 6.0;
+
+// Actor.Modifiers 의 원천 (INTENT-MODIFIER-COMPOSE-001)
+export const RUN_CHARGE_FACTOR = 0.5; // 달리는 중에는 기력이 덜 모인다
+export const HIT_CHARGE_FACTOR = 0.2; // 얻어맞은 직후에는 거의 모이지 않는다
+
+// 배율의 상·하한 — 원천이 아무리 늘어도 이 밖으로 나가지 않는다
+export const MODIFIER_MIN = 0.1;
+export const MODIFIER_MAX = 3.0;
+
+// 행동 길이 배율의 한계 (공격 속도가 아무리 빨라도/느려도 이 안이다)
+export const ACTION_SPEED_MIN = 0.5;
+export const ACTION_SPEED_MAX = 2.0;
+
+// World.StrikeEvents — 타격 결과가 관찰되는 시간
+export const STRIKE_EVENT_TTL = 1.2;
+
+// World.DefenseConstant (C010 ADDED) — 방어 감쇄의 세계 상수 (INTENT-DEFENSE-001).
+// 방어 능력이 이 값과 같을 때 피해가 정확히 절반이 된다.
+// 결정론에 영향을 주므로 헤더 상수로 고정한다.
+export const DEFENSE_CONSTANT = 100;
+
+export function clamp(value: number, min: number, max: number): number {
+  return value < min ? min : value > max ? max : value;
+}
+
+// Actor.Modifiers (파생 상태 — 저장하지 않고 세계 상태에서 유도)
+// 각 값은 자기에게 걸린 원천들을 모두 곱한 뒤 상·하한으로 묶은 것이다.
+// 원천이 하나도 없으면 1 (빈 곱). 원천이 늘어도 이 합성 규칙은 바뀌지 않는다.
+export interface Modifiers {
+  cpCharge: number;
+  cpConsume: number;
+  moveSpeed: number;
+  actionSpeed: number;
+}
+
+export function actorModifiers(actor: ActorState): Modifiers {
+  let cpCharge = 1;
+  // 원천 1 — 달리는 중 (INTENT-MODIFIER-COMPOSE-001)
+  if (actor.moveMode === 'run') cpCharge *= RUN_CHARGE_FACTOR;
+  // 원천 2 — 얻어맞은 직후. "직후 잠시" 는 피격 반응(hit) 행동이 이어지는 동안이다 —
+  // 기존 상태를 그대로 쓰고 새 타이머를 만들지 않는다.
+  if (actor.currentAction.kind === 'hit') cpCharge *= HIT_CHARGE_FACTOR;
+
+  return {
+    cpCharge: clamp(cpCharge, MODIFIER_MIN, MODIFIER_MAX),
+    // 아래 셋은 이번 Cycle 에 걸리는 원천이 없다. 자리는 열려 있다.
+    cpConsume: clamp(1, MODIFIER_MIN, MODIFIER_MAX),
+    moveSpeed: clamp(1, MODIFIER_MIN, MODIFIER_MAX),
+    actionSpeed: clamp(1, MODIFIER_MIN, MODIFIER_MAX),
+  };
+}
+
+// Actor.Downed (파생 상태) — 생명이 다한 몸 (INTENT-DOWNED-001)
+export function isDowned(actor: ActorState): boolean {
+  return actor.hp <= 0;
+}
+
+// 감쇄율 (파생, C010 ADDED / C012 CHANGED) — 이 방어 값이 들어온 피해를 몇 할로 남기는가.
+// C012 — 인자가 Actor 가 아니라 **방어 값**이다. 방어가 둘이 되었으므로 어느 쪽을 쓸지는
+// 타격의 방식이 정하며(DAMAGE_TYPE_STATS), 이 함수는 고른 값을 받기만 한다.
+// 두 방어가 같은 식을 쓴다 — 방식마다 다른 감쇄식은 없다 (DC-COMBAT-ONE-FORMULA).
+// 방어가 0 이상이므로 결과는 0 초과 1 이하다 (INTENT-TYPED-DEFENSE-001).
+export function defenseMultiplier(defenseValue: number): number {
+  return DEFENSE_CONSTANT / (DEFENSE_CONSTANT + defenseValue);
+}
+
+/**
+ * World.PenetrationConstant (C013 ADDED) — 걷히는 몫을 정하는 세계 상수.
+ * DefenseConstant 와 같은 값이지만 **다른 이름으로 둔다** — 한쪽을 조정할 때
+ * 다른 쪽이 따라 움직이면 안 되기 때문이다. 결정론에 영향을 주므로 헤더 상수다 (CVar 아님).
+ */
+export const PENETRATION_CONSTANT = 100;
+
+/**
+ * 관통 앞에서 방어가 **남기는 비율** (C013 ADDED, INTENT-EFFECTIVE-DEFENSE-001).
+ * 방어에 이미 걸려 있는 그 곡선을 그대로 쓴다 — 새 곡선을 만들지 않는다
+ * (DC-COMBAT-ONE-FORMULA · R1 핵심 원칙).
+ * 관통 0 이면 1 이고, 아무리 커도 0 에 이르지 않는다 — 방어를 통째로 걷어내는 값은 없다.
+ */
+export function penetrationRemainingRatio(penetrationValue: number): number {
+  return PENETRATION_CONSTANT / (PENETRATION_CONSTANT + penetrationValue);
+}
+
+/**
+ * EffectiveDefense (파생, C013 ADDED) — 걷히고 남은 방어. 감쇄식에 실제로 들어가는 값이다.
+ * 걷히는 것은 정해진 양이 아니라 **몫**이므로 두꺼운 방어일수록 많이 걷히고,
+ * 방어가 0 인 상대에게서는 걷어낼 것이 없어 아무 일도 일어나지 않는다.
+ * 정수로 반올림하지 않는다 — 보이는 값과 계산에 쓰인 값이 어긋나면 안 된다
+ * (defenseMultiplier 도 같은 이유로 정수가 아닌 채 관찰에 실린다).
+ */
+export function effectiveDefense(defenseValue: number, penetrationValue: number): number {
+  return defenseValue * penetrationRemainingRatio(penetrationValue);
+}
+
+// Actor.DefenseShape (파생 상태, C012 ADDED, INTENT-DAMAGE-TYPE-OBSERVE-001) —
+// 두 방어 중 어느 쪽이 더 단단한가. **세계가 계산해** 내놓는 판정이다 —
+// 보는 이가 종류 이름이나 생김새로 약점을 짐작하지 않게 한다
+// (DC-WORLD-OWNS-THE-SURFACE-LIST).
+// 임계값을 두지 않는다 — 두 값의 대소만 본다. 임의 상수가 판정에 끼어들지 않는다.
+export type DefenseShape = 'physical-tougher' | 'aura-tougher' | 'even';
+
+export function defenseShape(actor: ActorState): DefenseShape {
+  if (actor.armor > actor.resistance) return 'physical-tougher';
+  if (actor.resistance > actor.armor) return 'aura-tougher';
+  return 'even';
+}
+
+// 이 방식이 이 Actor 에게서 고르는 공격 능력의 값 (C012 ADDED).
+export function offenseStatValue(actor: ActorState, type: DamageType): number {
+  return type === 'physical' ? actor.physicalAttack : actor.auraAttack;
+}
+
+// 이 방식이 이 Actor 에게서 고르는 방어 능력의 값 (C012 ADDED).
+export function defenseStatValue(actor: ActorState, type: DamageType): number {
+  return type === 'physical' ? actor.armor : actor.resistance;
+}
+
+// 이 방식이 이 Actor 에게서 고르는 관통 능력의 값 (C013 ADDED).
+// 고르지 않은 관통은 그 타격에서 한 번도 읽히지 않는다 (INTENT-PENETRATION-MATCH-001).
+export function penetrationStatValue(actor: ActorState, type: DamageType): number {
+  return type === 'physical' ? actor.armorPenetration : actor.resistancePenetration;
+}
+
+// 지금 이 Actor 가 이 스킬을 쓰면 나오는 공격 피해 (파생, C010 ADDED / C012 CHANGED).
+// 방어를 적용하기 전의 값이다 — 최종 피해는 맞는 자가 정해져야 알 수 있다.
+// C012 — 어느 공격 능력을 읽을지는 스킬의 방식이 정한다.
+export function rawDamage(actor: ActorState, kind: SkillKind): number {
+  const skill = skillDefinition(kind);
+  return skill.baseDamage + offenseStatValue(actor, skill.damageType) * skill.attackRatio;
+}
+
+// 한 방의 크기가 어떻게 나왔는가 (C010 ADDED) — RULE-DAMAGE-CALCULATE-001 의 산출물.
+// 저장하지 않는다. 계산이 낳고 StrikeEvent 가 싣는다.
+// C011 CHANGED — 뒤의 두 항목이 더해진다. finalDamage 의 의미는 그대로다
+// (공식이 내놓은 값 = 막지 않았다면 들어왔을 값).
+export interface DamageBreakdown {
+  /** 이 타격의 방식 (C012 ADDED) */
+  damageType: DamageType;
+  /** 방식이 고른 공격 능력 (C012 ADDED) — 이름이 없으면 왜 이 값인지 알 수 없다 */
+  offenseStat: { name: OffenseStatName; value: number };
+  baseDamage: number;
+  attackContribution: number;
+  rawDamage: number;
+  /**
+   * 방식이 고른 방어 능력 (C012 CHANGED — C010 의 targetDefense 를 대신한다).
+   * C013 — 이 값의 의미를 **걷히기 전** 으로 고정한다. 상대가 지닌 방어와 같은 수이며,
+   * 감쇄식에 실제로 들어간 값은 아래 effectiveDefense 가 가진다.
+   * 값만으로는 무엇을 읽었는지 알 수 없게 되었다 — 30 이 물리 방어인지 오라 방어인지가
+   * 결과를 완전히 가른다. 옛 이름은 별칭으로도 남기지 않는다 (설계 §9).
+   */
+  defenseStat: { name: DefenseStatName; value: number };
+  /**
+   * 이 타격에서 작용한 관통 (C013 ADDED). 값이 0 이어도 실린다 —
+   * 이름이 없으면 "왜 안 걷혔는가" 를 알 수 없다 (INTENT-DAMAGE-BREAKDOWN-001).
+   */
+  penetrationStat: { name: PenetrationStatName; value: number };
+  /**
+   * 걷힌 뒤의 방어 (C013 ADDED) — defenseMultiplier 가 실제로 읽은 값이다.
+   * defenseStat.value 와 이 값이 같다는 것이 "이 상대에게는 통하지 않았다" 의 관찰이다.
+   */
+  effectiveDefense: number;
+  defenseMultiplier: number;
+  finalDamage: number;
+  /** 실제로 생명에서 빠진 값 (C011). 막지 않은 타격에서는 finalDamage 와 같다 */
+  appliedDamage: number;
+  /** 막기가 이 한 방에 한 일 (C011). 막지 않은 타격에는 실리지 않는다 */
+  guard?: GuardOutcome;
+}
+
+// ── 막기 (C011 ADDED) ────────────────────────────────────────────────
+//
+// 결정론에 영향을 주므로 전부 헤더 상수로 고정한다 (CVar 아님).
+
+/** 막힌 타격이 남기는 비율 — R1 §14 `Guard → Damage Taken × 0.5` 그대로 */
+export const GUARD_DAMAGE_FACTOR = 0.5;
+
+/** Facing 과 이루는 각의 코사인 하한 — 0.5 는 정면 ±60° (INTENT-GUARD-DIRECTION-001) */
+export const GUARD_ARC_COS = 0.5;
+
+/**
+ * 막지 않았다면 들어왔을 피해 1 당 치르는 기력.
+ * 감쇄 **전** 값으로 매긴다 — 감쇄 후 값으로 매기면 잘 막을수록 싸져서
+ * "생명 대신 기력" 이 흐려진다 (INTENT-GUARD-COST-001).
+ */
+export const GUARD_CP_PER_DAMAGE = 0.6;
+
+/** 방어가 무너진 뒤 다시 막을 수 없는 시간(초) */
+export const GUARD_BREAK_RECOVERY = 1.0;
+
+/** 한 번의 막기 판정 결과 (파생 — 저장하지 않는다) */
+export interface GuardOutcome {
+  blocked: boolean; // 막혔는가
+  broken: boolean; // 이 타격에 방어가 무너졌는가
+  cpPaid: number; // 실제로 치른 기력 (무너졌으면 0)
+  prevented: number; // 막아서 덜 들어간 값 = finalDamage - appliedDamage
+}
+
+/**
+ * Actor.Guard.Broken (파생 상태) — 지금 무너져 있어 다시 들지 못하는가.
+ * 절대 시각(GuardBrokenUntil)이 아니라 이 판정만이 밖으로 나간다 —
+ * 보는 이에게 필요한 것은 "언제까지" 가 아니라 "지금 못 든다" 다.
+ */
+export function isGuardBroken(actor: ActorState, worldTime: number): boolean {
+  return worldTime < actor.guardBrokenUntil;
+}
+
+// 지금 실제로 나아가는 빠르기(effectiveMoveSpeed)는 이동 도메인의 것이다 —
+// domains/movement/move-mode.ts 가 소유한다. 여기 남는 것은 그 계산이 읽는 배율뿐이다.
+
+// 지금 이 스킬을 시작하면 그 행동이 얼마나 걸리는가 (INTENT-TEMPO-ACTION-001).
+// 길이는 시작하는 순간 확정된다 — 진행 중에 바뀌면 진행도의 기준이 흔들린다.
+export function skillDuration(actor: ActorState, kind: SkillKind): number {
+  const base = skillDefinition(kind).baseDuration;
+  const speed = actor.actionSpeed * actorModifiers(actor).actionSpeed;
+  return clamp(base / speed, base / ACTION_SPEED_MAX, base / ACTION_SPEED_MIN);
+}
+
+// World.StrikeEvents — 한 번의 타격이 낳은 결과. 시간이 지나면 세계에서 사라진다.
+// C010 CHANGED — amount 는 그대로 남고 그 옆에 계산 경위가 붙는다
+// (amount === breakdown.finalDamage).
+export interface StrikeEvent {
+  attackerId: string;
+  targetId: string;
+  skill: SkillKind;
+  amount: number;
+  breakdown: DamageBreakdown;
+  position: WorldPosition;
+  time: number;
+}
+
+// ── 디버그 조작 기반 (R2, INTENT-ATTRIBUTE-MUTATE-001) ────────────────
+//
+// MutableAttribute — 바꿀 수 있는 속성의 목록과 각자의 허용 범위.
+// 파생 상태(Downed · Modifiers)와 정체성(Id · Name · CharacterKind · Control)은 없다 —
+// 유도되는 값이거나 존재를 존재이게 하는 값이다.
+export type MutableAttributeId =
+  | 'hp'
+  | 'hpMax'
+  | 'cp'
+  | 'cpMax'
+  | 'physicalAttack'
+  | 'auraAttack'
+  | 'armor'
+  | 'resistance'
+  | 'armorPenetration'
+  | 'resistancePenetration'
+  | 'moveSpeed'
+  | 'runSpeedMultiplier'
+  | 'actionSpeed'
+  | 'moveMode';
+
+export interface MutableAttribute {
+  id: MutableAttributeId;
+  /** 수치 속성의 허용 범위 */
+  min?: number;
+  max?: number;
+  /** 값이 정해진 몇 가지뿐인 속성 (moveMode) */
+  values?: string[];
+}
+
+export const MUTABLE_ATTRIBUTES: readonly MutableAttribute[] = [
+  { id: 'hp', min: 0, max: 100000 },
+  { id: 'hpMax', min: 1, max: 100000 },
+  { id: 'cp', min: 0, max: 100000 },
+  { id: 'cpMax', min: 1, max: 100000 },
+  // C010 ADDED / C012 CHANGED — 두 능력이 넷으로 갈린다. 하한이 0 인 것은 음수 방어
+  // (피해 증폭)를 이 층에서 만들지 않기 위해서다. 증폭은 위층(Critical · Aura)의 일이다.
+  { id: 'physicalAttack', min: 0, max: 100000 },
+  { id: 'auraAttack', min: 0, max: 100000 },
+  { id: 'armor', min: 0, max: 100000 },
+  { id: 'resistance', min: 0, max: 100000 },
+  // C013 ADDED — 관통 둘. 하한 0 은 "관통이 없다" 가 별도 상태가 아니라 값 0 이라는 뜻이며,
+  // 음수 관통(방어를 두껍게 만드는 공격)은 이 층에서 만들지 않는다.
+  { id: 'armorPenetration', min: 0, max: 100000 },
+  { id: 'resistancePenetration', min: 0, max: 100000 },
+  { id: 'moveSpeed', min: 0, max: 100 },
+  { id: 'runSpeedMultiplier', min: 0.1, max: 10 },
+  { id: 'actionSpeed', min: 0.1, max: 10 },
+  { id: 'moveMode', values: ['walk', 'run'] },
+];
+
+export function findMutableAttribute(id: string): MutableAttribute | undefined {
+  return MUTABLE_ATTRIBUTES.find((a) => a.id === id);
+}

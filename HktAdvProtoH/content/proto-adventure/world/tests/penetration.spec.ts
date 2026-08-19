@@ -14,11 +14,11 @@
 
 import { describe, expect, it } from 'vitest';
 import type { GameViewSnapshot } from '../../protocol/gameview';
-import { SWING_BEGIN } from '../semantic/collision';
-import { effectiveDefense, penetrationRemainingRatio, SKILL_DEFINITIONS } from '../semantic/combat';
-import { TICK_INTERVAL } from '../semantic/world-state';
-import { ruleDamageCalculate } from '../rules/damage-calculate';
-import { spawnActor } from '../semantic/spawn';
+import { SWING_BEGIN } from '../domains/combat/swing';
+import { effectiveDefense, penetrationRemainingRatio, SKILL_DEFINITIONS } from '../domains/combat/combat';
+import { TICK_INTERVAL } from '../base/world-state';
+import { ruleDamageCalculate } from '../domains/combat/damage-calculate';
+import { spawnActor } from '../base/spawn';
 import { driveWorld, PLAYER, type WorldDriver } from './drive';
 
 const AURA = SKILL_DEFINITIONS['aura-strike'];

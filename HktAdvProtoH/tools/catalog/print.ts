@@ -138,7 +138,7 @@ export function findDrift(motions: Map<string, MotionAsset[]>): CatalogDrift {
       errors.push(`world 카탈로그의 '${kind}' 가 view/kind-presentation.ts (팩) 에 없다`);
   for (const kind of viewKinds)
     if (!worldKinds.includes(kind))
-      errors.push(`view 표현의 '${kind}' 가 world/semantic/character-catalog.ts (팩) 에 없다`);
+      errors.push(`view 표현의 '${kind}' 가 world/base/character-catalog.ts (팩) 에 없다`);
 
   for (const kind of worldKinds)
     if (!motions.has(kind) || motions.get(kind)!.length === 0)

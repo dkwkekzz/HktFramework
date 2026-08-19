@@ -46,7 +46,7 @@ content/<packId>/            컨텐츠 팩 = 교체 단위
 
 | # | 메커니즘 | 자리 |
 |---|---|---|
-| ① | Interaction Registry — 팩이 핸들러를 등록, 엔진은 unknown-observer/interaction 불변식만 | `engine/world-kernel/dispatch.ts` ← `<pack>/world/actions/interactions.ts` |
+| ① | Interaction Registry — 팩이 핸들러를 등록, 엔진은 unknown-observer/interaction 불변식만 | `engine/world-kernel/dispatch.ts` ← `<pack>/world/domains/*/index.ts` |
 | ② | 시스템 순서 배열 — 결정론은 팩의 **한 배열**이 지킨다, 엔진은 인과 순서(참여→요청→진행→시간→투영)만 | `engine/world-kernel/tick.ts` ← `<pack>/world/index.ts` |
 | ③ | State 제네릭 — 엔진은 CoreWorldState(time·observers)만 요구, 팩이 확장 | `engine/world-kernel/state.ts` |
 | ④ | Protocol 팩 소유 — 봉투는 코어, 의미 타입은 팩이 interface 확장. 좁힘은 팩 결정 Layer 진입점 한 곳 | `engine/protocol-core/` ← `<pack>/protocol/` |

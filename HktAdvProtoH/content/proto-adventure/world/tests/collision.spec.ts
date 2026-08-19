@@ -4,8 +4,8 @@
 
 import { describe, expect, it } from 'vitest';
 import type { GameViewSnapshot } from '../../protocol/gameview';
-import { characterDefinition } from '../semantic/character-catalog';
-import { TICK_INTERVAL } from '../semantic/world-state';
+import { characterDefinition } from '../base/character-catalog';
+import { TICK_INTERVAL } from '../base/world-state';
 import { driveWorld, PLAYER, type WorldDriver } from './drive';
 
 // 순회도 인지도 없는 정지 NPC — 몸으로만 쓴다 (결정론)

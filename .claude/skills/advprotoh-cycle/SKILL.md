@@ -74,7 +74,11 @@ Stage 5 가 다음 차례면 **작업을 멈추고** 사용자에게 Semantic Re
 추가로 필요할 때만:
 
 * **관련 있는** 기존 Cycle 의 Artifact (전부 읽지 마라 — 이번 Cycle 이 건드리는 Capability 만)
-* Stage 6/7/8 이면 해당하는 `world/` `view/` `protocol/` 실제 코드
+* Stage 6/7/8 이면 해당하는 `world/` `view/` `protocol/` 실제 코드.
+  Stage 6 은 **`world/base/` + 이 Delta 의 주 도메인 폴더(`world/domains/<이름>/`)** 만
+  로드하는 것이 기본이다 — 주 도메인 판정이 Stage 6 의 첫 작업이다
+  (`guides/world-implementation.md` 의 `Domain` 절). 다른 도메인은 실제로 그 의미를
+  함께 바꿀 때만 연다. `world/` 전체를 로드하는 것은 이 워크플로우의 실패다.
 * Guide 로 판단할 수 없는 경계 사례에 한해 `design/` 원본의 **해당 섹션만**
 
 `design/` 3종 전체를 로드하는 것은 이 워크플로우의 실패다.

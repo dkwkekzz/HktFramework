@@ -8,13 +8,14 @@ export interface HudPresentation {
   format?: (value: number | boolean | string) => string; // 값 표시 형식 (C003)
 }
 
+// 항목마다 그 HUD 를 내놓는 World 도메인을 [ ] 로 표기한다 (View 재편 1단계).
 const HUD: Record<string, HudPresentation> = {
-  'inventory.stone': { label: 'Stone', icon: '⛏', celebrateGain: true },
-  'tool.hasMiningTool': { label: '곡괭이' },
-  'player.action': { label: '행동' },
-  'world.time': { label: '세계 시간', format: (v) => `${Math.floor(Number(v))}s` },
+  'inventory.stone': { label: 'Stone', icon: '⛏', celebrateGain: true }, // [mining]
+  'tool.hasMiningTool': { label: '곡괭이' }, // [mining]
+  'player.action': { label: '행동' }, // [base]
+  'world.time': { label: '세계 시간', format: (v) => `${Math.floor(Number(v))}s` }, // [base]
   // 함께 보고 있는 사람의 수 (C004) — 나를 포함한다.
-  'observers.present': { label: '함께', icon: '👥', format: (v) => `${Number(v)}명` },
+  'observers.present': { label: '함께', icon: '👥', format: (v) => `${Number(v)}명` }, // [base]
 };
 
 export function hudPresentation(id: string): HudPresentation {

@@ -1,6 +1,6 @@
 # Design — 팩 내부 구성: Base + 도메인 모듈
 
-status: PROPOSAL — Human 승인 대기 (승인 시 M1 부터 기반 트랙으로 실행)
+status: APPROVED — 구현됨 (`content/proto-adventure/world/`). 이 문서가 그 구조의 원본이다.
 
 ## 목적
 
@@ -80,6 +80,8 @@ world/
 | rules/skill·attack·guard·damage-calculate·strike-damage + semantic/combat + simulation/swing-strike·strike-event-expire·cp-run-drain | domains/combat/ |
 | simulation/npc-decide | domains/autonomy/ |
 | rules/attribute-set + semantic/command-catalog | domains/debug/ |
+| semantic/combat 의 MoveMode 타입 · effectiveMoveSpeed | domains/movement/move-mode (이동이 소유하는 필드의 값과 파생) |
+| actions/interactions.ts 의 주체 해석(withActor) | base/interaction (모든 도메인이 함께 쓰는 관문) |
 | actions/interactions.ts | 해체 — 각 도메인이 자기 항목을 내놓고 index 가 잇는다 |
 | projection/observer-view.ts | 해체 — base/projection 조립기 + 도메인 기여 함수 |
 
@@ -91,24 +93,51 @@ world/
 ```ts
 // content/<pack>/world/domain.ts — 팩 내부 규약
 export interface WorldDomain {
+  /** 이 도메인의 이름 — 조립·관찰에서 도메인을 부르는 이름 */
+  id: string;
   /** 이 도메인의 interaction 항목들 — index 가 도메인 순서대로 잇는다 */
   interactions: readonly InteractionHandler<WorldState>[];
   /** 이름 붙은 시스템 부품 — 순서는 index 의 배열이 소유한다 (사실 1) */
   systems: Readonly<Record<string, WorldSystem<WorldState>>>;
+  /** 자기 도메인이 소유한 행동이 Duration 을 채웠을 때 하는 일 (표 항목) */
+  actionCompletions?: Readonly<Partial<Record<ActionKind, ActionCompletion>>>;
   /** 투영 기여 (사실 3) — base/projection 조립기가 정해진 순서로 부른다 */
   projection?: {
     /** Actor 관찰에 자기 도메인 필드를 더한다 (예: combat → vitality·combatStats) */
-    decorateActor?(view: EntityView, actor: ActorState, ctx: ProjectionContext): void;
+    decorateActor?(
+      view: ActorViewDraft,
+      actor: ActorState,
+      state: WorldState,
+      ctx: ProjectionContext,
+    ): void;
     /** 자기 도메인의 비-Actor 존재 (예: mining → 광맥) */
     entities?(state: WorldState, ctx: ProjectionContext): EntityView[];
     /** 가용성 목록 기여 (예: combat → 스킬 3종 + 막기) */
     interactions?(state: WorldState, ctx: ProjectionContext): InteractionView[];
     /** HUD 기여 (예: mining → inventory.stone) */
     hud?(state: WorldState, ctx: ProjectionContext): HudItemView[];
+    /** Snapshot 뿌리의 자기 자리 (예: combat → strikes · debug → commands·debug) */
+    snapshotFields?(state: WorldState, ctx: ProjectionContext): SnapshotFields;
   };
 }
 // ProjectionContext = { observerId, self } — 조립기가 만들어 넘긴다
+// ActorViewDraft   = 조립 중인 Actor 관찰 (attributes 가 Partial). base 가 골격을 세우고
+//                    각 도메인이 자기 자리를 채운 뒤 EntityView 계약이 된다.
 ```
+
+세 자리가 초안(§ 앞)에서 자랐다. 셋 다 **base 가 도메인을 알지 않게** 하려고 생긴 자리다.
+
+- `decorateActor` 가 `state` 를 함께 받는다 — 파생 관찰 중에는 세계 시각을 읽는 것이 있다
+  (`Guard.Broken` 은 `GuardBrokenUntil` 과 `World.Time` 의 비교다).
+- `snapshotFields` 가 있다 — Snapshot 뿌리의 `strikes`·`commands`·`debug` 도 도메인의 것이며,
+  이것이 없으면 base 가 그 셋을 알아야 한다.
+- `actionCompletions` 가 있다 — "채굴이 끝나면 돌이 하나 는다" 는 mining 의 의미인데,
+  이것이 없으면 base 의 `RULE-ACTION-PROGRESS-001` 이 `ruleMineComplete` 를 직접 불러야 하고
+  그러면 base 가 도메인 없이 성립하지 않는다. 새 완료 효과는 그 도메인의 폴더에서 는다.
+
+남은 base → domains 의존은 **타입뿐**이다 (`ActorState.inventory: Inventory` ·
+`WorldState.deposits` · `strikeEvents`). 사실 2 가 정한 그대로 — State 는 base 가 한 벌로
+소유하고, 그 필드를 *바꾸는 함수* 만 도메인에 있다.
 
 index.ts 조립 — 순서 소유는 지금과 완전히 같다. 부품의 출처만 도메인이 된다:
 
@@ -158,16 +187,21 @@ View 표(role/kind/interaction/hud)는 이미 **항목 단위 데이터**라 지
 - **Agent 컨텍스트 경제**: Stage 6/7 Agent 는 base/ + 해당 도메인 폴더만 로드하는 것을
   기본으로 한다 (guides/world-implementation.md 에 명기). 이것이 이 재편의 주 이득이다.
 
-## 검증 계획과 효율 계측
+## 검증 결과와 효율 계측
+
+재편이 의미를 바꾸지 않았음의 관찰값:
 
 ```text
-M1  폴더 재편 (git mv + 경로 보정)                DONE WHEN 테스트 556 무수정 녹색
-M2  투영 조립기 (observer-view 해체 → 기여 함수)    DONE WHEN Snapshot 출력 필드 단위 동일
-M3  interactions/systems 도메인 export + 조합       DONE WHEN 판정 순서·결과 동일
-M4  guides/스킬에 도메인 판정·로드 규칙 반영          DONE WHEN 다음 Cycle 이 규칙대로 돈다
+테스트        556 통과 (구현 코드 무수정 — 테스트는 import 경로만 보정)
+Snapshot     재편 전후 필드 단위 동일 (모든 키·값 일치)
+             배열 순서는 hud·interactions 두 곳만 달라진다:
+               interactions  소비 경로가 .find / .filter 라 순서에 의존하지 않는다
+               hud           보이는 항목(self.* 제외)의 순서는 그대로다 —
+                             도메인 기여가 먼저, 세계 골격의 것이 뒤에 온다
+Tick 순서     SYSTEMS · POST_TIME_SYSTEMS 배열의 내용과 순서가 그대로다
 ```
 
-- blank 팩은 base 만으로 성립하므로 무영향이어야 한다 (사실상 blank = base 의 최소형).
+- blank 팩은 base 만으로 성립하므로 무영향이다 (사실상 blank = base 의 최소형).
 - 효율은 주장하지 않고 **잰다**: 재편 후 첫 Cycle 에서 "연 파일 수 / 주 도메인 밖 파일 수 /
   Stage 6 로드 토큰"을 이전 Cycle(C013) 실측과 비교해 08-verification 에 기록한다.
 
