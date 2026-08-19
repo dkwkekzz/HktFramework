@@ -1,0 +1,9 @@
+# 원본 근거: design/Master-World-Beira.md (BW) §10 — 문서가 이 yaml 을 직접 제시했다.
+# origin trace: MW-SPATIAL-SHEAR (공간 단층 → 일반 물질 소멸 → 특수 구조만 잔존)
+#   → 세계압을 구조 유지 Property 로 고정한 광물(경계결정). (BW §10 · §33)
+# GR §41 Item Gate — 세계 유래 추적 가능(위 trace) · 수치가 아니라 세계적 성질 ·
+#   기존 Capability 복제 없음 · 조합 사전 생성 없음.
+id: IP-BOUNDARY-STABLE
+type: item_property
+semantic: >
+  주변 공간의 경계가 변화하더라도 자신의 구조적 연속성을 유지한다.

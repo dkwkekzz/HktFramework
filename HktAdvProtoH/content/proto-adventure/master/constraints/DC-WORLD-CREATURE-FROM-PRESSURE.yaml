@@ -1,0 +1,37 @@
+# 원본 근거: design/Master-World-Beira.md (BW)
+#   §26 전투 역시 세계압에서 파생된다 ("전투 Creature 를 먼저 만들지 않는다" —
+#   World Pressure → Environment → Survival Pressure → Creature Adaptation →
+#   Creature Capability → Player Encounter → Goal → Combat Possibility →
+#   Player Capability Requirement) · §2 (베이라는 원초 생태권이다)
+# 2026-08-19 Human 지시(BW 주입)로 신설 · 같은 날 Q17(a) 일괄 APPROVED.
+id: DC-WORLD-CREATURE-FROM-PRESSURE
+type: constraint
+
+statement: >
+  전투 Creature 를 먼저 만들지 않는다. Creature 의 Capability 는 세계압이 만든
+  환경과 생존 압력에 대한 적응의 결과이며, Player 의 Capability Requirement 는
+  그 Creature 와의 조우가 만든 Goal 과 Combat Possibility 에서만 파생된다.
+rationale: >
+  Creature 를 먼저 만들고 설정을 붙이면 생태는 배치된 장애물 목록이 된다.
+  충격 저항 생태 → 갑각 생물 → 일반 Attack 비효율 → MC-BREAK 요구처럼,
+  환경이 Creature 를 만들고 Creature 가 요구를 만드는 방향이어야
+  위험이 세계 법칙의 결과로 남는다 (BW §26).
+
+scope:
+  - WORLD
+
+requires:
+  - creature_capability_from_adaptation      # Creature 능력은 환경·생존 압력에 대한 적응으로 설명된다 (BW §26)
+  - player_requirement_from_encounter_goal   # Player 의 필요 Capability 는 조우 → Goal → Possibility 경로에서 나온다 (BW §26)
+prohibits:
+  - creature_designed_before_world_cause     # 세계 인과 없이 먼저 만들어지는 전투 Creature (BW §26)
+prefers: []
+
+status: APPROVED
+provenance:
+  - HUMAN_DESIGN          # 2026-08-19 BW 주입 · Q17(a) 승인 — 모두 Human 지시
+
+relations:
+  supports:
+    - DC-WORLD-RESOURCE-ADAPTATION-TRACE   # 같은 인과 사슬의 위험 쪽 절반이다 (BW §29~§30)
+  conflicts_with: []

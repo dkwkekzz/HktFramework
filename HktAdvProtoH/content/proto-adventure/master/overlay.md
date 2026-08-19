@@ -3,13 +3,21 @@
 Master Capability(`graph/capabilities.yaml`) 를 현재 `world/` `view/` 구현 상태와 겹쳐 본 결과다.
 기본 절차 **NEED** 단계의 산출물이며, NEXT(Frontier) 는 여기서 나온다.
 
-기준 시점: **C012-damage-type-chooses-the-defense 닫힘 (2026-08-18)** — 코드는 그 Cycle 완료 시점 상태다.
+기준 시점: **BW(베이라 세계관) 주입 (2026-08-19)** — 코드는 C012 완료 시점 상태 그대로다
+(주입은 Graph 만 넓혔고 세계 구현은 바뀌지 않았다).
 
-근거 문서는 둘뿐이다 (2026-08-18 Q12 결정) — `design/Design-Combat-OffenseDefense-R0.md`(R1) ·
-`design/Design-Combat-DamageType-R0.md`. 두 문서가 이름조차 대지 않는 Capability 는
-"없는 것"이 아니라 **노드가 아니다** — 표에서 삭제한다.
+근거 문서는 영역별로 분리된다 (근거는 영역을 넘지 않는다 — HISTORY Q15).
 
-## 상태
+```text
+전투   R1  design/Design-Combat-OffenseDefense-R0.md · DT  design/Design-Combat-DamageType-R0.md
+탐험   BW  design/Master-World-Beira.md  (2026-08-19 Human 지시로 주입)
+성장   GR  design/Master-Intent-Graph-Growth.md
+```
+
+해당 영역 문서가 이름조차 대지 않는 Capability 는 "없는 것"이 아니라 **노드가 아니다** —
+표에서 삭제한다.
+
+## 상태 — 전투 영역
 
 | Capability | 상태 | 근거 | 부족한 것 |
 |---|---|---|---|
@@ -31,6 +39,25 @@ Master Capability(`graph/capabilities.yaml`) 를 현재 `world/` `view/` 구현 
 | MC-PENETRATION | MISSING | — | 마주한 방어를 깎는 의미가 없다. 작용 대상인 두 방어는 C012 로 생겼으므로 이제 이것 하나만 없다 (R1 §14 Penetration 층 · 작용 지점은 DamageType R0 §15) |
 | MC-CONDITION-STACKING | MISSING | — | 조건이라는 개념 자체가 없다 (R1 §14 Aura/Nen 층) |
 | MC-VOW | MISSING | — | 제약·실패 대가가 없다 (R1 §14 Aura/Nen 층) |
+| MC-CRITICAL-STRIKE | MISSING | — | Critical 이라는 개념이 없다 (R1 §14 C011 층 — Q11(b) 로 열렸다) |
+
+## 상태 — 탐험 영역 (BW 주입 2026-08-19)
+
+현재 세계(`world/` `view/`)는 전투 프로토타입이다 — 지역·이동·생태·자원·채집·거래의
+의미가 하나도 없다. 따라서 BW 유래 Capability 는 **전부 MISSING** 이며, 개별 근거
+실측이 아직 존재할 수 없으므로 행마다 같은 근거를 반복하지 않고 층으로 묶어 판정한다.
+개별 행 분리는 첫 관련 Cycle 이 닫힐 때 한다.
+
+| Capability (층) | 상태 | 근거 | 부족한 것 |
+|---|---|---|---|
+| MC-REPOSITION (SAFE §20) | MISSING | — | 위치를 잡는 이동 의미가 없다 (걷기·달리기는 있으나 위치의 유불리가 판정에 쓰이지 않는다) |
+| MC-OBSERVE · MC-PREDICT · MC-USE-TERRAIN (FRINGE §21) | MISSING | — | 관찰·예측이 행동으로 존재하지 않고, 지형이 판정에 쓰이지 않는다 |
+| MC-DISCOVER-WEAKNESS · MC-PRECISE-TARGETING · MC-CONTROL-SPACE (WILD §22) | MISSING | — | 약점 발견·부위 조준·공간 통제의 의미가 없다 (MC-BREAK 는 전투 표에서 판정) |
+| MC-READ-ENVIRONMENT · MC-FORCE-MOVEMENT · MC-USE-HAZARD · MC-INTERRUPT (DANGER §23) | MISSING | — | 환경 Hazard 라는 개념 자체가 세계에 없다 |
+| MC-DISRUPT-ABILITY · MC-MAINTAIN-PRESSURE · MC-TARGET-SPECIFIC-PART · MC-READ-CREATURE-SYSTEM (DEEP §24) | MISSING | — | 재생·공생·부위라는 개념 자체가 없다 |
+| MC-PROTECT-PERCEPTION · MC-VERIFY-REALITY · MC-IDENTITY-ANCHOR · MC-RESIST-INFLUENCE · MC-BREAK-BIOLOGICAL-LINK · MC-ESCAPE-ALTERED-SPACE (UNKNOWN §25) | MISSING | — | 지각·Identity·공간 변형이라는 개념 자체가 없다 |
+| MC-RESTORE-BIOLOGICAL-STATE (자원 §8) | MISSING | — | 회귀초도, 생체 상태의 보존·복원 의미도 없다 |
+| MC-CUT-ABNORMAL-STRUCTURE (자원 §10 · §17) | MISSING | — | 경계결정·제작·구조 절단 의미가 없다 (획득 경로 현황은 growth/growth-graph.md) |
 
 ## 판정 기준
 
@@ -59,6 +86,27 @@ Constraint Violation 과 혼동하지 않는다 — 여기는 **있는가/없는
 | MP-PIERCE-THE-HARD-DEFENSE | MC-PENETRATION | **하나만 남았다** — C012 가 관통이 작용할 두 방어를 세웠다. R1 §14 Penetration 층이며 지금 가장 가까운 경로다 |
 | MP-HOLD-FORTIFIED | MC-FORTIFY · MC-COMBAT-FLOW | R1 §14 Aura/Nen 층으로 이연 (MC-DEFENSE-MITIGATION 은 C010 으로 채워졌다) |
 | MP-STAKE-EVERYTHING-ON-ONE-BLOW | MC-VOW · MC-CONDITION-STACKING · MC-COMBAT-FLOW | R1 §14 Aura/Nen 층 — 가장 멀다 |
+| MP-BET-ON-THE-CRITICAL-BLOW | MC-CRITICAL-STRIKE | **하나만 없다** — Q11(b) 로 열린 R1 §14 C011 층. 나머지 2종은 IMPLEMENTED |
+
+탐험 영역 (BW — MG-EXPLORE-BEIRA 깊이 진입 5종 + MG-ACQUIRE-RARE-ORGAN 대안 5종):
+
+| Possibility | 요구 Capability 중 없는 것 | 비고 |
+|---|---|---|
+| MP-VENTURE-INTO-FRINGE | MC-OBSERVE · MC-PREDICT · MC-USE-TERRAIN | **3종 전부 없다** — 그러나 이 층이 탐험 사다리의 첫 칸이다 (BW §21). 지역·이동이라는 세계 기반 자체도 없다 |
+| MP-VENTURE-INTO-WILD | MC-BREAK · MC-DISCOVER-WEAKNESS · MC-PRECISE-TARGETING · MC-CONTROL-SPACE | 4종 전부 없다 (BW §22) |
+| MP-VENTURE-INTO-DANGER | MC-READ-ENVIRONMENT · MC-FORCE-MOVEMENT · MC-USE-HAZARD · MC-INTERRUPT | 4종 전부 없다 (BW §23) |
+| MP-VENTURE-INTO-DEEP | MC-DISCOVER-WEAKNESS · MC-DISRUPT-ABILITY · MC-MAINTAIN-PRESSURE · MC-TARGET-SPECIFIC-PART · MC-READ-CREATURE-SYSTEM | 5종 전부 없다 (BW §24) |
+| MP-VENTURE-INTO-UNKNOWN | 6종 전부 (MC-PROTECT-PERCEPTION 외) | 사다리의 끝 — 가장 멀다 (BW §25) |
+| MP-KILL-CREATURE | (requires.goals: MG-OVERCOME-SUPERIOR-OPPONENT — 전투 서브트리로 연결, Q18(a)) | 전투 서브트리 중 열린 경로 3종이 있으므로 세계 구현 기준으로는 성립한다. 단 상위 Goal 의 원인(MW-ZONE-WILD 지역)이 세계에 없다 |
+| MP-TAKE-SHED-ORGAN · MP-TRADE-WITH-ACTOR · MP-FIND-DEAD-SPECIMEN · MP-FORCE-CREATURE-TO-RELEASE | **판정 불가 — requires 미배선** | BW §27 은 대안 구조만 공급했다. 요구 Capability 배선(OPTIONS/NEED)이 끝나야 판정된다 |
+
+Q18(a) OPTIONS 산출 (전투 — MG-OVERCOME-SUPERIOR-OPPONENT 의 추가 경로):
+
+| Possibility | 요구 Capability 중 없는 것 | 비고 |
+|---|---|---|
+| MP-CONTROL-MOVEMENT | MC-FORCE-MOVEMENT · MC-CONTROL-SPACE · MC-REPOSITION | 3종 전부 없다 |
+| MP-INTERRUPT | MC-INTERRUPT | **하나만 없다** — 시점 판단 기반이라 현재 전투 세계 안에서 닫을 수 있다 |
+| MP-WEAPONIZE-ENVIRONMENT | MC-READ-ENVIRONMENT · MC-USE-HAZARD (+ MW-ZONE-DANGER 라는 세계 기반) | 환경 Hazard 개념 자체가 없다 — 가장 멀다 |
 
 ## 갱신 경로
 

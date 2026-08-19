@@ -4,9 +4,10 @@
 # 구현 상태(overlay)의 근거는 ../overlay.md 가 소유한다.
 # 형식: ../SCHEMA.md
 #
-# 인용 표기 — 근거 문서는 둘뿐이다 (2026-08-18 Human 결정).
-#   R1 §x   design/Design-Combat-OffenseDefense-R0.md   2026-08-17 R1 전면 개정판
-#   DT §x   design/Design-Combat-DamageType-R0.md
+# 인용 표기 — 근거는 영역별로 분리된다 (HISTORY Q15 · Q18(a) 예외).
+#   R1 §x   design/Design-Combat-OffenseDefense-R0.md   전투 (2026-08-17 R1 전면 개정판)
+#   DT §x   design/Design-Combat-DamageType-R0.md        전투
+#   BW §x   design/Master-World-Beira.md                 탐험 — Q18(a) 매핑된 전투 노드에는 보조 근거로 허용
 # 삭제된 구판(R0)은 근거가 아니다. 구판 인용은 전부 제거했고, 구판에만 근거가 있던
 # 노드(MC-WEAK-POINT · MC-REAR-ATTACK)도 삭제했다 — 두 문서는 그 의미를 이름조차 대지 않는다.
 #
@@ -23,11 +24,12 @@ nodes:
     type: capability
     semantic: >
       휘두른 몸이 닿은 상대의 생명을 정해진 만큼 덜어내고, 맞은 몸은 하던 행동이 끊기고 밀려난다.
-    required_by: [MP-BREAK-THE-GUARD, MP-EXPLOIT-OPEN-BODY, MP-MATCH-WEAPON-TO-ARMOR, MP-OUTGROW-THE-OPPONENT, MP-PIERCE-THE-HARD-DEFENSE]
+    required_by: [MP-BREAK-THE-GUARD, MP-EXPLOIT-OPEN-BODY, MP-MATCH-WEAPON-TO-ARMOR, MP-OUTGROW-THE-OPPONENT, MP-PIERCE-THE-HARD-DEFENSE, MP-BET-ON-THE-CRITICAL-BLOW]
     constraints: [DC-COMBAT-PLAYER-CAUSALITY]
     constraint_evaluation:
       DC-COMBAT-PLAYER-CAUSALITY: SATISFIED    # 정해진 만큼 덜어낸다 — 난수 없는 결정적 피해 (C007 실측 · R1 §6)
     overlay: IMPLEMENTED
+    # BW §20 의 MC-ATTACK 은 이 노드다 — Q18(a) 매핑 확정 (SAFE 층 기본기)
 
   - id: MC-CP-ECONOMY
     type: capability
@@ -75,6 +77,7 @@ nodes:
     overlay: IMPLEMENTED
     # C011-guard-trades-body-for-resource 가 R1 §14 Defense Action 층으로 닫았다 (2026-08-17).
     # 구 C010(막기)은 2026-08-17 롤백된 다른 Cycle 이다. 근거는 ../overlay.md.
+    # BW §20 의 MC-DEFEND 는 이 노드다 — Q18(a) 매핑 확정 (SAFE 층 기본기)
 
   - id: MC-PERFECT-GUARD
     type: capability
@@ -122,7 +125,7 @@ nodes:
     semantic: >
       Actor 는 공격의 위력을 나타내는 능력치를 가진다. 같은 스킬이라도 이 값이 큰 Actor 가
       쓰면 더 아프며, 장비·성장·버프가 이 값을 올린다.
-    required_by: [MP-OUTGROW-THE-OPPONENT]
+    required_by: [MP-OUTGROW-THE-OPPONENT, MP-BET-ON-THE-CRITICAL-BLOW]
     constraints: [DC-COMBAT-PLAYER-CAUSALITY]
     constraint_evaluation:
       DC-COMBAT-PLAYER-CAUSALITY: SATISFIED    # 같은 능력치·같은 스킬·같은 상대면 항상 같은 피해 (R1 §6)
@@ -157,18 +160,36 @@ nodes:
     constraint_evaluation:
       DC-COMBAT-PLAYER-CAUSALITY: SATISFIED    # 무적·확률이 아니라 실제 위치 이동이다 — random_evade 금지와 양립 (R1 §6 · §13)
     overlay: MISSING
+    # BW §20 도 같은 ID 로 SAFE 층 기본기로 지정한다 — Q18(a) 확정
 
   - id: MC-BREAK
     type: capability
     semantic: >
-      상대의 방어(Guard)를 무너뜨려 그 방어가 성립하지 않는 구간을 만든다.
-    required_by: [MP-BREAK-THE-GUARD]
+      상대의 방어 구조(Guard · 특수 갑각 같은 형태 전반)를 무너뜨려
+      그 방어가 성립하지 않는 구간을 만든다.
+    required_by: [MP-BREAK-THE-GUARD, MP-VENTURE-INTO-WILD]
     constraints: [DC-COMBAT-PLAYER-CAUSALITY]
     constraint_evaluation:
       DC-COMBAT-PLAYER-CAUSALITY: SATISFIED    # 무너뜨리는 조건이 관찰 가능한 상태로 드러난다 — 난수가 아니다 (R1 §6)
     overlay: MISSING
     # R1 §14 Active Defense 층이 이름만 예고한다 (Guard Break). 누적·붕괴 지속 같은 세부는
     # 구판에만 있었으므로 2026-08-18 삭제했다 — 그 층의 설계 문서가 다시 공급해야 한다.
+    # Q18(a) 확정 (2026-08-19) — semantic 을 방어 구조 전반으로 넓혔다 (CHANGED).
+    # BW §22 (WILD 갑각) 가 보조 근거다. 구체 판정은 각 층의 설계 문서 소유.
+
+  - id: MC-CRITICAL-STRIKE
+    type: capability
+    semantic: >
+      공격이 확률적으로 더 크게 증폭되어 터진다. 발생 확률과 증폭 크기는 Actor 의
+      성질이며 성장·장비로 자란다. Critical 발생 여부와 그 증폭은 계산 경위에
+      그대로 드러난다.
+    required_by: [MP-BET-ON-THE-CRITICAL-BLOW]
+    constraints: [DC-COMBAT-PLAYER-CAUSALITY, DC-COMBAT-ONE-FORMULA]
+    constraint_evaluation:
+      DC-COMBAT-PLAYER-CAUSALITY: SATISFIED    # REVISED 가 명시한 단일 예외다 — 관찰 요구(발생·증폭 노출)는 그대로 진다 (Q11(b))
+      DC-COMBAT-ONE-FORMULA: SATISFIED         # Final Damage 증폭 — 기존 공식의 결과값에 한 가지 의미만 더한다 (R1 §14 C011 · 핵심 원칙)
+    overlay: MISSING
+    # R1 §14 C011 층 (Critical Chance · Critical Damage). Q11(b) 로 층의 유보가 닫혔다.
 
   - id: MC-COMBAT-FLOW
     type: capability
@@ -244,7 +265,259 @@ nodes:
     overlay: MISSING
     # R1 §14 Aura/Nen 층(조건·제약·서약)으로 유지된다.
 
-# 주입 근거 — 이 둘이 전부다 (2026-08-18 Q12 결정)
+  # ═══ 베이라 사다리 (BW = design/Master-World-Beira.md — 2026-08-19 주입) ═══
+  #
+  # BW §20~§25 가 탐험 깊이(MW-DEPTH-GRADIENT · MW-ZONE-*)별로 예고한 Capability 층이다.
+  # 문서는 층마다 이름과 "필요:" 목록을 공급한다 — semantic 은 해당 § 의 문맥 한 줄로
+  # 최소 번역했고, 세부(판정·형태)는 각 영역의 설계 문서가 와야 한다.
+  # required_by 는 각 층의 진입 Possibility(MP-VENTURE-INTO-*)로 배선했다 —
+  # §21~§25 의 "필요:" 가 그 배선의 원본이다. MC-REPOSITION 만 비어 있다
+  # (§20 SAFE 는 출발지라 진입 MP 가 없다 — 기본기 목록일 뿐이다).
+  #
+  # SAFE 층(BW §20)의 4종 중 3종은 기존 노드 재사용이다 — MC-ATTACK ≙ MC-COMBAT-STRIKE ·
+  # MC-DEFEND ≙ MC-GUARD · MC-EVADE ≙ MC-EVADE(기존). BW §22 의 MC-BREAK 도 기존
+  # MC-BREAK 재사용. 매핑은 Q18(a) 로 확정되었다 (2026-08-19 Human 승인).
+
+  # ── SAFE (BW §20) — 나머지 1종 ────────────────────────────────────────
+
+  - id: MC-REPOSITION
+    type: capability
+    semantic: >
+      싸움이 일어나는 자리를 스스로 고쳐 잡는다 — 벗어나는 것(MC-EVADE)이 아니라
+      다음 행동에 유리한 위치를 만드는 이동이다.
+    required_by: [MP-CONTROL-MOVEMENT]
+    constraints: []
+    constraint_evaluation: {}
+    overlay: MISSING
+    # BW §20 — SAFE 층의 기본 4종 중 유일하게 기존 노드가 없는 것.
+
+  # ── FRINGE (BW §21) — 강한 토착 포식자 ────────────────────────────────
+
+  - id: MC-OBSERVE
+    type: capability
+    semantic: >
+      행동하기 전에 대상을 관찰하여 그 행동·습성·상태의 정보를 얻는다.
+    required_by: [MP-VENTURE-INTO-FRINGE]
+    constraints: []
+    constraint_evaluation: {}
+    overlay: MISSING
+
+  - id: MC-PREDICT
+    type: capability
+    semantic: >
+      관찰한 정보로 대상이 다음에 무엇을 할지 미리 읽는다.
+    required_by: [MP-VENTURE-INTO-FRINGE]
+    constraints: []
+    constraint_evaluation: {}
+    overlay: MISSING
+
+  - id: MC-USE-TERRAIN
+    type: capability
+    semantic: >
+      지형을 자신의 유리함으로 쓴다 — 같은 상대라도 어디서 마주치는지가 결과를 바꾼다.
+    required_by: [MP-VENTURE-INTO-FRINGE]
+    constraints: []
+    constraint_evaluation: {}
+    overlay: MISSING
+
+  # ── WILD (BW §22) — 특수 갑각·독·비정상 감각·특수 이동 ────────────────
+  # MC-BREAK 는 기존 노드 재사용 (위 주석 · Q18).
+
+  - id: MC-DISCOVER-WEAKNESS
+    type: capability
+    semantic: >
+      비정상적인 방어·감각·이동을 가진 대상에서 통하는 지점을 스스로 찾아낸다 —
+      알려진 약점을 쓰는 것이 아니라 약점을 발견하는 능력이다.
+    required_by: [MP-VENTURE-INTO-WILD, MP-VENTURE-INTO-DEEP]
+    constraints: []
+    constraint_evaluation: {}
+    overlay: MISSING
+    # BW §22 (WILD) 와 §24 (DEEP) 가 같은 이름을 두 번 예고한다 — 노드는 하나다.
+
+  - id: MC-PRECISE-TARGETING
+    type: capability
+    semantic: >
+      몸 전체가 아니라 노린 지점에 정확히 닿게 공격한다.
+    required_by: [MP-VENTURE-INTO-WILD]
+    constraints: []
+    constraint_evaluation: {}
+    overlay: MISSING
+
+  - id: MC-CONTROL-SPACE
+    type: capability
+    semantic: >
+      상대가 쓸 수 있는 공간을 좁히거나 내가 쓸 공간을 확보한다 —
+      특수 이동을 가진 상대에게 위치의 자유를 주지 않는다.
+    required_by: [MP-VENTURE-INTO-WILD, MP-CONTROL-MOVEMENT]
+    constraints: []
+    constraint_evaluation: {}
+    overlay: MISSING
+
+  # ── DANGER (BW §23) — Hazard + Creature + Terrain 이 분리되지 않는다 ──
+
+  - id: MC-READ-ENVIRONMENT
+    type: capability
+    semantic: >
+      환경 자체를 읽는다 — 무엇이 위험 요소이고 언제 발동하는지를 생물과
+      독립적으로 볼 수 없는 지역에서 파악한다.
+    required_by: [MP-VENTURE-INTO-DANGER, MP-WEAPONIZE-ENVIRONMENT]
+    constraints: []
+    constraint_evaluation: {}
+    overlay: MISSING
+
+  - id: MC-FORCE-MOVEMENT
+    type: capability
+    semantic: >
+      상대를 원하는 위치로 움직이게 강제한다.
+    required_by: [MP-VENTURE-INTO-DANGER, MP-CONTROL-MOVEMENT]
+    constraints: []
+    constraint_evaluation: {}
+    overlay: MISSING
+
+  - id: MC-USE-HAZARD
+    type: capability
+    semantic: >
+      환경의 위험 요소를 자신의 수단으로 쓴다 — 위험이 나에게만 위험한 것이 아니게 된다.
+    required_by: [MP-VENTURE-INTO-DANGER, MP-WEAPONIZE-ENVIRONMENT]
+    constraints: []
+    constraint_evaluation: {}
+    overlay: MISSING
+
+  - id: MC-INTERRUPT
+    type: capability
+    semantic: >
+      상대가 진행 중인 행동을 끊는다.
+    required_by: [MP-VENTURE-INTO-DANGER, MP-INTERRUPT]
+    constraints: []
+    constraint_evaluation: {}
+    overlay: MISSING
+
+  # ── DEEP (BW §24) — 인간의 전투 상식이 무너진다 ───────────────────────
+
+  - id: MC-DISRUPT-ABILITY
+    type: capability
+    semantic: >
+      상대의 능력(재생·공생·적응) 자체가 작동하지 못하게 방해한다 —
+      피해를 넣는 것이 아니라 능력의 성립을 끊는다.
+    required_by: [MP-VENTURE-INTO-DEEP]
+    constraints: []
+    constraint_evaluation: {}
+    overlay: MISSING
+
+  - id: MC-MAINTAIN-PRESSURE
+    type: capability
+    semantic: >
+      한 번의 성공이 아니라 압박을 끊기지 않게 유지한다 — 극단적인 재생·적응은
+      틈을 주면 되돌아온다.
+    required_by: [MP-VENTURE-INTO-DEEP]
+    constraints: []
+    constraint_evaluation: {}
+    overlay: MISSING
+
+  - id: MC-TARGET-SPECIFIC-PART
+    type: capability
+    semantic: >
+      몸 전체가 아니라 특정 기관·부위를 대상으로 삼아 공격·작용한다.
+    required_by: [MP-VENTURE-INTO-DEEP]
+    constraints: []
+    constraint_evaluation: {}
+    overlay: MISSING
+
+  - id: MC-READ-CREATURE-SYSTEM
+    type: capability
+    semantic: >
+      생명체를 개체가 아니라 체계(신체 구조·공생 Network·생체 영역)로 읽는다 —
+      무엇이 무엇을 지탱하는지를 이해해야 대응이 성립한다.
+    required_by: [MP-VENTURE-INTO-DEEP]
+    constraints: []
+    constraint_evaluation: {}
+    overlay: MISSING
+
+  # ── UNKNOWN (BW §25) — 추상 영역(기억·감각·인식·Identity·공간)까지 변한다 ──
+
+  - id: MC-PROTECT-PERCEPTION
+    type: capability
+    semantic: >
+      자신의 감각·지각이 오염되거나 빼앗기지 않게 지킨다.
+    required_by: [MP-VENTURE-INTO-UNKNOWN]
+    constraints: []
+    constraint_evaluation: {}
+    overlay: MISSING
+
+  - id: MC-VERIFY-REALITY
+    type: capability
+    semantic: >
+      지금 지각하는 것이 실재인지 검증한다.
+    required_by: [MP-VENTURE-INTO-UNKNOWN]
+    constraints: []
+    constraint_evaluation: {}
+    overlay: MISSING
+
+  - id: MC-IDENTITY-ANCHOR
+    type: capability
+    semantic: >
+      자기 자신이 누구인지를 세계의 간섭으로부터 붙들어 둔다.
+    required_by: [MP-VENTURE-INTO-UNKNOWN]
+    constraints: []
+    constraint_evaluation: {}
+    overlay: MISSING
+
+  - id: MC-RESIST-INFLUENCE
+    type: capability
+    semantic: >
+      정신·행동에 대한 외부 간섭에 저항한다.
+    required_by: [MP-VENTURE-INTO-UNKNOWN]
+    constraints: []
+    constraint_evaluation: {}
+    overlay: MISSING
+
+  - id: MC-BREAK-BIOLOGICAL-LINK
+    type: capability
+    semantic: >
+      생명체 사이에 맺어진 생체 연결(공생·기생·Network)을 끊는다.
+    required_by: [MP-VENTURE-INTO-UNKNOWN]
+    constraints: []
+    constraint_evaluation: {}
+    overlay: MISSING
+
+  - id: MC-ESCAPE-ALTERED-SPACE
+    type: capability
+    semantic: >
+      변형된 공간(둥지가 된 공간·닫힌 영역)에서 빠져나온다.
+    required_by: [MP-VENTURE-INTO-UNKNOWN]
+    constraints: []
+    constraint_evaluation: {}
+    overlay: MISSING
+
+  # ── 자원 유래 Capability — 대표 자원 2종 (BW §8~§10 · §17) ─────────────
+  # BW §33 의 Trace 가 문서에 있다 — MW-HYPER-PREDATION · MW-SPATIAL-SHEAR 참조.
+  # required_by 가 비어 있는 이유는 사다리와 같다 — 필요성 배선(어떤 Goal 의 어떤
+  # Possibility 가 요구하는가)은 OPTIONS/NEED 몫이고, BW §17 은 Capability Gate
+  # (자원 → Capability → 다음 지역) 패턴만 예고한다.
+
+  - id: MC-RESTORE-BIOLOGICAL-STATE
+    type: capability
+    semantic: >
+      생명체를 단순 치료하는 것이 아니라 최근의 안정적인 생체 상태에 가깝게 복원한다 —
+      치명상·장기 손상·절단 등 기존 의료의 한계를 넘어서는 회복이다. (BW §8 원문)
+    required_by: []
+    constraints: [DC-WORLD-RESOURCE-ADAPTATION-TRACE]
+    constraint_evaluation:
+      DC-WORLD-RESOURCE-ADAPTATION-TRACE: SATISFIED    # Trace 를 문서가 공급한다 — MW-HYPER-PREDATION → 생존 압력 → 상태 보존 적응 → 회귀초 (BW §8~§9)
+    overlay: MISSING
+
+  - id: MC-CUT-ABNORMAL-STRUCTURE
+    type: capability
+    semantic: >
+      다른 물질의 구조적 연결을 절단하거나 비정상적인 방어 구조에도 영향을 준다 —
+      단순한 공격력 상승이 아니라 기존에는 파괴할 수 없던 생물·구조에의 대응이다. (BW §10 · §17)
+    required_by: []
+    constraints: [DC-WORLD-RESOURCE-ADAPTATION-TRACE]
+    constraint_evaluation:
+      DC-WORLD-RESOURCE-ADAPTATION-TRACE: SATISFIED    # Trace: MW-SPATIAL-SHEAR → 물질 소멸 → IP-BOUNDARY-STABLE → IT-BOUNDARY-BLADE (BW §10)
+    overlay: MISSING
+
+# 전투 영역 주입 근거 (2026-08-18 Q12 결정 상태 유지)
 #   R1  design/Design-Combat-OffenseDefense-R0.md
 #       §1~§5 · §10 신규 INTENT · §13 하지 않을 것 · §14 확장 순서 · §15 층 그림 · 핵심 원칙
 #   DT  design/Design-Combat-DamageType-R0.md
@@ -258,3 +531,11 @@ nodes:
 # (Master-Intent-Graph-Policy §7.2 · §16). 원본은 위 design/ 문서에 남아 있다.
 #
 # overlay 필드 갱신 근거: C010·C011 롤백 (2026-08-17 Human 결정 — ../overlay.md 참조).
+#
+# 탐험 영역 주입 근거 (2026-08-19 Human 지시)
+#   BW  design/Master-World-Beira.md  §8 · §10 회귀초·경계결정 · §17 Capability Gate ·
+#       §20~§25 깊이별 사다리
+#   비주입 — BW §17~§18 의 독성 예시(MC-DETOXIFY · MA-TOXIN-SCHOLAR ·
+#   IT-PURIFICATION-ORGAN · CL-???)는 Capability Gate 와 Growth Overlay 의 작동
+#   방식을 설명하는 삽화다. HISTORY Q14 선례(GR 심연 예시 — 삽화는 옮기지 않는다)를
+#   따라 노드로 세우지 않았다. 씨앗으로 쓰려면 WHY/OPTIONS 탐색이 세계 인과부터 세운다.

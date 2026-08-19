@@ -1,0 +1,36 @@
+# 원본 근거: design/Master-World-Beira.md (BW)
+#   §32 게임 Progression ("Level 1 → 20 → 100 이 아니다" — UNKNOWN → 관찰 → 이해 →
+#   대응 발견 → Capability → Resource → 새 Growth Route → 이전에 갈 수 없던 곳 →
+#   더 이상한 WorldState → UNKNOWN) · §1 (이해하고 대응할 수 있는 세계의 범위 확장) ·
+#   §17 (탐험에서 얻은 자원이 다음 탐험의 가능성을 연다 — Capability Gate) ·
+#   §35 Growth 정의
+# 2026-08-19 Human 지시(BW 주입)로 신설 · 같은 날 Q17(a) 일괄 APPROVED.
+id: DC-WORLD-PROGRESSION-IS-REACH
+type: constraint
+
+statement: >
+  Progression 의 핵심은 수치 Level 의 상승이 아니라, 관찰과 이해로 대응 방법을
+  발견하고 Capability 와 Resource 를 얻어 이전에는 갈 수 없던 세계 범위에
+  도달하게 되는 확장이다.
+rationale: >
+  Player 의 Root 가 "이해하고 대응할 수 있는 세계의 범위 확장" 이므로 (BW §1),
+  진행의 단위도 그 범위여야 한다. 탐험에서 얻은 자원이 새 Capability 획득
+  Route 가 되고 그것이 다음 지역을 여는 순환이 Progression 의 축이다 (BW §17 · §32).
+
+scope:
+  - WORLD
+
+requires:
+  - progression_expands_reachable_world    # 진행의 결과가 대응 가능한 세계 범위의 확장으로 나타난다 (BW §32)
+  - resource_can_open_capability_route     # 자원이 판매용 Loot 만이 아니라 Capability 획득 Route 가 될 수 있다 (BW §17)
+prohibits:
+  - numeric_level_as_core_progression      # 수치 Level 축적 자체를 핵심 Progression 으로 (BW §32)
+prefers: []
+
+status: APPROVED
+provenance:
+  - HUMAN_DESIGN          # 2026-08-19 BW 주입 · Q17(a) 승인 — 모두 Human 지시
+
+relations:
+  supports: []
+  conflicts_with: []

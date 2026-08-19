@@ -12,6 +12,7 @@ version: 1
 edges: []
 
 # ACHIEVES / REQUIRES / SUPPORTS / OPPOSES / REVEALS 는 Possibility 노드 안에 있다.
-# CAUSES / MOTIVATES / KNOWS / BELIEVES 는 아직 없다 — World Cause(MW-*)가 비어 있기 때문이다.
+# CAUSES 는 world-state.yaml 노드의 causes 필드에 있다 (BW 주입 2026-08-19 —
+# MW-SAFE-FRONTIER → MG-EXPLORE-BEIRA). MOTIVATES 는 goals.yaml 의 motivation 필드에 있다.
 # CONSTRAINS 는 각 노드의 constraints 필드에, SUPPORTS_CONSTRAINT 는 DC 파일의 relations 에
 # 있다 (2026-08-15 DC 5종 반영) — 같은 관계를 여기에 중복 기록하지 않는다.

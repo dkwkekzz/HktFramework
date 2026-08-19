@@ -5,21 +5,63 @@
 # 형식: ../SCHEMA.md
 version: 1
 nodes:
+
+  # ── 탐험 영역 (BW = design/Master-World-Beira.md — 2026-08-19 주입) ────
+
+  - id: MG-EXPLORE-BEIRA
+    type: goal
+    owner: MA-PLAYER
+    desired_state: >
+      자신이 이해하고 대응할 수 있는 세계의 범위가 지금보다 넓다 —
+      이전에는 갈 수 없던 베이라의 영역에 닿는다. (BW §1 · §32)
+    motivation: []
+    # 이유를 하나로 고정하지 않는다 (BW §15 · DC-WORLD-PLAYER-UNFIXED-PATH) —
+    # 병 치료·부·강함·무기·발견·호기심이 Actor 마다 다른 motivation 으로 병렬한다 (BW §31).
+    # 구체 motivation Goal 은 WHY 확장이 Actor 별로 세운다.
+    belief_context: []
+    stakes:
+      - 나가지 않으면 문명권의 한계 안에 머문다 — 그 안에서 얻을 수 없는 것에 닿지 못한다 (BW §7)
+    caused_by: [MW-SAFE-FRONTIER]   # 문명권의 낮은 세계압 = 좁은 가능성의 폭 (BW §4 · §7)
+    constraints: [DC-WORLD-PLAYER-UNFIXED-PATH, DC-WORLD-PROGRESSION-IS-REACH]
+    constraint_evaluation:
+      DC-WORLD-PLAYER-UNFIXED-PATH: SATISFIED    # motivation 을 고정하지 않았고 Local Goal 은 발견에서 생긴다
+      DC-WORLD-PROGRESSION-IS-REACH: SATISFIED   # desired_state 자체가 "범위의 확장"이다 (BW §1 · §32)
+
+  - id: MG-ACQUIRE-RARE-ORGAN
+    type: goal
+    owner: MA-PLAYER
+    desired_state: >
+      특정 Creature 의 희귀 기관을 손에 넣는다. (BW §27)
+    motivation: [MG-EXPLORE-BEIRA]   # 탐험 중 발견한 세계 상태가 이 Local Goal 을 만든다 (BW §16)
+    belief_context: []
+    stakes:
+      - 없음 — 무엇이 걸려 있는지는 이 기관이 왜 필요한지가 정해질 때 나온다 (BW 는 패턴만 공급)
+    caused_by: [MW-ZONE-WILD]
+    # WILD 층에서 인간에게 가치 있는 특수 생물 소재가 본격적으로 등장한다 (BW §22 · §27) —
+    # Q2(a) WHY 확장으로 배선 (2026-08-19)
+    constraints: [DC-WORLD-COMBAT-IS-ONE-POSSIBILITY]
+    constraint_evaluation:
+      DC-WORLD-COMBAT-IS-ONE-POSSIBILITY: SATISFIED   # caused_by 가 세계 상태이고 대안 5종 중 전투는 하나다 (BW §27)
+
+  # ── 전투 영역 (R1 · DT — 2026-08-18 Q12 정비 상태 유지) ────────────────
+
   - id: MG-OVERCOME-SUPERIOR-OPPONENT
     type: goal
     owner: MA-PLAYER
     desired_state: >
       정면으로 자원을 맞바꾸는 것만으로는 넘을 수 없는 상대가 더 이상 앞을 막지 못한다.
-    motivation: []
-    # 왜 이 상대를 넘어야 하는가 — 원본 문서가 공급하지 않는다.
-    # 전투 규칙 문서이므로 이 Goal 이 세계의 어떤 사정에서 생기는지는 비어 있다.
-    # Root Game Goal / World Premise 가 정해지면 그때 채운다.
+    motivation:
+      - MG-EXPLORE-BEIRA   # 넘어서는 이유 — 그 상대 너머의 세계에 닿기 위해서다 (BW §16 · §26 조우 → Goal)
     belief_context: []
     stakes:
-      - 넘지 못하면 그 상대가 막고 있는 것에 닿지 못한다   # 무엇을 막고 있는지는 미정
-    caused_by: []
-    # 어떤 World State 가 이 대치를 만들었는가 — 미정 (MW-* 없음)
-    constraints: []
+      - 넘지 못하면 FRINGE 너머의 더 깊은 베이라에 닿지 못한다
+    caused_by: [MW-ZONE-FRINGE]
+    # FRINGE 의 강한 토착 포식자가 탐험 경로를 막는다 (BW §21 · §27 "Creature 가 길을 막는다")
+    # — Q2(a) WHY 확장으로 배선 (2026-08-19). 현재 세계의 MA-HOSTILE-COMBATANT 가 그 포식자다.
+    constraints: [DC-WORLD-COMBAT-IS-ONE-POSSIBILITY]
+    constraint_evaluation:
+      DC-WORLD-COMBAT-IS-ONE-POSSIBILITY: SATISFIED   # 처치 자체가 아니라 "길을 막지 못하게" 가 Desired State 이고 원인이 세계 상태다
+    # BW §26 의 MG-OVERCOME-CREATURE 는 이 노드다 — Q18(a) 매핑 승인 (2026-08-19)
 
   - id: MG-SURVIVE-ENEMY-OFFENSIVE
     type: goal
@@ -32,12 +74,36 @@ nodes:
     stakes:
       - 버티지 못하면 쓰러진다
       - 버티기만 하면 자원이 말라 결국 무너진다      # 기력 루프가 전투의 바닥이다 (R1 §11 · §16-3)
-    caused_by: []
+    caused_by: [MW-ZONE-FRINGE]
+    # 포식자는 침입자를 사냥한다 (BW §21 · §27 "Creature 가 Player 를 사냥한다") — Q2(a) 배선
     constraints: []
 
-# 주입 근거 — 이 둘이 전부다 (2026-08-18 Q12 결정)
-#   R1  design/Design-Combat-OffenseDefense-R0.md  §0 · §12 성장 · §16 성공 조건
-#   DT  design/Design-Combat-DamageType-R0.md      §0 (상대에 따라 준비를 다시 고른다)
+  # ── Creature 의 Goal (Q2(a) WHY 확장 — 2026-08-19) ─────────────────────
+
+  - id: MG-HOLD-HUNTING-GROUND
+    type: goal
+    owner: MA-HOSTILE-COMBATANT
+    desired_state: >
+      자기 사냥터에 들어온 침입자가 사냥감이 되거나 물러난다.
+    motivation: []
+    # 생존이다 — FRINGE 의 생존 경쟁이 만든 적응의 결과이며 그 위 상위 Goal 이 없다
+    # (BW §26 — Creature 의 행동은 생존 압력 적응에서 파생)
+    belief_context: []
+    stakes:
+      - 사냥터를 지키지 못하면 먹이와 영역을 잃는다
+    caused_by: [MW-ZONE-FRINGE]
+    constraints: [DC-WORLD-CREATURE-FROM-PRESSURE]
+    constraint_evaluation:
+      DC-WORLD-CREATURE-FROM-PRESSURE: SATISFIED   # 이 Goal 이 곧 "적응의 결과로서의 Creature" 다 — Creature 먼저가 아니라 층의 생존 경쟁이 먼저다
+
+# 주입 근거 — 영역별로 분리된다 (근거는 영역을 넘지 않는다 — HISTORY Q15)
+#   전투: R1  design/Design-Combat-OffenseDefense-R0.md  §0 · §12 성장 · §16 성공 조건
+#         DT  design/Design-Combat-DamageType-R0.md      §0 (상대에 따라 준비를 다시 고른다)
+#   탐험: BW  design/Master-World-Beira.md               §1 · §7 · §15 · §16 · §27 · §31 · §32
+#
+# 전투 Goal 의 World Cause 배선은 Q2(a) WHY 확장으로 닫았다 (2026-08-19) —
+# 현재 세계의 적대 존재를 FRINGE 토착 포식자로 자리매김하고 MW-ZONE-FRINGE 에 이었다.
+# BW §26 MG-OVERCOME-CREATURE ≙ MG-OVERCOME-SUPERIOR-OPPONENT 는 Q18(a) 로 확정.
 # R1 §16 의 성공 조건("더 세다" · "덜 아프다")이 MG-OVERCOME-SUPERIOR-OPPONENT 를
 # 능력치 성장 경로(MP-OUTGROW-THE-OPPONENT)로 지지한다. 구판(R0) 인용은 2026-08-18 제거했다.
 #

@@ -286,7 +286,382 @@ nodes:
       DC-COMBAT-SHARED-BUDGET: SATISFIED       # 자세 유지가 새 게이지가 아니라 같은 기력 예산을 흘린다 (R1 §1 · §11)
     # R1 §14 Aura/Nen 층이 예고한다 — 방어 집중은 Defense 를 올리고 Attack 을 낮추며 CP 를 흘린다.
 
-# 주입 근거 — 이 둘이 전부다 (2026-08-18 Q12 결정)
+  - id: MP-BET-ON-THE-CRITICAL-BLOW
+    type: possibility
+    achieves: [MG-OVERCOME-SUPERIOR-OPPONENT]
+    meaningful_difference: >
+      다른 모든 경로가 확실한 결과를 쌓는 데 비해, 이것은 확률적으로 터지는 큰 증폭에
+      기대를 건다. 준비(Critical 확률·증폭을 키우는 성장·장비)로 기대값을 올리되
+      개별 결과는 확률이 정한다 — 전투 전체에서 유일하게 분산(variance)이 축인 경로다.
+      (Q11(b) 결정으로 열림 — R1 §14 C011 층)
+    requires:
+      goals: []
+      capabilities: [MC-CRITICAL-STRIKE, MC-COMBAT-STRIKE, MC-ATTACK-POWER]
+      knowledge: []
+      world_state: []
+      relationship: []
+      resource: [Critical 성질을 올릴 성장·장비의 원천]
+    supports: [MP-OUTGROW-THE-OPPONENT]   # 같은 성장 축 위에서 작동한다 (R1 §12)
+    opposes: []
+    changes:
+      - 같은 교환에서 이따금 상한을 넘는 결과가 터진다
+    reveals: []
+    creates_goal: []
+    constraints: [DC-COMBAT-PLAYER-CAUSALITY, DC-COMBAT-ONE-FORMULA]
+    constraint_evaluation:
+      DC-COMBAT-PLAYER-CAUSALITY: SATISFIED    # REVISED 예외 — Critical 만 확률 허용 · 발생 여부와 증폭이 계산 경위에 드러난다 (Q11(b))
+      DC-COMBAT-ONE-FORMULA: SATISFIED         # 새 공식이 아니라 Final Damage 를 증폭하는 결과값 수정이다 (R1 핵심 원칙)
+
+  # ── Q18(a) OPTIONS 산출 — BW §28 분기 중 기존에 없던 3종 (2026-08-19) ──
+  # §28 의 8분기 중 5종은 기존 전투 MP 와 매핑 확정(파일 끝 매핑표), 아래 3종만 신규다.
+  # 요구 Capability 는 베이라 사다리의 기존 노드를 재사용한다 — 복제하지 않는다.
+
+  - id: MP-CONTROL-MOVEMENT
+    type: possibility
+    achieves: [MG-OVERCOME-SUPERIOR-OPPONENT]
+    meaningful_difference: >
+      상대를 이기는 것이 아니라 상대의 위치 선택을 빼앗아 이긴다. 피해 교환 없이
+      상대를 불리한 자리로 강제하는 것이 수단이며, 세기·시점·상성 어느 것도 아닌
+      공간이 승부 축이다. (BW §28)
+    requires:
+      goals: []
+      capabilities: [MC-FORCE-MOVEMENT, MC-CONTROL-SPACE, MC-REPOSITION]
+      knowledge: []
+      world_state: []
+      relationship: []
+      resource: []
+    supports: [MP-WEAPONIZE-ENVIRONMENT]   # 몰아넣을 곳이 위험 요소면 두 경로가 결합한다
+    opposes: []
+    changes:
+      - 상대가 원하지 않는 자리에서 싸우게 된다
+    reveals: []
+    creates_goal: []
+    constraints: [DC-COMBAT-PLAYER-CAUSALITY]
+    constraint_evaluation:
+      DC-COMBAT-PLAYER-CAUSALITY: SATISFIED    # 강제 이동은 명시 조건의 결과다 — 난수가 아니다
+
+  - id: MP-INTERRUPT
+    type: possibility
+    achieves: [MG-OVERCOME-SUPERIOR-OPPONENT]
+    meaningful_difference: >
+      상대의 행동이 완성되기 전에 끊는다. 완성된 공격을 받아내는 모든 경로와 달리
+      결과 자체를 존재하지 않게 만들며, 요구되는 것은 상대 행동의 시작을 읽는
+      시점 판단이다. (BW §28)
+    requires:
+      goals: []
+      capabilities: [MC-INTERRUPT]
+      knowledge: [MK-OPPONENT-FLOW-PATTERN]
+      world_state: []
+      relationship: []
+      resource: []
+    supports: [MG-SURVIVE-ENEMY-OFFENSIVE]   # 끊긴 공세는 받아낼 필요가 없다
+    opposes: []
+    changes:
+      - 상대의 행동이 완성되지 못한다
+    reveals: []
+    creates_goal: []
+    constraints: [DC-COMBAT-PLAYER-CAUSALITY]
+    constraint_evaluation:
+      DC-COMBAT-PLAYER-CAUSALITY: SATISFIED    # 시점 관계로 판정된다 — 난수가 아니다
+
+  - id: MP-WEAPONIZE-ENVIRONMENT
+    type: possibility
+    achieves: [MG-OVERCOME-SUPERIOR-OPPONENT]
+    meaningful_difference: >
+      내 힘이 아니라 환경의 위험을 무기로 쓴다. 내 능력치와 무관하게 환경이 낼 수
+      있는 결과를 빌리므로, 나보다 강한 상대에게도 성립하는 유일한 전투 경로다 —
+      대신 그 환경이 있는 곳에서만 가능하다. (BW §28)
+    requires:
+      goals: []
+      capabilities: [MC-READ-ENVIRONMENT, MC-USE-HAZARD]
+      knowledge: []
+      world_state: [MW-ZONE-DANGER]
+      # Hazard 가 생물·지형과 결합해 존재하는 층이 있어야 성립한다 (BW §23)
+      relationship: []
+      resource: []
+    supports: []
+    opposes: []
+    changes:
+      - 환경의 위험이 상대에게 작용한다
+    reveals: []
+    creates_goal: []
+    constraints: [DC-COMBAT-PLAYER-CAUSALITY]
+    constraint_evaluation:
+      DC-COMBAT-PLAYER-CAUSALITY: SATISFIED    # 환경 위험의 발동 조건은 세계의 관찰 가능한 규칙이다
+
+  # ── MG-EXPLORE-BEIRA 를 진전시키는 방법들 — 깊이별 진입 (BW §16 · §19~§25) ──
+  # 노드 ID 는 Agent 명명이다(문서는 층 이름만 준다). 그러나 의미는 전부 문서 것이다 —
+  # §16 탐험 Loop(EXPLORE → 발견 → Local Goal → Capability → 더 깊은 지역)와
+  # §21~§25 의 "필요:"(층마다 요구 Capability 명시)를 배선으로 옮겼다.
+  # 같은 Goal 의 OR 이면서 사다리다 — 깊은 층일수록 요구가 무겁다 (MW-DEPTH-GRADIENT).
+  # SAFE 층(§20)은 출발지라 진입 MP 가 없다 — MW-SAFE-FRONTIER 가 그 자리다.
+
+  - id: MP-VENTURE-INTO-FRINGE
+    type: possibility
+    achieves: [MG-EXPLORE-BEIRA]
+    meaningful_difference: >
+      가장 얕은 진입이다 — 위험은 강한 토착 포식자뿐이고, 요구되는 것은 힘이 아니라
+      관찰·예측·지형 활용이라는 정보 능력이다. 다른 층 진입과 달리 문명권의 기본
+      전투 능력만으로도 생존 여지가 있다. (BW §21)
+    requires:
+      goals: []
+      capabilities: [MC-OBSERVE, MC-PREDICT, MC-USE-TERRAIN]
+      knowledge: []
+      world_state: [MW-ZONE-FRINGE]
+      relationship: []
+      resource: []
+    supports: []
+    opposes: []
+    changes:
+      - 이해·대응 가능한 세계의 범위가 FRINGE 까지 넓어진다 (BW §32)
+    reveals: []
+    creates_goal: []
+    # 발견이 만드는 구체 Local Goal / Knowledge 는 BW 가 명명하지 않았다 — WHY 몫 (§16)
+    constraints: [DC-WORLD-PROGRESSION-IS-REACH]
+    constraint_evaluation:
+      DC-WORLD-PROGRESSION-IS-REACH: SATISFIED    # 진입 조건이 Level 이 아니라 Capability 다 (BW §32)
+
+  - id: MP-VENTURE-INTO-WILD
+    type: possibility
+    achieves: [MG-EXPLORE-BEIRA]
+    meaningful_difference: >
+      정보만으로는 부족해지는 첫 층이다 — 특수 갑각·독·비정상 감각에 대해 방어를
+      깨고 약점을 찾고 부위를 노리고 공간을 통제하는 개입 능력이 필요하다.
+      처음으로 가치 있는 특수 소재가 보상으로 걸린다. (BW §22)
+    requires:
+      goals: []
+      capabilities: [MC-BREAK, MC-DISCOVER-WEAKNESS, MC-PRECISE-TARGETING, MC-CONTROL-SPACE]
+      # MC-BREAK 는 기존 전투 노드 재사용이다 — semantic 폭(Guard ↔ 갑각) 확정은 Q18
+      knowledge: []
+      world_state: [MW-ZONE-WILD]
+      relationship: []
+      resource: []
+    supports: []
+    opposes: []
+    changes:
+      - 이해·대응 가능한 세계의 범위가 WILD 까지 넓어진다
+      - 특수 생물 소재에 닿는다 (BW §22)
+    reveals: []
+    creates_goal: []
+    constraints: [DC-WORLD-PROGRESSION-IS-REACH]
+    constraint_evaluation:
+      DC-WORLD-PROGRESSION-IS-REACH: SATISFIED    # 진입 조건이 Level 이 아니라 Capability 다 (BW §32)
+
+  - id: MP-VENTURE-INTO-DANGER
+    type: possibility
+    achieves: [MG-EXPLORE-BEIRA]
+    meaningful_difference: >
+      상대가 생물만이 아니게 되는 층이다 — Hazard·Creature·Terrain 이 결합해,
+      환경을 읽고 위험 요소를 내 수단으로 쓰고 상대를 그리로 몰아넣는 능력이
+      필요하다. 환경 Property 를 가진 Resource 가 걸린다. (BW §23)
+    requires:
+      goals: []
+      capabilities: [MC-READ-ENVIRONMENT, MC-FORCE-MOVEMENT, MC-USE-HAZARD, MC-INTERRUPT]
+      knowledge: []
+      world_state: [MW-ZONE-DANGER]
+      relationship: []
+      resource: []
+    supports: []
+    opposes: []
+    changes:
+      - 이해·대응 가능한 세계의 범위가 DANGER 까지 넓어진다
+      - 환경 Property 를 가진 Resource 에 닿는다 (BW §23)
+    reveals: []
+    creates_goal: []
+    constraints: [DC-WORLD-PROGRESSION-IS-REACH]
+    constraint_evaluation:
+      DC-WORLD-PROGRESSION-IS-REACH: SATISFIED    # 진입 조건이 Level 이 아니라 Capability 다 (BW §32)
+
+  - id: MP-VENTURE-INTO-DEEP
+    type: possibility
+    achieves: [MG-EXPLORE-BEIRA]
+    meaningful_difference: >
+      인간의 전투 상식이 통하지 않는 층이다 — 재생·공생 Network·생체 영역을 체계로
+      읽고, 능력의 성립 자체를 끊고, 압박을 유지하고, 특정 부위를 노려야 한다.
+      특히 강력한 Resource 가 걸린다. (BW §24)
+    requires:
+      goals: []
+      capabilities: [MC-DISCOVER-WEAKNESS, MC-DISRUPT-ABILITY, MC-MAINTAIN-PRESSURE, MC-TARGET-SPECIFIC-PART, MC-READ-CREATURE-SYSTEM]
+      knowledge: []
+      world_state: [MW-ZONE-DEEP]
+      relationship: []
+      resource: []
+    supports: []
+    opposes: []
+    changes:
+      - 이해·대응 가능한 세계의 범위가 DEEP 까지 넓어진다
+      - 특히 강력한 Resource 에 닿는다 (BW §24)
+    reveals: []
+    creates_goal: []
+    constraints: [DC-WORLD-PROGRESSION-IS-REACH]
+    constraint_evaluation:
+      DC-WORLD-PROGRESSION-IS-REACH: SATISFIED    # 진입 조건이 Level 이 아니라 Capability 다 (BW §32)
+
+  - id: MP-VENTURE-INTO-UNKNOWN
+    type: possibility
+    achieves: [MG-EXPLORE-BEIRA]
+    meaningful_difference: >
+      위협이 몸을 넘는 층이다 — 기억·감각·인식·Identity·공간 자체가 공격면이 되어,
+      지각을 지키고 실재를 검증하고 자기를 붙들어 두는, 다른 층에는 없는 종류의
+      능력이 필요하다. 상상을 초월하는 Resource 가 걸린다. (BW §25)
+    requires:
+      goals: []
+      capabilities: [MC-PROTECT-PERCEPTION, MC-VERIFY-REALITY, MC-IDENTITY-ANCHOR, MC-RESIST-INFLUENCE, MC-BREAK-BIOLOGICAL-LINK, MC-ESCAPE-ALTERED-SPACE]
+      knowledge: []
+      world_state: [MW-ZONE-UNKNOWN]
+      relationship: []
+      resource: []
+    supports: []
+    opposes: []
+    changes:
+      - 이해·대응 가능한 세계의 범위가 UNKNOWN 까지 넓어진다
+      - 상상을 초월하는 Resource 에 닿는다 (BW §25)
+    reveals: []
+    creates_goal: []
+    constraints: [DC-WORLD-PROGRESSION-IS-REACH]
+    constraint_evaluation:
+      DC-WORLD-PROGRESSION-IS-REACH: SATISFIED    # 진입 조건이 Level 이 아니라 Capability 다 (BW §32)
+
+  # ── MG-ACQUIRE-RARE-ORGAN 를 달성하는 방법들 (OR) ──────────────────────
+  # BW §27 (design/Master-World-Beira.md — 2026-08-19 주입) 이 다섯을 직접 명명했다.
+  # 전투는 그중 하나다 — DC-WORLD-COMBAT-IS-ONE-POSSIBILITY (DRAFT) 의 원형 사례.
+  # 다섯 모두 requires 배선이 비어 있다 — BW 는 대안 구조만 공급하고 각 경로의
+  # 요구 Capability 를 명명하지 않는다. 배선은 OPTIONS/NEED 탐색 몫이다.
+
+  - id: MP-KILL-CREATURE
+    type: possibility
+    achieves: [MG-ACQUIRE-RARE-ORGAN]
+    meaningful_difference: >
+      Creature 를 죽여 기관을 얻는다. 다섯 대안 중 유일하게 전투를 요구하고,
+      기다림·관계·탐색 대신 위험을 비용으로 치른다. (BW §27)
+    requires:
+      goals: [MG-OVERCOME-SUPERIOR-OPPONENT]
+      # Q18(a) 확정 (2026-08-19): BW §28 의 MP-DEFEAT-BY-COMBAT + 8분기는 별도 노드가
+      # 아니라 이 Goal 아래의 기존 전투 Possibility 서브트리다 — 죽이려면 그 상대를
+      # 전투로 넘어서야 하고, 어떻게 넘어서는가는 그 서브트리(OR)가 소유한다.
+      capabilities: []
+      knowledge: []
+      world_state: []
+      relationship: []
+      resource: []
+    supports: []
+    opposes: []
+    changes:
+      - 그 Creature 가 세계에서 사라진다
+    reveals: []
+    creates_goal: []
+    constraints: [DC-WORLD-COMBAT-IS-ONE-POSSIBILITY]
+    constraint_evaluation:
+      DC-WORLD-COMBAT-IS-ONE-POSSIBILITY: SATISFIED    # Goal 의 원인이 세계 상태(MW-ZONE-WILD)이고 대안 4종이 병렬로 서 있다 (BW §27)
+
+  - id: MP-TAKE-SHED-ORGAN
+    type: possibility
+    achieves: [MG-ACQUIRE-RARE-ORGAN]
+    meaningful_difference: >
+      Creature 가 탈락시킨 기관을 줍는다. 죽이지 않으므로 전투 위험이 없지만
+      탈락이 일어나는 때와 곳을 알아야 한다 — 관찰과 대기가 비용이다. (BW §27)
+    requires:
+      goals: []
+      capabilities: []
+      knowledge: []
+      world_state: []
+      relationship: []
+      resource: []
+    supports: []
+    opposes: []
+    changes: []
+    reveals: []
+    creates_goal: []
+    constraints: [DC-WORLD-COMBAT-IS-ONE-POSSIBILITY]
+    constraint_evaluation:
+      DC-WORLD-COMBAT-IS-ONE-POSSIBILITY: SATISFIED    # 전투 없는 대안으로서 병렬 성립 (BW §27)
+
+  - id: MP-TRADE-WITH-ACTOR
+    type: possibility
+    achieves: [MG-ACQUIRE-RARE-ORGAN]
+    meaningful_difference: >
+      그 기관을 가진 다른 Actor 와 거래한다. 유일하게 전투도 현장 탐색도 요구하지
+      않고 관계와 대가를 비용으로 치른다. (BW §27)
+    requires:
+      goals: []
+      capabilities: []
+      knowledge: []
+      world_state: []
+      relationship: [기관을 가진 Actor 와의 거래 관계]
+      resource: [거래 대가]
+    supports: []
+    opposes: []
+    changes: []
+    reveals: []
+    creates_goal: []
+    constraints: [DC-WORLD-COMBAT-IS-ONE-POSSIBILITY]
+    constraint_evaluation:
+      DC-WORLD-COMBAT-IS-ONE-POSSIBILITY: SATISFIED    # 전투 없는 대안으로서 병렬 성립 (BW §27)
+
+  - id: MP-FIND-DEAD-SPECIMEN
+    type: possibility
+    achieves: [MG-ACQUIRE-RARE-ORGAN]
+    meaningful_difference: >
+      이미 죽은 개체를 찾아 기관을 얻는다. 죽이는 위험도 거래 대가도 없지만
+      발견을 보장할 수 없다 — 탐색 자체가 비용이고 운이 아니라 지식이 성패를 가른다. (BW §27)
+    requires:
+      goals: []
+      capabilities: []
+      knowledge: []
+      world_state: []
+      relationship: []
+      resource: []
+    supports: []
+    opposes: []
+    changes: []
+    reveals: []
+    creates_goal: []
+    constraints: [DC-WORLD-COMBAT-IS-ONE-POSSIBILITY]
+    constraint_evaluation:
+      DC-WORLD-COMBAT-IS-ONE-POSSIBILITY: SATISFIED    # 전투 없는 대안으로서 병렬 성립 (BW §27)
+
+  - id: MP-FORCE-CREATURE-TO-RELEASE
+    type: possibility
+    achieves: [MG-ACQUIRE-RARE-ORGAN]
+    meaningful_difference: >
+      죽이지 않고 Creature 가 기관을 내놓게 만든다. 전투 압박·환경·유인 무엇으로든
+      개체를 살려 둔 채 목적만 달성한다 — 죽이기보다 어렵지만 생태를 소모하지 않는다. (BW §27)
+    requires:
+      goals: []
+      capabilities: []
+      knowledge: []
+      world_state: []
+      relationship: []
+      resource: []
+    supports: []
+    opposes: []
+    changes:
+      - Creature 는 살아 있고 기관만 세계에 나온다
+    reveals: []
+    creates_goal: []
+    constraints: [DC-WORLD-COMBAT-IS-ONE-POSSIBILITY]
+    constraint_evaluation:
+      DC-WORLD-COMBAT-IS-ONE-POSSIBILITY: SATISFIED    # 전투 없는 대안으로서 병렬 성립 (BW §27)
+
+# 주입 근거 — 영역별로 분리된다 (근거는 영역을 넘지 않는다 — HISTORY Q15)
+#   탐험: BW  design/Master-World-Beira.md  §27 (MG-ACQUIRE-RARE-ORGAN 의 대안 5종)
+#
+#   BW §28 범용 Combat Graph 매핑 — Q18(a) 확정 (2026-08-19 Human 승인).
+#   MP-DEFEAT-BY-COMBAT 는 별도 노드가 아니라 MG-OVERCOME-SUPERIOR-OPPONENT 아래의
+#   기존 전투 Possibility 서브트리 전체다. 8분기 매핑:
+#     MP-BREAK-DEFENSE     ≙ MP-BREAK-THE-GUARD
+#     MP-READ-AND-PUNISH   ≙ MP-READ-AND-COUNTER
+#     MP-OVERWHELM         ≙ MP-OUTGROW-THE-OPPONENT
+#     MP-EXPLOIT-WEAKNESS  ≙ MP-EXPLOIT-OPEN-BODY / MP-MATCH-WEAPON-TO-ARMOR (분산)
+#     MP-OUTLAST           ≙ MP-HOLD-FORTIFIED
+#     MP-CONTROL-MOVEMENT · MP-INTERRUPT · MP-WEAPONIZE-ENVIRONMENT — 신규 노드 (위 OPTIONS 절)
+#   BW 는 매핑된 전투 노드의 보조 근거로 허용된다 (Q15 영역 규칙의 예외 — Q18(a)).
+#
+#   MG-EXPLORE-BEIRA 의 Possibility 는 MP-VENTURE-INTO-* 5종으로 세웠다 —
+#   §16 탐험 Loop 와 §21~§25 의 층별 "필요:" 를 배선으로 옮긴 것이다 (ID 만 Agent 명명).
+#   층 진입 밖의 탐험 방식(안내인 · 교역로 · 정보 구매 등)은 문서에 없다 — OPTIONS 몫.
+#
+# 전투 영역 주입 근거 (2026-08-18 Q12 결정 상태 유지)
 #   R1  design/Design-Combat-OffenseDefense-R0.md
 #       §0~§5 · §8 · §11 · §12 · §16 → MP-OUTGROW-THE-OPPONENT
 #       §13 하지 않을 것 · §14 확장 순서 · §15 층 그림 → 아직 열리지 않은 경로들

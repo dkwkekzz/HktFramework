@@ -1,0 +1,35 @@
+# 원본 근거: design/Master-World-Beira.md (BW)
+#   §27 전투는 Goal 이 아니다 (BAD: Creature 발견 → MG-KILL-CREATURE ·
+#   GOOD: WorldState 에서 Goal 발생, MG-ACQUIRE-RARE-ORGAN 의 대안 5종 중
+#   전투는 하나) · §28 (전투를 "선택했을 경우" 에만 Combat Graph 가 열린다)
+# 2026-08-19 Human 지시(BW 주입)로 신설 · 같은 날 Q17(a) 일괄 APPROVED.
+id: DC-WORLD-COMBAT-IS-ONE-POSSIBILITY
+type: constraint
+
+statement: >
+  Creature 의 발견·존재만으로 처치 Goal 을 만들지 않는다. Goal 은 WorldState
+  (자원을 지킨다 · 길을 막는다 · 사냥한다 · 기관이 필요하다)에서 발생하며,
+  전투는 그 Goal 을 달성하는 Possibility 중 하나로만 성립한다.
+rationale: >
+  "Creature 발견 → 죽인다" 를 허용하면 세계는 처치 대상 목록이 된다.
+  같은 Goal 에 죽이기·탈락 기관 줍기·거래·사체 발견·강제로 내놓게 하기 같은
+  대안이 병렬로 성립해야 전투가 선택이 된다 (BW §27).
+
+scope:
+  - WORLD
+
+requires:
+  - combat_goal_caused_by_world_state    # 전투로 이어지는 Goal 은 세계 상태를 원인으로 가진다 (BW §27)
+prohibits:
+  - kill_goal_from_creature_existence    # Creature 가 존재한다는 이유만의 처치 Goal (BW §27 BAD)
+prefers:
+  - 같은 Goal 에 전투 밖 대안 Possibility 가 병렬로 존재하는 것   # BW §27 예 — 강제하지는 않는다
+
+status: APPROVED
+provenance:
+  - HUMAN_DESIGN          # 2026-08-19 BW 주입 · Q17(a) 승인 — 모두 Human 지시
+
+relations:
+  supports:
+    - DC-WORLD-CREATURE-FROM-PRESSURE   # 조우 → Goal → Possibility 방향을 Goal 쪽에서 지킨다
+  conflicts_with: []

@@ -8,25 +8,33 @@ nodes:
     type: actor
     kind: PLAYER
     perspective: >
-      자기 몸의 자원과 행동 길이를 알고, 상대의 몸이 무엇을 하려는지 관찰로만 읽는다.
-      숙련될수록 상대의 스킬 이름이 아니라 힘이 어디에 몰려 있는지를 읽는다.
+      안전한 문명권에서 출발하여 베이라를 탐험하고, 발견한 세계 상태에 따라 자신의
+      Goal · 해결 방법 · 성장 경로를 선택한다. 고정된 역할·Class·진영·전투 방식이
+      없다 (BW §1 — fixed_role/class/faction/combat_style: none).
+      전투에서는 자기 몸의 자원과 행동 길이를 알고, 상대의 몸이 무엇을 하려는지
+      관찰로만 읽는다 — 숙련될수록 스킬 이름이 아니라 힘이 어디에 몰려 있는지를
+      읽는다 (R1 유래).
     wants:
+      - MG-EXPLORE-BEIRA
+      - MG-ACQUIRE-RARE-ORGAN
       - MG-OVERCOME-SUPERIOR-OPPONENT
       - MG-SURVIVE-ENEMY-OFFENSIVE
     knows: []
     believes: []
+    # CHANGED 2026-08-19 — BW §1 주입으로 탐험 Actor 정의가 원본이 되었다.
+    # 기존 전투 관점 문장(R1 유래)은 유지한다 — 두 영역의 근거가 병존한다.
 
   - id: MA-HOSTILE-COMBATANT
     type: actor
     kind: CREATURE
     perspective: >
-      플레이어와 같은 전투 규칙 아래 있다 — 공격에 힘을 몰면 똑같이 몸이 열리고,
-      공격권을 뺏기면 똑같이 무너진다. 예외를 갖지 않는다.
-    wants: []
-    # 비어 있는 이유: 이 Actor 가 무엇을 원하는지 원본 문서가 공급하지 않는다.
-    # MA-PLAYER 의 Goal 을 여기에 복사하지 않는다 — Goal 의 owner 는 하나이고,
-    # "상대도 같은 것을 원한다" 는 규칙의 대칭일 뿐 이 존재의 동기가 아니다.
-    # 적대의 이유(왜 앞을 막는가)는 World Cause 가 정해져야 나온다 → open-questions.md Q2
+      FRINGE 의 강한 토착 포식자다 — 자기 사냥터에 들어온 것은 사냥감이다
+      (BW §21 · Q2(a) WHY 확장으로 자리매김). 플레이어와 같은 전투 규칙 아래 있다 —
+      공격에 힘을 몰면 똑같이 몸이 열리고, 공격권을 뺏기면 똑같이 무너진다.
+      예외를 갖지 않는다.
+    wants:
+      - MG-HOLD-HUNTING-GROUND   # 생존 — 사냥터를 지킨다 (BW §26 적응 파생)
     knows: []
     believes: []
+    # Belief 는 도입하지 않는다 — Q3 결정 (2026-08-19): NPC 인지 모델은 현재 범위 밖이다.
     # C007 의 control=autonomous 존재가 이 자리에 해당한다.
