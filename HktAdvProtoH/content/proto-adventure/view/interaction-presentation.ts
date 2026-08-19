@@ -27,8 +27,15 @@ const INTERACTIONS: Record<string, InteractionPresentation> = {
   // 이동 모드는 값을 실어 보내야 하므로(walk | run) 조립 루트가 직접 다룬다.
   // 여기서는 안내에 쓸 키 표기만 정한다.
   'set-move-mode': { key: 'ShiftLeft', keyLabel: 'Shift', prompt: '달리기 전환' },
+  // 살펴봄 (C014) — 대상이 있는 interaction 이므로 그 몸을 눌러 부른다.
+  // 키를 두지 않는다: 키는 대상을 고를 수단이 없고, "가장 가까운 하나" 같은 규칙을
+  // View 가 만들면 세계가 정하지 않은 선택 규칙을 화면이 발명하게 된다.
+  // 대상 지목은 이미 계약이 실어 보낸다 (targetEntityId) — 그 지시대로 누르면 된다.
+  'observe-character': { prompt: '살펴보기' },
   // 속성 변경 (C007 R2) — 이번 Cycle 은 경로만 연다. 조작 수단은 이후 Cycle 이 얹는다.
   'debug-set-attribute': {},
+  // 되돌림 (C014) — 명령 한 줄로 부른다 (command-request). 키를 두지 않는다.
+  'debug-forget-acquaintance': {},
 };
 
 export function interactionPresentation(role: string): InteractionPresentation {

@@ -35,9 +35,25 @@ export interface VitalityView {
   downed: boolean; // 참이면 더 이상 행동하지 않고 타격 대상도 되지 않는다
 }
 
-// 그 밖의 모든 속성 (C007 R2) — 세계는 어떤 속성도 숨기지 않는다.
+// 그 밖의 모든 속성 (C007 R2 → C014 CHANGED).
+// 세계가 **무엇이 언제 관찰에 실리는지를 정한다.** 남의 겨루는 힘은 살펴본 뒤에 실리고
+// 그 외의 모든 속성은 예전처럼 누구의 것이든 언제나 실린다.
+// 그럼에도 세계가 "숨기지 않는다" 는 성질은 잃지 않는다 — 뜻이 옮겨간다:
+// 전부 보여준다는 뜻에서 **가린 것이 있으면 가렸다는 사실을 밝힌다**는 뜻으로.
 // 실린다고 해서 늘 화면에 띄우라는 뜻은 아니다. 표시 기본값은 View 가 정한다.
 export interface AttributesView {
+  // ── 앎의 상태 (C014 ADDED) — 아는 존재에도 모르는 존재에도 언제나 실린다 ──
+  /** 이 관찰자가 이 존재의 겨루는 힘을 아는가. 자기 몸은 언제나 참이다 */
+  acquainted: boolean;
+  /**
+   * 지금 이 존재에 대해 **가려진 항목의 이름들**. 알 때는 빈 배열이다.
+   * 이 목록의 단일 출처는 세계다 (world/semantic/acquaintance.ts) —
+   * View 가 "가려질 수 있는 것은 이 셋" 을 자기 코드에 적지 않는다
+   * (DC-WORLD-OWNS-THE-SURFACE-LIST).
+   */
+  concealed: string[];
+  /** 왜 비어 있는가 (not-observed). 가려진 것이 있을 때만 실린다 */
+  unacquaintedReason?: string;
   energy: number;
   energyMaximum: number;
   moveMode: string; // walk | run
@@ -60,7 +76,8 @@ export interface AttributesView {
   // "그래서 몇 할로 받는가" 를 함께 싣는다 (0 초과 1 이하 — 0 이 되지 않는다).
   // C013 CHANGED — 관통 둘이 더해져 여섯 값이다. 관통은 공격 쪽 능력이지만
   // **피해를 키우는 값이 아니다** — 하는 일은 상대 방어의 값어치를 떨어뜨리는 것뿐이다.
-  combatStats: {
+  // C014 CHANGED — 남의 것은 acquainted 가 참일 때만 실린다. 자기 것은 언제나 실린다.
+  combatStats?: {
     physicalAttack: number;
     auraAttack: number;
     armor: number;
@@ -73,7 +90,8 @@ export interface AttributesView {
   // 이 존재의 두 방어가 **보는 이의 관통에게** 얼마로 읽히는가 (C013 ADDED).
   // **세계가 계산한 값이다.** View 가 combatStats 와 자기 관통을 곱해
   // 만들어내서는 안 된다 (DC-WORLD-OWNS-THE-SURFACE-LIST).
-  versusObserver: {
+  // C014 CHANGED — 두 존재 사이의 값이므로 한쪽을 모르는 채로는 성립하지 않는다.
+  versusObserver?: {
     armor: number;
     resistance: number;
     armorMultiplier: number;
@@ -81,7 +99,9 @@ export interface AttributesView {
   };
   // 두 방어 중 어느 쪽이 더 단단한가 (C012 ADDED) — physical-tougher | aura-tougher | even.
   // **세계가 계산한 판정이다** (DC-WORLD-OWNS-THE-SURFACE-LIST).
-  defenseShape: string;
+  // C014 CHANGED — 살펴본 뒤에 열린다. 이것이 가려지지 않으면 "무엇으로 칠지" 의
+  // 답이 그대로 새어 나가고 살펴봄이 할 일이 없어진다.
+  defenseShape?: string;
   // 막기 (C011 ADDED) — 모든 존재에 실린다. guarding 은 state 와 별개다.
   guard: {
     guarding: boolean;

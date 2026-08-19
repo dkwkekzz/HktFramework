@@ -129,6 +129,9 @@ export function createWorld(setup: WorldSetup = {}): World {
     // C007 R2 — 속성 변경 권한은 세계 밖(세계를 띄우는 쪽)이 정한다.
     // 기본은 열려 있다: 이 프로토타입은 관찰과 시험이 목적이며, 닫으려면 세계를 그렇게 띄운다.
     debugAuthority: { open: setup.debugAuthority ?? true },
+    // C014 — 아무도 아무것도 모르는 채로 세계가 시작된다.
+    // 항목이 없다는 것이 곧 "아무것도 모른다" 다 (semantic/acquaintance.ts).
+    acquaintances: [],
   };
 
   // 관찰자의 몸이 처음 만들어질 때 쓰는 기본값 — 세계의 초기 설정이다.

@@ -8,6 +8,8 @@
 // 쓰러짐은 요청하는 행동이 아니라 생명이 다해 들어가는 상태이며,
 // 대체 불가능하므로 행동 시작 관문이 모든 새 행동을 자동으로 막는다.
 // C012 ADDED — aura-strike (오라 방식 스킬).
+// C014 ADDED — observe (살펴봄). 스킬이 아니다 — 대상에게 아무 일도 하지 않고
+//   얻는 것은 앎뿐이다 (INTENT-OBSERVE-001).
 export type ActionKind =
   | 'idle'
   | 'move'
@@ -15,6 +17,7 @@ export type ActionKind =
   | 'heavy-attack'
   | 'aura-strike'
   | 'mine'
+  | 'observe'
   | 'hit'
   | 'downed';
 
@@ -47,6 +50,11 @@ export const ACTION_DEFINITIONS: Readonly<Record<ActionKind, ActionDefinition>> 
   // C012 — 기본 스킬과 같은 길이다. 다른 것은 피해의 방식뿐이다.
   'aura-strike': { duration: 0.6, replaceable: false },
   mine: { duration: 1.2, replaceable: false },
+  // C014 — 살펴봄. 기본 스킬(0.6)보다 길고 채굴(1.2)보다 짧다 —
+  // 한 번 휘두를 기회를 버리고 얻는 앎이다 (03 BALANCE).
+  // ActionSpeed 를 적용하지 않는다: 스킬 행동이 아니고, 적용하면 빠른 종류가
+  // 정보까지 빠르게 얻어 이 층의 의미에 세기가 섞인다.
+  observe: { duration: 1.0, replaceable: false },
   hit: { duration: 0.35, replaceable: false }, // 피격 — 스스로 요청하는 행동이 아니다
   // 쓰러짐 — 스스로 끝나지 않고 대체되지도 않는다 (C007 INTENT-DOWNED-001)
   downed: { duration: null, replaceable: false },
