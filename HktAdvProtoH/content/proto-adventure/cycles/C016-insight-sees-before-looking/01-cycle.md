@@ -1,7 +1,7 @@
 # CYCLE C016 — Insight Sees Before Looking
 
 [PASS] Cycle Definition
-[    ] Intent
+[PASS] Intent                    (앎에 길이 둘 · 앎이 자리 단위 · 통찰은 관문이 아니다)
 [    ] World Semantic
 [    ] GameView Specification
 [    ] Human Semantic Review
