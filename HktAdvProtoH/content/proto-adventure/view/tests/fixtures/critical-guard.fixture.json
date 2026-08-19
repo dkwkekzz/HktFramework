@@ -10,20 +10,20 @@
     {
       "id": "npc-1",
       "role": "npc-character",
-      "state": "hit",
+      "state": "attack",
       "name": "Wanderer 1",
       "kind": "wanderer",
       "position": {
-        "x": 2.1732410864197527,
+        "x": 2.004958024691358,
         "z": 0
       },
       "vitality": {
-        "health": 106,
+        "health": 120,
         "healthMaximum": 120,
         "downed": false
       },
       "attributes": {
-        "energy": 20,
+        "energy": 32,
         "energyMaximum": 60,
         "moveMode": "walk",
         "control": "autonomous",
@@ -33,69 +33,66 @@
           "actionSpeed": 0.85
         },
         "modifiers": {
-          "energyCharge": 0.2,
+          "energyCharge": 1,
           "energyConsume": 1,
           "moveSpeed": 1,
           "actionSpeed": 1
         },
-        "acquainted": true,
-        "concealed": [],
-        "combatStats": {
-          "physicalAttack": 40,
-          "auraAttack": 15,
-          "armor": 30,
-          "resistance": 90,
-          "armorPenetration": 0,
-          "resistancePenetration": 0,
-          "armorMultiplier": 0.7692307692307693,
-          "resistanceMultiplier": 0.5263157894736842,
-          "criticalChance": 0,
-          "criticalDamage": 1
-        },
-        "versusObserver": {
-          "armor": 30,
-          "resistance": 90,
-          "armorMultiplier": 0.7692307692307693,
-          "resistanceMultiplier": 0.5263157894736842
-        },
-        "defenseShape": "aura-tougher",
+        "acquainted": false,
+        "concealed": [
+          "combatStats",
+          "versusObserver",
+          "defenseShape"
+        ],
+        "unacquaintedReason": "not-observed",
         "guard": {
           "guarding": false,
           "broken": false
         }
       },
-      "progress": 0.09523809523809525,
+      "progress": 0.28333333333333327,
       "body": {
         "radius": 0.7,
         "height": 2.8,
         "mass": 1,
         "facing": {
-          "x": 0,
-          "z": 1
+          "x": -1,
+          "z": 0
         },
         "velocity": {
-          "x": 5.465985580246914,
+          "x": 2.9538370370370366,
           "z": 0
         }
+      },
+      "swing": {
+        "center": {
+          "x": 1.4555542844284493,
+          "z": -1.1782001231476453
+        },
+        "radius": 0.7,
+        "active": true,
+        "struck": [
+          "player-1"
+        ]
       }
     },
     {
       "id": "player-1",
       "role": "player-character",
-      "state": "aura-strike",
+      "state": "hit",
       "name": "Player 1",
       "kind": "rabbit-swordsman",
       "position": {
-        "x": 0.006758913580246965,
+        "x": 0.5283753086419756,
         "z": 0
       },
       "vitality": {
-        "health": 200,
+        "health": 183,
         "healthMaximum": 200,
         "downed": false
       },
       "attributes": {
-        "energy": 42,
+        "energy": 9,
         "energyMaximum": 100,
         "moveMode": "walk",
         "control": "player",
@@ -105,7 +102,7 @@
           "actionSpeed": 1
         },
         "modifiers": {
-          "energyCharge": 1,
+          "energyCharge": 0.2,
           "energyConsume": 1,
           "moveSpeed": 1,
           "actionSpeed": 1
@@ -118,7 +115,7 @@
           "armor": 50,
           "resistance": 20,
           "armorPenetration": 0,
-          "resistancePenetration": 0,
+          "resistancePenetration": 60,
           "armorMultiplier": 0.6666666666666666,
           "resistanceMultiplier": 0.8333333333333334,
           "criticalChance": 0.25,
@@ -126,17 +123,17 @@
         },
         "versusObserver": {
           "armor": 50,
-          "resistance": 20,
+          "resistance": 12.5,
           "armorMultiplier": 0.6666666666666666,
-          "resistanceMultiplier": 0.8333333333333334
+          "resistanceMultiplier": 0.8888888888888888
         },
         "defenseShape": "physical-tougher",
         "guard": {
-          "guarding": false,
+          "guarding": true,
           "broken": false
         }
       },
-      "progress": 0.38888888888888884,
+      "progress": 0,
       "body": {
         "radius": 0.85,
         "height": 3.4,
@@ -146,20 +143,9 @@
           "z": 0
         },
         "velocity": {
-          "x": -0.3459855802469136,
+          "x": -9.353837037037037,
           "z": 0
         }
-      },
-      "swing": {
-        "center": {
-          "x": 1.0928930684170641,
-          "z": 0.7143616714920481
-        },
-        "radius": 0.7,
-        "active": true,
-        "struck": [
-          "npc-1"
-        ]
       }
     },
     {
@@ -176,6 +162,20 @@
   ],
   "interactions": [
     {
+      "id": "observe",
+      "role": "observe-character",
+      "targetEntityId": "npc-1",
+      "available": false,
+      "reason": "action-busy"
+    },
+    {
+      "id": "observe",
+      "role": "observe-character",
+      "targetEntityId": "player-1",
+      "available": false,
+      "reason": "target-is-self"
+    },
+    {
       "id": "move",
       "role": "move-to",
       "available": false,
@@ -185,7 +185,7 @@
       "id": "attack",
       "role": "skill-basic",
       "available": false,
-      "reason": "action-busy",
+      "reason": "guarding",
       "profile": {
         "baseDamage": 6,
         "attackRatio": 0.5,
@@ -199,7 +199,7 @@
       "id": "skill-heavy",
       "role": "skill-heavy",
       "available": false,
-      "reason": "action-busy",
+      "reason": "guarding",
       "profile": {
         "baseDamage": 32,
         "attackRatio": 1,
@@ -213,7 +213,7 @@
       "id": "skill-aura",
       "role": "skill-aura",
       "available": false,
-      "reason": "action-busy",
+      "reason": "guarding",
       "profile": {
         "baseDamage": 6,
         "attackRatio": 0.5,
@@ -244,6 +244,11 @@
       "available": true
     },
     {
+      "id": "forget-acquaintance",
+      "role": "debug-forget-acquaintance",
+      "available": true
+    },
+    {
       "id": "mine",
       "role": "mine-deposit",
       "targetEntityId": "deposit-1",
@@ -265,13 +270,13 @@
     {
       "id": "player.action",
       "kind": "label",
-      "value": "aura-strike",
-      "progress": 0.38888888888888884
+      "value": "hit",
+      "progress": 0
     },
     {
       "id": "world.time",
       "kind": "counter",
-      "value": 0.26666666666666666
+      "value": 0.19999999999999998
     },
     {
       "id": "observers.present",
@@ -281,7 +286,7 @@
     {
       "id": "self.hp",
       "kind": "counter",
-      "value": 200
+      "value": 183
     },
     {
       "id": "self.hpMax",
@@ -291,7 +296,7 @@
     {
       "id": "self.cp",
       "kind": "counter",
-      "value": 42
+      "value": 9
     },
     {
       "id": "self.cpMax",
@@ -311,7 +316,7 @@
     {
       "id": "self.guard.guarding",
       "kind": "flag",
-      "value": false
+      "value": true
     },
     {
       "id": "self.guard.broken",
@@ -339,6 +344,16 @@
       "value": 20
     },
     {
+      "id": "self.combat.armorPenetration",
+      "kind": "counter",
+      "value": 0
+    },
+    {
+      "id": "self.combat.resistancePenetration",
+      "kind": "counter",
+      "value": 60
+    },
+    {
       "id": "self.combat.armorMultiplier",
       "kind": "counter",
       "value": 0.6666666666666666
@@ -352,6 +367,16 @@
       "id": "self.combat.defenseShape",
       "kind": "label",
       "value": "physical-tougher"
+    },
+    {
+      "id": "self.combat.criticalChance",
+      "kind": "counter",
+      "value": 0.25
+    },
+    {
+      "id": "self.combat.criticalDamage",
+      "kind": "counter",
+      "value": 2
     },
     {
       "id": "self.tempo.moveSpeed",
@@ -371,7 +396,7 @@
     {
       "id": "self.modifier.cpCharge",
       "kind": "counter",
-      "value": 1
+      "value": 0.2
     },
     {
       "id": "self.modifier.cpConsume",
@@ -391,41 +416,47 @@
   ],
   "strikes": [
     {
-      "attackerId": "player-1",
-      "targetId": "npc-1",
-      "skill": "aura-strike",
-      "amount": 14,
+      "attackerId": "npc-1",
+      "targetId": "player-1",
+      "skill": "attack",
+      "amount": 17,
       "at": {
-        "x": 1.6608049382716046,
+        "x": 0.9181185185185188,
         "z": 0
       },
-      "since": 0.19999999999999998,
+      "since": 0.16666666666666666,
       "breakdown": {
-        "damageType": "aura",
+        "damageType": "physical",
         "offenseStat": {
-          "name": "auraAttack",
+          "name": "physicalAttack",
           "value": 40
         },
         "baseDamage": 6,
         "attackContribution": 20,
         "rawDamage": 26,
         "defenseStat": {
-          "name": "resistance",
-          "value": 90
+          "name": "armor",
+          "value": 50
         },
         "penetrationStat": {
-          "name": "resistancePenetration",
+          "name": "armorPenetration",
           "value": 0
         },
-        "effectiveDefense": 90,
-        "defenseMultiplier": 0.5263157894736842,
-        "finalDamage": 14,
-        "appliedDamage": 14,
+        "effectiveDefense": 50,
+        "defenseMultiplier": 0.6666666666666666,
+        "finalDamage": 34,
+        "appliedDamage": 17,
         "critical": {
-          "occurred": false,
-          "chance": 0.25,
+          "occurred": true,
+          "chance": 1,
           "multiplier": 2,
-          "damageBeforeCritical": 14
+          "damageBeforeCritical": 17
+        },
+        "guard": {
+          "blocked": true,
+          "broken": false,
+          "cpPaid": 21,
+          "prevented": 17
         }
       }
     }
@@ -519,6 +550,38 @@
                 }
               },
               {
+                "name": "armorPenetration",
+                "thenDomain": {
+                  "kind": "number",
+                  "minimum": 0,
+                  "maximum": 100000
+                }
+              },
+              {
+                "name": "resistancePenetration",
+                "thenDomain": {
+                  "kind": "number",
+                  "minimum": 0,
+                  "maximum": 100000
+                }
+              },
+              {
+                "name": "criticalChance",
+                "thenDomain": {
+                  "kind": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                }
+              },
+              {
+                "name": "criticalDamage",
+                "thenDomain": {
+                  "kind": "number",
+                  "minimum": 1,
+                  "maximum": 100
+                }
+              },
+              {
                 "name": "moveSpeed",
                 "thenDomain": {
                   "kind": "number",
@@ -564,6 +627,22 @@
           "required": true,
           "domain": {
             "kind": "from-previous-choice"
+          }
+        }
+      ]
+    },
+    {
+      "id": "forget-acquaintance",
+      "effect": "forget-acquaintance",
+      "available": true,
+      "parameters": [
+        {
+          "id": "target",
+          "required": false,
+          "omittedMeaning": "all-known",
+          "domain": {
+            "kind": "entity",
+            "refers": "character"
           }
         }
       ]

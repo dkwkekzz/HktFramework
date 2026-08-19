@@ -49,7 +49,9 @@
           "armorPenetration": 0,
           "resistancePenetration": 0,
           "armorMultiplier": 0.666667,
-          "resistanceMultiplier": 0.666667
+          "resistanceMultiplier": 0.666667,
+          "criticalChance": 0,
+          "criticalDamage": 1
         },
         "versusObserver": {
           "armor": 50,
@@ -118,7 +120,9 @@
           "armorPenetration": 0,
           "resistancePenetration": 0,
           "armorMultiplier": 0.769231,
-          "resistanceMultiplier": 0.769231
+          "resistanceMultiplier": 0.769231,
+          "criticalChance": 0,
+          "criticalDamage": 1
         },
         "versusObserver": {
           "armor": 30,
@@ -187,7 +191,9 @@
           "armorPenetration": 0,
           "resistancePenetration": 0,
           "armorMultiplier": 0.769231,
-          "resistanceMultiplier": 0.769231
+          "resistanceMultiplier": 0.769231,
+          "criticalChance": 0,
+          "criticalDamage": 1
         },
         "versusObserver": {
           "armor": 30,
@@ -413,7 +419,13 @@
         "effectiveDefense": 30,
         "defenseMultiplier": 0.7692307692307693,
         "finalDamage": 55,
-        "appliedDamage": 55
+        "appliedDamage": 55,
+        "critical": {
+          "occurred": false,
+          "chance": 0,
+          "multiplier": 1,
+          "damageBeforeCritical": 55
+        }
       }
     },
     {
@@ -446,7 +458,13 @@
         "effectiveDefense": 50,
         "defenseMultiplier": 0.6666666666666666,
         "finalDamage": 17,
-        "appliedDamage": 17
+        "appliedDamage": 17,
+        "critical": {
+          "occurred": false,
+          "chance": 0,
+          "multiplier": 1,
+          "damageBeforeCritical": 17
+        }
       }
     }
   ],

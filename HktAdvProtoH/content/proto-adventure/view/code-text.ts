@@ -34,6 +34,11 @@ const CODE_TEXT: Record<string, string> = {
   auraAttack: '오라 공격',
   armor: '물리 방어',
   resistance: '오라 방어',
+  // 관통 둘 (C013) · 치명타 둘 (C015) — 바꿀 수 있는 속성 목록에 세계가 실어 보내는 이름들
+  armorPenetration: '물리 관통',
+  resistancePenetration: '오라 관통',
+  criticalChance: '치명타 확률',
+  criticalDamage: '치명타 배율',
   // 어느 쪽이 더 단단한가 (C012) — 세계의 판정을 사람 말로 옮긴다.
   // 단단한 쪽이 아니라 **무른 쪽**을 말한다 — 플레이어가 고르는 것은 칠 방향이다
   'physical-tougher': '오라에 약하다',

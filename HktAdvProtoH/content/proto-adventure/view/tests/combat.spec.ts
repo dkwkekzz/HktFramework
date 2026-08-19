@@ -132,9 +132,13 @@ describe('hud.self — 자기 자원·능력치·배율은 늘 눈앞에 있다'
     // C013 — 내 관통이 능력치 두 줄 바로 뒤에 온다. 0 인 쪽도 쓴다
     expect(lines[2]).toBe('관통 물리 0 · 오라 0');
     expect(lines[3]).toContain('내 약점');
-    expect(lines[4]).toContain('이동 속도 6');
-    expect(lines[4]).toContain('달리기 ×1.8');
-    expect(lines[5]).toBe('공격 속도 ×1');
+    // C015 — 내가 얼마나 터뜨리는 몸인가. 방어 읽기가 끝난 뒤에 온다.
+    // 이 fixture 의 몸은 터뜨리지 못한다 — 0% 라고만 쓰면 옆의 배율과 헷갈리므로
+    // "터뜨리지 못함" 이라고 쓴다
+    expect(lines[4]).toBe('치명타 터뜨리지 못함');
+    expect(lines[5]).toContain('이동 속도 6');
+    expect(lines[5]).toContain('달리기 ×1.8');
+    expect(lines[6]).toBe('공격 속도 ×1');
   });
 
   it('1 이 아닌 배율만 줄이 된다 — 걸린 것이 있을 때만 드러난다', () => {

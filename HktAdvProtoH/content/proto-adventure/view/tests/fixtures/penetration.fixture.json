@@ -48,7 +48,9 @@
           "armorPenetration": 0,
           "resistancePenetration": 0,
           "armorMultiplier": 0.7692307692307693,
-          "resistanceMultiplier": 0.5263157894736842
+          "resistanceMultiplier": 0.5263157894736842,
+          "criticalChance": 0,
+          "criticalDamage": 1
         },
         "versusObserver": {
           "armor": 30,
@@ -118,7 +120,9 @@
           "armorPenetration": 0,
           "resistancePenetration": 60,
           "armorMultiplier": 0.6666666666666666,
-          "resistanceMultiplier": 0.8333333333333334
+          "resistanceMultiplier": 0.8333333333333334,
+          "criticalChance": 0.25,
+          "criticalDamage": 2
         },
         "versusObserver": {
           "armor": 50,
@@ -426,7 +430,13 @@
         "effectiveDefense": 56.25,
         "defenseMultiplier": 0.64,
         "finalDamage": 17,
-        "appliedDamage": 17
+        "appliedDamage": 17,
+        "critical": {
+          "occurred": false,
+          "chance": 0.25,
+          "multiplier": 2,
+          "damageBeforeCritical": 17
+        }
       }
     }
   ],
