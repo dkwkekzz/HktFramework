@@ -35,7 +35,25 @@ export interface WorldState extends CoreWorldState {
   // World.Acquaintances (C014 ADDED) — 누가 어떤 존재의 겨루는 힘을 아는가.
   // 항목이 없는 관찰자는 아무것도 모른다 (semantic/acquaintance.ts).
   acquaintances: AcquaintanceState[];
+  // ── 세계가 지닌 흔들림 (C015 ADDED, INTENT-WORLD-CHANCE-001) ──────────
+  // 세계 밖에서 매번 새로 들어오는 것이 아니라 세계가 가지고 있는 상태다.
+  // 그래서 같은 세계를 같은 순서로 굴리면 언제나 같은 이야기가 나온다.
+  // 관찰에는 실리지 않는다 — 실으면 다음 한 방이 터질지가 계산 가능해지고
+  // 이 층은 "복잡한 결정론" 이 된다 (03 OBSERVABLE SEMANTIC).
+  /** World.ChanceSeed — 흔들림의 뿌리. 세계가 만들어질 때 정해지고 어떤 규칙도 바꾸지 않는다 */
+  chanceSeed: number;
+  /**
+   * World.ChanceCursor — 그 흔들림이 지금까지 몇 번 쓰였는가.
+   * **RULE-CRITICAL-STRIKE-001 만이** 1 씩 나아가게 한다. 되돌리는 규칙은 없다.
+   * 확률이 0 이거나 1 인 판정은 이 값을 쓰지 않는다 —
+   * 이미 정해진 일에 우연을 쓰지 않는다.
+   */
+  chanceCursor: number;
 }
+
+// World.ChanceSeed 의 기본 뿌리 (C015 ADDED) — 세계를 띄우는 쪽이 밝히지 않으면 이 값이다.
+// 결정론에 영향을 주므로 헤더 상수로 고정한다 (CVar 아님).
+export const DEFAULT_CHANCE_SEED = 0x5eedc015;
 
 // InteractionRange — RULE-MINE-001 Precondition 2 의 거리 한계
 export const INTERACTION_RANGE = 2.0;

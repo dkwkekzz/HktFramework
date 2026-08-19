@@ -49,6 +49,10 @@ export interface CombatSpec {
   resistance: number; // 오라 방식 피해를 줄인다
   armorPenetration: number; // 상대의 Armor 를 통하지 않게 만든다 (C013)
   resistancePenetration: number; // 상대의 Resistance 를 통하지 않게 만든다 (C013)
+  // C015 CHANGED — 여덟 값. Critical 둘은 결과값을 증폭할 뿐 계산에 들어가지 않는다
+  // (INTENT-CRITICAL-AMPLIFY-001).
+  criticalChance: number; // 0~1 — 터질 가능성
+  criticalDamage: number; // 1 이상 — 터졌을 때의 배율
 }
 
 export interface CharacterDefinition {
@@ -94,6 +98,11 @@ export const CHARACTER_CATALOG: Readonly<Record<string, CharacterDefinition>> = 
       resistance: 20,
       armorPenetration: 0,
       resistancePenetration: 60,
+      // C015 — 넷에 하나꼴로 두 배가 터진다. 터뜨리는 쪽은 플레이어다 (03 BALANCE).
+      // 기대 배수 1.25 라 아래 층들의 체감을 무너뜨리지 않으면서,
+      // 한 번의 교전(6대 안팎) 안에서 대개 한두 번 눈에 보인다.
+      criticalChance: 0.25,
+      criticalDamage: 2.0,
     },
     attackRange: 2.0,
     perceptionRange: 9.0,
@@ -114,6 +123,13 @@ export const CHARACTER_CATALOG: Readonly<Record<string, CharacterDefinition>> = 
       resistance: 90,
       armorPenetration: 0,
       resistancePenetration: 0,
+      // C015 — 터뜨리지 못한다. 이 종류가 내는 모든 피해는 C013 과 완전히 같다.
+      // 그래서 **관찰자가 맞는 값이 흔들리지 않는다** — C007 이래의 체감 기준값
+      // (자율 존재의 기본 스킬 12대를 견딘다)이 그대로 성립한다.
+      // 아래 층들이 위층 없이도 서 있다는 증거를 남기기 위한 것이며,
+      // C013 이 관통을 오라 쪽에만 둔 것과 같은 판단이다 (DC-COMBAT-ONE-LAYER-AT-A-TIME).
+      criticalChance: 0,
+      criticalDamage: 1.0,
     },
     attackRange: 2.0,
     perceptionRange: 9.0,
@@ -126,7 +142,7 @@ export const DEFAULT_CHARACTER: CharacterDefinition = {
   facing: { x: 0, z: 1 },
   tempo: { moveSpeed: 2.5, runSpeedMultiplier: 1.4, actionSpeed: 0.85 },
   resources: { hpMax: 120, cpMax: 60, cpStart: 20 },
-  // C012 · C013 — wanderer 와 같다. 미등록 종류의 폴백이며 관찰자의 몸이 아니다
+  // C012 · C013 · C015 — wanderer 와 같다. 미등록 종류의 폴백이며 관찰자의 몸이 아니다
   // (관찰자는 RULE-OBSERVER-JOIN-001 이 rabbit-swordsman 으로 세운다).
   combat: {
     physicalAttack: 40,
@@ -135,6 +151,8 @@ export const DEFAULT_CHARACTER: CharacterDefinition = {
     resistance: 90,
     armorPenetration: 0,
     resistancePenetration: 0,
+    criticalChance: 0,
+    criticalDamage: 1.0,
   },
   attackRange: 2.0,
   perceptionRange: 9.0,

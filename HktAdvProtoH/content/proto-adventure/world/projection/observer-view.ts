@@ -132,6 +132,11 @@ export function projectObserverView(
                 resistancePenetration: actor.resistancePenetration,
                 armorMultiplier: defenseMultiplier(actor.armor),
                 resistanceMultiplier: defenseMultiplier(actor.resistance),
+                // C015 — Critical 둘. 저 존재가 얼마나 자주 크게 터뜨리는 몸인지는
+                // 내가 얼마나 위험한지를 아는 일이다 (INTENT-CRITICAL-OBSERVE-001).
+                // 새 관문을 만들지 않는다 — C014 가 세운 그 하나의 관문 안쪽에 놓일 뿐이다.
+                criticalChance: actor.criticalChance,
+                criticalDamage: actor.criticalDamage,
               },
               // 이 존재의 두 방어가 보는 이의 관통에게 얼마로 읽히는가 (C013 ADDED).
               // 세계가 계산해 내놓는다 — View 가 두 수를 곱하지 않는다
@@ -409,6 +414,11 @@ export function projectObserverView(
       },
       // 내 두 방어 중 어느 쪽이 무른지 (C012) — 상대도 같은 규칙으로 나를 고른다.
       { id: 'self.combat.defenseShape', kind: 'label', value: defenseShape(self) },
+      // C015 — 내 Critical 둘. 0 인 쪽도 싣는다 — 없다는 것을 아는 것이
+      // "나는 터뜨릴 수 없다" 를 아는 것이다 (C013 이 관통 0 을 싣기로 한 판단 그대로).
+      // 값을 바꾼 직후 이 자리에서 즉시 확인되어야 "빈도와 크기가 달라진다" 가 읽힌다.
+      { id: 'self.combat.criticalChance', kind: 'counter', value: self.criticalChance },
+      { id: 'self.combat.criticalDamage', kind: 'counter', value: self.criticalDamage },
       { id: 'self.tempo.moveSpeed', kind: 'counter', value: self.moveSpeed },
       { id: 'self.tempo.runSpeedMultiplier', kind: 'counter', value: self.runSpeedMultiplier },
       { id: 'self.tempo.actionSpeed', kind: 'counter', value: self.actionSpeed },
@@ -426,6 +436,9 @@ export function projectObserverView(
       at: { x: event.position.x, z: event.position.z },
       since: event.time,
       // C010 — 그 숫자가 왜 그만큼인지. 세계가 계산한 경위를 그대로 낸다.
+      // C015 — 그 안에 critical 이 함께 실린다. 타격 경위는 살펴봄 관문 뒤가 아니다 —
+      // 모르는 상대에게 크게 터진 것은 보인다. 그 상대가 **얼마나 자주** 터뜨리는
+      // 몸인지는 여전히 살펴봐야 안다 (combatStats 안이다).
       breakdown: { ...event.breakdown },
     })),
     // World.DebugAuthority (C007 R2) — 이 세계가 조작을 허용하는가.

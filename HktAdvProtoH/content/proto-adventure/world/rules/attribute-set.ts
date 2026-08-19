@@ -118,6 +118,15 @@ function applyNumeric(actor: ActorState, id: string, value: number): void {
     case 'resistancePenetration':
       actor.resistancePenetration = value;
       return;
+    // C015 — Critical 둘. 다음 타격부터 그대로 반영된다.
+    // 두 끝(가능성 0 · 1)을 직접 만들어 보는 것이 "이 세계에 흔들림은 한 자리뿐" 을
+    // 눈으로 확인하는 길이다 (INTENT-ATTRIBUTE-MUTATE-001 CHANGED).
+    case 'criticalChance':
+      actor.criticalChance = value;
+      return;
+    case 'criticalDamage':
+      actor.criticalDamage = value;
+      return;
     case 'moveSpeed':
       actor.moveSpeed = value;
       return;

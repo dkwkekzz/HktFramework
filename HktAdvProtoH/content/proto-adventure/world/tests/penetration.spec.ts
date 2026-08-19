@@ -284,6 +284,8 @@ describe('INTENT-DAMAGE-BREAKDOWN-001 (CHANGED) — 걷히기 전과 걷힌 뒤�
       effectiveDefense: 56.25, // 걷힌 뒤 — 감쇄식이 읽은 값
       defenseMultiplier: 100 / 156.25,
       finalDamage: 17, // 관통이 없었다면 14 이다
+      // C015 — 터지지 않은 타격. 증폭은 계산 밖이므로 걷어내기의 값들은 그대로다
+      critical: { occurred: false, chance: 0.25, multiplier: 2, damageBeforeCritical: 17 },
       appliedDamage: 17,
     });
   });

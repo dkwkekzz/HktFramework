@@ -103,7 +103,20 @@ function contestedLines(a: AttributesView): string[] {
     // C012 — 어느 쪽이 더 단단한지는 **세계가 판정한 값**이다.
     // 여기서 두 수치를 비교해 만들어내지 않는다 (04 defenseShape.meaning).
     `약점 ${codeText(a.defenseShape ?? '')}`,
+    // C015 — 이 존재가 얼마나 자주 얼마나 크게 터뜨리는가.
+    // 앞의 네 줄이 "이 상대를 어떻게 칠까" 라면 이 줄은 "이 상대가 나를 어떻게 치는가" 다 —
+    // 방어 읽기가 끝난 뒤에 온다. 이것도 겨루는 힘이므로 살펴본 뒤에만 닿는다 (C014 관문 그대로).
+    criticalText(combat.criticalChance, combat.criticalDamage),
   ];
+}
+
+// 터뜨리는 힘 (C015) — 빈도와 크기를 함께 쓴다. 둘은 따로 자라므로 한쪽만으로는
+// "얼마나 위험한 몸인가" 를 알 수 없다. 가능성이 0 이면 배율을 쓰지 않는다 —
+// 터질 일이 없는데 배율을 보여 주면 읽는 이가 그 수를 기대값으로 삼는다.
+// 세계가 보낸 두 값을 그대로 쓴다. 기대 배수 같은 것을 여기서 계산해 만들지 않는다.
+function criticalText(chance: number, multiplier: number): string {
+  if (chance <= 0) return '치명타 터뜨리지 못함';
+  return `치명타 ${percent(chance)} · ×${round(multiplier)}`;
 }
 
 // 이 방어가 보는 이의 관통에게 얼마로 읽히는가 (C013) — 세계가 계산해 보낸 값이다.
@@ -137,21 +150,47 @@ export function strikeMark(
   inspect = false,
 ): SceneStrike {
   const guard = event.breakdown.guard;
-  const details = [guardLine(event), inspect ? breakdownLine(event) : undefined].filter(
-    (line): line is string => line !== undefined,
-  );
+  const details = [
+    criticalLine(event, inspect),
+    guardLine(event),
+    inspect ? breakdownLine(event) : undefined,
+  ].filter((line): line is string => line !== undefined);
 
   return {
     id: `${event.attackerId}->${event.targetId}@${event.since}`,
     position: event.at,
     text: `-${Math.round(event.amount)}`,
-    emphasis: event.skill === 'heavy-attack',
+    // C015 — 크게 터진 한 방도 크게 그린다. 고급 스킬과 같은 자리를 쓴다 —
+    // 둘 다 "이번 것은 평소보다 크다" 이고, 그리기 능력을 새로 만들 이유가 없다
+    emphasis: event.skill === 'heavy-attack' || event.breakdown.critical.occurred,
     since: event.since,
     anchorHeight: (targetSpriteSize ?? DEFAULT_SPRITE_SIZE) * STRIKE_ANCHOR_RATIO,
     ...(details.length > 0 ? { detail: details.join(' · ') } : {}),
     ...(guard?.broken ? { guard: 'broken' as const } : {}),
     ...(guard?.blocked ? { guard: 'blocked' as const } : {}),
   };
+}
+
+// 터졌는가 (C015) — 관찰이 꺼져 있어도 터진 타격에는 한 줄을 붙인다.
+// 이 한 줄이 없으면 화면에는 그냥 커진 숫자만 남고, 무엇 때문에 커졌는지 알 수 없다 —
+// 그러면 플레이어는 상대의 방어가 얇았나 보다고 배운다 (04 VARIANCE NOTE ①).
+//
+// 커지기 전 값은 **세계가 실어 보낸 damageBeforeCritical 을 쓴다.**
+// finalDamage / multiplier 로 되돌리면 반올림 때문에 세계의 값과 어긋난다 (04 ②).
+//
+// 터지지 않은 타격에는 관찰이 켜졌을 때만 나온다 — 매번 "안 터짐" 을 띄우면
+// 정작 터진 순간이 묻힌다. 켜면 가능성까지 나오므로
+// "터질 리 없는 몸" 과 "이번엔 운이 없었다" 를 그 자리에서 가를 수 있다.
+function criticalLine(event: StrikeEventView, inspect: boolean): string | undefined {
+  const critical = event.breakdown.critical;
+  if (critical.occurred) {
+    return (
+      `치명타 ×${round(critical.multiplier)}` +
+      ` ${Math.round(critical.damageBeforeCritical)}→${Math.round(event.breakdown.finalDamage)}`
+    );
+  }
+  if (!inspect) return undefined;
+  return critical.chance > 0 ? `치명타 없음 (${percent(critical.chance)})` : '치명타 없음 (터질 리 없다)';
 }
 
 // 막기가 한 일 (C011) — 막지 않은 타격에는 없다.
@@ -220,6 +259,13 @@ export function selfPanel(snapshot: GameViewSnapshot): SceneSelf | undefined {
       ` · 오라 ${round(Number(value('self.combat.resistancePenetration') ?? 0))}`,
     // 상대도 같은 규칙으로 나를 고른다 — 내 약점도 세계가 판정해 보낸다
     `내 약점 ${codeText(String(value('self.combat.defenseShape') ?? 'even'))}`,
+    // C015 — 내가 얼마나 터뜨리는 몸인가. 0 인 쪽도 쓴다 —
+    // 없다는 것을 아는 것이 "나는 터뜨릴 수 없다" 를 아는 것이다 (04 hud.self.meaning).
+    // 성질을 바꾸면 이 줄이 곧바로 따라가는 것이 이 Cycle 의 확인 경로다
+    criticalText(
+      Number(value('self.combat.criticalChance') ?? 0),
+      Number(value('self.combat.criticalDamage') ?? 1),
+    ),
     `이동 속도 ${round(Number(value('self.tempo.moveSpeed') ?? 0))}` +
       ` · 달리기 ×${round(Number(value('self.tempo.runSpeedMultiplier') ?? 1))}`,
     `공격 속도 ×${round(Number(value('self.tempo.actionSpeed') ?? 1))}`,

@@ -86,6 +86,11 @@ export interface AttributesView {
     resistancePenetration: number;
     armorMultiplier: number;
     resistanceMultiplier: number;
+    // C015 CHANGED — 여덟 값. Critical 둘은 **치는 쪽의 성질**이다 —
+    // 저 존재가 나를 얼마나 크게 칠 수 있는지를 말하며, 내가 저 존재를 칠 때와는 무관하다.
+    // 그래서 versusObserver 에는 들어가지 않는다 (판정에 맞는 자의 값이 없다).
+    criticalChance: number; // 0~1
+    criticalDamage: number; // 1 이상 — 배율
   };
   // 이 존재의 두 방어가 **보는 이의 관통에게** 얼마로 읽히는가 (C013 ADDED).
   // **세계가 계산한 값이다.** View 가 combatStats 와 자기 관통을 곱해
@@ -137,6 +142,21 @@ export interface TypedStatView {
   value: number;
 }
 
+// 이 한 방이 크게 터졌는가와 그 경위 (C015 ADDED).
+// **터지지 않은 타격에도 실린다** — 터지지 않았다는 사실 역시 관찰이어야 한다.
+// 읽는 법:
+//   occurred 거짓 · chance > 0   → 이번엔 운이 없었다
+//   occurred 거짓 · chance = 0   → 터질 리 없는 몸이다
+//   damageBeforeCritical == finalDamage → 이 숫자는 흔들리지 않았다
+// 세계가 지닌 흔들림(뿌리·커서)도, 그 판정의 Roll 값도 여기 실리지 않는다 —
+// 실으면 다음 한 방이 터질지가 계산 가능해진다 (04 OBSERVABLE PROJECTION NOTE).
+export interface CriticalOutcomeView {
+  occurred: boolean;
+  chance: number; // 판정에 실제로 쓰인 가능성 (0~1). 0 이어도 실린다
+  multiplier: number; // 치는 자의 증폭 성질 (1 이상). 터지지 않아도 실린다
+  damageBeforeCritical: number; // 커지기 전의 최종 피해
+}
+
 // 막기가 이 한 방에 한 일 (C011 ADDED).
 // blocked 와 broken 은 동시에 참이 되지 않는다 — 막았거나 무너졌거나 둘 중 하나다.
 export interface GuardOutcomeView {
@@ -159,7 +179,10 @@ export interface DamageBreakdownView {
   penetrationStat: TypedStatView; // C013 — 이 타격에서 작용한 관통. 0 이어도 실린다
   effectiveDefense: number; // C013 — 걷힌 뒤의 방어. defenseMultiplier 가 실제로 읽은 값
   defenseMultiplier: number; // 걷힌 방어가 남긴 비율 (0 초과 1 이하)
-  finalDamage: number; // 공식이 내놓은 값 — "막지 않았다면 들어왔을 값"
+  // C015 CHANGED — "막지 않았다면 들어왔을 값" 이라는 뜻은 그대로이고,
+  // 이제 그 값이 증폭을 포함한다. 커지기 전 값은 critical.damageBeforeCritical 이 가진다.
+  finalDamage: number;
+  critical: CriticalOutcomeView; // C015 ADDED — 언제나 실린다
   appliedDamage: number; // C011 — 실제로 생명에서 빠진 값. amount 와 언제나 같다
   guard?: GuardOutcomeView; // C011 — 막지 않은 타격에는 실리지 않는다
 }

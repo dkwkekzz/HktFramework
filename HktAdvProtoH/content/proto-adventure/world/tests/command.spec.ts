@@ -82,6 +82,10 @@ describe('INTENT-COMMAND-CATALOG-001 — 세계가 걸 수 있는 것을 밝힌�
       // C013 — 관통 둘이 더해져도 View 는 고치지 않는다
       'armorPenetration',
       'resistancePenetration',
+      // C015 — Critical 둘도 마찬가지다. 이 둘은 범위가 좁다(0~1 · 1~100) —
+      // 그 범위도 세계가 목록과 함께 싣는다 (DC-WORLD-OWNS-THE-SURFACE-LIST)
+      'criticalChance',
+      'criticalDamage',
       'moveSpeed',
       'runSpeedMultiplier',
       'actionSpeed',

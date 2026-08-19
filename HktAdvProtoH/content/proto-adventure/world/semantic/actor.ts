@@ -56,6 +56,12 @@ export interface ActorState {
   // RULE-DAMAGE-CALCULATE-001 Step 1 에서만 읽힌다. "관통이 없다" 는 값 0 이다.
   armorPenetration: number; // 상대의 Armor 를 통하지 않게 만든다
   resistancePenetration: number; // 상대의 Resistance 를 통하지 않게 만든다
+  // C015 ADDED — Critical. 자기 타격이 크게 터질 가능성과 터졌을 때의 증폭
+  // (INTENT-CRITICAL-001). 둘 다 **치는 자의 능력**이며 맞는 자에게서는 읽히지 않는다.
+  // 그 자체로는 아무것도 일으키지 않고 평소의 피해를 한 톨도 키우지 않는다 —
+  // RULE-CRITICAL-STRIKE-001 에서만 읽힌다. "터뜨릴 수 없다" 는 값 0 이다.
+  criticalChance: number; // 0~1 — 이 몸의 타격이 크게 터질 가능성
+  criticalDamage: number; // 1 이상 — 터졌을 때 최종 피해에 걸리는 배율
   // 막기 (C011) — 행동과 나란한 몸의 상태다. CurrentAction 자리를 쓰지 않는다.
   // 막으면서 걸을 수 있어야 하는데, 행동 자리를 쓰면 걷기와 자리를 다투게 되어
   // INTENT-ACTION-STATE-001("언제나 정확히 하나의 행동")을 깨야 하기 때문이다.

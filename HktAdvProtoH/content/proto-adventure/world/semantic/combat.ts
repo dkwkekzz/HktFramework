@@ -265,11 +265,83 @@ export interface DamageBreakdown {
    */
   effectiveDefense: number;
   defenseMultiplier: number;
+  /**
+   * 공식이 내놓은 값 — "막지 않았다면 들어왔을 값".
+   * C015 CHANGED — 이제 이 값이 **증폭을 포함한다.** 뜻은 그대로이고 크기만 커질 수 있다.
+   * 커지기 전 값은 critical.damageBeforeCritical 이 가진다 —
+   * C013 이 defenseStat.value 와 effectiveDefense 를 나란히 둔 것과 같은 자리다.
+   */
   finalDamage: number;
+  /**
+   * 이 타격이 크게 터졌는가와 그 경위 (C015 ADDED, INTENT-DAMAGE-BREAKDOWN-001).
+   * **터지지 않은 타격에도 실린다** — 터지지 않았다는 사실 역시 관찰이어야 하고,
+   * chance 가 0 인 몸과 이번에 운이 없었던 몸을 경위만으로 가를 수 있어야 한다.
+   */
+  critical: CriticalOutcome;
   /** 실제로 생명에서 빠진 값 (C011). 막지 않은 타격에서는 finalDamage 와 같다 */
   appliedDamage: number;
   /** 막기가 이 한 방에 한 일 (C011). 막지 않은 타격에는 실리지 않는다 */
   guard?: GuardOutcome;
+}
+
+/**
+ * 계산이 내놓는 것 (C015 ADDED) — RULE-DAMAGE-CALCULATE-001 의 산출물.
+ *
+ * 그 계산은 **흔들림도 막기도 모른다.** 둘 다 계산 밖에서 결과값에 작용하며
+ * (DC-COMBAT-ONE-FORMULA), 그 둘을 얹어 온전한 DamageBreakdown 을 만드는 것은
+ * RULE-STRIKE-DAMAGE-001 이다.
+ *
+ * critical 을 이 형에서 뺀 것은 자리를 아끼려는 것이 아니라, 계산이 판정 이전의
+ * 값이라는 것을 형이 말하게 하기 위해서다 — 중립값을 미리 채워 두면
+ * "가능성 0" 과 "아직 판정하지 않았다" 가 같은 모양이 되어 경위를 읽을 수 없다.
+ */
+export type DamageCalculation = Omit<DamageBreakdown, 'critical' | 'guard'>;
+
+// ── Critical (C015 ADDED) ────────────────────────────────────────────
+//
+// 이 세계에 처음으로 들어오는 **흔들림**이다. 지금까지 같은 조건은 언제나 같은 결과였고
+// (R1 §6), 이 층이 그 성질에 정확히 한 구멍을 뚫는다 —
+// Q11(b) 로 DC-COMBAT-PLAYER-CAUSALITY 가 REVISED 되며 허용한 단일 예외다.
+// 명중·회피·피해량의 난수 금지는 그대로다.
+//
+// 구멍을 뚫되 세계 밖의 우연을 끌어오지 않는다. 원천은 세계가 지니는 상태이고
+// (World.ChanceSeed · World.ChanceCursor — semantic/world-state.ts),
+// 그 위의 순수 함수가 값을 낸다. 그래서 같은 세계를 같은 순서로 굴리면 같은 이야기가 나온다
+// (INTENT-WORLD-CHANCE-001).
+//
+// 결정론에 영향을 주므로 상수도 형태도 헤더에 고정한다 (CVar 아님).
+
+/** World.ChanceStep — 흔들림이 한 걸음에 건너뛰는 폭 (황금비 역수의 32비트 표현) */
+export const CHANCE_STEP = 0x9e3779b9;
+
+/**
+ * ChanceAt(Seed, Cursor) — 그 자리의 흔들림 값 ∈ [0, 1) (C015 ADDED).
+ *
+ * 이 식은 세계의 법이다 — DefenseConstant 나 감쇄식과 같은 자리에 있다.
+ * Seed 와 Cursor 가 같으면 언제나 같은 값이 나온다 (되짚을 수 있다).
+ * Cursor 가 하나만 달라도 값이 전혀 다른 자리로 흩어진다 (미리 알 수 없다).
+ * 범위가 `[0, 1)` 로 닫혀 있다는 것이 두 경계 규칙을 지탱한다 —
+ * 1 은 나올 수 없고 0 은 나올 수 있다.
+ */
+export function chanceAt(seed: number, cursor: number): number {
+  // 32비트 부호 없는 정수 연산. `>>> 0` 이 매 단계 그 폭을 강제한다.
+  let x = (seed + Math.imul(cursor, CHANCE_STEP)) >>> 0;
+  x = Math.imul(x ^ (x >>> 16), 0x21f0aaad) >>> 0;
+  x = Math.imul(x ^ (x >>> 15), 0x735a2d97) >>> 0;
+  x = (x ^ (x >>> 15)) >>> 0;
+  return x / 4294967296;
+}
+
+/** 한 타격의 Critical 판정 결과 (파생 — 저장하지 않는다) */
+export interface CriticalOutcome {
+  /** 이 타격이 크게 터졌는가 */
+  occurred: boolean;
+  /** 판정에 실제로 쓰인 가능성 (0~1 로 묶인 뒤의 값). 0 이어도 실린다 */
+  chance: number;
+  /** 치는 자의 증폭 성질 (1 이상). 터지지 않아도 실린다 */
+  multiplier: number;
+  /** 커지기 전의 최종 피해. finalDamage 와 같으면 이 숫자는 흔들리지 않은 것이다 */
+  damageBeforeCritical: number;
 }
 
 // ── 막기 (C011 ADDED) ────────────────────────────────────────────────
@@ -353,6 +425,8 @@ export type MutableAttributeId =
   | 'resistance'
   | 'armorPenetration'
   | 'resistancePenetration'
+  | 'criticalChance'
+  | 'criticalDamage'
   | 'moveSpeed'
   | 'runSpeedMultiplier'
   | 'actionSpeed'
@@ -382,6 +456,12 @@ export const MUTABLE_ATTRIBUTES: readonly MutableAttribute[] = [
   // 음수 관통(방어를 두껍게 만드는 공격)은 이 층에서 만들지 않는다.
   { id: 'armorPenetration', min: 0, max: 100000 },
   { id: 'resistancePenetration', min: 0, max: 100000 },
+  // C015 ADDED — Critical 둘. 기존 항목과 달리 **범위가 좁다.**
+  // 가능성은 없음(0)과 가득함(1) 사이이고, 증폭은 키우는 쪽으로만 열린다(1 이상) —
+  // 터진 한 방이 안 터진 한 방보다 작아지는 일은 세계에 없다.
+  // 두 끝(0 · 1)이 모두 범위 안이라 "이 세계에 흔들림은 한 자리뿐" 을 직접 만들어 볼 수 있다.
+  { id: 'criticalChance', min: 0, max: 1 },
+  { id: 'criticalDamage', min: 1, max: 100 },
   { id: 'moveSpeed', min: 0, max: 100 },
   { id: 'runSpeedMultiplier', min: 0.1, max: 10 },
   { id: 'actionSpeed', min: 0.1, max: 10 },

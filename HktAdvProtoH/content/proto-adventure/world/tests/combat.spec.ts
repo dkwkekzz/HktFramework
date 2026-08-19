@@ -485,8 +485,8 @@ describe('INTENT-ATTRIBUTE-OBSERVE-001 — 세계가 무엇이 언제 실리는�
       control: 'autonomous',
       tempoStats: { moveSpeed: 2.5, runSpeedMultiplier: 1.4, actionSpeed: 0.85 },
       modifiers: { energyCharge: 1, energyConsume: 1, moveSpeed: 1, actionSpeed: 1 },
-      // C010 → C012 → C013 — 새 속성도 예외 없이 실린다.
-      // 여섯 능력과 두 배율이 모두 실린다
+      // C010 → C012 → C013 → C015 — 새 속성도 예외 없이 실린다.
+      // 여섯 능력과 두 배율과 Critical 둘이 모두 실린다
       combatStats: {
         physicalAttack: 40,
         auraAttack: 15,
@@ -496,6 +496,9 @@ describe('INTENT-ATTRIBUTE-OBSERVE-001 — 세계가 무엇이 언제 실리는�
         resistancePenetration: 0,
         armorMultiplier: 100 / 130,
         resistanceMultiplier: 100 / 190,
+        // C015 — wanderer 는 터뜨리지 못한다 (criticalChance 0)
+        criticalChance: 0,
+        criticalDamage: 1,
       },
       // C013 — 이 존재의 방어가 보는 이(관찰자)에게 얼마로 읽히는가.
       // 관찰자는 오라 관통 60 을 지니므로 오라 방어 90 이 56.25 로 읽힌다.
@@ -549,6 +552,10 @@ describe('INTENT-ATTRIBUTE-MUTATE-001 — 세계가 허용하면 속성을 바�
       // C013 — 관통 둘이 더해진다. 목록이 바뀔 뿐 계약은 그대로다
       'armorPenetration',
       'resistancePenetration',
+      // C015 — Critical 둘이 더해진다. 범위가 좁은 첫 항목들이지만(0~1 · 1~100)
+      // 계약은 그대로다 — 범위는 원래부터 세계가 목록과 함께 싣는 것이다
+      'criticalChance',
+      'criticalDamage',
       'moveSpeed',
       'runSpeedMultiplier',
       'actionSpeed',
