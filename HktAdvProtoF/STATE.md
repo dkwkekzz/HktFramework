@@ -28,6 +28,7 @@
 | [modules/WORKFLOW.md](modules/WORKFLOW.md) | 작업 방식 설계 (파생) | 작성 완료 |
 | [modules/MODULES.md](modules/MODULES.md) | 모듈 레지스트리 — V~A 전 모듈 입력·출력·상태 원소·시각화 (파생) | 작성 완료 |
 | [modules/MODULE-TEMPLATE.yaml](modules/MODULE-TEMPLATE.yaml) | 모듈 계약 서식 (파생) | 작성 완료 |
+| [modules/breakdown/](modules/breakdown/README.md) | 구현 수준 모듈 세분화 — 원문만으로 독립 설계(A부) 후 구현과 대조(B부). O0·D2 완료, 대조에서 나온 이슈 후보는 각 문서 B부 참조 | O0 · D2 |
 | [progress/deferred.md](progress/deferred.md) | **유예 장부** — 각 계층이 뒤에 넘긴 자리 (갚을 계층별 색인) | 갱신 중 |
 | [progress/closed-issues.md](progress/closed-issues.md) | 닫힌 이슈 · 상환된 소급 부채 | 갱신 중 |
 | [progress/renderers.md](progress/renderers.md) | 공용 렌더러 5종 구현·소비 이력 | 갱신 중 |
