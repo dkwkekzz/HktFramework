@@ -4,8 +4,9 @@
 // 여러 시점을 촬영하고 (사전 / 발생 직후 / 수명 후) 픽셀 지표로 계약을 검증한다:
 //   ① 켜진다   — 이벤트 전 0 → 발생 직후 유의미한 픽셀
 //   ② 꺼진다   — lifeBase 를 지나면 다시 0 (슬롯 재사용의 전제)
-//   ③ 다르다   — 타격(지향성)과 폭발(등방·팽창)이 *게놈만으로* 갈린다:
-//                 타격은 축(+x)으로 무게중심이 치우치고, 폭발은 원점 근방에서 더 크게 퍼진다
+//   ③ 다르다   — 타격(방사 가시별)과 폭발(등방 화구)이 *게놈만으로* 갈린다:
+//                 타격은 중심이 채워진 채(오목 금지) 사방으로 뻗는 성게 — 무게중심이 원점에
+//                 남고 중심 원반이 차 있다. 폭발은 부풀며(grow) 더 넓은 면적을 덮는다
 //   ④ 굴절한다 — F2 굴절 파면은 색이 아니라 *빛의 경로*다: 기준 프레임 대비 화면이 크게
 //                 어긋나지만(diffPx) 밝기 총합은 거의 늘지 않는다(lumAdd ≪ 폭발). 수명이
 //                 지나면 화면이 기준으로 되돌아온다 = 변위가 남지 않는다.
@@ -139,13 +140,13 @@ async function driveFx({ FRAMES, N, entities, shots, events, eye, center, makeBo
 		inert.opacity = 0; inert.binding = 0; inert.form = 0;
 		const fx = new HktGenesisFx.FxSystem({ names: ['타격', '파이어볼 폭발'], slices: 4, slots: 1 });
 		const ents = fx.compose(inert);
-		// 정면 카메라: 월드 +x 가 화면 오른쪽 → 타격 축(+x)의 치우침이 cx 로 읽힌다
+		// 정면 카메라: 발생점이 화면 중심 — 타격이 *방사*(무게중심 잔류 + 중심 채움)인지 cx·inner 로 읽는다
 		const eye = [0, 1.0, 3.2], center = [0, 1.0, 0];
 		const O = [0, 1.0, 0];
 		return await driveFx({
 			FRAMES: 175, N, entities: { ents, fx }, eye, center,
 			events: [
-				{ frame: 20, name: '타격', at: { origin: O, dir: [1, 0, 0] } },              // 축 = 화면 오른쪽
+				{ frame: 20, name: '타격', at: { origin: O, dir: [1, 0, 0] } },              // 법선 = 화면 오른쪽 (기울임 cone 0.15 뿐 — 방사가 지배)
 				{ frame: 60, name: '파이어볼 폭발', at: { origin: O, dir: [0, 1, 0] } },
 			],
 			shots: [
@@ -253,9 +254,15 @@ async function driveFx({ FRAMES, N, entities, shots, events, eye, center, makeBo
 		['타격 소멸(수명 후 0)', S.impactGone.lit < 50],
 		['폭발 발생(픽셀>3000)', S.blast.lit > 3000],
 		['폭발 소멸(수명 후 0)', S.blastGone.lit < 50],
-		['타격 지향성(무게중심 +x 치우침)', S.impact.cx > 350],
+		// 타격 = 방사 가시별: 무게중심이 발생점에 *남고*(축 분사가 아니다), 중심 원반이
+		// 차 있으며(shell 0 + grow — 오목 금지), 가시가 고리 반경까지 뻗는다.
+		['타격 방사(무게중심 원점 근방)', Math.abs(S.impact.cx - 320) < 60 && Math.abs(S.impact.cy - 320) < 60],
+		['타격 중심 채움(오목 금지)', S.impact.inner > 800],
+		['타격 가시(중심 밖으로 뻗는다)', S.impact.annulus > 2000],
 		['폭발 등방(무게중심 원점 근방)', Math.abs(S.blast.cx - 320) < 60],
-		['폭발이 더 크게 퍼짐', S.blast.spread > S.impact.spread * 1.3],
+		// 타격은 성긴 광선(도달은 멀지만 면적이 작다), 폭발은 꽉 찬 화구(면적이 압도적) —
+		// 퍼짐(rms)은 광선이 멀리 뻗으면 둘이 비슷해져 가르지 못한다. 면적으로 가른다.
+		['폭발이 더 크게 덮음(면적 4배 이상)', S.blast.lit > S.impact.lit * 4],
 		['합성: 살이 살아 있다(캐릭터 픽셀>3000)', C.char.lit > 3000],
 		['합성: 타격이 얹힌다(고휘도 +300)', C.charHit.hot > C.char.hot + 300],
 		['합성: 타격이 픽셀을 더한다', C.charHit.lit > C.char.lit],
