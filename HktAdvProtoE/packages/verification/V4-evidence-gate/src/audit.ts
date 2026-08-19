@@ -56,9 +56,18 @@ export interface AuditInput {
   evidences: readonly EvidenceDocument[];
 }
 
-/** MODULE.yaml 원문의 해시 — 증거의 `contractHash` 와 같은 방식으로 계산한다. */
+/**
+ * MODULE.yaml 원문의 해시 — 증거의 `contractHash` 와 같은 방식으로 계산한다.
+ *
+ * 줄바꿈은 먼저 `\n` 으로 맞춘다. 계약이 바뀌었는지는 **계약의 내용**이 정해야 하고,
+ * 체크아웃 설정이 정해서는 안 된다. Windows Git 의 기본값 `core.autocrlf=true` 는
+ * 작업 트리의 MODULE.yaml 을 CRLF 로 풀어 놓는데, 원문 바이트를 그대로 해싱하면
+ * 한 글자도 고치지 않은 계약이 전 모듈에서 `E_SELF_CONTRACT_CHANGED` 로 잡힌다.
+ *
+ * 저장소가 LF 이므로 이 정규화는 기존 해시값을 바꾸지 않는다 — 이미 발급된 증거는 그대로 유효하다.
+ */
 export function contractHashOf(text: string): string {
-  return sha256Tagged(text);
+  return sha256Tagged(text.replace(/\r\n?/g, '\n'));
 }
 
 /**

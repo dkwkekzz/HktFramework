@@ -23,7 +23,13 @@ const REPLAY_RUNS = 20;
 mkdirSync(OUT_DIR, { recursive: true });
 
 // 개발 서버 대신 정적 빌드를 쓴다 — 포트 대기 없이 결정적으로 로드된다.
-execFileSync('pnpm', ['run', 'lab:build'], { cwd: ROOT, stdio: 'inherit' });
+// vite 를 `pnpm run` 으로 부르지 않는다: Windows 의 `pnpm` 은 `pnpm.CMD` 이고, Node 는
+// CVE-2024-27980 대응 이후 `.cmd`/`.bat` 을 `shell: true` 없이 spawn 하면 EINVAL 로 던진다.
+execFileSync(
+  process.execPath,
+  [join('node_modules', 'vite', 'bin', 'vite.js'), 'build', '--config', 'apps/lab/vite.config.ts'],
+  { cwd: ROOT, stdio: 'inherit' },
+);
 
 /**
  * Playwright 가 기대하는 빌드 번호와 설치된 Chromium 이 다를 수 있으므로

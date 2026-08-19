@@ -114,7 +114,41 @@ pnpm verify <ID> --lab --regression   # G7 회귀 게이트까지 측정 (저장
 
 Windows 에서 지금까지의 작업을 한 번에 확인하려면 [run.bat](../run.bat) 을 더블클릭한다 —
 `install → typecheck → test → lab(브라우저)` 을 순서대로 돌린다 (`run.bat lab` = Lab 만,
-`run.bat test` = 콘솔 검증만).
+`run.bat test` = 콘솔 검증만). 출력이 필요하면 `run.bat test > run-log.txt 2>&1`.
+
+배치파일을 고칠 때 지킬 것 — 기준은 같은 저장소에서 **실제로 작동하는**
+[HktAdvProtoC/run.bat](../../HktAdvProtoC/run.bat) 이다 (UTF-8 · BOM 없음 · LF · 한글 본문).
+
+- **패키지 매니저를 `for /f` 로 감싸지 않는다.** `for /f ('pnpm -v')` 는 stdout 을 캡처하므로,
+  corepack 이 `packageManager` 에 적힌 pnpm 을 내려받는 동안 화면에 아무것도 나오지 않는다 —
+  창은 떠 있는데 멈춘 것처럼 보인다. `for /f` 는 ProtoC 처럼 `node -p` 같은 즉답 명령에만 쓰고,
+  패키지 매니저는 언제나 `call pnpm ...` 로 직접 불러 출력을 그대로 흘려보낸다.
+- **`COREPACK_ENABLE_DOWNLOAD_PROMPT=0` 을 세운다.** 이 값이 `1` 이면 corepack 이
+  "Do you want to continue? [Y/n]" 로 stdin 에서 멈춘다.
+- **오래 걸리는 단계는 먼저 알린다.** 설치·테스트 앞에 소요 시간을 찍어, 진행 중을 멈춘 것으로
+  오인하지 않게 한다.
+- UTF-8(BOM 없음)로 저장하고 `chcp 65001` 을 맨 앞에 둔다. `.bat` 선두의 BOM 은 첫 명령을 깨뜨린다.
+
+`tools/*.mjs` 도 같은 이유로 **`pnpm` 을 spawn 하지 않는다.** Windows 의 `pnpm` 은 `pnpm.CMD` 이고,
+Node 는 CVE-2024-27980 대응 이후 `.cmd`/`.bat` 을 `shell: true` 없이 spawn 하면 **EINVAL 로 던진다**.
+그래서 하위 명령은 로컬에 설치된 **JS 진입점을 `process.execPath`(node)로 직접** 실행한다.
+
+| 도구 | 부르는 것 |
+|---|---|
+| `tools/typecheck.mjs` | `node node_modules/typescript/bin/tsc -p <tsconfig>` |
+| `tools/verify.mjs` | `node tools/typecheck.mjs` · `node node_modules/vitest/vitest.mjs run …` |
+| `tools/lab-shot.mjs` | `node node_modules/vite/bin/vite.js build --config apps/lab/vite.config.ts` |
+
+실패를 `catch {}` 로 삼키지 않는다. 명령이 **실행조차 안 된 것**과 **검사에서 떨어진 것**은
+구별되어야 한다 — 전자는 `error.status` 가 없다. 이걸 구분하지 않으면 Windows 에서 전 모듈이
+tsc 출력 한 줄 없이 "실패" 로만 찍혀 원인을 찾을 수 없다.
+
+**해시는 줄바꿈을 `\n` 으로 맞춘 뒤 계산한다.** 계약이 바뀌었는지는 계약의 **내용**이 정해야 하고
+체크아웃 설정이 정해서는 안 된다. Windows Git 의 기본값 `core.autocrlf=true` 는 작업 트리를
+CRLF 로 풀어 놓으므로, 원문 바이트를 그대로 해싱하면 한 글자도 고치지 않은 계약이 전 모듈에서
+`E_SELF_CONTRACT_CHANGED` 로 잡힌다 (`sourceHash` 도 같은 이유로 어긋나 "증거 재발급이 바이트
+단위로 동일" 이 깨진다). 정규화 지점은 두 곳뿐이다 — `contractHashOf`(V4, 발급·감사 공통) 와
+`hashTree`(tools/verify.mjs). 저장소가 LF 이므로 정규화는 기존 해시값을 바꾸지 않는다.
 
 **`MODULE.yaml` 을 고쳤으면 그 모듈과 하위 모듈의 증거를 다시 발급한다.** V4 의 감사가 발급 시점의
 계약 해시를 대조하므로, 고친 채로 두면 `pnpm test` 가 “선행 계약이 바뀐 채로 남은 증거” 로 잡는다.

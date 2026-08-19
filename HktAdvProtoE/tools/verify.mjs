@@ -36,7 +36,12 @@ if (!packageDir) {
 
 console.log(`[verify] ${moduleId} — ${relative(ROOT, packageDir)}`);
 
-const staticCheck = run('타입 검사', 'pnpm', ['run', 'typecheck']);
+const staticCheck = run(
+  '타입 검사',
+  process.execPath,
+  ['tools/typecheck.mjs'],
+  'node tools/typecheck.mjs',
+);
 const tests = runTests();
 const lab = withLab ? runLab() : { skipped: true };
 
@@ -114,8 +119,14 @@ function collectContracts() {
   return documents;
 }
 
-function run(label, command, commandArgs) {
-  const printable = `${command} ${commandArgs.join(' ')}`;
+/**
+ * 하위 명령은 `pnpm` 을 거치지 않고 **node 로 JS 진입점을 직접** 실행한다.
+ * Windows 의 `pnpm` 은 `pnpm.CMD` 이고, Node 는 CVE-2024-27980 대응 이후
+ * `.cmd`/`.bat` 을 `shell: true` 없이 spawn 하면 EINVAL 로 던진다.
+ *
+ * `printable` 은 증거에 적히는 명령 문자열이다 — 실행 파일 절대 경로 대신 읽을 수 있는 형태로 남긴다.
+ */
+function run(label, command, commandArgs, printable = `${command} ${commandArgs.join(' ')}`) {
   try {
     const stdout = execFileSync(command, commandArgs, {
       cwd: ROOT,
@@ -140,14 +151,19 @@ function runTests() {
   const outFile = join(ROOT, 'node_modules', '.hkt', `vitest-${moduleId}.json`);
   mkdirSync(dirname(outFile), { recursive: true });
   const target = relative(ROOT, packageDir).split(sep).join('/');
-  const result = run('테스트', 'pnpm', [
-    'exec',
-    'vitest',
+  const vitestArgs = [
+    join('node_modules', 'vitest', 'vitest.mjs'),
     'run',
     ...(withRegression ? [] : [target]),
     '--reporter=json',
     `--outputFile=${outFile}`,
-  ]);
+  ];
+  const result = run(
+    '테스트',
+    process.execPath,
+    vitestArgs,
+    `node ${vitestArgs.map((arg) => arg.split(sep).join('/')).join(' ')}`,
+  );
 
   const report = existsSync(outFile) ? JSON.parse(readFileSync(outFile, 'utf8')) : null;
   const buckets = {
@@ -275,7 +291,13 @@ function dependencyVersions() {
   return versions;
 }
 
-/** 디렉터리 전체의 내용 해시 — 파일 경로 오름차순으로 고정한다. */
+/**
+ * 디렉터리 전체의 내용 해시 — 파일 경로 오름차순으로 고정한다.
+ *
+ * 줄바꿈은 `\n` 으로 맞춰서 센다. contractHashOf 와 같은 이유다 — Windows Git 의
+ * `core.autocrlf=true` 로 CRLF 체크아웃된 작업 트리에서도 같은 코드는 같은 해시여야
+ * "증거 재발급이 바이트 단위로 동일" 이 성립한다. NUL 이 있는 파일은 이진으로 보고 손대지 않는다.
+ */
 function hashTree(dir) {
   const hash = createHash('sha256');
   const walk = (current) => {
@@ -286,7 +308,8 @@ function hashTree(dir) {
       if (entry.isDirectory()) walk(full);
       else {
         hash.update(relative(dir, full).split(sep).join('/'));
-        hash.update(readFileSync(full));
+        const bytes = readFileSync(full);
+        hash.update(bytes.includes(0) ? bytes : Buffer.from(bytes.toString('utf8').replace(/\r\n?/g, '\n'), 'utf8'));
       }
     }
   };
