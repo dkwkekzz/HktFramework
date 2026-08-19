@@ -109,18 +109,24 @@
 		// ⑥ 검격 — 같은 규칙, 방위만 몰아 세운 *칼자국*. 물결파가 온 고리라면 이것은 한 줄이다:
 		//    arc 0.86 이 방사 방향을 칼날 축 둘레로 몰아 양쪽으로 벌어진 부채꼴을 만들고
 		//    (기준 각도는 발생 쪽이 roll 로 준다 — 가로 베기·대각 베기가 같은 게놈에서 나온다),
-		//    shell 0.8 + shredFreq 90 이 갈래마다 길이가 크게 갈리는 *뾰족한 살*을 세운다.
+		//    *중심에서 바깥으로만* 뻗게 하는 근거는 shell 0 + grow 3.0 이다:
+		//      shell 0  — 속도가 0..burst 로 퍼져 스플랫이 중심부터 앞까지 *채워진다*.
+		//                 (shell 이 크면 전원이 같은 속도라 얇은 껍질이 되어 중심을 비우고 떠난다
+		//                  = 가운데가 뚫린 채 이동 → 오목하게 읽힌다.)
+		//      grow 3.0 — 시간이 갈수록 스플랫이 길어진다. 바늘 길이는 속도에 비례하는데 반경은
+		//                 속도×시간이라, 그냥 두면 안쪽 끝이 중심에서 떨어져 나가 구멍이 생긴다.
+		//    shredFreq 90 이 갈래마다 길이가 갈리는 *뾰족한 살*을 세운다.
 		//    (부채꼴로 몰면 같은 갈래 수가 좁은 각에 겹친다 — 물결파보다 조각을 잘게 나눠야
 		//     덩어리가 아니라 베인 결로 읽힌다: 눈검증에서 22 → 90 으로 올렸다.)
 		//    lifeBase 0.3 · curve 3.0 = 번쩍이고 곧장 꺼진다(검격의 짧은 타격감).
 		//    날카로움은 색이 아니라 분포다 — 길이 편차(shred 0.7)와 빈 갈래(tear 0.2)가
 		//    고른 부채가 아니라 *베인 자국*으로 읽히게 한다.
 		'검격': {
-			lifeBase: 0.3, damping: 3.0, gravity: 0.0, updraft: 0.0,
+			lifeBase: 0.3, damping: 2.6, gravity: 0.0, updraft: 0.0,
 			volatility: 0.04, flowFreq: 2.0, flowSpeed: 0.5,
-			size: 0.011, stretch: 1.1, opacity: 0.85, luminosity: 4.6,
-			fxK: 1, burst: 6.2, cone: 0.0, swirl: 0.0, shell: 0.8, grow: 0.15, curve: 3.0, ember: 0,
-			shred: 0.8, shredFreq: 90, tear: 0.06, shredPow: 1.8,
+			size: 0.012, stretch: 0.8, opacity: 0.85, luminosity: 4.6,
+			fxK: 1, burst: 6.5, cone: 0.0, swirl: 0.0, shell: 0.0, grow: 3.0, curve: 3.0, ember: 0,
+			shred: 0.5, shredFreq: 90, tear: 0.04, shredPow: 1.8,
 			disc: 0.97, discThick: 0.1, rayLen: 5, rayThin: 1.6,
 			arc: 0.96, arcSharp: 3.0,
 			colorA: '#ffffff', colorB: '#8fd0ff', form: 4, // 흰 섬광 → 서늘한 강철빛

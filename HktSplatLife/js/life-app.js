@@ -113,7 +113,7 @@
 			// 달라져야 같은 자리를 두 번 베어도 같은 그림이 되지 않는다.
 			'검격': () => {
 				const o = bonePoint(TORSO, [0, 1.15, 0]);
-				return { origin: o, dir: towardCamera(o), strength: 1, radius: 0.08, roll: -0.6 + Math.random() * 1.2 };
+				return { origin: o, dir: towardCamera(o), strength: 1, radius: 0.03, roll: -0.6 + Math.random() * 1.2 };
 			},
 			// 굴절 파면: 빛살·칼자국과 같은 자리·같은 축 (보통 타격이 동반으로 켠다)
 			'굴절 파면': () => { const o = bonePoint(TORSO, [0, 1.15, 0]); return { origin: o, dir: towardCamera(o), strength: 1, radius: 0.1 }; },

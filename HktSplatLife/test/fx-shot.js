@@ -218,13 +218,13 @@ async function driveFx({ FRAMES, N, entities, shots, events, eye, center, makeBo
 			// 검격은 roll 0 → 기준 방향이 화면 가로 = 가로 베기.
 			events: [
 				{ frame: 10, name: '물결파', at: { origin: [0, 1.0, 0], dir: [0, 0, 1], radius: 0.1 } },
-				{ frame: 70, name: '검격', at: { origin: [0, 1.0, 0], dir: [0, 0, 1], radius: 0.08, roll: 0 } },
+				{ frame: 70, name: '검격', at: { origin: [0, 1.0, 0], dir: [0, 0, 1], radius: 0.03, roll: 0 } },
 			],
 			shots: [
 				{ name: 'ringBefore', frame: 9 },
 				{ name: 'ring', frame: 20, save: true },   // 물결파 +0.17s
 				{ name: 'ringGone', frame: 55 },           // 수명(0.45s=27f) 뒤
-				{ name: 'slash', frame: 76, save: true },  // 검격 +0.1s
+				{ name: 'slash', frame: 81, save: true },  // 검격 +0.18s (칼자국이 가장 길게 뻗는 시점)
 				{ name: 'slashGone', frame: 100 },         // 수명(0.3s=18f) 뒤
 			],
 		});
