@@ -4,7 +4,7 @@
 [PASS] World Rule Execution
 [PASS] Projection
 [PASS] View Binding
-[PASS] Playable        (기계 실측 완료 — Human Play 확인 대기)
+[PASS] Playable        (기계 실측 완료 · 2026-08-19 Human 확인)
 [PASS] Regression
 [PASS] Catalog         (존재 종류를 추가하지 않았고, 세 등록에 통찰 0 만 더했다 —
                         catalog:check 정합 확인)
@@ -220,5 +220,9 @@
 
 ## STATUS
 
-    IN PROGRESS    (기계 검증 7항 통과 · 전체 717 tests ·
-                    Human Play 확인 이후 COMPLETE 로 바꾼다)
+    COMPLETE       (기계 검증 7항 통과 · 전체 717 tests ·
+                    2026-08-19 Human 이 "완료처리" 를 지시했다)
+
+    기록 주의      이 완료는 Human 의 진행 판정이다. 아래 PLAYABLE 의 일곱 절차를
+                   항목별로 되짚은 기록은 아니며, 05-review 의 묶음 승인과 같은
+                   성격이다 — 뒤에 플레이에서 의미가 어긋나면 그때 되돌린다.
