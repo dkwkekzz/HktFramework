@@ -53,6 +53,10 @@ struct Entity {
 	// F3 파열 유전자 — 파면이 *균질하지 않다*. 방사 방향을 성긴 격자로 나눠 조각(shard)마다
 	// 속도와 밀도를 갈라 놓는다: 매끈한 구면이 찢긴 갈래로 부서진다 (shred 0 = 예전 구면 그대로).
 	shred : f32,       shredFreq : f32, tear : f32,      shredPow : f32, // 속도 편차·조각 크기·틈 비율·빠른 조각의 희소성
+	// F4 광선 유전자 — 파면을 *빛살*로 세운다. disc 는 방사 방향을 축에 수직인 평면으로 눕혀
+	// 가운데가 빈 링을 만들고(구면이면 투영이 원반으로 차서 중심이 비지 않는다), ray* 는
+	// 스플랫을 진행 방향으로 늘여 바늘로 만든다 (disc 0 · rayLen 0 = 기존 구면·기존 신축).
+	disc : f32,        discThick : f32, rayLen : f32,    rayThin : f32, // 평면 집중·평면 두께·바늘 길이 상한·가늘기
 };
 `;
 
@@ -194,30 +198,55 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
 		// 세대 도장: life 에 제 이벤트의 t0 를 새긴다 — 다르면 "아직 안 태어난 세대"
 		if (s.life != t0) {
 			let sd = s.misc.y + ev2.y;
-			let h = hash31(sd * 1.913);
-			let h2 = hash31(sd * 3.719 + 11.3);
-			// 균등 구면 방향 (z 균등 + 방위 균등)
+			// 함정: hash31 은 한 번의 호출이 내놓는 세 성분이 서로 *상관*된다(x·y 계수가
+			// 0.1031/0.1030 로 거의 같다). 극각과 방위각을 같은 호출의 두 성분에서 뽑으면
+			// 방향이 구면에 고르게 퍼지지 않고 나선으로 감겨 파면이 팔면체·다이아몬드로 보인다
+			// (굴절 필드 시각화·빛살 링 눈검증에서 확인). 축마다 *다른 시드*의 .x 만 쓴다.
+			let h = hash31(sd * 1.913);          // 극각
+			let h2 = hash31(sd * 3.719 + 11.3);  // 방위각
+			let h3 = hash31(sd * 7.331 + 47.7);  // 구각 분포(반경)
+			let h4 = hash31(sd * 13.77 + 91.3);  // 원판 두께 흔들림
+			// 균등 구면 방향 (z 균등 + 방위 균등 — 두 값이 독립이어야 성립한다)
 			let cz = h.x * 2.0 - 1.0;
 			let sr = sqrt(max(1.0 - cz * cz, 0.0));
-			let ph = h.y * 6.2831853;
+			let ph = h2.x * 6.2831853;
 			let iso = vec3f(sr * cos(ph), sr * sin(ph), cz);
 			var ax = vec3f(0.0, 1.0, 0.0);
 			let al = length(ev1.xyz);
 			if (al > 1e-5) { ax = ev1.xyz / al; }
 			// 지향성(cone): 0 = 등방(폭발) … 1 근처 = 축으로 몰린 분사(타격 스파크)
 			var dv = mix(iso, ax, clamp(E.cone, 0.0, 0.95));
+			// 원판(disc): 축에 *수직인* 평면으로 방향을 눕힌다 — cone 의 반대편.
+			// 구면 파면은 투영하면 원반이 꽉 차지만, 평면 파면은 가운데가 빈 링으로 남는다.
+			// discThick 이 평면에 두께를 준다(0 = 완전 평면 = 종잇장, 크면 왕관처럼 벌어진다).
+			if (E.disc > 0.0) {
+				let inPlane = dv - ax * dot(dv, ax);
+				let pl = length(inPlane);
+				if (pl > 1e-4) { dv = mix(dv, inPlane / pl, clamp(E.disc, 0.0, 1.0)); }
+				dv += ax * ((h4.x - 0.5) * E.discThick);
+			}
 			let dvl = length(dv);
 			var dir = ax;
 			if (dvl > 1e-4) { dir = dv / dvl; }
 			// 구각 집중(shell): 0 = 부피 균등(꽉 찬 구, 세제곱근 분포) … 1 = 같은 속도(팽창 구각)
-			var sp0 = E.burst * mix(pow(max(h2.x, 1e-4), 0.3333), 1.0, clamp(E.shell, 0.0, 1.0));
+			var sp0 = E.burst * mix(pow(max(h3.x, 1e-4), 0.3333), 1.0, clamp(E.shell, 0.0, 1.0));
 			// F3 파열: 방사 *방향*을 성긴 격자로 양자화해 조각(shard)을 만든다. 같은 조각의
 			// 스플랫은 같은 속도 배율·같은 밀도를 갖는다 — 조각 경계가 곧 찢긴 자리다.
 			// (스플랫마다 난수를 주면 파면이 그냥 흐려질 뿐 "찢어지지" 않는다. 덩어리째 갈라야 한다.)
 			var dens = 1.0;
 			if (E.shred > 0.0 || E.tear > 0.0) {
-				let cell = floor(dir * max(E.shredFreq, 0.5) + 0.5);
-				let hs = hash31(dot(cell, vec3f(127.1, 311.7, 74.7)) + ev2.y * 0.37);
+				// 조각 나누기는 *이벤트 축 기준 각도*로 한다 — 방향을 월드 격자(floor(dir*f))로
+				// 자르면 격자의 4겹 대칭이 그대로 파면에 새겨져 링이 다이아몬드로 보인다(눈검증).
+				// 방위각은 균등하고, 극각은 축에서 얼마나 벗어났는지라 원판·구면 모두에 옳다.
+				var t1 = vec3f(1.0, 0.0, 0.0);
+				if (abs(ax.y) < 0.9) { t1 = normalize(cross(ax, vec3f(0.0, 1.0, 0.0))); }
+				else { t1 = normalize(cross(ax, vec3f(1.0, 0.0, 0.0))); }
+				let t2 = cross(ax, t1);
+				let az = atan2(dot(dir, t2), dot(dir, t1));            // -π..π (축 둘레 방위)
+				let po = acos(clamp(dot(dir, ax), -1.0, 1.0));          // 0..π  (축에서의 벌어짐)
+				let cellA = floor((az + 3.14159265) / 6.28318531 * max(E.shredFreq, 0.5) * 4.0);
+				let cellP = floor(po / 3.14159265 * max(E.shredFreq, 0.5) * 2.0);
+				let hs = hash31(cellA * 7.13 + cellP * 131.77 + ev2.y * 0.37);
 				// 속도: 앞서 나가는 조각과 뒤처지는 조각 — shredPow 가 크면 소수만 크게 튄다
 				sp0 *= mix(1.0 - E.shred, 1.0 + E.shred, pow(hs.x, max(E.shredPow, 0.05)));
 				// 밀도: 하위 tear 비율의 조각은 통째로 사라진다 = 파면에 뚫린 틈
@@ -830,14 +859,19 @@ fn vs(@builtin(vertex_index) vi : u32, @builtin(instance_index) ii : u32) -> VOu
 		let t2 = cross(nrm, t1);
 		M = mat3x3f(t1 * (base * elongF), t2 * (base * inverseSqrt(elongF)), nrm * (base * 0.55));
 	} else {
-		// 기존 속도 방향 정렬 이방성 (비-살 회귀 0): 빠를수록 진행 방향으로 늘어난다
+		// 기존 속도 방향 정렬 이방성 (비-살 회귀 0): 빠를수록 진행 방향으로 늘어난다.
+		// F4: rayLen 이 그 신축의 상한(바늘 길이), rayThin 이 횡방향 수축 지수(가늘기)다.
+		// 기본값(rayLen 0 · rayThin 0)이면 상한 없음 + 부피 보존(1/√elong) = 예전 그대로.
+		var el = elong;
+		if (E.rayLen > 0.0) { el = min(el, 1.0 + E.rayLen); }
+		let thin = pow(el, -0.5 * max(E.rayThin, 1.0));
 		var e0 = vec3f(0.0, 1.0, 0.0);
 		if (speed > 1e-4) { e0 = s.vel / speed; }
 		var upv = vec3f(0.0, 1.0, 0.0);
 		if (abs(e0.y) > 0.9) { upv = vec3f(1.0, 0.0, 0.0); }
 		let e1 = normalize(cross(e0, upv));
 		let e2 = cross(e0, e1);
-		M = mat3x3f(e0 * (base * elong), e1 * (base * inverseSqrt(elong)), e2 * (base * inverseSqrt(elong)));
+		M = mat3x3f(e0 * (base * el), e1 * (base * thin), e2 * (base * thin));
 	}
 	let Vrk = M * transpose(M); // Σ = M·Mᵀ
 

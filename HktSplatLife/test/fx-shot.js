@@ -6,10 +6,12 @@
 //   ② 꺼진다   — lifeBase 를 지나면 다시 0 (슬롯 재사용의 전제)
 //   ③ 다르다   — 타격(지향성)과 폭발(등방·팽창)이 *게놈만으로* 갈린다:
 //                 타격은 축(+x)으로 무게중심이 치우치고, 폭발은 원점 근방에서 더 크게 퍼진다
-//   ④ 굴절한다 — F2 충격파는 색이 아니라 *빛의 경로*다: 기준 프레임 대비 화면이 크게
+//   ④ 굴절한다 — F2 굴절 파면은 색이 아니라 *빛의 경로*다: 기준 프레임 대비 화면이 크게
 //                 어긋나지만(diffPx) 밝기 총합은 거의 늘지 않는다(lumAdd ≪ 폭발). 수명이
 //                 지나면 화면이 기준으로 되돌아온다 = 변위가 남지 않는다.
-//   ⑤ GPU 오류 0
+//   ⑤ 링이다   — F4 충격파(빛살)는 축에 수직인 원판으로 방사되므로 *가운데가 빈다*:
+//                 발생점 둘레 고리의 픽셀이 중심 원반보다 압도적으로 많아야 한다.
+//   ⑥ GPU 오류 0
 // 사용: node fx-shot.js [outPrefix=fx] [N=16384]
 const path = require('path');
 const { serve, launch, collectErrors, savePng, HARNESS_ROUTE } = require('./_common');
@@ -73,6 +75,13 @@ async function driveFx({ FRAMES, N, entities, shots, events, eye, center, makeBo
 			if (s > 620) hot++; // 거의 흰 픽셀 — 살(톤맵된 피부)은 거의 못 만든다 = 이펙트의 서명
 		}
 		keepPx[g.name] = px.slice(); // unmap 뒤에도 남는 사본
+		// 링 판정용 반경별 픽셀 수 — 화면 중심(발생점) 기준 중심 원반 vs 고리
+		let inner = 0, annulus = 0;
+		for (let k = 0; k < xs.length; k++) {
+			const dx = xs[k] - 320, dy = ys[k] - 320, rr = Math.hypot(dx, dy);
+			if (rr < 70) inner++;
+			else if (rr < 300) annulus++;
+		}
 		const mx = n ? sx / n : 320, my = n ? sy / n : 320;
 		let v = 0;
 		for (let k = 0; k < xs.length; k++) v += (xs[k] - mx) * (xs[k] - mx) + (ys[k] - my) * (ys[k] - my);
@@ -90,7 +99,7 @@ async function driveFx({ FRAMES, N, entities, shots, events, eye, center, makeBo
 			c2d.putImageData(img, 0, 0);
 			dataUrl = document.getElementById('c2d').toDataURL('image/png');
 		}
-		out.push({ name: g.name, lit: n, hot, cx: mx, cy: my, spread, lum: Math.round(lum / 1000), diffBase: g.diffBase, dataUrl });
+		out.push({ name: g.name, lit: n, hot, cx: mx, cy: my, spread, inner, annulus, lum: Math.round(lum / 1000), diffBase: g.diffBase, dataUrl });
 		g.rb.unmap();
 	}
 	// ── 굴절 지표 ── 굴절은 "색을 더한 것"이 아니라 "화면을 옮긴 것"이라 한 장의 픽셀 수로는
@@ -162,9 +171,9 @@ async function driveFx({ FRAMES, N, entities, shots, events, eye, center, makeBo
 			// 포즈 면적 변화에 묻힌다. 살의 지연 추종은 이미 life-shot.js 가 검증한다.
 			makeBones: () => skeleton.pose('walk', 0.42, 1.0, 1.0),
 			events: [
-				// 충격파 단독 — 굴절만 있는 구간(파편이 섞이면 "색이 아니다" 지표가 오염된다)
-				{ frame: 170, name: '충격파', at: { origin: [0, 1.15, 0], dir: [0.3, 0.1, 1], radius: 0.1 } },
-				{ frame: 240, name: '타격', at: { origin: [0, 1.15, 0], dir: [0.3, 0.1, 1] } }, // 파편 + 동반 충격파
+				// 굴절 파면 단독 — 굴절만 있는 구간(빛살·파편이 섞이면 "색이 아니다" 지표가 오염된다)
+				{ frame: 170, name: '굴절 파면', at: { origin: [0, 1.15, 0], dir: [0.3, 0.1, 1], radius: 0.1 } },
+				{ frame: 240, name: '타격', at: { origin: [0, 1.15, 0], dir: [0.3, 0.1, 1] } }, // 파편 + 빛살 + 굴절
 				{ frame: 300, name: '파이어볼 폭발', at: { origin: [0.75, 1.0, 0], dir: [0, 1, 0] } },
 			],
 			// 함정: 살은 이벤트가 없어도 아주 느리게 계속 자리를 잡는다(표류). 그래서 "굴절이
@@ -172,9 +181,9 @@ async function driveFx({ FRAMES, N, entities, shots, events, eye, center, makeBo
 			shots: [
 				{ name: 'char', frame: 110, save: true },                        // 이펙트 없는 캐릭터 (응축 후 기준선)
 				{ name: 'drift', frame: 166, diffBase: 'char' },                 // 대조군 — 56 프레임 동안 아무 사건도 없다
-				{ name: 'shock', frame: 185, save: true, diffBase: 'drift' },    // 충격파 +0.25s — 파면이 몸을 지난다
-				{ name: 'shockGone', frame: 235, diffBase: 'drift' },            // 충격파 수명(0.9s=54f) 뒤
-				{ name: 'charHit', frame: 250, save: true, diffBase: 'drift' },  // 타격(+동반 충격파) +0.17s
+				{ name: 'shock', frame: 185, save: true, diffBase: 'drift' },    // 굴절 파면 +0.25s — 파면이 몸을 지난다
+				{ name: 'shockGone', frame: 235, diffBase: 'drift' },            // 굴절 파면 수명(0.8s=48f) 뒤
+				{ name: 'charHit', frame: 250, save: true, diffBase: 'drift' },  // 타격(파편+빛살+굴절) +0.17s
 				{ name: 'charBlast', frame: 318, save: true, diffBase: 'drift' },// 폭발 +0.3s
 			],
 		});
@@ -190,6 +199,33 @@ async function driveFx({ FRAMES, N, entities, shots, events, eye, center, makeBo
 	const C = {};
 	for (const s of comp.shots) C[s.name] = s;
 	result.gpuErrs = result.gpuErrs.concat(comp.gpuErrs);
+
+	// ── 3장: 링 — 빛살(F4)은 축에 수직인 원판으로 방사되므로 가운데가 빈다.
+	//        캐릭터 없이(투명 더미 기반) 발생점을 화면 중심에 두고 반경별 픽셀을 센다.
+	const ring = await page.evaluate(async ({ N, DRIVE }) => {
+		eval(DRIVE);
+		const inert = HktGenesisGenes.materialize(HktGenesisGenes.PRESETS['물']);
+		inert.opacity = 0; inert.binding = 0; inert.form = 0;
+		const fx = new HktGenesisFx.FxSystem({ names: ['충격파'], slices: 2, slots: 1 });
+		const ents = fx.compose(inert);
+		return await driveFx({
+			FRAMES: 60, N, entities: { ents, fx }, eye: [0, 1.0, 3.2], center: [0, 1.0, 0],
+			// 축 = 카메라 쪽 → 원판이 화면과 나란해져 링이 정면으로 보인다
+			events: [{ frame: 10, name: '충격파', at: { origin: [0, 1.0, 0], dir: [0, 0, 1], radius: 0.1 } }],
+			shots: [
+				{ name: 'ringBefore', frame: 9 },
+				{ name: 'ring', frame: 20, save: true },   // +0.17s
+				{ name: 'ringGone', frame: 55 },           // 수명(0.45s=27f) 뒤
+			],
+		});
+	}, { N: parseInt(nArg), DRIVE: DRIVE_FX });
+	const R = {};
+	for (const s of ring.shots) {
+		R[s.name] = s;
+		if (s.dataUrl) savePng(s.dataUrl, path.resolve(`${outPrefix}-${s.name}.png`));
+		console.log(`${s.name.padEnd(11)} 픽셀 ${String(s.lit).padStart(6)} · 중심원반 ${String(s.inner).padStart(5)} · 고리 ${String(s.annulus).padStart(6)}`);
+	}
+	result.gpuErrs = result.gpuErrs.concat(ring.gpuErrs);
 
 	if (result.gpuErrs.length) { console.error('GPU 오류:', result.gpuErrs); await browser.close(); server.close(); process.exit(1); }
 	const S = {};
@@ -214,13 +250,17 @@ async function driveFx({ FRAMES, N, entities, shots, events, eye, center, makeBo
 		['합성: 타격이 픽셀을 더한다', C.charHit.lit > C.char.lit],
 		['합성: 폭발이 얹힌다(픽셀 +3000)', C.charBlast.lit > C.char.lit + 3000],
 		// F2 굴절: 켜진다 · 되돌아온다 · 색이 아니다
-		['충격파 굴절(화면이 일그러진다)', C.shock.diffPx > 4000 && C.shock.diffPx > C.drift.diffPx * 5],
-		['충격파 소멸(변화가 표류 수준으로 되돌아온다)', C.shockGone.diffPx < C.drift.diffPx * 1.5 + 400],
+		['굴절 파면(화면이 일그러진다)', C.shock.diffPx > 4000 && C.shock.diffPx > C.drift.diffPx * 5],
+		['굴절 파면 소멸(변화가 표류 수준으로 되돌아온다)', C.shockGone.diffPx < C.drift.diffPx * 1.5 + 400],
 		// 절대 밝기로 재면 이펙트가 화면을 크게 덮을수록 불리해진다(면적과 성질이 뒤섞인다).
 		// 굴절의 성질은 *옮긴 픽셀 한 장당 더한 밝기*가 작다는 것 — 면적으로 나눠 재야 한다.
-		['충격파는 색이 아니다(픽셀당 밝기 증가가 폭발의 1/2 미만)',
+		['굴절 파면은 색이 아니다(픽셀당 밝기 증가가 폭발의 1/2 미만)',
 			(C.shock.lumAdd / C.shock.diffPx) < (C.charBlast.lumAdd / C.charBlast.diffPx) * 0.5
 			&& C.shock.lumAdd < C.charBlast.lumAdd * 0.4],
+		// F4 빛살: 링이다 · 켜지고 꺼진다
+		['빛살 링(고리가 중심 원반의 4배 이상)', R.ring.annulus > R.ring.inner * 4 && R.ring.annulus > 3000],
+		['빛살 발생 전 정적', R.ringBefore.lit < 50],
+		['빛살 소멸(수명 후 0)', R.ringGone.lit < 50],
 		['페이지 오류 0', real.length === 0],
 	];
 	for (const [label, ok] of gates) console.log(`판정: ${label} → ${ok ? 'OK' : '실패'}`);

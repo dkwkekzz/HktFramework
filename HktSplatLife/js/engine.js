@@ -13,7 +13,7 @@
 	const GRID_DIM = 64;
 	const CLUSTER_K = 256;       // 클러스터 크기 (wgsl.js K 와 일치)
 	const CLUSTER_STRIDE = 24;   // u32/f32 24개 = 96B (wgsl.js Cluster 와 일치)
-	const ENTITY_STRIDE = 56;    // f32 56개 = 224B (wgsl.js Entity 와 일치 — R1 재질 + F1 이펙트 + F2 굴절 + F3 파열 vec4 포함)
+	const ENTITY_STRIDE = 60;    // f32 60개 = 240B (wgsl.js Entity 와 일치 — R1 재질 + F1 이펙트 + F2 굴절 + F3 파열 + F4 광선 vec4 포함)
 	const MAX_ENTITIES = 8;
 	// F1 이펙트 이벤트 슬롯 — *장면 전체* 동시 발생 상한. 이펙트 스플랫은 제 슬롯을
 	// rest.w 로 알고(L6 뼈 친화와 동형), 슬롯이 켜지면 그 세대가 태어난다.
@@ -536,6 +536,8 @@
 			a.set([g.refract || 0, g.chroma || 0, g.caustic || 0, g.rarefy || 0], o + 48);
 			// F3 파열: shred/tear 0 = 매끈한 구면 파면 (기존 이펙트 전부 — 회귀 0)
 			a.set([g.shred || 0, g.shredFreq || 0, g.tear || 0, g.shredPow != null ? g.shredPow : 1], o + 52);
+			// F4 광선: disc 0 = 구면 방사, rayLen 0 = 신축 상한 없음 (기존 이펙트 전부 — 회귀 0)
+			a.set([g.disc || 0, g.discThick || 0, g.rayLen || 0, g.rayThin || 0], o + 56);
 		});
 		return a;
 	};

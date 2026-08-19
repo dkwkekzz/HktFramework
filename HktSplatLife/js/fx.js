@@ -43,6 +43,9 @@
 	// 읽는 법 (F3 유전자 — 파열: 파면이 균질하지 않다 = 타격감):
 	//   shred 조각별 속도 편차(0 매끈한 구면 ↔ 1 앞뒤로 크게 갈림) · shredFreq 조각 크기
 	//   tear  통째로 사라지는 조각 비율(= 파면에 뚫린 틈) · shredPow 빠른 조각의 희소성
+	// 읽는 법 (F4 유전자 — 광선: 파면을 빛살로 세운다):
+	//   disc  축에 수직인 평면 집중(0 구면 ↔ 1 종잇장 링 — 가운데가 빈다) · discThick 평면 두께
+	//   rayLen 바늘 길이 상한(속도 신축의 상한) · rayThin 바늘 가늘기(횡방향 수축 지수)
 	//   동반 발생: with = ['다른 이펙트'] — 한 *사건*이 여러 게놈을 켠다(같은 원점·축·시각)
 	// 기존 유전자도 그대로 쓴다: lifeBase=지속시간, damping=공기 저항, gravity/updraft=부력,
 	// volatility·flowFreq·flowSpeed=난류 결, size/stretch/opacity/luminosity/colorA·B=외형 재료.
@@ -55,7 +58,8 @@
 			size: 0.011, stretch: 2.6, opacity: 0.2, luminosity: 2.0,
 			fxK: 1, burst: 5.5, cone: 0.7, swirl: 0.12, shell: 0.15, grow: 0.5, curve: 2.6, ember: 0.45,
 			colorA: '#fff6d8', colorB: '#ff3c0a', form: 4,
-			with: ['충격파'], // 물리적 타격 = 파편(이것) + 공기 충격파(굴절) — 한 사건, 두 게놈
+			// 물리적 타격 = 파편(이것) + 빛살 링(충격파) + 공기 굴절(굴절 파면) — 한 사건, 세 게놈
+			with: ['충격파', '굴절 파면'],
 		},
 		// ② 파이어볼 폭발 — 등방(cone 0) 화구가 부풀며(grow 2.4) 부력으로 말려 오른다(swirl 0.35).
 		//    수명이 길고(1.5s) 소멸이 완만해(curve 1.6) 밝은 화구 → 검은 연기로 식는다.
@@ -75,30 +79,37 @@
 			fxK: 1, burst: 1.8, cone: 0.85, swirl: 0.85, shell: 0.8, grow: 0.8, curve: 1.1, ember: 0,
 			colorA: '#9dffc0', colorB: '#2f7bff', form: 4,
 		},
-		// ④ 충격파 — 물리적 타격의 *공기*. 색이 없다(refract>0 이면 색 패스에서 빠진다):
-		//    보이는 것은 오직 휘어진 배경이다. shell 1.0 = 전원이 같은 속도 = 얇은 파면이
-		//    통째로 밖으로 팽창한다(측정: 평균 반경 0.33m@0.05s → 1.85m@0.85s, 지수 감속).
-		//    타격 축으로 살짝 몰리고(cone 0.3) 난류(volatility)가 파면을 울퉁불퉁하게 만든다.
-		//    chroma 0.3 = 파면 가장자리의 프리즘 색테(R/G/B 변위가 30% 씩 어긋난다)
-		//    · caustic 1.15 = 굴절이 센 곳(=파면)의 흰 집광 · refract 2.2 = 파면에서 배경이 수십 px.
-		//    "밖으로 퍼지는" 읽힘의 근거는 세 값이다:
-		//      damping 1.3 — 파면이 급정거하지 않고 수명 내내 계속 나아간다
-		//                    (도달 반경 = burst/damping ≈ 2.8 · 감속은 지수적 = 실제 충격파의 결).
-		//      grow 0.3    — 파면이 퍼져도 두꺼워지지 않는다(얇게 유지 = 링으로 읽힌다).
-		//      size 0.045  — 파면 두께가 반경의 몇 % 수준이라 테두리가 선으로 보인다.
-		//    타격감은 F3 파열에서 온다 — 매끈한 동심원은 "퍼짐"은 되어도 "맞았다"가 안 된다.
-		//    shred 0.3 = 조각마다 속도가 ±30% 갈려 파면 테두리가 톱니처럼 찢기고, tear 0.25 =
-		//    조각의 1/4 이 통째로 비어 갈래 사이가 뚫린다(=이어지지 않은 호). shredFreq 2.6 =
-		//    조각이 큼직해 "찢긴 조각"으로 읽힌다. shredPow 1.6 = 소수의 갈래만 멀리 튄다.
-		//    눈검증에서 확인한 균형: shred 를 0.5 이상 주면 조각이 반경 방향으로 흩어져
-		//    "찢긴 파면"이 아니라 그냥 *알갱이 구름*이 된다 — 파면의 결속을 유지한 채 테두리만
-		//    갈라야 타격으로 읽힌다. 대신 조각이 빠진 만큼 refract·caustic 을 올려 호를 진하게.
-		//    (shred 0 = 매끈한 구면 = 이전 동작 그대로 — 파열은 게놈으로 켜고 끈다.)
-		//    함정: stretch(속도 방향 신축)는 0 이어야 한다 — 방사 속도가 큰 얇은 파면에서
-		//    스플랫이 방사 방향으로 늘어나면 파면이 구가 아니라 *팔면체*로 보인다(눈검증 확인).
-		//    난류(volatility)는 파면을 울퉁불퉁하게만 하고 형태는 깨지 않는다 — 다만 크면
-		//    파면 안쪽에 잔물결이 남아 링이 흐려지므로 0.2 이하로.
+		// ④ 충격파 — 타격 지점에서 *빛살 링*이 터진다. 레퍼런스: 가운데가 빈 고리 +
+		//    사방으로 뻗은 가는 빛살, 길이가 제각각.
+		//    ⓐ 가운데가 비는 근거는 disc 0.96 — 방사 방향을 타격 축에 수직인 평면으로 눕힌다.
+		//       구면으로 쏘면 투영이 원반으로 꽉 차 중심이 비지 않는다(눈검증: 링 vs 원반).
+		//    ⓑ 빛살(가는 결)의 근거는 shell 0.55 + shredFreq 70 — 방위를 280칸으로 나눠
+		//       갈래를 만들고(=갈래 수), 한 갈래 *안에서* 스플랫이 반경으로 퍼지게 한다.
+		//       퍼진 스플랫들이 줄지어 하나의 빛살이 된다. shred 0.4 로 갈래마다 길이가 갈리고
+		//       tear 0.08 로 드문드문 빈다.
+		//    ⓒ stretch 0.55 는 결을 세우는 정도까지만 — 이 값을 1 이상으로 올리면 스플랫이
+		//       화면에서 극단적으로 길어지고, 그때 EWA 투영이 화면 축 기준 *사각별*을 만든다
+		//       (카메라를 45° 돌려도 별이 화면을 따라가고, 시뮬은 완전 방사임을 readback 으로
+		//        확인 — 즉 렌더 한계다). 빛살 길이는 신축이 아니라 ⓑ 의 반경 퍼짐으로 낸다.
 		'충격파': {
+			lifeBase: 0.45, damping: 2.2, gravity: 0.0, updraft: 0.0,
+			volatility: 0.05, flowFreq: 2.0, flowSpeed: 0.6,
+			size: 0.014, stretch: 0.55, opacity: 0.8, luminosity: 4.0,
+			fxK: 1, burst: 4.2, cone: 0.0, swirl: 0.0, shell: 0.55, grow: 0.2, curve: 2.0, ember: 0,
+			shred: 0.4, shredFreq: 70, tear: 0.08, shredPow: 1.3,
+			disc: 0.96, discThick: 0.2, rayLen: 3, rayThin: 1.2,
+			colorA: '#ffffff', colorB: '#3d8bff', form: 4, // 흰 섬광 → 푸른 잔광
+			slots: 1, // 슬라이스를 통째로 = 한 번에 배로 촘촘 (동시 발생은 1회로 족하다)
+			with: ['굴절 파면'], // 단독 발생 때도 공기 굴절이 함께 (타격은 제 목록으로 켠다)
+		},
+		// ⑤ 굴절 파면 — 색이 없는 이펙트(refract>0 이면 색 패스에서 빠진다): 보이는 것은
+		//    오직 휘어진 배경이다. 빛살 링과 같은 사건에서 함께 깨어나 "공기가 밀린" 층을 만든다.
+		//    "밖으로 퍼지는" 읽힘의 근거: damping 1.35(수명 내내 나아간다) · grow 0.3(퍼져도
+		//    두꺼워지지 않는다) · size 0.045(파면 두께 = 반경의 몇 %).
+		//    타격감의 근거(F3): shred 0.3 로 테두리가 톱니처럼 갈리고 tear 0.25 로 호가 끊긴다.
+		//    함정: stretch 는 0 이어야 한다 — 얇은 파면에서 방사 방향으로 늘이면 굴절 누적이
+		//    구가 아니라 *팔면체*로 보인다(눈검증 확인). 바늘은 빛살(④)의 몫이다.
+		'굴절 파면': {
 			lifeBase: 0.8, damping: 1.35, gravity: 0.0, updraft: 0.0,
 			volatility: 0.18, flowFreq: 2.6, flowSpeed: 1.0,
 			size: 0.045, stretch: 0.0, opacity: 0.55, luminosity: 0,
@@ -153,8 +164,11 @@
 		let slot = 0;
 		for (const name of this.names) {
 			const g = materializeFx(name);
+			// 슬롯 수 = 동시 발생 수 ↔ 한 번의 밀도. 촘촘해야 사는 이펙트(빛살 코로나)는
+			// 프리셋이 slots: 1 로 제 슬라이스를 통째로 쓴다 — 이것도 코드가 아니라 데이터다.
+			const want = FX_PRESETS[name].slots || slotsPer;
 			g.fxSlotBase = Math.min(slot, MAX_FX - 1);
-			g.fxSlots = Math.max(1, Math.min(slotsPer, MAX_FX - g.fxSlotBase));
+			g.fxSlots = Math.max(1, Math.min(want, MAX_FX - g.fxSlotBase));
 			const slots = [];
 			for (let j = 0; j < g.fxSlots; j++) slots.push(g.fxSlotBase + j);
 			slot += g.fxSlots;
