@@ -89,8 +89,8 @@ entities:
         source: World.ConcealedKeys(Observer, Actor)
         meaning:
           - CHANGED — 이제 **부분 목록**일 수 있다.
-            통찰 0 이면 `[defenseShape, versusObserver, combatStats]`,
-            통찰 30 이면 `[versusObserver, combatStats]`,
+            통찰 0 이면 `[combatStats, versusObserver, defenseShape]`,
+            통찰 30 이면 `[combatStats, versusObserver]`,
             통찰 60 이면 `[combatStats]`, 통찰 90 이거나 살펴봤으면 `[]`
           - 목록의 단일 출처는 여전히 세계다. View 는 문턱 수(30·60·90)도,
             어느 자리가 어느 문턱인지도 자기 코드에 적지 않는다
@@ -163,8 +163,11 @@ entities:
 #   세계가 실제로 내놓는 것
 #       []                                            전부 열림 (살펴봤거나 통찰 ≥ 90)
 #       [combatStats]                                 통찰 ≥ 60
-#       [versusObserver, combatStats]                 통찰 ≥ 30
-#       [defenseShape, versusObserver, combatStats]   통찰 < 30
+#       [combatStats, versusObserver]                 통찰 ≥ 30
+#       [combatStats, versusObserver, defenseShape]   통찰 < 30
+#
+#   목록의 차례는 세계가 소유한 CONCEALABLE_ATTRIBUTE_KEYS 의 차례이며 (C014 그대로),
+#   열리는 차례(얕은 것부터)와는 별개다 — View 는 둘 다 자기 코드에 적지 않는다.
 #
 #   View 는 **네 조합을 세지 않는다.** 자리마다 "왔는가" 를 보고 그릴 뿐이다.
 #   조합을 코드에 적으면 세계가 문턱을 바꾸거나 자리를 늘릴 때 화면이 어긋난다.
