@@ -264,6 +264,7 @@ constraints/README.md   현재 Active Constraint        → 반영 이력은 여
 | FR-STATS-DECIDE-THE-DAMAGE | C010-stats-decide-the-damage | **CLOSED** 2026-08-17 — MC-ATTACK-POWER · MC-SKILL-SCALING · MC-DEFENSE-MITIGATION 승격 |
 | FR-GUARD-TRADES-BODY-FOR-RESOURCE | C011-guard-trades-body-for-resource | **CLOSED** 2026-08-17 — MC-GUARD 승격 (overlay 반영 2026-08-18) |
 | FR-MATCHUP-MAKES-THE-CHOICE | C012-damage-type-chooses-the-defense | **CLOSED** 2026-08-18 — MC-ATTACK-ARMOR-MATCHUP 승격 · MK-OPPONENT-DEFENSE-SHAPE 확립 |
+| FR-PENETRATION-DEVALUES-THE-WALL | C013-penetration-devalues-the-wall | **CLOSED** 2026-08-19 — MC-PENETRATION 승격 · MP-PIERCE-THE-HARD-DEFENSE 닫힘 (요구 4종 완비) |
 
     롤백된 것 (2026-08-17 Human 결정 — R1 층 순서와 어긋나 되돌렸다. 산출물은 git history)
         구 C010-guard-trades-body-for-resource · 구 C011-perfect-guard-turns-the-table
@@ -293,6 +294,40 @@ constraints/README.md   현재 Active Constraint        → 반영 이력은 여
 ---
 
 # 3. Overlay 갱신 이력
+
+    2026-08-19 (C013 Feedback — Penetration 층)
+
+    승격 1종
+        MC-PENETRATION   MISSING → IMPLEMENTED
+        근거  C013 08-verification — 마주한 방어가 결정적으로 깎이고(resistance 90 → 56.25),
+              마주하지 않은 방어에는 닿지 않으며(물리 타격의 C010 값 20 이 그대로),
+              두껍게 굳힐수록 걷히는 몫이 커진다(0/7.5/33.75/112.5).
+              방어를 없애지는 못한다(관통 100000 에서도 남는다).
+
+    닫힌 Possibility 1종
+        MP-PIERCE-THE-HARD-DEFENSE   요구 Capability 4종이 모두 IMPLEMENTED.
+        단 경로는 아직 좁다 — 플레이어가 관통을 **얻는** 선택이 세계에 없다
+        (종류가 정한 값과 디버그 명령뿐). Cycle 이 FR-EARN-THE-PIERCING 을 제안했고,
+        형태(장비·성장·준비 행동)를 근거 문서가 정하지 않아 frontier 의 대기열로 갔다.
+
+    넓어진 Knowledge 1종
+        MK-OPPONENT-DEFENSE-SHAPE   새로 세운 것이 아니다. C012 의 DefenseShape 위에
+        "그 방어가 나에게 얼마인가" 가 얹혔다 — 같은 지식의 관계 형태다.
+
+    Constraint Evaluation 갱신
+        MC-PENETRATION 에 DC-COMBAT-ONE-FORMULA · DC-COMBAT-MATCHUP-SOFT 판정을 더했다.
+        둘 다 이 Capability 의 구현 형태를 실제로 제한했다 —
+        새 공식을 만들지 않고 기존 감쇄식이 읽는 값 하나를 바꿨고(ONE-FORMULA),
+        타입별 배율표·면역 없이 깎이기 전후가 관찰된다(MATCHUP-SOFT).
+        DC-COMBAT-ONE-LAYER-AT-A-TIME · DC-WORLD-OWNS-THE-SURFACE-LIST 도 SATISFIED 이나
+        노드에 Edge 를 더하지 않았다 — 전자는 Cycle 선택의 제약이고 후자는 GLOBAL 이다.
+
+    Constraint Candidate 접수 1종
+        CC-THE-WORLD-OWNS-THE-RELATION (PENDING) — 두 존재 사이에서만 정해지는 값도
+        세계가 계산해 관찰에 싣는다. 관찰 1회이고 기존
+        DC-WORLD-OWNS-THE-SURFACE-LIST 와의 경계가 정리되지 않아 승격하지 않았다.
+
+    Master Gap 없음.
 
     2026-08-18 (Q12 결정 — 근거 문서를 둘로 못 박았다)
 

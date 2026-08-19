@@ -45,16 +45,16 @@ CYCLE LAYER    선택된 하나의 플레이 결과를 World Semantic 과 Rule �
 ```
 
 해당 영역 문서가 이름조차 대지 않는 의미는 Graph·Constraint 에 두지 않는다 — 보류가
-아니라 삭제한다. 기준 시점 **BW 주입 (2026-08-19)** — 코드는 C012 닫힘 상태 그대로다.
+아니라 삭제한다. 기준 시점 **C013 닫힘** — 전투 사다리는 Penetration 층까지 서 있다.
 
 ```text
 Constraint   17     Active 17 (APPROVED 16 · REVISED 1 — PLAYER-CAUSALITY, Critical 예외) · DRAFT 0
-Candidate     3     APPROVED 1 (→ DC) · PENDING 2
+Candidate     4     APPROVED 1 (→ DC) · PENDING 3
 Actor         2     Knowledge 2 · Belief 0 (Belief 는 도입하지 않는다 — Q3 결정)
 Goal          5     Possibility 24 (전투 14 · 탐험 10) — §27 기관 대안 4종만 requires 미배선
-Capability   42     IMPLEMENTED 7 · PARTIAL 2 · MISSING 33 (베이라 사다리 21 · 자원 2 · Critical 1 포함)
+Capability   42     IMPLEMENTED 8 · PARTIAL 2 · MISSING 32 (베이라 사다리 21 · 자원 2 · Critical 1 포함)
 Item Def      2     IP-BOUNDARY-STABLE · IT-BOUNDARY-BLADE (growth/items/)
-Frontier      3     PROPOSED — PENETRATION · CRITICAL · OBSERVE (Human 선택 대기)
+Frontier      2     PROPOSED — OBSERVE · CRITICAL (Human 선택 대기)
 WorldState   11     상위 인과 2 (PRIMAL-WORLD · WORLD-PRESSURE) · 구조 2
                     (SAFE-FRONTIER · DEPTH-GRADIENT) · 깊이 층 5 (ZONE-FRINGE ~ ZONE-UNKNOWN) ·
                     대표 지역 2 (HYPER-PREDATION · SPATIAL-SHEAR)
@@ -66,8 +66,9 @@ Open Question 0   → 지금 Human 을 기다리는 것은 frontier.md 의 선�
 `frontier.md` · `open-questions.md` · `constraints/README.md`)에는 **지금 할 일과 현재
 상태만** 남긴다 — 닫힌 것은 그 자리에서 지우고 HISTORY 로 옮긴다.
 
-닫힌 Possibility 3종 — MP-OUTGROW-THE-OPPONENT(C010) · MP-TRADE-BODY-FOR-RESOURCE(C011) ·
-MP-MATCH-WEAPON-TO-ARMOR(C012). 요구 Capability 가 하나도 비어 있지 않은 경로들이다.
+닫힌 Possibility 4종 — MP-OUTGROW-THE-OPPONENT(C010) · MP-TRADE-BODY-FOR-RESOURCE(C011) ·
+MP-MATCH-WEAPON-TO-ARMOR(C012) · MP-PIERCE-THE-HARD-DEFENSE(C013).
+요구 Capability 가 하나도 비어 있지 않은 경로들이다.
 
 아직 비어 있는 것 — 지어내지 않고 남긴 자리다:
 

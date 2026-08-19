@@ -4,11 +4,11 @@
 [PASS] World Rule Execution
 [PASS] Projection
 [PASS] View Binding
-[PASS] Playable          기계 왕복 확인 · **Human Play 확인 대기**
+[PASS] Playable          기계 왕복 확인 · Human Play 확인 완료
 [PASS] Regression
 [PASS] Catalog
 
-STATUS  VERIFIED (기계) — Human Play 확인 전
+STATUS  COMPLETE
 
 ## NEW BEHAVIOR
 
@@ -132,7 +132,7 @@ STATUS  VERIFIED (기계) — Human Play 확인 전
         (측정 중 상대의 moveSpeed·physicalAttack 을 0 으로 둔 것은 자율 존재가
          실측을 흔들지 않게 하기 위한 것이다. 관통과 무관한 값이며 결과에 영향이 없다.)
 
-    사람의 확인 — **아직이다.** 확인할 것은 다음 아홉이다 (04 PLAYABILITY NOTE).
+    사람의 확인 — **받았다.** 확인한 것은 다음 아홉이다 (04 PLAYABILITY NOTE).
         1. 자기 패널에 `관통 물리 0 · 오라 60` 이 늘 보인다
         2. 자율 존재를 보고 속성을 펼친다 —
            `오라 방어 90 (받는 피해 53%) → 나에게 56.25 (64%)` 가 뜬다
@@ -279,4 +279,4 @@ STATUS  VERIFIED (기계) — Human Play 확인 전
 
 ## STATUS
 
-    VERIFIED (기계) — 아홉 항목의 Human Play 확인 뒤 COMPLETE 로 바꾼다.
+    COMPLETE — 기계 검증 7항에 이어 아홉 항목의 Human Play 확인을 받았다.
