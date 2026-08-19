@@ -10,4 +10,4 @@ export {
   type World,
   type WorldSetup,
 } from './proto-adventure/world/index';
-export { TICK_INTERVAL } from './proto-adventure/world/semantic/world-state';
+export { TICK_INTERVAL } from './proto-adventure/world/base/world-state';

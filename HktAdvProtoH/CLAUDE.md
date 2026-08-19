@@ -181,7 +181,7 @@ Root Game Goal / World Premise (`master/root.md`) 와 Constraint 승인은 Human
 | `<pack>/master/` | Master Intent Graph — Constraint · Graph · Overlay · Frontier | 현재 상태만, 닫히면 지운다 |
 | `<pack>/master/HISTORY.md` | 닫힌 질문·선택·갱신의 보관소 | 조회용, 평소 읽지 않는다 |
 | `<pack>/cycles/` | Cycle Artifact — 진행 기록 | History, 수정하지 않는다 |
-| `<pack>/world/` | Authoritative World 구현 (Server) — 팩의 Rule·Semantic·투영 | 현재 게임, 계속 발전 |
+| `<pack>/world/` | Authoritative World 구현 (Server) — `base/`(세계 골격) + `domains/`(기능 영역) + `index.ts`(조립) | 현재 게임, 계속 발전 |
 | `<pack>/view/` | Client View 결정 Layer — presentation 표·문구·바인딩 | 현재 게임, 계속 발전 |
 | `<pack>/protocol/` | 팩의 GameView·Action 확장 타입 | 현재 게임, 계속 발전 |
 | `<pack>/motions/` | 모션 시트 — 폴더 규약 자동 발견 | 현재 게임, 계속 발전 |
@@ -197,6 +197,7 @@ Root Game Goal / World Premise (`master/root.md`) 와 Constraint 승인은 Human
 | [Design-Workflow.md](design/Design-Workflow.md) | Goal/Possibility 기반 Observable World 구현 Workflow |
 | [Design-CycleWorkflow.md](design/Design-CycleWorkflow.md) | Cycle 단위 점진 개발 공정 |
 | [Design-CycleExecution.md](design/Design-CycleExecution.md) | **Agent 실행 방식** — 이 작업환경의 근거 |
+| [Design-Pack-Domain-Modules.md](design/Design-Pack-Domain-Modules.md) | **팩 내부 구성** — base(세계 골격) + 도메인 모듈, 소유권 규칙 |
 
 `guides/` 는 이 문서들에서 각 단계에 필요한 규칙만 압축한 것이다.
 

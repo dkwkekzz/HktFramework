@@ -16,9 +16,9 @@ import {
   RUN_CP_DRAIN,
   SKILL_DEFINITIONS,
   STRIKE_EVENT_TTL,
-} from '../semantic/combat';
-import { SWING_BEGIN } from '../semantic/collision';
-import { TICK_INTERVAL } from '../semantic/world-state';
+} from '../domains/combat/combat';
+import { SWING_BEGIN } from '../domains/combat/swing';
+import { TICK_INTERVAL } from '../base/world-state';
 import { driveWorld, PLAYER, type WorldDriver } from './drive';
 
 const BASIC = SKILL_DEFINITIONS.attack;

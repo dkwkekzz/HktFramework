@@ -220,24 +220,32 @@ before / after / reason` 을 노출한다. 별도 World 접근 경로를 만들�
 ## 06-world-implementation.md
 
 ```markdown
+## DOMAIN
+    주 도메인   mining (기존 도메인 확장)
+    함께 바꾼 도메인   —
+    (새 도메인 신설이면: 폴더 하나 + world/index.ts 의 DOMAINS 배열 항목 하나)
+
 ## IMPLEMENTED
-    Inventory.Capacity        world/semantic/inventory.ts
-    RULE-ADD-ITEM (changed)   world/rules/add-item.ts
+    Inventory.Capacity        world/domains/mining/inventory.ts
+    RULE-ADD-ITEM (changed)   world/domains/mining/add-item.ts
 
 ## REUSED
-    Actor.Inventory           world/semantic/inventory.ts
+    Actor.Inventory           world/base/actor.ts (필드) · world/domains/mining/inventory.ts
 
 ## AFFECTED UPDATED
-    RULE-MINE-001             world/rules/mine.ts
+    RULE-MINE-001             world/domains/mining/mine.ts
 
 ## PROJECTION
-    inventory.capacity        world/projection/player-view.ts
+    inventory.capacity        world/domains/mining/index.ts (hud 기여)
 
 ## TESTS
     add-item.spec.ts          full / room available / boundary
 
 ## NOTES
 ```
+
+`DOMAIN` 절은 Stage 6 의 첫 판정 기록이다 — 이 Delta 를 다음에 여는 사람이
+어느 폴더를 열면 되는지를 이 한 줄이 정한다.
 
 ---
 

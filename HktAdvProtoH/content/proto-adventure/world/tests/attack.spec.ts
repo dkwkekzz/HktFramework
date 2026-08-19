@@ -8,8 +8,8 @@
 
 import { describe, expect, it } from 'vitest';
 import type { GameViewSnapshot } from '../../protocol/gameview';
-import { SWING_BEGIN } from '../semantic/collision';
-import { TICK_INTERVAL } from '../semantic/world-state';
+import { SWING_BEGIN } from '../domains/combat/swing';
+import { TICK_INTERVAL } from '../base/world-state';
 import { driveWorld, PLAYER, type WorldDriver } from './drive';
 
 const ATTACK_DURATION = 0.6;

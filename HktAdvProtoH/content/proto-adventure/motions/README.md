@@ -15,7 +15,7 @@ motions/<캐릭터종류>/<행동>[.<옵션>…].png
 | `<캐릭터종류>` | 폴더 이름이 곧 캐릭터 종류다 | World 의 `Actor.CharacterKind` 와 같은 문자열 (`rabbit-swordsman`, `wanderer`, …) |
 | `<행동>` | 파일 이름의 첫 토큰이 곧 행동이다 | `idle` · `move` · `attack` · `mine` · `hit` · `downed` — 이후 추가되는 행동도 같은 방식 |
 
-행동 이름은 World 의 `ActionKind`(`world/semantic/action.ts`) 와 같은 문자열이다.
+행동 이름은 World 의 `ActionKind`(`world/base/action.ts`) 와 같은 문자열이다.
 `hit`(피격) 과 `downed`(쓰러짐) 은 스스로 요청하는 행동이 아니라 남의 공격이나 생명이
 다한 결과로 들어가는 상태지만, 화면에서는 다른 행동과 똑같이 다뤄진다 —
 시트를 놓으면 그대로 재생된다.
