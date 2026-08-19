@@ -266,6 +266,8 @@ constraints/README.md   현재 Active Constraint        → 반영 이력은 여
 | FR-MATCHUP-MAKES-THE-CHOICE | C012-damage-type-chooses-the-defense | **CLOSED** 2026-08-18 — MC-ATTACK-ARMOR-MATCHUP 승격 · MK-OPPONENT-DEFENSE-SHAPE 확립 |
 | FR-PENETRATION-DEVALUES-THE-WALL | C013-penetration-devalues-the-wall | **CLOSED** 2026-08-19 — MC-PENETRATION 승격 · MP-PIERCE-THE-HARD-DEFENSE 닫힘 (요구 4종 완비) |
 | FR-OBSERVE-REVEALS-THE-OPPONENT | C014-observe-reveals-the-opponent | **CLOSED** 2026-08-19 — MC-OBSERVE 승격 (IMPLEMENTED 가 아니라 **PARTIAL** — 아래 Overlay 이력) · 탐험 사다리의 첫 칸 |
+| FR-CRITICAL-AMPLIFIES-THE-BLOW | C015-critical-amplifies-the-blow | **CLOSED** — MC-CRITICAL-STRIKE 승격 · 세계에 우연이 처음 들어왔다. MP-BET-ON-THE-CRITICAL-BLOW 는 **절반만** 닫혔다 (성질을 올릴 원천이 없다) |
+| FR-INSIGHT-SEES-BEFORE-LOOKING | C016-insight-sees-before-looking | **CLOSED** — MC-OBSERVE 의 **경로** 결손이 닫혔다 (앎에 이르는 길이 둘 · 앎이 자리 단위). 노드는 여전히 PARTIAL — 남은 결손은 습성 하나 |
 
     롤백된 것 (2026-08-17 Human 결정 — R1 층 순서와 어긋나 되돌렸다. 산출물은 git history)
         구 C010-guard-trades-body-for-resource · 구 C011-perfect-guard-turns-the-table
@@ -520,6 +522,101 @@ constraints/README.md   현재 Active Constraint        → 반영 이력은 여
 
     Master Gap 없음. Stage 5 가 확인한 판단 둘(C007 R2 개정 범위 · DT §10 조정)이
     승인되어 반환 조건이 발생하지 않았다.
+
+    2026-08-19 (C015 Feedback — Critical 층)
+
+    승격 1종
+        MC-CRITICAL-STRIKE   MISSING → IMPLEMENTED
+        근거  C015 08-verification — 같은 조건 다섯 대에서 [20, 20, 40, 40, 20] 이
+              실측되고, 성질을 바꾸면 빈도와 크기가 각각 달라지며(가능성 1 → 매번 ·
+              배율 3 → 60), occurred · chance · multiplier · damageBeforeCritical 넷이
+              모든 타격의 계산 경위에 실린다.
+
+        **IMPLEMENTED 로 올린 근거를 적어 둔다.** semantic 뒷문장("성장·장비로 자란다")이
+        아직 세계에 없지만 이 노드의 `world_shape` 는 그것을 요구하지 않는다. 판정 기준은
+        semantic 이 아니라 world_shape 다 (overlay.md 머리말). 같은 결손을 지는
+        MC-ATTACK-POWER 가 PARTIAL 인 것은 그 노드의 world_shape 가 "세계 안의 행위로
+        이 값을 올릴 수 있어야 한다" 를 **직접 적고 있기** 때문이다 — 두 판정은 어긋나지
+        않는다. Critical 쪽의 그 결손은 MP-BET-ON-THE-CRITICAL-BLOW 의
+        `requires.resource` 가 진다.
+
+    Possibility 1종 PARTIAL 로
+        MP-BET-ON-THE-CRITICAL-BLOW   ABSENT → PARTIAL. 요구 Capability 3종이 전부
+        IMPLEMENTED 이나 `requires.resource`(Critical 성질을 올릴 성장·장비의 원천)가
+        비어 있어 "준비로 기대값을 올린다" 는 이 갈래의 절반이 서지 않았다.
+
+    Constraint Candidate 접수 1종
+        CC-WORLD-OWNS-THE-CHANCE (PENDING) — 우연의 원천은 세계 상태이고 관찰에
+        실리지 않으며 그럼에도 결과는 끝까지 설명된다. 관찰 1회이고
+        DC-COMBAT-PLAYER-CAUSALITY(REVISED)와의 경계가 정리되지 않아 승격하지 않았다.
+
+    Master Gap 없음.
+
+    2026-08-19 (C016 Feedback — 통찰)
+
+    승격 없음 · 결손 하나 닫힘
+        MC-OBSERVE   PARTIAL 유지. 남은 결손 둘 중 **경로 쪽**이 닫혔다 —
+        앎에 이르는 길이 둘(살펴봄 · 기른 통찰)이 되고, 앎이 존재 단위에서 자리 단위로
+        넓어졌다. 남는 것은 **행동·습성** 하나뿐이고 그것이 닫히면 IMPLEMENTED 다.
+
+    Possibility 1종 PARTIAL 로
+        MP-LEARN-TO-HANDLE-THE-LAYER   ABSENT → PARTIAL. BW §32 사슬의 첫 칸이 섰다.
+
+    Knowledge 1종 승격
+        MK-OPPONENT-DEFENSE-SHAPE   PARTIAL → PRESENT. 이 줄은 C014 시점에 이미
+        낡아 있었다 — "처음부터 전부 보이므로 알게 되는 과정이 없다" 고 적혀 있었으나
+        C014 가 그것을 가렸고 C016 이 자리별로 열었다. Feedback 이 밀린 동안 살아 있는
+        문서가 사실과 어긋난 사례이며, 밀리면 안 되는 이유의 실례다.
+
+    Overlay 근거 정정 1종 (코드 대조)
+        MC-PREDICT   MISSING 유지, **결손의 자리를 고쳤다.** 이전 판정은
+        "상대 행동에 읽을 예고 구간이 노출되지 않는다" 였으나 코드 대조로 틀린 것이
+        확인되었다 — 예고 구간은 있고(`collision.ts` SWING_BEGIN) 진행 중인 행동의
+        종류·진행도·칼끝이 계약에 실린다(`EntityView.state` · `progress` · `swing`).
+        실제 결손은 둘이다: ① 자율 존재가 쓰는 스킬이 하나뿐이라 읽을 갈래가 없다
+        (`npc-decide.ts` — 사거리 안이면 언제나 `attack`) ② 그 앎이 살펴봄·통찰과
+        무관하게 누구에게나 그냥 온다.
+
+    Constraint Candidate 접수 2종
+        CC-A-NEW-WAY-OF-KNOWING-IS-NOT-A-GATE (PENDING) — **관찰 2회**
+        (C014 `POSSIBILITY-STILL-FIGHT-BLIND` · C016 `INTENT-INSIGHT-NOT-A-GATE-001`).
+        PENDING 후보 중 유일하게 반복이 확인된 것이다.
+        CC-CONDITION-OPENS-WITHOUT-RECORDING (PENDING) — 조건이 여는 것을 기록하지
+        않으면 되돌림 규칙이 필요 없다. C015 의 "확률의 양 끝에서 소비하지 않는다" 와
+        같은 종류일 수 있어 그 경계도 판단에 뒀다.
+
+    Human 결정 대기 1건 신규
+        Q23 — 통찰을 독립 Capability(MC-INSIGHT)로 세울 것인가. C016 08 이 판단을
+        Master 로 넘겼다. 지금 통찰을 따로 요구하는 Possibility 가 없어 SCHEMA 의
+        노드 규칙("required_by 와 demanded_by 가 둘 다 비면 노드가 아니다")에 걸리므로,
+        Agent 판단으로는 성장 축 Cycle 이 열릴 때로 미루는 쪽을 권한다.
+
+    Master Gap 없음.
+        다만 C016 이 보고한 자리 하나를 여기서 닫았다 — frontier 의 SELECTED 가
+        "다음 단계 cycles/C015-<name>" 을 가리키고 있었으나 C015 는 Human 이 따로 고른
+        Critical 층이 가져갔고 그 Frontier 를 받은 것은 C016 이다. 두 후보를 지우면서
+        해소되었다.
+
+    2026-08-19 (Human Select — 다음 Cycle)
+
+    FR-PREDICT-READS-THE-NEXT-BLOW 를 Human 이 선택했다. 함께 물었던 판단
+    (MC-OBSERVE 의 "습성" 을 이 Cycle 에 함께 닫을지, 따로 볼지)에 **A안 — 한 Cycle 로
+    묶는다** 로 답했다.
+
+        Human 질문   "플레이어는 자신이 입력을 통해 캐릭터를 제어하는건데 이게 무슨
+                     의미가 있는건지 모르겠어." → 코드 대조로 답한 것이 위 MC-PREDICT
+                     근거 정정이다. 예고는 이미 보이고 반응도 되지만, 자율 존재의
+                     행동이 언제나 하나라 **읽을 거리가 없다** 는 것이 진짜 결손이었다.
+        A안 근거     갈래 없이는 읽을 것이 없고, 읽기 없이는 갈래가 보이지 않는다 —
+                     둘로 나누면 어느 쪽도 혼자서는 플레이 가능한 Delta 가 되지 않는다.
+        Cycle 에 나르는 것   frontier 의 **넘어야 할 선** 셋. ① 자율 존재의 다음 행동에
+                     갈래가 둘 이상 ② 그 갈래를 아는 것이 앎의 관문 뒤에 ③ 알고 대응한
+                     결과가 모르고 대응한 결과와 다르다. 셋 중 하나라도 못 넘으면
+                     이미 있는 것에 이름표를 붙인 Cycle 이 된다.
+
+    배운 것: Overlay 의 "부족한 것" 칸이 **틀릴 수 있다.** MC-PREDICT 는 근거 칸이
+    비어 있는 채로(`—`) 결손 문장만 있었고, 그 문장이 코드와 달랐다. 근거가 빈 MISSING
+    줄은 판정이 아니라 추측일 수 있다 — Frontier 로 올릴 때 코드 대조를 한 번 거친다.
 
 # 4. Constraint 반영 이력
 

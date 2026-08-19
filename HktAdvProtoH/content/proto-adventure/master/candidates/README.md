@@ -2,7 +2,7 @@
 
 파일 하나 = 후보 하나. 이름은 `CC-<NAME>.md`. 형식은 [../SCHEMA.md](../SCHEMA.md).
 
-현재: **PENDING 4종**
+현재: **PENDING 7종**
 
 | 후보 | 출처 | 관찰 | 상태 |
 |---|---|---|---|
@@ -10,12 +10,25 @@
 | CC-THE-WORLD-NAMES-WHAT-IT-READ | C012 | 1회 (C012 · C010 은 전조) | PENDING |
 | CC-THE-WORLD-OWNS-THE-RELATION | C013 | 1회 (C013 — 관계 형태는 처음) | PENDING |
 | CC-THE-WORLD-NAMES-WHAT-IT-WITHHELD | C014 | 1회 (C014 · C011 은 전조) | PENDING |
+| CC-WORLD-OWNS-THE-CHANCE | C015 | 1회 (C015 — 우연은 처음) | PENDING |
+| CC-A-NEW-WAY-OF-KNOWING-IS-NOT-A-GATE | C016 | **2회** (C014 · C016) | PENDING |
+| CC-CONDITION-OPENS-WITHOUT-RECORDING | C016 | 1회 (C015 는 다른 영역의 같은 종류) | PENDING |
 
-**PENDING 넷 중 셋이 같은 뿌리다** — NAMES-WHAT-IT-READ(무엇을 읽었는가) ·
-OWNS-THE-RELATION(두 존재 사이의 값) · NAMES-WHAT-IT-WITHHELD(무엇을 가렸는가)는
-모두 `DC-WORLD-OWNS-THE-SURFACE-LIST` 와의 경계를 Human 판단으로 남겨 둔 상태이며,
+세 무리로 읽는다.
+
+**표면 무리 (3종)** — NAMES-WHAT-IT-READ(무엇을 읽었는가) · OWNS-THE-RELATION(두 존재
+사이의 값) · NAMES-WHAT-IT-WITHHELD(무엇을 가렸는가)는 모두
+`DC-WORLD-OWNS-THE-SURFACE-LIST` 와의 경계를 Human 판단으로 남겨 둔 상태이며,
 셋 다 "View 가 스스로 만들어내지 않는다" 는 한 문장의 다른 얼굴이다.
-넷을 한 자리에서 보라는 뜻으로 나란히 둔다 — 합칠지 따로 세울지도 그 판단에 든다.
+넷째(SURFACE-LIST)와 한 자리에서 보라는 뜻으로 나란히 둔다.
+
+**길 무리 (1종)** — A-NEW-WAY-OF-KNOWING-IS-NOT-A-GATE 는 **유일하게 2회 관찰된**
+후보다. `DC-WORLD-PLAYER-UNFIXED-PATH` 의 정보판이며, 승격하면 다음 Cycle 이 바로
+그 제약을 받는다.
+
+**상태 무리 (2종)** — WORLD-OWNS-THE-CHANCE 의 ④ 와
+CONDITION-OPENS-WITHOUT-RECORDING 이 같은 문장일 수 있다: 이미 정해진 것·조건이 여는
+것에는 상태를 남기지 않는다. 둘을 합칠지 가를지도 판단에 든다.
 
 승격된 것 1종 — CC-WORLD-OWNS-THE-SURFACE-LIST (2026-08-17 APPROVED →
 `../constraints/DC-WORLD-OWNS-THE-SURFACE-LIST.yaml`). 파일은 기록으로 남긴다.
