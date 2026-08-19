@@ -286,6 +286,139 @@ nodes:
       DC-COMBAT-SHARED-BUDGET: SATISFIED       # 자세 유지가 새 게이지가 아니라 같은 기력 예산을 흘린다 (R1 §1 · §11)
     # R1 §14 Aura/Nen 층이 예고한다 — 방어 집중은 Defense 를 올리고 Attack 을 낮추며 CP 를 흘린다.
 
+  # ── MG-EXPLORE-BEIRA 를 진전시키는 방법들 — 깊이별 진입 (BW §16 · §19~§25) ──
+  # 노드 ID 는 Agent 명명이다(문서는 층 이름만 준다). 그러나 의미는 전부 문서 것이다 —
+  # §16 탐험 Loop(EXPLORE → 발견 → Local Goal → Capability → 더 깊은 지역)와
+  # §21~§25 의 "필요:"(층마다 요구 Capability 명시)를 배선으로 옮겼다.
+  # 같은 Goal 의 OR 이면서 사다리다 — 깊은 층일수록 요구가 무겁다 (MW-DEPTH-GRADIENT).
+  # SAFE 층(§20)은 출발지라 진입 MP 가 없다 — MW-SAFE-FRONTIER 가 그 자리다.
+
+  - id: MP-VENTURE-INTO-FRINGE
+    type: possibility
+    achieves: [MG-EXPLORE-BEIRA]
+    meaningful_difference: >
+      가장 얕은 진입이다 — 위험은 강한 토착 포식자뿐이고, 요구되는 것은 힘이 아니라
+      관찰·예측·지형 활용이라는 정보 능력이다. 다른 층 진입과 달리 문명권의 기본
+      전투 능력만으로도 생존 여지가 있다. (BW §21)
+    requires:
+      goals: []
+      capabilities: [MC-OBSERVE, MC-PREDICT, MC-USE-TERRAIN]
+      knowledge: []
+      world_state: [MW-ZONE-FRINGE]
+      relationship: []
+      resource: []
+    supports: []
+    opposes: []
+    changes:
+      - 이해·대응 가능한 세계의 범위가 FRINGE 까지 넓어진다 (BW §32)
+    reveals: []
+    creates_goal: []
+    # 발견이 만드는 구체 Local Goal / Knowledge 는 BW 가 명명하지 않았다 — WHY 몫 (§16)
+    constraints: [DC-WORLD-PROGRESSION-IS-REACH]
+    constraint_evaluation:
+      DC-WORLD-PROGRESSION-IS-REACH: UNRESOLVED   # DC DRAFT (Q17). 진입 조건이 Level 이 아니라 Capability 라 승인 시 SATISFIED 전망
+
+  - id: MP-VENTURE-INTO-WILD
+    type: possibility
+    achieves: [MG-EXPLORE-BEIRA]
+    meaningful_difference: >
+      정보만으로는 부족해지는 첫 층이다 — 특수 갑각·독·비정상 감각에 대해 방어를
+      깨고 약점을 찾고 부위를 노리고 공간을 통제하는 개입 능력이 필요하다.
+      처음으로 가치 있는 특수 소재가 보상으로 걸린다. (BW §22)
+    requires:
+      goals: []
+      capabilities: [MC-BREAK, MC-DISCOVER-WEAKNESS, MC-PRECISE-TARGETING, MC-CONTROL-SPACE]
+      # MC-BREAK 는 기존 전투 노드 재사용이다 — semantic 폭(Guard ↔ 갑각) 확정은 Q18
+      knowledge: []
+      world_state: [MW-ZONE-WILD]
+      relationship: []
+      resource: []
+    supports: []
+    opposes: []
+    changes:
+      - 이해·대응 가능한 세계의 범위가 WILD 까지 넓어진다
+      - 특수 생물 소재에 닿는다 (BW §22)
+    reveals: []
+    creates_goal: []
+    constraints: [DC-WORLD-PROGRESSION-IS-REACH]
+    constraint_evaluation:
+      DC-WORLD-PROGRESSION-IS-REACH: UNRESOLVED   # DC DRAFT (Q17)
+
+  - id: MP-VENTURE-INTO-DANGER
+    type: possibility
+    achieves: [MG-EXPLORE-BEIRA]
+    meaningful_difference: >
+      상대가 생물만이 아니게 되는 층이다 — Hazard·Creature·Terrain 이 결합해,
+      환경을 읽고 위험 요소를 내 수단으로 쓰고 상대를 그리로 몰아넣는 능력이
+      필요하다. 환경 Property 를 가진 Resource 가 걸린다. (BW §23)
+    requires:
+      goals: []
+      capabilities: [MC-READ-ENVIRONMENT, MC-FORCE-MOVEMENT, MC-USE-HAZARD, MC-INTERRUPT]
+      knowledge: []
+      world_state: [MW-ZONE-DANGER]
+      relationship: []
+      resource: []
+    supports: []
+    opposes: []
+    changes:
+      - 이해·대응 가능한 세계의 범위가 DANGER 까지 넓어진다
+      - 환경 Property 를 가진 Resource 에 닿는다 (BW §23)
+    reveals: []
+    creates_goal: []
+    constraints: [DC-WORLD-PROGRESSION-IS-REACH]
+    constraint_evaluation:
+      DC-WORLD-PROGRESSION-IS-REACH: UNRESOLVED   # DC DRAFT (Q17)
+
+  - id: MP-VENTURE-INTO-DEEP
+    type: possibility
+    achieves: [MG-EXPLORE-BEIRA]
+    meaningful_difference: >
+      인간의 전투 상식이 통하지 않는 층이다 — 재생·공생 Network·생체 영역을 체계로
+      읽고, 능력의 성립 자체를 끊고, 압박을 유지하고, 특정 부위를 노려야 한다.
+      특히 강력한 Resource 가 걸린다. (BW §24)
+    requires:
+      goals: []
+      capabilities: [MC-DISCOVER-WEAKNESS, MC-DISRUPT-ABILITY, MC-MAINTAIN-PRESSURE, MC-TARGET-SPECIFIC-PART, MC-READ-CREATURE-SYSTEM]
+      knowledge: []
+      world_state: [MW-ZONE-DEEP]
+      relationship: []
+      resource: []
+    supports: []
+    opposes: []
+    changes:
+      - 이해·대응 가능한 세계의 범위가 DEEP 까지 넓어진다
+      - 특히 강력한 Resource 에 닿는다 (BW §24)
+    reveals: []
+    creates_goal: []
+    constraints: [DC-WORLD-PROGRESSION-IS-REACH]
+    constraint_evaluation:
+      DC-WORLD-PROGRESSION-IS-REACH: UNRESOLVED   # DC DRAFT (Q17)
+
+  - id: MP-VENTURE-INTO-UNKNOWN
+    type: possibility
+    achieves: [MG-EXPLORE-BEIRA]
+    meaningful_difference: >
+      위협이 몸을 넘는 층이다 — 기억·감각·인식·Identity·공간 자체가 공격면이 되어,
+      지각을 지키고 실재를 검증하고 자기를 붙들어 두는, 다른 층에는 없는 종류의
+      능력이 필요하다. 상상을 초월하는 Resource 가 걸린다. (BW §25)
+    requires:
+      goals: []
+      capabilities: [MC-PROTECT-PERCEPTION, MC-VERIFY-REALITY, MC-IDENTITY-ANCHOR, MC-RESIST-INFLUENCE, MC-BREAK-BIOLOGICAL-LINK, MC-ESCAPE-ALTERED-SPACE]
+      knowledge: []
+      world_state: [MW-ZONE-UNKNOWN]
+      relationship: []
+      resource: []
+    supports: []
+    opposes: []
+    changes:
+      - 이해·대응 가능한 세계의 범위가 UNKNOWN 까지 넓어진다
+      - 상상을 초월하는 Resource 에 닿는다 (BW §25)
+    reveals: []
+    creates_goal: []
+    constraints: [DC-WORLD-PROGRESSION-IS-REACH]
+    constraint_evaluation:
+      DC-WORLD-PROGRESSION-IS-REACH: UNRESOLVED   # DC DRAFT (Q17)
+
   # ── MG-ACQUIRE-RARE-ORGAN 를 달성하는 방법들 (OR) ──────────────────────
   # BW §27 (design/Master-World-Beira.md — 2026-08-19 주입) 이 다섯을 직접 명명했다.
   # 전투는 그중 하나다 — DC-WORLD-COMBAT-IS-ONE-POSSIBILITY (DRAFT) 의 원형 사례.
@@ -417,8 +550,9 @@ nodes:
 #   (CONTROL-MOVEMENT · INTERRUPT · WEAPONIZE-ENVIRONMENT)의 처리는 Human 결정 대기다
 #   → open-questions.md Q18.
 #
-#   MG-EXPLORE-BEIRA 의 Possibility(어디로 · 어떻게 나가는가)는 BW 가 명명하지 않는다 —
-#   §16 탐험 Loop 는 순환 구조만 공급한다. OPTIONS 탐색 몫이다.
+#   MG-EXPLORE-BEIRA 의 Possibility 는 MP-VENTURE-INTO-* 5종으로 세웠다 —
+#   §16 탐험 Loop 와 §21~§25 의 층별 "필요:" 를 배선으로 옮긴 것이다 (ID 만 Agent 명명).
+#   층 진입 밖의 탐험 방식(안내인 · 교역로 · 정보 구매 등)은 문서에 없다 — OPTIONS 몫.
 #
 # 전투 영역 주입 근거 (2026-08-18 Q12 결정 상태 유지)
 #   R1  design/Design-Combat-OffenseDefense-R0.md

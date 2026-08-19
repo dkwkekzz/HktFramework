@@ -86,11 +86,19 @@ Constraint Violation 과 혼동하지 않는다 — 여기는 **있는가/없는
 | MP-HOLD-FORTIFIED | MC-FORTIFY · MC-COMBAT-FLOW | R1 §14 Aura/Nen 층으로 이연 (MC-DEFENSE-MITIGATION 은 C010 으로 채워졌다) |
 | MP-STAKE-EVERYTHING-ON-ONE-BLOW | MC-VOW · MC-CONDITION-STACKING · MC-COMBAT-FLOW | R1 §14 Aura/Nen 층 — 가장 멀다 |
 
-탐험 영역 (BW §27 — MG-ACQUIRE-RARE-ORGAN 의 대안 5종):
+탐험 영역 (BW — MG-EXPLORE-BEIRA 깊이 진입 5종 + MG-ACQUIRE-RARE-ORGAN 대안 5종):
 
 | Possibility | 요구 Capability 중 없는 것 | 비고 |
 |---|---|---|
-| MP-KILL-CREATURE · MP-TAKE-SHED-ORGAN · MP-TRADE-WITH-ACTOR · MP-FIND-DEAD-SPECIMEN · MP-FORCE-CREATURE-TO-RELEASE | **판정 불가 — requires 미배선** | BW 는 대안 구조만 공급했다. 요구 Capability 배선(OPTIONS/NEED)이 끝나야 이 표에 오른다. Frontier 후보로 세우지 않는다 |
+| MP-VENTURE-INTO-FRINGE | MC-OBSERVE · MC-PREDICT · MC-USE-TERRAIN | **3종 전부 없다** — 그러나 이 층이 탐험 사다리의 첫 칸이다 (BW §21). 지역·이동이라는 세계 기반 자체도 없다 |
+| MP-VENTURE-INTO-WILD | MC-BREAK · MC-DISCOVER-WEAKNESS · MC-PRECISE-TARGETING · MC-CONTROL-SPACE | 4종 전부 없다 (BW §22) |
+| MP-VENTURE-INTO-DANGER | MC-READ-ENVIRONMENT · MC-FORCE-MOVEMENT · MC-USE-HAZARD · MC-INTERRUPT | 4종 전부 없다 (BW §23) |
+| MP-VENTURE-INTO-DEEP | MC-DISCOVER-WEAKNESS · MC-DISRUPT-ABILITY · MC-MAINTAIN-PRESSURE · MC-TARGET-SPECIFIC-PART · MC-READ-CREATURE-SYSTEM | 5종 전부 없다 (BW §24) |
+| MP-VENTURE-INTO-UNKNOWN | 6종 전부 (MC-PROTECT-PERCEPTION 외) | 사다리의 끝 — 가장 멀다 (BW §25) |
+| MP-KILL-CREATURE · MP-TAKE-SHED-ORGAN · MP-TRADE-WITH-ACTOR · MP-FIND-DEAD-SPECIMEN · MP-FORCE-CREATURE-TO-RELEASE | **판정 불가 — requires 미배선** | BW §27 은 대안 구조만 공급했다. 요구 Capability 배선(OPTIONS/NEED)이 끝나야 판정된다 |
+
+탐험 Frontier 후보는 DC 승인(Q17) 전에는 세우지 않는다 — 전 노드의
+constraint_evaluation 이 UNRESOLVED 이기 때문이다.
 
 ## 갱신 경로
 

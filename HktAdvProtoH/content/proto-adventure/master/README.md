@@ -51,12 +51,14 @@ CYCLE LAYER    선택된 하나의 플레이 결과를 World Semantic 과 Rule �
 Constraint   17     APPROVED 12 (COMBAT 5 · GROWTH 6 · GLOBAL 1) · DRAFT 5 (WORLD — Q17)
 Candidate     3     APPROVED 1 (→ DC) · PENDING 2
 Actor         2     Knowledge 2 · Belief 0
-Goal          4     Possibility 15 (전투 10 · 탐험 5 — 탐험 5종은 requires 미배선)
+Goal          4     Possibility 20 (전투 10 · 탐험 10 — 깊이 진입 5종은 §21~§25 로 배선 완료,
+                    §27 기관 대안 5종은 requires 미배선)
 Capability   41     IMPLEMENTED 7 · PARTIAL 2 · MISSING 32 (베이라 사다리 21 + 자원 유래 2 포함)
 Item Def      2     IP-BOUNDARY-STABLE · IT-BOUNDARY-BLADE (growth/items/)
 Frontier      1     PROPOSED — FR-PENETRATION-DEVALUES-THE-WALL (Human 선택 대기)
-WorldState    6     BW 주입 — MW-PRIMAL-WORLD · WORLD-PRESSURE · SAFE-FRONTIER ·
-                    DEPTH-GRADIENT · HYPER-PREDATION · SPATIAL-SHEAR
+WorldState   11     BW 주입 — 상위 인과 2 (PRIMAL-WORLD · WORLD-PRESSURE) · 구조 2
+                    (SAFE-FRONTIER · DEPTH-GRADIENT) · 깊이 층 5 (ZONE-FRINGE ~ ZONE-UNKNOWN) ·
+                    대표 지역 2 (HYPER-PREDATION · SPATIAL-SHEAR)
 
 Open Question 7   → open-questions.md (Q2 · Q3 · Q8 · Q11 · Q17 · Q18 · Q19)
 ```
@@ -72,8 +74,8 @@ MP-MATCH-WEAPON-TO-ARMOR(C012). 요구 Capability 가 하나도 비어 있지 �
 
 ```text
 전투 Goal 의 World Cause   BW 가 일반 원리(조우 → Goal)만 공급했다 — 구체 배선은 WHY 몫  → Q2
-탐험 MP 의 requires        BW §27 은 대안 구조만 공급했다 — 배선은 OPTIONS/NEED 몫
-베이라 사다리 required_by  BW §20~§25 는 사다리만 예고했다 — 경로(MP)가 아직 없다
+§27 기관 대안의 requires   BW 는 대안 구조만 공급했다 — 배선은 OPTIONS/NEED 몫
+각 층이 만드는 Local Goal  §16 은 순환(발견 → Local Goal)만 공급했다 — WHY 몫
 Belief                     오독의 여지를 어디까지 둘지가 미정이다                       → Q3
 같은 상대의 전투 밖 경로    MG-OVERCOME-SUPERIOR-OPPONENT 의 비전투 대안이 없다          → Q8
 BW 전투 교차 매핑          §26~§28 의 전투 이름 ↔ 기존 전투 노드                        → Q18

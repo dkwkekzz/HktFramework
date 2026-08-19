@@ -43,13 +43,63 @@ nodes:
   - id: MW-DEPTH-GRADIENT
     type: world_state
     statement: >
-      베이라는 SAFE FRONTIER → FRINGE → WILD → DANGER → DEEP → UNKNOWN 의 위험
+      베이라는 SAFE FRONTIER → FRINGE → WILD → DANGER → DEEP → UNKNOWN → ? 의 위험
       Gradient 를 가지며 일반적으로 깊어질수록 Free World Pressure 가 높아진다.
-      정확한 수치적 거리 공식이 아니다 — 지역마다 Local WorldState 가 다를 수 있다. (BW §19)
+      정확한 수치적 거리 공식이 아니다 — 지역마다 Local WorldState 가 다를 수 있고,
+      UNKNOWN 너머(?)는 문서도 열어 둔다. (BW §19)
     causes: []
     changed_by: []
-    # 각 깊이가 요구하는 Capability 사다리(BW §20~§25)는 capabilities.yaml 의
-    # "베이라 사다리" 절이 소유한다.
+    # 각 층의 생태는 아래 MW-ZONE-* 5종이, 각 층이 요구하는 Capability 사다리
+    # (BW §20~§25)는 capabilities.yaml 의 "베이라 사다리" 절이 소유한다.
+    # SAFE FRONTIER 층은 위 MW-SAFE-FRONTIER 가 그 자리다 (BW §14 · §20).
+
+  # ── 깊이별 층 (BW §21~§25 — 각 층이 한 절씩 서술된 세계 사실) ─────────
+  # 각 층의 causes 는 비워 둔다 — 이 층들이 만드는 구체 Local Goal 은 BW 가
+  # 명명하지 않았다 (§16 은 "발견 → Local Goal" 순환만 공급). WHY 확장 몫이다.
+  # 층 진입은 possibilities.yaml 의 MP-VENTURE-INTO-* 가 담당한다.
+
+  - id: MW-ZONE-FRINGE
+    type: world_state
+    statement: >
+      변화 가능성이 조금 높아 강한 토착 포식자가 있는 베이라의 바깥 층. (BW §21)
+    causes: []
+    changed_by: []
+
+  - id: MW-ZONE-WILD
+    type: world_state
+    statement: >
+      특수 갑각·독·비정상적 감각·특수 이동을 가진 생물이 사는 층. 동시에 인간에게
+      가치 있는 특수 생물 소재가 본격적으로 등장하기 시작한다. (BW §22)
+    causes: []
+    changed_by: []
+
+  - id: MW-ZONE-DANGER
+    type: world_state
+    statement: >
+      생물과 환경을 독립적으로 볼 수 없는 층 — Hazard 와 Creature 와 Terrain 이
+      결합해 있다. Resource 역시 특정 환경 Property 를 가지기 시작한다. (BW §23)
+    causes: []
+    changed_by: []
+
+  - id: MW-ZONE-DEEP
+    type: world_state
+    statement: >
+      인간의 전투 상식이 무너지기 시작하는 층 — 극단적인 재생·신체 구조 변경·
+      공생 Network·생체 영역·공격 Adaptation 이 존재한다. 특히 강력한 Resource 가
+      등장할 수 있다. (BW §24)
+    causes: []
+    changed_by: []
+
+  - id: MW-ZONE-UNKNOWN
+    type: world_state
+    statement: >
+      세계압이 생명과 물질뿐 아니라 인간이 추상적이라 여기는 영역 — 기억·감각·인식·
+      Identity·공간·관계·행동 Pattern — 까지 변화시키는 층. 이들의 적응 기관은
+      인간에게 상상을 초월하는 Resource 가 될 수 있다. (BW §25)
+    causes: []
+    changed_by: []
+    # "기억을 먹는 생명 · 관찰자를 추적하는 생명" 등 §25 의 생명 목록은 예시다 —
+    # 개체 노드는 세우지 않는다 (지어내지 않는다 · Q14 삽화 선례와 동일 기준).
 
   # ── 대표 지역 상태 — 극단 환경과 자원이 같은 인과에서 (BW §8~§10) ─────
 

@@ -426,3 +426,17 @@ ONE-LAYER-AT-A-TIME 신설, 이연 층 근거의 3종은 DRAFT 보류.
     탐험 영역 Frontier 후보는 세우지 않았다 — DC 승인(Q17)과 requires/required_by
     배선(OPTIONS/NEED)이 선행이다. 기존 전투 후보 FR-PENETRATION-DEVALUES-THE-WALL 은
     이 주입의 영향을 받지 않는다.
+
+    2026-08-19 BW 보충 주입 (같은 날 2차) — Human 감사 지적: "10뎁스 세계관 대비 그래프가 얕다"
+
+    감사 결과 1차 주입이 문서의 의미 두 곳을 압축한 것이 확인되어 보충했다:
+        MW-ZONE-* 5종        §21~§25 가 한 절씩 서술한 깊이 층(FRINGE·WILD·DANGER·
+                             DEEP·UNKNOWN)을 MW-DEPTH-GRADIENT 하나로 눌렀던 것을 복원
+        MP-VENTURE-INTO-* 5종  §16 탐험 Loop + §21~§25 의 "필요:" 는 층 진입 ← 요구
+                             Capability 의 명시적 배선이었다 — "OPTIONS 몫" 판정은
+                             오판. ID 만 Agent 명명, 의미·배선은 전부 문서 것
+        required_by 배선 21건  사다리 MC 20종 + MC-BREAK(§22 가 같은 ID 를 직접 요구 —
+                             semantic 폭은 Q18 유지)
+    이로써 탐험 영역에 Goal → Possibility → Capability 척추가 섰다
+    (MG-EXPLORE-BEIRA → 깊이 진입 5 → 사다리 21). 여전히 남는 공백(§27 대안의
+    requires · 층별 Local Goal)은 문서가 실제로 공급하지 않는 것들이다.
