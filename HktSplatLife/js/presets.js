@@ -53,6 +53,27 @@
 		grow:       ['팽창',        0,    6,    0.1],
 		curve:      ['소멸 곡선',   0.2,  6,    0.1],
 		ember:      ['잔불 비율',   0,    1,    0.05],
+		// ── F2: 굴절 유전자 (빛을 휘게 하는 개체 전용 — refract 0 이면 색 패스 그대로) ──
+		// 색을 더하는 이펙트와 빛을 휘게 하는 이펙트를 가르는 축. 충격파·아지랑이·냉기 왜곡이
+		// 전부 이 네 값의 좌표 차이다 (게놈 한 줄 = 새 굴절 이펙트).
+		refract:    ['굴절 세기',   0,    4,    0.05],
+		chroma:     ['색 분산',     0,    1,    0.02],
+		caustic:    ['집광 밝기',   0,    2,    0.05],
+		rarefy:     ['희박파(반전)', 0,   1,    0.05],
+		// ── F3: 파열 유전자 (파면이 균질하지 않다 — shred 0 이면 매끈한 구면) ──
+		// 타격감의 근거. 방사 방향을 격자로 나눠 조각마다 속도·밀도를 갈라 파면을 찢는다.
+		shred:      ['파열(속도 편차)', 0, 1,   0.05],
+		shredFreq:  ['조각 크기',   0.5,  12,   0.5],
+		tear:       ['틈 비율',     0,    0.9,  0.05],
+		shredPow:   ['빠른 조각 희소성', 0.2, 6, 0.1],
+		// ── F4: 광선 유전자 (파면을 빛살로 — disc 0 이면 구면 방사, rayLen 0 이면 상한 없음) ──
+		disc:       ['원판 집중',   0,    1,    0.05],
+		discThick:  ['원판 두께',   0,    1.5,  0.05],
+		rayLen:     ['바늘 길이',   0,    40,   0.5],
+		rayThin:    ['바늘 가늘기', 0,    3,    0.1],
+		// ── F5: 방위 유전자 (평면 안에서 어디로 몰리는가 — arc 0 이면 온 고리) ──
+		arc:        ['방위 집중',   0,    0.98, 0.02],
+		arcSharp:   ['부채꼴 뾰족함', 0.2, 4,   0.1],
 	};
 
 	// ── 원소 프리셋: 유전자 값만 다르고 시스템은 동일 — 속성이 형태를 만든다 ──
@@ -131,7 +152,8 @@
 	// R1 재질 등 신설 유전자 미지정 프리셋은 0 폴백 (specPow 만 pow 가드 1) — NaN 업로드 방지.
 	function materialize(p, emitter) {
 		const g = {};
-		for (const k of Object.keys(GENE_DEFS)) g[k] = p[k] != null ? p[k] : (k === 'specPow' || k === 'curve' ? 1 : 0);
+		for (const k of Object.keys(GENE_DEFS)) g[k] = p[k] != null ? p[k]
+			: (k === 'specPow' || k === 'curve' || k === 'shredPow' || k === 'arcSharp' ? 1 : 0);
 		g.colorA = hexToVec4(p.colorA);
 		g.colorB = hexToVec4(p.colorB);
 		g.form = p.form || 0;

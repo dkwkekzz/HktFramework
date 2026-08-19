@@ -107,6 +107,16 @@
 			'파이어볼 폭발': () => ({ origin: bonePoint(HAND, [0.75, 1.0, 0]), dir: [0, 1, 0], strength: 1 }),
 			// 회복 오라: 발밑에서 솟는다
 			'회복 오라': () => ({ origin: [0, 0.05, 0], dir: [0, 1, 0], strength: 1, radius: 0.35 }),
+			// 물결파: 몸 한가운데서 사방으로 번진다 (온 고리 — 방향이 없다)
+			'물결파': () => { const o = bonePoint(TORSO, [0, 1.15, 0]); return { origin: o, dir: towardCamera(o), strength: 1, radius: 0.12 }; },
+			// 검격: 같은 지점, 칼자국 면이 카메라를 향한다. roll 이 칼날 각도 — 매번 조금씩
+			// 달라져야 같은 자리를 두 번 베어도 같은 그림이 되지 않는다.
+			'검격': () => {
+				const o = bonePoint(TORSO, [0, 1.15, 0]);
+				return { origin: o, dir: towardCamera(o), strength: 1, radius: 0.03, roll: -0.6 + Math.random() * 1.2 };
+			},
+			// 굴절 파면: 빛살·칼자국과 같은 자리·같은 축 (보통 타격이 동반으로 켠다)
+			'굴절 파면': () => { const o = bonePoint(TORSO, [0, 1.15, 0]); return { origin: o, dir: towardCamera(o), strength: 1, radius: 0.1 }; },
 		};
 		function fire(name) {
 			const aim = (FX_AIM[name] || (() => ({ origin: [0, 1.0, 0], dir: [0, 1, 0] })))();
