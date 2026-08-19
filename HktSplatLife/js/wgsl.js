@@ -47,6 +47,9 @@ struct Entity {
 	// 이벤트(언제·어디서)는 fxEvents 테이블, 게놈(무엇인가)은 이 8개 값.
 	fxK : f32,         burst : f32,     cone : f32,      swirl : f32,  // 응답 강도·방사 속도·지향성·와류
 	shell : f32,       grow : f32,      curve : f32,     ember : f32,  // 구각 집중·팽창·소멸 곡선·잔불 비율
+	// F2 굴절 유전자 — 이 스플랫이 *빛*을 어떻게 휘게 하는가 (refract 0 = 색 패스에 그대로 남는다).
+	// 색을 더하는 대신 화면 변위를 더하는 개체의 정체성. DISTORT 패스만 읽는다.
+	refract : f32,     chroma : f32,    caustic : f32,   rarefy : f32, // 굴절 세기·색 분산·집광·희박파(반전)
 };
 `;
 
@@ -654,7 +657,9 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
 	// 원칙과 동형) linear 공간에서 셰이딩하고 톤맵한다. 빛은 뼈대·heightfield 처럼 환경 *입력*.
 	// R2 형상: 살 스플랫은 법선으로 납작한 디스크(surfel) — 표면이 서고 실루엣이 조여진다.
 	// 비-살 개체(fleshK=0)는 기존 발광 경로 그대로 (회귀 0).
-	const RENDER = SPLAT_STRUCT + ENTITY_STRUCT + CLUSTER_STRUCT + /* wgsl */`
+	// 카메라·조명 유니폼 256B — engine.js frame() 패킹과 바이트 일치 필수.
+	// 색 패스(RENDER)와 굴절 패스(DISTORT)가 같은 버퍼를 공유하므로 정의는 여기 한 곳뿐이다.
+	const CAM_STRUCT = /* wgsl */`
 struct CamParams {
 	view : mat4x4f,
 	proj : mat4x4f,
@@ -667,6 +672,51 @@ struct CamParams {
 	skyColor : vec4f,    // R1: rgb=하늘 앰비언트, a=앰비언트 강도
 	groundColor : vec4f, // R1: rgb=지면 앰비언트
 };
+`;
+
+	// EWA 투영: 3D 공분산 Σ = M·Mᵀ → 화면 타원 (장축·단축). 색 패스와 굴절 패스의 *공통 정식* —
+	// 두 패스가 같은 스플랫을 같은 자리에 놓아야 굴절이 제 밀도와 어긋나지 않는다.
+	// 유니폼을 참조하지 않는 순수 함수 (호출부가 view·focal 을 넘긴다).
+	// 반환 major/minor 는 쿼드 코너(±2) 기준 — 화면 픽셀 환산은 ×0.5 (호출부의 /viewport 와 역).
+	const EWA_FN = /* wgsl */`
+struct Ewa {
+	ndc : vec2f,   // 스플랫 중심 (클립 → NDC)
+	major : vec2f, // 장축 · minor = 단축 (NDC 로는 /viewport)
+	minor : vec2f,
+	ok : bool,     // false = 서브픽셀 컬 (그리지 않는다)
+};
+fn ewaProject(t : vec3f, clip : vec4f, Vrk : mat3x3f, view : mat4x4f, focal : vec2f) -> Ewa {
+	var e : Ewa;
+	e.ndc = clip.xy / clip.w;
+	e.major = vec2f(0.0);
+	e.minor = vec2f(0.0);
+	e.ok = false;
+	let J = mat3x3f(
+		vec3f(focal.x / t.z, 0.0, -(focal.x * t.x) / (t.z * t.z)),
+		vec3f(0.0, -focal.y / t.z, (focal.y * t.y) / (t.z * t.z)),
+		vec3f(0.0, 0.0, 0.0));
+	let W = mat3x3f(view[0].xyz, view[1].xyz, view[2].xyz);
+	let T = transpose(W) * J;
+	var cov = transpose(T) * Vrk * T;
+	cov[0][0] += 0.3; // 픽셀 저역 필터
+	cov[1][1] += 0.3;
+	let mid = 0.5 * (cov[0][0] + cov[1][1]);
+	let dif = 0.5 * (cov[0][0] - cov[1][1]);
+	let radius = sqrt(dif * dif + cov[0][1] * cov[0][1]);
+	let l1 = mid + radius;
+	let l2 = max(mid - radius, 0.0);
+	if (l1 < 0.02) { return e; } // 서브픽셀 컬
+	var diag = vec2f(cov[0][1], l1 - cov[0][0]);
+	let dl = length(diag);
+	if (dl < 1e-6) { diag = vec2f(1.0, 0.0); } else { diag /= dl; }
+	e.major = min(sqrt(2.0 * l1), 1024.0) * diag;
+	e.minor = min(sqrt(2.0 * l2), 1024.0) * vec2f(diag.y, -diag.x);
+	e.ok = true;
+	return e;
+}
+`;
+
+	const RENDER = SPLAT_STRUCT + ENTITY_STRUCT + CLUSTER_STRUCT + CAM_STRUCT + EWA_FN + /* wgsl */`
 @group(0) @binding(0) var<storage, read> splats : array<Splat>;
 @group(0) @binding(1) var<storage, read> pairs : array<vec2u>;
 @group(0) @binding(2) var<uniform> C : CamParams;
@@ -708,6 +758,9 @@ fn vs(@builtin(vertex_index) vi : u32, @builtin(instance_index) ii : u32) -> VOu
 	let idx = pairs[ii].y;
 	let s = splats[idx];
 	let E = entities[idx / C.sliceSize];
+	// F2: 굴절 개체는 *색*이 아니라 화면 변위다 — 이 패스에 없고 DISTORT 패스가 맡는다.
+	// (engine.js 의 굴절 경로 판정도 같은 술어 refract>0 이라 스플랫이 사라지는 일은 없다.)
+	if (E.refract > 0.0) { return o; }
 	let energy = s.misc.x;
 	let alpha = energy * E.opacity;
 	if (alpha < 0.004) { return o; }
@@ -772,34 +825,11 @@ fn vs(@builtin(vertex_index) vi : u32, @builtin(instance_index) ii : u32) -> VOu
 	}
 	let Vrk = M * transpose(M); // Σ = M·Mᵀ
 
-	// ── EWA 2D 투영 (HktGaussianSplat/Web 과 동일 정식) ──
-	let J = mat3x3f(
-		vec3f(C.focal.x / t.z, 0.0, -(C.focal.x * t.x) / (t.z * t.z)),
-		vec3f(0.0, -C.focal.y / t.z, (C.focal.y * t.y) / (t.z * t.z)),
-		vec3f(0.0, 0.0, 0.0));
-	let W = mat3x3f(C.view[0].xyz, C.view[1].xyz, C.view[2].xyz);
-	let T = transpose(W) * J;
-	var cov = transpose(T) * Vrk * T;
-	cov[0][0] += 0.3; // 픽셀 저역 필터
-	cov[1][1] += 0.3;
-
-	let mid = 0.5 * (cov[0][0] + cov[1][1]);
-	let dif = 0.5 * (cov[0][0] - cov[1][1]);
-	let radius = sqrt(dif * dif + cov[0][1] * cov[0][1]);
-	let l1 = mid + radius;
-	let l2 = max(mid - radius, 0.0);
-	if (l1 < 0.02) { return o; } // 서브픽셀 컬
-
-	var diag = vec2f(cov[0][1], l1 - cov[0][0]);
-	let dl = length(diag);
-	if (dl < 1e-6) { diag = vec2f(1.0, 0.0); } else { diag /= dl; }
-	let major = min(sqrt(2.0 * l1), 1024.0) * diag;
-	let minor = min(sqrt(2.0 * l2), 1024.0) * vec2f(diag.y, -diag.x);
-
-	let clip = C.proj * t4;
-	let cNdc = clip.xy / clip.w;
+	// ── EWA 2D 투영 (공통 정식 — 굴절 패스와 같은 함수) ──
+	let ew = ewaProject(t, C.proj * t4, Vrk, C.view, C.focal);
+	if (!ew.ok) { return o; }
 	let corner = vec2f(f32(vi & 1u), f32(vi >> 1u)) * 4.0 - 2.0; // {-2,+2} 쿼드
-	o.pos = vec4f(cNdc + corner.x * major / C.viewport + corner.y * minor / C.viewport, 0.0, 1.0);
+	o.pos = vec4f(ew.ndc + corner.x * ew.major / C.viewport + corner.y * ew.minor / C.viewport, 0.0, 1.0);
 	o.quad = corner;
 	o.viewZ = -t.z; // 카메라 앞 = 음수 뷰 z → 양수 거리
 
@@ -932,5 +962,141 @@ fn fsJoint() -> @location(0) vec4f {
 }
 `;
 
-	global.HktGenesisWGSL = { SIM, KEY, SORT, RENDER, GRID_CLEAR, GRID_BUILD, CLUSTER, OVERLAY, OCC };
+	// ── F2 굴절 패스: 스플랫이 색이 아니라 *빛의 경로*를 바꾼다 ────────────────
+	// 명제: 충격파는 "그려진 링"이 아니라 공기의 밀도다. 밀도가 있는 곳에서 빛은 꺾인다 —
+	// 그러니 굴절 스플랫은 색을 더하지 않고 **화면 변위**를 더한다. 변위는 유도값이다:
+	//
+	//     굴절 방향 = -∇(가우시안 밀도) = -∇exp(-|q|²) = 2q·exp(-|q|²)
+	//
+	// 즉 스플랫 제 밀도 기울기가 곧 렌즈의 법선이다 ("모양을 그리는" 코드 없음 — 원칙 1).
+	// 세기는 시뮬 상태(에너지)×유전자(refract·opacity), 부호는 rarefy(압축파 ↔ 희박파).
+	// 누적은 가산 블렌딩이라 순서 무관 — 정렬(far→near)과 독립이다.
+	// 출력 ① rgba16float = (변위.x, 변위.y [화면 px], 집광, 광학 두께 W)
+	//      ② r16float    = 분산 누적 (파장별 굴절률 차 — W 로 나누면 chroma 유전자 그 값)
+	// 집광(caustic)은 밝기가 아니라 유전자를 쌓는다: 빛이 *모이는* 곳은 굴절이 센 곳이므로
+	// 밝기는 합성에서 |변위| 로 유도한다 — 파면 안쪽(변위가 서로 상쇄되는 곳)은 어둡고
+	// 테두리만 밝다. 밀도로 밝히면 원반이 통째로 흰 판때기가 된다.
+	// 누적을 그대로 쓰지 않고 합성에서 1+W 로 나눈다: 얇은 매질(W≪1)에서는 합(=광로 적분,
+	// 물리)이고 두꺼워지면 평균으로 포화한다 — 스플랫 *예산*이 굴절 세기를 바꾸지 않게 하는
+	// 유일한 장치다(예산은 밀도의 근거가 아니다). 덕분에 유전자 값이 실제 픽셀 단위를 갖는다.
+	const DISTORT = SPLAT_STRUCT + ENTITY_STRUCT + CAM_STRUCT + EWA_FN + /* wgsl */`
+@group(0) @binding(0) var<storage, read> splats : array<Splat>;
+@group(0) @binding(1) var<storage, read> pairs : array<vec2u>;
+@group(0) @binding(2) var<uniform> C : CamParams;
+@group(0) @binding(3) var<storage, read> entities : array<Entity>;
+
+struct DOut {
+	@builtin(position) pos : vec4f,
+	@location(0) quad : vec2f, // 가우시안 로컬 좌표 [-2, 2]
+	@location(1) lens : vec4f, // 화면 픽셀 반경 벡터 (장축.xy, 단축.xy) — 쿼드 1 단위당 픽셀
+	@location(2) amp : vec4f,  // x=굴절(부호 포함) y=집광 z=분산 w=광학 두께 — 전부 밀도가 실린 값
+};
+
+@vertex
+fn vs(@builtin(vertex_index) vi : u32, @builtin(instance_index) ii : u32) -> DOut {
+	var o : DOut;
+	o.pos = vec4f(0.0, 0.0, 2.0, 1.0); // 퇴화 기본값 (네 꼭짓점 동일 → 래스터 없음)
+	o.quad = vec2f(0.0);
+	o.lens = vec4f(0.0);
+	o.amp = vec4f(0.0);
+
+	let idx = pairs[ii].y;
+	let E = entities[idx / C.sliceSize];
+	if (E.refract <= 0.0) { return o; } // 굴절 개체가 아니면 이 패스에 없다 (색 패스가 맡는다)
+	let s = splats[idx];
+	// 밀도 = 시뮬 에너지 × 불투명도 유전자 — 색 패스의 alpha 와 같은 근거에서 유도한다
+	let dens = s.misc.x * E.opacity;
+	if (dens < 0.002) { return o; }
+
+	let t4 = C.view * vec4f(s.pos, 1.0);
+	let t = t4.xyz;
+	if (t.z > -0.05) { return o; } // 카메라 뒤/근접 컬
+
+	// 공분산 유도: 색 패스의 비-살 경로와 같은 정식 (속도 방향 이방성 + 수명 팽창)
+	let speed = length(s.vel);
+	let elong = 1.0 + E.stretch * speed;
+	let u = clamp(s.age / max(E.lifeBase, 1e-3), 0.0, 1.0);
+	let base = E.size * (0.35 + 0.65 * s.misc.x) * (1.0 + E.grow * u);
+	var e0 = vec3f(0.0, 1.0, 0.0);
+	if (speed > 1e-4) { e0 = s.vel / speed; }
+	var upv = vec3f(0.0, 1.0, 0.0);
+	if (abs(e0.y) > 0.9) { upv = vec3f(1.0, 0.0, 0.0); }
+	let e1 = normalize(cross(e0, upv));
+	let e2 = cross(e0, e1);
+	let M = mat3x3f(e0 * (base * elong), e1 * (base * inverseSqrt(elong)), e2 * (base * inverseSqrt(elong)));
+
+	let ew = ewaProject(t, C.proj * t4, M * transpose(M), C.view, C.focal);
+	if (!ew.ok) { return o; }
+	let corner = vec2f(f32(vi & 1u), f32(vi >> 1u)) * 4.0 - 2.0;
+	o.pos = vec4f(ew.ndc + corner.x * ew.major / C.viewport + corner.y * ew.minor / C.viewport, 0.0, 1.0);
+	o.quad = corner;
+	o.lens = vec4f(ew.major * 0.5, ew.minor * 0.5); // NDC 변환(/viewport)의 역 — 쿼드 → 픽셀
+	// 압축파는 렌즈 안쪽으로, 희박파는 바깥으로 꺾는다 (rarefy 0.5 에서 상쇄 = 굴절 없음)
+	o.amp = vec4f(
+		E.refract * dens * (1.0 - 2.0 * clamp(E.rarefy, 0.0, 1.0)),
+		E.caustic * dens,
+		E.chroma * dens,
+		dens); // W: 이 스플랫이 광로에 더하는 두께 — 정규화의 분모
+	return o;
+}
+
+struct DFrag {
+	@location(0) acc : vec4f, // 변위.xy(px) · 집광 · 광학 두께 W
+	@location(1) disp : f32,  // 분산 누적 (W 로 정규화하면 chroma 유전자)
+};
+
+@fragment
+fn fs(in : DOut) -> DFrag {
+	let d2 = dot(in.quad, in.quad);
+	if (d2 > 4.0) { discard; }
+	let g = exp(-d2);                        // 밀도 (색 패스의 알파와 같은 가우시안)
+	let grad = -2.0 * in.quad * g;           // ∇밀도 — 렌즈 법선의 화면 사영
+	let dpx = grad.x * in.lens.xy + grad.y * in.lens.zw; // 쿼드 기울기 → 화면 픽셀 변위
+	// 집광 채널엔 *유전자*만 밀도 가중으로 쌓는다 (밝기는 합성이 굴절량에서 유도한다 — 아래).
+	var o : DFrag;
+	o.acc = vec4f(dpx * in.amp.x, g * in.amp.y, g * in.amp.w);
+	o.disp = g * in.amp.z;
+	return o;
+}
+`;
+
+	// ── F2 합성 패스: 굴절 누적을 실제 "빛의 휘어짐"으로 갚는다 ────────────────
+	// 장면(색 패스 결과)을 누적 변위만큼 어긋나게 샘플링한다 = 배경/캐릭터가 일그러진다.
+	// 분산(chroma)은 파장별 굴절률 차 — R/G/B 를 서로 다른 변위로 읽어 프리즘 색테를 만든다.
+	// 집광(caustic)은 압축된 공기가 빛을 모은 밝기 — 공기는 무채색이라 색을 입히지 않는다.
+	const COMPOSITE = /* wgsl */`
+@group(0) @binding(0) var sceneTex : texture_2d<f32>;  // 색 패스 결과 (배경 + 생명 + 발광 이펙트)
+@group(0) @binding(1) var distTex : texture_2d<f32>;   // 굴절 누적 (변위.xy px, 집광, 두께 W)
+@group(0) @binding(2) var dispTex : texture_2d<f32>;   // 분산 누적 (r16float)
+@group(0) @binding(3) var samp : sampler;
+
+@vertex
+fn vs(@builtin(vertex_index) vi : u32) -> @builtin(position) vec4f {
+	var p = array<vec2f, 3>(vec2f(-1.0, -1.0), vec2f(3.0, -1.0), vec2f(-1.0, 3.0)); // 화면 덮는 삼각형
+	return vec4f(p[vi], 0.0, 1.0);
+}
+
+@fragment
+fn fs(@builtin(position) fc : vec4f) -> @location(0) vec4f {
+	let dims = vec2f(textureDimensions(sceneTex));
+	let px = vec2i(fc.xy);
+	let d = textureLoad(distTex, px, 0);
+	let uv = fc.xy / dims;
+	// 광학 두께 정규화: 얇으면 합(광로 적분), 두꺼우면 평균 — 스플랫 예산이 세기를 바꾸지 않게
+	let W = 1.0 + max(d.w, 0.0);
+	// 변위 상한 = 화면 폭의 1/8 — 누적이 폭주해도 화면 반대편을 끌어오지 않게
+	let lim = dims.x * 0.125;
+	let offPx = clamp(d.xy / W, vec2f(-lim), vec2f(lim));
+	let off = offPx / dims;
+	let disp = clamp(textureLoad(dispTex, px, 0).r / W, 0.0, 0.6);
+	// 집광 = (유전자 평균) × 굴절량 — 빛이 모이는 곳이 밝다. 32px 를 1 로 본다.
+	let cau = clamp(d.z / W * length(offPx) / 32.0, 0.0, 1.0);
+	let cr = textureSampleLevel(sceneTex, samp, uv + off * (1.0 + disp), 0.0);
+	let cg = textureSampleLevel(sceneTex, samp, uv + off, 0.0);
+	let cb = textureSampleLevel(sceneTex, samp, uv + off * (1.0 - disp), 0.0);
+	return vec4f(cr.r + cau, cg.g + cau, cb.b + cau, clamp(cg.a + cau, 0.0, 1.0));
+}
+`;
+
+	global.HktGenesisWGSL = { SIM, KEY, SORT, RENDER, DISTORT, COMPOSITE, GRID_CLEAR, GRID_BUILD, CLUSTER, OVERLAY, OCC };
 })(window);

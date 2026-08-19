@@ -13,7 +13,7 @@
 	const GRID_DIM = 64;
 	const CLUSTER_K = 256;       // 클러스터 크기 (wgsl.js K 와 일치)
 	const CLUSTER_STRIDE = 24;   // u32/f32 24개 = 96B (wgsl.js Cluster 와 일치)
-	const ENTITY_STRIDE = 48;    // f32 48개 = 192B (wgsl.js Entity 와 일치 — R1 재질 + F1 이펙트 vec4 포함)
+	const ENTITY_STRIDE = 52;    // f32 52개 = 208B (wgsl.js Entity 와 일치 — R1 재질 + F1 이펙트 + F2 굴절 vec4 포함)
 	const MAX_ENTITIES = 8;
 	// F1 이펙트 이벤트 슬롯 — *장면 전체* 동시 발생 상한. 이펙트 스플랫은 제 슬롯을
 	// rest.w 로 알고(L6 뼈 친화와 동형), 슬롯이 켜지면 그 세대가 태어난다.
@@ -91,6 +91,45 @@
 			},
 			primitive: { topology: 'triangle-strip' },
 		});
+
+		// F2 굴절 누적 패스 — 굴절 개체(refract>0)의 스플랫을 색이 아니라 화면 변위로 쌓는다.
+		// 타깃 ① rgba16float = (변위.xy px, 집광, 광학 두께 W) ② r16float = 분산.
+		// 가산 블렌딩 = 순서 무관(정렬과 독립) — 누적된 뒤 합성이 W 로 정규화한다.
+		const distortModule = d.createShaderModule({ code: W.DISTORT });
+		const addBlend = {
+			color: { srcFactor: 'one', dstFactor: 'one' },
+			alpha: { srcFactor: 'one', dstFactor: 'one' },
+		};
+		this.distortPipe = d.createRenderPipeline({
+			layout: 'auto',
+			vertex: { module: distortModule, entryPoint: 'vs' },
+			fragment: {
+				module: distortModule,
+				entryPoint: 'fs',
+				targets: [
+					{ format: 'rgba16float', blend: addBlend },
+					{ format: 'r16float', blend: addBlend },
+				],
+			},
+			primitive: { topology: 'triangle-strip' },
+		});
+		// F2 합성 패스 — 장면을 누적 변위만큼 어긋나게 읽어 "빛이 휘어진" 화면을 만든다
+		const compositeModule = d.createShaderModule({ code: W.COMPOSITE });
+		this.compositePipe = d.createRenderPipeline({
+			layout: 'auto',
+			vertex: { module: compositeModule, entryPoint: 'vs' },
+			fragment: { module: compositeModule, entryPoint: 'fs', targets: [{ format: this.format }] },
+			primitive: { topology: 'triangle-list' },
+		});
+		this.linSampler = d.createSampler({
+			magFilter: 'linear', minFilter: 'linear',
+			addressModeU: 'clamp-to-edge', addressModeV: 'clamp-to-edge',
+		});
+		// 굴절 개체가 장면에 없으면 만들지 않는다 (기존 경로는 스왑체인 직행 — 회귀 0)
+		this.sceneTex = null;
+		this.distTex = null;
+		this.dispTex = null;
+		this._targetSize = [0, 0];
 
 		// 유니폼 버퍼 (크기는 wgsl.js 구조체와 일치)
 		this.simUB = d.createBuffer({ size: 64, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });
@@ -309,6 +348,46 @@
 				{ binding: 9, resource: { buffer: this.boneBuf } }, // R1: 살 법선·접선의 형태 근거
 			],
 		});
+		// F2: 굴절 패스는 색·조명 입력이 필요 없다 — 스플랫 상태 + 카메라 + 유전자뿐
+		this.distortBG = this.device.createBindGroup({
+			layout: this.distortPipe.getBindGroupLayout(0),
+			entries: [
+				{ binding: 0, resource: { buffer: this.splatBuf } },
+				{ binding: 1, resource: { buffer: this.pairBuf } },
+				{ binding: 2, resource: { buffer: this.camUB } },
+				{ binding: 3, resource: { buffer: this.entityBuf } },
+			],
+		});
+	};
+
+	// F2: 굴절 경로의 오프스크린 타깃 — 스왑체인은 샘플링할 수 없으므로 색 패스를 sceneTex 로
+	// 받아 합성 때 읽는다. 굴절 개체가 있는 프레임에서만 생성/유지한다.
+	HktGenesisEngine.prototype._ensureTargets = function (w, h) {
+		if (this.sceneTex && this._targetSize[0] === w && this._targetSize[1] === h) return;
+		const d = this.device;
+		if (this.sceneTex) { this.sceneTex.destroy(); this.distTex.destroy(); this.dispTex.destroy(); }
+		this.sceneTex = d.createTexture({
+			size: [w, h], format: this.format,
+			usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING,
+		});
+		this.distTex = d.createTexture({
+			size: [w, h], format: 'rgba16float',
+			usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING,
+		});
+		this.dispTex = d.createTexture({
+			size: [w, h], format: 'r16float',
+			usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING,
+		});
+		this._targetSize = [w, h];
+		this.compositeBG = d.createBindGroup({
+			layout: this.compositePipe.getBindGroupLayout(0),
+			entries: [
+				{ binding: 0, resource: this.sceneTex.createView() },
+				{ binding: 1, resource: this.distTex.createView() },
+				{ binding: 2, resource: this.dispTex.createView() },
+				{ binding: 3, resource: this.linSampler },
+			],
+		});
 	};
 
 	// S3: depth 텍스처를 스왑체인 크기에 맞춘다 — FS 의 textureLoad(fragcoord)가 항상 in-bounds 이도록
@@ -453,6 +532,8 @@
 			// F1 이펙트: fxK 0 = 이펙트 개체가 아님 (기존 프리셋 전부 여기 해당 — 회귀 0)
 			a.set([g.fxK || 0, g.burst || 0, g.cone || 0, g.swirl || 0], o + 40);
 			a.set([g.shell || 0, g.grow || 0, g.curve != null ? g.curve : 1, g.ember || 0], o + 44);
+			// F2 굴절: refract 0 = 색 패스에 그대로 남는 개체 (기존 프리셋 전부 — 회귀 0)
+			a.set([g.refract || 0, g.chroma || 0, g.caustic || 0, g.rarefy || 0], o + 48);
 		});
 		return a;
 	};
@@ -831,6 +912,10 @@
 		// S3 오클루전 prepass: collider 를 depth-only 로 — 없는 프레임도 1.0 클리어(무효과 보장)
 		const swap = this.context.getCurrentTexture();
 		this._ensureDepth(swap.width, swap.height);
+		// F2: 굴절 개체가 있는 프레임만 오프스크린 3-패스 (색 → 굴절 누적 → 합성).
+		// 없으면 예전 그대로 스왑체인 직행 — 판정 술어는 렌더 셰이더의 컬과 같은 refract>0.
+		const refracting = ents.some((e) => (e.refract || 0) > 0);
+		if (refracting) this._ensureTargets(swap.width, swap.height);
 		const dp = enc.beginRenderPass({
 			colorAttachments: [],
 			depthStencilAttachment: {
@@ -847,7 +932,7 @@
 
 		const rp = enc.beginRenderPass({
 			colorAttachments: [{
-				view: swap.createView(),
+				view: refracting ? this.sceneTex.createView() : swap.createView(),
 				// 무대(stage) 합성 시 a=0 투명 클리어 — premultiplied over 가 dst 알파에
 				// 커버리지를 누적하므로 캔버스 알파 합성이 그대로 성립한다 (S 트랙)
 				clearValue: opts.background || { r: 0.012, g: 0.014, b: 0.03, a: 1 },
@@ -868,6 +953,39 @@
 			rp.draw(4, this._boneCount * 2);
 		}
 		rp.end();
+
+		// F2 굴절: 누적(가산) → 합성(변위 샘플링). 굴절 스플랫은 색 패스에서 빠져 있으므로
+		// 두 패스를 합쳐야 비로소 화면에 나타난다 — "보이는 것"이 곧 휘어진 배경이다.
+		// 한계(설계상 수용): 변위는 화면 전체에 적용되므로 파면 *앞*에 있는 물체도 함께
+		// 일그러진다. 스플랫엔 정확한 깊이가 없어(S3 주석과 같은 이유) 깊이 마스킹은 없다.
+		if (refracting) {
+			const fp = enc.beginRenderPass({
+				colorAttachments: [{
+					view: this.distTex.createView(),
+					clearValue: { r: 0, g: 0, b: 0, a: 0 }, // 변위 0 = 굴절 없음(합성이 항등)
+					loadOp: 'clear', storeOp: 'store',
+				}, {
+					view: this.dispTex.createView(),
+					clearValue: { r: 0, g: 0, b: 0, a: 0 },
+					loadOp: 'clear', storeOp: 'store',
+				}],
+			});
+			fp.setPipeline(this.distortPipe);
+			fp.setBindGroup(0, this.distortBG);
+			fp.draw(4, n);
+			fp.end();
+			const cp2 = enc.beginRenderPass({
+				colorAttachments: [{
+					view: swap.createView(),
+					clearValue: { r: 0, g: 0, b: 0, a: 1 }, // 화면 덮는 삼각형이 전부 덮어쓴다
+					loadOp: 'clear', storeOp: 'store',
+				}],
+			});
+			cp2.setPipeline(this.compositePipe);
+			cp2.setBindGroup(0, this.compositeBG);
+			cp2.draw(3);
+			cp2.end();
+		}
 
 		d.queue.submit([enc.finish()]);
 	};

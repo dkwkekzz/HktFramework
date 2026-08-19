@@ -12,6 +12,10 @@
 //   · 규칙  = wgsl.js SIM 의 F1 경로 하나. 발생 방향·속도는 스플랫 시드 해시에서 *유도*하고,
 //             색·크기·불투명도는 렌더가 수명 위상(u = age/lifeBase)에서 다시 유도한다.
 //
+// F2(굴절): 이펙트가 *색*이 아니라 *빛의 경로*로 나타나는 갈래. refract 유전자가 켜지면 그
+// 개체의 스플랫은 색 패스에서 빠지고, 제 밀도 기울기(∇가우시안)만큼 배경을 휘게 한다
+// (wgsl.js DISTORT/COMPOSITE). 충격파처럼 "보이지 않는 공기"가 보이는 현상이 여기서 나온다.
+//
 // 따라서 **새 이펙트 = FX_PRESETS 에 게놈 한 줄. 새 코드 0.** 타격이냐 폭발이냐 오라냐는
 // 코드 분기가 아니라 게놈 좌표가 가른다 (지향성 cone·구각 shell·팽창 grow·소멸 곡선 curve …).
 //
@@ -33,6 +37,10 @@
 	//   burst 방사 속도 · cone 지향성(0 등방 ↔ 0.95 축 분사) · swirl 축 둘레 와류
 	//   shell 구각 집중(0 꽉 찬 구 ↔ 1 같은 속도 = 팽창 구각) · grow 수명에 따른 팽창
 	//   curve 소멸 곡선 지수(클수록 급감) · ember 탄도 파편(잔불) 비율
+	// 읽는 법 (F2 유전자 — 굴절 이펙트):
+	//   refract 굴절 세기(0 = 색 이펙트) · chroma 색 분산(프리즘) · caustic 집광 밝기
+	//   rarefy  희박파 비율(0 압축=안으로 꺾임 ↔ 1 희박=밖으로 꺾임, 0.5 는 상쇄)
+	//   동반 발생: with = ['다른 이펙트'] — 한 *사건*이 여러 게놈을 켠다(같은 원점·축·시각)
 	// 기존 유전자도 그대로 쓴다: lifeBase=지속시간, damping=공기 저항, gravity/updraft=부력,
 	// volatility·flowFreq·flowSpeed=난류 결, size/stretch/opacity/luminosity/colorA·B=외형 재료.
 	const FX_PRESETS = {
@@ -44,6 +52,7 @@
 			size: 0.011, stretch: 2.6, opacity: 0.2, luminosity: 2.0,
 			fxK: 1, burst: 5.5, cone: 0.7, swirl: 0.12, shell: 0.15, grow: 0.5, curve: 2.6, ember: 0.45,
 			colorA: '#fff6d8', colorB: '#ff3c0a', form: 4,
+			with: ['충격파'], // 물리적 타격 = 파편(이것) + 공기 충격파(굴절) — 한 사건, 두 게놈
 		},
 		// ② 파이어볼 폭발 — 등방(cone 0) 화구가 부풀며(grow 2.4) 부력으로 말려 오른다(swirl 0.35).
 		//    수명이 길고(1.5s) 소멸이 완만해(curve 1.6) 밝은 화구 → 검은 연기로 식는다.
@@ -62,6 +71,24 @@
 			size: 0.022, stretch: 0.4, opacity: 0.14, luminosity: 1.3,
 			fxK: 1, burst: 1.8, cone: 0.85, swirl: 0.85, shell: 0.8, grow: 0.8, curve: 1.1, ember: 0,
 			colorA: '#9dffc0', colorB: '#2f7bff', form: 4,
+		},
+		// ④ 충격파 — 물리적 타격의 *공기*. 색이 없다(refract>0 이면 색 패스에서 빠진다):
+		//    보이는 것은 오직 휘어진 배경이다. shell 1.0 = 전원이 같은 속도 = 얇은 파면이
+		//    통째로 팽창하고, damping 5.2 가 그 파면을 급히 감속시킨다(공기 저항).
+		//    타격 축으로 살짝 몰리고(cone 0.35) 난류(volatility)가 파면을 울퉁불퉁하게 만든다.
+		//    chroma 0.25 = 파면 가장자리의 프리즘 색테(R/G/B 변위가 25% 씩 어긋난다)
+		//    · caustic 0.8 = 굴절이 센 곳(파면)의 흰 집광 · refract 1.6 = 파면에서 배경이 수십 px
+		//    밀린다(타격 직후가 가장 세고, 파면이 퍼지며 밀도가 얇아져 저절로 잦아든다).
+		//    함정: stretch(속도 방향 신축)는 0 이어야 한다 — 방사 속도가 큰 얇은 파면에서
+		//    스플랫이 방사 방향으로 늘어나면 파면이 구가 아니라 *팔면체*로 보인다(눈검증 확인).
+		//    난류(volatility)는 파면을 울퉁불퉁하게만 하고 형태는 깨지 않는다.
+		'충격파': {
+			lifeBase: 0.55, damping: 3.5, gravity: 0.0, updraft: 0.0,
+			volatility: 0.35, flowFreq: 3.2, flowSpeed: 1.4,
+			size: 0.06, stretch: 0.0, opacity: 0.5, luminosity: 0,
+			fxK: 1, burst: 4.5, cone: 0.35, swirl: 0.05, shell: 1.0, grow: 1.2, curve: 1.5, ember: 0,
+			refract: 1.6, chroma: 0.3, caustic: 0.8, rarefy: 0.0,
+			colorA: '#ffffff', colorB: '#ffffff', form: 4, // 색은 쓰이지 않는다 (굴절 개체)
 		},
 	};
 
@@ -126,7 +153,13 @@
 	//   time    시뮬 시각 (engine.frame 의 opts.time 과 같은 시계여야 한다)
 	//   strength 세기 배율(속도) · scale 크기 배율(초기 반경) · radius 초기 반경
 	// 반환: 사용한 슬롯 인덱스 (미등록 이펙트면 -1)
-	FxSystem.prototype.trigger = function (name, ev) {
+	// 동반 이펙트(FX_PRESETS[name].with)는 *같은 사건*으로 함께 켜진다 — 타격의 파편과
+	// 공기 충격파처럼 한 사건이 여러 게놈으로 나타나는 경우. 미등록 동반은 조용히 무시된다
+	// (그 이펙트에 슬라이스를 안 준 장면에서도 부모 이펙트는 그대로 동작한다).
+	FxSystem.prototype.trigger = function (name, ev, _depth) {
+		const preset = FX_PRESETS[name];
+		if (preset && preset.with && !(_depth > 0))
+			for (const w of preset.with) this.trigger(w, ev, 1); // 동반은 1단 — 순환 없음
 		const p = this._plan && this._plan[name];
 		if (!p || !p.slots.length) return -1;
 		const slot = p.slots[p.next % p.slots.length];

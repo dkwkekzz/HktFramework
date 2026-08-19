@@ -107,6 +107,9 @@
 			'파이어볼 폭발': () => ({ origin: bonePoint(HAND, [0.75, 1.0, 0]), dir: [0, 1, 0], strength: 1 }),
 			// 회복 오라: 발밑에서 솟는다
 			'회복 오라': () => ({ origin: [0, 0.05, 0], dir: [0, 1, 0], strength: 1, radius: 0.35 }),
+			// 충격파: 타격과 같은 지점 — 타격 버튼이 동반으로 켜므로 보통 직접 쓰이지 않지만,
+			// 단독 발생(버튼/숫자키)에서도 같은 자리에서 공기가 퍼지도록 같은 조준을 쓴다.
+			'충격파': () => { const o = bonePoint(TORSO, [0, 1.15, 0]); return { origin: o, dir: towardCamera(o), strength: 1, radius: 0.12 }; },
 		};
 		function fire(name) {
 			const aim = (FX_AIM[name] || (() => ({ origin: [0, 1.0, 0], dir: [0, 1, 0] })))();
