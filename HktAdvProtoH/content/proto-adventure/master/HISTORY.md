@@ -158,6 +158,82 @@ constraints/README.md   현재 Active Constraint        → 반영 이력은 여
                   GR §41 을 직접 참조한다. SCHEMA.md growth 절에 "생성·변경 시 §41 통과"
                   상시 규칙 한 줄로 반영.
 
+## Q2. 전투 Goal 의 World Cause 가 없다 — CLOSED
+
+    무엇          MG-OVERCOME-SUPERIOR-OPPONENT 의 motivation · caused_by 와
+                  MA-HOSTILE-COMBATANT 의 wants 가 비어 있었다 (원본이 전투 규칙 문서).
+                  BW 주입으로 root.md 와 MW 11종이 생겨 입력이 도착했었다.
+
+    DECISION      (a) WHY 확장 실행 — 2026-08-19 Human 지시. 현재 세계의 적대 존재를
+                  FRINGE 토착 포식자(BW §21)로 자리매김했다:
+                      MG-OVERCOME-SUPERIOR-OPPONENT  caused_by MW-ZONE-FRINGE ·
+                                                     motivation MG-EXPLORE-BEIRA
+                      MG-SURVIVE-ENEMY-OFFENSIVE     caused_by MW-ZONE-FRINGE
+                      MG-ACQUIRE-RARE-ORGAN          caused_by MW-ZONE-WILD (BW §22)
+                      MG-HOLD-HUNTING-GROUND 신설    owner MA-HOSTILE-COMBATANT — 생존·영역
+                  BW §26 MG-OVERCOME-CREATURE ≙ MG-OVERCOME-SUPERIOR-OPPONENT (Q18 과 연동).
+
+## Q3. Belief(틀릴 수 있는 믿음)를 전투에 둘 것인가 — CLOSED
+
+    무엇          Belief 가 0 건 — 전투 층은 모든 원인을 공개하는 쪽이라 오독이 성립하지
+                  않았고, Mystery/Investigation/Reversal 의 설계 폭 문제로 남겨 뒀었다.
+
+    DECISION      도입하지 않는다 — 2026-08-19 Human: "믿음이라는 게 플레이어에게 필요한
+                  개념 같지 않다. NPC AI 는 아직 작업도 안 했고 왜 필요한지 모르겠다.
+                  전투 정보는 상황에 따라 부분적으로 보여질 수도 가려질 수도 있다."
+                  → Belief(MB-*)는 만들지 않는다. 정보의 불완전성은 "틀리게 믿는 것"이
+                  아니라 **관찰 범위**(무엇이 언제 관찰에 실리는가)로 다룬다 — 각 Cycle 의
+                  관찰 계약(GameView Spec) 소유. knowledge.yaml 주석에 상시 규칙으로 반영.
+
+## Q8. 전투 밖 경로가 없다 — CLOSED
+
+    무엇          같은 상대(MG-OVERCOME-SUPERIOR-OPPONENT)를 넘어서는 방법이 전부 전투
+                  안에 있었다 — 교섭·회피·정보로 "전투를 우회"하는 경로를 열지 물었다.
+
+    DECISION      (a) 전투는 전투로 푼다 — 2026-08-19 Human: "전투는 그냥 전투일 뿐,
+                  비전투라는 게 무슨 말인지도 모르겠고 필요 없어 보인다."
+                  → 상대를 넘어서는 Goal 에 비전투 대안을 억지로 만들지 않는다.
+                  구분: MG-ACQUIRE-RARE-ORGAN 의 대안 5종(BW §27 — 거래·줍기 등)은
+                  "전투를 비전투로 푸는 것"이 아니라 **다른 Goal 의 다른 활동**이므로
+                  유지된다 — 전투가 선택인 것과 전투를 우회하는 것은 다르다.
+
+## Q11. R1 §14 Critical 층과 DC-COMBAT-PLAYER-CAUSALITY 의 충돌 — CLOSED
+
+    DECISION      (b) DC 를 REVISED 하여 확률 Critical 허용 — 2026-08-19 Human.
+                  random_critical 을 prohibits 에서 제거하고 statement 에 단일 예외를
+                  명시했다 (명중·회피·피해량 난수 금지는 유지). explainable_result 는
+                  Critical 발생 여부·증폭까지 포함하도록 강화. R1 §14 C011 층의 유보
+                  ("넣을지 다시 판단")를 "넣는다"로 닫았다 — Critical 층이 Frontier
+                  후보 자격을 얻었다 (FR-CRITICAL-AMPLIFIES-THE-BLOW).
+
+## Q17. BW 주입 DC 5종(DRAFT) 승인 — CLOSED
+
+    DECISION      (a) 5종 일괄 APPROVED — 2026-08-19 Human.
+                  RESOURCE-ADAPTATION-TRACE · CREATURE-FROM-PRESSURE ·
+                  COMBAT-IS-ONE-POSSIBILITY · PLAYER-UNFIXED-PATH · PROGRESSION-IS-REACH.
+                  BW 유래 노드 전체의 constraint_evaluation 을 UNRESOLVED → SATISFIED 로
+                  재판정 (각 노드에 근거 주석). Active 는 12종 → 17종.
+
+## Q18. BW 의 전투 교차분 — 기존 전투 노드와의 매핑 — CLOSED
+
+    DECISION      (a) 매핑 승인 — 2026-08-19 Human. 기존 노드 재사용 + BW 를 매핑된
+                  전투 노드의 보조 근거로 허용 (Q15 영역 분리 규칙의 예외) + 신규 3종은
+                  OPTIONS 로 검토.
+                      MG-OVERCOME-CREATURE ≙ MG-OVERCOME-SUPERIOR-OPPONENT
+                      MP-DEFEAT-BY-COMBAT = 그 Goal 아래 전투 Possibility 서브트리 전체
+                      BREAK-DEFENSE ≙ BREAK-THE-GUARD · READ-AND-PUNISH ≙ READ-AND-COUNTER ·
+                      OVERWHELM ≙ OUTGROW-THE-OPPONENT · EXPLOIT-WEAKNESS ≙
+                      EXPLOIT-OPEN-BODY/MATCH-WEAPON-TO-ARMOR · OUTLAST ≙ HOLD-FORTIFIED
+                      MC-ATTACK ≙ MC-COMBAT-STRIKE · MC-DEFEND ≙ MC-GUARD · MC-EVADE(동일) ·
+                      MC-BREAK(동일 — semantic 을 방어 구조 전반으로 CHANGED)
+                  OPTIONS 산출: MP-CONTROL-MOVEMENT · MP-INTERRUPT ·
+                  MP-WEAPONIZE-ENVIRONMENT 신설 (사다리 MC 재사용 — 복제 없음).
+                  MP-KILL-CREATURE 는 requires.goals 로 전투 서브트리에 연결.
+
+## Q19. root.md 문안 확인 — CLOSED
+
+    DECISION      (a) 문안 확정 — 2026-08-19 Human. BW §1 · §35~§36 의 문장 그대로 유지.
+
 ## 사유만 남은 질문 (Q1 · Q4~Q7)
 
     Q12 보류 중인 DC 2종의 재승인 여부 (2026-08-18 — 보류 상태 자체를 없앴다)

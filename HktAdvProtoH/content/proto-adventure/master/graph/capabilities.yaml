@@ -4,9 +4,10 @@
 # 구현 상태(overlay)의 근거는 ../overlay.md 가 소유한다.
 # 형식: ../SCHEMA.md
 #
-# 인용 표기 — 근거 문서는 둘뿐이다 (2026-08-18 Human 결정).
-#   R1 §x   design/Design-Combat-OffenseDefense-R0.md   2026-08-17 R1 전면 개정판
-#   DT §x   design/Design-Combat-DamageType-R0.md
+# 인용 표기 — 근거는 영역별로 분리된다 (HISTORY Q15 · Q18(a) 예외).
+#   R1 §x   design/Design-Combat-OffenseDefense-R0.md   전투 (2026-08-17 R1 전면 개정판)
+#   DT §x   design/Design-Combat-DamageType-R0.md        전투
+#   BW §x   design/Master-World-Beira.md                 탐험 — Q18(a) 매핑된 전투 노드에는 보조 근거로 허용
 # 삭제된 구판(R0)은 근거가 아니다. 구판 인용은 전부 제거했고, 구판에만 근거가 있던
 # 노드(MC-WEAK-POINT · MC-REAR-ATTACK)도 삭제했다 — 두 문서는 그 의미를 이름조차 대지 않는다.
 #
@@ -23,11 +24,12 @@ nodes:
     type: capability
     semantic: >
       휘두른 몸이 닿은 상대의 생명을 정해진 만큼 덜어내고, 맞은 몸은 하던 행동이 끊기고 밀려난다.
-    required_by: [MP-BREAK-THE-GUARD, MP-EXPLOIT-OPEN-BODY, MP-MATCH-WEAPON-TO-ARMOR, MP-OUTGROW-THE-OPPONENT, MP-PIERCE-THE-HARD-DEFENSE]
+    required_by: [MP-BREAK-THE-GUARD, MP-EXPLOIT-OPEN-BODY, MP-MATCH-WEAPON-TO-ARMOR, MP-OUTGROW-THE-OPPONENT, MP-PIERCE-THE-HARD-DEFENSE, MP-BET-ON-THE-CRITICAL-BLOW]
     constraints: [DC-COMBAT-PLAYER-CAUSALITY]
     constraint_evaluation:
       DC-COMBAT-PLAYER-CAUSALITY: SATISFIED    # 정해진 만큼 덜어낸다 — 난수 없는 결정적 피해 (C007 실측 · R1 §6)
     overlay: IMPLEMENTED
+    # BW §20 의 MC-ATTACK 은 이 노드다 — Q18(a) 매핑 확정 (SAFE 층 기본기)
 
   - id: MC-CP-ECONOMY
     type: capability
@@ -75,6 +77,7 @@ nodes:
     overlay: IMPLEMENTED
     # C011-guard-trades-body-for-resource 가 R1 §14 Defense Action 층으로 닫았다 (2026-08-17).
     # 구 C010(막기)은 2026-08-17 롤백된 다른 Cycle 이다. 근거는 ../overlay.md.
+    # BW §20 의 MC-DEFEND 는 이 노드다 — Q18(a) 매핑 확정 (SAFE 층 기본기)
 
   - id: MC-PERFECT-GUARD
     type: capability
@@ -122,7 +125,7 @@ nodes:
     semantic: >
       Actor 는 공격의 위력을 나타내는 능력치를 가진다. 같은 스킬이라도 이 값이 큰 Actor 가
       쓰면 더 아프며, 장비·성장·버프가 이 값을 올린다.
-    required_by: [MP-OUTGROW-THE-OPPONENT]
+    required_by: [MP-OUTGROW-THE-OPPONENT, MP-BET-ON-THE-CRITICAL-BLOW]
     constraints: [DC-COMBAT-PLAYER-CAUSALITY]
     constraint_evaluation:
       DC-COMBAT-PLAYER-CAUSALITY: SATISFIED    # 같은 능력치·같은 스킬·같은 상대면 항상 같은 피해 (R1 §6)
@@ -157,11 +160,13 @@ nodes:
     constraint_evaluation:
       DC-COMBAT-PLAYER-CAUSALITY: SATISFIED    # 무적·확률이 아니라 실제 위치 이동이다 — random_evade 금지와 양립 (R1 §6 · §13)
     overlay: MISSING
+    # BW §20 도 같은 ID 로 SAFE 층 기본기로 지정한다 — Q18(a) 확정
 
   - id: MC-BREAK
     type: capability
     semantic: >
-      상대의 방어(Guard)를 무너뜨려 그 방어가 성립하지 않는 구간을 만든다.
+      상대의 방어 구조(Guard · 특수 갑각 같은 형태 전반)를 무너뜨려
+      그 방어가 성립하지 않는 구간을 만든다.
     required_by: [MP-BREAK-THE-GUARD, MP-VENTURE-INTO-WILD]
     constraints: [DC-COMBAT-PLAYER-CAUSALITY]
     constraint_evaluation:
@@ -169,8 +174,22 @@ nodes:
     overlay: MISSING
     # R1 §14 Active Defense 층이 이름만 예고한다 (Guard Break). 누적·붕괴 지속 같은 세부는
     # 구판에만 있었으므로 2026-08-18 삭제했다 — 그 층의 설계 문서가 다시 공급해야 한다.
-    # MP-VENTURE-INTO-WILD 는 BW §22 가 같은 ID 를 직접 요구해 배선했다 —
-    # semantic 의 폭(Guard 무너뜨리기 ↔ 특수 갑각 파괴) 확정은 Q18 이후다.
+    # Q18(a) 확정 (2026-08-19) — semantic 을 방어 구조 전반으로 넓혔다 (CHANGED).
+    # BW §22 (WILD 갑각) 가 보조 근거다. 구체 판정은 각 층의 설계 문서 소유.
+
+  - id: MC-CRITICAL-STRIKE
+    type: capability
+    semantic: >
+      공격이 확률적으로 더 크게 증폭되어 터진다. 발생 확률과 증폭 크기는 Actor 의
+      성질이며 성장·장비로 자란다. Critical 발생 여부와 그 증폭은 계산 경위에
+      그대로 드러난다.
+    required_by: [MP-BET-ON-THE-CRITICAL-BLOW]
+    constraints: [DC-COMBAT-PLAYER-CAUSALITY, DC-COMBAT-ONE-FORMULA]
+    constraint_evaluation:
+      DC-COMBAT-PLAYER-CAUSALITY: SATISFIED    # REVISED 가 명시한 단일 예외다 — 관찰 요구(발생·증폭 노출)는 그대로 진다 (Q11(b))
+      DC-COMBAT-ONE-FORMULA: SATISFIED         # Final Damage 증폭 — 기존 공식의 결과값에 한 가지 의미만 더한다 (R1 §14 C011 · 핵심 원칙)
+    overlay: MISSING
+    # R1 §14 C011 층 (Critical Chance · Critical Damage). Q11(b) 로 층의 유보가 닫혔다.
 
   - id: MC-COMBAT-FLOW
     type: capability
@@ -255,10 +274,9 @@ nodes:
   # §21~§25 의 "필요:" 가 그 배선의 원본이다. MC-REPOSITION 만 비어 있다
   # (§20 SAFE 는 출발지라 진입 MP 가 없다 — 기본기 목록일 뿐이다).
   #
-  # SAFE 층(BW §20)의 4종 중 3종은 기존 노드와 같은 의미라 만들지 않는다
-  # (DC-GROWTH-NO-CAPABILITY-DUPLICATION) — MC-ATTACK ≙ MC-COMBAT-STRIKE ·
+  # SAFE 층(BW §20)의 4종 중 3종은 기존 노드 재사용이다 — MC-ATTACK ≙ MC-COMBAT-STRIKE ·
   # MC-DEFEND ≙ MC-GUARD · MC-EVADE ≙ MC-EVADE(기존). BW §22 의 MC-BREAK 도 기존
-  # MC-BREAK 재사용이다. 영역 교차 매핑의 확정은 Human 결정 대기 → open-questions.md Q18.
+  # MC-BREAK 재사용. 매핑은 Q18(a) 로 확정되었다 (2026-08-19 Human 승인).
 
   # ── SAFE (BW §20) — 나머지 1종 ────────────────────────────────────────
 
@@ -267,7 +285,7 @@ nodes:
     semantic: >
       싸움이 일어나는 자리를 스스로 고쳐 잡는다 — 벗어나는 것(MC-EVADE)이 아니라
       다음 행동에 유리한 위치를 만드는 이동이다.
-    required_by: []
+    required_by: [MP-CONTROL-MOVEMENT]
     constraints: []
     constraint_evaluation: {}
     overlay: MISSING
@@ -330,7 +348,7 @@ nodes:
     semantic: >
       상대가 쓸 수 있는 공간을 좁히거나 내가 쓸 공간을 확보한다 —
       특수 이동을 가진 상대에게 위치의 자유를 주지 않는다.
-    required_by: [MP-VENTURE-INTO-WILD]
+    required_by: [MP-VENTURE-INTO-WILD, MP-CONTROL-MOVEMENT]
     constraints: []
     constraint_evaluation: {}
     overlay: MISSING
@@ -342,7 +360,7 @@ nodes:
     semantic: >
       환경 자체를 읽는다 — 무엇이 위험 요소이고 언제 발동하는지를 생물과
       독립적으로 볼 수 없는 지역에서 파악한다.
-    required_by: [MP-VENTURE-INTO-DANGER]
+    required_by: [MP-VENTURE-INTO-DANGER, MP-WEAPONIZE-ENVIRONMENT]
     constraints: []
     constraint_evaluation: {}
     overlay: MISSING
@@ -351,7 +369,7 @@ nodes:
     type: capability
     semantic: >
       상대를 원하는 위치로 움직이게 강제한다.
-    required_by: [MP-VENTURE-INTO-DANGER]
+    required_by: [MP-VENTURE-INTO-DANGER, MP-CONTROL-MOVEMENT]
     constraints: []
     constraint_evaluation: {}
     overlay: MISSING
@@ -360,7 +378,7 @@ nodes:
     type: capability
     semantic: >
       환경의 위험 요소를 자신의 수단으로 쓴다 — 위험이 나에게만 위험한 것이 아니게 된다.
-    required_by: [MP-VENTURE-INTO-DANGER]
+    required_by: [MP-VENTURE-INTO-DANGER, MP-WEAPONIZE-ENVIRONMENT]
     constraints: []
     constraint_evaluation: {}
     overlay: MISSING
@@ -369,7 +387,7 @@ nodes:
     type: capability
     semantic: >
       상대가 진행 중인 행동을 끊는다.
-    required_by: [MP-VENTURE-INTO-DANGER]
+    required_by: [MP-VENTURE-INTO-DANGER, MP-INTERRUPT]
     constraints: []
     constraint_evaluation: {}
     overlay: MISSING
@@ -485,7 +503,7 @@ nodes:
     required_by: []
     constraints: [DC-WORLD-RESOURCE-ADAPTATION-TRACE]
     constraint_evaluation:
-      DC-WORLD-RESOURCE-ADAPTATION-TRACE: UNRESOLVED   # DC 가 DRAFT 다 (Q17). Trace 는 문서가 공급 — MW-HYPER-PREDATION → 생존 압력 → 상태 보존 적응 → 회귀초 (BW §8~§9)
+      DC-WORLD-RESOURCE-ADAPTATION-TRACE: SATISFIED    # Trace 를 문서가 공급한다 — MW-HYPER-PREDATION → 생존 압력 → 상태 보존 적응 → 회귀초 (BW §8~§9)
     overlay: MISSING
 
   - id: MC-CUT-ABNORMAL-STRUCTURE
@@ -496,7 +514,7 @@ nodes:
     required_by: []
     constraints: [DC-WORLD-RESOURCE-ADAPTATION-TRACE]
     constraint_evaluation:
-      DC-WORLD-RESOURCE-ADAPTATION-TRACE: UNRESOLVED   # DC DRAFT (Q17). Trace: MW-SPATIAL-SHEAR → 물질 소멸 → IP-BOUNDARY-STABLE → IT-BOUNDARY-BLADE (BW §10)
+      DC-WORLD-RESOURCE-ADAPTATION-TRACE: SATISFIED    # Trace: MW-SPATIAL-SHEAR → 물질 소멸 → IP-BOUNDARY-STABLE → IT-BOUNDARY-BLADE (BW §10)
     overlay: MISSING
 
 # 전투 영역 주입 근거 (2026-08-18 Q12 결정 상태 유지)

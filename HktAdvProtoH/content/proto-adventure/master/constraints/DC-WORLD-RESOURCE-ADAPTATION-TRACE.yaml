@@ -2,7 +2,7 @@
 #   §6 (위험과 보물은 같은 세계압의 서로 다른 결과) · §11 자원의 설계 원칙 (GOOD/BAD) ·
 #   §12 (세계압은 가능성을 증가시키지 Loot 를 보장하지 않는다) ·
 #   §33 (Resource 설계 시 반드시 묻는 여섯 질문) · §34 절대 피해야 할 Resource 설계
-# 2026-08-19 Human 지시(BW 주입)로 신설 — DRAFT, 승인 대기 (open-questions.md Q17).
+# 2026-08-19 Human 지시(BW 주입)로 신설 · 같은 날 Q17(a) 일괄 APPROVED.
 id: DC-WORLD-RESOURCE-ADAPTATION-TRACE
 type: constraint
 
@@ -28,9 +28,9 @@ prohibits:
 prefers:
   - 전체 Trace 가 실제 노드로 존재하는 것   # BW §11 은 "가능하면" 이라고 말한다 — 요구가 아니라 방향이다
 
-status: DRAFT
+status: APPROVED
 provenance:
-  - HUMAN_DESIGN          # 2026-08-19 Human 지시로 BW 주입
+  - HUMAN_DESIGN          # 2026-08-19 BW 주입 · Q17(a) 승인 — 모두 Human 지시
 
 relations:
   supports: []

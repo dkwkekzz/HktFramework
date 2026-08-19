@@ -2,7 +2,7 @@
 #   §27 전투는 Goal 이 아니다 (BAD: Creature 발견 → MG-KILL-CREATURE ·
 #   GOOD: WorldState 에서 Goal 발생, MG-ACQUIRE-RARE-ORGAN 의 대안 5종 중
 #   전투는 하나) · §28 (전투를 "선택했을 경우" 에만 Combat Graph 가 열린다)
-# 2026-08-19 Human 지시(BW 주입)로 신설 — DRAFT, 승인 대기 (open-questions.md Q17).
+# 2026-08-19 Human 지시(BW 주입)로 신설 · 같은 날 Q17(a) 일괄 APPROVED.
 id: DC-WORLD-COMBAT-IS-ONE-POSSIBILITY
 type: constraint
 
@@ -25,9 +25,9 @@ prohibits:
 prefers:
   - 같은 Goal 에 전투 밖 대안 Possibility 가 병렬로 존재하는 것   # BW §27 예 — 강제하지는 않는다
 
-status: DRAFT
+status: APPROVED
 provenance:
-  - HUMAN_DESIGN          # 2026-08-19 Human 지시로 BW 주입
+  - HUMAN_DESIGN          # 2026-08-19 BW 주입 · Q17(a) 승인 — 모두 Human 지시
 
 relations:
   supports:

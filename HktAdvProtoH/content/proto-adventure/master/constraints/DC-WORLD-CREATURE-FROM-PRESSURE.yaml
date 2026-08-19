@@ -3,7 +3,7 @@
 #   World Pressure → Environment → Survival Pressure → Creature Adaptation →
 #   Creature Capability → Player Encounter → Goal → Combat Possibility →
 #   Player Capability Requirement) · §2 (베이라는 원초 생태권이다)
-# 2026-08-19 Human 지시(BW 주입)로 신설 — DRAFT, 승인 대기 (open-questions.md Q17).
+# 2026-08-19 Human 지시(BW 주입)로 신설 · 같은 날 Q17(a) 일괄 APPROVED.
 id: DC-WORLD-CREATURE-FROM-PRESSURE
 type: constraint
 
@@ -27,9 +27,9 @@ prohibits:
   - creature_designed_before_world_cause     # 세계 인과 없이 먼저 만들어지는 전투 Creature (BW §26)
 prefers: []
 
-status: DRAFT
+status: APPROVED
 provenance:
-  - HUMAN_DESIGN          # 2026-08-19 Human 지시로 BW 주입
+  - HUMAN_DESIGN          # 2026-08-19 BW 주입 · Q17(a) 승인 — 모두 Human 지시
 
 relations:
   supports:

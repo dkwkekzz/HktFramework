@@ -62,7 +62,9 @@ nodes:
     type: world_state
     statement: >
       변화 가능성이 조금 높아 강한 토착 포식자가 있는 베이라의 바깥 층. (BW §21)
-    causes: []
+    causes: [MG-OVERCOME-SUPERIOR-OPPONENT, MG-SURVIVE-ENEMY-OFFENSIVE, MG-HOLD-HUNTING-GROUND]
+    # 포식자가 길을 막고 침입자를 사냥한다 → Player 의 전투 Goal 2종.
+    # 층의 생존 경쟁 → 포식자 자신의 Goal 1종. (Q2(a) WHY 확장 — BW §21 · §26 · §27)
     changed_by: []
 
   - id: MW-ZONE-WILD
@@ -70,7 +72,7 @@ nodes:
     statement: >
       특수 갑각·독·비정상적 감각·특수 이동을 가진 생물이 사는 층. 동시에 인간에게
       가치 있는 특수 생물 소재가 본격적으로 등장하기 시작한다. (BW §22)
-    causes: []
+    causes: [MG-ACQUIRE-RARE-ORGAN]   # 가치 있는 특수 소재의 존재가 획득 Goal 을 만든다 (BW §22 · §27)
     changed_by: []
 
   - id: MW-ZONE-DANGER
@@ -124,6 +126,5 @@ nodes:
     # 경계결정의 Property 는 growth/items/properties/IP-BOUNDARY-STABLE.yaml,
     # 제작물은 growth/items/types/IT-BOUNDARY-BLADE.yaml.
 
-# 전투 Goal(MG-OVERCOME-SUPERIOR-OPPONENT 등)의 caused_by 배선은 이 주입이 하지 않았다 —
-# BW §26~§27 은 일반 원리(조우 → Goal)만 공급하고 구체 지역·조우 상태를 명명하지 않는다.
-# 그 배선은 WHY 확장 몫이다 → open-questions.md Q2 (입력 도착 상태로 갱신).
+# 전투 Goal 의 caused_by 배선은 Q2(a) WHY 확장으로 닫았다 (2026-08-19) —
+# MW-ZONE-FRINGE 가 전투 Goal 의 World Cause 다. 위 causes 필드 참조.

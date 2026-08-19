@@ -2,7 +2,7 @@
 #   §1 (MA-PLAYER — fixed_role/class/faction/combat_style: none) ·
 #   §15 (Player 의 이유를 하나로 고정하지 않는다 — Root 아래 수많은 Local Goal) ·
 #   §31 (왜 베이라를 탐험하는가 — 병 치료·부·강함·무기·발견·호기심이 병렬이다)
-# 2026-08-19 Human 지시(BW 주입)로 신설 — DRAFT, 승인 대기 (open-questions.md Q17).
+# 2026-08-19 Human 지시(BW 주입)로 신설 · 같은 날 Q17(a) 일괄 APPROVED.
 id: DC-WORLD-PLAYER-UNFIXED-PATH
 type: constraint
 
@@ -25,9 +25,9 @@ prohibits:
   - single_mandated_reason_to_explore                # 탐험 이유를 하나로 강제 (BW §15)
 prefers: []
 
-status: DRAFT
+status: APPROVED
 provenance:
-  - HUMAN_DESIGN          # 2026-08-19 Human 지시로 BW 주입
+  - HUMAN_DESIGN          # 2026-08-19 BW 주입 · Q17(a) 승인 — 모두 Human 지시
 
 relations:
   supports: []

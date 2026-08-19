@@ -4,7 +4,7 @@
 #   더 이상한 WorldState → UNKNOWN) · §1 (이해하고 대응할 수 있는 세계의 범위 확장) ·
 #   §17 (탐험에서 얻은 자원이 다음 탐험의 가능성을 연다 — Capability Gate) ·
 #   §35 Growth 정의
-# 2026-08-19 Human 지시(BW 주입)로 신설 — DRAFT, 승인 대기 (open-questions.md Q17).
+# 2026-08-19 Human 지시(BW 주입)로 신설 · 같은 날 Q17(a) 일괄 APPROVED.
 id: DC-WORLD-PROGRESSION-IS-REACH
 type: constraint
 
@@ -27,9 +27,9 @@ prohibits:
   - numeric_level_as_core_progression      # 수치 Level 축적 자체를 핵심 Progression 으로 (BW §32)
 prefers: []
 
-status: DRAFT
+status: APPROVED
 provenance:
-  - HUMAN_DESIGN          # 2026-08-19 Human 지시로 BW 주입
+  - HUMAN_DESIGN          # 2026-08-19 BW 주입 · Q17(a) 승인 — 모두 Human 지시
 
 relations:
   supports: []

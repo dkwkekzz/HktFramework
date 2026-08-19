@@ -48,19 +48,18 @@ CYCLE LAYER    선택된 하나의 플레이 결과를 World Semantic 과 Rule �
 아니라 삭제한다. 기준 시점 **BW 주입 (2026-08-19)** — 코드는 C012 닫힘 상태 그대로다.
 
 ```text
-Constraint   17     APPROVED 12 (COMBAT 5 · GROWTH 6 · GLOBAL 1) · DRAFT 5 (WORLD — Q17)
+Constraint   17     Active 17 (APPROVED 16 · REVISED 1 — PLAYER-CAUSALITY, Critical 예외) · DRAFT 0
 Candidate     3     APPROVED 1 (→ DC) · PENDING 2
-Actor         2     Knowledge 2 · Belief 0
-Goal          4     Possibility 20 (전투 10 · 탐험 10 — 깊이 진입 5종은 §21~§25 로 배선 완료,
-                    §27 기관 대안 5종은 requires 미배선)
-Capability   41     IMPLEMENTED 7 · PARTIAL 2 · MISSING 32 (베이라 사다리 21 + 자원 유래 2 포함)
+Actor         2     Knowledge 2 · Belief 0 (Belief 는 도입하지 않는다 — Q3 결정)
+Goal          5     Possibility 24 (전투 14 · 탐험 10) — §27 기관 대안 4종만 requires 미배선
+Capability   42     IMPLEMENTED 7 · PARTIAL 2 · MISSING 33 (베이라 사다리 21 · 자원 2 · Critical 1 포함)
 Item Def      2     IP-BOUNDARY-STABLE · IT-BOUNDARY-BLADE (growth/items/)
-Frontier      1     PROPOSED — FR-PENETRATION-DEVALUES-THE-WALL (Human 선택 대기)
-WorldState   11     BW 주입 — 상위 인과 2 (PRIMAL-WORLD · WORLD-PRESSURE) · 구조 2
+Frontier      3     PROPOSED — PENETRATION · CRITICAL · OBSERVE (Human 선택 대기)
+WorldState   11     상위 인과 2 (PRIMAL-WORLD · WORLD-PRESSURE) · 구조 2
                     (SAFE-FRONTIER · DEPTH-GRADIENT) · 깊이 층 5 (ZONE-FRINGE ~ ZONE-UNKNOWN) ·
                     대표 지역 2 (HYPER-PREDATION · SPATIAL-SHEAR)
 
-Open Question 7   → open-questions.md (Q2 · Q3 · Q8 · Q11 · Q17 · Q18 · Q19)
+Open Question 0   → 지금 Human 을 기다리는 것은 frontier.md 의 선택이다
 ```
 
 무엇이 언제 왜 바뀌었는지는 `HISTORY.md` 가 소유한다. 살아 있는 문서(`overlay.md` ·
@@ -73,13 +72,15 @@ MP-MATCH-WEAPON-TO-ARMOR(C012). 요구 Capability 가 하나도 비어 있지 �
 아직 비어 있는 것 — 지어내지 않고 남긴 자리다:
 
 ```text
-전투 Goal 의 World Cause   BW 가 일반 원리(조우 → Goal)만 공급했다 — 구체 배선은 WHY 몫  → Q2
-§27 기관 대안의 requires   BW 는 대안 구조만 공급했다 — 배선은 OPTIONS/NEED 몫
-각 층이 만드는 Local Goal  §16 은 순환(발견 → Local Goal)만 공급했다 — WHY 몫
-Belief                     오독의 여지를 어디까지 둘지가 미정이다                       → Q3
-같은 상대의 전투 밖 경로    MG-OVERCOME-SUPERIOR-OPPONENT 의 비전투 대안이 없다          → Q8
-BW 전투 교차 매핑          §26~§28 의 전투 이름 ↔ 기존 전투 노드                        → Q18
+§27 기관 대안 4종의 requires   BW 는 대안 구조만 공급했다 — 배선은 OPTIONS/NEED 몫
+지역이라는 세계 기반           SAFE↔FRINGE 경계·이동이 세계에 없다 — 탐험 Cycle 들의 전제
+각 층이 만드는 Local Goal      §16 은 순환(발견 → Local Goal)만 공급했다 — WHY 몫
+Growth 획득 경로               CL-* 0 건 · grants 배선 없음 — growth/growth-graph.md
 ```
+
+닫힌 결정(2026-08-19): Belief 비도입(Q3) · 전투는 전투로(Q8) · Critical 확률 허용(Q11) ·
+전투 Goal 의 World Cause 배선(Q2) · BW DC 승인(Q17) · 전투 매핑(Q18) · root 확정(Q19)
+— 전부 HISTORY.md.
 
 ## 수명
 

@@ -7,36 +7,45 @@
 # Final Damage" (§6). 관찰·설명 요구는 DT §10 과 §14-9 가 공급한다 — 세계는 선택된
 # 능력치와 계산 경위를 관찰에 실어야 한다.
 # 2026-08-18 Q12 — 구판(R0) 인용을 제거하고 현행 두 문서로만 재근거했다.
+# 2026-08-19 Q11(b) — Human 결정으로 REVISED: 확률 Critical 을 예외로 허용한다.
+#   R1 §14 C011 층("가장 전통적인 RPG 요소 — Critical Chance / Critical Damage")의
+#   유보("결정론을 중요하게 여긴다면 넣을지 다시 판단한다")를 Human 이 "넣는다" 로 닫았다.
+#   명중·회피·피해량의 난수 금지는 그대로다 — 예외는 Critical 하나뿐이다.
 id: DC-COMBAT-PLAYER-CAUSALITY
 type: constraint
 
 statement: >
   전투의 중요한 결과는 관찰 가능한 세계 상태와 플레이어의 선택·행동에서 나오며,
   같은 상태·같은 조건·같은 행동이면 언제나 같은 결과가 나온다.
+  단 하나의 예외로, Critical 은 확률 판정을 허용한다 — 그 경우에도 발생 확률과
+  증폭 결과는 관찰로 읽을 수 있어야 한다.
 rationale: >
   같은 Attack, 같은 Skill, 같은 Defense 라면 항상 같은 Final Damage 가 나온다 (R1 §6).
-  Swing Collider 가 실제로 닿았다면 공격은 성공한다 — 판정에 확률이 없다 (R1 §6).
+  Swing Collider 가 실제로 닿았다면 공격은 성공한다 — 명중·회피 판정에 확률이 없다 (R1 §6).
   관찰 결과만으로 스킬 타입, 선택된 공격·방어 능력치, 최종 피해의 계산 경위를
-  설명할 수 있어야 한다 (DT §10 · §14-9).
+  설명할 수 있어야 한다 (DT §10 · §14-9). Critical 만은 전통 RPG 감각을 위해
+  확률을 허용한다 (R1 §14 C011 · Q11(b) Human 결정) — 이때도 Critical 여부와
+  그 증폭이 계산 경위에 그대로 드러나야 explainable_result 가 유지된다.
 
 scope:
   - COMBAT
 
 requires:
   - observable_cause                            # 강한 결과에는 관찰 가능한 원인이 있다
-  - explainable_result                          # 결과를 만든 원인과 값을 되짚어 읽을 수 있다 (DT §10 · §14-9)
-  - deterministic_resolution_under_same_state   # 같은 상태·조건·행동 → 언제나 같은 결과 (R1 §6 · §9)
+  - explainable_result                          # 결과를 만든 원인과 값을 되짚어 읽을 수 있다 (DT §10 · §14-9) — Critical 발생 여부·증폭 포함
+  - deterministic_resolution_under_same_state   # 같은 상태·조건·행동 → 언제나 같은 결과 (R1 §6 · §9) — Critical 예외 제외
 prohibits:
-  # 넷 모두 R1 이 명시적으로 "만들지 않는다" 고 못 박은 것 (R1 §6 · §13)
+  # 셋 모두 R1 이 명시적으로 "만들지 않는다" 고 못 박은 것 (R1 §6 · §13)
   - random_hit          # Miss / Accuracy
   - random_evade        # Dodge
   - random_damage       # Random Damage
-  - random_critical     # Critical (R1 §14 Critical 층은 이 금지와 충돌 — open-questions.md Q11)
-prefers: []
+  # random_critical 은 2026-08-19 Q11(b) 로 금지 목록에서 제거 — R1 §14 C011 층 허용
+prefers:
+  - Critical 확률·증폭이 플레이어의 선택(장비·성장)에서 오는 것   # 순수 난수보다 원인 있는 확률
 
-status: APPROVED
+status: REVISED
 provenance:
-  - HUMAN_DESIGN          # 구판 반영 2026-08-15 · R1 재정합 2026-08-17 — 모두 Human 지시
+  - HUMAN_DESIGN          # 구판 반영 2026-08-15 · R1 재정합 2026-08-17 · Q11(b) Critical 허용 REVISED 2026-08-19 — 모두 Human 지시
 
 relations:
   supports: []

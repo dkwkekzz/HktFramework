@@ -2,9 +2,8 @@
 
 > **Human 소유.** Agent 는 이 문서를 임의로 바꾸지 않는다.
 >
-> 이 내용은 Human 이 작성한 세계관 문서 `design/Master-World-Beira.md`(BW)의
-> 주입(Inject)으로 채워졌다 — 문안은 전부 그 문서의 문장이다. 확인·수정은 Human 몫이다
-> (open-questions.md Q19).
+> 원본: Human 이 작성한 세계관 문서 `design/Master-World-Beira.md`(BW).
+> 문안은 전부 그 문서의 문장이며 Human 이 확정했다 (Q19(a) — HISTORY.md).
 
 ## ROOT GAME GOAL
 
@@ -50,5 +49,4 @@
 
 ## OPEN QUESTIONS
 
-    open-questions.md 가 소유한다 — Q19 (이 문서의 문안 확인) · Q17 (BW 유래 DC 5종 승인) ·
-    Q18 (BW 전투 교차분과 기존 전투 노드의 매핑).
+    open-questions.md 가 소유한다 — 현재 이 문서에 걸린 미결정 사항은 없다.
