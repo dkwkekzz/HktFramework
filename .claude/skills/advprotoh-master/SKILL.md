@@ -156,6 +156,10 @@ Cycle 결과가 상위 의미와 어긋난다         → Human (MASTER GAP)
   `graph/GRAPH.md` 를 다시 만들고 **같은 커밋에** 넣는다. 그 출력이 정합 문제도 알려 준다 —
   없는 ID 참조 · `requires`↔`required_by` 비대칭 · 없는 Constraint 참조 · 고아 노드.
   ERROR 가 있으면 지어내서 덮지 말고 그 노드를 고치거나 Human 에게 되돌린다.
+* 이어서 Human 이 보는 고정 링크를 갱신한다 — Artifact 도구에
+  `file_path` = `graph/graph-view.artifact.html`, `url` = `master/README.md` 의 고정 링크.
+  **`url` 을 반드시 함께 넘긴다** — 빼면 같은 링크에 덮어쓰지 않고 새 주소가 생겨
+  Human 이 낡은 링크를 계속 보게 된다. Artifact 도구가 없는 환경이면 건너뛰고 보고한다.
 * 커밋 메시지 형식: `HktAdvProtoH: Master <Step> — <한 줄 요약>`
 * NEXT 를 끝냈으면 후보와 추천 근거를 제시하고 **Human 선택을 기다린다**.
 * 선택 이후의 작업은 이 스킬이 아니라 `advprotoh-cycle` 이다.

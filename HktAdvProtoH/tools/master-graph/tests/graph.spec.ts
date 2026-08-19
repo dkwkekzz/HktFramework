@@ -7,7 +7,7 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { loadMasterGraph } from '../model';
 import { renderMermaid } from '../mermaid';
-import { renderHtml, serialize } from '../html';
+import { renderArtifactPage, renderHtml, serialize } from '../html';
 import { activePackDir } from '../../active-pack';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
@@ -115,6 +115,22 @@ describe('renderHtml', () => {
       expect(data.nodes.some((n) => n.id === e.from)).toBe(true);
       expect(data.nodes.some((n) => n.id === e.to)).toBe(true);
     }
+  });
+
+  it('Artifact 판은 감싸는 태그를 내지 않는다 — 뷰어가 doctype·html·head·body 를 준다', () => {
+    const page = renderArtifactPage(graph);
+    for (const tag of ['<!doctype', '<html', '<head>', '<body']) {
+      expect(page.toLowerCase()).not.toContain(tag);
+    }
+    expect(page.startsWith('<title>')).toBe(true); // 갤러리·탭 이름이 첫 줄에 있어야 한다
+  });
+
+  it('Artifact 판과 단일 문서판이 같은 내용을 담는다', () => {
+    const page = renderArtifactPage(graph);
+    expect(page).toContain('window.__MASTER_GRAPH__');
+    expect(page).toContain('id="canvas"');
+    // 두 판 모두 외부 요청이 없다
+    expect(page).not.toMatch(/https?:\/\/(?!www\.w3\.org)/);
   });
 
   it('데이터에 </script> 를 넣어도 문서가 깨지지 않는다', () => {

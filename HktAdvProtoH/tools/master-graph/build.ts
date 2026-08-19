@@ -11,7 +11,7 @@ import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { loadMasterGraph } from './model';
 import { renderMermaid } from './mermaid';
-import { renderHtml } from './html';
+import { renderArtifactPage, renderHtml } from './html';
 import { activePackDir } from '../active-pack';
 
 function projectRoot(): string {
@@ -20,6 +20,7 @@ function projectRoot(): string {
 
 const MERMAID_FILE = 'graph/GRAPH.md';
 const HTML_FILE = 'graph/graph-view.html';
+const ARTIFACT_FILE = 'graph/graph-view.artifact.html';
 
 export function run(argv: string[]): number {
   const checkOnly = argv.includes('--check');
@@ -35,6 +36,7 @@ export function run(argv: string[]): number {
   const mermaid = renderMermaid(graph);
   const mermaidPath = join(masterDir, MERMAID_FILE);
   const htmlPath = join(masterDir, HTML_FILE);
+  const artifactPath = join(masterDir, ARTIFACT_FILE);
 
   const errors = graph.problems.filter((p) => p.severity === 'ERROR');
   const warns = graph.problems.filter((p) => p.severity === 'WARN');
@@ -62,12 +64,14 @@ export function run(argv: string[]): number {
 
   writeFileSync(mermaidPath, mermaid, 'utf8');
   writeFileSync(htmlPath, renderHtml(graph), 'utf8');
+  writeFileSync(artifactPath, renderArtifactPage(graph), 'utf8');
 
   const rel = (p: string) => relative(root, p);
   console.log(`노드 ${graph.nodes.size} · 관계 ${graph.edges.length} · Constraint ${graph.constraints.size} · 구멍 ${graph.holes.length}`);
   for (const p of graph.problems) console.log(`  ${p.severity === 'ERROR' ? '✗' : '·'} ${p.code} — ${p.message}`);
   console.log(`\n  ${rel(mermaidPath)}   Mermaid 스냅샷 — PR·GitHub 에서 그대로 렌더된다`);
   console.log(`  ${rel(htmlPath)}   브라우저로 열어 관찰한다 (생성물 — 커밋하지 않는다)`);
+  console.log(`  ${rel(artifactPath)}   Artifact 게시용 — 고정 링크에 덮어쓴다 (master/README.md 참조)`);
   return errors.length > 0 ? 1 : 0;
 }
 

@@ -114,6 +114,19 @@ Master Stage   advprotoh-master 스킬
 둔다. 세부 규칙은 각 Stage Guide(World / View Implementation · Verification)가 담당한다.
 관찰·정합 검사: `npm run catalog` / `npm run catalog:check`.
 
+## Master Graph 관찰
+
+`master/graph/*.yaml` 은 사람이 눈으로 읽기 어렵다. 관찰·정합 검사는 도구가 맡는다.
+
+```text
+npm run master:graph         GRAPH.md + 뷰어 + Artifact 판을 다시 만든다
+npm run master:graph:check   정합성 + GRAPH.md 최신 여부만 확인한다 (아무것도 쓰지 않는다)
+```
+
+`graph/` `constraints/` 를 고친 Agent 는 **재생성물을 같은 커밋에 넣고 고정 링크를 갱신한다**
+— 절차와 그 링크는 [master/README.md](content/proto-adventure/master/README.md) 의 "관찰" 이
+소유한다. 여기에 링크를 복사해 두지 않는다.
+
 ## 막혔을 때
 
 이전 단계에서 확정된 의미를 임의로 바꾸거나 없는 의미를 만들어내지 않는다.

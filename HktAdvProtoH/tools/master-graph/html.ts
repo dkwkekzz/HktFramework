@@ -46,7 +46,10 @@ export function serialize(graph: MasterGraph) {
   };
 }
 
-export function renderHtml(graph: MasterGraph): string {
+const TITLE = 'Master Intent Graph';
+
+/** <style> 와 페이지 본문 — 두 산출물이 공유한다 */
+function renderParts(graph: MasterGraph): { style: string; body: string } {
   const css = readFileSync(join(here, 'viewer.css'), 'utf8');
   const js = readFileSync(join(here, 'viewer.js'), 'utf8');
   const data = JSON.stringify(serialize(graph)).replace(/</g, '\\u003c');
@@ -56,18 +59,11 @@ export function renderHtml(graph: MasterGraph): string {
   const overlay = (o: string) => nodes.filter((n) => n.type === 'capability' && n.overlay === o).length;
   const errors = graph.problems.filter((p) => p.severity === 'ERROR').length;
 
-  return `<!doctype html>
-<html lang="ko">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Master Graph — proto-adventure</title>
-<style>
+  const style = `<style>
 ${css}
-</style>
-</head>
-<body>
-<header>
+</style>`;
+
+  const body = `<header>
   <h1>Master Intent Graph</h1>
   <div class="stats">
     <span>노드 <b>${graph.nodes.size}</b></span>
@@ -137,8 +133,35 @@ ${css}
 <script>window.__MASTER_GRAPH__ = ${data};</script>
 <script>
 ${js}
-</script>
+</script>`;
+
+  return { style, body };
+}
+
+/** 브라우저로 직접 여는 단일 문서 */
+export function renderHtml(graph: MasterGraph): string {
+  const { style, body } = renderParts(graph);
+  return `<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>${TITLE}</title>
+${style}
+</head>
+<body>
+${body}
 </body>
 </html>
+`;
+}
+
+/** Artifact 게시용 — 뷰어가 doctype·html·head·body 를 감싸므로 그 태그를 내지 않는다.
+ *  손으로 껍데기를 벗기지 않도록 도구가 이 형태까지 만들어 둔다. */
+export function renderArtifactPage(graph: MasterGraph): string {
+  const { style, body } = renderParts(graph);
+  return `<title>${TITLE}</title>
+${style}
+${body}
 `;
 }
