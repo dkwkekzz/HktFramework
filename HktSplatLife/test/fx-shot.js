@@ -157,25 +157,25 @@ async function driveFx({ FRAMES, N, entities, shots, events, eye, center, makeBo
 		// 함정: 살은 구름에서 응축하며 *수축*한다 — 프레임 40 쯤엔 아직 부풀어 있어 픽셀이 더 많다.
 		// 기준선은 응축이 끝난 뒤(≈1.8s)에 잡아야 "이펙트가 픽셀을 더했는가"가 성립한다.
 		return await driveFx({
-			FRAMES: 266, N, entities: { ents, fx }, eye: [0.9, 1.35, 3.1], center: [0, 0.9, 0],
+			FRAMES: 320, N, entities: { ents, fx }, eye: [0.9, 1.35, 3.1], center: [0, 0.9, 0],
 			// 포즈는 고정(walk 한 시점) — 걷기로 실루엣이 변하면 "이펙트가 얹혔는가" 지표가
 			// 포즈 면적 변화에 묻힌다. 살의 지연 추종은 이미 life-shot.js 가 검증한다.
 			makeBones: () => skeleton.pose('walk', 0.42, 1.0, 1.0),
 			events: [
 				// 충격파 단독 — 굴절만 있는 구간(파편이 섞이면 "색이 아니다" 지표가 오염된다)
-				{ frame: 170, name: '충격파', at: { origin: [0, 1.15, 0], dir: [0.3, 0.1, 1], radius: 0.12 } },
-				{ frame: 225, name: '타격', at: { origin: [0, 1.15, 0], dir: [0.3, 0.1, 1] } }, // 파편 + 동반 충격파
-				{ frame: 245, name: '파이어볼 폭발', at: { origin: [0.75, 1.0, 0], dir: [0, 1, 0] } },
+				{ frame: 170, name: '충격파', at: { origin: [0, 1.15, 0], dir: [0.3, 0.1, 1], radius: 0.1 } },
+				{ frame: 240, name: '타격', at: { origin: [0, 1.15, 0], dir: [0.3, 0.1, 1] } }, // 파편 + 동반 충격파
+				{ frame: 300, name: '파이어볼 폭발', at: { origin: [0.75, 1.0, 0], dir: [0, 1, 0] } },
 			],
 			// 함정: 살은 이벤트가 없어도 아주 느리게 계속 자리를 잡는다(표류). 그래서 "굴절이
 			// 사라졌는가"는 *아무 일도 없던 구간의 표류*(drift)와 견줘야 한다 — 절대 0 이 아니다.
 			shots: [
 				{ name: 'char', frame: 110, save: true },                        // 이펙트 없는 캐릭터 (응축 후 기준선)
 				{ name: 'drift', frame: 166, diffBase: 'char' },                 // 대조군 — 56 프레임 동안 아무 사건도 없다
-				{ name: 'shock', frame: 177, save: true, diffBase: 'drift' },    // 충격파 +0.12s — 굴절만
-				{ name: 'shockGone', frame: 215, diffBase: 'drift' },            // 충격파 수명(0.55s=33f) 뒤
-				{ name: 'charHit', frame: 232, save: true, diffBase: 'drift' },  // 타격(+동반 충격파) +0.12s
-				{ name: 'charBlast', frame: 263, save: true, diffBase: 'drift' },// 폭발 +0.3s
+				{ name: 'shock', frame: 185, save: true, diffBase: 'drift' },    // 충격파 +0.25s — 파면이 몸을 지난다
+				{ name: 'shockGone', frame: 235, diffBase: 'drift' },            // 충격파 수명(0.9s=54f) 뒤
+				{ name: 'charHit', frame: 250, save: true, diffBase: 'drift' },  // 타격(+동반 충격파) +0.17s
+				{ name: 'charBlast', frame: 318, save: true, diffBase: 'drift' },// 폭발 +0.3s
 			],
 		});
 	}, { N: parseInt(nArg) * 4, DRIVE: DRIVE_FX });

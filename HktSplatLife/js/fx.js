@@ -74,20 +74,25 @@
 		},
 		// ④ 충격파 — 물리적 타격의 *공기*. 색이 없다(refract>0 이면 색 패스에서 빠진다):
 		//    보이는 것은 오직 휘어진 배경이다. shell 1.0 = 전원이 같은 속도 = 얇은 파면이
-		//    통째로 팽창하고, damping 5.2 가 그 파면을 급히 감속시킨다(공기 저항).
-		//    타격 축으로 살짝 몰리고(cone 0.35) 난류(volatility)가 파면을 울퉁불퉁하게 만든다.
-		//    chroma 0.25 = 파면 가장자리의 프리즘 색테(R/G/B 변위가 25% 씩 어긋난다)
-		//    · caustic 0.8 = 굴절이 센 곳(파면)의 흰 집광 · refract 1.6 = 파면에서 배경이 수십 px
-		//    밀린다(타격 직후가 가장 세고, 파면이 퍼지며 밀도가 얇아져 저절로 잦아든다).
+		//    통째로 밖으로 팽창한다(측정: 평균 반경 0.33m@0.05s → 1.85m@0.85s, 지수 감속).
+		//    타격 축으로 살짝 몰리고(cone 0.3) 난류(volatility)가 파면을 울퉁불퉁하게 만든다.
+		//    chroma 0.3 = 파면 가장자리의 프리즘 색테(R/G/B 변위가 30% 씩 어긋난다)
+		//    · caustic 1.15 = 굴절이 센 곳(=파면)의 흰 집광 · refract 2.2 = 파면에서 배경이 수십 px.
+		//    "밖으로 퍼지는" 읽힘의 근거는 세 값이다:
+		//      damping 1.3 — 파면이 급정거하지 않고 수명 내내 계속 나아간다
+		//                    (도달 반경 = burst/damping ≈ 2.8 · 감속은 지수적 = 실제 충격파의 결).
+		//      grow 0.3    — 파면이 퍼져도 두꺼워지지 않는다(얇게 유지 = 링으로 읽힌다).
+		//      size 0.045  — 파면 두께가 반경의 몇 % 수준이라 테두리가 선으로 보인다.
 		//    함정: stretch(속도 방향 신축)는 0 이어야 한다 — 방사 속도가 큰 얇은 파면에서
 		//    스플랫이 방사 방향으로 늘어나면 파면이 구가 아니라 *팔면체*로 보인다(눈검증 확인).
-		//    난류(volatility)는 파면을 울퉁불퉁하게만 하고 형태는 깨지 않는다.
+		//    난류(volatility)는 파면을 울퉁불퉁하게만 하고 형태는 깨지 않는다 — 다만 크면
+		//    파면 안쪽에 잔물결이 남아 링이 흐려지므로 0.2 이하로.
 		'충격파': {
-			lifeBase: 0.55, damping: 3.5, gravity: 0.0, updraft: 0.0,
-			volatility: 0.35, flowFreq: 3.2, flowSpeed: 1.4,
-			size: 0.06, stretch: 0.0, opacity: 0.5, luminosity: 0,
-			fxK: 1, burst: 4.5, cone: 0.35, swirl: 0.05, shell: 1.0, grow: 1.2, curve: 1.5, ember: 0,
-			refract: 1.6, chroma: 0.3, caustic: 0.8, rarefy: 0.0,
+			lifeBase: 0.9, damping: 1.3, gravity: 0.0, updraft: 0.0,
+			volatility: 0.18, flowFreq: 2.6, flowSpeed: 1.0,
+			size: 0.045, stretch: 0.0, opacity: 0.55, luminosity: 0,
+			fxK: 1, burst: 3.6, cone: 0.3, swirl: 0.03, shell: 1.0, grow: 0.3, curve: 1.2, ember: 0,
+			refract: 2.2, chroma: 0.3, caustic: 1.15, rarefy: 0.0,
 			colorA: '#ffffff', colorB: '#ffffff', form: 4, // 색은 쓰이지 않는다 (굴절 개체)
 		},
 	};
