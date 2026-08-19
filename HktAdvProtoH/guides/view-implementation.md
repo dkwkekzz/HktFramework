@@ -40,20 +40,30 @@ UI         Web HUD
 Camera     View 의 책임
 ```
 
-구조 기준:
+구조 기준 — 팩의 `view/` 는 **결정 Layer 뿐**이다. 그리는 능력은 엔진이 소유한다.
 
 ```text
 view/
-    presentation/  결정 Layer — role/state/값 → 어떻게 그릴지 (Render Plan 산출)
-    scene/         Render Plan 타입 (두 Layer 의 경계)
-    renderer/      capability — sprite billboard · terrain · trail · camera follow
-    terrain/       3D Terrain
-    sprites/       Sprite Billboard
-    camera/        Camera
-    input/         capability — Plan 의 대상·키 지시대로 Action Request 발신
-    hud/           capability — counter · flag · 프롬프트 · 토스트 · 라벨
-    assets/        Asset Registry (sprite 키 → 그림)
+    resolve.ts                   Presentation Resolver — Snapshot → Render Plan (진입점)
+    role-presentation.ts         Entity Role 을 어떻게 그릴지 (role 당 단일 항목)
+    kind-presentation.ts         존재 종류(CharacterKind)가 정하는 표현
+    interaction-presentation.ts  Interaction Role 의 키 바인딩 · 프롬프트
+    hud-presentation.ts          HUD 항목 id 의 라벨 · 아이콘 · 토스트
+    combat-presentation.ts       전투 관찰값의 표시
+    code-text.ts                 의미 코드 → 플레이어 문구
+    bindings.ts                  이 팩의 특수 키 규칙
+    command-request.ts           명령 한 줄 → Action Request
+    sprites.ts                   Sprite 표 (절차 생성 픽셀아트 — 외부 이미지 없음)
+    motion-source.ts             motions/ 자동 발견 (+ motion-atlas.generated.ts 는 생성물)
+
+engine/view-kernel/              capability Layer — 팩이 편집하지 않는다
+    renderer · scene(Render Plan 타입) · sprites · terrain · camera · input · hud ·
+    assets · motion 재생 · net · 엔진 공통 presentation(collision·facing·link·session)
 ```
+
+팩은 표·문구·바인딩·스프라이트를 **주입**하고 (registerSprites · CodeTextFn · KeyBinding),
+엔진은 그것을 그린다. 경계의 단일 출처는
+[design/Design-System-Content-Separation.md](../design/Design-System-Content-Separation.md).
 
 ### View 의 2-Layer 구조 (핵심 명제)
 
@@ -62,22 +72,22 @@ World 는 **semantic**(role/state/값/사유 코드)만 보낸다. View 는 두 
 ```text
 Semantic Snapshot (World)
         ↓
-Presentation 결정 Layer   view/presentation/ — role 별 "어떻게 그릴지" 결정
+Presentation 결정 Layer   view/ — role 별 "어떻게 그릴지" 결정
         ↓ Render Plan            (sprite·크기·라벨 형식·문구·키)
-Capability Layer          renderer/hud/input — 그리기 능력만 제공, 의미를 모른다
+Capability Layer          engine/view-kernel/ — 그리기 능력만 제공, 의미를 모른다
 ```
 
 두 Layer 는 분리를 유지한다 — capability 코드에 게임 의미(role·문구)를 넣지 않고,
 결정 Layer 는 그리기 구현을 갖지 않는다.
 
 **같은 종류의 대상을 그리는 결정은 role/id 당 단일 항목이다** — 모든 Cycle 이
-`presentation/` 의 같은 항목을 공유·발전시키며, Cycle 별로 결정 코드를 분리하거나
-중복하지 않는다. 새 Cycle 의 View 작업은:
+`view/*-presentation.ts` 의 같은 항목을 공유·발전시키며, Cycle 별로 결정 코드를
+분리하거나 중복하지 않는다. 새 Cycle 의 View 작업은:
 
 1. **결정 항목 추가** — 새 role/interaction/HUD id/사유의 presentation 항목 + Asset 등록.
-   종(kind)이 정하는 표현(그림 기준 방향 등)은 `presentation/kind-presentation.ts` 의
+   종(kind)이 정하는 표현(그림 기준 방향 등)은 `view/kind-presentation.ts` 의
    kind 항목으로만, 역할(role)이 정하는 표현(카메라·라벨·자리 비움 등)은
-   `presentation/role-presentation.ts` 로만 — 종과 역할을 섞지 않는다.
+   `view/role-presentation.ts` 로만 — 종과 역할을 섞지 않는다.
    그림 자체는 `motions/<kind>/<action>.<격자>.<프레임>.<fps>.png` 파일 규약이
    자동 발견한다 (motions/README.md) — 등록 코드를 만들지 않는다.
    현재 등록 전체는 `npm run catalog` 로 관찰한다 (kind 정적 데이터 3원소 — CLAUDE.md).
@@ -108,11 +118,11 @@ Capability Layer          renderer/hud/input — 그리기 능력만 제공, 의
 - `world/` 를 import 하거나 World 내부 구현을 계약의 대체 수단으로 사용하지 않는다 — 공유는 `protocol/` 뿐이다.
 - Client 에서 World State 를 직접 변경하지 않는다.
 - Spec 에 없는 게임 의미를 View 에서 만들어내지 않는다 (예: 클라이언트 임의 판정).
-- Capability 코드(renderer/hud/input)에 특정 role·게임 의미·문구를 하드코딩하지 않는다 —
-  결정은 presentation/ 의 role/id 단위 항목만이 한다.
+- Capability 코드(`engine/view-kernel/`)에 특정 role·게임 의미·문구를 하드코딩하지 않는다 —
+  결정은 `view/` 의 role/id 단위 항목만이 한다. 그리고 팩 작업 중 `engine/` 을 편집하지 않는다.
 - 같은 종류 대상의 결정 코드를 Cycle 별로 분리·중복하지 않는다 — 단일 항목을 발전시킨다.
 - 기존 capability 의 렌더 코드를 다른 Cycle 작업 중에 수정하지 않는다
-  (capability 자체를 고도화하는 Cycle 은 예외).
+  (capability 고도화는 기반 트랙의 일이다 — 필요하면 사유를 적고 반환한다).
 
 ## Done When
 
