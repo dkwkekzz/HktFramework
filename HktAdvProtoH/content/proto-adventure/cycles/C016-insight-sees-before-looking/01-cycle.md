@@ -2,7 +2,7 @@
 
 [PASS] Cycle Definition
 [PASS] Intent                    (앎에 길이 둘 · 앎이 자리 단위 · 통찰은 관문이 아니다)
-[    ] World Semantic
+[PASS] World Semantic            (성질 하나 · 문턱 셋 · 판정 하나 · 계산 무변경)
 [    ] GameView Specification
 [    ] Human Semantic Review
 [    ] World Implementation
