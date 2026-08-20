@@ -299,6 +299,13 @@ Aura / Nen (집중 · 조건 · 제약 · 서약)              아래 층이 서
 않는다. 그 문서가 서면 `master-inject` 로 주입하고, 예측(다음 수를 읽는다)은 그 위에서 다시
 판정한다. 불변식 하나는 이미 정해져 있다 — **자율 존재는 플레이어와 같은 규칙 아래 있고
 예외를 갖지 않는다** (`graph/actors.yaml` MA-HOSTILE-COMBATANT).
+그리고 그래프가 이 문서를 이미 이름으로 요구해 두었다 — `MG-HOLD-HUNTING-GROUND` 은
+**갈래가 없는 유일한 Goal** 이고, 그 주석이 "세울 때가 되면 그것은 곧 Creature 의 행동
+설계이며 그 층의 문서가 먼저다" 라고 적고 있다.
+
+    초안   [design/Design-Creature-Behavior-R0.md](../../../design/Design-Creature-Behavior-R0.md)
+           — Agent 작성, **Human 승인·개정 대기.** 승인되면 `master-inject` 로 주입하고,
+           그 뒤에 예측(다음 수를 읽는다)을 다시 판정한다
 
 **후보로 올리지 않은 결손 하나**: 기력이 스스로 돌아오지 않는다 (MC-CP-ECONOMY 의
 PARTIAL — 회복 경로가 "타격을 성공시킨다" 하나뿐이라 빗나가면 아무것도 벌지 못하고
