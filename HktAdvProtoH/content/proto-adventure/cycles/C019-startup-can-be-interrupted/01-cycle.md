@@ -1,7 +1,7 @@
 # CYCLE C019 — Startup Can Be Interrupted
 
 [PASS] Cycle Definition           (선딜은 기술마다 다르고 · 보이고 · 캔슬 판정에 쓰인다)
-[    ] Intent
+[PASS] Intent                    (기술의 세 구간 · 세계가 판정하는 노출 · 끊김의 좁힘)
 [    ] World Semantic
 [    ] GameView Specification
 [    ] Human Semantic Review
