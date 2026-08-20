@@ -13,9 +13,9 @@ Human 이 답한다    DECISION 줄
 
 미해결 **1건** — 닫힌 질문은 HISTORY.md.
 
-Frontier 선택은 끝났다 — [frontier.md](frontier.md) 의 `SELECTED` 가
-`FR-PREDICT-READS-THE-NEXT-BLOW` 다 (습성 + 예측을 한 Cycle 로 — A안).
-다음은 Cycle Stage 1 이며 아래 질문은 그것을 막지 않는다.
+Frontier 선택은 **비어 있다** — [frontier.md](frontier.md) 의 `SELECTED` 가 없음이고
+도는 Cycle 도 없다. 후보 셋 중 하나를 Human 이 고르는 것이 다음이며,
+아래 질문은 그 선택을 막지 않는다.
 
 ## Q23. "아는 힘"(통찰)은 독립한 Capability 노드인가 — OPEN
 

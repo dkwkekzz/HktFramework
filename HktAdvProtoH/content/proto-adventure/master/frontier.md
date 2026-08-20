@@ -29,7 +29,7 @@ Aura / Nen           대기 — 사유는 "지금 열 수 없는 것"
 ```text
 방법 3종                            지금
 ────────────────────────────────────────────
-익힌다 (MP-LEARN-…)                 C014·C016 으로 살펴봄이 섰다 — 남은 결손은 예측 하나 ← SELECTED
+익힌다 (MP-LEARN-…)                 C014·C016 으로 살펴봄이 섰다 — 남은 결손은 예측 하나 ← 후보
 자원으로 빌린다 (MP-ADAPT-…)        설계는 섰고(Q22 광물 6종) 세계에 제작이 없다
 문명권에서 준비한다 (MP-PREPARE-…)  문명권·거래라는 세계 기반이 없다
 
@@ -99,7 +99,9 @@ Aura / Nen           대기 — 사유는 "지금 열 수 없는 것"
                          MC-OBSERVE 를 IMPLEMENTED 로 닫는다 · 3 Client 실측 가능 ·
                          4 한 Cycle · 5 새 World 규칙 · 6 Active 와 양립 ·
                          7 FRINGE 진입 완주가 이 위에 얹힌다
-    Status               SELECTED
+    Human 판단 (해소됨)    "습성" 을 함께 닫을지 따로 볼지 → **A안 — 한 Cycle 로 묶는다**.
+                         이 후보가 다시 선택되면 그 모양으로 연다
+    Status               PROPOSED
 
 ### FR-WHAT-YOU-GATHER-CHANGES-YOUR-BODY
     Playable Result      플레이어가 세계에서 캐거나 얻은 것이 몸이나 장비를 실제로 바꾸고,
@@ -162,14 +164,7 @@ Aura / Nen           대기 — 사유는 "지금 열 수 없는 것"
 ## 추천 순서 (Agent 제안 — 확정은 Human)
 
 ```text
-1. FR-PREDICT-READS-THE-NEXT-BLOW     ← SELECTED
-                                      익히는 갈래의 결손을 하나에서 0 으로 만들고
-                                      MC-OBSERVE 를 닫는다. 지역 기반을 요구하지 않는
-                                      마지막 조각이며, C014·C016 이 세운 앎의 관문 위에
-                                      그대로 얹힌다. 2026-08-19 Human 이 선택했다
-                                      (습성 + 예측을 한 Cycle 로 — A안)
-
-2. FR-WHAT-YOU-GATHER-CHANGES-YOUR-BODY
+1. FR-WHAT-YOU-GATHER-CHANGES-YOUR-BODY
                                       가장 크게 막힌 것을 푼다 — 얻은 것이 나를 바꾸는
                                       경로가 세계에 하나도 없다. Q22 로 재료(광물 계통)가
                                       섰으므로 이제 쓰는 규칙만 남았다.
@@ -177,27 +172,24 @@ Aura / Nen           대기 — 사유는 "지금 열 수 없는 것"
                                       올릴 경로가 없어 MP-BET-ON-THE-CRITICAL-BLOW 가
                                       절반에서 멈춰 있다
 
-3. FR-INTERRUPT-DENIES-THE-BLOW       가장 작은 전투 후보 — 끊김 규칙이 이미 있어 조건
-                                      하나만 붙이면 되고 DANGER 층 demands 도 미리 채운다.
-                                      선택된 후보가 자율 존재의 행동에 갈래를 세우면
-                                      "무엇을 끊을 것인가" 도 그만큼 두터워진다
+2. FR-INTERRUPT-DENIES-THE-BLOW       가장 작은 전투 후보 — 끊김 규칙이 이미 있어 조건
+                                      하나만 붙이면 되고 DANGER 층 demands 도 미리 채운다
+
+3. FR-PREDICT-READS-THE-NEXT-BLOW     익히는 갈래의 결손을 하나에서 0 으로 만들고
+                                      MC-OBSERVE 를 닫는다. 지역 기반을 요구하지 않는
+                                      마지막 조각이다.
+                                      **2026-08-19 Human 이 이 회차의 선택을 거두었다** —
+                                      후보로는 살아 있고 다시 고를 수 있다
 ```
 
 ## SELECTED
 
 ```text
-FR-PREDICT-READS-THE-NEXT-BLOW
+없음 — Human 선택 대기
 ```
 
-    선택 근거   2026-08-19 Human 선택. 추천 1순위이며, C014 가 세운 살펴봄과 C016 이
-                세운 통찰 위에 그대로 얹힌다. 함께 물었던 판단(MC-OBSERVE 의 "습성" 을
-                이 Cycle 에 함께 닫을지)에 Human 이 **A안 — 한 Cycle 로 묶는다** 로
-                답했다: 습성(자율 존재의 행동 갈래)과 예측(읽기)을 같이 닫는다.
-                근거는 갈래 없이는 읽을 것이 없고, 읽기 없이는 갈래가 보이지 않아
-                둘로 나누면 어느 쪽도 혼자서는 플레이 가능한 Delta 가 되지 않는다는 것
-    다음 단계   cycles/C017-<name>/01-cycle.md 의 MASTER TRACE 로 이어진다
-                (advprotoh-cycle 스킬 — 아직 시작하지 않았다).
-                위 항목의 **넘어야 할 선** 셋을 01 의 성공 조건으로 나른다
+    도는 Cycle 이 없다. 위 후보 셋 중 하나를 Human 이 고르면 그 내용이
+    `cycles/<CycleId>/01-cycle.md` 의 MASTER TRACE 로 이어진다 (advprotoh-cycle 스킬).
 
 ## 지금 열 수 없는 것
 
