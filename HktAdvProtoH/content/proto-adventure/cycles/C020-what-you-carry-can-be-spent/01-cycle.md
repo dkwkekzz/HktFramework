@@ -1,0 +1,288 @@
+# CYCLE C020 — What You Carry Can Be Spent
+
+[PASS] Cycle Definition           (정의·관찰·사용·소모가 한 몸 · 첫 사용 효과를 이 문서가 고정)
+[    ] Intent
+[    ] World Semantic
+[    ] GameView Specification
+[    ] Human Semantic Review
+[    ] World Implementation
+[    ] View Implementation
+[    ] Verification
+
+STATUS  IN PROGRESS
+
+## MASTER TRACE
+
+    Frontier            FR-WHAT-YOU-CARRY-CAN-BE-SPENT   (frontier.md 후보 2 — Human Select)
+                        **기록 주의** — `master/frontier.md` 의 `SELECTED` 는 아직 `없음` 이다.
+                        Human 이 이 Cycle 을 골랐으나 Cycle Agent 는 `master/` 를 편집하지
+                        않는다 (CLAUDE.md 절대 규칙). SELECTED 기록은 Master 세션의 몫이며,
+                        지금 행동 구간(FR-ACTION-PHASE)이 **다른 세션에서 병행 중**이므로
+                        두 선택을 한 번에 적는 편이 안전하다 (C018 이 같은 이유로 같은 판단을
+                        했고, HISTORY 2026-08-20 의 교훈이 그것이다 — 두 갈래가 같은 Overlay 를
+                        동시에 갱신하면 병합이 사실을 고르는 일이 된다)
+
+    Source Goal         MG-EXPLORE-BEIRA
+                        "자신이 이해하고 대응할 수 있는 세계의 범위가 지금보다 넓다 —
+                         이전에는 갈 수 없던 베이라의 영역에 닿는다" (BW §1 · §32)
+
+    Source Possibility  MP-ADAPT-BY-RESOURCE 의 **첫 칸**
+                        "가진 것이 대신해 준다 — 몸이 감당하지 못하는 것을 물건이 감당한다."
+                        이 갈래가 그렇게 말하려면 먼저 **쓸 수 있어야** 한다. 지금은 가진 것이
+                        무엇이든 몸에 아무 영향이 없다
+
+    Target Capability   MC-USE-ITEM                      (overlay: MISSING — 세계에 0건이다)
+                        "지닌 물건을 써서 자기 몸이나 대상의 상태를 바꾼다. 쓰면 그 물건은
+                         줄어들고, 쓸 수 없을 때는 왜 안 되는지가 함께 온다" (IS §5.3)
+                        overlay 의 결손 칸: **쓴다 · 준다 · 없어진다 가 0건이다.**
+                        캐서 늘어나는 길만 있고 줄어드는 길이 없다
+
+    공통 앞칸이 되는 것   MC-RESTORE-BIOLOGICAL-STATE (MISSING) · MC-CUT-ABNORMAL-STRUCTURE (MISSING)
+                        MC-EQUIP-ITEM · MC-CRAFT-FROM-MATERIALS · MC-TRANSFER-ITEM (전부 MISSING)
+                        MC-ATTACK-POWER (PARTIAL) 의 결손 — "세계 안의 행위로 값을 바꿀 경로가
+                        없다" 도 같은 뿌리다. 이 Cycle 은 그 **어느 것도 닫지 않고** 그것들이
+                        얹힐 바닥만 세운다 (HISTORY Q31)
+
+    Reused Capability   MC-WATCH-TARGET           (overlay: PARTIAL — C017 이 고른 것을 세계가 기억한다)
+                        MC-RELATION-STANCE        (overlay: IMPLEMENTED — C018)
+                        MC-COMBAT-STRIKE          (overlay: IMPLEMENTED — C007 · C010)
+                        MC-GUARD                  (overlay: IMPLEMENTED — C011)
+                        MC-CONDITION-STACKING     (overlay: IMPLEMENTED — 배율 합성 얼개)
+
+    Active Constraints  DC-ITEM-KIND-IS-DATA-NOT-BRANCH
+                        DC-ITEM-CAPABILITY-COMES-FROM-GRANTS
+                        DC-ITEM-CHANGE-IS-ONE-UNIT
+                        DC-WORLD-OWNS-THE-SURFACE-LIST                    (GLOBAL)
+                        DC-WORLD-RESOURCE-ADAPTATION-TRACE
+                        DC-WORLD-PROGRESSION-IS-REACH
+                        DC-GROWTH-NEED-FROM-POSSIBILITY · DC-GROWTH-GOAL-FIRST
+                        DC-ITEM-HOLDING-IS-NOT-APPLYING 은 이 Cycle 이 **적용(장착)을 만들지
+                            않으므로** 직접 걸리지 않는다. 다만 그 경계 문장이 이 Cycle 을
+                            허가한다 — "소모품을 쓴 결과는 이 원칙의 대상이 아니다"
+                        DC-COMBAT-ONE-FORMULA · DC-COMBAT-ONE-LAYER-AT-A-TIME 은
+                            SCOPE NOTE ③ 이 다룬다 — 이 Cycle 은 전투 층을 올리지 않는다
+
+    Constraint Note
+        DC-ITEM-KIND-IS-DATA-NOT-BRANCH
+            지금 세계가 정확히 금지된 형태다 — `world/semantic/item.ts` 의
+            `MINING_CAPABLE = new Set(['pickaxe'])` 가 "곡괭이면 캘 수 있다" 를 **채굴 쪽
+            코드**가 소유하고 있고, `world/rules/observer-body.ts` 는 몸이 지닌 것을
+            `Partial<Record<'stone' | 'pickaxe', number>>` 라는 종류 이름 고정형으로 들고 있으며,
+            투영(`world/projection/observer-view.ts`)에는 `inventory.stone` 이라는 **돌 전용
+            칸**이 박혀 있다. 이 셋이 이 Cycle 에서 사라진다. 신규 아이템을 정의에 더해도
+            규칙 코드·화면 계약·테스트가 열리지 않는 것이 이 Cycle 의 검증 항목이다.
+        DC-ITEM-CAPABILITY-COMES-FROM-GRANTS
+            채굴 판정이 "든 것이 곡괭이인가" 에서 **"이 몸에 채굴 용도가 지금 있는가"** 로
+            바뀐다 (HISTORY Q30). 용도는 성질(IP-*) 조회가 아니라 **종류의 선언**이 소유한다 —
+            채굴은 세계가 남긴 성질이 아니라 사람이 붙인 쓸모이기 때문이다 (IS §3.3).
+            이 Cycle 은 grants 사슬의 **몸에 닿는 쪽 절반만** 세운다. `IM-*` 가 주는
+            능력이 몸에 닿는 것은 장착(MC-EQUIP-ITEM)의 몫이다.
+        DC-ITEM-CHANGE-IS-ONE-UNIT
+            검증 → 효과 → 수량이 하나의 성공 단위다. **실패한 사용은 흔적을 남기지 않는다** —
+            수량도 상태도 제한도 그대로다. 이것이 이 Cycle 이 세계에 처음 들이는 규율이며,
+            "쓴다" 가 아니라 "새지 않는다" 가 이 Cycle 의 신뢰를 만든다.
+        DC-WORLD-OWNS-THE-SURFACE-LIST
+            **무엇을 지금 쓸 수 있고 왜 못 쓰는가**의 단일 출처가 세계다. View 는 "어떤 종류가
+            소비재다" 를 자기 코드에 적지 않는다. C014·C016·C017·C018 이 세운 가능/사유
+            자리(`available` + `reason`)를 아이템 항목마다 그대로 쓴다.
+        DC-WORLD-RESOURCE-ADAPTATION-TRACE
+            세계의 아이템 정의는 자신이 어느 `IT-*` 에서 왔는지 밝힌다. 돌은
+            `IT-COMMON-STONE` 으로, 곡괭이는 **아직 대응 노드가 없다** — SCOPE NOTE ④.
+        DC-GROWTH-NEED-FROM-POSSIBILITY · DC-GROWTH-GOAL-FIRST
+            이 Cycle 은 새 능력을 만들지 않는다. **이미 필요하다고 판정된 것들의 공통 전제**를
+            세울 뿐이다. 성장 자체를 Goal 로 세우지 않는다 — 수치가 오르는 물건은 없다.
+
+## SCOPE NOTE — 지금 무엇이 겹치고, 무엇이 이 Cycle 밖인가
+
+### ① 행동 구간은 C019 가 소유한다 — 이 Cycle 은 구간의 의미를 만들지 않는다
+
+    행동 구간(FR-ACTION-PHASE)이 다른 세션에서 병행 중이다. 두 Cycle 이 **행동 얼개**라는
+    같은 자리를 쓰므로 여기서 선을 긋는다.
+
+        이 Cycle 이 소유한다      아이템 사용이 **하나의 행동**이라는 것 — 시간을 쓰고,
+                                대상을 지니고, 끊기면 효과가 없고, 실패하면 사유가 온다
+        C019 가 소유한다          행동의 시간이 준비·발동·회수로 **나뉜다**는 것,
+                                그 비율, 준비 구간의 의미 노출, 취소 판정
+
+    이 Cycle 은 **이미 있는 행동 얼개를 쓰기만 한다** — `beginAction` · `evaluateActionBegin` ·
+    `action-busy` · Duration · 완료 시점 효과. 새 구간도, 구간에 대한 새 판정도 만들지 않는다.
+    C019 가 구간에 의미를 주면 아이템 사용도 **예외 없이** 그 의미를 진다 (C019 의 규율 ⑤ —
+    "자율 존재도 같은 규칙을 진다"의 같은 이유). 순서가 어느 쪽이든 뒤에 오는 쪽이 자동으로
+    앞의 것을 상속한다 — 두 Cycle 이 서로를 기다리지 않는다.
+
+    겹치는 실물 파일은 `world/rules/action-begin.ts` 하나다. 이 Cycle 은 그 파일에
+    **행동 종류 하나를 더할 뿐** 판정을 바꾸지 않는다.
+
+### ② "쓴다" 가 무엇을 바꾸는가 — 이 Cycle 이 고정한다
+
+    Master 는 첫 사용 효과를 이름 짓지 않았다. Q31 이 정한 것은 두 가지뿐이다.
+
+        (a) 회복은 이 Cycle 이 아니다 — 그 원천(식물 계통 IP/IT)이 세계에 없다
+        (b) "무엇을 쓰는가는 지금 세계에 있는 것(돌 · 곡괭이)으로 족하다"
+
+    (b) 를 실제 세계에 대보면 **효과의 자리가 비어 있다.** 지금 이 세계에서 상태가 달라질 수
+    있는 곳은 생명 · 기력 · 막기 · 행동 · 자리 · 태도 · 안면 · 광맥의 양뿐이고, 그중
+    회복 · 능력치 · 장착 · 제작 · 몸 밖의 아이템 · 감정은 전부 이 Cycle 밖으로 못 박혀 있다.
+    그리고 `IT-COMMON-STONE` 은 자기 world_shape 로 **"어떤 특별한 일도 하지 않아야 한다"** 를
+    요구한다 — 평범한 돌이 기적을 부리면 그 노드가 무너진다.
+
+    남는 답은 하나다. **평범한 돌이 평범하게 하는 일 — 던져서 맞히는 것.**
+
+        고른 대상에게 돌을 던진다. 맞으면 생명이 줄고, 돌이 하나 줄어든다.
+
+    이것이 `IT-COMMON-STONE` 을 어기지 않는 이유: 던진 돌이 아픈 것은 성질이 아니라 질량과
+    단단함이다. 기적이 아니다. 그리고 그 노드가 스스로 적은 값 — **"기적은 없고 양이 있다"** —
+    이 그대로 플레이가 된다. 돌 한 개의 위력은 하찮고, 그래서 캐 둔 양이 곧 쓸 수 있는
+    횟수가 된다. 세계 최초로 **가진 양이 할 수 있는 일의 크기**가 된다.
+
+    이 선택은 Stage 5(Human Semantic Review)의 첫 심의 대상이다. 뒤집히면 바뀌는 것은
+    **이 한 줄(무엇을 쓰면 무엇이 달라지는가)뿐이고**, 정의 · 관찰 · 사용 행동 · 소모 ·
+    원자성은 어느 답에서도 그대로다. 검토를 위해 버려진 대안과 버린 이유를 남긴다.
+
+        도발 (맞은 존재가 던진 이를 사냥감으로 대한다)
+            C018 이 태도를 **근거 목록**으로 열어 둔 자리에 항목 하나를 더하는 형태라
+            구조는 가장 깨끗하다. 버린 이유 — 태도가 **기억되어야** 하고(지속·해제) 그것은
+            C018 이 명시적으로 제외한 "기억되는 원한" 이다. 아이템 Cycle 이 관계 Cycle 의
+            다음 칸을 대신 여는 꼴이 된다
+        회복 (원천을 함께 세운다)
+            IS §5.3 의 정본 예시이고 설계상 가장 자연스럽다. 버린 이유 — Q31 (b) 를 뒤집는
+            일이며 Cycle Agent 의 권한 밖이다. 되돌리려면 Master 세션이 식물 계통 IP/IT 를
+            먼저 세워야 한다. Human 이 그것을 원하면 이 Cycle 은 그때까지 멈춘다
+        효과 없는 소모 (쓰면 사라지기만 한다)
+            버린 이유 — 그것은 "쓴다" 가 아니라 "버린다" 이고, 버리기는 넷째 칸이다
+            (MC-TRANSFER-ITEM). 그리고 Frontier 가 그 형태를 이미 거부한다 — 효과가 빠지면
+            아무것도 바꾸지 않는 버튼이 된다
+
+### ③ 전투 층을 올리지 않는다 — 사거리도 공식도 그대로다
+
+    던진 돌은 **새 전투 규칙이 아니다.** 이 Cycle 이 지키는 선은 셋이다.
+
+        사거리     지금의 상호작용 거리를 넘지 않는다 (`INTERACTION_RANGE`). 채집이 닿는
+                  거리 안에서만 쓴다 — **원거리 경로를 열지 않는다.** 멀리서 안전하게
+                  때리는 수는 이 Cycle 이 만드는 것이 아니다
+        공식       기존 피해 파이프라인을 그대로 지난다. 새 능력치도, 새 배율도, 새 감쇄식도
+                  없다 (DC-COMBAT-ONE-FORMULA). 아이템 정의가 자기 위력 하나를 대는 것이
+                  전부이며, 그 뒤로는 방어 · 관통 · 치명 · 막기가 **손대지 않은 채** 걸린다
+        관문       C018 의 태도 관문이 그대로 선다 — 적대가 아닌 것에게 던지면 닿아도 아무
+                  일이 일어나지 않는다 (`UnharmedContact`). 아이템이라고 관문 밖에 있지 않다
+
+    그래서 DC-COMBAT-ONE-LAYER-AT-A-TIME 은 SATISFIED 다. 전투 사다리에 층이 하나도
+    올라가지 않는다 — 이미 있는 층에 **입구가 하나 더 생길 뿐**이며, 그 입구는 소지품이다.
+
+### ④ 곡괭이에는 아직 상위 노드가 없다 — 이 Cycle 이 만들지 않는다
+
+    `IT-COMMON-STONE` 은 돌의 상위 노드로 서 있다 (Q22). 곡괭이는 없다.
+    DC-WORLD-RESOURCE-ADAPTATION-TRACE 는 **성질(IP-\*)의 세계 유래**를 요구하는 원칙이고,
+    곡괭이가 지닌 것은 성질이 아니라 **용도**다 (IS §3.3 — 채굴은 세계가 남긴 성질이 아니다).
+    그러므로 곡괭이는 성질 없이 용도만 선언한 정의로 선다. 상위 노드를 세울지는 Master 의
+    판단이며 이 Cycle 은 `08-verification.md` 의 MASTER FEEDBACK 으로 보고만 한다
+    (Cycle Agent 는 `master/` 를 편집하지 않는다).
+
+### ⑤ 이 Cycle 이 세계에서 처음 만드는 것
+
+    **가진 것이 사라진다.** 지금까지 이 세계에서 줄어드는 것은 몸의 것뿐이었다 —
+    생명 · 기력 · 광맥의 양. 셋 다 세계가 알아서 깎는 값이고, 플레이어가 **자기 것을 내놓아
+    무언가를 바꾼 적이 한 번도 없다.** 이 Cycle 뒤로 소지품은 늘기만 하는 숫자가 아니라
+    **치를 수 있는 것**이 된다. 장착 · 제작 · 전리품이 전부 이 한 문장 위에 선다.
+
+## TYPE
+
+    New Capability
+        MC-USE-ITEM 은 overlay 에서 MISSING 이고 코드 대조로도 0건이다.
+        다만 새 공식도 새 자원도 새 전투 층도 만들지 않는다 — 행동 하나가 생기고,
+        "줄어든다" 는 상태 변화 하나가 생긴다.
+
+    함께 일어나는 Existing Capability Enhancement 가 둘 있다. 새 Capability 가 아니라
+    이 Cycle 의 Constraint 가 강제하는 **기존 것의 형태 교정**이다.
+        채굴 판정      "든 것이 곡괭이인가" → "이 몸에 채굴 용도가 지금 있는가"
+                      (DC-ITEM-CAPABILITY-COMES-FROM-GRANTS)
+        소지품 관찰     돌 전용 칸 하나 → 가진 것 전부의 목록 하나
+                      (DC-ITEM-KIND-IS-DATA-NOT-BRANCH · DC-WORLD-OWNS-THE-SURFACE-LIST)
+
+## TARGET CAPABILITY
+
+    아이템의 바닥 (Item Foundation)
+        세계가 아이템을 정의하고, 가진 것 전부가 한 계약으로 보이며, 써서 세계를 바꾸고
+        쓴 만큼 줄어든다. 넷이 한 몸이다 — 하나만으로는 어느 것도 플레이로 닫히지 않는다.
+
+## GOAL
+
+    플레이어가 캐 둔 돌을 **써서** 자기를 사냥감으로 보는 것에게 실제로 해를 입히고,
+    쓴 만큼 소지품이 줄어드는 것을 본다 —
+    가진 것이 처음으로 늘기만 하는 숫자가 아니라 **치를 수 있는 것**이 된다.
+    쓸 수 없을 때는 무엇이 왜 안 되는지가 소지품에 함께 온다.
+
+## INCLUDED
+
+    아이템의 정의소      세계가 아이템 종류를 정의한다 — 무엇인가(분류) · 무엇에 쓰는가(역할·용도) ·
+                       겹칠 수 있는가(수량) · 어느 `IT-*` 에서 왔는가. 종류 이름은 **정의를 찾는
+                       열쇠일 뿐** 규칙의 분기 조건이 되지 않는다
+    돌과 곡괭이의 정의    지금 세계에 있는 둘을 그 정의소에 올린다. 돌은 소비재이자 재료이고
+                       (`IT-COMMON-STONE`), 곡괭이는 채굴 용도를 선언한 도구다.
+                       셋째 아이템을 더할 때 규칙 코드가 열리지 않는 것이 검증 항목이다
+    소지품 하나의 계약    가진 것 전부가 하나의 목록으로 관찰된다 — 종류 · 수량 · 지금 가능한
+                       행동 · 불가 사유. **돌 전용 칸(`inventory.stone`)이 사라진다**
+    변경의 단일 통로     더하기와 빼기가 한 곳을 지난다. 채굴의 획득도 이 통로로 옮긴다 —
+                       이후 제작 · 드롭 · 거래가 서로 다른 규칙을 갖지 않게 하는 자리다
+    물건을 쓰는 행동     다른 행동과 같은 얼개를 진다 — 시간을 쓰고, 대상을 지니고, 끊기면
+                       효과가 없고, 실패하면 사유가 온다. 새 행동 얼개를 만들지 않는다 (①)
+    대상 정책          정의가 자신이 무엇을 요구하는지 밝힌다 — 자신 · 고른 대상 · 대상 없음.
+                       고른 대상은 C017 의 관계를 그대로 읽는다. 이 Cycle 이 세우는 것은
+                       **정책의 자리**이지 정책의 목록이 아니다
+    첫 사용 효과 하나    돌을 고른 대상에게 던진다 — 상호작용 거리 안에서, 기존 피해 파이프라인을
+                       그대로 지나, C018 의 태도 관문을 그대로 지나 (②·③)
+    쓰면 줄어든다       세계 최초로 가진 것이 사라진다. 수량이 모자라면 아무 일도 일어나지 않는다
+    하나의 성공 단위     검증 → 효과 → 수량이 함께 일어나거나 함께 일어나지 않는다.
+                       실패한 사용은 수량 · 상태 · 제한 어디에도 흔적을 남기지 않는다
+    채굴 판정의 전환     "곡괭이를 지녔는가" 가 "이 몸에 채굴 용도가 지금 있는가" 로 바뀐다.
+                       채굴은 이 Cycle 뒤에도 **똑같이 동작해야 한다** (회귀 항목)
+    관찰: 왜 못 쓰는가   아이템마다 지금 가능한 행동과 불가 사유가 실린다. 목록과 사유의 단일
+                       출처는 세계다 — 화면에서 불가인 것을 강제로 요청해도 같은 사유로 실패한다
+
+## EXCLUDED
+
+    회복                MC-RESTORE-BIOLOGICAL-STATE. 원천(식물 계통 IP/IT)이 세계에 없다.
+                       다음 Cycle 이 원천과 함께 가져온다 (Q31). **임의의 수치 회복으로
+                       그 자리를 채웠다고 판정하지 않는다**
+    장착                MC-EQUIP-ITEM. 보유와 적용을 가르는 것은 다음 칸이다 (IS §6 Cycle 2).
+                       그래서 **이번에 능력치를 바꾸는 물건을 정의하지 않는다**
+    제작                MC-CRAFT-FROM-MATERIALS. 재료를 다른 것으로 바꾸는 것은 셋째 칸이다.
+                       돌이 "만드는 데 쓰인다" 는 `IT-COMMON-STONE` 의 값은 그때 실현된다
+    몸 밖의 아이템       MC-TRANSFER-ITEM. 줍기 · 버리기 · 전리품 · 던진 돌이 땅에 남는 것.
+                       **던진 돌은 세계에서 사라진다** — 몸 밖의 아이템을 만들지 않는다
+    거래 · 주고받기      같은 이유로 넷째 칸 뒤다
+    소지 제한           무게 · 칸수 · 한도. 이 Cycle 은 가진 것을 세지 제한하지 않는다
+    개체 상태           내구도 · 강화 · 귀속. 같은 종류끼리 상태가 달라져야 할 때 개체 모델을
+                       연다 (IS §2.1) — 지금 그 요구가 없다. **곡괭이는 닳지 않는다**
+    지속 효과 · 재사용 제한  IS §5.3 이 사용 층에 함께 적은 둘. 이번 첫 효과가 즉시 효과이므로
+                       걸릴 자리가 없다. 배율 합성 얼개(MC-CONDITION-STACKING)의 열린 자리는
+                       그대로 열어 둔다 — 지속 효과가 필요해질 때 그 위에 얹는다
+    원거리 경로          멀리서 안전하게 때리는 수. 던지기의 사거리는 상호작용 거리를 넘지
+                       않는다 (③)
+    새 전투 층           능동 방어 · 되받아치기 · 새 피해 방식 · 새 능력치. 아이템 정의가
+                       위력 하나를 대는 것 외에 전투 공식에 닿지 않는다
+    행동 구간의 의미      준비 · 발동 · 회수의 비율과 취소 판정. C019 의 몫이다 (①)
+    감정 도구           감정할 대상(개체 상태)이 없다
+    분류 · 정렬 · 필터    IS §5.2 의 마지막 칸. 아이템이 늘어야 쓸모가 생긴다 — 지금 둘뿐이다.
+                       정의가 분류를 **소유하되** 화면이 그것으로 나누지는 않는다
+    곡괭이의 상위 노드    `IT-*` 신설은 Master 의 몫이다 (④)
+
+## RELATED EXISTING CAPABILITY
+
+    재사용 대상
+        Inventory                   `world/semantic/inventory.ts` — 종류→개수 Map
+        Item.Kind · Tool.Capability `world/semantic/item.ts` — 정의소로 흡수된다
+        행동 얼개                    `world/rules/action-begin.ts` — 시간 · 중단 · `action-busy`
+        고른 대상                    `world/semantic/target-selection.ts` (C017)
+        태도 관문                    `world/rules/relation.ts` · `world/semantic/relation.ts` (C018)
+        피해 파이프라인               `world/rules/damage-calculate.ts` · `strike-damage.ts` (C010~C015)
+        가능/사유 계약                `protocol/gameview.ts` 의 `available` + `reason` (C014 · C016 · C017)
+
+    영향 가능 대상
+        RULE-MINE-001               채굴 판정이 용도 조회로 바뀐다 (Precondition 3)
+        RULE-MINE-COMPLETE-001      획득이 변경 단일 통로를 지난다
+        RULE-OBSERVER-JOIN-001      몸의 초기 소지품이 종류 이름 고정형을 벗는다
+                                    (`world/rules/observer-body.ts`)
+        투영                        `inventory.stone` · `tool.hasMiningTool` 이 소지품 목록
+                                    하나로 대체된다 (`world/projection/observer-view.ts`)
+        View HUD                    돌 칸을 읽던 자리가 목록을 읽는 자리로 바뀐다
