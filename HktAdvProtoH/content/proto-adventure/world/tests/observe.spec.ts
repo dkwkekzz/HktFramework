@@ -37,13 +37,22 @@ const dummyAt = (x: number, z: number, id = 'npc-1') => ({
 });
 
 const actor = (v: GameViewSnapshot, id: string) => v.entities.find((e) => e.id === id);
-const observeOf = (v: GameViewSnapshot, id: string) =>
-  v.interactions.find((i) => i.id === 'observe' && i.targetEntityId === id);
+// C017 CHANGED — 존재마다 실리던 것은 이제 **고르기**이고, 살펴봄은 고른 것에 대해
+// 하나만 실린다 (INTENT-TARGET-DIRECTS-THE-ACT-001).
+const selectOf = (v: GameViewSnapshot, id: string) =>
+  v.interactions.find((i) => i.id === 'select-target' && i.targetEntityId === id);
+const observeOf = (v: GameViewSnapshot) => v.interactions.find((i) => i.id === 'observe');
 const interactionOf = (v: GameViewSnapshot, id: string) => v.interactions.find((i) => i.id === id);
 const commandOf = (v: GameViewSnapshot, id: string) => v.commands?.find((c) => c.id === id);
 
-const requestObserve = (world: WorldDriver, targetEntityId: string, observerId = OBSERVER) =>
-  world.dispatch({ interactionId: 'observe', targetEntityId }, observerId);
+// C017 — 고르고 나서 살펴본다. 요청은 대상을 싣지 않는다.
+const requestSelect = (world: WorldDriver, targetEntityId: string, observerId = OBSERVER) =>
+  world.dispatch({ interactionId: 'select-target', targetEntityId }, observerId);
+
+const requestObserve = (world: WorldDriver, targetEntityId: string, observerId = OBSERVER) => {
+  requestSelect(world, targetEntityId, observerId);
+  return world.dispatch({ interactionId: 'observe' }, observerId);
+};
 
 const requestForget = (world: WorldDriver, targetEntityId?: string, observerId = OBSERVER) =>
   world.dispatch(
@@ -138,26 +147,46 @@ describe('INTENT-UNSEEN-IS-OBSERVABLE-001 — 모른다는 사실이 관찰에 �
     expect(npc?.attributes?.concealed).toEqual([...CONCEALABLE_ATTRIBUTE_KEYS]);
   });
 
-  it('살펴보는 일이 존재마다 실리고, 자기 몸에도 사유와 함께 실린다', () => {
+  // C017 CHANGED — 존재마다 실리던 자리를 고르기가 물려받았다. "왜 자기는 못 하는가" 도
+  // 그 자리로 옮겨갔고, 뜻은 그대로다 (INTENT-UNSEEN-IS-OBSERVABLE-001 의 태도).
+  it('고르는 일이 존재마다 실리고, 자기 몸에도 사유와 함께 실린다', () => {
     const view = driveWorld({ npcs: [dummyAt(3, 0)] }).observe();
 
-    expect(observeOf(view, 'npc-1')).toMatchObject({
-      role: 'observe-character',
+    expect(selectOf(view, 'npc-1')).toMatchObject({
+      role: 'select-target',
       available: true,
     });
-    // 왜 자기는 못 하는지도 세계가 말한다
-    expect(observeOf(view, PLAYER)).toMatchObject({
+    // 왜 자기는 못 고르는지도 세계가 말한다
+    expect(selectOf(view, PLAYER)).toMatchObject({
       available: false,
       reason: 'target-is-self',
     });
   });
 
-  it('너무 멀면 그 사유가 실린다 — 다가가야 안다', () => {
-    const far = driveWorld({ npcs: [dummyAt(OBSERVE_RANGE + 1, 0)] }).observe();
-    expect(observeOf(far, 'npc-1')).toMatchObject({ available: false, reason: 'out-of-range' });
+  it('아무것도 고르지 않았으면 살펴봄이 그 사유와 함께 실린다 — 목록에서 사라지지 않는다', () => {
+    const view = driveWorld({ npcs: [dummyAt(3, 0)] }).observe();
 
-    const near = driveWorld({ npcs: [dummyAt(OBSERVE_RANGE - 0.5, 0)] }).observe();
-    expect(observeOf(near, 'npc-1')?.available).toBe(true);
+    expect(observeOf(view)).toMatchObject({
+      role: 'observe-character',
+      available: false,
+      reason: 'no-target-selected',
+    });
+    expect(observeOf(view)?.targetEntityId).toBeUndefined();
+  });
+
+  it('너무 멀면 그 사유가 실린다 — 다가가야 안다', () => {
+    const far = driveWorld({ npcs: [dummyAt(OBSERVE_RANGE + 1, 0)] });
+    requestSelect(far, 'npc-1');
+    far.tick(TICK_INTERVAL);
+    expect(observeOf(far.observe())).toMatchObject({
+      available: false,
+      reason: 'out-of-range',
+    });
+
+    const near = driveWorld({ npcs: [dummyAt(OBSERVE_RANGE - 0.5, 0)] });
+    requestSelect(near, 'npc-1');
+    near.tick(TICK_INTERVAL);
+    expect(observeOf(near.observe())?.available).toBe(true);
   });
 });
 
@@ -181,19 +210,37 @@ describe('RULE-OBSERVE-BEGIN-001 — 살펴봄이 시작된다', () => {
     });
   });
 
-  it('자기 몸은 살펴볼 대상이 아니다', () => {
+  // C017 CHANGED — 자기 몸도 없는 존재도 **고를 수 없으므로** 살펴봄까지 오지 않는다.
+  // 관문이 한 칸 앞으로 옮겨졌고 사유 코드는 그대로다 (RULE-TARGET-SELECT-001 P2 · P3).
+  it('자기 몸은 고를 수 없어 살펴봄까지 오지 않는다', () => {
     const world = driveWorld({ npcs: [dummyAt(3, 0)] });
-    expect(requestObserve(world, PLAYER)).toMatchObject({
+    expect(requestSelect(world, PLAYER)).toMatchObject({
       status: 'failure',
+      rule: 'RULE-TARGET-SELECT-001',
       reason: 'target-is-self',
+    });
+    // 고르기가 막혔으므로 살펴봄은 여전히 "고른 것이 없다" 다
+    expect(world.dispatch({ interactionId: 'observe' })).toMatchObject({
+      status: 'failure',
+      reason: 'no-target-selected',
     });
   });
 
-  it('세계에 없는 존재는 살펴볼 수 없다', () => {
+  it('세계에 없는 존재는 고를 수 없다', () => {
     const world = driveWorld({ npcs: [dummyAt(3, 0)] });
-    expect(requestObserve(world, 'npc-없음')).toMatchObject({
+    expect(requestSelect(world, 'npc-없음')).toMatchObject({
       status: 'failure',
+      rule: 'RULE-TARGET-SELECT-001',
       reason: 'no-such-target',
+    });
+  });
+
+  it('고른 것이 광맥이면 살펴볼 수 없다 — 없는 대상이 아니라 종류가 맞지 않는 것이다', () => {
+    const world = driveWorld({ npcs: [dummyAt(3, 0)] });
+    expect(requestSelect(world, 'deposit-1')).toMatchObject({ status: 'success' });
+    expect(world.dispatch({ interactionId: 'observe' })).toMatchObject({
+      status: 'failure',
+      reason: 'target-kind-mismatch',
     });
   });
 
@@ -201,8 +248,10 @@ describe('RULE-OBSERVE-BEGIN-001 — 살펴봄이 시작된다', () => {
     const world = driveWorld({ npcs: [dummyAt(3, 0)] });
     requestObserve(world, 'npc-1');
     world.tick(TICK_INTERVAL);
-    // 살펴봄은 대체 불가능한 행동이다
-    expect(requestObserve(world, 'npc-1')).toMatchObject({
+    // 살펴봄은 대체 불가능한 행동이다 — 고르는 일은 이 관문을 지나지 않으므로
+    // 진행 중에도 고를 수 있고, 막히는 것은 살펴봄뿐이다 (C017 — 03 NOTE ①)
+    expect(requestSelect(world, 'npc-1')).toMatchObject({ status: 'success' });
+    expect(world.dispatch({ interactionId: 'observe' })).toMatchObject({
       status: 'failure',
       reason: 'action-busy',
     });
@@ -265,7 +314,7 @@ describe('RULE-OBSERVE-COMPLETE-001 — 끝까지 간 살펴봄이 앎을 남긴
       status: 'failure',
       reason: 'already-known',
     });
-    expect(observeOf(world.observe(), 'npc-1')).toMatchObject({
+    expect(observeOf(world.observe())).toMatchObject({
       available: false,
       reason: 'already-known',
     });
@@ -394,7 +443,7 @@ describe('RULE-OBSERVE-FORGET-001 — 알게 된 것을 되돌린다', () => {
     expect(npc?.attributes?.acquainted).toBe(false);
     expect(npc?.attributes?.concealed).toEqual([...CONCEALABLE_ATTRIBUTE_KEYS]);
     // 다시 살펴볼 수 있다 — 살펴보기 전과 후를 몇 번이고 견줄 수 있다
-    expect(observeOf(world.observe(), 'npc-1')?.available).toBe(true);
+    expect(observeOf(world.observe())?.available).toBe(true);
   });
 
   it('지목하지 않으면 알고 있는 전부를 되돌린다', () => {

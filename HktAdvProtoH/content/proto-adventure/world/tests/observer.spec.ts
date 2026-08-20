@@ -141,7 +141,9 @@ describe('INTENT-PER-OBSERVER-PROJECTION-001 — 관찰 결과는 관찰자마�
     w.tick(0);
 
     // A 만 채굴한다 (B 는 다른 자리에 있다)
-    w.request(A, { interactionId: 'mine', targetEntityId: 'deposit-1' });
+    w.request(A, { interactionId: 'select-target', targetEntityId: 'deposit-1' });
+    w.tick(0); // C017 — 고르기가 판정되어야 채집이 그것을 읽는다
+    w.request(A, { interactionId: 'mine' });
     for (let i = 0; i < 60; i++) w.tick(1 / 30);
 
     expect(hud(see(w, A), 'inventory.stone')).toBe(1);
@@ -154,7 +156,16 @@ describe('INTENT-PER-OBSERVER-PROJECTION-001 — 관찰 결과는 관찰자마�
     w.join(B); // 멀리
     w.tick(0);
 
+    // C017 — 둘 다 같은 광맥을 고른다. 고른 것이 같아도 가용성은 각자의 몸이 정한다
+    // (고른 것은 보는 이의 것이고, 판정은 그 보는 이의 몸 기준이다).
+    w.request(A, { interactionId: 'select-target', targetEntityId: 'deposit-1' });
+    w.request(B, { interactionId: 'select-target', targetEntityId: 'deposit-1' });
+    w.tick(0);
+
     const mine = (v: GameViewSnapshot) => v.interactions.find((i) => i.id === 'mine');
+    const target = (v: GameViewSnapshot) => v.currentTarget.entityId;
+    expect(target(see(w, A))).toBe('deposit-1');
+    expect(target(see(w, B))).toBe('deposit-1');
     expect(mine(see(w, A))?.available).toBe(true);
     expect(mine(see(w, B))?.available).toBe(false);
     expect(mine(see(w, B))?.reason).toBe('out-of-range');
@@ -193,7 +204,9 @@ describe('INTENT-REQUEST-ATTRIBUTION-001 — 요청은 보낸 이의 몸에만 �
     w.tick(0);
 
     // targetEntityId 로 남의 몸을 적어 보낸다 — 주체를 지정하는 수단이 아니다
-    w.request(A, { interactionId: 'mine', targetEntityId: 'player-2' });
+    w.request(A, { interactionId: 'select-target', targetEntityId: 'player-2' });
+    w.tick(0); // C017 — 고르기가 판정되어야 채집이 그것을 읽는다
+    w.request(A, { interactionId: 'mine' });
     const { results } = w.tick(0);
 
     expect(results[0]?.status).toBe('failure'); // 광맥이 아니다
@@ -205,7 +218,9 @@ describe('INTENT-REQUEST-ATTRIBUTION-001 — 요청은 보낸 이의 몸에만 �
     w.join(A);
     w.tick(0);
 
-    w.request('낯선 사람', { interactionId: 'mine', targetEntityId: 'deposit-1' });
+    w.request('낯선 사람', { interactionId: 'select-target', targetEntityId: 'deposit-1' });
+    w.tick(0); // C017 — 고르기가 판정되어야 채집이 그것을 읽는다
+    w.request('낯선 사람', { interactionId: 'mine' });
     const { results } = w.tick(0);
 
     expect(results[0]).toEqual({
@@ -262,7 +277,9 @@ describe('INTENT-OBSERVER-LEAVE-001 — 떠나도 몸은 세계에 남는다', (
     w.join(B);
     w.tick(0);
 
-    w.request(A, { interactionId: 'mine', targetEntityId: 'deposit-1' });
+    w.request(A, { interactionId: 'select-target', targetEntityId: 'deposit-1' });
+    w.tick(0); // C017 — 고르기가 판정되어야 채집이 그것을 읽는다
+    w.request(A, { interactionId: 'mine' });
     w.tick(0);
     expect(entity(see(w, B), 'player-1')?.state).toBe('mine');
 
@@ -316,7 +333,9 @@ describe('INTENT-OBSERVER-REJOIN-001 — 다시 이어져도 나는 나다', () 
     w.tick(0);
 
     // 자리와 소지품을 만든다
-    w.request(A, { interactionId: 'mine', targetEntityId: 'deposit-1' });
+    w.request(A, { interactionId: 'select-target', targetEntityId: 'deposit-1' });
+    w.tick(0); // C017 — 고르기가 판정되어야 채집이 그것을 읽는다
+    w.request(A, { interactionId: 'mine' });
     for (let i = 0; i < 60; i++) w.tick(1 / 30);
     const stone = hud(see(w, A), 'inventory.stone');
 

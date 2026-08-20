@@ -47,6 +47,8 @@ describe('RULE-MOVE-PROGRESS-001', () => {
 
   it('이동으로 광맥에 접근하면 Mine 이 가용해진다 (out-of-range → available)', () => {
     const world = driveWorld({ ...solo, actorPosition: { x: 0, z: 0 } });
+    // C017 — 채집은 고른 것에 대해 판정된다. 고르고 나서 거리 사유를 본다
+    world.dispatch({ interactionId: 'select-target', targetEntityId: 'deposit-1' });
     expect(mine(world.observe())?.reason).toBe('out-of-range');
 
     world.dispatch({ interactionId: 'move', position: { x: 8, z: -6 } });

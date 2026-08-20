@@ -3,7 +3,7 @@
 
 import { describe, expect, it } from 'vitest';
 import type { GameViewSnapshot } from '../../protocol/gameview';
-import { driveWorld, PLAYER } from './drive';
+import { driveWorld, PLAYER, selectTarget } from './drive';
 
 const solo = { npcs: [] };
 const MINE_DURATION = 1.2;
@@ -21,7 +21,8 @@ describe('RULE-MINE-001', () => {
       depositAmount: 5,
     });
 
-    const result = world.dispatch({ interactionId: 'mine', targetEntityId: 'deposit-1' });
+    selectTarget(world, 'deposit-1');
+    const result = world.dispatch({ interactionId: 'mine' });
 
     expect(result).toEqual({ status: 'success', rule: 'RULE-MINE-001' });
     const view = world.observe();
@@ -33,7 +34,8 @@ describe('RULE-MINE-001', () => {
   it('곡괭이 없음 → Failure(no-mining-tool), 상태 불변 + 사유 코드 투영', () => {
     const world = driveWorld({ ...solo, actorPosition: { x: 8, z: -5 }, actorItems: {} });
 
-    const result = world.dispatch({ interactionId: 'mine', targetEntityId: 'deposit-1' });
+    selectTarget(world, 'deposit-1');
+    const result = world.dispatch({ interactionId: 'mine' });
 
     expect(result).toEqual({ status: 'failure', rule: 'RULE-MINE-001', reason: 'no-mining-tool' });
     const view = world.observe();
@@ -46,7 +48,8 @@ describe('RULE-MINE-001', () => {
   it('거리 밖 → Failure(out-of-range)', () => {
     const world = driveWorld({ ...solo, actorPosition: { x: 0, z: 0 } }); // deposit 까지 10
 
-    const result = world.dispatch({ interactionId: 'mine', targetEntityId: 'deposit-1' });
+    selectTarget(world, 'deposit-1');
+    const result = world.dispatch({ interactionId: 'mine' });
 
     expect(result).toEqual({ status: 'failure', rule: 'RULE-MINE-001', reason: 'out-of-range' });
   });
@@ -54,7 +57,8 @@ describe('RULE-MINE-001', () => {
   it('자원 고갈 → Failure(deposit-depleted), depleted 상태 관찰', () => {
     const world = driveWorld({ ...solo, actorPosition: { x: 8, z: -5 }, depositAmount: 0 });
 
-    const result = world.dispatch({ interactionId: 'mine', targetEntityId: 'deposit-1' });
+    selectTarget(world, 'deposit-1');
+    const result = world.dispatch({ interactionId: 'mine' });
 
     expect(result).toEqual({
       status: 'failure',
@@ -68,7 +72,8 @@ describe('RULE-MINE-001', () => {
 describe('RULE-MINE-COMPLETE-001', () => {
   it('채굴 행동이 소요 시간을 채우면 Stone 1 획득, Deposit 1 감소, 대기 복귀', () => {
     const world = driveWorld({ ...solo, actorPosition: { x: 8, z: -5 }, depositAmount: 5 });
-    world.dispatch({ interactionId: 'mine', targetEntityId: 'deposit-1' });
+    selectTarget(world, 'deposit-1');
+    world.dispatch({ interactionId: 'mine' });
 
     world.tick(MINE_DURATION / 2);
     let view = world.observe();
@@ -87,7 +92,8 @@ describe('RULE-MINE-COMPLETE-001', () => {
     const world = driveWorld({ ...solo, actorPosition: { x: 8, z: -5 }, depositAmount: 1 });
     expect(deposit(world.observe())?.state).toBe('available');
 
-    world.dispatch({ interactionId: 'mine', targetEntityId: 'deposit-1' });
+    selectTarget(world, 'deposit-1');
+    world.dispatch({ interactionId: 'mine' });
     world.tick(MINE_DURATION);
 
     const view = world.observe();
@@ -104,7 +110,8 @@ describe('RULE-MINE-COMPLETE-001', () => {
     for (let i = 0; i < 90; i++) world.tick(1 / 30); // 3초 — 거리 약 9.4 도달 충분
     expect(player(world.observe())?.state).toBe('idle');
 
-    expect(world.dispatch({ interactionId: 'mine', targetEntityId: 'deposit-1' }).status).toBe(
+    selectTarget(world, 'deposit-1');
+    expect(world.dispatch({ interactionId: 'mine' }).status).toBe(
       'success',
     );
     for (let i = 0; i < 45; i++) world.tick(1 / 30); // 1.5초 — MINE_DURATION 1.2 초과

@@ -27,6 +27,7 @@ import { ruleCpRunDrain } from './simulation/cp-run-drain';
 import { ruleMoveProgress } from './simulation/move-progress';
 import { ruleNpcDecideAll } from './simulation/npc-decide';
 import { ruleStrikeEventExpire } from './simulation/strike-event-expire';
+import { ruleTargetClearStale } from './simulation/target-clear-stale';
 import { ruleSwingStrike } from './simulation/swing-strike';
 
 export type { World } from '../../../engine/world-kernel/kernel';
@@ -96,6 +97,9 @@ const SYSTEMS: WorldContent<WorldState>['systems'] = [
   (state, dt) => ruleBodyPush(state, dt), // RULE-BODY-PUSH-001 (C006)
   (state, dt) => ruleBodyMomentum(state, dt), // RULE-BODY-MOMENTUM-001 (C006)
   (state, dt) => ruleCpRunDrain(state, dt), // RULE-CP-RUN-DRAIN-001 (C007)
+  // C017 — 성립하지 않게 된 지목을 비운다. 이 Tick 의 모든 변화가 끝난 뒤에 훑어야
+  // 그 Tick 에 사라진 존재까지 본다 (RULE-TARGET-CLEAR-STALE-001).
+  (state) => ruleTargetClearStale(state),
 ];
 
 // 만료가 시간 진행 뒤에 오는 이유 (C007): 방금 일어난 결과가 최소 한 번은 관찰되어야 한다.
@@ -140,6 +144,9 @@ export function createWorld(setup: WorldSetup = {}): World {
     // C014 — 아무도 아무것도 모르는 채로 세계가 시작된다.
     // 항목이 없다는 것이 곧 "아무것도 모른다" 다 (semantic/acquaintance.ts).
     acquaintances: [],
+    // C017 — 아무도 아무것도 고르지 않은 채로 세계가 시작된다.
+    // 항목이 없다는 것이 곧 "안 골랐다" 다 (semantic/target-selection.ts).
+    targetSelections: [],
     // C015 — 세계가 지닌 흔들림. 뿌리는 세계 밖이 정하고, 커서는 0 에서 시작해
     // RULE-CRITICAL-STRIKE-001 만이 나아가게 한다 (INTENT-WORLD-CHANCE-001).
     chanceSeed: setup.chanceSeed ?? DEFAULT_CHANCE_SEED,

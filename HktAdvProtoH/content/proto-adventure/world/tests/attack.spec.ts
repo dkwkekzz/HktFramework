@@ -10,7 +10,7 @@ import { describe, expect, it } from 'vitest';
 import type { GameViewSnapshot } from '../../protocol/gameview';
 import { SWING_BEGIN } from '../semantic/collision';
 import { TICK_INTERVAL } from '../semantic/world-state';
-import { driveWorld, PLAYER, type WorldDriver } from './drive';
+import { driveWorld, PLAYER, type WorldDriver, selectTarget } from './drive';
 
 const ATTACK_DURATION = 0.6;
 const HIT_DURATION = 0.35;
@@ -264,7 +264,8 @@ describe('RULE-HIT-001 — 맞으면 하던 일이 끊긴다', () => {
       npcs: [{ id: 'npc-1', position: { x: 8, z: -4 }, wanderPath: [] }],
     });
 
-    expect(world.dispatch({ interactionId: 'mine', targetEntityId: 'deposit-1' }).status).toBe(
+    selectTarget(world, 'deposit-1');
+    expect(world.dispatch({ interactionId: 'mine' }).status).toBe(
       'success',
     );
 
