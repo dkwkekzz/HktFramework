@@ -62,7 +62,10 @@ GOOD   Player 가 적의 공격 직전에 Guard 하여 피해를 받지 않고 �
 
 `master/frontier.md`
 
-형식은 `master/SCHEMA.md` 가 단일 출처다.
+형식은 `master/SCHEMA.md` 가 단일 출처다. 이 파일에 담는 것은 **후보 · 추천 순서 ·
+SELECTED · 지금 열 수 없는 것** 네 절뿐이다 — 진행 현황(사다리가 어디까지 섰는가)은
+`graph/GRAPH.md` 의 척추 절이, 후보를 읽는 법과 작성 규칙은 이 Guide 가 소유한다.
+frontier 에 현황 서술·공정 규칙을 다시 쌓지 않는다.
 
 ## Handoff — Cycle Layer 로
 
