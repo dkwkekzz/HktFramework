@@ -3,15 +3,15 @@
 [PASS] Cycle Definition
 [PASS] Intent                    (관계 하나 · 고르는 것은 아무것도 만들지 않는다 · 유일 대상)
 [PASS] World Semantic            (상태 하나 · 규칙 셋 · 행동 둘의 대상 자리 교체 · 새 값 0)
-[    ] GameView Specification
+[PASS] GameView Specification    (currentTarget 하나 · 자리가 옮겨진다 · hud 무변경)
 [    ] Human Semantic Review
 [    ] World Implementation
 [    ] View Implementation
 [    ] Verification
 
 STATUS  IN PROGRESS
-        선행 조건 1건이 아직 없다 — Stage 6·7 은 기반 트랙 커밋 뒤에 시작한다
-        (아래 PREREQUISITE). Stage 2~5 는 그 커밋과 무관하게 진행한다.
+        Stage 5 (Human Semantic Review) 대기. 선행 조건 판정이 Stage 4 에서 정정되었다 —
+        아래 PREREQUISITE 를 함께 검토한다.
 
 ## MASTER TRACE
 
@@ -69,29 +69,60 @@ STATUS  IN PROGRESS
 
 ## PREREQUISITE — 기반 트랙 커밋 1건 (HISTORY Q28(a))
 
-    **이 Cycle 은 이 커밋 없이 Stage 6·7 을 시작할 수 없다.** Frontier 후보 1 의
-    선행 조건이며 Q28 에서 Human 소유로 닫힌 결정이다.
+    Frontier 후보 1 은 **기반 트랙 커밋 1건**(HISTORY Q28(a))을 선행 조건으로 달고 있다.
+    Q28 은 Human 소유로 닫힌 결정이며 이 Cycle 은 그것을 뒤집지 않는다.
+    다만 **막는가**에 대한 판정은 Stage 4 에서 코드 대조로 정정되었다.
 
-    무엇이 막는가 — 코드 대조
-        `engine/view-kernel/input/input.ts` 가 "클릭한 Entity 의 첫 interaction 을 즉시
-        실행" 으로 지목을 확정해 버린다. 지목 뒤의 클릭은 먼저 **고르기 요청**이어야
-        하므로, 지금 구조에서는 컨텐츠가 그 결정을 소유할 수 없다.
-        `engine/view-kernel/scene/scene-state.ts` 에도 선택 강조·대상 자리를 그릴
-        범용 지시가 없다 (TG §5.2 · §5.3).
+### 그 커밋은 아직 없다 (사실)
 
-    누구의 일인가
-        승격 규칙 4 — 승격은 Cycle 이 아니라 **기반 트랙 커밋**이다. 결정 지점을
-        컨텐츠로 되돌리는 것 자체가 기반의 일이므로 이 Cycle 은 `engine/` 을 편집하지
-        않는다. Master 의 소유도 아니다 (기반 경계는 Graph 의 어휘가 아니다 — Q28).
+    `engine/view-kernel/input/pointer-intent.ts` (TG §5.2) 가 없다 —
+    지목을 어떤 요청으로 바꿀지의 결정이 여전히 `input.ts` 안에 있다.
+    `scene-state.ts` 에 선택 강조·대상 자리를 위한 전용 지시(TG §5.3)도 없다.
 
-    이 Cycle 이 그 커밋에 요구하는 것
-        ① 지목(Entity / 지형)을 어떤 요청으로 바꿀지의 **결정 자리**가 팩에 열려 있을 것
-        ② 고른 존재를 강조해 그리고 대상 자리를 띄울 **게임 명사 없는 지시**가 있을 것
-        무엇을 고를 수 있는가 · 고르면 무슨 관계가 되는가 · 무엇을 왜 못 하는가 는
-        전부 이 Cycle(컨텐츠)의 몫이며 기반으로 올리지 않는다.
+### 그러나 이 Cycle 을 막지는 않는다 (Stage 4 정정 — 코드 대조)
 
-    Stage 2~5 는 이 커밋을 기다리지 않는다 — 의미를 정하는 단계이고, 기반이 열어야 할
-    자리의 모양을 오히려 그 산출물이 확정한다. Stage 6 진입 전에 커밋 유무를 확인한다.
+    Stage 1 은 "Stage 6·7 을 시작할 수 없다" 고 적었다. **그 판정이 틀렸다.**
+    Stage 4 에서 계약을 닫으며 확인한 것:
+
+        지목 → 요청     기반은 "짚은 존재를 대상으로 하는 첫 interaction 을 실행" 한다
+                       (`input.ts`). 이 Cycle 뒤 **존재마다 오는 interaction 은
+                       select-target 하나뿐**이므로(04 interactions) 짚으면 고르기가 된다.
+                       팩이 계약의 모양으로 그 결정을 이미 쥐고 있다
+        푸는 키         `KEY_BINDINGS` 가 팩이 등록하는 특수 키 자리다 (P3) — 장면을 읽고
+                       요청을 고르는 규칙을 팩이 소유한다. 해제 키가 여기에 든다
+        살펴봄 · 채집    대상이 사라지므로 `SceneInteraction.key` 로 걸리는 보통 키가 된다.
+                       조립 루트가 이미 그 경로를 나른다 (`app/main.ts`)
+        고른 것 강조     `SceneEntity.tint` · `inspect` 가 이미 게임 명사 없는 지시다
+        대상 자리        `SceneHudItem`(counter · flag · label) 로 조립할 수 있다 —
+                       무엇을 어떤 문구로 띄울지는 팩의 결정 Layer 가 정한다
+
+    즉 이 Cycle 은 **컨텐츠 경계 안에서 닫힌다.** 기반을 편집하지 않고,
+    `npm run boundary:check` 를 통과한 채로 Goal 을 플레이까지 가져갈 수 있다.
+
+### 그렇다면 그 커밋은 무엇을 위한 것인가
+
+    없어지지 않는다 — 값어치가 다른 곳에 있다.
+
+        ① **지형을 짚었을 때**의 결정은 여전히 기반에 있다 (`input.ts` 가 terrainTarget
+           을 찾아 이동으로 확정한다). 빈 땅 클릭을 해제로 쓸지 이동으로 둘지는
+           팩의 결정이어야 한다 (TG §5.2 의 예시가 그 자리다)
+        ② 지금은 "존재마다 오는 interaction 이 하나뿐" 이라는 **우연** 위에 서 있다.
+           둘째가 생기는 순간(예: 전리품) 기반의 `find` 가 다시 팩의 결정을 확정한다
+        ③ 외곽선·발밑 링 같은 강조는 tint 로는 표현되지 않는다 (TG §5.3)
+
+    ①과 ②는 이 Cycle 의 Goal 이 아니라 **다음 Cycle 의 부채**다.
+
+### Stage 5 에 묻는다
+
+    **Q. 이 Cycle 을 기반 커밋 없이 진행하는가?**
+
+        (a) 진행한다 — 컨텐츠 경계 안에서 닫고, 위 ①②③ 은 기반 트랙 커밋으로
+            따로 낸다 (Q28 의 결정은 유효하되 이 Cycle 의 선행 조건은 아니게 된다)
+        (b) 기다린다 — Q28 을 문자 그대로 지켜 기반 커밋 뒤에 Stage 6 을 연다
+
+    Agent 의 판단은 (a) 다. 근거는 위 코드 대조이며, 기반 커밋이 이 Cycle 의
+    산출물을 바꾸지 않기 때문이다 (계약도 규칙도 그대로이고 조립 방법만 달라진다).
+    확정은 Human 이 한다.
 
 ## SCOPE NOTE — 무엇이 모이고, 무엇이 이 Cycle 밖인가
 
