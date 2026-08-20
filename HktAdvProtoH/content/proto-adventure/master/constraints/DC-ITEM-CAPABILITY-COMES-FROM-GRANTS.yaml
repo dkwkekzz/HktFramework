@@ -1,0 +1,52 @@
+# 원본 근거: design/Design-Item-System-R0.md (IS)
+#   §3.1 네 가지가 각각 다른 일을 한다 · §3.2 판정은 grants 를 본다 ·
+#   §3.3 곡괭이의 채굴은 어디에 있는가 · §5.1 세계 유래 성질 · §7 P2
+# 주입(Inject)으로 세운 뒤 2026-08-20 Human 승인 (HISTORY Q30) — 문안은 주입판 그대로다.
+id: DC-ITEM-CAPABILITY-COMES-FROM-GRANTS
+type: constraint
+
+statement: >
+  아이템의 성질(IP-*)은 세계 압력에서 유래한 것만이고, 아이템의 용도는 그 종류가 가진다.
+  능력 판정은 성질 목록을 조회해서가 아니라 그 아이템이 지금 무엇을 주고 있는가로 한다.
+rationale: >
+  ❌ 직관적인 구현은 "이 아이템의 성질에 채굴이 있는가" 를 묻는 것이다. 그러면 두 가지가
+  한꺼번에 무너진다. 첫째, 성질은 어느 지역의 무엇이 그것만 남겼는지를 답할 수 있어야
+  하는데(`DC-WORLD-RESOURCE-ADAPTATION-TRACE`) 채굴은 세계가 남긴 성질이 아니라 사람이
+  붙인 쓸모라, "채굴 성질" 노드는 그 물음에 답하지 못한다. 둘째, 같은 플레이 의미의
+  능력이 출처별로 복제된다(`DC-GROWTH-NO-CAPABILITY-DUPLICATION` 이 금지하는 형태).
+
+  ✅ 이미 서 있는 사슬이 답을 갖고 있다. `master/growth/items/` 를 보면 성질은
+  `IP-BOUNDARY-STABLE`(공간이 어긋나도 구조를 유지했다)처럼 세계 상태에서 나오고,
+  그 성질을 능력으로 바꾸는 자리는 따로 있다 — `IM-BOUNDARY-EDGED` 가
+  `requires: [IP-BOUNDARY-STABLE]` 로 성질을 받아 `grants: [MC-CUT-ABNORMAL-STRUCTURE]`
+  로 능력을 준다. 판정은 이 사슬의 끝(무엇을 주고 있는가)을 본다.
+
+  지켜서 얻는 것: 하나의 능력을 여러 길로 얻을 수 있게 된다 — 배워서든, 장착해서든,
+  적응해서든 같은 노드에 붙는다. 어겼을 때 잃는 것: 아이템으로 얻은 능력과 배워서 얻은
+  능력이 다른 이름을 갖게 되어, 둘을 함께 세는 자리가 세계에서 사라진다.
+
+  가장 안 읽히는 조각은 "용도는 종류가 가진다" 다. 곡괭이의 채굴을 어디에도 두지
+  말라는 말이 아니다 — 성질이 아니라 **종류의 선언**에 두라는 말이다.
+
+scope:
+  - ITEM
+
+requires:
+  - IP-* 는 어느 세계 상태에서 왔고 왜 그것만 남았는지를 답할 수 있다   # IS §3.1
+  - 능력 판정은 아이템이 지금 주는 것을 계산해서 한다                   # IS §3.2
+  - 도구의 용도는 아이템 종류의 선언이 소유한다                         # IS §3.3 · §5.1
+prohibits:
+  - 세계 유래가 없는 성질 노드를 만드는 것 — 이를테면 채굴 성질          # IS §3.2-1
+  - 성질 목록을 직접 조회해 행동 가능 여부를 판정하는 것                # IS §7 P2
+prefers: []
+
+# 경계 — 이 Constraint 는 "능력이 어디서 오는가" 만 정한다.
+# 어떤 능력을 어떤 아이템이 주는가는 growth/ 의 노드가, 그 크기는 Cycle 이 소유한다.
+
+status: APPROVED
+provenance:
+  - HUMAN_DESIGN        # design/Design-Item-System-R0.md 주입 → Human 승인 (HISTORY Q30)
+
+relations:
+  supports: [DC-GROWTH-NO-CAPABILITY-DUPLICATION, DC-WORLD-RESOURCE-ADAPTATION-TRACE]
+  conflicts_with: []

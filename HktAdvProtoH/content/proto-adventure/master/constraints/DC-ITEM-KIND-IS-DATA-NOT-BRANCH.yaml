@@ -1,0 +1,48 @@
+# 원본 근거: design/Design-Item-System-R0.md (IS)
+#   §0 한 문장 설계 · §5.1 Item Catalog · §7 P1 · §8 정의 층 완료 기준
+# 주입(Inject)으로 세운 뒤 2026-08-20 Human 승인 (HISTORY Q30) — 문안은 주입판 그대로다.
+id: DC-ITEM-KIND-IS-DATA-NOT-BRANCH
+type: constraint
+
+statement: >
+  아이템의 종류 이름은 정의를 찾는 열쇠일 뿐이며 규칙의 분기 조건이 되지 않는다.
+  새 아이템은 정의를 더하는 것으로 끝나고, 그 아이템을 쓰는 규칙 코드는 바뀌지 않는다.
+rationale: >
+  ❌ 흔한 구현은 규칙 안에서 종류 이름을 묻는 것이다. 지금 세계가 정확히 그 형태다 —
+  `world/semantic/item.ts` 의 `MINING_CAPABLE = new Set(['pickaxe'])` 가 "곡괭이면
+  캘 수 있다" 를 채굴 쪽 코드가 소유하고 있고, `world/rules/observer-body.ts` 는
+  몸이 지닌 것을 `Partial<Record<'stone' | 'pickaxe', number>>` 라는 종류 이름 고정형으로
+  들고 있다. ✅ 지켜야 할 형태는 그 물음을 정의 쪽으로 옮기는 것이다 — 규칙은
+  "이 몸에 채굴 용도가 지금 있는가" 를 묻고, 무엇이 그 용도를 주는지는 아이템 정의가 답한다.
+
+  지켜서 얻는 것은 값이 싸다는 사실 자체다. 두 번째 채굴 도구를 더할 때 정의 한 줄이면
+  끝나고, 채굴 규칙·화면 계약·테스트는 열리지 않는다. 어겼을 때 잃는 것은 그 반대다 —
+  아이템 하나가 늘 때마다 규칙과 화면 두 곳이 함께 늘고, 둘이 어긋나면 세계가 허용하는
+  것과 화면이 보여주는 것이 달라진다.
+
+  가장 안 읽히는 조각은 "열쇠이지 분기 조건이 아니다" 다. 종류 이름을 **쓰지 말라는
+  말이 아니다.** 정의를 찾을 때 쓰는 것은 정상이고, 찾은 정의 대신 이름 자체를
+  판정에 쓰는 것이 금지다.
+
+scope:
+  - ITEM
+
+requires:
+  - 아이템의 분류·용도·역할·겹침 규칙은 정의가 소유한다              # IS §5.1
+  - 규칙은 종류 이름이 아니라 정의가 답한 것으로 판정한다            # IS §3.3
+  - 신규 아이템 추가가 기존 사용·장착·채집 규칙의 수정을 요구하지 않는다  # IS §8
+prohibits:
+  - 규칙·화면 계약이 특정 종류 이름을 직접 조건으로 삼는 것          # IS §7 P1
+  - 종류 이름마다 전용 관찰 항목을 두는 것                           # IS §5.2
+prefers: []
+
+# 경계 — 이 Constraint 는 "무엇이 판정의 근거인가" 만 정한다.
+# 정의를 어떤 파일 형태로 두는가, 어떤 이름을 쓰는가는 Cycle 소유다 (정책 §7.2).
+
+status: APPROVED
+provenance:
+  - HUMAN_DESIGN        # design/Design-Item-System-R0.md 주입 → Human 승인 (HISTORY Q30)
+
+relations:
+  supports: [DC-WORLD-OWNS-THE-SURFACE-LIST]   # 목록의 단일 출처를 세계 쪽에 두는 같은 방향의 원칙이다
+  conflicts_with: []
