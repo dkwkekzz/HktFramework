@@ -35,10 +35,25 @@ GOOD   Player 가 적의 공격 직전에 Guard 하여 피해를 받지 않고 �
 7. 완료 후 공유 World 에 재사용 가능한 Capability 로 누적되는가
 ```
 
-4. 각 후보에 Source Goal / Possibility / Missing Capability / Active Constraints /
+4. 각 후보를 **세계가 갖게 되는 개념 하나**로 세우고 넷을 함께 적는다.
+   이 넷이 없으면 후보는 "여러 구현 중 하나를 임의로 고른 것" 으로 읽힌다.
+
+```text
+이것이 무엇인가    세계에 추가되는 개념 한 문장
+세계에 생기는 것    그 개념이 요구하는 상태 · 규칙 · 관찰 (구현 이름이 아니라 의미로)
+이 기능이 아닌 것    경계 — 이 개념에 속하지 않는 것. 여기가 비면 후보가 아니라 소원이다
+이미 있는 것        재사용하는 것. 여기가 크면 그 후보는 작다
+```
+
+   경계 칸이 핵심이다. 같은 장면을 만드는 방법은 여럿이지만 **개념의 경계**가 정해지면
+   그 안에서 어떻게 만들든 같은 것이 된다.
+
+5. 각 후보에 Source Goal / Possibility / Missing Capability / Active Constraints /
    Constraint Evaluation / Observable Result / Why one Cycle 을 적는다.
-5. 크면 쪼갠다. 쪼갤 수 없으면 그 사유를 적고 Human 판단으로 넘긴다.
-6. 추천 순서와 근거를 제시한다 — **확정하지 않는다.**
+6. 크면 쪼갠다 — 경계 칸이 두 개념을 담고 있으면 그것이 쪼갤 자리다.
+   쪼갤 수 없으면 그 사유를 적고 Human 판단으로 넘긴다.
+7. 후보 사이의 의존(A 없이 B 를 하면 무엇이 되는가)을 적는다.
+8. 추천 순서와 근거를 제시한다 — **확정하지 않는다.**
 
 ## Output
 
@@ -60,6 +75,7 @@ Frontier 선택 이후는 **기존 8 Stage Cycle Workflow 를 변경 없이** �
 
 ## Must
 
+- 후보 하나 = 세계가 갖게 되는 개념 하나. **경계(이 기능이 아닌 것)를 반드시 적는다.**
 - Playable Result 를 플레이어 관점 한 문장으로 쓴다.
 - 7 조건 판정 결과를 남긴다.
 - Constraint Evaluation 을 명시한다.

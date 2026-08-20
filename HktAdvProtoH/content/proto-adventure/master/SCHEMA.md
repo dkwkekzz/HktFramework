@@ -468,7 +468,12 @@ Runtime Instance 의 관계이며 Master 에 오지 않는다 (GR §38).
 
 ## 후보
 
-### FR-PERFECT-GUARD-OPENING
+### FR-PERFECT-GUARD-OPENING — 완벽한 막기
+    이것이 무엇인가      방어의 성패가 시작 시각과 공격이 닿은 시각의 관계로 갈린다
+    세계에 생기는 것      ① 방어에 시작 시각이 남는다 ② 그 시각과 타격 시각의 관계로
+                         결과가 갈린다 ③ 관찰: 무엇이 왜 그렇게 판정되었는가
+    이 기능이 아닌 것     되받아치기가 아니다 · 무적이 아니다 · 확률이 아니다
+    이미 있는 것         막기 행동과 정면 판정이 이미 있다
     Playable Result      Player 가 적의 공격 직전에 Guard 하여 피해를 받지 않고
                          상대를 노출 상태로 만들 수 있다
     Source Goal          MG-DEFEAT-ANCIENT-KNIGHT
@@ -483,6 +488,10 @@ Runtime Instance 의 관계이며 Master 에 오지 않는다 (GR §38).
 
 이 파일에는 **지금 고를 수 있는 후보만** 둔다. Cycle 이 닫히면 그 `FR-*` 를 지우고
 결과를 `HISTORY.md` 에 적는다.
+
+후보 하나는 **세계가 갖게 되는 개념 하나**다. 앞의 네 칸(이것이 무엇인가 · 세계에
+생기는 것 · 이 기능이 아닌 것 · 이미 있는 것)이 그 개념의 경계를 정한다 — 특히
+`이 기능이 아닌 것` 이 비면 후보가 아니라 소원이다 (guides/master-frontier.md).
 
 `VIOLATED` 후보를 여기에 올리지 않는다 — Design Conflict 로 Human 에게 따로 제시한다.
 Agent 는 후보와 근거를 제공하되 우선순위를 확정하지 않는다.
