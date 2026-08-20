@@ -4,7 +4,7 @@
 [PASS] World Rule Execution
 [PASS] Projection
 [PASS] View Binding
-[PASS] Playable            (실제 Client 로 확인 — 아래 PLAYABLE. Human Play 확인 대기)
+[PASS] Playable            (실제 Client 로 확인 — 아래 PLAYABLE. Human Play 확인 완료)
 [PASS] Regression
 [PASS] Catalog
 
@@ -311,9 +311,9 @@ CC-A-GATE-MOVES-WITH-ITS-MEANING     (관찰된 패턴 — 승격 판단은 Huma
 
 ## STATUS
 
-    IN PROGRESS — 기계 검증 7항 전부 통과. **Human Play 확인 대기.**
+    COMPLETE — 기계 검증 7항 전부 통과 + **Human Play 확인 완료** (2026-08-20).
 
-    사용자가 실제로 플레이하여 아래를 확인하면 COMPLETE 로 바꾼다.
+    Human 이 실제 게임에서 확인한 것.
 
 ```text
 1. 존재나 광맥을 클릭하면 화면 위 "고른 대상" 줄이 그것으로 바뀐다
@@ -323,3 +323,7 @@ CC-A-GATE-MOVES-WITH-ITS-MEANING     (관찰된 패턴 — 승격 판단은 Huma
 4. Esc 로 풀면 "고른 대상: 없음" 으로 돌아간다
 5. 고르는 것만으로는 아무 일도 일어나지 않는다 — 상대가 달라지지도, 다가가지도 않는다
 ```
+
+    Cycle Completion Gate 15항이 모두 참이다. 남은 것은 위층의 몫이다 —
+    이 문서의 MASTER FEEDBACK 을 `advprotoh-master` 스킬의 Feedback 작업이 반영한다
+    (Overlay 승격 2건 · Constraint 판정 2건 · Candidate 2건 · frontier 에서 FR-TARGET-SELECTION 제거).
