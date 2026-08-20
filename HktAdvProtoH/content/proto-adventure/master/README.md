@@ -50,19 +50,20 @@ CYCLE LAYER    선택된 하나의 플레이 결과를 World Semantic 과 Rule �
 하나(지목)와 둘 사이의 태도(관계)가 얹혔다.
 
 ```text
-Constraint   20     Active 20 (APPROVED 19 · REVISED 1 — PLAYER-CAUSALITY, Critical 예외) · DRAFT 0
+Constraint   24     Active 24 (APPROVED 23 · REVISED 1 — PLAYER-CAUSALITY, Critical 예외) · DRAFT 0
 Candidate    11     APPROVED 3 (→ DC) · PENDING 8 (무리별 읽는 법은 candidates/README.md)
 Actor         2     Knowledge 3 · Belief 0 (Belief 는 도입하지 않는다 — Q3 결정)
 Goal          5     Possibility 22 — 상대 넘어서기 11 · 밀리는 국면 3 · 탐험 3 · 기관 획득 5
                     탐험 3 은 **방법**이다 (익힌다 · 빌린다 · 준비해 간다 — Q21).
                     층은 Possibility 가 아니라 MW-ZONE-* 의 demands 다
                     §27 기관 대안 4종만 requires 미배선
-Capability   45     IMPLEMENTED 12 · PARTIAL 8 · MISSING 25
+Capability   49     IMPLEMENTED 12 · PARTIAL 8 · MISSING 29
                     요구처는 둘이다 — 방법의 required_by · 장소의 demanded_by
                     숫자의 단일 출처는 graph/GRAPH.md 머리말이다 (master:graph 재생성물)
 Item Def     14     IP 5 · IT 6 · IM 3 (growth/items/) — Q22 광물 계통.
                     grants 3건으로 BW §17 순환이 그래프에서 닫혔다
-Frontier      2     SELECTED 1 (INTERRUPT-THE-STARTUP → C019) · PROPOSED 1 (ITEM-USE)
+Frontier      2     SELECTED 1 (INTERRUPT-THE-STARTUP → C019) ·
+                    PROPOSED 1 (WHAT-YOU-CARRY-CAN-BE-SPENT)
 WorldState   13     상위 인과 2 (PRIMAL-WORLD · WORLD-PRESSURE) · 세계압 두 갈래 2
                     (FREE-PRESSURE · BOUND-PRESSURE) · 구조 2 (SAFE-FRONTIER · DEPTH-GRADIENT) ·
                     깊이 층 5 (ZONE-FRINGE ~ ZONE-UNKNOWN) · 대표 지역 2

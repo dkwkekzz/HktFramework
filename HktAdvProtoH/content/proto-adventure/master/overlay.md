@@ -10,7 +10,8 @@ Master Graph 를 현재 `world/` `view/` 구현과 겹쳐 본 결과다. 기본 
                 탐험은 FRINGE 의 첫 칸(살펴봄 + 그것에 이르는 두 경로)까지 서 있고,
                 그 위에 **고른 대상 하나**와 **둘 사이의 태도**가 얹혔다.
                 세계에 처음으로 "칠 수 없는 것" 이 생겼다 (C018)
-    근거 문서   전투 R1 · DT · 탐험 BW · 성장 GR · 지목 TG — 근거는 영역을 넘지 않는다 (HISTORY Q15)
+    근거 문서   전투 R1 · DT · 탐험 BW · 성장 GR · 지목 TG · 아이템 IS —
+                근거는 영역을 넘지 않는다 (HISTORY Q15)
 
 해당 영역 문서가 이름조차 대지 않는 Capability 는 "없는 것" 이 아니라 **노드가 아니다** —
 표에서 삭제한다.
@@ -85,6 +86,22 @@ Constraint Violation 과 혼동하지 않는다 — 여기는 **있는가/없는
 | MC-WATCH-TARGET | IMPLEMENTED | **C017** — 고른 상대의 지금 값과, 그에게 지금 무엇이 되고 무엇이 왜 안 되는지가 한자리에서 계속 갱신된다. 사유가 사라지고 행동만 회색으로 남는 형태가 아니라 문구로 온다 | — |
 | MC-RELATION-STANCE | IMPLEMENTED | **C018** — 태도가 방향을 가진 쌍의 값으로 서고(적대·중립·우호), 그 값이 공격 가부를 가르며(중립인 것은 닿아도 상하지 않고 사유가 함께 온다), 두 방향이 모두 관찰에 실린다. 세계 서버 실측: 자리 중심까지 5.70 에서 적대로 갈리고 9.28 에서 풀리며 그 존재가 자기 자리로 돌아간다. **태도를 저장하지 않아** 푸는 규칙이 0줄이다 | — (Human Play 확인 대기 — 기계 검증 6종·794 tests 통과) |
 
+## Capability — 아이템 영역 (IS)
+
+`design/Design-Item-System-R0.md` 주입으로 섰다. 층(BW)에 속하지 않는다 — 어느 층에서든
+"무엇을 지니고, 무엇을 적용하고, 무엇을 주고받는가" 를 세계에 두는 자리다. 넷 다
+지금은 없고, 판정은 코드 대조로 했다.
+
+정의(카탈로그)와 소지(관찰)는 이 표에 없다 — 할 수 있는 일을 늘리지 않아 Capability 가
+아니고, 넷의 바닥이다 (IS §4 · §6). 다만 그 바닥의 지금 형태가 아래 근거 칸에 들어간다.
+
+| Capability | 상태 | 근거 | 부족한 것 |
+|---|---|---|---|
+| MC-USE-ITEM | MISSING | 코드 대조 — 인벤토리는 종류→개수 Map 하나이고(`world/rules/observer-body.ts`), 그 값을 읽는 곳은 "곡괭이가 있는가" 하나뿐이다 | **쓴다 · 준다 · 없어진다 가 0건이다.** 캐서 늘어나는 길만 있고 줄어드는 길이 없다 |
+| MC-EQUIP-ITEM | MISSING | 코드 대조 — 몸에 적용된 것이라는 개념이 없다. 지닌 것과 몸의 능력치는 서로를 모른다 | 자리 · 적합성 · 적용/해제 · 유효 능력치 · 장착이 여는 행동 전부. 이것이 없어 `IM-*` 의 grants 가 몸에 닿지 못한다 |
+| MC-CRAFT-FROM-MATERIALS | MISSING | 코드 대조 — 재료를 다른 것으로 바꾸는 규칙이 0건이다 | 제작법 데이터 · 가능 여부 판정 · 재료 소모와 결과물 생성의 한 단위 처리 |
+| MC-TRANSFER-ITEM | MISSING | 코드 대조 — 물건은 언제나 누군가의 몸 안에 있다. 위치를 가진 아이템 존재가 없다 | 몸 밖의 아이템 · 줍기 · 버리기 · 전리품 보관소 · 획득 권한 · 소멸. 쓰러진 몸에서 아무것도 나오지 않는 것이 이 결손이다 |
+
 ## World / Actor / Knowledge — 세계 자체는 얼마나 서 있는가
 
 Capability 만 보면 전투가 꽤 찬 것처럼 보이지만, 그 전투가 놓일 **세계**가 거의 없다.
@@ -140,8 +157,8 @@ Capability 만 보면 전투가 꽤 찬 것처럼 보이지만, 그 전투가 �
 | Possibility | 요구 중 없는 것 | 비고 |
 |---|---|---|
 | MP-LEARN-TO-HANDLE-THE-LAYER | **MC-PREDICT 하나** (+ MC-OBSERVE 는 PARTIAL — 같은 자리다) | **네 칸 중 셋이 닫혔다.** C014·C016 이 살펴봄과 그것에 이르는 두 길을, C017 이 지목 둘(MC-DESIGNATE-TARGET · MC-WATCH-TARGET)을, C018 이 관계(MC-RELATION-STANCE)를 세웠다. 남은 것은 **예측 하나**이며 그것이 MC-OBSERVE 의 마지막 결손과 같은 자리다 — 닫히면 이 갈래가 통째로 선다 — 다만 **보류(Human)** (AI 기획서 대기 · frontier "지금 열 수 없는 것"). 탐험의 기본 갈래이자 다른 둘의 앞이다 (먼저 겪은 사람이 없으면 살 정보도 가져올 자원도 없다) |
-| MP-ADAPT-BY-RESOURCE | MC-RESTORE-BIOLOGICAL-STATE · MC-CUT-ABNORMAL-STRUCTURE + MK-LOCAL-WORLDSTATE + 자원 | **설계상 획득 경로는 Q22 로 섰다** (경계결정 → IM-BOUNDARY-EDGED). 세계에 제작·장착이 없다 |
-| MP-PREPARE-IN-CIVILIZATION | MK-LOCAL-WORLDSTATE + MW-SAFE-FRONTIER + 관계·대가 | 요구 Capability 가 없다 (BW §14 는 활동만 열거) — 막는 것은 능력이 아니라 문명권·거래라는 세계 기반이다 |
+| MP-ADAPT-BY-RESOURCE | MC-RESTORE-BIOLOGICAL-STATE · MC-CUT-ABNORMAL-STRUCTURE + **MC-USE-ITEM · MC-EQUIP-ITEM · MC-CRAFT-FROM-MATERIALS** + MK-LOCAL-WORLDSTATE + 자원 | **설계상 획득 경로는 Q22 로 섰다** (경계결정 → IM-BOUNDARY-EDGED). IS 주입으로 그 앞칸 셋이 이름을 얻었다 — 앞의 둘이 막힌 이유가 "회복·절단 규칙이 없다" 가 아니라 **쓰고 · 적용하고 · 만드는 개념 자체가 없다** 임이 드러났다 |
+| MP-PREPARE-IN-CIVILIZATION | **MC-CRAFT-FROM-MATERIALS** + MK-LOCAL-WORLDSTATE + MW-SAFE-FRONTIER + 관계·대가 | BW §14 가 열거한 활동 중 제작만 근거 문서를 얻어 배선되었다 (IS §4). 나머지(정보·교역·훈련)는 여전히 이름을 댄 문서가 없다. 막는 것은 능력만이 아니라 문명권·거래라는 세계 기반이다 |
 
 ### 층이 요구하는 것 — MW-ZONE-* 의 demands
 
@@ -160,8 +177,9 @@ Capability 만 보면 전투가 꽤 찬 것처럼 보이지만, 그 전투가 �
 
 | Possibility | 요구 중 없는 것 | 비고 |
 |---|---|---|
-| MP-KILL-CREATURE | 상위 Goal 은 열려 있음 | 쓰러뜨리는 것까지는 된다. **쓰러진 몸에서 아무것도 나오지 않고** 그 몸은 치워지지도 않아 영구 장애물로 남는다 |
-| MP-TAKE-SHED-ORGAN · MP-TRADE-WITH-ACTOR · MP-FIND-DEAD-SPECIMEN · MP-FORCE-CREATURE-TO-RELEASE | **판정 불가 — requires 미배선** | BW §27 은 대안 구조만 공급했다. 요구 배선(OPTIONS/NEED)이 끝나야 판정된다 |
+| MP-KILL-CREATURE | **MC-TRANSFER-ITEM** | 쓰러뜨리는 것까지는 된다. **쓰러진 몸에서 아무것도 나오지 않고** 그 몸은 치워지지도 않아 영구 장애물로 남는다 — IS 주입으로 그 결손이 이름을 얻었다 |
+| MP-TAKE-SHED-ORGAN · MP-TRADE-WITH-ACTOR | **MC-TRANSFER-ITEM** + 각자의 세계 기반 (탈락을 만드는 자율 행동 · 거래 상대) | IS §4 로 공통 앞칸 하나가 배선되었다. 몸 밖에 물건이 놓이지 않는 한 셋 다 열리지 않는다 |
+| MP-FIND-DEAD-SPECIMEN · MP-FORCE-CREATURE-TO-RELEASE | **판정 불가 — requires 미배선** | BW §27 은 대안 구조만 공급했다. IS §4 가 이름을 댄 셋에 이 둘은 포함되지 않아 배선하지 않았다 — 요구 배선(OPTIONS/NEED)이 끝나야 판정된다 |
 
 ## 지금 세계에서 가장 큰 구멍
 
@@ -172,6 +190,8 @@ Capability 만 보면 전투가 꽤 찬 것처럼 보이지만, 그 전투가 �
    광석 하나를 캘 수 있고 세어진다. 그것으로 만들 것도, 장착할 것도, 팔 것도 없다.
    Q22 로 광물 계통과 grants 3건이 그래프에 섰으므로 BW §17 순환은 **설계에서는**
    닫혔다 (growth/growth-graph.md). 세계에는 제작·장착·거래 규칙이 하나도 없다.
+   IS 주입으로 이 구멍이 네 조각(쓴다 · 적용한다 · 만든다 · 주고받는다)으로 나뉘었고,
+   넷 다 MISSING 이다. 앞의 하나가 나머지 셋의 바닥이라는 것도 함께 드러났다.
 
 2. 성장이 세계 밖에 있다
    능력치가 결과를 바꾸는 것은 닫혔지만 그 값을 올리는 유일한 경로가 디버그 명령이다.

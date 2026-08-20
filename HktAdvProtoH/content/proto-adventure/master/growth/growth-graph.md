@@ -61,8 +61,24 @@ UNKNOWN 에서 얻은 것이 다시 UNKNOWN 을 더 감당하게 한다. 한 번
 |---|---|---|---|
 | MC-PENETRATION | **없음** | C013 08-verification 은 관통 값의 변경을 **디버그 명령**으로 실측했다. 종류가 정한 초기값 외에 이 값을 바꾸는 세계 내 행위가 없다 — 08 이 그 사실을 Possibility 주의로 직접 보고했다 | 관통을 얻는 경로 전부. 형태(장비·성장·준비 행동)가 정해지지 않았다 |
 | MC-ATTACK-POWER | **없음** | 코드 대조 — 능력치를 바꾸는 유일한 규칙이 디버그 명령이다. 장착도 소모품도 훈련도 레벨도 없고, 스폰 시 종류별 기본값이 정해진 뒤 그대로다 | 이 값을 올리는 세계 내 경로 전부. 광물을 세워도 **쓰는 규칙**이 없으면 그대로다 |
-| MC-RESTORE-BIOLOGICAL-STATE | **없음** | BW §8 은 원천(회귀초)만 명시하고 Item ID 를 명명하지 않았다 | 회귀초의 IT-* 와 획득·사용 규칙. 문서가 ID 를 주지 않아 세우지 않았다 — 광물은 Q22 로 정의했으나 식물은 Human 지시 범위 밖이었다 |
+| MC-RESTORE-BIOLOGICAL-STATE | **없음** | BW §8 은 원천(회귀초)만 명시하고 Item ID 를 명명하지 않았다 | 회귀초의 IT-* 와 획득·사용 규칙. 문서가 ID 를 주지 않아 세우지 않았다 — 광물은 Q22 로 정의했으나 식물은 Human 지시 범위 밖이었다 쓰는 개념(MC-USE-ITEM)이 선 다음 Cycle 이 원천과 함께 가져온다 (HISTORY Q31) |
 | 전투 Capability 전반 | **없음** | 코드 대조 — 배우거나 얻거나 되는 사건이 세계에 없다 | Class(CL-*) 노드 0 개 |
+
+### grants 가 몸에 닿으려면 무엇이 먼저 서야 하는가
+
+`IM-BOUNDARY-EDGED → MC-CUT-ABNORMAL-STRUCTURE` 같은 배선은 **설계의 간선**이다.
+그 간선이 실제 몸의 능력이 되려면 세계에 "이 물건을 지금 적용하고 있다" 는 상태가
+있어야 한다 — 그 자리가 `MC-EQUIP-ITEM` 이다 (IS §3 · §5.4). 그리고 그 물건이
+재료에서 나오려면 `MC-CRAFT-FROM-MATERIALS` 가, 층에서 얻어 오려면
+`MC-TRANSFER-ITEM` 이 서야 한다. 넷 다 지금은 MISSING 이다 (../overlay.md).
+
+```text
+IP 성질 ──► IM 조합 ──grants──► MC 능력        설계에서는 닫혀 있다 (Q22)
+                                   │
+                          MC-EQUIP-ITEM 이 없어 여기서 끊긴다   ← 세계의 결손
+                                   │
+                                 몸의 능력
+```
 
 ### 채집은 있는데 왜 획득 경로가 없다고 하는가
 
@@ -80,6 +96,7 @@ Growth 의 관점에서 이것은 경로가 아니라 경로의 앞부분 한 �
 |---|---|
 | 설계 (이 문서) | IP 5 · IT 6 · IM 3 · grants 3 건 — BW §17 순환이 그래프에서 닫혔다 |
 | 세계 (`world/`) | 광물 1 종(돌)만 존재하고 쓰임이 없다. 제작·장착·거래 규칙 전무 |
+| 결손의 이름 | IS 주입으로 넷이 노드가 되었다 — MC-USE-ITEM · MC-EQUIP-ITEM · MC-CRAFT-FROM-MATERIALS · MC-TRANSFER-ITEM (모두 MISSING) |
 
 ## 채워지는 경로
 

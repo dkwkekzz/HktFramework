@@ -4,9 +4,9 @@
 > 원본은 `graph/*.yaml` 과 `constraints/DC-*.yaml` 이다.
 > 인터랙티브 관찰(필터 · 서브그래프 · 상세)은 같은 명령이 만드는 `graph-view.html` 을 연다.
 
-노드 90 — WorldState 13 · Actor 2 · Goal 5 · Possibility 22 · Capability 45 · Knowledge 3
+노드 94 — WorldState 13 · Actor 2 · Goal 5 · Possibility 22 · Capability 49 · Knowledge 3
 
-Capability 구현 상태 — ■ IMPLEMENTED 12 · ▨ PARTIAL 8 · □ MISSING 25
+Capability 구현 상태 — ■ IMPLEMENTED 12 · ▨ PARTIAL 8 · □ MISSING 29
 
 ## 인과 뼈대 — WorldState → Goal → Possibility
 
@@ -277,6 +277,8 @@ flowchart TB
   subgraph SEGBASE ["자원 유래 Capability Gate"]
     N0["□ RESTORE-BIOLOGICAL-STATE"]
     N1["□ CUT-ABNORMAL-STRUCTURE"]
+    N2["□ EQUIP-ITEM"]
+    N3["□ CRAFT-FROM-MATERIALS"]
   end
 
   classDef impl fill:#16351f,stroke:#3f8a52,color:#d8f2df;
@@ -285,7 +287,7 @@ flowchart TB
   classDef implS fill:#16351f,stroke:#3f8a52,color:#d8f2df,stroke-dasharray:5 4;
   classDef partS fill:#3a3315,stroke:#9a8a2e,color:#f2ecd0,stroke-dasharray:5 4;
   classDef missS fill:#2a2a2e,stroke:#5c5c66,color:#b8b8c2,stroke-dasharray:5 4;
-  class N0,N1 miss;
+  class N0,N1,N2,N3 miss;
 ```
 
 ### 지목 — TG (design/Design-Targeting-R0.md)
@@ -348,6 +350,37 @@ flowchart TB
   class N1 missS;
 ```
 
+### 아이템 — IS (design/Design-Item-System-R0.md) §4 · §5 · §6
+
+물건이 세계의 자원으로 성립하는 여섯 자리. 세계가 아이템을 정의하고, 몸이 그것을 지니고, 써서 상태를 바꾸고, 적용해 능력을 얻고, 재료를 다른 것으로 바꾸고, 몸 밖에서 주고받는다. 앞의 둘(정의 · 소지)은 능력이 아니라 나머지 넷의 바닥이다. 자원이 능력이 되는 순환(BW §17)과 정의/개체 분리(GR §28~§32)를 세계 쪽에서 받는 자리이며, 희귀 기관을 얻는 세 갈래(BW §27)도 이 시스템의 마지막 자리를 전제한다.
+
+```mermaid
+flowchart TB
+  subgraph SEG0 ["세계 개체화 — 아이템이 몸 밖에 존재한다"]
+    N0["□ TRANSFER-ITEM"]
+  end
+  subgraph SEG1 ["제작 — 재료가 다른 것이 된다"]
+    N1["□ CRAFT-FROM-MATERIALS"]
+  end
+  subgraph SEG2 ["장착 — 가진 것과 적용된 것이 갈린다"]
+    N2["□ EQUIP-ITEM"]
+  end
+  subgraph SEG3 ["사용 — 가진 것이 세계를 바꾼다"]
+    N3["□ USE-ITEM"]
+  end
+  SEG0 ~~~ SEG1
+  SEG1 ~~~ SEG2
+  SEG2 ~~~ SEG3
+
+  classDef impl fill:#16351f,stroke:#3f8a52,color:#d8f2df;
+  classDef part fill:#3a3315,stroke:#9a8a2e,color:#f2ecd0;
+  classDef miss fill:#2a2a2e,stroke:#5c5c66,color:#b8b8c2;
+  classDef implS fill:#16351f,stroke:#3f8a52,color:#d8f2df,stroke-dasharray:5 4;
+  classDef partS fill:#3a3315,stroke:#9a8a2e,color:#f2ecd0,stroke-dasharray:5 4;
+  classDef missS fill:#2a2a2e,stroke:#5c5c66,color:#b8b8c2,stroke-dasharray:5 4;
+  class N0,N1,N2,N3 miss;
+```
+
 ## 갈래별 준비도 — 어느 경로가 세계에 가장 가까운가
 
 요구 Capability 중 이미 세계에 있는 것의 비율. `IMPLEMENTED` 1.0 · `PARTIAL` 0.5 로 센다.
@@ -369,11 +402,11 @@ flowchart TB
 | `STAKE-EVERYTHING-ON-ONE-BLOW` | OVERCOME-SUPERIOR-OPPONENT | ●○○○○ 0/4 | VOW · COMBAT-FLOW · CP-ECONOMY · CONDITION-STACKING |
 | `EVADE-BY-MOVING-THE-BODY` | SURVIVE-ENEMY-OFFENSIVE | ●○○○○ 0/2 | EVADE · CP-ECONOMY |
 | `WEAPONIZE-ENVIRONMENT` | OVERCOME-SUPERIOR-OPPONENT | ○○○○○ 0/2 | READ-ENVIRONMENT · USE-HAZARD |
-| `ADAPT-BY-RESOURCE` | EXPLORE-BEIRA | ○○○○○ 0/2 | RESTORE-BIOLOGICAL-STATE · CUT-ABNORMAL-STRUCTURE |
-| `PREPARE-IN-CIVILIZATION` | EXPLORE-BEIRA | 요구 미기재 | 없음 |
-| `KILL-CREATURE` | ACQUIRE-RARE-ORGAN | 요구 미기재 | 없음 |
-| `TAKE-SHED-ORGAN` | ACQUIRE-RARE-ORGAN | 요구 미기재 | 없음 |
-| `TRADE-WITH-ACTOR` | ACQUIRE-RARE-ORGAN | 요구 미기재 | 없음 |
+| `ADAPT-BY-RESOURCE` | EXPLORE-BEIRA | ○○○○○ 0/5 | RESTORE-BIOLOGICAL-STATE · CUT-ABNORMAL-STRUCTURE · USE-ITEM · EQUIP-ITEM · CRAFT-FROM-MATERIALS |
+| `PREPARE-IN-CIVILIZATION` | EXPLORE-BEIRA | ○○○○○ 0/1 | CRAFT-FROM-MATERIALS |
+| `KILL-CREATURE` | ACQUIRE-RARE-ORGAN | ○○○○○ 0/1 | TRANSFER-ITEM |
+| `TAKE-SHED-ORGAN` | ACQUIRE-RARE-ORGAN | ○○○○○ 0/1 | TRANSFER-ITEM |
+| `TRADE-WITH-ACTOR` | ACQUIRE-RARE-ORGAN | ○○○○○ 0/1 | TRANSFER-ITEM |
 | `FIND-DEAD-SPECIMEN` | ACQUIRE-RARE-ORGAN | 요구 미기재 | 없음 |
 | `FORCE-CREATURE-TO-RELEASE` | ACQUIRE-RARE-ORGAN | 요구 미기재 | 없음 |
 
@@ -415,6 +448,10 @@ flowchart LR
   MC-DESIGNATE-TARGET["■ DESIGNATE-TARGET"]
   MC-WATCH-TARGET["■ WATCH-TARGET"]
   MC-RELATION-STANCE["■ RELATION-STANCE"]
+  MC-USE-ITEM["□ USE-ITEM"]
+  MC-EQUIP-ITEM["□ EQUIP-ITEM"]
+  MC-CRAFT-FROM-MATERIALS["□ CRAFT-FROM-MATERIALS"]
+  MC-TRANSFER-ITEM["□ TRANSFER-ITEM"]
   MP-OUTGROW-THE-OPPONENT["OUTGROW-THE-OPPONENT"]
   MP-MATCH-WEAPON-TO-ARMOR["MATCH-WEAPON-TO-ARMOR"]
   MP-PIERCE-THE-HARD-DEFENSE["PIERCE-THE-HARD-DEFENSE"]
@@ -431,6 +468,10 @@ flowchart LR
   MP-HOLD-FORTIFIED["HOLD-FORTIFIED"]
   MP-LEARN-TO-HANDLE-THE-LAYER["LEARN-TO-HANDLE-THE-LAYER"]
   MP-ADAPT-BY-RESOURCE["ADAPT-BY-RESOURCE"]
+  MP-PREPARE-IN-CIVILIZATION["PREPARE-IN-CIVILIZATION"]
+  MP-KILL-CREATURE["KILL-CREATURE"]
+  MP-TAKE-SHED-ORGAN["TAKE-SHED-ORGAN"]
+  MP-TRADE-WITH-ACTOR["TRADE-WITH-ACTOR"]
 
   MP-OUTGROW-THE-OPPONENT --> MC-ATTACK-POWER
   MP-OUTGROW-THE-OPPONENT --> MC-SKILL-SCALING
@@ -483,6 +524,13 @@ flowchart LR
   MP-LEARN-TO-HANDLE-THE-LAYER --> MC-RELATION-STANCE
   MP-ADAPT-BY-RESOURCE --> MC-RESTORE-BIOLOGICAL-STATE
   MP-ADAPT-BY-RESOURCE --> MC-CUT-ABNORMAL-STRUCTURE
+  MP-ADAPT-BY-RESOURCE --> MC-USE-ITEM
+  MP-ADAPT-BY-RESOURCE --> MC-EQUIP-ITEM
+  MP-ADAPT-BY-RESOURCE --> MC-CRAFT-FROM-MATERIALS
+  MP-PREPARE-IN-CIVILIZATION --> MC-CRAFT-FROM-MATERIALS
+  MP-KILL-CREATURE --> MC-TRANSFER-ITEM
+  MP-TAKE-SHED-ORGAN --> MC-TRANSFER-ITEM
+  MP-TRADE-WITH-ACTOR --> MC-TRANSFER-ITEM
 
   classDef impl fill:#16351f,stroke:#3f8a52,color:#d8f2df;
   classDef part fill:#3a3315,stroke:#9a8a2e,color:#f2ecd0;
@@ -490,8 +538,8 @@ flowchart LR
   classDef poss fill:#1c3330,stroke:#3f7d6f,color:#d6f0e9;
   class MC-COMBAT-STRIKE,MC-BODY-FACING,MC-COMBAT-CAUSE-READING,MC-GUARD,MC-DEFENSE-MITIGATION,MC-SKILL-SCALING,MC-ATTACK-ARMOR-MATCHUP,MC-PENETRATION,MC-CRITICAL-STRIKE,MC-DESIGNATE-TARGET,MC-WATCH-TARGET,MC-RELATION-STANCE impl;
   class MC-CP-ECONOMY,MC-ATTACK-POWER,MC-BREAK,MC-CONDITION-STACKING,MC-REPOSITION,MC-OBSERVE,MC-FORCE-MOVEMENT,MC-INTERRUPT part;
-  class MC-PERFECT-GUARD,MC-COUNTER,MC-COMBAT-FLOW,MC-FORTIFY,MC-EVADE,MC-VOW,MC-PREDICT,MC-CONTROL-SPACE,MC-READ-ENVIRONMENT,MC-USE-HAZARD,MC-RESTORE-BIOLOGICAL-STATE,MC-CUT-ABNORMAL-STRUCTURE miss;
-  class MP-OUTGROW-THE-OPPONENT,MP-MATCH-WEAPON-TO-ARMOR,MP-PIERCE-THE-HARD-DEFENSE,MP-BREAK-THE-GUARD,MP-READ-AND-COUNTER,MP-EXPLOIT-OPEN-BODY,MP-INTERRUPT,MP-CONTROL-MOVEMENT,MP-WEAPONIZE-ENVIRONMENT,MP-BET-ON-THE-CRITICAL-BLOW,MP-STAKE-EVERYTHING-ON-ONE-BLOW,MP-TRADE-BODY-FOR-RESOURCE,MP-EVADE-BY-MOVING-THE-BODY,MP-HOLD-FORTIFIED,MP-LEARN-TO-HANDLE-THE-LAYER,MP-ADAPT-BY-RESOURCE poss;
+  class MC-PERFECT-GUARD,MC-COUNTER,MC-COMBAT-FLOW,MC-FORTIFY,MC-EVADE,MC-VOW,MC-PREDICT,MC-CONTROL-SPACE,MC-READ-ENVIRONMENT,MC-USE-HAZARD,MC-RESTORE-BIOLOGICAL-STATE,MC-CUT-ABNORMAL-STRUCTURE,MC-USE-ITEM,MC-EQUIP-ITEM,MC-CRAFT-FROM-MATERIALS,MC-TRANSFER-ITEM miss;
+  class MP-OUTGROW-THE-OPPONENT,MP-MATCH-WEAPON-TO-ARMOR,MP-PIERCE-THE-HARD-DEFENSE,MP-BREAK-THE-GUARD,MP-READ-AND-COUNTER,MP-EXPLOIT-OPEN-BODY,MP-INTERRUPT,MP-CONTROL-MOVEMENT,MP-WEAPONIZE-ENVIRONMENT,MP-BET-ON-THE-CRITICAL-BLOW,MP-STAKE-EVERYTHING-ON-ONE-BLOW,MP-TRADE-BODY-FOR-RESOURCE,MP-EVADE-BY-MOVING-THE-BODY,MP-HOLD-FORTIFIED,MP-LEARN-TO-HANDLE-THE-LAYER,MP-ADAPT-BY-RESOURCE,MP-PREPARE-IN-CIVILIZATION,MP-KILL-CREATURE,MP-TAKE-SHED-ORGAN,MP-TRADE-WITH-ACTOR poss;
 ```
 
 ## Constraint — 무엇이 걸러지는가
@@ -507,16 +555,20 @@ Constraint 는 단계가 아니라 각 선택 지점의 Filter 다. 아래는 �
 | `COMBAT-SHARED-BUDGET` | COMBAT | APPROVED | 6 | 전투 행동은 하나의 공통 기력(CP) 예산을 나눠 쓴다. 행동별 전용 게이지를 신설하지 않는다. |
 | `CONDITION-OPENS-WITHOUT-RECORDING` | GLOBAL | APPROVED | 1 | 지금의 조건으로 열리는 것은 어디에도 기록하지 않는다. 조건이 사라지면 저절로 닫혀야 하고, 그것을 되돌리는 규칙이 따로 있어서는 안 된다. |
 | `GROWTH-CLASS-ORIGIN-TRACE` | GROWTH | APPROVED | 0 | Class 는 세계와 Actor 가 상호작용한 결과다. 모든 Class 는 하나 이상의 origin_trace(WorldState → Goal → Possibility)를 가지며, 그 Class 를 제거해도 원인이 된 세계 요소는 독립적으로 성립해야 한다. |
-| `GROWTH-DEFINITION-INSTANCE-SPLIT` | GROWTH | APPROVED | 0 | Master 는 유한한 Definition(Class · Item Type · Property · Modifier · 조합 규칙)만 소유한다. 실제 생성된 Item Instance(II-*)와 조합 결과는 Runtime World 가 소유하며, 가능한 조합을 사전에 Node 로 생성하지 않는다. |
+| `GROWTH-DEFINITION-INSTANCE-SPLIT` | GROWTH | APPROVED | 1 | Master 는 유한한 Definition(Class · Item Type · Property · Modifier · 조합 규칙)만 소유한다. 실제 생성된 Item Instance(II-*)와 조합 결과는 Runtime World 가 소유하며, 가능한 조합을 사전에 Node 로 생성하지 않는다. |
 | `GROWTH-GOAL-FIRST` | GROWTH | APPROVED | 0 | 성장(새 Class · Item · Capability 의 획득) 자체를 Goal 로 세우지 않는다. 성장은 Actor 의 현재 Goal 을 현재 Capability 로 달성하기 어려울 때, 그 Goal 을 달성하는 하나의 Possibility 로만 성립한다. |
 | `GROWTH-NEED-FROM-POSSIBILITY` | GROWTH | APPROVED | 0 | Class 와 Item 은 Capability 를 획득하는 세계 내 경로일 뿐이다. Capability 의 필요성은 항상 기존 Master 인과(Goal → Possibility --requires-->)에서 나오며, Class 나 Item 이 존재한다는 이유로 Capability 를 만들지 않는다. |
-| `GROWTH-NO-CAPABILITY-DUPLICATION` | GROWTH | APPROVED | 0 | 같은 플레이 의미의 Capability 를 획득 Source(Class / Item / Actor)별로 복제하지 않는다. 하나의 MC-* 에 여러 획득 경로가 grants 로 연결된다. |
+| `GROWTH-NO-CAPABILITY-DUPLICATION` | GROWTH | APPROVED | 1 | 같은 플레이 의미의 Capability 를 획득 Source(Class / Item / Actor)별로 복제하지 않는다. 하나의 MC-* 에 여러 획득 경로가 grants 로 연결된다. |
 | `GROWTH-NOT-A-STAGE` | GROWTH | APPROVED | 0 | Growth 는 별도 Master Stage 가 아니다. 기본 절차 WHY → OPTIONS → NEED → NEXT 는 그대로 유지되고, Growth Graph 는 NEED 에서 발견된 Capability 에 대해 "세계에서 어떻게 얻는가"를 덧씌우는 보조 Overlay 로만 존재한다. |
+| `ITEM-CAPABILITY-COMES-FROM-GRANTS` | ITEM | APPROVED | 1 | 아이템의 성질(IP-*)은 세계 압력에서 유래한 것만이고, 아이템의 용도는 그 종류가 가진다. 능력 판정은 성질 목록을 조회해서가 아니라 그 아이템이 지금 무엇을 주고 있는가로 한다. |
+| `ITEM-CHANGE-IS-ONE-UNIT` | ITEM | APPROVED | 3 | 아이템이 관련된 변화는 하나의 성공 단위다. 효과와 수량은 함께 변하거나 함께 변하지 않으며, 실패한 시도는 세계에 아무 흔적도 남기지 않는다. |
+| `ITEM-HOLDING-IS-NOT-APPLYING` | ITEM | APPROVED | 1 | 아이템을 가지고 있는 것만으로는 몸이 달라지지 않는다. 능력치와 가능한 행동이 달라지는 것은 지금 적용된 것 때문이며, 적용을 풀면 정확히 원래대로 돌아온다. |
+| `ITEM-KIND-IS-DATA-NOT-BRANCH` | ITEM | APPROVED | 2 | 아이템의 종류 이름은 정의를 찾는 열쇠일 뿐이며 규칙의 분기 조건이 되지 않는다. 새 아이템은 정의를 더하는 것으로 끝나고, 그 아이템을 쓰는 규칙 코드는 바뀌지 않는다. |
 | `TARGET-IS-INTENT-NOT-AIM` | GLOBAL | APPROVED | 2 | 대상을 지목하는 것은 플레이어가 지금 누구에게 의도를 두었는지를 세계에 밝히는 관계일 뿐이다. 지목 자체는 명중·피해·정보·위협을 만들지 않으며, 세계가 플레이어를 대신해 다가가거나 따라가지 않는다. |
 | `WORLD-COMBAT-IS-ONE-POSSIBILITY` | WORLD | APPROVED | 8 | Creature 의 발견·존재만으로 처치 Goal 을 만들지 않는다. Goal 은 WorldState (자원을 지킨다 · 길을 막는다 · 사냥한다 · 기관이 필요하다)에서 발생하며, 전투는 그 Goal 을 달성하는 Possibility 중 하나로만 성립한다. |
 | `WORLD-CREATURE-FROM-PRESSURE` | WORLD | APPROVED | 2 | 전투 Creature 를 먼저 만들지 않는다. Creature 의 Capability 는 세계압이 만든 환경과 생존 압력에 대한 적응의 결과이며, Player 의 Capability Requirement 는 그 Creature 와의 조우가 만든 Goal 과 Combat Possibility 에서만 파생된다. |
 | `WORLD-OWNS-THE-CHANCE` | GLOBAL | APPROVED | 0 | 우연의 원천은 세계가 지니는 상태이고, 그 상태는 관찰에 실리지 않으며, 그럼에도 결과는 끝까지 설명된다. 이미 결과가 정해진 판정에서는 그 원천을 소비하지 않는다. |
-| `WORLD-OWNS-THE-SURFACE-LIST` | GLOBAL | APPROVED | 3 | 무엇을 할 수 있고 그 값이 어디까지 허용되는지의 목록은 세계가 소유하고 관찰 결과에 실어 보낸다. 관찰자(View)는 그 목록을 스스로 만들지 않는다. |
+| `WORLD-OWNS-THE-SURFACE-LIST` | GLOBAL | APPROVED | 5 | 무엇을 할 수 있고 그 값이 어디까지 허용되는지의 목록은 세계가 소유하고 관찰 결과에 실어 보낸다. 관찰자(View)는 그 목록을 스스로 만들지 않는다. |
 | `WORLD-PLAYER-UNFIXED-PATH` | WORLD | APPROVED | 5 | Player 의 역할·Class·진영·전투 방식과 탐험의 이유를 하나로 고정하지 않는다. Root Goal(베이라를 탐험한다) 아래의 Local Goal 은 Actor 와 상황마다 발견된 세계 상태로부터 생성된다. |
 | `WORLD-PROGRESSION-IS-REACH` | WORLD | APPROVED | 6 | Progression 의 핵심은 수치 Level 의 상승이 아니라, 관찰과 이해로 대응 방법을 발견하고 Capability 와 Resource 를 얻어 이전에는 갈 수 없던 세계 범위에 도달하게 되는 확장이다. |
 | `WORLD-RESOURCE-ADAPTATION-TRACE` | WORLD | APPROVED | 3 | 중요한 베이라 Resource 는 World Pressure → Environment → Survival Pressure → Adaptation → Special Property → Resource 의 인과 Trace 로 설명할 수 있어야 하며, 좋은 아이템을 위험한 곳에 배치하는 방향으로 만들지 않는다. |
@@ -529,8 +581,8 @@ Constraint 는 단계가 아니라 각 선택 지점의 Filter 다. 아래는 �
 |---|---:|---|
 | `changed_by` | 13 | PRIMAL-WORLD · WORLD-PRESSURE · FREE-PRESSURE · BOUND-PRESSURE · SAFE-FRONTIER · DEPTH-GRADIENT · ZONE-FRINGE · ZONE-WILD · ZONE-DANGER · ZONE-DEEP · ZONE-UNKNOWN · HYPER-PREDATION · SPATIAL-SHEAR |
 | `causes` | 10 | PRIMAL-WORLD · WORLD-PRESSURE · FREE-PRESSURE · BOUND-PRESSURE · DEPTH-GRADIENT · ZONE-DANGER · ZONE-DEEP · ZONE-UNKNOWN · HYPER-PREDATION · SPATIAL-SHEAR |
-| `requires.capabilities` | 6 | PREPARE-IN-CIVILIZATION · KILL-CREATURE · TAKE-SHED-ORGAN · TRADE-WITH-ACTOR · FIND-DEAD-SPECIMEN · FORCE-CREATURE-TO-RELEASE |
 | `belief_context` | 5 | EXPLORE-BEIRA · ACQUIRE-RARE-ORGAN · OVERCOME-SUPERIOR-OPPONENT · SURVIVE-ENEMY-OFFENSIVE · HOLD-HUNTING-GROUND |
 | `knows` | 2 | PLAYER · HOSTILE-COMBATANT |
 | `believes` | 2 | PLAYER · HOSTILE-COMBATANT |
+| `requires.capabilities` | 2 | FIND-DEAD-SPECIMEN · FORCE-CREATURE-TO-RELEASE |
 | `motivation` | 1 | HOLD-HUNTING-GROUND |
