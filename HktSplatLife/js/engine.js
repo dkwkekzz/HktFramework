@@ -13,7 +13,7 @@
 	const GRID_DIM = 64;
 	const CLUSTER_K = 256;       // 클러스터 크기 (wgsl.js K 와 일치)
 	const CLUSTER_STRIDE = 24;   // u32/f32 24개 = 96B (wgsl.js Cluster 와 일치)
-	const ENTITY_STRIDE = 64;    // f32 64개 = 256B (wgsl.js Entity 와 일치 — R1 재질 + F1 이펙트 + F2 굴절 + F3 파열 + F4 광선 + F5 방위 vec4 포함)
+	const ENTITY_STRIDE = 76;    // f32 76개 = 304B (wgsl.js Entity 와 일치 — R1 재질 + F1 이펙트 + F2 굴절 + F3 파열 + F4 광선 + F5 방위 + F6 강도 + F7 시간 결 + F8 방사 구조 vec4 포함)
 	const MAX_ENTITIES = 8;
 	// F1 이펙트 이벤트 슬롯 — *장면 전체* 동시 발생 상한. 이펙트 스플랫은 제 슬롯을
 	// rest.w 로 알고(L6 뼈 친화와 동형), 슬롯이 켜지면 그 세대가 태어난다.
@@ -540,6 +540,12 @@
 			a.set([g.disc || 0, g.discThick || 0, g.rayLen || 0, g.rayThin || 0], o + 56);
 			// F5 방위: arc 0 = 평면 전체(온 고리), rayAlign 0 = 조각 방향 스냅 없음 (기존 회귀 0)
 			a.set([g.arc || 0, g.arcSharp != null ? g.arcSharp : 1, g.rayAlign || 0, 0], o + 60);
+			// F6 표현 강도 감도: powVel 1 = 예전 선형 응답, 나머지 0 = 강도 무시 (기존 회귀 0)
+			a.set([g.powVel != null ? g.powVel : 1, g.powSize || 0, g.powLum || 0, g.powLife || 0], o + 64);
+			// F7 시간 결: flicker/flash/coreGlow 0 = 변주 없음 (기존 회귀 0)
+			a.set([g.flicker || 0, g.flickerHz || 0, g.flash || 0, g.coreGlow || 0], o + 68);
+			// F8 방사 구조: implode 0 = 바깥으로, ripple 0 = 연속 파면, twist 0 = 곧은 방사 (기존 회귀 0)
+			a.set([g.implode || 0, g.ripple || 0, g.twist || 0, 0], o + 72);
 		});
 		return a;
 	};

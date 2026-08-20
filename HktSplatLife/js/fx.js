@@ -50,6 +50,16 @@
 	//   disc  축에 수직인 평면 집중(0 구면 ↔ 1 종잇장 링 — 가운데가 빈다) · discThick 평면 두께
 	//   rayLen 바늘 길이 상한(속도 신축의 상한) · rayThin 바늘 가늘기(횡방향 수축 지수)
 	//   동반 발생: with = ['다른 이펙트'] — 한 *사건*이 여러 게놈을 켠다(같은 원점·축·시각)
+	// 읽는 법 (F6 유전자 — 표현 강도: 사건의 세기에 이 이펙트가 얼마나 반응하는가):
+	//   powVel 속도(도달 반경) 감도 · powSize 크기(굵기) 감도 · powLum 밝기·불투명도 감도
+	//   powLife 수명 감도. 응답 = pow(이벤트 strength, 감도) — 0 이면 그 채널은 강도를 무시한다.
+	//   같은 이펙트를 약하게/세게 쓰는 것은 새 게놈이 아니라 *이벤트의 세기*다(스침 ↔ 정통).
+	// 읽는 법 (F7 유전자 — 시간 결: 수명 안에서 밝기가 어떻게 변주되는가):
+	//   flicker 점멸 깊이 · flickerHz 점멸 주기(방전의 서명) · flash 탄생 순간 섬광
+	//   coreGlow 느린 조각(=중심에 남은 코어)의 과노출
+	// 읽는 법 (F8 유전자 — 방사 구조: 바깥으로만 흐르지 않아도 된다):
+	//   implode 수축(1 = 도달 반경 밖에서 태어나 중심으로 모인다 = 차징·흡수)
+	//   ripple  속도를 계단으로 잘라 만든 동심 다중 파문(겹 수) · twist 속도 비례 나선 팔
 	// 기존 유전자도 그대로 쓴다: lifeBase=지속시간, damping=공기 저항, gravity/updraft=부력,
 	// volatility·flowFreq·flowSpeed=난류 결, size/stretch/opacity/luminosity/colorA·B=외형 재료.
 	const FX_PRESETS = {
@@ -77,6 +87,13 @@
 			fxK: 1, burst: 8.5, cone: 0.0, swirl: 0.0, shell: 0.0, grow: 2.0, curve: 3.0, ember: 0,
 			shred: 0.95, shredFreq: 40, tear: 0.45, shredPow: 4.0,
 			disc: 0.92, discThick: 0.12, rayLen: 4, rayThin: 1.0, rayAlign: 1.0,
+			// F6 표현 강도: 타격은 *네 채널 전부*로 반응한다 — 세게 맞으면 멀리(powVel) 굵게
+			// (powSize) 밝게(powLum) 오래(powLife) 남는다. 속도만 반응시키면 "빠른 스침"이
+			// 될 뿐 묵직해지지 않는다(강도 눈검증). 강도 1 = 예전 그림 그대로(회귀 0).
+			powVel: 0.55, powSize: 0.4, powLum: 0.85, powLife: 0.35,
+			// F7 시간 결: 탄생 순간의 과노출(flash)이 "번쩍"이고, 느린 조각(=중심에 남는 코어)이
+			// 과노출(coreGlow)되어 흰 심지가 선다 — 둘 다 알파가 아니라 밝기만 건드린다.
+			flash: 2.5, coreGlow: 1.2,
 			colorA: '#ffffff', colorB: '#9fb4d8', form: 4, // 흰 섬광 → 서늘한 회청 잔광 (레퍼런스)
 			// 물리적 타격 = 방사 가시(이것) + 칼자국(검격) + 공기 굴절(굴절 파면) — 한 사건, 세 게놈
 			with: ['검격', '굴절 파면'],
@@ -88,16 +105,21 @@
 			volatility: 2.4, flowFreq: 1.6, flowSpeed: 1.3,
 			size: 0.05, stretch: 0.12, opacity: 0.09, luminosity: 1.4,
 			fxK: 1, burst: 4.5, cone: 0.0, swirl: 0.35, shell: 0.05, grow: 2.4, curve: 1.6, ember: 0.18,
+			// 화구는 *부피*가 강도다 — 크기·수명이 크게 반응하고(powSize/powLife) 속도는 덜(0.4):
+			// 속도만 키우면 화구가 아니라 흩어지는 파편이 된다.
+			powVel: 0.4, powSize: 0.6, powLum: 0.5, powLife: 0.45,
+			flash: 1.2, coreGlow: 0.8,
 			colorA: '#ffd27a', colorB: '#1c1210', form: 4,
 		},
 		// ③ 회복 오라 — 같은 규칙, 다른 좌표일 뿐임을 보이는 세 번째 게놈 (새 코드 0).
 		//    위로 몰린 구각(cone 0.85·shell 0.8)이 느리게 소용돌이치며 떠오른다.
 		'회복 오라': {
-			demo: false, // 기본 세트 제외 — 슬라이스 예산은 타격 계열에 몰아준다(names 로 명시하면 사용)
 			lifeBase: 1.8, damping: 1.2, gravity: 0.0, updraft: 1.4,
 			volatility: 0.9, flowFreq: 2.2, flowSpeed: 0.7,
 			size: 0.022, stretch: 0.4, opacity: 0.14, luminosity: 1.3,
 			fxK: 1, burst: 1.8, cone: 0.85, swirl: 0.85, shell: 0.8, grow: 0.8, curve: 1.1, ember: 0,
+			// 회복은 세기가 *지속*으로 읽히는 이펙트 — 수명이 가장 크게 반응한다.
+			powVel: 0.25, powSize: 0.3, powLum: 0.5, powLife: 0.8,
 			colorA: '#9dffc0', colorB: '#2f7bff', form: 4,
 		},
 		// ④ 물결파 — 타격 지점에서 *빛살 링*이 사방으로 번진다. 온 고리(arc 0)라 방향이 없다:
@@ -118,6 +140,8 @@
 			fxK: 1, burst: 4.2, cone: 0.0, swirl: 0.0, shell: 0.55, grow: 0.2, curve: 2.0, ember: 0,
 			shred: 0.4, shredFreq: 70, tear: 0.08, shredPow: 1.3,
 			disc: 0.96, discThick: 0.2, rayLen: 3, rayThin: 1.2,
+			// 파문의 세기 = 얼마나 멀리 번지는가(powVel) + 얼마나 밝은가(powLum)
+			powVel: 0.7, powSize: 0.2, powLum: 0.7, powLife: 0.3,
 			colorA: '#ffffff', colorB: '#3d8bff', form: 4, // 흰 섬광 → 푸른 잔광
 			slots: 1, // 슬라이스를 통째로 = 한 번에 배로 촘촘 (동시 발생은 1회로 족하다)
 			with: ['굴절 파면'], // 단독 발생 때도 공기 굴절이 함께 (타격은 제 목록으로 켠다)
@@ -145,6 +169,10 @@
 			shred: 0.5, shredFreq: 90, tear: 0.04, shredPow: 1.8,
 			disc: 0.97, discThick: 0.1, rayLen: 5, rayThin: 1.6,
 			arc: 0.96, arcSharp: 3.0,
+			// 베기의 세기 = 자국의 길이(powVel)와 잔광의 밝기(powLum). 두께는 조금만 — 굵어지면
+			// 베인 자국이 아니라 뭉개진 붓질이 된다.
+			powVel: 0.75, powSize: 0.25, powLum: 0.9, powLife: 0.3,
+			flash: 3.0,
 			colorA: '#ffffff', colorB: '#8fd0ff', form: 4, // 흰 섬광 → 서늘한 강철빛
 			slots: 1,
 		},
@@ -162,8 +190,92 @@
 			fxK: 1, burst: 4.2, cone: 0.3, swirl: 0.03, shell: 1.0, grow: 0.3, curve: 1.2, ember: 0,
 			refract: 3.0, chroma: 0.32, caustic: 1.4, rarefy: 0.0,
 			shred: 0.3, shredFreq: 2.6, tear: 0.25, shredPow: 1.6,
+			// 굴절의 세기 = 밀어낸 공기의 양(powLum 이 굴절 밀도를 곱한다)과 도달 반경(powVel)
+			powVel: 0.6, powSize: 0.3, powLum: 0.8, powLife: 0.3,
 			colorA: '#ffffff', colorB: '#ffffff', form: 4, // 색은 쓰이지 않는다 (굴절 개체)
 		},
+		// ⑦ 전격 — *점멸*이 정체성인 이펙트(F7). 방전은 매끈하게 꺼지지 않는다: 조각마다
+		//    제 시드로 위상이 어긋난 채 지글거려야(flicker 0.9 · 45Hz) 전기로 읽힌다.
+		//    (같은 위상으로 껌뻑이면 전기가 아니라 조명 스위치가 된다 — 그래서 위상은 스플랫 시드.)
+		//    가시는 타격 문법 그대로(rayAlign 1 로 한 줄기, tear 로 사이를 비운다)지만 disc 를
+		//    낮춰 링이 아니라 사방으로 뻗는 가지로 두고, flash 6 으로 켜지는 순간을 태운다.
+		'전격': {
+			lifeBase: 0.5, damping: 2.4, gravity: 0.0, updraft: 0.0,
+			volatility: 1.2, flowFreq: 5.0, flowSpeed: 2.4,
+			size: 0.011, stretch: 1.1, opacity: 0.9, luminosity: 5.2,
+			fxK: 1, burst: 5.5, cone: 0.0, swirl: 0.0, shell: 0.25, grow: 1.6, curve: 2.2, ember: 0, // 도달 ≈1.6m
+			shred: 0.8, shredFreq: 30, tear: 0.5, shredPow: 2.6,
+			disc: 0.35, discThick: 0.9, rayLen: 6, rayThin: 2.0, rayAlign: 1.0,
+			// 24Hz — 60fps 에서 프레임마다 위상이 0.4 주기씩 도는 값. 훨씬 높이면 프레임률과
+			// 엇박이 나 점멸이 아니라 잡음으로 보인다(에일리어싱).
+			flicker: 0.9, flickerHz: 24, flash: 6.0, coreGlow: 1.6,
+			powVel: 0.6, powSize: 0.35, powLum: 1.0, powLife: 0.4,
+			colorA: '#eaf4ff', colorB: '#5f7cff', form: 4, // 흰 방전 → 푸른 잔광
+			slots: 1,
+		},
+		// ⑧ 기 모으기 — 부호가 반대인 방사(F8 implode). 도달 거리만큼 *밖에서* 태어나 속도를
+		//    뒤집으면 수명이 다할 때 중심에 모인다 = 차징·흡수. 나선(twist)이 빨려드는 결을 만들고,
+		//    coreGlow 가 모여드는 중심을 태운다(느린 조각 = 도착한 조각). 램프는 탄생색 → 소멸색이라
+		//    푸른 기운이 중심에서 흰빛으로 수렴한다. 감쇠가 크면 다 모이기 전에 멈춘다 — damping 낮게.
+		'기 모으기': {
+			// 도달 반경 = burst(1-e^{-damping·life})/damping ≈ 0.9m — *캐릭터 둘레*의 기운이어야 한다.
+			// 크게 잡으면(2m 이상) 화면을 뒤덮는 눈보라가 되고 바닥에 닿아 튄다(눈검증).
+			// 와류도 인장 속도에 견줘 크면 궤도를 돌 뿐 모이지 않는다 — swirl·burst 곱이 작아야 한다.
+			lifeBase: 1.3, damping: 0.9, gravity: 0.0, updraft: 0.0,
+			volatility: 0.35, flowFreq: 2.0, flowSpeed: 0.8,
+			size: 0.016, stretch: 0.6, opacity: 0.5, luminosity: 2.6,
+			fxK: 1, burst: 1.2, cone: 0.0, swirl: 0.22, shell: 0.35, grow: 0.25, curve: 0.7, ember: 0,
+			shred: 0.25, shredFreq: 18, tear: 0.12, shredPow: 1.4,
+			disc: 0.3, discThick: 0.8, rayLen: 4, rayThin: 1.2,
+			implode: 1.0, twist: 1.2,
+			coreGlow: 2.6, flash: 0.0,
+			powVel: 0.6, powSize: 0.3, powLum: 0.7, powLife: 0.5,
+			colorA: '#74f0ff', colorB: '#ffffff', form: 4, // 푸른 기운 → 흰 코어(수렴)
+			slots: 1,
+		},
+		// ⑨ 삼중 파문 — 물결파와 *같은 규칙*, 속도만 계단으로 잘랐다(F8 ripple 3): 연속 속도면
+		//    한 겹으로 번지고, 3계단이면 서로 다른 반경으로 달리는 고리가 셋이다. "링을 세 번
+		//    그리는" 코드가 아니라 속도 양자화 하나 — 겹 수는 게놈 값이다.
+		'삼중 파문': {
+			lifeBase: 0.9, damping: 1.4, gravity: 0.0, updraft: 0.0,
+			volatility: 0.04, flowFreq: 2.0, flowSpeed: 0.5,
+			size: 0.016, stretch: 0.45, opacity: 0.75, luminosity: 3.4,
+			// shell 은 ripple 이 대신 정한다(속도 계단) — 남겨 둬도 무시된다.
+			fxK: 1, burst: 4.2, cone: 0.0, swirl: 0.0, shell: 0.4, grow: 0.35, curve: 1.5, ember: 0,
+			shred: 0.15, shredFreq: 45, tear: 0.05, shredPow: 1.2,
+			disc: 0.96, discThick: 0.12, rayLen: 3, rayThin: 1.2,
+			ripple: 3,
+			powVel: 0.7, powSize: 0.2, powLum: 0.6, powLife: 0.35,
+			colorA: '#ffffff', colorB: '#46d8ff', form: 4,
+			slots: 1,
+		},
+		// ⑩ 나선 폭풍 — 방향을 *속도에 비례해* 감으면(F8 twist) 빠른 조각이 앞서 돌아 나선 팔이
+		//    선다. 통째로 돌린 파면은 그냥 돌아간 원이지, 팔이 생기지 않는다 — 속도 비례가 핵심.
+		//    원판(disc 0.88)에 눕혀 위에서 본 소용돌이로 읽히게 하고, 두께를 남겨 기둥으로 세운다.
+		'나선 폭풍': {
+			lifeBase: 1.1, damping: 1.5, gravity: 0.0, updraft: 1.2,
+			volatility: 1.1, flowFreq: 2.2, flowSpeed: 1.1,
+			size: 0.02, stretch: 0.5, opacity: 0.45, luminosity: 2.2,
+			fxK: 1, burst: 3.2, cone: 0.0, swirl: 0.25, shell: 0.1, grow: 1.4, curve: 1.4, ember: 0, // 도달 ≈1.7m
+			// 팔이 보이려면 *덩어리*가 남아야 한다: 조각을 굵게(shredFreq 14) 나누고 사이를
+			// 비운다(tear 0.32). 회전이 너무 크면(2.6=149°) 조각이 방위로 뭉개져 그냥 고리가 된다.
+			shred: 0.5, shredFreq: 14, tear: 0.32, shredPow: 2.0,
+			disc: 0.88, discThick: 0.45, rayLen: 5, rayThin: 1.4, rayAlign: 0.6,
+			twist: 1.3,
+			powVel: 0.8, powSize: 0.25, powLum: 0.6, powLife: 0.35,
+			flash: 1.0, coreGlow: 0.6,
+			colorA: '#ffd9a8', colorB: '#8a3bff', form: 4, // 뜨거운 팔 → 보랏빛 잔풍
+			slots: 1,
+		},
+	};
+
+	// ── 이펙트 세트 = 슬라이스 예산의 데이터 ────────────────────────────────
+	// 슬라이스(개체 슬롯)는 8개뿐이고, 이펙트가 가져간 나머지가 곧 캐릭터(기반 개체)의 밀도다.
+	// 그래서 "전 이펙트를 동시에 올린다"는 선택지가 아니다 — 무엇을 같이 쓸지를 *세트*로 묶어
+	// 고르게 한다(이것도 코드가 아니라 데이터). 첫 세트가 기본값.
+	const FX_SETS = {
+		'타격 계열': ['타격', '파이어볼 폭발', '물결파', '검격', '굴절 파면'],
+		'마법 계열': ['전격', '기 모으기', '나선 폭풍', '삼중 파문', '회복 오라'],
 	};
 
 	// 이펙트 프리셋 → 엔진 입력 유전자 (form 4). 슬롯 배정(fxSlotBase/fxSlots)은 FxSystem 몫.
@@ -181,14 +293,15 @@
 	//   engine.frame({ ..., fxEvents: fx.buffer() });
 	function FxSystem(opts) {
 		opts = opts || {};
-		// 기본 세트는 demo:false 를 뺀다 — 슬라이스(=개체 슬롯)는 8개뿐이고, 남는 만큼이
-		// 기반 개체(캐릭터)의 밀도다. 필요하면 opts.names 로 명시해 되살린다.
-		this.names = (opts.names || Object.keys(FX_PRESETS).filter((n) => FX_PRESETS[n].demo !== false)).slice();
+		// 기본 세트 = FX_SETS 의 첫 세트. 슬라이스(=개체 슬롯)는 8개뿐이고 남는 만큼이
+		// 기반 개체(캐릭터)의 밀도라, "전부 올린다"는 선택지가 아니다 (opts.names 로 직접 지정 가능).
+		this.names = (opts.names || FX_SETS[Object.keys(FX_SETS)[0]]).slice();
 		this.slices = opts.slices || (global.HktGenesisEngine && global.HktGenesisEngine.MAX_ENTITIES) || 8;
 		// 슬라이스당 이벤트 슬롯 수 = 그 슬라이스의 스플랫을 몇 갈래로 나눌지.
 		// 많을수록 동시 발생이 늘고, 적을수록 한 번의 이펙트가 촘촘해진다 (같은 예산의 교환).
 		this.slotsPerSlice = opts.slots || 2;
 		this._events = new Float32Array(MAX_FX * FX_STRIDE);
+		this._expiry = new Float32Array(MAX_FX); // 슬롯별 소등 시각 (F6 유효 수명 — 지표용)
 		for (let k = 0; k < MAX_FX; k++) this._events[k * FX_STRIDE + 3] = -1; // t0 <= 0 = 비활성
 		this._plan = null;
 		this._seq = 0;
@@ -221,7 +334,9 @@
 			for (let j = 0; j < g.fxSlots; j++) slots.push(g.fxSlotBase + j);
 			slot += g.fxSlots;
 			ents.push(g);
-			this._plan[name] = { slots, next: 0, life: FX_PRESETS[name].lifeBase };
+			// genes = *살아 있는* 유전자 객체 — 엔진이 매 프레임 다시 패킹하므로 여기 값을 고치면
+			// 다음 프레임에 반영된다(재시드 불필요). 게놈 슬라이더 UI 의 근거.
+			this._plan[name] = { slots, next: 0, life: FX_PRESETS[name].lifeBase, genes: g };
 		}
 		return ents;
 	};
@@ -255,12 +370,18 @@
 		// w = 롤(rad): 축 둘레 기준 방향 — 검격의 칼날 각도 (온 고리 이펙트는 무시한다)
 		this._events.set([ev.radius != null ? ev.radius : 0.06, (++this._seq) * 7.13,
 			ev.scale != null ? ev.scale : 1, ev.roll || 0], o + 8);
+		// F6: 유효 수명 = lifeBase × 강도^powLife (셰이더 fxLifeOf 와 같은 식). 지표·UI 전용이라
+		// 렌더 경로와 무관하지만, 어긋나면 "몇 개가 살아 있나"가 거짓말이 된다.
+		const I = Math.max(ev.strength != null ? ev.strength : 1, 1e-3);
+		const g = p.genes || {};
+		this._expiry[slot] = Math.max(ev.time || 0, 1e-4) + p.life * Math.pow(I, g.powLife || 0);
 		return slot;
 	};
 
 	// 전 슬롯 소등 (장면 재시드 등) — 시뮬 시계가 되감기면 남은 이벤트가 되살아나지 않게
 	FxSystem.prototype.clear = function () {
 		this._events.fill(0);
+		this._expiry.fill(0);
 		for (let k = 0; k < MAX_FX; k++) this._events[k * FX_STRIDE + 3] = -1;
 		if (this._plan) for (const n of Object.keys(this._plan)) this._plan[n].next = 0;
 	};
@@ -276,11 +397,35 @@
 			const p = this._plan[name];
 			for (const s of p.slots) {
 				const t0 = this._events[s * FX_STRIDE + 3];
-				if (t0 > 0 && time - t0 >= 0 && time - t0 <= p.life) n++;
+				if (t0 > 0 && time >= t0 && time <= (this._expiry[s] || t0 + p.life)) n++;
 			}
 		}
 		return n;
 	};
 
-	global.HktGenesisFx = { FX_PRESETS, materializeFx, FxSystem, MAX_FX };
+	// 살아 있는 유전자 편집 — 게놈 슬라이더(UI)·하니스 공용. 프리셋 원본과 현재 장면의
+	// 유전자 객체를 함께 고치므로 다음 프레임에 반영된다(엔진이 매 프레임 개체 테이블을
+	// 다시 패킹하기 때문 — 재시드 없음). 게놈만 고치는 것이지 코드 경로는 그대로다.
+	FxSystem.prototype.setGene = function (name, key, value) {
+		const preset = FX_PRESETS[name];
+		if (!preset) return false;
+		preset[key] = value;
+		const p = this._plan && this._plan[name];
+		if (p) {
+			if (p.genes) p.genes[key] = value;
+			if (key === 'lifeBase') p.life = value;
+		}
+		return true;
+	};
+
+	// 이펙트의 현재 유전자 값 (UI 슬라이더 초기값) — 장면에 올라와 있으면 살아 있는 값,
+	// 아니면 프리셋 원본. materialize 폴백(미지정 = 0, 일부 1)을 거친 값이라 UI 가 빈칸을 만들지 않는다.
+	FxSystem.prototype.geneValue = function (name, key) {
+		const p = this._plan && this._plan[name];
+		if (p && p.genes && p.genes[key] != null) return p.genes[key];
+		const g = HktGenesisGenes.materialize(FX_PRESETS[name] || {}, [0, 0, 0]);
+		return g[key];
+	};
+
+	global.HktGenesisFx = { FX_PRESETS, FX_SETS, materializeFx, FxSystem, MAX_FX };
 })(window);

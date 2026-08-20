@@ -19,9 +19,21 @@
 	#fps { position: absolute; right: 12px; top: 12px; z-index: 2; opacity: 0.7; font-variant-numeric: tabular-nums; }
 	#msg { position: absolute; inset: 0; display: none; align-items: center; justify-content: center; z-index: 3; background: #06070f; padding: 24px; text-align: center; }
 	#fx { margin-top: 10px; }
-	#fx .row { display: flex; flex-wrap: wrap; gap: 4px; }
+	#fx .row { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
 	#fx button { background: #33202a; color: #ffd9cd; border: 1px solid #6b3a45; border-radius: 5px; padding: 5px 9px; cursor: pointer; }
 	#fx button:hover { background: #4a2b36; }
+	#fxSets button { background: #1e2a33; color: #cde8ff; border-color: #3a5a6b; }
+	#fxSets button.on { background: #2f4a5c; border-color: #6fb3d8; color: #eaf6ff; }
+	#fxPowerRow { margin-top: 8px; gap: 6px; }
+	#fxPowerRow input[type=range] { width: 190px; accent-color: #ff9d6e; }
+	#fxPowerVal { font-variant-numeric: tabular-nums; color: #ffd9cd; min-width: 68px; }
+	#fxGenes { margin-top: 8px; border: 1px solid #2b3550; border-radius: 6px; padding: 6px 8px; background: rgba(12,16,28,.55); }
+	#fxGenes summary { cursor: pointer; color: #9fd8ff; }
+	#fxGeneTarget { margin: 6px 0; background: #1a2030; color: #cdd3e0; border: 1px solid #2b3550; border-radius: 5px; padding: 3px 6px; }
+	#fxGeneList { max-height: 34vh; overflow-y: auto; display: grid; grid-template-columns: 88px 1fr 54px; gap: 2px 6px; align-items: center; font-size: 11px; }
+	#fxGeneList input[type=range] { width: 100%; accent-color: #7fd0ff; }
+	#fxGeneList .v { font-variant-numeric: tabular-nums; opacity: .8; text-align: right; }
+	#fxGeneList .grp { grid-column: 1 / -1; margin-top: 5px; color: #6fb3d8; opacity: .85; }
 	#fbx { margin-top: 10px; }
 	#fbx .row { display: flex; flex-wrap: wrap; gap: 4px; }
 	#fbx button { background: #1a2030; color: #cdd3e0; border: 1px solid #2b3550; border-radius: 5px; padding: 5px 9px; cursor: pointer; }
@@ -39,15 +51,31 @@
 <div id="ui">
 	<h1>HktSplatLife — 캐릭터(동적) 배양</h1>
 	<p>WebGPU 단독. 스플랫 = 세포 — 시뮬 상태에서 색·모양을 셰이더가 유도한다. 무대(환경)는 없다.<br>
-	좌드래그 회전 · 우/Shift드래그 이동 · 휠 줌 · 숫자키 1~5 = 이펙트 발생 (1 타격 · 4 물결파 · 5 검격)</p>
+	좌드래그 회전 · 우/Shift드래그 이동 · 휠 줌 · 숫자키 1~5 = 현재 세트의 이펙트 발생</p>
 	<div id="presets"></div>
 	<div id="genomes"></div>
 	<label><input type="checkbox" id="bones" checked> 뼈대 오버레이 (히키토)</label>
 	<!-- F1 이펙트: 이벤트 구동. 버튼은 fx.js FX_PRESETS 에서 자동 생성된다 —
 	     새 이펙트를 추가해도 이 HTML 은 손대지 않는다 (게놈 한 줄 = 새 이펙트). -->
 	<div id="fx">
+		<!-- 이펙트 세트: 슬라이스(개체 슬롯 8개) 예산 때문에 전부 동시에 올릴 수 없다 —
+		     무엇을 같이 쓸지는 fx.js FX_SETS 가 정하는 *데이터*다. -->
+		<div id="fxSets" class="row"></div>
 		<div id="fxButtons" class="row"></div>
+		<!-- F6 표현 강도: 게놈이 아니라 *사건*이 주는 값. 같은 이펙트가 스침 ↔ 정통으로 갈린다. -->
+		<div id="fxPowerRow" class="row">
+			<span>표현 강도</span>
+			<input type="range" id="fxPower" min="0.2" max="3" step="0.05" value="1">
+			<span id="fxPowerVal">×1.00</span>
+		</div>
 		<label><input type="checkbox" id="fxAuto"> 이펙트 자동 반복 (0.7초)</label>
+		<!-- 이펙트 게놈 슬라이더: 유전자 값을 바꾸면 다음 프레임에 반영된다(재시드 없음).
+		     항목은 presets.js GENE_DEFS 에서 자동 생성 — 유전자를 추가해도 이 HTML 은 그대로다. -->
+		<details id="fxGenes">
+			<summary>이펙트 게놈 조절</summary>
+			<select id="fxGeneTarget"></select>
+			<div id="fxGeneList"></div>
+		</details>
 	</div>
 	<!-- 외부 FBX 리그: 살(히키토)의 뼈대를 Mixamo FBX 클립으로 구동한다.
 	     three(r147) 는 FBX 파싱/FK 입력만 담당 — 렌더·시뮬은 여전히 자체 WebGPU. -->
