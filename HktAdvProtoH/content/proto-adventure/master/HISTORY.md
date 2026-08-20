@@ -1120,3 +1120,25 @@ CC-REASONS-ARE-A-LIST-NOT-A-BRANCH    C018 · 1회 — Cycle 이 스스로 보�
 
     없음. 두 Cycle 모두 상위 의미와 어긋난 지점을 보고하지 않았고, 반영 중에도
     발견되지 않았다.
+
+---
+
+## 공정 개선 — 시스템 척추(part_of) 도입과 본문 이력 이관
+
+Human 지시로 두 가지를 한 번에 반영했다 (상세 diff 는 git history 소유).
+
+```text
+part_of 도입    모든 MC-* 노드에 "이 조각이 속한 전체"(system · source · grounded)를
+                정식 필드로 세웠다 (SCHEMA · guides/master-graph · master-frontier 갱신).
+                grounded: false = 근거 문서가 이름만 댄 노드 — semantic 은 잠정이며
+                Frontier 후보의 Target 으로 세우지 않는다. MC-PREDICT 보류(위 Frontier
+                선택 기록)를 규칙으로 일반화한 것이다.
+
+이력 이관       살아 있는 문서(graph/*.yaml · overlay.md · frontier.md)에 쌓여 있던
+                정정 경위 · 날짜 · Cycle 실측 서사를 제거했다 (CLAUDE.md 원칙 20 집행).
+                제거된 근거의 현재값은 overlay.md 가, 경위는 이 파일의 기존 항목과
+                git history 가 소유한다. 특히 NEED 재판정의 "이전 판정 MISSING 정정"
+                주석 5건(MC-BREAK · MC-CONDITION-STACKING · MC-REPOSITION ·
+                MC-FORCE-MOVEMENT · MC-INTERRUPT)은 overlay.md 의 해당 행이 근거를
+                이어받았다.
+```

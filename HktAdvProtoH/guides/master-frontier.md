@@ -87,6 +87,8 @@ Frontier 선택 이후는 **기존 8 Stage Cycle Workflow 를 변경 없이** �
 ## Must Not
 
 - `VIOLATED` 후보를 후보 목록에 올리지 않는다 — Design Conflict 로 Human 에게 따로 제시한다.
+- `part_of.grounded: false` 인 Capability 를 후보의 Target 으로 세우지 않는다 —
+  그 전체의 설계 문서가 먼저다. "지금 열 수 없는 것" 에 그 사유로 적는다.
 - 개발 우선순위를 자동 확정하지 않는다.
 - Cycle 의 구현 방법·State 이름·수치를 Frontier 에 적지 않는다.
 - Graph 의 절대 Leaf 를 찾지 않는다 — 기준은 언제나 **현재 세계**다.

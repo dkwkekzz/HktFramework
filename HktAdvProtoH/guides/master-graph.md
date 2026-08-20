@@ -26,6 +26,8 @@ NEED      각 Possibility 에 필요한 것        → Requirement (AND) · MC
 3. **NEED** — 각 Possibility 의 Requirement 를 필요한 것만 기록한다.
    재사용 가능한 플레이 의미는 MC-* 로 세운다. `semantic` 에 이유를 쓰지 않는다 —
    상위 Goal/Possibility 경로가 설명한다 (정책 §7).
+   각 MC-* 에 `part_of`(속한 전체 · 출처 · grounded)를 적는다 — 노드가 목록으로
+   뽑혀도 어느 시스템의 조각인지 보이게 한다 (SCHEMA).
 4. 새 Node 전에 기존 Registry 를 검색한다. 보조 규칙(Conflict / Consequence /
    Reveal / Reframe / CC)은 실제 결정에 영향을 줄 때만 쓴다 (정책 §11).
 
@@ -39,7 +41,8 @@ NEED      각 Possibility 에 필요한 것        → Requirement (AND) · MC
   Graph 에 노드가 없으면 Overlay 의 결손 목록에도, Frontier 후보에도 나타나지 못한다
   (Penetration 이 그랬다 — 설계가 지정한 다음 층인데 후보가 될 길이 없었다).
 - 노드의 의미는 근거 문서의 문장에서만 가져온다. 문서가 이름만 댄 층은 이름과 작용
-  지점까지만 적고 세부는 그 층의 설계 문서를 기다린다.
+  지점까지만 적고 `part_of.grounded: false` 로 표시한다 — 그 노드의 semantic 은
+  잠정이며, 그 전체의 설계 문서가 서면 개정한다. 세부를 지어 채우지 않는다.
 
 ## Must Not
 

@@ -275,15 +275,34 @@ Capability 쪽 거울은 `demanded_by` 다 (`required_by` 와 같은 방식의 �
      비슷한 다른 Capability 와 무엇으로 갈리는가>
   world_shape: >
     <이 능력이 세계에 있다는 것을 무엇으로 확인하는가 — Cycle 이 이 칸을 닫는다>
+  part_of:                    # 이 조각이 속한 전체 — 노드가 목록으로 뽑혀도 자리가 보이게 한다
+    system: <전체의 이름과 그 안의 자리 — 사람 말. 예: 전투 사다리 — Active Defense 층>
+    source: <그 전체를 정의하는 문서·절. 문서가 이름만 댔으면 "(이름만)" 을 붙인다>
+    grounded: true            # false = 근거 문서가 이름만 댔다 — semantic 은 Agent 의 잠정
+                              # 번역이며, 그 전체의 설계 문서가 서면 개정한다
   required_by:  [MP-...]      # 이 능력을 요구하는 방법
   demanded_by:  [MW-...]      # 이 능력을 요구하는 장소
   constraints: [DC-...]
   constraint_evaluation:
-    DC-...: UNRESOLVED
+    DC-...: UNRESOLVED        # 판정 값 + 한 줄 사유까지만 — 실측 서사는 08-verification 소유
   overlay: MISSING            # IMPLEMENTED | PARTIAL | MISSING — 근거는 overlay.md
 ```
 
 구현 모듈명(`world/combat/guard.ts`)을 `semantic` 에 쓰지 않는다.
+
+`part_of` 규칙 — 여기가 "이게 왜 있는지" 의 이해를 책임진다.
+
+```text
+required_by/demanded_by 는 누가 요구하는가(필요)를 답하고, part_of 는 어떤 전체의
+조각인가(자리)를 답한다 — 둘은 다른 질문이다. 목록·Frontier 로 뽑힌 노드가 홀로
+읽혀도 part_of 만으로 자리가 보여야 한다.
+system 은 지어내지 않는다 — 근거 문서가 이미 가진 구조(층·사슬·게이트)의 이름을 쓴다.
+grounded: false 노드는 Frontier 후보의 Target 으로 세우지 않는다 — 그 전체의 설계
+문서가 먼저다 (MC-PREDICT 보류가 이 규칙의 선례다 — HISTORY).
+```
+
+`overlay:` / `implemented:` 에는 **값만** 둔다 — 근거·정정 경위·날짜를 노드 주석으로
+쌓지 않는다. 근거는 `overlay.md`, 경위는 `HISTORY.md` 소유다 (CLAUDE.md 원칙 20).
 
 `required_by` 와 `demanded_by` 가 **둘 다 비면** 그 Capability 는 노드가 아니다 —
 아무도 요구하지 않는 능력은 세계가 필요로 하지 않는 것이다. 어느 쪽이든 하나는
