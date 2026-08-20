@@ -2,7 +2,7 @@
 
 파일 하나 = Constraint 하나. 이름은 `DC-<NAME>.yaml`. 형식은 [../SCHEMA.md](../SCHEMA.md).
 
-현재: **Active 17종** — 전투 5종(1종 REVISED) + 성장 6종 + 세계 5종 + GLOBAL 1종.
+현재: **Active 18종** — 전투 5종(1종 REVISED) + 성장 6종 + 세계 5종 + GLOBAL 2종.
 보류(DRAFT)는 없다.
 
 근거 문서:
@@ -12,6 +12,7 @@ R1 §x   design/Design-Combat-OffenseDefense-R0.md   전투 영역
 DT §x   design/Design-Combat-DamageType-R0.md        전투 영역
 GR §x   design/Master-Intent-Graph-Growth.md         성장(GROWTH) 영역 한정
 BW §x   design/Master-World-Beira.md                 세계(WORLD) 영역
+TG §x   design/Design-Targeting-R0.md                 지목(GLOBAL)
 ```
 
 근거는 영역을 넘지 않는다 — 전투 노드에 GR 을, 성장 노드에 R1/DT 를 인용하지 않는다.
@@ -53,7 +54,13 @@ BW §x   design/Master-World-Beira.md                 세계(WORLD) 영역
 | DC-WORLD-PLAYER-UNFIXED-PATH | Player 의 역할·Class·진영·탐험 이유를 하나로 고정하지 않는다 | BW §1 · §15 · §31 |
 | DC-WORLD-PROGRESSION-IS-REACH | Progression 은 Level 이 아니라 대응 가능한 세계 범위의 확장 | BW §1 · §17 · §32 |
 
-`DC-WORLD-OWNS-THE-SURFACE-LIST` 는 위 표와 성격이 다르다 — 전투 기획서가 아니라
+### Active — APPROVED (GLOBAL)
+
+| Constraint | 한 줄 | 근거 |
+|---|---|---|
+| DC-TARGET-IS-INTENT-NOT-AIM | 지목은 의도의 표명일 뿐 — 명중·피해·정보·위협을 만들지 않고 세계가 대신 다가가지 않는다 | TG §0 · §2.1 · §2.3 · §3.4 · §9 · §10 |
+
+`DC-WORLD-OWNS-THE-SURFACE-LIST` 는 위 표들과 성격이 다르다 — 전투 기획서가 아니라
 Cycle 관찰(C007 → C009 → C010)에서 승격된 GLOBAL Constraint 다. 근거는
 `candidates/CC-WORLD-OWNS-THE-SURFACE-LIST.md` 이며 DT §10 · §16.3-6 이 같은 방향을
 독립적으로 지지한다 (세계가 보낸 값이 권위이고 View 가 추측하지 않는다).
