@@ -1008,3 +1008,97 @@ ONE-LAYER-AT-A-TIME 신설, 이연 층 근거의 3종은 DRAFT 보류.
     배운 것: Master Layer 는 한 번에 한 갈래만 도는 것이 안전하다. 두 갈래가 같은
     Overlay 를 동시에 갱신하면 병합이 사실을 고르는 일이 되고, 그 판단은 원래
     Agent 의 것이 아니다.
+
+## Feedback — C017(지목) · C018(관계) 반영 (2026-08-20)
+
+    두 Cycle 이 닫혔는데 Feedback 이 돌지 않아 Overlay 가 밀려 있었다.
+    C017 은 main 에서 COMPLETE 로 닫혔고 C018 은 기계 검증까지 닫혔으나,
+    overlay 는 여전히 지목 둘을 MISSING/PARTIAL 로, 관계를 MISSING 으로 적고 있었고
+    frontier 는 그 셋을 아직 후보로 세워 두고 있었다.
+    (Guide 가 경고한 그대로다 — 밀린 Overlay 는 이미 채워진 칸을 결손으로 보인다.)
+
+### Overlay 갱신
+
+```text
+MC-DESIGNATE-TARGET   MISSING → IMPLEMENTED   근거 C017 08-verification
+MC-WATCH-TARGET       PARTIAL → IMPLEMENTED   근거 C017 08-verification
+MC-RELATION-STANCE    MISSING → IMPLEMENTED   근거 C018 08-verification
+MA-HOSTILE-COMBATANT  PARTIAL → PRESENT       근거 C018 — 지킬 자리가 생겼다
+MG-HOLD-HUNTING-GROUND PARTIAL → PRESENT      근거 C018 — world_shape 3줄 모두 실측
+```
+
+    MP-LEARN-TO-HANDLE-THE-LAYER 가 **네 칸 중 셋**이 되었다.
+    남은 것은 예측 하나이며 그것이 MC-OBSERVE 의 마지막 결손과 같은 자리다 —
+    닫히면 이 게임의 기본 진행 방식이 통째로 선다.
+
+### Frontier 정리
+
+```text
+지웠다   FR-TARGET-SELECTION    → C017-target-gathers-the-actions 로 닫혔다
+         FR-RELATION-STANCE     → C018-stance-decides-who-can-be-struck 로 닫혔다
+남았다   예측 · 중단 · 아이템 사용 (번호를 1·2·3 으로 다시 매겼다)
+추천     1 예측 (한 갈래를 완주시키는 유일한 후보) · 2 아이템 사용 · 3 중단
+```
+
+    "지금 열 수 없는 것" 에서 **막는 것이 사라진 항목 둘**을 표에 남겼다 —
+    위협도·진영·도발(사정 목록에 항목을 더하면 된다)과 Tab 후보 추리기·대상 프레임의
+    관계 표시(TG 가 요구하던 태도가 섰다). 둘 다 후보로 올리지는 않았다:
+    앞의 것은 어느 Possibility 도 요구하지 않고(7 조건 2), 뒤의 것은 세계의 결손이
+    아니라 화면의 편의다.
+
+### 배운 것 — C018 이 이미 승인된 Constraint 를 다시 발견했다
+
+    C018 이 `CC-WORLD-DERIVE-DONT-REMEMBER`("유도할 수 있으면 저장하지 않는다")를
+    새 후보로 제안했다. 그런데 그것은 **이미 APPROVED 인 `DC-CONDITION-OPENS-WITHOUT-
+    RECORDING` 과 같은 원칙**이다 (C016 에서 승격).
+
+    새 후보를 만들지 않고 그 DC 의 세 번째 사례로 기록했다 —
+    MC-RELATION-STANCE 의 constraint_evaluation 에 SATISFIED 로 이었다.
+
+        C015  확률의 양 끝에서 우연의 원천을 소비하지 않는다
+        C016  통찰이 연 자리를 기록하지 않아 되돌림 규칙이 한 줄도 안 바뀌었다
+        C018  태도를 저장하지 않아 "물러나면 풀린다" 의 구현이 0줄이다
+
+    공정에서 배운 것: **Cycle 이 Active Constraint 로 세우지 않은 GLOBAL Constraint 가
+    그 Cycle 의 설계를 이미 지배하고 있을 수 있다.** C018 의 01~03 은 Active 로
+    CREATURE-FROM-PRESSURE · COMBAT-IS-ONE-POSSIBILITY · SURFACE-LIST 셋만 들었고,
+    scope 가 GLOBAL 인 CONDITION-OPENS-WITHOUT-RECORDING 을 보지 않았다.
+    그래서 이미 있는 원칙을 스스로 다시 유도했다.
+    — 원칙이 옳다는 증거이자, Cycle Stage 1 이 GLOBAL scope Constraint 를 훑어야
+    한다는 신호다. 공정 변경은 Human 판단이므로 여기 적어만 둔다.
+
+### Constraint Candidate 접수 (셋 다 PENDING)
+
+```text
+CC-THE-CHOICE-IS-THE-OBSERVERS-OWN    C017 · 3회 (C004 · C014 · C017)
+    관찰자에게 매달리는 사실은 세계가 지니되 관찰자별로 갈리고, Id 만 담고,
+    "없음" 을 저장하지 않고, **대상 쪽에는 아무것도 적지 않는다.**
+    마지막 성질이 DC-TARGET-IS-INTENT-NOT-AIM 을 코드 구조로 지킨다 —
+    대상 쪽이 비어 있으면 그 규칙을 어길 자리가 없다
+
+CC-A-GATE-MOVES-WITH-ITS-MEANING      C017 · 1회
+    관문이 옮겨가도 사유를 잃지 않는다. 사례가 하나뿐이라 두 번째 이사를 기다린다
+
+CC-REASONS-ARE-A-LIST-NOT-A-BRANCH    C018 · 1회 — Cycle 이 스스로 보류를 권했다
+    사정은 목록으로, 판정은 그 목록을 읽는다. 항목이 하나뿐이라 값어치가 아직
+    실측되지 않았다 — 두 번째 사정이 서는 Cycle 이 확인하거나 기각한다
+```
+
+### 위층이 알아야 할 사실 둘 (Gap 은 아니다)
+
+```text
+① RULE-TARGET-CLEAR-STALE-001 은 플레이로 도달하지 않는다 (C017)
+   존재가 세계에서 사라지는 경로가 0건이다. 규칙과 단위 검증은 섰고, 플레이 확인은
+   존재를 없애는 개념이 오는 Cycle(전리품 · 소멸 · 지역 이동)의 몫이다.
+   overlay 의 MC-DESIGNATE-TARGET 행에 단서로 남겼다
+
+② 기반 트랙 커밋(Q28(a))은 C017 의 선행 조건이 아니었다
+   Stage 4 의 코드 대조가 Stage 1 의 판단을 정정했고 Human 이 그대로 진행을 결정했다.
+   C017 은 engine/ 을 한 줄도 편집하지 않고 닫혔다. 그 커밋의 값어치는 남아 있으며
+   자리가 셋이다 — 지형 클릭의 결정 · 존재마다 오는 interaction 이 둘이 될 때 · 외곽선 강조
+```
+
+### Master Gap
+
+    없음. 두 Cycle 모두 상위 의미와 어긋난 지점을 보고하지 않았고, 반영 중에도
+    발견되지 않았다.
