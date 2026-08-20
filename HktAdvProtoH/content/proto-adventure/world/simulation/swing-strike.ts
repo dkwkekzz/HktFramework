@@ -21,6 +21,7 @@ import { applyRadialImpulse, circleHits } from '../../../../engine/physics/sweep
 import { actionCollider, SWING_IMPULSE } from '../semantic/collision';
 import { isDowned, isSkillKind } from '../semantic/combat';
 import type { WorldState } from '../semantic/world-state';
+import { ruleHarmGate } from '../rules/relation';
 import { ruleHit } from '../rules/attack';
 import { ruleSkillBudget } from '../rules/skill';
 import { ruleStrikeDamage } from '../rules/strike-damage';
@@ -44,7 +45,26 @@ export function ruleSwingStrike(state: WorldState): number {
 
       if (!circleHits(collider.center, collider.radius, target)) continue;
 
+      // 닿았다는 사실은 성립 여부와 무관하다 (C018 CHANGED) — StruckActorIds 는
+      // "맞은 몸들" 이 아니라 **"이 휘두름이 이미 닿은 몸들"** 이다. 성립하지 않은 접촉도
+      // 여기 담지 않으면 한 휘두름이 지나가는 동안 같은 무산이 매 Tick 쌓인다.
       struck.push(target.id);
+
+      // RULE-HARM-GATE-001 (C018) — 적대가 성립하지 않으면 아무 일도 일어나지 않는다.
+      // 피해도 · 끊김도 · 미는 힘도 · 기력 수지도 없다. 닿았다는 사실과 그 사유만 남는다
+      // (INTENT-HARM-GATE-001 · INTENT-UNHARMED-IS-OBSERVABLE-001).
+      const gate = ruleHarmGate(attacker, target);
+      if (gate.status === 'refused') {
+        state.unharmedContacts.push({
+          attackerId: attacker.id,
+          targetId: target.id,
+          skill,
+          position: { x: target.position.x, z: target.position.z },
+          time: state.time,
+          reason: gate.reason,
+        });
+        continue;
+      }
 
       ruleHit(target);
 

@@ -10,6 +10,7 @@
 
 import type { EntityView, GameViewSnapshot, InteractionView } from '../../protocol/gameview';
 import { actionProgress, actionTargetId } from '../semantic/action';
+import { ruleStance } from '../rules/relation';
 import { actionCollider } from '../semantic/collision';
 import { evaluateAttributeSetAvailability } from '../rules/attribute-set';
 import { evaluateForgetAcquaintance, evaluateObserveBegin } from '../rules/observe';
@@ -129,6 +130,14 @@ export function projectObserverView(
         // C014 가 정한 셋 그대로다 (01 EXCLUDED). 이 값이 보여야 가려진 목록이
         // 왜 그 길이인지가 설명된다.
         insight: actor.insight,
+        // C018 ADDED — 둘 사이의 태도 두 방향 (INTENT-STANCE-OBSERVE-001).
+        // 언제나 실리고 가려지지 않는다 — 가리면 물러날 판단 자체가 성립하지 않는다.
+        // 매 관찰마다 다시 계산된다: 걸어 들어가면 neutral 이 hostile 이 되고
+        // 걸어 나오면 되돌아간다. 세계가 기억하지 않으므로 화면에도 원한이 생기지 않는다.
+        // 자기 몸에도 실린다 (둘 다 neutral) — 언제나 같다고 빼면 View 가
+        // "자기 몸에는 없다" 는 또 하나의 경우를 알아야 한다.
+        stanceTowardObserver: ruleStance(actor, self),
+        stanceFromObserver: ruleStance(self, actor),
         // 전투 능력치 (C010 → C012 → C014) — 네 값과 두 방어 배율. 체감식이라 수치만
         // 보고는 효과를 알 수 없기 때문이다 (INTENT-TYPED-DEFENSE-001).
         // C014 CHANGED — 남의 것은 살펴본 뒤에만 실린다. 값의 뜻은 그대로이고
@@ -501,6 +510,17 @@ export function projectObserverView(
       // 모르는 상대에게 크게 터진 것은 보인다. 그 상대가 **얼마나 자주** 터뜨리는
       // 몸인지는 여전히 살펴봐야 안다 (combatStats 안이다).
       breakdown: { ...event.breakdown },
+    })),
+    // World.UnharmedContacts (C018) — 닿았으나 해가 성립하지 않은 접촉.
+    // 타격 결과와 나란히 실린다. 이것이 없으면 화면에서 무산은 빗나감과 구분되지 않는다
+    // (INTENT-UNHARMED-IS-OBSERVABLE-001). 사유 목록의 단일 출처는 세계다.
+    contacts: state.unharmedContacts.map((contact) => ({
+      attackerId: contact.attackerId,
+      targetId: contact.targetId,
+      skill: contact.skill,
+      at: { x: contact.position.x, z: contact.position.z },
+      since: contact.time,
+      reason: contact.reason,
     })),
     // World.DebugAuthority (C007 R2) — 이 세계가 조작을 허용하는가.
     debug: {

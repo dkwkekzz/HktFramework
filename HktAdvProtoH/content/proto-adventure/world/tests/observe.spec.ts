@@ -29,11 +29,18 @@ const tickFor = (world: WorldDriver, seconds: number) => {
 
 // 다가오지 않는 자율 존재 — 살펴봄 자체를 재는 테스트에서는 인지 거리를 0 으로 둔다.
 // 다가오는 경우는 아래 "대가" 절이 따로 다룬다.
+// C018 CHANGED — 태도가 없으면 닿아도 아무 일이 일어나지 않는다 (RULE-HARM-GATE-001).
+// 그래서 전투를 보는 시나리오의 상대는 **이 무대를 자기 자리로 지니는 존재**로 세운다.
+// 세계를 약하게 만드는 것이 아니라, 지금까지 말하지 않고 전제해 온 것(칠 수 있는 사이다)을
+// 시나리오가 드러내 적는 것이다. perceptionRange 0 이므로 쫓아오지는 않는다.
+const WHOLE_STAGE = { center: { x: 0, z: 0 }, radius: 64 };
+
 const dummyAt = (x: number, z: number, id = 'npc-1') => ({
   id,
   position: { x, z },
   wanderPath: [],
   perceptionRange: 0,
+  guardedGround: WHOLE_STAGE,
 });
 
 const actor = (v: GameViewSnapshot, id: string) => v.entities.find((e) => e.id === id);
@@ -350,7 +357,9 @@ describe('INTENT-OBSERVE-001 — 끝까지 가지 못하면 아무것도 알게 
   it('맞아서 중단되면 앎이 남지 않는다', () => {
     // 다가와 때리는 자율 존재 — 인지 거리를 열어 둔다
     const world = driveWorld({
-      npcs: [{ id: 'npc-1', position: { x: 1.5, z: 0 }, wanderPath: [], perceptionRange: 9 }],
+      npcs: [
+        { id: 'npc-1', position: { x: 1.5, z: 0 }, wanderPath: [], perceptionRange: 9, guardedGround: WHOLE_STAGE },
+      ],
     });
     requestObserve(world, 'npc-1');
     world.tick(TICK_INTERVAL);

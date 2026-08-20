@@ -112,6 +112,7 @@
   ],
   "hud": [],
   "strikes": [],
+  "contacts": [],
   "debug": {
     "open": false
   },

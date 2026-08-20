@@ -138,8 +138,9 @@ interactions:
         언제나 가용하다
       - 결과는 닿은 자리에서 갈린다 — 성립하면 strikeEvents 로, 성립하지 않으면
         unharmedContacts 로 온다
-      - 요청 시점에 대상을 보고 거절하는 자리는 **지목이 서야 생긴다**
-        (01 SCOPE NOTE ① — 병행 Cycle 의 몫)
+      - C017 이 지목을 세운 뒤에도 그대로다 — 휘두름은 고른 것을 읽지 않는다
+        (C017 03 REUSED — RULE-SWING-STRIKE-001 무변경). 요청 시점에 대상을 보고
+        거절하는 자리는 휘두름이 고른 것을 읽는 Cycle 이 서야 생긴다
   skillHeavy:
     change: NONE
     meaning:

@@ -76,7 +76,9 @@
           "broken": false
         },
         "defenseShape": "even",
-        "insight": 0
+        "insight": 0,
+        "stanceTowardObserver": "neutral",
+        "stanceFromObserver": "neutral"
       }
     },
     {
@@ -148,7 +150,9 @@
           "broken": false
         },
         "defenseShape": "even",
-        "insight": 0
+        "insight": 0,
+        "stanceTowardObserver": "neutral",
+        "stanceFromObserver": "neutral"
       }
     }
   ],
@@ -196,6 +200,7 @@
   ],
   "hud": [],
   "strikes": [],
+  "contacts": [],
   "debug": {
     "open": true
   },

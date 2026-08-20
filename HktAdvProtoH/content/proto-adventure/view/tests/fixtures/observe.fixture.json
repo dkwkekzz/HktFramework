@@ -63,7 +63,9 @@
           "guarding": false,
           "broken": false
         },
-        "insight": 0
+        "insight": 0,
+        "stanceTowardObserver": "neutral",
+        "stanceFromObserver": "neutral"
       },
       "body": {
         "radius": 0.7,
@@ -121,7 +123,9 @@
           "guarding": false,
           "broken": false
         },
-        "insight": 0
+        "insight": 0,
+        "stanceTowardObserver": "neutral",
+        "stanceFromObserver": "neutral"
       },
       "body": {
         "radius": 0.7,
@@ -193,7 +197,9 @@
           "guarding": false,
           "broken": false
         },
-        "insight": 0
+        "insight": 0,
+        "stanceTowardObserver": "neutral",
+        "stanceFromObserver": "neutral"
       },
       "body": {
         "radius": 0.85,
@@ -481,6 +487,7 @@
     }
   ],
   "strikes": [],
+  "contacts": [],
   "debug": {
     "open": true
   },
