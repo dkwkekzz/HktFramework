@@ -21,6 +21,7 @@
 
     ADDED
         Actor.GuardedGround                  그 존재가 지키는 자리 (중심 · 반경) — 없을 수 있다
+        HOSTILITY_REASONS                    적대를 낳는 사정의 **목록** — 지금 한 항목
         RULE-STANCE-001                      A 가 B 를 어떻게 대하는가 (파생 판정 · 저장하지 않는다)
         RULE-HARM-GATE-001                   이 둘 사이에 해가 성립하는가
         World.UnharmedContacts               닿았으나 성립하지 않은 접촉 (StrikeEvents 와 같은 수명)
@@ -56,7 +57,9 @@
         RULE-MINE-001               무변경 — 광맥은 존재가 아니므로 태도가 없다
         Observer Projection         존재마다 나를 향한 태도가 더해지고, 무산 접촉 목록이
                                     타격 결과 옆에 나란히 실린다
-        RULE-OBSERVER-JOIN-001      보는 이의 몸은 GuardedGround 를 지니지 않는다 (없음)
+        RULE-OBSERVER-JOIN-001      무변경 — 몸은 지키는 자리 없이 태어난다. 막기를 안 든 채로
+                                    태어나는 것(guarding = false)과 같은 **초기값**이지
+                                    사람이라서 두는 예외가 아니다
 
 ## WORLD STATE
 
@@ -76,7 +79,25 @@
         없는 개체가 있다. 따라서 CharacterKind 카탈로그(kind 정적 데이터 3원소)는
         건드리지 않는다. 세계를 띄우는 쪽의 초기 배치가 정한다.
 
-        보는 이의 몸은 이 값을 지니지 않는다 (RULE-OBSERVER-JOIN-001 무변경 — 없음).
+        **어떤 몸이든 지닐 수 있다.** 자율 존재만의 성질이 아니다 — 보는 이의 몸도
+        같은 자리를 지니며, 지금은 값이 없을 뿐이다(RULE-OBSERVER-JOIN-001 무변경).
+        Control 이 player 인지 autonomous 인지는 이 값에도 태도 판정에도 들어가지 않는다.
+
+    HOSTILITY_REASONS                                World Authority (목록)
+        적대를 낳는 **사정들**. 각 항목은 "이 둘 사이에 적대가 성립하는가" 를 답한다.
+        RULE-STANCE-001 은 이 목록을 읽을 뿐이며 사정을 자기 안에 적지 않는다.
+
+        지금 목록에 있는 항목은 하나다.
+
+            지키는 자리에 들었다   A.GuardedGround 가 있고 B 가 그 안에 있다
+
+        이 자리가 이 Cycle 의 **기반**이다 (2026-08-20 Human 지시). NPC · 몬스터 · 진영 ·
+        결투 등 무엇이 적대의 이유가 되는지는 이후 Cycle 이 이 목록에 항목을 더하며
+        정하고, 그때 RULE-HARM-GATE-001 도 Observable 도 바뀌지 않는다.
+        목록의 단일 출처는 세계다 (DC-WORLD-OWNS-THE-SURFACE-LIST).
+
+        **항목은 주체의 종류를 묻지 않는다.** 사람의 몸인지 자율 존재의 몸인지는
+        어떤 항목의 입력도 아니다 — 해를 입을 수 있는지는 그 자리와 세계의 규칙이 정한다.
 
     Stance (파생 — 저장하지 않는다)
         A 가 B 를 어떻게 대하는가. hostile | neutral | friendly 셋 중 하나다.
@@ -108,10 +129,16 @@
         Input          Actor A (보는 쪽), Actor B (보이는 쪽)
         Preconditions  없음 — 어느 두 존재 사이에도 언제나 답이 있다
         Transition     없음 — 세계 상태를 바꾸지 않는다 (파생 판정)
-        Result         hostile    A.GuardedGround 가 있고 B.Position 이 그 안에 있다
-                       neutral    그 밖의 모든 경우
+        Result         hostile    HOSTILITY_REASONS 중 **하나라도** (A, B) 에 적대를 낸다.
+                                  지금 목록이 하나이므로 지금의 조건은 하나다 —
+                                  A.GuardedGround 가 있고 B.Position 이 그 안에 있다
+                       neutral    어느 사정도 닿지 않는 모든 경우
                        friendly   지금 이 세계에서는 나오지 않는다 — 낳는 사정이 없다.
                                   갈래는 서 있고 값이 비어 있다 (없는 사정을 지어내지 않는다)
+
+        **주체의 종류를 묻지 않는다.** A 와 B 가 사람의 몸인지 자율 존재의 몸인지는
+        이 판정의 입력이 아니다. 목록에 항목이 늘어도 이 Rule 의 모양은 그대로다 —
+        늘어나는 것은 목록이지 판정이 아니다.
 
         자리 안인가의 판정은 중심으로부터의 거리가 반경 이하인가로 한다 —
         몸의 반경을 더하지 않는다. 몸이 걸치는 것이 아니라 **자리에 들어와 있는가**를
@@ -191,14 +218,16 @@
 ## OBSERVABLE SEMANTIC
 
     존재마다 — 그가 나를 어떻게 대하는가          RULE-STANCE-001(그 존재 → 내 몸)
-        hostile | neutral | friendly 중 하나. **모든 존재에 언제나 실린다.**
+    존재마다 — 내가 그를 어떻게 대하는가          RULE-STANCE-001(내 몸 → 그 존재)
+        각각 hostile | neutral | friendly 중 하나. **모든 존재에 언제나 둘 다 실린다.**
         가려지지 않는다 — 가려짐의 목록(CONCEALABLE_ATTRIBUTE_KEYS)에 넣지 않는다.
-        살펴봄으로 여는 것은 겨루는 힘이고, 태도는 지금 나에게 일어나고 있는 일이다.
+        살펴봄으로 여는 것은 겨루는 힘이고, 태도는 지금 둘 사이에 있는 일이다.
         보는 이가 몸을 지니지 않으면 실리지 않는다 (견줄 대상이 없다).
 
-        **내가 그를 어떻게 대하는가는 싣지 않는다** — 보는 이의 몸은 지키는 자리를
-        지니지 않으므로 언제나 neutral 이고, 언제나 같은 값은 관찰이 아니다.
-        사람이 지킬 것을 갖는 Cycle 이 서면 그때 자리가 생긴다.
+        **둘 다 싣는 이유**는 태도가 방향값이고 관문이 양방향을 읽기 때문이다.
+        한쪽만 실으면 "왜 내가 저것을 칠 수 있는가" 의 답이 절반만 온다.
+        지금 배치에서는 내 쪽 값이 대개 neutral 이지만, 내 몸에 지키는 자리가 붙으면
+        내 쪽도 적대가 된다 — **언제나 같은 값이라고 가정하고 빼지 않는다.**
 
     무산된 접촉                                   World.UnharmedContacts
         누가 · 누구에게 · 어떤 스킬로 · 어디서 · 언제 · **왜 성립하지 않았는가**.
@@ -226,7 +255,8 @@
                               — 자기 자리를 도는 존재가 되어야 "지킨다" 로 읽힌다
         지키지 않는 존재 (npc-2)  자리 없음. 순회 경로 그대로 (12,8) → (4,12)
 
-        보는 이의 몸이 놓이는 자리(SPAWN_POINTS)는 모두 자리 밖이다 —
+        보는 이의 몸에는 지키는 자리를 주지 않는다 — 지금 사람 쪽에 그럴 사정이 없기
+        때문이지 사람이라서가 아니다. 그 몸이 놓이는 자리(SPAWN_POINTS)는 모두 자리 밖이다 —
         (0,0) 은 중심에서 12.8, 가장 가까운 (-3,-2) 도 9.2 로 반경 7 밖이다.
         **처음에는 아무도 나를 사냥감으로 보지 않는다.** 다가가는 것이 플레이어의 선택이며,
         그 선택 없이는 이 세계에서 아무 일도 일어나지 않는다
@@ -255,7 +285,11 @@
     "밖에서는 칠 수 없다"                  → RULE-HARM-GATE-001 이 양쪽 모두 neutral 로 읽는다
     "자율 존재가 사냥감만 쫓는다"           → RULE-NPC-DECIDE-001 의 새 Precondition
     "나가면 더 쫓지 않는다"                → 같은 Precondition 이 다음 Tick 에 대상을 잃는다
-    "저것이 나를 어떻게 대하는지 보인다"    → Observable — 존재마다 실리고 가려지지 않는다
+    "둘 사이의 태도가 양쪽 다 보인다"      → Observable — 존재마다 두 방향이 실리고 가려지지 않는다
+    "주체의 종류가 규칙을 바꾸지 않는다"    → RULE-STANCE-001 · HOSTILITY_REASONS 의 입력에
+                                            Control 도 CharacterKind 도 없다
+    "사정이 늘어도 관문은 그대로다"        → RULE-HARM-GATE-001 은 RULE-STANCE-001 의 결과만
+                                            읽고, 사정은 HOSTILITY_REASONS 목록이 소유한다
     "닿았는데 아무 일도 없었음이 보인다"    → World.UnharmedContacts + 사유 not-hostile
     "무엇이 왜 안 되는지는 세계가 정한다"   → 사유 코드의 단일 출처가 World 다
                                             (DC-WORLD-OWNS-THE-SURFACE-LIST)

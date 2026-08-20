@@ -29,12 +29,23 @@
                                         사냥감으로 대하는 것만 쫓고, 아닌 것 앞에서는
                                         하던 일을 계속한다
 
-    GOAL-STANCE-IS-VISIBLE              저것이 나를 어떻게 대하는지 알 수 있다
+    GOAL-STANCE-IS-VISIBLE              둘 사이가 지금 어떤 관계인지 알 수 있다
         └── POSSIBILITY-STANCE-IS-NOT-CONCEALED
-                                        나를 향한 태도는 가려지지 않는다 — 가리면
-                                        물러날 판단 자체가 불가능해진다
+                                        태도는 가려지지 않는다 — 가리면 물러날 판단
+                                        자체가 불가능해진다
+        └── POSSIBILITY-BOTH-DIRECTIONS-ARE-CARRIED
+                                        저것이 나를 어떻게 대하는가와 내가 저것을 어떻게
+                                        대하는가가 함께 온다 — 방향값이므로 둘 다 사실이다
         └── POSSIBILITY-UNHARMED-CARRIES-ITS-REASON
                                         닿았는데 아무 일도 없었다면 왜인지가 함께 온다
+
+    GOAL-THE-RULE-HAS-NO-EXCEPTION      주체의 종류가 태도의 규칙을 바꾸지 않는다
+        └── POSSIBILITY-ANY-BODY-CAN-HOLD-A-REASON
+                                        어떤 몸이든 적대의 사정을 지닐 수 있고, 지니면
+                                        그대로 적대가 성립한다 — 사람도 예외가 아니다
+        └── POSSIBILITY-REASONS-ARE-A-LIST
+                                        태도가 무엇에서 나오는가는 목록이며, 목록이
+                                        길어져도 관문과 관찰은 그대로다
 
 ## INTENT SET
 
@@ -53,22 +64,39 @@
         달라지면 태도도 달라진다. 무엇이 있었는지는 태도에 남지 않는다 — 쳤다는 것도,
         전에 쫓겼다는 것도 태도를 바꾸지 않는다. 기억하는 태도는 이 Cycle 의 것이 아니다.
 
-        지금 이 세계에서 태도를 낳는 사정은 **하나뿐**이다 (INTENT-STANCE-FROM-GUARDED-
-        GROUND-001). 그 사정이 닿지 않는 모든 쌍은 **중립**이다. 우호는 갈래로 서 있으나
-        그것을 낳는 사정이 아직 없어 지금 우호인 쌍은 없다 — 없는 사정을 지어내지 않는다.
+        태도는 **근거 목록**에서 나온다. 세계는 "이 둘 사이에 적대를 낳는 사정이 있는가" 를
+        목록에 대고 묻고, 하나라도 적대를 내면 적대다. 어느 사정도 닿지 않는 쌍은 **중립**이다.
+
+        지금 그 목록에 있는 항목은 하나다 (INTENT-STANCE-FROM-GUARDED-GROUND-001).
+        그러나 그것이 **유일한 사정으로 정해진 것이 아니다** — 이 Cycle 이 세우는 것은
+        태도의 목록이 아니라 그 목록이 놓일 자리이며, NPC 든 몬스터든 진영이든 무엇이
+        적대의 이유가 되는지는 이후 Cycle 이 항목을 더하며 정한다. 관문도 관찰도
+        그때 바뀌지 않아야 한다는 것이 이 Intent 의 요구다.
+
+        우호는 갈래로 서 있으나 그것을 낳는 사정이 아직 없어 지금 우호인 쌍은 없다 —
+        없는 사정을 지어내지 않는다.
+
+        **주체의 종류는 이 판정에 들어가지 않는다.** 사람의 몸이든 자율 존재의 몸이든
+        같은 목록에 같은 방식으로 묻는다. 해를 입을 수 있는지 없는지는 그 몸이 누구의
+        것이냐가 아니라 **그 자리와 세계의 규칙**이 정한다 (MA-HOSTILE-COMBATANT —
+        몬스터 전용 규칙을 만들지 않는다는 것과 같은 자리다).
 
     INTENT-STANCE-FROM-GUARDED-GROUND-001 (ADDED)
 
+        근거 목록의 **첫 항목**이다 — 유일한 항목이 아니라 첫 항목이다.
+
         어떤 존재는 **지키는 자리**를 지닌다. 그 자리는 세계가 나눈 구역이 아니라
         **그 존재가 지닌 것**이다 — 자기 자리와, 거기서 얼마까지를 자기 것으로 여기는가.
+        **어떤 몸이든 지닐 수 있다.** 자율 존재만의 성질이 아니며, 사람의 몸에 그것이
+        붙으면 사람도 침입자를 사냥감으로 대한다.
 
         지키는 자리를 지닌 존재는 지금 그 안에 있는 다른 존재를 **사냥감으로 대한다.**
-        그 밖에 있는 것은 사냥감이 아니다. 지키는 자리를 지니지 않은 존재는 누구도
-        사냥감으로 대하지 않는다.
+        그 밖에 있는 것은 사냥감이 아니다. 지키는 자리를 지니지 않은 존재는 이 항목으로는
+        누구도 사냥감으로 대하지 않는다 — 다른 항목이 목록에 서면 그때 다시 묻는다.
 
-        이것이 적대의 유일한 사정이며, 플레이어를 위해 배치된 성질이 아니라
-        **그 존재가 살아가려는 목적의 결과**다 (MG-HOLD-HUNTING-GROUND). 적대인 존재를
-        만드는 것이 아니라, 지킬 것이 있는 존재가 침입자를 그렇게 대할 뿐이다.
+        플레이어를 위해 배치된 성질이 아니라 **그 존재가 살아가려는 목적의 결과**다
+        (MG-HOLD-HUNTING-GROUND). 적대인 존재를 만드는 것이 아니라, 지킬 것이 있는
+        존재가 침입자를 그렇게 대할 뿐이다.
 
         지키는 자리는 그 존재가 어디에 서 있든 따라다니지 않는다 — 자리는 자리에 있다.
         따라서 그 존재가 자리를 벗어나 있는 동안 그 자리에 든 자와의 적대는 그대로이고,
@@ -134,15 +162,19 @@
 
     INTENT-STANCE-OBSERVE-001 (ADDED)
 
-        존재마다 **그가 나를 어떻게 대하는가**가 관찰에 실린다.
+        존재마다 **그 존재와 나 사이의 태도가 양쪽 모두** 관찰에 실린다 —
+        그가 나를 어떻게 대하는가와, 내가 그를 어떻게 대하는가.
+
+        둘을 함께 싣는 이유는 태도가 방향값이기 때문이다. 한쪽만 실으면 "왜 내가 저것을
+        칠 수 있는가" 의 답이 절반만 온다. 그리고 어느 한쪽이라도 적대이면 둘 사이에
+        해가 성립하므로, 두 값이 함께 있어야 관문의 결과를 관찰만으로 설명할 수 있다.
+        **어느 쪽도 주체의 종류로 달라지지 않는다** — 내 몸에 적대의 사정이 붙으면
+        내 쪽 값도 적대가 된다.
 
         이 값은 **가려지지 않는다.** 살펴보지 않아도, 통찰이 없어도 보인다.
         가리면 물러날 판단 자체가 성립하지 않기 때문이다 — 무엇이 나를 사냥감으로
         보는지 모르는 채로는 다가갈지 물러날지를 고를 수 없고, 그 고름이 이 Cycle 의
-        플레이다. 태도는 겨루는 힘이 아니라 **지금 나에게 일어나고 있는 일**이다.
-
-        실리는 것은 나를 향한 태도다. 내가 저것을 어떻게 대하는가는 지금 세계에서
-        언제나 중립이므로(지키는 자리를 지닌 플레이어가 없다) 따로 싣지 않는다.
+        플레이다. 태도는 겨루는 힘이 아니라 **지금 둘 사이에 있는 일**이다.
 
     INTENT-UNHARMED-IS-OBSERVABLE-001 (ADDED)
 
@@ -160,8 +192,9 @@
 ## DESIGN TRACE
 
     INTENT-RELATION-STANCE-001
-        Source Goal         GOAL-STANCE-IS-BETWEEN-TWO
-        Source Possibility  POSSIBILITY-STANCE-IS-READ-NOT-REMEMBERED
+        Source Goal         GOAL-STANCE-IS-BETWEEN-TWO · GOAL-THE-RULE-HAS-NO-EXCEPTION
+        Source Possibility  POSSIBILITY-STANCE-IS-READ-NOT-REMEMBERED ·
+                            POSSIBILITY-REASONS-ARE-A-LIST · POSSIBILITY-ANY-BODY-CAN-HOLD-A-REASON
         Master Trace        MG-EXPLORE-BEIRA / MP-LEARN-TO-HANDLE-THE-LAYER
                             → MC-RELATION-STANCE (MISSING — "존재 사이의 태도 그 자체")
         Constraint          DC-WORLD-OWNS-THE-SURFACE-LIST
@@ -170,12 +203,15 @@
                             HISTORY Q24(b)
         Note                **방향을 가진 값**으로 둔 것이 이 Intent 의 판단이다.
                             지금의 유일한 사정으로는 양쪽 값이 사실상 함께 정해지지만,
-                            구조를 방향값으로 두어야 나중에 사람 사이의 태도와 진영이
-                            같은 자리에 얹힌다 (Q24 의 근거). Stage 5 가 확인한다
+                            구조를 방향값으로 두고 판정을 근거 목록으로 열어야, 이후
+                            Cycle 이 사정을 더할 때 관문과 관찰이 그대로 선다 (Q24 의 근거 ·
+                            2026-08-20 Human 지시 "지금은 관계라는 개념의 기반만 만든다").
+                            Stage 5 가 확인한다
 
     INTENT-STANCE-FROM-GUARDED-GROUND-001
-        Source Goal         GOAL-STANCE-IS-BETWEEN-TWO
-        Source Possibility  POSSIBILITY-STANCE-FROM-WHAT-IS-GUARDED
+        Source Goal         GOAL-STANCE-IS-BETWEEN-TWO · GOAL-THE-RULE-HAS-NO-EXCEPTION
+        Source Possibility  POSSIBILITY-STANCE-FROM-WHAT-IS-GUARDED ·
+                            POSSIBILITY-ANY-BODY-CAN-HOLD-A-REASON
         Master Trace        MA-HOSTILE-COMBATANT ("자기 사냥터에 들어온 것은 사냥감이다") ·
                             MG-HOLD-HUNTING-GROUND (graph: PARTIAL — 이 Intent 가 그
                             world_shape 의 첫 두 줄을 세운다)
@@ -239,11 +275,13 @@
 
     INTENT-STANCE-OBSERVE-001
         Source Goal         GOAL-STANCE-IS-VISIBLE
-        Source Possibility  POSSIBILITY-STANCE-IS-NOT-CONCEALED
+        Source Possibility  POSSIBILITY-STANCE-IS-NOT-CONCEALED ·
+                            POSSIBILITY-BOTH-DIRECTIONS-ARE-CARRIED
         Master Trace        MC-RELATION-STANCE 의 결손 셋째 — "어느 쪽에서 본 태도인지"
         Constraint          DC-WORLD-OWNS-THE-SURFACE-LIST
         원본                MC-RELATION-STANCE.world_shape ("그 태도가 어느 쪽에서 본
-                            것인지가 관찰에 실려야 한다") · TG §3.2 (대상 프레임의
+                            것인지가 관찰에 실려야 한다" — 양방향을 함께 싣는 것이 이
+                            문장을 가장 곧게 만족시킨다) · TG §3.2 (대상 프레임의
                             "항상 표시 가능한 것" 에 관계가 있다)
         Note                **가려짐 관문 밖에 둔 것**이 이 Intent 의 판단이다.
                             C014·C016 이 세운 가려짐의 목록에 태도를 더하지 않는다
@@ -320,8 +358,8 @@
         INTENT-DOWNED-001                 쓰러진 몸이 대상에서 빠지는 규칙 그대로. 태도의 관문과
                                           나란히 서며 서로를 대체하지 않는다 — 쓰러진 적대도
                                           맞지 않고, 멀쩡한 중립도 맞지 않는다
-        INTENT-OBSERVER-JOIN-001          보는 이의 몸은 지키는 자리를 지니지 않는다.
-                                          따라서 사람은 누구도 사냥감으로 대하지 않으며,
-                                          사람끼리는 서로 해를 입히지 못하게 된다 —
-                                          PvP 를 금지한 것이 아니라 적대의 사정이 없는 것의
-                                          결과다 (01-cycle.md EXCLUDED · Stage 5 확인 항목)
+        INTENT-OBSERVER-JOIN-001          보는 이의 몸도 다른 몸과 똑같이 태어난다 —
+                                          지키는 자리를 지니지 않은 채로 시작할 뿐이며
+                                          그것은 **초기값이지 예외가 아니다** (막기를 안 든
+                                          채로 태어나는 것과 같은 자리다). 그 몸에 지키는
+                                          자리가 붙으면 사람도 그대로 적대의 한쪽이 된다
