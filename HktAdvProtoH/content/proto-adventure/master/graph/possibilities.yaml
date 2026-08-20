@@ -7,6 +7,7 @@
 #
 # 인용 — BW = design/Master-World-Beira.md (탐험) ·
 #        R1 = design/Design-Combat-OffenseDefense-R0.md · DT = design/Design-Combat-DamageType-R0.md (전투)
+#        TG = design/Design-Targeting-R0.md (지목)
 #
 # ── 이 파일을 읽는 법 ────────────────────────────────────────────────────
 # Goal 하나에 매달린 여러 MP-* 는 "둘 다 해야 하는 단계" 가 아니라 "골라서 하는 갈래" 다.
@@ -596,9 +597,17 @@ nodes:
     # 남은 것은 둘째 칸(MC-PREDICT)과 층 자체(MW-DEPTH-GRADIENT)다.
     requires:
       goals: []
-      capabilities: [MC-OBSERVE, MC-PREDICT]
+      capabilities: [MC-OBSERVE, MC-PREDICT, MC-DESIGNATE-TARGET, MC-WATCH-TARGET,
+                     MC-RELATION-STANCE]
       # 무엇을 익힐지는 층마다 다르지만(각 층의 demands), 익히는 행위 자체가 요구하는
       # 것은 보는 것과 읽는 것이다 — BW §32 의 첫 두 칸.
+      # CHANGED (TG 주입) — 뒤의 둘이 더해졌다. 살펴봄은 무엇을 살펴볼지를 정하는
+      # 것이 행동의 전부이고(TG §3.3), 겪어서 알아내려면 고른 그 상대의 상태와
+      # 지금 되는 것·안 되는 사유를 계속 읽어야 한다(TG §3.2 · §4.2). 문서가 이
+      # 갈래의 이름을 대지는 않았다 — 이 배선은 2026-08-20 Human 이 확정했다 (HISTORY Q27(a)):
+      # 지목은 이 갈래의 조건이고, 전투는 지목 없이도 성립한다.
+      # MC-RELATION-STANCE 도 같은 자리다 (HISTORY Q24(b)) — 그 층을 겪어 감당하려면
+      # 무엇이 나를 사냥감으로 대하는지를 구분할 수 있어야 한다 (BW §21).
       knowledge: []
       world_state: [MW-DEPTH-GRADIENT]
       relationship: []

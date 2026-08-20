@@ -14,10 +14,13 @@ Human 이 답한다    DECISION 줄
 미해결 **1건** — 닫힌 질문은 HISTORY.md.
 
 Frontier 선택은 **비어 있다** — [frontier.md](frontier.md) 의 `SELECTED` 가 없음이고
-도는 Cycle 도 없다. 후보 셋 중 하나를 Human 이 고르는 것이 다음이며,
+도는 Cycle 도 없다. 후보 다섯 중 하나를 Human 이 고르는 것이 다음이며,
 아래 질문은 그 선택을 막지 않는다.
 
-## Q23. "아는 힘"(통찰)은 독립한 Capability 노드인가 — OPEN
+번호가 Q29 인 것은 TG(지목) 주입에서 열린 Q23~Q28 이 이미 닫혀 HISTORY 로 갔기
+때문이다 — 번호는 재사용하지 않는다.
+
+## Q29. "아는 힘"(통찰)은 독립한 Capability 노드인가 — OPEN
 
     무엇          C016 이 세계에 세운 통찰(살펴보지 않고도 아는 힘)을 Graph 에서
                   어떻게 잡을 것인가. 지금은 MC-OBSERVE 의 **경로 하나**로 담겨 있고

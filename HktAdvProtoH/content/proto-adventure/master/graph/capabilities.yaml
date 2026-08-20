@@ -5,6 +5,7 @@
 #
 # 인용 — R1 = design/Design-Combat-OffenseDefense-R0.md · DT = design/Design-Combat-DamageType-R0.md
 #        BW = design/Master-World-Beira.md (탐험 — Q18(a) 매핑된 전투 노드에는 보조 근거로 허용)
+#        TG = design/Design-Targeting-R0.md (지목)
 #
 # ── 이 파일을 읽는 법 ────────────────────────────────────────────────────
 # Capability 는 "세계가 할 줄 아는 일" 의 목록이다. 스킬 목록도 구현 모듈 목록도 아니다.
@@ -14,6 +15,7 @@
 #   전투 (R1 · DT)          이미 선 것 10 · 예고된 층 9
 #   베이라 사다리 (BW)      SAFE 1 · FRINGE 3 · WILD 3 · DANGER 4 · DEEP 4 · UNKNOWN 6
 #   자원 유래 (BW §8~§17)   2
+#   지목 (TG)               2 · 관계 1 (HISTORY Q24)
 version: 1
 nodes:
 
@@ -898,12 +900,131 @@ nodes:
     overlay: MISSING
     # 제작도 장착도 없고, 통하지 않는 구조라는 개념도 없다 (growth/growth-graph.md).
 
+  # ══════════════════════════════════════════════════════════════════════
+  # 지목 (TG §0 · §2 · §3 · §4 · §6)
+  #
+  # 어느 층에 속한 능력이 아니다 — 어느 층에서든 "지금 누구에게 하는가" 를 세계에
+  # 두는 자리다. 그래서 demanded_by(장소가 요구하는 것)가 비어 있고 required_by 로만
+  # 매달린다. 지목이 무엇을 만들지 않는가는 DC-TARGET-IS-INTENT-NOT-AIM(DRAFT)이 정한다.
+  # ══════════════════════════════════════════════════════════════════════
+
+  - id: MC-DESIGNATE-TARGET
+    type: capability
+    semantic: >
+      세계 안의 존재 하나를 자기 의도의 대상으로 고르고, 세계가 그 관계를 기억한다.
+      고른 뒤의 행동들은 저마다 대상을 다시 찾지 않고 같은 대상으로 나간다.
+    detail: >
+      이 능력이 있는 몸과 없는 몸의 차이는 무엇을 할 수 있는가가 아니라, 누구에게
+      하는가가 어디에 있는가다. 없으면 살펴봄과 채집과 공격이 저마다 대상을 찾으므로
+      같은 존재를 보고 있어도 행동마다 다른 상대로 나갈 수 있다 (TG §1). 있으면
+      지금 누구를 상대하고 있는지가 세계가 지닌 사실이 되고 그 위에 관찰과 행동이
+      함께 얹힌다. 이 관계는 보는 사람마다 따로 성립한다 — 같은 존재를 한 사람은
+      고르고 다른 사람은 고르지 않을 수 있으며, 대상은 자기가 골라졌다는 이유만으로
+      달라지지 않는다 (TG §2.1). 앎(MC-OBSERVE)과 헷갈리면 안 된다: 처음 보는
+      존재도 고를 수 있고, 골랐다고 해서 가려진 것이 열리지 않는다 (TG §2.3).
+    world_shape: >
+      플레이어가 존재 하나를 골라 둘 수 있고 새로 고르기 전까지 그 선택이 유지되며,
+      두 사람이 같은 세계에서 서로 다른 대상을 고른 채 서 있을 수 있어야 한다.
+      멀어지거나 보이지 않게 되는 것만으로는 풀리지 않고, 대상이 세계에서 사라지면
+      함께 정리되어야 한다. 그리고 고른 뒤의 행동이 바로 그 대상으로 나가는 것이
+      플레이로 보여야 한다. 고르기 전에도 무엇을 고를 수 있고 그것이 나를 어떻게
+      대하는지가 관찰에 드러나야 한다 — 다음 대상을 차례로 골라 나가는 것은 화면이
+      하는 일이므로, 화면이 그 판단의 재료를 세계에서 받아야 한다 (Q26).
+    required_by: [MP-LEARN-TO-HANDLE-THE-LAYER]
+    demanded_by: []
+    constraints: [DC-TARGET-IS-INTENT-NOT-AIM, DC-WORLD-OWNS-THE-SURFACE-LIST]
+    constraint_evaluation:
+      DC-TARGET-IS-INTENT-NOT-AIM: SATISFIED      # 고르는 것으로는 아무것도 일어나지 않는다 — 이후 행동의 대상이 정해질 뿐이다
+      DC-WORLD-OWNS-THE-SURFACE-LIST: SATISFIED   # 고를 수 있는가·지금 되는가와 그 사유를 세계가 싣는다 (TG §5.5 · §6.1)
+    overlay: MISSING
+    # 근거는 ../overlay.md. 요청마다 대상 Id 를 실어 보낼 수는 있으나 세계가 "지금
+    # 이 관찰자가 누구를 고르고 있는가" 를 지니는 자리가 없고, 공격은 대상을 아예
+    # 받지 않는다 — TG §1 이 지목한 결손 그대로다.
+    #
+    # 문서가 Human 결정으로 남긴 4건(기본 공격의 타겟 필수 여부 · 시작 시 정렬 ·
+    # 쓰러진 대상 유지 · 빈 땅 클릭 — TG §13)은 판정의 형태이므로 여기 올리지 않았다.
+    # Cycle 의 03-world-semantic.md 가 받는다 (정책 §7.2).
+    #
+    # TG §10 이 이후 확장으로 예고한 것들(포커스 타겟 · 파티/공격대 타겟 · 위협도 ·
+    # 소프트 타겟 · Target-of-Target)은 노드로 세우지 않았다 — 아직 어느 Possibility 도
+    # 그것을 요구하지 않아 required_by 와 demanded_by 가 모두 비기 때문이다 (SCHEMA).
+
+  - id: MC-WATCH-TARGET
+    type: capability
+    semantic: >
+      고른 대상의 지금 상태와, 그 대상에게 지금 할 수 있는 것과 할 수 없는 사유를
+      한자리에서 계속 읽는다. 읽히는 값은 고른 순간의 사본이 아니라 지금의 값이다.
+    detail: >
+      살펴봄(MC-OBSERVE)이 무엇을 알게 되는가라면 이것은 이미 알게 된 것과 늘 보이는
+      것을 어디서 계속 보는가다. 둘을 섞으면 지목이 앎의 대가를 건너뛰는 문이 된다 —
+      가려진 것은 여기서도 가려진 채로 있고, 가려졌다는 사실이 함께 보인다 (TG §3.2).
+      값어치는 표시가 아니라 판단에 있다. 멀어져도 선택이 풀리지 않고 대신 왜 지금
+      할 수 없는지가 같은 자리에서 갱신되어야, 플레이어가 다가갈지 물러설지를 고를
+      수 있다 (TG §4.2). 사유가 사라지고 행동만 회색으로 남으면 이 능력이 아니다.
+    world_shape: >
+      고른 대상의 생명·행동·거리가 세계가 바뀌는 대로 갱신되어 보이고, 아직 가려진
+      것은 가려졌다는 사실과 함께 보이며, 지금 할 수 없는 행동은 그 사유가 함께
+      보여야 한다. 상황이 바뀌면 사유도 따라 바뀌어야 한다.
+    required_by: [MP-LEARN-TO-HANDLE-THE-LAYER]
+    demanded_by: []
+    constraints: [DC-WORLD-OWNS-THE-SURFACE-LIST, DC-TARGET-IS-INTENT-NOT-AIM]
+    constraint_evaluation:
+      DC-WORLD-OWNS-THE-SURFACE-LIST: SATISFIED   # 무엇이 되고 왜 안 되는지의 목록은 세계가 싣고 화면은 그것을 표현한다 (TG §6.1 · §6.2)
+      DC-TARGET-IS-INTENT-NOT-AIM: SATISFIED      # 계속 읽는 것은 이미 열린 것뿐이다 — 지목이 가려진 것을 열지 않는다
+    overlay: PARTIAL
+    # 근거는 ../overlay.md. 재료는 이미 서 있다 — 존재마다 살펴봄·채집의 가용 여부와
+    # 불가 사유가 관찰에 실리고, 이름과 생명은 몸 위에 늘 보이며, 가려진 항목의 목록도
+    # 함께 온다 (C014 · C016). 없는 것은 그 조각들이 고른 대상 하나로 모이는 자리다.
+    #
+    # 무엇이 가려졌는지의 목록은 그 존재 쪽 한 자리에서만 온다 — 고른 대상이라고 해서
+    # 같은 목록을 따로 싣지 않는다 (Q25 · DC-WORLD-OWNS-THE-SURFACE-LIST).
+
+  - id: MC-RELATION-STANCE
+    type: capability
+    semantic: >
+      존재와 존재 사이에 적대·중립·우호라는 태도가 세계의 사실로 있다. 그 태도가
+      누구를 칠 수 있는지와 자율 존재가 다가온 것을 어떻게 대하는지를 가른다.
+    detail: >
+      지금 세계에는 이 태도가 없다 — 휘두른 자리에 닿은 것은 무엇이든 맞는다. 태도를
+      세우면 처음으로 "칠 수 있는 것과 칠 수 없는 것" 이 갈리므로, 이것은 표시가 아니라
+      판정이다. 세계의 사정은 이미 서 있다: FRINGE 의 포식자는 자기 사냥터에 들어온 것을
+      사냥감으로 대하고(MA-HOSTILE-COMBATANT · BW §21), 그것이 그 존재의 목적이다
+      (MG-HOLD-HUNTING-GROUND). 태도는 존재의 이름표가 아니라 **사이의 값**이다 —
+      같은 존재라도 누구를 마주하느냐에 따라 다를 수 있어야 나중에 사람 사이의 태도와
+      진영이 같은 자리에 얹힌다.
+    world_shape: >
+      어떤 존재는 다가온 나를 사냥감으로 대하고 어떤 존재는 그러지 않는다는 것이
+      플레이 중에 드러나야 하고, 그 태도에 따라 할 수 있는 일이 실제로 달라져야 하며,
+      그 태도가 어느 쪽에서 본 것인지가 관찰에 실려야 한다.
+    required_by: [MP-LEARN-TO-HANDLE-THE-LAYER]
+    demanded_by: []
+    constraints: [DC-WORLD-OWNS-THE-SURFACE-LIST, DC-WORLD-CREATURE-FROM-PRESSURE]
+    constraint_evaluation:
+      DC-WORLD-OWNS-THE-SURFACE-LIST: SATISFIED     # 누구를 칠 수 있는지의 판단 근거를 세계가 싣는다 — 화면이 관계를 자기 코드에 적지 않는다
+      DC-WORLD-CREATURE-FROM-PRESSURE: SATISFIED    # 적대가 플레이어를 위해 배치된 것이 아니라 그 층에서 살아가는 목적의 결과다 (BW §21 · §26)
+    overlay: MISSING
+    # 근거는 ../overlay.md — 코드에 관계 개념이 하나도 없다.
+    #
+    # 2026-08-20 Human 지시로 세웠다 (HISTORY Q24(b)). TG 는 이 태도를 쓰지만
+    # (대상 표시 §3.2 · 공격 거절 §3.4-5 · Tab 후보 §3.1) 세계의 사정을 공급하지 않는다 —
+    # 그 사정은 BW §21 · §26 이 이미 공급하고 있으므로 지어낸 것이 없다.
+    # 지목과는 별개의 Cycle 로 간다 — 지목은 태도 없이도 성립한다.
+
 # ── 근거와 비주입 ────────────────────────────────────────────────────────
 # 전투  R1  design/Design-Combat-OffenseDefense-R0.md
 #           §1~§5 · §10 신규 INTENT · §13 하지 않을 것 · §14 확장 순서 · §15 층 그림
 #       DT  design/Design-Combat-DamageType-R0.md
 #           §1~§5 · §7 소프트 상성 · §10 관찰 계약 · §11 INTENT · §13 · §15 이후 확장 경계
 # 탐험  BW  design/Master-World-Beira.md  §8 · §10 · §17 · §20~§25
+# 지목  TG  design/Design-Targeting-R0.md
+#           §0 한 문장 · §2 핵심 개념 · §3 플레이 흐름 · §4 유효성과 수명 · §6 World/View 책임
+#
+# 비주입 — TG §5(Engine API 와 Content 조립) · §7(관찰 계약 초안) · §8(입력과 화면) ·
+# §11(구현 Cycle 분할) · §12(수용 기준)은 노드로 옮기지 않았다. 계약의 필드 이름 ·
+# 실패 사유 코드 · 키 배치 · 조립 경로는 Cycle 의 03/04 가 소유한다 (정책 §7.2).
+# TG §10 의 이후 확장 목록도 노드가 아니다 — 사유는 MC-DESIGNATE-TARGET 주석에 있다.
+# TG §6(World Authority / View Responsibility)은 새 DC 로 만들지 않았다 — 이미
+# CLAUDE.md 원칙 12~14 와 DC-WORLD-OWNS-THE-SURFACE-LIST 가 소유하는 성질이다.
 #
 # 두 전투 문서가 이름조차 대지 않는 의미는 노드로 두지 않는다. 예고만 된 층
 # (Active Defense · Aura/Nen)은 이름과 작용 지점까지만 적고 세부는 그 층의 설계 문서를 기다린다.

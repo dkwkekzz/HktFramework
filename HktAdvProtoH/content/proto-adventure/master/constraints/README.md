@@ -2,7 +2,7 @@
 
 파일 하나 = Constraint 하나. 이름은 `DC-<NAME>.yaml`. 형식은 [../SCHEMA.md](../SCHEMA.md).
 
-현재: **Active 19종** — 전투 5종(1종 REVISED) + 성장 6종 + 세계 5종 + GLOBAL 3종.
+현재: **Active 20종** — 전투 5종(1종 REVISED) + 성장 6종 + 세계 5종 + GLOBAL 4종.
 보류(DRAFT)는 없다.
 
 근거 문서:
@@ -11,6 +11,7 @@
 R1 §x   design/Design-Combat-OffenseDefense-R0.md   전투 영역
 DT §x   design/Design-Combat-DamageType-R0.md        전투 영역
 GR §x   design/Master-Intent-Graph-Growth.md         성장(GROWTH) 영역 한정
+TG §x   design/Design-Targeting-R0.md                 지목(GLOBAL)
 BW §x   design/Master-World-Beira.md                 세계(WORLD) 영역
 ```
 
@@ -52,6 +53,12 @@ BW §x   design/Master-World-Beira.md                 세계(WORLD) 영역
 | DC-WORLD-COMBAT-IS-ONE-POSSIBILITY | Creature 존재만으로 처치 Goal 금지 — Goal 은 WorldState 에서, 전투는 대안 중 하나 | BW §27 · §28 |
 | DC-WORLD-PLAYER-UNFIXED-PATH | Player 의 역할·Class·진영·탐험 이유를 하나로 고정하지 않는다 | BW §1 · §15 · §31 |
 | DC-WORLD-PROGRESSION-IS-REACH | Progression 은 Level 이 아니라 대응 가능한 세계 범위의 확장 | BW §1 · §17 · §32 |
+
+### Active — APPROVED (GLOBAL — 기획 문서 주입)
+
+| Constraint | 한 줄 | 근거 |
+|---|---|---|
+| DC-TARGET-IS-INTENT-NOT-AIM | 지목은 의도의 표명일 뿐 — 명중·피해·정보·위협을 만들지 않고 세계가 대신 다가가지 않는다 | TG §0 · §2.1 · §2.3 · §3.4 · §9 · §10 |
 
 ### Active — APPROVED (GLOBAL — Cycle 관찰에서 승격)
 

@@ -4,182 +4,291 @@ Frontier 는 Graph 의 절대 Leaf 가 아니라 **현재 세계 기준으로 �
 플레이 가능한 Capability 단위**다. 기본 절차 **NEXT** 단계의 산출물이며,
 Human 이 여기서 하나를 골라 다음 Cycle Goal 로 삼는다 (Human Select → 8 Stage Cycle).
 
-    기준 Overlay   master/overlay.md — C015 · C016 완료 + 코드 대조 정정 반영
-                   (전투 사다리는 Critical 층까지 · 탐험은 FRINGE 첫 칸까지 섰다)
-    근거 문서      전투 R1·DT · 세계 BW (매핑된 전투 노드에는 BW 보조 근거 허용 — Q18(a))
+    기준 Overlay   master/overlay.md — C015 · C016 완료 + 코드 대조 정정 + TG(지목) 주입 반영
+    근거 문서      전투 R1·DT · 세계 BW · 지목 TG (매핑된 전투 노드에는 BW 보조 근거 허용 — Q18(a))
+
+## 후보를 읽는 법
+
+후보 하나 = **세계가 갖게 되는 개념 하나**다. "이런 장면이 나오면 좋겠다" 가 아니라
+"세계에 이 개념이 없다 → 그래서 이 장면이 불가능하다" 로 읽는다. 그래서 후보마다
+넷을 함께 적는다.
+
+```text
+이것이 무엇인가    세계에 추가되는 개념 한 문장
+세계에 생기는 것    그 개념이 요구하는 상태 · 규칙 · 관찰 (구현 이름이 아니라 의미로)
+이 기능이 아닌 것    경계 — 이 개념에 속하지 않는 것. 여기가 비면 후보가 아니라 소원이다
+이미 있는 것        재사용하는 것. **코드 대조로 채운다** — 여기가 크면 그 후보는 작다
+```
+
+경계 칸이 이 파일의 핵심이다. 같은 장면을 만드는 방법은 여럿이지만, **개념의 경계**가
+정해지면 그 안에서 어떻게 만들든 같은 것이 된다.
+
+## 한눈에 보기
+
+| # | 기능 | 이것이 무엇인가 | 세계에 없는 것 | 크기 |
+|---|---|---|---|---|
+| 1 | **대상 지목** | 관찰자마다 "지금 고른 존재" 하나를 세계가 지닌다 | 고른 관계 그 자체 | 작다 (선행 1건) |
+| 2 | **존재 사이의 관계** | 존재 A 가 B 를 어떻게 대하는가가 세계의 값이다 | 태도라는 개념 전부 | 중간 |
+| 3 | **다음 수를 읽는다** | 자율 존재의 다음 행동에 갈래가 생기고, 그것을 아는 것이 앎의 관문 뒤에 있다 | 읽을 거리와 관문 (예고 구간은 이미 있다) | 중간 |
+| 4 | **행동 중단** | 진행 중인 행동을 끊어 없던 일로 만든다 | 노려서 끊는 수단 | 작다 |
+| 5 | **아이템 사용** | 가진 물건을 써서 세계나 몸을 바꾼다 | 쓴다는 개념 전부 | 중간 |
 
 ## 지금 어디까지 왔는가
 
 **전투 사다리** (R1 §14 — 층은 이름으로 가리킨다):
 
 ```text
-설계 §14 층          지금
-────────────────────────────────────────────
-Basic Damage         섰다
-Critical             섰다 — C015 (성질을 올릴 경로는 아직 없다)
-Defense Action       섰다
-Damage Type          섰다
-Penetration          섰다
-Active Defense       대기 — 사유는 "지금 열 수 없는 것"
-Aura / Nen           대기 — 사유는 "지금 열 수 없는 것"
+Basic Damage · Defense Action · Damage Type · Penetration · Critical      섰다
+                                          (Critical 은 성질을 올릴 경로가 없다)
+Active Defense (완벽한 막기 · 되받아치기 · Break)   그 층의 설계 문서가 없다
+Aura / Nen (집중 · 조건 · 제약 · 서약)              아래 층이 서야 의미가 생긴다
 ```
 
-**탐험** — 층(어디)과 방법(어떻게)이 분리되었다 (HISTORY Q21):
+**탐험** — 층(어디)과 방법(어떻게)이 분리되어 있다 (HISTORY Q21):
 
 ```text
-방법 3종                            지금
-────────────────────────────────────────────
-익힌다 (MP-LEARN-…)                 C014·C016 으로 살펴봄이 섰다 — 남은 결손은 예측 하나 ← 후보
-자원으로 빌린다 (MP-ADAPT-…)        설계는 섰고(Q22 광물 6종) 세계에 제작이 없다
-문명권에서 준비한다 (MP-PREPARE-…)  문명권·거래라는 세계 기반이 없다
+익힌다 (MP-LEARN-…)                 보는 칸이 섰다 (C014 · C016) ← 후보 1 · 2 · 3
+자원으로 빌린다 (MP-ADAPT-…)        설계는 섰고(Q22 광물 6종) 쓴다는 개념이 없다 ← 후보 5
+문명권에서 준비한다 (MP-PREPARE-…)  문명권 · 거래라는 세계 기반이 없다
 
-층이 요구하는 것 (MW-ZONE-*.demands)   SAFE 2/4 · FRINGE 1/3 · WILD 0/4
-                                       DANGER 0/4 · DEEP 0/5 · UNKNOWN 0/6
+층이 요구하는 것   SAFE 2/4 · FRINGE 1/3 · WILD 0/4 · DANGER 0/4 · DEEP 0/5 · UNKNOWN 0/6
 ```
 
-**세계 순환** (BW §16 · §17):
-
-```text
-탐험 → 자원 → 능력 → 더 깊은 탐험
-설계    Q22 로 닫혔다 — 광물 6종 · grants 3건 (growth/growth-graph.md)
-구현    네 칸 모두 비어 있다 — 얻은 것으로 달라지는 것이 하나도 없다 ← 후보 D
-```
+**세계 순환** (BW §16 · §17): 탐험 → 자원 → 능력 → 더 깊은 탐험.
+설계는 Q22 로 닫혔고 구현은 네 칸 모두 비어 있다 — 후보 5 가 그 첫 칸이다.
 
 어느 Cycle 이 어느 층을 닫았는지는 [HISTORY.md](HISTORY.md) 에 있다.
 
 ## 후보
 
-### FR-PREDICT-READS-THE-NEXT-BLOW
-    Playable Result      살펴본 상대가 다음에 무엇을 할지가 미리 읽히고, 그것을 근거로
-                         막거나 물러나거나 먼저 친다 — 관찰이 이해로 이어진다
-    Source Goal          MG-EXPLORE-BEIRA
-    Source Possibility   MP-LEARN-TO-HANDLE-THE-LAYER
-    Missing / Partial    MC-PREDICT (MISSING) — 이 방법이 요구하는 둘 중 남은 하나이자
-                         MW-ZONE-FRINGE 의 demands 셋 중 둘째.
-                         MC-OBSERVE (PARTIAL) 의 **마지막** 결손 행동·습성도 이 자리다 —
-                         2026-08-19 Human 결정으로 **둘을 한 Cycle 에서 함께 닫는다**
-    원본 근거            BW §21 (FRINGE — 관찰·예측·지형) · §32 (관찰 → 이해 →
-                         대응 발견) · C014 08 · C016 08 MASTER FEEDBACK 의 제안
-    Active Constraints   DC-WORLD-PROGRESSION-IS-REACH · DC-COMBAT-PLAYER-CAUSALITY ·
-                         DC-WORLD-OWNS-THE-SURFACE-LIST · DC-WORLD-PLAYER-UNFIXED-PATH
-    Constraint Eval      SATISFIED — 예측은 사슬의 둘째 칸이며 진행이 이해의 확장으로
-                         나타난다 (PROGRESSION-IS-REACH · BW §32). 읽히는 것은 세계가
-                         이미 결정한 다음 행동이므로 새 난수가 없다 (PLAYER-CAUSALITY).
-                         무엇이 읽히고 무엇이 아직 안 읽히는지를 세계가 싣는다
-                         (SURFACE-LIST — C014 의 `concealed` 자리를 그대로 쓴다).
-                         읽지 않고 싸우는 길이 남는다 (UNFIXED-PATH)
-    Observable Result    같은 상대를 앞에 두고 예측 전에는 다음 행동 자리가 비어 있고,
-                         예측이 서면 그 자리가 채워지며, 그 정보로 막기 시점이 달라진다.
-                         그리고 같은 상대가 언제나 같은 것을 하지 않는다 — 조건이 다르면
-                         다른 갈래를 고르고, 그 갈래가 곧 읽을 거리다
-    Why one Cycle        지역 기반을 요구하지 않는다 — 자율 존재의 행동은 이미 세계에 있고
-                         (RULE-NPC-DECIDE-001) 예고 구간도 이미 있으며
-                         (collision.ts SWING_BEGIN) 가려짐을 나르는 계약도 이미 있다
-                         (C014 의 `concealed`). 더하는 것은 그 위의 규칙 둘이다
-    무엇이 없는가        코드 대조로 확인한 결손은 예고의 **노출**이 아니라 아래 둘이다
-                         (overlay.md MC-PREDICT 행이 그 근거를 소유한다).
+### 1. FR-TARGET-SELECTION — 대상 지목
 
-                         ① 읽을 거리가 없다 — 자율 존재가 쓰는 스킬이 언제나 하나다
-                            (npc-decide.ts 는 사거리 안이면 늘 `attack`). 세계에 스킬은
-                            셋인데 다음 행동에 고를 갈래가 없으니 읽어도 답이 하나다.
-                            이 갈래를 세우는 것이 곧 MC-OBSERVE 의 **습성** 조각이다
-                         ② 앎의 관문이 없다 — 진행 중인 행동의 종류·진행도는 지금도
-                            누구에게나 그냥 온다. 살펴봄·통찰과 이어지지 않으면
-                            이 Cycle 은 C014·C016 과 무관한 화면 개선이 된다
-    넘어야 할 선         셋 다 넘어야 값이 있다. 하나라도 못 넘으면 이미 있는 것에
-                         이름표를 붙인 Cycle 이다.
-                            1. 자율 존재의 다음 행동에 갈래가 둘 이상 생긴다
-                            2. 그 갈래를 아는 것이 앎의 관문 뒤에 있다
-                            3. 알고 대응한 결과가 모르고 대응한 결과와 다르다
-    주의                 ①의 갈래는 **난수도 학습도 아니다** — RULE-NPC-DECIDE-001 과
-                         같은 결정론적 조건 분기 한 겹이다 (PLAYER-CAUSALITY).
-                         목적은 자율 존재를 강하게 만드는 것이 아니라 읽을 거리를
-                         만드는 것이다. 수치·조건·판정은 Cycle 의 03 이 소유한다
-    7 조건               1 MISSING + PARTIAL · 2 FRINGE 진입을 둘에서 하나로 줄이고
-                         MC-OBSERVE 를 IMPLEMENTED 로 닫는다 · 3 Client 실측 가능 ·
-                         4 한 Cycle · 5 새 World 규칙 · 6 Active 와 양립 ·
-                         7 FRINGE 진입 완주가 이 위에 얹힌다
-    Human 판단 (해소됨)    "습성" 을 함께 닫을지 따로 볼지 → **A안 — 한 Cycle 로 묶는다**.
-                         이 후보가 다시 선택되면 그 모양으로 연다
-    Status               PROPOSED
+    이것이 무엇인가    관찰자마다 **지금 고른 존재 하나**를 세계가 기억한다. 고른 뒤의
+                       행동은 화면에서 저마다 대상을 찾지 않고 그 하나를 참조한다.
+    세계에 생기는 것    ① 관찰자 → 존재 하나의 관계. 관찰자마다 따로 있고 서로 다르다
+                       ② 고르기 / 푸는 요청과, 고를 수 있는가의 판정
+                       ③ 그 관계가 무효가 되었을 때의 정리 (대상이 세계를 떠남)
+                       ④ 관찰: 지금 고른 것이 무엇이고, 그 상대에게 지금 무엇이
+                          되고 무엇이 왜 안 되는가
+    이 기능이 아닌 것   조준이 아니다 — 고른다고 맞지 않는다. 정보를 열지 않는다 —
+                       가려진 것은 그대로 가려진다. 자동 이동·자동 추적이 아니다.
+                       화면 배치·키·표시 형태도 아니다 (그것은 View 가 정한다).
+                       여러 개를 기억하는 것도, 다른 사람과 공유하는 것도 아니다
+    이미 있는 것        요청 봉투에 대상 자리가 있다. 존재마다 살펴봄·채집의 가용 여부와
+                       불가 사유가 이미 관찰에 실린다. 가려진 항목의 목록도 이미 온다
+    플레이어가 하는 것  존재 하나를 골라 두면 그 선택이 유지되고, 살펴보기와 채집이
+                       그 상대로 나간다
+    무엇을 보면 되는가  늑대를 고르면 표시가 유지된 채 생명·거리가 갱신되고, 멀어지면
+                       살펴보기가 "너무 멀다" 로 바뀐다. 두 사람이 같은 세계에서 서로
+                       다른 상대를 고른 채 서 있고, 고른 상대가 사라지면 표시도 사라진다
+    Source Goal        MG-EXPLORE-BEIRA
+    Source Possibility MP-LEARN-TO-HANDLE-THE-LAYER
+    Missing / Partial  MC-DESIGNATE-TARGET (MISSING) · MC-WATCH-TARGET (PARTIAL)
+    원본 근거          TG §0 · §1 · §2 · §3.2 · §3.3 · §4
+    Active Constraints DC-TARGET-IS-INTENT-NOT-AIM · DC-WORLD-OWNS-THE-SURFACE-LIST
+    Constraint Eval    SATISFIED — 고르는 것으로는 아무 일도 일어나지 않는다 (NOT-AIM).
+                       무엇이 되고 왜 안 되는지의 목록은 세계가 싣는다 (SURFACE-LIST)
+    선행 조건          **기반 트랙 커밋 1건** (HISTORY Q28(a)) — 지금은 무엇을 지목하면
+                       무슨 요청이 되는지를 화면 커널이 확정해 버린다. 그 결정 자리를
+                       컨텐츠로 되돌리는 것이 그 커밋이다
+    Why one Cycle      새 계산도 새 자원도 없다 — 관계 하나가 생기고 이미 있는 행동들이
+                       그것을 읽는다
+    7 조건             1 MISSING+PARTIAL · 2 익히는 갈래가 요구한다 · 3 Client 실측 가능 ·
+                       4 한 Cycle · 5 새 World 규칙 · 6 Active 와 양립 ·
+                       7 관계 · 공격 · 대화 · 전리품이 모두 이 위에 얹힌다
+    Status             PROPOSED
 
-### FR-WHAT-YOU-GATHER-CHANGES-YOUR-BODY
-    Playable Result      플레이어가 세계에서 캐거나 얻은 것이 몸이나 장비를 실제로 바꾸고,
-                         그 전과 후의 전투 결과가 달라진다 — 디버그 명령이 아니라 플레이로
-    Source Goal          MG-EXPLORE-BEIRA (그리고 MG-OVERCOME-SUPERIOR-OPPONENT)
-    Source Possibility   MP-ADAPT-BY-RESOURCE 의 첫 칸 · MP-OUTGROW-THE-OPPONENT 의 결손
-    Missing / Partial    MC-ATTACK-POWER (PARTIAL) — 값이 결과를 바꾸는 것은 닫혔고,
-                         그 값을 **세계 안의 행위로** 바꾸는 경로가 없다.
-                         MC-PENETRATION 도 같은 결손을 진다 (growth/growth-graph.md)
-    원본 근거            BW §17 (탐험에서 얻은 자원이 다음 탐험의 가능성을 연다) ·
-                         BW §18 (Capability 가 먼저 필요해지고 그 다음 획득 Route) ·
-                         BW §32 (Progression 은 Level 이 아니라 Reach) ·
-                         Q22 Human 지시로 선 광물 계통 (IP 5 · IT 6 · IM 3)
-    Active Constraints   DC-WORLD-PROGRESSION-IS-REACH · DC-WORLD-RESOURCE-ADAPTATION-TRACE ·
-                         DC-COMBAT-ONE-FORMULA · DC-GROWTH-GOAL-FIRST ·
-                         DC-GROWTH-NEED-FROM-POSSIBILITY
-    Constraint Eval      SATISFIED — Q22 로 자원 쪽 판단이 닫혔다. 지금 캐는 돌은
-                         IT-COMMON-STONE 이고 MW-SAFE-FRONTIER 유래를 가지므로
-                         `resource_placed_without_world_cause` 에 걸리지 않는다.
-                         다만 그 성격이 이 Cycle 의 형태를 정한다 — 평범한 돌은 기적을
-                         주지 않으므로 여는 것은 **제작**(돌 → 도구·무기)이지 능력치
-                         직접 상승이 아니다. 기적적인 성장은 베이라 광물의 몫이다
-    Observable Result    얻은 것을 쓰기 전과 후에 같은 상대·같은 스킬의 피해가 달라지고,
-                         그 차이가 계산 내역으로 설명된다
-    Why one Cycle        새 전투 규칙이 없다 — 이미 있는 능력치에 그것을 바꾸는 세계 내
-                         행위 하나가 붙는다
-    관계                 이것이 서면 "지금 열 수 없는 것" 의 FR-EARN-THE-PIERCING 과
-                         "아이템으로 아는 경로" 가 같은 틀 위에 얹힌다 — 셋이 묻는 것은
-                         결국 하나다: **얻은 것이 나를 바꾸는가**
-    7 조건               1 PARTIAL · 2 성장이라는 축 전체를 연다 · 3 Client 실측 가능 ·
-                         4 한 Cycle · 5 새 World 규칙 · 6 Q22 로 Constraint 닫힘 ·
-                         7 BW §17 순환의 첫 칸이 된다
-    Status               PROPOSED
+### 2. FR-RELATION-STANCE — 존재 사이의 관계
 
-### FR-INTERRUPT-DENIES-THE-BLOW
-    Playable Result      플레이어가 상대의 행동이 완성되기 전에 그것을 노려 끊고,
-                         그 공격이 아예 일어나지 않게 만든다
-    Source Goal          MG-OVERCOME-SUPERIOR-OPPONENT
-    Source Possibility   MP-INTERRUPT
-    Missing / Partial    MC-INTERRUPT (PARTIAL) — 이것 하나뿐이고 그마저 절반 서 있다.
-                         타격을 받으면 하던 행동이 끊기는 규칙은 이미 세계에 있다
-                         (RULE-HIT-001). 없는 것은 그것을 **노리는** 수단과 그 판단이다
-    원본 근거            BW §28 (범용 Combat Graph 의 여덟 갈래 중 하나) ·
-                         BW §23 (MW-ZONE-DANGER 의 demands 4종 중 하나)
-    Active Constraints   DC-COMBAT-PLAYER-CAUSALITY · DC-COMBAT-ONE-FORMULA ·
-                         DC-COMBAT-ONE-LAYER-AT-A-TIME · DC-WORLD-OWNS-THE-SURFACE-LIST
-    Constraint Eval      SATISFIED — 끊김은 확률이 아니라 시점 관계로 판정된다.
-                         피해 공식을 건드리지 않는다 (ONE-FORMULA). 능동 방어·Critical·
-                         Aura 를 손대지 않는다 (ONE-LAYER). 무엇이 끊겼고 왜 끊겼는지를
-                         세계가 관찰에 싣는다 (SURFACE-LIST)
-    Observable Result    상대가 큰 행동을 시작한 것이 보이고, 거기에 맞춰 넣은 개입이
-                         그 행동을 무산시키며, 같은 개입을 늦게 넣으면 무산되지 않는다
-    Why one Cycle        새 공식도 새 자원도 없다 — 이미 있는 끊김 규칙에 "노려서 끊는"
-                         조건 하나와 그것을 읽을 표면 하나가 붙는다
-    7 조건               1 PARTIAL · 2 다섯 번째 전투 경로를 연다 · 3 Client 실측 가능 ·
-                         4 한 Cycle · 5 새 World 규칙(행동에는 끊길 수 있는 구간이 있다) ·
-                         6 Active 와 양립 · 7 DANGER 층 demands 하나를 미리 채운다
-    Status               PROPOSED
+    이것이 무엇인가    존재 A 가 존재 B 를 어떻게 대하는가(적대 · 중립 · 우호)가 세계의
+                       값이 된다. 존재에 붙는 이름표가 아니라 **둘 사이의 값**이다.
+    세계에 생기는 것    ① 두 존재 사이의 태도 값과 그것을 정하는 근거
+                          (지금은 하나뿐이다 — 자기 사냥터를 지키는 존재는 침입자를
+                           사냥감으로 대한다)
+                       ② 공격이 성립하는가의 관문 — 세계 최초의 "칠 수 없는 것"
+                       ③ 자율 존재의 판단 입력 — 인지 범위에 든 것을 무조건 쫓지 않는다
+                       ④ 관찰: 저것이 나를 어떻게 대하는가 (보는 쪽이 밝혀진 채로)
+    이 기능이 아닌 것   진영·길드가 아니다 (조직이라는 개념은 오지 않는다).
+                       위협도·어그로가 아니다 (누구를 먼저 치는가의 값은 오지 않는다).
+                       평판·호감도 수치가 아니다 — 태도는 세 갈래이지 눈금이 아니다.
+                       사람 사이의 태도(PvP 가부)도 이번에는 정하지 않는다 —
+                       구조는 그것을 담을 수 있게 두되 값은 세우지 않는다
+    이미 있는 것        자율 존재가 스스로 순찰·추격·공격하는 판단이 이미 있다.
+                       그 존재의 목적("자기 사냥터를 지킨다")도 이미 그래프에 있다
+    플레이어가 하는 것  나를 사냥감으로 보는 존재와 그렇지 않은 존재를 구분하고,
+                       그에 따라 다가갈지 물러설지를 고른다
+    무엇을 보면 되는가  어떤 존재는 다가가면 덤비고 어떤 존재는 자기 일을 계속하며,
+                       덤비지 않는 것을 치려 하면 세계가 사유와 함께 거절한다
+    Source Goal        MG-EXPLORE-BEIRA
+    Source Possibility MP-LEARN-TO-HANDLE-THE-LAYER
+    Missing / Partial  MC-RELATION-STANCE (MISSING) — 태도라는 개념이 세계에 0건이다
+    원본 근거          BW §21 · §26 · MA-HOSTILE-COMBATANT 의 관점 ·
+                       MG-HOLD-HUNTING-GROUND · TG §3.1 · §3.4-5
+    Active Constraints DC-WORLD-OWNS-THE-SURFACE-LIST · DC-WORLD-CREATURE-FROM-PRESSURE ·
+                       DC-WORLD-COMBAT-IS-ONE-POSSIBILITY
+    Constraint Eval    SATISFIED — 적대는 플레이어를 위해 배치된 성질이 아니라 그 존재가
+                       사냥터를 지키려는 목적의 결과다 (CREATURE-FROM-PRESSURE).
+                       적대라는 이유만으로 처치 Goal 이 생기지 않는다 — 물러나는 것도
+                       답이다 (COMBAT-IS-ONE-POSSIBILITY). 판단 근거는 세계가 싣는다
+    Why one Cycle      새 계산이 없다 — 값 하나가 생기고 이미 있는 공격 관문과 자율
+                       판단이 그것을 읽는다
+    7 조건             1 MISSING · 2 익히는 갈래가 요구한다 · 3 Client 실측 가능 ·
+                       4 한 Cycle · 5 새 World 규칙 · 6 Active 와 양립 ·
+                       7 대화 · 거래 · 진영 · 위협도가 이 위에 얹힌다
+    Status             PROPOSED
+
+### 3. FR-PREDICT-READS-THE-NEXT-BLOW — 다음 수를 읽는다
+
+    이것이 무엇인가    자율 존재의 다음 행동에 **고를 갈래**가 생기고, 그 갈래를 미리
+                       아는 것이 **앎의 관문 뒤**에 놓인다. 살펴본 상대는 읽히고
+                       살펴보지 않은 상대는 읽히지 않는다.
+    세계에 생기는 것    ① 자율 존재의 판단에 결정론적 갈래가 한 겹 — 조건이 다르면
+                          다른 것을 고른다 (지금은 사거리 안이면 언제나 같은 스킬)
+                       ② 그 갈래에 예고가 붙는다 — 무엇이 오는지가 발동 전에 정해진다
+                       ③ 그 앎이 살펴봄·통찰의 관문 뒤에 있다 — C014·C016 이 세운
+                          그 자리를 그대로 쓴다
+                       ④ 알고 대응한 결과가 모르고 대응한 결과와 다르다
+    이 기능이 아닌 것   난수가 아니고 학습도 아니다 — 결정론적 조건 분기 한 겹이다.
+                       자율 존재를 강하게 만드는 것이 아니다 (목적은 읽을 거리다).
+                       다음다음 수를 읽는 것도 아니다. 끊는 것은 이 기능이 아니다 (후보 4)
+    이미 있는 것        **예고 구간은 이미 있다** — 휘두름은 앞 구간을 지나서야 닿고
+                       (`world/semantic/collision.ts` SWING_BEGIN), 진행 중인 행동의
+                       종류·진행도·칼끝이 계약에 실린다. 자율 존재의 판단도 이미 있다
+                       (RULE-NPC-DECIDE-001). 가려짐을 나르는 계약도 이미 있다 (C014).
+                       더할 것은 그 위의 규칙 둘 — 갈래와 관문이다
+    넘어야 할 선       셋 다 넘어야 값이 있다. 하나라도 못 넘으면 이미 있는 것에
+                       이름표를 붙인 Cycle 이다.
+                          1. 자율 존재의 다음 행동에 갈래가 둘 이상 생긴다
+                          2. 그 갈래를 아는 것이 앎의 관문 뒤에 있다
+                          3. 알고 대응한 결과가 모르고 대응한 결과와 다르다
+    플레이어가 하는 것  살펴본 상대가 다음에 무엇을 할지를 읽고, 막거나 물러나거나 먼저 친다
+    무엇을 보면 되는가  살펴보기 전에는 다음 행동 자리가 비어 있고, 살펴본 뒤에는 채워진다.
+                       같은 상대가 언제나 같은 것을 하지 않는다 — 조건이 다르면 다른 갈래를
+                       고르고, 그 갈래가 곧 읽을 거리다
+    Source Goal        MG-EXPLORE-BEIRA
+    Source Possibility MP-LEARN-TO-HANDLE-THE-LAYER
+    Missing / Partial  MC-PREDICT (MISSING) · MC-OBSERVE (PARTIAL) 의 마지막 결손인
+                       **행동·습성**도 이 자리다 — 2026-08-19 Human 결정으로 둘을 한
+                       Cycle 에서 함께 닫는다 (A안). 닫히면 MC-OBSERVE 가 IMPLEMENTED 다
+    원본 근거          BW §21 (FRINGE — 관찰 · 예측 · 지형) · §32 (관찰 → 이해 → 대응) ·
+                       C014 08 · C016 08 MASTER FEEDBACK 의 제안
+    Active Constraints DC-WORLD-PROGRESSION-IS-REACH · DC-COMBAT-PLAYER-CAUSALITY ·
+                       DC-WORLD-OWNS-THE-SURFACE-LIST · DC-WORLD-PLAYER-UNFIXED-PATH
+    Constraint Eval    SATISFIED — 읽히는 것은 세계가 이미 결정한 다음 행동이므로 새
+                       난수가 없다 (PLAYER-CAUSALITY). 진행이 이해의 확장으로 나타난다
+                       (PROGRESSION-IS-REACH). 무엇이 읽히고 무엇이 아직 아닌지를 세계가
+                       싣는다 (SURFACE-LIST — C014 의 자리를 그대로 쓴다).
+                       읽지 않고 싸우는 길이 남는다 (UNFIXED-PATH)
+    이력               **한 번 열렸다 접혔다** — 2026-08-19 Human 이 C017 로 골랐다가
+                       Stage 1 만 쓰고 선택을 거두었다. 산출물은 git history 에 있고,
+                       위 "넘어야 할 선" 과 A안 판단이 그때 얻은 것이다
+    Why one Cycle      지역 기반을 요구하지 않는다 — 읽을 대상도 예고 구간도 관문도
+                       이미 세계에 있다. 더하는 것은 그 위의 규칙 둘이다
+    7 조건             1 MISSING + PARTIAL · 2 FRINGE 진입을 둘에서 하나로 줄이고
+                       MC-OBSERVE 를 닫는다 · 3 Client 실측 가능 · 4 한 Cycle ·
+                       5 새 World 규칙 · 6 Active 와 양립 · 7 FRINGE 완주가 위에 얹힌다
+    Status             PROPOSED
+
+### 4. FR-INTERRUPT-DENIES-THE-BLOW — 행동 중단
+
+    이것이 무엇인가    진행 중인 행동을 끊어 **없던 일로** 만든다. 지금도 맞으면 하던
+                       행동이 끊기지만, 그것은 아무 타격에나 따라오는 부수 효과라
+                       "언제 끊을까" 라는 판단이 없다.
+    세계에 생기는 것    ① 행동의 어느 구간이 끊길 수 있는가 — 이미 있는 구간에 의미를 준다
+                       ② 끊는 쪽의 조건 — 무엇이 어떤 세기로 닿아야 끊기는가
+                       ③ 끊긴 행동의 대가 — 치른 것은 돌아오지 않는다
+                       ④ 관찰: 무엇이 왜 끊겼는가
+    이 기능이 아닌 것   경직·기절 같은 상태가 아니다 (끊는 것과 묶는 것은 다르다).
+                       되받아치기가 아니다 (끊은 뒤의 이득은 오지 않는다).
+                       모든 행동을 끊는 것도 아니다 — 끊을 수 있는 구간이 있는 행동만.
+                       무엇이 올지를 읽는 것도 아니다 (후보 3)
+    이미 있는 것        맞으면 하던 행동이 끊기고 피격 동작으로 대체되는 규칙이 이미 있다
+                       (RULE-HIT-001). 행동의 구간도 이미 있다 (SWING_BEGIN · SWING_END).
+                       없는 것은 그것을 **노리는** 수단과 조건이다
+    플레이어가 하는 것  상대의 행동이 완성되기 전에 노려서 끊는다
+    무엇을 보면 되는가  상대의 큰 행동이 시작된 것이 보이고, 그때 넣은 개입이 그것을
+                       무산시키며, 같은 개입을 늦게(이미 칼이 나간 뒤에) 넣으면
+                       무산되지 않는다
+    Source Goal        MG-OVERCOME-SUPERIOR-OPPONENT
+    Source Possibility MP-INTERRUPT
+    Missing / Partial  MC-INTERRUPT (PARTIAL — 절반 서 있다)
+    원본 근거          BW §28 (범용 전투 그래프의 여덟 갈래 중 하나) ·
+                       BW §23 (DANGER 층이 요구하는 넷 중 하나)
+    Active Constraints DC-COMBAT-PLAYER-CAUSALITY · DC-COMBAT-ONE-FORMULA ·
+                       DC-COMBAT-ONE-LAYER-AT-A-TIME · DC-WORLD-OWNS-THE-SURFACE-LIST
+    Constraint Eval    SATISFIED — 끊김은 확률이 아니라 시점 관계로 판정된다.
+                       피해 공식을 건드리지 않고 능동 방어 · Critical · Aura 를 손대지
+                       않는다. 무엇이 왜 끊겼는지를 세계가 싣는다
+    후보 3 과의 관계    서로를 요구하지 않는다. 다만 3 이 먼저 서면 "무엇이 오는지 알고
+                       그것을 끊는다" 가 되고, 이것만 먼저 서면 "보이는 큰 동작을 끊는다"
+                       가 된다 — 둘 다 성립하지만 값어치가 다르다
+    Why one Cycle      새 공식도 새 자원도 없다 — 이미 있는 끊김 규칙에 "노려서 끊는"
+                       조건 하나와 그것을 읽을 표면 하나가 붙는다
+    7 조건             1 PARTIAL · 2 다섯 번째 전투 경로를 연다 · 3 Client 실측 가능 ·
+                       4 한 Cycle · 5 새 World 규칙 · 6 Active 와 양립 ·
+                       7 DANGER 층 요구 하나를 미리 채운다
+    Status             PROPOSED
+
+### 5. FR-ITEM-USE — 아이템 사용
+
+    이것이 무엇인가    가진 물건을 **써서** 세계나 몸을 바꾼다. 지금 인벤토리는 종류별
+                       개수만 있고, 그 개수를 읽는 곳은 "곡괭이가 있는가" 하나뿐이다.
+                       쓴다 · 준다 · 없어진다 는 개념이 0건이다.
+    세계에 생기는 것    ① 물건을 쓰는 행동 — 무엇을 쓸 수 있고 지금 왜 못 쓰는가
+                       ② 쓰면 줄어든다 (소모) — 세계 최초로 가진 것이 사라진다
+                       ③ 쓴 결과가 세계나 몸에 남는다 — 그 효과가 무엇인지는 물건이 정한다
+                       ④ 관찰: 가진 것 중 지금 쓸 수 있는 것과 각각의 불가 사유
+    이 기능이 아닌 것   제작이 아니다 (재료를 합쳐 새것을 만드는 것은 다음 칸).
+                       장비 장착이 아니다 (몸에 걸치고 유지하는 것도 다음 칸).
+                       거래가 아니다. 무게·칸수 같은 소지 제한도 아니다.
+                       능력치를 올리는 물건을 이번에 정의하는 것도 아니다 —
+                       **쓴다는 개념 자체**가 이 후보의 전부이고, 무엇을 쓸지는
+                       지금 세계에 있는 것(돌 · 곡괭이)으로 족하다
+    이미 있는 것        종류별 개수를 지닌 인벤토리와, 캐서 늘어나는 경로가 이미 있다.
+                       행동으로서의 얼개(시간 · 대상 · 실패 사유)도 이미 있다
+    플레이어가 하는 것  가진 것을 써서 세계나 자기 몸을 바꾸고, 쓴 만큼 줄어드는 것을 본다
+    무엇을 보면 되는가  가진 것 중 쓸 수 있는 것이 보이고, 쓰면 개수가 줄며, 쓰기 전과
+                       후의 세계가 달라진다. 없으면 사유와 함께 거절된다
+    Source Goal        MG-EXPLORE-BEIRA
+    Source Possibility MP-ADAPT-BY-RESOURCE 의 첫 칸
+    Missing / Partial  MC-RESTORE-BIOLOGICAL-STATE · MC-CUT-ABNORMAL-STRUCTURE (둘 다
+                       MISSING) 의 **공통 앞칸**이다 — 둘 다 "물건을 써서 무언가를 한다"
+                       를 전제하는데 그 개념이 없다. MC-ATTACK-POWER (PARTIAL) 의 결손
+                       ("세계 안의 행위로 값을 바꿀 경로가 없다")도 같은 뿌리다
+    원본 근거          BW §17 (탐험에서 얻은 자원이 다음 탐험의 가능성을 연다) ·
+                       BW §18 (능력이 먼저 필요해지고 그 다음 획득 경로) ·
+                       Q22 로 선 광물 계통 (IP 5 · IT 6 · IM 3)
+    Active Constraints DC-WORLD-PROGRESSION-IS-REACH · DC-WORLD-RESOURCE-ADAPTATION-TRACE ·
+                       DC-GROWTH-NEED-FROM-POSSIBILITY · DC-GROWTH-GOAL-FIRST
+    Constraint Eval    SATISFIED — 물건이 능력을 정당화하지 않는다. 이 후보는 새 능력을
+                       만들지 않고 **이미 필요하다고 판정된 것들의 공통 전제**를 세운다
+                       (NEED-FROM-POSSIBILITY). 성장 자체를 Goal 로 세우지 않는다
+                       (GOAL-FIRST). 지금 캐는 돌은 세계 유래를 가진다 (Q22)
+    다음 칸            이것이 서면 제작(재료 → 결과물) · 장비(걸치고 유지) · 감정 도구가
+                       모두 같은 틀 위에 얹힌다. 셋 다 지금은 이 개념이 없어 막혀 있다
+    Why one Cycle      새 전투 규칙이 없다 — 행동 하나와 소모라는 상태 변화 하나다
+    7 조건             1 MISSING · 2 자원 갈래 전체의 첫 칸을 연다 · 3 Client 실측 가능 ·
+                       4 한 Cycle · 5 새 World 규칙 · 6 Active 와 양립 ·
+                       7 제작 · 장비 · 거래가 이 위에 얹힌다
+    Status             PROPOSED
 
 ## 추천 순서 (Agent 제안 — 확정은 Human)
 
 ```text
-1. FR-WHAT-YOU-GATHER-CHANGES-YOUR-BODY
-                                      가장 크게 막힌 것을 푼다 — 얻은 것이 나를 바꾸는
-                                      경로가 세계에 하나도 없다. Q22 로 재료(광물 계통)가
-                                      섰으므로 이제 쓰는 규칙만 남았다.
-                                      C015 가 그 결손을 하나 더 얹었다 — Critical 성질도
-                                      올릴 경로가 없어 MP-BET-ON-THE-CRITICAL-BLOW 가
-                                      절반에서 멈춰 있다
+1. 대상 지목        지금 가장 값싸고 뒤의 거의 모든 것이 이 위에 얹힌다. C014·C016 이
+                    세운 앎을 쓸 자리가 아직 없다 — 고른 상대가 없어 알게 된 것이 흩어진다
 
-2. FR-INTERRUPT-DENIES-THE-BLOW       가장 작은 전투 후보 — 끊김 규칙이 이미 있어 조건
-                                      하나만 붙이면 되고 DANGER 층 demands 도 미리 채운다
+2. 아이템 사용      가장 크게 막힌 축(자원 → 능력)의 첫 칸. 넷(제작·장비·감정 도구·
+                    관통과 치명을 얻는 경로)이 같은 이유로 막혀 있고 그 이유가 이 하나다
 
-3. FR-PREDICT-READS-THE-NEXT-BLOW     익히는 갈래의 결손을 하나에서 0 으로 만들고
-                                      MC-OBSERVE 를 닫는다. 지역 기반을 요구하지 않는
-                                      마지막 조각이다.
-                                      **2026-08-19 Human 이 이 회차의 선택을 거두었다** —
-                                      후보로는 살아 있고 다시 고를 수 있다
+3. 존재 사이의 관계  지금 세계에서 가장 이상한 것을 고친다 — 아무나 벨 수 있고 아무나
+                    나를 쫓는다. Human 이 세우기로 한 자리다 (HISTORY Q24(b))
+
+4. 다음 수를 읽는다  익히는 갈래의 마지막 결손이고 닫으면 MC-OBSERVE 가 완성된다.
+                    한 번 열렸다 접힌 후보이며, 그때 얻은 "넘어야 할 선" 셋이 붙어 있다
+
+5. 행동 중단        가장 작은 전투 후보 — 끊김 규칙이 이미 있어 조건 하나만 붙이면 되고
+                    DANGER 층 요구도 미리 채운다
 ```
 
 ## SELECTED
@@ -188,30 +297,38 @@ Aura / Nen           대기 — 사유는 "지금 열 수 없는 것"
 없음 — Human 선택 대기
 ```
 
-    도는 Cycle 이 없다. 위 후보 셋 중 하나를 Human 이 고르면 그 내용이
+    도는 Cycle 이 없다. 위 후보 다섯 중 하나를 Human 이 고르면 그 내용이
     `cycles/<CycleId>/01-cycle.md` 의 MASTER TRACE 로 이어진다 (advprotoh-cycle 스킬).
 
 ## 지금 열 수 없는 것
 
 각각 막힌 이유가 다르다. 이유가 사라지면 후보로 올린다.
 
-| 층 / 후보 | 무엇이 막고 있는가 |
+| 기능 / 층 | 무엇이 막고 있는가 |
 |---|---|
-| FRINGE 층 완주 (MW-ZONE-FRINGE 의 demands 3종) | 결손 MC-USE-TERRAIN + 지형·지역이라는 세계 기반. MC-PREDICT 는 지금 도는 것이고 MC-OBSERVE 는 그와 함께 닫힌다 |
-| WILD 이하 층 (MW-ZONE-* 의 demands) | 얕은 층부터 채운다 (MW-DEPTH-GRADIENT). WILD 0/4 · DANGER 0/4 · DEEP 0/5 · UNKNOWN 0/6 |
-| 문명권에서 준비하는 갈래 (MP-PREPARE-IN-CIVILIZATION) | 요구 Capability 는 없다 — 막는 것은 전부 세계 기반이다 (문명권이라는 장소 · 주체 사이에 무언가가 오가는 경로) |
-| Active Defense (완벽한 막기·되받아치기·Break) | R1 §15 층 그림에서 Penetration 위이고 그 아래층은 C013 으로 섰다. 이제 막는 것은 설계 문서다 — 두 문서는 이름만 예고한다 |
-| FR-EARN-THE-PIERCING (C013 이 제안) | 관통은 종류가 정한 값이거나 디버그 명령으로만 바뀐다 — 플레이어가 "그 벽을 뚫기 위해 무언가를 한다" 는 선택이 없다. C016 이 **형태의 선례**를 만들었다 (능력치가 Capability 의 문을 연다). 남은 것은 그 문을 자원·성장에 잇는 일이며 FR-WHAT-YOU-GATHER-CHANGES-YOUR-BODY 와 한 뿌리다 — 형태와 순서 판단은 Human 의 몫 |
-| Critical 성질을 얻는 경로 (C015 가 남긴 것) | 증폭 자체는 섰으나 확률·배율을 올릴 성장·장비가 없어 MP-BET-ON-THE-CRITICAL-BLOW 가 절반에서 멈춰 있다. 위 두 줄과 완전히 같은 결손이다 — 셋이 묻는 것은 하나다: **얻은 것이 나를 바꾸는가** |
-| 아이템으로 아는 경로 (감정 도구 등) | **아이템을 "쓴다" 는 개념이 세계에 없다** — 소지 개수만 있고(C001 Inventory) 소모·사용 Rule 이 0건이다. C016 이 부분 공개를 세웠으므로 남는 것은 "아이템 사용" 하나이며, 그것은 FR-WHAT-YOU-GATHER-CHANGES-YOUR-BODY 와 같은 뿌리다 |
-| Aura / Nen (집중·조건·제약·서약) | 사다리의 맨 위 — 아래 층이 서야 의미가 생긴다 |
-| Evade (회피) | R1 §13 이 이후 확장으로만 지정 — §14 순서에 자리가 없다 |
-| MG-ACQUIRE-RARE-ORGAN 의 대안 4종 (줍기·거래·사체·강제) | requires 미배선 (BW 는 구조만 공급) + WILD 지역·기관·거래 상대라는 세계 기반이 없다 — OPTIONS/NEED 와 지역 기반 후속 |
-| MP-CONTROL-MOVEMENT · MP-WEAPONIZE-ENVIRONMENT | 결손 2~3종 + (후자는) Hazard 세계 기반. MP-INTERRUPT 는 결손 하나(MC-INTERRUPT)라 다음 회차 후보 가능 |
+| 제작 (재료 → 결과물) | 후보 5(쓴다는 개념)가 먼저다. 그 뒤에는 바로 후보가 된다 |
+| 장비 (걸치고 유지한다) | 같음 — 후보 5 다음 칸 |
+| 감정 도구로 아는 경로 | 같음 — 후보 5 다음 칸. C016 이 부분 공개를 이미 세웠다 |
+| 관통·치명을 얻는 경로 | 같음 — 후보 5 다음 칸. C013·C015 가 각각 남긴 결손이며 셋이 묻는 것은 하나다: **얻은 것이 나를 바꾸는가**. C016 이 형태의 선례를 만들었다 (능력치가 Capability 의 문을 연다) |
+| 능동 방어 (완벽한 막기·되받아치기·Break) | 아래층은 C013·C015 로 섰다. 이제 막는 것은 **그 층의 설계 문서**다 — 두 전투 문서는 이름만 예고한다. 후보 4 가 서면 시점 판정의 바닥이 생긴다 |
+| 지형 (MC-USE-TERRAIN) | 무대가 아무 성질도 없는 평평한 사각형 하나다 — 지역이라는 세계 기반이 먼저다 |
+| WILD 이하 층 | 얕은 층부터 채운다 (MW-DEPTH-GRADIENT). WILD 0/4 · DANGER 0/4 · DEEP 0/5 · UNKNOWN 0/6 |
+| 문명권에서 준비하는 갈래 | 요구 Capability 는 없다 — 막는 것은 전부 세계 기반이다 (문명권이라는 장소 · 주체 사이에 무언가가 오가는 경로) |
+| Aura / Nen | 사다리의 맨 위 — 아래 층이 서야 의미가 생긴다 |
+| 회피 (MC-EVADE) | R1 §13 이 이후 확장으로만 지정 — §14 순서에 자리가 없다 |
+| 희귀 기관을 얻는 네 갈래 | 요구 배선이 없다 (BW 는 구조만 공급) + WILD 지역 · 기관 · 거래 상대라는 세계 기반이 없다 |
+| 공간 통제 · 환경 무기화 | 결손 2~3종 + (후자는) 환경 위험이라는 세계 기반 |
+
+**후보로 올리지 않은 결손 하나**: 기력이 스스로 돌아오지 않는다 (MC-CP-ECONOMY 의
+PARTIAL — 회복 경로가 "타격을 성공시킨다" 하나뿐이라 빗나가면 아무것도 벌지 못하고
+쉬어도 차지 않는다). 이것이 어느 상위 갈래를 전진시키는지를 근거 문서가 말하지 않아
+7 조건 2 를 세울 수 없다. 밸런스로 다룰지 규칙으로 세울지는 Human 판단이다.
 
 ## 규칙
 
 ```text
+후보 하나 = 세계가 갖게 되는 개념 하나. 경계(이 기능이 아닌 것)를 반드시 적고,
+"이미 있는 것" 칸은 코드 대조로 채운다.
 Constraint 를 VIOLATE 하는 후보를 여기에 올리지 않는다 — Design Conflict 로 따로 제시한다.
 Agent 는 후보와 근거를 제공하되 개발 우선순위를 확정하지 않는다.
 선택된 FR-* 는 cycles/<CycleId>/01-cycle.md 의 MASTER TRACE 로 이어진다.
