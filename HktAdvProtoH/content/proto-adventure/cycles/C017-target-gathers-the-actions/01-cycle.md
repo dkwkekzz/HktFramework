@@ -1,7 +1,7 @@
 # CYCLE C017 — Target Gathers the Actions
 
 [PASS] Cycle Definition
-[    ] Intent
+[PASS] Intent                    (관계 하나 · 고르는 것은 아무것도 만들지 않는다 · 유일 대상)
 [    ] World Semantic
 [    ] GameView Specification
 [    ] Human Semantic Review
