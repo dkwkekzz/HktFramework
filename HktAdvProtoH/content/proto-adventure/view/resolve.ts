@@ -26,6 +26,11 @@ import {
   selfPanel,
   strikeMark,
 } from './combat-presentation';
+import {
+  effectMarks,
+  EMPTY_EFFECT_MEMORY,
+  type EffectMemory,
+} from './effect-presentation';
 import { hudPresentation } from './hud-presentation';
 import { interactionPresentation } from './interaction-presentation';
 import { codeText } from './code-text';
@@ -55,6 +60,12 @@ export interface PresentationOptions {
    * 열려 있는가, 무엇을 쓰고 있는가, 무엇을 주고받았는가. 세계는 이것을 알지 못한다.
    */
   command?: CommandSurfaceInput;
+  /**
+   * 직전 관찰 결과에서 기억해 둔 값들 (F1 — effect-presentation).
+   * 세계가 사건으로 보내지 않는 이펙트(채굴 · 알게 됨)는 두 관찰 결과의 *차이*로만
+   * 읽힌다. facingSides 와 같은 규칙이다 — 조립 루트가 기억하고 여기서는 읽기만 한다.
+   */
+  effectsSince?: EffectMemory;
 }
 
 /** 관찰자가 쥐고 있는 명령 표면 상태 — 조립 루트가 소유한다 (04 history.owner: observer) */
@@ -218,6 +229,11 @@ export function resolvePresentation(
         ),
       ),
     ],
+    // 이펙트 (F1) — 같은 사건을 숫자가 아니라 게놈으로도 드러낸다.
+    // 무엇이 어떤 이펙트를 켜는지는 effect-presentation 이 소유한다.
+    effects: effectMarks(snapshot, options.effectsSince ?? EMPTY_EFFECT_MEMORY, (entity) =>
+      entity ? (entity.body?.height ?? rolePresentation(entity.role).size) : 0,
+    ),
     worldTime: Number(snapshot.hud.find((h) => h.id === 'world.time')?.value ?? 0),
     // C017 — 고른 대상 자리. 세계가 보낸 hud 항목이 아니라 계약의 여러 자리를
     // 결정 Layer 가 모아 만든 줄들이다 (04 VIEW ASSEMBLY NOTE). 앞에 둔다 —

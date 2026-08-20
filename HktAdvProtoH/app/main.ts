@@ -29,9 +29,13 @@ import {
 import {
   codeText,
   commandActionRequest,
+  EFFECT_SET,
+  EMPTY_EFFECT_MEMORY,
   KEY_BINDINGS,
+  rememberForEffects,
   resolvePresentation,
   SPRITE_SHEET,
+  type EffectMemory,
 } from '../content/active-view';
 import { registerSprites } from '../engine/view-kernel/assets/registry';
 import { sessionPresentation } from '../engine/view-kernel/presentation/session-presentation';
@@ -58,7 +62,14 @@ const link = createWorldLink(
 // 팩의 스프라이트 표를 그리기 장치에 등록한다 (P3 — 설계 반전 ⑤)
 registerSprites(SPRITE_SHEET);
 
-const renderer = createRenderer(container);
+// 이펙트 (F1) — 어떤 이펙트를 올릴지는 컨텐츠의 예산 결정이므로 여기서 넣어 준다.
+// 그리기 능력은 이 목록이 무엇을 뜻하는지 모른다 (engine/view-kernel/fx).
+const renderer = createRenderer(container, {
+  effects: {
+    names: [...EFFECT_SET],
+    onUnavailable: (reason) => console.info(`[이펙트] 없이 그린다 — ${reason}`),
+  },
+});
 const hud = createHud(container);
 // 명령 표면 (C009) — 타이핑을 받는 동안 이동·시점·행동 입력이 몸에 닿지 않는다
 // (04 commandSurface.inputCapture).
@@ -82,6 +93,7 @@ const EMPTY_SCENE: SceneState = {
   interactions: [],
   hud: [],
   strikes: [],
+  effects: [],
   worldTime: 0,
   commandSurface: {
     open: false,
@@ -128,6 +140,10 @@ const KEY_TILT_RATE = 1.0;
 // 직전 프레임에 각 몸이 어느 쪽으로 읽혔는지 (04 entities.character.facing.ambiguous).
 // 정면·정후면을 향해 좌우가 흐려지는 구간에서 그림이 깜빡이지 않게 하는 기준이다.
 let facingSides: Record<string, ScreenSide> = {};
+
+// 직전 관찰 결과에서 기억해 둔 값들 (F1) — 세계가 사건으로 보내지 않는 이펙트
+// (채굴 · 알게 됨)는 두 관찰 결과의 *차이*로만 읽힌다. facingSides 와 같은 규칙이다.
+let effectMemory: EffectMemory = EMPTY_EFFECT_MEMORY;
 
 // WASD 연속 이동 — 진행 방향의 조금 앞 지점을 요청한다. 판정은 세계가 한다.
 // C003: 매 프레임이 아니라 일정 간격으로 보낸다 — 요청은 이제 선을 타고 간다.
@@ -273,8 +289,11 @@ function frame(now: number): void {
         viewTurn: renderer.viewTurn(),
         facingSides,
         command: { open: commandOpen, text: commandText, history: commandHistory },
+        effectsSince: effectMemory,
       })
     : EMPTY_SCENE;
+  // 이번 관찰 결과가 다음 프레임의 기준이 된다 (읽고 나서 갱신한다)
+  if (snapshot) effectMemory = rememberForEffects(snapshot);
 
   // 이번 프레임에 읽힌 좌우를 다음 프레임의 기준으로 남긴다.
   // 사라진 몸은 함께 사라진다 — 다시 나타나면 그림 기준 방향에서 다시 읽는다.

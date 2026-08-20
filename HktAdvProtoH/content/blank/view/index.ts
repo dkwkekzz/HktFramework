@@ -73,6 +73,7 @@ export function resolvePresentation(
       value: item.value,
     })),
     strikes: [],
+    effects: [], // 빈 팩에는 이펙트를 켜는 사건이 없다
     worldTime: Number(snapshot.hud.find((h) => h.id === 'world.time')?.value ?? 0),
     commandSurface: {
       open: options.command?.open ?? false,
