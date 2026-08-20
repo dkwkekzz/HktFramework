@@ -940,10 +940,14 @@ nodes:
     constraint_evaluation:
       DC-TARGET-IS-INTENT-NOT-AIM: SATISFIED      # 고르는 것으로는 아무것도 일어나지 않는다 — 이후 행동의 대상이 정해질 뿐이다
       DC-WORLD-OWNS-THE-SURFACE-LIST: SATISFIED   # 고를 수 있는가·지금 되는가와 그 사유를 세계가 싣는다 (TG §5.5 · §6.1)
-    overlay: MISSING
-    # 근거는 ../overlay.md. 요청마다 대상 Id 를 실어 보낼 수는 있으나 세계가 "지금
-    # 이 관찰자가 누구를 고르고 있는가" 를 지니는 자리가 없고, 공격은 대상을 아예
-    # 받지 않는다 — TG §1 이 지목한 결손 그대로다.
+    overlay: IMPLEMENTED
+    # 근거는 ../overlay.md — C017 이 닫았다. 관찰자별로 고른 존재 하나를 세계가 지니고,
+    # 살펴봄·채집이 요청이 아니라 그 관계에서 대상을 읽으며, 성립하지 않게 된 관계를
+    # 세계가 스스로 비운다.
+    #
+    # 남은 단서 하나 — RULE-TARGET-CLEAR-STALE-001 은 플레이로 도달하지 않는다.
+    # 존재가 세계에서 사라지는 경로가 0건이기 때문이다 (쓰러져도 · 바닥나도 남는다).
+    # 규칙과 단위 검증은 섰고, 확인은 존재를 없애는 개념이 오는 Cycle 의 몫이다 (C017 08 주①).
     #
     # 문서가 Human 결정으로 남긴 4건(기본 공격의 타겟 필수 여부 · 시작 시 정렬 ·
     # 쓰러진 대상 유지 · 빈 땅 클릭 — TG §13)은 판정의 형태이므로 여기 올리지 않았다.
@@ -975,10 +979,10 @@ nodes:
     constraint_evaluation:
       DC-WORLD-OWNS-THE-SURFACE-LIST: SATISFIED   # 무엇이 되고 왜 안 되는지의 목록은 세계가 싣고 화면은 그것을 표현한다 (TG §6.1 · §6.2)
       DC-TARGET-IS-INTENT-NOT-AIM: SATISFIED      # 계속 읽는 것은 이미 열린 것뿐이다 — 지목이 가려진 것을 열지 않는다
-    overlay: PARTIAL
-    # 근거는 ../overlay.md. 재료는 이미 서 있다 — 존재마다 살펴봄·채집의 가용 여부와
-    # 불가 사유가 관찰에 실리고, 이름과 생명은 몸 위에 늘 보이며, 가려진 항목의 목록도
-    # 함께 온다 (C014 · C016). 없는 것은 그 조각들이 고른 대상 하나로 모이는 자리다.
+    overlay: IMPLEMENTED
+    # 근거는 ../overlay.md — C017 이 닫았다. 흩어져 있던 조각들이 고른 대상 하나로
+    # 모이는 자리가 생겼고, 고른 상대의 지금 값과 그에게 무엇이 왜 안 되는지가
+    # 한자리에서 계속 갱신된다. 사유가 사라지고 행동만 회색으로 남는 형태가 아니다.
     #
     # 무엇이 가려졌는지의 목록은 그 존재 쪽 한 자리에서만 온다 — 고른 대상이라고 해서
     # 같은 목록을 따로 싣지 않는다 (Q25 · DC-WORLD-OWNS-THE-SURFACE-LIST).
@@ -1002,12 +1006,26 @@ nodes:
       그 태도가 어느 쪽에서 본 것인지가 관찰에 실려야 한다.
     required_by: [MP-LEARN-TO-HANDLE-THE-LAYER]
     demanded_by: []
-    constraints: [DC-WORLD-OWNS-THE-SURFACE-LIST, DC-WORLD-CREATURE-FROM-PRESSURE]
+    constraints:
+      [
+        DC-WORLD-OWNS-THE-SURFACE-LIST,
+        DC-WORLD-CREATURE-FROM-PRESSURE,
+        DC-WORLD-COMBAT-IS-ONE-POSSIBILITY,
+        DC-CONDITION-OPENS-WITHOUT-RECORDING,
+      ]
     constraint_evaluation:
-      DC-WORLD-OWNS-THE-SURFACE-LIST: SATISFIED     # 누구를 칠 수 있는지의 판단 근거를 세계가 싣는다 — 화면이 관계를 자기 코드에 적지 않는다
-      DC-WORLD-CREATURE-FROM-PRESSURE: SATISFIED    # 적대가 플레이어를 위해 배치된 것이 아니라 그 층에서 살아가는 목적의 결과다 (BW §21 · §26)
-    overlay: MISSING
-    # 근거는 ../overlay.md — 코드에 관계 개념이 하나도 없다.
+      DC-WORLD-OWNS-THE-SURFACE-LIST: SATISFIED     # C018 실측 — 태도의 값도 무산의 사유도 세계가 싣고, 화면은 문구 표만 지닌다. 사정 목록(HOSTILITY_REASONS) 자체는 투영하지 않는다
+      DC-WORLD-CREATURE-FROM-PRESSURE: SATISFIED    # C018 실측 — 같은 종류 두 개체가 하나는 적대하고 하나는 하지 않는다. 적대가 종류에 붙은 성질이 아니라 지킬 것이 있는가의 결과다
+      DC-WORLD-COMBAT-IS-ONE-POSSIBILITY: SATISFIED # C018 실측 — 물러나는 것이 실제 답이 되었다 (생명 손실 0 으로 상황 종료). 이 Constraint 에 처음으로 실체가 생겼다
+      DC-CONDITION-OPENS-WITHOUT-RECORDING: SATISFIED # C018 실측 — 태도를 저장하지 않아 "물러나면 풀린다" 의 구현이 0줄이다 (Feedback 이 뒤늦게 이은 판정 — HISTORY 참조)
+    overlay: IMPLEMENTED
+    # 근거는 ../overlay.md — C018 이 닫았다. 세계 서버 실측: 자리 중심까지 5.70 에서
+    # 적대로 갈리고 9.28 에서 풀리며 그 존재가 자기 자리로 돌아간다.
+    # Human Play 확인 대기 (기계 검증 6종 · 794 tests 통과).
+    #
+    # 이 Cycle 이 남긴 구조 하나 — 적대의 **사정을 목록으로** 열었다 (HOSTILITY_REASONS).
+    # 지금 항목은 하나(지키는 자리)이며, 진영·결투·도발이 오면 관문도 관찰 계약도
+    # 고치지 않고 목록에 항목만 더한다.
     #
     # 2026-08-20 Human 지시로 세웠다 (HISTORY Q24(b)). TG 는 이 태도를 쓰지만
     # (대상 표시 §3.2 · 공격 거절 §3.4-5 · Tab 후보 §3.1) 세계의 사정을 공급하지 않는다 —

@@ -1,5 +1,5 @@
 {
-  "specId": "VIEW-BASIC-COMBAT-POLICY-001",
+  "specId": "VIEW-STANCE-DECIDES-WHO-CAN-BE-STRUCK-001",
   "scene": "mining-field",
   "observer": {
     "id": "observer-1",
@@ -113,34 +113,20 @@
           "moveSpeed": 1,
           "actionSpeed": 1
         },
-        "acquainted": true,
-        "concealed": [],
-        "combatStats": {
-          "physicalAttack": 40,
-          "auraAttack": 40,
-          "armor": 30,
-          "resistance": 30,
-          "armorPenetration": 0,
-          "resistancePenetration": 0,
-          "armorMultiplier": 0.769231,
-          "resistanceMultiplier": 0.769231,
-          "criticalChance": 0,
-          "criticalDamage": 1
-        },
-        "versusObserver": {
-          "armor": 30,
-          "resistance": 30,
-          "armorMultiplier": 0.769231,
-          "resistanceMultiplier": 0.769231
-        },
+        "acquainted": false,
+        "concealed": [
+          "combatStats",
+          "versusObserver",
+          "defenseShape"
+        ],
         "guard": {
           "guarding": false,
           "broken": false
         },
-        "defenseShape": "even",
         "insight": 0,
-        "stanceTowardObserver": "neutral",
-        "stanceFromObserver": "neutral"
+        "stanceTowardObserver": "hostile",
+        "stanceFromObserver": "neutral",
+        "unacquaintedReason": "not-observed"
       },
       "body": {
         "radius": 0.5,
@@ -513,7 +499,19 @@
       }
     }
   ],
-  "contacts": [],
+  "contacts": [
+    {
+      "attackerId": "player-1",
+      "targetId": "npc-2",
+      "skill": "attack",
+      "at": {
+        "x": 3.0,
+        "z": 0.0
+      },
+      "since": 4.0,
+      "reason": "not-hostile"
+    }
+  ],
   "debug": {
     "open": true
   },

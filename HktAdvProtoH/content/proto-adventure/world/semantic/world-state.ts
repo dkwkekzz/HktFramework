@@ -10,6 +10,7 @@ import type { ActorState } from './actor';
 import type { StrikeEvent } from './combat';
 import type { TargetSelectionState } from './target-selection';
 import type { DepositState } from './deposit';
+import type { UnharmedContact } from './relation';
 import type { WorldBounds, WorldPosition } from './position';
 
 // 관찰자 장부를 읽는 도움들은 Engine 의 것이다 — 같은 이름으로 그대로 쓴다.
@@ -36,6 +37,9 @@ export interface WorldState extends CoreWorldState {
   // World.Acquaintances (C014 ADDED) — 누가 어떤 존재의 겨루는 힘을 아는가.
   // 항목이 없는 관찰자는 아무것도 모른다 (semantic/acquaintance.ts).
   acquaintances: AcquaintanceState[];
+  // World.UnharmedContacts (C018 ADDED) — 닿았으나 해가 성립하지 않은 접촉들.
+  // StrikeEvents 와 나란한 자리이며 같은 수명을 가진다 (semantic/relation.ts).
+  unharmedContacts: UnharmedContact[];
   // World.TargetSelections (C017 ADDED) — 지금 이 관찰자가 누구를 고르고 있는가.
   // 항목이 없는 관찰자는 아무것도 고르지 않은 것이다 (semantic/target-selection.ts).
   targetSelections: TargetSelectionState[];

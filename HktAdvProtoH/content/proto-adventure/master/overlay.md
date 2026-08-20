@@ -6,8 +6,10 @@ Master Graph 를 현재 `world/` `view/` 구현과 겹쳐 본 결과다. 기본 
 각 노드의 `world_shape`(그 의미가 세계에 있다는 것을 무엇으로 확인하는가)가 판정 기준이고,
 이 문서는 그 칸이 지금 닫혀 있는가만 답한다.
 
-    기준 시점   C015(증폭) · C016(통찰) 완료 — 전투 사다리는 Critical 층까지,
-                탐험은 FRINGE 의 첫 칸(살펴봄 + 그것에 이르는 두 경로)까지 서 있다
+    기준 시점   C017(지목) · C018(관계) 완료 — 전투 사다리는 Critical 층까지,
+                탐험은 FRINGE 의 첫 칸(살펴봄 + 그것에 이르는 두 경로)까지 서 있고,
+                그 위에 **고른 대상 하나**와 **둘 사이의 태도**가 얹혔다.
+                세계에 처음으로 "칠 수 없는 것" 이 생겼다 (C018)
     근거 문서   전투 R1 · DT · 탐험 BW · 성장 GR · 지목 TG — 근거는 영역을 넘지 않는다 (HISTORY Q15)
 
 해당 영역 문서가 이름조차 대지 않는 Capability 는 "없는 것" 이 아니라 **노드가 아니다** —
@@ -79,9 +81,9 @@ Constraint Violation 과 혼동하지 않는다 — 여기는 **있는가/없는
 
 | Capability | 상태 | 근거 | 부족한 것 |
 |---|---|---|---|
-| MC-DESIGNATE-TARGET | MISSING | 코드 대조 — 요청마다 대상 Id 를 실어 보낼 수는 있으나(`protocol-core/actions.ts` targetEntityId) 세계가 "지금 이 관찰자가 누구를 고르고 있는가" 를 지니는 자리가 없다. 공격은 대상을 아예 받지 않고(`world/actions/interactions.ts`) 휘두른 자리에 닿은 몸이 맞는다 | 고른 관계 그 자체 · 그 관계를 살펴봄/채집/공격이 함께 쓰는 것 · 대상이 사라졌을 때의 정리 |
-| MC-WATCH-TARGET | PARTIAL | 코드 대조 — 존재마다 살펴봄·채집의 가용 여부와 불가 사유가 이미 관찰에 실리고(`world/projection/observer-view.ts`), 이름·생명은 몸 위에 늘 보이며, 가려진 항목의 목록도 함께 온다 (C014 · C016) | 그 조각들이 **고른 대상 하나로 모이는 자리.** 지금은 대상별 사유가 흩어져 있어 "왜 지금 저것을 못 치는가" 를 한자리에서 읽을 수 없다 |
-| MC-RELATION-STANCE | MISSING | 코드 대조 — 적대·중립·우호라는 개념이 하나도 없다. 휘두른 자리에 닿은 것은 무엇이든 맞고, 자율 존재는 인지 범위에 든 대상을 가리지 않고 쫓는다 (`world/simulation/npc-decide.ts`) | 존재 사이의 태도 그 자체 · 그 태도가 가르는 공격 가부 · 어느 쪽에서 본 태도인지 |
+| MC-DESIGNATE-TARGET | IMPLEMENTED | **C017** — 관찰자별로 고른 존재 하나를 세계가 지니고(`World.TargetSelections` · Id 만), 살펴봄·채집이 요청이 아니라 그 관계에서 대상을 읽으며, 성립하지 않게 된 관계를 세계가 스스로 비운다 | — (`RULE-TARGET-CLEAR-STALE-001` 은 **플레이로 도달하지 않는다** — 존재가 세계에서 사라지는 경로가 0건이다. 규칙과 단위 검증은 섰고, 확인은 존재를 없애는 개념이 오는 Cycle 의 몫이다 — C017 08 주①) |
+| MC-WATCH-TARGET | IMPLEMENTED | **C017** — 고른 상대의 지금 값과, 그에게 지금 무엇이 되고 무엇이 왜 안 되는지가 한자리에서 계속 갱신된다. 사유가 사라지고 행동만 회색으로 남는 형태가 아니라 문구로 온다 | — |
+| MC-RELATION-STANCE | IMPLEMENTED | **C018** — 태도가 방향을 가진 쌍의 값으로 서고(적대·중립·우호), 그 값이 공격 가부를 가르며(중립인 것은 닿아도 상하지 않고 사유가 함께 온다), 두 방향이 모두 관찰에 실린다. 세계 서버 실측: 자리 중심까지 5.70 에서 적대로 갈리고 9.28 에서 풀리며 그 존재가 자기 자리로 돌아간다. **태도를 저장하지 않아** 푸는 규칙이 0줄이다 | — (Human Play 확인 대기 — 기계 검증 6종·794 tests 통과) |
 
 ## World / Actor / Knowledge — 세계 자체는 얼마나 서 있는가
 
@@ -97,7 +99,7 @@ Capability 만 보면 전투가 꽤 찬 것처럼 보이지만, 그 전투가 �
 | MW-ZONE-FRINGE | PARTIAL | 정면 전투력이 우위인 적대 존재는 있다. 그것이 사는 **층**이 없고, 우위를 힘 아닌 것으로 뒤집을 수단도 없다 |
 | MW-HYPER-PREDATION · MW-SPATIAL-SHEAR | ABSENT | 대표 지역 둘 다 없다 |
 | MA-PLAYER | PARTIAL | 몸이 한 종류로 고정이라 고를 갈래 자체가 없다 |
-| MA-HOSTILE-COMBATANT | PARTIAL | 스스로 순찰·추격·공격하고 플레이어와 같은 전투 규칙을 쓴다. 지킬 영역 개념이 없어 순찰 경로가 곧 영역이다 |
+| MA-HOSTILE-COMBATANT | PRESENT | **C018 로 마지막 칸이 닫혔다** — 스스로 순찰·추격·공격하고, 플레이어와 **같은 관문**을 지나며(몬스터 전용 규칙 없음), 이제 지킬 자리를 지녀 그 행동이 자기 영역을 지키는 것으로 읽힌다. 같은 종류 두 개체가 하나는 적대하고 하나는 하지 않는다 — 적대가 종류가 아니라 사정의 결과다 |
 | MK-LOCAL-WORLDSTATE | ABSENT | 지역이 없다. 다만 "모르는 상태" 라는 것 자체는 C014 로 세계에 생겼다 (살펴봄 이전) — 얹힐 바닥은 섰다 |
 | MK-OPPONENT-DEFENSE-SHAPE | PRESENT | 방어 형태와 관통 반영값이 관찰에 실리고 (C012 · C013), 그것을 **알게 되는 과정**이 생겼다 — 살펴보기 전에는 가려져 있고 (C014), 통찰을 기르면 자리별로 열린다 (C016) |
 | MK-OPPONENT-FLOW-PATTERN | ABSENT | 힘을 배분하는 상태가 없다 |
@@ -137,7 +139,7 @@ Capability 만 보면 전투가 꽤 찬 것처럼 보이지만, 그 전투가 �
 
 | Possibility | 요구 중 없는 것 | 비고 |
 |---|---|---|
-| MP-LEARN-TO-HANDLE-THE-LAYER | MC-PREDICT · MC-DESIGNATE-TARGET · MC-RELATION-STANCE (+ MC-OBSERVE · MC-WATCH-TARGET 는 PARTIAL) | **C014·C016 이 첫 칸을 세웠다** — 살펴봄이 서고 거기에 이르는 길이 둘이 되었다. 남은 것은 둘째 칸(예측) 하나이며 그것이 MC-OBSERVE 의 마지막 결손과 같은 자리다 — **2026-08-20 보류 (AI 기획서 대기)**. 탐험의 기본 갈래이자 다른 둘의 앞이다 (먼저 겪은 사람이 없으면 살 정보도 가져올 자원도 없다). TG 주입으로 지목 둘이, Human 지시로 관계 하나가 더해졌다 (HISTORY Q24 · Q27) |
+| MP-LEARN-TO-HANDLE-THE-LAYER | **MC-PREDICT 하나** (+ MC-OBSERVE 는 PARTIAL — 같은 자리다) | **네 칸 중 셋이 닫혔다.** C014·C016 이 살펴봄과 그것에 이르는 두 길을, C017 이 지목 둘(MC-DESIGNATE-TARGET · MC-WATCH-TARGET)을, C018 이 관계(MC-RELATION-STANCE)를 세웠다. 남은 것은 **예측 하나**이며 그것이 MC-OBSERVE 의 마지막 결손과 같은 자리다 — 닫히면 이 갈래가 통째로 선다 — 다만 **2026-08-20 보류** (AI 기획서 대기 · frontier "지금 열 수 없는 것"). 탐험의 기본 갈래이자 다른 둘의 앞이다 (먼저 겪은 사람이 없으면 살 정보도 가져올 자원도 없다) |
 | MP-ADAPT-BY-RESOURCE | MC-RESTORE-BIOLOGICAL-STATE · MC-CUT-ABNORMAL-STRUCTURE + MK-LOCAL-WORLDSTATE + 자원 | **설계상 획득 경로는 Q22 로 섰다** (경계결정 → IM-BOUNDARY-EDGED). 세계에 제작·장착이 없다 |
 | MP-PREPARE-IN-CIVILIZATION | MK-LOCAL-WORLDSTATE + MW-SAFE-FRONTIER + 관계·대가 | 요구 Capability 가 없다 (BW §14 는 활동만 열거) — 막는 것은 능력이 아니라 문명권·거래라는 세계 기반이다 |
 

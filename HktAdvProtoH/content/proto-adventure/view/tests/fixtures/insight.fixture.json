@@ -63,7 +63,9 @@
           "guarding": false,
           "broken": false
         },
-        "insight": 0
+        "insight": 0,
+        "stanceTowardObserver": "neutral",
+        "stanceFromObserver": "neutral"
       },
       "body": {
         "radius": 0.7,
@@ -120,6 +122,8 @@
           "broken": false
         },
         "insight": 0,
+        "stanceTowardObserver": "neutral",
+        "stanceFromObserver": "neutral",
         "versusObserver": {
           "armor": 30,
           "resistance": 56.25,
@@ -198,7 +202,9 @@
           "guarding": false,
           "broken": false
         },
-        "insight": 60
+        "insight": 60,
+        "stanceTowardObserver": "neutral",
+        "stanceFromObserver": "neutral"
       },
       "body": {
         "radius": 0.85,
@@ -491,6 +497,7 @@
     }
   ],
   "strikes": [],
+  "contacts": [],
   "debug": {
     "open": true
   },

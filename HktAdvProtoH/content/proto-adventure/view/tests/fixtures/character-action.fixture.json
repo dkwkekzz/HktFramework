@@ -149,6 +149,7 @@
     }
   ],
   "strikes": [],
+  "contacts": [],
   "debug": {
     "open": false
   },

@@ -29,6 +29,7 @@ import {
 import { hudPresentation } from './hud-presentation';
 import { interactionPresentation } from './interaction-presentation';
 import { codeText } from './code-text';
+import { contactMark } from './relation-presentation';
 import { kindPresentation } from './kind-presentation';
 import { rolePresentation } from './role-presentation';
 import { TARGET_TINT, targetHudItems } from './target-presentation';
@@ -199,13 +200,24 @@ export function resolvePresentation(
     ...(selfPanel(snapshot) ? { self: selfPanel(snapshot) } : {}),
     // 타격 숫자는 맞은 몸의 그림 크기에 맞춰 떠오른다 — 그 몸이 아직 세계에 있으면 그 크기를 쓴다
     // C010 — 속성 관찰이 켜져 있으면 그 숫자가 나온 경위도 함께 붙는다 (같은 토글이다)
-    strikes: snapshot.strikes.map((event) =>
-      strikeMark(
-        event,
-        rolePresentation(snapshot.entities.find((e) => e.id === event.targetId)?.role ?? '').size,
-        options.inspect ?? false,
+    // C018 — 무산된 접촉이 같은 자리에 나란히 뜬다. 빗나간 휘두름은 아무것도 오지 않고,
+    // 무산은 맞은 자리에 사유가 뜬다 — 둘을 같게 그리면 이 Cycle 의 절반이 사라진다.
+    strikes: [
+      ...snapshot.strikes.map((event) =>
+        strikeMark(
+          event,
+          rolePresentation(snapshot.entities.find((e) => e.id === event.targetId)?.role ?? '').size,
+          options.inspect ?? false,
+        ),
       ),
-    ),
+      ...snapshot.contacts.map((contact) =>
+        contactMark(
+          contact,
+          rolePresentation(snapshot.entities.find((e) => e.id === contact.targetId)?.role ?? '')
+            .size,
+        ),
+      ),
+    ],
     worldTime: Number(snapshot.hud.find((h) => h.id === 'world.time')?.value ?? 0),
     // C017 — 고른 대상 자리. 세계가 보낸 hud 항목이 아니라 계약의 여러 자리를
     // 결정 Layer 가 모아 만든 줄들이다 (04 VIEW ASSEMBLY NOTE). 앞에 둔다 —
