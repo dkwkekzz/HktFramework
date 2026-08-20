@@ -4,6 +4,7 @@
 
 import * as THREE from 'three';
 import { createViewCamera } from '../camera/camera';
+import { createEffectLayer, type EffectLayer, type EffectLayerOptions } from '../fx/effect-layer';
 import type { PlaneDirection } from '../camera/orientation';
 import type { SceneState } from '../scene/scene-state';
 import { createBillboard, type Billboard } from '../sprites/billboard';
@@ -34,7 +35,18 @@ export interface GameRenderer {
   domElement: HTMLCanvasElement;
 }
 
-export function createRenderer(container: HTMLElement): GameRenderer {
+export interface RendererOptions {
+  /**
+   * 이펙트 층 (F1). 없으면 이펙트 없이 그린다 — 세계는 그대로 돈다.
+   * 어떤 이펙트를 올릴지(예산)는 컨텐츠의 결정이므로 조립 루트가 넣어 준다.
+   */
+  effects?: EffectLayerOptions;
+}
+
+export function createRenderer(
+  container: HTMLElement,
+  options: RendererOptions = {},
+): GameRenderer {
   const renderer = new THREE.WebGLRenderer({ antialias: true });
   renderer.setSize(container.clientWidth, container.clientHeight);
   renderer.setPixelRatio(window.devicePixelRatio);
@@ -58,6 +70,14 @@ export function createRenderer(container: HTMLElement): GameRenderer {
     camera.updateProjectionMatrix();
     renderer.setSize(container.clientWidth, container.clientHeight);
   });
+
+  // 이펙트 층 — 세계 캔버스 *위에* 겹치는 투명한 WebGPU 캔버스 (engine/view-kernel/fx).
+  // 세계 캔버스를 먼저 붙였으므로 그 위에 오고, HUD 는 뒤에 붙으므로 이 위에 온다.
+  const effectLayer: EffectLayer = createEffectLayer(container, options.effects ?? {});
+  // 이미 켠 사건들 — 이펙트는 상태가 아니라 사건이라 한 번만 켠다.
+  // 관찰 결과는 같은 타격을 TTL 동안 계속 실어 보낸다 (C007 strikeEvents).
+  const firedEffects = new Set<string>();
+  const FIRED_MEMORY = 512; // 이 이상 쌓이면 오래된 것부터 버린다 (Set 은 삽입 순서를 지킨다)
 
   const billboards = new Map<string, Billboard>(); // entityId → billboard
   const raycaster = new THREE.Raycaster();
@@ -263,6 +283,47 @@ export function createRenderer(container: HTMLElement): GameRenderer {
       if (state.colliderDebug) drawDebug(state.colliderDebug);
 
       renderer.render(scene, camera);
+
+      // 이펙트 (F1) — 세계를 그린 위에 겹친다.
+      // 이 층은 이것이 타격인지 채굴인지 모른다. 지시가 온 자리에서 게놈을 켤 뿐이다.
+      if (effectLayer.live()) {
+        for (const effect of state.effects) {
+          if (firedEffects.has(effect.id)) continue;
+          firedEffects.add(effect.id);
+          effectLayer.trigger({
+            name: effect.effect,
+            origin: {
+              x: effect.position.x,
+              y: heightAt(effect.position.x, effect.position.z) + effect.elevation,
+              z: effect.position.z,
+            },
+            ...(effect.direction ? { dir: effect.direction } : {}),
+            strength: effect.strength,
+            ...(effect.roll === undefined ? {} : { roll: effect.roll }),
+          });
+        }
+        if (firedEffects.size > FIRED_MEMORY) {
+          const drop = firedEffects.size - FIRED_MEMORY / 2;
+          let n = 0;
+          for (const id of firedEffects) {
+            if (n++ >= drop) break;
+            firedEffects.delete(id);
+          }
+        }
+        // 시뮬 격자는 따라가는 몸 둘레에 둔다 — 이펙트가 늘 그 근처에서 태어난다
+        const followed = state.entities.find((e) => e.cameraFollow);
+        const at = followed ? (drawn.get(followed.id) ?? followed.position) : undefined;
+        effectLayer.render(
+          {
+            view: camera.matrixWorldInverse.elements,
+            fovY: (camera.fov * Math.PI) / 180,
+            near: camera.near,
+            far: camera.far,
+            ...(at ? { focus: { x: at.x, y: heightAt(at.x, at.z) + 1, z: at.z } } : {}),
+          },
+          dt,
+        );
+      }
     },
 
     pickGround(clientX, clientY) {

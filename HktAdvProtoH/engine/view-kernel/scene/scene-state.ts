@@ -90,6 +90,36 @@ export interface SceneStrike {
   guard?: 'blocked' | 'broken';
 }
 
+// 한 번 켜지는 이펙트 (F1) — 세계의 *사건*을 그림이 아니라 게놈으로 드러낸다.
+//
+// 여기 있는 것은 "무엇을 · 어디서 · 얼마나 세게" 뿐이다. 그 이펙트가 어떻게 생겼는지는
+// 게놈이 정하고(engine/view-kernel/fx/splat/fx.js), 어떤 사건이 어떤 게놈을 켜는지는
+// 컨텐츠 팩이 정한다(content/<pack>/view/effect-presentation.ts).
+// capability 는 이것이 타격인지 채굴인지 모른다 — 슬롯 하나를 켤 뿐이다.
+export interface SceneEffect {
+  /**
+   * 같은 사건을 두 번 켜지 않기 위한 키.
+   * 이펙트는 상태가 아니라 *사건*이다 — 관찰 결과는 같은 타격을 여러 프레임 동안
+   * 실어 보내지만(TTL), 켜지는 것은 처음 본 그 한 번뿐이다.
+   */
+  id: string;
+  /** 이펙트 게놈 이름 (FX_PRESETS) */
+  effect: string;
+  /** 발생 자리 — 지면 좌표 */
+  position: { x: number; z: number };
+  /** 지면에서 띄울 높이 (맞은 자리는 가슴께, 캐낸 자리는 광맥 허리께) */
+  elevation: number;
+  /** 축 — 타격이면 맞은 쪽 법선. 없으면 위 */
+  direction?: { x: number; y: number; z: number };
+  /**
+   * 사건의 세기 (게놈이 아니다 — 04 F6). 같은 이펙트의 스침과 정통을 가른다.
+   * 게놈은 이 세기에 대한 *감도*만 가진다.
+   */
+  strength: number;
+  /** 축 둘레 회전(rad) — 부채꼴 이펙트(검격)의 칼날 각도 */
+  roll?: number;
+}
+
 // 자기 몸에 대한 상시 표시 (C007 hud.self) — 같은 값을 남에 대해서도 볼 수 있지만,
 // 이것은 늘 눈앞에 있는 자리다.
 export interface SceneSelf {
@@ -231,6 +261,8 @@ export interface SceneState {
   colliderDebug?: SceneColliderDebug; // C006 — 디버그 관찰이 켜졌을 때만 존재한다
   self?: SceneSelf; // C007 — 자기 자원·능력치·배율 (아직 관찰 결과가 없으면 없다)
   strikes: SceneStrike[]; // C007 — 지금 떠 있는 타격 결과들
+  /** 이번에 켜야 할 이펙트들 — 이미 켠 사건은 다시 실리지 않는다 (F1) */
+  effects: SceneEffect[];
   worldTime: number; // C007 — 타격 결과의 나이를 재는 기준 (세계 시각)
   commandSurface: SceneCommandSurface; // C009 — 명령 목록·안내·기록
 }

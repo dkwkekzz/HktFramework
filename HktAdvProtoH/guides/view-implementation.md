@@ -50,6 +50,7 @@ view/
     interaction-presentation.ts  Interaction Role 의 키 바인딩 · 프롬프트
     hud-presentation.ts          HUD 항목 id 의 라벨 · 아이콘 · 토스트
     combat-presentation.ts       전투 관찰값의 표시
+    effect-presentation.ts       어떤 사건이 어떤 이펙트를 얼마나 세게 켜는가 (F1)
     code-text.ts                 의미 코드 → 플레이어 문구
     bindings.ts                  이 팩의 특수 키 규칙
     command-request.ts           명령 한 줄 → Action Request
@@ -58,7 +59,8 @@ view/
 
 engine/view-kernel/              capability Layer — 팩이 편집하지 않는다
     renderer · scene(Render Plan 타입) · sprites · terrain · camera · input · hud ·
-    assets · motion 재생 · net · 엔진 공통 presentation(collision·facing·link·session)
+    assets · motion 재생 · net · 엔진 공통 presentation(collision·facing·link·session) ·
+    fx(이펙트 오버레이 + 스플랫 런타임)
 ```
 
 팩은 표·문구·바인딩·스프라이트를 **주입**하고 (registerSprites · CodeTextFn · KeyBinding),
@@ -94,6 +96,30 @@ Capability Layer          engine/view-kernel/ — 그리기 능력만 제공, �
 2. **표현이 고도화될 때만 capability 추가** — 예: sprite animation 이 필요해지면
    그 능력을 더하고, 기존 능력으로 그리던 것들의 코드는 수정하지 않는다.
 
+### 이펙트 (F1)
+
+Cycle 이 새 사건(타격의 새 방식 · 새 스킬 · 새 상태 전이)을 만들면, 그 사건이 화면에서
+*터지게* 하는 것은 `view/effect-presentation.ts` 한 곳이다. 코드가 아니라 **표**를 늘린다.
+
+```text
+World 가 보내는 의미        effect-presentation           engine/view-kernel/fx
+(damageType · guard ·   →   어떤 게놈을 얼마나 세게   →   그 게놈을 켠다
+ critical · 값의 변화)       (SceneEffect 한 줄)           (이펙트 오버레이)
+```
+
+세 가지 규칙만 지킨다.
+
+1. **이펙트는 세계에 넣지 않는다.** 세계는 사건을 낳고, 이펙트는 그 사건의 읽는 법이다.
+   근거: [design/Design-Effect-Presentation.md](../design/Design-Effect-Presentation.md).
+2. **세기는 사건의 값에서 나온다.** 게놈을 새로 만들어 "센 타격" 을 만들지 않는다 —
+   같은 게놈에 `strength` 를 달리 준다 (게놈이 가진 것은 그 세기에 대한 *감도*뿐이다).
+3. **예산을 넘기지 않는다.** 화면에 동시에 올릴 수 있는 이펙트는 `EFFECT_SET` 의 7개다.
+   새 이펙트를 넣으려면 무엇을 뺄지 함께 정한다.
+
+새 *모양*이 필요하면 그것은 View 구현이 아니라 게놈 작업이다 — `tools/fx-lab/` 에서 맞추고
+`engine/view-kernel/fx/splat/fx.js` 의 `FX_PRESETS` 에 한 줄로 넣는다 (셰이더·엔진·렌더러는
+건드리지 않는다). 랩과 게임은 같은 런타임 사본을 읽으므로 랩에서 맞춘 값이 그대로 산다.
+
 미등록 role/HUD id/사유 코드도 기본 결정과 placeholder 로 일단 그려져야 한다 —
 표현 등록 누락이 게임을 멈추지 않는다.
 
@@ -118,6 +144,8 @@ Capability Layer          engine/view-kernel/ — 그리기 능력만 제공, �
 - `world/` 를 import 하거나 World 내부 구현을 계약의 대체 수단으로 사용하지 않는다 — 공유는 `protocol/` 뿐이다.
 - Client 에서 World State 를 직접 변경하지 않는다.
 - Spec 에 없는 게임 의미를 View 에서 만들어내지 않는다 (예: 클라이언트 임의 판정).
+- 이펙트를 `world/` 나 GameView 계약에 넣지 않는다 — 세계는 사건까지만 낳는다 (F1).
+- 이펙트의 *모양*을 결정 Layer 코드로 만들지 않는다 — 모양은 게놈이고, 표는 사건→게놈 사상만 갖는다.
 - Capability 코드(`engine/view-kernel/`)에 특정 role·게임 의미·문구를 하드코딩하지 않는다 —
   결정은 `view/` 의 role/id 단위 항목만이 한다. 그리고 팩 작업 중 `engine/` 을 편집하지 않는다.
 - 같은 종류 대상의 결정 코드를 Cycle 별로 분리·중복하지 않는다 — 단일 항목을 발전시킨다.
