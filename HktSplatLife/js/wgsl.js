@@ -59,8 +59,29 @@ struct Entity {
 	disc : f32,        discThick : f32, rayLen : f32,    rayThin : f32, // 평면 집중·평면 두께·바늘 길이 상한·가늘기
 	// F5 방위 유전자 — 평면 안에서 어느 쪽으로 몰리는가. arc 0 = 온 고리(물결파),
 	// 1 근처 = 한 줄로 몰린 부채꼴(검격 = 칼자국). 기준 방향은 이벤트 롤(ev2.w)이 정한다.
-	arc : f32,         arcSharp : f32,  _f5a : f32,      _f5b : f32,   // 방위 집중·집중의 뾰족함·예비
+	arc : f32,         arcSharp : f32,  rayAlign : f32,  _f5b : f32,   // 방위 집중·집중의 뾰족함·가시 정렬·예비
+	// F6 표현 강도 유전자 — 이벤트의 세기 I(ev1.w)를 *채널마다 다른 지수*로 받는다.
+	// 강도는 게놈이 아니라 사건이 주는 값이고(같은 이펙트라도 스치면 약하고 정통이면 세다),
+	// 게놈이 정하는 것은 "그 강도에 이 이펙트가 얼마나 반응하는가"(감도)다. 응답 = pow(I, p).
+	// p = 0 이면 그 채널은 강도를 무시한다(회귀 0). powVel 만 기본 1 = 예전 선형 응답.
+	powVel : f32,      powSize : f32,   powLum : f32,    powLife : f32, // 속도·크기·밝기·수명 감도
+	// F7 시간 결 유전자 — 수명 *안에서* 밝기가 어떻게 변주되는가 (전부 시간·상태의 함수).
+	// 점멸은 방전(전기)의 서명이고, 섬광은 탄생 순간의 과노출, 코어는 느린 조각(=중심)의 과노출이다.
+	flicker : f32,     flickerHz : f32, flash : f32,     coreGlow : f32, // 점멸 깊이·주기·탄생 섬광·코어 과노출
+	// F8 방사 구조 유전자 — 방사가 *바깥으로만* 흐르지 않아도 된다.
+	// implode 는 부호를 뒤집어 흡수(차징)로, ripple 은 속도를 계단으로 잘라 동심 다중 파문으로,
+	// twist 는 속도에 비례해 방향을 감아 나선 팔로 만든다 — 셋 다 같은 규칙의 좌표 차이다.
+	implode : f32,     ripple : f32,    twist : f32,     _f8b : f32,   // 수축(흡수)·다중 파문 계단·나선·예비
 };
+
+// ── F6 응답 함수 (SIM·RENDER·DISTORT 공유) ────────────────────────────────
+// 이벤트 강도 I 는 스플랫의 misc.z 에 *탄생 시각에* 도장으로 남는다 — 슬롯이 다시 켜지면
+// 그 세대가 새 강도로 다시 태어나므로, 렌더가 보는 강도와 시뮬이 쓴 강도는 항상 같은 세대다.
+fn fxResp(I : f32, p : f32) -> f32 { return pow(max(I, 1e-3), p); }
+// 유효 수명: 세게 맞을수록 오래 남는다(powLife > 0). 세 패스가 같은 식을 써야 위상 u 가 어긋나지 않는다.
+fn fxLifeOf(lifeBase : f32, powLife : f32, I : f32) -> f32 {
+	return max(lifeBase, 1e-3) * fxResp(I, powLife);
+}
 `;
 
 	// F1 이펙트 이벤트 테이블 — engine.js MAX_FX/FX_STRIDE 와 바이트 일치 필수.
@@ -188,7 +209,10 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
 		let ev1 = fxEvents[slot * 3u + 1u];  // 축.xyz, 세기
 		let ev2 = fxEvents[slot * 3u + 2u];  // 초기 반경, 시드, 스케일
 		let t0 = ev0.w;
-		let life = max(E.lifeBase, 1e-3);
+		// F6 표현 강도: 이벤트가 주는 세기 I. 게놈의 감도(pow*)가 채널마다 다르게 받는다 —
+		// 속도(도달 반경)·크기(굵기)·밝기·수명이 한 노브로 함께 움직여야 "세게 맞았다"로 읽힌다.
+		let I = max(ev1.w, 0.0);
+		let life = fxLifeOf(E.lifeBase, E.powLife, I);
 		let age = P.time - t0;
 		if (t0 <= 0.0 || age < 0.0 || age > life) {
 			// 비활성: 격자 밖(저 아래)에 주차 — 이웃 탐색·렌더에서 완전히 빠진다(에너지 0)
@@ -257,6 +281,14 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
 			if (dvl > 1e-4) { dir = dv / dvl; }
 			// 구각 집중(shell): 0 = 부피 균등(꽉 찬 구, 세제곱근 분포) … 1 = 같은 속도(팽창 구각)
 			var sp0 = E.burst * mix(pow(max(h3.x, 1e-4), 0.3333), 1.0, clamp(E.shell, 0.0, 1.0));
+			// F8 다중 파문(ripple): 속도를 q 계단으로 잘라 동심 고리 q 겹을 만든다 — 계단이
+			// 구각 분포(shell)를 *대신한다*. 함정: 연속 분포를 나중에 잘라내면 인구가 바깥 고리
+			// 하나에 쏠려(세제곱근 분포는 1 근처가 두껍다) 겹이 보이지 않는다 — 균등 변량(h3)을
+			// 먼저 q 칸으로 나눠 고리마다 같은 수를 준다. 반경 비는 1:2:…:q 로 벌어진다.
+			if (E.ripple >= 1.0) {
+				let q = floor(E.ripple);
+				sp0 = E.burst * (floor(h3.x * q) + 1.0) / q;
+			}
 			// F3 파열: 방사 *방향*을 성긴 격자로 양자화해 조각(shard)을 만든다. 같은 조각의
 			// 스플랫은 같은 속도 배율·같은 밀도를 갖는다 — 조각 경계가 곧 찢긴 자리다.
 			// (스플랫마다 난수를 주면 파면이 그냥 흐려질 뿐 "찢어지지" 않는다. 덩어리째 갈라야 한다.)
@@ -274,16 +306,46 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
 				let cellA = floor((az + 3.14159265) / 6.28318531 * max(E.shredFreq, 0.5) * 4.0);
 				let cellP = floor(po / 3.14159265 * max(E.shredFreq, 0.5) * 2.0);
 				let hs = hash31(cellA * 7.13 + cellP * 131.77 + ev2.y * 0.37);
+				// F5 가시 정렬(rayAlign): 조각 안 방향을 조각 *중심*으로 스냅한다. 스냅이 없으면
+				// 한 조각은 미세하게 엇갈린 평행 바늘 다발이고, 다발들의 겹침 포락선이 굽은 결로
+				// 읽힌다(타격 눈검증 — 시뮬은 완전 방사인데 화면 줄기가 휘어 보이는 원인).
+				// 방향 양자화(F3)의 연장: 속도·밀도에 이어 방향도 같은 격자에서 유도한다.
+				if (E.rayAlign > 0.0) {
+					let azc = ((cellA + 0.5) / (max(E.shredFreq, 0.5) * 4.0)) * 6.28318531 - 3.14159265;
+					let poc = ((cellP + 0.5) / (max(E.shredFreq, 0.5) * 2.0)) * 3.14159265;
+					let dc = ax * cos(poc) + (t1 * cos(azc) + t2 * sin(azc)) * sin(poc);
+					let dm = mix(dir, dc, clamp(E.rayAlign, 0.0, 1.0));
+					let dml = length(dm);
+					if (dml > 1e-4) { dir = dm / dml; }
+				}
 				// 속도: 앞서 나가는 조각과 뒤처지는 조각 — shredPow 가 크면 소수만 크게 튄다
 				sp0 *= mix(1.0 - E.shred, 1.0 + E.shred, pow(hs.x, max(E.shredPow, 0.05)));
 				// 밀도: 하위 tear 비율의 조각은 통째로 사라진다 = 파면에 뚫린 틈
 				dens = smoothstep(clamp(E.tear, 0.0, 0.95), clamp(E.tear, 0.0, 0.95) + 0.12, hs.y);
 			}
+			// F8 나선(twist): *속도에 비례해* 방향을 축 둘레로 감는다 — 빠른 조각이 앞서 돌아
+			// 나선 팔이 선다(로드리게스 회전). 상수 회전이면 그냥 통째로 돌아간 파면일 뿐이다.
+			if (E.twist != 0.0) {
+				let ang = E.twist * (sp0 / max(E.burst, 1e-3));
+				let ca = cos(ang);
+				dir = dir * ca + cross(ax, dir) * sin(ang) + ax * dot(ax, dir) * (1.0 - ca);
+			}
 			let tang = cross(ax, dir); // 와류: 축 둘레 접선 — 화구가 말려 오르는 결
-			s.pos = ev0.xyz + dir * (ev2.x * ev2.z);
-			s.vel = (dir * sp0 + tang * (E.swirl * E.burst)) * ev1.w * E.fxK;
+			// F6 속도 응답 — powVel 1 = 예전 선형(회귀 0), 2 면 강도의 제곱으로 멀리 난다
+			let vK = fxResp(I, E.powVel) * E.fxK;
+			// F8 수축(implode): 흡수·차징은 *부호가 반대인 방사*다. 감쇠까지 넣은 도달 거리
+			//   R = v(1-e^{-dL})/d 만큼 밖에서 태어나 속도를 뒤집으면, 수명이 다할 때 중심에 모인다.
+			//   (도달 거리를 어림으로 잡으면 다 모이기 전에 꺼지거나 중심을 지나쳐 다시 퍼진다.)
+			let im = clamp(E.implode, 0.0, 1.0);
+			var r0 = ev2.x * ev2.z;
+			if (im > 0.0) {
+				let dmp = max(E.damping, 1e-3);
+				r0 += im * (sp0 * vK) * (1.0 - exp(-dmp * life)) / dmp;
+			}
+			s.pos = ev0.xyz + dir * r0;
+			s.vel = (dir * sp0 + tang * (E.swirl * E.burst)) * vK * (1.0 - 2.0 * im);
 			s.life = t0;
-			s.misc.z = 0.0; // 연소 채널 미사용 (색은 개체 램프에서 유도)
+			s.misc.z = I;    // F6 강도 도장 — 렌더·굴절 패스가 이 세대의 강도를 읽는 유일한 근거
 			s.misc.w = dens; // 조각 밀도 (파열 없으면 1 — 기존 이펙트 회귀 0)
 		}
 		let u = clamp(age / life, 0.0, 1.0);
@@ -310,7 +372,15 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
 		s.age = age; // 렌더가 수명 위상(u)을 다시 유도하는 유일한 근거
 		// 수명 곡선: 점화(smoothstep)는 짧게, 소멸(curve)은 유전자가 정한다.
 		// 조각 밀도(misc.w)를 곱해 찢긴 자리는 애초에 옅다 — 굴절 밀도의 근거도 이 값이다.
-		s.misc.x = pow(1.0 - u, max(E.curve, 0.05)) * smoothstep(0.0, 0.04, u) * s.misc.w;
+		var en = pow(1.0 - u, max(E.curve, 0.05)) * smoothstep(0.0, 0.04, u) * s.misc.w;
+		// F7 점멸(flicker): 방전의 서명. 위상은 스플랫 시드로 *조금만* 흩는다(0.3 주기 폭) —
+		// 완전 동기면 화면이 통째로 껌뻑여 전기가 아니라 조명 스위치가 되고, 완전 무작위면
+		// 수만 개의 위상이 서로 상쇄돼 아무것도 깜빡이지 않는다(그냥 절반 어두워질 뿐).
+		if (E.flicker > 0.0) {
+			let ph = P.time * E.flickerHz + fract(s.misc.y) * 0.3; // Hz = 초당 주기
+			en *= 1.0 - clamp(E.flicker, 0.0, 1.0) * (0.5 - 0.5 * cos(ph * 6.2831853));
+		}
+		s.misc.x = en;
 		splats[i] = s;
 		return;
 	}
@@ -763,8 +833,13 @@ fn ewaProject(t : vec3f, clip : vec4f, Vrk : mat3x3f, view : mat4x4f, focal : ve
 	e.major = vec2f(0.0);
 	e.minor = vec2f(0.0);
 	e.ok = false;
+	// 함정(부호): 뷰 공간은 카메라가 -z 를 본다(t.z < 0). ndc.x = f·x/(-t.z) 이므로
+	// ∂u/∂x = -f/t.z 여야 NDC 와 같은 손이 된다. +f/t.z 로 두면 u 축만 거울상이 되어
+	// 공분산 off-diagonal 부호가 뒤집히고 *타원의 방향*이 화면 X축 기준 좌우 반전된다 —
+	// 원형 스플랫에선 안 보이지만 바늘(신축)에선 화면 대각선 방향 바늘이 접선으로 눕는다.
+	// (velocity-방사 바늘이 0°/90° 에서만 옳고 45° 에서 수직 — "화면 축 사각별"의 정체.)
 	let J = mat3x3f(
-		vec3f(focal.x / t.z, 0.0, -(focal.x * t.x) / (t.z * t.z)),
+		vec3f(-focal.x / t.z, 0.0, (focal.x * t.x) / (t.z * t.z)),
 		vec3f(0.0, -focal.y / t.z, (focal.y * t.y) / (t.z * t.z)),
 		vec3f(0.0, 0.0, 0.0));
 	let W = mat3x3f(view[0].xyz, view[1].xyz, view[2].xyz);
@@ -834,7 +909,23 @@ fn vs(@builtin(vertex_index) vi : u32, @builtin(instance_index) ii : u32) -> VOu
 	// (engine.js 의 굴절 경로 판정도 같은 술어 refract>0 이라 스플랫이 사라지는 일은 없다.)
 	if (E.refract > 0.0) { return o; }
 	let energy = s.misc.x;
-	let alpha = energy * E.opacity;
+	var alpha = energy * E.opacity;
+	// F1/F6/F7: 이펙트의 수명 위상·표현 강도. 강도는 알파를 바꾸므로 컬 *앞*에서 구해야
+	// "약하게 친 타격이 옅다"가 성립한다 (컬 뒤에 곱하면 옅어진 스플랫이 그대로 살아남는다).
+	let isFx = E.fxK > 0.0;
+	var fxU = 0.0;
+	var fxSize = 1.0;
+	var fxLum = 1.0;
+	if (isFx) {
+		let I = max(s.misc.z, 1e-3); // 제 세대의 이벤트 강도 (SIM 이 탄생 시 도장으로 남긴 값)
+		fxU = clamp(s.age / fxLifeOf(E.lifeBase, E.powLife, I), 0.0, 1.0);
+		fxSize = fxResp(I, E.powSize);
+		// F7 탄생 섬광(flash): 위상 0 근방의 짧은 과노출 — "번쩍" 은 커브가 아니라 지수 붕괴다.
+		// F7 코어 과노출(coreGlow): 느린 조각 = 아직 중심에 있는 조각. 속도에서 유도한다.
+		let core = 1.0 + E.coreGlow * exp(-3.0 * length(s.vel) / max(E.burst, 1e-3));
+		fxLum = fxResp(I, E.powLum) * (1.0 + E.flash * exp(-fxU * 24.0)) * core;
+		alpha = clamp(alpha * fxResp(I, E.powLum), 0.0, 1.0);
+	}
 	if (alpha < 0.004) { return o; }
 
 	let t4 = C.view * vec4f(s.pos, 1.0);
@@ -847,14 +938,9 @@ fn vs(@builtin(vertex_index) vi : u32, @builtin(instance_index) ii : u32) -> VOu
 	var base = E.size * (0.35 + 0.65 * energy); // 에너지로 크기 맥동
 	let isFlesh = E.fleshK > 0.0 && C.boneCount > 0u;
 	let lit = isFlesh && C.light.w > 0.0;
-	// F1 이펙트: 수명 위상 u = age/lifeBase — 시뮬이 s.age 에 남긴 값에서 *다시 유도*한다.
-	// 팽창(grow)은 화구·연기가 부풀어 오르는 결이고, 램프 보간 인자도 이 u 다 (불 → 연기).
-	let isFx = E.fxK > 0.0;
-	var fxU = 0.0;
-	if (isFx) {
-		fxU = clamp(s.age / max(E.lifeBase, 1e-3), 0.0, 1.0);
-		base *= 1.0 + E.grow * fxU;
-	}
+	// F1 팽창(grow) + F6 크기 응답: 화구·연기가 부풀어 오르는 결에 강도의 굵기가 곱해진다.
+	// (수명 위상 fxU 는 알파 컬 앞에서 이미 유도했다 — 램프 보간 인자도 그 u 다.)
+	if (isFx) { base *= (1.0 + E.grow * fxU) * fxSize; }
 
 	// R1 살 법선: 제 뼈(rest.w) 축 위 최근접점에서의 방사 방향 — 현재 위치 기준이라
 	// 지연 추종(출렁임)까지 법선에 실린다. 캡슐 끝단(t 클램프)은 구면 법선으로 자연 연속.
@@ -953,10 +1039,15 @@ fn vs(@builtin(vertex_index) vi : u32, @builtin(instance_index) ii : u32) -> VOu
 		lin = clamp((lin * (2.51 * lin + 0.03)) / (lin * (2.43 * lin + 0.59) + 0.14), vec3f(0.0), vec3f(1.0));
 		rgb = sqrt(lin);
 	} else {
-		rgb *= 1.0 + E.luminosity * energy; // 기존 발광 경로 (비-살 개체 회귀 0)
+		// 기존 발광 경로 (비-살 개체) — 이펙트는 여기에 F6 강도·F7 섬광/코어 응답이 곱해진다
+		// (fxLum 은 이펙트가 아니면 1 = 회귀 0).
+		rgb *= 1.0 + E.luminosity * energy * fxLum;
 	}
 	// L4/L5 연소 채널: misc.z = 열(불 오버라이드), misc.w = 연료(0 = 재 → 어둡게)
-	let fireHeat = clamp(s.misc.z * 0.8, 0.0, 1.3);
+	// 이펙트(F6)는 같은 자리를 *강도 도장*으로 쓰므로 이 경로에서 빼야 한다 — 안 그러면
+	// 강도가 곧 열로 읽혀 모든 이펙트가 주황으로 물든다.
+	var fireHeat = clamp(s.misc.z * 0.8, 0.0, 1.3);
+	if (isFx) { fireHeat = 0.0; }
 	if (fireHeat > 0.02) {
 		rgb = mix(rgb, vec3f(1.1, 0.5, 0.15), min(fireHeat, 1.0)) * (1.0 + fireHeat);
 	}
@@ -1081,8 +1172,12 @@ fn vs(@builtin(vertex_index) vi : u32, @builtin(instance_index) ii : u32) -> DOu
 	let E = entities[idx / C.sliceSize];
 	if (E.refract <= 0.0) { return o; } // 굴절 개체가 아니면 이 패스에 없다 (색 패스가 맡는다)
 	let s = splats[idx];
+	// F6 표현 강도: 굴절도 세기를 받는다 — 세게 맞을수록 공기가 크게 밀린다.
+	// (이펙트가 아닌 굴절 개체는 I = 1 → 예전 그대로.)
+	var I = 1.0;
+	if (E.fxK > 0.0) { I = max(s.misc.z, 1e-3); }
 	// 밀도 = 시뮬 에너지 × 불투명도 유전자 — 색 패스의 alpha 와 같은 근거에서 유도한다
-	let dens = s.misc.x * E.opacity;
+	let dens = s.misc.x * E.opacity * fxResp(I, E.powLum);
 	if (dens < 0.002) { return o; }
 
 	let t4 = C.view * vec4f(s.pos, 1.0);
@@ -1092,8 +1187,8 @@ fn vs(@builtin(vertex_index) vi : u32, @builtin(instance_index) ii : u32) -> DOu
 	// 공분산 유도: 색 패스의 비-살 경로와 같은 정식 (속도 방향 이방성 + 수명 팽창)
 	let speed = length(s.vel);
 	let elong = 1.0 + E.stretch * speed;
-	let u = clamp(s.age / max(E.lifeBase, 1e-3), 0.0, 1.0);
-	let base = E.size * (0.35 + 0.65 * s.misc.x) * (1.0 + E.grow * u);
+	let u = clamp(s.age / fxLifeOf(E.lifeBase, E.powLife, I), 0.0, 1.0);
+	let base = E.size * (0.35 + 0.65 * s.misc.x) * (1.0 + E.grow * u) * fxResp(I, E.powSize);
 	var e0 = vec3f(0.0, 1.0, 0.0);
 	if (speed > 1e-4) { e0 = s.vel / speed; }
 	var upv = vec3f(0.0, 1.0, 0.0);

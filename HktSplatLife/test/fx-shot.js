@@ -4,8 +4,9 @@
 // 여러 시점을 촬영하고 (사전 / 발생 직후 / 수명 후) 픽셀 지표로 계약을 검증한다:
 //   ① 켜진다   — 이벤트 전 0 → 발생 직후 유의미한 픽셀
 //   ② 꺼진다   — lifeBase 를 지나면 다시 0 (슬롯 재사용의 전제)
-//   ③ 다르다   — 타격(지향성)과 폭발(등방·팽창)이 *게놈만으로* 갈린다:
-//                 타격은 축(+x)으로 무게중심이 치우치고, 폭발은 원점 근방에서 더 크게 퍼진다
+//   ③ 다르다   — 타격(방사 가시별)과 폭발(등방 화구)이 *게놈만으로* 갈린다:
+//                 타격은 중심이 채워진 채(오목 금지) 사방으로 뻗는 성게 — 무게중심이 원점에
+//                 남고 중심 원반이 차 있다. 폭발은 부풀며(grow) 더 넓은 면적을 덮는다
 //   ④ 굴절한다 — F2 굴절 파면은 색이 아니라 *빛의 경로*다: 기준 프레임 대비 화면이 크게
 //                 어긋나지만(diffPx) 밝기 총합은 거의 늘지 않는다(lumAdd ≪ 폭발). 수명이
 //                 지나면 화면이 기준으로 되돌아온다 = 변위가 남지 않는다.
@@ -139,13 +140,13 @@ async function driveFx({ FRAMES, N, entities, shots, events, eye, center, makeBo
 		inert.opacity = 0; inert.binding = 0; inert.form = 0;
 		const fx = new HktGenesisFx.FxSystem({ names: ['타격', '파이어볼 폭발'], slices: 4, slots: 1 });
 		const ents = fx.compose(inert);
-		// 정면 카메라: 월드 +x 가 화면 오른쪽 → 타격 축(+x)의 치우침이 cx 로 읽힌다
+		// 정면 카메라: 발생점이 화면 중심 — 타격이 *방사*(무게중심 잔류 + 중심 채움)인지 cx·inner 로 읽는다
 		const eye = [0, 1.0, 3.2], center = [0, 1.0, 0];
 		const O = [0, 1.0, 0];
 		return await driveFx({
 			FRAMES: 175, N, entities: { ents, fx }, eye, center,
 			events: [
-				{ frame: 20, name: '타격', at: { origin: O, dir: [1, 0, 0] } },              // 축 = 화면 오른쪽
+				{ frame: 20, name: '타격', at: { origin: O, dir: [1, 0, 0] } },              // 법선 = 화면 오른쪽 (기울임 cone 0.15 뿐 — 방사가 지배)
 				{ frame: 60, name: '파이어볼 폭발', at: { origin: O, dir: [0, 1, 0] } },
 			],
 			shots: [
@@ -238,6 +239,50 @@ async function driveFx({ FRAMES, N, entities, shots, events, eye, center, makeBo
 	}
 	result.gpuErrs = result.gpuErrs.concat(ring.gpuErrs);
 
+	// ── 4장: 표현 강도(F6) + 신규 방사 구조(F8)·시간 결(F7) ──
+	//        ① 같은 게놈·같은 자리에 *세기만* 달리 준 두 타격이 크기·밝기·도달·수명으로 갈리는가
+	//        ② 수축(implode)이 밖에서 안으로 모이는가 — 퍼짐이 시간에 따라 *줄어드는가*
+	//        ③ 점멸(flicker)이 프레임마다 밝기를 흔드는가 (연속 프레임의 밝기 편차)
+	const pow = await page.evaluate(async ({ N, DRIVE }) => {
+		eval(DRIVE);
+		const inert = HktGenesisGenes.materialize(HktGenesisGenes.PRESETS['물']);
+		inert.opacity = 0; inert.binding = 0; inert.form = 0;
+		const fx = new HktGenesisFx.FxSystem({ names: ['타격', '기 모으기', '전격'], slices: 4, slots: 1 });
+		const ents = fx.compose(inert);
+		const O = [0, 1.0, 0];
+		return await driveFx({
+			FRAMES: 215, N, entities: { ents, fx }, eye: [0, 1.0, 3.2], center: [0, 1.0, 0],
+			events: [
+				// 같은 이펙트, 같은 자리, 세기만 다르다 — 새 게놈이 아니라 *사건의 값*이 가른다
+				{ frame: 20, name: '타격', at: { origin: O, dir: [0, 0, 1], strength: 0.4 } },
+				{ frame: 60, name: '타격', at: { origin: O, dir: [0, 0, 1], strength: 2.5 } },
+				{ frame: 100, name: '기 모으기', at: { origin: O, dir: [0, 1, 0], radius: 0.04 } },
+				{ frame: 200, name: '전격', at: { origin: O, dir: [0, 0, 1], radius: 0.05 } },
+			],
+			shots: [
+				{ name: 'weak', frame: 26, save: true },      // 스침 +0.1s
+				{ name: 'weakLate', frame: 32 },              // +0.2s — 약한 타격의 수명(0.17s)은 이미 지났다
+				{ name: 'strong', frame: 66, save: true },    // 정통 +0.1s
+				{ name: 'strongLate', frame: 72 },            // +0.2s — 센 타격은 수명(0.33s)이 남아 있다
+				{ name: 'gather0', frame: 112, save: true },  // 수축 +0.2s (아직 밖)
+				{ name: 'gather1', frame: 168, save: true },  // 수축 +1.13s (중심으로 모였다)
+				{ name: 'bolt0', frame: 206 }, { name: 'bolt1', frame: 207 },
+				{ name: 'bolt2', frame: 208 }, { name: 'bolt3', frame: 209 },
+			],
+		});
+	}, { N: parseInt(nArg), DRIVE: DRIVE_FX });
+	const P = {};
+	for (const s of pow.shots) {
+		P[s.name] = s;
+		if (s.dataUrl) savePng(s.dataUrl, path.resolve(`${outPrefix}-${s.name}.png`));
+		console.log(`${s.name.padEnd(11)} 픽셀 ${String(s.lit).padStart(6)} · 고휘도 ${String(s.hot).padStart(6)}`
+			+ ` · 퍼짐 ${s.spread.toFixed(1)}px · 밝기 ${String(s.lum).padStart(6)}`);
+	}
+	result.gpuErrs = result.gpuErrs.concat(pow.gpuErrs);
+	const bolts = [P.bolt0, P.bolt1, P.bolt2, P.bolt3].map((b) => b.lum);
+	const boltRatio = Math.max(...bolts) / Math.max(Math.min(...bolts), 1);
+	console.log(`점멸 표본(연속 4프레임 밝기): ${bolts.join(' · ')} → 편차 ×${boltRatio.toFixed(2)}`);
+
 	if (result.gpuErrs.length) { console.error('GPU 오류:', result.gpuErrs); await browser.close(); server.close(); process.exit(1); }
 	const S = {};
 	for (const s of result.shots) {
@@ -253,9 +298,15 @@ async function driveFx({ FRAMES, N, entities, shots, events, eye, center, makeBo
 		['타격 소멸(수명 후 0)', S.impactGone.lit < 50],
 		['폭발 발생(픽셀>3000)', S.blast.lit > 3000],
 		['폭발 소멸(수명 후 0)', S.blastGone.lit < 50],
-		['타격 지향성(무게중심 +x 치우침)', S.impact.cx > 350],
+		// 타격 = 방사 가시별: 무게중심이 발생점에 *남고*(축 분사가 아니다), 중심 원반이
+		// 차 있으며(shell 0 + grow — 오목 금지), 가시가 고리 반경까지 뻗는다.
+		['타격 방사(무게중심 원점 근방)', Math.abs(S.impact.cx - 320) < 60 && Math.abs(S.impact.cy - 320) < 60],
+		['타격 중심 채움(오목 금지)', S.impact.inner > 800],
+		['타격 가시(중심 밖으로 뻗는다)', S.impact.annulus > 2000],
 		['폭발 등방(무게중심 원점 근방)', Math.abs(S.blast.cx - 320) < 60],
-		['폭발이 더 크게 퍼짐', S.blast.spread > S.impact.spread * 1.3],
+		// 타격은 성긴 광선(도달은 멀지만 면적이 작다), 폭발은 꽉 찬 화구(면적이 압도적) —
+		// 퍼짐(rms)은 광선이 멀리 뻗으면 둘이 비슷해져 가르지 못한다. 면적으로 가른다.
+		['폭발이 더 크게 덮음(면적 4배 이상)', S.blast.lit > S.impact.lit * 4],
 		['합성: 살이 살아 있다(캐릭터 픽셀>3000)', C.char.lit > 3000],
 		['합성: 타격이 얹힌다(고휘도 +300)', C.charHit.hot > C.char.hot + 300],
 		['합성: 타격이 픽셀을 더한다', C.charHit.lit > C.char.lit],
@@ -275,6 +326,16 @@ async function driveFx({ FRAMES, N, entities, shots, events, eye, center, makeBo
 		// F5 검격: 온 고리가 아니라 한 줄로 몰린다 — 칼자국이면 한 축으로만 길다
 		['검격 칼자국(가로 퍼짐이 세로의 1.6배 이상)', R.slash.sx > R.slash.sy * 1.6 && R.slash.lit > 3000],
 		['검격 소멸(수명 후 0)', R.slashGone.lit < 50],
+		// F6 표현 강도: 같은 게놈·같은 자리, 세기만 다른 두 타격이 네 채널로 갈린다
+		['강도: 센 타격이 더 크다(픽셀 1.5배 이상)', P.strong.lit > P.weak.lit * 1.5],
+		['강도: 센 타격이 더 멀리 간다(퍼짐 1.15배 이상)', P.strong.spread > P.weak.spread * 1.15],
+		['강도: 센 타격이 더 밝다(고휘도 1.5배 이상)', P.strong.hot > P.weak.hot * 1.5],
+		['강도: 센 타격이 더 오래 남는다(같은 경과 +0.2s)', P.weakLate.lit < 50 && P.strongLate.lit > 500],
+		// F8 수축: 밖에서 안으로 — 퍼짐이 시간에 따라 *줄어든다* (방사 이펙트와 부호가 반대)
+		['수축: 모여든다(퍼짐이 1.5배 이상 줄어든다)', P.gather0.spread > P.gather1.spread * 1.5],
+		['수축: 모이는 동안 살아 있다', P.gather1.lit > 200],
+		// F7 점멸: 연속 프레임의 밝기가 흔들린다 (매끈한 소멸 곡선만이면 단조 감소뿐)
+		['점멸: 연속 프레임 밝기 편차 1.25배 이상', boltRatio > 1.25],
 		['페이지 오류 0', real.length === 0],
 	];
 	for (const [label, ok] of gates) console.log(`판정: ${label} → ${ok ? 'OK' : '실패'}`);

@@ -18,7 +18,12 @@
 	let lastPreset = '히키토';
 	// F1 이펙트: 이벤트 구동 이펙트 개체들이 스플랫 풀의 슬라이스를 나눠 갖는다.
 	// 새 이펙트를 만들고 싶으면 fx.js FX_PRESETS 에 게놈 한 줄 — 여기 코드는 손대지 않는다.
-	const fx = new HktGenesisFx.FxSystem();
+	// 세트(FX_SETS)는 슬라이스 예산의 데이터 — 바꾸면 이펙트 개체 구성이 통째로 갈린다.
+	let fxSet = Object.keys(HktGenesisFx.FX_SETS)[0];
+	let fx = new HktGenesisFx.FxSystem();
+	// F6 표현 강도: 사건이 주는 세기(게놈 아님). 슬라이더가 이 값을 정하고 발생 때 곱한다 —
+	// 같은 이펙트가 스침(0.4) ↔ 정통(2.5) 으로 갈린다.
+	let fxPower = 1.0;
 	let lastBones = null; // 이펙트 발생점(타격 부위)을 뼈에서 잡기 위한 마지막 포즈
 	// 외부 FBX 리그(Mixamo 등) — 있으면 살(히키토)의 뼈대를 이 클립이 구동한다(없으면 built-in FK).
 	// three(r147) 는 FBX 파싱/FK 입력만 — 렌더·시뮬은 여전히 자체 WebGPU (절대 원칙 유지).
@@ -117,32 +122,123 @@
 			},
 			// 굴절 파면: 빛살·칼자국과 같은 자리·같은 축 (보통 타격이 동반으로 켠다)
 			'굴절 파면': () => { const o = bonePoint(TORSO, [0, 1.15, 0]); return { origin: o, dir: towardCamera(o), strength: 1, radius: 0.1 }; },
+			// 전격: 몸통을 타고 사방으로 튀는 방전
+			'전격': () => { const o = bonePoint(TORSO, [0, 1.15, 0]); return { origin: o, dir: towardCamera(o), strength: 1, radius: 0.05 }; },
+			// 기 모으기: 손 앞 허공으로 기운이 빨려든다 (수축 이펙트 — 원점이 곧 도착점)
+			'기 모으기': () => ({ origin: bonePoint(HAND, [0.75, 1.0, 0]), dir: [0, 1, 0], strength: 1, radius: 0.04 }),
+			// 삼중 파문: 발밑에서 지면을 따라 번지는 겹 고리 (축 = 위 → 원판이 바닥에 눕는다)
+			'삼중 파문': () => ({ origin: [0, 0.06, 0], dir: [0, 1, 0], strength: 1, radius: 0.1 }),
+			// 나선 폭풍: 발밑에서 감겨 오르는 소용돌이
+			'나선 폭풍': () => ({ origin: [0, 0.1, 0], dir: [0, 1, 0], strength: 1, radius: 0.12 }),
 		};
-		function fire(name) {
+		function fire(name, power) {
 			const aim = (FX_AIM[name] || (() => ({ origin: [0, 1.0, 0], dir: [0, 1, 0] })))();
 			aim.time = simTime;
+			// F6: 사건의 세기 = 기본 세기 × 표현 강도 슬라이더. 게놈의 감도(pow*)가 이 값을
+			// 채널마다 다르게 받는다 — 강도는 이벤트의 몫이고 감도는 게놈의 몫이다.
+			aim.strength = (aim.strength != null ? aim.strength : 1) * (power != null ? power : fxPower);
 			fx.trigger(name, aim);
 		}
+		// 이펙트 버튼은 *현재 세트*에서 자동 생성 — 세트를 바꾸면 버튼·단축키가 함께 갈린다.
 		const fbox = document.getElementById('fxButtons');
-		Object.keys(HktGenesisFx.FX_PRESETS).forEach((name, i) => {
+		function refreshFxButtons() {
+			fbox.innerHTML = '';
+			fx.names.forEach((name, i) => {
+				const b = document.createElement('button');
+				b.textContent = `${name} (${i + 1})`;
+				b.addEventListener('click', () => fire(name));
+				fbox.appendChild(b);
+			});
+		}
+		// 이펙트 세트 = 슬라이스 예산(개체 슬롯 8개)의 데이터. 세트를 갈면 이펙트 개체 구성이
+		// 통째로 바뀌므로 장면을 다시 조립한다(applyPreset 경유 = 재시드).
+		const setBox = document.getElementById('fxSets');
+		function applyFxSet(name) {
+			fxSet = name;
+			fx = new HktGenesisFx.FxSystem({ names: HktGenesisFx.FX_SETS[name] });
+			applyPreset(lastPreset);
+			for (const b of setBox.children) b.classList.toggle('on', b.dataset.set === name);
+			refreshFxButtons();
+			refreshGeneTargets();
+		}
+		for (const name of Object.keys(HktGenesisFx.FX_SETS)) {
 			const b = document.createElement('button');
-			b.textContent = `${name} (${i + 1})`;
-			b.addEventListener('click', () => fire(name));
-			fbox.appendChild(b);
+			b.textContent = name; b.dataset.set = name;
+			b.classList.toggle('on', name === fxSet);
+			b.addEventListener('click', () => applyFxSet(name));
+			setBox.appendChild(b);
+		}
+		refreshFxButtons();
+		// 표현 강도 슬라이더 (F6) — 발생 사건의 세기. 게놈은 그대로다.
+		const powEl = document.getElementById('fxPower');
+		const powVal = document.getElementById('fxPowerVal');
+		powEl.addEventListener('input', () => {
+			fxPower = parseFloat(powEl.value);
+			powVal.textContent = `×${fxPower.toFixed(2)}`;
 		});
+		// ── 이펙트 게놈 슬라이더 ────────────────────────────────────────────
+		// 항목은 GENE_DEFS(유전자 스키마)에서 자동 생성한다 — 유전자를 추가해도 UI 코드는 그대로.
+		// 값은 살아 있는 유전자에 바로 쓴다(엔진이 매 프레임 개체 테이블을 다시 패킹 = 재시드 없음).
+		const GENE_GROUPS = [
+			['F1 이펙트', ['fxK', 'burst', 'cone', 'swirl', 'shell', 'grow', 'curve', 'ember']],
+			['기본 재료', ['lifeBase', 'damping', 'gravity', 'updraft', 'volatility', 'size', 'stretch', 'opacity', 'luminosity']],
+			['F2 굴절', ['refract', 'chroma', 'caustic', 'rarefy']],
+			['F3 파열', ['shred', 'shredFreq', 'tear', 'shredPow']],
+			['F4 광선', ['disc', 'discThick', 'rayLen', 'rayThin', 'rayAlign']],
+			['F5 방위', ['arc', 'arcSharp']],
+			['F6 표현 강도(감도)', ['powVel', 'powSize', 'powLum', 'powLife']],
+			['F7 시간 결', ['flicker', 'flickerHz', 'flash', 'coreGlow']],
+			['F8 방사 구조', ['implode', 'ripple', 'twist']],
+		];
+		const geneSel = document.getElementById('fxGeneTarget');
+		const geneList = document.getElementById('fxGeneList');
+		function buildGeneSliders() {
+			const name = geneSel.value;
+			geneList.innerHTML = '';
+			if (!name) return;
+			for (const [label, keys] of GENE_GROUPS) {
+				const h = document.createElement('div'); h.className = 'grp'; h.textContent = label;
+				geneList.appendChild(h);
+				for (const k of keys) {
+					const def = HktGenesisGenes.GENE_DEFS[k];
+					if (!def) continue;
+					const [ko, min, max, step] = def;
+					const v = fx.geneValue(name, k);
+					const nameEl = document.createElement('span'); nameEl.textContent = ko; nameEl.title = k;
+					const sl = document.createElement('input');
+					sl.type = 'range'; sl.min = min; sl.max = max; sl.step = step;
+					sl.value = Math.min(Math.max(v, min), max);
+					const val = document.createElement('span'); val.className = 'v'; val.textContent = (+sl.value).toFixed(2);
+					sl.addEventListener('input', () => {
+						const nv = parseFloat(sl.value);
+						val.textContent = nv.toFixed(2);
+						fx.setGene(name, k, nv);
+					});
+					geneList.appendChild(nameEl); geneList.appendChild(sl); geneList.appendChild(val);
+				}
+			}
+		}
+		function refreshGeneTargets() {
+			geneSel.innerHTML = '';
+			for (const n of fx.names) {
+				const o = document.createElement('option'); o.value = n; o.textContent = n;
+				geneSel.appendChild(o);
+			}
+			buildGeneSliders();
+		}
+		geneSel.addEventListener('change', buildGeneSliders);
+		refreshGeneTargets();
 		// 자동 반복 — 게놈 차이(짧은 타격 / 긴 폭발)가 시간축에서 드러나게
 		let autoFx = null;
 		document.getElementById('fxAuto').addEventListener('change', (e) => {
 			if (autoFx) { clearInterval(autoFx); autoFx = null; }
 			if (!e.target.checked) return;
-			const names = Object.keys(HktGenesisFx.FX_PRESETS);
 			let k = 0;
-			autoFx = setInterval(() => fire(names[k++ % names.length]), 700);
+			autoFx = setInterval(() => fire(fx.names[k++ % fx.names.length]), 700);
 		});
 		window.addEventListener('keydown', (e) => {
-			const names = Object.keys(HktGenesisFx.FX_PRESETS);
 			const i = '123456789'.indexOf(e.key);
-			if (i >= 0 && i < names.length) fire(names[i]);
+			if (i >= 0 && i < fx.names.length) fire(fx.names[i]);
 		});
 		window.__hktFire = fire; // 하니스/콘솔 훅
 

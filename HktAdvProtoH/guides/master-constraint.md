@@ -25,6 +25,9 @@ Constraint 는 기본 절차(WHY → OPTIONS → NEED → NEXT)의 단계가 아
 1. `root.md` 의 World Premise 중 **반복적인 설계 제한을 만드는 것**을 식별한다.
    세계의 현재 상태(MW-*)와 성질(Premise/Constraint)을 구분한다.
 2. 후보마다 `statement` · `rationale` · `scope` 를 쓴다.
+   `statement` 는 압축하고, `rationale` 은 **읽히게 쓴다** —
+   `master/SCHEMA.md` 의 "읽히게 쓴다" 규칙 5항(나쁜 방식 대비 · 실물 코드 인용 ·
+   무엇이 달라지나 · 안 읽히는 조각 지목 · 경계)을 따른다.
 3. `requires` / `prohibits` / `prefers` 를 구분해 채운다 — 셋의 의미가 겹치면 안 된다.
 4. 기존 DC-* 와의 관계를 검사한다 — `supports` / `conflicts_with`.
 5. 충돌이 있으면 **해결하지 말고** Conflict · Affected Nodes · Trade-off · Expected
@@ -42,6 +45,8 @@ Constraint 는 기본 절차(WHY → OPTIONS → NEED → NEXT)의 단계가 아
 
 - Constraint 는 **Goal/Possibility/Capability 의 형태**를 제한한다. 시스템을 만들지 않는다.
 - `rationale` 을 설명할 수 있어야 한다 — 설명 못 하면 취향이지 Constraint 가 아니다.
+- 원칙 문장만 남기고 예시를 생략하지 않는다. 읽히지 않는 원칙은 지켜지지 않는다
+  (SCHEMA "읽히게 쓴다"). 길이는 비용으로 치지 않는다 — Constraint 는 오래 산다.
 - Scope 로 "어떤 Node 에 적용되는가"를 판정할 수 있어야 한다.
 - 승인 상태를 `status` 로 명시한다. Human 승인 전에는 `DRAFT` 다.
 - 근거 문서가 그 의미를 더 이상 공급하지 않으면 **보류하지 말고 삭제한다** (Human 결정).

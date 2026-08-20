@@ -266,6 +266,9 @@ constraints/README.md   현재 Active Constraint        → 반영 이력은 여
 | FR-MATCHUP-MAKES-THE-CHOICE | C012-damage-type-chooses-the-defense | **CLOSED** 2026-08-18 — MC-ATTACK-ARMOR-MATCHUP 승격 · MK-OPPONENT-DEFENSE-SHAPE 확립 |
 | FR-PENETRATION-DEVALUES-THE-WALL | C013-penetration-devalues-the-wall | **CLOSED** 2026-08-19 — MC-PENETRATION 승격 · MP-PIERCE-THE-HARD-DEFENSE 닫힘 (요구 4종 완비) |
 | FR-OBSERVE-REVEALS-THE-OPPONENT | C014-observe-reveals-the-opponent | **CLOSED** 2026-08-19 — MC-OBSERVE 승격 (IMPLEMENTED 가 아니라 **PARTIAL** — 아래 Overlay 이력) · 탐험 사다리의 첫 칸 |
+| FR-CRITICAL-AMPLIFIES-THE-BLOW | C015-critical-amplifies-the-blow | **CLOSED** — MC-CRITICAL-STRIKE 승격 · 세계에 우연이 처음 들어왔다. MP-BET-ON-THE-CRITICAL-BLOW 는 **절반만** 닫혔다 (성질을 올릴 원천이 없다) |
+| FR-INSIGHT-SEES-BEFORE-LOOKING | C016-insight-sees-before-looking | **CLOSED** — MC-OBSERVE 의 **경로** 결손이 닫혔다 (앎에 이르는 길이 둘 · 앎이 자리 단위). 노드는 여전히 PARTIAL — 남은 결손은 습성 하나 |
+| FR-PREDICT-READS-THE-NEXT-BLOW | (C017 — 접었다) | **선택 철회** 2026-08-19 Human 결정. Stage 1 만 쓰고 접었으며 산출물은 git history 에 있다. 후보는 `PROPOSED` 로 살아 있고 A안(습성 + 예측을 한 Cycle 로)이라는 판단도 그대로 남는다 |
 
     롤백된 것 (2026-08-17 Human 결정 — R1 층 순서와 어긋나 되돌렸다. 산출물은 git history)
         구 C010-guard-trades-body-for-resource · 구 C011-perfect-guard-turns-the-table
@@ -521,6 +524,101 @@ constraints/README.md   현재 Active Constraint        → 반영 이력은 여
     Master Gap 없음. Stage 5 가 확인한 판단 둘(C007 R2 개정 범위 · DT §10 조정)이
     승인되어 반환 조건이 발생하지 않았다.
 
+    2026-08-19 (C015 Feedback — Critical 층)
+
+    승격 1종
+        MC-CRITICAL-STRIKE   MISSING → IMPLEMENTED
+        근거  C015 08-verification — 같은 조건 다섯 대에서 [20, 20, 40, 40, 20] 이
+              실측되고, 성질을 바꾸면 빈도와 크기가 각각 달라지며(가능성 1 → 매번 ·
+              배율 3 → 60), occurred · chance · multiplier · damageBeforeCritical 넷이
+              모든 타격의 계산 경위에 실린다.
+
+        **IMPLEMENTED 로 올린 근거를 적어 둔다.** semantic 뒷문장("성장·장비로 자란다")이
+        아직 세계에 없지만 이 노드의 `world_shape` 는 그것을 요구하지 않는다. 판정 기준은
+        semantic 이 아니라 world_shape 다 (overlay.md 머리말). 같은 결손을 지는
+        MC-ATTACK-POWER 가 PARTIAL 인 것은 그 노드의 world_shape 가 "세계 안의 행위로
+        이 값을 올릴 수 있어야 한다" 를 **직접 적고 있기** 때문이다 — 두 판정은 어긋나지
+        않는다. Critical 쪽의 그 결손은 MP-BET-ON-THE-CRITICAL-BLOW 의
+        `requires.resource` 가 진다.
+
+    Possibility 1종 PARTIAL 로
+        MP-BET-ON-THE-CRITICAL-BLOW   ABSENT → PARTIAL. 요구 Capability 3종이 전부
+        IMPLEMENTED 이나 `requires.resource`(Critical 성질을 올릴 성장·장비의 원천)가
+        비어 있어 "준비로 기대값을 올린다" 는 이 갈래의 절반이 서지 않았다.
+
+    Constraint Candidate 접수 1종
+        CC-WORLD-OWNS-THE-CHANCE (PENDING) — 우연의 원천은 세계 상태이고 관찰에
+        실리지 않으며 그럼에도 결과는 끝까지 설명된다. 관찰 1회이고
+        DC-COMBAT-PLAYER-CAUSALITY(REVISED)와의 경계가 정리되지 않아 승격하지 않았다.
+
+    Master Gap 없음.
+
+    2026-08-19 (C016 Feedback — 통찰)
+
+    승격 없음 · 결손 하나 닫힘
+        MC-OBSERVE   PARTIAL 유지. 남은 결손 둘 중 **경로 쪽**이 닫혔다 —
+        앎에 이르는 길이 둘(살펴봄 · 기른 통찰)이 되고, 앎이 존재 단위에서 자리 단위로
+        넓어졌다. 남는 것은 **행동·습성** 하나뿐이고 그것이 닫히면 IMPLEMENTED 다.
+
+    Possibility 1종 PARTIAL 로
+        MP-LEARN-TO-HANDLE-THE-LAYER   ABSENT → PARTIAL. BW §32 사슬의 첫 칸이 섰다.
+
+    Knowledge 1종 승격
+        MK-OPPONENT-DEFENSE-SHAPE   PARTIAL → PRESENT. 이 줄은 C014 시점에 이미
+        낡아 있었다 — "처음부터 전부 보이므로 알게 되는 과정이 없다" 고 적혀 있었으나
+        C014 가 그것을 가렸고 C016 이 자리별로 열었다. Feedback 이 밀린 동안 살아 있는
+        문서가 사실과 어긋난 사례이며, 밀리면 안 되는 이유의 실례다.
+
+    Overlay 근거 정정 1종 (코드 대조)
+        MC-PREDICT   MISSING 유지, **결손의 자리를 고쳤다.** 이전 판정은
+        "상대 행동에 읽을 예고 구간이 노출되지 않는다" 였으나 코드 대조로 틀린 것이
+        확인되었다 — 예고 구간은 있고(`collision.ts` SWING_BEGIN) 진행 중인 행동의
+        종류·진행도·칼끝이 계약에 실린다(`EntityView.state` · `progress` · `swing`).
+        실제 결손은 둘이다: ① 자율 존재가 쓰는 스킬이 하나뿐이라 읽을 갈래가 없다
+        (`npc-decide.ts` — 사거리 안이면 언제나 `attack`) ② 그 앎이 살펴봄·통찰과
+        무관하게 누구에게나 그냥 온다.
+
+    Constraint Candidate 접수 2종
+        CC-A-NEW-WAY-OF-KNOWING-IS-NOT-A-GATE (PENDING) — **관찰 2회**
+        (C014 `POSSIBILITY-STILL-FIGHT-BLIND` · C016 `INTENT-INSIGHT-NOT-A-GATE-001`).
+        PENDING 후보 중 유일하게 반복이 확인된 것이다.
+        CC-CONDITION-OPENS-WITHOUT-RECORDING (PENDING) — 조건이 여는 것을 기록하지
+        않으면 되돌림 규칙이 필요 없다. C015 의 "확률의 양 끝에서 소비하지 않는다" 와
+        같은 종류일 수 있어 그 경계도 판단에 뒀다.
+
+    Human 결정 대기 1건 신규
+        Q23 — 통찰을 독립 Capability(MC-INSIGHT)로 세울 것인가. C016 08 이 판단을
+        Master 로 넘겼다. 지금 통찰을 따로 요구하는 Possibility 가 없어 SCHEMA 의
+        노드 규칙("required_by 와 demanded_by 가 둘 다 비면 노드가 아니다")에 걸리므로,
+        Agent 판단으로는 성장 축 Cycle 이 열릴 때로 미루는 쪽을 권한다.
+
+    Master Gap 없음.
+        다만 C016 이 보고한 자리 하나를 여기서 닫았다 — frontier 의 SELECTED 가
+        "다음 단계 cycles/C015-<name>" 을 가리키고 있었으나 C015 는 Human 이 따로 고른
+        Critical 층이 가져갔고 그 Frontier 를 받은 것은 C016 이다. 두 후보를 지우면서
+        해소되었다.
+
+    2026-08-19 (Human Select — 다음 Cycle)
+
+    FR-PREDICT-READS-THE-NEXT-BLOW 를 Human 이 선택했다. 함께 물었던 판단
+    (MC-OBSERVE 의 "습성" 을 이 Cycle 에 함께 닫을지, 따로 볼지)에 **A안 — 한 Cycle 로
+    묶는다** 로 답했다.
+
+        Human 질문   "플레이어는 자신이 입력을 통해 캐릭터를 제어하는건데 이게 무슨
+                     의미가 있는건지 모르겠어." → 코드 대조로 답한 것이 위 MC-PREDICT
+                     근거 정정이다. 예고는 이미 보이고 반응도 되지만, 자율 존재의
+                     행동이 언제나 하나라 **읽을 거리가 없다** 는 것이 진짜 결손이었다.
+        A안 근거     갈래 없이는 읽을 것이 없고, 읽기 없이는 갈래가 보이지 않는다 —
+                     둘로 나누면 어느 쪽도 혼자서는 플레이 가능한 Delta 가 되지 않는다.
+        Cycle 에 나르는 것   frontier 의 **넘어야 할 선** 셋. ① 자율 존재의 다음 행동에
+                     갈래가 둘 이상 ② 그 갈래를 아는 것이 앎의 관문 뒤에 ③ 알고 대응한
+                     결과가 모르고 대응한 결과와 다르다. 셋 중 하나라도 못 넘으면
+                     이미 있는 것에 이름표를 붙인 Cycle 이 된다.
+
+    배운 것: Overlay 의 "부족한 것" 칸이 **틀릴 수 있다.** MC-PREDICT 는 근거 칸이
+    비어 있는 채로(`—`) 결손 문장만 있었고, 그 문장이 코드와 달랐다. 근거가 빈 MISSING
+    줄은 판정이 아니라 추측일 수 있다 — Frontier 로 올릴 때 코드 대조를 한 번 거친다.
+
 # 4. Constraint 반영 이력
 
 첫 반영(DC 4종)은 Agent 의 해석이 원본보다 강한 곳이 있어 Human 지시로 제거됐다 —
@@ -570,6 +668,43 @@ ONE-LAYER-AT-A-TIME 신설, 이연 층 근거의 3종은 DRAFT 보류.
 수치·공식은 옮기지 않았다(정책 §7.2). SCHEMA.md 에 growth/ 양식(CL/IT/IP/IM · II- Runtime
 전용)을 추가했고 growth/growth-graph.md 가 Growth Overlay(획득 경로 판정)를 소유한다.
 
+    2026-08-19 CC 승격 2종 — Cycle 관찰에서 올라온 GLOBAL Constraint
+
+```text
+신설  DC-WORLD-OWNS-THE-CHANCE              C015 — 우연을 다루는 형태 네 조각
+신설  DC-CONDITION-OPENS-WITHOUT-RECORDING  C016 — 조건이 여는 것은 기록하지 않는다
+```
+
+    이로써 Active 는 17종 → **19종** 이고 GLOBAL 무리가 셋이 되었다
+    (SURFACE-LIST · OWNS-THE-CHANCE · CONDITION-OPENS).
+
+    **승격 조건 첫 항(반복)을 면제한 첫 사례다.** 둘 다 관찰 1회뿐이다.
+    근거는 반복이 아니라 **비가역성**이었다.
+
+        OWNS-THE-CHANCE 의 ④    "이미 정해진 판정에서 우연의 원천을 소비하지 않는다" 는
+                                 두 번째 우연이 들어온 뒤에 세우면 그때까지의 모든
+                                 재현이 깨진다. C015 는 확률 0 인 세계가 C013 과
+                                 완전히 같다는 것을 실측해 이 조각을 선점했다.
+        CONDITION-OPENS          한 번 기록형으로 만든 뒤 조건형으로 되돌리려면
+                                 저장된 데이터의 이전이 따라붙는다.
+
+    같은 예외를 다시 쓸 때는 그 비가역성을 먼저 보인다 — 관찰 1회를 일반 통로로 만들지
+    않는다. 이 단서를 `candidates/README.md` 와 `constraints/README.md` 양쪽에 적었다.
+
+    합치지 않고 둘로 세운 이유: 뿌리는 같으나(안 써도 되는 상태는 쓰지 않는다)
+    적용 대상이 우연과 조건으로 갈린다. `relations.supports` 로 이어 두었다.
+    DC-COMBAT-PLAYER-CAUSALITY 와도 충돌이 아니라 분업이다 —
+    그쪽이 **범위**(어디에 허용하는가), OWNS-THE-CHANCE 가 **형태**(어떻게 다루는가)다.
+
+    함께 세운 문서 규칙 — SCHEMA.md **"읽히게 쓴다"** (CC · DC 공통)
+
+        Human 지적: 두 CC 가 "무슨 말인지 모르겠다". 원칙 문장만으로는 읽히지 않고,
+        읽히지 않는 원칙은 지켜지지 않는다. 그래서 CC 에 `무엇을 말하는가 (예시)` 절을
+        **필수**로 세우고 5항 규칙을 SCHEMA 에 두었다 — 나쁜 방식 대비 · 실물 코드 인용 ·
+        무엇이 달라지나 · 가장 안 읽히는 조각 지목 · 경계 긋기.
+        `statement`/`requires`/`prohibits`/`prefers` 는 판정용이므로 압축을 유지하고,
+        설명은 CC 의 예시 절과 DC 의 `rationale` 이 진다.
+        guides/master-constraint.md · master-feedback.md 가 이 규칙을 가리킨다.
 
 ---
 
@@ -794,111 +929,34 @@ ONE-LAYER-AT-A-TIME 신설, 이연 층 근거의 3종은 DRAFT 보류.
     배운 것: 기반 기획 문서가 구현 배치까지 적어 오면, 그중 기반에 닿는 부분은
     Master 가 옮길 자리가 없다. 주입은 그것을 노드로 만들지 말고 질문으로 노출해야 한다.
 
-## Frontier 선택 기록 — FR-CRITICAL-AMPLIFIES-THE-BLOW → C015 (2026-08-20 Feedback)
+## Frontier 재정리 — 기능(개념) 단위로 다시 쓰기 (2026-08-20 NEXT)
 
-    닫은 Cycle    C015-critical-amplifies-the-blow
-    Overlay       MC-CRITICAL-STRIKE  MISSING → IMPLEMENTED
-                  근거는 C015 08-verification 의 실측 — 같은 조건 다섯 대에서
-                  [20, 20, 40, 40, 20] 이 나오고, 터진 여부·가능성·배율·커지기 전 값
-                  넷이 모든 타격에 실려 "가능성 0 인 몸" 과 "운이 없었던 몸" 이 갈린다.
-    Possibility   MP-BET-ON-THE-CRITICAL-BLOW 가 닫혔다 — 지금 플레이 가능하다.
-                  다만 좁다: 터질 확률과 배율을 플레이어가 올릴 경로가 없다
-                  (MP-OUTGROW-THE-OPPONENT 와 같은 결손이며 후보 4 가 그것을 다룬다).
-
-    Constraint Evaluation (C015 보고 그대로 접수)
-        DC-COMBAT-PLAYER-CAUSALITY(REVISED) SATISFIED — 예외가 정확히 한 자리다.
-            움직임·막기·살펴봄·속성 변경·시간 진행 어느 것도 우연의 원천을 소비하지 않고,
-            확률의 양 끝에서는 커서조차 흐르지 않아 그 구간이 완전한 결정론으로 남는다.
-        DC-COMBAT-ONE-FORMULA SATISFIED — 피해 계산 코드가 한 줄도 바뀌지 않았다.
-        DC-COMBAT-ONE-LAYER-AT-A-TIME SATISFIED — 가능성 0 에서 세계가 C013 과 같다.
-        DC-WORLD-OWNS-THE-SURFACE-LIST SATISFIED — 세계가 가리는 값이 늘었는데
-            View 는 가려짐 코드를 한 줄도 고치지 않았다 (이 DC 의 두 번째 측정 증거).
-
-    배운 것: 우연을 들이는 방식이 이 Cycle 에서 네 조각의 형태로 굳었다.
-    그 형태를 CC-WORLD-OWNS-THE-CHANCE 로 접수했다 (승격 판단은 Human).
-
-    남은 표시: C015 자체는 아직 `IN PROGRESS` 다 — Human Play 확인 대기.
-    Overlay 를 먼저 올린 것은 C013 선례(Q20)와 같다: 실측 기록이 있고, 올리지 않으면
-    Frontier 가 이미 선 것을 결손으로 표시해 다음 판단을 망가뜨린다.
-
-## Frontier 선택 기록 — FR-INSIGHT-SEES-BEFORE-LOOKING → C016 (2026-08-20 Feedback)
-
-    닫은 Cycle    C016-insight-sees-before-looking (2026-08-20 Human Play 확인 · COMPLETE)
-    Overlay       MC-OBSERVE  PARTIAL → PARTIAL (결손 둘 중 하나가 닫혔다)
-                  앎에 이르는 길이 둘이 되었고(살펴봄 · 기른 통찰) 앎의 단위가 존재에서
-                  자리로 넓어졌다. 남은 결손은 **행동·습성** 하나뿐이며 그것이 닫히면
-                  MC-OBSERVE 는 IMPLEMENTED 다 (후보 3 = MC-PREDICT 가 그 자리다).
-
-    Constraint Evaluation (C016 보고 그대로 접수)
-        DC-WORLD-PROGRESSION-IS-REACH SATISFIED — `progression_expands_reachable_world`
-            를 세계에서 처음 만족시켰다. 능력이 오를 때 커지는 것이 수치가 아니라
-            아는 상대의 범위다. 다만 `resource_can_open_capability_route` 는 아직이다 —
-            통찰을 여는 것이 자원이 아니라 디버그 명령이다. 이 Cycle 이 만든 것은
-            **형태의 선례**(능력치가 Capability 의 문을 연다)이고, 그 문을 자원에 잇는
-            것은 후보 4 다.
-        DC-COMBAT-MATCHUP-SOFT SATISFIED — 통찰 0 으로 살펴본 결과가 통찰 90 과 값까지
-            같다. 통찰은 유일한 문이 아니고 계산에 한 글자도 더하지 않는다.
-        DC-WORLD-OWNS-THE-SURFACE-LIST SATISFIED — View 에 문턱 수가 한 번도 나오지 않는다.
-        DC-WORLD-PLAYER-UNFIXED-PATH SATISFIED — 통찰 0 으로도 세 스킬과 막기가 가용하다.
-
-    MC-INSIGHT (C016 이 보고한 신규 노드 후보) — **세우지 않았다.**
-        통찰은 MC-OBSERVE 의 두 번째 경로이고, 그것만을 따로 요구하는 방법(Possibility)이
-        없다. 같은 의미를 경로별로 복제하지 않는다 (DC-GROWTH-NO-CAPABILITY-DUPLICATION).
-        통찰을 **얻는** 경로가 실제로 필요해지면 그것은 Capability 가 아니라 growth/ 가
-        받는다 — 후보 4 가 그 틀을 만든다.
-
-    Master Gap (C016 보고) — frontier.md 의 `SELECTED` 가 "다음 단계 cycles/C015-<name>"
-        이라고 적고 있었으나 그 Frontier 를 받은 것은 C016 이었다. 이번 Feedback 이
-        그 항목을 지우면서 해소되었다. Cycle 은 master/ 를 편집하지 않으므로 보고가 맞다.
-
-    배운 것 둘을 Candidate 로 접수했다 (승격 판단은 Human):
-        CC-A-NEW-PATH-IS-NOT-A-GATE      새 경로를 열 때 그것이 관문이 아님을 함께 세운다
-                                         (C014 · C016 두 번 반복)
-        CC-CONDITIONS-ARE-NOT-RECORDED   지금의 조건으로 여는 것은 적어 두지 않는다 —
-                                         상태를 늘리지 않으면 규칙이 늘지 않는다
-                                         (C015 · C016)
-
-## Frontier 재정리 — 기능 단위 후보 5종 (2026-08-20 NEXT)
-
-    두 후보가 소진되어 지워졌고(위 두 기록), 지목 주입과 Q24 결정으로 둘이 새로 섰다.
-
-    **한 번 다시 썼다.** 처음 정리는 후보를 "이런 장면이 나온다" 로 적었는데, Human 이
-    그것을 읽고 "수많은 구현 중 하나를 하드코딩으로 고른 느낌" 이라고 판정했다.
+    Human 판정: 후보가 "수많은 구현 중 하나를 하드코딩으로 고른 느낌" 이다.
     맞는 지적이었다 — 장면만 적으면 그 장면을 만드는 방법이 여럿이므로 후보가 임의의
     구현으로 읽힌다.
 
-    그래서 후보의 단위를 **세계가 갖게 되는 개념 하나**로 바꾸고, 후보마다 넷을 적었다.
+    후보의 단위를 **세계가 갖게 되는 개념 하나**로 바꾸고, 후보마다 넷을 적었다.
 
         이것이 무엇인가    세계에 추가되는 개념 한 문장
         세계에 생기는 것    그 개념이 요구하는 상태 · 규칙 · 관찰
         이 기능이 아닌 것    경계 — 여기가 비면 후보가 아니라 소원이다
-        이미 있는 것        재사용하는 것 (여기가 크면 그 후보는 작다)
+        이미 있는 것        재사용하는 것. **코드 대조로 채운다**
 
     경계 칸이 핵심이다. 같은 장면을 만드는 방법은 여럿이지만 개념의 경계가 정해지면
     그 안에서 어떻게 만들든 같은 것이 된다. 이 규칙을 guides/master-frontier.md 의
-    Do·Must 와 SCHEMA.md 의 frontier 형식에 못 박아, 다음 NEXT 가 되돌아가지 않게 했다.
+    Do·Must 와 SCHEMA.md 의 frontier 형식에 못 박아 다음 NEXT 가 되돌아가지 않게 했다.
 
-    후보 (기능 단위)
-        FR-TARGET-SELECTION    대상 지목      MC-DESIGNATE-TARGET + MC-WATCH-TARGET
-        FR-RELATION-STANCE     존재 사이의 관계  MC-RELATION-STANCE — Q24(b) Human 지시
-        FR-ACTION-WINDUP       행동 예고 구간   MC-PREDICT
-        FR-ACTION-INTERRUPT    행동 중단       MC-INTERRUPT (WINDUP 위에 얹힌다)
-        FR-ITEM-USE            아이템 사용      MC-RESTORE-BIOLOGICAL-STATE ·
-                                              MC-CUT-ABNORMAL-STRUCTURE 의 공통 앞칸
+    갈라진 것 하나
+        "얻은 것이 나를 바꾼다"(FR-WHAT-YOU-GATHER-CHANGES-YOUR-BODY)에는 세 개념이
+        뭉쳐 있었다 — 쓴다 · 만든다 · 걸친다. 경계를 적으니 갈라졌고 앞칸 하나(**쓴다**)만
+        FR-ITEM-USE 로 남겼다. 제작 · 장비 · 감정 도구 · 관통과 치명을 얻는 경로는 전부
+        같은 이유로 막혀 있으므로 "지금 열 수 없는 것" 에 그 이유와 함께 두었다.
 
-    다시 쓰면서 갈라진 것 둘
-        "얻은 것이 나를 바꾼다" 는 세 개념(쓴다 · 만든다 · 걸친다)이 뭉쳐 있었다.
-        경계를 적으니 갈라졌고, 앞칸 하나(**쓴다**)만 후보로 남겼다. 제작·장비·감정
-        도구는 전부 같은 이유로 막혀 있으므로 "지금 열 수 없는 것" 에 그 이유와 함께 뒀다.
+    새로 선 것 둘 — TG(지목) 주입과 Q24(b) 결정에서 왔다
+        FR-TARGET-SELECTION   대상 지목 (선행: 기반 트랙 커밋 1건 — Q28(a))
+        FR-RELATION-STANCE    존재 사이의 관계
 
-        "다음 수를 읽는다" 는 코드 대조로 재판정했다. 행동은 이미 진행 중 상태와 진행도가
-        관찰에 실린다 — 없는 것은 **행동이 나가기 전의 구간**이었다. 그래서 후보의 이름이
-        예측이 아니라 예고 구간이 되었고, 중단(FR-ACTION-INTERRUPT)이 그 위에 얹히는
-        의존 관계도 드러났다. 3 없이 4 만 하면 지금과 같아진다.
-
-    후보로 올리지 않은 결손 하나를 파일에 남겼다 — 기력이 스스로 돌아오지 않는다
-    (MC-CP-ECONOMY). 어느 상위 갈래를 전진시키는지 근거 문서가 말하지 않아 7 조건 2 를
-    세울 수 없다. 지어내지 않고 Human 판단으로 남긴다.
+    후보는 다섯이다: 지목 · 관계 · 예측 · 중단 · 아이템 사용.
 
 ## Frontier 정정 — "행동" 은 이미 있는 개념이다 (2026-08-20)
 
@@ -913,19 +971,40 @@ ONE-LAYER-AT-A-TIME 신설, 이연 층 근거의 3종은 DRAFT 보류.
         막기는 행동이 아니라 별도 상태다 (그래서 막으면서 걸을 수 있다).
 
     무엇이 틀렸나
-        후보 "행동 예고 구간" 이 "행동이 나가기 전의 구간이 없다" 고 적었다.
-        구간은 있다. 없는 것은 그 구간의 **의미**다 — 비율이 모든 휘두름에 하나로
-        고정이고, 준비 중인지 이미 나갔는지가 관찰에 구분되지 않으며, 그 구간이
-        판정에 쓰이지 않는다 (시작한 행동은 무조건 끝까지 간다).
+        후보 "행동 예고 구간" 이 "행동이 나가기 전의 구간이 없다" 고 적었다. 구간은 있다.
+        같은 오류를 다른 갈래에서 이미 잡아 둔 상태였다 — overlay 의 MC-PREDICT 행이
+        코드 대조로 "예고 구간 자체는 이미 있다" 를 적고 있었고(C017 을 열었다 접으며
+        얻은 것), 그 사실을 보지 않고 후보를 새로 쓴 것이 이 오류의 원인이다.
 
-    무엇을 고쳤나
-        후보 셋째(행동 예고 구간)와 넷째(행동 중단)를 **FR-ACTION-PHASE 하나로 합쳤다.**
-        둘은 같은 개념의 두 면이다: 노출만 하고 판정에 쓰지 않으면 표시만 바꾼 Cycle 이
-        되어 플레이가 달라지지 않고, 취소만 넣고 노출하지 않으면 "아무 때나 때리면
-        끊긴다" 가 되어 지금과 같다. 하나만으로는 닫히지 않으므로 한 Cycle 이다.
-        overlay 의 MC-PREDICT · MC-INTERRUPT 행도 같은 근거로 정정했다.
-        후보는 다섯에서 넷이 되었다.
+    어떻게 닫혔나
+        그 후보(FR-ACTION-PHASE)는 병합에서 해소되었다. 축이 둘이었고 각각 이미
+        후보로 서 있었다 — 무엇이 오는지를 읽는 축은 FR-PREDICT-READS-THE-NEXT-BLOW,
+        그 구간을 판정에 쓰는(취소) 축은 FR-INTERRUPT-DENIES-THE-BLOW 다.
+        둘을 하나로 묶으려던 판단은 거두고, 대신 둘 사이의 관계를 각 후보에 적었다.
 
     배운 것: 후보의 "이미 있는 것" 칸을 코드로 채우지 않으면, 이미 있는 것을 없다고
-    적은 채 Cycle 로 내려간다. 그 칸은 근거 문서가 아니라 **코드 대조**로 채운다.
+    적은 채 Cycle 로 내려간다. 그 칸은 근거 문서가 아니라 **코드 대조**로 채우며,
+    overlay 가 이미 코드 대조로 적어 둔 행이 있으면 그것이 첫 출처다.
 
+## 병합 정리 — 두 갈래가 같은 Feedback 을 따로 돌았다 (2026-08-20)
+
+    이 브랜치(TG 주입)와 main 이 각각 C015·C016 의 Master Feedback 을 돌았다.
+    같은 사실을 두 벌로 적게 되어 병합에서 하나로 줄였다.
+
+    남긴 것 (main)   C015·C016 Overlay 갱신 이력과 Frontier 선택 기록 표 ·
+                     CC 3종(WORLD-OWNS-THE-CHANCE · A-NEW-WAY-OF-KNOWING-IS-NOT-A-GATE ·
+                     CONDITION-OPENS-WITHOUT-RECORDING)과 그중 둘의 DC 승격 ·
+                     MC-PREDICT 의 코드 대조 판정 · C017 을 접은 기록
+    버린 것 (이 브랜치)  같은 사실의 두 번째 서술과, 이름만 다른 CC 2종
+                     (CC-A-NEW-PATH-IS-NOT-A-GATE · CC-CONDITIONS-ARE-NOT-RECORDED)
+    남긴 것 (이 브랜치)  TG 주입분 전부 — DC-TARGET-IS-INTENT-NOT-AIM(APPROVED) ·
+                     MC-DESIGNATE-TARGET · MC-WATCH-TARGET · MC-RELATION-STANCE ·
+                     Q23~Q28 의 결정 · 기능 단위 Frontier 형식
+
+    번호 충돌 하나  두 갈래가 Q23 을 각각 썼다. 이 브랜치의 Q23~Q28 은 이미 닫혀
+                    여기 있으므로, main 에서 열려 있던 "통찰은 독립한 노드인가" 를
+                    **Q29** 로 옮겼다. 번호는 재사용하지 않는다.
+
+    배운 것: Master Layer 는 한 번에 한 갈래만 도는 것이 안전하다. 두 갈래가 같은
+    Overlay 를 동시에 갱신하면 병합이 사실을 고르는 일이 되고, 그 판단은 원래
+    Agent 의 것이 아니다.

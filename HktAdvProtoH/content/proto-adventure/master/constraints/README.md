@@ -2,7 +2,7 @@
 
 파일 하나 = Constraint 하나. 이름은 `DC-<NAME>.yaml`. 형식은 [../SCHEMA.md](../SCHEMA.md).
 
-현재: **Active 18종** — 전투 5종(1종 REVISED) + 성장 6종 + 세계 5종 + GLOBAL 2종.
+현재: **Active 20종** — 전투 5종(1종 REVISED) + 성장 6종 + 세계 5종 + GLOBAL 4종.
 보류(DRAFT)는 없다.
 
 근거 문서:
@@ -11,8 +11,8 @@
 R1 §x   design/Design-Combat-OffenseDefense-R0.md   전투 영역
 DT §x   design/Design-Combat-DamageType-R0.md        전투 영역
 GR §x   design/Master-Intent-Graph-Growth.md         성장(GROWTH) 영역 한정
-BW §x   design/Master-World-Beira.md                 세계(WORLD) 영역
 TG §x   design/Design-Targeting-R0.md                 지목(GLOBAL)
+BW §x   design/Master-World-Beira.md                 세계(WORLD) 영역
 ```
 
 근거는 영역을 넘지 않는다 — 전투 노드에 GR 을, 성장 노드에 R1/DT 를 인용하지 않는다.
@@ -54,16 +54,26 @@ TG §x   design/Design-Targeting-R0.md                 지목(GLOBAL)
 | DC-WORLD-PLAYER-UNFIXED-PATH | Player 의 역할·Class·진영·탐험 이유를 하나로 고정하지 않는다 | BW §1 · §15 · §31 |
 | DC-WORLD-PROGRESSION-IS-REACH | Progression 은 Level 이 아니라 대응 가능한 세계 범위의 확장 | BW §1 · §17 · §32 |
 
-### Active — APPROVED (GLOBAL)
+### Active — APPROVED (GLOBAL — 기획 문서 주입)
 
 | Constraint | 한 줄 | 근거 |
 |---|---|---|
 | DC-TARGET-IS-INTENT-NOT-AIM | 지목은 의도의 표명일 뿐 — 명중·피해·정보·위협을 만들지 않고 세계가 대신 다가가지 않는다 | TG §0 · §2.1 · §2.3 · §3.4 · §9 · §10 |
 
-`DC-WORLD-OWNS-THE-SURFACE-LIST` 는 위 표들과 성격이 다르다 — 전투 기획서가 아니라
-Cycle 관찰(C007 → C009 → C010)에서 승격된 GLOBAL Constraint 다. 근거는
-`candidates/CC-WORLD-OWNS-THE-SURFACE-LIST.md` 이며 DT §10 · §16.3-6 이 같은 방향을
-독립적으로 지지한다 (세계가 보낸 값이 권위이고 View 가 추측하지 않는다).
+### Active — APPROVED (GLOBAL — Cycle 관찰에서 승격)
+
+아래 셋은 위 표들과 성격이 다르다. 기획 문서가 아니라 **Cycle 을 돌면서 반복 발견된
+형태**가 근거이며, 그래서 근거 칸에 § 번호가 아니라 Cycle ID 가 들어간다.
+
+| Constraint | 한 줄 | 근거 |
+|---|---|---|
+| DC-WORLD-OWNS-THE-SURFACE-LIST | 무엇을 할 수 있고 값이 어디까지인지의 목록은 세계가 소유하고 관찰에 실어 보낸다 — View 가 만들지 않는다 | C007 → C009 → C010 (DT §10 · §16.3-6 이 독립적으로 지지) |
+| DC-WORLD-OWNS-THE-CHANCE | 우연의 원천은 세계 상태 · 관찰에 싣지 않는다 · 경위는 전부 싣는다 · 이미 정해진 일에는 소비하지 않는다 | C015 (형태) — 범위는 DC-COMBAT-PLAYER-CAUSALITY 가 소유 |
+| DC-CONDITION-OPENS-WITHOUT-RECORDING | 지금의 조건이 여는 것은 기록하지 않는다 — 조건이 사라지면 저절로 닫힌다 | C016 (C015 는 다른 영역의 같은 종류) |
+
+뒤의 둘은 **관찰 1회로 승격**했다. 반복이 아니라 비가역성이 근거다 — 둘 다 나중에
+세우면 이미 쌓인 것(재현 이력 · 저장된 데이터)을 깨야 한다. 승격 조건 4항의 첫 항을
+면제한 사례이므로, 같은 예외를 다시 쓸 때는 그 비가역성을 먼저 보인다.
 
 반영·삭제 이력은 [../HISTORY.md](../HISTORY.md) 가 소유한다 — 이 파일에는 지금 살아 있는
 Constraint 만 남긴다.
