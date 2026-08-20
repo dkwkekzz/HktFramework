@@ -30,6 +30,9 @@ MC-PERFECT-GUARD   MISSING → IMPLEMENTED   근거 C010 08-verification
    영향이 없었다면 남기지 않는다 (무차별 Edge 금지).
 4. **Constraint Candidate 접수** — Cycle 이 보고한 반복 패턴을 `candidates/CC-*.md` 로 만든다.
    승격 조건 4항을 검사하고 `HUMAN DECISION: PENDING` 으로 둔다.
+   `무엇을 말하는가 (예시)` 절은 **필수**다 — `master/SCHEMA.md` 의 "읽히게 쓴다"
+   규칙 5항을 따른다. Human 이 승격 여부를 판단하려면 원칙 문장이 아니라
+   **그 원칙을 어겼을 때 무슨 일이 나는지**를 읽어야 한다.
 5. **Master Gap 처리** — Cycle 이 `MASTER GAP` 을 보고했다면 Graph 를 임의로 고치지 않고
    Conflict · Affected Nodes · Trade-off · Expected Consequences 로 Human 에게 제시한다.
 6. Cycle 이 Graph 에 없던 Capability 를 만들었다면 `capabilities.yaml` 에 추가하고,

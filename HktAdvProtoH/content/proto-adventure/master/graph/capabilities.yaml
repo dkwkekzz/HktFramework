@@ -259,8 +259,12 @@ nodes:
     constraint_evaluation:
       DC-COMBAT-PLAYER-CAUSALITY: SATISFIED    # REVISED 가 명시한 단일 예외 — 관찰 요구는 그대로 진다
       DC-COMBAT-ONE-FORMULA: SATISFIED         # 새 공식이 아니라 Final Damage 증폭이다
-    overlay: MISSING
-    # 세계에 난수원이 하나도 없다. R1 §14 C011 층.
+    overlay: IMPLEMENTED
+    # C015 — 세계에 우연이 처음 들어왔다. world_shape 의 두 칸이 실측으로 닫혔다:
+    #   같은 조건 다섯 대에서 [20, 20, 40, 40, 20] 이 나오고,
+    #   occurred · chance · multiplier · damageBeforeCritical 넷이 모든 타격에 실린다.
+    # semantic 뒷문장("성장·장비로 자란다")은 이 노드의 world_shape 밖이다 —
+    # 그 결손은 MP-BET-ON-THE-CRITICAL-BLOW 의 requires.resource 가 진다.
 
   - id: MC-PERFECT-GUARD
     type: capability
@@ -476,15 +480,16 @@ nodes:
     constraints: [DC-WORLD-PROGRESSION-IS-REACH, DC-COMBAT-MATCHUP-SOFT,
                   DC-WORLD-PLAYER-UNFIXED-PATH]
     constraint_evaluation:
-      DC-WORLD-PROGRESSION-IS-REACH: SATISFIED   # 진행이 수치가 아니라 "고를 근거" 로 나타났다 — BW §32 사슬의 첫 칸 (C014)
+      DC-WORLD-PROGRESSION-IS-REACH: SATISFIED   # 진행이 수치가 아니라 "고를 근거" 로 나타났다 — BW §32 사슬의 첫 칸 (C014). C016 이 progression_expands_reachable_world 를 세계에서 처음 만족시켰다 (통찰 0→90 에서 커지는 것이 아는 상대의 범위다)
       DC-COMBAT-MATCHUP-SOFT: SATISFIED          # weakness_is_observable 이 "관찰 행동을 하면 알 수 있다" 로 유지된다. 관찰은 계산에 한 글자도 더하지 않는다
       DC-WORLD-PLAYER-UNFIXED-PATH: SATISFIED    # 살펴봄이 다른 행동의 조건이 아니다 — 모르는 채로도 싸운다
     overlay: PARTIAL
-    # C014 로 **상태**(겨루는 힘)를 아는 일이 섰다. semantic 이 말한 셋 중 둘이 남는다:
+    # C014 로 **상태**(겨루는 힘)를 아는 일이 서고, C016 이 **경로**를 열었다 —
+    # 앎에 이르는 길이 둘(살펴봄 · 기른 통찰)이 되었고 앎이 존재 단위에서 자리 단위로
+    # 넓어졌다. semantic 이 말한 셋 중 남은 결손은 하나뿐이다:
     #   행동·습성  자율 존재의 행동 패턴을 읽는 의미가 세계에 없다 (MC-PREDICT 와 같은 자리)
-    #   경로 하나  앎에 이르는 길이 살펴봄뿐이고, 앎이 존재 단위여서 부분 공개가 없다
-    # C014 08 은 IMPLEMENTED 로 보고하면서 "습성은 아직 없다" 를 함께 보고했다 —
-    # Feedback 이 그 주의를 적용해 PARTIAL 로 판정했다.
+    # 그 하나가 닫히면 IMPLEMENTED 다 (C016 08 MASTER FEEDBACK).
+    # 2026-08-19 Human 결정으로 그 조각은 MC-PREDICT 와 한 Cycle 에서 함께 닫는다.
     # DC-WORLD-OWNS-THE-SURFACE-LIST 도 SATISFIED 이나 GLOBAL 이므로 Edge 를 더하지 않았다.
 
   - id: MC-PREDICT
@@ -500,9 +505,22 @@ nodes:
       다른 결과를 낼 수 있어야 한다.
     required_by: [MP-LEARN-TO-HANDLE-THE-LAYER]
     demanded_by: [MW-ZONE-FRINGE]
-    constraints: []
-    constraint_evaluation: {}
+    constraints: [DC-WORLD-PROGRESSION-IS-REACH, DC-COMBAT-PLAYER-CAUSALITY,
+                  DC-WORLD-PLAYER-UNFIXED-PATH]
+    constraint_evaluation:
+      DC-WORLD-PROGRESSION-IS-REACH: SATISFIED   # 진행이 이해의 확장으로 나타난다 — BW §32 사슬의 둘째 칸
+      DC-COMBAT-PLAYER-CAUSALITY: SATISFIED      # 읽히는 것은 세계가 이미 정한 다음 행동이다 — 새 난수를 들이지 않는다
+      DC-WORLD-PLAYER-UNFIXED-PATH: SATISFIED    # 읽지 않고 싸우는 길이 남는다
     overlay: MISSING
+    # 코드 대조로 결손의 자리를 정정했다 (2026-08-19). 예고 구간 자체는 이미 있고
+    # 관찰에도 실린다 — 휘두름은 앞 구간을 지나서야 닿고(collision.ts SWING_BEGIN),
+    # 진행 중인 행동의 종류와 진행도가 계약에 실린다(EntityView.state · progress · swing).
+    # 없는 것은 **읽을 거리**와 **앎의 관문** 둘이다:
+    #   갈래 없음  자율 존재가 쓰는 스킬이 하나뿐이라 다음 행동에 고를 것이 없다
+    #   관문 없음  그 앎이 살펴봄·통찰과 무관하게 누구에게나 그냥 온다
+    # MC-OBSERVE 의 남은 결손(행동·습성)이 같은 자리이며, 2026-08-19 Human 결정으로
+    # 둘을 한 Cycle 에서 함께 닫는다 (frontier.md FR-PREDICT-READS-THE-NEXT-BLOW).
+    # DC-WORLD-OWNS-THE-SURFACE-LIST 도 걸리나 GLOBAL 이므로 Edge 를 더하지 않았다.
 
   - id: MC-USE-TERRAIN
     type: capability

@@ -6,8 +6,8 @@ Master Graph 를 현재 `world/` `view/` 구현과 겹쳐 본 결과다. 기본 
 각 노드의 `world_shape`(그 의미가 세계에 있다는 것을 무엇으로 확인하는가)가 판정 기준이고,
 이 문서는 그 칸이 지금 닫혀 있는가만 답한다.
 
-    기준 시점   C013(관통) · C014(살펴봄) 완료 — 전투 사다리는 Penetration 층까지,
-                탐험은 FRINGE 의 첫 칸(살펴봄)까지 세계에 서 있다
+    기준 시점   C015(증폭) · C016(통찰) 완료 — 전투 사다리는 Critical 층까지,
+                탐험은 FRINGE 의 첫 칸(살펴봄 + 그것에 이르는 두 경로)까지 서 있다
     근거 문서   전투 R1 · DT · 탐험 BW · 성장 GR — 근거는 영역을 넘지 않는다 (HISTORY Q15)
 
 해당 영역 문서가 이름조차 대지 않는 Capability 는 "없는 것" 이 아니라 **노드가 아니다** —
@@ -40,7 +40,7 @@ Constraint Violation 과 혼동하지 않는다 — 여기는 **있는가/없는
 | MC-PENETRATION | IMPLEMENTED | C013 — 마주한 방어가 90 → 56.25 로 깎이고, 마주하지 않은 방어는 그대로이며(물리 20 유지), 두꺼울수록 걷어내는 양이 커지고(0/7.5/33.75/112.5), 극단값에서도 방어가 남는다 | — (C013 Human Play 대기 · open-questions.md) |
 | MC-BREAK | PARTIAL | 코드 대조 — 막는 기력이 모자라면 방어가 풀리고 일정 시간 다시 세우지 못하며 그 타격은 그대로 들어간다 (C011) | 무너뜨리기 위한 **행동**이 없다. 지금은 상대가 자원을 다 쓴 결과로만 일어나므로 플레이어가 만들어 내는 구간이 아니다 |
 | MC-CONDITION-STACKING | PARTIAL | 코드 대조 — 조건들을 곱해 합성하고 상·하한으로 묶는 얼개가 있다 | 조건의 출처가 둘(달리는 중·피격 중)뿐이고 둘 다 기력 회복량에만 작용한다. 이름 붙은 조건도, 지속 시간도, 겹침도, 플레이어가 조건을 **만드는** 수단도 없다 |
-| MC-CRITICAL-STRIKE | MISSING | — | 세계에 난수원이 하나도 없다 — 증폭이라는 개념 자체가 없다 (R1 §14 C011 층 · Q11(b) 로 열렸다) |
+| MC-CRITICAL-STRIKE | IMPLEMENTED | C015 — 같은 조건 다섯 대에서 [20, 20, 40, 40, 20] 이 실측되고, 성질을 바꾸면 빈도·크기가 각각 달라지며, 발생 여부·확률·배율·증폭 전 값 넷이 모든 타격의 계산 경위에 실린다 | — (성질을 **올릴** 경로는 이 노드가 아니라 MP-BET-ON-THE-CRITICAL-BLOW 의 `requires.resource` 가 진다 — 아래 Possibility 표) |
 | MC-PERFECT-GUARD | MISSING | — | 막기는 있으나 **시작 시각**이 판정에 쓰이지 않는다. 막기는 켜 두는 자세이고 결과는 막힘/무너짐 둘뿐이다 (R1 §14 Active Defense 층) |
 | MC-COUNTER | MISSING | — | 취약 상태(Exposed)라는 개념이 없다 (R1 §14 Active Defense 층) |
 | MC-EVADE | MISSING | — | 회피 행동이 없다. 다만 공격이 이미 공간 판정이라 얹힐 바닥은 서 있다 (R1 §13 이연) |
@@ -61,8 +61,8 @@ Constraint Violation 과 혼동하지 않는다 — 여기는 **있는가/없는
 | MC-FORCE-MOVEMENT (DANGER §23) | PARTIAL | 코드 대조 — 타격이 상대를 때린 자리 바깥으로 밀어내고 그 힘이 관성·마찰로 이어진다 | **어디로** 보낼지 고르는 수단. 밀림 방향이 언제나 때린 자리의 반대쪽으로 고정이다 |
 | MC-INTERRUPT (DANGER §23) | PARTIAL | 코드 대조 — 타격을 받으면 하던 행동이 끊기고 피격 동작으로 대체된다 | 끊는 것을 **노리는** 수단. 지금은 아무 타격에나 따라오는 부수 효과라 "언제 끊을까" 라는 판단이 없다 |
 | MC-BREAK (WILD §22) | PARTIAL | 전투 표에서 판정 (같은 노드 재사용) | 위와 같음 |
-| MC-OBSERVE (FRINGE §21) | PARTIAL | **C014 — 살펴봄이 행동으로 서고, 살펴보기 전에는 상대의 겨루는 힘을 모른다.** 아는 것과 모르는 것이 처음으로 갈렸다 | semantic 이 말한 셋 중 둘이 남는다: **행동·습성**(자율 존재의 패턴을 읽는 의미가 없다 — MC-PREDICT 자리) · **경로 하나**(앎에 이르는 길이 살펴봄뿐이고 앎이 존재 단위여서 부분 공개가 없다) |
-| MC-PREDICT (FRINGE §21) | MISSING | — | 상대 행동에 읽을 예고 구간이 노출되지 않는다 |
+| MC-OBSERVE (FRINGE §21) | PARTIAL | **C014 — 살펴봄이 행동으로 서고, 살펴보기 전에는 상대의 겨루는 힘을 모른다.** **C016 — 앎에 이르는 길이 둘(살펴봄 · 기른 통찰)이 되고, 앎이 존재 단위에서 자리 단위로 넓어졌다** | 남은 결손은 **하나**다: **행동·습성** — 자율 존재의 패턴을 읽는 의미가 없다 (MC-PREDICT 자리). 그 하나가 닫히면 IMPLEMENTED |
+| MC-PREDICT (FRINGE §21) | MISSING | 코드 대조 — 예고 구간 자체는 **이미 있다**: 휘두름은 앞 구간을 지나서야 닿고(`world/semantic/collision.ts` SWING_BEGIN), 진행 중인 행동의 종류·진행도·칼끝이 계약에 실린다(`EntityView.state` · `progress` · `swing`) | 없는 것은 **읽을 거리**와 **앎의 관문** 둘이다. ① 자율 존재가 쓰는 스킬이 하나뿐이라(`world/simulation/npc-decide.ts` — 언제나 `attack`) 다음 행동에 고를 갈래가 없다 ② 그 앎이 살펴봄·통찰과 무관하게 누구에게나 그냥 온다 |
 | MC-USE-TERRAIN (FRINGE §21) | MISSING | — | 지형이 없다 — 무대는 아무 성질도 없는 평평한 사각형 하나다 |
 | MC-DISCOVER-WEAKNESS · MC-PRECISE-TARGETING · MC-CONTROL-SPACE (WILD §22) | MISSING | — | 약점 발견·부위 조준·공간 통제의 의미가 없다 |
 | MC-READ-ENVIRONMENT · MC-USE-HAZARD (DANGER §23) | MISSING | — | 환경 위험이라는 개념 자체가 없다 — 피해의 출처는 타격 하나뿐이다 |
@@ -87,7 +87,7 @@ Capability 만 보면 전투가 꽤 찬 것처럼 보이지만, 그 전투가 �
 | MA-PLAYER | PARTIAL | 몸이 한 종류로 고정이라 고를 갈래 자체가 없다 |
 | MA-HOSTILE-COMBATANT | PARTIAL | 스스로 순찰·추격·공격하고 플레이어와 같은 전투 규칙을 쓴다. 지킬 영역 개념이 없어 순찰 경로가 곧 영역이다 |
 | MK-LOCAL-WORLDSTATE | ABSENT | 지역이 없다. 다만 "모르는 상태" 라는 것 자체는 C014 로 세계에 생겼다 (살펴봄 이전) — 얹힐 바닥은 섰다 |
-| MK-OPPONENT-DEFENSE-SHAPE | PARTIAL | 방어 형태와 관통 반영값까지 관찰에 실린다 (C012 · C013). 그러나 처음부터 전부 보이므로 **알게 되는 과정**이 없다 |
+| MK-OPPONENT-DEFENSE-SHAPE | PRESENT | 방어 형태와 관통 반영값이 관찰에 실리고 (C012 · C013), 그것을 **알게 되는 과정**이 생겼다 — 살펴보기 전에는 가려져 있고 (C014), 통찰을 기르면 자리별로 열린다 (C016) |
 | MK-OPPONENT-FLOW-PATTERN | ABSENT | 힘을 배분하는 상태가 없다 |
 
 ## Possibility 별로 본 상태
@@ -101,7 +101,7 @@ Capability 만 보면 전투가 꽤 찬 것처럼 보이지만, 그 전투가 �
 | MP-MATCH-WEAPON-TO-ARMOR | **없음** | **C012 로 닫혔다** — 지금 플레이 가능하다 |
 | MP-PIERCE-THE-HARD-DEFENSE | **없음** | **C013 로 닫혔다** — 지금 플레이 가능하다. 다만 아직 좁다: 플레이어가 관통을 **얻는** 경로가 세계에 없다 (종류가 정한 값과 디버그뿐 — growth/growth-graph.md) |
 | MP-OUTGROW-THE-OPPONENT | MC-ATTACK-POWER(PARTIAL) + 성장의 원천 | 능력치가 결과를 바꾸는 것은 닫혔으나 **그 값을 플레이로 올릴 수 없다.** 이전 판정 "닫혔다" 는 이 결손을 빠뜨렸다 |
-| MP-BET-ON-THE-CRITICAL-BLOW | MC-CRITICAL-STRIKE | **하나만 없다** — 나머지 2종 IMPLEMENTED |
+| MP-BET-ON-THE-CRITICAL-BLOW | 요구 Capability 는 **없음** · `requires.resource` 미충족 | **C015 로 절반 닫혔다** — 증폭이 터지는 것과 그 경위가 다 보인다. 그러나 "준비로 기대값을 올린다" 는 나머지 절반이 남았다: Critical 성질을 올릴 성장·장비가 세계에 없어 경로가 종류 초기값과 디버그뿐이다 |
 | MP-INTERRUPT | MC-INTERRUPT(PARTIAL) | **하나만 없고 그마저 절반 서 있다** — 끊김 규칙은 있고 노리는 수단만 없다. 현재 전투 세계 안에서 닫을 수 있다 |
 | MP-BREAK-THE-GUARD | MC-BREAK(PARTIAL) | 무너지는 상태는 있고 무너뜨리는 행동만 없다 (R1 §14 Active Defense 층) |
 | MP-READ-AND-COUNTER | MC-PERFECT-GUARD · MC-COUNTER | R1 §15 층 그림에서 Active Defense 는 Penetration 위이고 그 아래층은 C013 으로 섰다 — 이제 그 층의 설계 문서만 없다 |
@@ -125,7 +125,7 @@ Capability 만 보면 전투가 꽤 찬 것처럼 보이지만, 그 전투가 �
 
 | Possibility | 요구 중 없는 것 | 비고 |
 |---|---|---|
-| MP-LEARN-TO-HANDLE-THE-LAYER | MC-PREDICT (+ MC-OBSERVE 는 PARTIAL) | **C014 가 첫 칸을 세웠다** — 둘에서 하나로 줄었다. 탐험의 기본 갈래이자 다른 둘의 앞이다 (먼저 겪은 사람이 없으면 살 정보도 가져올 자원도 없다) |
+| MP-LEARN-TO-HANDLE-THE-LAYER | MC-PREDICT (+ MC-OBSERVE 는 PARTIAL) | **C014·C016 이 첫 칸을 세웠다** — 살펴봄이 서고 거기에 이르는 길이 둘이 되었다. 남은 것은 둘째 칸(예측) 하나이며 그것이 MC-OBSERVE 의 마지막 결손과 같은 자리다. 탐험의 기본 갈래이자 다른 둘의 앞이다 (먼저 겪은 사람이 없으면 살 정보도 가져올 자원도 없다) |
 | MP-ADAPT-BY-RESOURCE | MC-RESTORE-BIOLOGICAL-STATE · MC-CUT-ABNORMAL-STRUCTURE + MK-LOCAL-WORLDSTATE + 자원 | **설계상 획득 경로는 Q22 로 섰다** (경계결정 → IM-BOUNDARY-EDGED). 세계에 제작·장착이 없다 |
 | MP-PREPARE-IN-CIVILIZATION | MK-LOCAL-WORLDSTATE + MW-SAFE-FRONTIER + 관계·대가 | 요구 Capability 가 없다 (BW §14 는 활동만 열거) — 막는 것은 능력이 아니라 문명권·거래라는 세계 기반이다 |
 
@@ -163,10 +163,12 @@ Capability 만 보면 전투가 꽤 찬 것처럼 보이지만, 그 전투가 �
    능력치가 결과를 바꾸는 것은 닫혔지만 그 값을 올리는 유일한 경로가 디버그 명령이다.
    MP-OUTGROW-THE-OPPONENT 가 "닫힌 경로" 로 보였던 것은 이 구분을 놓쳤기 때문이다.
 
-3. 모르는 것이 거의 없다  (C014 로 첫 구멍이 뚫렸다)
-   C014 가 "살펴보기 전에는 겨루는 힘을 모른다" 를 세워 아는 것과 모르는 것이 처음으로
-   갈렸다. 그러나 가려지는 것이 그 하나뿐이고 앎이 존재 단위라 부분 공개가 없다.
-   예측·발견·검증은 여전히 얹힐 자리가 없다.
+3. 앞날을 읽을 것이 없다  (C014·C016 으로 "지금" 은 읽히게 되었다)
+   C014 가 "살펴보기 전에는 겨루는 힘을 모른다" 를 세우고 C016 이 거기 이르는 두 번째
+   길(통찰)과 자리별 부분 공개를 세웠다 — BW §32 사슬의 첫 칸이 섰다.
+   남은 것은 둘째 칸이다. 자율 존재의 다음 행동이 언제나 같은 한 가지라 읽을 거리가
+   없고, 행동의 앞 구간이 앎의 관문과 무관하게 누구에게나 그냥 온다.
+   발견·검증은 그 뒤에 얹힌다.
 ```
 
 ## 갱신 경로

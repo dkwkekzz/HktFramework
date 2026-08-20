@@ -6,7 +6,7 @@
 
 노드 87 — WorldState 13 · Actor 2 · Goal 5 · Possibility 22 · Capability 42 · Knowledge 3
 
-Capability 구현 상태 — ■ IMPLEMENTED 8 · ▨ PARTIAL 8 · □ MISSING 26
+Capability 구현 상태 — ■ IMPLEMENTED 9 · ▨ PARTIAL 8 · □ MISSING 25
 
 ## 인과 뼈대 — WorldState → Goal → Possibility
 
@@ -126,11 +126,11 @@ flowchart LR
 | `MATCH-WEAPON-TO-ARMOR` | OVERCOME-SUPERIOR-OPPONENT | ●●●●● 2/2 | 없음 |
 | `PIERCE-THE-HARD-DEFENSE` | OVERCOME-SUPERIOR-OPPONENT | ●●●●● 4/4 | 없음 |
 | `TRADE-BODY-FOR-RESOURCE` | SURVIVE-ENEMY-OFFENSIVE | ●●●●○ 3/4 | CP-ECONOMY |
+| `BET-ON-THE-CRITICAL-BLOW` | OVERCOME-SUPERIOR-OPPONENT | ●●●●○ 2/3 | ATTACK-POWER |
 | `OUTGROW-THE-OPPONENT` | OVERCOME-SUPERIOR-OPPONENT | ●●●●○ 3/5 | ATTACK-POWER · CP-ECONOMY |
 | `BREAK-THE-GUARD` | OVERCOME-SUPERIOR-OPPONENT | ●●●○○ 1/3 | BREAK · CP-ECONOMY |
 | `EXPLOIT-OPEN-BODY` | OVERCOME-SUPERIOR-OPPONENT | ●●●○○ 2/3 | COMBAT-FLOW |
 | `INTERRUPT` | OVERCOME-SUPERIOR-OPPONENT | ●●●○○ 0/1 | INTERRUPT |
-| `BET-ON-THE-CRITICAL-BLOW` | OVERCOME-SUPERIOR-OPPONENT | ●●●○○ 1/3 | CRITICAL-STRIKE · ATTACK-POWER |
 | `READ-AND-COUNTER` | OVERCOME-SUPERIOR-OPPONENT | ●●○○○ 1/4 | PERFECT-GUARD · COUNTER · CP-ECONOMY |
 | `HOLD-FORTIFIED` | SURVIVE-ENEMY-OFFENSIVE | ●●○○○ 1/4 | FORTIFY · COMBAT-FLOW · CP-ECONOMY |
 | `CONTROL-MOVEMENT` | OVERCOME-SUPERIOR-OPPONENT | ●●○○○ 0/3 | FORCE-MOVEMENT · CONTROL-SPACE · REPOSITION |
@@ -162,7 +162,7 @@ flowchart LR
   MC-SKILL-SCALING["■ SKILL-SCALING"]
   MC-ATTACK-ARMOR-MATCHUP["■ ATTACK-ARMOR-MATCHUP"]
   MC-PENETRATION["■ PENETRATION"]
-  MC-CRITICAL-STRIKE["□ CRITICAL-STRIKE"]
+  MC-CRITICAL-STRIKE["■ CRITICAL-STRIKE"]
   MC-PERFECT-GUARD["□ PERFECT-GUARD"]
   MC-COUNTER["□ COUNTER"]
   MC-BREAK["▨ BREAK"]
@@ -251,9 +251,9 @@ flowchart LR
   classDef part fill:#3a3315,stroke:#9a8a2e,color:#f2ecd0;
   classDef miss fill:#2a2a2e,stroke:#5c5c66,color:#b8b8c2;
   classDef poss fill:#1c3330,stroke:#3f7d6f,color:#d6f0e9;
-  class MC-COMBAT-STRIKE,MC-BODY-FACING,MC-COMBAT-CAUSE-READING,MC-GUARD,MC-DEFENSE-MITIGATION,MC-SKILL-SCALING,MC-ATTACK-ARMOR-MATCHUP,MC-PENETRATION impl;
+  class MC-COMBAT-STRIKE,MC-BODY-FACING,MC-COMBAT-CAUSE-READING,MC-GUARD,MC-DEFENSE-MITIGATION,MC-SKILL-SCALING,MC-ATTACK-ARMOR-MATCHUP,MC-PENETRATION,MC-CRITICAL-STRIKE impl;
   class MC-CP-ECONOMY,MC-ATTACK-POWER,MC-BREAK,MC-CONDITION-STACKING,MC-REPOSITION,MC-OBSERVE,MC-FORCE-MOVEMENT,MC-INTERRUPT part;
-  class MC-CRITICAL-STRIKE,MC-PERFECT-GUARD,MC-COUNTER,MC-COMBAT-FLOW,MC-FORTIFY,MC-EVADE,MC-VOW,MC-PREDICT,MC-CONTROL-SPACE,MC-READ-ENVIRONMENT,MC-USE-HAZARD,MC-RESTORE-BIOLOGICAL-STATE,MC-CUT-ABNORMAL-STRUCTURE miss;
+  class MC-PERFECT-GUARD,MC-COUNTER,MC-COMBAT-FLOW,MC-FORTIFY,MC-EVADE,MC-VOW,MC-PREDICT,MC-CONTROL-SPACE,MC-READ-ENVIRONMENT,MC-USE-HAZARD,MC-RESTORE-BIOLOGICAL-STATE,MC-CUT-ABNORMAL-STRUCTURE miss;
   class MP-OUTGROW-THE-OPPONENT,MP-MATCH-WEAPON-TO-ARMOR,MP-PIERCE-THE-HARD-DEFENSE,MP-BREAK-THE-GUARD,MP-READ-AND-COUNTER,MP-EXPLOIT-OPEN-BODY,MP-INTERRUPT,MP-CONTROL-MOVEMENT,MP-WEAPONIZE-ENVIRONMENT,MP-BET-ON-THE-CRITICAL-BLOW,MP-STAKE-EVERYTHING-ON-ONE-BLOW,MP-TRADE-BODY-FOR-RESOURCE,MP-EVADE-BY-MOVING-THE-BODY,MP-HOLD-FORTIFIED,MP-LEARN-TO-HANDLE-THE-LAYER,MP-ADAPT-BY-RESOURCE poss;
 ```
 
@@ -266,8 +266,9 @@ Constraint 는 단계가 아니라 각 선택 지점의 Filter 다. 아래는 �
 | `COMBAT-MATCHUP-SOFT` | COMBAT | APPROVED | 4 | 공격 형태와 방어 형태의 상성은 선택을 만들되 결과를 지배하지 않는다. 상성은 별도 피해 배율이 아니라 대응 공격·방어 능력치의 차이로 표현한다. |
 | `COMBAT-ONE-FORMULA` | COMBAT | APPROVED | 4 | 전투에는 하나의 기반 피해 공식만 존재한다. 새로운 전투 시스템은 새로운 피해 공식을 만들지 않고, 기존 공식의 입력값이나 결과값에 한 가지 의미만 더한다. |
 | `COMBAT-ONE-LAYER-AT-A-TIME` | COMBAT | APPROVED | 0 | 전투 시스템은 한 번에 한 층만 추가하며, 현재 층이 플레이로 검증되기 전에는 다음 층을 올리지 않는다. 각 층은 아래 층 없이도 완전히 동작하는 상태를 유지한다. |
-| `COMBAT-PLAYER-CAUSALITY` | COMBAT | REVISED | 26 | 전투의 중요한 결과는 관찰 가능한 세계 상태와 플레이어의 선택·행동에서 나오며, 같은 상태·같은 조건·같은 행동이면 언제나 같은 결과가 나온다. 단 하나의 예외로, Critical 은 확률 판정을 허용한다 — 그 경우에도 발생 확률과 증폭 결과는 관찰로 읽을 수 있어야 한다. |
+| `COMBAT-PLAYER-CAUSALITY` | COMBAT | REVISED | 27 | 전투의 중요한 결과는 관찰 가능한 세계 상태와 플레이어의 선택·행동에서 나오며, 같은 상태·같은 조건·같은 행동이면 언제나 같은 결과가 나온다. 단 하나의 예외로, Critical 은 확률 판정을 허용한다 — 그 경우에도 발생 확률과 증폭 결과는 관찰로 읽을 수 있어야 한다. |
 | `COMBAT-SHARED-BUDGET` | COMBAT | APPROVED | 6 | 전투 행동은 하나의 공통 기력(CP) 예산을 나눠 쓴다. 행동별 전용 게이지를 신설하지 않는다. |
+| `CONDITION-OPENS-WITHOUT-RECORDING` | GLOBAL | APPROVED | 0 | 지금의 조건으로 열리는 것은 어디에도 기록하지 않는다. 조건이 사라지면 저절로 닫혀야 하고, 그것을 되돌리는 규칙이 따로 있어서는 안 된다. |
 | `GROWTH-CLASS-ORIGIN-TRACE` | GROWTH | APPROVED | 0 | Class 는 세계와 Actor 가 상호작용한 결과다. 모든 Class 는 하나 이상의 origin_trace(WorldState → Goal → Possibility)를 가지며, 그 Class 를 제거해도 원인이 된 세계 요소는 독립적으로 성립해야 한다. |
 | `GROWTH-DEFINITION-INSTANCE-SPLIT` | GROWTH | APPROVED | 0 | Master 는 유한한 Definition(Class · Item Type · Property · Modifier · 조합 규칙)만 소유한다. 실제 생성된 Item Instance(II-*)와 조합 결과는 Runtime World 가 소유하며, 가능한 조합을 사전에 Node 로 생성하지 않는다. |
 | `GROWTH-GOAL-FIRST` | GROWTH | APPROVED | 0 | 성장(새 Class · Item · Capability 의 획득) 자체를 Goal 로 세우지 않는다. 성장은 Actor 의 현재 Goal 을 현재 Capability 로 달성하기 어려울 때, 그 Goal 을 달성하는 하나의 Possibility 로만 성립한다. |
@@ -276,9 +277,10 @@ Constraint 는 단계가 아니라 각 선택 지점의 Filter 다. 아래는 �
 | `GROWTH-NOT-A-STAGE` | GROWTH | APPROVED | 0 | Growth 는 별도 Master Stage 가 아니다. 기본 절차 WHY → OPTIONS → NEED → NEXT 는 그대로 유지되고, Growth Graph 는 NEED 에서 발견된 Capability 에 대해 "세계에서 어떻게 얻는가"를 덧씌우는 보조 Overlay 로만 존재한다. |
 | `WORLD-COMBAT-IS-ONE-POSSIBILITY` | WORLD | APPROVED | 7 | Creature 의 발견·존재만으로 처치 Goal 을 만들지 않는다. Goal 은 WorldState (자원을 지킨다 · 길을 막는다 · 사냥한다 · 기관이 필요하다)에서 발생하며, 전투는 그 Goal 을 달성하는 Possibility 중 하나로만 성립한다. |
 | `WORLD-CREATURE-FROM-PRESSURE` | WORLD | APPROVED | 1 | 전투 Creature 를 먼저 만들지 않는다. Creature 의 Capability 는 세계압이 만든 환경과 생존 압력에 대한 적응의 결과이며, Player 의 Capability Requirement 는 그 Creature 와의 조우가 만든 Goal 과 Combat Possibility 에서만 파생된다. |
+| `WORLD-OWNS-THE-CHANCE` | GLOBAL | APPROVED | 0 | 우연의 원천은 세계가 지니는 상태이고, 그 상태는 관찰에 실리지 않으며, 그럼에도 결과는 끝까지 설명된다. 이미 결과가 정해진 판정에서는 그 원천을 소비하지 않는다. |
 | `WORLD-OWNS-THE-SURFACE-LIST` | GLOBAL | APPROVED | 0 | 무엇을 할 수 있고 그 값이 어디까지 허용되는지의 목록은 세계가 소유하고 관찰 결과에 실어 보낸다. 관찰자(View)는 그 목록을 스스로 만들지 않는다. |
-| `WORLD-PLAYER-UNFIXED-PATH` | WORLD | APPROVED | 4 | Player 의 역할·Class·진영·전투 방식과 탐험의 이유를 하나로 고정하지 않는다. Root Goal(베이라를 탐험한다) 아래의 Local Goal 은 Actor 와 상황마다 발견된 세계 상태로부터 생성된다. |
-| `WORLD-PROGRESSION-IS-REACH` | WORLD | APPROVED | 5 | Progression 의 핵심은 수치 Level 의 상승이 아니라, 관찰과 이해로 대응 방법을 발견하고 Capability 와 Resource 를 얻어 이전에는 갈 수 없던 세계 범위에 도달하게 되는 확장이다. |
+| `WORLD-PLAYER-UNFIXED-PATH` | WORLD | APPROVED | 5 | Player 의 역할·Class·진영·전투 방식과 탐험의 이유를 하나로 고정하지 않는다. Root Goal(베이라를 탐험한다) 아래의 Local Goal 은 Actor 와 상황마다 발견된 세계 상태로부터 생성된다. |
+| `WORLD-PROGRESSION-IS-REACH` | WORLD | APPROVED | 6 | Progression 의 핵심은 수치 Level 의 상승이 아니라, 관찰과 이해로 대응 방법을 발견하고 Capability 와 Resource 를 얻어 이전에는 갈 수 없던 세계 범위에 도달하게 되는 확장이다. |
 | `WORLD-RESOURCE-ADAPTATION-TRACE` | WORLD | APPROVED | 3 | 중요한 베이라 Resource 는 World Pressure → Environment → Survival Pressure → Adaptation → Special Property → Resource 의 인과 Trace 로 설명할 수 있어야 하며, 좋은 아이템을 위험한 곳에 배치하는 방향으로 만들지 않는다. |
 
 ## 구멍 — 아직 채워지지 않은 자리
