@@ -45,28 +45,31 @@ CYCLE LAYER    선택된 하나의 플레이 결과를 World Semantic 과 Rule �
 ```
 
 해당 영역 문서가 이름조차 대지 않는 의미는 Graph·Constraint 에 두지 않는다 — 보류가
-아니라 삭제한다. 기준 시점 **C013 · C014 닫힘** — 전투 사다리는 Penetration 층까지,
-탐험 사다리는 FRINGE 의 첫 칸(살펴봄)까지 서 있다.
+아니라 삭제한다. 기준 시점 **C017 · C018 닫힘** — 전투 사다리는 Critical 층까지,
+탐험은 FRINGE 의 첫 칸(살펴봄 + 그것에 이르는 두 경로)까지 서 있고, 그 위에 고른 대상
+하나(지목)와 둘 사이의 태도(관계)가 얹혔다.
 
 ```text
-Constraint   17     Active 17 (APPROVED 16 · REVISED 1 — PLAYER-CAUSALITY, Critical 예외) · DRAFT 0
-Candidate     5     APPROVED 1 (→ DC) · PENDING 4 (넷 중 셋이 SURFACE-LIST 경계 판단 대기)
+Constraint   20     Active 20 (APPROVED 19 · REVISED 1 — PLAYER-CAUSALITY, Critical 예외) · DRAFT 0
+Candidate    11     APPROVED 3 (→ DC) · PENDING 8 (무리별 읽는 법은 candidates/README.md)
 Actor         2     Knowledge 3 · Belief 0 (Belief 는 도입하지 않는다 — Q3 결정)
 Goal          5     Possibility 22 — 상대 넘어서기 11 · 밀리는 국면 3 · 탐험 3 · 기관 획득 5
                     탐험 3 은 **방법**이다 (익힌다 · 빌린다 · 준비해 간다 — Q21).
                     층은 Possibility 가 아니라 MW-ZONE-* 의 demands 다
                     §27 기관 대안 4종만 requires 미배선
-Capability   42     IMPLEMENTED 8 · PARTIAL 8 · MISSING 26
+Capability   45     IMPLEMENTED 12 · PARTIAL 8 · MISSING 25
                     요구처는 둘이다 — 방법의 required_by · 장소의 demanded_by
+                    숫자의 단일 출처는 graph/GRAPH.md 머리말이다 (master:graph 재생성물)
 Item Def     14     IP 5 · IT 6 · IM 3 (growth/items/) — Q22 광물 계통.
                     grants 3건으로 BW §17 순환이 그래프에서 닫혔다
-Frontier      5     SELECTED 1 (INSIGHT) · PROPOSED 4
-                    (PREDICT · CRITICAL · WHAT-YOU-GATHER · INTERRUPT)
+Frontier      2     SELECTED 0 · PROPOSED 2
+                    (INTERRUPT-THE-WINDUP · ITEM-USE)
 WorldState   13     상위 인과 2 (PRIMAL-WORLD · WORLD-PRESSURE) · 세계압 두 갈래 2
                     (FREE-PRESSURE · BOUND-PRESSURE) · 구조 2 (SAFE-FRONTIER · DEPTH-GRADIENT) ·
                     깊이 층 5 (ZONE-FRINGE ~ ZONE-UNKNOWN) · 대표 지역 2
 
-Open Question 0   → Frontier 선택도 끝났다. 다음은 Cycle Stage 1 이다
+Open Question 1   → Q29 (통찰이 독립 노드인가). Frontier 선택을 막지 않는다 —
+                    다음은 Human 이 후보 둘 중 하나를 고르는 것이다
 ```
 
 무엇이 언제 왜 바뀌었는지는 `HISTORY.md` 가 소유한다. 살아 있는 문서(`overlay.md` ·

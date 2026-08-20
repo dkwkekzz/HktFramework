@@ -261,7 +261,7 @@ nodes:
     requires:
       goals: []
       capabilities: [MC-INTERRUPT]
-      knowledge: [MK-OPPONENT-FLOW-PATTERN]
+      knowledge: []
       world_state: []
       relationship: []
       resource: []

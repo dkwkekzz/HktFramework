@@ -239,7 +239,8 @@ flowchart TB
   classDef partS fill:#3a3315,stroke:#9a8a2e,color:#f2ecd0,stroke-dasharray:5 4;
   classDef missS fill:#2a2a2e,stroke:#5c5c66,color:#b8b8c2,stroke-dasharray:5 4;
   class N20,N21 impl;
-  class N12,N14,N15,N23 partS;
+  class N14 part;
+  class N12,N15,N23 partS;
   class N0,N1,N2,N3,N4,N5,N6,N7,N8,N9,N10,N11,N13,N16,N17,N18,N19,N22 missS;
 ```
 

@@ -14,7 +14,7 @@ Human 이 답한다    DECISION 줄
 미해결 **1건** — 닫힌 질문은 HISTORY.md.
 
 Frontier 선택은 **비어 있다** — [frontier.md](frontier.md) 의 `SELECTED` 가 없음이고
-도는 Cycle 도 없다. 후보 다섯 중 하나를 Human 이 고르는 것이 다음이며,
+도는 Cycle 도 없다. 후보 둘 중 하나를 Human 이 고르는 것이 다음이며,
 아래 질문은 그 선택을 막지 않는다.
 
 번호가 Q29 인 것은 TG(지목) 주입에서 열린 Q23~Q28 이 이미 닫혀 HISTORY 로 갔기

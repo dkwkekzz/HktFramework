@@ -1148,3 +1148,71 @@ part_of 도입    모든 MC-* 노드에 "이 조각이 속한 전체"를 정식 
                 MC-FORCE-MOVEMENT · MC-INTERRUPT)은 overlay.md 의 해당 행이 근거를
                 이어받았다.
 ```
+
+---
+
+## Master 정합 정정 — MC-INTERRUPT 의 grounded · MP-INTERRUPT 의 요구 · 후보 이름
+
+Human 이 "FR-ACTION-PHASE 의 근간이 무엇인가" 를 물어 근간을 역추적하다 나온 셋을
+한 번에 정정했다. 반영 결과는 각 살아 있는 문서가 소유하고, 여기에는 경위만 남긴다.
+
+### ① MC-INTERRUPT 의 part_of 가 grounded: false 였다 — true 로 재판정
+
+    무엇이 문제였나   후보의 Target 이 `grounded: false` 노드였다. 그것은 CLAUDE.md 원칙 21 ·
+                      SCHEMA · guides/master-frontier Must Not 이 금지하는 형태이고,
+                      frontier.md 자신의 "지금 열 수 없는 것" 표도 같은 사유로 베이라
+                      사다리의 잠정 조각을 막고 있었다 — 후보가 그 규칙을 어긴 채 서 있었다.
+
+    어떻게 판정했나   SCHEMA 의 판정 기준은 "semantic 문안이 확정 근거(**문서 문장 또는
+                      닫힌 Cycle**)를 가졌는가" 다. MC-INTERRUPT 의 semantic("진행 중인
+                      행동을 끊는다")은 C002 의 RULE-HIT-001 이 이미 세계에 세웠고
+                      overlay 가 코드 대조로 PARTIAL 을 실측했다 — Agent 의 잠정 번역이
+                      아니다. 같은 판정의 선례가 둘 있다: MC-CRITICAL-STRIKE
+                      (R1 §14 이름 → C015 로 의미 확정) · MC-BODY-FACING (문서 없음 →
+                      C006·C011 로 의미가 세계에 섰다).
+
+    지어내지 않은 것  R1(전투 근거 문서)은 끊김을 한 번도 말하지 않는다. 그래서
+                      MS-COMBAT-LADDER 소속을 새로 만들지 않았다 — 소속은 BW §23 DANGER
+                      하나 그대로이고, 바뀐 것은 grounded 와 그 근거 표기뿐이다.
+                      DANGER 층 전체(환경과 생물이 한 덩어리)는 여전히 문서가 없다.
+
+### ② MP-INTERRUPT 가 ABSENT 인 Knowledge 를 요구하고 있었다 — 배선 제거
+
+    무엇이 문제였나   `requires.knowledge: [MK-OPPONENT-FLOW-PATTERN]` 이었는데 그 노드는
+                      ABSENT 다 (힘을 공격/방어에 배분하는 상태가 세계에 없다 —
+                      MC-COMBAT-FLOW MISSING, R1 §14 Aura/Nen 층). overlay 의
+                      "하나만 없고 그마저 절반" 은 Capability 만 센 문장이라, 그대로
+                      두면 이 후보를 닫아도 MP-INTERRUPT 는 닫히지 않는다.
+
+    왜 요구가 아닌가  끊는 데 필요한 것은 **눈에 보이는 준비 동작**이지 상대의 힘 배분을
+                      아는 것이 아니다. MP-INTERRUPT 자신의 문장이 그렇게 말한다
+                      ("상대 행동의 시작을 읽는 시점 판단" · "정확한 한 순간이 아니라
+                      진행 중이면 성립"). MK 쪽 `revealed_by` 도 원래 둘뿐이었다
+                      (MP-EXPLOIT-OPEN-BODY · MP-READ-AND-COUNTER) — 되받아치기 갈래의
+                      지식이 끊기 갈래에 한쪽 방향으로만 매달려 있었던 것이다.
+                      제거로 그 비대칭이 사라졌다. 새 Knowledge 노드는 만들지 않았다 —
+                      준비 구간의 관찰은 이 후보가 세계에 직접 넣으므로 관문이 아니다.
+
+### ③ 후보 이름 — FR-ACTION-PHASE → FR-INTERRUPT-THE-WINDUP (준비를 끊는다)
+
+    왜 바꿨나        "행동 구간" 은 이 후보가 여는 것보다 넓다. 행동은 이미 세계의
+                     개념이고(C002), 구간도 이미 있다 — 앞선 정정이 확인한 사실이다.
+                     이름이 그 전부를 가리키면 후보의 경계가 이름에서 읽히지 않고,
+                     척추의 어느 자리인지도 보이지 않는다.
+
+    새 이름의 근거   척추에서 이 후보의 자리는 MP-INTERRUPT(BW §28) → MC-INTERRUPT
+                     (BW §23) 다. 이름이 그 자리를 그대로 가리키고, 끊는 대상이
+                     **준비 구간**임을 함께 말한다 — 상태(경직·기절)도 되받아치기도
+                     아니라는 경계가 이름 안에 든다. 후보의 내용(비율 · 노출 ·
+                     취소 판정 셋)은 2026-08-20 Human 이 정한 그대로다.
+
+    흡수 이력        FR-INTERRUPT-DENIES-THE-BLOW 를 흡수한 판이 이 후보다 (위 병합 정정
+                     참조). 이름이 다시 INTERRUPT 를 갖게 되어 그 이력과도 맞는다.
+
+### 함께 갱신한 현재 상태 (③ 의 부산물)
+
+    master/README.md 의 "현재 상태" 숫자가 C015~C018 반영 전 값에 멈춰 있었다 —
+    Constraint 17→20 · Candidate 5→11 · Capability 42→45 · Frontier 5→2 ·
+    Open Question 0→1 · 기준 시점 C013·C014→C017·C018. 숫자의 단일 출처가
+    graph/GRAPH.md 머리말(재생성물)임을 README 에 적어 재발을 막았다.
+    overlay.md 의 "MG-OVERCOME-SUPERIOR-OPPONENT (10 갈래)" 도 11 로 정정했다.
