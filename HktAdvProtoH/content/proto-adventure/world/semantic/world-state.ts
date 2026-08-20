@@ -8,6 +8,7 @@ import type { CoreWorldState } from '../../../../engine/world-kernel/state';
 import type { AcquaintanceState } from './acquaintance';
 import type { ActorState } from './actor';
 import type { StrikeEvent } from './combat';
+import type { TargetSelectionState } from './target-selection';
 import type { DepositState } from './deposit';
 import type { WorldBounds, WorldPosition } from './position';
 
@@ -35,6 +36,9 @@ export interface WorldState extends CoreWorldState {
   // World.Acquaintances (C014 ADDED) — 누가 어떤 존재의 겨루는 힘을 아는가.
   // 항목이 없는 관찰자는 아무것도 모른다 (semantic/acquaintance.ts).
   acquaintances: AcquaintanceState[];
+  // World.TargetSelections (C017 ADDED) — 지금 이 관찰자가 누구를 고르고 있는가.
+  // 항목이 없는 관찰자는 아무것도 고르지 않은 것이다 (semantic/target-selection.ts).
+  targetSelections: TargetSelectionState[];
   // ── 세계가 지닌 흔들림 (C015 ADDED, INTENT-WORLD-CHANCE-001) ──────────
   // 세계 밖에서 매번 새로 들어오는 것이 아니라 세계가 가지고 있는 상태다.
   // 그래서 같은 세계를 같은 순서로 굴리면 언제나 같은 이야기가 나온다.

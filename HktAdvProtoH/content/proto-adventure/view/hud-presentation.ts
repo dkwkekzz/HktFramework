@@ -15,6 +15,14 @@ const HUD: Record<string, HudPresentation> = {
   'world.time': { label: '세계 시간', format: (v) => `${Math.floor(Number(v))}s` },
   // 함께 보고 있는 사람의 수 (C004) — 나를 포함한다.
   'observers.present': { label: '함께', icon: '👥', format: (v) => `${Number(v)}명` },
+  // 고른 대상 자리 (C017) — 세계에서 오는 hud 항목이 아니라 결정 Layer 가 계약의
+  // 여러 자리를 모아 만든 줄들이다 (view/target-presentation.ts). 라벨은 여기가 소유한다.
+  'target.none': { label: '고른 대상', icon: '🎯' },
+  'target.name': { label: '고른 대상', icon: '🎯' },
+  'target.state': { label: '지금' },
+  'target.health': { label: '생명', icon: '❤' },
+  'target.observe': { label: '살펴보기' },
+  'target.mine': { label: '채집' },
 };
 
 export function hudPresentation(id: string): HudPresentation {

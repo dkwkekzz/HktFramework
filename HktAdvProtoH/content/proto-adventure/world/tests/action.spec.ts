@@ -3,7 +3,7 @@
 
 import { describe, expect, it } from 'vitest';
 import type { GameViewSnapshot } from '../../protocol/gameview';
-import { driveWorld, PLAYER } from './drive';
+import { driveWorld, PLAYER, selectTarget } from './drive';
 
 const solo = { npcs: [] };
 const player = (v: GameViewSnapshot) => v.entities.find((e) => e.id === PLAYER);
@@ -29,7 +29,8 @@ describe('INTENT-ACTION-STATE-001 — 언제나 하나의 행동 안에 있다',
     const world = driveWorld({ ...solo, actorPosition: { x: 8, z: -5 } });
     expect(hudAction(world.observe())?.value).toBe('idle');
 
-    world.dispatch({ interactionId: 'mine', targetEntityId: 'deposit-1' });
+    selectTarget(world, 'deposit-1');
+    world.dispatch({ interactionId: 'mine' });
     world.tick(0.6);
 
     const item = hudAction(world.observe());
@@ -41,7 +42,8 @@ describe('INTENT-ACTION-STATE-001 — 언제나 하나의 행동 안에 있다',
 describe('RULE-ACTION-BEGIN-001 — 대체 불가 행동 중의 요청', () => {
   it('채굴 중에는 이동 요청이 거부되고 사유(action-busy)를 알 수 있다', () => {
     const world = driveWorld({ ...solo, actorPosition: { x: 8, z: -5 } });
-    world.dispatch({ interactionId: 'mine', targetEntityId: 'deposit-1' });
+    selectTarget(world, 'deposit-1');
+    world.dispatch({ interactionId: 'mine' });
     world.tick(0.2);
 
     const result = world.dispatch({ interactionId: 'move', position: { x: 0, z: 0 } });
@@ -55,16 +57,19 @@ describe('RULE-ACTION-BEGIN-001 — 대체 불가 행동 중의 요청', () => {
 
   it('채굴 중에는 다른 채굴 요청도 거부된다', () => {
     const world = driveWorld({ ...solo, actorPosition: { x: 8, z: -5 } });
-    world.dispatch({ interactionId: 'mine', targetEntityId: 'deposit-1' });
+    selectTarget(world, 'deposit-1');
+    world.dispatch({ interactionId: 'mine' });
     world.tick(0.2);
 
-    const result = world.dispatch({ interactionId: 'mine', targetEntityId: 'deposit-1' });
+    selectTarget(world, 'deposit-1');
+    const result = world.dispatch({ interactionId: 'mine' });
     expect(result).toEqual({ status: 'failure', rule: 'RULE-MINE-001', reason: 'action-busy' });
   });
 
   it('행동이 끝나면 다시 대체 가능해진다', () => {
     const world = driveWorld({ ...solo, actorPosition: { x: 8, z: -5 } });
-    world.dispatch({ interactionId: 'mine', targetEntityId: 'deposit-1' });
+    selectTarget(world, 'deposit-1');
+    world.dispatch({ interactionId: 'mine' });
     world.tick(1.2);
 
     expect(move(world.observe())?.available).toBe(true);
@@ -86,7 +91,8 @@ describe('RULE-ACTION-PROGRESS-001 — 진행도', () => {
 
   it('진행도는 0..1 을 벗어나지 않는다', () => {
     const world = driveWorld({ ...solo, actorPosition: { x: 8, z: -5 } });
-    world.dispatch({ interactionId: 'mine', targetEntityId: 'deposit-1' });
+    selectTarget(world, 'deposit-1');
+    world.dispatch({ interactionId: 'mine' });
 
     world.tick(0.3);
     const p = player(world.observe())?.progress ?? -1;

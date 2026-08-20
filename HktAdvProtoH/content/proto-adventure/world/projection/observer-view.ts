@@ -13,7 +13,8 @@ import { actionProgress, actionTargetId } from '../semantic/action';
 import { actionCollider } from '../semantic/collision';
 import { evaluateAttributeSetAvailability } from '../rules/attribute-set';
 import { evaluateForgetAcquaintance, evaluateObserveBegin } from '../rules/observe';
-import { evaluateMinePreconditions } from '../rules/mine';
+import { evaluateMineTargeted } from '../rules/mine';
+import { evaluateTargetSelect } from '../rules/target';
 import { evaluateMoveAvailability } from '../rules/move';
 import { evaluateGuardBegin } from '../rules/guard';
 import { evaluateMoveModeRun } from '../rules/move-mode';
@@ -30,6 +31,7 @@ import {
 } from '../semantic/combat';
 import { concealedKeys, isAcquainted, isSeatOpen } from '../semantic/acquaintance';
 import { projectCommandCatalog } from '../semantic/command-catalog';
+import { selectedEntityId } from '../semantic/target-selection';
 import { hasMiningTool, itemCount } from '../semantic/inventory';
 import {
   actorOfObserver,
@@ -214,21 +216,42 @@ export function projectObserverView(
         : {}),
     });
 
-    // interactions.observe (C014 ADDED) — 존재마다 하나. mine 이 광맥마다 실리는 것과
-    // 같은 형태다: 무엇을 살펴볼지가 이 행동의 전부이므로 대상 없는 자리가 될 수 없다.
-    // 자기 몸에도 실린다 — available 이 거짓이고 사유가 target-is-self 다.
-    // 왜 자기는 못 하는지도 세계가 말한다 (INTENT-UNSEEN-IS-OBSERVABLE-001).
-    // 사유를 세계가 내놓는 이유: View 가 거리를 재서 판정하면 세계가 그 거리를 바꿔도
-    // 화면이 따라오지 않는다 (DC-WORLD-OWNS-THE-SURFACE-LIST).
-    const observeFailure = evaluateObserveBegin(state, observerId, actor.id);
+    // interactions.selectTarget (C017 ADDED) — 존재마다 하나.
+    // C014 의 observe 가 있던 자리를 그대로 물려받는다: 존재마다 실리고, 자기 몸에도
+    // 실리며(available 거짓 · 사유 target-is-self), 왜 안 되는지를 세계가 말한다.
+    // 바뀐 것은 **무엇이 그 자리에 오는가** 다 — 살펴봄이 아니라 고르기다.
+    //
+    // 사유를 세계가 내놓는 이유는 그대로다: View 가 스스로 판정하면 세계가 규칙을
+    // 바꿔도 화면이 따라오지 않는다 (DC-WORLD-OWNS-THE-SURFACE-LIST).
+    const selectFailure = evaluateTargetSelect(state, observerId, actor.id);
     interactions.push({
-      id: 'observe',
-      role: 'observe-character',
+      id: 'select-target',
+      role: 'select-target',
       targetEntityId: actor.id,
-      available: observeFailure === null,
-      ...(observeFailure ? { reason: observeFailure } : {}),
+      available: selectFailure === null,
+      ...(selectFailure ? { reason: selectFailure } : {}),
     });
   }
+
+  // interactions.observe (C014 → C017 CHANGED) — 존재마다에서 **하나**로 줄었다.
+  // 대상은 고른 것이며, 아무것도 고르지 않았어도 목록에서 사라지지 않는다:
+  // available 이 거짓이고 사유가 no-target-selected 다. 걸 수 있는 일은 언제나
+  // 먼저 밝혀져 있어야 한다 (INTENT-COMMAND-CATALOG-001).
+  const observeFailure = evaluateObserveBegin(state, observerId);
+  interactions.push({
+    id: 'observe',
+    role: 'observe-character',
+    available: observeFailure === null,
+    ...(observeFailure ? { reason: observeFailure } : {}),
+  });
+
+  // interactions.clearTarget (C017 ADDED) — 조건이 없다 (guardRelease 와 같은 모양).
+  // 고른 것이 없을 때도 실리고 가용하다: 한 번도 고른 적 없는 사람도 푸는 길을 안다.
+  interactions.push({
+    id: 'clear-target',
+    role: 'clear-target',
+    available: true,
+  });
 
   // interactions — 모두 관찰자 자신의 몸을 주체로 판정된다 (interactions.subject: observer-character)
   const moveFailure = evaluateMoveAvailability(self);
@@ -358,15 +381,27 @@ export function projectObserverView(
       labelValue: deposit.resourceAmount,
     });
 
-    const failure = evaluateMinePreconditions(self, deposit);
+    // C017 CHANGED — 광맥에도 고르기가 실린다. 광맥은 고를 수 있고(available 참),
+    // 그에게 무엇을 할 수 있는지는 아래 mine 하나가 말한다.
+    const depositSelectFailure = evaluateTargetSelect(state, observerId, deposit.id);
     interactions.push({
-      id: 'mine',
-      role: 'mine-deposit',
+      id: 'select-target',
+      role: 'select-target',
       targetEntityId: deposit.id,
-      available: failure === null,
-      ...(failure ? { reason: failure } : {}),
+      available: depositSelectFailure === null,
+      ...(depositSelectFailure ? { reason: depositSelectFailure } : {}),
     });
   }
+
+  // interactions.mine (C001 → C017 CHANGED) — 광맥마다에서 **하나**로 줄었다.
+  // observe 와 같은 자리, 같은 이유다.
+  const mineFailure = evaluateMineTargeted(state, self, observerId);
+  interactions.push({
+    id: 'mine',
+    role: 'mine-deposit',
+    available: mineFailure === null,
+    ...(mineFailure ? { reason: mineFailure } : {}),
+  });
 
   const selfProgress = actionProgress(self.currentAction);
   const selfModifiers = actorModifiers(self);
@@ -476,6 +511,12 @@ export function projectObserverView(
     // available 이 거짓이어도 무엇을 할 수 있는 세계인지는 알 수 있어야 한다.
     // 무엇을 어디까지 바꿀 수 있는지(구 mutableAttributes)는 set-attribute 가 받는
     // 값의 Domain 으로 이 안에 들어 있다 — View 가 목록을 만들지 않는다는 규율은 그대로다.
+    // C017 ADDED — 지금 고른 존재 (INTENT-TARGET-OBSERVE-001).
+    // Id 하나뿐이다. 값은 entities 에서 읽는다 — 여기에 베끼지 않는다.
+    currentTarget: (() => {
+      const entityId = selectedEntityId(state.targetSelections, observerId);
+      return entityId === undefined ? {} : { entityId };
+    })(),
     commands: projectCommandCatalog((commandId) => {
       if (commandId === 'set-attribute') return evaluateAttributeSetAvailability(state);
       // C014 — 되돌림도 같은 권한을 지난다

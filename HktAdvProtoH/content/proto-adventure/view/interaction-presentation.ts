@@ -10,6 +10,8 @@ export interface InteractionPresentation {
 
 const INTERACTIONS: Record<string, InteractionPresentation> = {
   'move-to': { terrainTarget: true },
+  // C017 CHANGED — 대상이 사라졌다. 이제 고른 것을 캐므로 키 하나로 부른다
+  // (예전에는 광맥마다 실려 그 몸을 눌러 불렀다).
   'mine-deposit': { key: 'KeyE', keyLabel: 'E', prompt: '채굴' },
   'attack-swing': { key: 'KeyF', keyLabel: 'F', prompt: '공격' }, // C002 role (C007 이전)
   // C007 — 휘두름이 스킬 둘로 갈렸다. 기본은 기존 자리(F)를 그대로 쓴다.
@@ -27,11 +29,16 @@ const INTERACTIONS: Record<string, InteractionPresentation> = {
   // 이동 모드는 값을 실어 보내야 하므로(walk | run) 조립 루트가 직접 다룬다.
   // 여기서는 안내에 쓸 키 표기만 정한다.
   'set-move-mode': { key: 'ShiftLeft', keyLabel: 'Shift', prompt: '달리기 전환' },
-  // 살펴봄 (C014) — 대상이 있는 interaction 이므로 그 몸을 눌러 부른다.
-  // 키를 두지 않는다: 키는 대상을 고를 수단이 없고, "가장 가까운 하나" 같은 규칙을
-  // View 가 만들면 세계가 정하지 않은 선택 규칙을 화면이 발명하게 된다.
-  // 대상 지목은 이미 계약이 실어 보낸다 (targetEntityId) — 그 지시대로 누르면 된다.
-  'observe-character': { prompt: '살펴보기' },
+  // 살펴봄 (C014 → C017 CHANGED) — **이제 키를 둔다.**
+  // C014 가 키를 두지 않은 이유는 "키는 대상을 고를 수단이 없다" 였다. 그 이유가
+  // 사라졌다: 대상을 고르는 수단이 세계에 생겼고(select-target), 살펴봄은 고른 것으로
+  // 나간다. View 가 선택 규칙을 발명하는 일도 없다 — 무엇을 살펴볼지는 세계가 지닌다.
+  'observe-character': { key: 'KeyT', keyLabel: 'T', prompt: '살펴보기' },
+  // 고르기 (C017) — 존재마다 실린다. 그 몸을 눌러 부르므로 키를 두지 않는다.
+  // 이 자리가 곧 "화면에서 존재를 짚으면 무슨 요청이 되는가" 의 답이다.
+  'select-target': { prompt: '지목' },
+  // 풀기 (C017) — 대상이 없는 interaction 이므로 키로 부른다.
+  'clear-target': { key: 'Escape', keyLabel: 'Esc', prompt: '지목 해제' },
   // 속성 변경 (C007 R2) — 이번 Cycle 은 경로만 연다. 조작 수단은 이후 Cycle 이 얹는다.
   'debug-set-attribute': {},
   // 되돌림 (C014) — 명령 한 줄로 부른다 (command-request). 키를 두지 않는다.

@@ -85,11 +85,26 @@ const CODE_TEXT: Record<string, string> = {
   // C016 — 뜻이 "더 열 자리가 없다" 로 넓어졌다. 살펴본 존재뿐 아니라
   // 통찰이 세 문턱을 모두 넘은 존재에도 나온다 (04 interactions.observe)
   'already-known': '이미 알고 있다',
-  'target-is-self': '자기 자신은 살펴볼 대상이 아니다',
+  // C017 CHANGED — 이 사유가 나오는 자리가 살펴봄에서 **고르기**로 옮겨갔다.
+  // 뜻은 그대로이고 문구가 그 자리를 따라간다
+  'target-is-self': '자기 자신은 고를 수 없다',
   'no-such-target': '그런 존재가 없다',
   'no-body': '세계에 내 몸이 없다',
   'not-known': '아직 모르는 존재다',
   'no-observer': '세계가 나를 알지 못한다',
+  // ── 대상 지목 (C017) ──
+  // 불가 사유 — 대상을 정해야 하는 행동이 고른 것을 읽을 때
+  'no-target-selected': '먼저 대상을 고르자',
+  'target-kind-mismatch': '이 대상에게는 할 수 없다',
+  // interaction 이름 — 명령·안내에 쓰인다
+  'select-target': '대상을 고른다',
+  'clear-target': '고른 대상을 푼다',
+  // 광맥의 종류 — 이름이 없는 존재를 대상 자리에서 부르는 말 (target-presentation)
+  stone: '돌 광맥',
+  // 광맥의 상태 (C001) — 대상 자리의 "지금" 줄로 읽힌다. 몸의 행동 코드와 같은 자리이며,
+  // 광맥에는 행동이 아니라 상태가 온다
+  available: '캘 수 있다',
+  depleted: '고갈되었다',
   // 명령이 무엇을 하는가 (Command.Effect)
   'forget-acquaintance': '이 존재를 다시 모르는 상태로 되돌린다',
   // 비워 두면 무엇이 되는가

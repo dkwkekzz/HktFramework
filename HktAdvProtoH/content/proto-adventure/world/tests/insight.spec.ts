@@ -21,7 +21,7 @@ import {
 } from '../semantic/acquaintance';
 import { MUTABLE_ATTRIBUTES } from '../semantic/combat';
 import { TICK_INTERVAL } from '../semantic/world-state';
-import { driveWorld, observeFully, OBSERVER, OBSERVER_2, PLAYER, type WorldDriver } from './drive';
+import { driveWorld, observeFully, OBSERVER, OBSERVER_2, PLAYER, type WorldDriver, selectTarget } from './drive';
 
 // 다가오지 않는 자율 존재 — 통찰만 재는 테스트에서는 인지 거리를 0 으로 둔다
 const dummyAt = (x: number, z: number, id = 'npc-1') => ({
@@ -33,8 +33,12 @@ const dummyAt = (x: number, z: number, id = 'npc-1') => ({
 
 const actor = (v: GameViewSnapshot, id: string) => v.entities.find((e) => e.id === id);
 const hud = (v: GameViewSnapshot, id: string) => v.hud.find((h) => h.id === id)?.value;
-const observeOf = (v: GameViewSnapshot, id: string) =>
-  v.interactions.find((i) => i.id === 'observe' && i.targetEntityId === id);
+// C017 CHANGED — 살펴봄은 고른 것에 대해 하나만 실린다. 그래서 이 헬퍼는 먼저 고르고
+// 그 다음 관찰에서 그 하나를 읽는다 (INTENT-TARGET-DIRECTS-THE-ACT-001).
+const observeAfterSelecting = (world: WorldDriver, id: string) => {
+  selectTarget(world, id);
+  return world.observe().interactions.find((i) => i.id === 'observe');
+};
 
 // 값을 바꾸고 세계가 다음 관찰 결과를 내보내게 한다 — 투영은 Tick 마다 만들어진다
 const setAttribute = (world: WorldDriver, id: string, value: number, targetEntityId?: string) => {
@@ -250,18 +254,16 @@ describe('INTENT-INSIGHT-NOT-A-GATE-001 — 통찰은 관문이 아니다', () =
 describe('RULE-OBSERVE-BEGIN-001 (CHANGED) — 더 열 자리가 없을 때만 거절된다', () => {
   it('통찰로 일부만 열린 상대는 여전히 살펴볼 수 있다', () => {
     const world = withInsight(60);
-    expect(observeOf(world.observe(), 'npc-1')?.available).toBe(true);
+    expect(observeAfterSelecting(world, 'npc-1')?.available).toBe(true);
   });
 
   it('통찰이 세 문턱을 모두 넘으면 처음부터 거절된다 — 사유는 already-known 그대로다', () => {
     const world = withInsight(90);
-    const observe = observeOf(world.observe(), 'npc-1');
+    const observe = observeAfterSelecting(world, 'npc-1');
 
     expect(observe?.available).toBe(false);
     expect(observe?.reason).toBe('already-known');
-    expect(world.dispatch({ interactionId: 'observe', targetEntityId: 'npc-1' }).status).toBe(
-      'failure',
-    );
+    expect(world.dispatch({ interactionId: 'observe' }).status).toBe('failure');
   });
 
   it('일부만 열린 상대를 살펴보면 남은 자리가 열린다', () => {
@@ -278,7 +280,7 @@ describe('RULE-OBSERVE-BEGIN-001 (CHANGED) — 더 열 자리가 없을 때만 �
     const world = driveWorld({ npcs: [dummyAt(40, 0)] });
     setAttribute(world, 'insight', 60, PLAYER);
 
-    expect(observeOf(world.observe(), 'npc-1')?.reason).toBe('out-of-range');
+    expect(observeAfterSelecting(world, 'npc-1')?.reason).toBe('out-of-range');
   });
 });
 

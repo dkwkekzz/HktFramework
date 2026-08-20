@@ -183,6 +183,7 @@ describe('결정 Layer 의 유연 대응 — 미등록 항목도 기본 결정�
       hud: [{ id: 'currency.gold', kind: 'counter', value: 3 }],
       strikes: [],
       debug: { open: false }, commands: [],
+      currentTarget: {},
     };
 
     const plan = resolvePresentation(snapshot);
@@ -190,7 +191,9 @@ describe('결정 Layer 의 유연 대응 — 미등록 항목도 기본 결정�
     expect(npc?.spriteId).toBe('wandering-merchant:idle'); // 기본 결정 — Asset placeholder 폴백
     expect(npc?.size).toBe(2.5); // 엔진 기본 크기
     expect(npc?.cameraFollow).toBe(false);
-    expect(plan.hud[0]?.label).toBe('currency.gold'); // 미등록 HUD id → id 그대로
+    // C017 — hud 앞에 고른 대상 자리가 온다 (여기서는 "없음")
+    expect(plan.hud[0]?.id).toBe('target.none');
+    expect(plan.hud[1]?.label).toBe('currency.gold'); // 미등록 HUD id → id 그대로
     expect(plan.interactions[0]?.unavailableText).toBe('no-goods'); // 미등록 사유 → 코드 그대로
   });
 
