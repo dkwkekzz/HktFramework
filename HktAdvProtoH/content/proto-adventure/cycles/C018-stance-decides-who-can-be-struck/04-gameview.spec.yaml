@@ -1,0 +1,198 @@
+# CYCLE C018 — GameView Specification
+#
+# 이 계약에 처음으로 **둘 사이의 사실**이 실린다.
+#
+# 지금까지 존재에 실린 것은 그 존재의 것이었다 — 이름 · 생명 · 겨루는 힘. 보는 이에
+# 따라 달라지는 것이 있었지만(C013 의 versusObserver, C014 의 가려짐) 그것은 "내 값으로
+# 읽은 저 존재의 값" 이었다. 이번에 실리는 것은 값이 아니라 **관계**다: 저것이 나를
+# 어떻게 대하는가.
+#
+# 그래서 이 계약의 중심은 둘이다.
+#   ① 태도는 **모든 존재에 언제나** 실린다. 가려지지 않는다 — 가리면 물러날 판단이
+#      성립하지 않는다.
+#   ② 닿았는데 아무 일도 없었다는 것도 **실린다**. 싣지 않으면 화면에서 무산은
+#      빗나감과 구분되지 않고, 그 구분을 View 가 짐작으로 메우기 시작한다.
+id: VIEW-STANCE-DECIDES-WHO-CAN-BE-STRUCK-001
+observer: player
+
+delta:
+  reused:
+    - scene.mining-field
+    - entities.character                      # 위치·역할·이름·종류·모션·body·swing 그대로
+    - entities.deposit                        # 광맥은 존재가 아니므로 태도가 없다
+    - entityHud                               # 몸 위의 이름·생명 그대로
+    - entities.character.vitality
+    - entities.character.attributes.*         # 겨루는 힘·통찰·가려짐 일체 그대로
+    - interactions.move / mine / moveMode / setAttribute
+    - interactions.attack / skillHeavy / skillAura       # 관문도 사유도 그대로 (ATTACK NOTE)
+    - interactions.*.profile
+    - interactions.guardBegin / guardRelease
+    - interactions.observe / forgetAcquaintance
+    - commandCatalog
+    - hud.*                                   # 새 막대도 새 줄도 없다
+    - strikeEvents.*                          # 성립한 타격의 경위는 한 글자도 바뀌지 않는다
+    - debugObserve / debugAuthority
+    - observer / session / delivery / identity / telemetry
+  added:
+    - entities.character.attributes.stanceTowardObserver  # 저것이 나를 어떻게 대하는가
+    - unharmedContacts                                    # 닿았으나 성립하지 않은 접촉
+  changed: []                                             # 기존 자리의 뜻이 바뀌는 것은 없다
+
+scene: mining-field
+
+# ─────────────────────────────────────────────────────────────────
+# entities.character — 한 자리가 는다
+#
+#   이 자리는 **언제나 있다.** 없을 수 있는 자리(combatStats · versusObserver ·
+#   defenseShape)와 다르다 — View 는 이 값이 비어 있는 경우를 그릴 필요가 없다.
+#   단, 보는 이가 몸을 지니지 않은 동안에는 견줄 대상이 없어 실리지 않는다.
+# ─────────────────────────────────────────────────────────────────
+entities:
+  character:
+    cardinality: many
+    source: World.Actors
+
+    attributes:
+      stanceTowardObserver:                   # C018 ADDED
+        source: RULE-STANCE-001 (이 존재 → 보는 이의 몸)
+        values:
+          - hostile                           # 이 존재가 나를 사냥감으로 대한다
+          - neutral                           # 나를 사냥감으로 대하지 않는다
+          - friendly                          # 갈래로만 서 있다 — 지금 이 값은 나오지 않는다
+        meaning:
+          - 이름이 곧 방향이다 — **어느 쪽에서 본 태도인가**. 이 존재가 나를 어떻게 대하는가이지
+            내가 이 존재를 어떻게 대하는가가 아니다 (03 OBSERVABLE SEMANTIC)
+          - 이 자리는 **가려지지 않는다.** 살펴보지 않아도, 통찰이 0 이어도 실린다.
+            가려질 수 있는 자리의 목록(C014 가 정한 셋)에 더하지 않는다
+          - 자기 몸에도 실린다 — 값은 언제나 neutral 이다 (자기 자리 안의 자기 자신은
+            침입자가 아니다). 언제나 같다고 빼지 않는다 — 빼면 View 가 "자기 몸에는
+            없다" 는 또 하나의 경우를 알아야 한다
+          - 이 값은 **매 관찰마다 다시 계산된다.** 걸어 들어가면 neutral 이 hostile 이
+            되고 걸어 나오면 되돌아간다. View 는 이 값을 자기 쪽에 기억해 두지 않는다 —
+            기억하면 세계에 없는 원한이 화면에 생긴다
+          - View 는 종류(CharacterKind)로 태도를 짐작하지 않는다. 같은 종류라도 값이
+            다르고, 같은 존재라도 시간에 따라 다르다 (DC-WORLD-OWNS-THE-SURFACE-LIST)
+
+  deposit:
+    change: NONE
+    meaning:
+      - 광맥에는 태도가 실리지 않는다. 태도는 존재와 존재 사이의 것이다
+
+# ─────────────────────────────────────────────────────────────────
+# unharmedContacts — 닿았으나 아무 일도 없었던 접촉 (C018 ADDED)
+#
+#   strikeEvents 와 **나란한 자리**이며 같은 수명을 가진다. 둘은 섞이지 않는다:
+#   strikeEvents 는 성립한 타격의 경위를 반드시 지니고, 이쪽은 산정 자체가 없다.
+# ─────────────────────────────────────────────────────────────────
+unharmedContacts:
+  cardinality: many
+  source: World.UnharmedContacts
+
+  attackerId: { source: Contact.AttackerId }
+  targetId: { source: Contact.TargetId }
+  skill:
+    source: Contact.Skill
+    values: [attack, heavy-attack, aura-strike]
+  at: { source: Contact.Position }            # 닿은 몸의 중심
+  since: { source: Contact.Time }             # 일어난 세계 시각 — 얼마나 지났는지 판단용
+  reason:
+    source: Contact.Reason
+    values:
+      - not-hostile                           # 지금 사유는 이 하나뿐이다
+  meaning:
+    - 닿았다는 사실과 **성립하지 않았다는 사실**을 함께 나른다. 이것이 없으면 화면에서
+      무산은 빗나감과 구분되지 않는다 (02 INTENT-UNHARMED-IS-OBSERVABLE-001)
+    - 자리와 시각의 뜻은 strikeEvents 와 같다 — 맞은 몸의 중심에서 잠시 드러났다 사라진다
+    - 사유 목록의 단일 출처는 세계다. View 는 "칠 수 있는 것은 무엇인가" 를 자기 코드에
+      적지 않는다 (DC-WORLD-OWNS-THE-SURFACE-LIST)
+    - 자율 존재가 낸 무산도 함께 온다 — 관문은 양쪽에 똑같이 서기 때문이다.
+      누가 낸 것인지는 attackerId 가 말한다
+
+strikeEvents:
+  change: NONE
+  meaning:
+    - 성립한 타격의 경위는 한 글자도 바뀌지 않는다. C010~C015 의 값이 그대로 나온다
+
+# ─────────────────────────────────────────────────────────────────
+# interactions — 새 요청이 없고, 기존 요청의 가용성도 바뀌지 않는다
+# ─────────────────────────────────────────────────────────────────
+interactions:
+  attack:
+    change: NONE
+    meaning:
+      - 이 자리에는 **관문이 서지 않는다.** 이 요청에는 대상이 없으므로 (휘두름은 지목하지
+        않는다 — C002·C006) 태도로 거절할 상대가 없다. 중립인 것 앞에서도 휘두르기는
+        언제나 가용하다
+      - 결과는 닿은 자리에서 갈린다 — 성립하면 strikeEvents 로, 성립하지 않으면
+        unharmedContacts 로 온다
+      - 요청 시점에 대상을 보고 거절하는 자리는 **지목이 서야 생긴다**
+        (01 SCOPE NOTE ① — 병행 Cycle 의 몫)
+  skillHeavy:
+    change: NONE
+    meaning:
+      - attack 과 같다 — 대상 없는 요청이므로 태도가 가용성을 가르지 않는다
+  skillAura:
+    change: NONE
+    meaning:
+      - attack 과 같다 — 대상 없는 요청이므로 태도가 가용성을 가르지 않는다
+
+  observe:
+    change: NONE
+    meaning:
+      - 중립인 존재도 그대로 살펴볼 수 있다. 태도는 앎의 관문이 아니다 (01 EXCLUDED)
+
+  mine:
+    change: NONE
+
+  setAttribute:
+    change: NONE
+    meaning:
+      - 바꿀 수 있는 성질 목록은 그대로다. **지키는 자리는 여기 들어가지 않는다** —
+        정체성에 가까운 값이며, 이 Cycle 의 확인은 값을 바꾸는 것이 아니라
+        **걸어 들어가고 나오는 것**으로 한다 (03 OBSERVABLE SEMANTIC)
+
+  # move · moveMode · guardBegin · guardRelease · forgetAcquaintance 는 그대로.
+  # 태도가 다른 행동의 조건이 되지 않는다.
+
+hud:
+  change: NONE
+  meaning:
+    - 내 쪽에 새로 실릴 값이 없다. 태도는 내 상태가 아니라 **둘 사이의 사실**이므로
+      존재마다 실리는 것이 옳은 자리다
+
+commandCatalog:
+  change: NONE
+
+# ─────────────────────────────────────────────────────────────────
+# VIEW REQUIREMENT — 이 계약을 받은 화면이 반드시 할 수 있어야 하는 것
+# ─────────────────────────────────────────────────────────────────
+# 1. 존재마다 그가 나를 어떻게 대하는지 구분해 보일 수 있다.
+#    형태(색·표시·문구)는 View 가 정한다. 세계는 값만 준다
+# 2. 그 표시가 **매 관찰마다 갱신된다** — 다가가면 바뀌고 물러나면 되돌아간다.
+#    한 번 본 값을 붙들어 두지 않는다
+# 3. 무산된 접촉을 **빗나감과 다르게** 보인다. 빗나간 휘두름은 아무것도 오지 않고,
+#    무산은 자리와 사유가 함께 온다 — 둘을 같게 그리면 이 Cycle 의 절반이 사라진다
+# 4. 사유 코드를 문구로 옮기는 표는 View 가 소유한다 (C009 이래 그대로).
+#    새 코드는 not-hostile 하나다
+#
+# ─────────────────────────────────────────────────────────────────
+# OBSERVABLE PROJECTION NOTE — 투영하지 않는 것
+# ─────────────────────────────────────────────────────────────────
+# Actor.GuardedGround (지키는 자리의 중심과 반경)
+#     싣지 않는다. 어디까지가 그 존재의 자리인지를 세계가 그려 주지 않는다 —
+#     경계는 **태도가 바뀌는 것으로** 드러나며, 겪으며 알아내는 것이 이 갈래의
+#     값어치다 (MP-LEARN-TO-HANDLE-THE-LAYER · 03 OBSERVABLE SEMANTIC).
+#     이것은 가리는 것이 아니다: 태도는 언제나 실려 있고 자리는 그 원인일 뿐이다.
+#     Stage 5 확인 항목
+#
+# 내가 그 존재를 어떻게 대하는가
+#     싣지 않는다. 보는 이의 몸은 지키는 자리를 지니지 않으므로 언제나 neutral 이고,
+#     언제나 같은 값은 관찰이 아니다. 사람이 지킬 것을 갖는 Cycle 이 서면 그때 생긴다
+#
+# 왜 hostile 인가 (누구의 어느 자리에 들어서 그렇게 되었는가)
+#     싣지 않는다. 지금 사정이 하나뿐이라 실어도 정보가 없고, 실으면 그 하나를
+#     화면이 알게 되어 사정이 둘이 될 때 View 를 함께 고쳐야 한다.
+#     "무엇이 왜 안 되는가" 는 unharmedContacts.reason 이 이미 답한다
+#
+# 다른 관찰자를 향한 태도
+#     싣지 않는다. 태도는 언제나 **이 관찰자의 몸** 기준이다 (C004 · C014 그대로)

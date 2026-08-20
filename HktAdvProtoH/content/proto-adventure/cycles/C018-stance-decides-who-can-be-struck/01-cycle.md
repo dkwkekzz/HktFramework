@@ -3,7 +3,7 @@
 [PASS] Cycle Definition           (태도는 사이의 값 · 관문은 닿을 때 · 지목과 겹치지 않는다)
 [PASS] Intent                    (태도는 방향값 · 지키는 자리가 낳는다 · 관문은 닿는 자리)
 [PASS] World Semantic            (태도는 파생 · 자리는 개체가 지닌다 · 무산도 관찰된다)
-[    ] GameView Specification
+[PASS] GameView Specification    (태도는 언제나 실린다 · 무산이 빗나감과 다르게 온다)
 [    ] Human Semantic Review
 [    ] World Implementation
 [    ] View Implementation
