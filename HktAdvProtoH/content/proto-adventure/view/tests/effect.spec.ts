@@ -12,7 +12,11 @@ import { resolvePresentation } from '../resolve';
 import {
   EFFECT_SET,
   EMPTY_EFFECT_MEMORY,
+  GUARD_EFFECTS,
   rememberForEffects,
+  SKILL_EFFECTS,
+  skillEffect,
+  WORLD_EVENT_EFFECTS,
   type EffectMemory,
 } from '../effect-presentation';
 import criticalFixture from './fixtures/critical.fixture.json';
@@ -203,5 +207,133 @@ describe('자리 — 맞은 몸의 크기를 따른다', () => {
     const length = Math.hypot(dx, dz);
     expect(mark.direction?.x).toBeCloseTo(dx / length, 5);
     expect(mark.direction?.z).toBeCloseTo(dz / length, 5);
+  });
+});
+
+// ── 스킬마다 다르게 터진다 ──────────────────────────────────────────
+//
+// 여기서 지키는 것은 "표를 고치면 화면이 따라온다" 는 계약이다.
+// 값 자체를 테스트가 다시 적지 않는다 — SKILL_EFFECTS 를 읽어 대조한다.
+// (값을 베껴 적으면 표를 고칠 때마다 테스트도 고쳐야 하고, 그러면 표가 단일 출처가 아니다.)
+
+/** 같은 사건을 스킬만 바꿔 다시 만든다 — 갈리는 것이 스킬 하나뿐임을 보장한다 */
+function withSkill(snapshot: GameViewSnapshot, skill: string, amount?: number): GameViewSnapshot {
+  return {
+    ...snapshot,
+    strikes: snapshot.strikes.map((s) => ({
+      ...s,
+      skill,
+      ...(amount === undefined ? {} : { amount, breakdown: { ...s.breakdown, appliedDamage: amount } }),
+    })),
+  } as GameViewSnapshot;
+}
+
+describe('스킬이 이펙트를 고른다', () => {
+  it('세 스킬이 저마다 다른 이펙트 묶음을 켠다', () => {
+    const of = (skill: string) =>
+      effects(withSkill(damageType, skill))
+        .filter((e) => !e.id.startsWith('acquaint:'))
+        .map((e) => e.effect);
+
+    expect(of('attack')).toEqual(['타격']);
+    expect(of('heavy-attack')).toEqual(['타격', '파이어볼 폭발']); // 무거운 한 방엔 화구가 함께
+    expect(of('aura-strike')).toEqual(['전격']);
+  });
+
+  it('연출 동반은 주 이펙트와 같은 자리·같은 축·같은 세기다', () => {
+    const marks = effects(withSkill(damageType, 'heavy-attack'));
+    const main = marks.find((e) => e.id.startsWith('strike:'))!;
+    const companion = marks.find((e) => e.id.startsWith('strike-with:'))!;
+    expect(companion.position).toEqual(main.position);
+    expect(companion.direction).toEqual(main.direction);
+    expect(companion.strength).toBe(main.strength);
+  });
+
+  it('등록되지 않은 스킬도 화면을 멈추지 않는다 — 방식으로 떨어진다', () => {
+    const aura = effects(withSkill(damageType, '아직-없는-스킬')); // fixture 는 aura 방식이다
+    expect(aura.map((e) => e.effect)).toContain('전격');
+    expect(skillEffect('아직-없는-스킬', 'physical').effect).toBe('타격');
+  });
+});
+
+describe('스킬마다 수치가 따로다', () => {
+  it('세기의 기준이 스킬마다 다르다 — 같은 피해량이 다르게 읽힌다', () => {
+    // 20 은 기본 스킬에겐 정통 한 방이고, 고급 스킬에겐 스친 것이다.
+    const light = effects(withSkill(damageType, 'attack', 20))[0]!;
+    const heavy = effects(withSkill(damageType, 'heavy-attack', 20))[0]!;
+    const a = SKILL_EFFECTS['attack']!;
+    const h = SKILL_EFFECTS['heavy-attack']!;
+    expect(light.strength).toBeCloseTo(a.floor + 20 / a.reference, 5);
+    expect(heavy.strength).toBeCloseTo(h.floor + 20 / h.reference, 5);
+    // 기본 스킬은 제 기준을 채웠고(1.0 몫), 고급 스킬은 아직 못 채웠다(0.36 몫)
+    expect(20 / a.reference).toBeGreaterThan(20 / h.reference);
+  });
+
+  it('바닥 세기·상한이 스킬마다 다르다', () => {
+    const graze = (skill: string) => effects(withSkill(damageType, skill, 0))[0]!.strength;
+    expect(graze('attack')).toBeCloseTo(SKILL_EFFECTS['attack']!.floor, 5);
+    expect(graze('heavy-attack')).toBeCloseTo(SKILL_EFFECTS['heavy-attack']!.floor, 5);
+    expect(graze('heavy-attack')).toBeGreaterThan(graze('attack')); // 고급은 스쳐도 묵직하다
+
+    const huge = (skill: string) => effects(withSkill(damageType, skill, 9999))[0]!.strength;
+    expect(huge('attack')).toBeCloseTo(SKILL_EFFECTS['attack']!.ceiling, 5);
+    expect(huge('heavy-attack')).toBeCloseTo(SKILL_EFFECTS['heavy-attack']!.ceiling, 5);
+  });
+
+  it('초기 반경이 스킬마다 다르다 — 큰 동작은 벌어진 자리에서 시작한다', () => {
+    const radius = (skill: string) => effects(withSkill(damageType, skill))[0]!.radius;
+    expect(radius('attack')).toBe(SKILL_EFFECTS['attack']!.radius);
+    expect(radius('heavy-attack')).toBe(SKILL_EFFECTS['heavy-attack']!.radius);
+    expect(radius('heavy-attack')!).toBeGreaterThan(radius('attack')!);
+  });
+
+  it('각의 흔들림이 스킬마다 다르다 — 방전은 베는 것이 아니다', () => {
+    const roll = (skill: string) => effects(withSkill(damageType, skill))[0]!.roll!;
+    expect(Math.abs(roll('attack'))).toBeLessThanOrEqual(SKILL_EFFECTS['attack']!.rollSpread / 2);
+    expect(roll('aura-strike')).toBe(0); // rollSpread 0
+    expect(Math.abs(roll('heavy-attack'))).toBeLessThanOrEqual(
+      SKILL_EFFECTS['heavy-attack']!.rollSpread / 2,
+    );
+  });
+
+  it('축을 드는 각도가 스킬마다 다르다', () => {
+    const lift = (skill: string) => effects(withSkill(damageType, skill))[0]!.direction!.y;
+    expect(lift('attack')).toBeCloseTo(SKILL_EFFECTS['attack']!.lift, 5);
+    expect(lift('heavy-attack')).toBeCloseTo(SKILL_EFFECTS['heavy-attack']!.lift, 5);
+    expect(lift('aura-strike')).toBeCloseTo(SKILL_EFFECTS['aura-strike']!.lift, 5);
+  });
+
+  it('터짐의 증폭과 표시가 스킬마다 다르다', () => {
+    // critical.fixture 의 npc-2 는 터진 한 방이다 (skill = attack)
+    const asAttack = forStrike(critical, 'npc-2').map((e) => e.effect);
+    expect(asAttack).toContain(SKILL_EFFECTS['attack']!.criticalEffect);
+
+    // 고급 스킬은 터짐을 따로 그리지 않는다 — 이미 화구를 쓰고 있고, 세기로 드러난다
+    const heavy = effects(withSkill(critical, 'heavy-attack')).filter((e) =>
+      e.id.startsWith('critical:'),
+    );
+    expect(SKILL_EFFECTS['heavy-attack']!.criticalEffect).toBeUndefined();
+    expect(heavy).toHaveLength(0);
+  });
+});
+
+describe('표가 단일 출처다 — 코드에 스킬 이름이 흩어져 있지 않다', () => {
+  it('모든 표의 이펙트가 예산 안에 있다', () => {
+    const named = [
+      ...Object.values(SKILL_EFFECTS).flatMap((t) => [
+        t.effect,
+        ...(t.with ?? []),
+        ...(t.criticalEffect ? [t.criticalEffect] : []),
+      ]),
+      ...Object.values(GUARD_EFFECTS).map((g) => g.effect),
+      ...Object.values(WORLD_EVENT_EFFECTS).map((w) => w.effect),
+    ];
+    for (const name of named) expect(EFFECT_SET).toContain(name);
+  });
+
+  it('세계의 스킬 셋이 모두 등록되어 있다', () => {
+    for (const skill of ['attack', 'heavy-attack', 'aura-strike']) {
+      expect(SKILL_EFFECTS[skill]).toBeDefined();
+    }
   });
 });

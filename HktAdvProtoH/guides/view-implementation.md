@@ -103,8 +103,20 @@ Cycle 이 새 사건(타격의 새 방식 · 새 스킬 · 새 상태 전이)을
 
 ```text
 World 가 보내는 의미        effect-presentation           engine/view-kernel/fx
-(damageType · guard ·   →   어떤 게놈을 얼마나 세게   →   그 게놈을 켠다
- critical · 값의 변화)       (SceneEffect 한 줄)           (이펙트 오버레이)
+(skill · damageType ·   →   어떤 게놈을 얼마나 세게   →   그 게놈을 켠다
+ guard · critical ·          (SceneEffect 한 줄)           (이펙트 오버레이)
+ 값의 변화)
+```
+
+그 파일은 **표 넷**이 전부다. 새 스킬·새 사건은 표에 한 줄이 늘 뿐이다 —
+스킬 이름으로 분기하는 코드를 만들지 않는다.
+
+```text
+SKILL_EFFECTS        스킬 하나가 어떻게 터지는가 — 이펙트 · 세기 기준 · 초기 반경 ·
+                     각 흔들림 · 축 기울기 · 터짐 증폭까지 **스킬마다 따로**
+DAMAGE_TYPE_EFFECTS  등록되지 않은 스킬의 기본값 (방식으로만 가른다)
+GUARD_EFFECTS        막힘 · 무너짐 — 치는 쪽이 아니라 받는 쪽의 사건
+WORLD_EVENT_EFFECTS  타격이 아닌 사건 (채굴 · 알게 됨)
 ```
 
 세 가지 규칙만 지킨다.
@@ -113,6 +125,8 @@ World 가 보내는 의미        effect-presentation           engine/view-kern
    근거: [design/Design-Effect-Presentation.md](../design/Design-Effect-Presentation.md).
 2. **세기는 사건의 값에서 나온다.** 게놈을 새로 만들어 "센 타격" 을 만들지 않는다 —
    같은 게놈에 `strength` 를 달리 준다 (게놈이 가진 것은 그 세기에 대한 *감도*뿐이다).
+   세기의 **기준(`reference`)은 스킬이 갖는다** — 고급 스킬(≈55)과 기본 스킬(≈20)을 같은
+   자로 재면 기본 스킬은 영원히 스침으로만 보인다.
 3. **예산을 넘기지 않는다.** 화면에 동시에 올릴 수 있는 이펙트는 `EFFECT_SET` 의 7개다.
    새 이펙트를 넣으려면 무엇을 뺄지 함께 정한다.
 

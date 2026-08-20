@@ -118,6 +118,14 @@ export interface SceneEffect {
   strength: number;
   /** 축 둘레 회전(rad) — 부채꼴 이펙트(검격)의 칼날 각도 */
   roll?: number;
+  /**
+   * 태어나는 껍질의 초기 반경 (게임 세계 단위). 없으면 게놈 기본값.
+   * *전체 크기*가 아니라 스플랫이 처음 놓이는 자리다 — 큰 몸을 후려친 한 방은
+   * 점에서 터지지 않고 이만큼 벌어진 데서 시작한다.
+   */
+  radius?: number;
+  /** 초기 반경에 곱하는 배율 — radius 와 곱해진다 (셰이더에서 r0 = radius × scale) */
+  scale?: number;
 }
 
 // 자기 몸에 대한 상시 표시 (C007 hud.self) — 같은 값을 남에 대해서도 볼 수 있지만,

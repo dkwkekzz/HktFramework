@@ -305,6 +305,8 @@ export function createRenderer(
             ...(effect.direction ? { dir: effect.direction } : {}),
             strength: effect.strength,
             ...(effect.roll === undefined ? {} : { roll: effect.roll }),
+            ...(effect.radius === undefined ? {} : { radius: effect.radius }),
+            ...(effect.scale === undefined ? {} : { scale: effect.scale }),
           });
         }
         if (firedEffects.size > FIRED_MEMORY) {

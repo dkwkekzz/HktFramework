@@ -13,7 +13,7 @@ declare global {
   interface Window {
     __overlayReady?: boolean;
     __overlayFailed?: string;
-    __fire?: (name: string, strength?: number) => void;
+    __fire?: (name: string, params?: FireParams) => void;
     __names?: () => readonly string[];
     __activeEffects?: () => number;
     __shoot?: () => Promise<{ lit: number; cx: number; cy: number; w: number; h: number; dataUrl: string } | null>;
@@ -23,7 +23,19 @@ declare global {
 const stage = document.getElementById('stage');
 if (!stage) throw new Error('#stage 가 없다');
 
+/** 사건이 줄 수 있는 값들 — 컨텐츠의 SKILL_EFFECTS 한 줄이 만들어 내는 것과 같은 모양 */
+interface FireParams {
+  strength?: number;
+  radius?: number;
+  roll?: number;
+  /** 축을 얼마나 위로 드는가 */
+  lift?: number;
+}
+
+// 게임과 같은 예산으로 띄운다 — 눈으로 견주려면 장면에 올라온 이펙트도 같아야 한다.
+// (팩의 EFFECT_SET 을 그대로 옮겨 적었다. tools 는 content 를 import 하지 않는다.)
 const layer = createEffectLayer(stage, {
+  names: ['타격', '검격', '전격', '파이어볼 폭발', '물결파', '삼중 파문', '회복 오라'],
   onUnavailable: (reason) => {
     window.__overlayFailed = reason;
   },
@@ -35,12 +47,15 @@ const EYE = { x: 0, y: 2.2, z: 6 };
 const TARGET = { x: 0, y: 1.4, z: 0 };
 const viewMatrix = lookAt(EYE, TARGET);
 
-window.__fire = (name, strength) => {
+window.__fire = (name, params = {}) => {
   layer.trigger({
     name,
     origin: { x: 0, y: 1.4, z: 0 },
-    dir: { x: 0, y: 0.25, z: 1 }, // 카메라 쪽 — 원판이 화면과 나란해진다
-    ...(strength === undefined ? {} : { strength }),
+    // 카메라 쪽 — 원판이 화면과 나란해진다. lift 는 스킬이 정하는 값이다.
+    dir: { x: 0, y: params.lift ?? 0.25, z: 1 },
+    ...(params.strength === undefined ? {} : { strength: params.strength }),
+    ...(params.radius === undefined ? {} : { radius: params.radius }),
+    ...(params.roll === undefined ? {} : { roll: params.roll }),
   });
 };
 
