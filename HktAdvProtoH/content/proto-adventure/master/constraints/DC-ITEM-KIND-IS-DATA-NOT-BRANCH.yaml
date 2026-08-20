@@ -1,6 +1,6 @@
 # 원본 근거: design/Design-Item-System-R0.md (IS)
 #   §0 한 문장 설계 · §5.1 Item Catalog · §7 P1 · §8 정의 층 완료 기준
-# 주입(Inject)으로 세웠다 — Human 승인 대기.
+# 주입(Inject)으로 세운 뒤 2026-08-20 Human 승인 (HISTORY Q30) — 문안은 주입판 그대로다.
 id: DC-ITEM-KIND-IS-DATA-NOT-BRANCH
 type: constraint
 
@@ -39,9 +39,9 @@ prefers: []
 # 경계 — 이 Constraint 는 "무엇이 판정의 근거인가" 만 정한다.
 # 정의를 어떤 파일 형태로 두는가, 어떤 이름을 쓰는가는 Cycle 소유다 (정책 §7.2).
 
-status: DRAFT
+status: APPROVED
 provenance:
-  - HUMAN_DESIGN        # design/Design-Item-System-R0.md 주입 — 승인 대기 (open-questions Q30)
+  - HUMAN_DESIGN        # design/Design-Item-System-R0.md 주입 → Human 승인 (HISTORY Q30)
 
 relations:
   supports: [DC-WORLD-OWNS-THE-SURFACE-LIST]   # 목록의 단일 출처를 세계 쪽에 두는 같은 방향의 원칙이다

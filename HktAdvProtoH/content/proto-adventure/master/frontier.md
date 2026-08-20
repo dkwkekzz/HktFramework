@@ -86,7 +86,11 @@
                        몸 밖의 아이템이 아니다 (줍기 · 버리기 · 전리품은 넷째 칸).
                        거래가 아니다. 무게 · 칸수 같은 소지 제한도 아니다.
                        내구도 · 강화 · 귀속도 아니다 — 그것들이 필요해질 때 개체 모델을
-                       연다 (IS §2.1). **쓴다는 개념과 그 바닥이 이 후보의 전부다**
+                       연다 (IS §2.1).
+                       **회복 아이템도 아니다** — 그 원천(식물 계통)이 세계에 없으므로
+                       이 Cycle 은 MC-RESTORE-BIOLOGICAL-STATE 를 닫지 않는다.
+                       다음 Cycle 이 원천과 함께 가져온다 (HISTORY Q31).
+                       **쓴다는 개념과 그 바닥이 이 후보의 전부다**
     이미 있는 것        종류별 개수를 지닌 인벤토리와 캐서 늘어나는 경로가 있다
                        (`world/rules/mine.ts`). 행동으로서의 얼개(시간 · 대상 · 중단 ·
                        실패 사유)도 있다. 지금 무엇이 왜 안 되는지를 싣는 가능/사유
@@ -112,16 +116,17 @@
     Active Constraints DC-WORLD-PROGRESSION-IS-REACH · DC-WORLD-RESOURCE-ADAPTATION-TRACE ·
                        DC-GROWTH-NEED-FROM-POSSIBILITY · DC-GROWTH-GOAL-FIRST ·
                        DC-WORLD-OWNS-THE-SURFACE-LIST ·
-                       **DC-ITEM-KIND-IS-DATA-NOT-BRANCH (DRAFT)** ·
-                       **DC-ITEM-CHANGE-IS-ONE-UNIT (DRAFT)** ·
-                       **DC-ITEM-CAPABILITY-COMES-FROM-GRANTS (DRAFT)**
+                       **DC-ITEM-KIND-IS-DATA-NOT-BRANCH** ·
+                       **DC-ITEM-CHANGE-IS-ONE-UNIT** ·
+                       **DC-ITEM-CAPABILITY-COMES-FROM-GRANTS**
     Constraint Eval    SATISFIED — 물건이 능력을 정당화하지 않는다. 이 후보는 새 능력을
                        만들지 않고 **이미 필요하다고 판정된 것들의 공통 전제**를 세운다
                        (NEED-FROM-POSSIBILITY). 성장 자체를 Goal 로 세우지 않는다
                        (GOAL-FIRST). 지금 캐는 돌은 세계 유래를 가진다 (Q22).
                        쓸 수 있는 것의 목록과 불가 사유를 세계가 싣는다 (SURFACE-LIST).
-                       **단 DRAFT 셋은 Human 승인 전이다 — open-questions Q30 을
-                       이 후보 선택과 함께 답해야 한다**
+                       아이템 셋은 이 후보가 지고 갈 원칙이다 — 특히
+                       CAPABILITY-COMES-FROM-GRANTS 가 채굴 판정을 "든 것이 곡괭이인가"
+                       에서 "이 몸에 채굴 용도가 지금 있는가" 로 바꾼다
     Why one Cycle      새 전투 규칙도 새 자원도 없다 — 행동 하나와 "줄어든다" 는 상태 변화
                        하나다. 넷(정의 · 관찰 · 사용 · 소모)이 한 몸인 이유: 정의만 세우면
                        플레이어가 할 수 있는 일이 하나도 늘지 않고, 관찰만 바꾸면 보이는
@@ -139,7 +144,7 @@
 1. 아이템의 바닥    가장 크게 막힌 축(자원 → 능력)의 첫 칸. IS 주입으로 그 축이 네 조각
                     (쓴다 · 적용한다 · 만든다 · 주고받는다)으로 나뉘었고, 뒤의 셋과
                     회복 · 절단 · 능력치 획득 · 전리품이 모두 이 하나를 기다린다.
-                    고르기 전에 open-questions Q30(Constraint 넷 승인)을 함께 답한다
+                    지고 갈 Constraint 넷은 이미 Active 다 (constraints/README.md)
 
 2. 행동 구간        전투 후보 중 가장 값싸다 — 구간도 끊김 규칙도 이미 있어, 더할 것은
                     비율 · 노출 · 취소 판정 셋이다. DANGER 층 요구도 미리 채우고,
@@ -160,7 +165,7 @@
 
 | 기능 / 층 | 무엇이 막고 있는가 |
 |---|---|
-| **장착** (MC-EQUIP-ITEM) | 후보 2(아이템의 바닥)가 먼저다. 그 뒤 바로 후보가 된다 — 이것이 서야 `IM-*` 의 grants 가 몸에 닿고, MC-ATTACK-POWER · MC-PENETRATION · 치명을 세계 안에서 얻는 경로가 처음 생긴다 (IS §6 Cycle 2) |
+| **장착** (MC-EQUIP-ITEM) | 후보 2(아이템의 바닥)가 먼저다 — 이것이 서야 `IM-*` 의 grants 가 몸에 닿고, MC-ATTACK-POWER · MC-PENETRATION · 치명을 세계 안에서 얻는 경로가 처음 생긴다 (IS §6 Cycle 2). **그리고 장착·인벤토리 기획 문서가 뒤이어 온다 (Human 예고)** — 자리 구성 · 소지 한도 · 개체 상태를 그 문서가 소유하므로, 주입해 IS §5.4 와 정합을 맞춘 뒤 후보로 확정한다 |
 | **제작** (MC-CRAFT-FROM-MATERIALS) | 후보 2 와 장착이 차례로 먼저다 — 소모가 서야 재료가 줄고, 장착이 서야 만든 것이 쓸모를 갖는다 (IS §6 Cycle 3) |
 | **세계의 아이템** (MC-TRANSFER-ITEM) | 몸 안의 규칙이 다 선 뒤다. 이것이 서면 쓰러진 몸에서 무언가가 나오고, 존재가 세계에서 사라지는 첫 경로가 생겨 C017 의 미도달 규칙 하나도 함께 닫힌다 (IS §6 Cycle 4 · §5.6) |
 | 감정 도구 | 위 셋 뒤. 지금은 감정할 대상(개체 상태)도 없다 |

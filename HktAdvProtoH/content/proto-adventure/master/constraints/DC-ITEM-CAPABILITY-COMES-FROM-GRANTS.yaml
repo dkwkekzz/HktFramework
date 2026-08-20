@@ -1,7 +1,7 @@
 # 원본 근거: design/Design-Item-System-R0.md (IS)
 #   §3.1 네 가지가 각각 다른 일을 한다 · §3.2 판정은 grants 를 본다 ·
 #   §3.3 곡괭이의 채굴은 어디에 있는가 · §5.1 세계 유래 성질 · §7 P2
-# 주입(Inject)으로 세웠다 — Human 승인 대기.
+# 주입(Inject)으로 세운 뒤 2026-08-20 Human 승인 (HISTORY Q30) — 문안은 주입판 그대로다.
 id: DC-ITEM-CAPABILITY-COMES-FROM-GRANTS
 type: constraint
 
@@ -43,9 +43,9 @@ prefers: []
 # 경계 — 이 Constraint 는 "능력이 어디서 오는가" 만 정한다.
 # 어떤 능력을 어떤 아이템이 주는가는 growth/ 의 노드가, 그 크기는 Cycle 이 소유한다.
 
-status: DRAFT
+status: APPROVED
 provenance:
-  - HUMAN_DESIGN        # design/Design-Item-System-R0.md 주입 — 승인 대기 (open-questions Q30)
+  - HUMAN_DESIGN        # design/Design-Item-System-R0.md 주입 → Human 승인 (HISTORY Q30)
 
 relations:
   supports: [DC-GROWTH-NO-CAPABILITY-DUPLICATION, DC-WORLD-RESOURCE-ADAPTATION-TRACE]

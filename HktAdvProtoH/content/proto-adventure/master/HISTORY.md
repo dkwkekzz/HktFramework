@@ -1148,3 +1148,69 @@ part_of 도입    모든 MC-* 노드에 "이 조각이 속한 전체"를 정식 
                 MC-FORCE-MOVEMENT · MC-INTERRUPT)은 overlay.md 의 해당 행이 근거를
                 이어받았다.
 ```
+
+---
+
+    2026-08-20 IS — design/Design-Item-System-R0.md (아이템: 정의 · 소지 · 사용 · 장착 ·
+                    제작 · 세계 개체화)
+
+    Human 이 기획 원본을 제출하고, Agent 리뷰 4점을 반영한 개정판으로 주입을 지시했다.
+    개정에서 달라진 것 (원본 → 개정):
+        IP 로 capability 판정   → §3 grants 사슬. IP 는 세계 유래 성질, 용도는 IT 가 지닌다.
+                                 곡괭이의 채굴은 성질이 아니라 종류의 선언으로 옮겼다
+        6 단계 = 6 Cycle        → §6 Cycle 경계 4개. 정의·소지는 플레이 Delta 가 없어
+                                 단독 Cycle 이 아니라 사용 Cycle 에 흡수된다 (원칙 6)
+        새 효과·개체 구조 신설   → §2 소유 경계. 지속 효과는 기존 조건 합성 위에,
+                                 개체는 출처 추적 요구로, 수치는 Cycle 소유로
+        근거가 "AAA 가 그렇다"  → §4 상위 유래 표. 각 층이 여는 MC 와 그것을 요구하는 MP
+
+    산출물:
+        systems.yaml       MS-ITEM-SYSTEM (DEFINED) — 여섯 자리
+        graph/             MC 4종 (USE-ITEM · EQUIP-ITEM · CRAFT-FROM-MATERIALS ·
+                           TRANSFER-ITEM) · required_by 배선 7건
+                           (MP-ADAPT-BY-RESOURCE +3 · MP-PREPARE-IN-CIVILIZATION +1 ·
+                           MP-KILL-CREATURE · MP-TAKE-SHED-ORGAN · MP-TRADE-WITH-ACTOR)
+        constraints/       DC-ITEM-* 4종 DRAFT → Q30(a) 로 APPROVED
+        overlay.md         아이템 영역 4행 (전부 MISSING · 코드 대조) · 갈래 판정 갱신
+        frontier.md        FR-ITEM-USE 제거 → FR-WHAT-YOU-CARRY-CAN-BE-SPENT 로 교체.
+                           장착 · 제작 · 세계의 아이템은 "지금 열 수 없는 것" 에 순서로
+
+    옮기지 않은 것과 사유:
+        §5.1~§5.2 (카탈로그 · 소지 관찰) — 할 수 있는 일을 늘리지 않아 Capability 가
+        아니다. 문서 자신이 넷의 바닥이라고 밝힌다 (§4 · §6)
+        §5.2 의 분류·정렬·필터 — 화면의 편의이지 세계의 결손이 아니다
+        §10 범위 밖 (거래와 화폐 · 무게와 칸수 · 내구도/강화/귀속 · 등급과 희귀도) —
+        아직 어느 Possibility 도 요구하지 않는다
+        구체 수치 (회복량 · 능력치 증분 · 사용 시간 · 쿨다운 · 소멸 시간) — 문서 자신이
+        Cycle 소유로 명시했다 (정책 §7.2)
+        MP-FIND-DEAD-SPECIMEN · MP-FORCE-CREATURE-TO-RELEASE 의 requires — 문서 §4 가
+        이름을 댄 셋에 이 둘이 없어 배선하지 않았다 (주입은 문서에 있는 것만 옮긴다)
+
+    주입이 드러낸 것: "자원이 아무 일도 하지 않는다" 는 구멍이 하나가 아니라 넷이었고
+    (쓴다 · 적용한다 · 만든다 · 주고받는다), 그중 첫째가 나머지 셋의 바닥이다.
+    MC-ATTACK-POWER 가 PARTIAL 로 남은 이유와 쓰러진 몸에서 아무것도 나오지 않는 이유가
+    같은 뿌리라는 것도 이 배선으로 그래프에 나타났다.
+
+## Q30. 아이템 Constraint 넷을 승인하는가 — CLOSED
+
+    DECISION      (a) 넷 다 승인 (Human · 2026-08-20)
+
+    DC-ITEM-KIND-IS-DATA-NOT-BRANCH · DC-ITEM-CAPABILITY-COMES-FROM-GRANTS ·
+    DC-ITEM-HOLDING-IS-NOT-APPLYING · DC-ITEM-CHANGE-IS-ONE-UNIT 이 Active 가 되었다.
+    문안은 주입판 그대로다 (Q23 선례와 같다 — 원본보다 세게 쓰지 않는다).
+
+    이로써 아이템 Cycle 은 이 넷을 Active Constraint 로 지고 간다. 특히 둘째가 구현
+    형태를 직접 가른다 — 채굴 판정이 "든 것이 곡괭이인가" 에서 "이 몸에 채굴 용도가
+    지금 있는가" 로 바뀐다. Active Constraint 는 20종 → 24종.
+
+## Q31. 회복 아이템의 원천을 세계에 세울 것인가 — CLOSED
+
+    DECISION      (b) 아이템 Cycle 1 이후로 미룬다 (Human · 2026-08-20)
+
+    먼저 "쓴다 · 줄어든다" 를 세우고, 무엇을 쓰는가는 지금 세계에 있는 것(돌 · 곡괭이)
+    으로 족하다. 회복은 그 다음 Cycle 이 원천(식물 계통의 IP/IT)과 함께 가져온다.
+
+    따라서 첫 아이템 Cycle 은 MC-RESTORE-BIOLOGICAL-STATE 를 닫지 않는다 — 그 노드는
+    MISSING 으로 남고, 첫 Cycle 이 세우는 것은 그것이 얹힐 바닥(MC-USE-ITEM)이다.
+    임의의 수치 회복으로 그 자리를 채웠다고 판정하지 않는다 (그 노드는 "체력을 얼마
+    채운다" 가 아니라 "이전 상태로 되돌린다" 이므로).

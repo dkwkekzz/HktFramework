@@ -1,6 +1,6 @@
 # 원본 근거: design/Design-Item-System-R0.md (IS)
 #   §5.4 장착 층 (자리 · 장착/해제 · 능력치 변경 · 능력 부여) · §7 P3 · §8 장착 층 완료 기준
-# 주입(Inject)으로 세웠다 — Human 승인 대기.
+# 주입(Inject)으로 세운 뒤 2026-08-20 Human 승인 (HISTORY Q30) — 문안은 주입판 그대로다.
 id: DC-ITEM-HOLDING-IS-NOT-APPLYING
 type: constraint
 
@@ -35,9 +35,9 @@ prohibits:
   - 장착과 해제를 반복해 값이 누적되는 형태                          # IS §8
 prefers: []
 
-status: DRAFT
+status: APPROVED
 provenance:
-  - HUMAN_DESIGN        # design/Design-Item-System-R0.md 주입 — 승인 대기 (open-questions Q30)
+  - HUMAN_DESIGN        # design/Design-Item-System-R0.md 주입 → Human 승인 (HISTORY Q30)
 
 relations:
   supports: []

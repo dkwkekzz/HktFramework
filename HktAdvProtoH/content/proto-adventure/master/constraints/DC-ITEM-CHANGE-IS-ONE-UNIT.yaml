@@ -1,6 +1,6 @@
 # 원본 근거: design/Design-Item-System-R0.md (IS)
 #   §5.5 사용과 소모의 한 단위 · 원자적 제작 · §5.6 줍기 · 버리기 · 동시 획득 · §7 P4
-# 주입(Inject)으로 세웠다 — Human 승인 대기.
+# 주입(Inject)으로 세운 뒤 2026-08-20 Human 승인 (HISTORY Q30) — 문안은 주입판 그대로다.
 id: DC-ITEM-CHANGE-IS-ONE-UNIT
 type: constraint
 
@@ -37,9 +37,9 @@ prohibits:
   - 같은 아이템이 두 곳에 동시에 존재하게 되는 이전                  # IS §5.6
 prefers: []
 
-status: DRAFT
+status: APPROVED
 provenance:
-  - HUMAN_DESIGN        # design/Design-Item-System-R0.md 주입 — 승인 대기 (open-questions Q30)
+  - HUMAN_DESIGN        # design/Design-Item-System-R0.md 주입 → Human 승인 (HISTORY Q30)
 
 relations:
   supports: []

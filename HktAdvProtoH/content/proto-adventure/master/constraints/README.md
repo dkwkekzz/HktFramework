@@ -2,7 +2,7 @@
 
 파일 하나 = Constraint 하나. 이름은 `DC-<NAME>.yaml`. 형식은 [../SCHEMA.md](../SCHEMA.md).
 
-현재: **Active 20종** — 전투 5종(1종 REVISED) + 성장 6종 + 세계 5종 + GLOBAL 4종.
+현재: **Active 24종** — 전투 5종(1종 REVISED) + 성장 6종 + 세계 5종 + 아이템 4종 + GLOBAL 4종.
 보류(DRAFT)는 없다.
 
 근거 문서:
@@ -13,6 +13,7 @@ DT §x   design/Design-Combat-DamageType-R0.md        전투 영역
 GR §x   design/Master-Intent-Graph-Growth.md         성장(GROWTH) 영역 한정
 TG §x   design/Design-Targeting-R0.md                 지목(GLOBAL)
 BW §x   design/Master-World-Beira.md                 세계(WORLD) 영역
+IS §x   design/Design-Item-System-R0.md               아이템(ITEM) 영역
 ```
 
 근거는 영역을 넘지 않는다 — 전투 노드에 GR 을, 성장 노드에 R1/DT 를 인용하지 않는다.
@@ -53,6 +54,15 @@ BW §x   design/Master-World-Beira.md                 세계(WORLD) 영역
 | DC-WORLD-COMBAT-IS-ONE-POSSIBILITY | Creature 존재만으로 처치 Goal 금지 — Goal 은 WorldState 에서, 전투는 대안 중 하나 | BW §27 · §28 |
 | DC-WORLD-PLAYER-UNFIXED-PATH | Player 의 역할·Class·진영·탐험 이유를 하나로 고정하지 않는다 | BW §1 · §15 · §31 |
 | DC-WORLD-PROGRESSION-IS-REACH | Progression 은 Level 이 아니라 대응 가능한 세계 범위의 확장 | BW §1 · §17 · §32 |
+
+### Active — APPROVED (아이템 — IS 주입 · Q30(a) 승인)
+
+| Constraint | 한 줄 | 근거 |
+|---|---|---|
+| DC-ITEM-KIND-IS-DATA-NOT-BRANCH | 종류 이름은 정의를 찾는 열쇠일 뿐 규칙의 분기 조건이 아니다 — 새 아이템은 정의를 더하는 것으로 끝난다 | IS §0 · §5.1 · §7 P1 · §8 |
+| DC-ITEM-CAPABILITY-COMES-FROM-GRANTS | 성질(IP-*)은 세계 유래만이고 용도는 종류가 가진다 — 능력 판정은 성질 조회가 아니라 지금 무엇을 주는가로 | IS §3.1~§3.3 · §5.1 · §7 P2 |
+| DC-ITEM-HOLDING-IS-NOT-APPLYING | 가지고 있는 것만으로는 몸이 달라지지 않는다 — 달라지는 것은 적용된 것 때문이고 풀면 정확히 원복된다 | IS §5.4 · §7 P3 · §8 |
+| DC-ITEM-CHANGE-IS-ONE-UNIT | 효과와 수량은 함께 변하거나 함께 변하지 않는다 — 실패한 시도는 흔적을 남기지 않는다 | IS §5.5 · §5.6 · §7 P4 |
 
 ### Active — APPROVED (GLOBAL — 기획 문서 주입)
 
