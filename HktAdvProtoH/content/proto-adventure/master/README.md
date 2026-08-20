@@ -62,14 +62,12 @@ Capability   45     IMPLEMENTED 12 · PARTIAL 8 · MISSING 25
                     숫자의 단일 출처는 graph/GRAPH.md 머리말이다 (master:graph 재생성물)
 Item Def     14     IP 5 · IT 6 · IM 3 (growth/items/) — Q22 광물 계통.
                     grants 3건으로 BW §17 순환이 그래프에서 닫혔다
-Frontier      2     SELECTED 0 · PROPOSED 2
-                    (INTERRUPT-THE-WINDUP · ITEM-USE)
+Frontier      2     SELECTED 1 (INTERRUPT-THE-STARTUP → C019) · PROPOSED 1 (ITEM-USE)
 WorldState   13     상위 인과 2 (PRIMAL-WORLD · WORLD-PRESSURE) · 세계압 두 갈래 2
                     (FREE-PRESSURE · BOUND-PRESSURE) · 구조 2 (SAFE-FRONTIER · DEPTH-GRADIENT) ·
                     깊이 층 5 (ZONE-FRINGE ~ ZONE-UNKNOWN) · 대표 지역 2
 
-Open Question 1   → Q29 (통찰이 독립 노드인가). Frontier 선택을 막지 않는다 —
-                    다음은 Human 이 후보 둘 중 하나를 고르는 것이다
+Open Question 1   → Q29 (통찰이 독립 노드인가). C019 진행을 막지 않는다
 ```
 
 무엇이 언제 왜 바뀌었는지는 `HISTORY.md` 가 소유한다. 살아 있는 문서(`overlay.md` ·
