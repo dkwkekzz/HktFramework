@@ -21,7 +21,8 @@ PARTIAL       일부만 닫혔거나 이번 Possibility 가 요구하는 형태�
 MISSING       세계에 그 의미가 없다
 ```
 
-3. `graph/capabilities.yaml` 의 `overlay` 필드를 같은 값으로 맞춘다.
+3. `graph/capabilities.yaml` 의 `overlay` 필드를 같은 값으로 맞춘다 — **값만**.
+   근거·정정 경위를 노드 주석으로 남기지 않는다 (근거는 이 문서, 경위는 HISTORY.md).
 4. Possibility 단위로도 읽을 수 있게 한다 — 이 경로가 요구하는 것 중 무엇이 없는가.
 
 ## Output

@@ -62,7 +62,10 @@ GOOD   Player 가 적의 공격 직전에 Guard 하여 피해를 받지 않고 �
 
 `master/frontier.md`
 
-형식은 `master/SCHEMA.md` 가 단일 출처다.
+형식은 `master/SCHEMA.md` 가 단일 출처다. 이 파일에 담는 것은 **후보 · 추천 순서 ·
+SELECTED · 지금 열 수 없는 것** 네 절뿐이다 — 진행 현황(사다리가 어디까지 섰는가)은
+`graph/GRAPH.md` 의 척추 절이, 후보를 읽는 법과 작성 규칙은 이 Guide 가 소유한다.
+frontier 에 현황 서술·공정 규칙을 다시 쌓지 않는다.
 
 ## Handoff — Cycle Layer 로
 
@@ -87,6 +90,8 @@ Frontier 선택 이후는 **기존 8 Stage Cycle Workflow 를 변경 없이** �
 ## Must Not
 
 - `VIOLATED` 후보를 후보 목록에 올리지 않는다 — Design Conflict 로 Human 에게 따로 제시한다.
+- `part_of.grounded: false` 인 Capability 를 후보의 Target 으로 세우지 않는다 —
+  그 전체의 설계 문서가 먼저다. "지금 열 수 없는 것" 에 그 사유로 적는다.
 - 개발 우선순위를 자동 확정하지 않는다.
 - Cycle 의 구현 방법·State 이름·수치를 Frontier 에 적지 않는다.
 - Graph 의 절대 Leaf 를 찾지 않는다 — 기준은 언제나 **현재 세계**다.

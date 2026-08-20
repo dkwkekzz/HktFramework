@@ -45,8 +45,6 @@ nodes:
       계산 내역으로 설명되어야 한다. 그리고 그 능력치를 **세계 안의 행위로** 올릴 수
       있어야 한다 — 올릴 방법이 세계 밖에 있으면 이 경로는 열린 것이 아니다.
     implemented: PARTIAL
-    # 능력치가 결과를 바꾸는 것은 실측으로 닫혔다 (C010). 그러나 그 능력치를 플레이로
-    # 올리는 경로가 세계에 없다 — 디버그 명령뿐이다. 근거는 overlay.md · growth/growth-graph.md.
     requires:
       goals: []
       capabilities: [MC-ATTACK-POWER, MC-SKILL-SCALING, MC-DEFENSE-MITIGATION, MC-COMBAT-STRIKE, MC-CP-ECONOMY]
@@ -83,7 +81,6 @@ nodes:
       상대마다 방어 형태가 다르고, 같은 스킬 값이 상대에 따라 다른 결과를 내며,
       그 차이가 계산 내역으로 설명되어야 한다. 그리고 어느 한쪽이 완전 면역이 아니어야 한다.
     implemented: PRESENT
-    # C012 — 공격 형태 둘·방어 형태 둘이 존재하고 타입 대응이 계산의 입력을 고른다.
     requires:
       goals: []
       capabilities: [MC-ATTACK-ARMOR-MATCHUP, MC-COMBAT-STRIKE]
@@ -123,8 +120,6 @@ nodes:
       설명되며, 두꺼운 상대일수록 그 몫이 커져야 한다. 관통이 아무리 커도 방어가
       완전히 사라지지는 않아야 한다.
     implemented: PRESENT
-    # C013 — 마주한 방어만 결정적으로 깎이고, 마주하지 않은 방어에는 닿지 않으며,
-    # 두껍게 굳힌 상대일수록 걷어내는 양이 커지는 것이 실측되었다.
     requires:
       goals: []
       capabilities: [MC-PENETRATION, MC-ATTACK-ARMOR-MATCHUP, MC-DEFENSE-MITIGATION, MC-COMBAT-STRIKE]
@@ -142,9 +137,6 @@ nodes:
     constraints: [DC-COMBAT-PLAYER-CAUSALITY]
     constraint_evaluation:
       DC-COMBAT-PLAYER-CAUSALITY: SATISFIED    # 방어를 확률로 무시하는 것이 아니라 결정적으로 깎는다 (R1 §6 · §14 Penetration)
-                                               # C013 실측 — changes 두 문장이 세계에서 성립한다 (resistance 300 → 187.5 · 피해 7 → 9)
-    # C013-penetration-devalues-the-wall 이 R1 §14 Penetration 층으로 닫았다 — 요구 4종 모두 IMPLEMENTED.
-    # 다만 경로가 아직 좁다: 플레이어가 관통을 **얻는** 선택이 세계에 없다 (종류가 정한 값과 디버그뿐).
 
   - id: MP-BREAK-THE-GUARD
     type: possibility
@@ -162,9 +154,6 @@ nodes:
       상대의 방어가 성립하지 않게 되는 구간이 존재하고, 그 구간이 플레이어의 행동으로
       만들어져야 한다. 그리고 무엇 때문에 무너졌는지가 관찰 가능해야 한다.
     implemented: PARTIAL
-    # 방어가 무너지는 상태 자체는 세계에 있다 — 막는 데 드는 기력이 마르면 방어가
-    # 풀리고 잠시 다시 세우지 못하며 그 타격은 그대로 들어간다 (C011). 그러나 그것은
-    # 상대가 자원을 다 쓴 결과일 뿐, 무너뜨리기 위한 **행동**이 없다. 근거는 overlay.md.
     requires:
       goals: []
       capabilities: [MC-BREAK, MC-COMBAT-STRIKE, MC-CP-ECONOMY]
@@ -200,8 +189,6 @@ nodes:
       막기가 성립하는 좁은 시점이 따로 있고, 그 시점에 맞추면 피해를 치르지 않으며
       상대가 잠시 취약해져야 한다. 그리고 그 시점이 확률이 아니라 관계로 판정되어야 한다.
     implemented: ABSENT
-    # 막기는 있으나 시점 판정이 없다 — 켜 두는 자세이고 결과는 "막힘 또는 무너짐" 둘뿐이다.
-    # 상대를 취약하게 만드는 노출 상태도 없다.
     requires:
       goals: []
       capabilities: [MC-GUARD, MC-PERFECT-GUARD, MC-COUNTER, MC-CP-ECONOMY]
@@ -237,7 +224,6 @@ nodes:
       상대가 공격에 힘을 몰면 방어 쪽이 실제로 얇아지고, 그 상태가 관찰 가능하며,
       그 구간에 넣은 공격이 다른 때보다 잘 들어가야 한다.
     implemented: ABSENT
-    # 공격/방어에 힘을 배분하는 상태 자체가 없다 — 몰 곳이 없으니 열릴 것도 없다.
     requires:
       goals: []
       capabilities: [MC-COMBAT-FLOW, MC-COMBAT-STRIKE, MC-COMBAT-CAUSE-READING]
@@ -272,9 +258,6 @@ nodes:
       상대의 행동에 시작과 완성 사이의 진행 구간이 있고, 그 구간에 개입하면 행동이
       완성되지 못해야 한다. 그리고 무엇이 끊겼는지가 관찰 가능해야 한다.
     implemented: PARTIAL
-    # 타격을 받으면 하던 행동이 끊기고 피격 동작으로 대체되는 규칙이 있다 —
-    # 즉 끊기는 일 자체는 세계에서 일어난다. 그러나 그것은 아무 타격에나 따라오는
-    # 부수 효과이고, 끊는 것을 **노리는** 수단과 그 판단이 없다. 근거는 overlay.md.
     requires:
       goals: []
       capabilities: [MC-INTERRUPT]
@@ -309,9 +292,6 @@ nodes:
       위치가 결과를 실제로 가르고(어디에 서 있는지가 판정을 바꾸고), 상대의 위치를
       내 행동으로 바꿀 수 있으며, 상대가 쓸 수 있는 공간을 좁히는 수단이 있어야 한다.
     implemented: PARTIAL
-    # 위치는 이미 결과를 가른다 — 휘두르는 궤적이 훑는 자리, 막기가 성립하는 정면
-    # 범위, 타격이 밀어내는 힘이 모두 위치로 판정된다. 그러나 상대를 원하는 자리로
-    # **몰아넣는** 수단과 공간을 좁히는 수단이 없다. 근거는 overlay.md.
     requires:
       goals: []
       capabilities: [MC-FORCE-MOVEMENT, MC-CONTROL-SPACE, MC-REPOSITION]
@@ -346,7 +326,6 @@ nodes:
       스스로 피해를 주는 환경 요소가 존재하고, 그것이 플레이어와 상대 모두에게 같은
       규칙으로 작용하며, 누가 그것을 더 잘 쓰는가가 승패를 가를 수 있어야 한다.
     implemented: ABSENT
-    # 환경이 무언가에 해를 입히는 일이 세계에 없다 — 피해의 출처는 타격 하나뿐이다.
     requires:
       goals: []
       capabilities: [MC-READ-ENVIRONMENT, MC-USE-HAZARD]
@@ -383,10 +362,6 @@ nodes:
       그 타격의 계산 내역에 증폭 여부와 배율이 찍혀야 한다. 그리고 증폭 관련 성질을
       올리면 빈도와 크기가 달라지는 것이 보여야 한다.
     implemented: PARTIAL
-    # C015 — 요구 Capability 3종이 전부 IMPLEMENTED 다. 같은 조건 반복에서 이따금
-    # 증폭이 터지고, 그 경위(가능성·발생·배율·증폭 전 값)가 전부 관찰에 실린다.
-    # 남은 것은 requires.resource 하나다 — Critical 성질을 올릴 성장·장비가 세계에 없어
-    # 지금 "기대값을 준비로 올린다" 는 이 갈래의 절반이 서지 않았다 (C015 08).
     requires:
       goals: []
       capabilities: [MC-CRITICAL-STRIKE, MC-COMBAT-STRIKE, MC-ATTACK-POWER]
@@ -421,7 +396,6 @@ nodes:
       플레이어가 스스로 제약을 선언할 수 있고, 그 제약이 실제로 자기 선택지를 좁히며,
       대가로 얻는 결과가 제약의 무게에 비례해야 한다. 그리고 실패의 대가가 즉시 치러져야 한다.
     implemented: ABSENT
-    # 제약을 거는 개념도, 조건이 쌓이는 개념도 세계에 없다.
     requires:
       goals: []
       capabilities: [MC-VOW, MC-COMBAT-FLOW, MC-CP-ECONOMY, MC-CONDITION-STACKING]
@@ -463,8 +437,6 @@ nodes:
       피해를 줄이는 행동이 있고 그것이 자원을 쓰며, 자원이 마르면 그 방어가 무너져야 한다.
       그리고 그 자원이 공격에 쓰는 것과 같은 예산이어야 한다.
     implemented: PRESENT
-    # C011 — 막기가 행동으로 존재하고 정면 판정이 방향을 가르며, 막힌 타격이 줄고
-    # 기력을 치르며, 기력이 마르면 방어가 무너지는 것이 실측되었다.
     requires:
       goals: []
       capabilities: [MC-GUARD, MC-DEFENSE-MITIGATION, MC-CP-ECONOMY, MC-BODY-FACING]
@@ -499,8 +471,6 @@ nodes:
       공격이 특정 공간에만 닿고, 그 공간에서 몸을 빼면 실제로 맞지 않아야 한다.
       빗맞음이 확률 판정으로 결정되면 이 갈래가 아니다.
     implemented: ABSENT
-    # 회피 행동이 없다. (다만 공격이 공간 판정이라는 전제 자체는 이미 세계에 있다 —
-    # 휘두르는 궤적이 훑은 자리에 있는 몸만 맞는다. 얹을 바닥은 서 있는 셈이다.)
     requires:
       goals: []
       capabilities: [MC-EVADE, MC-CP-ECONOMY]
@@ -537,8 +507,6 @@ nodes:
       방어 쪽으로 기울인 자세가 상태로 존재하고, 유지하는 동안 자원이 지속적으로 들며,
       그 대가로 공격이 실제로 약해져야 한다.
     implemented: ABSENT
-    # 힘을 배분하는 개념이 없어 기울일 곳이 없다. (막기 중에는 걷기만 되고 스킬을 쓸 수
-    # 없다는 제약이 있어 "자세" 의 씨앗은 있으나, 방어력이 오르지도 공격이 약해지지도 않는다.)
     requires:
       goals: []
       capabilities: [MC-FORTIFY, MC-DEFENSE-MITIGATION, MC-COMBAT-FLOW, MC-CP-ECONOMY]
@@ -592,22 +560,14 @@ nodes:
       요구하는지 알아낼 수 있으며, 알아낸 대응을 익혀 다음에는 감당할 수 있어야 한다.
       알아내는 과정 없이 처음부터 요구 목록이 주어지면 이 갈래가 아니다.
     implemented: PARTIAL
-    # C014·C016 — 첫 칸(관찰)이 섰다. 모르는 상태가 세계에 생겼고(살펴보기 전),
-    # 앎에 이르는 길이 둘이 되었으며 앎이 자리 단위로 열린다.
-    # 남은 것은 둘째 칸(MC-PREDICT)과 층 자체(MW-DEPTH-GRADIENT)다.
     requires:
       goals: []
       capabilities: [MC-OBSERVE, MC-PREDICT, MC-DESIGNATE-TARGET, MC-WATCH-TARGET,
                      MC-RELATION-STANCE]
       # 무엇을 익힐지는 층마다 다르지만(각 층의 demands), 익히는 행위 자체가 요구하는
       # 것은 보는 것과 읽는 것이다 — BW §32 의 첫 두 칸.
-      # CHANGED (TG 주입) — 뒤의 둘이 더해졌다. 살펴봄은 무엇을 살펴볼지를 정하는
-      # 것이 행동의 전부이고(TG §3.3), 겪어서 알아내려면 고른 그 상대의 상태와
-      # 지금 되는 것·안 되는 사유를 계속 읽어야 한다(TG §3.2 · §4.2). 문서가 이
-      # 갈래의 이름을 대지는 않았다 — 이 배선은 2026-08-20 Human 이 확정했다 (HISTORY Q27(a)):
-      # 지목은 이 갈래의 조건이고, 전투는 지목 없이도 성립한다.
-      # MC-RELATION-STANCE 도 같은 자리다 (HISTORY Q24(b)) — 그 층을 겪어 감당하려면
-      # 무엇이 나를 사냥감으로 대하는지를 구분할 수 있어야 한다 (BW §21).
+      # 지목·주시·태도 셋은 그 조건이다 (TG §3.2 · §3.3 · §4.2 · BW §21 — 배선 확정은
+      # HISTORY Q27(a) · Q24(b)). 지목은 이 갈래의 조건이고, 전투는 지목 없이도 성립한다.
       knowledge: []
       world_state: [MW-DEPTH-GRADIENT]
       relationship: []
@@ -647,8 +607,6 @@ nodes:
       어떤 지역에서 얻은 것이 다른 지역을 감당할 수 있게 만들어야 한다. 그 자원의
       효과가 그것이 견디고 살아남은 것과 이어져야 하고, 단순한 수치 상승이면 안 된다.
     implemented: ABSENT
-    # 자원은 광석 하나뿐이고 아무 데도 쓰이지 않는다 — 제작도 장착도 사용도 없다.
-    # 설계상 획득 경로는 Q22 로 섰다 (growth/growth-graph.md 광물 표).
     requires:
       goals: []
       capabilities: [MC-RESTORE-BIOLOGICAL-STATE, MC-CUT-ABNORMAL-STRUCTURE]
@@ -691,7 +649,6 @@ nodes:
       준비하지 않은 쪽이 같은 층에서 다른 결과를 내야 한다. 그리고 그 준비의
       원천이 다른 주체여야 한다 — 혼자 다 되면 이 갈래가 아니다.
     implemented: ABSENT
-    # 문명권이라는 장소도, 다른 주체와 무언가를 주고받는 경로도 없다.
     requires:
       goals: []
       capabilities: []
@@ -737,8 +694,6 @@ nodes:
       생물을 쓰러뜨릴 수 있고, 쓰러진 생물의 몸에서 그 생물이 지녔던 것을 얻을 수
       있어야 한다. 쓰러뜨려도 아무것도 남지 않으면 이 경로는 열린 것이 아니다.
     implemented: PARTIAL
-    # 쓰러뜨리는 것까지는 된다. 그러나 쓰러진 몸에서 아무것도 나오지 않고,
-    # 그 몸은 치워지지도 않은 채 세계에 남아 장애물이 된다. 근거는 overlay.md.
     requires:
       goals: [MG-OVERCOME-SUPERIOR-OPPONENT]
       capabilities: []
@@ -803,7 +758,6 @@ nodes:
       플레이어 외의 주체가 물건을 가지고 있고, 대가를 주고받아 소유가 옮겨질 수
       있어야 한다. 그리고 그 상대와의 관계가 거래 조건에 영향을 주어야 한다.
     implemented: ABSENT
-    # 주체 사이에 물건이 옮겨 가는 경로가 세계에 없다.
     requires:
       goals: []
       capabilities: []
@@ -835,7 +789,6 @@ nodes:
       플레이어의 개입 없이도 세계에서 생물이 죽고 그 흔적이 남으며, 그것이 어디에
       생기는지가 세계의 규칙과 이어져 있어 알 수 있어야 한다.
     implemented: ABSENT
-    # 플레이어 밖의 원인으로 무언가가 죽는 일이 없다 — 피해의 출처는 타격뿐이다.
     requires:
       goals: []
       capabilities: []

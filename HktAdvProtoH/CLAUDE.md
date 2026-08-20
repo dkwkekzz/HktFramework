@@ -106,6 +106,9 @@ Master Stage   advprotoh-master 스킬
 20. 살아 있는 문서(README·overlay·frontier·open-questions·graph 본문)에는 **현재 상태만**
     둔다. 완료·승인·삭제의 경위와 날짜를 본문에 남기지 않는다 — 닫힌 것은 그 자리에서
     지우고 master/HISTORY.md 로만 옮긴다. 상태 필드(status: APPROVED 등)가 곧 기록이다.
+21. Capability 는 `part_of` 로 자신이 속한 전체(시스템·자리)를 밝힌다 — 단일 출처는
+    `master/graph/systems.yaml`, 관찰은 GRAPH.md 의 척추 절. 근거 문서가 이름만 댄
+    조각은 잠정(grounded: false)이며 Frontier 후보의 Target 이 되지 않는다.
 ```
 
 ## Kind 정적 데이터

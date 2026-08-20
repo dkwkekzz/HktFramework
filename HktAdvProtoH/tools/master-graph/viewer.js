@@ -236,7 +236,10 @@
       n.type === 'capability' ? OVERLAY_TONE[n.overlay ?? 'MISSING'] : TONE[n.type] ?? ['var(--panel-2)', 'var(--line)'];
     const g = el('g', { class: 'node', transform: `translate(${p.x},${p.y})` }, gNodes);
     g.dataset.id = n.id;
-    el('rect', { width: p.w, height: p.h, fill, stroke }, g);
+    const rectAttrs = { width: p.w, height: p.h, fill, stroke };
+    // 잠정 조각(grounded: false) — 근거 문서가 이름만 댄 노드는 점선 테두리다
+    if (n.partOf && !n.partOf.grounded) rectAttrs['stroke-dasharray'] = '5 4';
+    el('rect', rectAttrs, g);
 
     const label = el('text', { x: 9, y: n.type === 'possibility' ? 15 : 18 }, g);
     label.textContent = clip(short(n.id), 27);
@@ -280,11 +283,17 @@
   const state = {
     selected: null,
     lens: null, // DC-* — Constraint 렌즈
+    systemLens: null, // MS-* — 척추(시스템) 렌즈
     query: '',
     kinds: new Set(Object.keys(EDGE_STYLE)),
     onlyMissing: false,
     onlyHoles: false,
   };
+
+  const systems = G.systems ?? [];
+  const systemById = new Map(systems.map((s) => [s.id, s]));
+  const membershipsOf = (n) => (n.partOf && n.partOf.memberships) || [];
+  const inSystem = (n, sysId) => membershipsOf(n).some((m) => m.system === sysId);
 
   const neighborsOf = (id) => {
     const up = new Set();
@@ -332,6 +341,7 @@
     }
     if (state.onlyHoles) restrict((n) => n.holes.length > 0);
     if (state.lens) restrict((n) => constraintNodes.get(state.lens)?.has(n.id));
+    if (state.systemLens) restrict((n) => inSystem(n, state.systemLens));
     if (state.query) {
       const q = state.query.toLowerCase();
       restrict((n) => n.id.toLowerCase().includes(q) || (n.text ?? '').toLowerCase().includes(q));
@@ -355,7 +365,8 @@
       p.classList.toggle('dim', !kindOn || !inSet);
       p.classList.toggle('hot', inSet && keep !== null && kindOn);
     }
-    document.querySelectorAll('button.lens').forEach((b) => b.classList.toggle('on', b.dataset.dc === state.lens));
+    document.querySelectorAll('button.lens[data-dc]').forEach((b) => b.classList.toggle('on', b.dataset.dc === state.lens));
+    document.querySelectorAll('button.lens[data-sys]').forEach((b) => b.classList.toggle('on', b.dataset.sys === state.systemLens));
   }
 
   // ── 상세 패널 ────────────────────────────────────────────────────
@@ -422,13 +433,61 @@
     bindRefs();
   }
 
+  function showSystem(sysId) {
+    const s = systemById.get(sysId);
+    if (!s) return;
+    const members = G.nodes.filter((n) => inSystem(n, sysId));
+    const segRows = (s.segments ?? [])
+      .slice()
+      .reverse()
+      .map((seg) => {
+        const inSeg = members.filter((n) => membershipsOf(n).some((m) => m.system === sysId && m.segment === seg.id));
+        return `<div class="field"><div class="k">${esc(seg.name)}</div><div class="v">${
+          inSeg.map((n) => refHtml(n.id)).join(' ') || '<span class="chip">비어 있음</span>'
+        }</div></div>`;
+      })
+      .join('');
+    const noSeg = members.filter((n) => membershipsOf(n).some((m) => m.system === sysId && !m.segment));
+    detail.innerHTML =
+      `<h3>${esc(s.name)}</h3><div class="kind">SYSTEM · ${esc(s.id)} · ${esc(s.status)}</div>` +
+      `<p class="body">${esc(s.semantic || '')}</p>` +
+      `<div class="field"><div class="k">근거</div><div class="v">${esc(s.source)}</div></div>` +
+      segRows +
+      (noSeg.length
+        ? `<div class="field"><div class="k">${(s.segments ?? []).length ? '공통 바닥 — 층에 속하지 않는다' : '조각'}</div><div class="v">${noSeg
+            .map((n) => refHtml(n.id))
+            .join(' ')}</div></div>`
+        : '');
+    bindRefs();
+  }
+
   function showNode(id) {
     const n = byId.get(id);
     if (!n) return;
     const r = readiness[id];
     const parts = [];
     parts.push(`<h3>${esc(n.id)}</h3><div class="kind">${esc(n.type)}${n.overlay ? ` · ${esc(n.overlay)}` : ''}</div>`);
+    if (n.partOf && !n.partOf.grounded) {
+      parts.push('<p class="body"><span class="chip hole">잠정 — 근거 문서가 이름만 댔다. 그 전체의 설계 문서가 서면 semantic 을 개정한다</span></p>');
+    }
     if (n.text) parts.push(`<p class="body">${esc(n.text)}</p>`);
+
+    if (membershipsOf(n).length) {
+      parts.push(
+        `<div class="field"><div class="k">척추 — 어느 시스템의 조각인가</div><div class="v"><ul>` +
+          membershipsOf(n)
+            .map((m) => {
+              const s = systemById.get(m.system);
+              const seg = s && m.segment ? (s.segments ?? []).find((g) => g.id === m.segment) : null;
+              const name = s ? s.name : m.system;
+              return `<li><button class="ref" data-sysgoto="${esc(m.system)}">${esc(name)}</button>${
+                seg ? ` · ${esc(seg.name)}` : ''
+              }${m.role ? ` — ${esc(m.role)}` : ''}${m.source ? ` <span class="om">(${esc(m.source)})</span>` : ''}</li>`;
+            })
+            .join('') +
+          `</ul></div></div>`,
+      );
+    }
 
     if (r) {
       parts.push(
@@ -485,7 +544,7 @@
     const textField = TEXT_FIELD[n.type];
     for (const [k, v] of Object.entries(n.raw)) {
       if (SKIP_FIELDS.has(k) || k === textField) continue;
-      if (k === 'constraints' || k === 'constraint_evaluation' || k === 'overlay') continue;
+      if (k === 'constraints' || k === 'constraint_evaluation' || k === 'overlay' || k === 'part_of') continue;
       parts.push(`<div class="field"><div class="k">${esc(k)}</div><div class="v">${valueHtml(v)}</div></div>`);
     }
 
@@ -502,6 +561,13 @@
       b.addEventListener('click', () => {
         state.lens = state.lens === b.dataset.dc ? null : b.dataset.dc;
         showConstraint(b.dataset.dc);
+        apply();
+      });
+    });
+    detail.querySelectorAll('[data-sysgoto]').forEach((b) => {
+      b.addEventListener('click', () => {
+        state.systemLens = b.dataset.sysgoto;
+        showSystem(b.dataset.sysgoto);
         apply();
       });
     });
@@ -633,6 +699,24 @@
       apply();
     });
   });
+
+  const systemsEl = document.getElementById('systems');
+  if (systemsEl) {
+    systemsEl.innerHTML = systems
+      .map((s) => {
+        const count = G.nodes.filter((n) => inSystem(n, s.id)).length;
+        const tag = s.status !== 'DEFINED' ? ` · ${s.status}` : '';
+        return `<button class="lens" data-sys="${s.id}">${esc(s.name)}${tag}<span class="n">${count}</span></button>`;
+      })
+      .join('');
+    systemsEl.querySelectorAll('.lens').forEach((b) => {
+      b.addEventListener('click', () => {
+        state.systemLens = state.systemLens === b.dataset.sys ? null : b.dataset.sys;
+        if (state.systemLens) showSystem(state.systemLens);
+        apply();
+      });
+    });
+  }
 
   const lenses = document.getElementById('lenses');
   lenses.innerHTML = G.constraints

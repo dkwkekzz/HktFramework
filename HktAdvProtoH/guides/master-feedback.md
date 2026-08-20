@@ -36,7 +36,8 @@ MC-PERFECT-GUARD   MISSING → IMPLEMENTED   근거 C010 08-verification
 5. **Master Gap 처리** — Cycle 이 `MASTER GAP` 을 보고했다면 Graph 를 임의로 고치지 않고
    Conflict · Affected Nodes · Trade-off · Expected Consequences 로 Human 에게 제시한다.
 6. Cycle 이 Graph 에 없던 Capability 를 만들었다면 `capabilities.yaml` 에 추가하고,
-   그것을 요구하는 Possibility 와 연결한다. 연결할 Possibility 가 없으면 그 사실을 남긴다 —
+   그것을 요구하는 Possibility 와 연결한다. `part_of`(grounded + memberships —
+   `graph/systems.yaml` 참조)도 함께 세운다. 연결할 Possibility 가 없으면 그 사실을 남긴다 —
    **어떤 Possibility 도 요구하지 않는 Capability 는 설계 신호다.**
 
 ## Output
@@ -59,6 +60,8 @@ MC-PERFECT-GUARD   MISSING → IMPLEMENTED   근거 C010 08-verification
 
 ## Must Not
 
+- graph 노드에 근거·정정 경위·날짜 주석을 쌓지 않는다 — 노드에는 **값만** 둔다.
+  근거는 `overlay.md`, 경위는 `HISTORY.md` 소유다 (SCHEMA · CLAUDE.md 원칙 20).
 - Cycle Artifact 를 수정하지 않는다 — History 다.
 - Constraint 를 자동 승격하지 않는다.
 - Constraint 충돌·Master Gap 을 임의로 해결하지 않는다.

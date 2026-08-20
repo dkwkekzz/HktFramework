@@ -57,6 +57,13 @@ describe('loadMasterGraph', () => {
     }
   });
 
+  it('part_of 가 레지스트리에 있는 시스템·자리만 가리킨다', () => {
+    const bad = graph.problems.filter(
+      (p) => p.code === 'UNKNOWN_SYSTEM' || p.code === 'UNKNOWN_SEGMENT' || p.code === 'MISSING_PART_OF',
+    );
+    expect(bad, bad.map((p) => p.message).join('\n')).toEqual([]);
+  });
+
   it('빈 인과 필드를 구멍으로 모은다', () => {
     const ids = new Set(graph.holes.map((h) => h.nodeId));
     for (const id of ids) expect(graph.nodes.has(id)).toBe(true);
@@ -73,9 +80,18 @@ describe('loadMasterGraph', () => {
 describe('renderMermaid', () => {
   const md = renderMermaid(graph);
 
-  it('mermaid 블록 두 개를 낸다', () => {
-    expect(md.match(/```mermaid/g)).toHaveLength(2);
-    expect(md.match(/```/g)).toHaveLength(4);
+  it('mermaid 블록 수 = 뼈대 2 + 조각을 가진 시스템 수', () => {
+    const withMembers = [...graph.systems.keys()].filter((sysId) =>
+      [...graph.nodes.values()].some((n) => n.partOf?.memberships.some((m) => m.system === sysId)),
+    );
+    expect(md.match(/```mermaid/g)).toHaveLength(2 + withMembers.length);
+    expect(md.match(/```/g)).toHaveLength((2 + withMembers.length) * 2);
+  });
+
+  it('척추 섹션이 레지스트리의 시스템을 전부 싣는다', () => {
+    if (graph.systems.size === 0) return;
+    expect(md).toContain('## 척추');
+    for (const s of graph.systems.values()) expect(md).toContain(`### ${s.name} — `);
   });
 
   it('선언한 노드만 관계에 쓴다', () => {
