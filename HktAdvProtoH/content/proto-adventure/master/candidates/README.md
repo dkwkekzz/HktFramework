@@ -2,7 +2,7 @@
 
 파일 하나 = 후보 하나. 이름은 `CC-<NAME>.md`. 형식은 [../SCHEMA.md](../SCHEMA.md).
 
-현재: **PENDING 4종**
+현재: **PENDING 7종**
 
 | 후보 | 출처 | 관찰 | 상태 |
 |---|---|---|---|
@@ -10,6 +10,9 @@
 | CC-THE-WORLD-NAMES-WHAT-IT-READ | C012 | 1회 (C012 · C010 은 전조) | PENDING |
 | CC-THE-WORLD-OWNS-THE-RELATION | C013 | 1회 (C013 — 관계 형태는 처음) | PENDING |
 | CC-THE-WORLD-NAMES-WHAT-IT-WITHHELD | C014 | 1회 (C014 · C011 은 전조) | PENDING |
+| CC-WORLD-OWNS-THE-CHANCE | C015 | 1회 (C015 — 세계의 첫 우연) | PENDING |
+| CC-A-NEW-PATH-IS-NOT-A-GATE | C016 | 2회 (C014 · C016) | PENDING |
+| CC-CONDITIONS-ARE-NOT-RECORDED | C016 | 2회 (C015 · C016) | PENDING |
 
 **PENDING 넷 중 셋이 같은 뿌리다** — NAMES-WHAT-IT-READ(무엇을 읽었는가) ·
 OWNS-THE-RELATION(두 존재 사이의 값) · NAMES-WHAT-IT-WITHHELD(무엇을 가렸는가)는

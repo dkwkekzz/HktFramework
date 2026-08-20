@@ -794,3 +794,84 @@ ONE-LAYER-AT-A-TIME 신설, 이연 층 근거의 3종은 DRAFT 보류.
     배운 것: 기반 기획 문서가 구현 배치까지 적어 오면, 그중 기반에 닿는 부분은
     Master 가 옮길 자리가 없다. 주입은 그것을 노드로 만들지 말고 질문으로 노출해야 한다.
 
+## Frontier 선택 기록 — FR-CRITICAL-AMPLIFIES-THE-BLOW → C015 (2026-08-20 Feedback)
+
+    닫은 Cycle    C015-critical-amplifies-the-blow
+    Overlay       MC-CRITICAL-STRIKE  MISSING → IMPLEMENTED
+                  근거는 C015 08-verification 의 실측 — 같은 조건 다섯 대에서
+                  [20, 20, 40, 40, 20] 이 나오고, 터진 여부·가능성·배율·커지기 전 값
+                  넷이 모든 타격에 실려 "가능성 0 인 몸" 과 "운이 없었던 몸" 이 갈린다.
+    Possibility   MP-BET-ON-THE-CRITICAL-BLOW 가 닫혔다 — 지금 플레이 가능하다.
+                  다만 좁다: 터질 확률과 배율을 플레이어가 올릴 경로가 없다
+                  (MP-OUTGROW-THE-OPPONENT 와 같은 결손이며 후보 4 가 그것을 다룬다).
+
+    Constraint Evaluation (C015 보고 그대로 접수)
+        DC-COMBAT-PLAYER-CAUSALITY(REVISED) SATISFIED — 예외가 정확히 한 자리다.
+            움직임·막기·살펴봄·속성 변경·시간 진행 어느 것도 우연의 원천을 소비하지 않고,
+            확률의 양 끝에서는 커서조차 흐르지 않아 그 구간이 완전한 결정론으로 남는다.
+        DC-COMBAT-ONE-FORMULA SATISFIED — 피해 계산 코드가 한 줄도 바뀌지 않았다.
+        DC-COMBAT-ONE-LAYER-AT-A-TIME SATISFIED — 가능성 0 에서 세계가 C013 과 같다.
+        DC-WORLD-OWNS-THE-SURFACE-LIST SATISFIED — 세계가 가리는 값이 늘었는데
+            View 는 가려짐 코드를 한 줄도 고치지 않았다 (이 DC 의 두 번째 측정 증거).
+
+    배운 것: 우연을 들이는 방식이 이 Cycle 에서 네 조각의 형태로 굳었다.
+    그 형태를 CC-WORLD-OWNS-THE-CHANCE 로 접수했다 (승격 판단은 Human).
+
+    남은 표시: C015 자체는 아직 `IN PROGRESS` 다 — Human Play 확인 대기.
+    Overlay 를 먼저 올린 것은 C013 선례(Q20)와 같다: 실측 기록이 있고, 올리지 않으면
+    Frontier 가 이미 선 것을 결손으로 표시해 다음 판단을 망가뜨린다.
+
+## Frontier 선택 기록 — FR-INSIGHT-SEES-BEFORE-LOOKING → C016 (2026-08-20 Feedback)
+
+    닫은 Cycle    C016-insight-sees-before-looking (2026-08-20 Human Play 확인 · COMPLETE)
+    Overlay       MC-OBSERVE  PARTIAL → PARTIAL (결손 둘 중 하나가 닫혔다)
+                  앎에 이르는 길이 둘이 되었고(살펴봄 · 기른 통찰) 앎의 단위가 존재에서
+                  자리로 넓어졌다. 남은 결손은 **행동·습성** 하나뿐이며 그것이 닫히면
+                  MC-OBSERVE 는 IMPLEMENTED 다 (후보 3 = MC-PREDICT 가 그 자리다).
+
+    Constraint Evaluation (C016 보고 그대로 접수)
+        DC-WORLD-PROGRESSION-IS-REACH SATISFIED — `progression_expands_reachable_world`
+            를 세계에서 처음 만족시켰다. 능력이 오를 때 커지는 것이 수치가 아니라
+            아는 상대의 범위다. 다만 `resource_can_open_capability_route` 는 아직이다 —
+            통찰을 여는 것이 자원이 아니라 디버그 명령이다. 이 Cycle 이 만든 것은
+            **형태의 선례**(능력치가 Capability 의 문을 연다)이고, 그 문을 자원에 잇는
+            것은 후보 4 다.
+        DC-COMBAT-MATCHUP-SOFT SATISFIED — 통찰 0 으로 살펴본 결과가 통찰 90 과 값까지
+            같다. 통찰은 유일한 문이 아니고 계산에 한 글자도 더하지 않는다.
+        DC-WORLD-OWNS-THE-SURFACE-LIST SATISFIED — View 에 문턱 수가 한 번도 나오지 않는다.
+        DC-WORLD-PLAYER-UNFIXED-PATH SATISFIED — 통찰 0 으로도 세 스킬과 막기가 가용하다.
+
+    MC-INSIGHT (C016 이 보고한 신규 노드 후보) — **세우지 않았다.**
+        통찰은 MC-OBSERVE 의 두 번째 경로이고, 그것만을 따로 요구하는 방법(Possibility)이
+        없다. 같은 의미를 경로별로 복제하지 않는다 (DC-GROWTH-NO-CAPABILITY-DUPLICATION).
+        통찰을 **얻는** 경로가 실제로 필요해지면 그것은 Capability 가 아니라 growth/ 가
+        받는다 — 후보 4 가 그 틀을 만든다.
+
+    Master Gap (C016 보고) — frontier.md 의 `SELECTED` 가 "다음 단계 cycles/C015-<name>"
+        이라고 적고 있었으나 그 Frontier 를 받은 것은 C016 이었다. 이번 Feedback 이
+        그 항목을 지우면서 해소되었다. Cycle 은 master/ 를 편집하지 않으므로 보고가 맞다.
+
+    배운 것 둘을 Candidate 로 접수했다 (승격 판단은 Human):
+        CC-A-NEW-PATH-IS-NOT-A-GATE      새 경로를 열 때 그것이 관문이 아님을 함께 세운다
+                                         (C014 · C016 두 번 반복)
+        CC-CONDITIONS-ARE-NOT-RECORDED   지금의 조건으로 여는 것은 적어 두지 않는다 —
+                                         상태를 늘리지 않으면 규칙이 늘지 않는다
+                                         (C015 · C016)
+
+## Frontier 재정리 — 후보 5종 (2026-08-20 NEXT)
+
+    두 후보가 소진되어 지워졌고(위 두 기록), 지목 주입과 Q24 결정으로 둘이 새로 섰다.
+    이번 정리의 기준은 **사람이 읽고 판단할 수 있는 단위**다 — 후보마다 "이번 Cycle 이
+    끝나면 플레이어가 하는 것" 과 "무엇을 보면 되는가" 를 한 줄로 세우고, 그 표를
+    파일 맨 위에 두었다. 완료 판정이 곧 그 관찰이다.
+
+    1  고른 상대에게 한다      MC-DESIGNATE-TARGET(MISSING) + MC-WATCH-TARGET(PARTIAL)
+    2  무엇이 나를 사냥한다    MC-RELATION-STANCE(MISSING) — Q24(b) Human 지시
+    3  다음 수를 읽는다        MC-PREDICT(MISSING)
+    4  얻은 것이 나를 바꾼다   MC-ATTACK-POWER(PARTIAL) 외 둘이 같은 결손
+    5  끊어서 막는다           MC-INTERRUPT(PARTIAL)
+
+    후보로 올리지 않은 결손 하나를 파일에 남겼다 — 기력이 스스로 돌아오지 않는다
+    (MC-CP-ECONOMY). 어느 상위 갈래를 전진시키는지 근거 문서가 말하지 않아 7 조건 2 를
+    세울 수 없다. 지어내지 않고 Human 판단으로 남긴다.
+

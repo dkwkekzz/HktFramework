@@ -261,8 +261,11 @@ nodes:
     constraint_evaluation:
       DC-COMBAT-PLAYER-CAUSALITY: SATISFIED    # REVISED 가 명시한 단일 예외 — 관찰 요구는 그대로 진다
       DC-COMBAT-ONE-FORMULA: SATISFIED         # 새 공식이 아니라 Final Damage 증폭이다
-    overlay: MISSING
-    # 세계에 난수원이 하나도 없다. R1 §14 C011 층.
+    overlay: IMPLEMENTED
+    # C015 — 같은 조건 다섯 대에서 [20, 20, 40, 40, 20] 이 실측되고, 터진 여부·가능성·
+    # 배율·커지기 전 값 넷이 모든 타격에 실린다. 세계의 흔들림은 이 한 자리에만 있다.
+    # 남은 것은 이 성질을 **플레이로 올리는 경로**다 — 지금은 종류 초기값과 디버그뿐이며,
+    # 그것은 이 노드가 아니라 MP-BET-ON-THE-CRITICAL-BLOW 의 requires.resource 결손이다.
 
   - id: MC-PERFECT-GUARD
     type: capability
@@ -482,11 +485,16 @@ nodes:
       DC-COMBAT-MATCHUP-SOFT: SATISFIED          # weakness_is_observable 이 "관찰 행동을 하면 알 수 있다" 로 유지된다. 관찰은 계산에 한 글자도 더하지 않는다
       DC-WORLD-PLAYER-UNFIXED-PATH: SATISFIED    # 살펴봄이 다른 행동의 조건이 아니다 — 모르는 채로도 싸운다
     overlay: PARTIAL
-    # C014 로 **상태**(겨루는 힘)를 아는 일이 섰다. semantic 이 말한 셋 중 둘이 남는다:
+    # C014 로 **상태**(겨루는 힘)를 아는 일이 섰고, C016 이 **경로** 결손을 닫았다 —
+    # 앎에 이르는 길이 둘(살펴봄 · 기른 통찰)이 되었고 앎의 단위가 존재에서 자리로 넓어졌다.
+    # 남은 결손은 하나뿐이다:
     #   행동·습성  자율 존재의 행동 패턴을 읽는 의미가 세계에 없다 (MC-PREDICT 와 같은 자리)
-    #   경로 하나  앎에 이르는 길이 살펴봄뿐이고, 앎이 존재 단위여서 부분 공개가 없다
-    # C014 08 은 IMPLEMENTED 로 보고하면서 "습성은 아직 없다" 를 함께 보고했다 —
-    # Feedback 이 그 주의를 적용해 PARTIAL 로 판정했다.
+    # 그 하나가 닫히면 이 노드는 IMPLEMENTED 다.
+    #
+    # C016 이 보고한 MC-INSIGHT(신규 후보)는 노드로 세우지 않았다 — 통찰은 이 노드의
+    # 두 번째 경로이고 그것만을 따로 요구하는 방법이 없다. 같은 의미를 경로별로
+    # 복제하지 않는다 (DC-GROWTH-NO-CAPABILITY-DUPLICATION). 통찰을 **얻는** 경로가
+    # 실제로 필요해지면 그것은 Capability 가 아니라 growth/ 가 받는다 (HISTORY 참조).
     # DC-WORLD-OWNS-THE-SURFACE-LIST 도 SATISFIED 이나 GLOBAL 이므로 Edge 를 더하지 않았다.
 
   - id: MC-PREDICT
