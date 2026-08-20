@@ -15,6 +15,7 @@
 import { describe, expect, it } from 'vitest';
 import type { GameViewSnapshot } from '../../protocol/gameview';
 import { resolvePresentation } from '../resolve';
+import { codeText } from '../code-text';
 import fixture from './fixtures/insight.fixture.json';
 
 const snapshot = fixture as unknown as GameViewSnapshot;
@@ -133,20 +134,15 @@ describe('몸 위 표시 — 일부만 아는 존재도 물음표가 남는다',
 });
 
 describe('interactions.observe — 아직 열 자리가 남으면 살펴볼 수 있다', () => {
-  it('일부만 열린 존재에는 살펴봄이 가용하다', () => {
-    const observe = plan().interactions.find(
-      (i) => i.id === 'observe' && i.targetEntityId === 'npc-2',
-    );
+  // C017 CHANGED — 살펴봄은 고른 것에 대해 하나만 온다. 이 fixture 는 일부만 열린
+  // 상대(npc-2)를 고른 화면이다. 어느 상대인지는 currentTarget 이 말한다.
+  const observeOne = () => plan().interactions.find((i) => i.id === 'observe');
 
-    expect(observe?.available).toBe(true);
+  it('일부만 열린 존재를 고른 화면에서는 살펴봄이 가용하다', () => {
+    expect(observeOne()?.available).toBe(true);
   });
 
-  it('더 열 자리가 없는 존재에는 사유가 이미 알고 있다로 나온다', () => {
-    const observe = plan().interactions.find(
-      (i) => i.id === 'observe' && i.targetEntityId === 'npc-1',
-    );
-
-    expect(observe?.available).toBe(false);
-    expect(observe?.unavailableText).toBe('이미 알고 있다');
+  it('사유 문구는 그대로다 — 더 열 자리가 없으면 "이미 알고 있다"', () => {
+    expect(codeText('already-known')).toBe('이미 알고 있다');
   });
 });

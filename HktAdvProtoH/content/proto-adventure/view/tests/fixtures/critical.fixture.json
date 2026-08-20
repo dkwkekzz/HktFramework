@@ -238,25 +238,35 @@
   ],
   "interactions": [
     {
-      "id": "observe",
-      "role": "observe-character",
+      "id": "select-target",
+      "role": "select-target",
       "targetEntityId": "npc-1",
-      "available": false,
-      "reason": "already-known"
+      "available": true
     },
     {
-      "id": "observe",
-      "role": "observe-character",
+      "id": "select-target",
+      "role": "select-target",
       "targetEntityId": "npc-2",
-      "available": false,
-      "reason": "already-known"
+      "available": true
     },
     {
-      "id": "observe",
-      "role": "observe-character",
+      "id": "select-target",
+      "role": "select-target",
       "targetEntityId": "player-1",
       "available": false,
       "reason": "target-is-self"
+    },
+    {
+      "id": "select-target",
+      "role": "select-target",
+      "targetEntityId": "deposit-1",
+      "available": true
+    },
+    {
+      "id": "observe",
+      "role": "observe-character",
+      "available": false,
+      "reason": "already-known"
     },
     {
       "id": "move",
@@ -330,9 +340,13 @@
     {
       "id": "mine",
       "role": "mine-deposit",
-      "targetEntityId": "deposit-1",
       "available": false,
-      "reason": "out-of-range"
+      "reason": "target-kind-mismatch"
+    },
+    {
+      "id": "clear-target",
+      "role": "clear-target",
+      "available": true
     }
   ],
   "hud": [
@@ -758,5 +772,8 @@
         }
       ]
     }
-  ]
+  ],
+  "currentTarget": {
+    "entityId": "npc-1"
+  }
 }

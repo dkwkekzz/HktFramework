@@ -6,7 +6,7 @@
 [PASS] GameView Specification    (currentTarget 하나 · 자리가 옮겨진다 · hud 무변경)
 [PASS] Human Semantic Review     (2026-08-20 APPROVED — 판단 3건 승인 · 선행 조건 없이 진행)
 [PASS] World Implementation      (world 393 tests · 상태 하나 · 새 계산 0 · engine 무편집)
-[    ] View Implementation
+[PASS] View Implementation       (전체 761 tests · 대상 자리가 한자리에서 갱신된다 · app 무편집)
 [    ] Verification
 
 STATUS  IN PROGRESS

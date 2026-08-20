@@ -24,10 +24,30 @@
         "x": 8,
         "z": -6
       },
-      "labelValue": 0
+      "labelValue": 0,
+      "kind": "stone"
     }
   ],
   "interactions": [
+    {
+      "id": "select-target",
+      "role": "select-target",
+      "targetEntityId": "player",
+      "available": false,
+      "reason": "target-is-self"
+    },
+    {
+      "id": "select-target",
+      "role": "select-target",
+      "targetEntityId": "deposit-1",
+      "available": true
+    },
+    {
+      "id": "observe",
+      "role": "observe-character",
+      "available": false,
+      "reason": "target-kind-mismatch"
+    },
     {
       "id": "move",
       "role": "move-to",
@@ -36,9 +56,13 @@
     {
       "id": "mine",
       "role": "mine-deposit",
-      "targetEntityId": "deposit-1",
       "available": false,
       "reason": "deposit-depleted"
+    },
+    {
+      "id": "clear-target",
+      "role": "clear-target",
+      "available": true
     }
   ],
   "hud": [
@@ -57,5 +81,8 @@
   "debug": {
     "open": false
   },
-  "commands": []
+  "commands": [],
+  "currentTarget": {
+    "entityId": "deposit-1"
+  }
 }
