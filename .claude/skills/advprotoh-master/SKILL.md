@@ -134,6 +134,12 @@ Constraint 에서 시스템/기능 목록을 도출하지 않는다.
    Constraint 는 옆에서 --constrains--> 로 제한할 뿐이다.
 보조 규칙(Knowledge/Belief·Conflict·Consequence·Reveal/Reframe)을 기계적으로 채우지 않는다.
 수치·공식·State 이름을 master/ 에 쓰지 않는다 — Cycle 의 03-world-semantic.md 소유다.
+part_of 없는 MC-* 를 만들지 않는다 — 시스템·자리는 graph/systems.yaml 에 있는 것만
+   가리키고, 문서가 이름만 댄 조각은 grounded: false 다 (Frontier Target 금지).
+graph 노드에 근거·정정 경위·날짜 주석을 쌓지 않는다 — 노드에는 값만.
+   근거는 overlay.md · 경위는 HISTORY.md 소유다 (원칙 20).
+frontier.md 에 진행 현황·공정 규칙을 쓰지 않는다 — 네 절(후보·추천·SELECTED·
+   지금 열 수 없는 것)만. 현황은 graph/GRAPH.md 의 척추 절이 그린다.
 world/ view/ 코드를 수정하지 않는다 — Overlay 판정을 위해 읽기만 한다.
 cycles/ 의 Artifact 를 수정하지 않는다 — History 다.
 다음 Cycle Goal 을 자동 확정하지 않는다 — Human 이 고른다.
