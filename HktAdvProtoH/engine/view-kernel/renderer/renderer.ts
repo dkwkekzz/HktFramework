@@ -77,6 +77,11 @@ export function createRenderer(
   // 이미 켠 사건들 — 이펙트는 상태가 아니라 사건이라 한 번만 켠다.
   // 관찰 결과는 같은 타격을 TTL 동안 계속 실어 보낸다 (C007 strikeEvents).
   const firedEffects = new Set<string>();
+  // 디버그 창구 — 콘솔·눈검증 하니스가 이펙트 층을 찾는 유일한 길이다.
+  // (HktSplatLife 의 window.__hktFire / __lifeReady 와 같은 규약. 게임 경로는 쓰지 않는다.)
+  // 헤드리스 합성기는 WebGPU 캔버스를 스크린샷에 담지 못하므로, 촬영은 이 층의
+  // snapshot() 으로만 가능하다 — 그래서 창구가 필요하다.
+  (window as unknown as { __hktEffectLayer?: EffectLayer }).__hktEffectLayer = effectLayer;
   const FIRED_MEMORY = 512; // 이 이상 쌓이면 오래된 것부터 버린다 (Set 은 삽입 순서를 지킨다)
 
   const billboards = new Map<string, Billboard>(); // entityId → billboard
