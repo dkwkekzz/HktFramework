@@ -17,6 +17,7 @@
     "fx:lab": "node tools/fx-lab/test/lab-smoke.js",
     "fx:shot": "node tools/fx-lab/test/fx-shot.js",
     "fx:overlay": "node tools/fx-lab/test/overlay-shot.js",
+    "fx:game": "node tools/fx-lab/test/game-shot.js",
     "test": "tsx tools/boundary/check.ts && vitest run"
   },
   "dependencies": {

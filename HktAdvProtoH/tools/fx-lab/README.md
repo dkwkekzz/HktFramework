@@ -41,9 +41,11 @@ node fx-shot.js                         # 이펙트: 켜지는가 · 꺼지는�
 node life-shot.js                       # 살: 뼈대를 덮는가
 node lab-smoke.js                       # 랩 페이지: 부팅 · 런타임 적재 · 이펙트 배선
 node overlay-shot.js                    # 게임 쪽 오버레이: 투명한가 · 그 자리에 그리는가
+node game-shot.js                       # 게임 전 경로: 세계 → 관찰 → 결정 → 오버레이
 ```
 
-프로젝트 루트에서는 `npm run fx:shot` · `npm run fx:lab` · `npm run fx:overlay` 로도 부른다
+프로젝트 루트에서는 `npm run fx:shot` · `npm run fx:lab` · `npm run fx:overlay` ·
+`npm run fx:game` 으로도 부른다
 (`npm test` 에는 들어 있지 않다 — 브라우저와 GPU 가 필요하다).
 
 브라우저를 직접 지정하려면 `CHROMIUM_PATH=<chrome 실행 파일>` 을 준다.
