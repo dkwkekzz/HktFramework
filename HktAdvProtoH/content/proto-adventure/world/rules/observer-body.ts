@@ -8,6 +8,7 @@
 import type { CharacterKind } from '../semantic/actor';
 import { createInventory } from '../semantic/inventory';
 import type { WorldPosition } from '../semantic/position';
+import type { GuardedGround } from '../semantic/relation';
 import { spawnActor } from '../semantic/spawn';
 import { SPAWN_POINTS, type WorldState } from '../semantic/world-state';
 
@@ -16,6 +17,15 @@ export interface BodyDefaults {
   characterKind: CharacterKind;
   items: Partial<Record<'stone' | 'pickaxe', number>>;
   spawnPoints: WorldPosition[];
+  /**
+   * C018 — 이 몸이 지닐 지키는 자리. 밝히지 않으면 없다.
+   *
+   * 관찰자의 몸에도 이 자리가 있다는 것이 이 Cycle 의 규율이다 — 사람이라서 태도의
+   * 규칙 밖에 있는 것이 아니라, 지금 그럴 사정을 주지 않았을 뿐이다
+   * (INTENT-RELATION-STANCE-001 — 판정은 주체의 종류를 묻지 않는다).
+   * 자율 존재의 자리를 초기 배치가 정하는 것과 완전히 같은 자리다.
+   */
+  guardedGround?: GuardedGround;
 }
 
 export const DEFAULT_BODY: BodyDefaults = {
@@ -41,6 +51,7 @@ export function spawnObserverBody(
     control: 'player',
     position: { x: spawn.x, z: spawn.z },
     inventory: createInventory(defaults.items),
+    ...(defaults.guardedGround === undefined ? {} : { guardedGround: defaults.guardedGround }),
   });
 
   state.actors.push(body);

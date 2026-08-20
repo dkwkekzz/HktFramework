@@ -268,7 +268,7 @@ constraints/README.md   현재 Active Constraint        → 반영 이력은 여
 | FR-OBSERVE-REVEALS-THE-OPPONENT | C014-observe-reveals-the-opponent | **CLOSED** 2026-08-19 — MC-OBSERVE 승격 (IMPLEMENTED 가 아니라 **PARTIAL** — 아래 Overlay 이력) · 탐험 사다리의 첫 칸 |
 | FR-CRITICAL-AMPLIFIES-THE-BLOW | C015-critical-amplifies-the-blow | **CLOSED** — MC-CRITICAL-STRIKE 승격 · 세계에 우연이 처음 들어왔다. MP-BET-ON-THE-CRITICAL-BLOW 는 **절반만** 닫혔다 (성질을 올릴 원천이 없다) |
 | FR-INSIGHT-SEES-BEFORE-LOOKING | C016-insight-sees-before-looking | **CLOSED** — MC-OBSERVE 의 **경로** 결손이 닫혔다 (앎에 이르는 길이 둘 · 앎이 자리 단위). 노드는 여전히 PARTIAL — 남은 결손은 습성 하나 |
-| FR-PREDICT-READS-THE-NEXT-BLOW | (C017 — 접었다) | **선택 철회** 2026-08-19 Human 결정. Stage 1 만 쓰고 접었으며 산출물은 git history 에 있다. 후보는 `PROPOSED` 로 살아 있고 A안(습성 + 예측을 한 Cycle 로)이라는 판단도 그대로 남는다 |
+| FR-PREDICT-READS-THE-NEXT-BLOW | (C017 — 접었다) | **보류** 2026-08-20 Human 결정 — 후보에서 내리고 **AI 기획서**를 기다린다. 이유는 계보의 구멍이다: BW §21 은 이름 `MC-PREDICT` 만 대고 정의를 쓰지 않으며 R1·DT 는 예측을 언급하지 않는다 — 노드 semantic 은 Agent 가 채운 것이고 BW §32 의 **층 스케일**이 한 마리의 다음 일격으로 좁아졌다. 자율 존재의 행동을 정의한 기획 문서가 서면 그 위에서 다시 판정한다. 앞선 경위 — 2026-08-19 Human 이 C017 로 골랐다가 Stage 1 만 쓰고 선택을 철회했고, 그때 얻은 "넘어야 할 선" 셋과 A안 판단은 git history 에 있다 |
 
     롤백된 것 (2026-08-17 Human 결정 — R1 층 순서와 어긋나 되돌렸다. 산출물은 git history)
         구 C010-guard-trades-body-for-resource · 구 C011-perfect-guard-turns-the-table
@@ -976,11 +976,23 @@ ONE-LAYER-AT-A-TIME 신설, 이연 층 근거의 3종은 DRAFT 보류.
         코드 대조로 "예고 구간 자체는 이미 있다" 를 적고 있었고(C017 을 열었다 접으며
         얻은 것), 그 사실을 보지 않고 후보를 새로 쓴 것이 이 오류의 원인이다.
 
-    어떻게 닫혔나
-        그 후보(FR-ACTION-PHASE)는 병합에서 해소되었다. 축이 둘이었고 각각 이미
-        후보로 서 있었다 — 무엇이 오는지를 읽는 축은 FR-PREDICT-READS-THE-NEXT-BLOW,
-        그 구간을 판정에 쓰는(취소) 축은 FR-INTERRUPT-DENIES-THE-BLOW 다.
-        둘을 하나로 묶으려던 판단은 거두고, 대신 둘 사이의 관계를 각 후보에 적었다.
+    어떻게 고쳤나
+        후보를 FR-ACTION-PHASE 로 다시 세웠다 — "구간이 없다" 가 아니라 "구간의 의미가
+        없다" 로. 더할 것 셋이 그 안에 들어간다: 비율을 종류마다 다르게 · 준비 구간을
+        의미로 노출 · 그 구간을 취소 판정에 쓴다. 셋 중 하나만으로는 닫히지 않는다.
+
+    한 번 잘못 거두었다 (병합에서 — 이 기록은 그 정정이다)
+        main 을 병합할 때, main 의 MC-PREDICT 코드 대조("예고 구간 자체는 이미 있다")를
+        보고 이 후보를 해소했다. FR-PREDICT 와 FR-INTERRUPT 두 축으로 갈라 넣으면
+        같은 것이 된다고 판단했다. **그 판단은 Agent 의 몫이 아니었다** — 이 후보의
+        모양은 2026-08-20 Human 이 직접 정한 것이고, 코드 사실이 바뀐 것도 아니었다
+        (main 이 밝힌 것은 이 후보가 이미 "구간은 있다" 를 전제로 다시 쓰인 뒤였다).
+        Human 이 누락을 지적해 되돌렸다.
+
+        FR-PREDICT 와는 겹치지 않는다. 그쪽의 결손은 **읽을 거리와 앎의 관문**(자율
+        존재가 쓰는 스킬이 하나뿐이고, 그 앎이 살펴봄과 무관하게 온다)이고,
+        이쪽의 결손은 **구간의 의미**(비율 · 노출 · 취소 판정)다. 각자 성립하며
+        둘 다 서면 "무엇이 오는지 알고 그 구간을 노려 끊는다" 가 된다.
 
     배운 것: 후보의 "이미 있는 것" 칸을 코드로 채우지 않으면, 이미 있는 것을 없다고
     적은 채 Cycle 로 내려간다. 그 칸은 근거 문서가 아니라 **코드 대조**로 채우며,
@@ -1008,3 +1020,103 @@ ONE-LAYER-AT-A-TIME 신설, 이연 층 근거의 3종은 DRAFT 보류.
     배운 것: Master Layer 는 한 번에 한 갈래만 도는 것이 안전하다. 두 갈래가 같은
     Overlay 를 동시에 갱신하면 병합이 사실을 고르는 일이 되고, 그 판단은 원래
     Agent 의 것이 아니다.
+
+## Feedback — C017(지목) · C018(관계) 반영 (2026-08-20)
+
+    두 Cycle 이 닫혔는데 Feedback 이 돌지 않아 Overlay 가 밀려 있었다.
+    C017 은 main 에서 COMPLETE 로 닫혔고 C018 은 기계 검증까지 닫혔으나,
+    overlay 는 여전히 지목 둘을 MISSING/PARTIAL 로, 관계를 MISSING 으로 적고 있었고
+    frontier 는 그 셋을 아직 후보로 세워 두고 있었다.
+    (Guide 가 경고한 그대로다 — 밀린 Overlay 는 이미 채워진 칸을 결손으로 보인다.)
+
+### Overlay 갱신
+
+```text
+MC-DESIGNATE-TARGET   MISSING → IMPLEMENTED   근거 C017 08-verification
+MC-WATCH-TARGET       PARTIAL → IMPLEMENTED   근거 C017 08-verification
+MC-RELATION-STANCE    MISSING → IMPLEMENTED   근거 C018 08-verification
+MA-HOSTILE-COMBATANT  PARTIAL → PRESENT       근거 C018 — 지킬 자리가 생겼다
+MG-HOLD-HUNTING-GROUND PARTIAL → PRESENT      근거 C018 — world_shape 3줄 모두 실측
+```
+
+    MP-LEARN-TO-HANDLE-THE-LAYER 가 **네 칸 중 셋**이 되었다.
+    남은 것은 예측 하나이며 그것이 MC-OBSERVE 의 마지막 결손과 같은 자리다 —
+    닫히면 이 게임의 기본 진행 방식이 통째로 선다.
+
+### Frontier 정리
+
+```text
+지웠다   FR-TARGET-SELECTION    → C017-target-gathers-the-actions 로 닫혔다
+         FR-RELATION-STANCE     → C018-stance-decides-who-can-be-struck 로 닫혔다
+남았다   예측 · 행동 구간 · 아이템 사용 (번호를 1·2·3 으로 다시 매겼다)
+추천     1 예측 (한 갈래를 완주시키는 유일한 후보) · 2 아이템 사용 · 3 행동 구간
+```
+
+    **병합 정정** — 이 Feedback 을 쓸 때 남은 후보 셋 중 하나는 FR-INTERRUPT-DENIES-THE-BLOW
+    였다. 같은 시각 main 에서 FR-ACTION-PHASE 가 되살아나며 그 후보를 **흡수했고**
+    (MC-INTERRUPT 를 닫는 쪽이 그쪽이다), 병합에서 후보 2 를 행동 구간으로 바꿨다.
+    닫힌 둘을 지운 것과 번호를 1·2·3 으로 매긴 것은 이쪽 판을 그대로 두었다 —
+    main 은 C017·C018 이 닫힌 사실을 아직 몰랐다.
+
+    "지금 열 수 없는 것" 에서 **막는 것이 사라진 항목 둘**을 표에 남겼다 —
+    위협도·진영·도발(사정 목록에 항목을 더하면 된다)과 Tab 후보 추리기·대상 프레임의
+    관계 표시(TG 가 요구하던 태도가 섰다). 둘 다 후보로 올리지는 않았다:
+    앞의 것은 어느 Possibility 도 요구하지 않고(7 조건 2), 뒤의 것은 세계의 결손이
+    아니라 화면의 편의다.
+
+### 배운 것 — C018 이 이미 승인된 Constraint 를 다시 발견했다
+
+    C018 이 `CC-WORLD-DERIVE-DONT-REMEMBER`("유도할 수 있으면 저장하지 않는다")를
+    새 후보로 제안했다. 그런데 그것은 **이미 APPROVED 인 `DC-CONDITION-OPENS-WITHOUT-
+    RECORDING` 과 같은 원칙**이다 (C016 에서 승격).
+
+    새 후보를 만들지 않고 그 DC 의 세 번째 사례로 기록했다 —
+    MC-RELATION-STANCE 의 constraint_evaluation 에 SATISFIED 로 이었다.
+
+        C015  확률의 양 끝에서 우연의 원천을 소비하지 않는다
+        C016  통찰이 연 자리를 기록하지 않아 되돌림 규칙이 한 줄도 안 바뀌었다
+        C018  태도를 저장하지 않아 "물러나면 풀린다" 의 구현이 0줄이다
+
+    공정에서 배운 것: **Cycle 이 Active Constraint 로 세우지 않은 GLOBAL Constraint 가
+    그 Cycle 의 설계를 이미 지배하고 있을 수 있다.** C018 의 01~03 은 Active 로
+    CREATURE-FROM-PRESSURE · COMBAT-IS-ONE-POSSIBILITY · SURFACE-LIST 셋만 들었고,
+    scope 가 GLOBAL 인 CONDITION-OPENS-WITHOUT-RECORDING 을 보지 않았다.
+    그래서 이미 있는 원칙을 스스로 다시 유도했다.
+    — 원칙이 옳다는 증거이자, Cycle Stage 1 이 GLOBAL scope Constraint 를 훑어야
+    한다는 신호다. 공정 변경은 Human 판단이므로 여기 적어만 둔다.
+
+### Constraint Candidate 접수 (셋 다 PENDING)
+
+```text
+CC-THE-CHOICE-IS-THE-OBSERVERS-OWN    C017 · 3회 (C004 · C014 · C017)
+    관찰자에게 매달리는 사실은 세계가 지니되 관찰자별로 갈리고, Id 만 담고,
+    "없음" 을 저장하지 않고, **대상 쪽에는 아무것도 적지 않는다.**
+    마지막 성질이 DC-TARGET-IS-INTENT-NOT-AIM 을 코드 구조로 지킨다 —
+    대상 쪽이 비어 있으면 그 규칙을 어길 자리가 없다
+
+CC-A-GATE-MOVES-WITH-ITS-MEANING      C017 · 1회
+    관문이 옮겨가도 사유를 잃지 않는다. 사례가 하나뿐이라 두 번째 이사를 기다린다
+
+CC-REASONS-ARE-A-LIST-NOT-A-BRANCH    C018 · 1회 — Cycle 이 스스로 보류를 권했다
+    사정은 목록으로, 판정은 그 목록을 읽는다. 항목이 하나뿐이라 값어치가 아직
+    실측되지 않았다 — 두 번째 사정이 서는 Cycle 이 확인하거나 기각한다
+```
+
+### 위층이 알아야 할 사실 둘 (Gap 은 아니다)
+
+```text
+① RULE-TARGET-CLEAR-STALE-001 은 플레이로 도달하지 않는다 (C017)
+   존재가 세계에서 사라지는 경로가 0건이다. 규칙과 단위 검증은 섰고, 플레이 확인은
+   존재를 없애는 개념이 오는 Cycle(전리품 · 소멸 · 지역 이동)의 몫이다.
+   overlay 의 MC-DESIGNATE-TARGET 행에 단서로 남겼다
+
+② 기반 트랙 커밋(Q28(a))은 C017 의 선행 조건이 아니었다
+   Stage 4 의 코드 대조가 Stage 1 의 판단을 정정했고 Human 이 그대로 진행을 결정했다.
+   C017 은 engine/ 을 한 줄도 편집하지 않고 닫혔다. 그 커밋의 값어치는 남아 있으며
+   자리가 셋이다 — 지형 클릭의 결정 · 존재마다 오는 interaction 이 둘이 될 때 · 외곽선 강조
+```
+
+### Master Gap
+
+    없음. 두 Cycle 모두 상위 의미와 어긋난 지점을 보고하지 않았고, 반영 중에도
+    발견되지 않았다.

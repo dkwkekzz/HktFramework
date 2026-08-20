@@ -149,7 +149,12 @@ describe('hud.self — 자기 자원·능력치·배율은 늘 눈앞에 있다'
   });
 
   it('self 값은 일반 HUD 줄로 중복되지 않는다', () => {
-    expect(plan().hud.map((h) => h.id)).toEqual(['inventory.stone', 'world.time']);
+    // C017 — 고른 대상 자리가 앞에 붙는다 (이 fixture 는 아무것도 고르지 않은 화면이다)
+    expect(plan().hud.map((h) => h.id)).toEqual([
+      'target.none',
+      'inventory.stone',
+      'world.time',
+    ]);
   });
 });
 

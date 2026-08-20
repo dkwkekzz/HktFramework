@@ -43,6 +43,19 @@ export interface WorldDriver {
 }
 
 /**
+ * 대상을 고른다 (C017). 살펴봄·채집은 이제 요청이 아니라 **고른 것**을 대상으로 삼으므로
+ * (INTENT-TARGET-DIRECTS-THE-ACT-001), 그 둘을 쓰는 검증은 이 헬퍼를 앞에 둔다.
+ * 세계를 약하게 만드는 것이 아니다 — 지목이 플레이의 한 걸음으로 들어온 것이다.
+ */
+export function selectTarget(
+  world: WorldDriver,
+  targetEntityId: string,
+  observerId: string = OBSERVER,
+): ActionResult {
+  return world.dispatch({ interactionId: 'select-target', targetEntityId }, observerId);
+}
+
+/**
  * 살펴봄을 끝까지 마친다 (C014). 남의 겨루는 힘은 살펴본 뒤에만 관찰에 실리므로
  * 그 값을 읽는 기존 검증들이 이 헬퍼를 앞에 둔다 — 세계를 약하게 만드는 것이 아니라
  * **관찰한 뒤 같은 값이 나오는지**가 이 Cycle 이후의 Regression 기준이다
@@ -53,7 +66,9 @@ export function observeFully(
   targetEntityId: string,
   observerId: string = OBSERVER,
 ): void {
-  world.dispatch({ interactionId: 'observe', targetEntityId }, observerId);
+  // C017 — 고르고 나서 살펴본다. 대상은 요청이 아니라 고른 것에서 온다.
+  selectTarget(world, targetEntityId, observerId);
+  world.dispatch({ interactionId: 'observe' }, observerId);
   const duration = ACTION_DEFINITIONS.observe.duration ?? 1;
   const steps = Math.ceil(duration / TICK_INTERVAL) + 1;
   for (let i = 0; i < steps; i++) world.tick(TICK_INTERVAL);

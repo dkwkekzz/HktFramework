@@ -23,8 +23,10 @@ import fixture from './fixtures/observe.fixture.json';
 const snapshot = fixture as unknown as GameViewSnapshot;
 const plan = (inspect = false) => resolvePresentation(snapshot, undefined, { inspect });
 const entity = (id: string, inspect = false) => plan(inspect).entities.find((e) => e.id === id);
-const observeOf = (id: string) =>
-  plan().interactions.find((i) => i.id === 'observe' && i.targetEntityId === id);
+// C017 CHANGED — 존재마다 실리던 것은 **고르기**이고, 살펴봄은 고른 것에 대해 하나다.
+const selectOf = (id: string) =>
+  plan().interactions.find((i) => i.id === 'select-target' && i.targetEntityId === id);
+const observeOne = () => plan().interactions.find((i) => i.id === 'observe');
 const inspectText = (id: string) => entity(id, true)?.inspect?.join('\n') ?? '';
 
 describe('몸 위 표시 — 켜지 않아도 모른다는 것이 읽힌다', () => {
@@ -93,22 +95,29 @@ describe('속성 관찰 — 아는 존재와 모르는 존재가 다르게 펼�
   });
 });
 
-describe('interactions.observe — 살펴보는 일이 존재마다 있다', () => {
-  it('모르는 존재는 살펴볼 수 있다', () => {
-    expect(observeOf('npc-2')).toMatchObject({ available: true, prompt: '살펴보기' });
+describe('interactions — 고르기가 존재마다, 살펴봄은 고른 것에 하나 (C017 CHANGED)', () => {
+  it('고른 상대를 살펴볼 수 있다 — 이 fixture 는 npc-2 를 고른 화면이다', () => {
+    expect(observeOne()).toMatchObject({ available: true, prompt: '살펴보기' });
   });
 
-  it('이미 아는 존재는 그 사유가 사람 말로 나온다', () => {
-    expect(observeOf('npc-1')).toMatchObject({
+  it('고르기는 존재마다 실린다 — 광맥에도 실린다', () => {
+    expect(selectOf('npc-1')).toMatchObject({ available: true, prompt: '지목' });
+    expect(selectOf('npc-2')).toMatchObject({ available: true });
+    expect(selectOf('deposit-1')).toMatchObject({ available: true });
+  });
+
+  it('자기 몸은 왜 못 고르는지도 말한다 — 그 뜻이 고르기로 옮겨왔다', () => {
+    expect(selectOf('player-1')).toMatchObject({
       available: false,
-      unavailableText: '이미 알고 있다',
+      unavailableText: '자기 자신은 고를 수 없다',
     });
   });
 
-  it('자기 몸은 왜 안 되는지도 말한다', () => {
-    expect(observeOf('player-1')).toMatchObject({
-      available: false,
-      unavailableText: '자기 자신은 살펴볼 대상이 아니다',
+  it('푸는 길이 늘 열려 있다', () => {
+    expect(plan().interactions.find((i) => i.id === 'clear-target')).toMatchObject({
+      available: true,
+      key: 'Escape',
+      prompt: '지목 해제',
     });
   });
 
@@ -118,11 +127,14 @@ describe('interactions.observe — 살펴보는 일이 존재마다 있다', () 
     expect(codeText('out-of-range')).toBe('너무 멀다 — 가까이 이동하자');
   });
 
-  it('키를 두지 않는다 — 대상은 그 몸을 눌러 고른다', () => {
-    // 키에는 대상을 고를 수단이 없다. "가장 가까운 하나" 같은 규칙을 View 가 만들면
-    // 세계가 정하지 않은 선택 규칙을 화면이 발명하게 된다.
-    expect(interactionPresentation('observe-character').key).toBeUndefined();
-    expect(observeOf('npc-2')?.targetEntityId).toBe('npc-2');
+  it('살펴봄에 키가 생겼다 — 대상을 고르는 수단이 세계에 있으므로 (C017 CHANGED)', () => {
+    // C014 가 키를 두지 않은 이유("키에는 대상을 고를 수단이 없다")가 사라졌다.
+    // 무엇을 살펴볼지는 여전히 세계가 지닌다 — View 가 선택 규칙을 발명하지 않는다.
+    expect(interactionPresentation('observe-character').key).toBe('KeyT');
+    expect(observeOne()?.targetEntityId).toBeUndefined();
+    // 고르기는 그 몸을 눌러 부르므로 키를 두지 않는다
+    expect(interactionPresentation('select-target').key).toBeUndefined();
+    expect(selectOf('npc-2')?.targetEntityId).toBe('npc-2');
   });
 });
 

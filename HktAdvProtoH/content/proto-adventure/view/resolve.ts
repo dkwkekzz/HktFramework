@@ -34,8 +34,10 @@ import {
 import { hudPresentation } from './hud-presentation';
 import { interactionPresentation } from './interaction-presentation';
 import { codeText } from './code-text';
+import { contactMark } from './relation-presentation';
 import { kindPresentation } from './kind-presentation';
 import { rolePresentation } from './role-presentation';
+import { TARGET_TINT, targetHudItems } from './target-presentation';
 
 // 관찰자 쪽 표시 선택 (C006) — 충돌체 디버그 관찰을 켤지. World 에 아무것도 요청하지 않는다.
 export interface PresentationOptions {
@@ -144,7 +146,14 @@ export function resolvePresentation(
       const motion = resolveMotion(motions, e.kind, e.state, e.progress);
       // 조종하는 이가 없는 몸의 표현 (C004) — attended 가 실린 대상에만 해당한다.
       const unattended = e.attended === false;
-      const tint = unattended && p.unattendedTint !== undefined ? p.unattendedTint : p.tint;
+      // C017 — 지금 고른 존재는 역할이 정한 색 대신 지목의 색으로 그린다.
+      // 자리 비움의 탈색만은 이기지 않는다 — 그것은 존재의 상태이고 지목은 내 선택이다.
+      const chosen = e.id === snapshot.currentTarget?.entityId;
+      const tint = unattended
+        ? (p.unattendedTint ?? p.tint)
+        : chosen
+          ? TARGET_TINT
+          : p.tint;
       const label =
         unattended && p.unattendedLabel !== undefined
           ? p.unattendedLabel
@@ -202,20 +211,34 @@ export function resolvePresentation(
     ...(selfPanel(snapshot) ? { self: selfPanel(snapshot) } : {}),
     // 타격 숫자는 맞은 몸의 그림 크기에 맞춰 떠오른다 — 그 몸이 아직 세계에 있으면 그 크기를 쓴다
     // C010 — 속성 관찰이 켜져 있으면 그 숫자가 나온 경위도 함께 붙는다 (같은 토글이다)
-    strikes: snapshot.strikes.map((event) =>
-      strikeMark(
-        event,
-        rolePresentation(snapshot.entities.find((e) => e.id === event.targetId)?.role ?? '').size,
-        options.inspect ?? false,
+    // C018 — 무산된 접촉이 같은 자리에 나란히 뜬다. 빗나간 휘두름은 아무것도 오지 않고,
+    // 무산은 맞은 자리에 사유가 뜬다 — 둘을 같게 그리면 이 Cycle 의 절반이 사라진다.
+    strikes: [
+      ...snapshot.strikes.map((event) =>
+        strikeMark(
+          event,
+          rolePresentation(snapshot.entities.find((e) => e.id === event.targetId)?.role ?? '').size,
+          options.inspect ?? false,
+        ),
       ),
-    ),
+      ...snapshot.contacts.map((contact) =>
+        contactMark(
+          contact,
+          rolePresentation(snapshot.entities.find((e) => e.id === contact.targetId)?.role ?? '')
+            .size,
+        ),
+      ),
+    ],
     // 이펙트 (F1) — 같은 사건을 숫자가 아니라 게놈으로도 드러낸다.
     // 무엇이 어떤 이펙트를 켜는지는 effect-presentation 이 소유한다.
     effects: effectMarks(snapshot, options.effectsSince ?? EMPTY_EFFECT_MEMORY, (entity) =>
       entity ? (entity.body?.height ?? rolePresentation(entity.role).size) : 0,
     ),
     worldTime: Number(snapshot.hud.find((h) => h.id === 'world.time')?.value ?? 0),
-    hud: snapshot.hud.filter((h) => !isSelfHudId(h.id)).map((h) => {
+    // C017 — 고른 대상 자리. 세계가 보낸 hud 항목이 아니라 계약의 여러 자리를
+    // 결정 Layer 가 모아 만든 줄들이다 (04 VIEW ASSEMBLY NOTE). 앞에 둔다 —
+    // "지금 누구를 상대하는가" 는 소지품보다 먼저 읽혀야 한다.
+    hud: [...targetHudItems(snapshot, codeText), ...snapshot.hud.filter((h) => !isSelfHudId(h.id)).map((h) => {
       const p = hudPresentation(h.id);
       return {
         id: h.id,
@@ -231,6 +254,6 @@ export function resolvePresentation(
         ...(h.progress === undefined ? {} : { progress: h.progress }),
         ...(p.celebrateGain ? { celebrateGain: true } : {}),
       };
-    }),
+    })],
   };
 }

@@ -33,11 +33,18 @@ const aimRight = (world: WorldDriver) => {
   world.tick(TICK_INTERVAL);
 };
 
+// C018 CHANGED — 태도가 없으면 닿아도 아무 일이 일어나지 않는다 (RULE-HARM-GATE-001).
+// 그래서 전투를 보는 시나리오의 상대는 **이 무대를 자기 자리로 지니는 존재**로 세운다.
+// 세계를 약하게 만드는 것이 아니라, 지금까지 말하지 않고 전제해 온 것(칠 수 있는 사이다)을
+// 시나리오가 드러내 적는 것이다. perceptionRange 0 이므로 쫓아오지는 않는다.
+const WHOLE_STAGE = { center: { x: 0, z: 0 }, radius: 64 };
+
 const dummyAt = (x: number, z: number, id = 'npc-1') => ({
   id,
   position: { x, z },
   wanderPath: [],
   perceptionRange: 0,
+  guardedGround: WHOLE_STAGE,
 });
 
 const actor = (v: GameViewSnapshot, id: string) => v.entities.find((e) => e.id === id);

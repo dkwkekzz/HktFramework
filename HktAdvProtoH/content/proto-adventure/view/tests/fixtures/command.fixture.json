@@ -76,7 +76,9 @@
           "broken": false
         },
         "defenseShape": "even",
-        "insight": 0
+        "insight": 0,
+        "stanceTowardObserver": "neutral",
+        "stanceFromObserver": "neutral"
       }
     },
     {
@@ -148,11 +150,32 @@
           "broken": false
         },
         "defenseShape": "even",
-        "insight": 0
+        "insight": 0,
+        "stanceTowardObserver": "neutral",
+        "stanceFromObserver": "neutral"
       }
     }
   ],
   "interactions": [
+    {
+      "id": "select-target",
+      "role": "select-target",
+      "targetEntityId": "player-1",
+      "available": false,
+      "reason": "target-is-self"
+    },
+    {
+      "id": "select-target",
+      "role": "select-target",
+      "targetEntityId": "npc-1",
+      "available": true
+    },
+    {
+      "id": "observe",
+      "role": "observe-character",
+      "available": false,
+      "reason": "no-target-selected"
+    },
     {
       "id": "move",
       "role": "move-to",
@@ -162,10 +185,22 @@
       "id": "set-attribute",
       "role": "debug-set-attribute",
       "available": true
+    },
+    {
+      "id": "mine",
+      "role": "mine-deposit",
+      "available": false,
+      "reason": "no-target-selected"
+    },
+    {
+      "id": "clear-target",
+      "role": "clear-target",
+      "available": true
     }
   ],
   "hud": [],
   "strikes": [],
+  "contacts": [],
   "debug": {
     "open": true
   },
@@ -248,5 +283,6 @@
         }
       ]
     }
-  ]
+  ],
+  "currentTarget": {}
 }

@@ -27,6 +27,7 @@ import { ruleCpRunDrain } from './simulation/cp-run-drain';
 import { ruleMoveProgress } from './simulation/move-progress';
 import { ruleNpcDecideAll } from './simulation/npc-decide';
 import { ruleStrikeEventExpire } from './simulation/strike-event-expire';
+import { ruleTargetClearStale } from './simulation/target-clear-stale';
 import { ruleSwingStrike } from './simulation/swing-strike';
 
 export type { World } from '../../../engine/world-kernel/kernel';
@@ -38,6 +39,8 @@ export interface NpcSetup {
   position: WorldPosition;
   wanderPath?: WorldPosition[];
   perceptionRange?: number;
+  /** C018 — 지키는 자리 (중심 · 반경). 밝히지 않으면 지킬 것이 없다 */
+  guardedGround?: { center: WorldPosition; radius: number };
 }
 
 export interface WorldSetup {
@@ -45,6 +48,11 @@ export interface WorldSetup {
   actorPosition?: { x: number; z: number };
   actorItems?: Partial<Record<'stone' | 'pickaxe', number>>;
   actorCharacterKind?: string;
+  /**
+   * C018 — 관찰자의 몸이 지닐 지키는 자리. 밝히지 않으면 없다.
+   * 사람의 몸도 지킬 것을 가질 수 있다 — 태도의 규칙에 주체의 종류로 낸 예외가 없다.
+   */
+  actorGuardedGround?: { center: WorldPosition; radius: number };
   depositPosition?: { x: number; z: number };
   depositAmount?: number;
   npcs?: NpcSetup[];
@@ -59,19 +67,28 @@ export interface WorldSetup {
   chanceSeed?: number;
 }
 
-// 세계의 기본 배치 — 자율 캐릭터 둘이 각자의 순회 경로를 돈다.
+// 세계의 기본 배치 — 자율 캐릭터 둘. 하나는 지킬 것이 있고 하나는 없다 (C018 CHANGED).
 // characterKind 를 바꾸면 그 캐릭터가 쓰는 모션 집합이 바뀐다 (motions/<종류>/ 폴더).
+//
+// C018 — 이 둘의 차이가 이 Cycle 의 플레이다. npc-1 은 자기 자리를 지니고 그 안을
+// 순회하므로 그 자리에 든 것을 사냥감으로 대하고, npc-2 는 지킬 것이 없어 누구도
+// 쫓지 않는다. 두 몸의 종류·능력치는 완전히 같다 — 다른 것은 지킬 것이 있는가뿐이다.
+// 모든 SPAWN_POINTS 가 npc-1 의 자리 밖이라 **처음에는 아무도 나를 사냥감으로 보지
+// 않는다** — 다가가는 것이 플레이어의 선택이다 (DC-WORLD-COMBAT-IS-ONE-POSSIBILITY).
 const DEFAULT_NPCS: NpcSetup[] = [
   {
     id: 'npc-1',
     characterKind: 'wanderer',
-    position: { x: -8, z: 4 },
+    position: { x: -10, z: -8 },
+    // 순회 경로가 자기 자리 안에 있다 — 자기 자리를 도는 존재여야 "지킨다" 로 읽힌다
     wanderPath: [
-      { x: -8, z: 4 },
-      { x: -8, z: -6 },
-      { x: 2, z: -6 },
-      { x: 2, z: 4 },
+      { x: -13, z: -8 },
+      { x: -7, z: -8 },
+      { x: -10, z: -12 },
     ],
+    // 반경은 인지 거리(9.0)보다 작다 — 자리에 든 침입자를 대개 곧 알아채고,
+    // 자리 밖으로 나간 것을 계속 쫓는 일이 생기지 않는다 (03 BALANCE)
+    guardedGround: { center: { x: -10, z: -8 }, radius: 7.0 },
   },
   {
     id: 'npc-2',
@@ -96,6 +113,9 @@ const SYSTEMS: WorldContent<WorldState>['systems'] = [
   (state, dt) => ruleBodyPush(state, dt), // RULE-BODY-PUSH-001 (C006)
   (state, dt) => ruleBodyMomentum(state, dt), // RULE-BODY-MOMENTUM-001 (C006)
   (state, dt) => ruleCpRunDrain(state, dt), // RULE-CP-RUN-DRAIN-001 (C007)
+  // C017 — 성립하지 않게 된 지목을 비운다. 이 Tick 의 모든 변화가 끝난 뒤에 훑어야
+  // 그 Tick 에 사라진 존재까지 본다 (RULE-TARGET-CLEAR-STALE-001).
+  (state) => ruleTargetClearStale(state),
 ];
 
 // 만료가 시간 진행 뒤에 오는 이유 (C007): 방금 일어난 결과가 최소 한 번은 관찰되어야 한다.
@@ -117,6 +137,7 @@ export function createWorld(setup: WorldSetup = {}): World {
       position: npc.position,
       wanderPath: npc.wanderPath,
       ...(npc.perceptionRange === undefined ? {} : { perceptionRange: npc.perceptionRange }),
+      ...(npc.guardedGround === undefined ? {} : { guardedGround: npc.guardedGround }),
     }),
   );
 
@@ -134,12 +155,17 @@ export function createWorld(setup: WorldSetup = {}): World {
     time: 0,
     observers: [],
     strikeEvents: [],
+    // C018 — 아무것도 무산되지 않은 채로 세계가 시작된다 (semantic/relation.ts).
+    unharmedContacts: [],
     // C007 R2 — 속성 변경 권한은 세계 밖(세계를 띄우는 쪽)이 정한다.
     // 기본은 열려 있다: 이 프로토타입은 관찰과 시험이 목적이며, 닫으려면 세계를 그렇게 띄운다.
     debugAuthority: { open: setup.debugAuthority ?? true },
     // C014 — 아무도 아무것도 모르는 채로 세계가 시작된다.
     // 항목이 없다는 것이 곧 "아무것도 모른다" 다 (semantic/acquaintance.ts).
     acquaintances: [],
+    // C017 — 아무도 아무것도 고르지 않은 채로 세계가 시작된다.
+    // 항목이 없다는 것이 곧 "안 골랐다" 다 (semantic/target-selection.ts).
+    targetSelections: [],
     // C015 — 세계가 지닌 흔들림. 뿌리는 세계 밖이 정하고, 커서는 0 에서 시작해
     // RULE-CRITICAL-STRIKE-001 만이 나아가게 한다 (INTENT-WORLD-CHANCE-001).
     chanceSeed: setup.chanceSeed ?? DEFAULT_CHANCE_SEED,
@@ -150,6 +176,9 @@ export function createWorld(setup: WorldSetup = {}): World {
   const bodyDefaults: BodyDefaults = {
     characterKind: setup.actorCharacterKind ?? DEFAULT_BODY.characterKind,
     items: setup.actorItems ?? DEFAULT_BODY.items,
+    ...(setup.actorGuardedGround === undefined
+      ? {}
+      : { guardedGround: setup.actorGuardedGround }),
     spawnPoints: setup.actorPosition
       ? [{ x: setup.actorPosition.x, z: setup.actorPosition.z }, ...SPAWN_POINTS.slice(1)]
       : SPAWN_POINTS,

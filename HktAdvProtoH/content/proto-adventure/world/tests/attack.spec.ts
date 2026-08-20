@@ -10,7 +10,7 @@ import { describe, expect, it } from 'vitest';
 import type { GameViewSnapshot } from '../../protocol/gameview';
 import { SWING_BEGIN } from '../semantic/collision';
 import { TICK_INTERVAL } from '../semantic/world-state';
-import { driveWorld, PLAYER, type WorldDriver } from './drive';
+import { driveWorld, PLAYER, type WorldDriver, selectTarget } from './drive';
 
 const ATTACK_DURATION = 0.6;
 const HIT_DURATION = 0.35;
@@ -31,11 +31,18 @@ const aimRight = (world: WorldDriver) => {
 };
 
 // 순회 경로도 인지도 없는 정지 NPC — 타격 대상으로만 쓴다 (결정론)
+// C018 CHANGED — 태도가 없으면 닿아도 아무 일이 일어나지 않는다 (RULE-HARM-GATE-001).
+// 그래서 전투를 보는 시나리오의 상대는 **이 무대를 자기 자리로 지니는 존재**로 세운다.
+// 세계를 약하게 만드는 것이 아니라, 지금까지 말하지 않고 전제해 온 것(칠 수 있는 사이다)을
+// 시나리오가 드러내 적는 것이다. perceptionRange 0 이므로 쫓아오지는 않는다.
+const WHOLE_STAGE = { center: { x: 0, z: 0 }, radius: 64 };
+
 const dummyAt = (x: number, z: number, id = 'npc-1') => ({
   id,
   position: { x, z },
   wanderPath: [],
   perceptionRange: 0,
+  guardedGround: WHOLE_STAGE,
 });
 
 const actor = (v: GameViewSnapshot, id: string) => v.entities.find((e) => e.id === id);
@@ -157,6 +164,7 @@ describe('RULE-SWING-STRIKE-001 — 휘두름 구간의 칼끝 접촉이 정한�
           position: { x: 1, z: 0 },
           perceptionRange: 0,
           wanderPath: [{ x: 15, z: 0 }],
+          guardedGround: WHOLE_STAGE,
         },
       ],
     });
@@ -179,6 +187,7 @@ describe('RULE-SWING-STRIKE-001 — 휘두름 구간의 칼끝 접촉이 정한�
           position: { x: 4, z: 0 },
           perceptionRange: 0,
           wanderPath: [{ x: 0.5, z: 0 }],
+          guardedGround: WHOLE_STAGE,
         },
       ],
     });
@@ -261,10 +270,11 @@ describe('RULE-HIT-001 — 맞으면 하던 일이 끊긴다', () => {
     // 플레이어가 채굴하는 동안 NPC 가 곁에서 휘두른다
     const world = driveWorld({
       actorPosition: { x: 8, z: -5 },
-      npcs: [{ id: 'npc-1', position: { x: 8, z: -4 }, wanderPath: [] }],
+      npcs: [{ id: 'npc-1', position: { x: 8, z: -4 }, wanderPath: [], guardedGround: WHOLE_STAGE }],
     });
 
-    expect(world.dispatch({ interactionId: 'mine', targetEntityId: 'deposit-1' }).status).toBe(
+    selectTarget(world, 'deposit-1');
+    expect(world.dispatch({ interactionId: 'mine' }).status).toBe(
       'success',
     );
 
@@ -278,7 +288,7 @@ describe('RULE-HIT-001 — 맞으면 하던 일이 끊긴다', () => {
   it('피격 중에는 요청이 거부된다 (hit 은 Replaceable 이 아니다)', () => {
     const world = driveWorld({
       actorPosition: { x: 0, z: 0 },
-      npcs: [{ id: 'npc-1', position: { x: 1, z: 0 }, wanderPath: [] }],
+      npcs: [{ id: 'npc-1', position: { x: 1, z: 0 }, wanderPath: [], guardedGround: WHOLE_STAGE }],
     });
 
     tickFor(world, AFTER_SWING_OPEN + TICK_INTERVAL); // NPC 가 휘둘러 플레이어를 때린다

@@ -11,6 +11,13 @@
 //   앎은 몸의 것이 아니라 **관찰자의 것**이므로 Rule 이 ObserverId 를 받아야 한다
 //   (INTENT-OBSERVE-KNOWLEDGE-001). 몸으로 좁히면 그 정보가 사라진다.
 //
+// C017 ADDED — 고르기 · 풀기. 이 둘도 withActor 를 쓰지 않는다:
+//   고르는 것은 몸이 아니라 **보는 이의 의도**이므로 Rule 이 ObserverId 를 받아야 한다
+//   (INTENT-TARGET-PER-OBSERVER-001). 살펴봄·되돌림과 같은 자리다.
+// C017 CHANGED — 살펴봄·채집이 요청의 targetEntityId 를 읽지 않는다.
+//   대상은 그 관찰자가 고른 것이며, 대상을 정하는 곳은 세계에 하나여야 한다
+//   (INTENT-TARGET-DIRECTS-THE-ACT-001).
+//
 // C007 ADDED — 스킬 2종(attack · heavy-attack) · 이동 모드 · 속성 변경.
 //   속성 변경만은 주체가 아니라 "지목한 존재" 를 대상으로 한다 (INTENT-ATTRIBUTE-MUTATE-001).
 //   그래도 요청의 귀속은 그대로다 — 세계가 모르는 관찰자는 아무것도 바꾸지 못한다.
@@ -24,6 +31,7 @@ import { ruleMove } from '../rules/move';
 import { ruleMoveMode } from '../rules/move-mode';
 import { ruleObserveBegin, ruleObserveForget } from '../rules/observe';
 import { ruleSkillBegin } from '../rules/skill';
+import { ruleTargetClear, ruleTargetSelect } from '../rules/target';
 import { actorOfObserver, type WorldState } from '../semantic/world-state';
 import type { ActorState } from '../semantic/actor';
 
@@ -32,12 +40,17 @@ const DISPATCH = 'DISPATCH';
 // 주체 해석 — 몸(Actor)은 이 팩의 개념이므로 요청을 몸에 붙이는 일도 팩의 몫이다.
 // Engine 은 관찰자 장부만 확인한다 (engine/world-kernel/dispatch.ts).
 function withActor(
-  handle: (state: WorldState, actor: ActorState, action: ActionRequest) => ActionResult,
+  handle: (
+    state: WorldState,
+    actor: ActorState,
+    action: ActionRequest,
+    observerId: string,
+  ) => ActionResult,
 ): InteractionHandler<WorldState>['handle'] {
   return (state, observerId, action) => {
     const actor = actorOfObserver(state, observerId);
     if (!actor) return { status: 'failure', rule: DISPATCH, reason: 'unknown-observer' };
-    return handle(state, actor, action);
+    return handle(state, actor, action, observerId);
   };
 }
 
@@ -51,12 +64,23 @@ export const INTERACTIONS: readonly InteractionHandler<WorldState>[] = [
     }),
   },
   {
-    id: 'mine',
-    handle: withActor((state, actor, action) => {
+    // C017 — 고르기. 요청이 대상을 싣는 유일한 자리가 되었다.
+    id: 'select-target',
+    handle: (state, observerId, action) => {
       if (!action.targetEntityId)
         return { status: 'failure', rule: DISPATCH, reason: 'missing-target' };
-      return ruleMine(state, actor, action.targetEntityId);
-    }),
+      return ruleTargetSelect(state, observerId, action.targetEntityId);
+    },
+  },
+  {
+    // C017 — 풀기. 대상을 받지 않는다 — 무엇을 푸는지는 세계가 이미 안다.
+    id: 'clear-target',
+    handle: (state, observerId) => ruleTargetClear(state, observerId),
+  },
+  {
+    id: 'mine',
+    // C017 CHANGED — 대상은 고른 것이다 (요청의 targetEntityId 를 읽지 않는다)
+    handle: withActor((state, actor, _action, observerId) => ruleMine(state, actor, observerId)),
   },
   {
     id: 'attack',
@@ -92,13 +116,11 @@ export const INTERACTIONS: readonly InteractionHandler<WorldState>[] = [
     }),
   },
   {
-    // C014 — 살펴본다. 대상은 반드시 지목해야 한다: 무엇을 살펴볼지가 이 행동의 전부다.
+    // C014 — 살펴본다. C017 CHANGED — 대상은 고른 것이다.
+    // 무엇을 살펴볼지가 이 행동의 전부라는 것은 그대로이고, 그 하나를 어디서 얻는가만
+    // 바뀐다: 요청이 아니라 세계가 지닌 관계다 (INTENT-TARGET-DIRECTS-THE-ACT-001).
     id: 'observe',
-    handle: (state, observerId, action) => {
-      if (!action.targetEntityId)
-        return { status: 'failure', rule: DISPATCH, reason: 'missing-target' };
-      return ruleObserveBegin(state, observerId, action.targetEntityId);
-    },
+    handle: (state, observerId) => ruleObserveBegin(state, observerId),
   },
   {
     // C014 — 알게 된 것을 되돌린다. 지목하지 않으면 알고 있는 전부다.

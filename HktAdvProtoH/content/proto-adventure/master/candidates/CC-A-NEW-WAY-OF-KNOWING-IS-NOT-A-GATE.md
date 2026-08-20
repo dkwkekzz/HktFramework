@@ -72,7 +72,7 @@ Cycle Agent 는 관찰만 보고했고, 승격 판단은 Human 이 한다.
     PENDING
     Reason
         판단할 것 둘 — ① 별개 DC 인가, DC-WORLD-PLAYER-UNFIXED-PATH 문안의 확장인가
-                       ② 지금 승격하면 다음 Cycle(FR-PREDICT-READS-THE-NEXT-BLOW)이
+                       ② 지금 승격하면 예측 후보(FR-PREDICT-READS-THE-NEXT-BLOW — 2026-08-20 보류)가
                           바로 이 제약을 받는다 — 예측 역시 "읽지 않고 싸우는 길" 을
                           함께 세워야 한다. 그 부담을 지금 지울지, 세 번째 관찰을
                           받은 뒤로 미룰지

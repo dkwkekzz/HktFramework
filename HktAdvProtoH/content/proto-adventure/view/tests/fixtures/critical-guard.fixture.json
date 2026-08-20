@@ -49,7 +49,9 @@
           "guarding": false,
           "broken": false
         },
-        "insight": 0
+        "insight": 0,
+        "stanceTowardObserver": "neutral",
+        "stanceFromObserver": "neutral"
       },
       "progress": 0.28333333333333327,
       "body": {
@@ -133,7 +135,9 @@
           "guarding": true,
           "broken": false
         },
-        "insight": 0
+        "insight": 0,
+        "stanceTowardObserver": "neutral",
+        "stanceFromObserver": "neutral"
       },
       "progress": 0,
       "body": {
@@ -164,18 +168,29 @@
   ],
   "interactions": [
     {
-      "id": "observe",
-      "role": "observe-character",
+      "id": "select-target",
+      "role": "select-target",
       "targetEntityId": "npc-1",
+      "available": true
+    },
+    {
+      "id": "select-target",
+      "role": "select-target",
+      "targetEntityId": "player-1",
       "available": false,
-      "reason": "action-busy"
+      "reason": "target-is-self"
+    },
+    {
+      "id": "select-target",
+      "role": "select-target",
+      "targetEntityId": "deposit-1",
+      "available": true
     },
     {
       "id": "observe",
       "role": "observe-character",
-      "targetEntityId": "player-1",
       "available": false,
-      "reason": "target-is-self"
+      "reason": "action-busy"
     },
     {
       "id": "move",
@@ -253,9 +268,13 @@
     {
       "id": "mine",
       "role": "mine-deposit",
-      "targetEntityId": "deposit-1",
       "available": false,
-      "reason": "out-of-range"
+      "reason": "target-kind-mismatch"
+    },
+    {
+      "id": "clear-target",
+      "role": "clear-target",
+      "available": true
     }
   ],
   "hud": [
@@ -463,6 +482,7 @@
       }
     }
   ],
+  "contacts": [],
   "debug": {
     "open": true
   },
@@ -649,5 +669,8 @@
         }
       ]
     }
-  ]
+  ],
+  "currentTarget": {
+    "entityId": "npc-1"
+  }
 }

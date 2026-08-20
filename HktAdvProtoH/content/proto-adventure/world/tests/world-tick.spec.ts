@@ -72,7 +72,9 @@ describe('INTENT-REMOTE-REQUEST-001 — 요청은 도착하고 나서 판정된�
   it('request 만으로는 세계가 변하지 않는다 — Tick 이 와야 판정된다', () => {
     const world = joinedWorld({ ...solo, actorPosition: { x: 8, z: -5 } });
 
-    world.request(OBSERVER, { interactionId: 'mine', targetEntityId: 'deposit-1' });
+    world.request(OBSERVER, { interactionId: 'select-target', targetEntityId: 'deposit-1' });
+    world.tick(0); // C017 — 고르기가 판정되어야 채집이 그것을 읽는다
+    world.request(OBSERVER, { interactionId: 'mine' });
     expect(player(observe(world))?.state).toBe('idle'); // 아직 아무 일도 없다
 
     const { results } = world.tick(0);
@@ -83,7 +85,9 @@ describe('INTENT-REMOTE-REQUEST-001 — 요청은 도착하고 나서 판정된�
   it('한 Tick 에 도착한 요청들은 도착 순서대로 판정된다', () => {
     const world = joinedWorld({ ...solo, actorPosition: { x: 8, z: -5 } });
 
-    world.request(OBSERVER, { interactionId: 'mine', targetEntityId: 'deposit-1' });
+    world.request(OBSERVER, { interactionId: 'select-target', targetEntityId: 'deposit-1' });
+    world.tick(0); // C017 — 고르기가 판정되어야 채집이 그것을 읽는다
+    world.request(OBSERVER, { interactionId: 'mine' });
     world.request(OBSERVER, { interactionId: 'move', position: { x: 0, z: 0 } }); // 채굴 중 → 거부
 
     const { results } = world.tick(0);
@@ -98,7 +102,9 @@ describe('INTENT-REMOTE-REQUEST-001 — 요청은 도착하고 나서 판정된�
   it('판정 결과는 관찰 결과로도 드러난다 (요청 → 다음 관찰 결과)', () => {
     const world = joinedWorld({ ...solo, actorPosition: { x: 8, z: -5 } });
 
-    world.request(OBSERVER, { interactionId: 'mine', targetEntityId: 'deposit-1' });
+    world.request(OBSERVER, { interactionId: 'select-target', targetEntityId: 'deposit-1' });
+    world.tick(0); // C017 — 고르기가 판정되어야 채집이 그것을 읽는다
+    world.request(OBSERVER, { interactionId: 'mine' });
     const snapshot = world.tick(0).observations.get(OBSERVER)!;
 
     // 관찰자는 results 를 받지 못한다 — 이 snapshot 만으로 알아야 한다
@@ -118,7 +124,9 @@ describe('INTENT-WORLD-OBSERVATION-001 — 관찰 결과는 Tick 이 내보낸�
 
   it('관찰 결과는 직렬화 가능하다 (선을 탈 수 있는 모양)', () => {
     const world = joinedWorld();
-    world.request(OBSERVER, { interactionId: 'mine', targetEntityId: 'deposit-1' });
+    world.request(OBSERVER, { interactionId: 'select-target', targetEntityId: 'deposit-1' });
+    world.tick(0); // C017 — 고르기가 판정되어야 채집이 그것을 읽는다
+    world.request(OBSERVER, { interactionId: 'mine' });
     const snapshot = world.tick(0.2).observations.get(OBSERVER)!;
 
     expect(JSON.parse(JSON.stringify(snapshot))).toEqual(snapshot);

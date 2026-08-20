@@ -2,7 +2,7 @@
 
 파일 하나 = 후보 하나. 이름은 `CC-<NAME>.md`. 형식은 [../SCHEMA.md](../SCHEMA.md).
 
-현재: **PENDING 5종**
+현재: **PENDING 8종**
 
 | 후보 | 출처 | 관찰 | 상태 |
 |---|---|---|---|
@@ -11,8 +11,11 @@
 | CC-THE-WORLD-OWNS-THE-RELATION | C013 | 1회 (C013 — 관계 형태는 처음) | PENDING |
 | CC-THE-WORLD-NAMES-WHAT-IT-WITHHELD | C014 | 1회 (C014 · C011 은 전조) | PENDING |
 | CC-A-NEW-WAY-OF-KNOWING-IS-NOT-A-GATE | C016 | **2회** (C014 · C016) | PENDING |
+| CC-THE-CHOICE-IS-THE-OBSERVERS-OWN | C017 | **3회** (C004 · C014 · C017) | PENDING |
+| CC-A-GATE-MOVES-WITH-ITS-MEANING | C017 | 1회 (C017 · C014 는 전조) | PENDING |
+| CC-REASONS-ARE-A-LIST-NOT-A-BRANCH | C018 | 1회 (C018 — Cycle 이 보류를 권했다) | PENDING |
 
-세 무리로 읽는다.
+네 무리로 읽는다.
 
 **표면 무리 (3종)** — NAMES-WHAT-IT-READ(무엇을 읽었는가) · OWNS-THE-RELATION(두 존재
 사이의 값) · NAMES-WHAT-IT-WITHHELD(무엇을 가렸는가)는 모두
@@ -27,6 +30,13 @@
 **상태 무리 (2종 — 둘 다 승격 완료)** — WORLD-OWNS-THE-CHANCE 와
 CONDITION-OPENS-WITHOUT-RECORDING 은 뿌리가 같지만(안 써도 되는 상태는 쓰지 않는다)
 적용 대상이 달라 합치지 않고 둘로 세웠다 (우연 ↔ 조건).
+**C018 이 이 무리의 값어치를 확인했다** — 태도를 저장하지 않아 "물러나면 풀린다" 의
+구현이 0줄이었다. C018 은 그것을 새 후보로 제안했으나 이미 승인된 DC 였다 (HISTORY 참조).
+
+**구조 무리 (3종 — C017·C018)** — THE-CHOICE-IS-THE-OBSERVERS-OWN(관찰자에게 매달리는
+사실의 모양) · A-GATE-MOVES-WITH-ITS-MEANING(관문이 옮겨갈 때 사유를 잃지 않는다) ·
+REASONS-ARE-A-LIST-NOT-A-BRANCH(사정은 목록, 판정은 그것을 읽는다).
+셋 중 첫째만 3회 관찰이고 나머지 둘은 1회다 — 뒤의 둘은 두 번째 사례를 기다린다.
 
 승격된 것 3종 — 파일은 전부 기록으로 남긴다.
 

@@ -17,6 +17,7 @@
 import type { CurrentAction } from './action';
 import type { MoveMode } from './combat';
 import type { Inventory } from './inventory';
+import type { GuardedGround } from './relation';
 import type { WorldPosition } from './position';
 
 // Actor.Control — 이 Actor 의 행동을 누가 결정하는가
@@ -81,6 +82,13 @@ export interface ActorState {
   perceptionRange: number; // 고정 상수 — control = autonomous 일 때만 의미가 있다
   wanderPath: WorldPosition[]; // 고정 — control = autonomous 일 때만 의미가 있다
   wanderIndex: number;
+  // C018 ADDED — 지키는 자리 (INTENT-STANCE-FROM-GUARDED-GROUND-001).
+  // 이 자리에 든 존재를 사냥감으로 대한다. 없으면 이 사정으로는 누구도 그렇게 대하지 않는다.
+  // **어떤 몸이든 지닐 수 있다** — 조종 주체를 가리지 않는다. 보는 이의 몸도 같은 자리를
+  // 지니며 지금은 값이 없을 뿐이다 (RULE-OBSERVER-JOIN-001 무변경).
+  // 개체가 지니는 값이므로 종류 카탈로그에 두지 않는다 — 같은 종류라도 지킬 것이 있는
+  // 개체와 없는 개체가 있다.
+  guardedGround: GuardedGround | null;
   inventory: Inventory;
   currentAction: CurrentAction;
 }

@@ -18,6 +18,7 @@ import { evaluateActionBegin, isSameAction } from '../rules/action-begin';
 import { ruleSkillBegin } from '../rules/skill';
 import { ruleMove } from '../rules/move';
 import { isDowned } from '../semantic/combat';
+import { ruleStance } from '../rules/relation';
 
 const ARRIVAL_EPSILON = 1e-6;
 
@@ -30,6 +31,12 @@ export function perceivedTarget(state: WorldState, actor: ActorState): ActorStat
   for (const other of state.actors) {
     if (other.id === actor.id) continue;
     if (isDowned(other)) continue; // 쓰러진 존재는 인지 대상이 되지 않는다 (C007)
+    // C018 CHANGED — 눈에 든 것이 아니라 **사냥감으로 대하는 것**만 쫓는다
+    // (INTENT-NPC-AUTONOMY-001). 거르기는 자기 → 상대 한 방향만 읽는다: 쫓을지 말지는
+    // 자기 목적의 문제이므로, 상대가 나를 어떻게 보든 내가 지킬 것이 없으면 쫓지 않는다.
+    // 이 한 겹이 "나가면 더 쫓지 않는다" 도 함께 만든다 — 침입자가 자리를 벗어나면
+    // 다음 Tick 에 대상이 사라지고 순회로 돌아간다.
+    if (ruleStance(actor, other) !== 'hostile') continue;
     const d = distance(actor.position, other.position);
     if (d > actor.perceptionRange) continue;
 

@@ -63,7 +63,9 @@
           "guarding": false,
           "broken": false
         },
-        "insight": 0
+        "insight": 0,
+        "stanceTowardObserver": "neutral",
+        "stanceFromObserver": "neutral"
       },
       "body": {
         "radius": 0.7,
@@ -135,7 +137,9 @@
           "guarding": false,
           "broken": false
         },
-        "insight": 0
+        "insight": 0,
+        "stanceTowardObserver": "neutral",
+        "stanceFromObserver": "neutral"
       },
       "progress": 0.8571428571428572,
       "body": {
@@ -208,7 +212,9 @@
           "guarding": false,
           "broken": false
         },
-        "insight": 0
+        "insight": 0,
+        "stanceTowardObserver": "neutral",
+        "stanceFromObserver": "neutral"
       },
       "body": {
         "radius": 0.85,
@@ -238,25 +244,35 @@
   ],
   "interactions": [
     {
-      "id": "observe",
-      "role": "observe-character",
+      "id": "select-target",
+      "role": "select-target",
       "targetEntityId": "npc-1",
-      "available": false,
-      "reason": "already-known"
+      "available": true
     },
     {
-      "id": "observe",
-      "role": "observe-character",
+      "id": "select-target",
+      "role": "select-target",
       "targetEntityId": "npc-2",
-      "available": false,
-      "reason": "already-known"
+      "available": true
     },
     {
-      "id": "observe",
-      "role": "observe-character",
+      "id": "select-target",
+      "role": "select-target",
       "targetEntityId": "player-1",
       "available": false,
       "reason": "target-is-self"
+    },
+    {
+      "id": "select-target",
+      "role": "select-target",
+      "targetEntityId": "deposit-1",
+      "available": true
+    },
+    {
+      "id": "observe",
+      "role": "observe-character",
+      "available": false,
+      "reason": "already-known"
     },
     {
       "id": "move",
@@ -330,9 +346,13 @@
     {
       "id": "mine",
       "role": "mine-deposit",
-      "targetEntityId": "deposit-1",
       "available": false,
-      "reason": "out-of-range"
+      "reason": "target-kind-mismatch"
+    },
+    {
+      "id": "clear-target",
+      "role": "clear-target",
+      "available": true
     }
   ],
   "hud": [
@@ -572,6 +592,7 @@
       }
     }
   ],
+  "contacts": [],
   "debug": {
     "open": true
   },
@@ -758,5 +779,8 @@
         }
       ]
     }
-  ]
+  ],
+  "currentTarget": {
+    "entityId": "npc-1"
+  }
 }

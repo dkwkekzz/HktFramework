@@ -100,8 +100,50 @@
   ],
   "interactions": [
     {
+      "id": "select-target",
+      "role": "select-target",
+      "targetEntityId": "player",
+      "available": false,
+      "reason": "target-is-self"
+    },
+    {
+      "id": "select-target",
+      "role": "select-target",
+      "targetEntityId": "npc-1",
+      "available": true
+    },
+    {
+      "id": "select-target",
+      "role": "select-target",
+      "targetEntityId": "npc-2",
+      "available": true
+    },
+    {
+      "id": "select-target",
+      "role": "select-target",
+      "targetEntityId": "deposit-1",
+      "available": true
+    },
+    {
+      "id": "observe",
+      "role": "observe-character",
+      "available": false,
+      "reason": "no-target-selected"
+    },
+    {
       "id": "move",
       "role": "move-to",
+      "available": true
+    },
+    {
+      "id": "mine",
+      "role": "mine-deposit",
+      "available": false,
+      "reason": "no-target-selected"
+    },
+    {
+      "id": "clear-target",
+      "role": "clear-target",
       "available": true
     }
   ],
@@ -113,8 +155,10 @@
     }
   ],
   "strikes": [],
+  "contacts": [],
   "debug": {
     "open": false
   },
-  "commands": []
+  "commands": [],
+  "currentTarget": {}
 }

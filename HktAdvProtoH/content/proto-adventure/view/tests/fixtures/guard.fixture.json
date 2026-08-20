@@ -64,7 +64,9 @@
           "broken": false
         },
         "defenseShape": "even",
-        "insight": 0
+        "insight": 0,
+        "stanceTowardObserver": "neutral",
+        "stanceFromObserver": "neutral"
       },
       "body": {
         "radius": 0.5,
@@ -136,7 +138,9 @@
           "broken": false
         },
         "defenseShape": "even",
-        "insight": 0
+        "insight": 0,
+        "stanceTowardObserver": "neutral",
+        "stanceFromObserver": "neutral"
       },
       "body": {
         "radius": 0.5,
@@ -208,7 +212,9 @@
           "broken": false
         },
         "defenseShape": "even",
-        "insight": 0
+        "insight": 0,
+        "stanceTowardObserver": "neutral",
+        "stanceFromObserver": "neutral"
       },
       "body": {
         "radius": 0.5,
@@ -226,6 +232,31 @@
     }
   ],
   "interactions": [
+    {
+      "id": "select-target",
+      "role": "select-target",
+      "targetEntityId": "player-1",
+      "available": false,
+      "reason": "target-is-self"
+    },
+    {
+      "id": "select-target",
+      "role": "select-target",
+      "targetEntityId": "npc-1",
+      "available": true
+    },
+    {
+      "id": "select-target",
+      "role": "select-target",
+      "targetEntityId": "npc-2",
+      "available": true
+    },
+    {
+      "id": "observe",
+      "role": "observe-character",
+      "available": false,
+      "reason": "no-target-selected"
+    },
     {
       "id": "move",
       "role": "move-to",
@@ -277,6 +308,17 @@
     {
       "id": "guard-release",
       "role": "guard-release",
+      "available": true
+    },
+    {
+      "id": "mine",
+      "role": "mine-deposit",
+      "available": false,
+      "reason": "no-target-selected"
+    },
+    {
+      "id": "clear-target",
+      "role": "clear-target",
       "available": true
     }
   ],
@@ -533,8 +575,10 @@
       }
     }
   ],
+  "contacts": [],
   "debug": {
     "open": true
   },
-  "commands": []
+  "commands": [],
+  "currentTarget": {}
 }
