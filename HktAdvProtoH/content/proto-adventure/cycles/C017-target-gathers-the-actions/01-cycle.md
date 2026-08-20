@@ -2,7 +2,7 @@
 
 [PASS] Cycle Definition
 [PASS] Intent                    (관계 하나 · 고르는 것은 아무것도 만들지 않는다 · 유일 대상)
-[    ] World Semantic
+[PASS] World Semantic            (상태 하나 · 규칙 셋 · 행동 둘의 대상 자리 교체 · 새 값 0)
 [    ] GameView Specification
 [    ] Human Semantic Review
 [    ] World Implementation
