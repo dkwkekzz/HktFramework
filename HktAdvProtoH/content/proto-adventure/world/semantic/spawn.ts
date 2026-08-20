@@ -11,6 +11,7 @@ import { characterDefinition } from './character-catalog';
 import type { Inventory } from './inventory';
 import { createInventory } from './inventory';
 import type { WorldPosition } from './position';
+import type { GuardedGround } from './relation';
 
 export interface ActorSpawn {
   id: string;
@@ -21,6 +22,7 @@ export interface ActorSpawn {
   inventory?: Inventory;
   wanderPath?: WorldPosition[]; // control = autonomous 일 때만 의미가 있다
   perceptionRange?: number; // 개체별 재정의 — 밝히지 않으면 종류의 값
+  guardedGround?: GuardedGround; // C018 — 지키는 자리. 밝히지 않으면 지킬 것이 없다
 }
 
 export function spawnActor(spawn: ActorSpawn): ActorState {
@@ -59,6 +61,15 @@ export function spawnActor(spawn: ActorSpawn): ActorState {
     perceptionRange: spawn.perceptionRange ?? def.perceptionRange,
     wanderPath: (spawn.wanderPath ?? []).map((p) => ({ x: p.x, z: p.z })),
     wanderIndex: 0,
+    // C018 — 지키는 자리는 개체가 지니는 값이다. 밝히지 않으면 없다 —
+    // 막기를 안 든 채로 태어나는 것(guarding = false)과 같은 초기값이며,
+    // 조종 주체에 따른 예외가 아니다.
+    guardedGround: spawn.guardedGround
+      ? {
+          center: { x: spawn.guardedGround.center.x, z: spawn.guardedGround.center.z },
+          radius: spawn.guardedGround.radius,
+        }
+      : null,
     inventory: spawn.inventory ?? createInventory(),
     currentAction: idleAction(),
   };

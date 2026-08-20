@@ -67,6 +67,17 @@ export interface AttributesView {
    * 가려지지 않는다 — 겨루는 힘이 아니라 아는 힘이다. 남의 것도 그대로 실린다.
    */
   insight: number;
+  // ── 둘 사이의 태도 (C018 ADDED, INTENT-STANCE-OBSERVE-001) ──────────────
+  // **모든 존재에 언제나 둘 다 실린다.** 가려지지 않는다 — 겨루는 힘이 아니라 지금 둘
+  // 사이에 있는 일이며, 가리면 물러날 판단 자체가 성립하지 않는다.
+  // 둘을 함께 싣는 이유: 해는 어느 한쪽이라도 적대이면 성립하므로(RULE-HARM-GATE-001)
+  // 한 방향만으로는 "왜 내가 저것을 칠 수 있는가" 의 답이 절반만 온다.
+  // View 는 종류로도 조종 주체로도 태도를 짐작하지 않는다 — 같은 종류라도 값이 다르고
+  // 같은 존재라도 시간에 따라 다르다 (DC-WORLD-OWNS-THE-SURFACE-LIST).
+  /** 이 존재가 나를 어떻게 대하는가 — hostile | neutral | friendly */
+  stanceTowardObserver: string;
+  /** 내가 이 존재를 어떻게 대하는가 — 방향값이므로 위와 다를 수 있다 */
+  stanceFromObserver: string;
   energy: number;
   energyMaximum: number;
   moveMode: string; // walk | run
@@ -227,10 +238,25 @@ export interface CurrentTargetView {
   entityId?: string; // 없으면 아무것도 고르지 않은 것이다
 }
 
+// 닿았으나 해가 성립하지 않은 접촉 (C018 ADDED — INTENT-UNHARMED-IS-OBSERVABLE-001).
+// StrikeEventView 와 **나란한 자리**이며 같은 수명을 가진다. 둘은 섞이지 않는다:
+// 타격 결과는 피해 산정 경위를 반드시 지니고 이쪽은 산정 자체가 없다.
+// 이것이 없으면 화면에서 무산은 빗나감과 구분되지 않고, 그 구분을 View 가 짐작으로
+// 메우기 시작한다. 자율 존재가 낸 무산도 함께 온다 — 관문은 양쪽에 똑같이 서기 때문이다.
+export interface UnharmedContactView {
+  attackerId: string;
+  targetId: string;
+  skill: string; // attack | heavy-attack | aura-strike
+  at: GameViewPosition; // 닿은 몸의 중심
+  since: number; // 일어난 세계 시각 — 얼마나 지났는지 판단용
+  reason: string; // 사유 코드 (not-hostile) — 문구 변환은 View 책임
+}
+
 // 이 팩의 관찰 결과 — 봉투에 타격 결과가 더해지고, 존재/interaction 이 팩 형으로 좁혀진다.
 export interface GameViewSnapshot extends CoreGameViewSnapshot {
   entities: EntityView[];
   interactions: InteractionView[];
   strikes: StrikeEventView[]; // C007 ADDED
+  contacts: UnharmedContactView[]; // C018 ADDED — 닿았으나 성립하지 않은 접촉
   currentTarget: CurrentTargetView; // C017 ADDED — 늘 실린다
 }

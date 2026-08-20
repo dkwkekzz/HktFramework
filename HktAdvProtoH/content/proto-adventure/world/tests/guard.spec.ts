@@ -370,7 +370,13 @@ describe('RULE-STRIKE-DAMAGE-001 (CHANGED) — 실제 타격에서 막기가 작
    * (dot ≈ 0.6 ≥ 0.5 — 정면). player-1 은 +x 로 한 걸음 떼어 player-2 를 본 뒤 휘두른다.
    */
   const facingDuel = () => {
-    const world = driveWorld({ npcs: [] });
+    // C018 — 사람끼리도 세계의 규칙이 적대를 세우면 서로 해를 입힌다.
+    // 여기서는 첫 관찰자의 몸이 이 무대를 자기 자리로 지닌다 — 사람이라서 예외인 것이
+    // 아니라 그럴 사정을 주지 않으면 서지 않을 뿐이다 (RULE-STANCE-001).
+    const world = driveWorld({
+      npcs: [],
+      actorGuardedGround: { center: { x: 0, z: 0 }, radius: 64 },
+    });
     world.join(OBSERVER_2);
     world.tick(TICK_INTERVAL);
 
@@ -441,7 +447,16 @@ describe('REGRESSION — 막지 않는 세계는 C007·C010 그대로다', () =>
   it('아무도 막지 않으면 타격 결과가 C010 과 같다', () => {
     // C010 damage.spec 의 기준값 — 관찰자(Attack 40)가 npc-1(Defense 30)을 친다
     const world = driveWorld({
-      npcs: [{ id: 'npc-1', position: { x: 1.5, z: 0 }, wanderPath: [], perceptionRange: 0 }],
+      // C018 — 칠 수 있는 사이여야 타격이 성립한다 (RULE-HARM-GATE-001)
+      npcs: [
+        {
+          id: 'npc-1',
+          position: { x: 1.5, z: 0 },
+          wanderPath: [],
+          perceptionRange: 0,
+          guardedGround: { center: { x: 0, z: 0 }, radius: 64 },
+        },
+      ],
     });
     world.dispatch({ interactionId: 'move', position: { x: 2, z: 0 } });
     world.tick(TICK_INTERVAL);

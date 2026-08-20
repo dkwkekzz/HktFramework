@@ -63,7 +63,9 @@
           "guarding": false,
           "broken": false
         },
-        "insight": 0
+        "insight": 0,
+        "stanceTowardObserver": "neutral",
+        "stanceFromObserver": "neutral"
       },
       "progress": 0.09523809523809525,
       "body": {
@@ -136,7 +138,9 @@
           "guarding": false,
           "broken": false
         },
-        "insight": 0
+        "insight": 0,
+        "stanceTowardObserver": "neutral",
+        "stanceFromObserver": "neutral"
       },
       "progress": 0.38888888888888884,
       "body": {
@@ -461,6 +465,7 @@
       }
     }
   ],
+  "contacts": [],
   "debug": {
     "open": true
   },

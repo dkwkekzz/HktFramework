@@ -60,7 +60,11 @@ describe('RULE-NPC-DECIDE-001 — 인지 대상이 있을 때', () => {
   it('인지 범위 안의 캐릭터에게 접근하고, 사거리에 이르면 공격한다', () => {
     const world = driveWorld({
       actorPosition: { x: 0, z: 0 },
-      npcs: [{ id: 'npc-1', position: { x: -8, z: 0 }, wanderPath: [] }], // 거리 8 <= 인지 9
+    // C018 — 자율 존재가 쫓고 때리려면 그 상대를 사냥감으로 대해야 한다.
+    // 이 무대를 자기 자리로 지니는 존재로 세운다 (RULE-STANCE-001).
+      npcs: [
+        { id: 'npc-1', position: { x: -8, z: 0 }, wanderPath: [], guardedGround: { center: { x: 0, z: 0 }, radius: 64 }, },
+      ], // 거리 8 <= 인지 9
     });
 
     world.tick(0.1);
@@ -82,7 +86,15 @@ describe('RULE-NPC-DECIDE-001 — 인지 대상이 있을 때', () => {
   it('대체 불가 행동(공격) 중에는 새로운 결정을 하지 않는다', () => {
     const world = driveWorld({
       actorPosition: { x: 0, z: 0 },
-      npcs: [{ id: 'npc-1', position: { x: 1, z: 0 }, wanderPath: [] }], // 즉시 사거리 안
+      npcs: [
+        // C018 — 쫓고 때리려면 그 상대를 사냥감으로 대해야 한다
+        {
+          id: 'npc-1',
+          position: { x: 1, z: 0 },
+          wanderPath: [],
+          guardedGround: { center: { x: 0, z: 0 }, radius: 64 },
+        },
+      ], // 즉시 사거리 안
     });
 
     world.tick(1 / 30);

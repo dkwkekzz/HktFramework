@@ -44,11 +44,18 @@ const aimRight = (world: WorldDriver) => {
 };
 
 // 순회도 인지도 없는 정지 NPC — 때릴 대상으로만 쓴다 (결정론)
+// C018 CHANGED — 태도가 없으면 닿아도 아무 일이 일어나지 않는다 (RULE-HARM-GATE-001).
+// 그래서 전투를 보는 시나리오의 상대는 **이 무대를 자기 자리로 지니는 존재**로 세운다.
+// 세계를 약하게 만드는 것이 아니라, 지금까지 말하지 않고 전제해 온 것(칠 수 있는 사이다)을
+// 시나리오가 드러내 적는 것이다. perceptionRange 0 이므로 쫓아오지는 않는다.
+const WHOLE_STAGE = { center: { x: 0, z: 0 }, radius: 64 };
+
 const dummyAt = (x: number, z: number, id = 'npc-1') => ({
   id,
   position: { x, z },
   wanderPath: [],
   perceptionRange: 0,
+  guardedGround: WHOLE_STAGE,
 });
 
 // 아무도 방해하지 않는 세계 — 기본 배치의 자율 존재는 다가와 때리므로 (행동이 hit 으로
@@ -352,7 +359,9 @@ describe('INTENT-MODIFIER-COMPOSE-001 — 배율은 원천들의 곱이다', () 
   it('얻어맞은 직후에는 충전이 더 크게 억눌린다', () => {
     // 자율 존재가 나를 때리게 둔다
     const world = driveWorld({
-      npcs: [{ id: 'npc-1', position: { x: 1.2, z: 0 }, wanderPath: [], perceptionRange: 9 }],
+      npcs: [
+        { id: 'npc-1', position: { x: 1.2, z: 0 }, wanderPath: [], perceptionRange: 9, guardedGround: WHOLE_STAGE },
+      ],
     });
     tickFor(world, 1.5);
 
@@ -362,7 +371,9 @@ describe('INTENT-MODIFIER-COMPOSE-001 — 배율은 원천들의 곱이다', () 
 
   it('달리면서 맞으면 두 원천이 곱해진다', () => {
     const world = driveWorld({
-      npcs: [{ id: 'npc-1', position: { x: 1.2, z: 0 }, wanderPath: [], perceptionRange: 9 }],
+      npcs: [
+        { id: 'npc-1', position: { x: 1.2, z: 0 }, wanderPath: [], perceptionRange: 9, guardedGround: WHOLE_STAGE },
+      ],
     });
     world.dispatch({ interactionId: 'move-mode', mode: 'run' });
     tickFor(world, 1.5);
@@ -473,6 +484,10 @@ describe('INTENT-ATTRIBUTE-OBSERVE-001 — 세계가 무엇이 언제 실리는�
       // C016 — 통찰도 가려지지 않는다. 겨루는 힘이 아니라 아는 힘이며,
       // 이 존재는 아무것도 기르지 않았으므로 0 이다
       insight: 0,
+      // C018 — 둘 사이의 태도도 가려지지 않는다. 이 존재는 이 무대를 자기 자리로
+      // 지니므로 나를 사냥감으로 대하고, 나는 지킬 것이 없으므로 중립이다
+      stanceTowardObserver: 'hostile',
+      stanceFromObserver: 'neutral',
     });
   });
 
@@ -523,6 +538,10 @@ describe('INTENT-ATTRIBUTE-OBSERVE-001 — 세계가 무엇이 언제 실리는�
       concealed: [],
       // C016 — 살펴봄으로 열렸든 통찰로 열렸든 실리는 값은 같다
       insight: 0,
+      // C018 — 둘 사이의 태도도 가려지지 않는다. 이 존재는 이 무대를 자기 자리로
+      // 지니므로 나를 사냥감으로 대하고, 나는 지킬 것이 없으므로 중립이다
+      stanceTowardObserver: 'hostile',
+      stanceFromObserver: 'neutral',
     });
   });
 
@@ -659,7 +678,9 @@ describe('결정론 회귀 — 같은 입력이면 같은 세계다', () => {
   it('두 세계를 같은 순서로 굴리면 자원까지 같은 값이 된다', () => {
     const run = () => {
       const world = driveWorld({
-        npcs: [{ id: 'npc-1', position: { x: 1.2, z: 0 }, wanderPath: [], perceptionRange: 9 }],
+        npcs: [
+        { id: 'npc-1', position: { x: 1.2, z: 0 }, wanderPath: [], perceptionRange: 9, guardedGround: WHOLE_STAGE },
+      ],
       });
       world.dispatch({ interactionId: 'attack' });
       tickFor(world, 2.0);
