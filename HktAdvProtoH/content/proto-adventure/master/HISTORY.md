@@ -1128,11 +1128,17 @@ CC-REASONS-ARE-A-LIST-NOT-A-BRANCH    C018 · 1회 — Cycle 이 스스로 보�
 Human 지시로 두 가지를 한 번에 반영했다 (상세 diff 는 git history 소유).
 
 ```text
-part_of 도입    모든 MC-* 노드에 "이 조각이 속한 전체"(system · source · grounded)를
-                정식 필드로 세웠다 (SCHEMA · guides/master-graph · master-frontier 갱신).
-                grounded: false = 근거 문서가 이름만 댄 노드 — semantic 은 잠정이며
-                Frontier 후보의 Target 으로 세우지 않는다. MC-PREDICT 보류(위 Frontier
-                선택 기록)를 규칙으로 일반화한 것이다.
+part_of 도입    모든 MC-* 노드에 "이 조각이 속한 전체"를 정식 필드로 세웠다
+                (SCHEMA · guides/master-graph · master-frontier 갱신). 형태는
+                grounded + memberships(system·segment·source·role 목록) — 한 조각이
+                여러 시스템·여러 자리에 속할 수 있고(MC-BREAK · MC-DISCOVER-WEAKNESS),
+                깊이는 두 단계(system → segment)로 고정했다. 시스템·자리의 단일
+                출처는 graph/systems.yaml(MS-* 레지스트리, DRAFT/PLANNED 상태 포함)
+                이며 없는 참조는 master:graph ERROR 다. 도구가 척추 시각화를 낸다
+                (GRAPH.md "척추" 절 + 뷰어의 척추 렌즈 · 잠정 점선).
+                grounded: false = semantic 이 잠정(근거 문서가 이름만 댐) — Frontier
+                후보의 Target 으로 세우지 않는다. MC-PREDICT 보류(위 Frontier 선택
+                기록)를 규칙으로 일반화한 것이다.
 
 이력 이관       살아 있는 문서(graph/*.yaml · overlay.md · frontier.md)에 쌓여 있던
                 정정 경위 · 날짜 · Cycle 실측 서사를 제거했다 (CLAUDE.md 원칙 20 집행).

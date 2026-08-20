@@ -21,6 +21,20 @@ export type NodeType =
 
 export type Overlay = 'IMPLEMENTED' | 'PARTIAL' | 'MISSING';
 
+/** part_of 소속 하나 — 이 조각이 어느 시스템의 어느 자리에 속하는가 */
+export interface Membership {
+  system: string;
+  segment?: string;
+  role?: string;
+  source?: string;
+}
+
+/** part_of — 조각의 척추 정보. grounded=false 면 semantic 이 잠정이다 */
+export interface PartOf {
+  grounded: boolean;
+  memberships: Membership[];
+}
+
 /** 노드 하나 — YAML 원문을 그대로 담되, 자주 쓰는 필드만 타입을 준다 */
 export interface GraphNode {
   id: string;
@@ -28,12 +42,24 @@ export interface GraphNode {
   /** 노드 종류마다 다른 본문 필드(statement / semantic / desired_state / perspective)를 하나로 모은 것 */
   text: string;
   overlay?: Overlay;
+  partOf?: PartOf;
   constraints: string[];
   constraintEvaluation: Record<string, string>;
   /** YAML 원문 — 뷰어 상세 패널이 그대로 보여 준다 */
   raw: Record<string, unknown>;
   /** 이 노드를 정의한 파일 (진단 메시지용) */
   file: string;
+}
+
+/** 시스템 레지스트리 항목 (graph/systems.yaml MS-*) — part_of 가 가리키는 "전체" */
+export interface SystemDef {
+  id: string;
+  name: string;
+  source: string;
+  status: string; // DEFINED | DRAFT | PLANNED
+  semantic: string;
+  /** 순서 있는 자리 — 첫 항목이 바닥. 순서가 없는 시스템은 빈 배열 */
+  segments: { id: string; name: string }[];
 }
 
 /** 관계 하나 — 노드 필드에서 유도한다 */
@@ -99,6 +125,8 @@ export interface MasterGraph {
   nodes: Map<string, GraphNode>;
   edges: GraphEdge[];
   constraints: Map<string, Constraint>;
+  /** 시스템 레지스트리 (graph/systems.yaml) — 없으면 빈 Map (part_of 검사도 꺼진다) */
+  systems: Map<string, SystemDef>;
   readiness: Map<string, Readiness>;
   holes: Hole[];
   problems: Problem[];
@@ -179,6 +207,7 @@ export function loadMasterGraph(masterDir: string): MasterGraph {
         type,
         text: flatten(String((textField && entry[textField]) ?? '')),
         overlay: entry.overlay as Overlay | undefined,
+        partOf: parsePartOf(entry.part_of),
         constraints: asList(entry.constraints),
         constraintEvaluation: (entry.constraint_evaluation as Record<string, string>) ?? {},
         raw: entry,
@@ -198,10 +227,11 @@ export function loadMasterGraph(masterDir: string): MasterGraph {
   }
 
   const constraints = loadConstraints(join(masterDir, 'constraints'));
+  const systems = loadSystems(graphDir);
   const edges = deriveEdges(nodes);
   const readiness = computeReadiness(nodes);
   const holes = findHoles(nodes);
-  problems.push(...checkIntegrity(nodes, edges, constraints));
+  problems.push(...checkIntegrity(nodes, edges, constraints, systems));
 
   const constrainedBy = new Map<string, string[]>();
   for (const node of nodes.values()) {
@@ -210,7 +240,54 @@ export function loadMasterGraph(masterDir: string): MasterGraph {
     }
   }
 
-  return { nodes, edges, constraints, readiness, holes, problems, constrainedBy };
+  return { nodes, edges, constraints, systems, readiness, holes, problems, constrainedBy };
+}
+
+/** part_of 필드를 정규화한다 — 형태가 아니면 undefined (검사는 checkIntegrity 가 한다) */
+function parsePartOf(v: unknown): PartOf | undefined {
+  if (v == null || typeof v !== 'object' || Array.isArray(v)) return undefined;
+  const o = v as Record<string, unknown>;
+  const memberships: Membership[] = [];
+  for (const m of Array.isArray(o.memberships) ? o.memberships : []) {
+    if (m == null || typeof m !== 'object') continue;
+    const mm = m as Record<string, unknown>;
+    if (!mm.system) continue;
+    memberships.push({
+      system: String(mm.system),
+      segment: mm.segment != null ? String(mm.segment) : undefined,
+      role: mm.role != null ? flatten(String(mm.role)) : undefined,
+      source: mm.source != null ? flatten(String(mm.source)) : undefined,
+    });
+  }
+  return { grounded: o.grounded === true, memberships };
+}
+
+/** graph/systems.yaml — 없는 팩에서는 빈 Map 을 돌려주고 part_of 검사도 꺼진다 */
+function loadSystems(graphDir: string): Map<string, SystemDef> {
+  const out = new Map<string, SystemDef>();
+  let doc: Record<string, unknown> | null = null;
+  try {
+    doc = parseYaml(readFileSync(join(graphDir, 'systems.yaml'), 'utf8')) as Record<string, unknown>;
+  } catch {
+    return out;
+  }
+  for (const s of Array.isArray(doc?.systems) ? (doc.systems as Record<string, unknown>[]) : []) {
+    const id = String(s.id ?? '');
+    if (!id) continue;
+    const segments = (Array.isArray(s.segments) ? (s.segments as Record<string, unknown>[]) : []).map((g) => ({
+      id: String(g.id ?? ''),
+      name: String(g.name ?? g.id ?? ''),
+    }));
+    out.set(id, {
+      id,
+      name: String(s.name ?? id),
+      source: flatten(String(s.source ?? '')),
+      status: String(s.status ?? 'DEFINED'),
+      semantic: flatten(String(s.semantic ?? '')),
+      segments,
+    });
+  }
+  return out;
 }
 
 function loadConstraints(dir: string): Map<string, Constraint> {
@@ -348,8 +425,49 @@ function checkIntegrity(
   nodes: Map<string, GraphNode>,
   edges: GraphEdge[],
   constraints: Map<string, Constraint>,
+  systems: Map<string, SystemDef>,
 ): Problem[] {
   const problems: Problem[] = [];
+
+  // ⓪ part_of ↔ 시스템 레지스트리 정합 — 레지스트리가 있는 팩에서만 검사한다
+  if (systems.size > 0) {
+    for (const node of nodes.values()) {
+      if (node.type !== 'capability') continue;
+      if (!node.partOf) {
+        problems.push({
+          severity: 'WARN',
+          code: 'MISSING_PART_OF',
+          message: `${node.id} 에 part_of 가 없다 — 어느 시스템의 조각인지 보이지 않는다`,
+        });
+        continue;
+      }
+      if (node.partOf.memberships.length === 0) {
+        problems.push({
+          severity: 'WARN',
+          code: 'EMPTY_MEMBERSHIPS',
+          message: `${node.id}.part_of.memberships 가 비어 있다`,
+        });
+      }
+      for (const m of node.partOf.memberships) {
+        const sys = systems.get(m.system);
+        if (!sys) {
+          problems.push({
+            severity: 'ERROR',
+            code: 'UNKNOWN_SYSTEM',
+            message: `${node.id} 가 레지스트리에 없는 시스템 ${m.system} 를 가리킨다 (graph/systems.yaml)`,
+          });
+          continue;
+        }
+        if (m.segment && !sys.segments.some((g) => g.id === m.segment)) {
+          problems.push({
+            severity: 'ERROR',
+            code: 'UNKNOWN_SEGMENT',
+            message: `${node.id} 가 ${m.system} 에 없는 자리 ${m.segment} 를 가리킨다`,
+          });
+        }
+      }
+    }
+  }
 
   // ① 존재하지 않는 노드를 가리키는 참조
   for (const e of edges) {

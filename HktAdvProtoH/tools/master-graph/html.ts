@@ -23,6 +23,7 @@ export function serialize(graph: MasterGraph) {
       type: n.type,
       text: n.text,
       overlay: n.overlay ?? null,
+      partOf: n.partOf ?? null,
       constraints: n.constraints,
       eval: n.constraintEvaluation,
       holes: holesByNode.get(n.id) ?? [],
@@ -41,6 +42,7 @@ export function serialize(graph: MasterGraph) {
       nodes: graph.constrainedBy.get(c.id) ?? [],
     })),
     readiness: Object.fromEntries(graph.readiness),
+    systems: [...graph.systems.values()],
     problems: graph.problems,
     freeBuckets: [...FREE_REQUIRE_BUCKETS],
   };
@@ -104,6 +106,12 @@ ${css}
       <h2>관계</h2>
       <p class="hint">눌러서 끄고 켠다.</p>
       <div class="toggles" id="legend"></div>
+    </div>
+
+    <div class="sec">
+      <h2>척추 — 어느 시스템의 조각인가</h2>
+      <p class="hint">고르면 그 시스템에 속한 Capability 만 남는다. 점선 = 잠정(grounded: false).</p>
+      <div id="systems"></div>
     </div>
 
     <div class="sec">

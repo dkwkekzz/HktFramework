@@ -276,10 +276,13 @@ Capability 쪽 거울은 `demanded_by` 다 (`required_by` 와 같은 방식의 �
   world_shape: >
     <이 능력이 세계에 있다는 것을 무엇으로 확인하는가 — Cycle 이 이 칸을 닫는다>
   part_of:                    # 이 조각이 속한 전체 — 노드가 목록으로 뽑혀도 자리가 보이게 한다
-    system: <전체의 이름과 그 안의 자리 — 사람 말. 예: 전투 사다리 — Active Defense 층>
-    source: <그 전체를 정의하는 문서·절. 문서가 이름만 댔으면 "(이름만)" 을 붙인다>
     grounded: true            # false = 근거 문서가 이름만 댔다 — semantic 은 Agent 의 잠정
                               # 번역이며, 그 전체의 설계 문서가 서면 개정한다
+    memberships:              # 하나 이상 — 첫 항목이 주 소속. 여러 시스템·여러 자리 허용
+      - system: MS-<NAME>     # graph/systems.yaml 의 시스템 ID — 지어내지 않는다
+        segment: <SEG-ID>     # 그 시스템 안의 자리 (층·칸). 자리가 없으면 생략
+        source: <이 소속의 근거 문서·절. 이름만이면 "(이름만)">
+        role: <선택 — 이 시스템에서 맡는 몫이 소속만으로 안 읽힐 때 한 구절>
   required_by:  [MP-...]      # 이 능력을 요구하는 방법
   demanded_by:  [MW-...]      # 이 능력을 요구하는 장소
   constraints: [DC-...]
@@ -296,10 +299,39 @@ Capability 쪽 거울은 `demanded_by` 다 (`required_by` 와 같은 방식의 �
 required_by/demanded_by 는 누가 요구하는가(필요)를 답하고, part_of 는 어떤 전체의
 조각인가(자리)를 답한다 — 둘은 다른 질문이다. 목록·Frontier 로 뽑힌 노드가 홀로
 읽혀도 part_of 만으로 자리가 보여야 한다.
-system 은 지어내지 않는다 — 근거 문서가 이미 가진 구조(층·사슬·게이트)의 이름을 쓴다.
+시스템과 자리의 단일 출처는 graph/systems.yaml 이다 — part_of 에서 지어내지 않는다.
+소속은 여럿일 수 있다 (한 조각이 두 시스템, 또는 한 시스템의 두 자리에 속한다 —
+  MC-BREAK · MC-DISCOVER-WEAKNESS 가 실례다). 첫 항목이 주 소속이다.
+깊이는 두 단계(system → segment)로 고정한다 — 더 깊은 계보가 실제 근거 문서에서
+  나타나기 전에는 층을 만들지 않는다 (지어내지 않는다).
+grounded 는 노드에 하나다 — 소속마다 갈리면 "어디서든 확정이면 true" 가 아니라
+  semantic 문안이 확정 근거(문서 문장 또는 닫힌 Cycle)를 가졌는가로 판정한다.
 grounded: false 노드는 Frontier 후보의 Target 으로 세우지 않는다 — 그 전체의 설계
 문서가 먼저다 (MC-PREDICT 보류가 이 규칙의 선례다 — HISTORY).
+정합은 도구가 강제한다 — 없는 시스템·자리 참조는 master:graph ERROR 다.
 ```
+
+### graph/systems.yaml — MS- (시스템 레지스트리)
+
+`part_of` 가 가리키는 "전체" 의 목록 — 척추의 단일 출처다.
+
+```yaml
+version: 1
+systems:
+  - id: MS-<NAME>
+    name: <사람이 부르는 이름>
+    source: <이 전체를 정의하는 문서·절>
+    status: DEFINED           # DEFINED | DRAFT(초안 — Human 승인 대기) | PLANNED(이름만)
+    semantic: >
+      <이 시스템이 무엇인가 한 문단>
+    segments:                 # 순서 있는 자리 — 아래에서 위로, 첫 항목이 바닥.
+      - { id: <SEG-ID>, name: <자리 이름> }   # 순서가 없으면 segments 생략
+```
+
+시스템은 근거 문서가 이미 가진 구조(층·사슬·게이트)만 등록한다 — 레지스트리가
+분류 체계를 발명하는 순간 Constraint 로 시스템 목록을 만드는 것과 같은 잘못이 된다.
+status: DRAFT/PLANNED 시스템은 "문서를 기다리는 전체" 를 그래프에 보이게 하는 자리다 —
+그 시스템에 결손의 반쪽을 맡긴 노드는 grounded: false 로 남는다.
 
 `overlay:` / `implemented:` 에는 **값만** 둔다 — 근거·정정 경위·날짜를 노드 주석으로
 쌓지 않는다. 근거는 `overlay.md`, 경위는 `HISTORY.md` 소유다 (CLAUDE.md 원칙 20).

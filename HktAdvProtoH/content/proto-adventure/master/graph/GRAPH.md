@@ -117,6 +117,236 @@ flowchart LR
   class MP-OUTGROW-THE-OPPONENT,MP-MATCH-WEAPON-TO-ARMOR,MP-PIERCE-THE-HARD-DEFENSE,MP-BREAK-THE-GUARD,MP-READ-AND-COUNTER,MP-EXPLOIT-OPEN-BODY,MP-INTERRUPT,MP-CONTROL-MOVEMENT,MP-WEAPONIZE-ENVIRONMENT,MP-BET-ON-THE-CRITICAL-BLOW,MP-STAKE-EVERYTHING-ON-ONE-BLOW,MP-TRADE-BODY-FOR-RESOURCE,MP-EVADE-BY-MOVING-THE-BODY,MP-HOLD-FORTIFIED,MP-LEARN-TO-HANDLE-THE-LAYER,MP-ADAPT-BY-RESOURCE,MP-PREPARE-IN-CIVILIZATION,MP-KILL-CREATURE,MP-TAKE-SHED-ORGAN,MP-TRADE-WITH-ACTOR,MP-FIND-DEAD-SPECIMEN,MP-FORCE-CREATURE-TO-RELEASE poss;
 ```
 
+## 척추 — 어떤 전체의 조각인가 (part_of)
+
+Capability 는 시스템(전체)의 조각이다. 시스템과 그 안의 자리(층·칸)의 단일 출처는
+`graph/systems.yaml` 이다. **점선 테두리 = 잠정(grounded: false)** — 근거 문서가
+이름만 대서, 그 전체의 설계 문서가 서면 semantic 을 개정한다.
+
+### 전투 사다리 — R1 §14 · §15 · DT
+
+전투 Capability 가 쌓이는 층 구조. 아래층이 서야 위층이 의미를 갖는다. 층에 속하지 않는 조각(기력 예산 · 능력치 축 · 계산 경위 관찰 · 공간 판정)은 모든 층이 공유하는 바닥이다 — segment 없이 이 시스템에 속한다.
+
+```mermaid
+flowchart TB
+  subgraph SEG0 ["Aura / Nen"]
+    N0["□ COMBAT-FLOW"]
+    N1["□ FORTIFY"]
+    N2["▨ CONDITION-STACKING"]
+    N3["□ VOW"]
+  end
+  subgraph SEG1 ["Active Defense"]
+    N4["□ PERFECT-GUARD"]
+    N5["□ COUNTER"]
+    N6["▨ BREAK"]
+  end
+  subgraph SEG2 ["Critical"]
+    N7["■ CRITICAL-STRIKE"]
+  end
+  subgraph SEG3 ["Penetration"]
+    N8["■ PENETRATION"]
+  end
+  subgraph SEG4 ["Damage Type"]
+    N9["■ ATTACK-ARMOR-MATCHUP"]
+  end
+  subgraph SEG5 ["Defense Action"]
+    N10["■ GUARD"]
+  end
+  subgraph SEG6 ["Basic Damage"]
+    N11["■ COMBAT-STRIKE"]
+    N12["■ DEFENSE-MITIGATION"]
+  end
+  subgraph SEGBASE ["공통 바닥 — 층에 속하지 않는다"]
+    N13["▨ CP-ECONOMY"]
+    N14["■ BODY-FACING"]
+    N15["■ COMBAT-CAUSE-READING"]
+    N16["▨ ATTACK-POWER"]
+    N17["■ SKILL-SCALING"]
+    N18["□ EVADE"]
+  end
+  SEG0 ~~~ SEG1
+  SEG1 ~~~ SEG2
+  SEG2 ~~~ SEG3
+  SEG3 ~~~ SEG4
+  SEG4 ~~~ SEG5
+  SEG5 ~~~ SEG6
+  SEG6 ~~~ SEGBASE
+
+  classDef impl fill:#16351f,stroke:#3f8a52,color:#d8f2df;
+  classDef part fill:#3a3315,stroke:#9a8a2e,color:#f2ecd0;
+  classDef miss fill:#2a2a2e,stroke:#5c5c66,color:#b8b8c2;
+  classDef implS fill:#16351f,stroke:#3f8a52,color:#d8f2df,stroke-dasharray:5 4;
+  classDef partS fill:#3a3315,stroke:#9a8a2e,color:#f2ecd0,stroke-dasharray:5 4;
+  classDef missS fill:#2a2a2e,stroke:#5c5c66,color:#b8b8c2,stroke-dasharray:5 4;
+  class N7,N8,N9,N10,N11,N12,N14,N15,N17 impl;
+  class N13,N16 part;
+  class N2,N6 partS;
+  class N0,N1,N3,N4,N5,N18 missS;
+```
+
+### 베이라 층 사다리 — BW §19~§25
+
+세계의 깊이 층. 층마다 살아남기 위해 요구하는 대응이 다르다 — 각 층의 요구는 MW-ZONE-* 의 demands 가 거울이다. BW 는 층마다 이름과 "필요:" 목록만 공급하므로 이 사다리에 속한 조각 대부분은 grounded: false 다.
+
+```mermaid
+flowchart TB
+  subgraph SEG0 ["UNKNOWN"]
+    N0["□ PROTECT-PERCEPTION"]
+    N1["□ VERIFY-REALITY"]
+    N2["□ IDENTITY-ANCHOR"]
+    N3["□ RESIST-INFLUENCE"]
+    N4["□ BREAK-BIOLOGICAL-LINK"]
+    N5["□ ESCAPE-ALTERED-SPACE"]
+  end
+  subgraph SEG1 ["DEEP"]
+    N6["□ DISCOVER-WEAKNESS"]
+    N7["□ DISRUPT-ABILITY"]
+    N8["□ MAINTAIN-PRESSURE"]
+    N9["□ TARGET-SPECIFIC-PART"]
+    N10["□ READ-CREATURE-SYSTEM"]
+  end
+  subgraph SEG2 ["DANGER"]
+    N11["□ READ-ENVIRONMENT"]
+    N12["▨ FORCE-MOVEMENT"]
+    N13["□ USE-HAZARD"]
+    N14["▨ INTERRUPT"]
+  end
+  subgraph SEG3 ["WILD"]
+    N15["▨ BREAK"]
+    N16["□ DISCOVER-WEAKNESS"]
+    N17["□ PRECISE-TARGETING"]
+    N18["□ CONTROL-SPACE"]
+  end
+  subgraph SEG4 ["FRINGE"]
+    N19["□ USE-TERRAIN"]
+  end
+  subgraph SEG5 ["SAFE FRONTIER"]
+    N20["■ COMBAT-STRIKE"]
+    N21["■ GUARD"]
+    N22["□ EVADE"]
+    N23["▨ REPOSITION"]
+  end
+  SEG0 ~~~ SEG1
+  SEG1 ~~~ SEG2
+  SEG2 ~~~ SEG3
+  SEG3 ~~~ SEG4
+  SEG4 ~~~ SEG5
+
+  classDef impl fill:#16351f,stroke:#3f8a52,color:#d8f2df;
+  classDef part fill:#3a3315,stroke:#9a8a2e,color:#f2ecd0;
+  classDef miss fill:#2a2a2e,stroke:#5c5c66,color:#b8b8c2;
+  classDef implS fill:#16351f,stroke:#3f8a52,color:#d8f2df,stroke-dasharray:5 4;
+  classDef partS fill:#3a3315,stroke:#9a8a2e,color:#f2ecd0,stroke-dasharray:5 4;
+  classDef missS fill:#2a2a2e,stroke:#5c5c66,color:#b8b8c2,stroke-dasharray:5 4;
+  class N20,N21 impl;
+  class N12,N14,N15,N23 partS;
+  class N0,N1,N2,N3,N4,N5,N6,N7,N8,N9,N10,N11,N13,N16,N17,N18,N19,N22 missS;
+```
+
+### 앎의 사슬 — BW §32 (관찰 → 이해 → 대응 → 도달)
+
+정보가 관문 뒤에 있고, 플레이어가 대가를 치러 아는 범위를 넓히는 진행 구조. 관찰이 "지금 무엇인가" 를, 예측이 "다음에 무엇을 하는가" 를 연다.
+
+```mermaid
+flowchart TB
+  subgraph SEG0 ["예측 — 다음에 무엇을 하는가"]
+    N0["□ PREDICT"]
+  end
+  subgraph SEG1 ["관찰 — 지금 무엇인가"]
+    N1["▨ OBSERVE"]
+  end
+  SEG0 ~~~ SEG1
+
+  classDef impl fill:#16351f,stroke:#3f8a52,color:#d8f2df;
+  classDef part fill:#3a3315,stroke:#9a8a2e,color:#f2ecd0;
+  classDef miss fill:#2a2a2e,stroke:#5c5c66,color:#b8b8c2;
+  classDef implS fill:#16351f,stroke:#3f8a52,color:#d8f2df,stroke-dasharray:5 4;
+  classDef partS fill:#3a3315,stroke:#9a8a2e,color:#f2ecd0,stroke-dasharray:5 4;
+  classDef missS fill:#2a2a2e,stroke:#5c5c66,color:#b8b8c2,stroke-dasharray:5 4;
+  class N1 part;
+  class N0 missS;
+```
+
+### 자원 유래 Capability Gate — BW §8~§10 · §17
+
+탐험 → 자원 → 능력 → 더 깊은 탐험의 순환. 세계가 만든 적응을 자원으로 가져와 전에는 감당할 수 없던 층을 감당하게 한다.
+
+```mermaid
+flowchart TB
+  subgraph SEGBASE ["자원 유래 Capability Gate"]
+    N0["□ RESTORE-BIOLOGICAL-STATE"]
+    N1["□ CUT-ABNORMAL-STRUCTURE"]
+  end
+
+  classDef impl fill:#16351f,stroke:#3f8a52,color:#d8f2df;
+  classDef part fill:#3a3315,stroke:#9a8a2e,color:#f2ecd0;
+  classDef miss fill:#2a2a2e,stroke:#5c5c66,color:#b8b8c2;
+  classDef implS fill:#16351f,stroke:#3f8a52,color:#d8f2df,stroke-dasharray:5 4;
+  classDef partS fill:#3a3315,stroke:#9a8a2e,color:#f2ecd0,stroke-dasharray:5 4;
+  classDef missS fill:#2a2a2e,stroke:#5c5c66,color:#b8b8c2,stroke-dasharray:5 4;
+  class N0,N1 miss;
+```
+
+### 지목 — TG (design/Design-Targeting-R0.md)
+
+어느 층에도 속하지 않는 자리 — "지금 누구에게 하는가" 를 세계에 둔다.
+
+```mermaid
+flowchart TB
+  subgraph SEGBASE ["지목"]
+    N0["■ DESIGNATE-TARGET"]
+    N1["■ WATCH-TARGET"]
+  end
+
+  classDef impl fill:#16351f,stroke:#3f8a52,color:#d8f2df;
+  classDef part fill:#3a3315,stroke:#9a8a2e,color:#f2ecd0;
+  classDef miss fill:#2a2a2e,stroke:#5c5c66,color:#b8b8c2;
+  classDef implS fill:#16351f,stroke:#3f8a52,color:#d8f2df,stroke-dasharray:5 4;
+  classDef partS fill:#3a3315,stroke:#9a8a2e,color:#f2ecd0,stroke-dasharray:5 4;
+  classDef missS fill:#2a2a2e,stroke:#5c5c66,color:#b8b8c2,stroke-dasharray:5 4;
+  class N0,N1 impl;
+```
+
+### 관계 태도 — BW §21 · §26
+
+존재와 존재 사이의 태도(적대·중립·우호)가 세계의 사실로 있고, 칠 수 있는가와 자율 존재가 다가온 것을 어떻게 대하는가를 가른다.
+
+```mermaid
+flowchart TB
+  subgraph SEGBASE ["관계 태도"]
+    N0["■ RELATION-STANCE"]
+  end
+
+  classDef impl fill:#16351f,stroke:#3f8a52,color:#d8f2df;
+  classDef part fill:#3a3315,stroke:#9a8a2e,color:#f2ecd0;
+  classDef miss fill:#2a2a2e,stroke:#5c5c66,color:#b8b8c2;
+  classDef implS fill:#16351f,stroke:#3f8a52,color:#d8f2df,stroke-dasharray:5 4;
+  classDef partS fill:#3a3315,stroke:#9a8a2e,color:#f2ecd0,stroke-dasharray:5 4;
+  classDef missS fill:#2a2a2e,stroke:#5c5c66,color:#b8b8c2,stroke-dasharray:5 4;
+  class N0 impl;
+```
+
+### 자율 존재 행동 — design/Design-Creature-Behavior-R0.md (초안 — Human 승인 대기) · **DRAFT**
+
+목적(Drive) · 영역 · 인지 · 국면 — 자율 존재가 자기 목적으로 움직이는 시스템. 이것이 서야 예측(MC-PREDICT)의 읽을 거리와 습성 관찰(MC-OBSERVE 의 남은 결손)이 생긴다 — 그 두 조각의 반쪽을 이 시스템이 소유한다.
+
+```mermaid
+flowchart TB
+  subgraph SEGBASE ["자율 존재 행동"]
+    N0["▨ OBSERVE"]
+    N1["□ PREDICT"]
+  end
+
+  classDef impl fill:#16351f,stroke:#3f8a52,color:#d8f2df;
+  classDef part fill:#3a3315,stroke:#9a8a2e,color:#f2ecd0;
+  classDef miss fill:#2a2a2e,stroke:#5c5c66,color:#b8b8c2;
+  classDef implS fill:#16351f,stroke:#3f8a52,color:#d8f2df,stroke-dasharray:5 4;
+  classDef partS fill:#3a3315,stroke:#9a8a2e,color:#f2ecd0,stroke-dasharray:5 4;
+  classDef missS fill:#2a2a2e,stroke:#5c5c66,color:#b8b8c2,stroke-dasharray:5 4;
+  class N0 part;
+  class N1 missS;
+```
+
 ## 갈래별 준비도 — 어느 경로가 세계에 가장 가까운가
 
 요구 Capability 중 이미 세계에 있는 것의 비율. `IMPLEMENTED` 1.0 · `PARTIAL` 0.5 로 센다.

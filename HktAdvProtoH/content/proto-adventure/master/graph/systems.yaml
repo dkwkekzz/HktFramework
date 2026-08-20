@@ -1,0 +1,90 @@
+# Master System Registry — MS-*
+# part_of 가 가리키는 "전체" 의 목록. Capability 는 조각이고, 여기가 그 조각이 속한
+# 시스템(척추)의 단일 출처다. system 은 지어내지 않는다 — 근거 문서가 이미 가진
+# 구조(층 · 사슬 · 게이트)만 등록한다.
+#
+# status  DEFINED  근거 문서가 그 전체를 정의한다
+#         DRAFT    문서 초안은 있으나 Human 승인 대기 — 이 시스템에 결손의 반쪽을 맡긴
+#                  노드는 grounded: false 로 남는다
+#         PLANNED  이름만 예고되었고 문서가 없다
+#
+# segments 는 그 시스템 안의 순서 있는 자리다 (사다리의 층 · 사슬의 칸).
+# 아래에서 위로 적는다 — 첫 항목이 바닥이다. 순서가 없으면 segments 를 생략한다.
+version: 1
+systems:
+
+  - id: MS-COMBAT-LADDER
+    name: 전투 사다리
+    source: R1 §14 · §15 · DT
+    status: DEFINED
+    semantic: >
+      전투 Capability 가 쌓이는 층 구조. 아래층이 서야 위층이 의미를 갖는다.
+      층에 속하지 않는 조각(기력 예산 · 능력치 축 · 계산 경위 관찰 · 공간 판정)은
+      모든 층이 공유하는 바닥이다 — segment 없이 이 시스템에 속한다.
+    segments:
+      - { id: BASIC-DAMAGE,   name: Basic Damage }
+      - { id: DEFENSE-ACTION, name: Defense Action }
+      - { id: DAMAGE-TYPE,    name: Damage Type }
+      - { id: PENETRATION,    name: Penetration }
+      - { id: CRITICAL,       name: Critical }
+      - { id: ACTIVE-DEFENSE, name: Active Defense }
+      - { id: AURA-NEN,       name: Aura / Nen }
+
+  - id: MS-BEIRA-LADDER
+    name: 베이라 층 사다리
+    source: BW §19~§25
+    status: DEFINED
+    semantic: >
+      세계의 깊이 층. 층마다 살아남기 위해 요구하는 대응이 다르다 — 각 층의 요구는
+      MW-ZONE-* 의 demands 가 거울이다. BW 는 층마다 이름과 "필요:" 목록만 공급하므로
+      이 사다리에 속한 조각 대부분은 grounded: false 다.
+    segments:
+      - { id: SAFE,    name: SAFE FRONTIER }
+      - { id: FRINGE,  name: FRINGE }
+      - { id: WILD,    name: WILD }
+      - { id: DANGER,  name: DANGER }
+      - { id: DEEP,    name: DEEP }
+      - { id: UNKNOWN, name: UNKNOWN }
+
+  - id: MS-KNOWING-CHAIN
+    name: 앎의 사슬
+    source: BW §32 (관찰 → 이해 → 대응 → 도달)
+    status: DEFINED
+    semantic: >
+      정보가 관문 뒤에 있고, 플레이어가 대가를 치러 아는 범위를 넓히는 진행 구조.
+      관찰이 "지금 무엇인가" 를, 예측이 "다음에 무엇을 하는가" 를 연다.
+    segments:
+      - { id: OBSERVE, name: 관찰 — 지금 무엇인가 }
+      - { id: PREDICT, name: 예측 — 다음에 무엇을 하는가 }
+
+  - id: MS-RESOURCE-GATE
+    name: 자원 유래 Capability Gate
+    source: BW §8~§10 · §17
+    status: DEFINED
+    semantic: >
+      탐험 → 자원 → 능력 → 더 깊은 탐험의 순환. 세계가 만든 적응을 자원으로 가져와
+      전에는 감당할 수 없던 층을 감당하게 한다.
+
+  - id: MS-TARGETING
+    name: 지목
+    source: TG (design/Design-Targeting-R0.md)
+    status: DEFINED
+    semantic: >
+      어느 층에도 속하지 않는 자리 — "지금 누구에게 하는가" 를 세계에 둔다.
+
+  - id: MS-RELATION
+    name: 관계 태도
+    source: BW §21 · §26
+    status: DEFINED
+    semantic: >
+      존재와 존재 사이의 태도(적대·중립·우호)가 세계의 사실로 있고, 칠 수 있는가와
+      자율 존재가 다가온 것을 어떻게 대하는가를 가른다.
+
+  - id: MS-CREATURE-BEHAVIOR
+    name: 자율 존재 행동
+    source: design/Design-Creature-Behavior-R0.md (초안 — Human 승인 대기)
+    status: DRAFT
+    semantic: >
+      목적(Drive) · 영역 · 인지 · 국면 — 자율 존재가 자기 목적으로 움직이는 시스템.
+      이것이 서야 예측(MC-PREDICT)의 읽을 거리와 습성 관찰(MC-OBSERVE 의 남은 결손)이
+      생긴다 — 그 두 조각의 반쪽을 이 시스템이 소유한다.

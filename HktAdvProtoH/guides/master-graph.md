@@ -26,8 +26,9 @@ NEED      각 Possibility 에 필요한 것        → Requirement (AND) · MC
 3. **NEED** — 각 Possibility 의 Requirement 를 필요한 것만 기록한다.
    재사용 가능한 플레이 의미는 MC-* 로 세운다. `semantic` 에 이유를 쓰지 않는다 —
    상위 Goal/Possibility 경로가 설명한다 (정책 §7).
-   각 MC-* 에 `part_of`(속한 전체 · 출처 · grounded)를 적는다 — 노드가 목록으로
-   뽑혀도 어느 시스템의 조각인지 보이게 한다 (SCHEMA).
+   각 MC-* 에 `part_of`(grounded + memberships)를 적는다 — 노드가 목록으로
+   뽑혀도 어느 시스템의 조각인지 보이게 한다. 시스템·자리의 단일 출처는
+   `graph/systems.yaml` 이며 새 시스템 등록은 근거 문서가 이미 가진 구조만 (SCHEMA).
 4. 새 Node 전에 기존 Registry 를 검색한다. 보조 규칙(Conflict / Consequence /
    Reveal / Reframe / CC)은 실제 결정에 영향을 줄 때만 쓴다 (정책 §11).
 
