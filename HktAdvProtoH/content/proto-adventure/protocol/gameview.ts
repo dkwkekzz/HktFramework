@@ -213,9 +213,24 @@ export interface StrikeEventView {
   breakdown: DamageBreakdownView; // C010 ADDED
 }
 
+// 지금 이 관찰자가 무엇을 고르고 있는가 (C017 ADDED — INTENT-TARGET-OBSERVE-001).
+// **늘 실린다** — 고른 것이 없다는 것도 관찰이다 (C011 · C014 가 세운 태도).
+//
+// Id 하나뿐이다. 이름·생명·지금 행동·가려짐은 여기에 **다시 싣지 않는다** —
+// 이미 entities 에 그 존재의 자리로 와 있고, 두 곳에서 오면 사본이 낡는다
+// (C014 가 앎에 대해 내린 판단 그대로: 담는 것은 Id 이고 값은 그 순간에 읽는다).
+// View 는 이 Id 로 entities 를 짚어 대상 자리를 조립한다 (04 VIEW ASSEMBLY NOTE).
+//
+// 다른 관찰자가 무엇을 고르는지도, 누가 나를 고르는지도 오지 않는다 —
+// 세계에 그런 상태가 없다 (DC-TARGET-IS-INTENT-NOT-AIM).
+export interface CurrentTargetView {
+  entityId?: string; // 없으면 아무것도 고르지 않은 것이다
+}
+
 // 이 팩의 관찰 결과 — 봉투에 타격 결과가 더해지고, 존재/interaction 이 팩 형으로 좁혀진다.
 export interface GameViewSnapshot extends CoreGameViewSnapshot {
   entities: EntityView[];
   interactions: InteractionView[];
   strikes: StrikeEventView[]; // C007 ADDED
+  currentTarget: CurrentTargetView; // C017 ADDED — 늘 실린다
 }

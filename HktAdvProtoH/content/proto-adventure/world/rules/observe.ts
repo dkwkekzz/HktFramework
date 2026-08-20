@@ -1,8 +1,16 @@
-// RULE-OBSERVE-BEGIN-001 — Implements INTENT-OBSERVE-001 · INTENT-ACTION-STATE-001
-// Input          요청한 ObserverId, 대상 ActorId
+// RULE-OBSERVE-BEGIN-001 — Implements INTENT-OBSERVE-001 ·
+//                                     INTENT-TARGET-DIRECTS-THE-ACT-001 (C017) ·
+//                                     INTENT-ACTION-STATE-001
+// Input          요청한 ObserverId
+//                C017 CHANGED — 요청이 대상을 싣지 않는다. 대상은 그 관찰자가 고른 것이다
+//                (World.TargetSelections). 두 곳에서 대상이 정해질 수 있으면 같은 존재를
+//                보고 있으면서 행동마다 다른 상대로 나가는 일이 남는다 (TG §1).
 // Preconditions  1. 그 관찰자의 몸이 세계에 있다        (no-body)
-//                2. 대상 Id 의 존재가 세계에 있다        (no-such-target)
-//                3. 대상이 자기 몸이 아니다             (target-is-self)
+//                2. 그 관찰자가 고른 것이 있다           (no-target-selected)   ← C017 ADDED
+//                3. 고른 것이 존재다 (광맥이 아니다)     (target-kind-mismatch) ← C017 ADDED
+//                   2·3 이 옛 no-such-target · target-is-self 를 대신한다 —
+//                   자기 몸은 고를 수 없으므로 살펴봄이 자기를 대상으로 오지 않는다
+//                   (RULE-TARGET-SELECT-001 P2 · P3).
 //                4. 두 몸 중심 거리 ≤ OBSERVE_RANGE     (out-of-range)
 //                5. 아직 열 자리가 남아 있다            (already-known)
 //                   C016 CHANGED — "그 존재를 아는가" 가 아니라 "가려진 자리가
@@ -29,6 +37,10 @@
 // 살펴봄은 대상에게 아무 일도 하지 않는다 — 이 파일의 어떤 Transition 에도
 // 대상의 State 가 없다. 대상은 자기가 살펴봐졌음을 알지 못한다.
 //
+// C017 — 시작한 뒤에 다른 것을 고르면 새 고른 것은 **다음 행동**의 대상이 되고,
+// 진행 중인 살펴봄은 시작할 때 적어 둔 대상을 끝까지 지닌다 (CurrentAction.targetActorId).
+// 진행 중인 행동이 지목을 따라다니면 그것은 자동 추적이다 (DC-TARGET-IS-INTENT-NOT-AIM).
+//
 // 중단은 이 파일이 만들지 않는다. 맞으면 RULE-HIT-001 이 CurrentAction 을 hit 으로
 // 갈아 버리고, 완료 효과가 도는 자리에 오지 못하므로 앎이 남지 않는다 —
 // "끝까지 가지 못하면 아무것도 알게 되지 않는다" 가 그렇게 성립한다 (03 NOTE ②).
@@ -43,6 +55,7 @@ import {
 import { concealedKeys, forgetActor, isAcquainted, learnActor } from '../semantic/acquaintance';
 import type { ActorState } from '../semantic/actor';
 import { distance } from '../semantic/position';
+import { selectedEntityId } from '../semantic/target-selection';
 import {
   OBSERVE_RANGE,
   actorOfObserver,
@@ -54,8 +67,8 @@ import { beginAction, evaluateActionBegin } from './action-begin';
 
 export type ObserveFailureReason =
   | 'no-body'
-  | 'no-such-target'
-  | 'target-is-self'
+  | 'no-target-selected' // C017 — 아무것도 고르지 않았다
+  | 'target-kind-mismatch' // C017 — 고른 것이 살펴볼 수 있는 존재가 아니다
   | 'out-of-range'
   | 'already-known'
   | 'action-busy';
@@ -68,14 +81,18 @@ export type ForgetAcquaintanceFailureReason = 'debug-closed' | 'no-observer' | '
 export function evaluateObserveBegin(
   state: WorldState,
   observerId: string,
-  targetId: string,
 ): ObserveFailureReason | null {
   const self = actorOfObserver(state, observerId);
   if (!self) return 'no-body';
 
+  // C017 — 대상은 고른 것이다. 요청에서 오지 않는다.
+  const targetId = selectedEntityId(state.targetSelections, observerId);
+  if (targetId === undefined) return 'no-target-selected';
+
   const target = findActor(state, targetId);
-  if (!target) return 'no-such-target';
-  if (target.id === self.id) return 'target-is-self';
+  // 고른 것이 광맥이면 살펴볼 수 없다. "없는 대상" 이 아니라 **종류가 맞지 않는** 것이다 —
+  // 고르기 관문이 이미 그 존재가 세계에 있음을 보장했다 (RULE-TARGET-SELECT-001 P2).
+  if (!target) return 'target-kind-mismatch';
 
   if (distance(self.position, target.position) > OBSERVE_RANGE) return 'out-of-range';
   // C016 — 더 열 자리가 없을 때만 거절한다 (RULE-INSIGHT-REVEAL-001 의 결과를 그대로 쓴다).
@@ -86,15 +103,12 @@ export function evaluateObserveBegin(
   return evaluateActionBegin(self);
 }
 
-export function ruleObserveBegin(
-  state: WorldState,
-  observerId: string,
-  targetId: string,
-): ActionResult {
-  const failure = evaluateObserveBegin(state, observerId, targetId);
+export function ruleObserveBegin(state: WorldState, observerId: string): ActionResult {
+  const failure = evaluateObserveBegin(state, observerId);
   if (failure) return { status: 'failure', rule: RULE_OBSERVE_BEGIN, reason: failure };
 
   const self = actorOfObserver(state, observerId)!;
+  const targetId = selectedEntityId(state.targetSelections, observerId)!;
   beginAction(self, 'observe', { targetActorId: targetId });
   return { status: 'success', rule: RULE_OBSERVE_BEGIN };
 }

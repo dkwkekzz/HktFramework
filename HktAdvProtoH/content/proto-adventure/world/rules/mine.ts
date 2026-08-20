@@ -1,9 +1,21 @@
-// RULE-MINE-001 — Implements INTENT-MINING-001 · INTENT-ACTION-STATE-001
-// Input          Actor, Deposit
-// Preconditions  1. Mining Capability Item 보유  2. InteractionRange 이내
-//                3. ResourceAmount > 0          4. 현재 행동이 대체 가능하다
+// RULE-MINE-001 — Implements INTENT-MINING-001 ·
+//                            INTENT-TARGET-DIRECTS-THE-ACT-001 (C017) ·
+//                            INTENT-ACTION-STATE-001
+// Input          Actor, 요청한 ObserverId
+//                C017 CHANGED — 요청이 대상을 싣지 않는다. 대상은 그 관찰자가 고른 것이다
+//                (World.TargetSelections). 살펴봄과 같은 변화이며 이유도 같다 (TG §1).
+// Preconditions  1. 그 관찰자가 고른 것이 있다      (no-target-selected)   ← C017 ADDED
+//                2. 고른 것이 광맥이다             (target-kind-mismatch) ← C017 ADDED
+//                   1·2 가 옛 unknown-deposit 을 대신한다
+//                3. Mining Capability Item 보유    (no-mining-tool)
+//                4. InteractionRange 이내          (out-of-range)
+//                5. ResourceAmount > 0             (deposit-depleted)
+//                6. 현재 행동이 대체 가능하다        (action-busy)
 // Transition     CurrentAction = mine(Deposit)          ← C002 CHANGED (즉시 획득이 아니다)
-// Result         Success | Failure(no-mining-tool | out-of-range | deposit-depleted | action-busy)
+// Result         Success | Failure(reason)
+//
+// C017 — 시작한 뒤에 다른 것을 고르면 진행 중인 채집은 원래 광맥을 끝까지 지닌다
+// (CurrentAction.targetDepositId). 살펴봄과 같은 판단이다.
 //
 // RULE-MINE-COMPLETE-001 — Implements INTENT-MINING-001 · INTENT-ACTION-PROGRESS-001
 // Input          채굴 행동이 Duration 을 채운 Actor
@@ -17,11 +29,14 @@ import type { ActorState } from '../semantic/actor';
 import type { DepositState } from '../semantic/deposit';
 import { hasMiningTool, itemCount } from '../semantic/inventory';
 import { distance } from '../semantic/position';
+import { selectedEntityId } from '../semantic/target-selection';
 import { INTERACTION_RANGE, type WorldState } from '../semantic/world-state';
 import { beginAction, evaluateActionBegin } from './action-begin';
 
 // 실패 사유 코드 — Rule 이 소유하며 protocol 로는 문자열 코드로 흐른다
 export type MineFailureReason =
+  | 'no-target-selected' // C017 — 아무것도 고르지 않았다
+  | 'target-kind-mismatch' // C017 — 고른 것이 캘 수 있는 것이 아니다
   | 'no-mining-tool'
   | 'out-of-range'
   | 'deposit-depleted'
@@ -38,13 +53,34 @@ export function evaluateMinePreconditions(
   return evaluateActionBegin(actor);
 }
 
-export function ruleMine(state: WorldState, actor: ActorState, depositId: string): ActionResult {
-  const deposit = state.deposits.find((d) => d.id === depositId);
-  if (!deposit) return { status: 'failure', rule: RULE_MINE, reason: 'unknown-deposit' };
+// C017 — 고른 것으로 캘 수 있는가. Observable(Mine.Availability / Mine.FailureReason)과
+// Rule 이 같은 판정을 공유한다. 대상을 찾는 앞의 두 줄까지가 이 Cycle 이 더한 것이며,
+// 그 뒤는 C001 이 세운 판정 그대로다.
+export function evaluateMineTargeted(
+  state: WorldState,
+  actor: ActorState,
+  observerId: string,
+): MineFailureReason | null {
+  const targetId = selectedEntityId(state.targetSelections, observerId);
+  if (targetId === undefined) return 'no-target-selected';
 
-  const failure = evaluateMinePreconditions(actor, deposit);
+  const deposit = state.deposits.find((d) => d.id === targetId);
+  // 고른 것이 존재(character)면 캘 수 없다. "없는 광맥" 이 아니라 **종류가 맞지 않는** 것이다 —
+  // 고르기 관문이 이미 그 존재가 세계에 있음을 보장했다 (RULE-TARGET-SELECT-001 P2).
+  if (!deposit) return 'target-kind-mismatch';
+
+  return evaluateMinePreconditions(actor, deposit);
+}
+
+export function ruleMine(
+  state: WorldState,
+  actor: ActorState,
+  observerId: string,
+): ActionResult {
+  const failure = evaluateMineTargeted(state, actor, observerId);
   if (failure) return { status: 'failure', rule: RULE_MINE, reason: failure };
 
+  const depositId = selectedEntityId(state.targetSelections, observerId)!;
   beginAction(actor, 'mine', { targetDepositId: depositId });
   return { status: 'success', rule: RULE_MINE };
 }
