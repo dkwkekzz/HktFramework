@@ -14,6 +14,7 @@ import type {
 } from '../protocol/gameview';
 import type { SceneNameplate, SceneSelf, SceneStrike } from '../../../engine/view-kernel/scene/scene-state';
 import { codeText } from './code-text';
+import { stanceLine, stanceMark } from './relation-presentation';
 
 // 표지는 그 몸의 그림 바로 위에 붙는다 — 떨어져 있으면 누구의 것인지 읽히지 않는다.
 // 기준은 물리 몸(캡슐 높이 1.7)이 아니라 실제로 그려지는 그림의 크기다.
@@ -36,7 +37,12 @@ export function nameplate(entity: EntityView, spriteSize: number): SceneNameplat
     // 속성 관찰을 켜지 않아도 **모른다는 것이 화면에서 읽혀야** 하기 때문이다
     // (04 EMPTY-SLOT NOTE). 켜야만 보이면 플레이어는 자기가 무엇을 모르는지 모른다.
     // 어떤 표시로 그릴지는 View 의 결정이다 — 세계가 보낸 것은 acquainted 뿐이다.
-    name: entity.attributes?.acquainted === false ? `${entity.name} ?` : entity.name,
+    // C018 — 관계 표시가 이름 앞에 붙는다 (relation-presentation).
+    // 적대일 때만 붙으며, 이 표시가 없다는 것이 곧 "지금 이 사이에는 아무 일도
+    // 성립하지 않는다" 는 뜻이다. 세계가 보낸 두 값을 그대로 읽는다.
+    name: `${stanceMark(entity.attributes)}${
+      entity.attributes?.acquainted === false ? `${entity.name} ?` : entity.name
+    }`,
     health: Math.round(health),
     healthMaximum: Math.round(healthMaximum),
     healthRatio: healthMaximum > 0 ? Math.max(0, Math.min(1, health / healthMaximum)) : 0,
@@ -69,6 +75,9 @@ export function inspectLines(entity: EntityView): string[] | undefined {
     // C011 — 막기는 행동(state)과 별개라서 몸의 상태 표시로는 드러나지 않는다.
     // 막으며 걷는 존재는 state 가 move 이면서 막고 있다.
     `막기 ${guardText(a.guard) ?? '없음'}`,
+    // C018 — 두 방향을 따로 보인다. 몸 위에는 관계 하나만 붙으므로,
+    // 어느 쪽에서 본 태도인지는 여기서 읽는다 (relation-presentation 결정 ②).
+    stanceLine(a),
   ];
 }
 

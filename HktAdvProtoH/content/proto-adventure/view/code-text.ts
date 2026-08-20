@@ -22,6 +22,12 @@ const CODE_TEXT: Record<string, string> = {
   downed: '쓰러짐',
   // 불가 사유 (C007)
   'insufficient-cp': '기력이 모자란다',
+  // 둘 사이의 태도 (C018) — 세계가 보내는 갈래 셋
+  hostile: '적대',
+  neutral: '중립',
+  friendly: '우호',
+  // 닿았으나 성립하지 않은 사유 (C018)
+  'not-hostile': '적대가 아니다',
   // 이동 모드 (C007)
   walk: '걷기',
   run: '달리기',

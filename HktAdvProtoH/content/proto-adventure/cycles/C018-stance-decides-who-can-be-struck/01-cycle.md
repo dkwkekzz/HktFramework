@@ -6,7 +6,7 @@
 [PASS] GameView Specification    (태도 두 방향이 언제나 실린다 · 무산은 빗나감과 다르다)
 [PASS] Human Semantic Review     (2026-08-20 APPROVED — 판단 3 은 거부, 지시대로 정정)
 [PASS] World Implementation      (world 781 tests · 계산 무변경 · 기반 무변경)
-[    ] View Implementation
+[PASS] View Implementation       (view 13 tests · 전체 794 tests · 새 capability 없음)
 [    ] Verification
 
 STATUS  IN PROGRESS
