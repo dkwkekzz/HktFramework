@@ -609,9 +609,13 @@ nodes:
     implemented: ABSENT
     requires:
       goals: []
-      capabilities: [MC-RESTORE-BIOLOGICAL-STATE, MC-CUT-ABNORMAL-STRUCTURE]
+      capabilities: [MC-RESTORE-BIOLOGICAL-STATE, MC-CUT-ABNORMAL-STRUCTURE,
+                     MC-USE-ITEM, MC-EQUIP-ITEM, MC-CRAFT-FROM-MATERIALS]
       # BW §8 · §10 이 직접 명명한 두 자원 유래 능력이다. 다른 게이트(독 적응 등)는
       # 삽화라 노드로 세우지 않았다 (HISTORY Q14).
+      # 뒤의 셋은 이 갈래가 이미 전제하던 공통 앞칸이다 — "물건이 대신해 준다" 는 쓰는
+      # 개념을, "물건을 잃으면 도로 못 하게 된다" 는 적용/해제를, "얻어 무기를 만들면"
+      # 은 제작을 요구한다 (IS §4 주입).
       knowledge: [MK-LOCAL-WORLDSTATE]
       # 어디서 무엇이 나는지를 모르면 가져올 수 없다 — 익히는 갈래가 앞선다.
       world_state: []
@@ -651,8 +655,10 @@ nodes:
     implemented: ABSENT
     requires:
       goals: []
-      capabilities: []
+      capabilities: [MC-CRAFT-FROM-MATERIALS]
       # BW §14 는 활동을 열거하고 Capability 를 명명하지 않는다 — 배선은 OPTIONS 몫이다.
+      # 그중 제작만 근거 문서를 얻어 배선되었다 (IS §4 주입). 정보 획득·교역·훈련은
+      # 아직 이름을 댄 문서가 없어 비워 둔다.
       knowledge: [MK-LOCAL-WORLDSTATE]
       world_state: [MW-SAFE-FRONTIER]
       relationship: [정보·물자를 내줄 Actor 와의 관계]
@@ -696,7 +702,9 @@ nodes:
     implemented: PARTIAL
     requires:
       goals: [MG-OVERCOME-SUPERIOR-OPPONENT]
-      capabilities: []
+      capabilities: [MC-TRANSFER-ITEM]
+      # world_shape 의 "쓰러진 생물의 몸에서 얻을 수 있어야 한다" 가 몸 밖의 물건을
+      # 요구한다 (IS §4 주입).
       knowledge: []
       world_state: []
       relationship: []
@@ -729,7 +737,8 @@ nodes:
     implemented: ABSENT
     requires:
       goals: []
-      capabilities: []
+      capabilities: [MC-TRANSFER-ITEM]
+      # world_shape 의 "그 결과로 세계에 남는 것이 있으며" 가 몸 밖의 물건을 요구한다 (IS §4 주입).
       knowledge: []
       world_state: []
       relationship: []
@@ -760,7 +769,8 @@ nodes:
     implemented: ABSENT
     requires:
       goals: []
-      capabilities: []
+      capabilities: [MC-TRANSFER-ITEM]
+      # world_shape 의 "대가를 주고받아 소유가 옮겨질 수 있어야 한다" 가 이 능력이다 (IS §4 주입).
       knowledge: []
       world_state: []
       relationship: [기관을 가진 Actor 와의 거래 관계]
