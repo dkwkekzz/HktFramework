@@ -32,6 +32,11 @@ export const EQUIPMENT_HUD_PREFIX = 'equipment.';
 const UNEQUIP_ARM_KEY_LABEL = 'M';
 /** 거는 손가락 자리 — 소지품 칸 번호와 짝이 된다 */
 export const EQUIP_ARM_KEY_LABEL = 'N';
+/**
+ * 바꿔 거는 손가락 자리 (C024) — **아래줄 네 칸이 나란하다** (B · N · M · ,).
+ * 넷이 같은 형태의 여는 키이므로 손가락 자리도 나란한 것이 맞다.
+ */
+export const EXCHANGE_ARM_KEY_LABEL = ',';
 
 /**
  * 손가락 자리 — **걸린 자리에만** 번호를 준다.
@@ -147,7 +152,7 @@ export function equipmentDetailLines(
   const equipment = snapshot.equipment ?? [];
   if (equipment.length === 0) return [];
 
-  const lines = [`걸어 둔 것 (${UNEQUIP_ARM_KEY_LABEL} → 번호)`];
+  const lines = [`걸어 둔 것 (${UNEQUIP_ARM_KEY_LABEL} → 번호 · 바꿔 걸기는 ${EXCHANGE_ARM_KEY_LABEL} → 소지품 → 번호)`];
   // 번호는 **걸린 자리에만** 붙는다 — 띠에 선 순서와 같다 (equipmentSlotIds).
   let filledIndex = 0;
   equipment.forEach((slot) => {

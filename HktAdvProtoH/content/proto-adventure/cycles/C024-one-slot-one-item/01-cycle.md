@@ -6,7 +6,7 @@
 [PASS] GameView Specification      (손 하나 · equipment 무변경 · no-room 은 그대로 온다)
 [PASS] Human Semantic Review       (APPROVED — Human 이 "끝까지 진행" 지시 · JUDGEMENT 5 는 권고안 채택)
 [PASS] World Implementation        (1002 tests · State 0줄 · 규칙 하나 · 순 증가 0 · 회귀 기준값만 이동)
-[    ] View Implementation
+[PASS] View Implementation         (1016 tests · 표 네 줄 · 세 걸음 조작 · 비대칭이 한 화면에)
 [    ] Verification
 
 STATUS  IN PROGRESS
