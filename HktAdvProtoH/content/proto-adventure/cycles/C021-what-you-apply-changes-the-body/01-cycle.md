@@ -1,7 +1,7 @@
 # CYCLE C021 — What You Apply Changes The Body
 
 [PASS] Cycle Definition           (가진 것과 적용된 것이 갈린다 · 자리 하나 · 원복이 판정 기준)
-[    ] Intent
+[PASS] Intent                    (지님은 아무것도 바꾸지 않는다 · 자리와 유효값 · 원복이 정확하다)
 [    ] World Semantic
 [    ] GameView Specification
 [    ] Human Semantic Review
