@@ -5,7 +5,8 @@
 선택된 후보 블록의 MASTER TRACE 칸들이다 — 그 외 절은 Human 선택 자료다.
 
     기준 Overlay   master/overlay.md — C020(아이템의 바닥 · 사용·소모) 완료 +
-                   아이템(IS) · 인벤토리(IE) 주입 반영
+                   아이템(IS) · 인벤토리(IE) 주입 반영 +
+                   C022(자리가 유한해진다) 실측 반영 — Human Play 확인 대기
     진행 현황      사다리가 어디까지 섰는지는 graph/GRAPH.md 의 "척추" 절이 그린다.
                    후보를 읽는 법과 이 파일의 규칙은 guides/master-frontier.md 소유다
 
@@ -85,13 +86,18 @@
 
 ```text
 FR-WHAT-YOU-CARRY-TAKES-ROOM — 자리가 유한해진다
-C021-what-you-carry-takes-room 이 돈다 (Stage 1 통과)
+C022-what-you-carry-takes-room 이 돈다 (Stage 8 실측 완료 · Human Play 확인 대기)
 ```
+
+    **아직 소진되지 않았다.** 여덟 Stage 의 실측은 끝났고 Gate 15항 중 열넷이 충족이다.
+    남은 하나가 `인간이 실제 게임에서 Cycle Goal 달성을 확인했다` 이며, 기계가 실제 세계
+    프로세스와 실제 브라우저로 같은 각본을 두 번 돌았어도 그것을 대신하지 않는다.
+    확인되면 이 후보를 지우고 결과를 HISTORY 로 옮긴다 (C022 08-verification.md).
 
     이것은 **Human 이 2026-08-21 에 고른 것의 남은 절반**이다 — 새 선택이 아니다.
     그때 고른 "아이템의 바닥" 은 Q34 로 다섯 조각(정의 · 자리 · 관찰 · 사용 · 소모)이
     되었고, 그중 넷이 C020 으로 닫혔다. 남은 하나가 자리이며, 덜어내기가 그것과 한 몸인
-    것도 같은 날 Human 이 정했다 (C021 01-cycle.md SCOPE NOTE ①).
+    것도 같은 날 Human 이 정했다 (C022 01-cycle.md SCOPE NOTE ①).
     닫힌 절반의 결과는 HISTORY.md 에 있다.
 
 ## 지금 열 수 없는 것
@@ -100,7 +106,7 @@ C021-what-you-carry-takes-room 이 돈다 (Stage 1 통과)
 
 | 기능 / 층 | 무엇이 막고 있는가 |
 |---|---|
-| **장착** (MC-EQUIP-ITEM) | **막는 것이 C021 하나만 남았다.** 사용·소모·정의소는 C020 으로 섰고, 기획 문서는 주입까지 끝났으며 그 DC 2종도 Active 다 (`design/Design-Inventory-Equipment-D1.md` · Q32). 남은 것은 자리가 유한해지는 것뿐이다 — 칸이 없으면 "가방이 가득할 때 해제는 막히고 교체는 된다"(IE §15 · §16.1)는 비대칭이 표현될 자리가 없다. C021 이 닫히면 **바로 후보로 올린다** (IE §48 Cycle 2) |
+| **장착** (MC-EQUIP-ITEM) | **막던 것이 섰다 — 남은 것은 C022 의 Human Play 확인뿐이다.** 사용·소모·정의소는 C020 으로, 자리는 C022 로 섰고, 기획 문서는 주입까지 끝났으며 그 DC 2종도 Active 다 (`design/Design-Inventory-Equipment-D1.md` · Q32). "가방이 가득할 때 해제는 막히고 교체는 된다"(IE §15 · §16.1)는 비대칭을 표현할 자리가 이제 세계에 있다 — `Inventory.UsedSlots` 와 사유 `no-room` 이다. 확인이 끝나면 **바로 후보로 올린다** (IE §48 Cycle 2) |
 | **제작** (MC-CRAFT-FROM-MATERIALS) | 자리와 장착이 차례로 먼저다 — 소모가 서야 재료가 줄고, 장착이 서야 만든 것이 쓸모를 갖는다 (IS §6 Cycle 3) |
 | **세계의 아이템** (MC-TRANSFER-ITEM) | 몸 안의 규칙이 다 선 뒤다. 이것이 서면 쓰러진 몸에서 무언가가 나오고, 존재가 세계에서 사라지는 첫 경로가 생겨 C017 의 미도달 규칙 하나도 함께 닫힌다 (IS §6 Cycle 4 · §5.6) |
 | 감정 도구 | 위 셋 뒤. 지금은 감정할 대상(개체 상태)도 없다 |

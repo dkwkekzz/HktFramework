@@ -1497,7 +1497,88 @@ Human 이 "FR-ACTION-PHASE 의 근간이 무엇인가" 를 물어 근간을 역�
         자리(소지 한도)              남았다 → FR-WHAT-YOU-CARRY-TAKES-ROOM 으로 frontier 에 남긴다
 
     후보를 새로 세운 것이 아니라 **같은 선택의 남은 절반**이다. 덜어내기가 자리와
-    한 몸인 것도 같은 날 Human 이 정했다 (C021 SCOPE NOTE ①) — 칸만 넣으면
+    한 몸인 것도 같은 날 Human 이 정했다 (C022 SCOPE NOTE ①) — 칸만 넣으면
     가방이 차는 순간 채굴이 영구히 막히기 때문이다.
 
     직전 선택       FR-INTERRUPT-THE-STARTUP → C019 로 닫힘
+
+## Feedback — C022(자리가 유한해진다) 반영 · 2026-08-21
+
+    C022 의 `08-verification.md` MASTER FEEDBACK 을 Master 에 되돌렸다.
+    **Cycle 은 아직 소진되지 않았다** — 여덟 Stage 실측은 끝났고 Gate 15항 중 열넷이
+    충족이며, 남은 하나가 `인간이 실제 게임에서 Cycle Goal 달성을 확인했다` 다.
+    그래서 frontier 의 후보를 지우지 않고 SELECTED 를 실제 상태로 갱신했다.
+    확인이 끝나면 후보를 지우고 결과를 이 파일로 옮긴다.
+
+### 번호 정정 — C021 → C022 (Master Gap ①)
+
+    이 Cycle 은 `C020` 으로 정의되었다가 병합 충돌로 `C021` 로, 다시 다른 갈래가
+    C021 을 쓰고 있어 Human 지시로 `C022` 로 옮겼다. `master/` 는 Cycle Agent 가
+    편집하지 않으므로 세 파일이 낡은 번호를 부르고 있었다.
+
+        frontier.md         4건 (SELECTED 절 · "지금 열 수 없는 것" 표)
+        open-questions.md   1건
+        HISTORY.md          1건
+
+    의미는 하나도 바뀌지 않았다. **같은 사고가 이번 달에 세 번째다** —
+    2026-08-20 병합 정리, 2026-08-21 C020 중복, 그리고 이번. 셋 다 원인이 같다:
+    병렬 갈래가 서로의 Cycle 번호를 모른다. Cycle 번호를 고르는 것은 Cycle Agent 이고,
+    그때 참조하는 것은 자기 갈래의 `cycles/` 뿐이다.
+
+### Capability Overlay — 승격 0건
+
+    이 Cycle 은 Capability 노드를 목표로 삼지 않았다. 소지 한도는 할 수 있는 일을
+    늘리는 것이 아니라 **좁히는** 것이라 Capability 가 아니며, 그 판정은 IS §4 · §6 과
+    overlay 아이템 절이 이미 내린 것을 그대로 따른 것이다.
+
+    바뀐 것은 표의 **근거**다.
+
+        MC-EQUIP-ITEM   MISSING 유지. 막던 것이 사라졌다 — IE §15 · §16.1 의 비대칭
+                        ("가방이 가득할 때 해제는 막히고 교체는 된다")을 표현할 자리가
+                        이제 세계에 있다 (`Inventory.UsedSlots` · 사유 `no-room`).
+                        Human Play 확인이 끝나면 frontier 후보로 올린다
+        MC-USE-ITEM     IMPLEMENTED 그대로 (C020). 이 Cycle 이 건드리지 않았다
+
+### Constraint Evaluation — Graph 편집 0건 (의도된 것)
+
+    C022 가 다섯 DC 를 SATISFIED 로 보고했다 (CAPACITY-IS-FINITE · CHANGE-IS-ONE-UNIT ·
+    KIND-IS-DATA-NOT-BRANCH · WORLD-OWNS-THE-SURFACE-LIST ·
+    GROWTH-DEFINITION-INSTANCE-SPLIT). 그런데 **Graph 노드에 바꿀 값이 없었다.**
+
+    이 Cycle 이 목표로 삼은 노드가 없고, 그 DC 들을 지닌 노드(MC-EQUIP-ITEM 등)의
+    `constraint_evaluation` 은 설계 수준의 판정이라 이미 SATISFIED 다. 판정이 실제
+    구현에서 확인된 것은 **Cycle 의 사실**이지 노드의 값 변화가 아니다.
+    없는 Edge 를 만들어 기록을 남기지 않았다 — 무차별 Edge 금지 (guides/master-feedback.md
+    Do 3 · SCHEMA).
+
+    다만 하나는 기록해 둘 값이 있다.
+
+        DC-ITEM-CAPACITY-IS-FINITE 의 세 번째 requires ("칸 수를 바꿔도 규칙 코드가
+        열리지 않는다")가 **처음으로 실행으로 확인되었다.** C022 가 값 두 줄(자리 수 ·
+        겹침 한도)만 바꿔 같은 플레이 각본을 그대로 다시 돌렸고, 규칙 코드는 0줄
+        바뀌었다 (자리 4·돌 3겹 → 돌 9 에서 가득 / 자리 3·돌 2겹 → 돌 4 에서 가득,
+        둘 다 통과). 세 번째 조합(자리 6·돌 5겹)에서는 **가방이 차지 않았다** —
+        자리가 광맥보다 커졌기 때문이다. 그것이 "한도는 세계에 캘 것이 자리보다
+        많을 때만 겪힌다" 를 추측이 아니라 관찰로 만들었다.
+
+### Constraint Candidate 접수 — CC-NO-SELF-INFLICTED-DEAD-END
+
+    "플레이어는 자기 손으로 되돌릴 수 없는 막힘을 만들 수 없다."
+    관찰 셋(C011 막기 무너짐 · C019 선딜 끊김 · C022 덜어내기)인데 성격이 갈린다 —
+    앞의 둘은 **값으로** 지켰고 C022 가 처음으로 **규칙으로** 세웠다.
+
+    승격 전에 정할 것이 Scope 다. GLOBAL 로 올리면 "되돌릴 수 없는 선택의 무게" 자체를
+    세계에서 구조적으로 없애게 되고, 그것은 북극성(헌터헌터 수준의 깊이)과 정면으로
+    부딪힐 수 있다. C022 가 막은 것은 재미있는 상실이 아니라 **아무것도 할 수 없게 되는
+    상태**였다 — 그 둘을 가르는 선이 Human 이 판단할 핵심이다. `HUMAN DECISION: PENDING`.
+
+### Master Gap 접수
+
+    ② 자리 배치 조작을 세울 것인가        → Q37 (자리에 이름을 줄 것인가)
+    ③ IE §34 "버리기" 와 C022 "덜어냄"    → Q38 (같은 행동인가)
+    ④ 빈 가방을 플레이로 만들 수 없다      → **질문으로 세우지 않았다.**
+        곡괭이는 `no-way-back` 이고 돌은 캐야 생기므로 자리 0 인 화면을 사람이 볼
+        경로가 없다. 규칙은 0 을 정상으로 답하고 계약도 그 값을 싣는다 — 결함이 아니라
+        **지금 세계의 크기**이고, 아이템이 늘면 저절로 사라진다. 결정할 것이 없는 것을
+        질문으로 만들지 않는다.
+
