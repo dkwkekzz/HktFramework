@@ -126,8 +126,9 @@ describe('resolvePresentation (Semantic → Render Plan)', () => {
     expect(deposit?.label).toBe('돌 0');
     // C020 — 다 캐고 난 소지품은 목록에서 읽는다. 값은 그대로 5 다.
     expect(plan.hud.find((h) => h.id === 'inventory.stone')?.value).toBe(5);
-    // 안 되는 이유가 소지품 자리에도 그대로 뜬다 — 세계가 준 사유를 옮길 뿐이다
-    expect(plan.hud.find((h) => h.id === 'inventory.pickaxe.use')?.value).toBe('광맥이 고갈되었다');
+    // 안 되는 이유가 소지품 자리에도 그대로 뜬다 — 세계가 준 사유를 옮길 뿐이다.
+    // C022 — 그 자리가 가로 띠에서 self 패널의 줄로 옮겨졌다 (띠는 가로로만 자란다).
+    expect(plan.self?.lines.find((l) => l.startsWith('2. 곡괭이'))).toContain('쓰기 ✗ 고갈됨');
     const mine = plan.interactions.find((i) => i.id === 'mine');
     expect(mine?.unavailableText).toContain('고갈');
   });

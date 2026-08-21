@@ -14,6 +14,13 @@ import full from './fixtures/inventory-full.fixture.json';
 const plan = (fixture: unknown) => resolvePresentation(fixture as GameViewSnapshot);
 const line = (fixture: unknown, id: string) => plan(fixture).hud.find((h) => h.id === id);
 const mine = (fixture: unknown) => plan(fixture).interactions.find((i) => i.id === 'mine');
+/**
+ * 항목으로 지금 무엇이 되는가는 **self 패널의 줄**에 선다. 가로 띠는 지닌 것이 늘 때마다
+ * 항목 수의 세 배로 길어져 화면 밖으로 잘렸다 — 사유는 문장이고 띠는 가로로만 자란다.
+ * 세계가 보낸 것 중 사라진 것은 하나도 없다. 자리만 옮겼다.
+ */
+const detail = (fixture: unknown, name: string) =>
+  (plan(fixture).self?.lines ?? []).find((l) => l.startsWith(name));
 
 describe('VIEW CLOSURE 1 — 자리가 얼마나 찼는지 안다', () => {
   it('쓴 자리와 전체가 한 줄로 뜬다', () => {
@@ -57,20 +64,24 @@ describe('VIEW CLOSURE 3·4 — 자리가 차면 캘 수 없고 그 사유가 �
 
 describe('VIEW CLOSURE 5·6·7 — 무엇을 덜어낼 수 있는지 안다', () => {
   it('덜어낼 수 있는 항목은 손가락 자리와 함께 뜬다', () => {
-    expect(line(full, 'inventory.stone.discard')?.label).toBe('덜어내기');
-    expect(line(full, 'inventory.stone.discard')?.value).toBe('가능 (B → 1)');
+    expect(detail(full, '1. 돌')).toContain('덜어내기 ✓ B → 1');
   });
 
   it('되돌릴 수 없는 것은 사유가 뜬다 — 화면이 그 종류를 알아본 것이 아니다', () => {
-    expect(line(full, 'inventory.pickaxe.discard')?.value).toBe('이걸 놓으면 되돌릴 수 없다');
+    expect(detail(full, '2. 곡괭이')).toContain('덜어내기 ✗ 되돌릴 수 없음');
   });
 
-  it('덜어내기 줄은 **지닌 모든 항목**에 붙는다 (쓸 수 있는 것만이 아니다)', () => {
-    const hud = plan(full).hud;
-    const discards = hud.filter((h) => h.id.endsWith('.discard'));
-    expect(discards.map((h) => h.id)).toEqual([
-      'inventory.stone.discard',
-      'inventory.pickaxe.discard',
+  it('덜어내기는 **지닌 모든 항목**에 붙는다 (쓸 수 있는 것만이 아니다)', () => {
+    const lines = plan(full).self?.lines ?? [];
+    expect(lines.filter((l) => l.includes('덜어내기'))).toHaveLength(2);
+  });
+
+  it('띠에는 항목마다 **한 칸**만 남는다 — 곁줄이 띠를 밀어내지 않는다', () => {
+    const ids = plan(full).hud.map((h) => h.id);
+    expect(ids.filter((id) => id.startsWith('inventory.'))).toEqual([
+      'inventory.room',
+      'inventory.stone',
+      'inventory.pickaxe',
     ]);
   });
 });
@@ -85,7 +96,7 @@ describe('DC-WORLD-OWNS-THE-SURFACE-LIST — 화면이 판정하지 않는다', 
     delete discard.unavailableReason;
 
     // **View 코드는 한 줄도 열리지 않았는데** 덜어낼 수 있게 되었다
-    expect(line(withSource, 'inventory.pickaxe.discard')?.value).toBe('가능 (B → 2)');
+    expect(detail(withSource, '2. 곡괭이')).toContain('덜어내기 ✓ B → 2');
   });
 
   it('모르는 사유 코드도 화면을 멈추지 않는다', () => {
@@ -95,7 +106,7 @@ describe('DC-WORLD-OWNS-THE-SURFACE-LIST — 화면이 판정하지 않는다', 
     discard.available = false;
     discard.unavailableReason = 'bound-by-oath'; // 아직 세계에 없는 사유
 
-    expect(line(odd, 'inventory.stone.discard')?.value).toBeTruthy();
+    expect(detail(odd, '1. 돌')).toContain('덜어내기 ✗ bound-by-oath');
   });
 
   it('한 자리에 몇까지 겹치는지는 계약에 없다 — 화면이 자리를 셀 수 없다', () => {

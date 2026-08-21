@@ -32,9 +32,9 @@ import {
   type EffectMemory,
 } from './effect-presentation';
 import { hudPresentation } from './hud-presentation';
-import { inventoryHudItems } from './inventory-presentation';
+import { inventoryDetailLines, inventoryHudItems } from './inventory-presentation';
 import { interactionPresentation } from './interaction-presentation';
-import { codeText } from './code-text';
+import { codeText, shortCodeText } from './code-text';
 import { contactMark } from './relation-presentation';
 import { cancelMark } from './phase-presentation';
 import { kindPresentation } from './kind-presentation';
@@ -137,6 +137,7 @@ export function resolvePresentation(
   // 이 세계의 관찰 결과는 팩 계약(04 spec — Snapshot.specId)의 형태다.
   // 봉투 형으로 도착한 것을 팩 형으로 좁히는 자리는 결정 Layer 의 진입점 하나뿐이다 (P2).
   const snapshot = observed as GameViewSnapshot;
+  const self = selfPanel(snapshot);
   return {
     specId: snapshot.specId,
     terrain: snapshot.scene,
@@ -210,7 +211,10 @@ export function resolvePresentation(
       };
     }),
     // C007 — 자기 자원·능력치·배율은 self 패널이 가져간다 (같은 값을 두 번 그리지 않는다)
-    ...(selfPanel(snapshot) ? { self: selfPanel(snapshot) } : {}),
+    // C022 — 소지품으로 지금 무엇이 되는가도 이 패널로 내려온다. 가로 띠는 한눈에
+    // 읽는 자리이고, 사유는 읽어야 아는 문장이라 세로로 자라는 자리가 맞다.
+    // 조립이 둘을 잇는다 — 소지품 표현이 전투 표현을 알 필요가 없다.
+    ...(self ? { self: { ...self, lines: [...self.lines, ...inventoryDetailLines(snapshot, codeText, shortCodeText)] } } : {}),
     // 타격 숫자는 맞은 몸의 그림 크기에 맞춰 떠오른다 — 그 몸이 아직 세계에 있으면 그 크기를 쓴다
     // C010 — 속성 관찰이 켜져 있으면 그 숫자가 나온 경위도 함께 붙는다 (같은 토글이다)
     // C018 — 무산된 접촉이 같은 자리에 나란히 뜬다. 빗나간 휘두름은 아무것도 오지 않고,

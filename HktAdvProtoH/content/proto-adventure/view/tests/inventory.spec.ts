@@ -13,6 +13,13 @@ import depleted from './fixtures/deposit-depleted.fixture.json';
 
 const plan = (fixture: unknown) => resolvePresentation(fixture as GameViewSnapshot);
 const line = (fixture: unknown, id: string) => plan(fixture).hud.find((h) => h.id === id);
+/**
+ * 항목으로 지금 무엇이 되는가는 **self 패널의 줄**에 있다 (C022 에서 자리가 옮겨졌다).
+ * 가로 띠는 지닌 것이 늘 때마다 세 배로 길어져 화면 밖으로 잘렸다 — 사유는 문장이고
+ * 띠는 가로로만 자라기 때문이다. 무엇이 보이는가는 그대로이고 어디에 보이는가만 바뀌었다.
+ */
+const detail = (fixture: unknown, name: string) =>
+  (plan(fixture).self?.lines ?? []).find((l) => l.startsWith(name));
 
 describe('VIEW CLOSURE 1 — 무엇을 얼마나 지녔는지 안다', () => {
   it('지닌 종류마다 한 줄이 뜨고 수량이 보인다', () => {
@@ -33,17 +40,20 @@ describe('VIEW CLOSURE 1 — 무엇을 얼마나 지녔는지 안다', () => {
 
 describe('VIEW CLOSURE 2·3 — 지금 되는 것과 안 되는 사유가 함께 온다', () => {
   it('되는 것은 가능으로 뜬다', () => {
-    expect(line(mining, 'inventory.pickaxe.use')?.value).toBe('가능');
+    expect(detail(mining, '2. 곡괭이')).toContain('쓰기 ✓');
   });
 
   it('안 되는 것은 세계가 준 사유가 문구로 뜬다', () => {
-    expect(line(mining, 'inventory.stone.use')?.value).toBe('먼저 대상을 고르자');
-    expect(line(depleted, 'inventory.pickaxe.use')?.value).toBe('광맥이 고갈되었다');
+    // 목록 안이라 **짧은 표기**가 온다. 긴 문장은 지금 하려는 행동 하나에 붙는다
+    // (채집 프롬프트) — 같은 사유가 두 자리에서 다른 길이로 읽힌다 (code-text.ts).
+    expect(detail(mining, '1. 돌')).toContain('쓰기 ✗ 대상 없음');
+    expect(detail(depleted, '2. 곡괭이')).toContain('쓰기 ✗ 고갈됨');
   });
 
   it('안 되는 항목도 자리에서 사라지지 않는다 — 이유를 읽는 것이 이 자리의 값어치다', () => {
-    const ids = plan(mining).hud.map((h) => h.id);
-    expect(ids).toContain('inventory.stone.use');
+    expect(detail(mining, '1. 돌')).toBeDefined();
+    // 띠에는 수량 칸이 그대로 남는다 — 한눈에 읽는 것과 읽어야 아는 것을 갈랐을 뿐이다
+    expect(plan(mining).hud.map((h) => h.id)).toContain('inventory.stone');
   });
 
   it('View 가 사유를 만들지 않는다 — 모르는 코드는 코드 그대로 나온다', () => {
@@ -61,7 +71,7 @@ describe('VIEW CLOSURE 2·3 — 지금 되는 것과 안 되는 사유가 함께
         },
       ],
     };
-    expect(line(unknown, 'inventory.stone.use')?.value).toBe('ritual-forbidden');
+    expect(detail(unknown, '1. 돌')).toContain('쓰기 ✗ ritual-forbidden');
   });
 });
 
@@ -89,7 +99,7 @@ describe('DC-ITEM-KIND-IS-DATA-NOT-BRANCH — View 는 종류를 몰라도 그�
   });
 
   it('쓰기 줄도 그대로 만들어진다', () => {
-    expect(line(unknownKind, 'inventory.boundary-crystal.use')?.value).toBe('가능');
+    expect(detail(unknownKind, '1. boundary-crystal')).toContain('쓰기 ✓');
   });
 
   it('모르는 분류는 아이콘 없이 나온다', () => {

@@ -64,7 +64,118 @@
       "available": true
     }
   ],
-  "hud": [],
+  "hud": [
+    {
+      "id": "self.hp",
+      "kind": "counter",
+      "value": 150
+    },
+    {
+      "id": "self.hpMax",
+      "kind": "counter",
+      "value": 200
+    },
+    {
+      "id": "self.cp",
+      "kind": "counter",
+      "value": 24
+    },
+    {
+      "id": "self.cpMax",
+      "kind": "counter",
+      "value": 100
+    },
+    {
+      "id": "self.downed",
+      "kind": "flag",
+      "value": false
+    },
+    {
+      "id": "self.moveMode",
+      "kind": "label",
+      "value": "run"
+    },
+    {
+      "id": "self.combat.physicalAttack",
+      "kind": "counter",
+      "value": 40
+    },
+    {
+      "id": "self.combat.auraAttack",
+      "kind": "counter",
+      "value": 40
+    },
+    {
+      "id": "self.combat.armor",
+      "kind": "counter",
+      "value": 50
+    },
+    {
+      "id": "self.combat.resistance",
+      "kind": "counter",
+      "value": 50
+    },
+    {
+      "id": "self.combat.armorMultiplier",
+      "kind": "counter",
+      "value": 0.6666666666666666
+    },
+    {
+      "id": "self.combat.resistanceMultiplier",
+      "kind": "counter",
+      "value": 0.6666666666666666
+    },
+    {
+      "id": "self.combat.defenseShape",
+      "kind": "label",
+      "value": "even"
+    },
+    {
+      "id": "self.tempo.moveSpeed",
+      "kind": "counter",
+      "value": 6
+    },
+    {
+      "id": "self.tempo.runSpeedMultiplier",
+      "kind": "counter",
+      "value": 1.8
+    },
+    {
+      "id": "self.tempo.actionSpeed",
+      "kind": "counter",
+      "value": 1
+    },
+    {
+      "id": "self.modifier.cpCharge",
+      "kind": "counter",
+      "value": 0.5
+    },
+    {
+      "id": "self.modifier.cpConsume",
+      "kind": "counter",
+      "value": 1
+    },
+    {
+      "id": "self.modifier.moveSpeed",
+      "kind": "counter",
+      "value": 1
+    },
+    {
+      "id": "self.modifier.actionSpeed",
+      "kind": "counter",
+      "value": 1
+    },
+    {
+      "id": "self.guard.guarding",
+      "kind": "flag",
+      "value": false
+    },
+    {
+      "id": "self.guard.broken",
+      "kind": "flag",
+      "value": false
+    }
+  ],
   "strikes": [],
   "contacts": [],
   "cancels": [],
