@@ -2,7 +2,7 @@
 
 [PASS] Cycle Definition           (가진 것과 적용된 것이 갈린다 · 자리 하나 · 원복이 판정 기준)
 [PASS] Intent                    (지님은 아무것도 바꾸지 않는다 · 자리와 유효값 · 원복이 정확하다)
-[    ] World Semantic
+[PASS] World Semantic            (자리 하나 · 능력치를 읽는 문 하나 · 적용·해제·교체가 한 규칙)
 [    ] GameView Specification
 [    ] Human Semantic Review
 [    ] World Implementation
