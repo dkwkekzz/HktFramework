@@ -1,7 +1,7 @@
 # CYCLE C021 — What You Carry Takes Room
 
 [PASS] Cycle Definition           (자리와 덜어내기가 한 몸 · 앞 절반은 C020 이 세웠다 · 값은 Stage 3)
-[    ] Intent
+[PASS] Intent                     (자리 · 획득 원자성 · 덜어내기 · 막힘 방지 · 자리 관찰 · 값은 Stage 3)
 [    ] World Semantic
 [    ] GameView Specification
 [    ] Human Semantic Review
