@@ -28,7 +28,10 @@
     #hud { position: absolute; inset: 0; pointer-events: none; }
     .hud-panel {
       position: absolute; top: 14px; left: 14px;
-      display: flex; align-items: center; gap: 14px;
+      /* 띠는 가로로만 자란다 — 감싸지 않으면 늘어난 칸이 화면 밖으로 잘려 조용히 사라진다.
+         오른쪽 위는 조작 안내의 자리이므로 그 앞에서 멈춘다. */
+      display: flex; align-items: center; gap: 8px 14px;
+      flex-wrap: wrap; max-width: calc(100% - 230px);
       background: rgba(28, 34, 46, 0.82); color: #f2f4f8;
       padding: 9px 16px; border-radius: 10px;
       font-size: 17px; font-weight: 700; letter-spacing: 0.2px;

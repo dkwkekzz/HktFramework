@@ -45,7 +45,7 @@ prefers: []
 
 status: APPROVED
 provenance:
-  - HUMAN_DESIGN        # design/Design-Combat-SkillForm-R0.md 주입 → Human 승인 (HISTORY Q37)
+  - HUMAN_DESIGN        # design/Design-Combat-SkillForm-R0.md 주입 → Human 승인 (HISTORY Q41)
 
 relations:
   supports: [DC-ITEM-KIND-IS-DATA-NOT-BRANCH, DC-WORLD-OWNS-THE-SURFACE-LIST]

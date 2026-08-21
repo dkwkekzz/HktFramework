@@ -70,6 +70,20 @@ export const DEFAULT_CHANCE_SEED = 0x5eedc015;
 // InteractionRange — RULE-MINE-001 Precondition 2 의 거리 한계
 export const INTERACTION_RANGE = 2.0;
 
+/**
+ * 몸이 지닌 자리의 수 (C022 ADDED — World.InventoryCapacity).
+ *
+ * **세계의 성질이지 State 가 아니다** — 세계가 굴러가며 달라지지 않는다.
+ * 몸마다 다른 자리를 지니는 것은 가방 확장의 의미이며 이 Cycle 이 그것을 열지 않는다.
+ * 몸으로 옮기는 것은 값이 달라져야 할 이유가 생겼을 때의 한 줄 이동이다
+ * (03-world-semantic.md RATIONALE 2).
+ *
+ * **어떤 규칙도 이 수를 조건으로 삼지 않는다.** 판정은 `≤ Capacity` 하나이며,
+ * 그래서 이 값을 바꿔도 규칙 코드는 한 줄도 열리지 않는다
+ * (DC-ITEM-CAPACITY-IS-FINITE).
+ */
+export const INVENTORY_CAPACITY = 4;
+
 // ObserveRange — RULE-OBSERVE-BEGIN-001 Precondition 4 의 거리 한계 (C014 ADDED).
 // 사거리(2.0)보다 멀고 인지 거리(9.0)보다 가깝다: 살펴봄은 칼이 아니라 눈으로 하는
 // 일이므로 사거리까지 붙을 필요는 없지만, 인지 거리 안이므로 **자율 존재는 반드시

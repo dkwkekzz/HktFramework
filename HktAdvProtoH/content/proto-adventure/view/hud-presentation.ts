@@ -22,8 +22,9 @@ const HUD: Record<string, HudPresentation> = {
   'target.name': { label: '고른 대상', icon: '🎯' },
   'target.state': { label: '지금' },
   'target.health': { label: '생명', icon: '❤' },
-  'target.observe': { label: '살펴보기' },
-  'target.mine': { label: '채집' },
+  // C022 — `target.observe` · `target.mine` 이 여기서 사라졌다. 그 둘은 사유가 문장이라
+  // 가로 띠에서 자리를 가장 많이 먹었고, self 패널의 줄로 내려갔다 (target-presentation).
+  // 줄을 만드는 쪽이 이름을 함께 지니므로 이 표에 남길 것이 없다.
 };
 
 export function hudPresentation(id: string): HudPresentation {

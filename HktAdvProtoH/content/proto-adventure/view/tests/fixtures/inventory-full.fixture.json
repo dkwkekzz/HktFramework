@@ -56,7 +56,8 @@
     {
       "id": "mine",
       "role": "mine-deposit",
-      "available": true
+      "available": false,
+      "reason": "no-room"
     },
     {
       "id": "clear-target",
@@ -189,7 +190,7 @@
   "inventory": [
     {
       "kind": "stone",
-      "count": 2,
+      "count": 9,
       "category": "material",
       "origin": "IT-COMMON-STONE",
       "stackable": true,
@@ -228,7 +229,7 @@
     }
   ],
   "inventoryRoom": {
-    "used": 2,
+    "used": 4,
     "capacity": 4
   }
 }

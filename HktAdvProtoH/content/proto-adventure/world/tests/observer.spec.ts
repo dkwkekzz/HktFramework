@@ -275,7 +275,8 @@ describe('INTENT-OBSERVER-LEAVE-001 — 떠나도 몸은 세계에 남는다', (
   });
 
   it('하던 행동은 세계의 시간대로 끝까지 진행된다', () => {
-    const w = world({ ...solo, actorPosition: { x: 8, z: -5 } });
+    // C022 — 관심은 "떠나도 행동이 끝까지 간다" 이므로 광맥의 양을 명시한다.
+    const w = world({ ...solo, actorPosition: { x: 8, z: -5 }, depositAmount: 5 });
     w.join(A);
     w.join(B);
     w.tick(0);

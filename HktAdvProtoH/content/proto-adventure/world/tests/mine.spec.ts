@@ -36,7 +36,14 @@ describe('RULE-MINE-001', () => {
   });
 
   it('곡괭이 없음 → Failure(no-mining-tool), 상태 불변 + 사유 코드 투영', () => {
-    const world = driveWorld({ ...solo, actorPosition: { x: 8, z: -5 }, actorItems: {} });
+    // C022 — 이 검증의 관심은 도구가 없다는 것이므로 광맥의 양을 **명시한다**.
+    // 세계를 띄우는 기본값(C022 에서 12 로 올랐다)을 따라다니지 않는다.
+    const world = driveWorld({
+      ...solo,
+      actorPosition: { x: 8, z: -5 },
+      actorItems: {},
+      depositAmount: 5,
+    });
 
     selectTarget(world, 'deposit-1');
     const result = world.dispatch({ interactionId: 'mine' });

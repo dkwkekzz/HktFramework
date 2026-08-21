@@ -663,5 +663,9 @@
   "currentTarget": {
     "entityId": "npc-2"
   },
-  "inventory": []
+  "inventory": [],
+  "inventoryRoom": {
+    "used": 0,
+    "capacity": 4
+  }
 }

@@ -2,7 +2,7 @@
 
 파일 하나 = 후보 하나. 이름은 `CC-<NAME>.md`. 형식은 [../SCHEMA.md](../SCHEMA.md).
 
-현재: **PENDING 10종**
+현재: **PENDING 11종**
 
 | 후보 | 출처 | 관찰 | 상태 |
 |---|---|---|---|
@@ -16,6 +16,7 @@
 | CC-REASONS-ARE-A-LIST-NOT-A-BRANCH | C018 | 1회 (C018 — Cycle 이 보류를 권했다) | PENDING |
 | CC-THE-WORLD-JUDGES-THE-MOMENT | C019 | **2회** (C012 · C019) | PENDING |
 | CC-A-COST-MUST-LEAVE-A-WINDOW | C020 | **2회** (C019 · C020) | PENDING |
+| CC-NO-SELF-INFLICTED-DEAD-END | C022 | **3회** (C011 · C019 · C022 — 앞의 둘은 값으로, C022 가 처음 규칙으로) | PENDING |
 
 다섯 무리로 읽는다.
 
@@ -29,10 +30,16 @@
 셋 다 "View 가 스스로 만들어내지 않는다" 는 한 문장의 다른 얼굴이다.
 넷째(SURFACE-LIST)와 한 자리에서 보라는 뜻으로 나란히 둔다.
 
-**대가 무리 (1종 — C020 이 새로 들었다)** — A-COST-MUST-LEAVE-A-WINDOW 는
+**대가 무리 (2종 — C022 가 새로 들었다)** — A-COST-MUST-LEAVE-A-WINDOW 는
 "대가는 치를 수 있어야 대가다" 이며, 앞의 무리들과 성격이 다르다. 표면·길·구조 무리가
 **무엇을 어디에 두는가**를 말한다면 이것은 **정한 값이 세계에서 성립하는지를 재는가**를
 말한다. 2회 관찰이고, 한 번은 실패로 치렀다 (C020 이 Stage 8 에서 Stage 1 로 반환됐다).
+
+둘째 NO-SELF-INFLICTED-DEAD-END 는 그 물음을 **시간 축으로 넓힌 것**이다.
+앞의 것이 "지금 이 대가를 치를 수 있는가" 라면 이것은 "치르고 나서도 길이 남는가" 다.
+셋 다 관찰되었으나 앞의 둘은 값으로 지켰고 C022 가 처음 규칙으로 세웠다 — 그래서
+승격 여부보다 **Scope** 가 먼저다. GLOBAL 로 올리면 되돌릴 수 없는 선택의 무게 자체를
+세계에서 없애게 되어 북극성과 부딪힌다 (후보 파일의 POTENTIAL CONFLICTS).
 
 **길 무리 (1종)** — A-NEW-WAY-OF-KNOWING-IS-NOT-A-GATE 는 2회 관찰된 후보다. `DC-WORLD-PLAYER-UNFIXED-PATH` 의 정보판이며, 승격하면 다음 Cycle 이 바로
 그 제약을 받는다.

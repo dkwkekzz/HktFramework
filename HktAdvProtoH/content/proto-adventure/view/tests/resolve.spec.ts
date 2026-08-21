@@ -126,8 +126,9 @@ describe('resolvePresentation (Semantic → Render Plan)', () => {
     expect(deposit?.label).toBe('돌 0');
     // C020 — 다 캐고 난 소지품은 목록에서 읽는다. 값은 그대로 5 다.
     expect(plan.hud.find((h) => h.id === 'inventory.stone')?.value).toBe(5);
-    // 안 되는 이유가 소지품 자리에도 그대로 뜬다 — 세계가 준 사유를 옮길 뿐이다
-    expect(plan.hud.find((h) => h.id === 'inventory.pickaxe.use')?.value).toBe('광맥이 고갈되었다');
+    // 안 되는 이유가 소지품 자리에도 그대로 뜬다 — 세계가 준 사유를 옮길 뿐이다.
+    // C022 — 그 자리가 가로 띠에서 self 패널의 줄로 옮겨졌다 (띠는 가로로만 자란다).
+    expect(plan.self?.lines.find((l) => l.startsWith('2. 곡괭이'))).toContain('쓰기 ✗ 고갈됨');
     const mine = plan.interactions.find((i) => i.id === 'mine');
     expect(mine?.unavailableText).toContain('고갈');
   });
@@ -182,6 +183,7 @@ describe('결정 Layer 의 유연 대응 — 미등록 항목도 기본 결정�
       specId: 'VIEW-FUTURE-999',
       scene: 'cavern',
       inventory: [],
+      inventoryRoom: { used: 0, capacity: 4 },
       entities: [
         { id: 'npc-1', role: 'wandering-merchant', state: 'idle', position: { x: 1, z: 1 } },
       ],
@@ -205,8 +207,10 @@ describe('결정 Layer 의 유연 대응 — 미등록 항목도 기본 결정�
     // C017 — hud 앞에 고른 대상 자리가 온다 (여기서는 "없음")
     expect(plan.hud[0]?.id).toBe('target.none');
     // C020 — 그 뒤에 소지품 자리가 온다 (이 화면은 아무것도 지니지 않았다)
-    expect(plan.hud[1]?.id).toBe('inventory.none');
-    expect(plan.hud[2]?.label).toBe('currency.gold'); // 미등록 HUD id → id 그대로
+    // C022 — 자리 줄이 그 앞에 하나 붙는다
+    expect(plan.hud[1]?.id).toBe('inventory.room');
+    expect(plan.hud[2]?.id).toBe('inventory.none');
+    expect(plan.hud[3]?.label).toBe('currency.gold'); // 미등록 HUD id → id 그대로
     expect(plan.interactions[0]?.unavailableText).toBe('no-goods'); // 미등록 사유 → 코드 그대로
   });
 

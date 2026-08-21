@@ -27,6 +27,7 @@ import type { InteractionHandler } from '../../../../engine/world-kernel/content
 import { ruleAttributeSet } from '../rules/attribute-set';
 import { ruleGuardBegin, ruleGuardRelease } from '../rules/guard';
 import { ruleItemUse } from '../rules/item-use';
+import { ruleItemDiscard } from '../rules/item-discard';
 import { ruleMine } from '../rules/mine';
 import { ruleMove } from '../rules/move';
 import { ruleMoveMode } from '../rules/move-mode';
@@ -91,6 +92,16 @@ export const INTERACTIONS: readonly InteractionHandler<WorldState>[] = [
     handle: withActor((state, actor, action, observerId) => {
       if (!action.itemKind) return { status: 'failure', rule: DISPATCH, reason: 'missing-item' };
       return ruleItemUse(state, actor, observerId, action.itemKind);
+    }),
+  },
+  {
+    // C022 — 지닌 것을 덜어낸다. 요청이 싣는 것은 **무엇을** 하나뿐이다 —
+    // 얼마나는 싣지 않는다 (그 종류를 전부 덜어낸다). 대상도 싣지 않는다:
+    // 덜어내기는 몸 밖의 무엇도 요구하지 않으며 그것이 이 행동의 이유다.
+    id: 'discard-item',
+    handle: withActor((state, actor, action) => {
+      if (!action.itemKind) return { status: 'failure', rule: DISPATCH, reason: 'missing-item' };
+      return ruleItemDiscard(state, actor, action.itemKind);
     }),
   },
   {
