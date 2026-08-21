@@ -1,16 +1,20 @@
-# 원본 근거: design/Design-Combat-SkillForm-R0.md (SF) §28.1 (스킬 이름을 시스템 타입으로
-#   만들지 않는다) · §1 (여섯 축의 조합) · §33 (최종 구조 — Skill Content 는 Definition 위에
-#   있다) · §34-1·§34-2 (요구를 먼저 분해하고 기존 Primitive 를 재사용한다) ·
-#   §32 수용 기준 12 (스킬 이름 때문에 새로운 시스템 enum 을 만들 필요가 없다)
+# 원본 근거: design/Skill/Skill-System.md (SK) §7 (구현에서 금지할 구조 — 스킬 이름별
+#   시스템을 만들지 않는다) · §2 (Skill 의 정의 — 다섯 축의 조합) · §5 (기존 Skill 형태의
+#   재해석 — 콘텐츠 이름은 조합으로 번역된다) · §9 (새 Skill 을 설계하는 순서) ·
+#   §11 (최종 구조) · §12 수용 기준 15
+# 주입(Inject)으로 세운 뒤 2026-08-21 Human 승인 (HISTORY Q41).
+# REVISED — 근거 문서가 SF(Design-Combat-SkillForm-R0.md, 삭제)에서 SK 로 교체되며
+#   축의 이름이 바뀌었다 (HISTORY Q45). 원칙의 방향과 금지 범위는 그대로다 —
+#   바뀐 것은 "조합의 항이 무엇인가" 뿐이다.
 id: DC-SKILL-IS-COMBINATION-NOT-NAME
 type: constraint
 
 statement: >
-  스킬의 이름은 세계가 아는 종류가 아니다. 시스템에는 발동·지목·전달·형상·시점·효과의
-  형태만 있고, 하나의 스킬은 그 형태들의 조합을 고른 정의일 뿐이다.
+  스킬의 이름은 세계가 아는 종류가 아니다. 시스템에는 발동·대상 기준·실행·대상 결정·
+  효과의 형태만 있고, 하나의 스킬은 그 형태들의 조합을 고른 정의일 뿐이다.
 rationale: >
   ❌ 흔한 구현은 스킬 이름을 그대로 타입으로 세우는 것이다 — SkillType.Fireball ·
-  SkillType.Meteor · SkillType.PoisonField (SF §28.1 이 직접 든 금지 예). 그러면 스킬이
+  SkillType.Meteor · SkillType.PoisonField (SK §7 이 직접 든 금지 예). 그러면 스킬이
   하나 늘 때마다 타입이 하나 늘고, 그 타입을 아는 규칙·화면·테스트가 함께 열린다.
 
   ✅ 지금 세계는 이 원칙의 절반을 이미 지키고 있다. `world/semantic/combat.ts` 의
@@ -28,24 +32,32 @@ rationale: >
   가장 안 읽히는 조각은 "이름을 쓰지 말라는 말이 아니다" 다. 정의를 찾을 때 이름을
   열쇠로 쓰는 것은 정상이고, 찾은 정의 대신 이름 자체를 판정 조건으로 쓰는 것이 금지다.
 
+  경계 — 축의 목록은 근거 문서가 소유하며 이 원칙이 고정하지 않는다. SK 는 R0 의 여섯 축
+  (발동·지목·전달·형상·시점·효과)을 다섯으로 정리했다 — 형상은 공간 조회의 한 칸이 되고
+  시점은 사건(Trigger)의 형태가 되었으며, 지목은 기준과 결정 둘로 갈렸다. 이 원칙이
+  요구하는 것은 "이름이 아니라 조합" 이지 "축이 몇 개인가" 가 아니다.
+  단일이냐 범위냐를 스킬 종류로 만드는 것은 이 원칙이 아니라
+  DC-SKILL-ANCHOR-IS-NOT-RESOLUTION 이 다룬다.
+
 scope:
-  - SKILL               # 전투에 한정되지 않는다 — 회복·소환·부여도 같은 조합으로 표현된다 (SF §1)
+  - SKILL               # 전투에 한정되지 않는다 — 회복·소환·부여도 같은 조합으로 표현된다 (SK §2)
 
 requires:
-  - 하나의 스킬은 발동·지목·전달·형상·시점·효과의 조합으로 표현된다     # SF §1 · §33
-  - 새 스킬 추가는 정의를 더하는 것으로 끝난다                        # SF §34-2
-  - 규칙은 스킬 이름이 아니라 그 정의가 답한 것으로 판정한다            # SF §28.1
+  - 하나의 스킬은 발동·대상 기준·실행·대상 결정·효과의 조합으로 표현된다  # SK §2 · §11
+  - 새 스킬 추가는 정의를 더하는 것으로 끝난다                        # SK §5 · §9
+  - 규칙은 스킬 이름이 아니라 그 정의가 답한 것으로 판정한다            # SK §7
 prohibits:
-  - 스킬 이름을 시스템 타입·규칙의 분기 조건으로 만드는 것              # SF §28.1
-  - 같은 효과를 전달 방식마다 다른 종류로 나누는 것                    # SF §28.2
+  - 스킬 이름을 시스템 타입·규칙의 분기 조건으로 만드는 것              # SK §7
+  - 같은 효과를 전달 방식마다 다른 종류로 나누는 것                    # SK §7
 prefers: []
 
 # 경계 — 이 Constraint 는 "무엇이 판정의 근거인가" 만 정한다.
 # 축을 몇 개 두는가, 조합을 어떤 파일·타입으로 두는가는 Cycle 소유다 (정책 §7.2).
 
-status: APPROVED
+status: REVISED
 provenance:
   - HUMAN_DESIGN        # design/Design-Combat-SkillForm-R0.md 주입 → Human 승인 (HISTORY Q41)
+  - HUMAN_DESIGN        # 근거를 design/Skill/Skill-System.md 로 교체 → Human 지시 (HISTORY Q45)
 
 relations:
   supports: [DC-ITEM-KIND-IS-DATA-NOT-BRANCH, DC-WORLD-OWNS-THE-SURFACE-LIST]

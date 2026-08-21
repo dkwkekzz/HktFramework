@@ -110,28 +110,20 @@ systems:
       - { id: WORLD,      name: 세계 개체화 — 아이템이 몸 밖에 존재한다 }
 
   - id: MS-SKILL-FORM
-    name: 스킬 전달 형태
-    source: SF (design/Design-Combat-SkillForm-R0.md) §1 · §5 · §30
+    name: 스킬 실행 형태
+    source: SK (design/Skill/Skill-System.md) §4 · §5 · §6
     status: DRAFT
     semantic: >
-      효과가 세계에 나타나 대상에게 닿는 방식의 목록. 스킬은 이름이 아니라 발동 · 지목 ·
-      전달 · 형상 · 시점 · 효과의 조합이며, 그중 **전달**만이 세계에 새로운 생명주기와
-      판정을 요구하므로 자리를 가진다 (나머지 다섯 축은 조합의 항이지 사다리가 아니다).
-      전투 사다리(MS-COMBAT-LADDER)와 직교한다 — 그쪽은 피해가 어떻게 계산되는가의 층이고
-      이쪽은 그 효과가 어떻게 전달되는가의 자리다. 어느 자리든 피해 효과는 같은 피해
-      공식을 지난다.
+      효과가 세계에 나타나 대상에게 닿는 방식의 목록. 스킬은 이름이 아니라 발동 ·
+      대상 기준 · 실행 · 대상 결정 · 효과의 조합이며, 그중 **실행**만이 세계에 새로운
+      생명주기와 판정을 요구하므로 자리를 가진다 (나머지 네 축은 조합의 항이지 사다리가
+      아니다). 전투 사다리(MS-COMBAT-LADDER)와 직교한다 — 그쪽은 피해가 어떻게
+      계산되는가의 층이고 이쪽은 그 효과가 어떻게 전달되는가의 자리다. 어느 자리든
+      피해 효과는 같은 피해 공식을 지난다.
     segments:
-      - { id: CONTACT,         name: 접촉 — 휘두른 몸이 닿는다 }
-      - { id: DIRECT-TARGET,   name: 대상 직접 — 전달체 없이 지정한 것에 바로 미친다 }
-      - { id: PROJECTILE,      name: 투사체 — 날아가는 것이 세계를 지난다 }
-      - { id: BURST-AREA,      name: 순간 영역 — 한 자리에서 한 번 공간을 판정한다 }
-      - { id: PERSISTENT-AREA, name: 지속 영역 — 한 자리가 일정 시간 유지된다 }
-      - { id: BEAM,            name: 광선 — 직선 영역을 판정한다 }
-      - { id: MOVEMENT-ATTACK, name: 이동 결합 — 스스로 움직이며 판정한다 }
-      - { id: ATTACHED-AREA,   name: 부착 영역 — 영역이 존재를 따라다닌다 }
-      - { id: CHAIN,           name: 연쇄 — 대상에서 다음 대상으로 옮는다 }
-      - { id: TRAP,            name: 설치 — 놓아 둔 것이 조건에서 발동한다 }
-      - { id: SUMMON,          name: 소환 — 새 존재가 같은 형태를 다시 쓴다 }
-      - { id: TETHER,          name: 연결 — 두 존재 사이 관계가 유지된다 }
-      - { id: TRAIL,           name: 자취 — 지나간 경로에 영역이 남는다 }
-      - { id: MOVING-VOLUME,   name: 이동 영역 — 판정 영역 자체가 세계를 지난다 }
+      - { id: CONTACT,          name: 접촉 — 휘두른 몸이 닿는다 }
+      - { id: DIRECT,           name: 대상 직접 — 전달체 없이 이미 정해진 것에 바로 미친다 }
+      - { id: SPATIAL-QUERY,    name: 공간 조회 — 한 자리를 기준으로 공간을 물어 대상을 고른다 }
+      - { id: SPATIAL-PRESENCE, name: 공간 존재 — 몸이 아닌 것이 세계에 자리를 가진다 }
+      - { id: TRIGGER,          name: 사건 — 세계에서 일어난 일이 다음 실행을 부른다 }
+      - { id: COMPOSITION,      name: 연결 — 하나의 실행이 다음 실행을 낳는다 }
