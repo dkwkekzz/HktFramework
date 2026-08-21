@@ -38,19 +38,52 @@ function moveModeToggle(code: string): KeyBinding {
   };
 }
 
-// 소지품 칸 쓰기 (C020) — 숫자 키가 몇 번 칸을 부르는가는 **화면의 결정**이다.
-// 세계는 순서 있는 목록을 보낼 뿐이고, 그 순서에 손가락 자리를 붙이는 일이 여기다.
+// 덜어내기를 여는 키 (C022). 손가락 자리가 하나 더 필요한 이유는 조작 계층의 사정이다 —
+// 숫자 키는 이미 "쓰기" 가 쓰고 있고, 입력 계층이 조합 키(Shift·Ctrl)를 팩에 전달하지
+// 않는다 (engine/view-kernel/input/bindings.ts 는 `code` 하나만 나른다).
+//
+// 그래서 **두 걸음**이다: B 를 누르면 다음 숫자 키가 쓰기가 아니라 덜어내기가 된다.
+// 이것은 조작의 결정일 뿐 게임의 판정이 아니다 — 무엇이 되고 안 되는지는 여전히
+// 세계만 답하며, 잘못 눌러 보낸 요청도 세계가 사유와 함께 거절한다.
+const DISCARD_ARM_KEY = 'KeyB';
+
+/** 다음 숫자 키가 덜어내기인가. **화면의 조작 상태이지 세계의 상태가 아니다** */
+let discardArmed = false;
+
+/** 검증용 — 지금 덜어내기가 열려 있는가 */
+export function isDiscardArmed(): boolean {
+  return discardArmed;
+}
+
+const armDiscard: KeyBinding = {
+  code: DISCARD_ARM_KEY,
+  // 다시 누르면 닫힌다. 아무것도 보내지 않으므로 잘못 눌러도 세계는 흔들리지 않는다.
+  invoke: () => {
+    discardArmed = !discardArmed;
+  },
+};
+
+// 소지품 칸 (C020 쓰기 · C022 덜어내기) — 숫자 키가 몇 번 칸을 부르는가는
+// **화면의 결정**이다. 세계는 순서 있는 목록을 보낼 뿐이고, 그 순서에 손가락 자리를
+// 붙이는 일이 여기다.
 //
 // 되는지 안 되는지는 판정하지 않는다 — 없는 칸이면 보내지 않고, 있는 칸이면 그대로
 // 요청한다. 안 되는 경우 세계가 사유와 함께 거절하며 그 사유는 이미 소지품 자리에
 // 떠 있다 (DC-WORLD-OWNS-THE-SURFACE-LIST · view/inventory-presentation.ts).
-function useSlot(index: number): KeyBinding {
+function slotKey(index: number): KeyBinding {
   return {
     code: `Digit${index + 1}`,
     invoke: (scene, send) => {
+      // 열려 있었으면 이 한 번으로 닫힌다 — 덜어내기가 계속 켜진 채로 남지 않는다.
+      const discarding = discardArmed;
+      discardArmed = false;
+
       const kind = inventorySlots(scene)[index];
       if (kind === undefined) return;
-      const action: ActionRequest = { interactionId: 'use-item', itemKind: kind };
+      const action: ActionRequest = {
+        interactionId: discarding ? 'discard-item' : 'use-item',
+        itemKind: kind,
+      };
       send(action);
     },
   };
@@ -60,6 +93,7 @@ export const KEY_BINDINGS: readonly KeyBinding[] = [
   guardToggle,
   moveModeToggle('ShiftLeft'),
   moveModeToggle('ShiftRight'),
+  armDiscard,
   // 첫 아홉 칸. 칸이 그만큼 없으면 아무 일도 일어나지 않는다
-  ...Array.from({ length: 9 }, (_, i) => useSlot(i)),
+  ...Array.from({ length: 9 }, (_, i) => slotKey(i)),
 ];

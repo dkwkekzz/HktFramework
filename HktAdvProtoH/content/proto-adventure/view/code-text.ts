@@ -39,6 +39,9 @@ const CODE_TEXT: Record<string, string> = {
   'unknown-item': '세계가 모르는 물건이다',
   'not-usable': '쓸 수 있는 물건이 아니다',
   'not-enough': '모자란다',
+  // C022 — 자리
+  'no-room': '자리가 없다 — 무엇을 덜어내야 한다',
+  'no-way-back': '이걸 놓으면 되돌릴 수 없다',
   'target-gone': '대상이 사라졌다',
   'target-downed': '이미 쓰러졌다',
   // 기술의 구간과 끊김 (C019) — 선딜만 화면에 뜬다 (phase-presentation 의 결정 2)

@@ -19,12 +19,12 @@
     {
       "id": "deposit-1",
       "role": "resource-deposit",
-      "state": "depleted",
+      "state": "available",
       "position": {
         "x": 8,
         "z": -6
       },
-      "labelValue": 0,
+      "labelValue": 5,
       "kind": "stone"
     }
   ],
@@ -57,7 +57,7 @@
       "id": "mine",
       "role": "mine-deposit",
       "available": false,
-      "reason": "deposit-depleted"
+      "reason": "no-room"
     },
     {
       "id": "clear-target",
@@ -79,7 +79,7 @@
   "inventory": [
     {
       "kind": "stone",
-      "count": 5,
+      "count": 9,
       "category": "material",
       "origin": "IT-COMMON-STONE",
       "stackable": true,
@@ -106,8 +106,7 @@
         {
           "id": "use-item",
           "role": "use-item",
-          "available": false,
-          "unavailableReason": "deposit-depleted"
+          "available": true
         },
         {
           "id": "discard-item",
@@ -119,7 +118,7 @@
     }
   ],
   "inventoryRoom": {
-    "used": 3,
+    "used": 4,
     "capacity": 4
   }
 }

@@ -206,8 +206,10 @@ describe('결정 Layer 의 유연 대응 — 미등록 항목도 기본 결정�
     // C017 — hud 앞에 고른 대상 자리가 온다 (여기서는 "없음")
     expect(plan.hud[0]?.id).toBe('target.none');
     // C020 — 그 뒤에 소지품 자리가 온다 (이 화면은 아무것도 지니지 않았다)
-    expect(plan.hud[1]?.id).toBe('inventory.none');
-    expect(plan.hud[2]?.label).toBe('currency.gold'); // 미등록 HUD id → id 그대로
+    // C022 — 자리 줄이 그 앞에 하나 붙는다
+    expect(plan.hud[1]?.id).toBe('inventory.room');
+    expect(plan.hud[2]?.id).toBe('inventory.none');
+    expect(plan.hud[3]?.label).toBe('currency.gold'); // 미등록 HUD id → id 그대로
     expect(plan.interactions[0]?.unavailableText).toBe('no-goods'); // 미등록 사유 → 코드 그대로
   });
 

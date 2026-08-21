@@ -5,10 +5,11 @@
 // 되는지 안 되는지도, 왜 안 되는지도 전부 계약이 실어 온 것을 옮길 뿐이다
 // (DC-WORLD-OWNS-THE-SURFACE-LIST).
 //
-// 이 파일이 정하는 것은 셋이다.
+// 이 파일이 정하는 것은 넷이다.
 //   ① 몇 번 칸이 무엇인가 — 순서에 번호를 붙이는 일은 화면의 결정이다
 //   ② 무엇으로 보일 것인가 — 분류가 정하는 아이콘, 종류 이름의 문구
 //   ③ 되는 것과 안 되는 사유를 어떤 줄로 띄울 것인가
+//   ④ 자리를 어떤 줄로 보일 것인가 (C022) — **세지는 않는다.** 세계가 보낸 두 값을 옮긴다
 //
 // **종류 이름이 이 파일의 규칙이 되지 않는다.** 아래에 `stone` 도 `pickaxe` 도 없다 —
 // 종류 이름은 문구를 찾는 열쇠로만 쓰이고(code-text), 없으면 코드 그대로 보인다.
@@ -20,6 +21,12 @@ import type { GameViewSnapshot } from '../protocol/gameview';
 /** 소지품 줄의 id 앞머리 — 조립 루트가 칸 번호를 되읽을 때 쓴다 */
 export const INVENTORY_HUD_PREFIX = 'inventory.';
 
+/**
+ * 자리 줄의 id (C022) — 소지품 항목이 아니라 **몸의 형편**이므로 칸 번호를 갖지 않는다.
+ * `inventoryKindOf` 가 이 id 를 종류로 읽지 않도록 점을 포함시킨다.
+ */
+export const INVENTORY_ROOM_HUD_ID = `${INVENTORY_HUD_PREFIX}room`;
+
 /** 분류가 정하는 아이콘. 모르는 분류는 아이콘 없이 나온다 — 화면이 멈추지 않는다 */
 const CATEGORY_ICON: Record<string, string> = {
   material: '🪨',
@@ -29,6 +36,14 @@ const CATEGORY_ICON: Record<string, string> = {
 
 /** 소지품 칸에 붙는 손가락 자리 — 첫 아홉 칸까지 번호를 준다 */
 const SLOT_KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9'] as const;
+
+/**
+ * 덜어내기를 여는 키의 표시 이름 (C022 — 실제 바인딩은 `view/bindings.ts`).
+ *
+ * 여기 있는 것은 **문구**뿐이다. 어떤 키가 무엇을 부르는지는 bindings 가 소유하고,
+ * 이 파일은 그것을 사람에게 읽어 줄 뿐이다.
+ */
+const DISCARD_ARM_KEY_LABEL = 'B';
 
 /**
  * 종류의 이름 — `item.<kind>` 로 찾고, 표에 없으면 코드 그대로 보인다.
@@ -47,7 +62,8 @@ function itemName(kind: string, text: (code: string) => string): string {
 export function inventoryKindOf(hudId: string): string | undefined {
   if (!hudId.startsWith(INVENTORY_HUD_PREFIX)) return undefined;
   const rest = hudId.slice(INVENTORY_HUD_PREFIX.length);
-  if (rest === 'none' || rest.includes('.')) return undefined;
+  // `none`(빈 소지품)과 `room`(자리)은 종류가 아니다. 점이 들어간 것은 항목의 곁줄이다
+  if (rest === 'none' || rest === 'room' || rest.includes('.')) return undefined;
   return rest;
 }
 
@@ -77,11 +93,32 @@ export function inventoryHudItems(
   text: (code: string) => string,
 ): SceneHudItem[] {
   const inventory = snapshot.inventory ?? [];
+
+  // C022 — 자리는 **언제나 먼저 온다.** 지닌 것이 없을 때야말로 자리를 보여야 하는
+  // 순간이므로 항목 아래에 두지 않는다. 세계가 보낸 둘을 그대로 옮긴다 —
+  // 화면이 항목에서 유도하지 않는다 (DC-WORLD-OWNS-THE-SURFACE-LIST).
+  const room = snapshot.inventoryRoom;
+  const roomLine: SceneHudItem[] = room
+    ? [
+        {
+          id: INVENTORY_ROOM_HUD_ID,
+          widget: 'label',
+          label: '자리',
+          // 가득 찼는지는 **보이는** 것이지 화면이 그것으로 무엇을 막지 않는다.
+          // 막는 것은 언제나 세계가 보낸 available 과 사유다.
+          value: `${room.used} / ${room.capacity}${room.used >= room.capacity ? ' (가득)' : ''}`,
+        },
+      ]
+    : [];
+
   if (inventory.length === 0) {
-    return [{ id: 'inventory.none', widget: 'label', label: '소지품', value: '없음' }];
+    return [
+      ...roomLine,
+      { id: 'inventory.none', widget: 'label', label: '소지품', value: '없음' },
+    ];
   }
 
-  const items: SceneHudItem[] = [];
+  const items: SceneHudItem[] = [...roomLine];
   inventory.forEach((entry, index) => {
     const slot = SLOT_KEYS[index];
     const icon = CATEGORY_ICON[entry.category];
@@ -100,13 +137,38 @@ export function inventoryHudItems(
     // 쓸 수 있는 물건에만 이 줄이 붙는다. 안 되는 것도 **띄운다** — 안 되는 이유를
     // 읽는 것이 이 자리의 값어치다 (대상 자리와 같은 태도).
     const use = entry.actions.find((a) => a.role === 'use-item');
-    if (!use) return;
-    items.push({
-      id: `${INVENTORY_HUD_PREFIX}${entry.kind}.use`,
-      widget: 'label',
-      label: '쓰기',
-      value: use.available ? '가능' : use.unavailableReason ? text(use.unavailableReason) : '지금은 안 된다',
-    });
+    if (use) {
+      items.push({
+        id: `${INVENTORY_HUD_PREFIX}${entry.kind}.use`,
+        widget: 'label',
+        label: '쓰기',
+        value: use.available
+          ? '가능'
+          : use.unavailableReason
+            ? text(use.unavailableReason)
+            : '지금은 안 된다',
+      });
+    }
+
+    // C022 — 덜어내기. **지닌 모든 항목에 온다** (세계가 그렇게 보낸다).
+    // 안 되는 것도 띄우는 이유는 쓰기와 같다 — `no-way-back` 을 읽는 것이
+    // 이 세계에서 무엇이 되돌릴 수 없는지를 아는 유일한 길이다.
+    const discard = entry.actions.find((a) => a.role === 'discard-item');
+    if (discard) {
+      items.push({
+        id: `${INVENTORY_HUD_PREFIX}${entry.kind}.discard`,
+        widget: 'label',
+        label: '덜어내기',
+        value: discard.available
+          ? // 손가락 자리를 함께 알려 준다 — 두 걸음짜리 조작이라 안내가 없으면 닿지 않는다
+            slot
+            ? `가능 (${DISCARD_ARM_KEY_LABEL} → ${slot})`
+            : '가능'
+          : discard.unavailableReason
+            ? text(discard.unavailableReason)
+            : '지금은 안 된다',
+      });
+    }
   });
 
   return items;

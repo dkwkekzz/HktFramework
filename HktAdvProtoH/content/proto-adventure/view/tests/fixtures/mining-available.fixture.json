@@ -88,6 +88,11 @@
           "role": "use-item",
           "available": false,
           "unavailableReason": "no-target-selected"
+        },
+        {
+          "id": "discard-item",
+          "role": "discard-item",
+          "available": true
         }
       ]
     },
@@ -101,6 +106,12 @@
           "id": "use-item",
           "role": "use-item",
           "available": true
+        },
+        {
+          "id": "discard-item",
+          "role": "discard-item",
+          "available": false,
+          "unavailableReason": "no-way-back"
         }
       ]
     }

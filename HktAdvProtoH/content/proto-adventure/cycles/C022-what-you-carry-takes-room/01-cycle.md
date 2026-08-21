@@ -6,7 +6,7 @@
 [PASS] GameView Specification     (자리 둘은 목록 밖 · 덜어내기는 기존 actions 자리 · 새 interaction 없음)
 [PASS] Human Semantic Review      (APPROVED — 판단 5건 이의 없음)
 [PASS] World Implementation       (929 tests 통과 · 종류 이름 없는 자리·막힘 판정)
-[    ] View Implementation
+[PASS] View Implementation        (942 tests · 자리 줄 + 덜어내기 줄 · 화면은 세지 않는다)
 [    ] Verification
 
 STATUS  IN PROGRESS
