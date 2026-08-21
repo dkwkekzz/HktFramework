@@ -27,9 +27,13 @@ describe('resolvePresentation (Semantic → Render Plan)', () => {
     expect(mine?.available).toBe(true);
     expect(mine?.key).toBe('KeyE'); // mine-deposit role 의 입력 결정
     expect(mine?.prompt).toBe('채굴');
-    const stone = plan.hud.find((h) => h.id === 'inventory.stone');
-    expect(stone?.label).toBe('Stone');
-    expect(stone?.icon).toBe('⛏');
+    // C020 CHANGED — 돌 전용 HUD 칸이 사라지고 소지품이 목록으로 온다.
+    // 결정 Layer 가 그 목록을 줄로 옮긴다 (view/carried-presentation.ts).
+    expect(plan.hud.find((h) => h.id === 'inventory.stone')).toBeUndefined();
+    expect(plan.hud.find((h) => h.id === 'carried.room')?.value).toBe('2/3');
+    expect(plan.hud.find((h) => h.id === 'carried.1')?.value).toBe('돌 ×2 (2/2)');
+    // 세계가 막아 둔 자리는 사유가 문구로 옮겨진다 — 회색으로 감추지 않는다
+    expect(plan.hud.find((h) => h.id === 'carried.0')?.value).toContain('다시 캘 수 없다');
   });
 
   it('C002 character-action fixture → 종류·행동으로 모션을 고르고, 진행 행동은 1회 재생한다', () => {
@@ -121,7 +125,10 @@ describe('resolvePresentation (Semantic → Render Plan)', () => {
     const deposit = plan.entities.find((e) => e.id === 'deposit-1');
     expect(deposit?.spriteId).toBe('stone-deposit:depleted');
     expect(deposit?.label).toBe('돌 0');
-    expect(plan.hud.find((h) => h.id === 'inventory.stone')?.value).toBe(5);
+    // C020 CHANGED — 캔 것은 소지품 줄로 온다. 이 장면은 가방이 가득 찬 상태다
+    expect(plan.hud.find((h) => h.id === 'carried.room')?.value).toBe('3/3 — 가득 찼다');
+    // 덜어내기 줄은 세계가 된다고 말한 첫 자리를 겨눈다 (곡괭이는 잠겨 있다)
+    expect(plan.hud.find((h) => h.id.startsWith('carried.letGo:'))?.id).toBe('carried.letGo:1');
     const mine = plan.interactions.find((i) => i.id === 'mine');
     expect(mine?.unavailableText).toContain('고갈');
   });
@@ -163,8 +170,11 @@ describe('C004 다중 관찰자 — 내 몸과 남의 몸을 화면에서 가른
   it('나만의 것은 내 몸의 것으로 표시된다 — 남의 소지품은 애초에 오지 않는다', () => {
     const plan = resolvePresentation(twoObservers as GameViewSnapshot);
 
-    expect(plan.hud.find((h) => h.id === 'inventory.stone')?.value).toBe(0);
-    expect(plan.hud.filter((h) => h.id === 'inventory.stone')).toHaveLength(1);
+    // C020 CHANGED — 소지품은 목록으로 온다. **내 몸의 것만** 온다는 성질은 그대로다
+    // (세계가 관찰자마다 따로 만든다 — 04 carried).
+    expect(plan.hud.find((h) => h.id === 'carried.room')?.value).toBe('1/3');
+    expect(plan.hud.filter((h) => h.id.startsWith('carried.'))).toHaveLength(3); // 요약·자리 하나·덜어내기
+    expect(plan.hud.find((h) => h.id === 'carried.0')?.value).toContain('곡괭이');
   });
 });
 
@@ -197,7 +207,8 @@ describe('결정 Layer 의 유연 대응 — 미등록 항목도 기본 결정�
     expect(npc?.cameraFollow).toBe(false);
     // C017 — hud 앞에 고른 대상 자리가 온다 (여기서는 "없음")
     expect(plan.hud[0]?.id).toBe('target.none');
-    expect(plan.hud[1]?.label).toBe('currency.gold'); // 미등록 HUD id → id 그대로
+    // C020 — 고른 대상 다음이 소지품 자리다. 세계가 보낸 hud 는 그 뒤에 온다
+    expect(plan.hud.find((h) => h.id === 'currency.gold')?.label).toBe('currency.gold'); // 미등록 HUD id → id 그대로
     expect(plan.interactions[0]?.unavailableText).toBe('no-goods'); // 미등록 사유 → 코드 그대로
   });
 

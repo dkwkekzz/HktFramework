@@ -22,6 +22,22 @@ const CODE_TEXT: Record<string, string> = {
   downed: '쓰러짐',
   // 불가 사유 (C007)
   'insufficient-cp': '기력이 모자란다',
+  // 물건의 종류와 갈래 · 불가 사유 (C020)
+  //
+  // 물건의 종류에 `item.` 을 붙이는 이유: 세계는 광맥의 종류에도 `stone` 을 쓴다
+  // (아래 '돌 광맥'). 같은 코드가 두 뜻을 갖는 것은 세계에서는 문제가 아니지만 —
+  // 하나는 존재의 종류이고 하나는 물건의 종류다 — 이 표는 평평하므로 여기서 가른다.
+  'item.stone': '돌',
+  'item.pickaxe': '곡괭이',
+  'item.category.tool': '도구',
+  'item.category.material': '재료',
+  'item.use.mining': '채굴',
+  'carry-full': '가방에 넣을 자리가 없다',
+  'carried-not-found': '그 자리에는 아무것도 없다',
+  'last-way-locked': '이걸 버리면 다시 캘 수 없다',
+  'unknown-item': '세계가 모르는 물건이다',
+  'invalid-quantity': '수량이 올바르지 않다',
+  'action-not-available': '지금은 할 수 없다',
   // 둘 사이의 태도 (C018) — 세계가 보내는 갈래 셋
   hostile: '적대',
   neutral: '중립',

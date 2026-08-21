@@ -9,8 +9,9 @@ export interface HudPresentation {
 }
 
 const HUD: Record<string, HudPresentation> = {
-  'inventory.stone': { label: 'Stone', icon: '⛏', celebrateGain: true },
-  'tool.hasMiningTool': { label: '곡괭이' },
+  // C020 REMOVED — 'inventory.stone' · 'tool.hasMiningTool'.
+  // 세계가 그 두 자리를 더 이상 보내지 않는다. 소지품은 carried 목록으로 오고
+  // 그 줄들은 view/carried-presentation.ts 가 만든다 (target 자리와 같은 형태).
   'player.action': { label: '행동' },
   'world.time': { label: '세계 시간', format: (v) => `${Math.floor(Number(v))}s` },
   // 함께 보고 있는 사람의 수 (C004) — 나를 포함한다.

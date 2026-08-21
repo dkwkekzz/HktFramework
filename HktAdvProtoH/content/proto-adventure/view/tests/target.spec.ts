@@ -74,7 +74,9 @@ describe('대상 자리 — 무엇이 되고 무엇이 왜 안 되는가가 한�
   it('대상 자리는 소지품보다 먼저 읽힌다', () => {
     const ids = plan(chosenDeposit).hud.map((h) => h.id);
     expect(ids[0]).toBe('target.name');
-    expect(ids.indexOf('target.mine')).toBeLessThan(ids.indexOf('inventory.stone'));
+    // C020 CHANGED — 소지품 자리가 'inventory.stone' 한 칸에서 목록으로 바뀌었다.
+    // "대상이 먼저" 라는 순서의 뜻은 그대로다 (04 VIEW 배치).
+    expect(ids.indexOf('target.mine')).toBeLessThan(ids.indexOf('carried.room'));
   });
 });
 

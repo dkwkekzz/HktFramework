@@ -12,9 +12,14 @@ import { createWorldHost } from '../world-host';
 const A = 'observer-a';
 const B = 'observer-b';
 const worldTime = (v: GameViewSnapshot) => v.hud.find((h) => h.id === 'world.time')?.value as number;
-// C020 CHANGED — 소지품은 carried 목록으로 실린다 (hud 의 돌 전용 칸이 사라졌다)
+// C020 CHANGED — 소지품은 carried 목록으로 실린다 (hud 의 돌 전용 칸이 사라졌다).
+// 이 파일은 **호스트**를 검증하므로 봉투 타입(engine)으로 스냅샷을 받는다 — 호스트는
+// 어느 팩이 실렸는지 모른다. 그래서 팩이 더한 자리는 여기서 형을 좁혀 읽는다.
+type CarriedProbe = { carried?: { kind: string; quantity: number }[] };
 const stone = (v: GameViewSnapshot) =>
-  v.carried.filter((c) => c.kind === 'stone').reduce((n, c) => n + c.quantity, 0);
+  ((v as CarriedProbe).carried ?? [])
+    .filter((c) => c.kind === 'stone')
+    .reduce((n, c) => n + c.quantity, 0);
 
 describe('WorldHost — 관찰자 붙었다 떨어지기', () => {
   it('붙은 뒤 첫 Tick 에 자기 몸이 있는 세계를 받는다', () => {

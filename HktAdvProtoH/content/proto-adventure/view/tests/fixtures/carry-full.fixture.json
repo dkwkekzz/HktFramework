@@ -10,10 +10,10 @@
     {
       "id": "player",
       "role": "player-character",
-      "state": "moving",
+      "state": "idle",
       "position": {
-        "x": 0,
-        "z": 0
+        "x": 7.5,
+        "z": -5.5
       }
     },
     {
@@ -57,7 +57,7 @@
       "id": "mine",
       "role": "mine-deposit",
       "available": false,
-      "reason": "out-of-range"
+      "reason": "carry-full"
     },
     {
       "id": "clear-target",
@@ -76,9 +76,61 @@
   "currentTarget": {
     "entityId": "deposit-1"
   },
-  "carried": [],
+  "carried": [
+    {
+      "slot": 0,
+      "kind": "pickaxe",
+      "category": "tool",
+      "quantity": 1,
+      "stackLimit": 1,
+      "uses": [
+        "mining"
+      ],
+      "actions": [
+        {
+          "interactionId": "let-go",
+          "slot": 0,
+          "effect": "let-go",
+          "available": false,
+          "reason": "last-way-locked"
+        }
+      ]
+    },
+    {
+      "slot": 1,
+      "kind": "stone",
+      "category": "material",
+      "quantity": 2,
+      "stackLimit": 2,
+      "uses": [],
+      "actions": [
+        {
+          "interactionId": "let-go",
+          "slot": 1,
+          "effect": "let-go",
+          "available": true
+        }
+      ]
+    },
+    {
+      "slot": 2,
+      "kind": "stone",
+      "category": "material",
+      "quantity": 2,
+      "stackLimit": 2,
+      "uses": [],
+      "actions": [
+        {
+          "interactionId": "let-go",
+          "slot": 2,
+          "effect": "let-go",
+          "available": true
+        }
+      ]
+    }
+  ],
   "carriedRoom": {
-    "used": 0,
+    "used": 3,
     "total": 3
   }
 }

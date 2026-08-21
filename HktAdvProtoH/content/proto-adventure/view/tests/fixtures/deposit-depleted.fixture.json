@@ -65,18 +65,7 @@
       "available": true
     }
   ],
-  "hud": [
-    {
-      "id": "inventory.stone",
-      "kind": "counter",
-      "value": 5
-    },
-    {
-      "id": "tool.hasMiningTool",
-      "kind": "flag",
-      "value": true
-    }
-  ],
+  "hud": [],
   "strikes": [],
   "contacts": [],
   "cancels": [],
@@ -87,9 +76,61 @@
   "currentTarget": {
     "entityId": "deposit-1"
   },
-  "carried": [],
+  "carried": [
+    {
+      "slot": 0,
+      "kind": "pickaxe",
+      "category": "tool",
+      "quantity": 1,
+      "stackLimit": 1,
+      "uses": [
+        "mining"
+      ],
+      "actions": [
+        {
+          "interactionId": "let-go",
+          "slot": 0,
+          "effect": "let-go",
+          "available": false,
+          "reason": "last-way-locked"
+        }
+      ]
+    },
+    {
+      "slot": 1,
+      "kind": "stone",
+      "category": "material",
+      "quantity": 2,
+      "stackLimit": 2,
+      "uses": [],
+      "actions": [
+        {
+          "interactionId": "let-go",
+          "slot": 1,
+          "effect": "let-go",
+          "available": true
+        }
+      ]
+    },
+    {
+      "slot": 2,
+      "kind": "stone",
+      "category": "material",
+      "quantity": 2,
+      "stackLimit": 2,
+      "uses": [],
+      "actions": [
+        {
+          "interactionId": "let-go",
+          "slot": 2,
+          "effect": "let-go",
+          "available": true
+        }
+      ]
+    }
+  ],
   "carriedRoom": {
-    "used": 0,
+    "used": 3,
     "total": 3
   }
 }

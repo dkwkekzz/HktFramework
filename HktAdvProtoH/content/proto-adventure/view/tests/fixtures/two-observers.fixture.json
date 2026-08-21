@@ -123,16 +123,6 @@
   ],
   "hud": [
     {
-      "id": "inventory.stone",
-      "kind": "counter",
-      "value": 0
-    },
-    {
-      "id": "tool.hasMiningTool",
-      "kind": "flag",
-      "value": true
-    },
-    {
       "id": "player.action",
       "kind": "label",
       "value": "idle"
@@ -156,9 +146,29 @@
   },
   "commands": [],
   "currentTarget": {},
-  "carried": [],
+  "carried": [
+    {
+      "slot": 0,
+      "kind": "pickaxe",
+      "category": "tool",
+      "quantity": 1,
+      "stackLimit": 1,
+      "uses": [
+        "mining"
+      ],
+      "actions": [
+        {
+          "interactionId": "let-go",
+          "slot": 0,
+          "effect": "let-go",
+          "available": false,
+          "reason": "last-way-locked"
+        }
+      ]
+    }
+  ],
   "carriedRoom": {
-    "used": 0,
+    "used": 1,
     "total": 3
   }
 }
