@@ -173,6 +173,7 @@ describe('결정 Layer 의 유연 대응 — 미등록 항목도 기본 결정�
     const snapshot: GameViewSnapshot = {
       specId: 'VIEW-FUTURE-999',
       scene: 'cavern',
+      inventory: [],
       entities: [
         { id: 'npc-1', role: 'wandering-merchant', state: 'idle', position: { x: 1, z: 1 } },
       ],

@@ -15,7 +15,12 @@
 import { describe, expect, it } from 'vitest';
 import type { GameViewSnapshot } from '../../protocol/gameview';
 import { SWING_BEGIN } from '../semantic/collision';
-import { effectiveDefense, penetrationRemainingRatio, SKILL_DEFINITIONS } from '../semantic/combat';
+import {
+  effectiveDefense,
+  forceOfSkill,
+  penetrationRemainingRatio,
+  SKILL_DEFINITIONS,
+} from '../semantic/combat';
 import { TICK_INTERVAL } from '../semantic/world-state';
 import { ruleDamageCalculate } from '../rules/damage-calculate';
 import { spawnActor } from '../semantic/spawn';
@@ -92,7 +97,7 @@ const breakdownOf = (
     position: { x: 1, z: 0 },
   });
   mutate(attacker, target);
-  return ruleDamageCalculate(attacker, target, skill);
+  return ruleDamageCalculate(attacker, target, forceOfSkill(skill));
 };
 
 describe('INTENT-PENETRATION-001 — 관통은 존재가 지니는 능력이다', () => {
@@ -216,9 +221,9 @@ describe('INTENT-EFFECTIVE-DEFENSE-001 — 마주한 방어가 몫만큼 걷힌�
       position: { x: 1, z: 0 },
     });
 
-    const first = ruleDamageCalculate(attacker, target, 'aura-strike');
+    const first = ruleDamageCalculate(attacker, target, forceOfSkill('aura-strike'));
     expect(target.resistance).toBe(90); // 계산이 상태를 바꾸지 않았다
-    const second = ruleDamageCalculate(attacker, target, 'aura-strike');
+    const second = ruleDamageCalculate(attacker, target, forceOfSkill('aura-strike'));
     expect(second).toEqual(first); // 다음 타격도 온전한 방어를 마주한다
   });
 });

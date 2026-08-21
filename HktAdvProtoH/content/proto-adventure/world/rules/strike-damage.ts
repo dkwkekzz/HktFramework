@@ -1,5 +1,7 @@
 // RULE-STRIKE-DAMAGE-001 — Implements INTENT-STRIKE-DAMAGE-001 · INTENT-DAMAGE-APPLY-001
-// Input          공격자 Actor, 대상 Actor, SkillKind, World
+// Input          공격자 Actor, 대상 Actor, **Force**, 이름표(무엇으로), World
+//                C020 CHANGED — 위력의 출처가 스킬 하나가 아니게 되었다. 판정 순서
+//                (계산 → 치명 → 막기 → 적용 → 사건 기록 → 쓰러짐)는 그대로다.
 // Preconditions  대상이 쓰러지지 않았다 (쓰러진 몸은 더 이상 타격 대상이 아니다)
 // Transition     Breakdown = RULE-DAMAGE-CALCULATE-001(공격자, 대상, 스킬)
 //                Critical  = RULE-CRITICAL-STRIKE-001(World, 공격자, Breakdown.FinalDamage)
@@ -43,7 +45,8 @@
 // downed 가 대체 불가능하므로 모든 행동 시작이 자동으로 막힌다 —
 // RULE-ACTION-BEGIN-001 에 예외를 더하지 않는다.
 
-import { isDowned, type DamageBreakdown, type SkillKind } from '../semantic/combat';
+import { isDowned, type DamageBreakdown } from '../semantic/combat';
+import type { Force } from '../semantic/item';
 import type { ActorState } from '../semantic/actor';
 import type { WorldState } from '../semantic/world-state';
 import { beginAction } from './action-begin';
@@ -61,11 +64,12 @@ export function ruleStrikeDamage(
   state: WorldState,
   attacker: ActorState,
   target: ActorState,
-  kind: SkillKind,
+  force: Force,
+  label: string,
 ): number | null {
   if (isDowned(target)) return null;
 
-  const calculation = ruleDamageCalculate(attacker, target, kind);
+  const calculation = ruleDamageCalculate(attacker, target, force);
 
   // C015 — 증폭도 공식 밖에서 그 결과값에 작용한다 (DC-COMBAT-ONE-FORMULA).
   // 막기보다 **먼저**다: 두 값 모두 FinalDamage 에 걸리므로 순서가 막기의 기력 대가를
@@ -90,7 +94,7 @@ export function ruleStrikeDamage(
   state.strikeEvents.push({
     attackerId: attacker.id,
     targetId: target.id,
-    skill: kind,
+    skill: label,
     amount,
     breakdown,
     position: { x: target.position.x, z: target.position.z },

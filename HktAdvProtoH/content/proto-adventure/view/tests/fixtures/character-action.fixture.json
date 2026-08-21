@@ -156,5 +156,6 @@
   "commands": [],
   "currentTarget": {
     "entityId": "deposit-1"
-  }
+  },
+  "inventory": []
 }

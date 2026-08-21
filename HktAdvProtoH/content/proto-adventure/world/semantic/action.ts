@@ -18,6 +18,9 @@ export type ActionKind =
   | 'aura-strike'
   | 'mine'
   | 'observe'
+  // C020 ADDED — use-item (물건을 쓴다). 스킬이 아니다 — 치르는 것은 기력이 아니라
+  // 지닌 것이며, 무슨 일이 일어나는지는 그 물건의 정의가 정한다 (INTENT-USE-ITEM-001).
+  | 'use-item'
   | 'hit'
   | 'downed';
 
@@ -26,6 +29,11 @@ export interface CurrentAction {
   targetPosition?: { x: number; z: number }; // kind = move
   targetActorId?: string; // kind = attack
   targetDepositId?: string; // kind = mine
+  usedItemKind?: string; // kind = use-item (C020) — 그 사용이 쓰고 있는 종류
+  // kind = use-item (C020) — 시작할 때 고른 대상. 행동이 끝날 때까지 지닌다.
+  // 시작한 뒤에 다른 것을 골라도 진행 중인 사용은 처음 고른 것을 향한다
+  // (INTENT-TARGET-PERSISTS-001 — 살펴봄·채집과 같은 판단이다).
+  usedItemTargetId?: string;
   struckActorIds?: string[]; // kind = attack | heavy-attack | aura-strike (C006) — 이 휘두름이 이미 타격한 몸들.
   // 같은 몸은 휘두름당 한 번만 맞는다 (INTENT-SWING-IMPACT-001). 행동과 함께 사라진다.
   budgetSettled?: boolean; // 스킬 (C007) — 이 휘두름이 기력 수지를 이미 냈는가.
@@ -55,6 +63,11 @@ export const ACTION_DEFINITIONS: Readonly<Record<ActionKind, ActionDefinition>> 
   // ActionSpeed 를 적용하지 않는다: 스킬 행동이 아니고, 적용하면 빠른 종류가
   // 정보까지 빠르게 얻어 이 층의 의미에 세기가 섞인다.
   observe: { duration: 1.0, replaceable: false },
+  // C020 — 쓰는 시간은 아이템 정의가 지닌다. 여기 있는 것은 정의가 밝히지 않았을 때의
+  // 기준값이며, 실제 길이는 시작하는 순간 정의에서 온다 (beginAction 의 duration 인자).
+  // ActionSpeed 를 적용하지 않는다: 스킬이 아니고, 적용하면 빠른 종류가 물건까지
+  // 빠르게 쓰게 되어 이 층의 의미에 세기가 섞인다 (observe 와 같은 판단이다).
+  'use-item': { duration: 0.8, replaceable: false },
   hit: { duration: 0.35, replaceable: false }, // 피격 — 스스로 요청하는 행동이 아니다
   // 쓰러짐 — 스스로 끝나지 않고 대체되지도 않는다 (C007 INTENT-DOWNED-001)
   downed: { duration: null, replaceable: false },

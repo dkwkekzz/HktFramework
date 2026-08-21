@@ -7,6 +7,7 @@
 
 import type { CharacterKind } from '../semantic/actor';
 import { createInventory } from '../semantic/inventory';
+import type { ItemKind } from '../semantic/item';
 import type { WorldPosition } from '../semantic/position';
 import type { GuardedGround } from '../semantic/relation';
 import { spawnActor } from '../semantic/spawn';
@@ -15,7 +16,9 @@ import { SPAWN_POINTS, type WorldState } from '../semantic/world-state';
 // 관찰자의 몸이 처음 만들어질 때의 기본값 — 세계의 초기 설정이다 (DEFAULT_NPCS 와 같은 성격).
 export interface BodyDefaults {
   characterKind: CharacterKind;
-  items: Partial<Record<'stone' | 'pickaxe', number>>;
+  // C020 CHANGED — 종류 이름 고정형이 사라졌다. 세계가 정의한 어떤 종류든 실릴 수 있으며,
+  // 종류가 늘어도 이 형은 바뀌지 않는다 (DC-ITEM-KIND-IS-DATA-NOT-BRANCH).
+  items: Partial<Record<ItemKind, number>>;
   spawnPoints: WorldPosition[];
   /**
    * C018 — 이 몸이 지닐 지키는 자리. 밝히지 않으면 없다.

@@ -8,7 +8,13 @@
 // 의미만 투영한다 — role/state/값/사유 코드. 표현(sprite·모션 파일·크기·라벨 형식·문구)은
 // View 의 Presentation 결정 Layer 책임이며 여기 싣지 않는다.
 
-import type { EntityView, GameViewSnapshot, InteractionView } from '../../protocol/gameview';
+import type {
+  EntityView,
+  GameViewSnapshot,
+  InteractionView,
+  InventoryItemView,
+  ItemActionView,
+} from '../../protocol/gameview';
 import { actionProgress, actionTargetId } from '../semantic/action';
 import { ruleStance } from '../rules/relation';
 import { actionCollider } from '../semantic/collision';
@@ -33,7 +39,10 @@ import {
 import { concealedKeys, isAcquainted, isSeatOpen } from '../semantic/acquaintance';
 import { projectCommandCatalog } from '../semantic/command-catalog';
 import { selectedEntityId } from '../semantic/target-selection';
-import { hasMiningTool, itemCount } from '../semantic/inventory';
+import type { ActorState } from '../semantic/actor';
+import { inventoryEntries } from '../semantic/inventory';
+import { itemDefinition } from '../semantic/item';
+import { evaluateItemUse } from '../rules/item-use';
 import {
   actorOfObserver,
   findObserver,
@@ -428,11 +437,11 @@ export function projectObserverView(
     },
     entities,
     interactions,
+    // C020 — 가진 것 전부가 한 목록으로 나온다. 종류 전용 칸이 사라진 자리다.
+    inventory: projectInventory(state, self, observerId),
     hud: [
       // 내 몸의 것만 실린다. 다른 관찰자의 소지품과 가용성은 실리지 않는다
       // (INTENT-PER-OBSERVER-PROJECTION-001).
-      { id: 'inventory.stone', kind: 'counter', value: itemCount(self.inventory, 'stone') },
-      { id: 'tool.hasMiningTool', kind: 'flag', value: hasMiningTool(self.inventory) },
       {
         id: 'player.action',
         kind: 'label',
@@ -544,4 +553,46 @@ export function projectObserverView(
       return null;
     }),
   };
+}
+
+
+/**
+ * 소지품 투영 (C020 ADDED) — INTENT-INVENTORY-IS-ONE-CONTRACT-001 ·
+ *                            INTENT-USE-AVAILABILITY-001
+ *
+ * 여기에 **종류 이름이 한 번도 나오지 않는다.** 목록은 지닌 것에서 나오고, 각 항목이
+ * 무엇이 되는지는 정의가 답하며, 되지 않는 사유는 실제 실행이 쓰는 것과 같은 판정에서
+ * 나온다 (evaluateItemUse). 그래서 화면에 불가로 보이는 것을 억지로 요청해도
+ * 같은 사유로 거절된다 (DC-WORLD-OWNS-THE-SURFACE-LIST).
+ *
+ * 종류가 늘어도 이 함수는 바뀌지 않는다 — 정의가 하나 늘어날 뿐이다.
+ */
+function projectInventory(
+  state: WorldState,
+  self: ActorState,
+  observerId: string,
+): InventoryItemView[] {
+  return inventoryEntries(self.inventory).map(({ kind, count }) => {
+    const definition = itemDefinition(kind)!;
+    const actions: ItemActionView[] = [];
+
+    if (definition.use) {
+      const failure = evaluateItemUse(state, self, observerId, kind);
+      actions.push({
+        id: 'use-item',
+        role: 'use-item',
+        available: failure === null,
+        ...(failure ? { unavailableReason: failure } : {}),
+      });
+    }
+
+    return {
+      kind,
+      count,
+      category: definition.category,
+      ...(definition.origin ? { origin: definition.origin } : {}),
+      stackable: definition.stackable,
+      actions,
+    };
+  });
 }

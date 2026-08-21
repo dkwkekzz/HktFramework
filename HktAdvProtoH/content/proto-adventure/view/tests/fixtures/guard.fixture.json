@@ -580,5 +580,6 @@
     "open": true
   },
   "commands": [],
-  "currentTarget": {}
+  "currentTarget": {},
+  "inventory": []
 }

@@ -4,8 +4,8 @@
 [PASS] Intent                    (정의가 답한다 · 효과 갈래 둘 · 소모 여부도 데이터)
 [PASS] World Semantic            (정의소·통로·행동 셋 · 공식은 입력만 넓어진다)
 [PASS] GameView Specification    (종류 전용 칸이 사라진다 · 사유는 세계가 싣는다)
-[    ] Human Semantic Review
-[    ] World Implementation
+[PASS] Human Semantic Review     (2026-08-21 APPROVED — 판단 4건 이의 없음)
+[PASS] World Implementation      (860 tests · 경계 위반 0 · 공식 무변경 · 기반 무변경)
 [    ] View Implementation
 [    ] Verification
 

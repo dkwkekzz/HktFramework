@@ -13,7 +13,7 @@ const A = 'observer-a';
 const B = 'observer-b';
 const worldTime = (v: GameViewSnapshot) => v.hud.find((h) => h.id === 'world.time')?.value as number;
 const stone = (v: GameViewSnapshot) =>
-  v.hud.find((h) => h.id === 'inventory.stone')?.value as number;
+  (v.inventory.find((i) => i.kind === 'stone')?.count ?? 0) as number;
 
 describe('WorldHost — 관찰자 붙었다 떨어지기', () => {
   it('붙은 뒤 첫 Tick 에 자기 몸이 있는 세계를 받는다', () => {

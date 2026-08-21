@@ -252,6 +252,37 @@ export interface UnharmedContactView {
   reason: string; // 사유 코드 (not-hostile) — 문구 변환은 View 책임
 }
 
+// ── 소지품 (C020 ADDED) ──────────────────────────────────────────────
+//
+// **종류 전용 칸이 사라진 자리다.** 지금까지 소지품은 hud 에 `inventory.stone` 과
+// `tool.hasMiningTool` 두 칸으로 실려 있었고, 둘 다 종류 이름이 계약에 박힌 자리였다 —
+// 아이템이 하나 늘 때마다 이 계약도 함께 늘어야 하는 형태다.
+//
+// 이제 목록 하나다. 종류가 둘이든 열이든 형태가 같고, View 는 종류 이름을 하나도
+// 알지 못한 채 소지품을 그릴 수 있다 (DC-ITEM-KIND-IS-DATA-NOT-BRANCH).
+//
+// 내 몸의 것만 실린다 (INTENT-PER-OBSERVER-PROJECTION-001).
+// 지니지 않은 종류는 항목이 없다 — View 는 "있는 것만 그린다" 로 끝난다.
+
+export interface ItemActionView {
+  /** ActionRequest.interactionId 로 회신된다 */
+  id: string;
+  role: string; // 의미 역할 (use-item) — 문구 변환은 View 책임
+  available: boolean;
+  /** 불가 사유 코드 — 문구 변환은 View 책임. 세계가 사유의 단일 출처다 */
+  unavailableReason?: string;
+}
+
+export interface InventoryItemView {
+  kind: string; // 종류 식별자 (의미 코드) — 표시 이름은 View 책임
+  count: number; // 언제나 1 이상이다
+  category: string; // material | tool | consumable (의미 코드)
+  origin?: string; // 상위 정의 식별자 (IT-*) — 없을 수 있다
+  stackable: boolean;
+  /** 이 항목으로 지금 할 수 있는 것들. 쓸 수 없는 물건은 빈 목록이다 */
+  actions: ItemActionView[];
+}
+
 // 이 팩의 관찰 결과 — 봉투에 타격 결과가 더해지고, 존재/interaction 이 팩 형으로 좁혀진다.
 export interface GameViewSnapshot extends CoreGameViewSnapshot {
   entities: EntityView[];
@@ -259,4 +290,5 @@ export interface GameViewSnapshot extends CoreGameViewSnapshot {
   strikes: StrikeEventView[]; // C007 ADDED
   contacts: UnharmedContactView[]; // C018 ADDED — 닿았으나 성립하지 않은 접촉
   currentTarget: CurrentTargetView; // C017 ADDED — 늘 실린다
+  inventory: InventoryItemView[]; // C020 ADDED — 내 몸이 지닌 것 전부
 }

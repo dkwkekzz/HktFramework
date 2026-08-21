@@ -672,5 +672,6 @@
   ],
   "currentTarget": {
     "entityId": "npc-1"
-  }
+  },
+  "inventory": []
 }
