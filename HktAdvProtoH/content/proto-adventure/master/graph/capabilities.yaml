@@ -46,11 +46,17 @@ nodes:
           segment: SAFE
           source: BW §20
           role: SAFE 기본기 — BW 의 MC-ATTACK 이 이 노드다 (HISTORY Q18(a))
+        - system: MS-SKILL-FORM
+          segment: CONTACT
+          source: SF §6
+          role: SF 가 말하는 접촉 전달이 이 노드다 — 휘두른 몸이 닿아서 전한다
     required_by: [MP-BREAK-THE-GUARD, MP-EXPLOIT-OPEN-BODY, MP-MATCH-WEAPON-TO-ARMOR, MP-OUTGROW-THE-OPPONENT, MP-PIERCE-THE-HARD-DEFENSE, MP-BET-ON-THE-CRITICAL-BLOW]
     demanded_by: [MW-SAFE-FRONTIER]
-    constraints: [DC-COMBAT-PLAYER-CAUSALITY]
+    constraints: [DC-COMBAT-PLAYER-CAUSALITY, DC-SKILL-IS-COMBINATION-NOT-NAME, DC-SKILL-DELIVERY-IS-NOT-EFFECT]
     constraint_evaluation:
       DC-COMBAT-PLAYER-CAUSALITY: SATISFIED    # 난수 없는 결정적 피해 (C007 실측 · R1 §6)
+      DC-SKILL-IS-COMBINATION-NOT-NAME: UNRESOLVED  # 값은 정의가 지니나 휘두름의 모양이 아직 규칙 코드에 있다 (Q35)
+      DC-SKILL-DELIVERY-IS-NOT-EFFECT: SATISFIED    # C020 이 전달을 하나 더하며 피해 경로를 한 줄도 바꾸지 않았다
     overlay: IMPLEMENTED
     # BW §20 의 MC-ATTACK 은 이 노드다 (SAFE 층 기본기) — HISTORY Q18(a).
 

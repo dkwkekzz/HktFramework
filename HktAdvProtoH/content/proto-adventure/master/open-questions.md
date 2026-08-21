@@ -16,8 +16,9 @@ Human 이 답한다    DECISION 줄
 [frontier.md](frontier.md) 의 `SELECTED` 는 FR-WHAT-YOU-CARRY-TAKES-ROOM
 (자리가 유한해진다)이고 C022 가 그것을 돈다 — 여덟 Stage 의 실측은 끝났고
 Human Play 확인만 남았다. 아래 다섯 중 어느 것도 그 Cycle 을 막지 않는다.
-Q35 는 그 다음 층의 크기를 정하는 질문, Q36 은 이미 세계에 있는 물건의 유래 문제이며,
-Q37 · Q38 은 C022 가 닫히면서 **다음 아이템 Cycle 이 마주할** 것들이다.
+Q35 는 **스킬 형태(SF)** 가 남긴 것으로 그 다음 전투 Cycle 의 크기를 정하는 질문,
+Q36 은 이미 세계에 있는 물건의 유래 문제이며, Q37 · Q38 은 C022 가 닫히면서
+**다음 아이템 Cycle 이 마주할** 것들이다.
 
 번호가 띄엄띄엄한 것은 앞선 질문들이 이미 닫혀 HISTORY 로 갔기 때문이다 —
 번호는 재사용하지 않는다.
@@ -88,6 +89,19 @@ Q37 · Q38 은 C022 가 닫히면서 **다음 아이템 Cycle 이 마주할** �
     7 조건 2      어느 Possibility 가 이것을 요구하는지가 아직 적혀 있지 않다.
                   MP-ADAPT-BY-RESOURCE 인지, 전투 갈래인지, 새 Possibility 인지 —
                   (a)(b) 중 무엇을 고르든 이 배선이 먼저 필요하다 (OPTIONS 작업).
+                  **SF 도 이것을 공급하지 않는다** — 아래 관련 참조.
+
+    관련           Human 이 이 질문에 답할 문서를 넣었다 —
+                  `design/Design-Combat-SkillForm-R0.md`(SF, 주입 완료).
+                  그 문서가 긋는 선은 (b) 의 절충 쪽이다: **개별 스킬은 갈래**이고
+                  (파이어볼·메테오·장판은 Content 이며 시스템 타입이 아니다 — §28.1),
+                  **전달 형태만 층**이다 (새 형태는 세계에 다른 생명주기·판정이 필요할
+                  때만 서고, 한 Cycle 에 하나씩 — §29 · §30). 그 사다리는
+                  `graph/systems.yaml` 의 MS-SKILL-FORM 으로 등록되었고 지금 차 있는
+                  칸은 접촉(CONTACT) 하나다. C020 의 던지기가 SF §7 의 대상 직접
+                  전달과 같은 모양이지만, SF 가 그 노드를 지목하지 않았으므로
+                  DIRECT-TARGET 칸은 비워 두었다.
+                  그 원칙 셋은 Human 이 승인해 Active 다 (HISTORY Q41).
 
     DECISION      PENDING
 

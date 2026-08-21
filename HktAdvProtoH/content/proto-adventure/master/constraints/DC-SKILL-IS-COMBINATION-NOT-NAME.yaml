@@ -1,0 +1,52 @@
+# 원본 근거: design/Design-Combat-SkillForm-R0.md (SF) §28.1 (스킬 이름을 시스템 타입으로
+#   만들지 않는다) · §1 (여섯 축의 조합) · §33 (최종 구조 — Skill Content 는 Definition 위에
+#   있다) · §34-1·§34-2 (요구를 먼저 분해하고 기존 Primitive 를 재사용한다) ·
+#   §32 수용 기준 12 (스킬 이름 때문에 새로운 시스템 enum 을 만들 필요가 없다)
+id: DC-SKILL-IS-COMBINATION-NOT-NAME
+type: constraint
+
+statement: >
+  스킬의 이름은 세계가 아는 종류가 아니다. 시스템에는 발동·지목·전달·형상·시점·효과의
+  형태만 있고, 하나의 스킬은 그 형태들의 조합을 고른 정의일 뿐이다.
+rationale: >
+  ❌ 흔한 구현은 스킬 이름을 그대로 타입으로 세우는 것이다 — SkillType.Fireball ·
+  SkillType.Meteor · SkillType.PoisonField (SF §28.1 이 직접 든 금지 예). 그러면 스킬이
+  하나 늘 때마다 타입이 하나 늘고, 그 타입을 아는 규칙·화면·테스트가 함께 열린다.
+
+  ✅ 지금 세계는 이 원칙의 절반을 이미 지키고 있다. `world/semantic/combat.ts` 의
+  `SkillKind` 는 이름의 목록이지만, 판정은 이름이 아니라 정의에서 읽는다 —
+  `skillDefinition(kind)` 가 돌려준 `baseDamage` · `attackRatio` · `damageType` ·
+  `swingBegin` 이 계산과 구간을 정한다. C019 가 선딜을 전역 상수에서 기술 정의로 내렸고,
+  C020 이 `forceOfSkill()` 로 위력을 정의에서 뽑아 아이템이 지닌 위력과 **같은 자리**에
+  넣었다. 남은 절반은 휘두름의 모양(범위·방향·여럿을 함께 치는가)이 아직 코드에 박혀
+  있다는 것이다 (open-questions Q35 의 "아직 없는 것").
+
+  지켜서 얻는 것은 값이 싸다는 사실 자체다. 파이어볼을 더할 때 정의 한 벌이면 끝나고
+  규칙은 열리지 않는다. 어겼을 때 잃는 것은 그 반대다 — 스킬 이름마다 전용 경로가 생기고,
+  같은 피해가 이름별로 조금씩 다르게 계산되기 시작한다.
+
+  가장 안 읽히는 조각은 "이름을 쓰지 말라는 말이 아니다" 다. 정의를 찾을 때 이름을
+  열쇠로 쓰는 것은 정상이고, 찾은 정의 대신 이름 자체를 판정 조건으로 쓰는 것이 금지다.
+
+scope:
+  - SKILL               # 전투에 한정되지 않는다 — 회복·소환·부여도 같은 조합으로 표현된다 (SF §1)
+
+requires:
+  - 하나의 스킬은 발동·지목·전달·형상·시점·효과의 조합으로 표현된다     # SF §1 · §33
+  - 새 스킬 추가는 정의를 더하는 것으로 끝난다                        # SF §34-2
+  - 규칙은 스킬 이름이 아니라 그 정의가 답한 것으로 판정한다            # SF §28.1
+prohibits:
+  - 스킬 이름을 시스템 타입·규칙의 분기 조건으로 만드는 것              # SF §28.1
+  - 같은 효과를 전달 방식마다 다른 종류로 나누는 것                    # SF §28.2
+prefers: []
+
+# 경계 — 이 Constraint 는 "무엇이 판정의 근거인가" 만 정한다.
+# 축을 몇 개 두는가, 조합을 어떤 파일·타입으로 두는가는 Cycle 소유다 (정책 §7.2).
+
+status: APPROVED
+provenance:
+  - HUMAN_DESIGN        # design/Design-Combat-SkillForm-R0.md 주입 → Human 승인 (HISTORY Q41)
+
+relations:
+  supports: [DC-ITEM-KIND-IS-DATA-NOT-BRANCH, DC-WORLD-OWNS-THE-SURFACE-LIST]
+  conflicts_with: []
