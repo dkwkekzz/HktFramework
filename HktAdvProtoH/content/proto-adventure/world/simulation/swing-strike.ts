@@ -20,7 +20,7 @@
 
 import { applyRadialImpulse, circleHits } from '../../../../engine/physics/sweep';
 import { actionCollider, SWING_IMPULSE } from '../semantic/collision';
-import { isDowned, isSkillKind } from '../semantic/combat';
+import { forceOfSkill, isDowned, isSkillKind } from '../semantic/combat';
 import type { WorldState } from '../semantic/world-state';
 import { ruleHarmGate } from '../rules/relation';
 import { ruleHit } from '../rules/attack';
@@ -76,7 +76,7 @@ export function ruleSwingStrike(state: WorldState): number {
       applyRadialImpulse(attacker.position, target, SWING_IMPULSE);
 
       // C007 — 고정 피해가 들어가고, 이 휘두름의 첫 타격이면 기력 수지를 낸다.
-      ruleStrikeDamage(state, attacker, target, skill);
+      ruleStrikeDamage(state, attacker, target, forceOfSkill(skill), skill);
       ruleSkillBudget(attacker, skill);
 
       struckCount++;

@@ -25,6 +25,8 @@ const see = (w: World, observerId: string): GameViewSnapshot => {
 
 const entity = (v: GameViewSnapshot, id: string) => v.entities.find((e) => e.id === id);
 const hud = (v: GameViewSnapshot, id: string) => v.hud.find((h) => h.id === id)?.value;
+// C020 — 소지품은 HUD 칸이 아니라 목록으로 실린다 (INTENT-INVENTORY-IS-ONE-CONTRACT-001)
+const stoneOf = (v: GameViewSnapshot) => v.inventory.find((i) => i.kind === 'stone')?.count ?? 0;
 const characters = (v: GameViewSnapshot) =>
   v.entities.filter((e) => e.role.endsWith('-character'));
 
@@ -146,8 +148,9 @@ describe('INTENT-PER-OBSERVER-PROJECTION-001 — 관찰 결과는 관찰자마�
     w.request(A, { interactionId: 'mine' });
     for (let i = 0; i < 60; i++) w.tick(1 / 30);
 
-    expect(hud(see(w, A), 'inventory.stone')).toBe(1);
-    expect(hud(see(w, B), 'inventory.stone')).toBe(0);
+    // C020 CHANGED — 소지품은 목록으로 실린다. 내 몸의 것만 실린다는 의미는 그대로다.
+    expect(stoneOf(see(w, A))).toBe(1);
+    expect(stoneOf(see(w, B))).toBe(0);
   });
 
   it('가용성도 내 몸 기준이다', () => {
@@ -337,7 +340,7 @@ describe('INTENT-OBSERVER-REJOIN-001 — 다시 이어져도 나는 나다', () 
     w.tick(0); // C017 — 고르기가 판정되어야 채집이 그것을 읽는다
     w.request(A, { interactionId: 'mine' });
     for (let i = 0; i < 60; i++) w.tick(1 / 30);
-    const stone = hud(see(w, A), 'inventory.stone');
+    const stone = stoneOf(see(w, A));
 
     w.leave(A);
     w.tick(1.0);
@@ -346,7 +349,7 @@ describe('INTENT-OBSERVER-REJOIN-001 — 다시 이어져도 나는 나다', () 
 
     const v = see(w, A);
     expect(v.observer.characterId).toBe('player-1'); // 새 몸이 아니다
-    expect(hud(v, 'inventory.stone')).toBe(stone); // 가진 것이 이어진다
+    expect(stoneOf(v)).toBe(stone); // 가진 것이 이어진다
     expect(entity(v, 'player-1')?.position).toEqual({ x: 8, z: -5 }); // 자리도 이어진다
   });
 

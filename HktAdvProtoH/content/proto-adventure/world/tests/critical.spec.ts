@@ -19,8 +19,7 @@
 
 import { describe, expect, it } from 'vitest';
 import type { GameViewSnapshot } from '../../protocol/gameview';
-import { DEFAULT_SWING_BEGIN } from '../semantic/combat';
-import { chanceAt, SKILL_DEFINITIONS } from '../semantic/combat';
+import { chanceAt, DEFAULT_SWING_BEGIN, forceOfSkill, SKILL_DEFINITIONS } from '../semantic/combat';
 import { DEFAULT_CHANCE_SEED, TICK_INTERVAL } from '../semantic/world-state';
 import { spawnActor } from '../semantic/spawn';
 import { ruleCriticalStrike } from '../rules/critical-strike';
@@ -128,7 +127,8 @@ const bench = (chanceSeed: number = DEFAULT_CHANCE_SEED) => {
     /** 기본 스킬로 n 번 친 뒤 각 타격의 경위를 순서대로 돌려준다 */
     strike(n = 1, skill: 'attack' | 'heavy-attack' | 'aura-strike' = 'attack') {
       const from = state.strikeEvents.length;
-      for (let i = 0; i < n; i++) ruleStrikeDamage(state, attacker, target, skill);
+      for (let i = 0; i < n; i++)
+        ruleStrikeDamage(state, attacker, target, forceOfSkill(skill), skill);
       return state.strikeEvents.slice(from).map((event) => event.breakdown);
     },
   };

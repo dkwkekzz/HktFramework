@@ -28,6 +28,19 @@ const CODE_TEXT: Record<string, string> = {
   friendly: '우호',
   // 닿았으나 성립하지 않은 사유 (C018)
   'not-hostile': '적대가 아니다',
+  // 소지품과 사용 (C020) — **종류 이름도 문구 표에서 온다.** 규칙이 아니라 표시다.
+  // 아이템 종류의 이름은 `item.` 을 앞에 붙여 둔다 — 같은 문자열이 다른 것을 뜻하는
+  // 자리가 이미 있기 때문이다 (`stone` 은 아래에서 **광맥의 종류**다).
+  // 표에 없는 종류는 코드 그대로 보인다 — 세계가 새 아이템을 정의해도 화면이 멈추지 않는다.
+  'item.stone': '돌',
+  'item.pickaxe': '곡괭이',
+  'use-item': '쓰는 중',
+  // 쓸 수 없는 사유 (C020)
+  'unknown-item': '세계가 모르는 물건이다',
+  'not-usable': '쓸 수 있는 물건이 아니다',
+  'not-enough': '모자란다',
+  'target-gone': '대상이 사라졌다',
+  'target-downed': '이미 쓰러졌다',
   // 기술의 구간과 끊김 (C019) — 선딜만 화면에 뜬다 (phase-presentation 의 결정 2)
   startup: '준비!',
   active: '나감',

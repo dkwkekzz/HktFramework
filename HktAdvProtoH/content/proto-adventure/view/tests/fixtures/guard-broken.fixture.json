@@ -324,11 +324,6 @@
   ],
   "hud": [
     {
-      "id": "inventory.stone",
-      "kind": "counter",
-      "value": 2
-    },
-    {
       "id": "world.time",
       "kind": "counter",
       "value": 12.5
@@ -451,5 +446,6 @@
     "open": true
   },
   "commands": [],
-  "currentTarget": {}
+  "currentTarget": {},
+  "inventory": []
 }

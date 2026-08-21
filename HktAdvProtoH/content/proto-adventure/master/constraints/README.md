@@ -2,8 +2,8 @@
 
 파일 하나 = Constraint 하나. 이름은 `DC-<NAME>.yaml`. 형식은 [../SCHEMA.md](../SCHEMA.md).
 
-현재: **Active 24종** — 전투 5종(1종 REVISED) + 성장 6종 + 세계 5종 + 아이템 4종 + GLOBAL 4종.
-보류(DRAFT)는 없다.
+현재: **Active 26종** — 전투 5종(1종 REVISED) + 성장 6종 + 세계 5종 +
+아이템 6종(1종 REVISED) + GLOBAL 4종. 보류(DRAFT)는 없다.
 
 근거 문서:
 
@@ -14,6 +14,7 @@ GR §x   design/Master-Intent-Graph-Growth.md         성장(GROWTH) 영역 한�
 TG §x   design/Design-Targeting-R0.md                 지목(GLOBAL)
 BW §x   design/Master-World-Beira.md                 세계(WORLD) 영역
 IS §x   design/Design-Item-System-R0.md               아이템(ITEM) 영역
+IE §x   design/Design-Inventory-Equipment-D1.md       아이템(ITEM) 영역 — IS §5.4 · §10 의 후속
 ```
 
 근거는 영역을 넘지 않는다 — 전투 노드에 GR 을, 성장 노드에 R1/DT 를 인용하지 않는다.
@@ -61,8 +62,13 @@ IS §x   design/Design-Item-System-R0.md               아이템(ITEM) 영역
 |---|---|---|
 | DC-ITEM-KIND-IS-DATA-NOT-BRANCH | 종류 이름은 정의를 찾는 열쇠일 뿐 규칙의 분기 조건이 아니다 — 새 아이템은 정의를 더하는 것으로 끝난다 | IS §0 · §5.1 · §7 P1 · §8 |
 | DC-ITEM-CAPABILITY-COMES-FROM-GRANTS | 성질(IP-*)은 세계 유래만이고 용도는 종류가 가진다 — 능력 판정은 성질 조회가 아니라 지금 무엇을 주는가로 | IS §3.1~§3.3 · §5.1 · §7 P2 |
-| DC-ITEM-HOLDING-IS-NOT-APPLYING | 가지고 있는 것만으로는 몸이 달라지지 않는다 — 달라지는 것은 적용된 것 때문이고 풀면 정확히 원복된다 | IS §5.4 · §7 P3 · §8 |
+| DC-ITEM-HOLDING-IS-NOT-APPLYING **(REVISED)** | 가지고 있는 것만으로는 몸이 달라지지 않는다 — 달라지는 것은 적용된 것 때문이고 풀면 정확히 원복된다. **그 "정확히" 는 가감이 아니라 재계산으로 담보한다** (prefers · Q33 2026-08-21) | IS §5.4 · §7 P3 · §8 · IE §38 · §39 |
 | DC-ITEM-CHANGE-IS-ONE-UNIT | 효과와 수량은 함께 변하거나 함께 변하지 않는다 — 실패한 시도는 흔적을 남기지 않는다 | IS §5.5 · §5.6 · §7 P4 |
+| DC-ITEM-CAPACITY-IS-FINITE | 담을 자리도 적용할 자리도 유한하고 적용할 자리가 훨씬 좁다 — 몇 개인가는 Cycle 이 소유한다 | IE §0 · §3.1 · §10 · §49 P2·P3 · §50 |
+| DC-ITEM-LIVES-IN-ONE-PLACE | 아이템은 정확히 한 곳에 있다 — 저장소가 담고, 다른 저장소의 자리를 가리키지 않는다 | IE §13.1 · §24 · §25 · §41 · §44 · §49 P4·P9 |
+
+뒤의 둘은 IE 주입으로 섰다 (Q32 2026-08-21). IS §10 이 범위 밖으로 두고 IS §5.4 가
+후속 문서에 넘긴 영역이라 앞의 넷과 의미가 겹치지 않는다.
 
 ### Active — APPROVED (GLOBAL — 기획 문서 주입)
 

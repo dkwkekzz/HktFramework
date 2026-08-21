@@ -161,5 +161,6 @@
     "open": false
   },
   "commands": [],
-  "currentTarget": {}
+  "currentTarget": {},
+  "inventory": []
 }

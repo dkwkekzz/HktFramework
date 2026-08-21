@@ -7,6 +7,7 @@
 
 import { actionProgress, type ActionKind } from './action';
 import type { ActorState } from './actor';
+import type { Force } from './item';
 import type { WorldPosition } from './position';
 
 // Actor.MoveMode — 걷는가 달리는가 (INTENT-RUN-001)
@@ -140,6 +141,23 @@ export function isSkillKind(kind: ActionKind): kind is SkillKind {
 
 export function skillDefinition(kind: SkillKind): SkillDefinition {
   return SKILL_DEFINITIONS[kind];
+}
+
+/**
+ * 이 스킬이 피해 공식에 넘기는 위력 (C020 ADDED).
+ *
+ * C020 — 피해 공식의 입력이 SkillKind 에서 **위력 정의**로 넓어졌다. 스킬은 자기
+ * 정의가 지닌 세 값을 넘겨 주고, 물건은 자기 정의가 지닌 세 값을 넘겨 준다.
+ * 식은 한 글자도 바뀌지 않았으므로 같은 입력이면 이 Cycle 전후로 같은 값이 나온다
+ * (DC-COMBAT-ONE-FORMULA).
+ */
+export function forceOfSkill(kind: SkillKind): Force {
+  const skill = SKILL_DEFINITIONS[kind];
+  return {
+    baseDamage: skill.baseDamage,
+    attackRatio: skill.attackRatio,
+    damageType: skill.damageType,
+  };
 }
 
 // CharacterKind 가 정하는 자원·템포 능력치(구 COMBAT_PROFILES)는
@@ -446,7 +464,12 @@ export function skillDuration(actor: ActorState, kind: SkillKind): number {
 export interface StrikeEvent {
   attackerId: string;
   targetId: string;
-  skill: SkillKind;
+  /**
+   * 무엇으로 — 이름표다 (C020 CHANGED). 스킬 이름뿐이던 자리에 **쓰인 것의 이름**이
+   * 실릴 수 있다. 형태는 그대로인 의미 코드이며, 관찰하는 쪽은 모르는 값을 만나면
+   * 받은 코드를 그대로 보여도 화면이 성립해야 한다.
+   */
+  skill: string;
   amount: number;
   breakdown: DamageBreakdown;
   position: WorldPosition;

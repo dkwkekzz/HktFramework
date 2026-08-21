@@ -9,8 +9,9 @@ export interface HudPresentation {
 }
 
 const HUD: Record<string, HudPresentation> = {
-  'inventory.stone': { label: 'Stone', icon: '⛏', celebrateGain: true },
-  'tool.hasMiningTool': { label: '곡괭이' },
+  // C020 REMOVED — 'inventory.stone' · 'tool.hasMiningTool'.
+  // 종류 전용 칸이 사라졌다. 소지품은 세계가 보낸 목록에서 만들어지며 그 줄들은
+  // view/inventory-presentation.ts 가 라벨까지 직접 지닌다 (대상 자리와 같은 자리).
   'player.action': { label: '행동' },
   'world.time': { label: '세계 시간', format: (v) => `${Math.floor(Number(v))}s` },
   // 함께 보고 있는 사람의 수 (C004) — 나를 포함한다.

@@ -8,7 +8,11 @@ import { driveWorld, PLAYER, selectTarget } from './drive';
 const solo = { npcs: [] };
 const MINE_DURATION = 1.2;
 
-const stoneCount = (v: GameViewSnapshot) => v.hud.find((h) => h.id === 'inventory.stone')?.value;
+// C020 CHANGED — 돌 전용 HUD 칸(`inventory.stone`)이 사라지고 소지품 목록이 그 자리를
+// 대신한다. **읽는 자리만 바뀌고 값은 그대로다** — 이 파일의 기대값은 한 줄도 바뀌지 않았다.
+// 지니지 않은 종류는 항목이 없으므로 0 으로 읽는다.
+const stoneCount = (v: GameViewSnapshot) =>
+  v.inventory.find((i) => i.kind === 'stone')?.count ?? 0;
 const deposit = (v: GameViewSnapshot) => v.entities.find((e) => e.id === 'deposit-1');
 const player = (v: GameViewSnapshot) => v.entities.find((e) => e.id === PLAYER);
 const mine = (v: GameViewSnapshot) => v.interactions.find((i) => i.id === 'mine');

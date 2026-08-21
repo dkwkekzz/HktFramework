@@ -65,18 +65,7 @@
       "available": true
     }
   ],
-  "hud": [
-    {
-      "id": "inventory.stone",
-      "kind": "counter",
-      "value": 0
-    },
-    {
-      "id": "tool.hasMiningTool",
-      "kind": "flag",
-      "value": true
-    }
-  ],
+  "hud": [],
   "strikes": [],
   "contacts": [],
   "cancels": [],
@@ -86,5 +75,6 @@
   "commands": [],
   "currentTarget": {
     "entityId": "deposit-1"
-  }
+  },
+  "inventory": []
 }
