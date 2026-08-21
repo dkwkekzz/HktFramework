@@ -1,7 +1,7 @@
 # CYCLE C024 — One Slot, One Item
 
 [PASS] Cycle Definition           (교체라는 단위 · 가득 찬 가방의 비대칭 · 지목은 플레이어 · 값은 Stage 3)
-[    ] Intent
+[PASS] Intent                     (교체는 한 단위 · 밀려날 것은 지목 · 두 사유 · 종류 둘 · 관찰)
 [    ] World Semantic
 [    ] GameView Specification
 [    ] Human Semantic Review
