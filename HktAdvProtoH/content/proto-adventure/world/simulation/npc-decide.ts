@@ -71,7 +71,7 @@ export function ruleNpcDecide(state: WorldState, actor: ActorState): 'decided' |
   const target = perceivedTarget(state, actor);
 
   if (target) {
-    if (distance(actor.position, target.position) <= actor.attackRange) {
+    if (distance(actor.position, target.position) <= actor.engagementRange) {
       // 대상을 넘기지 않는다 — 무엇이 맞을지는 휘두름 구간의 접촉이 정한다 (C006).
       // RULE-BODY-FACING-001 (C006 R1) — 휘두르기 전에 겨눈 대상을 향해 몸을 돌린다.
       faceToward(actor, target.position.x - actor.position.x, target.position.z - actor.position.z);

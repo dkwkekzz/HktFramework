@@ -57,7 +57,7 @@ export function spawnActor(spawn: ActorSpawn): ActorState {
     moveSpeed: def.tempo.moveSpeed,
     runSpeedMultiplier: def.tempo.runSpeedMultiplier,
     actionSpeed: def.tempo.actionSpeed,
-    attackRange: def.attackRange,
+    engagementRange: def.engagementRange,
     perceptionRange: spawn.perceptionRange ?? def.perceptionRange,
     wanderPath: (spawn.wanderPath ?? []).map((p) => ({ x: p.x, z: p.z })),
     wanderIndex: 0,

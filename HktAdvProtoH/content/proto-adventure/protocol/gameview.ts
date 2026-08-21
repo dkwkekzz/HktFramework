@@ -168,6 +168,14 @@ export interface SkillProfileView {
   // 기술 이름으로 자기 표를 만들지 않는다.
   swingBegin: number; // 선딜이 끝나는 지점 — 클수록 오래 준비한다
   swingEnd: number; // 판정이 끝나는 지점 — 이 뒤가 후딜이다
+  // C023 ADDED — 이 기술이 닿는 **모양**. 고르기 전에 안다.
+  // C019 가 시간 축 둘을 실은 그 자리에 공간 축 셋이 선다 — 같은 이유다:
+  // 무엇이 넓고 무엇이 멀리 닿는지를 걸어 보고 아는 것은 늦다.
+  // 세계가 지닌 값이며 View 가 기술 이름으로 자기 표를 만들지 않는다
+  // (DC-WORLD-OWNS-THE-SURFACE-LIST).
+  swingArc: number; // 훑는 전체 각 (rad) — 클수록 옆까지 훑는다
+  swingReach: number; // 몸 중심에서 칼끝 중심까지 — 클수록 멀리 닿는다
+  swingTipRadius: number; // 칼끝의 굵기 — 닿음의 판정 반경. 거는 동안 swing.radius 로도 온다
 }
 
 export interface InteractionView extends CoreInteractionView {
