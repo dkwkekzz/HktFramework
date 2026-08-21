@@ -5,7 +5,7 @@
 [PASS] World Semantic            (구간은 기술의 값 · 캔슬 Rule · 피격이 시점을 묻는다)
 [PASS] GameView Specification    (구간은 세계 판정값 · 캔슬은 나란한 자리 · HUD 무변경)
 [    ] Human Semantic Review
-[    ] World Implementation
+[PASS] World Implementation      (구간·캔슬·NPC 큰 기술 · 신규 21건 · 전체 849건 통과)
 [    ] View Implementation
 [    ] Verification
 

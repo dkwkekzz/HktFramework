@@ -11,7 +11,7 @@ import { arcSweepCollider } from '../../../../engine/physics/sweep';
 import { CENTER_EPSILON, normalized } from '../../../../engine/physics/vec';
 import { actionProgress } from './action';
 import type { ActorState } from './actor';
-import { isSkillKind } from './combat';
+import { isSkillKind, skillDefinition } from './combat';
 import type { WorldPosition } from './position';
 
 // 0 나눗셈 방지 한계는 엔진 물리의 것이다 — 같은 이름으로 그대로 쓴다 (P6).
@@ -28,9 +28,11 @@ export const PUSH_STIFFNESS = 60.0;
 export const FRICTION = 6.0;
 export const REST_SPEED = 0.02;
 
-// RULE-SWING-STRIKE-001 — 휘두름 구간 (ActionProgress 비율)과 전달 충격량
-export const SWING_BEGIN = 0.25;
-export const SWING_END = 0.75;
+// RULE-SWING-STRIKE-001 — 전달 충격량
+//
+// C019 CHANGED — 휘두름 구간(SWING_BEGIN · SWING_END)은 더 이상 여기 있는 전역 상수가
+// 아니다. 기술마다 다른 값이므로 SkillDefinition 이 지닌다 (semantic/combat.ts).
+// 기본값은 그 파일의 DEFAULT_SWING_BEGIN · DEFAULT_SWING_END 이며 값 자체는 그대로다.
 export const SWING_IMPULSE = 8.0;
 
 // R1 — 휘두름이 쓸고 지나가는 호의 각과 칼끝 충돌 구의 반경.
@@ -60,12 +62,15 @@ export function actionCollider(actor: ActorState): ActionCollider | null {
   const progress = actionProgress(actor.currentAction);
   if (progress === null) return null;
 
+  // C019 CHANGED — 구간 경계를 그 기술에서 읽는다. RULE-SKILL-PHASE-001 과 같은 값을
+  // 쓰므로 "칼끝이 활성인 구간" 과 "phase 가 active" 는 언제나 일치한다.
+  const skill = skillDefinition(actor.currentAction.kind);
   const sweep = arcSweepCollider(actor.position, actor.facing, progress, {
     arc: SWING_ARC,
     tipRadius: SWING_BLADE_RADIUS,
     reach: swingReach(actor.attackRange),
-    begin: SWING_BEGIN,
-    end: SWING_END,
+    begin: skill.swingBegin,
+    end: skill.swingEnd,
   });
 
   return { ownerId: actor.id, center: sweep.center, radius: sweep.radius, active: sweep.active };

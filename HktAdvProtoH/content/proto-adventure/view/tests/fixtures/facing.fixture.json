@@ -156,6 +156,7 @@
   ],
   "strikes": [],
   "contacts": [],
+  "cancels": [],
   "debug": {
     "open": false
   },

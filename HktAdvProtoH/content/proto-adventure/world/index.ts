@@ -157,6 +157,7 @@ export function createWorld(setup: WorldSetup = {}): World {
     strikeEvents: [],
     // C018 — 아무것도 무산되지 않은 채로 세계가 시작된다 (semantic/relation.ts).
     unharmedContacts: [],
+    cancelEvents: [], // C019 ADDED
     // C007 R2 — 속성 변경 권한은 세계 밖(세계를 띄우는 쪽)이 정한다.
     // 기본은 열려 있다: 이 프로토타입은 관찰과 시험이 목적이며, 닫으려면 세계를 그렇게 띄운다.
     debugAuthority: { open: setup.debugAuthority ?? true },
