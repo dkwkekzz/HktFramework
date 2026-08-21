@@ -146,8 +146,12 @@ describe('INTENT-PER-OBSERVER-PROJECTION-001 — 관찰 결과는 관찰자마�
     w.request(A, { interactionId: 'mine' });
     for (let i = 0; i < 60; i++) w.tick(1 / 30);
 
-    expect(hud(see(w, A), 'inventory.stone')).toBe(1);
-    expect(hud(see(w, B), 'inventory.stone')).toBe(0);
+    // C020 CHANGED — 소지품은 hud 의 전용 칸이 아니라 carried 목록으로 실린다.
+    // "남의 것은 실리지 않는다" 는 성질은 그대로다 — 목록도 내 몸의 것만 온다.
+    const stone = (v: GameViewSnapshot) =>
+      v.carried.filter((c) => c.kind === 'stone').reduce((n, c) => n + c.quantity, 0);
+    expect(stone(see(w, A))).toBe(1);
+    expect(stone(see(w, B))).toBe(0);
   });
 
   it('가용성도 내 몸 기준이다', () => {

@@ -17,17 +17,24 @@
 // C017 — 시작한 뒤에 다른 것을 고르면 진행 중인 채집은 원래 광맥을 끝까지 지닌다
 // (CurrentAction.targetDepositId). 살펴봄과 같은 판단이다.
 //
-// RULE-MINE-COMPLETE-001 — Implements INTENT-MINING-001 · INTENT-ACTION-PROGRESS-001
+// RULE-MINE-COMPLETE-001 — Implements INTENT-MINING-001 (C020 CHANGED) ·
+//                            INTENT-ACTION-PROGRESS-001
 // Input          채굴 행동이 Duration 을 채운 Actor
-// Preconditions  대상 Deposit 의 ResourceAmount > 0
-// Transition     ResourceAmount -= 1, Inventory.Items[stone].Count += 1
-// Result         Success | Failure(deposit-depleted)
+// Preconditions  1. 대상 Deposit 의 ResourceAmount > 0     (deposit-depleted)
+//                2. 그 자원 하나를 받을 자리가 있다          (carry-full)  ← C020 ADDED
+// Transition     ResourceAmount -= 1 · RULE-CARRY-ADD-001 실행
+// Result         Success | Failure(reason)
+//
+// C020 — 둘은 **함께 일어나거나 함께 일어나지 않는다.** 받지 못하면 광맥도 줄지 않는다.
+// 받지 못한 자원이 세계에서 사라지면 "건네지 못한 것은 남는다" 가 깨진다
+// (INTENT-ACQUIRE-IS-ALL-OR-NOTHING-001).
 
 import type { ActionResult } from '../../protocol/actions';
 import { RULE_MINE, RULE_MINE_COMPLETE } from '../../protocol/semantic-id';
 import type { ActorState } from '../semantic/actor';
 import type { DepositState } from '../semantic/deposit';
-import { hasMiningTool, itemCount } from '../semantic/inventory';
+import { carriedUses } from '../semantic/inventory';
+import { evaluateCarryAdd, ruleCarryAdd } from './carry';
 import { distance } from '../semantic/position';
 import { selectedEntityId } from '../semantic/target-selection';
 import { INTERACTION_RANGE, type WorldState } from '../semantic/world-state';
@@ -40,6 +47,7 @@ export type MineFailureReason =
   | 'no-mining-tool'
   | 'out-of-range'
   | 'deposit-depleted'
+  | 'carry-full' // C020 — 받을 자리가 없다
   | 'action-busy';
 
 // Precondition 평가 — Observable(Mine.Availability / Mine.FailureReason)과 Rule 이 같은 판정을 공유한다
@@ -47,9 +55,18 @@ export function evaluateMinePreconditions(
   actor: ActorState,
   deposit: DepositState,
 ): MineFailureReason | null {
-  if (!hasMiningTool(actor.inventory)) return 'no-mining-tool';
+  // C020 CHANGED — "든 것이 곡괭이인가" 가 아니라 "이 몸에 캐는 용도가 지금 있는가".
+  // 캘 수 있는 새 도구가 생겨도 이 줄은 바뀌지 않는다
+  // (INTENT-USE-COMES-FROM-DECLARATION-001 · DC-ITEM-CAPABILITY-COMES-FROM-GRANTS).
+  if (!carriedUses(actor.inventory).has('mining')) return 'no-mining-tool';
   if (distance(actor.position, deposit.position) > INTERACTION_RANGE) return 'out-of-range';
   if (deposit.resourceAmount <= 0) return 'deposit-depleted';
+  // C020 ADDED — 자리가 없으면 **캐기 시작하지도 않는다.** 1.2 초를 쓰고 나서 받지
+  // 못하는 것보다 시작 전에 사유와 함께 거절되는 편이 관찰로도 플레이로도 낫다.
+  // 고갈 판정 뒤에 온다 — 고갈된 광맥에서는 자리 이야기가 나오지 않는다.
+  if (evaluateCarryAdd(actor.inventory, deposit.resourceKind, 1) === 'carry-full') {
+    return 'carry-full';
+  }
   return evaluateActionBegin(actor);
 }
 
@@ -94,8 +111,16 @@ export function ruleMineComplete(state: WorldState, actor: ActorState): ActionRe
   if (deposit.resourceAmount <= 0) {
     return { status: 'failure', rule: RULE_MINE_COMPLETE, reason: 'deposit-depleted' };
   }
+  // C020 — 시작 판정(P6)과 **같은 함수**를 쓴다. 두 곳이 각자 세면 갈린다.
+  // 여기서 또 검사하는 이유는 캐는 1.2 초 사이에 자리가 찰 수 있기 때문이다.
+  const noRoom = evaluateCarryAdd(actor.inventory, deposit.resourceKind, 1);
+  if (noRoom) return { status: 'failure', rule: RULE_MINE_COMPLETE, reason: noRoom };
 
+  // 받은 뒤에 광맥을 줄인다 — 받기가 실패하면 광맥도 그대로다.
+  const added = ruleCarryAdd(actor, deposit.resourceKind, 1);
+  if (added.status === 'failure') {
+    return { status: 'failure', rule: RULE_MINE_COMPLETE, reason: added.reason };
+  }
   deposit.resourceAmount -= 1;
-  actor.inventory.items.set('stone', itemCount(actor.inventory, 'stone') + 1);
   return { status: 'success', rule: RULE_MINE_COMPLETE };
 }

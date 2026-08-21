@@ -662,5 +662,10 @@
   ],
   "currentTarget": {
     "entityId": "npc-2"
+  },
+  "carried": [],
+  "carriedRoom": {
+    "used": 0,
+    "total": 3
   }
 }

@@ -46,7 +46,14 @@ export interface NpcSetup {
 export interface WorldSetup {
   /** 첫 번째 관찰자의 몸이 놓일 자리 — 검증용 초기 배치 (SPAWN_POINTS[0] 를 대신한다) */
   actorPosition?: { x: number; z: number };
-  actorItems?: Partial<Record<'stone' | 'pickaxe', number>>;
+  // C020 CHANGED — 종류 이름이 형을 좁히지 않는다. 카탈로그의 열쇠면 무엇이든 온다
+  actorItems?: Record<string, number>;
+  /**
+   * C020 ADDED — 관찰자의 몸이 지니는 자리의 수 (Inventory.Capacity).
+   * 밝히지 않으면 CARRY_CAPACITY_DEFAULT 다. 결정론 시뮬레이션 값이 아니라
+   * **세계를 띄우는 쪽의 결정**이다 — depositAmount · debugAuthority 와 같은 자리.
+   */
+  carryCapacity?: number;
   actorCharacterKind?: string;
   /**
    * C018 — 관찰자의 몸이 지닐 지키는 자리. 밝히지 않으면 없다.
@@ -177,6 +184,7 @@ export function createWorld(setup: WorldSetup = {}): World {
   const bodyDefaults: BodyDefaults = {
     characterKind: setup.actorCharacterKind ?? DEFAULT_BODY.characterKind,
     items: setup.actorItems ?? DEFAULT_BODY.items,
+    carryCapacity: setup.carryCapacity ?? DEFAULT_BODY.carryCapacity,
     ...(setup.actorGuardedGround === undefined
       ? {}
       : { guardedGround: setup.actorGuardedGround }),

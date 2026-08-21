@@ -286,6 +286,50 @@ export interface CancelEventView {
 }
 
 // 이 팩의 관찰 결과 — 봉투에 타격 결과가 더해지고, 존재/interaction 이 팩 형으로 좁혀진다.
+// 지닌 것 하나 (C020 ADDED) — 자리 하나가 항목 하나다.
+//
+// 빈 자리는 실리지 않는다. 자리가 몇이고 몇이 찼는지는 carriedRoom 이 답한다 —
+// 항목 수를 세어 알아내는 값이 아니다 (04 carriedRoom).
+export interface CarriedItemView {
+  /** 그 몸 안에서의 자리 번호. 세계의 존재 Id 가 아니다 */
+  slot: number;
+  /** 카탈로그를 여는 열쇠. 보여 줄 문구가 아니다 — 문구 변환은 View 책임 */
+  kind: string;
+  /** 갈래 의미 코드 (tool | material). **규칙이 이 값으로 갈리지 않는다** */
+  category: string;
+  /** 그 **자리에** 쌓인 수량. 그 종류를 전부 몇 개 지녔는지가 아니다 */
+  quantity: number;
+  /** 이 자리가 그 종류를 최대 몇까지 담는가 */
+  stackLimit: number;
+  /** 이 물건이 여는 용도들 (의미 코드). 비어 있을 수 있다 — 재료가 그렇다 */
+  uses: string[];
+  /** 이 물건에 지금 무엇이 되는가 */
+  actions: CarriedActionView[];
+}
+
+// 지닌 것 하나에 지금 가능한 일 하나 (C020 ADDED).
+//
+// 목록인 것은 이 Cycle 에 항목이 하나뿐이어서가 아니다 — 쓰기·장착이 오면 여기에
+// 항목이 늘 뿐 구조가 바뀌지 않게 하기 위해서다 (DC-WORLD-OWNS-THE-SURFACE-LIST).
+export interface CarriedActionView {
+  /** 요청 봉투의 interactionId 에 그대로 실어 보낸다 */
+  interactionId: string;
+  /** 이 요청에 함께 실어야 하는 자리 번호 (protocol/actions.ts 의 carriedSlot) */
+  slot: number;
+  /** 무엇을 하는가 (의미 코드 — 문구 변환은 View 책임) */
+  effect: string;
+  /** 지금 되는가. **표시용 판정과 실행 판정이 같은 것을 쓴다** */
+  available: boolean;
+  /** 안 되면 왜인가 — 사유 코드. 회색으로 막아 두고 이유를 감추지 않는다 */
+  reason?: string;
+}
+
+// 얼마나 찼는가 (C020 ADDED) — 세계가 답한다.
+export interface CarriedRoomView {
+  used: number;
+  total: number;
+}
+
 export interface GameViewSnapshot extends CoreGameViewSnapshot {
   entities: EntityView[];
   interactions: InteractionView[];
@@ -293,4 +337,6 @@ export interface GameViewSnapshot extends CoreGameViewSnapshot {
   contacts: UnharmedContactView[]; // C018 ADDED — 닿았으나 성립하지 않은 접촉
   cancels: CancelEventView[]; // C019 ADDED — 선딜 중에 끊긴 기술
   currentTarget: CurrentTargetView; // C017 ADDED — 늘 실린다
+  carried: CarriedItemView[]; // C020 ADDED — 지닌 것 전부 (내 몸의 것만)
+  carriedRoom: CarriedRoomView; // C020 ADDED — 쓴 자리 / 전체 자리
 }

@@ -4,8 +4,8 @@
 [PASS] Intent                    (자리가 든다 · 전량 아니면 전무 · 덜어내면 빈다)
 [PASS] World Semantic            (카탈로그 · 자리 목록 · 받기/덜어내기 · 마지막 길 잠금)
 [PASS] GameView Specification    (소지품은 목록 · 판정은 세계 · 돌 전용 칸이 사라진다)
-[    ] Human Semantic Review
-[    ] World Implementation
+[PASS] Human Semantic Review     (APPROVED — 버리기로 연다 · BALANCE 세 값 승인)
+[PASS] World Implementation      (카탈로그·자리·받기/덜어내기 · 신규 27건 · 전체 889건)
 [    ] View Implementation
 [    ] Verification
 

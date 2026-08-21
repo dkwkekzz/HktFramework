@@ -25,6 +25,7 @@
 import type { ActionRequest, ActionResult } from '../../protocol/actions';
 import type { InteractionHandler } from '../../../../engine/world-kernel/content';
 import { ruleAttributeSet } from '../rules/attribute-set';
+import { ruleCarryLetGo } from '../rules/carry';
 import { ruleGuardBegin, ruleGuardRelease } from '../rules/guard';
 import { ruleMine } from '../rules/mine';
 import { ruleMove } from '../rules/move';
@@ -81,6 +82,15 @@ export const INTERACTIONS: readonly InteractionHandler<WorldState>[] = [
     id: 'mine',
     // C017 CHANGED — 대상은 고른 것이다 (요청의 targetEntityId 를 읽지 않는다)
     handle: withActor((state, actor, _action, observerId) => ruleMine(state, actor, observerId)),
+  },
+  {
+    // C020 ADDED — 덜어내기. 자리 하나가 요청의 단위다 (RULE-CARRY-LET-GO-001).
+    //
+    // 이것은 몸이 세계 안에서 하는 일이 아니라 지닌 것을 정리하는 일이므로
+    // 행동(CurrentAction)을 차지하지 않는다 — 채굴 중에도 덜어낼 수 있다.
+    // 그래야 자리가 차서 캐지 못하는 상황에서 출구가 다시 막히지 않는다 (03 주①).
+    id: 'let-go',
+    handle: withActor((_state, actor, action) => ruleCarryLetGo(actor, action.carriedSlot ?? -1)),
   },
   {
     id: 'attack',

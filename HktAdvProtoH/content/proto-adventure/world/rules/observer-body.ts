@@ -6,7 +6,7 @@
 // 세계 밖에서 온 문자열이 세계 안 존재의 이름이 되어서는 안 된다.
 
 import type { CharacterKind } from '../semantic/actor';
-import { createInventory } from '../semantic/inventory';
+import { CARRY_CAPACITY_DEFAULT, createInventory } from '../semantic/inventory';
 import type { WorldPosition } from '../semantic/position';
 import type { GuardedGround } from '../semantic/relation';
 import { spawnActor } from '../semantic/spawn';
@@ -15,7 +15,13 @@ import { SPAWN_POINTS, type WorldState } from '../semantic/world-state';
 // 관찰자의 몸이 처음 만들어질 때의 기본값 — 세계의 초기 설정이다 (DEFAULT_NPCS 와 같은 성격).
 export interface BodyDefaults {
   characterKind: CharacterKind;
-  items: Partial<Record<'stone' | 'pickaxe', number>>;
+  /**
+   * C020 CHANGED — 종류 이름이 형을 좁히지 않는다. 카탈로그에 있는 열쇠면 무엇이든
+   * 초기 소지품이 될 수 있다 (DC-ITEM-KIND-IS-DATA-NOT-BRANCH).
+   */
+  items: Record<string, number>;
+  /** C020 ADDED — 이 몸이 지니는 자리의 수 */
+  carryCapacity: number;
   spawnPoints: WorldPosition[];
   /**
    * C018 — 이 몸이 지닐 지키는 자리. 밝히지 않으면 없다.
@@ -31,6 +37,7 @@ export interface BodyDefaults {
 export const DEFAULT_BODY: BodyDefaults = {
   characterKind: 'rabbit-swordsman',
   items: { pickaxe: 1 },
+  carryCapacity: CARRY_CAPACITY_DEFAULT,
   spawnPoints: SPAWN_POINTS,
 };
 
@@ -50,7 +57,7 @@ export function spawnObserverBody(
     characterKind: defaults.characterKind,
     control: 'player',
     position: { x: spawn.x, z: spawn.z },
-    inventory: createInventory(defaults.items),
+    inventory: createInventory(defaults.items, defaults.carryCapacity),
     ...(defaults.guardedGround === undefined ? {} : { guardedGround: defaults.guardedGround }),
   });
 

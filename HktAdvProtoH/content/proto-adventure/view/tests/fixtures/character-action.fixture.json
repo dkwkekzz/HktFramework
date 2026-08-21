@@ -157,5 +157,10 @@
   "commands": [],
   "currentTarget": {
     "entityId": "deposit-1"
+  },
+  "carried": [],
+  "carriedRoom": {
+    "used": 0,
+    "total": 3
   }
 }

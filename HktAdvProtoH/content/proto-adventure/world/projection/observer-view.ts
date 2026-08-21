@@ -8,7 +8,12 @@
 // 의미만 투영한다 — role/state/값/사유 코드. 표현(sprite·모션 파일·크기·라벨 형식·문구)은
 // View 의 Presentation 결정 Layer 책임이며 여기 싣지 않는다.
 
-import type { EntityView, GameViewSnapshot, InteractionView } from '../../protocol/gameview';
+import type {
+  CarriedItemView,
+  EntityView,
+  GameViewSnapshot,
+  InteractionView,
+} from '../../protocol/gameview';
 import { actionProgress, actionTargetId } from '../semantic/action';
 import { ruleStance } from '../rules/relation';
 import { actionCollider } from '../semantic/collision';
@@ -34,7 +39,10 @@ import {
 import { concealedKeys, isAcquainted, isSeatOpen } from '../semantic/acquaintance';
 import { projectCommandCatalog } from '../semantic/command-catalog';
 import { selectedEntityId } from '../semantic/target-selection';
-import { hasMiningTool, itemCount } from '../semantic/inventory';
+import type { ActorState } from '../semantic/actor';
+import { slotAt, usedSlots } from '../semantic/inventory';
+import { itemDefinition, usesOf } from '../semantic/item';
+import { evaluateCarryLetGo } from '../rules/carry';
 import {
   actorOfObserver,
   findObserver,
@@ -440,11 +448,15 @@ export function projectObserverView(
     },
     entities,
     interactions,
+    // C020 ADDED — 지닌 것 전부가 하나의 계약으로 실린다.
+    // 내 몸의 것만 실린다. 다른 관찰자의 소지품은 실리지 않는다
+    // (INTENT-PER-OBSERVER-PROJECTION-001 · INTENT-CARRIED-IS-OBSERVABLE-001).
+    carried: projectCarried(self),
+    carriedRoom: { used: usedSlots(self.inventory), total: self.inventory.capacity },
     hud: [
-      // 내 몸의 것만 실린다. 다른 관찰자의 소지품과 가용성은 실리지 않는다
-      // (INTENT-PER-OBSERVER-PROJECTION-001).
-      { id: 'inventory.stone', kind: 'counter', value: itemCount(self.inventory, 'stone') },
-      { id: 'tool.hasMiningTool', kind: 'flag', value: hasMiningTool(self.inventory) },
+      // C020 REMOVED — inventory.stone(돌 전용 칸) · tool.hasMiningTool(도구 유무).
+      // 둘 다 carried 가 대신한다. 남겨 두면 같은 사실이 두 곳에 실리고 그중 하나는
+      // 종류가 늘 때마다 따라 늘어야 한다 (04 hud.removed).
       {
         id: 'player.action',
         kind: 'label',
@@ -566,4 +578,42 @@ export function projectObserverView(
       return null;
     }),
   };
+}
+
+// C020 — 지닌 것 전부의 투영 (INTENT-CARRIED-IS-OBSERVABLE-001).
+//
+// 빈 자리는 싣지 않는다 — 항목 하나가 곧 쓴 자리 하나이며, 자리가 몇이고 몇이 찼는지는
+// carriedRoom 이 답한다. 빈 자리를 격자로 그릴지 목록으로 그릴지는 View 의 결정이다.
+//
+// 각 항목의 `available` 은 RULE-CARRY-LET-GO-001 의 Precondition 과 **같은 함수**를
+// 쓴다 (evaluateCarryLetGo). 표시용 판정과 실행 판정이 갈리면 화면이 허락한 것을
+// 세계가 거절한다 (DC-WORLD-OWNS-THE-SURFACE-LIST).
+function projectCarried(self: ActorState): CarriedItemView[] {
+  const carried: CarriedItemView[] = [];
+  for (let slot = 0; slot < self.inventory.capacity; slot += 1) {
+    const held = slotAt(self.inventory, slot);
+    if (held === null) continue;
+
+    const definition = itemDefinition(held.kind);
+    const letGoReason = evaluateCarryLetGo(self.inventory, slot);
+    carried.push({
+      slot,
+      kind: held.kind,
+      // 카탈로그에 없는 종류도 그려진다 — 등록 누락이 관찰을 멈추지 않는다.
+      category: definition?.category ?? 'material',
+      quantity: held.count,
+      stackLimit: definition?.stackLimit ?? 1,
+      uses: [...usesOf(held.kind)],
+      actions: [
+        {
+          interactionId: 'let-go',
+          slot,
+          effect: 'let-go',
+          available: letGoReason === null,
+          ...(letGoReason === null ? {} : { reason: letGoReason }),
+        },
+      ],
+    });
+  }
+  return carried;
 }

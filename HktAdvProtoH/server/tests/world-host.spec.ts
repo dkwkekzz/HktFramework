@@ -12,8 +12,9 @@ import { createWorldHost } from '../world-host';
 const A = 'observer-a';
 const B = 'observer-b';
 const worldTime = (v: GameViewSnapshot) => v.hud.find((h) => h.id === 'world.time')?.value as number;
+// C020 CHANGED — 소지품은 carried 목록으로 실린다 (hud 의 돌 전용 칸이 사라졌다)
 const stone = (v: GameViewSnapshot) =>
-  v.hud.find((h) => h.id === 'inventory.stone')?.value as number;
+  v.carried.filter((c) => c.kind === 'stone').reduce((n, c) => n + c.quantity, 0);
 
 describe('WorldHost — 관찰자 붙었다 떨어지기', () => {
   it('붙은 뒤 첫 Tick 에 자기 몸이 있는 세계를 받는다', () => {

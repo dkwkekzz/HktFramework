@@ -8,7 +8,10 @@ import { driveWorld, PLAYER, selectTarget } from './drive';
 const solo = { npcs: [] };
 const MINE_DURATION = 1.2;
 
-const stoneCount = (v: GameViewSnapshot) => v.hud.find((h) => h.id === 'inventory.stone')?.value;
+// C020 CHANGED — 돌 전용 HUD 칸이 사라지고 지닌 것이 목록으로 실린다.
+// 같은 종류가 여러 자리에 나뉘어 있을 수 있으므로 자리별 수량을 합친다.
+const stoneCount = (v: GameViewSnapshot) =>
+  v.carried.filter((c) => c.kind === 'stone').reduce((n, c) => n + c.quantity, 0);
 const deposit = (v: GameViewSnapshot) => v.entities.find((e) => e.id === 'deposit-1');
 const player = (v: GameViewSnapshot) => v.entities.find((e) => e.id === PLAYER);
 const mine = (v: GameViewSnapshot) => v.interactions.find((i) => i.id === 'mine');

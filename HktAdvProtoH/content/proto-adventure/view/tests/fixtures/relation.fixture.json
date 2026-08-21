@@ -517,5 +517,10 @@
     "open": true
   },
   "commands": [],
-  "currentTarget": {}
+  "currentTarget": {},
+  "carried": [],
+  "carriedRoom": {
+    "used": 0,
+    "total": 3
+  }
 }
