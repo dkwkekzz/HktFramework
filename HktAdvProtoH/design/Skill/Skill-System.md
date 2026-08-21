@@ -8,7 +8,6 @@
 | **기반**    | `C010 — Basic Attack / Defense Formula`, `Damage Type — Physical / Aura`                                      |
 | **범위**    | Skill / Targeting / Spatial Presence / Execution / Effect                                                     |
 | **작성 목적** | 근접 공격, 단일 대상 공격, 범위 공격, 투사체, 장판, 광선, 함정, 소환 등 다양한 MMORPG 스킬을 기존 World Capability의 조합으로 확장할 수 있는 공통 구조를 정의한다. |
-| **선행 문서** | [`design/Design-Combat-SkillForm-R0.md`](../Design-Combat-SkillForm-R0.md) (SF R0) — 이 문서 묶음이 그 구조를 대체한다      |
 
 > **핵심 명제**
 >
@@ -409,29 +408,22 @@ Damage               IMPLEMENTED
 
 ---
 
-# 10. 선행 문서(SF R0)와의 관계
+# 10. Master Layer 와의 접합
 
-`Design-Combat-SkillForm-R0.md`는 Skill을 `Activation / Targeting / Delivery / Geometry / Timing / Effect` 여섯 축으로 보고, Delivery를 14종 Primitive 목록으로 열거했다.
+이 문서는 `master/` 의 Skill 영역 Constraint 가 인용하는 **근거 문서**다. 어떤 절이 어떤 원칙을 공급하는지는 다음과 같다.
 
-이 문서 묶음은 그 구조를 다음과 같이 정리한다.
+| 이 문서                                | Constraint                            |
+| ----------------------------------- | ------------------------------------- |
+| §2 · §5 · §7 · §11                  | `DC-SKILL-IS-COMBINATION-NOT-NAME`    |
+| §7 · §0                             | `DC-SKILL-DELIVERY-IS-NOT-EFFECT`     |
+| §6 · §9                             | `DC-SKILL-COMBINE-BEFORE-NEW-FORM`    |
+| §3 · §7 · 핵심 원칙                    | `DC-SKILL-ANCHOR-IS-NOT-RESOLUTION`   |
+| 핵심 원칙 · [`Skill-Effect.md`](Skill-Effect.md) §1 · §5 | `DC-SKILL-EFFECT-MUST-ALREADY-EXIST` |
+| 핵심 원칙 · [`World-Spatial-Presence.md`](World-Spatial-Presence.md) §1 · §3 | `DC-SKILL-PRESENCE-IS-WORLD-NOT-SKILL` |
 
-| SF R0                                      | 최종안                                                                                  |
-| ------------------------------------------ | ------------------------------------------------------------------------------------ |
-| `Targeting` 단일 축                           | `Target Anchor` + `Target Resolution` 두 축으로 분리                                        |
-| `Delivery` 14종 열거                          | `Execution` 6종 + `Spatial Presence` 상태 차이로 환원 — Projectile/Area/Trap은 Presence의 Parameter 차이다 |
-| `Geometry` 독립 축                            | `Spatial Query`의 한 필드                                                                |
-| `Timing` 독립 축                              | `Trigger` + Presence Lifetime으로 표현                                                    |
-| `Effect` Primitive 17종 선언                  | 현재 세계에 구현된 Capability만 사용 — 미구현 Effect를 미리 선언하지 않는다                                  |
+스킬 전달 형태의 사다리(`master/graph/systems.yaml` 의 `MS-SKILL-FORM`)도 이 문서의 §4 · §5 를 자리 목록의 근거로 쓴다.
 
-R0의 다음 제약은 그대로 유지되며, 이미 Master Layer에서 Constraint로 승인되어 있다.
-
-```text
-R0 §28.1  Skill 이름을 시스템 타입으로 만들지 않는다   → 이 문서 §7 · DC-SKILL-IS-COMBINATION-NOT-NAME
-R0 §28.2  Damage와 Delivery를 결합하지 않는다          → 이 문서 §7 · DC-SKILL-DELIVERY-IS-NOT-EFFECT
-R0 §28.5  시스템보다 조합을 우선한다                    → 이 문서 §6 · DC-SKILL-COMBINE-BEFORE-NEW-FORM
-```
-
-승인된 Constraint의 근거 인용은 R0 문서를 계속 가리킨다. Constraint 자체의 재배선은 Human 소유이며 이 문서가 임의로 바꾸지 않는다.
+이 문서의 절을 재배치하거나 삭제할 때는 위 Constraint 의 인용이 함께 살아 있는지 확인한다. 근거가 사라진 Constraint 는 보류하지 않고 삭제하는 것이 이 프로젝트의 규칙이며, 그 판단은 Human 이 한다.
 
 ---
 

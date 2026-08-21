@@ -1,0 +1,56 @@
+# 원본 근거: design/Skill/Skill-System.md (SK) 핵심 원칙 7 (Effect 는 현재 세계에 실제로
+#   존재하는 State Transition Capability 만 사용할 수 있다) · §12 수용 기준 16 ·
+#   design/Skill/Skill-Effect.md §1 (Effect 의 정의) · §5 (미구현 Effect 를 선점하지
+#   않는다) · §6 (새 Effect Capability 도입 절차)
+# 주입(Inject)으로 세웠다 — DRAFT, Human 승인 대기 (open-questions Q45).
+id: DC-SKILL-EFFECT-MUST-ALREADY-EXIST
+type: constraint
+
+statement: >
+  스킬은 지금 세계에 실제로 있는 상태 변화만 부를 수 있다. 아직 없는 효과의 이름을
+  미리 목록에 두지 않는다.
+rationale: >
+  ❌ 흔한 구현은 효과의 목록을 먼저 선언하는 것이다 — 피해 · 회복 · 보호막 · 기절 ·
+  둔화 · 속박 · 부여… 구현은 피해 하나뿐인데 목록은 열일곱 개다. 목록에 이름이 오르는
+  순간 그 이름의 뜻도 함께 정해진다: 회복이란 무엇인가, 최대치는 어디인가, 쓰러진
+  상대에게도 되는가. 나중에 회복을 실제로 설계하는 사람은 이미 굳은 답을 물려받는다.
+
+  ✅ 지금 세계가 하는 방식이 이미 그렇다. C020 이 물건의 효과를 세울 때 세운 것은
+  **그때 세계에 있던 것 하나**였다 — `world/rules/item-use.ts` 의
+  `RULE-ITEM-EFFECT-DELIVER-FORCE-001` 은 정의가 지닌 위력을 이미 있는 피해의 길에
+  넣는 일만 한다: "새 판정이 하나도 없다." 회복하는 물건도, 상태를 거는 물건도 그 자리에
+  예비 칸으로 만들어 두지 않았다. 효과 갈래는 정의가 고르되, 고를 수 있는 갈래는 세계가
+  실제로 할 줄 아는 것뿐이다.
+
+  지켜서 얻는 것은 각 층이 자기 뜻을 자기가 정한다는 것이다. 회복이 필요해지면 회복을
+  설계하는 Cycle 이 지속·중첩·상한을 자기 자리에서 답하고, 그 다음에 스킬이 그것을
+  부른다. 어겼을 때 잃는 것은 그 순서다 — 스킬 문서가 먼저 이름을 적어 두면 회복 설계는
+  이미 적힌 뜻에 맞추는 일이 되고, 어긋나면 스킬 쪽을 고쳐야 한다.
+
+  가장 안 읽히는 조각은 "적어 두기만 하는 것도 선점" 이라는 것이다. 구현하지 않았으니
+  해가 없다고 느껴지지만, 목록은 그 자체로 설계다 — 무엇이 한 칸을 차지하고 무엇이
+  차지하지 못하는지를 이미 정한다.
+
+  경계 — 이것은 앞으로 무엇이 올지 말하지 말라는 것이 아니다. 필요한 효과가 없다는
+  사실을 결손으로 올리는 것(GAP · Frontier 후보)은 오히려 요구된다. 금지는 그것을
+  **쓸 수 있는 것처럼** 정의·목록·타입에 미리 두는 것이다.
+
+scope:
+  - SKILL
+
+requires:
+  - 스킬이 부르는 효과는 이미 구현된 World Capability 다               # SK 핵심 원칙 7
+  - 새 효과가 필요하면 그 Capability 의 세계 의미를 먼저 정의한다        # SK-EF §6
+  - 없는 효과는 결손으로 올린다                                      # SK-EF §6.1
+prohibits:
+  - 미구현 효과의 이름을 스킬 쪽 목록·타입에 예비로 두는 것              # SK §12-16 · SK-EF §5
+  - 스킬 설계가 다른 층(회복 · 조건 등)의 의미를 먼저 정의하는 것        # SK-EF §5
+prefers: []
+
+status: DRAFT
+provenance:
+  - HUMAN_DESIGN        # design/Skill/Skill-System.md 주입 — 승인 대기 (open-questions Q45)
+
+relations:
+  supports: [DC-COMBAT-ONE-LAYER-AT-A-TIME, DC-SKILL-DELIVERY-IS-NOT-EFFECT]
+  conflicts_with: []

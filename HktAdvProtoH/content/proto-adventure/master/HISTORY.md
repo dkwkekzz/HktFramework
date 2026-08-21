@@ -1657,3 +1657,70 @@ Human 이 "FR-ACTION-PHASE 의 근간이 무엇인가" 를 물어 근간을 역�
         **지금 세계의 크기**이고, 아이템이 늘면 저절로 사라진다. 결정할 것이 없는 것을
         질문으로 만들지 않는다.
 
+
+---
+
+## 주입 — 스킬 최종안(SK) 교체 · 구판(SF) 삭제 · 2026-08-21
+
+    Human 지시: "승인된 Constraint 3종이 R0 의 §28.1 · §28.2 · §28.5 를 근거로 인용하는
+    부분을 대체하고 R0 을 삭제. `design/Skill/Skill-System.md` 를 근거로 하도록."
+
+    구판 `design/Design-Combat-SkillForm-R0.md`(SF)가 최종안 네 문서로 확장·분할됐다.
+
+        design/Skill/Skill-System.md           SK      정의 · 전체 관계 · 문서 책임 경계 ·
+                                                       새 Primitive 추가 기준 · 금지 구조
+        design/Skill/Skill-Execution-Form.md   SK-EX   발동 · 대상 기준 · 대상 결정 ·
+                                                       공간 조회 · 실행 여섯
+        design/Skill/World-Spatial-Presence.md SK-SP   몸이 아닌 존재의 공간 존재
+        design/Skill/Skill-Effect.md           SK-EF   효과 — 지금 있는 것으로의 연결
+
+    구판은 삭제했다. 근거 문서로 남은 인용은 없다 — 아래 재배선이 전부를 옮겼다.
+
+    **바뀐 의미** (구판 → 최종안). 이름의 교체가 아니라 축의 재편이다.
+
+        지목 한 축          →  대상 기준(Anchor)과 대상 결정(Resolution) 두 축.
+                               "고른 것 = 맞는 것" 이 아니게 되었고, 한 명이냐 여럿이냐가
+                               스킬의 종류가 아니라 **결정의 결과**가 되었다
+        전달 14종 열거      →  실행 여섯 + 공간 존재의 값 차이.
+                               투사체 · 장판 · 부착 영역 · 이동 영역 · 함정 · 자취가
+                               서로 다른 형태가 아니라 같은 존재의 기준(Anchor)과
+                               이동(Movement) 값이 다른 것으로 되돌아갔다
+        형상 · 시점 두 축    →  공간 조회의 한 칸 · 사건(Trigger)의 형태로 흡수
+        효과 17종 선언      →  지금 세계에 구현된 것만. 회복 · 보호막 · 조건은
+                               그 층이 서기 전에는 이름조차 두지 않는다
+
+    산출물:
+        constraints/    REVISED 3종 — IS-COMBINATION-NOT-NAME(조합의 항이 여섯에서
+                        다섯으로) · DELIVERY-IS-NOT-EFFECT(자리 이름만 Delivery →
+                        Execution · ID 유지) · COMBINE-BEFORE-NEW-FORM(추가 기준 다섯
+                        → 여섯). 방향과 금지 범위는 그대로다
+                        DRAFT 3종 — ANCHOR-IS-NOT-RESOLUTION · EFFECT-MUST-ALREADY-EXIST ·
+                        PRESENCE-IS-WORLD-NOT-SKILL. 최종안이 새로 명시한 원칙이며
+                        Human 승인 대기 → Q45
+        graph/          MS-SKILL-FORM 재작성 — 이름 "스킬 전달 형태" → "스킬 실행 형태",
+                        자리 14 → 6 (CONTACT · DIRECT · SPATIAL-QUERY ·
+                        SPATIAL-PRESENCE · TRIGGER · COMPOSITION).
+                        MC-COMBAT-STRIKE 의 `part_of` 근거 SF §6 → SK §5
+        overlay.md      표에 줄을 더하지 않았다 — 그 형태를 요구하는 Possibility 가
+                        여전히 없기 때문이다 (SCHEMA — 그런 것은 노드가 아니다).
+                        차 있는 칸은 접촉 하나 그대로
+        frontier.md     후보 8(휘두름의 모양이 값이 된다)의 근거를 SK 로 옮겼다.
+                        후보 자체는 바뀌지 않았다 — 여는 것도, 크기도, 의존 없음도 그대로다
+        open-questions  Q35 의 관련 절 갱신 (자리가 여섯으로 줄어 (b) 를 골라도 열 층의
+                        총량이 전보다 작다) · Q45 신설
+
+    **닫힌 질문이 기다리던 문서가 이것이다.** Q42(타게팅 방식의 갈래) · Q44(SF 가
+    답하지 않은 넷)는 "이후 추가 기획이 가져온다" 로 닫혔었다. 최종안이 그중 넷을
+    공급했다 — 대상 기준·결정의 갈래(SK §3) · 몸 아닌 존재(SK-SP) · 그 존재가 누구에게
+    보이는가의 경계(SK-SP §10) · 없는 효과를 미리 두지 않는 규칙(SK-EF §5). 자리를
+    여섯으로 줄인 것이 Q44 ④(자기 기준을 자기 14종에 적용하면 넷이 걸린다)도 해소했다.
+    닫힌 질문을 다시 열지는 않았다 — 남은 결손은 Q35 하나이고 그것은 기획이 아니라
+    **배선**(어느 Possibility 가 이 자리를 요구하는가)이다.
+
+    옮기지 않은 것과 사유:
+        Goal / Possibility / Capability 노드 — 하나도 세우지 않았다. 최종안도 구판과
+        같이 "누가 무엇을 왜 원하는가" 를 공급하지 않는다. 지금 MC 를 세우면
+        required_by 와 demanded_by 가 둘 다 빈 고아 노드가 된다 (Q35 의 7 조건 2)
+        수치 — 반경 · 각도 · 틱 간격 · 비행 속도는 전부 문서에 남겼다 (정책 §7.2)
+        DIRECT 칸의 채움 — C020 의 던지기가 SK §8 의 대상 직접 실행과 같은 모양이지만
+        문서가 그 노드를 지목하지 않았으므로 비워 두었다 (구판 판정과 같은 기준)
