@@ -64,12 +64,12 @@ describe('VIEW CLOSURE 3 — 안 되는 것은 왜 안 되는지가 온다', () 
 
   it('걸 수 있는 물건에는 손가락 자리가 붙는다', () => {
     const pickaxe = lines(empty).find((l) => l.includes('곡괭이'));
-    expect(pickaxe).toContain('걸기 ✓ V →');
+    expect(pickaxe).toContain('걸기 ✓ N →');
   });
 
   it('가방이 가득 차면 풀기가 불가로 보이고 사유가 함께 온다 (IE §15)', () => {
     expect(detail(fullBag, '1.')).toContain('풀기 ✗ 자리 없음');
-    expect(detail(worn, '1.')).toContain('풀기 ✓ U → 1');
+    expect(detail(worn, '1.')).toContain('풀기 ✓ M → 1');
   });
 
   it('걸지 않으면 채집이 그 사유로 막힌 것이 보인다 — 코드는 그대로, 문구가 옮겨갔다', () => {

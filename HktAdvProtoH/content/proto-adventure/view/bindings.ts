@@ -49,9 +49,15 @@ function moveModeToggle(code: string): KeyBinding {
 // C023 — 같은 사정으로 두 걸음이 둘 더 늘었다. 걸기는 **소지품 칸**을 가리키고
 // 풀기는 **자리**를 가리키므로, 열린 것이 무엇이냐에 따라 같은 숫자 키가 다른 목록을
 // 읽는다. 셋 중 하나만 열려 있다 — 열면 나머지는 닫힌다.
+// **아래줄 세 칸이 나란하다** — B 덜어내기 · N 걸기 · M 풀기. 셋이 같은 형태의
+// 두 걸음이므로 손가락 자리도 나란한 것이 맞다.
+//
+// V 와 C 는 쓸 수 없다 — 이미 속성 관찰 · 충돌체 관찰이고(app/main.ts · 기반의 터치 패드),
+// Z 와 X 도 카메라 회전이 쓴다(engine/view-kernel/input/keyboard.ts).
+// **이것은 실제 브라우저로 눌러 보고 알았다** (08-verification.md PLAYABLE).
 const DISCARD_ARM_KEY = 'KeyB';
-const EQUIP_ARM_KEY = 'KeyV';
-const UNEQUIP_ARM_KEY = 'KeyU';
+const EQUIP_ARM_KEY = 'KeyN';
+const UNEQUIP_ARM_KEY = 'KeyM';
 
 /** 다음 숫자 키가 무엇인가. **화면의 조작 상태이지 세계의 상태가 아니다** */
 type ArmedRole = 'discard-item' | 'equip-item' | 'unequip-item' | null;

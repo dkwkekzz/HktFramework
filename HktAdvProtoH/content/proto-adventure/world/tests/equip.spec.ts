@@ -22,6 +22,15 @@ import { TICK_INTERVAL } from '../semantic/world-state';
 const solo = { npcs: [] };
 const MINE_DURATION = 1.2;
 
+/**
+ * 곡괭이가 보태는 물리 공격 — **정의에서 읽는다.**
+ *
+ * 여기에 12 를 적으면 값을 바꿀 때 각본도 함께 고쳐야 하고, 그러면 "값을 바꿔도
+ * 규칙이 열리지 않는다" 를 시험이 증명하지 못한다. 각본이 값을 읽어 판단하므로
+ * 정의의 수가 달라져도 이 파일은 그대로 돈다 (C022 가 자리 수에 대해 세운 형태 그대로).
+ */
+const PICKAXE_ATTACK = ITEM_CATALOG.pickaxe.equip?.contributions?.physicalAttack ?? 0;
+
 const slots = (v: GameViewSnapshot) => v.equipment;
 const slotOf = (v: GameViewSnapshot, slotId: string) => v.equipment.find((s) => s.slotId === slotId);
 const filled = (v: GameViewSnapshot) => v.equipment.filter((s) => s.item);
@@ -160,9 +169,9 @@ describe('INTENT-EFFECTIVE-IS-RECOMPUTED-NOT-ACCUMULATED-001 — 재계산이지
     const base = attack(world.observe())!;
 
     equipPickaxe(world);
-    expect(attack(world.observe())).toBe(base + 12);
+    expect(attack(world.observe())).toBe(base + PICKAXE_ATTACK);
     expect(slotOf(world.observe(), 'E1')?.contributions).toEqual([
-      { name: 'physicalAttack', value: 12 },
+      { name: 'physicalAttack', value: PICKAXE_ATTACK },
     ]);
 
     world.dispatch({ interactionId: 'unequip-item', equipSlotId: 'E1' });
@@ -189,10 +198,10 @@ describe('INTENT-EFFECTIVE-IS-RECOMPUTED-NOT-ACCUMULATED-001 — 재계산이지
     equipPickaxe(world);
     equipPickaxe(world);
     expect(filled(world.observe())).toHaveLength(2);
-    expect(attack(world.observe())).toBe(base + 24);
+    expect(attack(world.observe())).toBe(base + PICKAXE_ATTACK * 2);
 
     world.dispatch({ interactionId: 'unequip-item', equipSlotId: 'E1' });
-    expect(attack(world.observe())).toBe(base + 12);
+    expect(attack(world.observe())).toBe(base + PICKAXE_ATTACK);
 
     world.dispatch({ interactionId: 'unequip-item', equipSlotId: 'E2' });
     expect(attack(world.observe())).toBe(base);
@@ -204,7 +213,7 @@ describe('INTENT-EFFECTIVE-IS-RECOMPUTED-NOT-ACCUMULATED-001 — 재계산이지
     expect(attack(world.observe())).toBe(50);
 
     equipPickaxe(world);
-    expect(attack(world.observe())).toBe(62); // 기본값 50 + 기여 12
+    expect(attack(world.observe())).toBe(50 + PICKAXE_ATTACK); // 기본값 50 + 정의가 답한 기여
 
     world.dispatch({ interactionId: 'unequip-item', equipSlotId: 'E1' });
     expect(attack(world.observe())).toBe(50); // 기본값은 건드려지지 않았다

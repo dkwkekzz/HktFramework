@@ -29,9 +29,9 @@ export const EQUIPMENT_HUD_PREFIX = 'equipment.';
  * 푸는 손가락 자리 (C023 — 실제 바인딩은 `view/bindings.ts`).
  * 여기 있는 것은 **문구**뿐이다 — 어떤 키가 무엇을 부르는지는 bindings 가 소유한다.
  */
-const UNEQUIP_ARM_KEY_LABEL = 'U';
+const UNEQUIP_ARM_KEY_LABEL = 'M';
 /** 거는 손가락 자리 — 소지품 칸 번호와 짝이 된다 */
-export const EQUIP_ARM_KEY_LABEL = 'V';
+export const EQUIP_ARM_KEY_LABEL = 'N';
 
 /**
  * 손가락 자리 — **걸린 자리에만** 번호를 준다.
