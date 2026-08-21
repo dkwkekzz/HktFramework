@@ -67,7 +67,7 @@ export const ACTION_DEFINITIONS: Readonly<Record<ActionKind, ActionDefinition>> 
   // 기준값이며, 실제 길이는 시작하는 순간 정의에서 온다 (beginAction 의 duration 인자).
   // ActionSpeed 를 적용하지 않는다: 스킬이 아니고, 적용하면 빠른 종류가 물건까지
   // 빠르게 쓰게 되어 이 층의 의미에 세기가 섞인다 (observe 와 같은 판단이다).
-  'use-item': { duration: 0.8, replaceable: false },
+  'use-item': { duration: 0.5, replaceable: false },
   hit: { duration: 0.35, replaceable: false }, // 피격 — 스스로 요청하는 행동이 아니다
   // 쓰러짐 — 스스로 끝나지 않고 대체되지도 않는다 (C007 INTENT-DOWNED-001)
   downed: { duration: null, replaceable: false },

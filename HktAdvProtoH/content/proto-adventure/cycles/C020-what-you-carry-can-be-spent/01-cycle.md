@@ -6,8 +6,16 @@
 [PASS] GameView Specification    (종류 전용 칸이 사라진다 · 사유는 세계가 싣는다)
 [PASS] Human Semantic Review     (2026-08-21 APPROVED — 판단 4건 이의 없음)
 [PASS] World Implementation      (860 tests · 경계 위반 0 · 공식 무변경 · 기반 무변경)
-[    ] View Implementation
-[    ] Verification
+[PASS] View Implementation       (view 17 tests · 전체 877 tests · 새 그림 없음)
+[FAIL] Verification              (검사 5종 통과 · Playable 미달 — 아래 RETURNED)
+
+RETURNED
+Missing    적대 상대에게 위력을 전하는 사용이 성립하는 창
+Reason     던지기 사거리(2.0)가 상대의 휘두름 안쪽이고, 그 휘두름이 행동을 끊으며
+           나를 3.22 까지 밀어낸다. 실측 — 조건이 맞는 프레임 4/900, 필요한 것은 연속 15.
+           사용 시간을 0.8 → 0.5 로 줄여도 60초 11회 시도 성립 0회
+Return To  Cycle Definition (Human) — 고칠 수 있는 세 자리가 모두 이 문서의 승인된
+           경계다 (사거리 · 첫 효과 항목 · 전투 층). 근거는 08-verification.md PLAYABLE
 
 STATUS  IN PROGRESS
 
