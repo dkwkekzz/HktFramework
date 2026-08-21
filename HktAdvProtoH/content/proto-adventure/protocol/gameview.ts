@@ -142,6 +142,17 @@ export interface AttributesView {
 export interface EntityView extends CoreEntityView {
   vitality?: VitalityView; // C007 — character 에만 실린다
   attributes?: AttributesView; // C007 R2 — character 에만 실린다
+  // C019 ADDED — 진행 중인 기술이 지금 어느 구간인가 (INTENT-STARTUP-IS-OBSERVABLE-001).
+  // **기술을 쓰는 중일 때만 실린다** — 걷거나 캐거나 살펴보는 행동에는 선딜이라는
+  // 의미가 없다. 없음은 "모른다" 가 아니라 "구간이라는 것이 없는 행동이다" 를 뜻한다.
+  //
+  // 세계가 판정한 값이다. View 는 progress 와 경계로 이 값을 만들어내지 않는다 —
+  // 경계는 기술마다 다르고 세계 안에만 있으므로, 복제하면 두 개의 진실이 생긴다
+  // (DC-WORLD-OWNS-THE-SURFACE-LIST).
+  //
+  // 읽는 법: startup 이면 지금 넣은 개입이 그 기술을 없앤다.
+  //          active · recovery 면 같은 개입을 넣어도 그 기술은 끝까지 나간다.
+  actionPhase?: string; // startup | active | recovery
 }
 
 // 스킬 interaction 의 profile (C007 → C012) — 쓰기 전에 알 수 있어야 하는 값.
@@ -152,6 +163,11 @@ export interface SkillProfileView {
   charge: number;
   cost: number;
   damageType: string; // physical | aura
+  // C019 ADDED — 이 기술의 구간 경계 (행동 진행도의 비율). 고르기 전에 안다.
+  // 실시간 길이는 이 값 × 그 기술의 행동 길이다. 세계가 지닌 값이며 View 가
+  // 기술 이름으로 자기 표를 만들지 않는다.
+  swingBegin: number; // 선딜이 끝나는 지점 — 클수록 오래 준비한다
+  swingEnd: number; // 판정이 끝나는 지점 — 이 뒤가 후딜이다
 }
 
 export interface InteractionView extends CoreInteractionView {
@@ -252,11 +268,29 @@ export interface UnharmedContactView {
   reason: string; // 사유 코드 (not-hostile) — 문구 변환은 View 책임
 }
 
+// 선딜 중에 끊겨 없던 일이 된 기술 (C019 ADDED — INTENT-CANCEL-IS-OBSERVABLE-001).
+// StrikeEventView · UnharmedContactView 와 **나란한 자리**이며 같은 수명을 가진다.
+// 셋이 답하는 질문이 다르므로 한 자리에 섞지 않는다:
+//     strikes    닿았고 해가 성립했다            피해 산정 경위를 지닌다
+//     contacts   닿았으나 관계가 막았다          산정이 없다 · 사유가 있다
+//     cancels    맞은 쪽의 기술이 사라졌다       산정이 없다
+// 캔슬은 strikes 와 **함께** 온다 — 끊은 타격 자체는 성립한 타격이기 때문이다.
+// 둘은 같은 순간의 다른 두 사실이며, 화면에서 한 장면으로 그려지더라도 계약에서는
+// 합치지 않는다 (04 GameView Spec).
+export interface CancelEventView {
+  attackerId: string; // 끊은 쪽
+  targetId: string; // 끊긴 쪽
+  skill: string; // 무엇이 끊겼는가 — attack | heavy-attack | aura-strike
+  at: GameViewPosition; // 끊긴 몸의 자리
+  since: number; // 일어난 세계 시각 — 얼마나 지났는지 판단용
+}
+
 // 이 팩의 관찰 결과 — 봉투에 타격 결과가 더해지고, 존재/interaction 이 팩 형으로 좁혀진다.
 export interface GameViewSnapshot extends CoreGameViewSnapshot {
   entities: EntityView[];
   interactions: InteractionView[];
   strikes: StrikeEventView[]; // C007 ADDED
   contacts: UnharmedContactView[]; // C018 ADDED — 닿았으나 성립하지 않은 접촉
+  cancels: CancelEventView[]; // C019 ADDED — 선딜 중에 끊긴 기술
   currentTarget: CurrentTargetView; // C017 ADDED — 늘 실린다
 }

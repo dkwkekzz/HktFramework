@@ -15,7 +15,7 @@
 
 import { describe, expect, it } from 'vitest';
 import type { GameViewSnapshot } from '../../protocol/gameview';
-import { SWING_BEGIN } from '../semantic/collision';
+import { DEFAULT_SWING_BEGIN } from '../semantic/combat';
 import { GUARD_BREAK_RECOVERY, SKILL_DEFINITIONS } from '../semantic/combat';
 import { spawnActor } from '../semantic/spawn';
 import { TICK_INTERVAL } from '../semantic/world-state';
@@ -23,7 +23,7 @@ import { ruleGuardBegin, ruleGuardBlock, ruleGuardRelease } from '../rules/guard
 import { driveWorld, OBSERVER, OBSERVER_2, PLAYER, PLAYER_2, type WorldDriver } from './drive';
 
 const BASIC = SKILL_DEFINITIONS.attack;
-const AFTER_SWING_OPEN = SWING_BEGIN * BASIC.baseDuration + 2 * TICK_INTERVAL;
+const AFTER_SWING_OPEN = DEFAULT_SWING_BEGIN * BASIC.baseDuration + 2 * TICK_INTERVAL;
 
 const FINAL = 17; // 막지 않았을 때 들어오는 값
 const APPLIED = 9; // 막았을 때 들어오는 값

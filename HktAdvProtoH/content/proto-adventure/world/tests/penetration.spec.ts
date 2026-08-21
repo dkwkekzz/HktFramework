@@ -14,7 +14,7 @@
 
 import { describe, expect, it } from 'vitest';
 import type { GameViewSnapshot } from '../../protocol/gameview';
-import { SWING_BEGIN } from '../semantic/collision';
+import { DEFAULT_SWING_BEGIN } from '../semantic/combat';
 import { effectiveDefense, penetrationRemainingRatio, SKILL_DEFINITIONS } from '../semantic/combat';
 import { TICK_INTERVAL } from '../semantic/world-state';
 import { ruleDamageCalculate } from '../rules/damage-calculate';
@@ -22,7 +22,7 @@ import { spawnActor } from '../semantic/spawn';
 import { driveWorld, observeFully, PLAYER, type WorldDriver } from './drive';
 
 const AURA = SKILL_DEFINITIONS['aura-strike'];
-const AFTER_SWING_OPEN = SWING_BEGIN * AURA.baseDuration + 2 * TICK_INTERVAL;
+const AFTER_SWING_OPEN = DEFAULT_SWING_BEGIN * AURA.baseDuration + 2 * TICK_INTERVAL;
 
 const tickFor = (world: WorldDriver, seconds: number) => {
   const steps = Math.ceil(seconds / TICK_INTERVAL);

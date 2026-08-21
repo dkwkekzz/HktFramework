@@ -19,7 +19,7 @@
 
 import { describe, expect, it } from 'vitest';
 import type { GameViewSnapshot } from '../../protocol/gameview';
-import { SWING_BEGIN } from '../semantic/collision';
+import { DEFAULT_SWING_BEGIN } from '../semantic/combat';
 import { chanceAt, SKILL_DEFINITIONS } from '../semantic/combat';
 import { DEFAULT_CHANCE_SEED, TICK_INTERVAL } from '../semantic/world-state';
 import { spawnActor } from '../semantic/spawn';
@@ -30,7 +30,7 @@ import type { WorldState } from '../semantic/world-state';
 import { driveWorld, observeFully, PLAYER, type WorldDriver } from './drive';
 
 const BASIC = SKILL_DEFINITIONS.attack;
-const AFTER_SWING_OPEN = SWING_BEGIN * BASIC.baseDuration + 2 * TICK_INTERVAL;
+const AFTER_SWING_OPEN = DEFAULT_SWING_BEGIN * BASIC.baseDuration + 2 * TICK_INTERVAL;
 
 const tickFor = (world: WorldDriver, seconds: number) => {
   const steps = Math.ceil(seconds / TICK_INTERVAL);

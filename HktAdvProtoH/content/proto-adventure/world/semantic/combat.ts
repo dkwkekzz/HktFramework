@@ -5,7 +5,7 @@
 //      확률로 갈리는 것이 없으므로 세계는 지금까지대로 완전한 결정론이다.
 // 상수는 결정론에 영향을 주므로 헤더 상수로 고정한다.
 
-import type { ActionKind } from './action';
+import { actionProgress, type ActionKind } from './action';
 import type { ActorState } from './actor';
 import type { WorldPosition } from './position';
 
@@ -49,7 +49,17 @@ export interface SkillDefinition {
   cpCharge: number; // 한 번의 타격이 채우는 기력
   cpCost: number; // 한 번의 타격이 소모하는 기력
   damageType: DamageType; // 이 스킬이 피해를 만드는 방식 (C012 ADDED)
+  // C019 ADDED — 이 기술의 구간 경계 (행동 진행도 0..1 의 비율).
+  // 지금까지 모든 기술이 같은 전역 상수를 썼다 (collision.ts SWING_BEGIN · SWING_END).
+  // 이제 기술이 지닌다 — 크게 거는 기술일수록 선딜이 길다 (INTENT-SKILL-PHASE-001).
+  swingBegin: number; // 선딜이 끝나는 지점 — 여기부터 효과가 성립한다
+  swingEnd: number; // 판정이 끝나는 지점 — 여기부터 끝까지가 후딜이다
 }
+
+// C019 ADDED — 구간 경계의 기본값. 기술이 자기 값을 갖지만, 기본 기술 둘은 지금까지
+// 세계가 쓰던 값 그대로다 (collision.ts 의 SWING_BEGIN · SWING_END 가 이 값이었다).
+export const DEFAULT_SWING_BEGIN = 0.25;
+export const DEFAULT_SWING_END = 0.75;
 
 // C010 — 값은 재밸런싱이 아니라 C007 의 체감을 보존하는 방향으로 역산했다.
 // 관찰자(Attack 40) → 자율 존재(Defense 30) 기준:
@@ -67,6 +77,8 @@ export const SKILL_DEFINITIONS: Readonly<Record<SkillKind, SkillDefinition>> = {
     cpCharge: 12,
     cpCost: 0,
     damageType: 'physical',
+    swingBegin: DEFAULT_SWING_BEGIN, // C019 — 기본 기술은 한 톨도 바뀌지 않는다
+    swingEnd: DEFAULT_SWING_END,
   },
   // 고급 스킬 — 충전하면서 더 크게 소모한다 (붉은보석식 수지). 순수지 -22.
   'heavy-attack': {
@@ -76,6 +88,12 @@ export const SKILL_DEFINITIONS: Readonly<Record<SkillKind, SkillDefinition>> = {
     cpCharge: 8,
     cpCost: 30,
     damageType: 'physical',
+    // C019 — 큰 기술만 값이 바뀐다. 선딜 0.9 × 0.5 = 0.45초 — 사람이 보고 반응할 수 있는
+    // 길이다 (기본 기술의 0.15초는 아니다). SwingEnd 도 함께 늦춘다: 0.75 로 두면 판정
+    // 구간이 0.225초로 좁아져, 선딜을 길게 한 대가가 "칼이 잘 안 맞는다" 로 나타난다.
+    // 후딜 0.135초는 남긴다 — 나간 뒤에도 잠깐 묶여야 큰 기술이 무겁다 (03 BALANCE ①).
+    swingBegin: 0.5,
+    swingEnd: 0.85,
   },
   // 오라 스킬 (C012 ADDED) — 기본 스킬과 **모든 값이 같고 방식만 다르다**.
   // 일부러 그렇게 두었다: 값이 다르면 결과 차이가 방식 때문인지 값 때문인지 갈리지 않는다.
@@ -87,8 +105,34 @@ export const SKILL_DEFINITIONS: Readonly<Record<SkillKind, SkillDefinition>> = {
     cpCharge: 12,
     cpCost: 0,
     damageType: 'aura',
+    swingBegin: DEFAULT_SWING_BEGIN, // 기본 기술과 모든 값이 같다 (C012 의 뜻 그대로)
+    swingEnd: DEFAULT_SWING_END,
   },
 };
+
+// RULE-SKILL-PHASE-001 — Implements INTENT-SKILL-PHASE-001 (C019 ADDED)
+// Input          Actor
+// Preconditions  없음 — 어떤 Actor 에게도 답이 있다
+// Transition     없음 — 세계 상태를 바꾸지 않는다 (파생 판정)
+// Result         none | startup | active | recovery
+//
+// 경계는 **기술에서 읽는다** — 전역 상수를 쓰지 않는다. 그래야 기술마다 다른 선딜이
+// 성립한다. ActionCollider(semantic/collision.ts)와 **같은 경계**를 쓴다: 칼끝이 활성인
+// 구간이 곧 active 다. 두 곳이 각자 경계를 가지면 "칼날이 지나는 중인데 아직 선딜" 같은
+// 어긋남이 생긴다.
+export type SkillPhase = 'startup' | 'active' | 'recovery';
+
+export function skillPhase(actor: ActorState): SkillPhase | null {
+  const action = actor.currentAction;
+  if (!isSkillKind(action.kind)) return null; // 기술이 아닌 행동에는 구간이 없다
+  const progress = actionProgress(action);
+  if (progress === null) return null;
+
+  const skill = skillDefinition(action.kind);
+  if (progress < skill.swingBegin) return 'startup';
+  if (progress < skill.swingEnd) return 'active';
+  return 'recovery';
+}
 
 export function isSkillKind(kind: ActionKind): kind is SkillKind {
   return kind === 'attack' || kind === 'heavy-attack' || kind === 'aura-strike';
@@ -406,6 +450,27 @@ export interface StrikeEvent {
   amount: number;
   breakdown: DamageBreakdown;
   position: WorldPosition;
+  time: number;
+}
+
+/**
+ * World.CancelEvents — 선딜 중에 끊겨 없던 일이 된 기술들 (C019 ADDED).
+ *
+ * World.StrikeEvents · World.UnharmedContacts 와 **나란한 자리**이며 같은 수명을 가진다
+ * (STRIKE_EVENT_TTL). 셋은 섞이지 않는다 — 셋이 답하는 질문이 다르기 때문이다.
+ *
+ *     StrikeEvent      닿았고 해가 성립했다              피해 산정 경위를 지닌다
+ *     UnharmedContact  닿았으나 관계가 막았다            산정이 없다 · 사유가 있다
+ *     CancelEvent      맞은 쪽이 하려던 것이 사라졌다     산정이 없다
+ *
+ * 캔슬은 StrikeEvent 와 **함께** 온다 — 끊은 타격 자체는 성립한 타격이므로 피해도
+ * 들어가고 경위도 실린다. 둘은 같은 순간의 다른 두 사실이다.
+ */
+export interface CancelEvent {
+  attackerId: string; // 끊은 쪽
+  targetId: string; // 끊긴 쪽 — 하려던 것이 사라진 존재
+  skill: SkillKind; // 무엇이 끊겼는가. 큰 기술이 끊긴 것과 기본 기술이 끊긴 것은 다르다
+  position: WorldPosition; // 끊긴 몸의 자리
   time: number;
 }
 

@@ -12,7 +12,7 @@
 
 import { describe, expect, it } from 'vitest';
 import type { GameViewSnapshot } from '../../protocol/gameview';
-import { SWING_BEGIN } from '../semantic/collision';
+import { DEFAULT_SWING_BEGIN } from '../semantic/combat';
 import { SKILL_DEFINITIONS } from '../semantic/combat';
 import { TICK_INTERVAL } from '../semantic/world-state';
 import { ruleGuardBlock } from '../rules/guard';
@@ -21,7 +21,7 @@ import { observeFully, driveWorld, PLAYER, type WorldDriver } from './drive';
 
 const BASIC = SKILL_DEFINITIONS.attack;
 const AURA = SKILL_DEFINITIONS['aura-strike'];
-const AFTER_SWING_OPEN = SWING_BEGIN * BASIC.baseDuration + 2 * TICK_INTERVAL;
+const AFTER_SWING_OPEN = DEFAULT_SWING_BEGIN * BASIC.baseDuration + 2 * TICK_INTERVAL;
 
 const tickFor = (world: WorldDriver, seconds: number) => {
   const steps = Math.ceil(seconds / TICK_INTERVAL);
@@ -193,7 +193,7 @@ describe('INTENT-DAMAGE-CALCULATE-001 (CHANGED) — 하나의 계산, 고른 입
     const heavy = driveWorld({ npcs: [dummyAt(1.5, 0)] });
     aimRight(heavy);
     heavy.dispatch({ interactionId: 'skill-heavy' });
-    tickFor(heavy, SWING_BEGIN * SKILL_DEFINITIONS['heavy-attack'].baseDuration + 2 * TICK_INTERVAL);
+    tickFor(heavy, SKILL_DEFINITIONS['heavy-attack'].swingBegin * SKILL_DEFINITIONS['heavy-attack'].baseDuration + 2 * TICK_INTERVAL);
     expect(heavy.observe().strikes[0]?.amount).toBe(55);
   });
 
