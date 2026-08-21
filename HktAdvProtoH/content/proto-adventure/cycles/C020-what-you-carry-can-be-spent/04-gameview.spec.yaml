@@ -1,0 +1,301 @@
+# CYCLE C020 — GameView Specification
+#
+# 이 계약에서 **종류 전용 칸이 처음으로 사라진다.**
+#
+# 지금까지 소지품은 계약에 두 칸으로 실려 있었다 — `inventory.stone`(돌이 몇 개인가)과
+# `tool.hasMiningTool`(캘 수 있는 것을 지녔는가). 둘 다 종류 이름이 계약에 박힌 자리다.
+# 아이템이 하나 늘 때마다 이 계약도 함께 늘어야 하고, 늘리지 않으면 세계가 아는 것과
+# 화면이 보여주는 것이 갈린다.
+#
+# 그래서 이 Cycle 의 중심은 셋이다.
+#   ① 소지품은 **목록 하나**다. 종류가 둘이든 열이든 형태가 같다.
+#   ② 항목마다 **지금 무엇이 되고 왜 안 되는지**가 함께 온다 — 화면이 판단하지 않는다.
+#   ③ 쓰는 것은 **다른 행동과 같은 자리**에 보인다. 새 표시 장치를 만들지 않는다.
+#
+# 이 계약을 받은 View 는 아이템 종류를 하나도 알지 못한 채 소지품을 그릴 수 있어야 한다.
+id: VIEW-WHAT-YOU-CARRY-CAN-BE-SPENT-001
+observer: player
+
+delta:
+  reused:
+    - scene.mining-field
+    - entities.character                      # 위치·역할·이름·종류·모션·body·swing 그대로
+    - entities.deposit                        # 광맥 그대로
+    - entityHud                               # 몸 위의 이름·생명 그대로
+    - entities.character.vitality
+    - entities.character.attributes.*         # 태도·겨루는 힘·통찰·가려짐 일체 그대로
+    - interactions.move / moveMode / setAttribute
+    - interactions.attack / skillHeavy / skillAura       # 관문도 사유도 그대로
+    - interactions.*.profile
+    - interactions.guardBegin / guardRelease
+    - interactions.observe / forgetAcquaintance
+    - interactions.selectTarget / clearTarget            # C017 그대로
+    - currentTarget                                      # C017 그대로
+    - commandCatalog
+    - unharmedContacts                                   # C018 의 자리 그대로
+    - debugObserve / debugAuthority
+    - observer / session / delivery / identity / telemetry
+  added:
+    - inventory                               # 가진 것 전부 — 목록 하나
+    - inventory[].actions                     # 항목마다 지금 되는 것과 안 되는 사유
+    - entities.character.state = use-item     # 쓰는 중이라는 의미 상태
+  changed:
+    - interactions.mine                       # 사유가 나오는 자리만 바뀐다 (값·코드 동일)
+    - strikeEvents[].skill                    # "무엇으로" 자리에 쓰인 것의 이름이 실릴 수 있다
+    - unharmedContacts[].skill                # 같은 이유
+    - hud                                     # 두 칸이 사라진다 (아래 REMOVED)
+  removed:
+    - hud.inventory.stone                     # 돌 전용 칸 — inventory 목록이 대신한다
+    - hud.tool.hasMiningTool                  # 도구 보유 칸 — interactions.mine 이 이미 답한다
+
+scene: mining-field
+
+# ─────────────────────────────────────────────────────────────────
+# inventory — 이 Cycle 이 세우는 자리
+#
+#   내 몸의 것만 실린다 (INTENT-PER-OBSERVER-PROJECTION-001). 남이 무엇을 지녔는지는
+#   오지 않는다 — 이 Cycle 은 그것을 열지 않는다.
+#
+#   **지니지 않은 종류는 항목이 없다.** 수량 0 인 항목이 실리지 않으므로 View 는
+#   "있는 것만 그린다" 로 끝난다.
+#
+#   **View 는 종류 이름을 알지 못해도 된다.** kind 는 표시할 이름을 고르는 열쇠일 뿐이고,
+#   그것을 모르면 kind 문자열을 그대로 보여도 화면이 성립한다. 분류로 나누어 보이고
+#   싶으면 category 를 쓰되, 그 값 목록을 View 가 소유하지 않는다.
+# ─────────────────────────────────────────────────────────────────
+inventory:
+  cardinality: many
+  source: Actor.Inventory.Items (관찰자의 몸)
+  ordering: 세계가 정한 순서 — 같은 세계 상태면 언제나 같은 순서다
+
+  fields:
+    kind:
+      source: Inventory.Items[].Kind
+      meaning: 종류 식별자 (의미 코드). 표시 이름은 View 책임
+    count:
+      source: Inventory.Items[].Count
+      meaning: 지금 지닌 수량. 언제나 1 이상이다
+    category:
+      source: ItemDefinition.Category
+      values: [material, tool, consumable]
+      meaning: 분류 (의미 코드). 이 Cycle 은 이 값으로 나누어 보이기를 요구하지 않는다
+    origin:
+      source: ItemDefinition.Origin
+      optional: true
+      meaning: 이 물건이 어느 상위 정의에서 왔는가. 없을 수 있다 (곡괭이가 그렇다)
+    stackable:
+      source: ItemDefinition.Stackable
+      meaning: 겹치는가. 지금은 둘 다 참이다
+
+  actions:
+    cardinality: many
+    source: ItemDefinition.Use (없으면 빈 목록)
+    meaning: 이 항목으로 지금 할 수 있는 것들
+    fields:
+      id:
+        meaning: 요청에 실어 보낼 식별자 — 세계가 준 것을 그대로 되돌린다
+      role:
+        values: [use-item]
+        meaning: 의미 역할. 문구 변환은 View 책임
+      available:
+        source: RULE-ITEM-USE-001 의 판정
+        meaning: 지금 되는가. **관찰과 실행이 같은 판정이다**
+      unavailableReason:
+        source: RULE-ITEM-USE-001 의 실패 사유
+        optional: true
+        values:
+          - unknown-item          # 세계가 모르는 종류다 (정상적으로는 오지 않는다)
+          - not-usable            # 쓸 수 있는 물건이 아니다 (정의에 Use 가 없다)
+          - not-enough            # 필요한 만큼 지니지 않았다
+          - no-target-selected    # 아무것도 고르지 않았다
+          - target-kind-mismatch  # 고른 것이 이 물건이 요구하는 것이 아니다
+          - out-of-range          # 고른 것이 손이 닿는 거리 밖이다
+          - action-busy           # 지금 하는 행동을 대체할 수 없다
+          - deposit-depleted      # (위임 갈래) 그 광맥에 남은 것이 없다
+        meaning: >
+          사유의 단일 출처는 세계다. View 는 사유를 만들지 않고 받은 코드를 문구로 옮긴다.
+          목록이 길어져도 계약의 형태는 바뀌지 않는다 — 값이 하나 늘 뿐이다.
+
+# ─────────────────────────────────────────────────────────────────
+# entities — 한 상태값이 는다
+# ─────────────────────────────────────────────────────────────────
+entities:
+  character:
+    cardinality: many
+    source: World.Actors
+    state:
+      source: Actor.CurrentAction.Kind
+      values:
+        - idle
+        - move
+        - attack
+        - heavy-attack
+        - aura-strike
+        - mine
+        - observe
+        - use-item                # C020 ADDED — 무언가를 쓰고 있다
+        - hit
+        - downed
+      meaning: >
+        쓰는 중이라는 것이 **남에게도 보인다.** 다른 행동과 완전히 같은 자리이며
+        진행도도 같은 자리에 실린다 (progress). 무엇을 쓰고 있는지는 실리지 않는다 —
+        이 Cycle 은 남의 소지품을 열지 않으므로, 남이 무엇을 쓰는지도 열지 않는다.
+    progress:
+      source: Actor.CurrentAction 의 진행도
+      meaning: use-item 도 다른 행동과 같이 0..1 이 실린다
+
+  deposit:
+    cardinality: many
+    source: World.Deposits
+    reused: true                  # 변화 없음
+
+# ─────────────────────────────────────────────────────────────────
+# interactions — 새 항목이 없다
+#
+#   물건을 쓰는 요청은 **소지품 항목이 지닌다** (inventory[].actions[].id).
+#   interactions 에 종류마다 항목을 늘리지 않는 이유는 하나다 — 그러면 종류 이름이
+#   이 계약의 다른 자리에 다시 박히고, 아이템이 늘 때마다 두 곳이 함께 늘어난다.
+#   가진 것에 붙는 일은 가진 것 옆에 둔다.
+# ─────────────────────────────────────────────────────────────────
+interactions:
+  mine:
+    changed: true
+    role: mine-deposit
+    available:
+      source: RULE-MINE-001 의 판정
+    unavailableReason:
+      source: RULE-MINE-001 의 실패 사유
+      values:
+        - no-target-selected
+        - target-kind-mismatch
+        - no-mining-tool          # **코드 그대로** — 답이 나오는 자리만 바뀌었다
+        - out-of-range
+        - deposit-depleted
+        - action-busy
+    meaning: >
+      값도 사유 코드도 이 Cycle 전과 같다. 달라진 것은 `no-mining-tool` 의 답이
+      "곡괭이를 지녔는가" 가 아니라 "이 몸에 채집 용도가 지금 있는가" 에서 나온다는 것뿐이다.
+      화면은 아무것도 고치지 않아도 된다.
+
+      곡괭이를 쓰는 것으로도 같은 채집이 시작된다 (inventory 의 곡괭이 항목).
+      **입구가 둘이어도 판정은 하나다** — 두 자리의 available 과 사유는 언제나 같다.
+
+  attack: { reused: true }
+  skillHeavy: { reused: true }
+  skillAura: { reused: true }
+  guardBegin: { reused: true }
+  guardRelease: { reused: true }
+  observe: { reused: true }
+  forgetAcquaintance: { reused: true }
+  selectTarget: { reused: true }
+  clearTarget: { reused: true }
+  move: { reused: true }
+  moveMode: { reused: true }
+  setAttribute: { reused: true }
+
+# ─────────────────────────────────────────────────────────────────
+# strikeEvents / unharmedContacts — 한 자리의 값 범위가 넓어진다
+# ─────────────────────────────────────────────────────────────────
+strikeEvents:
+  changed: true
+  fields:
+    skill:
+      source: 타격을 일으킨 것의 이름표
+      meaning: >
+        스킬 이름(attack · heavy-attack · aura-strike)뿐이던 자리에 **쓰인 것의 이름**이
+        실릴 수 있다. 형태는 그대로인 의미 코드이며, View 는 모르는 값을 만나면
+        받은 코드를 그대로 보여도 화면이 성립해야 한다.
+    breakdown:
+      reused: true
+      meaning: 내역은 한 글자도 바뀌지 않는다 — 같은 공식, 같은 자리
+
+unharmedContacts:
+  changed: true
+  fields:
+    skill:
+      meaning: 위와 같은 이유. 물건으로 닿았으나 성립하지 않은 접촉도 여기 실린다
+    reason:
+      reused: true
+      values: [not-hostile]
+
+currentTarget: { reused: true }
+
+# ─────────────────────────────────────────────────────────────────
+# hud — 두 칸이 사라지고 아무 칸도 늘지 않는다
+# ─────────────────────────────────────────────────────────────────
+hud:
+  removed:
+    inventory.stone:
+      reason: >
+        돌 전용 칸. inventory 목록이 같은 값을 더 정확하게 답한다 —
+        어떤 종류든 수량이 보이고, 종류가 늘어도 칸이 늘지 않는다.
+    tool.hasMiningTool:
+      reason: >
+        도구 보유 칸. 사람이 알고 싶은 것은 "지녔는가" 가 아니라 "지금 캘 수 있는가" 이고
+        그것은 interactions.mine 의 available 과 사유가 이미 답하고 있었다.
+        이 칸을 남기면 종류 이름이 계약에 박힌 자리가 하나 남는다.
+
+  reused:
+    - player.action                # use-item 도 여기에 그대로 실린다
+    - world.time
+    - observers.present
+    - self.hp / self.hpMax / self.cp / self.cpMax
+    - self.downed / self.moveMode
+    - self.guard.guarding / self.guard.broken
+    - self.combatStats.*
+    - self.insight
+
+  added: []                        # 새 막대도 새 줄도 없다
+
+# ─────────────────────────────────────────────────────────────────
+# designer — 같은 계약을 쓴다
+# ─────────────────────────────────────────────────────────────────
+designer:
+  uses: 이 계약 그대로. World 로 가는 별도 경로를 만들지 않는다
+  goal: GOAL-A-THING-CAN-BE-SPENT
+  possibility:
+    - POSSIBILITY-USING-IS-AN-ACT
+    - POSSIBILITY-THE-DEFINITION-DECIDES-THE-EFFECT
+    - POSSIBILITY-EFFECTS-ARE-A-LIST
+    - POSSIBILITY-SPENDING-LEAVES-LESS
+    - POSSIBILITY-NOT-EVERY-USE-SPENDS
+    - POSSIBILITY-FAILURE-LEAVES-NOTHING
+  observes:
+    availability: inventory[].actions[].available
+    preconditions: inventory[].actions[].unavailableReason
+    before_after:
+      - inventory[].count            # 쓰기 전과 뒤의 수량
+      - entities.character.vitality  # 위력이 전해진 결과
+    reason:
+      - inventory[].actions[].unavailableReason
+      - unharmedContacts[].reason
+
+# ─────────────────────────────────────────────────────────────────
+# VIEW CLOSURE — 이 계약만으로 Cycle Goal 을 플레이할 수 있는가
+# ─────────────────────────────────────────────────────────────────
+closure:
+  - 무엇을 지녔는지 안다                    inventory[].kind / count
+  - 그중 무엇을 지금 쓸 수 있는지 안다        inventory[].actions[].available
+  - 왜 못 쓰는지 안다                       inventory[].actions[].unavailableReason
+  - 쓸 것을 고르고 요청할 수 있다             inventory[].actions[].id
+  - 대상이 필요하면 무엇을 골라야 하는지 안다   unavailableReason = no-target-selected /
+                                          target-kind-mismatch + currentTarget (C017)
+  - 쓰는 중임을 안다                        entities.character.state = use-item + progress
+  - 무슨 일이 일어났는지 안다                 strikeEvents (성립) / unharmedContacts (무산)
+  - 쓴 만큼 줄어든 것을 본다                 inventory[].count 의 전후 차이
+  - 되지 않았을 때 아무것도 변하지 않은 것을 본다  같은 자리의 값이 그대로다
+  - 캐기가 그대로임을 안다                   interactions.mine 의 값과 사유가 이전과 같다
+
+# ─────────────────────────────────────────────────────────────────
+# NOT IN THIS CONTRACT — 싣지 않는 것과 그 이유
+# ─────────────────────────────────────────────────────────────────
+excluded:
+  남의 소지품: 이 Cycle 은 내 몸의 것만 싣는다 (INTENT-PER-OBSERVER-PROJECTION-001)
+  남이 무엇을 쓰는지: 위와 같은 이유. 쓰고 있다는 것까지만 보인다
+  물건의 위력 수치: 스킬의 profile 에 해당하는 자리를 아이템에 만들지 않는다 —
+                 이 Cycle 은 "얼마나 센가" 를 미리 재는 층을 열지 않는다.
+                 결과는 strikeEvents 의 내역이 이미 전부 답한다
+  분류별 묶음·정렬·필터: 아이템이 둘뿐이라 쓸모가 없다. category 는 실리되
+                 그것으로 나누기를 이 계약이 요구하지 않는다
+  소지 한도·무게: 세계에 없다
+  아이템의 개체 상태: 세계에 없다 (내구도·강화·귀속)
