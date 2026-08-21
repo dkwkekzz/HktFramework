@@ -2,7 +2,7 @@
 
 [PASS] Cycle Definition           (교체라는 단위 · 가득 찬 가방의 비대칭 · 지목은 플레이어 · 값은 Stage 3)
 [PASS] Intent                     (교체는 한 단위 · 밀려날 것은 지목 · 두 사유 · 종류 둘 · 관찰)
-[    ] World Semantic
+[PASS] World Semantic             (새 State 0 · 요청 하나 · 순 증가 0 은 계산의 결과 · buckler armor +15)
 [    ] GameView Specification
 [    ] Human Semantic Review
 [    ] World Implementation
