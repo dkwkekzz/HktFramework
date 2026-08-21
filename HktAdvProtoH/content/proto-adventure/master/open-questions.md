@@ -13,11 +13,11 @@ Human 이 답한다    DECISION 줄
 
 미해결 **1건** — 닫힌 질문은 HISTORY.md.
 
-Frontier 선택은 **끝났다** — [frontier.md](frontier.md) 의 `SELECTED` 는
-FR-INTERRUPT-THE-STARTUP(선딜을 노려 끊는다)이고 C019 가 돈다.
-아래 질문은 그 Cycle 을 막지 않는다.
+[frontier.md](frontier.md) 의 `SELECTED` 는 FR-WHAT-YOU-CARRY-CAN-BE-SPENT
+(아이템의 바닥)이고 Cycle Stage 1 이 그것을 받는다. 아래 질문은 그 Cycle 을
+막지 않는다.
 
-번호가 Q29 인 것은 앞선 질문들이 이미 닫혀 HISTORY 로 갔기 때문이다 —
+번호가 띄엄띄엄한 것은 앞선 질문들이 이미 닫혀 HISTORY 로 갔기 때문이다 —
 번호는 재사용하지 않는다.
 
 ## Q29. "아는 힘"(통찰)은 독립한 Capability 노드인가 — OPEN
