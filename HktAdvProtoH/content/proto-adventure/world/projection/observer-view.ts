@@ -42,11 +42,14 @@ import { projectCommandCatalog } from '../semantic/command-catalog';
 import { selectedEntityId } from '../semantic/target-selection';
 import type { ActorState } from '../semantic/actor';
 import { inventoryEntries } from '../semantic/inventory';
-import { itemDefinition } from '../semantic/item';
+import { isStackable, itemDefinition } from '../semantic/item';
 import { evaluateItemUse } from '../rules/item-use';
+import { evaluateItemDiscard } from '../rules/item-discard';
+import { ruleInventoryRoom } from '../rules/inventory-room';
 import {
   actorOfObserver,
   findObserver,
+  INVENTORY_CAPACITY,
   isAttended,
   presentObserverCount,
   type WorldState,
@@ -451,6 +454,12 @@ export function projectObserverView(
     interactions,
     // C020 — 가진 것 전부가 한 목록으로 나온다. 종류 전용 칸이 사라진 자리다.
     inventory: projectInventory(state, self, observerId),
+    // C022 — 자리는 **목록 밖에** 있다. 물건의 성질이 아니라 몸의 형편이기 때문이다.
+    // 화면은 이 둘을 받아 옮길 뿐 세지 않는다 (DC-WORLD-OWNS-THE-SURFACE-LIST).
+    inventoryRoom: {
+      used: ruleInventoryRoom(self.inventory),
+      capacity: INVENTORY_CAPACITY,
+    },
     hud: [
       // 내 몸의 것만 실린다. 다른 관찰자의 소지품과 가용성은 실리지 않는다
       // (INTENT-PER-OBSERVER-PROJECTION-001).
@@ -608,12 +617,22 @@ function projectInventory(
       });
     }
 
+    // C022 — 덜어내기는 **지닌 모든 항목**에 붙는다. 쓸 수 있는 물건만 놓을 수 있는
+    // 것이 아니기 때문이다. 되는지와 왜 안 되는지는 실제 실행이 쓰는 판정에서 나온다.
+    const discardFailure = evaluateItemDiscard(state, self, kind);
+    actions.push({
+      id: 'discard-item',
+      role: 'discard-item',
+      available: discardFailure === null,
+      ...(discardFailure ? { unavailableReason: discardFailure } : {}),
+    });
+
     return {
       kind,
       count,
       category: definition.category,
       ...(definition.origin ? { origin: definition.origin } : {}),
-      stackable: definition.stackable,
+      stackable: isStackable(definition),
       actions,
     };
   });

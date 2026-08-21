@@ -95,7 +95,7 @@
       "kind": "pickaxe",
       "count": 1,
       "category": "tool",
-      "stackable": true,
+      "stackable": false,
       "actions": [
         {
           "id": "use-item",
@@ -104,5 +104,9 @@
         }
       ]
     }
-  ]
+  ],
+  "inventoryRoom": {
+    "used": 2,
+    "capacity": 4
+  }
 }

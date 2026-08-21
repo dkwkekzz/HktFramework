@@ -283,7 +283,7 @@ export interface UnharmedContactView {
 export interface ItemActionView {
   /** ActionRequest.interactionId 로 회신된다 */
   id: string;
-  role: string; // 의미 역할 (use-item) — 문구 변환은 View 책임
+  role: string; // 의미 역할 (use-item | discard-item) — 문구 변환은 View 책임
   available: boolean;
   /** 불가 사유 코드 — 문구 변환은 View 책임. 세계가 사유의 단일 출처다 */
   unavailableReason?: string;
@@ -294,9 +294,30 @@ export interface InventoryItemView {
   count: number; // 언제나 1 이상이다
   category: string; // material | tool | consumable (의미 코드)
   origin?: string; // 상위 정의 식별자 (IT-*) — 없을 수 있다
+  /**
+   * 겹치는가 (C022 CHANGED — 값의 출처가 ItemDefinition.StackLimit > 1 로 옮겼다).
+   * 계약의 형태는 그대로다. 한 자리에 몇까지인지는 **싣지 않는다** — 그 수를 실으면
+   * 화면이 자리를 셀 수 있게 되고, 그것이 이 계약이 막으려는 것이다.
+   */
   stackable: boolean;
-  /** 이 항목으로 지금 할 수 있는 것들. 쓸 수 없는 물건은 빈 목록이다 */
+  /** 이 항목으로 지금 할 수 있는 것들. 아무것도 못 하는 물건은 빈 목록이다 */
   actions: ItemActionView[];
+}
+
+/**
+ * 자리 — 쓴 자리와 전체 (C022 ADDED).
+ *
+ * **소지품 목록 밖에 있다.** 자리는 물건의 성질이 아니라 몸의 형편이므로 항목에 붙일 수
+ * 없다. 항목마다 실으면 같은 값이 항목 수만큼 반복되고, 지닌 것이 없을 때는 실릴 자리가
+ * 사라진다 — 가방이 비었을 때야말로 자리를 보여야 하는 순간인데도.
+ *
+ * **View 는 이 둘을 계산하지 않는다.** used 를 항목에서 유도하려면 화면이 겹침 한도를
+ * 알아야 하고, 그것을 아는 순간 세계와 화면에 자리 계산이 둘 생긴다
+ * (DC-WORLD-OWNS-THE-SURFACE-LIST).
+ */
+export interface InventoryRoomView {
+  used: number; // 지금 쓰고 있는 자리. 지닌 것이 없으면 0
+  capacity: number; // 이 몸이 지닌 자리의 수
 }
 
 // 선딜 중에 끊겨 없던 일이 된 기술 (C019 ADDED — INTENT-CANCEL-IS-OBSERVABLE-001).
@@ -325,4 +346,5 @@ export interface GameViewSnapshot extends CoreGameViewSnapshot {
   cancels: CancelEventView[]; // C019 ADDED — 선딜 중에 끊긴 기술
   currentTarget: CurrentTargetView; // C017 ADDED — 늘 실린다
   inventory: InventoryItemView[]; // C020 ADDED — 내 몸이 지닌 것 전부
+  inventoryRoom: InventoryRoomView; // C022 ADDED — 쓴 자리와 전체
 }

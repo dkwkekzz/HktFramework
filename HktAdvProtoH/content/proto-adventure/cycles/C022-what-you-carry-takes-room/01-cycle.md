@@ -4,8 +4,8 @@
 [PASS] Intent                     (자리 · 획득 원자성 · 덜어내기 · 막힘 방지 · 자리 관찰 · 값은 Stage 3)
 [PASS] World Semantic             (자리는 파생 · 분기 없는 한 식 · 막힘은 용도로 판정 · 값 4·3·1·12)
 [PASS] GameView Specification     (자리 둘은 목록 밖 · 덜어내기는 기존 actions 자리 · 새 interaction 없음)
-[    ] Human Semantic Review
-[    ] World Implementation
+[PASS] Human Semantic Review      (APPROVED — 판단 5건 이의 없음)
+[PASS] World Implementation       (929 tests 통과 · 종류 이름 없는 자리·막힘 판정)
 [    ] View Implementation
 [    ] Verification
 
