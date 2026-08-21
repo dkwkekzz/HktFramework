@@ -9,6 +9,13 @@
 | **범위**    | Skill Activation / Targeting / Delivery / Geometry / Timing / Effect                    |
 | **작성 목적** | 근접 공격, 투사체, 폭발, 힐, 장판, 광선, 돌진, 소환 등 MMORPG에서 사용하는 다양한 스킬 형태를 공통 규칙으로 표현할 수 있는 기반을 정의한다. |
 
+> **후속 문서** — 이 문서(R0)의 구조는 [`design/Skill/`](Skill/Skill-System.md) 의 최종안이 대체한다.
+> R0 의 `Delivery` 14종은 최종안에서 `Execution` 6종과 `Spatial Presence` 의 상태 차이로 환원되었고,
+> `Targeting` 단일 축은 `Target Anchor` / `Target Resolution` 두 축으로 분리되었다.
+> 새 Skill 설계는 [`Skill-System.md`](Skill/Skill-System.md) 를 읽고 시작한다.
+> 이 문서는 승인된 Constraint (`DC-SKILL-IS-COMBINATION-NOT-NAME` · `DC-SKILL-DELIVERY-IS-NOT-EFFECT` ·
+> `DC-SKILL-COMBINE-BEFORE-NEW-FORM`) 가 §28.1 · §28.2 · §28.5 를 근거로 인용하고 있으므로 원본으로 보존한다.
+
 > **핵심 명제**
 >
 > 스킬의 차이는 새로운 피해 공식을 만드는 것이 아니라,
