@@ -3,7 +3,7 @@
 [PASS] Cycle Definition           (기존 노드의 확장 · 모양 축 하나 · 값은 Stage 3)
 [PASS] Intent                     (모양은 기술의 값 · 닿는 길이가 몸에서 갈린다 · 공식 불변)
 [PASS] World Semantic             (모양 셋이 정의로 · 교전 거리 정합 규칙 · 큰 기술만 움직인다 · 40°·2.2·0.55)
-[    ] GameView Specification
+[PASS] GameView Specification     (새 자리 없음 · profile 에 셋 · swing 은 이미 실린다 · HUD NONE)
 [    ] Human Semantic Review
 [    ] World Implementation
 [    ] View Implementation

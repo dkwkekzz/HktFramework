@@ -1,0 +1,187 @@
+# CYCLE C023 — GameView Specification
+#
+# 이 계약에 처음으로 **행동의 공간이 의미로** 실린다.
+#
+# 지금까지 보는 쪽이 휘두름에 대해 받은 것은 끝점의 자리와 반경이었다 (C006 의
+# `swing`). 그 값들은 이미 정확했다 — 그러나 **기술이 무엇이든 언제나 같았으므로**
+# 아무것도 가르지 않았다. 이제 그 값들이 기술마다 다르게 나온다. 자리가 새로 생기는
+# 것이 아니라, 이미 있던 자리가 비로소 정보를 지닌다.
+#
+# 그래서 이 계약의 중심은 둘이다.
+#   ① 지금 지나는 칼끝은 **이미 실리고 있다.** 새 자리를 만들지 않는다 —
+#      `swing.center` · `swing.radius` 가 그 기술의 모양이 만든 실제 값이며,
+#      View 가 각·길이로 부채꼴을 다시 계산하면 두 개의 진실이 생긴다.
+#      그리는 것은 세계가 보낸 그 원이지 View 가 지어낸 모양이 아니다.
+#   ② 걸기 전의 모양은 **새로 실린다.** 무엇이 넓고 무엇이 멀리 닿는지를 걸어 보고
+#      아는 것은 늦다 — "여기서는 무엇을 걸까" 가 이 Cycle 이 만드는 판단이고,
+#      그 판단은 고르는 순간에 선다 (C019 가 선딜을 profile 에 실은 것과 같은 자리).
+id: VIEW-THE-SHAPE-IS-DATA-001
+observer: player
+
+delta:
+  reused:
+    - scene.mining-field
+    - entities.character                      # 위치·역할·이름·종류·모션·body 그대로
+    - entities.character.state / progress / actionPhase   # 행동 종류·진행도·구간 (C002 · C019)
+    - entities.character.vitality             # 기력 — 큰 기술의 조건은 그대로다
+    - entities.character.attributes.*         # 겨루는 힘·통찰·가려짐·태도 일체 그대로
+    - entities.deposit
+    - entityHud
+    - interactions.move / mine / moveMode / setAttribute
+    - interactions.attack / skillHeavy / skillAura       # 관문도 사유도 그대로
+    - interactions.*.profile.baseDamage / attackRatio / rawDamage
+    - interactions.*.profile.charge / cost / damageType
+    - interactions.*.profile.swingBegin / swingEnd       # C019 — 시간 축은 그대로다
+    - interactions.guardBegin / guardRelease
+    - interactions.observe / forgetAcquaintance
+    - interactions.useItem / discardItem
+    - commandCatalog
+    - hud.*                                   # 새 막대도 새 줄도 없다
+    - strikeEvents.*                          # 성립한 타격의 경위는 한 글자도 바뀌지 않는다
+    - unharmedContacts.*                      # 닿았으나 성립하지 않은 접촉도 그대로
+    - cancelEvents.*                          # 끊김도 그대로
+    - debugObserve / debugAuthority
+    - observer / session / delivery / identity / telemetry
+  added:
+    - interactions.*.profile.swingArc         # 얼마나 넓게 훑는가
+    - interactions.*.profile.swingReach       # 얼마나 멀리 닿는가
+    - interactions.*.profile.swingTipRadius   # 끝이 얼마나 굵은가
+  changed:
+    - entities.character.swing.center         # 자리는 그대로 · **기술마다 다른 궤적**을 그린다
+    - entities.character.swing.radius         # 자리는 그대로 · **기술마다 다른 굵기**가 온다
+
+scene: mining-field
+
+# ─────────────────────────────────────────────────────────────────
+# entities.character.swing — 자리는 그대로, 값이 갈린다
+#
+#   C006 이 만든 자리다. 이 Cycle 은 **한 칸도 더하지 않는다** — 그런데도 화면이
+#   달라진다. 지금까지 이 값들은 기술이 무엇이든 같았고, 이제 그 기술의 모양이 만든
+#   실제 값이기 때문이다.
+#
+#   이 자리를 늘리지 않는 것이 이 계약의 판단이다. 각·길이·굵기 셋을 여기에도 실어
+#   보내면 View 가 그것으로 부채꼴을 그리게 되고, 그 부채꼴은 세계가 실제로 판정한
+#   원의 궤적과 **미세하게 어긋난다.** 그러면 "닿을 것처럼 보였는데 안 맞았다" 가
+#   화면의 거짓말이 된다. 그리는 것은 세계가 보낸 원이어야 한다.
+# ─────────────────────────────────────────────────────────────────
+entities:
+  character:
+    cardinality: many
+    source: World.Actors
+
+    swing:
+      presence: 기술을 쓰는 중일 때만 실린다 (C006 그대로)
+      fields:
+        center:
+          source: ActionCollider.Center (RULE-ACTION-COLLIDER-001 — CHANGED)
+          meaning:
+            - 지금 이 Tick 에 칼끝이 있는 자리. **세계가 판정한 값**이다
+            - C023 CHANGED — 그 궤적이 이제 그 기술의 각과 길이가 만든 것이다.
+              좁은 기술은 정면 가까이를 짧게 지나고, 넓은 기술은 옆까지 크게 돈다
+            - 자리의 뜻도 계산법도 바뀌지 않았다. 값이 갈릴 뿐이다
+        radius:
+          source: ActionCollider.Radius (RULE-ACTION-COLLIDER-001 — CHANGED)
+          meaning:
+            - 칼끝이 차지하는 굵기. **닿음의 판정 반경 그 자체**다
+            - C023 CHANGED — 기술마다 다르다. 지금까지는 언제나 0.7 이었다
+        active:
+          source: ActionCollider.Active
+          meaning: 지금 이 원이 닿음을 만드는가. 구간 밖에서는 경계 각에 고정된 예비/여운 자세다 (C006 그대로)
+        struck:
+          source: CurrentAction.StruckActorIds
+          meaning: 이 휘두름이 이미 닿은 몸들 (C006 · C018 그대로)
+
+    # ── 새 자리는 없다 ──
+    # 모양은 존재의 상태가 아니라 **기술의 성질**이다. 그러므로 존재에 붙지 않고
+    # 그 기술을 고르는 자리(interactions.profile)에 붙는다. 몸에 붙이면 "이 사람의
+    # 모양" 이라는 없는 개념이 생긴다.
+
+# ─────────────────────────────────────────────────────────────────
+# interactions — 관문도 사유도 그대로. profile 에 세 값이 는다
+#
+#   C019 가 시간 축 둘(swingBegin · swingEnd)을 실은 그 자리에 공간 축 셋이 선다.
+#   같은 이유다 — 고르기 전에 알아야 고르는 것이 판단이 된다.
+#
+#   **세계가 지닌 값이다.** View 가 기술 이름으로 자기 표를 만들지 않는다
+#   (DC-WORLD-OWNS-THE-SURFACE-LIST). 기술이 하나 늘거나 값이 바뀌면 세계가 싣는
+#   것이 바뀌고 View 는 그것을 그대로 읽는다 — 고칠 것이 없다.
+# ─────────────────────────────────────────────────────────────────
+interactions:
+  attack:      { availability: 그대로, profile: { swingArc: 2.618, swingReach: 1.3, swingTipRadius: 0.7  } }
+  skillHeavy:  { availability: 그대로, profile: { swingArc: 0.698, swingReach: 2.2, swingTipRadius: 0.55 } }
+  skillAura:   { availability: 그대로, profile: { swingArc: 2.618, swingReach: 1.3, swingTipRadius: 0.7  } }
+
+  profile:
+    swingArc:
+      source: SkillDefinition.SwingArc (RULE-SKILL-SHAPE-001)
+      unit: 라디안 — 훑는 **전체** 각이다. 칼끝은 `+Arc/2` 에서 `−Arc/2` 로 지나간다
+      meaning:
+        - 이 기술이 몸이 향한 방향을 기준으로 얼마나 넓게 지나가는가
+        - 클수록 옆까지 훑는다. 작을수록 정면에만 닿는다
+        - 읽는 법 — 옆에 붙은 상대를 함께 치려면 큰 값을, 정면 하나만 노리려면
+          작은 값을 고른다
+    swingReach:
+      source: SkillDefinition.SwingReach (RULE-SKILL-SHAPE-001)
+      unit: 세계 거리 — 몸 중심에서 칼끝 중심까지
+      meaning:
+        - 이 기술의 칼끝이 몸에서 얼마나 떨어져 도는가
+        - 실제로 닿는 가장 먼 거리는 `SwingReach + SwingTipRadius + 상대의 몸 반경` 이다.
+          상대의 몸 반경은 이미 실린다 (entities.character.body.radius)
+        - 안쪽으로도 한계가 있다 — `SwingReach − SwingTipRadius − 상대의 몸 반경`
+          보다 가까우면 칼끝이 상대를 지나쳐 돈다. 이 세계의 값에서는 두 몸이 서로
+          밀어내며 유지하는 거리보다 작으므로 실제로는 일어나지 않는다
+    swingTipRadius:
+      source: SkillDefinition.SwingTipRadius (RULE-SKILL-SHAPE-001)
+      unit: 세계 거리 — 칼끝 원의 반경
+      meaning:
+        - 칼끝이 차지하는 굵기. 닿음의 판정 반경이며, 거는 동안에는
+          `entities.character.swing.radius` 로 같은 값이 실려 온다
+        - 굵을수록 스치는 것도 닿는다
+
+  # 새 interaction 은 없다. 모양을 고르는 것은 별도의 행동이 아니라 **기술을 고르는
+  # 것**이며, 어느 기술을 거는가가 곧 어떤 모양을 그리는가다. 모양 전용 조작을
+  # 만들면 이 Cycle 의 의미가 사라진다 — 자리에 따른 선택이 아니라 설정이 된다.
+
+hud:
+  change: NONE
+  # 새 막대도 새 줄도 없다. 이 Cycle 이 만드는 정보는 전부 **바닥과 몸 위**에서
+  # 읽힌다 — 칼끝이 어디를 지났고 누가 그 안에 있었는가가 전부다.
+  # HUD 로 올리면 눈이 바닥에서 떠나고, 그러면 "자리를 보고 고른다" 가
+  # "숫자를 읽는다" 가 된다 (C019 의 같은 판단).
+
+# ─────────────────────────────────────────────────────────────────
+# 투영하지 않는 것과 그 사유
+#
+#   Actor.EngagementRange (교전 거리)
+#       스스로 판단하는 존재가 얼마나 다가가는가의 값이며, 플레이어의 판단에
+#       들어가지 않는다. 플레이어는 다가가는 거리를 스스로 정한다
+#
+#   RULE-ENGAGEMENT-REACHES-001 의 성립 여부
+#       세계가 서기 위한 정합 조건이지 플레이 중에 갈리는 상태가 아니다.
+#       어겨지면 그것은 화면에 뜰 일이 아니라 세계가 잘못 세워진 것이다
+#
+#   "안 닿았다" 는 사건
+#       만들지 않는다. 칼끝의 자리·굵기와 각 몸의 자리·반경이 모두 실리므로
+#       닿음과 안 닿음은 이미 실린 값들의 결과다 (03 의 Observable Closure).
+#       없는 접촉을 위해 사건을 만들면 매 Tick 모든 몸에 대해 사건이 생긴다
+# ─────────────────────────────────────────────────────────────────
+
+# ─────────────────────────────────────────────────────────────────
+# VIEW NOTE — 이 계약이 화면에 요구하는 것
+#
+#   ① 칼끝이 지난 자리가 **보여야** 한다. 이 Cycle 의 사건은 전부 바닥에서
+#      일어나며, 그것이 그려지지 않으면 "왜 저 사람은 맞고 이 사람은 안 맞았는가"
+#      가 화면에 존재하지 않는다. 지금까지 이 자리는 실려 오기만 하고 그려지지
+#      않았다 — 모든 기술이 같은 궤적이라 그릴 값어치가 없었기 때문이다.
+#      **그리는 것은 `swing.center` 에 `swing.radius` 의 원이다.** 각과 길이로
+#      부채꼴을 계산하지 않는다 (위 entities.character.swing 의 판단).
+#
+#   ② 고르기 전에 **어느 쪽이 넓고 어느 쪽이 먼지** 읽혀야 한다. 셋 다 숫자로
+#      띄우라는 뜻이 아니다 — 넓이와 거리의 차이가 고르는 자리에서 전달되면 된다.
+#      무엇으로 전달할지는 View 의 몫이다 (DC-WORLD-OWNS-THE-SURFACE-LIST 의 경계:
+#      목록은 세계의 것이고 표현은 View 의 것이다).
+#
+#   ③ **하나만으로는 부족하다.** ① 만 있으면 지나간 뒤에야 알고, ② 만 있으면
+#      숫자를 외우게 된다. 둘이 함께 있어야 "여기서는 저걸 걸어야겠다" 가
+#      플레이 중의 판단이 된다.
+# ─────────────────────────────────────────────────────────────────
