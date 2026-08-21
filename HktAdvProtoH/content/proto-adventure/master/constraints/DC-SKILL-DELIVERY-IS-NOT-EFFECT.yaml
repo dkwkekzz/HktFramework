@@ -1,7 +1,11 @@
-# 원본 근거: design/Design-Combat-SkillForm-R0.md (SF) §28.2 (Damage 와 Delivery 를
-#   결합하지 않는다) · §28.3 (Heal 은 Delivery 가 아니다) · §22 (Effect 는 대상의 상태를
-#   바꾸는 것) · §5 (Delivery 는 효과가 대상에 도달하는 방식) · §2 (Hit → Effect → 기존
-#   Damage 경로) · 핵심 원칙 3·4
+# 원본 근거: design/Skill/Skill-System.md (SK) §7 (구현에서 금지할 구조 — 전달 방식과
+#   Effect 를 결합하지 않는다 · Effect 를 Execution 자리에 두지 않는다) · §0 (새 시스템은
+#   새 피해 공식을 만들지 않는다) · §4 (실행 흐름 — Execution 다음에 Effect 가 온다) ·
+#   §12 수용 기준 17
+# 주입(Inject)으로 세운 뒤 2026-08-21 Human 승인 (HISTORY Q41).
+# REVISED — 근거 문서가 SF(Design-Combat-SkillForm-R0.md, 삭제)에서 SK 로 교체됐다
+#   (HISTORY Q45). SK 는 전달 축의 이름을 Delivery 에서 Execution 으로 바꾸었을 뿐
+#   두 축을 가르는 선은 그대로다. ID 는 유지한다 — 인용하는 이력이 이미 여럿이다.
 id: DC-SKILL-DELIVERY-IS-NOT-EFFECT
 type: constraint
 
@@ -10,8 +14,8 @@ statement: >
   한쪽을 다른 쪽의 종류로 만들지 않는다.
 rationale: >
   ❌ 흔한 구현은 둘을 붙여 종류를 만드는 것이다 — ProjectileDamage · AreaDamage ·
-  MeleeDamage (SF §28.2 의 금지 예), 또는 반대로 `Delivery = Heal` 처럼 효과 이름을
-  전달 방식 자리에 두는 것 (SF §28.3).
+  MeleeDamage (SK §7 의 금지 예), 또는 반대로 `Execution = Heal` 처럼 효과 이름을
+  전달 방식 자리에 두는 것 (같은 절).
 
   ✅ 지금 세계에 이 형태의 실물 선례가 있다. C020 의
   `RULE-ITEM-EFFECT-DELIVER-FORCE-001`(`world/rules/item-use.ts`)은 던지기라는 전달을
@@ -29,26 +33,29 @@ rationale: >
 
   가장 안 읽히는 조각은 회복 쪽이다. 피해에 대해서는 이 원칙이 직관적인데, 회복·부여를
   만들 때는 "힐 스킬" 이라는 하나의 종류를 만들고 싶어진다. 단일 대상 힐과 힐 장판은
-  다른 스킬이지만 다른 **효과**가 아니다 — 같은 회복이 다른 전달을 탄 것이다 (SF §1).
+  다른 스킬이지만 다른 **효과**가 아니다 — 같은 회복이 다른 전달을 탄 것이다 (SK §7 의
+  "허용" 세 줄이 그 형태다).
 
   경계 — 이것은 축의 분리만 말한다. 전달이 효과에 입력을 주는 것(닿은 자리 · 몇 번째
   대상인가 · 남은 거리)은 금지가 아니다. 금지는 전달의 종류가 효과의 **계산 경로**를
-  가르는 것이다.
+  가르는 것이다. 그 효과가 지금 세계에 있어야 하는가는 다른 원칙이 다룬다
+  (DC-SKILL-EFFECT-MUST-ALREADY-EXIST).
 
 scope:
   - SKILL
 
 requires:
-  - 같은 효과가 여러 전달 방식으로 성립한다                          # SF §1 · §28.3
-  - 피해 효과는 전달 방식과 무관하게 같은 피해 경로를 지난다           # SF §2 · §28.4
+  - 같은 효과가 여러 전달 방식으로 성립한다                          # SK §7
+  - 피해 효과는 전달 방식과 무관하게 같은 피해 경로를 지난다           # SK §0 · §4
 prohibits:
-  - 전달 방식과 효과를 결합한 종류를 만드는 것                        # SF §28.2
-  - 효과 이름을 전달 방식 자리에 두는 것                              # SF §28.3
+  - 전달 방식과 효과를 결합한 종류를 만드는 것                        # SK §7
+  - 효과 이름을 전달 방식(Execution) 자리에 두는 것                   # SK §7
 prefers: []
 
-status: APPROVED
+status: REVISED
 provenance:
   - HUMAN_DESIGN        # design/Design-Combat-SkillForm-R0.md 주입 → Human 승인 (HISTORY Q41)
+  - HUMAN_DESIGN        # 근거를 design/Skill/Skill-System.md 로 교체 → Human 지시 (HISTORY Q45)
 
 relations:
   supports: [DC-COMBAT-ONE-FORMULA]

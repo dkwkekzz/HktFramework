@@ -1660,6 +1660,106 @@ Human 이 "FR-ACTION-PHASE 의 근간이 무엇인가" 를 물어 근간을 역�
 
 ---
 
+## 주입 — 스킬 최종안(SK) 교체 · 구판(SF) 삭제 · 2026-08-21
+
+    Human 지시: "승인된 Constraint 3종이 R0 의 §28.1 · §28.2 · §28.5 를 근거로 인용하는
+    부분을 대체하고 R0 을 삭제. `design/Skill/Skill-System.md` 를 근거로 하도록."
+
+    구판 `design/Design-Combat-SkillForm-R0.md`(SF)가 최종안 네 문서로 확장·분할됐다.
+
+        design/Skill/Skill-System.md           SK      정의 · 전체 관계 · 문서 책임 경계 ·
+                                                       새 Primitive 추가 기준 · 금지 구조
+        design/Skill/Skill-Execution-Form.md   SK-EX   발동 · 대상 기준 · 대상 결정 ·
+                                                       공간 조회 · 실행 여섯
+        design/Skill/World-Spatial-Presence.md SK-SP   몸이 아닌 존재의 공간 존재
+        design/Skill/Skill-Effect.md           SK-EF   효과 — 지금 있는 것으로의 연결
+
+    구판은 삭제했다. 근거 문서로 남은 인용은 없다 — 아래 재배선이 전부를 옮겼다.
+
+    **바뀐 의미** (구판 → 최종안). 이름의 교체가 아니라 축의 재편이다.
+
+        지목 한 축          →  대상 기준(Anchor)과 대상 결정(Resolution) 두 축.
+                               "고른 것 = 맞는 것" 이 아니게 되었고, 한 명이냐 여럿이냐가
+                               스킬의 종류가 아니라 **결정의 결과**가 되었다
+        전달 14종 열거      →  실행 여섯 + 공간 존재의 값 차이.
+                               투사체 · 장판 · 부착 영역 · 이동 영역 · 함정 · 자취가
+                               서로 다른 형태가 아니라 같은 존재의 기준(Anchor)과
+                               이동(Movement) 값이 다른 것으로 되돌아갔다
+        형상 · 시점 두 축    →  공간 조회의 한 칸 · 사건(Trigger)의 형태로 흡수
+        효과 17종 선언      →  지금 세계에 구현된 것만. 회복 · 보호막 · 조건은
+                               그 층이 서기 전에는 이름조차 두지 않는다
+
+    산출물:
+        constraints/    REVISED 3종 — IS-COMBINATION-NOT-NAME(조합의 항이 여섯에서
+                        다섯으로) · DELIVERY-IS-NOT-EFFECT(자리 이름만 Delivery →
+                        Execution · ID 유지) · COMBINE-BEFORE-NEW-FORM(추가 기준 다섯
+                        → 여섯). 방향과 금지 범위는 그대로다
+                        DRAFT 3종 — ANCHOR-IS-NOT-RESOLUTION · EFFECT-MUST-ALREADY-EXIST ·
+                        PRESENCE-IS-WORLD-NOT-SKILL. 최종안이 새로 명시한 원칙이며
+                        Human 승인 대기 → Q45
+        graph/          MS-SKILL-FORM 재작성 — 이름 "스킬 전달 형태" → "스킬 실행 형태",
+                        자리 14 → 6 (CONTACT · DIRECT · SPATIAL-QUERY ·
+                        SPATIAL-PRESENCE · TRIGGER · COMPOSITION).
+                        MC-COMBAT-STRIKE 의 `part_of` 근거 SF §6 → SK §5
+        overlay.md      표에 줄을 더하지 않았다 — 그 형태를 요구하는 Possibility 가
+                        여전히 없기 때문이다 (SCHEMA — 그런 것은 노드가 아니다).
+                        차 있는 칸은 접촉 하나 그대로
+        frontier.md     후보 8(휘두름의 모양이 값이 된다)의 근거를 SK 로 옮겼다.
+                        (그 뒤 C023 Feedback 이 후보 둘을 소진시켜 **지금 6번**이다)
+                        후보 자체는 바뀌지 않았다 — 여는 것도, 크기도, 의존 없음도 그대로다
+        open-questions  Q35 의 관련 절 갱신 (자리가 여섯으로 줄어 (b) 를 골라도 열 층의
+                        총량이 전보다 작다) · Q45 신설
+
+    **닫힌 질문이 기다리던 문서가 이것이다.** Q42(타게팅 방식의 갈래) · Q44(SF 가
+    답하지 않은 넷)는 "이후 추가 기획이 가져온다" 로 닫혔었다. 최종안이 그중 넷을
+    공급했다 — 대상 기준·결정의 갈래(SK §3) · 몸 아닌 존재(SK-SP) · 그 존재가 누구에게
+    보이는가의 경계(SK-SP §10) · 없는 효과를 미리 두지 않는 규칙(SK-EF §5). 자리를
+    여섯으로 줄인 것이 Q44 ④(자기 기준을 자기 14종에 적용하면 넷이 걸린다)도 해소했다.
+    닫힌 질문을 다시 열지는 않았다 — 남은 결손은 Q35 하나이고 그것은 기획이 아니라
+    **배선**(어느 Possibility 가 이 자리를 요구하는가)이다.
+
+    옮기지 않은 것과 사유:
+        Goal / Possibility / Capability 노드 — 하나도 세우지 않았다. 최종안도 구판과
+        같이 "누가 무엇을 왜 원하는가" 를 공급하지 않는다. 지금 MC 를 세우면
+        required_by 와 demanded_by 가 둘 다 빈 고아 노드가 된다 (Q35 의 7 조건 2)
+        수치 — 반경 · 각도 · 틱 간격 · 비행 속도는 전부 문서에 남겼다 (정책 §7.2)
+        DIRECT 칸의 채움 — C020 의 던지기가 SK §8 의 대상 직접 실행과 같은 모양이지만
+        문서가 그 노드를 지목하지 않았으므로 비워 두었다 (구판 판정과 같은 기준)
+
+## Q45. SK 최종안이 새로 명시한 Constraint 셋을 승인하는가 — CLOSED
+
+    DECISION      (a) 셋 다 승인 (Human · 2026-08-21)
+                  PRESENCE 의 Scope 는 `SKILL` 유지 — 근거가 스킬 영역 문서이므로
+                  영역을 넘기지 않는다 (Human · 같은 날)
+
+    DC-SKILL-ANCHOR-IS-NOT-RESOLUTION · DC-SKILL-EFFECT-MUST-ALREADY-EXIST ·
+    DC-SKILL-PRESENCE-IS-WORLD-NOT-SKILL 이 Active 가 되었다. 문안은 주입판 그대로다
+    (Q23 · Q30 · Q41 선례 — 원본보다 세게 쓰지 않는다). Scope 는 셋 다 `SKILL` 이다.
+
+    같은 결정에 포함된 것 — Active 셋(IS-COMBINATION-NOT-NAME ·
+    DELIVERY-IS-NOT-EFFECT · COMBINE-BEFORE-NEW-FORM)의 근거를 삭제된 구판(SF)에서
+    최종안(SK)으로 옮긴 재정합이 확정됐다. 셋 다 REVISED 이며 방향과 금지 범위는
+    그대로다. 바뀐 것은 조합의 항 이름(여섯 → 다섯) · 추가 기준의 수(다섯 → 여섯) ·
+    자리 이름(Delivery → Execution) 셋뿐이다. `DELIVERY-IS-NOT-EFFECT` 의 ID 는
+    유지했다 — 이력이 이미 그 ID 로 여럿을 가리킨다.
+
+    승인과 함께 MC-COMBAT-STRIKE 에 ANCHOR-IS-NOT-RESOLUTION 을 걸었다 —
+    SATISFIED. 지금 세계의 휘두름은 고른 대상(`CurrentTarget`)을 읽지 않는다.
+    맞는 것을 정하는 것은 칼끝이 쓸고 지나간 호이고(`world/semantic/collision.ts`),
+    호에 든 여럿이 각각 맞으며 한 휘두름에 같은 몸은 한 번만 맞는다
+    (`world/simulation/swing-strike.ts` — `StruckActorIds` · `Result Struck(대상 수)`).
+    나머지 둘은 노드에 걸지 않았다 — EFFECT-MUST-ALREADY-EXIST 가 구속할 새 효과도,
+    PRESENCE-IS-WORLD-NOT-SKILL 이 구속할 몸 아닌 존재도 세계에 아직 없다.
+
+    Scope 를 넓히지 않은 결과 하나가 남는다. Frontier 후보 7(물건이 몸 밖에 놓인다 —
+    C023 Feedback 뒤 **지금 5번**)이
+    요구하는 것이 PRESENCE 와 같은 자리이지만, 그 후보는 이 원칙에 구속되지 않는다.
+    그쪽을 구속하려면 아이템·세계 영역 문서가 같은 의미를 근거로 세워야 한다.
+
+    Active Constraint 는 29종 → 32종.
+
+---
+
 ## Feedback — C023(걸어 둔 것만이 몸을 바꾼다) 반영 · 2026-08-21
 
     C023 이 Gate 15항을 전부 충족하고 닫혔다. `08-verification.md` 의 MASTER FEEDBACK

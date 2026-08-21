@@ -2,8 +2,8 @@
 
 파일 하나 = Constraint 하나. 이름은 `DC-<NAME>.yaml`. 형식은 [../SCHEMA.md](../SCHEMA.md).
 
-현재: **Active 26종** — 전투 5종(1종 REVISED) + 성장 6종 + 세계 5종 +
-아이템 6종(1종 REVISED) + GLOBAL 4종. 보류(DRAFT)는 없다.
+현재: **Active 32종** — 전투 5종(1종 REVISED) + 성장 6종 + 세계 5종 +
+아이템 6종(1종 REVISED) + 스킬 6종(3종 REVISED) + GLOBAL 4종. 보류(DRAFT)는 없다.
 
 근거 문서:
 
@@ -69,6 +69,34 @@ IE §x   design/Design-Inventory-Equipment-D1.md       아이템(ITEM) 영역 �
 
 뒤의 둘은 IE 주입으로 섰다 (Q32 2026-08-21). IS §10 이 범위 밖으로 두고 IS §5.4 가
 후속 문서에 넘긴 영역이라 앞의 넷과 의미가 겹치지 않는다.
+
+### Active — REVISED (스킬 — SK 주입 · Q41 승인 → Q45 근거 재배선)
+
+| Constraint | 한 줄 | 근거 |
+|---|---|---|
+| DC-SKILL-IS-COMBINATION-NOT-NAME **(REVISED)** | 스킬 이름은 세계가 아는 종류가 아니다 — 시스템에는 형태만 있고 스킬은 그 조합을 고른 정의다 | SK §2 · §5 · §7 · §9 · §11 |
+| DC-SKILL-DELIVERY-IS-NOT-EFFECT **(REVISED)** | 효과가 대상에 닿는 방식과 대상에게 일어나는 일은 다른 축 — 한쪽을 다른 쪽의 종류로 만들지 않는다 | SK §0 · §4 · §7 |
+| DC-SKILL-COMBINE-BEFORE-NEW-FORM **(REVISED)** | 새 요구는 먼저 기존 형태의 조합으로 — 새 실행 형태는 조합으로도 값으로도 안 되고 세계에 다른 생명주기·판정이 필요할 때만 | SK §6 · §9 |
+
+셋은 2026-08-21 구판(SF) 주입으로 승인됐고(HISTORY Q41), 같은 날 구판이 삭제되며
+근거가 SK 로 옮겨졌다 (Q45). 방향과 금지 범위는 그대로이고 바뀐 것은 조합의 항 이름과
+인용 § 다. `DELIVERY-IS-NOT-EFFECT` 의 ID 는 SK 가 그 축을 `Execution` 으로 부르게
+된 뒤에도 유지한다 — 이력이 이미 그 ID 로 여럿을 가리킨다.
+
+### Active — APPROVED (스킬 — SK 최종안이 새로 명시 · Q45 승인)
+
+| Constraint | 한 줄 | 근거 |
+|---|---|---|
+| DC-SKILL-ANCHOR-IS-NOT-RESOLUTION | 어디를 기준으로 쓰는가와 누가 맞는가는 다른 질문 — 한 명이냐 여럿이냐를 스킬 종류로 만들지 않는다 | SK §3 · §7 |
+| DC-SKILL-EFFECT-MUST-ALREADY-EXIST | 스킬은 지금 세계에 있는 상태 변화만 부른다 — 없는 효과의 이름을 미리 두지 않는다 | SK 핵심 원칙 7 · SK-EF §5 · §6 |
+| DC-SKILL-PRESENCE-IS-WORLD-NOT-SKILL | 몸 아닌 것이 세계에 자리를 가지는 일은 세계의 능력 — 스킬 안에 임시로 만들지 않는다 | SK 핵심 원칙 6 · SK-SP §1 · §3 |
+
+셋은 구판에 없던 의미이며 최종안이 새로 명시했다. `PRESENCE-IS-WORLD-NOT-SKILL` 의
+Scope 는 `SKILL` 하나로 둔다 (Q45 — 근거가 스킬 영역 문서이므로 영역을 넘기지 않는다).
+Frontier 후보 7(물건이 몸 밖에 놓인다)이 같은 자리를 요구하지만, 그쪽을 구속하려면
+그 층의 문서가 근거로 서야 한다.
+`ANCHOR-IS-NOT-RESOLUTION` 은 MC-COMBAT-STRIKE 에 걸려 SATISFIED 다 — 지금 세계의
+휘두름은 고른 대상을 읽지 않고 접촉이 맞는 것을 정한다.
 
 ### Active — APPROVED (GLOBAL — 기획 문서 주입)
 
