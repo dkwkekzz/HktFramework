@@ -4,7 +4,7 @@
 [PASS] Intent                     (교체는 한 단위 · 밀려날 것은 지목 · 두 사유 · 종류 둘 · 관찰)
 [PASS] World Semantic             (새 State 0 · 요청 하나 · 순 증가 0 은 계산의 결과 · buckler armor +15)
 [PASS] GameView Specification      (손 하나 · equipment 무변경 · no-room 은 그대로 온다)
-[    ] Human Semantic Review
+[PASS] Human Semantic Review       (APPROVED — Human 이 "끝까지 진행" 지시 · JUDGEMENT 5 는 권고안 채택)
 [    ] World Implementation
 [    ] View Implementation
 [    ] Verification
