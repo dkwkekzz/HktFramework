@@ -7,7 +7,7 @@
 [    ] Human Semantic Review
 [PASS] World Implementation      (구간·캔슬·NPC 큰 기술 · 신규 21건 · 전체 849건 통과)
 [PASS] View Implementation       (선딜은 몸 위 · 캔슬은 그 자리 · 신규 9건 · 전체 858건)
-[    ] Verification
+[PASS] Verification              (자동 검증 전항 통과 · 861건 · Human Play 대기)
 
 STATUS  IN PROGRESS
 
