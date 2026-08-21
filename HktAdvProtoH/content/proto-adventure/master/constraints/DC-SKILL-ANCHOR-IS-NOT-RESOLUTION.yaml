@@ -2,7 +2,7 @@
 #   다르다) · §7 (구현에서 금지할 구조 — 단일/범위를 Skill Type 으로 고정하지 않는다) ·
 #   §5 (단일 공격 = 기준 + 단일 결정 · 범위 공격 = 공간 결정) · §12 수용 기준 6 · 15 ·
 #   핵심 원칙 1~3
-# 주입(Inject)으로 세웠다 — DRAFT, Human 승인 대기 (open-questions Q45).
+# 주입(Inject)으로 세운 뒤 2026-08-21 Human 승인 (HISTORY Q45).
 id: DC-SKILL-ANCHOR-IS-NOT-RESOLUTION
 type: constraint
 
@@ -48,9 +48,9 @@ prohibits:
   - 기준으로 고른 것이 곧 효과 대상이라고 가정하는 것                   # SK §3
 prefers: []
 
-status: DRAFT
+status: APPROVED
 provenance:
-  - HUMAN_DESIGN        # design/Skill/Skill-System.md 주입 — 승인 대기 (open-questions Q45)
+  - HUMAN_DESIGN        # design/Skill/Skill-System.md 주입 → Human 승인 (HISTORY Q45)
 
 relations:
   supports: [DC-SKILL-IS-COMBINATION-NOT-NAME, DC-TARGET-IS-INTENT-NOT-AIM]

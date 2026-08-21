@@ -3,7 +3,7 @@
 #   확장한다) · §12 수용 기준 18 ·
 #   design/Skill/World-Spatial-Presence.md §1 (왜 먼저 필요한가) · §3 (전투 전용이
 #   아니다) · §10 (Observation 경계) · §13 (금지 구조)
-# 주입(Inject)으로 세웠다 — DRAFT, Human 승인 대기 (open-questions Q45).
+# 주입(Inject)으로 세운 뒤 2026-08-21 Human 승인 (HISTORY Q45).
 id: DC-SKILL-PRESENCE-IS-WORLD-NOT-SKILL
 type: constraint
 
@@ -51,9 +51,9 @@ prohibits:
   - 그 존재가 피해량 · 공식 · 관찰 가능성을 소유하는 것                  # SK-SP §2 · §10
 prefers: []
 
-status: DRAFT
+status: APPROVED
 provenance:
-  - HUMAN_DESIGN        # design/Skill/Skill-System.md 주입 — 승인 대기 (open-questions Q45)
+  - HUMAN_DESIGN        # design/Skill/Skill-System.md 주입 → Human 승인 (HISTORY Q45)
 
 relations:
   supports: [DC-SKILL-COMBINE-BEFORE-NEW-FORM, DC-WORLD-OWNS-THE-SURFACE-LIST]

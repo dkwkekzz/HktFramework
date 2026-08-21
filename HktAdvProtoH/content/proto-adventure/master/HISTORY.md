@@ -1724,3 +1724,34 @@ Human 이 "FR-ACTION-PHASE 의 근간이 무엇인가" 를 물어 근간을 역�
         수치 — 반경 · 각도 · 틱 간격 · 비행 속도는 전부 문서에 남겼다 (정책 §7.2)
         DIRECT 칸의 채움 — C020 의 던지기가 SK §8 의 대상 직접 실행과 같은 모양이지만
         문서가 그 노드를 지목하지 않았으므로 비워 두었다 (구판 판정과 같은 기준)
+
+## Q45. SK 최종안이 새로 명시한 Constraint 셋을 승인하는가 — CLOSED
+
+    DECISION      (a) 셋 다 승인 (Human · 2026-08-21)
+                  PRESENCE 의 Scope 는 `SKILL` 유지 — 근거가 스킬 영역 문서이므로
+                  영역을 넘기지 않는다 (Human · 같은 날)
+
+    DC-SKILL-ANCHOR-IS-NOT-RESOLUTION · DC-SKILL-EFFECT-MUST-ALREADY-EXIST ·
+    DC-SKILL-PRESENCE-IS-WORLD-NOT-SKILL 이 Active 가 되었다. 문안은 주입판 그대로다
+    (Q23 · Q30 · Q41 선례 — 원본보다 세게 쓰지 않는다). Scope 는 셋 다 `SKILL` 이다.
+
+    같은 결정에 포함된 것 — Active 셋(IS-COMBINATION-NOT-NAME ·
+    DELIVERY-IS-NOT-EFFECT · COMBINE-BEFORE-NEW-FORM)의 근거를 삭제된 구판(SF)에서
+    최종안(SK)으로 옮긴 재정합이 확정됐다. 셋 다 REVISED 이며 방향과 금지 범위는
+    그대로다. 바뀐 것은 조합의 항 이름(여섯 → 다섯) · 추가 기준의 수(다섯 → 여섯) ·
+    자리 이름(Delivery → Execution) 셋뿐이다. `DELIVERY-IS-NOT-EFFECT` 의 ID 는
+    유지했다 — 이력이 이미 그 ID 로 여럿을 가리킨다.
+
+    승인과 함께 MC-COMBAT-STRIKE 에 ANCHOR-IS-NOT-RESOLUTION 을 걸었다 —
+    SATISFIED. 지금 세계의 휘두름은 고른 대상(`CurrentTarget`)을 읽지 않는다.
+    맞는 것을 정하는 것은 칼끝이 쓸고 지나간 호이고(`world/semantic/collision.ts`),
+    호에 든 여럿이 각각 맞으며 한 휘두름에 같은 몸은 한 번만 맞는다
+    (`world/simulation/swing-strike.ts` — `StruckActorIds` · `Result Struck(대상 수)`).
+    나머지 둘은 노드에 걸지 않았다 — EFFECT-MUST-ALREADY-EXIST 가 구속할 새 효과도,
+    PRESENCE-IS-WORLD-NOT-SKILL 이 구속할 몸 아닌 존재도 세계에 아직 없다.
+
+    Scope 를 넓히지 않은 결과 하나가 남는다. Frontier 후보 7(물건이 몸 밖에 놓인다)이
+    요구하는 것이 PRESENCE 와 같은 자리이지만, 그 후보는 이 원칙에 구속되지 않는다.
+    그쪽을 구속하려면 아이템·세계 영역 문서가 같은 의미를 근거로 세워야 한다.
+
+    Active Constraint 는 29종 → 32종.

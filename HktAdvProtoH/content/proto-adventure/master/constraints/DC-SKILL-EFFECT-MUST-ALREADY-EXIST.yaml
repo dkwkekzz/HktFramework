@@ -2,7 +2,7 @@
 #   존재하는 State Transition Capability 만 사용할 수 있다) · §12 수용 기준 16 ·
 #   design/Skill/Skill-Effect.md §1 (Effect 의 정의) · §5 (미구현 Effect 를 선점하지
 #   않는다) · §6 (새 Effect Capability 도입 절차)
-# 주입(Inject)으로 세웠다 — DRAFT, Human 승인 대기 (open-questions Q45).
+# 주입(Inject)으로 세운 뒤 2026-08-21 Human 승인 (HISTORY Q45).
 id: DC-SKILL-EFFECT-MUST-ALREADY-EXIST
 type: constraint
 
@@ -47,9 +47,9 @@ prohibits:
   - 스킬 설계가 다른 층(회복 · 조건 등)의 의미를 먼저 정의하는 것        # SK-EF §5
 prefers: []
 
-status: DRAFT
+status: APPROVED
 provenance:
-  - HUMAN_DESIGN        # design/Skill/Skill-System.md 주입 — 승인 대기 (open-questions Q45)
+  - HUMAN_DESIGN        # design/Skill/Skill-System.md 주입 → Human 승인 (HISTORY Q45)
 
 relations:
   supports: [DC-COMBAT-ONE-LAYER-AT-A-TIME, DC-SKILL-DELIVERY-IS-NOT-EFFECT]

@@ -2,9 +2,8 @@
 
 파일 하나 = Constraint 하나. 이름은 `DC-<NAME>.yaml`. 형식은 [../SCHEMA.md](../SCHEMA.md).
 
-현재: **Active 29종** — 전투 5종(1종 REVISED) + 성장 6종 + 세계 5종 +
-아이템 6종(1종 REVISED) + 스킬 3종(전부 REVISED) + GLOBAL 4종.
-보류(DRAFT) **3종** — 전부 스킬 영역이며 Human 승인 대기다 (open-questions Q45).
+현재: **Active 32종** — 전투 5종(1종 REVISED) + 성장 6종 + 세계 5종 +
+아이템 6종(1종 REVISED) + 스킬 6종(3종 REVISED) + GLOBAL 4종. 보류(DRAFT)는 없다.
 
 근거 문서:
 
@@ -84,7 +83,7 @@ IE §x   design/Design-Inventory-Equipment-D1.md       아이템(ITEM) 영역 �
 인용 § 다. `DELIVERY-IS-NOT-EFFECT` 의 ID 는 SK 가 그 축을 `Execution` 으로 부르게
 된 뒤에도 유지한다 — 이력이 이미 그 ID 로 여럿을 가리킨다.
 
-### 보류 — DRAFT (스킬 — SK 최종안이 새로 명시 · Q45 승인 대기)
+### Active — APPROVED (스킬 — SK 최종안이 새로 명시 · Q45 승인)
 
 | Constraint | 한 줄 | 근거 |
 |---|---|---|
@@ -92,7 +91,12 @@ IE §x   design/Design-Inventory-Equipment-D1.md       아이템(ITEM) 영역 �
 | DC-SKILL-EFFECT-MUST-ALREADY-EXIST | 스킬은 지금 세계에 있는 상태 변화만 부른다 — 없는 효과의 이름을 미리 두지 않는다 | SK 핵심 원칙 7 · SK-EF §5 · §6 |
 | DC-SKILL-PRESENCE-IS-WORLD-NOT-SKILL | 몸 아닌 것이 세계에 자리를 가지는 일은 세계의 능력 — 스킬 안에 임시로 만들지 않는다 | SK 핵심 원칙 6 · SK-SP §1 · §3 |
 
-승인 전까지 Frontier 의 Constraint 평가에서 구속력이 없고, 노드에도 걸지 않았다.
+셋은 구판에 없던 의미이며 최종안이 새로 명시했다. `PRESENCE-IS-WORLD-NOT-SKILL` 의
+Scope 는 `SKILL` 하나로 둔다 (Q45 — 근거가 스킬 영역 문서이므로 영역을 넘기지 않는다).
+Frontier 후보 7(물건이 몸 밖에 놓인다)이 같은 자리를 요구하지만, 그쪽을 구속하려면
+그 층의 문서가 근거로 서야 한다.
+`ANCHOR-IS-NOT-RESOLUTION` 은 MC-COMBAT-STRIKE 에 걸려 SATISFIED 다 — 지금 세계의
+휘두름은 고른 대상을 읽지 않고 접촉이 맞는 것을 정한다.
 
 ### Active — APPROVED (GLOBAL — 기획 문서 주입)
 

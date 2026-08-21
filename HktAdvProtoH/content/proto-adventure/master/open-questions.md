@@ -11,7 +11,7 @@ Human 이 답한다    DECISION 줄
 답이 정해지면 해당 Node/Constraint 에 반영하고 **이 파일에서 지운 뒤 결정 내용을
 [HISTORY.md](HISTORY.md) 로 옮긴다.**
 
-미해결 **6건** — 닫힌 질문은 HISTORY.md.
+미해결 **5건** — 닫힌 질문은 HISTORY.md.
 
 [frontier.md](frontier.md) 의 `SELECTED` 는 FR-WHAT-YOU-CARRY-TAKES-ROOM
 (자리가 유한해진다)이고 C022 가 그것을 돈다 — 여덟 Stage 의 실측은 끝났고
@@ -112,8 +112,9 @@ Q36 은 이미 세계에 있는 물건의 유래 문제이며, Q37 · Q38 은 C0
 
                   원칙 셋(IS-COMBINATION-NOT-NAME · DELIVERY-IS-NOT-EFFECT ·
                   COMBINE-BEFORE-NEW-FORM)은 Human 이 승인해 Active 이며(HISTORY Q41),
-                  근거만 SK 로 옮겨 REVISED 다. 최종안이 새로 명시한 셋은 DRAFT 로
-                  대기 중이다 (Q45).
+                  근거만 SK 로 옮겨 REVISED 다. 최종안이 새로 명시한 셋도 승인되어
+                  Active 다 (HISTORY Q45) — 그중 ANCHOR-IS-NOT-RESOLUTION 은
+                  MC-COMBAT-STRIKE 에서 SATISFIED 다.
 
     DECISION      PENDING
 
@@ -216,68 +217,5 @@ Q36 은 이미 세계에 있는 물건의 유래 문제이며, Q37 · Q38 은 C0
     Agent 판단     지금 판단할 근거가 부족하다. 세계에 놓인 아이템이 어떻게 사라지는지
                   (소멸 시간 · 소유권)를 MC-TRANSFER-ITEM 이 정한 뒤라야 (a) 의 비용을
                   볼 수 있다. **그 Cycle 의 Stage 1 로 미루는 것**을 권한다.
-
-    DECISION      PENDING
-
-## Q45. SK 최종안 주입 — Constraint 셋의 승인과 셋의 재정합 — OPEN
-
-    무엇          2026-08-21 Human 이 스킬 기획을 최종안으로 확장·분할하고
-                  (`design/Skill/` 4종 — Skill-System · Skill-Execution-Form ·
-                  World-Spatial-Presence · Skill-Effect), 구판
-                  `design/Design-Combat-SkillForm-R0.md`(SF)의 삭제와 근거 재배선을
-                  지시했다. 주입 결과 결정이 필요한 것이 둘이다.
-
-    (1) 재정합    Active 셋의 근거가 SF § 에서 SK § 로 옮겨졌다 — 삭제된 문서를
-                  가리키는 인용은 남길 수 없으므로 이 부분은 선택지가 아니다.
-                  다만 옮기면서 **문안이 함께 바뀐 곳**이 있어 확인이 필요하다.
-                      IS-COMBINATION-NOT-NAME  조합의 항이 여섯(발동·지목·전달·형상·
-                                               시점·효과)에서 다섯(발동·대상 기준·실행·
-                                               대상 결정·효과)으로 바뀌었다. 형상은
-                                               공간 조회의 한 칸이 되고 시점은 사건의
-                                               형태가 되었으며 지목이 둘로 갈렸다
-                      COMBINE-BEFORE-NEW-FORM  추가 기준이 다섯에서 여섯이 되었고
-                                               (늘어난 항은 기존 항의 분리다),
-                                               "부족한 것만 그 Cycle 에서 구현한다" 가
-                                               prefers 로 남았다
-                      DELIVERY-IS-NOT-EFFECT   금지 문구의 자리 이름만 Delivery →
-                                               Execution 으로 바뀌었다. ID 는
-                                               유지했다 — 인용하는 이력이 이미 여럿이다
-                  셋 다 status 는 REVISED, 방향과 금지 범위는 그대로다.
-
-    (2) 신규      최종안이 **새로 명시한** 원칙 셋이 DRAFT 로 서 있다. 구판에 없던
-                  의미이며, 승인 전까지 Frontier 의 Constraint 평가에서 구속력이 없다.
-                      DC-SKILL-ANCHOR-IS-NOT-RESOLUTION
-                          어디를 기준으로 쓰는가와 누가 맞는가는 다른 질문이다.
-                          한 명이냐 여럿이냐를 스킬 종류로 만들지 않는다 (SK §3 · §7)
-                      DC-SKILL-EFFECT-MUST-ALREADY-EXIST
-                          스킬은 지금 세계에 있는 상태 변화만 부른다. 아직 없는 효과의
-                          이름을 미리 목록에 두지 않는다 (SK 핵심 원칙 7 · SK-EF §5)
-                      DC-SKILL-PRESENCE-IS-WORLD-NOT-SKILL
-                          몸 아닌 것이 세계에 자리를 가지는 일은 세계의 능력이다.
-                          스킬 안에 임시로 만들지 않는다 (SK 핵심 원칙 6 · SK-SP §1 · §3)
-
-    영향          차단 아님. 지금 도는 Cycle(C022)과 무관하고, Frontier 후보 8
-                  (휘두름의 모양이 값이 된다)의 Constraint 평가도 Active 셋만으로
-                  이미 SATISFIED 다. 다만 신규 셋이 승인되면 후보 8 의 평가에 한 줄이
-                  더해진다 — ANCHOR-IS-NOT-RESOLUTION 은 "모양이 여럿을 치는 것은
-                  종류가 아니라 결과다" 를 그 Cycle 이 지켜야 할 형태로 만든다.
-
-    선택지        (a) 셋 다 승인 → Active 29종 → 32종. 재정합 셋도 그대로 확정
-                  (b) 일부만 승인 — 특히 PRESENCE 는 세계에 아직 그런 존재가 하나도
-                      없으므로 "그 층의 설계 문서가 나올 때까지 보류" 가 가능하다
-                      (Q10(c) · Q12 선례)
-                  (c) 문안 수정 후 승인 — 어느 항목이 원본보다 센지 지목
-
-    함께 결정할 것  PRESENCE 의 scope 를 `SKILL` 하나로 두었다. 그 문서는 그 자리가
-                  전투 전용이 아니라고 명시하지만(SK-SP §3 — 떨어진 물건 · 설치물 ·
-                  문 · 시체), 근거 문서가 스킬 영역 문서이므로 영역을 넘기지 않았다
-                  ("근거는 영역을 넘지 않는다" — HISTORY Q15). Frontier 후보 7
-                  (물건이 몸 밖에 놓인다)이 요구하는 것이 같은 자리이므로, 그 후보가
-                  열릴 때 이 원칙이 구속하기를 원한다면 scope 에 `ITEM` 또는 `WORLD` 를
-                  더해야 한다. Agent 가 임의로 넓히지 않았다.
-
-    승인되면 할 일  노드 배선은 승인 뒤에 한다 — MC-COMBAT-STRIKE 에
-                  ANCHOR-IS-NOT-RESOLUTION 을 걸지(지금 세계의 휘두름은 고른 것을 읽지
-                  않으므로 SATISFIED 로 보인다) 여부가 첫 건이다. 지금은 걸지 않았다.
 
     DECISION      PENDING
