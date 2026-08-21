@@ -239,10 +239,10 @@ describe('INTENT-USE-TARGET-POLICY-001 — 대상 요구는 정의가 밝힌다'
     expect((result as { reason: string }).reason).toBe('target-kind-mismatch');
   });
 
-  it('손이 닿는 거리 밖이면 쓸 수 없다 — 원거리 경로를 열지 않는다', () => {
+  it('그 물건이 닿는 거리 밖이면 쓸 수 없다', () => {
     const world = driveWorld({
       npcs: [hostileNpc({ x: 9, z: 0 })],
-      actorPosition: { x: 0, z: 0 }, // 거리 9 > InteractionRange 2
+      actorPosition: { x: 0, z: 0 }, // 거리 9 > 돌의 사거리 5
       actorItems: { stone: 2 },
     });
     selectTarget(world, 'npc-1');
@@ -343,6 +343,42 @@ describe('INTENT-EFFECT-BEGIN-DECLARED-ACT-001 — 둘째 갈래', () => {
     const view = world.observe();
     expect(count(view, 'pickaxe')).toBe(1); // 도구는 닳지 않는다
     expect(count(view, 'stone')).toBe(1); // 대신 캔 것이 늘었다
+  });
+
+  it('사거리도 정의가 지닌다 — 물건마다 다른 값이며 규칙은 읽기만 한다', () => {
+    // 돌은 손이 닿는 거리(2.0)보다 멀리 닿는다. 곡괭이는 자기 거리를 밝히지 않으므로
+    // 그 행동의 판정이 쓰는 거리를 그대로 쓴다.
+    expect(ITEM_CATALOG.stone.use?.range).toBe(5);
+    expect(ITEM_CATALOG.pickaxe.use?.range).toBeUndefined();
+  });
+
+  it('손이 닿는 거리 밖 · 자기 사거리 안이면 쓸 수 있다 (Stage 8 반환의 해소)', () => {
+    const world = driveWorld({
+      npcs: [hostileNpc({ x: 4, z: 0 })],
+      actorPosition: { x: 0, z: 0 }, // 거리 4 — InteractionRange 2 밖, 돌의 사거리 5 안
+      actorItems: { stone: 2 },
+    });
+    selectTarget(world, 'npc-1');
+
+    expect(useAction(world.observe(), 'stone')?.available).toBe(true);
+
+    const before = npc(world.observe())?.vitality?.health ?? 0;
+    useFully(world, 'stone');
+
+    // 다가가지 않고도 위력이 전해진다 — "붙기 전에 한 발"
+    expect(npc(world.observe())?.vitality?.health).toBeLessThan(before);
+    expect(count(world.observe(), 'stone')).toBe(1);
+  });
+
+  it('사거리가 늘어도 손이 닿는 거리는 그대로다 — 채집은 영향받지 않는다', () => {
+    const world = driveWorld({
+      npcs: [],
+      actorPosition: { x: 8, z: -2 }, // 광맥(8,-6)과 거리 4 — 돌의 사거리 안이지만
+      depositAmount: 5, //              채집의 거리(2) 밖이다
+    });
+    selectTarget(world, 'deposit-1');
+
+    expect(world.observe().interactions.find((i) => i.id === 'mine')?.reason).toBe('out-of-range');
   });
 
   it('두 갈래가 서로 다른 소모 성질을 지닌다 — 자리가 분기가 아니다', () => {

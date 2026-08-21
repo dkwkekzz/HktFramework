@@ -109,7 +109,9 @@ inventory:
           - not-enough            # 필요한 만큼 지니지 않았다
           - no-target-selected    # 아무것도 고르지 않았다
           - target-kind-mismatch  # 고른 것이 이 물건이 요구하는 것이 아니다
-          - out-of-range          # 고른 것이 손이 닿는 거리 밖이다
+          - out-of-range          # 고른 것이 **그 물건이 닿는 거리** 밖이다
+                                  #   거리는 물건마다 다르며 정의가 지닌다.
+                                  #   화면은 그 수를 알 필요가 없다 — 사유만 옮긴다
           - action-busy           # 지금 하는 행동을 대체할 수 없다
           - deposit-depleted      # (위임 갈래) 그 광맥에 남은 것이 없다
         meaning: >
@@ -292,6 +294,8 @@ closure:
 excluded:
   남의 소지품: 이 Cycle 은 내 몸의 것만 싣는다 (INTENT-PER-OBSERVER-PROJECTION-001)
   남이 무엇을 쓰는지: 위와 같은 이유. 쓰고 있다는 것까지만 보인다
+  물건의 사거리 수치: 얼마나 멀리 닿는지를 화면에 싣지 않는다. 되는가/안 되는가와
+                 그 사유가 이미 답한다 — 수를 싣기 시작하면 화면이 거리를 재게 된다
   물건의 위력 수치: 스킬의 profile 에 해당하는 자리를 아이템에 만들지 않는다 —
                  이 Cycle 은 "얼마나 센가" 를 미리 재는 층을 열지 않는다.
                  결과는 strikeEvents 의 내역이 이미 전부 답한다

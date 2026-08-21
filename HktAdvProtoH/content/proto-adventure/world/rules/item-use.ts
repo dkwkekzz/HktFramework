@@ -9,7 +9,8 @@
 //                deliver-force 이면
 //                    4. 고른 것이 있고 요구 종류와 맞다   (no-target-selected /
 //                                                        target-kind-mismatch)
-//                    5. 그 대상이 InteractionRange 이내    (out-of-range)
+//                    5. 그 대상이 그 물건의 사거리 이내     (out-of-range)
+//                       사거리는 **정의가 지닌다** — 밝히지 않으면 손이 닿는 거리다
 //                    6. 현재 행동이 대체 가능하다          (action-busy)
 //                    CurrentAction = use-item(kind, 고른 대상)
 // Result         Success | Failure(reason)
@@ -90,6 +91,16 @@ const DECLARED_ACTS: Readonly<
   },
 };
 
+/**
+ * 이 사용이 닿을 수 있는 거리 — 정의가 밝히지 않으면 손이 닿는 거리다.
+ *
+ * 규칙은 종류를 묻지 않는다. 물건마다 닿는 거리가 다른 것은 데이터이며,
+ * 새 아이템이 자기 거리를 지녀도 이 함수는 바뀌지 않는다.
+ */
+function useRange(use: ItemUse): number {
+  return use.range ?? INTERACTION_RANGE;
+}
+
 /** 이 사용이 요구하는 대상을 찾는다. 요구하지 않으면 null 을 돌려준다 */
 function resolveTarget(
   state: WorldState,
@@ -145,7 +156,7 @@ export function evaluateItemUse(
 
   const target = resolveTarget(state, observerId, use);
   if (target && 'failure' in target) return target.failure;
-  if (target && distance(actor.position, target.actor.position) > INTERACTION_RANGE) {
+  if (target && distance(actor.position, target.actor.position) > useRange(use)) {
     return 'out-of-range';
   }
   return evaluateActionBegin(actor);
@@ -245,7 +256,7 @@ export function ruleItemUseComplete(state: WorldState, actor: ActorState): Actio
     const targetId = actor.currentAction.usedItemTargetId;
     target = state.actors.find((a) => a.id === targetId);
     if (!target) return { status: 'failure', rule: RULE_ITEM_USE_COMPLETE, reason: 'target-gone' };
-    if (distance(actor.position, target.position) > INTERACTION_RANGE) {
+    if (distance(actor.position, target.position) > useRange(use)) {
       return { status: 'failure', rule: RULE_ITEM_USE_COMPLETE, reason: 'out-of-range' };
     }
     if (isDowned(target)) {
