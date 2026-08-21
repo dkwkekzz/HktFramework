@@ -32,6 +32,7 @@ import {
   type EffectMemory,
 } from './effect-presentation';
 import { hudPresentation } from './hud-presentation';
+import { inventoryHudItems } from './inventory-presentation';
 import { interactionPresentation } from './interaction-presentation';
 import { codeText } from './code-text';
 import { contactMark } from './relation-presentation';
@@ -238,7 +239,11 @@ export function resolvePresentation(
     // C017 — 고른 대상 자리. 세계가 보낸 hud 항목이 아니라 계약의 여러 자리를
     // 결정 Layer 가 모아 만든 줄들이다 (04 VIEW ASSEMBLY NOTE). 앞에 둔다 —
     // "지금 누구를 상대하는가" 는 소지품보다 먼저 읽혀야 한다.
-    hud: [...targetHudItems(snapshot, codeText), ...snapshot.hud.filter((h) => !isSelfHudId(h.id)).map((h) => {
+    hud: [
+      ...targetHudItems(snapshot, codeText),
+      // C020 — 가진 것 전부. 세계가 준 순서에 칸 번호만 붙인다
+      ...inventoryHudItems(snapshot, codeText),
+      ...snapshot.hud.filter((h) => !isSelfHudId(h.id)).map((h) => {
       const p = hudPresentation(h.id);
       return {
         id: h.id,

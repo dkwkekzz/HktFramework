@@ -123,16 +123,6 @@
   ],
   "hud": [
     {
-      "id": "inventory.stone",
-      "kind": "counter",
-      "value": 0
-    },
-    {
-      "id": "tool.hasMiningTool",
-      "kind": "flag",
-      "value": true
-    },
-    {
       "id": "player.action",
       "kind": "label",
       "value": "idle"

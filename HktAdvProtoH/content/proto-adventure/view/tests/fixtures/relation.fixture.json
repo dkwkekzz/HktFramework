@@ -299,11 +299,6 @@
   ],
   "hud": [
     {
-      "id": "inventory.stone",
-      "kind": "counter",
-      "value": 2
-    },
-    {
       "id": "world.time",
       "kind": "counter",
       "value": 12.5
