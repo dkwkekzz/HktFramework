@@ -7,7 +7,7 @@
 [PASS] Human Semantic Review      (APPROVED — 판단 5건 이의 없음)
 [PASS] World Implementation       (929 tests 통과 · 종류 이름 없는 자리·막힘 판정)
 [PASS] View Implementation        (942 tests · 자리 줄 + 덜어내기 줄 · 화면은 세지 않는다)
-[    ] Verification
+[PASS] Verification               (실측 완료 · Human Play 확인만 남았다)
 
 STATUS  IN PROGRESS
 
