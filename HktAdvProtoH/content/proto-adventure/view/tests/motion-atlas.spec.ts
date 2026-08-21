@@ -9,9 +9,9 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { buildAtlas } from '../../../../tools/motion-atlas/build-atlas';
 import { detectSheet } from '../../../../tools/motion-atlas/detect-frames';
-import { renderAtlasModule } from '../../../../tools/motion-atlas/emit';
+import { renderAtlasModule, sameGeneratedContent } from '../../../../tools/motion-atlas/emit';
 import { readPngAlpha } from '../../../../tools/motion-atlas/png-alpha';
-import { atlasModulePath, projectRoot } from '../../../../tools/motion-atlas/scan';
+import { atlasModulePath, projectRoot, scanMotions, storedInputHash } from '../../../../tools/motion-atlas/scan';
 import { MOTION_ATLAS } from '../motion-atlas.generated';
 import {
   frameUv,
@@ -62,7 +62,17 @@ describe('생성물이 motions/ 와 일치한다', () => {
   it('motion-atlas.generated.ts 가 최신이다 (아니면 npm run motions:scan)', () => {
     const { atlas, inputHash } = buildAtlas(ROOT);
     const expected = renderAtlasModule(atlas, inputHash);
-    expect(readFileSync(atlasModulePath(ROOT), 'utf8')).toBe(expected);
+    // 줄바꿈은 내용이 아니다 — CRLF 로 체크아웃한 작업 트리에서도 같은 판정이어야 한다
+    expect(sameGeneratedContent(readFileSync(atlasModulePath(ROOT), 'utf8'), expected)).toBe(true);
+  });
+
+  it('시트가 그대로면 다시 만들지 않는다 — 게임을 켤 때마다 생성물이 바뀌지 않는다', () => {
+    const { inputHash } = buildAtlas(ROOT);
+    expect(storedInputHash(ROOT)).toBe(inputHash);
+
+    const reused = buildAtlas(ROOT, { reuseIfHash: inputHash });
+    expect(reused.upToDate).toBe(true);
+    expect(scanMotions(ROOT, { reuseIfUnchanged: true }).changed).toBe(false);
   });
 
   it('주입된 시트마다 기하가 하나씩 있다', () => {

@@ -35,6 +35,7 @@ import {
   isGuardBroken,
   rawDamage,
   skillDefinition,
+  skillPhase,
 } from '../semantic/combat';
 import { concealedKeys, isAcquainted, isSeatOpen } from '../semantic/acquaintance';
 import { projectCommandCatalog } from '../semantic/command-catalog';
@@ -91,6 +92,7 @@ export function projectObserverView(
     // (INTENT-ATTRIBUTE-OBSERVE-001). 늘 화면에 띄울지는 View 의 선택이다.
     const modifiers = actorModifiers(actor);
 
+    const phase = skillPhase(actor); // C019 — 기술 중에만 값이 있다
     entities.push({
       id: actor.id,
       role: isSelf
@@ -99,6 +101,10 @@ export function projectObserverView(
           ? 'other-player-character'
           : 'npc-character',
       state: actor.currentAction.kind, // idle | move | attack | heavy-attack | mine | hit | downed
+      // C019 ADDED — 기술을 쓰는 중이면 그 구간이 함께 온다 (RULE-SKILL-PHASE-001).
+      // 가려지지 않는다: 살펴보지 않아도, 통찰이 0 이어도 실린다 — 가리면 끊는 판단
+      // 자체가 성립하지 않는다. 자기 몸에도 남의 몸에도 같은 규칙으로 실린다.
+      ...(phase !== null ? { actionPhase: phase } : {}),
       name: actor.name, // C007 — 불러 줄 이름
       kind: actor.characterKind,
       position: { x: actor.position.x, z: actor.position.z },
@@ -301,6 +307,8 @@ export function projectObserverView(
       charge: basic.cpCharge,
       cost: basic.cpCost,
       damageType: basic.damageType, // C012 — 각 스킬이 어떤 방식인지 세계가 밝힌다
+      swingBegin: basic.swingBegin, // C019 — 고르기 전에 아는 선딜
+      swingEnd: basic.swingEnd,
     },
   });
 
@@ -318,6 +326,8 @@ export function projectObserverView(
       charge: heavy.cpCharge,
       cost: heavy.cpCost,
       damageType: heavy.damageType, // C012
+      swingBegin: heavy.swingBegin, // C019
+      swingEnd: heavy.swingEnd,
     },
   });
 
@@ -339,6 +349,8 @@ export function projectObserverView(
       charge: aura.cpCharge,
       cost: aura.cpCost,
       damageType: aura.damageType, // C012
+      swingBegin: aura.swingBegin, // C019
+      swingEnd: aura.swingEnd,
     },
   });
 
@@ -530,6 +542,16 @@ export function projectObserverView(
       at: { x: contact.position.x, z: contact.position.z },
       since: contact.time,
       reason: contact.reason,
+    })),
+    // World.CancelEvents (C019) — 선딜 중에 끊겨 없던 일이 된 기술들.
+    // 타격 결과·무산된 접촉과 나란히 실린다. 이것이 없으면 화면에서 캔슬은 "그냥 맞았다"
+    // 와 구분되지 않는다 (INTENT-CANCEL-IS-OBSERVABLE-001).
+    cancels: state.cancelEvents.map((event) => ({
+      attackerId: event.attackerId,
+      targetId: event.targetId,
+      skill: event.skill,
+      at: { x: event.position.x, z: event.position.z },
+      since: event.time,
     })),
     // World.DebugAuthority (C007 R2) — 이 세계가 조작을 허용하는가.
     debug: {

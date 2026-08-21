@@ -2,20 +2,20 @@
 // Implements INTENT-ATTACK-001 · INTENT-ATTACK-HIT-001(C006 CHANGED) ·
 //            INTENT-HIT-REACTION-001 · INTENT-BODY-FACING-001(R1)
 //
-// C006 CHANGED — 타격은 완료 순간이 아니라 휘두름 구간 [SWING_BEGIN, SWING_END] 의
+// C006 CHANGED — 타격은 완료 순간이 아니라 휘두름 구간 [DEFAULT_SWING_BEGIN, SWING_END] 의
 // 접촉이 정한다. R1 — 접촉 기준은 몸이 향한 방향(Facing)의 칼끝 충돌 구다:
 // 칼끝은 Facing 기준 ±SWING_ARC/2 호를 쓸고 지나가며, 등 뒤는 맞지 않는다.
 
 import { describe, expect, it } from 'vitest';
 import type { GameViewSnapshot } from '../../protocol/gameview';
-import { SWING_BEGIN } from '../semantic/collision';
+import { DEFAULT_SWING_BEGIN } from '../semantic/combat';
 import { TICK_INTERVAL } from '../semantic/world-state';
 import { driveWorld, PLAYER, type WorldDriver, selectTarget } from './drive';
 
 const ATTACK_DURATION = 0.6;
 const HIT_DURATION = 0.35;
 // 휘두름 구간이 열리고 조금 지난 시각 — 정면 대상은 이 시각까지 접촉이 판정돼 있다
-const AFTER_SWING_OPEN = SWING_BEGIN * ATTACK_DURATION + 2 * TICK_INTERVAL;
+const AFTER_SWING_OPEN = DEFAULT_SWING_BEGIN * ATTACK_DURATION + 2 * TICK_INTERVAL;
 
 // 물리 구간 판정은 세계의 Tick 주기로 표본화된다 — 검증도 실제 주기로 진행한다
 const tickFor = (world: WorldDriver, seconds: number) => {
@@ -102,7 +102,7 @@ describe('RULE-SWING-STRIKE-001 — 휘두름 구간의 칼끝 접촉이 정한�
     aimRight(world);
     world.dispatch({ interactionId: 'attack' });
 
-    tickFor(world, 0.1); // 아직 SWING_BEGIN(0.15초) 이전
+    tickFor(world, 0.1); // 아직 DEFAULT_SWING_BEGIN(0.15초) 이전
     expect(actor(world.observe(), 'npc-1')?.state).toBe('idle');
 
     tickFor(world, AFTER_SWING_OPEN - 0.1);

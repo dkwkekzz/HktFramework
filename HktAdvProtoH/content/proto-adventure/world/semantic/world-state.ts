@@ -7,7 +7,7 @@
 import type { CoreWorldState } from '../../../../engine/world-kernel/state';
 import type { AcquaintanceState } from './acquaintance';
 import type { ActorState } from './actor';
-import type { StrikeEvent } from './combat';
+import type { CancelEvent, StrikeEvent } from './combat';
 import type { TargetSelectionState } from './target-selection';
 import type { DepositState } from './deposit';
 import type { UnharmedContact } from './relation';
@@ -40,6 +40,10 @@ export interface WorldState extends CoreWorldState {
   // World.UnharmedContacts (C018 ADDED) — 닿았으나 해가 성립하지 않은 접촉들.
   // StrikeEvents 와 나란한 자리이며 같은 수명을 가진다 (semantic/relation.ts).
   unharmedContacts: UnharmedContact[];
+  // World.CancelEvents (C019 ADDED) — 선딜 중에 끊겨 없던 일이 된 기술들.
+  // StrikeEvents · UnharmedContacts 와 나란한 자리이며 같은 수명을 가진다
+  // (semantic/combat.ts).
+  cancelEvents: CancelEvent[];
   // World.TargetSelections (C017 ADDED) — 지금 이 관찰자가 누구를 고르고 있는가.
   // 항목이 없는 관찰자는 아무것도 고르지 않은 것이다 (semantic/target-selection.ts).
   targetSelections: TargetSelectionState[];

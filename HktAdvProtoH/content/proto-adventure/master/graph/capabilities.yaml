@@ -817,16 +817,18 @@ nodes:
       상대의 행동에 시작과 완성 사이의 구간이 있고, 그 구간에 노려서 개입하면
       행동이 완성되지 못하게 만들 수 있어야 한다.
     part_of:
-      grounded: false   # 근거 문서가 이름만 댔다 — 그 전체의 설계 문서가 서면 semantic 을 개정한다
+      grounded: true
       memberships:
         - system: MS-BEIRA-LADDER
           segment: DANGER
-          source: BW §23 (이름만) · BW §28
+          source: BW §23 · §28 (이름) — C002(RULE-HIT-001) 로 끊김의 의미가 세계에 섰다
     required_by: [MP-INTERRUPT]
     demanded_by: [MW-ZONE-DANGER]
-    constraints: []
-    constraint_evaluation: {}
-    overlay: PARTIAL
+    constraints: [DC-COMBAT-PLAYER-CAUSALITY, DC-COMBAT-ONE-FORMULA]
+    constraint_evaluation:
+      DC-COMBAT-PLAYER-CAUSALITY: SATISFIED   # 캔슬은 시점 관계로만 판정된다 — 난수가 쓰이지 않는다
+      DC-COMBAT-ONE-FORMULA: SATISFIED        # 피해 공식에 닿지 않는다 — 산정 자체가 일어나지 않는다
+    overlay: IMPLEMENTED
 
   # ── DEEP (BW §24) — 인간의 전투 상식이 무너진다 ───────────────────────
 

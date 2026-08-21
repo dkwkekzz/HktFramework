@@ -2,7 +2,7 @@
 
 파일 하나 = 후보 하나. 이름은 `CC-<NAME>.md`. 형식은 [../SCHEMA.md](../SCHEMA.md).
 
-현재: **PENDING 8종**
+현재: **PENDING 9종**
 
 | 후보 | 출처 | 관찰 | 상태 |
 |---|---|---|---|
@@ -14,8 +14,13 @@
 | CC-THE-CHOICE-IS-THE-OBSERVERS-OWN | C017 | **3회** (C004 · C014 · C017) | PENDING |
 | CC-A-GATE-MOVES-WITH-ITS-MEANING | C017 | 1회 (C017 · C014 는 전조) | PENDING |
 | CC-REASONS-ARE-A-LIST-NOT-A-BRANCH | C018 | 1회 (C018 — Cycle 이 보류를 권했다) | PENDING |
+| CC-THE-WORLD-JUDGES-THE-MOMENT | C019 | **2회** (C012 · C019) | PENDING |
 
 네 무리로 읽는다.
+
+**표면 무리 (4종 — C019 로 하나 늘었다)** — 새로 든 THE-WORLD-JUDGES-THE-MOMENT 는
+"판정을 세계가 소유한다" 이고, 아래 셋은 "값·목록을 세계가 소유한다" 다. 넷 다
+`DC-WORLD-OWNS-THE-SURFACE-LIST` 와의 경계 판단을 기다리므로 한자리에서 본다.
 
 **표면 무리 (3종)** — NAMES-WHAT-IT-READ(무엇을 읽었는가) · OWNS-THE-RELATION(두 존재
 사이의 값) · NAMES-WHAT-IT-WITHHELD(무엇을 가렸는가)는 모두

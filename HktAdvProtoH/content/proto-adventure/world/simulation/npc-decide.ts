@@ -1,8 +1,9 @@
-// RULE-NPC-DECIDE-001 — Implements INTENT-NPC-AUTONOMY-001
+// RULE-NPC-DECIDE-001 — Implements INTENT-NPC-AUTONOMY-001 (C019 CHANGED)
 // Input          Control = autonomous 인 Actor, 세계의 다른 Actor 들
 // Preconditions  현재 행동이 대체 가능하다 (attack · mine 중에는 결정하지 않는다)
 // Transition     인지 대상 = PerceptionRange 안의 가장 가까운 다른 Actor
-//                  있음 + AttackRange 이내 → RULE-ATTACK-001 (대상 없이 휘두른다)
+//                  있음 + AttackRange 이내 → RULE-SKILL-BEGIN-001 (대상 없이 휘두른다)
+//                                            Cp >= 큰 기술 비용이면 heavy-attack, 아니면 attack (C019)
 //                  있음 + AttackRange 밖   → RULE-MOVE-001 (대상 Position 으로)
 //                  없음                    → WanderPath 순회 (RULE-MOVE-001)
 //                결정한 행동이 현재 행동과 같으면 유지한다
@@ -17,7 +18,7 @@ import type { WorldState } from '../semantic/world-state';
 import { evaluateActionBegin, isSameAction } from '../rules/action-begin';
 import { ruleSkillBegin } from '../rules/skill';
 import { ruleMove } from '../rules/move';
-import { isDowned } from '../semantic/combat';
+import { isDowned, skillDefinition, type SkillKind } from '../semantic/combat';
 import { ruleStance } from '../rules/relation';
 
 const ARRIVAL_EPSILON = 1e-6;
@@ -72,11 +73,17 @@ export function ruleNpcDecide(state: WorldState, actor: ActorState): 'decided' |
   if (target) {
     if (distance(actor.position, target.position) <= actor.attackRange) {
       // 대상을 넘기지 않는다 — 무엇이 맞을지는 휘두름 구간의 접촉이 정한다 (C006).
-      if (isSameAction(actor.currentAction, 'attack', {})) return 'unchanged';
       // RULE-BODY-FACING-001 (C006 R1) — 휘두르기 전에 겨눈 대상을 향해 몸을 돌린다.
       faceToward(actor, target.position.x - actor.position.x, target.position.z - actor.position.z);
-      // C007 — 자율 존재는 기본 스킬만 쓴다 (01 EXCLUDED "NPC 의 고급 스킬").
-      return ruleSkillBegin(actor, 'attack').status === 'success' ? 'decided' : 'unchanged';
+      // C019 CHANGED — 자율 존재도 큰 기술을 건다 (INTENT-NPC-AUTONOMY-001).
+      // 고르는 기준은 **지금 치를 수 있는가** 하나다. 패턴도 국면도 남은 생명도 보지
+      // 않는다 — 이 Cycle 이 여는 것은 "큰 기술을 건다" 이지 판단 구조가 아니다.
+      // 기본 기술은 소모 없이 충전하고 큰 기술은 크게 소모하므로(C007 의 수지),
+      // 모았다가 크게 걸고 다시 모으는 흐름이 스스로 생긴다 — 지어낸 주기가 아니다.
+      const heavy = skillDefinition('heavy-attack');
+      const chosen: SkillKind = actor.cp >= heavy.cpCost ? 'heavy-attack' : 'attack';
+      if (isSameAction(actor.currentAction, chosen, {})) return 'unchanged';
+      return ruleSkillBegin(actor, chosen).status === 'success' ? 'decided' : 'unchanged';
     }
 
     const destination = { x: target.position.x, z: target.position.z };

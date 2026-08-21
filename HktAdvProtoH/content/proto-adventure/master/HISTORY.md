@@ -1214,3 +1214,145 @@ part_of 도입    모든 MC-* 노드에 "이 조각이 속한 전체"를 정식 
     MISSING 으로 남고, 첫 Cycle 이 세우는 것은 그것이 얹힐 바닥(MC-USE-ITEM)이다.
     임의의 수치 회복으로 그 자리를 채웠다고 판정하지 않는다 (그 노드는 "체력을 얼마
     채운다" 가 아니라 "이전 상태로 되돌린다" 이므로).
+
+---
+
+## Master 정합 정정 — MC-INTERRUPT 의 grounded · MP-INTERRUPT 의 요구 · 후보 이름
+
+Human 이 "FR-ACTION-PHASE 의 근간이 무엇인가" 를 물어 근간을 역추적하다 나온 셋을
+한 번에 정정했다. 반영 결과는 각 살아 있는 문서가 소유하고, 여기에는 경위만 남긴다.
+
+### ① MC-INTERRUPT 의 part_of 가 grounded: false 였다 — true 로 재판정
+
+    무엇이 문제였나   후보의 Target 이 `grounded: false` 노드였다. 그것은 CLAUDE.md 원칙 21 ·
+                      SCHEMA · guides/master-frontier Must Not 이 금지하는 형태이고,
+                      frontier.md 자신의 "지금 열 수 없는 것" 표도 같은 사유로 베이라
+                      사다리의 잠정 조각을 막고 있었다 — 후보가 그 규칙을 어긴 채 서 있었다.
+
+    어떻게 판정했나   SCHEMA 의 판정 기준은 "semantic 문안이 확정 근거(**문서 문장 또는
+                      닫힌 Cycle**)를 가졌는가" 다. MC-INTERRUPT 의 semantic("진행 중인
+                      행동을 끊는다")은 C002 의 RULE-HIT-001 이 이미 세계에 세웠고
+                      overlay 가 코드 대조로 PARTIAL 을 실측했다 — Agent 의 잠정 번역이
+                      아니다. 같은 판정의 선례가 둘 있다: MC-CRITICAL-STRIKE
+                      (R1 §14 이름 → C015 로 의미 확정) · MC-BODY-FACING (문서 없음 →
+                      C006·C011 로 의미가 세계에 섰다).
+
+    지어내지 않은 것  R1(전투 근거 문서)은 끊김을 한 번도 말하지 않는다. 그래서
+                      MS-COMBAT-LADDER 소속을 새로 만들지 않았다 — 소속은 BW §23 DANGER
+                      하나 그대로이고, 바뀐 것은 grounded 와 그 근거 표기뿐이다.
+                      DANGER 층 전체(환경과 생물이 한 덩어리)는 여전히 문서가 없다.
+
+### ② MP-INTERRUPT 가 ABSENT 인 Knowledge 를 요구하고 있었다 — 배선 제거
+
+    무엇이 문제였나   `requires.knowledge: [MK-OPPONENT-FLOW-PATTERN]` 이었는데 그 노드는
+                      ABSENT 다 (힘을 공격/방어에 배분하는 상태가 세계에 없다 —
+                      MC-COMBAT-FLOW MISSING, R1 §14 Aura/Nen 층). overlay 의
+                      "하나만 없고 그마저 절반" 은 Capability 만 센 문장이라, 그대로
+                      두면 이 후보를 닫아도 MP-INTERRUPT 는 닫히지 않는다.
+
+    왜 요구가 아닌가  끊는 데 필요한 것은 **눈에 보이는 준비 동작**이지 상대의 힘 배분을
+                      아는 것이 아니다. MP-INTERRUPT 자신의 문장이 그렇게 말한다
+                      ("상대 행동의 시작을 읽는 시점 판단" · "정확한 한 순간이 아니라
+                      진행 중이면 성립"). MK 쪽 `revealed_by` 도 원래 둘뿐이었다
+                      (MP-EXPLOIT-OPEN-BODY · MP-READ-AND-COUNTER) — 되받아치기 갈래의
+                      지식이 끊기 갈래에 한쪽 방향으로만 매달려 있었던 것이다.
+                      제거로 그 비대칭이 사라졌다. 새 Knowledge 노드는 만들지 않았다 —
+                      준비 구간의 관찰은 이 후보가 세계에 직접 넣으므로 관문이 아니다.
+
+### ③ 후보 이름 — FR-ACTION-PHASE → FR-INTERRUPT-THE-STARTUP (선딜을 노려 끊는다)
+
+    왜 바꿨나        "행동 구간" 은 이 후보가 여는 것보다 넓다. 행동은 이미 세계의
+                     개념이고(C002), 구간도 이미 있다 — 앞선 정정이 확인한 사실이다.
+                     이름이 그 전부를 가리키면 후보의 경계가 이름에서 읽히지 않고,
+                     척추의 어느 자리인지도 보이지 않는다.
+
+    두 번 고쳤다     첫 개칭은 FR-INTERRUPT-THE-WINDUP("준비를 끊는다") 이었다.
+                     Human 이 "무슨 말인지 모르겠다" 고 지적했고 그 지적이 옳다 —
+                     windup 은 야구에서 온 말이고 "준비" 는 무엇을 준비하는지가
+                     빠져 있다. 이 프로젝트의 독자는 MMORPG 를 만드는 사람이므로
+                     그 바닥의 통용어로 쓴다: **선딜 · 판정 · 후딜 · 캔슬**.
+
+    새 이름의 근거   척추에서 이 후보의 자리는 MP-INTERRUPT(BW §28) → MC-INTERRUPT
+                     (BW §23) 다. 이름이 그 자리를 그대로 가리키고, 끊는 대상이
+                     **선딜**임을 함께 말한다 — CC(경직·기절)도 카운터도 아니라는
+                     경계가 이름 안에 든다. 후보의 내용(선딜 길이 · 노출 · 캔슬 판정
+                     셋)은 2026-08-20 Human 이 정한 그대로다.
+
+    배운 것          후보 이름은 그 후보를 처음 보는 사람이 무엇인지 알아볼 수 있어야
+                     한다. 우리가 만드는 것의 바닥(MMORPG)에 이미 이름이 있으면
+                     그것을 쓴다 — 새 말을 지어내면 같은 것을 두 번 배우게 된다.
+
+    흡수 이력        FR-INTERRUPT-DENIES-THE-BLOW 를 흡수한 판이 이 후보다 (위 병합 정정
+                     참조). 이름이 다시 INTERRUPT 를 갖게 되어 그 이력과도 맞는다.
+
+### 함께 갱신한 현재 상태 (③ 의 부산물)
+
+    master/README.md 의 "현재 상태" 숫자가 C015~C018 반영 전 값에 멈춰 있었다 —
+    Constraint 17→20 · Candidate 5→11 · Capability 42→45 · Frontier 5→2 ·
+    Open Question 0→1 · 기준 시점 C013·C014→C017·C018. 숫자의 단일 출처가
+    graph/GRAPH.md 머리말(재생성물)임을 README 에 적어 재발을 막았다.
+    overlay.md 의 "MG-OVERCOME-SUPERIOR-OPPONENT (10 갈래)" 도 11 로 정정했다.
+
+---
+
+## C019 닫힘 — 선딜을 노려 끊는다 (Master Feedback 반영)
+
+    Cycle          C019-startup-can-be-interrupted · STATUS COMPLETE
+    Frontier       FR-INTERRUPT-THE-STARTUP (Human 선택 2026-08-20 · 이름 두 번 고침)
+    사슬           MG-OVERCOME-SUPERIOR-OPPONENT → MP-INTERRUPT → MC-INTERRUPT
+                   BW §28 의 여덟 갈래 중 다섯 번째가 섰다
+
+### Overlay 승격
+
+    MC-INTERRUPT   PARTIAL → IMPLEMENTED
+        결손이었던 "끊는 것을 **노리는** 수단" 이 닫혔다. 근거는 08 의 실측이다 —
+        끊김이 선딜 구간에만 성립하고, 같은 개입이 시점만으로 갈리며(0.49 ↔ 0.51),
+        캔슬된 기술은 피해 0 이 아니라 산정 자체가 없다.
+
+    MP-INTERRUPT   PARTIAL → PRESENT
+        요구가 MC-INTERRUPT 하나뿐이었고 그것이 섰다. MG-OVERCOME-SUPERIOR-OPPONENT
+        의 다섯 번째 경로다 (C011 · C012 · C013 · C015 에 이어).
+
+    MW-ZONE-DANGER 의 demands 4종 중 하나가 채워졌다 (0/4 → 1/4).
+
+### Constraint Evaluation 기록
+
+    MC-INTERRUPT 노드에 둘을 남겼다 — 이 Cycle 에서 실제로 구현 형태를 제한했다.
+        DC-COMBAT-PLAYER-CAUSALITY   캔슬 판정에 난수가 한 번도 쓰이지 않는다.
+                                     세계의 흔들림(ChanceCursor)을 건드리지 않는다
+        DC-COMBAT-ONE-FORMULA        피해 공식 파일을 한 글자도 고치지 않았다.
+                                     캔슬은 공식 밖에서 그 산정이 일어나지 않게 한다
+    ONE-LAYER-AT-A-TIME · SURFACE-LIST 도 SATISFIED 였으나 노드에 남기지 않았다 —
+    구현 형태를 제한한 것이 아니라 지켜진 것이므로 (무차별 Edge 금지).
+
+### Constraint Candidate 접수
+
+    CC-THE-WORLD-JUDGES-THE-MOMENT (PENDING)
+        세계 안에서만 아는 경계로 갈리는 사실은 경계가 아니라 갈린 결과를 보낸다.
+        관찰 2회 — C012 의 defenseShape · C019 의 actionPhase.
+        표면 무리 셋과 경계가 겹치므로 넷을 한자리에서 볼 것을 제안했다.
+
+### 이 Cycle 이 다음에 남긴 것
+
+    행동 안의 시점을 읽는 규칙이 세계에 생겼다. R1 §14 Active Defense 층이 요구하는
+    "언제 눌렀는가" 가 이 위에 얹힌다 — MC-PERFECT-GUARD 의 결손이 "막기의 **시작
+    시각**이 판정에 쓰이지 않는다" 였고, 이제 그 바닥이 있다. 남은 것은 그 층의
+    설계 문서뿐이다 (overlay · frontier 의 해당 줄에 단서를 남겼다).
+
+### 후보 이름을 두 번 고친 경위
+
+    FR-ACTION-PHASE("행동 구간") → FR-INTERRUPT-THE-WINDUP("준비를 끊는다")
+                                 → FR-INTERRUPT-THE-STARTUP("선딜을 노려 끊는다")
+
+    첫 번째는 이미 세계에 있는 개념(C002 의 행동 · collision.ts 의 구간)까지 가리켜
+    후보보다 넓었다. 두 번째는 Human 이 "무슨 말인지 모르겠다" 고 지적했고 그 지적이
+    옳았다 — windup 은 야구에서 온 말이고 "준비" 는 무엇을 준비하는지가 빠져 있다.
+    세 번째에서 이 바닥(MMORPG)의 통용어로 갔다: **선딜 · 판정 · 후딜 · 캔슬**.
+
+    배운 것: 후보 이름은 그 후보를 처음 보는 사람이 무엇인지 알아볼 수 있어야 한다.
+    우리가 만드는 것의 바닥에 이미 이름이 있으면 그것을 쓴다 — 새 말을 지어내면
+    같은 것을 두 번 배우게 된다.
+
+### Master Gap
+
+    없음.

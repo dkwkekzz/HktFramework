@@ -10,7 +10,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join, relative, resolve } from 'node:path';
 import { activePackDir } from '../active-pack';
 import { buildAtlas, type SheetReport } from './build-atlas';
-import { renderAtlasModule, writeIfChanged } from './emit';
+import { renderAtlasModule, sameGeneratedContent, writeIfChanged } from './emit';
 
 /** 생성물이 놓이는 자리 — 활성 팩의 view/ 다 (P4: 모션 데이터는 팩 소유) */
 export function atlasModulePath(root: string): string {
@@ -21,19 +21,46 @@ export function projectRoot(): string {
   return resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
 }
 
-/** 분석 → 생성물 기록. 이미 최신이면 쓰지 않고 changed=false 를 돌려준다. */
-export function scanMotions(root = projectRoot()): {
+/** 생성물이 자기 입력 지문으로 남겨 둔 값 — 없거나 읽지 못하면 null */
+export function storedInputHash(root = projectRoot()): string | null {
+  try {
+    const source = readFileSync(atlasModulePath(root), 'utf8');
+    return /MOTION_ATLAS_INPUT_HASH = "([0-9a-f]+)"/.exec(source)?.[1] ?? null;
+  } catch {
+    return null; // 아직 없다 — 만들어야 한다
+  }
+}
+
+export interface ScanResult {
   changed: boolean;
   reports: SheetReport[];
   warnings: number;
-} {
-  const { atlas, reports, inputHash } = buildAtlas(root);
+  /** 입력이 그대로여서 분석 자체를 건너뛰었다 — reports 는 비어 있다 */
+  upToDate: boolean;
+  sheets: number;
+}
+
+/**
+ * 분석 → 생성물 기록. 이미 최신이면 쓰지 않고 changed=false 를 돌려준다.
+ *
+ * `reuseIfUnchanged` 를 켜면 생성물에 적힌 입력 지문과 지금 motions/ 의 지문을 먼저 견준다.
+ * 같으면 알파 해독도 파일 쓰기도 하지 않는다 — 개발 서버를 켤 때마다 하는 일이므로,
+ * 시트가 하나도 바뀌지 않았다면 아무 일도 일어나지 않아야 한다.
+ */
+export function scanMotions(
+  root = projectRoot(),
+  options: { reuseIfUnchanged?: boolean } = {},
+): ScanResult {
+  const reuseIfHash = options.reuseIfUnchanged ? storedInputHash(root) ?? undefined : undefined;
+  const { atlas, reports, inputHash, sheets, upToDate } = buildAtlas(root, { reuseIfHash });
+  if (upToDate) return { changed: false, reports, warnings: 0, upToDate, sheets };
+
   const changed = writeIfChanged(atlasModulePath(root), renderAtlasModule(atlas, inputHash));
   const warnings = reports.reduce(
     (n, r) => n + (r.geometry?.warnings.length ?? 0) + (r.skipped ? 1 : 0),
     0,
   );
-  return { changed, reports, warnings };
+  return { changed, reports, warnings, upToDate, sheets };
 }
 
 function formatReport(reports: SheetReport[]): string {
@@ -71,11 +98,13 @@ if (process.argv[1] && import.meta.url === `file://${resolve(process.argv[1])}`)
     const expected = renderAtlasModule(atlas, inputHash);
     const current = readFileSync(atlasModulePath(root), 'utf8').toString();
     console.log(formatReport(reports));
-    if (current !== expected) {
-      console.error(`\n  [오류] ${atlasPath} 가 motions/ 와 어긋난다 — npm run motions:scan 을 실행하라.`);
+    if (!sameGeneratedContent(current, expected)) {
+      console.error(
+        `\n  [오류] ${atlasPath} 가 입력(motions/ · 분석기)과 어긋난다 — npm run motions:scan 을 실행하라.`,
+      );
       process.exit(1);
     }
-    console.log(`\n  ${atlasPath} 는 motions/ 와 일치한다.`);
+    console.log(`\n  ${atlasPath} 는 입력(motions/ · 분석기)과 일치한다.`);
     process.exit(0);
   }
 

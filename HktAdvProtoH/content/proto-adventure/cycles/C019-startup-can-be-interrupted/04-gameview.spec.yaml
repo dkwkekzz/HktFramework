@@ -1,0 +1,162 @@
+# CYCLE C019 — GameView Specification
+#
+# 이 계약에 처음으로 **행동의 시간이 의미로** 실린다.
+#
+# 지금까지 진행 중인 행동에 대해 보는 쪽이 받은 것은 종류(state)와 진행도(progress)
+# 였다. "heavy-attack 이 0.13 만큼 진행됐다" 는 알지만 그 0.13 이 아직 칼을 치켜드는
+# 중인지 이미 칼날이 지나는 중인지는 **경계를 알아야** 안다. 그 경계는 세계 안에만
+# 있고, 이제 기술마다 다르다.
+#
+# 그래서 이 계약의 중심은 둘이다.
+#   ① 구간은 **세계가 판정해서** 싣는다. View 가 progress 와 경계로 계산하지 않는다 —
+#      계산하는 순간 두 개의 진실이 생기고, 기술이 늘 때마다 View 가 따라 고쳐야 한다
+#      (C012 defenseShape · C013 versusObserver 가 같은 이유로 세계 계산값이 되었다).
+#   ② 끊긴 것도 **실린다.** 싣지 않으면 화면에서 캔슬은 "그냥 맞았다" 와 구분되지 않고,
+#      하려던 것이 사라졌다는 이 Cycle 의 사건이 아무 데도 나타나지 않는다.
+id: VIEW-STARTUP-CAN-BE-INTERRUPTED-001
+observer: player
+
+delta:
+  reused:
+    - scene.mining-field
+    - entities.character                      # 위치·역할·이름·종류·모션·body·swing 그대로
+    - entities.deposit
+    - entityHud
+    - entities.character.vitality             # 기력이 그대로 실린다 — 큰 기술의 조건이 여기서 읽힌다
+    - entities.character.attributes.*         # 겨루는 힘·통찰·가려짐·태도 일체 그대로
+    - entities.character.state                # 행동 종류 — 그대로. phase 가 그 옆에 선다
+    - entities.character.progress             # 진행도 — 그대로. 대체하지 않는다
+    - interactions.move / mine / moveMode / setAttribute
+    - interactions.attack / skillHeavy / skillAura       # 관문도 사유도 그대로
+    - interactions.guardBegin / guardRelease
+    - interactions.observe / forgetAcquaintance
+    - commandCatalog
+    - hud.*                                   # 새 막대도 새 줄도 없다
+    - strikeEvents.*                          # 성립한 타격의 경위는 한 글자도 바뀌지 않는다
+    - unharmedContacts.*                      # C018 의 자리 그대로 — 캔슬과 섞지 않는다
+    - debugObserve / debugAuthority
+    - observer / session / delivery / identity / telemetry
+  added:
+    - entities.character.actionPhase          # 지금 어느 구간인가 (세계 판정값)
+    - cancelEvents                            # 무엇이 왜 끊겼는가
+    - interactions.*.profile.swingBegin       # 고르기 전에 아는 선딜
+    - interactions.*.profile.swingEnd
+  changed: []                                 # 기존 자리의 뜻이 바뀌는 것은 없다
+
+scene: mining-field
+
+# ─────────────────────────────────────────────────────────────────
+# entities.character — 한 자리가 는다
+#
+#   이 자리는 **있을 수도 없을 수도 있다.** 기술을 쓰는 중일 때만 있고, 걷거나 캐거나
+#   살펴보는 중에는 없다 — 그 행동들에는 선딜이라는 의미가 없기 때문이다.
+#   없음은 "구간을 모른다" 가 아니라 "구간이라는 것이 없는 행동이다" 를 뜻한다.
+# ─────────────────────────────────────────────────────────────────
+entities:
+  character:
+    cardinality: many
+    source: World.Actors
+
+    attributes:
+      actionPhase:                            # C019 ADDED
+        source: RULE-SKILL-PHASE-001 (이 존재의 현재 행동)
+        presence: 현재 행동이 기술일 때만 실린다 (attack · heavy-attack · aura-strike)
+        values:
+          - startup                           # 아직 나가지 않았다 — 지금 끊으면 무산된다
+          - active                            # 이미 나갔다 — 끊이지 않는다
+          - recovery                          # 다 나가고 거두는 중이다 — 끊이지 않는다
+        meaning:
+          - **세계가 판정한 값이다.** View 는 progress 와 경계로 이 값을 만들어내지
+            않는다 (DC-WORLD-OWNS-THE-SURFACE-LIST). 경계는 기술마다 다르고 세계 안에만 있다
+          - 이 자리는 **가려지지 않는다.** 살펴보지 않아도, 통찰이 0 이어도 실린다 —
+            가리면 끊는 판단 자체가 성립하지 않는다. 가려질 수 있는 자리의 목록
+            (C014 가 정한 셋)에 더하지 않는다
+          - 자기 몸에도 남의 몸에도 같은 규칙으로 실린다. 내 큰 기술이 지금 선딜인지도
+            같은 자리에서 읽힌다 — 규칙에 예외가 없다는 것이 화면에서도 그대로다
+          - progress 를 대체하지 않는다. 진행도는 "얼마나 왔는가", 이 값은
+            "그래서 지금 무엇인가" 다. 둘은 함께 온다
+          - **읽는 법**: startup 이면 지금 개입이 그 기술을 없앤다. active · recovery 면
+            같은 개입을 넣어도 그 기술은 끝까지 나간다
+
+# ─────────────────────────────────────────────────────────────────
+# cancelEvents — 새 자리 하나
+#
+#   StrikeEvent · UnharmedContact 와 **나란한 자리**다. 셋은 같은 수명을 가지며
+#   섞이지 않는다 — 셋이 답하는 질문이 다르다.
+#
+#       strikeEvents      닿았고 해가 성립했다        피해 산정 경위를 지닌다
+#       unharmedContacts  닿았으나 관계가 막았다      산정이 없다 · 사유가 있다  (C018)
+#       cancelEvents      맞은 쪽의 기술이 없던 일이 되었다   산정이 없다        (C019)
+#
+#   캔슬은 strikeEvent 와 **함께** 온다. 끊은 타격 자체는 성립한 타격이므로 피해도
+#   들어가고 경위도 실린다. 둘은 같은 순간의 다른 두 사실이며, View 는 그 둘을
+#   한 장면으로 그린다 — 그러나 계약에서 합치지 않는다. 합치면 "피해 없는 캔슬"
+#   (닿지 않은 개입으로는 일어나지 않는다) 같은 경우가 생길 때 자리가 없어진다.
+# ─────────────────────────────────────────────────────────────────
+cancelEvents:
+  cardinality: many
+  source: World.CancelEvents
+  lifetime: STRIKE_EVENT_TTL — strikeEvents · unharmedContacts 와 같다
+  fields:
+    attackerId:
+      source: CancelEvent.AttackerId
+      meaning: 끊은 쪽. 그 타격은 strikeEvents 에도 같은 순간으로 남아 있다
+    targetId:
+      source: CancelEvent.TargetId
+      meaning: 끊긴 쪽 — 하려던 것이 사라진 존재다
+    skill:
+      source: CancelEvent.Skill
+      values: [attack, heavy-attack, aura-strike]
+      meaning: **무엇이** 끊겼는가. 큰 기술이 끊긴 것과 기본 기술이 끊긴 것은 다른 사건이다
+    at:
+      source: CancelEvent.Position
+      meaning: 끊긴 몸의 자리 — 화면의 어디에 나타낼지의 근거
+    since:
+      source: World.Time - CancelEvent.Time
+      meaning: 얼마나 지났는가. strikeEvents 와 같은 읽는 법이다
+
+# ─────────────────────────────────────────────────────────────────
+# interactions — 관문도 사유도 그대로. profile 에 두 값이 는다
+#
+#   기술을 고르기 전에 "이건 얼마나 오래 준비하는가" 를 알 수 있어야 한다.
+#   쓰고 나서 아는 것은 늦다 — 큰 기술을 거는 판단이 그 값 위에 서기 때문이다.
+# ─────────────────────────────────────────────────────────────────
+interactions:
+  attack:      { availability: 그대로, profile: { swingBegin: 0.25, swingEnd: 0.75 } }
+  skillHeavy:  { availability: 그대로, profile: { swingBegin: 0.50, swingEnd: 0.85 } }
+  skillAura:   { availability: 그대로, profile: { swingBegin: 0.25, swingEnd: 0.75 } }
+
+  profile:
+    swingBegin:
+      source: SkillDefinition.SwingBegin
+      meaning:
+        - 이 기술의 **선딜이 끝나는 지점** (행동 진행도의 비율). 값이 클수록 오래 준비한다
+        - 실시간 길이는 이 값 × 그 기술의 행동 길이다. 행동 길이는 이미 실린다
+        - **세계가 지닌 값이다** — View 가 기술 이름으로 자기 표를 만들지 않는다
+    swingEnd:
+      source: SkillDefinition.SwingEnd
+      meaning: 판정이 끝나는 지점. 이 뒤가 후딜이다
+
+  # 새 interaction 은 없다. 끊는 것은 별도의 행동이 아니라 **때리는 것**이며,
+  # 언제 때리는가가 그 결과를 가른다. 끊기 전용 버튼을 만들면 이 Cycle 의 의미가
+  # 사라진다 — 시점 판단이 아니라 기능 선택이 되기 때문이다.
+
+hud:
+  change: NONE
+  # 새 막대도 새 줄도 없다. 이 Cycle 이 만드는 정보는 전부 **존재 위**에서 읽힌다 —
+  # 상대의 몸에서 구간을 보고 그 자리에서 결정하는 것이 이 기능의 전부다.
+  # HUD 로 올리면 눈이 몸에서 떠나고, 그러면 "보고 반응한다" 가 아니라 "숫자를 읽는다"
+  # 가 된다.
+
+# ─────────────────────────────────────────────────────────────────
+# VIEW NOTE — 이 계약이 화면에 요구하는 것
+#
+#   ① 구간이 **구분되어 보여야** 한다. startup 과 active 가 한눈에 갈리지 않으면
+#      이 Cycle 은 플레이에서 존재하지 않는다. 무엇으로 구분할지는 View 의 몫이지만,
+#      **actionPhase 값 하나로** 갈라야 한다 — progress 로 짐작하지 않는다.
+#   ② 캔슬이 **일어난 자리에서** 보여야 한다. 끊었다는 것이 화면에 나타나지 않으면
+#      플레이어는 자기가 한 일을 알 수 없다.
+#   ③ 늦은 개입도 **결과가 보여야** 한다 — 맞았는데 상대의 기술이 그대로 나가는 것이
+#      화면에서 읽혀야 "늦었다" 를 배운다. 이것은 새 자리가 아니라 기존 자리들
+#      (state 가 그대로 heavy-attack 이고 progress 가 계속 도는 것)로 이미 표현된다.
+# ─────────────────────────────────────────────────────────────────

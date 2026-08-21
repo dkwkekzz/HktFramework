@@ -1,5 +1,5 @@
 {
-  "specId": "VIEW-BASIC-COMBAT-POLICY-001",
+  "specId": "VIEW-STARTUP-CAN-BE-INTERRUPTED-001",
   "scene": "mining-field",
   "observer": {
     "id": "observer-1",
@@ -17,7 +17,7 @@
         "x": 0,
         "z": 0
       },
-      "progress": 0.4,
+      "progress": 0.2,
       "vitality": {
         "health": 150,
         "healthMaximum": 200,
@@ -80,12 +80,13 @@
           "x": 0,
           "z": 0
         }
-      }
+      },
+      "actionPhase": "startup"
     },
     {
       "id": "npc-1",
       "role": "npc-character",
-      "state": "hit",
+      "state": "heavy-attack",
       "name": "Wanderer 1",
       "kind": "wanderer",
       "position": {
@@ -113,34 +114,20 @@
           "moveSpeed": 1,
           "actionSpeed": 1
         },
-        "acquainted": true,
-        "concealed": [],
-        "combatStats": {
-          "physicalAttack": 40,
-          "auraAttack": 40,
-          "armor": 30,
-          "resistance": 30,
-          "armorPenetration": 0,
-          "resistancePenetration": 0,
-          "armorMultiplier": 0.769231,
-          "resistanceMultiplier": 0.769231,
-          "criticalChance": 0,
-          "criticalDamage": 1
-        },
-        "versusObserver": {
-          "armor": 30,
-          "resistance": 30,
-          "armorMultiplier": 0.769231,
-          "resistanceMultiplier": 0.769231
-        },
+        "acquainted": false,
+        "concealed": [
+          "combatStats",
+          "versusObserver",
+          "defenseShape"
+        ],
         "guard": {
           "guarding": false,
           "broken": false
         },
-        "defenseShape": "even",
         "insight": 0,
-        "stanceTowardObserver": "neutral",
-        "stanceFromObserver": "neutral"
+        "stanceTowardObserver": "hostile",
+        "stanceFromObserver": "neutral",
+        "unacquaintedReason": "not-observed"
       },
       "body": {
         "radius": 0.5,
@@ -154,12 +141,14 @@
           "x": 2,
           "z": 0
         }
-      }
+      },
+      "progress": 0.6,
+      "actionPhase": "active"
     },
     {
       "id": "npc-2",
       "role": "npc-character",
-      "state": "downed",
+      "state": "move",
       "name": "Wanderer 2",
       "kind": "wanderer",
       "position": {
@@ -228,7 +217,8 @@
           "x": 0,
           "z": 0
         }
-      }
+      },
+      "progress": 0.3
     }
   ],
   "interactions": [
@@ -272,7 +262,9 @@
         "rawDamage": 26,
         "charge": 12,
         "cost": 0,
-        "damageType": "physical"
+        "damageType": "physical",
+        "swingBegin": 0.25,
+        "swingEnd": 0.75
       }
     },
     {
@@ -286,7 +278,9 @@
         "rawDamage": 72,
         "charge": 8,
         "cost": 30,
-        "damageType": "physical"
+        "damageType": "physical",
+        "swingBegin": 0.5,
+        "swingEnd": 0.85
       }
     },
     {
@@ -312,6 +306,11 @@
     }
   ],
   "hud": [
+    {
+      "id": "inventory.stone",
+      "kind": "counter",
+      "value": 2
+    },
     {
       "id": "world.time",
       "kind": "counter",
@@ -430,15 +429,15 @@
   ],
   "strikes": [
     {
-      "attackerId": "player-1",
-      "targetId": "npc-1",
-      "skill": "heavy-attack",
-      "amount": 55,
+      "attackerId": "npc-1",
+      "targetId": "player-1",
+      "skill": "attack",
+      "amount": 20,
       "at": {
-        "x": 1.4,
+        "x": 0,
         "z": 0
       },
-      "since": 12.1,
+      "since": 12.5,
       "breakdown": {
         "damageType": "physical",
         "offenseStat": {
@@ -467,49 +466,21 @@
           "damageBeforeCritical": 55
         }
       }
-    },
+    }
+  ],
+  "contacts": [],
+  "cancels": [
     {
       "attackerId": "npc-1",
       "targetId": "player-1",
-      "skill": "attack",
-      "amount": 17,
+      "skill": "heavy-attack",
       "at": {
         "x": 0,
         "z": 0
       },
-      "since": 11.6,
-      "breakdown": {
-        "damageType": "physical",
-        "offenseStat": {
-          "name": "physicalAttack",
-          "value": 40
-        },
-        "baseDamage": 6,
-        "attackContribution": 20,
-        "rawDamage": 26,
-        "defenseStat": {
-          "name": "armor",
-          "value": 50
-        },
-        "penetrationStat": {
-          "name": "armorPenetration",
-          "value": 0
-        },
-        "effectiveDefense": 50,
-        "defenseMultiplier": 0.6666666666666666,
-        "finalDamage": 17,
-        "appliedDamage": 17,
-        "critical": {
-          "occurred": false,
-          "chance": 0,
-          "multiplier": 1,
-          "damageBeforeCritical": 17
-        }
-      }
+      "since": 12.5
     }
   ],
-  "contacts": [],
-  "cancels": [],
   "debug": {
     "open": true
   },

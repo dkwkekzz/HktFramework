@@ -6,7 +6,8 @@
 //                칼끝(Collider.Center)과의 거리 <= Collider.Radius + 대상.Body.Radius 이고
 //                CurrentAction.StruckActorIds 에 아직 없는 몸
 // Transition     대상마다: StruckActorIds += 대상,
-//                RULE-HIT-001 (행동 중단 → hit) + SWING_IMPULSE 충격량 (C006 그대로),
+//                RULE-HIT-001 (C019 CHANGED — 선딜이면 캔슬 · 이미 나갔으면 그대로) +
+//                SWING_IMPULSE 충격량 (C006 그대로),
 //                RULE-STRIKE-DAMAGE-001 (그 스킬의 고정 피해),
 //                이 휘두름의 첫 타격이면 RULE-SKILL-BUDGET-001 (기력 수지 정산)
 // Result         Struck(대상 수)
@@ -66,7 +67,10 @@ export function ruleSwingStrike(state: WorldState): number {
         continue;
       }
 
-      ruleHit(target);
+      // C019 CHANGED — 피격이 시점을 묻는다. 선딜이면 그 기술이 캔슬되고,
+      // 이미 나갔으면 아무것도 하지 않는다 (RULE-HIT-001). 아래 셋은 결과와 무관하게
+      // 그대로 일어난다 — 맞은 사실 · 밀려남 · 피해 · 기력 수지.
+      ruleHit(state, target, attacker);
 
       // 밀쳐냄은 휘두른 몸의 중심에서 멀어지는 방사 방향 (칼끝이 아니라 몸에서) — P6: 엔진 솔버
       applyRadialImpulse(attacker.position, target, SWING_IMPULSE);

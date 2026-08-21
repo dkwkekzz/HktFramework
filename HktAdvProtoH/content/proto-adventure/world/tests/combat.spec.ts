@@ -17,13 +17,13 @@ import {
   SKILL_DEFINITIONS,
   STRIKE_EVENT_TTL,
 } from '../semantic/combat';
-import { SWING_BEGIN } from '../semantic/collision';
+import { DEFAULT_SWING_BEGIN } from '../semantic/combat';
 import { TICK_INTERVAL } from '../semantic/world-state';
 import { driveWorld, observeFully, PLAYER, type WorldDriver } from './drive';
 
 const BASIC = SKILL_DEFINITIONS.attack;
 const HEAVY = SKILL_DEFINITIONS['heavy-attack'];
-const AFTER_SWING_OPEN = SWING_BEGIN * BASIC.baseDuration + 2 * TICK_INTERVAL;
+const AFTER_SWING_OPEN = DEFAULT_SWING_BEGIN * BASIC.baseDuration + 2 * TICK_INTERVAL;
 
 // C010 — 피해는 더 이상 스킬의 고정값이 아니라 공식의 결과다.
 // 기대값을 공식으로 다시 계산하면 구현을 구현으로 검사하는 꼴이 되므로 숫자로 박는다.
@@ -35,6 +35,18 @@ const HEAVY_DAMAGE = 55;
 const tickFor = (world: WorldDriver, seconds: number) => {
   const steps = Math.ceil(seconds / TICK_INTERVAL);
   for (let i = 0; i < steps; i++) world.tick(TICK_INTERVAL);
+};
+
+// C019 — 자율 존재가 무엇을 고르는가에 따라 첫 타격 시각이 달라진다 (큰 기술은 선딜이
+// 길다). 그래서 "맞은 직후" 를 고정 시간으로 잡지 않고 **맞을 때까지** 굴린다 —
+// 검증하려는 것은 타이밍이 아니라 맞은 직후의 배율이다.
+const tickUntilHit = (world: WorldDriver, limitSeconds = 6) => {
+  const steps = Math.ceil(limitSeconds / TICK_INTERVAL);
+  for (let i = 0; i < steps; i++) {
+    world.tick(TICK_INTERVAL);
+    if (actor(world.observe(), PLAYER)?.state === 'hit') return true;
+  }
+  return false;
 };
 
 // 휘두름은 몸이 향한 방향으로 나간다 — +x 로 한 걸음 걸어 그쪽을 보게 한다 (C006 R1).
@@ -112,7 +124,7 @@ describe('INTENT-STRIKE-DAMAGE-001 — 피해는 하나의 공식이 정한다 (
     aimRight(world);
 
     world.dispatch({ interactionId: 'skill-heavy' });
-    tickFor(world, SWING_BEGIN * HEAVY.baseDuration + 2 * TICK_INTERVAL);
+    tickFor(world, HEAVY.swingBegin * HEAVY.baseDuration + 2 * TICK_INTERVAL);
     expect(actor(world.observe(), 'npc-1')?.vitality?.health).toBe(120 - HEAVY_DAMAGE);
     expect(HEAVY_DAMAGE).toBeGreaterThan(BASIC_DAMAGE);
   });
@@ -156,7 +168,7 @@ describe('INTENT-SKILL-BUDGET-001 — 맞혀야 기력이 돈다', () => {
     const before = hud(world.observe(), 'self.cp') as number;
 
     world.dispatch({ interactionId: 'skill-heavy' });
-    tickFor(world, SWING_BEGIN * HEAVY.baseDuration + 2 * TICK_INTERVAL);
+    tickFor(world, HEAVY.swingBegin * HEAVY.baseDuration + 2 * TICK_INTERVAL);
 
     expect(hud(world.observe(), 'self.cp')).toBe(before + HEAVY.cpCharge - HEAVY.cpCost);
     expect(HEAVY.cpCost).toBeGreaterThan(HEAVY.cpCharge);
@@ -218,6 +230,8 @@ describe('INTENT-SKILL-COST-GATE-001 — 기력이 모자라면 시작되지 않
       charge: BASIC.cpCharge,
       cost: BASIC.cpCost,
       damageType: 'physical', // C012
+      swingBegin: BASIC.swingBegin, // C019 — 고르기 전에 아는 선딜
+      swingEnd: BASIC.swingEnd,
     });
     expect(skill(view, 'skill-heavy')?.profile).toEqual({
       baseDamage: 32,
@@ -226,6 +240,8 @@ describe('INTENT-SKILL-COST-GATE-001 — 기력이 모자라면 시작되지 않
       charge: HEAVY.cpCharge,
       cost: HEAVY.cpCost,
       damageType: 'physical', // C012
+      swingBegin: HEAVY.swingBegin, // C019 — 큰 기술은 선딜이 더 길다
+      swingEnd: HEAVY.swingEnd,
     });
   });
 });
@@ -363,7 +379,7 @@ describe('INTENT-MODIFIER-COMPOSE-001 — 배율은 원천들의 곱이다', () 
         { id: 'npc-1', position: { x: 1.2, z: 0 }, wanderPath: [], perceptionRange: 9, guardedGround: WHOLE_STAGE },
       ],
     });
-    tickFor(world, 1.5);
+    expect(tickUntilHit(world)).toBe(true);
 
     expect(actor(world.observe(), PLAYER)?.state).toBe('hit');
     expect(hud(world.observe(), 'self.modifier.cpCharge')).toBe(HIT_CHARGE_FACTOR);
@@ -376,7 +392,7 @@ describe('INTENT-MODIFIER-COMPOSE-001 — 배율은 원천들의 곱이다', () 
       ],
     });
     world.dispatch({ interactionId: 'move-mode', mode: 'run' });
-    tickFor(world, 1.5);
+    expect(tickUntilHit(world)).toBe(true);
 
     expect(actor(world.observe(), PLAYER)?.state).toBe('hit');
     expect(hud(world.observe(), 'self.modifier.cpCharge')).toBeCloseTo(

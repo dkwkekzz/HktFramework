@@ -36,6 +36,7 @@ import { inventoryHudItems } from './inventory-presentation';
 import { interactionPresentation } from './interaction-presentation';
 import { codeText } from './code-text';
 import { contactMark } from './relation-presentation';
+import { cancelMark } from './phase-presentation';
 import { kindPresentation } from './kind-presentation';
 import { rolePresentation } from './role-presentation';
 import { TARGET_TINT, targetHudItems } from './target-presentation';
@@ -226,6 +227,16 @@ export function resolvePresentation(
         contactMark(
           contact,
           rolePresentation(snapshot.entities.find((e) => e.id === contact.targetId)?.role ?? '')
+            .size,
+        ),
+      ),
+      // C019 — 끊긴 기술이 끊긴 자리에 뜬다. 셋은 같은 그리기 능력을 쓰되 다른 문구다:
+      // 타격은 숫자, 무산은 사유, 캔슬은 무엇이 사라졌는가. 이것이 없으면 화면에서
+      // 캔슬은 "그냥 맞았다" 와 구분되지 않는다 (04 VIEW NOTE ②).
+      ...snapshot.cancels.map((cancel) =>
+        cancelMark(
+          cancel,
+          rolePresentation(snapshot.entities.find((e) => e.id === cancel.targetId)?.role ?? '')
             .size,
         ),
       ),

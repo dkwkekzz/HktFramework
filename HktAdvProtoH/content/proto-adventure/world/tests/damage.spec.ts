@@ -15,13 +15,13 @@
 
 import { describe, expect, it } from 'vitest';
 import type { GameViewSnapshot } from '../../protocol/gameview';
-import { SWING_BEGIN } from '../semantic/collision';
+import { DEFAULT_SWING_BEGIN } from '../semantic/combat';
 import { SKILL_DEFINITIONS } from '../semantic/combat';
 import { TICK_INTERVAL } from '../semantic/world-state';
 import { observeFully, driveWorld, PLAYER, type WorldDriver } from './drive';
 
 const BASIC = SKILL_DEFINITIONS.attack;
-const AFTER_SWING_OPEN = SWING_BEGIN * BASIC.baseDuration + 2 * TICK_INTERVAL;
+const AFTER_SWING_OPEN = DEFAULT_SWING_BEGIN * BASIC.baseDuration + 2 * TICK_INTERVAL;
 
 const tickFor = (world: WorldDriver, seconds: number) => {
   const steps = Math.ceil(seconds / TICK_INTERVAL);
@@ -180,7 +180,7 @@ describe('INTENT-SKILL-SCALING-001 — 스킬마다 능력을 피해로 바꾸�
       setAttribute(world, 'physicalAttack', attack);
       setAttribute(world, 'cp', 100);
       world.dispatch({ interactionId: 'skill-heavy' });
-      tickFor(world, SWING_BEGIN * SKILL_DEFINITIONS['heavy-attack'].baseDuration + 2 * TICK_INTERVAL);
+      tickFor(world, SKILL_DEFINITIONS['heavy-attack'].swingBegin * SKILL_DEFINITIONS['heavy-attack'].baseDuration + 2 * TICK_INTERVAL);
       return world.observe().strikes[0]?.amount ?? 0;
     };
     const basicDamage = (attack: number) => {

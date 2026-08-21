@@ -7,7 +7,7 @@
 [PASS] Human Semantic Review     (2026-08-21 APPROVED — 판단 4건 이의 없음)
 [PASS] World Implementation      (860 tests · 경계 위반 0 · 공식 무변경 · 기반 무변경)
 [PASS] View Implementation       (view 17 tests · 전체 877 tests · 새 그림 없음)
-[PASS] Verification              (검사 6종 통과 · 던지기 사거리 5.0 — Human 결정 반영)
+[PASS] Verification              (검사 6종 · 914 tests · 사거리 5.0 · C019 병합 후 재측정)
 
 〔Stage 8 반환과 그 해소〕
     사거리 2.0 에서는 던지기가 성립하지 않았다 — 조건이 맞는 프레임 4/900,
@@ -15,8 +15,11 @@
     Human 결정으로 아래 SCOPE NOTE ③ 과 EXCLUDED 의 "원거리 경로" 항목을 정정하고
     사거리를 5.0 으로 열었다. 재측정 — 조건이 맞는 프레임 4 → **89/900**,
     60초 16회 시도 **9회 성립**, 세계 프로세스 실측에서 타격 기록 `["stone", 3]`.
+    C019(행동 구간) 병합 뒤 다시 재도 같다 — 12회 시도 9회 성립.
+    ① 이 그어 둔 선이 그대로 맞았고 규칙 코드는 한 곳도 충돌하지 않았다
+    (08-verification.md 의 "C019 병합" 절).
 
-STATUS  IN PROGRESS
+STATUS  COMPLETE
 
 ## MASTER TRACE
 
@@ -102,6 +105,9 @@ STATUS  IN PROGRESS
 ## SCOPE NOTE — 지금 무엇이 겹치고, 무엇이 이 Cycle 밖인가
 
 ### ① 행동 구간은 C019 가 소유한다 — 이 Cycle 은 구간의 의미를 만들지 않는다
+
+    〔C019 는 그 뒤 main 에 들어왔고 이 Cycle 이 병합했다. 아래 선은 그대로 맞았다 —
+     08-verification.md 의 "C019 병합" 절이 실제로 겹친 자리를 적는다〕
 
     행동 구간(FR-ACTION-PHASE)이 다른 세션에서 병행 중이다. 두 Cycle 이 **행동 얼개**라는
     같은 자리를 쓰므로 여기서 선을 긋는다.
