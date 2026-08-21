@@ -1,9 +1,9 @@
 # CYCLE C020 — What You Carry Takes Room
 
 [PASS] Cycle Definition           (칸이 유한해지고 · 버려서 비우고 · 종류가 데이터가 된다)
-[    ] Intent
-[    ] World Semantic
-[    ] GameView Specification
+[PASS] Intent                    (자리가 든다 · 전량 아니면 전무 · 덜어내면 빈다)
+[PASS] World Semantic            (카탈로그 · 자리 목록 · 받기/덜어내기 · 마지막 길 잠금)
+[PASS] GameView Specification    (소지품은 목록 · 판정은 세계 · 돌 전용 칸이 사라진다)
 [    ] Human Semantic Review
 [    ] World Implementation
 [    ] View Implementation

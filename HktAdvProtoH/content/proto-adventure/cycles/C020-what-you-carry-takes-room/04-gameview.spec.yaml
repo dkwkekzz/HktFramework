@@ -1,0 +1,228 @@
+# CYCLE C020 — GameView Specification
+#
+# 이 계약에서 처음으로 **지닌 것 전부가** 보는 쪽에 실린다.
+#
+# 지금까지 소지품에 대해 보는 쪽이 받은 것은 두 개의 값이었다 — 돌이 몇 개인가
+# (`inventory.stone`)와 캘 도구가 있는가(`tool.hasMiningTool`). 종류가 늘 때마다
+# 계약에 칸이 하나씩 늘어야 하는 형태이고, 실제로 곡괭이는 개수조차 실리지 않는다.
+#
+# 그래서 이 계약의 중심은 셋이다.
+#   ① 소지품은 **목록**이다. 종류마다 칸을 만들지 않는다 — 새 물건이 생기면 목록에
+#      항목이 하나 늘 뿐 계약의 형태는 그대로다 (DC-ITEM-KIND-IS-DATA-NOT-BRANCH).
+#   ② 각 항목에 **지금 무엇이 되고 왜 안 되는지**가 함께 실린다. 그 판정은 세계가
+#      하며, 실행 판정과 같은 것을 쓴다 — 화면이 허락한 것이 세계에서 거절되는 일이
+#      없어야 한다 (DC-WORLD-OWNS-THE-SURFACE-LIST).
+#   ③ **얼마나 찼는지**를 세계가 답한다. 보는 쪽이 항목을 세어서 알아내지 않는다 —
+#      빈 자리는 실리지 않으므로 세어도 알 수 없고, 애초에 자리 수는 세계의 값이다.
+#
+# 새 요청 파라미터는 없다. 덜어내기는 각 항목이 지닌 `interactionId` 를 봉투에 그대로
+# 실어 보내는 것으로 끝난다 (engine/protocol-core 의 ActionRequest 무변경).
+id: VIEW-WHAT-YOU-CARRY-TAKES-ROOM-001
+observer: player
+
+delta:
+  reused:
+    - scene.mining-field
+    - entities.character                      # 위치·역할·이름·종류·모션·body·swing 그대로
+    - entities.deposit                        # 잔량·상태 그대로
+    - entities.character.actionPhase          # C019 의 자리 그대로
+    - entities.character.state / progress
+    - entities.character.vitality / attributes.*
+    - interactions.move / moveMode / setAttribute
+    - interactions.attack / skillHeavy / skillAura
+    - interactions.guardBegin / guardRelease
+    - interactions.observe / forgetAcquaintance
+    - interactions.selectTarget / clearTarget
+    - commandCatalog
+    - strikeEvents.* / unharmedContacts.* / cancelEvents.*
+    - debugObserve / debugAuthority
+    - observer / session / delivery / identity / telemetry
+  added:
+    - carried                                 # 지닌 것 전부 — 목록
+    - carriedRoom                             # 쓴 자리 / 전체 자리
+  changed:
+    - interactions.mine.unavailableReason     # 사유 하나가 는다 (carry-full)
+  removed:
+    - hud.inventory.stone                     # 돌 전용 칸 — carried 가 대신한다
+    - hud.tool.hasMiningTool                  # 도구 유무 — carried[].uses 가 대신한다
+
+scene: mining-field
+
+# ─────────────────────────────────────────────────────────────────
+# carried — 이 관찰자의 몸이 지닌 것 전부
+#
+#   관찰자마다 따로 만들어진다. 남의 소지품은 오지 않는다 — 지금 이 세계에 남이
+#   지닌 것을 알아내는 의미가 없기 때문이다 (살펴봄이 여는 것은 능력치이지
+#   소지품이 아니다 · C014).
+#
+#   **빈 자리는 실리지 않는다.** 항목 하나가 곧 쓴 자리 하나이며, 자리가 몇이고
+#   몇이 찼는지는 carriedRoom 이 답한다.
+# ─────────────────────────────────────────────────────────────────
+carried:
+  cardinality: many
+  source: Actor.Inventory.Slots (관찰자의 몸 · 비어 있지 않은 자리만)
+  order: 자리 번호 순 — 세계가 정한 순서 그대로다. 보는 쪽이 다시 정렬해도 되지만
+         그 정렬은 표시일 뿐이며 요청은 언제나 slot 으로 간다
+
+  attributes:
+    slot:
+      source: Inventory.Slots 의 자리 번호
+      meaning:
+        - 이 항목이 어느 자리에 있는가. 요청이 가리키는 대상이다
+        - 자리 번호는 그 몸 안에서만 뜻이 있다 — 세계의 존재 Id 가 아니다
+
+    kind:
+      source: ItemDefinition.id
+      meaning:
+        - 무엇인가를 가리키는 **열쇠**다. 보여 줄 문구로 바로 쓰는 값이 아니다
+        - 문구 변환은 보는 쪽 책임이다. 세계는 이름을 정하지 문장을 정하지 않는다
+
+    category:
+      source: ItemDefinition.category
+      values:
+        - tool                                # 도구 — 무언가를 열어 준다
+        - material                            # 재료 — 그 자체로는 아무것도 열지 않는다
+      meaning:
+        - 갈래를 나누어 보여 주고 싶을 때 쓰는 의미 코드다
+        - 이 값으로 **규칙이 갈리지 않는다.** 무엇이 되는가는 uses 와 actions 가 답한다
+
+    quantity:
+      source: Inventory.Slots[slot].수량
+      meaning:
+        - 그 **자리에** 쌓인 수량이다. 그 종류를 전부 몇 개 지녔는지가 아니다
+        - 같은 종류가 두 자리에 나뉘어 있을 수 있다 — 그때는 항목이 둘 실린다
+
+    stackLimit:
+      source: ItemDefinition.stackLimit
+      meaning:
+        - 이 자리가 그 종류를 최대 몇까지 담을 수 있는가
+        - quantity 와 함께 읽으면 이 자리에 얼마나 더 들어갈지가 보인다
+        - 겹칠 수 없는 물건은 1 이다
+
+    uses:
+      source: ItemDefinition.uses
+      values:
+        - mining                              # 캐는 일을 열어 준다
+      meaning:
+        - 이 물건이 여는 용도들. 비어 있을 수 있다 (재료가 그렇다)
+        - 이 자리가 `tool.hasMiningTool` 를 대신한다. "곡괭이가 있는가" 가 아니라
+          **"무엇이 어떤 용도를 여는가"** 로 실린다 — 캘 수 있는 새 도구가 생겨도
+          계약이 바뀌지 않는 이유가 여기 있다
+
+    actions:
+      cardinality: many
+      source: 세계의 판정 (RULE-CARRY-LET-GO-001 의 Precondition 과 같은 함수)
+      meaning:
+        - 이 물건에 **지금** 무엇이 되는가. 항목이 하나뿐인 것은 이 Cycle 이
+          연 것이 덜어내기 하나여서다 — 쓰기·장착이 오면 항목이 늘 뿐 구조는 그대로다
+      attributes:
+        interactionId:
+          source: 세계가 만든 요청 식별자
+          meaning:
+            - 요청 봉투의 `interactionId` 에 **그대로** 실어 보낸다
+            - 보는 쪽이 이 값을 만들어내거나 짜맞추지 않는다. 받은 것을 돌려보낼 뿐이다
+        effect:
+          values:
+            - let-go                          # 덜어낸다 — 자리를 비운다
+          meaning:
+            - 무엇을 하는가의 의미 코드다. 문구 변환은 보는 쪽 책임이다
+        available:
+          source: RULE-CARRY-LET-GO-001 Precondition
+          meaning:
+            - 지금 되는가. **표시용 판정과 실행 판정이 같은 것을 쓴다** —
+              여기서 참인 것을 요청하면 세계가 거절하지 않는다
+        unavailableReason:
+          presence: available 이 거짓일 때만 실린다
+          values:
+            - last-way-locked                 # 이것을 덜어내면 지금 열려 있는 길이
+                                              # 영영 닫힌다. 물건의 종류 때문이 아니라
+                                              # 그 길을 여는 마지막 물건이기 때문이다
+          meaning:
+            - 사유 코드다. 문구 변환은 보는 쪽 책임이다
+            - 회색으로 막아 두고 이유를 말하지 않는 형태를 만들지 않는다 —
+              사유가 오는 이유가 그것이다
+
+  meaning:
+    - 덜어낸 것은 **세계 어디에도 나타나지 않는다.** 바닥에 떨어지는 것을 그리지
+      않는다 — 위치를 가진 물건이라는 개념이 아직 세계에 없기 때문이다.
+      그 개념이 오면 그때 세계가 그것을 싣는다
+    - 이 목록은 관찰마다 새로 만들어진다. 보는 쪽이 이전 목록과 견주어 무엇이
+      늘고 줄었는지 알아내는 것은 표현의 자유이며, 세계는 그 차이를 싣지 않는다
+
+# ─────────────────────────────────────────────────────────────────
+# carriedRoom — 얼마나 찼는가
+# ─────────────────────────────────────────────────────────────────
+carriedRoom:
+  cardinality: one
+  source: 관찰자의 몸
+  attributes:
+    used:
+      source: Inventory.Slots 중 비어 있지 않은 자리의 수
+    total:
+      source: Inventory.Capacity
+  meaning:
+    - 이것은 **세계가 답한다.** carried 의 항목 수를 세어 used 를 얻을 수는 있지만
+      total 은 그렇게 얻을 수 없고, 두 값이 한자리에서 와야 "다 찼다" 가 한 뜻이 된다
+    - total 은 몸마다 다를 수 있는 값이다. 지금은 모두 같지만 계약이 그것을 전제하지 않는다
+
+# ─────────────────────────────────────────────────────────────────
+# interactions — 하나의 사유가 는다
+# ─────────────────────────────────────────────────────────────────
+interactions:
+  mine:
+    role: mine-deposit
+    target: Deposit
+    available: { source: RULE-MINE-001 Precondition }
+    unavailableReason:
+      source: Mine.FailureReason
+      values:
+        - no-target-selected                  # REUSED (C017)
+        - target-kind-mismatch                # REUSED (C017)
+        - no-mining-tool                      # REUSED — 뜻이 바뀐다 (아래)
+        - out-of-range                        # REUSED
+        - deposit-depleted                    # REUSED
+        - carry-full                          # C020 ADDED — 받을 자리가 없다
+        - action-busy                         # REUSED
+    meaning:
+      - 사유 `carry-full` 은 **캐기 전에** 온다. 1.2 초를 쓰고 나서 받지 못하는 것이 아니라
+        시작 자체가 거절된다. 자리가 없다는 것을 광맥 앞에 서면 알 수 있다
+      - 사유 `carry-full` 은 `deposit-depleted` 뒤에 온다 — 고갈된 광맥에서는 자리 이야기가
+        나오지 않는다
+      - 사유 `no-mining-tool` 은 코드도 자리도 그대로지만 **판정의 근거가 바뀐다.**
+        "곡괭이를 지녔는가" 가 아니라 "이 몸에 캐는 용도가 지금 있는가" 다.
+        보는 쪽에서 달라지는 것은 없다 — 그것이 이 변경이 계약을 건드리지 않는 증거다
+
+# ─────────────────────────────────────────────────────────────────
+# hud — 두 자리가 사라진다
+# ─────────────────────────────────────────────────────────────────
+hud:
+  removed:
+    - id: inventory.stone
+      reason: 종류 하나를 위한 전용 칸이었다. carried 가 모든 종류를 같은 형태로 싣는다
+    - id: tool.hasMiningTool
+      reason: 도구가 있는가라는 참/거짓이었다. carried[].uses 가 무엇이 무엇을 여는지를
+              싣는다 — 도구가 늘어도 계약이 늘지 않는다
+  meaning:
+    - 이 둘을 없애는 것이 이 Cycle 의 관찰 쪽 핵심이다. 남겨 두면 같은 사실이 두 곳에
+      실리고, 그중 하나는 종류가 늘 때마다 따라 늘어야 한다
+    - 나머지 hud 항목은 한 글자도 바뀌지 않는다
+
+# ─────────────────────────────────────────────────────────────────
+# 투영하지 않은 Observable
+# ─────────────────────────────────────────────────────────────────
+notProjected:
+  - name: Actor.CarriedUses
+    reason: 몸 단위로 합쳐진 용도의 모음이다. 보는 쪽이 필요로 하는 것은 "무엇이
+            그것을 여는가" 이고 그것은 carried[].uses 로 이미 온다. 합집합까지 실으면
+            같은 사실이 두 곳에 실린다
+  - name: Inventory.LastWayUses
+    reason: 덜어내기 판정의 입력이다. 그 판정의 결과는 actions[].available 과
+            unavailableReason 으로 이미 온다. 입력까지 실으면 보는 쪽이 그것으로
+            판정을 다시 계산할 수 있게 되고, 그 순간 두 개의 진실이 생긴다
+  - name: ItemCatalog 전체
+    reason: 지니지 않은 물건의 정의는 지금 보는 쪽에 쓸모가 없다. 제작이나 상점처럼
+            "아직 없는 것" 을 보여 줄 자리가 생기면 그때 그 Cycle 이 싣는다
+  - name: Inventory.Slots 의 빈 자리
+    reason: 빈 자리는 정보가 아니다. 몇 개인지는 carriedRoom 의 total - used 로 나온다.
+            자리 하나하나를 격자로 그릴지 목록으로 그릴지는 보는 쪽의 결정이며,
+            계약이 그 결정을 강요하지 않는다
