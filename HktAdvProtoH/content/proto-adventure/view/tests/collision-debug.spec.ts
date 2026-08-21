@@ -9,9 +9,26 @@ import fixture from './fixtures/collision-debug.fixture.json';
 const snapshot = fixture as GameViewSnapshot;
 
 describe('collision debug (Semantic → Render Plan)', () => {
-  it('토글이 꺼져 있으면(기본) 디버그 지시가 실리지 않는다', () => {
-    expect(resolvePresentation(snapshot).colliderDebug).toBeUndefined();
-    expect(resolvePresentation(snapshot, undefined, {}).colliderDebug).toBeUndefined();
+  // C023 CHANGED — 이 계약을 두 자리가 나눠 쓰게 되었다. 꺼져 있어도 **칼끝은**
+  // 실린다: 기술마다 다른 모양이 닿는 것을 가르므로 그것이 보이지 않으면 이 세계의
+  // 차이가 화면에 존재하지 않는다 (04 VIEW NOTE ①). 진단 셋(몸 캡슐 · 속도 화살표 ·
+  // 맞은 몸 표시)은 여전히 켜야만 나온다.
+  it('토글이 꺼져 있으면(기본) 진단 표시는 실리지 않고 칼끝만 실린다 — C023', () => {
+    for (const plan of [resolvePresentation(snapshot), resolvePresentation(snapshot, undefined, {})]) {
+      const debug = plan.colliderDebug!;
+      expect(debug.capsules).toEqual([]); // 몸 부피도 맞은 몸 표시도 없다
+      expect(debug.vectors).toEqual([]); // 속도 화살표도 없다
+      expect(debug.spheres.map((s) => s.id)).toEqual(['swing:player-1']);
+    }
+  });
+
+  it('꺼진 칼끝은 켠 칼끝과 같은 자리·같은 굵기·같은 높이다 — 켜고 끌 때 물체가 뛰지 않는다', () => {
+    const plain = resolvePresentation(snapshot).colliderDebug!.spheres[0]!;
+    const debugged = resolvePresentation(snapshot, undefined, { debugObserve: true })
+      .colliderDebug!.spheres.find((s) => s.id === 'swing:player-1')!;
+    expect(plain.center).toEqual(debugged.center);
+    expect(plain.radius).toBe(debugged.radius);
+    expect(plain.elevation).toBe(debugged.elevation);
   });
 
   it('켜면 모든 몸이 캡슐 부피(반경·높이)로 실린다 — R1', () => {

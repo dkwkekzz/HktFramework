@@ -149,6 +149,22 @@ describe('RULE-ACTION-COLLIDER-001 — 같은 자리가 기술에 따라 갈린�
     expect(swingAt('skill-heavy', behind)).toBe(false);
   });
 
+  it('칼끝이 그 기술의 길이만큼 몸에서 떨어져 돈다 — 큰 기술이 더 멀다', () => {
+    const reachOf = (interactionId: string, kind: SkillKind) => {
+      const world = driveWorld({ actorPosition: { x: 0, z: 0 }, npcs: [] });
+      world.dispatch({ interactionId });
+      const skill = skillDefinition(kind);
+      // 판정 구간 한가운데를 본다
+      tickFor(world, skill.baseDuration * ((skill.swingBegin + skill.swingEnd) / 2));
+      const self = actor(world.observe(), PLAYER)!;
+      const swing = self.swing!;
+      return Math.hypot(swing.center.x - self.position.x, swing.center.z - self.position.z);
+    };
+    expect(reachOf('attack', 'attack')).toBeCloseTo(skillShape('attack').reach, 6);
+    expect(reachOf('skill-heavy', 'heavy-attack')).toBeCloseTo(skillShape('heavy-attack').reach, 6);
+    expect(reachOf('skill-heavy', 'heavy-attack')).toBeGreaterThan(reachOf('attack', 'attack'));
+  });
+
   it('휘두르는 중 관찰에 그 기술의 굵기가 실린다', () => {
     const world = driveWorld({ actorPosition: { x: 0, z: 0 }, npcs: [] });
     world.dispatch({ interactionId: 'skill-heavy' });
