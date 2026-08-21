@@ -39,6 +39,9 @@ const CODE_TEXT: Record<string, string> = {
   'unknown-item': '세계가 모르는 물건이다',
   'not-usable': '쓸 수 있는 물건이 아니다',
   'not-enough': '모자란다',
+  // C022 — 자리
+  'no-room': '자리가 없다 — 무엇을 덜어내야 한다',
+  'no-way-back': '이걸 놓으면 되돌릴 수 없다',
   'target-gone': '대상이 사라졌다',
   'target-downed': '이미 쓰러졌다',
   // 기술의 구간과 끊김 (C019) — 선딜만 화면에 뜬다 (phase-presentation 의 결정 2)
@@ -137,4 +140,42 @@ const CODE_TEXT: Record<string, string> = {
 
 export function codeText(code: string): string {
   return CODE_TEXT[code] ?? code;
+}
+
+/**
+ * 같은 사유의 **짧은 표기** — 목록 안에서 쓴다.
+ *
+ * 문구가 둘인 이유는 자리가 둘이기 때문이다.
+ *
+ *   긴 문장   지금 하려는 **행동 하나**에 붙는다 (채집 프롬프트).
+ *             그 순간 사람이 보고 있는 곳이므로 무엇을 해야 하는지까지 말해 준다
+ *   짧은 표기 **목록**의 항목마다 붙는다 (소지품). 항목 수만큼 반복되므로
+ *             길면 목록이 아니라 문단이 되고, 문단이 되면 아무도 읽지 않는다
+ *
+ * 표에 없으면 긴 문장이 그대로 나온다 — 짧은 말을 짓지 않는다. 사유가 사라지는 것보다
+ * 줄이 긴 편이 낫고, 없는 말을 화면이 만들어 내는 것은 더 나쁘다.
+ */
+const SHORT_TEXT: Record<string, string> = {
+  // 자리 (C022)
+  'no-room': '자리 없음',
+  'no-way-back': '되돌릴 수 없음',
+  // 대상 (C017)
+  'no-target-selected': '대상 없음',
+  'target-kind-mismatch': '이 대상엔 안 됨',
+  'no-target': '대상 없음',
+  // 거리·행동 (C001 · C002)
+  'out-of-range': '너무 멀다',
+  'action-busy': '행동 중',
+  'deposit-depleted': '고갈됨',
+  'no-mining-tool': '곡괭이 없음',
+  // 아이템 (C020)
+  'not-enough': '모자람',
+  'not-usable': '쓸 수 없음',
+  'unknown-item': '모르는 것',
+  'target-gone': '대상이 사라짐',
+  'target-downed': '이미 쓰러짐',
+};
+
+export function shortCodeText(code: string): string {
+  return SHORT_TEXT[code] ?? codeText(code);
 }

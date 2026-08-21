@@ -151,7 +151,10 @@ export function createWorld(setup: WorldSetup = {}): World {
         id: 'deposit-1',
         position: setup.depositPosition ?? { x: 8, z: -6 },
         resourceKind: 'stone',
-        resourceAmount: setup.depositAmount ?? 5,
+        // C022 — 5 → 12. 자리의 유한함은 **세계에 캘 것이 자리보다 많을 때만** 겪힌다.
+        // 5 로는 가방이 차기 전에 광맥이 말라 이 Cycle 의 Goal 이 플레이에서 성립하지
+        // 않는다. 규칙이 아니라 세계를 띄우는 값이다 (03-world-semantic.md RATIONALE 4).
+        resourceAmount: setup.depositAmount ?? 12,
       },
     ],
     time: 0,

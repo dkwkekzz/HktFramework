@@ -1,8 +1,15 @@
-// RULE-INVENTORY-ADD-001 — Implements INTENT-INVENTORY-SINGLE-CHANNEL-001
+// RULE-INVENTORY-ADD-001 — Implements INTENT-INVENTORY-SINGLE-CHANNEL-001 ·
+//                                      INTENT-ACQUIRE-IS-ALL-OR-NOTHING-001
 // Input          Actor, ItemKind, Count(> 0)
-// Preconditions  그 종류의 정의가 있다                     (unknown-item)
+// Preconditions  1. 그 종류의 정의가 있다                  (unknown-item)
+//                2. 담은 뒤의 UsedSlots <= Capacity        (no-room)    ← C022 ADDED
 // Transition     Items[kind] += Count
-// Result         Success | Failure(unknown-item)
+// Result         Success | Failure(reason)
+//
+// C022 — **전부가 들어가지 못하면 하나도 넣지 않는다.** 검증이 변경보다 먼저이므로
+// 부분 담기가 일어날 수 있는 순간 자체가 없다 (DC-ITEM-CHANGE-IS-ONE-UNIT · IE §6.1).
+// 거절은 이 통로 하나에서만 일어나므로 이후 제작·전리품·주고받기가 저마다의 거절을
+// 갖지 않는다.
 //
 // RULE-INVENTORY-REMOVE-001 — Implements INTENT-INVENTORY-SINGLE-CHANNEL-001 ·
 //                                        INTENT-ITEM-CONSUME-001
@@ -23,8 +30,27 @@ import { RULE_INVENTORY_ADD, RULE_INVENTORY_REMOVE } from '../../protocol/semant
 import type { ActorState } from '../semantic/actor';
 import { itemCount } from '../semantic/inventory';
 import { itemDefinition, type ItemKind } from '../semantic/item';
+import { INVENTORY_CAPACITY } from '../semantic/world-state';
+import { roomAfterAdd } from './inventory-room';
 
-export type InventoryFailureReason = 'unknown-item' | 'not-enough';
+export type InventoryFailureReason = 'unknown-item' | 'not-enough' | 'no-room';
+
+/**
+ * Observable(채집의 가능/사유 · 소지품 항목)과 Rule 이 **같은 판정을 공유한다** (C022).
+ *
+ * 담을 수 있는지를 묻는 곳이 여기 하나뿐이므로, 화면에 불가로 보이는 것을 억지로
+ * 요청해도 같은 사유로 거절된다 (DC-WORLD-OWNS-THE-SURFACE-LIST).
+ */
+export function evaluateInventoryAdd(
+  actor: ActorState,
+  kind: string,
+  count: number,
+): InventoryFailureReason | null {
+  if (!itemDefinition(kind)) return 'unknown-item';
+  if (count <= 0) return null;
+  if (roomAfterAdd(actor.inventory, kind, count) > INVENTORY_CAPACITY) return 'no-room';
+  return null;
+}
 
 /** Observable 과 Rule 이 같은 판정을 공유한다 */
 export function evaluateInventoryRemove(
@@ -38,9 +64,8 @@ export function evaluateInventoryRemove(
 }
 
 export function ruleInventoryAdd(actor: ActorState, kind: string, count: number): ActionResult {
-  if (!itemDefinition(kind)) {
-    return { status: 'failure', rule: RULE_INVENTORY_ADD, reason: 'unknown-item' };
-  }
+  const failure = evaluateInventoryAdd(actor, kind, count);
+  if (failure) return { status: 'failure', rule: RULE_INVENTORY_ADD, reason: failure };
   if (count <= 0) return { status: 'success', rule: RULE_INVENTORY_ADD };
 
   const key = kind as ItemKind;

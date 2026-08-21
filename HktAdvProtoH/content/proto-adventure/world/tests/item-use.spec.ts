@@ -7,7 +7,7 @@
 
 import { describe, expect, it } from 'vitest';
 import type { GameViewSnapshot } from '../../protocol/gameview';
-import { ITEM_CATALOG, itemDefinition, ITEM_KINDS } from '../semantic/item';
+import { isStackable, ITEM_CATALOG, itemDefinition, ITEM_KINDS } from '../semantic/item';
 import { driveWorld, PLAYER, selectTarget, type WorldDriver } from './drive';
 
 const TICK = 1 / 30;
@@ -39,7 +39,7 @@ describe('INTENT-ITEM-DEFINITION-001 — 세계가 물건을 안다', () => {
   it('정의소가 종류마다 무엇인지 · 무엇에 쓰는지 · 겹치는지를 답한다', () => {
     const stone = itemDefinition('stone')!;
     expect(stone.category).toBe('material');
-    expect(stone.stackable).toBe(true);
+    expect(isStackable(stone)).toBe(true); // C022 — 값의 출처가 StackLimit 으로 옮겼다
     expect(stone.uses).toEqual([]); // 돌은 몸에 아무 용도도 주지 않는다
 
     const pickaxe = itemDefinition('pickaxe')!;

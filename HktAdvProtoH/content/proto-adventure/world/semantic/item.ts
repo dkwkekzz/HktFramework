@@ -77,7 +77,15 @@ export interface ItemDefinition {
   category: ItemCategory;
   /** 상위 정의 식별자 (`IT-*`) — 없을 수 있다 */
   origin?: string;
-  stackable: boolean;
+  /**
+   * 한 자리에 몇까지 겹치는가 (C022 ADDED — ≥ 1).
+   *
+   * **`stackable` 을 대체한다.** 겹치는가와 몇까지인가를 정의가 따로 답하면 두 곳에
+   * 적힌 하나의 진실이 되고, 두 곳에 적히면 반드시 어긋난다. 1 이면 겹치지 않는다는
+   * 뜻이며, 자리 계산은 그 둘을 가르지 않는다 — ⌈수량 / 한도⌉ 하나로 답한다
+   * (RULE-INVENTORY-ROOM-001).
+   */
+  stackLimit: number;
   /** 이 물건이 몸에 주는 용도들 — 빈 목록일 수 있다 */
   uses: readonly ItemUseTag[];
   /** 쓰면 무슨 일이 일어나는가 — **없으면 그 물건은 쓸 수 없다** */
@@ -97,7 +105,8 @@ export const ITEM_CATALOG: Readonly<Record<ItemKind, ItemDefinition>> = {
   stone: {
     category: 'material',
     origin: 'IT-COMMON-STONE',
-    stackable: true,
+    // C022 — 한 자리에 셋까지. 값은 Cycle 소유다 (03-world-semantic.md BALANCE)
+    stackLimit: 3,
     uses: [],
     use: {
       effect: {
@@ -128,7 +137,10 @@ export const ITEM_CATALOG: Readonly<Record<ItemKind, ItemDefinition>> = {
   // 말이 아니라 관찰로 만든다 (INTENT-ITEM-CONSUME-001).
   pickaxe: {
     category: 'tool',
-    stackable: true,
+    // C022 — **겹치지 않는다.** 도구 한 자루가 자리 하나를 온전히 쓴다.
+    // 겹치는 종류와 겹치지 않는 종류가 둘 다 있어야 자리 계산이 분기 없는 한 식임이
+    // 관찰된다 — 하나뿐이면 그 식이 자리인지 조건문인지 구분되지 않는다.
+    stackLimit: 1,
     uses: ['mine'],
     use: {
       effect: { kind: 'begin-declared-act', act: 'mine' },
@@ -148,4 +160,14 @@ export function isItemKind(value: string): value is ItemKind {
 /** 정의를 찾는다. 세계가 모르는 종류면 undefined — 규칙은 그것을 사유로 답한다 */
 export function itemDefinition(kind: string): ItemDefinition | undefined {
   return isItemKind(kind) ? ITEM_CATALOG[kind] : undefined;
+}
+
+/**
+ * 겹치는가 — **정의가 직접 답하지 않는다** (C022 CHANGED).
+ *
+ * 한도가 1 을 넘으면 겹치는 것이다. 관찰 계약(`InventoryItemView.stackable`)은
+ * 그대로이며 값의 출처만 이 함수로 옮겨 왔다.
+ */
+export function isStackable(definition: ItemDefinition): boolean {
+  return definition.stackLimit > 1;
 }

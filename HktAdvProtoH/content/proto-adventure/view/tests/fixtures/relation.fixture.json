@@ -513,5 +513,9 @@
   },
   "commands": [],
   "currentTarget": {},
-  "inventory": []
+  "inventory": [],
+  "inventoryRoom": {
+    "used": 0,
+    "capacity": 4
+  }
 }

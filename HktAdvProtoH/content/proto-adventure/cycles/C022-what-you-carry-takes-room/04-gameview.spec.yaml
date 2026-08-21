@@ -1,0 +1,251 @@
+# CYCLE C022 — GameView Specification
+#
+# C020 이 소지품을 **목록 하나**로 만들었다. 이 Cycle 이 그 목록에 더하는 것은 셋뿐이다.
+#
+#   ① 목록 **밖에** 자리 둘 — 쓴 자리와 전체. 항목마다의 값이 아니라 몸의 형편이다.
+#   ② 항목마다 **덜어내기** — 이미 있는 actions 자리에 항목이 하나 는다. 새 기계가 없다.
+#   ③ 채집의 사유에 **`no-room`** 한 값 — 가방이 차면 캘 수 없다는 것이 부딪히기 전에 보인다.
+#
+# 이 계약을 받은 View 는 **자리를 한 번도 세지 않는다.** 무엇이 몇 자리를 차지하는지도,
+# 무엇을 덜어낼 수 있는지도 묻지 않는다 — 받은 값을 옮긴다.
+id: VIEW-WHAT-YOU-CARRY-TAKES-ROOM-001
+observer: player
+
+delta:
+  reused:
+    - scene.mining-field
+    - entities.character                      # 위치·역할·이름·종류·모션·body·swing·상태 그대로
+    - entities.deposit                        # 광맥 그대로
+    - entityHud
+    - entities.character.vitality
+    - entities.character.attributes.*
+    - inventory                               # C020 의 목록 — 형태가 바뀌지 않는다
+    - inventory[].kind / count / category / origin
+    - inventory[].actions                     # **자리 형태 그대로.** 값이 하나 는다
+    - interactions.*                          # 새 interaction 이 없다 (아래 이유)
+    - strikeEvents / unharmedContacts / cancelEvents
+    - currentTarget / commandCatalog
+    - debugObserve / debugAuthority
+    - observer / session / delivery / identity / telemetry
+    - hud.*                                   # 새 막대도 새 줄도 없다
+  added:
+    - inventoryRoom                           # 쓴 자리 · 전체 자리
+    - inventory[].actions[role=discard-item]  # 덜어내기
+  changed:
+    - inventory[].stackable                   # 값의 출처가 바뀐다 — 곡괭이가 false 가 된다
+    - interactions.mine                       # 사유에 no-room 이 는다 (형태 그대로)
+  removed: []
+
+scene: mining-field
+
+# ─────────────────────────────────────────────────────────────────
+# inventoryRoom — 이 Cycle 이 세우는 자리
+#
+#   **목록 밖에 있다.** 자리는 물건의 성질이 아니라 몸의 형편이므로 항목에 붙일 수 없다.
+#   항목마다 실으면 같은 값이 항목 수만큼 반복되고, 지닌 것이 없을 때는 실릴 자리가
+#   사라진다 — 가방이 비었을 때야말로 자리를 보여야 하는 순간인데도.
+#
+#   **View 는 이 둘을 계산하지 않는다.** used 를 항목에서 유도하려면 화면이 겹침 한도를
+#   알아야 하고, 그것을 아는 순간 세계와 화면에 자리 계산이 둘 생긴다.
+# ─────────────────────────────────────────────────────────────────
+inventoryRoom:
+  cardinality: one
+  source: 관찰자의 몸
+  fields:
+    used:
+      source: Inventory.UsedSlots
+      meaning: 지금 쓰고 있는 자리의 수. 지닌 것이 없으면 0
+    capacity:
+      source: World.InventoryCapacity
+      meaning: >
+        이 몸이 지닌 자리의 수. **화면은 이 수가 몇인지에 아무 조건도 걸지 않는다** —
+        used 와 나란히 보이면 그만이다. 세계가 이 수를 바꿔도 화면은 고치지 않는다.
+  meaning: >
+    가득 찼는지는 used == capacity 로 **보이는** 것이지, 화면이 그것으로 무엇을
+    막지 않는다. 막는 것은 언제나 available 과 사유다.
+
+# ─────────────────────────────────────────────────────────────────
+# inventory — 항목의 형태는 그대로, actions 에 값이 하나 는다
+# ─────────────────────────────────────────────────────────────────
+inventory:
+  reused: true
+  fields:
+    stackable:
+      changed: true
+      source: ItemDefinition.StackLimit > 1
+      meaning: >
+        **계약의 형태는 그대로다** (참/거짓 하나). 달라지는 것은 값이 어디서 나오는가와,
+        그래서 **곡괭이가 처음으로 false 가 된다**는 것이다 — 도구는 한 자루가 한 자리를
+        온전히 쓴다. 겹치지 않는 종류가 세계에 하나 생기는 것이 이 Cycle 의 의미이며,
+        화면은 그 값을 그대로 보이면 된다.
+        한 자리에 몇까지 겹치는지(StackLimit 자체)는 **싣지 않는다** — 그 수를 실으면
+        화면이 자리를 셀 수 있게 되고, 그것이 이 계약이 막으려는 것이다.
+
+  actions:
+    reused: true                 # 자리도 형태도 C020 그대로
+    fields:
+      role:
+        changed: true
+        values:
+          - use-item             # C020
+          - discard-item         # C022 ADDED
+        meaning: 의미 역할. 문구 변환은 View 책임 — 값이 늘어도 형태는 같다
+
+    discard-item:
+      added: true
+      role: discard-item
+      request: inventory[].actions[].id 를 그대로 되돌린다 (실을 파라미터가 없다)
+      available:
+        source: RULE-ITEM-DISCARD-001 의 판정
+      unavailableReason:
+        source: RULE-ITEM-DISCARD-001 의 실패 사유
+        optional: true
+        values:
+          - unknown-item     # 세계가 모르는 종류다 (정상적으로는 오지 않는다)
+          - not-enough       # 지니지 않았다 (정상적으로는 오지 않는다 — 목록에 없으므로)
+          - no-way-back      # **덜어내면 되돌릴 수 없다.** 이 Cycle 의 핵심 사유다
+        meaning: >
+          `no-way-back` 은 "이 종류는 못 버린다" 가 아니라 "지금 이것을 놓으면
+          돌아올 길이 없다" 이다. 세계가 그 종류를 다시 내어줄 수 있게 되면 같은 항목이
+          저절로 덜어낼 수 있게 된다 — **화면은 그날 아무것도 고치지 않는다.**
+      effect:
+        meaning: >
+          **그 종류를 전부 덜어낸다.** 수량을 고르는 자리가 없다 — 고르는 것은
+          수가 아니라 무엇을 놓을 것인가다. 그래서 요청에 실을 값도 없다.
+      timing:
+        meaning: >
+          **즉시 일어난다.** 진행도가 없고, 하던 행동을 끊지도 않는다.
+          쓰는 것(use-item)과 다른 점이 여기다 — 화면은 덜어내기에 진행 표시를
+          붙이지 않으며, 요청한 다음 관찰에서 자리가 이미 비어 있다.
+
+# ─────────────────────────────────────────────────────────────────
+# interactions — 새 항목이 없다
+#
+#   덜어내기는 **소지품 항목이 지닌다** (inventory[].actions[].id). C020 이 쓰는 것에
+#   대해 내린 판단과 같은 판단이며 이유도 같다 — 가진 것에 붙는 일은 가진 것 옆에 둔다.
+#   여기에 항목을 늘리면 종류 이름이 계약의 다른 자리에 다시 박힌다.
+# ─────────────────────────────────────────────────────────────────
+interactions:
+  mine:
+    changed: true
+    role: mine-deposit
+    available:
+      source: RULE-MINE-001 의 판정
+    unavailableReason:
+      source: RULE-MINE-001 의 실패 사유
+      values:
+        - no-target-selected
+        - target-kind-mismatch
+        - no-mining-tool
+        - out-of-range
+        - deposit-depleted
+        - action-busy
+        - no-room               # C022 ADDED — 얻을 것을 담을 자리가 없다
+      meaning: >
+        `no-room` 은 소지품 통로가 쓰는 것과 **같은 코드**다. 겪는 일이 하나이므로
+        사유도 하나여야 한다 — 화면에 문구가 둘 생기면 사람은 다른 일이 일어났다고 읽는다.
+
+        **부딪히기 전에 보인다.** 가방이 차는 순간 채집이 불가로 바뀌고 사유가 함께 온다.
+        억지로 요청해도 같은 사유로 거절된다 — 관찰과 실행이 같은 판정이다.
+
+        같은 사유가 곡괭이 항목의 use-item 에도 그대로 나타난다. 채집으로 들어가는
+        입구가 둘이어도 판정은 하나이기 때문이다 (C020 이 세운 관계 그대로).
+
+  attack: { reused: true }
+  skillHeavy: { reused: true }
+  skillAura: { reused: true }
+  guardBegin: { reused: true }
+  guardRelease: { reused: true }
+  observe: { reused: true }
+  forgetAcquaintance: { reused: true }
+  selectTarget: { reused: true }
+  clearTarget: { reused: true }
+  move: { reused: true }
+  moveMode: { reused: true }
+  setAttribute: { reused: true }
+
+# ─────────────────────────────────────────────────────────────────
+# entities / hud — 바뀌지 않는다
+# ─────────────────────────────────────────────────────────────────
+entities:
+  character:
+    reused: true
+    state:
+      meaning: >
+        덜어내기는 상태값을 늘리지 않는다. 시간을 쓰지 않으므로 "덜어내는 중" 이라는
+        순간이 세계에 존재하지 않는다 — 없는 상태를 계약에 만들지 않는다.
+  deposit:
+    reused: true
+
+hud:
+  reused: true
+  added: []
+  meaning: >
+    자리는 hud 가 아니라 inventoryRoom 이 지닌다. hud 는 몸의 값(생명·기력·행동)을 싣는
+    자리이고, 자리는 소지품에 딸린 값이므로 소지품 옆에 둔다.
+    **어디에 그리는가는 View 가 정한다** — 이 계약은 값이 어디서 오는지만 말한다.
+
+# ─────────────────────────────────────────────────────────────────
+# designer — 같은 계약을 쓴다
+# ─────────────────────────────────────────────────────────────────
+designer:
+  uses: 이 계약 그대로. World 로 가는 별도 경로를 만들지 않는다
+  goal:
+    - GOAL-CARRYING-HAS-AN-END
+    - GOAL-A-FULL-BODY-REFUSES-WHOLE
+    - GOAL-I-CHOOSE-WHAT-TO-LET-GO
+    - GOAL-NO-DOOR-CLOSES-FOREVER
+    - GOAL-ROOM-IS-SEEN-BEFORE-IT-IS-HIT
+  possibility:
+    - POSSIBILITY-ROOM-IS-COUNTED-NOT-WEIGHED
+    - POSSIBILITY-THE-DEFINITION-DECIDES-HOW-MUCH-FITS
+    - POSSIBILITY-THE-LIMIT-IS-A-VALUE-NOT-A-RULE
+    - POSSIBILITY-THERE-IS-NO-HALF-ACQUISITION
+    - POSSIBILITY-A-REFUSED-TAKE-COSTS-THE-WORLD-NOTHING
+    - POSSIBILITY-LETTING-GO-ASKS-FOR-NOTHING-OUTSIDE-THE-BODY
+    - POSSIBILITY-WHAT-IS-LET-GO-IS-GONE
+    - POSSIBILITY-THE-WORLD-GUARDS-THE-LAST-WAY-BACK
+    - POSSIBILITY-USED-AND-WHOLE-COME-TOGETHER
+    - POSSIBILITY-THE-SURFACE-COUNTS-NOTHING
+  observes:
+    availability:
+      - inventory[].actions[].available
+      - interactions.mine.available
+    preconditions:
+      - inventory[].actions[].unavailableReason
+      - interactions.mine.unavailableReason
+    before_after:
+      - inventoryRoom.used            # 담기 전후 · 덜어내기 전후
+      - inventory[].count
+      - entities.deposit              # 거절된 채집이 광맥을 축내지 않았음
+    reason:
+      - no-room
+      - no-way-back
+
+# ─────────────────────────────────────────────────────────────────
+# VIEW CLOSURE — 이 계약만으로 Cycle Goal 을 플레이할 수 있는가
+# ─────────────────────────────────────────────────────────────────
+closure:
+  - 자리가 얼마나 찼는지 안다              inventoryRoom.used / capacity
+  - 캔 것이 자리를 채우는 것을 본다          같은 값이 캘 때마다 오른다
+  - 자리가 차면 캘 수 없음을 안다            interactions.mine.available = false
+  - 왜 못 캐는지 안다                      unavailableReason = no-room
+  - 무엇을 덜어낼 수 있는지 안다             inventory[].actions[discard-item].available
+  - 왜 못 덜어내는지 안다                   unavailableReason = no-way-back
+  - 덜어낼 것을 고르고 요청할 수 있다         inventory[].actions[].id
+  - 덜어내면 자리가 비는 것을 본다           inventoryRoom.used 가 내려간다
+  - 다시 캘 수 있게 된 것을 본다             interactions.mine.available 이 true 로 돌아온다
+  - 거절된 채집이 광맥을 축내지 않은 것을 본다  entities.deposit 의 상태가 그대로다
+
+# ─────────────────────────────────────────────────────────────────
+# NOT IN THIS CONTRACT — 싣지 않는 것과 그 이유
+# ─────────────────────────────────────────────────────────────────
+excluded:
+  StackLimit 수치: 실으면 화면이 자리를 셀 수 있게 된다. 필요한 것은 결과(used)이지 식이 아니다
+  항목이 차지한 자리 수: 같은 이유. "이 항목이 몇 자리" 를 실으면 화면이 합을 구하게 된다
+  세계가 다시 내어줄 수 있는 종류의 목록: 실으면 화면이 no-way-back 을 스스로 판정하게 된다.
+                 필요한 것은 판정의 결과이고 그것은 available 과 사유가 이미 답한다
+  자리의 배치·순서·빈 칸의 모양: 세계에 자리의 이름이 없다. 목록의 순서는 C020 그대로
+  수량을 나누어 덜어내기: 세계에 없다 (그 종류를 전부 덜어낸다)
+  남의 자리: 내 몸의 것만 실린다 (INTENT-PER-OBSERVER-PROJECTION-001)
+  가방 확장 · 무게 · 개체 상태: 세계에 없다
