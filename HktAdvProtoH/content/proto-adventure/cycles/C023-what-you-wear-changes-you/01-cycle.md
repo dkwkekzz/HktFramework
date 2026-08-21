@@ -2,7 +2,7 @@
 
 [PASS] Cycle Definition           (적용이라는 개념 전부 · 걸기와 풀기는 한 몸 · 값은 Stage 3)
 [PASS] Intent                     (적용 자리 · 적합성 · 원자성 · 재계산 · 출처 이전 · 관찰)
-[    ] World Semantic
+[PASS] World Semantic              (자리는 종류를 담는다 · 유효 값은 파생 · 지닐 수 있는 용도 · 값 2·12·4)
 [    ] GameView Specification
 [    ] Human Semantic Review
 [    ] World Implementation
