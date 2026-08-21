@@ -18,7 +18,6 @@
 //      만들지 않는다는 것과 같은 자리다).
 
 import type { ActorState } from './actor';
-import type { SkillKind } from './combat';
 import { distance, type WorldPosition } from './position';
 
 /** 한쪽에서 본 태도 — 눈금이 아니라 갈래다 */
@@ -85,7 +84,11 @@ export type UnharmedReason = 'not-hostile';
 export interface UnharmedContact {
   attackerId: string;
   targetId: string;
-  skill: SkillKind;
+  /**
+   * 무엇으로 — 이름표다 (C020 CHANGED). 스킬 이름뿐이던 자리에 **쓰인 것의 이름**이
+   * 실릴 수 있다. StrikeEvent.skill 과 같은 자리, 같은 이유다.
+   */
+  skill: string;
   position: WorldPosition;
   time: number;
   reason: UnharmedReason;

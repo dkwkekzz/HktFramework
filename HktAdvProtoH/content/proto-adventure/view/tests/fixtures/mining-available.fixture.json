@@ -64,18 +64,7 @@
       "available": true
     }
   ],
-  "hud": [
-    {
-      "id": "inventory.stone",
-      "kind": "counter",
-      "value": 0
-    },
-    {
-      "id": "tool.hasMiningTool",
-      "kind": "flag",
-      "value": true
-    }
-  ],
+  "hud": [],
   "strikes": [],
   "contacts": [],
   "cancels": [],
@@ -85,5 +74,35 @@
   "commands": [],
   "currentTarget": {
     "entityId": "deposit-1"
-  }
+  },
+  "inventory": [
+    {
+      "kind": "stone",
+      "count": 2,
+      "category": "material",
+      "origin": "IT-COMMON-STONE",
+      "stackable": true,
+      "actions": [
+        {
+          "id": "use-item",
+          "role": "use-item",
+          "available": false,
+          "unavailableReason": "no-target-selected"
+        }
+      ]
+    },
+    {
+      "kind": "pickaxe",
+      "count": 1,
+      "category": "tool",
+      "stackable": true,
+      "actions": [
+        {
+          "id": "use-item",
+          "role": "use-item",
+          "available": true
+        }
+      ]
+    }
+  ]
 }

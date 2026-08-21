@@ -7,7 +7,10 @@
 // Preconditions  1. 그 관찰자가 고른 것이 있다      (no-target-selected)   ← C017 ADDED
 //                2. 고른 것이 광맥이다             (target-kind-mismatch) ← C017 ADDED
 //                   1·2 가 옛 unknown-deposit 을 대신한다
-//                3. Mining Capability Item 보유    (no-mining-tool)
+//                3. 이 몸에 채집 용도가 지금 있다   (no-mining-tool)   ← C020 CHANGED
+//                   "곡괭이를 지녔는가" 가 아니라 "그 용도가 있는가" 를 묻는다.
+//                   무엇이 그 용도를 주는지는 아이템 정의가 답한다 (RULE-BODY-USES-001).
+//                   사유 코드는 **그대로 둔다** — 사람이 겪는 일이 달라지지 않았다
 //                4. InteractionRange 이내          (out-of-range)
 //                5. ResourceAmount > 0             (deposit-depleted)
 //                6. 현재 행동이 대체 가능하다        (action-busy)
@@ -20,14 +23,15 @@
 // RULE-MINE-COMPLETE-001 — Implements INTENT-MINING-001 · INTENT-ACTION-PROGRESS-001
 // Input          채굴 행동이 Duration 을 채운 Actor
 // Preconditions  대상 Deposit 의 ResourceAmount > 0
-// Transition     ResourceAmount -= 1, Inventory.Items[stone].Count += 1
+// Transition     ResourceAmount -= 1, RULE-INVENTORY-ADD-001(stone, 1)   ← C020 CHANGED
 // Result         Success | Failure(deposit-depleted)
 
 import type { ActionResult } from '../../protocol/actions';
 import { RULE_MINE, RULE_MINE_COMPLETE } from '../../protocol/semantic-id';
 import type { ActorState } from '../semantic/actor';
 import type { DepositState } from '../semantic/deposit';
-import { hasMiningTool, itemCount } from '../semantic/inventory';
+import { bodyHasUse } from './body-uses';
+import { ruleInventoryAdd } from './inventory';
 import { distance } from '../semantic/position';
 import { selectedEntityId } from '../semantic/target-selection';
 import { INTERACTION_RANGE, type WorldState } from '../semantic/world-state';
@@ -47,7 +51,7 @@ export function evaluateMinePreconditions(
   actor: ActorState,
   deposit: DepositState,
 ): MineFailureReason | null {
-  if (!hasMiningTool(actor.inventory)) return 'no-mining-tool';
+  if (!bodyHasUse(actor, 'mine')) return 'no-mining-tool';
   if (distance(actor.position, deposit.position) > INTERACTION_RANGE) return 'out-of-range';
   if (deposit.resourceAmount <= 0) return 'deposit-depleted';
   return evaluateActionBegin(actor);
@@ -96,6 +100,8 @@ export function ruleMineComplete(state: WorldState, actor: ActorState): ActionRe
   }
 
   deposit.resourceAmount -= 1;
-  actor.inventory.items.set('stone', itemCount(actor.inventory, 'stone') + 1);
+  // C020 CHANGED — 획득이 변경 단일 통로를 지난다 (INTENT-INVENTORY-SINGLE-CHANNEL-001).
+  // 얻는 양도 시점도 그대로다.
+  ruleInventoryAdd(actor, 'stone', 1);
   return { status: 'success', rule: RULE_MINE_COMPLETE };
 }

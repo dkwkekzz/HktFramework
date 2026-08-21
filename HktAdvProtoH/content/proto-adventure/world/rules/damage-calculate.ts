@@ -3,7 +3,11 @@
 //                              INTENT-TYPED-DEFENSE-001 · INTENT-SKILL-SCALING-001 ·
 //                              INTENT-DAMAGE-BREAKDOWN-001 · INTENT-PENETRATION-001 ·
 //                              INTENT-PENETRATION-MATCH-001 · INTENT-EFFECTIVE-DEFENSE-001
-// Input          공격자 Actor, 대상 Actor, SkillKind
+// Input          공격자 Actor, 대상 Actor, **Force**(BaseDamage · AttackRatio · DamageType)
+//                C020 CHANGED — 입력이 SkillKind 에서 위력 정의로 넓어졌다. 스킬은 자기
+//                정의가 지닌 값을 넘겨 주고(forceOfSkill), 물건은 자기 정의가 지닌 값을
+//                넘겨 준다. **식은 한 글자도 바뀌지 않는다** — 같은 입력이면 이 Cycle
+//                전후로 같은 값이 나온다 (DC-COMBAT-ONE-FORMULA).
 // Preconditions  없음 — 이것은 값을 정하는 계산이며 세계를 바꾸지 않는다
 // Transition     없음 (World State 를 변경하지 않는다)
 // Result         DamageCalculation — 흔들림도 막기도 모르는, 판정 이전의 값
@@ -60,17 +64,15 @@ import {
   effectiveDefense,
   offenseStatValue,
   penetrationStatValue,
-  skillDefinition,
   type DamageCalculation,
-  type SkillKind,
 } from '../semantic/combat';
+import type { Force } from '../semantic/item';
 
 export function ruleDamageCalculate(
   attacker: ActorState,
   target: ActorState,
-  kind: SkillKind,
+  skill: Force,
 ): DamageCalculation {
-  const skill = skillDefinition(kind);
 
   // ── Step 0 — 타입 대응 (C012) ────────────────────────────────────
   // 대응표가 단일 출처다. 여기에 방식별 if 를 늘리지 않는다.

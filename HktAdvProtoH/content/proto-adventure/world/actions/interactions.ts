@@ -26,6 +26,7 @@ import type { ActionRequest, ActionResult } from '../../protocol/actions';
 import type { InteractionHandler } from '../../../../engine/world-kernel/content';
 import { ruleAttributeSet } from '../rules/attribute-set';
 import { ruleGuardBegin, ruleGuardRelease } from '../rules/guard';
+import { ruleItemUse } from '../rules/item-use';
 import { ruleMine } from '../rules/mine';
 import { ruleMove } from '../rules/move';
 import { ruleMoveMode } from '../rules/move-mode';
@@ -81,6 +82,16 @@ export const INTERACTIONS: readonly InteractionHandler<WorldState>[] = [
     id: 'mine',
     // C017 CHANGED — 대상은 고른 것이다 (요청의 targetEntityId 를 읽지 않는다)
     handle: withActor((state, actor, _action, observerId) => ruleMine(state, actor, observerId)),
+  },
+  {
+    // C020 — 물건을 쓴다. 요청이 싣는 것은 **내 소지품 중 무엇인가** 하나이며,
+    // 대상은 싣지 않는다 — 그것은 그 관찰자가 고른 것이다 (C017 의 자리 그대로).
+    // 무슨 일이 일어나는가는 그 물건의 정의가 정한다 — 여기에 종류별 분기가 없다.
+    id: 'use-item',
+    handle: withActor((state, actor, action, observerId) => {
+      if (!action.itemKind) return { status: 'failure', rule: DISPATCH, reason: 'missing-item' };
+      return ruleItemUse(state, actor, observerId, action.itemKind);
+    }),
   },
   {
     id: 'attack',

@@ -11,6 +11,7 @@ import { INTERACTIONS } from './actions/interactions';
 import { projectObserverView } from './projection/observer-view';
 import { DEFAULT_BODY, spawnObserverBody, type BodyDefaults } from './rules/observer-body';
 import type { ActorState } from './semantic/actor';
+import type { ItemKind } from './semantic/item';
 import type { WorldPosition } from './semantic/position';
 import { spawnActor } from './semantic/spawn';
 import {
@@ -46,7 +47,8 @@ export interface NpcSetup {
 export interface WorldSetup {
   /** 첫 번째 관찰자의 몸이 놓일 자리 — 검증용 초기 배치 (SPAWN_POINTS[0] 를 대신한다) */
   actorPosition?: { x: number; z: number };
-  actorItems?: Partial<Record<'stone' | 'pickaxe', number>>;
+  /** C020 CHANGED — 세계가 정의한 어떤 종류든 실릴 수 있다 */
+  actorItems?: Partial<Record<ItemKind, number>>;
   actorCharacterKind?: string;
   /**
    * C018 — 관찰자의 몸이 지닐 지키는 자리. 밝히지 않으면 없다.

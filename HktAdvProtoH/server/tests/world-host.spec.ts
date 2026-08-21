@@ -5,6 +5,9 @@
 
 import { describe, expect, it } from 'vitest';
 import type { GameViewSnapshot, RequestOutcomeView } from '../../engine/protocol-core/gameview';
+// C020 — 소지품은 팩의 계약이 소유한다. 봉투 형으로 오간 관찰 결과를 읽을 때만 좁힌다
+// (world/tests/drive.ts 와 같은 자리, 같은 이유).
+import type { GameViewSnapshot as PackGameViewSnapshot } from '../../content/proto-adventure/protocol/gameview';
 import type { ActionRequest } from '../../content/proto-adventure/protocol/actions';
 import { parseClientMessage, parseServerMessage } from '../../engine/protocol-core/transport';
 import { createWorldHost } from '../world-host';
@@ -13,7 +16,7 @@ const A = 'observer-a';
 const B = 'observer-b';
 const worldTime = (v: GameViewSnapshot) => v.hud.find((h) => h.id === 'world.time')?.value as number;
 const stone = (v: GameViewSnapshot) =>
-  v.hud.find((h) => h.id === 'inventory.stone')?.value as number;
+  (v as PackGameViewSnapshot).inventory.find((i) => i.kind === 'stone')?.count ?? 0;
 
 describe('WorldHost — 관찰자 붙었다 떨어지기', () => {
   it('붙은 뒤 첫 Tick 에 자기 몸이 있는 세계를 받는다', () => {
