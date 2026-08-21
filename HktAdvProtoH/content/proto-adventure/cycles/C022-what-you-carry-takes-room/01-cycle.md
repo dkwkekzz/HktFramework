@@ -1,8 +1,8 @@
-# CYCLE C021 — What You Carry Takes Room
+# CYCLE C022 — What You Carry Takes Room
 
 [PASS] Cycle Definition           (자리와 덜어내기가 한 몸 · 앞 절반은 C020 이 세웠다 · 값은 Stage 3)
 [PASS] Intent                     (자리 · 획득 원자성 · 덜어내기 · 막힘 방지 · 자리 관찰 · 값은 Stage 3)
-[    ] World Semantic
+[PASS] World Semantic             (자리는 파생 · 분기 없는 한 식 · 막힘은 용도로 판정 · 값 4·3·1·12)
 [    ] GameView Specification
 [    ] Human Semantic Review
 [    ] World Implementation
@@ -16,8 +16,14 @@ STATUS  IN PROGRESS
     그 판은 정의소 · 소지 관찰 · 사용 · 소모가 세계에 없다는 전제 위에 서 있었고,
     **작성 시점에는 그 전제가 참이었다.** 같은 날 다른 갈래에서 진행되던
     C020(아이템의 바닥)이 병합되면서 넷 다 서 버렸다.
-    번호도 겹쳤다 — C020 이 둘이 되었으므로 이 Cycle 이 C021 로 옮겨 왔다.
+    번호도 겹쳤다 — C020 이 둘이 되었으므로 이 Cycle 이 C021 로 옮겼고,
+    그 뒤 C021 도 다른 갈래가 쓰고 있어 **C022 로 다시 옮겼다** (Human 지시, 2026-08-21).
+    번호만 바뀌었고 이 Cycle 이 담는 의미는 한 글자도 달라지지 않았다.
     이 판은 병합된 세계를 다시 대조해 남은 것만 담는다 (SCOPE NOTE ①).
+
+    **위층에 남은 어긋남** — `master/frontier.md` · `open-questions.md` · `HISTORY.md` 가
+    이 Cycle 을 `C021` 로 부른다. Cycle Agent 는 `master/` 를 편집하지 않으므로
+    고치지 않았고, `08-verification.md` 의 MASTER FEEDBACK 으로 보고한다.
 
 ## MASTER TRACE
 
