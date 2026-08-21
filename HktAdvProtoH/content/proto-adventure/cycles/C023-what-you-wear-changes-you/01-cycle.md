@@ -1,7 +1,7 @@
 # CYCLE C023 — What You Wear Changes You
 
 [PASS] Cycle Definition           (적용이라는 개념 전부 · 걸기와 풀기는 한 몸 · 값은 Stage 3)
-[    ] Intent
+[PASS] Intent                     (적용 자리 · 적합성 · 원자성 · 재계산 · 출처 이전 · 관찰)
 [    ] World Semantic
 [    ] GameView Specification
 [    ] Human Semantic Review
