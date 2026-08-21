@@ -1432,3 +1432,72 @@ Human 이 "FR-ACTION-PHASE 의 근간이 무엇인가" 를 물어 근간을 역�
     후보가 하나뿐이었던 것은 전투 쪽이 C019 로 닫히고 다음 전투 층(능동 방어)이
     설계 문서를 기다리기 때문이다.
 
+
+## C020 닫힘 — 쓴다 · 없어진다 (Master Feedback 반영)
+
+    Cycle          C020-what-you-carry-can-be-spent · STATUS COMPLETE
+                   검사 6종 · 914 tests · Human Play 확인 (2026-08-21)
+    Frontier       FR-WHAT-YOU-CARRY-CAN-BE-SPENT — **절반 소진**
+    사슬           MG-EXPLORE-BEIRA → MP-ADAPT-BY-RESOURCE → MC-USE-ITEM
+                   자원으로 감당하는 갈래의 첫 칸이 세계에서 굴러간다
+
+### Overlay 승격
+
+    MC-USE-ITEM    MISSING → IMPLEMENTED
+        world_shape 세 문장이 모두 실측으로 닫혔다 — 쓸 수 있는 것과 없는 것이
+        사유와 함께 오고, 고른 상대에게 돌을 던져 상태가 바뀌며 수량이 줄고,
+        끊긴 사용은 아무 흔적도 남기지 않는다. 근거는 코드의 존재가 아니라
+        세계 프로세스 실측이다 (타격 기록 `["stone", 3]` · 60초 16회 시도 9회 성립).
+
+    MC-EQUIP-ITEM · MC-CRAFT-FROM-MATERIALS · MC-TRANSFER-ITEM   MISSING 유지
+        다만 **공통 앞칸의 대부분이 섰다** — 정의소 · 변경 단일 통로 · 소모 ·
+        원자성 · 용도 사슬의 몸에 닿는 절반. 각 행의 근거 칸에 그것을 적었다.
+
+    MC-RESTORE-BIOLOGICAL-STATE · MC-CUT-ABNORMAL-STRUCTURE   MISSING 유지
+        이 Cycle 은 그 어느 것도 닫지 않았다 (Q31 의 결정 그대로).
+
+### Constraint Evaluation
+
+    노드에 새로 남긴 것은 없다. 아이템 DC 넷(KIND-IS-DATA · CHANGE-IS-ONE-UNIT ·
+    CAPABILITY-COMES-FROM-GRANTS · SURFACE-LIST)은 이미 SATISFIED 로 서 있었고,
+    이 Cycle 은 그것을 **실측으로 확인**했을 뿐 구현 형태를 새로 제한하지 않았다
+    (무차별 Edge 금지). 08 이 보고한 두 가지는 그대로 기록해 둔다 —
+        COMES-FROM-GRANTS 는 절반만 섰다. `IM-*` 의 grants 가 몸에 닿는 것은 장착의 몫이다.
+        ONE-LAYER-AT-A-TIME 은 SATISFIED 이나 그 근거가 Stage 1 의 주장과 달라졌다.
+        "사거리를 그대로 두므로 층이 올라가지 않는다" 는 주장이 실측으로 깨졌고
+        (사거리 2.0 에서는 그 사용이 성립하지 않는다), Human 결정으로 5.0 이 되었다.
+        층은 여전히 올라가지 않았다 — 이미 있는 층에 입구가 하나 더 생겼고 그 입구가 소지품이다.
+
+### 배운 것 — 두 갈래가 서로를 모른 채 병합됐다
+
+    PR #772(이 Cycle)와 PR #774(IE 주입 + 다음 Cycle 정의)가 공통 조상 이전에서
+    갈라져 각자 main 에 들어왔다. 파일이 겹치지 않아 git 은 조용히 합쳤지만
+    **Master 상태는 한쪽만 반영됐다.**
+
+        overlay      MC-USE-ITEM 이 MISSING 인 채로, 이미 사라진 코드를 근거로 인용했다
+        frontier     이미 완주한 Frontier 가 SELECTED 로 적혔다
+        Cycle ID     C020 이 둘이 되었다
+        다음 Cycle   그 01-cycle.md 의 SCOPE NOTE ① 이 병합으로 거짓이 되었다
+                     ("세계에 쓸 수 있는 것이 하나도 없다" — 작성 시점에는 참이었다)
+
+    이 Feedback 이 넷을 정리했다. C020 자신의 01-cycle.md 가 이 위험을 예고하고 있었다
+    ("두 갈래가 같은 Overlay 를 동시에 갱신하면 병합이 사실을 고르는 일이 된다") —
+    실제로 일어난 것은 동시 갱신이 아니라 **한쪽의 통째 누락**이었다.
+    2026-08-20 의 같은 교훈(병합 정리 절)에 이어 두 번째다.
+
+    규칙으로 남긴다 — **닫힌 Cycle 의 Feedback 은 다음 Master 작업보다 먼저 돌린다.**
+    (guides/master-feedback.md 가 이미 Must 로 갖고 있다. 지키지 못한 것은 두 세션이
+    서로의 존재를 몰랐기 때문이므로, 병렬 갈래가 있으면 Master 작업 전에 main 을 먼저 본다.)
+
+## Frontier 절반 소진 — FR-WHAT-YOU-CARRY-CAN-BE-SPENT
+
+    Human 이 2026-08-21 에 고른 "아이템의 바닥" 은 Q34 로 다섯 조각이 되었다.
+
+        정의 · 관찰 · 사용 · 소모     C020 으로 닫힘
+        자리(소지 한도)              남았다 → FR-WHAT-YOU-CARRY-TAKES-ROOM 으로 frontier 에 남긴다
+
+    후보를 새로 세운 것이 아니라 **같은 선택의 남은 절반**이다. 덜어내기가 자리와
+    한 몸인 것도 같은 날 Human 이 정했다 (C021 SCOPE NOTE ①) — 칸만 넣으면
+    가방이 차는 순간 채굴이 영구히 막히기 때문이다.
+
+    직전 선택       FR-INTERRUPT-THE-STARTUP → C019 로 닫힘

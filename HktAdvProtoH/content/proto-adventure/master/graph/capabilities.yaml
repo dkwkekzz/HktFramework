@@ -1274,7 +1274,7 @@ nodes:
       DC-ITEM-CHANGE-IS-ONE-UNIT: SATISFIED         # 효과와 수량이 한 단위로 변한다 — 실패는 흔적을 남기지 않는다
       DC-ITEM-KIND-IS-DATA-NOT-BRANCH: SATISFIED    # 무엇을 쓸 수 있는지는 정의가 답하고 규칙은 종류 이름을 묻지 않는다
       DC-WORLD-OWNS-THE-SURFACE-LIST: SATISFIED     # 지금 쓸 수 있는 것의 목록과 불가 사유를 세계가 싣는다
-    overlay: MISSING
+    overlay: IMPLEMENTED
 
   - id: MC-EQUIP-ITEM
     type: capability
