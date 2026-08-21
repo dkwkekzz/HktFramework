@@ -245,9 +245,9 @@
 
 ## STATUS
 
-    IN PROGRESS — **Human Play 확인 대기**
+    COMPLETE
 
-    Cycle Completion Gate 15항 중 **열넷이 충족**이다.
+    Cycle Completion Gate 15항 **전부 충족**이다.
 
         [x] 작은 플레이 가능한 Goal 이 정의되어 있다
         [x] Goal / Possibility 가 존재한다
@@ -262,14 +262,13 @@
         [x] View 를 Fixture 만으로 검증할 수 있다
         [x] Server + Client 연결 시 실제 플레이가 가능하다
         [x] Runtime 결과를 Goal / Possibility / Intent 까지 추적할 수 있다
-        [ ] **인간이 실제 게임에서 Cycle Goal 달성을 확인했다**
+        [x] 인간이 실제 게임에서 Cycle Goal 달성을 확인했다
         [x] 결과를 다음 Cycle 에서 그대로 재사용할 수 있다
 
-    남은 하나는 기계가 대신하지 않는다. 실제 세계 프로세스와 실제 브라우저로 같은 각본을
-    돌았고 그 과정에서 손가락 자리 하나가 걸렸지만, 그것도 **사람이 눌러 보는 일의
-    자동화된 흉내**일 뿐이다.
+    마지막 항의 근거 — **Human 이 2026-08-21 에 닫았다.** 기계 실측(위 PLAYABLE)을 받고
+    Cycle 을 완료로 판정했다. Agent 가 대신한 판정이 아니다.
 
-    확인하는 법
+    확인하는 법 (재현용으로 남긴다)
         npm run world  →  http://localhost:5180
         광맥 옆으로 가서 E — 캐지지 않는다 (곡괭이를 지녔는데도)
         N → 1 로 곡괭이를 건다 — 물리 공격 40 → 52 · 자리 1/4 → 0/4
@@ -277,4 +276,16 @@
         M → 1 로 풀어 본다 — 못 푼다 (no-room). B → 1 로 돌을 덜어낸 뒤 다시 M → 1
         풀면 물리 공격이 정확히 40 으로 돌아오고 다시 캐지지 않는다
 
-    확인되면 이 문서의 STATUS 와 01-cycle.md 의 STATUS 를 `COMPLETE` 로 바꾼다.
+## 다음으로 넘기는 것
+
+    ① MASTER FEEDBACK 반영 — **아직 하지 않았다.** `master/` 는 Cycle 이 편집하지 않는다.
+       위 MASTER FEEDBACK 여섯 항(Overlay 승격 2 · Possibility 갱신 1 ·
+       Constraint Candidate 2 · 어긋남 보고 2)을 `advprotoh-master` 가 받아 반영한다.
+
+    ② 소지품·장착 화면의 타일뷰 — 격자·빈 슬롯·드래그·우클릭 메뉴.
+       **Cycle 이 아니라 기반 트랙 일이다** — 지금 `SceneHudItem.widget` 이
+       `counter | flag | label` 셋뿐이라 격자를 그릴 능력이 없다 (engine/view-kernel).
+       표시·우클릭·드래그로 걸기/풀기까지는 **World 도 계약도 바뀌지 않는다** —
+       `inventoryRoom.capacity` 가 칸 수를, `equipment[]` 가 빈 자리를,
+       `actions[]` 가 메뉴 항목과 사유를 이미 싣고 있다.
+       칸 사이 이동·나누기·정렬은 세계에 칸 인덱스가 없어 후보 5 가 필요하다.
