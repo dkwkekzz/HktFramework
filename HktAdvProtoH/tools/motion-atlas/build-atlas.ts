@@ -6,7 +6,8 @@
 
 import { createHash } from 'node:crypto';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
-import { join, relative, sep } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { dirname, join, relative, sep } from 'node:path';
 import { parseMotionPath } from '../../engine/view-kernel/motion/motion-format';
 import type { MotionAtlas, MotionFrameGeometry, MotionGeometry } from '../../engine/view-kernel/motion/motion-geometry';
 import { activePackDir } from '../active-pack';
@@ -30,8 +31,48 @@ export interface SheetReport {
 export interface AtlasBuildResult {
   atlas: MotionAtlas;
   reports: SheetReport[];
-  /** 입력 파일들의 내용 해시 — 바뀌지 않았으면 다시 만들 필요가 없다 */
+  /** 입력 지문 — motions/ 내용 + 분석기 판. 바뀌지 않았으면 다시 만들 필요가 없다 */
   inputHash: string;
+  /** 훑은 시트 파일 수 (분석을 건너뛰었을 때도 안다) */
+  sheets: number;
+  /** reuseIfHash 와 같아 분석을 건너뛰었다 — atlas·reports 는 비어 있다 */
+  upToDate: boolean;
+}
+
+export interface AtlasBuildOptions {
+  /**
+   * 이미 이 지문으로 만들어 둔 생성물이 있다면 분석을 건너뛴다.
+   *
+   * 지문은 파일 **내용**으로만 만든다 (경로+바이트) — 크기·수정시각과 달리 기계가 달라도,
+   * 다시 클론해도 같은 값이다. 그래서 "이미 최신" 판단이 컴퓨터마다 갈리지 않는다.
+   */
+  reuseIfHash?: string;
+}
+
+/**
+ * 기하를 결정하는 분석기 소스의 지문.
+ *
+ * 지문이 시트 내용만 담으면, 검출·정규화 규칙이 바뀌었는데 시트는 그대로인 상황에서
+ * "이미 최신" 이라고 잘못 판정한다 (실제로 있었던 일 — 커밋 8d8ceb3 은 시트를 건드리지
+ * 않고 세로 기준점 규칙만 바꿨다). 그래서 규칙도 입력으로 친다.
+ *
+ * 공정 코드(scan · vite-plugin)는 뺀다 — 출력 값을 만들지 않기 때문이다.
+ */
+function builderFingerprint(): string {
+  const here = dirname(fileURLToPath(import.meta.url));
+  const sources = [
+    join(here, 'build-atlas.ts'),
+    join(here, 'detect-frames.ts'),
+    join(here, 'png-alpha.ts'),
+    join(here, 'emit.ts'),
+    join(here, '..', '..', 'engine', 'view-kernel', 'motion', 'motion-format.ts'),
+  ];
+  const hash = createHash('sha256');
+  for (const source of sources) {
+    // 줄바꿈은 규칙이 아니다 — CRLF 체크아웃에서 지문이 달라지지 않게 한다
+    hash.update(readFileSync(source, 'utf8').replace(/\r\n/g, '\n'));
+  }
+  return hash.digest('hex');
 }
 
 /** motions/ 아래의 모든 이미지 파일 경로를 모은다 */
@@ -118,19 +159,28 @@ function normalize(detected: DetectedSheet, declaredFrames: number): MotionGeome
   return { sheet: [detected.width, detected.height], cols: detected.cols, rows: detected.rows, refHeightPx, frames, warnings };
 }
 
-export function buildAtlas(projectRoot: string): AtlasBuildResult {
+export function buildAtlas(projectRoot: string, options: AtlasBuildOptions = {}): AtlasBuildResult {
   const motionsDir = join(activePackDir(projectRoot), 'motions');
   const files = collectSheets(motionsDir);
 
+  // 지문 먼저 — 입력이 그대로면 알파 해독도 기하 검출도 하지 않는다.
+  const hash = createHash('sha256');
+  hash.update(builderFingerprint());
+  const keyed = files.map((file) => {
+    const key = '/' + relative(projectRoot, file).split(sep).join('/');
+    hash.update(key).update(readFileSync(file));
+    return { file, key };
+  });
+  const inputHash = hash.digest('hex').slice(0, 16);
+
+  if (options.reuseIfHash !== undefined && options.reuseIfHash === inputHash) {
+    return { atlas: {}, reports: [], inputHash, sheets: files.length, upToDate: true };
+  }
+
   const atlas: Record<string, MotionGeometry> = {};
   const reports: SheetReport[] = [];
-  const hash = createHash('sha256');
 
-  for (const file of files) {
-    const key = '/' + relative(projectRoot, file).split(sep).join('/');
-    const bytes = readFileSync(file);
-    hash.update(key).update(bytes);
-
+  for (const { file, key } of keyed) {
     const asset = parseMotionPath(key, key);
     if (!asset) continue; // 포맷에 맞지 않는 파일은 런타임과 똑같이 무시한다
 
@@ -150,7 +200,7 @@ export function buildAtlas(projectRoot: string): AtlasBuildResult {
     }
 
     try {
-      const detected = detectSheet(readPngAlpha(bytes), asset.cols, asset.rows);
+      const detected = detectSheet(readPngAlpha(readFileSync(file)), asset.cols, asset.rows);
       const geometry = normalize(detected, asset.frames);
       atlas[key] = geometry;
       reports.push({ ...base, geometry, detected });
@@ -159,7 +209,7 @@ export function buildAtlas(projectRoot: string): AtlasBuildResult {
     }
   }
 
-  return { atlas, reports, inputHash: hash.digest('hex').slice(0, 16) };
+  return { atlas, reports, inputHash, sheets: files.length, upToDate: false };
 }
 
 /** motions/ 안 파일들의 크기·수정시각 지문 — 다시 만들지 판단하는 값싼 기준 */

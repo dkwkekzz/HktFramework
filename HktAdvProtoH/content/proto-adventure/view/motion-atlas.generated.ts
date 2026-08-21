@@ -8,8 +8,8 @@
 
 import type { MotionAtlas } from '../../../engine/view-kernel/motion/motion-geometry';
 
-/** 분석에 쓰인 motions/ 내용 지문 — 값이 다르면 다시 만들어야 한다 */
-export const MOTION_ATLAS_INPUT_HASH = "daebd9c837cf2673";
+/** 분석에 쓰인 입력 지문 (motions/ 내용 + 분석기 판) — 값이 다르면 다시 만들어야 한다 */
+export const MOTION_ATLAS_INPUT_HASH = "c5ac00bf48849dfe";
 
 export const MOTION_ATLAS: MotionAtlas = {
   "/content/proto-adventure/motions/rabbit-swordsman/attack.3x3.9f.12fps.png": {
