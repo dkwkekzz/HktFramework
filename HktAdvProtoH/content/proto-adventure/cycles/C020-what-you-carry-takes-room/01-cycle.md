@@ -6,10 +6,10 @@
 [PASS] GameView Specification    (소지품은 목록 · 판정은 세계 · 돌 전용 칸이 사라진다)
 [PASS] Human Semantic Review     (APPROVED — 버리기로 연다 · BALANCE 세 값 승인)
 [PASS] World Implementation      (카탈로그·자리·받기/덜어내기 · 신규 27건 · 전체 889건)
-[PASS] View Implementation      (소지품은 줄 · X 로 덜어냄 · 신규 15건 · 전체 904건)
-[PASS] Verification              (검사 6종+카탈로그 통과 · 911건 · Human Play 대기)
+[PASS] View Implementation      (소지품은 줄 · B 로 덜어냄 · 신규 19건 · 전체 915건)
+[PASS] Verification              (검사 6종+카탈로그 통과 · 915건 · Human Play 확인)
 
-STATUS  IN PROGRESS
+STATUS  COMPLETE
 
 ## MASTER TRACE
 

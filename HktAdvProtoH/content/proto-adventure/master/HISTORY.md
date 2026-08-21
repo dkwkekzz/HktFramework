@@ -1432,3 +1432,122 @@ Human 이 "FR-ACTION-PHASE 의 근간이 무엇인가" 를 물어 근간을 역�
     후보가 하나뿐이었던 것은 전투 쪽이 C019 로 닫히고 다음 전투 층(능동 방어)이
     설계 문서를 기다리기 때문이다.
 
+---
+
+## Frontier 닫힘 — FR-WHAT-YOU-CARRY-CAN-BE-SPENT → C020 (아이템의 바닥)
+
+    선택            Human · 2026-08-21
+    닫힘            C020-what-you-carry-takes-room · STATUS COMPLETE (Human Play 확인)
+    기계 검증        915 tests · tsc 0 · boundary 0 · catalog 정합 · vite build 성공
+
+### 무엇이 섰나
+
+    세계가 아이템을 정의한다        ItemCatalog — 종류 이름이 카탈로그 열쇠가 되고
+                                  `ItemKind` 합집합과 `MINING_CAPABLE` 집합이 사라졌다
+    담을 자리가 유한하다            Inventory{capacity, slots} — 겹침 한도까지 쌓이고
+                                  넘으면 새 자리를 쓴다
+    받기는 전량 아니면 전무          다 담기지 못하면 하나도 담기지 않고, 광맥도 줄지 않는다
+    지닌 것 전부가 한 계약으로       carried[] + carriedRoom — 돌 전용 HUD 칸이 사라졌다
+    **가진 것이 사라지는 첫 경로**   덜어내기. 이것이 이 Cycle 의 가장 큰 획득이다
+    스스로 막히지 않는다            지금 열린 유일한 길을 여는 물건은 덜어낼 수 없다.
+                                  판정은 종류가 아니라 "마지막인가" 를 본다
+
+### 무엇이 서지 않았나 — 후보 문구와 다르게 닫혔다
+
+    후보는 "가진 것을 **써서** 몸이나 세계를 바꾼다" 를 약속했다 (세계에 생기는 것 ④).
+    **그것은 서지 않았다.**
+
+    Stage 1 의 코드·Master 대조로 드러난 사실: 쓸 대상이 세계에도 Master 에도 없다.
+    `ItemKind` 는 stone·pickaxe 둘뿐이고 `IT-*` 6종은 전부 무기·방어구·그릇·정박정이다.
+    회복은 Q31 이 이미 "원천과 함께 다음 Cycle" 로 미뤄 두었다.
+
+    Human 결정 (2026-08-21) — **버리기(파기)로 연다.** 새 아이템 의미를 하나도 지어내지
+    않으면서 두 문제를 함께 푼다: 세계 최초의 소멸 경로가 서고, 동시에 Q34 로 들어온
+    소지 한도에 **출구**가 생긴다 (칸만 넣으면 가방이 차는 순간 채굴이 영구히 막힌다).
+
+    그래서 MC-USE-ITEM 은 MISSING 으로 남았다. 남은 "쓴다" 는 새 Frontier 항목이 아니라
+    **"지금 열 수 없는 것"** 으로 갔다 — 소비재의 세계 유래가 Master 에 없기 때문이며,
+    그것을 세우는 일은 Cycle 이 아니라 WHY/OPTIONS 탐색이다.
+
+### 배운 것 셋
+
+    ① Frontier 후보의 약속은 코드 대조를 견뎌야 한다
+        후보가 "쓴다" 를 약속했을 때 아무도 *무엇을* 쓰는지 묻지 않았다. Master 의
+        `IT-*` 를 한 번만 훑었으면 Stage 1 이 아니라 NEXT 에서 드러났을 일이다.
+        앞으로 후보의 "세계에 생기는 것" 에 목적어가 있으면 그 목적어가 Graph 에
+        있는지 확인한다.
+
+    ② 좁히는 것은 Capability 가 아니다 — 그러나 출구를 요구한다
+        소지 한도는 할 수 있는 일을 늘리지 않아 Capability 표에 오지 않았다.
+        그런데 그것을 넣으면 **반드시 나가는 길이 함께 와야 한다.** 이 짝을 Q34 가
+        결정할 때는 보이지 않았고 Stage 1 의 코드 대조가 드러냈다.
+
+    ③ 테스트가 부를 수 있는가와 실제로 불리는가는 다르다
+        C020 은 덜어내기 키로 `KeyX` 를 골랐다. 그 키는 엔진이 시점 회전에 쓰고
+        있어 팩 바인딩까지 오지 않는다. 단위 테스트도 통합 실측도 `binding.invoke` 를
+        **직접** 불렀으므로 26건이 전부 통과했다. 브라우저를 띄워 눌러 보고서야
+        드러났다. `view/tests/bindings.spec.ts` 가 그 구멍을 막는다.
+
+### Overlay 에 반영한 것
+
+    승격 없음 — 아이템 넷 중 아무것도 닫지 않았다 (IS §4 · §6 의 "바닥").
+    근거 칸을 갱신했다: MC-USE-ITEM 의 "쓴다·준다·없어진다 가 0건" 은 더 이상 사실이
+    아니고, MC-EQUIP-ITEM 에는 접합점(`carriedUses`)이, MC-TRANSFER-ITEM 에는
+    덜어내기가 그 노드가 **아니라는** 구분이 들어갔다.
+
+---
+
+## Constraint 판정 기록 — C020
+
+    DC-ITEM-KIND-IS-DATA-NOT-BRANCH        SATISFIED (실측)
+        `ItemKind` 합집합과 `MINING_CAPABLE` 집합이 코드에서 사라졌다.
+        예측이 아니라 구현으로 확인된 첫 사례다.
+    DC-ITEM-CAPABILITY-COMES-FROM-GRANTS   SATISFIED (실측)
+        채굴이 용도를 묻는다. 재료만 지닌 몸이 `no-mining-tool` 로 거절되는 것으로
+        확인했다 — 지녔다는 사실이 아니라 무엇을 여는가를 묻는다.
+    DC-ITEM-CHANGE-IS-ONE-UNIT             SATISFIED (실측)
+        거절 뒤 광맥 잔량이 그대로였다. 브라우저에서도 확인했다.
+    DC-ITEM-CAPACITY-IS-FINITE             SATISFIED (실측)
+        규칙 코드가 자리 수를 묻지 않는다. `carryCapacity 8` 로 띄운 세계가 그대로 돈다.
+    DC-WORLD-OWNS-THE-SURFACE-LIST         SATISFIED (실측)
+        `evaluateCarryLetGo` 를 관찰과 Rule 이 함께 부른다.
+    DC-ITEM-HOLDING-IS-NOT-APPLYING        NOT_APPLICABLE
+        적용이라는 개념이 세계에 없다. **세계는 여전히 이 원칙을 어기고 있다** —
+        곡괭이를 지니고만 있어도 캘 수 있다. 장착 Cycle 이 닫을 자리이며,
+        C020 이 그 위반을 `carriedUses` 한 자리로 모아 두었다.
+
+    노드의 `constraint_evaluation` 은 바꾸지 않았다 — 이미 SATISFIED 였고,
+    C020 이 한 일은 그 예측을 실측으로 바꾼 것이다.
+
+---
+
+## Constraint Candidate 접수 — C020
+
+    CC-THE-VIEW-PICKS-AMONG-WHAT-THE-WORLD-OPENS
+        "세계가 여는 선택지 중 무엇을 고를지는 View 가 정한다."
+        두 번째 관찰이다 (C011 막기 토글 · C020 덜어내기).
+        DC-WORLD-OWNS-THE-SURFACE-LIST 의 경계 조항과 같은 방향이라 신규 DC 보다
+        그 DC 의 prefers 한 줄이 맞을 수 있다. HUMAN DECISION: PENDING.
+
+---
+
+## Master 보고 3건 — 문서 정정 제안 (Human 결정 대기)
+
+    C020 08 MASTER FEEDBACK ③④ 가 보고한 두 건은 **기획 문서**를 건드리므로
+    Feedback 이 반영하지 않았다. Human 이 정할 일이다.
+
+    ③ IE §48 Cycle 1 행의 축소
+        IE 는 이동·정렬·필터·분할을 Cycle 1 에 넣었고 C020 은 EXCLUDED 로 두었다.
+        사유: 배치 조작은 할 수 있는 일을 늘리지 않아 단독 Cycle 의 조건을 만족하지
+        않고(원칙 6), 세계가 칸을 소유하는 것까지가 "유한하다" 의 본체다.
+        결정할 것: IE §48 을 정정할 것인가.
+
+    ④ IE §34 와 덜어내기의 관계
+        IE §34 는 "World Item System 전에는 버리기를 숨긴다" 고 적었고 C020 은
+        덜어내기를 열었다. 도착지가 다르다 — 세계에 놓기(IS §5.6)가 아니라
+        소모(IS §5.5)다. 두 행동이 플레이어에게 같은 이름으로 보이므로 IE 가 그
+        구분을 본문에 두는 편이 낫다. 제안 문안은 C020 08 에 있다.
+
+    ② Frontier 문구 정정은 이 Feedback 이 반영했다 (후보를 닫고 남은 "쓴다" 를
+      "지금 열 수 없는 것" 으로 옮겼다).
+
