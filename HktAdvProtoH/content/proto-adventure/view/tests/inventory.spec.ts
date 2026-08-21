@@ -141,6 +141,7 @@ describe('C001 REGRESSION — 사라진 두 칸이 남긴 자리', () => {
   it('채집이 되는지는 여전히 대상 자리와 interaction 이 답한다', () => {
     const p = plan(mining);
     expect(p.interactions.find((i) => i.id === 'mine')?.available).toBe(true);
-    expect(p.hud.find((h) => h.id === 'target.mine')).toBeDefined();
+    // C022 — 그 답이 뜨는 자리가 띠에서 self 패널의 줄로 옮겨졌다
+    expect((p.self?.lines ?? []).some((l) => l.startsWith('채집'))).toBe(true);
   });
 });

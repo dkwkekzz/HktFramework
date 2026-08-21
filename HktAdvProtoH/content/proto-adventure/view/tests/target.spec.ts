@@ -21,6 +21,13 @@ import nothingChosen from './fixtures/combat.fixture.json'; // 아무것도 고�
 
 const plan = (fixture: unknown) => resolvePresentation(fixture as GameViewSnapshot);
 const hudOf = (fixture: unknown, id: string) => plan(fixture).hud.find((h) => h.id === id);
+/**
+ * 이 상대에게 무엇이 되는가는 **self 패널의 줄**에 선다 (C022 에서 자리가 옮겨졌다).
+ * 사유는 문장이고 가로 띠는 가로로만 자라 잘려 나갔다 — 소지품과 같은 이유, 같은 기준.
+ * 사라진 것은 없다: MC-WATCH-TARGET 이 요구하는 "사유가 남는다" 는 그대로다.
+ */
+const detail = (fixture: unknown, label: string) =>
+  (plan(fixture).self?.lines ?? []).find((l) => l.startsWith(label));
 
 describe('currentTarget — 고른 것이 무엇인지가 늘 그려진다', () => {
   it('고른 것이 없으면 "없음" 한 줄이 남는다 — 자리를 지우지 않는다', () => {
@@ -55,26 +62,34 @@ describe('currentTarget — 고른 것이 무엇인지가 늘 그려진다', () 
 
 describe('대상 자리 — 무엇이 되고 무엇이 왜 안 되는가가 한자리에 모인다', () => {
   it('되는 것은 되는 대로 온다', () => {
-    expect(hudOf(chosenDeposit, 'target.mine')?.value).toBe('가능');
-    expect(hudOf(chosenCharacter, 'target.observe')?.value).toBe('가능');
+    expect(detail(chosenDeposit, '채집')).toBe('채집 ✓');
+    expect(detail(chosenCharacter, '살펴보기')).toBe('살펴보기 ✓');
   });
 
   it('안 되는 것은 세계가 준 사유가 사람 말로 온다 — View 가 판정하지 않는다', () => {
-    // 광맥을 고른 화면에서 살펴봄은 종류가 맞지 않는다 (세계가 보낸 사유다)
-    expect(hudOf(chosenDeposit, 'target.observe')?.value).toBe('이 대상에게는 할 수 없다');
+    // 광맥을 고른 화면에서 살펴봄은 종류가 맞지 않는다 (세계가 보낸 사유다).
+    // 목록 안이라 짧은 표기가 온다 — 긴 문장의 집은 바닥 프롬프트다 (code-text.ts).
+    expect(detail(chosenDeposit, '살펴보기')).toBe('살펴보기 ✗ 이 대상엔 안 됨');
     // 존재를 고른 화면에서 채집도 마찬가지다
-    expect(hudOf(chosenCharacter, 'target.mine')?.value).toBe('이 대상에게는 할 수 없다');
+    expect(detail(chosenCharacter, '채집')).toBe('채집 ✗ 이 대상엔 안 됨');
   });
 
   it('고르지 않았을 때는 두 줄이 아예 없다 — 대상 자리 자체가 없기 때문이다', () => {
-    expect(hudOf(nothingChosen, 'target.observe')).toBeUndefined();
-    expect(hudOf(nothingChosen, 'target.mine')).toBeUndefined();
+    expect(detail(nothingChosen, '살펴보기')).toBeUndefined();
+    expect(detail(nothingChosen, '채집')).toBeUndefined();
+    expect((plan(nothingChosen).self?.lines ?? []).includes('고른 대상')).toBe(false);
   });
 
-  it('대상 자리는 소지품보다 먼저 읽힌다', () => {
+  it('대상 자리는 소지품보다 먼저 읽힌다 — 띠에서도 패널에서도', () => {
     const ids = plan(chosenDeposit).hud.map((h) => h.id);
     expect(ids[0]).toBe('target.name');
-    expect(ids.indexOf('target.mine')).toBeLessThan(ids.indexOf('inventory.stone'));
+    const lines = plan(chosenDeposit).self?.lines ?? [];
+    expect(lines.indexOf('고른 대상')).toBeLessThan(lines.indexOf('소지품'));
+  });
+
+  it('띠에 남는 것은 한눈에 읽는 것뿐이다 — 사유 문장이 띠를 밀어내지 않는다', () => {
+    const ids = plan(chosenDeposit).hud.map((h) => h.id);
+    expect(ids.filter((id) => id.startsWith('target.'))).toEqual(['target.name', 'target.state']);
   });
 });
 
