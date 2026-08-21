@@ -6,7 +6,7 @@
 [PASS] GameView Specification    (구간은 세계 판정값 · 캔슬은 나란한 자리 · HUD 무변경)
 [    ] Human Semantic Review
 [PASS] World Implementation      (구간·캔슬·NPC 큰 기술 · 신규 21건 · 전체 849건 통과)
-[    ] View Implementation
+[PASS] View Implementation       (선딜은 몸 위 · 캔슬은 그 자리 · 신규 9건 · 전체 858건)
 [    ] Verification
 
 STATUS  IN PROGRESS

@@ -15,6 +15,7 @@ import type {
 import type { SceneNameplate, SceneSelf, SceneStrike } from '../../../engine/view-kernel/scene/scene-state';
 import { codeText } from './code-text';
 import { stanceLine, stanceMark } from './relation-presentation';
+import { startupMark } from './phase-presentation';
 
 // 표지는 그 몸의 그림 바로 위에 붙는다 — 떨어져 있으면 누구의 것인지 읽히지 않는다.
 // 기준은 물리 몸(캡슐 높이 1.7)이 아니라 실제로 그려지는 그림의 크기다.
@@ -40,7 +41,10 @@ export function nameplate(entity: EntityView, spriteSize: number): SceneNameplat
     // C018 — 관계 표시가 이름 앞에 붙는다 (relation-presentation).
     // 적대일 때만 붙으며, 이 표시가 없다는 것이 곧 "지금 이 사이에는 아무 일도
     // 성립하지 않는다" 는 뜻이다. 세계가 보낸 두 값을 그대로 읽는다.
-    name: `${stanceMark(entity.attributes)}${
+    // C019 — 선딜 표시가 관계 표시 뒤, 이름 앞에 붙는다. 선딜일 때만 붙으며,
+    // 이 표시가 없다는 것이 곧 "이미 나갔다 — 지금 넣어도 늦었다" 는 뜻이다
+    // (phase-presentation 의 결정 1·2).
+    name: `${stanceMark(entity.attributes)}${startupMark(entity)}${
       entity.attributes?.acquainted === false ? `${entity.name} ?` : entity.name
     }`,
     health: Math.round(health),

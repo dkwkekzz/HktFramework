@@ -28,6 +28,11 @@ const CODE_TEXT: Record<string, string> = {
   friendly: '우호',
   // 닿았으나 성립하지 않은 사유 (C018)
   'not-hostile': '적대가 아니다',
+  // 기술의 구간과 끊김 (C019) — 선딜만 화면에 뜬다 (phase-presentation 의 결정 2)
+  startup: '준비!',
+  active: '나감',
+  recovery: '거둠',
+  cancelled: '끊김',
   // 이동 모드 (C007)
   walk: '걷기',
   run: '달리기',

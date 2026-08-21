@@ -32,8 +32,20 @@ const tickFor = (world: WorldDriver, seconds: number) => {
 
 // 규칙을 직접 부르기 위한 최소 배치 — 두 몸과 사건 목록만 있으면 된다.
 function bench() {
-  const attacker = spawnActor({ id: 'a', position: { x: 0, z: 0 } });
-  const target = spawnActor({ id: 'b', position: { x: 1, z: 0 } });
+  const attacker = spawnActor({
+    id: 'a',
+    name: 'A',
+    characterKind: 'rabbit-swordsman',
+    control: 'player',
+    position: { x: 0, z: 0 },
+  });
+  const target = spawnActor({
+    id: 'b',
+    name: 'B',
+    characterKind: 'wanderer',
+    control: 'autonomous',
+    position: { x: 1, z: 0 },
+  });
   const state = {
     time: 10,
     actors: [attacker, target],
