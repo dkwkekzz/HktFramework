@@ -1,7 +1,7 @@
 # CYCLE C023 — The Shape Is Data
 
 [PASS] Cycle Definition           (기존 노드의 확장 · 모양 축 하나 · 값은 Stage 3)
-[    ] Intent
+[PASS] Intent                     (모양은 기술의 값 · 닿는 길이가 몸에서 갈린다 · 공식 불변)
 [    ] World Semantic
 [    ] GameView Specification
 [    ] Human Semantic Review
