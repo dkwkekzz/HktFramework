@@ -11,7 +11,7 @@ Human 이 답한다    DECISION 줄
 답이 정해지면 해당 Node/Constraint 에 반영하고 **이 파일에서 지운 뒤 결정 내용을
 [HISTORY.md](HISTORY.md) 로 옮긴다.**
 
-미해결 **3건** — 닫힌 질문은 HISTORY.md.
+미해결 **4건** — 닫힌 질문은 HISTORY.md.
 
 [frontier.md](frontier.md) 의 `SELECTED` 는 비어 있다 — 직전 선택
 FR-INTERRUPT-THE-STARTUP 은 C019 로 닫혔고 다음 선택은 Human 대기다.
@@ -114,5 +114,45 @@ Q29 는 그 선택을 막지 않는다. **Q32 는 아이템 영역의 다음 Cyc
                   (c) 별도 DC 로 세운다
                       → 같은 의미가 두 DC 에 나뉘어 앉는다. Agent 는 권하지
                         않는다 — 이것은 독립한 원칙이 아니라 그 DC 의 실행 방식이다.
+
+    DECISION      PENDING
+
+## Q34. 소지 한도는 "아이템의 바닥" 안인가, 다음 칸인가 — OPEN · 차단
+
+    무엇          기존 Frontier 후보 FR-WHAT-YOU-CARRY-CAN-BE-SPENT 의
+                  `이 기능이 아닌 것` 이 "무게 · 칸수 같은 소지 제한도 아니다" 로
+                  적혀 있다. 그것은 IS §10 이 소지 제한을 범위 밖으로 둔 상태에서
+                  쓴 문장이다.
+
+                  IE 는 그 영역을 받아 §48 에서 반대로 배치했다 — 슬롯 모델(§4) ·
+                  Stack(§5) · 획득 우선순위와 원자성(§6 · §6.1)을 **Cycle 1(아이템의
+                  바닥)이 요구하는 것**으로 넣었다. 같은 Cycle 의 경계가 두 문서에서
+                  다르게 그어져 있다.
+
+    영향          **차단이다.** 후보의 `이 기능이 아닌 것` 은 그 Cycle 의 경계를
+                  정하는 칸이다 (guides/master-frontier.md). 지금 상태로 Cycle 을
+                  열면 01-cycle.md 가 어느 쪽을 옮겨 적을지 정해지지 않는다.
+
+    영향 범위     frontier.md 의 FR-WHAT-YOU-CARRY-CAN-BE-SPENT ·
+                  IE §48 의 Cycle 1 행 · MC-USE-ITEM 의 world_shape
+
+    Trade-off     한도를 넣으면 "쓴다 · 줄어든다" 하나였던 Cycle 이 "담을 자리가
+                  모자라 못 받는다" 까지 지게 된다. 빼면 IE 의 슬롯 모델 전체가
+                  장착 Cycle 로 밀리는데, 장착은 그 위에 서는 층이라 바닥이 없는
+                  채로 자리부터 만들게 된다.
+
+    선택지        (a) 후보를 고친다 — 한도를 Cycle 1 에 넣는다
+                      → IE §48 을 그대로 따른다. 슬롯 · Stack · 가득 참 판정이
+                        "가진 것" 의 바닥과 함께 선다. Cycle 이 커지지만 IE 가
+                        말한 대로 이 셋은 쪼개면 어느 것도 플레이로 닫히지 않는다.
+                        Agent 추천 — 장착 Cycle 이 바닥 위에 서게 된다.
+                  (b) IE §48 을 고친다 — 한도를 장착 Cycle 로 미룬다
+                      → 후보를 그대로 둔다. Cycle 1 이 작게 유지되는 대신
+                        장착 Cycle 이 자리와 칸을 동시에 지게 된다.
+                  (c) 한도만 따로 셋째 칸으로 뺀다
+                      → 소지 한도가 그 자체로 플레이 가능한 변화인지 물어야 한다.
+                        Agent 판단으로는 아니다 — 할 수 있는 일이 늘지 않고
+                        좁아지기만 하므로 단독 Cycle 의 조건(CLAUDE.md 원칙 6)을
+                        만족하지 않는다.
 
     DECISION      PENDING
