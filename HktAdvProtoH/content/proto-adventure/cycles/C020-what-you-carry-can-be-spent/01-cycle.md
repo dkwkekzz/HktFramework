@@ -2,7 +2,7 @@
 
 [PASS] Cycle Definition           (정의·관찰·사용·소모가 한 몸 · 효과는 정의가 소유한다 · 첫 항목 고정)
 [PASS] Intent                    (정의가 답한다 · 효과 갈래 둘 · 소모 여부도 데이터)
-[    ] World Semantic
+[PASS] World Semantic            (정의소·통로·행동 셋 · 공식은 입력만 넓어진다)
 [    ] GameView Specification
 [    ] Human Semantic Review
 [    ] World Implementation
