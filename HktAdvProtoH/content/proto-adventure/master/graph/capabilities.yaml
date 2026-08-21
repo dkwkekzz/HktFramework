@@ -1321,7 +1321,7 @@ nodes:
       DC-GROWTH-NO-CAPABILITY-DUPLICATION: SATISFIED  # 장착은 기존 MC-* 를 여는 경로일 뿐 새 능력을 복제하지 않는다
       DC-ITEM-CAPACITY-IS-FINITE: SATISFIED         # 자리가 담을 칸보다 좁고, 그 수를 Cycle 이 정한다
       DC-ITEM-LIVES-IN-ONE-PLACE: SATISFIED          # 자리가 물건을 담는다 — 담긴 곳을 가리키지 않는다
-    overlay: MISSING
+    overlay: PARTIAL
 
   - id: MC-CRAFT-FROM-MATERIALS
     type: capability
