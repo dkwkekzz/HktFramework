@@ -2,7 +2,7 @@
 
 파일 하나 = 후보 하나. 이름은 `CC-<NAME>.md`. 형식은 [../SCHEMA.md](../SCHEMA.md).
 
-현재: **PENDING 9종**
+현재: **PENDING 10종**
 
 | 후보 | 출처 | 관찰 | 상태 |
 |---|---|---|---|
@@ -15,8 +15,9 @@
 | CC-A-GATE-MOVES-WITH-ITS-MEANING | C017 | 1회 (C017 · C014 는 전조) | PENDING |
 | CC-REASONS-ARE-A-LIST-NOT-A-BRANCH | C018 | 1회 (C018 — Cycle 이 보류를 권했다) | PENDING |
 | CC-THE-WORLD-JUDGES-THE-MOMENT | C019 | **2회** (C012 · C019) | PENDING |
+| CC-A-COST-MUST-LEAVE-A-WINDOW | C020 | **2회** (C019 · C020) | PENDING |
 
-네 무리로 읽는다.
+다섯 무리로 읽는다.
 
 **표면 무리 (4종 — C019 로 하나 늘었다)** — 새로 든 THE-WORLD-JUDGES-THE-MOMENT 는
 "판정을 세계가 소유한다" 이고, 아래 셋은 "값·목록을 세계가 소유한다" 다. 넷 다
@@ -28,8 +29,12 @@
 셋 다 "View 가 스스로 만들어내지 않는다" 는 한 문장의 다른 얼굴이다.
 넷째(SURFACE-LIST)와 한 자리에서 보라는 뜻으로 나란히 둔다.
 
-**길 무리 (1종)** — A-NEW-WAY-OF-KNOWING-IS-NOT-A-GATE 는 **유일하게 2회 관찰된**
-후보다. `DC-WORLD-PLAYER-UNFIXED-PATH` 의 정보판이며, 승격하면 다음 Cycle 이 바로
+**대가 무리 (1종 — C020 이 새로 들었다)** — A-COST-MUST-LEAVE-A-WINDOW 는
+"대가는 치를 수 있어야 대가다" 이며, 앞의 무리들과 성격이 다르다. 표면·길·구조 무리가
+**무엇을 어디에 두는가**를 말한다면 이것은 **정한 값이 세계에서 성립하는지를 재는가**를
+말한다. 2회 관찰이고, 한 번은 실패로 치렀다 (C020 이 Stage 8 에서 Stage 1 로 반환됐다).
+
+**길 무리 (1종)** — A-NEW-WAY-OF-KNOWING-IS-NOT-A-GATE 는 2회 관찰된 후보다. `DC-WORLD-PLAYER-UNFIXED-PATH` 의 정보판이며, 승격하면 다음 Cycle 이 바로
 그 제약을 받는다.
 
 **상태 무리 (2종 — 둘 다 승격 완료)** — WORLD-OWNS-THE-CHANCE 와
