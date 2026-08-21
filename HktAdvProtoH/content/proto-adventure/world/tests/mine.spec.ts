@@ -3,7 +3,7 @@
 
 import { describe, expect, it } from 'vitest';
 import type { GameViewSnapshot } from '../../protocol/gameview';
-import { driveWorld, PLAYER, selectTarget } from './drive';
+import { driveWorld, equipPickaxe, PLAYER, selectTarget } from './drive';
 
 const solo = { npcs: [] };
 const MINE_DURATION = 1.2;
@@ -25,6 +25,9 @@ describe('RULE-MINE-001', () => {
       depositAmount: 5,
     });
 
+    // C023 — 채집은 이제 **걸린 것**에서 온다. 지니기만 해서는 캐지지 않는다
+    // (INTENT-CAPABILITY-FROM-DECLARED-USE-001 CHANGED).
+    equipPickaxe(world);
     selectTarget(world, 'deposit-1');
     const result = world.dispatch({ interactionId: 'mine' });
 
@@ -59,6 +62,7 @@ describe('RULE-MINE-001', () => {
   it('거리 밖 → Failure(out-of-range)', () => {
     const world = driveWorld({ ...solo, actorPosition: { x: 0, z: 0 } }); // deposit 까지 10
 
+    equipPickaxe(world); // C023 — 도구가 아니라 거리가 막는 것을 보려면 먼저 걸어야 한다
     selectTarget(world, 'deposit-1');
     const result = world.dispatch({ interactionId: 'mine' });
 
@@ -68,6 +72,7 @@ describe('RULE-MINE-001', () => {
   it('자원 고갈 → Failure(deposit-depleted), depleted 상태 관찰', () => {
     const world = driveWorld({ ...solo, actorPosition: { x: 8, z: -5 }, depositAmount: 0 });
 
+    equipPickaxe(world); // C023 — 도구가 아니라 광맥이 막는 것을 보려면 먼저 걸어야 한다
     selectTarget(world, 'deposit-1');
     const result = world.dispatch({ interactionId: 'mine' });
 
@@ -83,6 +88,7 @@ describe('RULE-MINE-001', () => {
 describe('RULE-MINE-COMPLETE-001', () => {
   it('채굴 행동이 소요 시간을 채우면 Stone 1 획득, Deposit 1 감소, 대기 복귀', () => {
     const world = driveWorld({ ...solo, actorPosition: { x: 8, z: -5 }, depositAmount: 5 });
+    equipPickaxe(world); // C023
     selectTarget(world, 'deposit-1');
     world.dispatch({ interactionId: 'mine' });
 
@@ -101,6 +107,7 @@ describe('RULE-MINE-COMPLETE-001', () => {
 
   it('마지막 1개를 캐면 available → depleted 로 전이', () => {
     const world = driveWorld({ ...solo, actorPosition: { x: 8, z: -5 }, depositAmount: 1 });
+    equipPickaxe(world); // C023
     expect(deposit(world.observe())?.state).toBe('available');
 
     selectTarget(world, 'deposit-1');
@@ -116,6 +123,7 @@ describe('RULE-MINE-COMPLETE-001', () => {
 
   it('C001 REGRESSION — 이동해서 광맥에 도달한 뒤 캐면 Stone 을 얻는다', () => {
     const world = driveWorld({ ...solo, actorPosition: { x: 0, z: 0 }, depositAmount: 5 });
+    equipPickaxe(world); // C023
 
     world.dispatch({ interactionId: 'move', position: { x: 8, z: -5 } });
     for (let i = 0; i < 90; i++) world.tick(1 / 30); // 3초 — 거리 약 9.4 도달 충분

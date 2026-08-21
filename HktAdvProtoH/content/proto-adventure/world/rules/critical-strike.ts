@@ -31,7 +31,7 @@
 // `Critical → Final Damage 를 증폭한다`).
 
 import type { ActorState } from '../semantic/actor';
-import { chanceAt, clamp, type CriticalOutcome } from '../semantic/combat';
+import { chanceAt, clamp, effectiveStat, type CriticalOutcome } from '../semantic/combat';
 import type { WorldState } from '../semantic/world-state';
 
 export interface CriticalStrikeResult {
@@ -46,7 +46,7 @@ export function ruleCriticalStrike(
   finalDamage: number,
 ): CriticalStrikeResult {
   // ── Step 1 — 가능성을 읽는다 ─────────────────────────────────────
-  const chance = clamp(attacker.criticalChance, 0, 1);
+  const chance = clamp(effectiveStat(attacker, 'criticalChance'), 0, 1);
 
   // ── Step 2 — 정한다 (세계가 바뀌는 유일한 지점) ──────────────────
   // 두 끝에서 흔들림을 쓰지 않는 것은 편의가 아니라 규칙이다 —
@@ -68,7 +68,7 @@ export function ruleCriticalStrike(
   // 들어온 값이 1 이상이면 결과도 1 이상이다 — C010 의 하한이 이 층 뒤에도 깨지지 않는다.
   // 들어온 값이 0 이면(낼 피해가 없으면) 터져도 0 이다 —
   // 없는 피해를 증폭이 만들어내지 않는다.
-  const multiplier = Math.max(1, attacker.criticalDamage);
+  const multiplier = Math.max(1, effectiveStat(attacker, 'criticalDamage'));
   const amplified = occurred ? Math.round(finalDamage * multiplier) : finalDamage;
 
   return {

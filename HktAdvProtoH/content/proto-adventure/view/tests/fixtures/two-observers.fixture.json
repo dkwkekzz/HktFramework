@@ -150,5 +150,6 @@
   "inventoryRoom": {
     "used": 0,
     "capacity": 4
-  }
+  },
+  "equipment": []
 }

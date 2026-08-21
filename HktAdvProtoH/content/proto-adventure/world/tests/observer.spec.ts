@@ -143,6 +143,8 @@ describe('INTENT-PER-OBSERVER-PROJECTION-001 — 관찰 결과는 관찰자마�
     w.tick(0);
 
     // A 만 채굴한다 (B 는 다른 자리에 있다)
+    // C023 — 채집은 걸린 것에서 온다
+    w.request(A, { interactionId: 'equip-item', itemKind: 'pickaxe' });
     w.request(A, { interactionId: 'select-target', targetEntityId: 'deposit-1' });
     w.tick(0); // C017 — 고르기가 판정되어야 채집이 그것을 읽는다
     w.request(A, { interactionId: 'mine' });
@@ -159,6 +161,10 @@ describe('INTENT-PER-OBSERVER-PROJECTION-001 — 관찰 결과는 관찰자마�
     w.join(B); // 멀리
     w.tick(0);
 
+    // C023 — 둘 다 곡괭이를 걸어야 채집이 도구 때문에 막히지 않는다.
+    // 이 검증의 관심은 **거리**가 몸마다 다르다는 것이다.
+    w.request(A, { interactionId: 'equip-item', itemKind: 'pickaxe' });
+    w.request(B, { interactionId: 'equip-item', itemKind: 'pickaxe' });
     // C017 — 둘 다 같은 광맥을 고른다. 고른 것이 같아도 가용성은 각자의 몸이 정한다
     // (고른 것은 보는 이의 것이고, 판정은 그 보는 이의 몸 기준이다).
     w.request(A, { interactionId: 'select-target', targetEntityId: 'deposit-1' });
@@ -281,6 +287,7 @@ describe('INTENT-OBSERVER-LEAVE-001 — 떠나도 몸은 세계에 남는다', (
     w.join(B);
     w.tick(0);
 
+    w.request(A, { interactionId: 'equip-item', itemKind: 'pickaxe' }); // C023
     w.request(A, { interactionId: 'select-target', targetEntityId: 'deposit-1' });
     w.tick(0); // C017 — 고르기가 판정되어야 채집이 그것을 읽는다
     w.request(A, { interactionId: 'mine' });

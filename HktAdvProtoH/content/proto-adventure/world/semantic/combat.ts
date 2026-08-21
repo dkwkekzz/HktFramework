@@ -7,7 +7,8 @@
 
 import { actionProgress, type ActionKind } from './action';
 import type { ActorState } from './actor';
-import type { Force } from './item';
+import { equipmentContributions } from './equipment';
+import type { ContributableStat, Force } from './item';
 import type { WorldPosition } from './position';
 
 // Actor.MoveMode — 걷는가 달리는가 (INTENT-RUN-001)
@@ -266,26 +267,58 @@ export function effectiveDefense(defenseValue: number, penetrationValue: number)
 // 임계값을 두지 않는다 — 두 값의 대소만 본다. 임의 상수가 판정에 끼어들지 않는다.
 export type DefenseShape = 'physical-tougher' | 'aura-tougher' | 'even';
 
+// C023 CHANGED — 유효 값끼리 견준다. 걸린 것이 한쪽 방어만 올리면 무른 쪽이 바뀐다.
 export function defenseShape(actor: ActorState): DefenseShape {
-  if (actor.armor > actor.resistance) return 'physical-tougher';
-  if (actor.resistance > actor.armor) return 'aura-tougher';
+  const armor = effectiveStat(actor, 'armor');
+  const resistance = effectiveStat(actor, 'resistance');
+  if (armor > resistance) return 'physical-tougher';
+  if (resistance > armor) return 'aura-tougher';
   return 'even';
 }
 
-// 이 방식이 이 Actor 에게서 고르는 공격 능력의 값 (C012 ADDED).
+/**
+ * RULE-EFFECTIVE-STATS-001 — Implements
+ * INTENT-EFFECTIVE-IS-RECOMPUTED-NOT-ACCUMULATED-001 ·
+ * INTENT-EVERY-JUDGEMENT-READS-THE-EFFECTIVE-001 (C023 ADDED)
+ *
+ * Input          Actor, 능력 이름
+ * Preconditions  없음 — 언제나 답할 수 있다
+ * Transition     없음 (읽기 판정)
+ * Result         Effective = Base + Σ 걸린 것들의 기여
+ *
+ * **저장하지 않는다.** 저장하면 Equipment 와 EffectiveStats 라는 두 개의 진실이 생기고
+ * 둘을 맞추는 책임이 모든 변경 지점으로 흩어진다 — C022 가 UsedSlots 에 대해 내린 것과
+ * 같은 판정이다 (03-world-semantic.md RATIONALE 1). 세는 비용은 자리 수에 비례하고
+ * 자리 수는 고정이므로 상수다.
+ *
+ * **가감이 아니라 재계산이다.** 걸 때 더하고 풀 때 빼는 형태가 아니라 기본값에서 매번
+ * 다시 센다. 그래서 "백 번 걸고 백 번 풀어도 값이 표류하지 않는다" 가 검사가 아니라
+ * **구조**로 성립하고, 무엇이 어떤 순서로 걸렸는지가 결과를 바꾸지 않는다.
+ *
+ * 아무것도 걸지 않은 몸에서는 기본값과 같다 — 그러므로 이 함수가 들어오는 것만으로는
+ * 지금까지의 어떤 결과도 달라지지 않는다 (회귀).
+ *
+ * 이 파일에 있는 이유: semantic 은 rules 를 import 하지 않으며(계층), 아래 세 함수와
+ * rawDamage 가 semantic 안에서 이 값을 읽어야 한다. 순수 파생이므로 semantic 에 둔다.
+ */
+export function effectiveStat(actor: ActorState, stat: ContributableStat): number {
+  return actor[stat] + (equipmentContributions(actor.equipment)[stat] ?? 0);
+}
+
+// 이 방식이 이 Actor 에게서 고르는 공격 능력의 값 (C012 ADDED / C023 CHANGED — 유효 값).
 export function offenseStatValue(actor: ActorState, type: DamageType): number {
-  return type === 'physical' ? actor.physicalAttack : actor.auraAttack;
+  return effectiveStat(actor, type === 'physical' ? 'physicalAttack' : 'auraAttack');
 }
 
-// 이 방식이 이 Actor 에게서 고르는 방어 능력의 값 (C012 ADDED).
+// 이 방식이 이 Actor 에게서 고르는 방어 능력의 값 (C012 ADDED / C023 CHANGED — 유효 값).
 export function defenseStatValue(actor: ActorState, type: DamageType): number {
-  return type === 'physical' ? actor.armor : actor.resistance;
+  return effectiveStat(actor, type === 'physical' ? 'armor' : 'resistance');
 }
 
-// 이 방식이 이 Actor 에게서 고르는 관통 능력의 값 (C013 ADDED).
+// 이 방식이 이 Actor 에게서 고르는 관통 능력의 값 (C013 ADDED / C023 CHANGED — 유효 값).
 // 고르지 않은 관통은 그 타격에서 한 번도 읽히지 않는다 (INTENT-PENETRATION-MATCH-001).
 export function penetrationStatValue(actor: ActorState, type: DamageType): number {
-  return type === 'physical' ? actor.armorPenetration : actor.resistancePenetration;
+  return effectiveStat(actor, type === 'physical' ? 'armorPenetration' : 'resistancePenetration');
 }
 
 // 지금 이 Actor 가 이 스킬을 쓰면 나오는 공격 피해 (파생, C010 ADDED / C012 CHANGED).

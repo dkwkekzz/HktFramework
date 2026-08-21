@@ -29,27 +29,40 @@
 import type { ActionResult } from '../../protocol/actions';
 import { RULE_ITEM_DISCARD } from '../../protocol/semantic-id';
 import type { ActorState } from '../semantic/actor';
+import { equippedKinds } from '../semantic/equipment';
 import { itemCount } from '../semantic/inventory';
 import { itemDefinition, type ItemKind } from '../semantic/item';
 import type { WorldState } from '../semantic/world-state';
 import { worldCanRestoreUse } from './acquirable-kinds';
-import { ruleBodyUses } from './body-uses';
+import { ruleBodyGrantableUses } from './body-uses';
 import { ruleInventoryRemove } from './inventory';
 
 export type ItemDiscardFailureReason = 'unknown-item' | 'not-enough' | 'no-way-back';
 
 /**
- * 이것을 전부 덜어내면 이 몸에서 사라지는 용도들.
+ * 이것을 전부 덜어내면 이 몸이 **지닐 수 없게 되는** 용도들.
  *
  * 남은 것들이 같은 용도를 주면 사라지지 않는다 — 곡괭이 둘 중 하나를 덜어내는 것은
  * 아무 용도도 잃지 않는 일이다. 그래서 규칙이 "곡괭이인가" 를 묻지 않아도 옳게 답한다.
+ *
+ * C023 CHANGED — **가방과 자리 양쪽을 본다** (RULE-BODY-GRANTABLE-USES-001).
+ * 용도가 걸린 것에서만 오게 된 뒤로, 가방만 보면 "덜어내도 잃는 것이 없다" 가 언제나
+ * 참이 되어 이 판정이 통째로 무력해진다. 걸어 둔 곡괭이가 있는 채로 가방의 곡괭이를
+ * 덜어내는 것은 아무것도 잃지 않는 일이고, 그것이 마지막 하나라면 막아야 한다.
+ *
+ * **푸는 것은 이 판정을 지나지 않는다** — 풀린 물건은 가방으로 돌아오므로 잃는 것이
+ * 아니다 (RULE-ITEM-UNEQUIP-001).
  */
 function usesLostByDiscarding(actor: ActorState, kind: string): string[] {
-  const before = ruleBodyUses(actor);
+  const before = ruleBodyGrantableUses(actor);
   const remaining = new Set<string>();
   for (const [other, count] of actor.inventory.items) {
     if (other === kind || count <= 0) continue;
     for (const use of itemDefinition(other)?.uses ?? []) remaining.add(use);
+  }
+  // 걸린 것은 덜어내기의 대상이 아니므로 그대로 남는다 — 그것이 주는 용도도 남는다.
+  for (const equipped of equippedKinds(actor.equipment)) {
+    for (const use of itemDefinition(equipped)?.uses ?? []) remaining.add(use);
   }
   return [...before].filter((use) => !remaining.has(use));
 }

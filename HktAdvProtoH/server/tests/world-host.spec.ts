@@ -92,7 +92,9 @@ describe('WorldHost — 관찰자 붙었다 떨어지기', () => {
       return last.entities.find((e) => e.id === last.observer.characterId);
     };
 
-    // C017 — 먼저 고르고, 그 다음 캔다 (대상은 요청이 아니라 고른 것이다)
+    // C023 — 채집은 걸린 것에서 온다. C017 — 먼저 고르고, 그 다음 캔다
+    // (대상은 요청이 아니라 고른 것이다)
+    host.receive(A, { interactionId: 'equip-item', itemKind: 'pickaxe' });
     host.receive(A, { interactionId: 'select-target', targetEntityId: 'deposit-1' });
     host.receive(A, { interactionId: 'mine' });
     expect(body()?.state).toBe('idle');
@@ -109,7 +111,9 @@ describe('WorldHost — 같은 관찰자로 다시 들어오기 (INTENT-OBSERVER
     const detach = host.attach(A, (s) => first.push(s));
     host.advance(0);
 
-    // C017 — 먼저 고르고, 그 다음 캔다 (대상은 요청이 아니라 고른 것이다)
+    // C023 — 채집은 걸린 것에서 온다. C017 — 먼저 고르고, 그 다음 캔다
+    // (대상은 요청이 아니라 고른 것이다)
+    host.receive(A, { interactionId: 'equip-item', itemKind: 'pickaxe' });
     host.receive(A, { interactionId: 'select-target', targetEntityId: 'deposit-1' });
     host.receive(A, { interactionId: 'mine' });
     for (let i = 0; i < 60; i++) host.advance(1 / 30);

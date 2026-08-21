@@ -152,9 +152,15 @@ export function createWorld(setup: WorldSetup = {}): World {
         position: setup.depositPosition ?? { x: 8, z: -6 },
         resourceKind: 'stone',
         // C022 — 5 → 12. 자리의 유한함은 **세계에 캘 것이 자리보다 많을 때만** 겪힌다.
-        // 5 로는 가방이 차기 전에 광맥이 말라 이 Cycle 의 Goal 이 플레이에서 성립하지
-        // 않는다. 규칙이 아니라 세계를 띄우는 값이다 (03-world-semantic.md RATIONALE 4).
-        resourceAmount: setup.depositAmount ?? 12,
+        // 5 로는 가방이 차기 전에 광맥이 말라 그 Cycle 의 Goal 이 플레이에서 성립하지
+        // 않는다. 규칙이 아니라 세계를 띄우는 값이다 (C022 03 RATIONALE 4).
+        //
+        // C023 — 12 → 15. **곡괭이가 가방을 떠났기 때문이다.** 걸면 가방이 한 자리
+        // 가벼워져 담을 수 있는 돌이 9 에서 12 로 늘었고, 광맥 12 로는 가방이 차는
+        // 순간과 광맥이 마르는 순간이 겹쳐 `no-room` 이 플레이에서 관찰되지 않는다.
+        // C022 가 세운 그 관찰을 그대로 지키려고 값 하나를 옮긴 것이며, 규칙 코드는
+        // 한 줄도 열리지 않았다 (C023 03-world-semantic.md BALANCE).
+        resourceAmount: setup.depositAmount ?? 15,
       },
     ],
     time: 0,

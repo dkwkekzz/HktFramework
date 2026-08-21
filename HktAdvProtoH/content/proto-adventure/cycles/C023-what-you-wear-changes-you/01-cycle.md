@@ -4,8 +4,8 @@
 [PASS] Intent                     (적용 자리 · 적합성 · 원자성 · 재계산 · 출처 이전 · 관찰)
 [PASS] World Semantic             (자리 여섯은 서로 같다 · 유효 값은 파생 · 지닐 수 있는 용도 · 값 6·12·4)
 [PASS] GameView Specification     (자리는 두 번째 목록 · 걸기는 하나 · combatStats 는 형태 그대로)
-[    ] Human Semantic Review
-[    ] World Implementation
+[PASS] Human Semantic Review      (APPROVED — 자리의 성격 1건 정정 뒤 승인)
+[PASS] World Implementation        (969 tests · 자리 여섯 · 유효 값은 파생 · 채집 규칙 0줄)
 [    ] View Implementation
 [    ] Verification
 

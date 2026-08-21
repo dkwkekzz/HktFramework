@@ -283,7 +283,7 @@ export interface UnharmedContactView {
 export interface ItemActionView {
   /** ActionRequest.interactionId 로 회신된다 */
   id: string;
-  role: string; // 의미 역할 (use-item | discard-item) — 문구 변환은 View 책임
+  role: string; // 의미 역할 (use-item | discard-item | equip-item | unequip-item)
   available: boolean;
   /** 불가 사유 코드 — 문구 변환은 View 책임. 세계가 사유의 단일 출처다 */
   unavailableReason?: string;
@@ -301,6 +301,50 @@ export interface InventoryItemView {
    */
   stackable: boolean;
   /** 이 항목으로 지금 할 수 있는 것들. 아무것도 못 하는 물건은 빈 목록이다 */
+  actions: ItemActionView[];
+}
+
+// ── 적용 자리 (C023 ADDED) ───────────────────────────────────────────
+//
+// **소지품 목록과 나란한 두 번째 목록이다.** 하나로 합치지 않는다 — 둘이 답하는 질문이
+// 다르기 때문이다. 소지품은 "무엇을 지녔는가" 이고 적용 자리는 "몸이 지금 무엇으로
+// 되어 있는가" 다. 합치면 지닌 것과 걸린 것의 구분이 사라지고, 그 구분이 정확히 이
+// Cycle 이 세우는 것이다.
+//
+// **비어 있는 자리도 전부 실린다.** 비었다는 것이 관찰의 내용이며, 자리가 몇인지는
+// 걸 수 있는 물건이 하나도 없을 때도 보여야 한다.
+//
+// **자리는 성격을 지니지 않는다.** 여섯이 서로 같으므로 이 계약에도 "이 자리는 무엇을
+// 받는가" 라는 칸이 없다 — 세계에 그런 것이 없기 때문이다. 어떤 물건이 전용 자리를
+// 요구하게 되는 날 그 제한은 **물건 쪽**에 실린다 (IE §10 · §11).
+//
+// 내 몸의 것만 실린다 (INTENT-PER-OBSERVER-PROJECTION-001). 남이 무엇을 걸었는지는
+// 오지 않는다 — 세계에 그 관찰이 없고, 남의 걸린 것이 낳은 결과는 combatStats 에
+// 이미 실려 있다.
+
+/** 걸린 것이 지금 몸의 값에 보태고 있는 것 하나 (C023 ADDED) */
+export interface EquipContributionView {
+  name: string; // 능력 이름 (의미 코드) — physicalAttack 등
+  value: number;
+}
+
+export interface EquipmentSlotView {
+  slotId: string; // 자리의 의미 코드 — 표시 이름은 View 책임. 풀 때 그대로 되돌린다
+  /** 담긴 것. **비었으면 없다** — 빈 값이 아니라 항목이 없다 */
+  item?: { kind: string; category: string; origin?: string };
+  /** 이 자리의 것이 지금 몸에 주고 있는 용도들. 비었거나 주는 것이 없으면 빈 목록 */
+  grants: string[];
+  /**
+   * 이 자리의 것이 지금 몸의 값에 보태고 있는 것들.
+   *
+   * **걸린 것에만 실린다.** 가방의 물건이 무엇을 줄지 보여 주는 것은 미리보기이며
+   * 이 Cycle 의 일이 아니다. 여기 실리는 것은 예측이 아니라 **지금 일어나 있는 일**이다.
+   *
+   * View 는 이 값을 combatStats 와 더하지 않는다 — combatStats 가 이미 더해진 값이다.
+   * 이 목록은 "그 값이 왜 그 값인가" 의 경위다.
+   */
+  contributions: EquipContributionView[];
+  /** 이 자리에 지금 할 수 있는 것들 — 비어 있어도 빈 목록이 아니라 판정과 사유가 온다 */
   actions: ItemActionView[];
 }
 
@@ -347,4 +391,5 @@ export interface GameViewSnapshot extends CoreGameViewSnapshot {
   currentTarget: CurrentTargetView; // C017 ADDED — 늘 실린다
   inventory: InventoryItemView[]; // C020 ADDED — 내 몸이 지닌 것 전부
   inventoryRoom: InventoryRoomView; // C022 ADDED — 쓴 자리와 전체
+  equipment: EquipmentSlotView[]; // C023 ADDED — 적용 자리 전부 (빈 자리 포함)
 }

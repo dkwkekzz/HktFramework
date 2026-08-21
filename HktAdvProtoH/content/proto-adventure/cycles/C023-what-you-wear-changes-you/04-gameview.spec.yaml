@@ -34,6 +34,7 @@ delta:
     - hud.*                                   # 새 막대도 새 줄도 없다
   added:
     - equipment                               # 적용 자리들
+    - equipment[].actions[role=use-item]      # Stage 6 추가 — NOTES ①
     - inventory[].actions[role=equip-item]    # 걸기 — 항목마다 하나
   changed:
     - entities.character.attributes.combatStats   # 싣는 값이 유효 값이 된다 (형태 무변경)
@@ -102,6 +103,24 @@ equipment:
         화면은 이 값을 combatStats 와 더하지 않는다 — combatStats 가 이미 더해진 값이다.
         이 목록은 "그 값이 왜 그 값인가" 의 경위다.
   actions:
+    use-item:
+      added: true
+      role: use-item
+      note: >
+        **Stage 6 에서 더해진 항목이다** (06-world-implementation.md NOTES ①).
+        걸면 그 물건이 가방을 떠나므로, 이 자리가 없으면 C020 이 세운 입구 하나
+        ("곡괭이를 쓰면 채집이 시작된다")가 조용히 사라진다.
+      cardinality: 정의에 use 가 있는 물건이 담긴 자리에만
+      request: 소지품 항목의 use-item 과 **같다** — id 와 그 물건의 kind 를 되돌린다
+      available:
+        source: RULE-ITEM-USE-001 의 판정 (소지품 항목과 **같은 자리**)
+      unavailableReason:
+        source: RULE-ITEM-USE-001 의 실패 사유
+        optional: true
+      meaning: >
+        입구는 여전히 둘이고 판정은 여전히 하나다 — 읽는 자리만 소지품에서 자리로
+        옮겼다. 화면은 두 곳에 같은 역할을 그리며 어느 쪽이든 같은 사유를 받는다.
+
     unequip-item:
       added: true
       role: unequip-item
