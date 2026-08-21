@@ -45,9 +45,9 @@ prohibits:
 prefers:
   - 한도에 걸렸을 때 왜 받을 수 없는지가 사유로 함께 오는 것       # IE §29
 
-status: DRAFT
+status: APPROVED
 provenance:
-  - HUMAN_DESIGN        # design/Design-Inventory-Equipment-D1.md 주입 — Human 승인 대기 (Q32)
+  - HUMAN_DESIGN        # design/Design-Inventory-Equipment-D1.md 주입 → Human 승인 (HISTORY Q32)
 
 relations:
   supports:

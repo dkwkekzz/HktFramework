@@ -1,6 +1,9 @@
 # 원본 근거: design/Design-Item-System-R0.md (IS)
 #   §5.4 장착 층 (자리 · 장착/해제 · 능력치 변경 · 능력 부여) · §7 P3 · §8 장착 층 완료 기준
-# 주입(Inject)으로 세운 뒤 2026-08-20 Human 승인 (HISTORY Q30) — 문안은 주입판 그대로다.
+# 주입(Inject)으로 세운 뒤 2026-08-20 Human 승인 (HISTORY Q30).
+# REVISED — design/Design-Inventory-Equipment-D1.md (IE) §38 이 공급한 **계산 방식**을
+#   prefers 로 더했다 (HISTORY Q33). requires/prohibits 는 손대지 않았다 —
+#   원본이 "권장한다" 로 썼으므로 금지로 올리지 않는다.
 id: DC-ITEM-HOLDING-IS-NOT-APPLYING
 type: constraint
 
@@ -20,6 +23,13 @@ rationale: >
   가장 안 읽히는 조각은 "정확히 원래대로" 다. 근사치가 아니라 같은 값이어야 한다는
   뜻이며, 이것이 장착 층 검증의 핵심 관찰이다 (IS §8).
 
+  그 "정확히" 를 무엇으로 담보하는가는 IE §38 이 공급했다. ❌ 장착에 `+5`, 해제에 `-5`
+  를 하는 누적 수정은 한 번만 어긋나도 되돌릴 수 없다 — 교체 도중의 중단, 저장된 상태의
+  재적용, 같은 것을 두 번 얹는 로드가 모두 그 어긋남을 굳힌다. ✅ 언제나 기본값과 지금
+  적용된 것들의 기여로 **다시 계산**하면 어긋날 자리 자체가 없어진다. 다만 원본이 이것을
+  "권장한다" 로 썼으므로 prefers 에 둔다 — 같은 결과를 다른 방법으로 담보하는 구현을
+  금지하지는 않는다.
+
   경계 — 소모품을 **쓴 결과**는 이 원칙의 대상이 아니다. 회복이나 지속 효과는
   적용이 아니라 사건의 결과이므로 해제로 되돌아오지 않는 것이 정상이다.
 
@@ -33,11 +43,14 @@ requires:
 prohibits:
   - 보유하고 있다는 사실만으로 능력치·가능 행동이 달라지는 것        # IS §7 P3
   - 장착과 해제를 반복해 값이 누적되는 형태                          # IS §8
-prefers: []
+prefers:
+  - 유효 값을 기본값과 지금 적용된 것들의 기여로 다시 계산하는 것 —
+    장착·해제 시점에 값을 가감하지 않는다                          # IE §38 · §39
 
-status: APPROVED
+status: REVISED
 provenance:
   - HUMAN_DESIGN        # design/Design-Item-System-R0.md 주입 → Human 승인 (HISTORY Q30)
+  - HUMAN_DESIGN        # IE §38 을 prefers 로 반영 → Human 승인 (HISTORY Q33)
 
 relations:
   supports: []

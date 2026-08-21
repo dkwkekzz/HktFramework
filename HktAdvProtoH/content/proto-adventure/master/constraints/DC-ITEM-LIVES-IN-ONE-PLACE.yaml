@@ -43,9 +43,9 @@ prohibits:
 prefers:
   - 겹칠 수 있는 아이템을 적용 자리에 두지 않는 것 — 자리 하나에 수량 여럿을 만들지 않는다  # IE §13.1
 
-status: DRAFT
+status: APPROVED
 provenance:
-  - HUMAN_DESIGN        # design/Design-Inventory-Equipment-D1.md 주입 — Human 승인 대기 (Q32)
+  - HUMAN_DESIGN        # design/Design-Inventory-Equipment-D1.md 주입 → Human 승인 (HISTORY Q32)
 
 relations:
   supports:

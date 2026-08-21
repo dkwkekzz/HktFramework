@@ -1313,8 +1313,8 @@ nodes:
       DC-ITEM-HOLDING-IS-NOT-APPLYING: SATISFIED    # 이 노드가 그 분리 자체다 — 보유는 아무것도 바꾸지 않는다
       DC-ITEM-CAPABILITY-COMES-FROM-GRANTS: SATISFIED # 적용된 것이 주는 것을 합쳐 계산한다 — 성질 목록을 조회하지 않는다
       DC-GROWTH-NO-CAPABILITY-DUPLICATION: SATISFIED  # 장착은 기존 MC-* 를 여는 경로일 뿐 새 능력을 복제하지 않는다
-      DC-ITEM-CAPACITY-IS-FINITE: UNRESOLVED        # 형태는 맞으나 그 DC 가 아직 DRAFT 다 — 승인 대기 (Q32)
-      DC-ITEM-LIVES-IN-ONE-PLACE: UNRESOLVED        # 형태는 맞으나 그 DC 가 아직 DRAFT 다 — 승인 대기 (Q32)
+      DC-ITEM-CAPACITY-IS-FINITE: SATISFIED         # 자리가 담을 칸보다 좁고, 그 수를 Cycle 이 정한다
+      DC-ITEM-LIVES-IN-ONE-PLACE: SATISFIED          # 자리가 물건을 담는다 — 담긴 곳을 가리키지 않는다
     overlay: MISSING
 
   - id: MC-CRAFT-FROM-MATERIALS
@@ -1379,7 +1379,7 @@ nodes:
     constraint_evaluation:
       DC-ITEM-CHANGE-IS-ONE-UNIT: SATISFIED         # 양쪽이 한 단위로 바뀐다 — 같은 물건이 두 곳에 있는 상태가 없다
       DC-WORLD-OWNS-THE-SURFACE-LIST: SATISFIED     # 주변에 무엇이 있고 지금 왜 못 집는지를 세계가 싣는다
-      DC-ITEM-LIVES-IN-ONE-PLACE: UNRESOLVED        # 네 위치 중 하나라는 형태는 맞으나 그 DC 가 DRAFT 다 (Q32)
+      DC-ITEM-LIVES-IN-ONE-PLACE: SATISFIED          # 옮겨진 물건은 옮겨간 곳이 담는다 — 양쪽에 남지 않는다
     overlay: MISSING
 
 # ── 근거와 비주입 ────────────────────────────────────────────────────────

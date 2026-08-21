@@ -1356,3 +1356,79 @@ Human 이 "FR-ACTION-PHASE 의 근간이 무엇인가" 를 물어 근간을 역�
 ### Master Gap
 
     없음.
+
+---
+
+## Q32. IE 주입이 세운 두 Constraint 를 승인하는가 — CLOSED
+
+    DECISION      (a) 둘 다 승인한다 (Human · 2026-08-21)
+
+    DC-ITEM-CAPACITY-IS-FINITE · DC-ITEM-LIVES-IN-ONE-PLACE 가 APPROVED 로 섰다.
+    아이템 영역 Constraint 는 이제 6종이다.
+
+    MC-EQUIP-ITEM 의 두 UNRESOLVED 가 SATISFIED 로 바뀌었고, MC-TRANSFER-ITEM 의
+    LIVES-IN-ONE-PLACE 도 함께 풀렸다. 장착이 Frontier 후보 조건을 갖추었으나
+    순서상 바닥이 먼저이므로 후보로 올리지는 않았다 (frontier "지금 열 수 없는 것").
+
+    IS §10 이 "무게 · 칸수 등 소지 제한" 을 범위 밖으로 두고 IS §5.4 가 자리 구성을
+    후속 문서에 넘긴 그 자리를, IE 가 받아 채웠다.
+
+---
+
+## Q33. 장착 효과를 "재계산" 으로 못박을 것인가 — CLOSED
+
+    DECISION      (a) prefers 한 줄을 더한다 — status 를 REVISED 로 (Human · 2026-08-21)
+
+    DC-ITEM-HOLDING-IS-NOT-APPLYING 이 REVISED 가 되었다. 더한 것은 prefers 하나다.
+
+        유효 값을 기본값과 지금 적용된 것들의 기여로 다시 계산하는 것 —
+        장착·해제 시점에 값을 가감하지 않는다
+
+    requires 와 prohibits 는 손대지 않았다. 원본(IE §38)이 "권장한다" 로 썼으므로
+    금지로 올리지 않는다 — 같은 결과를 다른 방법으로 담보하는 구현을 막지 않는다.
+
+    이 DC 는 원래 **증상**만 금지하고 있었다("장착과 해제를 반복해 값이 누적되는
+    형태"). IE 가 그 증상이 나오지 않게 하는 **방법**을 공급했고, 그 방법이 원칙에
+    없으면 Cycle 마다 다시 고르게 된다.
+
+---
+
+## Q34. 소지 한도는 "아이템의 바닥" 안인가, 다음 칸인가 — CLOSED
+
+    DECISION      (a) 후보를 고친다 — 한도를 Cycle 1 에 넣는다 (Human · 2026-08-21)
+
+    FR-WHAT-YOU-CARRY-CAN-BE-SPENT 를 IE §48 의 Cycle 1 행에 맞췄다. IE 는 손대지
+    않았다 — 뒤에 온 문서가 자기 영역의 원본이라는 IS §5.4 의 선언을 따른다.
+
+    후보에서 바뀐 것:
+
+        이것이 무엇인가    "담을 자리가 유한한 곳에 들어가며" 를 더했다
+        세계에 생기는 것    ② 로 "담을 자리가 유한해진다" 를 넣어 여섯 항목이 되었다
+        이 기능이 아닌 것   "무게 · 칸수 같은 소지 제한도 아니다" 를 지우고,
+                            "무게 · 부피가 아니다"(유한해지는 것은 칸이지 무게가 아니다)와
+                            "가방을 늘리는 확장 시스템도 아니다" 로 바꿨다
+        Why one Cycle      넷 → 다섯(정의 · 자리 · 관찰 · 사용 · 소모).
+                            칸이 없으면 "가득 찼다" 도 없고, 그러면 소모가 만드는 압박이
+                            반쪽이 된다 — 캐서 줄어들 뿐 무엇을 들고 다닐지는 여전히
+                            선택이 아니다
+        Active Constraints  DC-ITEM-CAPACITY-IS-FINITE 추가.
+                            DC-ITEM-LIVES-IN-ONE-PLACE 는 이 Cycle 의 대상이 아니다 —
+                            저장소가 아직 하나뿐이라 위반할 자리가 없다
+
+    (c) 한도만 셋째 칸으로 빼는 안은 택하지 않았다. 소지 한도는 할 수 있는 일을
+    늘리는 것이 아니라 좁히는 것이라 단독 Cycle 의 조건(CLAUDE.md 원칙 6)을
+    만족하지 않는다.
+
+---
+
+## Frontier 선택 — FR-WHAT-YOU-CARRY-CAN-BE-SPENT (아이템의 바닥)
+
+    선택            Human · 2026-08-21 (Q32 · Q33 · Q34 승인과 함께)
+    직전 선택       FR-INTERRUPT-THE-STARTUP → C019 로 닫힘
+
+    가장 크게 막힌 축(자원 → 능력)의 첫 칸이다. 뒤의 셋(장착 · 제작 · 세계의 아이템)과
+    회복 · 절단 · 능력치 획득 · 전리품이 모두 이 하나를 기다린다.
+
+    후보가 하나뿐이었던 것은 전투 쪽이 C019 로 닫히고 다음 전투 층(능동 방어)이
+    설계 문서를 기다리기 때문이다.
+
