@@ -824,9 +824,11 @@ nodes:
           source: BW §23 · §28 (이름) — C002(RULE-HIT-001) 로 끊김의 의미가 세계에 섰다
     required_by: [MP-INTERRUPT]
     demanded_by: [MW-ZONE-DANGER]
-    constraints: []
-    constraint_evaluation: {}
-    overlay: PARTIAL
+    constraints: [DC-COMBAT-PLAYER-CAUSALITY, DC-COMBAT-ONE-FORMULA]
+    constraint_evaluation:
+      DC-COMBAT-PLAYER-CAUSALITY: SATISFIED   # 캔슬은 시점 관계로만 판정된다 — 난수가 쓰이지 않는다
+      DC-COMBAT-ONE-FORMULA: SATISFIED        # 피해 공식에 닿지 않는다 — 산정 자체가 일어나지 않는다
+    overlay: IMPLEMENTED
 
   # ── DEEP (BW §24) — 인간의 전투 상식이 무너진다 ───────────────────────
 

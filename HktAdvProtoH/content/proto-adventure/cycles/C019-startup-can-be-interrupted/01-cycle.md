@@ -4,12 +4,12 @@
 [PASS] Intent                    (기술의 세 구간 · 세계가 판정하는 노출 · 끊김의 좁힘)
 [PASS] World Semantic            (구간은 기술의 값 · 캔슬 Rule · 피격이 시점을 묻는다)
 [PASS] GameView Specification    (구간은 세계 판정값 · 캔슬은 나란한 자리 · HUD 무변경)
-[    ] Human Semantic Review
+[PASS] Human Semantic Review     (APPROVED — 구간 값 · 판정 구간 피격 · NPC 큰 기술)
 [PASS] World Implementation      (구간·캔슬·NPC 큰 기술 · 신규 21건 · 전체 849건 통과)
 [PASS] View Implementation       (선딜은 몸 위 · 캔슬은 그 자리 · 신규 9건 · 전체 858건)
-[PASS] Verification              (자동 검증 전항 통과 · 861건 · Human Play 대기)
+[PASS] Verification              (전항 통과 · 861건 · Human Play 확인)
 
-STATUS  IN PROGRESS
+STATUS  COMPLETE
 
 ## MASTER TRACE
 

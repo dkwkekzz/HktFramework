@@ -1292,3 +1292,67 @@ Human 이 "FR-ACTION-PHASE 의 근간이 무엇인가" 를 물어 근간을 역�
     Open Question 0→1 · 기준 시점 C013·C014→C017·C018. 숫자의 단일 출처가
     graph/GRAPH.md 머리말(재생성물)임을 README 에 적어 재발을 막았다.
     overlay.md 의 "MG-OVERCOME-SUPERIOR-OPPONENT (10 갈래)" 도 11 로 정정했다.
+
+---
+
+## C019 닫힘 — 선딜을 노려 끊는다 (Master Feedback 반영)
+
+    Cycle          C019-startup-can-be-interrupted · STATUS COMPLETE
+    Frontier       FR-INTERRUPT-THE-STARTUP (Human 선택 2026-08-20 · 이름 두 번 고침)
+    사슬           MG-OVERCOME-SUPERIOR-OPPONENT → MP-INTERRUPT → MC-INTERRUPT
+                   BW §28 의 여덟 갈래 중 다섯 번째가 섰다
+
+### Overlay 승격
+
+    MC-INTERRUPT   PARTIAL → IMPLEMENTED
+        결손이었던 "끊는 것을 **노리는** 수단" 이 닫혔다. 근거는 08 의 실측이다 —
+        끊김이 선딜 구간에만 성립하고, 같은 개입이 시점만으로 갈리며(0.49 ↔ 0.51),
+        캔슬된 기술은 피해 0 이 아니라 산정 자체가 없다.
+
+    MP-INTERRUPT   PARTIAL → PRESENT
+        요구가 MC-INTERRUPT 하나뿐이었고 그것이 섰다. MG-OVERCOME-SUPERIOR-OPPONENT
+        의 다섯 번째 경로다 (C011 · C012 · C013 · C015 에 이어).
+
+    MW-ZONE-DANGER 의 demands 4종 중 하나가 채워졌다 (0/4 → 1/4).
+
+### Constraint Evaluation 기록
+
+    MC-INTERRUPT 노드에 둘을 남겼다 — 이 Cycle 에서 실제로 구현 형태를 제한했다.
+        DC-COMBAT-PLAYER-CAUSALITY   캔슬 판정에 난수가 한 번도 쓰이지 않는다.
+                                     세계의 흔들림(ChanceCursor)을 건드리지 않는다
+        DC-COMBAT-ONE-FORMULA        피해 공식 파일을 한 글자도 고치지 않았다.
+                                     캔슬은 공식 밖에서 그 산정이 일어나지 않게 한다
+    ONE-LAYER-AT-A-TIME · SURFACE-LIST 도 SATISFIED 였으나 노드에 남기지 않았다 —
+    구현 형태를 제한한 것이 아니라 지켜진 것이므로 (무차별 Edge 금지).
+
+### Constraint Candidate 접수
+
+    CC-THE-WORLD-JUDGES-THE-MOMENT (PENDING)
+        세계 안에서만 아는 경계로 갈리는 사실은 경계가 아니라 갈린 결과를 보낸다.
+        관찰 2회 — C012 의 defenseShape · C019 의 actionPhase.
+        표면 무리 셋과 경계가 겹치므로 넷을 한자리에서 볼 것을 제안했다.
+
+### 이 Cycle 이 다음에 남긴 것
+
+    행동 안의 시점을 읽는 규칙이 세계에 생겼다. R1 §14 Active Defense 층이 요구하는
+    "언제 눌렀는가" 가 이 위에 얹힌다 — MC-PERFECT-GUARD 의 결손이 "막기의 **시작
+    시각**이 판정에 쓰이지 않는다" 였고, 이제 그 바닥이 있다. 남은 것은 그 층의
+    설계 문서뿐이다 (overlay · frontier 의 해당 줄에 단서를 남겼다).
+
+### 후보 이름을 두 번 고친 경위
+
+    FR-ACTION-PHASE("행동 구간") → FR-INTERRUPT-THE-WINDUP("준비를 끊는다")
+                                 → FR-INTERRUPT-THE-STARTUP("선딜을 노려 끊는다")
+
+    첫 번째는 이미 세계에 있는 개념(C002 의 행동 · collision.ts 의 구간)까지 가리켜
+    후보보다 넓었다. 두 번째는 Human 이 "무슨 말인지 모르겠다" 고 지적했고 그 지적이
+    옳았다 — windup 은 야구에서 온 말이고 "준비" 는 무엇을 준비하는지가 빠져 있다.
+    세 번째에서 이 바닥(MMORPG)의 통용어로 갔다: **선딜 · 판정 · 후딜 · 캔슬**.
+
+    배운 것: 후보 이름은 그 후보를 처음 보는 사람이 무엇인지 알아볼 수 있어야 한다.
+    우리가 만드는 것의 바닥에 이미 이름이 있으면 그것을 쓴다 — 새 말을 지어내면
+    같은 것을 두 번 배우게 된다.
+
+### Master Gap
+
+    없음.

@@ -257,7 +257,7 @@ nodes:
     world_shape: >
       상대의 행동에 시작과 완성 사이의 진행 구간이 있고, 그 구간에 개입하면 행동이
       완성되지 못해야 한다. 그리고 무엇이 끊겼는지가 관찰 가능해야 한다.
-    implemented: PARTIAL
+    implemented: PRESENT
     requires:
       goals: []
       capabilities: [MC-INTERRUPT]

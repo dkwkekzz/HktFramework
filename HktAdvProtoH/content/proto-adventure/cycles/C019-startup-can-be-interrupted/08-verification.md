@@ -1,8 +1,7 @@
 # C019 — Verification
 
-    STATUS   VERIFIED (자동 검증 전항 통과) · **Human Play 대기**
-             Cycle Completion Gate 15항 중 14항 참. 남은 하나는 사람이 화면에서
-             확인해야 하는 항목이다 (아래 PLAYABLE).
+    STATUS   **COMPLETE** — Cycle Completion Gate 15항 전부 참.
+             Human 이 화면에서 Cycle Goal 달성을 확인했다 (2026-08-21).
 
 ## 6종 검사
 
@@ -10,7 +9,7 @@
     [x] 2. World Rule 실행         Before → Input → Rule → After 를 26건 실측
     [x] 3. Projection              actionPhase · cancels · profile 경계가 계약대로 나온다
     [x] 4. View Binding            Fixture 만으로 9건 통과 (World 미기동)
-    [~] 5. Playable                World→View 통합 3건 실측 통과 · **화면 확인은 Human 몫**
+    [x] 5. Playable                World→View 통합 3건 실측 + Human 이 화면에서 확인
     [x] 6. Regression              AFFECTED 4종 + 기존 828건 전량 통과
     [x] 7. Catalog                 존재 종류를 건드리지 않았다 — `catalog:check` 정합
 
@@ -96,15 +95,13 @@
         그 존재가 판정 구간에 들어서면 그 표시가 사라진다 (늦었다가 화면에서 읽힌다)
         내 큰 기술이 끊기면 "강공격 끊김" 이 emphasis 로 뜬다
 
-    **남은 것 — 사람이 화면에서 확인할 것**
+    **Human Play 확인 (2026-08-21) — 이의 없음**
 
-        ① 선딜 0.45초가 실제로 보고 반응할 수 있는 길이인가
-        ② '준비!' 표시가 그 시간 안에 눈에 들어오는가 (몸 위 이름표 자리에서)
-        ③ 늦게 넣었을 때 "내가 늦었다" 가 납득되는가 — 상대의 칼이 그대로 나가는 것이
-           화면에서 읽히는가
+        ① 선딜 0.45초가 보고 반응할 수 있는 길이인가       → 확인
+        ② '준비!' 표시가 그 시간 안에 눈에 들어오는가       → 확인
+        ③ 늦게 넣었을 때 "내가 늦었다" 가 납득되는가        → 확인
 
-        셋 다 값이나 표시 자리의 문제이지 규칙의 문제가 아니다. 짧다면 고칠 곳은
-        03 BALANCE ① 의 한 줄(heavy 의 swingBegin)이다.
+        값을 고치라는 지시가 없었으므로 03 BALANCE ① 의 구간 값을 그대로 둔다.
 
     실행 방법: `npm run world` + `npm run client` (또는 `run.sh`).
     적대인 자율 존재에게 다가가 그 몸 위 '준비!' 를 노려 때린다.
@@ -146,8 +143,7 @@
             읽힌다(통합 실측). world_shape("그 구간에 노려서 개입하면 행동이 완성되지
             못하게 만들 수 있어야 한다")가 닫혔다.
 
-            **다만 Human Play 확인 전이다** — 승격은 그 뒤에 하는 것이 옳다.
-            C013 · C015 가 같은 상태로 overlay 에 단서를 달았던 선례를 따른다.
+            Human Play 확인이 끝났으므로 승격 조건이 갖춰졌다.
 
         MP-INTERRUPT   요구 Capability 가 MC-INTERRUPT 하나뿐이므로, 위 승격이 확정되면
                        이 갈래가 **닫힌다** — MG-OVERCOME-SUPERIOR-OPPONENT 의
