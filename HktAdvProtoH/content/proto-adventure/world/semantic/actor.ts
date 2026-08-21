@@ -16,6 +16,7 @@
 
 import type { CurrentAction } from './action';
 import type { MoveMode } from './combat';
+import type { Equipment } from './equipment';
 import type { Inventory } from './inventory';
 import type { GuardedGround } from './relation';
 import type { WorldPosition } from './position';
@@ -45,6 +46,10 @@ export interface ActorState {
   cpMax: number;
   // 전투 능력치 (C010) — 종류가 초기값을 정한다. 한 방의 크기를 정하는 두 값이며
   // RULE-DAMAGE-CALCULATE-001 만이 읽는다.
+  // C023 CHANGED — 아래 여덟 값은 이제 **기본값**이라는 뜻을 가진다. 이름은 그대로다.
+  // 판정이 읽는 것은 이 값이 아니라 걸린 것을 반영해 다시 센 **유효 값**이며,
+  // 그것은 저장되지 않는다 (semantic/combat.ts effectiveStat · RULE-EFFECTIVE-STATS-001).
+  // 밖에서 손대는 값(RULE-ATTRIBUTE-SET-001)도 여전히 기본값이다.
   // C012 CHANGED — C010 의 attack/defense 두 값이 방식별 네 값으로 갈린다.
   // 일반 attack/defense 는 남기지 않는다 — 두 이름이 공존하면 어느 값이 계산의
   // 권위인지 모호해진다 (설계 §9).
@@ -90,5 +95,13 @@ export interface ActorState {
   // 개체와 없는 개체가 있다.
   guardedGround: GuardedGround | null;
   inventory: Inventory;
+  /**
+   * C023 ADDED — 지금 몸에 걸려 있는 것들 (INTENT-BODY-HAS-APPLY-PLACES-001).
+   *
+   * 자리가 물건을 직접 담는다 — 걸린 것은 소지품에 없다 (DC-ITEM-LIVES-IN-ONE-PLACE).
+   * **어떤 몸이든 지닌다** — 조종 주체를 가리지 않는다. 자율 존재도 같은 자리를 지니며
+   * 지금은 비어 있을 뿐이고, 그래서 유효 값과 기본값이 같다 (회귀 무변경).
+   */
+  equipment: Equipment;
   currentAction: CurrentAction;
 }

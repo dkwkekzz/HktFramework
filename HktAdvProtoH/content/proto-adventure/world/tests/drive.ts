@@ -74,6 +74,20 @@ export function observeFully(
   for (let i = 0; i < steps; i++) world.tick(TICK_INTERVAL);
 }
 
+/**
+ * 곡괭이를 건다 (C023). 채집은 이제 **지님이 아니라 적용**에서 온다
+ * (INTENT-CAPABILITY-FROM-DECLARED-USE-001 CHANGED), 그래서 캘 수 있는 몸을 만들려면
+ * 이 헬퍼가 앞에 와야 한다.
+ *
+ * **세계를 약하게 만드는 것이 아니다** — 걸기가 플레이의 한 걸음으로 들어온 것이다.
+ * 걸지 않은 채로 캐려 하면 `no-mining-tool` 이 오며, 그것을 확인하는 검증은
+ * 이 헬퍼를 부르지 않는다 (world/tests/equip.spec.ts).
+ * C014 의 observeFully · C017 의 selectTarget 이 같은 자리에 선 것과 같은 성격이다.
+ */
+export function equipPickaxe(world: WorldDriver, observerId: string = OBSERVER): ActionResult {
+  return world.dispatch({ interactionId: 'equip-item', itemKind: 'pickaxe' }, observerId);
+}
+
 export function driveWorld(setup: WorldSetup = {}): WorldDriver {
   const world = createWorld(setup);
   // 관찰자 하나를 들여보내고 그 참여를 판정시킨다 — 여기서부터 몸이 있다.

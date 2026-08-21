@@ -5,7 +5,7 @@
 
 import { describe, expect, it } from 'vitest';
 import type { GameViewSnapshot } from '../../protocol/gameview';
-import { driveWorld, PLAYER, selectTarget, type WorldDriver } from './drive';
+import { driveWorld, equipPickaxe, PLAYER, selectTarget, type WorldDriver } from './drive';
 import { TICK_INTERVAL } from '../semantic/world-state';
 
 const solo = { npcs: [] };
@@ -29,10 +29,23 @@ function mineOnce(world: WorldDriver) {
   return result;
 }
 
-/** 광맥에 붙은 세계 하나 — 이 파일의 모든 검증이 같은 자리에서 시작한다 */
-function atDeposit(depositAmount = 12) {
+/** 광맥에 붙은 세계 하나 — 곡괭이는 아직 **가방에** 있다 (걸지 않은 채다) */
+function atDeposit(depositAmount = 15) {
   const world = driveWorld({ ...solo, actorPosition: { x: 8, z: -5 }, depositAmount });
   selectTarget(world, 'deposit-1');
+  return world;
+}
+
+/**
+ * 캘 수 있는 몸 — C023 이후 채집은 **걸린 것**에서 온다.
+ *
+ * 걸면 곡괭이가 가방을 떠나므로 이 파일의 자리 수가 C022 판에서 하나씩 줄었다.
+ * 담을 수 있는 돌은 9 에서 12 로 늘었고, 그래서 광맥의 기본값도 함께 옮겼다
+ * (world/index.ts — C023 12 → 15). 규칙은 한 줄도 열리지 않았다.
+ */
+function atDepositReady(depositAmount = 15) {
+  const world = atDeposit(depositAmount);
+  equipPickaxe(world);
   return world;
 }
 
@@ -48,29 +61,32 @@ describe('RULE-INVENTORY-ROOM-001 — 자리는 분기 없는 한 식이다', ()
   });
 
   it('겹치는 종류는 한도까지 한 자리에 쌓이고, 넘으면 자리를 하나 더 쓴다', () => {
-    const world = atDeposit();
+    // C023 — 곡괭이를 걸었으므로 가방은 비어서 시작한다. 자리 수가 C022 판보다
+    // 하나씩 작은 것은 그 때문이며, ⌈n/한도⌉ 라는 식은 한 글자도 바뀌지 않았다.
+    const world = atDepositReady();
+    expect(room(world.observe())).toEqual({ used: 0, capacity: 4 });
 
     mineOnce(world); // 돌 1 → 돌 자리 1
-    expect(room(world.observe())).toEqual({ used: 2, capacity: 4 });
+    expect(room(world.observe())).toEqual({ used: 1, capacity: 4 });
 
     mineOnce(world);
     mineOnce(world); // 돌 3 → **아직** 돌 자리 1 (한도 3)
     expect(count(world.observe(), 'stone')).toBe(3);
-    expect(room(world.observe())).toEqual({ used: 2, capacity: 4 });
+    expect(room(world.observe())).toEqual({ used: 1, capacity: 4 });
 
     mineOnce(world); // 돌 4 → 돌 자리 2
-    expect(room(world.observe())).toEqual({ used: 3, capacity: 4 });
+    expect(room(world.observe())).toEqual({ used: 2, capacity: 4 });
   });
 });
 
 // ─────────────────────────────────────────────────────────────────────
 describe('INTENT-ACQUIRE-IS-ALL-OR-NOTHING-001 — 자리가 없으면 받지 못한다', () => {
   it('자리가 차면 캘 수 없고, 그것이 부딪히기 전에 관찰된다', () => {
-    const world = atDeposit();
+    const world = atDepositReady();
 
-    for (let i = 0; i < 9; i++) mineOnce(world); // 곡괭이 1 + 돌 9 = 자리 4
+    for (let i = 0; i < 12; i++) mineOnce(world); // 돌 12 = 자리 4 (⌈12/3⌉)
     const full = world.observe();
-    expect(count(full, 'stone')).toBe(9);
+    expect(count(full, 'stone')).toBe(12);
     expect(room(full)).toEqual({ used: 4, capacity: 4 });
 
     // **부딪히기 전에 보인다** — 요청하기 전부터 불가이고 사유가 함께 온다
@@ -79,27 +95,27 @@ describe('INTENT-ACQUIRE-IS-ALL-OR-NOTHING-001 — 자리가 없으면 받지 �
   });
 
   it('억지로 요청해도 같은 사유로 거절된다 — 관찰과 실행이 같은 판정이다', () => {
-    const world = atDeposit();
-    for (let i = 0; i < 9; i++) mineOnce(world);
+    const world = atDepositReady();
+    for (let i = 0; i < 12; i++) mineOnce(world);
 
     const result = world.dispatch({ interactionId: 'mine' });
     expect(result).toEqual({ status: 'failure', rule: 'RULE-MINE-001', reason: 'no-room' });
   });
 
   it('거절된 채집은 광맥을 축내지 않는다 — 세계의 것은 그대로 남는다', () => {
-    const world = atDeposit();
-    for (let i = 0; i < 9; i++) mineOnce(world);
+    const world = atDepositReady();
+    for (let i = 0; i < 12; i++) mineOnce(world);
 
-    expect(depositLeft(world.observe())).toBe(3); // 12 - 9
+    expect(depositLeft(world.observe())).toBe(3); // 15 - 12
 
     mineOnce(world); // 자리가 없어 받지 못하는 채집
     expect(depositLeft(world.observe())).toBe(3); // **줄지 않았다**
-    expect(count(world.observe(), 'stone')).toBe(9);
+    expect(count(world.observe(), 'stone')).toBe(12);
   });
 
   it('완료 시점에 자리가 없어져도 광맥도 수량도 그대로다 (원자성)', () => {
-    const world = atDeposit();
-    for (let i = 0; i < 8; i++) mineOnce(world); // 자리 4 중 …돌 8 → 자리 4 (⌈8/3⌉=3 + 곡괭이 1)
+    const world = atDepositReady();
+    for (let i = 0; i < 11; i++) mineOnce(world); // 돌 11 → 자리 4 (⌈11/3⌉)
 
     // 아직 한 자리에 여유가 있어 캘 수 있다
     expect(mine(world.observe())?.available).toBe(true);
@@ -107,10 +123,10 @@ describe('INTENT-ACQUIRE-IS-ALL-OR-NOTHING-001 — 자리가 없으면 받지 �
     expect(startResult.status).toBe('success');
 
     // 채집이 도는 동안 자리를 다른 것으로 채울 방법이 지금 세계에 없으므로,
-    // 여기서는 **완료 시점 재검증이 존재한다는 것**을 아홉 번째 획득으로 확인한다.
+    // 여기서는 **완료 시점 재검증이 존재한다는 것**을 열두 번째 획득으로 확인한다.
     const steps = Math.ceil(MINE_DURATION / TICK_INTERVAL) + 1;
     for (let i = 0; i < steps; i++) world.tick(TICK_INTERVAL);
-    expect(count(world.observe(), 'stone')).toBe(9);
+    expect(count(world.observe(), 'stone')).toBe(12);
     expect(room(world.observe())).toEqual({ used: 4, capacity: 4 });
   });
 });
@@ -118,8 +134,8 @@ describe('INTENT-ACQUIRE-IS-ALL-OR-NOTHING-001 — 자리가 없으면 받지 �
 // ─────────────────────────────────────────────────────────────────────
 describe('RULE-ITEM-DISCARD-001 — 스스로 줄이는 첫 경로', () => {
   it('덜어내면 그 종류가 전부 사라지고 자리가 빈다 — 즉시 일어난다', () => {
-    const world = atDeposit();
-    for (let i = 0; i < 9; i++) mineOnce(world);
+    const world = atDepositReady();
+    for (let i = 0; i < 12; i++) mineOnce(world);
 
     const result = world.dispatch({ interactionId: 'discard-item', itemKind: 'stone' });
     expect(result).toEqual({ status: 'success', rule: 'RULE-ITEM-DISCARD-001' });
@@ -128,12 +144,13 @@ describe('RULE-ITEM-DISCARD-001 — 스스로 줄이는 첫 경로', () => {
     const after = world.observe();
     expect(count(after, 'stone')).toBe(0);
     expect(item(after, 'stone')).toBeUndefined(); // 지니지 않은 종류는 항목이 없다
-    expect(room(after)).toEqual({ used: 1, capacity: 4 });
+    // C023 — 걸린 곡괭이는 가방의 자리를 쓰지 않으므로 0 이다
+    expect(room(after)).toEqual({ used: 0, capacity: 4 });
   });
 
   it('덜어내면 다시 캘 수 있다 — 자리와 덜어내기가 한 몸이다', () => {
-    const world = atDeposit();
-    for (let i = 0; i < 9; i++) mineOnce(world);
+    const world = atDepositReady();
+    for (let i = 0; i < 12; i++) mineOnce(world);
     expect(mine(world.observe())?.available).toBe(false);
 
     world.dispatch({ interactionId: 'discard-item', itemKind: 'stone' });
@@ -144,7 +161,7 @@ describe('RULE-ITEM-DISCARD-001 — 스스로 줄이는 첫 경로', () => {
   });
 
   it('덜어낸 것은 세계에 놓이지 않는다 — 광맥도 늘지 않고 아무 존재도 생기지 않는다', () => {
-    const world = atDeposit();
+    const world = atDepositReady();
     for (let i = 0; i < 4; i++) mineOnce(world);
     const entitiesBefore = world.observe().entities.length;
     const depositBefore = depositLeft(world.observe());
@@ -156,7 +173,7 @@ describe('RULE-ITEM-DISCARD-001 — 스스로 줄이는 첫 경로', () => {
   });
 
   it('하던 행동을 끊지 않는다 — 덜어내기는 몸의 행동이 아니다', () => {
-    const world = atDeposit();
+    const world = atDepositReady();
     mineOnce(world);
     world.dispatch({ interactionId: 'mine' });
     world.tick(TICK_INTERVAL);
@@ -186,7 +203,7 @@ describe('INTENT-NO-SELF-INFLICTED-DEAD-END-001 — 돌아올 길을 지킨다',
   });
 
   it('돌은 언제든 덜어낼 수 있다 — 아무 용도도 잃지 않는다', () => {
-    const world = atDeposit();
+    const world = atDepositReady();
     mineOnce(world);
     expect(discardOf(world.observe(), 'stone')?.available).toBe(true);
   });
@@ -195,13 +212,17 @@ describe('INTENT-NO-SELF-INFLICTED-DEAD-END-001 — 돌아올 길을 지킨다',
     // 돌은 어떤 용도도 주지 않으므로, 광맥이 말라 다시 얻을 수 없게 되어도
     // 덜어내기가 막히지 않는다. 막는 것은 "다시 못 얻는 것" 이 아니라
     // "다시 못 얻는데 그것으로 할 수 있던 일이 사라지는 것" 이다.
-    const world = atDeposit(2);
+    const world = atDepositReady(2);
     mineOnce(world);
     mineOnce(world);
     expect(depositLeft(world.observe())).toBe(0);
 
     expect(discardOf(world.observe(), 'stone')?.available).toBe(true);
-    // 그리고 곡괭이는 여전히 막힌다 — 채집 용도가 사라지기 때문이다
+
+    // 그리고 곡괭이는 여전히 막힌다 — 채집 용도가 사라지기 때문이다.
+    // C023 — 걸린 것은 덜어내기의 대상이 아니므로 먼저 푼다. 그래도 답은 같다:
+    // 막힘 판정은 **지닐 수 있는 용도**를 보므로 가방에 있든 걸려 있든 흔들리지 않는다.
+    world.dispatch({ interactionId: 'unequip-item', equipSlotId: 'E1' });
     expect(discardOf(world.observe(), 'pickaxe')?.unavailableReason).toBe('no-way-back');
   });
 });
@@ -216,9 +237,11 @@ describe('DC-ITEM-CAPACITY-IS-FINITE — 값이 규칙에 박히지 않았다', 
   });
 
   it('지닌 것이 없어도 자리가 관찰된다', () => {
-    // 곡괭이는 덜어낼 수 없으므로 "빈 가방" 을 세계에서 만들 수 없다.
-    // 대신 자리 관찰이 **항목과 무관한 자리**임을 형태로 확인한다.
-    const view = atDeposit().observe();
-    expect(view.inventoryRoom.capacity).toBeGreaterThan(0);
+    // C023 — **이제 빈 가방을 세계에서 만들 수 있다.** 곡괭이를 걸면 그것이 가방을
+    // 떠나기 때문이다. C022 판은 "곡괭이를 덜어낼 수 없어 빈 가방을 만들 수 없다" 며
+    // 형태만 확인했는데, 이제 값으로 확인한다.
+    const view = atDepositReady().observe();
+    expect(view.inventory).toEqual([]);
+    expect(view.inventoryRoom).toEqual({ used: 0, capacity: 4 });
   });
 });

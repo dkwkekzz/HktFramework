@@ -10,7 +10,7 @@ import { describe, expect, it } from 'vitest';
 import type { GameViewSnapshot } from '../../protocol/gameview';
 import { ruleTargetClearStale } from '../simulation/target-clear-stale';
 import { OBSERVE_RANGE, TICK_INTERVAL, type WorldState } from '../semantic/world-state';
-import { driveWorld, OBSERVER, OBSERVER_2, PLAYER, PLAYER_2, selectTarget } from './drive';
+import { driveWorld, equipPickaxe, OBSERVER, OBSERVER_2, PLAYER, PLAYER_2, selectTarget } from './drive';
 
 const solo = { npcs: [] };
 // 다가오지 않는 자율 존재 — 지목 자체를 재는 자리에서는 인지 거리를 0 으로 둔다
@@ -272,6 +272,7 @@ describe('INTENT-TARGET-DIRECTS-THE-ACT-001 — 행동이 고른 하나로 나�
 
   it('요청이 실은 대상은 무시된다 — 대상을 정하는 곳은 하나다', () => {
     const world = driveWorld({ ...solo, actorPosition: { x: 8, z: -5 } });
+    equipPickaxe(world); // C023 — 채집은 걸린 것에서 온다
     selectTarget(world, 'deposit-1');
 
     // 요청에 엉뚱한 대상을 실어도 세계는 고른 것을 캔다
@@ -305,6 +306,7 @@ describe('INTENT-TARGET-DIRECTS-THE-ACT-001 — 행동이 고른 하나로 나�
       depositAmount: 5,
     });
 
+    equipPickaxe(world); // C023 — 채집은 걸린 것에서 온다
     selectTarget(world, 'deposit-1');
     world.dispatch({ interactionId: 'mine' });
     selectTarget(world, 'npc-1'); // 캐는 도중에 다른 것을 고른다

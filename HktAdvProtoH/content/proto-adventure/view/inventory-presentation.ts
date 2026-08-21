@@ -26,6 +26,7 @@
 
 import type { SceneHudItem, SceneState } from '../../../engine/view-kernel/scene/scene-state';
 import type { GameViewSnapshot } from '../protocol/gameview';
+import { EQUIP_ARM_KEY_LABEL } from './equipment-presentation';
 
 /** 소지품 줄의 id 앞머리 — 조립 루트가 칸 번호를 되읽을 때 쓴다 */
 export const INVENTORY_HUD_PREFIX = 'inventory.';
@@ -61,12 +62,16 @@ const DISCARD_ARM_KEY_LABEL = 'B';
 const ACTION_LABEL: Record<string, string> = {
   'use-item': '쓰기',
   'discard-item': '덜어내기',
+  'equip-item': '걸기', // C023 — 표에 한 줄이 늘 뿐이다
 };
 
 /** 그 역할을 부르는 손가락 자리 — 칸 번호를 받아 안내 문구를 만든다 */
 const ACTION_KEY_HINT: Record<string, (slot?: string) => string | undefined> = {
   'use-item': (slot) => slot,
   'discard-item': (slot) => (slot ? `${DISCARD_ARM_KEY_LABEL} → ${slot}` : undefined),
+  // C023 — 덜어내기와 같은 두 걸음이다. 손가락 자리가 모자란 것은 조작 계층의 사정이며
+  // 게임의 판정이 아니다 (view/bindings.ts).
+  'equip-item': (slot) => (slot ? `${EQUIP_ARM_KEY_LABEL} → ${slot}` : undefined),
 };
 
 /**

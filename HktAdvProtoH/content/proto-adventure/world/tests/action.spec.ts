@@ -3,7 +3,7 @@
 
 import { describe, expect, it } from 'vitest';
 import type { GameViewSnapshot } from '../../protocol/gameview';
-import { driveWorld, PLAYER, selectTarget } from './drive';
+import { driveWorld, equipPickaxe, PLAYER, selectTarget } from './drive';
 
 const solo = { npcs: [] };
 const player = (v: GameViewSnapshot) => v.entities.find((e) => e.id === PLAYER);
@@ -29,6 +29,7 @@ describe('INTENT-ACTION-STATE-001 — 언제나 하나의 행동 안에 있다',
     const world = driveWorld({ ...solo, actorPosition: { x: 8, z: -5 } });
     expect(hudAction(world.observe())?.value).toBe('idle');
 
+    equipPickaxe(world); // C023 — 채집은 걸린 것에서 온다
     selectTarget(world, 'deposit-1');
     world.dispatch({ interactionId: 'mine' });
     world.tick(0.6);
@@ -42,6 +43,7 @@ describe('INTENT-ACTION-STATE-001 — 언제나 하나의 행동 안에 있다',
 describe('RULE-ACTION-BEGIN-001 — 대체 불가 행동 중의 요청', () => {
   it('채굴 중에는 이동 요청이 거부되고 사유(action-busy)를 알 수 있다', () => {
     const world = driveWorld({ ...solo, actorPosition: { x: 8, z: -5 } });
+    equipPickaxe(world); // C023 — 채집은 걸린 것에서 온다
     selectTarget(world, 'deposit-1');
     world.dispatch({ interactionId: 'mine' });
     world.tick(0.2);
@@ -57,6 +59,7 @@ describe('RULE-ACTION-BEGIN-001 — 대체 불가 행동 중의 요청', () => {
 
   it('채굴 중에는 다른 채굴 요청도 거부된다', () => {
     const world = driveWorld({ ...solo, actorPosition: { x: 8, z: -5 } });
+    equipPickaxe(world); // C023 — 채집은 걸린 것에서 온다
     selectTarget(world, 'deposit-1');
     world.dispatch({ interactionId: 'mine' });
     world.tick(0.2);
@@ -68,6 +71,7 @@ describe('RULE-ACTION-BEGIN-001 — 대체 불가 행동 중의 요청', () => {
 
   it('행동이 끝나면 다시 대체 가능해진다', () => {
     const world = driveWorld({ ...solo, actorPosition: { x: 8, z: -5 } });
+    equipPickaxe(world); // C023 — 채집은 걸린 것에서 온다
     selectTarget(world, 'deposit-1');
     world.dispatch({ interactionId: 'mine' });
     world.tick(1.2);
@@ -91,6 +95,7 @@ describe('RULE-ACTION-PROGRESS-001 — 진행도', () => {
 
   it('진행도는 0..1 을 벗어나지 않는다', () => {
     const world = driveWorld({ ...solo, actorPosition: { x: 8, z: -5 } });
+    equipPickaxe(world); // C023 — 채집은 걸린 것에서 온다
     selectTarget(world, 'deposit-1');
     world.dispatch({ interactionId: 'mine' });
 
