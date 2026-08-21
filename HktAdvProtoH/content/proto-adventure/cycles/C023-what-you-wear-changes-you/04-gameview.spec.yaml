@@ -1,0 +1,359 @@
+# CYCLE C023 — GameView Specification
+#
+# C020 이 소지품을 목록 하나로, C022 가 그 목록 밖에 자리 둘을 세웠다.
+# 이 Cycle 이 더하는 것은 넷뿐이다.
+#
+#   ① 목록과 **나란한 두 번째 목록** — 적용 자리들. 비어 있는 자리도 실린다.
+#   ② 항목마다 **걸기** — 이미 있는 actions 자리에, 자리 수만큼. 새 기계가 없다.
+#   ③ 자리마다 **풀기** — 같은 형태의 actions. 사유에 no-room 이 온다.
+#   ④ combatStats 가 **유효 값**이 된다 — 계약의 형태는 한 글자도 바뀌지 않는다.
+#
+# 이 계약을 받은 View 는 **적합성을 한 번도 판정하지 않는다.** 무엇이 어느 자리에
+# 들어가는지도, 지금 풀 자리가 있는지도, 걸린 것이 값을 얼마나 바꾸는지도 묻지 않는다 —
+# 받은 값을 옮긴다. 종류 이름도 자리 이름도 화면의 조건이 되지 않는다.
+id: VIEW-WHAT-YOU-WEAR-CHANGES-YOU-001
+observer: player
+
+delta:
+  reused:
+    - scene.mining-field
+    - entities.character                      # 위치·역할·이름·종류·모션·body·swing·상태 그대로
+    - entities.deposit
+    - entityHud
+    - entities.character.vitality
+    - inventory                               # C020 의 목록 — 형태가 바뀌지 않는다
+    - inventory[].kind / count / category / origin / stackable
+    - inventoryRoom                           # C022 의 자리 둘 — 그대로
+    - strikeEvents / unharmedContacts / cancelEvents
+    - currentTarget / commandCatalog
+    - debugObserve / debugAuthority
+    - observer / session / delivery / identity / telemetry
+    - hud.*                                   # 새 막대도 새 줄도 없다
+  added:
+    - equipment                               # 적용 자리들
+    - inventory[].actions[role=equip-item]    # 걸기 — 자리마다 하나
+    - inventory[].actions[].equipSlotId       # 어느 자리에 대한 답인가
+  changed:
+    - entities.character.attributes.combatStats   # 싣는 값이 유효 값이 된다 (형태 무변경)
+    - interactions.mine                           # 사유 코드는 그대로 · 뜻이 옮겨간다
+  removed: []
+
+scene: mining-field
+
+# ─────────────────────────────────────────────────────────────────
+# equipment — 이 Cycle 이 세우는 자리
+#
+#   **소지품 목록과 나란한 두 번째 목록이다.** 하나로 합치지 않는다 — 둘이 답하는
+#   질문이 다르기 때문이다. 소지품은 "무엇을 지녔는가" 이고 적용 자리는 "몸이 지금
+#   무엇으로 되어 있는가" 다. 합치면 지닌 것과 걸린 것의 구분이 사라지고,
+#   그 구분이 정확히 이 Cycle 이 세우는 것이다.
+#
+#   **비어 있는 자리도 전부 실린다.** 비었다는 것이 관찰의 내용이며, 자리가 몇이고
+#   무엇을 받는지는 걸 수 있는 물건이 하나도 없을 때도 보여야 한다.
+#
+#   내 몸의 것만 실린다. 남이 무엇을 걸었는지는 오지 않는다 — 세계에 그 관찰이 없다.
+#   남의 걸린 것이 낳은 결과는 combatStats 에 이미 실려 있다.
+# ─────────────────────────────────────────────────────────────────
+equipment:
+  cardinality: many                 # 자리 수만큼. 세계가 정하는 차례로 온다
+  source: 관찰자의 몸 · World.EquipSlotCatalog
+  order:
+    source: EquipSlotDefinition.Order
+    meaning: >
+      같은 세계 상태면 같은 순서다. **화면은 정렬하지 않는다** — 받은 차례로 그린다.
+  fields:
+    slotId:
+      source: EquipSlotDefinition.Id
+      meaning: >
+        자리의 의미 코드. 표시 이름은 View 책임이다.
+        **화면은 이 값에 조건을 걸지 않는다** — 자리가 늘어도 줄어도 이름이 바뀌어도
+        화면은 고치지 않는다. 목록을 그리는 것으로 끝난다.
+    accepts:
+      source: EquipSlotDefinition.Accepts
+      meaning: >
+        이 자리가 받는 성격들 (의미 코드). 화면은 이것으로 **아무것도 판정하지 않는다** —
+        무엇을 걸 수 있는지는 항목의 available 이 이미 답한다. 이 값이 실리는 이유는
+        사람이 "여기는 무엇을 거는 자리인가" 를 읽을 수 있게 하기 위해서다.
+    item:
+      optional: true
+      source: Actor.Equipment[slotId]
+      meaning: 담긴 것. **비었으면 없다** — 빈 값이 아니라 항목이 없다
+      fields:
+        kind:     { source: ItemKind }
+        category: { source: ItemDefinition.Category }
+        origin:   { source: ItemDefinition.Origin, optional: true }
+    grants:
+      source: 담긴 것의 ItemDefinition.Uses
+      meaning: >
+        이 자리의 것이 **지금 몸에 주고 있는 용도들** (의미 코드). 비었거나 주는 것이
+        없으면 빈 목록이다. 화면은 이 값으로 무엇을 막지 않는다 — 왜 캘 수 있게
+        되었는지를 사람이 읽는 자리다.
+    contributions:
+      source: 담긴 것의 ItemDefinition.Contributions
+      meaning: >
+        이 자리의 것이 **지금 몸의 값에 보태고 있는 것들** — { name, value } 의 목록.
+        비었거나 보태는 것이 없으면 빈 목록이다.
+
+        **걸린 것에만 실린다.** 가방의 물건이 무엇을 줄지 보여 주는 것은 미리보기이며
+        이 Cycle 의 일이 아니다 (01-cycle.md EXCLUDED). 여기 실리는 것은 예측이 아니라
+        **지금 일어나 있는 일**이다.
+
+        화면은 이 값을 combatStats 와 더하지 않는다 — combatStats 가 이미 더해진 값이다.
+        이 목록은 "그 값이 왜 그 값인가" 의 경위다.
+  actions:
+    unequip-item:
+      added: true
+      role: unequip-item
+      request: >
+        equipment[].actions[].id 를 되돌리고 그 자리(slotId)를 함께 싣는다.
+        **무엇을 푸는지는 싣지 않는다** — 자리가 이미 그것을 안다
+      available:
+        source: RULE-ITEM-UNEQUIP-001 의 판정
+      unavailableReason:
+        source: RULE-ITEM-UNEQUIP-001 의 실패 사유
+        optional: true
+        values:
+          - unknown-slot     # 세계가 모르는 자리다 (정상적으로는 오지 않는다)
+          - slot-empty       # 빈 자리다 — 화면은 빈 자리에 이 행동을 그리지 않아도 된다
+          - no-room          # **가방에 돌려받을 자리가 없다.** 이 Cycle 의 핵심 사유다
+        meaning: >
+          `no-room` 은 소지품 통로·채집이 쓰는 것과 **같은 코드**다. 겪는 일이 하나이므로
+          사유도 하나여야 한다 (C022 가 세운 관계 그대로).
+
+          **부딪히기 전에 보인다.** 가방이 차는 순간 풀기가 불가로 바뀌고 사유가 함께
+          온다. 억지로 요청해도 같은 사유로 거절된다 — 관찰과 실행이 같은 판정이다.
+      timing:
+        meaning: >
+          **즉시 일어난다.** 진행도가 없고 하던 행동을 끊지도 않는다.
+          화면은 풀기에 진행 표시를 붙이지 않으며, 요청한 다음 관찰에서 자리가 이미
+          비어 있고 combatStats 가 이미 돌아와 있다.
+
+# ─────────────────────────────────────────────────────────────────
+# inventory — 항목의 형태는 그대로, actions 에 자리 수만큼 항목이 는다
+# ─────────────────────────────────────────────────────────────────
+inventory:
+  reused: true
+  actions:
+    reused: true                 # 자리도 형태도 C020 · C022 그대로
+    fields:
+      role:
+        changed: true
+        values:
+          - use-item             # C020
+          - discard-item         # C022
+          - equip-item           # C023 ADDED
+        meaning: 의미 역할. 문구 변환은 View 책임 — 값이 늘어도 형태는 같다
+      equipSlotId:
+        added: true
+        optional: true
+        source: EquipSlotDefinition.Id
+        meaning: >
+          **equip-item 에만 실린다.** 이 답이 어느 자리에 대한 것인가를 말한다.
+          같은 항목에 equip-item 이 여럿 실리는 이유가 이것이다 — 자리마다 답이 다르다.
+          화면은 이 값을 요청에 그대로 되돌린다. 뜻을 해석하지 않는다.
+
+    equip-item:
+      added: true
+      role: equip-item
+      cardinality: 자리 수만큼      # 걸릴 수 없는 물건에도 자리마다 실린다
+      request: >
+        inventory[].actions[].id 와 그 항목의 kind, 그리고 equipSlotId 를 되돌린다
+      available:
+        source: RULE-ITEM-EQUIP-001 의 판정
+      unavailableReason:
+        source: RULE-ITEM-EQUIP-001 의 실패 사유
+        optional: true
+        values:
+          - unknown-item     # 세계가 모르는 종류다 (정상적으로는 오지 않는다)
+          - not-enough       # 지니지 않았다 (정상적으로는 오지 않는다 — 목록에 없으므로)
+          - unknown-slot     # 세계가 모르는 자리다 (정상적으로는 오지 않는다)
+          - not-equippable   # **어느 자리에도 걸 수 없는 물건이다** (돌)
+          - slot-mismatch    # **이 자리가 받지 않는 성격이다** — 다른 자리에는 걸릴 수 있다
+          - slot-occupied    # 이 자리가 이미 차 있다
+        meaning: >
+          `not-equippable` 과 `slot-mismatch` 는 다른 일이다. 앞의 것은 물건이 어디에도
+          걸리지 않는다는 뜻이고, 뒤의 것은 **여기가 아니라는** 뜻이다. 둘을 한 코드로
+          합치면 사람이 "다른 자리를 보라" 를 읽을 수 없다.
+
+          `slot-occupied` 는 **이 Cycle 한정의 사유다.** 이미 찬 자리에 거는 것은
+          본래 실패가 아니라 교체라는 정상 성공 경로이며, 그 경로는 다음 Cycle 이 연다.
+          그날 이 값은 사라지고 같은 요청이 성공한다 — **화면은 그날 아무것도 고치지
+          않는다.** 불가가 가능으로 바뀔 뿐이다.
+      effect:
+        meaning: >
+          **하나만 걸린다.** 겹쳐 지닌 것 중 하나가 가방에서 빠져 자리로 간다.
+          수량을 고르는 자리가 없다 — 자리 하나에 담기는 것은 하나이기 때문이다.
+          걸린 것은 가방의 자리를 쓰지 않으므로 inventoryRoom.used 가 함께 줄어든다.
+      timing:
+        meaning: >
+          **즉시 일어난다.** 진행도가 없고 하던 행동을 끊지도 않는다.
+          요청한 다음 관찰에서 자리가 이미 차 있고 combatStats 가 이미 달라져 있다.
+
+# ─────────────────────────────────────────────────────────────────
+# entities — combatStats 의 값이 유효 값이 된다
+# ─────────────────────────────────────────────────────────────────
+entities:
+  character:
+    reused: true
+    attributes:
+      combatStats:
+        changed: true
+        source: Actor.EffectiveStats
+        meaning: >
+          **계약의 형태는 한 글자도 바뀌지 않는다.** 여덟 값이 그대로 실리고, 그 값이
+          이제 걸린 것을 반영한 값이다. 화면은 이 Cycle 에서 combatStats 를 그리는
+          코드를 고치지 않는다 — 같은 자리의 값이 달라질 뿐이다.
+
+          **기본값은 싣지 않는다.** 둘을 다 실으면 화면이 어느 쪽을 그릴지 고를 수 있게
+          되고 세계의 권위가 둘이 된다. 무엇이 얼마를 보탰는지는 equipment[].contributions
+          가 이미 답한다.
+
+          남의 것이 살펴본 뒤에 열리는 것도 그대로다 (C014) — 걸린 것이 남의 겨루는 힘을
+          바꾸므로 유효 값이 그 관문 뒤에 있는 것이 옳다.
+      insight: { reused: true }
+      tempoStats:
+        reused: true
+        meaning: >
+          이 Cycle 은 이 값들을 유효 값으로 갈라놓지 않는다 — 보태는 물건이 세계에 없기
+          때문이다. 그런 물건이 생기면 그때 같은 얼개에 실린다.
+      guard: { reused: true }
+      stanceTowardObserver: { reused: true }
+      stanceFromObserver: { reused: true }
+    state:
+      meaning: >
+        걸기와 풀기는 상태값을 늘리지 않는다. 시간을 쓰지 않으므로 "거는 중" 이라는
+        순간이 세계에 존재하지 않는다 — 없는 상태를 계약에 만들지 않는다.
+        (C022 의 덜어내기에 대한 판단과 같다)
+  deposit:
+    reused: true
+
+# ─────────────────────────────────────────────────────────────────
+# interactions — 새 항목이 없다
+#
+#   걸기는 **소지품 항목이** 지니고 풀기는 **자리가** 지닌다. 둘 다 "가진 것에 붙는
+#   일은 가진 것 옆에 둔다" 는 C020·C022 의 판단 그대로다. 여기에 항목을 늘리면
+#   자리 이름과 종류 이름이 계약의 다른 자리에 다시 박힌다.
+# ─────────────────────────────────────────────────────────────────
+interactions:
+  mine:
+    changed: true
+    role: mine-deposit
+    available:
+      source: RULE-MINE-001 의 판정 (무변경)
+    unavailableReason:
+      source: RULE-MINE-001 의 실패 사유
+      values:
+        - no-target-selected
+        - target-kind-mismatch
+        - no-mining-tool       # **코드는 그대로, 뜻이 옮겨간다**
+        - out-of-range
+        - deposit-depleted
+        - action-busy
+        - no-room
+      meaning: >
+        `no-mining-tool` 은 값도 자리도 바뀌지 않는다. 달라지는 것은 **언제 오는가**다 —
+        이전에는 "곡괭이가 없을 때" 였고 이제는 "곡괭이를 걸지 않았을 때" 다.
+        가방에 곡괭이를 지닌 채로 이 사유를 보는 것이 이 Cycle 의 첫 관찰이며,
+        그 사유가 화면에서 문구 하나로 읽히는 것이 이 Cycle 이 세운 구분이다.
+
+        문구를 이 Cycle 이 바꿀 수는 있으나 **코드를 늘리지 않는다** — 겪는 일이
+        하나이므로 사유도 하나다 (DC-WORLD-OWNS-THE-SURFACE-LIST).
+
+  attack: { reused: true }
+  skillHeavy: { reused: true }
+  skillAura: { reused: true }
+  guardBegin: { reused: true }
+  guardRelease: { reused: true }
+  observe: { reused: true }
+  forgetAcquaintance: { reused: true }
+  selectTarget: { reused: true }
+  clearTarget: { reused: true }
+  move: { reused: true }
+  moveMode: { reused: true }
+  setAttribute:
+    reused: true
+    meaning: >
+      밖에서 넣는 값은 **기본값**이다. 걸린 것이 있으면 넣은 수와 combatStats 에
+      보이는 수가 다르다 — 그것이 옳은 결과다. 계약은 바뀌지 않는다.
+
+# ─────────────────────────────────────────────────────────────────
+# hud / inventoryRoom — 바뀌지 않는다
+# ─────────────────────────────────────────────────────────────────
+inventoryRoom:
+  reused: true
+  meaning: >
+    걸린 것은 가방에서 빠지므로 used 가 함께 줄어든다. **계약도 계산도 바뀌지 않는다** —
+    세계가 세는 대상이 하나 줄었을 뿐이다.
+
+hud:
+  reused: true
+  added: []
+  meaning: >
+    적용 자리는 hud 가 아니라 equipment 가 지닌다. **어디에 그리는가는 View 가 정한다** —
+    이 계약은 값이 어디서 오는지만 말한다.
+
+# ─────────────────────────────────────────────────────────────────
+# designer — 같은 계약을 쓴다
+# ─────────────────────────────────────────────────────────────────
+designer:
+  uses: 이 계약 그대로. World 로 가는 별도 경로를 만들지 않는다
+  goal:
+    - GOAL-THE-BODY-HAS-PLACES-TO-APPLY
+    - GOAL-ONLY-WHAT-IS-APPLIED-CHANGES-THE-BODY
+    - GOAL-THE-BODY-HAS-A-BASE-AND-AN-EFFECTIVE-VALUE
+    - GOAL-APPLYING-AND-RELEASING-ARE-EACH-ONE-UNIT
+    - GOAL-RELEASING-RETURNS-EXACTLY
+    - GOAL-WHAT-IS-APPLIED-IS-SEEN
+  possibility:
+    - POSSIBILITY-THE-PLACES-ARE-FEW
+    - POSSIBILITY-THE-PLACES-ARE-A-VALUE-NOT-A-RULE
+    - POSSIBILITY-FITNESS-IS-ANSWERED-BY-THE-DEFINITION
+    - POSSIBILITY-HOLDING-DOES-NOTHING
+    - POSSIBILITY-WHAT-A-THING-GIVES-IS-DECLARED
+    - POSSIBILITY-THE-CAPABILITY-QUESTION-DOES-NOT-CHANGE
+    - POSSIBILITY-EFFECTIVE-IS-RECOMPUTED
+    - POSSIBILITY-THE-BASE-IS-NEVER-TOUCHED-BY-APPLYING
+    - POSSIBILITY-EVERY-READER-READS-THE-EFFECTIVE-ONE
+    - POSSIBILITY-A-FAILED-APPLY-LEAVES-NOTHING
+    - POSSIBILITY-A-THING-IS-IN-EXACTLY-ONE-PLACE
+    - POSSIBILITY-RELEASING-ASKS-FOR-ROOM
+    - POSSIBILITY-NO-DRIFT-ACROSS-REPETITION
+    - POSSIBILITY-WHAT-IS-LOST-IS-LOST-AT-ONCE
+    - POSSIBILITY-THE-PLACES-COME-WITH-WHAT-IS-IN-THEM
+    - POSSIBILITY-A-REFUSAL-CARRIES-ITS-REASON
+    - POSSIBILITY-THE-SURFACE-JUDGES-NOTHING
+  observes:
+    availability:
+      - inventory[].actions[role=equip-item].available
+      - equipment[].actions[role=unequip-item].available
+      - interactions.mine.available
+    preconditions:
+      - inventory[].actions[role=equip-item].unavailableReason
+      - equipment[].actions[role=unequip-item].unavailableReason
+      - interactions.mine.unavailableReason
+    before_after:
+      - equipment[].item                                  # 걸기 전후 · 풀기 전후
+      - entities.character.attributes.combatStats         # **값이 돌아오는 것**
+      - inventoryRoom.used                                # 걸면 줄고 풀면 는다
+      - inventory[].count
+      - equipment[].contributions                         # 왜 그 값인가
+
+# ─────────────────────────────────────────────────────────────────
+# 투영하지 않은 Observable 과 그 이유
+# ─────────────────────────────────────────────────────────────────
+not-projected:
+  Actor.EffectiveStats 의 기본값 쪽:
+    reason: >
+      세계의 권위는 유효 값 하나다. 둘을 다 실으면 화면이 고를 수 있게 된다.
+      경위는 equipment[].contributions 가 답한다 (03 RATIONALE 8)
+  가방 항목의 기여:
+    reason: 걸지 않은 것이 무엇을 줄지 보이는 것은 미리보기다 — 후보 4 의 일이다
+  RULE-BODY-GRANTABLE-USES-001 의 결과:
+    reason: >
+      막힘 판정 전용이며, 그 결과는 이미 discard-item 의 no-way-back 으로 관찰된다.
+      따로 실으면 화면이 같은 판정을 두 곳에서 읽게 된다
+  남의 몸의 equipment:
+    reason: >
+      세계에 그 관찰이 없다. 남의 걸린 것이 낳은 결과는 combatStats 에 이미 실려 있고,
+      무엇을 걸었는지까지 보이려면 살펴봄이 어디까지 여는가를 C014·C016 이 다시
+      판정해야 한다 — 이 Cycle 이 여는 것이 아니다
