@@ -52,7 +52,7 @@ describe('② 가능/사유가 함께 온다 — 판정은 세계가 한다', ()
 
   it('덜어내기는 세계가 된다고 말한 첫 자리를 겨눈다', () => {
     expect(letGoTargetSlot(available as GameViewSnapshot)).toBe(1); // 0 은 잠겨 있다
-    expect(hud(available, `${LET_GO_HUD_PREFIX}1`)?.value).toContain('[X]');
+    expect(hud(available, `${LET_GO_HUD_PREFIX}1`)?.value).toContain('[B]');
   });
 
   it('전부 잠긴 몸에서는 겨눌 자리가 없다 — 그 사실이 문구로 온다', () => {
@@ -108,7 +108,7 @@ describe('③ 얼마나 찼는가는 세계가 답한다', () => {
 });
 
 describe('입력 → Action Request', () => {
-  const letGoBinding = KEY_BINDINGS.find((b) => b.code === 'KeyX')!;
+  const letGoBinding = KEY_BINDINGS.find((b) => b.code === 'KeyB')!;
 
   function press(fixture: unknown): ActionRequest | null {
     let sent: ActionRequest | null = null;
@@ -119,7 +119,7 @@ describe('입력 → Action Request', () => {
     return sent;
   }
 
-  it('X 를 누르면 세계가 허락한 자리를 덜어내는 요청이 나간다', () => {
+  it('B 를 누르면 세계가 허락한 자리를 덜어내는 요청이 나간다', () => {
     expect(press(available)).toEqual({ interactionId: 'let-go', carriedSlot: 1 });
   });
 

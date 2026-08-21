@@ -19,9 +19,9 @@ const line = (view: GameViewSnapshot, id: string) =>
 const minePrompt = (view: GameViewSnapshot) =>
   screen(view).interactions.find((i) => i.id === 'mine')?.unavailableText;
 
-/** 화면에서 X 키를 누른다 — 조립 루트가 하는 일을 그대로 한다 */
+/** 화면에서 덜어내기 키를 누른다 — 조립 루트가 하는 일을 그대로 한다 */
 function pressLetGo(world: WorldDriver): ActionRequest | null {
-  const binding = KEY_BINDINGS.find((b) => b.code === 'KeyX')!;
+  const binding = KEY_BINDINGS.find((b) => b.code === 'KeyB')!;
   let sent: ActionRequest | null = null;
   binding.invoke({ hud: screen(world.observe()).hud } as never, (action) => {
     sent = action as ActionRequest;
@@ -65,7 +65,7 @@ describe('C020 통합 — 세계에서 나온 값이 화면 결정까지 이어�
     expect(minePrompt(world.observe())).toContain('자리가 없다');
   });
 
-  it('화면에서 X 를 누르면 세계가 실제로 그 자리를 비운다 — 그리고 다시 캘 수 있다', () => {
+  it('화면에서 덜어내기 키를 누르면 세계가 실제로 그 자리를 비운다 — 그리고 다시 캘 수 있다', () => {
     const world = driveWorld({ ...solo, actorPosition: AT_DEPOSIT });
     selectTarget(world, 'deposit-1');
     for (let i = 0; i < 4; i += 1) mineOnce(world);

@@ -94,7 +94,7 @@ export function carriedHudItems(
     value:
       targetItem === undefined
         ? '덜어낼 수 있는 것이 없다'
-        : `[X] ${carriedLine(targetItem, text)}`,
+        : `[B] ${carriedLine(targetItem, text)}`,
   });
 
   return items;

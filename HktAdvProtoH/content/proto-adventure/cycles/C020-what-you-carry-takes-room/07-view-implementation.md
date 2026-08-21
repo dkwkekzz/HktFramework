@@ -59,12 +59,15 @@
         "지금 무엇을 지녔는가" 는 세계 시간이나 사람 수보다 먼저 읽혀야 한다
 
     view/bindings.ts (CHANGED)
-        `KeyX` — 덜어내기. 겨눌 자리는 carried-presentation 이 이미 골라 HUD id 에
-        실어 두었고, 이 바인딩은 그것을 읽어 보낼 뿐이다
+        `KeyB` — 덜어내기(버리기). 겨눌 자리는 carried-presentation 이 이미 골라
+        HUD id 에 실어 두었고, 이 바인딩은 그것을 읽어 보낼 뿐이다
+
+    view/tests/bindings.spec.ts (ADDED)
+        팩이 등록한 키가 이미 쓰이는 키와 겹치지 않는가 — 아래 NOTES ⑤ 가 이유다
 
 ## INPUT → ACTION REQUEST
 
-    X 키
+    B 키
         → scene.hud 에서 `carried.letGo:` 로 시작하는 줄을 찾는다
         → 꼬리가 숫자면 그 자리를 요청한다
              { interactionId: 'let-go', carriedSlot: <slot> }
@@ -80,6 +83,7 @@
 
 ## FIXTURE TESTS
 
+    view/tests/bindings.spec.ts (신규 · 4건) — 키 충돌 가드. 전부 통과
     view/tests/carry.spec.ts (신규 · 15건) — World 미기동, Fixture 만으로. 전부 통과
 
         ① 소지품은 목록이다            4건  전용 칸 제거 · 자리마다 한 줄(빈 자리 없음) ·
@@ -111,7 +115,7 @@
 
     전체 회귀
 
-        npm test           53 files · 904 tests 통과 (Stage 6 의 889 → 15 증가)
+        npm test           55 files · 915 tests 통과 (Stage 6 의 889 → 26 증가)
         npx tsc --noEmit   오류 0
         npm run boundary:check   경계 위반 0
 
@@ -135,6 +139,29 @@
         `EFFECT_SET` 의 일곱 자리는 전투가 쓰고 있고, 소지품 조작을 위해 무엇을 뺄
         만한 근거가 없다. 그 판단이 바뀌면 `effect-presentation.ts` 의 표에 한 줄이
         늘 뿐이다 — 코드가 아니라 표다.
+
+    ⑤ 키를 잘못 골랐다 — 게임을 띄워 보고서야 드러났다
+
+        처음 고른 키는 `KeyX` 였다. 그 키는 **엔진이 이미 시점 회전에 쓰고 있다**
+        (`engine/view-kernel/input/keyboard.ts` 의 `TURN_KEYS` — Z·X 가 좌우로 돈다).
+        엔진의 keydown 처리는 이동·시점 키를 `consumeKeyPresses` 에서 **제외**하므로
+        그 키는 팩 바인딩까지 아예 오지 않는다.
+
+        단위 테스트는 이것을 잡지 못했다. `binding.invoke` 를 직접 부르고 있었기
+        때문이다 — 바인딩 안의 로직은 옳았고, 틀린 것은 **그 바인딩이 불릴 수 있는가**
+        였다. 통합 실측도 같은 이유로 통과했다 (그쪽도 `invoke` 를 직접 부른다).
+
+        실제로 브라우저를 띄워 눌러 보고서야 드러났다. `[X] 돌 ×2` 가 화면에 떠
+        있는데 눌러도 아무 일이 없었다.
+
+        고친 것은 둘이다.
+            · `KeyB` 로 옮겼다 (버리기 — 엔진·팩이 쓰지 않는 키)
+            · `view/tests/bindings.spec.ts` 를 세웠다. 엔진 예약 키 · 조립 루트가
+              먼저 가로채는 키 · 팩 상호작용 키와의 충돌을 막는다
+
+        그 테스트는 **엔진에 있는 사실의 사본**을 지닌다 (예약 키 목록). 사본을 두지
+        않는 길은 엔진이 그 목록을 내보내는 것이고, 그것은 기반 트랙의 일이다.
+        지금은 사본을 두되 어디가 원본인지 주석으로 밝혀 두었다.
 
     ④ 문구의 이름 공간이 처음으로 갈렸다
 

@@ -45,7 +45,11 @@ function moveModeToggle(code: string): KeyBinding {
 // 자리), 그 결과가 HUD 항목 id 에 실려 있다. 이 바인딩은 그것을 읽어 보낼 뿐
 // **아무 판정도 하지 않는다** — 세계가 막아 둔 자리는 애초에 id 에 오지 않는다.
 const letGo: KeyBinding = {
-  code: 'KeyX',
+  // B — 버리기. 엔진이 이미 쓰는 키를 피한다: 이동(WASD·화살표) · 시점(Z·X·R·T) ·
+  // 관찰 토글(C·V) · 명령(/) · 그리고 팩의 상호작용 키(E·F·G·R·Q·T·Shift).
+  // 그 목록의 원본은 engine/view-kernel/input/keyboard.ts 와
+  // view/interaction-presentation.ts 다 — bindings.spec.ts 가 그 충돌을 막는다.
+  code: 'KeyB',
   invoke: (scene, send) => {
     const line = scene.hud.find((h) => h.id.startsWith(LET_GO_HUD_PREFIX));
     if (!line) return;
