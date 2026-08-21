@@ -44,9 +44,9 @@ prohibits:
 prefers:
   - 한 Cycle 에 형태 하나                                            # SF §30
 
-status: DRAFT
+status: APPROVED
 provenance:
-  - HUMAN_DESIGN        # design/Design-Combat-SkillForm-R0.md 주입 — Human 승인 대기
+  - HUMAN_DESIGN        # design/Design-Combat-SkillForm-R0.md 주입 → Human 승인 (HISTORY Q37)
 
 relations:
   supports: [DC-COMBAT-ONE-LAYER-AT-A-TIME, DC-COMBAT-ONE-FORMULA]

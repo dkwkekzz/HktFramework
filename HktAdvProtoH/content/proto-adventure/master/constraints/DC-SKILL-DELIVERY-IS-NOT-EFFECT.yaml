@@ -46,9 +46,9 @@ prohibits:
   - 효과 이름을 전달 방식 자리에 두는 것                              # SF §28.3
 prefers: []
 
-status: DRAFT
+status: APPROVED
 provenance:
-  - HUMAN_DESIGN        # design/Design-Combat-SkillForm-R0.md 주입 — Human 승인 대기
+  - HUMAN_DESIGN        # design/Design-Combat-SkillForm-R0.md 주입 → Human 승인 (HISTORY Q37)
 
 relations:
   supports: [DC-COMBAT-ONE-FORMULA]

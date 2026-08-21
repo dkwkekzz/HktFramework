@@ -43,9 +43,9 @@ prefers: []
 # 경계 — 이 Constraint 는 "무엇이 판정의 근거인가" 만 정한다.
 # 축을 몇 개 두는가, 조합을 어떤 파일·타입으로 두는가는 Cycle 소유다 (정책 §7.2).
 
-status: DRAFT
+status: APPROVED
 provenance:
-  - HUMAN_DESIGN        # design/Design-Combat-SkillForm-R0.md 주입 — Human 승인 대기
+  - HUMAN_DESIGN        # design/Design-Combat-SkillForm-R0.md 주입 → Human 승인 (HISTORY Q37)
 
 relations:
   supports: [DC-ITEM-KIND-IS-DATA-NOT-BRANCH, DC-WORLD-OWNS-THE-SURFACE-LIST]

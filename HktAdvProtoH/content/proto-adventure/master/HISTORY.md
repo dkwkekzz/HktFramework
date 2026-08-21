@@ -1419,6 +1419,58 @@ Human 이 "FR-ACTION-PHASE 의 근간이 무엇인가" 를 물어 근간을 역�
     늘리는 것이 아니라 좁히는 것이라 단독 Cycle 의 조건(CLAUDE.md 원칙 6)을
     만족하지 않는다.
 
+## Q37. SF 가 명시한 원칙 셋을 Constraint 로 승인하는가 — CLOSED
+
+    DECISION      (a) 셋 다 승인하고 병존시킨다 (Human · 2026-08-21)
+
+    DC-SKILL-IS-COMBINATION-NOT-NAME · DC-SKILL-DELIVERY-IS-NOT-EFFECT ·
+    DC-SKILL-COMBINE-BEFORE-NEW-FORM 이 Active 가 되었다. 문안은 주입판 그대로다
+    (Q23 · Q30 선례와 같다 — 원본보다 세게 쓰지 않는다). Scope 는 `SKILL` —
+    회복 · 소환 · 부여도 같은 조합으로 표현되므로 COMBAT 보다 넓다.
+
+    (b) 의 통합안(첫째를 DC-ITEM-KIND-IS-DATA-NOT-BRANCH 와 합치는 것)은 택하지 않았다.
+    두 원칙은 같은 방향이지만 근거 문서와 영역이 다르므로 병존하고, 새 쪽이
+    `relations.supports` 로 옛 쪽을 가리킨다.
+
+    승인과 함께 MC-COMBAT-STRIKE 에 앞의 둘을 걸었다 —
+    DELIVERY-IS-NOT-EFFECT 는 SATISFIED(C020 이 전달을 하나 더하며 피해 경로를 한 줄도
+    바꾸지 않았다), IS-COMBINATION-NOT-NAME 은 UNRESOLVED(값은 정의가 지니나 휘두름의
+    모양이 아직 규칙 코드에 있다 — Q35 가 그 자리다).
+    Active Constraint 는 26종 → 29종.
+
+## Q39. SF 의 유지형 발동이 무엇을 치르는지가 없다 — CLOSED
+
+    DECISION      유지형은 반드시 무언가를 치른다. 무엇을 치르는지는 스킬마다 다르며
+                  기력에 한정하지 않는다 — 기력 · 생명 · 아이템 · 시간 등 캐릭터의
+                  모든 부분이 대가가 될 수 있다 (Human · 2026-08-21)
+
+    이 답은 DC-COMBAT-SHARED-BUDGET 과 부딪히지 않는다. 그 원칙이 금지하는 것은
+    **행동별 전용 게이지의 신설**이지 자원의 종류가 여럿인 것이 아니다 — 이미 세계에
+    있는 것들(기력 · 생명 · 지닌 물건)을 대가로 쓰는 것은 예산을 쪼개는 일이 아니다.
+
+    남은 세부는 Cycle 소유다. 어떤 유지형이 무엇을 얼마나 치르는지는 정의가 고르고
+    그 값은 `03-world-semantic.md` 가 갖는다 (정책 §7.2). 특히 "유지형 전달이 만든
+    타격이 기력을 되채우는가" 는 그 Cycle 이 답한다 — 지금 세계에서 기력은 타격 성공
+    으로만 차므로, 고정 간격 판정이 그대로 충전하면 예산이 무한해진다.
+
+## Q40. SF 가 답하지 않은 것 넷 — CLOSED
+
+    DECISION      지금 정하지 않는다. 답하지 않은 것은 **이후 추가 기획**이 가져온다
+                  (Human · 2026-08-21)
+
+    넷은 그대로 남는다 — ① 세계에 몸이 아닌 존재가 없다 ② 전달체가 누구에게 보이는가
+    ③ 효과 축의 절반이 없는 층(회복 · 조건)을 요구한다 ④ §29 의 기준을 SF 자신의
+    14종에 적용하면 넷이 걸린다.
+
+    따름 결과 둘.
+
+        MS-SKILL-FORM 은 status: DRAFT 이고 자리도 14 그대로 둔다 — ④ 를 답하는
+        문서가 오기 전에는 칸 수를 Agent 판단으로 줄이지 않는다.
+
+        전달 형태는 아직 Frontier 후보가 되지 못한다. 그 형태를 요구하는 Possibility 가
+        없고(Q35 의 7 조건 2), 위 넷 중 ①③ 이 그 Cycle 의 크기를 정하기 때문이다.
+        frontier.md 의 "지금 열 수 없는 것" 이 그 사유를 진다.
+
 ---
 
 ## Frontier 선택 — FR-WHAT-YOU-CARRY-CAN-BE-SPENT (아이템의 바닥)
