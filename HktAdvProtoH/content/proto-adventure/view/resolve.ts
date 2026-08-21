@@ -32,6 +32,7 @@ import {
   type EffectMemory,
 } from './effect-presentation';
 import { hudPresentation } from './hud-presentation';
+import { equipmentDetailLines, equipmentHudItems } from './equipment-presentation';
 import { inventoryDetailLines, inventoryHudItems } from './inventory-presentation';
 import { interactionPresentation, interactionPriority } from './interaction-presentation';
 import { codeText, shortCodeText } from './code-text';
@@ -228,6 +229,10 @@ export function resolvePresentation(
             lines: [
               ...self.lines,
               ...targetDetailLines(snapshot, shortCodeText),
+              // C023 — **소지품보다 먼저다.** "몸이 지금 무엇으로 되어 있는가" 는
+              // "무엇을 지녔는가" 보다 먼저 읽혀야 한다. 그리고 걸기의 대상이
+              // 소지품이므로, 자리를 먼저 본 뒤 무엇을 걸지 고르는 순서가 된다.
+              ...equipmentDetailLines(snapshot, codeText, shortCodeText),
               ...inventoryDetailLines(snapshot, codeText, shortCodeText),
             ],
           },
@@ -274,6 +279,8 @@ export function resolvePresentation(
     // "지금 누구를 상대하는가" 는 소지품보다 먼저 읽혀야 한다.
     hud: [
       ...targetHudItems(snapshot, codeText),
+      // C023 — 걸린 것. 소지품보다 앞에 둔다 — 몸이 무엇으로 되어 있는지가 먼저다
+      ...equipmentHudItems(snapshot, codeText),
       // C020 — 가진 것 전부. 세계가 준 순서에 칸 번호만 붙인다
       ...inventoryHudItems(snapshot, codeText),
       ...snapshot.hud.filter((h) => !isSelfHudId(h.id)).map((h) => {

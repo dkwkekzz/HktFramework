@@ -1,0 +1,318 @@
+{
+  "specId": "VIEW-WHAT-YOU-WEAR-CHANGES-YOU-001",
+  "scene": "mining-field",
+  "observer": {
+    "id": "observer-a",
+    "characterId": "player",
+    "acknowledgedMark": 0
+  },
+  "entities": [
+    {
+      "id": "player",
+      "role": "player-character",
+      "state": "idle",
+      "position": {
+        "x": 7.5,
+        "z": -5.5
+      }
+    },
+    {
+      "id": "deposit-1",
+      "role": "resource-deposit",
+      "state": "available",
+      "position": {
+        "x": 8,
+        "z": -6
+      },
+      "labelValue": 5,
+      "kind": "stone"
+    }
+  ],
+  "interactions": [
+    {
+      "id": "select-target",
+      "role": "select-target",
+      "targetEntityId": "player",
+      "available": false,
+      "reason": "target-is-self"
+    },
+    {
+      "id": "select-target",
+      "role": "select-target",
+      "targetEntityId": "deposit-1",
+      "available": true
+    },
+    {
+      "id": "observe",
+      "role": "observe-character",
+      "available": false,
+      "reason": "target-kind-mismatch"
+    },
+    {
+      "id": "move",
+      "role": "move-to",
+      "available": true
+    },
+    {
+      "id": "mine",
+      "role": "mine-deposit",
+      "available": true
+    },
+    {
+      "id": "clear-target",
+      "role": "clear-target",
+      "available": true
+    }
+  ],
+  "hud": [
+    {
+      "id": "self.hp",
+      "kind": "counter",
+      "value": 150
+    },
+    {
+      "id": "self.hpMax",
+      "kind": "counter",
+      "value": 200
+    },
+    {
+      "id": "self.cp",
+      "kind": "counter",
+      "value": 24
+    },
+    {
+      "id": "self.cpMax",
+      "kind": "counter",
+      "value": 100
+    },
+    {
+      "id": "self.downed",
+      "kind": "flag",
+      "value": false
+    },
+    {
+      "id": "self.moveMode",
+      "kind": "label",
+      "value": "run"
+    },
+    {
+      "id": "self.combat.physicalAttack",
+      "kind": "counter",
+      "value": 40
+    },
+    {
+      "id": "self.combat.auraAttack",
+      "kind": "counter",
+      "value": 40
+    },
+    {
+      "id": "self.combat.armor",
+      "kind": "counter",
+      "value": 50
+    },
+    {
+      "id": "self.combat.resistance",
+      "kind": "counter",
+      "value": 50
+    },
+    {
+      "id": "self.combat.armorMultiplier",
+      "kind": "counter",
+      "value": 0.6666666666666666
+    },
+    {
+      "id": "self.combat.resistanceMultiplier",
+      "kind": "counter",
+      "value": 0.6666666666666666
+    },
+    {
+      "id": "self.combat.defenseShape",
+      "kind": "label",
+      "value": "even"
+    },
+    {
+      "id": "self.tempo.moveSpeed",
+      "kind": "counter",
+      "value": 6
+    },
+    {
+      "id": "self.tempo.runSpeedMultiplier",
+      "kind": "counter",
+      "value": 1.8
+    },
+    {
+      "id": "self.tempo.actionSpeed",
+      "kind": "counter",
+      "value": 1
+    },
+    {
+      "id": "self.modifier.cpCharge",
+      "kind": "counter",
+      "value": 0.5
+    },
+    {
+      "id": "self.modifier.cpConsume",
+      "kind": "counter",
+      "value": 1
+    },
+    {
+      "id": "self.modifier.moveSpeed",
+      "kind": "counter",
+      "value": 1
+    },
+    {
+      "id": "self.modifier.actionSpeed",
+      "kind": "counter",
+      "value": 1
+    },
+    {
+      "id": "self.guard.guarding",
+      "kind": "flag",
+      "value": false
+    },
+    {
+      "id": "self.guard.broken",
+      "kind": "flag",
+      "value": false
+    }
+  ],
+  "strikes": [],
+  "contacts": [],
+  "cancels": [],
+  "debug": {
+    "open": false
+  },
+  "commands": [],
+  "currentTarget": {
+    "entityId": "deposit-1"
+  },
+  "inventory": [
+    {
+      "kind": "stone",
+      "count": 2,
+      "category": "material",
+      "origin": "IT-COMMON-STONE",
+      "stackable": true,
+      "actions": [
+        {
+          "id": "equip-item",
+          "role": "equip-item",
+          "available": false,
+          "unavailableReason": "not-equippable"
+        },
+        {
+          "id": "use-item",
+          "role": "use-item",
+          "available": false,
+          "unavailableReason": "no-target-selected"
+        },
+        {
+          "id": "discard-item",
+          "role": "discard-item",
+          "available": true
+        }
+      ]
+    }
+  ],
+  "inventoryRoom": {
+    "used": 4,
+    "capacity": 4
+  },
+  "equipment": [
+    {
+      "slotId": "E1",
+      "item": {
+        "kind": "pickaxe",
+        "category": "tool"
+      },
+      "grants": [
+        "mine"
+      ],
+      "contributions": [
+        {
+          "name": "physicalAttack",
+          "value": 12
+        }
+      ],
+      "actions": [
+        {
+          "id": "use-item",
+          "role": "use-item",
+          "available": false,
+          "unavailableReason": "no-room"
+        },
+        {
+          "id": "unequip-item",
+          "role": "unequip-item",
+          "available": false,
+          "unavailableReason": "no-room"
+        }
+      ]
+    },
+    {
+      "slotId": "E2",
+      "grants": [],
+      "contributions": [],
+      "actions": [
+        {
+          "id": "unequip-item",
+          "role": "unequip-item",
+          "available": false,
+          "unavailableReason": "slot-empty"
+        }
+      ]
+    },
+    {
+      "slotId": "E3",
+      "grants": [],
+      "contributions": [],
+      "actions": [
+        {
+          "id": "unequip-item",
+          "role": "unequip-item",
+          "available": false,
+          "unavailableReason": "slot-empty"
+        }
+      ]
+    },
+    {
+      "slotId": "E4",
+      "grants": [],
+      "contributions": [],
+      "actions": [
+        {
+          "id": "unequip-item",
+          "role": "unequip-item",
+          "available": false,
+          "unavailableReason": "slot-empty"
+        }
+      ]
+    },
+    {
+      "slotId": "E5",
+      "grants": [],
+      "contributions": [],
+      "actions": [
+        {
+          "id": "unequip-item",
+          "role": "unequip-item",
+          "available": false,
+          "unavailableReason": "slot-empty"
+        }
+      ]
+    },
+    {
+      "slotId": "E6",
+      "grants": [],
+      "contributions": [],
+      "actions": [
+        {
+          "id": "unequip-item",
+          "role": "unequip-item",
+          "available": false,
+          "unavailableReason": "slot-empty"
+        }
+      ]
+    }
+  ]
+}

@@ -11,6 +11,10 @@ import type { GameViewSnapshot as PackGameViewSnapshot } from '../../content/pro
 import type { ActionRequest } from '../../content/proto-adventure/protocol/actions';
 import { parseClientMessage, parseServerMessage } from '../../engine/protocol-core/transport';
 import { createWorldHost } from '../world-host';
+import type { ActionRequest as PackActionRequest } from '../../content/proto-adventure/protocol/actions';
+
+// C023 — 채집은 걸린 것에서 온다. 원시 요청 경로는 봉투 형을 받으므로 팩 형으로 좁힌다.
+const EQUIP_PICKAXE = { interactionId: 'equip-item', itemKind: 'pickaxe' } as PackActionRequest;
 
 const A = 'observer-a';
 const B = 'observer-b';
@@ -94,7 +98,7 @@ describe('WorldHost — 관찰자 붙었다 떨어지기', () => {
 
     // C023 — 채집은 걸린 것에서 온다. C017 — 먼저 고르고, 그 다음 캔다
     // (대상은 요청이 아니라 고른 것이다)
-    host.receive(A, { interactionId: 'equip-item', itemKind: 'pickaxe' });
+    host.receive(A, EQUIP_PICKAXE);
     host.receive(A, { interactionId: 'select-target', targetEntityId: 'deposit-1' });
     host.receive(A, { interactionId: 'mine' });
     expect(body()?.state).toBe('idle');
@@ -113,7 +117,7 @@ describe('WorldHost — 같은 관찰자로 다시 들어오기 (INTENT-OBSERVER
 
     // C023 — 채집은 걸린 것에서 온다. C017 — 먼저 고르고, 그 다음 캔다
     // (대상은 요청이 아니라 고른 것이다)
-    host.receive(A, { interactionId: 'equip-item', itemKind: 'pickaxe' });
+    host.receive(A, EQUIP_PICKAXE);
     host.receive(A, { interactionId: 'select-target', targetEntityId: 'deposit-1' });
     host.receive(A, { interactionId: 'mine' });
     for (let i = 0; i < 60; i++) host.advance(1 / 30);

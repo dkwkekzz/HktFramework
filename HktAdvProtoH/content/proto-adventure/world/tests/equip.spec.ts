@@ -199,7 +199,7 @@ describe('INTENT-EFFECTIVE-IS-RECOMPUTED-NOT-ACCUMULATED-001 — 재계산이지
   });
 
   it('밖에서 손댄 값은 기본값이다 — 걸린 것이 있으면 넣은 수와 보이는 수가 다르다', () => {
-    const world = driveWorld({ ...solo, debugOpen: true });
+    const world = driveWorld({ ...solo, debugAuthority: true });
     world.dispatch({ interactionId: 'set-attribute', attribute: { id: 'physicalAttack', value: 50 } });
     expect(attack(world.observe())).toBe(50);
 

@@ -7,6 +7,10 @@
 import { describe, expect, it } from 'vitest';
 import type { GameViewSnapshot } from '../../protocol/gameview';
 import { createWorld, type World, type WorldSetup } from '../index';
+import type { ActionRequest as PackActionRequest } from '../../protocol/actions';
+
+// C023 — 채집은 걸린 것에서 온다. 원시 요청 경로는 봉투 형을 받으므로 팩 형으로 좁힌다.
+const EQUIP_PICKAXE = { interactionId: 'equip-item', itemKind: 'pickaxe' } as PackActionRequest;
 
 const A = 'observer-a';
 const B = 'observer-b';
@@ -162,7 +166,7 @@ describe('표식과 요청이 같은 Tick 에 왔을 때 (인과의 왕복)', ()
     const w = joined({ ...solo, actorPosition: { x: 8, z: -5 } }, A);
 
     // 관찰자는 언제나 요청을 보낸 뒤에 표식을 붙인다
-    w.request(A, { interactionId: 'equip-item', itemKind: 'pickaxe' }); // C023
+    w.request(A, EQUIP_PICKAXE); // C023
     w.request(A, { interactionId: 'select-target', targetEntityId: 'deposit-1' });
     w.tick(0); // C017 — 고르기가 판정되어야 채집이 그것을 읽는다
     w.request(A, { interactionId: 'mine' });

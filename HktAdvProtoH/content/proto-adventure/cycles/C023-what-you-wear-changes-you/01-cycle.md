@@ -6,7 +6,7 @@
 [PASS] GameView Specification     (자리는 두 번째 목록 · 걸기는 하나 · combatStats 는 형태 그대로)
 [PASS] Human Semantic Review      (APPROVED — 자리의 성격 1건 정정 뒤 승인)
 [PASS] World Implementation        (969 tests · 자리 여섯 · 유효 값은 파생 · 채집 규칙 0줄)
-[    ] View Implementation
+[PASS] View Implementation         (982 tests · 띠는 걸린 것 · 패널은 자리 전부 · 화면은 판정하지 않는다)
 [    ] Verification
 
 STATUS  IN PROGRESS

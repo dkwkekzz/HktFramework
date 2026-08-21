@@ -9,6 +9,10 @@ import { describe, expect, it } from 'vitest';
 import type { GameViewSnapshot } from '../../protocol/gameview';
 import { createWorld, type World, type WorldSetup } from '../index';
 import { OBSERVER, PLAYER } from './drive';
+import type { ActionRequest as PackActionRequest } from '../../protocol/actions';
+
+// C023 — 채집은 걸린 것에서 온다. 원시 요청 경로는 봉투 형을 받으므로 팩 형으로 좁힌다.
+const EQUIP_PICKAXE = { interactionId: 'equip-item', itemKind: 'pickaxe' } as PackActionRequest;
 
 const solo = { npcs: [] };
 const worldTime = (v: GameViewSnapshot) => v.hud.find((h) => h.id === 'world.time')?.value as number;
@@ -73,7 +77,7 @@ describe('INTENT-REMOTE-REQUEST-001 — 요청은 도착하고 나서 판정된�
     const world = joinedWorld({ ...solo, actorPosition: { x: 8, z: -5 } });
 
     // C023 — 채집은 **걸린 것**에서 온다. 걸기와 고르기를 먼저 판정시킨다.
-    world.request(OBSERVER, { interactionId: 'equip-item', itemKind: 'pickaxe' });
+    world.request(OBSERVER, EQUIP_PICKAXE);
     world.request(OBSERVER, { interactionId: 'select-target', targetEntityId: 'deposit-1' });
     world.tick(0); // C017 — 고르기가 판정되어야 채집이 그것을 읽는다
     world.request(OBSERVER, { interactionId: 'mine' });
@@ -88,7 +92,7 @@ describe('INTENT-REMOTE-REQUEST-001 — 요청은 도착하고 나서 판정된�
     const world = joinedWorld({ ...solo, actorPosition: { x: 8, z: -5 } });
 
     // C023 — 채집은 **걸린 것**에서 온다. 걸기와 고르기를 먼저 판정시킨다.
-    world.request(OBSERVER, { interactionId: 'equip-item', itemKind: 'pickaxe' });
+    world.request(OBSERVER, EQUIP_PICKAXE);
     world.request(OBSERVER, { interactionId: 'select-target', targetEntityId: 'deposit-1' });
     world.tick(0); // C017 — 고르기가 판정되어야 채집이 그것을 읽는다
     world.request(OBSERVER, { interactionId: 'mine' });
@@ -107,7 +111,7 @@ describe('INTENT-REMOTE-REQUEST-001 — 요청은 도착하고 나서 판정된�
     const world = joinedWorld({ ...solo, actorPosition: { x: 8, z: -5 } });
 
     // C023 — 채집은 **걸린 것**에서 온다. 걸기와 고르기를 먼저 판정시킨다.
-    world.request(OBSERVER, { interactionId: 'equip-item', itemKind: 'pickaxe' });
+    world.request(OBSERVER, EQUIP_PICKAXE);
     world.request(OBSERVER, { interactionId: 'select-target', targetEntityId: 'deposit-1' });
     world.tick(0); // C017 — 고르기가 판정되어야 채집이 그것을 읽는다
     world.request(OBSERVER, { interactionId: 'mine' });
@@ -131,7 +135,7 @@ describe('INTENT-WORLD-OBSERVATION-001 — 관찰 결과는 Tick 이 내보낸�
   it('관찰 결과는 직렬화 가능하다 (선을 탈 수 있는 모양)', () => {
     const world = joinedWorld();
     // C023 — 채집은 **걸린 것**에서 온다. 걸기와 고르기를 먼저 판정시킨다.
-    world.request(OBSERVER, { interactionId: 'equip-item', itemKind: 'pickaxe' });
+    world.request(OBSERVER, EQUIP_PICKAXE);
     world.request(OBSERVER, { interactionId: 'select-target', targetEntityId: 'deposit-1' });
     world.tick(0); // C017 — 고르기가 판정되어야 채집이 그것을 읽는다
     world.request(OBSERVER, { interactionId: 'mine' });
