@@ -9,6 +9,11 @@
 import { describe, expect, it } from 'vitest';
 import type { GameViewSnapshot } from '../../protocol/gameview';
 import { resolvePresentation } from '../resolve';
+import {
+  boundKeys,
+  interactionPresentation,
+  RESERVED_KEY_CODES,
+} from '../interaction-presentation';
 import { SKILL_HUD_PREFIX } from '../skill-presentation';
 import fixture from './fixtures/skill-shape.fixture.json';
 
@@ -29,7 +34,7 @@ describe('기술 줄 (Semantic → Render Plan) — 셋을 견준다', () => {
 
   it('줄마다 그 기술을 부르는 키와 이름이 붙는다 (Human 지시 — 셋 다 쓸 수 있어야 한다)', () => {
     const lines = skillLines(resolvePresentation(snapshot));
-    expect(lines.map((l) => l.label)).toEqual(['F 기본 스킬', 'G 고급 스킬', 'R 오라 스킬']);
+    expect(lines.map((l) => l.label)).toEqual(['F 기본 스킬', 'G 고급 스킬', 'H 오라 스킬']);
   });
 
   it('넓이와 도달이 숫자로 실린다 — 걸어 보고 아는 것이 아니다', () => {
@@ -71,7 +76,7 @@ describe('기술 줄 (Semantic → Render Plan) — 셋을 견준다', () => {
     expect(block[0]).toBe('기본 스킬 ✓ F');
     expect(block[1]).toMatch(/^고급 스킬 ✗ /); // fixture 의 reason 은 insufficient-cp
     expect(block[1]).not.toContain('insufficient-cp'); // 코드가 아니라 문구로 옮겨진다
-    expect(block[2]).toBe('오라 스킬 ✓ R');
+    expect(block[2]).toBe('오라 스킬 ✓ H');
   });
 
   it('모양이 없는 세계에서는 줄이 하나도 서지 않는다 — 기술 이름을 아는 코드가 없다는 증거', () => {
@@ -127,5 +132,41 @@ describe('칼끝 (Semantic → Render Plan) — 평시 화면에 나타난다', 
     const idle = make(false);
     expect(active.color).not.toBe(idle.color);
     expect(active.opacity).toBeGreaterThan(idle.opacity!);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────
+// 키가 있다는 것과 그 키가 **닿는다**는 것은 다르다 (C023 — 실제로 눌러 보고 알았다)
+//
+// C012 가 오라 스킬에 `KeyR` 을, C017 이 살펴보기에 `KeyT` 를 주었는데 둘 다 엔진이
+// 시점 조작으로 이미 쓰고 있었다. 그 키들은 눌린 순간 삼켜져 interaction 판정까지
+// 오지 않는다 — 표에도 있고 화면 안내에도 떴지만 **눌러도 아무 일이 없었다.**
+//
+// 표만 읽는 검사로는 잡히지 않는다. 그래서 검사하는 것은 "키가 있는가" 가 아니라
+// "그 키를 다른 자리가 먼저 가져가지 않는가" 다.
+// ─────────────────────────────────────────────────────────────────
+describe('키 바인딩 — 먼저 가져가는 자리와 다투지 않는다', () => {
+  it('어떤 interaction 도 이동·시점·조립 루트가 쥔 키를 쓰지 않는다', () => {
+    const stolen = boundKeys().filter((b) => RESERVED_KEY_CODES.includes(b.key));
+    expect(stolen).toEqual([]);
+  });
+
+  it('한 키를 두 역할이 나눠 갖지 않는다 — 어느 쪽이 나갈지 알 수 없어진다', () => {
+    const byKey = new Map<string, string[]>();
+    for (const { role, key } of boundKeys()) byKey.set(key, [...(byKey.get(key) ?? []), role]);
+    // 기본 스킬과 구 attack-swing 역할은 같은 F 를 쓴다 — 세계가 둘 중 하나만 싣는다
+    const clashes = [...byKey.entries()].filter(
+      ([, roles]) => roles.filter((r) => r !== 'attack-swing').length > 1,
+    );
+    expect(clashes).toEqual([]);
+  });
+
+  it('세 기술이 저마다 다른 키를 지닌다 (Human 지시 — 셋 다 쓸 수 있어야 한다)', () => {
+    const keys = ['skill-basic', 'skill-heavy', 'skill-aura'].map(
+      (role) => interactionPresentation(role).key,
+    );
+    expect(keys.every((k) => k !== undefined)).toBe(true);
+    expect(new Set(keys).size).toBe(3);
+    expect(keys.filter((k) => RESERVED_KEY_CODES.includes(k!))).toEqual([]);
   });
 });

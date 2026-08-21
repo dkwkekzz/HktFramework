@@ -90,10 +90,12 @@ describe('interactions.skillAura — 고를 수 있는 표면이 열린다', () 
     expect(snapshot.interactions.find((i) => i.id === 'attack')?.reason).toBe('action-busy');
   });
 
-  it('기본 스킬 바로 옆자리 키에 걸린다 — 둘은 나란한 선택이다', () => {
-    // View 는 목록을 읽을 뿐 스스로 만들지 않는다. 키를 정하는 것만이 결정 Layer 의 몫이다
+  it('기본 스킬과 나란한 키에 걸린다 — 둘은 나란한 선택이다', () => {
+    // View 는 목록을 읽을 뿐 스스로 만들지 않는다. 키를 정하는 것만이 결정 Layer 의 몫이다.
+    // C023 CHANGED — R 에서 H 로 옮겼다. `KeyR` 은 엔진의 시점 조작이라 눌려도 삼켜졌고,
+    // 그래서 이 키는 C012 이래 한 번도 오라 스킬을 부른 적이 없다 (실제로 눌러 보고 알았다).
     expect(interactionPresentation('skill-basic').keyLabel).toBe('F');
-    expect(interactionPresentation('skill-aura').keyLabel).toBe('R');
+    expect(interactionPresentation('skill-aura').keyLabel).toBe('H');
     expect(interactionPresentation('skill-aura').prompt).toBe('오라 스킬');
   });
 
