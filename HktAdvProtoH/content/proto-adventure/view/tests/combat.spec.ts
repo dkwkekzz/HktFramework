@@ -156,6 +156,10 @@ describe('hud.self — 자기 자원·능력치·배율은 늘 눈앞에 있다'
       // C022 — 자리는 소지품 항목보다 먼저 온다. 비었을 때야말로 보여야 하기 때문이다
       'inventory.room',
       'inventory.none',
+      // C025 — 기술 띠. 세계가 실은 기술이 **전부** 한 칸씩 선다. 이 fixture 는
+      // 기본·고급 둘만 실려 있으므로 두 칸이다 (오라 스킬 이전의 관찰 결과다).
+      'skill.attack',
+      'skill.skill-heavy',
       'world.time',
     ]);
   });

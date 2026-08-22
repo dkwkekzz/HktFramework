@@ -32,10 +32,13 @@ import {
   EFFECT_SET,
   EMPTY_EFFECT_MEMORY,
   KEY_BINDINGS,
+  NO_SKILL_ANSWERS,
   rememberForEffects,
   resolvePresentation,
+  skillInteractionIds,
   SPRITE_SHEET,
   type EffectMemory,
+  type SkillAnswer,
 } from '../content/active-view';
 import { registerSprites } from '../engine/view-kernel/assets/registry';
 import { sessionPresentation } from '../engine/view-kernel/presentation/session-presentation';
@@ -219,15 +222,80 @@ function submitCommand(): void {
   commandText = '';
 }
 
-// 세계의 대답을 기록에 붙인다 (04 requestOutcome).
-// 표식이 없는 대답도 버리지 않는다 — 마지막 줄에 붙인다.
-function drainOutcomes(): void {
+// ── 내가 건 기술 요청 (C025) ────────────────────────────────
+//
+// 세계는 도착한 **모든** 요청에 대답한다 (RULE-REQUEST-REPLY-001 — Precondition 없음).
+// 그런데 지금까지 그 대답을 받아 갈 자리를 가진 것은 명령뿐이었고, 기술은 표식 없이
+// 나갔다. 그래서 기술이 거절되어도 화면에서는 아무 일도 일어나지 않았다 —
+// 눌렀는데 몸이 안 움직인 것과 세계가 거절한 것이 같아 보였다.
+//
+// 표식이 그 둘을 가른다. 세계는 표식을 해석하지 않고 되돌릴 뿐이므로
+// (04 requestOutcome), 어느 대답이 어느 요청의 것인지 짚는 것은 이쪽의 일이다.
+
+/** 표식 → 그 표식을 달고 나간 기술의 interactionId */
+const pendingSkills = new Map<number, string>();
+/** 기술 id → 그 기술에 마지막으로 일어난 일. resolvePresentation 으로 내려간다 */
+const skillAnswers = new Map<string, SkillAnswer>();
+/**
+ * 받아들여진 것이 칸에 남아 있는 시간 (ms).
+ *
+ * 받아들여진 요청은 곧 세계의 관찰 결과가 스스로 말한다 — 몸이 움직이고 기력이 준다.
+ * 그러므로 이 표시는 잠깐이면 된다. **가장 긴 기술의 행동 길이(0.9초)보다 조금 길게**
+ * 잡는다 — 나가는 동안 "나갔다" 가 떠 있고, 끝나면 세계의 지금이 자리를 돌려받는다.
+ *
+ * **거절은 시간으로 걷지 않는다.** 거절이 물러나는 것은 시간이 아니라 세계가 다시
+ * 다른 말을 할 때다 (skill-presentation 의 `rejectionStillHolds`).
+ */
+const SKILL_ACCEPTED_MS = 1200;
+const acceptedUntil = new Map<string, number>();
+
+/** 기술 요청을 표식과 함께 보낸다 — 닿지 못한 것도 거절과 다른 사정으로 남긴다 */
+function sendSkill(action: { interactionId: string; targetEntityId?: string }): void {
+  const mark = link.sendMarked(action);
+  acceptedUntil.delete(action.interactionId);
+  if (mark === null) {
+    skillAnswers.set(action.interactionId, { state: 'unsent' });
+    return;
+  }
+  pendingSkills.set(mark, action.interactionId);
+  skillAnswers.set(action.interactionId, { state: 'pending' });
+}
+
+/** 잠깐만 머무는 표시를 걷는다 — 거절은 걷지 않는다 */
+function ageSkillAnswers(nowMs: number): void {
+  for (const [id, until] of acceptedUntil) {
+    if (nowMs < until) continue;
+    acceptedUntil.delete(id);
+    if (skillAnswers.get(id)?.state === 'accepted') skillAnswers.delete(id);
+  }
+}
+
+// 세계의 대답을 그것을 부른 자리에 붙인다 (04 requestOutcome).
+//
+// **표식 없는 대답은 아무 자리에도 붙이지 않는다.** 짚을 수 없는 대답을 마지막 줄에
+// 붙이던 예전 방식은, 기술이 표식 없이 나가던 탓에 남의 요청의 결과를 명령 기록이
+// 자기 것처럼 말하게 만들었다 (02 AFFECTED).
+function drainOutcomes(nowMs: number): void {
   for (const outcome of link.takeOutcomes()) {
-    const line =
-      outcome.mark !== undefined
-        ? awaitingOutcome.get(outcome.mark)
-        : commandHistory[commandHistory.length - 1];
-    if (outcome.mark !== undefined) awaitingOutcome.delete(outcome.mark);
+    if (outcome.mark === undefined) continue;
+
+    const skillId = pendingSkills.get(outcome.mark);
+    if (skillId !== undefined) {
+      pendingSkills.delete(outcome.mark);
+      if (outcome.accepted) {
+        skillAnswers.set(skillId, { state: 'accepted' });
+        acceptedUntil.set(skillId, nowMs + SKILL_ACCEPTED_MS);
+      } else {
+        skillAnswers.set(skillId, {
+          state: 'rejected',
+          ...(outcome.reason ? { reason: outcome.reason } : {}),
+        });
+      }
+      continue;
+    }
+
+    const line = awaitingOutcome.get(outcome.mark);
+    awaitingOutcome.delete(outcome.mark);
     if (!line) continue;
     line.accepted = outcome.accepted;
     line.answer = outcome.accepted
@@ -265,8 +333,9 @@ function frame(now: number): void {
 
   // 조용히 죽은 이어짐을 걷어낸다 — 관찰 결과가 끊기면 그것이 끊김이다
   link.poll(Date.now());
-  // 세계의 대답을 받아 기록에 붙인다 (C009). 관찰 결과와 다른 자리다.
-  drainOutcomes();
+  // 세계의 대답을 받아 그것을 부른 자리에 붙인다 (C009 · C025). 관찰 결과와 다른 자리다.
+  drainOutcomes(now);
+  ageSkillAnswers(now);
 
   // 시점 조작 (C008) — 그리기 전에 방향을 먼저 정한다. 이번 프레임의 좌우 읽기가
   // 이 방향을 기준으로 이루어져야 화면과 어긋나지 않는다.
@@ -290,6 +359,8 @@ function frame(now: number): void {
         facingSides,
         command: { open: commandOpen, text: commandText, history: commandHistory },
         effectsSince: effectMemory,
+        // C025 — 내가 건 기술 요청이 어떻게 되었는가. 세계가 아니라 이쪽이 쥔 값이다.
+        skillAnswers: skillAnswers.size === 0 ? NO_SKILL_ANSWERS : Object.fromEntries(skillAnswers),
       })
     : EMPTY_SCENE;
   // 이번 관찰 결과가 다음 프레임의 기준이 된다 (읽고 나서 갱신한다)
@@ -340,6 +411,10 @@ function frame(now: number): void {
     moveRequestCooldown = 0;
   }
 
+  // C025 — 지금 관찰된 것 중 무엇이 기술인가. 계약이 실은 값으로 갈린다
+  // (04 skill.identification). 세계가 기술을 하나 더 지니면 이 집합도 하나 는다.
+  const skillIds = snapshot ? skillInteractionIds(snapshot) : new Set<string>();
+
   // 손가락으로 누른 버튼은 그 행동에 배정된 키 코드로 도착한다 (view/hud/touch-pad.ts).
   // 여기서 둘을 구분하지 않는 것이 핵심이다 — 손가락과 키가 갈라질 길 자체가 없다.
   for (const code of [...keyboard.consumeKeyPresses(), ...touchPad.consumePresses()]) {
@@ -369,10 +444,18 @@ function frame(now: number): void {
     const keyed = latestScene.interactions.filter((i) => i.key === code);
     const interaction = keyed.find((i) => i.available) ?? keyed[0];
     if (interaction) {
-      link.send({
+      const action = {
         interactionId: interaction.id,
         ...(interaction.targetEntityId ? { targetEntityId: interaction.targetEntityId } : {}),
-      });
+      };
+      // C025 — 기술이면 표식을 달고 나간다. **무엇이 기술인지는 팩이 판단한다** —
+      // 조립은 기술의 이름을 하나도 알지 못한 채 이 갈림을 지난다.
+      //
+      // 키가 눌렀든 손가락 버튼이 눌렀든 여기까지 같은 code 로 도착하므로, 나가는
+      // 요청도 같다 (INTENT-SKILL-INPUT-CONVERGES-001). 이 갈림 위에 입력 수단을
+      // 묻는 자리가 없다는 것이 그 성질을 지킨다.
+      if (skillIds.has(interaction.id)) sendSkill(action);
+      else link.send(action);
     }
   }
 

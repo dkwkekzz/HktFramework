@@ -11,6 +11,14 @@ export { resolvePresentation, type PresentationOptions } from './proto-adventure
 export { codeText } from './proto-adventure/view/code-text';
 export { commandActionRequest } from './proto-adventure/view/command-request';
 export { KEY_BINDINGS } from './proto-adventure/view/bindings';
+// 기술 (C025) — 조립 루트가 "이 요청에 표식을 달까" 를 이것으로 안다.
+// 무엇이 기술인지는 팩이 판단한다 — 조립은 이름을 하나도 알지 못한다.
+export {
+  NO_SKILL_ANSWERS,
+  skillInteractionIds,
+  type SkillAnswer,
+  type SkillAnswers,
+} from './proto-adventure/view/skill-presentation';
 export { SPRITE_SHEET } from './proto-adventure/view/sprites';
 // 이펙트 (F1) — 어떤 이펙트를 화면에 올릴지(예산)와, 사건을 읽기 위해 기억해 둘 것.
 export {

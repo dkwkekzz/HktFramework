@@ -35,6 +35,12 @@ import { hudPresentation } from './hud-presentation';
 import { equipmentDetailLines, equipmentHudItems } from './equipment-presentation';
 import { inventoryDetailLines, inventoryHudItems } from './inventory-presentation';
 import { interactionPresentation, interactionPriority } from './interaction-presentation';
+import {
+  NO_SKILL_ANSWERS,
+  skillDetailLines,
+  skillHudItems,
+  type SkillAnswers,
+} from './skill-presentation';
 import { codeText, shortCodeText } from './code-text';
 import { contactMark } from './relation-presentation';
 import { cancelMark } from './phase-presentation';
@@ -69,6 +75,12 @@ export interface PresentationOptions {
    * 읽힌다. facingSides 와 같은 규칙이다 — 조립 루트가 기억하고 여기서는 읽기만 한다.
    */
   effectsSince?: EffectMemory;
+  /**
+   * 내가 건 기술 요청이 어떻게 되었는가 (C025 — 04 requestOutcome).
+   * 세계의 상태가 아니라 **관찰자가 쥐고 있는 값**이다 — 세계는 누가 무엇을 걸었는지
+   * 기억하지 않는다. `command` · `facingSides` 와 같은 자리이며, 조립 루트가 소유한다.
+   */
+  skillAnswers?: SkillAnswers;
 }
 
 /** 관찰자가 쥐고 있는 명령 표면 상태 — 조립 루트가 소유한다 (04 history.owner: observer) */
@@ -234,6 +246,10 @@ export function resolvePresentation(
               // 소지품이므로, 자리를 먼저 본 뒤 무엇을 걸지 고르는 순서가 된다.
               ...equipmentDetailLines(snapshot, codeText, shortCodeText),
               ...inventoryDetailLines(snapshot, codeText, shortCodeText),
+              // C025 — 무엇을 치르고 무엇을 내는가, 못 쓰면 왜인가.
+              // **소지품보다 뒤다** — 몸의 형편(걸린 것 · 지닌 것)을 읽은 뒤라야
+              // "그래서 지금 무엇을 할 수 있는가" 가 답으로 읽힌다.
+              ...skillDetailLines(snapshot, codeText, options.skillAnswers ?? NO_SKILL_ANSWERS),
             ],
           },
         }
@@ -283,6 +299,9 @@ export function resolvePresentation(
       ...equipmentHudItems(snapshot, codeText),
       // C020 — 가진 것 전부. 세계가 준 순서에 칸 번호만 붙인다
       ...inventoryHudItems(snapshot, codeText),
+      // C025 — 기술 전부가 한 자리에 나란히 선다. 하나가 다른 하나를 밀어내지 않는다
+      // (INTENT-SKILL-HAND-IS-WHOLE-001). 지금까지 이 자리는 바닥 프롬프트 하나뿐이었다.
+      ...skillHudItems(snapshot, shortCodeText, options.skillAnswers ?? NO_SKILL_ANSWERS),
       ...snapshot.hud.filter((h) => !isSelfHudId(h.id)).map((h) => {
       const p = hudPresentation(h.id);
       return {
