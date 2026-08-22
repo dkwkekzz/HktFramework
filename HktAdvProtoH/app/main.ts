@@ -10,6 +10,7 @@
 
 import { TRANSPORT_PATH } from '../engine/protocol-core/transport';
 import { createCommandConsole } from '../engine/view-kernel/hud/command-console';
+import { createSurfaceLayer } from '../engine/view-kernel/hud/surface';
 import { createHud, type EntityLabel, type EntityPlate, type StrikeMark } from '../engine/view-kernel/hud/hud';
 import { createTouchPad } from '../engine/view-kernel/hud/touch-pad';
 
@@ -31,6 +32,7 @@ import {
   commandActionRequest,
   EFFECT_SET,
   EMPTY_EFFECT_MEMORY,
+  closeSurface,
   KEY_BINDINGS,
   rememberForEffects,
   resolvePresentation,
@@ -83,6 +85,10 @@ const commandConsole = createCommandConsole(container, {
     commandText = '';
   },
 });
+// 겹침 표면 (기반 capability) — 무엇이 열려 있는지는 결정 Layer 가 쥐고,
+// 여기는 그리는 능력을 붙이고 닫기를 그쪽으로 돌려보낼 뿐이다 (반전 ⑤).
+const surfaces = createSurfaceLayer(container, { onClose: (id) => closeSurface(id) });
+
 const keyboard = attachKeyboard();
 
 // 아직 세계로부터 아무것도 받지 못한 동안의 화면 — 빈 세계를 그린다.
@@ -95,6 +101,7 @@ const EMPTY_SCENE: SceneState = {
   strikes: [],
   effects: [],
   worldTime: 0,
+  surfaces: [],
   commandSurface: {
     open: false,
     entries: [],
@@ -108,7 +115,7 @@ let latestScene: SceneState = EMPTY_SCENE;
 // 손가락 조작 — 키보드도 마우스 버튼도 없는 기기에서 세계를 만진다.
 // 세계로 가는 것은 키보드일 때와 똑같은 요청이다. 세계는 무엇이 자기를 만졌는지 모른다.
 const touch = attachTouchControls(renderer.domElement, (dTurn, dTilt) => {
-  if (commandConsole.capturing()) return;
+  if (commandConsole.capturing() || surfaces.capturing()) return;
   renderer.turnView(dTurn, dTilt);
 });
 const touchPad = createTouchPad(container);
@@ -122,7 +129,7 @@ const COARSE_POINTER = window.matchMedia?.('(pointer: coarse)').matches ?? false
 attachInput(
   renderer,
   (action) =>
-    commandConsole.capturing() || touch.tapSuppressed(performance.now())
+    commandConsole.capturing() || surfaces.capturing() || touch.tapSuppressed(performance.now())
       ? false
       : link.send(action),
   () => latestScene,
@@ -131,7 +138,7 @@ attachInput(
 // 시점 조작 (C008) — 세계로 나가지 않는다. 관찰자가 자기 방향을 바꿀 뿐이다.
 // C009 — 명령을 쓰는 동안에는 시점도 돌아가지 않는다.
 attachPointerLook(renderer.domElement, (dTurn, dTilt) => {
-  if (commandConsole.capturing()) return;
+  if (commandConsole.capturing() || surfaces.capturing()) return;
   renderer.turnView(dTurn, dTilt);
 });
 const KEY_TURN_RATE = 1.8; // rad/s — 키로 도는 빠르기
@@ -270,7 +277,7 @@ function frame(now: number): void {
 
   // 시점 조작 (C008) — 그리기 전에 방향을 먼저 정한다. 이번 프레임의 좌우 읽기가
   // 이 방향을 기준으로 이루어져야 화면과 어긋나지 않는다.
-  const capturing = commandConsole.capturing();
+  const capturing = commandConsole.capturing() || surfaces.capturing();
   const turning = capturing ? null : keyboard.turn();
   if (turning) {
     renderer.turnView(turning.turn * KEY_TURN_RATE * dt, turning.tilt * KEY_TILT_RATE * dt);
@@ -363,7 +370,7 @@ function frame(now: number): void {
     // 여기서는 code 가 맞는 바인딩을 부를 뿐, 그 안에서 무엇이 골라지는지 모른다.
     const binding = KEY_BINDINGS.find((b) => b.code === code);
     if (binding) {
-      binding.invoke(latestScene, (action) => link.send(action));
+      binding.invoke(latestScene, (action) => link.sendMarked(action));
       continue;
     }
     const keyed = latestScene.interactions.filter((i) => i.key === code);
@@ -378,6 +385,7 @@ function frame(now: number): void {
 
   renderer.render(latestScene, dt);
   commandConsole.render(latestScene.commandSurface);
+  surfaces.render(latestScene.surfaces);
   // 조작 자리는 손가락을 쓰는 기기에서만 보인다. 기기 이름을 묻지 않고
   // 무엇으로 가리키는지만 본다 — 마우스뿐인 화면에는 나타나지 않는다.
   touchPad.render(latestScene, touch.stick(), COARSE_POINTER || touch.engaged());
