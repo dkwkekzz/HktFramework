@@ -8,6 +8,8 @@
 import { idleAction } from './action';
 import type { ActorControl, ActorState, CharacterKind } from './actor';
 import { characterDefinition } from './character-catalog';
+import type { Equipment } from './equipment';
+import { createEquipment } from './equipment';
 import type { Inventory } from './inventory';
 import { createInventory } from './inventory';
 import type { WorldPosition } from './position';
@@ -20,6 +22,8 @@ export interface ActorSpawn {
   control: ActorControl;
   position: WorldPosition;
   inventory?: Inventory;
+  /** C023 — 걸린 채로 태어나는 몸. 밝히지 않으면 아무것도 걸리지 않은 채다 */
+  equipment?: Equipment;
   wanderPath?: WorldPosition[]; // control = autonomous 일 때만 의미가 있다
   perceptionRange?: number; // 개체별 재정의 — 밝히지 않으면 종류의 값
   guardedGround?: GuardedGround; // C018 — 지키는 자리. 밝히지 않으면 지킬 것이 없다
@@ -71,6 +75,11 @@ export function spawnActor(spawn: ActorSpawn): ActorState {
         }
       : null,
     inventory: spawn.inventory ?? createInventory(),
+    // C023 — 아무것도 걸지 않은 채로 태어난다. 막기를 안 든 채로 태어나는 것과 같은
+    // 초기값이며 조종 주체에 따른 예외가 아니다. 관찰자의 몸이 곡괭이를 **가방에**
+    // 지니고 시작하는 것이 이 Cycle 의 첫 관찰이다 — 가지고만 있으면 캐지지 않는다
+    // (03-world-semantic.md RATIONALE 7).
+    equipment: spawn.equipment ?? createEquipment(),
     currentAction: idleAction(),
   };
 }

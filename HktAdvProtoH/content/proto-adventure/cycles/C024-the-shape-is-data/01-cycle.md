@@ -1,4 +1,4 @@
-# CYCLE C023 — The Shape Is Data
+# CYCLE C024 — The Shape Is Data
 
 [PASS] Cycle Definition           (기존 노드의 확장 · 모양 축 하나 · 값은 Stage 3)
 [PASS] Intent                     (모양은 기술의 값 · 닿는 길이가 몸에서 갈린다 · 공식 불변)
@@ -26,6 +26,16 @@ STATUS  IN PROGRESS
                         Cycle Agent 는 `master/` 를 편집하지 않으므로 `SELECTED` 칸은
                         그대로 두었다. 병렬 선택이 그 칸에 어떻게 적혀야 하는지는
                         `08-verification.md` 의 MASTER FEEDBACK 으로 보고한다.
+
+〔번호 이동 — C023 → C024〕
+    이 Cycle 은 `C023` 으로 정의되었다. 레인 A 가 **같은 번호**로 먼저 main 에 들어와
+    (`C023-what-you-wear-changes-you`) 병합 시점에 겹쳤고, Human 지시로 `C024` 로 옮겼다.
+    번호만 바뀌었고 이 Cycle 이 담는 의미는 한 글자도 달라지지 않았다.
+
+    **이것은 08 MASTER FEEDBACK ③④ 가 예고한 결손이 실제로 일어난 것이다** —
+    `SELECTED` 칸이 병렬 레인을 담지 못하고, 레인이 둘일 때 번호를 먼저 잡는 규칙이 없다.
+    C022 가 두 번 옮긴 데 이어 **세 번째**다. 보고는 그 자리에 그대로 두고,
+    실제로 일어났다는 사실을 08 에 덧붙인다.
 
     Source Goal         MG-EXPLORE-BEIRA
                         베이라를 더 깊이 감당한다 — 지금 닿지 못하는 곳에 닿는다

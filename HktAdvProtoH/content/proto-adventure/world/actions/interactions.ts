@@ -28,6 +28,7 @@ import { ruleAttributeSet } from '../rules/attribute-set';
 import { ruleGuardBegin, ruleGuardRelease } from '../rules/guard';
 import { ruleItemUse } from '../rules/item-use';
 import { ruleItemDiscard } from '../rules/item-discard';
+import { ruleItemEquip, ruleItemUnequip } from '../rules/item-equip';
 import { ruleMine } from '../rules/mine';
 import { ruleMove } from '../rules/move';
 import { ruleMoveMode } from '../rules/move-mode';
@@ -102,6 +103,26 @@ export const INTERACTIONS: readonly InteractionHandler<WorldState>[] = [
     handle: withActor((state, actor, action) => {
       if (!action.itemKind) return { status: 'failure', rule: DISPATCH, reason: 'missing-item' };
       return ruleItemDiscard(state, actor, action.itemKind);
+    }),
+  },
+  {
+    // C023 — 지닌 것을 몸에 건다. 요청이 싣는 것은 **내 소지품 중 무엇인가** 하나다 —
+    // 어느 자리에 걸지는 싣지 않는다: 여섯 자리가 서로 완전히 같으므로 고를 것이 없고,
+    // 세계가 빈 자리를 고른다 (IE §10 · §20).
+    id: 'equip-item',
+    handle: withActor((_state, actor, action) => {
+      if (!action.itemKind) return { status: 'failure', rule: DISPATCH, reason: 'missing-item' };
+      return ruleItemEquip(actor, action.itemKind);
+    }),
+  },
+  {
+    // C023 — 걸린 것을 푼다. 요청이 싣는 것은 **어느 자리인가** 하나뿐이다 —
+    // 무엇을 푸는지는 자리가 이미 안다 (C017 의 clear-target 과 같은 판단).
+    id: 'unequip-item',
+    handle: withActor((_state, actor, action) => {
+      if (!action.equipSlotId)
+        return { status: 'failure', rule: DISPATCH, reason: 'missing-slot' };
+      return ruleItemUnequip(actor, action.equipSlotId);
     }),
   },
   {

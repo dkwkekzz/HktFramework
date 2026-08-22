@@ -1,4 +1,4 @@
-# C023 — World Implementation
+# C024 — World Implementation
 
 입력은 `03-world-semantic.md` 하나다. 코드가 그 이름과 의미를 그대로 따른다.
 

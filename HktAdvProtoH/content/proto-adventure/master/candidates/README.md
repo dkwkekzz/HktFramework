@@ -2,7 +2,7 @@
 
 파일 하나 = 후보 하나. 이름은 `CC-<NAME>.md`. 형식은 [../SCHEMA.md](../SCHEMA.md).
 
-현재: **PENDING 11종**
+현재: **PENDING 13종**
 
 | 후보 | 출처 | 관찰 | 상태 |
 |---|---|---|---|
@@ -17,8 +17,21 @@
 | CC-THE-WORLD-JUDGES-THE-MOMENT | C019 | **2회** (C012 · C019) | PENDING |
 | CC-A-COST-MUST-LEAVE-A-WINDOW | C020 | **2회** (C019 · C020) | PENDING |
 | CC-NO-SELF-INFLICTED-DEAD-END | C022 | **3회** (C011 · C019 · C022 — 앞의 둘은 값으로, C022 가 처음 규칙으로) | PENDING |
+| CC-THE-EFFECTIVE-IS-DERIVED-NOT-STORED | C023 | **2회** (C022 자리 · C023 유효 값 — 둘째가 이유를 하나 더 댄다: 가역성) | PENDING |
+| CC-THE-SURFACE-MUST-NOT-PROMISE-WHAT-THE-INPUT-CANNOT-DO | C023 | 2회 (C022 잘린 띠 · C023 거짓 키 안내 — 성격이 갈린다) | PENDING · **Constraint 가 아닐 수 있다** |
 
-다섯 무리로 읽는다.
+여섯 무리로 읽는다.
+
+**파생 무리 (1종 — C023 이 새로 열었다)** — THE-EFFECTIVE-IS-DERIVED-NOT-STORED 는
+"합쳐 나오는 값을 저장하지 않는다" 이며, 앞의 어느 무리와도 다르다. 다른 후보들이
+**세계와 화면 사이**의 경계를 말한다면 이것은 **세계 안의 값이 어떤 형태로 있는가**를
+말한다. 승격 전에 정할 것은 "합성된 값" 과 "누적이 곧 진실인 값"(HP · 기력 · 수량)을
+가르는 선이다.
+
+**공정 무리 (1종 — 후보가 아닐 수 있다)** — SURFACE-MUST-NOT-PROMISE 는 Cycle Agent
+자신이 "Master 노드가 아니라 공정의 문제일 수 있다" 고 보고했다. 키 충돌은 판단이
+아니라 조회이므로 도구(`catalog:check` 같은 자리)가 더 맞을 수 있다. 닫든 세우든
+**도구 작업을 어딘가에 적어 두는 것**이 이 후보의 실제 결론이다.
 
 **표면 무리 (4종 — C019 로 하나 늘었다)** — 새로 든 THE-WORLD-JUDGES-THE-MOMENT 는
 "판정을 세계가 소유한다" 이고, 아래 셋은 "값·목록을 세계가 소유한다" 다. 넷 다

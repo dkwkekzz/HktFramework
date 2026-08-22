@@ -232,7 +232,7 @@ describe('INTENT-SKILL-COST-GATE-001 — 기력이 모자라면 시작되지 않
       damageType: 'physical', // C012
       swingBegin: BASIC.swingBegin, // C019 — 고르기 전에 아는 선딜
       swingEnd: BASIC.swingEnd,
-      swingArc: BASIC.swingArc, // C023 — 고르기 전에 아는 모양
+      swingArc: BASIC.swingArc, // C024 — 고르기 전에 아는 모양
       swingReach: BASIC.swingReach,
       swingTipRadius: BASIC.swingTipRadius,
     });
@@ -245,7 +245,7 @@ describe('INTENT-SKILL-COST-GATE-001 — 기력이 모자라면 시작되지 않
       damageType: 'physical', // C012
       swingBegin: HEAVY.swingBegin, // C019 — 큰 기술은 선딜이 더 길다
       swingEnd: HEAVY.swingEnd,
-      swingArc: HEAVY.swingArc, // C023 — 큰 기술은 좁고 멀리 닿는다
+      swingArc: HEAVY.swingArc, // C024 — 큰 기술은 좁고 멀리 닿는다
       swingReach: HEAVY.swingReach,
       swingTipRadius: HEAVY.swingTipRadius,
     });

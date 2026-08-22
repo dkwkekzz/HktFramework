@@ -7,9 +7,9 @@
 [PASS] Human Semantic Review      (APPROVED — 판단 5건 이의 없음)
 [PASS] World Implementation       (929 tests 통과 · 종류 이름 없는 자리·막힘 판정)
 [PASS] View Implementation        (942 tests · 자리 줄 + 덜어내기 줄 · 화면은 세지 않는다)
-[PASS] Verification               (실측 완료 · Human Play 확인만 남았다)
+[PASS] Verification               (실측 완료 · Gate 15항 전부 충족 · Human 확인)
 
-STATUS  IN PROGRESS
+STATUS  COMPLETE
 
 〔Stage 1 재작성 — 2026-08-21〕
     이 Cycle 은 `C020-what-you-carry-takes-room` 이라는 이름으로 먼저 정의되었다.

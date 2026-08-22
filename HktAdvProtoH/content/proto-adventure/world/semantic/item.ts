@@ -11,6 +11,7 @@
 // 그 아이템을 쓰는 규칙도 그것을 싣는 관찰도 그것을 검증하는 시험도 열리지 않는다.
 
 import type { DamageType } from './combat';
+import type { EquipSlotId } from './equipment';
 
 export type ItemKind = 'stone' | 'pickaxe';
 
@@ -73,6 +74,43 @@ export interface ItemUse {
   range?: number;
 }
 
+/**
+ * 걸린 동안 몸의 값에 보태는 것 (C023 ADDED).
+ *
+ * 몸이 지닌 여덟 전투 능력치에만 붙는다 — 지금 그 밖의 값을 보태는 물건이 세계에
+ * 없기 때문이다. 그런 물건이 생기면 이 목록에 이름이 하나 늘고, 유효 값을 세는
+ * 자리(semantic/combat.ts effectiveStat)는 열리지 않는다.
+ */
+export type ContributableStat =
+  | 'physicalAttack'
+  | 'auraAttack'
+  | 'armor'
+  | 'resistance'
+  | 'armorPenetration'
+  | 'resistancePenetration'
+  | 'criticalChance'
+  | 'criticalDamage';
+
+export type StatContributions = Partial<Record<ContributableStat, number>>;
+
+/**
+ * 적용 — **이 자리가 있으면 걸 수 있는 물건이다** (C023 ADDED).
+ *
+ * 없으면 걸 수 없다. 돌이 걸리지 않는 이유가 이것이며, **자리 탓이 아니다** —
+ * 어느 자리에 물어도 같은 답이 나온다.
+ */
+export interface ItemEquip {
+  /**
+   * 전용 자리들 — **비어 있거나 없으면 제한이 없다** (어느 자리에나 걸린다).
+   *
+   * 제한은 물건이 스스로 선언할 때만 생기는 **예외**다 (IE §10 · §11).
+   * 지금 이것을 선언하는 물건은 세계에 하나도 없다.
+   */
+  targets?: readonly EquipSlotId[];
+  /** 걸린 동안 몸의 값에 보태는 것. 없을 수 있다 (용도만 주는 물건) */
+  contributions?: StatContributions;
+}
+
 export interface ItemDefinition {
   category: ItemCategory;
   /** 상위 정의 식별자 (`IT-*`) — 없을 수 있다 */
@@ -90,6 +128,14 @@ export interface ItemDefinition {
   uses: readonly ItemUseTag[];
   /** 쓰면 무슨 일이 일어나는가 — **없으면 그 물건은 쓸 수 없다** */
   use?: ItemUse;
+  /**
+   * 걸 수 있는가 — **없으면 걸 수 없다** (C023 ADDED).
+   *
+   * 겹칠 수 있는 물건은 이 자리를 지니지 않는다 — 자리 하나에 수량 여럿이라는
+   * 상태를 만들지 않기 위해서다 (IE §13.1). 그 정합은 아래 ITEM_CATALOG 옆의
+   * 불변 조건이 확인한다.
+   */
+  equip?: ItemEquip;
 }
 
 // 수치는 Cycle 소유다 (03-world-semantic.md BALANCE). 결정론에 영향을 주므로 상수로 고정한다.
@@ -147,8 +193,31 @@ export const ITEM_CATALOG: Readonly<Record<ItemKind, ItemDefinition>> = {
       targeting: { requires: 'none' }, // 대상은 그 행동 자신이 읽는다
       consumes: 0,
     },
+    // C023 — **걸 수 있는 첫 물건이다.** 전용 자리를 선언하지 않으므로 여섯 어느
+    // 자리에나 걸린다 (IE §10 — 제한은 예외이지 기본이 아니다).
+    //
+    // 물리 공격 +12 — IE §12 의 예시가 그대로 곡괭이 Attack +3 (기본 10 의 +30%) 이고,
+    // 이 세계의 기본값 40 에 같은 비율을 적용한 값이다. 무기가 되는 것이 아니라
+    // 기본 기술의 raw 가 26 → 32 로 오를 뿐이다 (03-world-semantic.md JUDGEMENT ③).
+    //
+    // 이 하나로 **용도와 값 둘 다** 관찰된다 — 걸어야 캐지고, 걸면 값이 달라진다.
+    // 그래서 이 Cycle 은 새 장비 종류를 하나도 세우지 않는다.
+    equip: { contributions: { physicalAttack: 12 } },
   },
 };
+
+/**
+ * 불변 조건 — **걸 수 있는 물건은 겹치지 않는다** (C023 · IE §13.1).
+ *
+ * 자리 하나에 수량 여럿이라는 상태를 만들지 않기 위해서다. 정의가 이 둘을 함께
+ * 어기면 자리 계산과 적용이 서로 다른 이야기를 하게 되므로, 카탈로그를 세우는
+ * 자리에서 한 번 확인한다 — 종류가 늘어도 이 확인은 그대로다.
+ */
+for (const [kind, definition] of Object.entries(ITEM_CATALOG)) {
+  if (definition.equip && definition.stackLimit !== 1) {
+    throw new Error(`ITEM_CATALOG: ${kind} 는 걸 수 있는데 겹친다 (IE §13.1 위반)`);
+  }
+}
 
 /** 세계가 아는 종류의 순서 — 같은 세계 상태면 관찰의 순서도 같다 */
 export const ITEM_KINDS: readonly ItemKind[] = Object.keys(ITEM_CATALOG) as ItemKind[];

@@ -1,4 +1,4 @@
-# C023 — Human Semantic Review
+# C024 — Human Semantic Review
 
 > 이 파일은 Human 의 결정을 그대로 옮긴 것이다. 판단은 Agent 가 하지 않았다.
 

@@ -61,7 +61,7 @@ export interface CharacterDefinition {
   tempo: TempoSpec;
   resources: ResourceSpec;
   combat: CombatSpec; // C010
-  // C023 CHANGED — 이름이 뜻을 따라간다. 이 값은 더 이상 칼끝이 닿는 길이의 출처가
+  // C024 CHANGED — 이름이 뜻을 따라간다. 이 값은 더 이상 칼끝이 닿는 길이의 출처가
   // 아니다 (그것은 SkillDefinition.SwingReach 가 지닌다). 남은 뜻은 하나 —
   // **스스로 판단하는 존재가 상대에게 얼마나 다가가는가** (RULE-NPC-DECIDE-001).
   // 그 자리에서 어느 기술이든 닿는다는 보장은 RULE-ENGAGEMENT-REACHES-001 이 진다.

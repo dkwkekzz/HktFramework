@@ -8,7 +8,7 @@
 import { describe, expect, it } from 'vitest';
 import type { GameViewSnapshot } from '../../protocol/gameview';
 import { isStackable, ITEM_CATALOG, itemDefinition, ITEM_KINDS } from '../semantic/item';
-import { driveWorld, PLAYER, selectTarget, type WorldDriver } from './drive';
+import { driveWorld, equipPickaxe, PLAYER, selectTarget, type WorldDriver } from './drive';
 
 const TICK = 1 / 30;
 
@@ -307,8 +307,21 @@ describe('INTENT-HARM-GATE-001 재사용 — 아이템도 관문 밖에 있지 �
 
 // ─────────────────────────────────────────────────────────────────────
 describe('INTENT-EFFECT-BEGIN-DECLARED-ACT-001 — 둘째 갈래', () => {
-  const mineWorld = () =>
-    driveWorld({ npcs: [], actorPosition: { x: 8, z: -5 }, depositAmount: 5 });
+  // C023 — 채집은 **걸린 것**에서 온다. 곡괭이를 걸어야 이 갈래가 성립한다.
+  // 걸면 곡괭이가 가방을 떠나므로, 쓰는 입구도 소지품이 아니라 **자리**에 실린다
+  // (06-world-implementation.md NOTES ①).
+  const mineWorld = () => {
+    const world = driveWorld({ npcs: [], actorPosition: { x: 8, z: -5 }, depositAmount: 5 });
+    equipPickaxe(world);
+    return world;
+  };
+
+  /** 걸린 것에 실린 쓰기 행동 — 소지품이 아니라 자리에서 읽는다 */
+  const equippedUse = (world: WorldDriver, kind: string) =>
+    world
+      .observe()
+      .equipment.find((slot) => slot.item?.kind === kind)
+      ?.actions.find((a) => a.role === 'use-item');
 
   it('곡괭이를 쓰면 채집이 시작된다', () => {
     const world = mineWorld();
@@ -331,7 +344,9 @@ describe('INTENT-EFFECT-BEGIN-DECLARED-ACT-001 — 둘째 갈래', () => {
 
     const view = world.observe();
     expect(view.interactions.find((i) => i.id === 'mine')?.reason).toBe('no-target-selected');
-    expect(useAction(view, 'pickaxe')?.unavailableReason).toBe('no-target-selected');
+    // C023 — 입구는 여전히 둘이고 판정도 여전히 하나다. 읽는 자리만 소지품에서
+    // 자리로 옮겼다 — 걸린 것은 가방에 없기 때문이다.
+    expect(equippedUse(world, 'pickaxe')?.unavailableReason).toBe('no-target-selected');
   });
 
   it('곡괭이는 써도 줄지 않는다 — 소모 여부도 정의가 정한다', () => {
@@ -341,7 +356,9 @@ describe('INTENT-EFFECT-BEGIN-DECLARED-ACT-001 — 둘째 갈래', () => {
     for (let i = 0; i < 45; i++) world.tick(TICK); // 채집 1.2초를 넘긴다
 
     const view = world.observe();
-    expect(count(view, 'pickaxe')).toBe(1); // 도구는 닳지 않는다
+    // C023 — 도구는 닳지 않는다. 읽는 자리만 소지품에서 자리로 옮겼다.
+    expect(view.equipment.filter((slot) => slot.item?.kind === 'pickaxe')).toHaveLength(1);
+    expect(count(view, 'pickaxe')).toBe(0); // 걸린 것은 가방에 없다
     expect(count(view, 'stone')).toBe(1); // 대신 캔 것이 늘었다
   });
 
@@ -376,6 +393,7 @@ describe('INTENT-EFFECT-BEGIN-DECLARED-ACT-001 — 둘째 갈래', () => {
       actorPosition: { x: 8, z: -2 }, // 광맥(8,-6)과 거리 4 — 돌의 사거리 안이지만
       depositAmount: 5, //              채집의 거리(2) 밖이다
     });
+    equipPickaxe(world); // C023 — 도구가 아니라 거리가 막는 것을 보려면 먼저 걸어야 한다
     selectTarget(world, 'deposit-1');
 
     expect(world.observe().interactions.find((i) => i.id === 'mine')?.reason).toBe('out-of-range');

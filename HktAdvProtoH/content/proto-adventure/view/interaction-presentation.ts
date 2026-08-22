@@ -37,7 +37,7 @@ const INTERACTIONS: Record<string, InteractionPresentation> = {
   // C012 — 오라 스킬. 기본 스킬(F) 과 나란히 둔다 — 둘은 세기가 아니라
   // 방식으로 갈리는 선택이므로 나란히 놓여야 고르는 일로 읽힌다.
   //
-  // C023 CHANGED — **R 에서 H 로 옮겼다.** `KeyR` 은 엔진이 시점 조작에 이미 쓰고 있고
+  // C024 CHANGED — **R 에서 H 로 옮겼다.** `KeyR` 은 엔진이 시점 조작에 이미 쓰고 있고
   // (`engine/view-kernel/input/keyboard.ts` 의 TURN_KEYS — R 올려다보기 · T 내려다보기),
   // 그 키들은 눌린 순간 삼켜져 interaction 까지 오지 않는다. 그래서 **C012 이래로
   // 오라 스킬은 키보드로 부를 수 없었다** — 표에는 있고 화면 안내에도 떴지만
@@ -56,7 +56,7 @@ const INTERACTIONS: Record<string, InteractionPresentation> = {
   // C014 가 키를 두지 않은 이유는 "키는 대상을 고를 수단이 없다" 였다. 그 이유가
   // 사라졌다: 대상을 고르는 수단이 세계에 생겼고(select-target), 살펴봄은 고른 것으로
   // 나간다. View 가 선택 규칙을 발명하는 일도 없다 — 무엇을 살펴볼지는 세계가 지닌다.
-  // C023 CHANGED — **T 에서 Y 로 옮겼다.** 오라 스킬과 똑같은 결손이었다
+  // C024 CHANGED — **T 에서 Y 로 옮겼다.** 오라 스킬과 똑같은 결손이었다
   // (`KeyT` 는 엔진의 내려다보기다). 이 Cycle 의 일이 아니지만, 눌러도 아무 일이
   // 없는 조작을 알고도 두는 것이 더 나쁘다. 08 MASTER FEEDBACK 에 함께 적는다.
   'observe-character': { priority: 15, key: 'KeyY', keyLabel: 'Y', prompt: '살펴보기' },
@@ -88,7 +88,7 @@ export const RESERVED_KEY_CODES: readonly string[] = [
   // 이동 (MOVE_KEYS)
   'KeyW', 'KeyA', 'KeyS', 'KeyD',
   'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight',
-  // 시점 (TURN_KEYS) — C023 이 여기서 걸렸다
+  // 시점 (TURN_KEYS) — C024 이 여기서 걸렸다
   'KeyZ', 'KeyX', 'KeyR', 'KeyT',
   // 조립 루트가 먼저 가로채는 것 (app/main.ts)
   'Slash', 'KeyC', 'KeyV',

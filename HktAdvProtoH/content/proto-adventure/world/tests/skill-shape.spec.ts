@@ -1,5 +1,5 @@
 // RULE-SKILL-SHAPE-001 · RULE-ACTION-COLLIDER-001(CHANGED) ·
-// RULE-ENGAGEMENT-REACHES-001 World 단독 테스트 (C023)
+// RULE-ENGAGEMENT-REACHES-001 World 단독 테스트 (C024)
 //
 // Implements INTENT-SKILL-SHAPE-001 · INTENT-SHAPE-DECIDES-CONTACT-001 ·
 //            INTENT-REACH-BELONGS-TO-THE-SKILL-001 ·
@@ -122,7 +122,7 @@ describe('RULE-SKILL-SHAPE-001 — 모양은 그 기술이 지닌 값이다', ()
   });
 });
 
-describe('RULE-ACTION-COLLIDER-001 — 같은 자리가 기술에 따라 갈린다 (C023 CHANGED)', () => {
+describe('RULE-ACTION-COLLIDER-001 — 같은 자리가 기술에 따라 갈린다 (C024 CHANGED)', () => {
   // 03 BALANCE ③ 의 판별 자리 둘. 몸이 +x 를 향한다.
 
   it('옆에 선 상대 — 기본 기술은 닿고 큰 기술은 닿지 않는다', () => {

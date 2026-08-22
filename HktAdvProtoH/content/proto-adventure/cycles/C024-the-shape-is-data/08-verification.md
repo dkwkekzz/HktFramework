@@ -1,4 +1,4 @@
-# C023 — Verification
+# C024 — Verification
 
     Semantic Closure      PASS
     World Rule 실행        PASS   world/tests/skill-shape.spec.ts 17/17
@@ -183,11 +183,19 @@
         `SELECTED` 를 레인별로 적을 수 있게 하거나, 병렬로 도는 것을 함께 적는다.
         지금 형태로는 레인 둘이 동시에 돌 때마다 같은 Gap 이 반복된다.
 
-### ④ Cycle 번호 충돌이 세 번째다
+### ④ Cycle 번호 충돌이 세 번째다 — **예고가 아니라 일어난 일이다**
 
     C022 가 C020 → C021 → C022 로 두 번 옮겼고 (HISTORY 번호 정정), 이 Cycle 은
-    그것을 피하려고 C023 을 잡았다. **레인이 둘이면 번호를 먼저 잡는 규칙이 없다.**
-    ③ 과 같은 뿌리이며 함께 다루는 것이 맞다.
+    그것을 피하려고 C023 을 잡았다. **그런데도 겹쳤다** — 레인 A 가 같은 C023 으로
+    먼저 main 에 들어왔고(`C023-what-you-wear-changes-you`), 병합 시점에 이 Cycle 이
+    C024 로 옮겼다 (01-cycle.md 의 번호 이동).
+
+    **레인이 둘이면 번호를 먼저 잡는 규칙이 없다.** ③ 과 같은 뿌리이며 함께 다루는
+    것이 맞다.
+
+        관찰   두 레인이 각자 "다음 빈 번호" 를 세면 언제나 같은 수가 나온다.
+               번호는 레인이 스스로 정할 수 있는 것이 아니라 **먼저 잡아 두어야 하는
+               것**이다. 이 결손이 고쳐지지 않으면 네 번째가 온다.
 
 ### ⑤ open-questions Q35 의 선행 작업이 끝났다
 
@@ -203,7 +211,7 @@
     같은 형태가 **두 번 반복**되었다.
 
         C019   전역 상수 SWING_BEGIN · SWING_END  →  SkillDefinition (시간 축)
-        C023   전역 상수 SWING_ARC · SWING_BLADE_RADIUS · swingReach(몸)
+        C024   전역 상수 SWING_ARC · SWING_BLADE_RADIUS · swingReach(몸)
                                                  →  SkillDefinition (공간 축)
 
     두 번 다 **새 층을 세우지 않고 값 한 칸으로 풀었고**, 두 번 다 기존 값이 한 톨도
@@ -211,7 +219,7 @@
 
     이것이 승격할 만한 패턴인지, 아니면 DC-SKILL-COMBINE-BEFORE-NEW-FORM §29-2 가
     이미 담고 있는 것인지는 **Human 판단**이다. 후자라면 그 Constraint 의 rationale 에
-    C023 을 두 번째 사례로 적는 것으로 족하다.
+    C024 을 두 번째 사례로 적는 것으로 족하다.
 
 ### ⑦ 조작 키의 단일 출처가 없다 — **기반 트랙 일감** (Master 아님)
 

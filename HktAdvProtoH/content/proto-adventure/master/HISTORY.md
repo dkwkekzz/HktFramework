@@ -1657,3 +1657,243 @@ Human 이 "FR-ACTION-PHASE 의 근간이 무엇인가" 를 물어 근간을 역�
         **지금 세계의 크기**이고, 아이템이 늘면 저절로 사라진다. 결정할 것이 없는 것을
         질문으로 만들지 않는다.
 
+
+---
+
+## 주입 — 스킬 최종안(SK) 교체 · 구판(SF) 삭제 · 2026-08-21
+
+    Human 지시: "승인된 Constraint 3종이 R0 의 §28.1 · §28.2 · §28.5 를 근거로 인용하는
+    부분을 대체하고 R0 을 삭제. `design/Skill/Skill-System.md` 를 근거로 하도록."
+
+    구판 `design/Design-Combat-SkillForm-R0.md`(SF)가 최종안 네 문서로 확장·분할됐다.
+
+        design/Skill/Skill-System.md           SK      정의 · 전체 관계 · 문서 책임 경계 ·
+                                                       새 Primitive 추가 기준 · 금지 구조
+        design/Skill/Skill-Execution-Form.md   SK-EX   발동 · 대상 기준 · 대상 결정 ·
+                                                       공간 조회 · 실행 여섯
+        design/Skill/World-Spatial-Presence.md SK-SP   몸이 아닌 존재의 공간 존재
+        design/Skill/Skill-Effect.md           SK-EF   효과 — 지금 있는 것으로의 연결
+
+    구판은 삭제했다. 근거 문서로 남은 인용은 없다 — 아래 재배선이 전부를 옮겼다.
+
+    **바뀐 의미** (구판 → 최종안). 이름의 교체가 아니라 축의 재편이다.
+
+        지목 한 축          →  대상 기준(Anchor)과 대상 결정(Resolution) 두 축.
+                               "고른 것 = 맞는 것" 이 아니게 되었고, 한 명이냐 여럿이냐가
+                               스킬의 종류가 아니라 **결정의 결과**가 되었다
+        전달 14종 열거      →  실행 여섯 + 공간 존재의 값 차이.
+                               투사체 · 장판 · 부착 영역 · 이동 영역 · 함정 · 자취가
+                               서로 다른 형태가 아니라 같은 존재의 기준(Anchor)과
+                               이동(Movement) 값이 다른 것으로 되돌아갔다
+        형상 · 시점 두 축    →  공간 조회의 한 칸 · 사건(Trigger)의 형태로 흡수
+        효과 17종 선언      →  지금 세계에 구현된 것만. 회복 · 보호막 · 조건은
+                               그 층이 서기 전에는 이름조차 두지 않는다
+
+    산출물:
+        constraints/    REVISED 3종 — IS-COMBINATION-NOT-NAME(조합의 항이 여섯에서
+                        다섯으로) · DELIVERY-IS-NOT-EFFECT(자리 이름만 Delivery →
+                        Execution · ID 유지) · COMBINE-BEFORE-NEW-FORM(추가 기준 다섯
+                        → 여섯). 방향과 금지 범위는 그대로다
+                        DRAFT 3종 — ANCHOR-IS-NOT-RESOLUTION · EFFECT-MUST-ALREADY-EXIST ·
+                        PRESENCE-IS-WORLD-NOT-SKILL. 최종안이 새로 명시한 원칙이며
+                        Human 승인 대기 → Q45
+        graph/          MS-SKILL-FORM 재작성 — 이름 "스킬 전달 형태" → "스킬 실행 형태",
+                        자리 14 → 6 (CONTACT · DIRECT · SPATIAL-QUERY ·
+                        SPATIAL-PRESENCE · TRIGGER · COMPOSITION).
+                        MC-COMBAT-STRIKE 의 `part_of` 근거 SF §6 → SK §5
+        overlay.md      표에 줄을 더하지 않았다 — 그 형태를 요구하는 Possibility 가
+                        여전히 없기 때문이다 (SCHEMA — 그런 것은 노드가 아니다).
+                        차 있는 칸은 접촉 하나 그대로
+        frontier.md     후보 8(휘두름의 모양이 값이 된다)의 근거를 SK 로 옮겼다.
+                        (그 뒤 C023 Feedback 이 후보 둘을 소진시켜 **지금 6번**이다)
+                        후보 자체는 바뀌지 않았다 — 여는 것도, 크기도, 의존 없음도 그대로다
+        open-questions  Q35 의 관련 절 갱신 (자리가 여섯으로 줄어 (b) 를 골라도 열 층의
+                        총량이 전보다 작다) · Q45 신설
+
+    **닫힌 질문이 기다리던 문서가 이것이다.** Q42(타게팅 방식의 갈래) · Q44(SF 가
+    답하지 않은 넷)는 "이후 추가 기획이 가져온다" 로 닫혔었다. 최종안이 그중 넷을
+    공급했다 — 대상 기준·결정의 갈래(SK §3) · 몸 아닌 존재(SK-SP) · 그 존재가 누구에게
+    보이는가의 경계(SK-SP §10) · 없는 효과를 미리 두지 않는 규칙(SK-EF §5). 자리를
+    여섯으로 줄인 것이 Q44 ④(자기 기준을 자기 14종에 적용하면 넷이 걸린다)도 해소했다.
+    닫힌 질문을 다시 열지는 않았다 — 남은 결손은 Q35 하나이고 그것은 기획이 아니라
+    **배선**(어느 Possibility 가 이 자리를 요구하는가)이다.
+
+    옮기지 않은 것과 사유:
+        Goal / Possibility / Capability 노드 — 하나도 세우지 않았다. 최종안도 구판과
+        같이 "누가 무엇을 왜 원하는가" 를 공급하지 않는다. 지금 MC 를 세우면
+        required_by 와 demanded_by 가 둘 다 빈 고아 노드가 된다 (Q35 의 7 조건 2)
+        수치 — 반경 · 각도 · 틱 간격 · 비행 속도는 전부 문서에 남겼다 (정책 §7.2)
+        DIRECT 칸의 채움 — C020 의 던지기가 SK §8 의 대상 직접 실행과 같은 모양이지만
+        문서가 그 노드를 지목하지 않았으므로 비워 두었다 (구판 판정과 같은 기준)
+
+## Q45. SK 최종안이 새로 명시한 Constraint 셋을 승인하는가 — CLOSED
+
+    DECISION      (a) 셋 다 승인 (Human · 2026-08-21)
+                  PRESENCE 의 Scope 는 `SKILL` 유지 — 근거가 스킬 영역 문서이므로
+                  영역을 넘기지 않는다 (Human · 같은 날)
+
+    DC-SKILL-ANCHOR-IS-NOT-RESOLUTION · DC-SKILL-EFFECT-MUST-ALREADY-EXIST ·
+    DC-SKILL-PRESENCE-IS-WORLD-NOT-SKILL 이 Active 가 되었다. 문안은 주입판 그대로다
+    (Q23 · Q30 · Q41 선례 — 원본보다 세게 쓰지 않는다). Scope 는 셋 다 `SKILL` 이다.
+
+    같은 결정에 포함된 것 — Active 셋(IS-COMBINATION-NOT-NAME ·
+    DELIVERY-IS-NOT-EFFECT · COMBINE-BEFORE-NEW-FORM)의 근거를 삭제된 구판(SF)에서
+    최종안(SK)으로 옮긴 재정합이 확정됐다. 셋 다 REVISED 이며 방향과 금지 범위는
+    그대로다. 바뀐 것은 조합의 항 이름(여섯 → 다섯) · 추가 기준의 수(다섯 → 여섯) ·
+    자리 이름(Delivery → Execution) 셋뿐이다. `DELIVERY-IS-NOT-EFFECT` 의 ID 는
+    유지했다 — 이력이 이미 그 ID 로 여럿을 가리킨다.
+
+    승인과 함께 MC-COMBAT-STRIKE 에 ANCHOR-IS-NOT-RESOLUTION 을 걸었다 —
+    SATISFIED. 지금 세계의 휘두름은 고른 대상(`CurrentTarget`)을 읽지 않는다.
+    맞는 것을 정하는 것은 칼끝이 쓸고 지나간 호이고(`world/semantic/collision.ts`),
+    호에 든 여럿이 각각 맞으며 한 휘두름에 같은 몸은 한 번만 맞는다
+    (`world/simulation/swing-strike.ts` — `StruckActorIds` · `Result Struck(대상 수)`).
+    나머지 둘은 노드에 걸지 않았다 — EFFECT-MUST-ALREADY-EXIST 가 구속할 새 효과도,
+    PRESENCE-IS-WORLD-NOT-SKILL 이 구속할 몸 아닌 존재도 세계에 아직 없다.
+
+    Scope 를 넓히지 않은 결과 하나가 남는다. Frontier 후보 7(물건이 몸 밖에 놓인다 —
+    C023 Feedback 뒤 **지금 5번**)이
+    요구하는 것이 PRESENCE 와 같은 자리이지만, 그 후보는 이 원칙에 구속되지 않는다.
+    그쪽을 구속하려면 아이템·세계 영역 문서가 같은 의미를 근거로 세워야 한다.
+
+    Active Constraint 는 29종 → 32종.
+
+---
+
+## Feedback — C023(걸어 둔 것만이 몸을 바꾼다) 반영 · 2026-08-21
+
+    C023 이 Gate 15항을 전부 충족하고 닫혔다. `08-verification.md` 의 MASTER FEEDBACK
+    여섯 항을 반영했다. Human 이 완료를 판정했고 Agent 가 대신 판정하지 않았다.
+
+### Capability Overlay — 승격 1건
+
+        MC-EQUIP-ITEM   MISSING → **PARTIAL**   근거 C023 08-verification (세계 프로세스 실측)
+
+    world_shape 다섯 문장 중 앞 셋이 닫혔다.
+
+        닫힌 것   같은 물건을 가지고만 있을 때와 적용했을 때 몸이 다르게 판정된다
+                  풀면 값과 가능한 행동이 정확히 이전으로 돌아온다
+                  맞지 않는 것을 넣으려 하면 사유와 함께 거절된다
+        남은 것   이미 찬 자리에 넣으면 넣기와 빼내기가 **한 번에** 일어난다
+                  담을 곳이 가득해도 **바꿔 끼우는 것은 된다** (IE §16 · §16.1 의 비대칭)
+
+    남은 둘은 후보 `FR-ONE-SLOT-ONE-ITEM` 이 소유한다 — 그것이 닫히면 IMPLEMENTED 다.
+
+    이로써 `IM-*` 의 grants 가 **처음으로 몸에 닿았다.** overlay 아이템 절이
+    "이것이 없어 grants 가 몸에 닿지 못한다" 로 적어 두던 자리가 사라졌다.
+
+### Overlay 근거 갱신 — 승격 없이 결손이 줄어든 곳 셋
+
+        MC-ATTACK-POWER          PARTIAL 유지. **"세계 안에서 이 값을 올릴 방법이 없다"**
+                                 가 사라졌다 — 곡괭이를 걸면 물리 공격 40 → 52 가 플레이로
+                                 관찰된다. 남은 결손을 다시 썼다: 값이 **달라지는** 것은
+                                 섰고 **키우는** 축(성장 · 배움)이 없다
+
+        MP-OUTGROW-THE-OPPONENT  같은 결손을 두 곳이 적고 있었다. MC 쪽을 고치고 이 줄을
+                                 두면 Overlay 가 스스로 모순되므로 함께 고쳤다.
+                                 이 갈래가 말하는 것은 *압도*이므로 여전히 자라는 축이 없다
+
+        MP-ADAPT-BY-RESOURCE     **이 갈래의 문장이 세계에서 통째로 참이 되었다** —
+                                 "물건이 대신해 주고, 물건을 잃으면 도로 못 하게 된다"
+                                 (BW §17). 앞 절반은 C020, 뒤 절반은 C023 이 세웠다.
+                                 남은 것은 제작이며 회복·절단 앞을 여전히 막는다
+
+    **건드리지 않은 곳 하나** — MP-BET-ON-THE-CRITICAL-BLOW 는 "Critical 성질을 올릴
+    성장·장비가 세계에 없다" 로 적혀 있고, C023 의 기여 얼개는 여덟 능력치 전부를
+    대상으로 한다. 그러나 그런 물건이 실제로 없으므로 결손 문장이 여전히 참이고,
+    Cycle 이 보고하지 않은 것을 추측으로 고치지 않았다 (guides/master-feedback.md Must Not).
+
+### Frontier — 후보 둘 소진, 여섯 남음
+
+    소진된 것을 지우고 번호를 다시 매겼다 (3~8 → 1~6).
+
+        FR-WHAT-YOU-CARRY-TAKES-ROOM      C022 로 구현되었고 C023 의 실측이 다시 확인했다
+                                          (가방 4/4 · `no-room` · 덜어내면 다시 캔다)
+        FR-WHAT-YOU-WEAR-CHANGES-YOU      **C023 으로 닫혔다**
+
+    남은 여섯의 `의존` 칸이 크게 바뀌었다 — 넷이 "후보 2(장착)가 먼저다" 였고
+    그것이 전부 **"없다 — C023 이 그 앞을 세웠다"** 가 되었다.
+    레인 A 에서 지금 바로 고를 수 있는 것이 다섯이다.
+
+    병렬 배치 절도 다시 썼다. C023 이 `combat.ts` 의 `offenseStatValue` 를 유효 값으로
+    옮기면서 **레인 A 와 B 가 겹치던 자리를 이미 지났다** — 남은 겹침은 `gameview.ts`
+    와 등록부뿐이다.
+
+    SELECTED 는 비웠다. 다음은 Human 이 고르는 자리다.
+
+### Constraint Evaluation — Graph 편집 1건 (overlay 필드)
+
+    C023 이 여덟 DC 를 보고했고 그중 다섯이 MC-EQUIP-ITEM 의 `constraint_evaluation` 에
+    이미 SATISFIED 로 있었다. **판정이 실제 구현에서 확인된 것은 Cycle 의 사실이지
+    노드의 값 변화가 아니다** — C022 때와 같은 판단으로 노드를 건드리지 않았다.
+    바뀐 것은 `overlay: MISSING → PARTIAL` 하나다.
+
+    기록해 둘 값 하나.
+
+        DC-ITEM-KIND-IS-DATA-NOT-BRANCH 와 DC-ITEM-CAPABILITY-COMES-FROM-GRANTS 가
+        **값 두 줄로 실행 확인되었다.** 자리 수 6 → 3, 곡괭이의 기여 12 → 20 을 바꾸고
+        같은 각본을 다시 돌려 40/40 통과했고 `world/rules/` `world/projection/` 변경
+        줄 수가 **0** 이었다.
+
+        그 시험을 세우다 한 번 되돌린 것이 더 값지다 — 첫 판은 각본에 `base + 12` 를
+        박아 두어 기여를 바꾸자 세 곳이 깨졌다. **규칙이 아니라 시험이 값을 알고
+        있었다.** 정의에서 읽도록 고친 뒤에야 이 항이 실제로 증명되었다.
+        C022 가 "각본이 값을 읽어 판단하므로 그대로 돈다" 를 적어 둔 것과 같은 형태이며,
+        같은 함정을 한 번 더 밟았다는 뜻이기도 하다.
+
+### Constraint Candidate 접수 — 2종
+
+    CC-THE-EFFECTIVE-IS-DERIVED-NOT-STORED
+        "여러 출처가 합쳐져 나오는 값은 저장하지 않고 매번 다시 센다."
+        관찰 둘(C022 자리 · C023 유효 값)인데 **둘째가 이유를 하나 더 댄다** —
+        C022 는 정합성을 위해, C023 은 **가역성**("풀면 정확히 이전으로")을 위해
+        파생을 골랐다. 다음에 이 물음이 오는 곳은 아이템이 아니라 조건 층이고
+        (MC-CONDITION-STACKING · IE §21 의 "하나의 합성 얼개"), 그 문서가 오기 전에
+        서 있으면 얼개를 하나로 묶을 근거가 된다.
+        승격 전에 정할 것은 **"합성된 값" 과 "누적이 곧 진실인 값"(HP·기력·수량)을
+        가르는 선**이다. `HUMAN DECISION: PENDING`.
+
+    CC-THE-SURFACE-MUST-NOT-PROMISE-WHAT-THE-INPUT-CANNOT-DO
+        "화면이 안내하는 조작은 실제로 그 일을 해야 한다."
+        C023 의 첫 판이 `걸기 ✓ V → 1` 이라고 띄웠는데 `V` 는 이미 속성 관찰이었다.
+        **세계는 옳았고 결정 Layer 도 옳았다** — 어긋난 것은 화면의 말과 손가락 사이다.
+        World 시험도 Fixture 시험도 잡지 못한다 (둘 다 키를 모른다).
+
+        Cycle Agent 스스로 **"Master 노드가 아니라 공정의 문제일 수 있다"** 고 보고했고
+        Agent 판단도 그렇다 — 키 충돌은 판단이 아니라 조회이므로 도구가 맞다.
+        다만 도구는 "같은 키가 둘" 만 잡고 이 후보의 넓은 부분은 잡지 못한다.
+        **닫든 세우든 도구 작업을 어딘가에 적어 두는 것**이 실제 결론이다.
+        `HUMAN DECISION: PENDING`.
+
+### Master Gap — 없음. 다만 Human 이 알아야 할 것 셋
+
+    ① IE §10 의 비(比)가 뒤집혀 있다 — 자리 6 · 가방 4
+        "자리 수가 소지 칸 수보다 훨씬 적다"(30 : 6)가 이 세계에서 6 : 4 다.
+        **지금은 겪히지 않는다** — 걸 수 있는 물건이 곡괭이 하나뿐이라 자리가 여섯이든
+        하나든 플레이가 같다. 겪히는 것은 걸 수 있는 종류가 자리 수를 넘을 때이고,
+        그날 값 하나가 움직이면 된다 (위 실행 확인이 그것을 보였다).
+        **질문으로 세우지 않았다** — 지금 결정할 것이 없다.
+
+    ② C022 의 Cycle Artifact 가 아직 `IN PROGRESS — AWAITING HUMAN PLAY` 다
+        Overlay 와 Frontier 는 C022 를 닫힌 것으로 반영했다 — 그 근거는 C022 자신의
+        실측이고, C023 의 실측이 그 규칙들을 다시 처음부터 돌렸다(가방 4/4 · `no-room` ·
+        덜어내기 · `no-way-back`). 그러나 **Cycle Artifact 는 History 이므로 이 층이
+        고치지 않는다.** C022 의 STATUS 를 닫을지는 Human 이 그 Cycle 쪽에서 할 일이다.
+
+    ③ 03 이 답하지 않은 것 하나를 Stage 6 이 닫았다 — 걸린 것을 쓰는 입구
+        C020 이 세운 "곡괭이를 쓰면 채집이 시작된다" 가, 곡괭이가 가방을 떠나면서
+        조용히 사라질 뻔했다. 규칙은 이미 옳았고 관찰만 없었으므로 자리에 `use-item`
+        을 실었다. **Master Capability 를 늘리지 않는다** — 잃을 뻔한 것을 지킨 것이다.
+        반영할 노드가 없어 기록만 남긴다.
+
+### 화면 쪽으로 넘어간 것 하나 (Master 밖)
+
+    소지품·장착의 타일뷰(격자 · 빈 슬롯 · 드래그 · 우클릭 메뉴)는 **Cycle 이 아니라
+    기반 트랙 일이다** — `SceneHudItem.widget` 이 `counter | flag | label` 셋뿐이라
+    격자를 그릴 능력이 없다. 표시·우클릭·드래그로 걸기/풀기까지는 World 도 계약도
+    바뀌지 않는다.
+
+    다만 **칸 사이 이동 · 나누기 · 정렬**은 세계에 칸 인덱스가 없어 후보
+    `FR-ARRANGE-WHAT-YOU-CARRY`(지금 3번)가 필요하다. 그 후보의 7 조건이 약해
+    보류 중이었는데(Q37), **화면 쪽 요구가 그 후보에 새 근거를 준다.**
+    frontier 의 추천 순서에 그 사실을 적었다.

@@ -5,7 +5,7 @@
 // 행동은 자신의 종류에 따라 충돌체를 만들 수 있다 (INTENT-ACTION-COLLIDER-001) —
 // 기술의 휘두름은 몸이 향한 방향(Facing)의 칼끝 자리에 충돌 구를 만들고,
 // 휘두름 구간 동안 호를 그리며 쓸고 지나간다 (R1 — Human Play 반환 반영).
-// C023 CHANGED — 그 호의 각·반경·길이는 **그 기술의 값**이다. 전역 상수가 아니다.
+// C024 CHANGED — 그 호의 각·반경·길이는 **그 기술의 값**이다. 전역 상수가 아니다.
 // 상수는 결정론에 영향을 주므로 헤더 상수로 고정한다.
 
 import { arcSweepCollider } from '../../../../engine/physics/sweep';
@@ -36,7 +36,7 @@ export const REST_SPEED = 0.02;
 // 기본값은 그 파일의 DEFAULT_SWING_BEGIN · DEFAULT_SWING_END 이며 값 자체는 그대로다.
 export const SWING_IMPULSE = 8.0;
 
-// C023 CHANGED — 휘두름의 각·칼끝 반경·닿는 길이는 더 이상 여기 있는 전역 상수가 아니다.
+// C024 CHANGED — 휘두름의 각·칼끝 반경·닿는 길이는 더 이상 여기 있는 전역 상수가 아니다.
 // 기술마다 다른 값이므로 SkillDefinition 이 지닌다 (semantic/combat.ts 의 SwingArc ·
 // SwingTipRadius · SwingReach). 폐지된 것은 셋이다 — SWING_ARC · SWING_BLADE_RADIUS 와
 // 파생 함수 swingReach(attackRange). 마지막 것은 닿는 길이를 **몸**에서 끌어왔다:
@@ -65,7 +65,7 @@ export function actionCollider(actor: ActorState): ActionCollider | null {
 
   // C019 CHANGED — 구간 경계를 그 기술에서 읽는다. RULE-SKILL-PHASE-001 과 같은 값을
   // 쓰므로 "칼끝이 활성인 구간" 과 "phase 가 active" 는 언제나 일치한다.
-  // C023 CHANGED — 모양도 그 기술에서 읽는다 (RULE-SKILL-SHAPE-001).
+  // C024 CHANGED — 모양도 그 기술에서 읽는다 (RULE-SKILL-SHAPE-001).
   // 이 함수에 기술 이름을 묻는 분기가 없다 — 정의가 답한 값만 기반 솔버로 넘긴다.
   const skill = skillDefinition(actor.currentAction.kind);
   const shape = skillShape(actor.currentAction.kind);

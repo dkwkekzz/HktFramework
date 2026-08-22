@@ -3,7 +3,7 @@
 
 import { describe, expect, it } from 'vitest';
 import type { GameViewSnapshot } from '../../protocol/gameview';
-import { driveWorld, PLAYER } from './drive';
+import { driveWorld, equipPickaxe, PLAYER } from './drive';
 
 const solo = { npcs: [] };
 const player = (v: GameViewSnapshot) => v.entities.find((e) => e.id === PLAYER);
@@ -47,6 +47,7 @@ describe('RULE-MOVE-PROGRESS-001', () => {
 
   it('이동으로 광맥에 접근하면 Mine 이 가용해진다 (out-of-range → available)', () => {
     const world = driveWorld({ ...solo, actorPosition: { x: 0, z: 0 } });
+    equipPickaxe(world); // C023 — 도구가 아니라 거리가 막는 것을 보려면 먼저 걸어야 한다
     // C017 — 채집은 고른 것에 대해 판정된다. 고르고 나서 거리 사유를 본다
     world.dispatch({ interactionId: 'select-target', targetEntityId: 'deposit-1' });
     expect(mine(world.observe())?.reason).toBe('out-of-range');

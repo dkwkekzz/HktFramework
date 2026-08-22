@@ -12,6 +12,7 @@ import type {
   EntityView,
   GameViewSnapshot,
   InteractionView,
+  EquipmentSlotView,
   InventoryItemView,
   ItemActionView,
 } from '../../protocol/gameview';
@@ -31,6 +32,7 @@ import {
   defenseShape,
   defenseMultiplier,
   effectiveDefense,
+  effectiveStat,
   isDowned,
   isGuardBroken,
   rawDamage,
@@ -45,6 +47,8 @@ import { inventoryEntries } from '../semantic/inventory';
 import { isStackable, itemDefinition } from '../semantic/item';
 import { evaluateItemUse } from '../rules/item-use';
 import { evaluateItemDiscard } from '../rules/item-discard';
+import { evaluateItemEquip, evaluateItemUnequip } from '../rules/item-equip';
+import { equipmentSlots } from '../semantic/equipment';
 import { ruleInventoryRoom } from '../rules/inventory-room';
 import {
   actorOfObserver,
@@ -164,23 +168,28 @@ export function projectObserverView(
         // 관계값만 온 존재와 형태만 온 존재가 있다 (04 SEAT NOTE).
         ...(seatOpen('combatStats')
           ? {
+              // C023 CHANGED — **여기 실리는 여덟 값이 유효 값이다.** 계약의 형태는
+              // 한 글자도 바뀌지 않았고, 값이 걸린 것을 반영한 값이 되었을 뿐이다.
+              // 기본값은 싣지 않는다 — 둘을 다 실으면 화면이 어느 쪽을 그릴지 고를 수
+              // 있게 되고 세계의 권위가 둘이 된다. 무엇이 얼마를 보탰는지는
+              // equipment[].contributions 가 답한다 (03 RATIONALE 8).
               combatStats: {
-                physicalAttack: actor.physicalAttack,
-                auraAttack: actor.auraAttack,
-                armor: actor.armor,
-                resistance: actor.resistance,
+                physicalAttack: effectiveStat(actor, 'physicalAttack'),
+                auraAttack: effectiveStat(actor, 'auraAttack'),
+                armor: effectiveStat(actor, 'armor'),
+                resistance: effectiveStat(actor, 'resistance'),
                 // C013 — 관통 둘. 상대의 관통도 실린다 — 저 존재가 내 방어를 얼마나
                 // 무력화하는지는 내가 얼마나 위험한지를 아는 일이다
                 // (INTENT-PENETRATION-OBSERVE-001).
-                armorPenetration: actor.armorPenetration,
-                resistancePenetration: actor.resistancePenetration,
-                armorMultiplier: defenseMultiplier(actor.armor),
-                resistanceMultiplier: defenseMultiplier(actor.resistance),
+                armorPenetration: effectiveStat(actor, 'armorPenetration'),
+                resistancePenetration: effectiveStat(actor, 'resistancePenetration'),
+                armorMultiplier: defenseMultiplier(effectiveStat(actor, 'armor')),
+                resistanceMultiplier: defenseMultiplier(effectiveStat(actor, 'resistance')),
                 // C015 — Critical 둘. 저 존재가 얼마나 자주 크게 터뜨리는 몸인지는
                 // 내가 얼마나 위험한지를 아는 일이다 (INTENT-CRITICAL-OBSERVE-001).
                 // 새 관문을 만들지 않는다 — C014 가 세운 그 하나의 관문 안쪽에 놓일 뿐이다.
-                criticalChance: actor.criticalChance,
-                criticalDamage: actor.criticalDamage,
+                criticalChance: effectiveStat(actor, 'criticalChance'),
+                criticalDamage: effectiveStat(actor, 'criticalDamage'),
               },
             }
           : {}),
@@ -192,10 +201,19 @@ export function projectObserverView(
         ...(seatOpen('versusObserver')
           ? {
               versusObserver: {
-                armor: effectiveDefense(actor.armor, self.armorPenetration),
-                resistance: effectiveDefense(actor.resistance, self.resistancePenetration),
+                armor: effectiveDefense(
+                  effectiveStat(actor, 'armor'),
+                  effectiveStat(self, 'armorPenetration'),
+                ),
+                resistance: effectiveDefense(
+                  effectiveStat(actor, 'resistance'),
+                  effectiveStat(self, 'resistancePenetration'),
+                ),
                 armorMultiplier: defenseMultiplier(
-                  effectiveDefense(actor.armor, self.armorPenetration),
+                  effectiveDefense(
+                    effectiveStat(actor, 'armor'),
+                    effectiveStat(self, 'armorPenetration'),
+                  ),
                 ),
                 resistanceMultiplier: defenseMultiplier(
                   effectiveDefense(actor.resistance, self.resistancePenetration),
@@ -312,7 +330,7 @@ export function projectObserverView(
       damageType: basic.damageType, // C012 — 각 스킬이 어떤 방식인지 세계가 밝힌다
       swingBegin: basic.swingBegin, // C019 — 고르기 전에 아는 선딜
       swingEnd: basic.swingEnd,
-      swingArc: basic.swingArc, // C023 — 고르기 전에 아는 모양
+      swingArc: basic.swingArc, // C024 — 고르기 전에 아는 모양
       swingReach: basic.swingReach,
       swingTipRadius: basic.swingTipRadius,
     },
@@ -334,7 +352,7 @@ export function projectObserverView(
       damageType: heavy.damageType, // C012
       swingBegin: heavy.swingBegin, // C019
       swingEnd: heavy.swingEnd,
-      swingArc: heavy.swingArc, // C023 — 고르기 전에 아는 모양
+      swingArc: heavy.swingArc, // C024 — 고르기 전에 아는 모양
       swingReach: heavy.swingReach,
       swingTipRadius: heavy.swingTipRadius,
     },
@@ -360,7 +378,7 @@ export function projectObserverView(
       damageType: aura.damageType, // C012
       swingBegin: aura.swingBegin, // C019
       swingEnd: aura.swingEnd,
-      swingArc: aura.swingArc, // C023 — 고르기 전에 아는 모양
+      swingArc: aura.swingArc, // C024 — 고르기 전에 아는 모양
       swingReach: aura.swingReach,
       swingTipRadius: aura.swingTipRadius,
     },
@@ -469,6 +487,10 @@ export function projectObserverView(
       used: ruleInventoryRoom(self.inventory),
       capacity: INVENTORY_CAPACITY,
     },
+    // C023 — 적용 자리. 소지품 목록과 **나란한 두 번째 목록**이며 합치지 않는다 —
+    // 둘이 답하는 질문이 다르다 ("무엇을 지녔는가" 와 "몸이 지금 무엇으로 되어 있는가").
+    // 비어 있는 자리도 전부 실린다.
+    equipment: projectEquipment(state, self, observerId),
     hud: [
       // 내 몸의 것만 실린다. 다른 관찰자의 소지품과 가용성은 실리지 않는다
       // (INTENT-PER-OBSERVER-PROJECTION-001).
@@ -498,31 +520,54 @@ export function projectObserverView(
       { id: 'self.guard.broken', kind: 'flag', value: isGuardBroken(self, state.time) },
       // hud.self.combatStats (C010) — 내가 얼마나 세게 때리고 얼마나 덜 맞는가.
       // 값을 바꾼 직후 그 변화가 여기서 즉시 확인되어야 한다.
-      { id: 'self.combat.physicalAttack', kind: 'counter', value: self.physicalAttack },
-      { id: 'self.combat.auraAttack', kind: 'counter', value: self.auraAttack },
-      { id: 'self.combat.armor', kind: 'counter', value: self.armor },
-      { id: 'self.combat.resistance', kind: 'counter', value: self.resistance },
+      // C023 CHANGED — **유효 값이다.** 걸고 푸는 즉시 이 자리에서 확인되며,
+      // 그것이 이 Cycle 의 플레이가 눈으로 닫히는 곳이다.
+      {
+        id: 'self.combat.physicalAttack',
+        kind: 'counter',
+        value: effectiveStat(self, 'physicalAttack'),
+      },
+      { id: 'self.combat.auraAttack', kind: 'counter', value: effectiveStat(self, 'auraAttack') },
+      { id: 'self.combat.armor', kind: 'counter', value: effectiveStat(self, 'armor') },
+      { id: 'self.combat.resistance', kind: 'counter', value: effectiveStat(self, 'resistance') },
       // C013 — 내 관통. 0 인 쪽도 싣는다. 없다는 것을 아는 것이
       // "그쪽으로는 벽을 깎을 수 없다" 를 아는 것이다.
-      { id: 'self.combat.armorPenetration', kind: 'counter', value: self.armorPenetration },
+      {
+        id: 'self.combat.armorPenetration',
+        kind: 'counter',
+        value: effectiveStat(self, 'armorPenetration'),
+      },
       {
         id: 'self.combat.resistancePenetration',
         kind: 'counter',
-        value: self.resistancePenetration,
+        value: effectiveStat(self, 'resistancePenetration'),
       },
-      { id: 'self.combat.armorMultiplier', kind: 'counter', value: defenseMultiplier(self.armor) },
+      {
+        id: 'self.combat.armorMultiplier',
+        kind: 'counter',
+        value: defenseMultiplier(effectiveStat(self, 'armor')),
+      },
       {
         id: 'self.combat.resistanceMultiplier',
         kind: 'counter',
-        value: defenseMultiplier(self.resistance),
+        value: defenseMultiplier(effectiveStat(self, 'resistance')),
       },
       // 내 두 방어 중 어느 쪽이 무른지 (C012) — 상대도 같은 규칙으로 나를 고른다.
       { id: 'self.combat.defenseShape', kind: 'label', value: defenseShape(self) },
       // C015 — 내 Critical 둘. 0 인 쪽도 싣는다 — 없다는 것을 아는 것이
       // "나는 터뜨릴 수 없다" 를 아는 것이다 (C013 이 관통 0 을 싣기로 한 판단 그대로).
       // 값을 바꾼 직후 이 자리에서 즉시 확인되어야 "빈도와 크기가 달라진다" 가 읽힌다.
-      { id: 'self.combat.criticalChance', kind: 'counter', value: self.criticalChance },
-      { id: 'self.combat.criticalDamage', kind: 'counter', value: self.criticalDamage },
+      // C023 — 유효 값이다. 걸고 푸는 즉시 이 자리에서 확인된다.
+      {
+        id: 'self.combat.criticalChance',
+        kind: 'counter',
+        value: effectiveStat(self, 'criticalChance'),
+      },
+      {
+        id: 'self.combat.criticalDamage',
+        kind: 'counter',
+        value: effectiveStat(self, 'criticalDamage'),
+      },
       // C016 — 내 통찰. 0 도 싣는다 — 없다는 것을 아는 것이 "나는 다가가야만 안다" 를
       // 아는 것이다 (C013 이 관통 0 을, C015 가 가능성 0 을 실은 판단 그대로).
       // 값을 바꾼 직후 이 자리에서 즉시 확인되어야 "올렸더니 가려진 목록이 짧아졌다" 가
@@ -626,6 +671,17 @@ function projectInventory(
       });
     }
 
+    // C023 — 걸기는 **지닌 모든 항목**에 하나씩 붙는다. 자리를 고르는 자리가 없으므로
+    // 항목당 하나다. 걸릴 수 없는 물건에는 not-equippable 이 실린다 — 그것도
+    // 관찰의 내용이다 ("이건 거는 물건이 아니다" 를 화면이 짐작하지 않는다).
+    const equipFailure = evaluateItemEquip(self, kind);
+    actions.push({
+      id: 'equip-item',
+      role: 'equip-item',
+      available: equipFailure === null,
+      ...(equipFailure ? { unavailableReason: equipFailure } : {}),
+    });
+
     // C022 — 덜어내기는 **지닌 모든 항목**에 붙는다. 쓸 수 있는 물건만 놓을 수 있는
     // 것이 아니기 때문이다. 되는지와 왜 안 되는지는 실제 실행이 쓰는 판정에서 나온다.
     const discardFailure = evaluateItemDiscard(state, self, kind);
@@ -643,6 +699,70 @@ function projectInventory(
       ...(definition.origin ? { origin: definition.origin } : {}),
       stackable: isStackable(definition),
       actions,
+    };
+  });
+}
+
+/**
+ * 적용 자리 (C023 ADDED) — INTENT-APPLIED-IS-OBSERVED-001.
+ *
+ * **비어 있는 자리도 전부 나온다.** 비었다는 것이 관찰의 내용이며, 자리가 몇인지는
+ * 걸 수 있는 물건이 하나도 없을 때도 보여야 한다.
+ *
+ * 되는지와 왜 안 되는지는 실제 실행이 쓰는 판정에서 나온다 (evaluateItemUnequip) —
+ * 화면에 불가로 보이는 것을 억지로 요청해도 같은 사유로 거절된다.
+ *
+ * 기여는 **걸린 것에만** 실린다. 가방의 물건이 무엇을 줄지 보여 주는 것은 미리보기이며
+ * 이 Cycle 의 일이 아니다 (01-cycle.md EXCLUDED).
+ *
+ * 자리가 늘어도 새 장비가 생겨도 이 함수는 바뀌지 않는다 — 값이나 정의가 늘 뿐이다.
+ */
+function projectEquipment(
+  state: WorldState,
+  self: ActorState,
+  observerId: string,
+): EquipmentSlotView[] {
+  return equipmentSlots(self.equipment).map(({ slotId, kind }) => {
+    const definition = kind ? itemDefinition(kind) : undefined;
+    const actions: ItemActionView[] = [];
+
+    // **걸린 것도 쓸 수 있다.** 걸면 그 물건이 가방을 떠나므로, 이 자리가 없으면
+    // C020 이 세운 입구 하나("곡괭이를 쓰면 채집이 시작된다")가 조용히 사라진다.
+    // 판정은 소지품 항목이 쓰는 것과 **같은 자리**에서 나온다 (evaluateItemUse).
+    if (kind && definition?.use) {
+      const useFailure = evaluateItemUse(state, self, observerId, kind);
+      actions.push({
+        id: 'use-item',
+        role: 'use-item',
+        available: useFailure === null,
+        ...(useFailure ? { unavailableReason: useFailure } : {}),
+      });
+    }
+
+    const unequipFailure = evaluateItemUnequip(self, slotId);
+    actions.push({
+      id: 'unequip-item',
+      role: 'unequip-item',
+      available: unequipFailure === null,
+      ...(unequipFailure ? { unavailableReason: unequipFailure } : {}),
+    });
+
+    return {
+      slotId,
+      ...(kind && definition
+        ? {
+            item: {
+              kind,
+              category: definition.category,
+              ...(definition.origin ? { origin: definition.origin } : {}),
+            },
+          }
+        : {}),
+      grants: [...(definition?.uses ?? [])],
+      contributions: Object.entries(definition?.equip?.contributions ?? {}).map(
+        ([name, value]) => ({ name, value: value ?? 0 }),
+      ),
+      actions: actions,
     };
   });
 }

@@ -4,7 +4,10 @@
 
 const CODE_TEXT: Record<string, string> = {
   // 불가 사유 (C001)
-  'no-mining-tool': '곡괭이가 없다',
+  // C023 CHANGED — **코드도 자리도 그대로다. 뜻이 옮겨갔다.**
+  // 이전에는 "지니지 않았다" 였고 이제는 "걸지 않았다" 이다. 가방에 곡괭이를 지닌 채로
+  // 이 문구를 보는 것이 그 Cycle 의 첫 관찰이다 (04 interactions.mine).
+  'no-mining-tool': '채집 도구를 걸지 않았다',
   'out-of-range': '너무 멀다 — 가까이 이동하자',
   'deposit-depleted': '광맥이 고갈되었다',
   // 불가 사유 (C002)
@@ -34,6 +37,18 @@ const CODE_TEXT: Record<string, string> = {
   // 표에 없는 종류는 코드 그대로 보인다 — 세계가 새 아이템을 정의해도 화면이 멈추지 않는다.
   'item.stone': '돌',
   'item.pickaxe': '곡괭이',
+  // C023 — 걸어서 몸에 생긴 용도와 그것이 보태는 능력의 문구.
+  // **표에 없으면 코드 그대로 보인다** — 세계가 새 용도나 새 능력을 보내도 화면은 멈추지 않고,
+  // 그때 이 표에 한 줄이 는다 (DC-ITEM-KIND-IS-DATA-NOT-BRANCH 의 화면 쪽 자세).
+  'use.mine': '채집',
+  'stat.physicalAttack': '물리 공격',
+  'stat.auraAttack': '오라 공격',
+  'stat.armor': '물리 방어',
+  'stat.resistance': '오라 방어',
+  'stat.armorPenetration': '물리 관통',
+  'stat.resistancePenetration': '오라 관통',
+  'stat.criticalChance': '치명 가능성',
+  'stat.criticalDamage': '치명 배율',
   'use-item': '쓰는 중',
   // 쓸 수 없는 사유 (C020)
   'unknown-item': '세계가 모르는 물건이다',
@@ -42,6 +57,14 @@ const CODE_TEXT: Record<string, string> = {
   // C022 — 자리
   'no-room': '자리가 없다 — 무엇을 덜어내야 한다',
   'no-way-back': '이걸 놓으면 되돌릴 수 없다',
+  // ── C023 적용 ──────────────────────────────────────────────────────
+  // `not-equippable` 은 **자리 탓이 아니다** — 그 물건이 걸리는 것이 아니라는 뜻이며,
+  // 자리가 여섯이든 하나든 같은 답이다. 문구가 자리를 말하면 사람이 "다른 자리를
+  // 보라" 로 읽는다 (03-world-semantic.md JUDGEMENT ②).
+  'not-equippable': '걸 수 있는 물건이 아니다',
+  'no-empty-slot': '걸 자리가 남지 않았다 — 무엇을 풀어야 한다',
+  'slot-empty': '그 자리에 걸린 것이 없다',
+  'unknown-slot': '그런 자리가 없다',
   'target-gone': '대상이 사라졌다',
   'target-downed': '이미 쓰러졌다',
   // 기술의 구간과 끊김 (C019) — 선딜만 화면에 뜬다 (phase-presentation 의 결정 2)
@@ -159,6 +182,10 @@ const SHORT_TEXT: Record<string, string> = {
   // 자리 (C022)
   'no-room': '자리 없음',
   'no-way-back': '되돌릴 수 없음',
+  'not-equippable': '걸 수 없음',
+  'no-empty-slot': '자리 없음',
+  'slot-empty': '빈 자리',
+  'unknown-slot': '없는 자리',
   // 대상 (C017)
   'no-target-selected': '대상 없음',
   'target-kind-mismatch': '이 대상엔 안 됨',
@@ -167,7 +194,7 @@ const SHORT_TEXT: Record<string, string> = {
   'out-of-range': '너무 멀다',
   'action-busy': '행동 중',
   'deposit-depleted': '고갈됨',
-  'no-mining-tool': '곡괭이 없음',
+  'no-mining-tool': '도구 안 걸림',
   // 아이템 (C020)
   'not-enough': '모자람',
   'not-usable': '쓸 수 없음',

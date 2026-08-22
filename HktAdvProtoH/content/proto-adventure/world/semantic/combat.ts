@@ -7,7 +7,8 @@
 
 import { actionProgress, type ActionKind } from './action';
 import type { ActorState } from './actor';
-import type { Force } from './item';
+import { equipmentContributions } from './equipment';
+import type { ContributableStat, Force } from './item';
 import type { WorldPosition } from './position';
 
 // Actor.MoveMode — 걷는가 달리는가 (INTENT-RUN-001)
@@ -55,7 +56,7 @@ export interface SkillDefinition {
   // 이제 기술이 지닌다 — 크게 거는 기술일수록 선딜이 길다 (INTENT-SKILL-PHASE-001).
   swingBegin: number; // 선딜이 끝나는 지점 — 여기부터 효과가 성립한다
   swingEnd: number; // 판정이 끝나는 지점 — 여기부터 끝까지가 후딜이다
-  // C023 ADDED — 이 기술이 닿는 **모양** (INTENT-SKILL-SHAPE-001).
+  // C024 ADDED — 이 기술이 닿는 **모양** (INTENT-SKILL-SHAPE-001).
   // 지금까지 모든 기술이 같은 전역 상수를 썼다 (collision.ts SWING_ARC ·
   // SWING_BLADE_RADIUS) 하고, 닿는 길이는 그 몸의 교전 거리에서 왔다.
   // 이제 셋 다 기술이 지닌다 — C019 가 시간 축에 한 일을 공간 축에 한다.
@@ -69,7 +70,7 @@ export interface SkillDefinition {
 export const DEFAULT_SWING_BEGIN = 0.25;
 export const DEFAULT_SWING_END = 0.75;
 
-// C023 ADDED — 모양의 기본값. 기본 기술과 오라 기술은 지금까지 세계가 쓰던 값 그대로다
+// C024 ADDED — 모양의 기본값. 기본 기술과 오라 기술은 지금까지 세계가 쓰던 값 그대로다
 // (collision.ts 의 SWING_ARC · SWING_BLADE_RADIUS 가 이 값이었고, 닿는 길이는
 // attackRange(2.0) − BladeRadius(0.7) = 1.3 이었다). **한 톨도 바뀌지 않는다.**
 export const DEFAULT_SWING_ARC = (150 * Math.PI) / 180;
@@ -94,7 +95,7 @@ export const SKILL_DEFINITIONS: Readonly<Record<SkillKind, SkillDefinition>> = {
     damageType: 'physical',
     swingBegin: DEFAULT_SWING_BEGIN, // C019 — 기본 기술은 한 톨도 바뀌지 않는다
     swingEnd: DEFAULT_SWING_END,
-    swingArc: DEFAULT_SWING_ARC, // C023 — 모양도 마찬가지다 (03 BALANCE ①)
+    swingArc: DEFAULT_SWING_ARC, // C024 — 모양도 마찬가지다 (03 BALANCE ①)
     swingReach: DEFAULT_SWING_REACH,
     swingTipRadius: DEFAULT_SWING_TIP_RADIUS,
   },
@@ -112,7 +113,7 @@ export const SKILL_DEFINITIONS: Readonly<Record<SkillKind, SkillDefinition>> = {
     // 후딜 0.135초는 남긴다 — 나간 뒤에도 잠깐 묶여야 큰 기술이 무겁다 (03 BALANCE ①).
     swingBegin: 0.5,
     swingEnd: 0.85,
-    // C023 — 큰 기술만 모양이 움직인다. 좁고 멀리 — 정면 먼 것에 깊이 찌른다.
+    // C024 — 큰 기술만 모양이 움직인다. 좁고 멀리 — 정면 먼 것에 깊이 찌른다.
     // 선딜 0.45초를 치르고 얻는 것이 피해뿐이었다 (C019). 이제 치른 값에 대응하는
     // 성질이 생긴다: 기본 기술로는 닿지 않는 거리에 닿는 대신 옆을 훑지 못한다.
     // 값의 근거와 판별 자리는 03-world-semantic.md 의 BALANCE ②③④ 가 소유한다.
@@ -132,7 +133,7 @@ export const SKILL_DEFINITIONS: Readonly<Record<SkillKind, SkillDefinition>> = {
     damageType: 'aura',
     swingBegin: DEFAULT_SWING_BEGIN, // 기본 기술과 모든 값이 같다 (C012 의 뜻 그대로)
     swingEnd: DEFAULT_SWING_END,
-    // C023 — 모양도 같다. 모양은 새로 생기는 값이므로 C012 의 뜻이 그대로 적용된다 —
+    // C024 — 모양도 같다. 모양은 새로 생기는 값이므로 C012 의 뜻이 그대로 적용된다 —
     // 이 층이 만드는 차이는 세기도 모양도 아니라 **방식** 하나다.
     swingArc: DEFAULT_SWING_ARC,
     swingReach: DEFAULT_SWING_REACH,
@@ -172,7 +173,7 @@ export function skillDefinition(kind: SkillKind): SkillDefinition {
   return SKILL_DEFINITIONS[kind];
 }
 
-/** 이 기술이 닿는 모양 (C023 ADDED) */
+/** 이 기술이 닿는 모양 (C024 ADDED) */
 export interface SkillShape {
   arc: number; // 훑는 전체 각 (rad)
   reach: number; // 몸 중심에서 끝점 중심까지
@@ -180,7 +181,7 @@ export interface SkillShape {
 }
 
 // RULE-SKILL-SHAPE-001 — Implements INTENT-SKILL-SHAPE-001 ·
-//                                   INTENT-SHAPE-IS-A-VALUE-NOT-A-BRANCH-001 (C023 ADDED)
+//                                   INTENT-SHAPE-IS-A-VALUE-NOT-A-BRANCH-001 (C024 ADDED)
 // Input          SkillKind
 // Preconditions  없음 — 모든 기술에 답이 있다
 // Transition     없음 — 세계 상태를 바꾸지 않는다 (파생 판정)
@@ -196,7 +197,7 @@ export function skillShape(kind: SkillKind): SkillShape {
   return { arc: skill.swingArc, reach: skill.swingReach, tipRadius: skill.swingTipRadius };
 }
 
-// RULE-ENGAGEMENT-REACHES-001 — Implements INTENT-REACH-BELONGS-TO-THE-SKILL-001 (C023 ADDED)
+// RULE-ENGAGEMENT-REACHES-001 — Implements INTENT-REACH-BELONGS-TO-THE-SKILL-001 (C024 ADDED)
 // Input          Actor.EngagementRange, 모든 SkillDefinition
 // Preconditions  없음 — 세계가 서는 조건이다
 // Transition     없음 — 세계 상태를 바꾸지 않는다 (정합 조건)
@@ -346,26 +347,58 @@ export function effectiveDefense(defenseValue: number, penetrationValue: number)
 // 임계값을 두지 않는다 — 두 값의 대소만 본다. 임의 상수가 판정에 끼어들지 않는다.
 export type DefenseShape = 'physical-tougher' | 'aura-tougher' | 'even';
 
+// C023 CHANGED — 유효 값끼리 견준다. 걸린 것이 한쪽 방어만 올리면 무른 쪽이 바뀐다.
 export function defenseShape(actor: ActorState): DefenseShape {
-  if (actor.armor > actor.resistance) return 'physical-tougher';
-  if (actor.resistance > actor.armor) return 'aura-tougher';
+  const armor = effectiveStat(actor, 'armor');
+  const resistance = effectiveStat(actor, 'resistance');
+  if (armor > resistance) return 'physical-tougher';
+  if (resistance > armor) return 'aura-tougher';
   return 'even';
 }
 
-// 이 방식이 이 Actor 에게서 고르는 공격 능력의 값 (C012 ADDED).
+/**
+ * RULE-EFFECTIVE-STATS-001 — Implements
+ * INTENT-EFFECTIVE-IS-RECOMPUTED-NOT-ACCUMULATED-001 ·
+ * INTENT-EVERY-JUDGEMENT-READS-THE-EFFECTIVE-001 (C023 ADDED)
+ *
+ * Input          Actor, 능력 이름
+ * Preconditions  없음 — 언제나 답할 수 있다
+ * Transition     없음 (읽기 판정)
+ * Result         Effective = Base + Σ 걸린 것들의 기여
+ *
+ * **저장하지 않는다.** 저장하면 Equipment 와 EffectiveStats 라는 두 개의 진실이 생기고
+ * 둘을 맞추는 책임이 모든 변경 지점으로 흩어진다 — C022 가 UsedSlots 에 대해 내린 것과
+ * 같은 판정이다 (03-world-semantic.md RATIONALE 1). 세는 비용은 자리 수에 비례하고
+ * 자리 수는 고정이므로 상수다.
+ *
+ * **가감이 아니라 재계산이다.** 걸 때 더하고 풀 때 빼는 형태가 아니라 기본값에서 매번
+ * 다시 센다. 그래서 "백 번 걸고 백 번 풀어도 값이 표류하지 않는다" 가 검사가 아니라
+ * **구조**로 성립하고, 무엇이 어떤 순서로 걸렸는지가 결과를 바꾸지 않는다.
+ *
+ * 아무것도 걸지 않은 몸에서는 기본값과 같다 — 그러므로 이 함수가 들어오는 것만으로는
+ * 지금까지의 어떤 결과도 달라지지 않는다 (회귀).
+ *
+ * 이 파일에 있는 이유: semantic 은 rules 를 import 하지 않으며(계층), 아래 세 함수와
+ * rawDamage 가 semantic 안에서 이 값을 읽어야 한다. 순수 파생이므로 semantic 에 둔다.
+ */
+export function effectiveStat(actor: ActorState, stat: ContributableStat): number {
+  return actor[stat] + (equipmentContributions(actor.equipment)[stat] ?? 0);
+}
+
+// 이 방식이 이 Actor 에게서 고르는 공격 능력의 값 (C012 ADDED / C023 CHANGED — 유효 값).
 export function offenseStatValue(actor: ActorState, type: DamageType): number {
-  return type === 'physical' ? actor.physicalAttack : actor.auraAttack;
+  return effectiveStat(actor, type === 'physical' ? 'physicalAttack' : 'auraAttack');
 }
 
-// 이 방식이 이 Actor 에게서 고르는 방어 능력의 값 (C012 ADDED).
+// 이 방식이 이 Actor 에게서 고르는 방어 능력의 값 (C012 ADDED / C023 CHANGED — 유효 값).
 export function defenseStatValue(actor: ActorState, type: DamageType): number {
-  return type === 'physical' ? actor.armor : actor.resistance;
+  return effectiveStat(actor, type === 'physical' ? 'armor' : 'resistance');
 }
 
-// 이 방식이 이 Actor 에게서 고르는 관통 능력의 값 (C013 ADDED).
+// 이 방식이 이 Actor 에게서 고르는 관통 능력의 값 (C013 ADDED / C023 CHANGED — 유효 값).
 // 고르지 않은 관통은 그 타격에서 한 번도 읽히지 않는다 (INTENT-PENETRATION-MATCH-001).
 export function penetrationStatValue(actor: ActorState, type: DamageType): number {
-  return type === 'physical' ? actor.armorPenetration : actor.resistancePenetration;
+  return effectiveStat(actor, type === 'physical' ? 'armorPenetration' : 'resistancePenetration');
 }
 
 // 지금 이 Actor 가 이 스킬을 쓰면 나오는 공격 피해 (파생, C010 ADDED / C012 CHANGED).

@@ -130,7 +130,7 @@ describe('interactions — 고르기가 존재마다, 살펴봄은 고른 것에
   it('살펴봄에 키가 생겼다 — 대상을 고르는 수단이 세계에 있으므로 (C017 CHANGED)', () => {
     // C014 가 키를 두지 않은 이유("키에는 대상을 고를 수단이 없다")가 사라졌다.
     // 무엇을 살펴볼지는 여전히 세계가 지닌다 — View 가 선택 규칙을 발명하지 않는다.
-    // C023 CHANGED — KeyT 는 엔진의 시점 조작(내려다보기)이라 눌려도 삼켜졌다.
+    // C024 CHANGED — KeyT 는 엔진의 시점 조작(내려다보기)이라 눌려도 삼켜졌다.
     // 키가 있다는 것과 그 키가 닿는다는 것은 다르다 — Y 로 옮겼다.
     expect(interactionPresentation('observe-character').key).toBe('KeyY');
     expect(observeOne()?.targetEntityId).toBeUndefined();

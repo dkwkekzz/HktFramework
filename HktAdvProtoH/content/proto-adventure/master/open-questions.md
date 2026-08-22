@@ -16,9 +16,11 @@ Human 이 답한다    DECISION 줄
 [frontier.md](frontier.md) 의 `SELECTED` 는 FR-WHAT-YOU-CARRY-TAKES-ROOM
 (자리가 유한해진다)이고 C022 가 그것을 돈다 — 여덟 Stage 의 실측은 끝났고
 Human Play 확인만 남았다. 아래 다섯 중 어느 것도 그 Cycle 을 막지 않는다.
-Q35 는 **스킬 형태(SF)** 가 남긴 것으로 그 다음 전투 Cycle 의 크기를 정하는 질문,
+Q35 는 **스킬(SK)** 이 남긴 것으로 그 다음 전투 Cycle 의 크기를 정하는 질문,
 Q36 은 이미 세계에 있는 물건의 유래 문제이며, Q37 · Q38 은 C022 가 닫히면서
-**다음 아이템 Cycle 이 마주할** 것들이다.
+**다음 아이템 Cycle 이 마주할** 것들이다. Q45 는 SK 최종안 주입이 세운 Constraint
+셋의 승인과 기존 셋의 재정합 확인이다 — 승인 전까지 그 셋은 Frontier 의 Constraint
+평가에서 구속력이 없다.
 
 번호가 띄엄띄엄한 것은 앞선 질문들이 이미 닫혀 HISTORY 로 갔기 때문이다 —
 번호는 재사용하지 않는다.
@@ -91,17 +93,28 @@ Q36 은 이미 세계에 있는 물건의 유래 문제이며, Q37 · Q38 은 C0
                   (a)(b) 중 무엇을 고르든 이 배선이 먼저 필요하다 (OPTIONS 작업).
                   **SF 도 이것을 공급하지 않는다** — 아래 관련 참조.
 
-    관련           Human 이 이 질문에 답할 문서를 넣었다 —
-                  `design/Design-Combat-SkillForm-R0.md`(SF, 주입 완료).
+    관련           Human 이 이 질문에 답할 문서를 넣었고, 2026-08-21 그것을 최종안으로
+                  확장·분할했다 — `design/Skill/`(SK, 주입 완료. 구판 R0 은 삭제).
                   그 문서가 긋는 선은 (b) 의 절충 쪽이다: **개별 스킬은 갈래**이고
-                  (파이어볼·메테오·장판은 Content 이며 시스템 타입이 아니다 — §28.1),
-                  **전달 형태만 층**이다 (새 형태는 세계에 다른 생명주기·판정이 필요할
-                  때만 서고, 한 Cycle 에 하나씩 — §29 · §30). 그 사다리는
-                  `graph/systems.yaml` 의 MS-SKILL-FORM 으로 등록되었고 지금 차 있는
-                  칸은 접촉(CONTACT) 하나다. C020 의 던지기가 SF §7 의 대상 직접
-                  전달과 같은 모양이지만, SF 가 그 노드를 지목하지 않았으므로
-                  DIRECT-TARGET 칸은 비워 두었다.
-                  그 원칙 셋은 Human 이 승인해 Active 다 (HISTORY Q41).
+                  (파이어볼·메테오·장판은 Content 이며 시스템 타입이 아니다 — SK §7),
+                  **실행 형태만 층**이다 (새 형태는 세계에 다른 생명주기·판정이 필요할
+                  때만 선다 — SK §6). 그 사다리는 `graph/systems.yaml` 의
+                  MS-SKILL-FORM 으로 등록되었고 지금 차 있는 칸은 접촉(CONTACT) 하나다.
+                  C020 의 던지기가 SK §8 의 대상 직접 실행과 같은 모양이지만, SK 가 그
+                  노드를 지목하지 않았으므로 DIRECT 칸은 비워 두었다.
+
+                  최종안이 이 질문에 더한 것은 **층의 수가 줄었다**는 사실이다.
+                  자리는 열넷에서 여섯이 되었다 — 투사체·장판·함정이 서로 다른 형태가
+                  아니라 같은 공간 존재의 값 차이로 되돌아갔기 때문이다 (SK §5).
+                  따라서 (b) 를 고르더라도 열어야 할 층의 총량은 전보다 작다.
+                  여전히 이 질문이 열려 있는 이유는 그대로다 — 어느 Possibility 가
+                  그 자리를 요구하는지를 SK 도 공급하지 않는다 (위 7 조건 2).
+
+                  원칙 셋(IS-COMBINATION-NOT-NAME · DELIVERY-IS-NOT-EFFECT ·
+                  COMBINE-BEFORE-NEW-FORM)은 Human 이 승인해 Active 이며(HISTORY Q41),
+                  근거만 SK 로 옮겨 REVISED 다. 최종안이 새로 명시한 셋도 승인되어
+                  Active 다 (HISTORY Q45) — 그중 ANCHOR-IS-NOT-RESOLUTION 은
+                  MC-COMBAT-STRIKE 에서 SATISFIED 다.
 
     DECISION      PENDING
 
