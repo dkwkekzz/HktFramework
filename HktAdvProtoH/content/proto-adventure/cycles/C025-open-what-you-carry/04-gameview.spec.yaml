@@ -1,0 +1,442 @@
+# CYCLE C025 — GameView Specification
+#
+# **GAMEVIEW CHANGE: NONE.**
+#
+# 계약이 한 글자도 열리지 않는다. 이 Cycle 이 만드는 것은 관찰 표면이고, 그 표면이
+# 묻는 것은 C020 · C022 · C023 · C024 · C009 가 이미 전부 실어 보내고 있다
+# (03-world-semantic.md CLOSURE — 여덟 문장 전부 코드에 선다).
+#
+# 그러면 이 문서는 무엇을 하는가. 두 가지다.
+#
+#   ① **무엇을 쓰는지 고정한다** — 넓은 표면이 생기면 계약의 어느 칸을 어디에 쓸지가
+#      흩어지기 쉽다. 이 문서가 그 대응을 못 박아 Stage 7 이 고를 것을 없앤다
+#   ② **무엇을 만들어 내지 않는지 못 박는다** — 이 Cycle 의 진짜 위험은 계약이 모자란
+#      것이 아니라 표면이 넓어져 화면이 판정을 시작하는 것이다
+#      (DC-WORLD-OWNS-THE-SURFACE-LIST)
+#
+# 기획서 §9 가 요구한 계약과 지금 계약의 대조는 맨 아래 `design-contract-audit` 에 있다.
+# **GAP 은 없다.** 기획서가 GAP 의 방아쇠로 지목한 셋 중 둘은 이미 있고, 하나는
+# 세계에 물을 것이 없는 것이어서 표면 쪽이 줄어든다.
+id: VIEW-OPEN-WHAT-YOU-CARRY-001
+observer: player
+
+change: NONE
+
+delta:
+  reused:
+    - scene.mining-field
+    - entities.*                                # 이 Cycle 은 장면의 몸을 건드리지 않는다
+    - inventory                                 # C020 — 목록 그대로
+    - inventory[].kind                          #        표시 식별자이자 요청이 싣는 것
+    - inventory[].count
+    - inventory[].category
+    - inventory[].origin
+    - inventory[].stackable
+    - inventory[].actions[]                     # C020 · C022 · C023 · C024 — 넷 다
+    - inventoryRoom                             # C022 — used · capacity
+    - requestOutcome                            # C009 — accepted · rule · reason? · mark?
+    - equipment                                 # **읽지 않는다** (아래 out-of-scope)
+    - attributes.combatStats                    # **읽지 않는다** (아래 out-of-scope)
+    - hud.*                                     # 지금의 가로 띠와 self 패널 — 남는다
+    - observer / session / delivery / identity / telemetry
+  added: []
+  changed: []
+  removed: []
+
+scene: mining-field
+
+# ─────────────────────────────────────────────────────────────────
+# workspace — 소지품 작업 공간
+#
+#   **세계에 이런 것은 없다.** 여는 것도 닫는 것도 고르는 것도 겪는 사람 쪽의 일이며,
+#   세계는 그것을 알지 못하고 알 필요도 없다. 여기 적는 이유는 계약의 항목이어서가
+#   아니라, **이 상태들이 세계 상태가 아니라는 것 자체가 계약**이기 때문이다.
+#
+#   C009 의 commandSurface 가 같은 성질을 가진다 — 열려 있는지도, 지금 무엇을 쓰고
+#   있는지도 관찰자가 쥔다. 이 표면도 같은 자리에 선다.
+# ─────────────────────────────────────────────────────────────────
+workspace:
+  owner: observer                # **세계가 아니다.** 세계는 이 표면의 존재를 모른다
+
+  open:
+    owner: observer
+    meaning: >
+      열려 있는가. 여는 것도 닫는 것도 세계로 아무것도 보내지 않으며 세계를 한 톨도
+      바꾸지 않는다. 그러므로 열고 닫기를 아무리 반복해도 세계에 흔적이 남지 않는다.
+
+      **열려 있는 동안에도 세계는 계속 흐른다.** 이 표면은 세계를 멈추지 않는다 —
+      멈추는 세계가 아니기 때문이다 (C003 · C004). 열어 둔 채로 관찰이 갱신되면
+      표면의 내용도 함께 갱신된다.
+
+  selection:
+    owner: observer
+    meaning: >
+      지금 고른 항목 하나. **고르는 것은 요청이 아니다** — 세계로 아무것도 나가지 않는다.
+
+      고른 것이 다음 관찰에서 사라졌으면(다 써서, 덜어내서, 걸어서) 고르기를 **지운다.**
+      다른 것을 대신 고르지 않는다 — 그것은 겪는 사람이 고르지 않은 것을 고른 것으로
+      만드는 일이다.
+    identity: inventory[].kind
+    identity_note: >
+      **무엇으로 "같은 항목" 을 짚는가 = kind.** 계약에 항목마다의 id 가 없는 것은
+      결손이 아니라 종류당 항목이 하나이기 때문이다 (03 WORLD STATE — Items 는
+      종류에서 수량으로 가는 Map 이다). 그러므로 kind 가 유일하고 안정적이다.
+
+      같은 종류가 두 항목으로 나뉘어 오는 세계가 되면(나누기 — `frontier.md` 후보 2)
+      그때 항목마다의 id 가 계약에 든다. 지금 미리 만들지 않는다.
+
+  pending:
+    owner: observer
+    source: requestOutcome.mark                 # C009 — 어느 요청의 대답인지 짚는 수단
+    meaning: >
+      보낸 요청 중 아직 대답이 오지 않은 것. **표식을 붙여 보내고 대답을 표식으로 짚는다**
+      (INTENT-REPLY-CORRESPONDENCE-001).
+
+      이 자리가 있어야 하는 이유는 하나다 — 세계가 답하기 전까지 **아무것도 참이 아니기**
+      때문이다 (INTENT-OBSERVATION-IS-THE-ONLY-TRUTH-001). 그동안 화면은 기다린다는
+      사실만 보이고 결과를 앞당겨 그리지 않는다.
+
+      같은 요청을 대답 전에 다시 보내지 않는다. 그것은 판정이 아니라 조작의 예의다 —
+      두 번 보내면 세계는 두 번 판정하고, 그것이 겪는 사람의 뜻이었던 적이 없다.
+
+# ─────────────────────────────────────────────────────────────────
+# inventory — 지닌 것 (C020, 그대로)
+#
+#   계약이 열리지 않는다. 이 절이 하는 일은 **어느 칸이 표면의 어디로 가는가**를
+#   고정하는 것뿐이다.
+# ─────────────────────────────────────────────────────────────────
+inventory:
+  reused: true
+  source: Actor.Inventory 의 투영 (projectInventory)
+
+  cardinality: >
+    **지닌 종류마다 항목 하나.** 지니지 않은 종류는 항목이 없다.
+    그러므로 항목의 수는 자리의 수(used)와 **같지 않다** — 겹치는 것이 있기 때문이다.
+    화면이 그 둘을 같은 것으로 다루면 자리의 셈이 어긋난다.
+
+  order:
+    reused: true
+    meaning: >
+      **세계가 보낸 순서 그대로 쓴다.** 계약에 displayOrder 가 없는 것은 결손이 아니라
+      목록 자체가 이미 결정적이기 때문이다 (같은 세계 상태면 언제나 같은 순서 —
+      03 CLOSURE). 화면이 정렬하지 않는다.
+
+      보기 좋게 다시 늘어놓는 일(보기 정렬)은 이 Cycle 의 범위 밖이다
+      (01-cycle.md EXCLUDED · VUX-IE-04).
+
+  kind:
+    reused: true
+    meaning: 종류의 의미 코드. 표시 이름은 View 책임이며 **모르면 코드 그대로 보인다**
+  count:
+    reused: true
+    meaning: 얼마나 지녔는가. 언제나 1 이상
+  category:
+    reused: true
+    values: [material, tool, consumable, gear]
+    meaning: >
+      표시용 분류. **세계의 어떤 판정도 이 값을 묻지 않는다.**
+      값이 늘어도 화면이 깨지지 않아야 한다 — 모르는 분류는 표시 없이 나온다.
+      거르개(필터)를 이 값으로 만드는 것은 이 Cycle 의 범위 밖이다.
+  stackable:
+    reused: true
+    meaning: >
+      겹치는 종류인가. **한 자리에 몇까지인지는 오지 않는다** — 그 수가 오면 화면이
+      자리를 셀 수 있게 되고, 그것이 계약이 막으려는 것이다 (C022).
+      그러므로 화면은 이 값을 "여러 개가 한 자리에 든다" 를 보이는 데만 쓴다.
+  origin:
+    reused: true
+    optional: true
+    meaning: 상위 정의 식별자. 없을 수 있다
+
+  actions:
+    reused: true
+    cardinality: 항목마다 그 물건으로 지금 할 수 있는 일들. 못 하는 물건은 빈 목록
+    fields:
+      id:
+        meaning: >
+          요청이 되돌릴 값. **이 값과 그 항목의 kind 둘이 요청의 전부다.**
+          화면이 새로 조립하는 것이 없다 (INTENT-THE-REQUEST-IS-WHAT-WAS-OBSERVED-001).
+      role:
+        values: [use-item, discard-item, equip-item, exchange-item]
+        meaning: >
+          의미 역할. 문구도 손가락 자리도 View 책임이다.
+          **표에 없는 역할이 와도 화면이 멈추지 않는다** — 코드 그대로 보이고, 그때
+          표에 한 줄이 는다. 세계가 역할을 늘리는 것만으로 이 표면에 나타나야 한다.
+      available:
+        meaning: >
+          지금 되는가. **세계의 판정이며 화면이 다시 판정하지 않는다.**
+          특히 가방의 형편에서 유추하지 않는다 — 가득 찬 가방에서도 exchange-item 은
+          가능일 수 있다 (C024 가 세운 비대칭).
+      unavailableReason:
+        optional: true
+        meaning: >
+          안 되는 사유 코드. 문구 변환은 View 책임이며 **모르는 코드는 코드 그대로**
+          보인다. 알려진 값들: not-enough · out-of-range · unknown-item ·
+          no-way-back · not-equippable · no-empty-slot · no-occupied-slot ·
+          unknown-slot · slot-not-fit · no-room
+    display_rule: >
+      **안 되는 것도 목록에서 빠지지 않는다.** 사유를 읽는 것이 이 자리의 값어치이며,
+      감추면 겪는 사람이 무엇을 하면 되는지를 잃는다
+      (INTENT-EVERY-REFUSAL-CARRIES-ITS-REASON-001).
+
+# ─────────────────────────────────────────────────────────────────
+# inventoryRoom — 자리 (C022, 그대로)
+#
+#   **이 Cycle 이 이 두 수에 요구하는 것이 하나 늘었다** — 수로만이 아니라
+#   자리의 모양으로도 읽혀야 한다는 것. 그러나 그것은 계약의 요구가 아니라
+#   표현의 결정이므로 아래 `surface_rule` 에 적는다.
+# ─────────────────────────────────────────────────────────────────
+inventoryRoom:
+  reused: true
+  used:
+    source: RULE-INVENTORY-ROOM-001 의 산출
+    meaning: 지금 쓰고 있는 자리. **화면이 항목에서 유도하지 않는다**
+  capacity:
+    source: INVENTORY_CAPACITY
+    meaning: 이 몸이 지닌 자리의 수 (지금 넷)
+
+  surface_rule: >
+    화면은 이 두 수로 **`capacity` 만큼의 칸**을 놓고, 그중 항목이 앉지 않은 것을
+    빈 자리로 보인다. 유한하다는 것이 숫자가 아니라 자리로 읽혀야 하기 때문이다
+    (DC-ITEM-CAPACITY-IS-FINITE).
+
+    **그 빈 칸들은 서로 구별되지 않는다.** 번호도 이름도 갖지 않고 요청의 대상이 되지
+    않는다 — 세계에 번호 붙은 빈 자리가 없기 때문이다
+    (INTENT-EMPTY-ROOM-HAS-NO-ADDRESS-001 · 03 WORLD STATE).
+
+    격자의 열 수는 계약이 정하지 않는다. 칸의 **수**만이 계약에서 오고, 그것을 몇 줄로
+    놓을지는 표현이다.
+
+  what_the_surface_must_not_do: >
+    ① 항목들의 count 를 더해 used 를 만들지 않는다 — 겹침 한도를 알아야 하고,
+       아는 순간 자리 계산이 세계와 화면 두 곳에 생긴다
+    ② 빈 칸을 요청의 대상으로 삼지 않는다 — 그 요청은 세계에서 뜻을 갖지 않는다
+    ③ 어느 항목이 어느 칸에 있는지를 세계의 사실로 다루지 않는다 —
+       칸에 놓는 순서는 화면의 표현이며, 그것을 옮기는 일은 세계에 없다
+
+# ─────────────────────────────────────────────────────────────────
+# requestOutcome — 내가 건 그 요청이 어떻게 되었는가 (C009, 그대로)
+#
+#   **소지품 쪽이 이 계약을 처음 쓴다.** 지금까지 소지품 요청의 대답은 표식 없이 와서
+#   명령 기록의 마지막 줄에 붙고 있었다 (03 WORLD RULE 의 주석).
+# ─────────────────────────────────────────────────────────────────
+requestOutcome:
+  reused: true
+  accepted:
+    meaning: 받아들여졌는가
+  rule:
+    meaning: 어느 판정이 결정했는가
+  reason:
+    optional: true
+    meaning: >
+      거절이면 그 사유 코드. **inventory[].actions[].unavailableReason 과 같은 표를 쓴다** —
+      같은 판정에서 나오기 때문이다 (03 CLOSURE — 투영과 실행이 같은 evaluate* 를 쓴다).
+      모르는 코드는 코드 그대로 보인다.
+  mark:
+    optional: true
+    meaning: 요청에 실어 보낸 표식 그대로. 어느 요청의 대답인지 짚는 수단
+
+  surface_rule: >
+    대답이 오기 전까지 화면은 **기다린다는 사실만** 보인다.
+    받아들여졌으면 다음 관찰이 결과를 나른다 — 화면이 결과를 그리는 것이 아니라
+    관찰이 바뀌는 것을 그린다.
+    거절이면 사유를 보인다. **되돌릴 것은 없다** — 애초에 바꾸지 않았기 때문이다
+    (INTENT-OBSERVATION-IS-THE-ONLY-TRUTH-001).
+
+  staleness_rule: >
+    관찰에 가능으로 실려 있던 것이 요청에서 거절될 수 있다. 그 사이에 세계가 흘렀기
+    때문이며, 그것은 오류가 아니라 이 세계의 성질이다 (C003).
+
+    그때 화면이 할 일은 **최신 관찰로 다시 그리고 세계가 준 사유를 보이는 것**이다.
+    이전 관찰을 붙들고 있거나, 거절을 감추거나, 스스로 재시도하지 않는다.
+
+# ─────────────────────────────────────────────────────────────────
+# 이 Cycle 이 읽지 않는 것 — 계약에 있으나 쓰지 않는다
+# ─────────────────────────────────────────────────────────────────
+out_of_scope:
+  equipment:
+    present_in_contract: true
+    reason: >
+      걸어 둔 것을 이 작업 공간 안에 그리는 일은 VUX-IE-02 의 몫이다 (01-cycle.md
+      EXCLUDED). 여기서 함께 하면 고르기·상세·실행 피드백을 장비 화면 안에서 한 번 더
+      만들게 된다.
+
+      **지금의 self 패널에 걸어 둔 것이 보이는 자리는 그대로 남는다** — 이 Cycle 은
+      더하는 것이지 걷어내는 것이 아니다.
+  attributes.combatStats:
+    present_in_contract: true
+    reason: >
+      유효 값은 걸어 둔 것의 결과이며, 이 작업 공간이 답하는 물음이 아니다.
+      **특히 equipment[].contributions 를 더해 "걸면 이렇게 된다" 를 만들지 않는다** —
+      그것은 세계가 하지 않은 계산이고, 미리 보기는 `frontier.md` 후보 1
+      FR-SEE-BEFORE-YOU-WEAR 이 소유한다.
+  interactions.*:
+    present_in_contract: true
+    reason: 세계 안에서 몸이 하는 일. 이 표면은 지닌 것만 다룬다
+
+# ─────────────────────────────────────────────────────────────────
+# 기획서 §9 가 요구한 계약과의 대조 — **GAP 없음**
+#
+#   기획서 §11.1 이 GAP 의 방아쇠로 셋을 지목했다: 빈 Slot · display identity ·
+#   action 결과. 셋을 차례로 본다.
+# ─────────────────────────────────────────────────────────────────
+design_contract_audit:
+  - requested: "inventoryRoom { used, capacity }"
+    status: PRESENT
+    note: C022 그대로
+
+  - requested: "inventory[].id — 안정 식별자"
+    status: SATISFIED-BY-KIND
+    note: >
+      **display identity 의 방아쇠 — 당기지 않는다.** 종류당 항목이 하나이므로
+      kind 가 유일하고 안정적이다 (03 WORLD STATE). 기획서 §9 자신이 "종류 Stack 이면
+      kind 로 충분한지 Spec 이 명시" 라고 남겨 둔 자리이며, 여기서 명시한다 — 충분하다.
+      나누기가 세계에 생기는 날 이 판정은 다시 열린다.
+
+  - requested: "inventory[].displayOrder"
+    status: NOT-NEEDED
+    note: 목록이 이미 결정적이다. 기획서 §9 이 "없으면 받은 순서" 를 허용했다
+
+  - requested: "inventory[] kind · count · category · stackable"
+    status: PRESENT
+
+  - requested: "actions[] { id, role, available, unavailableReason }"
+    status: PRESENT
+    note: 네 역할 전부 실린다 (use · discard · equip · exchange)
+
+  - requested: "actions[].targetSlots"
+    status: NOT-NEEDED-THIS-CYCLE
+    note: >
+      자리를 고르는 행동(exchange-item)은 이 Cycle 이 실행 경로로 다루지 않는다.
+      고를 자리들은 equipment 목록에 이미 실려 있으므로, VUX-IE-02 가 그 목록을 읽으면
+      된다 — 계약이 열릴 이유가 없다.
+      **이 Cycle 에서 exchange-item 은 "되는 것으로 보이지만 이 표면에서는 실행하지
+      않는 행동" 이다.** 감추지 않는다 (아래 unexecutable_actions).
+
+  - requested: "equipmentSlots[]"
+    status: PRESENT-BUT-UNUSED
+    note: VUX-IE-02
+
+  - requested: "effectiveStats[]"
+    status: PRESENT-BUT-UNUSED
+    note: attributes.combatStats. VUX-IE-02 · VUX-IE-03
+
+  - requested: "selectionPreview — 장착 전후 비교"
+    status: ABSENT-BY-DESIGN
+    note: >
+      세계에 그 계산이 없다. **이것은 이 Cycle 의 GAP 이 아니다** — 01-cycle.md 가
+      EXCLUDED 로 못 박았고, 그 의미는 `frontier.md` 후보 1 이 소유한다.
+      화면이 대신 만들지 않는다 (기획서 §5 의 GAMEVIEW GAP 문구가 요구하는 그대로 —
+      다만 그 GAP 을 내는 것은 VUX-IE-03 이지 이 Cycle 이 아니다).
+
+  - requested: "빈 Slot 의 관찰"
+    status: WILL-NOT-BE-REQUESTED
+    note: >
+      **빈 Slot 의 방아쇠 — 당기지 않는다.** 당기지 않는 이유는 세계가 답을 못 해서가
+      아니라 **물을 것이 없어서**다. 세계에 번호 붙은 빈 자리가 존재하지 않는다
+      (INTENT-EMPTY-ROOM-HAS-NO-ADDRESS-001).
+
+      그러므로 여기서 반환하는 것은 GAP 이 아니라 **표면의 축소**다 — 빈 칸은
+      `capacity − used` 만큼 그려지되 서로 구별되지 않고 요청의 대상이 되지 않는다
+      (위 inventoryRoom.surface_rule).
+
+      세계에 자리의 축을 세우는 일은 `frontier.md` 후보 2
+      FR-ARRANGE-WHAT-YOU-CARRY 가 소유한다. 화면 편의를 위해 여기서 만들지 않는다.
+
+  - requested: "action 결과 — 성공/거절과 사유"
+    status: PRESENT
+    note: >
+      **action 결과의 방아쇠 — 당기지 않는다.** C009 의 Request.Outcome 이 이미
+      accepted · rule · reason · mark 를 나른다. 소지품 쪽이 그것을 처음 받아 갈 뿐이다.
+
+# ─────────────────────────────────────────────────────────────────
+# unexecutable_actions — 이 표면이 실행하지 않는 행동
+#
+#   계약에는 오지만 이 Cycle 의 작업 공간이 요청으로 만들지 않는 것이 하나 있다.
+# ─────────────────────────────────────────────────────────────────
+unexecutable_actions:
+  - role: exchange-item
+    shown: true
+    executable_here: false
+    rule: >
+      **보이되 이 표면에서는 실행되지 않는다.** 감추지 않는 이유는 그것이 이 물건으로
+      할 수 있는 일이라는 사실이 관찰의 내용이기 때문이다
+      (INTENT-EVERY-REFUSAL-CARRIES-ITS-REASON-001 의 태도).
+
+      실행하지 않는 이유는 그 요청이 **자리를 지목해야** 성립하는데, 자리를 고르는 일이
+      곧 장비 패널이고 그것이 VUX-IE-02 의 몫이기 때문이다.
+
+      그러므로 화면은 이것을 "안 되는 것" 으로 그리지 않는다 — 세계는 된다고 말했다.
+      **지금 이 자리에서 하는 길이 아직 없다**는 것을 보이고, 기존 손가락 자리
+      (`,` → 물건 → 자리)가 그대로 그 길이다.
+      이 구분을 뭉개면 세계의 판정과 화면의 형편이 같은 것으로 읽힌다.
+
+# ─────────────────────────────────────────────────────────────────
+# view_contract — 이 계약을 받은 화면이 지켜야 하는 것
+#
+#   Stage 8 이 이 목록을 그대로 잰다.
+# ─────────────────────────────────────────────────────────────────
+view_contract:
+  - id: no-judgement
+    rule: 되는지 안 되는지도 왜 안 되는지도 계약이 실어 온 것만 쓴다. 화면이 판정하지 않는다
+  - id: no-optimism
+    rule: 요청을 보낸 것으로 수량·자리·값을 미리 바꾸지 않는다. 대답 전에는 마지막 관찰 그대로다
+  - id: no-inference-from-room
+    rule: 가방의 형편에서 어떤 행동의 가능 여부도 유추하지 않는다 (C024 의 비대칭이 지워진다)
+  - id: no-derived-preview
+    rule: contributions 를 더해 "걸면 이렇게 된다" 를 만들지 않는다
+  - id: no-kind-branch
+    rule: >
+      종류 이름으로 분기하지 않는다. 종류·분류·역할·사유의 표에 없는 값이 와도
+      코드 그대로 보이고 화면이 멈추지 않는다 (DC-ITEM-KIND-IS-DATA-NOT-BRANCH)
+  - id: no-hidden-refusal
+    rule: 안 되는 행동을 목록에서 지우지 않는다. 사유와 함께 남는다
+  - id: no-phantom-slot
+    rule: 빈 칸을 지목하거나 그리로 무언가를 보내지 않는다
+  - id: no-double-send
+    rule: 대답이 오지 않은 요청을 다시 보내지 않는다
+  - id: selection-follows-observation
+    rule: >
+      고른 것이 관찰에서 사라지면 고르기를 지운다. 다른 것을 대신 고르지 않는다
+  - id: filter-does-not-touch-room
+    rule: >
+      이 Cycle 에는 거르개가 없지만, 어떤 표시 선택도 used/capacity 를 바꾸지 않는다는
+      성질은 지금부터 성립한다
+
+# ─────────────────────────────────────────────────────────────────
+# fixtures — 세계 없이 이 계약만으로 확인할 장면들 (기획서 §12.1)
+#
+#   전부 **이 계약의 값들만**으로 만들어진다. 세계 프로세스가 필요하지 않다는 것이
+#   이 계약이 충분하다는 증거다 (VUX-IE-V-10).
+# ─────────────────────────────────────────────────────────────────
+fixtures:
+  VUX-IE-FX-EMPTY:
+    given: "inventory = [] · inventoryRoom = { used: 0, capacity: 4 }"
+    observe: "자리 0/4 · 빈 칸 넷 · 소지품 없음 · 닫는 길이 있다"
+  VUX-IE-FX-PARTIAL:
+    given: >
+      겹치는 것과 안 겹치는 것이 섞임 · 되는 행동과 안 되는 행동이 섞임 ·
+      사유가 서로 다름
+    observe: "수량 · 되는 것 · 안 되는 것과 각각의 사유 · 남은 칸"
+  VUX-IE-FX-FULL:
+    given: "inventoryRoom = { used: 4, capacity: 4 }"
+    observe: >
+      "가득" · 빈 칸 0 · **같은 화면에서 어떤 행동은 no-room 으로 불가이고 어떤 행동은
+      가능이다** (C024 의 비대칭이 이 표면에서 지워지지 않는지)
+  VUX-IE-FX-STALE:
+    given: "가능으로 보이던 행동을 요청 → requestOutcome { accepted: false, reason }"
+    observe: >
+      기다리는 동안 아무것도 미리 바뀌지 않았다 · 사유가 보인다 · 최신 관찰로 다시 그린다 ·
+      스스로 재시도하지 않는다
+  VUX-IE-FX-UNKNOWN:
+    given: "표에 없는 kind · category · role · reason"
+    observe: "넷 다 코드 그대로 보이고 화면이 멈추지 않는다"
+
+# ─────────────────────────────────────────────────────────────────
+# designer observer — 별도 경로 없음
+# ─────────────────────────────────────────────────────────────────
+designer:
+  change: NONE
+  note: >
+    이 Cycle 은 designer 관찰을 열지 않는다. 이 표면이 보이는 것은 전부 player 관찰의
+    값이며, 설계자가 더 볼 것이 있다면 그것은 C009 의 명령 표면이 이미 소유한다.
