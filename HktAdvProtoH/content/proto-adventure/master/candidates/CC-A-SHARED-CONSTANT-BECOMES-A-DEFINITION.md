@@ -1,6 +1,6 @@
 # CC-A-SHARED-CONSTANT-BECOMES-A-DEFINITION
 
-접수: 2026-08-21 (Feedback) — C024-the-shape-is-data 의 MASTER FEEDBACK 이 보고한
+접수: 2026-08-21 (Feedback) — C025-the-shape-is-data 의 MASTER FEEDBACK 이 보고한
 반복 패턴이다. Cycle Agent 는 관찰만 보고했고, 승격 판단은 Human 이 한다.
 
 ## CANDIDATE STATEMENT
@@ -32,7 +32,7 @@
         `SkillDefinition.swingBegin` · `swingEnd` 로 내렸다. 판정은 그 기술의 값을 읽고,
         큰 기술만 값이 다르다. 기본 기술의 값은 한 톨도 바뀌지 않았다.
 
-    ✅ C024 가 한 것 — 공간 축
+    ✅ C025 가 한 것 — 공간 축
 
         같은 파일의 `SWING_ARC` · `SWING_BLADE_RADIUS` 와 파생 함수
         `swingReach(attackRange)` 를 폐지하고 `SkillDefinition.swingArc` ·
@@ -52,10 +52,10 @@
 ## OBSERVED REPEATING PATTERN
 
     C019   전역 상수 SWING_BEGIN · SWING_END              → SkillDefinition (시간 축)
-    C024   전역 상수 SWING_ARC · SWING_BLADE_RADIUS
+    C025   전역 상수 SWING_ARC · SWING_BLADE_RADIUS
            + 파생 함수 swingReach(몸의 교전 거리)          → SkillDefinition (공간 축)
 
-    C024 는 여기에 하나를 더했다 — **상수가 엉뚱한 소유자에게 있었다.** 닿는 길이가
+    C025 는 여기에 하나를 더했다 — **상수가 엉뚱한 소유자에게 있었다.** 닿는 길이가
     몸의 교전 거리에서 왔기 때문에 "어떤 기술도 다른 기술보다 멀리 닿지 못한다" 가
     규칙이 아니라 **사고**로 성립하고 있었다. 값을 내리는 일은 소유자를 바로잡는
     일이기도 하다.
@@ -92,7 +92,7 @@
 ## PREFERS
 
     - 값을 내리는 Cycle 에서 **그 값을 실제로 바꿔 결과가 따라오는지 확인**하는 것.
-      코드가 그 자리에 있다는 사실은 증거가 아니다 (C024 가 그렇게 확인했다)
+      코드가 그 자리에 있다는 사실은 증거가 아니다 (C025 가 그렇게 확인했다)
 
 ## POTENTIAL CONFLICTS
 
@@ -111,7 +111,7 @@
 ## WHY THIS SHOULD BECOME A CONSTRAINT
 
     두 Cycle 이 각자 발견해 같은 답에 이르렀고, 두 번 다 **더 큰 것을 만들 뻔했다** —
-    C019 는 "선딜 시스템", C024 는 "공격 방식 층" 을 세울 수 있었다. 값 몇 칸으로
+    C019 는 "선딜 시스템", C025 는 "공격 방식 층" 을 세울 수 있었다. 값 몇 칸으로
     끝난 것은 결과이지 처음부터 보이던 길이 아니다.
 
     원칙이 있으면 세 번째에는 처음부터 보인다.
@@ -122,7 +122,7 @@
     이것은 Constraint 가 아니라 그냥 좋은 감각일 수 있다. 그리고 Constraint 를 늘리는
     것에는 값이 있다 — 읽어야 할 것이 하나 는다.
 
-    COMBINE-BEFORE-NEW-FORM 의 rationale 에 C024 를 **두 번째 사례로 적는 것**으로
+    COMBINE-BEFORE-NEW-FORM 의 rationale 에 C025 를 **두 번째 사례로 적는 것**으로
     족하다는 판단도 성립한다. 그쪽이 이미 C019 를 사례로 들고 있다.
 
 ## HUMAN DECISION
@@ -132,6 +132,6 @@
     고를 것 셋
         (a) 승격한다 — 새 DC 로 세운다. scope 를 SKILL 로 좁힐지 GLOBAL 로 열지 함께 정한다
         (b) 승격하지 않는다 — `DC-SKILL-COMBINE-BEFORE-NEW-FORM` 의 rationale 에
-            C024 를 두 번째 사례로 적는 것으로 끝낸다 (가장 싸다)
+            C025 를 두 번째 사례로 적는 것으로 끝낸다 (가장 싸다)
         (c) 세 번째 사례를 기다린다 — 다른 축(아이템 · 존재 종류)에서 같은 일이
             일어나는지 보고 그때 정한다

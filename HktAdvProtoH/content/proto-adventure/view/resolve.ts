@@ -147,8 +147,8 @@ export function resolvePresentation(
     commandSurface: commandSurface(snapshot, options),
     // 지면에 그리는 부피들 — 두 자리가 하나의 계약을 나눠 쓴다.
     //   켜면 (C)   몸 캡슐 · 속도 화살표 · 맞은 몸 표시 · 칼끝 — 진단 표면 (C006)
-    //   평시       칼끝 하나 — **장면의 일부** (C024)
-    // C024 이 평시 쪽을 열었다. 기술마다 다른 모양이 닿는 것을 가르게 되었으므로,
+    //   평시       칼끝 하나 — **장면의 일부** (C025)
+    // C025 이 평시 쪽을 열었다. 기술마다 다른 모양이 닿는 것을 가르게 되었으므로,
     // 칼끝이 어디를 지났는지가 보이지 않으면 그 차이가 화면에 존재하지 않는다
     // (04 VIEW NOTE ①). 켜면 켠 쪽이 이긴다 — 같은 것을 두 번 그리지 않는다.
     colliderDebug: options.debugObserve ? collisionDebug(snapshot) : swingTrail(snapshot),
@@ -237,9 +237,9 @@ export function resolvePresentation(
               ...self.lines,
               ...targetDetailLines(snapshot, shortCodeText),
               // 병합 — 두 갈래가 각자 한 벌씩 더했다. 순서는 **결정이 급한 것부터**다.
-              //   기술   지금 이 순간 고르는 것 (C024)
+              //   기술   지금 이 순간 고르는 것 (C025)
               //   장비   몸이 무엇으로 되어 있는가 — 소지품보다 먼저다. 걸기의 대상이
-              //          소지품이므로 자리를 먼저 본 뒤 무엇을 걸지 고른다 (C024)
+              //          소지품이므로 자리를 먼저 본 뒤 무엇을 걸지 고른다 (C025)
               //   소지품 가진 것 전부 (C020 · C022)
               ...skillDetailLines(snapshot, codeText, shortCodeText),
               ...equipmentDetailLines(snapshot, codeText, shortCodeText),
@@ -289,7 +289,7 @@ export function resolvePresentation(
     // "지금 누구를 상대하는가" 는 소지품보다 먼저 읽혀야 한다.
     hud: [
       ...targetHudItems(snapshot, codeText),
-      // C024 — 걸 수 있는 기술들을 한자리에 견준다. 세계가 보낸 목록에서
+      // C025 — 걸 수 있는 기술들을 한자리에 견준다. 세계가 보낸 목록에서
       // **모양을 지닌 것**만 골라 옮긴다 — 기술 이름도 역할 목록도 여기 없다.
       // 띠에는 모양만 둔다. 사유는 self 패널로 내려간다 (C022 와 같은 판단).
       ...skillHudItems(snapshot),

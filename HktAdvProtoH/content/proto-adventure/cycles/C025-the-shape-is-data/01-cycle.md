@@ -1,4 +1,4 @@
-# CYCLE C024 — The Shape Is Data
+# CYCLE C025 — The Shape Is Data
 
 [PASS] Cycle Definition           (기존 노드의 확장 · 모양 축 하나 · 값은 Stage 3)
 [PASS] Intent                     (모양은 기술의 값 · 닿는 길이가 몸에서 갈린다 · 공식 불변)
@@ -27,15 +27,23 @@ STATUS  IN PROGRESS
                         그대로 두었다. 병렬 선택이 그 칸에 어떻게 적혀야 하는지는
                         `08-verification.md` 의 MASTER FEEDBACK 으로 보고한다.
 
-〔번호 이동 — C023 → C024〕
-    이 Cycle 은 `C023` 으로 정의되었다. 레인 A 가 **같은 번호**로 먼저 main 에 들어와
-    (`C023-what-you-wear-changes-you`) 병합 시점에 겹쳤고, Human 지시로 `C024` 로 옮겼다.
+〔번호 이동 — C023 → C024 → C025 · 두 번 옮겼다〕
+    이 Cycle 은 `C023` 으로 정의되었다. **두 번 다 레인 A 가 같은 번호로 먼저 main 에
+    들어왔다.**
+
+        C023   레인 A 의 `C023-what-you-wear-changes-you` 와 겹쳤다  → C024 로 옮김
+        C024   레인 A 의 `C024-one-slot-one-item` 과 겹쳤다          → C025 로 옮김
+
     번호만 바뀌었고 이 Cycle 이 담는 의미는 한 글자도 달라지지 않았다.
 
-    **이것은 08 MASTER FEEDBACK ③④ 가 예고한 결손이 실제로 일어난 것이다** —
-    `SELECTED` 칸이 병렬 레인을 담지 못하고, 레인이 둘일 때 번호를 먼저 잡는 규칙이 없다.
-    C022 가 두 번 옮긴 데 이어 **세 번째**다. 보고는 그 자리에 그대로 두고,
-    실제로 일어났다는 사실을 08 에 덧붙인다.
+    **08 MASTER FEEDBACK ③④ 가 예고한 결손이 그대로 두 번 더 일어난 것이다** —
+    `SELECTED` 칸이 병렬 레인을 담지 못하고, 레인이 둘일 때 번호를 먼저 잡는 규칙이 없었다.
+    C022 가 두 번 옮긴 것까지 합치면 **네 번째**다.
+
+    두 번째 충돌 뒤 레인 A 가 규칙을 세웠다 — `frontier.md` 의 "병렬 배치" 절에
+    **`Cycle 번호를 먼저 예약한다`** 가 들어갔다 (Stage 1 을 쓰기 전에 디렉터리와 제목
+    줄만 만들어 push 한다). 이 Cycle 은 그것이 서기 전에 출발해 두 번 옮겼다.
+    보고는 그 자리에 그대로 두고, 실제로 일어난 것과 규칙이 선 것을 08 에 덧붙인다.
 
     Source Goal         MG-EXPLORE-BEIRA
                         베이라를 더 깊이 감당한다 — 지금 닿지 못하는 곳에 닿는다

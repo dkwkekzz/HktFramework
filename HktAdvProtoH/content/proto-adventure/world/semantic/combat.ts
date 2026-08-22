@@ -56,7 +56,7 @@ export interface SkillDefinition {
   // 이제 기술이 지닌다 — 크게 거는 기술일수록 선딜이 길다 (INTENT-SKILL-PHASE-001).
   swingBegin: number; // 선딜이 끝나는 지점 — 여기부터 효과가 성립한다
   swingEnd: number; // 판정이 끝나는 지점 — 여기부터 끝까지가 후딜이다
-  // C024 ADDED — 이 기술이 닿는 **모양** (INTENT-SKILL-SHAPE-001).
+  // C025 ADDED — 이 기술이 닿는 **모양** (INTENT-SKILL-SHAPE-001).
   // 지금까지 모든 기술이 같은 전역 상수를 썼다 (collision.ts SWING_ARC ·
   // SWING_BLADE_RADIUS) 하고, 닿는 길이는 그 몸의 교전 거리에서 왔다.
   // 이제 셋 다 기술이 지닌다 — C019 가 시간 축에 한 일을 공간 축에 한다.
@@ -70,7 +70,7 @@ export interface SkillDefinition {
 export const DEFAULT_SWING_BEGIN = 0.25;
 export const DEFAULT_SWING_END = 0.75;
 
-// C024 ADDED — 모양의 기본값. 기본 기술과 오라 기술은 지금까지 세계가 쓰던 값 그대로다
+// C025 ADDED — 모양의 기본값. 기본 기술과 오라 기술은 지금까지 세계가 쓰던 값 그대로다
 // (collision.ts 의 SWING_ARC · SWING_BLADE_RADIUS 가 이 값이었고, 닿는 길이는
 // attackRange(2.0) − BladeRadius(0.7) = 1.3 이었다). **한 톨도 바뀌지 않는다.**
 export const DEFAULT_SWING_ARC = (150 * Math.PI) / 180;
@@ -95,7 +95,7 @@ export const SKILL_DEFINITIONS: Readonly<Record<SkillKind, SkillDefinition>> = {
     damageType: 'physical',
     swingBegin: DEFAULT_SWING_BEGIN, // C019 — 기본 기술은 한 톨도 바뀌지 않는다
     swingEnd: DEFAULT_SWING_END,
-    swingArc: DEFAULT_SWING_ARC, // C024 — 모양도 마찬가지다 (03 BALANCE ①)
+    swingArc: DEFAULT_SWING_ARC, // C025 — 모양도 마찬가지다 (03 BALANCE ①)
     swingReach: DEFAULT_SWING_REACH,
     swingTipRadius: DEFAULT_SWING_TIP_RADIUS,
   },
@@ -113,7 +113,7 @@ export const SKILL_DEFINITIONS: Readonly<Record<SkillKind, SkillDefinition>> = {
     // 후딜 0.135초는 남긴다 — 나간 뒤에도 잠깐 묶여야 큰 기술이 무겁다 (03 BALANCE ①).
     swingBegin: 0.5,
     swingEnd: 0.85,
-    // C024 — 큰 기술만 모양이 움직인다. 좁고 멀리 — 정면 먼 것에 깊이 찌른다.
+    // C025 — 큰 기술만 모양이 움직인다. 좁고 멀리 — 정면 먼 것에 깊이 찌른다.
     // 선딜 0.45초를 치르고 얻는 것이 피해뿐이었다 (C019). 이제 치른 값에 대응하는
     // 성질이 생긴다: 기본 기술로는 닿지 않는 거리에 닿는 대신 옆을 훑지 못한다.
     // 값의 근거와 판별 자리는 03-world-semantic.md 의 BALANCE ②③④ 가 소유한다.
@@ -133,7 +133,7 @@ export const SKILL_DEFINITIONS: Readonly<Record<SkillKind, SkillDefinition>> = {
     damageType: 'aura',
     swingBegin: DEFAULT_SWING_BEGIN, // 기본 기술과 모든 값이 같다 (C012 의 뜻 그대로)
     swingEnd: DEFAULT_SWING_END,
-    // C024 — 모양도 같다. 모양은 새로 생기는 값이므로 C012 의 뜻이 그대로 적용된다 —
+    // C025 — 모양도 같다. 모양은 새로 생기는 값이므로 C012 의 뜻이 그대로 적용된다 —
     // 이 층이 만드는 차이는 세기도 모양도 아니라 **방식** 하나다.
     swingArc: DEFAULT_SWING_ARC,
     swingReach: DEFAULT_SWING_REACH,
@@ -173,7 +173,7 @@ export function skillDefinition(kind: SkillKind): SkillDefinition {
   return SKILL_DEFINITIONS[kind];
 }
 
-/** 이 기술이 닿는 모양 (C024 ADDED) */
+/** 이 기술이 닿는 모양 (C025 ADDED) */
 export interface SkillShape {
   arc: number; // 훑는 전체 각 (rad)
   reach: number; // 몸 중심에서 끝점 중심까지
@@ -181,7 +181,7 @@ export interface SkillShape {
 }
 
 // RULE-SKILL-SHAPE-001 — Implements INTENT-SKILL-SHAPE-001 ·
-//                                   INTENT-SHAPE-IS-A-VALUE-NOT-A-BRANCH-001 (C024 ADDED)
+//                                   INTENT-SHAPE-IS-A-VALUE-NOT-A-BRANCH-001 (C025 ADDED)
 // Input          SkillKind
 // Preconditions  없음 — 모든 기술에 답이 있다
 // Transition     없음 — 세계 상태를 바꾸지 않는다 (파생 판정)
@@ -197,7 +197,7 @@ export function skillShape(kind: SkillKind): SkillShape {
   return { arc: skill.swingArc, reach: skill.swingReach, tipRadius: skill.swingTipRadius };
 }
 
-// RULE-ENGAGEMENT-REACHES-001 — Implements INTENT-REACH-BELONGS-TO-THE-SKILL-001 (C024 ADDED)
+// RULE-ENGAGEMENT-REACHES-001 — Implements INTENT-REACH-BELONGS-TO-THE-SKILL-001 (C025 ADDED)
 // Input          Actor.EngagementRange, 모든 SkillDefinition
 // Preconditions  없음 — 세계가 서는 조건이다
 // Transition     없음 — 세계 상태를 바꾸지 않는다 (정합 조건)

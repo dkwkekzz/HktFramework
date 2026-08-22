@@ -55,17 +55,37 @@ function moveModeToggle(code: string): KeyBinding {
 // V 와 C 는 쓸 수 없다 — 이미 속성 관찰 · 충돌체 관찰이고(app/main.ts · 기반의 터치 패드),
 // Z 와 X 도 카메라 회전이 쓴다(engine/view-kernel/input/keyboard.ts).
 // **이것은 실제 브라우저로 눌러 보고 알았다** (08-verification.md PLAYABLE).
+//
+// C024 — 네 번째가 는다. 아래줄 세 칸 옆의 **쉼표**이므로 B·N·M·, 가 나란히 선다.
+// 바꿔 걸기만 **세 걸음**인 것은 그것이 "무엇을" 과 "어디에" 를 둘 다 요구하기
+// 때문이다 (04 inventory.actions.exchange-item.request). 자리를 고르는 것은
+// 판정이 아니라 **선택**이며, 그 선택이 세계가 대신 할 수 없는 것이다
+// (INTENT-THE-DISPLACED-IS-NAMED-001).
 const DISCARD_ARM_KEY = 'KeyB';
 const EQUIP_ARM_KEY = 'KeyN';
 const UNEQUIP_ARM_KEY = 'KeyM';
+const EXCHANGE_ARM_KEY = 'Comma';
 
 /** 다음 숫자 키가 무엇인가. **화면의 조작 상태이지 세계의 상태가 아니다** */
-type ArmedRole = 'discard-item' | 'equip-item' | 'unequip-item' | null;
+type ArmedRole = 'discard-item' | 'equip-item' | 'unequip-item' | 'exchange-item' | null;
 let armed: ArmedRole = null;
+
+/**
+ * 바꿔 걸기가 고른 물건 (C024) — 자리를 마저 고를 때까지만 남는다.
+ *
+ * **화면의 조작 상태이지 세계의 상태가 아니다.** 고르는 동안 세계로 아무것도 나가지
+ * 않으므로, 도중에 그만두어도 세계는 흔들리지 않는다.
+ */
+let exchangeKind: string | null = null;
 
 /** 검증용 — 지금 무엇이 열려 있는가 */
 export function armedAction(): ArmedRole {
   return armed;
+}
+
+/** 검증용 — 바꿔 걸기가 지금 무엇을 골라 두었는가 */
+export function armedExchangeKind(): string | null {
+  return exchangeKind;
 }
 
 /** 검증용 (C022 호환) — 지금 덜어내기가 열려 있는가 */
@@ -80,6 +100,9 @@ function armKey(code: string, role: Exclude<ArmedRole, null>): KeyBinding {
     code,
     invoke: () => {
       armed = armed === role ? null : role;
+      // C024 — 무엇이 열리든 골라 두었던 물건은 버린다. 열린 것이 바뀌었는데 반쯤
+      // 고른 것이 남아 있으면 다음 숫자 키가 무엇을 뜻하는지 사람이 알 수 없다.
+      exchangeKind = null;
     },
   };
 }
@@ -95,8 +118,36 @@ function slotKey(index: number): KeyBinding {
   return {
     code: `Digit${index + 1}`,
     invoke: (scene, send) => {
-      // 열려 있었으면 이 한 번으로 닫힌다 — 열린 채로 남지 않는다.
       const role = armed;
+
+      // C024 — 바꿔 걸기는 **세 걸음**이다. 첫 숫자는 물건을, 둘째 숫자는 자리를
+      // 가리킨다. 첫 걸음에서는 아무것도 보내지 않으므로 도중에 그만두어도 세계는
+      // 흔들리지 않는다.
+      if (role === 'exchange-item') {
+        if (exchangeKind === null) {
+          const kind = inventorySlots(scene)[index];
+          // 없는 칸을 짚었으면 닫는다 — 열린 채로 두면 다음 숫자가 자리로 읽힌다
+          if (kind === undefined) armed = null;
+          else exchangeKind = kind;
+          return;
+        }
+        armed = null;
+        const kind = exchangeKind;
+        exchangeKind = null;
+        // 자리 번호는 **걸린 자리**의 번호다 — 풀기와 같은 번호이며, 바꿔 낄 대상이
+        // 걸린 것이기 때문이다 (view/equipment-presentation.ts).
+        const slotId = equipmentSlotIds(scene)[index];
+        if (slotId === undefined) return;
+        const request: ActionRequest = {
+          interactionId: 'equip-item',
+          itemKind: kind,
+          equipSlotId: slotId,
+        };
+        send(request);
+        return;
+      }
+
+      // 열려 있었으면 이 한 번으로 닫힌다 — 열린 채로 남지 않는다.
       armed = null;
 
       // C023 — 풀기만 **자리**를 가리킨다. 요청이 싣는 것도 자리 하나뿐이며
@@ -127,6 +178,7 @@ export const KEY_BINDINGS: readonly KeyBinding[] = [
   armKey(DISCARD_ARM_KEY, 'discard-item'),
   armKey(EQUIP_ARM_KEY, 'equip-item'),
   armKey(UNEQUIP_ARM_KEY, 'unequip-item'),
+  armKey(EXCHANGE_ARM_KEY, 'exchange-item'),
   // 첫 아홉 칸. 칸이 그만큼 없으면 아무 일도 일어나지 않는다
   ...Array.from({ length: 9 }, (_, i) => slotKey(i)),
 ];

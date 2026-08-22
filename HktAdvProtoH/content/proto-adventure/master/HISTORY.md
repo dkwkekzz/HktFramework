@@ -268,6 +268,7 @@ constraints/README.md   현재 Active Constraint        → 반영 이력은 여
 | FR-OBSERVE-REVEALS-THE-OPPONENT | C014-observe-reveals-the-opponent | **CLOSED** 2026-08-19 — MC-OBSERVE 승격 (IMPLEMENTED 가 아니라 **PARTIAL** — 아래 Overlay 이력) · 탐험 사다리의 첫 칸 |
 | FR-CRITICAL-AMPLIFIES-THE-BLOW | C015-critical-amplifies-the-blow | **CLOSED** — MC-CRITICAL-STRIKE 승격 · 세계에 우연이 처음 들어왔다. MP-BET-ON-THE-CRITICAL-BLOW 는 **절반만** 닫혔다 (성질을 올릴 원천이 없다) |
 | FR-INSIGHT-SEES-BEFORE-LOOKING | C016-insight-sees-before-looking | **CLOSED** — MC-OBSERVE 의 **경로** 결손이 닫혔다 (앎에 이르는 길이 둘 · 앎이 자리 단위). 노드는 여전히 PARTIAL — 남은 결손은 습성 하나 |
+| FR-ONE-SLOT-ONE-ITEM | C024-one-slot-one-item | **CLOSED** 2026-08-22 — **MC-EQUIP-ITEM PARTIAL → IMPLEMENTED**. 같은 4/4 상태에서 해제는 `no-room` 으로 막히고 교체는 성립하는 비대칭이 실측되었다 (IE §15 · §16.1). 배운 것 — **그 비대칭은 특례가 아니라 계산의 결과다**: "걸 수 있는 것은 겹치지 않는다" 는 정의소 불변 조건에서 순 증가 0 이 나온다. 그리고 State 를 한 줄도 늘리지 않고 경로 하나만 열어 Capability 를 닫을 수 있었다 |
 | FR-PREDICT-READS-THE-NEXT-BLOW | (C017 — 접었다) | **보류** 2026-08-20 Human 결정 — 후보에서 내리고 **AI 기획서**를 기다린다. 이유는 계보의 구멍이다: BW §21 은 이름 `MC-PREDICT` 만 대고 정의를 쓰지 않으며 R1·DT 는 예측을 언급하지 않는다 — 노드 semantic 은 Agent 가 채운 것이고 BW §32 의 **층 스케일**이 한 마리의 다음 일격으로 좁아졌다. 자율 존재의 행동을 정의한 기획 문서가 서면 그 위에서 다시 판정한다. 앞선 경위 — 2026-08-19 Human 이 C017 로 골랐다가 Stage 1 만 쓰고 선택을 철회했고, 그때 얻은 "넘어야 할 선" 셋과 A안 판단은 git history 에 있다 |
 
     롤백된 것 (2026-08-17 Human 결정 — R1 층 순서와 어긋나 되돌렸다. 산출물은 git history)
@@ -1898,15 +1899,105 @@ Human 이 "FR-ACTION-PHASE 의 근간이 무엇인가" 를 물어 근간을 역�
     보류 중이었는데(Q37), **화면 쪽 요구가 그 후보에 새 근거를 준다.**
     frontier 의 추천 순서에 그 사실을 적었다.
 
-## Feedback — C024(휘두름의 모양이 값이 된다) 반영 · 2026-08-21
+---
 
-    입력   `cycles/C024-the-shape-is-data/08-verification.md` 의 MASTER FEEDBACK 아홉 항.
+## Feedback — C024(한 자리에는 하나) 반영 · 2026-08-22
+
+    C024 가 Gate 15항을 전부 충족하고 닫혔다. `08-verification.md` 의 MASTER FEEDBACK
+    을 반영했다. Human 이 완료를 판정했고 Agent 가 대신 판정하지 않았다.
+
+    **Stage 5 가 통상과 다르게 닫혔다** — Human 이 Stage 1~4 산출 뒤 "끝까지 진행" 으로
+    남은 전부를 지시했고, `05-review.md` 는 그 지시의 기록이지 Agent 의 판정이 아니다.
+    03 의 JUDGEMENT 다섯은 Agent 권고안 그대로 채택되었다. 이 사실을 여기 적어 두는 것은
+    **그 다섯이 검토를 거친 결정이 아니라 기본값**이기 때문이다 — 뒤집을 일이 생기면
+    Cycle Artifact 를 고치지 말고 다음 Cycle 이 CHANGED 로 처리한다.
+
+### Capability Overlay — 승격 1건
+
+        MC-EQUIP-ITEM   PARTIAL → **IMPLEMENTED**   근거 C024 08-verification (세계 프로세스 실측)
+
+    C023 이 남긴 world_shape 두 문장이 닫혔다.
+
+        닫힌 것   이미 찬 자리에 넣으면 넣는 것과 빼내는 것이 **한 번에** 일어나고,
+                  둘 중 하나가 성립하지 않으면 아무것도 일어나지 않는다
+                  담을 곳이 모자라 풀 수 없을 때도 **바꿔 끼우는 것은 된다**
+
+    실측은 **같은 세계 상태에서 두 요청을 연달아** 던져 얻었다 (IE §46 Test 09 가 요구한
+    형태 그대로) — 가방 4/4 에서 해제는 `no-room`, 교체는 성공, 그리고 교체 뒤에도 4/4.
+    물리 공격 52 → **40**(기본값) · 물리 방어 50 → 65 로 헌것의 기여가 정확히 사라졌고
+    채집도 함께 사라졌다.
+
+    **남은 곁가지 둘은 결손이 아니다** — overlay 의 "부족한 것" 칸에 적었다.
+        · 전용 자리를 선언한 물건이 없어 `slot-not-fit` 이 코드에만 서 있다
+        · 자리 여섯이 걸 것 둘보다 넓어, 교체가 아직 *고르는 일*이 아니다 (아래 Gap ②)
+
+### Overlay 근거 갱신 — 승격 없이 결손이 줄어든 곳 둘
+
+        MC-ATTACK-POWER          PARTIAL 유지. "물건 쪽도 곡괭이 하나뿐" 이 사라졌다 —
+                                 걸 것이 둘이 되었다. 다만 그 둘은 **바꿔 끼는 관계이지
+                                 쌓이는 관계가 아니므로** 값을 키우는 축은 여전히 없다
+
+        MP-ADAPT-BY-RESOURCE     갈래가 처음으로 **둘**이 되었다 (공격을 얹을지 방어를
+                                 얹을지). 그러나 자리가 여섯이라 아직 둘 다 걸 수 있어
+                                 진짜 선택은 아니다 — 그 사실을 근거 칸에 적었다
+
+### Constraint Evaluation — 기록 1건
+
+        MC-EQUIP-ITEM 에 `DC-ITEM-CHANGE-IS-ONE-UNIT: SATISFIED` 를 더했다.
+        이 Cycle 이 그 원칙을 **실제로 구현 형태에 걸었기** 때문이다 — 교체를 두 요청으로
+        가르지 않고 하나로 둔 것, 검증을 변경보다 앞세워 중간 상태를 없앤 것, 실패 셋에서
+        자리·수량·유효 값·용도 넷이 그대로인 것이 전부 이 원칙의 결과다.
+        나머지 여섯(HOLDING · CAPABILITY-FROM-GRANTS · CAPACITY-IS-FINITE ·
+        LIVES-IN-ONE-PLACE · KIND-IS-DATA · SURFACE-LIST)은 판정이 바뀌지 않아 그대로 둔다.
+
+### Frontier 정리
+
+        지운 것   `FR-ONE-SLOT-ONE-ITEM` (후보 1) — 소진. 결과는 위 표에
+        세운 것   `FR-THE-PLACES-ARE-NARROWER-THAN-WHAT-YOU-WEAR` (자리가 걸 것보다
+                  좁아진다) — **C024 가 낳은 후보다.** 교체라는 수단은 섰는데 그것을
+                  써야 할 이유가 세계에 없다는 것이 이 Cycle 의 실측으로 드러났다
+        번호      레인 A 가 하나 줄고 하나 늘어 여섯 그대로다. 추천 1순위를 새 후보로 옮겼다
+
+### Constraint Candidate — 접수 1건
+
+    CC-WHAT-THE-WORLD-CANNOT-GIVE-BACK-MUST-NOT-BE-LOSABLE
+        "세계가 다시 내어줄 수 없는 것을 처음부터 쥐여 주었다면, 그것을 잃는 길도 막아야
+        한다." C024 가 손방패를 초기 소지품으로 주었는데 세계에 그것을 내는 곳이 없다.
+        C022 의 막힘 판정은 **용도**만 보므로 걸리지 않는다 — 손방패는 용도를 주지 않기
+        때문이다. 지금은 아무 해도 없다(잃어도 세계가 좁아질 뿐 막히지 않는다).
+        `HUMAN DECISION: PENDING`.
+
+### Master Gap — 셋. 전부 Human 이 볼 것이고 Agent 가 해결하지 않았다
+
+    ① 유래를 답하지 못하는 아이템이 **둘**이 되었다 (Q36 이 열려 있다)
+        곡괭이에 이어 손방패도 `IT-*` 가 없다. Cycle 이 지어 붙이지 않은 것은 옳다 —
+        `Design-Resource-Catalog-R0.md` 가 승인 대기이고 그것이 Q36 과 함께 닫힌다.
+        **질문을 새로 세우지 않았다.** 이 Cycle 이 한 것은 Q36 의 무게를 하나 올린 것뿐이며,
+        그 사실을 Q36 에 적었다.
+
+    ② 자리 여섯이 걸 것 둘보다 여전히 넓다 (IE §49 P3)
+        **이것은 후보로 세웠다** (`FR-THE-PLACES-ARE-NARROWER-THAN-WHAT-YOU-WEAR`).
+        C023 Feedback 때 "지금은 겪히지 않는다 · 질문으로 세우지 않았다" 로 남겼던 것이,
+        걸 것이 둘이 되면서 **겪히기 직전까지 왔다** — 그래서 이번에는 후보다.
+        어느 쪽을 움직일지(자리를 줄일지 걸 것을 늘릴지)는 그 Cycle 이 Human 에게 묻는다.
+
+    ③ 교체가 시간을 쓰지 않는다
+        걸기·풀기와 같이 즉시 일어난다 (C023 이 그렇게 세웠고 C024 가 따랐다).
+        전투 중에 값을 갈아 끼우는 것이 공짜라는 뜻이다. **지금은 겪히지 않는다** —
+        걸 것이 둘뿐이고 전투 중에 바꿀 이유가 없다. 대가의 축이 서면 다시 볼 자리이며,
+        **질문으로 세우지 않았다** (지금 결정할 것이 없다).
+
+---
+
+## Feedback — C025(휘두름의 모양이 값이 된다) 반영 · 2026-08-21
+
+    입력   `cycles/C025-the-shape-is-data/08-verification.md` 의 MASTER FEEDBACK 아홉 항.
            그 Cycle 은 Stage 8 실측을 마쳤고 **Human Play 확인만 남았다** — 그래서
            후보를 지우지 않고 `SELECTED` 로 옮겼다 (아래 Frontier 절).
 
 ### Capability Overlay — 승격 없음, 판정 하나 닫힘
 
-    MC-COMBAT-STRIKE 는 **IMPLEMENTED 그대로**다. C024 는 새 Capability 를 세우지
+    MC-COMBAT-STRIKE 는 **IMPLEMENTED 그대로**다. C025 는 새 Capability 를 세우지
     않았고 기존 노드의 내부를 넓혔다. 대신 그 노드에 걸려 있던 Constraint 판정이 닫혔다.
 
         DC-SKILL-IS-COMBINATION-NOT-NAME    UNRESOLVED → SATISFIED
@@ -1914,14 +2005,14 @@ Human 이 "FR-ACTION-PHASE 의 근간이 무엇인가" 를 물어 근간을 역�
     근거는 코드가 있다는 사실이 아니라 **값을 바꿔 본 결과**다. 큰 기술의 모양 셋을
     `40°·2.2·0.55` 에서 `100°·1.6·0.9` 로 바꾸고 같은 플레이 각본을 그대로 다시 돌렸더니
     옆에 선 상대의 판정이 뒤집혔다 — 규칙 코드 0줄 · 화면 코드 0줄 · 각본 0줄.
-    되돌리니 첫 판의 값이 그대로 돌아왔다 (C024 08-verification.md CONSTRAINT 실측).
+    되돌리니 첫 판의 값이 그대로 돌아왔다 (C025 08-verification.md CONSTRAINT 실측).
 
     **이것이 MC-COMBAT-STRIKE 의 마지막 UNRESOLVED 였다** — 이제 그 노드의 네 판정이
     모두 SATISFIED 다.
 
 ### Overlay 근거 갱신 — 상태를 바꾸지 않은 곳 둘
 
-    MC-COMBAT-STRIKE   근거 칸에 C024 를 더했다. 모양이 전역 상수에서 정의로 내려왔다는
+    MC-COMBAT-STRIKE   근거 칸에 C025 를 더했다. 모양이 전역 상수에서 정의로 내려왔다는
                        사실은 상태를 바꾸지 않지만 **다음에 무엇이 싼가**를 바꾼다
     MC-EVADE           MISSING 유지. "공격이 이미 공간 판정이라 얹힐 바닥은 서 있다" 에
                        한 줄이 붙었다 — 그 공간이 이제 **기술마다 다르므로** 회피가
@@ -1935,15 +2026,15 @@ Human 이 "FR-ACTION-PHASE 의 근간이 무엇인가" 를 물어 근간을 역�
 
     후보 6(FR-THE-SHAPE-IS-DATA)은 **지우지 않았다.** Gate 15항 중 열넷이 충족이고
     남은 하나가 Human Play 확인이다 — 기계가 실제 세계 프로세스와 실제 브라우저로 같은
-    각본을 돌렸어도 그것을 대신하지 않는다. Status 를 `SELECTED — C024 가 돈다` 로 바꿨다.
+    각본을 돌렸어도 그것을 대신하지 않는다. Status 를 `SELECTED — C025 가 돈다` 로 바꿨다.
 
     `SELECTED` 칸을 **레인별로** 적는 형태로 바꿨다.
 
-        레인 B   FR-THE-SHAPE-IS-DATA — C024 가 돈다 (Human Play 확인 대기)
+        레인 B   FR-THE-SHAPE-IS-DATA — C025 가 돈다 (Human Play 확인 대기)
         레인 A   없음 — Human 선택 대기
 
     지금까지 이 칸은 하나만 담았고, 그래서 레인 둘이 동시에 돌 때 한쪽이 **이 칸 밖에서
-    출발해야 했다.** C024 가 실제로 그랬다 — 01-cycle.md 의 MASTER TRACE 가 그 사유를
+    출발해야 했다.** C025 가 실제로 그랬다 — 01-cycle.md 의 MASTER TRACE 가 그 사유를
     적고 있다. 형태를 바꾼 것은 결손을 드러내기 위한 최소 변경이며, 이대로 둘지는
     Human 판단이다 (Q46).
 
@@ -1958,13 +2049,13 @@ Human 이 "FR-ACTION-PHASE 의 근간이 무엇인가" 를 물어 근간을 역�
         "세계가 모든 종류에 똑같이 물려주던 상수가 종류마다 달라야 할 이유를 얻으면,
          새 층을 세우지 않고 그 상수를 정의로 내린다."
 
-        C019(시간 축)와 C024(공간 축)가 각자 발견해 같은 답에 이르렀다. 두 번 다
-        더 큰 것을 만들 뻔했고 — C019 는 "선딜 시스템", C024 는 "공격 방식 층" —
+        C019(시간 축)와 C025(공간 축)가 각자 발견해 같은 답에 이르렀다. 두 번 다
+        더 큰 것을 만들 뻔했고 — C019 는 "선딜 시스템", C025 는 "공격 방식 층" —
         값 몇 칸으로 끝난 것은 결과이지 처음부터 보이던 길이 아니었다.
 
         **반론도 함께 적었다.** DC-SKILL-COMBINE-BEFORE-NEW-FORM 이 이미 절반을 담고
         있어(§6-2 — 파라미터로 되는 것을 새 형태로 세우지 않는다), 그쪽 rationale 에
-        C024 를 두 번째 사례로 적는 것으로 족할 수 있다. HUMAN DECISION: PENDING.
+        C025 를 두 번째 사례로 적는 것으로 족할 수 있다. HUMAN DECISION: PENDING.
 
 ### 새 열린 질문 — Q46 (공정)
 
@@ -1974,33 +2065,38 @@ Human 이 "FR-ACTION-PHASE 의 근간이 무엇인가" 를 물어 근간을 역�
     묻는다. 세 번 겹친 뒤에 올라왔다.
 
         C022   C020 → C021 → C022 로 두 번 옮겼다
-        C024   C023 으로 잡았으나 레인 A 가 같은 C023 으로 먼저 main 에 들어와 C024 로 옮겼다
+        C025   C023 → C024 → C025 로 **두 번** 옮겼다. 두 번 다 레인 A 가 같은 번호로
+               먼저 main 에 들어왔다 (`C023-what-you-wear-changes-you` · `C024-one-slot-one-item`)
 
     두 레인이 각자 "다음 빈 번호" 를 세면 언제나 같은 수가 나온다. 번호는 레인이 스스로
-    정할 수 있는 것이 아니라 먼저 잡아 두어야 하는 것이다. 선택지 넷을 Q46 에 적었고
-    **번호 쪽은 손대지 않았다** — 규칙을 세우는 것은 공정의 변경이고 Human 결정이다.
+    정할 수 있는 것이 아니라 먼저 잡아 두어야 하는 것이다. 선택지 넷을 Q46 에 적었다.
+
+    **번호 쪽 절반은 그 사이에 답을 얻었다.** 레인 A 가 `frontier.md` 의 "병렬 배치" 절에
+    `Cycle 번호를 먼저 예약한다` 를 세웠다 (Stage 1 전에 디렉터리와 제목 줄만 push).
+    이 Feedback 은 그 규칙을 지우지 않고 Q46 의 선택지 (a) 로 기록했다 —
+    실무에서 먼저 선 것을 문서가 뒤늦게 따라간 형태다.
 
 ### Q35 갱신 — 선행 작업이 끝났다
 
     Q35 의 "아직 없는 것" 에서 **휘두름의 모양이 빠졌다.** 그 항목의 선택지 (a) 가
     *"대신 휘두름의 모양을 정의로 꺼내는 일이 선행 작업이 된다"* 고 적었고, 그 일이
-    C024 다.
+    C025 다.
 
     **질문 자체는 열려 있다.** 선행 작업이 끝난 것과 "층이냐 갈래냐" 를 정하는 것은
     다르다 — (a) 를 고르는 데 걸림돌이 하나 줄었을 뿐이다.
 
 ### Master Gap — 없음. 기반 트랙으로 넘어간 것 둘 (Master 밖)
 
-    C024 가 보고한 아홉 항 중 둘은 Master 의 일이 아니라 **기반(engine)** 의 일이다.
+    C025 가 보고한 아홉 항 중 둘은 Master 의 일이 아니라 **기반(engine)** 의 일이다.
     Overlay 에 올리지 않았고 여기 기록만 남긴다.
 
     조작 키의 단일 출처가 없다
         키를 먼저 가져가는 자리가 셋인데(`keyboard.ts` 의 MOVE_KEYS · TURN_KEYS,
         `app/main.ts` 의 셋) 어느 것도 팩이 읽을 수 있게 내보내지 않는다. 그래서
         **C012 의 오라 스킬(R)과 C017 의 살펴보기(T)가 눌러도 나가지 않는 상태로 있었다** —
-        C024 가 실제로 눌러 보고 발견해 H · Y 로 옮겼다. 팩은 `RESERVED_KEY_CODES` 라는
+        C025 가 실제로 눌러 보고 발견해 H · Y 로 옮겼다. 팩은 `RESERVED_KEY_CODES` 라는
         사본으로 막아 두었으며, 기반이 그 목록을 내보내면 사본을 지운다.
 
     `SceneColliderDebug` 의 이름이 뜻과 어긋난다
-        C024 가 그 계약을 평시 장면 표현에 쓴다. 능력이 하는 일은 이름과 무관하게
+        C025 가 그 계약을 평시 장면 표현에 쓴다. 능력이 하는 일은 이름과 무관하게
         "지면 위 부피를 그린다" 하나여서 그대로 맞지만 이름은 어긋난다.

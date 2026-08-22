@@ -109,10 +109,15 @@ export const INTERACTIONS: readonly InteractionHandler<WorldState>[] = [
     // C023 — 지닌 것을 몸에 건다. 요청이 싣는 것은 **내 소지품 중 무엇인가** 하나다 —
     // 어느 자리에 걸지는 싣지 않는다: 여섯 자리가 서로 완전히 같으므로 고를 것이 없고,
     // 세계가 빈 자리를 고른다 (IE §10 · §20).
+    //
+    // C024 CHANGED — **자리를 실을 수 있게 된다.** 싣지 않으면 위 뜻 그대로이고,
+    // 실으면 그 자리가 비었을 때 그냥 걸리고 차 있으면 교체가 된다.
+    // 수용층은 요청의 종류를 가르지 않는다 — 찼는지 비었는지는 세계가 판정한다
+    // (DC-WORLD-OWNS-THE-SURFACE-LIST · 03-world-semantic.md RATIONALE 2).
     id: 'equip-item',
     handle: withActor((_state, actor, action) => {
       if (!action.itemKind) return { status: 'failure', rule: DISPATCH, reason: 'missing-item' };
-      return ruleItemEquip(actor, action.itemKind);
+      return ruleItemEquip(actor, action.itemKind, action.equipSlotId);
     }),
   },
   {

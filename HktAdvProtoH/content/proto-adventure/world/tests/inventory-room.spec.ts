@@ -5,7 +5,14 @@
 
 import { describe, expect, it } from 'vitest';
 import type { GameViewSnapshot } from '../../protocol/gameview';
-import { driveWorld, equipPickaxe, PLAYER, selectTarget, type WorldDriver } from './drive';
+import {
+  driveWorld,
+  equipBuckler,
+  equipPickaxe,
+  PLAYER,
+  selectTarget,
+  type WorldDriver,
+} from './drive';
 import { TICK_INTERVAL } from '../semantic/world-state';
 
 const solo = { npcs: [] };
@@ -46,15 +53,22 @@ function atDeposit(depositAmount = 15) {
 function atDepositReady(depositAmount = 15) {
   const world = atDeposit(depositAmount);
   equipPickaxe(world);
+  // C024 — 시작한 몸이 걸 수 있는 것을 **둘** 지닌다. 둘 다 걸어야 가방이 비어서
+  // 시작하며, 그래야 아래 자리 실측이 확인하려는 것(⌈수량 / 한도⌉)이 시작 소지품에
+  // 흔들리지 않는다. 걸린 것은 가방의 자리를 쓰지 않는다 (C023).
+  equipBuckler(world);
   return world;
 }
 
 // ─────────────────────────────────────────────────────────────────────
 describe('RULE-INVENTORY-ROOM-001 — 자리는 분기 없는 한 식이다', () => {
-  it('시작한 몸은 곡괭이 하나로 자리 하나를 쓴다 (겹치지 않는 종류)', () => {
+  it('시작한 몸은 겹치지 않는 것 둘로 자리 둘을 쓴다', () => {
     const view = atDeposit().observe();
 
-    expect(room(view)).toEqual({ used: 1, capacity: 4 });
+    // C024 — 손방패가 늘어 자리가 하나 더 찬다. **식은 한 글자도 바뀌지 않았다** —
+    // 둘 다 StackLimit 1 이므로 ⌈1/1⌉ + ⌈1/1⌉ = 2 다.
+    expect(room(view)).toEqual({ used: 2, capacity: 4 });
+    expect(item(view, 'buckler')?.stackable).toBe(false);
     // C022 — 곡괭이는 StackLimit 1 이므로 겹치지 않는다. 세계에 겹치지 않는 종류가
     // 처음 하나 생긴 것이며, 그래서 ⌈n/한도⌉ 가 두 갈래 모두에서 관찰된다.
     expect(item(view, 'pickaxe')?.stackable).toBe(false);

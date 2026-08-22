@@ -1,4 +1,4 @@
-# CYCLE C024 — GameView Specification
+# CYCLE C025 — GameView Specification
 #
 # 이 계약에 처음으로 **행동의 공간이 의미로** 실린다.
 #
@@ -76,14 +76,14 @@ entities:
           source: ActionCollider.Center (RULE-ACTION-COLLIDER-001 — CHANGED)
           meaning:
             - 지금 이 Tick 에 칼끝이 있는 자리. **세계가 판정한 값**이다
-            - C024 CHANGED — 그 궤적이 이제 그 기술의 각과 길이가 만든 것이다.
+            - C025 CHANGED — 그 궤적이 이제 그 기술의 각과 길이가 만든 것이다.
               좁은 기술은 정면 가까이를 짧게 지나고, 넓은 기술은 옆까지 크게 돈다
             - 자리의 뜻도 계산법도 바뀌지 않았다. 값이 갈릴 뿐이다
         radius:
           source: ActionCollider.Radius (RULE-ACTION-COLLIDER-001 — CHANGED)
           meaning:
             - 칼끝이 차지하는 굵기. **닿음의 판정 반경 그 자체**다
-            - C024 CHANGED — 기술마다 다르다. 지금까지는 언제나 0.7 이었다
+            - C025 CHANGED — 기술마다 다르다. 지금까지는 언제나 0.7 이었다
         active:
           source: ActionCollider.Active
           meaning: 지금 이 원이 닿음을 만드는가. 구간 밖에서는 경계 각에 고정된 예비/여운 자세다 (C006 그대로)

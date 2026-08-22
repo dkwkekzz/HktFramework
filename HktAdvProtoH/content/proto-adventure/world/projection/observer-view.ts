@@ -47,7 +47,11 @@ import { inventoryEntries } from '../semantic/inventory';
 import { isStackable, itemDefinition } from '../semantic/item';
 import { evaluateItemUse } from '../rules/item-use';
 import { evaluateItemDiscard } from '../rules/item-discard';
-import { evaluateItemEquip, evaluateItemUnequip } from '../rules/item-equip';
+import {
+  evaluateItemEquip,
+  evaluateItemExchange,
+  evaluateItemUnequip,
+} from '../rules/item-equip';
 import { equipmentSlots } from '../semantic/equipment';
 import { ruleInventoryRoom } from '../rules/inventory-room';
 import {
@@ -330,7 +334,7 @@ export function projectObserverView(
       damageType: basic.damageType, // C012 — 각 스킬이 어떤 방식인지 세계가 밝힌다
       swingBegin: basic.swingBegin, // C019 — 고르기 전에 아는 선딜
       swingEnd: basic.swingEnd,
-      swingArc: basic.swingArc, // C024 — 고르기 전에 아는 모양
+      swingArc: basic.swingArc, // C025 — 고르기 전에 아는 모양
       swingReach: basic.swingReach,
       swingTipRadius: basic.swingTipRadius,
     },
@@ -352,7 +356,7 @@ export function projectObserverView(
       damageType: heavy.damageType, // C012
       swingBegin: heavy.swingBegin, // C019
       swingEnd: heavy.swingEnd,
-      swingArc: heavy.swingArc, // C024 — 고르기 전에 아는 모양
+      swingArc: heavy.swingArc, // C025 — 고르기 전에 아는 모양
       swingReach: heavy.swingReach,
       swingTipRadius: heavy.swingTipRadius,
     },
@@ -378,7 +382,7 @@ export function projectObserverView(
       damageType: aura.damageType, // C012
       swingBegin: aura.swingBegin, // C019
       swingEnd: aura.swingEnd,
-      swingArc: aura.swingArc, // C024 — 고르기 전에 아는 모양
+      swingArc: aura.swingArc, // C025 — 고르기 전에 아는 모양
       swingReach: aura.swingReach,
       swingTipRadius: aura.swingTipRadius,
     },
@@ -674,12 +678,30 @@ function projectInventory(
     // C023 — 걸기는 **지닌 모든 항목**에 하나씩 붙는다. 자리를 고르는 자리가 없으므로
     // 항목당 하나다. 걸릴 수 없는 물건에는 not-equippable 이 실린다 — 그것도
     // 관찰의 내용이다 ("이건 거는 물건이 아니다" 를 화면이 짐작하지 않는다).
+    //
+    // C024 — 뜻이 바뀌지 않는다. 자리를 밝히지 않은 걸기이며 빈 자리가 없으면 여전히
+    // no-empty-slot 이다.
     const equipFailure = evaluateItemEquip(self, kind);
     actions.push({
       id: 'equip-item',
       role: 'equip-item',
       available: equipFailure === null,
       ...(equipFailure ? { unavailableReason: equipFailure } : {}),
+    });
+
+    // C024 ADDED — 바꿔 걸기. 걸기와 **나란한 손**이며 자리를 밝힌다는 것이 둘을 가르는
+    // 전부다. 고를 자리들은 equipment 목록에 이미 실려 있으므로 화면이 새로 계산하는
+    // 것이 없다.
+    //
+    // **가방의 형편이 이 판정에 들어가지 않는다** — 교체는 담을 자리를 요구하지 않는다.
+    // 그래서 가방이 가득한 순간 같은 화면에서 자리의 unequip-item 은 no-room 으로
+    // 불가인데 이 손은 가능이다. 그 나란함이 이 Cycle 의 관찰이다.
+    const exchangeFailure = evaluateItemExchange(self, kind);
+    actions.push({
+      id: 'exchange-item',
+      role: 'exchange-item',
+      available: exchangeFailure === null,
+      ...(exchangeFailure ? { unavailableReason: exchangeFailure } : {}),
     });
 
     // C022 — 덜어내기는 **지닌 모든 항목**에 붙는다. 쓸 수 있는 물건만 놓을 수 있는

@@ -83,7 +83,7 @@ export interface ActorState {
   moveSpeed: number; // TempoStats.MoveSpeed (C001 고정 상수 → C007 능력치로 승격)
   runSpeedMultiplier: number; // 달릴 때 이동 속도에 곱해지는 값
   actionSpeed: number; // 스킬 행동 길이에 걸리는 배율 (클수록 빠르다)
-  engagementRange: number; // 고정 상수 (C024 — 구 attackRange · 다가가는 거리)
+  engagementRange: number; // 고정 상수 (C025 — 구 attackRange · 다가가는 거리)
   perceptionRange: number; // 고정 상수 — control = autonomous 일 때만 의미가 있다
   wanderPath: WorldPosition[]; // 고정 — control = autonomous 일 때만 의미가 있다
   wanderIndex: number;
