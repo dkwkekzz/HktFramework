@@ -296,7 +296,7 @@
                        7 이후 모든 전달 형태가 이 형상 축을 재사용한다
     의존               **없다.** 아이템 축과 겹치지 않는다 — 이것이 이 후보를 다른
                        세션에 맡길 수 있는 이유다 (아래 병렬 배치)
-    Status             PROPOSED
+    Status             SELECTED — C024 가 돈다 (Stage 8 실측 완료 · Human Play 확인 대기)
 
 ## 추천 순서 (Agent 제안 — 확정은 Human)
 
@@ -397,18 +397,31 @@ Feedback 은 한 번에 하나     닫힌 Cycle 의 08-verification 을 Master �
 ## SELECTED
 
 ```text
-없음 — Human 선택 대기
+레인 B   FR-THE-SHAPE-IS-DATA — 휘두름의 모양이 값이 된다
+         C024-the-shape-is-data 가 돈다 (Stage 8 실측 완료 · Human Play 확인 대기)
+
+레인 A   없음 — Human 선택 대기
 ```
 
-    직전에 돌던 것은 `FR-WHAT-YOU-WEAR-CHANGES-YOU`(걸어 둔 것만이 몸을 바꾼다)이고
-    **C023 으로 닫혔다** (Gate 15항 전부 충족). 그 앞의 `FR-WHAT-YOU-CARRY-TAKES-ROOM`
-    (자리가 유한해진다)은 C022 로 구현되어 C023 의 실측이 다시 확인했다.
-    둘의 결과는 HISTORY.md 로 옮겼다.
+    **레인 B 는 아직 소진되지 않았다.** 여덟 Stage 의 실측은 끝났고 Gate 15항 중 열넷이
+    충족이다. 남은 하나가 `인간이 실제 게임에서 Cycle Goal 달성을 확인했다` 이며, 기계가
+    실제 세계 프로세스와 실제 브라우저로 같은 각본을 돌렸어도 그것을 대신하지 않는다.
+    확인되면 후보 6 을 지우고 결과를 HISTORY 로 옮긴다 (C024 08-verification.md).
 
-    다음은 위 여섯 중 하나를 Human 이 고르는 자리다. Agent 추천은 **후보 1(한 자리에는
-    하나)** — 여섯 중 유일하게 Capability 를 끝까지 미는 것이고(MC-EQUIP-ITEM PARTIAL →
+    **레인 A 는 비어 있다.** 직전에 돌던 `FR-WHAT-YOU-WEAR-CHANGES-YOU`(걸어 둔 것만이
+    몸을 바꾼다)가 **C023 으로 닫혔고**(Gate 15항 전부 충족), 그 앞의
+    `FR-WHAT-YOU-CARRY-TAKES-ROOM`(자리가 유한해진다)은 C022 로 구현되어 C023 의 실측이
+    다시 확인했다. 둘의 결과는 HISTORY.md 로 옮겼다.
+
+    다음은 남은 다섯 중 하나를 Human 이 고르는 자리다. Agent 추천은 **후보 1(한 자리에는
+    하나)** — 다섯 중 유일하게 Capability 를 끝까지 미는 것이고(MC-EQUIP-ITEM PARTIAL →
     IMPLEMENTED), 작으며, 지금 세계가 `no-empty-slot` 으로 거절하는 자리를 정상 성공
     경로로 바꾼다. 후보 2 를 얹어 한 Cycle 로 돌아도 된다.
+
+    〔이 칸의 형태가 바뀌었다〕 지금까지 `SELECTED` 는 **하나만** 담았고, 그래서 레인 둘이
+    동시에 돌 때 한쪽이 이 칸 밖에서 출발해야 했다 (C024 가 실제로 그랬다). 레인별로
+    적는 형태로 바꾼 것은 그 결손을 드러내기 위한 최소 변경이며, **이대로 둘지는 Human
+    판단**이다 (open-questions Q46).
 
 ## 지금 열 수 없는 것
 
