@@ -1,0 +1,314 @@
+# CYCLE C025 — GameView Specification
+#
+# **이 계약은 열리지 않는다.**
+#
+# 형이 하나도 늘지 않고, 값이 하나도 늘지 않고, 세계 쪽 코드도 열리지 않는다.
+# 이 Cycle 이 하는 일은 **이미 계약에 실려 오고 있으나 화면의 어느 자리에도
+# 닿지 않는 값들**을 도착시키는 것이다 (01 SCOPE NOTE ①·③·④).
+#
+# 그러므로 이 문서의 일은 셋이다.
+#
+#   ① 화면이 무엇을 읽어야 하는지를 **계약의 말로** 못박는다 —
+#      특히 "무엇이 기술인가" 를 화면이 짐작하지 않도록 (03 JUDGEMENT ①).
+#   ② 근거 기획서 §10 이 요구하는 칸들 중 **이 세계에 있는 것과 없는 것**을 가른다.
+#      없는 칸은 `null` 로도 싣지 않는다 — 없는 개념의 자리를 만들면 그 자리가
+#      곧 화면이 지어낸 규칙이 된다.
+#   ③ 화면이 **해서는 안 되는 것**을 적는다. 이 Cycle 의 위험은 모자람이 아니라
+#      화면이 세계보다 앞서 나가는 것이다.
+#
+# 이 계약을 받은 View 는 기술을 **한 번도 판정하지 않는다.**
+# 지금 쓸 수 있는지도, 왜 못 쓰는지도, 얼마를 치르고 얼마를 내는지도 묻지 않는다 —
+# 받은 값을 옮긴다.
+
+id: VIEW-WHAT-YOU-CAN-DO-AND-WHY-NOT-001
+observer: player
+
+change: NONE                    # 형도 값도 열리지 않는다
+
+delta:
+  reused:
+    - interactions                                # 목록 전부 — 기술도 그 안에 있다
+    - interactions[].id                           # 요청에 실어 보내는 이름
+    - interactions[].role                         # 의미 코드 — 문구·키는 View 책임
+    - interactions[].available                    # 지금 쓸 수 있는가
+    - interactions[].reason                       # 못 쓰면 왜인가 (사유 코드)
+    - interactions[].profile                      # 기술의 값 일곱 (C007 → C019)
+    - requestOutcome                              # 요청의 대답 (C009)
+    - entities.character.vitality.downed          # `downed` 사유의 값
+    - entities.character.attributes.guard         # `guarding` 사유의 값
+    - entities.character.state / progress         # `action-busy` 사유의 값
+    - entities.character.actionPhase              # C019 — 이 Cycle 은 띠에 그리지 않는다
+    - hud.self.cp / cpMax                         # `insufficient-cp` 사유의 값
+    - attributes.modifiers.energyConsume          # 실제로 치르는 값의 배율
+    - observer / session / delivery / telemetry   # 대답이 오지 않는 것을 판단할 근거
+  added: []
+  changed: []
+  removed: []
+
+  # 형은 열리지 않고 **계약의 문장이 는다.** 아래 `skill.identification` 이 그것이다 —
+  # 지금까지 암묵이던 것을 명시로 바꾼다. 이 문장이 없으면 화면이 기술을 고르는 일이
+  # 계약을 읽은 것이 아니라 짐작한 것이 된다.
+  clarified:
+    - interactions[].profile                      # 실림 = 그것이 기술이라는 관찰
+
+scene: mining-field
+
+# ─────────────────────────────────────────────────────────────────
+# skill — 기술의 관찰
+#
+#   기술을 위한 **새 목록을 만들지 않는다.** 기술은 interactions 안에 이미 있다.
+#   여기 적는 것은 그 안에서 기술을 어떻게 알아보고 무엇을 읽는가 뿐이다.
+# ─────────────────────────────────────────────────────────────────
+skill:
+  reused: true
+
+  # ── 무엇이 기술인가 ───────────────────────────────────────────
+  identification:
+    rule: interaction 에 `profile` 이 실려 있으면 그것이 기술이다
+    source: InteractionView.profile
+    meaning: |
+      `profile` 이 실린다는 것은 세계가 "이것은 치르는 것과 내는 것이 있는 행위다"
+      라고 말한 것이다. 값이 오는 것 자체가 관찰이며, 화면은 이름을 하나도 알지
+      못한 채 기술을 가려낼 수 있다.
+
+      **화면은 `role` 의 이름이나 접두사로 기술을 고르지 않는다.**
+      그렇게 고르면 이름 규칙이 화면 코드로 복제되고, 세계가 이름을 바꾸는 날
+      화면이 조용히 틀린다 (DC-WORLD-OWNS-THE-SURFACE-LIST).
+      기본 기술의 id 가 `attack` 이고 role 만 `skill-basic` 인 것이 그 위험의 실례다.
+
+      기술이 넷이 되는 날 `profile` 이 함께 실릴 것이고 띠에 항목이 저절로 는다.
+      **그때 화면 코드는 열리지 않는다** — 이것이 이 문장이 지키려는 성질이다.
+
+  # ── 지금 쓸 수 있는가 ─────────────────────────────────────────
+  availability:
+    source: InteractionView.available
+    authority: World
+    meaning: |
+      RULE-SKILL-BEGIN-001 의 네 관문을 실제 거절과 **같은 판정**으로 미리 평가한 결과다.
+      미리 보인 답과 걸었을 때의 답이 어긋나지 않는다.
+
+  unavailableReason:
+    source: InteractionView.reason
+    presence: available 이 거짓일 때만 실린다
+    cardinality: 언제나 **하나**
+    values:
+      - downed              # 쓰러졌다
+      - guarding            # 막는 중이다
+      - action-busy         # 지금 하는 행동이 안 끝났다
+      - insufficient-cp     # 기력이 모자라다
+    meaning: |
+      관문은 첫 실패에서 멈추므로 사유는 언제나 하나다. 이것은 모자람이 아니라
+      **관문의 순서가 곧 "무엇을 먼저 해결해야 하는가" 의 답**이라는 뜻이다
+      (03 OBSERVABLE SEMANTIC 의 관찰 순서 절).
+
+      **화면은 사유의 우선순위를 정하지 않는다.** 세계가 하나를 골라 보냈고
+      그 고름이 곧 판정이다. 여러 사유를 함께 보이려면 관문이 전부를 평가해야 하며
+      그것은 규칙의 변경이다 — 이 Cycle 밖이다.
+
+      알 수 없는 코드가 와도 항목이 사라지지 않는다. 문구를 모르면 코드 원문을
+      그대로 보인다 (`VUX-SK-V-10`).
+
+  # ── 무엇을 치르고 무엇을 내는가 ────────────────────────────────
+  profile:
+    presence: 기술인 interaction 에 언제나 실린다
+    meaning: 고르기 **전에** 아는 값이다. 요청해 보아야 알게 되는 것이 없다.
+    fields:
+      cost:
+        source: SkillDefinition.CpCost
+        meaning: 이 기술이 한 번의 타격에서 소모하는 기력
+      charge:
+        source: SkillDefinition.CpCharge
+        meaning: 이 기술이 한 번의 타격에서 채우는 기력
+      rawDamage:
+        source: RawDamage(Actor, SkillKind)
+        authority: World
+        meaning: |
+          **지금 이 몸으로** 이 기술을 쓰면 나오는 공격 피해다.
+          최종 피해가 아니다 — 대상이 정해지기 전에는 세계도 모르는 값이다.
+
+          **화면이 이 값을 만들지 않는다.** `baseDamage + 내 공격 능력 × attackRatio`
+          를 화면이 계산하면 세계와 화면에 공식이 둘 생기고, 공식이 바뀌는 날
+          둘이 갈라진다.
+      damageType:
+        source: SkillDefinition.DamageType
+        values: [physical, aura]
+        meaning: |
+          이 기술이 피해를 만드는 방식. C012 가 세운 선택이 **세기가 아니라 방식**의
+          선택이므로, 이 값이 보이지 않으면 그 선택 자체가 화면에 없다.
+      baseDamage:
+        source: SkillDefinition.BaseDamage
+        meaning: 기술 자체의 강함 — 내 능력과 무관한 몫
+      attackRatio:
+        source: SkillDefinition.AttackRatio
+        meaning: 내 공격 능력을 얼마나 피해로 바꾸는가
+      swingBegin:
+        source: SkillDefinition.SwingBegin
+        meaning: |
+          선딜이 끝나는 지점 (행동 진행도의 비율). **고르기 전에 아는 값**이다 —
+          클수록 오래 준비한다. 실시간 길이는 이 값 × 그 기술의 행동 길이다.
+      swingEnd:
+        source: SkillDefinition.SwingEnd
+        meaning: 판정이 끝나는 지점 — 이 뒤가 후딜이다
+
+    # 이 Cycle 이 profile 로 하지 않는 것
+    outOfScope:
+      - 진행 중인 구간을 실시간으로 그리는 것          # VUX-SK-03
+      - swingBegin/End 를 실시간 막대로 환산하는 것    # VUX-SK-03
+
+# ─────────────────────────────────────────────────────────────────
+# requestOutcome — 내가 건 요청이 어떻게 되었는가
+#
+#   C009 가 세운 계약 그대로다. 형도 뜻도 열리지 않는다.
+#   이 Cycle 이 바꾸는 것은 **기술 요청이 표식을 달고 나가는가** 하나이며,
+#   그것은 계약이 아니라 요청하는 쪽(관찰자)의 일이다.
+# ─────────────────────────────────────────────────────────────────
+requestOutcome:
+  reused: true
+  source: RULE-REQUEST-REPLY-001
+  precondition: 없음 — 도착한 모든 요청이 대답을 받는다
+  fields:
+    accepted: 받아들여졌는가
+    rule: 어느 판정이 결정했는가 (Semantic Identifier)
+    reason: 거절이면 그 사유 코드 — 문구 변환은 View 책임
+    mark: 요청에 실려 온 Request.Mark 그대로
+  meaning: |
+    세계는 표식을 **해석하지 않고 되돌린다.** 그러므로 어느 대답이 어느 요청의
+    것인지를 짚는 것은 관찰자의 일이며, 그 수단은 이미 계약 안에 있다.
+
+    **표식 없이 나간 요청의 대답은 짚을 수 없다.** 짚을 수 없는 대답을 아무 자리에나
+    붙이면 그 자리는 남의 요청의 결과를 자기 것처럼 말하게 된다 (02 AFFECTED).
+
+# ─────────────────────────────────────────────────────────────────
+# 기획서 §10 대조 — 이 세계에 있는 칸과 없는 칸
+#
+#   근거 기획서 `VUX-SK-D1` §10 은 `skillSlots[]` `aiming` `skillExecutions[]`
+#   `skillEffects[]` `spatialPresences[]` 다섯 목록을 요구한다.
+#   그 형을 이 세계에 **그대로 옮기지 않는다** — 옮기면 세계에 없는 개념의 자리가
+#   계약에 생기고, 빈 자리가 곧 "아직 안 만든 것" 이 아니라 "화면이 채울 것" 이 된다.
+#
+#   아래가 그 대조다. 없는 칸은 `null` 로도 싣지 않는다.
+# ─────────────────────────────────────────────────────────────────
+designReconciliation:
+
+  skillSlots:
+    slotId:              없음 — 자리라는 개념이 세계에 없다. 순서는 View 가 정한다
+    skillId:             InteractionView.id
+    labelCode:           InteractionView.role                 # 문구는 View 책임
+    iconCode:            없음 — View 결정
+    bindingId:           없음 — View 결정 (03 JUDGEMENT ③). 세계는 키를 정하지 않는다
+    activationKind:      없음 — 이 세계의 기술은 한 종류다 (시작하면 끝까지 나간다)
+    phase:               entities[self].actionPhase           # 진행 중일 때만 · VUX-SK-03
+    available:           InteractionView.available
+    unavailableReason:   InteractionView.reason               # code 하나. textCode·priority 없음
+    cooldown:            없음 — **세계에 재사용 대기가 없다.** null 로도 싣지 않는다
+    activationProgress:  entities[self].progress + actionPhase # VUX-SK-03
+    toggleState:         없음 — 토글 기술이 세계에 없다
+    combo:               없음 — 연계 기술이 세계에 없다
+    actions:             없음 — 이 세계에서는 interaction 자체가 그 하나다
+
+  aiming:
+    전부 없음: |
+      Anchor · Geometry · Preview · candidateTargets 어느 것도 세계에 없다.
+      기술은 대상을 담지 않고 시작하며, 무엇이 맞을지는 요청할 때가 아니라
+      휘두름 구간의 접촉이 정한다 (01 SCOPE NOTE ⑤).
+
+      휘두름 충돌 구(`entities[].swing`)는 이미 관찰되지만 **그것은 판정의 결과이지
+      조준의 약속이 아니다.** 그것으로 범위를 예고하면 화면이 세계가 하지 않은
+      약속을 하게 된다.
+
+      Anchor 를 세우는 것은 세계에 의미를 더하는 일이므로 Master Layer 를 거친다.
+
+  skillExecutions:
+    이 세계의 대응: |
+      `strikes[]` (닿았고 해가 성립했다) · `contacts[]` (닿았으나 관계가 막았다) ·
+      `cancels[]` (끊겼다) 셋이 이미 결과를 싣는다 (C007 · C018 · C019).
+
+      다만 `executionId` 로 한 실행을 묶는 개념은 없다. 실행 묶음의 추적은
+      `VUX-SK-05` 의 자리이며 이 Cycle 은 열지 않는다.
+
+  skillEffects:
+    이 세계의 대응: |
+      `strikes[].breakdown` 이 이미 대상별 산정 경위를 전부 싣는다 (C010 → C015) —
+      damageType · offenseStat · defenseStat · penetrationStat · effectiveDefense ·
+      defenseMultiplier · finalDamage · critical · appliedDamage · guard.
+
+      기획서 §7 이 요구하는 `damageType` `sourceOffense` `targetDefense`
+      `skillBaseDamage` `skillAttackRatio` `finalDamage` 는 **이미 전부 온다.**
+      이 Cycle 은 그것을 새로 그리지 않는다 — 이미 그려지고 있다.
+
+  spatialPresences:
+    전부 없음: 장판 · 함정 · 날아가는 것이 세계에 없다. `VUX-SK-04` 의 자리다
+
+# ─────────────────────────────────────────────────────────────────
+# View 가 해서는 안 되는 것
+#
+#   이 Cycle 의 위험은 모자람이 아니라 화면이 세계보다 앞서 나가는 것이다.
+# ─────────────────────────────────────────────────────────────────
+prohibited:
+  - 기술의 목록을 화면 코드에 적는 것
+  - role 의 이름이나 접두사로 기술을 가려내는 것
+  - 사유의 우선순위를 화면이 정하는 것 — 세계가 하나를 골라 보냈다
+  - 사유가 없는데 사유를 지어내는 것 (available 이 참이면 이유가 없다)
+  - 내 능력치와 profile 로 최종 피해를 계산하는 것
+  - 기력이 모자란지를 화면이 직접 견주어 판단하는 것 — `reason` 이 이미 그 답이다
+  - 세계에 없는 자리(cooldown · toggle · combo · anchor)를 미리 만들어 두는 것
+  - 요청과 대답 사이에 기력·행동·타격을 앞질러 그리는 것
+  - 휘두름 충돌 구를 조준 범위처럼 보이는 것
+  - 표식 없는 대답을 아무 자리에나 붙이는 것
+
+# ─────────────────────────────────────────────────────────────────
+# 이 계약으로 닫아야 할 Fixture (기획서 §14.1 중 이 Cycle 해당분)
+# ─────────────────────────────────────────────────────────────────
+fixtures:
+  VUX-SK-FX-READY:
+    관찰할 것: 기술 셋이 전부 보이고, 각자의 값과 실제 키가 보이고, 실행이 결과로 이어진다
+  VUX-SK-FX-UNAVAILABLE:
+    관찰할 것: |
+      서로 다른 사유가 **각자의 자리에** 붙는다. 한 화면에서 셋이 서로 다른 이유로
+      막혀 있는 상태가 관찰된다 (예: 막는 중 + 기력 모자람이 동시에 성립하는 몸은
+      네 관문의 순서에 따라 `guarding` 하나만 온다 — 그 하나가 그대로 보인다)
+  VUX-SK-FX-STALE:
+    관찰할 것: 거절된 요청의 사유가 그 기술의 자리에 붙고, 같은 요청을 중복해 보내지 않는다
+  VUX-SK-FX-UNKNOWN:
+    관찰할 것: 모르는 사유 코드가 와도 원문으로 보이고 항목이 사라지지 않는다
+
+  # 이 Cycle 이 닫지 않는 Fixture — 세계에 그 의미가 없다
+  outOfScope:
+    VUX-SK-FX-AIMING:        Anchor 가 없다              # VUX-SK-02
+    VUX-SK-FX-ACTIVATION:    복합 Activation 이 없다      # VUX-SK-03
+    VUX-SK-FX-PRESENCE:      Presence 가 없다            # VUX-SK-04
+    VUX-SK-FX-MULTI-TARGET:  이미 닫혀 있다 (C007 · C010) — 이 Cycle 이 다시 하지 않는다
+    VUX-SK-FX-HIDDEN:        기술 표면에 남의 값이 실리지 않는다 — 이 Cycle 이 여는 것은
+                             **내 몸의 관찰**뿐이다 (INTENT-PER-OBSERVER-PROJECTION-001)
+
+# ─────────────────────────────────────────────────────────────────
+# 이 계약이 요구하는 자동 검증 (기획서 §14.2 중 이 Cycle 해당분)
+# ─────────────────────────────────────────────────────────────────
+verification:
+  VUX-SK-V-01: 보이는 기술마다 실제 bindingId · availability · reason 을 그대로 표현한다
+  VUX-SK-V-02: 키와 포인터가 **같은 요청**(같은 interactionId · 같은 형)으로 수렴한다
+  VUX-SK-V-05: 대답이 오기 전에 기력·행동·타격을 앞질러 만들지 않는다
+  VUX-SK-V-10: 알 수 없는 코드는 원문으로 보이고 예외가 나지 않는다
+  VUX-SK-V-12: Fixture 테스트가 World 프로세스 없이 통과한다
+
+  outOfScope:
+    VUX-SK-V-03: Preview 가 없다        # VUX-SK-02
+    VUX-SK-V-04: Anchor 가 없다         # VUX-SK-02
+    VUX-SK-V-06: query count 가 없다    # VUX-SK-05
+    VUX-SK-V-07: 이미 닫혀 있다 (C010)
+    VUX-SK-V-08: Presence 가 없다       # VUX-SK-04
+    VUX-SK-V-09: 이 Cycle 의 표면에 남의 값이 실리지 않는다
+    VUX-SK-V-11: 오버레이가 없다        # VUX-SK-05
+
+# ─────────────────────────────────────────────────────────────────
+# GAP
+# ─────────────────────────────────────────────────────────────────
+gap:
+  status: 없음
+  근거: |
+    03 의 OBSERVABLE SEMANTIC 대조표에서 "온다" 가 아닌 항목이 하나도 없다.
+    이 Cycle 의 Intent 여섯이 요구하는 관찰이 **전부 이미 계약에 실려 있다.**
+
+    그러므로 `GAMEVIEW GAP` 을 내지 않는다. Stage 6(World Implementation)은
+    **투영을 한 줄도 고치지 않는다** — 고쳐야 할 것이 드러나면 그것은 이 판정이
+    틀렸다는 뜻이고, 그때 이 Stage 로 돌아온다.
