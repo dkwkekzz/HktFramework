@@ -5,9 +5,9 @@
 > 전투 기본 규칙(OffenseDefense) 트랙을 마무리하는 것이 먼저다. 그 전에는 이 디렉터리를
 > **새 영역으로** 넓히는 작업(다른 주제의 WHY/OPTIONS/NEED Graph 확장 · Constraint 신설)을
 > 시작하지 않는다. 닫힌 Cycle 을 반영하는 Feedback 은 그 제한에 걸리지 않는다 — 그것을 미루면
-> `frontier.md` 와 `overlay.md` 가 현재 세계와 어긋나 다음 선택을 흐린다.
+> `frontier/` 와 `overlay.md` 가 현재 세계와 어긋나 다음 선택을 흐린다.
 >
-> Human 이 직접 세운 것은 `constraints/` 뿐이다. `graph/` `overlay.md` `frontier.md` 는
+> Human 이 직접 세운 것은 `constraints/` 뿐이다. `graph/` `overlay.md` `frontier/` 는
 > R1 개정 때 설계 문서의 의미를 옮겨 둔 것이며 Master 를 처음부터 세운 결과가 아니다.
 >
 > **2026-08-18 — 이 지시 아래에서 Graph 확장을 한 번 실행했다.** OffenseDefense 트랙 자신의
@@ -72,9 +72,10 @@ WorldState   13     상위 인과 2 (PRIMAL-WORLD · WORLD-PRESSURE) · 세계�
 Open Question 1   → Q29 (통찰이 독립 노드인가). 다음 Cycle 선택을 막지 않는다
 ```
 
-무엇이 언제 왜 바뀌었는지는 `HISTORY.md` 가 소유한다. 살아 있는 문서(`overlay.md` ·
-`frontier.md` · `open-questions.md` · `constraints/README.md`)에는 **지금 할 일과 현재
-상태만** 남긴다 — 닫힌 것은 그 자리에서 지우고 HISTORY 로 옮긴다.
+무엇이 언제 왜 바뀌었는지는 Cycle 반영이면 `feedback/<CycleId>.md`, Master 층 자체의
+결정이면 `HISTORY.md` 가 소유한다. 살아 있는 문서(`overlay.md` · `frontier/` ·
+`open-questions.md` · `constraints/README.md`)에는 **지금 할 일과 현재 상태만** 남긴다 —
+닫힌 것은 그 자리에서 지우고 보관소로 옮긴다.
 
 닫힌 Possibility 4종 — MP-TRADE-BODY-FOR-RESOURCE(C011) · MP-MATCH-WEAPON-TO-ARMOR(C012) ·
 MP-PIERCE-THE-HARD-DEFENSE(C013) · MP-INTERRUPT(C019). MP-OUTGROW-THE-OPPONENT 은 코드 대조로 PARTIAL 로
@@ -111,14 +112,16 @@ master/     현재 상태    world/ view/ 처럼 계속 갱신된다
 | [constraints/](constraints/) | `DC-*.yaml` — 승인된 Design Constraint | **Human** 승인 |
 | [graph/](graph/) | MW · MA · MK · MB · MG · MP · MC · edges | Master Design Agent |
 | [overlay.md](overlay.md) | Capability × 현재 구현 상태 (IMPLEMENTED/PARTIAL/MISSING) | Master Design Agent |
-| [frontier.md](frontier.md) | `FR-*` 후보 + Human 선택 기록 | Agent 제안 / **Human** 선택 |
+| [frontier/](frontier/) | 트랙별 `FR-*` 후보 + Human 선택 — 트랙 목록·병렬 규칙은 [frontier/README.md](frontier/README.md) | Agent 제안 / **Human** 선택 |
 | [candidates/](candidates/) | `CC-*.md` — 미승인 Constraint Candidate | Agent 제안 / **Human** 승인 |
 | [open-questions.md](open-questions.md) | 승인 대기 · Constraint 충돌 · 설계 공백 · Trade-off | Agent 제기 / **Human** 결정 |
-| [HISTORY.md](HISTORY.md) | 닫힌 것들의 보관소 — 평소에 읽지 않는다 | Master Design Agent |
+| [feedback/](feedback/) | Cycle 반영 경위 — 한 Cycle = 한 파일, 평소에 읽지 않는다 | Master Feedback 작업 |
+| [HISTORY.md](HISTORY.md) | Master 층 자체의 닫힌 것 보관소 — 평소에 읽지 않는다 | Master Design Agent |
 | [graph/GRAPH.md](graph/GRAPH.md) | Graph 스냅샷 (Mermaid · 표) — **생성물, 손으로 고치지 않는다** | `npm run master:graph` |
 
 위 문서들은 **지금 할 일과 현재 상태만** 담는다. 닫힌 항목은 그 자리에서 지우고
-`HISTORY.md` 로 옮긴다 — 그래야 매번 읽는 문서가 가볍게 유지된다.
+보관소(Cycle 반영은 `feedback/<CycleId>.md` · Master 층 결정은 `HISTORY.md`)로 옮긴다 —
+그래야 매번 읽는 문서가 가볍게 유지된다.
 
 ## 관찰
 
@@ -175,8 +178,9 @@ Artifact 도구에 file_path = graph/graph-view.artifact.html
 접합점은 둘뿐이다. 그 외 경로로 두 층이 서로를 건드리지 않는다.
 
 ```text
-아래로   frontier.md 의 선택된 FR-*   →  cycles/<CycleId>/01-cycle.md 의 MASTER TRACE
-위로     08-verification.md 의 MASTER FEEDBACK  →  overlay.md 갱신 · candidates/ 제출
+아래로   frontier/<트랙>.md 의 선택된 FR-*   →  cycles/<CycleId>/01-cycle.md 의 MASTER TRACE
+위로     08-verification.md 의 MASTER FEEDBACK  →  overlay.md · frontier/<트랙>.md 갱신 ·
+         feedback/<CycleId>.md 기록 · candidates/ 제출
 ```
 
 Cycle Agent 는 `master/` 를 **직접 편집하지 않는다**. 보고까지가 Cycle 의 책임이고,

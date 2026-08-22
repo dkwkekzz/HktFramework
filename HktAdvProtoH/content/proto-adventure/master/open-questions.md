@@ -13,7 +13,7 @@ Human 이 답한다    DECISION 줄
 
 미해결 **5건** — 닫힌 질문은 HISTORY.md.
 
-[frontier.md](frontier.md) 의 `SELECTED` 는 FR-WHAT-YOU-CARRY-TAKES-ROOM
+[frontier/](frontier/) 의 `SELECTED` 는 FR-WHAT-YOU-CARRY-TAKES-ROOM
 (자리가 유한해진다)이고 C022 가 그것을 돈다 — 여덟 Stage 의 실측은 끝났고
 Human Play 확인만 남았다. 아래 다섯 중 어느 것도 그 Cycle 을 막지 않는다.
 Q35 는 **스킬(SK)** 이 남긴 것으로 그 다음 전투 Cycle 의 크기를 정하는 질문,

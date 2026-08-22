@@ -75,7 +75,7 @@
 
     간접   앞으로 플레이어가 **스스로 줄이거나 버리거나 소비하는** 모든 Capability.
            그리고 MC-CP-ECONOMY — 기력이 스스로 돌아오지 않는다는 현재의 PARTIAL 결손이
-           이 원칙의 시야에서는 다르게 읽힌다 (overlay.md 전투 표 · frontier.md 마지막 절)
+           이 원칙의 시야에서는 다르게 읽힌다 (overlay.md 전투 표 · frontier/ 의 "지금 열 수 없는 것" 절)
 
     Possibility 로는 MP-ADAPT-BY-RESOURCE 가 직접 기댄다 — "물건을 잃으면 도로 못 하게
     된다"(BW §17)가 이 갈래의 핵심인데, **잃는 것과 영영 잃는 것은 다르다.**

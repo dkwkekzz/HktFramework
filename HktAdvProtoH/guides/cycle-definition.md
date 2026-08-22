@@ -6,13 +6,18 @@
 
 ## Input
 
-- **선택된 Frontier** (`master/frontier.md` 의 `SELECTED` 항목) — 있으면 이것이 Goal 의 출처다
+- **선택된 Frontier** (`master/frontier/<트랙>.md` 의 `SELECTED` 항목) — 있으면 이것이 Goal 의 출처다
 - Human Cycle Goal
 - 관련 Existing Capability (있으면 — 기존 `cycles/`, `world/`, `view/`)
 
 ## Do
 
-1. Cycle ID 와 이름을 정한다 (`C012-inventory-capacity`).
+1. Cycle ID 와 이름을 정한다 — `C-<TRACK>-NNN-<이름>` (`C-ITEM-001-one-slot-one-item`).
+   **트랙은 선택된 Frontier 가 사는 파일이 정한다** (`frontier/item.md` → `ITEM`).
+   번호는 `cycles/` 에서 자기 트랙 접두사의 최대 +1 — 한 트랙은 동시에 한 세션만
+   돌므로(frontier/README.md 병렬 규칙) 이 번호는 충돌할 수 없다. 다른 트랙의 번호를
+   보지 않는다. Frontier 없이 시작한 Cycle 은 도메인에 맞는 트랙 이름을 쓰고 사유를 적는다.
+   `C001`~`C023` 은 트랙 도입 전의 옛 번호공간이다 — 세지 않는다.
 2. **MASTER TRACE 를 옮긴다** — 선택된 Frontier 의 Source Goal / Possibility /
    Target Capability / Active Constraints 를 그대로 기록한다.
    Frontier 에서 출발하지 않았다면 `없음` + 사유를 적는다.

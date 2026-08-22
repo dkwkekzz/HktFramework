@@ -12,7 +12,8 @@ mmorpg에서 컨텐츠를 구성하기 위한 구조를 설계한다.
 개발의 기본 단위는 **Cycle** — 현재 게임에 플레이 가능한 Delta 하나를 더한다.
 
 > **다음에 무엇을 하는가** — 후보와 그 순서, 각 층이 막힌 이유, Human 의 선택 기록은
-> [master/frontier.md](master/frontier.md) 가 소유한다. 이 문서는 원칙과 인덱스만 담는다.
+> [master/frontier/](master/frontier/) 의 트랙 파일들이 소유한다 (트랙 목록·병렬 규칙은
+> frontier/README.md). 이 문서는 원칙과 인덱스만 담는다.
 
 ## 두 층
 
@@ -32,8 +33,9 @@ CYCLE LAYER    cycles/    선택된 하나의 플레이 결과를 World Semantic
 접합점은 **둘뿐**이다. 그 외 경로로 두 층이 서로를 건드리지 않는다.
 
 ```text
-아래로   master/frontier.md 의 SELECTED   →  01-cycle.md 의 MASTER TRACE
-위로     08-verification.md 의 MASTER FEEDBACK  →  master/overlay.md · candidates/ 반영
+아래로   master/frontier/<트랙>.md 의 SELECTED   →  01-cycle.md 의 MASTER TRACE
+위로     08-verification.md 의 MASTER FEEDBACK  →  master/overlay.md · frontier/<트랙>.md ·
+         feedback/<CycleId>.md · candidates/ 반영
 ```
 
 Cycle Agent 는 `master/` 를 편집하지 않는다 — 보고까지가 Cycle 의 책임이다.
@@ -109,6 +111,10 @@ Master Stage   advprotoh-master 스킬
 21. Capability 는 `part_of` 로 자신이 속한 전체(시스템·자리)를 밝힌다 — 단일 출처는
     `master/graph/systems.yaml`, 관찰은 GRAPH.md 의 척추 절. 근거 문서가 이름만 댄
     조각은 잠정(grounded: false)이며 Frontier 후보의 Target 이 되지 않는다.
+22. 병렬 작업의 단위는 **트랙**(도메인)이다 — 한 트랙 = 동시에 한 세션. Cycle ID 는
+    트랙 번호공간(`C-<TRACK>-NNN`)이고, Frontier 후보는 자기 트랙 파일에, Feedback
+    경위는 자기 Cycle 파일(`master/feedback/`)에 산다. 공유 파일(overlay ·
+    capabilities)을 고치는 Feedback 은 병합 뒤 최신 main 위에서만 돈다.
 ```
 
 ## Kind 정적 데이터
@@ -162,9 +168,9 @@ Master 의 기본 절차는 `WHY → OPTIONS → NEED → NEXT` 4단계뿐이다
 | 1. WHY — World/Actor/Goal | [guides/master-graph.md](guides/master-graph.md) | `master/graph/` world-state·actors·knowledge·goals |
 | 2. OPTIONS — 대안 Possibility | [guides/master-graph.md](guides/master-graph.md) | `master/graph/possibilities.yaml` |
 | 3. NEED — Capability + Overlay | [guides/master-graph.md](guides/master-graph.md) · [guides/master-overlay.md](guides/master-overlay.md) | `master/graph/capabilities.yaml` · `master/overlay.md` |
-| 4. NEXT — Frontier 후보 | [guides/master-frontier.md](guides/master-frontier.md) | `master/frontier.md` |
-| Human Select | Human | `frontier.md` 의 `SELECTED` → Cycle Stage 1 |
-| Feedback (위쪽 접합점) | [guides/master-feedback.md](guides/master-feedback.md) | `overlay.md` · `frontier.md` · `candidates/` |
+| 4. NEXT — Frontier 후보 | [guides/master-frontier.md](guides/master-frontier.md) | `master/frontier/<트랙>.md` |
+| Human Select | Human | `frontier/<트랙>.md` 의 `SELECTED` → Cycle Stage 1 |
+| Feedback (위쪽 접합점) | [guides/master-feedback.md](guides/master-feedback.md) | `feedback/<CycleId>.md` · `overlay.md` · `frontier/<트랙>.md` · `candidates/` |
 | Inject (기반 기획 주입) | [guides/master-inject.md](guides/master-inject.md) | `constraints/`(DRAFT) · `graph/`(§ provenance) · `overlay.md` · `open-questions.md` |
 
 Constraint 정비는 Step 이 아니다 — Human 요청 시에만
