@@ -334,6 +334,9 @@ export function projectObserverView(
       damageType: basic.damageType, // C012 — 각 스킬이 어떤 방식인지 세계가 밝힌다
       swingBegin: basic.swingBegin, // C019 — 고르기 전에 아는 선딜
       swingEnd: basic.swingEnd,
+      swingArc: basic.swingArc, // C025 — 고르기 전에 아는 모양
+      swingReach: basic.swingReach,
+      swingTipRadius: basic.swingTipRadius,
     },
   });
 
@@ -353,6 +356,9 @@ export function projectObserverView(
       damageType: heavy.damageType, // C012
       swingBegin: heavy.swingBegin, // C019
       swingEnd: heavy.swingEnd,
+      swingArc: heavy.swingArc, // C025 — 고르기 전에 아는 모양
+      swingReach: heavy.swingReach,
+      swingTipRadius: heavy.swingTipRadius,
     },
   });
 
@@ -376,6 +382,9 @@ export function projectObserverView(
       damageType: aura.damageType, // C012
       swingBegin: aura.swingBegin, // C019
       swingEnd: aura.swingEnd,
+      swingArc: aura.swingArc, // C025 — 고르기 전에 아는 모양
+      swingReach: aura.swingReach,
+      swingTipRadius: aura.swingTipRadius,
     },
   });
 

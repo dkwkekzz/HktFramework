@@ -128,7 +128,9 @@ describe('입력 — 지목은 눌러서, 해제와 행동은 키로', () => {
   });
 
   it('두 행동 모두 키를 지닌다 — 대상이 사라졌으므로 키로 부를 수 있다', () => {
-    expect(interactionPresentation('observe-character').key).toBe('KeyT');
+    // C025 CHANGED — KeyT 는 엔진의 시점 조작(내려다보기)이라 눌려도 삼켜졌다.
+    // 키가 있다는 것과 그 키가 닿는다는 것은 다르다 — Y 로 옮겼다.
+    expect(interactionPresentation('observe-character').key).toBe('KeyY');
     expect(interactionPresentation('mine-deposit').key).toBe('KeyE');
   });
 });

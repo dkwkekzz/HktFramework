@@ -55,7 +55,7 @@ nodes:
     constraints: [DC-COMBAT-PLAYER-CAUSALITY, DC-SKILL-IS-COMBINATION-NOT-NAME, DC-SKILL-DELIVERY-IS-NOT-EFFECT, DC-SKILL-ANCHOR-IS-NOT-RESOLUTION]
     constraint_evaluation:
       DC-COMBAT-PLAYER-CAUSALITY: SATISFIED    # 난수 없는 결정적 피해 (C007 실측 · R1 §6)
-      DC-SKILL-IS-COMBINATION-NOT-NAME: UNRESOLVED  # 값은 정의가 지니나 휘두름의 모양이 아직 규칙 코드에 있다 (Q35)
+      DC-SKILL-IS-COMBINATION-NOT-NAME: SATISFIED   # 모양(각·길이·굵기)도 정의가 지닌다 — 값 셋만 바꿔 판정이 뒤집혔고 규칙 코드는 0줄 (C025 실측)
       DC-SKILL-DELIVERY-IS-NOT-EFFECT: SATISFIED    # C020 이 전달을 하나 더하며 피해 경로를 한 줄도 바꾸지 않았다
       DC-SKILL-ANCHOR-IS-NOT-RESOLUTION: SATISFIED  # 휘두름은 고른 대상을 읽지 않는다 — 맞는 것은 접촉이 정하고 호에 든 여럿이 각각 맞는다 (swing-strike 는 대상 수를 돌려준다)
     overlay: IMPLEMENTED
