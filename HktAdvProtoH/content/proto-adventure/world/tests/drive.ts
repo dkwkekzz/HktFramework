@@ -88,6 +88,17 @@ export function equipPickaxe(world: WorldDriver, observerId: string = OBSERVER):
   return world.dispatch({ interactionId: 'equip-item', itemKind: 'pickaxe' }, observerId);
 }
 
+/**
+ * C024 — 손방패도 건다. 시작한 몸이 걸 수 있는 것을 **둘** 지니게 되었으므로,
+ * "가방이 빈 채로 시작하는 세계" 를 만들려면 둘 다 걸어야 한다.
+ *
+ * C022 · C023 이 세운 자리 실측이 이 helper 로 그대로 산다 — 그 시험들이 확인하는 것은
+ * 시작 소지품이 아니라 **⌈수량 / 한도⌉ 라는 식**이기 때문이다.
+ */
+export function equipBuckler(world: WorldDriver, observerId: string = OBSERVER): ActionResult {
+  return world.dispatch({ interactionId: 'equip-item', itemKind: 'buckler' }, observerId);
+}
+
 export function driveWorld(setup: WorldSetup = {}): WorldDriver {
   const world = createWorld(setup);
   // 관찰자 하나를 들여보내고 그 참여를 판정시킨다 — 여기서부터 몸이 있다.

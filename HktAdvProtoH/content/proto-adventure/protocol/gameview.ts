@@ -283,7 +283,7 @@ export interface UnharmedContactView {
 export interface ItemActionView {
   /** ActionRequest.interactionId 로 회신된다 */
   id: string;
-  role: string; // 의미 역할 (use-item | discard-item | equip-item | unequip-item)
+  role: string; // 의미 역할 (use-item | discard-item | equip-item | unequip-item | exchange-item)
   available: boolean;
   /** 불가 사유 코드 — 문구 변환은 View 책임. 세계가 사유의 단일 출처다 */
   unavailableReason?: string;

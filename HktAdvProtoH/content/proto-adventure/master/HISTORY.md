@@ -268,6 +268,7 @@ constraints/README.md   현재 Active Constraint        → 반영 이력은 여
 | FR-OBSERVE-REVEALS-THE-OPPONENT | C014-observe-reveals-the-opponent | **CLOSED** 2026-08-19 — MC-OBSERVE 승격 (IMPLEMENTED 가 아니라 **PARTIAL** — 아래 Overlay 이력) · 탐험 사다리의 첫 칸 |
 | FR-CRITICAL-AMPLIFIES-THE-BLOW | C015-critical-amplifies-the-blow | **CLOSED** — MC-CRITICAL-STRIKE 승격 · 세계에 우연이 처음 들어왔다. MP-BET-ON-THE-CRITICAL-BLOW 는 **절반만** 닫혔다 (성질을 올릴 원천이 없다) |
 | FR-INSIGHT-SEES-BEFORE-LOOKING | C016-insight-sees-before-looking | **CLOSED** — MC-OBSERVE 의 **경로** 결손이 닫혔다 (앎에 이르는 길이 둘 · 앎이 자리 단위). 노드는 여전히 PARTIAL — 남은 결손은 습성 하나 |
+| FR-ONE-SLOT-ONE-ITEM | C024-one-slot-one-item | **CLOSED** 2026-08-22 — **MC-EQUIP-ITEM PARTIAL → IMPLEMENTED**. 같은 4/4 상태에서 해제는 `no-room` 으로 막히고 교체는 성립하는 비대칭이 실측되었다 (IE §15 · §16.1). 배운 것 — **그 비대칭은 특례가 아니라 계산의 결과다**: "걸 수 있는 것은 겹치지 않는다" 는 정의소 불변 조건에서 순 증가 0 이 나온다. 그리고 State 를 한 줄도 늘리지 않고 경로 하나만 열어 Capability 를 닫을 수 있었다 |
 | FR-PREDICT-READS-THE-NEXT-BLOW | (C017 — 접었다) | **보류** 2026-08-20 Human 결정 — 후보에서 내리고 **AI 기획서**를 기다린다. 이유는 계보의 구멍이다: BW §21 은 이름 `MC-PREDICT` 만 대고 정의를 쓰지 않으며 R1·DT 는 예측을 언급하지 않는다 — 노드 semantic 은 Agent 가 채운 것이고 BW §32 의 **층 스케일**이 한 마리의 다음 일격으로 좁아졌다. 자율 존재의 행동을 정의한 기획 문서가 서면 그 위에서 다시 판정한다. 앞선 경위 — 2026-08-19 Human 이 C017 로 골랐다가 Stage 1 만 쓰고 선택을 철회했고, 그때 얻은 "넘어야 할 선" 셋과 A안 판단은 git history 에 있다 |
 
     롤백된 것 (2026-08-17 Human 결정 — R1 층 순서와 어긋나 되돌렸다. 산출물은 git history)
@@ -1897,3 +1898,91 @@ Human 이 "FR-ACTION-PHASE 의 근간이 무엇인가" 를 물어 근간을 역�
     `FR-ARRANGE-WHAT-YOU-CARRY`(지금 3번)가 필요하다. 그 후보의 7 조건이 약해
     보류 중이었는데(Q37), **화면 쪽 요구가 그 후보에 새 근거를 준다.**
     frontier 의 추천 순서에 그 사실을 적었다.
+
+---
+
+## Feedback — C024(한 자리에는 하나) 반영 · 2026-08-22
+
+    C024 가 Gate 15항을 전부 충족하고 닫혔다. `08-verification.md` 의 MASTER FEEDBACK
+    을 반영했다. Human 이 완료를 판정했고 Agent 가 대신 판정하지 않았다.
+
+    **Stage 5 가 통상과 다르게 닫혔다** — Human 이 Stage 1~4 산출 뒤 "끝까지 진행" 으로
+    남은 전부를 지시했고, `05-review.md` 는 그 지시의 기록이지 Agent 의 판정이 아니다.
+    03 의 JUDGEMENT 다섯은 Agent 권고안 그대로 채택되었다. 이 사실을 여기 적어 두는 것은
+    **그 다섯이 검토를 거친 결정이 아니라 기본값**이기 때문이다 — 뒤집을 일이 생기면
+    Cycle Artifact 를 고치지 말고 다음 Cycle 이 CHANGED 로 처리한다.
+
+### Capability Overlay — 승격 1건
+
+        MC-EQUIP-ITEM   PARTIAL → **IMPLEMENTED**   근거 C024 08-verification (세계 프로세스 실측)
+
+    C023 이 남긴 world_shape 두 문장이 닫혔다.
+
+        닫힌 것   이미 찬 자리에 넣으면 넣는 것과 빼내는 것이 **한 번에** 일어나고,
+                  둘 중 하나가 성립하지 않으면 아무것도 일어나지 않는다
+                  담을 곳이 모자라 풀 수 없을 때도 **바꿔 끼우는 것은 된다**
+
+    실측은 **같은 세계 상태에서 두 요청을 연달아** 던져 얻었다 (IE §46 Test 09 가 요구한
+    형태 그대로) — 가방 4/4 에서 해제는 `no-room`, 교체는 성공, 그리고 교체 뒤에도 4/4.
+    물리 공격 52 → **40**(기본값) · 물리 방어 50 → 65 로 헌것의 기여가 정확히 사라졌고
+    채집도 함께 사라졌다.
+
+    **남은 곁가지 둘은 결손이 아니다** — overlay 의 "부족한 것" 칸에 적었다.
+        · 전용 자리를 선언한 물건이 없어 `slot-not-fit` 이 코드에만 서 있다
+        · 자리 여섯이 걸 것 둘보다 넓어, 교체가 아직 *고르는 일*이 아니다 (아래 Gap ②)
+
+### Overlay 근거 갱신 — 승격 없이 결손이 줄어든 곳 둘
+
+        MC-ATTACK-POWER          PARTIAL 유지. "물건 쪽도 곡괭이 하나뿐" 이 사라졌다 —
+                                 걸 것이 둘이 되었다. 다만 그 둘은 **바꿔 끼는 관계이지
+                                 쌓이는 관계가 아니므로** 값을 키우는 축은 여전히 없다
+
+        MP-ADAPT-BY-RESOURCE     갈래가 처음으로 **둘**이 되었다 (공격을 얹을지 방어를
+                                 얹을지). 그러나 자리가 여섯이라 아직 둘 다 걸 수 있어
+                                 진짜 선택은 아니다 — 그 사실을 근거 칸에 적었다
+
+### Constraint Evaluation — 기록 1건
+
+        MC-EQUIP-ITEM 에 `DC-ITEM-CHANGE-IS-ONE-UNIT: SATISFIED` 를 더했다.
+        이 Cycle 이 그 원칙을 **실제로 구현 형태에 걸었기** 때문이다 — 교체를 두 요청으로
+        가르지 않고 하나로 둔 것, 검증을 변경보다 앞세워 중간 상태를 없앤 것, 실패 셋에서
+        자리·수량·유효 값·용도 넷이 그대로인 것이 전부 이 원칙의 결과다.
+        나머지 여섯(HOLDING · CAPABILITY-FROM-GRANTS · CAPACITY-IS-FINITE ·
+        LIVES-IN-ONE-PLACE · KIND-IS-DATA · SURFACE-LIST)은 판정이 바뀌지 않아 그대로 둔다.
+
+### Frontier 정리
+
+        지운 것   `FR-ONE-SLOT-ONE-ITEM` (후보 1) — 소진. 결과는 위 표에
+        세운 것   `FR-THE-PLACES-ARE-NARROWER-THAN-WHAT-YOU-WEAR` (자리가 걸 것보다
+                  좁아진다) — **C024 가 낳은 후보다.** 교체라는 수단은 섰는데 그것을
+                  써야 할 이유가 세계에 없다는 것이 이 Cycle 의 실측으로 드러났다
+        번호      레인 A 가 하나 줄고 하나 늘어 여섯 그대로다. 추천 1순위를 새 후보로 옮겼다
+
+### Constraint Candidate — 접수 1건
+
+    CC-WHAT-THE-WORLD-CANNOT-GIVE-BACK-MUST-NOT-BE-LOSABLE
+        "세계가 다시 내어줄 수 없는 것을 처음부터 쥐여 주었다면, 그것을 잃는 길도 막아야
+        한다." C024 가 손방패를 초기 소지품으로 주었는데 세계에 그것을 내는 곳이 없다.
+        C022 의 막힘 판정은 **용도**만 보므로 걸리지 않는다 — 손방패는 용도를 주지 않기
+        때문이다. 지금은 아무 해도 없다(잃어도 세계가 좁아질 뿐 막히지 않는다).
+        `HUMAN DECISION: PENDING`.
+
+### Master Gap — 셋. 전부 Human 이 볼 것이고 Agent 가 해결하지 않았다
+
+    ① 유래를 답하지 못하는 아이템이 **둘**이 되었다 (Q36 이 열려 있다)
+        곡괭이에 이어 손방패도 `IT-*` 가 없다. Cycle 이 지어 붙이지 않은 것은 옳다 —
+        `Design-Resource-Catalog-R0.md` 가 승인 대기이고 그것이 Q36 과 함께 닫힌다.
+        **질문을 새로 세우지 않았다.** 이 Cycle 이 한 것은 Q36 의 무게를 하나 올린 것뿐이며,
+        그 사실을 Q36 에 적었다.
+
+    ② 자리 여섯이 걸 것 둘보다 여전히 넓다 (IE §49 P3)
+        **이것은 후보로 세웠다** (`FR-THE-PLACES-ARE-NARROWER-THAN-WHAT-YOU-WEAR`).
+        C023 Feedback 때 "지금은 겪히지 않는다 · 질문으로 세우지 않았다" 로 남겼던 것이,
+        걸 것이 둘이 되면서 **겪히기 직전까지 왔다** — 그래서 이번에는 후보다.
+        어느 쪽을 움직일지(자리를 줄일지 걸 것을 늘릴지)는 그 Cycle 이 Human 에게 묻는다.
+
+    ③ 교체가 시간을 쓰지 않는다
+        걸기·풀기와 같이 즉시 일어난다 (C023 이 그렇게 세웠고 C024 가 따랐다).
+        전투 중에 값을 갈아 끼우는 것이 공짜라는 뜻이다. **지금은 겪히지 않는다** —
+        걸 것이 둘뿐이고 전투 중에 바꿀 이유가 없다. 대가의 축이 서면 다시 볼 자리이며,
+        **질문으로 세우지 않았다** (지금 결정할 것이 없다).

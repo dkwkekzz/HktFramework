@@ -1,0 +1,296 @@
+# CYCLE C024 — GameView Specification
+#
+# C023 이 소지품 목록과 나란한 두 번째 목록(적용 자리)을 세웠다.
+# 이 Cycle 이 더하는 것은 **하나뿐**이다.
+#
+#   ① 소지품 항목마다 **바꿔 걸기** — 이미 있는 actions 자리에 하나.
+#      새 목록도, 새 칸도, 새 기계도 없다.
+#
+# 그리고 **바뀌지 않는 것**이 이 계약의 절반이다.
+#
+#   · equipment 는 한 글자도 열리지 않는다 — 찬 자리와 빈 자리가 이미 전부 실린다
+#   · equip-item 도 unequip-item 도 그대로다. 특히 unequip-item 의 `no-room` 은
+#     **여전히 온다** — 그것이 이 Cycle 이 보여 주려는 비대칭의 반쪽이다
+#   · combatStats 도 inventoryRoom 도 계약이 열리지 않는다. 값만 움직인다
+#
+# 이 계약을 받은 View 는 **교체를 한 번도 판정하지 않는다.** 지금 바꿔 걸 수 있는지도,
+# 가방이 가득 차서 막히는지도 묻지 않는다 — 받은 값을 옮긴다.
+# 특히 **가방의 형편에서 교체 가능 여부를 유추하지 않는다.** 그 유추가 정확히
+# 이 Cycle 이 세우는 비대칭을 화면에서 지운다.
+#
+# **어느 자리와 바꿀지는 겪는 사람이 고른다.** 화면은 이미 실려 있는 자리 목록을
+# 보여 주고 고른 자리를 요청에 실어 보낸다 — 고르는 것은 판정이 아니다.
+id: VIEW-ONE-SLOT-ONE-ITEM-001
+observer: player
+
+delta:
+  reused:
+    - scene.mining-field
+    - entities.character                        # 위치·역할·이름·종류·모션·body·swing·상태
+    - entities.deposit
+    - entityHud
+    - entities.character.vitality
+    - entities.character.attributes.combatStats # 유효 값 그대로 (C023) — 값만 움직인다
+    - equipment                                 # 자리 목록 전부 (C023) — 열리지 않는다
+    - equipment[].actions[role=unequip-item]    # **no-room 이 그대로 온다**
+    - inventory
+    - inventory[].kind / count / origin / stackable
+    - inventory[].actions[role=use-item]
+    - inventory[].actions[role=discard-item]
+    - inventory[].actions[role=equip-item]      # 뜻도 사유도 그대로
+    - inventoryRoom                             # 교체 전후로 used 가 같다
+    - interactions.mine                         # 사유 코드 그대로 — 곡괭이가 밀려나면 불가
+    - strikeEvents / unharmedContacts / cancelEvents
+    - currentTarget / commandCatalog
+    - debugObserve / debugAuthority
+    - observer / session / delivery / identity / telemetry
+    - hud.*                                     # 새 막대도 새 줄도 없다
+  added:
+    - inventory[].actions[role=exchange-item]   # 바꿔 걸기 — 항목마다 하나
+  changed:
+    - inventory[].category                      # 값 하나가 는다 (gear) — 형태 무변경
+  removed: []
+
+scene: mining-field
+
+# ─────────────────────────────────────────────────────────────────
+# inventory — 항목마다 손이 하나 는다
+#
+#   **자리도 형태도 C020 · C022 · C023 그대로다.** actions 목록에 값이 하나 늘 뿐이며,
+#   그 자리는 처음부터 "이 항목으로 지금 할 수 있는 것들" 이었다.
+# ─────────────────────────────────────────────────────────────────
+inventory:
+  reused: true
+
+  category:
+    changed: true
+    source: ItemDefinition.Category
+    values:
+      - material
+      - tool
+      - consumable
+      - gear                     # C024 ADDED
+    meaning: >
+      **값이 하나 늘 뿐 형태가 바뀌지 않는다.** 표시용 분류이며 세계의 어떤 판정도
+      이 값을 묻지 않는다.
+
+      화면은 이 값을 표시 표(아이콘·묶음)에 쓴다. **모르는 분류에는 표시가 없다** —
+      값이 늘 때 화면이 깨지지 않아야 하고, 그것은 C020 이 이미 세운 성질이다.
+      그러므로 이 값이 느는 것은 화면의 표에 줄이 하나 느는 일이지 조건이 느는 일이
+      아니다.
+
+  actions:
+    reused: true                 # 자리도 형태도 그대로
+    fields:
+      role:
+        changed: true
+        values:
+          - use-item             # C020
+          - discard-item         # C022
+          - equip-item           # C023
+          - exchange-item        # C024 ADDED
+        meaning: 의미 역할. 문구 변환은 View 책임 — 값이 늘어도 형태는 같다
+
+    equip-item:
+      reused: true
+      meaning: >
+        **한 글자도 바뀌지 않는다.** 자리를 싣지 않고 빈 자리에 건다.
+        걸 수 있는 빈 자리가 없으면 여전히 `no-empty-slot` 이다 —
+        세계가 슬그머니 무언가를 밀어내지 않기 때문이다.
+
+        C023 이 이 사유에 "다음 Cycle 이 그 경로를 연다" 고 적어 두었다.
+        **그 경로가 이 Cycle 에서 열렸고, 그것은 이 항목이 아니라 아래 항목이다.**
+        불가가 가능으로 바뀌는 것이 아니라 **가능한 손이 하나 더 생긴다** —
+        무엇을 잃을지 고르지 않은 요청은 여전히 아무것도 잃게 하지 않는다.
+
+    exchange-item:
+      added: true
+      role: exchange-item
+      cardinality: one            # 항목마다 하나. **자리마다 하나가 아니다**
+      request: >
+        inventory[].actions[].id 와 그 항목의 kind, 그리고 **겪는 사람이 고른
+        equipment[].slotId** 를 되돌린다.
+
+        **자리를 싣는 것이 이 손과 equip-item 을 가르는 전부다.** 고를 자리들은
+        equipment 목록에 이미 실려 있다 — 화면이 새로 계산하는 것이 없다.
+
+        고른 자리가 비어 있어도 요청은 성립한다 (그냥 걸린다). 그 자리가 찼는지는
+        세계가 판정하며 화면이 요청의 종류를 가르지 않는다.
+      available:
+        source: RULE-ITEM-EXCHANGEABLE-001 의 판정
+        meaning: >
+          "이 물건을 **어떤 찬 자리와** 바꿔 걸 수 있는가". 자리를 묻지 않는 판정이며,
+          가능으로 실렸다면 적어도 한 자리에서 성립한다.
+
+          **가방의 형편이 이 판정에 들어가지 않는다.** 교체는 담을 자리를 새로
+          요구하지 않기 때문이다 (03 RATIONALE 3). 그러므로 가방이 4/4 여도 이 값은
+          참일 수 있다 — 같은 화면의 unequip-item 이 `no-room` 으로 불가인 채로.
+          **그 둘이 나란히 보이는 것이 이 Cycle 의 관찰이다.**
+      unavailableReason:
+        source: RULE-ITEM-EXCHANGEABLE-001 의 실패 사유
+        optional: true
+        values:
+          - unknown-item       # 세계가 모르는 종류다 (정상적으로는 오지 않는다)
+          - not-enough         # 지니지 않았다 (정상적으로는 오지 않는다 — 목록에 없으므로)
+          - not-equippable     # **걸 수 있는 물건이 아니다** (돌)
+          - no-occupied-slot   # 밀어낼 수 있는 **찬 자리**가 하나도 없다
+        meaning: >
+          `not-equippable` 은 equip-item 의 것과 **같은 사유 같은 뜻**이다 —
+          자리 탓이 아니라 그 물건이 걸릴 수 있는 것이 아니라는 뜻이다.
+
+          `no-occupied-slot` 은 **가방 탓이 아니다.** 자리가 전부 비어 있다는 뜻이며,
+          그때 겪는 사람이 할 일은 덜어내는 것이 아니라 그냥 거는 것이다
+          (equip-item 이 가능으로 실려 있다). 화면은 이 사유를 가방과 엮어 설명하지
+          않는다.
+      refusal-on-request:
+        meaning: >
+          관찰이 답하지 않는 사정은 요청에서 온다 — 고른 자리가 세계에 없거나
+          (`unknown-slot`), 그 물건이 그 자리에 걸릴 수 없거나 (`slot-not-fit`),
+          바꾼 뒤 가방이 모자라거나 (`no-room`).
+
+          **지금 세계에서는 셋 다 오지 않는다** — 자리는 화면이 받은 목록에서 고르고,
+          전용 자리를 선언한 물건이 하나도 없으며, 교체는 자리를 요구하지 않는다.
+          화면은 이 사유들을 표에 두되 특별한 자리를 마련하지 않는다.
+      effect:
+        meaning: >
+          **하나의 성공 단위다.** 고른 자리의 것이 가방으로 돌아오고 고른 물건이
+          그 자리에 든다. 둘 중 하나만 일어난 결과가 오지 않는다.
+
+          그 다음 관찰에서 함께 달라져 있는 것은 넷이다 —
+          equipment[해당 자리].item · inventory[].count · combatStats · interactions.mine.
+          **inventoryRoom.used 는 달라지지 않는다.** 그것이 §16.1 의 관찰이다.
+
+          실패하면 넷 다 그대로다. 화면은 실패를 사유로만 알린다.
+      timing:
+        meaning: >
+          **즉시 일어난다.** 진행도가 없고 하던 행동을 끊지도 않는다 (C023 의 걸기·풀기
+          그대로). 요청한 다음 관찰에서 이미 바뀌어 있다.
+
+# ─────────────────────────────────────────────────────────────────
+# equipment — 열리지 않는다
+# ─────────────────────────────────────────────────────────────────
+equipment:
+  reused: true
+  meaning: >
+    **한 글자도 바뀌지 않는다.** 자리마다 담긴 것 · 주는 용도 · 보태는 값 · 풀 수
+    있는가가 그대로 온다.
+
+    이 Cycle 이 이 목록에 손을 대지 않는 것이 결정이다. 교체 항목을 자리 쪽에 두면
+    "무엇으로 바꾸는가" 가 빠지고, 세계가 대신 고르는 수밖에 없어진다 —
+    그것이 정확히 이 Cycle 이 막는 것이다 (03 RATIONALE 5).
+
+    **찬 자리와 빈 자리가 전부 실리므로 겪는 사람은 어디와 바꿀 수 있는지를 이미
+    보고 있다.** 화면이 고를 자리 목록을 따로 계산하지 않는다.
+
+  actions:
+    unequip-item:
+      reused: true
+      meaning: >
+        **`no-room` 이 그대로 온다.** 가방이 가득하면 여전히 풀 수 없다.
+
+        이 항목이 변하지 않는 것이 이 Cycle 의 절반이다. 같은 화면에서 이것은 불가인데
+        exchange-item 은 가능이며, 그 나란함이 §15 와 §16.1 이 함께 성립함을 보여 준다.
+        **화면은 두 판정을 하나로 뭉치지 않는다.**
+
+# ─────────────────────────────────────────────────────────────────
+# 값이 움직이지만 계약이 열리지 않는 것들
+# ─────────────────────────────────────────────────────────────────
+entities:
+  character:
+    reused: true
+    attributes:
+      combatStats:
+        reused: true
+        meaning: >
+          교체 전후로 **두 값이 동시에 반대로** 움직인다 — 밀려난 것의 기여가 사라지고
+          들어온 것의 기여가 선다. 물리 공격이 기본값으로 **정확히** 돌아가는 것이
+          "헌것의 기여가 사라졌다" 의 증거다.
+
+          **화면은 이 값을 계산하지도 비교하지도 않는다.** 받은 값을 그린다.
+          이전 값과의 차이를 보여 주는 것은 미리보기 쪽 일이며 이 Cycle 이 아니다.
+
+inventoryRoom:
+  reused: true
+  meaning: >
+    **교체 전후로 used 가 달라지지 않는다.** 계약도 계산도 바뀌지 않는다 —
+    나간 것과 들어온 것이 각각 한 칸이기 때문이다.
+
+interactions:
+  mine:
+    reused: true
+    meaning: >
+      곡괭이를 밀어내는 교체는 그 자리에서 채굴을 불가로 만든다. **사유 코드도 계약도
+      그대로다** — C023 이 세운 관계 그대로이며, 걸린 것이 바뀌었을 뿐이다.
+
+hud:
+  reused: true
+  added: []
+  meaning: >
+    새 막대도 새 줄도 없다. 바꿔 걸기는 소지품 항목의 손이므로 이미 그 손들이 사는
+    자리에 붙는다. **어디에 그리는가는 View 가 정한다.**
+
+# ─────────────────────────────────────────────────────────────────
+# designer — 같은 계약을 쓴다
+# ─────────────────────────────────────────────────────────────────
+designer:
+  uses: 이 계약 그대로. World 로 가는 별도 경로를 만들지 않는다
+  goal:
+    - GOAL-CHANGING-WHAT-IS-APPLIED-IS-ONE-ACT
+    - GOAL-THE-DISPLACED-IS-CHOSEN-BY-THE-ONE-WHO-ACTS
+    - GOAL-EXCHANGE-AND-RELEASE-ASK-DIFFERENT-THINGS
+    - GOAL-THERE-IS-MORE-THAN-ONE-THING-TO-WEAR
+    - GOAL-WHAT-CAN-BE-EXCHANGED-IS-SEEN
+  possibility:
+    - POSSIBILITY-THE-EXCHANGE-IS-ONE-UNIT
+    - POSSIBILITY-A-FAILED-EXCHANGE-LEAVES-NOTHING
+    - POSSIBILITY-NOTHING-IS-EVER-NOWHERE
+    - POSSIBILITY-THE-WORLD-CHOOSES-ONLY-AMONG-EMPTY-PLACES
+    - POSSIBILITY-NOT-NAMING-A-PLACE-MEANS-WHAT-IT-ALWAYS-MEANT
+    - POSSIBILITY-THE-EXCHANGE-DOES-NOT-ASK-FOR-NEW-ROOM
+    - POSSIBILITY-A-FULL-BAG-DOES-NOT-CLOSE-EVERY-DOOR
+    - POSSIBILITY-EACH-REFUSAL-CARRIES-ITS-OWN-REASON
+    - POSSIBILITY-A-NEW-KIND-IS-A-LINE-IN-THE-DEFINITION
+    - POSSIBILITY-TWO-WEARABLES-GIVE-DIFFERENT-THINGS
+    - POSSIBILITY-THE-JUDGEMENT-IS-THE-WORLDS
+    - POSSIBILITY-THE-SURFACE-DOES-NOT-INFER-FROM-THE-BAG
+  observes:
+    availability:
+      - inventory[].actions[role=exchange-item].available
+      - inventory[].actions[role=equip-item].available
+      - equipment[].actions[role=unequip-item].available      # **같은 화면에서 불가**
+      - interactions.mine.available
+    preconditions:
+      - inventory[].actions[role=exchange-item].unavailableReason
+      - inventory[].actions[role=equip-item].unavailableReason
+      - equipment[].actions[role=unequip-item].unavailableReason
+    before_after:
+      - equipment[].item                                # 무엇이 나가고 무엇이 들어왔는가
+      - inventory[].count
+      - inventoryRoom.used                              # **달라지지 않는다**
+      - entities.character.attributes.combatStats       # 두 값이 반대로 움직인다
+      - equipment[].contributions                       # 왜 그 값인가
+      - interactions.mine.available                     # 곡괭이가 밀려나면 불가
+
+# ─────────────────────────────────────────────────────────────────
+# 투영하지 않은 Observable 과 그 이유
+# ─────────────────────────────────────────────────────────────────
+not-projected:
+  교체하면 값이 어떻게 되는가:
+    reason: >
+      **미리보기다** — 후보 2(FR-SEE-BEFORE-YOU-WEAR)의 일이며 01-cycle.md 가 EXCLUDED 에
+      박아 두었다. 지금 실리는 것은 예측이 아니라 일어난 일이다
+  어느 자리와 바꾸는 것이 나은가:
+    reason: 세계가 고르지 않는다. 세계는 무엇이 가능한지와 왜 안 되는지만 답한다
+  (물건 × 자리) 모든 짝의 판정:
+    reason: >
+      짝의 수만큼 항목이 늘면 계약이 소지 종류 수 × 자리 수로 자란다. 지금 세계에서
+      짝의 판정은 물건 쪽과 자리 쪽으로 갈라지므로 그 곱이 필요하지 않다
+      (03 RATIONALE 6). 전용 자리를 선언한 물건이 생기는 날 이 결정을 다시 본다
+  밀려날 것을 세계가 고른 결과:
+    reason: >
+      **세계가 고르지 않는다.** 자리를 밝히지 않은 요청은 빈 자리만 보고, 없으면
+      거절된다. 고르지 않은 것을 관찰에 실을 수 없다
+  buckler 의 상위 정의(IT-*):
+    reason: >
+      **세계에 없다** (03 JUDGEMENT ③ · Q36 OPEN). origin 은 optional 이며 곡괭이와
+      같이 비어서 온다. 화면은 없는 것을 그리지 않는다

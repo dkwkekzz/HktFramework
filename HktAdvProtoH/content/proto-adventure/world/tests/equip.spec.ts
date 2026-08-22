@@ -224,18 +224,20 @@ describe('INTENT-EFFECTIVE-IS-RECOMPUTED-NOT-ACCUMULATED-001 — 재계산이지
 describe('INTENT-A-THING-IS-IN-EXACTLY-ONE-PLACE-001 — 물건은 한 곳에만', () => {
   it('걸면 가방에서 빠지고, 풀면 가방으로 돌아온다', () => {
     const world = atDeposit();
-    expect(world.observe().inventoryRoom.used).toBe(1);
+    // C024 — 시작 소지품이 둘이다 (곡괭이 · 손방패). 이 시험이 보는 것은 **자리 하나가
+    // 오가는 것**이므로 기준값만 하나 올라간다.
+    expect(world.observe().inventoryRoom.used).toBe(2);
 
     equipPickaxe(world);
     let view = world.observe();
     expect(item(view, 'pickaxe')).toBeUndefined(); // 가방에 없다
-    expect(view.inventoryRoom.used).toBe(0); // 자리를 쓰지 않는다
+    expect(view.inventoryRoom.used).toBe(1); // 자리를 쓰지 않는다 (남은 하나는 손방패)
     expect(slotOf(view, 'E1')?.item?.kind).toBe('pickaxe');
 
     world.dispatch({ interactionId: 'unequip-item', equipSlotId: 'E1' });
     view = world.observe();
     expect(count(view, 'pickaxe')).toBe(1);
-    expect(view.inventoryRoom.used).toBe(1);
+    expect(view.inventoryRoom.used).toBe(2);
     expect(slotOf(view, 'E1')?.item).toBeUndefined();
   });
 });
@@ -245,7 +247,9 @@ describe('INTENT-RELEASE-ASKS-FOR-ROOM-001 — 푸는 데에는 받을 자리가
   it('가방이 가득 차면 풀 수 없고, 그것이 부딪히기 전에 관찰된다 (IE §15)', () => {
     const world = atDeposit();
     equipPickaxe(world);
-    for (let i = 0; i < 12; i++) mineOnce(world); // 돌 12 → 자리 4/4
+    // C024 — 가방에 손방패가 남아 자리 하나를 쓰므로 돌은 9 에서 찬다 (⌈9/3⌉ = 3).
+    // **막히는 사정도 사유도 그대로다** — 채우는 데 드는 돌의 수만 달라졌다.
+    for (let i = 0; i < 9; i++) mineOnce(world); // 돌 9 + 손방패 → 자리 4/4
 
     const full = world.observe();
     expect(full.inventoryRoom).toEqual({ used: 4, capacity: 4 });
@@ -259,7 +263,7 @@ describe('INTENT-RELEASE-ASKS-FOR-ROOM-001 — 푸는 데에는 받을 자리가
       reason: 'no-room',
     });
     expect(slotOf(world.observe(), 'E1')?.item?.kind).toBe('pickaxe');
-    expect(count(world.observe(), 'stone')).toBe(12);
+    expect(count(world.observe(), 'stone')).toBe(9);
   });
 
   it('덜어내면 풀린다 — 두 유한함이 여기서 만난다', () => {

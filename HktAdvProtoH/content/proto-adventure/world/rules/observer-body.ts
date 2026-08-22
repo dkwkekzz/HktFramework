@@ -33,7 +33,10 @@ export interface BodyDefaults {
 
 export const DEFAULT_BODY: BodyDefaults = {
   characterKind: 'rabbit-swordsman',
-  items: { pickaxe: 1 },
+  // C024 — 손방패가 는다. 세계가 그것을 내어주는 길이 없으므로(광맥은 돌만 낸다)
+  // 처음부터 주지 않으면 교체가 플레이에서 겪히지 않는다
+  // (C024 03-world-semantic.md JUDGEMENT ②).
+  items: { pickaxe: 1, buckler: 1 },
   spawnPoints: SPAWN_POINTS,
 };
 
