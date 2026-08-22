@@ -253,9 +253,10 @@
     }
     .sf-section { margin-bottom: 12px; }
     .sf-section:last-child { margin-bottom: 0; }
+    /* 대소문자를 건드리지 않는다 — 세계가 보낸 코드가 그대로 보여야 하고,
+       text-transform 은 모르는 코드(moonshard)를 MOONSHARD 로 바꿔 버린다 */
     .sf-section-title {
-      color: #7f8aa0; font-size: 10.5px; letter-spacing: 0.06em;
-      text-transform: uppercase; margin-bottom: 6px;
+      color: #7f8aa0; font-size: 10.5px; letter-spacing: 0.06em; margin-bottom: 6px;
     }
     .sf-empty { color: #6f7a90; font-style: italic; padding: 6px 0; }
     /* 칸 — 빈 칸도 그린다. 남은 자리가 자리로 읽혀야 한다 */
