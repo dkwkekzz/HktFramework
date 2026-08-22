@@ -6,7 +6,7 @@
 
 노드 94 — WorldState 13 · Actor 2 · Goal 5 · Possibility 22 · Capability 49 · Knowledge 3
 
-Capability 구현 상태 — ■ IMPLEMENTED 14 · ▨ PARTIAL 8 · □ MISSING 27
+Capability 구현 상태 — ■ IMPLEMENTED 15 · ▨ PARTIAL 7 · □ MISSING 27
 
 ## 인과 뼈대 — WorldState → Goal → Possibility
 
@@ -276,7 +276,7 @@ flowchart TB
   subgraph SEGBASE ["자원 유래 Capability Gate"]
     N0["□ RESTORE-BIOLOGICAL-STATE"]
     N1["□ CUT-ABNORMAL-STRUCTURE"]
-    N2["▨ EQUIP-ITEM"]
+    N2["■ EQUIP-ITEM"]
     N3["□ CRAFT-FROM-MATERIALS"]
   end
 
@@ -286,7 +286,7 @@ flowchart TB
   classDef implS fill:#16351f,stroke:#3f8a52,color:#d8f2df,stroke-dasharray:5 4;
   classDef partS fill:#3a3315,stroke:#9a8a2e,color:#f2ecd0,stroke-dasharray:5 4;
   classDef missS fill:#2a2a2e,stroke:#5c5c66,color:#b8b8c2,stroke-dasharray:5 4;
-  class N2 part;
+  class N2 impl;
   class N0,N1,N3 miss;
 ```
 
@@ -363,7 +363,7 @@ flowchart TB
     N1["□ CRAFT-FROM-MATERIALS"]
   end
   subgraph SEG2 ["장착 — 가진 것과 적용된 것이 갈린다"]
-    N2["▨ EQUIP-ITEM"]
+    N2["■ EQUIP-ITEM"]
   end
   subgraph SEG3 ["사용 — 가진 것이 세계를 바꾼다"]
     N3["■ USE-ITEM"]
@@ -378,8 +378,7 @@ flowchart TB
   classDef implS fill:#16351f,stroke:#3f8a52,color:#d8f2df,stroke-dasharray:5 4;
   classDef partS fill:#3a3315,stroke:#9a8a2e,color:#f2ecd0,stroke-dasharray:5 4;
   classDef missS fill:#2a2a2e,stroke:#5c5c66,color:#b8b8c2,stroke-dasharray:5 4;
-  class N3 impl;
-  class N2 part;
+  class N2,N3 impl;
   class N0,N1 miss;
 ```
 
@@ -417,10 +416,10 @@ flowchart TB
 | `LEARN-TO-HANDLE-THE-LAYER` | EXPLORE-BEIRA | ●●●●○ 3/5 | OBSERVE · PREDICT |
 | `BREAK-THE-GUARD` | OVERCOME-SUPERIOR-OPPONENT | ●●●○○ 1/3 | BREAK · CP-ECONOMY |
 | `EXPLOIT-OPEN-BODY` | OVERCOME-SUPERIOR-OPPONENT | ●●●○○ 2/3 | COMBAT-FLOW |
+| `ADAPT-BY-RESOURCE` | EXPLORE-BEIRA | ●●○○○ 2/5 | RESTORE-BIOLOGICAL-STATE · CUT-ABNORMAL-STRUCTURE · CRAFT-FROM-MATERIALS |
 | `READ-AND-COUNTER` | OVERCOME-SUPERIOR-OPPONENT | ●●○○○ 1/4 | PERFECT-GUARD · COUNTER · CP-ECONOMY |
 | `HOLD-FORTIFIED` | SURVIVE-ENEMY-OFFENSIVE | ●●○○○ 1/4 | FORTIFY · COMBAT-FLOW · CP-ECONOMY |
 | `CONTROL-MOVEMENT` | OVERCOME-SUPERIOR-OPPONENT | ●●○○○ 0/3 | FORCE-MOVEMENT · CONTROL-SPACE · REPOSITION |
-| `ADAPT-BY-RESOURCE` | EXPLORE-BEIRA | ●●○○○ 1/5 | RESTORE-BIOLOGICAL-STATE · CUT-ABNORMAL-STRUCTURE · EQUIP-ITEM · CRAFT-FROM-MATERIALS |
 | `STAKE-EVERYTHING-ON-ONE-BLOW` | OVERCOME-SUPERIOR-OPPONENT | ●○○○○ 0/4 | VOW · COMBAT-FLOW · CP-ECONOMY · CONDITION-STACKING |
 | `EVADE-BY-MOVING-THE-BODY` | SURVIVE-ENEMY-OFFENSIVE | ●○○○○ 0/2 | EVADE · CP-ECONOMY |
 | `WEAPONIZE-ENVIRONMENT` | OVERCOME-SUPERIOR-OPPONENT | ○○○○○ 0/2 | READ-ENVIRONMENT · USE-HAZARD |
@@ -470,7 +469,7 @@ flowchart LR
   MC-WATCH-TARGET["■ WATCH-TARGET"]
   MC-RELATION-STANCE["■ RELATION-STANCE"]
   MC-USE-ITEM["■ USE-ITEM"]
-  MC-EQUIP-ITEM["▨ EQUIP-ITEM"]
+  MC-EQUIP-ITEM["■ EQUIP-ITEM"]
   MC-CRAFT-FROM-MATERIALS["□ CRAFT-FROM-MATERIALS"]
   MC-TRANSFER-ITEM["□ TRANSFER-ITEM"]
   MP-OUTGROW-THE-OPPONENT["OUTGROW-THE-OPPONENT"]
@@ -557,8 +556,8 @@ flowchart LR
   classDef part fill:#3a3315,stroke:#9a8a2e,color:#f2ecd0;
   classDef miss fill:#2a2a2e,stroke:#5c5c66,color:#b8b8c2;
   classDef poss fill:#1c3330,stroke:#3f7d6f,color:#d6f0e9;
-  class MC-COMBAT-STRIKE,MC-BODY-FACING,MC-COMBAT-CAUSE-READING,MC-GUARD,MC-DEFENSE-MITIGATION,MC-SKILL-SCALING,MC-ATTACK-ARMOR-MATCHUP,MC-PENETRATION,MC-CRITICAL-STRIKE,MC-INTERRUPT,MC-DESIGNATE-TARGET,MC-WATCH-TARGET,MC-RELATION-STANCE,MC-USE-ITEM impl;
-  class MC-CP-ECONOMY,MC-ATTACK-POWER,MC-BREAK,MC-CONDITION-STACKING,MC-REPOSITION,MC-OBSERVE,MC-FORCE-MOVEMENT,MC-EQUIP-ITEM part;
+  class MC-COMBAT-STRIKE,MC-BODY-FACING,MC-COMBAT-CAUSE-READING,MC-GUARD,MC-DEFENSE-MITIGATION,MC-SKILL-SCALING,MC-ATTACK-ARMOR-MATCHUP,MC-PENETRATION,MC-CRITICAL-STRIKE,MC-INTERRUPT,MC-DESIGNATE-TARGET,MC-WATCH-TARGET,MC-RELATION-STANCE,MC-USE-ITEM,MC-EQUIP-ITEM impl;
+  class MC-CP-ECONOMY,MC-ATTACK-POWER,MC-BREAK,MC-CONDITION-STACKING,MC-REPOSITION,MC-OBSERVE,MC-FORCE-MOVEMENT part;
   class MC-PERFECT-GUARD,MC-COUNTER,MC-COMBAT-FLOW,MC-FORTIFY,MC-EVADE,MC-VOW,MC-PREDICT,MC-CONTROL-SPACE,MC-READ-ENVIRONMENT,MC-USE-HAZARD,MC-RESTORE-BIOLOGICAL-STATE,MC-CUT-ABNORMAL-STRUCTURE,MC-CRAFT-FROM-MATERIALS,MC-TRANSFER-ITEM miss;
   class MP-OUTGROW-THE-OPPONENT,MP-MATCH-WEAPON-TO-ARMOR,MP-PIERCE-THE-HARD-DEFENSE,MP-BREAK-THE-GUARD,MP-READ-AND-COUNTER,MP-EXPLOIT-OPEN-BODY,MP-INTERRUPT,MP-CONTROL-MOVEMENT,MP-WEAPONIZE-ENVIRONMENT,MP-BET-ON-THE-CRITICAL-BLOW,MP-STAKE-EVERYTHING-ON-ONE-BLOW,MP-TRADE-BODY-FOR-RESOURCE,MP-EVADE-BY-MOVING-THE-BODY,MP-HOLD-FORTIFIED,MP-LEARN-TO-HANDLE-THE-LAYER,MP-ADAPT-BY-RESOURCE,MP-PREPARE-IN-CIVILIZATION,MP-KILL-CREATURE,MP-TAKE-SHED-ORGAN,MP-TRADE-WITH-ACTOR poss;
 ```
@@ -583,7 +582,7 @@ Constraint 는 단계가 아니라 각 선택 지점의 Filter 다. 아래는 �
 | `GROWTH-NOT-A-STAGE` | GROWTH | APPROVED | 0 | Growth 는 별도 Master Stage 가 아니다. 기본 절차 WHY → OPTIONS → NEED → NEXT 는 그대로 유지되고, Growth Graph 는 NEED 에서 발견된 Capability 에 대해 "세계에서 어떻게 얻는가"를 덧씌우는 보조 Overlay 로만 존재한다. |
 | `ITEM-CAPABILITY-COMES-FROM-GRANTS` | ITEM | APPROVED | 1 | 아이템의 성질(IP-*)은 세계 압력에서 유래한 것만이고, 아이템의 용도는 그 종류가 가진다. 능력 판정은 성질 목록을 조회해서가 아니라 그 아이템이 지금 무엇을 주고 있는가로 한다. |
 | `ITEM-CAPACITY-IS-FINITE` | ITEM | APPROVED | 1 | 가진 것을 담을 자리도, 몸에 적용할 자리도 유한하다. 적용할 자리는 담을 자리보다 훨씬 좁고, 그 좁음이 무엇을 들고 나갈지를 선택으로 만든다. 몇 개인가는 Cycle 이 소유한다. |
-| `ITEM-CHANGE-IS-ONE-UNIT` | ITEM | APPROVED | 3 | 아이템이 관련된 변화는 하나의 성공 단위다. 효과와 수량은 함께 변하거나 함께 변하지 않으며, 실패한 시도는 세계에 아무 흔적도 남기지 않는다. |
+| `ITEM-CHANGE-IS-ONE-UNIT` | ITEM | APPROVED | 4 | 아이템이 관련된 변화는 하나의 성공 단위다. 효과와 수량은 함께 변하거나 함께 변하지 않으며, 실패한 시도는 세계에 아무 흔적도 남기지 않는다. |
 | `ITEM-HOLDING-IS-NOT-APPLYING` | ITEM | REVISED | 1 | 아이템을 가지고 있는 것만으로는 몸이 달라지지 않는다. 능력치와 가능한 행동이 달라지는 것은 지금 적용된 것 때문이며, 적용을 풀면 정확히 원래대로 돌아온다. |
 | `ITEM-KIND-IS-DATA-NOT-BRANCH` | ITEM | APPROVED | 2 | 아이템의 종류 이름은 정의를 찾는 열쇠일 뿐이며 규칙의 분기 조건이 되지 않는다. 새 아이템은 정의를 더하는 것으로 끝나고, 그 아이템을 쓰는 규칙 코드는 바뀌지 않는다. |
 | `ITEM-LIVES-IN-ONE-PLACE` | ITEM | APPROVED | 2 | 아이템은 정확히 한 곳에 있다. 저장소가 아이템을 직접 담고, 다른 저장소의 자리를 가리키지 않는다. |

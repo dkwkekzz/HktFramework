@@ -1315,14 +1315,15 @@ nodes:
           role: 성질에서 능력으로 이어지는 사슬이 실제 몸에 적용되는 자리
     required_by: [MP-ADAPT-BY-RESOURCE]
     demanded_by: []
-    constraints: [DC-ITEM-HOLDING-IS-NOT-APPLYING, DC-ITEM-CAPABILITY-COMES-FROM-GRANTS, DC-GROWTH-NO-CAPABILITY-DUPLICATION, DC-ITEM-CAPACITY-IS-FINITE, DC-ITEM-LIVES-IN-ONE-PLACE]
+    constraints: [DC-ITEM-HOLDING-IS-NOT-APPLYING, DC-ITEM-CAPABILITY-COMES-FROM-GRANTS, DC-GROWTH-NO-CAPABILITY-DUPLICATION, DC-ITEM-CAPACITY-IS-FINITE, DC-ITEM-LIVES-IN-ONE-PLACE, DC-ITEM-CHANGE-IS-ONE-UNIT]
     constraint_evaluation:
       DC-ITEM-HOLDING-IS-NOT-APPLYING: SATISFIED    # 이 노드가 그 분리 자체다 — 보유는 아무것도 바꾸지 않는다
       DC-ITEM-CAPABILITY-COMES-FROM-GRANTS: SATISFIED # 적용된 것이 주는 것을 합쳐 계산한다 — 성질 목록을 조회하지 않는다
       DC-GROWTH-NO-CAPABILITY-DUPLICATION: SATISFIED  # 장착은 기존 MC-* 를 여는 경로일 뿐 새 능력을 복제하지 않는다
       DC-ITEM-CAPACITY-IS-FINITE: SATISFIED         # 자리가 담을 칸보다 좁고, 그 수를 Cycle 이 정한다
       DC-ITEM-LIVES-IN-ONE-PLACE: SATISFIED          # 자리가 물건을 담는다 — 담긴 곳을 가리키지 않는다
-    overlay: PARTIAL
+      DC-ITEM-CHANGE-IS-ONE-UNIT: SATISFIED          # 교체가 전부 아니면 전무다 — 실패는 자리도 수량도 값도 용도도 두지 않는다
+    overlay: IMPLEMENTED
 
   - id: MC-CRAFT-FROM-MATERIALS
     type: capability
