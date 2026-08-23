@@ -2100,3 +2100,109 @@ Human 이 "FR-ACTION-PHASE 의 근간이 무엇인가" 를 물어 근간을 역�
     `SceneColliderDebug` 의 이름이 뜻과 어긋난다
         C025 가 그 계약을 평시 장면 표현에 쓴다. 능력이 하는 일은 이름과 무관하게
         "지면 위 부피를 그린다" 하나여서 그대로 맞지만 이름은 어긋난다.
+
+## Feedback — C026(가진 것을 여는 자리) 반영 · 2026-08-23
+
+    입력   `cycles/C026-open-what-you-carry/08-verification.md` 의 MASTER FEEDBACK.
+           그 Cycle 은 STATUS COMPLETE 다 — Stage 8 실측을 마쳤고 Human 이 실제 게임
+           화면을 보고 확인했다.
+
+    이 Cycle 은 **Frontier 후보에서 오지 않았다.** 기획서
+    `design/Design-View-Inventory-Equipment-UX-D1.md` 가 스스로 `[DIRECT-CYCLE]` 로
+    표시했고 Human 이 후보 등록을 건너뛰고 착수를 지시했다. 그것이 절차의 예외가 아니라
+    **층의 구분**이라는 것이 이번에 확인되었다 — Master Layer 가 고르는 것은 "세계가
+    무엇을 더 할 수 있게 되는가" 이고, 이 Cycle 은 그것을 하나도 늘리지 않는다.
+
+### Capability Overlay — 승격 없음, 판정 하나 없음
+
+    **어떤 노드의 상태도 바뀌지 않았다.** 이 Cycle 은 Capability 를 목표로 삼지 않았고
+    (01-cycle.md MASTER TRACE 의 `Target Capability: 없음`), 실제로 세계를 한 줄도
+    고치지 않았다 (06-world-implementation.md — `world/` 무변경).
+
+    바뀐 것은 판정이 아니라 **판정의 값어치**다. 아이템 영역의 IMPLEMENTED 넷은 지금까지
+    "세계에 그 의미가 있다" 였고, 그것에 닿는 길은 손가락 자리(`B`·`N`·`M`·`,`)를 외운
+    사람에게만 있었다 — 한 물건에 대한 답이 화면 두 곳에 흩어져 있었고, 무엇을 고르는
+    중인지는 어디에도 남지 않았다. 이제 그 넷이 **겪을 수 있다**.
+
+    overlay.md 의 아이템 영역 서문에 그 문단을 넣었고 표는 한 칸도 건드리지 않았다.
+    같은 이유로 `graph/capabilities.yaml` 도 손대지 않는다 — 노드에는 값만 둔다.
+
+### Constraint Evaluation — 기록하지 않는다
+
+    Cycle 이 넷을 SATISFIED 로 보고했다 (SURFACE-LIST · KIND-IS-DATA-NOT-BRANCH ·
+    CAPACITY-IS-FINITE · HOLDING-IS-NOT-APPLYING). **어느 노드에도 적지 않는다** —
+    이 Cycle 이 Capability 노드를 건드리지 않았으므로 판정을 걸 자리가 없고,
+    없는 자리에 Edge 를 만드는 것이 무차별 Edge 다 (Guide MUST NOT).
+
+    다만 넷 중 하나는 이번에 **어긴 형태가 무엇인지**가 실제로 드러났으므로 남긴다.
+    DC-WORLD-OWNS-THE-SURFACE-LIST 를 어기는 가장 자연스러운 길은 "세계가 된다고 한 것을
+    화면 사정으로 안 된다고 그리는 것" 이다. 이 Cycle 에서 `exchange-item` 이 정확히 그
+    자리였다 — 세계는 가능이라고 실었는데 그 표면에는 자리를 고르는 길이 아직 없다.
+    감추지도 않고 불가로 그리지도 않고 **"이 자리에서는 아직" 을 곁글자로** 적는 것으로
+    풀었다. 세계의 판정과 화면의 형편을 뭉개지 않는 형태이며, 이후 표면 작업이 같은
+    자리를 만난다.
+
+### Constraint Candidate — 접수 없음
+
+    Cycle 이 반복 패턴 하나를 보고했다: **표면이 넓어질 때 화면이 판정을 시작하려 한다.**
+    두 번 나타났고(가방의 형편에서 교체 가능 여부를 유추하려는 자리 · 위 `exchange-item`),
+    **둘 다 기존 Constraint 로 막혔다.** 이미 있는 것이 막은 패턴은 새 Constraint 가
+    아니다 — 후보로 올리지 않는다. Cycle 자신도 그렇게 판정했다.
+
+### Frontier — 지울 후보 없음, 두 후보가 싸졌다
+
+    소진된 후보가 없다. 이 Cycle 이 어느 후보에서도 오지 않았기 때문이다.
+
+    대신 둘의 값이 내려갔다.
+
+        후보 1 FR-SEE-BEFORE-YOU-WEAR      미리 본 값이 설 자리가 생겼다. 고른 물건
+                                           하나의 상세가 뜨는 표면이 이미 서 있으므로
+                                           이 후보는 **세계 쪽 계산 하나**만 더하면 된다
+        후보 2 FR-ARRANGE-WHAT-YOU-CARRY   그 결손이 화면에서 드러났다 — 소지품 표면의
+                                           빈 칸들은 서로 구별되지 않고 지목할 수 없다.
+                                           세계에 번호 붙은 빈 자리가 없기 때문이며
+                                           (INTENT-EMPTY-ROOM-HAS-NO-ADDRESS-001),
+                                           그 축을 세우는 것이 이 후보다
+
+    `SELECTED` 절에 레인 A 에서 후보 없이 한 바퀴가 돌고 닫혔다는 사실을 적었다.
+    레인 A 의 **후보 자리**는 여전히 비어 있고 Human 선택 대기다.
+
+### 이번에 처음 명시된 부정형 하나
+
+    `INTENT-EMPTY-ROOM-HAS-NO-ADDRESS-001` — **세계에는 번호 붙은 빈 자리가 없다.**
+
+    C022 가 자리를 수로만 세운 결과이므로 새로 정한 것이 아니라 이미 그러한 것을 밝힌
+    것이다. 이것을 못 박지 않았다면 Stage 4 가 "빈 칸도 요청 대상" 이라는 없는 의미를
+    만들어 냈을 것이고, 그 다음에 오는 것은 세계에 없는 "칸을 끌어다 옮기기" 다.
+
+    **그리고 그 부정형이 계약의 오류 하나를 잡았다.** Stage 4 가 "capacity 만큼의 칸을
+    놓고 항목이 앉지 않은 것을 빈 자리로" 라고 적었는데, 그 규칙은 화면이 겹침 한도를
+    안다고 전제한다 — 계약은 그것을 싣지 않는다(C022 가 일부러 뺐다). 돌 아홉은 항목
+    하나에 자리 셋이므로 성립할 수 없다. Stage 7 이 `GAMEVIEW GAP` 으로 반환해 고쳤다.
+
+### Master 의 일이 아닌 것 — 기반(engine) 으로 간다
+
+    Cycle 이 함께 보고한 것 중 둘은 Master Graph 의 일이 아니다. 여기 적어 두는 것은
+    그것이 **어디로 갔는지**를 잃지 않기 위해서다.
+
+    ① `engine/view-kernel` 안에 표시 문구(한국어)가 남아 있다 — 팩에 이미 문구 표가
+       있으므로 같은 것이 두 곳에 있다. 기반 트랙 부채로 적혔다
+       (design/Design-System-Content-Separation.md 남은 부채)
+    ② 이동·시점 키의 원본(MOVE_KEYS · TURN_KEYS)이 팩에 내보내지지 않아 사본
+       (`RESERVED_KEY_CODES`)으로 막고 있다 — **레인 B 의 C025 가 먼저 올린 것과 같은
+       부채**이며 여전히 열려 있다. C026 은 기반 쪽에서 `keyboard.suspendMovement` 로
+       한 면(표면이 잡고 있는 동안 방향키가 평범한 키가 된다)만 닫았다
+
+    두 레인이 **같은 원인의 서로 다른 두 면**을 각자 발견했다는 것이 이번 관찰이다.
+
+### 번호 이동 — C025 → C026 (세 번째)
+
+    레인 B 의 `C025-the-shape-is-data` 가 먼저 main 에 들어와 이 Cycle 이 C026 으로
+    옮겼다. 나중에 병합하는 쪽이 옮긴다 — 먼저 들어온 것의 번호를 바꾸면 이미 그것을
+    가리키는 문서들이 어긋난다.
+
+    frontier.md 의 "병렬 배치" 절이 이미 `Cycle 번호를 먼저 예약한다` 를 규칙으로
+    적어 두었다. **이번에도 지켜지지 않았다** — 이 Cycle 은 기획서의 직접 실행 지시로
+    출발해 Frontier 를 거치지 않았고, 번호 예약은 그 절에만 적혀 있기 때문이다.
+    `[DIRECT-CYCLE]` 로 출발하는 Cycle 도 번호를 예약해야 하는가는 Human 판단이다 —
+    open-questions Q46(SELECTED 칸의 형태)과 같은 뿌리다.

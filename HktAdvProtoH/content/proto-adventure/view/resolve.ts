@@ -36,6 +36,7 @@ import {
 import { hudPresentation } from './hud-presentation';
 import { equipmentDetailLines, equipmentHudItems } from './equipment-presentation';
 import { inventoryDetailLines, inventoryHudItems } from './inventory-presentation';
+import { inventoryWorkspace } from './inventory-workspace';
 import { interactionPresentation, interactionPriority } from './interaction-presentation';
 import { codeText, shortCodeText } from './code-text';
 import { contactMark } from './relation-presentation';
@@ -145,6 +146,9 @@ export function resolvePresentation(
     specId: snapshot.specId,
     terrain: snapshot.scene,
     commandSurface: commandSurface(snapshot, options),
+    // 겹침 표면 (기반 capability) — C026 의 소지품 작업 공간.
+    // 열려 있지 않아도 싣는다: 열림은 표면 자신이 지닌 값이고, 그리는 쪽이 그것을 본다
+    surfaces: [inventoryWorkspace(snapshot, codeText, shortCodeText)],
     // 지면에 그리는 부피들 — 두 자리가 하나의 계약을 나눠 쓴다.
     //   켜면 (C)   몸 캡슐 · 속도 화살표 · 맞은 몸 표시 · 칼끝 — 진단 표면 (C006)
     //   평시       칼끝 하나 — **장면의 일부** (C025)
