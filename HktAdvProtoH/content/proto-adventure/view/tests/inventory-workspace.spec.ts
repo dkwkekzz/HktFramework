@@ -1,4 +1,4 @@
-// C025 View 단독 테스트 — World 미기동, Fixture 만으로 (VUX-IE-V-10).
+// C026 View 단독 테스트 — World 미기동, Fixture 만으로 (VUX-IE-V-10).
 //
 // 04-gameview.spec.yaml 의 `view_contract` 열 항목과 `fixtures` 다섯 장면을 화면 쪽에서
 // 재현한다. 이 파일이 지는 특별한 짐은 둘이다.

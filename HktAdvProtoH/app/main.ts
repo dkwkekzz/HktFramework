@@ -232,7 +232,7 @@ function submitCommand(): void {
 // 표식이 없는 대답도 버리지 않는다 — 마지막 줄에 붙인다.
 function drainOutcomes(): void {
   for (const outcome of link.takeOutcomes()) {
-    // C025 — 소지품 작업 공간의 요청이면 그 기다림을 푼다. 표식이 있는 것만 가져가므로
+    // C026 — 소지품 작업 공간의 요청이면 그 기다림을 푼다. 표식이 있는 것만 가져가므로
     // 표식 없는 대답은 그대로 아래 명령 기록으로 간다.
     if (settleOutcome(outcome.mark)) continue;
     const line =

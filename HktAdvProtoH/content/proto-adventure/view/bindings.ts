@@ -180,7 +180,7 @@ function slotKey(index: number): KeyBinding {
   };
 }
 
-// ── 소지품 작업 공간 (C025) ──────────────────────────────────────────
+// ── 소지품 작업 공간 (C026) ──────────────────────────────────────────
 //
 // 지금까지 소지품은 손가락 자리로만 닿을 수 있었다 — 무엇을 고르는 중인지가 화면에
 // 남지 않으므로(위 `armed`) 사람이 기억해야 했다. 이 표면은 그 기억을 화면으로 옮긴다.
@@ -244,7 +244,7 @@ export const KEY_BINDINGS: readonly KeyBinding[] = [
   armKey(EQUIP_ARM_KEY, 'equip-item'),
   armKey(UNEQUIP_ARM_KEY, 'unequip-item'),
   armKey(EXCHANGE_ARM_KEY, 'exchange-item'),
-  // C025 — 소지품 작업 공간. 방향키·Enter 는 열려 있을 때만 듣는다
+  // C026 — 소지품 작업 공간. 방향키·Enter 는 열려 있을 때만 듣는다
   inventoryToggle,
   workspaceKey('ArrowLeft', (snapshot) => moveSelection(snapshot, -1)),
   workspaceKey('ArrowRight', (snapshot) => moveSelection(snapshot, 1)),

@@ -6,10 +6,10 @@
 // 빈 칸이 그려지는가, 안 되는 줄이 사라지지 않는가, 초점과 고른 것이 다른 자리에
 // 표시되는가, 모르는 코드가 와도 화면이 멈추지 않는가.
 //
-// 어떤 글자가 어느 칸에 들어가는가는 팩의 결정 Layer 가 정한다 (C025 Stage 7).
+// 어떤 글자가 어느 칸에 들어가는가는 팩의 결정 Layer 가 정한다 (C026 Stage 7).
 // 그러므로 아래 장면들은 **그 화면의 미리보기가 아니라 능력의 표본**이다.
 //
-// 장면 이름은 C025 04-gameview.spec.yaml 의 fixtures 를 따른다 — 같은 것을 두 자리에서
+// 장면 이름은 C026 04-gameview.spec.yaml 의 fixtures 를 따른다 — 같은 것을 두 자리에서
 // 다른 이름으로 부르지 않기 위해서다.
 
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -213,7 +213,7 @@ const page =
   `<h1>Surface Lab — 겹침 표면 capability</h1>` +
   `<p class="lab-lead">engine/view-kernel/hud/surface.ts 의 <code>surfaceMarkup</code> 이 낸 글자를 ` +
   `실제 화면의 CSS 그대로 그린 것이다. <b>어떤 글자가 어느 칸에 들어가는지는 여기서 정하지 않는다</b> — ` +
-  `그것은 팩의 결정 Layer 가 하는 일이며 아직 서지 않았다 (C025 Stage 7). ` +
+  `그것은 팩의 결정 Layer 가 하는 일이며 아직 서지 않았다 (C026 Stage 7). ` +
   `이 장면들이 보이는 것은 능력 쪽 성질이다: 빈 칸이 그려지는가 · 안 되는 줄이 사라지지 않는가 · ` +
   `초점과 고른 것이 다른 자리에 표시되는가 · 모르는 코드가 와도 멈추지 않는가.</p>` +
   SCENES.map(

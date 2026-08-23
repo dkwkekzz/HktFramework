@@ -1,4 +1,4 @@
-# CYCLE C025 — Verification
+# CYCLE C026 — Verification
 
 [PASS] Semantic Closure
 [PASS] World Rule Execution
@@ -119,21 +119,38 @@
     ② `SceneCommandSurface` 와 `SceneSelf` 를 범용 표면 위로 옮기지 않았다 —
        승격 규칙 1(rule of two). 다음 팩이 다른 패널을 요구할 때 정한다.
     ③ 좁은 화면(< 720px)은 지원 대상 밖이다 (기획서 §2.3).
-    ④ 기획서 §12.3 의 "처음 보는 플레이어가 30초 안에" 는 **사람 한 명으로 재지 않았다.**
-       이 문서의 PLAYABLE 은 만든 사람이 돌린 것이다.
+    ④ 기획서 §12.3 의 "처음 보는 플레이어가 30초 안에" 는 **처음 보는 사람으로 재지
+       않았다** (위 STATUS).
+    ⑤ 이동·시점 키의 원본(MOVE_KEYS · TURN_KEYS)이 팩에 내보내지지 않아 사본
+       (`RESERVED_KEY_CODES`)으로 막고 있다 — 레인 B 가 올린 기반 트랙 부채이며 여전히 열려 있다.
+
+## MERGE — 레인 B 와 합류
+
+    이 Cycle 이 도는 동안 `C025-the-shape-is-data`(레인 B — 휘두름의 모양이 값이 된다)가
+    먼저 main 에 들어왔다. 합류에서 확인한 것.
+
+    번호        C025 → **C026** 으로 옮겼다 (01-cycle.md 머리말).
+    코드 충돌   `view/resolve.ts` 한 곳 — 둘 다 같은 반환문에 줄을 더했다.
+                레인 B 는 `colliderDebug` 를 평시에도 채우고(칼끝), 이 Cycle 은
+                `surfaces` 를 더한다. **둘 다 남긴다** — 겹치는 의미가 없다
+    손가락 자리 겹침 없음. 레인 B 가 오라 스킬을 R→H, 살펴보기를 T→Y 로 옮겼고
+                이 Cycle 은 `I` 를 새로 쓴다
+    합류 후 실측 게임을 다시 띄워 `I → 고르기 → Enter → 결과 → Esc` 를 그대로 확인했다
+                (콘솔 오류 0). 1117 tests · typecheck · boundary 위반 0
+
+    **레인 B 가 같은 종류의 결손을 따로 발견했다.** 이동·시점 키가 눌린 순간 삼켜져
+    interaction 까지 오지 않는다는 것 — 그래서 오라 스킬은 C012 이래로 자판으로 부를 수
+    없었다. 레인 B 는 `RESERVED_KEY_CODES` 라는 사본 목록으로 막았고, 이 Cycle 은
+    기반 쪽에서 `keyboard.suspendMovement` 로 **표면이 잡고 있는 동안 방향키를 평범한
+    키로 되돌렸다.** 둘은 같은 원인의 다른 두 면이며, 원본을 팩이 읽을 수 있게 내보내는
+    일은 여전히 기반 트랙의 몫이다 (아래 MASTER FEEDBACK).
 
 ## STATUS
 
-    IN PROGRESS — **Human Play 확인만 남았다**
+    COMPLETE
 
-    여섯 판정 항목이 전부 통과했고 위 PLAYABLE 이 실제 게임에서 실측되었다.
-    그러나 그 실측을 돌린 것은 만든 사람이다.
+    Human 이 실제 게임 화면을 보고 확인했다 — "COMPLETE 로 닫고 Master Feedback 까지
+    진행해" (Stage 5 에서 지정한 완료 기준 그대로).
 
-    **만든 사람이 돌려 본 것은 Human Play 가 아니다.** 이 세계의 완료 조건은 코드가 도는
-    것도 테스트가 통과하는 것도 아니라 실제로 플레이되는 것이며(CLAUDE.md 15),
-    그 확인은 겪는 사람이 한다. 그때까지 COMPLETE 로 바꾸지 않는다.
-
-    확인하는 법
-        npm run dev  →  브라우저에서 I  →  ← → 로 고르고  ↑ ↓ 로 행동을 고르고  Enter
-
-    기획서 §12.3 의 "처음 보는 플레이어가 30초 안에" 는 그 자리에서만 잴 수 있다.
+    남은 것 하나는 부채로 적는다: 기획서 §12.3 의 "처음 보는 플레이어가 30초 안에" 는
+    **처음 보는 사람으로 재지 않았다.** 만든 사람과 승인한 사람은 이미 아는 사람이다.

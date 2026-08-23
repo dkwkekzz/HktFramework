@@ -1,4 +1,4 @@
-# C025 — World Implementation
+# C026 — World Implementation
 
 > **세계를 한 줄도 고치지 않았다.**
 >

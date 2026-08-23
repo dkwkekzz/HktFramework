@@ -1,4 +1,4 @@
-# CYCLE C025 — Open What You Carry
+# CYCLE C026 — Open What You Carry
 
 [PASS] Cycle Definition           (관찰 표면 하나 · 세계 무변경이 기본 · 자리는 세계가 준 두 수)
 [PASS] Intent                     (ADDED 0 · 빈 자리에는 주소가 없다 · World Delta NONE 판정)
@@ -7,9 +7,16 @@
 [PASS] Human Semantic Review        (APPROVED — 완료 기준은 실제 게임 화면 관찰)
 [PASS] World Implementation        (world/ 무변경 — 대조 완료 · Stage 7 이 물을 것을 전부 낸다)
 [PASS] View Implementation         (1085 tests · GAP 1 을 Stage 4 로 반환해 고침 · 나가는 것은 Enter 하나)
-[PASS] Verification                (여섯 항목 통과 · 실제 게임 실측 완료 — Human Play 확인만 남았다)
+[PASS] Verification                (여섯 항목 통과 · 실제 게임 실측 · Human Play 확인 완료)
 
-STATUS  IN PROGRESS — Human Play 확인만 남았다
+STATUS  COMPLETE
+
+> **번호 이동 — C025 → C026.** 이 Cycle 이 도는 동안 레인 B 의
+> `C025-the-shape-is-data` 가 먼저 main 에 들어왔다. 두 레인이 병렬로 돌면 시작 시점에는
+> 같은 번호가 비어 있으므로 이런 일이 생기며, 이 팩에서 처음이 아니다 (main 의
+> "C024 → C025 번호 이동 (두 번째)"). 나중에 병합하는 쪽이 옮긴다 — 먼저 들어온 것의
+> 번호를 바꾸면 이미 그것을 가리키는 문서들이 어긋난다.
+> 옮긴 것은 번호뿐이고 이 Cycle 의 의미·범위·판정은 하나도 바뀌지 않았다.
 
 ## MASTER TRACE
 

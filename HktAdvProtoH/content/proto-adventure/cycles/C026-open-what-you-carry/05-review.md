@@ -1,4 +1,4 @@
-# C025 — Human Semantic Review
+# C026 — Human Semantic Review
 
 ## 검토 대상
 
