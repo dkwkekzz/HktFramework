@@ -34,6 +34,7 @@ import {
 import { hudPresentation } from './hud-presentation';
 import { equipmentDetailLines, equipmentHudItems } from './equipment-presentation';
 import { inventoryDetailLines, inventoryHudItems } from './inventory-presentation';
+import { inventoryWorkspace } from './inventory-workspace';
 import { interactionPresentation, interactionPriority } from './interaction-presentation';
 import { codeText, shortCodeText } from './code-text';
 import { contactMark } from './relation-presentation';
@@ -143,9 +144,9 @@ export function resolvePresentation(
     specId: snapshot.specId,
     terrain: snapshot.scene,
     commandSurface: commandSurface(snapshot, options),
-    // 겹침 표면 (기반 capability) — 지금 이 팩이 여는 표면은 없다.
-    // C025 가 소지품 작업 공간을 여기 싣는다
-    surfaces: [],
+    // 겹침 표면 (기반 capability) — C025 의 소지품 작업 공간.
+    // 열려 있지 않아도 싣는다: 열림은 표면 자신이 지닌 값이고, 그리는 쪽이 그것을 본다
+    surfaces: [inventoryWorkspace(snapshot, codeText, shortCodeText)],
     // 충돌체 디버그 관찰 (C006) — 켜졌을 때만 지시를 담는다
     ...(options.debugObserve ? { colliderDebug: collisionDebug(snapshot) } : {}),
     entities: snapshot.entities.map((e) => {

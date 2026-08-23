@@ -4,12 +4,12 @@
 [PASS] Intent                     (ADDED 0 · 빈 자리에는 주소가 없다 · World Delta NONE 판정)
 [PASS] World Semantic             (WORLD DELTA NONE · 여덟 문장 전부 코드에 섬 · 자리는 넷 · 대답 길은 이미 있다)
 [PASS] GameView Specification      (CHANGE NONE · GAP 0 · 빈 칸은 수이지 대상이 아니다 · 대답은 C009 의 길로)
-[    ] Human Semantic Review
-[    ] World Implementation
-[    ] View Implementation
-[    ] Verification
+[PASS] Human Semantic Review        (APPROVED — 완료 기준은 실제 게임 화면 관찰)
+[PASS] World Implementation        (world/ 무변경 — 대조 완료 · Stage 7 이 물을 것을 전부 낸다)
+[PASS] View Implementation         (1085 tests · GAP 1 을 Stage 4 로 반환해 고침 · 나가는 것은 Enter 하나)
+[PASS] Verification                (여섯 항목 통과 · 실제 게임 실측 완료 — Human Play 확인만 남았다)
 
-STATUS  IN PROGRESS
+STATUS  IN PROGRESS — Human Play 확인만 남았다
 
 ## MASTER TRACE
 

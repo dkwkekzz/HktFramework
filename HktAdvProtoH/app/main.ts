@@ -33,9 +33,11 @@ import {
   EFFECT_SET,
   EMPTY_EFFECT_MEMORY,
   closeSurface,
+  forgetPending,
   KEY_BINDINGS,
   rememberForEffects,
   resolvePresentation,
+  settleOutcome,
   SPRITE_SHEET,
   type EffectMemory,
 } from '../content/active-view';
@@ -230,6 +232,9 @@ function submitCommand(): void {
 // 표식이 없는 대답도 버리지 않는다 — 마지막 줄에 붙인다.
 function drainOutcomes(): void {
   for (const outcome of link.takeOutcomes()) {
+    // C025 — 소지품 작업 공간의 요청이면 그 기다림을 푼다. 표식이 있는 것만 가져가므로
+    // 표식 없는 대답은 그대로 아래 명령 기록으로 간다.
+    if (settleOutcome(outcome.mark)) continue;
     const line =
       outcome.mark !== undefined
         ? awaitingOutcome.get(outcome.mark)
@@ -274,10 +279,20 @@ function frame(now: number): void {
   link.poll(Date.now());
   // 세계의 대답을 받아 기록에 붙인다 (C009). 관찰 결과와 다른 자리다.
   drainOutcomes();
+  // 끊겼으면 기다리던 것을 잊는다 — 오지 않을 대답을 기다리면 그 줄은 영영 "보냈다" 다
+  if (link.state() !== 'connected') forgetPending();
 
   // 시점 조작 (C008) — 그리기 전에 방향을 먼저 정한다. 이번 프레임의 좌우 읽기가
   // 이 방향을 기준으로 이루어져야 화면과 어긋나지 않는다.
-  const capturing = commandConsole.capturing() || surfaces.capturing();
+  // 글자를 쓰는 중인가와 표면이 열려 있는가는 **다른 것**이다.
+  //   typing       명령을 쓰는 중 — 어떤 키도 통과하지 않는다 (콘솔이 잡고 있다)
+  //   surfaceOpen  겹침 표면이 열림 — 이동·시점·지목은 멈추되 **팩 규칙은 통과한다**
+  //                (표면을 자판으로 모는 것이 그 규칙이기 때문이다)
+  const typing = commandConsole.capturing();
+  const surfaceOpen = surfaces.capturing();
+  const capturing = typing || surfaceOpen;
+  // 잡혀 있는 동안 방향키·시점키는 이동이 아니라 평범한 키가 된다
+  keyboard.suspendMovement(capturing);
   const turning = capturing ? null : keyboard.turn();
   if (turning) {
     renderer.turnView(turning.turn * KEY_TURN_RATE * dt, turning.tilt * KEY_TILT_RATE * dt);
@@ -357,7 +372,13 @@ function frame(now: number): void {
       if (!commandOpen) commandText = '';
       continue;
     }
-    if (capturing) continue;
+    if (typing) continue;
+    if (surfaceOpen) {
+      // 표면이 열린 동안에는 팩 규칙만 듣는다 — 세계 안의 몸에 닿는 키는 멈춘다
+      const open = KEY_BINDINGS.find((b) => b.code === code);
+      if (open) open.invoke(latestScene, (action) => link.sendMarked(action));
+      continue;
+    }
     if (code === DEBUG_OBSERVE_KEY) {
       debugObserve = !debugObserve;
       continue;

@@ -14,6 +14,8 @@ export { KEY_BINDINGS } from './proto-adventure/view/bindings';
 // 겹침 표면의 열림 상태 (기반 capability 의 Escape·✕ 가 조립을 거쳐 닫기를 부른다).
 // 무엇이 열려 있는가는 결정 Layer 가 쥔다 — 기반은 그리는 능력만 가진다 (반전 ⑤).
 export { closeSurface, surfaceIsOpen, toggleSurface } from './proto-adventure/view/surface-state';
+// C025 — 소지품 작업 공간이 세계의 대답을 받아 기다림을 푸는 자리.
+export { forgetPending, settleOutcome } from './proto-adventure/view/inventory-workspace';
 export { SPRITE_SHEET } from './proto-adventure/view/sprites';
 // 이펙트 (F1) — 어떤 이펙트를 화면에 올릴지(예산)와, 사건을 읽기 위해 기억해 둘 것.
 export {
