@@ -23,6 +23,7 @@ function projectRoot(): string {
 }
 
 const HTML_FILE = 'LANES.html';
+const ARTIFACT_FILE = 'LANES.artifact.html';
 const STAGES = [
   '01-cycle.md',
   '02-intent.md',
@@ -247,7 +248,7 @@ function laneClass(state: string): string {
   return { OPEN: 'open', RUNNING: 'run', BLOCKED: 'blk', HUMAN: 'hum', HOLD: 'hold' }[state] ?? '';
 }
 
-function renderHtml(board: Board, facts: Facts, warns: string[]): string {
+function renderParts(board: Board, facts: Facts, warns: string[]): { style: string; body: string } {
   const trackRows = facts.tracks
     .map(
       (t) => `<div class="flow">
@@ -286,9 +287,7 @@ function renderHtml(board: Board, facts: Facts, warns: string[]): string {
     ? `<div class="sec"><h2>판과 실제의 어긋남</h2><ul>${warns.map((w) => `<li class="warn">${esc(w)}</li>`).join('')}</ul></div>`
     : '';
 
-  return `<!doctype html><html lang="ko"><head><meta charset="utf8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Lanes — 흐름 · 배차 관찰판</title>
-<style>
+  const style = `<style>
 :root{color-scheme:light dark;--bg:#f7f7f5;--panel:#fff;--line:#d8d8d2;--ink:#1b1b19;--ink2:#5c5c55;
 --open:#2f7d3f;--open-bg:#ddf0e2;--run:#4a6785;--run-bg:#e3ecf6;--blk:#b91c1c;--blk-bg:#fbe3e3;
 --hum:#a5871a;--hum-bg:#f6eecd;--hold:#7a7a84;--hold-bg:#e8e8ea;--warn:#b45309;--done:#2f7d3f;--here:#a5871a}
@@ -312,8 +311,8 @@ tr:first-child td{border-top:0}
 .lane.blk{background:var(--blk-bg);color:var(--blk)}.lane.hum{background:var(--hum-bg);color:var(--hum)}
 .lane.hold{background:var(--hold-bg);color:var(--hold)}
 .warn{color:var(--warn)}a{color:var(--run)}
-</style></head><body>
-<h1>Lanes — 흐름 · 배차 관찰판</h1>
+</style>`;
+  const body = `<h1>Lanes — 흐름 · 배차 관찰판</h1>
 <p class="sub">생성물이다 — 원천은 LANES.md · frontier/ · cycles/ · works/. 의미 축(Goal→Capability)은
 <a href="master/graph/graph-view.html">master graph 뷰어</a>가 소유한다. design/ 문서 ${facts.designDocs}건.</p>
 ${warnBlock}
@@ -326,8 +325,25 @@ ${fbFlow}
 <table><tr><th>레인</th><th>상태</th><th>지금</th><th>기다리는 것</th></tr>
 ${boardRows}
 </table></div>
-</body></html>
 `;
+  return { style, body };
+}
+
+function renderHtml(board: Board, facts: Facts, warns: string[]): string {
+  const { style, body } = renderParts(board, facts, warns);
+  return `<!doctype html><html lang="ko"><head><meta charset="utf8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Lanes — 흐름 · 배차 관찰판</title>
+${style}</head><body>
+${body}</body></html>
+`;
+}
+
+/** Artifact 발행판 — 발행기가 스켈레톤을 감싸므로 title + style + body 만 낸다 */
+function renderArtifactPage(board: Board, facts: Facts, warns: string[]): string {
+  const { style, body } = renderParts(board, facts, warns);
+  return `<title>Lanes Board</title>
+${style}
+${body}`;
 }
 
 // ── 실행 ───────────────────────────────────────────────────────────────────
@@ -353,6 +369,7 @@ export function run(argv: string[]): number {
 
   const htmlPath = join(packDir, HTML_FILE);
   writeFileSync(htmlPath, renderHtml(board, facts, warns), 'utf8');
+  writeFileSync(join(packDir, ARTIFACT_FILE), renderArtifactPage(board, facts, warns), 'utf8');
   console.log(`· LANES.html 갱신 — 트랙 ${facts.tracks.length} · 레인 줄 ${board.rows.length} · 미처리 Feedback ${facts.pendingFeedback.length}`);
   return board.problems.length > 0 ? 1 : 0;
 }
