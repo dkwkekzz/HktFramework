@@ -305,10 +305,10 @@ relations:
       note: 유형이 대응하는 공격·방어 축을 정한다 — 상성의 뿌리 }
 
   # 아이템 — 종류가 선언하고, 자리가 담는다
-  - { from: CN-ITEM-KIND,    kind: declares, to: CN-ITEM-USE,
+  - { from: CN-ITEM-USE,     kind: part_of,  to: CN-ITEM-KIND,
       evidence: content/proto-adventure/world/semantic/item.ts#ItemDefinition,
       note: 용도(use)는 정의소의 필드다 — 없으면 그 물건은 쓸 수 없다 }
-  - { from: CN-ITEM-KIND,    kind: declares, to: CN-GRANT,
+  - { from: CN-GRANT,        kind: part_of,  to: CN-ITEM-KIND,
       evidence: content/proto-adventure/world/semantic/item.ts#ItemEquip,
       note: 기여(equip)는 정의소의 필드다 — 없으면 걸 수 없다 }
   - { from: CN-MATERIAL,     kind: kind_of,  to: CN-ITEM-KIND,

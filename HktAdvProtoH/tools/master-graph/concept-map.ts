@@ -1,9 +1,10 @@
-// Concept Map — 개념(명사) ↔ Capability(동사) 의 이분 그래프 한 장.
+// Concept Map — 개념(명사)의 계층 그래프 + Capability(동사) 조합.
 //
-// 왼쪽이 개념, 오른쪽이 그 개념을 조합에 쓰는 Capability 다. 선 하나 = "조합에 쓴다".
-// 실체 없는 개념은 붉게, Capability 는 Overlay 색으로 선다. 아래에는 아직 개념 조합이
-// 기재되지 않은 Capability 가 도메인 미기재 작업 목록으로 나열된다 — 채움의 단위는
-// 도메인이고, 그 진행이 이 판에서 관찰된다.
+// 왼쪽 개념 영역은 **depth 로 갈린다** — part_of·kind_of 가 소유/분류 계층을 만들고
+// (뿌리가 왼쪽, 부분·분류값이 오른쪽으로 매달린다), declares·holds 는 계층이 아니라
+// 가로 참조 곡선이다. 맨 오른쪽 열이 Capability — 개념 조합의 소비자다.
+// 실체 없는 개념은 붉게, Capability 는 Overlay 색으로 선다. 아래에는 조합 미기재
+// Capability 가 작업 목록으로 나열된다.
 //
 // viewer.css 의 토큰을 그대로 쓴다 — 같은 디자인 시스템의 한 장이다. 읽기 전용 생성물.
 
@@ -115,8 +116,8 @@ ${css}
   </div>
 </header>
 <div class="cm-legend">
-  <span><i style="border-color:var(--world)"></i>부분이다 (part_of)</span>
-  <span><i style="border-color:var(--actor);border-top-style:dashed"></i>분류값이다 (kind_of)</span>
+  <span><i style="border-color:var(--world)"></i>부분이다 (part_of · 계층 →)</span>
+  <span><i style="border-color:var(--actor);border-top-style:dashed"></i>분류값이다 (kind_of · 계층 →)</span>
   <span><i style="border-color:var(--goal);border-top-style:dotted"></i>선언한다 (declares)</span>
   <span><i style="border-color:var(--know)"></i>담는다 (holds)</span>
   <span><i style="border-color:var(--line)"></i>조합에 쓴다 (Capability →)</span>
@@ -142,51 +143,82 @@ ${css}
     IMPLEMENTED: ['var(--impl-bg)','var(--impl)'], PARTIAL: ['var(--part-bg)','var(--part)'],
     MISSING: ['var(--miss-bg)','var(--miss)'], '?': ['var(--panel-2)','var(--line)'],
   };
-  const W=220,H=34,VG=14,COLGAP=300,TOP=34,LEFT=72;
-  const rows=Math.max(D.concepts.length,D.capabilities.length);
+  // ── 계층 배치 — part_of·kind_of 가 depth 를 만든다 (뿌리 왼쪽 · 부분 오른쪽) ──
+  const HIER=new Set(['part_of','kind_of']);
+  const parentOf=new Map(); // child → parent (계층 간선의 첫 부모)
+  D.relations.forEach((r)=>{if(HIER.has(r.kind)&&!parentOf.has(r.from))parentOf.set(r.from,r.to);});
+  const depthOf=(id)=>{let d=0,cur=id,guard=0;while(parentOf.has(cur)&&guard++<10){cur=parentOf.get(cur);d++;}return d;};
+  const childrenOf=new Map();
+  D.concepts.forEach((c)=>childrenOf.set(c.id,[]));
+  D.concepts.forEach((c)=>{const p=parentOf.get(c.id);if(p&&childrenOf.has(p))childrenOf.get(p).push(c.id);});
+  // 세로 순서 — 뿌리를 yaml 순서로, 각 뿌리의 부분 트리를 붙여서 (DFS)
+  const rowOf=new Map();let nextRow=0;
+  const place=(id)=>{rowOf.set(id,nextRow++);(childrenOf.get(id)||[]).forEach(place);};
+  D.concepts.filter((c)=>!parentOf.has(c.id)).forEach((c)=>place(c.id));
+  D.concepts.forEach((c)=>{if(!rowOf.has(c.id))rowOf.set(c.id,nextRow++);});
+
+  const W=200,H=34,VG=12,DGAP=64,CAPGAP=210,TOP=34,PAD=14;
+  const maxDepth=Math.max(0,...D.concepts.map((c)=>depthOf(c.id)));
+  const colX=(d)=>PAD+d*(W+DGAP);
+  const capX=colX(maxDepth)+W+CAPGAP;
+  const totalRows=Math.max(nextRow,D.capabilities.length);
   const svg=document.getElementById('map');
-  const width=LEFT*2+W*2+COLGAP, height=TOP+rows*(H+VG)+20;
+  const width=capX+W+PAD, height=TOP+totalRows*(H+VG)+20;
   svg.setAttribute('width',width);svg.setAttribute('height',height);
   svg.setAttribute('viewBox','0 0 '+width+' '+height);
-  const cx2=LEFT+W+COLGAP;
-  const cy=(list,i)=>{const off=(rows-list.length)*(H+VG)/2;return TOP+off+i*(H+VG);};
+  const cnPos=new Map(); // id → {x,y}
+  D.concepts.forEach((c)=>cnPos.set(c.id,{x:colX(depthOf(c.id)),y:TOP+rowOf.get(c.id)*(H+VG)}));
+  const capY=new Map();
+  const capOff=(totalRows-D.capabilities.length)*(H+VG)/2;
+  D.capabilities.forEach((c,i)=>capY.set(c.id,TOP+capOff+i*(H+VG)));
+
   let s='';
-  s+='<text class="cm-col-label" x="'+LEFT+'" y="18">개념 — 세계가 정의한 명사</text>';
-  s+='<text class="cm-col-label" x="'+cx2+'" y="18">CAPABILITY — 개념의 조합</text>';
-  const cnY=new Map(),capY=new Map();
-  D.concepts.forEach((c,i)=>cnY.set(c.id,cy(D.concepts,i)));
-  D.capabilities.forEach((c,i)=>capY.set(c.id,cy(D.capabilities,i)));
-  // edges
-  D.capabilities.forEach((cap)=>{cap.uses.forEach((cn)=>{
-    if(!cnY.has(cn))return;
-    const y1=cnY.get(cn)+H/2,y2=capY.get(cap.id)+H/2,x1=LEFT+W,x2=cx2;
-    const mx=(x1+x2)/2;
-    s+='<path class="cm-edge" data-cn="'+cn+'" data-cap="'+cap.id+'" d="M'+x1+' '+y1+' C'+mx+' '+y1+' '+mx+' '+y2+' '+x2+' '+y2+'"/>';
-  });});
-  // 개념 사이의 관계 — 왼쪽 열 안에서 왼쪽으로 볼록한 호. from → to 로 화살표.
+  s+='<text class="cm-col-label" x="'+PAD+'" y="18">개념 — 뿌리</text>';
+  for(let d=1;d<=maxDepth;d++)s+='<text class="cm-col-label" x="'+colX(d)+'" y="18">'+('부분 · 분류 (depth '+d+')')+'</text>';
+  s+='<text class="cm-col-label" x="'+capX+'" y="18">CAPABILITY — 개념의 조합</text>';
+
   s+='<defs>'+['world','actor','goal','know'].map((t)=>
     '<marker id="ar-'+t+'" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto">'
     +'<path d="M0 0 L8 4 L0 8 z" fill="var(--'+t+')"/></marker>').join('')+'</defs>';
   const KIND_TONE={part_of:'world',kind_of:'actor',declares:'goal',holds:'know'};
-  D.relations.forEach((r,i)=>{
-    if(!cnY.has(r.from)||!cnY.has(r.to))return;
-    const y1=cnY.get(r.from)+H/2,y2=cnY.get(r.to)+H/2,x=LEFT;
-    const bulge=26+(i%4)*9;
+
+  // 계층 간선 (part_of·kind_of) — 부모의 오른쪽 → 자식의 왼쪽, 부모를 향한 화살표는
+  // 자식→부모 의미이므로 자식에서 시작해 부모에 닿게 그린다
+  D.relations.filter((r)=>HIER.has(r.kind)).forEach((r)=>{
+    const c=cnPos.get(r.from),pnode=cnPos.get(r.to);
+    if(!c||!pnode)return;
+    const x1=c.x,y1=c.y+H/2,x2=pnode.x+W,y2=pnode.y+H/2,mx=(x1+x2)/2;
     s+='<path class="cm-rel '+r.kind+'" data-rfrom="'+r.from+'" data-rto="'+r.to+'"'
-      +' marker-end="url(#ar-'+(KIND_TONE[r.kind]||'world')+')"'
-      +' d="M'+x+' '+y1+' C'+(x-bulge)+' '+y1+' '+(x-bulge)+' '+y2+' '+x+' '+y2+'"><title>'
+      +' marker-end="url(#ar-'+KIND_TONE[r.kind]+')"'
+      +' d="M'+x1+' '+y1+' C'+mx+' '+y1+' '+mx+' '+y2+' '+(x2+7)+' '+y2+'"><title>'
       +esc(r.from+' —'+r.kind+'→ '+r.to+(r.note?' · '+r.note:''))+'</title></path>';
   });
+  // 가로 참조 (declares·holds) — 노드 아래를 지나는 완만한 곡선
+  D.relations.filter((r)=>!HIER.has(r.kind)).forEach((r,i)=>{
+    const a=cnPos.get(r.from),b=cnPos.get(r.to);
+    if(!a||!b)return;
+    const x1=a.x+W/2,y1=a.y+H,x2=b.x+W/2,y2=b.y+H,dip=Math.max(y1,y2)+26+(i%3)*10;
+    s+='<path class="cm-rel '+r.kind+'" data-rfrom="'+r.from+'" data-rto="'+r.to+'"'
+      +' marker-end="url(#ar-'+KIND_TONE[r.kind]+')"'
+      +' d="M'+x1+' '+y1+' C'+x1+' '+dip+' '+x2+' '+dip+' '+x2+' '+(y2+2)+'"><title>'
+      +esc(r.from+' —'+r.kind+'→ '+r.to+(r.note?' · '+r.note:''))+'</title></path>';
+  });
+  // 조합 간선 — 개념의 오른쪽 → Capability 왼쪽
+  D.capabilities.forEach((cap)=>{cap.uses.forEach((cn)=>{
+    const c=cnPos.get(cn);if(!c)return;
+    const y1=c.y+H/2,y2=capY.get(cap.id)+H/2,x1=c.x+W,x2=capX,mx=(x1+x2)/2;
+    s+='<path class="cm-edge" data-cn="'+cn+'" data-cap="'+cap.id+'" d="M'+x1+' '+y1+' C'+mx+' '+y1+' '+mx+' '+y2+' '+x2+' '+y2+'"/>';
+  });});
 
-  // concept nodes
+  // concept nodes — depth 열에 배치
   D.concepts.forEach((c)=>{
-    const y=cnY.get(c.id);
+    const pos=cnPos.get(c.id),x=pos.x,y=pos.y;
     const stroke=c.anchored?'var(--poss)':'var(--hole)';
     const fill=c.anchored?'var(--poss-bg)':'var(--panel-2)';
     s+='<g class="cm-node" data-kind="cn" data-id="'+c.id+'">'
-      +'<rect x="'+LEFT+'" y="'+y+'" width="'+W+'" height="'+H+'" rx="6" fill="'+fill+'" stroke="'+stroke+'"'+(c.anchored?'':' stroke-dasharray="5 3"')+'/>'
-      +'<text x="'+(LEFT+10)+'" y="'+(y+15)+'" font-size="12" font-weight="600" fill="var(--ink)">'+esc(c.name)+'</text>'
-      +'<text x="'+(LEFT+10)+'" y="'+(y+28)+'" font-size="10" fill="'+(c.anchored?'var(--ink-3)':'var(--hole)')+'">'
+      +'<rect x="'+x+'" y="'+y+'" width="'+W+'" height="'+H+'" rx="6" fill="'+fill+'" stroke="'+stroke+'"'+(c.anchored?'':' stroke-dasharray="5 3"')+'/>'
+      +'<text x="'+(x+10)+'" y="'+(y+15)+'" font-size="12" font-weight="600" fill="var(--ink)">'+esc(c.name)+'</text>'
+      +'<text x="'+(x+10)+'" y="'+(y+28)+'" font-size="10" fill="'+(c.anchored?'var(--ink-3)':'var(--hole)')+'">'
       +(c.anchored?esc(c.id):esc(c.id)+' · 실체 없음')+'</text></g>';
   });
   // capability nodes
@@ -194,9 +226,9 @@ ${css}
     const y=capY.get(c.id);
     const [bg,line]=OVERLAY_TONE[c.overlay]||OVERLAY_TONE['?'];
     s+='<g class="cm-node" data-kind="cap" data-id="'+c.id+'">'
-      +'<rect x="'+cx2+'" y="'+y+'" width="'+W+'" height="'+H+'" rx="6" fill="'+bg+'" stroke="'+line+'"/>'
-      +'<text x="'+(cx2+10)+'" y="'+(y+15)+'" font-size="11" font-weight="600" fill="var(--ink)">'+esc(c.id)+'</text>'
-      +'<text x="'+(cx2+10)+'" y="'+(y+28)+'" font-size="10" fill="var(--ink-3)">'+esc(c.overlay)+'</text></g>';
+      +'<rect x="'+capX+'" y="'+y+'" width="'+W+'" height="'+H+'" rx="6" fill="'+bg+'" stroke="'+line+'"/>'
+      +'<text x="'+(capX+10)+'" y="'+(y+15)+'" font-size="11" font-weight="600" fill="var(--ink)">'+esc(c.id)+'</text>'
+      +'<text x="'+(capX+10)+'" y="'+(y+28)+'" font-size="10" fill="var(--ink-3)">'+esc(c.overlay)+'</text></g>';
   });
   svg.innerHTML=s;
   const detail=document.getElementById('detail');
