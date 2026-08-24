@@ -18,7 +18,6 @@ import type {
   SceneState,
 } from '../../../engine/view-kernel/scene/scene-state';
 import { collisionDebug } from '../../../engine/view-kernel/presentation/collision-presentation';
-import { skillDetailLines, skillHudItems } from './skill-presentation';
 import { swingTrail } from './swing-presentation';
 import { commandEntries, composeCommand } from '../../../engine/view-kernel/presentation/command-presentation';
 import {
@@ -38,6 +37,12 @@ import { equipmentDetailLines, equipmentHudItems } from './equipment-presentatio
 import { inventoryDetailLines, inventoryHudItems } from './inventory-presentation';
 import { inventoryWorkspace } from './inventory-workspace';
 import { interactionPresentation, interactionPriority } from './interaction-presentation';
+import {
+  NO_SKILL_ANSWERS,
+  skillDetailLines,
+  skillSlotBar,
+  type SkillAnswers,
+} from './skill-presentation';
 import { codeText, shortCodeText } from './code-text';
 import { contactMark } from './relation-presentation';
 import { cancelMark } from './phase-presentation';
@@ -72,6 +77,12 @@ export interface PresentationOptions {
    * 읽힌다. facingSides 와 같은 규칙이다 — 조립 루트가 기억하고 여기서는 읽기만 한다.
    */
   effectsSince?: EffectMemory;
+  /**
+   * 내가 건 기술 요청이 어떻게 되었는가 (C025 — 04 requestOutcome).
+   * 세계의 상태가 아니라 **관찰자가 쥐고 있는 값**이다 — 세계는 누가 무엇을 걸었는지
+   * 기억하지 않는다. `command` · `facingSides` 와 같은 자리이며, 조립 루트가 소유한다.
+   */
+  skillAnswers?: SkillAnswers;
 }
 
 /** 관찰자가 쥐고 있는 명령 표면 상태 — 조립 루트가 소유한다 (04 history.owner: observer) */
@@ -149,6 +160,8 @@ export function resolvePresentation(
     // 겹침 표면 (기반 capability) — C026 의 소지품 작업 공간.
     // 열려 있지 않아도 싣는다: 열림은 표면 자신이 지닌 값이고, 그리는 쪽이 그것을 본다
     surfaces: [inventoryWorkspace(snapshot, codeText, shortCodeText)],
+    // 늘 서 있는 띠 — 지금 이 순간 고르는 것이 자기 자리를 갖는다 (VUX-SK §2.1).
+    slotBars: [skillSlotBar(snapshot, shortCodeText, options.skillAnswers ?? NO_SKILL_ANSWERS)],
     // 지면에 그리는 부피들 — 두 자리가 하나의 계약을 나눠 쓴다.
     //   켜면 (C)   몸 캡슐 · 속도 화살표 · 맞은 몸 표시 · 칼끝 — 진단 표면 (C006)
     //   평시       칼끝 하나 — **장면의 일부** (C025)
@@ -245,7 +258,7 @@ export function resolvePresentation(
               //   장비   몸이 무엇으로 되어 있는가 — 소지품보다 먼저다. 걸기의 대상이
               //          소지품이므로 자리를 먼저 본 뒤 무엇을 걸지 고른다 (C025)
               //   소지품 가진 것 전부 (C020 · C022)
-              ...skillDetailLines(snapshot, codeText, shortCodeText),
+              ...skillDetailLines(snapshot, codeText, options.skillAnswers ?? NO_SKILL_ANSWERS),
               ...equipmentDetailLines(snapshot, codeText, shortCodeText),
               ...inventoryDetailLines(snapshot, codeText, shortCodeText),
             ],
@@ -293,10 +306,9 @@ export function resolvePresentation(
     // "지금 누구를 상대하는가" 는 소지품보다 먼저 읽혀야 한다.
     hud: [
       ...targetHudItems(snapshot, codeText),
-      // C025 — 걸 수 있는 기술들을 한자리에 견준다. 세계가 보낸 목록에서
-      // **모양을 지닌 것**만 골라 옮긴다 — 기술 이름도 역할 목록도 여기 없다.
-      // 띠에는 모양만 둔다. 사유는 self 패널로 내려간다 (C022 와 같은 판단).
-      ...skillHudItems(snapshot),
+      // C027 — 기술은 위쪽 띠를 **떠났다.** 같은 값이 화면 아래 슬롯 띠에 서므로
+      // (slotBars) 여기 두면 한 화면에 같은 말이 두 번 있게 된다.
+      // C025 가 세운 것(모양을 견준다 · 사유는 패널로)은 그대로 살아 자리만 옮겼다.
       // C023 — 걸린 것. 소지품보다 앞에 둔다 — 몸이 무엇으로 되어 있는지가 먼저다
       ...equipmentHudItems(snapshot, codeText),
       // C020 — 가진 것 전부. 세계가 준 순서에 칸 번호만 붙인다

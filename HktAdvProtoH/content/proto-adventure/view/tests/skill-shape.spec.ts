@@ -14,57 +14,65 @@ import {
   interactionPresentation,
   RESERVED_KEY_CODES,
 } from '../interaction-presentation';
-import { SKILL_HUD_PREFIX } from '../skill-presentation';
+import { SKILL_SLOT_BAR_ID } from '../skill-presentation';
 import fixture from './fixtures/skill-shape.fixture.json';
 
 const snapshot = fixture as unknown as GameViewSnapshot;
 
+// C027 — 기술은 위쪽 띠를 떠나 화면 아래 **슬롯 띠**에 선다. 검사하는 성질은 그대로다:
+// 모양이 평시 화면에 보이는가 · 셋을 나란히 견줄 수 있는가.
 const skillLines = (plan: ReturnType<typeof resolvePresentation>) =>
-  plan.hud.filter((h) => h.id.startsWith(SKILL_HUD_PREFIX));
+  plan.slotBars.find((b) => b.id === SKILL_SLOT_BAR_ID)?.cells ?? [];
 
 describe('기술 줄 (Semantic → Render Plan) — 셋을 견준다', () => {
   it('모양을 지닌 것이 모두 한 줄씩 실린다 — 세계가 보낸 만큼', () => {
     const lines = skillLines(resolvePresentation(snapshot));
-    expect(lines.map((l) => l.id)).toEqual([
-      'skill.attack',
-      'skill.skill-heavy',
-      'skill.skill-aura',
-    ]);
+    expect(lines.map((l) => l.id)).toEqual(['attack', 'skill-heavy', 'skill-aura']);
   });
 
   it('줄마다 그 기술을 부르는 키와 이름이 붙는다 (Human 지시 — 셋 다 쓸 수 있어야 한다)', () => {
     const lines = skillLines(resolvePresentation(snapshot));
-    expect(lines.map((l) => l.label)).toEqual(['F 기본 스킬', 'G 고급 스킬', 'H 오라 스킬']);
+    // 부르는 자리와 이름은 이제 칸 안의 **다른 자리**다 (VUX-SK §3).
+    expect(lines.map((l) => `${l.key} ${l.title}`)).toEqual([
+      'F 기본 스킬',
+      'G 고급 스킬',
+      'H 오라 스킬',
+    ]);
   });
 
   it('넓이와 도달이 숫자로 실린다 — 걸어 보고 아는 것이 아니다', () => {
     const lines = skillLines(resolvePresentation(snapshot));
-    const basic = lines.find((l) => l.id === 'skill.attack')!;
-    const heavy = lines.find((l) => l.id === 'skill.skill-heavy')!;
+    const basic = lines.find((l) => l.id === 'attack')!;
+    const heavy = lines.find((l) => l.id === 'skill-heavy')!;
     // 150° · 도달 1.3 + 0.7 = 2.0
-    expect(String(basic.value)).toContain('150°');
-    expect(String(basic.value)).toContain('도달 2.0');
+    expect(String(basic.detail)).toContain('150°');
+    expect(String(basic.detail)).toContain('도달 2.0');
     // 40° · 도달 2.2 + 0.55 = 2.75 → 2.8
-    expect(String(heavy.value)).toContain('40°');
-    expect(String(heavy.value)).toContain('도달 2.8');
+    expect(String(heavy.detail)).toContain('40°');
+    expect(String(heavy.detail)).toContain('도달 2.8');
   });
 
   it('넓이 막대는 목록 안에서 견준다 — 화면이 "몇 도부터 넓은가" 를 정하지 않는다', () => {
     const lines = skillLines(resolvePresentation(snapshot));
-    const bar = (id: string) => String(lines.find((l) => l.id === id)!.value).split(' ')[0]!;
+    const bar = (id: string) => String(lines.find((l) => l.id === id)!.detail).split(' ')[0]!;
     // 가장 넓은 것이 가득 찬다
-    expect(bar('skill.attack')).toBe('█████');
+    expect(bar('attack')).toBe('█████');
     // 좁은 것은 덜 찬다 — 그러나 비어 보이지는 않는다
-    expect(bar('skill.skill-heavy').startsWith('█')).toBe(true);
-    expect(bar('skill.skill-heavy')).not.toBe(bar('skill.attack'));
+    expect(bar('skill-heavy').startsWith('█')).toBe(true);
+    expect(bar('skill-heavy')).not.toBe(bar('attack'));
     // 같은 모양을 지닌 둘은 같은 막대다 (오라 기술은 기본 기술과 모양이 같다)
-    expect(bar('skill.skill-aura')).toBe(bar('skill.attack'));
+    expect(bar('skill-aura')).toBe(bar('attack'));
   });
 
-  it('띠에는 사유가 붙지 않는다 — 무엇이든 하는 동안 세 줄이 다 길어지지 않게 (C022 와 같은 판단)', () => {
+  it('띠에는 사유의 긴 문장이 붙지 않는다 — 무엇이든 하는 동안 세 줄이 다 길어지지 않게 (C022 와 같은 판단)', () => {
+    // C027 병합 — 띠에 **짧은 표기**의 상태가 함께 선다 (`지금 됨` · `행동 중` · `요청 중`).
+    // C025 가 막으려던 것은 사유가 **문장**으로 띠에 오는 것이었고, 짧은 표기는 그 문제를
+    // 일으키지 않는다. 문장(긴 사유·거절 경위)은 여전히 패널의 몫이다.
     for (const line of skillLines(resolvePresentation(snapshot))) {
-      expect(String(line.value)).not.toContain('✗');
-      expect(String(line.value)).not.toContain('—');
+      const shown = `${line.detail ?? ''} ${line.status ?? ''}`;
+      expect(shown).not.toContain('✗');
+      expect(shown).not.toContain('—');
+      expect(shown).not.toContain('기력이 모자란다'); // 긴 문장은 오지 않는다
     }
   });
 
@@ -73,10 +81,11 @@ describe('기술 줄 (Semantic → Render Plan) — 셋을 견준다', () => {
     const start = lines.indexOf('기술');
     expect(start).toBeGreaterThanOrEqual(0);
     const block = lines.slice(start + 1, start + 4);
-    expect(block[0]).toBe('기본 스킬 ✓ F');
+    // C027 병합 — ✓/✗ 표기는 그대로이고 그 뒤에 치를 것과 낼 것이 붙는다.
+    expect(block[0]).toMatch(/^기본 스킬 ✓ F · /);
     expect(block[1]).toMatch(/^고급 스킬 ✗ /); // fixture 의 reason 은 insufficient-cp
     expect(block[1]).not.toContain('insufficient-cp'); // 코드가 아니라 문구로 옮겨진다
-    expect(block[2]).toBe('오라 스킬 ✓ H');
+    expect(block[2]).toMatch(/^오라 스킬 ✓ H · /);
   });
 
   it('모양이 없는 세계에서는 줄이 하나도 서지 않는다 — 기술 이름을 아는 코드가 없다는 증거', () => {
@@ -97,8 +106,9 @@ describe('기술 줄 (Semantic → Render Plan) — 셋을 견준다', () => {
     });
     const lines = skillLines(resolvePresentation(withFourth));
     expect(lines).toHaveLength(4);
-    // 표에 없어도 화면이 멈추지 않는다 — 역할 코드가 그대로 보인다
-    expect(lines[3]!.label).toBe('skill-unknown');
+    // 표에 없어도 화면이 멈추지 않는다 — 역할 코드가 그대로 보이고 부를 자리만 없다
+    expect(lines[3]!.title).toBe('skill-unknown');
+    expect(lines[3]!.key).toBeUndefined();
   });
 });
 

@@ -213,6 +213,11 @@ const SHORT_TEXT: Record<string, string> = {
   'unknown-item': '모르는 것',
   'target-gone': '대상이 사라짐',
   'target-downed': '이미 쓰러짐',
+  // 기술 (C025) — 띠의 칸마다 붙는 자리이므로 짧아야 한다.
+  // `action-busy` 는 위에 이미 있다 (같은 사유가 두 자리에서 같은 말을 한다).
+  // `downed` 는 긴 문장 자체가 이미 짧으므로 두지 않는다 — 없는 말을 짓지 않는다.
+  guarding: '막는 중',
+  'insufficient-cp': '기력 모자람',
 };
 
 export function shortCodeText(code: string): string {
