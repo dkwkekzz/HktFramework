@@ -4,6 +4,8 @@ dist/
 # Master Graph 뷰어 — npm run master:graph 가 만드는 생성물 (GRAPH.md 만 커밋한다)
 content/*/master/graph/graph-view.html
 content/*/master/graph/graph-view.artifact.html
+content/*/master/graph/concept-map.html
+content/*/master/graph/concept-map.artifact.html
 
 # Lanes 관찰판 — npm run lanes 가 만드는 생성물 (LANES.md 만 커밋한다)
 content/*/LANES.html

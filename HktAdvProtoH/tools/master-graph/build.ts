@@ -15,6 +15,7 @@ import { renderOverlay } from './overlay';
 import { renderArtifactPage, renderHtml } from './html';
 import { collectWorkLinks } from './works';
 import { loadConcepts } from './concepts';
+import { renderConceptMapArtifact, renderConceptMapHtml } from './concept-map';
 import { activePackDir } from '../active-pack';
 
 function projectRoot(): string {
@@ -25,6 +26,8 @@ const MERMAID_FILE = 'graph/GRAPH.md';
 const OVERLAY_FILE = 'overlay.md';
 const HTML_FILE = 'graph/graph-view.html';
 const ARTIFACT_FILE = 'graph/graph-view.artifact.html';
+const CONCEPT_MAP_FILE = 'graph/concept-map.html';
+const CONCEPT_MAP_ARTIFACT_FILE = 'graph/concept-map.artifact.html';
 
 export function run(argv: string[]): number {
   const checkOnly = argv.includes('--check');
@@ -81,6 +84,10 @@ export function run(argv: string[]): number {
   for (const p of concepts.problems) console.log(`· CONCEPTS — ${p}`);
   writeFileSync(htmlPath, renderHtml(graph, works, concepts), 'utf8');
   writeFileSync(artifactPath, renderArtifactPage(graph, works, concepts), 'utf8');
+  if (concepts.concepts.length > 0) {
+    writeFileSync(join(masterDir, CONCEPT_MAP_FILE), renderConceptMapHtml(graph, concepts), 'utf8');
+    writeFileSync(join(masterDir, CONCEPT_MAP_ARTIFACT_FILE), renderConceptMapArtifact(graph, concepts), 'utf8');
+  }
 
   const rel = (p: string) => relative(root, p);
   console.log(`노드 ${graph.nodes.size} · 관계 ${graph.edges.length} · Constraint ${graph.constraints.size} · 구멍 ${graph.holes.length}`);
