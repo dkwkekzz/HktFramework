@@ -21,13 +21,20 @@ PARTIAL       일부만 닫혔거나 이번 Possibility 가 요구하는 형태�
 MISSING       세계에 그 의미가 없다
 ```
 
-3. `graph/capabilities.yaml` 의 `overlay` 필드를 같은 값으로 맞춘다 — **값만**.
-   근거·정정 경위를 노드 주석으로 남기지 않는다 (근거는 이 문서, 경위는 HISTORY.md).
-4. Possibility 단위로도 읽을 수 있게 한다 — 이 경로가 요구하는 것 중 무엇이 없는가.
+3. 판정을 **노드 필드에** 쓴다 — `graph/capabilities.yaml` 의 `overlay`(상태) ·
+   `overlay_evidence`(근거) · `overlay_gap`(부족한 것). 경위는 노드에 남기지 않는다
+   (Cycle 반영 경위는 `feedback/`, Master 결정 경위는 HISTORY.md).
+4. Possibility 단위로도 읽을 수 있게 한다 — 이 경로가 요구하는 것 중 무엇이 없는가를
+   `possibilities.yaml` 의 `overlay_missing` · `overlay_note` 에 쓴다.
+5. 새 Capability 를 표에 올리거나 섹션 구성·산문이 바뀌면 `graph/overlay-notes.yaml` 을 고친다.
+6. `npm run master:graph` 로 `overlay.md` 를 재생성해 **같은 커밋에** 넣는다.
 
 ## Output
 
-`master/overlay.md` (+ `capabilities.yaml` 의 `overlay` 필드) — 형식은 `master/SCHEMA.md`
+`graph/capabilities.yaml` · `possibilities.yaml` · `world-state/actors/knowledge.yaml` 의
+overlay*/implemented* 필드 (+ 필요시 `graph/overlay-notes.yaml`) → 재생성된
+`master/overlay.md` — **overlay.md 는 생성물이다. 손으로 고치지 않는다.**
+필드 형식은 `master/SCHEMA.md`.
 
 ## Must Not
 

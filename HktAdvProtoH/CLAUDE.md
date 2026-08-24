@@ -136,9 +136,13 @@ View 작업      advprotoh-view 스킬
 `master/graph/*.yaml` 은 사람이 눈으로 읽기 어렵다. 관찰·정합 검사는 도구가 맡는다.
 
 ```text
-npm run master:graph         GRAPH.md + 뷰어 + Artifact 판을 다시 만든다
-npm run master:graph:check   정합성 + GRAPH.md 최신 여부만 확인한다 (아무것도 쓰지 않는다)
+npm run master:graph         GRAPH.md · overlay.md + 뷰어 + Artifact 판을 다시 만든다
+npm run master:graph:check   정합성 + GRAPH.md·overlay.md 최신 여부만 확인한다 (아무것도 쓰지 않는다)
+npm run feedback:gate        Feedback/Master 작업 전 — 최신 main 여부 + 미처리 MASTER FEEDBACK 검사
 ```
+
+`overlay.md` 는 GRAPH.md 처럼 **생성물**이다 — 상태·근거는 `graph/*.yaml` 노드 필드가,
+편집 산문은 `graph/overlay-notes.yaml` 이 소유한다 (형식: master/SCHEMA.md).
 
 `graph/` `constraints/` 를 고친 Agent 는 **재생성물을 같은 커밋에 넣고 고정 링크를 갱신한다**
 — 절차와 그 링크는 [master/README.md](content/proto-adventure/master/README.md) 의 "관찰" 이

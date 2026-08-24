@@ -20,6 +20,9 @@ Cycle 은 **보고**까지 하고, 반영은 이 작업이 한다.
    단 feedback/<CycleId>.md 는 Cycle 마다 따로 만든다.
 ```
 
+시작 전에 `npm run feedback:gate` 를 돌린다 — ① 최신 main 위인가 ② 미처리
+MASTER FEEDBACK 이 무엇인가를 기계적으로 검사한다 (`--pending` 은 목록만).
+
 ## Input
 
 - `cycles/<CycleId>/08-verification.md` 의 `MASTER FEEDBACK`
@@ -29,11 +32,15 @@ Cycle 은 **보고**까지 하고, 반영은 이 작업이 한다.
 
 ## Do
 
-1. **Overlay 갱신** — 이번 Cycle 이 닫은 Capability 의 상태를 바꾼다.
+1. **Overlay 갱신** — 이번 Cycle 이 닫은 Capability 의 **노드 필드**를 바꾼다:
+   `capabilities.yaml` 의 `overlay` · `overlay_evidence` · `overlay_gap`, 경로 요약이
+   바뀌면 `possibilities.yaml` 의 `overlay_missing` · `overlay_note`, 세계 표가 바뀌면
+   해당 노드의 `implemented` · `implemented_note`. 그리고 `npm run master:graph` 로
+   `overlay.md` 를 재생성해 같은 커밋에 넣는다 — **overlay.md 는 생성물이다.**
    근거는 그 Cycle 의 `08-verification.md` 다. 실측 없이 승격하지 않는다.
 
 ```text
-MC-PERFECT-GUARD   MISSING → IMPLEMENTED   근거 C010 08-verification
+MC-PERFECT-GUARD   overlay: MISSING → IMPLEMENTED   overlay_evidence: C010 08-verification …
 ```
 
 2. **Frontier 정리** — 소진된 후보를 **자기 트랙 파일**(`frontier/<트랙>.md`)에서 지우고,
@@ -62,8 +69,8 @@ MC-PERFECT-GUARD   MISSING → IMPLEMENTED   근거 C010 08-verification
 ## Output
 
 - `master/feedback/<CycleId>.md` (신규 — 이번 반영의 경위 전부)
-- `master/overlay.md` (현재 상태 갱신)
-- `master/graph/capabilities.yaml` 의 `overlay` · `constraint_evaluation` (갱신)
+- `master/graph/capabilities.yaml` 등 노드의 `overlay*` · `implemented*` ·
+  `constraint_evaluation` (갱신) → 재생성된 `master/overlay.md` (같은 커밋)
 - `master/frontier/<트랙>.md` (닫힌 후보 제거 · 새 후보 반영)
 - `master/candidates/CC-*.md` (있으면 신규)
 

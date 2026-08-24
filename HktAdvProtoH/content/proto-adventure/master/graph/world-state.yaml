@@ -43,6 +43,8 @@ nodes:
       직접 관찰되는 상태가 아니다 — 세계의 전제이므로 다른 모든 MW-* 가 이것에서
       내려온다는 사실로만 확인된다. 게임 안에 이것을 보여주는 표면은 없어야 한다.
     implemented: PRESENT
+    implemented_note: >-
+      전제이므로 어긋나는 규칙이 없으면 성립
     # 전제는 구현 대상이 아니다 — 어긋나는 규칙이 없으면 성립한 것으로 본다.
     arises_from: []
     causes: []
@@ -63,6 +65,8 @@ nodes:
       있는 곳인가" 가 그 지역의 생태·자원·위험으로 일관되게 드러나야 하고,
       위험이 큰 곳에서 나온 것일수록 인간 세계에 없는 성질을 지녀야 한다.
     implemented: ABSENT
+    implemented_note: >-
+      지역이라는 개념이 없어 "여기는 얼마나 변할 수 있는 곳인가" 가 표현될 자리가 없다
     # 지역이라는 개념 자체가 세계에 없다 — overlay.md 탐험 영역 참조.
     arises_from: [MW-PRIMAL-WORLD]
     causes: []
@@ -87,6 +91,8 @@ nodes:
       고정되어 있지 않아야 한다. 플레이어가 "이 지역에는 이것이 나온다" 를 한 번 외워
       영구히 해결되면 이 상태는 세계에 없는 것이다.
     implemented: ABSENT
+    implemented_note: >-
+      지역이라는 개념이 없어 "여기는 얼마나 변할 수 있는 곳인가" 가 표현될 자리가 없다
     arises_from: [MW-WORLD-PRESSURE]
     causes: []
     changed_by: []
@@ -106,6 +112,8 @@ nodes:
       추적 가능해야 한다. 자원의 효과가 그 유래와 무관한 수치 보너스(공격력 +N)로만
       드러나면 이 상태는 세계에 없는 것이다.
     implemented: ABSENT
+    implemented_note: >-
+      지역이라는 개념이 없어 "여기는 얼마나 변할 수 있는 곳인가" 가 표현될 자리가 없다
     arises_from: [MW-WORLD-PRESSURE]
     causes: []
     changed_by: []
@@ -129,6 +137,8 @@ nodes:
       일(거래·제작·정보·훈련)과 그곳에서는 결코 얻을 수 없는 것이 명확히 갈려야 한다.
       "여기서도 결국 다 되는데 밖이 효율만 좋다" 면 이 상태는 세계에 없는 것이다.
     implemented: ABSENT
+    implemented_note: >-
+      안전한 곳과 위험한 곳의 구분이 없다 — 무대가 하나다
     # 현재 세계는 무대 하나짜리 전투 프로토타입이라 "안전한 장소" 라는 구분이 없다.
     arises_from: [MW-BOUND-PRESSURE]
     causes: [MG-EXPLORE-BEIRA]
@@ -157,6 +167,8 @@ nodes:
       (같은 대응의 난이도만 올라가는 것이 아니다). 그리고 깊은 곳에 갔는데 아무것도
       얻지 못하는 일이 정상적으로 일어나야 한다.
     implemented: ABSENT
+    implemented_note: >-
+      깊이도 층도 없다
     arises_from: [MW-FREE-PRESSURE]
     causes: []
     changed_by: []
@@ -186,6 +198,8 @@ nodes:
       플레이어보다 정면 전투력이 우위인 존재가 있고, 그 우위를 힘이 아니라 관찰·예측·
       위치 선택으로 뒤집을 수 있어야 한다. 스탯을 올려야만 이길 수 있으면 이 층이 아니다.
     implemented: PARTIAL
+    implemented_note: >-
+      정면 전투력이 우위인 적대 존재는 있다. 그것이 사는 **층**이 없고, 우위를 힘 아닌 것으로 뒤집을 수단도 없다
     # 적대 존재와 정면 전투는 있다 (C007~C013). 관찰·예측·지형이라는 뒤집는 수단이 없고,
     # 이 층이 지역으로 존재하지도 않는다. 근거는 overlay.md.
     arises_from: [MW-DEPTH-GRADIENT]
@@ -209,6 +223,8 @@ nodes:
       기본 공격이 통하지 않는 방어 형태를 가진 존재가 있고, 그 존재의 몸에서 인간이
       쓸 수 있는 것이 나와야 한다. 그리고 그 소재의 쓸모가 그 생물의 적응과 이어져야 한다.
     implemented: ABSENT
+    implemented_note: >-
+      깊이도 층도 없다
     arises_from: [MW-DEPTH-GRADIENT]
     causes: [MG-ACQUIRE-RARE-ORGAN]
     changed_by: []
@@ -303,6 +319,8 @@ nodes:
       거기서 나오는 자원의 효과가 그 손상 압력에 대한 답으로 읽혀야 한다.
       좋은 회복 아이템이 위험한 지역에 놓여 있는 것으로 보이면 실패다.
     implemented: ABSENT
+    implemented_note: >-
+      대표 지역 둘 다 없다
     arises_from: [MW-FREE-PRESSURE]
     causes: []
     # 이 지역이 어떤 Goal 을 만드는지는 BW 가 명명하지 않았다 — WHY/OPTIONS 몫.
@@ -323,6 +341,8 @@ nodes:
       이 지역에서 일반 물질이 실제로 소멸하는 것이 관찰되어야 하고, 살아남은 광물의
       쓸모가 "구조를 유지한다" 는 그 성질에서 곧바로 나와야 한다.
     implemented: ABSENT
+    implemented_note: >-
+      대표 지역 둘 다 없다
     arises_from: [MW-FREE-PRESSURE]
     causes: []
     changed_by: []

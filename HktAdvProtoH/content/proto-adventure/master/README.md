@@ -111,7 +111,7 @@ master/     현재 상태    world/ view/ 처럼 계속 갱신된다
 | [root.md](root.md) | Root Game Goal · World Premise | **Human** |
 | [constraints/](constraints/) | `DC-*.yaml` — 승인된 Design Constraint | **Human** 승인 |
 | [graph/](graph/) | MW · MA · MK · MB · MG · MP · MC · edges | Master Design Agent |
-| [overlay.md](overlay.md) | Capability × 현재 구현 상태 (IMPLEMENTED/PARTIAL/MISSING) | Master Design Agent |
+| [overlay.md](overlay.md) | Capability × 현재 구현 상태 — **생성물, 손으로 고치지 않는다** (원본: graph/ 노드 필드 + overlay-notes.yaml) | `npm run master:graph` |
 | [frontier/](frontier/) | 트랙별 `FR-*` 후보 + Human 선택 — 트랙 목록·병렬 규칙은 [frontier/README.md](frontier/README.md) | Agent 제안 / **Human** 선택 |
 | [candidates/](candidates/) | `CC-*.md` — 미승인 Constraint Candidate | Agent 제안 / **Human** 승인 |
 | [open-questions.md](open-questions.md) | 승인 대기 · Constraint 충돌 · 설계 공백 · Trade-off | Agent 제기 / **Human** 결정 |
@@ -128,15 +128,16 @@ master/     현재 상태    world/ view/ 처럼 계속 갱신된다
 Graph 를 눈으로 보려면 프로젝트 루트에서 다음을 실행한다. 원본은 아무것도 바뀌지 않는다.
 
 ```text
-npm run master:graph         GRAPH.md 와 graph/graph-view.html 을 다시 만든다
-npm run master:graph:check   정합성 + GRAPH.md 최신 여부만 확인한다 (아무것도 쓰지 않는다)
+npm run master:graph         GRAPH.md · overlay.md · graph/graph-view.html 을 다시 만든다
+npm run master:graph:check   정합성 + GRAPH.md·overlay.md 최신 여부만 확인한다 (아무것도 쓰지 않는다)
 ```
 
-세 산출물이 나온다. 뒤의 둘은 생성물이라 커밋하지 않는다.
+네 산출물이 나온다. HTML 둘은 커밋하지 않는다.
 
 | 파일 | 보는 곳 |
 |---|---|
-| `graph/GRAPH.md` | GitHub · 에디터 — Mermaid 와 표. **이것만 커밋한다** |
+| `graph/GRAPH.md` | GitHub · 에디터 — Mermaid 와 표. **커밋한다** |
+| `overlay.md` | Capability × 구현 상태 — 노드 필드에서 생성. **커밋한다** |
 | `graph/graph-view.html` | 브라우저 — 인터랙티브 뷰어 (서버 없이 `file://` 로 열린다) |
 | `graph/graph-view.artifact.html` | Artifact 게시용 — 아래 고정 링크에 덮어쓸 때 이 파일을 올린다 |
 

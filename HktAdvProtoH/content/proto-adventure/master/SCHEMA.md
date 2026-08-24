@@ -494,28 +494,29 @@ Runtime Instance 의 관계이며 Master 에 오지 않는다 (GR §38).
 
 ---
 
-## overlay.md
+## overlay.md — 생성물
 
-```markdown
-# Capability Overlay
+`overlay.md` 는 GRAPH.md 처럼 **생성물이다. 손으로 고치지 않는다** —
+`npm run master:graph` 가 아래 원본에서 만든다.
 
-기준 시점: <갱신한 Cycle 또는 날짜>
+```text
+표의 값 (노드 필드가 소유)
+  capabilities.yaml     overlay: IMPLEMENTED | PARTIAL | MISSING
+                        overlay_evidence: >-   근거 — Cycle ID 또는 코드 실측. 주장만 적지 않는다
+                        overlay_gap: >-        부족한 것 — PARTIAL/MISSING 이면 반드시 채운다
+  possibilities.yaml    overlay_missing: >-    이 경로의 요구 중 없는 것
+                        overlay_note: >-       비고 — 경로가 지금 어디까지 닫혔는가
+  world-state/actors/   implemented: PRESENT | PARTIAL | ABSENT
+  knowledge.yaml        implemented_note: >-   지금 세계에 있는 것 / 없는 것
 
-| Capability | 상태 | 근거 | 부족한 것 |
-|---|---|---|---|
-| MC-PERFECT-GUARD | MISSING | — | 세계에 타이밍 방어 의미가 없다 |
-| MC-GUARD | IMPLEMENTED | C007 08-verification | — |
-| MC-COUNTER | PARTIAL | C007 (공격권 개념만) | 반격 전이 · 노출 상태 |
-
-## 판정 기준
-    IMPLEMENTED  그 의미를 닫은 Cycle 이 있고 08-verification 이 실측으로 통과했다
-    PARTIAL      일부만 닫혔거나, 닫혔지만 이번 Possibility 가 요구하는 형태에 못 미친다
-    MISSING      세계에 그 의미가 없다
-
+편집 산문 (graph/overlay-notes.yaml 이 소유)
+  header · 섹션 구성(제목·intro·행 순서·묶인 행) · 가장 큰 구멍 절
+  "층이 요구하는 것" 표는 어디에도 적지 않는다 — demands × overlay 에서 계산된다
 ```
 
-근거 칸에 Cycle 또는 실측을 적는다. **주장만 적지 않는다.**
-이 파일에는 **현재 상태만** 둔다 — 무엇이 언제 바뀌었는지는 `HISTORY.md` 가 소유한다.
+값이 없는 근거/부족 칸은 필드를 생략한다 — 생성물에 `—` 로 나온다.
+새 Capability 는 노드 필드와 함께 `overlay-notes.yaml` 의 해당 섹션 행에 올린다 —
+빠뜨리면 생성 시 경고가 난다. 판정 경위는 `feedback/<CycleId>.md` 소유다.
 
 ---
 

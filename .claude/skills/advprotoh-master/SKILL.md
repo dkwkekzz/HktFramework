@@ -86,7 +86,7 @@ Human 이 기반 기획 문서(`design/Design-*.md` — 전투 규칙 등)를 �
 |---|---|---|---|
 | WHY | `guides/master-graph.md` | `root.md` · Active DC · 기존 Graph | `graph/` world-state · actors · knowledge · goals |
 | OPTIONS | `guides/master-graph.md` | Goal · Active DC (Filter) | `graph/possibilities.yaml` (+ CC-*) |
-| NEED | `guides/master-graph.md · guides/master-overlay.md` | Possibility · Cycle 실측 | `graph/capabilities.yaml` · `master/overlay.md` |
+| NEED | `guides/master-graph.md · guides/master-overlay.md` | Possibility · Cycle 실측 | `graph/*.yaml` 의 overlay*/implemented* 필드 → `overlay.md` 재생성 |
 | NEXT | `guides/master-frontier.md` | `overlay.md` · Graph · Active DC | `master/frontier/<트랙>.md` |
 | Human Select | — | `frontier/` | **Human 전용 — Agent 가 고르지 않는다** |
 | Feedback | `guides/master-feedback.md` | `08-verification.md` MASTER FEEDBACK | `feedback/<CycleId>.md` · overlay · frontier/<트랙> · CC 갱신 |
@@ -168,7 +168,8 @@ Cycle 결과가 상위 의미와 어긋난다         → Human (MASTER GAP)
 ## 4. 닫기
 
 * `graph/` 나 `constraints/` 를 고쳤으면 `npm run master:graph` 를 돌려
-  `graph/GRAPH.md` 를 다시 만들고 **같은 커밋에** 넣는다. 그 출력이 정합 문제도 알려 준다 —
+  `graph/GRAPH.md` 와 `overlay.md`(둘 다 생성물 — 손으로 고치지 않는다)를 다시 만들고
+  **같은 커밋에** 넣는다. 그 출력이 정합 문제도 알려 준다 —
   없는 ID 참조 · `requires`↔`required_by` 비대칭 · 없는 Constraint 참조 · 고아 노드.
   ERROR 가 있으면 지어내서 덮지 말고 그 노드를 고치거나 Human 에게 되돌린다.
 * 이어서 Human 이 보는 고정 링크를 갱신한다 — Artifact 도구에

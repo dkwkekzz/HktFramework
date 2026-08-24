@@ -1,5 +1,7 @@
 # Capability Overlay
 
+<!-- 생성물 — 손으로 고치지 않는다. 원본: graph/*.yaml 노드 필드 + graph/overlay-notes.yaml · 재생성: npm run master:graph -->
+
 Master Graph 를 현재 `world/` `view/` 구현과 겹쳐 본 결과다. 기본 절차 **NEED** 단계의
 산출물이며, NEXT(Frontier) 는 여기서 나온다.
 
@@ -81,12 +83,12 @@ C025 로 그 칸의 **모양이 값이 되었다** — 남은 다섯 칸이 서�
 **"전부 MISSING" 이라고 뭉뚱그린 것은 부정확했다** — 아래 네 줄은 코드에 이미 얹힐
 바닥이 있어 PARTIAL 로 정정한다.
 
-| Capability (층) | 상태 | 근거 | 부족한 것 |
+| Capability | 상태 | 근거 | 부족한 것 |
 |---|---|---|---|
 | MC-REPOSITION (SAFE §20) | PARTIAL | 코드 대조 — 위치가 판정에 깊이 쓰인다: 휘두른 무기 끝이 훑는 궤적 안의 몸만 맞고, 막기는 정면에서 온 것만 막으며, 채집은 거리 안에서만 된다 | 유리한 자리를 **빠르게·의도적으로** 잡는 전용 수단. 걸어가서 만들 수는 있다 |
 | MC-FORCE-MOVEMENT (DANGER §23) | PARTIAL | 코드 대조 — 타격이 상대를 때린 자리 바깥으로 밀어내고 그 힘이 관성·마찰로 이어진다 | **어디로** 보낼지 고르는 수단. 밀림 방향이 언제나 때린 자리의 반대쪽으로 고정이다 |
-| MC-INTERRUPT (DANGER §23) | **IMPLEMENTED** | **C019 — 끊김이 선딜 구간에만 성립한다.** 기술마다 다른 선딜(기본 0.15초 · 큰 기술 0.45초), 세계가 판정해 싣는 구간, 같은 개입이 시점만으로 갈리는 것(0.49 캔슬 ↔ 0.51 그대로)이 실측되었다. 캔슬된 기술은 피해 0 이 아니라 산정 자체가 없다 | — (`part_of.grounded: true` 의 근거였던 C002 의 부수 효과가 이제 **노리는 수단**이 되었다) |
-| MC-BREAK (WILD §22) | PARTIAL | 전투 표에서 판정 (같은 노드 재사용) | 위와 같음 |
+| MC-INTERRUPT (DANGER §23) | IMPLEMENTED | **C019 — 끊김이 선딜 구간에만 성립한다.** 기술마다 다른 선딜(기본 0.15초 · 큰 기술 0.45초), 세계가 판정해 싣는 구간, 같은 개입이 시점만으로 갈리는 것(0.49 캔슬 ↔ 0.51 그대로)이 실측되었다. 캔슬된 기술은 피해 0 이 아니라 산정 자체가 없다 | — (`part_of.grounded: true` 의 근거였던 C002 의 부수 효과가 이제 **노리는 수단**이 되었다) |
+| MC-BREAK (WILD §22) | PARTIAL | 코드 대조 — 막는 기력이 모자라면 방어가 풀리고 일정 시간 다시 세우지 못하며 그 타격은 그대로 들어간다 (C011) | 무너뜨리기 위한 **행동**이 없다. 지금은 상대가 자원을 다 쓴 결과로만 일어나므로 플레이어가 만들어 내는 구간이 아니다 |
 | MC-OBSERVE (FRINGE §21) | PARTIAL | **C014 — 살펴봄이 행동으로 서고, 살펴보기 전에는 상대의 겨루는 힘을 모른다.** **C016 — 앎에 이르는 길이 둘(살펴봄 · 기른 통찰)이 되고, 앎이 존재 단위에서 자리 단위로 넓어졌다** | 남은 결손은 **하나**다: **행동·습성** — 자율 존재의 패턴을 읽는 의미가 없다 (MC-PREDICT 자리). 그 하나가 닫히면 IMPLEMENTED. **그 자리는 보류(Human)** — AI 기획서를 기다린다 (frontier "지금 열 수 없는 것") |
 | MC-PREDICT (FRINGE §21) | MISSING | 코드 대조 — 예고 구간 자체는 **이미 있다**: 휘두름은 앞 구간을 지나서야 닿고(`world/semantic/collision.ts` SWING_BEGIN), 진행 중인 행동의 종류·진행도·칼끝이 계약에 실린다(`EntityView.state` · `progress` · `swing`) | 없는 것은 **읽을 거리**와 **앎의 관문** 둘이다. ① 자율 존재가 쓰는 스킬이 하나뿐이라(`world/simulation/npc-decide.ts` — 언제나 `attack`) 다음 행동에 고를 갈래가 없다 ② 그 앎이 살펴봄·통찰과 무관하게 누구에게나 그냥 온다. **다만 노드의 semantic 자체가 잠정이다 (`part_of.grounded: false` — BW §21 은 이름만 댄다) — 보류(Human), AI 기획서 대기** |
 | MC-USE-TERRAIN (FRINGE §21) | MISSING | — | 지형이 없다 — 무대는 아무 성질도 없는 평평한 사각형 하나다 |
@@ -150,8 +152,8 @@ C026 이 그 셋을 한 표면에 세웠다. **이 표는 한 칸도 바뀌지 �
 
 | Capability | 상태 | 근거 | 부족한 것 |
 |---|---|---|---|
-| MC-USE-ITEM | **IMPLEMENTED** | **C020** — 세계 프로세스 실측으로 world_shape 세 문장이 모두 닫혔다: 지금 쓸 수 있는 것과 없는 것이 사유와 함께 구분되어 오고(관찰 계약), 고른 상대에게 돌을 던져 상태가 바뀌며 수량이 준다(타격 기록 `["stone", 3]` · 60초 16회 시도 9회 성립), 끊긴 사용은 수량도 상태도 건드리지 않는다. 규칙은 종류 이름을 묻지 않고 정의소에 묻는다 | — |
-| MC-EQUIP-ITEM | **IMPLEMENTED** | **C023 · C024** — 세계 프로세스 실측으로 world_shape 네 문장이 모두 닫혔다. C023: 같은 곡괭이를 가지고만 있으면 캐지지 않고 걸어야 캐지며(사유 `no-mining-tool`), 걸면 물리 공격 40 → 52 · 풀면 **정확히 40** 으로 돌아오고, 걸릴 수 없는 물건은 `not-equippable` 로 거절되며, 담을 곳이 모자라면 풀기가 `no-room` 으로 거절되고 자리도 수량도 건드리지 않는다. C024: 가방 **4/4** 인 그 상태에서 해제는 `no-room` 으로 막히는데 **바꿔 끼기는 성립하고 자리가 4/4 그대로다** — 밀려남과 걸림이 한 단위이고, 물리 공격 52 → **40**(기본값) · 물리 방어 50 → 65 로 헌것의 기여가 정확히 사라지며 채집도 함께 사라진다. 실패한 교체 셋(not-enough · not-equippable · unknown-slot)은 자리 · 수량 · 유효 값 · 용도 넷을 그대로 둔다 | — (**곁가지 하나** — 전용 자리를 선언한 물건이 아직 없어 `slot-not-fit` 이 코드에만 서 있고 플레이에서 겪히지 않는다. 그리고 자리 여섯이 걸 것 둘보다 여전히 넓어, 교체가 *불편을 푸는 일*이지 아직 *고르는 일*은 아니다 — C024 08 Master Gap ②) |
+| MC-USE-ITEM | IMPLEMENTED | **C020** — 세계 프로세스 실측으로 world_shape 세 문장이 모두 닫혔다: 지금 쓸 수 있는 것과 없는 것이 사유와 함께 구분되어 오고(관찰 계약), 고른 상대에게 돌을 던져 상태가 바뀌며 수량이 준다(타격 기록 `["stone", 3]` · 60초 16회 시도 9회 성립), 끊긴 사용은 수량도 상태도 건드리지 않는다. 규칙은 종류 이름을 묻지 않고 정의소에 묻는다 | — |
+| MC-EQUIP-ITEM | IMPLEMENTED | **C023 · C024** — 세계 프로세스 실측으로 world_shape 네 문장이 모두 닫혔다. C023: 같은 곡괭이를 가지고만 있으면 캐지지 않고 걸어야 캐지며(사유 `no-mining-tool`), 걸면 물리 공격 40 → 52 · 풀면 **정확히 40** 으로 돌아오고, 걸릴 수 없는 물건은 `not-equippable` 로 거절되며, 담을 곳이 모자라면 풀기가 `no-room` 으로 거절되고 자리도 수량도 건드리지 않는다. C024: 가방 **4/4** 인 그 상태에서 해제는 `no-room` 으로 막히는데 **바꿔 끼기는 성립하고 자리가 4/4 그대로다** — 밀려남과 걸림이 한 단위이고, 물리 공격 52 → **40**(기본값) · 물리 방어 50 → 65 로 헌것의 기여가 정확히 사라지며 채집도 함께 사라진다. 실패한 교체 셋(not-enough · not-equippable · unknown-slot)은 자리 · 수량 · 유효 값 · 용도 넷을 그대로 둔다 | — (**곁가지 하나** — 전용 자리를 선언한 물건이 아직 없어 `slot-not-fit` 이 코드에만 서 있고 플레이에서 겪히지 않는다. 그리고 자리 여섯이 걸 것 둘보다 여전히 넓어, 교체가 *불편을 푸는 일*이지 아직 *고르는 일*은 아니다 — C024 08 Master Gap ②) |
 | MC-CRAFT-FROM-MATERIALS | MISSING | 코드 대조 — 재료를 다른 것으로 바꾸는 규칙이 0건이다. 재료를 **줄이는** 통로는 C020 으로 생겼다 | 제작법 데이터 · 가능 여부 판정 · 재료 소모와 결과물 생성의 한 단위 처리 |
 | MC-TRANSFER-ITEM | MISSING | 코드 대조 — 물건은 언제나 누군가의 몸 안에 있다. 위치를 가진 아이템 존재가 없다. 몸 **안**에서 사라지는 경로는 C020 으로 생겼다 | 몸 밖의 아이템 · 줍기 · 버리기 · 전리품 보관소 · 획득 권한 · 소멸. 쓰러진 몸에서 아무것도 나오지 않는 것이 이 결손이다. IE 가 더한 것: 적용해 둔 것을 내려놓는 길이 담을 곳을 거치지 않는다는 것 (IE §35) |
 
@@ -171,7 +173,7 @@ Capability 만 보면 전투가 꽤 찬 것처럼 보이지만, 그 전투가 �
 | MA-PLAYER | PARTIAL | 몸이 한 종류로 고정이라 고를 갈래 자체가 없다 |
 | MA-HOSTILE-COMBATANT | PRESENT | **C018 로 마지막 칸이 닫혔다** — 스스로 순찰·추격·공격하고, 플레이어와 **같은 관문**을 지나며(몬스터 전용 규칙 없음), 이제 지킬 자리를 지녀 그 행동이 자기 영역을 지키는 것으로 읽힌다. 같은 종류 두 개체가 하나는 적대하고 하나는 하지 않는다 — 적대가 종류가 아니라 사정의 결과다 |
 | MK-LOCAL-WORLDSTATE | ABSENT | 지역이 없다. 다만 "모르는 상태" 라는 것 자체는 C014 로 세계에 생겼다 (살펴봄 이전) — 얹힐 바닥은 섰다 |
-| MK-OPPONENT-DEFENSE-SHAPE | PRESENT | 방어 형태와 관통 반영값이 관찰에 실리고 (C012 · C013), 그것을 **알게 되는 과정**이 생겼다 — 살펴보기 전에는 가려져 있고 (C014), 통찰을 기르면 자리별로 열린다 (C016) |
+| MK-OPPONENT-DEFENSE-SHAPE | PARTIAL | 방어 형태와 관통 반영값이 관찰에 실리고 (C012 · C013), 그것을 **알게 되는 과정**이 생겼다 — 살펴보기 전에는 가려져 있고 (C014), 통찰을 기르면 자리별로 열린다 (C016) |
 | MK-OPPONENT-FLOW-PATTERN | ABSENT | 힘을 배분하는 상태가 없다 |
 
 ## Possibility 별로 본 상태
@@ -219,12 +221,12 @@ Capability 만 보면 전투가 꽤 찬 것처럼 보이지만, 그 전투가 �
 
 | 층 | demands | 지금 채워진 것 |
 |---|---|---|
-| MW-SAFE-FRONTIER (§20) | MC-COMBAT-STRIKE · MC-GUARD · MC-EVADE · MC-REPOSITION | 2 / 4 (EVADE 없음 · REPOSITION 절반) |
-| MW-ZONE-FRINGE (§21) | MC-OBSERVE · MC-PREDICT · MC-USE-TERRAIN | 1 / 3 (OBSERVE 절반) |
-| MW-ZONE-WILD (§22) | MC-BREAK · MC-DISCOVER-WEAKNESS · MC-PRECISE-TARGETING · MC-CONTROL-SPACE | 0 / 4 (BREAK 절반) |
-| MW-ZONE-DANGER (§23) | MC-READ-ENVIRONMENT · MC-FORCE-MOVEMENT · MC-USE-HAZARD · MC-INTERRUPT | **1 / 4** (INTERRUPT 섰다 — C019 · FORCE-MOVEMENT 절반) |
-| MW-ZONE-DEEP (§24) | MC-DISCOVER-WEAKNESS · MC-DISRUPT-ABILITY · MC-MAINTAIN-PRESSURE · MC-TARGET-SPECIFIC-PART · MC-READ-CREATURE-SYSTEM | 0 / 5 |
-| MW-ZONE-UNKNOWN (§25) | MC-PROTECT-PERCEPTION · MC-VERIFY-REALITY · MC-IDENTITY-ANCHOR · MC-RESIST-INFLUENCE · MC-BREAK-BIOLOGICAL-LINK · MC-ESCAPE-ALTERED-SPACE | 0 / 6 |
+| MW-SAFE-FRONTIER (§20) | MC-COMBAT-STRIKE · MC-GUARD · MC-EVADE · MC-REPOSITION | 2 / 4 (없음: EVADE / 절반: REPOSITION) |
+| MW-ZONE-FRINGE (§21) | MC-OBSERVE · MC-PREDICT · MC-USE-TERRAIN | 0 / 3 (없음: PREDICT · USE-TERRAIN / 절반: OBSERVE) |
+| MW-ZONE-WILD (§22) | MC-BREAK · MC-DISCOVER-WEAKNESS · MC-PRECISE-TARGETING · MC-CONTROL-SPACE | 0 / 4 (없음: DISCOVER-WEAKNESS · PRECISE-TARGETING · CONTROL-SPACE / 절반: BREAK) |
+| MW-ZONE-DANGER (§23) | MC-READ-ENVIRONMENT · MC-FORCE-MOVEMENT · MC-USE-HAZARD · MC-INTERRUPT | 1 / 4 (없음: READ-ENVIRONMENT · USE-HAZARD / 절반: FORCE-MOVEMENT) |
+| MW-ZONE-DEEP (§24) | MC-DISCOVER-WEAKNESS · MC-DISRUPT-ABILITY · MC-MAINTAIN-PRESSURE · MC-TARGET-SPECIFIC-PART · MC-READ-CREATURE-SYSTEM | 0 / 5 (없음: DISCOVER-WEAKNESS · DISRUPT-ABILITY · MAINTAIN-PRESSURE · TARGET-SPECIFIC-PART · READ-CREATURE-SYSTEM) |
+| MW-ZONE-UNKNOWN (§25) | MC-PROTECT-PERCEPTION · MC-VERIFY-REALITY · MC-IDENTITY-ANCHOR · MC-RESIST-INFLUENCE · MC-BREAK-BIOLOGICAL-LINK · MC-ESCAPE-ALTERED-SPACE | 0 / 6 (없음: PROTECT-PERCEPTION · VERIFY-REALITY · IDENTITY-ANCHOR · RESIST-INFLUENCE · BREAK-BIOLOGICAL-LINK · ESCAPE-ALTERED-SPACE) |
 
 ### MG-ACQUIRE-RARE-ORGAN (5 갈래)
 
@@ -261,14 +263,18 @@ Capability 만 보면 전투가 꽤 찬 것처럼 보이지만, 그 전투가 �
 
 ## 갱신 경로
 
+이 파일은 생성물이다 — Feedback 이 고치는 것은 노드 필드다.
+
 ```text
 cycles/<CycleId>/08-verification.md 의 MASTER FEEDBACK
         ↓
 guides/master-feedback.md (Feedback — 위쪽 접합점 반영)
         ↓
-이 파일 + graph/ 각 노드의 overlay / implemented 필드
+graph/*.yaml 노드의 overlay · overlay_evidence · overlay_gap ·
+overlay_missing · overlay_note · implemented · implemented_note
+(+ 섹션 구성이 바뀌면 graph/overlay-notes.yaml)
         ↓
-갱신 내역은 HISTORY.md 로 (이 파일에는 현재 상태만 남긴다)
+npm run master:graph  →  이 파일 재생성 (경위는 feedback/<CycleId>.md 소유)
 ```
 
 Cycle Agent 가 이 파일을 직접 편집하지 않는다.
