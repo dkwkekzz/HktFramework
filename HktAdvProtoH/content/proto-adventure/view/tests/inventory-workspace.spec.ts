@@ -25,6 +25,7 @@ import {
 import { resolvePresentation } from '../resolve';
 import { closeSurface, surfaceIsOpen, toggleSurface } from '../surface-state';
 import empty from './fixtures/inventory-empty.fixture.json';
+import worn from './fixtures/equipment-worn.fixture.json';
 import full from './fixtures/inventory-full.fixture.json';
 import mining from './fixtures/mining-available.fixture.json';
 import unknown from './fixtures/inventory-unknown.fixture.json';
@@ -242,6 +243,28 @@ describe('고르기는 관찰을 따라간다', () => {
   });
 });
 
+describe('VUX-IE-V-07 — 걸어 둔 것은 가방에 중복되지 않는다', () => {
+  // 자리가 물건을 직접 담으므로 걸린 것은 소지품 목록에 없다 (C023).
+  // 화면이 그 둘을 합쳐 보이려 하면 지닌 것과 걸린 것의 구분이 사라진다 —
+  // 그 구분이 C023 이 세운 것이고, 이 표면은 **지닌 것만** 그린다.
+  it('걸어 둔 곡괭이가 지닌 것의 칸에 없다', () => {
+    const kinds = (section(worn, 'items').cells ?? []).map((c) => c.id);
+    expect(kinds).toEqual(['item.stone']);
+    expect(kinds).not.toContain('item.pickaxe');
+  });
+
+  it('자리 셈도 걸린 것을 세지 않는다 — 세계가 준 두 수 그대로다', () => {
+    expect(section(worn, 'room').title).toBe('자리 1 / 4 · 남은 자리 3');
+  });
+
+  it('걸린 것을 고를 수 없다 — 이 표면에 없는 것은 고를 수도 없다', () => {
+    moveSelection(snap(worn), 1);
+    expect(workspaceSelection()).toBe('stone');
+    moveSelection(snap(worn), 1);
+    expect(workspaceSelection()).toBe('stone'); // 하나뿐이므로 제자리
+  });
+});
+
 describe('VUX-IE-V-09 — 모르는 코드가 와도 멈추지 않는다', () => {
   it('모르는 종류는 코드 그대로 보인다', () => {
     expect(section(unknown, 'items').cells?.[0]?.text).toBe('moonshard');
@@ -260,7 +283,7 @@ describe('VUX-IE-V-09 — 모르는 코드가 와도 멈추지 않는다', () =>
   });
 });
 
-describe('VUX-IE-V-07 · 04 unexecutable_actions — 보이되 이 자리에서는 실행하지 않는다', () => {
+describe('04 unexecutable_actions — 보이되 이 자리에서는 실행하지 않는다', () => {
   const withExchange = {
     ...(mining as object),
     inventory: [
@@ -293,7 +316,10 @@ describe('VUX-IE-V-07 · 04 unexecutable_actions — 보이되 이 자리에서�
   });
 });
 
-describe('VUX-IE-V-03 — 표면이 자리 수를 바꾸지 않는다', () => {
+// V-03 은 원래 "Filter 가 실제 used/capacity 를 바꾸지 않는다" 이고, 이 Cycle 에는
+// 거르개가 없다 (VUX-IE-04). 그래서 **부분 충족**이다 — 여기서 재는 것은 그 성질의
+// 바탕, 곧 표시 쪽 조작이 세계가 준 두 수를 건드리지 않는다는 것이다.
+describe('VUX-IE-V-03 (부분) — 표시 쪽 조작이 자리 수를 바꾸지 않는다', () => {
   it('고르고 초점을 옮겨도 used / capacity 는 그대로다', () => {
     const before = section(mining, 'room').title;
     moveSelection(snap(mining), 1);

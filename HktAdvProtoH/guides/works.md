@@ -16,7 +16,7 @@
 | 레인 | 무엇을 하는가 | 쓰기 범위 | ID · 기록 | 공정 (스킬 · Guide) |
 |---|---|---|---|---|
 | **WORLD 트랙** (ITEM · COMBAT · …) | 선택된 Frontier 를 8 Stage 로 닫는다 — 세계의 Capability 가 는다 | `cycles/C-<TRACK>-*` · `world/` · `view/` · `protocol/` · `motions/` | `C-<TRACK>-NNN` → `cycles/` | `advprotoh-cycle` · guides/cycle-definition.md ~ verification.md |
-| **VIEW** | 관찰만을 위한 화면 작업 — 이미 관찰에 실린 것을 더 잘 보이게 한다. 세계·관찰 계약 불변 | `view/` · `works/V-*` | `V-NNN` → `works/` | `advprotoh-view` · guides/view-work.md |
+| **VIEW** | 관찰만을 위한 화면 작업 — 이미 관찰에 실린 것을 더 잘 보이게 한다. 세계·관찰 계약 불변 | `view/` · `works/` | `V-NNN` → `works/` · **할일: `works/BACKLOG.md`** (UX 기획서 주입 = 번역) | `advprotoh-view` · guides/view-work.md |
 | **MASTER** | WHY → OPTIONS → NEED → NEXT · Inject · Constraint 정비 | `master/` (graph · constraints · frontier · overlay · open-questions) | — → `master/HISTORY.md` | `advprotoh-master` · guides/master-*.md — **main 위 직렬, 한 번에 하나** |
 | **FEEDBACK** | 닫힌 Cycle 을 Master 에 반영 | `master/` 공유 파일 + `master/feedback/` | `feedback/<CycleId>.md` | guides/master-feedback.md — **병합 뒤 최신 main 위 직렬** |
 | **ENGINE (기반)** | 커널 · physics · view-kernel · protocol-core | `engine/` | — (git history) | 기반 트랙 전용 — 컨텐츠(`content/`) 불변. 경계는 `npm run boundary:check` 가 강제 |
@@ -75,6 +75,7 @@ semantic-id.ts 의 재수출      새 도메인 파일을 다는 한 줄
 
 ```text
 VIEW 가 발견한 세계 관찰의 결손   → works/V-*.md 의 REPORT 절 → Human → (진짜면) Frontier 후보
+Cycle 이 남긴 화면 몫            → works/BACKLOG.md 항목 (VIEW 레인의 할일로 이관)
 Cycle 이 발견한 Master 결손      → 08-verification.md 의 MASTER GAP / FEEDBACK (기존 규칙)
 누구든 발견한 공정 결손           → 보고 → PROCESS 레인
 ```

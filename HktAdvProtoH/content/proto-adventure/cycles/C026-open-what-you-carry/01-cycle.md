@@ -6,7 +6,7 @@
 [PASS] GameView Specification      (CHANGE NONE · GAP 0 · 빈 칸은 수이지 대상이 아니다 · 대답은 C009 의 길로)
 [PASS] Human Semantic Review        (APPROVED — 완료 기준은 실제 게임 화면 관찰)
 [PASS] World Implementation        (world/ 무변경 — 대조 완료 · Stage 7 이 물을 것을 전부 낸다)
-[PASS] View Implementation         (1085 tests · GAP 1 을 Stage 4 로 반환해 고침 · 나가는 것은 Enter 하나)
+[PASS] View Implementation         (1120 tests · GAP 1 을 Stage 4 로 반환해 고침 · 나가는 것은 Enter 하나)
 [PASS] Verification                (여섯 항목 통과 · 실제 게임 실측 · Human Play 확인 완료)
 
 STATUS  COMPLETE

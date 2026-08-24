@@ -67,7 +67,7 @@
 
 ## FIXTURE TESTS
 
-    view/tests/inventory-workspace.spec.ts        32 tests · World 미기동 (VUX-IE-V-10)
+    view/tests/inventory-workspace.spec.ts        35 tests · World 미기동 (VUX-IE-V-10)
     view/tests/fixtures/inventory-empty.fixture.json     NEW  (VUX-IE-FX-EMPTY)
     view/tests/fixtures/inventory-unknown.fixture.json   NEW  (VUX-IE-FX-UNKNOWN)
 
