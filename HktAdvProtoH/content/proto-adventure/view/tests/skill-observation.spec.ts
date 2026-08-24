@@ -50,8 +50,8 @@ describe('VUX-SK-FX-READY — 손에 든 것 전부가 한 자리에 선다', ()
   });
 
   it('실제 바인딩이 칸에 보인다 (VUX-SK-V-01)', () => {
-    expect(slot(combat, 'attack')?.label).toBe('[F] 기본 스킬');
-    expect(slot(combat, 'skill-heavy')?.label).toBe('[G] 고급 스킬');
+    expect(slot(combat, 'attack')?.label).toBe('F 기본 스킬');
+    expect(slot(combat, 'skill-heavy')?.label).toBe('G 고급 스킬');
   });
 
   it('쓸 수 있는 기술은 그렇다고 말한다', () => {
@@ -73,13 +73,13 @@ describe('VUX-SK-FX-UNAVAILABLE — 막힌 기술마다 자기 사유가 붙는�
   });
 
   it('사유는 세계가 준 코드 그대로 문구가 된다 (VUX-SK-V-01)', () => {
-    expect(panel(combat)).toContain('불가 — 기력이 모자란다');
+    expect(panel(combat)).toContain('✗ 기력이 모자란다');
   });
 
   it('다른 사정은 다른 사유로 온다 — 막는 중은 기력과 다른 말이다', () => {
     expect(slot(guard, 'attack')?.value).toBe('불가 · 막는 중');
     expect(slot(guard, 'skill-heavy')?.value).toBe('불가 · 막는 중');
-    expect(panel(guard)).toContain('불가 — 막는 중에는 휘두를 수 없다');
+    expect(panel(guard)).toContain('✗ 막는 중에는 휘두를 수 없다');
   });
 
   it('행동 중은 셋 모두에 같은 사유로 온다 — 세계가 그렇게 판정했기 때문이다', () => {
@@ -96,8 +96,8 @@ describe('VUX-SK-FX-UNAVAILABLE — 막힌 기술마다 자기 사유가 붙는�
 // ── 04 skill.profile — 치를 것과 낼 것 ─────────────────────────────
 describe('고르기 전에 값을 안다', () => {
   it('치르는 기력과 채우는 기력이 합쳐지지 않고 따로 보인다', () => {
-    expect(panel(combat)).toContain('[F] 기본 스킬 · 기력 -0 / +12');
-    expect(panel(combat)).toContain('[G] 고급 스킬 · 기력 -30 / +8');
+    expect(panel(combat)).toContain('기본 스킬 ✓ F · 기력 -0 / +12');
+    expect(panel(combat)).toContain('고급 스킬 ✗ 기력이 모자란다 · 기력 -30 / +8');
   });
 
   it('지금 이 몸으로 내는 공격 피해가 세계가 준 값 그대로 보인다 (VUX-SK-V-03)', () => {
@@ -122,7 +122,7 @@ describe('VUX-SK-FX-STALE — 요청의 대답이 그것을 부른 자리에 붙
   it('걸어 둔 것은 걸어 둔 것으로 보인다 — 일어난 일로 보이지 않는다 (VUX-SK-V-05)', () => {
     const answers: SkillAnswers = { attack: { state: 'pending' } };
     expect(slot(combat, 'attack', answers)?.value).toBe('요청 중');
-    expect(panel(combat, answers)).toContain('요청 중 — 대답을 기다린다');
+    expect(panel(combat, answers)).toContain('기본 스킬 ⋯ 요청 중');
   });
 
   it('거절은 사유와 함께 그 기술의 자리에 남는다', () => {
@@ -131,7 +131,7 @@ describe('VUX-SK-FX-STALE — 요청의 대답이 그것을 부른 자리에 붙
     };
     // guard fixture 는 셋 다 막는 중이므로 거절이 아직 참이다.
     expect(slot(guard, 'attack', answers)?.value).toBe('거절 · 막는 중');
-    expect(panel(guard, answers)).toContain('거절 — 막는 중에는 휘두를 수 없다');
+    expect(panel(guard, answers)).toContain('✗ 거절 — 막는 중에는 휘두를 수 없다');
   });
 
   it('거절은 남의 자리에 붙지 않는다', () => {
@@ -176,7 +176,7 @@ describe('VUX-SK-FX-STALE — 요청의 대답이 그것을 부른 자리에 붙
   it('받아들여진 것은 그 자리에서 보인다', () => {
     const answers: SkillAnswers = { attack: { state: 'accepted' } };
     expect(slot(combat, 'attack', answers)?.value).toBe('나갔다');
-    expect(panel(combat, answers)).toContain('받아들여졌다 — 지금 나가고 있다');
+    expect(panel(combat, answers)).toContain('기본 스킬 ✓ 나갔다');
   });
 
   it('받아들여짐이 불가보다 앞선다 — 뒤에 두면 영영 보이지 않는다', () => {
@@ -213,7 +213,7 @@ describe('VUX-SK-FX-UNKNOWN — 모르는 것이 와도 화면이 멈추지 않�
 
   it('모르는 사유 코드는 원문 그대로 보인다 (VUX-SK-V-10)', () => {
     expect(slot(unknown, 'skill-tideturn')?.value).toBe('불가 · moon-not-risen');
-    expect(panel(unknown)).toContain('불가 — moon-not-risen');
+    expect(panel(unknown)).toContain('✗ moon-not-risen');
   });
 
   it('모르는 방식도 원문 그대로 보인다 — 값을 버리지 않는다', () => {
@@ -221,7 +221,7 @@ describe('VUX-SK-FX-UNKNOWN — 모르는 것이 와도 화면이 멈추지 않�
   });
 
   it('모르는 것이 있어도 아는 기술들은 그대로 그려진다', () => {
-    expect(slot(unknown, 'attack')?.label).toBe('[F] 기본 스킬');
+    expect(slot(unknown, 'attack')?.label).toBe('F 기본 스킬');
     expect(slot(unknown, 'skill-heavy')?.value).toBe('불가 · 기력 모자람');
   });
 });
@@ -335,12 +335,12 @@ describe('기존 자리와 나란히 선다', () => {
     );
   });
 
-  it('기술 줄은 자기 패널 안에서 소지품 뒤에 온다', () => {
+  it('기술 블록이 통째로 패널에 실린다 — 앞의 줄들을 밀어내지 않는다', () => {
     const lines = resolvePresentation(combat).self?.lines ?? [];
-    const skillAt = lines.findIndex((line) => line === '── 기술 ──');
-    expect(skillAt).toBeGreaterThan(0);
-    // 기술 줄이 패널의 **끝**이다 — 앞의 줄들(능력치·소지품)을 밀어내지 않았다.
-    expect(lines.slice(skillAt)).toEqual(skillDetailLines(combat, codeText));
+    const block = skillDetailLines(combat, codeText);
+    const at = lines.indexOf('기술');
+    expect(at).toBeGreaterThan(0); // 능력치 줄들 뒤에 온다
+    expect(lines.slice(at, at + block.length)).toEqual(block);
   });
 
   it('요청 대답을 주지 않아도 그려진다 — 아무것도 걸지 않은 화면이 기본이다', () => {

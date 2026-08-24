@@ -1,4 +1,4 @@
-# C025 — Intent
+# C027 — Intent
 
 ## 이 Cycle 이 답하는 물음
 

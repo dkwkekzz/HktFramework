@@ -56,12 +56,26 @@ export interface SkillDefinition {
   // 이제 기술이 지닌다 — 크게 거는 기술일수록 선딜이 길다 (INTENT-SKILL-PHASE-001).
   swingBegin: number; // 선딜이 끝나는 지점 — 여기부터 효과가 성립한다
   swingEnd: number; // 판정이 끝나는 지점 — 여기부터 끝까지가 후딜이다
+  // C025 ADDED — 이 기술이 닿는 **모양** (INTENT-SKILL-SHAPE-001).
+  // 지금까지 모든 기술이 같은 전역 상수를 썼다 (collision.ts SWING_ARC ·
+  // SWING_BLADE_RADIUS) 하고, 닿는 길이는 그 몸의 교전 거리에서 왔다.
+  // 이제 셋 다 기술이 지닌다 — C019 가 시간 축에 한 일을 공간 축에 한다.
+  swingArc: number; // 훑는 전체 각 (rad) — 끝점은 +Arc/2 에서 −Arc/2 로 지나간다
+  swingReach: number; // 몸 중심에서 끝점 중심까지의 거리
+  swingTipRadius: number; // 끝점 충돌 구의 반경 — 닿음의 판정 반경 그 자체다
 }
 
 // C019 ADDED — 구간 경계의 기본값. 기술이 자기 값을 갖지만, 기본 기술 둘은 지금까지
 // 세계가 쓰던 값 그대로다 (collision.ts 의 SWING_BEGIN · SWING_END 가 이 값이었다).
 export const DEFAULT_SWING_BEGIN = 0.25;
 export const DEFAULT_SWING_END = 0.75;
+
+// C025 ADDED — 모양의 기본값. 기본 기술과 오라 기술은 지금까지 세계가 쓰던 값 그대로다
+// (collision.ts 의 SWING_ARC · SWING_BLADE_RADIUS 가 이 값이었고, 닿는 길이는
+// attackRange(2.0) − BladeRadius(0.7) = 1.3 이었다). **한 톨도 바뀌지 않는다.**
+export const DEFAULT_SWING_ARC = (150 * Math.PI) / 180;
+export const DEFAULT_SWING_REACH = 1.3;
+export const DEFAULT_SWING_TIP_RADIUS = 0.7;
 
 // C010 — 값은 재밸런싱이 아니라 C007 의 체감을 보존하는 방향으로 역산했다.
 // 관찰자(Attack 40) → 자율 존재(Defense 30) 기준:
@@ -81,6 +95,9 @@ export const SKILL_DEFINITIONS: Readonly<Record<SkillKind, SkillDefinition>> = {
     damageType: 'physical',
     swingBegin: DEFAULT_SWING_BEGIN, // C019 — 기본 기술은 한 톨도 바뀌지 않는다
     swingEnd: DEFAULT_SWING_END,
+    swingArc: DEFAULT_SWING_ARC, // C025 — 모양도 마찬가지다 (03 BALANCE ①)
+    swingReach: DEFAULT_SWING_REACH,
+    swingTipRadius: DEFAULT_SWING_TIP_RADIUS,
   },
   // 고급 스킬 — 충전하면서 더 크게 소모한다 (붉은보석식 수지). 순수지 -22.
   'heavy-attack': {
@@ -96,6 +113,13 @@ export const SKILL_DEFINITIONS: Readonly<Record<SkillKind, SkillDefinition>> = {
     // 후딜 0.135초는 남긴다 — 나간 뒤에도 잠깐 묶여야 큰 기술이 무겁다 (03 BALANCE ①).
     swingBegin: 0.5,
     swingEnd: 0.85,
+    // C025 — 큰 기술만 모양이 움직인다. 좁고 멀리 — 정면 먼 것에 깊이 찌른다.
+    // 선딜 0.45초를 치르고 얻는 것이 피해뿐이었다 (C019). 이제 치른 값에 대응하는
+    // 성질이 생긴다: 기본 기술로는 닿지 않는 거리에 닿는 대신 옆을 훑지 못한다.
+    // 값의 근거와 판별 자리는 03-world-semantic.md 의 BALANCE ②③④ 가 소유한다.
+    swingArc: (40 * Math.PI) / 180,
+    swingReach: 2.2,
+    swingTipRadius: 0.55,
   },
   // 오라 스킬 (C012 ADDED) — 기본 스킬과 **모든 값이 같고 방식만 다르다**.
   // 일부러 그렇게 두었다: 값이 다르면 결과 차이가 방식 때문인지 값 때문인지 갈리지 않는다.
@@ -109,6 +133,11 @@ export const SKILL_DEFINITIONS: Readonly<Record<SkillKind, SkillDefinition>> = {
     damageType: 'aura',
     swingBegin: DEFAULT_SWING_BEGIN, // 기본 기술과 모든 값이 같다 (C012 의 뜻 그대로)
     swingEnd: DEFAULT_SWING_END,
+    // C025 — 모양도 같다. 모양은 새로 생기는 값이므로 C012 의 뜻이 그대로 적용된다 —
+    // 이 층이 만드는 차이는 세기도 모양도 아니라 **방식** 하나다.
+    swingArc: DEFAULT_SWING_ARC,
+    swingReach: DEFAULT_SWING_REACH,
+    swingTipRadius: DEFAULT_SWING_TIP_RADIUS,
   },
 };
 
@@ -142,6 +171,57 @@ export function isSkillKind(kind: ActionKind): kind is SkillKind {
 
 export function skillDefinition(kind: SkillKind): SkillDefinition {
   return SKILL_DEFINITIONS[kind];
+}
+
+/** 이 기술이 닿는 모양 (C025 ADDED) */
+export interface SkillShape {
+  arc: number; // 훑는 전체 각 (rad)
+  reach: number; // 몸 중심에서 끝점 중심까지
+  tipRadius: number; // 끝점 충돌 구의 반경
+}
+
+// RULE-SKILL-SHAPE-001 — Implements INTENT-SKILL-SHAPE-001 ·
+//                                   INTENT-SHAPE-IS-A-VALUE-NOT-A-BRANCH-001 (C025 ADDED)
+// Input          SkillKind
+// Preconditions  없음 — 모든 기술에 답이 있다
+// Transition     없음 — 세계 상태를 바꾸지 않는다 (파생 판정)
+// Result         Shape(Arc, Reach, TipRadius)
+//
+// 그 기술의 정의가 지닌 값을 그대로 돌려준다. **어느 기술인지를 묻는 분기가 이 함수
+// 안에도 이것을 부르는 쪽에도 없다** — 정의를 찾는 열쇠로 이름을 쓰는 것과, 찾은 정의
+// 대신 이름 자체를 판정 조건으로 쓰는 것은 다르다 (DC-SKILL-IS-COMBINATION-NOT-NAME).
+//
+// RULE-SKILL-PHASE-001 이 같은 정의에서 구간 경계를 읽는 것과 나란한 규칙이다.
+export function skillShape(kind: SkillKind): SkillShape {
+  const skill = SKILL_DEFINITIONS[kind];
+  return { arc: skill.swingArc, reach: skill.swingReach, tipRadius: skill.swingTipRadius };
+}
+
+// RULE-ENGAGEMENT-REACHES-001 — Implements INTENT-REACH-BELONGS-TO-THE-SKILL-001 (C025 ADDED)
+// Input          Actor.EngagementRange, 모든 SkillDefinition
+// Preconditions  없음 — 세계가 서는 조건이다
+// Transition     없음 — 세계 상태를 바꾸지 않는다 (정합 조건)
+// Result         Holds | Violated(기술, 사유)
+//
+// 닿는 길이가 기술에서 오고 다가가는 거리가 몸에서 오므로, 둘이 어긋나면 스스로
+// 판단하는 존재가 **영원히 닿지 못하는 자리에서 헛되이 휘두르는** 상태가 생긴다.
+// 그것을 막는 것은 자율 존재를 똑똑하게 만드는 일이 아니라 값의 정합이다.
+//
+//     Reach − TipRadius  ≤  EngagementRange  ≤  Reach + TipRadius
+//
+// 상대의 몸 반경은 언제나 바깥을 넓히고 안쪽을 줄이므로 몸을 빼고 세운 이 조건은
+// **보수적**이다. 조건이 서면 실제 접촉은 그보다 넉넉하다.
+//
+// 이 규칙은 값이 바뀔 때 깨지는 것이 목적이다 — 새 기술이나 새 값이 이것을 어기면
+// 그것이 곧 "다가가는 거리를 함께 정하지 않았다" 는 신호다.
+export function engagementReachViolations(engagementRange: number): SkillKind[] {
+  const violated: SkillKind[] = [];
+  for (const kind of Object.keys(SKILL_DEFINITIONS) as SkillKind[]) {
+    const shape = skillShape(kind);
+    if (engagementRange < shape.reach - shape.tipRadius) violated.push(kind);
+    else if (engagementRange > shape.reach + shape.tipRadius) violated.push(kind);
+  }
+  return violated;
 }
 
 /**

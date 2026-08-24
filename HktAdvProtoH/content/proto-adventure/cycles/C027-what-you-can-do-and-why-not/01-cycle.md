@@ -1,4 +1,4 @@
-# CYCLE C025 — What You Can Do, and Why Not
+# CYCLE C027 — What You Can Do, and Why Not
 
 [PASS] Cycle Definition           (관찰 Cycle · World Delta 0 이 기본 · Anchor 는 밖 · 사유가 이 Cycle 의 중심)
 [PASS] Intent                     (물음 1·4 앞자리 · Intent 6 · 사유는 하나 · 표식은 관찰자의 일)

@@ -4,3 +4,6 @@ dist/
 # Master Graph 뷰어 — npm run master:graph 가 만드는 생성물 (GRAPH.md 만 커밋한다)
 content/*/master/graph/graph-view.html
 content/*/master/graph/graph-view.artifact.html
+
+# Surface Lab — npx tsx tools/surface-lab/build.ts 가 만드는 생성물
+tools/surface-lab/out/

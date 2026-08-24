@@ -5,8 +5,17 @@
 
 import type { KeyBinding } from '../../../engine/view-kernel/input/bindings';
 import type { ActionRequest } from '../protocol/actions';
+import type { GameViewSnapshot } from '../protocol/gameview';
 import { equipmentSlotIds } from './equipment-presentation';
 import { inventorySlots } from './inventory-presentation';
+import {
+  INVENTORY_SURFACE_ID,
+  invokeFocusedAction,
+  moveActionFocus,
+  moveSelection,
+  observedNow,
+} from './inventory-workspace';
+import { surfaceIsOpen, toggleSurface } from './surface-state';
 
 // 막기 (C011) — 세계에는 걸기와 놓기가 따로 있다. 화면에서는 한 키로 오간다.
 // 세계가 지금 무엇이라고 알려 주었는지를 보고 반대를 요청한다.
@@ -171,6 +180,62 @@ function slotKey(index: number): KeyBinding {
   };
 }
 
+// ── 소지품 작업 공간 (C026) ──────────────────────────────────────────
+//
+// 지금까지 소지품은 손가락 자리로만 닿을 수 있었다 — 무엇을 고르는 중인지가 화면에
+// 남지 않으므로(위 `armed`) 사람이 기억해야 했다. 이 표면은 그 기억을 화면으로 옮긴다.
+//
+// **두·세 걸음 조작을 대체하지 않는다.** 위의 B·N·M·, 는 그대로 남는다 —
+// 아는 사람은 열지 않고 바로 치고, 모르는 사람은 열어서 읽고 고른다.
+// C009 의 명령 표면이 세운 태도와 같다 (목록 우선 + 지름길 유지).
+//
+// 조작은 세 축이다. 어느 것도 세계로 나가지 않는다 — 마지막 Enter 하나만 나간다.
+//
+//     I            여닫는다
+//     ← →          지닌 것 사이에서 고른다
+//     ↑ ↓          고른 것의 행동 줄 사이에서 초점을 옮긴다
+//     Enter        초점이 있는 행동을 요청한다
+//     Esc · ✕      닫는다 (기반의 표면 능력이 받아 조립을 거쳐 closeSurface 로 온다)
+//
+// 방향키가 여기까지 오는 것은 표면이 열린 동안 이동이 멈추기 때문이다
+// (engine/view-kernel/input/keyboard.ts 의 suspendMovement — 조립 루트가 켠다).
+
+const INVENTORY_OPEN_KEY = 'KeyI';
+
+const inventoryToggle: KeyBinding = {
+  code: INVENTORY_OPEN_KEY,
+  invoke: () => {
+    toggleSurface(INVENTORY_SURFACE_ID);
+    // 다른 두 걸음이 반쯤 열려 있었다면 닫는다 — 열린 것이 둘이면 다음 키가 무엇을
+    // 뜻하는지 사람이 알 수 없다 (위 armKey 와 같은 사유)
+    armed = null;
+    exchangeKind = null;
+  },
+};
+
+/**
+ * 표면이 열려 있을 때만 듣는 키.
+ *
+ * 열려 있지 않으면 **아무 일도 하지 않는다** — 그래야 같은 방향키가 표면 밖에서
+ * 이동으로 남는다 (표면이 닫히면 이동이 다시 돌아온다).
+ */
+function workspaceKey(
+  code: string,
+  act: (snapshot: GameViewSnapshot, send: (a: ActionRequest) => number | null) => void,
+): KeyBinding {
+  return {
+    code,
+    invoke: (_scene, send) => {
+      if (!surfaceIsOpen(INVENTORY_SURFACE_ID)) return;
+      // 표면을 지은 그 관찰을 읽는다 — SceneState 는 이미 표시 지시라 원래의 관찰을
+      // 담고 있지 않다 (inventory-workspace.ts 의 observedNow 주석)
+      const snapshot = observedNow();
+      if (!snapshot) return;
+      act(snapshot, send);
+    },
+  };
+}
+
 export const KEY_BINDINGS: readonly KeyBinding[] = [
   guardToggle,
   moveModeToggle('ShiftLeft'),
@@ -179,6 +244,15 @@ export const KEY_BINDINGS: readonly KeyBinding[] = [
   armKey(EQUIP_ARM_KEY, 'equip-item'),
   armKey(UNEQUIP_ARM_KEY, 'unequip-item'),
   armKey(EXCHANGE_ARM_KEY, 'exchange-item'),
+  // C026 — 소지품 작업 공간. 방향키·Enter 는 열려 있을 때만 듣는다
+  inventoryToggle,
+  workspaceKey('ArrowLeft', (snapshot) => moveSelection(snapshot, -1)),
+  workspaceKey('ArrowRight', (snapshot) => moveSelection(snapshot, 1)),
+  workspaceKey('ArrowUp', (snapshot) => moveActionFocus(snapshot, -1)),
+  workspaceKey('ArrowDown', (snapshot) => moveActionFocus(snapshot, 1)),
+  workspaceKey('Enter', (snapshot, send) => invokeFocusedAction(snapshot, send)),
+  // Escape 는 여기 없다 — 기반의 표면 능력이 붙잡아 조립을 거쳐 closeSurface 로 온다
+  // (engine/view-kernel/hud/surface.ts · app/main.ts). 두 곳에서 받으면 두 번 닫힌다
   // 첫 아홉 칸. 칸이 그만큼 없으면 아무 일도 일어나지 않는다
   ...Array.from({ length: 9 }, (_, i) => slotKey(i)),
 ];

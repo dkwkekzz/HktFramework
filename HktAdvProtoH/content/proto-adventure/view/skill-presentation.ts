@@ -1,29 +1,41 @@
-// Skill Presentation — 기술을 어떻게 보일지 결정한다 (C025, 결정 Layer 데이터).
+// Skill Presentation — 걸 수 있는 기술들을 **한자리에 견주어** 보이게 하고,
+// 내가 건 요청이 어떻게 되었는지를 그 자리에 붙인다 (C025+C027, 결정 Layer 데이터).
 //
-// 세계는 지금까지도 기술 셋의 **가용성과 사유와 값**을 관찰 결과에 실어 왔다.
-// 그런데 화면에는 바닥 프롬프트 한 자리뿐이라 셋 중 하나만, 그것도 문구 한 줄로
-// 도착했고, 값(profile)은 어느 자리에도 도착하지 않았다.
-// 이 파일이 그 자리를 연다 — **세계에 없던 것을 만들지 않는다.**
+// 두 레인이 같은 자리에서 만났다.
 //
-// **여기서 하는 판정은 하나도 없다.** 지금 쓸 수 있는지도, 왜 못 쓰는지도, 얼마를
-// 치르고 얼마를 내는지도 전부 계약이 실어 온 것을 옮길 뿐이다
+//   C025 (레인 B)   무엇이 넓고 무엇이 멀리 닿는가 — 모양을 견주는 띠
+//   C027 (레인 A)   무엇을 치르고 무엇을 내는가 · 내 요청이 어떻게 되었는가
+//
+// 둘은 같은 물음의 앞뒤다. 고르기 전에 견주고(모양·값), 걸고 나서 대답을 받는다.
+// 그래서 목록을 둘로 가르지 않고 **한 벌**로 둔다.
+//
+// **여기서 하는 판정은 하나도 없다.** 걸 수 있는지도, 왜 안 되는지도, 얼마를 치르고
+// 얼마를 내는지도 전부 계약이 실어 온 것을 옮길 뿐이다
 // (DC-WORLD-OWNS-THE-SURFACE-LIST · 04 prohibited).
 //
 // ── 무엇이 기술인가 ──────────────────────────────────────────────
 //
 // `profile` 이 실린 interaction 이 기술이다 (04 skill.identification).
 // **이름으로 고르지 않는다** — `role` 의 `skill-` 접두사로 가르면 그 이름 규칙이
-// 화면 코드로 복제되고, 세계가 이름을 바꾸는 날 화면이 조용히 틀린다.
-// (기본 기술의 id 가 `attack` 이고 role 만 `skill-basic` 인 것이 그 위험의 실례다.)
+// 화면 코드로 복제되고, 세계가 이름을 바꾸는 날 화면이 조용히 틀린다
+// (DC-SKILL-IS-COMBINATION-NOT-NAME). 기본 기술의 id 가 `attack` 이고 role 만
+// `skill-basic` 인 것이 그 위험의 실례다.
+//
+// 모양(`swingArc`·`swingReach`·`swingTipRadius`)은 **있으면 그리고 없으면 건너뛴다** —
+// 모양을 기술의 조건으로 삼으면 모양 없는 기술이 생기는 날 그 기술이 목록에서
+// 조용히 사라진다.
 //
 // 그러므로 이 파일에는 `attack` 도 `skill-heavy` 도 `aura-strike` 도 없다.
 // 기술이 넷이 되는 날 이 파일은 바뀌지 않는다.
 //
 // ── 자리를 둘로 가른다 ───────────────────────────────────────────
 //
-//     띠      한눈에 읽을 것 — 기술마다 한 칸. 이름과 실제 키와 **지금 어떤가** 하나.
-//             셋이 나란히 서는 것이 이 Cycle 의 전부다 (INTENT-SKILL-HAND-IS-WHOLE-001)
-//     패널    읽어야 아는 것 — 치를 기력과 낼 피해와 방식, 그리고 못 쓰는 사유의 긴 문장
+//   띠     한눈에 읽을 것 — 어느 키로 무엇을 걸고, 얼마나 넓고 멀리 닿고, 지금 어떤가
+//   패널   읽어야 아는 것 — 치를 기력·낼 피해·방식, 그리고 못 쓰는 사유의 긴 문장
+//
+// 사유를 띠에 문장으로 두지 않는 이유는 C025 가 실측으로 배운 것이다 — 무엇이든
+// 하고 있는 동안에는 세 기술이 **모두** "지금 하는 행동이 끝나야 한다" 를 달고 나와
+// 띠가 세 배로 길어졌다. 띠에는 **짧은 표기**만 둔다.
 
 import type { GameViewSnapshot as CoreGameViewSnapshot } from '../../../engine/protocol-core/gameview';
 import type { SceneHudItem } from '../../../engine/view-kernel/scene/scene-state';
@@ -73,6 +85,35 @@ export interface SkillObservation {
   reason?: string;
   profile: SkillProfileView;
 }
+
+/** 넓이 막대의 칸 수 — 목록 안에서 가장 넓은 기술이 이만큼 찬다 */
+const ARC_BAR_STEPS = 5;
+const BAR_FILLED = '█';
+const BAR_EMPTY = '░';
+
+/** 이 기술의 휘두름 모양 — 세계가 싣지 않았으면 없다 (C025) */
+function shapeOf(profile: SkillProfileView) {
+  const { swingArc, swingReach, swingTipRadius } = profile;
+  if (swingArc === undefined || swingReach === undefined || swingTipRadius === undefined) {
+    return undefined;
+  }
+  return { arc: swingArc, reach: swingReach, tipRadius: swingTipRadius };
+}
+
+/**
+ * 넓이 막대 — **목록 안에서** 가장 넓은 것을 가득 찬 것으로 보고 견준다 (C025).
+ *
+ * 화면이 "몇 도부터 넓은가" 를 정하지 않는다는 뜻이다. 그런 문턱을 코드에 두면
+ * 세계가 값을 바꿀 때마다 화면이 거짓말을 하게 된다.
+ */
+function arcBar(arc: number, widest: number): string {
+  const filled = widest > 0 ? Math.max(1, Math.round((arc / widest) * ARC_BAR_STEPS)) : 0;
+  return BAR_FILLED.repeat(filled) + BAR_EMPTY.repeat(Math.max(0, ARC_BAR_STEPS - filled));
+}
+
+const degrees = (radians: number) => Math.round((radians * 180) / Math.PI);
+/** 실제로 닿는 가장 먼 거리의 기준 — 길이 + 굵기 (상대의 몸 반경은 그 위에 더해진다) */
+const outerReach = (reach: number, tipRadius: number) => (reach + tipRadius).toFixed(1);
 
 /**
  * 이 interaction 이 기술인가 — `profile` 이 실렸는가 하나로 답한다.
@@ -181,12 +222,29 @@ export function skillHudItems(
   short: (code: string) => string,
   answers: SkillAnswers = NO_SKILL_ANSWERS,
 ): SceneHudItem[] {
-  return skillObservations(snapshot).map((skill) => ({
-    id: `${SKILL_HUD_PREFIX}${skill.id}`,
-    widget: 'label' as const,
-    label: skill.keyLabel ? `[${skill.keyLabel}] ${skill.label}` : skill.label,
-    value: statusText(skill, answers[skill.id], short),
-  }));
+  const skills = skillObservations(snapshot);
+  if (skills.length === 0) return [];
+
+  // 넓이는 **목록 안에서** 견준다 — 모양을 지닌 기술이 없으면 막대도 없다 (C025).
+  const arcs = skills.map((s) => shapeOf(s.profile)?.arc ?? 0);
+  const widest = Math.max(0, ...arcs);
+
+  return skills.map((skill) => {
+    const shape = shapeOf(skill.profile);
+    // 모양 · 지금 어떤가 — 둘 다 짧다. 긴 사유 문장은 패널이 가진다.
+    const parts = [
+      ...(shape
+        ? [`${arcBar(shape.arc, widest)} ${degrees(shape.arc)}° · 도달 ${outerReach(shape.reach, shape.tipRadius)}`]
+        : []),
+      statusText(skill, answers[skill.id], short),
+    ];
+    return {
+      id: `${SKILL_HUD_PREFIX}${skill.id}`,
+      widget: 'label' as const,
+      label: skill.keyLabel ? `${skill.keyLabel} ${skill.label}` : skill.label,
+      value: parts.join(' · '),
+    };
+  });
 }
 
 /** `-0 / +12` 처럼 읽는 기력 수지 — 두 값을 합치지 않는다. 서로 다른 일이기 때문이다 */
@@ -205,6 +263,34 @@ function round(value: number): string {
  * `baseDamage + 내 공격 능력 × attackRatio` 를 하지 않는다 (04 prohibited).
  * 최종 피해도 아니다 — 대상이 정해지기 전에는 세계도 모르는 값이다.
  */
+/**
+ * 패널 한 줄의 앞머리 — **지금 어떤가**를 한 글자와 짧은 말로 (C025 ✓/✗ 표기 유지).
+ *
+ * 띠와 나누는 기준은 **길이**다. 띠에는 짧은 표기만 가고, 사유의 **긴 문장**은 여기 온다 —
+ * C025 가 실측으로 배운 것이다 (무엇이든 하는 동안 세 기술이 모두 같은 문장을 달아
+ * 띠가 세 배로 길어졌다).
+ */
+function panelMark(
+  skill: SkillObservation,
+  answer: SkillAnswer | undefined,
+  text: (code: string) => string,
+): string {
+  if (answer?.state === 'pending') return '⋯ 요청 중';
+  if (answer?.state === 'unsent') return '✗ 세계에 닿지 않았다';
+  if (answer?.state === 'accepted') return '✓ 나갔다';
+  if (rejectionStillHolds(skill, answer))
+    return `✗ 거절 — ${text(answer?.reason ?? 'unknown-interaction')}`;
+  if (!skill.available) return `✗ ${text(skill.reason ?? 'unknown-interaction')}`;
+  return skill.keyLabel ? `✓ ${skill.keyLabel}` : '✓';
+}
+
+/**
+ * 패널 — 기술마다 한 줄. 지금 어떤가(긴 문장) + 치를 것과 낼 것과 방식.
+ *
+ * `rawDamage` 는 **세계가 지금 이 몸으로 계산한 값**이다. 화면은
+ * `baseDamage + 내 공격 능력 × attackRatio` 를 하지 않는다 (04 prohibited).
+ * 최종 피해도 아니다 — 대상이 정해지기 전에는 세계도 모르는 값이다.
+ */
 export function skillDetailLines(
   snapshot: GameViewSnapshot,
   text: (code: string) => string,
@@ -213,22 +299,16 @@ export function skillDetailLines(
   const skills = skillObservations(snapshot);
   if (skills.length === 0) return [];
 
-  const lines = ['── 기술 ──'];
-  for (const skill of skills) {
-    const key = skill.keyLabel ? `[${skill.keyLabel}] ` : '';
-    const type = text(skill.profile.damageType);
-    lines.push(
-      `${key}${skill.label} · ${energyText(skill.profile)}` +
-        ` · 공격 피해 ${round(skill.profile.rawDamage)} (${type})`,
-    );
-
-    const answer = answers[skill.id];
-    if (answer?.state === 'pending') lines.push('    요청 중 — 대답을 기다린다');
-    else if (answer?.state === 'unsent') lines.push('    세계에 닿지 않았다 — 이어짐을 확인한다');
-    else if (answer?.state === 'accepted') lines.push('    받아들여졌다 — 지금 나가고 있다');
-    else if (rejectionStillHolds(skill, answer))
-      lines.push(`    거절 — ${text(answer?.reason ?? 'unknown-interaction')}`);
-    else if (!skill.available) lines.push(`    불가 — ${text(skill.reason ?? 'unknown-interaction')}`);
-  }
-  return lines;
+  return [
+    '기술',
+    ...skills.map((skill) => {
+      const mark = panelMark(skill, answers[skill.id], text);
+      const type = text(skill.profile.damageType);
+      return (
+        `${skill.label} ${mark}` +
+        ` · ${energyText(skill.profile)}` +
+        ` · 공격 피해 ${round(skill.profile.rawDamage)} (${type})`
+      );
+    }),
+  ];
 }

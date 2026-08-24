@@ -10,6 +10,7 @@
 
 import { TRANSPORT_PATH } from '../engine/protocol-core/transport';
 import { createCommandConsole } from '../engine/view-kernel/hud/command-console';
+import { createSurfaceLayer } from '../engine/view-kernel/hud/surface';
 import { createHud, type EntityLabel, type EntityPlate, type StrikeMark } from '../engine/view-kernel/hud/hud';
 import { createTouchPad } from '../engine/view-kernel/hud/touch-pad';
 
@@ -31,10 +32,13 @@ import {
   commandActionRequest,
   EFFECT_SET,
   EMPTY_EFFECT_MEMORY,
+  closeSurface,
+  forgetPending,
   KEY_BINDINGS,
   NO_SKILL_ANSWERS,
   rememberForEffects,
   resolvePresentation,
+  settleOutcome,
   skillInteractionIds,
   SPRITE_SHEET,
   type EffectMemory,
@@ -86,6 +90,10 @@ const commandConsole = createCommandConsole(container, {
     commandText = '';
   },
 });
+// 겹침 표면 (기반 capability) — 무엇이 열려 있는지는 결정 Layer 가 쥐고,
+// 여기는 그리는 능력을 붙이고 닫기를 그쪽으로 돌려보낼 뿐이다 (반전 ⑤).
+const surfaces = createSurfaceLayer(container, { onClose: (id) => closeSurface(id) });
+
 const keyboard = attachKeyboard();
 
 // 아직 세계로부터 아무것도 받지 못한 동안의 화면 — 빈 세계를 그린다.
@@ -98,6 +106,7 @@ const EMPTY_SCENE: SceneState = {
   strikes: [],
   effects: [],
   worldTime: 0,
+  surfaces: [],
   commandSurface: {
     open: false,
     entries: [],
@@ -111,7 +120,7 @@ let latestScene: SceneState = EMPTY_SCENE;
 // 손가락 조작 — 키보드도 마우스 버튼도 없는 기기에서 세계를 만진다.
 // 세계로 가는 것은 키보드일 때와 똑같은 요청이다. 세계는 무엇이 자기를 만졌는지 모른다.
 const touch = attachTouchControls(renderer.domElement, (dTurn, dTilt) => {
-  if (commandConsole.capturing()) return;
+  if (commandConsole.capturing() || surfaces.capturing()) return;
   renderer.turnView(dTurn, dTilt);
 });
 const touchPad = createTouchPad(container);
@@ -125,7 +134,7 @@ const COARSE_POINTER = window.matchMedia?.('(pointer: coarse)').matches ?? false
 attachInput(
   renderer,
   (action) =>
-    commandConsole.capturing() || touch.tapSuppressed(performance.now())
+    commandConsole.capturing() || surfaces.capturing() || touch.tapSuppressed(performance.now())
       ? false
       : link.send(action),
   () => latestScene,
@@ -134,7 +143,7 @@ attachInput(
 // 시점 조작 (C008) — 세계로 나가지 않는다. 관찰자가 자기 방향을 바꿀 뿐이다.
 // C009 — 명령을 쓰는 동안에는 시점도 돌아가지 않는다.
 attachPointerLook(renderer.domElement, (dTurn, dTilt) => {
-  if (commandConsole.capturing()) return;
+  if (commandConsole.capturing() || surfaces.capturing()) return;
   renderer.turnView(dTurn, dTilt);
 });
 const KEY_TURN_RATE = 1.8; // rad/s — 키로 도는 빠르기
@@ -222,7 +231,7 @@ function submitCommand(): void {
   commandText = '';
 }
 
-// ── 내가 건 기술 요청 (C025) ────────────────────────────────
+// ── 내가 건 기술 요청 (C027) ────────────────────────────────
 //
 // 세계는 도착한 **모든** 요청에 대답한다 (RULE-REQUEST-REPLY-001 — Precondition 없음).
 // 그런데 지금까지 그 대답을 받아 갈 자리를 가진 것은 명령뿐이었고, 기술은 표식 없이
@@ -261,6 +270,18 @@ function sendSkill(action: { interactionId: string; targetEntityId?: string }): 
   skillAnswers.set(action.interactionId, { state: 'pending' });
 }
 
+/**
+ * 끊겼을 때 기다리던 기술 요청을 잊는다 (C027).
+ *
+ * 오지 않을 대답을 기다리면 그 칸은 영영 `요청 중` 이다 — 그것은 **일어나지 않은 것을
+ * 관찰하는 것**이며 INTENT-NOTHING-BEFORE-THE-WORLD-SAYS-SO-001 이 막는 상태다.
+ * 대신 닿지 못했음을 남긴다 — 거절과 다른 사정이기 때문이다.
+ */
+function forgetPendingSkills(): void {
+  for (const skillId of pendingSkills.values()) skillAnswers.set(skillId, { state: 'unsent' });
+  pendingSkills.clear();
+}
+
 /** 잠깐만 머무는 표시를 걷는다 — 거절은 걷지 않는다 */
 function ageSkillAnswers(nowMs: number): void {
   for (const [id, until] of acceptedUntil) {
@@ -277,8 +298,16 @@ function ageSkillAnswers(nowMs: number): void {
 // 자기 것처럼 말하게 만들었다 (02 AFFECTED).
 function drainOutcomes(nowMs: number): void {
   for (const outcome of link.takeOutcomes()) {
+    // C026 — 소지품 작업 공간의 요청이면 그 기다림을 푼다.
+    if (settleOutcome(outcome.mark)) continue;
+
+    // **표식 없는 대답은 아무 자리에도 붙이지 않는다** (C027).
+    // 예전에는 명령 기록의 마지막 줄에 붙였는데, 명령은 언제나 표식을 달고 나가므로
+    // 그 갈래가 잡아내던 것은 처음부터 **남의 요청의 대답**뿐이었다. 기술이 표식 없이
+    // 나가던 동안, 명령을 한 번 쓴 뒤 기술이 거절되면 그 사유가 명령 줄에 붙었다.
     if (outcome.mark === undefined) continue;
 
+    // C027 — 기술 요청의 대답이면 그 기술의 칸으로 간다.
     const skillId = pendingSkills.get(outcome.mark);
     if (skillId !== undefined) {
       pendingSkills.delete(outcome.mark);
@@ -333,13 +362,26 @@ function frame(now: number): void {
 
   // 조용히 죽은 이어짐을 걷어낸다 — 관찰 결과가 끊기면 그것이 끊김이다
   link.poll(Date.now());
-  // 세계의 대답을 받아 그것을 부른 자리에 붙인다 (C009 · C025). 관찰 결과와 다른 자리다.
+  // 세계의 대답을 받아 그것을 부른 자리에 붙인다 (C009 · C026 · C027).
   drainOutcomes(now);
   ageSkillAnswers(now);
+  // 끊겼으면 기다리던 것을 잊는다 — 오지 않을 대답을 기다리면 그 줄은 영영 "보냈다" 다
+  if (link.state() !== 'connected') {
+    forgetPending();
+    forgetPendingSkills();
+  }
 
   // 시점 조작 (C008) — 그리기 전에 방향을 먼저 정한다. 이번 프레임의 좌우 읽기가
   // 이 방향을 기준으로 이루어져야 화면과 어긋나지 않는다.
-  const capturing = commandConsole.capturing();
+  // 글자를 쓰는 중인가와 표면이 열려 있는가는 **다른 것**이다.
+  //   typing       명령을 쓰는 중 — 어떤 키도 통과하지 않는다 (콘솔이 잡고 있다)
+  //   surfaceOpen  겹침 표면이 열림 — 이동·시점·지목은 멈추되 **팩 규칙은 통과한다**
+  //                (표면을 자판으로 모는 것이 그 규칙이기 때문이다)
+  const typing = commandConsole.capturing();
+  const surfaceOpen = surfaces.capturing();
+  const capturing = typing || surfaceOpen;
+  // 잡혀 있는 동안 방향키·시점키는 이동이 아니라 평범한 키가 된다
+  keyboard.suspendMovement(capturing);
   const turning = capturing ? null : keyboard.turn();
   if (turning) {
     renderer.turnView(turning.turn * KEY_TURN_RATE * dt, turning.tilt * KEY_TILT_RATE * dt);
@@ -359,7 +401,7 @@ function frame(now: number): void {
         facingSides,
         command: { open: commandOpen, text: commandText, history: commandHistory },
         effectsSince: effectMemory,
-        // C025 — 내가 건 기술 요청이 어떻게 되었는가. 세계가 아니라 이쪽이 쥔 값이다.
+        // C027 — 내가 건 기술 요청이 어떻게 되었는가. 세계가 아니라 이쪽이 쥔 값이다.
         skillAnswers: skillAnswers.size === 0 ? NO_SKILL_ANSWERS : Object.fromEntries(skillAnswers),
       })
     : EMPTY_SCENE;
@@ -411,7 +453,7 @@ function frame(now: number): void {
     moveRequestCooldown = 0;
   }
 
-  // C025 — 지금 관찰된 것 중 무엇이 기술인가. 계약이 실은 값으로 갈린다
+  // C027 — 지금 관찰된 것 중 무엇이 기술인가. 계약이 실은 값으로 갈린다
   // (04 skill.identification). 세계가 기술을 하나 더 지니면 이 집합도 하나 는다.
   const skillIds = snapshot ? skillInteractionIds(snapshot) : new Set<string>();
 
@@ -425,7 +467,13 @@ function frame(now: number): void {
       if (!commandOpen) commandText = '';
       continue;
     }
-    if (capturing) continue;
+    if (typing) continue;
+    if (surfaceOpen) {
+      // 표면이 열린 동안에는 팩 규칙만 듣는다 — 세계 안의 몸에 닿는 키는 멈춘다
+      const open = KEY_BINDINGS.find((b) => b.code === code);
+      if (open) open.invoke(latestScene, (action) => link.sendMarked(action));
+      continue;
+    }
     if (code === DEBUG_OBSERVE_KEY) {
       debugObserve = !debugObserve;
       continue;
@@ -438,7 +486,7 @@ function frame(now: number): void {
     // 여기서는 code 가 맞는 바인딩을 부를 뿐, 그 안에서 무엇이 골라지는지 모른다.
     const binding = KEY_BINDINGS.find((b) => b.code === code);
     if (binding) {
-      binding.invoke(latestScene, (action) => link.send(action));
+      binding.invoke(latestScene, (action) => link.sendMarked(action));
       continue;
     }
     const keyed = latestScene.interactions.filter((i) => i.key === code);
@@ -448,7 +496,7 @@ function frame(now: number): void {
         interactionId: interaction.id,
         ...(interaction.targetEntityId ? { targetEntityId: interaction.targetEntityId } : {}),
       };
-      // C025 — 기술이면 표식을 달고 나간다. **무엇이 기술인지는 팩이 판단한다** —
+      // C027 — 기술이면 표식을 달고 나간다. **무엇이 기술인지는 팩이 판단한다** —
       // 조립은 기술의 이름을 하나도 알지 못한 채 이 갈림을 지난다.
       //
       // 키가 눌렀든 손가락 버튼이 눌렀든 여기까지 같은 code 로 도착하므로, 나가는
@@ -461,6 +509,7 @@ function frame(now: number): void {
 
   renderer.render(latestScene, dt);
   commandConsole.render(latestScene.commandSurface);
+  surfaces.render(latestScene.surfaces);
   // 조작 자리는 손가락을 쓰는 기기에서만 보인다. 기기 이름을 묻지 않고
   // 무엇으로 가리키는지만 본다 — 마우스뿐인 화면에는 나타나지 않는다.
   touchPad.render(latestScene, touch.stick(), COARSE_POINTER || touch.engaged());
