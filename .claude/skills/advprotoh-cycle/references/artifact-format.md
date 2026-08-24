@@ -3,14 +3,16 @@
 각 Stage 출력의 골격. 항목 이름은 유지하고 내용만 채운다.
 값이 없는 항목은 지우지 말고 `없음` 또는 사유를 적는다.
 
-디렉터리: `cycles/C<번호>-<이름>/` (예: `cycles/C012-inventory-capacity/`)
+디렉터리: `cycles/C-<트랙>-<번호>-<이름>/` (예: `cycles/C-ITEM-001-inventory-capacity/`) —
+번호공간은 트랙 소유다 (`guides/cycle-definition.md` Do 1). `C<번호>-<이름>`(C001~C023)은
+트랙 도입 전의 옛 형식이다.
 
 ---
 
 ## 01-cycle.md
 
 ```markdown
-# CYCLE C012 — Inventory Capacity
+# CYCLE C-ITEM-001 — Inventory Capacity
 
 [    ] Cycle Definition
 [    ] Intent
@@ -56,7 +58,7 @@ STATUS  IN PROGRESS
     Item Acquisition
 ```
 
-`MASTER TRACE` 는 위층(`master/`)과의 접합점이다. `master/frontier.md` 에서 Human 이 고른
+`MASTER TRACE` 는 위층(`master/`)과의 접합점이다. `master/frontier/<트랙>.md` 에서 Human 이 고른
 Frontier 의 내용을 그대로 옮긴다. Frontier 에서 출발하지 않은 Cycle 은 `없음` + 사유를 적는다
 (예: `없음 — 도구 정비 Cycle. Master Capability 를 늘리지 않는다`). 비워 두지 않는다.
 

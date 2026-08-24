@@ -933,7 +933,8 @@ HktAdvProtoH/
 │   ├── constraints/
 │   ├── graph/
 │   ├── overlay.md
-│   ├── frontier.md
+│   ├── frontier/          # 트랙(도메인)별 후보 파일 + README 인덱스
+│   ├── feedback/          # Cycle 반영 경위 — 한 Cycle = 한 파일
 │   └── candidates/
 │
 └── cycles/
