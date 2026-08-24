@@ -7,8 +7,10 @@
 //   Feedback 은 공유 파일(overlay 원천 · capabilities.yaml)을 고치므로 그 Cycle 이
 //   main 에 병합된 뒤, 최신 main 위에서만 돈다. 밀린 Cycle 은 배치로 처리한다.
 //
-// 검사 대상은 트랙 번호공간(C-<TRACK>-NNN-*)의 Cycle 뿐이다 — C001~C023 은 feedback/
-// 도입 전에 닫혔고 그 경위는 HISTORY.md 가 이미 소유한다.
+// 검사 대상: 트랙 번호공간(C-<TRACK>-NNN-*)의 Cycle 전부 + 옛 번호공간이라도 08 이
+// feedback/<CycleId>.md 나 FEEDBACK 레인을 명시적으로 지목한 것. C001~C023 대부분은
+// feedback/ 도입 전에 닫혀 HISTORY.md 가 경위를 소유하므로 지목 없인 세지 않는다.
+// (판정은 tools/lanes/build.ts 의 asksFeedback 과 같다 — 두 도구가 같은 사실을 세야 한다.)
 
 import { execSync } from 'node:child_process';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
@@ -39,11 +41,14 @@ function pendingCycles(packDir: string): string[] {
   if (!existsSync(cyclesDir)) return [];
   const pending: string[] = [];
   for (const entry of readdirSync(cyclesDir, { withFileTypes: true })) {
-    if (!entry.isDirectory() || !TRACK_CYCLE.test(entry.name)) continue;
+    if (!entry.isDirectory()) continue;
     const verification = join(cyclesDir, entry.name, '08-verification.md');
     if (!existsSync(verification)) continue; // 아직 닫히지 않았다
-    if (!readFileSync(verification, 'utf8').includes('MASTER FEEDBACK')) continue;
-    if (!existsSync(join(feedbackDir, `${entry.name}.md`))) pending.push(entry.name);
+    const text = readFileSync(verification, 'utf8');
+    if (!text.includes('MASTER FEEDBACK')) continue;
+    if (existsSync(join(feedbackDir, `${entry.name}.md`))) continue;
+    const asksFeedback = /feedback\/(?:<CycleId>|C[\w-]*)\.md|FEEDBACK\s*레인/i.test(text);
+    if (TRACK_CYCLE.test(entry.name) || asksFeedback) pending.push(entry.name);
   }
   return pending.sort();
 }
