@@ -505,6 +505,33 @@
       );
     }
 
+    const wk = (G.works ?? {})[id];
+    if (wk && (wk.candidates.length || wk.cycles.length)) {
+      const rows = [];
+      for (const c of wk.cycles) {
+        const done = /COMPLETE/.test(c.status);
+        rows.push(
+          `<li><span class="chip ${done ? 'ok' : ''}">Cycle</span> cycles/${esc(c.id)} · ${esc(c.status)}</li>`,
+        );
+      }
+      for (const f of wk.candidates) {
+        rows.push(
+          `<li><span class="chip ${f.selected ? 'ok' : ''}">후보</span> ${esc(f.fr)} (${esc(f.track)} · ${esc(
+            f.status,
+          )}${f.selected ? ' · SELECTED' : ''}) — frontier/${esc(f.track.toLowerCase())}.md</li>`,
+        );
+      }
+      parts.push(
+        `<div class="field"><div class="k">작업 연결 — 이 노드를 세운 Cycle · 겨냥한 Frontier 후보</div>` +
+          `<div class="v"><ul>${rows.join('')}</ul></div></div>`,
+      );
+    } else if (n.type === 'capability') {
+      parts.push(
+        `<div class="field"><div class="k">작업 연결</div>` +
+          `<div class="v"><span class="chip hole">겨냥한 후보도 다룬 Cycle 도 없다 — NEXT 가 후보를 세우기 전이다</span></div></div>`,
+      );
+    }
+
     if (n.constraints.length) {
       parts.push(
         `<div class="field"><div class="k">Constraint — 이 노드를 거르는 원칙</div><div class="v">` +

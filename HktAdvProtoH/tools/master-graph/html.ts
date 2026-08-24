@@ -7,11 +7,12 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { FREE_REQUIRE_BUCKETS, type MasterGraph } from './model';
+import type { WorkLinks } from './works';
 
 const here = dirname(fileURLToPath(import.meta.url));
 
 /** 뷰어가 먹는 형태로 그래프를 납작하게 만든다 */
-export function serialize(graph: MasterGraph) {
+export function serialize(graph: MasterGraph, works?: WorkLinks) {
   const holesByNode = new Map<string, string[]>();
   for (const h of graph.holes) {
     holesByNode.set(h.nodeId, [...(holesByNode.get(h.nodeId) ?? []), h.field]);
@@ -45,16 +46,17 @@ export function serialize(graph: MasterGraph) {
     systems: [...graph.systems.values()],
     problems: graph.problems,
     freeBuckets: [...FREE_REQUIRE_BUCKETS],
+    works: works?.byNode ?? {},
   };
 }
 
 const TITLE = 'Master Intent Graph';
 
 /** <style> 와 페이지 본문 — 두 산출물이 공유한다 */
-function renderParts(graph: MasterGraph): { style: string; body: string } {
+function renderParts(graph: MasterGraph, works?: WorkLinks): { style: string; body: string } {
   const css = readFileSync(join(here, 'viewer.css'), 'utf8');
   const js = readFileSync(join(here, 'viewer.js'), 'utf8');
-  const data = JSON.stringify(serialize(graph)).replace(/</g, '\\u003c');
+  const data = JSON.stringify(serialize(graph, works)).replace(/</g, '\\u003c');
 
   const nodes = [...graph.nodes.values()];
   const count = (t: string) => nodes.filter((n) => n.type === t).length;
@@ -147,8 +149,8 @@ ${js}
 }
 
 /** 브라우저로 직접 여는 단일 문서 */
-export function renderHtml(graph: MasterGraph): string {
-  const { style, body } = renderParts(graph);
+export function renderHtml(graph: MasterGraph, works?: WorkLinks): string {
+  const { style, body } = renderParts(graph, works);
   return `<!doctype html>
 <html lang="ko">
 <head>
@@ -166,8 +168,8 @@ ${body}
 
 /** Artifact 게시용 — 뷰어가 doctype·html·head·body 를 감싸므로 그 태그를 내지 않는다.
  *  손으로 껍데기를 벗기지 않도록 도구가 이 형태까지 만들어 둔다. */
-export function renderArtifactPage(graph: MasterGraph): string {
-  const { style, body } = renderParts(graph);
+export function renderArtifactPage(graph: MasterGraph, works?: WorkLinks): string {
+  const { style, body } = renderParts(graph, works);
   return `<title>${TITLE}</title>
 ${style}
 ${body}

@@ -13,6 +13,7 @@ import { loadMasterGraph } from './model';
 import { renderMermaid } from './mermaid';
 import { renderOverlay } from './overlay';
 import { renderArtifactPage, renderHtml } from './html';
+import { collectWorkLinks } from './works';
 import { activePackDir } from '../active-pack';
 
 function projectRoot(): string {
@@ -74,8 +75,9 @@ export function run(argv: string[]): number {
 
   writeFileSync(mermaidPath, mermaid, 'utf8');
   writeFileSync(overlayPath, overlay.text, 'utf8');
-  writeFileSync(htmlPath, renderHtml(graph), 'utf8');
-  writeFileSync(artifactPath, renderArtifactPage(graph), 'utf8');
+  const works = collectWorkLinks(activePackDir(root), graph);
+  writeFileSync(htmlPath, renderHtml(graph, works), 'utf8');
+  writeFileSync(artifactPath, renderArtifactPage(graph, works), 'utf8');
 
   const rel = (p: string) => relative(root, p);
   console.log(`노드 ${graph.nodes.size} · 관계 ${graph.edges.length} · Constraint ${graph.constraints.size} · 구멍 ${graph.holes.length}`);
