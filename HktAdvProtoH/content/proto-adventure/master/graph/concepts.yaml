@@ -1,24 +1,174 @@
-# Concept Registry — CN-* (파일럿 · DRAFT)
+# Concept Registry — CN-* (DRAFT)
 #
 # 세계가 정의한 **개념**(명사)의 등록부다. Capability(동사)가 어떤 개념들의 조합인지를
 # 밝혀, 기획서 § (정의) ↔ 개념 노드 ↔ 코드 실체의 삼각 대조를 관찰 가능하게 한다.
 #
 # 규율 — systems.yaml 과 같다:
 #   · 개념은 발명하지 않는다 — 근거 문서가 정의한 개념만 등록한다 (definition 이 그 §).
+#     문서 § 없이 Cycle 로 선 의미는 그 사실을 그대로 적는다 (capabilities.yaml 의
+#     MC-BODY-FACING source 선례).
 #   · 개념은 규칙을 소유하지 않는다 — 수치·공식·판정은 Cycle 소유다 (CLAUDE.md 원칙 18).
 #   · anchors 는 세계 코드의 실체다 (`경로#심볼`). 실체가 아직 없는 개념은 anchors 를
 #     비워 둔다 — 그 빈 칸이 곧 "기획은 말했는데 세계에 없다" 의 관찰이다.
 #
-# status: DRAFT — ITEM 도메인 파일럿. SCHEMA.md 미등재이며 정책 승격(Human)이 결정한다.
+# 범위: 세계 전체 (Human 지시로 ITEM 파일럿에서 확장). 조합 미기재가 정직한 부류가
+# 둘 있다 — ① part_of.grounded: false 인 Capability (그 전체의 설계 문서가 없어 개념을
+# 발명 없이 옮길 수 없다) ② 근거 문서(BW 등)가 이름만 대고 아직 주입되지 않은 개념.
+#
+# status: DRAFT — SCHEMA.md 미등재이며 정책 승격(Human)이 결정한다.
 #   승격 시: compositions 의 uses 는 capabilities.yaml 각 노드의 uses 필드로 옮기고,
-#   이 파일은 concepts 절만 남긴다. 파일럿 동안 여기 두는 이유는 병렬 안전이다 —
+#   이 파일은 concepts 절만 남긴다. 그때까지 여기 두는 이유는 병렬 안전이다 —
 #   공유 파일(capabilities.yaml)을 고치는 작업은 병합 뒤 최신 main 위에서만 돈다.
 
 version: 1
 status: DRAFT
-domain: ITEM
+domain: WORLD
 
 concepts:
+
+  # ── 코어 — 존재와 행동 ──────────────────────────────────────────────────
+
+  - id: CN-ACTOR
+    name: 존재 (주체)
+    definition: Design-Concept §0.1 (세계의 구성 요소)
+    semantic: >
+      세계 안에서 상태를 가지고 행동하는 주체 — 플레이어와 자율 존재가 같은 형태를
+      공유하며, 능력치·기력·향함·행동이 전부 이 몸에 산다.
+    anchors:
+      - content/proto-adventure/world/semantic/actor.ts#ActorState
+      - content/proto-adventure/world/semantic/actor.ts#ActorControl
+
+  - id: CN-ACTION
+    name: 행동
+    definition: Design-Concept §0.2 (시간에 따른 변화 과정)
+    semantic: >
+      존재가 시간 속에서 수행하는 변화의 단위 — 종류마다 정의가 있고, 지금 무엇을
+      하는 중인지가 세계의 사실이다. 세계의 변화는 행동을 거쳐서만 일어난다.
+    anchors:
+      - content/proto-adventure/world/semantic/action.ts#ACTION_DEFINITIONS
+      - content/proto-adventure/world/semantic/action.ts#CurrentAction
+
+  - id: CN-ACTION-PHASE
+    name: 행동의 구간
+    definition: 문서 § 없음 — C019 로 세계에 선 의미 (준비 · 나감 · 마무리)
+    semantic: >
+      한 행동 안의 시점 구분 — 준비(startup) 중에는 끊길 수 있고, 나가는(active)
+      동안만 세계에 닿는다. 구간의 경계는 전역 상수가 아니라 기술 정의가 지닌다.
+    anchors:
+      - content/proto-adventure/world/semantic/combat.ts#SkillPhase
+      - content/proto-adventure/world/semantic/combat.ts#skillPhase
+
+  - id: CN-BODY-FACING
+    name: 몸의 향함
+    definition: 문서 § 없음 — C006·C011 로 세계에 선 의미
+    semantic: >
+      몸이 향한 방향이 세계의 사실이다 — 어느 쪽에서 온 공격인지, 무엇이 정면에
+      있는지가 이 값으로 판정된다.
+    anchors:
+      - content/proto-adventure/world/semantic/collision.ts#faceToward
+
+  - id: CN-CP
+    name: 기력
+    definition: R1 §1 · §11
+    semantic: >
+      공격·방어·기동을 함께 묶는 하나의 예산 — 어디에 쓸지 고르는 순간 다른 곳에
+      쓸 것이 줄어든다. 스스로 돌아오는 규칙은 아직 세계에 없다 (MC-CP-ECONOMY PARTIAL).
+    anchors:
+      - content/proto-adventure/world/semantic/combat.ts#RUN_CP_DRAIN
+      - content/proto-adventure/world/semantic/combat.ts#HIT_CHARGE_FACTOR
+
+  - id: CN-STANCE
+    name: 태도
+    definition: Targeting §5 부근 · C018 실측 (적대 · 중립 · 우호)
+    semantic: >
+      존재와 존재 사이의 관계가 세계의 사실로 있다 — 누구를 칠 수 있는지와 자율
+      존재가 다가온 것을 어떻게 대하는지를 이 값이 가른다.
+    anchors:
+      - content/proto-adventure/world/semantic/relation.ts#Stance
+
+  - id: CN-TARGET
+    name: 고른 대상
+    definition: Targeting §2.1 (Current Target) · §3.1 (선택)
+    semantic: >
+      자기 의도의 대상으로 고른 존재 하나를 세계가 기억한다 — 이후의 행동들이
+      저마다 대상을 다시 찾지 않고 이 관계를 쓴다.
+    anchors:
+      - content/proto-adventure/world/semantic/target-selection.ts#TargetSelectionState
+      - content/proto-adventure/world/semantic/target-selection.ts#selectTarget
+
+  - id: CN-ACQUAINTANCE
+    name: 아는 사이 (관찰로 얻은 정보)
+    definition: Targeting §2.3 (Target 와 Acquaintance 의 분리) · §3.2 · §3.3
+    semantic: >
+      대상을 겨눈 것과 대상을 아는 것은 다르다 — 관찰로 얻은 정보가 따로 쌓이고,
+      숨은 성질은 통찰이 문턱을 넘어야 드러난다.
+    anchors:
+      - content/proto-adventure/world/semantic/acquaintance.ts#AcquaintanceState
+      - content/proto-adventure/world/semantic/acquaintance.ts#INSIGHT_REVEAL_THRESHOLDS
+
+  # ── 전투 ──────────────────────────────────────────────────────────────
+
+  - id: CN-SKILL-DEF
+    name: 기술의 정의
+    definition: SK §7 (규칙은 이름을 묻지 않는다) · R1 §6
+    semantic: >
+      기술은 이름이 아니라 값의 묶음이다 — 위력 · 계수 · 구간 경계 · 모양을 정의가
+      소유하고, 규칙은 어느 기술인지 묻지 않고 정의를 읽는다.
+    anchors:
+      - content/proto-adventure/world/semantic/combat.ts#SKILL_DEFINITIONS
+      - content/proto-adventure/world/semantic/combat.ts#SkillDefinition
+
+  - id: CN-SKILL-SHAPE
+    name: 휘두름의 모양
+    definition: SK-EX §5.1 (Origin) · §5.2 (Geometry)
+    semantic: >
+      기술이 닿는 형상 — 어디서 시작해 얼마나 넓게, 얼마나 멀리. C025 로 코드 상수에서
+      기술 정의의 값이 되었다 (찌르기는 좁고 길게, 횡베기는 넓게).
+    anchors:
+      - content/proto-adventure/world/semantic/combat.ts#SkillShape
+      - content/proto-adventure/world/semantic/combat.ts#skillShape
+
+  - id: CN-CONTACT
+    name: 접촉 (궤적 판정)
+    definition: SK §5 (근접 공격 = 접촉) · SK-EX §8.1 (Contact)
+    semantic: >
+      휘두른 무기 끝이 훑는 궤적 안의 몸만 맞는다 — 닿음이 선언이 아니라 공간의
+      사실이다. 밀림과 마찰도 같은 자리에서 나온다.
+    anchors:
+      - content/proto-adventure/world/semantic/collision.ts#ActionCollider
+      - content/proto-adventure/world/semantic/collision.ts#actionCollider
+
+  - id: CN-STAT-AXIS
+    name: 능력치 축
+    definition: R1 §4 · §6 · DT §4 (공격 · 방어 · 관통 · 치명 · 통찰)
+    semantic: >
+      몸의 강함을 가르는 축들 — 공격과 방어가 피해 유형별로 갈리고, 관통·치명·통찰이
+      그 위에 얹힌다. 성장·장비·기여가 전부 이 축의 값을 움직인다.
+    anchors:
+      - content/proto-adventure/world/semantic/combat.ts#OffenseStatName
+      - content/proto-adventure/world/semantic/combat.ts#PenetrationStatName
+      - content/proto-adventure/world/semantic/item.ts#ContributableStat
+
+  - id: CN-DAMAGE-TYPE
+    name: 피해 유형
+    definition: DT §10 · §14 (Physical / Aura)
+    semantic: >
+      무엇으로 때렸는가의 갈래 — 유형마다 대응하는 방어 능력이 다르고, 상성은 별도
+      배율이 아니라 그 대응 능력치의 차이로만 생긴다.
+    anchors:
+      - content/proto-adventure/world/semantic/combat.ts#DamageType
+      - content/proto-adventure/world/semantic/combat.ts#DAMAGE_TYPE_STATS
+
+  - id: CN-BREAKDOWN
+    name: 계산 경위
+    definition: R1 §2 · §3 · §6 (하나의 공식 · 경위 관찰)
+    semantic: >
+      큰 결과를 만든 원인과 배율의 전체 기록 — 플레이어는 이것으로 배우고, 만든
+      사람은 이것으로 고친다. 피해는 하나의 공식을 지나며 경위를 남긴다.
+    anchors:
+      - content/proto-adventure/world/semantic/combat.ts#DamageBreakdown
+
+  # ── 아이템 ────────────────────────────────────────────────────────────
 
   - id: CN-ITEM-KIND
     name: 물건의 종류
@@ -76,7 +226,7 @@ concepts:
     definition: IS §5.5 · §3.1 (분류 material)
     semantic: >
       그 자체로는 쓸모가 없고 다른 것으로 바뀌어야 값을 갖는 물건 — 변환의 입력이
-      되는 분류다. 캐 온 돌이 첫 사례다.
+      되는 분류다. 캔 돌이 첫 사례다.
     anchors:
       - content/proto-adventure/world/semantic/item.ts#ItemCategory
 
@@ -100,13 +250,98 @@ concepts:
     # 실체 없음 — 위치를 가진 비-Actor 존재의 선례는 광맥(deposit.ts)뿐이며 그것은
     # 아이템이 아니다. MC-TRANSFER-ITEM 이 MISSING 인 이유의 개념 쪽 절반이다.
 
+  # ── 세계 ──────────────────────────────────────────────────────────────
+
+  - id: CN-DEPOSIT
+    name: 광맥 (자리를 가진 자원)
+    definition: BW §6 (위험과 자원의 관계) — 자원 원천의 첫 사례
+    semantic: >
+      위치를 가진 비-Actor 존재의 유일한 선례 — 거리 판정을 받고 관찰에 실리며,
+      캐면 줄어든다. 몸 밖의 물건(CN-WORLD-ITEM)이 설 때 이 형태를 재사용한다.
+    anchors:
+      - content/proto-adventure/world/semantic/deposit.ts
+
 # ── Capability = 개념의 조합 ─────────────────────────────────────────────
 # 각 Capability 가 어떤 개념들을 조합해 성립하는가. uses 의 개념이 전부 실체를 가지면
 # 그 Capability 는 조합만으로 설 수 있고, 실체 없는 개념이 섞여 있으면 그 개념이
 # 곧 선행 작업이다.
+#
+# 미기재가 정직한 부류: part_of.grounded: false 인 Capability 23개 (능동 방어 ·
+# Aura/Nen · 베이라 사다리의 잠정 조각) — 그 전체의 설계 문서가 없어 개념을 발명
+# 없이 옮길 수 없다. MC-RESTORE-BIOLOGICAL-STATE · MC-CUT-ABNORMAL-STRUCTURE 는
+# grounded 지만 그 개념의 원천 문서(Design-Resource-Catalog-R0)가 Human 승인 대기다.
 
 compositions:
 
+  # 전투 사다리 — 바닥
+  - capability: MC-COMBAT-STRIKE
+    uses: [CN-SKILL-DEF, CN-SKILL-SHAPE, CN-CONTACT, CN-ACTION-PHASE, CN-STAT-AXIS]
+    note: >
+      기술 정의가 선언한 모양대로 휘둘러, 나가는 구간에 궤적이 닿은 몸의 생명을
+      능력치 축의 값만큼 덜어낸다.
+
+  - capability: MC-CP-ECONOMY
+    uses: [CN-CP, CN-ACTION]
+    note: 행동마다 기력을 치른다 — 스스로 돌아오는 규칙이 없는 것이 PARTIAL 의 이유다
+
+  - capability: MC-BODY-FACING
+    uses: [CN-BODY-FACING, CN-CONTACT]
+    note: 향한 방향이 접촉 판정에 쓰인다 — 정면 방어와 등 뒤가 갈린다
+
+  - capability: MC-COMBAT-CAUSE-READING
+    uses: [CN-BREAKDOWN]
+    note: 계산 경위가 그대로 관찰에 실린다
+
+  - capability: MC-GUARD
+    uses: [CN-ACTION, CN-ACTION-PHASE, CN-CP, CN-BODY-FACING]
+    note: 앞을 향해 막는 행동 — 피해를 생명 대신 기력으로 치른다
+
+  - capability: MC-DEFENSE-MITIGATION
+    uses: [CN-STAT-AXIS, CN-DAMAGE-TYPE]
+    note: 유형에 대응하는 방어 축만 그 피해를 줄인다
+
+  - capability: MC-ATTACK-POWER
+    uses: [CN-STAT-AXIS]
+    note: 공격 위력의 축 — 성장·장비·버프가 이 값을 움직인다
+
+  - capability: MC-SKILL-SCALING
+    uses: [CN-SKILL-DEF, CN-STAT-AXIS]
+    note: 기술의 강함(정의)과 몸의 강함(축)이 분리되어 따로 자란다
+
+  - capability: MC-ATTACK-ARMOR-MATCHUP
+    uses: [CN-DAMAGE-TYPE, CN-STAT-AXIS]
+    note: 상성은 별도 배율이 아니라 대응 능력치의 차이다
+
+  - capability: MC-PENETRATION
+    uses: [CN-STAT-AXIS, CN-DAMAGE-TYPE]
+    note: 마주한 유형의 방어만 얼마간 통하지 않게 한다
+
+  - capability: MC-CRITICAL-STRIKE
+    uses: [CN-STAT-AXIS, CN-BREAKDOWN]
+    note: 확률과 증폭이 몸의 성질이고, 발생 여부가 경위에 그대로 드러난다
+
+  # 대상 · 관찰 · 태도
+  - capability: MC-DESIGNATE-TARGET
+    uses: [CN-TARGET]
+    note: 고른 관계를 세계가 기억한다 — 이후 행동들이 이 관계를 쓴다
+
+  - capability: MC-WATCH-TARGET
+    uses: [CN-TARGET, CN-ACQUAINTANCE]
+    note: 고른 대상의 지금 값과 가능/불가 사유를 계속 읽는다
+
+  - capability: MC-OBSERVE
+    uses: [CN-ACTION, CN-TARGET, CN-ACQUAINTANCE]
+    note: 관찰이라는 행동으로 대상의 정보를 아는 사이에 쌓는다
+
+  - capability: MC-RELATION-STANCE
+    uses: [CN-STANCE]
+    note: 태도가 누구를 칠 수 있는지와 자율 존재의 반응을 가른다
+
+  - capability: MC-INTERRUPT
+    uses: [CN-ACTION-PHASE, CN-CONTACT]
+    note: 준비 구간에 닿으면 행동이 끊긴다 — 구간 개념이 이 조합의 전부다
+
+  # 아이템
   - capability: MC-USE-ITEM
     uses: [CN-ITEM-KIND, CN-ITEM-USE, CN-INVENTORY-ROOM]
     note: 종류가 선언한 용도를, 담긴 것에서 꺼내 쓴다 — 쓰면 줄어든다
@@ -123,7 +358,8 @@ compositions:
       ("제작법 데이터 · 가능 여부 판정")과 정확히 겹친다.
 
   - capability: MC-TRANSFER-ITEM
-    uses: [CN-WORLD-ITEM, CN-ITEM-KIND, CN-INVENTORY-ROOM, CN-EQUIP-SLOT]
+    uses: [CN-WORLD-ITEM, CN-ITEM-KIND, CN-INVENTORY-ROOM, CN-EQUIP-SLOT, CN-DEPOSIT]
     note: >
-      몸 밖의 물건 개념이 서야 줍기·버리기가 성립한다. CN-EQUIP-SLOT 이 든 이유는
-      IE §35 — 걸어 둔 것을 내려놓는 길이 담을 곳을 거치지 않기 때문이다.
+      몸 밖의 물건 개념이 서야 줍기·버리기가 성립한다. CN-DEPOSIT 이 든 이유는
+      위치를 가진 비-Actor 존재의 형태를 광맥이 이미 세워 두었기 때문이고,
+      CN-EQUIP-SLOT 은 IE §35 — 걸어 둔 것을 내려놓는 길이 담을 곳을 거치지 않는다.
