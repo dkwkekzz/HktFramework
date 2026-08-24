@@ -1,0 +1,22 @@
+// Semantic Identifier — 아이템(ITEM 트랙) 도메인분. 채광·소지·자리·적용·사용.
+// 트랙이 자기 파일을 소유한다 (guides/works.md 병렬 규칙).
+// 소비처는 언제나 protocol/semantic-id 하나만 import 한다.
+
+export const RULE_MINE = 'RULE-MINE-001';
+export const RULE_MINE_COMPLETE = 'RULE-MINE-COMPLETE-001';
+export const RULE_INVENTORY_ADD = 'RULE-INVENTORY-ADD-001'; // C020
+export const RULE_INVENTORY_REMOVE = 'RULE-INVENTORY-REMOVE-001'; // C020
+export const RULE_INVENTORY_ROOM = 'RULE-INVENTORY-ROOM-001'; // C022
+export const RULE_WORLD_ACQUIRABLE_KINDS = 'RULE-WORLD-ACQUIRABLE-KINDS-001'; // C022
+export const RULE_ITEM_DISCARD = 'RULE-ITEM-DISCARD-001'; // C022
+export const RULE_ITEM_EQUIP = 'RULE-ITEM-EQUIP-001'; // C023
+export const RULE_ITEM_UNEQUIP = 'RULE-ITEM-UNEQUIP-001'; // C023
+export const RULE_EQUIP_SLOT_FITS = 'RULE-EQUIP-SLOT-FITS-001'; // C023
+export const RULE_EFFECTIVE_STATS = 'RULE-EFFECTIVE-STATS-001'; // C023
+export const RULE_BODY_USES = 'RULE-BODY-USES-001'; // C020 · C023 CHANGED (걸린 것을 훑는다)
+export const RULE_BODY_GRANTABLE_USES = 'RULE-BODY-GRANTABLE-USES-001'; // C023
+export const RULE_ITEM_USE = 'RULE-ITEM-USE-001'; // C020
+export const RULE_ITEM_USE_COMPLETE = 'RULE-ITEM-USE-COMPLETE-001'; // C020
+export const RULE_ITEM_EFFECT_DELIVER_FORCE = 'RULE-ITEM-EFFECT-DELIVER-FORCE-001'; // C020
+
+export const INTENT_MINING = 'INTENT-MINING-001';

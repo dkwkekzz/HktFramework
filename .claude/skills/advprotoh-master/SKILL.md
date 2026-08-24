@@ -24,8 +24,9 @@ CYCLE LAYER (advprotoh-cycle)   선택된 NEXT 를 World Semantic 과 Rule 로 �
 접합점은 **둘뿐**이다.
 
 ```text
-아래로   frontier.md 의 SELECTED  →  cycles/<CycleId>/01-cycle.md 의 MASTER TRACE
-위로     08-verification.md 의 MASTER FEEDBACK  →  overlay.md · frontier.md · candidates/ 반영 (Feedback)
+아래로   frontier/<트랙>.md 의 SELECTED  →  cycles/<CycleId>/01-cycle.md 의 MASTER TRACE
+위로     08-verification.md 의 MASTER FEEDBACK  →  overlay.md · frontier/<트랙>.md ·
+         feedback/<CycleId>.md · candidates/ 반영 (Feedback)
 ```
 
 ## 0. Master 의 기본 절차는 4단계뿐이다
@@ -66,25 +67,29 @@ Human 이 기반 기획 문서(`design/Design-*.md` — 전투 규칙 등)를 �
 
 ## 1. 대상 Step 판정
 
+이 스킬은 MASTER 레인이다 — **main 위에서 한 번에 하나만** 돈다 (레인 규칙: guides/works.md).
+
 인자로 Step 이 지정되면 그것을 쓴다. 지정되지 않으면 아래 순서로 판정한다.
 
 1. 이번 요청이 Human 이 지목한 기반 기획 문서의 반영·주입이면 → **Inject**
-2. 처리되지 않은 `08-verification.md` 의 `MASTER FEEDBACK` 이 있으면 → **Feedback** 을 먼저 돌린다
+2. 처리되지 않은 `08-verification.md` 의 `MASTER FEEDBACK` 이 있으면(그 Cycle 의
+   `master/feedback/<CycleId>.md` 가 없으면 미처리다) → **Feedback** 을 먼저 돌린다.
+   Feedback 은 그 Cycle 이 main 에 병합된 뒤 **최신 main 위에서만** 돈다 (Guide 의 Where)
 3. `master/root.md` 가 비어 있으면 → **멈추고 Human 에게 Root Goal / World Premise 를 요청**
 4. Goal 의 주체·이유가 비어 있거나 이번 요청이 새 영역이면 → **WHY**
 5. Goal 은 있는데 의미 있게 다른 Possibility 가 탐색되지 않았으면 → **OPTIONS**
 6. Possibility 의 Requirement 가 비어 있거나 `overlay.md` 가 오래됐으면 → **NEED**
-7. Overlay 는 최신인데 `frontier.md` 에 후보가 없으면 → **NEXT**
+7. Overlay 는 최신인데 대상 트랙의 `frontier/<트랙>.md` 에 후보가 없으면 → **NEXT**
 8. 후보가 있으면 → **멈추고 Human 에게 선택을 요청**
 
 | Step | Guide | 입력 | 출력 |
 |---|---|---|---|
 | WHY | `guides/master-graph.md` | `root.md` · Active DC · 기존 Graph | `graph/` world-state · actors · knowledge · goals |
 | OPTIONS | `guides/master-graph.md` | Goal · Active DC (Filter) | `graph/possibilities.yaml` (+ CC-*) |
-| NEED | `guides/master-graph.md · guides/master-overlay.md` | Possibility · Cycle 실측 | `graph/capabilities.yaml` · `master/overlay.md` |
-| NEXT | `guides/master-frontier.md` | `overlay.md` · Graph · Active DC | `master/frontier.md` |
-| Human Select | — | `frontier.md` | **Human 전용 — Agent 가 고르지 않는다** |
-| Feedback | `guides/master-feedback.md` | `08-verification.md` MASTER FEEDBACK | overlay · frontier · CC 갱신 |
+| NEED | `guides/master-graph.md · guides/master-overlay.md` | Possibility · Cycle 실측 | `graph/*.yaml` 의 overlay*/implemented* 필드 → `overlay.md` 재생성 |
+| NEXT | `guides/master-frontier.md` | `overlay.md` · Graph · Active DC | `master/frontier/<트랙>.md` |
+| Human Select | — | `frontier/` | **Human 전용 — Agent 가 고르지 않는다** |
+| Feedback | `guides/master-feedback.md` | `08-verification.md` MASTER FEEDBACK | `feedback/<CycleId>.md` · overlay · frontier/<트랙> · CC 갱신 |
 | Inject | `guides/master-inject.md` | Human 지정 기반 기획 문서 · 기존 Graph/DC | constraints(DRAFT) · graph(§ provenance) · overlay · open-questions |
 
 Constraint 자체의 작업(신설·재작성·승인·충돌 Trade-off)은 Step 이 아니다 —
@@ -137,9 +142,13 @@ Constraint 에서 시스템/기능 목록을 도출하지 않는다.
 part_of 없는 MC-* 를 만들지 않는다 — 시스템·자리는 graph/systems.yaml 에 있는 것만
    가리키고, 문서가 이름만 댄 조각은 grounded: false 다 (Frontier Target 금지).
 graph 노드에 근거·정정 경위·날짜 주석을 쌓지 않는다 — 노드에는 값만.
-   근거는 overlay.md · 경위는 HISTORY.md 소유다 (원칙 20).
-frontier.md 에 진행 현황·공정 규칙을 쓰지 않는다 — 네 절(후보·추천·SELECTED·
-   지금 열 수 없는 것)만. 현황은 graph/GRAPH.md 의 척추 절이 그린다.
+   근거는 overlay.md · Cycle 반영 경위는 feedback/<CycleId>.md ·
+   Master 층 결정 경위는 HISTORY.md 소유다 (원칙 20).
+frontier 트랙 파일에 진행 현황·공정 규칙을 쓰지 않는다 — 네 절(후보·추천·SELECTED·
+   지금 열 수 없는 것)만. 현황은 graph/GRAPH.md 의 척추 절이, 트랙 목록·병렬 규칙은
+   frontier/README.md 가 소유한다.
+자기 Cycle 의 트랙 밖 frontier/ 파일을 Feedback 에서 고치지 않는다 — 트랙 이동·트랙 간
+   판단은 직렬 NEXT 작업으로만 (원칙 22).
 world/ view/ 코드를 수정하지 않는다 — Overlay 판정을 위해 읽기만 한다.
 cycles/ 의 Artifact 를 수정하지 않는다 — History 다.
 다음 Cycle Goal 을 자동 확정하지 않는다 — Human 이 고른다.
@@ -159,7 +168,8 @@ Cycle 결과가 상위 의미와 어긋난다         → Human (MASTER GAP)
 ## 4. 닫기
 
 * `graph/` 나 `constraints/` 를 고쳤으면 `npm run master:graph` 를 돌려
-  `graph/GRAPH.md` 를 다시 만들고 **같은 커밋에** 넣는다. 그 출력이 정합 문제도 알려 준다 —
+  `graph/GRAPH.md` 와 `overlay.md`(둘 다 생성물 — 손으로 고치지 않는다)를 다시 만들고
+  **같은 커밋에** 넣는다. 그 출력이 정합 문제도 알려 준다 —
   없는 ID 참조 · `requires`↔`required_by` 비대칭 · 없는 Constraint 참조 · 고아 노드.
   ERROR 가 있으면 지어내서 덮지 말고 그 노드를 고치거나 Human 에게 되돌린다.
 * 이어서 Human 이 보는 고정 링크를 갱신한다 — Artifact 도구에
