@@ -215,7 +215,7 @@ Root Game Goal / World Premise (`master/root.md`) 와 Constraint 승인은 Human
 | `<pack>/master/` | Master Intent Graph — Constraint · Graph · Overlay · Frontier | 현재 상태만, 닫히면 지운다 |
 | `<pack>/master/HISTORY.md` | 닫힌 질문·선택·갱신의 보관소 | 조회용, 평소 읽지 않는다 |
 | `<pack>/cycles/` | Cycle Artifact — 진행 기록 | History, 수정하지 않는다 |
-| `<pack>/works/` | Cycle 이 아닌 작업 기록 (`V-*` — View 레인) | History, 수정하지 않는다 |
+| `<pack>/works/` | View 레인 홈 — 할일(`BACKLOG.md`) + 닫힌 기록(`V-*`) | BACKLOG 는 현재 상태만 · `V-*` 는 History |
 | `<pack>/world/` | Authoritative World 구현 (Server) — 팩의 Rule·Semantic·투영 | 현재 게임, 계속 발전 |
 | `<pack>/view/` | Client View 결정 Layer — presentation 표·문구·바인딩 | 현재 게임, 계속 발전 |
 | `<pack>/protocol/` | 팩의 GameView·Action 확장 타입 | 현재 게임, 계속 발전 |
