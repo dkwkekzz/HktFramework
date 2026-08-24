@@ -198,16 +198,22 @@ export function createSurfaceLayer(container: HTMLElement, handlers: SurfaceHand
     }
     const surfaceId = surfaceOf(target);
     if (!surfaceId) return;
+    // **누른 것으로 치는 것은 주 단추뿐이다.** 오른 단추는 목록을 청하는 손짓이고
+    // (아래 contextmenu) 가운데 단추는 이 표면의 손짓이 아니다 — 그것들까지 누름으로
+    // 세면 오른 단추 한 번이 줄을 **실행해 버린다**.
+    // 자리는 그래도 표면의 것이다: 어느 단추든 뒤의 세계로 흘려보내지 않는다
+    // (흘리면 오른 단추 끌기가 표면 위에서 시점을 돌린다).
+    const primary = ev.button === 0;
     const cell = target?.closest<HTMLElement>('.sf-cell');
     if (cell?.dataset.id !== undefined) {
       ev.stopPropagation();
-      handlers.onPickCell?.(surfaceId, cell.dataset.id);
+      if (primary) handlers.onPickCell?.(surfaceId, cell.dataset.id);
       return;
     }
     const row = target?.closest<HTMLElement>('.sf-row');
     if (row?.dataset.id !== undefined) {
       ev.stopPropagation();
-      handlers.onPressRow?.(surfaceId, row.dataset.id);
+      if (primary) handlers.onPressRow?.(surfaceId, row.dataset.id);
     }
   });
 
@@ -224,13 +230,17 @@ export function createSurfaceLayer(container: HTMLElement, handlers: SurfaceHand
 
   // 목록 청함 — 브라우저의 기본 목록을 대신한다. 막지 않으면 게임 화면 위에
   // 브라우저 메뉴가 뜨고, 그 순간 이 표면은 사라진 것처럼 보인다.
+  //
+  // **표면 위라면 어디서든 막는다** — 칸이 아닌 자리에서만 브라우저 목록이 뜨면
+  // 같은 판 안에서 오른 단추가 두 가지 뜻이 된다. 게임의 다른 자리도 이미 같다
+  // (engine/view-kernel/input/pointer.ts · fx 캔버스).
   root.addEventListener('contextmenu', (ev) => {
     const target = ev.target as HTMLElement | null;
     const surfaceId = surfaceOf(target);
-    const cell = target?.closest<HTMLElement>('.sf-cell');
-    if (!surfaceId || cell?.dataset.id === undefined) return;
+    if (!surfaceId) return;
     ev.preventDefault();
-    handlers.onMenuCell?.(surfaceId, cell.dataset.id);
+    const cell = target?.closest<HTMLElement>('.sf-cell');
+    if (cell?.dataset.id !== undefined) handlers.onMenuCell?.(surfaceId, cell.dataset.id);
   });
 
   return {

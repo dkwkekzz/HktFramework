@@ -26,7 +26,7 @@ import type {
 import { createPendingRequests } from '../../../engine/view-kernel/net/pending';
 import { moveFocus } from '../../../engine/view-kernel/input/focus';
 import type { ActionRequest } from '../protocol/actions';
-import type { GameViewSnapshot, InventoryItemView } from '../protocol/gameview';
+import type { GameViewSnapshot, InventoryItemView, ItemActionView } from '../protocol/gameview';
 import { keyLabel } from './key-registry';
 import { openSurface, surfaceIsOpen } from './surface-state';
 
@@ -259,6 +259,16 @@ export function moveActionFocus(snapshot: GameViewSnapshot, delta: number): void
  * 대답을 기다리는 동안 같은 요청을 다시 보내지 않는다. 두 번 보내면 세계는 두 번
  * 판정하고, 그것이 겪는 사람의 뜻이었던 적이 없다.
  */
+/**
+ * 이 표면이 지금 실행할 수 있는 **첫 되는 행동** (V-004).
+ *
+ * 무엇이 그 하나인가는 **세계가 보낸 차례**가 정한다. 화면이 "이 물건은 쓰는 것" 이라고
+ * 고르면 그것이 곧 화면이 지어낸 규칙이 된다 (DC-ITEM-KIND-IS-DATA-NOT-BRANCH).
+ */
+function firstExecutable(entry: InventoryItemView): ItemActionView | undefined {
+  return entry.actions.find((a) => a.available && NOT_EXECUTABLE_HERE[a.role] === undefined);
+}
+
 export function invokeFocusedAction(
   snapshot: GameViewSnapshot,
   send: (action: ActionRequest) => number | null,
@@ -282,9 +292,18 @@ export function invokeFocusedAction(
   }
 
   const entry = selectedItem(snapshot);
-  if (!entry || focusedActionId === null) return;
-  const action = entry.actions.find((a) => a.id === focusedActionId);
+  if (!entry) return;
+  // 줄에 초점이 있으면 그 줄이고, **칸에 초점이 있으면 첫 되는 행동**이다 (V-004).
+  // 손가락으로 골라 두고 자판으로 실행하는 손이 여기서 끊기지 않는다 —
+  // 두 번 누름이 지나는 길도 바로 이 자리다 (UX 문서 §4.1 하나의 의미, 여러 입력).
+  const action =
+    focusedActionId === null
+      ? firstExecutable(entry)
+      : entry.actions.find((a) => a.id === focusedActionId);
   if (!action || !action.available) return;
+  // 실행한 줄로 초점이 옮겨 간다 — 기다림도 사유도 그 줄에 뜬다
+  focusedActionId = action.id;
+  focusedCellId = null;
   // 이 표면이 실행하지 않기로 한 역할은 보내지 않는다 (감추지는 않는다)
   if (NOT_EXECUTABLE_HERE[action.role] !== undefined) return;
   if (pending.waiting((w) => w.kind === entry.kind && w.actionId === action.id)) return;
@@ -329,18 +348,22 @@ function mine(surfaceId: string): GameViewSnapshot | null {
  * 빈 자리를 눌러도 아무 일이 없다. 그 칸들은 서로 구별되지 않고 요청의 대상이
  * 되지 않는다 (INTENT-EMPTY-ROOM-HAS-NO-ADDRESS-001) — 화면이 그 자리에 뜻을
  * 만들어 내면 세계에 없는 주소가 생긴다.
+ *
+ * **고른 것이 바뀌었는지를 낸다.** 두 번 누름과 목록 청함이 이 값을 보고 멈춘다 —
+ * 거절된 칸에서 그냥 지나가면 직전에 고른 것이 그 손짓의 대상이 되어 버린다.
  */
-export function pickCell(surfaceId: string, cellId: string): void {
+export function pickCell(surfaceId: string, cellId: string): boolean {
   const snapshot = mine(surfaceId);
-  if (!snapshot) return;
+  if (!snapshot) return false;
   const kind = cellKind(cellId);
-  if (kind === undefined) return;
-  if (!items(snapshot).some((e) => e.kind === kind)) return;
+  if (kind === undefined) return false;
+  if (!items(snapshot).some((e) => e.kind === kind)) return false;
   // 다른 것을 고르는 것은 그만두는 것이다 — 방향키와 같은 규칙이다 (V-002)
   confirming = null;
   selectedKind = kind;
   focusedActionId = null;
   focusedCellId = cellId;
+  return true;
 }
 
 /**
@@ -357,16 +380,12 @@ export function commitCell(
 ): void {
   const snapshot = mine(surfaceId);
   if (!snapshot) return;
-  pickCell(surfaceId, cellId);
-  const entry = selectedItem(snapshot);
-  if (!entry) return;
-  const first = entry.actions.find(
-    (a) => a.available && NOT_EXECUTABLE_HERE[a.role] === undefined,
-  );
-  if (!first) return;
-  focusedActionId = first.id;
-  focusedCellId = null;
-  // 자판의 Enter 와 같은 길이다 — 되돌릴 수 없는 것에는 확인이 그대로 선다
+  // **고르지 못한 칸에서는 아무 일도 일어나지 않는다.** 여기서 그냥 지나가면 고른 것이
+  // 직전 것으로 남아, 빈 자리를 두 번 누른 손이 **다른 물건의 행동**을 실행한다
+  if (!pickCell(surfaceId, cellId)) return;
+  // **자판의 Enter 와 같은 함수다.** 고른 칸에 초점이 있으므로 첫 되는 행동이 나가고,
+  // 되돌릴 수 없는 것에는 확인이 그대로 선다 (V-002). 되는 것이 하나도 없으면
+  // 아무 일도 일어나지 않는다 — 사유는 줄에 이미 서 있다
   invokeFocusedAction(snapshot, send);
 }
 
@@ -379,7 +398,8 @@ export function commitCell(
 export function menuCell(surfaceId: string, cellId: string): void {
   const snapshot = mine(surfaceId);
   if (!snapshot) return;
-  pickCell(surfaceId, cellId);
+  // 고르지 못한 칸에는 열 목록도 없다 (위와 같은 사유)
+  if (!pickCell(surfaceId, cellId)) return;
   const entry = selectedItem(snapshot);
   if (!entry) return;
   focusedActionId = entry.actions[0]?.id ?? null;

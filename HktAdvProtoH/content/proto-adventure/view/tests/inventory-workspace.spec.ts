@@ -575,6 +575,33 @@ describe('V-004 — 눌러서 고르고 실행하고 목록을 연다', () => {
     expect(sent).toEqual([]);
   });
 
+  it('손가락으로 골라 두고 자판으로 실행한다 — 손이 끊기지 않는다', () => {
+    const { sent, send } = sink();
+    bag(mining);
+    pickCell(INVENTORY_SURFACE_ID, 'item.pickaxe'); // 초점이 칸에 있다
+    invokeFocusedAction(snap(mining), send); // 두 번 누름과 같은 뜻이다
+    expect(sent).toEqual([{ interactionId: 'use-item', itemKind: 'pickaxe' }]);
+    expect(workspaceFocus()).toBe('use-item'); // 실행한 줄로 초점이 옮겨 간다
+    expect(workspaceCellFocus()).toBeNull();
+  });
+
+  it('빈 자리를 두 번 눌러도 **직전에 고른 것**이 실행되지 않는다', () => {
+    const { sent, send } = sink();
+    bag(mining);
+    pickCell(INVENTORY_SURFACE_ID, 'item.pickaxe'); // 먼저 다른 것을 골라 둔다
+    commitCell(INVENTORY_SURFACE_ID, 'room.0', send); // 빈 자리를 두 번 눌렀다
+    expect(sent).toEqual([]);
+  });
+
+  it('빈 자리에서 목록을 청해도 직전에 고른 것의 줄로 들어가지 않는다', () => {
+    bag(mining);
+    pickCell(INVENTORY_SURFACE_ID, 'item.pickaxe');
+    expect(workspaceCellFocus()).toBe('item.pickaxe');
+    menuCell(INVENTORY_SURFACE_ID, 'room.0');
+    expect(workspaceFocus()).toBeNull();
+    expect(workspaceCellFocus()).toBe('item.pickaxe');
+  });
+
   it('오른 단추는 행동 목록을 연다 — 초점이 줄로 들어간다', () => {
     bag(mining);
     menuCell(INVENTORY_SURFACE_ID, 'item.stone');
