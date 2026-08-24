@@ -80,7 +80,11 @@ hkt.pack.json      활성 팩 선언 (공정·도구용) — 코드 조립은 co
 ```text
 Cycle Stage    advprotoh-cycle 스킬
 Master Stage   advprotoh-master 스킬
+View 작업      advprotoh-view 스킬
 ```
+
+모든 세션은 **레인** 하나로 작업한다 — 레인 목록·쓰기 범위·레인 판정의 단일 출처는
+[guides/works.md](guides/works.md) 다.
 
 ## 핵심 원칙
 
@@ -111,10 +115,14 @@ Master Stage   advprotoh-master 스킬
 21. Capability 는 `part_of` 로 자신이 속한 전체(시스템·자리)를 밝힌다 — 단일 출처는
     `master/graph/systems.yaml`, 관찰은 GRAPH.md 의 척추 절. 근거 문서가 이름만 댄
     조각은 잠정(grounded: false)이며 Frontier 후보의 Target 이 되지 않는다.
-22. 병렬 작업의 단위는 **트랙**(도메인)이다 — 한 트랙 = 동시에 한 세션. Cycle ID 는
-    트랙 번호공간(`C-<TRACK>-NNN`)이고, Frontier 후보는 자기 트랙 파일에, Feedback
-    경위는 자기 Cycle 파일(`master/feedback/`)에 산다. 공유 파일(overlay ·
-    capabilities)을 고치는 Feedback 은 병합 뒤 최신 main 위에서만 돈다.
+22. 병렬 작업의 단위는 **레인**이다 — 한 레인 = 동시에 한 세션. 레인 목록과 쓰기
+    범위는 guides/works.md 가 단일 출처다. WORLD 트랙 레인에서 Cycle ID 는 트랙
+    번호공간(`C-<TRACK>-NNN`)이고, Frontier 후보는 자기 트랙 파일에, Feedback 경위는
+    자기 Cycle 파일(`master/feedback/`)에 산다. 공유 파일(overlay · capabilities)을
+    고치는 Feedback 은 병합 뒤 최신 main 위에서만 돈다.
+23. **View 작업은 Cycle 이 아니다** — `world/` 와 관찰 계약(`protocol/`)을 바꾸지 않는
+    화면 작업은 `V-NNN` 으로 `works/` 에 기록한다 (guides/view-work.md). 관찰을
+    늘리고 싶어지는 순간 그것은 세계의 관찰 확장이다 — Frontier/Cycle 로 승격한다.
 ```
 
 ## Kind 정적 데이터
@@ -203,6 +211,7 @@ Root Game Goal / World Premise (`master/root.md`) 와 Constraint 승인은 Human
 | `<pack>/master/` | Master Intent Graph — Constraint · Graph · Overlay · Frontier | 현재 상태만, 닫히면 지운다 |
 | `<pack>/master/HISTORY.md` | 닫힌 질문·선택·갱신의 보관소 | 조회용, 평소 읽지 않는다 |
 | `<pack>/cycles/` | Cycle Artifact — 진행 기록 | History, 수정하지 않는다 |
+| `<pack>/works/` | Cycle 이 아닌 작업 기록 (`V-*` — View 레인) | History, 수정하지 않는다 |
 | `<pack>/world/` | Authoritative World 구현 (Server) — 팩의 Rule·Semantic·투영 | 현재 게임, 계속 발전 |
 | `<pack>/view/` | Client View 결정 Layer — presentation 표·문구·바인딩 | 현재 게임, 계속 발전 |
 | `<pack>/protocol/` | 팩의 GameView·Action 확장 타입 | 현재 게임, 계속 발전 |
