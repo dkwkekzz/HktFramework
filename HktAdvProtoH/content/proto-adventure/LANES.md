@@ -25,12 +25,12 @@ Feedback · BACKLOG)를 겹쳐 `LANES.html` 로 그린다. `npm run lanes:check`
 
 | 레인 | 상태 | 지금 | 기다리는 것 |
 |---|---|---|---|
-| FEEDBACK | OPEN | C025 · C026 반영이 밀려 있다 (배치 가능) | 없음 — 병합 뒤 최신 main 위에서 (`npm run feedback:gate`) |
+| FEEDBACK | OPEN | 없음 — 닫힌 Cycle 이 모두 Master 에 들어갔다 | 없음 — 병합 뒤 최신 main 위에서 (`npm run feedback:gate`) |
 | WORLD·ITEM | HUMAN | 후보 5 중 선택 대기 — Agent 추천 FR-THE-PLACES-ARE-NARROWER (+FR-SEE-BEFORE 얹기) | Human Select (frontier/item.md) |
 | WORLD·COMBAT | BLOCKED | 후보 0 — FR-THE-SHAPE-IS-DATA 가 C025 로 닫혔다 | MASTER 의 OPTIONS(Q35) 가 후보를 낳는 것 |
 | VIEW | OPEN | BACKLOG 다음 항목부터 — equipment-panel 은 아래 충돌 칸 | 없음 |
 | MASTER | BLOCKED | OPTIONS Q35 (몸이 아닌 존재를 요구하는 Possibility) | FEEDBACK 의 병합 (미처리 Feedback 이 먼저다) |
-| ENGINE | OPEN | 기반 부채 셋 — 표시 문구 · MOVE/TURN_KEYS 원본 · touch-pad 사유 노출 | 없음 |
+| ENGINE | OPEN | 기반 부채 하나 — 표시 문구를 사유 코드로 바꿔 팩에 회수 (C009 폭이 넓고 조립·팩 채택 동반 — 착수 전 범위 확인) | 없음 |
 | PROCESS | HOLD | 없음 | — (공정 변경 중에는 다른 레인을 새로 띄우지 않는다) |
 
 ## 레인 사이 충돌 — 순서가 아니라 파일이 겹치는 곳
@@ -40,7 +40,7 @@ Feedback · BACKLOG)를 겹쳐 `LANES.html` 로 그린다. `npm run lanes:check`
 | 겹침 | 지금의 판단 |
 |---|---|
 | VIEW 의 equipment-panel ↔ WORLD·ITEM | ITEM Cycle 이 장비 유효 값 화면을 건드릴 수 있다 — equipment-panel 은 ITEM Cycle 병합 뒤에 연다 (그 뒤의 drag-and-drop · responsive-workspace 도 함께 밀린다) |
-| VIEW 의 touch-reason ↔ ENGINE | ENGINE 부채 ③(touch-pad 사유 노출)이 앞칸이다 — ENGINE 이 열어 준 뒤에 집는다 |
+| VIEW 의 touch-reason ↔ ENGINE | ENGINE 이 열었다 — touch-pad 가 `unavailableText` 를 버튼에 그린다. VIEW 는 눈검증·백로그 정리만 남았다 |
 
 ## HUMAN 대기
 

@@ -4,96 +4,32 @@
 판단은 [README.md](README.md), 읽는 법은 guides/master-frontier.md 소유다.
 
     기준 Overlay   master/overlay.md — 전투 사다리는 Critical 층까지, 그 위에 고른
-                   대상(C017) · 태도(C018) · 행동 안의 시점(C019)이 얹혔다. 스킬(SK) 주입 반영
+                   대상(C017) · 태도(C018) · 행동 안의 시점(C019) · 휘두름의 모양(C025)이
+                   얹혔다. 스킬(SK) 주입 반영
 
 ## 한눈에 보기
 
-| FR | 기능 | 이것이 무엇인가 | 세계에 없는 것 | 크기 |
-|---|---|---|---|---|
-| FR-THE-SHAPE-IS-DATA | **휘두름의 모양이 값이 된다** | 기술이 닿는 모양이 코드가 아니라 기술의 정의에 담긴다 | 모양 자체 — 반경 · 각도 · 길이가 코드 상수다 | 작음 |
+후보가 없다.
 
 ## 후보
 
-### FR-THE-SHAPE-IS-DATA — 휘두름의 모양이 값이 된다
+**없다.** 이 트랙에서 지금 고를 수 있는 후보가 하나도 없다.
 
-    이것이 무엇인가    기술이 닿는 **모양**(어디를 · 얼마나 넓게 · 몇을 함께)이 규칙
-                       코드가 아니라 기술의 정의에 담긴다. 지금은 모든 기술이 같은
-                       궤적을 쓰고, 그 궤적이 코드에 박혀 있다
-    세계에 생기는 것    ① 기술 정의가 모양을 지닌다 — 찌르기는 좁고 길게, 횡베기는
-                          넓게 (SK-EX §5.2 의 형상)
-                       ② 닿는 것을 고르는 판정이 그 모양을 읽는다 — 규칙은 기술
-                          이름을 묻지 않는다 (SK §7)
-                       ③ 모양이 관찰에 실린다 — 무엇에 왜 닿았는지 설명된다
-    이 기능이 아닌 것   **새 실행 형태가 아니다** — 투사체 · 장판 · 광선은 여기 없다.
-                       그 셋은 세계에 **몸이 아닌 존재**가 먼저 서야 하고, 그것을
-                       요구하는 Possibility 가 아직 없다 (Q35).
-                       여럿을 동시에 치는 것 자체가 목적이 아니다 — 모양의 결과로
-                       그렇게 될 뿐이다.
-                       대상 기준의 갈래를 세우는 일도 아니다 — SK §3 이 그 갈래(자기 · 고른 것 ·
-                       방향 · 세계의 한 자리)를 공급했으나, 이 후보가 쓰는 것은 지금
-                       세계에 이미 있는 방향 기준 하나뿐이다.
-                       새 기술을 여럿 만드는 일이 아니다 — 값이 다른 둘이면 족하다
-    이미 있는 것        코드 대조 — 궤적 판정이 이미 한 자리에 있다
-                       (`world/semantic/collision.ts` — 휘두른 무기 끝이 훑는 궤적 안의
-                       몸만 맞는다). 기술 정의도 이미 값을 지닌다
-                       (`world/semantic/combat.ts` 의 `SKILL_DEFINITIONS` — 위력 · 길이 ·
-                       구간 경계). C019 가 구간 경계를 전역 상수에서 정의로 내린 것이
-                       **이 후보와 똑같은 형태의 선례**다.
-                       **없는 것은 모양 자체**다 — 반경 · 각도 · 길이가 코드 상수다
-    Playable Result    좁고 길게 찌르는 기술과 넓게 베는 기술이 실제로 다르게 닿는다 —
-                       하나는 정면의 먼 것에, 하나는 옆의 여럿에
-    Observable Result  기술마다 다른 모양이 관찰에 실리고, 같은 자리에 선 상대가 기술에
-                       따라 맞기도 하고 안 맞기도 한다
-    Source Goal        MG-EXPLORE-BEIRA
-    Source Possibility MP-OUTGROW-THE-OPPONENT 외 — MC-COMBAT-STRIKE 를 요구하는 전투
-                       갈래 전부가 이 노드를 지난다
-    Missing / Partial  **MC-COMBAT-STRIKE 의 확장** (overlay: IMPLEMENTED).
-                       새 Capability 를 세우지 않는다 — 이 후보가 닫는 것은 그 노드에
-                       걸린 `DC-SKILL-IS-COMBINATION-NOT-NAME: UNRESOLVED` 다
-                       (휘두름의 모양이 아직 규칙 코드에 있다)
-    원본 근거          SK §5 (근접 공격 = 접촉) · §7 (규칙은 이름을 묻지 않는다) ·
-                       §12 수용 기준 3 · 15 · SK-EX §5.2 (형상) · §8.1 (접촉) ·
-                       open-questions Q35 ("휘두름의 모양을 정의로 꺼내는 일이
-                       선행 작업이 된다")
-    Active Constraints DC-SKILL-IS-COMBINATION-NOT-NAME · DC-SKILL-COMBINE-BEFORE-NEW-FORM ·
-                       DC-COMBAT-ONE-FORMULA · DC-COMBAT-PLAYER-CAUSALITY ·
-                       DC-WORLD-OWNS-THE-SURFACE-LIST
-    Constraint Eval    SATISFIED — 모양을 값으로 내리는 것이 IS-COMBINATION-NOT-NAME 이
-                       요구하는 형태 그 자체다. 새 형태를 만들지 않고 파라미터로 푸는
-                       것이므로 COMBINE-BEFORE-NEW-FORM 과도 맞는다(SK §6-2 의 정석 사례).
-                       피해 공식은 한 글자도 건드리지 않는다(ONE-FORMULA).
-                       모양은 결정적이므로 같은 자리·같은 기술이면 같은 결과다
-    Why one Cycle      모양을 정의로 내리는 것과 판정이 그것을 읽는 것은 한 몸이다.
-                       정의에만 두면 아무 일도 일어나지 않고, 판정만 고치면 읽을 값이 없다
-    7 조건             1 **노드 아님 — 기존 노드의 확장이다.** 다만 그 노드에 걸린
-                       Constraint 판정이 UNRESOLVED 이므로 결손은 실재한다 ·
-                       2 전투 갈래 전부의 바닥을 넓힌다 · 3 실측 가능 · 4 한 Cycle ·
-                       5 새 World 규칙(모양이 데이터다) · 6 양립 ·
-                       7 이후 모든 전달 형태가 이 형상 축을 재사용한다
-    의존               **없다.** 아이템 축과 겹치지 않는다 — 이것이 이 후보를 다른
-                       세션에 맡길 수 있는 이유다 (README.md 병렬 규칙)
-    Status             SELECTED — C025 가 돈다 (Stage 8 실측 완료 · Human Play 확인 대기)
+하나뿐이던 `FR-THE-SHAPE-IS-DATA`(휘두름의 모양이 값이 된다)가 **C025 로 닫혔다** —
+결과와 배운 것은 [../feedback/C025-the-shape-is-data.md](../feedback/C025-the-shape-is-data.md)
+가 소유한다.
 
 ## 추천 순서 (Agent 제안 — 확정은 Human)
 
-후보가 하나이고 그것이 돌고 있다. 다음 전투 후보는 C025 가 닫힌 뒤의 NEXT 몫이다.
+제안할 것이 없다. 다음 COMBAT Cycle 은 **MASTER 레인의 OPTIONS 작업이 후보를 낳은
+뒤에** 열린다 — 그 자리는 아래 "지금 열 수 없는 것" 의 첫 줄(Q35 — 몸이 아닌 존재를
+요구하는 Possibility)이다.
 
 ## SELECTED
 
 ```text
-없음 — C025 가 닫혔다. FEEDBACK 반영 대기
+없음 — 후보 0. MASTER 의 OPTIONS(Q35)가 먼저다
 ```
-
-    `FR-THE-SHAPE-IS-DATA` 는 **C025-the-shape-is-data 로 닫혔다** — Gate 15항 전부 충족
-    (Human Play 확인 완료 · C025 08-verification.md STATUS COMPLETE).
-
-    **이 후보 블록과 "한눈에 보기" 줄은 아직 지우지 않았다** — 소진된 후보를 지우고 결과를
-    `feedback/C025.md` 로 옮기는 것은 FEEDBACK 레인이 병합 뒤 최신 main 위에서 하는 일이다
-    (guides/master-feedback.md Do 2). 그 작업이 돌기 전까지 이 파일은 "닫혔으나 아직
-    반영되지 않았다" 를 그대로 보여 준다.
-
-    **그 반영이 끝나면 이 트랙에 후보가 하나도 남지 않는다.** 다음 COMBAT Cycle 을 열려면
-    MASTER 레인의 OPTIONS 작업이 먼저다 — 아래 "지금 열 수 없는 것" 의 Q35 가 그 자리다.
 
 ## 지금 열 수 없는 것
 
