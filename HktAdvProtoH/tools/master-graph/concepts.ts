@@ -34,12 +34,25 @@ export interface ConceptComposition {
   note: string;
 }
 
+export const RELATION_KINDS = ['part_of', 'kind_of', 'declares', 'holds'] as const;
+export type RelationKind = (typeof RELATION_KINDS)[number];
+
+export interface ConceptRelation {
+  from: string;
+  kind: RelationKind;
+  to: string;
+  note: string;
+  evidence: string; // 코드 앵커(경로#심볼) 또는 기획서 §
+  evidenceFound: boolean; // 코드 앵커면 실물 검사 결과, § 면 항상 true
+}
+
 export interface ConceptRegistry {
   status: string; // DRAFT …
   domain: string;
   concepts: Concept[];
   compositions: ConceptComposition[];
-  problems: string[]; // 모르는 Capability · 모르는 개념 · 깨진 앵커
+  relations: ConceptRelation[];
+  problems: string[]; // 모르는 Capability · 모르는 개념 · 깨진 앵커 · 어휘 밖 관계
 }
 
 function checkAnchor(projectRoot: string, ref: string): boolean {
@@ -52,7 +65,7 @@ function checkAnchor(projectRoot: string, ref: string): boolean {
 }
 
 export function loadConcepts(projectRoot: string, masterDir: string, graph: MasterGraph): ConceptRegistry {
-  const empty: ConceptRegistry = { status: '', domain: '', concepts: [], compositions: [], problems: [] };
+  const empty: ConceptRegistry = { status: '', domain: '', concepts: [], compositions: [], relations: [], problems: [] };
   const path = join(masterDir, 'graph', 'concepts.yaml');
   if (!existsSync(path)) return empty;
 
@@ -61,6 +74,7 @@ export function loadConcepts(projectRoot: string, masterDir: string, graph: Mast
     domain?: string;
     concepts?: Array<{ id?: string; name?: string; definition?: string; semantic?: string; anchors?: string[] }>;
     compositions?: Array<{ capability?: string; uses?: string[]; note?: string }>;
+    relations?: Array<{ from?: string; kind?: string; to?: string; note?: string; evidence?: string }>;
   };
 
   const problems: string[] = [];
@@ -95,8 +109,26 @@ export function loadConcepts(projectRoot: string, masterDir: string, graph: Mast
     compositions.push({ capability: m.capability, uses, note: (m.note ?? '').trim() });
   }
 
+  // 관계 — 어휘는 닫혀 있고, 양끝이 존재해야 하며, evidence 가 필수다.
+  // 코드 앵커 형태(경로#심볼)의 evidence 는 실물 검사를 통과해야 한다.
+  const relations: ConceptRelation[] = [];
+  for (const r of raw.relations ?? []) {
+    if (!r.from || !r.to) continue;
+    const kind = r.kind as RelationKind;
+    if (!RELATION_KINDS.includes(kind))
+      problems.push(`관계 ${r.from} → ${r.to}: 어휘 밖 종류 "${r.kind}" (닫힌 어휘: ${RELATION_KINDS.join(' · ')})`);
+    if (!byId.has(r.from)) problems.push(`관계: 모르는 개념 ${r.from}`);
+    if (!byId.has(r.to)) problems.push(`관계: 모르는 개념 ${r.to}`);
+    const evidence = (r.evidence ?? '').trim();
+    if (!evidence) problems.push(`관계 ${r.from} → ${r.to}: evidence 가 없다 — 발명 금지`);
+    const isCodeAnchor = evidence.includes('/');
+    const evidenceFound = isCodeAnchor ? checkAnchor(projectRoot, evidence) : evidence.length > 0;
+    if (isCodeAnchor && !evidenceFound) problems.push(`관계 ${r.from} → ${r.to}: 증거 앵커가 깨졌다 — ${evidence}`);
+    relations.push({ from: r.from, kind, to: r.to, note: (r.note ?? '').trim(), evidence, evidenceFound });
+  }
+
   for (const c of concepts)
     for (const a of c.anchors) if (!a.found) problems.push(`개념 ${c.id}: 앵커가 깨졌다 — ${a.ref}`);
 
-  return { status: raw.status ?? '', domain: raw.domain ?? '', concepts, compositions, problems };
+  return { status: raw.status ?? '', domain: raw.domain ?? '', concepts, compositions, relations, problems };
 }

@@ -10,6 +10,13 @@
 #   · 개념은 규칙을 소유하지 않는다 — 수치·공식·판정은 Cycle 소유다 (CLAUDE.md 원칙 18).
 #   · anchors 는 세계 코드의 실체다 (`경로#심볼`). 실체가 아직 없는 개념은 anchors 를
 #     비워 둔다 — 그 빈 칸이 곧 "기획은 말했는데 세계에 없다" 의 관찰이다.
+#   · relations 는 개념 사이의 구조다 — 어휘는 넷으로 닫는다 (다섯째는 Human 승인):
+#         part_of   A 는 B 의 부분이다 (필드·구간)
+#         kind_of   A 는 B 의 분류값이다
+#         declares  A 가 B 를 선언한다 (정의가 필드로 품거나, 데이터가 대응을 정한다)
+#         holds     A(자리·위치)가 B 를 담는다
+#     관계도 발명하지 않는다 — evidence(코드 앵커 또는 §)가 실물로 보여주는 관계만
+#     등록한다. 관계는 관찰이지 규칙이 아니다 (수치·판정은 여전히 Cycle 소유).
 #
 # 범위: 세계 전체 (Human 지시로 ITEM 파일럿에서 확장). 조합 미기재가 정직한 부류가
 # 둘 있다 — ① part_of.grounded: false 인 Capability (그 전체의 설계 문서가 없어 개념을
@@ -260,6 +267,68 @@ concepts:
       캐면 줄어든다. 몸 밖의 물건(CN-WORLD-ITEM)이 설 때 이 형태를 재사용한다.
     anchors:
       - content/proto-adventure/world/semantic/deposit.ts
+
+# ── 개념 사이의 관계 ─────────────────────────────────────────────────────
+# 세계의 존재론이 어떻게 짜여 있는가. 전부 코드 필드나 § 가 실물로 보여주는 관계다.
+
+relations:
+
+  # 코어 — 몸이 무엇을 지니는가
+  - { from: CN-ACTION,       kind: part_of,  to: CN-ACTOR,
+      evidence: content/proto-adventure/world/semantic/actor.ts#currentAction,
+      note: 존재가 지금 하는 행동을 지닌다 }
+  - { from: CN-ACTION-PHASE, kind: part_of,  to: CN-ACTION,
+      evidence: content/proto-adventure/world/semantic/combat.ts#skillPhase,
+      note: 구간은 행동 진행 안의 시점이다 }
+  - { from: CN-BODY-FACING,  kind: part_of,  to: CN-ACTOR,
+      evidence: content/proto-adventure/world/semantic/actor.ts#facing,
+      note: 향함은 몸의 값이다 }
+  - { from: CN-CP,           kind: part_of,  to: CN-ACTOR,
+      evidence: content/proto-adventure/world/semantic/actor.ts#cpMax,
+      note: 기력은 몸의 예산이다 }
+  - { from: CN-STAT-AXIS,    kind: part_of,  to: CN-ACTOR,
+      evidence: content/proto-adventure/world/semantic/actor.ts#physicalAttack,
+      note: 여덟 축의 기본값이 몸에 산다 — 판정은 유효 값을 다시 센다 }
+
+  # 전투 — 정의가 무엇을 선언하는가
+  - { from: CN-SKILL-SHAPE,  kind: part_of,  to: CN-SKILL-DEF,
+      evidence: content/proto-adventure/world/semantic/combat.ts#swingArc,
+      note: 모양(각·길이·반경)은 기술 정의의 필드다 — C025 }
+  - { from: CN-SKILL-DEF,    kind: declares, to: CN-ACTION-PHASE,
+      evidence: content/proto-adventure/world/semantic/combat.ts#swingBegin,
+      note: 구간의 경계를 전역 상수가 아니라 기술 정의가 지닌다 — C019 }
+  - { from: CN-SKILL-DEF,    kind: declares, to: CN-DAMAGE-TYPE,
+      evidence: content/proto-adventure/world/semantic/combat.ts#damageType,
+      note: 기술이 자기 피해 유형을 선언한다 }
+  - { from: CN-DAMAGE-TYPE,  kind: declares, to: CN-STAT-AXIS,
+      evidence: content/proto-adventure/world/semantic/combat.ts#DAMAGE_TYPE_STATS,
+      note: 유형이 대응하는 공격·방어 축을 정한다 — 상성의 뿌리 }
+
+  # 아이템 — 종류가 선언하고, 자리가 담는다
+  - { from: CN-ITEM-KIND,    kind: declares, to: CN-ITEM-USE,
+      evidence: content/proto-adventure/world/semantic/item.ts#ItemDefinition,
+      note: 용도(use)는 정의소의 필드다 — 없으면 그 물건은 쓸 수 없다 }
+  - { from: CN-ITEM-KIND,    kind: declares, to: CN-GRANT,
+      evidence: content/proto-adventure/world/semantic/item.ts#ItemEquip,
+      note: 기여(equip)는 정의소의 필드다 — 없으면 걸 수 없다 }
+  - { from: CN-MATERIAL,     kind: kind_of,  to: CN-ITEM-KIND,
+      evidence: content/proto-adventure/world/semantic/item.ts#ItemCategory,
+      note: 재료는 종류의 분류값이다 }
+  - { from: CN-INVENTORY-ROOM, kind: holds,  to: CN-ITEM-KIND,
+      evidence: content/proto-adventure/world/semantic/inventory.ts#Inventory,
+      note: 담을 자리가 종류와 수량을 담는다 }
+  - { from: CN-EQUIP-SLOT,   kind: holds,    to: CN-ITEM-KIND,
+      evidence: content/proto-adventure/world/semantic/equipment.ts#Equipment,
+      note: 걸 자리가 종류를 직접 담는다 — 담긴 곳을 가리키지 않는다 (IE §13.1) }
+  - { from: CN-RECIPE,       kind: declares, to: CN-MATERIAL,
+      evidence: 'IS §5.5',
+      note: 조합이 요구 재료를 선언한다 — 실체 없음, 문서만 있다 }
+  - { from: CN-RECIPE,       kind: declares, to: CN-ITEM-KIND,
+      evidence: 'IS §5.5',
+      note: 조합이 결과물 종류를 선언한다 }
+  - { from: CN-WORLD-ITEM,   kind: holds,    to: CN-ITEM-KIND,
+      evidence: 'IS §5.6 · IE §34',
+      note: 몸 밖의 자리가 종류·수량 묶음을 담는다 — 광맥(CN-DEPOSIT)이 그 형태의 선례 }
 
 # ── Capability = 개념의 조합 ─────────────────────────────────────────────
 # 각 Capability 가 어떤 개념들을 조합해 성립하는가. uses 의 개념이 전부 실체를 가지면

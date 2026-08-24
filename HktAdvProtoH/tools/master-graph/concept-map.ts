@@ -32,6 +32,7 @@ interface MapData {
     usedBy: string[];
   }>;
   capabilities: Array<{ id: string; overlay: string; semantic: string; uses: string[]; note: string }>;
+  relations: Array<{ from: string; kind: string; to: string; note: string; evidence: string; evidenceFound: boolean }>;
   uncomposed: Array<{ id: string; overlay: string }>;
 }
 
@@ -64,6 +65,7 @@ function buildData(graph: MasterGraph, registry: ConceptRegistry): MapData {
       usedBy: c.usedBy,
     })),
     capabilities,
+    relations: registry.relations,
     uncomposed,
   };
 }
@@ -85,6 +87,15 @@ ${css}
 .cm-node rect{stroke-width:1.4}
 .cm-node.dim{opacity:.22}
 .cm-edge{fill:none;stroke:var(--line);stroke-width:1.3}
+.cm-rel{fill:none;stroke-width:1.5;opacity:.85}
+.cm-rel.part_of{stroke:var(--world)}
+.cm-rel.kind_of{stroke:var(--actor);stroke-dasharray:5 3}
+.cm-rel.declares{stroke:var(--goal);stroke-dasharray:2 3}
+.cm-rel.holds{stroke:var(--know)}
+.cm-rel.hot{stroke-width:2.6;opacity:1}
+.cm-rel.dim{opacity:.1}
+.cm-legend{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:11px;color:var(--ink-2);padding:6px 16px 0}
+.cm-legend i{display:inline-block;width:18px;height:0;border-top:2px solid;vertical-align:middle;margin-right:5px}
 .cm-edge.hot{stroke:var(--poss);stroke-width:2}
 .cm-edge.dim{opacity:.12}
 .cm-col-label{font-size:11px;font-weight:700;letter-spacing:.07em;fill:var(--ink-3)}
@@ -103,6 +114,13 @@ ${css}
     <span><a href="graph-view.html">의미 축 전체 뷰어 →</a></span>
   </div>
 </header>
+<div class="cm-legend">
+  <span><i style="border-color:var(--world)"></i>부분이다 (part_of)</span>
+  <span><i style="border-color:var(--actor);border-top-style:dashed"></i>분류값이다 (kind_of)</span>
+  <span><i style="border-color:var(--goal);border-top-style:dotted"></i>선언한다 (declares)</span>
+  <span><i style="border-color:var(--know)"></i>담는다 (holds)</span>
+  <span><i style="border-color:var(--line)"></i>조합에 쓴다 (Capability →)</span>
+</div>
 <div class="cm-main">
   <div>
     <div id="map-wrap"><svg id="map"></svg></div>
@@ -124,7 +142,7 @@ ${css}
     IMPLEMENTED: ['var(--impl-bg)','var(--impl)'], PARTIAL: ['var(--part-bg)','var(--part)'],
     MISSING: ['var(--miss-bg)','var(--miss)'], '?': ['var(--panel-2)','var(--line)'],
   };
-  const W=220,H=34,VG=14,COLGAP=300,TOP=34,LEFT=16;
+  const W=220,H=34,VG=14,COLGAP=300,TOP=34,LEFT=72;
   const rows=Math.max(D.concepts.length,D.capabilities.length);
   const svg=document.getElementById('map');
   const width=LEFT*2+W*2+COLGAP, height=TOP+rows*(H+VG)+20;
@@ -145,6 +163,21 @@ ${css}
     const mx=(x1+x2)/2;
     s+='<path class="cm-edge" data-cn="'+cn+'" data-cap="'+cap.id+'" d="M'+x1+' '+y1+' C'+mx+' '+y1+' '+mx+' '+y2+' '+x2+' '+y2+'"/>';
   });});
+  // 개념 사이의 관계 — 왼쪽 열 안에서 왼쪽으로 볼록한 호. from → to 로 화살표.
+  s+='<defs>'+['world','actor','goal','know'].map((t)=>
+    '<marker id="ar-'+t+'" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto">'
+    +'<path d="M0 0 L8 4 L0 8 z" fill="var(--'+t+')"/></marker>').join('')+'</defs>';
+  const KIND_TONE={part_of:'world',kind_of:'actor',declares:'goal',holds:'know'};
+  D.relations.forEach((r,i)=>{
+    if(!cnY.has(r.from)||!cnY.has(r.to))return;
+    const y1=cnY.get(r.from)+H/2,y2=cnY.get(r.to)+H/2,x=LEFT;
+    const bulge=26+(i%4)*9;
+    s+='<path class="cm-rel '+r.kind+'" data-rfrom="'+r.from+'" data-rto="'+r.to+'"'
+      +' marker-end="url(#ar-'+(KIND_TONE[r.kind]||'world')+')"'
+      +' d="M'+x+' '+y1+' C'+(x-bulge)+' '+y1+' '+(x-bulge)+' '+y2+' '+x+' '+y2+'"><title>'
+      +esc(r.from+' —'+r.kind+'→ '+r.to+(r.note?' · '+r.note:''))+'</title></path>';
+  });
+
   // concept nodes
   D.concepts.forEach((c)=>{
     const y=cnY.get(c.id);
@@ -169,6 +202,7 @@ ${css}
   const detail=document.getElementById('detail');
   const byCn=new Map(D.concepts.map((c)=>[c.id,c]));
   const byCap=new Map(D.capabilities.map((c)=>[c.id,c]));
+  const KIND_LABEL={part_of:'…의 부분이다',kind_of:'…의 분류값이다',declares:'…을(를) 선언한다',holds:'…을(를) 담는다'};
   function chip(txt,ok){return '<span class="chip '+(ok?'ok':'hole')+'">'+esc(txt)+'</span>';}
   function refBtn(kind,id,label){return '<button class="ref" data-goto-kind="'+kind+'" data-goto="'+id+'">'+esc(label||id)+'</button>';}
   function showCn(id){
@@ -182,7 +216,24 @@ ${css}
         :chip('실체 없음',false)+' 기획서는 정의했는데 세계 코드에 대응물이 없다 — 이 빈 칸이 곧 선행 작업이다')
       +'</div></div>'
       +'<div class="field"><div class="k">이 개념을 쓰는 Capability</div><div class="v">'
-      +(c.usedBy.length?c.usedBy.map((x)=>refBtn('cap',x)).join(' '):chip('없음',false))+'</div></div>';
+      +(c.usedBy.length?c.usedBy.map((x)=>refBtn('cap',x)).join(' '):chip('없음',false))+'</div></div>'
+      +(function(){
+        const out=D.relations.filter((r)=>r.from===id),inn=D.relations.filter((r)=>r.to===id);
+        if(!out.length&&!inn.length)return '<div class="field"><div class="k">개념 사이의 관계</div>'
+          +'<div class="v"><span class="chip hole">등록된 관계 없음 — 고립 노드는 입도 재검토 신호일 수 있다</span></div></div>';
+        const row=(r,dir)=>{
+          const other=dir==='out'?r.to:r.from;
+          const label=dir==='out'?(KIND_LABEL[r.kind]||r.kind):('← '+r.kind);
+          const oc=byCn.get(other);
+          return '<li>'+(dir==='out'?'':'<span class="om">받음 · </span>')
+            +'<button class="ref" data-goto-kind="cn" data-goto="'+other+'">'+esc(oc?oc.name:other)+'</button>'
+            +' <span class="om">'+esc(dir==='out'?label:r.kind+' ← 이 개념이 대상')+'</span>'
+            +(r.note?'<br><span class="om">'+esc(r.note)+'</span>':'')
+            +'<br><span class="om">증거 '+esc(r.evidence)+(r.evidenceFound?'':' · 깨짐')+'</span></li>';
+        };
+        return '<div class="field"><div class="k">개념 사이의 관계</div><div class="v"><ul>'
+          +out.map((r)=>row(r,'out')).join('')+inn.map((r)=>row(r,'in')).join('')+'</ul></div></div>';
+      })();
     bind();
   }
   function showCap(id){
@@ -201,6 +252,9 @@ ${css}
   function bind(){detail.querySelectorAll('[data-goto]').forEach((b)=>{
     b.addEventListener('click',()=>b.dataset.gotoKind==='cn'?showCn(b.dataset.goto):showCap(b.dataset.goto));});}
   function focus(kind,id){
+    document.querySelectorAll('.cm-rel').forEach((e)=>{
+      const hit=kind==='cn'&&(e.dataset.rfrom===id||e.dataset.rto===id);
+      e.classList.toggle('hot',hit);e.classList.toggle('dim',!hit);});
     document.querySelectorAll('.cm-edge').forEach((e)=>{
       const hit=kind==='cn'?e.dataset.cn===id:e.dataset.cap===id;
       e.classList.toggle('hot',hit);e.classList.toggle('dim',!hit);});
@@ -212,7 +266,7 @@ ${css}
   }
   svg.addEventListener('click',(ev)=>{
     const g=ev.target.closest('.cm-node');
-    if(!g){document.querySelectorAll('.cm-edge,.cm-node').forEach((e)=>e.classList.remove('hot','dim'));
+    if(!g){document.querySelectorAll('.cm-edge,.cm-node,.cm-rel').forEach((e)=>e.classList.remove('hot','dim'));
       detail.innerHTML='<div class="empty">개념이나 Capability 를 고르면 그 조합만 밝아지고 원문이 여기 열린다.</div>';return;}
     g.dataset.kind==='cn'?showCn(g.dataset.id):showCap(g.dataset.id);
   });
