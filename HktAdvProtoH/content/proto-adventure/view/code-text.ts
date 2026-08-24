@@ -37,6 +37,8 @@ const CODE_TEXT: Record<string, string> = {
   // 표에 없는 종류는 코드 그대로 보인다 — 세계가 새 아이템을 정의해도 화면이 멈추지 않는다.
   'item.stone': '돌',
   'item.pickaxe': '곡괭이',
+  // C024 — 두 번째로 걸 수 있는 물건. **표에 한 줄이 늘 뿐이다**
+  'item.buckler': '손방패',
   // C023 — 걸어서 몸에 생긴 용도와 그것이 보태는 능력의 문구.
   // **표에 없으면 코드 그대로 보인다** — 세계가 새 용도나 새 능력을 보내도 화면은 멈추지 않고,
   // 그때 이 표에 한 줄이 는다 (DC-ITEM-KIND-IS-DATA-NOT-BRANCH 의 화면 쪽 자세).
@@ -62,7 +64,14 @@ const CODE_TEXT: Record<string, string> = {
   // 자리가 여섯이든 하나든 같은 답이다. 문구가 자리를 말하면 사람이 "다른 자리를
   // 보라" 로 읽는다 (03-world-semantic.md JUDGEMENT ②).
   'not-equippable': '걸 수 있는 물건이 아니다',
-  'no-empty-slot': '걸 자리가 남지 않았다 — 무엇을 풀어야 한다',
+  'no-empty-slot': '걸 자리가 남지 않았다 — 무엇을 풀거나 바꿔 껴야 한다',
+  // ── C024 교체 ──────────────────────────────────────────────────────
+  // `no-occupied-slot` 은 **가방 탓이 아니다** — 걸어 둔 것이 없다는 뜻이며,
+  // 그때 할 일은 덜어내는 것이 아니라 그냥 거는 것이다.
+  'no-occupied-slot': '바꿔 낄 것이 걸려 있지 않다 — 그냥 걸면 된다',
+  'slot-not-fit': '그 자리에는 걸리지 않는 물건이다',
+  // `unknown-slot` 은 C023 이 푸는 쪽에 이미 세웠다 (아래) — 겪는 일이 하나이므로
+  // 문구도 하나다. 교체가 그 사유를 함께 쓴다
   'slot-empty': '그 자리에 걸린 것이 없다',
   'unknown-slot': '그런 자리가 없다',
   'target-gone': '대상이 사라졌다',
@@ -184,6 +193,9 @@ const SHORT_TEXT: Record<string, string> = {
   'no-way-back': '되돌릴 수 없음',
   'not-equippable': '걸 수 없음',
   'no-empty-slot': '자리 없음',
+  // C024
+  'no-occupied-slot': '걸린 것 없음',
+  'slot-not-fit': '자리 안 맞음',
   'slot-empty': '빈 자리',
   'unknown-slot': '없는 자리',
   // 대상 (C017)

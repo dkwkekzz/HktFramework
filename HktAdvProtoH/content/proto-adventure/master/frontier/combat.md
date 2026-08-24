@@ -72,18 +72,23 @@
                        7 이후 모든 전달 형태가 이 형상 축을 재사용한다
     의존               **없다.** 아이템 축과 겹치지 않는다 — 이것이 이 후보를 다른
                        세션에 맡길 수 있는 이유다 (README.md 병렬 규칙)
-    Status             PROPOSED
+    Status             SELECTED — C025 가 돈다 (Stage 8 실측 완료 · Human Play 확인 대기)
 
 ## 추천 순서 (Agent 제안 — 확정은 Human)
 
-후보가 하나다. 작고, 선례가 있고(C019 가 같은 형태로 구간 경계를 정의로 내렸다),
-방금 Active 가 된 원칙의 UNRESOLVED 하나를 닫는다.
+후보가 하나이고 그것이 돌고 있다. 다음 전투 후보는 C025 가 닫힌 뒤의 NEXT 몫이다.
 
 ## SELECTED
 
 ```text
-없음 — Human 선택 대기
+FR-THE-SHAPE-IS-DATA — 휘두름의 모양이 값이 된다
+C025-the-shape-is-data 가 돈다 (Stage 8 실측 완료 · Human Play 확인 대기)
 ```
+
+    **이 트랙은 아직 소진되지 않았다.** 여덟 Stage 의 실측은 끝났고 Gate 15항 중 열넷이
+    충족이다. 남은 하나가 `인간이 실제 게임에서 Cycle Goal 달성을 확인했다` 이며, 기계가
+    실제 세계 프로세스와 실제 브라우저로 같은 각본을 돌렸어도 그것을 대신하지 않는다.
+    확인되면 이 후보를 지우고 결과를 Feedback 으로 옮긴다 (C025 08-verification.md).
 
 ## 지금 열 수 없는 것
 

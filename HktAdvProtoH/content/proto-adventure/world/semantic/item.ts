@@ -13,10 +13,13 @@
 import type { DamageType } from './combat';
 import type { EquipSlotId } from './equipment';
 
-export type ItemKind = 'stone' | 'pickaxe';
+export type ItemKind = 'stone' | 'pickaxe' | 'buckler'; // C024 — buckler 가 는다
 
 /** 분류 — 의미 코드다. 문구 변환도 화면에서의 묶음도 View 책임 */
-export type ItemCategory = 'material' | 'tool' | 'consumable';
+// C024 CHANGED — `gear` 가 는다 (IS §180 "장비·소비재·재료").
+// **표시용 분류이며 세계의 어떤 판정도 이 값을 묻지 않는다** — 지금도 묻는 곳이 0건이고
+// 이 Cycle 도 만들지 않는다. 화면은 이 값을 표시 표에 쓰며 모르는 분류에는 표시가 없다.
+export type ItemCategory = 'material' | 'tool' | 'consumable' | 'gear';
 
 /**
  * 용도 — 이 물건이 지닌 몸에게 **무엇을 할 수 있게 하는가**.
@@ -203,6 +206,30 @@ export const ITEM_CATALOG: Readonly<Record<ItemKind, ItemDefinition>> = {
     // 이 하나로 **용도와 값 둘 다** 관찰된다 — 걸어야 캐지고, 걸면 값이 달라진다.
     // 그래서 이 Cycle 은 새 장비 종류를 하나도 세우지 않는다.
     equip: { contributions: { physicalAttack: 12 } },
+  },
+  // 손방패 — 곡괭이와 같은 사정의 물건이다. 문명권에서 만든 평범한 것이고, 상위 정의가
+  // 없다 (Q36 이 그 자리를 열어 두고 있다 · 03-world-semantic.md JUDGEMENT ③).
+  //
+  // C024 ADDED — **두 번째로 걸 수 있는 물건이다.** 이 하나가 없으면 교체의 관찰이
+  // 성립하지 않는다: 같은 종류끼리의 교체는 아무것도 바꾸지 않으므로 "새것의 것만 있고
+  // 헌것의 것은 없다" 를 확인할 방법이 없다.
+  //
+  // **용도를 주지 않는다** (uses 가 비었다). 그래서 곡괭이를 밀어내는 교체는 그 자리에서
+  // 캘 수 없게 만들고, 그 잃음이 교체가 선택임을 만든다.
+  //
+  // **쓸 수 없다** (use 가 없다). 걸 수만 있는 물건이 세계에 처음 생긴다 — 곡괭이는
+  // 쓸 수도 걸 수도 있었으므로 그 둘이 서로 다른 축임이 이 물건으로 관찰된다.
+  //
+  // armor +15 — rabbit-swordsman 의 기본 armor 50 의 30% 이며, 곡괭이가 물리 공격 40 에
+  // 주는 비율과 같다. 두 물건의 무게를 같게 두어 "무엇을 걸까" 가 값의 크기 비교가 아니라
+  // **무엇을 할 것인가**의 선택이 되게 한다 (03-world-semantic.md BALANCE).
+  buckler: {
+    category: 'gear',
+    // 걸 수 있는 것은 겹치지 않는다 — 아래 불변 조건이 강제한다 (IE §13.1).
+    // 이 1 이 교체의 순 증가 0 을 낳는다 (03-world-semantic.md RATIONALE 3).
+    stackLimit: 1,
+    uses: [],
+    equip: { contributions: { armor: 15 } },
   },
 };
 

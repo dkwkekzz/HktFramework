@@ -14,6 +14,7 @@
     "master:graph": "tsx tools/master-graph/build.ts",
     "master:graph:check": "tsx tools/master-graph/build.ts --check",
     "feedback:gate": "tsx tools/feedback-gate/check.ts",
+    "surface:lab": "tsx tools/surface-lab/build.ts",
     "boundary:check": "tsx tools/boundary/check.ts",
     "fx:lab": "node tools/fx-lab/test/lab-smoke.js",
     "fx:shot": "node tools/fx-lab/test/fx-shot.js",

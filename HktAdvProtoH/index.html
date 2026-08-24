@@ -230,6 +230,72 @@
     .cc-hline code { color: #c3cbdc; }
     .cc-hline.cc-ok span { color: #6fd07f; }
     .cc-hline.cc-no span { color: #ff9a9a; }
+    /* ── 겹침 표면 (기반 capability — engine/view-kernel/hud/surface.ts) ──
+       이 규칙들은 무엇의 목록인지 모른다. 칸과 줄과 초점과 상태를 그릴 뿐이다. */
+    #surfaces { position: absolute; inset: 0; pointer-events: none; z-index: 45; }
+    .sf {
+      display: none;
+      position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+      width: min(680px, calc(100% - 32px)); max-height: min(72vh, 640px);
+      overflow-y: auto;
+      background: rgba(10, 13, 20, 0.96);
+      border: 1px solid #2c3648; border-radius: 10px;
+      padding: 12px 14px 10px;
+      font-size: 12.5px; color: #d6dcea; pointer-events: auto;
+    }
+    .sf.sf-open { display: block; }
+    .sf-head { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+    .sf-title { flex: 1; margin: 0; font-size: 14px; color: #eaf0ff; font-weight: 700; }
+    .sf-close {
+      flex: 0 0 auto; width: 34px; height: 30px;
+      background: #1b2230; border: 1px solid #2c3648; border-radius: 4px;
+      color: #b9c3d6; font: inherit; font-size: 13px; line-height: 1; cursor: pointer;
+    }
+    .sf-section { margin-bottom: 12px; }
+    .sf-section:last-child { margin-bottom: 0; }
+    /* 대소문자를 건드리지 않는다 — 세계가 보낸 코드가 그대로 보여야 하고,
+       text-transform 은 모르는 코드(moonshard)를 MOONSHARD 로 바꿔 버린다 */
+    .sf-section-title {
+      color: #7f8aa0; font-size: 10.5px; letter-spacing: 0.06em; margin-bottom: 6px;
+    }
+    .sf-empty { color: #6f7a90; font-style: italic; padding: 6px 0; }
+    /* 칸 — 빈 칸도 그린다. 남은 자리가 자리로 읽혀야 한다 */
+    .sf-cells {
+      display: grid; gap: 6px;
+      grid-template-columns: repeat(var(--sf-columns, 6), minmax(0, 1fr));
+    }
+    .sf-cell {
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 2px; min-height: 58px; padding: 6px 4px;
+      background: #141a26; border: 1px solid #2c3648; border-radius: 6px;
+      color: #d6dcea; font: inherit; cursor: pointer; text-align: center;
+    }
+    /* 빈 자리는 **색만으로** 구분되지 않는다 — 테두리 모양도 함께 달라진다 */
+    .sf-cell[data-empty="true"] {
+      background: transparent; border-style: dashed; border-color: #232c3c; cursor: default;
+    }
+    .sf-cell[data-selected="true"] { border-color: #9dcaff; background: #1a2536; }
+    /* 초점 링은 고른 것과 **다른 자리**에 그린다 — 둘은 다른 것이다 */
+    .sf-cell[data-focused="true"] { outline: 2px solid #ffd98a; outline-offset: 2px; }
+    .sf-cell-text { color: #eaf0ff; font-size: 12px; line-height: 1.25; word-break: break-all; }
+    .sf-cell-detail { color: #9fa9bd; font-size: 11px; }
+    /* 줄 — 되는 것도 안 되는 것도 여기 선다 */
+    .sf-rows { display: flex; flex-direction: column; gap: 2px; }
+    .sf-row { display: flex; align-items: baseline; gap: 8px; padding: 3px 4px; border-radius: 4px; }
+    .sf-row[data-focused="true"] { outline: 2px solid #ffd98a; outline-offset: -1px; }
+    .sf-row-badge { flex: 0 0 auto; width: 12px; text-align: center; }
+    .sf-row-text { flex: 1; }
+    .sf-row-hint { color: #7f8aa0; font-size: 11px; }
+    .sf-row[data-state="available"] .sf-row-badge { color: #6fd07f; }
+    .sf-row[data-state="blocked"] { opacity: 0.62; }
+    .sf-row[data-state="blocked"] .sf-row-badge { color: #ff9a9a; }
+    .sf-row[data-state="pending"] .sf-row-badge { color: #ffd98a; }
+    .sf-foot {
+      display: flex; flex-wrap: wrap; gap: 12px; margin-top: 10px; padding-top: 8px;
+      border-top: 1px solid #1b2230; color: #7f8aa0; font-size: 11px;
+    }
+    /* 움직임을 줄이라고 한 사람에게는 줄인다 */
+    @media (prefers-reduced-motion: reduce) { .sf { transition: none; } }
     /* 닫는 자리 — Escape 가 없는 기기에서도 표면을 닫을 수 있어야 한다 */
     .cc-close {
       flex: 0 0 auto; width: 34px; height: 30px;
@@ -341,6 +407,12 @@
       .hud-toast { bottom: calc(214px + env(safe-area-inset-bottom)); font-size: 18px; }
 
       /* 명령 표면 — 기기 자판이 올라와도 쓰는 줄과 목록이 가려지지 않아야 한다 */
+      .sf {
+        left: calc(8px + env(safe-area-inset-left));
+        right: calc(8px + env(safe-area-inset-right));
+        top: calc(8px + env(safe-area-inset-top));
+        width: auto; transform: none; max-height: 62vh;
+      }
       #command-console {
         left: calc(8px + env(safe-area-inset-left));
         right: calc(8px + env(safe-area-inset-right));

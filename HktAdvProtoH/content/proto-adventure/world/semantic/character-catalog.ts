@@ -61,7 +61,11 @@ export interface CharacterDefinition {
   tempo: TempoSpec;
   resources: ResourceSpec;
   combat: CombatSpec; // C010
-  attackRange: number; // RULE-ATTACK-001 Precondition 2 의 거리 한계
+  // C025 CHANGED — 이름이 뜻을 따라간다. 이 값은 더 이상 칼끝이 닿는 길이의 출처가
+  // 아니다 (그것은 SkillDefinition.SwingReach 가 지닌다). 남은 뜻은 하나 —
+  // **스스로 판단하는 존재가 상대에게 얼마나 다가가는가** (RULE-NPC-DECIDE-001).
+  // 그 자리에서 어느 기술이든 닿는다는 보장은 RULE-ENGAGEMENT-REACHES-001 이 진다.
+  engagementRange: number;
   perceptionRange: number; // RULE-NPC-DECIDE-001 의 인지 거리 — control = autonomous 일 때만 의미
   // C016 ADDED — 통찰. combat 안에 두지 않는다: 겨루는 힘이 아니라 아는 힘이며
   // 가려지는 목록(CONCEALABLE_ATTRIBUTE_KEYS)에 들어가지 않기 때문이다.
@@ -109,7 +113,7 @@ export const CHARACTER_CATALOG: Readonly<Record<string, CharacterDefinition>> = 
       criticalChance: 0.25,
       criticalDamage: 2.0,
     },
-    attackRange: 2.0,
+    engagementRange: 2.0,
     perceptionRange: 9.0,
     // C016 — 0 으로 시작한다. 기른 적이 없는 눈이며, 이 값이 0 인 동안
     // 세계는 C015 와 한 톨도 다르지 않다 (03 BALANCE · Regression 기준).
@@ -140,7 +144,7 @@ export const CHARACTER_CATALOG: Readonly<Record<string, CharacterDefinition>> = 
       criticalChance: 0,
       criticalDamage: 1.0,
     },
-    attackRange: 2.0,
+    engagementRange: 2.0,
     perceptionRange: 9.0,
     // C016 — 자율 존재는 이 값을 쓰지 않는다. 그들은 관찰 계약이 아니라
     // 세계 상태를 직접 읽으므로 가려짐 관문 밖이다 (RULE-NPC-DECIDE-001 무변경).
@@ -167,7 +171,7 @@ export const DEFAULT_CHARACTER: CharacterDefinition = {
     criticalChance: 0,
     criticalDamage: 1.0,
   },
-  attackRange: 2.0,
+  engagementRange: 2.0,
   perceptionRange: 9.0,
   insight: 0,
 };

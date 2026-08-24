@@ -4,65 +4,22 @@
 판단은 [README.md](README.md), 읽는 법은 guides/master-frontier.md 소유다.
 
     기준 Overlay   master/overlay.md — 아이템의 바닥(C020) · 자리의 유한함(C022) ·
-                   적용(C023) 까지 닫혔다. 아이템(IS) · 인벤토리(IE) 주입 반영
+                   적용(C023) · **교체(C024)** 까지 닫혔고, **C026 으로 그 넷에 닿는
+                   자리가 생겼다** (표에는 줄도 상태도 늘지 않는다).
+                   **MC-EQUIP-ITEM 이 IMPLEMENTED 다.**
+                   아이템(IS) · 인벤토리(IE) 주입 반영
 
 ## 한눈에 보기
 
 | FR | 기능 | 이것이 무엇인가 | 세계에 없는 것 | 크기 |
 |---|---|---|---|---|
-| FR-ONE-SLOT-ONE-ITEM | **한 자리에는 하나** | 이미 찬 자리에 다른 것을 걸면 빼기와 걸기가 한 번에 일어난다. 가방이 가득해도 바꿔 끼우는 것은 된다 | 교체라는 단위 · 가득 찬 상태의 비대칭 | 작음 |
 | FR-SEE-BEFORE-YOU-WEAR | **걸기 전에 안다** | 걸면 무엇이 어떻게 달라지는지를 걸기 전에 세계가 계산해 보여 준다 | 적용하지 않은 채 계산한 결과 | 아주 작음 |
 | FR-ARRANGE-WHAT-YOU-CARRY | **자리를 손으로 정리한다** | 담긴 것을 옮기고 맞바꾸고 겹친 것을 나누고 정렬한다 | 자리 사이의 이동 · 나누기 · 정렬 | 작음 |
 | FR-MATERIALS-BECOME-SOMETHING-ELSE | **재료가 다른 것이 된다** | 가진 재료를 정해진 조합으로 다른 것으로 바꾼다 | 제작법이라는 데이터와 그것을 평가하는 자리 | 중간 |
 | FR-THINGS-LIE-IN-THE-WORLD | **물건이 몸 밖에 놓인다** | 아이템이 누구의 것도 아닌 채로 세계의 한 자리에 놓인다 | 위치를 가진 아이템 · 줍기 · 버리기 · 소유 · 소멸 | 큼 |
+| FR-THE-PLACES-ARE-NARROWER-THAN-WHAT-YOU-WEAR | **자리가 걸 것보다 좁아진다** | 걸 수 있는 것이 늘거나 자리가 줄어 "무엇을 걸까" 가 비로소 고르는 일이 된다 | 자리와 걸 것 사이의 **경쟁** — 지금은 여섯 자리에 걸 것이 둘이다 | 작음 |
 
 ## 후보
-
-### FR-ONE-SLOT-ONE-ITEM — 한 자리에는 하나
-
-    이것이 무엇인가    한 자리에는 하나만 있다. 이미 찬 자리에 다른 것을 걸면 빼는 것과
-                       거는 것이 **한 번**에 일어난다. 플레이어에게 그것은 두 동작이
-                       아니라 하나다
-    세계에 생기는 것    ① 교체가 하나의 성공 단위다 — 둘 중 하나가 성립하지 않으면
-                          아무것도 일어나지 않는다 (IE §17 · Invariant 5)
-                       ② 가득 찬 가방에서의 **비대칭** — 그냥 푸는 것은 담을 곳이 없어
-                          막히고, 바꿔 끼우는 것은 된다. 나온 것이 들어간 것의 자리를
-                          쓰기 때문이다 (IE §15 · §16.1)
-                       ③ 그 둘의 사유가 각각 다른 코드로 온다
-    이 기능이 아닌 것   걸기·풀기 자체가 아니다 (**C023 이 세웠다**).
-                       자리 수를 늘리는 것이 아니다.
-                       끌어다 놓는 조작이 아니다 — 그것은 표면이다 (IE §18~§20 `[VIEW]`).
-                       가방 안에서 자리를 바꾸는 것도 아니다 (FR-ARRANGE-WHAT-YOU-CARRY)
-    이미 있는 것        **C023 이 세운 적용 전부.** 그리고 C020 이 세운 "검증 → 효과 →
-                       소모가 한 단위" 형태(`world/rules/item-use.ts`)가 원자성의
-                       선례로 이미 있다 — 시작과 완료 사이에 세계가 움직였을 수 있으므로
-                       완료 시점에 다시 검증한다는 것까지 같다
-    Playable Result    가방이 가득 차 있어도 걸고 있던 것을 새것으로 바꿔 낄 수 있다.
-                       같은 상태에서 그냥 풀려고 하면 자리가 없다는 사유가 온다
-    Observable Result  교체 뒤 새것의 효과만 있고 옛것의 효과는 없다. 실패한 교체는
-                       걸린 것도 지닌 것도 값도 바꾸지 않는다
-    Source Goal        MG-EXPLORE-BEIRA
-    Source Possibility MP-ADAPT-BY-RESOURCE
-    Missing / Partial  **MC-EQUIP-ITEM (PARTIAL — C023)** — 이 후보가 그 노드의
-                       world_shape 마지막 두 문장을 닫는다
-    원본 근거          IE §15 · §16 · §16.1 · §17 · §46 Test 07 · Test 09 · Test 10 ·
-                       §48 (Cycle 2) · §49 P7
-    Active Constraints DC-ITEM-CHANGE-IS-ONE-UNIT · DC-ITEM-LIVES-IN-ONE-PLACE ·
-                       DC-ITEM-CAPACITY-IS-FINITE · DC-WORLD-OWNS-THE-SURFACE-LIST
-    Constraint Eval    SATISFIED — 교체가 전부 아니면 전무이고(ONE-UNIT), 옮기는 중에도
-                       한 물건은 한 곳에 있으며(LIVES-IN-ONE-PLACE), 왜 되고 왜 안 되는지를
-                       세계가 싣는다(SURFACE-LIST)
-    Why one Cycle      비대칭 하나가 이 후보의 전부다 — "가득 차면 못 풀지만 바꿔 끼울
-                       수는 있다". 그 한 문장이 성립하면 닫힌다
-    7 조건             1 MC-EQUIP-ITEM 이 PARTIAL · 2 같은 갈래를 전진 · 3 실측 가능 ·
-                       4 한 Cycle · 5 새 World 규칙(교체라는 단위) · 6 양립 ·
-                       7 이후 모든 자리 조작이 이 원자성을 재사용
-    의존               **없다 — C023 이 그 앞을 세웠다.** 걸린 것이 있으므로 바꿔 낄
-                       대상이 세계에 있다. 지금 찬 자리에 걸려 하면 `no-empty-slot` 으로
-                       거절되며, 그것을 성공 경로로 바꾸는 것이 이 후보다.
-                       IE §48 은 원래 이것을 장착과 같은 Cycle 에 두었다 —
-                       C023 이 앞 절반만 닫았으므로 이 후보가 그 나머지다
-    Status             PROPOSED
 
 ### FR-SEE-BEFORE-YOU-WEAR — 걸기 전에 안다
 
@@ -80,7 +37,12 @@
                        같은 함수를 걸지 않은 상태에 한 번 더 돌리는 일이다
                        (Q33 이 재계산을 prefers 로 올린 것이 이 후보를 싸게 만든다).
                        그리고 "무엇이 왜 안 되는가" 를 관찰에 싣는 형태는 C017 · C020 이
-                       이미 세웠다
+                       이미 세웠다.
+                       **C024 가 고를 거리를 만들었다** — 걸 수 있는 것이 둘이 되었고
+                       바꿔 끼는 길이 났으므로, 미리 보는 값이 비교할 대상을 갖는다.
+                       **C026 이 그 값을 놓을 자리를 만들었다** — 고른 물건 하나의 상세가
+                       뜨는 표면이 섰으므로, 미리 본 값이 설 곳을 이 후보가 새로 짓지
+                       않는다. 세계 쪽 계산 하나만 더하면 된다
     Playable Result    둘 중 무엇을 걸지, 걸기 전에 값이 어떻게 달라지는지 보고 고른다
     Observable Result  고른 물건마다 지금 값과 걸었을 때의 값이 함께 온다.
                        실제로 걸면 미리 본 값과 같은 값이 나온다
@@ -88,19 +50,20 @@
     Source Possibility MP-ADAPT-BY-RESOURCE
     Missing / Partial  **Capability 노드를 목표로 삼지 않는다** — 미리 보기는 할 수 있는
                        일을 늘리는 것이 아니라 이미 할 수 있는 일의 결과를 앞당겨
-                       보여 준다. FR-ONE-SLOT-ONE-ITEM 과 같은 사유의 예외다
+                       보여 준다. FR-ARRANGE-WHAT-YOU-CARRY 와 같은 사유의 예외다
     원본 근거          IE §37 · §21 · §48 (Cycle 2)
     Active Constraints DC-WORLD-OWNS-THE-SURFACE-LIST · DC-ITEM-HOLDING-IS-NOT-APPLYING
     Constraint Eval    SATISFIED — 미리 본 값도 세계가 계산해 싣는다(SURFACE-LIST).
                        미리 보는 것은 적용이 아니므로 몸은 한 톨도 바뀌지 않는다(HOLDING)
-    Why one Cycle      아주 작다. **FR-ONE-SLOT-ONE-ITEM 에 얹어 한 Cycle 로 돌아도 된다**
-                       — 따로 세운 것은 그것이 없어도 C023 이 완결되었기 때문이지,
+    Why one Cycle      아주 작다. **다른 작은 후보에 얹어 한 Cycle 로 돌아도 된다** —
+                       따로 세운 것은 그것이 없어도 C023·C024 가 완결되었기 때문이지,
                        별도 Cycle 이어야 해서가 아니다. 크기 판단은 Human 몫이다
     7 조건             1 노드 아님(위 사유) · 2 고르는 일을 판단으로 만든다 ·
                        3 실측 가능 · 4 한 Cycle · 5 **약함** — 새 규칙이라기보다 기존
                        계산의 관찰 확장이다. 이 칸이 약한 것을 감추지 않는다 ·
                        6 양립 · 7 이후 제작·성장의 "하면 어떻게 되는가" 가 재사용
-    의존               **없다 — C023 이 유효 값을 함수로 세웠다.**
+    의존               **없다 — C023 이 유효 값을 함수로 세웠고 C024 가 고를 거리를
+                       만들었다.**
     Status             PROPOSED
 
 ### FR-ARRANGE-WHAT-YOU-CARRY — 자리를 손으로 정리한다
@@ -119,15 +82,20 @@
                        자리 수를 바꾸는 것이 아니다.
                        장착 자리와는 무관하다 — 여기는 가방 안이다
     이미 있는 것        C022 가 세운 자리 · 겹침 한도 · 원자성 · 자리 관찰.
-                       이 후보는 그 위에 **배치를 바꾸는 행동**만 더한다
+                       이 후보는 그 위에 **배치를 바꾸는 행동**만 더한다.
+                       C026 이 그 결손을 화면에서 드러냈다 — 소지품 표면의 빈 칸들은
+                       서로 구별되지 않고 지목할 수도 없다. **세계에 번호 붙은 빈 자리가
+                       없기 때문이며**(C026 INTENT-EMPTY-ROOM-HAS-NO-ADDRESS-001), 그
+                       축을 세우는 것이 이 후보다. 표면은 이미 서 있으므로 이 후보가
+                       화면을 새로 짓지 않는다
     Playable Result    가득 찬 가방에서 흩어진 같은 종류를 한 자리로 모아 자리를 만든다
     Observable Result  옮긴 뒤의 배치가 그대로 보이고, 안 되는 조작은 사유가 온다.
                        정렬해도 걸어 둔 것은 흔들리지 않는다 (IE §46 Test 12)
     Source Goal        MG-EXPLORE-BEIRA
     Source Possibility MP-ADAPT-BY-RESOURCE
     Missing / Partial  **Capability 노드를 목표로 삼지 않는다** — 배치를 바꾸는 것은
-                       할 수 있는 일을 늘리지 않는다. FR-ONE-SLOT-ONE-ITEM ·
-                       FR-SEE-BEFORE-YOU-WEAR 와 같은 사유의 예외다
+                       할 수 있는 일을 늘리지 않는다. FR-SEE-BEFORE-YOU-WEAR 와 같은
+                       사유의 예외다
     원본 근거          IE §4 · §31 · §33 · §46 Test 12 · §48 (Cycle 1 의 남은 줄)
     Active Constraints DC-ITEM-CHANGE-IS-ONE-UNIT · DC-ITEM-LIVES-IN-ONE-PLACE ·
                        DC-WORLD-OWNS-THE-SURFACE-LIST · DC-ITEM-KIND-IS-DATA-NOT-BRANCH
@@ -139,8 +107,7 @@
                        5 **약함** — 새 게임 의미가 얇다. 이 둘이 약한 것을 감추지 않는다 ·
                        6 양립 · 7 이후 창고·거래가 같은 이동 규칙을 재사용
     의존               **없다 — C022 가 이미 섰다.** 장착과는 무관하므로
-                       FR-ONE-SLOT-ONE-ITEM · FR-SEE-BEFORE-YOU-WEAR 와 순서를 다툴
-                       이유가 없다.
+                       FR-SEE-BEFORE-YOU-WEAR 와 순서를 다툴 이유가 없다.
                        다만 **이 후보를 세울지 자체가 Human 결정 대기다** — open-questions
                        Q37 이 그것을 묻고 있고(자리에 이름을 줄 것인가), 이 후보가 그
                        질문의 (b) 안이다. Human 이 (a)(현행 유지)를 고르면 이 후보는 지운다
@@ -233,40 +200,96 @@
                        같은 행동인가). 그 답이 이 후보의 크기를 가른다
     Status             PROPOSED
 
+### FR-THE-PLACES-ARE-NARROWER-THAN-WHAT-YOU-WEAR — 자리가 걸 것보다 좁아진다
+
+    이것이 무엇인가    걸 수 있는 것이 자리보다 많아져서 **무엇을 걸까가 비로소 고르는
+                       일**이 된다. 지금은 자리가 여섯이고 걸 것이 둘이라 둘 다 걸 수
+                       있다 — 교체는 불편을 푸는 일이지 선택이 아니다
+    세계에 생기는 것    ① 자리와 걸 것 사이의 **경쟁** — 하나를 얹으면 하나를 내려야 한다
+                       ② 그 경쟁이 낳는 판단 — 지금 무엇을 하러 가는가에 따라 다른 것을
+                          건다. 걸 것이 상황마다 달라야 하므로 서로 **다른 종류의**
+                          기여를 주어야 한다 (같은 축의 크고 작음이면 큰 것만 남는다)
+                       ③ 자리 수와 걸 것의 수 사이의 값
+    이 기능이 아닌 것   교체가 아니다 (**C024 가 세웠다**) — 이 후보는 그 교체를 *써야만
+                       하게* 만드는 일이다.
+                       자리 잠금·해금이 아니다 (IE §40 — 성장 축이 선 뒤의 이야기다).
+                       장비 계통을 세우는 일이 아니다 — 무기·방어구의 갈래가 아니라
+                       **경쟁이 성립하는 최소 수**를 찾는 일이다
+    이미 있는 것        **C024 가 수단을 전부 세웠다.** 교체 · 지목 · 비대칭 · 관찰이
+                       이미 있고, 정의소에 항목이 늘어도 규칙과 계약이 열리지 않는 것도
+                       C024 가 손방패로 실증했다. 남은 것은 **값**뿐이다
+    Playable Result    걸 자리가 모자라서, 지금 하려는 일에 맞는 것을 골라 걸고 나머지는
+                       가방에 둔다. 하는 일이 바뀌면 걸린 것을 바꾼다
+    Observable Result  자리가 다 찬 채로 다른 것을 걸려 하면 무엇을 내릴지 고르게 되고,
+                       고른 것에 따라 할 수 있는 일과 값이 서로 다르게 달라진다
+    Source Goal        MG-EXPLORE-BEIRA
+    Source Possibility MP-ADAPT-BY-RESOURCE
+    Missing / Partial  **Capability 노드를 목표로 삼지 않는다** — MC-EQUIP-ITEM 은
+                       C024 로 IMPLEMENTED 다. 이 후보가 채우는 것은 그 노드의 detail 이
+                       말하는 조건("적용할 자리는 담을 칸보다 훨씬 좁아서, 무엇을 걸어
+                       둘지가 그 자체로 선택이 된다")이며 그것은 값의 문제다
+    원본 근거          IE §10 · §49 P3 · IS §5.4 · C024 08 MASTER GAP ②
+    Active Constraints DC-ITEM-CAPACITY-IS-FINITE · DC-ITEM-KIND-IS-DATA-NOT-BRANCH ·
+                       DC-ITEM-CAPABILITY-COMES-FROM-GRANTS
+    Constraint Eval    SATISFIED — 자리 수도 걸 것의 기여도 값이므로 규칙이 열리지 않는다
+                       (C024 가 그것을 실증했다). 유한함을 좁히는 방향이므로
+                       CAPACITY-IS-FINITE 와 같은 편이다
+    Why one Cycle      **어느 쪽을 움직일지가 이 Cycle 의 전부다** — 자리를 줄일 것인가,
+                       걸 것을 늘릴 것인가. 그 하나를 정하고 값을 넣으면 닫힌다.
+                       다만 걸 것을 늘리는 쪽이면 "서로 다른 축의 기여" 를 무엇으로 할지가
+                       함께 와서, 그 축이 세계에 있는 것들(공격·방어·관통·치명·통찰)로
+                       충분한지가 물음이 된다
+    7 조건             1 **노드 아님 — 기존 노드의 값이다** · 2 적응 갈래를 실제 선택으로
+                       만든다 · 3 실측 가능 · 4 한 Cycle · 5 **약함** — 새 World 규칙이
+                       아니라 값의 이동이다. 이 칸이 약한 것을 감추지 않는다 ·
+                       6 양립 · 7 이후 제작·성장이 만드는 것들이 이 경쟁 위에 얹힌다
+    의존               **없다 — C024 가 앞을 전부 세웠다.** 다만 걸 것을 늘리는 쪽으로
+                       가면 제작(FR-MATERIALS-BECOME-SOMETHING-ELSE)이 그 종류를
+                       **세계 안에서** 얻는 길을 뒤에 대 준다
+    Status             PROPOSED
+
 ## 추천 순서 (Agent 제안 — 확정은 Human)
 
 트랙 안의 순서는 Agent 가 정한 것이 아니라 **IS §6 이 이미 그은 것**이다 —
-바닥 → 장착 → 제작 → 세계의 아이템. 앞의 셋이 닫혔으므로 남은 것은 그 뒤다.
+바닥 → 장착 → 제작 → 세계의 아이템. **장착(교체까지)이 닫혔으므로** 남은 것은 그 뒤다.
+SEE-BEFORE 와 PLACES-NARROWER 가 나란한 것은 둘 다 장착을 **더 낫게 만드는** 일이지
+다음 칸이 아니기 때문이다.
 
 ```text
-  (바닥 C020 · 자리 C022 · 적용 C023 — 닫혔다)
+  (바닥 C020 · 자리 C022 · 적용 C023 · 교체 C024 — 닫혔다)
         ↓
-  FR-ONE-SLOT-ONE-ITEM              한 자리에는 하나
+  FR-SEE-BEFORE-YOU-WEAR      FR-THE-PLACES-ARE-NARROWER-THAN-WHAT-YOU-WEAR
+        ↓                            ↓
+        └────────┬───────────────────┘
+                 ↓
+  FR-MATERIALS-BECOME-SOMETHING-ELSE
         ↓
-  FR-SEE-BEFORE-YOU-WEAR            걸기 전에 안다
-        ↓
-  FR-MATERIALS-BECOME-SOMETHING-ELSE 재료가 다른 것이 된다
-        ↓
-  FR-THINGS-LIE-IN-THE-WORLD        물건이 몸 밖에 놓인다
+  FR-THINGS-LIE-IN-THE-WORLD
 
-  FR-ARRANGE-WHAT-YOU-CARRY         자리를 손으로 정리한다 ← 아무 때나. 순서가 자유롭다
+  FR-ARRANGE-WHAT-YOU-CARRY   ← 아무 때나. 순서가 자유롭다
 ```
 
 ```text
-ONE-SLOT · SEE-BEFORE   **C023 이 남긴 절반과 덤이다.** 교체는 MC-EQUIP-ITEM 을 PARTIAL 에서
-                        끝까지 밀고, 미리보기는 C023 이 세운 유효 값 재계산을 적용하지 않은
-                        채로 한 번 더 부르는 일이다. 둘 다 작고, 둘을 한 Cycle 로 묶어도 된다 —
-                        IE §48 의 Cycle 2 가 원래 셋을 한 묶음으로 그렸다
+PLACES-NARROWER  **C024 가 남긴 물음이다.** 교체라는 수단은 섰는데 그것을 써야 할 이유가
+                 아직 세계에 없다 — 자리가 여섯이고 걸 것이 둘이라 둘 다 걸린다.
+                 값 하나를 움직이는 일이라 작고, 그것이 서야 적응 갈래가 실제 선택이 된다.
+                 **Agent 추천 1순위** — 가장 싸게 게임 의미를 늘린다
 
-MATERIALS (제작)        C023 뒤. 만든 것이 쓸모를 가지려면 걸 수 있어야 한다 (IS §6) —
-                        이제 걸 수 있다
+SEE-BEFORE       **C023 이 남긴 덤이다.** 유효 값 재계산을 적용하지 않은 채로 한 번 더
+                 부르는 일이며, C024 가 고를 거리(걸 것 둘)를 만들어 이제 비교할 대상이
+                 있다. 아주 작고 PLACES-NARROWER 에 얹어 한 Cycle 로 돌아도 된다 —
+                 IE §48 의 Cycle 2 가 원래 이것들을 한 묶음으로 그렸다
 
-THINGS-LIE (세계의      후보 중 여는 것이 가장 넓다 — 전리품 · 드롭 · 거래 · C017 의 미도달
-   아이템)              규칙이 전부 이 위에 얹힌다. 대신 가장 크다. IE §35 의 앞칸도 C023 이 섰다
+MATERIALS        장착 뒤. 만든 것이 쓸모를 가지려면 걸 수 있어야 한다 (IS §6) —
+                 이제 걸 수 있고 **바꿔 낄 수도 있다.** PLACES-NARROWER 를 먼저 세우면
+                 만든 것이 곧바로 경쟁에 들어간다
 
-ARRANGE (자리 정리)     7 조건 2·5 가 약하다 — 새 게임 의미보다 편의 쪽이다. 급하지 않고,
-                        **세울지 자체가 Q37 의 답을 기다린다.** 다만 화면 쪽에서 타일뷰·드래그를
-                        하려면 이 후보가 세우는 "칸 인덱스" 가 있어야 한다 (C023 08 다음으로 넘기는 것 ②)
+THINGS-LIE       후보 중 여는 것이 가장 넓다 — 전리품 · 드롭 · 거래 · C017 의 미도달
+                 규칙이 전부 이 위에 얹힌다. 대신 가장 크다. IE §35 의 앞칸도 C023 이 섰다
+
+ARRANGE          7 조건 2·5 가 약하다 — 새 게임 의미보다 편의 쪽이다. 급하지 않고,
+                 **세울지 자체가 Q37 의 답을 기다린다.** 다만 화면 쪽에서 타일뷰·드래그를
+                 하려면 이 후보가 세우는 "칸 인덱스" 가 있어야 한다 (C023 08 다음으로 넘기는 것 ②)
 ```
 
 ## SELECTED
@@ -275,10 +298,23 @@ ARRANGE (자리 정리)     7 조건 2·5 가 약하다 — 새 게임 의미보
 없음 — Human 선택 대기
 ```
 
-    Agent 추천은 **FR-ONE-SLOT-ONE-ITEM** — 이 트랙에서 유일하게 Capability 를 끝까지
-    미는 것이고(MC-EQUIP-ITEM PARTIAL → IMPLEMENTED), 작으며, 지금 세계가
-    `no-empty-slot` 으로 거절하는 자리를 정상 성공 경로로 바꾼다.
-    FR-SEE-BEFORE-YOU-WEAR 를 얹어 한 Cycle 로 돌아도 된다.
+    직전에 돌던 `FR-ONE-SLOT-ONE-ITEM`(한 자리에는 하나)은 **C024 로 닫혔고**
+    (Gate 15항 전부 충족), 그것으로 **MC-EQUIP-ITEM 이 IMPLEMENTED** 가 되었다 —
+    아이템 넷 중 둘이 섰다. 결과는 HISTORY.md 로 옮겼다.
+
+    **후보 없이 한 바퀴가 돌고 닫혔다.** `C026-open-what-you-carry`(가진 것을 여는 자리)
+    — 기획서가 스스로 `[DIRECT-CYCLE]` 로 표시한 관찰 표면 작업이며 Human 이 후보 등록을
+    건너뛰고 착수를 지시했다. **이 파일에 후보로 서지 않았던 것이 맞다** — 세계가 할 수
+    있는 일을 하나도 늘리지 않으므로 Master Layer 가 고를 것이 없었다. 결과는 HISTORY.md
+    로 옮겼다. 그 Cycle 이 SEE-BEFORE · ARRANGE 를 **더 싸게** 만들었다 (위 두 블록).
+    이런 성격의 작업은 이제 **VIEW 레인**(guides/view-work.md · `works/V-*`)이 담당한다
+    — Cycle 번호를 다투지 않는다.
+
+    다음은 위 다섯 중 하나를 Human 이 고르는 자리다. Agent 추천은
+    **FR-THE-PLACES-ARE-NARROWER-THAN-WHAT-YOU-WEAR** — 다섯 중 가장 싸게 게임 의미를
+    늘린다. C024 가 교체라는 수단을 세웠는데 그것을 **써야 할 이유**가 아직 세계에 없기
+    때문이다 (자리 여섯 · 걸 것 둘). FR-SEE-BEFORE-YOU-WEAR 를 얹어 한 Cycle 로 돌아도
+    된다 — 고를 거리가 생긴 뒤에 미리 보는 것이 순서로도 맞다.
 
 ## 지금 열 수 없는 것
 
@@ -292,4 +328,4 @@ ARRANGE (자리 정리)     7 조건 2·5 가 약하다 — 새 게임 의미보
 | **아이템 개체화** (IE §41) | 같은 종류끼리 상태가 달라야 할 이유가 아직 없다 (DC-GROWTH-DEFINITION-INSTANCE-SPLIT · IS §2.1). 내구도·강화·각인처럼 개체마다 다른 값이 생기는 층이 오면 그때 선다 |
 | **지속 효과 · 재사용 제한** (IS §5.3 의 남은 줄) | 그 반쪽을 소유한 노드가 MC-CONDITION-STACKING 인데 `part_of.grounded: false` 다 — 조건 층의 설계 문서가 없어 후보의 Target 으로 세울 수 없다 (guides/master-frontier.md Must Not). 지금 세계의 조건 얼개는 이름도 지속 시간도 없는 배율 둘뿐이다 |
 | **회복 아이템** (MC-RESTORE-BIOLOGICAL-STATE) | Human 이 미뤘다 (HISTORY Q31) — 그 노드는 "체력을 얼마 채운다" 가 아니라 이전 상태로 되돌리는 것이고, 원천(식물 계통 `IP-*`/`IT-*`)이 세계에 정의되어 있지 않다. 원천 문서 [design/Design-Resource-Catalog-R0.md](../../../../design/Design-Resource-Catalog-R0.md) 가 Human 승인 대기다 (Q36 과 같은 문서) |
-| 감정 도구 | FR-MATERIALS-BECOME-SOMETHING-ELSE · FR-THINGS-LIE-IN-THE-WORLD 뒤다 (장착은 C023 으로 섰다). 지금은 감정할 대상(개체 상태)도 없다 (IE §41 — 위 칸) |
+| 감정 도구 | FR-MATERIALS-BECOME-SOMETHING-ELSE · FR-THINGS-LIE-IN-THE-WORLD 뒤다 (장착은 C023 · C024 로 닫혔다). 지금은 감정할 대상(개체 상태)도 없다 (IE §41 — 위 칸) |

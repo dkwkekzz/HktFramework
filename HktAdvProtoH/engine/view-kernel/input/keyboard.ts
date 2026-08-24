@@ -12,6 +12,17 @@ export interface KeyboardState {
   turn(): { turn: number; tilt: number } | null;
   /** 이번 프레임에 눌린 (이동·시점 외) 키 코드들을 한 번만 돌려준다 */
   consumeKeyPresses(): string[];
+  /**
+   * 지금 이동을 몰고 있지 않다고 알린다 — 표면이 자판을 잡고 있을 때다.
+   *
+   * 멈추는 동안 방향키와 시점키는 **이동이 아니라 평범한 키**가 된다. 겹쳐 뜬 표면에서
+   * 방향키로 고르는 것이 이동과 같은 키인 것은 우연이 아니라 당연한 일이며, 그 키가
+   * 여기서 삼켜지면 표면은 자판으로 닿을 수 없다.
+   *
+   * 멈춘 동안 눌려 있던 것도 잊는다 — 잡히기 전에 누르고 있던 방향이 표면을 닫는
+   * 순간 되살아나면, 겪는 사람이 지시하지 않은 걸음이 된다.
+   */
+  suspendMovement(suspended: boolean): void;
 }
 
 const MOVE_KEYS: Record<string, { x: number; z: number }> = {
@@ -39,9 +50,16 @@ const TURN_KEYS: Record<string, { turn: number; tilt: number }> = {
 export function attachKeyboard(): KeyboardState {
   const pressed = new Set<string>();
   let keyPresses: string[] = [];
+  let suspended = false;
 
   window.addEventListener('keydown', (ev) => {
     if (ev.code in MOVE_KEYS || ev.code in TURN_KEYS) {
+      // 이동을 몰지 않는 동안 이 키들은 평범한 키다 — 삼키지 않고 흘려보낸다
+      if (suspended) {
+        ev.preventDefault(); // 화면이 스크롤되지 않게
+        if (!ev.repeat) keyPresses.push(ev.code);
+        return;
+      }
       pressed.add(ev.code);
       ev.preventDefault();
       return;
@@ -53,6 +71,7 @@ export function attachKeyboard(): KeyboardState {
 
   return {
     direction() {
+      if (suspended) return null;
       let x = 0;
       let z = 0;
       for (const code of pressed) {
@@ -67,6 +86,7 @@ export function attachKeyboard(): KeyboardState {
       return { x: x / len, z: z / len };
     },
     turn() {
+      if (suspended) return null;
       let turn = 0;
       let tilt = 0;
       for (const code of pressed) {
@@ -83,6 +103,12 @@ export function attachKeyboard(): KeyboardState {
       const was = keyPresses;
       keyPresses = [];
       return was;
+    },
+    suspendMovement(next) {
+      if (next === suspended) return;
+      suspended = next;
+      // 잡히는 순간 눌려 있던 것을 잊는다 — 놓는 것을 못 볼 수 있기 때문이다
+      pressed.clear();
     },
   };
 }

@@ -26,7 +26,9 @@ engine/                      기반. content/ 를 import 하지 않는다
                              팩의 시스템이 조합해 부르는 순수 함수 도구상자다 (P6)
   protocol-core/             Snapshot 봉투 · ActionRequest 코어 · transport · 엔진 semantic-id
   view-kernel/               renderer·hud·input·net·camera·motion 재생·scene(Render Plan)·
-                             명령 표면 기계장치·collision/facing/link/session presentation
+                             명령 표면 기계장치·겹침 표면(surface — 열림/초점/Esc/닫는 자리)·
+                             초점 이동 산수(input/focus)·기다리는 요청 표(net/pending)·
+                             collision/facing/link/session presentation
 
 content/<packId>/            컨텐츠 팩 = 교체 단위
   world/                     Rule · Semantic(팩 State) · 시스템 순서 배열 · 투영 · 카탈로그 · 초기 배치
@@ -113,6 +115,15 @@ content/<packId>/            컨텐츠 팩 = 교체 단위
 
 - `engine/view-kernel/scene/scene-state.ts` 의 SceneSelf 에 guard·moveMode 등 컨텐츠
   어휘가 남아 있다 (import 결합은 아니며 전부 optional — blank 팩은 쓰지 않는다).
-  범용 패널 모델로 일반화할지는 다음 팩이 실제로 다른 패널을 요구할 때 정한다.
+  범용 겹침 표면(`SceneSurface` — 칸·줄·초점·요청 상태만, 게임 명사 0)이 그 옆에 섰지만
+  **SceneSelf 와 SceneCommandSurface 를 그 위로 옮기지는 않았다.** 명령 표면은 타이핑과
+  후보 좁힘이라는 자기 기계장치를 가지며, 그것을 범용 형에 밀어 넣으면 형이 명령의
+  모양을 닮는다 (승격 규칙 1 — 하나의 게임에서 일반화하지 않는다).
+  셋을 하나로 합칠지는 **다음 팩이 실제로 다른 패널을 요구할 때** 정한다.
+- `engine/view-kernel/hud/command-console.ts` · `presentation/command-presentation.ts` ·
+  `hud/hud.ts` 에 표시 문구(한국어)가 남아 있다 — `'그런 명령이 없다'` `'켜짐/꺼짐'`
+  `HP`/`CP` `'+N 획득!'` 과 키 안내 줄. 팩에는 이미 문구 표(`view/code-text.ts`)가 있으므로
+  같은 것이 두 곳에 있는 상태다. 사유 코드로 바꿔 팩에 되돌리는 일은 별도 기반 트랙 작업이며,
+  C009 결과물을 넓게 건드리므로 겹침 표면 작업과 묶지 않았다.
 - `engine/view-kernel/terrain/terrain.ts` 의 구릉·풀색은 엔진의 기본 지면이다 —
   팩별 지형 표현이 필요해지면 ⑤ 와 같은 주입 자리로 뺀다.

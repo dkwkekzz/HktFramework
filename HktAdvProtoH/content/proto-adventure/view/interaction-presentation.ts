@@ -34,9 +34,15 @@ const INTERACTIONS: Record<string, InteractionPresentation> = {
   // C007 — 휘두름이 스킬 둘로 갈렸다. 기본은 기존 자리(F)를 그대로 쓴다.
   'skill-basic': { priority: 12, key: 'KeyF', keyLabel: 'F', prompt: '기본 스킬' },
   'skill-heavy': { priority: 13, key: 'KeyG', keyLabel: 'G', prompt: '고급 스킬' },
-  // C012 — 오라 스킬. 기본 스킬(F) 바로 옆자리(R)에 둔다 — 둘은 세기가 아니라
+  // C012 — 오라 스킬. 기본 스킬(F) 과 나란히 둔다 — 둘은 세기가 아니라
   // 방식으로 갈리는 선택이므로 나란히 놓여야 고르는 일로 읽힌다.
-  'skill-aura': { priority: 14, key: 'KeyR', keyLabel: 'R', prompt: '오라 스킬' },
+  //
+  // C025 CHANGED — **R 에서 H 로 옮겼다.** `KeyR` 은 엔진이 시점 조작에 이미 쓰고 있고
+  // (`engine/view-kernel/input/keyboard.ts` 의 TURN_KEYS — R 올려다보기 · T 내려다보기),
+  // 그 키들은 눌린 순간 삼켜져 interaction 까지 오지 않는다. 그래서 **C012 이래로
+  // 오라 스킬은 키보드로 부를 수 없었다** — 표에는 있고 화면 안내에도 떴지만
+  // 눌러도 아무 일이 없었다. 아래 RESERVED_KEY_CODES 가 이것이 다시 생기지 않게 한다.
+  'skill-aura': { priority: 14, key: 'KeyH', keyLabel: 'H', prompt: '오라 스킬' },
   // 막기 (C011) — 세계에는 걸기와 놓기가 따로 있다(명시값). 화면에서는 한 키로 오간다.
   // 어떤 손짓으로 그 둘을 부를지는 View 의 결정이며, 이동 모드가 이미 같은 모양이다.
   // 그래서 키는 걸기 쪽에만 두고, 오가는 것은 조립 루트가 다룬다 —
@@ -50,7 +56,10 @@ const INTERACTIONS: Record<string, InteractionPresentation> = {
   // C014 가 키를 두지 않은 이유는 "키는 대상을 고를 수단이 없다" 였다. 그 이유가
   // 사라졌다: 대상을 고르는 수단이 세계에 생겼고(select-target), 살펴봄은 고른 것으로
   // 나간다. View 가 선택 규칙을 발명하는 일도 없다 — 무엇을 살펴볼지는 세계가 지닌다.
-  'observe-character': { priority: 15, key: 'KeyT', keyLabel: 'T', prompt: '살펴보기' },
+  // C025 CHANGED — **T 에서 Y 로 옮겼다.** 오라 스킬과 똑같은 결손이었다
+  // (`KeyT` 는 엔진의 내려다보기다). 이 Cycle 의 일이 아니지만, 눌러도 아무 일이
+  // 없는 조작을 알고도 두는 것이 더 나쁘다. 08 MASTER FEEDBACK 에 함께 적는다.
+  'observe-character': { priority: 15, key: 'KeyY', keyLabel: 'Y', prompt: '살펴보기' },
   // 고르기 (C017) — 존재마다 실린다. 그 몸을 눌러 부르므로 키를 두지 않는다.
   // 이 자리가 곧 "화면에서 존재를 짚으면 무슨 요청이 되는가" 의 답이다.
   'select-target': { prompt: '지목' },
@@ -62,8 +71,38 @@ const INTERACTIONS: Record<string, InteractionPresentation> = {
   'debug-forget-acquaintance': {},
 };
 
+/**
+ * 조립 루트보다 **먼저** 키를 가져가는 자리들 — 여기 있는 코드를 interaction 에 주면
+ * 그 조작은 눌러도 아무 일이 없다.
+ *
+ * 이동·시점은 `engine/view-kernel/input/keyboard.ts` 의 MOVE_KEYS · TURN_KEYS 가 눌린
+ * 순간 삼킨다 (interaction 판정까지 오지 않는다). 명령·관찰 토글은 `app/main.ts` 가
+ * interaction 보다 먼저 가로챈다.
+ *
+ * **여기 적힌 것은 사본이다.** 원본은 저 두 파일이며 팩이 읽을 수 있게 내보내지 않는다 —
+ * 그것을 내보내는 것은 기반 트랙의 일이고 08 MASTER FEEDBACK 에 적었다. 사본인 동안에는
+ * 아래 검사가 어긋남을 잡는다: 원본이 늘면 이 목록도 늘려야 하고, 늘리지 않으면
+ * 검사가 통과한 채로 조작이 죽는다.
+ */
+export const RESERVED_KEY_CODES: readonly string[] = [
+  // 이동 (MOVE_KEYS)
+  'KeyW', 'KeyA', 'KeyS', 'KeyD',
+  'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight',
+  // 시점 (TURN_KEYS) — C025 이 여기서 걸렸다
+  'KeyZ', 'KeyX', 'KeyR', 'KeyT',
+  // 조립 루트가 먼저 가로채는 것 (app/main.ts)
+  'Slash', 'KeyC', 'KeyV',
+];
+
 export function interactionPresentation(role: string): InteractionPresentation {
   return INTERACTIONS[role] ?? {};
+}
+
+/** 검증용 — 지금 표가 쥐고 있는 (역할, 키) 전부 */
+export function boundKeys(): { role: string; key: string }[] {
+  return Object.entries(INTERACTIONS)
+    .filter(([, p]) => p.key !== undefined)
+    .map(([role, p]) => ({ role, key: p.key as string }));
 }
 
 /** 이 역할이 프롬프트 자리를 다투는 순서 — 밝히지 않았으면 가운데 자리다 */

@@ -260,6 +260,74 @@ export interface SceneCommandSurface {
   history: SceneCommandHistoryLine[];
 }
 
+// ── 겹쳐 뜨는 표면 (범용 capability) ─────────────────────────────────
+//
+// 화면 위에 열렸다 닫히는 자리 하나. 열려 있는 동안 자판을 잡고, Escape 로 닫히며,
+// 손가락뿐인 기기를 위해 닫는 자리를 가진다.
+//
+// **여기에 게임의 명사가 하나도 없다.** 무엇의 목록인지, 칸이 무엇을 담는지,
+// 줄이 무슨 행동인지 이 형도 이것을 그리는 쪽도 알지 못한다 — 결정 Layer 가 이미
+// 정해 둔 글자와 상태를 옮길 뿐이다 (설계 반전 ⑤: capability 는 엔진, 결정은 팩).
+//
+// SceneCommandSurface 와 **합치지 않는다.** 명령 표면은 타이핑과 후보 좁힘이라는
+// 자기 기계장치를 가지며, 그것을 이 범용 형에 밀어 넣으면 형이 명령의 모양을 닮는다.
+// 하나로 합칠지는 두 번째 팩이 실제로 다른 패널을 요구할 때 정한다
+// (design/Design-System-Content-Separation.md — 승격 규칙 1 · 남은 부채).
+
+/**
+ * 줄 하나의 상태 — **요청의 어휘이지 게임의 어휘가 아니다.**
+ *
+ *   available  지금 되는 것
+ *   blocked    안 되는 것 — 사라지지 않고 사유와 함께 남는다
+ *   pending    보냈고 대답을 기다리는 중 — 아직 아무것도 참이 아니다
+ */
+export type SceneSurfaceRowState = 'available' | 'blocked' | 'pending';
+
+/** 나란히 놓이는 칸 하나 — 자리의 유한함이 자리로 읽히게 하는 원소 */
+export interface SceneSurfaceCell {
+  id: string;
+  /** 이 칸의 글자 (형식화 완료). 빈 자리면 빈 문자열이다 */
+  text: string;
+  /** 칸에 곁들이는 작은 글자 (수량 등, 형식화 완료) */
+  detail?: string;
+  /** 아무것도 없는 자리인가 — 그리는 쪽이 다르게 그린다. **빈 칸도 그려진다** */
+  empty: boolean;
+  /** 겪는 사람이 골라 둔 칸인가. 초점과 다른 것이다 (surface.focusId) */
+  selected: boolean;
+}
+
+/** 읽어야 아는 것 한 줄 — 되는 것과 안 되는 사유가 여기 선다 */
+export interface SceneSurfaceRow {
+  id: string;
+  text: string;
+  /** 손가락 자리 안내 등 곁들이는 글자 (형식화 완료) */
+  hint?: string;
+  state?: SceneSurfaceRowState;
+}
+
+/** 표면 안의 한 구획 — 칸들이거나 줄들이다 */
+export interface SceneSurfaceSection {
+  id: string;
+  title?: string;
+  /** 몇 칸씩 놓을 것인가 — 그리는 쪽의 결정이며 계약에서 오지 않는다 */
+  columns?: number;
+  cells?: SceneSurfaceCell[];
+  rows?: SceneSurfaceRow[];
+  /** 담을 것이 없을 때 그 자리에 남길 글자 — 비어 있음과 안 그림은 다르다 */
+  emptyText?: string;
+}
+
+export interface SceneSurface {
+  id: string;
+  open: boolean;
+  title: string;
+  /** 지금 자판이 가리키는 칸/줄의 id. **고르기가 아니다** (cell.selected 와 다른 것) */
+  focusId?: string;
+  sections: SceneSurfaceSection[];
+  /** 맨 아래 안내 줄들 (형식화 완료) */
+  footer: string[];
+}
+
 export interface SceneState {
   specId: string;
   terrain: string;
@@ -273,4 +341,9 @@ export interface SceneState {
   effects: SceneEffect[];
   worldTime: number; // C007 — 타격 결과의 나이를 재는 기준 (세계 시각)
   commandSurface: SceneCommandSurface; // C009 — 명령 목록·안내·기록
+  /**
+   * 지금 떠 있는 겹침 표면들 — 열리지 않은 것도 실릴 수 있다 (open 이 가른다).
+   * 여러 개가 열려 있으면 **뒤의 것이 위**다 — Escape 는 위의 것부터 닫는다.
+   */
+  surfaces: SceneSurface[];
 }

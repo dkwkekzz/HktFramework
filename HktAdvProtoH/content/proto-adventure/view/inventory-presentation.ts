@@ -26,7 +26,7 @@
 
 import type { SceneHudItem, SceneState } from '../../../engine/view-kernel/scene/scene-state';
 import type { GameViewSnapshot } from '../protocol/gameview';
-import { EQUIP_ARM_KEY_LABEL } from './equipment-presentation';
+import { EQUIP_ARM_KEY_LABEL, EXCHANGE_ARM_KEY_LABEL } from './equipment-presentation';
 
 /** 소지품 줄의 id 앞머리 — 조립 루트가 칸 번호를 되읽을 때 쓴다 */
 export const INVENTORY_HUD_PREFIX = 'inventory.';
@@ -42,6 +42,7 @@ const CATEGORY_ICON: Record<string, string> = {
   material: '🪨',
   tool: '⛏',
   consumable: '🧪',
+  gear: '🛡', // C024 — 표에 한 줄이 는다
 };
 
 /** 소지품 칸에 붙는 손가락 자리 — 첫 아홉 칸까지 번호를 준다 */
@@ -63,6 +64,7 @@ const ACTION_LABEL: Record<string, string> = {
   'use-item': '쓰기',
   'discard-item': '덜어내기',
   'equip-item': '걸기', // C023 — 표에 한 줄이 늘 뿐이다
+  'exchange-item': '바꿔 걸기', // C024 — 같음
 };
 
 /** 그 역할을 부르는 손가락 자리 — 칸 번호를 받아 안내 문구를 만든다 */
@@ -72,6 +74,10 @@ const ACTION_KEY_HINT: Record<string, (slot?: string) => string | undefined> = {
   // C023 — 덜어내기와 같은 두 걸음이다. 손가락 자리가 모자란 것은 조작 계층의 사정이며
   // 게임의 판정이 아니다 (view/bindings.ts).
   'equip-item': (slot) => (slot ? `${EQUIP_ARM_KEY_LABEL} → ${slot}` : undefined),
+  // C024 — **세 걸음이다.** 물건과 자리를 둘 다 고르기 때문이며, 자리는 걸린 자리의
+  // 번호다 (걸어 둔 것 목록의 번호와 같다 — view/equipment-presentation.ts).
+  'exchange-item': (slot) =>
+    slot ? `${EXCHANGE_ARM_KEY_LABEL} → ${slot} → 걸린 번호` : undefined,
 };
 
 /**

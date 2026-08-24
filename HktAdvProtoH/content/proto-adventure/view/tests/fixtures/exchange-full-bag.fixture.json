@@ -1,0 +1,714 @@
+{
+  "specId": "VIEW-BASIC-COMBAT-POLICY-001",
+  "scene": "mining-field",
+  "observer": {
+    "id": "observer-1",
+    "characterId": "player-1",
+    "acknowledgedMark": 0
+  },
+  "entities": [
+    {
+      "id": "player-1",
+      "role": "player-character",
+      "state": "idle",
+      "name": "Player 1",
+      "kind": "rabbit-swordsman",
+      "position": {
+        "x": 8,
+        "z": -5
+      },
+      "vitality": {
+        "health": 200,
+        "healthMaximum": 200,
+        "downed": false
+      },
+      "attributes": {
+        "energy": 30,
+        "energyMaximum": 100,
+        "moveMode": "walk",
+        "control": "player",
+        "tempoStats": {
+          "moveSpeed": 6,
+          "runSpeedMultiplier": 1.8,
+          "actionSpeed": 1
+        },
+        "modifiers": {
+          "energyCharge": 1,
+          "energyConsume": 1,
+          "moveSpeed": 1,
+          "actionSpeed": 1
+        },
+        "acquainted": true,
+        "concealed": [],
+        "insight": 0,
+        "stanceTowardObserver": "neutral",
+        "stanceFromObserver": "neutral",
+        "combatStats": {
+          "physicalAttack": 52,
+          "auraAttack": 40,
+          "armor": 50,
+          "resistance": 20,
+          "armorPenetration": 0,
+          "resistancePenetration": 60,
+          "armorMultiplier": 0.6666666666666666,
+          "resistanceMultiplier": 0.8333333333333334,
+          "criticalChance": 0.25,
+          "criticalDamage": 2
+        },
+        "versusObserver": {
+          "armor": 50,
+          "resistance": 12.5,
+          "armorMultiplier": 0.6666666666666666,
+          "resistanceMultiplier": 0.8888888888888888
+        },
+        "defenseShape": "physical-tougher",
+        "guard": {
+          "guarding": false,
+          "broken": false
+        }
+      },
+      "body": {
+        "radius": 0.85,
+        "height": 3.4,
+        "mass": 1,
+        "facing": {
+          "x": 0,
+          "z": 1
+        },
+        "velocity": {
+          "x": 0,
+          "z": 0
+        }
+      }
+    },
+    {
+      "id": "deposit-1",
+      "role": "resource-deposit",
+      "state": "available",
+      "kind": "stone",
+      "position": {
+        "x": 8,
+        "z": -6
+      },
+      "labelValue": 6
+    }
+  ],
+  "interactions": [
+    {
+      "id": "select-target",
+      "role": "select-target",
+      "targetEntityId": "player-1",
+      "available": false,
+      "reason": "target-is-self"
+    },
+    {
+      "id": "observe",
+      "role": "observe-character",
+      "available": false,
+      "reason": "target-kind-mismatch"
+    },
+    {
+      "id": "clear-target",
+      "role": "clear-target",
+      "available": true
+    },
+    {
+      "id": "move",
+      "role": "move-to",
+      "available": true
+    },
+    {
+      "id": "attack",
+      "role": "skill-basic",
+      "available": true,
+      "profile": {
+        "baseDamage": 6,
+        "attackRatio": 0.5,
+        "rawDamage": 32,
+        "charge": 12,
+        "cost": 0,
+        "damageType": "physical",
+        "swingBegin": 0.25,
+        "swingEnd": 0.75
+      }
+    },
+    {
+      "id": "skill-heavy",
+      "role": "skill-heavy",
+      "available": true,
+      "profile": {
+        "baseDamage": 32,
+        "attackRatio": 1,
+        "rawDamage": 84,
+        "charge": 8,
+        "cost": 30,
+        "damageType": "physical",
+        "swingBegin": 0.5,
+        "swingEnd": 0.85
+      }
+    },
+    {
+      "id": "skill-aura",
+      "role": "skill-aura",
+      "available": true,
+      "profile": {
+        "baseDamage": 6,
+        "attackRatio": 0.5,
+        "rawDamage": 26,
+        "charge": 12,
+        "cost": 0,
+        "damageType": "aura",
+        "swingBegin": 0.25,
+        "swingEnd": 0.75
+      }
+    },
+    {
+      "id": "guard-begin",
+      "role": "guard-begin",
+      "available": true
+    },
+    {
+      "id": "guard-release",
+      "role": "guard-release",
+      "available": true
+    },
+    {
+      "id": "move-mode",
+      "role": "set-move-mode",
+      "available": true
+    },
+    {
+      "id": "set-attribute",
+      "role": "debug-set-attribute",
+      "available": true
+    },
+    {
+      "id": "forget-acquaintance",
+      "role": "debug-forget-acquaintance",
+      "available": true
+    },
+    {
+      "id": "select-target",
+      "role": "select-target",
+      "targetEntityId": "deposit-1",
+      "available": true
+    },
+    {
+      "id": "mine",
+      "role": "mine-deposit",
+      "available": false,
+      "reason": "no-room"
+    }
+  ],
+  "inventory": [
+    {
+      "kind": "stone",
+      "count": 9,
+      "category": "material",
+      "origin": "IT-COMMON-STONE",
+      "stackable": true,
+      "actions": [
+        {
+          "id": "use-item",
+          "role": "use-item",
+          "available": false,
+          "unavailableReason": "target-kind-mismatch"
+        },
+        {
+          "id": "equip-item",
+          "role": "equip-item",
+          "available": false,
+          "unavailableReason": "not-equippable"
+        },
+        {
+          "id": "exchange-item",
+          "role": "exchange-item",
+          "available": false,
+          "unavailableReason": "not-equippable"
+        },
+        {
+          "id": "discard-item",
+          "role": "discard-item",
+          "available": true
+        }
+      ]
+    },
+    {
+      "kind": "buckler",
+      "count": 1,
+      "category": "gear",
+      "stackable": false,
+      "actions": [
+        {
+          "id": "equip-item",
+          "role": "equip-item",
+          "available": true
+        },
+        {
+          "id": "exchange-item",
+          "role": "exchange-item",
+          "available": true
+        },
+        {
+          "id": "discard-item",
+          "role": "discard-item",
+          "available": true
+        }
+      ]
+    }
+  ],
+  "inventoryRoom": {
+    "used": 4,
+    "capacity": 4
+  },
+  "equipment": [
+    {
+      "slotId": "E1",
+      "item": {
+        "kind": "pickaxe",
+        "category": "tool"
+      },
+      "grants": [
+        "mine"
+      ],
+      "contributions": [
+        {
+          "name": "physicalAttack",
+          "value": 12
+        }
+      ],
+      "actions": [
+        {
+          "id": "use-item",
+          "role": "use-item",
+          "available": false,
+          "unavailableReason": "no-room"
+        },
+        {
+          "id": "unequip-item",
+          "role": "unequip-item",
+          "available": false,
+          "unavailableReason": "no-room"
+        }
+      ]
+    },
+    {
+      "slotId": "E2",
+      "grants": [],
+      "contributions": [],
+      "actions": [
+        {
+          "id": "unequip-item",
+          "role": "unequip-item",
+          "available": false,
+          "unavailableReason": "slot-empty"
+        }
+      ]
+    },
+    {
+      "slotId": "E3",
+      "grants": [],
+      "contributions": [],
+      "actions": [
+        {
+          "id": "unequip-item",
+          "role": "unequip-item",
+          "available": false,
+          "unavailableReason": "slot-empty"
+        }
+      ]
+    },
+    {
+      "slotId": "E4",
+      "grants": [],
+      "contributions": [],
+      "actions": [
+        {
+          "id": "unequip-item",
+          "role": "unequip-item",
+          "available": false,
+          "unavailableReason": "slot-empty"
+        }
+      ]
+    },
+    {
+      "slotId": "E5",
+      "grants": [],
+      "contributions": [],
+      "actions": [
+        {
+          "id": "unequip-item",
+          "role": "unequip-item",
+          "available": false,
+          "unavailableReason": "slot-empty"
+        }
+      ]
+    },
+    {
+      "slotId": "E6",
+      "grants": [],
+      "contributions": [],
+      "actions": [
+        {
+          "id": "unequip-item",
+          "role": "unequip-item",
+          "available": false,
+          "unavailableReason": "slot-empty"
+        }
+      ]
+    }
+  ],
+  "hud": [
+    {
+      "id": "player.action",
+      "kind": "label",
+      "value": "idle"
+    },
+    {
+      "id": "world.time",
+      "kind": "counter",
+      "value": 11.099999999999971
+    },
+    {
+      "id": "observers.present",
+      "kind": "counter",
+      "value": 1
+    },
+    {
+      "id": "self.hp",
+      "kind": "counter",
+      "value": 200
+    },
+    {
+      "id": "self.hpMax",
+      "kind": "counter",
+      "value": 200
+    },
+    {
+      "id": "self.cp",
+      "kind": "counter",
+      "value": 30
+    },
+    {
+      "id": "self.cpMax",
+      "kind": "counter",
+      "value": 100
+    },
+    {
+      "id": "self.downed",
+      "kind": "flag",
+      "value": false
+    },
+    {
+      "id": "self.moveMode",
+      "kind": "label",
+      "value": "walk"
+    },
+    {
+      "id": "self.guard.guarding",
+      "kind": "flag",
+      "value": false
+    },
+    {
+      "id": "self.guard.broken",
+      "kind": "flag",
+      "value": false
+    },
+    {
+      "id": "self.combat.physicalAttack",
+      "kind": "counter",
+      "value": 52
+    },
+    {
+      "id": "self.combat.auraAttack",
+      "kind": "counter",
+      "value": 40
+    },
+    {
+      "id": "self.combat.armor",
+      "kind": "counter",
+      "value": 50
+    },
+    {
+      "id": "self.combat.resistance",
+      "kind": "counter",
+      "value": 20
+    },
+    {
+      "id": "self.combat.armorPenetration",
+      "kind": "counter",
+      "value": 0
+    },
+    {
+      "id": "self.combat.resistancePenetration",
+      "kind": "counter",
+      "value": 60
+    },
+    {
+      "id": "self.combat.armorMultiplier",
+      "kind": "counter",
+      "value": 0.6666666666666666
+    },
+    {
+      "id": "self.combat.resistanceMultiplier",
+      "kind": "counter",
+      "value": 0.8333333333333334
+    },
+    {
+      "id": "self.combat.defenseShape",
+      "kind": "label",
+      "value": "physical-tougher"
+    },
+    {
+      "id": "self.combat.criticalChance",
+      "kind": "counter",
+      "value": 0.25
+    },
+    {
+      "id": "self.combat.criticalDamage",
+      "kind": "counter",
+      "value": 2
+    },
+    {
+      "id": "self.insight",
+      "kind": "counter",
+      "value": 0
+    },
+    {
+      "id": "self.tempo.moveSpeed",
+      "kind": "counter",
+      "value": 6
+    },
+    {
+      "id": "self.tempo.runSpeedMultiplier",
+      "kind": "counter",
+      "value": 1.8
+    },
+    {
+      "id": "self.tempo.actionSpeed",
+      "kind": "counter",
+      "value": 1
+    },
+    {
+      "id": "self.modifier.cpCharge",
+      "kind": "counter",
+      "value": 1
+    },
+    {
+      "id": "self.modifier.cpConsume",
+      "kind": "counter",
+      "value": 1
+    },
+    {
+      "id": "self.modifier.moveSpeed",
+      "kind": "counter",
+      "value": 1
+    },
+    {
+      "id": "self.modifier.actionSpeed",
+      "kind": "counter",
+      "value": 1
+    }
+  ],
+  "strikes": [],
+  "contacts": [],
+  "cancels": [],
+  "debug": {
+    "open": true
+  },
+  "currentTarget": {
+    "entityId": "deposit-1"
+  },
+  "commands": [
+    {
+      "id": "set-attribute",
+      "effect": "set-attribute",
+      "available": true,
+      "parameters": [
+        {
+          "id": "target",
+          "required": false,
+          "omittedMeaning": "self",
+          "domain": {
+            "kind": "entity",
+            "refers": "character"
+          }
+        },
+        {
+          "id": "attribute",
+          "required": true,
+          "domain": {
+            "kind": "choice",
+            "options": [
+              {
+                "name": "hp",
+                "thenDomain": {
+                  "kind": "number",
+                  "minimum": 0,
+                  "maximum": 100000
+                }
+              },
+              {
+                "name": "hpMax",
+                "thenDomain": {
+                  "kind": "number",
+                  "minimum": 1,
+                  "maximum": 100000
+                }
+              },
+              {
+                "name": "cp",
+                "thenDomain": {
+                  "kind": "number",
+                  "minimum": 0,
+                  "maximum": 100000
+                }
+              },
+              {
+                "name": "cpMax",
+                "thenDomain": {
+                  "kind": "number",
+                  "minimum": 1,
+                  "maximum": 100000
+                }
+              },
+              {
+                "name": "physicalAttack",
+                "thenDomain": {
+                  "kind": "number",
+                  "minimum": 0,
+                  "maximum": 100000
+                }
+              },
+              {
+                "name": "auraAttack",
+                "thenDomain": {
+                  "kind": "number",
+                  "minimum": 0,
+                  "maximum": 100000
+                }
+              },
+              {
+                "name": "armor",
+                "thenDomain": {
+                  "kind": "number",
+                  "minimum": 0,
+                  "maximum": 100000
+                }
+              },
+              {
+                "name": "resistance",
+                "thenDomain": {
+                  "kind": "number",
+                  "minimum": 0,
+                  "maximum": 100000
+                }
+              },
+              {
+                "name": "armorPenetration",
+                "thenDomain": {
+                  "kind": "number",
+                  "minimum": 0,
+                  "maximum": 100000
+                }
+              },
+              {
+                "name": "resistancePenetration",
+                "thenDomain": {
+                  "kind": "number",
+                  "minimum": 0,
+                  "maximum": 100000
+                }
+              },
+              {
+                "name": "criticalChance",
+                "thenDomain": {
+                  "kind": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                }
+              },
+              {
+                "name": "criticalDamage",
+                "thenDomain": {
+                  "kind": "number",
+                  "minimum": 1,
+                  "maximum": 100
+                }
+              },
+              {
+                "name": "insight",
+                "thenDomain": {
+                  "kind": "number",
+                  "minimum": 0,
+                  "maximum": 100
+                }
+              },
+              {
+                "name": "moveSpeed",
+                "thenDomain": {
+                  "kind": "number",
+                  "minimum": 0,
+                  "maximum": 100
+                }
+              },
+              {
+                "name": "runSpeedMultiplier",
+                "thenDomain": {
+                  "kind": "number",
+                  "minimum": 0.1,
+                  "maximum": 10
+                }
+              },
+              {
+                "name": "actionSpeed",
+                "thenDomain": {
+                  "kind": "number",
+                  "minimum": 0.1,
+                  "maximum": 10
+                }
+              },
+              {
+                "name": "moveMode",
+                "thenDomain": {
+                  "kind": "choice",
+                  "options": [
+                    {
+                      "name": "walk"
+                    },
+                    {
+                      "name": "run"
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "value",
+          "required": true,
+          "domain": {
+            "kind": "from-previous-choice"
+          }
+        }
+      ]
+    },
+    {
+      "id": "forget-acquaintance",
+      "effect": "forget-acquaintance",
+      "available": true,
+      "parameters": [
+        {
+          "id": "target",
+          "required": false,
+          "omittedMeaning": "all-known",
+          "domain": {
+            "kind": "entity",
+            "refers": "character"
+          }
+        }
+      ]
+    }
+  ]
+}
