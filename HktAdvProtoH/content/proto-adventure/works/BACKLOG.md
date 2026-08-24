@@ -40,19 +40,6 @@
     의존   없음 — equipment 관찰이 이미 실려 온다 (C023)
     상태   PROPOSED
 
-### pointer-input — 손가락 자리를 몰라도 닿는다
-    출처   UX 문서 §4.1
-    목표   좌클릭으로 고르고, 더블클릭으로 되는 행동 하나가 실행되고,
-           우클릭으로 그 물건의 행동 목록이 열린다
-    크기   중간
-    의존   **ENGINE** — 표면 능력이 지금 `onClose` 하나만 낸다
-           (`engine/view-kernel/hud/surface.ts` · 조립도 그것만 잇는다). 칸을 눌러도
-           아무 일이 없으므로 VIEW 만으로는 성립하지 않는다 (V-003 착수 전 확인)
-    상태   BLOCKED — ENGINE 이 칸·줄의 눌림을 내보내야 열린다
-    주     **줄은 손가락으로 닿지 않는다** — 기반의 표면 능력에서 칸만 button 이고
-           줄은 div 다 (`engine/view-kernel/hud/surface.ts`). 행동 줄도 확인 구획의
-           두 줄도 자판으로만 고를 수 있다 (V-002 REPORT ②) — ENGINE 동반이 필요할 수 있다
-
 ### request-feedback — 보낸 것과 일어난 것을 가른다
     출처   UX 문서 §4.3 · §7
     목표   보낸 뒤 1초가 지나면 처리 중이 보이고, 거절되면 세계가 준 사유가 그 자리에서
@@ -90,17 +77,6 @@
     크기   작음
     의존   없음
     상태   PROPOSED
-
-### key-panel-pack-keys — 팩의 키도 안내 패널에 선다
-    출처   V-003 REPORT ①
-    목표   오른쪽 안내 패널에 가진 것(I) · 덜어내기(B) · 걸기(N) · 풀기(M) ·
-           바꿔 걸기(,) 가 서고, 표에서 키를 옮기면 그 줄도 함께 옮겨진다
-    크기   작음
-    의존   **ENGINE** — 그 패널은 기반이 그린다 (`engine/view-kernel/hud/hud.ts` 가
-           엔진 기본 넷 + `scene.interactions` 만 세운다). 팩이 줄을 실어 보낼 자리가 없다
-    상태   BLOCKED — ENGINE 이 팩의 안내 줄을 받아야 열린다
-    주     재료는 이미 있다 — `view/key-registry.ts` 가 코드·표기·`what`(사람이 읽는 이름)을
-           전부 쥔다
 
 ### drag-and-drop — 끌어다 놓는다
     출처   UX 문서 §4.2 · §11 VUX-IE-03

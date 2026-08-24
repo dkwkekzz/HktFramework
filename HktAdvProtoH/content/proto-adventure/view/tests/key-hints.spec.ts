@@ -15,7 +15,7 @@
 import { describe, expect, it } from 'vitest';
 import { KEY_BINDINGS } from '../bindings';
 import { boundKeys, RESERVED_KEY_CODES } from '../interaction-presentation';
-import { hasLabel, keyLabel, packKeys, SLOT_KEY_LABELS } from '../key-registry';
+import { hasLabel, keyLabel, packKeys, panelKeyHints, SLOT_KEY_LABELS } from '../key-registry';
 
 const registered = packKeys();
 const boundCodes = KEY_BINDINGS.map((b) => b.code);
@@ -116,5 +116,39 @@ describe('화면 문구가 이 표에서 나온다', () => {
     const surface = inventoryWorkspace({ inventory: [] } as never, (c) => c, (c) => c);
     expect(surface.footer).toContain(`닫기 ${keyLabel('close')}`);
     expect(surface.footer).toContain(`실행 ${keyLabel('invoke')}`);
+  });
+});
+
+describe('V-005 — 팩의 키가 안내 패널에 선다', () => {
+  it('한 번도 뜬 적 없던 다섯이 선다', () => {
+    expect(panelKeyHints()).toEqual([
+      '덜어내기: B',
+      '걸기: N',
+      '풀기: M',
+      '바꿔 걸기: ,',
+      '가진 것: I',
+    ]);
+  });
+
+  it('표면이 열린 동안에만 듣는 키는 서지 않는다 — 닫혀 있을 때 거짓이 된다', () => {
+    const lines = panelKeyHints().join(' ');
+    expect(lines).not.toContain('←');
+    expect(lines).not.toContain('Enter');
+  });
+
+  it('interaction 이 이미 세우는 줄은 다시 서지 않는다 — 한 화면에 같은 말이 두 번이다', () => {
+    const lines = panelKeyHints().join(' ');
+    expect(lines).not.toContain('막기');
+    expect(lines).not.toContain('달리기');
+  });
+
+  it('칸 번호는 서지 않는다 — 소지품 줄에 이미 번호로 붙어 있다', () => {
+    expect(panelKeyHints().some((l) => /: \d$/.test(l))).toBe(false);
+  });
+
+  it('장면이 그 줄들을 싣는다 — 안내 패널이 그것을 그대로 세운다', async () => {
+    const { resolvePresentation } = await import('../resolve');
+    const mining = (await import('./fixtures/mining-available.fixture.json')).default;
+    expect(resolvePresentation(mining as never).keyHints).toEqual(panelKeyHints());
   });
 });

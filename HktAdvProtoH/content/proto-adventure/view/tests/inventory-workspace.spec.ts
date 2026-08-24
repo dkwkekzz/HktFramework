@@ -15,6 +15,12 @@ import type { GameViewSnapshot } from '../../protocol/gameview';
 import {
   INVENTORY_SURFACE_ID,
   armDiscardConfirm,
+  commitCell,
+  menuCell,
+  pickCell,
+  pressRow,
+  workspaceCellFocus,
+  workspaceFocus,
   invokeFocusedAction,
   moveActionFocus,
   moveSelection,
@@ -495,5 +501,125 @@ describe('V-002 — 지름길도 같은 확인을 거친다 (B → 숫자)', () 
     armDiscardConfirm('moonshard');
     expect(workspaceConfirming()).toBeNull();
     expect(surfaceIsOpen(INVENTORY_SURFACE_ID)).toBe(false);
+  });
+});
+
+
+// ── V-004 — 손가락 자리를 몰라도 닿는다 (UX 문서 §4.1) ──────────────────
+//
+// 기반은 눌린 것의 id 만 돌려준다. 여기서 재는 것은 **그 소식에 무슨 뜻을 주었는가**와,
+// 그 뜻이 자판의 길과 **같은 길**을 지나는가다 — 되돌릴 수 없는 것에는 확인이 서고,
+// 안 되는 것은 여전히 나가지 않는다.
+
+describe('V-004 — 눌러서 고르고 실행하고 목록을 연다', () => {
+  const sink = () => {
+    const sent: ActionRequest[] = [];
+    return { sent, send: (a: ActionRequest) => { sent.push(a); return 1; } };
+  };
+
+  it('한 번 누르면 고른다 — 그것뿐이다 (행동 목록으로 들어가지 않는다)', () => {
+    bag(mining);
+    pickCell(INVENTORY_SURFACE_ID, 'item.stone');
+    expect(workspaceSelection()).toBe('stone');
+    expect(workspaceFocus()).toBeNull();
+    expect(workspaceCellFocus()).toBe('item.stone');
+    expect(bag(mining).focusId).toBe('item.stone');
+  });
+
+  it('빈 자리를 눌러도 아무 일이 없다 — 세계에 번호 붙은 빈 자리가 없다', () => {
+    bag(mining);
+    pickCell(INVENTORY_SURFACE_ID, 'room.0');
+    expect(workspaceSelection()).toBeNull();
+  });
+
+  it('다른 표면의 눌림은 이 표면의 것이 아니다', () => {
+    bag(mining);
+    pickCell('command', 'item.stone');
+    expect(workspaceSelection()).toBeNull();
+  });
+
+  it('두 번 누르면 되는 행동 하나가 실행된다 — 세계가 보낸 차례의 첫 되는 것이다', () => {
+    const { sent, send } = sink();
+    bag(mining);
+    commitCell(INVENTORY_SURFACE_ID, 'item.pickaxe', send); // 쓰기가 되는 물건
+    expect(sent).toEqual([{ interactionId: 'use-item', itemKind: 'pickaxe' }]);
+  });
+
+  it('두 번 눌러도 되돌릴 수 없는 것에는 확인이 먼저 선다 — 자판과 같은 길이다', () => {
+    const { sent, send } = sink();
+    toggleSurface(INVENTORY_SURFACE_ID);
+    bag(mining);
+    commitCell(INVENTORY_SURFACE_ID, 'item.stone', send); // 되는 것이 덜어내기뿐이다
+    expect(sent).toEqual([]);
+    expect(workspaceConfirming()).toBe('stone');
+  });
+
+  it('되는 것이 하나도 없으면 두 번 눌러도 아무 일이 없다', () => {
+    const { sent, send } = sink();
+    const blocked = {
+      ...(mining as object),
+      inventory: [
+        {
+          kind: 'stone',
+          count: 1,
+          category: 'material',
+          stackable: true,
+          actions: [
+            { id: 'use-item', role: 'use-item', available: false, unavailableReason: 'no-target-selected' },
+          ],
+        },
+      ],
+    };
+    bag(blocked);
+    commitCell(INVENTORY_SURFACE_ID, 'item.stone', send);
+    expect(sent).toEqual([]);
+  });
+
+  it('오른 단추는 행동 목록을 연다 — 초점이 줄로 들어간다', () => {
+    bag(mining);
+    menuCell(INVENTORY_SURFACE_ID, 'item.stone');
+    expect(workspaceSelection()).toBe('stone');
+    expect(workspaceFocus()).toBe('use-item'); // 그 물건의 첫 줄
+    expect(workspaceCellFocus()).toBeNull();
+  });
+
+  it('줄을 누르면 그 줄이 실행된다', () => {
+    const { sent, send } = sink();
+    bag(mining);
+    pickCell(INVENTORY_SURFACE_ID, 'item.pickaxe');
+    pressRow(INVENTORY_SURFACE_ID, 'use-item', send);
+    expect(sent).toEqual([{ interactionId: 'use-item', itemKind: 'pickaxe' }]);
+  });
+
+  it('안 되는 줄을 눌러도 나가지 않는다 — 화면이 판정한 것이 아니다', () => {
+    const { sent, send } = sink();
+    bag(mining);
+    pickCell(INVENTORY_SURFACE_ID, 'item.pickaxe');
+    pressRow(INVENTORY_SURFACE_ID, 'discard-item', send); // no-way-back
+    expect(sent).toEqual([]);
+  });
+
+  it('확인이 떠 있으면 눌린 줄이 곧 답이다', () => {
+    const { sent, send } = sink();
+    toggleSurface(INVENTORY_SURFACE_ID);
+    bag(mining);
+    commitCell(INVENTORY_SURFACE_ID, 'item.stone', send); // 확인이 선다
+    pressRow(INVENTORY_SURFACE_ID, 'confirm.cancel', send);
+    expect(sent).toEqual([]);
+    expect(workspaceConfirming()).toBeNull();
+
+    commitCell(INVENTORY_SURFACE_ID, 'item.stone', send);
+    pressRow(INVENTORY_SURFACE_ID, 'confirm.commit', send);
+    expect(sent).toEqual([{ interactionId: 'discard-item', itemKind: 'stone' }]);
+  });
+
+  it('다른 것을 고르면 확인은 사라진다 — 방향키와 같은 규칙이다', () => {
+    const { send } = sink();
+    toggleSurface(INVENTORY_SURFACE_ID);
+    bag(mining);
+    commitCell(INVENTORY_SURFACE_ID, 'item.stone', send);
+    expect(workspaceConfirming()).toBe('stone');
+    pickCell(INVENTORY_SURFACE_ID, 'item.pickaxe');
+    expect(workspaceConfirming()).toBeNull();
   });
 });

@@ -74,6 +74,13 @@ export interface PackKey {
    * 표에도 있고 안내에도 뜨는데 눌러도 아무 일이 없는 조작이 C025 에서 실제로 있었다.
    */
   shadows?: string;
+  /**
+   * 같은 뜻의 **다른 자리** — 오른쪽 Shift 처럼 손이 둘인 키다.
+   *
+   * 사람에게는 하나의 키이므로 안내에 두 번 서지 않는다. 듣기는 둘 다 듣는다 —
+   * 왼손잡이의 Shift 가 안 먹는 것은 안내의 문제가 아니라 조작의 결손이다.
+   */
+  sameAs?: string;
 }
 
 /**
@@ -89,7 +96,7 @@ export const PACK_KEYS = {
     shadows: 'guard-begin',
   },
   moveModeLeft: { code: 'ShiftLeft', what: '달리기 전환', shadows: 'set-move-mode' },
-  moveModeRight: { code: 'ShiftRight', what: '달리기 전환' },
+  moveModeRight: { code: 'ShiftRight', what: '달리기 전환', sameAs: 'moveModeLeft' },
   discard: { code: 'KeyB', what: '덜어내기' },
   equip: { code: 'KeyN', what: '걸기' },
   unequip: { code: 'KeyM', what: '풀기' },
@@ -147,6 +154,28 @@ export const SLOT_KEY_IDS = [
 ] as const satisfies readonly PackKeyId[];
 
 export const SLOT_KEY_LABELS: readonly string[] = SLOT_KEY_IDS.map((id) => keyLabel(id));
+
+/**
+ * 조작 안내 패널에 설 줄들 (V-005) — `<무엇>: <표기>` 꼴이며 엔진의 줄과 같은 모양이다.
+ *
+ * **여기 서는 것은 팩만의 키다.** 셋을 뺀다.
+ *   · 표면이 열린 동안에만 듣는 키 (방향키·Enter) — 그 안내는 표면 자신의 아래 줄이
+ *     이미 지닌다. 늘 떠 있는 패널에 두면 표면이 닫혀 있을 때 거짓이 된다
+ *   · 칸 번호 아홉 — 무엇을 부르는지가 소지품 줄에 이미 번호로 붙어 있다
+ *   · interaction 을 가리는 키 (막기 Q · 달리기 Shift) — 그 줄은 세계가 실어 온
+ *     목록에서 이미 서고, 여기 또 두면 한 화면에 같은 말이 두 번이다
+ *     (같은 뜻의 다른 자리 `sameAs` 도 같은 이유로 빠진다 — 오른쪽 Shift)
+ *
+ * 남는 것이 곧 **한 번도 뜬 적 없던 다섯**이다 — 가진 것 · 덜어내기 · 걸기 · 풀기 ·
+ * 바꿔 걸기.
+ */
+export function panelKeyHints(): string[] {
+  return packKeys()
+    .filter((k) => !k.whileSurfaceOpen && k.boundBy !== 'engine' && k.shadows === undefined)
+    .filter((k) => k.sameAs === undefined)
+    .filter((k) => !k.code.startsWith('Digit'))
+    .map((k) => `${k.what}: ${keyLabel(k.id as PackKeyId)}`);
+}
 
 /** 검증용 — 표가 쥔 전부 */
 export function packKeys(): (PackKey & { id: string })[] {

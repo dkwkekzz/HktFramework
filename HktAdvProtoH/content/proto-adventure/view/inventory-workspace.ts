@@ -94,6 +94,15 @@ let selectedKind: string | null = null;
 let focusedActionId: string | null = null;
 
 /**
+ * 지금 초점이 가 있는 **칸** (V-004) — 줄에 초점이 있으면 없다.
+ *
+ * 칸을 한 번 눌러 고른 사람은 아직 행동을 고른 것이 아니다. 그때 초점을 첫 행동
+ * 줄로 옮겨 버리면 "고르기" 와 "행동 목록에 들어가기" 가 한 손짓이 되고, 오른
+ * 단추가 할 일이 사라진다 (UX 문서 §4.1 은 그 둘을 다른 손짓으로 둔다).
+ */
+let focusedCellId: string | null = null;
+
+/**
  * 확인을 기다리는 되돌릴 수 없는 요청 (V-002) — **아직 아무것도 보내지 않았다.**
  *
  * 이것이 있는 동안 표면에 확인 구획이 서고, Enter 는 그 구획의 답을 실행한다.
@@ -133,6 +142,11 @@ export function workspaceFocus(): string | null {
   return focusedActionId;
 }
 
+/** 검증용 — 지금 어느 칸에 초점이 있는가 */
+export function workspaceCellFocus(): string | null {
+  return focusedCellId;
+}
+
 /** 검증용 — 지금 무엇의 확인을 기다리는가 (종류). 기다리는 것이 없으면 null */
 export function workspaceConfirming(): string | null {
   return confirming?.kind ?? null;
@@ -152,6 +166,7 @@ export function workspacePendingCount(): number {
 export function resetWorkspace(): void {
   selectedKind = null;
   focusedActionId = null;
+  focusedCellId = null;
   confirming = null;
   confirmChoice = 'cancel';
   observed = null;
@@ -211,6 +226,7 @@ export function moveSelection(snapshot: GameViewSnapshot, delta: number): void {
     focusedActionId = null;
     return;
   }
+  focusedCellId = null;
   if (next !== selectedKind) {
     selectedKind = next;
     // 물건을 바꾸면 초점은 그 물건의 첫 줄로 간다 — 남아 있으면 다른 물건의 줄을 가리킨다
@@ -230,6 +246,7 @@ export function moveActionFocus(snapshot: GameViewSnapshot, delta: number): void
   if (!entry) return;
   const ids = entry.actions.map((a) => a.id);
   focusedActionId = moveFocus(ids, focusedActionId ?? undefined, delta) ?? null;
+  focusedCellId = null;
 }
 
 /**
@@ -283,6 +300,119 @@ export function invokeFocusedAction(
   pending.add(mark, { kind: entry.kind, actionId: action.id });
 }
 
+// ── 손가락 (V-004) ───────────────────────────────────────────────────
+//
+// 기반은 눌린 것의 id 만 돌려준다 (`engine/view-kernel/hud/surface.ts`). 그 소식들이
+// 무슨 뜻인지는 여기서 정한다 — UX 문서 §4.1 의 세 손짓이 그 뜻이다.
+//
+//     한 번 누름    고른다 (그것뿐이다 — 행동 목록으로 들어가지 않는다)
+//     두 번 누름    되는 행동 하나를 실행한다
+//     오른 단추     그 물건의 행동 목록을 연다 (초점이 줄로 들어간다)
+//
+// **되는지 안 되는지는 여전히 판정하지 않는다.** 실행은 자판의 Enter 와 **같은 길**을
+// 지나므로 되돌릴 수 없는 것에는 확인이 그대로 선다 (V-002).
+
+/** 그 칸이 무엇의 칸인가 — 빈 자리는 종류가 없다 (세계에 번호 붙은 빈 자리가 없다) */
+function cellKind(cellId: string): string | undefined {
+  return cellId.startsWith('item.') ? cellId.slice('item.'.length) : undefined;
+}
+
+/** 이 표면의 것인가 — 다른 표면의 눌림은 이 파일의 것이 아니다 */
+function mine(surfaceId: string): GameViewSnapshot | null {
+  if (surfaceId !== INVENTORY_SURFACE_ID) return null;
+  return observed;
+}
+
+/**
+ * 칸을 한 번 눌렀다 — **고른다.**
+ *
+ * 빈 자리를 눌러도 아무 일이 없다. 그 칸들은 서로 구별되지 않고 요청의 대상이
+ * 되지 않는다 (INTENT-EMPTY-ROOM-HAS-NO-ADDRESS-001) — 화면이 그 자리에 뜻을
+ * 만들어 내면 세계에 없는 주소가 생긴다.
+ */
+export function pickCell(surfaceId: string, cellId: string): void {
+  const snapshot = mine(surfaceId);
+  if (!snapshot) return;
+  const kind = cellKind(cellId);
+  if (kind === undefined) return;
+  if (!items(snapshot).some((e) => e.kind === kind)) return;
+  // 다른 것을 고르는 것은 그만두는 것이다 — 방향키와 같은 규칙이다 (V-002)
+  confirming = null;
+  selectedKind = kind;
+  focusedActionId = null;
+  focusedCellId = cellId;
+}
+
+/**
+ * 칸을 두 번 눌렀다 — **되는 행동 하나를 실행한다.**
+ *
+ * 무엇이 그 하나인가는 **세계가 보낸 차례**가 정한다. 화면이 "이 물건은 쓰는 것"
+ * 이라고 고르면 그것이 곧 화면이 지어낸 규칙이 된다 (DC-ITEM-KIND-IS-DATA-NOT-BRANCH).
+ * 되는 것이 하나도 없으면 아무 일도 일어나지 않는다 — 사유는 줄에 이미 서 있다.
+ */
+export function commitCell(
+  surfaceId: string,
+  cellId: string,
+  send: (action: ActionRequest) => number | null,
+): void {
+  const snapshot = mine(surfaceId);
+  if (!snapshot) return;
+  pickCell(surfaceId, cellId);
+  const entry = selectedItem(snapshot);
+  if (!entry) return;
+  const first = entry.actions.find(
+    (a) => a.available && NOT_EXECUTABLE_HERE[a.role] === undefined,
+  );
+  if (!first) return;
+  focusedActionId = first.id;
+  focusedCellId = null;
+  // 자판의 Enter 와 같은 길이다 — 되돌릴 수 없는 것에는 확인이 그대로 선다
+  invokeFocusedAction(snapshot, send);
+}
+
+/**
+ * 칸에서 목록을 청했다 (오른 단추) — **행동 목록을 연다.**
+ *
+ * 줄은 이미 상세 구획에 서 있으므로 새로 여는 창이 없다. 여는 것은 **초점**이다 —
+ * 이 손짓 뒤에는 ↑ ↓ 로 곧바로 행동을 고를 수 있다.
+ */
+export function menuCell(surfaceId: string, cellId: string): void {
+  const snapshot = mine(surfaceId);
+  if (!snapshot) return;
+  pickCell(surfaceId, cellId);
+  const entry = selectedItem(snapshot);
+  if (!entry) return;
+  focusedActionId = entry.actions[0]?.id ?? null;
+  focusedCellId = null;
+}
+
+/**
+ * 줄을 눌렀다 — **그 줄을 실행한다.**
+ *
+ * 확인이 떠 있으면 눌린 줄이 곧 답이다. 안 되는 줄을 눌러도 아무것도 나가지 않는다
+ * (`invokeFocusedAction` 이 그것을 이미 안다 — 여기서 다시 판정하지 않는다).
+ */
+export function pressRow(
+  surfaceId: string,
+  rowId: string,
+  send: (action: ActionRequest) => number | null,
+): void {
+  const snapshot = mine(surfaceId);
+  if (!snapshot) return;
+  if (confirming !== null) {
+    if (rowId === CONFIRM_COMMIT_ID) confirmChoice = 'commit';
+    else if (rowId === CONFIRM_CANCEL_ID) confirmChoice = 'cancel';
+    else return; // 확인이 떠 있는 동안 다른 줄은 듣지 않는다
+    invokeFocusedAction(snapshot, send);
+    return;
+  }
+  const entry = selectedItem(snapshot);
+  if (!entry || !entry.actions.some((a) => a.id === rowId)) return;
+  focusedActionId = rowId;
+  focusedCellId = null;
+  invokeFocusedAction(snapshot, send);
+}
+
 /**
  * 지름길이 되돌릴 수 없는 것을 짚었다 (V-002) — 곧바로 보내지 않고 **여기로 데려온다.**
  *
@@ -300,6 +430,7 @@ export function armDiscardConfirm(kind: string): void {
   if (!entry) return;
 
   selectedKind = kind;
+  focusedCellId = null;
   const action = entry.actions.find((a) => CONFIRM_REQUIRED.has(a.role));
   focusedActionId = action?.id ?? entry.actions[0]?.id ?? null;
   confirming =
@@ -466,7 +597,7 @@ export function inventoryWorkspace(
       ? confirmChoice === 'commit'
         ? CONFIRM_COMMIT_ID
         : CONFIRM_CANCEL_ID
-      : focusedActionId;
+      : (focusedActionId ?? focusedCellId);
 
   return {
     id: INVENTORY_SURFACE_ID,
