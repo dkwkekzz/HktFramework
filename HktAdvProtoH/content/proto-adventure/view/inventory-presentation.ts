@@ -26,7 +26,7 @@
 
 import type { SceneHudItem, SceneState } from '../../../engine/view-kernel/scene/scene-state';
 import type { GameViewSnapshot } from '../protocol/gameview';
-import { EQUIP_ARM_KEY_LABEL, EXCHANGE_ARM_KEY_LABEL } from './equipment-presentation';
+import { keyLabel, SLOT_KEY_LABELS } from './key-registry';
 
 /** 소지품 줄의 id 앞머리 — 조립 루트가 칸 번호를 되읽을 때 쓴다 */
 export const INVENTORY_HUD_PREFIX = 'inventory.';
@@ -45,16 +45,11 @@ const CATEGORY_ICON: Record<string, string> = {
   gear: '🛡', // C024 — 표에 한 줄이 는다
 };
 
-/** 소지품 칸에 붙는 손가락 자리 — 첫 아홉 칸까지 번호를 준다 */
-const SLOT_KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9'] as const;
-
 /**
- * 덜어내기를 여는 키의 표시 이름 (C022 — 실제 바인딩은 `view/bindings.ts`).
- *
- * 여기 있는 것은 **문구**뿐이다. 어떤 키가 무엇을 부르는지는 bindings 가 소유하고,
- * 이 파일은 그것을 사람에게 읽어 줄 뿐이다.
+ * 소지품 칸에 붙는 손가락 자리 — 첫 아홉 칸까지 번호를 준다.
+ * V-003 — 번호도 표에서 온다. 숫자 키를 옮기면 이 안내가 함께 옮겨진다.
  */
-const DISCARD_ARM_KEY_LABEL = 'B';
+const SLOT_KEYS = SLOT_KEY_LABELS;
 
 /**
  * 의미 역할 → 사람이 읽는 이름. **표에 없는 역할도 화면을 멈추지 않는다** —
@@ -72,14 +67,14 @@ const ACTION_KEY_HINT: Record<string, (slot?: string) => string | undefined> = {
   'use-item': (slot) => slot,
   // V-002 — 걸음이 하나 는다. 되돌릴 수 없는 것은 숫자 키 하나로 나가지 않고
   // 작업 공간의 확인을 거친다. 안내가 그 걸음을 숨기면 사람은 이미 끝난 줄 안다
-  'discard-item': (slot) => (slot ? `${DISCARD_ARM_KEY_LABEL} → ${slot} → 확인` : undefined),
+  'discard-item': (slot) => (slot ? `${keyLabel('discard')} → ${slot} → 확인` : undefined),
   // C023 — 덜어내기와 같은 두 걸음이다. 손가락 자리가 모자란 것은 조작 계층의 사정이며
   // 게임의 판정이 아니다 (view/bindings.ts).
-  'equip-item': (slot) => (slot ? `${EQUIP_ARM_KEY_LABEL} → ${slot}` : undefined),
+  'equip-item': (slot) => (slot ? `${keyLabel('equip')} → ${slot}` : undefined),
   // C024 — **세 걸음이다.** 물건과 자리를 둘 다 고르기 때문이며, 자리는 걸린 자리의
   // 번호다 (걸어 둔 것 목록의 번호와 같다 — view/equipment-presentation.ts).
   'exchange-item': (slot) =>
-    slot ? `${EXCHANGE_ARM_KEY_LABEL} → ${slot} → 걸린 번호` : undefined,
+    slot ? `${keyLabel('exchange')} → ${slot} → 걸린 번호` : undefined,
 };
 
 /**

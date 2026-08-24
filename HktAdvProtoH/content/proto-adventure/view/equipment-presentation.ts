@@ -21,30 +21,22 @@
 
 import type { SceneHudItem, SceneState } from '../../../engine/view-kernel/scene/scene-state';
 import type { EquipmentSlotView, GameViewSnapshot } from '../protocol/gameview';
+import { keyLabel, SLOT_KEY_LABELS } from './key-registry';
 
 /** 걸린 자리 줄의 id 앞머리 */
 export const EQUIPMENT_HUD_PREFIX = 'equipment.';
-
-/**
- * 푸는 손가락 자리 (C023 — 실제 바인딩은 `view/bindings.ts`).
- * 여기 있는 것은 **문구**뿐이다 — 어떤 키가 무엇을 부르는지는 bindings 가 소유한다.
- */
-const UNEQUIP_ARM_KEY_LABEL = 'M';
-/** 거는 손가락 자리 — 소지품 칸 번호와 짝이 된다 */
-export const EQUIP_ARM_KEY_LABEL = 'N';
-/**
- * 바꿔 거는 손가락 자리 (C024) — **아래줄 네 칸이 나란하다** (B · N · M · ,).
- * 넷이 같은 형태의 여는 키이므로 손가락 자리도 나란한 것이 맞다.
- */
-export const EXCHANGE_ARM_KEY_LABEL = ',';
 
 /**
  * 손가락 자리 — **걸린 자리에만** 번호를 준다.
  *
  * 빈 자리에 번호를 주면 여섯 개의 번호가 늘 떠 있는데 그중 쓸 수 있는 것은 하나뿐이다.
  * 푸는 일은 걸린 것에만 있으므로 번호도 걸린 것에만 붙는다 — 띠에 서는 순서와 같다.
+ *
+ * V-003 — 번호도 여는 키들도 `view/key-registry.ts` 가 쥔다. 이 파일이 표기를
+ * 따로 적어 두던 자리였고, 그래서 키를 옮기면 안내만 옛것으로 남을 수 있었다.
+ * **아래줄 네 칸이 나란한 것**(B · N · M · ,)도 이제 그 표가 지닌 사실이다.
  */
-const SLOT_KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9'] as const;
+const SLOT_KEYS = SLOT_KEY_LABELS;
 
 /**
  * 의미 역할 → 사람이 읽는 이름. 표에 없는 역할도 화면을 멈추지 않는다.
@@ -152,7 +144,9 @@ export function equipmentDetailLines(
   const equipment = snapshot.equipment ?? [];
   if (equipment.length === 0) return [];
 
-  const lines = [`걸어 둔 것 (${UNEQUIP_ARM_KEY_LABEL} → 번호 · 바꿔 걸기는 ${EXCHANGE_ARM_KEY_LABEL} → 소지품 → 번호)`];
+  const lines = [
+    `걸어 둔 것 (${keyLabel('unequip')} → 번호 · 바꿔 걸기는 ${keyLabel('exchange')} → 소지품 → 번호)`,
+  ];
   // 번호는 **걸린 자리에만** 붙는다 — 띠에 선 순서와 같다 (equipmentSlotIds).
   let filledIndex = 0;
   equipment.forEach((slot) => {
@@ -179,7 +173,7 @@ export function equipmentDetailLines(
         continue;
       }
       // 되는 것에는 손가락 자리를 붙인다 — 두 걸음짜리 조작은 안내가 없으면 닿지 않는다
-      if (action.role === 'unequip-item' && key) parts.push(`${role} ✓ ${UNEQUIP_ARM_KEY_LABEL} → ${key}`);
+      if (action.role === 'unequip-item' && key) parts.push(`${role} ✓ ${keyLabel('unequip')} → ${key}`);
       else parts.push(`${role} ✓`);
     }
 

@@ -16,13 +16,14 @@ import {
   moveSelection,
   observedNow,
 } from './inventory-workspace';
+import { keyCode, SLOT_KEY_IDS } from './key-registry';
 import { surfaceIsOpen, toggleSurface } from './surface-state';
 
 // 막기 (C011) — 세계에는 걸기와 놓기가 따로 있다. 화면에서는 한 키로 오간다.
 // 세계가 지금 무엇이라고 알려 주었는지를 보고 반대를 요청한다.
 // 무너진 동안에는 걸기가 가용하지 않으므로 세계가 사유와 함께 거절한다 (View 가 판정하지 않는다).
 const guardToggle: KeyBinding = {
-  code: 'KeyQ',
+  code: keyCode('guard'),
   invoke: (scene, send) => {
     const guarding = scene.self?.guard.guarding ?? false;
     const wanted = guarding ? 'guard-release' : 'guard-begin';
@@ -71,10 +72,14 @@ function moveModeToggle(code: string): KeyBinding {
 // 때문이다 (04 inventory.actions.exchange-item.request). 자리를 고르는 것은
 // 판정이 아니라 **선택**이며, 그 선택이 세계가 대신 할 수 없는 것이다
 // (INTENT-THE-DISPLACED-IS-NAMED-001).
-const DISCARD_ARM_KEY = 'KeyB';
-const EQUIP_ARM_KEY = 'KeyN';
-const UNEQUIP_ARM_KEY = 'KeyM';
-const EXCHANGE_ARM_KEY = 'Comma';
+//
+// V-003 — **코드는 여기서 정해지지 않는다.** 네 키도, 아래의 가방 여닫기도 표기와
+// 함께 `view/key-registry.ts` 가 쥔다. 화면 안내가 읽는 것도 그 표이므로 둘이
+// 갈라질 자리가 없다 (UX 문서 §4.1).
+const DISCARD_ARM_KEY = keyCode('discard');
+const EQUIP_ARM_KEY = keyCode('equip');
+const UNEQUIP_ARM_KEY = keyCode('unequip');
+const EXCHANGE_ARM_KEY = keyCode('exchange');
 
 /** 다음 숫자 키가 무엇인가. **화면의 조작 상태이지 세계의 상태가 아니다** */
 type ArmedRole = 'discard-item' | 'equip-item' | 'unequip-item' | 'exchange-item' | null;
@@ -126,7 +131,8 @@ function armKey(code: string, role: Exclude<ArmedRole, null>): KeyBinding {
 // 떠 있다 (DC-WORLD-OWNS-THE-SURFACE-LIST · view/inventory-presentation.ts).
 function slotKey(index: number): KeyBinding {
   return {
-    code: `Digit${index + 1}`,
+    // V-003 — 칸 번호의 코드도 표에서 온다 (`slot1` … `slot9`)
+    code: keyCode(SLOT_KEY_IDS[index]!),
     invoke: (scene, send) => {
       const role = armed;
 
@@ -211,7 +217,7 @@ function slotKey(index: number): KeyBinding {
 // 방향키가 여기까지 오는 것은 표면이 열린 동안 이동이 멈추기 때문이다
 // (engine/view-kernel/input/keyboard.ts 의 suspendMovement — 조립 루트가 켠다).
 
-const INVENTORY_OPEN_KEY = 'KeyI';
+const INVENTORY_OPEN_KEY = keyCode('inventory');
 
 const inventoryToggle: KeyBinding = {
   code: INVENTORY_OPEN_KEY,
@@ -249,19 +255,19 @@ function workspaceKey(
 
 export const KEY_BINDINGS: readonly KeyBinding[] = [
   guardToggle,
-  moveModeToggle('ShiftLeft'),
-  moveModeToggle('ShiftRight'),
+  moveModeToggle(keyCode('moveModeLeft')),
+  moveModeToggle(keyCode('moveModeRight')),
   armKey(DISCARD_ARM_KEY, 'discard-item'),
   armKey(EQUIP_ARM_KEY, 'equip-item'),
   armKey(UNEQUIP_ARM_KEY, 'unequip-item'),
   armKey(EXCHANGE_ARM_KEY, 'exchange-item'),
   // C026 — 소지품 작업 공간. 방향키·Enter 는 열려 있을 때만 듣는다
   inventoryToggle,
-  workspaceKey('ArrowLeft', (snapshot) => moveSelection(snapshot, -1)),
-  workspaceKey('ArrowRight', (snapshot) => moveSelection(snapshot, 1)),
-  workspaceKey('ArrowUp', (snapshot) => moveActionFocus(snapshot, -1)),
-  workspaceKey('ArrowDown', (snapshot) => moveActionFocus(snapshot, 1)),
-  workspaceKey('Enter', (snapshot, send) => invokeFocusedAction(snapshot, send)),
+  workspaceKey(keyCode('pickLeft'), (snapshot) => moveSelection(snapshot, -1)),
+  workspaceKey(keyCode('pickRight'), (snapshot) => moveSelection(snapshot, 1)),
+  workspaceKey(keyCode('actionUp'), (snapshot) => moveActionFocus(snapshot, -1)),
+  workspaceKey(keyCode('actionDown'), (snapshot) => moveActionFocus(snapshot, 1)),
+  workspaceKey(keyCode('invoke'), (snapshot, send) => invokeFocusedAction(snapshot, send)),
   // Escape 는 여기 없다 — 기반의 표면 능력이 붙잡아 조립을 거쳐 closeSurface 로 온다
   // (engine/view-kernel/hud/surface.ts · app/main.ts). 두 곳에서 받으면 두 번 닫힌다
   // 첫 아홉 칸. 칸이 그만큼 없으면 아무 일도 일어나지 않는다

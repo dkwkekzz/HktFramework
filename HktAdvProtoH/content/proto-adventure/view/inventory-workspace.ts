@@ -27,6 +27,7 @@ import { createPendingRequests } from '../../../engine/view-kernel/net/pending';
 import { moveFocus } from '../../../engine/view-kernel/input/focus';
 import type { ActionRequest } from '../protocol/actions';
 import type { GameViewSnapshot, InventoryItemView } from '../protocol/gameview';
+import { keyLabel } from './key-registry';
 import { openSurface, surfaceIsOpen } from './surface-state';
 
 /** 이 표면의 이름 — 여는 손짓과 닫는 길이 같은 것을 가리키게 하는 열쇠 */
@@ -496,7 +497,7 @@ export function inventoryWorkspace(
           ? `고른 것 — ${itemName(entry.kind, text)} ×${entry.count}`
           : '고른 것',
         rows: actionRows(snapshot, shortText),
-        emptyText: '← → 로 고른다',
+        emptyText: `${keyLabel('pickLeft')} ${keyLabel('pickRight')} 로 고른다`,
       },
       // 확인 구획은 **기다리는 것이 있을 때만 선다.** 늘 서 있으면 되돌릴 수 없다는
       // 말이 배경이 되고, 배경이 된 경고는 읽히지 않는다
@@ -504,9 +505,20 @@ export function inventoryWorkspace(
         ? [{ id: 'confirm', title: '되돌릴 수 없다', rows: confirm }]
         : []),
     ],
+    // 안내에 뜨는 키는 **실제로 듣는 그 키다** (V-003) — 표기와 코드가 한 자리에서 온다
     footer:
       confirm.length > 0
-        ? ['고르기 ↑ ↓', '실행 Enter', '그만두기 ← →', '닫기 Esc']
-        : ['닫기 Esc', '고르기 ← →', '행동 ↑ ↓', '실행 Enter'],
+        ? [
+            `고르기 ${keyLabel('actionUp')} ${keyLabel('actionDown')}`,
+            `실행 ${keyLabel('invoke')}`,
+            `그만두기 ${keyLabel('pickLeft')} ${keyLabel('pickRight')}`,
+            `닫기 ${keyLabel('close')}`,
+          ]
+        : [
+            `닫기 ${keyLabel('close')}`,
+            `고르기 ${keyLabel('pickLeft')} ${keyLabel('pickRight')}`,
+            `행동 ${keyLabel('actionUp')} ${keyLabel('actionDown')}`,
+            `실행 ${keyLabel('invoke')}`,
+          ],
   };
 }
