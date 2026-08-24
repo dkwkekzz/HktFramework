@@ -47,6 +47,14 @@ const TURN_KEYS: Record<string, { turn: number; tilt: number }> = {
   KeyT: { turn: 0, tilt: 1 },
 };
 
+// 이 키들은 이동을 몰고 있는 동안 눌린 순간 삼켜져 interaction 까지 오지 않는다.
+// 팩이 자기 키 배치가 여기와 겹치지 않는지 검사하려면 원본을 읽을 수 있어야 한다 —
+// 사본을 두면 원본이 늘어날 때 사본이 조용히 낡는다 (C025 · C026 이 실제로 겪었다).
+/** 이동 방향키 코드 원본 (KeyboardEvent.code) */
+export const MOVE_KEY_CODES: readonly string[] = Object.keys(MOVE_KEYS);
+/** 시점 조작키 코드 원본 (KeyboardEvent.code) */
+export const TURN_KEY_CODES: readonly string[] = Object.keys(TURN_KEYS);
+
 export function attachKeyboard(): KeyboardState {
   const pressed = new Set<string>();
   let keyPresses: string[] = [];
