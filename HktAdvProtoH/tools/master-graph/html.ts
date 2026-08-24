@@ -7,11 +7,13 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { FREE_REQUIRE_BUCKETS, type MasterGraph } from './model';
+import type { WorkLinks } from './works';
+import type { ConceptRegistry } from './concepts';
 
 const here = dirname(fileURLToPath(import.meta.url));
 
 /** 뷰어가 먹는 형태로 그래프를 납작하게 만든다 */
-export function serialize(graph: MasterGraph) {
+export function serialize(graph: MasterGraph, works?: WorkLinks, concepts?: ConceptRegistry) {
   const holesByNode = new Map<string, string[]>();
   for (const h of graph.holes) {
     holesByNode.set(h.nodeId, [...(holesByNode.get(h.nodeId) ?? []), h.field]);
@@ -45,16 +47,18 @@ export function serialize(graph: MasterGraph) {
     systems: [...graph.systems.values()],
     problems: graph.problems,
     freeBuckets: [...FREE_REQUIRE_BUCKETS],
+    works: works?.byNode ?? {},
+    concepts: concepts ?? null,
   };
 }
 
 const TITLE = 'Master Intent Graph';
 
 /** <style> 와 페이지 본문 — 두 산출물이 공유한다 */
-function renderParts(graph: MasterGraph): { style: string; body: string } {
+function renderParts(graph: MasterGraph, works?: WorkLinks, concepts?: ConceptRegistry): { style: string; body: string } {
   const css = readFileSync(join(here, 'viewer.css'), 'utf8');
   const js = readFileSync(join(here, 'viewer.js'), 'utf8');
-  const data = JSON.stringify(serialize(graph)).replace(/</g, '\\u003c');
+  const data = JSON.stringify(serialize(graph, works, concepts)).replace(/</g, '\\u003c');
 
   const nodes = [...graph.nodes.values()];
   const count = (t: string) => nodes.filter((n) => n.type === t).length;
@@ -114,6 +118,13 @@ ${css}
       <div id="systems"></div>
     </div>
 
+    <div class="sec" id="concepts-sec" hidden>
+      <h2>개념 — 세계가 정의한 명사</h2>
+      <p class="hint">기획서 § (정의) ↔ 개념 ↔ 코드 실체의 삼각 대조. 붉은 것은 기획이
+      말했는데 세계에 실체가 없는 개념이다. 고르면 그 개념을 조합에 쓰는 Capability 가 열린다.</p>
+      <div id="concepts"></div>
+    </div>
+
     <div class="sec">
       <h2>Constraint — 무엇을 거르나</h2>
       <p class="hint">고르면 그 원칙 아래 있는 노드만 남는다. 숫자는 걸린 노드 수다.</p>
@@ -147,8 +158,8 @@ ${js}
 }
 
 /** 브라우저로 직접 여는 단일 문서 */
-export function renderHtml(graph: MasterGraph): string {
-  const { style, body } = renderParts(graph);
+export function renderHtml(graph: MasterGraph, works?: WorkLinks, concepts?: ConceptRegistry): string {
+  const { style, body } = renderParts(graph, works, concepts);
   return `<!doctype html>
 <html lang="ko">
 <head>
@@ -166,8 +177,8 @@ ${body}
 
 /** Artifact 게시용 — 뷰어가 doctype·html·head·body 를 감싸므로 그 태그를 내지 않는다.
  *  손으로 껍데기를 벗기지 않도록 도구가 이 형태까지 만들어 둔다. */
-export function renderArtifactPage(graph: MasterGraph): string {
-  const { style, body } = renderParts(graph);
+export function renderArtifactPage(graph: MasterGraph, works?: WorkLinks, concepts?: ConceptRegistry): string {
+  const { style, body } = renderParts(graph, works, concepts);
   return `<title>${TITLE}</title>
 ${style}
 ${body}

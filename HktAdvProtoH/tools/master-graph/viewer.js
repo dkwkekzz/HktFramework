@@ -505,6 +505,43 @@
       );
     }
 
+    const comp = compositionOf.get(id);
+    if (comp) {
+      parts.push(
+        `<div class="field"><div class="k">개념 조합 — 이 기능은 이 개념들의 조합이다</div><div class="v">` +
+          comp.uses.map(conceptChip).join(' ') +
+          (comp.note ? `<div style="margin-top:6px" class="body">${esc(comp.note)}</div>` : '') +
+          `</div></div>`,
+      );
+    }
+
+    const wk = (G.works ?? {})[id];
+    if (wk && (wk.candidates.length || wk.cycles.length)) {
+      const rows = [];
+      for (const c of wk.cycles) {
+        const done = /COMPLETE/.test(c.status);
+        rows.push(
+          `<li><span class="chip ${done ? 'ok' : ''}">Cycle</span> cycles/${esc(c.id)} · ${esc(c.status)}</li>`,
+        );
+      }
+      for (const f of wk.candidates) {
+        rows.push(
+          `<li><span class="chip ${f.selected ? 'ok' : ''}">후보</span> ${esc(f.fr)} (${esc(f.track)} · ${esc(
+            f.status,
+          )}${f.selected ? ' · SELECTED' : ''}) — frontier/${esc(f.track.toLowerCase())}.md</li>`,
+        );
+      }
+      parts.push(
+        `<div class="field"><div class="k">작업 연결 — 이 노드를 세운 Cycle · 겨냥한 Frontier 후보</div>` +
+          `<div class="v"><ul>${rows.join('')}</ul></div></div>`,
+      );
+    } else if (n.type === 'capability') {
+      parts.push(
+        `<div class="field"><div class="k">작업 연결</div>` +
+          `<div class="v"><span class="chip hole">겨냥한 후보도 다룬 Cycle 도 없다 — NEXT 가 후보를 세우기 전이다</span></div></div>`,
+      );
+    }
+
     if (n.constraints.length) {
       parts.push(
         `<div class="field"><div class="k">Constraint — 이 노드를 거르는 원칙</div><div class="v">` +
@@ -563,6 +600,9 @@
         showConstraint(b.dataset.dc);
         apply();
       });
+    });
+    detail.querySelectorAll('[data-cngoto]').forEach((b) => {
+      b.addEventListener('click', () => showConcept(b.dataset.cngoto));
     });
     detail.querySelectorAll('[data-sysgoto]').forEach((b) => {
       b.addEventListener('click', () => {
@@ -680,6 +720,48 @@
   });
   document.getElementById('zoom-fit').addEventListener('click', fit);
 
+  // ── 개념 (Concept Registry · 파일럿) ─────────────────────────────
+  const CN = G.concepts && G.concepts.concepts && G.concepts.concepts.length ? G.concepts : null;
+  const conceptById = new Map(CN ? CN.concepts.map((c) => [c.id, c]) : []);
+  const compositionOf = new Map(CN ? CN.compositions.map((m) => [m.capability, m]) : []);
+
+  function conceptChip(cnId) {
+    const c = conceptById.get(cnId);
+    if (!c) return `<span class="chip hole">${esc(cnId)}</span>`;
+    const anchored = c.anchors.length > 0 && c.anchors.every((a) => a.found);
+    const cls = anchored ? 'chip ok' : 'chip hole';
+    return `<button class="ref" data-cngoto="${esc(c.id)}"><span class="${cls}">${esc(c.name)}${
+      anchored ? '' : ' · 실체 없음'
+    }</span></button>`;
+  }
+
+  function showConcept(cnId) {
+    const c = conceptById.get(cnId);
+    if (!c) return;
+    const parts = [];
+    parts.push(`<h3>${esc(c.id)}</h3><div class="kind">개념 · ${esc(c.name)}${CN.status ? ` · ${esc(CN.status)}` : ''}</div>`);
+    if (c.semantic) parts.push(`<p class="body">${esc(c.semantic)}</p>`);
+    parts.push(
+      `<div class="field"><div class="k">정의 — 기획서가 이 개념을 말하는 자리</div><div class="v">${esc(c.definition || '—')}</div></div>`,
+    );
+    const anchorRows = c.anchors.length
+      ? c.anchors
+          .map(
+            (a) =>
+              `<li>${a.found ? '<span class="chip ok">실체</span>' : '<span class="chip hole">깨짐</span>'} ${esc(a.ref)}</li>`,
+          )
+          .join('')
+      : '<li><span class="chip hole">실체 없음</span> 기획서는 정의했는데 세계 코드에 대응물이 없다 — 이 빈 칸이 곧 선행 작업이다</li>';
+    parts.push(`<div class="field"><div class="k">실체 — 세계 코드의 대응물</div><div class="v"><ul>${anchorRows}</ul></div></div>`);
+    const used = c.usedBy.length
+      ? c.usedBy.map((id) => refHtml(id)).join(' ')
+      : '<span class="chip hole">이 개념을 조합에 쓰는 Capability 가 아직 없다</span>';
+    parts.push(`<div class="field"><div class="k">이 개념을 조합에 쓰는 Capability</div><div class="v">${used}</div></div>`);
+    parts.push(`<div class="field"><div class="k">원본</div><div class="v">graph/concepts.yaml</div></div>`);
+    detail.innerHTML = parts.join('');
+    bindRefs();
+  }
+
   // ── 사이드바 구성 ────────────────────────────────────────────────
   const legend = document.getElementById('legend');
   legend.innerHTML = Object.entries(EDGE_STYLE)
@@ -715,6 +797,22 @@
         if (state.systemLens) showSystem(state.systemLens);
         apply();
       });
+    });
+  }
+
+  const conceptsSec = document.getElementById('concepts-sec');
+  const conceptsEl = document.getElementById('concepts');
+  if (CN && conceptsSec && conceptsEl) {
+    conceptsSec.hidden = false;
+    conceptsEl.innerHTML = CN.concepts
+      .map((c) => {
+        const anchored = c.anchors.length > 0 && c.anchors.every((a) => a.found);
+        const mark = anchored ? '' : ' <span style="color:var(--hole)">· 실체 없음</span>';
+        return `<button class="lens" data-cn="${esc(c.id)}">${esc(c.name)}${mark}<span class="n">${c.usedBy.length}</span></button>`;
+      })
+      .join('');
+    conceptsEl.querySelectorAll('.lens').forEach((b) => {
+      b.addEventListener('click', () => showConcept(b.dataset.cn));
     });
   }
 
