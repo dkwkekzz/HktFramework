@@ -1,0 +1,129 @@
+# Concept Registry — CN-* (파일럿 · DRAFT)
+#
+# 세계가 정의한 **개념**(명사)의 등록부다. Capability(동사)가 어떤 개념들의 조합인지를
+# 밝혀, 기획서 § (정의) ↔ 개념 노드 ↔ 코드 실체의 삼각 대조를 관찰 가능하게 한다.
+#
+# 규율 — systems.yaml 과 같다:
+#   · 개념은 발명하지 않는다 — 근거 문서가 정의한 개념만 등록한다 (definition 이 그 §).
+#   · 개념은 규칙을 소유하지 않는다 — 수치·공식·판정은 Cycle 소유다 (CLAUDE.md 원칙 18).
+#   · anchors 는 세계 코드의 실체다 (`경로#심볼`). 실체가 아직 없는 개념은 anchors 를
+#     비워 둔다 — 그 빈 칸이 곧 "기획은 말했는데 세계에 없다" 의 관찰이다.
+#
+# status: DRAFT — ITEM 도메인 파일럿. SCHEMA.md 미등재이며 정책 승격(Human)이 결정한다.
+#   승격 시: compositions 의 uses 는 capabilities.yaml 각 노드의 uses 필드로 옮기고,
+#   이 파일은 concepts 절만 남긴다. 파일럿 동안 여기 두는 이유는 병렬 안전이다 —
+#   공유 파일(capabilities.yaml)을 고치는 작업은 병합 뒤 최신 main 위에서만 돈다.
+
+version: 1
+status: DRAFT
+domain: ITEM
+
+concepts:
+
+  - id: CN-ITEM-KIND
+    name: 물건의 종류
+    definition: IS §2 · §2.1 · §3.1 · IE §26.1
+    semantic: >
+      아이템은 개체가 아니라 종류로 정의된다 — 성질·분류·용도·기여를 종류(정의소)가
+      소유하고, 규칙은 종류 이름을 묻지 않고 정의소에 묻는다. 새 항목이 늘어도
+      규칙 코드가 열리지 않는 것이 이 개념의 힘이다.
+    anchors:
+      - content/proto-adventure/world/semantic/item.ts#ITEM_CATALOG
+      - content/proto-adventure/world/semantic/item.ts#ItemDefinition
+
+  - id: CN-GRANT
+    name: 물건이 주는 것
+    definition: IS §3.2 · §5.4 · IE §2 (Equipment 기여)
+    semantic: >
+      성질에서 능력으로 이어지는 사슬 — 물건이 몸에 무엇을 더해 주는가(수치 기여 ·
+      여는 행동)를 정의가 선언하고, 판정은 성질이 아니라 이것을 본다.
+    anchors:
+      - content/proto-adventure/world/semantic/item.ts#StatContributions
+      - content/proto-adventure/world/semantic/item.ts#ItemEquip
+
+  - id: CN-ITEM-USE
+    name: 물건의 용도
+    definition: IS §5.3
+    semantic: >
+      한 번 쓰면 효과가 일어나고 그만큼 줄어드는 쪽의 선언 — 무엇에게 · 어떤 효과를 ·
+      어떤 조건에서. 적용해 두는 것(장착)과 갈리는 반대편이다.
+    anchors:
+      - content/proto-adventure/world/semantic/item.ts#ItemUse
+      - content/proto-adventure/world/rules/item-use.ts#evaluateItemUse
+
+  - id: CN-INVENTORY-ROOM
+    name: 담을 자리
+    definition: IE §1.1 · §3.1 · §6.1
+    semantic: >
+      가진 것이 놓이는 유한한 칸 — 칸 수와 겹침 한도가 세계의 사실이고, 획득은
+      전량 성공 또는 전량 실패다.
+    anchors:
+      - content/proto-adventure/world/semantic/inventory.ts#Inventory
+      - content/proto-adventure/world/rules/inventory-room.ts
+
+  - id: CN-EQUIP-SLOT
+    name: 걸어 두는 자리
+    definition: IE §1.2 · §13.1 · IS §5.4
+    semantic: >
+      적용된 것이 사는 자리 — 담을 칸보다 훨씬 좁아 무엇을 걸지가 선택이 되는 것이
+      설계 의도다. 자리가 물건을 직접 소유한다(담긴 곳을 가리키지 않는다).
+    anchors:
+      - content/proto-adventure/world/semantic/equipment.ts#EQUIP_SLOTS
+      - content/proto-adventure/world/semantic/equipment.ts#Equipment
+
+  - id: CN-MATERIAL
+    name: 재료
+    definition: IS §5.5 · §3.1 (분류 material)
+    semantic: >
+      그 자체로는 쓸모가 없고 다른 것으로 바뀌어야 값을 갖는 물건 — 변환의 입력이
+      되는 분류다. 캐 온 돌이 첫 사례다.
+    anchors:
+      - content/proto-adventure/world/semantic/item.ts#ItemCategory
+
+  - id: CN-RECIPE
+    name: 조합 (제작법)
+    definition: IS §5.5
+    semantic: >
+      재료들 → 결과물 하나의 변환을 선언하는 데이터 — 무엇이 필요하고 무엇이 나오며
+      어떤 자리·도구를 요구하는가. 새 제작법이 규칙 코드를 열지 않아야 한다.
+    anchors: []
+    # 실체 없음 — 기획서(IS §5.5)가 정의했으나 세계 코드에 대응물이 0건이다.
+    # MC-CRAFT-FROM-MATERIALS 가 MISSING 인 이유의 개념 쪽 절반이 이 빈 칸이다.
+
+  - id: CN-WORLD-ITEM
+    name: 몸 밖의 물건
+    definition: IS §5.6 · IE §34 · §35
+    semantic: >
+      누구의 것도 아닌 채로 위치를 가지고 세계에 놓인 아이템 — 소유(누가 집을 수
+      있는가)와 소멸(언제 사라지는가)을 함께 요구한다.
+    anchors: []
+    # 실체 없음 — 위치를 가진 비-Actor 존재의 선례는 광맥(deposit.ts)뿐이며 그것은
+    # 아이템이 아니다. MC-TRANSFER-ITEM 이 MISSING 인 이유의 개념 쪽 절반이다.
+
+# ── Capability = 개념의 조합 ─────────────────────────────────────────────
+# 각 Capability 가 어떤 개념들을 조합해 성립하는가. uses 의 개념이 전부 실체를 가지면
+# 그 Capability 는 조합만으로 설 수 있고, 실체 없는 개념이 섞여 있으면 그 개념이
+# 곧 선행 작업이다.
+
+compositions:
+
+  - capability: MC-USE-ITEM
+    uses: [CN-ITEM-KIND, CN-ITEM-USE, CN-INVENTORY-ROOM]
+    note: 종류가 선언한 용도를, 담긴 것에서 꺼내 쓴다 — 쓰면 줄어든다
+
+  - capability: MC-EQUIP-ITEM
+    uses: [CN-ITEM-KIND, CN-GRANT, CN-EQUIP-SLOT, CN-INVENTORY-ROOM]
+    note: 담긴 것 하나를 걸어 두는 자리로 옮겨, 종류가 선언한 기여를 몸에 얹는다
+
+  - capability: MC-CRAFT-FROM-MATERIALS
+    uses: [CN-MATERIAL, CN-RECIPE, CN-ITEM-KIND, CN-INVENTORY-ROOM]
+    note: >
+      재료 × 조합 — 가진 재료를 정해진 조합으로 다른 종류의 물건으로 바꾼다.
+      네 개념 중 CN-RECIPE 하나만 실체가 없고, 그것이 이 Capability 의 overlay_gap
+      ("제작법 데이터 · 가능 여부 판정")과 정확히 겹친다.
+
+  - capability: MC-TRANSFER-ITEM
+    uses: [CN-WORLD-ITEM, CN-ITEM-KIND, CN-INVENTORY-ROOM, CN-EQUIP-SLOT]
+    note: >
+      몸 밖의 물건 개념이 서야 줍기·버리기가 성립한다. CN-EQUIP-SLOT 이 든 이유는
+      IE §35 — 걸어 둔 것을 내려놓는 길이 담을 곳을 거치지 않기 때문이다.
