@@ -31,10 +31,16 @@ interface OverlayNotes {
   holes: string;
 }
 
-function rows(section: NotesSection): NotesRow[] {
-  return (section.rows ?? []).map((r) =>
-    typeof r === 'string' ? { label: r, ids: [r] } : { label: r.label, ids: r.ids },
-  );
+function rows(section: NotesSection): { label: string; first: string; rest: string[] }[] {
+  const out: { label: string; first: string; rest: string[] }[] = [];
+  for (const r of section.rows ?? []) {
+    const label = typeof r === 'string' ? r : r.label;
+    const ids = typeof r === 'string' ? [r] : r.ids;
+    const [first, ...rest] = ids;
+    if (!first) throw new Error(`overlay-notes 행에 id 가 없다: ${label} (${section.title})`);
+    out.push({ label, first, rest });
+  }
+  return out;
 }
 
 function raw(node: GraphNode | undefined, field: string): string {
@@ -105,13 +111,14 @@ export function renderOverlay(graph: MasterGraph, masterDir: string): { text: st
       out.push('| Capability | 상태 | 근거 | 부족한 것 |');
       out.push('|---|---|---|---|');
       for (const r of rows(sec)) {
-        r.ids.forEach((id) => listed.add(id));
-        const n = node(r.ids[0], sec.title);
+        listed.add(r.first);
+        r.rest.forEach((id) => listed.add(id));
+        const n = node(r.first, sec.title);
         const status = (n?.overlay as string) ?? '?';
-        for (const id of r.ids.slice(1)) {
+        for (const id of r.rest) {
           const other = graph.nodes.get(id);
           if (other && other.overlay !== n?.overlay)
-            warnings.push(`묶인 행의 상태가 갈린다 — 행을 나눌 것: ${r.label} (${r.ids[0]}=${n?.overlay} · ${id}=${other.overlay})`);
+            warnings.push(`묶인 행의 상태가 갈린다 — 행을 나눌 것: ${r.label} (${r.first}=${n?.overlay} · ${id}=${other.overlay})`);
         }
         out.push(`| ${r.label} | ${status} | ${raw(n, 'overlay_evidence') || '—'} | ${raw(n, 'overlay_gap') || '—'} |`);
       }
@@ -119,21 +126,21 @@ export function renderOverlay(graph: MasterGraph, masterDir: string): { text: st
       out.push('| Node | 상태 | 지금 세계에 있는 것 / 없는 것 |');
       out.push('|---|---|---|');
       for (const r of rows(sec)) {
-        const n = node(r.ids[0], sec.title);
+        const n = node(r.first, sec.title);
         out.push(`| ${r.label} | ${raw(n, 'implemented') || '?'} | ${raw(n, 'implemented_note') || '—'} |`);
       }
     } else if (sec.kind === 'possibility') {
       out.push('| Possibility | 요구 중 없는 것 | 비고 |');
       out.push('|---|---|---|');
       for (const r of rows(sec)) {
-        const n = node(r.ids[0], sec.title);
+        const n = node(r.first, sec.title);
         out.push(`| ${r.label} | ${raw(n, 'overlay_missing') || '—'} | ${raw(n, 'overlay_note') || '—'} |`);
       }
     } else if (sec.kind === 'zones') {
       out.push('| 층 | demands | 지금 채워진 것 |');
       out.push('|---|---|---|');
       for (const r of rows(sec)) {
-        const n = node(r.ids[0], sec.title);
+        const n = node(r.first, sec.title);
         const demands = (n?.raw?.demands as string[]) ?? [];
         const filled = demands.filter((d) => graph.nodes.get(d)?.overlay === 'IMPLEMENTED');
         const partial = demands.filter((d) => graph.nodes.get(d)?.overlay === 'PARTIAL');

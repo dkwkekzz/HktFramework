@@ -53,10 +53,20 @@ WORLD/VIEW → MASTER   상위 의미와 어긋난다 — MASTER GAP 으로 반�
 
 ## 레인이 공유하는 파일에서
 
-쓰기 범위가 원리적으로 겹치는 곳은 코드 등록부뿐이다 (`protocol/gameview.ts` ·
-`world/index.ts` · `protocol/semantic-id.ts` 등 — WORLD 트랙끼리, 그리고 VIEW 의
-view 쪽 등록부). 거기서는 **추가만 하고, 자기 도메인 영역 끝에 붙인다** — 기존 줄을
+`protocol/gameview.ts` 와 `protocol/semantic-id.ts` 는 **도메인 파일로 갈라져 있다** —
+타입·식별자는 `gameview-combat.ts` / `gameview-item.ts` · `semantic-id-{core,combat,item}.ts`
+가 소유하고 트랙은 **자기 도메인 파일에만** 더한다. 인덱스 둘은 재수출·조립만 하며,
+소비처는 언제나 인덱스 하나만 import 한다. 새 트랙이 서면 자기 도메인 파일을 만든다.
+
+그래도 남는 공유 지점에서는 **추가만 하고, 자기 도메인 영역 끝에 붙인다** — 기존 줄을
 옮기거나 재배열하지 않는다.
+
+```text
+world/index.ts               세계 조립 — SYSTEMS 배열의 순서가 결정론을 소유하므로
+                             분할하지 않는다. 시스템·상태 필드를 더할 때만 닿는다
+gameview.ts 의 스냅샷 조립    새 관찰 목록을 스냅샷에 다는 한 줄
+semantic-id.ts 의 재수출      새 도메인 파일을 다는 한 줄
+```
 
 ## 발견의 밸브 — 한 방향
 

@@ -45,9 +45,10 @@ Feedback 경위 = 자기 파일     닫힌 Cycle 의 반영 경위는 feedback/<
                              최신 main 위에서만 돈다
 ```
 
-코드 쪽 공유 지점(`protocol/gameview.ts` · `world/index.ts` · `protocol/semantic-id.ts`
-같은 등록부)에서는 **추가만 하고, 자기 도메인 영역 끝에 붙인다** — 기존 줄을 옮기거나
-재배열하지 않는다. 병합은 추가끼리는 잘 붙지만 이동에는 약하다.
+코드 쪽 등록부는 도메인 파일로 갈라져 있다 — 트랙은 `gameview-<도메인>.ts` ·
+`semantic-id-<도메인>.ts` 자기 파일에만 더한다 (분할 규칙: guides/works.md).
+남는 공유 지점(`world/index.ts` 조립 · 인덱스의 재수출 줄)에서는 **추가만 하고,
+자기 도메인 영역 끝에 붙인다** — 기존 줄을 옮기거나 재배열하지 않는다.
 
 ## 트랙 간 순서
 
