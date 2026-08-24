@@ -9,6 +9,8 @@
 //   · 자판을 잡고 있는가 (capturing) — 조립 루트가 이동·시점 입력을 멈출 기준
 //   · Escape 로 닫는 길, 그리고 손가락뿐인 기기를 위한 닫는 자리
 //   · 초점 링을 고른 것과 **다르게** 그리는 일
+//   · **눌리면 그 칸·줄의 id 를 돌려주는 일** — 한 번 누름 · 두 번 누름 · 목록 청함이
+//     서로 다른 소식이다. 무슨 뜻인지는 결정 Layer 가 정한다 (슬롯 띠와 같은 규칙)
 //
 // 이 능력이 소유하지 않는 것:
 //   · 무엇이 고른 것인가 (cell.selected 로 실려 온다 — 결정 Layer 가 쥔다)
@@ -26,6 +28,17 @@ export interface SurfaceLayer {
 export interface SurfaceHandlers {
   /** 닫혔다 — 어느 표면인지 알려 준다. 실제로 닫는 것은 결정 Layer 다 */
   onClose(surfaceId: string): void;
+  /**
+   * 칸이 한 번 눌렸다. **고르기라고 부르지 않는다** — 무엇이 고르기인지는 결정
+   * Layer 의 뜻이고, 이 능력이 아는 것은 "이 칸이 눌렸다" 뿐이다.
+   */
+  onPickCell?(surfaceId: string, cellId: string): void;
+  /** 칸이 두 번 눌렸다 — 한 번 누름도 함께 온다 (누름이 먼저, 두 번이 나중) */
+  onCommitCell?(surfaceId: string, cellId: string): void;
+  /** 칸에서 목록을 청했다 (오른 단추) — 브라우저의 기본 목록은 뜨지 않는다 */
+  onMenuCell?(surfaceId: string, cellId: string): void;
+  /** 줄이 눌렸다 — 되는 줄인지 안 되는 줄인지는 묻지 않는다 (state 는 실려 온 것이다) */
+  onPressRow?(surfaceId: string, rowId: string): void;
 }
 
 function escape(text: string): string {
@@ -83,14 +96,30 @@ function renderSection(section: SceneSurfaceSection, focusId: string | undefined
             : row.state === 'available'
               ? '✓'
               : '';
+      // 소리로 읽는 사람에게 표식은 글자가 아니다 — 상태를 말로도 둔다
+      const spokenState =
+        row.state === 'blocked'
+          ? '불가'
+          : row.state === 'pending'
+            ? '기다리는 중'
+            : row.state === 'available'
+              ? '가능'
+              : '';
+      const spoken = [row.text, row.hint, spokenState].filter(Boolean).join(', ');
+      // **줄도 단추다.** div 였던 동안 이 자리는 손가락으로 닿지 않았고 자판 초점도
+      // 받지 못했다 — 되는 것을 눌러 실행하는 길이 자판에만 있었다는 뜻이다.
+      // 안 되는 줄도 단추로 둔다 (disabled 로 만들지 않는다): 사유를 읽는 것이
+      // 그 자리의 값어치이고, 읽으려면 초점이 닿아야 한다.
       return (
-        `<div class="sf-row" data-id="${escape(row.id)}"` +
+        `<button type="button" class="sf-row" data-id="${escape(row.id)}"` +
         (row.state ? ` data-state="${row.state}"` : '') +
-        ` data-focused="${row.id === focusId}">` +
+        ` data-focused="${row.id === focusId}"` +
+        (row.state === 'blocked' ? ' aria-disabled="true"' : '') +
+        ` aria-label="${escape(spoken)}">` +
         (badge ? `<span class="sf-row-badge">${badge}</span>` : '') +
         `<span class="sf-row-text">${escape(row.text)}</span>` +
         (row.hint ? `<span class="sf-row-hint">${escape(row.hint)}</span>` : '') +
-        `</div>`
+        `</button>`
       );
     })
     .join('');
@@ -147,16 +176,71 @@ export function createSurfaceLayer(container: HTMLElement, handlers: SurfaceHand
     true,
   );
 
+  /** 이 자리가 어느 표면의 것인가 — 표면 마디가 자기 id 를 지닌다 */
+  function surfaceOf(target: HTMLElement | null): string | undefined {
+    return target?.closest<HTMLElement>('.sf')?.dataset.surface;
+  }
+
   // 닫는 자리 — Escape 는 자판이 있는 기기에만 있다. 손가락뿐인 기기에서 열기만 되고
   // 닫히지 않으면 그 표면은 갇힌 것이다 (명령 콘솔이 같은 이유로 같은 자리를 둔다).
+  //
+  // 같은 자리에서 칸과 줄의 눌림도 받는다. **무슨 뜻인지는 묻지 않는다** — 눌린
+  // 것의 id 를 그대로 돌려줄 뿐이다 (슬롯 띠의 onPress 와 같은 규칙).
   root.addEventListener('pointerdown', (ev) => {
     const target = ev.target as HTMLElement | null;
     const close = target?.closest<HTMLElement>('.sf-close');
-    if (!close) return;
+    if (close) {
+      ev.preventDefault();
+      ev.stopPropagation();
+      const id = close.dataset.surface;
+      if (id) handlers.onClose(id);
+      return;
+    }
+    const surfaceId = surfaceOf(target);
+    if (!surfaceId) return;
+    // **누른 것으로 치는 것은 주 단추뿐이다.** 오른 단추는 목록을 청하는 손짓이고
+    // (아래 contextmenu) 가운데 단추는 이 표면의 손짓이 아니다 — 그것들까지 누름으로
+    // 세면 오른 단추 한 번이 줄을 **실행해 버린다**.
+    // 자리는 그래도 표면의 것이다: 어느 단추든 뒤의 세계로 흘려보내지 않는다
+    // (흘리면 오른 단추 끌기가 표면 위에서 시점을 돌린다).
+    const primary = ev.button === 0;
+    const cell = target?.closest<HTMLElement>('.sf-cell');
+    if (cell?.dataset.id !== undefined) {
+      ev.stopPropagation();
+      if (primary) handlers.onPickCell?.(surfaceId, cell.dataset.id);
+      return;
+    }
+    const row = target?.closest<HTMLElement>('.sf-row');
+    if (row?.dataset.id !== undefined) {
+      ev.stopPropagation();
+      if (primary) handlers.onPressRow?.(surfaceId, row.dataset.id);
+    }
+  });
+
+  // 두 번 누름 — 한 번 누름 둘이 먼저 가고 이것이 뒤따른다. 같은 칸을 두 번 고르는
+  // 것은 아무것도 바꾸지 않으므로 그 앞선 소식이 해를 끼치지 않는다.
+  root.addEventListener('dblclick', (ev) => {
+    const target = ev.target as HTMLElement | null;
+    const surfaceId = surfaceOf(target);
+    const cell = target?.closest<HTMLElement>('.sf-cell');
+    if (!surfaceId || cell?.dataset.id === undefined) return;
     ev.preventDefault();
-    ev.stopPropagation();
-    const id = close.dataset.surface;
-    if (id) handlers.onClose(id);
+    handlers.onCommitCell?.(surfaceId, cell.dataset.id);
+  });
+
+  // 목록 청함 — 브라우저의 기본 목록을 대신한다. 막지 않으면 게임 화면 위에
+  // 브라우저 메뉴가 뜨고, 그 순간 이 표면은 사라진 것처럼 보인다.
+  //
+  // **표면 위라면 어디서든 막는다** — 칸이 아닌 자리에서만 브라우저 목록이 뜨면
+  // 같은 판 안에서 오른 단추가 두 가지 뜻이 된다. 게임의 다른 자리도 이미 같다
+  // (engine/view-kernel/input/pointer.ts · fx 캔버스).
+  root.addEventListener('contextmenu', (ev) => {
+    const target = ev.target as HTMLElement | null;
+    const surfaceId = surfaceOf(target);
+    if (!surfaceId) return;
+    ev.preventDefault();
+    const cell = target?.closest<HTMLElement>('.sf-cell');
+    if (cell?.dataset.id !== undefined) handlers.onMenuCell?.(surfaceId, cell.dataset.id);
   });
 
   return {
@@ -172,6 +256,9 @@ export function createSurfaceLayer(container: HTMLElement, handlers: SurfaceHand
         if (!entry) {
           const node = document.createElement('section');
           node.className = 'sf';
+          // 눌린 자리가 어느 표면의 것인지 되읽는 열쇠 — 닫는 단추만 알던 것을
+          // 마디 자신이 지닌다
+          node.dataset.surface = surface.id;
           root.appendChild(node);
           entry = { node, html: '' };
           drawn.set(surface.id, entry);

@@ -20,6 +20,7 @@ import type {
 import { collisionDebug } from '../../../engine/view-kernel/presentation/collision-presentation';
 import { swingTrail } from './swing-presentation';
 import { commandEntries, composeCommand } from '../../../engine/view-kernel/presentation/command-presentation';
+import { panelKeyHints } from './key-registry';
 import {
   inspectLines,
   isSelfHudId,
@@ -162,6 +163,9 @@ export function resolvePresentation(
     surfaces: [inventoryWorkspace(snapshot, codeText, shortCodeText)],
     // 늘 서 있는 띠 — 지금 이 순간 고르는 것이 자기 자리를 갖는다 (VUX-SK §2.1).
     slotBars: [skillSlotBar(snapshot, shortCodeText, options.skillAnswers ?? NO_SKILL_ANSWERS)],
+    // 조작 안내에 팩의 키를 보탠다 (V-005) — 세계의 interaction 이 아니어서 그 패널에
+    // 한 번도 뜨지 못하던 다섯이다. 무엇이 서는지는 키 표가 정한다
+    keyHints: panelKeyHints(),
     // 지면에 그리는 부피들 — 두 자리가 하나의 계약을 나눠 쓴다.
     //   켜면 (C)   몸 캡슐 · 속도 화살표 · 맞은 몸 표시 · 칼끝 — 진단 표면 (C006)
     //   평시       칼끝 하나 — **장면의 일부** (C025)

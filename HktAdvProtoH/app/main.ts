@@ -34,7 +34,11 @@ import {
   EFFECT_SET,
   EMPTY_EFFECT_MEMORY,
   closeSurface,
+  commitCell,
   forgetPending,
+  menuCell,
+  pickCell,
+  pressRow,
   KEY_BINDINGS,
   NO_SKILL_ANSWERS,
   rememberForEffects,
@@ -93,7 +97,17 @@ const commandConsole = createCommandConsole(container, {
 });
 // 겹침 표면 (기반 capability) — 무엇이 열려 있는지는 결정 Layer 가 쥐고,
 // 여기는 그리는 능력을 붙이고 닫기를 그쪽으로 돌려보낼 뿐이다 (반전 ⑤).
-const surfaces = createSurfaceLayer(container, { onClose: (id) => closeSurface(id) });
+// V-004 — 눌린 칸·줄의 id 를 팩으로 그대로 넘긴다. 조립은 그 칸이 무엇인지도,
+// 한 번 누름이 무슨 뜻인지도 알지 못한다 (슬롯 띠가 세운 규칙과 같다).
+const surfaces = createSurfaceLayer(container, {
+  onClose: (id) => closeSurface(id),
+  onPickCell: (surfaceId, cellId) => pickCell(surfaceId, cellId),
+  onCommitCell: (surfaceId, cellId) =>
+    commitCell(surfaceId, cellId, (action) => link.sendMarked(action)),
+  onMenuCell: (surfaceId, cellId) => menuCell(surfaceId, cellId),
+  onPressRow: (surfaceId, rowId) =>
+    pressRow(surfaceId, rowId, (action) => link.sendMarked(action)),
+});
 // 늘 서 있는 칸 띠 (C027) — 눌린 칸은 **키가 부른 것과 같은 요청**이 된다.
 // 조립은 그 칸이 무엇인지 모른다 — id 가 곧 interactionId 다.
 const slotBars = createSlotBarLayer(container, { onPress: (cellId) => requestInteraction(cellId) });

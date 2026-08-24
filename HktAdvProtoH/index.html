@@ -277,11 +277,19 @@
     .sf-cell[data-selected="true"] { border-color: #9dcaff; background: #1a2536; }
     /* 초점 링은 고른 것과 **다른 자리**에 그린다 — 둘은 다른 것이다 */
     .sf-cell[data-focused="true"] { outline: 2px solid #ffd98a; outline-offset: 2px; }
+    /* 손을 올리면 닿는 자리임이 보인다 — 빈 자리는 닿을 곳이 아니므로 뺀다 */
+    .sf-cell:not([data-empty="true"]):hover { border-color: #6d7f99; }
     .sf-cell-text { color: #eaf0ff; font-size: 12px; line-height: 1.25; word-break: break-all; }
     .sf-cell-detail { color: #9fa9bd; font-size: 11px; }
     /* 줄 — 되는 것도 안 되는 것도 여기 선다 */
     .sf-rows { display: flex; flex-direction: column; gap: 2px; }
-    .sf-row { display: flex; align-items: baseline; gap: 8px; padding: 3px 4px; border-radius: 4px; }
+    .sf-row {
+      display: flex; align-items: baseline; gap: 8px; padding: 3px 4px; border-radius: 4px;
+      /* 줄은 단추다 — 단추의 기본 생김새를 지우고 줄로 남긴다 (V-004 선행 ENGINE) */
+      width: 100%; text-align: left; background: none; border: 0;
+      color: inherit; font: inherit; cursor: pointer;
+    }
+    .sf-row:hover { background: #16202f; }
     .sf-row[data-focused="true"] { outline: 2px solid #ffd98a; outline-offset: -1px; }
     .sf-row-badge { flex: 0 0 auto; width: 12px; text-align: center; }
     .sf-row-text { flex: 1; }

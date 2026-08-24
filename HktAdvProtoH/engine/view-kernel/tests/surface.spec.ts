@@ -135,6 +135,46 @@ describe('surfaceMarkup — 표면 하나의 표시 지시', () => {
     expect(html).toContain('a &amp; b &lt;c&gt;');
   });
 
+  it('줄도 단추다 — 손가락으로 닿고 자판 초점을 받는다', () => {
+    const html = surfaceMarkup(
+      surface({
+        sections: [
+          {
+            id: 'actions',
+            rows: [
+              { id: 'use', text: '쓰기', state: 'available' },
+              { id: 'discard', text: '덜어내기 — 되돌릴 길이 없다', state: 'blocked' },
+            ],
+          },
+        ],
+      }),
+    );
+    expect(html.match(/<button type="button" class="sf-row"/g)).toHaveLength(2);
+    // 안 되는 줄도 단추로 남는다 — 사유를 읽으려면 초점이 닿아야 한다
+    expect(html).toContain('aria-disabled="true"');
+    expect(html).not.toContain('disabled>');
+  });
+
+  it('상태를 말로도 둔다 — 표식 글자는 소리로 읽히지 않는다', () => {
+    const html = surfaceMarkup(
+      surface({
+        sections: [
+          {
+            id: 'actions',
+            rows: [
+              { id: 'a', text: '쓰기', state: 'available', hint: '1' },
+              { id: 'b', text: '덜어내기', state: 'blocked' },
+              { id: 'c', text: '걸기', state: 'pending' },
+            ],
+          },
+        ],
+      }),
+    );
+    expect(html).toContain('aria-label="쓰기, 1, 가능"');
+    expect(html).toContain('aria-label="덜어내기, 불가"');
+    expect(html).toContain('aria-label="걸기, 기다리는 중"');
+  });
+
   it('안내 줄이 없으면 아래 자리 자체가 없다', () => {
     expect(surfaceMarkup(surface())).not.toContain('sf-foot');
     expect(surfaceMarkup(surface({ footer: ['닫기 Esc'] }))).toContain('닫기 Esc');

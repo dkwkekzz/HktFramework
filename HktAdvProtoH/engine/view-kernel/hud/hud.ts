@@ -250,6 +250,9 @@ export function createHud(container: HTMLElement): Hud {
         '충돌체 관찰: C',
         '속성 관찰: V',
       ]);
+      // 팩이 보탠 줄 — 엔진 기본 바로 아래다. 팩의 여는 키들은 세계의 interaction 이
+      // 아니라 화면 자신의 규칙이므로 아래 목록으로는 영영 오지 않는다
+      for (const line of scene.keyHints ?? []) keyLines.add(line);
       for (const i of scene.interactions) {
         if (i.key && i.prompt) keyLines.add(`${i.prompt}: ${i.keyLabel ?? i.key}`);
       }

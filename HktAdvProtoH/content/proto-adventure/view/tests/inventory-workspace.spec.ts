@@ -14,11 +14,20 @@ import type { ActionRequest } from '../../protocol/actions';
 import type { GameViewSnapshot } from '../../protocol/gameview';
 import {
   INVENTORY_SURFACE_ID,
+  armDiscardConfirm,
+  commitCell,
+  menuCell,
+  pickCell,
+  pressRow,
+  workspaceCellFocus,
+  workspaceFocus,
   invokeFocusedAction,
   moveActionFocus,
   moveSelection,
   resetWorkspace,
   settleOutcome,
+  workspaceConfirmChoice,
+  workspaceConfirming,
   workspacePendingCount,
   workspaceSelection,
 } from '../inventory-workspace';
@@ -43,6 +52,18 @@ const section = (fixture: unknown, id: string): SceneSurfaceSection => {
   if (!found) throw new Error(`구획 ${id} 이 없다`);
   return found;
 };
+
+/**
+ * 되돌릴 수 없는 손을 **끝까지** 실행한다 (V-002).
+ *
+ * 확인이 한 걸음 늘었으므로 이 파일의 기존 검사들도 그 걸음을 함께 밟는다.
+ * 줄어든 것은 없다 — 세계로 나가는 것은 여전히 마지막 한 번뿐이다.
+ */
+function commitFocused(fixture: unknown, send: (a: ActionRequest) => number | null): void {
+  invokeFocusedAction(snap(fixture), send); // 확인이 선다 — 아무것도 나가지 않는다
+  moveActionFocus(snap(fixture), 1); // 그만두기 → 실행
+  invokeFocusedAction(snap(fixture), send);
+}
 
 beforeEach(() => {
   resetWorkspace();
@@ -160,7 +181,7 @@ describe('VUX-IE-V-04 · V-06 — 고르고 읽고 실행한다 (자판만으로
     const sent: ActionRequest[] = [];
     moveSelection(snap(mining), 1); // stone
     moveActionFocus(snap(mining), 1); // discard-item (되는 것)
-    invokeFocusedAction(snap(mining), (a) => {
+    commitFocused(mining, (a) => {
       sent.push(a);
       return 1;
     });
@@ -182,7 +203,7 @@ describe('VUX-IE-FX-STALE — 세계가 답하기 전에는 아무것도 참이 
   it('보낸 뒤 그 줄이 기다림으로 보인다', () => {
     moveSelection(snap(mining), 1);
     moveActionFocus(snap(mining), 1);
-    invokeFocusedAction(snap(mining), () => 7);
+    commitFocused(mining, () => 7);
     const rows = section(mining, 'detail').rows ?? [];
     expect(rows.find((r) => r.id === 'discard-item')?.state).toBe('pending');
   });
@@ -190,7 +211,7 @@ describe('VUX-IE-FX-STALE — 세계가 답하기 전에는 아무것도 참이 
   it('VUX-IE-V-05 — 기다리는 동안 수량도 자리도 바뀌지 않는다', () => {
     moveSelection(snap(mining), 1);
     moveActionFocus(snap(mining), 1);
-    invokeFocusedAction(snap(mining), () => 7);
+    commitFocused(mining, () => 7);
     expect(section(mining, 'items').cells?.[0]?.detail).toBe('×2');
     expect(section(mining, 'room').title).toBe('자리 2 / 4 · 남은 자리 2');
   });
@@ -203,7 +224,8 @@ describe('VUX-IE-FX-STALE — 세계가 답하기 전에는 아무것도 참이 
       count += 1;
       return count;
     };
-    invokeFocusedAction(snap(mining), send);
+    commitFocused(mining, send);
+    // 두 번째는 확인조차 서지 않는다 — 이미 기다리는 중이기 때문이다
     invokeFocusedAction(snap(mining), send);
     expect(count).toBe(1);
   });
@@ -211,7 +233,7 @@ describe('VUX-IE-FX-STALE — 세계가 답하기 전에는 아무것도 참이 
   it('대답이 오면 기다림이 풀린다', () => {
     moveSelection(snap(mining), 1);
     moveActionFocus(snap(mining), 1);
-    invokeFocusedAction(snap(mining), () => 7);
+    commitFocused(mining, () => 7);
     expect(settleOutcome(7)).toBe(true);
     expect(workspacePendingCount()).toBe(0);
   });
@@ -219,7 +241,7 @@ describe('VUX-IE-FX-STALE — 세계가 답하기 전에는 아무것도 참이 
   it('표식 없는 대답은 가져가지 않는다 — 그것은 다른 자리의 것이다', () => {
     moveSelection(snap(mining), 1);
     moveActionFocus(snap(mining), 1);
-    invokeFocusedAction(snap(mining), () => 7);
+    commitFocused(mining, () => 7);
     expect(settleOutcome(undefined)).toBe(false);
     expect(workspacePendingCount()).toBe(1);
   });
@@ -227,7 +249,7 @@ describe('VUX-IE-FX-STALE — 세계가 답하기 전에는 아무것도 참이 
   it('보내지 못했으면 기다리지 않는다 — 영영 풀리지 않을 자리다', () => {
     moveSelection(snap(mining), 1);
     moveActionFocus(snap(mining), 1);
-    invokeFocusedAction(snap(mining), () => null);
+    commitFocused(mining, () => null);
     expect(workspacePendingCount()).toBe(0);
   });
 });
@@ -333,5 +355,298 @@ describe('VUX-IE-V-03 (부분) — 표시 쪽 조작이 자리 수를 바꾸지 
     toggleSurface(INVENTORY_SURFACE_ID);
     expect(surfaceIsOpen(INVENTORY_SURFACE_ID)).toBe(true);
     expect(section(mining, 'room').title).toBe(before);
+  });
+});
+
+
+// ── V-002 — 되돌릴 수 없는 것을 실수로 잃지 않는다 (UX 문서 §7) ──────────
+//
+// 세계는 덜어내기를 다른 요청과 똑같이 받는다. 여기서 재는 것은 **화면이 그 한 걸음을
+// 어디에 두었는가**뿐이다 — 판정은 하나도 늘지 않았다.
+//
+// **수량을 고르는 자리는 없다** — 세계가 부분 수량 덜어내기를 모르기 때문이며,
+// 그래서 확인 줄은 "×n 이 모두 사라진다" 로 지금 참인 것만 말한다.
+
+describe('V-002 — 되돌릴 수 없는 것은 확인을 거친다', () => {
+  const focusDiscard = (fixture: unknown): void => {
+    moveSelection(snap(fixture), 1); // stone
+    moveActionFocus(snap(fixture), 1); // discard-item (되는 것)
+  };
+
+  it('실행해도 곧바로 나가지 않는다 — 확인이 먼저 선다', () => {
+    const sent: ActionRequest[] = [];
+    focusDiscard(mining);
+    invokeFocusedAction(snap(mining), (a) => {
+      sent.push(a);
+      return 1;
+    });
+    expect(sent).toEqual([]);
+    expect(workspaceConfirming()).toBe('stone');
+  });
+
+  it('무엇이 얼마나 사라지는지 그 자리에서 읽힌다', () => {
+    toggleSurface(INVENTORY_SURFACE_ID);
+    focusDiscard(mining);
+    invokeFocusedAction(snap(mining), () => 1);
+    const rows = section(mining, 'confirm').rows ?? [];
+    expect(rows[0]?.text).toBe('덜어내기 — 돌 ×2 · 모두 사라진다');
+    expect(rows[1]?.text).toContain('그만둔다');
+  });
+
+  it('기본은 그만두기다 — 되돌릴 수 없는 것의 기본값은 하지 않는 것이다', () => {
+    toggleSurface(INVENTORY_SURFACE_ID);
+    focusDiscard(mining);
+    invokeFocusedAction(snap(mining), () => 1);
+    expect(workspaceConfirmChoice()).toBe('cancel');
+    expect(bag(mining).focusId).toBe('confirm.cancel');
+  });
+
+  it('그만두면 세계로 아무 요청도 나가지 않는다', () => {
+    const sent: ActionRequest[] = [];
+    const send = (a: ActionRequest): number => {
+      sent.push(a);
+      return 1;
+    };
+    focusDiscard(mining);
+    invokeFocusedAction(snap(mining), send); // 확인이 선다
+    invokeFocusedAction(snap(mining), send); // 기본값 그대로 Enter = 그만두기
+    expect(sent).toEqual([]);
+    expect(workspaceConfirming()).toBeNull();
+    expect(workspacePendingCount()).toBe(0);
+  });
+
+  it('← → 로도 그만둔다 — 안내 줄이 그렇게 말한다', () => {
+    focusDiscard(mining);
+    invokeFocusedAction(snap(mining), () => 1);
+    moveSelection(snap(mining), 1);
+    expect(workspaceConfirming()).toBeNull();
+    expect(workspaceSelection()).toBe('stone'); // 그만두었을 뿐 자리를 잃지 않는다
+  });
+
+  it('닫으면 확인도 사라진다 — 보이지 않는 확인은 확인이 아니다', () => {
+    toggleSurface(INVENTORY_SURFACE_ID);
+    focusDiscard(mining);
+    invokeFocusedAction(snap(mining), () => 1);
+    expect(workspaceConfirming()).toBe('stone');
+    closeSurface(INVENTORY_SURFACE_ID);
+    bag(mining); // 다음 프레임
+    expect(workspaceConfirming()).toBeNull();
+  });
+
+  it('확인을 골라 실행하면 그제야 관찰이 실어 온 것 그대로 나간다', () => {
+    const sent: ActionRequest[] = [];
+    focusDiscard(mining);
+    commitFocused(mining, (a) => {
+      sent.push(a);
+      return 1;
+    });
+    expect(sent).toEqual([{ interactionId: 'discard-item', itemKind: 'stone' }]);
+  });
+
+  it('확인 구획은 기다리는 것이 있을 때만 선다', () => {
+    toggleSurface(INVENTORY_SURFACE_ID);
+    focusDiscard(mining);
+    expect(bag(mining).sections.map((x) => x.id)).not.toContain('confirm');
+    invokeFocusedAction(snap(mining), () => 1);
+    expect(bag(mining).sections.map((x) => x.id)).toContain('confirm');
+  });
+
+  it('누르기 전에도 그렇다고 말한다 — 확인은 놀람이 아니어야 한다', () => {
+    moveSelection(snap(mining), 1);
+    const rows = section(mining, 'detail').rows ?? [];
+    expect(rows.find((r) => r.id === 'discard-item')?.hint).toBe('확인이 뜬다');
+  });
+
+  it('세계가 더는 된다고 하지 않으면 확인도 사라진다', () => {
+    toggleSurface(INVENTORY_SURFACE_ID);
+    focusDiscard(mining);
+    invokeFocusedAction(snap(mining), () => 1);
+    // 사이에 세계가 바뀌었다 — 이제 그 손은 불가다
+    const blocked = {
+      ...(mining as object),
+      inventory: [
+        {
+          ...(mining as GameViewSnapshot).inventory[0],
+          actions: [
+            { id: 'discard-item', role: 'discard-item', available: false, unavailableReason: 'no-way-back' },
+          ],
+        },
+      ],
+    };
+    bag(blocked);
+    expect(workspaceConfirming()).toBeNull();
+  });
+});
+
+describe('V-002 — 지름길도 같은 확인을 거친다 (B → 숫자)', () => {
+  it('지름길이 짚으면 작업 공간이 열리고 확인이 선다 — 아무것도 나가지 않는다', () => {
+    bag(mining); // 지름길은 지금 보고 있는 관찰을 읽는다
+    armDiscardConfirm('stone');
+    expect(surfaceIsOpen(INVENTORY_SURFACE_ID)).toBe(true);
+    expect(workspaceSelection()).toBe('stone');
+    expect(workspaceConfirming()).toBe('stone');
+  });
+
+  it('세계가 불가로 실어 온 것에는 확인을 세우지 않는다 — 그 자리에 사유가 이미 있다', () => {
+    bag(mining);
+    armDiscardConfirm('pickaxe'); // no-way-back
+    expect(workspaceConfirming()).toBeNull();
+    expect(workspaceSelection()).toBe('pickaxe'); // 사유를 읽도록 짚어는 준다
+    const rows = section(mining, 'detail').rows ?? [];
+    expect(rows.find((r) => r.id === 'discard-item')?.state).toBe('blocked');
+  });
+
+  it('지니지 않은 종류는 아무 일도 일으키지 않는다', () => {
+    bag(mining);
+    armDiscardConfirm('moonshard');
+    expect(workspaceConfirming()).toBeNull();
+    expect(surfaceIsOpen(INVENTORY_SURFACE_ID)).toBe(false);
+  });
+});
+
+
+// ── V-004 — 손가락 자리를 몰라도 닿는다 (UX 문서 §4.1) ──────────────────
+//
+// 기반은 눌린 것의 id 만 돌려준다. 여기서 재는 것은 **그 소식에 무슨 뜻을 주었는가**와,
+// 그 뜻이 자판의 길과 **같은 길**을 지나는가다 — 되돌릴 수 없는 것에는 확인이 서고,
+// 안 되는 것은 여전히 나가지 않는다.
+
+describe('V-004 — 눌러서 고르고 실행하고 목록을 연다', () => {
+  const sink = () => {
+    const sent: ActionRequest[] = [];
+    return { sent, send: (a: ActionRequest) => { sent.push(a); return 1; } };
+  };
+
+  it('한 번 누르면 고른다 — 그것뿐이다 (행동 목록으로 들어가지 않는다)', () => {
+    bag(mining);
+    pickCell(INVENTORY_SURFACE_ID, 'item.stone');
+    expect(workspaceSelection()).toBe('stone');
+    expect(workspaceFocus()).toBeNull();
+    expect(workspaceCellFocus()).toBe('item.stone');
+    expect(bag(mining).focusId).toBe('item.stone');
+  });
+
+  it('빈 자리를 눌러도 아무 일이 없다 — 세계에 번호 붙은 빈 자리가 없다', () => {
+    bag(mining);
+    pickCell(INVENTORY_SURFACE_ID, 'room.0');
+    expect(workspaceSelection()).toBeNull();
+  });
+
+  it('다른 표면의 눌림은 이 표면의 것이 아니다', () => {
+    bag(mining);
+    pickCell('command', 'item.stone');
+    expect(workspaceSelection()).toBeNull();
+  });
+
+  it('두 번 누르면 되는 행동 하나가 실행된다 — 세계가 보낸 차례의 첫 되는 것이다', () => {
+    const { sent, send } = sink();
+    bag(mining);
+    commitCell(INVENTORY_SURFACE_ID, 'item.pickaxe', send); // 쓰기가 되는 물건
+    expect(sent).toEqual([{ interactionId: 'use-item', itemKind: 'pickaxe' }]);
+  });
+
+  it('두 번 눌러도 되돌릴 수 없는 것에는 확인이 먼저 선다 — 자판과 같은 길이다', () => {
+    const { sent, send } = sink();
+    toggleSurface(INVENTORY_SURFACE_ID);
+    bag(mining);
+    commitCell(INVENTORY_SURFACE_ID, 'item.stone', send); // 되는 것이 덜어내기뿐이다
+    expect(sent).toEqual([]);
+    expect(workspaceConfirming()).toBe('stone');
+  });
+
+  it('되는 것이 하나도 없으면 두 번 눌러도 아무 일이 없다', () => {
+    const { sent, send } = sink();
+    const blocked = {
+      ...(mining as object),
+      inventory: [
+        {
+          kind: 'stone',
+          count: 1,
+          category: 'material',
+          stackable: true,
+          actions: [
+            { id: 'use-item', role: 'use-item', available: false, unavailableReason: 'no-target-selected' },
+          ],
+        },
+      ],
+    };
+    bag(blocked);
+    commitCell(INVENTORY_SURFACE_ID, 'item.stone', send);
+    expect(sent).toEqual([]);
+  });
+
+  it('손가락으로 골라 두고 자판으로 실행한다 — 손이 끊기지 않는다', () => {
+    const { sent, send } = sink();
+    bag(mining);
+    pickCell(INVENTORY_SURFACE_ID, 'item.pickaxe'); // 초점이 칸에 있다
+    invokeFocusedAction(snap(mining), send); // 두 번 누름과 같은 뜻이다
+    expect(sent).toEqual([{ interactionId: 'use-item', itemKind: 'pickaxe' }]);
+    expect(workspaceFocus()).toBe('use-item'); // 실행한 줄로 초점이 옮겨 간다
+    expect(workspaceCellFocus()).toBeNull();
+  });
+
+  it('빈 자리를 두 번 눌러도 **직전에 고른 것**이 실행되지 않는다', () => {
+    const { sent, send } = sink();
+    bag(mining);
+    pickCell(INVENTORY_SURFACE_ID, 'item.pickaxe'); // 먼저 다른 것을 골라 둔다
+    commitCell(INVENTORY_SURFACE_ID, 'room.0', send); // 빈 자리를 두 번 눌렀다
+    expect(sent).toEqual([]);
+  });
+
+  it('빈 자리에서 목록을 청해도 직전에 고른 것의 줄로 들어가지 않는다', () => {
+    bag(mining);
+    pickCell(INVENTORY_SURFACE_ID, 'item.pickaxe');
+    expect(workspaceCellFocus()).toBe('item.pickaxe');
+    menuCell(INVENTORY_SURFACE_ID, 'room.0');
+    expect(workspaceFocus()).toBeNull();
+    expect(workspaceCellFocus()).toBe('item.pickaxe');
+  });
+
+  it('오른 단추는 행동 목록을 연다 — 초점이 줄로 들어간다', () => {
+    bag(mining);
+    menuCell(INVENTORY_SURFACE_ID, 'item.stone');
+    expect(workspaceSelection()).toBe('stone');
+    expect(workspaceFocus()).toBe('use-item'); // 그 물건의 첫 줄
+    expect(workspaceCellFocus()).toBeNull();
+  });
+
+  it('줄을 누르면 그 줄이 실행된다', () => {
+    const { sent, send } = sink();
+    bag(mining);
+    pickCell(INVENTORY_SURFACE_ID, 'item.pickaxe');
+    pressRow(INVENTORY_SURFACE_ID, 'use-item', send);
+    expect(sent).toEqual([{ interactionId: 'use-item', itemKind: 'pickaxe' }]);
+  });
+
+  it('안 되는 줄을 눌러도 나가지 않는다 — 화면이 판정한 것이 아니다', () => {
+    const { sent, send } = sink();
+    bag(mining);
+    pickCell(INVENTORY_SURFACE_ID, 'item.pickaxe');
+    pressRow(INVENTORY_SURFACE_ID, 'discard-item', send); // no-way-back
+    expect(sent).toEqual([]);
+  });
+
+  it('확인이 떠 있으면 눌린 줄이 곧 답이다', () => {
+    const { sent, send } = sink();
+    toggleSurface(INVENTORY_SURFACE_ID);
+    bag(mining);
+    commitCell(INVENTORY_SURFACE_ID, 'item.stone', send); // 확인이 선다
+    pressRow(INVENTORY_SURFACE_ID, 'confirm.cancel', send);
+    expect(sent).toEqual([]);
+    expect(workspaceConfirming()).toBeNull();
+
+    commitCell(INVENTORY_SURFACE_ID, 'item.stone', send);
+    pressRow(INVENTORY_SURFACE_ID, 'confirm.commit', send);
+    expect(sent).toEqual([{ interactionId: 'discard-item', itemKind: 'stone' }]);
+  });
+
+  it('다른 것을 고르면 확인은 사라진다 — 방향키와 같은 규칙이다', () => {
+    const { send } = sink();
+    toggleSurface(INVENTORY_SURFACE_ID);
+    bag(mining);
+    commitCell(INVENTORY_SURFACE_ID, 'item.stone', send);
+    expect(workspaceConfirming()).toBe('stone');
+    pickCell(INVENTORY_SURFACE_ID, 'item.pickaxe');
+    expect(workspaceConfirming()).toBeNull();
   });
 });
