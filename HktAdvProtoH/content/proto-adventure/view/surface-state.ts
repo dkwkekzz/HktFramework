@@ -24,6 +24,17 @@ export function toggleSurface(id: string): void {
 }
 
 /**
+ * 연다. 이미 열려 있으면 아무 일도 일어나지 않는다.
+ *
+ * 여닫는 손짓(toggle)과 따로 두는 이유는 **여는 쪽만 필요한 자리**가 있기 때문이다 —
+ * 지름길이 되돌릴 수 없는 것을 짚었을 때 그 확인을 보이려면 표면이 열려 있어야 하고,
+ * 그 자리에서 toggle 을 쓰면 이미 열려 있던 표면이 도리어 닫힌다 (V-002).
+ */
+export function openSurface(id: string): void {
+  open.add(id);
+}
+
+/**
  * 닫는다. 기반의 Escape 와 닫는 자리(✕)가 조립을 거쳐 이것을 부른다.
  *
  * 이미 닫혀 있으면 아무 일도 일어나지 않는다 — 닫는 요청이 여는 요청이 되면

@@ -70,7 +70,9 @@ const ACTION_LABEL: Record<string, string> = {
 /** 그 역할을 부르는 손가락 자리 — 칸 번호를 받아 안내 문구를 만든다 */
 const ACTION_KEY_HINT: Record<string, (slot?: string) => string | undefined> = {
   'use-item': (slot) => slot,
-  'discard-item': (slot) => (slot ? `${DISCARD_ARM_KEY_LABEL} → ${slot}` : undefined),
+  // V-002 — 걸음이 하나 는다. 되돌릴 수 없는 것은 숫자 키 하나로 나가지 않고
+  // 작업 공간의 확인을 거친다. 안내가 그 걸음을 숨기면 사람은 이미 끝난 줄 안다
+  'discard-item': (slot) => (slot ? `${DISCARD_ARM_KEY_LABEL} → ${slot} → 확인` : undefined),
   // C023 — 덜어내기와 같은 두 걸음이다. 손가락 자리가 모자란 것은 조작 계층의 사정이며
   // 게임의 판정이 아니다 (view/bindings.ts).
   'equip-item': (slot) => (slot ? `${EQUIP_ARM_KEY_LABEL} → ${slot}` : undefined),

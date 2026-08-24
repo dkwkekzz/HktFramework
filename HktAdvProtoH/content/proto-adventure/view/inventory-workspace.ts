@@ -27,7 +27,7 @@ import { createPendingRequests } from '../../../engine/view-kernel/net/pending';
 import { moveFocus } from '../../../engine/view-kernel/input/focus';
 import type { ActionRequest } from '../protocol/actions';
 import type { GameViewSnapshot, InventoryItemView } from '../protocol/gameview';
-import { surfaceIsOpen } from './surface-state';
+import { openSurface, surfaceIsOpen } from './surface-state';
 
 /** 이 표면의 이름 — 여는 손짓과 닫는 길이 같은 것을 가리키게 하는 열쇠 */
 export const INVENTORY_SURFACE_ID = 'inventory';
@@ -62,6 +62,26 @@ const ACTION_LABEL: Record<string, string> = {
   'exchange-item': '바꿔 걸기',
 };
 
+/**
+ * 확인을 거쳐야 하는 역할 (UX 문서 §7 · V-002).
+ *
+ * **세계의 판정이 아니라 화면의 신중함이다.** 세계는 이 요청을 다른 요청과 똑같이
+ * 받으며, 되는지 안 되는지도 이미 `available` 로 말해 두었다. 여기서 한 걸음을 더
+ * 두는 이유는 하나뿐이다 — 이 요청이 받아들여지면 **되돌릴 길이 없다**.
+ *
+ * 그래서 이 표에 있는 역할은 Enter 한 번으로 나가지 않는다. 무엇이 얼마나 사라지는지
+ * 먼저 뜨고, 그만두면 세계로 아무것도 나가지 않는다.
+ *
+ * **수량을 고르는 자리는 여기 없다** — 세계가 부분 수량 덜어내기를 모른다
+ * (world/rules/item-discard.ts 는 종류를 통째로 지운다). 없는 개념의 자리를 만들면
+ * 그것이 곧 화면이 지어낸 규칙이 된다.
+ */
+const CONFIRM_REQUIRED: ReadonlySet<string> = new Set(['discard-item']);
+
+/** 확인 구획의 두 줄 — 어느 쪽에 초점이 있는가가 곧 Enter 가 할 일이다 */
+const CONFIRM_COMMIT_ID = 'confirm.commit';
+const CONFIRM_CANCEL_ID = 'confirm.cancel';
+
 // ── 겪는 사람 쪽 상태 — **세계의 상태가 아니다** ──────────────────────
 //
 // 고르는 것도 초점을 옮기는 것도 세계로 아무것도 보내지 않는다. 그래서 아무리
@@ -71,6 +91,17 @@ const ACTION_LABEL: Record<string, string> = {
 let selectedKind: string | null = null;
 /** 지금 자판이 가리키는 행동 줄 */
 let focusedActionId: string | null = null;
+
+/**
+ * 확인을 기다리는 되돌릴 수 없는 요청 (V-002) — **아직 아무것도 보내지 않았다.**
+ *
+ * 이것이 있는 동안 표면에 확인 구획이 서고, Enter 는 그 구획의 답을 실행한다.
+ * 그만두면 이 값만 사라지고 세계에는 흔적이 남지 않는다.
+ */
+let confirming: { kind: string; actionId: string } | null = null;
+
+/** 확인 구획에서 지금 고른 답. **기본은 그만두기다** — 되돌릴 수 없는 것의 기본값은 하지 않는 것이다 */
+let confirmChoice: 'commit' | 'cancel' = 'cancel';
 
 /** 보냈고 아직 대답이 오지 않은 요청들 — 표식으로 짚는다 (C009) */
 const pending = createPendingRequests<{ kind: string; actionId: string }>();
@@ -101,6 +132,16 @@ export function workspaceFocus(): string | null {
   return focusedActionId;
 }
 
+/** 검증용 — 지금 무엇의 확인을 기다리는가 (종류). 기다리는 것이 없으면 null */
+export function workspaceConfirming(): string | null {
+  return confirming?.kind ?? null;
+}
+
+/** 검증용 — 확인 구획에서 지금 고른 답 */
+export function workspaceConfirmChoice(): 'commit' | 'cancel' {
+  return confirmChoice;
+}
+
 /** 검증용 — 지금 기다리는 요청이 몇인가 */
 export function workspacePendingCount(): number {
   return pending.size();
@@ -110,6 +151,8 @@ export function workspacePendingCount(): number {
 export function resetWorkspace(): void {
   selectedKind = null;
   focusedActionId = null;
+  confirming = null;
+  confirmChoice = 'cancel';
   observed = null;
   pending.clear();
 }
@@ -131,9 +174,17 @@ function selectedItem(snapshot: GameViewSnapshot): InventoryItemView | undefined
  * 그것은 겪는 사람이 고르지 않은 것을 고른 것으로 만드는 일이다 (04 workspace.selection).
  */
 function reconcileSelection(snapshot: GameViewSnapshot): void {
+  // 확인을 기다리던 것이 관찰에서 사라졌거나 세계가 더는 된다고 하지 않으면 확인도 사라진다.
+  // 남겨 두면 Enter 하나가 **세계가 지금 거절하는 것**을 보내게 된다 (V-002).
+  if (confirming !== null) {
+    const armed = items(snapshot).find((entry) => entry.kind === confirming!.kind);
+    const action = armed?.actions.find((a) => a.id === confirming!.actionId);
+    if (!action || !action.available) confirming = null;
+  }
   if (selectedKind !== null && selectedItem(snapshot) === undefined) {
     selectedKind = null;
     focusedActionId = null;
+    confirming = null;
     return;
   }
   const entry = selectedItem(snapshot);
@@ -146,6 +197,12 @@ function reconcileSelection(snapshot: GameViewSnapshot): void {
 
 /** 지닌 것 사이에서 고르기를 옮긴다 — 세계로 아무것도 나가지 않는다 */
 export function moveSelection(snapshot: GameViewSnapshot, delta: number): void {
+  // 확인이 떠 있는 동안 이 축은 **그만두기**다 (안내 줄이 그렇게 말한다). 고르기가
+  // 함께 움직이면 그만둔 자리와 서 있는 자리가 달라져 무엇을 그만두었는지 흐려진다
+  if (confirming !== null) {
+    confirming = null;
+    return;
+  }
   const kinds = items(snapshot).map((entry) => entry.kind);
   const next = moveFocus(kinds, selectedKind ?? undefined, delta);
   if (next === undefined) {
@@ -162,6 +219,12 @@ export function moveSelection(snapshot: GameViewSnapshot, delta: number): void {
 
 /** 고른 것의 행동 줄 사이에서 초점을 옮긴다 */
 export function moveActionFocus(snapshot: GameViewSnapshot, delta: number): void {
+  // 확인이 떠 있는 동안 이 축은 두 답 사이를 오간다 — 줄이 둘뿐이므로 어느 쪽으로 밀든
+  // 반대편으로 간다
+  if (confirming !== null) {
+    if (delta !== 0) confirmChoice = confirmChoice === 'commit' ? 'cancel' : 'commit';
+    return;
+  }
   const entry = selectedItem(snapshot);
   if (!entry) return;
   const ids = entry.actions.map((a) => a.id);
@@ -182,6 +245,24 @@ export function invokeFocusedAction(
   snapshot: GameViewSnapshot,
   send: (action: ActionRequest) => number | null,
 ): void {
+  // 확인이 떠 있으면 Enter 는 **그 구획의 답**을 실행한다 (V-002).
+  // 그만두기는 아무것도 보내지 않는다 — 보내지 않았다는 것이 이 자리의 값어치다
+  if (confirming !== null) {
+    const armed = confirming;
+    const choice = confirmChoice;
+    confirming = null;
+    confirmChoice = 'cancel';
+    if (choice !== 'commit') return;
+    // 확인을 누른 그 순간의 관찰로 다시 본다 — 사이에 세계가 바뀌었을 수 있다
+    const target = items(snapshot).find((e) => e.kind === armed.kind);
+    const action = target?.actions.find((a) => a.id === armed.actionId);
+    if (!target || !action || !action.available) return;
+    if (pending.waiting((w) => w.kind === target.kind && w.actionId === action.id)) return;
+    const commit = send({ interactionId: action.id, itemKind: target.kind });
+    pending.add(commit, { kind: target.kind, actionId: action.id });
+    return;
+  }
+
   const entry = selectedItem(snapshot);
   if (!entry || focusedActionId === null) return;
   const action = entry.actions.find((a) => a.id === focusedActionId);
@@ -190,8 +271,42 @@ export function invokeFocusedAction(
   if (NOT_EXECUTABLE_HERE[action.role] !== undefined) return;
   if (pending.waiting((w) => w.kind === entry.kind && w.actionId === action.id)) return;
 
+  // 되돌릴 수 없는 것은 여기서 나가지 않는다 — 확인을 세우고 멈춘다 (UX 문서 §7)
+  if (CONFIRM_REQUIRED.has(action.role)) {
+    confirming = { kind: entry.kind, actionId: action.id };
+    confirmChoice = 'cancel';
+    return;
+  }
+
   const mark = send({ interactionId: action.id, itemKind: entry.kind });
   pending.add(mark, { kind: entry.kind, actionId: action.id });
+}
+
+/**
+ * 지름길이 되돌릴 수 없는 것을 짚었다 (V-002) — 곧바로 보내지 않고 **여기로 데려온다.**
+ *
+ * 두 걸음 지름길(B → 숫자)은 무엇을 짚었는지 화면에 남기지 않는다. 그래서 잘못 누른
+ * 숫자 하나가 되돌릴 수 없는 요청이 되어 나갔다. 이제 그 걸음은 작업 공간을 열어
+ * 그 물건을 짚고, 무엇이 얼마나 사라지는지 보인 다음 답을 기다린다.
+ *
+ * **판정하지 않는다.** 세계가 그 손을 불가로 실어 왔으면 확인을 세우지 않는다 —
+ * 그 자리에는 세계가 준 사유가 이미 줄로 서 있고, 사람은 그것을 읽는다.
+ */
+export function armDiscardConfirm(kind: string): void {
+  const snapshot = observed;
+  if (!snapshot) return;
+  const entry = items(snapshot).find((e) => e.kind === kind);
+  if (!entry) return;
+
+  selectedKind = kind;
+  const action = entry.actions.find((a) => CONFIRM_REQUIRED.has(a.role));
+  focusedActionId = action?.id ?? entry.actions[0]?.id ?? null;
+  confirming =
+    action && action.available && !pending.waiting((w) => w.kind === kind && w.actionId === action.id)
+      ? { kind, actionId: action.id }
+      : null;
+  confirmChoice = 'cancel';
+  openSurface(INVENTORY_SURFACE_ID);
 }
 
 /**
@@ -276,13 +391,48 @@ function actionRows(
     // **세계가 된다고 말한 것을 안 된다고 그리지 않는다.** 이 자리에서 그 길이 아직
     // 없을 뿐이며, 그 사정은 화면의 것이지 세계의 판정이 아니다
     const here = NOT_EXECUTABLE_HERE[action.role];
+    // 되돌릴 수 없는 손은 누르기 **전에** 그렇다고 말한다 (V-002) — 확인이 뜨고 나서야
+    // 알게 되면, 그 확인은 놀람이지 신중함이 아니다
+    const hint = here ?? (CONFIRM_REQUIRED.has(action.role) ? '확인이 뜬다' : undefined);
     return {
       id: action.id,
       text: label,
       state: 'available' as const,
-      ...(here ? { hint: here } : {}),
+      ...(hint ? { hint } : {}),
     };
   });
+}
+
+/**
+ * 확인 구획 (V-002) — **무엇이 얼마나 사라지는지**를 그 자리에서 말한다.
+ *
+ * 수량은 지금 관찰의 수량이다. 확인을 세운 순간의 수를 기억해 두지 않는다 — 기다리는
+ * 사이에 캐서 늘어났다면 사라지는 것도 늘어난 그만큼이고, 화면은 지금 참인 것만 말한다
+ * (INTENT-OBSERVATION-IS-THE-ONLY-TRUTH-001).
+ */
+function confirmRows(
+  snapshot: GameViewSnapshot,
+  text: (code: string) => string,
+): SceneSurfaceRow[] {
+  if (confirming === null) return [];
+  const entry = items(snapshot).find((e) => e.kind === confirming!.kind);
+  if (!entry) return [];
+  const label = ACTION_LABEL[
+    entry.actions.find((a) => a.id === confirming!.actionId)?.role ?? ''
+  ] ?? '실행';
+  return [
+    {
+      id: CONFIRM_COMMIT_ID,
+      text: `${label} — ${itemName(entry.kind, text)} ×${entry.count} · 모두 사라진다`,
+      state: 'available' as const,
+    },
+    {
+      // 그만두기에는 상태 표식을 달지 않는다 — 하지 않는 것은 되고 안 되고의 일이
+      // 아니다. 표식이 둘 다 ✓ 면 어느 쪽이 무엇을 하는 줄인지 흐려진다
+      id: CONFIRM_CANCEL_ID,
+      text: '그만둔다 — 세계로 아무것도 나가지 않는다',
+    },
+  ];
 }
 
 /**
@@ -299,16 +449,29 @@ export function inventoryWorkspace(
   observed = snapshot;
   reconcileSelection(snapshot);
 
+  const open = surfaceIsOpen(INVENTORY_SURFACE_ID);
+  // 닫히면 확인도 사라진다 — 보이지 않는 확인은 확인이 아니다. 닫는 길(Esc · ✕)이
+  // 곧 그만두는 길이며, 그 길로도 세계에는 아무것도 나가지 않는다
+  if (!open) confirming = null;
+
   const room = snapshot.inventoryRoom;
   const left = room ? Math.max(0, room.capacity - room.used) : 0;
   const full = room ? room.used >= room.capacity : false;
   const entry = selectedItem(snapshot);
+  const confirm = confirmRows(snapshot, text);
+  // 확인이 떠 있으면 초점은 그 구획의 답에 있다 — Enter 가 할 일이 곧 초점이다
+  const focusId =
+    confirm.length > 0
+      ? confirmChoice === 'commit'
+        ? CONFIRM_COMMIT_ID
+        : CONFIRM_CANCEL_ID
+      : focusedActionId;
 
   return {
     id: INVENTORY_SURFACE_ID,
-    open: surfaceIsOpen(INVENTORY_SURFACE_ID),
+    open,
     title: '가진 것',
-    ...(focusedActionId === null ? {} : { focusId: focusedActionId }),
+    ...(focusId === null ? {} : { focusId }),
     sections: [
       {
         id: 'items',
@@ -335,7 +498,15 @@ export function inventoryWorkspace(
         rows: actionRows(snapshot, shortText),
         emptyText: '← → 로 고른다',
       },
+      // 확인 구획은 **기다리는 것이 있을 때만 선다.** 늘 서 있으면 되돌릴 수 없다는
+      // 말이 배경이 되고, 배경이 된 경고는 읽히지 않는다
+      ...(confirm.length > 0
+        ? [{ id: 'confirm', title: '되돌릴 수 없다', rows: confirm }]
+        : []),
     ],
-    footer: ['닫기 Esc', '고르기 ← →', '행동 ↑ ↓', '실행 Enter'],
+    footer:
+      confirm.length > 0
+        ? ['고르기 ↑ ↓', '실행 Enter', '그만두기 ← →', '닫기 Esc']
+        : ['닫기 Esc', '고르기 ← →', '행동 ↑ ↓', '실행 Enter'],
   };
 }

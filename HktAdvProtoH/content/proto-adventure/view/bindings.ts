@@ -10,6 +10,7 @@ import { equipmentSlotIds } from './equipment-presentation';
 import { inventorySlots } from './inventory-presentation';
 import {
   INVENTORY_SURFACE_ID,
+  armDiscardConfirm,
   invokeFocusedAction,
   moveActionFocus,
   moveSelection,
@@ -171,6 +172,16 @@ function slotKey(index: number): KeyBinding {
 
       const kind = inventorySlots(scene)[index];
       if (kind === undefined) return;
+
+      // V-002 — 되돌릴 수 없는 손은 이 지름길로도 곧바로 나가지 않는다.
+      // 작업 공간이 열리며 무엇이 얼마나 사라지는지 보이고, 답은 거기서 받는다.
+      // **이 파일이 그것을 판정하지 않는다** — 어떤 역할이 확인을 요구하는지도,
+      // 세계가 그 손을 지금 허락하는지도 작업 공간이 관찰을 보고 정한다
+      if (role === 'discard-item') {
+        armDiscardConfirm(kind);
+        return;
+      }
+
       const action: ActionRequest = {
         interactionId: role ?? 'use-item',
         itemKind: kind,
