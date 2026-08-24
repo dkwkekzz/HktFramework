@@ -373,9 +373,15 @@
       cursor: pointer; touch-action: none;
     }
     .tp-button[data-pressed="true"] { background: rgba(70, 96, 140, 0.92); }
-    /* 지금 되는지 안 되는지는 세계가 정한다 — 그 판정을 그대로 흐리게 비춘다.
-       눌리지 않게 막지는 않는다. 키를 누를 때와 같이 세계가 사유를 붙여 거절한다. */
-    .tp-button-action[data-available="false"] { opacity: 0.45; }
+    /* 지금 되는지 안 되는지는 세계가 정한다 — 이름은 흐려지고 사유는 글자로 남는다.
+       눌리지 않게 막지는 않는다. 키를 누를 때와 같이 세계가 사유를 붙여 거절한다.
+       사유까지 함께 흐리면 손가락 사용자는 왜 안 되는지 읽을 자리가 없다 —
+       자판 사용자의 자기 패널에 해당하는 자리가 이 버튼뿐이다. */
+    .tp-button-action[data-available="false"] { border-color: rgba(255, 255, 255, 0.14); }
+    .tp-button-action[data-available="false"] .tp-label { opacity: 0.45; }
+    .tp-label { display: block; }
+    .tp-reason { display: block; margin-top: 2px; font-size: 10.5px; font-weight: 600; color: #ff9a9a; }
+    .tp-reason:empty { display: none; }
     .tp-button-observer {
       min-width: 54px; min-height: 40px; font-size: 12px; font-weight: 600;
       background: rgba(20, 25, 35, 0.7);

@@ -32,6 +32,30 @@ function buttonInteractions(scene: SceneState): SceneInteraction[] {
   return scene.interactions.filter((i) => i.key && i.prompt && !i.terrainTarget);
 }
 
+/** 행동 버튼 하나의 표시 지시 — 이 능력은 그것이 무슨 행동인지 모른다 */
+export interface TouchActionView {
+  code: string; // 이 버튼이 내놓는 키 코드
+  label: string; // 버튼 이름 (이미 형식화된 문구)
+  available: boolean;
+  /** 안 되는 사유 — 세계가 판정하고 결정 Layer 가 형식화한 문구를 그대로 비춘다.
+   *  되는 버튼에는 없다. 자판 사용자는 자기 패널에서 같은 사유를 읽지만,
+   *  손가락 사용자에게는 이 버튼이 그 사유가 닿는 유일한 자리다. */
+  reason?: string;
+}
+
+/**
+ * 화면 상태를 행동 버튼 지시로 옮긴다 — **DOM 을 건드리지 않는 순수 함수**다.
+ * 안 되는 버튼이 사라지지 않는가, 사유가 안 되는 버튼에만 붙는가를 브라우저 없이 검사한다.
+ */
+export function touchActionViews(scene: SceneState): TouchActionView[] {
+  return buttonInteractions(scene).map((i) => ({
+    code: i.key as string,
+    label: i.prompt ?? '',
+    available: i.available,
+    ...(i.available || !i.unavailableText ? {} : { reason: i.unavailableText }),
+  }));
+}
+
 export function createTouchPad(container: HTMLElement): TouchPad {
   const root = document.createElement('div');
   root.id = 'touchpad';
@@ -87,27 +111,36 @@ export function createTouchPad(container: HTMLElement): TouchPad {
         knobEl.style.transform = `translate(${stick.knobX - stick.originX}px, ${stick.knobY - stick.originY}px)`;
       }
 
-      const interactions = buttonInteractions(scene);
-      const signature = interactions.map((i) => `${i.key}:${i.prompt}`).join('|');
+      const views = touchActionViews(scene);
+      const signature = views.map((v) => `${v.code}:${v.label}`).join('|');
       if (signature !== actionSignature) {
         actionSignature = signature;
         actionsEl.replaceChildren();
-        for (const interaction of interactions) {
+        for (const view of views) {
           const el = document.createElement('button');
           el.className = 'tp-button tp-button-action';
-          el.textContent = interaction.prompt ?? '';
-          press(el, interaction.key as string);
+          const label = document.createElement('span');
+          label.className = 'tp-label';
+          label.textContent = view.label;
+          const reason = document.createElement('span');
+          reason.className = 'tp-reason';
+          el.append(label, reason);
+          press(el, view.code);
           actionsEl.appendChild(el);
         }
       }
 
-      // 지금 되는지 안 되는지는 세계가 정한다 — 그 판정을 그대로 흐리게 비춘다.
+      // 지금 되는지 안 되는지는 세계가 정한다 — 그 판정을 흐림과 사유 문구로 비춘다.
       // 눌리지 않게 막지는 않는다. 키를 누를 때와 같이, 안 되는 것을 눌러도
       // 세계가 사유를 붙여 거절한다 (C009).
       const children = actionsEl.children;
       for (let index = 0; index < children.length; index += 1) {
         const el = children[index] as HTMLElement;
-        el.dataset.available = String(interactions[index]?.available ?? false);
+        const view = views[index];
+        el.dataset.available = String(view?.available ?? false);
+        const reasonEl = el.querySelector<HTMLElement>('.tp-reason');
+        const reason = view?.reason ?? '';
+        if (reasonEl && reasonEl.textContent !== reason) reasonEl.textContent = reason;
       }
     },
     consumePresses() {
