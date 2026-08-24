@@ -12,6 +12,7 @@ import { TRANSPORT_PATH } from '../engine/protocol-core/transport';
 import { createCommandConsole } from '../engine/view-kernel/hud/command-console';
 import { createSurfaceLayer } from '../engine/view-kernel/hud/surface';
 import { createHud, type EntityLabel, type EntityPlate, type StrikeMark } from '../engine/view-kernel/hud/hud';
+import { createSlotBarLayer } from '../engine/view-kernel/hud/slot-bar';
 import { createTouchPad } from '../engine/view-kernel/hud/touch-pad';
 
 import { attachInput } from '../engine/view-kernel/input/input';
@@ -93,6 +94,9 @@ const commandConsole = createCommandConsole(container, {
 // 겹침 표면 (기반 capability) — 무엇이 열려 있는지는 결정 Layer 가 쥐고,
 // 여기는 그리는 능력을 붙이고 닫기를 그쪽으로 돌려보낼 뿐이다 (반전 ⑤).
 const surfaces = createSurfaceLayer(container, { onClose: (id) => closeSurface(id) });
+// 늘 서 있는 칸 띠 (C027) — 눌린 칸은 **키가 부른 것과 같은 요청**이 된다.
+// 조립은 그 칸이 무엇인지 모른다 — id 가 곧 interactionId 다.
+const slotBars = createSlotBarLayer(container, { onPress: (cellId) => requestInteraction(cellId) });
 
 const keyboard = attachKeyboard();
 
@@ -107,6 +111,7 @@ const EMPTY_SCENE: SceneState = {
   effects: [],
   worldTime: 0,
   surfaces: [],
+  slotBars: [],
   commandSurface: {
     open: false,
     entries: [],
@@ -282,6 +287,30 @@ function forgetPendingSkills(): void {
   pendingSkills.clear();
 }
 
+/** 지금 관찰된 것 중 무엇이 기술인가 — 프레임마다 갱신된다 (C027) */
+let skillIds = new Set<string>();
+
+/**
+ * 하나의 요청이 나가는 **유일한 자리** (C027).
+ *
+ * 키가 불렀든, 손가락 버튼이 불렀든, 띠의 칸이 눌렸든 전부 여기로 온다.
+ * 그래서 입력 수단마다 다른 규칙이 생길 길 자체가 없다
+ * (INTENT-SKILL-INPUT-CONVERGES-001 · VUX-SK-V-02).
+ *
+ * 조립은 그 id 가 무엇인지 모른다 — 기술인지 아닌지는 팩이 답한다.
+ */
+function requestInteraction(interactionId: string): void {
+  const interaction = latestScene.interactions.find((i) => i.id === interactionId);
+  if (!interaction) return;
+  const action = {
+    interactionId: interaction.id,
+    ...(interaction.targetEntityId ? { targetEntityId: interaction.targetEntityId } : {}),
+  };
+  // 기술이면 표식을 달고 나간다 — 그래야 그 대답이 그 칸으로 돌아온다.
+  if (skillIds.has(interaction.id)) sendSkill(action);
+  else link.send(action);
+}
+
 /** 잠깐만 머무는 표시를 걷는다 — 거절은 걷지 않는다 */
 function ageSkillAnswers(nowMs: number): void {
   for (const [id, until] of acceptedUntil) {
@@ -455,7 +484,7 @@ function frame(now: number): void {
 
   // C027 — 지금 관찰된 것 중 무엇이 기술인가. 계약이 실은 값으로 갈린다
   // (04 skill.identification). 세계가 기술을 하나 더 지니면 이 집합도 하나 는다.
-  const skillIds = snapshot ? skillInteractionIds(snapshot) : new Set<string>();
+  skillIds = snapshot ? skillInteractionIds(snapshot) : new Set<string>();
 
   // 손가락으로 누른 버튼은 그 행동에 배정된 키 코드로 도착한다 (view/hud/touch-pad.ts).
   // 여기서 둘을 구분하지 않는 것이 핵심이다 — 손가락과 키가 갈라질 길 자체가 없다.
@@ -491,25 +520,14 @@ function frame(now: number): void {
     }
     const keyed = latestScene.interactions.filter((i) => i.key === code);
     const interaction = keyed.find((i) => i.available) ?? keyed[0];
-    if (interaction) {
-      const action = {
-        interactionId: interaction.id,
-        ...(interaction.targetEntityId ? { targetEntityId: interaction.targetEntityId } : {}),
-      };
-      // C027 — 기술이면 표식을 달고 나간다. **무엇이 기술인지는 팩이 판단한다** —
-      // 조립은 기술의 이름을 하나도 알지 못한 채 이 갈림을 지난다.
-      //
-      // 키가 눌렀든 손가락 버튼이 눌렀든 여기까지 같은 code 로 도착하므로, 나가는
-      // 요청도 같다 (INTENT-SKILL-INPUT-CONVERGES-001). 이 갈림 위에 입력 수단을
-      // 묻는 자리가 없다는 것이 그 성질을 지킨다.
-      if (skillIds.has(interaction.id)) sendSkill(action);
-      else link.send(action);
-    }
+    // 키가 고른 것을 요청 한 자리로 넘긴다 (C027) — 띠의 칸이 눌렸을 때와 같은 길이다.
+    if (interaction) requestInteraction(interaction.id);
   }
 
   renderer.render(latestScene, dt);
   commandConsole.render(latestScene.commandSurface);
   surfaces.render(latestScene.surfaces);
+  slotBars.render(latestScene.slotBars);
   // 조작 자리는 손가락을 쓰는 기기에서만 보인다. 기기 이름을 묻지 않고
   // 무엇으로 가리키는지만 본다 — 마우스뿐인 화면에는 나타나지 않는다.
   touchPad.render(latestScene, touch.stick(), COARSE_POINTER || touch.engaged());

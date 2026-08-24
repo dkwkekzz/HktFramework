@@ -290,6 +290,41 @@
     .sf-row[data-state="blocked"] { opacity: 0.62; }
     .sf-row[data-state="blocked"] .sf-row-badge { color: #ff9a9a; }
     .sf-row[data-state="pending"] .sf-row-badge { color: #ffd98a; }
+    /* ── 슬롯 띠 (범용 capability — engine/view-kernel/hud/slot-bar.ts) ──
+       늘 서 있고 자판을 잡지 않는다. 화면 아래 가운데가 지금 고르는 것의 자리다. */
+    #slotbars {
+      position: absolute; left: 0; right: 0; bottom: 16px;
+      display: flex; flex-direction: column; align-items: center; gap: 8px;
+      pointer-events: none;
+    }
+    .sb-bar { display: flex; gap: 8px; pointer-events: auto; flex-wrap: wrap; justify-content: center; }
+    .sb-bar[hidden] { display: none; }
+    .sb-cell {
+      position: relative;
+      display: flex; flex-direction: column; align-items: center; justify-content: flex-start;
+      gap: 3px; min-width: 116px; min-height: 74px; padding: 8px 10px 7px;
+      background: rgba(20, 26, 38, 0.92); border: 1px solid #2c3648; border-radius: 8px;
+      color: #d6dcea; font: inherit; cursor: pointer; text-align: center;
+    }
+    /* 부르는 자리 — 칸의 왼쪽 위. 없으면 빈 자리로 남는다 (칸은 사라지지 않는다) */
+    .sb-key {
+      position: absolute; top: 4px; left: 6px;
+      color: #9dcaff; font-size: 11px; font-weight: 700; letter-spacing: 0.04em;
+    }
+    .sb-title { color: #eaf0ff; font-size: 13px; font-weight: 700; line-height: 1.2; }
+    .sb-detail { color: #9fa9bd; font-size: 11px; line-height: 1.2; }
+    .sb-status { color: #c8d2e6; font-size: 11px; line-height: 1.2; }
+    /* 되는 것 · 안 되는 것 · 기다리는 것은 **색만으로** 갈리지 않는다 —
+       테두리 모양과 진하기가 함께 달라진다 (VUX-SK §9). */
+    .sb-cell[data-state="available"] { border-color: #3f7a4e; }
+    .sb-cell[data-state="available"] .sb-status { color: #6fd07f; }
+    .sb-cell[data-state="blocked"] {
+      opacity: 0.62; border-style: dashed; border-color: #4a3340; cursor: default;
+    }
+    .sb-cell[data-state="blocked"] .sb-status { color: #ff9a9a; }
+    .sb-cell[data-state="pending"] { border-color: #8a7330; border-style: dotted; }
+    .sb-cell[data-state="pending"] .sb-status { color: #ffd98a; }
+    .sb-cell:focus-visible { outline: 2px solid #ffd98a; outline-offset: 2px; }
     .sf-foot {
       display: flex; flex-wrap: wrap; gap: 12px; margin-top: 10px; padding-top: 8px;
       border-top: 1px solid #1b2230; color: #7f8aa0; font-size: 11px;

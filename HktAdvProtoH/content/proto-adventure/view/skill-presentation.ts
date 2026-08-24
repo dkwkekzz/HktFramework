@@ -38,7 +38,11 @@
 // 띠가 세 배로 길어졌다. 띠에는 **짧은 표기**만 둔다.
 
 import type { GameViewSnapshot as CoreGameViewSnapshot } from '../../../engine/protocol-core/gameview';
-import type { SceneHudItem } from '../../../engine/view-kernel/scene/scene-state';
+import type {
+  SceneHudItem,
+  SceneSlotBar,
+  SceneSlotState,
+} from '../../../engine/view-kernel/scene/scene-state';
 import type { GameViewSnapshot, InteractionView, SkillProfileView } from '../protocol/gameview';
 import { interactionPresentation } from './interaction-presentation';
 
@@ -212,41 +216,6 @@ function statusText(skill: SkillObservation, answer: SkillAnswer | undefined, sh
   return '지금 됨';
 }
 
-/**
- * 띠 — 기술마다 한 칸. **하나가 다른 하나를 밀어내지 않는다.**
- *
- * 이 목록이 비면 칸도 없다. 기술이 없는 세계에 기술 자리를 만들지 않는다.
- */
-export function skillHudItems(
-  snapshot: GameViewSnapshot,
-  short: (code: string) => string,
-  answers: SkillAnswers = NO_SKILL_ANSWERS,
-): SceneHudItem[] {
-  const skills = skillObservations(snapshot);
-  if (skills.length === 0) return [];
-
-  // 넓이는 **목록 안에서** 견준다 — 모양을 지닌 기술이 없으면 막대도 없다 (C025).
-  const arcs = skills.map((s) => shapeOf(s.profile)?.arc ?? 0);
-  const widest = Math.max(0, ...arcs);
-
-  return skills.map((skill) => {
-    const shape = shapeOf(skill.profile);
-    // 모양 · 지금 어떤가 — 둘 다 짧다. 긴 사유 문장은 패널이 가진다.
-    const parts = [
-      ...(shape
-        ? [`${arcBar(shape.arc, widest)} ${degrees(shape.arc)}° · 도달 ${outerReach(shape.reach, shape.tipRadius)}`]
-        : []),
-      statusText(skill, answers[skill.id], short),
-    ];
-    return {
-      id: `${SKILL_HUD_PREFIX}${skill.id}`,
-      widget: 'label' as const,
-      label: skill.keyLabel ? `${skill.keyLabel} ${skill.label}` : skill.label,
-      value: parts.join(' · '),
-    };
-  });
-}
-
 /** `-0 / +12` 처럼 읽는 기력 수지 — 두 값을 합치지 않는다. 서로 다른 일이기 때문이다 */
 function energyText(profile: SkillProfileView): string {
   return `기력 -${round(profile.cost)} / +${round(profile.charge)}`;
@@ -311,4 +280,57 @@ export function skillDetailLines(
       );
     }),
   ];
+}
+
+/** 기술 띠의 id — 조립 루트가 눌린 칸을 이 앞머리로 되읽는다 */
+export const SKILL_SLOT_BAR_ID = 'skills';
+
+/** 이 칸이 지금 어떤 상태인가 — 세계의 판정과 내 요청을 한 값으로 (그리기용) */
+function slotState(skill: SkillObservation, answer: SkillAnswer | undefined): SceneSlotState {
+  if (answer?.state === 'pending') return 'pending';
+  if (answer?.state === 'unsent') return 'blocked';
+  if (answer?.state === 'accepted') return 'available';
+  return skill.available ? 'available' : 'blocked';
+}
+
+/**
+ * 기술 슬롯 띠 — 화면 아래에 늘 서는 자리 (VUX-SK §2.1 · §3).
+ *
+ * 지금까지 기술은 위쪽 가로 띠의 **글자 한 칸**이었다. 그것으로도 셋이 나란히 서고
+ * 사유가 각자 붙었지만, 겪는 사람에게는 다른 안내들과 같은 무게로 보였다 —
+ * 지금 이 순간 고르는 것이 자기 자리를 갖지 못했다.
+ *
+ * **여기서도 판정하지 않는다.** 칸의 순서도 세계가 보낸 순서이고, 되는지 안 되는지도
+ * 세계가 실은 값이다. 이 함수가 하는 일은 그것을 그리는 지시로 옮기는 것뿐이다.
+ *
+ * 부를 키가 없는 기술도 칸을 얻는다 — 부르지 못할 뿐 존재는 관찰된다.
+ * 그런 칸은 눌러서 부를 수 있다 (키와 포인터가 같은 요청으로 수렴한다).
+ */
+export function skillSlotBar(
+  snapshot: GameViewSnapshot,
+  short: (code: string) => string,
+  answers: SkillAnswers = NO_SKILL_ANSWERS,
+): SceneSlotBar {
+  const skills = skillObservations(snapshot);
+  const arcs = skills.map((s) => shapeOf(s.profile)?.arc ?? 0);
+  const widest = Math.max(0, ...arcs);
+
+  return {
+    id: SKILL_SLOT_BAR_ID,
+    cells: skills.map((skill) => {
+      const shape = shapeOf(skill.profile);
+      return {
+        id: skill.id,
+        ...(skill.keyLabel ? { key: skill.keyLabel } : {}),
+        title: skill.label,
+        // 고르기 전에 아는 값 — 모양이 있으면 모양을, 없으면 치를 기력을 보인다.
+        // 둘 다 세계가 실은 값이며 화면이 만들지 않는다.
+        detail: shape
+          ? `${arcBar(shape.arc, widest)} ${degrees(shape.arc)}° · 도달 ${outerReach(shape.reach, shape.tipRadius)}`
+          : energyText(skill.profile),
+        status: statusText(skill, answers[skill.id], short),
+        state: slotState(skill, answers[skill.id]),
+      };
+    }),
+  };
 }

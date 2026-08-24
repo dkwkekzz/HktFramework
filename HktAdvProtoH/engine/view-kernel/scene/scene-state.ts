@@ -346,4 +346,38 @@ export interface SceneState {
    * 여러 개가 열려 있으면 **뒤의 것이 위**다 — Escape 는 위의 것부터 닫는다.
    */
   surfaces: SceneSurface[];
+  /** 늘 떠 있는 칸 띠들 — 자판을 잡지 않는다. 없으면 빈 배열이다 */
+  slotBars: SceneSlotBar[];
+}
+
+// ── 슬롯 띠 (범용 capability) ─────────────────────────────────────────
+//
+// **늘 떠 있고 자판을 잡지 않는다.** 겹쳐 뜨는 표면(SceneSurface)과 다른 원소다 —
+// 그쪽은 열고 닫으며 자판을 붙잡고, 이쪽은 화면 아래에 계속 서 있다.
+// 둘을 한 형에 밀어 넣지 않는 이유가 그것이다: 늘 열려 있는 표면은 자판을 영영
+// 붙잡게 되고, 그러면 몸이 움직이지 않는다.
+//
+// 이 원소가 소유하는 것은 **칸을 나란히 그리는 일**뿐이다. 칸이 무엇을 담는지,
+// 왜 안 되는지, 무엇이 급한지 알지 못한다 — 결정 Layer 가 만든 지시를 그릴 뿐이다
+// (설계 반전 ⑤).
+
+export type SceneSlotState = 'available' | 'blocked' | 'pending';
+
+/** 띠의 칸 하나 — 부르는 자리 · 이름 · 값 · 지금 어떤가 */
+export interface SceneSlotCell {
+  id: string;
+  /** 이 칸을 부르는 손가락 자리 표기 (형식화 완료). 부를 수 없으면 없다 */
+  key?: string;
+  /** 칸의 이름 (형식화 완료) */
+  title: string;
+  /** 이름 아래 한 줄 — 고르기 전에 아는 값 (형식화 완료). 없을 수 있다 */
+  detail?: string;
+  /** 지금 어떤가 — **짧은 표기**다. 긴 문장은 이 자리에 오지 않는다 */
+  status?: string;
+  state: SceneSlotState;
+}
+
+export interface SceneSlotBar {
+  id: string;
+  cells: SceneSlotCell[];
 }

@@ -153,11 +153,7 @@ describe('hud.self — 자기 자원·능력치·배율은 늘 눈앞에 있다'
     // C020 — 소지품 자리가 대상 자리 뒤에 온다. 이 fixture 는 아무것도 지니지 않았다.
     expect(plan().hud.map((h) => h.id)).toEqual([
       'target.none',
-      // C025 — 기술 띠가 소지품보다 **앞**이다. 지금 이 순간 고르는 것이 먼저다.
-      // 세계가 실은 기술이 전부 한 칸씩 선다 — 이 fixture 는 기본·고급 둘만 실려 있다
-      // (오라 스킬 이전의 관찰 결과다).
-      'skill.attack',
-      'skill.skill-heavy',
+      // C027 — 기술은 이 띠를 떠났다. 같은 값이 화면 아래 슬롯 띠에 선다 (slotBars).
       // C022 — 자리는 소지품 항목보다 먼저 온다. 비었을 때야말로 보여야 하기 때문이다
       'inventory.room',
       'inventory.none',

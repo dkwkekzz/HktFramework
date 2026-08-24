@@ -53,6 +53,7 @@ export function resolvePresentation(
     terrain: snapshot.scene,
     // 겹침 표면 — 이 팩은 아무것도 열지 않는다. 능력이 있는 것과 쓰는 것은 다르다
     surfaces: [],
+    slotBars: [],
     entities: snapshot.entities.map((entity) => ({
       id: entity.id,
       spriteId: `${entity.role}:${entity.state}`, // 미등록 — placeholder 로 그려진다

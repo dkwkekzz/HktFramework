@@ -9,7 +9,7 @@ import { resolvePresentation } from '../resolve';
 import {
   isSkillInteraction,
   skillDetailLines,
-  skillHudItems,
+  skillSlotBar,
   skillInteractionIds,
   skillObservations,
   SKILL_HUD_PREFIX,
@@ -27,20 +27,20 @@ const damageType = damageTypeFixture as GameViewSnapshot;
 const unknown = unknownFixture as GameViewSnapshot;
 
 const bar = (snapshot: GameViewSnapshot, answers: SkillAnswers = {}) =>
-  skillHudItems(snapshot, shortCodeText, answers);
+  skillSlotBar(snapshot, shortCodeText, answers).cells;
 const panel = (snapshot: GameViewSnapshot, answers: SkillAnswers = {}) =>
   skillDetailLines(snapshot, codeText, answers).join('\n');
 const slot = (snapshot: GameViewSnapshot, id: string, answers: SkillAnswers = {}) =>
-  bar(snapshot, answers).find((item) => item.id === `${SKILL_HUD_PREFIX}${id}`);
+  bar(snapshot, answers).find((cell) => cell.id === id);
 
 // ── VUX-SK-FX-READY ────────────────────────────────────────────────
 describe('VUX-SK-FX-READY — 손에 든 것 전부가 한 자리에 선다', () => {
   it('세계가 실은 기술이 전부 칸이 된다 — 하나가 다른 하나를 밀어내지 않는다', () => {
     // damage-type fixture 는 셋을 싣는다. 셋 다 칸이 있어야 한다.
-    expect(bar(damageType).map((item) => item.id)).toEqual([
-      'skill.attack',
-      'skill.skill-heavy',
-      'skill.skill-aura',
+    expect(bar(damageType).map((cell) => cell.id)).toEqual([
+      'attack',
+      'skill-heavy',
+      'skill-aura',
     ]);
   });
 
@@ -50,12 +50,12 @@ describe('VUX-SK-FX-READY — 손에 든 것 전부가 한 자리에 선다', ()
   });
 
   it('실제 바인딩이 칸에 보인다 (VUX-SK-V-01)', () => {
-    expect(slot(combat, 'attack')?.label).toBe('F 기본 스킬');
-    expect(slot(combat, 'skill-heavy')?.label).toBe('G 고급 스킬');
+    expect(slot(combat, 'attack')?.key).toBe('F');
+    expect(slot(combat, 'skill-heavy')?.key).toBe('G');
   });
 
   it('쓸 수 있는 기술은 그렇다고 말한다', () => {
-    expect(slot(combat, 'attack')?.value).toBe('지금 됨');
+    expect(slot(combat, 'attack')?.status).toBe('지금 됨');
   });
 
   it('기술이 없는 관찰 결과에는 칸도 줄도 없다 — 없는 자리를 만들지 않는다', () => {
@@ -68,8 +68,8 @@ describe('VUX-SK-FX-READY — 손에 든 것 전부가 한 자리에 선다', ()
 // ── VUX-SK-FX-UNAVAILABLE ──────────────────────────────────────────
 describe('VUX-SK-FX-UNAVAILABLE — 막힌 기술마다 자기 사유가 붙는다', () => {
   it('같은 화면에서 하나는 되고 하나는 안 된다 — 둘 다 보인다', () => {
-    expect(slot(combat, 'attack')?.value).toBe('지금 됨');
-    expect(slot(combat, 'skill-heavy')?.value).toBe('불가 · 기력 모자람');
+    expect(slot(combat, 'attack')?.status).toBe('지금 됨');
+    expect(slot(combat, 'skill-heavy')?.status).toBe('불가 · 기력 모자람');
   });
 
   it('사유는 세계가 준 코드 그대로 문구가 된다 (VUX-SK-V-01)', () => {
@@ -77,19 +77,19 @@ describe('VUX-SK-FX-UNAVAILABLE — 막힌 기술마다 자기 사유가 붙는�
   });
 
   it('다른 사정은 다른 사유로 온다 — 막는 중은 기력과 다른 말이다', () => {
-    expect(slot(guard, 'attack')?.value).toBe('불가 · 막는 중');
-    expect(slot(guard, 'skill-heavy')?.value).toBe('불가 · 막는 중');
+    expect(slot(guard, 'attack')?.status).toBe('불가 · 막는 중');
+    expect(slot(guard, 'skill-heavy')?.status).toBe('불가 · 막는 중');
     expect(panel(guard)).toContain('✗ 막는 중에는 휘두를 수 없다');
   });
 
   it('행동 중은 셋 모두에 같은 사유로 온다 — 세계가 그렇게 판정했기 때문이다', () => {
     for (const id of ['attack', 'skill-heavy', 'skill-aura']) {
-      expect(slot(damageType, id)?.value).toBe('불가 · 행동 중');
+      expect(slot(damageType, id)?.status).toBe('불가 · 행동 중');
     }
   });
 
   it('쓸 수 있는 기술에는 사유를 지어내지 않는다', () => {
-    expect(slot(combat, 'attack')?.value).not.toContain('불가');
+    expect(slot(combat, 'attack')?.status).not.toContain('불가');
   });
 });
 
@@ -121,7 +121,7 @@ describe('고르기 전에 값을 안다', () => {
 describe('VUX-SK-FX-STALE — 요청의 대답이 그것을 부른 자리에 붙는다', () => {
   it('걸어 둔 것은 걸어 둔 것으로 보인다 — 일어난 일로 보이지 않는다 (VUX-SK-V-05)', () => {
     const answers: SkillAnswers = { attack: { state: 'pending' } };
-    expect(slot(combat, 'attack', answers)?.value).toBe('요청 중');
+    expect(slot(combat, 'attack', answers)?.status).toBe('요청 중');
     expect(panel(combat, answers)).toContain('기본 스킬 ⋯ 요청 중');
   });
 
@@ -130,7 +130,7 @@ describe('VUX-SK-FX-STALE — 요청의 대답이 그것을 부른 자리에 붙
       attack: { state: 'rejected', reason: 'guarding' },
     };
     // guard fixture 는 셋 다 막는 중이므로 거절이 아직 참이다.
-    expect(slot(guard, 'attack', answers)?.value).toBe('거절 · 막는 중');
+    expect(slot(guard, 'attack', answers)?.status).toBe('거절 · 막는 중');
     expect(panel(guard, answers)).toContain('✗ 거절 — 막는 중에는 휘두를 수 없다');
   });
 
@@ -138,8 +138,8 @@ describe('VUX-SK-FX-STALE — 요청의 대답이 그것을 부른 자리에 붙
     const answers: SkillAnswers = {
       attack: { state: 'rejected', reason: 'guarding' },
     };
-    expect(slot(guard, 'skill-heavy', answers)?.value).toBe('불가 · 막는 중');
-    expect(slot(combat, 'skill-heavy', answers)?.value).toBe('불가 · 기력 모자람');
+    expect(slot(guard, 'skill-heavy', answers)?.status).toBe('불가 · 막는 중');
+    expect(slot(combat, 'skill-heavy', answers)?.status).toBe('불가 · 기력 모자람');
   });
 
   it('막을 것이 사라지면 거절이 물러난다 — 화면이 지금 참이 아닌 것을 말하지 않는다', () => {
@@ -147,7 +147,7 @@ describe('VUX-SK-FX-STALE — 요청의 대답이 그것을 부른 자리에 붙
     const answers: SkillAnswers = {
       attack: { state: 'rejected', reason: 'guarding' },
     };
-    expect(slot(combat, 'attack', answers)?.value).toBe('지금 됨');
+    expect(slot(combat, 'attack', answers)?.status).toBe('지금 됨');
     expect(panel(combat, answers)).not.toContain('거절');
   });
 
@@ -156,7 +156,7 @@ describe('VUX-SK-FX-STALE — 요청의 대답이 그것을 부른 자리에 붙
     const answers: SkillAnswers = {
       'skill-heavy': { state: 'rejected', reason: 'insufficient-cp' },
     };
-    expect(slot(combat, 'skill-heavy', answers)?.value).toBe('거절 · 기력 모자람');
+    expect(slot(combat, 'skill-heavy', answers)?.status).toBe('거절 · 기력 모자람');
   });
 
   it('사정이 바뀌면 세계의 지금 말이 이긴다 — 낡은 사유를 붙들지 않는다', () => {
@@ -164,18 +164,18 @@ describe('VUX-SK-FX-STALE — 요청의 대답이 그것을 부른 자리에 붙
     const answers: SkillAnswers = {
       attack: { state: 'rejected', reason: 'action-busy' },
     };
-    expect(slot(guard, 'attack', answers)?.value).toBe('불가 · 막는 중');
+    expect(slot(guard, 'attack', answers)?.status).toBe('불가 · 막는 중');
   });
 
   it('세계에 닿지 못한 것은 거절과 다른 사정이다', () => {
     const answers: SkillAnswers = { attack: { state: 'unsent' } };
-    expect(slot(combat, 'attack', answers)?.value).toBe('세계에 닿지 않음');
-    expect(slot(combat, 'attack', answers)?.value).not.toContain('거절');
+    expect(slot(combat, 'attack', answers)?.status).toBe('세계에 닿지 않음');
+    expect(slot(combat, 'attack', answers)?.status).not.toContain('거절');
   });
 
   it('받아들여진 것은 그 자리에서 보인다', () => {
     const answers: SkillAnswers = { attack: { state: 'accepted' } };
-    expect(slot(combat, 'attack', answers)?.value).toBe('나갔다');
+    expect(slot(combat, 'attack', answers)?.status).toBe('나갔다');
     expect(panel(combat, answers)).toContain('기본 스킬 ✓ 나갔다');
   });
 
@@ -183,36 +183,36 @@ describe('VUX-SK-FX-STALE — 요청의 대답이 그것을 부른 자리에 붙
     // 받아들여진 기술은 그 순간부터 행동 중이라 세계가 곧바로 막는다.
     // damage-type fixture 가 정확히 그 상태다 (셋 다 action-busy).
     const answers: SkillAnswers = { attack: { state: 'accepted' } };
-    expect(slot(damageType, 'attack', answers)?.value).toBe('나갔다');
+    expect(slot(damageType, 'attack', answers)?.status).toBe('나갔다');
     // 나가지 않은 옆 칸은 여전히 세계의 지금을 말한다
-    expect(slot(damageType, 'skill-heavy', answers)?.value).toBe('불가 · 행동 중');
+    expect(slot(damageType, 'skill-heavy', answers)?.status).toBe('불가 · 행동 중');
   });
 
   it('표시가 걷히면 세계의 지금이 자리를 돌려받는다', () => {
     // 조립 루트가 시간이 지나 항목을 지운 뒤의 화면.
-    expect(slot(damageType, 'attack', {})?.value).toBe('불가 · 행동 중');
+    expect(slot(damageType, 'attack', {})?.status).toBe('불가 · 행동 중');
   });
 
   it('내가 건 것이 세계가 미리 말해 둔 가용성보다 앞선다', () => {
     // 세계는 "기력이 모자라다" 고 말해 두었고, 나는 방금 그것을 걸었다.
     // 지금 알고 싶은 것은 방금 그것이 어떻게 됐는가다.
     const answers: SkillAnswers = { 'skill-heavy': { state: 'pending' } };
-    expect(slot(combat, 'skill-heavy', answers)?.value).toBe('요청 중');
+    expect(slot(combat, 'skill-heavy', answers)?.status).toBe('요청 중');
   });
 });
 
 // ── VUX-SK-FX-UNKNOWN ──────────────────────────────────────────────
 describe('VUX-SK-FX-UNKNOWN — 모르는 것이 와도 화면이 멈추지 않는다', () => {
   it('화면이 이름을 모르는 기술도 칸을 얻는다 — profile 이 곧 기술이라는 관찰이다', () => {
-    expect(bar(unknown).map((i) => i.id)).toContain('skill.skill-tideturn');
+    expect(bar(unknown).map((c) => c.id)).toContain('skill-tideturn');
   });
 
   it('키가 정해지지 않은 기술도 사라지지 않는다 — 부르지 못할 뿐 존재는 관찰된다', () => {
-    expect(slot(unknown, 'skill-tideturn')?.label).toBe('skill-tideturn');
+    expect(slot(unknown, 'skill-tideturn')?.title).toBe('skill-tideturn');
   });
 
   it('모르는 사유 코드는 원문 그대로 보인다 (VUX-SK-V-10)', () => {
-    expect(slot(unknown, 'skill-tideturn')?.value).toBe('불가 · moon-not-risen');
+    expect(slot(unknown, 'skill-tideturn')?.status).toBe('불가 · moon-not-risen');
     expect(panel(unknown)).toContain('✗ moon-not-risen');
   });
 
@@ -221,8 +221,8 @@ describe('VUX-SK-FX-UNKNOWN — 모르는 것이 와도 화면이 멈추지 않�
   });
 
   it('모르는 것이 있어도 아는 기술들은 그대로 그려진다', () => {
-    expect(slot(unknown, 'attack')?.label).toBe('F 기본 스킬');
-    expect(slot(unknown, 'skill-heavy')?.value).toBe('불가 · 기력 모자람');
+    expect(slot(unknown, 'attack')?.key).toBe('F');
+    expect(slot(unknown, 'skill-heavy')?.status).toBe('불가 · 기력 모자람');
   });
 });
 
@@ -315,7 +315,11 @@ describe('VUX-SK-V-05 — 세계가 말하기 전에는 아무것도', () => {
   });
 
   it('세계에 없는 자리를 만들지 않는다 — 재사용 대기도 토글도 연계도', () => {
-    const text = panel(combat) + bar(combat).map((i) => `${i.label}${i.value}`).join('');
+    const text =
+      panel(combat) +
+      bar(combat)
+        .map((c) => `${c.key ?? ''}${c.title}${c.detail ?? ''}${c.status ?? ''}`)
+        .join('');
     for (const absent of ['재사용', '쿨', 'ON', 'OFF', '단계']) {
       expect(text).not.toContain(absent);
     }
