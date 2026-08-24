@@ -1,14 +1,14 @@
-베이라 요정 원리·성장 시스템 통합 설계
+# 베이라 요정 원리·성장 시스템 통합 설계
 
-문서 목적
+## 문서 목적
 베이라 세계관의 세계압 → 위험 → 적응 → 자원 → Capability → 탐험 확장 구조에 요정의 존재론과 캐릭터 성장 시스템을 연결한다.
 이 문서는 다른 Design/Implementation Agent가 추가 해석 없이 원리 카탈로그, 요정, Class, 성장 규칙, WorldState, ObservableState와 검증 테스트를 구현하기 위한 Source of Truth다.
 
-⸻
+---
 
-1. 설계의 출발점
+## 1. 설계의 출발점
 
-1.1 첨부 세계관에서 이미 확정된 것
+### 1.1 첨부 세계관에서 이미 확정된 것
 
 베이라는 단순히 몬스터가 강한 대륙이 아니다.
 
@@ -33,6 +33,7 @@ Bound World Pressure
 
 따라서 베이라의 기본 인과는 다음과 같다.
 
+```text
 Free World Pressure
 ↓
 극단적인 환경
@@ -46,11 +47,13 @@ Free World Pressure
 안정된 Property
 ↓
 Resource
+```
 
 위험과 보물은 같은 세계압의 서로 다른 결과다.
 
 기존 Progression 또한 단순 Level 상승이 아니다.
 
+```text
 UNKNOWN
 ↓
 관찰
@@ -68,6 +71,7 @@ Resource 획득
 새로운 지역
 ↓
 더 깊은 UNKNOWN
+```
 
 본 문서는 이 구조를 변경하지 않는다.
 
@@ -77,24 +81,27 @@ Resource 획득
 
 그 답이 요정이다.
 
-⸻
+---
 
-2. 최종 핵심 정의
+## 2. 최종 핵심 정의
 
-2.1 세계의 대원리
+### 2.1 세계의 대원리
 
 베이라 전체를 관통하는 가장 상위 원리는 다음과 같다.
 
+```text
 PR-POSSIBILITY:
   display_name: 가능성
   semantic: >
     현재 존재하는 상태는 최종 상태가 아니며,
     다른 상태가 될 수 있다.
+```
 
 PR-POSSIBILITY는 일반적인 플레이어블 요정 하나가 독점하는 원리가 아니다.
 
 베이라와 세계압 전체를 설명하는 Meta Principle이다.
 
+```text
 PR-POSSIBILITY
 │
 ├─ 가능성을 열어 둔다.
@@ -105,17 +112,20 @@ PR-POSSIBILITY
 │
 └─ 선택된 가능성이 Property로 안정된다.
     └─ Bound World Pressure
+```
 
 베이라는 높은 Free World Pressure 때문에 위험한 동시에, 인간 세계에서 존재할 수 없는 Property와 자원이 태어나는 곳이다.
 
-⸻
+---
 
-2.2 World Principle
+### 2.2 World Principle
 
+```text
 WorldPrinciple:
   semantic: >
     세계의 특정 상태가 어떤 조건에서
     어떤 다른 상태로 변화하는지를 반복적으로 결정하는 원리.
+```
 
 원리는 단순한 테마나 명사가 아니다.
 
@@ -136,17 +146,20 @@ WorldPrinciple:
 → 무엇이 하나이고 무엇이 분리되어 있는지를 결정한다.
 → World Principle이 될 수 있다.
 
-⸻
+---
 
-2.3 요정
+### 2.3 요정
 
+```text
 Fairy:
   semantic: >
     하나의 World Principle이
     지속적인 자아, 기억, 선택 능력을 가진 상태로 결속된 존재.
+```
 
 이를 Self-Bound Principle, 즉 자아 결속 원리라고 정의한다.
 
+```text
 World Pressure
 │
 ├─ 자유 상태
@@ -160,6 +173,7 @@ World Pressure
 │
 └─ 자아 결속
     └─ Fairy
+```
 
 일반 생물과 요정의 차이는 능력의 크기가 아니다.
 
@@ -169,17 +183,19 @@ World Pressure
 = 원리를 이해하고,
   무엇에 어떻게 적용할지 선택한다.
 
-⸻
+---
 
-2.4 위험
+### 2.4 위험
 
 위험은 악한 원리 때문에 발생하지 않는다.
 
+```text
 Danger:
   semantic: >
     하나의 원리가 선택과 조절 없이
     환경 또는 생존 목적에 강제 결속되어
     반복적으로 작동하는 상태.
+```
 
 예:
 
@@ -194,17 +210,20 @@ Danger:
 
 요정은 원리를 선택해서 사용하고, 위험은 원리에 의해 행동을 강제당한다.
 
-⸻
+---
 
-2.5 Resource
+### 2.5 Resource
 
+```text
 Resource:
   semantic: >
     하나의 가능성이 생명 또는 물질 안에
     안정된 Property로 결속된 것.
+```
 
 모든 중요한 Resource는 기존 정책대로 다음 Trace를 가져야 한다.
 
+```text
 World Pressure
 ↓
 Environment
@@ -216,18 +235,22 @@ Adaptation
 Special Property
 ↓
 Resource
+```
 
-⸻
+---
 
-2.6 Class
+### 2.6 Class
 
+```text
 Class:
   semantic: >
     요정이 자신의 World Principle을
     특정한 해석과 사용 방식으로 안정시킨 자아 형태.
+```
 
 Class는 직업 목록이 아니다.
 
+```text
 Class
 =
 Principle Core
@@ -241,6 +264,7 @@ Operation
 Target Domain
 ×
 Constraint
+```
 
 예:
 
@@ -257,18 +281,21 @@ Constraint
 결과
 = 경계 수호자 Class
 
-⸻
+---
 
-2.7 Class Change
+### 2.7 Class Change
 
+```text
 ClassChange:
   semantic: >
     베이라에서 발견한 새로운 가능성을
     자신의 정체성을 잃지 않은 상태로
     새로운 자아 형태에 결속하는 과정.
+```
 
 Class Change는 다음 구조를 가진다.
 
+```text
 현재 Class
 +
 새로운 Principle Aspect 이해
@@ -282,14 +309,15 @@ Class Change는 다음 구조를 가진다.
 Class Trial
 ↓
 새 Class 해금
+```
 
 Class Change의 핵심은 다음이다.
 
 환경이 요정을 강제로 바꾸는 것이 아니라, 요정이 무엇이 될지를 선택한다.
 
-⸻
+---
 
-3. 원리로 인정하기 위한 기준
+## 3. 원리로 인정하기 위한 기준
 
 새로운 원리를 추가하려는 Agent는 아래 조건을 모두 검토해야 한다.
 
@@ -329,9 +357,9 @@ Trace	World Pressure에서 Resource까지 인과를 추적할 수 있는가?
 반복
 종결
 
-⸻
+---
 
-4. 원리의 발현 구조
+## 4. 원리의 발현 구조
 
 하나의 원리는 세계에서 다섯 가지 형태로 나타날 수 있다.
 
@@ -342,6 +370,7 @@ Bound Property	물질 또는 기관에 안정된 원리	회귀초, 경계결정
 Self-Bound Fairy	자아와 선택을 획득한 원리	회귀의 요정, 경계의 요정
 Class Form	요정이 선택한 원리의 사용 방식	복원자, 경계 수호자
 
+```text
 World Principle
 │
 ├─ manifests_as → Hazard
@@ -349,13 +378,15 @@ World Principle
 ├─ binds_as     → Resource Property
 ├─ embodied_by  → Fairy
 └─ interpreted_as → Class
+```
 
-⸻
+---
 
-5. 요정 캐릭터의 구성
+## 5. 요정 캐릭터의 구성
 
 모든 요정은 다음 두 층으로 구성한다.
 
+```text
 Fairy
 │
 ├─ Principle Core
@@ -363,8 +394,9 @@ Fairy
 │
 └─ Class Form
     └─ 경험과 선택에 따라 변경된다.
+```
 
-5.1 고정되는 것
+### 5.1 고정되는 것
 
 Fairy ID
 Principle Core
@@ -372,7 +404,7 @@ Identity Anchor
 기본 외형 모티프
 Principle의 근본 한계
 
-5.2 성장하는 것
+### 5.2 성장하는 것
 
 Attribute
 Capability Mastery
@@ -384,12 +416,13 @@ Equipment Permission
 Slot Unlock
 Identity Stability
 
-⸻
+---
 
-6. 캐릭터 성장의 전체 구조
+## 6. 캐릭터 성장의 전체 구조
 
 캐릭터의 성장은 단일 Level이나 공통 XP로 표현하지 않는다.
 
+```text
 플레이 행동
 ↓
 WorldEvent
@@ -405,8 +438,9 @@ Milestone 충족
 Attribute / Skill / Slot / Class / Capability 해금
 ↓
 새로운 WorldState에 대응
+```
 
-6.1 성장 축
+### 6.1 성장 축
 
 성장 축	의미	주요 결과
 Embodiment	신체와 기본 수행 능력	AttackPower, Defense, MaxStamina
@@ -416,9 +450,9 @@ Binding	외부 Property를 안정적으로 보유	Item 효과, 특수 Capability
 Identity Stability	변화 속에서 자신의 자아 유지	Class Change, 변형 저항
 Class Growth	원리 해석을 자아 형태로 고정	Skill, Resource Rule, Slot
 
-⸻
+---
 
-7. Growth Source
+## 7. Growth Source
 
 모든 성장에는 플레이 안의 원인이 있어야 한다.
 
@@ -433,9 +467,9 @@ Choice	원리의 사용 방식과 대가 선택	Class Interpretation
 Trial	선택한 해석을 실제 행동으로 증명	Class Unlock
 Class Practice	해당 Class의 핵심 Loop 수행	Class Mastery
 
-⸻
+---
 
-7.1 의미 있는 경험
+### 7.1 의미 있는 경험
 
 행동 횟수만으로는 성장하지 않는다.
 
@@ -451,6 +485,7 @@ Class Practice	해당 Class의 핵심 Loop 수행	Class Mastery
 
 예:
 
+```text
 noveltySignature
 =
 위협 유형
@@ -460,17 +495,19 @@ noveltySignature
 사용한 해결 방식
 +
 환경 조건
+```
 
 동일한 Signature의 반복은 Progress를 추가하지 않거나 크게 제한한다.
 
-⸻
+---
 
-8. 현재 성장 결손을 닫는 규칙
+## 8. 현재 성장 결손을 닫는 규칙
 
-8.1 AttackPower
+### 8.1 AttackPower
 
 AttackPower는 적 처치 수나 일반 XP로 직접 증가하지 않는다.
 
+```text
 의미 있는 공격 행동
 ↓
 서로 다른 저항 구조에 힘을 성공적으로 전달
@@ -480,9 +517,11 @@ Offensive Embodiment Evidence
 Embodiment Milestone
 ↓
 Base AttackPower 증가
+```
 
 최종 AttackPower는 다음 세 원천을 가진다.
 
+```text
 Final AttackPower
 =
 Base AttackPower from Embodiment
@@ -490,6 +529,7 @@ Base AttackPower from Embodiment
 Active Class Modifier
 +
 Equipment / Bound Property Modifier
+```
 
 반드시 관찰 가능한 원인이 남아야 한다.
 
@@ -504,16 +544,18 @@ Evidence
 
 디버그 명령은 테스트에서만 사용할 수 있으며 실제 플레이 저장 상태의 성장 원천이 될 수 없다.
 
-⸻
+---
 
-8.2 Stamina
+### 8.2 Stamina
 
 기력이 자연 회복되는지는 성장 요소가 아니라 우선 World Rule로 결정한다.
 
+```text
 WR-STAMINA-RECOVERY:
   semantic: >
     일정 시간 동안 기력 소비 행동을 수행하지 않으면
     기력이 자연 회복된다.
+```
 
 다음은 Balance 값이다.
 
@@ -546,20 +588,22 @@ Resource 전환 방식
 어떤 조건에서 다르게 회복하는가
 = Class / Growth
 
-⸻
+---
 
-8.3 Equipment Slot
+### 8.3 Equipment Slot
 
 장착 Slot은 Level 조건으로 열리지 않는다.
 
 모든 잠긴 Slot은 반드시 unlockSource를 가진다.
 
+```text
 EquipmentSlotState:
   slot_id: SLOT-PRINCIPLE-RELIC
   locked: true
   unlock_source:
     type: class
     id: CL-PRESERVATION-RESTORER
+```
 
 가능한 Unlock Source:
 
@@ -578,12 +622,13 @@ Identity Stability 확보
 왜 열렸는가?
 현재 Class가 어떤 Item Category를 허용하는가?
 
-⸻
+---
 
-9. 초기 플레이어블 요정 6종
+## 9. 초기 플레이어블 요정 6종
 
 초기 6종은 베이라의 상태, 구조, 인식 영역을 단계적으로 대표한다.
 
+```text
 상태 원리
 ├─ 보존
 └─ 적응
@@ -593,14 +638,15 @@ Identity Stability 확보
 인식·자아 원리
 ├─ 관찰
 └─ 정체성
+```
 
 이 여섯 원리는 베이라의 물질적 위험부터 UNKNOWN 단계의 추상적 위험까지 확장할 수 있다.
 
 첨부 세계관에서도 심부 이후 기억, 감각, 인식, Identity, 공간, 관계와 행동 Pattern까지 세계압의 영향을 받는다.
 
-⸻
+---
 
-9.1 보존의 요정
+### 9.1 보존의 요정
 
 id: FY-PRESERVATION
 principle: PR-PRESERVATION
@@ -626,6 +672,7 @@ Player Need	재생 차단, 기준 상태 식별, 상태 보존
 
 Class Graph
 
+```text
 CL-PRESERVATION-ORIGIN
 │
 ├─ CL-RESTORER
@@ -633,6 +680,7 @@ CL-PRESERVATION-ORIGIN
 │
 └─ CL-STASIS-WARDEN
     └─ 현재 상태의 강제 변화 방지
+```
 
 복원자
 
@@ -667,15 +715,17 @@ Signature Capability
 
 실패 형태
 
+```text
 모든 변화를 손상으로 판단
 ↓
 성장, 기억, 관계까지 되돌림
 ↓
 회귀 집착체
+```
 
-⸻
+---
 
-9.2 경계의 요정
+### 9.2 경계의 요정
 
 id: FY-BOUNDARY
 principle: PR-BOUNDARY
@@ -701,6 +751,7 @@ Player Need	구조 유지, 비정상 연결 절단, 통로 생성
 
 Class Graph
 
+```text
 CL-BOUNDARY-ORIGIN
 │
 ├─ CL-BOUNDARY-WARDEN
@@ -708,6 +759,7 @@ CL-BOUNDARY-ORIGIN
 │
 └─ CL-SEVERANCE-BLADE
     └─ 의도한 연결만 절단
+```
 
 경계 수호자
 
@@ -736,15 +788,17 @@ Signature Capability
 
 실패 형태
 
+```text
 모든 연결을 위협으로 판단
 ↓
 자신과 타인, 공간, 관계를 계속 분리
 ↓
 고립 경계체
+```
 
-⸻
+---
 
-9.3 적응의 요정
+### 9.3 적응의 요정
 
 id: FY-ADAPTATION
 principle: PR-ADAPTATION
@@ -770,6 +824,7 @@ DEEP에서는 공격 Adaptation, 신체 구조 변경과 극단적 재생이 주
 
 Class Graph
 
+```text
 CL-ADAPTATION-ORIGIN
 │
 ├─ CL-COUNTERFORM
@@ -777,6 +832,7 @@ CL-ADAPTATION-ORIGIN
 │
 └─ CL-ASSIMILATOR
     └─ 외부 Property 하나를 선택적으로 결속
+```
 
 대응체
 
@@ -804,6 +860,7 @@ Signature Capability
 
 실패 형태
 
+```text
 모든 위협에 적응하려 함
 ↓
 신체와 행동이 계속 변경
@@ -811,10 +868,11 @@ Signature Capability
 원래의 정체성 소실
 ↓
 무정형 적응체
+```
 
-⸻
+---
 
-9.4 연결의 요정
+### 9.4 연결의 요정
 
 id: FY-CONNECTION
 principle: PR-CONNECTION
@@ -838,6 +896,7 @@ Player Need	연결 추적, 피해 분산 차단, 자원 공유
 
 Class Graph
 
+```text
 CL-CONNECTION-ORIGIN
 │
 ├─ CL-BOND-WEAVER
@@ -845,6 +904,7 @@ CL-CONNECTION-ORIGIN
 │
 └─ CL-SYMBIOTIC-SHEPHERD
     └─ 다른 생명 Capability와 공생
+```
 
 유대 직조자
 
@@ -873,6 +933,7 @@ Signature Capability
 
 실패 형태
 
+```text
 연결을 항상 유익하다고 판단
 ↓
 모든 존재를 하나의 Network에 편입
@@ -880,10 +941,11 @@ Signature Capability
 개별 의지 소실
 ↓
 군체 결속체
+```
 
-⸻
+---
 
-9.5 관찰의 요정
+### 9.5 관찰의 요정
 
 id: FY-OBSERVATION
 principle: PR-OBSERVATION
@@ -907,6 +969,7 @@ Player Need	약점 발견, Pattern 예측, 현실 검증
 
 Class Graph
 
+```text
 CL-OBSERVATION-ORIGIN
 │
 ├─ CL-TRUTH-SEER
@@ -914,6 +977,7 @@ CL-OBSERVATION-ORIGIN
 │
 └─ CL-PATTERN-HUNTER
     └─ 반복 행동을 기록하고 다음 행동 예측
+```
 
 진실 관측자
 
@@ -942,6 +1006,7 @@ Signature Capability
 
 실패 형태
 
+```text
 자신의 관찰을 절대적 사실로 판단
 ↓
 새로운 증거를 거부
@@ -949,10 +1014,11 @@ Signature Capability
 세계를 잘못된 Pattern에 강제
 ↓
 확정 관측체
+```
 
-⸻
+---
 
-9.6 정체성의 요정
+### 9.6 정체성의 요정
 
 id: FY-IDENTITY
 principle: PR-IDENTITY
@@ -976,6 +1042,7 @@ Player Need	Identity Anchor, 강제 변형 저항, 현실 검증
 
 Class Graph
 
+```text
 CL-IDENTITY-ORIGIN
 │
 ├─ CL-ANCHOR-KEEPER
@@ -983,6 +1050,7 @@ CL-IDENTITY-ORIGIN
 │
 └─ CL-MASK-WALKER
     └─ 정체성을 잃지 않고 외부 형태를 임시 사용
+```
 
 자아 정박자
 
@@ -1011,6 +1079,7 @@ Class Change 전후 자아 연속성 유지
 
 실패 형태
 
+```text
 사용한 역할과 형태를 모두 자신이라 판단
 ↓
 Identity 충돌
@@ -1018,12 +1087,13 @@ Identity 충돌
 인격과 Class 분열
 ↓
 무명 다중체
+```
 
-⸻
+---
 
-10. Class 설계 규칙
+## 10. Class 설계 규칙
 
-10.1 모든 Class가 반드시 바꾸는 것
+### 10.1 모든 Class가 반드시 바꾸는 것
 
 Class는 최소 세 가지 이상을 변경해야 한다.
 
@@ -1044,12 +1114,13 @@ MaxHealth +10
 
 수치만 바꾸는 것은 Trait 또는 Balance Modifier다.
 
-⸻
+---
 
-10.2 Class Requirement
+### 10.2 Class Requirement
 
 모든 Class는 다음 다섯 종류의 Requirement를 사용한다.
 
+```text
 ClassRequirements:
   aspect_evidence:
     - 원리의 특정 Aspect를 관찰했는가?
@@ -1061,21 +1132,24 @@ ClassRequirements:
     - 원리를 어떤 방식으로 사용할지 선택했는가?
   class_trial:
     - 선택한 해석을 실제 상황에서 증명했는가?
+```
 
 일부 Class는 이 중 하나를 생략할 수 있지만, 단순 Level Requirement만으로 열 수 없다.
 
-⸻
+---
 
-10.3 Class 보존
+### 10.3 Class 보존
 
 Class Change는 이전 Class를 삭제하지 않는다.
 
+```text
 FairyClassState:
   active_class_id: CL-BOUNDARY-WARDEN
   unlocked_class_ids:
     - CL-BOUNDARY-ORIGIN
     - CL-BOUNDARY-WARDEN
     - CL-SEVERANCE-BLADE
+```
 
 Class 전환 조건은 별도 Rule로 정의한다.
 
@@ -1088,10 +1162,11 @@ Principle Core와 획득한 Evidence는 유지
 
 향후 특정 Class는 전투 중 변신 Capability를 가질 수 있다.
 
-⸻
+---
 
-11. Class Change의 성장 Loop
+## 11. Class Change의 성장 Loop
 
+```text
 미지의 Principle Manifestation 발견
 ↓
 Observation Evidence 획득
@@ -1113,14 +1188,15 @@ Class Unlock
 새 Capability
 ↓
 기존에 진입할 수 없던 WorldState 진입
+```
 
 이는 기존 베이라의 탐험 Loop와 동일한 구조를 사용한다.
 
 베이라 Resource는 단순 판매 Loot가 아니라 새로운 Capability와 탐험 Route를 열 수 있어야 한다.
 
-⸻
+---
 
-12. Master Graph 확장
+## 12. Master Graph 확장
 
 기존 Master Graph의 CAUSES, REQUIRES, GRANTS, CHANGES, SUPPORTS, OPPOSES는 그대로 사용한다.
 
@@ -1134,6 +1210,7 @@ INTERPRETED_AS	요정이 원리를 특정 Class로 해석함
 
 예:
 
+```text
 PR-PRESERVATION
 │
 ├─ MANIFESTS_AS → MW-REGRESSION-FIELD
@@ -1142,23 +1219,26 @@ PR-PRESERVATION
 ├─ EMBODIED_BY → FY-PRESERVATION
 ├─ INTERPRETED_AS → CL-RESTORER
 └─ INTERPRETED_AS → CL-STASIS-WARDEN
+```
 
 Class와 성장 Route는 기존 Edge로 표현한다.
 
+```text
 CL-RESTORER
 ├─ REQUIRES → GX-OBSERVE-REGRESSION
 ├─ REQUIRES → IT-REGRESSION-HERB
 ├─ REQUIRES → TR-RESTORE-ALLY
 ├─ GRANTS → MC-RESTORE-BIOLOGICAL-STATE
 └─ UNLOCKS → SLOT-BIOLOGICAL-RELIC
+```
 
 기존 Graph에 UNLOCKS가 없다면 GRANTS로 통일한다.
 
-⸻
+---
 
-13. 정적 정의와 Runtime State의 분리
+## 13. 정적 정의와 Runtime State의 분리
 
-13.1 정적 카탈로그
+### 13.1 정적 카탈로그
 
 다음은 콘텐츠 정의이며 런타임 Actor마다 복제하지 않는다.
 
@@ -1171,7 +1251,7 @@ EquipmentSlotDefinition
 ResourceDefinition
 CapabilityDefinition
 
-13.2 Runtime Actor State
+### 13.2 Runtime Actor State
 
 Actor는 자신의 현재 상태와 진행도만 가진다.
 
@@ -1199,11 +1279,11 @@ interface FairyGrowthState {
 
 identityStability와 integrationLoad는 데이터 구조에 포함하되, 본격적인 괴물화와 자아 붕괴 시스템은 후속 Cycle까지 비활성화할 수 있다.
 
-⸻
+---
 
-14. 핵심 데이터 정의
+## 14. 핵심 데이터 정의
 
-14.1 PrincipleDefinition
+### 14.1 PrincipleDefinition
 
 interface PrincipleDefinition {
   id: string;
@@ -1221,7 +1301,7 @@ interface PrincipleDefinition {
   limits: string[];
 }
 
-14.2 ClassDefinition
+### 14.2 ClassDefinition
 
 interface ClassDefinition {
   id: string;
@@ -1243,7 +1323,7 @@ interface ClassDefinition {
   nextClassIds: string[];
 }
 
-14.3 GrowthRuleDefinition
+### 14.3 GrowthRuleDefinition
 
 interface GrowthRuleDefinition {
   id: string;
@@ -1258,7 +1338,7 @@ interface GrowthRuleDefinition {
   evidenceTemplate: string;
 }
 
-14.4 GrowthEvidence
+### 14.4 GrowthEvidence
 
 interface GrowthEvidence {
   id: string;
@@ -1276,10 +1356,11 @@ interface GrowthEvidence {
 
 모든 영구 성장 변화는 하나 이상의 GrowthEvidence를 남겨야 한다.
 
-⸻
+---
 
-15. Runtime 처리 흐름
+## 15. Runtime 처리 흐름
 
+```text
 Player Input
 ↓
 World Action
@@ -1301,8 +1382,9 @@ WorldState 갱신
 Observable Growth State 생성
 ↓
 GameView 전달
+```
 
-15.1 책임 분리
+### 15.1 책임 분리
 
 World
 
@@ -1324,9 +1406,9 @@ Slot 잠금 이유 표시
 
 GameView는 Class Unlock 여부를 직접 결정하지 않는다.
 
-⸻
+---
 
-16. Observable Growth State
+## 16. Observable Growth State
 
 World는 다음 형태의 ViewModel을 제공해야 한다.
 
@@ -1384,9 +1466,9 @@ LOCKED
 해금 조건:
 복원자 또는 정지 수호자 Class 획득
 
-⸻
+---
 
-17. 위험 설계 절차
+## 17. 위험 설계 절차
 
 새로운 Creature, Hazard 또는 Boss를 만드는 Agent는 다음 순서를 따른다.
 
@@ -1420,6 +1502,7 @@ LOCKED
 
 전체 Trace:
 
+```text
 World Pressure
 ↓
 Principle Manifestation
@@ -1445,18 +1528,19 @@ Resource
 Fairy Growth / Class
 ↓
 New Exploration Possibility
+```
 
 전투 Creature 또한 먼저 만드는 것이 아니라 세계압, 환경, 적응에서 파생되어야 한다.
 
-⸻
+---
 
-18. 구현 Cycle
+## 18. 구현 Cycle
 
 전체 시스템을 한 번에 구현하지 않는다.
 
 각 Cycle은 플레이 가능한 성장 결과 하나를 닫는다.
 
-⸻
+---
 
 Cycle 1 — 성장 원천과 첫 Class Change
 
@@ -1471,11 +1555,13 @@ FY-BOUNDARY
 
 구현 지역
 
+```text
 SAFE FRONTIER
 ↓
 회귀초 포식지
 +
 공간 단층 협곡
+```
 
 구현 콘텐츠
 
@@ -1502,6 +1588,7 @@ CL-BOUNDARY-WARDEN
 
 플레이 검증 흐름
 
+```text
 안전권 출발
 ↓
 위험 지역 발견
@@ -1525,6 +1612,7 @@ Class Unlock
 새 Capability 사용
 ↓
 기존에 막힌 경로 통과
+```
 
 Cycle 1 완료 기준
 
@@ -1537,7 +1625,7 @@ Cycle 1 완료 기준
 * 새 Capability가 WorldState 해결에 사용된다.
 * Save/Load 이후 Evidence와 Class 상태가 유지된다.
 
-⸻
+---
 
 Cycle 2 — 적응과 공생
 
@@ -1567,7 +1655,7 @@ Integration Load
 동료 또는 생물과 상태를 연결한다.
 과도한 결속이 Identity Stability에 부담을 준다.
 
-⸻
+---
 
 Cycle 3 — 관찰과 정체성
 
@@ -1598,7 +1686,7 @@ Identity 탈취 생물
 Identity를 잃지 않고 형태를 전환한다.
 UNKNOWN 영역의 추상적 위험에 대응한다.
 
-⸻
+---
 
 Cycle 4 — Class Graph 확장
 
@@ -1623,12 +1711,13 @@ CL-PATTERN-HUNTER
 CL-ANCHOR-KEEPER
 CL-MASK-WALKER
 
-⸻
+---
 
-19. 구현 모듈 구조
+## 19. 구현 모듈 구조
 
 실제 프로젝트의 기존 경로에 맞게 이름은 조정할 수 있지만 책임은 유지한다.
 
+```text
 world/
 ├─ principles/
 │  ├─ principle-types
@@ -1677,19 +1766,20 @@ tests/
 ├─ class-unlock
 ├─ class-change
 └─ growth-view-model
+```
 
-⸻
+---
 
-20. 테스트 요구사항
+## 20. 테스트 요구사항
 
-20.1 Principle 테스트
+### 20.1 Principle 테스트
 
 * Principle에 상태 대상과 Operation이 존재한다.
 * Hazard, Resource 또는 Fairy 중 하나 이상의 발현이 존재한다.
 * 특정 무기나 역할 이름만으로 정의되지 않는다.
 * 위험과 유익한 발현을 모두 설명할 수 있다.
 
-20.2 Growth 테스트
+### 20.2 Growth 테스트
 
 * Growth Source 없이 값이 변경되지 않는다.
 * 동일한 WorldEvent가 중복 적용되지 않는다.
@@ -1697,20 +1787,20 @@ tests/
 * 성장 전후 값과 원인이 Evidence에 기록된다.
 * 디버그 전용 변경이 일반 Save에 들어가지 않는다.
 
-20.3 Attribute 테스트
+### 20.3 Attribute 테스트
 
 * 공격 관련 Meaningful Challenge가 AttackPower 성장으로 이어진다.
 * 단순 약한 대상 반복은 성장하지 않는다.
 * Class와 Equipment Modifier가 분리 계산된다.
 
-20.4 Stamina 테스트
+### 20.4 Stamina 테스트
 
 * Recovery Delay 이전에는 회복하지 않는다.
 * Rule 조건 충족 후 결정적으로 회복한다.
 * Class Modifier가 World Rule을 덮어쓰지 않고 명시적으로 수정한다.
 * Save/Load 후 현재 Stamina와 회복 상태가 유지된다.
 
-20.5 Class 테스트
+### 20.5 Class 테스트
 
 * 모든 Requirement 전에는 Class를 해금할 수 없다.
 * Requirement 충족 Evidence가 표시된다.
@@ -1718,14 +1808,14 @@ tests/
 * 이전 Class는 Unlocked 상태로 유지된다.
 * Active Class에 따라 Capability와 Equipment Permission이 재계산된다.
 
-20.6 Slot 테스트
+### 20.6 Slot 테스트
 
 * 잠긴 Slot에는 반드시 Unlock Source가 있다.
 * Class 또는 Trial 획득 시 정확한 Slot만 열린다.
 * Class가 바뀌어도 영구 해금 여부가 정책대로 유지된다.
 * UI가 잠금 이유를 표시할 수 있다.
 
-20.7 World 통합 테스트
+### 20.7 World 통합 테스트
 
 * 새 Class Capability가 실제 Hazard 또는 Creature 대응에 사용된다.
 * 새 Capability 없이 통과할 수 없던 WorldState가 해금 후 통과 가능하다.
@@ -1734,29 +1824,30 @@ tests/
 
 전투는 항상 Goal 자체가 아니라 자원 획득, 길 확보, 관찰, 생존 같은 WorldState에서 파생된 선택지여야 한다.
 
-⸻
+---
 
-21. Agent 구현 규칙
+## 21. Agent 구현 규칙
 
 구현 Agent는 다음을 지켜야 한다.
 
-1. Generic Character Level을 만들지 않는다.
-2. 모든 영구 성장에는 Growth Source와 Evidence를 남긴다.
-3. Class를 전투 역할이나 수치 보너스에서 출발시키지 않는다.
-4. Principle → Manifestation → Resource → Growth Trace를 먼저 만든다.
-5. Resource가 있다는 이유만으로 Capability를 억지로 추가하지 않는다.
-6. 현재 Goal 또는 WorldState가 먼저 Capability를 요구해야 한다.
-7. Fairy의 Principle Core는 Class Change로 변경하지 않는다.
-8. UI에서 성장 여부를 결정하지 않는다.
-9. WorldState와 ObservableState를 완전히 변환 가능하게 만든다.
-10. 새 요정마다 별도 성장 시스템을 만들지 않는다.
-11. 차이는 Catalog와 Rule 데이터로 표현한다.
-12. Cycle 범위를 넘어선 고급 기능은 Schema만 남기고 구현하지 않는다.
+## 1. Generic Character Level을 만들지 않는다.
+## 2. 모든 영구 성장에는 Growth Source와 Evidence를 남긴다.
+## 3. Class를 전투 역할이나 수치 보너스에서 출발시키지 않는다.
+## 4. Principle → Manifestation → Resource → Growth Trace를 먼저 만든다.
+## 5. Resource가 있다는 이유만으로 Capability를 억지로 추가하지 않는다.
+## 6. 현재 Goal 또는 WorldState가 먼저 Capability를 요구해야 한다.
+## 7. Fairy의 Principle Core는 Class Change로 변경하지 않는다.
+## 8. UI에서 성장 여부를 결정하지 않는다.
+## 9. WorldState와 ObservableState를 완전히 변환 가능하게 만든다.
+## 10. 새 요정마다 별도 성장 시스템을 만들지 않는다.
+## 11. 차이는 Catalog와 Rule 데이터로 표현한다.
+## 12. Cycle 범위를 넘어선 고급 기능은 Schema만 남기고 구현하지 않는다.
 
-⸻
+---
 
-22. 절대 피해야 할 설계
+## 22. 절대 피해야 할 설계
 
+```text
 BAD
 레벨 20
 ↓
@@ -1777,9 +1868,11 @@ BAD
 검의 요정
 ↓
 검 Skill 사용
+```
 
 대신:
 
+```text
 World Principle
 ↓
 WorldState 변화
@@ -1797,13 +1890,15 @@ Growth Evidence
 Class Interpretation
 ↓
 New Capability
+```
 
 를 사용한다.
 
-⸻
+---
 
-23. 최종 통합 구조
+## 23. 최종 통합 구조
 
+```text
                          PR-POSSIBILITY
                        세계는 달라질 수 있다.
                                 │
@@ -1852,10 +1947,11 @@ New Capability
                                                    │
                                                    ▼
                                                  UNKNOWN
+```
 
-⸻
+---
 
-24. 최종 핵심 문장
+## 24. 최종 핵심 문장
 
 베이라의 세계관을 대표하는 문장은 다음과 같다.
 

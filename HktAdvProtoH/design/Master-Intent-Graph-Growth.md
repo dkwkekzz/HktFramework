@@ -1,6 +1,6 @@
-Master Intent Graph 확장 설계 — Growth Graph
+# Master Intent Graph 확장 설계 — Growth Graph
 
-21. 목적
+## 21. 목적
 
 Growth Graph는 다음 질문에 답한다.
 
@@ -50,9 +50,9 @@ Growth Graph
 
 ```
 
-22. 핵심 원칙
+## 22. 핵심 원칙
 
-22.1 Growth는 별도 Workflow Stage가 아니다
+### 22.1 Growth는 별도 Workflow Stage가 아니다
 
 기존 Master 실행 순서는 그대로 유지한다.
 
@@ -80,7 +80,7 @@ Growth Overlay
 
 Growth Graph 때문에 `GROWTH`라는 새로운 Master Stage를 만들지 않는다.
 
-22.2 Class와 Item은 Capability의 필요성을 만들지 않는다
+### 22.2 Class와 Item은 Capability의 필요성을 만들지 않는다
 
 다음 구조는 허용하지 않는다.
 
@@ -131,7 +131,7 @@ CL-ABYSS-BERSERKER
 즉 Class는 Capability의 설계 이유가 아니다.
 Class는 Capability를 획득하는 세계 내 성장 경로다.
 
-23. Growth Graph의 위치
+## 23. Growth Graph의 위치
 
 전체 구조는 다음과 같다.
 
@@ -179,9 +179,9 @@ Actor
 Master는 성장의 의미와 획득 조건을 관리한다.
 Runtime은 현재 어떤 Actor가 실제로 무엇을 소유하고 있는지를 관리한다.
 
-24. Class 정의
+## 24. Class 정의
 
-24.1 Class (`CL-*`)
+### 24.1 Class (`CL-*`)
 
 Class는 특정 Skill 목록을 담기 위해 존재하는 Container가 아니다.
 Class는 다음 조건을 만족하는 Actor의 의미 있는 성장 상태다.
@@ -209,7 +209,7 @@ Class는 최소한 다음을 설명할 수 있어야 한다.
 
 ```
 
-24.2 Class의 세계 인과
+### 24.2 Class의 세계 인과
 
 Class에는 반드시 하나 이상의 `origin_trace`가 존재한다.
 
@@ -271,7 +271,7 @@ CL-ABYSS-BERSERKER
 
 Class는 세계의 원인이 아니라 세계와 Actor가 상호작용한 결과다.
 
-25. Class Change
+## 25. Class Change
 
 Class Change는 단순 Level 조건이 아니라 Growth Graph의 Transition이다.
 
@@ -332,7 +332,7 @@ Class Graph는 Tree일 필요가 없다.
 
 하나의 Class에 여러 진입 경로가 존재할 수 있다.
 
-26. Class와 Capability
+## 26. Class와 Capability
 
 Class는 두 종류의 Capability 관계를 가진다.
 
@@ -383,9 +383,9 @@ MC-ABYSS-ADAPTATION
 은 심연의 버서커가 존재하기 때문에 만들어지는 것이 아니다.
 각 Capability는 자신의 Goal / Possibility 경로를 가지고 있어야 한다.
 
-27. Item Growth
+## 27. Item Growth
 
-27.1 Item의 역할
+### 27.1 Item의 역할
 
 Item은 Actor에게 다음을 제공할 수 있다.
 
@@ -424,7 +424,7 @@ IT-FIRE-SWORD가 이 Capability를 제공할 수 있다
 
 ```
 
-28. Item Definition과 Item Instance를 분리한다
+## 28. Item Definition과 Item Instance를 분리한다
 
 무한한 아이템 조합을 Master Graph에 모두 생성하지 않는다.
 두 층으로 나눈다.
@@ -449,7 +449,7 @@ RUNTIME
 
 ```
 
-28.1 Item Type (`IT-*`)
+### 28.1 Item Type (`IT-*`)
 
 아이템의 기본 의미를 정의한다.
 
@@ -462,7 +462,7 @@ semantic: >
 
 ```
 
-28.2 Item Property (`IP-*`)
+### 28.2 Item Property (`IP-*`)
 
 아이템이 가지는 세계적 성질이다.
 
@@ -490,7 +490,7 @@ Cursed
 
 구체적인 수치는 Cycle / World Rule이 소유한다.
 
-28.3 Item Modifier (`IM-*`)
+### 28.3 Item Modifier (`IM-*`)
 
 Item의 행동이나 Capability를 의미 있게 변화시키는 조합 요소다.
 
@@ -518,7 +518,7 @@ grants:
 
 같은 수치는 Master Growth Graph의 Node로 만들지 않는다.
 
-29. Item Instance (`II-*`)
+## 29. Item Instance (`II-*`)
 
 Item Instance는 Runtime World에 실제로 존재하는 개체다.
 
@@ -540,7 +540,7 @@ II-7A31
 `II-*`는 Master Registry의 정적 설계 Node가 아니다.
 현재 World 상태에 따라 생성되고 소멸할 수 있는 Runtime Entity다.
 
-30. Item 획득
+## 30. Item 획득
 
 Item은 세계의 Actor / Location / Event / Composition을 통해 획득된다.
 
@@ -587,7 +587,7 @@ Abyss Heart 획득
 
 아이템이 Loot Table에 있기 때문에 존재하는 것이 아니라 세계 상태의 결과로 존재하도록 한다.
 
-31. Item Composition
+## 31. Item Composition
 
 아이템 조합은 새로운 Item Instance를 만들 수 있다.
 
@@ -628,7 +628,7 @@ grants:
 
 모든 가능한 조합 결과를 사전에 Node로 만들지 않는다.
 
-32. 무한 Growth Graph
+## 32. 무한 Growth Graph
 
 Growth Graph의 확장성은 모든 경우의 수를 미리 만드는 것으로 구현하지 않는다.
 대신 Schema와 Rule은 유한하게 유지하고, 실제 World에서 사건이 발생할 때 Instance Graph가 확장된다.
@@ -660,7 +660,7 @@ Graph Schema       유한
 
 으로 유지한다.
 
-33. Actor Effective Capability
+## 33. Actor Effective Capability
 
 현재 Actor가 실제 사용할 수 있는 Capability는 여러 Source를 합성하여 계산한다.
 
@@ -730,7 +730,7 @@ GOOD
 
 ```
 
-34. Growth Possibility
+## 34. Growth Possibility
 
 필요한 Capability가 없을 경우 Growth Graph 자체가 새로운 Player Possibility를 만들 수 있다.
 
@@ -790,7 +790,7 @@ Counter Rune을 가진 Actor를 찾아 획득한다.
 Growth Graph가 Goal을 대신하지 않는다.
 Actor가 현재 Goal을 달성하기 위해 성장하는 것이 의미 있을 때만 Growth Possibility를 만든다.
 
-35. Class와 Item의 교차 성장
+## 35. Class와 Item의 교차 성장
 
 Class와 Item은 독립된 성장 트리가 아니다.
 둘은 동일한 Capability Network에 연결된다.
@@ -830,7 +830,7 @@ Consequence
 
 가 실제로 다르면 별도 Possibility가 될 수 있다.
 
-36. 심연의 버서커 전체 예시
+## 36. 심연의 버서커 전체 예시
 
 ```text
 ====================================================
@@ -954,7 +954,7 @@ CL-ABYSS-BERSERKER
 
 ```
 
-37. 신규 Node ID
+## 37. 신규 Node ID
 
 기존 Master ID에 다음을 추가한다.
 
@@ -982,7 +982,7 @@ FR-*    Frontier
 
 는 변경하지 않는다.
 
-38. 주요 Edge
+## 38. 주요 Edge
 
 ```text
 Class
@@ -1024,7 +1024,7 @@ CL-ABYSS-BERSERKER
 
 ```
 
-39. Master ↔ Growth ↔ Cycle 책임
+## 39. Master ↔ Growth ↔ Cycle 책임
 
 ```text
 MASTER
@@ -1058,7 +1058,7 @@ RUNTIME
 Class Skill의 Damage, Cooldown, Resource Cost 등의 수치는 Cycle / World Rule이 소유한다.
 Item의 실제 랜덤 수치 및 생성 값도 Runtime / World Rule이 소유한다.
 
-40. 저장소 제안
+## 40. 저장소 제안
 
 기존 구조를 유지하면서 다음만 추가한다.
 
@@ -1086,7 +1086,7 @@ master/
 Runtime Item Instance는 `master/`에 저장하지 않는다.
 Runtime World의 기존 Actor / Entity 저장 구조를 따른다.
 
-41. Growth Quality Gate
+## 41. Growth Quality Gate
 
 Class
 
@@ -1114,7 +1114,7 @@ Growth
 * 서로 다른 획득 방법의 Cost / Risk / Gameplay 차이가 표현되는가?
 * 현재 Actor의 Capability가 어떤 Source에서 왔는지 역추적 가능한가?
 
-42. Anti-pattern
+## 42. Anti-pattern
 
 Class를 먼저 만들고 설정을 붙인다
 
@@ -1211,7 +1211,7 @@ Class / Item / Actor를 통한 성장 경로를 탐색한다.
 
 ```
 
-43. 최종 정의
+## 43. 최종 정의
 
 ```text
 Goal
