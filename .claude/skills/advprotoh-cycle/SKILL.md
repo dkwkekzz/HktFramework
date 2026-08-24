@@ -28,8 +28,9 @@ CYCLE LAYER    선택된 하나의 플레이 결과를 폐쇄한다 — cycles/ 
 접합점은 둘뿐이다.
 
 ```text
-아래로   master/frontier.md 의 SELECTED  →  01-cycle.md 의 MASTER TRACE
-위로     08-verification.md 의 MASTER FEEDBACK  →  Master 가 overlay/candidates 에 반영
+아래로   master/frontier/<트랙>.md 의 SELECTED  →  01-cycle.md 의 MASTER TRACE
+위로     08-verification.md 의 MASTER FEEDBACK  →  Master 가 overlay · frontier/<트랙>.md ·
+         feedback/<CycleId>.md · candidates 에 반영
 ```
 
 * Cycle Agent 는 `master/` 파일을 **읽을 수는 있어도 편집하지 않는다.**
@@ -39,11 +40,16 @@ CYCLE LAYER    선택된 하나의 플레이 결과를 폐쇄한다 — cycles/ 
 
 ## 1. 대상 Stage 판정
 
+**레인 판정이 먼저다** (guides/works.md) — 요청이 `world/` 와 관찰 계약(`protocol/`)을
+바꾸지 않는 화면 작업이면 Cycle 을 세우지 않는다 → `advprotoh-view` (VIEW 레인, `works/V-*`).
+
 인자로 Stage 가 지정되면 그것을 쓴다. 지정되지 않으면:
 
 1. 대상 Cycle 디렉터리 `cycles/<CycleId>/` 의 파일 목록을 확인한다.
 2. `01` 부터 순서대로 **없는 첫 번째 Artifact** 가 이번 Stage 다.
 3. Cycle 디렉터리 자체가 없으면 Stage 1 (Cycle Definition) 이다 — 사용자에게 Cycle Goal 을 받는다.
+   Cycle ID 는 `C-<TRACK>-NNN-<이름>` — 트랙은 선택된 Frontier 가 사는 파일이 정하고,
+   번호는 자기 트랙 접두사의 최대 +1 이다 (`guides/cycle-definition.md` Do 1).
 4. 직전 Artifact 에 `GAP` 또는 `RETURNED` 가 적혀 있으면 **그 반환 대상 Stage** 를 먼저 실행한다.
 
 | Stage | Guide | 입력 | 출력 |

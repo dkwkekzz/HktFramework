@@ -13,9 +13,9 @@ Human 이 답한다    DECISION 줄
 
 미해결 **6건** — 닫힌 질문은 HISTORY.md.
 
-[frontier.md](frontier.md) 의 `SELECTED` 는 레인 B 가 FR-THE-SHAPE-IS-DATA
+[frontier/](frontier/) 의 `SELECTED` 는 COMBAT 트랙이 FR-THE-SHAPE-IS-DATA
 (휘두름의 모양이 값이 된다)이고 C025 가 그것을 돈다 — 여덟 Stage 의 실측은 끝났고
-Human Play 확인만 남았다. 레인 A 는 비어 있고 Human 선택을 기다린다.
+Human Play 확인만 남았다. ITEM 트랙은 비어 있고 Human 선택을 기다린다.
 아래 여섯 중 어느 것도 그 둘을 막지 않는다.
 
     Q29        통찰을 Graph 에서 어떻게 잡을 것인가

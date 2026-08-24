@@ -27,6 +27,11 @@ nodes:
 
   - id: MP-OUTGROW-THE-OPPONENT
     type: possibility
+    overlay_missing: >-
+      MC-ATTACK-POWER(PARTIAL) + 성장의 원천
+    overlay_note: >-
+      능력치가 결과를 바꾸는 것은 닫혔고, **C023 으로 그 값을 플레이로 바꾸는 첫 경로가 열렸다**(걸면 오르고 풀면 돌아온다). 그러나 이 갈래가 말하는 것은
+      *압도*이므로 **자라는 축**이 여전히 없다 — 걸고 푸는 것은 값을 오르내리게 할 뿐 키우지 않는다
     achieves: [MG-OVERCOME-SUPERIOR-OPPONENT]
     meaningful_difference: >
       다른 경로가 전투 중의 실행(정확한 시점·위치·이어 가는 압박)으로 이기는 데 비해,
@@ -64,6 +69,10 @@ nodes:
 
   - id: MP-MATCH-WEAPON-TO-ARMOR
     type: possibility
+    overlay_missing: >-
+      **없음**
+    overlay_note: >-
+      **C012 로 닫혔다** — 지금 플레이 가능하다
     achieves: [MG-OVERCOME-SUPERIOR-OPPONENT]
     meaningful_difference: >
       전투 중의 실행이 아니라 전투 전의 선택으로 이긴다. 준비 단계에서 결정되며 교전 중에는
@@ -101,6 +110,11 @@ nodes:
 
   - id: MP-PIERCE-THE-HARD-DEFENSE
     type: possibility
+    overlay_missing: >-
+      **없음**
+    overlay_note: >-
+      **C013 로 닫혔다** — 지금 플레이 가능하다. 다만 아직 좁다: 플레이어가 관통을 **얻는** 경로가 세계에 없다 (종류가 정한 값과 디버그뿐 —
+      growth/growth-graph.md)
     achieves: [MG-OVERCOME-SUPERIOR-OPPONENT]
     meaningful_difference: >
       고를 무른 쪽이 없을 때 남는 유일한 길이다. 상성 선택(MP-MATCH-WEAPON-TO-ARMOR)이 상대의
@@ -140,6 +154,10 @@ nodes:
 
   - id: MP-BREAK-THE-GUARD
     type: possibility
+    overlay_missing: >-
+      MC-BREAK(PARTIAL)
+    overlay_note: >-
+      무너지는 상태는 있고 무너뜨리는 행동만 없다 (R1 §14 Active Defense 층)
     achieves: [MG-OVERCOME-SUPERIOR-OPPONENT]
     meaningful_difference: >
       상대의 실수를 기다리지 않고 상대의 방어 자체를 무너뜨려 이긴다. 방어가 성립하지 않는
@@ -174,6 +192,10 @@ nodes:
 
   - id: MP-READ-AND-COUNTER
     type: possibility
+    overlay_missing: >-
+      MC-PERFECT-GUARD · MC-COUNTER
+    overlay_note: >-
+      R1 §15 층 그림에서 Active Defense 는 Penetration 위이고 그 아래층은 C013 으로 섰다 — 이제 그 층의 설계 문서만 없다
     achieves: [MG-OVERCOME-SUPERIOR-OPPONENT]
     meaningful_difference: >
       상대의 공격을 피하거나 견디는 것이 아니라 그 공격 자체를 자원으로 바꾼다.
@@ -209,6 +231,10 @@ nodes:
 
   - id: MP-EXPLOIT-OPEN-BODY
     type: possibility
+    overlay_missing: >-
+      MC-COMBAT-FLOW
+    overlay_note: >-
+      R1 §14 Aura/Nen 층
     achieves: [MG-OVERCOME-SUPERIOR-OPPONENT]
     meaningful_difference: >
       상대가 스스로 만든 취약 구간을 노린다. 자원도 위치도 요구하지 않고 오직 관찰과 대기가
@@ -244,6 +270,11 @@ nodes:
 
   - id: MP-INTERRUPT
     type: possibility
+    overlay_missing: >-
+      **없음**
+    overlay_note: >-
+      **C019 로 닫혔다** — 지금 플레이 가능하다. 상대의 선딜을 노려 끊고, 늦으면 이미 나간 칼을 무르지 못한다. 요구는 MC-INTERRUPT 하나뿐이었고
+      그것이 섰다
     achieves: [MG-OVERCOME-SUPERIOR-OPPONENT]
     meaningful_difference: >
       상대의 행동이 완성되기 전에 끊는다. 완성된 공격을 받아내는 모든 경로와 달리
@@ -277,6 +308,10 @@ nodes:
 
   - id: MP-CONTROL-MOVEMENT
     type: possibility
+    overlay_missing: >-
+      MC-CONTROL-SPACE + MC-FORCE-MOVEMENT·MC-REPOSITION(둘 다 PARTIAL)
+    overlay_note: >-
+      셋 중 둘이 절반 서 있다
     achieves: [MG-OVERCOME-SUPERIOR-OPPONENT]
     meaningful_difference: >
       상대를 이기는 것이 아니라 상대의 위치 선택을 빼앗아 이긴다. 피해 교환 없이
@@ -311,6 +346,10 @@ nodes:
 
   - id: MP-WEAPONIZE-ENVIRONMENT
     type: possibility
+    overlay_missing: >-
+      MC-READ-ENVIRONMENT · MC-USE-HAZARD + MW-ZONE-DANGER
+    overlay_note: >-
+      환경 위험 개념 자체가 없다
     achieves: [MG-OVERCOME-SUPERIOR-OPPONENT]
     meaningful_difference: >
       내 힘이 아니라 환경의 위험을 무기로 쓴다. 내 능력치와 무관하게 환경이 낼 수
@@ -345,6 +384,11 @@ nodes:
 
   - id: MP-BET-ON-THE-CRITICAL-BLOW
     type: possibility
+    overlay_missing: >-
+      요구 Capability 는 **없음** · `requires.resource` 미충족
+    overlay_note: >-
+      **C015 로 절반 닫혔다** — 증폭이 터지는 것과 그 경위가 다 보인다. 그러나 "준비로 기대값을 올린다" 는 나머지 절반이 남았다: Critical 성질을
+      올릴 성장·장비가 세계에 없어 경로가 종류 초기값과 디버그뿐이다
     achieves: [MG-OVERCOME-SUPERIOR-OPPONENT]
     meaningful_difference: >
       다른 모든 경로가 확실한 결과를 쌓는 데 비해, 이것은 확률적으로 터지는 큰 증폭에
@@ -382,6 +426,10 @@ nodes:
 
   - id: MP-STAKE-EVERYTHING-ON-ONE-BLOW
     type: possibility
+    overlay_missing: >-
+      MC-VOW · MC-COMBAT-FLOW + MC-CONDITION-STACKING(PARTIAL)
+    overlay_note: >-
+      Aura/Nen 층 — 가장 멀다
     achieves: [MG-OVERCOME-SUPERIOR-OPPONENT]
     meaningful_difference: >
       다른 모든 경로가 반복 가능한 데 비해 이것은 한 번이다. 스스로 제약을 걸어 조건을
@@ -422,6 +470,10 @@ nodes:
 
   - id: MP-TRADE-BODY-FOR-RESOURCE
     type: possibility
+    overlay_missing: >-
+      **없음**
+    overlay_note: >-
+      **C011 로 닫혔다** — 지금 플레이 가능하다
     achieves: [MG-SURVIVE-ENEMY-OFFENSIVE]
     meaningful_difference: >
       피해를 피하지 않고 받되 생명이 아닌 자원으로 받는다. 즉시 성립하고 정확함을 요구하지
@@ -457,6 +509,10 @@ nodes:
 
   - id: MP-EVADE-BY-MOVING-THE-BODY
     type: possibility
+    overlay_missing: >-
+      MC-EVADE
+    overlay_note: >-
+      R1 §13 이 이후 확장으로만 지정
     achieves: [MG-SURVIVE-ENEMY-OFFENSIVE]
     meaningful_difference: >
       막지 않고 그 자리에 없다. 자원을 쓰고 위치가 바뀌므로 다음 공격 거리도 함께 잃거나 얻는다.
@@ -493,6 +549,10 @@ nodes:
 
   - id: MP-HOLD-FORTIFIED
     type: possibility
+    overlay_missing: >-
+      MC-FORTIFY · MC-COMBAT-FLOW
+    overlay_note: >-
+      Aura/Nen 층
     achieves: [MG-SURVIVE-ENEMY-OFFENSIVE]
     meaningful_difference: >
       한 번의 방어가 아니라 자세를 유지한다. 매 순간 자원을 흘리는 대신 판정마다 정확할
@@ -542,6 +602,13 @@ nodes:
 
   - id: MP-LEARN-TO-HANDLE-THE-LAYER
     type: possibility
+    overlay_missing: >-
+      **MC-PREDICT 하나** (+ MC-OBSERVE 는 PARTIAL — 같은 자리다)
+    overlay_note: >-
+      **네 칸 중 셋이 닫혔다.** C014·C016 이 살펴봄과 그것에 이르는 두 길을, C017 이 지목 둘(MC-DESIGNATE-TARGET ·
+      MC-WATCH-TARGET)을, C018 이 관계(MC-RELATION-STANCE)를 세웠다. 남은 것은 **예측 하나**이며 그것이 MC-OBSERVE 의
+      마지막 결손과 같은 자리다 — 닫히면 이 갈래가 통째로 선다 — 다만 **보류(Human)** (AI 기획서 대기 · frontier "지금 열 수 없는 것").
+      탐험의 기본 갈래이자 다른 둘의 앞이다 (먼저 겪은 사람이 없으면 살 정보도 가져올 자원도 없다)
     achieves: [MG-EXPLORE-BEIRA]
     meaningful_difference: >
       들어가서 겪으며 그 층이 무엇을 요구하는지 알아내고, 그 대응을 스스로 익혀
@@ -589,6 +656,14 @@ nodes:
 
   - id: MP-ADAPT-BY-RESOURCE
     type: possibility
+    overlay_missing: >-
+      MC-RESTORE-BIOLOGICAL-STATE · MC-CUT-ABNORMAL-STRUCTURE + **MC-EQUIP-ITEM(IMPLEMENTED)** +
+      **MC-CRAFT-FROM-MATERIALS** + MK-LOCAL-WORLDSTATE + 자원
+    overlay_note: >-
+      **이 갈래의 문장이 세계에서 통째로 참이 되었다** — "물건이 대신해 주고, **물건을 잃으면 도로 못 하게 된다**"(BW §17). 앞 절반은
+      C020(쓰면 없어진다)이, 뒤 절반은 **C023**(풀면 캘 수 없게 된다)이 세웠고, **C024** 가 그 둘 사이를 오가는 길(교체)을 냈다. 걸 물건이
+      둘이 되어 **갈래가 처음으로 둘**이다 — 공격을 얹을지 방어를 얹을지. 다만 자리가 여섯이라 아직 둘 다 걸 수 있으므로 그것이 진짜 선택이 되려면 자리가 걸
+      것보다 좁아져야 한다. 쓸 물건은 여전히 한 종류뿐이고, 남은 것은 제작이며 그것이 회복·절단 앞을 막고 있다
     achieves: [MG-EXPLORE-BEIRA]
     meaningful_difference: >
       그 층이 요구하는 대응을 스스로 익히는 대신, 세계가 이미 만들어 낸 적응을
@@ -635,6 +710,11 @@ nodes:
 
   - id: MP-PREPARE-IN-CIVILIZATION
     type: possibility
+    overlay_missing: >-
+      **MC-CRAFT-FROM-MATERIALS** + MK-LOCAL-WORLDSTATE + MW-SAFE-FRONTIER + 관계·대가
+    overlay_note: >-
+      BW §14 가 열거한 활동 중 제작만 근거 문서를 얻어 배선되었다 (IS §4). 나머지(정보·교역·훈련)는 여전히 이름을 댄 문서가 없다. 막는 것은 능력만이
+      아니라 문명권·거래라는 세계 기반이다
     achieves: [MG-EXPLORE-BEIRA]
     meaningful_difference: >
       들어가기 전에 문명권에서 갖춘다 — 다녀온 사람에게 정보를 사고, 필요한 것을
@@ -687,6 +767,10 @@ nodes:
 
   - id: MP-KILL-CREATURE
     type: possibility
+    overlay_missing: >-
+      **MC-TRANSFER-ITEM**
+    overlay_note: >-
+      쓰러뜨리는 것까지는 된다. **쓰러진 몸에서 아무것도 나오지 않고** 그 몸은 치워지지도 않아 영구 장애물로 남는다 — IS 주입으로 그 결손이 이름을 얻었다
     achieves: [MG-ACQUIRE-RARE-ORGAN]
     meaningful_difference: >
       Creature 를 죽여 기관을 얻는다. 다섯 대안 중 유일하게 전투를 요구하고,
@@ -721,6 +805,10 @@ nodes:
 
   - id: MP-TAKE-SHED-ORGAN
     type: possibility
+    overlay_missing: >-
+      **MC-TRANSFER-ITEM** + 각자의 세계 기반 (탈락을 만드는 자율 행동 · 거래 상대)
+    overlay_note: >-
+      IS §4 로 공통 앞칸 하나가 배선되었다. 몸 밖에 물건이 놓이지 않는 한 셋 다 열리지 않는다
     achieves: [MG-ACQUIRE-RARE-ORGAN]
     meaningful_difference: >
       Creature 가 탈락시킨 기관을 줍는다. 죽이지 않으므로 전투 위험이 없지만
@@ -754,6 +842,10 @@ nodes:
 
   - id: MP-TRADE-WITH-ACTOR
     type: possibility
+    overlay_missing: >-
+      **MC-TRANSFER-ITEM** + 각자의 세계 기반 (탈락을 만드는 자율 행동 · 거래 상대)
+    overlay_note: >-
+      IS §4 로 공통 앞칸 하나가 배선되었다. 몸 밖에 물건이 놓이지 않는 한 셋 다 열리지 않는다
     achieves: [MG-ACQUIRE-RARE-ORGAN]
     meaningful_difference: >
       그 기관을 가진 다른 Actor 와 거래한다. 유일하게 전투도 현장 탐색도 요구하지
@@ -786,6 +878,11 @@ nodes:
 
   - id: MP-FIND-DEAD-SPECIMEN
     type: possibility
+    overlay_missing: >-
+      **판정 불가 — requires 미배선**
+    overlay_note: >-
+      BW §27 은 대안 구조만 공급했다. IS §4 가 이름을 댄 셋에 이 둘은 포함되지 않아 배선하지 않았다 — 요구 배선(OPTIONS/NEED)이 끝나야
+      판정된다
     achieves: [MG-ACQUIRE-RARE-ORGAN]
     meaningful_difference: >
       이미 죽은 개체를 찾아 기관을 얻는다. 죽이는 위험도 거래 대가도 없지만
@@ -817,6 +914,11 @@ nodes:
 
   - id: MP-FORCE-CREATURE-TO-RELEASE
     type: possibility
+    overlay_missing: >-
+      **판정 불가 — requires 미배선**
+    overlay_note: >-
+      BW §27 은 대안 구조만 공급했다. IS §4 가 이름을 댄 셋에 이 둘은 포함되지 않아 배선하지 않았다 — 요구 배선(OPTIONS/NEED)이 끝나야
+      판정된다
     achieves: [MG-ACQUIRE-RARE-ORGAN]
     meaningful_difference: >
       죽이지 않고 Creature 가 기관을 내놓게 만든다. 전투 압박·환경·유인 무엇으로든

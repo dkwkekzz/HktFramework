@@ -1,0 +1,255 @@
+# Overlay 편집 산문 — overlay.md 는 생성물이고, 이 파일이 그 편집적 부분(섹션 구성·산문)을 소유한다.
+# 표의 값(상태·근거·부족한 것)은 각 노드의 overlay*/implemented* 필드가 소유한다 — 여기 적지 않는다.
+# 재생성: npm run master:graph
+version: 1
+header: |
+  Master Graph 를 현재 `world/` `view/` 구현과 겹쳐 본 결과다. 기본 절차 **NEED** 단계의
+  산출물이며, NEXT(Frontier) 는 여기서 나온다.
+
+  각 노드의 `world_shape`(그 의미가 세계에 있다는 것을 무엇으로 확인하는가)가 판정 기준이고,
+  이 문서는 그 칸이 지금 닫혀 있는가만 답한다.
+
+      기준 시점   C024(한 자리에는 하나) 닫힘.
+                  전투 사다리는 Critical 층까지, 탐험은 FRINGE 의 첫 칸까지 서 있고,
+                  그 위에 고른 대상(C017) · 둘 사이의 태도(C018) · 행동 안의 시점(C019)이
+                  얹혔다.
+                  **세계에 처음으로 가진 것이 사라지는 경로가 생겼고 (C020)**,
+                  **그것을 담을 곳이 유한해졌으며 (C022)**,
+                  **지닌 것과 몸에 적용된 것이 갈렸고 (C023)**,
+                  **걸어 둔 것을 바꾸는 것이 한 동작이 되었다 (C024)** — 물건이 정의소를
+                  갖고, 써서 상대의 상태를 바꾸며, 쓴 만큼 줄고, 담을 자리가 차면 더 받지
+                  못하고, 걸어 둔 것만이 몸의 값과 할 수 있는 일을 바꾸며,
+                  **가방이 가득해도 바꿔 끼는 것은 된다**.
+                  그 위에 C025(휘두름의 모양이 값이 된다)와 **C026(가진 것을 여는 자리)**
+                  가 얹혔다 — 뒤의 것은 이 표에 줄도 상태도 더하지 않는다
+      근거 문서   전투 R1 · DT · 탐험 BW · 성장 GR · 지목 TG · 아이템 IS · 인벤토리 IE ·
+                  스킬 SK — 근거는 영역을 넘지 않는다 (HISTORY Q15)
+
+  해당 영역 문서가 이름조차 대지 않는 Capability 는 "없는 것" 이 아니라 **노드가 아니다** —
+  표에서 삭제한다.
+sections:
+  - kind: capability
+    title: "Capability — 전투 영역"
+    intro: |
+      SK(스킬) 주입은 이 표에 **줄을 하나도 더하지 않았다.** 그 문서는 효과가 대상에
+      닿는 방식(실행 형태)만 공급하고 그 형태를 요구하는 Possibility 는 공급하지 않기 때문에,
+      지금 세우면 required_by 와 demanded_by 가 둘 다 빈 노드가 된다 (SCHEMA — 그런 것은
+      노드가 아니다). 대신 그 자리들이 `graph/systems.yaml` 의 MS-SKILL-FORM 에 등록되어
+      있고, 그중 **접촉(CONTACT)** 한 칸만 이미 차 있다 — MC-COMBAT-STRIKE 가 그 칸이다.
+      C025 로 그 칸의 **모양이 값이 되었다** — 남은 다섯 칸이 서면 그 축을 새로 만들지 않고
+      재사용한다. 다만 그것이 남은 칸을 여는 것은 아니다: 막는 것은 형상이 아니라
+      **요구하는 Possibility 가 없다**는 쪽이다 (Q35 의 7 조건 2).
+      자리의 수는 열넷에서 **여섯**으로 줄었다 — SK 가 투사체 · 장판 · 부착 영역 · 이동 영역 ·
+      함정 · 자취를 서로 다른 형태가 아니라 **같은 공간 존재의 값 차이**로 되돌렸기 때문이다
+      (SK §4 · §5). 연쇄 · 이동 결합 · 소환은 아예 이 사다리의 자리가 아니게 되었다 —
+      앞의 둘은 기존 실행의 반복이고, 소환은 존재를 하나 더 세우는 일이다.
+      나머지 다섯 칸이 왜 비어 있는지, 무엇이 그것을 요구하게 될지는 open-questions Q35 다.
+    rows:
+      - MC-COMBAT-STRIKE
+      - MC-BODY-FACING
+      - MC-CP-ECONOMY
+      - MC-COMBAT-CAUSE-READING
+      - MC-ATTACK-POWER
+      - MC-SKILL-SCALING
+      - MC-DEFENSE-MITIGATION
+      - MC-ATTACK-ARMOR-MATCHUP
+      - MC-GUARD
+      - MC-PENETRATION
+      - MC-BREAK
+      - MC-CONDITION-STACKING
+      - MC-CRITICAL-STRIKE
+      - MC-PERFECT-GUARD
+      - MC-COUNTER
+      - MC-EVADE
+      - MC-COMBAT-FLOW
+      - MC-FORTIFY
+      - MC-VOW
+  - kind: capability
+    title: "Capability — 탐험 영역 (BW)"
+    intro: |
+      현재 세계는 무대 하나짜리 전투 프로토타입이다. 지역·이동 범위·생태·환경 위험·자원
+      순환의 의미가 거의 없어 BW 유래 Capability 는 대부분 MISSING 이다. 다만 이전 판정이
+      **"전부 MISSING" 이라고 뭉뚱그린 것은 부정확했다** — 아래 네 줄은 코드에 이미 얹힐
+      바닥이 있어 PARTIAL 로 정정한다.
+    rows:
+      - label: "MC-REPOSITION (SAFE §20)"
+        ids: [MC-REPOSITION]
+      - label: "MC-FORCE-MOVEMENT (DANGER §23)"
+        ids: [MC-FORCE-MOVEMENT]
+      - label: "MC-INTERRUPT (DANGER §23)"
+        ids: [MC-INTERRUPT]
+      - label: "MC-BREAK (WILD §22)"
+        ids: [MC-BREAK]
+      - label: "MC-OBSERVE (FRINGE §21)"
+        ids: [MC-OBSERVE]
+      - label: "MC-PREDICT (FRINGE §21)"
+        ids: [MC-PREDICT]
+      - label: "MC-USE-TERRAIN (FRINGE §21)"
+        ids: [MC-USE-TERRAIN]
+      - label: "MC-DISCOVER-WEAKNESS · MC-PRECISE-TARGETING · MC-CONTROL-SPACE (WILD §22)"
+        ids: [MC-DISCOVER-WEAKNESS, MC-PRECISE-TARGETING, MC-CONTROL-SPACE]
+      - label: "MC-READ-ENVIRONMENT · MC-USE-HAZARD (DANGER §23)"
+        ids: [MC-READ-ENVIRONMENT, MC-USE-HAZARD]
+      - label: "MC-DISRUPT-ABILITY · MC-MAINTAIN-PRESSURE · MC-TARGET-SPECIFIC-PART · MC-READ-CREATURE-SYSTEM (DEEP §24)"
+        ids: [MC-DISRUPT-ABILITY, MC-MAINTAIN-PRESSURE, MC-TARGET-SPECIFIC-PART, MC-READ-CREATURE-SYSTEM]
+      - label: "MC-PROTECT-PERCEPTION · MC-VERIFY-REALITY · MC-IDENTITY-ANCHOR · MC-RESIST-INFLUENCE · MC-BREAK-BIOLOGICAL-LINK · MC-ESCAPE-ALTERED-SPACE (UNKNOWN §25)"
+        ids: [MC-PROTECT-PERCEPTION, MC-VERIFY-REALITY, MC-IDENTITY-ANCHOR, MC-RESIST-INFLUENCE, MC-BREAK-BIOLOGICAL-LINK, MC-ESCAPE-ALTERED-SPACE]
+      - label: "MC-RESTORE-BIOLOGICAL-STATE (자원 §8)"
+        ids: [MC-RESTORE-BIOLOGICAL-STATE]
+      - label: "MC-CUT-ABNORMAL-STRUCTURE (자원 §10 · §17)"
+        ids: [MC-CUT-ABNORMAL-STRUCTURE]
+  - kind: capability
+    title: "Capability — 지목·관계 영역 (TG · BW §21)"
+    intro: |
+      앞의 둘은 `design/Design-Targeting-R0.md` 주입으로, 마지막 하나는 Human 지시로 섰다
+      (HISTORY Q24(b)). 층(BW)에 속하지 않는다 — 어느 층에서든 "지금 누구에게 하는가" 와
+      "그것이 나를 어떻게 대하는가" 를 세계에 두는 자리다. 판정은 코드 대조로 했다.
+    rows:
+      - MC-DESIGNATE-TARGET
+      - MC-WATCH-TARGET
+      - MC-RELATION-STANCE
+  - kind: capability
+    title: "Capability — 아이템 영역 (IS · IE)"
+    intro: |
+      `design/Design-Item-System-R0.md`(IS) 주입으로 섰고, `design/Design-Inventory-Equipment-D1.md`(IE)
+      주입이 그중 장착과 몸 밖 이동의 운용 형태를 채웠다. 층(BW)에 속하지 않는다 — 어느
+      층에서든 "무엇을 지니고, 무엇을 적용하고, 무엇을 주고받는가" 를 세계에 두는 자리다.
+      **넷 중 둘이 섰다 (C020 · C023+C024)** — 그 둘의 판정은 Cycle 실측이고,
+      나머지 둘은 코드 대조다.
+
+      정의(카탈로그)와 소지(관찰)는 이 표에 없다 — 할 수 있는 일을 늘리지 않아 Capability 가
+      아니고, 넷의 바닥이다 (IS §4 · §6). 소지 한도(IE)도 같은 이유로 여기 오지 않는다:
+      한도는 할 수 있는 일을 늘리는 것이 아니라 좁히는 것이다. 다만 그 바닥의 지금 형태가
+      아래 근거 칸에 들어간다.
+
+      **그 바닥에 자리가 더해졌다 (C022).** 지닌 것이 유한한 자리에 담기고(`Inventory.UsedSlots`
+      는 저장하지 않는 파생이다), 다 담기지 못하는 획득은 하나도 담기지 않으며 세계의 것도
+      축내지 않고, 플레이어가 스스로 줄이는 첫 경로(덜어내기)가 생겼다. 표에 새 줄이 생기지
+      않는 것이 이 Cycle 의 판정 그대로다 — 늘어난 것은 할 수 있는 일이 아니라 그 경계다.
+
+      **그 위에 적용이 섰다 (C023).** 몸이 자리들을 지니고, 자리가 물건을 직접 담으며(걸린
+      것은 소지품에 없다), **걸린 것만이** 몸의 값과 할 수 있는 일을 바꾼다. 몸의 값은 기본값과
+      유효 값으로 갈렸고 유효 값은 저장하지 않는다 — `Inventory.UsedSlots` 와 같은 형태다.
+      이로써 `IM-*` 의 grants 가 **처음으로 몸에 닿았다** — 아래 MC-EQUIP-ITEM 이 그것을
+      "이것이 없어 grants 가 몸에 닿지 못한다" 로 적어 두던 자리다.
+
+      **그리고 그 적용이 닫혔다 (C024).** 이미 찬 자리에 걸면 밀려남과 걸림이 한 단위로
+      일어나고, 무엇을 밀어낼지는 겪는 사람이 고른다. 담을 곳이 가득한 상태에서 **해제는
+      막히고 교체는 되는** 비대칭이 실측되었다 — 나가는 하나가 비운 칸에 들어오는 하나가
+      앉기 때문이며, 그것이 특례가 아니라 "걸 수 있는 것은 겹치지 않는다" 는 정의소 불변
+      조건에서 나오는 계산의 결과다. 걸 수 있는 종류도 둘이 되어(곡괭이 · 손방패) "무엇을
+      걸까" 가 처음으로 갈래를 갖는다.
+
+      **그리고 그 넷에 닿는 자리가 생겼다 (C026).** 지금까지 이 표의 IMPLEMENTED 는 "세계에
+      그 의미가 있다" 였고, 그것에 닿는 길은 손가락 자리를 외운 사람에게만 있었다 — 한 물건에
+      대한 답이 화면 두 곳에 흩어져 있었고 무엇을 고르는 중인지는 어디에도 없었다.
+      C026 이 그 셋을 한 표면에 세웠다. **이 표는 한 칸도 바뀌지 않는다** — 관찰은 할 수 있는
+      일을 늘리지 않기 때문이며, 그것이 그 Cycle 이 Capability 노드를 목표로 삼지 않은 사유
+      그대로다. 바뀐 것은 판정이 아니라 **판정의 값어치**다: 아래 넷의 IMPLEMENTED 가 이제
+      "코드가 있다" 가 아니라 "겪을 수 있다" 를 뜻한다.
+    rows:
+      - MC-USE-ITEM
+      - MC-EQUIP-ITEM
+      - MC-CRAFT-FROM-MATERIALS
+      - MC-TRANSFER-ITEM
+  - kind: world
+    title: "World / Actor / Knowledge — 세계 자체는 얼마나 서 있는가"
+    intro: |
+      Capability 만 보면 전투가 꽤 찬 것처럼 보이지만, 그 전투가 놓일 **세계**가 거의 없다.
+      이 표가 그것을 드러낸다 (각 노드의 `implemented` 필드와 같은 값이다).
+    rows:
+      - MW-PRIMAL-WORLD
+      - label: "MW-WORLD-PRESSURE · MW-FREE-PRESSURE · MW-BOUND-PRESSURE"
+        ids: [MW-WORLD-PRESSURE, MW-FREE-PRESSURE, MW-BOUND-PRESSURE]
+      - MW-SAFE-FRONTIER
+      - label: "MW-DEPTH-GRADIENT · MW-ZONE-WILD/DANGER/DEEP/UNKNOWN"
+        ids: [MW-DEPTH-GRADIENT, MW-ZONE-WILD]
+      - MW-ZONE-FRINGE
+      - label: "MW-HYPER-PREDATION · MW-SPATIAL-SHEAR"
+        ids: [MW-HYPER-PREDATION, MW-SPATIAL-SHEAR]
+      - MA-PLAYER
+      - MA-HOSTILE-COMBATANT
+      - MK-LOCAL-WORLDSTATE
+      - MK-OPPONENT-DEFENSE-SHAPE
+      - MK-OPPONENT-FLOW-PATTERN
+  - kind: possibility-head
+    title: "Possibility 별로 본 상태"
+    intro: |
+      어느 경로가 지금 얼마나 닫혀 있는가 — Frontier 는 이 표에서 고른다.
+  - kind: possibility
+    title: "MG-OVERCOME-SUPERIOR-OPPONENT (11 갈래)"
+    rows:
+      - MP-MATCH-WEAPON-TO-ARMOR
+      - MP-PIERCE-THE-HARD-DEFENSE
+      - MP-OUTGROW-THE-OPPONENT
+      - MP-BET-ON-THE-CRITICAL-BLOW
+      - MP-INTERRUPT
+      - MP-BREAK-THE-GUARD
+      - MP-READ-AND-COUNTER
+      - MP-EXPLOIT-OPEN-BODY
+      - MP-CONTROL-MOVEMENT
+      - MP-STAKE-EVERYTHING-ON-ONE-BLOW
+      - MP-WEAPONIZE-ENVIRONMENT
+  - kind: possibility
+    title: "MG-SURVIVE-ENEMY-OFFENSIVE (3 갈래)"
+    rows:
+      - MP-TRADE-BODY-FOR-RESOURCE
+      - MP-EVADE-BY-MOVING-THE-BODY
+      - MP-HOLD-FORTIFIED
+  - kind: possibility
+    title: "MG-EXPLORE-BEIRA (3 갈래)"
+    intro: |
+      층 진입은 더 이상 Possibility 가 아니다 — 층은 세계 상태이고 그 요구는 `demands` 가
+      소유한다 (HISTORY Q21). 여기 셋은 **어떻게 감당하는가**다.
+    rows:
+      - MP-LEARN-TO-HANDLE-THE-LAYER
+      - MP-ADAPT-BY-RESOURCE
+      - MP-PREPARE-IN-CIVILIZATION
+  - kind: zones
+    title: "층이 요구하는 것 — MW-ZONE-* 의 demands"
+    intro: |
+      각 층을 감당하려면 무엇이 있어야 하는가. 위 세 방법 중 무엇으로 채우든 상관없다.
+    rows:
+      - label: "MW-SAFE-FRONTIER (§20)"
+        ids: [MW-SAFE-FRONTIER]
+      - label: "MW-ZONE-FRINGE (§21)"
+        ids: [MW-ZONE-FRINGE]
+      - label: "MW-ZONE-WILD (§22)"
+        ids: [MW-ZONE-WILD]
+      - label: "MW-ZONE-DANGER (§23)"
+        ids: [MW-ZONE-DANGER]
+      - label: "MW-ZONE-DEEP (§24)"
+        ids: [MW-ZONE-DEEP]
+      - label: "MW-ZONE-UNKNOWN (§25)"
+        ids: [MW-ZONE-UNKNOWN]
+  - kind: possibility
+    title: "MG-ACQUIRE-RARE-ORGAN (5 갈래)"
+    rows:
+      - MP-KILL-CREATURE
+      - label: "MP-TAKE-SHED-ORGAN · MP-TRADE-WITH-ACTOR"
+        ids: [MP-TAKE-SHED-ORGAN, MP-TRADE-WITH-ACTOR]
+      - label: "MP-FIND-DEAD-SPECIMEN · MP-FORCE-CREATURE-TO-RELEASE"
+        ids: [MP-FIND-DEAD-SPECIMEN, MP-FORCE-CREATURE-TO-RELEASE]
+holes: |
+  표 전체를 관통하는 것이 셋 있다. 개별 Capability 결손이 아니라 구조적 공백이다.
+
+  ```text
+  1. 자원이 하는 일이 하나뿐이다  (넷 중 하나가 섰다)
+     C020 으로 캔 것이 처음으로 무언가를 한다 — 던지면 상대가 상하고 그만큼 준다.
+     그러나 만들 것도, 장착할 것도, 팔 것도 여전히 없다. IS 가 나눈 네 조각 중
+     **쓴다만 서고 적용한다 · 만든다 · 주고받는다 셋이 MISSING** 이다.
+     Q22 로 광물 계통과 grants 3건이 그래프에 섰으므로 BW §17 순환은 **설계에서는**
+     닫혔지만 (growth/growth-graph.md), 그 grants 가 몸에 닿으려면 적용이 서야 한다.
+     그리고 쓸 물건의 **종류**가 좁다 — 소비재 계통이 아직 세계에도 그래프에도 없다.
+
+  2. 성장이 세계 밖에 있다
+     능력치가 결과를 바꾸는 것은 닫혔지만 그 값을 올리는 유일한 경로가 디버그 명령이다.
+     MP-OUTGROW-THE-OPPONENT 가 "닫힌 경로" 로 보였던 것은 이 구분을 놓쳤기 때문이다.
+
+  3. 앞날을 읽을 것이 없다  (C014·C016 으로 "지금" 은 읽히게 되었다)
+     C014 가 "살펴보기 전에는 겨루는 힘을 모른다" 를 세우고 C016 이 거기 이르는 두 번째
+     길(통찰)과 자리별 부분 공개를 세웠다 — BW §32 사슬의 첫 칸이 섰다.
+     남은 것은 둘째 칸이다. 자율 존재의 다음 행동이 언제나 같은 한 가지라 읽을 거리가
+     없고, 행동의 앞 구간이 앎의 관문과 무관하게 누구에게나 그냥 온다.
+     발견·검증은 그 뒤에 얹힌다.
+  ```

@@ -11,7 +11,26 @@ NEED 가 판정한 Missing / Partial Capability 중 **한 Cycle 안에서 닫히
 - `master/overlay.md`
 - `master/graph/possibilities.yaml` · `capabilities.yaml`
 - `master/constraints/` — Active Constraint (Filter)
-- `master/frontier.md` — 기존 후보 (닫힌 Cycle 의 선택 기록은 `master/HISTORY.md`)
+- `master/frontier/` — 트랙 인덱스(README.md)와 대상 트랙 파일의 기존 후보
+  (닫힌 후보의 결과는 `master/feedback/<CycleId>.md`)
+
+## 트랙 — 후보가 사는 곳
+
+Frontier 는 트랙별 파일이다. 트랙은 세션이 아니라 **도메인**이다 — 근거 문서 영역과
+`graph/systems.yaml` 의 시스템 축이 경계를 긋는다.
+
+```text
+후보 하나 = 한 트랙 파일        frontier/<트랙>.md 에만 산다. 두 파일에 두지 않는다
+트랙 간 의존 = FR-ID 참조       상대 트랙 후보를 복사·흡수·수정하지 않는다
+트랙 간 우선순위 = README 소유   트랙 안의 추천 순서는 트랙 파일, 트랙 사이의 판단은
+                               frontier/README.md — 이 인덱스는 NEXT 작업만 고친다
+새 트랙 신설·후보의 트랙 이동    NEXT 작업(직렬)만 한다. 새 도메인이 주입되면 새 트랙 파일을
+                               만들고 README 의 트랙 표에 등록한다
+키는 FR-ID                     위치 번호(1..N)를 매기지 않는다 — 후보가 줄어도 재번호가
+                               없어야 병렬 diff 가 충돌하지 않는다
+SELECTED 는 트랙별              "지금 도는 것"이 트랙마다 하나씩 있을 수 있다 —
+                               한 트랙 = 동시에 한 세션 (frontier/README.md 병렬 규칙)
+```
 
 ## Do
 
@@ -60,11 +79,12 @@ GOOD   Player 가 적의 공격 직전에 Guard 하여 피해를 받지 않고 �
 
 ## Output
 
-`master/frontier.md`
+`master/frontier/<트랙>.md` (+ 트랙 간 판단이 바뀌면 `master/frontier/README.md`)
 
-형식은 `master/SCHEMA.md` 가 단일 출처다. 이 파일에 담는 것은 **후보 · 추천 순서 ·
+형식은 `master/SCHEMA.md` 가 단일 출처다. 트랙 파일에 담는 것은 **후보 · 추천 순서 ·
 SELECTED · 지금 열 수 없는 것** 네 절뿐이다 — 진행 현황(사다리가 어디까지 섰는가)은
-`graph/GRAPH.md` 의 척추 절이, 후보를 읽는 법과 작성 규칙은 이 Guide 가 소유한다.
+`graph/GRAPH.md` 의 척추 절이, 후보를 읽는 법과 작성 규칙은 이 Guide 가,
+트랙 목록·병렬 규칙·트랙 밖 결손은 `frontier/README.md` 가 소유한다.
 frontier 에 현황 서술·공정 규칙을 다시 쌓지 않는다.
 
 ## Handoff — Cycle Layer 로
@@ -86,10 +106,13 @@ Frontier 선택 이후는 **기존 8 Stage Cycle Workflow 를 변경 없이** �
 - 7 조건 판정 결과를 남긴다.
 - Constraint Evaluation 을 명시한다.
 - 상위 Goal / Possibility 로 역추적 가능하게 한다.
+- 후보의 키는 FR-ID 다 — 위치 번호를 매기지 않는다.
 
 ## Must Not
 
 - `VIOLATED` 후보를 후보 목록에 올리지 않는다 — Design Conflict 로 Human 에게 따로 제시한다.
+- 다른 세션이 돌고 있는 트랙의 파일을 고치지 않는다 — 트랙 이동·트랙 간 판단은
+  README 인덱스로, 직렬 NEXT 작업에서만.
 - `part_of.grounded: false` 인 Capability 를 후보의 Target 으로 세우지 않는다 —
   그 전체의 설계 문서가 먼저다. "지금 열 수 없는 것" 에 그 사유로 적는다.
 - 개발 우선순위를 자동 확정하지 않는다.
