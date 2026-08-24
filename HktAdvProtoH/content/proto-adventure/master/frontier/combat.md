@@ -81,14 +81,19 @@
 ## SELECTED
 
 ```text
-FR-THE-SHAPE-IS-DATA — 휘두름의 모양이 값이 된다
-C025-the-shape-is-data 가 돈다 (Stage 8 실측 완료 · Human Play 확인 대기)
+없음 — C025 가 닫혔다. FEEDBACK 반영 대기
 ```
 
-    **이 트랙은 아직 소진되지 않았다.** 여덟 Stage 의 실측은 끝났고 Gate 15항 중 열넷이
-    충족이다. 남은 하나가 `인간이 실제 게임에서 Cycle Goal 달성을 확인했다` 이며, 기계가
-    실제 세계 프로세스와 실제 브라우저로 같은 각본을 돌렸어도 그것을 대신하지 않는다.
-    확인되면 이 후보를 지우고 결과를 Feedback 으로 옮긴다 (C025 08-verification.md).
+    `FR-THE-SHAPE-IS-DATA` 는 **C025-the-shape-is-data 로 닫혔다** — Gate 15항 전부 충족
+    (Human Play 확인 완료 · C025 08-verification.md STATUS COMPLETE).
+
+    **이 후보 블록과 "한눈에 보기" 줄은 아직 지우지 않았다** — 소진된 후보를 지우고 결과를
+    `feedback/C025.md` 로 옮기는 것은 FEEDBACK 레인이 병합 뒤 최신 main 위에서 하는 일이다
+    (guides/master-feedback.md Do 2). 그 작업이 돌기 전까지 이 파일은 "닫혔으나 아직
+    반영되지 않았다" 를 그대로 보여 준다.
+
+    **그 반영이 끝나면 이 트랙에 후보가 하나도 남지 않는다.** 다음 COMBAT Cycle 을 열려면
+    MASTER 레인의 OPTIONS 작업이 먼저다 — 아래 "지금 열 수 없는 것" 의 Q35 가 그 자리다.
 
 ## 지금 열 수 없는 것
 

@@ -292,16 +292,17 @@
 
 ## STATUS
 
-    IN PROGRESS — **Human Play 확인 대기**
+    COMPLETE — **Human Play 확인됨.**
 
-    Cycle Completion Gate 15항 중 **열넷이 충족**이다. 남은 하나는
+    Cycle Completion Gate 15항이 **전부 충족**이다. 마지막 하나였던
 
-        [ ] 인간이 실제 게임에서 Cycle Goal 달성을 확인했다
+        [x] 인간이 실제 게임에서 Cycle Goal 달성을 확인했다
 
-    이며, 기계가 실제 세계 프로세스와 실제 브라우저로 같은 각본을 돌렸어도
-    그것을 대신하지 않는다.
+    를 Human 이 실제 게임에서 확인했다 — 같은 자리에 선 상대에게 **F 는 맞고 G 는
+    빗나가고**, 한 걸음 물러나면 **G 는 맞고 F 는 빗나간다.** 같은 자리, 다른 기술,
+    다른 결과 — 그것이 이 Cycle 의 Goal 이다.
 
-    ### 확인하는 법
+    ### 확인한 각본
 
         ./run.sh  (또는 `npm run dev`)
 
@@ -315,4 +316,9 @@
 
         3 과 4 가 이 Cycle 이다 — 같은 자리, 다른 기술, 다른 결과.
 
-    확인되면 이 문서의 STATUS 와 `01-cycle.md` 의 STATUS 를 `COMPLETE` 로 바꾼다.
+    ### 남은 것 — 이 Cycle 의 몫이 아니다
+
+    이 문서의 `MASTER FEEDBACK` 은 아직 Master 에 반영되지 않았다. 반영은 **FEEDBACK
+    레인**이 병합 뒤 최신 main 위에서 돌린다 (guides/master-feedback.md) —
+    `feedback/C025.md` · `frontier/combat.md` 후보 소진 · Overlay ·
+    `DC-SKILL-IS-COMBINATION-NOT-NAME` 판정이 그 작업의 몫이다.

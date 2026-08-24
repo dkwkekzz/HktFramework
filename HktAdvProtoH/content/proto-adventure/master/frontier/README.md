@@ -18,7 +18,7 @@ NEXT 작업(직렬)만 한다.
 | 트랙 | 파일 | 근거 문서 영역 | SELECTED |
 |---|---|---|---|
 | ITEM | [item.md](item.md) | 아이템 IS · 인벤토리 IE | 없음 — Human 선택 대기 |
-| COMBAT | [combat.md](combat.md) | 전투 R1 · DT · 스킬 SK | FR-THE-SHAPE-IS-DATA — C025 (Human Play 확인 대기) |
+| COMBAT | [combat.md](combat.md) | 전투 R1 · DT · 스킬 SK | 없음 — C025 닫힘 · FEEDBACK 반영 대기 |
 
 ## 병렬 규칙 — 구조가 지키는 것
 
@@ -52,9 +52,14 @@ Feedback 경위 = 자기 파일     닫힌 Cycle 의 반영 경위는 feedback/<
 
 ## 트랙 간 순서
 
-지금 두 트랙 사이에 의존이 없다 — 어느 쪽을 먼저 골라도 되고, 둘을 동시에 돌려도 된다.
-ITEM 안의 순서는 IS §6 이 그은 것(바닥 → 장착 → 제작 → 세계의 아이템)이고,
-COMBAT 은 FR-THE-SHAPE-IS-DATA 가 C025 로 돌고 있다 (Human Play 확인 대기).
+지금 두 트랙 사이에 의존이 없다 — 어느 쪽을 먼저 골라도 된다.
+ITEM 안의 순서는 IS §6 이 그은 것(바닥 → 장착 → 제작 → 세계의 아이템)이고, 후보 다섯이
+Human 선택을 기다린다.
+
+**COMBAT 은 지금 새 Cycle 을 열 수 없다.** 하나뿐이던 후보가 C025 로 닫혔고 그것이 아직
+Feedback 으로 반영되지 않았다. 반영이 끝나면 후보가 0 이 되므로, 다음 COMBAT Cycle 은
+MASTER 레인의 OPTIONS 작업(Q35 — 몸이 아닌 존재를 요구하는 Possibility)이 후보를 낳은
+뒤에야 열린다. 그러므로 지금 **병렬로 돌 수 있는 WORLD 트랙은 ITEM 하나**다.
 
 ## 지금 열 수 없는 것 — 트랙 밖
 
