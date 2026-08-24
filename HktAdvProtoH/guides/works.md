@@ -25,6 +25,31 @@
 WORLD 트랙 사이의 규칙(트랙 = 도메인 · Cycle 번호공간 · Frontier/Feedback 파일 소유)은
 `master/frontier/README.md` 병렬 규칙이 소유한다. 이 문서는 레인 **사이**의 경계만 긋는다.
 
+## 배차판 — 레인 사이 상태의 단일 출처
+
+레인 **사이**의 지금 상태(열림 · 막힘 · Human 대기 · 레인 간 충돌 판단)는 활성 팩 루트의
+`LANES.md` 가 소유한다. 이 문서(works.md)가 레인의 **정의**를 소유하고, 배차판은 그
+레인들의 **지금**을 소유한다 — 레인 안의 할일(frontier 후보 · BACKLOG 항목 · Cycle Stage)은
+각 레인의 소유 파일에 있고 배차판에 중복하지 않는다.
+
+```text
+세션 시작    배차판을 읽고 OPEN 레인 하나를 잡는다 — 자기 줄의 상태를 RUNNING 으로,
+            "지금" 칸에 작업 ID(C-… · V-… 등)를 적는다. BLOCKED/HUMAN 레인을 잡으려면
+            "기다리는 것" 이 실제로 사라졌는지 스스로 확인하고 OPEN 으로 고쳐 잡는다
+세션 종료    자기 줄을 다음 상태로 갱신한다 — 남은 일이 있으면 OPEN + "지금" 갱신,
+            다른 레인을 기다리면 BLOCKED + "기다리는 것", Human 결정이 필요하면 HUMAN
+            (필요하면 "HUMAN 대기" 절에 한 줄). 완료 경위는 적지 않는다 (원칙 20)
+쓰기 규칙    **자기 레인 줄만 고친다** — 한 레인 = 한 세션이므로 자기 줄은 충돌하지 않는다.
+            다른 레인 줄은 그 레인이 스스로 고친다 (막힘 해제도 착수자가 확인하고 고친다)
+관찰         npm run lanes 가 판 + 실제 상태(Cycle Stage · SELECTED · 미처리 Feedback ·
+            BACKLOG)를 LANES.html 로 겹쳐 그린다 (생성물 — 커밋하지 않는다).
+            npm run lanes:check 가 판과 실제의 어긋남을 잡는다 — 세션 시작·종료 시 돌린다
+```
+
+축이 셋이다 — 배차판(레인 상태) · 흐름(기획서 → master → 후보 → Cycle → Feedback,
+`npm run lanes` 가 그린다) · 의미(Goal → Possibility → Capability, `npm run master:graph`
+가 소유). 새 관찰 축이 필요하면 도구에 절을 더하지, 레인의 작업 방식을 바꾸지 않는다.
+
 ## 레인 판정 — 특히 VIEW 와 WORLD
 
 경계에서 헷갈리는 것은 사실상 하나다: 화면 작업이 View 인가 Cycle 인가.

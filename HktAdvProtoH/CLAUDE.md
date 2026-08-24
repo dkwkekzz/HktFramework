@@ -84,7 +84,9 @@ View 작업      advprotoh-view 스킬
 ```
 
 모든 세션은 **레인** 하나로 작업한다 — 레인 목록·쓰기 범위·레인 판정의 단일 출처는
-[guides/works.md](guides/works.md) 다.
+[guides/works.md](guides/works.md) 다. 레인 **사이**의 지금 상태(열림·막힘·Human 대기)는
+활성 팩 루트의 `LANES.md`(배차판)가 소유한다 — 세션은 그것을 읽고 시작하며, 규칙은
+works.md 의 "배차판" 절, 관찰은 `npm run lanes` (`lanes:check` 가 어긋남을 잡는다).
 
 ## 핵심 원칙
 

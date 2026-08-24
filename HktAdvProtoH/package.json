@@ -13,6 +13,8 @@
     "catalog:check": "tsx tools/catalog/print.ts --check",
     "master:graph": "tsx tools/master-graph/build.ts",
     "master:graph:check": "tsx tools/master-graph/build.ts --check",
+    "lanes": "tsx tools/lanes/build.ts",
+    "lanes:check": "tsx tools/lanes/build.ts --check",
     "feedback:gate": "tsx tools/feedback-gate/check.ts",
     "surface:lab": "tsx tools/surface-lab/build.ts",
     "boundary:check": "tsx tools/boundary/check.ts",
