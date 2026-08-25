@@ -5,7 +5,9 @@ description: HktAdvProtoH 의 Master Layer 작업을 실행한다 — WHY(World�
 
 # HktAdvProtoH Master Layer Runner
 
-**작업 디렉토리: `HktAdvProtoH/`** — `guides/` `design/` `engine/` `tools/` 는 이 폴더 기준.
+**작업 디렉토리: `HktAdvProtoH/`** — `guides/` `design/` `engine/` `tools/` `scripts/` 는
+이 폴더 기준. 루트 `design/` 은 공정·기반 문서만이고, 컨텐츠 기획 원본은 팩의
+`content/<active>/design/` 에 있다.
 **컨텐츠 경로는 활성 팩 루트 기준** — `hkt.pack.json` 의 active 가 가리키는
 `content/<active>/` 아래에 `master/` `cycles/` `world/` `view/` `protocol/`(팩 확장) 이 있다.
 `engine/` 과 `engine/protocol-core/` 는 기반이다 — **컨텐츠 작업 중에 편집하지 않는다**
@@ -54,7 +56,7 @@ CYCLE LAYER (advprotoh-cycle)   선택된 NEXT 를 World Semantic 과 Rule 로 �
 
 ### 4단계가 아닌 것 — 기반 기획 주입 (Inject)
 
-Human 이 기반 기획 문서(`design/Design-*.md` — 전투 규칙 등)를 쓰거나 개정하고
+Human 이 기반 기획 문서(팩의 `design/Design-*.md` — 전투 규칙 등)를 쓰거나 개정하고
 그 **반영**을 지시하면, 그것은 4단계 탐색이 아니라 **주입**이다.
 
 ```text
@@ -118,7 +120,7 @@ Human Select 가 차례면 **작업을 멈추고** 후보와 근거·추천 순�
   `design/Master-Intent-Graph-Policy.md` 의 **해당 섹션만**
 
 정책 문서 전체를 매번 로드하는 것은 이 워크플로우의 실패다.
-`design/` 의 Cycle 3종(`Design-Workflow` · `Design-CycleWorkflow` · `Design-CycleExecution`)은
+루트 `design/` 의 Cycle 3종(`Design-Workflow` · `Design-CycleWorkflow` · `Design-CycleExecution`)은
 Master 작업의 Context 가 아니다.
 
 ## 3. 실행

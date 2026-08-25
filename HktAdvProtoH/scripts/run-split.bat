@@ -11,7 +11,7 @@ rem  세계를 다시 띄우면 스스로 이어집니다 — 분리를 눈으�
 rem ============================================================
 setlocal
 chcp 65001 >nul
-cd /d "%~dp0"
+cd /d "%~dp0.."
 
 where node >nul 2>nul
 if errorlevel 1 (
@@ -30,13 +30,13 @@ if errorlevel 1 (
 )
 
 echo 세계 창을 엽니다...
-start "HktAdvProtoH 세계" cmd /k "cd /d "%~dp0" && npm run world"
+start "HktAdvProtoH 세계" cmd /k "cd /d "%~dp0.." && npm run world"
 
 rem 세계가 포트를 잡을 때까지 잠깐 기다린다 (없어도 클라이언트가 알아서 다시 잇는다)
 timeout /t 3 /nobreak >nul
 
 echo 클라이언트 창을 엽니다...
-start "HktAdvProtoH 클라이언트" cmd /k "cd /d "%~dp0" && set HKT_WORLD_URL=http://127.0.0.1:5180 && npm run client -- --open"
+start "HktAdvProtoH 클라이언트" cmd /k "cd /d "%~dp0.." && set HKT_WORLD_URL=http://127.0.0.1:5180 && npm run client -- --open"
 
 echo.
 echo 두 창이 열렸습니다. 이 창은 닫아도 됩니다.

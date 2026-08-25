@@ -39,7 +39,7 @@ npm ci && npm run build && npm run world       # http://localhost:5180
 같은 네트워크의 휴대폰에서 보려면 `PORT=5180` 인 채로 위를 띄우고 폰 브라우저에서
 `http://<이 기계의 LAN 주소>:5180` 을 연다.
 
-개발 중에는 지금까지대로 `npm run dev` (`run.sh`) 를 쓴다 — 세계가 dev 서버 프로세스
+개발 중에는 지금까지대로 `npm run dev` (`scripts/run.sh`) 를 쓴다 — 세계가 dev 서버 프로세스
 안에서 돈다.
 
 ## 손가락 조작

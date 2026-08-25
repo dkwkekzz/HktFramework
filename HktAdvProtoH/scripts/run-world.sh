@@ -2,7 +2,7 @@
 # HktAdvProtoH — 세계(서버)만 실행 (macOS / Linux) — run-world.bat 과 동일한 동작.
 # 세계가 이 터미널에서 자기 시계로 돈다. 접속자가 없어도 계속 돈다.
 set -euo pipefail
-cd "$(dirname "$0")"
+cd "$(dirname "$0")/.."
 
 PORT="${PORT:-5180}"
 export PORT

@@ -52,12 +52,23 @@ Master Agent 는 `world/` `view/` 를 편집하지 않는다 — Overlay 판정�
 engine/            기반 — world-kernel · physics(기본 세계 규칙 솔버) · view-kernel ·
                    protocol-core. 컨텐츠 작업 중 어떤 Agent 도 편집하지 않는다 (기반 트랙
                    전용). 팩의 시스템은 physics 솔버를 조합해 만든다 — 직접 재구현하지 않는다
-content/<pack>/    컨텐츠 팩 = 교체 단위 — master/ cycles/ world/ view/ protocol/ motions/
+content/<pack>/    컨텐츠 팩 = 교체 단위 — design/ master/ cycles/ world/ view/ protocol/ motions/
 hkt.pack.json      활성 팩 선언 (공정·도구용) — 코드 조립은 content/active*.ts 가 맡는다
+scripts/           실행 스크립트 — run*.{bat,sh} · scan-motions.{bat,sh}. 저장소 루트에 두지 않는다
 ```
 
-이 문서와 `guides/` 의 `master/` `cycles/` `world/` `view/` 경로는 **활성 팩 루트 기준**이다
-(현재: `content/proto-adventure/`). `guides/` `design/` `tools/` 는 프로젝트 루트 기준.
+`design/` 은 **두 자리**다. 팩과 무관한 것만 프로젝트 루트에 남는다.
+
+```text
+design/                    공정·기반 — Workflow · Master 정책 · 기반/컨텐츠 분리 · 이펙트 장치
+                           팩을 갈아 끼워도 그대로다
+content/<pack>/design/     그 팩의 컨텐츠 기획 원본 — 세계관 · 전투 · 아이템 · 스킬 · UX
+                           Master Inject 의 입력이며, 팩과 함께 교체된다
+```
+
+이 문서와 `guides/` 의 `master/` `cycles/` `world/` `view/` `design/` 경로는 **활성 팩 루트
+기준**이다 (현재: `content/proto-adventure/`). `guides/` `tools/` `scripts/` 는 프로젝트 루트
+기준이고, 루트 `design/` 을 팩 안에서 가리킬 때는 그렇게 밝힌다 (예: 루트 `design/`).
 다른 Master Graph Root 로 작업한다 = 새 팩을 만든다 — 기반은 그대로 둔다.
 경계는 `npm run boundary:check` 가 강제한다 (engine→content import 금지 · 팩 간 격리).
 
@@ -72,7 +83,7 @@ hkt.pack.json      활성 팩 선언 (공정·도구용) — 코드 조립은 co
 ```
 
 필요한 경우에만 관련 기존 Capability Artifact 나 코드를 추가로 확인한다.
-`design/` 전체 문서는 일반적인 작업 Context 가 아니다.
+`design/` (루트·팩 양쪽) 전체 문서는 일반적인 작업 Context 가 아니다.
 
 단계 실행은 스킬이 담당한다 — 다음 미완료 Stage 판정, 공통 규칙 상세, Artifact 형식을
 스킬이 로드한다. 따라서 이 문서에는 원칙과 인덱스만 둔다.
@@ -222,8 +233,10 @@ Root Game Goal / World Premise (`master/root.md`) 와 Constraint 승인은 Human
 | `<pack>/view/` | Client View 결정 Layer — presentation 표·문구·바인딩 | 현재 게임, 계속 발전 |
 | `<pack>/protocol/` | 팩의 GameView·Action 확장 타입 | 현재 게임, 계속 발전 |
 | `<pack>/motions/` | 모션 시트 — 폴더 규약 자동 발견 | 현재 게임, 계속 발전 |
+| `<pack>/design/` | 팩의 컨텐츠 기획 원본 — 세계관·전투·아이템·스킬·UX. Master Inject 의 입력 | 원본, Human 소유 |
 | [engine/](engine/) | 기반 — 커널·Capability·봉투. 컨텐츠 작업에서 편집 금지 | 기반 트랙 전용 |
-| [design/](design/) | 원본 설계 — 경계 사례에서만 참조 | 원본 |
+| [design/](design/) | 공정·기반 설계 — 경계 사례에서만 참조 | 원본 |
+| [scripts/](scripts/) | 실행 스크립트 — 게임·세계·클라이언트 띄우기, 모션 시트 분석 | 실행 방법이 바뀔 때만 |
 
 ## 기준 문서 (Source of Truth)
 

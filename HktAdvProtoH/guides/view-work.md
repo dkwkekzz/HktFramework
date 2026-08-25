@@ -10,7 +10,7 @@ Cycle 이 아니다 — 8 Stage 를 돌지 않고, Cycle 번호를 쓰지 않고
 ## Input
 
 - `works/BACKLOG.md` — 남은 할일 (이 레인의 frontier 대응물)
-- Human 의 작업 목표, 또는 주입이면 **Human 이 지목한 UX 기획서** (`design/Design-View-*.md`)
+- Human 의 작업 목표, 또는 주입이면 **Human 이 지목한 UX 기획서** (팩의 `design/Design-View-*.md`)
 - 대상 화면의 `view/` 코드
 - 관련 GameView 관찰 (읽기만 — 무엇이 이미 실려 오는가를 아는 용도)
 
@@ -52,7 +52,7 @@ Master 가 기획서를 Inject 로 번역해 Frontier 에 쌓듯, VIEW 는 UX �
 4. 목표를 **화면에서 확인 가능한 한 문장**으로 쓴다
    (예: "막힌 행동은 버튼이 흐려지고 사유가 툴팁으로 보인다").
 5. `view/` 만 고쳐 구현한다.
-6. 눈으로 검증한다 — 실제 Client 를 띄워(run-client) 목표 문장을 확인하고,
+6. 눈으로 검증한다 — 실제 Client 를 띄워(`scripts/run-client.sh` · `.bat`) 목표 문장을 확인하고,
    같은 화면을 쓰는 기존 표면이 깨지지 않았는지 본다.
 7. `works/V-NNN-<name>.md` 를 남기고 **백로그에서 그 항목을 지운다.** 작업 중 발견한
    **세계 관찰의 결손**은 REPORT 절에 적는다 — 스스로 메우지 않는다. 작업이 낳은

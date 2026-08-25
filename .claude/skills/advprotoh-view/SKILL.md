@@ -5,7 +5,9 @@ description: HktAdvProtoH 의 VIEW 레인 작업(관찰만을 위한 화면 작�
 
 # HktAdvProtoH View Work Runner
 
-**작업 디렉토리: `HktAdvProtoH/`** — `guides/` `design/` `engine/` `tools/` 는 이 폴더 기준.
+**작업 디렉토리: `HktAdvProtoH/`** — `guides/` `design/` `engine/` `tools/` `scripts/` 는
+이 폴더 기준. 루트 `design/` 은 공정·기반 문서만이고, 컨텐츠 기획 원본은 팩의
+`content/<active>/design/` 에 있다.
 **컨텐츠 경로는 활성 팩 루트 기준** — `hkt.pack.json` 의 active 가 가리키는 `content/<active>/`
 아래에 `view/` `works/` 가 있다.
 
@@ -22,7 +24,7 @@ VIEW 레인      view/ 와 works/ 만 쓴다. 세계(world/)와 관찰 계약(pr
 
 ## 1. 대상 판정
 
-1. 요청이 Human 이 지목한 UX 기획서(`design/Design-View-*.md`)의 반영이면 → **주입**:
+1. 요청이 Human 이 지목한 UX 기획서(팩의 `design/Design-View-*.md`)의 반영이면 → **주입**:
    문서의 화면 요구를 `works/BACKLOG.md` 항목으로 번역한다 (탐색이 아니라 번역 —
    문서에 없는 할일을 지어내지 않는다). 계약·세계를 요구하는 요구사항은 백로그에
    올리지 않고 승격 재료로 분류해 보고한다. 주입만으로 한 바퀴가 끝나도 정상이다.
@@ -48,7 +50,7 @@ VIEW 레인      view/ 와 works/ 만 쓴다. 세계(world/)와 관찰 계약(pr
 2. `works/` 에서 `V-NNN` 을 딴다 (최대 +1 — VIEW 레인은 동시에 한 세션이므로 안전하다).
    백로그 항목의 상태를 `IN PROGRESS (V-NNN)` 로 바꾼다.
 3. Guide 의 `DO` 를 순서대로 수행하고 `MUST` / `MUST NOT` 을 위반하지 않는다.
-4. 실제 Client 를 띄워 목표 문장을 눈으로 확인한다 (run-client). 같은 화면의 기존
+4. 실제 Client 를 띄워 목표 문장을 눈으로 확인한다 (`scripts/run-client.sh` · `.bat`). 같은 화면의 기존
    표면 회귀도 함께 본다.
 5. `works/V-NNN-<name>.md` 를 남기고 **백로그에서 그 항목을 지운다.** 발견한 세계
    관찰의 결손은 REPORT 절로 — view 계산으로 메우지 않는다. 후속 화면 할일은

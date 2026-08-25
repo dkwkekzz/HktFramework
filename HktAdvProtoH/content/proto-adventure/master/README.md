@@ -27,7 +27,7 @@ MASTER LAYER   WHY → OPTIONS → NEED → NEXT — 무엇을 왜 만들지 결
 CYCLE LAYER    선택된 하나의 플레이 결과를 World Semantic 과 Rule 로 폐쇄한다  → cycles/
 ```
 
-정책 원본은 [../design/Master-Intent-Graph-Policy.md](../design/Master-Intent-Graph-Policy.md),
+정책 원본은 [루트 design/Master-Intent-Graph-Policy.md](../../../design/Master-Intent-Graph-Policy.md),
 파일 형식의 단일 출처는 [SCHEMA.md](SCHEMA.md) 다.
 절차(4단계 · Feedback · Inject)는 `advprotoh-master` 스킬과 `../guides/master-*.md` 가
 소유한다 — 여기에 중복해 두지 않는다. 아래 "현재 상태"의 전투 영역은
@@ -40,7 +40,7 @@ CYCLE LAYER    선택된 하나의 플레이 결과를 World Semantic 과 Rule �
 ```text
 전투   R1  design/Design-Combat-OffenseDefense-R0.md   §14 확장 순서가 Cycle 사다리다
        DT  design/Design-Combat-DamageType-R0.md       §15 가 이후 확장의 경계를 긋는다
-성장   GR  design/Master-Intent-Graph-Growth.md        GROWTH scope 한정
+성장   GR  루트 design/Master-Intent-Graph-Growth.md     GROWTH scope 한정
 세계   BW  design/Master-World-Beira.md                2026-08-19 주입 — 세계압·탐험·자원
 ```
 

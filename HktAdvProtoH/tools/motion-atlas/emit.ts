@@ -9,7 +9,7 @@ import type { MotionAtlas } from '../../engine/view-kernel/motion/motion-geometr
 
 const HEADER = `// 이 파일은 생성물이다 — 직접 고치지 마라.
 //
-//   생성   tools/motion-atlas (npm run motions:scan · scan-motions.bat/sh)
+//   생성   tools/motion-atlas (npm run motions:scan · scripts/scan-motions.bat|sh)
 //   원본   motions/**/*.png
 //
 // 개발 서버와 빌드가 시작할 때 motions/ 가 바뀌었으면 자동으로 다시 만든다.

@@ -3,7 +3,7 @@
 //   npm run motions:scan          분석하고 결과를 보고한다
 //   npm run motions:scan -- --check   생성물이 최신인지만 확인한다 (CI/빌드 검사용, 쓰지 않는다)
 //
-// 배치 파일: scan-motions.bat (Windows) · scan-motions.sh (macOS/Linux)
+// 배치 파일: scripts/scan-motions.bat (Windows) · scripts/scan-motions.sh (macOS/Linux)
 
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';

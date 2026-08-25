@@ -90,8 +90,8 @@ motions/**/*.png  ──▶  tools/motion-atlas  ──▶  view/motion/motion-a
 
 | 방법 | 쓰는 곳 |
 |---|---|
-| `scan-motions.bat` 더블클릭 | Windows |
-| `./scan-motions.sh` | macOS · Linux |
+| `scripts/scan-motions.bat` 더블클릭 | Windows |
+| `./scripts/scan-motions.sh` | macOS · Linux |
 | `npm run motions:scan` | 어느 쪽이든 |
 
 찍히는 내용 — 시트마다 격자를 어떻게 찾았는지(`gutter` = 빈 줄로 정확히 찾음,
