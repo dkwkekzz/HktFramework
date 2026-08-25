@@ -7,7 +7,7 @@
 | **상태** | Human 원안 (레이아웃 정리만 — 내용은 원문 그대로) |
 | **선행** | [Design-Item-System-R1.md](Design-Item-System-R1.md) (Definition / Instance 분리) |
 | **범위** | 같은 ItemDefinition 에서 태어난 두 Item 이 서로 다른 개체가 되는 이유와 그 상태 |
-| **관계** | 네 문서의 최종 관계는 [Design-Resource-System-R0.md](Design-Resource-System-R0.md) 부록이 소유한다 |
+| **관계** | 네 문서의 최종 관계는 [Design-Resource-Catalog-R0.md](Design-Resource-Catalog-R0.md) 부록이 소유한다 |
 
 ---
 

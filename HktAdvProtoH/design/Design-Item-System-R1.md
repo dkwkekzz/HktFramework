@@ -7,7 +7,7 @@
 | **상태** | Human 원안 (레이아웃 정리만 — 내용은 원문 그대로) |
 | **선행** | [Design-Item-System-R0.md](Design-Item-System-R0.md) (정의 · 소지 · 사용 · 장착 · 제작 · 세계 개체화 여섯 층) |
 | **범위** | Resource 와 Property 가 Form · Mechanism 으로 결속되어 Actor 가 쓸 수 있는 형태가 되기까지 |
-| **관계** | 네 문서의 최종 관계는 [Design-Resource-System-R0.md](Design-Resource-System-R0.md) 부록이 소유한다 |
+| **관계** | 네 문서의 최종 관계는 [Design-Resource-Catalog-R0.md](Design-Resource-Catalog-R0.md) 부록이 소유한다 |
 
 ---
 
