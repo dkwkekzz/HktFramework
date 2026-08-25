@@ -422,8 +422,11 @@ Reward = 45
 예:
 
 ```text
-Class A  — 모든 상황에서 공격력 증가
-Class B  — 특정 상황에서만 강력한 탐험 Capability
+Class A
+모든 상황에서 공격력 증가
+
+Class B
+특정 상황에서만 강력한 탐험 Capability
 ```
 
 두 성장의 성질은 완전히 다르다.
