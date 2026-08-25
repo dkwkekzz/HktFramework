@@ -1,4 +1,4 @@
-# 원본 근거: 루트 design/Master-Intent-Graph-Growth.md (GR)
+# 원본 근거: design/Master-Intent-Graph-Growth.md (GR)
 #   §28 (Item Definition 과 Item Instance 를 분리한다 — Master 는 Type·Property·
 #        Modifier·Composition Rule, Runtime 은 실제 생성된 Instance) ·
 #   §28.3 (단순 수치 옵션은 Growth Node 가 아니다) ·

@@ -45,7 +45,7 @@
     절차  시작(Stone 0, "광맥이 너무 멀다") → WASD 로 광맥(8,-6) 접근
           → "[E] 채굴" 표시 → E 입력 → HUD "Stone: 1" · 잔량 라벨 "돌 4"
           → "+1 Stone 획득!" 토스트. 콘솔 에러 0건. RESULT: MINED
-    Human Play  미확인 — run.bat / run.sh (npm run dev) 로 확인 요청 상태.
+    Human Play  미확인 — scripts/run.bat / run.sh (npm run dev) 로 확인 요청 상태.
 
 ## REGRESSION
     해당 없음 — 첫 Cycle. 03-world-semantic.md AFFECTED 없음, 과거 Cycle Scenario 없음.

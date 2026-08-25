@@ -1,7 +1,7 @@
-# 원본 근거: design/Design-Item-System-R0.md (IS)
+# 원본 근거: content/proto-adventure/design/Design-Item-System-R0.md (IS)
 #   §5.4 장착 층 (자리 · 장착/해제 · 능력치 변경 · 능력 부여) · §7 P3 · §8 장착 층 완료 기준
 # 주입(Inject)으로 세운 뒤 2026-08-20 Human 승인 (HISTORY Q30).
-# REVISED — design/Design-Inventory-Equipment-D1.md (IE) §38 이 공급한 **계산 방식**을
+# REVISED — content/proto-adventure/design/Design-Inventory-Equipment-D1.md (IE) §38 이 공급한 **계산 방식**을
 #   prefers 로 더했다 (HISTORY Q33). requires/prohibits 는 손대지 않았다 —
 #   원본이 "권장한다" 로 썼으므로 금지로 올리지 않는다.
 id: DC-ITEM-HOLDING-IS-NOT-APPLYING
@@ -49,7 +49,7 @@ prefers:
 
 status: REVISED
 provenance:
-  - HUMAN_DESIGN        # design/Design-Item-System-R0.md 주입 → Human 승인 (HISTORY Q30)
+  - HUMAN_DESIGN        # content/proto-adventure/design/Design-Item-System-R0.md 주입 → Human 승인 (HISTORY Q30)
   - HUMAN_DESIGN        # IE §38 을 prefers 로 반영 → Human 승인 (HISTORY Q33)
 
 relations:

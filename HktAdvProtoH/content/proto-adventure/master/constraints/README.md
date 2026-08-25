@@ -8,13 +8,16 @@
 근거 문서:
 
 ```text
-R1 §x   design/Design-Combat-OffenseDefense-R0.md   전투 영역
-DT §x   design/Design-Combat-DamageType-R0.md       전투 영역
-GR §x   루트 design/Master-Intent-Graph-Growth.md     성장(GROWTH) 영역 한정
-TG §x   design/Design-Targeting-R0.md               지목(GLOBAL)
-BW §x   design/Master-World-Beira.md                세계(WORLD) 영역
-IS §x   design/Design-Item-System-R0.md             아이템(ITEM) 영역
-IE §x   design/Design-Inventory-Equipment-D1.md     아이템(ITEM) 영역 — IS §5.4 · §10 의 후속
+content/proto-adventure/design/   팩 기획서 — R1 · DT · TG · BW · IS · IE
+design/                           공정·기반 원본(루트) — GR
+
+R1 §x   Design-Combat-OffenseDefense-R0.md   전투 영역
+DT §x   Design-Combat-DamageType-R0.md       전투 영역
+GR §x   Master-Intent-Graph-Growth.md        성장(GROWTH) 영역 한정
+TG §x   Design-Targeting-R0.md               지목(GLOBAL)
+BW §x   Master-World-Beira.md                세계(WORLD) 영역
+IS §x   Design-Item-System-R0.md             아이템(ITEM) 영역
+IE §x   Design-Inventory-Equipment-D1.md     아이템(ITEM) 영역 — IS §5.4 · §10 의 후속
 ```
 
 근거는 영역을 넘지 않는다 — 전투 노드에 GR 을, 성장 노드에 R1/DT 를 인용하지 않는다.

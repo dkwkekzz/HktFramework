@@ -1,9 +1,9 @@
-# 원본 근거: design/Design-Combat-OffenseDefense-R0.md **R1 (2026-08-17 전면 개정)**
+# 원본 근거: content/proto-adventure/design/Design-Combat-OffenseDefense-R0.md **R1 (2026-08-17 전면 개정)**
 #   핵심 원칙 ("새로운 시스템은 새로운 피해 공식을 만들지 않는다. 기존 공식의 입력값이나
 #   결과값에 한 가지 의미만 추가한다") · §15 전체 구조 ("가장 아래의 공식은 계속 유지한다.
 #   위의 시스템은 아래 공식을 수정할 뿐 교체하지 않는다") · §0 ("C010(기본 공식)이 이후
 #   모든 공격/방어 시스템의 공통 계산 기반이 된다")
-# 교차 근거: design/Design-Combat-DamageType-R0.md §5 (타입별로 다른 공식을 만드는 것이
+# 교차 근거: content/proto-adventure/design/Design-Combat-DamageType-R0.md §5 (타입별로 다른 공식을 만드는 것이
 #   아니라 하나의 공식이 타입에 따라 입력 능력치만 선택한다) · §17
 # 2026-08-17 Human 지시(R1 반영)로 신설. 2026-08-18 Q12 — DT 교차 근거 추가.
 id: DC-COMBAT-ONE-FORMULA

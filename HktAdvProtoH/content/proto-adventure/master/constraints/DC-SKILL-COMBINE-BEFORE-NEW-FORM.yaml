@@ -1,4 +1,4 @@
-# 원본 근거: design/Skill/Skill-System.md (SK) §6 (새 Primitive 추가 기준 여섯) ·
+# 원본 근거: content/proto-adventure/design/Skill/Skill-System.md (SK) §6 (새 Primitive 추가 기준 여섯) ·
 #   §9 (새로운 Skill 을 설계하는 순서 — STEP 1 분해부터 STEP 7 부족한 것만 구현까지) ·
 #   §5 (콘텐츠 이름은 조합으로 번역된다) · §4 (Execution 은 여섯 방식뿐이다) ·
 #   §12 수용 기준 20
@@ -56,8 +56,8 @@ prefers:
 
 status: REVISED
 provenance:
-  - HUMAN_DESIGN        # design/Design-Combat-SkillForm-R0.md 주입 → Human 승인 (HISTORY Q41)
-  - HUMAN_DESIGN        # 근거를 design/Skill/Skill-System.md 로 교체 → Human 지시 (HISTORY Q45)
+  - HUMAN_DESIGN        # content/proto-adventure/design/Design-Combat-SkillForm-R0.md 주입 → Human 승인 (HISTORY Q41)
+  - HUMAN_DESIGN        # 근거를 content/proto-adventure/design/Skill/Skill-System.md 로 교체 → Human 지시 (HISTORY Q45)
 
 relations:
   supports: [DC-COMBAT-ONE-LAYER-AT-A-TIME, DC-COMBAT-ONE-FORMULA]

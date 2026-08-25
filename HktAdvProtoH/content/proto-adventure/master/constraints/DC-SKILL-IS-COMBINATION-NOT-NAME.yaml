@@ -1,4 +1,4 @@
-# 원본 근거: design/Skill/Skill-System.md (SK) §7 (구현에서 금지할 구조 — 스킬 이름별
+# 원본 근거: content/proto-adventure/design/Skill/Skill-System.md (SK) §7 (구현에서 금지할 구조 — 스킬 이름별
 #   시스템을 만들지 않는다) · §2 (Skill 의 정의 — 다섯 축의 조합) · §5 (기존 Skill 형태의
 #   재해석 — 콘텐츠 이름은 조합으로 번역된다) · §9 (새 Skill 을 설계하는 순서) ·
 #   §11 (최종 구조) · §12 수용 기준 15
@@ -56,8 +56,8 @@ prefers: []
 
 status: REVISED
 provenance:
-  - HUMAN_DESIGN        # design/Design-Combat-SkillForm-R0.md 주입 → Human 승인 (HISTORY Q41)
-  - HUMAN_DESIGN        # 근거를 design/Skill/Skill-System.md 로 교체 → Human 지시 (HISTORY Q45)
+  - HUMAN_DESIGN        # content/proto-adventure/design/Design-Combat-SkillForm-R0.md 주입 → Human 승인 (HISTORY Q41)
+  - HUMAN_DESIGN        # 근거를 content/proto-adventure/design/Skill/Skill-System.md 로 교체 → Human 지시 (HISTORY Q45)
 
 relations:
   supports: [DC-ITEM-KIND-IS-DATA-NOT-BRANCH, DC-WORLD-OWNS-THE-SURFACE-LIST]

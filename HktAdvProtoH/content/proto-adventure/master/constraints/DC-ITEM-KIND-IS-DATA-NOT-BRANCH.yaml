@@ -1,4 +1,4 @@
-# 원본 근거: design/Design-Item-System-R0.md (IS)
+# 원본 근거: content/proto-adventure/design/Design-Item-System-R0.md (IS)
 #   §0 한 문장 설계 · §5.1 Item Catalog · §7 P1 · §8 정의 층 완료 기준
 # 주입(Inject)으로 세운 뒤 2026-08-20 Human 승인 (HISTORY Q30) — 문안은 주입판 그대로다.
 id: DC-ITEM-KIND-IS-DATA-NOT-BRANCH
@@ -41,7 +41,7 @@ prefers: []
 
 status: APPROVED
 provenance:
-  - HUMAN_DESIGN        # design/Design-Item-System-R0.md 주입 → Human 승인 (HISTORY Q30)
+  - HUMAN_DESIGN        # content/proto-adventure/design/Design-Item-System-R0.md 주입 → Human 승인 (HISTORY Q30)
 
 relations:
   supports: [DC-WORLD-OWNS-THE-SURFACE-LIST]   # 목록의 단일 출처를 세계 쪽에 두는 같은 방향의 원칙이다

@@ -24,7 +24,7 @@ VIEW 레인      view/ 와 works/ 만 쓴다. 세계(world/)와 관찰 계약(pr
 
 ## 1. 대상 판정
 
-1. 요청이 Human 이 지목한 UX 기획서(팩의 `design/Design-View-*.md`)의 반영이면 → **주입**:
+1. 요청이 Human 이 지목한 UX 기획서(`content/<active>/design/Design-View-*.md`)의 반영이면 → **주입**:
    문서의 화면 요구를 `works/BACKLOG.md` 항목으로 번역한다 (탐색이 아니라 번역 —
    문서에 없는 할일을 지어내지 않는다). 계약·세계를 요구하는 요구사항은 백로그에
    올리지 않고 승격 재료로 분류해 보고한다. 주입만으로 한 바퀴가 끝나도 정상이다.

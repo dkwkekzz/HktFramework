@@ -49,7 +49,7 @@ STATUS  COMPLETE
         DC-COMBAT-DEFENSE-IS-ACTIVE  (현재 DRAFT — Active 아님)
             이 Cycle 이 그 Constraint 의 근거 층이다. 닫은 뒤 재승인 여부를 Human 이
             판단할 자리가 생긴다 — 이번 Cycle 이 그것을 전제로 삼지는 않는다.
-    원본 근거           design/Design-Combat-OffenseDefense-R0.md **R1**
+    원본 근거           content/proto-adventure/design/Design-Combat-OffenseDefense-R0.md **R1**
                         §14 Defense Action 층 (`Guard → Damage Taken × 0.5` 수준에서 시작) ·
                         핵심 원칙 (Guard 는 Final Damage 를 감소시킨다) · §13 하지 않을 것
                         구판 §8.1 (막기가 자원을 치른다는 의미의 출처)

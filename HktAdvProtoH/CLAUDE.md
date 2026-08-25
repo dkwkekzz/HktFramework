@@ -12,7 +12,7 @@ mmorpg에서 컨텐츠를 구성하기 위한 구조를 설계한다.
 개발의 기본 단위는 **Cycle** — 현재 게임에 플레이 가능한 Delta 하나를 더한다.
 
 > **다음에 무엇을 하는가** — 후보와 그 순서, 각 층이 막힌 이유, Human 의 선택 기록은
-> [master/frontier/](master/frontier/) 의 트랙 파일들이 소유한다 (트랙 목록·병렬 규칙은
+> [master/frontier/](content/proto-adventure/master/frontier/) 의 트랙 파일들이 소유한다 (트랙 목록·병렬 규칙은
 > frontier/README.md). 이 문서는 원칙과 인덱스만 담는다.
 
 ## 두 층
@@ -66,9 +66,12 @@ content/<pack>/design/     그 팩의 컨텐츠 기획 원본 — 세계관 · �
                            Master Inject 의 입력이며, 팩과 함께 교체된다
 ```
 
-이 문서와 `guides/` 의 `master/` `cycles/` `world/` `view/` `design/` 경로는 **활성 팩 루트
-기준**이다 (현재: `content/proto-adventure/`). `guides/` `tools/` `scripts/` 는 프로젝트 루트
-기준이고, 루트 `design/` 을 팩 안에서 가리킬 때는 그렇게 밝힌다 (예: 루트 `design/`).
+이 문서와 `guides/` 의 `master/` `cycles/` `world/` `view/` 경로는 **활성 팩 루트 기준**이다
+(현재: `content/proto-adventure/`). `guides/` `tools/` `scripts/` `engine/` 는 프로젝트 루트 기준.
+
+`design/` 만은 **어디서 적든 프로젝트 루트**를 뜻한다 — 팩 기획서를 가리킬 때만
+`content/<pack>/design/` 로 온전히 적는다. 팩 안의 글에서도 마찬가지다.
+
 다른 Master Graph Root 로 작업한다 = 새 팩을 만든다 — 기반은 그대로 둔다.
 경계는 `npm run boundary:check` 가 강제한다 (engine→content import 금지 · 팩 간 격리).
 
@@ -201,7 +204,7 @@ Master 의 기본 절차는 `WHY → OPTIONS → NEED → NEXT` 4단계뿐이다
 Constraint 정비는 Step 이 아니다 — Human 요청 시에만
 [guides/master-constraint.md](guides/master-constraint.md) (`master/constraints/DC-*.yaml`).
 Root Game Goal / World Premise (`master/root.md`) 와 Constraint 승인은 Human 소유다.
-파일 형식의 단일 출처는 [master/SCHEMA.md](master/SCHEMA.md) 다.
+파일 형식의 단일 출처는 [master/SCHEMA.md](content/proto-adventure/master/SCHEMA.md) 다.
 
 ## Cycle Stage 인덱스
 

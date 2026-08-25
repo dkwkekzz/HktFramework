@@ -121,7 +121,7 @@
         실려 나가므로(commandCatalog) 플레이어가 명령 한 줄로 통찰을 바꿀 수 있다
 
     사람이 할 절차 (Human Play 확인 대기)
-        1. `run-split` 으로 World 와 Client 를 띄우고 자율 존재 앞에 선다
+        1. `scripts/run-split` 으로 World 와 Client 를 띄우고 자율 존재 앞에 선다
         2. 속성 관찰을 켜고 그 존재의 줄을 본다 — `겨루는 힘 · 나에게 읽히는 방어 ·
            약점 — 아직 살펴보지 않았다`
         3. `set-attribute insight 30` → 같은 존재에 `약점 물리에 약하다` 가 나타난다

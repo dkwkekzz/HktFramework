@@ -103,7 +103,7 @@
 
         값을 고치라는 지시가 없었으므로 03 BALANCE ① 의 구간 값을 그대로 둔다.
 
-    실행 방법: `npm run world` + `npm run client` (또는 `run.sh`).
+    실행 방법: `npm run world` + `npm run client` (또는 `scripts/run.sh`).
     적대인 자율 존재에게 다가가 그 몸 위 '준비!' 를 노려 때린다.
 
 ## REGRESSION

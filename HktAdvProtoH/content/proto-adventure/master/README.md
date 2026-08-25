@@ -15,7 +15,7 @@
 > 새 영역이 아니라 **진행 중인 트랙의 결손**이므로 위 제한의 취지에 어긋나지 않는다고
 > 판단했다 — MC-PENETRATION · MP-PIERCE-THE-HARD-DEFENSE 2종. 이견이 있으면 되돌린다.
 >
-> **2026-08-19 — Human 지시로 세계관 문서를 주입했다.** `design/Master-World-Beira.md`(BW)
+> **2026-08-19 — Human 지시로 세계관 문서를 주입했다.** `content/proto-adventure/design/Master-World-Beira.md`(BW)
 > 의 주입(Inject)은 Agent 주도 확장이 아니라 Human 지목 반영이므로 위 제한에 걸리지
 > 않는다. 세계(WORLD) 영역이 열렸다 — 아래 "현재 상태" 참조. 위 제한은 Agent 주도의
 > 새 영역 **탐색**(WHY/OPTIONS 확장)에는 계속 적용된다.
@@ -27,7 +27,7 @@ MASTER LAYER   WHY → OPTIONS → NEED → NEXT — 무엇을 왜 만들지 결
 CYCLE LAYER    선택된 하나의 플레이 결과를 World Semantic 과 Rule 로 폐쇄한다  → cycles/
 ```
 
-정책 원본은 [루트 design/Master-Intent-Graph-Policy.md](../../../design/Master-Intent-Graph-Policy.md),
+정책 원본은 [design/Master-Intent-Graph-Policy.md](../../../design/Master-Intent-Graph-Policy.md),
 파일 형식의 단일 출처는 [SCHEMA.md](SCHEMA.md) 다.
 절차(4단계 · Feedback · Inject)는 `advprotoh-master` 스킬과 `../guides/master-*.md` 가
 소유한다 — 여기에 중복해 두지 않는다. 아래 "현재 상태"의 전투 영역은
@@ -38,10 +38,13 @@ CYCLE LAYER    선택된 하나의 플레이 결과를 World Semantic 과 Rule �
 근거 문서는 영역별로 분리된다 — 근거는 영역을 넘지 않는다 (Q15).
 
 ```text
-전투   R1  design/Design-Combat-OffenseDefense-R0.md   §14 확장 순서가 Cycle 사다리다
-       DT  design/Design-Combat-DamageType-R0.md       §15 가 이후 확장의 경계를 긋는다
-성장   GR  루트 design/Master-Intent-Graph-Growth.md     GROWTH scope 한정
-세계   BW  design/Master-World-Beira.md                2026-08-19 주입 — 세계압·탐험·자원
+content/proto-adventure/design/   팩 기획서 — R1 · DT · BW
+design/                           공정·기반 원본(루트) — GR
+
+전투   R1  Design-Combat-OffenseDefense-R0.md   §14 확장 순서가 Cycle 사다리다
+       DT  Design-Combat-DamageType-R0.md       §15 가 이후 확장의 경계를 긋는다
+성장   GR  Master-Intent-Graph-Growth.md        GROWTH scope 한정
+세계   BW  Master-World-Beira.md                2026-08-19 주입 — 세계압·탐험·자원
 ```
 
 해당 영역 문서가 이름조차 대지 않는 의미는 Graph·Constraint 에 두지 않는다 — 보류가

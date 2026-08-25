@@ -169,7 +169,7 @@
 ## STATUS
     IN PROGRESS — Human Play 확인 대기
 
-    확인 요청 (`./run.sh` 또는 `npx tsx server/main.ts` 뒤 브라우저 접속)
+    확인 요청 (`./scripts/run.sh` 또는 `npx tsx server/main.ts` 뒤 브라우저 접속)
       1. 몸 위에 이름과 체력이 보이는가
       2. F 로 때리면 "-20" 이 뜨고 상대 체력이 줄며 내 CP 가 차는가
       3. CP 가 30 이상일 때 G 가 나가고, 모자라면 "기력이 모자란다" 가 뜨는가

@@ -4,8 +4,8 @@
 # Goal 이 아니라 Capability 인지 검사한다.
 # 형식: ../SCHEMA.md
 #
-# 인용 — BW = design/Master-World-Beira.md (탐험) ·
-#        R1 = design/Design-Combat-OffenseDefense-R0.md · DT = design/Design-Combat-DamageType-R0.md (전투)
+# 인용 — BW = content/proto-adventure/design/Master-World-Beira.md (탐험) ·
+#        R1 = content/proto-adventure/design/Design-Combat-OffenseDefense-R0.md · DT = content/proto-adventure/design/Design-Combat-DamageType-R0.md (전투)
 version: 1
 nodes:
 
@@ -178,8 +178,8 @@ nodes:
       DC-WORLD-CREATURE-FROM-PRESSURE: SATISFIED   # 층의 생존 경쟁이 먼저이고 이 Goal 이 그 적응의 결과다
 
 # 근거 문서는 영역별로 분리된다 — 근거는 영역을 넘지 않는다 (HISTORY Q15).
-#   탐험  BW  design/Master-World-Beira.md
-#   전투  R1  design/Design-Combat-OffenseDefense-R0.md · DT  design/Design-Combat-DamageType-R0.md
+#   탐험  BW  content/proto-adventure/design/Master-World-Beira.md
+#   전투  R1  content/proto-adventure/design/Design-Combat-OffenseDefense-R0.md · DT  content/proto-adventure/design/Design-Combat-DamageType-R0.md
 #
 # 두 설계 문서의 원칙("난수를 쓰지 않는다" 등)은 Actor 가 원하는 상태가 아니므로
 # Goal 이 아니라 Constraint 다 — constraints/ 를 보라.

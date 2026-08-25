@@ -1,4 +1,4 @@
-# 원본 근거: design/Design-Inventory-Equipment-D1.md (IE)
+# 원본 근거: content/proto-adventure/design/Design-Inventory-Equipment-D1.md (IE)
 #   §13.1 저장소 분리 · §24 · §25 · §41 개체화 · §44 Invariant 2·3 · §49 P4·P9
 id: DC-ITEM-LIVES-IN-ONE-PLACE
 type: constraint
@@ -45,7 +45,7 @@ prefers:
 
 status: APPROVED
 provenance:
-  - HUMAN_DESIGN        # design/Design-Inventory-Equipment-D1.md 주입 → Human 승인 (HISTORY Q32)
+  - HUMAN_DESIGN        # content/proto-adventure/design/Design-Inventory-Equipment-D1.md 주입 → Human 승인 (HISTORY Q32)
 
 relations:
   supports:

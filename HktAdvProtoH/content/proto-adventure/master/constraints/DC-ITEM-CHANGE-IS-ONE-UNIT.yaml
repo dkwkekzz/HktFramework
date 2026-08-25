@@ -1,4 +1,4 @@
-# 원본 근거: design/Design-Item-System-R0.md (IS)
+# 원본 근거: content/proto-adventure/design/Design-Item-System-R0.md (IS)
 #   §5.5 사용과 소모의 한 단위 · 원자적 제작 · §5.6 줍기 · 버리기 · 동시 획득 · §7 P4
 # 주입(Inject)으로 세운 뒤 2026-08-20 Human 승인 (HISTORY Q30) — 문안은 주입판 그대로다.
 id: DC-ITEM-CHANGE-IS-ONE-UNIT
@@ -39,7 +39,7 @@ prefers: []
 
 status: APPROVED
 provenance:
-  - HUMAN_DESIGN        # design/Design-Item-System-R0.md 주입 → Human 승인 (HISTORY Q30)
+  - HUMAN_DESIGN        # content/proto-adventure/design/Design-Item-System-R0.md 주입 → Human 승인 (HISTORY Q30)
 
 relations:
   supports: []

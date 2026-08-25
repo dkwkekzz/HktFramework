@@ -1,4 +1,4 @@
-# 원본 근거: design/Design-Item-System-R0.md (IS)
+# 원본 근거: content/proto-adventure/design/Design-Item-System-R0.md (IS)
 #   §3.1 네 가지가 각각 다른 일을 한다 · §3.2 판정은 grants 를 본다 ·
 #   §3.3 곡괭이의 채굴은 어디에 있는가 · §5.1 세계 유래 성질 · §7 P2
 # 주입(Inject)으로 세운 뒤 2026-08-20 Human 승인 (HISTORY Q30) — 문안은 주입판 그대로다.
@@ -45,7 +45,7 @@ prefers: []
 
 status: APPROVED
 provenance:
-  - HUMAN_DESIGN        # design/Design-Item-System-R0.md 주입 → Human 승인 (HISTORY Q30)
+  - HUMAN_DESIGN        # content/proto-adventure/design/Design-Item-System-R0.md 주입 → Human 승인 (HISTORY Q30)
 
 relations:
   supports: [DC-GROWTH-NO-CAPABILITY-DUPLICATION, DC-WORLD-RESOURCE-ADAPTATION-TRACE]

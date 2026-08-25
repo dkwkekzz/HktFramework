@@ -27,7 +27,7 @@ STATUS  COMPLETE
                         → 03 의 Actor.DefenseShape 가 이것을 세계에 세운다
 
     이 Frontier 는 R1 §14 Damage Type 층 재설계를 기다리며 DEFERRED 였다가,
-    2026-08-17 `design/Design-Combat-DamageType-R0.md` 가 도착하여 SELECTED 되었다
+    2026-08-17 `content/proto-adventure/design/Design-Combat-DamageType-R0.md` 가 도착하여 SELECTED 되었다
     (`master/frontier.md` MF 갱신). 아래 두 층은 닫혀 있다 —
     C010 기본 공식 · C011 막기. Critical 층은 DC-COMBAT-PLAYER-CAUSALITY 와 충돌하여
     보류 중이며(Q11 미결), R1 자신이 "C010 은 Critical 없이도 완전히 동작해야 한다" 로

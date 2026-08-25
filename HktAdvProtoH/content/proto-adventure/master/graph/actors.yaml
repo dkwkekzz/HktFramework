@@ -3,7 +3,7 @@
 # PLAYER | NPC | CREATURE | FACTION | GUILD | SETTLEMENT | ORGANIZATION
 # 형식: ../SCHEMA.md
 #
-# 인용 표기 — BW §x = design/Master-World-Beira.md · R1 = design/Design-Combat-OffenseDefense-R0.md
+# 인용 표기 — BW §x = content/proto-adventure/design/Master-World-Beira.md · R1 = content/proto-adventure/design/Design-Combat-OffenseDefense-R0.md
 version: 1
 nodes:
 

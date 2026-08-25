@@ -1,8 +1,8 @@
-# 원본 근거: design/Design-Combat-OffenseDefense-R0.md **R1 (2026-08-17 전면 개정)**
+# 원본 근거: content/proto-adventure/design/Design-Combat-OffenseDefense-R0.md **R1 (2026-08-17 전면 개정)**
 #   §0 ("복잡한 전투를 완성하는 것이 아니다 — 이번 단계에서는 다음 질문만 해결한다") ·
 #   §13 하지 않을 것 목록 · §14 점진적인 확장 순서 ("기본 공식을 만든 뒤 한 층씩 추가한다") ·
 #   §16 ("세 가지가 충분히 재미있고 안정적으로 작동한 다음에만 다음 전투 규칙을 추가한다")
-# 교차 근거: design/Design-Combat-DamageType-R0.md §13 (이 층에서 하지 않을 것) ·
+# 교차 근거: content/proto-adventure/design/Design-Combat-DamageType-R0.md §13 (이 층에서 하지 않을 것) ·
 #   §15 (이후 확장과의 경계 — 관통·능동 방어·Aura 가 각각 어디까지인지)
 # 2026-08-17 Human 지시(R1 반영)로 신설. 2026-08-18 Q12 — 구판 인용 제거 · DT 교차 근거 추가.
 id: DC-COMBAT-ONE-LAYER-AT-A-TIME

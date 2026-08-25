@@ -23,7 +23,7 @@
 ## Frontier (자기 트랙만 — ITEM)
 
     지웠다   **없음.** 이 Cycle 은 후보에서 오지 않았다 (`[DIRECT-CYCLE]` —
-             design/Design-View-Inventory-Equipment-UX-D1.md §11). 그것이 절차의 예외가
+             content/proto-adventure/design/Design-View-Inventory-Equipment-UX-D1.md §11). 그것이 절차의 예외가
              아니라 **층의 구분**이라는 것이 이번의 관찰이다: Master 가 고르는 것은
              "세계가 무엇을 더 할 수 있게 되는가" 이고 이 Cycle 은 그것을 늘리지 않는다.
 

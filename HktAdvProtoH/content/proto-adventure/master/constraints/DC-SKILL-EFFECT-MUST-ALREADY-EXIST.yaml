@@ -1,6 +1,6 @@
-# 원본 근거: design/Skill/Skill-System.md (SK) 핵심 원칙 7 (Effect 는 현재 세계에 실제로
+# 원본 근거: content/proto-adventure/design/Skill/Skill-System.md (SK) 핵심 원칙 7 (Effect 는 현재 세계에 실제로
 #   존재하는 State Transition Capability 만 사용할 수 있다) · §12 수용 기준 16 ·
-#   design/Skill/Skill-Effect.md §1 (Effect 의 정의) · §5 (미구현 Effect 를 선점하지
+#   content/proto-adventure/design/Skill/Skill-Effect.md §1 (Effect 의 정의) · §5 (미구현 Effect 를 선점하지
 #   않는다) · §6 (새 Effect Capability 도입 절차)
 # 주입(Inject)으로 세운 뒤 2026-08-21 Human 승인 (HISTORY Q45).
 id: DC-SKILL-EFFECT-MUST-ALREADY-EXIST
@@ -49,7 +49,7 @@ prefers: []
 
 status: APPROVED
 provenance:
-  - HUMAN_DESIGN        # design/Skill/Skill-System.md 주입 → Human 승인 (HISTORY Q45)
+  - HUMAN_DESIGN        # content/proto-adventure/design/Skill/Skill-System.md 주입 → Human 승인 (HISTORY Q45)
 
 relations:
   supports: [DC-COMBAT-ONE-LAYER-AT-A-TIME, DC-SKILL-DELIVERY-IS-NOT-EFFECT]

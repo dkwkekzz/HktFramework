@@ -2,7 +2,7 @@
 
 ## Role
 
-Human 이 작성·개정한 **기반 기획 문서**(팩의 `design/Design-*.md` — 전투 규칙 등)의 의미를
+Human 이 작성·개정한 **기반 기획 문서**(`content/<pack>/design/Design-*.md` — 전투 규칙 등)의 의미를
 Master Layer 로 옮긴다.
 
 **창작이 아니라 번역이다.** 기본 4단계(WHY → OPTIONS → NEED → NEXT)가 Graph 를

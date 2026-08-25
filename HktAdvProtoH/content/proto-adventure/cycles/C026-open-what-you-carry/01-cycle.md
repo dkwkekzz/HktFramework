@@ -21,7 +21,7 @@ STATUS  COMPLETE
 ## MASTER TRACE
 
     Frontier            없음 — **DIRECT OBSERVATION — VUX-IE-D1**
-                        (`design/Design-View-Inventory-Equipment-UX-D1.md` §11 · §11.1)
+                        (`content/proto-adventure/design/Design-View-Inventory-Equipment-UX-D1.md` §11 · §11.1)
 
                         이 Cycle 은 `master/frontier.md` 의 후보에서 오지 않았다.
                         기획서가 스스로 `[DIRECT-CYCLE]` 로 표시했고, Human 이

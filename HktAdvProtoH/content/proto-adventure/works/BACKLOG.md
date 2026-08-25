@@ -7,7 +7,7 @@
 항목이 생기는 길은 셋이다 — 형식과 규칙은 guides/view-work.md 소유:
 
 ```text
-주입      Human 이 지목한 UX 기획서(design/Design-View-*.md)를 번역해 쪼갠 것
+주입      Human 이 지목한 UX 기획서(content/proto-adventure/design/Design-View-*.md)를 번역해 쪼갠 것
 직접      Human 이 그 자리에서 준 목표
 이관      Cycle 08 이 "다음으로 넘기는 것" 으로 남긴 화면 몫 · V 작업 REPORT 의 후속
 ```
@@ -19,12 +19,12 @@
 
 주입 출처는 둘이다 — 문서마다 절을 나눈다.
 
-    VUX-IE-D1   design/Design-View-Inventory-Equipment-UX-D1.md   가진 것을 다루는 화면
-    VUX-SK-D1   design/Design-View-Skill-UX-D1.md                 기술을 걸고 읽는 화면
+    VUX-IE-D1   content/proto-adventure/design/Design-View-Inventory-Equipment-UX-D1.md   가진 것을 다루는 화면
+    VUX-SK-D1   content/proto-adventure/design/Design-View-Skill-UX-D1.md                 기술을 걸고 읽는 화면
 
 ## 가진 것 (VUX-IE-D1)
 
-주입 출처: `design/Design-View-Inventory-Equipment-UX-D1.md` (VUX-IE-D1).
+주입 출처: `content/proto-adventure/design/Design-View-Inventory-Equipment-UX-D1.md` (VUX-IE-D1).
 그 문서의 §11 이 다섯으로 쪼갠 것 중 **첫째(VUX-IE-01 가방을 연다)는 C026 으로 닫혔다.**
 아래는 그 문서에 남아 있는 화면 요구를 번역한 것이며, 순서는 §11 의 권장 순서를 따른다.
 
@@ -113,7 +113,7 @@
 
 ## 기술 (VUX-SK-D1)
 
-주입 출처: `design/Design-View-Skill-UX-D1.md` (VUX-SK-D1).
+주입 출처: `content/proto-adventure/design/Design-View-Skill-UX-D1.md` (VUX-SK-D1).
 그 문서 §13 이 다섯으로 쪼갠 것 중 **첫째(VUX-SK-01 지금 쓸 Skill 과 사유를 읽고
 하나를 실행한다)는 V-001 로 닫혔다.** 아래는 그 문서에 남아 있는 화면 요구의 번역이다.
 

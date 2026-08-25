@@ -3,7 +3,7 @@
 Master Layer 산출물의 골격. 항목 이름은 유지하고 내용만 채운다.
 값이 없는 항목은 지우지 말고 `없음` 또는 사유를 적는다.
 
-의미의 원본은 [루트 design/Master-Intent-Graph-Policy.md](../../../design/Master-Intent-Graph-Policy.md) 다.
+의미의 원본은 [design/Master-Intent-Graph-Policy.md](../../../design/Master-Intent-Graph-Policy.md) 다.
 여기는 **형식**만 정한다.
 
 ---
@@ -22,7 +22,7 @@ IP-*    Item Property           IM-*    Item Modifier
 ```
 
 `II-*`(Item Instance)는 **Runtime World ID 다** — Master Registry 의 정적 Node 로
-만들지 않는다 (GR §29 · §37). GR = `루트 design/Master-Intent-Graph-Growth.md`.
+만들지 않는다 (GR §29 · §37). GR = `design/Master-Intent-Graph-Growth.md`.
 
 Cycle-local 표기(`GOAL-*` `POSSIBILITY-*` `INTENT-*` `RULE-*`)는 기존 그대로다.
 Cycle ID 는 `C-<TRACK>-NNN-<name>` — 번호공간이 트랙 소유다 (frontier/README.md 병렬 규칙).
@@ -362,7 +362,7 @@ status: DRAFT/PLANNED 시스템은 "문서를 기다리는 전체" 를 그래프
 ## growth/ — Growth Graph (Class · Item Definition)
 
 Capability 를 "세계에서 어떻게 얻는가"의 획득 경로 **Definition** 이다
-(원본: GR = `루트 design/Master-Intent-Graph-Growth.md`).
+(원본: GR = `design/Master-Intent-Graph-Growth.md`).
 Definition 만 여기 둔다 — Runtime 에 실제로 생성된 Item Instance(`II-*`)와
 모든 조합 결과의 사전 생성은 Master 에 오지 않는다 (GR §28~§29 · §31~§32).
 

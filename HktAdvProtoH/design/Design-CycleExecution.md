@@ -53,10 +53,10 @@ cycles/C012/02-intent.md
 ## 3. 문서 구조
 
 ```text
-project/
+HktAdvProtoH/
 ├── CLAUDE.md
 │
-├── design/
+├── design/                     공정·기반 원본 — 팩이 바뀌어도 참인 것만
 │   ├── Design-Workflow.md
 │   ├── Design-CycleWorkflow.md
 │   └── Design-CycleExecution.md
@@ -70,25 +70,35 @@ project/
 │   ├── view-implementation.md
 │   └── verification.md
 │
-├── cycles/
-│   ├── C001-movement/
-│   ├── C002-inventory/
-│   └── C003-mining/
+├── engine/                     기반 커널 — 컨텐츠 작업에서 편집하지 않는다
 │
-├── world/
-├── view/
-└── protocol/
+├── content/<pack>/             컨텐츠 팩 = 교체 단위
+│   ├── design/                 그 팩의 컨텐츠 기획 원본
+│   ├── master/
+│   ├── cycles/
+│   │   ├── C001-movement/
+│   │   ├── C002-inventory/
+│   │   └── C003-mining/
+│   ├── world/
+│   ├── view/
+│   └── protocol/
+│
+└── scripts/                    실행 스크립트 (run · scan-motions)
 ```
+
+Cycle Artifact 와 구현(`world/` `view/` `protocol/`)은 **활성 팩 안**에 있다.
+팩을 갈아 끼우면 함께 교체되고, 그 위의 `design/` `guides/` `engine/` 은 그대로다.
 
 각 문서의 역할은 다음과 같다.
 
 ```text
-Design Documents   전체 Architecture와 Workflow의 원본 설계
+Design Documents   전체 Architecture와 Workflow의 원본 설계 (design/)
+컨텐츠 기획 원본   그 팩의 세계·전투·아이템·UX 설계 (content/<pack>/design/)
 CLAUDE.md          모든 Agent가 반드시 지켜야 하는 공통 규칙
 Stage Guide        해당 단계의 작업 방법과 완료 조건
 Cycle Artifact     현재 Cycle에서 실제로 결정된 내용
-world/             실제 Authoritative World 구현
-view/              실제 Client View 구현
+<pack>/world/      실제 Authoritative World 구현
+<pack>/view/       실제 Client View 구현
 ```
 
 ## 4. 공통 규칙 문서의 역할

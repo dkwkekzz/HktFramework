@@ -31,7 +31,7 @@ STATUS  COMPLETE    2026-08-17
                         시스템의 유일한 기반 공식을 세운다.
                         한 번에 한 층만 — 기본 공식 위의 어떤 층도 이번에 올리지 않는다.
                         기력(CP) 예산은 하나 그대로다 — 새 게이지를 만들지 않는다.
-    원본 근거           design/Design-Combat-OffenseDefense-R0.md **R1**
+    원본 근거           content/proto-adventure/design/Design-Combat-OffenseDefense-R0.md **R1**
                         §1~§5 공식 · §9 기존 C007 관계 · §10 신규 INTENT 4종 ·
                         §11 밸런스 기준 · §13 하지 않을 것 · §16 성공 조건
 

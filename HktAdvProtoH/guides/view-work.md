@@ -10,7 +10,7 @@ Cycle 이 아니다 — 8 Stage 를 돌지 않고, Cycle 번호를 쓰지 않고
 ## Input
 
 - `works/BACKLOG.md` — 남은 할일 (이 레인의 frontier 대응물)
-- Human 의 작업 목표, 또는 주입이면 **Human 이 지목한 UX 기획서** (팩의 `design/Design-View-*.md`)
+- Human 의 작업 목표, 또는 주입이면 **Human 이 지목한 UX 기획서** (`content/<pack>/design/Design-View-*.md`)
 - 대상 화면의 `view/` 코드
 - 관련 GameView 관찰 (읽기만 — 무엇이 이미 실려 오는가를 아는 용도)
 
