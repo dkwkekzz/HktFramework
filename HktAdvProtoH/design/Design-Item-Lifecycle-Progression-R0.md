@@ -7,7 +7,7 @@
 | **상태** | Human 원안 (레이아웃 정리만 — 내용은 원문 그대로) |
 | **선행** | [Design-Item-Instance-State-R0.md](Design-Item-Instance-State-R0.md) · [Design-Item-System-R1.md](Design-Item-System-R1.md) · [Design-Resource-Catalog-R0.md](Design-Resource-Catalog-R0.md) |
 | **범위** | Formation 부터 Destroyed·Residue 까지의 순환과 성장의 여섯 축 · Deep Item Cycle 구현 순서 |
-| **관계** | 네 문서의 최종 관계는 [Design-Resource-Catalog-R0.md](Design-Resource-Catalog-R0.md) 부록이 소유한다 |
+| **관계** | 네 문서가 어떻게 한 사슬인지는 [Design-Resource-Item-Chain-R0.md](Design-Resource-Item-Chain-R0.md) 가 소유한다 |
 
 ---
 

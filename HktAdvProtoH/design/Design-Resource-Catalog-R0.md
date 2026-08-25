@@ -9,6 +9,7 @@
 | **기반** | `Master-World-Beira.md` (BW) · `Master-World-Beira-Terrain.md` · `Design-Item-System-R1.md` (IS) |
 | **파일명** | 유지한다 — `master/open-questions.md` · `master/frontier/item.md` · `master/graph/concepts.yaml` · `cycles/C024-one-slot-one-item/` · `LANES.md` 이 이 이름으로 이 문서를 가리킨다. 병합 전 §번호 대응은 §24 |
 | **미결** | §23 의 이음매 셋은 Human 판정 대기 — **병합은 세계를 새로 정하지 않았다** |
+| **사슬 위치** | 이 문서는 자원 층까지 답하고 멈춘다 — 네 문서가 어떻게 한 사슬인지는 [Design-Resource-Item-Chain-R0.md](Design-Resource-Item-Chain-R0.md) 가 소유한다 |
 | **선례** | `Design-Creature-Behavior-R0.md` (Agent 초안 → Human 승인 → Inject) |
 
 > **두 층을 한 문서에 둔 이유**: 병합 전 카탈로그는 자기 마지막 절에서 "획득 경로 — 어디서
@@ -1049,8 +1050,9 @@ Design-Item-Lifecycle-Progression-R0 §18 (혈수지 계통)
 
 ```text
 Design-Resource-Catalog-R0.md   그래프가 언급한 자원 종류의 세계 유래   → 이 문서의 §11 ~ §20
-Design-Resource-System-R0.md    자원의 원천 · 획득 · 결과의 규칙        → 이 문서의 §0 ~ §10 · §21 · 부록
-                                (병합과 함께 파일은 사라진다)
+Design-Resource-System-R0.md    자원의 원천 · 획득 · 결과의 규칙        → 이 문서의 §0 ~ §10 · §21
+                                (병합과 함께 파일은 사라진다. 원문 마지막 장
+                                `네 문서의 최종 관계` 는 총괄 문서 Chain §3 으로 나갔다)
 ```
 
 ## 24.2 구 §번호 → 신 §번호
@@ -1066,7 +1068,7 @@ Design-Resource-System-R0.md    자원의 원천 · 획득 · 결과의 규칙  
 | §3 광물 6종 | §13 | | §10 ResourceDefinition | §9 |
 | §4 생명 12종 (§4.x) | §14 (§14.x) | | §11 관찰 규칙 | §10 |
 | §5 곡괭이 | §15 | | §12 완료 기준 | §21 |
-| §6 자원이 아닌 것 | §16 | | 부록 | 부록 |
+| §6 자원이 아닌 것 | §16 | | 부록 | Chain §3 |
 | §7 상호작용의 축 | §17 | | | |
 | §8 Cycle | §18 | | | |
 | §9 grants | §19 | | | |
@@ -1085,50 +1087,11 @@ Design-Resource-System-R0.md    자원의 원천 · 획득 · 결과의 규칙  
 3  §22           '획득 경로' 항 개정 — 병합 전에는 범위 밖이었고 지금은 §5 · §6 이 답한다
 4  §11 앞        카탈로그 층이 시작한다는 안내와 두 층이 서로를 검사하는 방법 (새로 씀)
 5  §23 · §24     새로 씀 — 병합이 드러낸 이음매와 이 기록
-6  부록          `Design-Resource-System-R0.md` 를 가리키던 각주 한 줄 삭제 (이 문서가 그것이다)
+6  부록          삭제 — `네 문서의 최종 관계`는 총괄 문서
+                 `Design-Resource-Item-Chain-R0.md` §3 으로 **원문 그대로** 옮겼다.
+                 사슬 전체는 사슬의 한 칸이 소유할 것이 아니다
 7  §12 끝        이름이 대지형 문서와 일치하지 않는다는 대조 주의 한 줄 (새로 씀 · §23.2 로 보낸다)
 ```
 
 **그 외 본문 문장 · 표 · 코드블록은 두 원문 그대로다.** 자원 한 종류도 더하거나 빼지 않았고,
 성질 · 조합 · grants 를 새로 잇지 않았다.
-
----
-
-# 부록. 네 문서의 최종 관계
-
-```text
-WORLD
-│
-│ World Principle이 무엇을 만들어내는가
-▼
-Design-Resource-Catalog-R0
-│
-│ Resource가 무엇으로 사용 가능한가
-▼
-Design-Item-System-R1
-│
-│ 지금 이 실제 Item은 어떤 상태인가
-▼
-Design-Item-Instance-State-R0
-│
-│ 그 Item이 시간과 플레이에 따라 어떻게 변하는가
-▼
-Design-Item-Lifecycle-Progression-R0
-│
-▼
-PLAYER PROGRESSION
-```
-
-그리고 이 시스템 전체에서 지켜야 할 최상위 원칙은 세 가지입니다.
-
-**첫째, 아이템의 모든 힘은 세계의 원천까지 거슬러 올라갈 수 있어야 한다.**
-
-`강한 검이라서 강하다`가 아니라 `어떤 지형의 어떤 Property를 어떤 방식으로 결속했기 때문에 이런 Capability가 나온다`가 되어야 합니다.
-
-**둘째, 아이템 성장은 숫자 증가보다 가능성 확장이어야 한다.**
-
-새로운 지형을 견디고, 새로운 방식으로 싸우고, 새로운 자원을 다루게 해야 합니다.
-
-**셋째, 아이템은 Actor가 아니지만 세계의 역사를 몸에 남기는 개체가 될 수 있다.**
-
-그래서 플레이어가 오래 사용한 하나의 검이 여러 지역의 소재와 개조와 파손과 재제작을 거쳐 정말로 **그 플레이어만의 장비**가 되는 구조입니다.
