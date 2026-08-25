@@ -1,7 +1,7 @@
-# 원본 근거: design/Design-Combat-OffenseDefense-R0.md **R1 (2026-08-17 전면 개정)**
+# 원본 근거: content/proto-adventure/design/Design-Combat-OffenseDefense-R0.md **R1 (2026-08-17 전면 개정)**
 #   §0 설계 방향 · §6 RNG 없음 · §9 (난수를 사용하지 않는다) · §10 INTENT-DAMAGE-CALCULATE-001
 # 2026-08-15 Human 지시로 구판(R0)에서 최초 반영 → 2026-08-17 Human 지시로 R1 기준 재정합.
-# 교차 근거: design/Design-Combat-DamageType-R0.md §8 (결정론과 플레이어 인과) ·
+# 교차 근거: content/proto-adventure/design/Design-Combat-DamageType-R0.md §8 (결정론과 플레이어 인과) ·
 #   §10 관찰 계약 · §14-5 · §14-9 수용 기준
 # R1 은 이 원칙을 단순하게 말한다 — "같은 Attack · 같은 Skill · 같은 Defense 면 항상 같은
 # Final Damage" (§6). 관찰·설명 요구는 DT §10 과 §14-9 가 공급한다 — 세계는 선택된

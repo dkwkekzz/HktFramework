@@ -101,7 +101,7 @@ C025 로 그 칸의 **모양이 값이 되었다** — 남은 다섯 칸이 서�
 
 ## Capability — 지목·관계 영역 (TG · BW §21)
 
-앞의 둘은 `design/Design-Targeting-R0.md` 주입으로, 마지막 하나는 Human 지시로 섰다
+앞의 둘은 `content/proto-adventure/design/Design-Targeting-R0.md` 주입으로, 마지막 하나는 Human 지시로 섰다
 (HISTORY Q24(b)). 층(BW)에 속하지 않는다 — 어느 층에서든 "지금 누구에게 하는가" 와
 "그것이 나를 어떻게 대하는가" 를 세계에 두는 자리다. 판정은 코드 대조로 했다.
 
@@ -113,7 +113,7 @@ C025 로 그 칸의 **모양이 값이 되었다** — 남은 다섯 칸이 서�
 
 ## Capability — 아이템 영역 (IS · IE)
 
-`design/Design-Item-System-R0.md`(IS) 주입으로 섰고, `design/Design-Inventory-Equipment-D1.md`(IE)
+`content/proto-adventure/design/Design-Item-System-R0.md`(IS) 주입으로 섰고, `content/proto-adventure/design/Design-Inventory-Equipment-D1.md`(IE)
 주입이 그중 장착과 몸 밖 이동의 운용 형태를 채웠다. 층(BW)에 속하지 않는다 — 어느
 층에서든 "무엇을 지니고, 무엇을 적용하고, 무엇을 주고받는가" 를 세계에 두는 자리다.
 **넷 중 둘이 섰다 (C020 · C023+C024)** — 그 둘의 판정은 Cycle 실측이고,

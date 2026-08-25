@@ -14,7 +14,7 @@
                 self 패널의 소지품 줄 — 손가락 자리 안내가 `B → 2` 에서
                     `B → 2 → 확인` 으로 늘었다. 걸음이 하나 늘었으므로 안내도 는다
 
-                근거 기획서: design/Design-View-Inventory-Equipment-UX-D1.md §7
+                근거 기획서: content/proto-adventure/design/Design-View-Inventory-Equipment-UX-D1.md §7
                 (`버리기/덜어내기 — 확인`) · §11 VUX-IE-05
 
     두 길이 같은 확인으로 모인다

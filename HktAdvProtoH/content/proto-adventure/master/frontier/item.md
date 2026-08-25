@@ -327,5 +327,5 @@ ARRANGE          7 조건 2·5 가 약하다 — 새 게임 의미보다 편의 
 | **자리 잠금·해금** (IE §40) | 성장 축이 세계에 없다. 자리가 처음부터 다 열려 있는지, 무엇을 해야 열리는지는 "무엇으로 자라는가" 가 선 뒤의 이야기다 (IE §48 — 어느 Cycle 에도 매이지 않는다) |
 | **아이템 개체화** (IE §41) | 같은 종류끼리 상태가 달라야 할 이유가 아직 없다 (DC-GROWTH-DEFINITION-INSTANCE-SPLIT · IS §2.1). 내구도·강화·각인처럼 개체마다 다른 값이 생기는 층이 오면 그때 선다 |
 | **지속 효과 · 재사용 제한** (IS §5.3 의 남은 줄) | 그 반쪽을 소유한 노드가 MC-CONDITION-STACKING 인데 `part_of.grounded: false` 다 — 조건 층의 설계 문서가 없어 후보의 Target 으로 세울 수 없다 (guides/master-frontier.md Must Not). 지금 세계의 조건 얼개는 이름도 지속 시간도 없는 배율 둘뿐이다 |
-| **회복 아이템** (MC-RESTORE-BIOLOGICAL-STATE) | Human 이 미뤘다 (HISTORY Q31) — 그 노드는 "체력을 얼마 채운다" 가 아니라 이전 상태로 되돌리는 것이고, 원천(식물 계통 `IP-*`/`IT-*`)이 세계에 정의되어 있지 않다. 원천 문서 [design/Design-Resource-Catalog-R0.md](../../design/Design-Resource-Catalog-R0.md) 가 Human 승인 대기다 (Q36 과 같은 문서) |
+| **회복 아이템** (MC-RESTORE-BIOLOGICAL-STATE) | Human 이 미뤘다 (HISTORY Q31) — 그 노드는 "체력을 얼마 채운다" 가 아니라 이전 상태로 되돌리는 것이고, 원천(식물 계통 `IP-*`/`IT-*`)이 세계에 정의되어 있지 않다. 원천 문서 [content/proto-adventure/design/Design-Resource-Catalog-R0.md](../../design/Design-Resource-Catalog-R0.md) 가 Human 승인 대기다 (Q36 과 같은 문서) |
 | 감정 도구 | FR-MATERIALS-BECOME-SOMETHING-ELSE · FR-THINGS-LIE-IN-THE-WORLD 뒤다 (장착은 C023 · C024 로 닫혔다). 지금은 감정할 대상(개체 상태)도 없다 (IE §41 — 위 칸) |

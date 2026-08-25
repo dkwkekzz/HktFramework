@@ -1,4 +1,4 @@
-# 원본 근거: 루트 design/Master-Intent-Graph-Growth.md (GR)
+# 원본 근거: design/Master-Intent-Graph-Growth.md (GR)
 #   §21 (기존 Master 중심 인과를 변경하지 않는다 · 새 Stage 를 추가하지 않는다) ·
 #   §22.1 (Growth 는 별도 Workflow Stage 가 아니다 — GROWTH 라는 Master Stage 를
 #          만들지 않는다 · NEED 의 Capability 에 획득 경로를 Overlay 한다) ·

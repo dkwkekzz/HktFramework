@@ -56,7 +56,7 @@ CYCLE LAYER (advprotoh-cycle)   선택된 NEXT 를 World Semantic 과 Rule 로 �
 
 ### 4단계가 아닌 것 — 기반 기획 주입 (Inject)
 
-Human 이 기반 기획 문서(팩의 `design/Design-*.md` — 전투 규칙 등)를 쓰거나 개정하고
+Human 이 기반 기획 문서(`content/<active>/design/Design-*.md` — 전투 규칙 등)를 쓰거나 개정하고
 그 **반영**을 지시하면, 그것은 4단계 탐색이 아니라 **주입**이다.
 
 ```text

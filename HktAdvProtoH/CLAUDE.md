@@ -69,15 +69,9 @@ content/<pack>/design/     그 팩의 컨텐츠 기획 원본 — 세계관 · �
 이 문서와 `guides/` 의 `master/` `cycles/` `world/` `view/` 경로는 **활성 팩 루트 기준**이다
 (현재: `content/proto-adventure/`). `guides/` `tools/` `scripts/` `engine/` 는 프로젝트 루트 기준.
 
-`design/` 만은 **그 글이 사는 자리 기준**으로 읽는다 — 이름이 같은 두 자리가 있기 때문이다.
+`design/` 만은 **어디서 적든 프로젝트 루트**를 뜻한다 — 팩 기획서를 가리킬 때만
+`content/<pack>/design/` 로 온전히 적는다. 팩 안의 글에서도 마찬가지다.
 
-```text
-루트의 글(CLAUDE.md · guides/ · tools/ · engine/)이 적는 design/…   →  루트 design/
-팩 안의 글(content/<pack>/**)이 적는 design/…                      →  그 팩의 design/
-```
-
-반대쪽을 가리킬 때만 밝힌다 — 팩에서 루트를 가리키면 "루트 `design/`", 루트에서 팩을
-가리키면 `content/<pack>/design/` 라고 쓴다.
 다른 Master Graph Root 로 작업한다 = 새 팩을 만든다 — 기반은 그대로 둔다.
 경계는 `npm run boundary:check` 가 강제한다 (engine→content import 금지 · 팩 간 격리).
 

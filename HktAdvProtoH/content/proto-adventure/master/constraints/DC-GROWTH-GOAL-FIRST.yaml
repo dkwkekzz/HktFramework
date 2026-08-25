@@ -1,4 +1,4 @@
-# 원본 근거: 루트 design/Master-Intent-Graph-Growth.md (GR)
+# 원본 근거: design/Master-Intent-Graph-Growth.md (GR)
 #   §34 (Growth Graph 가 Goal 을 대신하지 않는다 — 현재 Goal 달성을 위해 성장하는
 #        것이 의미 있을 때만 Growth Possibility 를 만든다) ·
 #   §42 Anti-pattern (다음 Class 를 얻어야 한다 → 그래서 Quest 를 만든다)

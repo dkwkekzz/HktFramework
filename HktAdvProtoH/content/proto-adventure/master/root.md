@@ -2,7 +2,7 @@
 
 > **Human 소유.** Agent 는 이 문서를 임의로 바꾸지 않는다.
 >
-> 원본: Human 이 작성한 세계관 문서 `design/Master-World-Beira.md`(BW).
+> 원본: Human 이 작성한 세계관 문서 `content/proto-adventure/design/Master-World-Beira.md`(BW).
 > 문안은 전부 그 문서의 문장이며 Human 이 확정했다 (Q19(a) — HISTORY.md).
 
 ## ROOT GAME GOAL

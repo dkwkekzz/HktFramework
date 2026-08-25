@@ -1,4 +1,4 @@
-# 원본 근거: design/Design-Inventory-Equipment-D1.md (IE)
+# 원본 근거: content/proto-adventure/design/Design-Inventory-Equipment-D1.md (IE)
 #   §0 소유 경계 · §3.1 가방 용량 · §6 획득 우선순위 · §10 장착 자리 · §49 P2·P3 · §50
 # IS §10 이 "무게 · 칸수 등 소지 제한" 을 범위 밖으로 남기고 후속 문서에 넘긴 영역이다.
 id: DC-ITEM-CAPACITY-IS-FINITE
@@ -47,7 +47,7 @@ prefers:
 
 status: APPROVED
 provenance:
-  - HUMAN_DESIGN        # design/Design-Inventory-Equipment-D1.md 주입 → Human 승인 (HISTORY Q32)
+  - HUMAN_DESIGN        # content/proto-adventure/design/Design-Inventory-Equipment-D1.md 주입 → Human 승인 (HISTORY Q32)
 
 relations:
   supports:

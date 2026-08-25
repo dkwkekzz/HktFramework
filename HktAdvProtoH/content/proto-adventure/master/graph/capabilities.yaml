@@ -3,9 +3,9 @@
 # 구현 모듈명이 아니다. 왜 필요한지는 쓰지 않는다 — Goal/Possibility 경로가 설명한다.
 # 형식: ../SCHEMA.md
 #
-# 인용 — R1 = design/Design-Combat-OffenseDefense-R0.md · DT = design/Design-Combat-DamageType-R0.md
-#        BW = design/Master-World-Beira.md (탐험 — Q18(a) 매핑된 전투 노드에는 보조 근거로 허용)
-#        TG = design/Design-Targeting-R0.md (지목)
+# 인용 — R1 = content/proto-adventure/design/Design-Combat-OffenseDefense-R0.md · DT = content/proto-adventure/design/Design-Combat-DamageType-R0.md
+#        BW = content/proto-adventure/design/Master-World-Beira.md (탐험 — Q18(a) 매핑된 전투 노드에는 보조 근거로 허용)
+#        TG = content/proto-adventure/design/Design-Targeting-R0.md (지목)
 #
 # ── 이 파일을 읽는 법 ────────────────────────────────────────────────────
 # Capability 는 "세계가 할 줄 아는 일" 의 목록이다. 스킬 목록도 구현 모듈 목록도 아니다.
@@ -1555,17 +1555,17 @@ nodes:
       둔 것을 내려놓는 길이 담을 곳을 거치지 않는다는 것 (IE §35)
 
 # ── 근거와 비주입 ────────────────────────────────────────────────────────
-# 전투  R1  design/Design-Combat-OffenseDefense-R0.md
+# 전투  R1  content/proto-adventure/design/Design-Combat-OffenseDefense-R0.md
 #           §1~§5 · §10 신규 INTENT · §13 하지 않을 것 · §14 확장 순서 · §15 층 그림
-#       DT  design/Design-Combat-DamageType-R0.md
+#       DT  content/proto-adventure/design/Design-Combat-DamageType-R0.md
 #           §1~§5 · §7 소프트 상성 · §10 관찰 계약 · §11 INTENT · §13 · §15 이후 확장 경계
-# 탐험  BW  design/Master-World-Beira.md  §8 · §10 · §17 · §20~§25
-# 아이템 IS  design/Design-Item-System-R0.md
+# 탐험  BW  content/proto-adventure/design/Master-World-Beira.md  §8 · §10 · §17 · §20~§25
+# 아이템 IS  content/proto-adventure/design/Design-Item-System-R0.md
 #           §3 grants 사슬 · §4 상위 유래 · §5.3~§5.6 네 층 · §6 Cycle 경계 · §7 원칙
-#       IE  design/Design-Inventory-Equipment-D1.md  (IS §5.4 가 후속 문서에 넘긴 영역)
+#       IE  content/proto-adventure/design/Design-Inventory-Equipment-D1.md  (IS §5.4 가 후속 문서에 넘긴 영역)
 #           §0 소유 경계 · §10~§17 자리·적합성·장착·해제·교체 · §34~§35 버리기 ·
 #           §48 Cycle 매핑 · §49 P2·P3·P4·P9
-# 지목  TG  design/Design-Targeting-R0.md
+# 지목  TG  content/proto-adventure/design/Design-Targeting-R0.md
 #           §0 한 문장 · §2 핵심 개념 · §3 플레이 흐름 · §4 유효성과 수명 · §6 World/View 책임
 #
 # 비주입 — TG §5(Engine API 와 Content 조립) · §7(관찰 계약 초안) · §8(입력과 화면) ·

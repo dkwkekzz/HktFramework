@@ -290,7 +290,7 @@ flowchart TB
   class N0,N1,N3 miss;
 ```
 
-### 지목 — TG (design/Design-Targeting-R0.md)
+### 지목 — TG (content/proto-adventure/design/Design-Targeting-R0.md)
 
 어느 층에도 속하지 않는 자리 — "지금 누구에게 하는가" 를 세계에 둔다.
 
@@ -329,7 +329,7 @@ flowchart TB
   class N0 impl;
 ```
 
-### 자율 존재 행동 — design/Design-Creature-Behavior-R0.md (초안 — Human 승인 대기) · **DRAFT**
+### 자율 존재 행동 — content/proto-adventure/design/Design-Creature-Behavior-R0.md (초안 — Human 승인 대기) · **DRAFT**
 
 목적(Drive) · 영역 · 인지 · 국면 — 자율 존재가 자기 목적으로 움직이는 시스템. 이것이 서야 예측(MC-PREDICT)의 읽을 거리와 습성 관찰(MC-OBSERVE 의 남은 결손)이 생긴다 — 그 두 조각의 반쪽을 이 시스템이 소유한다.
 
@@ -350,7 +350,7 @@ flowchart TB
   class N1 missS;
 ```
 
-### 아이템 — IS (design/Design-Item-System-R0.md) §4 · §5 · §6 · IE (design/Design-Inventory-Equipment-D1.md) §0 · §48 — CARRY·EQUIP 자리의 운용
+### 아이템 — IS (content/proto-adventure/design/Design-Item-System-R0.md) §4 · §5 · §6 · IE (content/proto-adventure/design/Design-Inventory-Equipment-D1.md) §0 · §48 — CARRY·EQUIP 자리의 운용
 
 물건이 세계의 자원으로 성립하는 여섯 자리. 세계가 아이템을 정의하고, 몸이 그것을 지니고, 써서 상태를 바꾸고, 적용해 능력을 얻고, 재료를 다른 것으로 바꾸고, 몸 밖에서 주고받는다. 앞의 둘(정의 · 소지)은 능력이 아니라 나머지 넷의 바닥이다. 자원이 능력이 되는 순환(BW §17)과 정의/개체 분리(GR §28~§32)를 세계 쪽에서 받는 자리이며, 희귀 기관을 얻는 세 갈래(BW §27)도 이 시스템의 마지막 자리를 전제한다.
 
@@ -382,7 +382,7 @@ flowchart TB
   class N0,N1 miss;
 ```
 
-### 스킬 실행 형태 — SK (design/Skill/Skill-System.md) §4 · §5 · §6 · **DRAFT**
+### 스킬 실행 형태 — SK (content/proto-adventure/design/Skill/Skill-System.md) §4 · §5 · §6 · **DRAFT**
 
 효과가 세계에 나타나 대상에게 닿는 방식의 목록. 스킬은 이름이 아니라 발동 · 대상 기준 · 실행 · 대상 결정 · 효과의 조합이며, 그중 **실행**만이 세계에 새로운 생명주기와 판정을 요구하므로 자리를 가진다 (나머지 네 축은 조합의 항이지 사다리가 아니다). 전투 사다리(MS-COMBAT-LADDER)와 직교한다 — 그쪽은 피해가 어떻게 계산되는가의 층이고 이쪽은 그 효과가 어떻게 전달되는가의 자리다. 어느 자리든 피해 효과는 같은 피해 공식을 지난다.
 

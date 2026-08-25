@@ -5,9 +5,9 @@
 # 별도 Possibility 다. 동의어를 늘리지 않는다.
 # 형식: ../SCHEMA.md
 #
-# 인용 — BW = design/Master-World-Beira.md (탐험) ·
-#        R1 = design/Design-Combat-OffenseDefense-R0.md · DT = design/Design-Combat-DamageType-R0.md (전투)
-#        TG = design/Design-Targeting-R0.md (지목)
+# 인용 — BW = content/proto-adventure/design/Master-World-Beira.md (탐험) ·
+#        R1 = content/proto-adventure/design/Design-Combat-OffenseDefense-R0.md · DT = content/proto-adventure/design/Design-Combat-DamageType-R0.md (전투)
+#        TG = content/proto-adventure/design/Design-Targeting-R0.md (지목)
 #
 # ── 이 파일을 읽는 법 ────────────────────────────────────────────────────
 # Goal 하나에 매달린 여러 MP-* 는 "둘 다 해야 하는 단계" 가 아니라 "골라서 하는 갈래" 다.
@@ -961,14 +961,14 @@ nodes:
 # BW 는 매핑된 전투 노드의 보조 근거로 허용된다 (Q15 영역 규칙의 예외 — Q18(a)).
 #
 # ── 근거 문서 ────────────────────────────────────────────────────────────
-#   탐험  BW  design/Master-World-Beira.md
+#   탐험  BW  content/proto-adventure/design/Master-World-Beira.md
 #         §14 문명권의 준비 · §16 탐험 Loop · §17 Capability Gate · §27 대안 5종 · §28 전투 분기
 #         §19~§25 의 깊이별 층은 Possibility 가 아니라 세계 상태다 —
 #         graph/world-state.yaml 의 MW-ZONE-* 와 그 demands 가 소유한다 (HISTORY Q21)
-#   전투  R1  design/Design-Combat-OffenseDefense-R0.md
+#   전투  R1  content/proto-adventure/design/Design-Combat-OffenseDefense-R0.md
 #         §0~§5 · §8 · §11 · §12 · §16 → MP-OUTGROW-THE-OPPONENT
 #         §13 하지 않을 것 · §14 확장 순서 · §15 층 그림 → 아직 열리지 않은 경로들
-#         DT  design/Design-Combat-DamageType-R0.md
+#         DT  content/proto-adventure/design/Design-Combat-DamageType-R0.md
 #         §0 · §6 · §7 · §17 → MP-MATCH-WEAPON-TO-ARMOR · §15 → MP-PIERCE-THE-HARD-DEFENSE
 #
 # 두 전투 문서가 이름조차 대지 않는 경로는 노드로 두지 않는다. 예고만 된 층은 이름까지만

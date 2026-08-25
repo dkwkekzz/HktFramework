@@ -83,8 +83,8 @@ constraints/README.md   현재 Active Constraint        → 반영 이력은 여
 
     DECISION      CLOSED (2026-08-18) — Human 지시: "기존 기획에 관련된 내용은 배제하고
                   남아 있다면 전부 삭제. 지금의 근거는 오로지
-                  design/Design-Combat-OffenseDefense-R0.md 와
-                  design/Design-Combat-DamageType-R0.md 이며 관련 없다면 그냥 없앤다."
+                  content/proto-adventure/design/Design-Combat-OffenseDefense-R0.md 와
+                  content/proto-adventure/design/Design-Combat-DamageType-R0.md 이며 관련 없다면 그냥 없앤다."
 
                   선택지 (a)(b)(c) 중 어느 것도 아니다 — **보류라는 상태 자체를 없앴다.**
                   근거가 현행 두 문서에 있으면 승인하고, 없으면 삭제한다.
@@ -115,7 +115,7 @@ constraints/README.md   현재 Active Constraint        → 반영 이력은 여
 
 ## Q13. DC-GROWTH 6종(DRAFT) + growth/ 스키마 확장 승인 — CLOSED
 
-    무엇          GR(루트 design/Master-Intent-Graph-Growth.md — 성장: Class/Item) 주입으로 만든
+    무엇          GR(design/Master-Intent-Graph-Growth.md — 성장: Class/Item) 주입으로 만든
                   DC-GROWTH-NEED-FROM-POSSIBILITY · CLASS-ORIGIN-TRACE ·
                   NO-CAPABILITY-DUPLICATION · DEFINITION-INSTANCE-SPLIT ·
                   NOT-A-STAGE · GOAL-FIRST 6종이 DRAFT 였다.
@@ -711,7 +711,7 @@ ONE-LAYER-AT-A-TIME 신설, 이연 층 근거의 3종은 DRAFT 보류.
 
 # 4. 주입(Inject) 이력
 
-    2026-08-19 BW — design/Master-World-Beira.md (세계관: 세계압·탐험·자원·전투 파생)
+    2026-08-19 BW — content/proto-adventure/design/Master-World-Beira.md (세계관: 세계압·탐험·자원·전투 파생)
 
     Human 지시로 주입. 세계(WORLD) 영역이 열렸다. 산출물:
         root.md            채움 — BW §1 (Root Game Goal) · §35~§36 (World Premise).
@@ -1152,7 +1152,7 @@ part_of 도입    모든 MC-* 노드에 "이 조각이 속한 전체"를 정식 
 
 ---
 
-    2026-08-20 IS — design/Design-Item-System-R0.md (아이템: 정의 · 소지 · 사용 · 장착 ·
+    2026-08-20 IS — content/proto-adventure/design/Design-Item-System-R0.md (아이템: 정의 · 소지 · 사용 · 장착 ·
                     제작 · 세계 개체화)
 
     Human 이 기획 원본을 제출하고, Agent 리뷰 4점을 반영한 개정판으로 주입을 지시했다.
@@ -1664,16 +1664,16 @@ Human 이 "FR-ACTION-PHASE 의 근간이 무엇인가" 를 물어 근간을 역�
 ## 주입 — 스킬 최종안(SK) 교체 · 구판(SF) 삭제 · 2026-08-21
 
     Human 지시: "승인된 Constraint 3종이 R0 의 §28.1 · §28.2 · §28.5 를 근거로 인용하는
-    부분을 대체하고 R0 을 삭제. `design/Skill/Skill-System.md` 를 근거로 하도록."
+    부분을 대체하고 R0 을 삭제. `content/proto-adventure/design/Skill/Skill-System.md` 를 근거로 하도록."
 
-    구판 `design/Design-Combat-SkillForm-R0.md`(SF)가 최종안 네 문서로 확장·분할됐다.
+    구판 `content/proto-adventure/design/Design-Combat-SkillForm-R0.md`(SF)가 최종안 네 문서로 확장·분할됐다.
 
-        design/Skill/Skill-System.md           SK      정의 · 전체 관계 · 문서 책임 경계 ·
+        content/proto-adventure/design/Skill/Skill-System.md           SK      정의 · 전체 관계 · 문서 책임 경계 ·
                                                        새 Primitive 추가 기준 · 금지 구조
-        design/Skill/Skill-Execution-Form.md   SK-EX   발동 · 대상 기준 · 대상 결정 ·
+        content/proto-adventure/design/Skill/Skill-Execution-Form.md   SK-EX   발동 · 대상 기준 · 대상 결정 ·
                                                        공간 조회 · 실행 여섯
-        design/Skill/World-Spatial-Presence.md SK-SP   몸이 아닌 존재의 공간 존재
-        design/Skill/Skill-Effect.md           SK-EF   효과 — 지금 있는 것으로의 연결
+        content/proto-adventure/design/Skill/World-Spatial-Presence.md SK-SP   몸이 아닌 존재의 공간 존재
+        content/proto-adventure/design/Skill/Skill-Effect.md           SK-EF   효과 — 지금 있는 것으로의 연결
 
     구판은 삭제했다. 근거 문서로 남은 인용은 없다 — 아래 재배선이 전부를 옮겼다.
 
@@ -2108,7 +2108,7 @@ Human 이 "FR-ACTION-PHASE 의 근간이 무엇인가" 를 물어 근간을 역�
            화면을 보고 확인했다.
 
     이 Cycle 은 **Frontier 후보에서 오지 않았다.** 기획서
-    `design/Design-View-Inventory-Equipment-UX-D1.md` 가 스스로 `[DIRECT-CYCLE]` 로
+    `content/proto-adventure/design/Design-View-Inventory-Equipment-UX-D1.md` 가 스스로 `[DIRECT-CYCLE]` 로
     표시했고 Human 이 후보 등록을 건너뛰고 착수를 지시했다. 그것이 절차의 예외가 아니라
     **층의 구분**이라는 것이 이번에 확인되었다 — Master Layer 가 고르는 것은 "세계가
     무엇을 더 할 수 있게 되는가" 이고, 이 Cycle 은 그것을 하나도 늘리지 않는다.
@@ -2187,7 +2187,7 @@ Human 이 "FR-ACTION-PHASE 의 근간이 무엇인가" 를 물어 근간을 역�
 
     ① `engine/view-kernel` 안에 표시 문구(한국어)가 남아 있다 — 팩에 이미 문구 표가
        있으므로 같은 것이 두 곳에 있다. 기반 트랙 부채로 적혔다
-       (루트 design/Design-System-Content-Separation.md 남은 부채)
+       (design/Design-System-Content-Separation.md 남은 부채)
     ② 이동·시점 키의 원본(MOVE_KEYS · TURN_KEYS)이 팩에 내보내지지 않아 사본
        (`RESERVED_KEY_CODES`)으로 막고 있다 — **레인 B 의 C025 가 먼저 올린 것과 같은
        부채**이며 여전히 열려 있다. C026 은 기반 쪽에서 `keyboard.suspendMovement` 로

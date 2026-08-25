@@ -92,7 +92,7 @@ Cycle Artifact 와 구현(`world/` `view/` `protocol/`)은 **활성 팩 안**에
 각 문서의 역할은 다음과 같다.
 
 ```text
-Design Documents   전체 Architecture와 Workflow의 원본 설계 (루트 design/)
+Design Documents   전체 Architecture와 Workflow의 원본 설계 (design/)
 컨텐츠 기획 원본   그 팩의 세계·전투·아이템·UX 설계 (content/<pack>/design/)
 CLAUDE.md          모든 Agent가 반드시 지켜야 하는 공통 규칙
 Stage Guide        해당 단계의 작업 방법과 완료 조건

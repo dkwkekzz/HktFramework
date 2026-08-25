@@ -1,4 +1,4 @@
-# 원본 근거: design/Skill/Skill-System.md (SK) §7 (구현에서 금지할 구조 — 전달 방식과
+# 원본 근거: content/proto-adventure/design/Skill/Skill-System.md (SK) §7 (구현에서 금지할 구조 — 전달 방식과
 #   Effect 를 결합하지 않는다 · Effect 를 Execution 자리에 두지 않는다) · §0 (새 시스템은
 #   새 피해 공식을 만들지 않는다) · §4 (실행 흐름 — Execution 다음에 Effect 가 온다) ·
 #   §12 수용 기준 17
@@ -54,8 +54,8 @@ prefers: []
 
 status: REVISED
 provenance:
-  - HUMAN_DESIGN        # design/Design-Combat-SkillForm-R0.md 주입 → Human 승인 (HISTORY Q41)
-  - HUMAN_DESIGN        # 근거를 design/Skill/Skill-System.md 로 교체 → Human 지시 (HISTORY Q45)
+  - HUMAN_DESIGN        # content/proto-adventure/design/Design-Combat-SkillForm-R0.md 주입 → Human 승인 (HISTORY Q41)
+  - HUMAN_DESIGN        # 근거를 content/proto-adventure/design/Skill/Skill-System.md 로 교체 → Human 지시 (HISTORY Q45)
 
 relations:
   supports: [DC-COMBAT-ONE-FORMULA]

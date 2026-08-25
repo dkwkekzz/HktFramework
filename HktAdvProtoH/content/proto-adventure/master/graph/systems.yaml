@@ -67,7 +67,7 @@ systems:
 
   - id: MS-TARGETING
     name: 지목
-    source: TG (design/Design-Targeting-R0.md)
+    source: TG (content/proto-adventure/design/Design-Targeting-R0.md)
     status: DEFINED
     semantic: >
       어느 층에도 속하지 않는 자리 — "지금 누구에게 하는가" 를 세계에 둔다.
@@ -82,7 +82,7 @@ systems:
 
   - id: MS-CREATURE-BEHAVIOR
     name: 자율 존재 행동
-    source: design/Design-Creature-Behavior-R0.md (초안 — Human 승인 대기)
+    source: content/proto-adventure/design/Design-Creature-Behavior-R0.md (초안 — Human 승인 대기)
     status: DRAFT
     semantic: >
       목적(Drive) · 영역 · 인지 · 국면 — 자율 존재가 자기 목적으로 움직이는 시스템.
@@ -91,8 +91,8 @@ systems:
 
   - id: MS-ITEM-SYSTEM
     name: 아이템
-    source: IS (design/Design-Item-System-R0.md) §4 · §5 · §6 ·
-      IE (design/Design-Inventory-Equipment-D1.md) §0 · §48 — CARRY·EQUIP 자리의 운용
+    source: IS (content/proto-adventure/design/Design-Item-System-R0.md) §4 · §5 · §6 ·
+      IE (content/proto-adventure/design/Design-Inventory-Equipment-D1.md) §0 · §48 — CARRY·EQUIP 자리의 운용
     status: DEFINED
     semantic: >
       물건이 세계의 자원으로 성립하는 여섯 자리. 세계가 아이템을 정의하고, 몸이
@@ -111,7 +111,7 @@ systems:
 
   - id: MS-SKILL-FORM
     name: 스킬 실행 형태
-    source: SK (design/Skill/Skill-System.md) §4 · §5 · §6
+    source: SK (content/proto-adventure/design/Skill/Skill-System.md) §4 · §5 · §6
     status: DRAFT
     semantic: >
       효과가 세계에 나타나 대상에게 닿는 방식의 목록. 스킬은 이름이 아니라 발동 ·

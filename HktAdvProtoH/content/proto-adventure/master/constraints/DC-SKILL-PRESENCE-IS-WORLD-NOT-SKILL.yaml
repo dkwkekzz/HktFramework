@@ -1,7 +1,7 @@
-# 원본 근거: design/Skill/Skill-System.md (SK) 핵심 원칙 6 (Actor 가 아닌 공간 존재가
+# 원본 근거: content/proto-adventure/design/Skill/Skill-System.md (SK) 핵심 원칙 6 (Actor 가 아닌 공간 존재가
 #   필요하면 Skill 내부에 임시 개념을 만들지 않고 먼저 World Spatial Presence 를
 #   확장한다) · §12 수용 기준 18 ·
-#   design/Skill/World-Spatial-Presence.md §1 (왜 먼저 필요한가) · §3 (전투 전용이
+#   content/proto-adventure/design/Skill/World-Spatial-Presence.md §1 (왜 먼저 필요한가) · §3 (전투 전용이
 #   아니다) · §10 (Observation 경계) · §13 (금지 구조)
 # 주입(Inject)으로 세운 뒤 2026-08-21 Human 승인 (HISTORY Q45).
 id: DC-SKILL-PRESENCE-IS-WORLD-NOT-SKILL
@@ -53,7 +53,7 @@ prefers: []
 
 status: APPROVED
 provenance:
-  - HUMAN_DESIGN        # design/Skill/Skill-System.md 주입 → Human 승인 (HISTORY Q45)
+  - HUMAN_DESIGN        # content/proto-adventure/design/Skill/Skill-System.md 주입 → Human 승인 (HISTORY Q45)
 
 relations:
   supports: [DC-SKILL-COMBINE-BEFORE-NEW-FORM, DC-WORLD-OWNS-THE-SURFACE-LIST]

@@ -12,7 +12,7 @@
                 위쪽 가로 띠 — 기술 칸이 **떠났다** (같은 값이 두 자리에 있으면
                     한 화면에 같은 말이 두 번이다)
 
-                근거 기획서: design/Design-View-Skill-UX-D1.md 의 `VUX-SK-01`
+                근거 기획서: content/proto-adventure/design/Design-View-Skill-UX-D1.md 의 `VUX-SK-01`
                 (§1 물음 1 · §2.1 슬롯 바 · §3 시각 언어 · §8 요청 거절)
 
     바뀐 파일    view/skill-presentation.ts (새 파일) · view/resolve.ts ·
