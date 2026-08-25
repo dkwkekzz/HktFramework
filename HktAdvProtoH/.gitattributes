@@ -1,5 +1,5 @@
-run.bat text eol=crlf
-tools/fx-lab/run.bat text eol=crlf
+scripts/*.bat text eol=crlf
+tools/fx-lab/scripts/*.bat text eol=crlf
 
 # 생성물은 도구가 LF 로 쓴다 — 작업 트리가 CRLF 로 받으면 도구가 매번 "어긋났다"고 보고
 # 게임을 켤 때마다 다시 쓴다. 줄바꿈을 고정해 그 왕복 자체를 없앤다.

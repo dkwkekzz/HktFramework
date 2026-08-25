@@ -11,7 +11,7 @@ Master Capability 를 **"세계 안에서 어떻게 얻는가"**(Class / Item / 
 둘을 헷갈리면 안 된다. 공격력이 피해를 바꾸는 것(구현됨)과 플레이어가 공격력을 올릴 수
 있는 것(획득 경로)은 다른 이야기이고, 지금 이 프로젝트가 정확히 그 사이에 걸려 있다.
 
-GR = `design/Master-Intent-Graph-Growth.md`. 형식: [../SCHEMA.md](../SCHEMA.md).
+GR = `루트 design/Master-Intent-Graph-Growth.md`. 형식: [../SCHEMA.md](../SCHEMA.md).
 
 ## 광물 — 어디서 왔고 무엇을 여는가
 

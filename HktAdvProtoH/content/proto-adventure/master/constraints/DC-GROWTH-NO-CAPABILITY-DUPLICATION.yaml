@@ -1,4 +1,4 @@
-# 원본 근거: design/Master-Intent-Graph-Growth.md (GR)
+# 원본 근거: 루트 design/Master-Intent-Graph-Growth.md (GR)
 #   §33 (Capability 자체는 Source 별로 복제하지 않는다 — MC-COUNTER 하나에
 #        Class/Item/Actor 가 grants 로 연결된다) ·
 #   §35 (Class 와 Item 은 동일한 Capability Network 에 연결된다) ·

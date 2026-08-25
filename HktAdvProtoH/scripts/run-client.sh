@@ -5,7 +5,7 @@
 #
 # 다른 PC 의 세계에 붙으려면:  HKT_WORLD_URL=http://192.168.0.10:5180 ./run-client.sh
 set -euo pipefail
-cd "$(dirname "$0")"
+cd "$(dirname "$0")/.."
 
 HKT_WORLD_URL="${HKT_WORLD_URL:-http://127.0.0.1:5180}"
 export HKT_WORLD_URL

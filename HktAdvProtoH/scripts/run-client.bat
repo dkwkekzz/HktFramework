@@ -11,7 +11,7 @@ rem    예)  set HKT_WORLD_URL=http://192.168.0.10:5180
 rem ============================================================
 setlocal
 chcp 65001 >nul
-cd /d "%~dp0"
+cd /d "%~dp0.."
 
 if "%HKT_WORLD_URL%"=="" set HKT_WORLD_URL=http://127.0.0.1:5180
 

@@ -5,7 +5,9 @@ description: HktAdvProtoH 의 Cycle 단계 하나를 실행한다 — 다음 미
 
 # HktAdvProtoH Cycle Stage Runner
 
-**작업 디렉토리: `HktAdvProtoH/`** — `guides/` `design/` `engine/` `tools/` 는 이 폴더 기준.
+**작업 디렉토리: `HktAdvProtoH/`** — `guides/` `design/` `engine/` `tools/` `scripts/` 는
+이 폴더 기준. 루트 `design/` 은 공정·기반 문서만이고, 컨텐츠 기획 원본은 팩의
+`content/<active>/design/` 에 있다.
 **컨텐츠 경로는 활성 팩 루트 기준** — `hkt.pack.json` 의 active 가 가리키는
 `content/<active>/` 아래에 `master/` `cycles/` `world/` `view/` `protocol/`(팩 확장) 이 있다.
 `engine/` 과 `engine/protocol-core/` 는 기반이다 — **컨텐츠 작업 중에 편집하지 않는다**

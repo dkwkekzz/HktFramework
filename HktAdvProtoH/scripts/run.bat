@@ -12,7 +12,7 @@ rem  Cycle 이 확장되어도 이 파일은 그대로 쓴다 — 항상 현재 
 rem ============================================================
 setlocal
 chcp 65001 >nul
-cd /d "%~dp0"
+cd /d "%~dp0.."
 
 where node >nul 2>nul
 if errorlevel 1 (

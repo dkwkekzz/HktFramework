@@ -8,7 +8,7 @@
 // 켤 때마다 다시 쓰이면 그것이 곧 작업 트리의 잡음이 된다. 생성물에 적힌 입력 지문과
 // 지금 motions/ 의 지문을 견주어 같으면 해독도 쓰기도 건너뛴다.
 //
-// 손으로 돌리고 싶을 때는 scan-motions.bat / scan-motions.sh (또는 npm run motions:scan).
+// 손으로 돌리고 싶을 때는 scripts/scan-motions.bat / scripts/scan-motions.sh (또는 npm run motions:scan).
 
 import { join, sep } from 'node:path';
 import type { Plugin } from 'vite';

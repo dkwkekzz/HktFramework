@@ -1,9 +1,9 @@
 // Vite 설정 — 클라이언트를 띄운다. 세계는 두 가지 방식으로 붙을 수 있다 (C003).
 //
 //   기본 (HKT_WORLD_URL 없음)   세계를 이 dev 서버 프로세스 안에서 돌린다.
-//                                한 번에 실행하고 싶을 때 — run.bat
+//                                한 번에 실행하고 싶을 때 — scripts/run.bat
 //   HKT_WORLD_URL 이 있으면     세계는 다른 프로세스에 있다. /world 를 그쪽으로 넘긴다.
-//                                서버와 클라를 따로 띄울 때 — run-world.bat + run-client.bat
+//                                서버와 클라를 따로 띄울 때 — scripts/run-world.bat + scripts/run-client.bat
 //
 // 어느 쪽이든 클라이언트 코드는 같다. 클라이언트는 세계가 어디 있는지 모른다.
 

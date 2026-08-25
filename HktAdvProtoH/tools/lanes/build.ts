@@ -58,7 +58,7 @@ interface Facts {
   backlogItems: number;
   backlogStarted: string[]; // 상태에 V 번호가 적힌 항목
   closedViews: number; // works/V-*.md
-  designDocs: number; // design/Design-*.md
+  designDocs: number; // <pack>/design/Design-*.md
 }
 
 function readCycle(cyclesDir: string, id: string): CycleFacts | null {
@@ -92,7 +92,7 @@ function collectFacts(packDir: string): Facts {
   const frontierDir = join(packDir, 'master', 'frontier');
   const feedbackDir = join(packDir, 'master', 'feedback');
   const worksDir = join(packDir, 'works');
-  const designDir = join(projectRoot(), 'design');
+  const designDir = join(packDir, 'design');
 
   const tracks: TrackFacts[] = [];
   if (existsSync(frontierDir)) {
@@ -314,7 +314,7 @@ tr:first-child td{border-top:0}
 </style>`;
   const body = `<h1>Lanes — 흐름 · 배차 관찰판</h1>
 <p class="sub">생성물이다 — 원천은 LANES.md · frontier/ · cycles/ · works/. 의미 축(Goal→Capability)은
-<a href="master/graph/graph-view.html">master graph 뷰어</a>가 소유한다. design/ 문서 ${facts.designDocs}건.</p>
+<a href="master/graph/graph-view.html">master graph 뷰어</a>가 소유한다. 팩 기획서(design/) ${facts.designDocs}건.</p>
 ${warnBlock}
 <div class="sec"><h2>흐름 축 — 일감이 어디 있나</h2>
 ${trackRows}

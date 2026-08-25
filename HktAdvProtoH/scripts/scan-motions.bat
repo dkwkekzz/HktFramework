@@ -11,7 +11,7 @@ rem  시트를 새로 넣거나 갈아 끼운 뒤 결과를 눈으로 확인하�
 rem ============================================================
 setlocal
 chcp 65001 >nul
-cd /d "%~dp0"
+cd /d "%~dp0.."
 
 where node >nul 2>nul
 if errorlevel 1 (

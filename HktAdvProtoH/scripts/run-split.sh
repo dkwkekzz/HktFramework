@@ -3,7 +3,7 @@
 # run-split.bat 과 동일한 동작이며, 두 로그가 이 터미널에 함께 찍힌다.
 # Ctrl+C 한 번으로 둘 다 멈춘다.
 set -euo pipefail
-cd "$(dirname "$0")"
+cd "$(dirname "$0")/.."
 
 export PORT="${PORT:-5180}"
 export HKT_WORLD_URL="${HKT_WORLD_URL:-http://127.0.0.1:${PORT}}"

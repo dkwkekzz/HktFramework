@@ -8,7 +8,7 @@
 # 그리고 motions/ 가 바뀔 때마다 알아서 돌린다.
 # 시트를 새로 넣거나 갈아 끼운 뒤 결과를 눈으로 확인하고 싶을 때 쓴다.
 set -euo pipefail
-cd "$(dirname "$0")"
+cd "$(dirname "$0")/.."
 
 if ! command -v node >/dev/null 2>&1; then
   echo "[오류] Node.js 가 필요합니다 — https://nodejs.org 에서 LTS 설치 후 재실행하세요." >&2
