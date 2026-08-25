@@ -1,6 +1,6 @@
 # SYSTEM DESIGN DOCUMENT
 
-## Resource → Item Chain — 문서 사슬 총괄
+## Item Chain — Resource 에서 Player Progression 까지, 문서 사슬 총괄
 
 | **문서 버전** | R0 |
 |---|---|
@@ -30,6 +30,24 @@
 
 > **이 문서는 사슬의 한 칸이 아니라 사슬 자체다.** 내용을 옮겨 오지 않고, 어느 칸이 무엇을
 > 소유하며 칸과 칸 사이로 무엇이 건너가는지만 적는다.
+
+---
+
+## 0.1 이 사슬이 그대로 유지하는 것 (원문 서두)
+
+네 문서를 한 벌로 쓴 원문은 시작부터 **바꾸지 않을 것** 둘을 못박았다. 아래는 그 문장 그대로다.
+
+> 첨부된 기존 Item System의 핵심 구조인 `Master=정의 / Runtime=실제 개체·상태 / Cycle=수치·공식` 경계는 그대로 유지합니다. 또한 아이템 개체는 **같은 종류인데 상태가 달라져야 할 때만** 생성하며, 모든 개체는 자신의 출처를 설명할 수 있어야 한다는 원칙도 유지합니다.
+
+사슬 위에서 그 둘을 실제로 지키는 자리는 다음과 같다. 여기서 어긋나면 그 문서가 틀린 것이다.
+
+```text
+Master / Runtime / Cycle 경계   Resource §1 (소유 경계) · Instance §5 (수치는 Cycle) ·
+                                Item System §8 (슬롯 구성은 다른 문서) · Chain §4 (마지막 줄)
+달라질 때만 개체가 된다          Item System §12 instance_policy · Instance §1 (생성 기준)
+모든 개체는 출처를 답한다         Instance §2 (필수 조건) · §3 provenance · §12 Provenance ·
+                                Item System §11 (Loot 는 실제 출처를 가진다) · Resource §5 · §6
+```
 
 ---
 
