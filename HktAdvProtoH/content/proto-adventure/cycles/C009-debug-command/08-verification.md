@@ -246,7 +246,7 @@
     그 확인 전에는 COMPLETE 로 바꾸지 않는다.
 
     사람이 확인할 것
-        1. `./run.sh` (또는 `npm run dev`) 로 띄운다
+        1. `./scripts/run.sh` (또는 `npm run dev`) 로 띄운다
         2. 화면 오른쪽 위 "명령: /" 를 보고 `/` 를 누른다
         3. 목록만 읽고 무엇을 할 수 있는지 알 수 있는가
         4. `set-attribute moveSpeed 30` 을 걸고 실제로 빨라진 몸으로 뛰어 본다

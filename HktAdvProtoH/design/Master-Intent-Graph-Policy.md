@@ -916,7 +916,7 @@ C###-*       Cycle
 
 ```text
 HktAdvProtoH/
-├── design/
+├── design/                    # 공정·기반 원본 — 팩 무관
 │   └── Master-Intent-Graph-Policy.md
 │
 ├── guides/
@@ -926,20 +926,23 @@ HktAdvProtoH/
 │   ├── master-feedback.md
 │   └── cycle-definition.md ~ verification.md
 │
-├── master/
-│   ├── README.md
-│   ├── SCHEMA.md
-│   ├── root.md
-│   ├── constraints/
-│   ├── graph/
-│   ├── overlay.md
-│   ├── frontier/          # 트랙(도메인)별 후보 파일 + README 인덱스
-│   ├── feedback/          # Cycle 반영 경위 — 한 Cycle = 한 파일
-│   └── candidates/
-│
-└── cycles/
+└── content/<pack>/            # 활성 팩 = 교체 단위
+    ├── design/                # 그 팩의 컨텐츠 기획 원본 — 주입(Inject)의 입력
+    ├── master/
+    │   ├── README.md
+    │   ├── SCHEMA.md
+    │   ├── root.md
+    │   ├── constraints/
+    │   ├── graph/
+    │   ├── overlay.md
+    │   ├── frontier/          # 트랙(도메인)별 후보 파일 + README 인덱스
+    │   ├── feedback/          # Cycle 반영 경위 — 한 Cycle = 한 파일
+    │   └── candidates/
+    │
+    └── cycles/
 ```
 
+`master/` 와 `cycles/` 는 **활성 팩 안**에 있다 — 팩을 갈아 끼우면 Graph 도 함께 바뀐다.
 `master/` 는 History 가 아니라 현재 상태다.
 `cycles/` 는 완료된 Cycle History 다.
 

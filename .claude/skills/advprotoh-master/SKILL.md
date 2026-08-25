@@ -117,7 +117,7 @@ Human Select 가 차례면 **작업을 멈추고** 후보와 근거·추천 순�
 * NEED(Overlay 판정)·Feedback 에 한해 **관련 있는** Cycle 의 `08-verification.md`
 * Overlay 판정에 한해 `world/` `view/` 코드 — **읽기만 한다**
 * Guide 로 판단할 수 없는 경계 사례에 한해
-  `design/Master-Intent-Graph-Policy.md` 의 **해당 섹션만**
+  루트 `design/Master-Intent-Graph-Policy.md` 의 **해당 섹션만**
 
 정책 문서 전체를 매번 로드하는 것은 이 워크플로우의 실패다.
 루트 `design/` 의 Cycle 3종(`Design-Workflow` · `Design-CycleWorkflow` · `Design-CycleExecution`)은

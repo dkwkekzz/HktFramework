@@ -54,11 +54,11 @@
     빌드          npm run build    클라이언트만 dist/ 로 나온다
                   npm run world    Node 프로세스가 세계를 돌리며 dist/ 를 함께 서빙한다
 
-    실행 스크립트 (더블클릭용)
-        run.bat / run.sh          한 창에서 세계 + 클라이언트
-        run-world.bat / .sh       세계만
-        run-client.bat / .sh      클라이언트만 (HKT_WORLD_URL 로 다른 PC 의 세계에도 붙는다)
-        run-split.bat / .sh       둘을 각각 다른 창/프로세스로 한 번에
+    실행 스크립트 (더블클릭용 — 지금 자리는 scripts/)
+        scripts/run.bat / run.sh          한 창에서 세계 + 클라이언트
+        scripts/run-world.bat / .sh       세계만
+        scripts/run-client.bat / .sh      클라이언트만 (HKT_WORLD_URL 로 다른 PC 의 세계에도 붙는다)
+        scripts/run-split.bat / .sh       둘을 각각 다른 창/프로세스로 한 번에
 
     어느 경로든 같은 server/world-host.ts 를 쓴다 — 세계를 올리는 방법은 하나다.
     클라이언트 코드는 세계가 어디 있는지 모른다. 같은 번들이 세 경로 모두에서 돈다.

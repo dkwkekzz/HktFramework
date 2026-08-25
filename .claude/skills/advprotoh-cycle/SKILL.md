@@ -83,9 +83,9 @@ Stage 5 가 다음 차례면 **작업을 멈추고** 사용자에게 Semantic Re
 
 * **관련 있는** 기존 Cycle 의 Artifact (전부 읽지 마라 — 이번 Cycle 이 건드리는 Capability 만)
 * Stage 6/7/8 이면 해당하는 `world/` `view/` `protocol/` 실제 코드
-* Guide 로 판단할 수 없는 경계 사례에 한해 `design/` 원본의 **해당 섹션만**
+* Guide 로 판단할 수 없는 경계 사례에 한해 루트 `design/` 원본의 **해당 섹션만**
 
-`design/` 3종 전체를 로드하는 것은 이 워크플로우의 실패다.
+루트 `design/` 3종 전체를 로드하는 것은 이 워크플로우의 실패다.
 
 ## 3. 실행
 

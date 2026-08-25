@@ -70,5 +70,5 @@
 
 ## STATUS
     IN PROGRESS — Human Play 확인 대기.
-    확인 방법: ./run.sh (또는 run.bat) → C 로 충돌체 관찰을 켜고
+    확인 방법: ./scripts/run.sh (또는 scripts/run.bat) → C 로 충돌체 관찰을 켜고
     NPC 곁에서 F 휘두름 — 밀쳐냄과 충돌 반경이 보이면 Goal 달성이다.

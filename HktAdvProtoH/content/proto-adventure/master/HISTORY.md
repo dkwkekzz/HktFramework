@@ -115,7 +115,7 @@ constraints/README.md   현재 Active Constraint        → 반영 이력은 여
 
 ## Q13. DC-GROWTH 6종(DRAFT) + growth/ 스키마 확장 승인 — CLOSED
 
-    무엇          GR(design/Master-Intent-Graph-Growth.md — 성장: Class/Item) 주입으로 만든
+    무엇          GR(루트 design/Master-Intent-Graph-Growth.md — 성장: Class/Item) 주입으로 만든
                   DC-GROWTH-NEED-FROM-POSSIBILITY · CLASS-ORIGIN-TRACE ·
                   NO-CAPABILITY-DUPLICATION · DEFINITION-INSTANCE-SPLIT ·
                   NOT-A-STAGE · GOAL-FIRST 6종이 DRAFT 였다.
@@ -2187,7 +2187,7 @@ Human 이 "FR-ACTION-PHASE 의 근간이 무엇인가" 를 물어 근간을 역�
 
     ① `engine/view-kernel` 안에 표시 문구(한국어)가 남아 있다 — 팩에 이미 문구 표가
        있으므로 같은 것이 두 곳에 있다. 기반 트랙 부채로 적혔다
-       (design/Design-System-Content-Separation.md 남은 부채)
+       (루트 design/Design-System-Content-Separation.md 남은 부채)
     ② 이동·시점 키의 원본(MOVE_KEYS · TURN_KEYS)이 팩에 내보내지지 않아 사본
        (`RESERVED_KEY_CODES`)으로 막고 있다 — **레인 B 의 C025 가 먼저 올린 것과 같은
        부채**이며 여전히 열려 있다. C026 은 기반 쪽에서 `keyboard.suspendMovement` 로

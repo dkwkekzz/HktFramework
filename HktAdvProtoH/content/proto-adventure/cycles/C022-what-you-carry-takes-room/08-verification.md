@@ -227,7 +227,7 @@
     사람의 확인을 대신하지는 않았다 (Verification Guide MUST).
 
     Human 확인 절차 (재현용으로 남긴다 · 약 1분)
-        1. `./run-split.sh`  (또는 `npm run world` + `npm run client`)
+        1. `./scripts/run-split.sh`  (또는 `npm run world` + `npm run client`)
         2. HUD 왼쪽 위 `자리: 1 / 4` 를 본다
         3. 광맥으로 걸어가 `Esc` 로 지목을 풀었다면 광맥을 클릭해 고르고 `E` 로 캔다
         4. 아홉 번 캐면 `자리: 4 / 4 (가득)` 이 되고 채집 프롬프트가 불가로 바뀐다

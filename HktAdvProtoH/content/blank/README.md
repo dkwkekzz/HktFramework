@@ -1,6 +1,6 @@
 # content/blank — 최소 컨텐츠 팩 (분리의 증명)
 
-기반/컨텐츠 분리(P5 — [design/Design-System-Content-Separation.md](../../design/Design-System-Content-Separation.md))의
+기반/컨텐츠 분리(P5 — [루트 design/Design-System-Content-Separation.md](../../design/Design-System-Content-Separation.md))의
 수용 기준이다: **engine/ 을 한 줄도 고치지 않고** 두 번째 팩이 뜨고 움직인다.
 
 ## 무엇이 있는가

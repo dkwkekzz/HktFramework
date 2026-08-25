@@ -120,7 +120,7 @@
 ## 이 Cycle 이 남긴 부채
 
     ① `engine/view-kernel` 에 표시 문구(한국어)가 남아 있다 — 기반 트랙 부채로 적었다
-       (design/Design-System-Content-Separation.md 남은 부채).
+       (루트 design/Design-System-Content-Separation.md 남은 부채).
     ② `SceneCommandSurface` 와 `SceneSelf` 를 범용 표면 위로 옮기지 않았다 —
        승격 규칙 1(rule of two). 다음 팩이 다른 패널을 요구할 때 정한다.
     ③ 좁은 화면(< 720px)은 지원 대상 밖이다 (기획서 §2.3).
