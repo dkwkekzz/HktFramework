@@ -28,8 +28,9 @@ Feedback · BACKLOG)를 겹쳐 `LANES.html` 로 그린다. `npm run lanes:check`
 | FEEDBACK | OPEN | 없음 — 닫힌 Cycle 이 모두 Master 에 들어갔다 | 없음 — 병합 뒤 최신 main 위에서 (`npm run feedback:gate`) |
 | WORLD·ITEM | HUMAN | 후보 5 중 선택 대기 — Agent 추천 FR-THE-PLACES-ARE-NARROWER (+FR-SEE-BEFORE 얹기) | Human Select (frontier/item.md) |
 | WORLD·COMBAT | BLOCKED | 후보 0 — FR-THE-SHAPE-IS-DATA 가 C025 로 닫혔다 | MASTER 의 OPTIONS(Q35) 가 후보를 낳는 것 |
+| WORLD·TERRAIN | HUMAN | 후보 3 중 선택 대기 — Agent 추천 FR-THE-GROUND-HAS-A-LAW | Human Select (frontier/terrain.md) |
 | VIEW | OPEN | BACKLOG 다음 항목(request-feedback)부터 — equipment-panel 은 아래 충돌 칸 | 없음 |
-| MASTER | OPEN | 둘 중 하나 — ① 대지형 NEXT(땅을 세우는 첫 Frontier 후보. BT 주입과 Q47~Q51 이 닫혀 길이 열렸다) ② OPTIONS Q35 (몸이 아닌 존재를 요구하는 Possibility) | 없음 — 미처리 Feedback 이 0 이라 막던 것이 사라졌다 (`npm run feedback:gate`) |
+| MASTER | OPEN | OPTIONS Q35 (몸이 아닌 존재를 요구하는 Possibility) — 대지형 NEXT 는 끝났다 (TERRAIN 트랙 후보 3) | 없음 — 미처리 Feedback 이 0 이라 막던 것이 사라졌다 (`npm run feedback:gate`) |
 | ENGINE | OPEN | 기반 부채 하나 — 표시 문구를 사유 코드로 바꿔 팩에 회수 (C009 폭이 넓고 조립·팩 채택 동반 — 착수 전 범위 확인) | 없음 |
 | PROCESS | HOLD | 없음 | — (공정 변경 중에는 다른 레인을 새로 띄우지 않는다) |
 
@@ -40,6 +41,7 @@ Feedback · BACKLOG)를 겹쳐 `LANES.html` 로 그린다. `npm run lanes:check`
 | 겹침 | 지금의 판단 |
 |---|---|
 | VIEW 의 equipment-panel ↔ WORLD·ITEM | ITEM Cycle 이 장비 유효 값 화면을 건드릴 수 있다 — equipment-panel 은 ITEM Cycle 병합 뒤에 연다 (그 뒤의 drag-and-drop · responsive-workspace 도 함께 밀린다) |
+| WORLD·TERRAIN 의 세 번째 후보 ↔ WORLD·ITEM | FR-WHAT-KEEPS-YOU-ALIVE-IS-CARRIED 는 지니고 나누는 것을 다뤄 아이템 쪽 파일에 닿는다 — 그 후보를 고를 때 ITEM 이 무엇을 도는 중인지 먼저 본다. 앞의 두 후보는 겹치지 않는다 |
 | VIEW 의 touch-reason ↔ ENGINE | ENGINE 이 열었다 — touch-pad 가 `unavailableText` 를 버튼에 그린다. VIEW 는 눈검증·백로그 정리만 남았다 |
 
 ## HUMAN 대기
@@ -49,6 +51,7 @@ Human 이 답하면 풀리는 것들이다. 답의 자리는 괄호가 가리킨
 | 무엇 | 풀리는 것 |
 |---|---|
 | WORLD·ITEM 후보 선택 (frontier/item.md SELECTED) | WORLD·ITEM 레인 착수 |
+| WORLD·TERRAIN 후보 선택 (frontier/terrain.md SELECTED) | WORLD·TERRAIN 레인 착수 — 세계에 땅이 생긴다 |
 | Q37 — 자리에 이름을 줄 것인가 (open-questions.md) | FR-ARRANGE-WHAT-YOU-CARRY 존치/삭제 |
 | Design-Creature-Behavior-R0.md 승인 | Inject → MC-PREDICT · MC-OBSERVE 습성 해금 |
 | Design-Resource-Catalog-R0.md 승인 | Inject → Q36 · 회복 아이템 해금 · BT 자원 24종의 자리 (그 문서가 받기로 정해졌다 — HISTORY Q50(a)) |
