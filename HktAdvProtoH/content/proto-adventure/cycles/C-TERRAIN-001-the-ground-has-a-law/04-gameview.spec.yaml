@@ -197,7 +197,12 @@ closure:
 excluded:
   거두어 가는 속도(rate · lifeRate):
     실으면 화면이 "언제 다할지" 를 계산할 수 있게 된다. 그것은 예고이며
-    FR-THE-LAND-SHOWS-BEFORE-IT-TAKES 의 몫이다. 필요한 것은 지금 줄고 있다는 사실이다
+    FR-THE-LAND-SHOWS-BEFORE-IT-TAKES 의 몫이다. 필요한 것은 지금 줄고 있다는 사실이다.
+    **그 속도가 상수인 것은 모델링 주장이 아니라 범위 결정이다** — BT §5.2 는 광맥이
+    일정한 속도로 흡수하지 *않는다* 고 적는다(굵기 · 포화 상태 · 지하 흐름). 갑작스러운
+    흡수는 예고(원형 서리 무늬 · BT §5.4)와 한 몸이라 다음 후보가 함께 받으며,
+    이 계약은 그때 열리지 않는다 — 화면은 지금도 속도를 받지 않기 때문이다
+    (02-intent.md REVIEW QUESTION 3)
   앞으로 일어날 일의 예고:
     같은 이유. 이 Cycle 은 겪는 것까지만 싣는다
     (DC-WORLD-TERRAIN-LAW-IS-OBSERVABLE 은 UNRESOLVED 로 넘어간다)
