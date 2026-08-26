@@ -14,7 +14,7 @@
 
 ## 0. 문서 위치
 
-본 문서는 `Design-Combat-UpperLayer-R1`의 전투 시스템을 변경하지 않는다.
+본 문서는 `Design-Combat-UpperLayer-R0`의 전투 시스템을 변경하지 않는다.
 
 심층 전투 문서는 다음을 정의한다.
 
