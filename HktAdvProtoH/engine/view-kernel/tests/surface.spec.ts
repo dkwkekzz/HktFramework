@@ -241,6 +241,50 @@ describe('글자를 받는 자리 (SceneSurfaceField)', () => {
   });
 });
 
+describe('칸이 스스로 말하는 것 — 명암과 표식', () => {
+  const cell = (extra: Record<string, unknown>) =>
+    surfaceMarkup(
+      surface({
+        sections: [
+          {
+            id: 'items',
+            cells: [{ id: 'c0', text: '돌', detail: '×9', empty: false, selected: false, ...extra }],
+          },
+        ],
+      }),
+    );
+
+  it('얼마나 찼는지가 칸에 실린다 — 그리는 쪽이 그것을 명암으로 옮긴다', () => {
+    expect(cell({ level: 0.5 })).toContain('style="--sf-level:0.500"');
+  });
+
+  it('0..1 밖의 값은 그 끝으로 붙는다 — 그리는 쪽의 산수다', () => {
+    expect(cell({ level: 2 })).toContain('--sf-level:1.000');
+    expect(cell({ level: -1 })).toContain('--sf-level:0.000');
+  });
+
+  it('명암은 **곁들이는 표시다** — 같은 값이 언제나 글자로도 선다', () => {
+    // 색만으로 구분하지 않는다 (문서 §3). 수량은 명암과 무관하게 곁글자에 있다
+    expect(cell({ level: 0.5 })).toContain('class="sf-cell-detail">×9<');
+  });
+
+  it('명암은 읽어 주는 말에 끼어들지 않는다 — 같은 것을 두 번 읽지 않는다', () => {
+    expect(cell({ level: 0.5 })).toContain('aria-label="돌, ×9"');
+  });
+
+  it('표식은 귀퉁이에 서고 **말로도 읽힌다** — 색이나 점이면 없는 것과 같다', () => {
+    const html = cell({ badge: 'NEW' });
+    expect(html).toContain('class="sf-cell-badge">NEW<');
+    expect(html).toContain('aria-label="NEW, 돌, ×9"');
+  });
+
+  it('밝히지 않으면 아무것도 그리지 않는다', () => {
+    const plain = cell({});
+    expect(plain).not.toContain('--sf-level');
+    expect(plain).not.toContain('sf-cell-badge');
+  });
+});
+
 describe('칸의 꼴 (shape)', () => {
   const shaped = (shape?: 'slot' | 'chip') =>
     surfaceMarkup(

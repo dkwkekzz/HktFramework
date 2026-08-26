@@ -13,6 +13,8 @@
 //     서로 다른 소식이다. 무슨 뜻인지는 결정 Layer 가 정한다 (슬롯 띠와 같은 규칙)
 //   · **글자를 받아 그대로 돌려주는 일** (SceneSurfaceField) — 그 글자가 무엇을 하는지
 //     알지 못한다. 쥐고 있지도 않는다: 실려 온 것을 비추고, 쳐 넣은 것을 돌려준다
+//   · 칸이 **얼마나 찼는지**(level)를 명암으로, **표식**(badge)을 귀퉁이 글자로 옮기는 일 —
+//     무엇의 양인지도 무슨 표식인지도 알지 못한다
 //
 // 이 능력이 소유하지 않는 것:
 //   · 무엇이 고른 것인가 (cell.selected 로 실려 온다 — 결정 Layer 가 쥔다)
@@ -83,15 +85,22 @@ function renderSection(section: SceneSurfaceSection, focusId: string | undefined
     const shape = section.shape ?? 'slot';
     const cells = section.cells
       .map((cell) => {
-        // 접근성 이름 — 이름과 곁글자를 한 줄로. **빈 자리도 이름을 가진다**
+        // 접근성 이름 — 이름과 곁글자와 표식을 한 줄로. **빈 자리도 이름을 가진다**.
+        // 명암(level)은 여기 없다 — 같은 값이 곁글자로 이미 서 있고, 같은 것을 두 번
+        // 읽어 주면 목록이 길어지기만 한다
         const label = cell.empty
           ? cell.text || '빈 자리'
-          : [cell.text, cell.detail].filter(Boolean).join(', ');
+          : [cell.badge, cell.text, cell.detail].filter(Boolean).join(', ');
+        // 얼마나 찼는가 — 0..1 밖의 값은 그 끝으로 붙인다 (그리는 쪽의 산수다)
+        const level =
+          cell.level === undefined ? undefined : Math.max(0, Math.min(1, cell.level));
         return (
           `<button type="button" class="sf-cell" data-id="${escape(cell.id)}"` +
           ` data-empty="${cell.empty}" data-selected="${cell.selected}"` +
           ` data-focused="${cell.id === focusId}"` +
+          (level === undefined ? '' : ` style="--sf-level:${level.toFixed(3)}"`) +
           ` aria-label="${escape(label)}" aria-pressed="${cell.selected}">` +
+          (cell.badge ? `<span class="sf-cell-badge">${escape(cell.badge)}</span>` : '') +
           `<span class="sf-cell-text">${escape(cell.text)}</span>` +
           (cell.detail ? `<span class="sf-cell-detail">${escape(cell.detail)}</span>` : '') +
           `</button>`
