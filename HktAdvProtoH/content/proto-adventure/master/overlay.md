@@ -99,6 +99,36 @@ C025 로 그 칸의 **모양이 값이 되었다** — 남은 다섯 칸이 서�
 | MC-RESTORE-BIOLOGICAL-STATE (자원 §8) | MISSING | — | 회복이라는 개념이 없다 — 생명은 줄기만 하고 되돌리는 경로는 디버그뿐이다 |
 | MC-CUT-ABNORMAL-STRUCTURE (자원 §10 · §17) | MISSING | — | 제작·장착이 없고, 통하지 않는 구조라는 개념도 없다 |
 
+## Capability — 대지형 영역 (BT)
+
+`content/proto-adventure/design/Master-World-Beira-Terrain.md`(BT) 주입으로 섰다. 위의 BW 표가 **얼마나 깊은가**의
+층이라면 이쪽은 **어떤 법칙의 땅인가**다 — 여덟 대지형이 각자 자기 법칙이 요구하는
+대응을 가진다 (아래 "대지형이 요구하는 것" 표). 둘은 **직교한다** (HISTORY Q47(a)) —
+한 지역은 "어느 대지형의 어느 깊이" 를 함께 가지므로, 땅이 들어오는 Cycle 은 두 표의
+요구를 함께 본다.
+
+아홉 줄 전부 MISSING 이며 사유가 하나다: **세계에 땅이 없다.** 장소에 대해 세계가
+아는 것은 사각형 하나의 경계뿐이고(`world/semantic/position.ts#WorldBounds`), 그 안
+어디에 서 있든 성질이 같다. 그래서 여기의 결손은 개별 능력의 결손이 아니라 그 능력들이
+놓일 바닥의 부재다 — 아래 "가장 큰 구멍" 의 넷째 항이 그것이다.
+
+기존 노드 여덟(MC-READ-ENVIRONMENT · MC-OBSERVE · MC-PREDICT · MC-IDENTITY-ANCHOR ·
+MC-VERIFY-REALITY · MC-FORCE-MOVEMENT · MC-CRAFT-FROM-MATERIALS · MC-TRANSFER-ITEM)에는
+**줄을 더하지 않았다** — 지형을 요구처(demanded_by)로 더했을 뿐 같은 의미를 새 이름으로
+복제하지 않았기 때문이다. 그것들의 판정은 원래 자리의 줄이 그대로 소유한다.
+
+| Capability | 상태 | 근거 | 부족한 것 |
+|---|---|---|---|
+| MC-CARRY-LIFE-SUPPORT (빙원 §5.7 · 무호흡해 §7.7) | MISSING | — | 몸이 열·공기 같은 것을 요구하지 않는다 — 지금 몸이 지닌 것은 생명과 기력뿐이고, 둘 다 나눠 줄 수 없다 |
+| MC-TIME-THE-CYCLE (빙원 · 무호흡해 · 걷는 대륙 · 혈화수해) | MISSING | — | 세계에 주기를 가진 것이 없다 — 시간이 흐르지만 그 흐름으로 달라지는 땅의 조건이 없다 |
+| MC-FIND-SAFE-ROUTE (빙원 · 무호흡해 · 산맥 · 걷는 대륙) | MISSING | — | 땅에 안전한 자리와 위험한 자리의 구분이 없다 — 이을 것도 피할 것도 없다 |
+| MC-ANCHOR-LOCAL-LAW (산맥 §8.3 · 사막 §10.3 · 혈화수해 §11.3) | MISSING | — | 고정할 흔들림이 없다 — 땅이 아무 법칙도 가지지 않는다 |
+| MC-IMPERSONATE-IDENTITY (수해 §6.5) | MISSING | — | 존재의 신원이라는 것이 세계에 없다 — 구분되는 것은 종류와 개체 번호뿐이고 그것을 빌릴 자리가 없다 |
+| MC-COORDINATE-WITHOUT-SOUND (무호흡해 §7.6) | MISSING | — | 세계에 소리가 없다 — 없앨 것도 대신할 것도 아직 없다 |
+| MC-APPRAISE-UNKNOWN-MATTER (갈비분지 §4.5) | MISSING | — | 물건이 정체를 감추지 않는다 — 정의소에 있는 것은 처음부터 전부 알려져 있다 |
+| MC-REALIZE-ONE-POSSIBILITY (사막 §10.5) | MISSING | — | 세계에 가능성이라는 상태가 없다 — 참인 것은 지금의 하나뿐이고 선택되지 않은 것은 남지 않는다 |
+| MC-CONCEAL-BIOLOGICAL-SIGNAL (혈화수해 §11.6) | MISSING | — | 몸의 상태를 좇는 것이 없다 — 남은 생명은 관찰에 실리지만 그것을 근거로 삼는 존재가 없다 |
+
 ## Capability — 지목·관계 영역 (TG · BW §21)
 
 앞의 둘은 `content/proto-adventure/design/Design-Targeting-R0.md` 주입으로, 마지막 하나는 Human 지시로 섰다
@@ -170,6 +200,8 @@ Capability 만 보면 전투가 꽤 찬 것처럼 보이지만, 그 전투가 �
 | MW-DEPTH-GRADIENT · MW-ZONE-WILD/DANGER/DEEP/UNKNOWN | ABSENT | 깊이도 층도 없다 |
 | MW-ZONE-FRINGE | PARTIAL | 정면 전투력이 우위인 적대 존재는 있다. 그것이 사는 **층**이 없고, 우위를 힘 아닌 것으로 뒤집을 수단도 없다 |
 | MW-HYPER-PREDATION · MW-SPATIAL-SHEAR | ABSENT | 대표 지역 둘 다 없다 |
+| MW-MACRO-TERRAIN | ABSENT | 땅이라는 것이 없다 — 세계가 장소에 대해 아는 것은 사각형 하나의 경계뿐이다 (`world/semantic/position.ts#WorldBounds`) |
+| MW-TERRAIN-* 8종 (BT §4~§11) | ABSENT | 머물 곳과 나갈 곳의 구분이 없다 — 무대가 하나다 |
 | MA-PLAYER | PARTIAL | 몸이 한 종류로 고정이라 고를 갈래 자체가 없다 |
 | MA-HOSTILE-COMBATANT | PRESENT | **C018 로 마지막 칸이 닫혔다** — 스스로 순찰·추격·공격하고, 플레이어와 **같은 관문**을 지나며(몬스터 전용 규칙 없음), 이제 지킬 자리를 지녀 그 행동이 자기 영역을 지키는 것으로 읽힌다. 같은 종류 두 개체가 하나는 적대하고 하나는 하지 않는다 — 적대가 종류가 아니라 사정의 결과다 |
 | MK-LOCAL-WORLDSTATE | ABSENT | 지역이 없다. 다만 "모르는 상태" 라는 것 자체는 C014 로 세계에 생겼다 (살펴봄 이전) — 얹힐 바닥은 섰다 |
@@ -228,6 +260,24 @@ Capability 만 보면 전투가 꽤 찬 것처럼 보이지만, 그 전투가 �
 | MW-ZONE-DEEP (§24) | MC-DISCOVER-WEAKNESS · MC-DISRUPT-ABILITY · MC-MAINTAIN-PRESSURE · MC-TARGET-SPECIFIC-PART · MC-READ-CREATURE-SYSTEM | 0 / 5 (없음: DISCOVER-WEAKNESS · DISRUPT-ABILITY · MAINTAIN-PRESSURE · TARGET-SPECIFIC-PART · READ-CREATURE-SYSTEM) |
 | MW-ZONE-UNKNOWN (§25) | MC-PROTECT-PERCEPTION · MC-VERIFY-REALITY · MC-IDENTITY-ANCHOR · MC-RESIST-INFLUENCE · MC-BREAK-BIOLOGICAL-LINK · MC-ESCAPE-ALTERED-SPACE | 0 / 6 (없음: PROTECT-PERCEPTION · VERIFY-REALITY · IDENTITY-ANCHOR · RESIST-INFLUENCE · BREAK-BIOLOGICAL-LINK · ESCAPE-ALTERED-SPACE) |
 
+### 대지형이 요구하는 것 — MW-TERRAIN-* 의 demands
+
+각 땅을 감당하려면 무엇이 있어야 하는가. 층 표와 축이 다르다 — 이쪽은 깊이가 아니라
+법칙이며, 여덟에 순서가 없다 (BT §16). 여덟 중 채워진 칸이 하나도 없다. 절반으로
+서 있는 둘(살펴봄 · 밀어내기)도 이 지형들 때문에 선 것이 아니라 다른 자리에서
+이미 서 있던 것을 지형이 함께 요구하는 것이다.
+
+| 층 | demands | 지금 채워진 것 |
+|---|---|---|
+| 백왕의 갈비분지 (§4) | MC-APPRAISE-UNKNOWN-MATTER · MC-CRAFT-FROM-MATERIALS · MC-TRANSFER-ITEM | 0 / 3 (없음: APPRAISE-UNKNOWN-MATTER · CRAFT-FROM-MATERIALS · TRANSFER-ITEM) |
+| 해를 삼킨 빙원 (§5) | MC-READ-ENVIRONMENT · MC-CARRY-LIFE-SUPPORT · MC-TIME-THE-CYCLE · MC-FIND-SAFE-ROUTE | 0 / 4 (없음: READ-ENVIRONMENT · CARRY-LIFE-SUPPORT · TIME-THE-CYCLE · FIND-SAFE-ROUTE) |
+| 이름을 먹는 수해 (§6) | MC-IDENTITY-ANCHOR · MC-IMPERSONATE-IDENTITY · MC-OBSERVE | 0 / 3 (없음: IDENTITY-ANCHOR · IMPERSONATE-IDENTITY / 절반: OBSERVE) |
+| 무호흡해 (§7) | MC-CARRY-LIFE-SUPPORT · MC-TIME-THE-CYCLE · MC-FIND-SAFE-ROUTE · MC-COORDINATE-WITHOUT-SOUND | 0 / 4 (없음: CARRY-LIFE-SUPPORT · TIME-THE-CYCLE · FIND-SAFE-ROUTE · COORDINATE-WITHOUT-SOUND) |
+| 하늘로 떨어지는 산맥 (§8) | MC-READ-ENVIRONMENT · MC-ANCHOR-LOCAL-LAW · MC-FIND-SAFE-ROUTE · MC-FORCE-MOVEMENT | 0 / 4 (없음: READ-ENVIRONMENT · ANCHOR-LOCAL-LAW · FIND-SAFE-ROUTE / 절반: FORCE-MOVEMENT) |
+| 걷는 대륙의 무리 (§9) | MC-PREDICT · MC-TIME-THE-CYCLE · MC-FIND-SAFE-ROUTE | 0 / 3 (없음: PREDICT · TIME-THE-CYCLE · FIND-SAFE-ROUTE) |
+| 아직 일어나지 않은 사막 (§10) | MC-VERIFY-REALITY · MC-ANCHOR-LOCAL-LAW · MC-REALIZE-ONE-POSSIBILITY | 0 / 3 (없음: VERIFY-REALITY · ANCHOR-LOCAL-LAW · REALIZE-ONE-POSSIBILITY) |
+| 사람을 꽃피우는 혈화수해 (§11) | MC-CONCEAL-BIOLOGICAL-SIGNAL · MC-TIME-THE-CYCLE · MC-ANCHOR-LOCAL-LAW | 0 / 3 (없음: CONCEAL-BIOLOGICAL-SIGNAL · TIME-THE-CYCLE · ANCHOR-LOCAL-LAW) |
+
 ### MG-ACQUIRE-RARE-ORGAN (5 갈래)
 
 | Possibility | 요구 중 없는 것 | 비고 |
@@ -238,7 +288,7 @@ Capability 만 보면 전투가 꽤 찬 것처럼 보이지만, 그 전투가 �
 
 ## 지금 세계에서 가장 큰 구멍
 
-표 전체를 관통하는 것이 셋 있다. 개별 Capability 결손이 아니라 구조적 공백이다.
+표 전체를 관통하는 것이 넷 있다. 개별 Capability 결손이 아니라 구조적 공백이다.
 
 ```text
 1. 자원이 하는 일이 하나뿐이다  (넷 중 하나가 섰다)
@@ -259,6 +309,14 @@ Capability 만 보면 전투가 꽤 찬 것처럼 보이지만, 그 전투가 �
    남은 것은 둘째 칸이다. 자율 존재의 다음 행동이 언제나 같은 한 가지라 읽을 거리가
    없고, 행동의 앞 구간이 앎의 관문과 무관하게 누구에게나 그냥 온다.
    발견·검증은 그 뒤에 얹힌다.
+
+4. 땅이 없다  (BT 주입으로 그 크기가 드러났다)
+   세계가 장소에 대해 아는 것은 사각형 하나의 경계뿐이다
+   (`world/semantic/position.ts#WorldBounds`) — 어디에 서 있든 성질이 같다.
+   BT 가 세운 아홉 노드와 그 아홉이 요구하는 능력 전부가 이 하나에 막혀 있고,
+   BW 쪽의 층(MW-ZONE-*)과 대표 지역 둘도 같은 이유로 ABSENT 다.
+   이것은 개별 결손이 아니라 앞의 셋이 놓일 바닥이다 — 관찰할 것도(3),
+   캘 것도(1), 감당해서 넓어질 범위도(2) 전부 땅 위에서 생긴다.
 ```
 
 ## 갱신 경로

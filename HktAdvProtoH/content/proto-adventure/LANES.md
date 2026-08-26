@@ -28,9 +28,10 @@ Feedback · BACKLOG)를 겹쳐 `LANES.html` 로 그린다. `npm run lanes:check`
 | FEEDBACK | OPEN | 없음 — 닫힌 Cycle 이 모두 Master 에 들어갔다 | 없음 — 병합 뒤 최신 main 위에서 (`npm run feedback:gate`) |
 | WORLD·ITEM | HUMAN | 후보 5 중 선택 대기 — Agent 추천 FR-THE-PLACES-ARE-NARROWER (+FR-SEE-BEFORE 얹기) | Human Select (frontier/item.md) |
 | WORLD·COMBAT | BLOCKED | 후보 0 — FR-THE-SHAPE-IS-DATA 가 C025 로 닫혔다 | MASTER 의 OPTIONS(Q35) 가 후보를 낳는 것 |
+| WORLD·TERRAIN | OPEN | `C-TERRAIN-001` 착수 대기 — SELECTED `FR-THE-GROUND-HAS-A-LAW`(땅이 법칙을 지닌다). Stage 1 부터, 아직 시작하지 않았다. 시각화의 소유 분해·진행 순서는 [design/Design-Terrain-Visualization.md](../../design/Design-Terrain-Visualization.md) 를 따른다 | 없음 — 다만 이 판과 트랙 파일이 main 에 들어간 뒤에 잡는다 |
 | VIEW | OPEN | BACKLOG 다음 항목(tooltip-on-focus)부터 — equipment-panel 은 아래 충돌 칸 | 없음 |
-| MASTER | BLOCKED | OPTIONS Q35 (몸이 아닌 존재를 요구하는 Possibility) | FEEDBACK 의 병합 (미처리 Feedback 이 먼저다) |
-| ENGINE | OPEN | 둘 — ① 남은 기반 문구(겹침 표면·슬롯 띠·손가락 띠·이어짐; 명령 표면이 간 길 그대로) ② 표면 안의 **초점 차례**(`tabindex` 0건 — Tab 이 글자 자리·슬롯에 한 번에 닿지 못한다; V-009 REPORT) | 없음 |
+| MASTER | OPEN | OPTIONS Q35 (몸이 아닌 존재를 요구하는 Possibility) — 대지형 NEXT 는 끝났다 (TERRAIN 트랙 후보 3) | 없음 — 미처리 Feedback 이 0 이라 막던 것이 사라졌다 (`npm run feedback:gate`) |
+| ENGINE | OPEN | 셋 — ① 남은 기반 문구(겹침 표면·슬롯 띠·손가락 띠·이어짐; 명령 표면이 간 길 그대로) ② 표면 안의 **초점 차례**(`tabindex` 0건 — Tab 이 글자 자리·슬롯에 한 번에 닿지 못한다) ③ 지면 구역 장치 `SceneGroundZone` ([design/Design-Terrain-Visualization.md](../../design/Design-Terrain-Visualization.md)) — C-TERRAIN-001 의 04 확정 뒤 | 없음 |
 | PROCESS | HOLD | 없음 | — (공정 변경 중에는 다른 레인을 새로 띄우지 않는다) |
 
 ## 레인 사이 충돌 — 순서가 아니라 파일이 겹치는 곳
@@ -40,8 +41,11 @@ Feedback · BACKLOG)를 겹쳐 `LANES.html` 로 그린다. `npm run lanes:check`
 | 겹침 | 지금의 판단 |
 |---|---|
 | VIEW 의 equipment-panel ↔ WORLD·ITEM | ITEM Cycle 이 장비 유효 값 화면을 건드릴 수 있다 — equipment-panel 은 ITEM Cycle 병합 뒤에 연다 (그 뒤의 drag-and-drop · responsive-workspace 도 함께 밀린다) |
+| WORLD·TERRAIN ↔ WORLD·ITEM | **지금은 겹치지 않는다** — 고른 것이 첫 후보(땅이 법칙을 지닌다)라 아이템 파일에 닿지 않는다. 겹치는 것은 셋째 후보(FR-WHAT-KEEPS-YOU-ALIVE-IS-CARRIED)이며, 그것을 고를 때 ITEM 이 무엇을 도는 중인지 먼저 본다 |
+| WORLD·TERRAIN ↔ VIEW | 땅은 화면에 보여야 하므로 이 Cycle 이 `view/` 를 건드린다. VIEW 의 다음 항목(tooltip-on-focus)은 상세를 여는 자리라 자리가 다르지만 표면 상태·HUD 에서 스칠 수 있다 — **둘 다 자기 영역 끝에 추가만 하고 기존 줄을 옮기지 않는다** (frontier/README.md 공유 지점 규칙과 같다) |
+| WORLD·TERRAIN ↔ ENGINE | ENGINE 의 지면 구역 장치(`SceneGroundZone`)를 TERRAIN 의 Stage 7 이 소비한다 — 04 가 관찰 표면을 확정한 뒤 ENGINE 이 착수하고, fallback(안 그림)이 있어 BLOCKED 는 아니다. 소유 분해·순서: [design/Design-Terrain-Visualization.md](../../design/Design-Terrain-Visualization.md) |
 | VIEW 의 슬롯 띠·표면 문구 ↔ ENGINE | ENGINE 이 남은 기반 문구를 회수하면 `hud/surface.ts` · `hud/slot-bar.ts` 가 팩의 문구 표를 타게 된다 — 그때 그 표에 줄이 는다 (VIEW 가 쓰는 자리이므로 병합 뒤에 잇는다) |
-| VIEW 의 skill-focus-order ↔ ENGINE | 초점 차례를 세우는 자리가 기반이면 ENGINE 동반이 필요하다 — 지금은 팩 키(`L`)가 지름길로 그 구멍을 메우고 있다 (V-009 REPORT ①) |
+| VIEW 의 skill-focus-order ↔ ENGINE | 초점 차례를 세우는 자리가 기반이면 ENGINE 동반이 필요하다 — 지금은 팩 키(`L`)가 지름길로 그 구멍을 메우고 있다 |
 
 ## HUMAN 대기
 
@@ -53,4 +57,4 @@ Human 이 답하면 풀리는 것들이다. 답의 자리는 괄호가 가리킨
 | 문서의 분류 다섯에 `도구` 를 더할 것인가 (Design-View-Inventory-Equipment-UX-D1 §6) | 곡괭이가 `기타` 대신 자기 칸을 얻는다 (V-008 REPORT) |
 | Q37 — 자리에 이름을 줄 것인가 (open-questions.md) | FR-ARRANGE-WHAT-YOU-CARRY 존치/삭제 |
 | Design-Creature-Behavior-R0.md 승인 | Inject → MC-PREDICT · MC-OBSERVE 습성 해금 |
-| Design-Resource-Catalog-R0.md 승인 | Inject → Q36 · 회복 아이템 해금 |
+| Design-Resource-Catalog-R0.md 승인 | Inject → Q36 · 회복 아이템 해금 · BT 자원 24종의 자리 (그 문서가 받기로 정해졌다 — HISTORY Q50(a)) |

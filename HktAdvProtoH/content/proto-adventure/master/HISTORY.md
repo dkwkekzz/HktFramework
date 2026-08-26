@@ -2206,3 +2206,311 @@ Human 이 "FR-ACTION-PHASE 의 근간이 무엇인가" 를 물어 근간을 역�
     출발해 Frontier 를 거치지 않았고, 번호 예약은 그 절에만 적혀 있기 때문이다.
     `[DIRECT-CYCLE]` 로 출발하는 Cycle 도 번호를 예약해야 하는가는 Human 판단이다 —
     open-questions Q46(SELECTED 칸의 형태)과 같은 뿌리다.
+
+## 주입 — 세계 무대(BT) · 2026-08-26
+
+    Human 지시: "LANES.md 참고하여 위의 기획에 대한 master 주입을 진행한다.
+    2. 세계 무대: content/proto-adventure/design/Master-World-Beira-Terrain.md"
+
+    BW(`Master-World-Beira.md`)가 세계압과 깊이를 공급했고, BT 는 그 압력이 대륙 규모로
+    **무엇에 결속되는가**를 공급한다. 같은 세계(WORLD) 영역의 둘째 문서이며 인용 약칭을
+    `BT` 로 새로 두었다 (graph 각 파일 머리말).
+
+    **바뀐 것** — 세계를 나누는 축이 하나 늘었다.
+
+        BW 의 축   깊이 — FRINGE · WILD · DANGER · DEEP · UNKNOWN (얼마나 깊은가)
+        BT 의 축   법칙 — 여덟 대지형 (어떤 원리의 땅인가). 난이도 순이 아니다 (BT §16)
+
+    둘이 어떻게 겹치는지는 어느 문서도 말하지 않는다 → Q47 (지어내지 않았다).
+
+    산출물:
+        constraints/    DRAFT 4종 — TERRAIN-IS-A-PRINCIPLE(§1 · §15) ·
+                        SAFETY-IS-A-NATURAL-EXCEPTION(§3 · §13) ·
+                        TERRAIN-LAW-IS-OBSERVABLE(§2 · §15.8 · §15.9) ·
+                        TERRAIN-READS-AT-A-DISTANCE(§14). 승인 대기 → Q51.
+                        승인 전이라 어느 노드에도 배선하지 않았다
+        graph/          MW 9종 — MACRO-TERRAIN 하나와 그 아래 TERRAIN-* 여덟.
+                        arises_from 은 FREE 와 BOUND 둘이다 (BT §1 이 둘을 함께 든다) ·
+                        MG 1종 — RESCUE-THE-TAKEN. 네 지형이 같은 행동을 각자 명명했다
+                        (§6.6 · §7.7 · §8.7 · §11.7) ·
+                        MC 9종 — 요구처가 전부 장소다 (demanded_by). 방법(Possibility)이
+                        요구하는 것은 아직 없다 ·
+                        MS-BEIRA-TERRAIN — 순서 없는 시스템 (segments 없음)
+        기존 노드 8종    CHANGED — READ-ENVIRONMENT · OBSERVE · PREDICT · IDENTITY-ANCHOR ·
+                        VERIFY-REALITY · FORCE-MOVEMENT · CRAFT-FROM-MATERIALS ·
+                        TRANSFER-ITEM 에 지형을 요구처로 더하고 소속 하나를 얹었다.
+                        semantic 은 한 글자도 고치지 않았다 — 같은 의미를 새 이름으로
+                        복제하지 않는다 (DC-GROWTH-NO-CAPABILITY-DUPLICATION)
+        overlay.md      표 둘이 늘었다 — 대지형 Capability 9줄과 지형별 demands 8줄.
+                        **판정은 하나도 바뀌지 않았다** (전부 MISSING/ABSENT).
+                        "가장 큰 구멍" 이 셋에서 넷이 되었다: 넷째가 **땅이 없다**이며,
+                        앞의 셋(자원 · 성장 · 앞날)이 놓일 바닥이다
+        open-questions  Q47~Q51 신설 (관계 셋 · 주입 범위 하나 · DC 승인 하나)
+
+    **잠정으로 둔 것** — MC 아홉 중 셋(TIME-THE-CYCLE · FIND-SAFE-ROUTE ·
+    ANCHOR-LOCAL-LAW)은 `part_of.grounded: false` 다. BT 가 그 일을 지형마다 다른 이름의
+    행동·자원으로만 적고 하나의 이름을 주지 않아, 묶은 문안이 Agent 의 번역이기 때문이다.
+    나머지 여섯은 문서 문장이 그대로 정의한다.
+
+    옮기지 않은 것과 사유:
+        자원 24종 · 세력 37종 — 노드로 세우지 않았다. 자원 노드는 `grants` 로 기존 MC-*
+        를 가리켜야 하고 세력 노드는 관점과 원하는 것을 가져야 하는데, BT 는 둘 다
+        공급하지 않는다. 자원 쪽은 승인 대기 문서(Design-Resource-Catalog-R0)와 자리가
+        겹치기도 한다 → Q50
+        §11.5 회귀밀 — 새 Capability 가 아니다. 주는 의미가 BW §8 회귀초와 같아
+        MC-RESTORE-BIOLOGICAL-STATE 를 재사용했다. 두 문서가 같은 능력을 서로 다른
+        지형에서 낳는다는 사실은 → Q49
+        §12 지형 간 연결 — 새 DC 도 새 노드도 만들지 않았다.
+        DC-WORLD-PROGRESSION-IS-REACH 와 MP-ADAPT-BY-RESOURCE 가 이미 소유한 형태다
+        각 지형의 Local Goal — RESCUE-THE-TAKEN 하나를 뺀 나머지는 세우지 않았다.
+        BT 의 "주요 경험" 은 무엇을 하게 되는가이지 누가 무엇을 왜 원하는가가 아니다
+        (§27 기관 대안과 같은 자리 — WHY 확장 몫)
+        수치 — 없음 (BT 는 수치를 두지 않는 문서다 · 정책 §7.2)
+
+    Frontier 후보는 세우지 않았다. 세계에 땅이 없어 아홉 노드 전부가 같은 하나에 막혀
+    있고, 그 하나를 여는 Cycle 의 모양은 Q47 · Q48 이 답해져야 정해진다.
+
+# 대지형(BT) 주입이 낸 다섯 — 2026-08-26 Human 결정
+
+    다섯이 한 번에 닫혔다. 아래는 open-questions.md 에 있던 원문이며 `DECISION` 줄만
+    채워 옮겼다. 반영 결과는 각 항 뒤의 "반영" 절에 적는다.
+
+## Q47. 대지형(BT)과 깊이 층(BW §19)은 어떤 관계인가 — CLOSED
+
+    무엇          BT 주입으로 세계를 나누는 축이 둘이 되었다. BW 는 깊이로 나눈다 —
+                  FRINGE · WILD · DANGER · DEEP · UNKNOWN 순으로 굳지 않은 세계압이
+                  높아지는 기울기다 (BW §19, MW-DEPTH-GRADIENT). BT 는 법칙으로 나눈다 —
+                  여덟 대지형은 각각 다른 매질에 결속된 다른 원리이며, 난이도 순으로
+                  배치된 목록이 **아니다** (BT §16).
+
+                  두 축이 같은 세계를 두 번 나누고 있는데, 그 둘이 어떻게 겹치는지는
+                  어느 문서도 말하지 않는다.
+
+    지금 상태     Graph 에는 둘이 나란히 서 있고 서로를 가리키지 않는다.
+                  MW-ZONE-* 5종은 MW-DEPTH-GRADIENT 아래에, MW-TERRAIN-* 8종은
+                  MW-MACRO-TERRAIN 아래에 있다. 시스템 레지스트리도 둘이다
+                  (MS-BEIRA-LADDER · MS-BEIRA-TERRAIN).
+
+    영향          땅이 세계에 들어오는 첫 Cycle 이 무엇을 만들지가 이 답에 달렸다.
+                  한 지역을 만들 때 그것이 "FRINGE 의 한 자리" 인지 "어느 대지형의
+                  얕은 곳" 인지가 정해져야 그 지역이 무엇을 요구할지 (demands) 고를 수 있다.
+                  지금 그 요구 목록이 두 벌(층 22 항 · 지형 25 항)이고 겹치는 것이 여덟이다.
+
+    선택지        (a) **직교한다** — 대지형은 어떤 법칙의 땅인가이고, 깊이는 그 땅 안에서
+                      얼마나 들어갔는가다. 한 대지형 안에 얕은 곳과 심부가 함께 있다.
+                      → BT §3 이 이것을 거의 그대로 적는다: "하나의 대지형 안에도 안전한
+                        마을과 극단적으로 위험한 심부가 함께 존재한다." 그러면 층의
+                        demands 는 깊이가 요구하는 것이고 지형의 demands 는 법칙이
+                        요구하는 것이며, 한 지역은 둘을 함께 요구한다.
+                      → 값이 가장 싸다 — 지금 선 노드를 하나도 지우지 않는다.
+                  (b) **대지형이 층을 대체한다** — BT §16 이 난이도 순 배치를 부정했으니
+                      FRINGE~UNKNOWN 사다리를 접는다.
+                      → MW-ZONE-* 5종과 MS-BEIRA-LADDER 가 사라지고, 그 demands 22 항의
+                        요구처를 지형으로 옮겨야 한다. BW §21~§25 가 공급한 층별 생태
+                        서술도 갈 곳을 잃는다. 되돌리기 어렵다.
+                  (c) **층이 지형마다 따로 있다** — 같은 이름의 층이 지형마다 다른 것을
+                      요구한다 (빙원의 DEEP 과 수해의 DEEP 이 다르다).
+                      → 가장 세밀하지만 노드 수가 곱으로 는다. 지금 여덟 × 다섯이다.
+
+    Agent 판단     (a) 를 권한다. 근거는 BT §3 의 문장 하나와, 그것을 골랐을 때 지워야
+                  하는 것이 없다는 사실이다. 다만 (a) 를 고르면 "이 지역은 어느 지형의
+                  어느 깊이인가" 가 지역 노드의 필수 항이 되므로, 그 형태는 첫 지역
+                  Cycle 의 03-world-semantic.md 가 정한다 (정책 §7.2).
+
+    DECISION      (a) 직교한다 (Human)
+
+## Q48. 백왕의 갈비분지는 MW-SAFE-FRONTIER 인가 — CLOSED
+
+    무엇          플레이어가 출발하는 곳이 어디인가. BW §14 의 문명권은 **굳지 않은
+                  세계압이 적어서** 예측 가능한 땅이고 (MW-SAFE-FRONTIER), BT §4 의
+                  갈비분지는 **세계압이 높은데 백왕의 뼈가 그것을 흡수해서** 안정된
+                  땅이다. 둘 다 안전하지만 안전한 **이유**가 반대에 가깝다.
+
+    이미 정해진 것 두 노드는 지금 따로 서 있고, 갈비분지의 causes 는 MW-SAFE-FRONTIER 와
+                  같은 Goal(MG-EXPLORE-BEIRA)을 가리킨다 — 같은 목적을 두 곳이 낳는
+                  것으로 두었지 새 Goal 을 만들지 않았다.
+
+    영향          "안전한 곳에서 출발해 위험한 곳으로 들어간다" 의 출발선이 어디인가.
+                  MP-PREPARE-IN-CIVILIZATION(문명권에서 준비해 간다)이 어디서
+                  성립하는지도 함께 정해진다 — 분지에서 원정을 꾸리는 것(BT §4.6)이
+                  그 갈래인지, 그 앞에 다른 문명권이 있는지.
+
+    선택지        (a) **둘 다 있다** — 문명권은 베이라 **밖**의 안정된 인간 세계이고,
+                      분지는 베이라 **안**의 자연적 안전지대다. 준비 갈래는 두 곳
+                      모두에서 성립하되 파는 것이 다르다 (밖은 평범한 것, 안은 베이라의 것).
+                      → BT §4 이 분지를 "인간이 베이라에서 확보한" 안전지대라고 적고,
+                        BT §13 이 그것을 여덟 지형 각각의 자연적 피난처 중 하나로 둔다.
+                  (b) **분지가 문명권 자리를 대신한다** — MW-SAFE-FRONTIER 의 demands 와
+                      causes 를 분지로 옮기고 노드를 하나로 합친다.
+                      → 세계가 단순해지지만 BW §13~§14 의 "문명은 안정된 세계의 결과다"
+                        라는 인과가 갈 곳을 잃는다. 분지의 안정은 문명이 만든 것이 아니라
+                        유해가 허용한 것이므로 같은 문장이 성립하지 않는다.
+                  (c) 지금 정하지 않는다 — 첫 지역 Cycle 이 그 자리에서 정한다.
+
+    Agent 판단     (a) 를 권한다. 안전의 사유가 다른 두 곳을 하나로 합치면
+                  DC-WORLD-SAFETY-IS-A-NATURAL-EXCEPTION(DRAFT)이 요구하는 "그 자리가
+                  안전한 자연적 사유" 가 하나로 뭉개진다. 다만 이것은 세계의 출발선을
+                  정하는 일이므로 Human 이 정할 일이다.
+
+    DECISION      (a) 둘 다 있다 (Human)
+
+## Q49. 대표 지역 둘(MW-HYPER-PREDATION · MW-SPATIAL-SHEAR)은 여덟 대지형과 무엇인가 — CLOSED
+
+    무엇          BW §8 · §10 이 세운 대표 지역 둘이 있다 — 포식 경쟁이 극단이라 회귀초가
+                  태어난 곳과, 공간이 어긋나 경계결정만 살아남은 곳. BT 는 여덟 대지형을
+                  세우면서 그 둘을 언급하지 않는다. 그래서 지금 Graph 에는 세계의 땅이
+                  세 무리로 서 있다: 깊이 층 다섯 · 대표 지역 둘 · 대지형 여덟.
+
+    겹침의 증거    BT §11.5 의 **회귀밀**은 "대상을 최근의 안정된 생체 상태로 되돌린다" 이며,
+                  BW §8 의 **회귀초**와 같은 의미다 (MC-RESTORE-BIOLOGICAL-STATE).
+                  능력 노드를 복제하지는 않았다 (DC-GROWTH-NO-CAPABILITY-DUPLICATION) —
+                  같은 능력에 획득 경로가 둘인 것은 정상이기 때문이다. 그러나 **같은
+                  능력을 낳는 땅이 두 문서에 따로 있다**는 사실은 그대로 남는다.
+
+    영향          자원 유래를 추적할 때 어느 땅을 가리킬 것인가 (DC-WORLD-RESOURCE-ADAPTATION-TRACE).
+                  그리고 Q47 의 답이 (a) 라면 대표 지역 둘도 "어느 대지형의 어느 자리" 를
+                  가져야 한다.
+
+    선택지        (a) **대표 지역 둘은 대지형 안의 국지 사정이다** — 어느 대지형의 한
+                      자리이며, 어느 지형인지는 아직 정해지지 않았다.
+                      → BW §19 가 이미 "지역마다 국지적인 사정이 다르다" 를 인정한다.
+                        노드를 지우지 않고 arises_from 만 다시 잡으면 된다.
+                  (b) **아홉째·열째 대지형이다** — 같은 격으로 올린다.
+                      → BT §15 의 열 항에 답할 수 있어야 하는데 BW 는 그중 매질과 원리
+                        정도만 공급한다. 나머지는 지어내야 한다.
+                  (c) **그대로 둔다** — 두 문서가 세운 것을 각자 두고, 겹치는지는 그 땅이
+                      실제로 세계에 들어올 때 판단한다.
+                      → 지금 아무것도 하지 않는 선택이며, 판단을 미루는 값은 낮다.
+
+    Agent 판단     (a) 와 (c) 중에서는 (c) 를 권한다. (a) 로 옮기려면 "어느 지형인가" 를
+                  지금 골라야 하는데 그 근거를 두 문서 어디도 공급하지 않는다.
+                  Q47 이 (a) 로 닫히면 그때 이 질문은 배선 하나로 줄어든다.
+
+    DECISION      (c) 그대로 둔다 (Human)
+
+## Q50. BT 의 자원 24종·세력 37종을 언제 노드로 세울 것인가 — CLOSED
+
+    무엇          BT 는 지형마다 자연 자원 셋과 세력 넷 남짓을 든다 — 왕골 · 태양심 ·
+                  이름목 · 숨결진주 · 방향석 · 맥동정 · 가능유리 · 회귀밀 …, 그리고
+                  갈비성 연맹 · 해숨 부족 · 가면촌 · 숨지기 · 길청자 · 미궁상인 ….
+                  이번 주입은 그중 **하나도** 노드로 세우지 않았다.
+
+    왜 세우지 않았나  자원 노드(IT-* / IP-*)는 `grants` 로 **이미 있는** MC-* 를 가리켜야
+                  하고, 세력 노드(MA-*)는 관점과 원하는 것을 가져야 한다. BT 는 둘 다
+                  공급하지 않는다 — 자원은 무엇을 하는지까지만 적고 어느 능력을 여는지
+                  말하지 않으며, 세력은 무엇을 하는 무리인지 한 줄로만 적는다.
+                  지어내면 주입이 아니라 창작이 된다 (guides/master-inject.md).
+
+    지금 상태     각 MW-TERRAIN-* 의 detail 이 그 땅이 낳은 것의 이름을 담고 있어, 자리가
+                  비어 있다는 사실이 Graph 에서 보인다. 자원 카탈로그 쪽에는 이미
+                  승인 대기 문서가 하나 있다 — `content/proto-adventure/design/Design-Resource-Catalog-R0.md`
+                  (Q36 과 묶여 있다).
+
+    선택지        (a) **지금 세우지 않는다 (현행 유지)** — 자원은 승인 대기 중인 카탈로그
+                      문서의 주입이, 세력은 그 지형의 WHY 확장이 받는다.
+                      → 같은 자리를 두 곳에서 만들지 않는다. 대신 BT §12 의 연결
+                        (자원이 다음 지형을 연다)이 Graph 에서는 아직 문장으로만 남는다.
+                  (b) **자원만 먼저 세운다** — origin_trace 의 world_state 를 이제 지형
+                      노드가 공급할 수 있으므로 `grants` 를 비우고 `grants_note` 에 사유를
+                      적어 세운다 (SCHEMA 가 허용하는 형태다 — 능력을 열지 않는 자원은 정상이다).
+                      → 24 종이 한 번에 들어오고, 카탈로그 문서가 승인되면 둘을 합쳐야 한다.
+                  (c) **세력까지 세운다** — 관점을 잠정으로 적고 `grounded` 에 해당하는
+                      표시를 남긴다.
+                      → Actor 노드에는 그런 표시 자리가 없다. 만들려면 SCHEMA 를 먼저 고친다.
+
+    Agent 판단     (a) 를 권한다. 근거는 겹침이다 — 자원 카탈로그 문서가 이미 Human 승인을
+                  기다리고 있고, 그것이 승인되면 같은 자리를 두 번 만든 것이 된다.
+
+    DECISION      (a) 지금 세우지 않는다 (Human)
+
+## Q51. 대지형 Constraint 넷(DRAFT)을 승인할 것인가 — CLOSED
+
+    무엇          BT 주입이 DRAFT 로 낸 넷이다. 넷 다 BT 가 절을 따로 두어 명시한 규칙이며,
+                  Agent 는 원본보다 세게 쓰지 않았다.
+
+                  DC-WORLD-TERRAIN-IS-A-PRINCIPLE          BT §1 · §15.1~§15.3 · §16
+                  DC-WORLD-SAFETY-IS-A-NATURAL-EXCEPTION   BT §3 · §13
+                  DC-WORLD-TERRAIN-LAW-IS-OBSERVABLE       BT §2 · §15.8 · §15.9
+                  DC-WORLD-TERRAIN-READS-AT-A-DISTANCE     BT §14
+
+    지금 상태     넷 다 `status: DRAFT` 이고 **어느 노드에도 걸려 있지 않다**
+                  (`constraints:` 배선 0). 승인 전에 배선하면 판정이 아직 없는 원칙이
+                  Filter 로 도는 셈이 되기 때문이다. 승인되면 대지형 Capability 아홉과
+                  MW-TERRAIN-* 여덟에 배선하고 판정을 채운다.
+
+    옆에서 이미 하는 일  BT §12(자원이 다음 지형을 연다)는 새 DC 로 만들지 않았다 —
+                  DC-WORLD-PROGRESSION-IS-REACH 의 `resource_can_open_capability_route`
+                  가 이미 같은 것을 요구한다. §11(자원의 유래)도 마찬가지로
+                  DC-WORLD-RESOURCE-ADAPTATION-TRACE 가 소유한다. 같은 의미를 새 이름으로
+                  만들지 않았다는 뜻이다.
+
+    선택지        (a) 넷 다 승인한다 → 세계 영역 Constraint 가 5 에서 9 가 된다.
+                  (b) 일부만 승인한다 → 어느 것을 왜 뺐는지가 그 자리에 남는다.
+                      가장 다툴 만한 것은 READS-AT-A-DISTANCE 다 — 넷 중 유일하게
+                      보이는 형태를 요구하며, 시각 설계에 가장 가깝다.
+                  (c) 반려한다 → 그 원칙들은 constraints/ 에서 지운다. 보류하지 않는다
+                      (guides/master-constraint.md).
+
+    DECISION      넷 다 승인 (Human)
+
+## 다섯의 반영 — 무엇이 어디에 들어갔나
+
+    Q47(a) 직교      systems.yaml   MS-BEIRA-TERRAIN · MS-BEIRA-LADDER 양쪽 semantic 에
+                                    직교를 명시 (서로를 가리킨다)
+                     world-state    머리말 인과도 · 대지형 절 주석 · MW-MACRO-TERRAIN 의
+                                    world_shape · MW-DEPTH-GRADIENT 의 detail
+                     overlay.md     대지형 Capability 절 intro — 땅이 들어오는 Cycle 은
+                                    두 표(층 · 지형)의 요구를 함께 본다
+                     남긴 것         "한 지역이 둘을 어떻게 적는가" 의 형태는 그 Cycle 의
+                                    03-world-semantic.md 소유다 (정책 §7.2). 지금 정하지 않는다
+
+    Q48(a) 둘 다     world-state    MW-SAFE-FRONTIER 에 "베이라 밖" · 갈비분지에 "베이라 안"
+                                    과 안전 사유의 차이를 명시
+                     possibilities  MP-PREPARE-IN-CIVILIZATION 의 requires 는 그대로 두었다 —
+                                    AND 이므로 두 곳을 함께 적으면 둘 다 요구가 된다.
+                                    주석으로 "어느 한 곳이 서면 성립" 을 남겼다
+
+    Q49(c) 그대로    world-state    대표 지역 둘의 절 주석에 결정과 사유를 적었다.
+                                    노드는 하나도 옮기지 않았다 (arises_from 그대로)
+
+    Q50(a) 안 세움   capabilities   비주입 절을 "질문이 들고 있다" 에서 "Human 이 확정했다"
+                                    로 바꿨다 — 자원은 카탈로그 문서 주입이, 세력은 그
+                                    지형의 WHY 확장이 받는다
+
+    Q51 승인         constraints/   DC-WORLD-TERRAIN-* 4종 DRAFT → APPROVED
+                     capabilities   대지형 MC 9종에 배선 + 판정 (전부 SATISFIED).
+                                    LAW-IS-OBSERVABLE 6건 · SAFETY-IS-A-NATURAL-EXCEPTION 4건
+                                    (MC-FIND-SAFE-ROUTE 는 둘 다)
+
+    **넷 중 둘은 걸린 노드가 0 이다** — TERRAIN-IS-A-PRINCIPLE 과 READS-AT-A-DISTANCE 다.
+    그 둘은 Capability 가 아니라 **땅 자체의 형태**를 규율하는데, SCHEMA 의 world_state 에는
+    `constraints` 칸이 없다 (Capability · Goal · Possibility 에만 있다). 없는 칸을 이번에
+    만들지 않았다 — 형식을 바꾸는 일은 주입의 몫이 아니기 때문이다. 그 둘이 실제로
+    판정되는 자리는 새 대지형을 세우는 작업(주입 · WHY 확장)과 그 땅을 만드는 Cycle 이며,
+    걸린 노드 0 은 도구가 문제로 올리지 않는다 (GLOBAL Scope DC 들과 같은 자리).
+    world_state 에 그 칸을 둘 것인가는 필요해질 때 Human 이 정한다.
+
+    **이 다섯이 닫히면서 막힌 것이 하나 풀렸다** — 땅을 세우는 첫 Cycle 의 모양이
+    정해질 수 있게 되었다. Frontier 후보는 아직 세우지 않았다 (NEXT 작업).
+
+## TERRAIN 첫 후보 선택 — Human 위임 · 2026-08-26
+
+    Human 지시: "LANE에만 반영하고 다음 세션에서 이어할수 있도록 마무리. 병렬로 진행
+    가능한지 확인. 그리고 후보는 알아서 정할 것."
+
+    Frontier 선택은 Human 소유다 (CLAUDE.md 원칙 19). 이번에는 Human 이 그 선택을
+    Agent 에게 **명시적으로 위임**했으므로 Agent 가 골랐고, 위임의 사실을 여기 남긴다 —
+    원칙이 면제된 것이 아니라 그 자리에서 Human 이 답을 준 것이다.
+
+    고른 것      FR-THE-GROUND-HAS-A-LAW (땅이 법칙을 지닌다) → C-TERRAIN-001
+    근거         대지형 Capability 아홉의 overlay_gap 이 서로 다른 문장으로 같은 하나를
+                 가리킨다 — 땅이 없다. 나머지 둘은 이것 없이 성립하지 않는다:
+                 예고(FR-THE-LAND-SHOWS-BEFORE-IT-TAKES)는 "아무 일도 일어나지 않는 것의
+                 예고" 가 되고, 나르기(FR-WHAT-KEEPS-YOU-ALIVE-IS-CARRIED)는 나를 이유가
+                 없다. 셋 중 유일하게 **다른 레인과 파일이 겹치지 않는다**는 점도 함께 봤다
+    고르지 않은 것 예고는 값이 싸지만 순서가 뒤다. 나르기는 셋 중 가장 크고 아이템 쪽
+                 파일에 닿아, 같은 시기에 ITEM 레인이 열리면 겹친다
+
+    Cycle 은 아직 시작하지 않았다 — 판(LANES.md)과 트랙 파일에만 반영했고, 다음 세션이
+    `advprotoh-cycle` 로 Stage 1 부터 잡는다. 넘어갈 MASTER TRACE 는 frontier/terrain.md
+    의 SELECTED 절이 그대로 들고 있다.

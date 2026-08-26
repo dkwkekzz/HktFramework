@@ -38,6 +38,8 @@ systems:
       세계의 깊이 층. 층마다 살아남기 위해 요구하는 대응이 다르다 — 각 층의 요구는
       MW-ZONE-* 의 demands 가 거울이다. BW 는 층마다 이름과 "필요:" 목록만 공급하므로
       이 사다리에 속한 조각 대부분은 grounded: false 다.
+      대지형(MS-BEIRA-TERRAIN)과 **직교한다** (HISTORY Q47(a)) — 어느 땅이든 그 안에서
+      깊어질 수 있고, 한 지역은 "어느 대지형의 어느 깊이" 를 함께 가진다.
     segments:
       - { id: SAFE,    name: SAFE FRONTIER }
       - { id: FRINGE,  name: FRINGE }
@@ -127,3 +129,17 @@ systems:
       - { id: SPATIAL-PRESENCE, name: 공간 존재 — 몸이 아닌 것이 세계에 자리를 가진다 }
       - { id: TRIGGER,          name: 사건 — 세계에서 일어난 일이 다음 실행을 부른다 }
       - { id: COMPOSITION,      name: 연결 — 하나의 실행이 다음 실행을 낳는다 }
+
+  - id: MS-BEIRA-TERRAIN
+    name: 베이라 대지형
+    source: BT (content/proto-adventure/design/Master-World-Beira-Terrain.md) §1 · §4~§11 · §13 · §15
+    status: DEFINED
+    semantic: >
+      하나의 원리가 매질(암석·물·대기·열·생명·공간·기억·Identity·소리·관계)에 대륙 규모로
+      결속되어 형성된 자연 시스템의 목록. 여덟이 문서에 서 있고, 각 지형은 자기 법칙이
+      요구하는 대응을 따로 가진다 — 그 요구는 MW-TERRAIN-* 의 demands 가 거울이다.
+      자리를 순서로 두지 않는다: 여덟은 난이도 순으로 배치된 목록이 아니며 (BT §16),
+      어디에 갈 수 있는지는 무엇을 감당하게 되었는가가 정한다 (BT §12).
+      깊이 사다리(MS-BEIRA-LADDER)와 **직교한다** (Human 결정 — HISTORY Q47(a)):
+      이쪽은 어떤 법칙의 땅인가이고 그쪽은 그 땅 안에서 얼마나 들어갔는가다.
+      한 대지형 안에 안전한 마을과 극단적으로 위험한 심부가 함께 있다 (BT §3).
