@@ -1,6 +1,15 @@
 // 의미 코드 → 플레이어 표시 문구 (결정 Layer 데이터).
 // World 는 코드만 보낸다 — 불가 사유 코드, 행동 코드 등. 문구는 여기서 정한다.
 // 미등록 코드는 코드 그대로 표시된다 — 표현 누락이 게임을 멈추지 않는다.
+//
+// **기반도 코드만 보낸다** (기반 부채 ② — 표시 문구를 사유 코드로 바꿔 팩에 회수).
+// 명령 표면·조작 안내·자원 막대가 쓰던 말이 기반에 살아 있었고, 팩에 이미 있는 이 표와
+// 같은 것이 두 곳에 있는 상태였다. 이제 기반은 `command.*` 코드를 부르고 말은 여기 있다 —
+// 목록의 단일 출처는 `engine/view-kernel/presentation/command-presentation.ts` 의
+// COMMAND_TEXT_CODES 이며, 덮지 못한 것은 `view/tests/command.spec.ts` 가 잡는다.
+//
+// 문장에 값이 끼는 자리는 `{}` 로 적는다 — 끼울 값은 기반이 데이터로 넘기고,
+// 그 값이 문장의 **어디에** 어떤 말과 함께 서는지는 이 표가 정한다.
 
 const CODE_TEXT: Record<string, string> = {
   // 불가 사유 (C001)
@@ -118,6 +127,34 @@ const CODE_TEXT: Record<string, string> = {
   'missing-position': '어디로 갈지 실리지 않았다',
   'missing-target': '대상이 실리지 않았다',
   'missing-mode': '어떤 걸음인지 실리지 않았다',
+  // ── 명령 표면이 쓰는 말 (기반 부채 ② — COMMAND_TEXT_CODES) ────────
+  // 기반은 이 중 어느 것도 짓지 않는다. 무엇을 말해야 하는지만 코드로 부른다.
+  'command.domain.entity': '존재의 이름',
+  'command.domain.previous': '앞에서 고른 것이 정하는 값',
+  'command.domain.value': '값',
+  'command.state.on': '켜짐',
+  'command.state.off': '꺼짐',
+  // 이 명령이 어디로 가는가 — 걸었을 때 세계가 아는가 아닌가의 경계다
+  'command.origin.world': '세계',
+  'command.origin.observer': '내 화면',
+  // 세계가 사유를 밝히지 않고 거절한 자리 — 말없이 회색으로만 서지 않게 한다
+  'command.unavailable': '지금은 걸 수 없다',
+  'command.omitted': '비우면 {}',
+  'command.omitted.nothing': '없음',
+  'command.next': '다음: {}',
+  'command.close': '닫기',
+  // 걸기 전에 알려 주는 것 — `{}` 에는 친 낱말이나 자리에 맞지 않은 값이 온다
+  'command.no-such': '그런 명령이 없다 — {}',
+  'command.takes-nothing': '{} 은 아무것도 받지 않는다',
+  'command.out-of-range': '허용된 범위를 벗어난 값이다 — {}',
+  'command.not-here': '그 자리에 넣을 수 없다 — {}',
+  'command.leftover': '받지 않는 것이 남았다 — {}',
+  'command.incomplete': '아직 다 적지 않았다',
+  // ── 자원 막대의 이름 (기반 부채 ②) ────────────────────────────────
+  // 기반의 self 패널이 `HP` · `CP` 를 직접 적던 자리다. 세계가 무엇을 자원으로
+  // 삼는지는 팩의 일이므로 그 이름도 팩이 쥔다
+  'self.health': 'HP',
+  'self.energy': 'CP',
   // 명령이 무엇을 하는가 (C009 — Command.Effect)
   'set-attribute': '존재의 속성 값을 바꾼다',
   'collider-observe': '몸과 휘두름의 충돌체를 보인다',
@@ -170,8 +207,20 @@ const CODE_TEXT: Record<string, string> = {
   'omitted:all-known': '알고 있는 전부',
 };
 
-export function codeText(code: string): string {
-  return CODE_TEXT[code] ?? code;
+/**
+ * 코드를 사람이 읽는 말로.
+ *
+ * `detail` 은 **문장에 끼울 값**이다 (친 낱말 · 범위 밖의 값 · 남은 낱말). 등록된 문구에
+ * `{}` 가 있으면 그 자리에 들어가고, 없으면 값은 버려진다 — 문장이 값을 부르지 않는데
+ * 뒤에 억지로 붙이면 말이 아니라 찌꺼기가 된다.
+ *
+ * 등록되지 않은 코드는 **코드 그대로**이며, 값이 있으면 코드 뒤에 붙는다 —
+ * 표현 누락이 게임을 멈추지 않고, 무엇이 빠졌는지는 화면에 그대로 드러난다.
+ */
+export function codeText(code: string, detail?: string): string {
+  const text = CODE_TEXT[code];
+  if (text === undefined) return detail === undefined ? code : `${code}: ${detail}`;
+  return detail === undefined ? text : text.replace('{}', detail);
 }
 
 /**

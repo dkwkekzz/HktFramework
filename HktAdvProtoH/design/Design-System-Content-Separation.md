@@ -120,10 +120,12 @@ content/<packId>/            컨텐츠 팩 = 교체 단위
   후보 좁힘이라는 자기 기계장치를 가지며, 그것을 범용 형에 밀어 넣으면 형이 명령의
   모양을 닮는다 (승격 규칙 1 — 하나의 게임에서 일반화하지 않는다).
   셋을 하나로 합칠지는 **다음 팩이 실제로 다른 패널을 요구할 때** 정한다.
-- `engine/view-kernel/hud/command-console.ts` · `presentation/command-presentation.ts` ·
-  `hud/hud.ts` 에 표시 문구(한국어)가 남아 있다 — `'그런 명령이 없다'` `'켜짐/꺼짐'`
-  `HP`/`CP` `'+N 획득!'` 과 키 안내 줄. 팩에는 이미 문구 표(`view/code-text.ts`)가 있으므로
-  같은 것이 두 곳에 있는 상태다. 사유 코드로 바꿔 팩에 되돌리는 일은 별도 기반 트랙 작업이며,
-  C009 결과물을 넓게 건드리므로 겹침 표면 작업과 묶지 않았다.
+- 기반의 **나머지 표면**에 아직 표시 문구(한국어)가 남아 있다 — 겹침 표면
+  (`hud/surface.ts` 의 `'빈 자리'` `'불가'` `'기다리는 중'` `'가능'` `'닫기'`), 슬롯 띠
+  (`hud/slot-bar.ts` 의 읽어 주는 말), 손가락 띠(`hud/touch-pad.ts` 의 기반 키 이름 셋),
+  이어짐(`presentation/session-presentation.ts` · `link-presentation.ts` 의 상태·계량 이름).
+  명령 표면 쪽이 간 길이 그대로 쓰인다 — **기반은 코드를 부르고 팩의 표가 말을 준다**
+  (`COMMAND_TEXT_CODES` 와 같은 목록 + 팩 검사). 손가락 띠의 셋은 이미 자리가 있다:
+  `input/engine-keys.ts` 가 그 키들의 원본을 쥐고, 팩이 `ENGINE_KEY_TEXT` 에서 이름을 준다.
 - `engine/view-kernel/terrain/terrain.ts` 의 구릉·풀색은 엔진의 기본 지면이다 —
   팩별 지형 표현이 필요해지면 ⑤ 와 같은 주입 자리로 뺀다.

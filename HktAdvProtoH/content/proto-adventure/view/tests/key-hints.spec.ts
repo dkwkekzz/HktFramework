@@ -14,8 +14,16 @@
 
 import { describe, expect, it } from 'vitest';
 import { KEY_BINDINGS } from '../bindings';
+import { ENGINE_KEY_CODES, ENGINE_KEYS } from '../../../../engine/view-kernel/input/engine-keys';
 import { boundKeys, RESERVED_KEY_CODES } from '../interaction-presentation';
-import { hasLabel, keyLabel, packKeys, panelKeyHints, SLOT_KEY_LABELS } from '../key-registry';
+import {
+  engineKeyHints,
+  hasLabel,
+  keyLabel,
+  packKeys,
+  panelKeyHints,
+  SLOT_KEY_LABELS,
+} from '../key-registry';
 
 const registered = packKeys();
 const boundCodes = KEY_BINDINGS.map((b) => b.code);
@@ -119,9 +127,44 @@ describe('화면 문구가 이 표에서 나온다', () => {
   });
 });
 
+describe('기반 부채 ② — 기반 키의 이름도 팩이 준다', () => {
+  it('예약 목록이 사본이 아니라 기반의 원본이다', () => {
+    // 손으로 적어 둔 목록이었다면 기반이 자리를 늘려도 이 검사는 통과한 채로
+    // 조작이 죽는다 (C025 가 실제로 그렇게 걸렸다)
+    expect(RESERVED_KEY_CODES).toBe(ENGINE_KEY_CODES);
+    expect(RESERVED_KEY_CODES).toContain('Slash');
+    expect(RESERVED_KEY_CODES).toContain('KeyW');
+    expect(RESERVED_KEY_CODES).toContain('KeyR'); // 시점 — C025 이 여기서 걸렸다
+  });
+
+  it('이름을 준 기반 자리는 전부 실제로 있는 자리다 — 옛 이름이 표에 남지 않는다', () => {
+    const known = new Set(Object.keys(ENGINE_KEYS));
+    // 줄은 `<무엇>: <표기>` 꼴이고 자리 수만큼 선다. 자리가 사라지면 줄도 사라진다
+    expect(engineKeyHints()).toHaveLength(4);
+    expect([...known]).toEqual(
+      expect.arrayContaining(['command', 'move', 'turn', 'colliderObserve', 'attributeInspect']),
+    );
+  });
+
+  it('기반이 짓던 넷이 그대로 뜬다 — 자리만 옮겼지 화면은 같다', () => {
+    expect(engineKeyHints()).toEqual([
+      '명령: /',
+      '이동: WASD / 방향키',
+      '충돌체 관찰: C',
+      '속성 관찰: V',
+    ]);
+  });
+});
+
 describe('V-005 — 팩의 키가 안내 패널에 선다', () => {
-  it('한 번도 뜬 적 없던 다섯이 선다', () => {
+  it('기반 넷 아래에 한 번도 뜬 적 없던 다섯이 선다', () => {
     expect(panelKeyHints()).toEqual([
+      // 기반이 소유하던 넷 — 이제 keyHints 를 타고 온다 (기반 부채 ②)
+      '명령: /',
+      '이동: WASD / 방향키',
+      '충돌체 관찰: C',
+      '속성 관찰: V',
+      // 팩의 다섯
       '덜어내기: B',
       '걸기: N',
       '풀기: M',

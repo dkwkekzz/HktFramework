@@ -24,8 +24,44 @@ import type {
 } from '../scene/scene-state';
 // 의미 코드 → 문구 변환은 컨텐츠 팩의 결정이다 (P3 CHANGED) — 주입받는다.
 // 주지 않으면 코드가 그대로 보인다 (표현 누락이 게임을 멈추지 않는다).
-export type CodeTextFn = (code: string) => string;
-const RAW_CODE: CodeTextFn = (code) => code;
+//
+// 둘째 인자는 **문장에 끼워 넣을 값**이다 — 친 낱말, 자리에 맞지 않은 값, 남은 낱말.
+// 값은 데이터이고 문장은 문구다. 어느 자리에 어떤 말로 끼우는지는 팩이 정한다
+// (기반은 `{}` 가 어디에 있는지조차 알지 못한다).
+export type CodeTextFn = (code: string, detail?: string) => string;
+const RAW_CODE: CodeTextFn = (code, detail) => (detail === undefined ? code : `${code}: ${detail}`);
+
+/**
+ * 이 파일이 부르는 문구 코드 전부 — **기반이 쓰는 말의 목록**이다.
+ *
+ * 기반은 이제 사람이 읽을 말을 하나도 짓지 않는다. 그 대신 무엇을 말해야 하는지를
+ * 코드로 부르고, 그 코드가 무슨 말이 되는지는 팩의 문구 표가 정한다
+ * (design/Design-System-Content-Separation.md — 남은 부채 ②).
+ *
+ * 목록을 내보내는 이유는 팩이 **덮지 못한 것을 검사로 잡기 위해서**다. 덮지 않아도
+ * 게임은 멈추지 않는다 — 코드가 그대로 보인다. 하지만 그것은 화면에 코드가 뜨는 일이며,
+ * 조용히 그렇게 되는 것과 검사가 말해 주는 것은 다르다.
+ */
+export const COMMAND_TEXT_CODES = [
+  'command.domain.entity',
+  'command.domain.previous',
+  'command.domain.value',
+  'command.state.on',
+  'command.state.off',
+  'command.origin.world',
+  'command.origin.observer',
+  'command.unavailable',
+  'command.omitted',
+  'command.omitted.nothing',
+  'command.next',
+  'command.close',
+  'command.no-such',
+  'command.takes-nothing',
+  'command.out-of-range',
+  'command.not-here',
+  'command.leftover',
+  'command.incomplete',
+] as const;
 
 // ── 관찰자 쪽 명령 (04 observerCommands.items) ───────────────────────
 // 세계로 가지 않는다. 세계는 이런 것이 걸렸다는 사실조차 알지 못한다.
@@ -82,12 +118,14 @@ function domainPool(
 function domainHint(
   domain: CommandDomainView | undefined,
   snapshot: GameViewSnapshot | null,
+  textOf: CodeTextFn,
 ): string {
   if (!domain) return '';
   switch (domain.kind) {
     case 'entity': {
       const pool = entityPool(domain, snapshot);
-      return pool.length > 0 ? pool.join(' | ') : '존재의 이름';
+      // 가리킬 것이 실제로 있으면 그 이름들이 곧 안내다 — 이름은 세계의 데이터다.
+      return pool.length > 0 ? pool.join(' | ') : textOf('command.domain.entity');
     }
     case 'choice':
       return domainOptions(domain).join(' | ');
@@ -97,9 +135,9 @@ function domainHint(
       return `${min} … ${max}`;
     }
     case 'from-previous-choice':
-      return '앞에서 고른 것이 정하는 값';
+      return textOf('command.domain.previous');
     default:
-      return '값';
+      return textOf('command.domain.value');
   }
 }
 
@@ -137,11 +175,20 @@ function slotOf(
   return {
     id: textOf(`param:${parameter.id}`),
     required: parameter.required,
-    hint: domainHint(domain, snapshot),
+    hint: domainHint(domain, snapshot, textOf),
     ...(options.length > 0 ? { options } : {}),
-    ...(parameter.omittedMeaning
-      ? { omittedMeaning: textOf(`omitted:${parameter.omittedMeaning}`) }
-      : {}),
+    // 비워 둘 수 있는 자리에만 선다 — **문장째** 만든다. 그리는 쪽은 "비우면" 이라는
+    // 말을 알지 못한다 (그 말도 팩의 것이다).
+    ...(parameter.required
+      ? {}
+      : {
+          omittedText: textOf(
+            'command.omitted',
+            parameter.omittedMeaning
+              ? textOf(`omitted:${parameter.omittedMeaning}`)
+              : textOf('command.omitted.nothing'),
+          ),
+        }),
   };
 }
 
@@ -163,8 +210,13 @@ export function commandEntries(
     id: command.id,
     title: textOf(command.effect),
     origin: 'world' as const,
+    originText: textOf('command.origin.world'),
     available: command.available,
-    ...(command.reason ? { unavailableText: textOf(command.reason) } : {}),
+    // 사유를 밝히지 않은 거절도 **말이 남는다** — 안 되는 것이 말없이 회색으로만
+    // 서면 겪는 사람은 그것이 고장인지 규칙인지 알 수 없다.
+    ...(command.available
+      ? {}
+      : { unavailableText: textOf(command.reason ?? 'command.unavailable') }),
     usage: usageOf(command),
     slots: command.parameters.map((parameter, index) =>
       slotOf(parameter, effectiveDomain(command.parameters, index, []), snapshot, textOf),
@@ -176,10 +228,11 @@ export function commandEntries(
     id: command.id,
     title: textOf(command.effect),
     origin: 'observer' as const,
+    originText: textOf('command.origin.observer'),
     available: true,
     usage: command.id,
     slots: [],
-    stateText: observerStates[command.id] ? '켜짐' : '꺼짐',
+    stateText: textOf(observerStates[command.id] ? 'command.state.on' : 'command.state.off'),
   }));
 
   return [...world, ...observer];
@@ -293,8 +346,9 @@ export function composeCommand(
       candidates,
       ...(exact?.slots[0] ? { nextSlot: exact.slots[0] } : {}),
       suggestions: candidates.map((entry) => entry.id),
+      ...(exact?.slots[0] ? { nextText: textOf('command.next', exact.slots[0].id) } : {}),
       ...(typed.length > 0 && candidates.length === 0
-        ? { problem: `그런 명령이 없다 — ${typed}` }
+        ? { problem: textOf('command.no-such', typed) }
         : {}),
       // 자리를 받지 않는 명령(관찰 토글)은 이름만으로 걸 수 있다.
       submittable: exact !== undefined && exact.slots.length === 0,
@@ -307,7 +361,7 @@ export function composeCommand(
       text,
       candidates: [],
       suggestions: [],
-      problem: `그런 명령이 없다 — ${typed}`,
+      problem: textOf('command.no-such', typed),
       submittable: false,
     };
   }
@@ -318,7 +372,7 @@ export function composeCommand(
       text,
       candidates: [entry],
       suggestions: [],
-      ...(words.length > 1 ? { problem: `${entry.id} 은 아무것도 받지 않는다` } : {}),
+      ...(words.length > 1 ? { problem: textOf('command.takes-nothing', entry.id) } : {}),
       submittable: words.length === 1,
     };
   }
@@ -361,7 +415,7 @@ export function composeCommand(
     if (value === '') continue;
     const domain = effectiveDomain(command.parameters, index, filled);
     if (outOfRange(value, domain)) {
-      problem = `허용된 범위를 벗어난 값이다 — ${value} (${domainHint(domain, snapshot)})`;
+      problem = textOf('command.out-of-range', `${value} (${domainHint(domain, snapshot, textOf)})`);
       break;
     }
     // 아직 쓰는 중인 낱말은 이어질 가망이 남아 있는 동안 탓하지 않는다.
@@ -370,12 +424,12 @@ export function composeCommand(
         ? couldBecome(value, domain, snapshot)
         : fits(value, domain, snapshot);
     if (!ok) {
-      problem = `그 자리에 넣을 수 없다 — ${value} (${domainHint(domain, snapshot)})`;
+      problem = textOf('command.not-here', `${value} (${domainHint(domain, snapshot, textOf)})`);
       break;
     }
   }
   if (problem === undefined && leftover.length > 0) {
-    problem = `받지 않는 것이 남았다 — ${leftover.join(' ')}`;
+    problem = textOf('command.leftover', leftover.join(' '));
   }
 
   // 다 적었는가 — 빈 필수 자리가 없고, 쓰는 중인 낱말도 그 자리에 실제로 들어맞아야 한다.
@@ -388,10 +442,11 @@ export function composeCommand(
     return fits(value, effectiveDomain(command.parameters, index, filled), snapshot);
   });
 
+  const nextSlot = nextParameter ? slotOf(nextParameter, nextDomain, snapshot, textOf) : undefined;
   return {
     text,
     candidates: [entry],
-    ...(nextParameter ? { nextSlot: slotOf(nextParameter, nextDomain, snapshot, textOf) } : {}),
+    ...(nextSlot ? { nextSlot, nextText: textOf('command.next', nextSlot.id) } : {}),
     suggestions,
     ...(problem ? { problem } : {}),
     submittable: !missing && allFit && problem === undefined,
@@ -411,10 +466,11 @@ export function invocationOf(
   entries: readonly SceneCommandEntry[],
   snapshot: GameViewSnapshot | null,
   observerStates: ObserverCommandStates,
+  textOf: CodeTextFn = RAW_CODE,
 ): CommandInvocation {
-  const composition = composeCommand(text, entries, snapshot, observerStates);
+  const composition = composeCommand(text, entries, snapshot, observerStates, textOf);
   if (!composition.submittable) {
-    return { kind: 'rejected', problem: composition.problem ?? '아직 다 적지 않았다' };
+    return { kind: 'rejected', problem: composition.problem ?? textOf('command.incomplete') };
   }
 
   const { words } = tokenize(text);

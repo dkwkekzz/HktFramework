@@ -45,6 +45,7 @@ import type {
 } from '../../../engine/view-kernel/scene/scene-state';
 import type { GameViewSnapshot, InteractionView, SkillProfileView } from '../protocol/gameview';
 import { interactionPresentation } from './interaction-presentation';
+import { waitingSince, waitStage, waitText, type WaitStage } from './request-timing';
 
 /** 기술 줄의 id 앞머리 — 조립 루트가 이것으로 자기 칸을 되찾는다 */
 export const SKILL_HUD_PREFIX = 'skill.';
@@ -206,12 +207,24 @@ function rejectionStillHolds(skill: SkillObservation, answer: SkillAnswer | unde
  *
  * **없는 것을 지어내지 않는다** — 가용하면 사유가 없고, 사유가 없으면 이유를 만들지 않는다.
  */
-function statusText(skill: SkillObservation, answer: SkillAnswer | undefined, short: (c: string) => string): string {
-  if (answer?.state === 'pending') return '요청 중';
+function statusText(
+  skill: SkillObservation,
+  answer: SkillAnswer | undefined,
+  short: (c: string) => string,
+  wait: WaitStage,
+): string {
+  // 기다림은 **늦을 때만** 말한다 (V-007). 늦지 않은 기다림 동안 이 칸은 세계의 지금을
+  // 그대로 보인다 — 곧 올 답이 그 자리를 덮으므로, 깜빡이는 글자를 하나 더 두지 않는다
+  if (answer?.state === 'pending') return waitText(wait) ?? worldNow(skill, short);
   if (answer?.state === 'unsent') return '세계에 닿지 않음';
   if (answer?.state === 'accepted') return '나갔다';
   if (rejectionStillHolds(skill, answer))
     return `거절 · ${short(answer?.reason ?? 'unknown-interaction')}`;
+  return worldNow(skill, short);
+}
+
+/** 세계의 지금 — 내 요청에 대한 답이 아무것도 없을 때 이 칸이 말하는 것 */
+function worldNow(skill: SkillObservation, short: (c: string) => string): string {
   if (!skill.available) return `불가 · ${short(skill.reason ?? 'unknown-interaction')}`;
   return '지금 됨';
 }
@@ -243,8 +256,13 @@ function panelMark(
   skill: SkillObservation,
   answer: SkillAnswer | undefined,
   text: (code: string) => string,
+  wait: WaitStage,
 ): string {
-  if (answer?.state === 'pending') return '⋯ 요청 중';
+  if (answer?.state === 'pending') {
+    const waiting = waitText(wait);
+    if (waiting !== undefined) return `⋯ ${waiting}`;
+    // 아직 말하지 않는다 — 아래로 흘러 세계의 지금이 선다 (V-007)
+  }
   if (answer?.state === 'unsent') return '✗ 세계에 닿지 않았다';
   if (answer?.state === 'accepted') return '✓ 나갔다';
   if (rejectionStillHolds(skill, answer))
@@ -264,6 +282,7 @@ export function skillDetailLines(
   snapshot: GameViewSnapshot,
   text: (code: string) => string,
   answers: SkillAnswers = NO_SKILL_ANSWERS,
+  now: number = performance.now(),
 ): string[] {
   const skills = skillObservations(snapshot);
   if (skills.length === 0) return [];
@@ -271,7 +290,7 @@ export function skillDetailLines(
   return [
     '기술',
     ...skills.map((skill) => {
-      const mark = panelMark(skill, answers[skill.id], text);
+      const mark = panelMark(skill, answers[skill.id], text, stageOf(skill.id, answers, now));
       const type = text(skill.profile.damageType);
       return (
         `${skill.label} ${mark}` +
@@ -285,9 +304,26 @@ export function skillDetailLines(
 /** 기술 띠의 id — 조립 루트가 눌린 칸을 이 앞머리로 되읽는다 */
 export const SKILL_SLOT_BAR_ID = 'skills';
 
+/**
+ * 이 기술의 기다림이 지금 어떻게 보이는가 (V-007).
+ *
+ * 언제 보냈는지는 화면에 실려 오지 않는다 — `SkillAnswer` 는 결과만 나른다.
+ * 그래서 **기다리는 것을 처음 본 순간**을 화면이 적어 둔다 (request-timing 의 장부).
+ */
+function stageOf(id: string, answers: SkillAnswers, now: number): WaitStage {
+  const pending = answers[id]?.state === 'pending';
+  return waitStage(waitingSince(id, pending, now), now);
+}
+
 /** 이 칸이 지금 어떤 상태인가 — 세계의 판정과 내 요청을 한 값으로 (그리기용) */
-function slotState(skill: SkillObservation, answer: SkillAnswer | undefined): SceneSlotState {
-  if (answer?.state === 'pending') return 'pending';
+function slotState(
+  skill: SkillObservation,
+  answer: SkillAnswer | undefined,
+  wait: WaitStage,
+): SceneSlotState {
+  // 기다리는 칸으로 그리는 것도 늦을 때부터다 — 안 그러면 누를 때마다 칸이 깜빡인다
+  if (answer?.state === 'pending' && wait !== 'silent') return 'pending';
+  if (answer?.state === 'pending') return skill.available ? 'available' : 'blocked';
   if (answer?.state === 'unsent') return 'blocked';
   if (answer?.state === 'accepted') return 'available';
   return skill.available ? 'available' : 'blocked';
@@ -310,6 +346,7 @@ export function skillSlotBar(
   snapshot: GameViewSnapshot,
   short: (code: string) => string,
   answers: SkillAnswers = NO_SKILL_ANSWERS,
+  now: number = performance.now(),
 ): SceneSlotBar {
   const skills = skillObservations(snapshot);
   const arcs = skills.map((s) => shapeOf(s.profile)?.arc ?? 0);
@@ -319,6 +356,7 @@ export function skillSlotBar(
     id: SKILL_SLOT_BAR_ID,
     cells: skills.map((skill) => {
       const shape = shapeOf(skill.profile);
+      const wait = stageOf(skill.id, answers, now);
       return {
         id: skill.id,
         ...(skill.keyLabel ? { key: skill.keyLabel } : {}),
@@ -328,8 +366,8 @@ export function skillSlotBar(
         detail: shape
           ? `${arcBar(shape.arc, widest)} ${degrees(shape.arc)}° · 도달 ${outerReach(shape.reach, shape.tipRadius)}`
           : energyText(skill.profile),
-        status: statusText(skill, answers[skill.id], short),
-        state: slotState(skill, answers[skill.id]),
+        status: statusText(skill, answers[skill.id], short, wait),
+        state: slotState(skill, answers[skill.id], wait),
       };
     }),
   };

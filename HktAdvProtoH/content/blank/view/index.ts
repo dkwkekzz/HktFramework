@@ -17,7 +17,10 @@ import type {
   SceneState,
 } from '../../../engine/view-kernel/scene/scene-state';
 
-export const codeText = (code: string): string => code;
+// 문구 표가 없는 팩 — 코드가 그대로 보인다. 값이 끼는 자리(기반이 detail 을 넘기는 곳)도
+// 코드 뒤에 그대로 붙는다. 그래도 게임은 멈추지 않는다 (P5).
+export const codeText = (code: string, detail?: string): string =>
+  detail === undefined ? code : `${code}: ${detail}`;
 
 export const KEY_BINDINGS: readonly KeyBinding[] = [];
 
@@ -80,6 +83,7 @@ export function resolvePresentation(
     worldTime: Number(snapshot.hud.find((h) => h.id === 'world.time')?.value ?? 0),
     commandSurface: {
       open: options.command?.open ?? false,
+      closeText: codeText('command.close'),
       entries,
       composition: composeCommand(
         options.command?.text ?? '',

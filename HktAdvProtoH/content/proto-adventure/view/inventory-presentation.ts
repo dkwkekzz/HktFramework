@@ -27,6 +27,8 @@
 import type { SceneHudItem, SceneState } from '../../../engine/view-kernel/scene/scene-state';
 import type { GameViewSnapshot } from '../protocol/gameview';
 import { keyLabel, SLOT_KEY_LABELS } from './key-registry';
+// 종류 이름은 한 자리에서 온다 (V-008) — 같은 세 줄이 세 파일에 있던 자리다
+import { itemName } from './inventory-view';
 
 /** 소지품 줄의 id 앞머리 — 조립 루트가 칸 번호를 되읽을 때 쓴다 */
 export const INVENTORY_HUD_PREFIX = 'inventory.';
@@ -84,11 +86,6 @@ const ACTION_KEY_HINT: Record<string, (slot?: string) => string | undefined> = {
  * (`stone` 은 광맥의 종류로도 쓰인다). 표에 없어도 화면이 멈추지 않는 것이 요점이다 —
  * 세계가 새 아이템을 정의하는 것만으로 소지품에 나타나야 한다.
  */
-function itemName(kind: string, text: (code: string) => string): string {
-  const code = `item.${kind}`;
-  const named = text(code);
-  return named === code ? kind : named;
-}
 
 /** 그 칸이 무엇의 칸인가 — id 에서 종류를 되읽는다 (조립 루트가 요청을 만들 때 쓴다) */
 export function inventoryKindOf(hudId: string): string | undefined {
@@ -151,7 +148,7 @@ export function inventoryHudItems(
   }
 
   // 항목마다 **한 칸**이다. 수량은 한눈에 읽히고 자주 바뀌므로 띠에 남는다 —
-  // 캐서 늘어난 것이 반짝이는 자리도 여기다 (celebrateGain 은 counter 에만 붙는다).
+  // 캐서 늘어난 것이 반짝이는 자리도 여기다 (celebrateText 는 counter 에만 붙는다).
   // 그것으로 무엇이 되는가는 읽어야 아는 것이라 self 패널로 내려간다.
   return [
     ...roomLine,
@@ -166,8 +163,11 @@ export function inventoryHudItems(
         label: slot ? `${slot}. ${itemName(entry.kind, text)}` : itemName(entry.kind, text),
         ...(icon ? { icon } : {}),
         value: entry.count,
-        // 캐서 늘어난 돌이 반짝이던 자리를 그대로 잇는다 (C001 의 celebrateGain)
-        celebrateGain: true,
+        // 캐서 늘어난 돌이 반짝이던 자리를 그대로 잇는다 (C001 의 축하 토스트).
+        // **문장을 여기서 짓는다** (기반 부채 ②) — 기반은 `{}` 에 늘어난 만큼만 끼운다.
+        // 칸 번호가 붙은 label 이 아니라 **물건의 이름**으로 부른다 — 토스트는 띠의
+        // 몇 번째 칸인지를 축하하는 것이 아니라 무엇을 얻었는지를 축하하는 자리다
+        celebrateText: `+{} ${itemName(entry.kind, text)} 획득!`,
       };
     }),
   ];

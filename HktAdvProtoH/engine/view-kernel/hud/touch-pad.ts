@@ -11,13 +11,21 @@
 // 이는 hud.ts 의 키 안내가 이미 그렇게 하고 있는 것과 같다.
 
 import type { SceneInteraction, SceneState } from '../scene/scene-state';
+import { engineKeyCode } from '../input/engine-keys';
 import type { StickView } from '../input/touch';
 
-/** 관찰자 쪽에서 끝나는 것들 — 세계로 나가지 않는다 (C006 · C007 R2 · C009) */
+/**
+ * 관찰자 쪽에서 끝나는 것들 — 세계로 나가지 않는다 (C006 · C007 R2 · C009).
+ *
+ * 코드는 **원본에서 온다** (`input/engine-keys.ts`) — 여기 손으로 적어 두면 기반이
+ * 자리를 옮겨도 이 버튼만 옛 키를 계속 내놓는다.
+ * 이름은 아직 여기 있다 — 기반이 사람의 말을 쥔 마지막 자리 중 하나이며,
+ * 팩으로 되돌리는 일은 design/Design-System-Content-Separation.md 남은 부채에 있다.
+ */
 const OBSERVER_BUTTONS: { code: string; label: string }[] = [
-  { code: 'Slash', label: '명령' },
-  { code: 'KeyC', label: '충돌체' },
-  { code: 'KeyV', label: '속성' },
+  { code: engineKeyCode('command'), label: '명령' },
+  { code: engineKeyCode('colliderObserve'), label: '충돌체' },
+  { code: engineKeyCode('attributeInspect'), label: '속성' },
 ];
 
 export interface TouchPad {
