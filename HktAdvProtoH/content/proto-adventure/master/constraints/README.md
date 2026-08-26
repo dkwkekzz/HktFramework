@@ -3,12 +3,13 @@
 파일 하나 = Constraint 하나. 이름은 `DC-<NAME>.yaml`. 형식은 [../SCHEMA.md](../SCHEMA.md).
 
 현재: **Active 32종** — 전투 5종(1종 REVISED) + 성장 6종 + 세계 5종 +
-아이템 6종(1종 REVISED) + 스킬 6종(3종 REVISED) + GLOBAL 4종. 보류(DRAFT)는 없다.
+아이템 6종(1종 REVISED) + 스킬 6종(3종 REVISED) + GLOBAL 4종.
+**보류(DRAFT) 4종** — 대지형(BT 주입, 2026-08-26). Human 승인 대기 → [../open-questions.md](../open-questions.md) Q51.
 
 근거 문서:
 
 ```text
-content/proto-adventure/design/   팩 기획서 — R1 · DT · TG · BW · IS · IE
+content/proto-adventure/design/   팩 기획서 — R1 · DT · TG · BW · BT · IS · IE
 design/                           공정·기반 원본(루트) — GR
 
 R1 §x   Design-Combat-OffenseDefense-R0.md   전투 영역
@@ -16,6 +17,7 @@ DT §x   Design-Combat-DamageType-R0.md       전투 영역
 GR §x   Master-Intent-Graph-Growth.md        성장(GROWTH) 영역 한정
 TG §x   Design-Targeting-R0.md               지목(GLOBAL)
 BW §x   Master-World-Beira.md                세계(WORLD) 영역
+BT §x   Master-World-Beira-Terrain.md        세계(WORLD) 영역 — 대지형
 IS §x   Design-Item-System-R0.md             아이템(ITEM) 영역
 IE §x   Design-Inventory-Equipment-D1.md     아이템(ITEM) 영역 — IS §5.4 · §10 의 후속
 ```
@@ -58,6 +60,23 @@ IE §x   Design-Inventory-Equipment-D1.md     아이템(ITEM) 영역 — IS §5.
 | DC-WORLD-COMBAT-IS-ONE-POSSIBILITY | Creature 존재만으로 처치 Goal 금지 — Goal 은 WorldState 에서, 전투는 대안 중 하나 | BW §27 · §28 |
 | DC-WORLD-PLAYER-UNFIXED-PATH | Player 의 역할·Class·진영·탐험 이유를 하나로 고정하지 않는다 | BW §1 · §15 · §31 |
 | DC-WORLD-PROGRESSION-IS-REACH | Progression 은 Level 이 아니라 대응 가능한 세계 범위의 확장 | BW §1 · §17 · §32 |
+
+### DRAFT — 승인 대기 (세계 — BT 주입 · Q51)
+
+넷 다 BT 가 절을 따로 두어 명시한 규칙이다. 원본보다 세게 쓰지 않았고, 승인 전이므로
+**어느 노드에도 배선하지 않았다** (`constraints:` 0건). 승인되면 대지형 Capability
+아홉과 MW-TERRAIN-* 여덟에 걸고 판정을 채운다.
+
+| Constraint | 한 줄 | 근거 |
+|---|---|---|
+| DC-WORLD-TERRAIN-IS-A-PRINCIPLE | 대지형은 배경이 아니라 하나의 원리가 매질에 대륙 규모로 결속된 자연 시스템 — 기후·식생으로 나눈 바이옴도, 난이도 순 배치도 아니다 | BT §1 · §15.1~§15.3 · §16 |
+| DC-WORLD-SAFETY-IS-A-NATURAL-EXCEPTION | 안전한 자리는 그 지형의 법칙이 안정되거나 균형을 이루는 자연적 예외 — 문화와 건축은 그 예외를 확대한다 | BT §3 · §4.2 · §13 |
+| DC-WORLD-TERRAIN-LAW-IS-OBSERVABLE | 법칙은 설명 없이 보이는 증거로 먼저 드러나고, 이해한 사람에게 열리는 행동이 하나가 아니다 | BT §2 · §15.8 · §15.9 |
+| DC-WORLD-TERRAIN-READS-AT-A-DISTANCE | 각 대지형은 멀리서 한 장면만으로 구분된다 — 그 형상이 그 지형의 법칙에서 나온다 | BT §14 |
+
+BT §12(자원이 다음 지형을 연다)와 §11(자원의 유래)은 새 DC 로 만들지 않았다 —
+DC-WORLD-PROGRESSION-IS-REACH 와 DC-WORLD-RESOURCE-ADAPTATION-TRACE 가 이미 같은 것을
+요구한다. 같은 의미를 새 이름으로 만들지 않는다.
 
 ### Active — APPROVED (아이템 — IS 주입 · Q30(a) 승인)
 

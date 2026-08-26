@@ -2206,3 +2206,66 @@ Human 이 "FR-ACTION-PHASE 의 근간이 무엇인가" 를 물어 근간을 역�
     출발해 Frontier 를 거치지 않았고, 번호 예약은 그 절에만 적혀 있기 때문이다.
     `[DIRECT-CYCLE]` 로 출발하는 Cycle 도 번호를 예약해야 하는가는 Human 판단이다 —
     open-questions Q46(SELECTED 칸의 형태)과 같은 뿌리다.
+
+## 주입 — 세계 무대(BT) · 2026-08-26
+
+    Human 지시: "LANES.md 참고하여 위의 기획에 대한 master 주입을 진행한다.
+    2. 세계 무대: content/proto-adventure/design/Master-World-Beira-Terrain.md"
+
+    BW(`Master-World-Beira.md`)가 세계압과 깊이를 공급했고, BT 는 그 압력이 대륙 규모로
+    **무엇에 결속되는가**를 공급한다. 같은 세계(WORLD) 영역의 둘째 문서이며 인용 약칭을
+    `BT` 로 새로 두었다 (graph 각 파일 머리말).
+
+    **바뀐 것** — 세계를 나누는 축이 하나 늘었다.
+
+        BW 의 축   깊이 — FRINGE · WILD · DANGER · DEEP · UNKNOWN (얼마나 깊은가)
+        BT 의 축   법칙 — 여덟 대지형 (어떤 원리의 땅인가). 난이도 순이 아니다 (BT §16)
+
+    둘이 어떻게 겹치는지는 어느 문서도 말하지 않는다 → Q47 (지어내지 않았다).
+
+    산출물:
+        constraints/    DRAFT 4종 — TERRAIN-IS-A-PRINCIPLE(§1 · §15) ·
+                        SAFETY-IS-A-NATURAL-EXCEPTION(§3 · §13) ·
+                        TERRAIN-LAW-IS-OBSERVABLE(§2 · §15.8 · §15.9) ·
+                        TERRAIN-READS-AT-A-DISTANCE(§14). 승인 대기 → Q51.
+                        승인 전이라 어느 노드에도 배선하지 않았다
+        graph/          MW 9종 — MACRO-TERRAIN 하나와 그 아래 TERRAIN-* 여덟.
+                        arises_from 은 FREE 와 BOUND 둘이다 (BT §1 이 둘을 함께 든다) ·
+                        MG 1종 — RESCUE-THE-TAKEN. 네 지형이 같은 행동을 각자 명명했다
+                        (§6.6 · §7.7 · §8.7 · §11.7) ·
+                        MC 9종 — 요구처가 전부 장소다 (demanded_by). 방법(Possibility)이
+                        요구하는 것은 아직 없다 ·
+                        MS-BEIRA-TERRAIN — 순서 없는 시스템 (segments 없음)
+        기존 노드 8종    CHANGED — READ-ENVIRONMENT · OBSERVE · PREDICT · IDENTITY-ANCHOR ·
+                        VERIFY-REALITY · FORCE-MOVEMENT · CRAFT-FROM-MATERIALS ·
+                        TRANSFER-ITEM 에 지형을 요구처로 더하고 소속 하나를 얹었다.
+                        semantic 은 한 글자도 고치지 않았다 — 같은 의미를 새 이름으로
+                        복제하지 않는다 (DC-GROWTH-NO-CAPABILITY-DUPLICATION)
+        overlay.md      표 둘이 늘었다 — 대지형 Capability 9줄과 지형별 demands 8줄.
+                        **판정은 하나도 바뀌지 않았다** (전부 MISSING/ABSENT).
+                        "가장 큰 구멍" 이 셋에서 넷이 되었다: 넷째가 **땅이 없다**이며,
+                        앞의 셋(자원 · 성장 · 앞날)이 놓일 바닥이다
+        open-questions  Q47~Q51 신설 (관계 셋 · 주입 범위 하나 · DC 승인 하나)
+
+    **잠정으로 둔 것** — MC 아홉 중 셋(TIME-THE-CYCLE · FIND-SAFE-ROUTE ·
+    ANCHOR-LOCAL-LAW)은 `part_of.grounded: false` 다. BT 가 그 일을 지형마다 다른 이름의
+    행동·자원으로만 적고 하나의 이름을 주지 않아, 묶은 문안이 Agent 의 번역이기 때문이다.
+    나머지 여섯은 문서 문장이 그대로 정의한다.
+
+    옮기지 않은 것과 사유:
+        자원 24종 · 세력 37종 — 노드로 세우지 않았다. 자원 노드는 `grants` 로 기존 MC-*
+        를 가리켜야 하고 세력 노드는 관점과 원하는 것을 가져야 하는데, BT 는 둘 다
+        공급하지 않는다. 자원 쪽은 승인 대기 문서(Design-Resource-Catalog-R0)와 자리가
+        겹치기도 한다 → Q50
+        §11.5 회귀밀 — 새 Capability 가 아니다. 주는 의미가 BW §8 회귀초와 같아
+        MC-RESTORE-BIOLOGICAL-STATE 를 재사용했다. 두 문서가 같은 능력을 서로 다른
+        지형에서 낳는다는 사실은 → Q49
+        §12 지형 간 연결 — 새 DC 도 새 노드도 만들지 않았다.
+        DC-WORLD-PROGRESSION-IS-REACH 와 MP-ADAPT-BY-RESOURCE 가 이미 소유한 형태다
+        각 지형의 Local Goal — RESCUE-THE-TAKEN 하나를 뺀 나머지는 세우지 않았다.
+        BT 의 "주요 경험" 은 무엇을 하게 되는가이지 누가 무엇을 왜 원하는가가 아니다
+        (§27 기관 대안과 같은 자리 — WHY 확장 몫)
+        수치 — 없음 (BT 는 수치를 두지 않는 문서다 · 정책 §7.2)
+
+    Frontier 후보는 세우지 않았다. 세계에 땅이 없어 아홉 노드 전부가 같은 하나에 막혀
+    있고, 그 하나를 여는 Cycle 의 모양은 Q47 · Q48 이 답해져야 정해진다.

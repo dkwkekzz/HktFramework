@@ -29,7 +29,7 @@ Feedback · BACKLOG)를 겹쳐 `LANES.html` 로 그린다. `npm run lanes:check`
 | WORLD·ITEM | HUMAN | 후보 5 중 선택 대기 — Agent 추천 FR-THE-PLACES-ARE-NARROWER (+FR-SEE-BEFORE 얹기) | Human Select (frontier/item.md) |
 | WORLD·COMBAT | BLOCKED | 후보 0 — FR-THE-SHAPE-IS-DATA 가 C025 로 닫혔다 | MASTER 의 OPTIONS(Q35) 가 후보를 낳는 것 |
 | VIEW | OPEN | BACKLOG 다음 항목(request-feedback)부터 — equipment-panel 은 아래 충돌 칸 | 없음 |
-| MASTER | BLOCKED | OPTIONS Q35 (몸이 아닌 존재를 요구하는 Possibility) | FEEDBACK 의 병합 (미처리 Feedback 이 먼저다) |
+| MASTER | OPEN | OPTIONS Q35 (몸이 아닌 존재를 요구하는 Possibility) — 세계 무대(BT) 주입은 끝났다 | 없음 — 미처리 Feedback 이 0 이라 막던 것이 사라졌다 (`npm run feedback:gate`) |
 | ENGINE | OPEN | 기반 부채 하나 — 표시 문구를 사유 코드로 바꿔 팩에 회수 (C009 폭이 넓고 조립·팩 채택 동반 — 착수 전 범위 확인) | 없음 |
 | PROCESS | HOLD | 없음 | — (공정 변경 중에는 다른 레인을 새로 띄우지 않는다) |
 
@@ -51,4 +51,6 @@ Human 이 답하면 풀리는 것들이다. 답의 자리는 괄호가 가리킨
 | WORLD·ITEM 후보 선택 (frontier/item.md SELECTED) | WORLD·ITEM 레인 착수 |
 | Q37 — 자리에 이름을 줄 것인가 (open-questions.md) | FR-ARRANGE-WHAT-YOU-CARRY 존치/삭제 |
 | Design-Creature-Behavior-R0.md 승인 | Inject → MC-PREDICT · MC-OBSERVE 습성 해금 |
-| Design-Resource-Catalog-R0.md 승인 | Inject → Q36 · 회복 아이템 해금 |
+| Design-Resource-Catalog-R0.md 승인 | Inject → Q36 · 회복 아이템 해금 · BT 자원 24종의 자리 (Q50) |
+| 대지형 Constraint 넷 승인 (open-questions Q51) | 그 넷을 노드에 배선 — 지금은 걸린 노드가 0 이다 |
+| Q47 · Q48 — 대지형과 깊이 층 · 갈비분지와 문명권 (open-questions.md) | 땅이 세계에 들어오는 첫 Cycle 의 모양 |

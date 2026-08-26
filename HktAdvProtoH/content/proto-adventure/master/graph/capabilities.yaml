@@ -6,6 +6,7 @@
 # 인용 — R1 = content/proto-adventure/design/Design-Combat-OffenseDefense-R0.md · DT = content/proto-adventure/design/Design-Combat-DamageType-R0.md
 #        BW = content/proto-adventure/design/Master-World-Beira.md (탐험 — Q18(a) 매핑된 전투 노드에는 보조 근거로 허용)
 #        TG = content/proto-adventure/design/Design-Targeting-R0.md (지목)
+#        BT = content/proto-adventure/design/Master-World-Beira-Terrain.md (대지형)
 #
 # ── 이 파일을 읽는 법 ────────────────────────────────────────────────────
 # Capability 는 "세계가 할 줄 아는 일" 의 목록이다. 스킬 목록도 구현 모듈 목록도 아니다.
@@ -16,6 +17,8 @@
 #   베이라 사다리 (BW)      SAFE 1 · FRINGE 3 · WILD 3 · DANGER 4 · DEEP 4 · UNKNOWN 6
 #   자원 유래 (BW §8~§17)   2
 #   지목 (TG)               2 · 관계 1 (HISTORY Q24)
+#   대지형 (BT §4~§11)      9 — 요구처가 전부 장소다 (demanded_by). 기존 노드 8 개에는
+#                           지형을 요구처로 더했을 뿐 새로 만들지 않았다
 version: 1
 nodes:
 
@@ -669,8 +672,11 @@ nodes:
         - system: MS-CREATURE-BEHAVIOR
           source: 초안 대기
           role: 남은 결손(습성 관찰)의 반쪽을 이 시스템이 소유한다
+        - system: MS-BEIRA-TERRAIN
+          source: BT §6.7
+          role: 동료의 Identity 가 지금 어떤 상태인지 확인하는 것도 이 자리다
     required_by: [MP-LEARN-TO-HANDLE-THE-LAYER]
-    demanded_by: [MW-ZONE-FRINGE]
+    demanded_by: [MW-ZONE-FRINGE, MW-TERRAIN-NAME-EATING-FOREST]
     constraints: [DC-WORLD-PROGRESSION-IS-REACH, DC-COMBAT-MATCHUP-SOFT,
                   DC-WORLD-PLAYER-UNFIXED-PATH]
     constraint_evaluation:
@@ -706,8 +712,11 @@ nodes:
         - system: MS-CREATURE-BEHAVIOR
           source: 초안 대기
           role: 읽을 거리의 반쪽을 이 시스템이 소유한다
+        - system: MS-BEIRA-TERRAIN
+          source: BT §9.5
+          role: 유랑대지의 다음 경로를 읽는 것도 이 자리다 — 읽는 대상이 땅일 뿐이다
     required_by: [MP-LEARN-TO-HANDLE-THE-LAYER]
-    demanded_by: [MW-ZONE-FRINGE]
+    demanded_by: [MW-ZONE-FRINGE, MW-TERRAIN-WALKING-CONTINENTS]
     constraints: [DC-WORLD-PROGRESSION-IS-REACH, DC-COMBAT-PLAYER-CAUSALITY,
                   DC-WORLD-PLAYER-UNFIXED-PATH]
     constraint_evaluation:
@@ -850,8 +859,11 @@ nodes:
         - system: MS-BEIRA-LADDER
           segment: DANGER
           source: BW §23 (이름만)
+        - system: MS-BEIRA-TERRAIN
+          source: BT §5.7 · §8.2
+          role: 빙원의 열이 어디로 가는지와 산맥의 지금 낙하 방향을 읽는 것도 이 자리다
     required_by: [MP-WEAPONIZE-ENVIRONMENT]
-    demanded_by: [MW-ZONE-DANGER]
+    demanded_by: [MW-ZONE-DANGER, MW-TERRAIN-SUNEATER-ICEFIELD, MW-TERRAIN-SKYFALL-RANGE]
     constraints: []
     constraint_evaluation: {}
     overlay: MISSING
@@ -875,8 +887,11 @@ nodes:
         - system: MS-BEIRA-LADDER
           segment: DANGER
           source: BW §23 (이름만)
+        - system: MS-BEIRA-TERRAIN
+          source: BT §8.7
+          role: 적과 투사체의 낙하 방향을 바꾸는 것도 상대를 원하는 자리로 보내는 일이다
     required_by: [MP-CONTROL-MOVEMENT]
-    demanded_by: [MW-ZONE-DANGER]
+    demanded_by: [MW-ZONE-DANGER, MW-TERRAIN-SKYFALL-RANGE]
     constraints: []
     constraint_evaluation: {}
     overlay: PARTIAL
@@ -1086,8 +1101,11 @@ nodes:
         - system: MS-BEIRA-LADDER
           segment: UNKNOWN
           source: BW §25 (이름만)
+        - system: MS-BEIRA-TERRAIN
+          source: BT §10.2 · §10.4
+          role: 사막에서는 보이는 것이 환영이 아니라 짧게 현실이 된 다른 가능성이다 — 그래도 묻는 질문은 같다
     required_by: []
-    demanded_by: [MW-ZONE-UNKNOWN]
+    demanded_by: [MW-ZONE-UNKNOWN, MW-TERRAIN-UNHAPPENED-DESERT]
     constraints: []
     constraint_evaluation: {}
     overlay: MISSING
@@ -1110,8 +1128,11 @@ nodes:
         - system: MS-BEIRA-LADDER
           segment: UNKNOWN
           source: BW §25 (이름만)
+        - system: MS-BEIRA-TERRAIN
+          source: BT §6.3 · §6.5
+          role: 명목수에 진명을 묶고 이름목으로 자신을 붙들어 두는 자리
     required_by: []
-    demanded_by: [MW-ZONE-UNKNOWN]
+    demanded_by: [MW-ZONE-UNKNOWN, MW-TERRAIN-NAME-EATING-FOREST]
     constraints: []
     constraint_evaluation: {}
     overlay: MISSING
@@ -1504,8 +1525,11 @@ nodes:
         - system: MS-RESOURCE-GATE
           source: IS §4 (BW §17 · §14)
           role: 층에서 얻은 재료가 다음 층을 감당할 물건이 되는 변환 지점
+        - system: MS-BEIRA-TERRAIN
+          source: BT §4.5
+          role: 골각 장인이 왕골과 바깥에서 가져온 소재를 결합해 탐험 장비를 만든다
     required_by: [MP-ADAPT-BY-RESOURCE, MP-PREPARE-IN-CIVILIZATION]
-    demanded_by: []
+    demanded_by: [MW-TERRAIN-BAIWANG-BASIN]
     constraints: [DC-ITEM-CHANGE-IS-ONE-UNIT, DC-GROWTH-DEFINITION-INSTANCE-SPLIT, DC-ITEM-KIND-IS-DATA-NOT-BRANCH]
     constraint_evaluation:
       DC-ITEM-CHANGE-IS-ONE-UNIT: SATISFIED         # 재료 감소와 결과물 증가가 한 단위다 — 일부만 사라지는 상태가 없다
@@ -1540,8 +1564,11 @@ nodes:
         - system: MS-ITEM-SYSTEM
           segment: WORLD
           source: IS §5.6 · IE §34~§35
+        - system: MS-BEIRA-TERRAIN
+          source: BT §4.5 · §4.6
+          role: 원정 조합이 자원과 정보를 거래한다 — 분지가 교역 중심인 것이 이 자리다
     required_by: [MP-KILL-CREATURE, MP-TAKE-SHED-ORGAN, MP-TRADE-WITH-ACTOR]
-    demanded_by: []
+    demanded_by: [MW-TERRAIN-BAIWANG-BASIN]
     constraints: [DC-ITEM-CHANGE-IS-ONE-UNIT, DC-WORLD-OWNS-THE-SURFACE-LIST, DC-ITEM-LIVES-IN-ONE-PLACE]
     constraint_evaluation:
       DC-ITEM-CHANGE-IS-ONE-UNIT: SATISFIED         # 양쪽이 한 단위로 바뀐다 — 같은 물건이 두 곳에 있는 상태가 없다
@@ -1554,12 +1581,287 @@ nodes:
       몸 밖의 아이템 · 줍기 · 버리기 · 전리품 보관소 · 획득 권한 · 소멸. 쓰러진 몸에서 아무것도 나오지 않는 것이 이 결손이다. IE 가 더한 것: 적용해
       둔 것을 내려놓는 길이 담을 곳을 거치지 않는다는 것 (IE §35)
 
+  # ══════════════════════════════════════════════════════════════════════
+  # 대지형 — 각 땅의 법칙이 요구하는 것 (BT §4~§11)
+  # ══════════════════════════════════════════════════════════════════════
+  # 요구처는 전부 장소다 (demanded_by) — 방법(Possibility)이 요구하는 것이 아직 없다.
+  # BT 는 각 지형이 무엇을 요구하는지를 공급하고, 그것을 어떤 경로로 갖추는지는
+  # 이미 선 세 방법(익힌다 · 빌린다 · 준비해 간다)이 소유한다.
+  # 이미 있는 노드를 다시 만들지 않았다 — 환경 읽기 · 살펴봄 · 예측 · 자기 붙들기 ·
+  # 실재 검증 · 밀어내기 · 제작 · 주고받기는 기존 노드에 이 지형들을 요구처로 더했다.
+
+  - id: MC-CARRY-LIFE-SUPPORT
+    type: capability
+    semantic: >
+      살아 있게 하는 것을 몸 밖에서 얻어 지니고, 나누고, 필요한 자리로 옮긴다 —
+      그 땅에서는 저절로 주어지지 않는 열이나 공기 같은 것들이다.
+    detail: >
+      회복이 아니다. 잃은 것을 되돌리는 것이 아니라 애초에 그 땅에 없는 것을 가지고
+      들어가는 일이다. 무호흡해의 핵심 경험이 이것을 그대로 적는다 — 숨을 참는 것이
+      아니라 호흡 가능한 공간을 찾아 만들고 운반하는 것 (BT §7.7). 빙원에서는 같은 일이
+      열로 일어나고, 거기서 생기는 판단은 동료와 그것을 나눌지다 (BT §5.7). 유한하고
+      나눌 수 있어야 이 능력이 선택이 된다 — 무제한이면 그냥 통행증이다.
+    world_shape: >
+      그 땅에 없는 것(열 · 공기 같은)이 세계의 유한한 자원으로 존재하고, 지니고 나누고
+      옮길 수 있으며, 떨어졌을 때 몸에 실제 결과가 와야 한다.
+    part_of:
+      grounded: true
+      memberships:
+        - system: MS-BEIRA-TERRAIN
+          source: BT §7.7 · §7.5 · §5.7
+          role: 두 지형(빙원 · 무호흡해)이 같은 형태로 요구한다
+    required_by: []
+    demanded_by: [MW-TERRAIN-SUNEATER-ICEFIELD, MW-TERRAIN-BREATHLESS-SEA]
+    constraints: []
+    constraint_evaluation: {}
+    overlay: MISSING
+    overlay_gap: >-
+      몸이 열·공기 같은 것을 요구하지 않는다 — 지금 몸이 지닌 것은 생명과 기력뿐이고, 둘 다 나눠 줄 수 없다
+
+  - id: MC-TIME-THE-CYCLE
+    type: capability
+    semantic: >
+      땅의 법칙이 도는 주기를 읽고, 짧게 열리는 창에 맞추어 움직인다.
+    detail: >
+      기다림이 행동이 되는 자리다. 세 지형이 같은 모양의 일을 각자 적는다 — 포화된
+      광맥이 열을 분출하는 짧은 동안 빙하 아래로 들어가고 (BT §5.7), 암초가 포화되는
+      날의 공기 조수를 세어 두고 (BT §7.7), 정해진 시기에 유랑대지에 올라타거나 탈피
+      시기에 채집한다 (BT §9.6). 혈화수해에서는 그 창이 시간이 아니라 진행이다 —
+      꽃이 완성되기 전까지가 창이다 (BT §11.7). BT 는 이 넷을 하나의 능력으로 부르지
+      않는다. 이름과 문안은 잠정이며, 그것이 이 노드가 grounded: false 인 이유다.
+    world_shape: >
+      세계의 어떤 조건이 주기나 진행을 갖고 그것이 관찰로 읽히며, 창이 열린 동안과
+      닫힌 동안에 같은 행동이 다른 결과를 내야 한다.
+    part_of:
+      grounded: false   # BT 가 각 지형의 행동으로만 적고 하나의 이름을 주지 않았다 — semantic 은 잠정이다
+      memberships:
+        - system: MS-BEIRA-TERRAIN
+          source: BT §5.7 · §7.7 · §9.6 · §11.7 (행동으로만)
+          role: 네 지형이 같은 모양의 기다림을 요구한다
+    required_by: []
+    demanded_by:
+      - MW-TERRAIN-SUNEATER-ICEFIELD
+      - MW-TERRAIN-BREATHLESS-SEA
+      - MW-TERRAIN-WALKING-CONTINENTS
+      - MW-TERRAIN-BLOODBLOOM-FOREST
+    constraints: []
+    constraint_evaluation: {}
+    overlay: MISSING
+    overlay_gap: >-
+      세계에 주기를 가진 것이 없다 — 시간이 흐르지만 그 흐름으로 달라지는 땅의 조건이 없다
+
+  - id: MC-FIND-SAFE-ROUTE
+    type: capability
+    semantic: >
+      법칙이 약해지는 자리들을 이어 통과할 길을 만든다 — 짧은 거리가 아니라 살아남는
+      거리를 고른다.
+    detail: >
+      지형을 자기 유리함으로 쓰는 것(MC-USE-TERRAIN)과 다르다. 그것은 한 자리가 가진
+      성질을 쓰는 일이고, 이것은 자리와 자리 **사이**를 잇는 일이다. 네 지형이 각각
+      적는다 — 해숨구멍 사이의 Route (BT §5.7), 공기 덩어리를 길처럼 연결 (BT §7.7),
+      상향 폭포를 이동 Route 로 사용 (BT §8.7), 대지의 움직임으로만 열리는 Route
+      (BT §9.6). 안전한 자리가 자연적 예외로 흩어져 있다는 것이 이 능력의 전제다
+      (BT §13). BT 는 이 넷을 하나의 이름으로 부르지 않아 문안은 잠정이다.
+    world_shape: >
+      살 수 있는 자리가 땅에 흩어져 있고 그 사이가 위험해야 하며, 어디를 밟아 건널지를
+      플레이어가 고를 수 있어야 한다. 최단 경로가 언제나 최선이면 이 능력은 없는 것이다.
+    part_of:
+      grounded: false   # BT 가 각 지형의 행동으로만 적고 하나의 이름을 주지 않았다 — semantic 은 잠정이다
+      memberships:
+        - system: MS-BEIRA-TERRAIN
+          source: BT §5.7 · §7.7 · §8.7 · §9.6 (행동으로만)
+          role: 네 지형이 같은 모양의 길 찾기를 요구한다
+    required_by: []
+    demanded_by:
+      - MW-TERRAIN-SUNEATER-ICEFIELD
+      - MW-TERRAIN-BREATHLESS-SEA
+      - MW-TERRAIN-SKYFALL-RANGE
+      - MW-TERRAIN-WALKING-CONTINENTS
+    constraints: []
+    constraint_evaluation: {}
+    overlay: MISSING
+    overlay_gap: >-
+      땅에 안전한 자리와 위험한 자리의 구분이 없다 — 이을 것도 피할 것도 없다
+
+  - id: MC-ANCHOR-LOCAL-LAW
+    type: capability
+    semantic: >
+      법칙이 흔들리는 자리에 기준을 세워 그 둘레만 하나로 고정한다.
+    detail: >
+      세 지형이 같은 형태의 검은 돌을 따로 가진다 — 낙하 방향을 하나로 고정하는 정박암
+      (BT §8.3 · §8.5), 한 가지 상태만 유지시키는 확정암 (BT §10.3), 생체 상태가 식물로
+      전달되는 것을 막는 장송석 (BT §11.3). 사람이 그 곁에 마을과 사원을 세우는 것이
+      안전이 자연적 예외라는 이 세계의 형태이며 (BT §13), 그것을 들고 다니며 임시 발판을
+      놓는 것이 이 능력이다 (BT §8.7). 자기를 붙들어 두는 것(MC-IDENTITY-ANCHOR)과 다르다 —
+      그쪽은 자신에게 걸고 이쪽은 자리에 건다. BT 는 이 셋을 하나의 이름으로 부르지 않는다.
+    world_shape: >
+      법칙이 흔들리는 자리가 있고, 그 위에 기준을 세우면 둘레의 흔들림이 실제로 멎어야
+      하며, 그 범위가 유한해야 한다.
+    part_of:
+      grounded: false   # BT 가 지형마다 다른 이름의 돌로만 적고 하나의 이름을 주지 않았다 — semantic 은 잠정이다
+      memberships:
+        - system: MS-BEIRA-TERRAIN
+          source: BT §8.3 · §10.3 · §11.3 · §13 (지형별 자원으로만)
+          role: 세 지형이 같은 모양의 고정을 요구한다
+    required_by: []
+    demanded_by:
+      - MW-TERRAIN-SKYFALL-RANGE
+      - MW-TERRAIN-UNHAPPENED-DESERT
+      - MW-TERRAIN-BLOODBLOOM-FOREST
+    constraints: []
+    constraint_evaluation: {}
+    overlay: MISSING
+    overlay_gap: >-
+      고정할 흔들림이 없다 — 땅이 아무 법칙도 가지지 않는다
+
+  - id: MC-IMPERSONATE-IDENTITY
+    type: capability
+    semantic: >
+      다른 존재의 표식을 빌려, 세계와 그 안의 생명에게 다른 존재로 인식된다.
+    detail: >
+      숨는 것이 아니라 다른 것으로 읽히는 것이다. 가면열매는 특정 생물의 표식을 일시적으로
+      모방해 숲이나 생물이 그를 다른 존재로 인식하게 한다 (BT §6.5). 임시 이름을 골라
+      숲을 통과하고, 다른 존재의 이름으로 문과 생물을 속이는 일이 이 땅의 일상이다
+      (BT §6.7). 껍질도둑은 그 표식을 훔쳐 산다 (BT §6.6). 자기를 붙들어 두는 것
+      (MC-IDENTITY-ANCHOR)과 반대 방향이다 — 그쪽은 자기 신원을 지키고, 이쪽은 일부러
+      다르게 보이게 한다. 성립하려면 세계가 존재를 표식으로 구분하고 있어야 한다.
+    world_shape: >
+      세계가 존재를 표식으로 구분하고 있고, 그 표식을 빌린 존재가 실제로 다르게 대우받아야
+      한다 — 문이 열리거나, 생물이 같은 편으로 여기거나, 땅이 그를 지나치거나.
+    part_of:
+      grounded: true
+      memberships:
+        - system: MS-BEIRA-TERRAIN
+          source: BT §6.5 · §6.6 · §6.7
+          role: 이름을 먹는 수해를 감당하는 두 길 중 하나 (다른 하나는 자기를 붙들어 두는 것)
+    required_by: []
+    demanded_by: [MW-TERRAIN-NAME-EATING-FOREST]
+    constraints: []
+    constraint_evaluation: {}
+    overlay: MISSING
+    overlay_gap: >-
+      존재의 신원이라는 것이 세계에 없다 — 구분되는 것은 종류와 개체 번호뿐이고 그것을 빌릴 자리가 없다
+
+  - id: MC-COORDINATE-WITHOUT-SOUND
+    type: capability
+    semantic: >
+      소리가 전달되지 않는 곳에서 손짓과 빛만으로 뜻을 주고받으며 함께 움직인다.
+    detail: >
+      무언의 잠수단이 그렇게 암초 심부를 탐사한다 (BT §7.6). 무호흡해에서는 전투와
+      붕괴조차 완전한 무음으로 진행되므로 (BT §7.4) 소리로 오던 것 — 경고, 신호,
+      다가오는 것의 기척 — 이 통째로 사라진다. 그래서 이것은 연출의 편의가 아니라
+      그 땅에서 여럿이 함께 움직이기 위한 조건이다. 없으면 그 지형은 혼자 들어가는
+      곳이 된다.
+    world_shape: >
+      소리로 전해지던 것이 실제로 전해지지 않아야 하고, 그 자리를 대신할 수단(몸짓 ·
+      빛 같은)이 세계에 있어야 하며, 그것을 쓴 쪽과 쓰지 못한 쪽의 결과가 달라야 한다.
+    part_of:
+      grounded: true
+      memberships:
+        - system: MS-BEIRA-TERRAIN
+          source: BT §7.4 · §7.6 · §7.7
+          role: 무호흡해가 여럿이 함께 움직이는 데 요구하는 것
+    required_by: []
+    demanded_by: [MW-TERRAIN-BREATHLESS-SEA]
+    constraints: []
+    constraint_evaluation: {}
+    overlay: MISSING
+    overlay_gap: >-
+      세계에 소리가 없다 — 없앨 것도 대신할 것도 아직 없다
+
+  - id: MC-APPRAISE-UNKNOWN-MATTER
+    type: capability
+    semantic: >
+      바깥에서 들어온 생물과 물질이 무엇이고 무엇을 하는지를 들이기 전에 가려낸다.
+    detail: >
+      골문지기가 척추 협곡에서 외부 생물과 탐험가를 감별하고 (BT §4.5), 분지 안에서는
+      돌아온 자가 가져온 것을 감별하는 일이 일상의 하나다 (BT §4.6). 살펴봄
+      (MC-OBSERVE)과 다르다 — 그쪽은 마주한 존재의 지금 상태를 읽고, 이쪽은 손에 든
+      것의 정체와 유래를 가린다. 이것이 있어야 안전지대가 안전한 채로 유지되고, 없으면
+      바깥의 것이 그대로 안으로 들어온다. 그리고 이것이 있어야 "정보를 사서 안다" 는
+      갈래(MP-PREPARE-IN-CIVILIZATION)가 물건에도 적용된다.
+    world_shape: >
+      정체를 모르는 채로 얻는 것이 있고, 그것을 가려내는 행위가 따로 있으며, 가려내지
+      않고 쓴 것과 가려낸 것의 결과가 달라야 한다.
+    part_of:
+      grounded: true
+      memberships:
+        - system: MS-BEIRA-TERRAIN
+          source: BT §4.5 · §4.6
+          role: 백왕의 갈비분지가 안전을 유지하는 데 요구하는 것
+    required_by: []
+    demanded_by: [MW-TERRAIN-BAIWANG-BASIN]
+    constraints: []
+    constraint_evaluation: {}
+    overlay: MISSING
+    overlay_gap: >-
+      물건이 정체를 감추지 않는다 — 정의소에 있는 것은 처음부터 전부 알려져 있다
+
+  - id: MC-REALIZE-ONE-POSSIBILITY
+    type: capability
+    semantic: >
+      일어날 수 있었지만 선택되지 않은 상태 하나를 골라 짧게 현실로 만든다.
+    detail: >
+      사막은 환영을 보여 주는 것이 아니라 짧은 시간 동안 다른 가능성을 실제로 현실로
+      만든다 (BT §10.2). 가능유리가 그 일을 손에 쥐여 주고 (BT §10.5), 그래서 파괴된
+      길을 되살리거나 사라진 도시가 존재하는 시간으로 들어갈 수 있다 (BT §10.7).
+      대가가 함께 온다 — 하나의 가능성을 선택하면 다른 경로가 사라진다 (BT §10.2).
+      지금 보는 것이 실재인지 검증하는 것(MC-VERIFY-REALITY)과 짝이다: 그쪽이 읽는
+      쪽이면 이쪽은 고르는 쪽이다. 핵심 경험은 올바른 길을 찾는 것이 아니라 어떤 길을
+      현실로 만들지 고르는 것이다 (BT §10.7).
+    world_shape: >
+      일어나지 않은 상태가 세계에 남아 있고, 그중 하나를 골라 현실로 만들 수 있으며,
+      고르는 순간 다른 것이 닫혀야 한다. 고르고도 잃는 것이 없으면 이 능력이 아니다.
+    part_of:
+      grounded: true
+      memberships:
+        - system: MS-BEIRA-TERRAIN
+          source: BT §10.2 · §10.5 · §10.7
+          role: 아직 일어나지 않은 사막을 감당하는 자리
+    required_by: []
+    demanded_by: [MW-TERRAIN-UNHAPPENED-DESERT]
+    constraints: []
+    constraint_evaluation: {}
+    overlay: MISSING
+    overlay_gap: >-
+      세계에 가능성이라는 상태가 없다 — 참인 것은 지금의 하나뿐이고 선택되지 않은 것은 남지 않는다
+
+  - id: MC-CONCEAL-BIOLOGICAL-SIGNAL
+    type: capability
+    semantic: >
+      자신의 상처와 생체 신호를 가려, 그것을 좇는 것에게 읽히지 않는다.
+    detail: >
+      혈화수의 꽃가루는 상처와 약한 생체 상태를 추적하고, 상처 입은 것을 향해 꽃들이
+      일제히 돌아선다 (BT §11.2 · §11.4). 꽃가면 채집단은 자신의 생체 신호를 가리는
+      가면을 쓰고 회귀밀을 채집한다 (BT §11.6). 그래서 이 땅에서는 다쳤다는 것이 약해진
+      것에 그치지 않고 표적이 되는 일이며, 감추는 수단이 곧 감당하는 수단이다. 정체를
+      바꾸는 것(MC-IMPERSONATE-IDENTITY)과 다르다 — 이쪽은 다른 것으로 읽히는 것이
+      아니라 읽히지 않는 것이다.
+    world_shape: >
+      몸의 약해진 상태가 세계에 읽히고 그것이 다른 존재의 판단 근거가 되어야 하며,
+      그 읽힘을 가리는 수단이 있어야 한다. 가리는 데 대가가 없으면 선택이 되지 않는다.
+    part_of:
+      grounded: true
+      memberships:
+        - system: MS-BEIRA-TERRAIN
+          source: BT §11.2 · §11.4 · §11.6 · §11.7
+          role: 사람을 꽃피우는 혈화수해를 감당하는 자리
+    required_by: []
+    demanded_by: [MW-TERRAIN-BLOODBLOOM-FOREST]
+    constraints: []
+    constraint_evaluation: {}
+    overlay: MISSING
+    overlay_gap: >-
+      몸의 상태를 좇는 것이 없다 — 남은 생명은 관찰에 실리지만 그것을 근거로 삼는 존재가 없다
+
 # ── 근거와 비주입 ────────────────────────────────────────────────────────
 # 전투  R1  content/proto-adventure/design/Design-Combat-OffenseDefense-R0.md
 #           §1~§5 · §10 신규 INTENT · §13 하지 않을 것 · §14 확장 순서 · §15 층 그림
 #       DT  content/proto-adventure/design/Design-Combat-DamageType-R0.md
 #           §1~§5 · §7 소프트 상성 · §10 관찰 계약 · §11 INTENT · §13 · §15 이후 확장 경계
 # 탐험  BW  content/proto-adventure/design/Master-World-Beira.md  §8 · §10 · §17 · §20~§25
+# 대지형 BT content/proto-adventure/design/Master-World-Beira-Terrain.md
+#           §4~§11 각 지형의 "왜 위험한가" · "안전한 장소" · "주요 경험" · §13 안전 구조
 # 아이템 IS  content/proto-adventure/design/Design-Item-System-R0.md
 #           §3 grants 사슬 · §4 상위 유래 · §5.3~§5.6 네 층 · §6 Cycle 경계 · §7 원칙
 #       IE  content/proto-adventure/design/Design-Inventory-Equipment-D1.md  (IS §5.4 가 후속 문서에 넘긴 영역)
@@ -1612,3 +1914,21 @@ nodes:
 # IE §26.1 이 스스로 지목한 공백 — 컨트롤 대상을 바꾼다는 개념이 이 세계에 없다 — 도
 # 노드로 세우지 않았다. 아직 어느 Possibility 도 그것을 요구하지 않아 required_by 와
 # demanded_by 가 모두 비기 때문이다 (SCHEMA).
+
+# 비주입 — BT 의 자원 24종(왕골 · 태양심 · 이름목 · 숨결진주 · 방향석 · 맥동정 · 가능유리 ·
+# 회귀밀 …)과 세력 37종(갈비성 연맹 · 해숨 부족 · 가면촌 · 숨지기 · 방향승 · 길청자 ·
+# 미궁상인 · 장송원 …)은 노드로 세우지 않았다. 자원은 growth/items 가, 세력은 actors.yaml 이
+# 받을 자리인데 BT 는 각 자원이 어느 기존 MC-* 를 여는지(grants)와 각 세력이 무엇을
+# 이해관계로 삼는지(perspective · wants)를 공급하지 않는다. 지어내면 주입이 아니라 창작이
+# 된다 — 자리와 사유는 open-questions Q50 이 들고 있다. 다만 지형이 낳은 자원의 이름은
+# 각 MW-TERRAIN-* 의 detail 이 그대로 담고 있어 그 자리가 비어 있다는 것이 보인다.
+#
+# 비주입 — BT §11.5 회귀밀은 새 노드가 아니다. 그것이 주는 의미는 이미
+# MC-RESTORE-BIOLOGICAL-STATE 다 (BW §8 회귀초와 같은 자리) — 같은 능력을 Source 별로
+# 복제하지 않는다 (DC-GROWTH-NO-CAPABILITY-DUPLICATION). 두 문서가 같은 능력을 서로 다른
+# 지형에서 낳는다는 사실 자체는 open-questions Q49 가 다룬다.
+#
+# 비주입 — BT §15 의 열 항(지형 하나를 설계하는 규칙)과 §14(시각 설계 규칙)는 Capability 가
+# 아니라 설계의 형태를 제한하는 원칙이므로 constraints/ 로 갔다 (DC-WORLD-TERRAIN-* 4종, DRAFT).
+# §12 의 지형 간 연결(자원이 다음 지형을 연다)도 새 노드가 아니다 —
+# MP-ADAPT-BY-RESOURCE 와 DC-WORLD-PROGRESSION-IS-REACH 가 이미 소유한 형태다.

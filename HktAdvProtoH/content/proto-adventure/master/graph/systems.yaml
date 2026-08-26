@@ -127,3 +127,16 @@ systems:
       - { id: SPATIAL-PRESENCE, name: 공간 존재 — 몸이 아닌 것이 세계에 자리를 가진다 }
       - { id: TRIGGER,          name: 사건 — 세계에서 일어난 일이 다음 실행을 부른다 }
       - { id: COMPOSITION,      name: 연결 — 하나의 실행이 다음 실행을 낳는다 }
+
+  - id: MS-BEIRA-TERRAIN
+    name: 베이라 대지형
+    source: BT (content/proto-adventure/design/Master-World-Beira-Terrain.md) §1 · §4~§11 · §13 · §15
+    status: DEFINED
+    semantic: >
+      하나의 원리가 매질(암석·물·대기·열·생명·공간·기억·Identity·소리·관계)에 대륙 규모로
+      결속되어 형성된 자연 시스템의 목록. 여덟이 문서에 서 있고, 각 지형은 자기 법칙이
+      요구하는 대응을 따로 가진다 — 그 요구는 MW-TERRAIN-* 의 demands 가 거울이다.
+      자리를 순서로 두지 않는다: 여덟은 난이도 순으로 배치된 목록이 아니며 (BT §16),
+      어디에 갈 수 있는지는 무엇을 감당하게 되었는가가 정한다 (BT §12).
+      깊이 사다리(MS-BEIRA-LADDER)와 어떤 관계인지는 아직 정해지지 않았다 —
+      open-questions Q47 이 그것을 묻는다.

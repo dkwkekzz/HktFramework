@@ -99,6 +99,42 @@ sections:
       - label: "MC-CUT-ABNORMAL-STRUCTURE (자원 §10 · §17)"
         ids: [MC-CUT-ABNORMAL-STRUCTURE]
   - kind: capability
+    title: "Capability — 대지형 영역 (BT)"
+    intro: |
+      `content/proto-adventure/design/Master-World-Beira-Terrain.md`(BT) 주입으로 섰다. 위의 BW 표가 **얼마나 깊은가**의
+      층이라면 이쪽은 **어떤 법칙의 땅인가**다 — 여덟 대지형이 각자 자기 법칙이 요구하는
+      대응을 가진다 (아래 "대지형이 요구하는 것" 표). 둘의 관계는 아직 정해지지 않았다
+      (open-questions Q47).
+
+      아홉 줄 전부 MISSING 이며 사유가 하나다: **세계에 땅이 없다.** 장소에 대해 세계가
+      아는 것은 사각형 하나의 경계뿐이고(`world/semantic/position.ts#WorldBounds`), 그 안
+      어디에 서 있든 성질이 같다. 그래서 여기의 결손은 개별 능력의 결손이 아니라 그 능력들이
+      놓일 바닥의 부재다 — 아래 "가장 큰 구멍" 의 넷째 항이 그것이다.
+
+      기존 노드 여덟(MC-READ-ENVIRONMENT · MC-OBSERVE · MC-PREDICT · MC-IDENTITY-ANCHOR ·
+      MC-VERIFY-REALITY · MC-FORCE-MOVEMENT · MC-CRAFT-FROM-MATERIALS · MC-TRANSFER-ITEM)에는
+      **줄을 더하지 않았다** — 지형을 요구처(demanded_by)로 더했을 뿐 같은 의미를 새 이름으로
+      복제하지 않았기 때문이다. 그것들의 판정은 원래 자리의 줄이 그대로 소유한다.
+    rows:
+      - label: "MC-CARRY-LIFE-SUPPORT (빙원 §5.7 · 무호흡해 §7.7)"
+        ids: [MC-CARRY-LIFE-SUPPORT]
+      - label: "MC-TIME-THE-CYCLE (빙원 · 무호흡해 · 걷는 대륙 · 혈화수해)"
+        ids: [MC-TIME-THE-CYCLE]
+      - label: "MC-FIND-SAFE-ROUTE (빙원 · 무호흡해 · 산맥 · 걷는 대륙)"
+        ids: [MC-FIND-SAFE-ROUTE]
+      - label: "MC-ANCHOR-LOCAL-LAW (산맥 §8.3 · 사막 §10.3 · 혈화수해 §11.3)"
+        ids: [MC-ANCHOR-LOCAL-LAW]
+      - label: "MC-IMPERSONATE-IDENTITY (수해 §6.5)"
+        ids: [MC-IMPERSONATE-IDENTITY]
+      - label: "MC-COORDINATE-WITHOUT-SOUND (무호흡해 §7.6)"
+        ids: [MC-COORDINATE-WITHOUT-SOUND]
+      - label: "MC-APPRAISE-UNKNOWN-MATTER (갈비분지 §4.5)"
+        ids: [MC-APPRAISE-UNKNOWN-MATTER]
+      - label: "MC-REALIZE-ONE-POSSIBILITY (사막 §10.5)"
+        ids: [MC-REALIZE-ONE-POSSIBILITY]
+      - label: "MC-CONCEAL-BIOLOGICAL-SIGNAL (혈화수해 §11.6)"
+        ids: [MC-CONCEAL-BIOLOGICAL-SIGNAL]
+  - kind: capability
     title: "Capability — 지목·관계 영역 (TG · BW §21)"
     intro: |
       앞의 둘은 `content/proto-adventure/design/Design-Targeting-R0.md` 주입으로, 마지막 하나는 Human 지시로 섰다
@@ -167,6 +203,11 @@ sections:
       - MW-ZONE-FRINGE
       - label: "MW-HYPER-PREDATION · MW-SPATIAL-SHEAR"
         ids: [MW-HYPER-PREDATION, MW-SPATIAL-SHEAR]
+      - MW-MACRO-TERRAIN
+      - label: "MW-TERRAIN-* 8종 (BT §4~§11)"
+        ids: [MW-TERRAIN-BAIWANG-BASIN, MW-TERRAIN-SUNEATER-ICEFIELD, MW-TERRAIN-NAME-EATING-FOREST,
+              MW-TERRAIN-BREATHLESS-SEA, MW-TERRAIN-SKYFALL-RANGE, MW-TERRAIN-WALKING-CONTINENTS,
+              MW-TERRAIN-UNHAPPENED-DESERT, MW-TERRAIN-BLOODBLOOM-FOREST]
       - MA-PLAYER
       - MA-HOSTILE-COMBATANT
       - MK-LOCAL-WORLDSTATE
@@ -222,6 +263,30 @@ sections:
         ids: [MW-ZONE-DEEP]
       - label: "MW-ZONE-UNKNOWN (§25)"
         ids: [MW-ZONE-UNKNOWN]
+  - kind: zones
+    title: "대지형이 요구하는 것 — MW-TERRAIN-* 의 demands"
+    intro: |
+      각 땅을 감당하려면 무엇이 있어야 하는가. 층 표와 축이 다르다 — 이쪽은 깊이가 아니라
+      법칙이며, 여덟에 순서가 없다 (BT §16). 여덟 중 채워진 칸이 하나도 없다. 절반으로
+      서 있는 둘(살펴봄 · 밀어내기)도 이 지형들 때문에 선 것이 아니라 다른 자리에서
+      이미 서 있던 것을 지형이 함께 요구하는 것이다.
+    rows:
+      - label: "백왕의 갈비분지 (§4)"
+        ids: [MW-TERRAIN-BAIWANG-BASIN]
+      - label: "해를 삼킨 빙원 (§5)"
+        ids: [MW-TERRAIN-SUNEATER-ICEFIELD]
+      - label: "이름을 먹는 수해 (§6)"
+        ids: [MW-TERRAIN-NAME-EATING-FOREST]
+      - label: "무호흡해 (§7)"
+        ids: [MW-TERRAIN-BREATHLESS-SEA]
+      - label: "하늘로 떨어지는 산맥 (§8)"
+        ids: [MW-TERRAIN-SKYFALL-RANGE]
+      - label: "걷는 대륙의 무리 (§9)"
+        ids: [MW-TERRAIN-WALKING-CONTINENTS]
+      - label: "아직 일어나지 않은 사막 (§10)"
+        ids: [MW-TERRAIN-UNHAPPENED-DESERT]
+      - label: "사람을 꽃피우는 혈화수해 (§11)"
+        ids: [MW-TERRAIN-BLOODBLOOM-FOREST]
   - kind: possibility
     title: "MG-ACQUIRE-RARE-ORGAN (5 갈래)"
     rows:
@@ -231,7 +296,7 @@ sections:
       - label: "MP-FIND-DEAD-SPECIMEN · MP-FORCE-CREATURE-TO-RELEASE"
         ids: [MP-FIND-DEAD-SPECIMEN, MP-FORCE-CREATURE-TO-RELEASE]
 holes: |
-  표 전체를 관통하는 것이 셋 있다. 개별 Capability 결손이 아니라 구조적 공백이다.
+  표 전체를 관통하는 것이 넷 있다. 개별 Capability 결손이 아니라 구조적 공백이다.
 
   ```text
   1. 자원이 하는 일이 하나뿐이다  (넷 중 하나가 섰다)
@@ -252,4 +317,12 @@ holes: |
      남은 것은 둘째 칸이다. 자율 존재의 다음 행동이 언제나 같은 한 가지라 읽을 거리가
      없고, 행동의 앞 구간이 앎의 관문과 무관하게 누구에게나 그냥 온다.
      발견·검증은 그 뒤에 얹힌다.
+
+  4. 땅이 없다  (BT 주입으로 그 크기가 드러났다)
+     세계가 장소에 대해 아는 것은 사각형 하나의 경계뿐이다
+     (`world/semantic/position.ts#WorldBounds`) — 어디에 서 있든 성질이 같다.
+     BT 가 세운 아홉 노드와 그 아홉이 요구하는 능력 전부가 이 하나에 막혀 있고,
+     BW 쪽의 층(MW-ZONE-*)과 대표 지역 둘도 같은 이유로 ABSENT 다.
+     이것은 개별 결손이 아니라 앞의 셋이 놓일 바닥이다 — 관찰할 것도(3),
+     캘 것도(1), 감당해서 넓어질 범위도(2) 전부 땅 위에서 생긴다.
   ```
