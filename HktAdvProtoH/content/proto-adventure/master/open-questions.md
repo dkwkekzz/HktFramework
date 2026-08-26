@@ -13,8 +13,8 @@ Human 이 답한다    DECISION 줄
 
 미해결 **7건** — 닫힌 질문은 HISTORY.md.
 
-[frontier/](frontier/) 는 네 트랙이다. TERRAIN 은 `SELECTED` 가 차 있고(C-TERRAIN-001
-착수 대기), ITEM 은 후보 다섯이 Human 선택을 기다리며, GROWTH 는 후보 셋이 방금 섰다.
+[frontier/](frontier/) 는 네 트랙이다. TERRAIN 과 GROWTH 는 `SELECTED` 가 차 있고
+(C-TERRAIN-001 · C-GROWTH-001 착수 대기), ITEM 은 후보 다섯이 Human 선택을 기다린다.
 COMBAT 만 후보가 0 이고 — 다음 후보는 Q35 가 걸린 OPTIONS 작업이 낳는다.
 아래 일곱 중 트랙 하나를 막는 것은 Q35 뿐이다.
 

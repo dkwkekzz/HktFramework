@@ -44,7 +44,7 @@
     Observable Result    쌓인 양 · 다음 문턱 · 오른 값과 그 사유가 화면에서 읽힌다
     Why one Cycle        키울 자리(기본값)와 그 값이 결과를 바꾸는 규칙이 이미 서 있다.
                          새로 서는 것은 **그 값을 세계 안의 행위로 키우는 축** 하나다
-    Status               PROPOSED
+    Status               SELECTED
 
 ### FR-THE-SKILL-LEARNS-A-NEW-MOVE — 쓰던 기술이 새 수를 배운다
     이것이 무엇인가      기술이 쓰인 이력을 지니고, 쌓이면 그 기술이 이전에는 할 수 없던 것을
@@ -148,7 +148,31 @@
 
 ## SELECTED
 
-    없음 — Human 선택 대기.
+```text
+FR-WHAT-YOU-DID-MAKES-YOU — 한 일이 몸을 키운다
+Cycle ID   C-GROWTH-001         트랙의 첫 번호 (cycles/ 에 C-GROWTH-* 가 아직 없다)
+다음       advprotoh-cycle 스킬 Stage 1 — 아직 시작하지 않았다
+```
+
+    **정한 사람** — Human 이 이 선택을 Agent 에게 위임했다 (2026-08-26 · "후보 선택은
+    알아서 정하고"). 선택은 원래 Human 소유이므로(CLAUDE.md 원칙 19) 위임의 사실과 고른
+    근거를 HISTORY.md 에 남겼다. 근거는 위 "추천 순서" 절과 같다 — 성장 축 다섯 중 넷이
+    MISSING 이고 그중 셋이 이것 위에 쌓이며, 세계에서 값을 바꾸는 유일한 길이 아직
+    디버그 명령이다.
+
+    **Cycle 이 받아 갈 것** — `01-cycle.md` 의 `MASTER TRACE` 로 그대로 옮긴다.
+
+        Frontier             FR-WHAT-YOU-DID-MAKES-YOU
+        Source Goal          MG-OVERCOME-SUPERIOR-OPPONENT
+        Source Possibility   MP-OUTGROW-THE-OPPONENT
+        Target Capability    MC-GAIN-LEVEL (MISSING · `grounded: true`)
+        Active Constraints   DC-WORLD-PROGRESSION-IS-REACH · DC-GROWTH-GOAL-FIRST ·
+                             DC-COMBAT-PLAYER-CAUSALITY · DC-WORLD-OWNS-THE-SURFACE-LIST
+        Constraint Note      PROGRESSION-IS-REACH 가 이 Cycle 의 경계다 — 레벨은 기본값을
+                             키우는 바닥 축이고 **어디에 갈 수 있는가를 이 값으로 정하지
+                             않는다** (HISTORY Q53(a)). 문턱·관문에 이 값을 걸지 않는다.
+                             OWNS-THE-SURFACE-LIST 는 UNRESOLVED 로 넘어간다 — 무엇을
+                             관찰에 싣는지는 04 가 정한다
 
 ## 지금 열 수 없는 것
 

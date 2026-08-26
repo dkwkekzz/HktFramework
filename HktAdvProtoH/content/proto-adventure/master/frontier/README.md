@@ -20,7 +20,7 @@ NEXT 작업(직렬)만 한다.
 | ITEM | [item.md](item.md) | 아이템 IS · 인벤토리 IE | 없음 — Human 선택 대기 |
 | COMBAT | [combat.md](combat.md) | 전투 R1 · DT · 스킬 SK | 없음 — 후보 0 · MASTER OPTIONS 대기 |
 | TERRAIN | [terrain.md](terrain.md) | 세계 BW · BT (대지형 · 시스템 축 MS-BEIRA-TERRAIN) | FR-THE-GROUND-HAS-A-LAW — C-TERRAIN-001 착수 대기 |
-| GROWTH | [growth.md](growth.md) | 성장 GS (시스템 축 MS-GROWTH-SOURCE · MS-CLASS-EVOLUTION) | 없음 — Human 선택 대기 |
+| GROWTH | [growth.md](growth.md) | 성장 GS (시스템 축 MS-GROWTH-SOURCE · MS-CLASS-EVOLUTION) | FR-WHAT-YOU-DID-MAKES-YOU — C-GROWTH-001 착수 대기 |
 
 ## 병렬 규칙 — 구조가 지키는 것
 

@@ -2655,3 +2655,32 @@ Human 이 "FR-ACTION-PHASE 의 근간이 무엇인가" 를 물어 근간을 역�
     셋 다 형태(Class)를 요구하지 않는다 — CL-* 없이 성립하는 축부터 세운다는 뜻이며,
     그래서 Q54 가 열려 있어도 트랙이 돈다. 문턱(MC-CHANGE-CLASS)은 후보가 아니라
     "지금 열 수 없는 것" 에 있다 — 넘어갈 형태가 아직 없다.
+
+## GROWTH 첫 후보 선택 — Human 위임 · 2026-08-26
+
+    Human 지시: "후보 선택은 알아서 정하고 LANES에 반영해줘."
+
+    Frontier 선택은 Human 소유다 (CLAUDE.md 원칙 19). 이번에도 Human 이 그 선택을
+    Agent 에게 **명시적으로 위임**했으므로 Agent 가 골랐고, 위임의 사실을 여기 남긴다 —
+    TERRAIN 첫 후보와 같은 형태다.
+
+    고른 것      FR-WHAT-YOU-DID-MAKES-YOU (한 일이 몸을 키운다) → C-GROWTH-001
+    근거         성장 축 다섯 중 넷이 MISSING 인데 그중 셋(Class Mastery · Skill Mastery ·
+                 Exploration Mastery)이 전부 "쌓인다" 를 전제한다 — 이것이 그 형태를
+                 처음 세운다. 그리고 세계에서 몸의 값을 바꾸는 유일한 길이 아직
+                 디버그 명령이라(`RULE-ATTRIBUTE-SET-001`), overlay 의 둘째 구멍
+                 ("성장이 세계 밖에 있다")을 실제로 닫는 것은 셋 중 이것뿐이다.
+                 요구하는 갈래(MP-OUTGROW-THE-OPPONENT)가 결손의 이름으로 이 노드를
+                 직접 가리키고 있다는 점도 함께 봤다
+    고르지 않은 것 스킬 성장은 값이 싸지만 그 위에 얹히는 축이 없다 — 먼저 해도 되나
+                 "쌓인다" 를 두 번 세우게 된다. 방식의 기억(숙련)은 셋 중 유일하게
+                 판정을 절반만 닫는다 (형태가 없어 "형태마다 다르다" 가 성립하지 않는다)
+
+    Cycle 은 아직 시작하지 않았다 — 판(LANES.md)과 트랙 파일에만 반영했다. 넘어갈
+    MASTER TRACE 여섯 칸은 frontier/growth.md 의 SELECTED 절이 그대로 들고 있으며,
+    그 Constraint Note 가 이 Cycle 의 경계를 못박는다: **레벨로 문턱을 걸지 않는다**
+    (Q53(a)).
+
+    이로써 지금 병렬로 돌 수 있는 WORLD 트랙이 둘이다 — TERRAIN(C-TERRAIN-001)과
+    GROWTH(C-GROWTH-001). 둘 다 `world/semantic/actor.ts` 에 몸의 새 자리를 더하므로
+    판의 충돌 칸에 "자기 영역 끝에 추가만" 을 적어 두었다.
