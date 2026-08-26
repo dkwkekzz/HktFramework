@@ -3,12 +3,13 @@
 파일 하나 = Constraint 하나. 이름은 `DC-<NAME>.yaml`. 형식은 [../SCHEMA.md](../SCHEMA.md).
 
 현재: **Active 36종** — 전투 5종(1종 REVISED) + 성장 6종 + 세계 9종(대지형 4종 포함) +
-아이템 6종(1종 REVISED) + 스킬 6종(3종 REVISED) + GLOBAL 4종. 보류(DRAFT)는 없다.
+아이템 6종(1종 REVISED) + 스킬 6종(3종 REVISED) + GLOBAL 4종.
+**보류(DRAFT) 8종** — 성장(GS 주입, open-questions Q52 승인 대기).
 
 근거 문서:
 
 ```text
-content/proto-adventure/design/   팩 기획서 — R1 · DT · TG · BW · BT · IS · IE
+content/proto-adventure/design/   팩 기획서 — R1 · DT · TG · BW · BT · IS · IE · GS
 design/                           공정·기반 원본(루트) — GR
 
 R1 §x   Design-Combat-OffenseDefense-R0.md   전투 영역
@@ -19,6 +20,7 @@ BW §x   Master-World-Beira.md                세계(WORLD) 영역
 BT §x   Master-World-Beira-Terrain.md        세계(WORLD) 영역 — 대지형
 IS §x   Design-Item-System-R0.md             아이템(ITEM) 영역
 IE §x   Design-Inventory-Equipment-D1.md     아이템(ITEM) 영역 — IS §5.4 · §10 의 후속
+GS §x   Master-Fairy-Growth-System.md        성장(GROWTH) 영역 — 요정 캐릭터 성장 시스템
 ```
 
 근거는 영역을 넘지 않는다 — 전투 노드에 GR 을, 성장 노드에 R1/DT 를 인용하지 않는다.
@@ -49,6 +51,27 @@ IE §x   Design-Inventory-Equipment-D1.md     아이템(ITEM) 영역 — IS §5.
 | DC-GROWTH-DEFINITION-INSTANCE-SPLIT | Master 는 유한 Definition 만 — II-*/조합 결과는 Runtime, 사전 생성 금지 | GR §28~§32 · §42 |
 | DC-GROWTH-NOT-A-STAGE | Growth 는 Master Stage 가 아니라 NEED 위의 Overlay | GR §21 · §22.1 |
 | DC-GROWTH-GOAL-FIRST | 성장 자체를 Goal 로 세우지 않는다 — 현재 Goal 의 Possibility 로만 | GR §34 · §42 |
+
+### 보류 — DRAFT (성장 — GS 주입 · Q52 승인 대기)
+
+여덟 다 GS 가 절을 따로 두어 명시한 규칙이다. 원본보다 세게 쓰지 않았다.
+**승인 전이라 어느 노드에도 배선하지 않았다** — 대지형 넷(BT 주입)이 그랬던 것과 같다.
+승인이 오면 그때 걸린 노드와 판정이 함께 선다.
+
+| Constraint | 한 줄 | 근거 |
+|---|---|---|
+| DC-GROWTH-PRINCIPLE-IS-PLAYED | 원리는 설정 문구가 아니라 캐릭터가 하는 행동으로 화면 위에 있어야 한다 | GS §1 · §2 · §21 |
+| DC-GROWTH-CLASS-CHANGE-KEEPS-THE-PAST | Class Change 는 교체가 아니라 상위 형태로의 성장 — 이전 Class 가 기반으로 남는다 | GS §3.1 · §4 |
+| DC-GROWTH-CLASS-CHANGE-NEEDS-THE-WORLD | 단계의 문턱은 Level 만으로 넘을 수 없다 — 세계 현상의 직접 경험과 세계의 Property 를 함께 요구한다 | GS §6 · §19 |
+| DC-GROWTH-MASTERY-FROM-OWN-BEHAVIOR | 숙련은 반복량이 아니라 그 형태 고유의 행동에서 오른다 | GS §5 · §19 |
+| DC-GROWTH-EXPLORATION-SHARES-THE-PRINCIPLE | 탐험 능력은 전투와 같은 원리의 다른 쓰임 — 별도 미니게임 스킬이 아니다 | GS §8 |
+| DC-GROWTH-DIFFERENCE-IS-BEHAVIOR | 캐릭터 차이는 능력치 값이 아니라 반복하는 행동에서 드러난다 | GS §2 · §17 |
+| DC-GROWTH-SKILL-GAINS-BEHAVIOR | 스킬 성장 = 숫자 증가 + 행동 가능성 증가 | GS §18 · §19 |
+| DC-GROWTH-STAGE-READS-AT-A-DISTANCE | 성장 단계는 멀리서 보아도 읽힌다 — 힘의 증가가 외형으로 함께 나타난다 | GS §7 · §20 |
+
+여덟 중 둘은 이미 승인된 대지형 Constraint 를 **땅에서 몸으로 옮긴 것**이다 —
+PRINCIPLE-IS-PLAYED 는 DC-WORLD-TERRAIN-LAW-IS-OBSERVABLE 의, STAGE-READS-AT-A-DISTANCE 는
+DC-WORLD-TERRAIN-READS-AT-A-DISTANCE 의 짝이다.
 
 ### Active — APPROVED (세계 — BW 주입 · Q17(a) 승인)
 

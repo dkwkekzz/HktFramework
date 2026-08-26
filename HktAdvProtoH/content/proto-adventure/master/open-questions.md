@@ -11,7 +11,7 @@ Human 이 답한다    DECISION 줄
 답이 정해지면 해당 Node/Constraint 에 반영하고 **이 파일에서 지운 뒤 결정 내용을
 [HISTORY.md](HISTORY.md) 로 옮긴다.**
 
-미해결 **6건** — 닫힌 질문은 HISTORY.md.
+미해결 **10건** — 닫힌 질문은 HISTORY.md.
 
 [frontier/](frontier/) 의 `SELECTED` 는 두 트랙 다 비어 있다. COMBAT 은 하나뿐이던
 후보가 C025 로 닫혀 **후보가 0** 이고 — 다음 후보는 Q35 가 걸린 OPTIONS 작업이 낳는다 —
@@ -26,7 +26,16 @@ ITEM 은 후보 다섯이 Human 선택을 기다린다.
                세 번 겹친 뒤에 올라왔다. 다른 다섯과 달리 게임의 의미가 아니라
                두 층이 굴러가는 방식을 묻는다
 
-대지형(BT) 주입이 낸 다섯(Q47~Q51)은 2026-08-26 전부 닫혔다 — HISTORY.md.
+대지형(BT) 주입이 낸 다섯(Q47~Q51)은 전부 닫혔다 — HISTORY.md.
+
+성장(GS) 주입이 넷을 새로 열었다. **Q52** 는 승인 대기이고(성장 Constraint 여덟),
+**Q53 · Q54** 는 이 문서가 기존 세계 원칙 둘과 부딪히는 자리이며, **Q55** 만이 무언가를
+막는다 — Class Line 의 이름이 문서마다 달라 CL-* 를 세울 수 없다.
+
+    Q52        성장 Constraint 여덟 — 승인 대기 (주입이 낳은 DRAFT)
+    Q53        Character Level 이 "진행은 도달" 과 어떻게 공존하는가
+    Q54        요정은 플레이어 캐릭터인가 — 고정된 판타지와 "고정하지 않는다" 의 관계
+    Q55        Class Line 의 이름을 어느 문서가 소유하는가 — **차단** (CL-* 0 개의 이유)
 
 번호가 띄엄띄엄한 것은 앞선 질문들이 이미 닫혀 HISTORY 로 갔기 때문이다 —
 번호는 재사용하지 않는다.
@@ -288,5 +297,140 @@ ITEM 은 후보 다섯이 Human 선택을 기다린다.
     Agent 판단     지금 판단할 근거가 부족하다. 세계에 놓인 아이템이 어떻게 사라지는지
                   (소멸 시간 · 소유권)를 MC-TRANSFER-ITEM 이 정한 뒤라야 (a) 의 비용을
                   볼 수 있다. **그 Cycle 의 Stage 1 로 미루는 것**을 권한다.
+
+    DECISION      PENDING
+
+## Q52. 성장 Constraint 여덟을 승인하는가 — OPEN
+
+    무엇          `content/proto-adventure/design/Master-Fairy-Growth-System.md`(GS) 주입이 DC 여덟을 DRAFT 로 세웠다.
+                  전부 문서가 절을 따로 두어 **명시한** 원칙이며 원본보다 세게 쓰지 않았다.
+
+                      DC-GROWTH-PRINCIPLE-IS-PLAYED              §1 · §2 · §21
+                      DC-GROWTH-CLASS-CHANGE-KEEPS-THE-PAST      §3.1 · §4
+                      DC-GROWTH-CLASS-CHANGE-NEEDS-THE-WORLD     §6
+                      DC-GROWTH-MASTERY-FROM-OWN-BEHAVIOR        §5 · §19
+                      DC-GROWTH-EXPLORATION-SHARES-THE-PRINCIPLE §8
+                      DC-GROWTH-DIFFERENCE-IS-BEHAVIOR           §17
+                      DC-GROWTH-SKILL-GAINS-BEHAVIOR             §18
+                      DC-GROWTH-STAGE-READS-AT-A-DISTANCE        §7
+
+    영향          DRAFT 인 동안은 선택 지점의 Filter 로 작동하지 않으며, 대지형 넷의 선례를
+                  따라 **어느 노드에도 배선하지 않았다** — 승인이 오면 그때 걸린 노드와
+                  판정이 함께 선다. 특히 뒤의 넷은
+                  다음 성장 Cycle 의 크기를 직접 정한다 — 예컨대 스킬 성장에 행동 가능성의
+                  증가가 포함되어야 한다면(SKILL-GAINS-BEHAVIOR) 수치만 올리는 가장 싼
+                  구현이 처음부터 배제된다.
+
+    선택지        (a) **여덟 다 승인한다** → GROWTH 영역의 Filter 가 6종에서 14종이 된다.
+                      성장 Cycle 은 처음부터 이 여덟을 통과해야 한다.
+                  (b) **일부만 승인한다** → 나머지는 DRAFT 로 남고, 그 원칙이 걸린 노드의
+                      constraint_evaluation 이 UNRESOLVED 로 남는다.
+                  (c) **미룬다** → 성장이 실제로 세계에 들어오는 Cycle 에서 다시 본다.
+                      그때는 이미 구현 형태가 정해진 뒤라 원칙이 사후 승인이 된다.
+
+    Agent 판단     (a) 를 권한다. 여덟 모두 GS 가 스스로 절을 두어 규칙으로 적은 것이고,
+                  그중 둘(PRINCIPLE-IS-PLAYED · STAGE-READS-AT-A-DISTANCE)은 이미 승인된
+                  대지형 Constraint 둘을 땅에서 몸으로 옮긴 것이라 세계의 기존 원칙과
+                  같은 계열이다.
+
+    DECISION      PENDING
+
+## Q53. Character Level 은 "진행은 도달" 과 어떻게 공존하는가 — OPEN
+
+    무엇          DC-WORLD-PROGRESSION-IS-REACH 는 진행이 Level 이 아니라 **대응 가능한
+                  세계 범위의 확장**이라고 못박는다 (BW §1 · §32). GS §5 · §19 는 현재
+                  전투력의 다섯 축 중 첫째로 Character Level 을 두고, 전투·탐험·발견·사건
+                  해결이 그것을 올리며 그 결과로 생명력·공격력·방어력·기력·기본 이동이
+                  오른다고 적는다.
+
+    지금 상태     MC-GAIN-LEVEL 을 세우되 그 노드의
+                  `DC-WORLD-PROGRESSION-IS-REACH: UNRESOLVED` 로 남겨 두었다. 지어내
+                  SATISFIED 로 덮지 않았다.
+
+    영향          이 답이 정해지기 전에는 성장 Cycle 이 "무엇이 오르는가" 를 정할 수 없다.
+                  레벨이 세계의 사실이 되면 그것은 곧 관찰에 실리고 (남의 레벨이 보인다),
+                  그때부터 세계는 레벨로 정렬되기 시작한다 — 되돌리기 어려운 선택이다.
+
+    선택지        (a) **공존한다 — 레벨은 바닥, 도달은 기준** → 레벨은 기본값을 키우는
+                      다섯 축 중 하나일 뿐이고, 어디에 갈 수 있는가는 여전히 감당할 수
+                      있는가가 정한다 (BT §12). 땅의 문턱을 레벨로 걸지 않는다.
+                  (b) **레벨을 두지 않는다** → 기본값은 숙련·장비·형태로만 오른다.
+                      GS §5 의 다섯 축 중 하나를 주입하지 않는 것이 되므로 GS 개정이 필요하다.
+                  (c) **레벨을 진행의 축으로 삼는다** → DC-WORLD-PROGRESSION-IS-REACH 를
+                      개정한다. 이 세계의 기존 정의를 바꾸는 선택이다.
+
+    Agent 판단     (a) 를 권한다. GS 자신이 Class Change 의 문턱에 Level 만으로는 부족하다고
+                  적고 (§6), 세계 경험과 Catalyst 를 함께 요구한다 — 문서 자체가 레벨을
+                  바닥으로만 쓰고 있다. 다만 (a) 를 고르면 "지역 입장 제한 레벨" 같은
+                  형태가 앞으로도 금지된다는 뜻이므로 Human 이 확인할 일이다.
+
+    DECISION      PENDING
+
+## Q54. 요정은 플레이어 캐릭터인가 — 고정된 판타지와 "고정하지 않는다" — OPEN
+
+    무엇          MA-PLAYER 는 "안전한 문명권에서 출발해 자신의 목적과 방식을 스스로 고르는
+                  **사람**" 이고 (BW §1), DC-WORLD-PLAYER-UNFIXED-PATH 는 역할·Class·진영·
+                  전투 방식을 하나로 고정하지 않는다고 못박는다. GS 는 요정을 "원리가 하나의
+                  인격에 표현된 존재" 로 정의하고 (§1), 각 요정은 Principle · Power Fantasy ·
+                  Signature · Combat Style · Class Line 이 **고정된** 완성된 캐릭터라고
+                  적는다 (§2). 그리고 §20 은 루프를 "캐릭터를 얻는다" 로 시작한다.
+
+    영향          두 가지가 한꺼번에 걸린다.
+                  ① MA-PLAYER 가 누구인가 — 사람이 요정을 얻어 운용하는가, 플레이어 자신이
+                     요정인가, 둘 다인가. 지금 그래프에는 요정에 해당하는 Actor 가 없다.
+                  ② 고정된 판타지가 DC-WORLD-PLAYER-UNFIXED-PATH 와 부딪히는가.
+                  MP-BECOME-A-HIGHER-FORM 의 그 판정을 UNRESOLVED 로 남겨 두었다.
+
+    선택지        (a) **고른 뒤에는 고정, 고르는 것은 자유** → "무엇을 하러 왔는가" 는
+                      여전히 고정되지 않고, 고정되는 것은 그 몸이 무엇을 잘하는가다.
+                      캐릭터가 여럿이고 갈래가 실제로 다르면 원칙은 지켜진다
+                      (DC-GROWTH-DIFFERENCE-IS-BEHAVIOR 가 그 조건이다).
+                  (b) **플레이어는 사람이고 요정은 얻는 것** → 한 플레이어가 여러 요정을
+                      운용한다. MA-FAIRY 같은 Actor 가 서고, 성장의 주체가 사람이 아니라
+                      그 존재가 된다. BW §1 의 문장은 그대로 참으로 남는다.
+                  (c) **DC-WORLD-PLAYER-UNFIXED-PATH 를 개정한다** → 요정 선택을 세계의
+                      전제로 올린다. 이 세계의 기존 원칙을 바꾸는 선택이다.
+
+    Agent 판단     지금 판단할 근거가 부족하다. GS 는 요정이 어떻게 플레이어에게 오는지를
+                  공급하지 않는다 — §20 의 "캐릭터를 얻는다" 한 줄뿐이고, 그 획득이 세계
+                  안의 사건인지 시작 선택인지 말하지 않는다. **그 한 줄을 Human 이 채워야**
+                  (a) 와 (b) 가 갈린다.
+
+    DECISION      PENDING
+
+## Q55. Class Line 의 이름을 어느 문서가 소유하는가 — OPEN · 차단
+
+    무엇          같은 계열의 Class Line 이 문서마다 다르다.
+
+                      GS §9 (이 주입의 원본)        골완투사 → 왕골권사 → 백왕투신 → 백왕현신
+                      Design-Fairy-Baiwang-Growth-R0 백골권희 → 왕골가디언 → 백왕발키리 → 백왕현신
+                      Design-Fairy-Class-Layer0-R0   Origin = 골완투사 (GS 와 같다)
+
+                  Layer0 문서는 여섯 계열만 다루고 (가능성계·혈화계가 없다), Class 성장을
+                  "기존 원리 + 새 원리의 결합" 으로 정의해 하나의 Class 에서 여러 갈래가
+                  나올 수 있다고 적는다 — GS §4 의 네 층 직선 구조와 형태가 다르다.
+
+    지금 상태     **CL-* 를 하나도 세우지 않았다.** 어느 이름을 쓰든 다른 문서를 배신하고,
+                  Class 노드는 이름이 곧 정체이므로 나중에 고치면 origin_trace 와 grants 가
+                  통째로 흔들린다. 계열 여덟은 이름 대신 `graph/systems.yaml` 의
+                  MS-FAIRY-LINEAGE 여덟 자리로 서 있다.
+
+    영향          growth/ 의 CL-* 가 0 개로 남는다 — growth-graph.md 의 "전투 Capability
+                  전반: 획득 경로 없음" 이 닫히지 못하고, MC-CHANGE-CLASS 가 넘어갈 형태가
+                  없다. 계열별 문서(백왕 성장 · Layer0)의 주입도 이 답 없이는 시작할 수 없다.
+
+    선택지        (a) **계열별 문서가 이름을 소유한다** → GS 는 시스템 문서이고 §9~§16 은
+                      예시이므로 (문서 자신이 그렇게 밝힌다), 이름은 계열 문서를 따른다.
+                      GS §9 의 목록은 갱신하거나 예시임을 명시한다.
+                  (b) **GS 가 소유한다** → 계열 문서가 GS 의 이름으로 맞춘다.
+                      Layer0 이 이미 GS 와 같은 Origin 이름을 쓰므로 어긋난 것은 백왕 성장
+                      문서 하나다.
+                  (c) **아직 정하지 않는다** → CL-* 는 계속 서지 않는다.
+                      성장은 축(다섯) 쪽만 진행한다.
+
+    Agent 판단     (b) 를 권한다. 셋 중 둘이 이미 같은 이름을 쓰고, 그중 하나(Layer0)가
+                  **가장 나중에 쓰인 문서**다 — 어긋난 백왕 성장 문서가 그보다 앞선다.
+                  다만 이름은 취향이 아니라 캐릭터의 정체이므로 Human 만이 정할 수 있다.
+                  어느 쪽이든 **답이 오기 전에는 CL-* 를 세우지 않는다**.
 
     DECISION      PENDING

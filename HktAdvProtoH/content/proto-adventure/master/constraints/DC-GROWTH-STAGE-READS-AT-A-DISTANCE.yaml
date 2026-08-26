@@ -1,0 +1,48 @@
+# 원본 근거: content/proto-adventure/design/Master-Fairy-Growth-System.md (GS) §7 Class Change 의 시각적 표현 ·
+#   §4 Crown Class · §20 전체 플레이 루프(외형 변화 항)
+id: DC-GROWTH-STAGE-READS-AT-A-DISTANCE
+type: constraint
+
+statement: >
+  캐릭터의 성장 단계는 멀리서 보기만 해도 알아볼 수 있어야 한다 — 힘의 증가가 외형의
+  변화로 함께 나타난다.
+rationale: >
+  ❌ 흔한 형태는 이름표 옆 숫자다. 무엇이 강해졌는지는 상태창을 열어야 알고, 멀리 선
+  캐릭터는 1단계든 4단계든 같은 실루엣이다.
+  ✅ GS 는 단계마다 실루엣이 커지는 예를 든다 — 작은 백색 손갑 → 팔 전체를 덮는 왕골
+  건틀릿 → 등 뒤의 거대한 갈비뼈 형태의 Aura → 백왕의 골격을 연상시키는 전투 현현
+  (GS §7). 고유 색·문양·무기·장식·전투 자세·이펙트가 함께 발전하되 Identity 는 유지된다.
+
+  이 세계에서 이것이 취향이 아닌 이유는 땅에 이미 같은 규칙이 서 있기 때문이다 —
+  각 대지형은 멀리서 한 장면만으로 구분된다 (DC-WORLD-TERRAIN-READS-AT-A-DISTANCE).
+  그 규칙을 몸에 적용한 것이 이 원칙이다. 그리고 여러 사람이 함께 도는 세계에서는
+  이것이 곧 정보다 — 앞서 가는 사람이 어디까지 왔는지가 눈으로 읽힌다.
+
+  지켜서 얻는 것은 **성장이 남에게 보인다**는 것이다. 어겼을 때 잃는 것: 단계는 사적인
+  숫자가 되고, 그 단계에 도달한 것이 세계 안에서 아무 의미도 갖지 않는다.
+
+  가장 안 읽히는 조각은 **"Identity 는 유지하면서"** 다. 단계마다 다른 캐릭터처럼 보이라는
+  뜻이 아니라, 같은 캐릭터임을 알아본 채로 실루엣이 강해져야 한다는 뜻이다 (GS §7 마지막 줄).
+
+  경계 — 이것은 미술 지시가 아니다. 어떤 색과 양식을 쓸지는 정하지 않으며, 단계가 외형으로
+  드러나야 한다는 것과 그 외형이 그 캐릭터의 원리에서 나와야 한다는 것까지가 이 원칙이다.
+
+scope:
+  - GROWTH
+
+requires:
+  - 성장 단계가 외형(실루엣·장식·이펙트) 변화로 함께 나타난다                # GS §7 · §20
+  - 그 변화가 같은 캐릭터임을 유지한 채 일어난다                              # GS §7
+prohibits:
+  - 수치·표기만 바뀌고 외형이 그대로인 단계 상승                              # GS §7
+prefers:
+  - 단계가 오를수록 실루엣이 커지고 강해지는 형태                             # GS §7
+
+status: DRAFT
+provenance:
+  - HUMAN_DESIGN        # content/proto-adventure/design/Master-Fairy-Growth-System.md 주입 — Human 승인 대기 (open-questions Q52)
+
+relations:
+  supports:
+    - DC-WORLD-TERRAIN-READS-AT-A-DISTANCE   # 땅에 적용한 "멀리서 읽힌다" 를 몸에 적용한 판이다
+  conflicts_with: []

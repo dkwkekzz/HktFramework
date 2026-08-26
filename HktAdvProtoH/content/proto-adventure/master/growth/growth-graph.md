@@ -11,7 +11,32 @@ Master Capability 를 **"세계 안에서 어떻게 얻는가"**(Class / Item / 
 둘을 헷갈리면 안 된다. 공격력이 피해를 바꾸는 것(구현됨)과 플레이어가 공격력을 올릴 수
 있는 것(획득 경로)은 다른 이야기이고, 지금 이 프로젝트가 정확히 그 사이에 걸려 있다.
 
-GR = `design/Master-Intent-Graph-Growth.md`. 형식: [../SCHEMA.md](../SCHEMA.md).
+GR = `design/Master-Intent-Graph-Growth.md` (공정 원본) ·
+GS = `content/proto-adventure/design/Master-Fairy-Growth-System.md` (성장 기획 원본).
+형식: [../SCHEMA.md](../SCHEMA.md).
+
+## 성장의 원천 — 값이 어디에서 올라오는가
+
+GS §5 · §19 주입으로 이 표가 생겼다. 이 문서가 지금까지 답하지 못하던 질문 —
+"Capability 를 세계 안에서 어떻게 얻는가" 의 **Class 쪽 절반** — 이 여기서 시작한다.
+
+| 성장 대상 | 원천 (무엇을 해야 오르는가) | 노드 | 세계 |
+|---|---|---|---|
+| Character Level | 전투 · 탐험 · 발견 · 사건 해결 | MC-GAIN-LEVEL | 없음 |
+| 기본값 (생명력·공격력·방어력·기력·이동) | Character Level + Class | MC-ATTACK-POWER 외 — 값 자체는 이미 있다 | 값은 있고 **키우는 축이 없다** |
+| Class Mastery | 그 형태 고유의 행동 | MC-GROW-CLASS-MASTERY | 없음 |
+| Skill Mastery | 실제 사용과 난도 높은 활용 | MC-MASTER-A-SKILL | 없음 |
+| Exploration Mastery | 자기 원리로 환경 문제 해결 | MC-GROW-EXPLORATION-MASTERY | 없음 |
+| Equipment | 세계 자원 획득 · 제작 · 강화 | **MC-EQUIP-ITEM** | **있다** (C023 · C024) |
+| Class Change | Level + Mastery + World Experience + Catalyst | MC-CHANGE-CLASS | 없음 — 넘어갈 형태(CL-*)가 없다 |
+
+다섯 축 중 **하나만 세계에 서 있다**. 그리고 서 있는 그 하나는 성장이 아니라 자원으로
+감당하는 갈래(MP-ADAPT-BY-RESOURCE)에 매달려 있다 — 물건을 걸면 값이 오르지만 그것은
+값을 *키우는* 것이 아니라 *얹는* 것이다. 걸린 것을 풀면 정확히 원래 몸으로 돌아온다.
+
+Class Catalyst(GS §6)의 자리는 비어 있다. GS 는 그것이 "강한 형태를 유지하기 위해 필요한
+세계의 Property" 라고만 적고 어느 자원인지 명명하지 않는다 (태양심을 예로 들 뿐이다) —
+자원의 이름과 유래는 승인 대기 중인 자원 카탈로그 문서가 소유한다.
 
 ## 광물 — 어디서 왔고 무엇을 여는가
 
@@ -60,9 +85,9 @@ UNKNOWN 에서 얻은 것이 다시 UNKNOWN 을 더 감당하게 한다. 한 번
 | Capability | 획득 경로 | 근거 | 부족한 것 |
 |---|---|---|---|
 | MC-PENETRATION | **없음** | C013 08-verification 은 관통 값의 변경을 **디버그 명령**으로 실측했다. 종류가 정한 초기값 외에 이 값을 바꾸는 세계 내 행위가 없다 — 08 이 그 사실을 Possibility 주의로 직접 보고했다 | 관통을 얻는 경로 전부. 형태(장비·성장·준비 행동)가 정해지지 않았다 |
-| MC-ATTACK-POWER | **없음** | 코드 대조 — 능력치를 바꾸는 유일한 규칙이 디버그 명령이다. 장착도 소모품도 훈련도 레벨도 없고, 스폰 시 종류별 기본값이 정해진 뒤 그대로다 | 이 값을 올리는 세계 내 경로 전부. 광물을 세워도 **쓰는 규칙**이 없으면 그대로다 |
+| MC-ATTACK-POWER | **부분** — 장착 하나 (C023 · C024) | 코드 대조 — 걸어 둔 물건이 유효 값을 얹지만 기본값은 스폰 시 정해진 뒤 그대로이고, 그 값을 바꾸는 유일한 규칙은 여전히 디버그 명령이다 | 기본값을 **키우는** 경로. GS §19 주입으로 그 형태는 정해졌다 — 전투·탐험·발견·사건 해결이 Level 을 올리고 Level 이 기본값을 올린다 (MC-GAIN-LEVEL). 세계에 그 축이 없다 |
 | MC-RESTORE-BIOLOGICAL-STATE | **없음** | BW §8 은 원천(회귀초)만 명시하고 Item ID 를 명명하지 않았다 | 회귀초의 IT-* 와 획득·사용 규칙. 문서가 ID 를 주지 않아 세우지 않았다 — 광물은 Q22 로 정의했으나 식물은 Human 지시 범위 밖이었다 쓰는 개념(MC-USE-ITEM)이 선 다음 Cycle 이 원천과 함께 가져온다 (HISTORY Q31) |
-| 전투 Capability 전반 | **없음** | 코드 대조 — 배우거나 얻거나 되는 사건이 세계에 없다 | Class(CL-*) 노드 0 개 |
+| 전투 Capability 전반 | **없음** | 코드 대조 — 배우거나 얻거나 되는 사건이 세계에 없다 | Class(CL-*) 노드 0 개. **GS 주입으로 그 자리의 형태는 섰다** — 사다리 넷(MS-CLASS-EVOLUTION)과 계열 여덟(MS-FAIRY-LINEAGE). 노드가 서지 못하는 이유는 이제 근거의 부재가 아니라 **이름의 충돌**이다 (open-questions Q55) |
 
 ### grants 가 몸에 닿으려면 무엇이 먼저 서야 하는가
 
@@ -94,7 +119,7 @@ Growth 의 관점에서 이것은 경로가 아니라 경로의 앞부분 한 �
 
 | 층 | 상태 |
 |---|---|
-| 설계 (이 문서) | IP 5 · IT 6 · IM 3 · grants 3 건 — BW §17 순환이 그래프에서 닫혔다 |
+| 설계 (이 문서) | IP 5 · IT 6 · IM 3 · grants 3 건 — BW §17 순환이 그래프에서 닫혔다. **CL 0** — 사다리와 계열은 systems.yaml 에 섰으나 Class 이름이 문서마다 어긋난다 (Q55) |
 | 세계 (`world/`) | 광물 1 종(돌)만 존재하고 쓰임이 없다. 제작·장착·거래 규칙 전무 |
 | 결손의 이름 | IS 주입으로 넷이 노드가 되었다 — MC-USE-ITEM · MC-EQUIP-ITEM · MC-CRAFT-FROM-MATERIALS · MC-TRANSFER-ITEM (모두 MISSING) |
 

@@ -29,7 +29,7 @@ Feedback · BACKLOG)를 겹쳐 `LANES.html` 로 그린다. `npm run lanes:check`
 | WORLD·ITEM | HUMAN | 후보 5 중 선택 대기 — Agent 추천 FR-THE-PLACES-ARE-NARROWER (+FR-SEE-BEFORE 얹기) | Human Select (frontier/item.md) |
 | WORLD·COMBAT | BLOCKED | 후보 0 — FR-THE-SHAPE-IS-DATA 가 C025 로 닫혔다 | MASTER 의 OPTIONS(Q35) 가 후보를 낳는 것 |
 | VIEW | OPEN | BACKLOG 다음 항목(request-feedback)부터 — equipment-panel 은 아래 충돌 칸 | 없음 |
-| MASTER | OPEN | 둘 중 하나 — ① 대지형 NEXT(땅을 세우는 첫 Frontier 후보. BT 주입과 Q47~Q51 이 닫혀 길이 열렸다) ② OPTIONS Q35 (몸이 아닌 존재를 요구하는 Possibility) | 없음 — 미처리 Feedback 이 0 이라 막던 것이 사라졌다 (`npm run feedback:gate`) |
+| MASTER | OPEN | 둘 중 하나 — ① 대지형 NEXT(땅을 세우는 첫 Frontier 후보. BT 주입과 Q47~Q51 이 닫혀 길이 열렸다) ② OPTIONS Q35 (몸이 아닌 존재를 요구하는 Possibility). 성장(GS) 주입은 끝났고 그것이 낸 넷(Q52~Q55)은 Human 대기라 레인을 막지 않는다 | 없음 — 미처리 Feedback 이 0 이라 막던 것이 사라졌다 (`npm run feedback:gate`) |
 | ENGINE | OPEN | 기반 부채 하나 — 표시 문구를 사유 코드로 바꿔 팩에 회수 (C009 폭이 넓고 조립·팩 채택 동반 — 착수 전 범위 확인) | 없음 |
 | PROCESS | HOLD | 없음 | — (공정 변경 중에는 다른 레인을 새로 띄우지 않는다) |
 
@@ -51,4 +51,8 @@ Human 이 답하면 풀리는 것들이다. 답의 자리는 괄호가 가리킨
 | WORLD·ITEM 후보 선택 (frontier/item.md SELECTED) | WORLD·ITEM 레인 착수 |
 | Q37 — 자리에 이름을 줄 것인가 (open-questions.md) | FR-ARRANGE-WHAT-YOU-CARRY 존치/삭제 |
 | Design-Creature-Behavior-R0.md 승인 | Inject → MC-PREDICT · MC-OBSERVE 습성 해금 |
-| Design-Resource-Catalog-R0.md 승인 | Inject → Q36 · 회복 아이템 해금 · BT 자원 24종의 자리 (그 문서가 받기로 정해졌다 — HISTORY Q50(a)) |
+| Design-Resource-Catalog-R0.md 승인 | Inject → Q36 · 회복 아이템 해금 · BT 자원 24종의 자리 (그 문서가 받기로 정해졌다 — HISTORY Q50(a)) · GS 의 Class Catalyst 자리 |
+| Q52 — 성장 Constraint 여덟 승인 (open-questions.md) | GROWTH Filter 6종 → 14종 · 성장 노드에 판정 배선 |
+| Q53 — Character Level 과 "진행은 도달" 의 공존 | MC-GAIN-LEVEL 판정 · 성장 Cycle 이 무엇을 올릴지 |
+| Q54 — 요정은 플레이어 캐릭터인가 | MP-BECOME-A-HIGHER-FORM 판정 · MA-* 배선 |
+| Q55 — Class Line 의 이름을 어느 문서가 소유하는가 | **차단** — CL-* 착수 · 계열별 문서(백왕 성장 · Layer0) 주입 |

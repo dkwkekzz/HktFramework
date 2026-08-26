@@ -2492,3 +2492,61 @@ Human 이 "FR-ACTION-PHASE 의 근간이 무엇인가" 를 물어 근간을 역�
 
     **이 다섯이 닫히면서 막힌 것이 하나 풀렸다** — 땅을 세우는 첫 Cycle 의 모양이
     정해질 수 있게 되었다. Frontier 후보는 아직 세우지 않았다 (NEXT 작업).
+
+## 주입 — 요정 캐릭터 성장 시스템(GS) · 2026-08-26
+
+    Human 지시: "LANES.md 참고하여 이 기획에 대한 master 주입을 진행한다.
+    content/proto-adventure/design/Master-Fairy-Growth-System.md"
+
+    BW 가 세계를, BT 가 그 세계의 땅을 공급했다면 GS 는 **그 땅의 원리가 하나의 인격에
+    집중되면 무엇이 되는가**를 공급한다 (GS §1). 인용 약칭을 `GS` 로 새로 두었다
+    (성장 영역 — 기존 GR 은 공정 원본이라 자리가 다르다).
+
+    **바뀐 것** — overlay 의 둘째 구멍("성장이 세계 밖에 있다")에 처음으로 이름이 붙었다.
+    지금까지 능력치를 바꾸는 유일한 경로는 디버그 명령이었고, 그것이 결손인 줄은 알았지만
+    무엇이 그 자리에 들어와야 하는지는 어느 문서도 말하지 않았다. GS §5 · §19 가 그 축을
+    다섯으로 명명한다 — Level · Class Mastery · Skill Mastery · Exploration Mastery ·
+    Equipment. 다섯 중 **장비 하나는 이미 서 있다** (MC-EQUIP-ITEM — C023 · C024).
+
+    산출물:
+        constraints/    DRAFT 8종 — PRINCIPLE-IS-PLAYED(§1 · §2 · §21) ·
+                        CLASS-CHANGE-KEEPS-THE-PAST(§3.1) · CLASS-CHANGE-NEEDS-THE-WORLD(§6) ·
+                        MASTERY-FROM-OWN-BEHAVIOR(§5) · EXPLORATION-SHARES-THE-PRINCIPLE(§8) ·
+                        DIFFERENCE-IS-BEHAVIOR(§17) · SKILL-GAINS-BEHAVIOR(§18) ·
+                        STAGE-READS-AT-A-DISTANCE(§7). 승인 대기 → Q52.
+                        BT 선례대로 승인 전에는 어느 노드에도 배선하지 않았다
+        graph/          MC 5종 — GAIN-LEVEL · GROW-CLASS-MASTERY · MASTER-A-SKILL ·
+                        GROW-EXPLORATION-MASTERY · CHANGE-CLASS. 요구처가 전부 방법이다
+                        (required_by) — 장소가 요구하는 것은 없다 ·
+                        MP 1종 — BECOME-A-HIGHER-FORM. MG-EXPLORE-BEIRA 의 **넷째 갈래**이며
+                        앞의 셋과 달리 바깥에서 구해 오지 않고 몸 자체가 상위 형태가 된다 ·
+                        MK 1종 — WITNESSED-WORLD-PHENOMENON. Class Change 의 네 문턱 중
+                        **살 수 없는 유일한 것**이다 (GS §6) ·
+                        MS 3종 — CLASS-EVOLUTION(층 넷) · GROWTH-SOURCE(축 다섯) ·
+                        FAIRY-LINEAGE(계열 여덟 — 대지형 여덟의 거울, 순서 없음)
+        기존 노드 2종    CHANGED — MC-EQUIP-ITEM 에 MS-GROWTH-SOURCE/EQUIPMENT 소속을 더했다
+                        (다섯째 축은 새 노드가 아니라 이미 선 그 노드다) ·
+                        MP-OUTGROW-THE-OPPONENT 의 requires 에 MC-GAIN-LEVEL 을 더했다
+                        ("자라는 축이 없다" 고 적어 두던 그 자리다)
+        growth/         growth-graph.md 에 "성장의 원천" 표가 생겼다 — 일곱 줄 중 하나만
+                        세계에 서 있다. CL-* 는 **하나도 세우지 않았다** (Q55)
+        open-questions  Q52(승인) · Q53(레벨 ↔ 도달) · Q54(요정은 플레이어인가) ·
+                        Q55(Class Line 이름 충돌 — 차단)
+
+    **세우지 않은 것 셋** (지어내지 않았다):
+
+        계열별 능력 목록 (§9~§16)   문서 자신이 "예시" 라고 밝히고, 그것을 요구하는
+                                    Possibility 를 공급하지 않는다. 게다가 여덟 계열의
+                                    능력 대부분은 그 계열이 딛고 선 땅이 이미 요구하고
+                                    있다 (BT 주입의 MC 아홉) — 계열 이름으로 복제하지
+                                    않는다 (DC-GROWTH-NO-CAPABILITY-DUPLICATION)
+        CL-* (Class 정의)           Class Line 의 이름이 문서마다 다르다 → Q55.
+                                    이름이 곧 정체라 나중에 고치면 origin_trace 와
+                                    grants 가 통째로 흔들린다
+        Class Catalyst 의 자원      GS 는 "세계의 Property" 라고만 적고 어느 자원인지
+                                    명명하지 않는다 (태양심은 예시다) — 자원의 이름과
+                                    유래는 카탈로그 문서가 소유한다 (Q50(a) 선례)
+
+    **부딪힌 것 둘** — 임의로 풀지 않고 노출했다. 레벨 축과 "진행은 도달"(Q53),
+    고정된 캐릭터 판타지와 "역할을 고정하지 않는다"(Q54). 둘 다 해당 노드의 판정을
+    UNRESOLVED 로 남겼다 — SATISFIED 로 덮지 않았다.

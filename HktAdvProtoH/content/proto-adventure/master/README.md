@@ -99,7 +99,7 @@ MP-PIERCE-THE-HARD-DEFENSE(C013) · MP-INTERRUPT(C019). MP-OUTGROW-THE-OPPONENT 
 §27 기관 대안 4종의 requires   BW 는 대안 구조만 공급했다 — 배선은 OPTIONS/NEED 몫
 지역이라는 세계 기반           SAFE↔FRINGE 경계·이동이 세계에 없다 — 탐험 Cycle 들의 전제
 각 층이 만드는 Local Goal      §16 은 순환(발견 → Local Goal)만 공급했다 — WHY 몫
-Growth 획득 경로               CL-* 0 건 · grants 배선 없음 — growth/growth-graph.md
+Growth 획득 경로               CL-* 0 건 — 사다리·계열은 섰고 Class 이름이 어긋난다 (Q55)
 ```
 
 닫힌 결정(2026-08-19): Belief 비도입(Q3) · 전투는 전투로(Q8) · Critical 확률 허용(Q11) ·

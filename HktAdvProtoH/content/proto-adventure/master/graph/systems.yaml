@@ -143,3 +143,60 @@ systems:
       깊이 사다리(MS-BEIRA-LADDER)와 **직교한다** (Human 결정 — HISTORY Q47(a)):
       이쪽은 어떤 법칙의 땅인가이고 그쪽은 그 땅 안에서 얼마나 들어갔는가다.
       한 대지형 안에 안전한 마을과 극단적으로 위험한 심부가 함께 있다 (BT §3).
+
+  - id: MS-CLASS-EVOLUTION
+    name: Class 진화 사다리
+    source: GS (content/proto-adventure/design/Master-Fairy-Growth-System.md) §3 · §4 · §7
+    status: DEFINED
+    semantic: >
+      한 캐릭터가 자기 원리를 발전시키며 거치는 형태의 층. 아래 형태를 버리고 갈아 끼우는
+      것이 아니라 그 위에 서는 구조이며 (GS §3.1), 층이 오를수록 능력이 미치는 범위가
+      개인에서 전장으로, 전장에서 원리의 현현으로 넓어진다 (GS §4). 층마다 외형이 함께
+      바뀌어 멀리서도 어느 단계인지 읽힌다 (GS §7).
+      층과 층 사이를 넘는 자리(MC-CHANGE-CLASS)는 어느 한 층에 속하지 않는다 —
+      segment 없이 이 시스템에 속한다.
+    segments:
+      - { id: ORIGIN,   name: Origin Class — 가장 단순하고 명확한 능력 }
+      - { id: ADVANCED, name: Advanced Class — 고유 능력이 전투 기술이 된다 }
+      - { id: HIGH,     name: High Class — 전장 전체에 미친다 }
+      - { id: CROWN,    name: Crown Class — 원리가 캐릭터로 현현한다 }
+
+  - id: MS-GROWTH-SOURCE
+    name: 성장의 원천
+    source: GS (content/proto-adventure/design/Master-Fairy-Growth-System.md) §5 · §19
+    status: DEFINED
+    semantic: >
+      지금의 힘이 어디에서 올라오는가의 축들. GS §5 는 현재 전투력을 다섯 축의 합으로
+      적고 §19 는 축마다 무엇을 해야 오르는지를 명명한다 — 이 시스템은 그 다섯 자리다.
+      층이 아니라 나란한 축이며 순서는 GS §5 의 나열 순서다 (아래에서 위로 읽는 사다리가
+      아니다). 마지막 자리(장비)는 이미 아이템 시스템이 세운 것과 같은 자리다 —
+      새로 만들지 않고 그 노드가 두 시스템에 속한다.
+    segments:
+      - { id: LEVEL,                name: Character Level — 전투·탐험·발견·사건 해결 }
+      - { id: CLASS-MASTERY,        name: Class Mastery — 그 형태 고유의 행동 }
+      - { id: SKILL-MASTERY,        name: Skill Mastery — 실제 사용과 난도 높은 활용 }
+      - { id: EXPLORATION-MASTERY,  name: Exploration Mastery — 원리로 환경 문제 해결 }
+      - { id: EQUIPMENT,            name: Equipment — 세계 자원 획득·제작·강화 }
+
+  - id: MS-FAIRY-LINEAGE
+    name: 요정 계열
+    source: GS (content/proto-adventure/design/Master-Fairy-Growth-System.md) §1 · §2 · §9~§16
+    status: DEFINED
+    semantic: >
+      하나의 세계 원리가 대륙이 아니라 **하나의 인격**에 집중되어 태어난 존재의 갈래
+      (GS §1). 대지형(MS-BEIRA-TERRAIN)의 거울이다 — 여덟 계열이 여덟 대지형의 원리와
+      하나씩 짝을 이룬다. 순서가 없다는 것도 그쪽과 같다 (GS §9 는 이 여덟을 예시로 들 뿐
+      난이도나 계보로 늘어놓지 않는다).
+      GS 는 계열마다 Principle · Power Fantasy · Class Line · 전투 · 탐험 · 성장 행동을
+      공급하지만 각 Class 의 정의(CL-*)는 세우지 않는다 — 그 자리는 계열별 설계 문서가
+      소유하며, Class Line 의 이름이 문서마다 어긋나 있어 아직 세울 수 없다
+      (open-questions Q55).
+    segments:
+      - { id: BAIWANG,     name: 백왕계 — 결속 (백왕의 갈비분지) }
+      - { id: YEOKRAK,     name: 역락계 — 방향 (하늘로 떨어지는 산맥) }
+      - { id: SUNHEART,    name: 태양심계 — 축적과 방출 (해를 삼킨 빙원) }
+      - { id: TRUENAME,    name: 진명계 — Identity (이름을 먹는 수해) }
+      - { id: BREATH,      name: 숨결계 — 대기 (무호흡해) }
+      - { id: PULSE,       name: 맥동계 — 살아 있는 대지와의 공명 (걷는 대륙의 무리) }
+      - { id: POSSIBILITY, name: 가능성계 — 선택되지 않은 것 (아직 일어나지 않은 사막) }
+      - { id: BLOODBLOOM,  name: 혈화계 — 생체 상태의 회귀 (사람을 꽃피우는 혈화수해) }
