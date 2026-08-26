@@ -34,7 +34,7 @@ Feedback · BACKLOG)를 겹쳐 `LANES.html` 로 그린다. `npm run lanes:check`
 | FEEDBACK | OPEN | 없음 — 닫힌 Cycle 이 모두 Master 에 들어갔다 | 없음 — 병합 뒤 최신 main 위에서 (`npm run feedback:gate`) |
 | WORLD·ITEM | HUMAN | 후보 5 중 선택 대기 — Agent 추천 FR-THE-PLACES-ARE-NARROWER (+FR-SEE-BEFORE 얹기) | Human Select (frontier/item.md) |
 | WORLD·COMBAT | OPEN | `C-COMBAT-001` 착수 대기 — SELECTED `FR-WHERE-YOUR-POWER-SITS`(지금 힘이 어디에 몰려 있는가). Stage 1 부터, 아직 시작하지 않았다. 남은 후보 아홉이 UL 전체를 덮는다 | 없음 — 다만 이 판과 트랙 파일이 main 에 들어간 뒤에 잡는다 |
-| WORLD·TERRAIN | RUNNING | `C-TERRAIN-001` — SELECTED `FR-THE-GROUND-HAS-A-LAW`(땅이 법칙을 지닌다). Stage 1 부터 진행 중. 시각화의 소유 분해·진행 순서는 [design/Design-Terrain-Visualization.md](../../design/Design-Terrain-Visualization.md) 를 따른다 | 없음 — 다만 이 판과 트랙 파일이 main 에 들어간 뒤에 잡는다 |
+| WORLD·TERRAIN | OPEN | `C-TERRAIN-001` — Stage 1~4 닫혔다. 다음은 **Stage 5 (Human Semantic Review)** 이며 그것은 Agent 가 쓰지 않는다 — 세션은 02-intent.md 의 REVIEW QUESTION 둘을 Human 에게 묻는 것으로 시작한다. 04 가 관찰 표면을 확정했으므로 ENGINE 의 `SceneGroundZone` 이 열렸다 (04 의 `engine_contract`) | Stage 6 은 `05-review.md` 가 APPROVED 여야 열린다 (아래 HUMAN 대기) |
 | WORLD·GROWTH | OPEN | `C-GROWTH-001` 착수 대기 — SELECTED `FR-WHAT-YOU-DID-MAKES-YOU`(한 일이 몸을 키운다). Stage 1 부터, 아직 시작하지 않았다. **COMBAT 과 같은 파일을 본다 — 아래 충돌 칸** | 없음 — 다만 이 판과 트랙 파일이 main 에 들어간 뒤에 잡는다 |
 | VIEW | OPEN | BACKLOG 다음 항목(tooltip-on-focus)부터 — equipment-panel 은 아래 충돌 칸 | 없음 |
 | MASTER | OPEN | OPTIONS Q35 (몸이 아닌 존재를 요구하는 Possibility) — 이제 스킬 실행 형태의 빈 다섯 칸만 막는다. 성장(GS · GB)과 전투 상층(UL) 주입은 둘 다 끝났다: 결정 열(Q52~Q61) 반영 · GROWTH 후보 3 · COMBAT 후보 10 과 SELECTED 까지 | 없음 — 미처리 Feedback 이 0 이다 (`npm run feedback:gate`) |
@@ -54,7 +54,7 @@ Feedback · BACKLOG)를 겹쳐 `LANES.html` 로 그린다. `npm run lanes:check`
 | **WORLD·GROWTH ↔ WORLD·COMBAT** | **이제 겹친다.** "COMBAT 이 후보 0 이라 겹치지 않는다" 던 조건이 UL 주입으로 사라졌다. 둘 다 `world/semantic/combat.ts` 의 **유효 값 계산**(`effectiveStat`)에 항을 더한다 — 성장은 자란 값을, 배분은 지금 몰아 둔 곳을. 같은 함수 안이라 끝에 추가하는 것으로 갈라지지 않는다. **둘 중 하나를 먼저 돌리고 다른 쪽은 병합 뒤 최신 main 위에서 잡는다** — 순서는 Human 이 정한다 (아래 HUMAN 대기) |
 | WORLD·COMBAT ↔ VIEW | 상층 후보 열이 전부 전투 HUD 에 자리를 요구한다 (지금의 배분 · 대답 가능 여부 · 기회). VIEW 와 같은 파일(`hud-presentation.ts` · `combat-presentation.ts`)에서 만나므로 위와 같은 규칙 — 자기 영역 끝에 추가만 한다 |
 | VIEW 의 touch-reason ↔ ENGINE | ENGINE 이 열었다 — touch-pad 가 `unavailableText` 를 버튼에 그린다. VIEW 는 눈검증·백로그 정리만 남았다 |
-| WORLD·TERRAIN ↔ ENGINE | ENGINE 의 지면 구역 장치(`SceneGroundZone`)를 TERRAIN 의 Stage 7 이 소비한다 — 04 가 관찰 표면을 확정한 뒤 ENGINE 이 착수하고, fallback(안 그림)이 있어 BLOCKED 는 아니다. 소유 분해·순서: [design/Design-Terrain-Visualization.md](../../design/Design-Terrain-Visualization.md) |
+| WORLD·TERRAIN ↔ ENGINE | **04 가 확정되어 ENGINE 이 착수할 수 있다.** 최종 모양은 04 의 `engine_contract` 가 소유한다 — 원(circle) 하나만, `rect`·폴리곤은 뺀다, `intensity` 는 지금 넣어 둔다(다음 Cycle 의 예고가 쓴다). TERRAIN 의 Stage 7 이 소비하며 fallback(안 그림)이 있어 BLOCKED 는 아니다. 소유 분해: [design/Design-Terrain-Visualization.md](../../design/Design-Terrain-Visualization.md) |
 | VIEW 의 슬롯 띠·표면 문구 ↔ ENGINE | ENGINE 이 남은 기반 문구를 회수하면 `hud/surface.ts` · `hud/slot-bar.ts` 가 팩의 문구 표를 타게 된다 — 그때 그 표에 줄이 는다 (VIEW 가 쓰는 자리이므로 병합 뒤에 잇는다) |
 | VIEW 의 skill-focus-order ↔ ENGINE | 초점 차례를 세우는 자리가 기반이면 ENGINE 동반이 필요하다 — 지금은 팩 키(`L`)가 지름길로 그 구멍을 메우고 있다 |
 
@@ -65,6 +65,9 @@ Human 이 답하면 풀리는 것들이다. 답의 자리는 괄호가 가리킨
 | 무엇 | 풀리는 것 |
 |---|---|
 | WORLD·ITEM 후보 선택 (frontier/item.md SELECTED) | WORLD·ITEM 레인 착수 |
+| C-TERRAIN-001 Stage 5 — Semantic Review (`cycles/C-TERRAIN-001-the-ground-has-a-law/05-review.md`) | WORLD·TERRAIN 의 Stage 6 (World 구현) |
+| 그중 물음 ① — 지닌 열이 다한 뒤 법칙이 생명에 닿는 것을 이 Cycle 이 세우는가 (02-intent.md REVIEW QUESTION 1) | 아니라면 Transition 의 둘째 줄이 빠진다. 나머지는 그대로다 |
+| 그중 물음 ② — 되채움 없이 닫힌 세계가 견디는가 (02-intent.md REVIEW QUESTION 2) | 견디지 못한다면 예외 자리가 되돌리는 것까지 이 Cycle 이 받는다 (Stage 6 이전에 정해져야 한다) |
 | GROWTH 와 COMBAT 중 어느 Cycle 을 먼저 돌리는가 | 둘이 같은 함수(`effectiveStat`)에 손대므로 동시에 못 돈다 — 뒤로 밀리는 쪽은 병합 뒤 최신 main 위에서 잡는다 (위 충돌 칸) |
 | 문서의 분류 다섯에 `도구` 를 더할 것인가 (Design-View-Inventory-Equipment-UX-D1 §6) | 곡괭이가 `기타` 대신 자기 칸을 얻는다 (V-008 REPORT) |
 | Q37 — 자리에 이름을 줄 것인가 (open-questions.md) | FR-ARRANGE-WHAT-YOU-CARRY 존치/삭제 |
