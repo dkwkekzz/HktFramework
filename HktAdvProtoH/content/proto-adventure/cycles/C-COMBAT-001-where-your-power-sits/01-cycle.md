@@ -1,7 +1,7 @@
 # CYCLE C-COMBAT-001 — Where Your Power Sits
 
 [PASS] Cycle Definition           (배분 하나 · 값만 오르내린다 · 여닫는 것은 EXCLUDED)
-[    ] Intent
+[PASS] Intent                     (세 축은 겹치지 않는다 · 고른 배분은 0 · 형태는 보이고 값은 관문 안)
 [    ] World Semantic
 [    ] GameView Specification
 [    ] Human Semantic Review
