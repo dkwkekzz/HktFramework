@@ -19,6 +19,7 @@ NEXT 작업(직렬)만 한다.
 |---|---|---|---|
 | ITEM | [item.md](item.md) | 아이템 IS · 인벤토리 IE | 없음 — Human 선택 대기 |
 | COMBAT | [combat.md](combat.md) | 전투 R1 · DT · 스킬 SK | 없음 — 후보 0 · MASTER OPTIONS 대기 |
+| TERRAIN | [terrain.md](terrain.md) | 세계 BW · BT (대지형 · 시스템 축 MS-BEIRA-TERRAIN) | 없음 — Human 선택 대기 |
 
 ## 병렬 규칙 — 구조가 지키는 것
 
@@ -52,14 +53,19 @@ Feedback 경위 = 자기 파일     닫힌 Cycle 의 반영 경위는 feedback/<
 
 ## 트랙 간 순서
 
-지금 두 트랙 사이에 의존이 없다 — 어느 쪽을 먼저 골라도 된다.
+세 트랙 사이에 의존이 없다 — 어느 쪽을 먼저 골라도 된다.
 ITEM 안의 순서는 IS §6 이 그은 것(바닥 → 장착 → 제작 → 세계의 아이템)이고, 후보 다섯이
-Human 선택을 기다린다.
+Human 선택을 기다린다. TERRAIN 안의 순서는 셋 중 하나가 바닥이라는 것이며(땅이 먼저
+있어야 나머지가 겪힌다) 그 트랙 파일이 소유한다.
 
 **COMBAT 은 지금 새 Cycle 을 열 수 없다.** 하나뿐이던 후보가 C025 로 닫혔고 그 반영이
 끝나 **후보가 0** 이다. 다음 COMBAT Cycle 은 MASTER 레인의 OPTIONS 작업(Q35 — 몸이 아닌
 존재를 요구하는 Possibility)이 후보를 낳은 뒤에야 열린다. 그러므로 지금 **병렬로 돌 수
-있는 WORLD 트랙은 ITEM 하나**다.
+있는 WORLD 트랙은 ITEM 과 TERRAIN 둘**이다.
+
+두 트랙이 겹치는 자리가 하나 있다 — TERRAIN 의 세 번째 후보
+(FR-WHAT-KEEPS-YOU-ALIVE-IS-CARRIED)가 지니고 나누는 것을 다루므로 아이템 쪽 파일에
+닿는다. 그 후보를 고를 때는 ITEM 트랙이 무엇을 도는 중인지 먼저 본다 (LANES 의 충돌 칸).
 
 ## 지금 열 수 없는 것 — 트랙 밖
 
@@ -68,7 +74,7 @@ Human 선택을 기다린다.
 
 | 기능 / 층 | 무엇이 막고 있는가 |
 |---|---|
-| 지형 · 문명권 준비 갈래 · 희귀 기관 갈래 | 세계 기반(지역 · 문명권 · 거래 주체)이 없다 (overlay.md World 표 ABSENT). 희귀 기관 쪽은 그 위에 **물건이 몸 밖에 놓인다**(FR-THINGS-LIE-IN-THE-WORLD)까지 필요하다 — IS 주입으로 공통 앞칸이 드러났다 |
+| 문명권 준비 갈래 · 희귀 기관 갈래 | 세계 기반(문명권 · 거래 주체)이 없다 (overlay.md World 표 ABSENT). 희귀 기관 쪽은 그 위에 **물건이 몸 밖에 놓인다**(FR-THINGS-LIE-IN-THE-WORLD)까지 필요하다 — IS 주입으로 공통 앞칸이 드러났다. **지형은 이 줄에서 빠졌다** — BT 주입과 Q47~Q51 결정으로 TERRAIN 트랙이 서서 후보 셋을 얻었다 |
 | 능동 방어 · Aura/Nen · 베이라 사다리의 잠정 조각 전부 | 그 전체의 설계 문서가 없다 (`part_of.grounded: false` — 척추 시각화의 점선). 능동 방어가 요구하는 **행동 안의 시점 판정**은 C019 로 바닥이 섰다 — 남은 것은 문서뿐이다 |
 | 다음 수를 읽는다 (MC-PREDICT · MC-OBSERVE 습성) | 위와 같음 — 반쪽을 소유한 시스템(MS-CREATURE-BEHAVIOR)이 DRAFT 다. 초안 [content/proto-adventure/design/Design-Creature-Behavior-R0.md](../../design/Design-Creature-Behavior-R0.md) 승인 → Inject → 재판정 |
 | Tab 후보 추리기 · 대상 프레임 관계 표시 | 세계의 결손이 아니라 화면의 편의 — Cycle 이 아니라 **VIEW 레인** 작업이다 (guides/view-work.md · `works/V-*`) |

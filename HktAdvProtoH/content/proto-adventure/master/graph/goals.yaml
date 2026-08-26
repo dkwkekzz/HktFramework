@@ -5,6 +5,7 @@
 # 형식: ../SCHEMA.md
 #
 # 인용 — BW = content/proto-adventure/design/Master-World-Beira.md (탐험) ·
+#        BT = content/proto-adventure/design/Master-World-Beira-Terrain.md (대지형) ·
 #        R1 = content/proto-adventure/design/Design-Combat-OffenseDefense-R0.md · DT = content/proto-adventure/design/Design-Combat-DamageType-R0.md (전투)
 version: 1
 nodes:
@@ -177,8 +178,49 @@ nodes:
     constraint_evaluation:
       DC-WORLD-CREATURE-FROM-PRESSURE: SATISFIED   # 층의 생존 경쟁이 먼저이고 이 Goal 이 그 적응의 결과다
 
+  # ══ 대지형이 낳는 Goal (BT) ════════════════════════════════════════════
+
+  - id: MG-RESCUE-THE-TAKEN
+    type: goal
+    owner: MA-PLAYER
+    desired_state: >
+      대지형의 법칙에 붙들려 사라지는 중인 존재가 그 법칙 밖으로 돌아온다.
+      (BT §6.6 · §7.7 · §8.7 · §11.7)
+    detail: >
+      네 대지형이 같은 행동을 각자 따로 명명했다 — 숲에 흡수되기 직전의 존재를 추적해
+      구출하고 (BT §6.6 무명사냥꾼), 공기가 사라진 자리에 고립된 탐험가를 구조하고
+      (BT §7.7), 하늘로 추락하는 동료를 붙잡고 (BT §8.7), 꽃이 완성되기 전에 대상을
+      되찾는다 (BT §11.7). 죽음을 막는 것과 다르다는 점이 중요하다. 이 지형들에서 잃는
+      방식은 죽는 것이 아니라 그 땅의 일부가 되는 것이다 — 이름이 뿌리망에 편입되거나
+      (BT §6.2) 생명 상태가 꽃으로 옮겨간다 (BT §11.2). 그래서 이 목적에는 언제나 시간이
+      걸려 있고, 늦으면 되돌릴 자리 자체가 사라진다.
+    world_shape: >
+      존재가 지형의 법칙에 붙들려 단계적으로 사라지는 과정이 세계에 있고, 그 과정이
+      끝나기 전에 개입해 되돌릴 수 있어야 한다. 즉시 죽거나 아무 일도 없거나 둘뿐이면
+      이 Goal 은 세계에서 성립하지 않는다.
+    implemented: ABSENT
+    # 존재가 단계적으로 사라지는 과정이 세계에 없다 — 쓰러지는 것 하나뿐이다.
+    motivation: []
+    # BT 는 누가 왜 구하는지를 공급하지 않는다 — 무명사냥꾼은 그것을 하는 세력이라고만
+    # 적혀 있다 (§6.6). 지어내지 않는다 — 배선은 WHY 확장 몫이다.
+    belief_context: []
+    stakes:
+      - 늦으면 그 존재는 죽는 것이 아니라 세상에서 개인으로 구분되지 않게 된다 (BT §6.2)
+      - 꽃이 완성되면 생명 상태가 꽃으로 옮겨가고 목소리만 반복된다 (BT §11.2)
+    caused_by:
+      - MW-TERRAIN-NAME-EATING-FOREST
+      - MW-TERRAIN-BREATHLESS-SEA
+      - MW-TERRAIN-SKYFALL-RANGE
+      - MW-TERRAIN-BLOODBLOOM-FOREST
+    constraints: [DC-WORLD-PLAYER-UNFIXED-PATH]
+    constraint_evaluation:
+      DC-WORLD-PLAYER-UNFIXED-PATH: SATISFIED   # 아무도 이 목적을 강제받지 않는다 — 발견한 세계 상태에서 생긴다
+    # 이 Goal 을 달성하는 Possibility 는 세우지 않았다 — BT 는 구출이 일어난다는 사실만
+    # 공급하고 어떻게 하는지를 말하지 않는다 (§27 기관 대안 4종과 같은 자리다).
+
 # 근거 문서는 영역별로 분리된다 — 근거는 영역을 넘지 않는다 (HISTORY Q15).
 #   탐험  BW  content/proto-adventure/design/Master-World-Beira.md
+#   대지형 BT content/proto-adventure/design/Master-World-Beira-Terrain.md
 #   전투  R1  content/proto-adventure/design/Design-Combat-OffenseDefense-R0.md · DT  content/proto-adventure/design/Design-Combat-DamageType-R0.md
 #
 # 두 설계 문서의 원칙("난수를 쓰지 않는다" 등)은 Actor 가 원하는 상태가 아니므로

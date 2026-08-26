@@ -4,9 +4,9 @@
 > 원본은 `graph/*.yaml` 과 `constraints/DC-*.yaml` 이다.
 > 인터랙티브 관찰(필터 · 서브그래프 · 상세)은 같은 명령이 만드는 `graph-view.html` 을 연다.
 
-노드 94 — WorldState 13 · Actor 2 · Goal 5 · Possibility 22 · Capability 49 · Knowledge 3
+노드 113 — WorldState 22 · Actor 2 · Goal 6 · Possibility 22 · Capability 58 · Knowledge 3
 
-Capability 구현 상태 — ■ IMPLEMENTED 15 · ▨ PARTIAL 7 · □ MISSING 27
+Capability 구현 상태 — ■ IMPLEMENTED 15 · ▨ PARTIAL 7 · □ MISSING 36
 
 ## 인과 뼈대 — WorldState → Goal → Possibility
 
@@ -21,6 +21,7 @@ flowchart LR
   MG-OVERCOME-SUPERIOR-OPPONENT{{"OVERCOME-SUPERIOR-OPPONENT"}}
   MG-SURVIVE-ENEMY-OFFENSIVE{{"SURVIVE-ENEMY-OFFENSIVE"}}
   MG-HOLD-HUNTING-GROUND{{"HOLD-HUNTING-GROUND"}}
+  MG-RESCUE-THE-TAKEN{{"RESCUE-THE-TAKEN"}}
   MP-OUTGROW-THE-OPPONENT["OUTGROW-THE-OPPONENT"]
   MP-MATCH-WEAPON-TO-ARMOR["MATCH-WEAPON-TO-ARMOR"]
   MP-PIERCE-THE-HARD-DEFENSE["PIERCE-THE-HARD-DEFENSE"]
@@ -56,6 +57,15 @@ flowchart LR
   MW-ZONE-UNKNOWN[/"ZONE-UNKNOWN"/]
   MW-HYPER-PREDATION[/"HYPER-PREDATION"/]
   MW-SPATIAL-SHEAR[/"SPATIAL-SHEAR"/]
+  MW-MACRO-TERRAIN[/"MACRO-TERRAIN"/]
+  MW-TERRAIN-BAIWANG-BASIN[/"TERRAIN-BAIWANG-BASIN"/]
+  MW-TERRAIN-SUNEATER-ICEFIELD[/"TERRAIN-SUNEATER-ICEFIELD"/]
+  MW-TERRAIN-NAME-EATING-FOREST[/"TERRAIN-NAME-EATING-FOREST"/]
+  MW-TERRAIN-BREATHLESS-SEA[/"TERRAIN-BREATHLESS-SEA"/]
+  MW-TERRAIN-SKYFALL-RANGE[/"TERRAIN-SKYFALL-RANGE"/]
+  MW-TERRAIN-WALKING-CONTINENTS[/"TERRAIN-WALKING-CONTINENTS"/]
+  MW-TERRAIN-UNHAPPENED-DESERT[/"TERRAIN-UNHAPPENED-DESERT"/]
+  MW-TERRAIN-BLOODBLOOM-FOREST[/"TERRAIN-BLOODBLOOM-FOREST"/]
 
   MA-PLAYER -.-> MG-EXPLORE-BEIRA
   MA-PLAYER -.-> MG-ACQUIRE-RARE-ORGAN
@@ -70,6 +80,10 @@ flowchart LR
   MG-SURVIVE-ENEMY-OFFENSIVE --> MG-OVERCOME-SUPERIOR-OPPONENT
   MW-ZONE-FRINGE --> MG-SURVIVE-ENEMY-OFFENSIVE
   MW-ZONE-FRINGE --> MG-HOLD-HUNTING-GROUND
+  MW-TERRAIN-NAME-EATING-FOREST --> MG-RESCUE-THE-TAKEN
+  MW-TERRAIN-BREATHLESS-SEA --> MG-RESCUE-THE-TAKEN
+  MW-TERRAIN-SKYFALL-RANGE --> MG-RESCUE-THE-TAKEN
+  MW-TERRAIN-BLOODBLOOM-FOREST --> MG-RESCUE-THE-TAKEN
   MG-OVERCOME-SUPERIOR-OPPONENT --> MP-OUTGROW-THE-OPPONENT
   MG-OVERCOME-SUPERIOR-OPPONENT --> MP-MATCH-WEAPON-TO-ARMOR
   MG-OVERCOME-SUPERIOR-OPPONENT --> MP-PIERCE-THE-HARD-DEFENSE
@@ -106,14 +120,19 @@ flowchart LR
   MW-ZONE-FRINGE --> MG-SURVIVE-ENEMY-OFFENSIVE
   MW-ZONE-FRINGE --> MG-HOLD-HUNTING-GROUND
   MW-ZONE-WILD --> MG-ACQUIRE-RARE-ORGAN
+  MW-TERRAIN-BAIWANG-BASIN --> MG-EXPLORE-BEIRA
+  MW-TERRAIN-NAME-EATING-FOREST --> MG-RESCUE-THE-TAKEN
+  MW-TERRAIN-BREATHLESS-SEA --> MG-RESCUE-THE-TAKEN
+  MW-TERRAIN-SKYFALL-RANGE --> MG-RESCUE-THE-TAKEN
+  MW-TERRAIN-BLOODBLOOM-FOREST --> MG-RESCUE-THE-TAKEN
 
   classDef world fill:#1f2d3d,stroke:#4a6785,color:#dbe6f2;
   classDef actor fill:#2d2438,stroke:#6b5b8a,color:#e5dcf0;
   classDef goal fill:#3a2f1c,stroke:#8a7440,color:#f0e6cd;
   classDef poss fill:#1c3330,stroke:#3f7d6f,color:#d6f0e9;
-  class MW-PRIMAL-WORLD,MW-WORLD-PRESSURE,MW-FREE-PRESSURE,MW-BOUND-PRESSURE,MW-SAFE-FRONTIER,MW-DEPTH-GRADIENT,MW-ZONE-FRINGE,MW-ZONE-WILD,MW-ZONE-DANGER,MW-ZONE-DEEP,MW-ZONE-UNKNOWN,MW-HYPER-PREDATION,MW-SPATIAL-SHEAR world;
+  class MW-PRIMAL-WORLD,MW-WORLD-PRESSURE,MW-FREE-PRESSURE,MW-BOUND-PRESSURE,MW-SAFE-FRONTIER,MW-DEPTH-GRADIENT,MW-ZONE-FRINGE,MW-ZONE-WILD,MW-ZONE-DANGER,MW-ZONE-DEEP,MW-ZONE-UNKNOWN,MW-HYPER-PREDATION,MW-SPATIAL-SHEAR,MW-MACRO-TERRAIN,MW-TERRAIN-BAIWANG-BASIN,MW-TERRAIN-SUNEATER-ICEFIELD,MW-TERRAIN-NAME-EATING-FOREST,MW-TERRAIN-BREATHLESS-SEA,MW-TERRAIN-SKYFALL-RANGE,MW-TERRAIN-WALKING-CONTINENTS,MW-TERRAIN-UNHAPPENED-DESERT,MW-TERRAIN-BLOODBLOOM-FOREST world;
   class MA-PLAYER,MA-HOSTILE-COMBATANT actor;
-  class MG-EXPLORE-BEIRA,MG-ACQUIRE-RARE-ORGAN,MG-OVERCOME-SUPERIOR-OPPONENT,MG-SURVIVE-ENEMY-OFFENSIVE,MG-HOLD-HUNTING-GROUND goal;
+  class MG-EXPLORE-BEIRA,MG-ACQUIRE-RARE-ORGAN,MG-OVERCOME-SUPERIOR-OPPONENT,MG-SURVIVE-ENEMY-OFFENSIVE,MG-HOLD-HUNTING-GROUND,MG-RESCUE-THE-TAKEN goal;
   class MP-OUTGROW-THE-OPPONENT,MP-MATCH-WEAPON-TO-ARMOR,MP-PIERCE-THE-HARD-DEFENSE,MP-BREAK-THE-GUARD,MP-READ-AND-COUNTER,MP-EXPLOIT-OPEN-BODY,MP-INTERRUPT,MP-CONTROL-MOVEMENT,MP-WEAPONIZE-ENVIRONMENT,MP-BET-ON-THE-CRITICAL-BLOW,MP-STAKE-EVERYTHING-ON-ONE-BLOW,MP-TRADE-BODY-FOR-RESOURCE,MP-EVADE-BY-MOVING-THE-BODY,MP-HOLD-FORTIFIED,MP-LEARN-TO-HANDLE-THE-LAYER,MP-ADAPT-BY-RESOURCE,MP-PREPARE-IN-CIVILIZATION,MP-KILL-CREATURE,MP-TAKE-SHED-ORGAN,MP-TRADE-WITH-ACTOR,MP-FIND-DEAD-SPECIMEN,MP-FORCE-CREATURE-TO-RELEASE poss;
 ```
 
@@ -186,7 +205,7 @@ flowchart TB
 
 ### 베이라 층 사다리 — BW §19~§25
 
-세계의 깊이 층. 층마다 살아남기 위해 요구하는 대응이 다르다 — 각 층의 요구는 MW-ZONE-* 의 demands 가 거울이다. BW 는 층마다 이름과 "필요:" 목록만 공급하므로 이 사다리에 속한 조각 대부분은 grounded: false 다.
+세계의 깊이 층. 층마다 살아남기 위해 요구하는 대응이 다르다 — 각 층의 요구는 MW-ZONE-* 의 demands 가 거울이다. BW 는 층마다 이름과 "필요:" 목록만 공급하므로 이 사다리에 속한 조각 대부분은 grounded: false 다. 대지형(MS-BEIRA-TERRAIN)과 **직교한다** (HISTORY Q47(a)) — 어느 땅이든 그 안에서 깊어질 수 있고, 한 지역은 "어느 대지형의 어느 깊이" 를 함께 가진다.
 
 ```mermaid
 flowchart TB
@@ -401,6 +420,44 @@ flowchart TB
   class N0 impl;
 ```
 
+### 베이라 대지형 — BT (content/proto-adventure/design/Master-World-Beira-Terrain.md) §1 · §4~§11 · §13 · §15
+
+하나의 원리가 매질(암석·물·대기·열·생명·공간·기억·Identity·소리·관계)에 대륙 규모로 결속되어 형성된 자연 시스템의 목록. 여덟이 문서에 서 있고, 각 지형은 자기 법칙이 요구하는 대응을 따로 가진다 — 그 요구는 MW-TERRAIN-* 의 demands 가 거울이다. 자리를 순서로 두지 않는다: 여덟은 난이도 순으로 배치된 목록이 아니며 (BT §16), 어디에 갈 수 있는지는 무엇을 감당하게 되었는가가 정한다 (BT §12). 깊이 사다리(MS-BEIRA-LADDER)와 **직교한다** (Human 결정 — HISTORY Q47(a)): 이쪽은 어떤 법칙의 땅인가이고 그쪽은 그 땅 안에서 얼마나 들어갔는가다. 한 대지형 안에 안전한 마을과 극단적으로 위험한 심부가 함께 있다 (BT §3).
+
+```mermaid
+flowchart TB
+  subgraph SEGBASE ["베이라 대지형"]
+    N0["▨ OBSERVE"]
+    N1["□ PREDICT"]
+    N2["□ READ-ENVIRONMENT"]
+    N3["▨ FORCE-MOVEMENT"]
+    N4["□ VERIFY-REALITY"]
+    N5["□ IDENTITY-ANCHOR"]
+    N6["□ CRAFT-FROM-MATERIALS"]
+    N7["□ TRANSFER-ITEM"]
+    N8["□ CARRY-LIFE-SUPPORT"]
+    N9["□ TIME-THE-CYCLE"]
+    N10["□ FIND-SAFE-ROUTE"]
+    N11["□ ANCHOR-LOCAL-LAW"]
+    N12["□ IMPERSONATE-IDENTITY"]
+    N13["□ COORDINATE-WITHOUT-SOUND"]
+    N14["□ APPRAISE-UNKNOWN-MATTER"]
+    N15["□ REALIZE-ONE-POSSIBILITY"]
+    N16["□ CONCEAL-BIOLOGICAL-SIGNAL"]
+  end
+
+  classDef impl fill:#16351f,stroke:#3f8a52,color:#d8f2df;
+  classDef part fill:#3a3315,stroke:#9a8a2e,color:#f2ecd0;
+  classDef miss fill:#2a2a2e,stroke:#5c5c66,color:#b8b8c2;
+  classDef implS fill:#16351f,stroke:#3f8a52,color:#d8f2df,stroke-dasharray:5 4;
+  classDef partS fill:#3a3315,stroke:#9a8a2e,color:#f2ecd0,stroke-dasharray:5 4;
+  classDef missS fill:#2a2a2e,stroke:#5c5c66,color:#b8b8c2,stroke-dasharray:5 4;
+  class N0 part;
+  class N6,N7,N8,N12,N13,N14,N15,N16 miss;
+  class N3 partS;
+  class N1,N2,N4,N5,N9,N10,N11 missS;
+```
+
 ## 갈래별 준비도 — 어느 경로가 세계에 가장 가까운가
 
 요구 Capability 중 이미 세계에 있는 것의 비율. `IMPLEMENTED` 1.0 · `PARTIAL` 0.5 로 센다.
@@ -597,9 +654,13 @@ Constraint 는 단계가 아니라 각 선택 지점의 Filter 다. 아래는 �
 | `WORLD-CREATURE-FROM-PRESSURE` | WORLD | APPROVED | 2 | 전투 Creature 를 먼저 만들지 않는다. Creature 의 Capability 는 세계압이 만든 환경과 생존 압력에 대한 적응의 결과이며, Player 의 Capability Requirement 는 그 Creature 와의 조우가 만든 Goal 과 Combat Possibility 에서만 파생된다. |
 | `WORLD-OWNS-THE-CHANCE` | GLOBAL | APPROVED | 0 | 우연의 원천은 세계가 지니는 상태이고, 그 상태는 관찰에 실리지 않으며, 그럼에도 결과는 끝까지 설명된다. 이미 결과가 정해진 판정에서는 그 원천을 소비하지 않는다. |
 | `WORLD-OWNS-THE-SURFACE-LIST` | GLOBAL | APPROVED | 5 | 무엇을 할 수 있고 그 값이 어디까지 허용되는지의 목록은 세계가 소유하고 관찰 결과에 실어 보낸다. 관찰자(View)는 그 목록을 스스로 만들지 않는다. |
-| `WORLD-PLAYER-UNFIXED-PATH` | WORLD | APPROVED | 5 | Player 의 역할·Class·진영·전투 방식과 탐험의 이유를 하나로 고정하지 않는다. Root Goal(베이라를 탐험한다) 아래의 Local Goal 은 Actor 와 상황마다 발견된 세계 상태로부터 생성된다. |
+| `WORLD-PLAYER-UNFIXED-PATH` | WORLD | APPROVED | 6 | Player 의 역할·Class·진영·전투 방식과 탐험의 이유를 하나로 고정하지 않는다. Root Goal(베이라를 탐험한다) 아래의 Local Goal 은 Actor 와 상황마다 발견된 세계 상태로부터 생성된다. |
 | `WORLD-PROGRESSION-IS-REACH` | WORLD | APPROVED | 6 | Progression 의 핵심은 수치 Level 의 상승이 아니라, 관찰과 이해로 대응 방법을 발견하고 Capability 와 Resource 를 얻어 이전에는 갈 수 없던 세계 범위에 도달하게 되는 확장이다. |
 | `WORLD-RESOURCE-ADAPTATION-TRACE` | WORLD | APPROVED | 3 | 중요한 베이라 Resource 는 World Pressure → Environment → Survival Pressure → Adaptation → Special Property → Resource 의 인과 Trace 로 설명할 수 있어야 하며, 좋은 아이템을 위험한 곳에 배치하는 방향으로 만들지 않는다. |
+| `WORLD-SAFETY-IS-A-NATURAL-EXCEPTION` | WORLD | APPROVED | 4 | 사람이 머무는 자리가 안전한 것은 위험이 낮게 설정되어서가 아니라, 그 대지형의 법칙이 안정되거나 다른 성질과 균형을 이루는 자연적 예외가 그 자리에 있기 때문이다. 사람의 문화와 건축은 그 예외를 확대하는 방식으로 발전한다. |
+| `WORLD-TERRAIN-IS-A-PRINCIPLE` | WORLD | APPROVED | 0 | 대지형은 기후와 식생으로 구분되는 배경이 아니라, 하나의 World Principle 이 어떤 매질에 대륙 규모로 결속되어 형성된 자연 시스템이다. 새 대지형은 무엇에 결속되었고 어떤 상태를 어떤 조건에서 반복적으로 변화시키는가로 정의한다. |
+| `WORLD-TERRAIN-LAW-IS-OBSERVABLE` | WORLD | APPROVED | 6 | 대지형의 법칙은 설명 없이 볼 수 있는 증거로 먼저 드러나고, 관찰할수록 반복되는 조건과 결과가 드러난다. 그 증거를 이해한 사람에게 열리는 행동은 하나가 아니다. |
+| `WORLD-TERRAIN-READS-AT-A-DISTANCE` | WORLD | APPROVED | 0 | 각 대지형은 멀리서 보았을 때 한 장면만으로 다른 대지형과 구분되어야 한다. |
 
 ## 구멍 — 아직 채워지지 않은 자리
 
@@ -607,10 +668,10 @@ Constraint 는 단계가 아니라 각 선택 지점의 Filter 다. 아래는 �
 
 | 빈 필드 | 개수 | 노드 |
 |---|---:|---|
-| `changed_by` | 13 | PRIMAL-WORLD · WORLD-PRESSURE · FREE-PRESSURE · BOUND-PRESSURE · SAFE-FRONTIER · DEPTH-GRADIENT · ZONE-FRINGE · ZONE-WILD · ZONE-DANGER · ZONE-DEEP · ZONE-UNKNOWN · HYPER-PREDATION · SPATIAL-SHEAR |
-| `causes` | 10 | PRIMAL-WORLD · WORLD-PRESSURE · FREE-PRESSURE · BOUND-PRESSURE · DEPTH-GRADIENT · ZONE-DANGER · ZONE-DEEP · ZONE-UNKNOWN · HYPER-PREDATION · SPATIAL-SHEAR |
-| `belief_context` | 5 | EXPLORE-BEIRA · ACQUIRE-RARE-ORGAN · OVERCOME-SUPERIOR-OPPONENT · SURVIVE-ENEMY-OFFENSIVE · HOLD-HUNTING-GROUND |
+| `changed_by` | 22 | PRIMAL-WORLD · WORLD-PRESSURE · FREE-PRESSURE · BOUND-PRESSURE · SAFE-FRONTIER · DEPTH-GRADIENT · ZONE-FRINGE · ZONE-WILD · ZONE-DANGER · ZONE-DEEP · ZONE-UNKNOWN · HYPER-PREDATION · SPATIAL-SHEAR · MACRO-TERRAIN · TERRAIN-BAIWANG-BASIN · TERRAIN-SUNEATER-ICEFIELD · TERRAIN-NAME-EATING-FOREST · TERRAIN-BREATHLESS-SEA · TERRAIN-SKYFALL-RANGE · TERRAIN-WALKING-CONTINENTS · TERRAIN-UNHAPPENED-DESERT · TERRAIN-BLOODBLOOM-FOREST |
+| `causes` | 14 | PRIMAL-WORLD · WORLD-PRESSURE · FREE-PRESSURE · BOUND-PRESSURE · DEPTH-GRADIENT · ZONE-DANGER · ZONE-DEEP · ZONE-UNKNOWN · HYPER-PREDATION · SPATIAL-SHEAR · MACRO-TERRAIN · TERRAIN-SUNEATER-ICEFIELD · TERRAIN-WALKING-CONTINENTS · TERRAIN-UNHAPPENED-DESERT |
+| `belief_context` | 6 | EXPLORE-BEIRA · ACQUIRE-RARE-ORGAN · OVERCOME-SUPERIOR-OPPONENT · SURVIVE-ENEMY-OFFENSIVE · HOLD-HUNTING-GROUND · RESCUE-THE-TAKEN |
 | `knows` | 2 | PLAYER · HOSTILE-COMBATANT |
 | `believes` | 2 | PLAYER · HOSTILE-COMBATANT |
+| `motivation` | 2 | HOLD-HUNTING-GROUND · RESCUE-THE-TAKEN |
 | `requires.capabilities` | 2 | FIND-DEAD-SPECIMEN · FORCE-CREATURE-TO-RELEASE |
-| `motivation` | 1 | HOLD-HUNTING-GROUND |

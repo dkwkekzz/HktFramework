@@ -741,6 +741,10 @@ nodes:
       # 아직 이름을 댄 문서가 없어 비워 둔다.
       knowledge: [MK-LOCAL-WORLDSTATE]
       world_state: [MW-SAFE-FRONTIER]
+      # 이 갈래가 서는 자리는 둘이다 (HISTORY Q48(a)) — 문명권과 백왕의 갈비분지.
+      # requires 는 AND 이므로 두 곳을 함께 적지 않는다: 어느 한 곳이 서면 성립한다.
+      # 파는 것이 다르다 — 밖에서는 평범한 것을, 분지에서는 베이라에서 나온 것과
+      # 다녀온 자의 증언을 얻는다 (BT §4.6).
       relationship: [정보·물자를 내줄 Actor 와의 관계]
       resource: [거래 대가]
     supports: []
