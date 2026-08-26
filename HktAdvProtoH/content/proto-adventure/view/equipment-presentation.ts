@@ -60,10 +60,12 @@ function statName(name: string, text: (code: string) => string): string {
 /**
  * 그 자리가 지금 보태고 있는 것 — `물리 공격 +12` 처럼 읽는다.
  *
+ * 작업 공간의 장비 구획도 이 함수를 부른다 (V-012) — 같은 값을 두 곳에서 짓지 않는다.
+ *
  * **화면이 이 값을 어디에도 더하지 않는다.** 몸의 값(combatStats)은 이미 더해진 값으로
  * 오며, 이 줄은 "그 값이 왜 그 값인가" 의 경위일 뿐이다 (04 equipment.contributions).
  */
-function contributionText(slot: EquipmentSlotView, text: (code: string) => string): string {
+export function contributionText(slot: EquipmentSlotView, text: (code: string) => string): string {
   return slot.contributions
     .map((c) => `${statName(c.name, text)} ${c.value >= 0 ? '+' : ''}${c.value}`)
     .join(' · ');

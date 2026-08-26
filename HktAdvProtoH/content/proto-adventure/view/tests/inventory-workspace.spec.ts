@@ -28,6 +28,8 @@ import {
   settleOutcome,
   workspaceConfirmChoice,
   workspaceConfirming,
+  workspaceExchanging,
+  workspaceSlotSelection,
   workspacePendingCount,
   workspaceSelection,
 } from '../inventory-workspace';
@@ -530,35 +532,105 @@ describe('VUX-IE-V-09 — 모르는 코드가 와도 멈추지 않는다', () =>
   });
 });
 
-describe('04 unexecutable_actions — 보이되 이 자리에서는 실행하지 않는다', () => {
+/** 세계로 나간 요청을 담아 두는 자리 — 나가지 않았다는 것도 이 목록이 말한다 */
+const sink = () => {
+  const sent: ActionRequest[] = [];
+  return { sent, send: (a: ActionRequest) => { sent.push(a); return 1; } };
+};
+
+// V-012 CHANGED — 이 자리는 더 이상 바꿔 걸기를 미루지 않는다.
+//
+// 미루던 이유는 하나였다: 자리를 지목해야 성립하는데 자리를 고를 곳이 화면에 없었다.
+// 장비 구획이 서면서 그 걸음이 생겼으므로, 이제 그 손은 이 표면 안에서 끝까지 간다.
+describe('V-012 — 바꿔 걸기는 자리를 받고 나서야 나간다', () => {
   const withExchange = {
-    ...(mining as object),
+    ...(worn as object),
     inventory: [
       {
         kind: 'buckler',
         count: 1,
         category: 'gear',
         stackable: false,
-        actions: [{ id: 'exchange-item', role: 'exchange-item', available: true }],
+        actions: [
+          { id: 'equip-item', role: 'equip-item', available: true },
+          { id: 'exchange-item', role: 'exchange-item', available: true },
+        ],
       },
     ],
   };
 
+  beforeEach(() => {
+    resetWorkspace();
+    closeSurface(INVENTORY_SURFACE_ID);
+    toggleSurface(INVENTORY_SURFACE_ID);
+  });
+
   it('세계가 된다고 말한 것을 안 된다고 그리지 않는다', () => {
     moveSelection(snap(withExchange), 1);
     const rows = section(withExchange, 'detail').rows ?? [];
-    expect(rows[0]?.state).toBe('available');
+    expect(rows.map((r) => r.id)).toEqual(['equip-item', 'exchange-item']);
+    expect(rows[1]?.state).toBe('available');
+    // 미루는 곁글자가 사라졌다 — 이 자리에서 끝까지 가기 때문이다
+    expect(rows[1]?.hint).toBeUndefined();
   });
 
-  it('그러나 이 자리에서 보내지는 않는다 — 그 사정이 곁글자로 보인다', () => {
-    const sent: ActionRequest[] = [];
+  it('눌러도 곧바로 나가지 않는다 — 자리를 고르는 구획이 선다', () => {
+    const { sent, send } = sink();
     moveSelection(snap(withExchange), 1);
-    const rows = section(withExchange, 'detail').rows ?? [];
-    expect(rows[0]?.hint).toContain(',');
-    invokeFocusedAction(snap(withExchange), (a) => {
-      sent.push(a);
-      return 1;
-    });
+    moveActionFocus(snap(withExchange), 1); // 걸기 → 바꿔 걸기
+    invokeFocusedAction(snap(withExchange), send);
+    expect(sent).toEqual([]);
+    expect(workspaceExchanging()).toBe('buckler');
+    const rows = section(withExchange, 'exchange').rows ?? [];
+    // 그만두기 + 자리 여섯
+    expect(rows).toHaveLength(7);
+    expect(rows[0]?.id).toBe('exchange.cancel');
+    // 이미 찬 자리는 바뀐다는 것을 미리 말한다 (C024)
+    expect(rows[1]?.hint).toBe('걸린 것과 바뀐다');
+  });
+
+  it('초점의 기본은 그만두기다 — 골라 두지 않은 걸음이 Enter 하나로 나가지 않는다', () => {
+    const { sent, send } = sink();
+    moveSelection(snap(withExchange), 1);
+    moveActionFocus(snap(withExchange), 1); // 걸기 → 바꿔 걸기
+    invokeFocusedAction(snap(withExchange), send);
+    expect(bag(withExchange).focusId).toBe('exchange.cancel');
+    invokeFocusedAction(snap(withExchange), send);
+    expect(sent).toEqual([]);
+    expect(workspaceExchanging()).toBeNull();
+  });
+
+  it('자리를 고르면 그때 나간다 — 요청이 무엇을과 어느 자리를 함께 싣는다', () => {
+    const { sent, send } = sink();
+    moveSelection(snap(withExchange), 1);
+    moveActionFocus(snap(withExchange), 1); // 걸기 → 바꿔 걸기
+    invokeFocusedAction(snap(withExchange), send);
+    bag(withExchange); // 화면이 한 번 그려져야 눌린 줄이 이 표면의 것으로 읽힌다
+    pressRow(INVENTORY_SURFACE_ID, 'exchange.E1', send);
+    // 요청 id 는 **걸기의 것**이다 — 자리를 싣는 것이 둘을 가르는 전부다 (REPORT ①)
+    expect(sent).toEqual([
+      { interactionId: 'equip-item', itemKind: 'buckler', equipSlotId: 'E1' },
+    ]);
+    expect(workspaceExchanging()).toBeNull();
+  });
+
+  it('없는 자리를 짚으면 아무것도 나가지 않는다', () => {
+    const { sent, send } = sink();
+    moveSelection(snap(withExchange), 1);
+    moveActionFocus(snap(withExchange), 1); // 걸기 → 바꿔 걸기
+    invokeFocusedAction(snap(withExchange), send);
+    bag(withExchange);
+    pressRow(INVENTORY_SURFACE_ID, 'exchange.E9', send);
+    expect(sent).toEqual([]);
+  });
+
+  it('고르기를 옮기면 그만둔 것이다 — 확인 구획과 같은 규칙이다', () => {
+    const { sent, send } = sink();
+    moveSelection(snap(withExchange), 1);
+    moveActionFocus(snap(withExchange), 1); // 걸기 → 바꿔 걸기
+    invokeFocusedAction(snap(withExchange), send);
+    moveSelection(snap(withExchange), 1);
+    expect(workspaceExchanging()).toBeNull();
     expect(sent).toEqual([]);
   });
 });
@@ -924,5 +996,101 @@ describe('V-011 — 칸이 고르기 전에 자기를 말한다', () => {
     const rooms = (section(mining, 'room').cells ?? []).filter((c) => c.empty);
     expect(rooms.length).toBeGreaterThan(0);
     for (const cell of rooms) expect(cell.tip).toBeUndefined();
+  });
+});
+
+// ── V-012 — 걸어 둔 것이 가진 것과 한 자리에 선다 ────────────────────
+//
+// 이 구획이 답하는 물음은 가방과 다르다: 가방은 "무엇을 지녔는가" 이고 여기는
+// "몸이 지금 무엇으로 되어 있는가" 다. 둘을 함께 보아야 걸고 푸는 일이
+// **자리 사이의 이동**으로 읽힌다 (UX 문서 §2.2).
+
+describe('V-012 — 걸어 둔 자리가 작업 공간에 선다', () => {
+  beforeEach(() => {
+    resetWorkspace();
+    closeSurface(INVENTORY_SURFACE_ID);
+    toggleSurface(INVENTORY_SURFACE_ID);
+  });
+
+  const slotCell = (fixture: unknown, id: string) =>
+    (section(fixture, 'equipment').cells ?? []).find((c) => c.id === id);
+
+  it('자리 여섯 전부가 선다 — 빈 자리도 감추지 않는다', () => {
+    const cells = section(worn, 'equipment').cells ?? [];
+    expect(cells).toHaveLength(6);
+    expect(cells.filter((c) => c.empty)).toHaveLength(5);
+    // 찬 수도 전체도 세계가 준 목록에서 읽는다 — 화면이 세지 않는다
+    expect(section(worn, 'equipment').title).toBe('걸어 둔 것 — 1 / 6');
+  });
+
+  it('걸린 칸은 지금 보태고 있는 것을 곁글자로 말한다', () => {
+    const cell = slotCell(worn, 'slot.E1');
+    expect(cell?.text).toContain('곡괭이');
+    expect(cell?.detail).toBe('물리 공격 +12');
+    // 곁말에는 용도와 되는 것이 온다 (V-011 과 같은 꼴)
+    expect(cell?.tip).toContain('채집');
+    expect(cell?.tip?.some((line) => line.startsWith('할 수 있다'))).toBe(true);
+    // 보태는 값은 곁말에 **없다** — 곁글자로 이미 서 있다 (V-010 과 같은 판단)
+    expect(cell?.tip).not.toContain('물리 공격 +12');
+  });
+
+  it('빈 자리에는 곁말이 없다 — 없는 것이 스스로를 말할 수는 없다', () => {
+    expect(slotCell(worn, 'slot.E2')?.tip).toBeUndefined();
+  });
+
+  it('자리를 고르면 그 자리의 행동이 상세에 선다 — 가방과 같은 자리다', () => {
+    bag(worn);
+    pickCell(INVENTORY_SURFACE_ID, 'slot.E1');
+    expect(workspaceSlotSelection()).toBe('E1');
+    expect(workspaceSelection()).toBeNull(); // 둘을 동시에 고르지 않는다
+    expect(section(worn, 'detail').title).toBe('고른 것 — 자리 1 · 곡괭이');
+    const rows = section(worn, 'detail').rows ?? [];
+    expect(rows.map((r) => r.id)).toEqual(['use-item', 'unequip-item']);
+  });
+
+  it('빈 자리도 고를 수 있고, 왜 아무것도 못 푸는지가 사유로 온다', () => {
+    bag(worn);
+    pickCell(INVENTORY_SURFACE_ID, 'slot.E2');
+    expect(workspaceSlotSelection()).toBe('E2');
+    expect(section(worn, 'detail').title).toBe('고른 것 — 자리 2 · 비어 있다');
+    const rows = section(worn, 'detail').rows ?? [];
+    expect(rows[0]?.state).toBe('blocked');
+    expect(rows[0]?.text).toContain('빈 자리');
+  });
+
+  it('푸는 요청이 싣는 것은 **자리 하나**뿐이다 — 무엇을 푸는지는 싣지 않는다', () => {
+    const { sent, send } = sink();
+    bag(worn);
+    pickCell(INVENTORY_SURFACE_ID, 'slot.E1');
+    pressRow(INVENTORY_SURFACE_ID, 'unequip-item', send);
+    expect(sent).toEqual([{ interactionId: 'unequip-item', equipSlotId: 'E1' }]);
+  });
+
+  it('걸린 것을 쓰는 손은 가방에서 쓰는 것과 **같은 요청**이다', () => {
+    const { sent, send } = sink();
+    bag(worn);
+    pickCell(INVENTORY_SURFACE_ID, 'slot.E1');
+    pressRow(INVENTORY_SURFACE_ID, 'use-item', send);
+    expect(sent).toEqual([{ interactionId: 'use-item', itemKind: 'pickaxe' }]);
+  });
+
+  it('가방을 고르면 자리 고르기가 놓인다 — 상세는 언제나 하나다', () => {
+    bag(worn);
+    pickCell(INVENTORY_SURFACE_ID, 'slot.E1');
+    pickCell(INVENTORY_SURFACE_ID, 'item.stone');
+    expect(workspaceSlotSelection()).toBeNull();
+    expect(workspaceSelection()).toBe('stone');
+  });
+
+  it('자리를 골라 두면 ← → 가 그 축 안에서 걷는다', () => {
+    bag(worn);
+    pickCell(INVENTORY_SURFACE_ID, 'slot.E1');
+    moveSelection(snap(worn), 1);
+    expect(workspaceSlotSelection()).toBe('E2');
+    expect(workspaceSelection()).toBeNull();
+  });
+
+  it('세계가 자리를 보내지 않으면 구획 자체가 없다', () => {
+    expect(bag(mining).sections.some((s) => s.id === 'equipment')).toBe(false);
   });
 });
