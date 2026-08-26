@@ -9,6 +9,12 @@
 Feedback · BACKLOG)를 겹쳐 `LANES.html` 로 그린다. `npm run lanes:check` 는 판이 실제와
 어긋나는 곳만 보고한다.
 
+브라우저에서 보는 고정 링크는 하나다 — **main 의 판**을 가리키며 바뀌지 않는다.
+갱신 규칙(언제 덮어쓰고 언제 덮어쓰지 않는가)의 단일 출처는
+[master/README.md](master/README.md) 의 "고정 링크" 절이고, 거기 셋이 함께 적혀 있다.
+
+    https://claude.ai/code/artifact/ca6a873b-1e46-4ac6-8db7-54edd562fae3
+
 세션 시작 프롬프트는 언제나 이 한 줄이다:
 
     "AdvProtoH 배차판(LANES.md) 보고 열린 레인 하나 진행해"
