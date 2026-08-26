@@ -40,18 +40,21 @@ import mining from './fixtures/mining-available.fixture.json';
 import unknown from './fixtures/inventory-unknown.fixture.json';
 
 const snap = (fixture: unknown) => fixture as GameViewSnapshot;
-const bag = (fixture: unknown): SceneSurface => {
-  const found = resolvePresentation(snap(fixture)).surfaces.find(
-    (s) => s.id === INVENTORY_SURFACE_ID,
-  );
+// `now` 는 **기다림의 나이를 재는 시계**다 (V-007). 넘기지 않으면 지금을 읽는다 —
+// 보낸 직후이므로 기다림은 아직 아무 말도 하지 않는 상태다.
+const bag = (fixture: unknown, now?: number): SceneSurface => {
+  const found = resolvePresentation(snap(fixture), undefined, now === undefined ? {} : { now })
+    .surfaces.find((s) => s.id === INVENTORY_SURFACE_ID);
   if (!found) throw new Error('소지품 작업 공간이 장면에 없다');
   return found;
 };
-const section = (fixture: unknown, id: string): SceneSurfaceSection => {
-  const found = bag(fixture).sections.find((s) => s.id === id);
+const section = (fixture: unknown, id: string, now?: number): SceneSurfaceSection => {
+  const found = bag(fixture, now).sections.find((s) => s.id === id);
   if (!found) throw new Error(`구획 ${id} 이 없다`);
   return found;
 };
+const actionRow = (fixture: unknown, id: string, now?: number) =>
+  (section(fixture, 'detail', now).rows ?? []).find((r) => r.id === id);
 
 /**
  * 되돌릴 수 없는 손을 **끝까지** 실행한다 (V-002).
@@ -200,12 +203,37 @@ describe('VUX-IE-V-04 · V-06 — 고르고 읽고 실행한다 (자판만으로
 });
 
 describe('VUX-IE-FX-STALE — 세계가 답하기 전에는 아무것도 참이 아니다', () => {
-  it('보낸 뒤 그 줄이 기다림으로 보인다', () => {
+  // V-007 — 기다림은 **늦을 때만** 보인다 (UX 문서 §7 응답 지연).
+  // 세계는 보통 한 Tick 안에 답하므로, 보내자마자 `처리 중` 을 띄우면 그 글자는
+  // 읽히기 전에 사라진다 — 남는 것은 줄이 한 번 깜빡였다는 인상뿐이다.
+  it('보낸 직후에는 아무 말도 하지 않는다 — 곧 오는 답이 이미 답이다', () => {
+    const sentAt = performance.now();
     moveSelection(snap(mining), 1);
     moveActionFocus(snap(mining), 1);
     commitFocused(mining, () => 7);
-    const rows = section(mining, 'detail').rows ?? [];
-    expect(rows.find((r) => r.id === 'discard-item')?.state).toBe('pending');
+    const row = actionRow(mining, 'discard-item', sentAt + 900);
+    expect(row?.state).toBe('available');
+    expect(row?.text).toBe('덜어내기');
+  });
+
+  it('1초가 지나면 그 줄이 처리 중으로 보인다', () => {
+    const sentAt = performance.now();
+    moveSelection(snap(mining), 1);
+    moveActionFocus(snap(mining), 1);
+    commitFocused(mining, () => 7);
+    const row = actionRow(mining, 'discard-item', sentAt + 1200);
+    expect(row?.state).toBe('pending');
+    expect(row?.text).toBe('덜어내기 — 처리 중');
+  });
+
+  it('5초가 지나면 다시 보내라고 하지 않는다 — 이어짐을 보라고 한다', () => {
+    const sentAt = performance.now();
+    moveSelection(snap(mining), 1);
+    moveActionFocus(snap(mining), 1);
+    commitFocused(mining, () => 7);
+    const row = actionRow(mining, 'discard-item', sentAt + 5200);
+    expect(row?.state).toBe('pending');
+    expect(row?.text).toBe('덜어내기 — 이어짐 확인');
   });
 
   it('VUX-IE-V-05 — 기다리는 동안 수량도 자리도 바뀌지 않는다', () => {

@@ -84,6 +84,14 @@ export interface PresentationOptions {
    * 기억하지 않는다. `command` · `facingSides` 와 같은 자리이며, 조립 루트가 소유한다.
    */
   skillAnswers?: SkillAnswers;
+  /**
+   * 지금 시각 (ms — 관찰자의 시계) — **세계 시간이 아니다** (V-007).
+   *
+   * 기다림의 나이를 재는 자다. 세계는 누가 언제 무엇을 보냈는지 모르므로, 보낸 지
+   * 얼마가 지났는가는 이쪽에서만 알 수 있다. 주지 않으면 지금을 스스로 읽는다 —
+   * 검사가 시계를 쥐고 싶을 때만 넘긴다.
+   */
+  now?: number;
 }
 
 /** 관찰자가 쥐고 있는 명령 표면 상태 — 조립 루트가 소유한다 (04 history.owner: observer) */
@@ -156,15 +164,20 @@ export function resolvePresentation(
   // 봉투 형으로 도착한 것을 팩 형으로 좁히는 자리는 결정 Layer 의 진입점 하나뿐이다 (P2).
   const snapshot = observed as GameViewSnapshot;
   const self = selfPanel(snapshot);
+  // 기다림의 나이를 재는 시각 — 한 프레임 안에서는 하나여야 한다 (V-007).
+  // 자리마다 따로 읽으면 같은 프레임의 두 표면이 다른 지금을 말하게 된다
+  const now = options.now ?? performance.now();
   return {
     specId: snapshot.specId,
     terrain: snapshot.scene,
     commandSurface: commandSurface(snapshot, options),
     // 겹침 표면 (기반 capability) — C026 의 소지품 작업 공간.
     // 열려 있지 않아도 싣는다: 열림은 표면 자신이 지닌 값이고, 그리는 쪽이 그것을 본다
-    surfaces: [inventoryWorkspace(snapshot, codeText, shortCodeText)],
+    surfaces: [inventoryWorkspace(snapshot, codeText, shortCodeText, now)],
     // 늘 서 있는 띠 — 지금 이 순간 고르는 것이 자기 자리를 갖는다 (VUX-SK §2.1).
-    slotBars: [skillSlotBar(snapshot, shortCodeText, options.skillAnswers ?? NO_SKILL_ANSWERS)],
+    slotBars: [
+      skillSlotBar(snapshot, shortCodeText, options.skillAnswers ?? NO_SKILL_ANSWERS, now),
+    ],
     // 조작 안내에 팩의 키를 보탠다 (V-005) — 세계의 interaction 이 아니어서 그 패널에
     // 한 번도 뜨지 못하던 다섯이다. 무엇이 서는지는 키 표가 정한다
     keyHints: panelKeyHints(),
@@ -264,7 +277,12 @@ export function resolvePresentation(
               //   장비   몸이 무엇으로 되어 있는가 — 소지품보다 먼저다. 걸기의 대상이
               //          소지품이므로 자리를 먼저 본 뒤 무엇을 걸지 고른다 (C025)
               //   소지품 가진 것 전부 (C020 · C022)
-              ...skillDetailLines(snapshot, codeText, options.skillAnswers ?? NO_SKILL_ANSWERS),
+              ...skillDetailLines(
+                snapshot,
+                codeText,
+                options.skillAnswers ?? NO_SKILL_ANSWERS,
+                now,
+              ),
               ...equipmentDetailLines(snapshot, codeText, shortCodeText),
               ...inventoryDetailLines(snapshot, codeText, shortCodeText),
             ],

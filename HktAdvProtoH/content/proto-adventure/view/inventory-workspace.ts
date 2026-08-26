@@ -24,6 +24,7 @@ import type {
   SceneSurfaceRow,
 } from '../../../engine/view-kernel/scene/scene-state';
 import { createPendingRequests } from '../../../engine/view-kernel/net/pending';
+import { waitStage, waitText } from './request-timing';
 import { moveFocus } from '../../../engine/view-kernel/input/focus';
 import type { ActionRequest } from '../protocol/actions';
 import type { GameViewSnapshot, InventoryItemView, ItemActionView } from '../protocol/gameview';
@@ -113,8 +114,14 @@ let confirming: { kind: string; actionId: string } | null = null;
 /** 확인 구획에서 지금 고른 답. **기본은 그만두기다** — 되돌릴 수 없는 것의 기본값은 하지 않는 것이다 */
 let confirmChoice: 'commit' | 'cancel' = 'cancel';
 
-/** 보냈고 아직 대답이 오지 않은 요청들 — 표식으로 짚는다 (C009) */
-const pending = createPendingRequests<{ kind: string; actionId: string }>();
+/**
+ * 보냈고 아직 대답이 오지 않은 요청들 — 표식으로 짚는다 (C009).
+ *
+ * `since` 는 **보낸 그 순간**이다 (V-007). 기다림을 곧바로 그리지 않고 늦을 때만
+ * 그리려면 언제부터 기다렸는지를 알아야 하며, 이 자리는 자기가 보냈으므로 그것을
+ * 정확히 안다 (기술 쪽은 결과만 내려와서 처음 본 순간으로 대신한다).
+ */
+const pending = createPendingRequests<{ kind: string; actionId: string; since: number }>();
 
 /**
  * 마지막으로 이 표면을 지은 관찰 — **겪는 사람이 지금 보고 있는 바로 그것**이다.
@@ -287,7 +294,7 @@ export function invokeFocusedAction(
     if (!target || !action || !action.available) return;
     if (pending.waiting((w) => w.kind === target.kind && w.actionId === action.id)) return;
     const commit = send({ interactionId: action.id, itemKind: target.kind });
-    pending.add(commit, { kind: target.kind, actionId: action.id });
+    pending.add(commit, { kind: target.kind, actionId: action.id, since: performance.now() });
     return;
   }
 
@@ -316,7 +323,7 @@ export function invokeFocusedAction(
   }
 
   const mark = send({ interactionId: action.id, itemKind: entry.kind });
-  pending.add(mark, { kind: entry.kind, actionId: action.id });
+  pending.add(mark, { kind: entry.kind, actionId: action.id, since: performance.now() });
 }
 
 // ── 손가락 (V-004) ───────────────────────────────────────────────────
@@ -527,6 +534,7 @@ function roomCells(snapshot: GameViewSnapshot): SceneSurfaceCell[] {
 function actionRows(
   snapshot: GameViewSnapshot,
   shortText: (code: string) => string,
+  now: number,
 ): SceneSurfaceRow[] {
   const entry = selectedItem(snapshot);
   if (!entry) return [];
@@ -537,8 +545,13 @@ function actionRows(
       const reason = action.unavailableReason ? shortText(action.unavailableReason) : '안 됨';
       return { id: action.id, text: `${label} — ${reason}`, state: 'blocked' as const };
     }
-    if (pending.waiting((w) => w.kind === entry.kind && w.actionId === action.id)) {
-      return { id: action.id, text: `${label} — 보냈다`, state: 'pending' as const };
+    // 기다림은 **늦을 때만** 보인다 (V-007 · UX 문서 §7 응답 지연).
+    // 늦지 않은 기다림 동안 줄은 그대로 서 있고, 곧 오는 답이 값을 옮기거나 사유를 붙인다.
+    // 그동안 다시 눌러도 두 번 나가지 않는다 — 막는 것은 이 표시가 아니라 아래 기다림 표다
+    const waiting = pending.values().find((w) => w.kind === entry.kind && w.actionId === action.id);
+    const stage = waitStage(waiting?.since, now);
+    if (waiting && stage !== 'silent') {
+      return { id: action.id, text: `${label} — ${waitText(stage)}`, state: 'pending' as const };
     }
     // **세계가 된다고 말한 것을 안 된다고 그리지 않는다.** 이 자리에서 그 길이 아직
     // 없을 뿐이며, 그 사정은 화면의 것이지 세계의 판정이 아니다
@@ -597,6 +610,7 @@ export function inventoryWorkspace(
   snapshot: GameViewSnapshot,
   text: (code: string) => string,
   shortText: (code: string) => string,
+  now: number = performance.now(),
 ): SceneSurface {
   observed = snapshot;
   reconcileSelection(snapshot);
@@ -647,7 +661,7 @@ export function inventoryWorkspace(
         title: entry
           ? `고른 것 — ${itemName(entry.kind, text)} ×${entry.count}`
           : '고른 것',
-        rows: actionRows(snapshot, shortText),
+        rows: actionRows(snapshot, shortText, now),
         emptyText: `${keyLabel('pickLeft')} ${keyLabel('pickRight')} 로 고른다`,
       },
       // 확인 구획은 **기다리는 것이 있을 때만 선다.** 늘 서 있으면 되돌릴 수 없다는
