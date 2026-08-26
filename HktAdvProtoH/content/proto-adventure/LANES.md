@@ -29,9 +29,9 @@ Feedback · BACKLOG)를 겹쳐 `LANES.html` 로 그린다. `npm run lanes:check`
 | WORLD·ITEM | HUMAN | 후보 5 중 선택 대기 — Agent 추천 FR-THE-PLACES-ARE-NARROWER (+FR-SEE-BEFORE 얹기) | Human Select (frontier/item.md) |
 | WORLD·COMBAT | BLOCKED | 후보 0 — FR-THE-SHAPE-IS-DATA 가 C025 로 닫혔다 | MASTER 의 OPTIONS(Q35) 가 후보를 낳는 것 |
 | WORLD·TERRAIN | OPEN | `C-TERRAIN-001` 착수 대기 — SELECTED `FR-THE-GROUND-HAS-A-LAW`(땅이 법칙을 지닌다). Stage 1 부터, 아직 시작하지 않았다. 시각화의 소유 분해·진행 순서는 [design/Design-Terrain-Visualization.md](../../design/Design-Terrain-Visualization.md) 를 따른다 | 없음 — 다만 이 판과 트랙 파일이 main 에 들어간 뒤에 잡는다 |
-| VIEW | OPEN | BACKLOG 다음 항목(slot-key-hint · 그다음 tip-flip-at-the-edge 는 기반 동반)부터 — equipment-panel 은 아래 충돌 칸 | 없음 |
+| VIEW | OPEN | BACKLOG 다음 항목(slot-key-hint)부터 — 기반 동반이 필요한 둘(tip-flip-at-the-edge · workspace-two-columns)은 ENGINE 뒤에 잡는다 | 없음 |
 | MASTER | OPEN | OPTIONS Q35 (몸이 아닌 존재를 요구하는 Possibility) — 대지형 NEXT 는 끝났다 (TERRAIN 트랙 후보 3) | 없음 — 미처리 Feedback 이 0 이라 막던 것이 사라졌다 (`npm run feedback:gate`) |
-| ENGINE | OPEN | 셋 — ① 표면 안의 **초점 차례**(`tabindex` 0건 — Tab 이 글자 자리·슬롯에 한 번에 닿지 못한다. 다시 그릴 때 초점을 붙드는 자리는 이미 섰다) ② 곁말이 가장자리에서 접히는 일(어느 쪽이 남았는지 재는 일 — BACKLOG `tip-flip-at-the-edge`) ③ 지면 구역 장치 `SceneGroundZone` ([design/Design-Terrain-Visualization.md](../../design/Design-Terrain-Visualization.md)) — C-TERRAIN-001 의 04 확정 뒤 | 없음 |
+| ENGINE | OPEN | 셋 — ① 표면 안의 **초점 차례**(`tabindex` 0건 — Tab 이 글자 자리·슬롯에 한 번에 닿지 못한다. 다시 그릴 때 초점을 붙드는 자리는 이미 섰다) ② 겹침 표면의 **자리 잡기** 둘 — 곁말이 가장자리에서 접히는 일 · 구획을 나란히 놓는 일 (BACKLOG `tip-flip-at-the-edge` · `workspace-two-columns` 가 그것을 기다린다) ③ 지면 구역 장치 `SceneGroundZone` ([design/Design-Terrain-Visualization.md](../../design/Design-Terrain-Visualization.md)) — C-TERRAIN-001 의 04 확정 뒤 | 없음 |
 | PROCESS | HOLD | 없음 | — (공정 변경 중에는 다른 레인을 새로 띄우지 않는다) |
 
 ## 레인 사이 충돌 — 순서가 아니라 파일이 겹치는 곳
@@ -40,7 +40,7 @@ Feedback · BACKLOG)를 겹쳐 `LANES.html` 로 그린다. `npm run lanes:check`
 
 | 겹침 | 지금의 판단 |
 |---|---|
-| VIEW 의 equipment-panel ↔ WORLD·ITEM | ITEM Cycle 이 장비 유효 값 화면을 건드릴 수 있다 — equipment-panel 은 ITEM Cycle 병합 뒤에 연다 (그 뒤의 drag-and-drop · responsive-workspace 도 함께 밀린다) |
+| VIEW 의 장비 구획 ↔ WORLD·ITEM | 장비 구획이 V-012 로 섰다 — 이제 겹치는 것은 **고른 것 구획**이다. ITEM 의 후보 `FR-SEE-BEFORE-YOU-WEAR`(걸기 전에 안다)가 골라지면 그 Cycle 이 미리 본 값을 그 자리에 싣는다. **둘 다 자기 영역 끝에 더하고 기존 줄을 옮기지 않는다** |
 | WORLD·TERRAIN ↔ WORLD·ITEM | **지금은 겹치지 않는다** — 고른 것이 첫 후보(땅이 법칙을 지닌다)라 아이템 파일에 닿지 않는다. 겹치는 것은 셋째 후보(FR-WHAT-KEEPS-YOU-ALIVE-IS-CARRIED)이며, 그것을 고를 때 ITEM 이 무엇을 도는 중인지 먼저 본다 |
 | WORLD·TERRAIN ↔ VIEW | 땅은 화면에 보여야 하므로 이 Cycle 이 `view/` 를 건드린다. VIEW 의 다음 항목(tooltip-on-focus)은 상세를 여는 자리라 자리가 다르지만 표면 상태·HUD 에서 스칠 수 있다 — **둘 다 자기 영역 끝에 추가만 하고 기존 줄을 옮기지 않는다** (frontier/README.md 공유 지점 규칙과 같다) |
 | WORLD·TERRAIN ↔ ENGINE | ENGINE 의 지면 구역 장치(`SceneGroundZone`)를 TERRAIN 의 Stage 7 이 소비한다 — 04 가 관찰 표면을 확정한 뒤 ENGINE 이 착수하고, fallback(안 그림)이 있어 BLOCKED 는 아니다. 소유 분해·순서: [design/Design-Terrain-Visualization.md](../../design/Design-Terrain-Visualization.md) |
