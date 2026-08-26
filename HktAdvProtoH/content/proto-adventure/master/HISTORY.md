@@ -2492,3 +2492,25 @@ Human 이 "FR-ACTION-PHASE 의 근간이 무엇인가" 를 물어 근간을 역�
 
     **이 다섯이 닫히면서 막힌 것이 하나 풀렸다** — 땅을 세우는 첫 Cycle 의 모양이
     정해질 수 있게 되었다. Frontier 후보는 아직 세우지 않았다 (NEXT 작업).
+
+## TERRAIN 첫 후보 선택 — Human 위임 · 2026-08-26
+
+    Human 지시: "LANE에만 반영하고 다음 세션에서 이어할수 있도록 마무리. 병렬로 진행
+    가능한지 확인. 그리고 후보는 알아서 정할 것."
+
+    Frontier 선택은 Human 소유다 (CLAUDE.md 원칙 19). 이번에는 Human 이 그 선택을
+    Agent 에게 **명시적으로 위임**했으므로 Agent 가 골랐고, 위임의 사실을 여기 남긴다 —
+    원칙이 면제된 것이 아니라 그 자리에서 Human 이 답을 준 것이다.
+
+    고른 것      FR-THE-GROUND-HAS-A-LAW (땅이 법칙을 지닌다) → C-TERRAIN-001
+    근거         대지형 Capability 아홉의 overlay_gap 이 서로 다른 문장으로 같은 하나를
+                 가리킨다 — 땅이 없다. 나머지 둘은 이것 없이 성립하지 않는다:
+                 예고(FR-THE-LAND-SHOWS-BEFORE-IT-TAKES)는 "아무 일도 일어나지 않는 것의
+                 예고" 가 되고, 나르기(FR-WHAT-KEEPS-YOU-ALIVE-IS-CARRIED)는 나를 이유가
+                 없다. 셋 중 유일하게 **다른 레인과 파일이 겹치지 않는다**는 점도 함께 봤다
+    고르지 않은 것 예고는 값이 싸지만 순서가 뒤다. 나르기는 셋 중 가장 크고 아이템 쪽
+                 파일에 닿아, 같은 시기에 ITEM 레인이 열리면 겹친다
+
+    Cycle 은 아직 시작하지 않았다 — 판(LANES.md)과 트랙 파일에만 반영했고, 다음 세션이
+    `advprotoh-cycle` 로 Stage 1 부터 잡는다. 넘어갈 MASTER TRACE 는 frontier/terrain.md
+    의 SELECTED 절이 그대로 들고 있다.

@@ -52,7 +52,7 @@
     Why one Cycle        자리 판정과 지속 변화 둘 다 세계에 이미 형태가 있다
                          (GuardedGround · cp-run-drain). 새로 서는 것은 **그 둘을 땅에 붙이는
                          것** 하나다
-    Status               PROPOSED
+    Status               SELECTED
 
 ### FR-THE-LAND-SHOWS-BEFORE-IT-TAKES — 땅이 거두기 전에 보인다
     이것이 무엇인가      법칙이 작용하기 전에 그 자리에 증거가 먼저 드러나고, 그것을 읽은
@@ -139,7 +139,34 @@
 
 ## SELECTED
 
-    없음 — Human 선택 대기
+```text
+FR-THE-GROUND-HAS-A-LAW — 땅이 법칙을 지닌다
+Cycle ID   C-TERRAIN-001        트랙의 첫 번호 (cycles/ 에 C-TERRAIN-* 가 아직 없다)
+다음       advprotoh-cycle 스킬 Stage 1 — 아직 시작하지 않았다
+```
+
+    **정한 사람** — Human 이 이 선택을 Agent 에게 위임했다 (2026-08-26). 선택은 원래
+    Human 소유이므로(CLAUDE.md 원칙 19) 위임의 사실과 고른 근거를 HISTORY.md 에 남겼다.
+    근거는 위 "추천 순서" 절과 같다 — 대지형 Capability 아홉의 `overlay_gap` 이 서로 다른
+    문장으로 같은 하나(땅이 없다)를 가리키고, 그것이 닫히기 전에는 이 트랙의 어떤 후보도
+    겪을 수 있는 것이 되지 않는다.
+
+    **Cycle 이 받아 갈 것** — `01-cycle.md` 의 `MASTER TRACE` 로 그대로 옮긴다.
+
+        Frontier             FR-THE-GROUND-HAS-A-LAW
+        Source Goal          MG-EXPLORE-BEIRA
+        Source Possibility   MP-LEARN-TO-HANDLE-THE-LAYER
+        Target Capability    없음 — 세우는 것은 능력이 아니라 그 능력들이 놓일 땅이다
+                             (MW-MACRO-TERRAIN ABSENT · MW-TERRAIN-* 여덟 ABSENT · C022 선례)
+        Active Constraints   DC-WORLD-TERRAIN-IS-A-PRINCIPLE ·
+                             DC-WORLD-SAFETY-IS-A-NATURAL-EXCEPTION ·
+                             DC-WORLD-TERRAIN-LAW-IS-OBSERVABLE ·
+                             DC-WORLD-OWNS-THE-SURFACE-LIST ·
+                             DC-CONDITION-OPENS-WITHOUT-RECORDING
+        Constraint Note      LAW-IS-OBSERVABLE 는 UNRESOLVED 로 넘어간다 — 겪는 것은 이
+                             Cycle 이 세우지만 **예고**는 다음 후보의 몫이다
+                             (FR-THE-LAND-SHOWS-BEFORE-IT-TAKES). 이 Cycle 에서 그 원칙을
+                             다 닫으려 하지 않는다
 
 ## 지금 열 수 없는 것
 
