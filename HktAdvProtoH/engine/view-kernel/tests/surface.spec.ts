@@ -180,3 +180,130 @@ describe('surfaceMarkup — 표면 하나의 표시 지시', () => {
     expect(surfaceMarkup(surface({ footer: ['닫기 Esc'] }))).toContain('닫기 Esc');
   });
 });
+
+// ── 글자를 받는 자리 · 칸의 꼴 ───────────────────────────────────────
+//
+// 두 원소 모두 **무엇을 위한 것인지 알지 못한다.** 실려 온 글자를 비추고, 실려 온
+// 꼴대로 그릴 뿐이다.
+
+describe('글자를 받는 자리 (SceneSurfaceField)', () => {
+  const withField = (text: string) =>
+    surfaceMarkup(
+      surface({
+        sections: [
+          {
+            id: 'tools',
+            field: { id: 'search', text, placeholder: '이름으로 찾기', label: '이름으로 찾기' },
+            cells: [{ id: 'c0', text: '전체', empty: false, selected: true }],
+          },
+        ],
+      }),
+    );
+
+  it('실려 온 글자를 그대로 비춘다 — 그리는 쪽이 쥐지 않는다', () => {
+    expect(withField('곡')).toContain('value="곡"');
+    expect(withField('')).toContain('value=""');
+  });
+
+  it('빈 자리의 안내와 읽어 주는 이름을 가진다 — 글자가 없는 자리이기 때문이다', () => {
+    const html = withField('');
+    expect(html).toContain('placeholder="이름으로 찾기"');
+    expect(html).toContain('aria-label="이름으로 찾기"');
+  });
+
+  it('되돌아오는 열쇠를 지닌다 — 어느 자리에 쳐 넣었는지 결정 Layer 가 짚는다', () => {
+    expect(withField('')).toContain('class="sf-field" data-id="search"');
+  });
+
+  it('글자에 든 따옴표가 자리를 깨뜨리지 않는다', () => {
+    expect(withField('"곡"')).toContain('value="&quot;곡&quot;"');
+  });
+
+  it('그 자리가 없으면 아무것도 그리지 않는다', () => {
+    expect(surfaceMarkup(surface())).not.toContain('sf-field');
+  });
+
+  it('캐럿을 청했는지가 실려 온다 — 청하지 않으면 캐럿은 그대로 있다', () => {
+    const claim = (claimFocus?: boolean) =>
+      surfaceMarkup(
+        surface({
+          sections: [
+            {
+              id: 'tools',
+              field: { id: 'search', text: '', label: '찾기', ...(claimFocus ? { claimFocus } : {}) },
+              cells: [],
+            },
+          ],
+        }),
+      );
+    expect(claim()).toContain('data-claim-focus="false"');
+    expect(claim(true)).toContain('data-claim-focus="true"');
+  });
+});
+
+describe('칸이 스스로 말하는 것 — 명암과 표식', () => {
+  const cell = (extra: Record<string, unknown>) =>
+    surfaceMarkup(
+      surface({
+        sections: [
+          {
+            id: 'items',
+            cells: [{ id: 'c0', text: '돌', detail: '×9', empty: false, selected: false, ...extra }],
+          },
+        ],
+      }),
+    );
+
+  it('얼마나 찼는지가 칸에 실린다 — 그리는 쪽이 그것을 명암으로 옮긴다', () => {
+    expect(cell({ level: 0.5 })).toContain('style="--sf-level:0.500"');
+  });
+
+  it('0..1 밖의 값은 그 끝으로 붙는다 — 그리는 쪽의 산수다', () => {
+    expect(cell({ level: 2 })).toContain('--sf-level:1.000');
+    expect(cell({ level: -1 })).toContain('--sf-level:0.000');
+  });
+
+  it('명암은 **곁들이는 표시다** — 같은 값이 언제나 글자로도 선다', () => {
+    // 색만으로 구분하지 않는다 (문서 §3). 수량은 명암과 무관하게 곁글자에 있다
+    expect(cell({ level: 0.5 })).toContain('class="sf-cell-detail">×9<');
+  });
+
+  it('명암은 읽어 주는 말에 끼어들지 않는다 — 같은 것을 두 번 읽지 않는다', () => {
+    expect(cell({ level: 0.5 })).toContain('aria-label="돌, ×9"');
+  });
+
+  it('표식은 귀퉁이에 서고 **말로도 읽힌다** — 색이나 점이면 없는 것과 같다', () => {
+    const html = cell({ badge: 'NEW' });
+    expect(html).toContain('class="sf-cell-badge">NEW<');
+    expect(html).toContain('aria-label="NEW, 돌, ×9"');
+  });
+
+  it('밝히지 않으면 아무것도 그리지 않는다', () => {
+    const plain = cell({});
+    expect(plain).not.toContain('--sf-level');
+    expect(plain).not.toContain('sf-cell-badge');
+  });
+});
+
+describe('칸의 꼴 (shape)', () => {
+  const shaped = (shape?: 'slot' | 'chip') =>
+    surfaceMarkup(
+      surface({
+        sections: [
+          {
+            id: 'tools',
+            ...(shape ? { shape } : {}),
+            cells: [{ id: 'c0', text: '전체', empty: false, selected: true }],
+          },
+        ],
+      }),
+    );
+
+  it('밝히지 않으면 자리다 — 지금까지 그리던 그대로', () => {
+    expect(shaped()).toContain('data-shape="slot"');
+  });
+
+  it('띠라고 밝히면 띠로 그린다 — 무엇을 고르는 띠인지는 묻지 않는다', () => {
+    expect(shaped('chip')).toContain('data-shape="chip"');
+  });
+});

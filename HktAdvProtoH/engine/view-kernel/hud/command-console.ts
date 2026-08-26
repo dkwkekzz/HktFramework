@@ -3,6 +3,10 @@
 // 이 파일은 어떤 명령이 있는지, 무엇이 세계로 가는지 알지 못한다.
 // 결정 Layer 가 만든 SceneCommandSurface 의 지시를 그대로 그릴 뿐이다.
 //
+// **사람이 읽을 말을 하나도 짓지 않는다.** 경계의 이름도, 비우면 어떻게 되는지도,
+// 다음 자리를 가리키는 말도, 닫는 자리의 이름도 전부 실려 온다 — 짓는 자리는 팩의
+// 문구 표 하나다 (design/Design-System-Content-Separation.md 남은 부채 ②).
+//
 // 표면의 형태는 05-review.md 의 검토자 지시를 따른다 — **목록 우선 + 타이핑**.
 // 열면 걸 수 있는 것 전부가 먼저 보이고, 그 상태에서 타이핑하면 후보가 좁혀진다.
 // 아무것도 모르는 사람은 읽고 고르며, 아는 사람은 바로 친다.
@@ -36,7 +40,7 @@ export function createCommandConsole(
     <div class="cc-line">
       <span class="cc-caret">&gt;</span>
       <input class="cc-input" id="cc-input" autocomplete="off" spellcheck="false" />
-      <button class="cc-close" id="cc-close" title="닫기" aria-label="닫기">✕</button>
+      <button class="cc-close" id="cc-close">✕</button>
     </div>
     <div class="cc-history" id="cc-history"></div>
   `;
@@ -90,6 +94,13 @@ export function createCommandConsole(
 
       if (input.value !== surface.composition.text) input.value = surface.composition.text;
 
+      // 닫는 자리의 이름 — 글자가 아니라 ✕ 하나이므로, 이 이름이 없으면 손가락과
+      // 읽어 주는 장치에게 이 버튼은 이름 없는 무엇이 된다.
+      if (close.getAttribute('aria-label') !== surface.closeText) {
+        close.setAttribute('title', surface.closeText);
+        close.setAttribute('aria-label', surface.closeText);
+      }
+
       // 목록 — 좁혀진 후보가 있으면 그것만, 없으면 전부. 열면 먼저 보이는 것이 이것이다.
       const shown =
         surface.composition.candidates.length > 0 && surface.composition.text.length > 0
@@ -103,20 +114,18 @@ export function createCommandConsole(
                 `<span class="cc-slot">${escape(slot.id)}<span class="cc-hint">${escape(
                   slot.hint,
                 )}</span>${
-                  slot.required
-                    ? ''
-                    : `<span class="cc-omit">비우면 ${escape(slot.omittedMeaning ?? '없음')}</span>`
+                  slot.omittedText ? `<span class="cc-omit">${escape(slot.omittedText)}</span>` : ''
                 }</span>`,
             )
             .join('');
-          const badge = entry.origin === 'world' ? '세계' : '내 화면';
           const state = entry.stateText ? `<span class="cc-state">${escape(entry.stateText)}</span>` : '';
+          // 사유는 결정 Layer 가 언제나 채운다 — 밝히지 않은 거절에도 말이 남는다.
           const blocked = entry.available
             ? ''
-            : `<span class="cc-blocked">${escape(entry.unavailableText ?? '지금은 걸 수 없다')}</span>`;
+            : `<span class="cc-blocked">${escape(entry.unavailableText ?? '')}</span>`;
           return `<div class="cc-entry${entry.available ? '' : ' cc-entry-blocked'}">
             <div class="cc-entry-head">
-              <span class="cc-origin cc-origin-${entry.origin}">${badge}</span>
+              <span class="cc-origin cc-origin-${entry.origin}">${escape(entry.originText)}</span>
               <code class="cc-usage">${escape(entry.usage)}</code>
               ${state}${blocked}
             </div>
@@ -129,9 +138,9 @@ export function createCommandConsole(
       // 안내 — 무엇을 더 적어야 하는지, 무엇이 틀렸는지.
       const composition = surface.composition;
       const parts: string[] = [];
-      if (composition.nextSlot) {
+      if (composition.nextSlot && composition.nextText) {
         parts.push(
-          `<span class="cc-next">다음: ${escape(composition.nextSlot.id)} <span class="cc-hint">${escape(
+          `<span class="cc-next">${escape(composition.nextText)} <span class="cc-hint">${escape(
             composition.nextSlot.hint,
           )}</span></span>`,
         );

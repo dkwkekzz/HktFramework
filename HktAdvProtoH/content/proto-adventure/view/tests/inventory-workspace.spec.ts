@@ -31,6 +31,8 @@ import {
   workspacePendingCount,
   workspaceSelection,
 } from '../inventory-workspace';
+import { setFilter, setOrder } from '../inventory-view';
+import { typeInto } from '../inventory-workspace';
 import { resolvePresentation } from '../resolve';
 import { closeSurface, surfaceIsOpen, toggleSurface } from '../surface-state';
 import empty from './fixtures/inventory-empty.fixture.json';
@@ -40,18 +42,21 @@ import mining from './fixtures/mining-available.fixture.json';
 import unknown from './fixtures/inventory-unknown.fixture.json';
 
 const snap = (fixture: unknown) => fixture as GameViewSnapshot;
-const bag = (fixture: unknown): SceneSurface => {
-  const found = resolvePresentation(snap(fixture)).surfaces.find(
-    (s) => s.id === INVENTORY_SURFACE_ID,
-  );
+// `now` 는 **기다림의 나이를 재는 시계**다 (V-007). 넘기지 않으면 지금을 읽는다 —
+// 보낸 직후이므로 기다림은 아직 아무 말도 하지 않는 상태다.
+const bag = (fixture: unknown, now?: number): SceneSurface => {
+  const found = resolvePresentation(snap(fixture), undefined, now === undefined ? {} : { now })
+    .surfaces.find((s) => s.id === INVENTORY_SURFACE_ID);
   if (!found) throw new Error('소지품 작업 공간이 장면에 없다');
   return found;
 };
-const section = (fixture: unknown, id: string): SceneSurfaceSection => {
-  const found = bag(fixture).sections.find((s) => s.id === id);
+const section = (fixture: unknown, id: string, now?: number): SceneSurfaceSection => {
+  const found = bag(fixture, now).sections.find((s) => s.id === id);
   if (!found) throw new Error(`구획 ${id} 이 없다`);
   return found;
 };
+const actionRow = (fixture: unknown, id: string, now?: number) =>
+  (section(fixture, 'detail', now).rows ?? []).find((r) => r.id === id);
 
 /**
  * 되돌릴 수 없는 손을 **끝까지** 실행한다 (V-002).
@@ -199,13 +204,233 @@ describe('VUX-IE-V-04 · V-06 — 고르고 읽고 실행한다 (자판만으로
   });
 });
 
+// ── V-008 · VUX-IE-04 — 많은 것 중에서 찾는다 (문서 §6) ─────────────
+describe('V-008 — 거르고 차례를 바꿔도 지닌 것은 그대로다', () => {
+  it('도구 띠가 표면에 선다 — 분류 다섯과 보기 정렬 셋', () => {
+    expect(section(mining, 'filter').cells?.map((c) => c.text)).toEqual([
+      '전체',
+      '장비',
+      '소비',
+      '재료',
+      '기타',
+    ]);
+    expect(section(mining, 'order').title).toBe('보기 정렬'); // `정렬` 이 아니다 (문서 §6)
+    expect(section(mining, 'order').cells?.map((c) => c.text)).toEqual([
+      '세계 차례',
+      '이름',
+      '수량',
+    ]);
+  });
+
+  it('분류를 걸면 보이는 것만 줄어든다', () => {
+    expect(section(mining, 'items').cells?.map((c) => c.text)).toEqual(['🪨 돌', '⛏ 곡괭이']);
+    setFilter('material');
+    expect(section(mining, 'items').cells?.map((c) => c.text)).toEqual(['🪨 돌']);
+    // 두 수를 함께 보인다 — 보이는 수만 말하면 지닌 것이 줄어든 것으로 읽힌다
+    expect(section(mining, 'items').title).toBe('지닌 것 — 1 / 2 종류 · 재료');
+  });
+
+  it('**자리 수는 그대로다** — 거르기는 덜어내기가 아니다 (문서 §6)', () => {
+    const before = section(mining, 'room');
+    setFilter('gear'); // 걸리는 것이 하나도 없는 분류
+    const after = section(mining, 'room');
+    expect(after.title).toBe(before.title);
+    expect(after.cells).toEqual(before.cells);
+    expect(after.title).toBe('자리 2 / 4 · 남은 자리 2');
+  });
+
+  it('걸린 것이 없으면 지닌 것이 없는 것과 다른 말을 한다', () => {
+    setFilter('consumable');
+    expect(section(mining, 'items').cells).toEqual([]);
+    expect(section(mining, 'items').emptyText).toBe('조건에 맞는 아이템 없음 · 필터 초기화');
+    // 정말로 아무것도 지니지 않은 가방은 여전히 그렇게 말한다
+    expect(section(empty, 'items').emptyText).toBe('소지품 없음');
+  });
+
+  it('되돌릴 자리가 화면에 남는다 — 걸린 것이 없어도 도구 띠는 사라지지 않는다', () => {
+    setFilter('consumable');
+    expect(section(mining, 'filter').cells).toHaveLength(5);
+    expect(section(mining, 'filter').cells?.find((c) => c.id === 'filter.all')?.selected).toBe(false);
+  });
+
+  it('보기 차례를 바꾸면 칸의 차례가 바뀐다 — 세계가 보낸 것은 그대로다', () => {
+    setOrder('name');
+    expect(section(mining, 'items').cells?.map((c) => c.text)).toEqual(['⛏ 곡괭이', '🪨 돌']);
+    expect(section(mining, 'items').title).toBe('지닌 것 — 2 종류'); // 거른 것이 아니다
+  });
+
+  it('방향키는 **화면에 선 차례대로** 걷는다 — 걸러진 것을 지나가지 않는다', () => {
+    setFilter('material');
+    moveSelection(snap(mining), 1);
+    expect(workspaceSelection()).toBe('stone');
+    // 하나뿐이므로 한 번 더 밀어도 그 자리다 (감기지만 갈 곳이 하나다)
+    moveSelection(snap(mining), 1);
+    expect(workspaceSelection()).toBe('stone');
+  });
+
+  it('차례를 바꾸면 방향키가 그 차례대로 간다', () => {
+    setOrder('name');
+    moveSelection(snap(mining), 1);
+    expect(workspaceSelection()).toBe('pickaxe'); // 이름 차례의 첫째
+  });
+
+  it('도구 띠의 칸은 고르는 칸이 아니다 — 고른 것도 초점도 건드리지 않는다', () => {
+    moveSelection(snap(mining), 1);
+    expect(workspaceSelection()).toBe('stone');
+    expect(pickCell(INVENTORY_SURFACE_ID, 'filter.gear')).toBe(false);
+    expect(workspaceSelection()).toBe('stone');
+  });
+
+  it('안내 줄이 두 키를 세운다 — 늘 떠 있는 패널에는 서지 않는 키다', () => {
+    expect(bag(mining).footer).toContain('분류 J');
+    expect(bag(mining).footer).toContain('보기 정렬 K');
+  });
+});
+
+// ── V-010 — 칸 하나가 스스로 말한다 (문서 §3) ────────────────────────
+describe('V-010 — 수량이 숫자와 명암으로 함께 읽힌다', () => {
+  it('수량은 언제나 글자로 선다 — 색만으로 구분하지 않는다', () => {
+    expect(section(mining, 'items').cells?.map((c) => c.detail)).toEqual(['×2', '×1']);
+  });
+
+  it('명암은 **목록 안에서 가장 많은 것**에 견준다 — 문턱을 화면이 정하지 않는다', () => {
+    // mining: 돌 ×2 · 곡괭이 ×1 → 1.0 과 0.5
+    expect(section(mining, 'items').cells?.map((c) => c.level)).toEqual([1, 0.5]);
+    // full: 돌 ×9 · 곡괭이 ×1 → 같은 목록의 가장 많은 것이 기준이므로 달라진다
+    expect(section(full, 'items').cells?.map((c) => c.level)).toEqual([1, 1 / 9]);
+  });
+
+  it('걸러도 남은 목록 안에서 다시 견준다 — 보이지 않는 것에 견주지 않는다', () => {
+    setFilter('material');
+    expect(section(mining, 'items').cells?.map((c) => c.level)).toEqual([1]);
+  });
+
+  it('빈 자리에는 명암이 없다 — 담은 것이 없다', () => {
+    expect(section(mining, 'room').cells?.every((c) => c.level === undefined)).toBe(true);
+  });
+});
+
+describe('V-010 — 새로 온 것에 표식이 붙었다가 상세를 보면 사라진다', () => {
+  it('열자마자 있던 것에는 표식이 없다 — 첫 관찰은 기준선이다', () => {
+    expect(section(mining, 'items').cells?.every((c) => c.badge === undefined)).toBe(true);
+  });
+
+  it('뒤에 온 것이 표식을 얻고, 고르면 사라진다', () => {
+    // 곡괭이만 있던 가방에 돌이 늘었다 (같은 관찰 둘을 잇는다)
+    const onlyTool = {
+      ...snap(mining),
+      inventory: [snap(mining).inventory![1]],
+    } as GameViewSnapshot;
+    bag(onlyTool);
+    const withStone = section(mining, 'items').cells ?? [];
+    expect(withStone.find((c) => c.id === 'item.stone')?.badge).toBe('NEW');
+    expect(withStone.find((c) => c.id === 'item.pickaxe')?.badge).toBeUndefined();
+
+    // 고른 것이 곧 상세를 본 것이다 — **열려 있을 때만이다.**
+    // 닫힌 표면에 남은 고르기는 아무도 보지 않았다
+    moveSelection(snap(mining), 1);
+    expect(workspaceSelection()).toBe('stone');
+    expect(section(mining, 'items').cells?.find((c) => c.id === 'item.stone')?.badge).toBe('NEW');
+    toggleSurface(INVENTORY_SURFACE_ID);
+    expect(section(mining, 'items').cells?.find((c) => c.id === 'item.stone')?.badge)
+      .toBeUndefined();
+  });
+
+  it('닫혀 있는 동안 얻은 것에도 표식이 붙는다 — 그것이야말로 못 본 것이다', () => {
+    closeSurface(INVENTORY_SURFACE_ID);
+    const onlyTool = {
+      ...snap(mining),
+      inventory: [snap(mining).inventory![1]],
+    } as GameViewSnapshot;
+    bag(onlyTool);
+    bag(mining); // 닫힌 채로 돌이 늘었다
+    toggleSurface(INVENTORY_SURFACE_ID);
+    expect(section(mining, 'items').cells?.find((c) => c.id === 'item.stone')?.badge).toBe('NEW');
+  });
+});
+
+// ── V-009 — 이름으로 찾는다 (문서 §6 · §2.2 의 `[검색 /]`) ───────────
+describe('V-009 — 이름으로 좁힌다', () => {
+  it('도구 띠가 글자 받는 자리를 지닌다 — 띠 꼴로 그려진다', () => {
+    const tools = section(mining, 'filter');
+    expect(tools.shape).toBe('chip');
+    expect(tools.field?.id).toBe('search');
+    expect(tools.field?.placeholder).toBe('이름으로 찾기');
+    expect(section(mining, 'order').shape).toBe('chip');
+  });
+
+  it('쳐 넣으면 이름에 그 말이 든 것만 남는다', () => {
+    typeInto(INVENTORY_SURFACE_ID, 'search', '곡');
+    expect(section(mining, 'items').cells?.map((c) => c.text)).toEqual(['⛏ 곡괭이']);
+    // 왜 줄었는지가 제목에 선다 — 분류는 `전체` 인데 수만 줄면 읽을 길이 없다
+    expect(section(mining, 'items').title).toBe('지닌 것 — 1 / 2 종류 · "곡"');
+  });
+
+  it('쳐 넣은 글자가 그 자리에 그대로 실린다 — 화면과 판단이 갈라지지 않는다', () => {
+    typeInto(INVENTORY_SURFACE_ID, 'search', '곡');
+    expect(section(mining, 'filter').field?.text).toBe('곡');
+  });
+
+  it('걸리는 것이 없으면 거르기와 같은 말을 한다', () => {
+    typeInto(INVENTORY_SURFACE_ID, 'search', '없는것');
+    expect(section(mining, 'items').cells).toEqual([]);
+    expect(section(mining, 'items').emptyText).toBe('조건에 맞는 아이템 없음 · 필터 초기화');
+  });
+
+  it('**자리 수는 그대로다** — 찾기도 덜어내기가 아니다', () => {
+    typeInto(INVENTORY_SURFACE_ID, 'search', '없는것');
+    expect(section(mining, 'room').title).toBe('자리 2 / 4 · 남은 자리 2');
+  });
+
+  it('다른 표면의 글자는 받지 않는다 — 이 자리의 것만 듣는다', () => {
+    typeInto('somewhere-else', 'search', '곡');
+    expect(section(mining, 'filter').field?.text).toBe('');
+  });
+
+  it('모르는 자리의 글자도 받지 않는다', () => {
+    typeInto(INVENTORY_SURFACE_ID, 'nowhere', '곡');
+    expect(section(mining, 'filter').field?.text).toBe('');
+  });
+
+  it('방향키는 찾아 남은 것만 걷는다', () => {
+    typeInto(INVENTORY_SURFACE_ID, 'search', '곡');
+    moveSelection(snap(mining), 1);
+    expect(workspaceSelection()).toBe('pickaxe');
+  });
+});
+
 describe('VUX-IE-FX-STALE — 세계가 답하기 전에는 아무것도 참이 아니다', () => {
-  it('보낸 뒤 그 줄이 기다림으로 보인다', () => {
+  // V-007 — 기다림은 **늦을 때만** 보인다 (UX 문서 §7 응답 지연).
+  // 세계는 보통 한 Tick 안에 답하므로, 보내자마자 `처리 중` 을 띄우면 그 글자는
+  // 읽히기 전에 사라진다 — 남는 것은 줄이 한 번 깜빡였다는 인상뿐이다.
+  it('보낸 직후에는 아무 말도 하지 않는다 — 곧 오는 답이 이미 답이다', () => {
+    const sentAt = performance.now();
     moveSelection(snap(mining), 1);
     moveActionFocus(snap(mining), 1);
     commitFocused(mining, () => 7);
-    const rows = section(mining, 'detail').rows ?? [];
-    expect(rows.find((r) => r.id === 'discard-item')?.state).toBe('pending');
+    const row = actionRow(mining, 'discard-item', sentAt + 900);
+    expect(row?.state).toBe('available');
+    expect(row?.text).toBe('덜어내기');
+  });
+
+  it('1초가 지나면 그 줄이 처리 중으로 보인다', () => {
+    const sentAt = performance.now();
+    moveSelection(snap(mining), 1);
+    moveActionFocus(snap(mining), 1);
+    commitFocused(mining, () => 7);
+    const row = actionRow(mining, 'discard-item', sentAt + 1200);
+    expect(row?.state).toBe('pending');
+    expect(row?.text).toBe('덜어내기 — 처리 중');
+  });
+
+  it('5초가 지나면 다시 보내라고 하지 않는다 — 이어짐을 보라고 한다', () => {
+    const sentAt = performance.now();
+    moveSelection(snap(mining), 1);
+    moveActionFocus(snap(mining), 1);
+    commitFocused(mining, () => 7);
+    const row = actionRow(mining, 'discard-item', sentAt + 5200);
+    expect(row?.state).toBe('pending');
+    expect(row?.text).toBe('덜어내기 — 이어짐 확인');
   });
 
   it('VUX-IE-V-05 — 기다리는 동안 수량도 자리도 바뀌지 않는다', () => {

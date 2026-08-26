@@ -3,7 +3,7 @@
 // 04-gameview.spec.yaml 의 `skill` · `requestOutcome` · `prohibited` 를 검증한다.
 // 세계 프로세스도, 세계 코드의 import 도 없다 — 계약이 실은 값만으로 화면이 정해진다.
 
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import type { GameViewSnapshot } from '../../protocol/gameview';
 import { resolvePresentation } from '../resolve';
 import {
@@ -16,6 +16,7 @@ import {
   type SkillAnswers,
 } from '../skill-presentation';
 import { codeText, shortCodeText } from '../code-text';
+import { forgetWaits } from '../request-timing';
 import combatFixture from './fixtures/combat.fixture.json';
 import guardFixture from './fixtures/guard.fixture.json';
 import damageTypeFixture from './fixtures/damage-type.fixture.json';
@@ -26,12 +27,17 @@ const guard = guardFixture as GameViewSnapshot;
 const damageType = damageTypeFixture as GameViewSnapshot;
 const unknown = unknownFixture as GameViewSnapshot;
 
-const bar = (snapshot: GameViewSnapshot, answers: SkillAnswers = {}) =>
-  skillSlotBar(snapshot, shortCodeText, answers).cells;
-const panel = (snapshot: GameViewSnapshot, answers: SkillAnswers = {}) =>
-  skillDetailLines(snapshot, codeText, answers).join('\n');
-const slot = (snapshot: GameViewSnapshot, id: string, answers: SkillAnswers = {}) =>
-  bar(snapshot, answers).find((cell) => cell.id === id);
+// `now` 는 **기다림의 나이를 재는 시계**다 (V-007). 넘기지 않으면 지금을 읽는다.
+const bar = (snapshot: GameViewSnapshot, answers: SkillAnswers = {}, now?: number) =>
+  skillSlotBar(snapshot, shortCodeText, answers, now ?? performance.now()).cells;
+const panel = (snapshot: GameViewSnapshot, answers: SkillAnswers = {}, now?: number) =>
+  skillDetailLines(snapshot, codeText, answers, now ?? performance.now()).join('\n');
+const slot = (snapshot: GameViewSnapshot, id: string, answers: SkillAnswers = {}, now?: number) =>
+  bar(snapshot, answers, now).find((cell) => cell.id === id);
+
+// 기다림의 장부는 화면이 프레임 사이에 쥐고 있는 것이므로, 검사마다 비우고 시작한다 —
+// 앞 검사의 나이를 물려받으면 누르자마자 `이어짐 확인` 이 뜨는 화면을 검사하게 된다.
+beforeEach(() => forgetWaits());
 
 // ── VUX-SK-FX-READY ────────────────────────────────────────────────
 describe('VUX-SK-FX-READY — 손에 든 것 전부가 한 자리에 선다', () => {
@@ -119,10 +125,31 @@ describe('고르기 전에 값을 안다', () => {
 
 // ── VUX-SK-FX-STALE — 내 요청이 어떻게 되었는가 ────────────────────
 describe('VUX-SK-FX-STALE — 요청의 대답이 그것을 부른 자리에 붙는다', () => {
+  // 매번 새로 만든다 — 같은 객체를 여러 검사가 나눠 쓰면 어느 검사가 무엇을 바꿨는지
+  // 읽기 어려워진다 (기다림의 장부는 이미 beforeEach 가 비운다)
+  const answers = (): SkillAnswers => ({ attack: { state: 'pending' } });
+
   it('걸어 둔 것은 걸어 둔 것으로 보인다 — 일어난 일로 보이지 않는다 (VUX-SK-V-05)', () => {
-    const answers: SkillAnswers = { attack: { state: 'pending' } };
-    expect(slot(combat, 'attack', answers)?.status).toBe('요청 중');
-    expect(panel(combat, answers)).toContain('기본 스킬 ⋯ 요청 중');
+    // V-007 — 다만 **늦을 때부터**다. 세계는 보통 한 Tick 안에 답하므로 곧바로 띄우면
+    // 그 글자는 읽히기 전에 사라지고, 남는 것은 칸이 깜빡였다는 인상뿐이다
+    const t = performance.now();
+    expect(slot(combat, 'attack', answers(), t)?.status).toBe('지금 됨'); // 아직 말하지 않는다
+    expect(slot(combat, 'attack', answers(), t + 1200)?.status).toBe('처리 중');
+    expect(panel(combat, answers(), t + 1200)).toContain('기본 스킬 ⋯ 처리 중');
+  });
+
+  it('많이 늦으면 다시 걸라고 하지 않는다 — 이어짐을 보라고 한다', () => {
+    const t = performance.now();
+    expect(slot(combat, 'attack', answers(), t)?.status).toBe('지금 됨');
+    expect(slot(combat, 'attack', answers(), t + 5200)?.status).toBe('이어짐 확인');
+  });
+
+  it('걸어 두었다는 사실은 늦기 전에도 참이다 — 같은 요청이 두 번 나가지 않는다', () => {
+    // 화면이 말하지 않는 것과 화면이 잊은 것은 다르다. 두 번 나가는 것을 막는 것은
+    // 이 표시가 아니라 기다림의 표다 (inventory-workspace 의 pending · 조립의 pendingSkills)
+    const t = performance.now();
+    expect(slot(combat, 'attack', answers(), t)?.state).toBe('available');
+    expect(slot(combat, 'attack', answers(), t + 1200)?.state).toBe('pending');
   });
 
   it('거절은 사유와 함께 그 기술의 자리에 남는다', () => {
@@ -195,9 +222,11 @@ describe('VUX-SK-FX-STALE — 요청의 대답이 그것을 부른 자리에 붙
 
   it('내가 건 것이 세계가 미리 말해 둔 가용성보다 앞선다', () => {
     // 세계는 "기력이 모자라다" 고 말해 두었고, 나는 방금 그것을 걸었다.
-    // 지금 알고 싶은 것은 방금 그것이 어떻게 됐는가다.
-    const answers: SkillAnswers = { 'skill-heavy': { state: 'pending' } };
-    expect(slot(combat, 'skill-heavy', answers)?.status).toBe('요청 중');
+    // 지금 알고 싶은 것은 방금 그것이 어떻게 됐는가다 — **늦어졌다면** (V-007).
+    const heavy: SkillAnswers = { 'skill-heavy': { state: 'pending' } };
+    const t = performance.now();
+    expect(slot(combat, 'skill-heavy', heavy, t)?.status).toBe('불가 · 기력 모자람');
+    expect(slot(combat, 'skill-heavy', heavy, t + 1200)?.status).toBe('처리 중');
   });
 });
 

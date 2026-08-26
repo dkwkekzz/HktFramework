@@ -8,6 +8,7 @@ import type { GameViewSnapshot } from '../../protocol/gameview';
 import {
   commandEntries,
   composeCommand,
+  COMMAND_TEXT_CODES,
   invocationOf,
 } from '../../../../engine/view-kernel/presentation/command-presentation';
 import { commandActionRequest } from '../command-request';
@@ -22,6 +23,29 @@ const entries = commandEntries(snapshot, OFF, codeText);
 function compose(text: string, states = OFF) {
   return composeCommand(text, commandEntries(snapshot, states, codeText), snapshot, states, codeText);
 }
+
+describe('기반 부채 ② — 기반은 말을 짓지 않고 코드를 부른다', () => {
+  it('기반이 부르는 코드가 전부 팩의 문구 표에 있다', () => {
+    // 없어도 게임은 멈추지 않는다 — 코드가 그대로 뜰 뿐이다. 그래서 검사가 말한다:
+    // 화면에 `command.no-such` 가 뜨는 것과 그것을 아는 것은 다르다
+    const naked = COMMAND_TEXT_CODES.filter((code) => codeText(code) === code);
+    expect(naked).toEqual([]);
+  });
+
+  it('값이 끼는 문구는 `{}` 자리에 값을 받는다', () => {
+    expect(codeText('command.no-such', 'teleport')).toBe('그런 명령이 없다 — teleport');
+    expect(codeText('command.omitted', '내 몸')).toBe('비우면 내 몸');
+  });
+
+  it('값을 부르지 않는 문구에 값을 주면 버려진다 — 찌꺼기가 붙지 않는다', () => {
+    expect(codeText('command.incomplete', 'teleport')).toBe('아직 다 적지 않았다');
+  });
+
+  it('등록되지 않은 코드는 코드 그대로다 — 표현 누락이 게임을 멈추지 않는다', () => {
+    expect(codeText('command.nowhere')).toBe('command.nowhere');
+    expect(codeText('command.nowhere', 'x')).toBe('command.nowhere: x');
+  });
+});
 
 describe('목록 (04 commandSurface.browse) — 외우는 것이 아니라 보이는 것이다', () => {
   it('세계가 밝힌 명령과 관찰자 쪽 명령이 한 목록에 있다', () => {
@@ -60,7 +84,9 @@ describe('목록 (04 commandSurface.browse) — 외우는 것이 아니라 보�
 
     expect(slots.map((slot) => slot.id)).toEqual(['대상', '속성', '값']);
     expect(slots[0]?.required).toBe(false);
-    expect(slots[0]?.omittedMeaning).toBe('내 몸');
+    // 문장째 온다 — "비우면" 이라는 말도 팩의 것이다 (기반 부채 ②)
+    expect(slots[0]?.omittedText).toBe('비우면 내 몸');
+    expect(slots[1]?.omittedText).toBeUndefined(); // 비울 수 없는 자리에는 없다
     expect(slots[0]?.hint).toContain('npc-1'); // 지목할 수 있는 존재가 실제로 보인다
     expect(slots[1]?.options).toEqual(['hp', 'moveSpeed', 'moveMode']);
   });
@@ -73,6 +99,21 @@ describe('목록 (04 commandSurface.browse) — 외우는 것이 아니라 보�
     );
     expect(on.find((e) => e.id === 'collider-observe')?.stateText).toBe('켜짐');
     expect(on.find((e) => e.id === 'attribute-inspect')?.stateText).toBe('꺼짐');
+  });
+
+  it('사유를 밝히지 않은 거절에도 말이 남는다 — 회색으로만 서지 않는다', () => {
+    const closed = {
+      ...snapshot,
+      commands: [{ ...snapshot.commands[0]!, available: false }],
+    } as GameViewSnapshot;
+    const entry = commandEntries(closed, OFF, codeText).find((e) => e.id === 'set-attribute')!;
+
+    expect(entry.unavailableText).toBe('지금은 걸 수 없다');
+  });
+
+  it('어디로 가는 명령인지가 글자로도 읽힌다 — 그리는 쪽은 그 말을 모른다', () => {
+    expect(entries.find((e) => e.id === 'set-attribute')?.originText).toBe('세계');
+    expect(entries.find((e) => e.id === 'collider-observe')?.originText).toBe('내 화면');
   });
 
   it('세계가 권한을 닫으면 걸 수 없다고 보이되 목록에서 사라지지 않는다', () => {

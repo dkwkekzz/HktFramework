@@ -16,6 +16,7 @@ import { createSlotBarLayer } from '../engine/view-kernel/hud/slot-bar';
 import { createTouchPad } from '../engine/view-kernel/hud/touch-pad';
 
 import { attachInput } from '../engine/view-kernel/input/input';
+import { engineKeyCode } from '../engine/view-kernel/input/engine-keys';
 import { attachKeyboard } from '../engine/view-kernel/input/keyboard';
 import { attachPointerLook } from '../engine/view-kernel/input/pointer';
 import { attachTouchControls } from '../engine/view-kernel/input/touch';
@@ -39,6 +40,7 @@ import {
   menuCell,
   pickCell,
   pressRow,
+  typeInto,
   KEY_BINDINGS,
   NO_SKILL_ANSWERS,
   rememberForEffects,
@@ -101,6 +103,9 @@ const commandConsole = createCommandConsole(container, {
 // 한 번 누름이 무슨 뜻인지도 알지 못한다 (슬롯 띠가 세운 규칙과 같다).
 const surfaces = createSurfaceLayer(container, {
   onClose: (id) => closeSurface(id),
+  // 쳐 넣은 글자가 무슨 뜻인지 조립은 알지 못한다 — 그 자리의 id 와 글자를 넘길 뿐이다
+  // (눌린 칸·줄을 넘기는 것과 같은 규칙이다).
+  onFieldInput: (surfaceId, fieldId, text) => typeInto(surfaceId, fieldId, text),
   onPickCell: (surfaceId, cellId) => pickCell(surfaceId, cellId),
   onCommitCell: (surfaceId, cellId) =>
     commitCell(surfaceId, cellId, (action) => link.sendMarked(action)),
@@ -128,6 +133,9 @@ const EMPTY_SCENE: SceneState = {
   slotBars: [],
   commandSurface: {
     open: false,
+    // 아직 아무것도 받지 못한 화면 — 표면이 열리지 않으므로 이 말은 쓰이지 않는다.
+    // 그래도 팩의 표에서 가져온다: 조립이 사람이 읽을 말을 짓는 자리는 없다
+    closeText: codeText('command.close'),
     entries: [],
     composition: { text: '', candidates: [], suggestions: [], submittable: false },
     history: [],
@@ -187,19 +195,22 @@ let wasDirectionMoving = false;
 // World 에 아무것도 요청하지 않는다 — 이미 와 있는 관찰값을 보일지만 정한다.
 // C009 — 같은 것을 명령으로도 켤 수 있다 (04 observerCommands[collider-observe]).
 // 키는 아는 사람의 지름길이고, 명령 목록이 처음 보는 사람의 길이다.
-const DEBUG_OBSERVE_KEY = 'KeyC';
+//
+// 키 코드는 **기반이 소유한다** (engine-keys.ts) — 조립이 손으로 적어 두면 팩의
+// "남이 먼저 가져간 키" 검사가 읽을 원본이 없다.
+const DEBUG_OBSERVE_KEY = engineKeyCode('colliderObserve');
 let debugObserve = false;
 
 // 속성 관찰 (C007 R2 — 04 debugAuthority.inspect) — 세계는 이미 모든 속성을 보내고 있다.
 // 이 토글은 그것을 몸 위에 펼쳐 볼지만 정한다. World 에 아무것도 요청하지 않는다.
-const INSPECT_KEY = 'KeyV';
+const INSPECT_KEY = engineKeyCode('attributeInspect');
 let inspect = false;
 
 // ── 명령 표면 (C009 — 04 commandSurface) ────────────────────────────
 //
 // 관찰자가 쥐는 상태다. 세계는 이것을 알지 못한다 —
 // 열려 있는지도, 무엇을 쓰고 있는지도, 무엇을 주고받았는지도.
-const COMMAND_OPEN_KEY = 'Slash'; // 여는 키. 표면 자체가 무엇을 할 수 있는지 알려 준다
+const COMMAND_OPEN_KEY = engineKeyCode('command'); // 여는 키. 표면 자체가 무엇을 할 수 있는지 알려 준다
 const COMMAND_HISTORY_LIMIT = 40;
 let commandOpen = false;
 let commandText = '';
@@ -228,10 +239,13 @@ function submitCommand(): void {
   if (text.length === 0) return;
 
   const snapshot = link.latest();
-  const invocation = invocationOf(text, latestScene.commandSurface.entries, snapshot, {
-    'collider-observe': debugObserve,
-    'attribute-inspect': inspect,
-  });
+  const invocation = invocationOf(
+    text,
+    latestScene.commandSurface.entries,
+    snapshot,
+    { 'collider-observe': debugObserve, 'attribute-inspect': inspect },
+    codeText, // 거절의 말도 팩의 것이다 (기반 부채 ②)
+  );
 
   if (invocation.kind === 'rejected') {
     // 잘못 걸린 것이 아무 일 없이 사라지지 않는다 (04 commandSurface.guide.onMistake).

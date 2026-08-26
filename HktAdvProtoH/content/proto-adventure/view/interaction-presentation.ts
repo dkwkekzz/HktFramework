@@ -1,6 +1,8 @@
 // Interaction Presentation — Interaction Role 의 입력 바인딩·프롬프트를 결정한다
 // (결정 Layer 데이터). role 당 단일 항목 — Cycle 별로 분리하지 않는다.
 
+import { ENGINE_KEY_CODES } from '../../../engine/view-kernel/input/engine-keys';
+
 export interface InteractionPresentation {
   key?: string; // KeyboardEvent.code
   keyLabel?: string;
@@ -75,24 +77,13 @@ const INTERACTIONS: Record<string, InteractionPresentation> = {
  * 조립 루트보다 **먼저** 키를 가져가는 자리들 — 여기 있는 코드를 interaction 에 주면
  * 그 조작은 눌러도 아무 일이 없다.
  *
- * 이동·시점은 `engine/view-kernel/input/keyboard.ts` 의 MOVE_KEYS · TURN_KEYS 가 눌린
- * 순간 삼킨다 (interaction 판정까지 오지 않는다). 명령·관찰 토글은 `app/main.ts` 가
- * interaction 보다 먼저 가로챈다.
- *
- * **여기 적힌 것은 사본이다.** 원본은 저 두 파일이며 팩이 읽을 수 있게 내보내지 않는다 —
- * 그것을 내보내는 것은 기반 트랙의 일이고 08 MASTER FEEDBACK 에 적었다. 사본인 동안에는
- * 아래 검사가 어긋남을 잡는다: 원본이 늘면 이 목록도 늘려야 하고, 늘리지 않으면
- * 검사가 통과한 채로 조작이 죽는다.
+ * **더 이상 사본이 아니다** (기반 부채 ②). 이 목록은 손으로 적혀 있었고, 그 자리에
+ * "원본은 기반의 두 파일이며 팩이 읽을 수 있게 내보내지 않는다 — 그것을 내보내는 것은
+ * 기반 트랙의 일" 이라고 적혀 있었다. 기반이 그것을 내보냈다
+ * (`engine/view-kernel/input/engine-keys.ts` — 이동·시점·명령·관찰 토글 한 자리).
+ * 이제 원본이 늘면 이 목록도 같은 실행에서 함께 는다.
  */
-export const RESERVED_KEY_CODES: readonly string[] = [
-  // 이동 (MOVE_KEYS)
-  'KeyW', 'KeyA', 'KeyS', 'KeyD',
-  'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight',
-  // 시점 (TURN_KEYS) — C025 이 여기서 걸렸다
-  'KeyZ', 'KeyX', 'KeyR', 'KeyT',
-  // 조립 루트가 먼저 가로채는 것 (app/main.ts)
-  'Slash', 'KeyC', 'KeyV',
-];
+export const RESERVED_KEY_CODES: readonly string[] = ENGINE_KEY_CODES;
 
 export function interactionPresentation(role: string): InteractionPresentation {
   return INTERACTIONS[role] ?? {};
