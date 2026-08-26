@@ -139,6 +139,8 @@ function commandSurface(
   const input = options.command;
   return {
     open: input?.open ?? false,
+    // 닫는 자리의 이름 — 기반은 ✕ 를 그릴 뿐 그것을 무엇이라 부르는지 모른다 (기반 부채 ②)
+    closeText: codeText('command.close'),
     entries,
     composition: composeCommand(input?.text ?? '', entries, snapshot, states, codeText),
     history: [...(input?.history ?? [])],

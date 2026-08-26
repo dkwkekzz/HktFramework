@@ -135,7 +135,7 @@ describe('C001 REGRESSION — 사라진 두 칸이 남긴 자리', () => {
   });
 
   it('캐서 늘어난 것이 반짝이던 성질은 소지품 줄이 이어받았다', () => {
-    expect(line(mining, 'inventory.stone')?.celebrateGain).toBe(true);
+    expect(line(mining, 'inventory.stone')?.celebrateText).toBe('+{} 돌 획득!');
   });
 
   it('채집이 되는지는 여전히 대상 자리와 interaction 이 답한다', () => {

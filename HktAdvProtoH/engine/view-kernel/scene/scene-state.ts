@@ -134,9 +134,13 @@ export interface SceneSelf {
   health: number;
   healthMaximum: number;
   healthRatio: number;
+  /** 생명 막대를 부르는 말 (형식화 완료 — 예: `HP`). **기반은 이 이름을 짓지 않는다** */
+  healthLabel: string;
   energy: number;
   energyMaximum: number;
   energyRatio: number;
+  /** 기력 막대를 부르는 말 (형식화 완료 — 예: `CP`) */
+  energyLabel: string;
   downed: boolean;
   moveMode: string; // walk | run (의미 코드 — 문구는 이미 결정됐다)
   moveModeCode: string; // 요청에 쓸 원래 코드
@@ -167,7 +171,12 @@ export interface SceneHudItem {
   icon?: string;
   value: number | boolean | string;
   progress?: number; // 0..1 — 값에 진행 막대가 동반되는 경우 (C002)
-  celebrateGain?: boolean;
+  /**
+   * counter 가 늘었을 때 잠시 떠오르는 말 — **문장째** 결정 Layer 가 짓는다.
+   * `{}` 자리에 늘어난 만큼이 들어간다 (예: `+{} 돌 획득!`).
+   * 없으면 늘어도 아무것도 뜨지 않는다 — 무엇이 축하할 일인지는 팩이 정한다.
+   */
+  celebrateText?: string;
 }
 
 // 충돌체 디버그 지시 (C006 / R1) — 지면 위 캡슐·구체 부피와 화살표.
@@ -216,7 +225,11 @@ export interface SceneCommandSlot {
   required: boolean;
   hint: string; // 이 자리가 받는 것 (예: "0 … 100", "walk | run", "존재")
   options?: string[]; // 고를 수 있는 이름들 (있을 때만)
-  omittedMeaning?: string; // 비워 두면 무엇이 되는가 (문구)
+  /**
+   * 비워 두면 어떻게 되는가 — **문장째다** (예: `비우면 내 몸`).
+   * 비울 수 없는 자리에는 없다. 그리는 쪽은 "비우면" 이라는 말을 알지 못한다.
+   */
+  omittedText?: string;
 }
 
 export interface SceneCommandEntry {
@@ -224,6 +237,8 @@ export interface SceneCommandEntry {
   title: string; // 무엇을 하는가 (문구)
   /** 세계로 가는가, 관찰자 쪽에서 끝나는가 — 04 commandSurface.origin */
   origin: 'world' | 'observer';
+  /** 그 경계를 부르는 말 (형식화 완료 — 예: `세계` · `내 화면`) */
+  originText: string;
   available: boolean;
   unavailableText?: string;
   usage: string; // 어떻게 쓰는가 한 줄 (예: "set-attribute [대상] <속성> <값>")
@@ -239,6 +254,8 @@ export interface SceneCommandComposition {
   candidates: SceneCommandEntry[];
   /** 무엇을 더 적어야 하는가 — 다 채웠으면 없다 */
   nextSlot?: SceneCommandSlot;
+  /** 그 자리를 가리키는 말 (형식화 완료 — 예: `다음: 속성`). nextSlot 과 함께 온다 */
+  nextText?: string;
   /** 그 자리에 넣을 수 있는 것들 (적은 것으로 좁혀진 뒤) */
   suggestions: string[];
   /** 틀린 것이 있으면 무엇이 틀렸는지 — 걸기 전에 알려 준다 */
@@ -255,6 +272,8 @@ export interface SceneCommandHistoryLine {
 
 export interface SceneCommandSurface {
   open: boolean;
+  /** 닫는 자리를 부르는 말 (형식화 완료) — 손가락·읽어 주는 장치가 이것으로 닿는다 */
+  closeText: string;
   entries: SceneCommandEntry[];
   composition: SceneCommandComposition;
   history: SceneCommandHistoryLine[];
