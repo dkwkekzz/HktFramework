@@ -28,9 +28,9 @@ Feedback · BACKLOG)를 겹쳐 `LANES.html` 로 그린다. `npm run lanes:check`
 | FEEDBACK | OPEN | 없음 — 닫힌 Cycle 이 모두 Master 에 들어갔다 | 없음 — 병합 뒤 최신 main 위에서 (`npm run feedback:gate`) |
 | WORLD·ITEM | HUMAN | 후보 5 중 선택 대기 — Agent 추천 FR-THE-PLACES-ARE-NARROWER (+FR-SEE-BEFORE 얹기) | Human Select (frontier/item.md) |
 | WORLD·COMBAT | BLOCKED | 후보 0 — FR-THE-SHAPE-IS-DATA 가 C025 로 닫혔다 | MASTER 의 OPTIONS(Q35) 가 후보를 낳는 것 |
-| VIEW | OPEN | BACKLOG 다음 항목(slot-visual-language)부터 — equipment-panel 은 아래 충돌 칸 · view-search-by-name 은 ENGINE 대기 | 없음 |
+| VIEW | OPEN | BACKLOG 다음 항목(slot-visual-language)부터 — equipment-panel 은 아래 충돌 칸 | 없음 |
 | MASTER | BLOCKED | OPTIONS Q35 (몸이 아닌 존재를 요구하는 Possibility) | FEEDBACK 의 병합 (미처리 Feedback 이 먼저다) |
-| ENGINE | OPEN | 둘 — ① 남은 기반 문구(겹침 표면·슬롯 띠·손가락 띠·이어짐; 명령 표면이 간 길 그대로) ② 겹침 표면이 **글자를 받는 자리**와 칸의 꼴 둘(물건 칸 · 띠 칸) (V-008 REPORT) | 없음 |
+| ENGINE | OPEN | 둘 — ① 남은 기반 문구(겹침 표면·슬롯 띠·손가락 띠·이어짐; 명령 표면이 간 길 그대로) ② 표면 안의 **초점 차례**(`tabindex` 0건 — Tab 이 글자 자리·슬롯에 한 번에 닿지 못한다; V-009 REPORT) | 없음 |
 | PROCESS | HOLD | 없음 | — (공정 변경 중에는 다른 레인을 새로 띄우지 않는다) |
 
 ## 레인 사이 충돌 — 순서가 아니라 파일이 겹치는 곳
@@ -41,7 +41,7 @@ Feedback · BACKLOG)를 겹쳐 `LANES.html` 로 그린다. `npm run lanes:check`
 |---|---|
 | VIEW 의 equipment-panel ↔ WORLD·ITEM | ITEM Cycle 이 장비 유효 값 화면을 건드릴 수 있다 — equipment-panel 은 ITEM Cycle 병합 뒤에 연다 (그 뒤의 drag-and-drop · responsive-workspace 도 함께 밀린다) |
 | VIEW 의 슬롯 띠·표면 문구 ↔ ENGINE | ENGINE 이 남은 기반 문구를 회수하면 `hud/surface.ts` · `hud/slot-bar.ts` 가 팩의 문구 표를 타게 된다 — 그때 그 표에 줄이 는다 (VIEW 가 쓰는 자리이므로 병합 뒤에 잇는다) |
-| VIEW 의 view-search-by-name ↔ ENGINE | 겹침 표면에 글자를 받는 자리가 서야 시작할 수 있다 (V-008 REPORT ①) — ENGINE 이 먼저 열고, VIEW 는 그 위에 이름 찾기를 얹는다 |
+| VIEW 의 skill-focus-order ↔ ENGINE | 초점 차례를 세우는 자리가 기반이면 ENGINE 동반이 필요하다 — 지금은 팩 키(`L`)가 지름길로 그 구멍을 메우고 있다 (V-009 REPORT ①) |
 
 ## HUMAN 대기
 
