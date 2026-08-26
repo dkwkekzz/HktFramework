@@ -98,14 +98,10 @@ Cycle 은 멈추지 않는다(③④는 HUD 로 이미 읽힌다). 다만 Stage 
 4. Stage 8 검증                 ①②③④ 전부 화면에서 — 이 시점엔 ENGINE 합류 필수
 ```
 
-배차판 반영은 각 착수 세션의 몫이다 (works.md — 자기 레인 줄만 고친다):
-
-```text
-ENGINE 세션          자기 줄에 이 작업을 올린다. 기존 부채(표시 문구 → 사유 코드 회수)와
-                     방향이 같으므로 한 세션이 순서대로 둘 다 지나가도 자연스럽다
-TERRAIN 세션         충돌표에 WORLD·TERRAIN ↔ ENGINE 한 줄 — "Stage 7 이 ENGINE 산출을
-                     기다린다. 다만 fallback 이 있어 막힘(BLOCKED)은 아니다"
-```
+발견 경로는 배차판이다 — `LANES.md` 의 ENGINE·WORLD·TERRAIN 줄과 충돌표
+(WORLD·TERRAIN ↔ ENGINE)가 이 문서로 오는 참조를 지닌다. 착수 세션은 works.md 규칙대로
+자기 줄의 상태(RUNNING · 작업 ID)만 갱신하면 된다. ENGINE 의 기존 부채(표시 문구 →
+사유 코드 회수)와 이 작업은 방향이 같으므로 한 세션이 순서대로 둘 다 지나가도 자연스럽다.
 
 ## 하지 않는 것
 
