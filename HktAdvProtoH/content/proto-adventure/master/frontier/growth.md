@@ -35,12 +35,21 @@
     Missing / Partial    MC-GAIN-LEVEL (MISSING · `grounded: true`) — 그 갈래의 `overlay_note`
                          가 "자라는 축이 없다" 고 적어 두던 자리이며, GS §19 가 그 축을 명명했다
     Active Constraints   DC-WORLD-PROGRESSION-IS-REACH · DC-GROWTH-GOAL-FIRST ·
-                         DC-COMBAT-PLAYER-CAUSALITY · DC-WORLD-OWNS-THE-SURFACE-LIST
+                         DC-COMBAT-PLAYER-CAUSALITY · DC-WORLD-OWNS-THE-SURFACE-LIST ·
+                         **DC-GROWTH-POWER-PAYS-IN-REACH-OR-CONSTRAINT** ·
+                         DC-GROWTH-REWARD-IS-NEW-REACH · DC-GROWTH-CAPABILITY-DECLARES-ITS-LIMITS
     Constraint Eval      PROGRESSION-IS-REACH: SATISFIED — 레벨은 기본값을 키우는 바닥 축이고
                          어디에 갈 수 있는가는 여전히 감당 여부가 정한다 (HISTORY Q53(a))
                          GOAL-FIRST: SATISFIED — 오르는 것 자체가 Goal 이 아니라 그 갈래의 조건이다
                          PLAYER-CAUSALITY: SATISFIED — 오른 원인이 관찰 가능한 행위이고 난수가 없다
                          OWNS-THE-SURFACE-LIST: UNRESOLVED — 무엇을 관찰에 싣는지는 04 가 정한다
+                         POWER-PAYS-IN-REACH-OR-CONSTRAINT: UNRESOLVED — **이 Cycle 의 가장 큰
+                         제약이다.** 적용·발동·지속이 전부 최대치인 축이므로 한 단계의 폭이
+                         작아야 한다. 그 폭은 03 이 정한다 (GB §20)
+                         REWARD-IS-NEW-REACH: SATISFIED — 값을 일곱 축으로 밝혔고 이 성장이
+                         새로 여는 것이 없다는 사실(capability_access 1)을 숨기지 않는다
+                         CAPABILITY-DECLARES-ITS-LIMITS: SATISFIED — 통함/부분/안 통함이
+                         growth/balance/GBC-GAIN-LEVEL.yaml 에 적혀 있다
     Observable Result    쌓인 양 · 다음 문턱 · 오른 값과 그 사유가 화면에서 읽힌다
     Why one Cycle        키울 자리(기본값)와 그 값이 결과를 바꾸는 규칙이 이미 서 있다.
                          새로 서는 것은 **그 값을 세계 안의 행위로 키우는 축** 하나다
@@ -73,13 +82,19 @@
     Source Possibility   MP-BECOME-A-HIGHER-FORM (몸 자체가 상위 형태가 되어 감당한다)
     Missing / Partial    MC-MASTER-A-SKILL (MISSING · `grounded: true`)
     Active Constraints   DC-GROWTH-SKILL-GAINS-BEHAVIOR · DC-SKILL-IS-COMBINATION-NOT-NAME ·
-                         DC-COMBAT-ONE-FORMULA · DC-COMBAT-PLAYER-CAUSALITY
+                         DC-COMBAT-ONE-FORMULA · DC-COMBAT-PLAYER-CAUSALITY ·
+                         DC-GROWTH-POWER-PAYS-IN-REACH-OR-CONSTRAINT ·
+                         DC-GROWTH-CAPABILITY-DECLARES-ITS-LIMITS
     Constraint Eval      SKILL-GAINS-BEHAVIOR: SATISFIED — 이 후보가 그 원칙을 세계에서 닫는다.
                          늘어나는 것이 값이 아니라 할 수 있는 행동이다
                          IS-COMBINATION-NOT-NAME: SATISFIED — 자라는 것은 이름이 아니라
                          조합의 값이다. 새 스킬 이름이 생기지 않는다
                          ONE-FORMULA: SATISFIED — 피해 공식은 그대로이고 입력만 달라진다
                          PLAYER-CAUSALITY: SATISFIED — 자란 원인이 실제로 쓴 이력이다
+                         POWER-PAYS-IN-REACH-OR-CONSTRAINT: UNRESOLVED — 늘어난 행동이
+                         넓어지는 만큼 조건이 붙는지는 그 Cycle 이 정한다 (GB §20)
+                         CAPABILITY-DECLARES-ITS-LIMITS: UNRESOLVED — 자란 스킬이 무엇에
+                         통하지 않는지를 growth/balance/ 의 Contract 가 함께 세운다
     Observable Result    같은 기술이 성장 전후로 다른 조건에서 성립하고, 그 차이가 화면에서 읽힌다
     Why one Cycle        기술이 자기 값을 지니는 것은 이미 두 축(시간 · 공간)에서 섰다.
                          새로 서는 것은 **그 값이 몸마다 달라지고 쓴 이력으로 자란다** 하나다
@@ -112,7 +127,8 @@
     Source Possibility   MP-BECOME-A-HIGHER-FORM
     Missing / Partial    MC-GROW-CLASS-MASTERY (MISSING · `grounded: true`)
     Active Constraints   DC-GROWTH-MASTERY-FROM-OWN-BEHAVIOR · DC-GROWTH-DIFFERENCE-IS-BEHAVIOR ·
-                         DC-COMBAT-PLAYER-CAUSALITY · DC-WORLD-OWNS-THE-SURFACE-LIST
+                         DC-COMBAT-PLAYER-CAUSALITY · DC-WORLD-OWNS-THE-SURFACE-LIST ·
+                         DC-GROWTH-CAPABILITY-DECLARES-ITS-LIMITS
     Constraint Eval      MASTERY-FROM-OWN-BEHAVIOR: UNRESOLVED — **절반만 닫는다.**
                          "반복량이 아니라 행동에서" 는 이 후보가 세우고, "형태마다 세는 행동이
                          다르다" 는 CL-* 가 설 때 닫힌다. 이 Cycle 에서 다 닫으려 하지 않는다
@@ -121,6 +137,8 @@
                          같은 몸의 서로 다른 이력이다
                          PLAYER-CAUSALITY: SATISFIED — 쌓인 원인이 관찰 가능한 행위다
                          OWNS-THE-SURFACE-LIST: UNRESOLVED — 04 가 정한다
+                         CAPABILITY-DECLARES-ITS-LIMITS: UNRESOLVED — 갈래마다 무엇이
+                         열리고 무엇이 열리지 않는지를 Contract 가 함께 세운다
     Observable Result    두 플레이어가 같은 상대를 각자 다른 방식으로 넘고, 몸에 쌓인 것이
                          서로 다르게 읽힌다
     Why one Cycle        셀 재료(사유가 붙은 판정)와 장부의 형태가 이미 서 있다.
@@ -173,10 +191,16 @@ Cycle ID   C-GROWTH-001         트랙의 첫 번호 (cycles/ 에 C-GROWTH-* 가
                              않는다** (HISTORY Q53(a)). 문턱·관문에 이 값을 걸지 않는다.
                              OWNS-THE-SURFACE-LIST 는 UNRESOLVED 로 넘어간다 — 무엇을
                              관찰에 싣는지는 04 가 정한다.
-                             **승인되면 하나가 더 걸린다** — 이 성장은 모든 상황에 적용되는
-                             범용 축이므로 DC-GROWTH-POWER-PAYS-IN-REACH-OR-CONSTRAINT 가
-                             "한 단계의 폭은 작아야 한다" 를 03 의 수치 결정에 건다
-                             (GB §20 · 승인 대기 Q56)
+                             **하나가 더 걸린다 (승인됨 — HISTORY Q56)** — 이 성장은 모든
+                             상황에 적용되는 범용 축이므로
+                             DC-GROWTH-POWER-PAYS-IN-REACH-OR-CONSTRAINT 가 "한 단계의 폭은
+                             작아야 한다" 를 03 의 수치 결정에 건다 (GB §20).
+                             그 선언은 이미 서 있다 —
+                             `growth/balance/GBC-GAIN-LEVEL.yaml` 의 `power_envelope`
+                             (general_combat: small_change_per_step · exploration_gate: none).
+                             08 은 그 선언과 실측을 대조한다 (DC-GROWTH-INTENT-IS-MEASURED)
+        Balance Contract     growth/balance/GBC-GAIN-LEVEL.yaml — Tier GT1 ·
+                             static PENDING(비교 집합 N=1) · human_review REQUIRED
 
 ## 지금 열 수 없는 것
 
@@ -186,4 +210,5 @@ Cycle ID   C-GROWTH-001         트랙의 첫 번호 (cycles/ 에 C-GROWTH-* 가
 | 형태가 상위 형태가 된다 (MC-CHANGE-CLASS) | 넘어갈 형태가 없다 — `CL-*` 가 0 이다. 이름의 소유는 정해졌고 (HISTORY Q55(b) — GS 가 소유한다) 남은 것은 **계열별 설계 문서의 주입**이다 |
 | 자기 원리와 관련된 세계 현상을 겪는다 (MK-WITNESSED-WORLD-PHENOMENON) | 드물게 일어나는 세계 현상이 세계에 없다 — 그것은 땅 위에서 생긴다 (TERRAIN 트랙) |
 | Class Catalyst — 형태를 유지하는 세계의 Property | GS 는 "세계의 Property" 라고만 적고 어느 자원인지 명명하지 않는다. 자원 카탈로그 문서의 승인·주입이 그 자리를 받는다 (HISTORY Q50(a)) |
-| 요정 계열 여덟의 고유 능력 (MS-FAIRY-LINEAGE 여덟 자리) | 계열별 설계 문서의 주입이 먼저다. 그리고 **Q54 가 열려 있다** — 요정이 플레이어 캐릭터인가에 따라 그 능력들이 누구의 것인지가 갈린다 |
+| 요정 계열 여덟의 고유 능력 (MS-FAIRY-LINEAGE 여덟 자리) | **누구의 것인지는 정해졌다** — 플레이어가 요정 역할을 수행한다 (HISTORY Q54(a)). 남은 것은 계열별 설계 문서의 주입이며, 그것이 서야 CL-* 와 계열 고유 능력이 노드가 된다 |
+| 고를 수 있는 몸이 둘 이상이다 (MA-PLAYER 의 "고를 갈래가 없다") | 갈래가 실제로 달라야 고름이 고름이 된다 (DC-GROWTH-DIFFERENCE-IS-BEHAVIOR — 차이는 수치가 아니라 반복하는 행동이다). 두 번째 몸이 무엇을 다르게 하는지는 계열별 설계 문서가 공급한다 — 그 전에 세우면 외형만 다른 같은 몸이 된다 |

@@ -39,9 +39,9 @@ prohibits:
 prefers:
   - 다시 얻을 수 있는가(반복 가능성)를 비용의 항으로 함께 두는 것              # GB §4.7
 
-status: DRAFT
+status: APPROVED
 provenance:
-  - HUMAN_DESIGN        # content/proto-adventure/design/Design-Growth-Balance-R0.md 주입 — Human 승인 대기 (open-questions Q56)
+  - HUMAN_DESIGN        # content/proto-adventure/design/Design-Growth-Balance-R0.md 주입 → Human 승인 (HISTORY Q56)
 
 relations:
   supports:

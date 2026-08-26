@@ -2730,3 +2730,85 @@ Human 이 "FR-ACTION-PHASE 의 근간이 무엇인가" 를 물어 근간을 역�
     상황에 적용되는 범용 축이라, Q56 이 승인되면 POWER-PAYS-IN-REACH-OR-CONSTRAINT 가
     "한 단계의 폭은 작아야 한다" 를 그 Cycle 의 03 에 건다 (GB §20). 그 사실을
     frontier/growth.md 의 Constraint Note 에 적어 두었다.
+
+## Q54. 요정은 플레이어 캐릭터인가 — CLOSED
+
+    무엇          MA-PLAYER 는 "문명권에서 출발한 사람" 이었고 (BW §1), GS 는 요정을
+                  "원리가 하나의 인격에 표현된 존재" 로 정의하며 계열마다 고정된 판타지를
+                  준다 (§2). 둘의 관계와, 그 고정이 DC-WORLD-PLAYER-UNFIXED-PATH 와
+                  부딪히는가가 열려 있었다.
+
+    DECISION      **플레이어가 요정 역할을 수행한다** (2026-08-26 · Human)
+
+                  → 고르는 것은 자유이고, 고른 뒤 고정되는 것은 **그 몸이 무엇을 잘하는가**
+                    다. 무엇을 하러 갈지는 여전히 세계가 정해 주지 않으므로
+                    DC-WORLD-PLAYER-UNFIXED-PATH 와 부딪히지 않는다 —
+                    MP-BECOME-A-HIGHER-FORM 의 그 판정을 UNRESOLVED → SATISFIED 로 닫았다.
+                  → 대신 조건이 하나 붙는다: 갈래가 **실제로 다르게 플레이되어야** 그 고름이
+                    고름이 된다 (DC-GROWTH-DIFFERENCE-IS-BEHAVIOR). 그래서 "고를 수 있는 몸이
+                    둘 이상" 은 계열별 설계 문서 없이는 후보로 세우지 않는다 — 그 전에 세우면
+                    외형만 다른 같은 몸이 된다 (frontier/growth.md 의 "지금 열 수 없는 것").
+                  → MS-FAIRY-LINEAGE 여덟은 이제 **플레이어가 고를 수 있는 갈래**다.
+
+## Q56. 성장 균형 Constraint 일곱을 승인하는가 — CLOSED
+
+    DECISION      **(a) 일곱 다 승인한다** (2026-08-26 · Human — "권장대로")
+
+                  COST-IS-THE-WHOLE-BURDEN · REWARD-IS-NEW-REACH · NO-DOMINATED-ROUTE ·
+                  POWER-PAYS-IN-REACH-OR-CONSTRAINT · CAPABILITY-DECLARES-ITS-LIMITS ·
+                  NOT-A-MASTER-KEY · INTENT-IS-MEASURED
+
+                  → GROWTH 영역의 Filter 가 14종에서 **21종**이 되었다 (Active 51).
+                    승인과 함께 성장 노드 일곱(MC 5 · MP 2 — OUTGROW 포함)에 배선했다.
+                    UNRESOLVED 로 남은 판정들은 전부 **아직 세우지 않은 것**을 가리킨다 —
+                    한 단계의 폭(Cycle 03) · 아직 없는 Contract · 아직 없는 CL-*.
+                    지어내 SATISFIED 로 덮지 않았다.
+
+## Q57. Class 의 문턱을 자원 구매로 우회할 수 없다 — CLOSED
+
+    DECISION      **(a) 개정한다 (REVISED)** (2026-08-26 · Human — "권장대로")
+
+                  DC-GROWTH-CLASS-CHANGE-NEEDS-THE-WORLD 를 개정했다. ID 는 유지한다.
+                      requires  + Class Change 조건에 선택과 시련이 포함된다 (GB §22)
+                      prohibits + 자원을 사 모으는 것만으로 성립하는 Class 문턱 (GB-08)
+                      status    APPROVED → REVISED · provenance 에 GB 근거 추가
+                  → 거래가 세계에 들어오는 날(MC-TRANSFER-ITEM) 시험받을 조각이 명문화되었다.
+                    같은 의미의 DC 를 새로 만들지 않았다.
+
+## Q58. 비용·보상 Profile 과 Capability Reach 는 어디에 사는가 — CLOSED
+
+    DECISION      **(c) 별도 자리를 만든다** (2026-08-26 · Human — "권장대로")
+
+                  `master/growth/balance/` 가 섰다. 파일 하나 = 성장 하나 (`GBC-*.yaml`).
+                      SCHEMA.md      ID 네임스페이스 GBC-* 와 Contract 형식 절 추가
+                      balance/README 세 자리의 축 구분과 "여기 없는 것" 규약
+                      GBC-GAIN-LEVEL 첫 Contract — C-GROWTH-001 이 세울 성장의 선언
+
+                  세 자리의 축이 다르다는 것이 이 결정의 요점이다.
+                      overlay.md        그 의미가 세계에 있는가
+                      growth-graph.md   그것을 얻는 경로가 있는가
+                      growth/balance/   그 값이 치른 것과 맞는가
+
+                  Benchmark 장면·측정·실패 상태는 여기 오지 않는다 — Cycle 08 과 도구의 것이다.
+                  Profile 의 1~5 는 **비교 단위이지 세계의 수치가 아니다** (GB §5).
+                  비교 집합이 하나뿐이라 첫 Contract 의 `static` 은 PENDING 이다.
+
+## 네 결정의 반영 — 무엇이 어디에 들어갔나
+
+    Q54(a) 요정     actors          MA-PLAYER 의 perspective · detail · world_shape 개정 —
+                                    "요정의 역할을 수행한다" · 고정되는 것은 무엇을 잘하는가
+                    possibilities   MP-BECOME-A-HIGHER-FORM 의 UNFIXED-PATH SATISFIED
+                    systems         MS-FAIRY-LINEAGE — 여덟이 고를 수 있는 갈래다
+                    frontier        "고를 수 있는 몸이 둘 이상" 을 열 수 없는 것에 사유와 함께
+
+    Q56(a) 승인     constraints/    DC-GROWTH-* (GB) 7종 DRAFT → APPROVED
+                    capabilities    MC 5종에 배선 · possibilities MP 2종에 배선
+                    frontier        후보 셋의 Active Constraints · Eval 갱신
+
+    Q57(a) 개정     constraints/    CLASS-CHANGE-NEEDS-THE-WORLD REVISED
+
+    Q58(c) 새 자리  growth/balance/ 신설 + README + 첫 Contract · SCHEMA 절 ·
+                    growth-graph 와 master/README 의 포인터
+
+    **성장 영역의 Human 대기가 0 이 되었다.** 남은 여섯(Q29 · Q35 · Q36 · Q37 · Q38 · Q46)은
+    통찰 · 스킬 · 아이템 · 공정의 것이다.

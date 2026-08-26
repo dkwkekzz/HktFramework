@@ -17,8 +17,8 @@ GB = `content/proto-adventure/design/Design-Growth-Balance-R0.md` (비용·보�
 형식: [../SCHEMA.md](../SCHEMA.md).
 
 이 문서가 답하는 것은 **얻을 수 있는가**다. GB 가 묻는 **그 값이 치른 것과 맞는가**는
-아직 이 표에 없다 — 비용·보상 Profile 이 어디에 사는지가 정해지지 않았기 때문이다
-(open-questions Q58). 정해지면 아래 표에 칸이 붙거나 옆에 표가 하나 선다.
+옆자리가 소유한다 — [balance/](balance/) 다 (Human 결정 · HISTORY Q58(c)).
+파일 하나 = 성장 하나이며 지금 하나가 서 있다 (GBC-GAIN-LEVEL).
 
 ## 성장의 원천 — 값이 어디에서 올라오는가
 

@@ -39,10 +39,10 @@ prohibits:
   - 적용 범위의 경계 없이 정의된 Capability                                         # GB §23
 prefers: []
 
-status: DRAFT
+status: APPROVED
 provenance:
-  - HUMAN_DESIGN        # content/proto-adventure/design/Design-Growth-Balance-R0.md 주입 — Human 승인 대기 (open-questions Q56)
-                        # 이 원칙이 요구하는 칸이 SCHEMA 에 아직 없다 — 자리는 Q58 이 정한다
+  - HUMAN_DESIGN        # content/proto-adventure/design/Design-Growth-Balance-R0.md 주입 → Human 승인 (HISTORY Q56)
+                        # 이 원칙이 요구하는 칸은 growth/balance/ 에 산다 (HISTORY Q58(c))
 
 relations:
   supports:

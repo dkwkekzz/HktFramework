@@ -40,9 +40,9 @@ prohibits:
 prefers:
   - 가장 단순한 경로를 가장 비싸게 두어 나머지가 존재 이유를 갖게 하는 것      # GB §17
 
-status: DRAFT
+status: APPROVED
 provenance:
-  - HUMAN_DESIGN        # content/proto-adventure/design/Design-Growth-Balance-R0.md 주입 — Human 승인 대기 (open-questions Q56)
+  - HUMAN_DESIGN        # content/proto-adventure/design/Design-Growth-Balance-R0.md 주입 → Human 승인 (HISTORY Q56)
 
 relations:
   supports:

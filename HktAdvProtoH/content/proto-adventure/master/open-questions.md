@@ -11,12 +11,12 @@ Human 이 답한다    DECISION 줄
 답이 정해지면 해당 Node/Constraint 에 반영하고 **이 파일에서 지운 뒤 결정 내용을
 [HISTORY.md](HISTORY.md) 로 옮긴다.**
 
-미해결 **10건** — 닫힌 질문은 HISTORY.md.
+미해결 **6건** — 닫힌 질문은 HISTORY.md.
 
 [frontier/](frontier/) 는 네 트랙이다. TERRAIN 과 GROWTH 는 `SELECTED` 가 차 있고
 (C-TERRAIN-001 · C-GROWTH-001 착수 대기), ITEM 은 후보 다섯이 Human 선택을 기다린다.
 COMBAT 만 후보가 0 이고 — 다음 후보는 Q35 가 걸린 OPTIONS 작업이 낳는다.
-아래 일곱 중 트랙 하나를 막는 것은 Q35 뿐이다.
+아래 여섯 중 트랙 하나를 막는 것은 Q35 뿐이다.
 
     Q29        통찰을 Graph 에서 어떻게 잡을 것인가
     Q35        **스킬(SK)** 이 남긴 것 — 그 다음 전투 Cycle 의 크기를 정한다
@@ -28,21 +28,8 @@ COMBAT 만 후보가 0 이고 — 다음 후보는 Q35 가 걸린 OPTIONS 작업
 
 대지형(BT) 주입이 낸 다섯(Q47~Q51)은 전부 닫혔다 — HISTORY.md.
 
-성장(GS) 주입이 낸 넷 중 셋(Q52 · Q53 · Q55)은 닫혔다 — HISTORY.md.
-남은 하나가 아래 Q54 이며, 그것은 **권장안 없이 열린** 유일한 질문이다: GS 가 요정이
-플레이어에게 어떻게 오는지를 공급하지 않아 Agent 가 고를 근거가 없다.
-
-    Q54        요정은 플레이어 캐릭터인가 — 고정된 판타지와 "고정하지 않는다" 의 관계
-               막지는 않는다. MP-BECOME-A-HIGHER-FORM 의 판정 하나가 UNRESOLVED 로 남고,
-               GROWTH 트랙의 첫 후보 둘은 형태(Class) 없이 성립한다
-
-성장 균형(GB) 주입이 셋을 새로 열었다. 승인 하나와, 기존 원칙의 개정 하나와,
-**이 문서가 요구하는 칸이 어디에 사는가** 하나다.
-
-    Q56        성장 균형 Constraint 일곱 — 승인 대기 (주입이 낳은 DRAFT)
-    Q57        Class 의 문턱을 자원 구매로 우회할 수 없다 — 기존 DC 를 개정할 것인가
-    Q58        비용·보상 Profile 과 Capability Reach 는 어디에 사는가 — Master 노드인가,
-               Cycle 인가, 검증 도구인가. **Q56 의 일곱 중 둘이 이 답을 기다린다**
+성장 두 문서(GS · GB)가 낸 일곱(Q52~Q58)은 **전부 닫혔다** — HISTORY.md.
+성장 영역에 남은 Human 대기는 없다.
 
 번호가 띄엄띄엄한 것은 앞선 질문들이 이미 닫혀 HISTORY 로 갔기 때문이다 —
 번호는 재사용하지 않는다.
@@ -307,145 +294,3 @@ COMBAT 만 후보가 0 이고 — 다음 후보는 Q35 가 걸린 OPTIONS 작업
 
     DECISION      PENDING
 
-## Q54. 요정은 플레이어 캐릭터인가 — 고정된 판타지와 "고정하지 않는다" — OPEN
-
-    무엇          MA-PLAYER 는 "안전한 문명권에서 출발해 자신의 목적과 방식을 스스로 고르는
-                  **사람**" 이고 (BW §1), DC-WORLD-PLAYER-UNFIXED-PATH 는 역할·Class·진영·
-                  전투 방식을 하나로 고정하지 않는다고 못박는다. GS 는 요정을 "원리가 하나의
-                  인격에 표현된 존재" 로 정의하고 (§1), 각 요정은 Principle · Power Fantasy ·
-                  Signature · Combat Style · Class Line 이 **고정된** 완성된 캐릭터라고
-                  적는다 (§2). 그리고 §20 은 루프를 "캐릭터를 얻는다" 로 시작한다.
-
-    영향          두 가지가 한꺼번에 걸린다.
-                  ① MA-PLAYER 가 누구인가 — 사람이 요정을 얻어 운용하는가, 플레이어 자신이
-                     요정인가, 둘 다인가. 지금 그래프에는 요정에 해당하는 Actor 가 없다.
-                  ② 고정된 판타지가 DC-WORLD-PLAYER-UNFIXED-PATH 와 부딪히는가.
-                  MP-BECOME-A-HIGHER-FORM 의 그 판정을 UNRESOLVED 로 남겨 두었다.
-
-    선택지        (a) **고른 뒤에는 고정, 고르는 것은 자유** → "무엇을 하러 왔는가" 는
-                      여전히 고정되지 않고, 고정되는 것은 그 몸이 무엇을 잘하는가다.
-                      캐릭터가 여럿이고 갈래가 실제로 다르면 원칙은 지켜진다
-                      (DC-GROWTH-DIFFERENCE-IS-BEHAVIOR 가 그 조건이다).
-                  (b) **플레이어는 사람이고 요정은 얻는 것** → 한 플레이어가 여러 요정을
-                      운용한다. MA-FAIRY 같은 Actor 가 서고, 성장의 주체가 사람이 아니라
-                      그 존재가 된다. BW §1 의 문장은 그대로 참으로 남는다.
-                  (c) **DC-WORLD-PLAYER-UNFIXED-PATH 를 개정한다** → 요정 선택을 세계의
-                      전제로 올린다. 이 세계의 기존 원칙을 바꾸는 선택이다.
-
-    Agent 판단     지금 판단할 근거가 부족하다. GS 는 요정이 어떻게 플레이어에게 오는지를
-                  공급하지 않는다 — §20 의 "캐릭터를 얻는다" 한 줄뿐이고, 그 획득이 세계
-                  안의 사건인지 시작 선택인지 말하지 않는다. **그 한 줄을 Human 이 채워야**
-                  (a) 와 (b) 가 갈린다.
-
-    DECISION      PENDING
-
-## Q56. 성장 균형 Constraint 일곱을 승인하는가 — OPEN
-
-    무엇          `content/proto-adventure/design/Design-Growth-Balance-R0.md`(GB) 주입이 DC 일곱을 DRAFT 로 세웠다.
-                  전부 문서가 절을 따로 두어 명시한 원칙이며 원본보다 세게 쓰지 않았다.
-
-                      DC-GROWTH-COST-IS-THE-WHOLE-BURDEN          §1 · §3 · §4 · §36
-                      DC-GROWTH-REWARD-IS-NEW-REACH               §6~§13 · §15 · §36
-                      DC-GROWTH-NO-DOMINATED-ROUTE                §16 · §17 · GB-03
-                      DC-GROWTH-POWER-PAYS-IN-REACH-OR-CONSTRAINT §20 · §21 · GB-04
-                      DC-GROWTH-CAPABILITY-DECLARES-ITS-LIMITS    §23 · GB-05 · GB-10
-                      DC-GROWTH-NOT-A-MASTER-KEY                  §24 · GB-06
-                      DC-GROWTH-INTENT-IS-MEASURED                §25 · §26~§28 · GB-07
-
-    영향          DRAFT 인 동안은 선택 지점의 Filter 로 작동하지 않으며, 선례대로 어느
-                  노드에도 배선하지 않았다. 승인되면 GROWTH 영역의 Filter 가 14종에서
-                  **21종**이 된다 — 성장 영역이 이 세계에서 가장 촘촘히 규율되는 영역이 된다.
-                  당장 걸리는 자리가 하나 있다: 지금 고른 `C-GROWTH-001`(한 일이 몸을
-                  키운다)은 **모든 상황에 적용되는 범용 성장**이므로, 승인되면
-                  POWER-PAYS-IN-REACH-OR-CONSTRAINT 가 "한 단계의 폭은 작아야 한다" 를
-                  그 Cycle 의 수치 결정에 건다 (GB §20).
-
-    선택지        (a) **일곱 다 승인한다** → 성장 콘텐츠는 처음부터 이 일곱을 통과해야 한다.
-                      둘(CAPABILITY-DECLARES-ITS-LIMITS · INTENT-IS-MEASURED)은 요구하는
-                      칸이 아직 없어 Q58 이 답해야 실제로 검사할 수 있다 — 원칙은 서되
-                      검사는 그 뒤다.
-                  (b) **다섯만 승인하고 둘은 Q58 뒤로 미룬다** → 칸이 정해진 뒤에 그 둘을
-                      다시 본다. 원칙과 검사가 같은 시점에 선다.
-                  (c) **미룬다** → 성장이 실제로 세계에 들어오는 Cycle 에서 다시 본다.
-                      그때는 이미 수치가 정해진 뒤라 원칙이 사후 승인이 된다.
-
-    Agent 판단     (a) 를 권한다. 일곱 모두 GB 가 스스로 절을 두어 규칙으로 적은 것이고,
-                  그중 넷(비용 · 보상 · 압도 금지 · 강함의 대가)은 칸 없이도 지금 바로
-                  판단에 쓰인다 — 특히 다음 Cycle 의 수치 결정에 곧바로 걸린다.
-                  나머지 둘의 검사 시점만 Q58 이 정하면 된다.
-
-    DECISION      PENDING
-
-## Q57. Class 의 문턱을 자원 구매로 우회할 수 없다 — 기존 DC 를 개정할 것인가 — OPEN
-
-    무엇          GB §22 · GB-08 이 말하는 것은 이미 승인된
-                  `DC-GROWTH-CLASS-CHANGE-NEEDS-THE-WORLD`(GS §6 주입 · Q52 승인)와
-                  **같은 자리**다. 같은 의미를 새 이름으로 만들지 않는다는 규칙에 따라
-                  새 DC 를 세우지 않았고, 대신 개정안을 여기 둔다.
-
-    무엇이 더해지나 지금 문안은 문턱을 넷으로 적는다 — Level · Mastery · World Experience ·
-                  Catalyst (GS §6). GB 는 그 넷에 두 가지를 더한다.
-
-                      선택과 시련        Observation + Understanding + Meaningful Experience
-                                         + Resource/Property + **Choice + Trial** (GB §22)
-                      우회 금지 (명시)   자원을 거래로 사도 플레이 경험 전체를 우회할 수 없다.
-                                         "경계결정 100개 → 경계 수호자" 형태를 금지한다 (GB-08)
-
-    영향          지금도 "Level 만으로는 못 넘는다" 는 참이지만, **자원을 사 모으는 것으로
-                  넘는 길**은 문안이 명시적으로 막고 있지 않다. 거래가 세계에 들어오는
-                  순간(MC-TRANSFER-ITEM) 그 구멍이 실제로 열린다.
-
-    선택지        (a) **개정한다 (REVISED)** → 그 DC 의 requires 에 선택·시련을,
-                      prohibits 에 "자원 구매만으로 성립하는 Class 문턱" 을 더한다.
-                      근거에 GB §22 · GB-08 을 함께 단다. ID 는 유지한다 (이력이 그 ID 를
-                      가리킨다 — 스킬 DC 셋의 선례).
-                  (b) **그대로 둔다** → GB §22 는 같은 원칙의 더 자세한 설명일 뿐이라고 보고
-                      문안을 건드리지 않는다. 우회 금지는 Cycle 이 판단한다.
-                  (c) **별도 DC 를 세운다** → 같은 의미의 Constraint 가 둘이 된다.
-                      권하지 않는다 — 판정 시 어느 쪽을 보는지 모호해진다.
-
-    Agent 판단     (a) 를 권한다. 두 문서가 같은 것을 말하는데 한쪽이 더 구체적이면 그것은
-                  개정이지 새 원칙이 아니다. 다만 승인된 Constraint 의 문안을 바꾸는 일은
-                  Human 소유이므로 (원칙 19) 고치지 않고 여기 남겼다.
-
-    DECISION      PENDING
-
-## Q58. 비용·보상 Profile 과 Capability Reach 는 어디에 사는가 — OPEN
-
-    무엇          GB 는 성장마다 여러 칸을 요구한다 — Cost Profile(§4 · §5) ·
-                  Reward Profile(§6 · §14) · Growth Tier(§18) · Power Envelope(§25) ·
-                  Capability Reach(§23) · Gate Coverage(§24) · Balance Contract(§31).
-                  **지금 그 칸들은 어디에도 없다.** SCHEMA 의 Capability 노드에는
-                  semantic · detail · world_shape · part_of · overlay 뿐이다.
-
-    지금 상태     칸을 만들지 않았다. 대지형 주입 때와 같은 판단이다 (HISTORY Q51 —
-                  "없는 칸을 주입이 만들지 않았다. 형식을 바꾸는 일은 주입의 몫이 아니다").
-                  단계(Growth Tier)만은 노드 칸이 아니라 시스템이므로 등록했다
-                  (`graph/systems.yaml` 의 MS-GROWTH-TIER — 배정된 노드는 0 이다).
-
-    영향          Q56 의 일곱 중 둘이 이 답을 기다린다 — CAPABILITY-DECLARES-ITS-LIMITS 는
-                  통함/부분/안 통함 칸을, INTENT-IS-MEASURED 는 선언한 영향 범위 칸을
-                  요구한다. 칸이 없으면 원칙은 서 있어도 무엇을 보고 판정하는지가 없다.
-
-    선택지        (a) **Master 노드에 칸을 둔다** — SCHEMA 의 Capability 에 `reach`
-                      (effective/partial/ineffective)를, 성장 노드에 `power_envelope` 를 더한다.
-                      → 그래프 도구가 바로 검사할 수 있고, Frontier 후보가 그 칸을 그대로
-                        Cycle 로 넘긴다. 다만 Master 가 **판정의 형태**를 갖게 되어
-                        "Master 에는 플레이 의미를, Cycle 에는 판정을" (원칙 18)과 부딪힌다.
-                  (b) **Cycle 이 소유한다** — 03-world-semantic.md / 08-verification.md 가
-                      그 칸을 채우고 검증한다.
-                      → 원칙 18 과 어긋나지 않는다. 다만 Cycle 을 열기 전에는 성장 후보끼리
-                        비교할 수 없다 — GB §16 Dominance Test 가 Master 에서 돌지 못한다.
-                  (c) **별도 자리를 만든다** — `master/growth/balance/` 같은 세 번째 자리에
-                      Growth Balance Contract(§31)를 둔다.
-                      → 성장 균형만의 파일이 생겨 둘 다 피한다. 대신 자리가 하나 늘고,
-                        어느 것이 단일 출처인지 규약을 새로 세워야 한다.
-
-    Agent 판단     (b) 와 (c) 사이가 진짜 선택이다. GB 가 요구하는 것의 절반(Benchmark ·
-                  측정값 · 실패 상태)은 명백히 검증 층의 것이고, 나머지 절반(Reach ·
-                  Envelope · Tier)은 **비교**를 위해 존재하므로 Cycle 하나 안에서는 쓸모가
-                  적다 — 비교는 여러 성장 사이에서 일어난다. 그래서 (c) 가 문서의 의도에
-                  가장 가깝다고 본다. 다만 자리를 늘리는 일은 공정의 변경이므로 Human 이
-                  정한다.
-
-    DECISION      PENDING

@@ -39,9 +39,9 @@ prohibits:
   - 의도한 진행 단계를 통째로 건너뛰게 하는 성장                              # GB §2-2
 prefers: []
 
-status: DRAFT
+status: APPROVED
 provenance:
-  - HUMAN_DESIGN        # content/proto-adventure/design/Design-Growth-Balance-R0.md 주입 — Human 승인 대기 (open-questions Q56)
+  - HUMAN_DESIGN        # content/proto-adventure/design/Design-Growth-Balance-R0.md 주입 → Human 승인 (HISTORY Q56)
 
 relations:
   supports:

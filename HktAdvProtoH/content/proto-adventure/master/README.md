@@ -58,19 +58,21 @@ FRINGE 의 첫 칸(살펴봄 + 그것에 이르는 두 경로)까지 서 있고,
 Constraint   36     Active 36 (APPROVED 31 · REVISED 5) · DRAFT 0 — 대지형 4종 승인 (Q51)
 Candidate    12     APPROVED 3 (→ DC) · PENDING 9 (무리별 읽는 법은 candidates/README.md)
 Actor         2     Knowledge 3 · Belief 0 (Belief 는 도입하지 않는다 — Q3 결정)
-Goal          6     Possibility 22 — 상대 넘어서기 11 · 밀리는 국면 3 · 탐험 3 · 기관 획득 5.
+Goal          6     Possibility 23 — 상대 넘어서기 11 · 밀리는 국면 3 · 탐험 4 · 기관 획득 5.
                     여섯째는 MG-RESCUE-THE-TAKEN (BT — 갈래 미배선)
-                    탐험 3 은 **방법**이다 (익힌다 · 빌린다 · 준비해 간다 — Q21).
+                    탐험 4 는 **방법**이다 (익힌다 · 빌린다 · 준비해 간다 · 상위 형태가 된다 — Q21 · GS).
                     층은 Possibility 가 아니라 MW-ZONE-* 의 demands 다
                     §27 기관 대안 4종만 requires 미배선
-Capability   58     IMPLEMENTED 15 · PARTIAL 7 · MISSING 36
+Capability   63     IMPLEMENTED 15 · PARTIAL 7 · MISSING 41
                     요구처는 둘이다 — 방법의 required_by · 장소의 demanded_by
                     숫자의 단일 출처는 graph/GRAPH.md 머리말이다 (master:graph 재생성물)
 Item Def     14     IP 5 · IT 6 · IM 3 (growth/items/) — Q22 광물 계통.
                     grants 3건으로 BW §17 순환이 그래프에서 닫혔다
-Frontier      8     트랙 셋 — ITEM 5 · TERRAIN 3 · COMBAT 0. SELECTED 는 셋 다 없다
-                    (Human 선택 대기). COMBAT 은 후보가 소진되어 MASTER OPTIONS(Q35) 대기 ·
-                    TERRAIN 은 BT 주입과 Q47~Q51 결정으로 새로 선 트랙이다
+Balance       1     GBC-GAIN-LEVEL (growth/balance/) — 성장 하나의 비용·보상 (Q58(c)).
+                    Class(CL-*)는 0 — 계열별 설계 문서의 주입이 세운다 (Q55(b))
+Frontier     11     트랙 넷 — ITEM 5 · TERRAIN 3 · GROWTH 3 · COMBAT 0.
+                    SELECTED 둘 — TERRAIN(C-TERRAIN-001) · GROWTH(C-GROWTH-001), 둘 다 착수 전.
+                    ITEM 은 Human 선택 대기 · COMBAT 은 후보가 소진되어 MASTER OPTIONS(Q35) 대기
 WorldState   22     상위 인과 2 (PRIMAL-WORLD · WORLD-PRESSURE) · 세계압 두 갈래 2
                     (FREE-PRESSURE · BOUND-PRESSURE) · 구조 2 (SAFE-FRONTIER · DEPTH-GRADIENT) ·
                     깊이 층 5 (ZONE-FRINGE ~ ZONE-UNKNOWN) · 대표 지역 2 ·

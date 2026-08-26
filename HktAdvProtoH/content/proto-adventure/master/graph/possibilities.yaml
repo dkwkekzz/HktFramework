@@ -68,9 +68,12 @@ nodes:
       - 같은 스킬·같은 상대에 대한 교환비가 성장 전후로 달라진다
     reveals: []
     creates_goal: []
-    constraints: [DC-COMBAT-PLAYER-CAUSALITY]
+    constraints: [DC-COMBAT-PLAYER-CAUSALITY, DC-GROWTH-NO-DOMINATED-ROUTE,
+                  DC-GROWTH-POWER-PAYS-IN-REACH-OR-CONSTRAINT]
     constraint_evaluation:
       DC-COMBAT-PLAYER-CAUSALITY: SATISFIED    # 같은 능력치·같은 스킬·같은 상대면 항상 같은 피해 — 난수 없음 (R1 §6)
+      DC-GROWTH-NO-DOMINATED-ROUTE: SATISFIED  # 이 갈래의 detail 이 "언제나 성립하되 가장 비싸야 한다" 를 이미 적는다 — 그것이 이 원칙의 요구다 (GB §17)
+      DC-GROWTH-POWER-PAYS-IN-REACH-OR-CONSTRAINT: UNRESOLVED   # 가장 넓은 갈래이므로 한 단계의 폭이 작아야 한다 — 그 폭은 Cycle 이 정한다 (GB §20)
 
   - id: MP-MATCH-WEAPON-TO-ARMOR
     type: possibility
@@ -820,11 +823,15 @@ nodes:
     creates_goal: []
     constraints: [DC-WORLD-PROGRESSION-IS-REACH, DC-GROWTH-GOAL-FIRST, DC-WORLD-PLAYER-UNFIXED-PATH,
                   DC-GROWTH-CLASS-CHANGE-NEEDS-THE-WORLD, DC-GROWTH-CLASS-CHANGE-KEEPS-THE-PAST,
-                  DC-GROWTH-EXPLORATION-SHARES-THE-PRINCIPLE]
+                  DC-GROWTH-EXPLORATION-SHARES-THE-PRINCIPLE, DC-GROWTH-COST-IS-THE-WHOLE-BURDEN,
+                  DC-GROWTH-REWARD-IS-NEW-REACH, DC-GROWTH-NO-DOMINATED-ROUTE]
     constraint_evaluation:
       DC-WORLD-PROGRESSION-IS-REACH: SATISFIED    # 이 갈래의 결과가 "닿을 수 있는 범위" 로 정의된다 (GS §20 마지막 줄)
       DC-GROWTH-GOAL-FIRST: SATISFIED             # 성장이 Goal 이 아니라 MG-EXPLORE-BEIRA 를 이루는 갈래로 서 있다
-      DC-WORLD-PLAYER-UNFIXED-PATH: UNRESOLVED    # 고정된 캐릭터 판타지와의 관계가 Human 결정 대기 (open-questions Q54)
+      DC-WORLD-PLAYER-UNFIXED-PATH: SATISFIED     # 플레이어가 요정 역할을 수행하되 어느 계열을 고를지도 무엇을 하러 갈지도 강제되지 않는다 (HISTORY Q54(a))
+      DC-GROWTH-COST-IS-THE-WHOLE-BURDEN: SATISFIED   # 문턱이 넷이고 그중 둘은 자원으로 살 수 없다 (GS §6 · GB §22)
+      DC-GROWTH-REWARD-IS-NEW-REACH: SATISFIED        # 이 갈래의 값이 수치가 아니라 감당할 수 있게 되는 범위다 (GB §9)
+      DC-GROWTH-NO-DOMINATED-ROUTE: SATISFIED         # meaningful_difference 가 앞의 세 갈래와 다른 장단점을 적는다 — 잃을 수 없는 대신 문턱이 넷이다
       DC-GROWTH-CLASS-CHANGE-NEEDS-THE-WORLD: SATISFIED       # 문턱 넷 중 둘이 세계에서만 온다 (GS §6)
       DC-GROWTH-CLASS-CHANGE-KEEPS-THE-PAST: SATISFIED        # 이전 형태가 기반으로 남는다 (GS §3.1)
       DC-GROWTH-EXPLORATION-SHARES-THE-PRINCIPLE: SATISFIED   # 형태가 오르면 전투와 탐험 능력이 같은 원리로 함께 넓어진다 (GS §4 · §8)

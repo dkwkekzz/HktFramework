@@ -42,10 +42,10 @@ prohibits:
 prefers:
   - 사람의 최종 판단을 마지막 단계로 두는 것                                  # GB §30 Phase 3
 
-status: DRAFT
+status: APPROVED
 provenance:
-  - HUMAN_DESIGN        # content/proto-adventure/design/Design-Growth-Balance-R0.md 주입 — Human 승인 대기 (open-questions Q56)
-                        # 이 원칙이 요구하는 선언(Power Envelope)의 자리는 Q58 이 정한다
+  - HUMAN_DESIGN        # content/proto-adventure/design/Design-Growth-Balance-R0.md 주입 → Human 승인 (HISTORY Q56)
+                        # 이 원칙이 요구하는 선언(Power Envelope)은 growth/balance/ 에 산다 (HISTORY Q58(c))
 
 relations:
   supports:

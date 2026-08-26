@@ -2,10 +2,11 @@
 
 파일 하나 = Constraint 하나. 이름은 `DC-<NAME>.yaml`. 형식은 [../SCHEMA.md](../SCHEMA.md).
 
-현재: **Active 44종** — 전투 5종(1종 REVISED) + 성장 14종(GS 주입 8종 포함) +
+현재: **Active 51종** — 전투 5종(1종 REVISED) + **성장 21종**(GS 8 · GB 7 포함 · 1종 REVISED) +
 세계 9종(대지형 4종 포함) + 아이템 6종(1종 REVISED) + 스킬 6종(3종 REVISED) +
-GLOBAL 4종.
-**보류(DRAFT) 7종** — 성장 균형(GB 주입, open-questions Q56 승인 대기).
+GLOBAL 4종. 보류(DRAFT)는 없다.
+
+성장이 가장 촘촘한 영역이 되었다 — 21종 중 15종이 성장 두 문서(GS · GB)의 주입에서 왔다.
 
 근거 문서:
 
@@ -57,15 +58,16 @@ GB §x   Design-Growth-Balance-R0.md          성장(GROWTH) 영역 — 비용·
 ### Active — APPROVED (성장 — GS 주입 · Q52 승인)
 
 여덟 다 GS 가 절을 따로 두어 명시한 규칙이다. 원본보다 세게 쓰지 않았다.
-승인과 함께 성장 노드 여섯(MC 5 · MP 1)에 배선했고 판정은 전부 SATISFIED 다 —
-UNRESOLVED 로 남은 하나는 성장 원칙이 아니라 세계 원칙이다
-(MP-BECOME-A-HIGHER-FORM 의 DC-WORLD-PLAYER-UNFIXED-PATH — Q54).
+승인과 함께 성장 노드 여섯(MC 5 · MP 1)에 배선했고 판정은 전부 SATISFIED 다.
+마지막까지 UNRESOLVED 였던 세계 원칙 하나(MP-BECOME-A-HIGHER-FORM 의
+DC-WORLD-PLAYER-UNFIXED-PATH)도 Q54(a) 로 닫혔다 — 플레이어가 요정 역할을 수행하되
+어느 계열을 고를지도 무엇을 하러 갈지도 강제되지 않는다.
 
 | Constraint | 한 줄 | 근거 |
 |---|---|---|
 | DC-GROWTH-PRINCIPLE-IS-PLAYED | 원리는 설정 문구가 아니라 캐릭터가 하는 행동으로 화면 위에 있어야 한다 | GS §1 · §2 · §21 |
 | DC-GROWTH-CLASS-CHANGE-KEEPS-THE-PAST | Class Change 는 교체가 아니라 상위 형태로의 성장 — 이전 Class 가 기반으로 남는다 | GS §3.1 · §4 |
-| DC-GROWTH-CLASS-CHANGE-NEEDS-THE-WORLD | 단계의 문턱은 Level 만으로 넘을 수 없다 — 세계 현상의 직접 경험과 세계의 Property 를 함께 요구한다 | GS §6 · §19 |
+| DC-GROWTH-CLASS-CHANGE-NEEDS-THE-WORLD **(REVISED)** | 단계의 문턱은 Level 만으로 넘을 수 없다 — 세계 현상의 직접 경험 · 세계의 Property · **선택과 시련**을 함께 요구하고 **자원 구매만으로는 성립하지 않는다** (Q57(a)) | GS §6 · §19 · GB §22 · GB-08 |
 | DC-GROWTH-MASTERY-FROM-OWN-BEHAVIOR | 숙련은 반복량이 아니라 그 형태 고유의 행동에서 오른다 | GS §5 · §19 |
 | DC-GROWTH-EXPLORATION-SHARES-THE-PRINCIPLE | 탐험 능력은 전투와 같은 원리의 다른 쓰임 — 별도 미니게임 스킬이 아니다 | GS §8 |
 | DC-GROWTH-DIFFERENCE-IS-BEHAVIOR | 캐릭터 차이는 능력치 값이 아니라 반복하는 행동에서 드러난다 | GS §2 · §17 |
@@ -76,10 +78,12 @@ UNRESOLVED 로 남은 하나는 성장 원칙이 아니라 세계 원칙이다
 PRINCIPLE-IS-PLAYED 는 DC-WORLD-TERRAIN-LAW-IS-OBSERVABLE 의, STAGE-READS-AT-A-DISTANCE 는
 DC-WORLD-TERRAIN-READS-AT-A-DISTANCE 의 짝이다.
 
-### 보류 — DRAFT (성장 균형 — GB 주입 · Q56 승인 대기)
+### Active — APPROVED (성장 균형 — GB 주입 · Q56 승인)
 
 일곱 다 GB 가 절을 따로 두어 명시한 규칙이다. 원본보다 세게 쓰지 않았다.
-**승인 전이라 어느 노드에도 배선하지 않았다** — 앞선 두 주입(BT · GS)과 같다.
+승인과 함께 성장 노드 일곱(MC 5 · MP 2)에 배선했다. UNRESOLVED 로 남은 판정들은 전부
+**아직 세우지 않은 것**을 가리킨다 — 한 단계의 폭(Cycle 03) · 아직 없는 Contract ·
+아직 없는 CL-*. 지어내 SATISFIED 로 덮지 않았다.
 
 | Constraint | 한 줄 | 근거 |
 |---|---|---|
@@ -91,13 +95,13 @@ DC-WORLD-TERRAIN-READS-AT-A-DISTANCE 의 짝이다.
 | DC-GROWTH-NOT-A-MASTER-KEY | 하나의 성장이 서로 무관한 여러 관문을 한꺼번에 열지 않는다 | GB §24 · GB-06 |
 | DC-GROWTH-INTENT-IS-MEASURED | 의도한 영향 범위를 미리 밝히고, 굴려 본 결과가 그 범위를 벗어나면 실패로 다룬다 | GB §25 · §26~§28 · GB-07 |
 
-일곱 중 **둘은 요구하는 칸이 아직 없다** — CAPABILITY-DECLARES-ITS-LIMITS 의 통함/부분/
-안 통함과 INTENT-IS-MEASURED 의 선언한 영향 범위다. 그 칸을 어디에 둘지는 Q58 이 정한다
-(없는 칸을 주입이 만들지 않는다 — HISTORY Q51 선례).
+일곱 중 둘이 요구하는 칸(통함/부분/안 통함 · 선언한 영향 범위)은 **`growth/balance/` 가
+소유한다** (HISTORY Q58(c) — 파일 하나 = 성장 하나). 그래서 그 둘의 판정은 노드가 아니라
+그 성장의 Contract 가 서면 닫힌다.
 
-GB §22 · GB-08(Class 문턱을 자원 구매로 우회할 수 없다)은 **새 DC 로 만들지 않았다** —
-이미 승인된 DC-GROWTH-CLASS-CHANGE-NEEDS-THE-WORLD 와 같은 자리이며, 그 개정안을
-Q57 로 남겼다. 같은 의미를 새 이름으로 만들지 않는다.
+GB §22 · GB-08(Class 문턱을 자원 구매로 우회할 수 없다)은 새 DC 로 만들지 않았다 —
+같은 자리의 기존 원칙을 **개정했다** (Q57(a) · 성장 절의
+DC-GROWTH-CLASS-CHANGE-NEEDS-THE-WORLD **(REVISED)**).
 
 ### Active — APPROVED (세계 — BW 주입 · Q17(a) 승인)
 

@@ -1,5 +1,7 @@
 # 원본 근거: content/proto-adventure/design/Master-Fairy-Growth-System.md (GS) §6 Class Change 조건 ·
 #   §19 성장 원천(Class Change 행) · §20 전체 플레이 루프
+#   REVISED — content/proto-adventure/design/Design-Growth-Balance-R0.md (GB) §22 Class 비용은 Resource 만으로
+#   지불하지 않는다 · GB-08 (HISTORY Q57(a))
 id: DC-GROWTH-CLASS-CHANGE-NEEDS-THE-WORLD
 type: constraint
 
@@ -23,8 +25,15 @@ rationale: >
   어디에 다녀왔는지 알 수 있다. 어겼을 때 잃는 것: 세계는 경험치가 나오는 장소가 되고,
   어디에 갔는지는 아무 흔적도 남기지 않는다.
 
+  **개정(GB §22)** — GB 가 같은 자리를 더 구체적으로 적는다. Class 의 기본 비용 구조는
+  관찰 + 이해 + 의미 있는 경험 + 자원/Property + **선택 + 시련**이며, 조건 하나라도 비면
+  잠긴 채다 (§22 의 표 — 경계결정을 지녔고 공간 단층을 관찰했고 구조 연속성을 이해했어도
+  동료 보호 경험과 Class Trial 이 비면 LOCKED). 그리고 그 이유를 한 줄로 못박는다:
+  그렇지 않으면 **Class Change 가 사실상 경제력 구매가 된다** (GB §22 · GB-08).
+
   가장 안 읽히는 조각은 **"직접 겪은 것"** 이다. 아이템을 사 오는 것으로 대신할 수 없다는
   뜻이다 — Catalyst 는 거래할 수 있어도 World Experience 는 그 자리에 있어야 얻는다.
+  거래가 세계에 들어오는 날(MC-TRANSFER-ITEM) 이 조각이 실제로 시험받는다.
 
   경계 — 이것은 문턱을 무겁게 만들라는 뜻이 아니다. 문턱의 **종류**를 정할 뿐이며,
   얼마나 오래 걸리는지·몇 개가 필요한지는 이 원칙이 정하지 않는다 (그것은 Cycle 소유다).
@@ -36,17 +45,21 @@ requires:
   - Class Change 조건에 세계 현상의 직접 경험이 포함된다                      # GS §6 World Experience
   - Class Change 조건에 세계에서 얻는 Property 가 포함된다                    # GS §6 Class Catalyst
   - 그 Catalyst 가 어느 세계 상태에서 왜 남았는지 설명된다                    # GS §6 · DC-WORLD-RESOURCE-ADAPTATION-TRACE
+  - Class Change 조건에 선택과 시련이 포함된다                                # GB §22 (REVISED)
 prohibits:
   - Level 충족만으로 열리는 Class Change                                      # GS §6
+  - 자원을 사 모으는 것만으로 성립하는 Class 문턱                             # GB §22 · GB-08 (REVISED)
 prefers:
   - 그 캐릭터의 원리와 같은 계열의 현상·자원을 문턱으로 삼는 것               # GS §6 · §20
 
-status: APPROVED
+status: REVISED
 provenance:
   - HUMAN_DESIGN        # content/proto-adventure/design/Master-Fairy-Growth-System.md 주입 → Human 승인 (HISTORY Q52)
+  - HUMAN_DESIGN        # content/proto-adventure/design/Design-Growth-Balance-R0.md §22 · GB-08 주입 → 개정 승인 (HISTORY Q57(a))
 
 relations:
   supports:
     - DC-WORLD-PROGRESSION-IS-REACH
     - DC-WORLD-RESOURCE-ADAPTATION-TRACE
+    - DC-GROWTH-COST-IS-THE-WHOLE-BURDEN   # 비용이 자원 개수가 아니라는 말의 Class 판이다
   conflicts_with: []

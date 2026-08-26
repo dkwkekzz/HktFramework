@@ -1871,7 +1871,9 @@ nodes:
       몸의 상태를 좇는 것이 없다 — 남은 생명은 관찰에 실리지만 그것을 근거로 삼는 존재가 없다
 
   # ══ 성장의 원천 (GS) ═══════════════════════════════════════════════════
-  # GS 가 낳은 DC 여덟은 Q52 로 승인되어 아래 다섯에 배선되었다 (HISTORY Q52).
+  # GS 가 낳은 DC 여덟은 Q52 로, GB 가 낳은 일곱은 Q56 으로 승인되어 아래 다섯에 배선되었다.
+  # GB 쪽 판정이 UNRESOLVED 로 남는 자리가 있다 — 그 원칙이 요구하는 칸(reach · envelope)이
+  # growth/balance/ 에 채워질 때 닫힌다 (HISTORY Q56 · Q58(c)).
 
   - id: MC-GAIN-LEVEL
     type: capability
@@ -1899,11 +1901,14 @@ nodes:
           role: 누구에게나 같은 방식으로 오르는 바닥 축
     required_by: [MP-OUTGROW-THE-OPPONENT, MP-BECOME-A-HIGHER-FORM]
     demanded_by: []
-    constraints: [DC-WORLD-PROGRESSION-IS-REACH, DC-GROWTH-GOAL-FIRST, DC-GROWTH-CLASS-CHANGE-NEEDS-THE-WORLD]
+    constraints: [DC-WORLD-PROGRESSION-IS-REACH, DC-GROWTH-GOAL-FIRST, DC-GROWTH-CLASS-CHANGE-NEEDS-THE-WORLD,
+                  DC-GROWTH-POWER-PAYS-IN-REACH-OR-CONSTRAINT, DC-GROWTH-CAPABILITY-DECLARES-ITS-LIMITS]
     constraint_evaluation:
       DC-WORLD-PROGRESSION-IS-REACH: SATISFIED    # 레벨은 기본값을 키우는 바닥 축이고 어디에 갈 수 있는가는 여전히 감당 여부가 정한다 — 땅의 문턱을 레벨로 걸지 않는다 (HISTORY Q53(a))
       DC-GROWTH-GOAL-FIRST: SATISFIED             # 레벨 자체는 Goal 이 아니다 — 갈래의 조건으로만 선다
       DC-GROWTH-CLASS-CHANGE-NEEDS-THE-WORLD: SATISFIED   # 이 축만으로는 형태가 바뀌지 않는다 — 문턱 넷 중 하나일 뿐이다 (GS §6)
+      DC-GROWTH-POWER-PAYS-IN-REACH-OR-CONSTRAINT: UNRESOLVED   # 모든 상황에 걸리는 범용 축이므로 한 단계의 폭이 작아야 한다 — 그 폭은 C-GROWTH-001 의 03 이 정한다 (GB §20)
+      DC-GROWTH-CAPABILITY-DECLARES-ITS-LIMITS: SATISFIED        # growth/balance/GBC-GAIN-LEVEL.yaml 이 통함/부분/안 통함을 밝힌다
     overlay: MISSING
     overlay_gap: >-
       값을 키우는 축이 세계에 없다 — 능력치를 바꾸는 유일한 규칙이 디버그 명령이고 나머지는 걸어 둔 물건이 잠시 얹는 유효 값뿐이다
@@ -1934,10 +1939,12 @@ nodes:
           role: 다음 층으로 넘어가는 네 문턱 중 하나
     required_by: [MP-BECOME-A-HIGHER-FORM]
     demanded_by: []
-    constraints: [DC-GROWTH-MASTERY-FROM-OWN-BEHAVIOR, DC-GROWTH-DIFFERENCE-IS-BEHAVIOR]
+    constraints: [DC-GROWTH-MASTERY-FROM-OWN-BEHAVIOR, DC-GROWTH-DIFFERENCE-IS-BEHAVIOR,
+                  DC-GROWTH-CAPABILITY-DECLARES-ITS-LIMITS]
     constraint_evaluation:
       DC-GROWTH-MASTERY-FROM-OWN-BEHAVIOR: SATISFIED   # 세는 행동이 형태의 원리에서 나온다 (GS §5)
       DC-GROWTH-DIFFERENCE-IS-BEHAVIOR: SATISFIED      # 자라는 방법의 차이가 곧 반복하는 행동의 차이다
+      DC-GROWTH-CAPABILITY-DECLARES-ITS-LIMITS: UNRESOLVED   # 통함/부분/안 통함이 아직 없다 — growth/balance/ 에 이 성장의 Contract 가 서면 닫힌다
     overlay: MISSING
     overlay_gap: >-
       형태(Class)라는 것이 세계에 없다 — 몸이 한 종류이고 무엇을 했는지 세는 자리도 없다
@@ -1963,9 +1970,12 @@ nodes:
           source: GS §18 · §19
     required_by: [MP-BECOME-A-HIGHER-FORM]
     demanded_by: []
-    constraints: [DC-GROWTH-SKILL-GAINS-BEHAVIOR]
+    constraints: [DC-GROWTH-SKILL-GAINS-BEHAVIOR, DC-GROWTH-CAPABILITY-DECLARES-ITS-LIMITS,
+                  DC-GROWTH-POWER-PAYS-IN-REACH-OR-CONSTRAINT]
     constraint_evaluation:
       DC-GROWTH-SKILL-GAINS-BEHAVIOR: SATISFIED   # 늘어나는 것이 행동 가능성이라고 semantic 이 직접 말한다 (GS §18)
+      DC-GROWTH-CAPABILITY-DECLARES-ITS-LIMITS: UNRESOLVED       # 자란 스킬이 무엇에 통하지 않는지가 아직 없다 — growth/balance/ 의 Contract 가 닫는다
+      DC-GROWTH-POWER-PAYS-IN-REACH-OR-CONSTRAINT: UNRESOLVED    # 늘어난 행동이 넓어지는 만큼 조건이 붙는지는 그 Cycle 이 정한다 (GB §20)
     overlay: MISSING
     overlay_gap: >-
       스킬이 자란다는 개념이 없다 — 기술은 종류가 정한 값 그대로이고 쓴 이력이 어디에도 남지 않는다
@@ -1991,10 +2001,12 @@ nodes:
           source: GS §8 · §19
     required_by: [MP-BECOME-A-HIGHER-FORM]
     demanded_by: []
-    constraints: [DC-GROWTH-EXPLORATION-SHARES-THE-PRINCIPLE, DC-GROWTH-MASTERY-FROM-OWN-BEHAVIOR]
+    constraints: [DC-GROWTH-EXPLORATION-SHARES-THE-PRINCIPLE, DC-GROWTH-MASTERY-FROM-OWN-BEHAVIOR,
+                  DC-GROWTH-CAPABILITY-DECLARES-ITS-LIMITS]
     constraint_evaluation:
       DC-GROWTH-EXPLORATION-SHARES-THE-PRINCIPLE: SATISFIED   # 전투 쪽 숙련과 같은 원리의 다른 쓰임으로 정의된다 (GS §8)
       DC-GROWTH-MASTERY-FROM-OWN-BEHAVIOR: SATISFIED          # 푼 것만 세고, 무엇을 푸는가는 형태의 원리가 정한다
+      DC-GROWTH-CAPABILITY-DECLARES-ITS-LIMITS: UNRESOLVED    # 어느 환경 문제에 통하지 않는지가 아직 없다 — 땅이 서고 Contract 가 서야 닫힌다
     overlay: MISSING
     overlay_gap: >-
       땅이 없어 풀 환경 문제가 없다 — 세계가 장소에 대해 아는 것은 사각형 하나의 경계뿐이다
@@ -2024,12 +2036,15 @@ nodes:
     required_by: [MP-BECOME-A-HIGHER-FORM]
     demanded_by: []
     constraints: [DC-GROWTH-CLASS-CHANGE-KEEPS-THE-PAST, DC-GROWTH-CLASS-CHANGE-NEEDS-THE-WORLD,
-                  DC-GROWTH-STAGE-READS-AT-A-DISTANCE, DC-GROWTH-PRINCIPLE-IS-PLAYED]
+                  DC-GROWTH-STAGE-READS-AT-A-DISTANCE, DC-GROWTH-PRINCIPLE-IS-PLAYED,
+                  DC-GROWTH-NOT-A-MASTER-KEY, DC-GROWTH-CAPABILITY-DECLARES-ITS-LIMITS]
     constraint_evaluation:
       DC-GROWTH-CLASS-CHANGE-KEEPS-THE-PAST: SATISFIED     # 이전 형태가 기반으로 남는다고 semantic 이 직접 말한다 (GS §3.1)
       DC-GROWTH-CLASS-CHANGE-NEEDS-THE-WORLD: SATISFIED    # 네 조건 중 둘이 세계에서만 온다 (GS §6)
       DC-GROWTH-STAGE-READS-AT-A-DISTANCE: SATISFIED       # 단계가 외형으로 함께 바뀐다 (GS §7)
       DC-GROWTH-PRINCIPLE-IS-PLAYED: SATISFIED             # 상위 형태가 값이 아니라 할 수 있는 행동과 외형으로 나타난다 (GS §7 · §20)
+      DC-GROWTH-NOT-A-MASTER-KEY: UNRESOLVED               # 한 형태가 여는 관문의 목록은 CL-* 가 서야 셀 수 있다 (GB §24)
+      DC-GROWTH-CAPABILITY-DECLARES-ITS-LIMITS: UNRESOLVED # 상위 형태가 무엇에 통하지 않는지도 CL-* 와 함께 선다
     overlay: MISSING
     overlay_gap: >-
       몸이 형태를 갖지 않는다 — CL-* 노드가 0 개이고 세계의 몸은 종류 하나로 고정이다

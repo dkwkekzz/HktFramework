@@ -40,9 +40,9 @@ prohibits:
 prefers:
   - 같은 효과라면 영구적인 쪽을 더 높은 값으로 보는 것                                 # GB §12 · GB-09
 
-status: DRAFT
+status: APPROVED
 provenance:
-  - HUMAN_DESIGN        # content/proto-adventure/design/Design-Growth-Balance-R0.md 주입 — Human 승인 대기 (open-questions Q56)
+  - HUMAN_DESIGN        # content/proto-adventure/design/Design-Growth-Balance-R0.md 주입 → Human 승인 (HISTORY Q56)
 
 relations:
   supports:
