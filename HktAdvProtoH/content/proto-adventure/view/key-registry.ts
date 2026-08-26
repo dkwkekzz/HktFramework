@@ -35,6 +35,7 @@ const LABEL_OF_CODE: Record<string, string> = {
   KeyI: 'I',
   KeyJ: 'J',
   KeyK: 'K',
+  KeyL: 'L',
   KeyQ: 'Q',
   Comma: ',',
   Enter: 'Enter',
@@ -120,6 +121,9 @@ export const PACK_KEYS = {
   // 많은 것 중에서 찾는 자리 (V-008 · 문서 §6) — 작업 공간이 열린 동안에만 뜻이 있다
   viewFilter: { code: 'KeyJ', what: '분류', whileSurfaceOpen: true },
   viewOrder: { code: 'KeyK', what: '보기 정렬', whileSurfaceOpen: true },
+  // 글자 자리로 가는 길 (V-009) — Tab 은 화면의 다른 단추들을 먼저 지나므로
+  // 자판만 쓰는 사람에게는 이것이 그 자리에 닿는 길이다
+  viewSearch: { code: 'KeyL', what: '이름으로 찾기', whileSurfaceOpen: true },
   close: {
     code: 'Escape',
     what: '닫기',

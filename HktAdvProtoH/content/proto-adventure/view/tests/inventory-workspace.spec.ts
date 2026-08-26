@@ -32,6 +32,7 @@ import {
   workspaceSelection,
 } from '../inventory-workspace';
 import { setFilter, setOrder } from '../inventory-view';
+import { typeInto } from '../inventory-workspace';
 import { resolvePresentation } from '../resolve';
 import { closeSurface, surfaceIsOpen, toggleSurface } from '../surface-state';
 import empty from './fixtures/inventory-empty.fixture.json';
@@ -283,6 +284,56 @@ describe('V-008 — 거르고 차례를 바꿔도 지닌 것은 그대로다', (
   it('안내 줄이 두 키를 세운다 — 늘 떠 있는 패널에는 서지 않는 키다', () => {
     expect(bag(mining).footer).toContain('분류 J');
     expect(bag(mining).footer).toContain('보기 정렬 K');
+  });
+});
+
+// ── V-009 — 이름으로 찾는다 (문서 §6 · §2.2 의 `[검색 /]`) ───────────
+describe('V-009 — 이름으로 좁힌다', () => {
+  it('도구 띠가 글자 받는 자리를 지닌다 — 띠 꼴로 그려진다', () => {
+    const tools = section(mining, 'filter');
+    expect(tools.shape).toBe('chip');
+    expect(tools.field?.id).toBe('search');
+    expect(tools.field?.placeholder).toBe('이름으로 찾기');
+    expect(section(mining, 'order').shape).toBe('chip');
+  });
+
+  it('쳐 넣으면 이름에 그 말이 든 것만 남는다', () => {
+    typeInto(INVENTORY_SURFACE_ID, 'search', '곡');
+    expect(section(mining, 'items').cells?.map((c) => c.text)).toEqual(['⛏ 곡괭이']);
+    // 왜 줄었는지가 제목에 선다 — 분류는 `전체` 인데 수만 줄면 읽을 길이 없다
+    expect(section(mining, 'items').title).toBe('지닌 것 — 1 / 2 종류 · "곡"');
+  });
+
+  it('쳐 넣은 글자가 그 자리에 그대로 실린다 — 화면과 판단이 갈라지지 않는다', () => {
+    typeInto(INVENTORY_SURFACE_ID, 'search', '곡');
+    expect(section(mining, 'filter').field?.text).toBe('곡');
+  });
+
+  it('걸리는 것이 없으면 거르기와 같은 말을 한다', () => {
+    typeInto(INVENTORY_SURFACE_ID, 'search', '없는것');
+    expect(section(mining, 'items').cells).toEqual([]);
+    expect(section(mining, 'items').emptyText).toBe('조건에 맞는 아이템 없음 · 필터 초기화');
+  });
+
+  it('**자리 수는 그대로다** — 찾기도 덜어내기가 아니다', () => {
+    typeInto(INVENTORY_SURFACE_ID, 'search', '없는것');
+    expect(section(mining, 'room').title).toBe('자리 2 / 4 · 남은 자리 2');
+  });
+
+  it('다른 표면의 글자는 받지 않는다 — 이 자리의 것만 듣는다', () => {
+    typeInto('somewhere-else', 'search', '곡');
+    expect(section(mining, 'filter').field?.text).toBe('');
+  });
+
+  it('모르는 자리의 글자도 받지 않는다', () => {
+    typeInto(INVENTORY_SURFACE_ID, 'nowhere', '곡');
+    expect(section(mining, 'filter').field?.text).toBe('');
+  });
+
+  it('방향키는 찾아 남은 것만 걷는다', () => {
+    typeInto(INVENTORY_SURFACE_ID, 'search', '곡');
+    moveSelection(snap(mining), 1);
+    expect(workspaceSelection()).toBe('pickaxe');
   });
 });
 

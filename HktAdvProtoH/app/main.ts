@@ -40,6 +40,7 @@ import {
   menuCell,
   pickCell,
   pressRow,
+  typeInto,
   KEY_BINDINGS,
   NO_SKILL_ANSWERS,
   rememberForEffects,
@@ -102,6 +103,9 @@ const commandConsole = createCommandConsole(container, {
 // 한 번 누름이 무슨 뜻인지도 알지 못한다 (슬롯 띠가 세운 규칙과 같다).
 const surfaces = createSurfaceLayer(container, {
   onClose: (id) => closeSurface(id),
+  // 쳐 넣은 글자가 무슨 뜻인지 조립은 알지 못한다 — 그 자리의 id 와 글자를 넘길 뿐이다
+  // (눌린 칸·줄을 넘기는 것과 같은 규칙이다).
+  onFieldInput: (surfaceId, fieldId, text) => typeInto(surfaceId, fieldId, text),
   onPickCell: (surfaceId, cellId) => pickCell(surfaceId, cellId),
   onCommitCell: (surfaceId, cellId) =>
     commitCell(surfaceId, cellId, (action) => link.sendMarked(action)),

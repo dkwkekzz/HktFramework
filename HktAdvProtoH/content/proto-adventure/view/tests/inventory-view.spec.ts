@@ -18,10 +18,16 @@ import {
   cycleOrder,
   displayName,
   filterCells,
+  claimSearchFocus,
+  narrowedBy,
   orderCells,
+  searchFocusClaimed,
   resetView,
+  search,
+  searchField,
   setFilter,
   setOrder,
+  setSearch,
   visibleItems,
 } from '../inventory-view';
 
@@ -137,6 +143,81 @@ describe('보기 정렬 — 세계의 차례를 바꾸지 않는다', () => {
     const cells = orderCells();
     expect(cells.map((c) => c.text)).toEqual(INVENTORY_ORDERS.map((o) => o.label));
     expect(cells.filter((c) => c.selected).map((c) => c.id)).toEqual(['order.count']);
+  });
+});
+
+describe('이름으로 찾기 — 표시 이름만 본다 (문서 §6)', () => {
+  it('찾는 말이 없으면 전부 남는다', () => {
+    expect(search()).toBe('');
+    expect(visibleItems(BAG)).toHaveLength(4);
+  });
+
+  it('이름에 든 말로 좁힌다 — 코드가 아니라 사람이 읽는 이름이다', () => {
+    setSearch('곡');
+    expect(visibleItems(BAG).map((e) => e.kind)).toEqual(['pickaxe']);
+    // `pickaxe` 로는 걸리지 않는다 — 화면에 보이지 않는 글자로 거르면 겪는 사람은
+    // 자기가 왜 못 찾는지 알 수 없다
+    setSearch('pickaxe');
+    expect(visibleItems(BAG)).toHaveLength(0);
+  });
+
+  it('문구 표에 없는 것은 코드가 곧 이름이므로 그 코드로 찾힌다', () => {
+    setSearch('moon');
+    expect(visibleItems(BAG).map((e) => e.kind)).toEqual(['moonshard']);
+  });
+
+  it('앞뒤 공백과 대소문자는 묻지 않는다', () => {
+    setSearch('  MOON  ');
+    expect(visibleItems(BAG).map((e) => e.kind)).toEqual(['moonshard']);
+  });
+
+  it('공백만 친 것은 찾는 것이 아니다 — 목록이 비지 않는다', () => {
+    setSearch('   ');
+    expect(visibleItems(BAG)).toHaveLength(4);
+    expect(narrowedBy()).toEqual([]);
+  });
+
+  it('분류와 함께 걸린다 — 둘 다 넘어야 남는다', () => {
+    setFilter('other');
+    setSearch('곡');
+    expect(visibleItems(BAG).map((e) => e.kind)).toEqual(['pickaxe']);
+    setFilter('material');
+    expect(visibleItems(BAG)).toHaveLength(0);
+  });
+
+  it('무엇으로 좁혔는지를 낸다 — 제목이 그 사유를 말한다', () => {
+    expect(narrowedBy()).toEqual([]);
+    setFilter('gear');
+    expect(narrowedBy()).toEqual(['장비']);
+    setSearch('방패');
+    expect(narrowedBy()).toEqual(['장비', '"방패"']);
+  });
+
+  it('쳐 넣은 글자를 그대로 실어 보낸다 — 화면과 판단이 갈라지지 않는다', () => {
+    setSearch('곡');
+    expect(searchField()).toEqual({
+      id: 'search',
+      text: '곡',
+      placeholder: '이름으로 찾기',
+      label: '이름으로 찾기',
+    });
+  });
+
+  it('캐럿을 청하면 **한 번만** 실려 나간다 — 계속 참이면 다른 곳을 눌러도 도로 끌려온다', () => {
+    expect(searchField().claimFocus).toBeUndefined();
+    claimSearchFocus();
+    expect(searchFocusClaimed()).toBe(true);
+    expect(searchField().claimFocus).toBe(true);
+    // 실어 보냈으면 내린다 — 다음 프레임은 청하지 않는다
+    expect(searchField().claimFocus).toBeUndefined();
+    expect(searchFocusClaimed()).toBe(false);
+  });
+
+  it('되돌리면 찾는 말도 함께 풀린다', () => {
+    setSearch('곡');
+    resetView();
+    expect(search()).toBe('');
+    expect(visibleItems(BAG)).toHaveLength(4);
   });
 });
 

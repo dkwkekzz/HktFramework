@@ -24,6 +24,7 @@ export {
   pickCell,
   pressRow,
   settleOutcome,
+  typeInto,
 } from './proto-adventure/view/inventory-workspace';
 // 기술 (C027) — 조립 루트가 "이 요청에 표식을 달까" 를 이것으로 안다.
 // 무엇이 기술인지는 팩이 판단한다 — 조립은 이름을 하나도 알지 못한다.

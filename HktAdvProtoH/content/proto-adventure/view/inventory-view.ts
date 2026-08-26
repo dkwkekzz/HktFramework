@@ -17,7 +17,7 @@
 // (`used / capacity`)은 이 파일의 어떤 값에도 반응하지 않는다 — 문서 §6 의 마지막 줄이
 // 그것을 못 박았고, 거르는 중에 자리 수가 함께 줄면 화면이 "덜어냈다" 고 거짓을 말한다.
 
-import type { SceneSurfaceCell } from '../../../engine/view-kernel/scene/scene-state';
+import type { SceneSurfaceCell, SceneSurfaceField } from '../../../engine/view-kernel/scene/scene-state';
 import type { InventoryItemView } from '../protocol/gameview';
 import { codeText } from './code-text';
 
@@ -93,6 +93,27 @@ export const INVENTORY_ORDERS: readonly InventoryOrder[] = [
   { id: 'count', label: '수량', compare: (a, b) => b.count - a.count },
 ];
 
+// ── 이름으로 찾기 (문서 §6) ──────────────────────────────────────────
+//
+// **표시 이름만 본다.** 문서가 그렇게 정했다: "검색은 표시 이름과 계약이 제공하는
+// 검색용 태그만 대상으로 한다." 계약에는 검색 태그가 없으므로 지금 볼 수 있는 것은
+// 이름뿐이고, 설명 전문을 뒤지는 것은 문서 자신이 후속으로 미뤄 두었다.
+//
+// 찾는 말은 화면이 쥔다 — 세계는 누가 무엇을 찾는 중인지 알지 못한다.
+
+/** 이 자리의 이름 — 조립이 쳐 넣은 글자를 돌려줄 때 이 id 로 온다 */
+export const SEARCH_FIELD_ID = 'search';
+
+let searchText = '';
+
+/**
+ * 캐럿을 그 자리로 청해 둔 상태 — **한 프레임만 산다.**
+ *
+ * 표면을 지을 때 실어 보내고 곧바로 내린다. 계속 참으로 두면 사람이 다른 곳을 눌러
+ * 빠져나가도 다음 프레임이 도로 끌어온다 (기반이 그 사정을 형에 적어 두었다).
+ */
+let focusClaimed = false;
+
 // ── 지금 무엇이 걸려 있는가 ──────────────────────────────────────────
 
 let filterId = INVENTORY_FILTERS[0]!.id;
@@ -119,6 +140,28 @@ export function setOrder(id: string): boolean {
   return true;
 }
 
+/** 지금 찾고 있는 말 — 쳐 넣은 그대로다 (다듬는 것은 견줄 때다) */
+export function search(): string {
+  return searchText;
+}
+
+export function setSearch(text: string): void {
+  searchText = text;
+}
+
+/** 견줄 때의 꼴 — 앞뒤 공백을 떼고 대소문자를 지운다 */
+function needle(): string {
+  return searchText.trim().toLowerCase();
+}
+
+/** 이 이름이 찾는 말을 품는가. 찾는 말이 없으면 전부 참이다 */
+function matches(kind: string): boolean {
+  const want = needle();
+  if (want.length === 0) return true;
+  // 표시 이름으로 찾는다 — 코드로 찾으면 화면에 보이지 않는 글자로 걸러지게 된다
+  return displayName(kind).toLowerCase().includes(want);
+}
+
 /** 다음 분류로 — 자판 하나로 다섯을 돈다 */
 export function cycleFilter(): void {
   const at = INVENTORY_FILTERS.findIndex((f) => f.id === filterId);
@@ -134,6 +177,8 @@ export function cycleOrder(): void {
 export function resetView(): void {
   filterId = INVENTORY_FILTERS[0]!.id;
   orderId = INVENTORY_ORDERS[0]!.id;
+  searchText = '';
+  focusClaimed = false;
 }
 
 /**
@@ -144,12 +189,49 @@ export function resetView(): void {
  */
 export function visibleItems(all: readonly InventoryItemView[]): InventoryItemView[] {
   const filter = activeFilter();
-  const kept = all.filter((entry) => filter.admits(entry.category));
+  const kept = all.filter((entry) => filter.admits(entry.category) && matches(entry.kind));
   const compare = activeOrder().compare;
   return compare === undefined ? kept : kept.slice().sort(compare);
 }
 
 // ── 도구 띠 (문서 §2.2 의 `[전체⌄] [정렬⌄]` 자리) ────────────────────
+
+/**
+ * 이름을 쳐 넣는 자리 — 기반이 그리고, 글자는 여기가 쥔다 (기반 부채 ②의 짝).
+ *
+ * 실려 보내는 것이 곧 화면에 뜨는 것이다. 그리는 쪽이 자기 안에 글자를 쥐면 화면에
+ * 있는 글자와 거르는 데 쓰인 글자가 갈라진다.
+ */
+export function searchField(): SceneSurfaceField {
+  const claim = focusClaimed;
+  focusClaimed = false; // 실어 보냈으면 내린다 — 청함은 한 번이다
+  return {
+    id: SEARCH_FIELD_ID,
+    text: searchText,
+    placeholder: '이름으로 찾기',
+    label: '이름으로 찾기',
+    ...(claim ? { claimFocus: true } : {}),
+  };
+}
+
+/** 그 자리로 가겠다 — 자판만 쓰는 사람이 글자 자리에 닿는 길 */
+export function claimSearchFocus(): void {
+  focusClaimed = true;
+}
+
+/** 검증용 — 지금 캐럿을 청해 두었는가 */
+export function searchFocusClaimed(): boolean {
+  return focusClaimed;
+}
+
+/** 지금 무엇으로 좁혔는가 — 제목이 그 사유를 말한다. 좁힌 것이 없으면 빈 배열이다 */
+export function narrowedBy(): string[] {
+  const parts: string[] = [];
+  if (filterId !== INVENTORY_FILTERS[0]!.id) parts.push(activeFilter().label);
+  const want = searchText.trim();
+  if (want.length > 0) parts.push(`"${want}"`);
+  return parts;
+}
 
 /** 분류 칸들 — 걸린 것이 `selected` 로 선다. **빈 목록에서도 사라지지 않는다** */
 export function filterCells(): SceneSurfaceCell[] {

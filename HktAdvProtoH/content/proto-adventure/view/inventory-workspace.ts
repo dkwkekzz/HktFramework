@@ -30,11 +30,14 @@ import type { ActionRequest } from '../protocol/actions';
 import type { GameViewSnapshot, InventoryItemView, ItemActionView } from '../protocol/gameview';
 import {
   applyViewCell,
-  activeFilter,
   filterCells,
   itemName,
+  narrowedBy,
   orderCells,
   resetView,
+  searchField,
+  SEARCH_FIELD_ID,
+  setSearch,
   visibleItems,
 } from './inventory-view';
 import { keyLabel } from './key-registry';
@@ -413,6 +416,23 @@ export function commitCell(
 }
 
 /**
+ * 글자 받는 자리에 쳐 넣었다 — **찾는 말이 된다.**
+ *
+ * 조립은 이 글자가 무엇인지 모르고 (`app/main.ts` 는 id 와 글자를 넘길 뿐이다),
+ * 기반은 그것을 쥐지도 않는다. 무엇이 될지 정하는 자리가 여기 하나다.
+ */
+export function typeInto(surfaceId: string, fieldId: string, text: string): void {
+  // 관찰을 묻지 않는다 — 찾는 말은 **겪는 사람 쪽 상태**이고, 세계가 아직 아무것도
+  // 보내지 않았어도 칠 수는 있다 (다른 손짓들은 관찰의 칸을 짚으므로 관찰이 필요하다)
+  if (surfaceId !== INVENTORY_SURFACE_ID) return;
+  if (fieldId !== SEARCH_FIELD_ID) return;
+  setSearch(text);
+  // 찾는 말이 바뀌면 고른 것이 목록 밖으로 나갈 수 있다. **그래도 지우지 않는다** —
+  // 고른 것은 겪는 사람이 고른 것이고, 보이지 않게 되었다는 것과 고르기를 그만두었다는
+  // 것은 다른 일이다 (04 workspace.selection 과 같은 자세).
+}
+
+/**
  * 칸에서 목록을 청했다 (오른 단추) — **행동 목록을 연다.**
  *
  * 줄은 이미 상세 구획에 서 있으므로 새로 여는 창이 없다. 여는 것은 **초점**이다 —
@@ -662,21 +682,26 @@ export function inventoryWorkspace(
       {
         id: 'filter',
         title: '분류',
-        columns: 5,
+        // 고르는 단추이지 자리가 아니다 — 물건 칸과 같은 크기로 그리면 띠가 아니라
+        // 또 하나의 격자가 된다 (V-009 · 문서 §2.2 의 한 줄 도구 띠)
+        shape: 'chip',
+        // 이름으로 찾는 자리 — 문서 §2.2 가 `[검색 /]` 을 이 띠에 둔다
+        field: searchField(),
         cells: filterCells(),
       },
       {
         id: 'order',
         // `정렬` 이 아니라 `보기 정렬` 이다 — 세계의 차례를 바꾸지 않는다 (문서 §6)
         title: '보기 정렬',
-        columns: 3,
+        shape: 'chip',
         cells: orderCells(),
       },
       {
         id: 'items',
-        // 걸렀으면 **두 수를 함께** 보인다 — 보이는 수만 말하면 지닌 것이 줄어든 것으로 읽힌다
+        // 좁혔으면 **두 수와 그 사유를 함께** 보인다 — 보이는 수만 말하면 지닌 것이
+        // 줄어든 것으로 읽히고, 사유가 없으면 왜 줄었는지 알 길이 없다
         title: filtered
-          ? `지닌 것 — ${shown.length} / ${all.length} 종류 · ${activeFilter().label}`
+          ? `지닌 것 — ${shown.length} / ${all.length} 종류 · ${narrowedBy().join(' · ')}`
           : `지닌 것 — ${all.length} 종류`,
         columns: COLUMNS,
         cells: itemCells(shown, text),
@@ -726,6 +751,7 @@ export function inventoryWorkspace(
             // 그 줄이 서는 자리가 여기다
             `분류 ${keyLabel('viewFilter')}`,
             `보기 정렬 ${keyLabel('viewOrder')}`,
+            `이름으로 찾기 ${keyLabel('viewSearch')}`,
           ],
   };
 }
