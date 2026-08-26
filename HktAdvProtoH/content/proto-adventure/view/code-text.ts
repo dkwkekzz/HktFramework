@@ -2,7 +2,7 @@
 // World 는 코드만 보낸다 — 불가 사유 코드, 행동 코드 등. 문구는 여기서 정한다.
 // 미등록 코드는 코드 그대로 표시된다 — 표현 누락이 게임을 멈추지 않는다.
 //
-// **기반도 코드만 보낸다** (기반 부채 ② — 표시 문구를 사유 코드로 바꿔 팩에 회수).
+// **기반도 코드만 보낸다** (문구 반전 ⑤ — 표시 문구를 사유 코드로 바꿔 팩에 회수).
 // 명령 표면·조작 안내·자원 막대가 쓰던 말이 기반에 살아 있었고, 팩에 이미 있는 이 표와
 // 같은 것이 두 곳에 있는 상태였다. 이제 기반은 `command.*` 코드를 부르고 말은 여기 있다 —
 // 목록의 단일 출처는 `engine/view-kernel/presentation/command-presentation.ts` 의
@@ -127,7 +127,7 @@ const CODE_TEXT: Record<string, string> = {
   'missing-position': '어디로 갈지 실리지 않았다',
   'missing-target': '대상이 실리지 않았다',
   'missing-mode': '어떤 걸음인지 실리지 않았다',
-  // ── 명령 표면이 쓰는 말 (기반 부채 ② — COMMAND_TEXT_CODES) ────────
+  // ── 명령 표면이 쓰는 말 (문구 반전 ⑤ — COMMAND_TEXT_CODES) ────────
   // 기반은 이 중 어느 것도 짓지 않는다. 무엇을 말해야 하는지만 코드로 부른다.
   'command.domain.entity': '존재의 이름',
   'command.domain.previous': '앞에서 고른 것이 정하는 값',
@@ -150,7 +150,48 @@ const CODE_TEXT: Record<string, string> = {
   'command.not-here': '그 자리에 넣을 수 없다 — {}',
   'command.leftover': '받지 않는 것이 남았다 — {}',
   'command.incomplete': '아직 다 적지 않았다',
-  // ── 자원 막대의 이름 (기반 부채 ②) ────────────────────────────────
+  // ── 겹침 표면이 쓰는 말 (문구 반전 ⑤ — SURFACE_TEXT_CODES) ─────────
+  // 표면이 무엇을 담는지는 이 팩이 정하지만(가진 것 · 기술 · 자리), 표면이라는
+  // 장치 자체는 기반의 것이다. 그 장치가 짓던 말이 여기로 왔다.
+  'surface.close': '닫기',
+  // 빈 칸도 이름을 가진다 — 읽어 주는 장치에게 "남은 자리" 는 관찰이다
+  'surface.empty-cell': '빈 자리',
+  // 줄의 표식(✓ ✗ …)은 소리로 읽히지 않는다 — 상태를 말로도 둔다
+  'surface.state.available': '가능',
+  'surface.state.blocked': '불가',
+  'surface.state.pending': '기다리는 중',
+  // ── 슬롯 띠가 쓰는 말 (문구 반전 ⑤ — SLOT_BAR_TEXT_CODES) ──────────
+  // `{}` 에는 부르는 자리의 표기가 온다 (`1` · `B` …) — 표기는 기반이 넘기는 값이고
+  // 그것을 무엇이라 이르는지가 이 줄이다
+  'slot.key': '{} 키',
+  'slot.no-key': '부를 수 없음',
+  // ── 기반이 먼저 가져가는 자리의 이름 (문구 반전 ⑤ — ENGINE_KEY_TEXT_CODES) ──
+  // 코드는 기반이 쥐고(ENGINE_KEYS) 이름은 여기 있다. 조작 안내 줄과 손가락 버튼이
+  // **같은 이 줄**을 읽으므로, 한쪽만 다른 말로 뜨는 일이 일어날 수 없다
+  'engine.key.command': '명령',
+  'engine.key.move': '이동',
+  // 시점은 안내 줄에 서지 않는다 (key-registry 의 ENGINE_KEY_HINT) — 그래도 이름은
+  // 준다: 기반이 자리를 지녔다면 그 자리에는 이름이 있어야 한다
+  'engine.key.turn': '시점',
+  'engine.key.colliderObserve': '충돌체 관찰',
+  'engine.key.attributeInspect': '속성 관찰',
+  // ── 이어짐이 쓰는 말 (문구 반전 ⑤ — SESSION/LINK_TEXT_CODES) ───────
+  // 무엇이 이어짐인지는 기반이 알고, 그것을 사람에게 뭐라 이르는지는 세계마다 다르다
+  'link.state.connected': '세계와 이어짐',
+  'link.state.connecting': '세계에 잇는 중…',
+  'link.state.disconnected': '세계와 끊김 — 마지막으로 본 모습입니다',
+  'link.round-trip': '왕복',
+  'link.arrival-rate': '수신',
+  'link.since-last': '마지막',
+  // `{}` 에는 잰 밀리초가 온다 — 재는 것은 기반이고 문장은 팩이다
+  'link.since-last.value': '{}ms 전',
+  'link.sent': '보냄',
+  'link.reconnects': '재연결',
+  'binding.observer': '나',
+  'binding.character': '내 몸',
+  'binding.world': '세계',
+  'binding.world.in-process': '(같은 프로세스)',
+  // ── 자원 막대의 이름 (문구 반전 ⑤) ────────────────────────────────
   // 기반의 self 패널이 `HP` · `CP` 를 직접 적던 자리다. 세계가 무엇을 자원으로
   // 삼는지는 팩의 일이므로 그 이름도 팩이 쥔다
   'self.health': 'HP',

@@ -5,9 +5,14 @@
 
 import { describe, expect, it } from 'vitest';
 import { slotBarMarkup } from '../hud/slot-bar';
+import type { CodeTextFn } from '../presentation/code-text';
 import type { SceneSlotBar } from '../scene/scene-state';
 
 const bar = (cells: SceneSlotBar['cells']): SceneSlotBar => ({ id: 'bar', cells });
+
+/** 이 검사가 팩 노릇을 한다 — 기반은 말을 짓지 않는다 (문구 반전 ⑤) */
+const TEXT: CodeTextFn = (code, detail) =>
+  code === 'slot.key' ? `${detail} 키` : code === 'slot.no-key' ? '부를 수 없음' : code;
 
 describe('슬롯 띠 — 지시를 글자로 옮긴다', () => {
   it('칸마다 이름과 상태가 각각 다른 자리에 실린다', () => {
@@ -40,13 +45,23 @@ describe('슬롯 띠 — 지시를 글자로 옮긴다', () => {
   it('접근성 이름에 이름·부르는 자리·상태가 함께 들어간다', () => {
     const html = slotBarMarkup(
       bar([{ id: 'a', key: 'G', title: '둘째', status: '기다림', state: 'pending' }]),
+      TEXT,
     );
     expect(html).toContain('aria-label="둘째, G 키, 기다림"');
   });
 
   it('부를 수 없는 칸의 접근성 이름은 그 사실을 말한다', () => {
-    const html = slotBarMarkup(bar([{ id: 'a', title: '이름뿐', state: 'available' }]));
+    const html = slotBarMarkup(bar([{ id: 'a', title: '이름뿐', state: 'available' }]), TEXT);
     expect(html).toContain('aria-label="이름뿐, 부를 수 없음"');
+  });
+
+  // 문구 반전 ⑤ — 띠도 말을 짓지 않는다
+  it('말을 짓지 않는다 — 표를 주지 않으면 코드가 그대로 선다', () => {
+    const html = slotBarMarkup(bar([{ id: 'a', key: 'G', title: '둘째', state: 'available' }]));
+    expect(html).toContain('slot.key: G');
+    expect(slotBarMarkup(bar([{ id: 'a', title: '이름뿐', state: 'available' }]))).toContain(
+      'slot.no-key',
+    );
   });
 
   it('결정 Layer 가 준 순서를 그대로 지킨다 — 띠가 순서를 만들지 않는다', () => {

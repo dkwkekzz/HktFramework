@@ -20,8 +20,24 @@
 //   · 무엇이 고른 것인가 (cell.selected 로 실려 온다 — 결정 Layer 가 쥔다)
 //   · 초점이 지금 어디인가 (surface.focusId 로 실려 온다 — 옮기는 산수는 input/focus.ts)
 //   · 되는지 안 되는지 (row.state 로 실려 온다 — 세계가 판정한 것이다)
+//   · **사람이 읽을 말** — 닫는 자리의 이름도, 빈 자리를 부르는 말도, 상태를 소리로
+//     옮기는 말도 짓지 않는다. 코드로 부르고 팩의 문구 표가 말을 준다
+//     (문구 반전 ⑤ — 명령 표면이 간 길 그대로)
 
+import { RAW_CODE, type CodeTextFn } from '../presentation/code-text';
 import type { SceneSurface, SceneSurfaceSection } from '../scene/scene-state';
+
+/**
+ * 이 능력이 부르는 문구 코드 전부 — 팩이 덮지 못한 것을 검사가 잡는다.
+ * 덮지 않아도 게임은 멈추지 않는다 (코드가 그대로 보인다).
+ */
+export const SURFACE_TEXT_CODES = [
+  'surface.close',
+  'surface.empty-cell',
+  'surface.state.available',
+  'surface.state.blocked',
+  'surface.state.pending',
+] as const;
 
 export interface SurfaceLayer {
   render(surfaces: readonly SceneSurface[]): void;
@@ -60,7 +76,11 @@ function escape(text: string): string {
   );
 }
 
-function renderSection(section: SceneSurfaceSection, focusId: string | undefined): string {
+function renderSection(
+  section: SceneSurfaceSection,
+  focusId: string | undefined,
+  textOf: CodeTextFn,
+): string {
   const title = section.title ? `<div class="sf-section-title">${escape(section.title)}</div>` : '';
 
   // 글자를 받는 자리 — 제목 아래, 칸·줄 위. **글자는 실려 온 것을 비출 뿐이다.**
@@ -89,7 +109,7 @@ function renderSection(section: SceneSurfaceSection, focusId: string | undefined
         // 명암(level)은 여기 없다 — 같은 값이 곁글자로 이미 서 있고, 같은 것을 두 번
         // 읽어 주면 목록이 길어지기만 한다
         const label = cell.empty
-          ? cell.text || '빈 자리'
+          ? cell.text || textOf('surface.empty-cell')
           : [cell.badge, cell.text, cell.detail].filter(Boolean).join(', ');
         // 얼마나 찼는가 — 0..1 밖의 값은 그 끝으로 붙인다 (그리는 쪽의 산수다)
         const level =
@@ -131,14 +151,7 @@ function renderSection(section: SceneSurfaceSection, focusId: string | undefined
               ? '✓'
               : '';
       // 소리로 읽는 사람에게 표식은 글자가 아니다 — 상태를 말로도 둔다
-      const spokenState =
-        row.state === 'blocked'
-          ? '불가'
-          : row.state === 'pending'
-            ? '기다리는 중'
-            : row.state === 'available'
-              ? '가능'
-              : '';
+      const spokenState = row.state ? textOf(`surface.state.${row.state}`) : '';
       const spoken = [row.text, row.hint, spokenState].filter(Boolean).join(', ');
       // **줄도 단추다.** div 였던 동안 이 자리는 손가락으로 닿지 않았고 자판 초점도
       // 받지 못했다 — 되는 것을 눌러 실행하는 길이 자판에만 있었다는 뜻이다.
@@ -167,13 +180,16 @@ function renderSection(section: SceneSurfaceSection, focusId: string | undefined
  * 빈 칸이 그려지는가, 안 되는 줄이 사라지지 않는가, 초점과 고른 것이 다른 자리에
  * 표시되는가 — 전부 브라우저 없이 확인할 수 있어야 하는 성질이다.
  */
-export function surfaceMarkup(surface: SceneSurface): string {
+export function surfaceMarkup(surface: SceneSurface, textOf: CodeTextFn = RAW_CODE): string {
+  // 닫는 자리의 이름 — 글자가 아니라 ✕ 하나이므로, 이 이름이 없으면 손가락과
+  // 읽어 주는 장치에게 이 버튼은 이름 없는 무엇이 된다 (명령 표면과 같은 이유).
+  const closeText = escape(textOf('surface.close'));
   return (
     `<header class="sf-head"><h2 class="sf-title">${escape(surface.title)}</h2>` +
     `<button type="button" class="sf-close" data-surface="${escape(surface.id)}"` +
-    ` title="닫기" aria-label="닫기">✕</button></header>` +
+    ` title="${closeText}" aria-label="${closeText}">✕</button></header>` +
     `<div class="sf-body">${surface.sections
-      .map((section) => renderSection(section, surface.focusId))
+      .map((section) => renderSection(section, surface.focusId, textOf))
       .join('')}</div>` +
     (surface.footer.length > 0
       ? `<footer class="sf-foot">${surface.footer
@@ -183,7 +199,11 @@ export function surfaceMarkup(surface: SceneSurface): string {
   );
 }
 
-export function createSurfaceLayer(container: HTMLElement, handlers: SurfaceHandlers): SurfaceLayer {
+export function createSurfaceLayer(
+  container: HTMLElement,
+  handlers: SurfaceHandlers,
+  textOf: CodeTextFn = RAW_CODE,
+): SurfaceLayer {
   const root = document.createElement('div');
   root.id = 'surfaces';
   container.appendChild(root);
@@ -323,7 +343,7 @@ export function createSurfaceLayer(container: HTMLElement, handlers: SurfaceHand
         if (!surface.open) continue;
         nowOpen.push(surface.id);
 
-        const html = surfaceMarkup(surface);
+        const html = surfaceMarkup(surface, textOf);
 
         // 값이 그대로면 DOM 을 건드리지 않는다 — 프레임마다 글자를 다시 래스터화하지 않게
         if (entry.html !== html) {

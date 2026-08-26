@@ -16,8 +16,14 @@
 //   · 칸이 왜 안 되는가 (state 로 실려 온다 — 세계가 판정한 것이다)
 //   · 어떤 키가 그 칸을 부르는가 (key 는 이미 형식화된 글자다)
 //   · 칸의 순서 (결정 Layer 가 정한 순서 그대로 그린다)
+//   · **사람이 읽을 말** — 부를 수 없다는 말도, 부르는 자리를 무엇이라 이르는지도
+//     짓지 않는다. 코드로 부르고 팩의 문구 표가 말을 준다 (문구 반전 ⑤)
 
+import { RAW_CODE, type CodeTextFn } from '../presentation/code-text';
 import type { SceneSlotBar } from '../scene/scene-state';
+
+/** 이 능력이 부르는 문구 코드 전부 — 팩이 덮지 못한 것을 검사가 잡는다 */
+export const SLOT_BAR_TEXT_CODES = ['slot.key', 'slot.no-key'] as const;
 
 export interface SlotBarLayer {
   render(bars: readonly SceneSlotBar[]): void;
@@ -42,12 +48,18 @@ function escape(text: string): string {
  * 부를 수 없는 칸도 그려지는가, 접근성 이름에 이름·자리·상태가 함께 들어가는가 —
  * 전부 브라우저 없이 확인해야 하는 성질이다.
  */
-export function slotBarMarkup(bar: SceneSlotBar): string {
+export function slotBarMarkup(bar: SceneSlotBar, textOf: CodeTextFn = RAW_CODE): string {
   return bar.cells
     .map((cell) => {
       // 접근성 이름 — 이름 · 부르는 자리 · 지금 어떤가를 한 줄로.
       // **부를 수 없는 칸도 이름을 가진다** (있다는 사실이 관찰이다).
-      const spoken = [cell.title, cell.key ? `${cell.key} 키` : '부를 수 없음', cell.status]
+      // 자리 표기(`cell.key`)는 이미 형식화된 글자이고, 그것을 무엇이라 이르는지는
+      // 팩의 문구 표가 정한다 — 기반은 표기를 값으로 넘길 뿐이다.
+      const spoken = [
+        cell.title,
+        cell.key ? textOf('slot.key', cell.key) : textOf('slot.no-key'),
+        cell.status,
+      ]
         .filter((part): part is string => Boolean(part))
         .join(', ');
       return (
@@ -67,6 +79,7 @@ export function slotBarMarkup(bar: SceneSlotBar): string {
 export function createSlotBarLayer(
   container: HTMLElement,
   handlers: SlotBarHandlers,
+  textOf: CodeTextFn = RAW_CODE,
 ): SlotBarLayer {
   const root = document.createElement('div');
   root.id = 'slotbars';
@@ -96,7 +109,7 @@ export function createSlotBarLayer(
       }
 
       for (const bar of bars) {
-        const html = slotBarMarkup(bar);
+        const html = slotBarMarkup(bar, textOf);
         let entry = drawn.get(bar.id);
         if (!entry) {
           const node = document.createElement('div');

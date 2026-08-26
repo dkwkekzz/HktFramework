@@ -23,20 +23,18 @@ import type {
   SceneCommandSlot,
 } from '../scene/scene-state';
 // 의미 코드 → 문구 변환은 컨텐츠 팩의 결정이다 (P3 CHANGED) — 주입받는다.
-// 주지 않으면 코드가 그대로 보인다 (표현 누락이 게임을 멈추지 않는다).
-//
-// 둘째 인자는 **문장에 끼워 넣을 값**이다 — 친 낱말, 자리에 맞지 않은 값, 남은 낱말.
-// 값은 데이터이고 문장은 문구다. 어느 자리에 어떤 말로 끼우는지는 팩이 정한다
-// (기반은 `{}` 가 어디에 있는지조차 알지 못한다).
-export type CodeTextFn = (code: string, detail?: string) => string;
-const RAW_CODE: CodeTextFn = (code, detail) => (detail === undefined ? code : `${code}: ${detail}`);
+// 형과 기본값은 이제 `code-text.ts` 가 소유한다 (표면 넷이 같은 길을 쓰므로).
+// 여기서 다시 내보내는 것은 이 파일의 서명이 오래전부터 그 이름을 쓰기 때문이다.
+import { RAW_CODE, type CodeTextFn } from './code-text';
+
+export type { CodeTextFn };
 
 /**
  * 이 파일이 부르는 문구 코드 전부 — **기반이 쓰는 말의 목록**이다.
  *
  * 기반은 이제 사람이 읽을 말을 하나도 짓지 않는다. 그 대신 무엇을 말해야 하는지를
  * 코드로 부르고, 그 코드가 무슨 말이 되는지는 팩의 문구 표가 정한다
- * (design/Design-System-Content-Separation.md — 남은 부채 ②).
+ * (design/Design-System-Content-Separation.md — 반전 ⑤ 문구).
  *
  * 목록을 내보내는 이유는 팩이 **덮지 못한 것을 검사로 잡기 위해서**다. 덮지 않아도
  * 게임은 멈추지 않는다 — 코드가 그대로 보인다. 하지만 그것은 화면에 코드가 뜨는 일이며,
