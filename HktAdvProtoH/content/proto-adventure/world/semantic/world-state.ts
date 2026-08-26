@@ -121,3 +121,8 @@ export function actorOfObserver(state: WorldState, observerId: string): ActorSta
 // World.TickInterval — RULE-WORLD-TICK-001 이 세계를 진행시키는 주기 (초).
 // 결정론 시뮬레이션 값이므로 헤더 상수로 고정한다 (C003 ADDED).
 export const TICK_INTERVAL = 1 / 30;
+
+// 스냅샷에 찍히는 State 형태 버전 (design/Design-World-Persistence.md).
+// WorldState 나 그 하위 형태를 바꾸는 Cycle 이 숫자를 올린다 — 불일치 스냅샷은
+// 복구되지 않고 버려지므로, 올리지 않으면 옛 형태의 State 가 새 규칙 위에서 돈다.
+export const STATE_VERSION = 'proto-adventure/1';

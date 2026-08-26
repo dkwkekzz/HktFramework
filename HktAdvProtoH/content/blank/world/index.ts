@@ -11,6 +11,7 @@ import type {
 } from '../../../engine/protocol-core/gameview';
 import type { WorldContent } from '../../../engine/world-kernel/content';
 import { createWorldKernel, type World } from '../../../engine/world-kernel/kernel';
+import { restoreState, type WorldSnapshot } from '../../../engine/world-kernel/persistence';
 import { integrateSeek } from '../../../engine/physics/seek';
 import {
   findObserver,
@@ -100,11 +101,20 @@ function projectObserver(state: WorldState, observerId: string): GameViewSnapsho
 /** 이 팩은 초기 배치 옵션이 없다 — 조립 계약을 위해 형태만 받는다 */
 export interface WorldSetup {}
 
-export function createWorld(_setup: WorldSetup = {}): World {
-  const state: WorldState = { time: 0, observers: [], walkers: [] };
+// 스냅샷에 찍히는 State 형태 버전 — WorldState 형태를 바꾸면 올린다.
+export const STATE_VERSION = 'blank/1';
+
+/** 스냅샷에서 이 팩의 State 를 되살린다 — 버전이 다르면 null (복구 포기, 새 세계) */
+export function restoreWorld(snapshot: WorldSnapshot): WorldState | null {
+  return restoreState<WorldState>(snapshot, STATE_VERSION);
+}
+
+export function createWorld(_setup: WorldSetup = {}, restored?: WorldState): World {
+  const state: WorldState = restored ?? { time: 0, observers: [], walkers: [] };
 
   const content: WorldContent<WorldState> = {
     tickInterval: TICK_INTERVAL,
+    stateVersion: STATE_VERSION,
     spawnObserverBody: (worldState, ordinal) => {
       const walker: WalkerState = {
         id: `walker-${ordinal + 1}`,

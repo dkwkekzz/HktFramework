@@ -7,6 +7,7 @@
 
 import { createWorldKernel, type World } from '../../../engine/world-kernel/kernel';
 import type { WorldContent } from '../../../engine/world-kernel/content';
+import { restoreState, type WorldSnapshot } from '../../../engine/world-kernel/persistence';
 import { INTERACTIONS } from './actions/interactions';
 import { projectObserverView } from './projection/observer-view';
 import { DEFAULT_BODY, spawnObserverBody, type BodyDefaults } from './rules/observer-body';
@@ -17,6 +18,7 @@ import { spawnActor } from './semantic/spawn';
 import {
   DEFAULT_CHANCE_SEED,
   SPAWN_POINTS,
+  STATE_VERSION,
   TICK_INTERVAL,
   WORLD_BOUNDS,
   type WorldState,
@@ -125,7 +127,16 @@ const POST_TIME_SYSTEMS: WorldContent<WorldState>['postTimeSystems'] = [
   (state) => ruleStrikeEventExpire(state), // RULE-STRIKE-EVENT-EXPIRE-001 (C007)
 ];
 
-export function createWorld(setup: WorldSetup = {}): World {
+/**
+ * 스냅샷에서 이 팩의 State 를 되살린다 — 버전이 다르면 null (복구 포기, 새 세계).
+ * 되살린 State 는 createWorld 의 restored 로 넘긴다. 팩은 복구 State 를 해석하지
+ * 않는다 — 초기 배치 대신 그것으로 커널을 조립할 뿐이다.
+ */
+export function restoreWorld(snapshot: WorldSnapshot): WorldState | null {
+  return restoreState<WorldState>(snapshot, STATE_VERSION);
+}
+
+export function createWorld(setup: WorldSetup = {}, restored?: WorldState): World {
   // C004 CHANGED — 세계가 시작할 때 조종되는 몸은 없다.
   // 몸은 관찰자가 들어올 때 RULE-OBSERVER-JOIN-001 이 만든다.
   // C007 — 자율 존재도 자기 종류의 자원·템포 능력치를 갖는다 (character-catalog).
@@ -143,7 +154,9 @@ export function createWorld(setup: WorldSetup = {}): World {
     }),
   );
 
-  const state: WorldState = {
+  // 복구된 State 가 있으면 초기 배치는 일어나지 않는다 — 세계는 스냅샷의 그 순간부터
+  // 이어진다 (design/Design-World-Persistence.md). setup 은 새 세계에만 뜻이 있다.
+  const state: WorldState = restored ?? {
     bounds: WORLD_BOUNDS,
     actors: npcs,
     deposits: [
@@ -198,6 +211,7 @@ export function createWorld(setup: WorldSetup = {}): World {
 
   const content: WorldContent<WorldState> = {
     tickInterval: TICK_INTERVAL,
+    stateVersion: STATE_VERSION,
     spawnObserverBody: (worldState, ordinal) =>
       spawnObserverBody(worldState, ordinal, bodyDefaults),
     interactions: INTERACTIONS,

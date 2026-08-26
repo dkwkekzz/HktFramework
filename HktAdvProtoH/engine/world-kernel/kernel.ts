@@ -9,6 +9,7 @@
 import type { ActionRequest } from '../protocol-core/actions';
 import type { GameViewSnapshot } from '../protocol-core/gameview';
 import type { InteractionHandler, WorldContent } from './content';
+import { takeSnapshot, type WorldSnapshot } from './persistence';
 import type { CoreWorldState } from './state';
 import {
   runWorldTick,
@@ -38,6 +39,11 @@ export interface World {
   tick(dt: number): WorldTickResult;
   /** 그 관찰자에게 마지막으로 나간 관찰 결과. 새로 만들지 않는다 */
   latestObservation(observerId: string): GameViewSnapshot | null;
+  /**
+   * Tick 사이의 세계를 데이터로 뜬다 (persistence.ts) — 영속은 이것을 통째 저장한다.
+   * pending 큐·마지막 관찰은 담기지 않는다: 과정은 영속되지 않는다.
+   */
+  snapshot(): WorldSnapshot;
 }
 
 export function createWorldKernel<S extends CoreWorldState>(
@@ -73,5 +79,6 @@ export function createWorldKernel<S extends CoreWorldState>(
       return result;
     },
     latestObservation: (observerId) => latest.get(observerId) ?? null,
+    snapshot: () => takeSnapshot(content.stateVersion, state),
   };
 }
