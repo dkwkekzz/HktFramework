@@ -45,6 +45,7 @@ design/                           공정·기반 원본(루트) — GR
        DT  Design-Combat-DamageType-R0.md       §15 가 이후 확장의 경계를 긋는다
 성장   GR  Master-Intent-Graph-Growth.md        GROWTH scope 한정
 세계   BW  Master-World-Beira.md                2026-08-19 주입 — 세계압·탐험·자원
+       BT  Master-World-Beira-Terrain.md        2026-08-26 주입 — 대지형 여덟·안전의 사유
 ```
 
 해당 영역 문서가 이름조차 대지 않는 의미는 Graph·Constraint 에 두지 않는다 — 보류가
@@ -54,25 +55,32 @@ FRINGE 의 첫 칸(살펴봄 + 그것에 이르는 두 경로)까지 서 있고,
 세계에 생겼다 — 기술에는 아직 나가지 않은 구간이 있고 그 구간에만 끊긴다.
 
 ```text
-Constraint   24     Active 24 (APPROVED 23 · REVISED 1 — PLAYER-CAUSALITY, Critical 예외) · DRAFT 0
+Constraint   36     Active 36 (APPROVED 31 · REVISED 5) · DRAFT 0 — 대지형 4종 승인 (Q51)
 Candidate    12     APPROVED 3 (→ DC) · PENDING 9 (무리별 읽는 법은 candidates/README.md)
 Actor         2     Knowledge 3 · Belief 0 (Belief 는 도입하지 않는다 — Q3 결정)
-Goal          5     Possibility 22 — 상대 넘어서기 11 · 밀리는 국면 3 · 탐험 3 · 기관 획득 5
+Goal          6     Possibility 22 — 상대 넘어서기 11 · 밀리는 국면 3 · 탐험 3 · 기관 획득 5.
+                    여섯째는 MG-RESCUE-THE-TAKEN (BT — 갈래 미배선)
                     탐험 3 은 **방법**이다 (익힌다 · 빌린다 · 준비해 간다 — Q21).
                     층은 Possibility 가 아니라 MW-ZONE-* 의 demands 다
                     §27 기관 대안 4종만 requires 미배선
-Capability   49     IMPLEMENTED 13 · PARTIAL 7 · MISSING 29
+Capability   58     IMPLEMENTED 15 · PARTIAL 7 · MISSING 36
                     요구처는 둘이다 — 방법의 required_by · 장소의 demanded_by
                     숫자의 단일 출처는 graph/GRAPH.md 머리말이다 (master:graph 재생성물)
 Item Def     14     IP 5 · IT 6 · IM 3 (growth/items/) — Q22 광물 계통.
                     grants 3건으로 BW §17 순환이 그래프에서 닫혔다
 Frontier      1     SELECTED 0 · PROPOSED 1 (WHAT-YOU-CARRY-CAN-BE-SPENT)
                     전투 후보는 C019 로 닫혔고, 다음 전투 층은 설계 문서 대기다
-WorldState   13     상위 인과 2 (PRIMAL-WORLD · WORLD-PRESSURE) · 세계압 두 갈래 2
+WorldState   22     상위 인과 2 (PRIMAL-WORLD · WORLD-PRESSURE) · 세계압 두 갈래 2
                     (FREE-PRESSURE · BOUND-PRESSURE) · 구조 2 (SAFE-FRONTIER · DEPTH-GRADIENT) ·
-                    깊이 층 5 (ZONE-FRINGE ~ ZONE-UNKNOWN) · 대표 지역 2
+                    깊이 층 5 (ZONE-FRINGE ~ ZONE-UNKNOWN) · 대표 지역 2 ·
+                    **대지형 9** (MACRO-TERRAIN + TERRAIN-* 8 — BT 주입).
+                    세계를 나누는 축이 둘이며 **직교한다** (Q47(a)) — 대지형은 어떤 법칙의
+                    땅인가, 층은 그 땅 안에서 얼마나 깊은가. 한 지역은 둘을 함께 가진다
 
-Open Question 1   → Q29 (통찰이 독립 노드인가). 다음 Cycle 선택을 막지 않는다
+Open Question     수와 내용은 open-questions.md 가 소유한다. 다음 Cycle 선택을 막는 것은
+                  Q35(COMBAT 트랙) 하나다. 대지형이 냈던 다섯(Q47~Q51)은 2026-08-26
+                  전부 닫혔다 — 땅을 세우는 첫 Cycle 의 모양이 정해질 수 있게 되었고,
+                  Frontier 후보는 아직 없다 (NEXT 작업)
 ```
 
 무엇이 언제 왜 바뀌었는지는 Cycle 반영이면 `feedback/<CycleId>.md`, Master 층 자체의
