@@ -35,6 +35,7 @@ import {
 } from '../inventory-workspace';
 import { setFilter, setOrder } from '../inventory-view';
 import { inventorySlots } from '../inventory-presentation';
+import { equipmentSlotKeys } from '../equipment-presentation';
 import { typeInto } from '../inventory-workspace';
 import { resolvePresentation } from '../resolve';
 import { closeSurface, surfaceIsOpen, toggleSurface } from '../surface-state';
@@ -592,9 +593,13 @@ describe('V-012 — 바꿔 걸기는 자리를 받고 나서야 나간다', () =
     expect(sent).toEqual([]);
     expect(workspaceExchanging()).toBe('buckler');
     const rows = section(withExchange, 'exchange').rows ?? [];
-    // 그만두기 + 자리 여섯
-    expect(rows).toHaveLength(7);
+    // V-014 CHANGED — **걸린 자리만** 선다. 빈 자리에 거는 것은 바꿔 거는 것이 아니라
+    // 그냥 걸기이고, `빈 자리` 다섯 줄은 서로 구별되지 않는 같은 선택이다
+    expect(rows).toHaveLength(2); // 그만두기 + 걸린 자리 하나(E1)
     expect(rows[0]?.id).toBe('exchange.cancel');
+    expect(rows[1]?.id).toBe('exchange.E1');
+    // 번호는 푸는 지름길이 세는 그 번호다 (V-014)
+    expect(rows[1]?.text).toBe('자리 1 · 곡괭이');
     // 이미 찬 자리는 바뀐다는 것을 미리 말한다 (C024)
     expect(rows[1]?.hint).toBe('걸린 것과 바뀐다');
   });
@@ -1062,7 +1067,8 @@ describe('V-012 — 걸어 둔 자리가 작업 공간에 선다', () => {
     bag(worn);
     pickCell(INVENTORY_SURFACE_ID, 'slot.E2');
     expect(workspaceSlotSelection()).toBe('E2');
-    expect(section(worn, 'detail').title).toBe('고른 것 — 자리 2 · 비어 있다');
+    // V-014 CHANGED — 빈 자리에는 번호가 없다 (부를 일이 없다). 어느 칸인지는 테두리가 말한다
+    expect(section(worn, 'detail').title).toBe('고른 것 — 빈 자리');
     const rows = section(worn, 'detail').rows ?? [];
     expect(rows[0]?.state).toBe('blocked');
     expect(rows[0]?.text).toContain('빈 자리');
@@ -1164,5 +1170,69 @@ describe('V-013 — 칸의 번호는 지름길이 세는 그 번호다', () => {
     const cell = (section(mining, 'items').cells ?? [])[0];
     // 접근성 이름은 능력이 text 로 짓는다 (engine/view-kernel/hud/surface.ts)
     expect(cell?.text).toContain('1.');
+  });
+});
+
+// ── V-014 — 자리도 자기 번호를 지닌다 ───────────────────────────────
+//
+// 화면에 뜨는 자리 번호는 **하나뿐**이다: 푸는 지름길(`M` → 번호)이 세는 그 번호.
+// 그것은 **걸린 자리만** 센다 (`equipmentSlotIds` — 띠에 서는 것도 걸린 자리뿐이다).
+// 빈 자리에는 번호가 없다 — 부를 일이 없기 때문이다.
+
+describe('V-014 — 자리 번호는 푸는 지름길이 세는 그 번호다', () => {
+  beforeEach(() => {
+    resetWorkspace();
+    closeSurface(INVENTORY_SURFACE_ID);
+    toggleSurface(INVENTORY_SURFACE_ID);
+  });
+
+  // E1 은 비고 E2 가 찼다 — **차례와 부르는 번호가 갈라지는** 바로 그 자리다
+  const gapped = {
+    ...(worn as object),
+    equipment: [
+      { slotId: 'E1', grants: [], contributions: [], actions: [] },
+      {
+        slotId: 'E2',
+        item: { kind: 'pickaxe', category: 'tool' },
+        grants: ['mine'],
+        contributions: [{ name: 'physicalAttack', value: 12 }],
+        actions: [{ id: 'unequip-item', role: 'unequip-item', available: true }],
+      },
+      { slotId: 'E3', grants: [], contributions: [], actions: [] },
+    ],
+  };
+
+  const slotCell = (fixture: unknown, id: string) =>
+    (section(fixture, 'equipment').cells ?? []).find((c) => c.id === id);
+
+  it('둘째 자리에 걸렸어도 부르는 번호는 1 이다 — 걸린 것만 세기 때문이다', () => {
+    expect(slotCell(gapped, 'slot.E2')?.text).toBe('1. ⛏ 곡괭이');
+    // 화면과 지름길이 같은 표를 읽는다
+    expect(equipmentSlotKeys((gapped as GameViewSnapshot).equipment ?? []).get('E2')).toBe('1');
+  });
+
+  it('빈 자리에는 번호가 없다 — 부를 일이 없다', () => {
+    expect(slotCell(gapped, 'slot.E1')?.text).toBe('');
+    expect(slotCell(gapped, 'slot.E1')?.empty).toBe(true);
+  });
+
+  it('상세 제목도 같은 번호를 쓴다 — 차례를 따로 세지 않는다', () => {
+    bag(gapped);
+    pickCell(INVENTORY_SURFACE_ID, 'slot.E2');
+    expect(section(gapped, 'detail').title).toBe('고른 것 — 자리 1 · 곡괭이');
+  });
+
+  it('빈 자리를 고르면 번호 없이 부른다', () => {
+    bag(gapped);
+    pickCell(INVENTORY_SURFACE_ID, 'slot.E3');
+    expect(section(gapped, 'detail').title).toBe('고른 것 — 빈 자리');
+  });
+
+  it('푸는 요청은 그 번호가 아니라 **자리 이름**을 싣는다 — 번호는 화면의 것이다', () => {
+    const { sent, send } = sink();
+    bag(gapped);
+    pickCell(INVENTORY_SURFACE_ID, 'slot.E2');
+    pressRow(INVENTORY_SURFACE_ID, 'unequip-item', send);
+    expect(sent).toEqual([{ interactionId: 'unequip-item', equipSlotId: 'E2' }]);
   });
 });

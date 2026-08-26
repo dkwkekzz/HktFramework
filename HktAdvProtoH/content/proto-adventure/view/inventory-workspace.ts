@@ -34,7 +34,7 @@ import type {
   ItemActionView,
 } from '../protocol/gameview';
 // 걸린 자리가 보태는 값 — 띠·패널이 쓰는 그 함수다 (V-012). 같은 값을 두 곳에서 짓지 않는다
-import { contributionText } from './equipment-presentation';
+import { contributionText, equipmentSlotKeys } from './equipment-presentation';
 import {
   applyViewCell,
   categoryLabel,
@@ -859,6 +859,9 @@ function slotCells(
   text: (code: string) => string,
   shortText: (code: string) => string,
 ): SceneSurfaceCell[] {
+  // 부르는 번호는 **걸린 자리에만** 있다 (V-014) — 빈 자리는 푸는 일이 없으므로
+  // 부를 일도 없다. 번호를 매기는 자리는 하나다 (equipment-presentation)
+  const keys = equipmentSlotKeys(slots(snapshot));
   return slots(snapshot).map((slot) => {
     const id = `slot.${slot.slotId}`;
     const selected = slot.slotId === selectedSlotId;
@@ -866,9 +869,10 @@ function slotCells(
     const icon = CATEGORY_ICON[slot.item.category];
     const name = itemName(slot.item.kind, text);
     const gain = contributionText(slot, text);
+    const key = keys.get(slot.slotId);
     return {
       id,
-      text: icon ? `${icon} ${name}` : name,
+      text: [key ? `${key}.` : '', icon, name].filter(Boolean).join(' '),
       // 곁글자는 **지금 몸에 보태고 있는 것**이다 — 예측이 아니라 일어나 있는 일이다
       ...(gain ? { detail: gain } : {}),
       ...(slotTip(slot, text, shortText) ? { tip: slotTip(slot, text, shortText)! } : {}),
@@ -899,18 +903,19 @@ function roomCells(snapshot: GameViewSnapshot): SceneSurfaceCell[] {
 /**
  * 상세 구획의 제목 — **지금 무엇을 보고 있는가.**
  *
- * 자리에는 이름이 없으므로 **세계가 준 차례의 번호**로 부른다 (띠·패널이 쓰는 번호와
- * 같은 규칙이다 — 화면이 자리에 이름을 짓지 않는다).
+ * 자리를 부르는 번호는 **푸는 지름길이 세는 그 번호**다 (V-014). 화면에 뜨는 자리
+ * 번호는 이제 이것 하나뿐이며, 빈 자리에는 번호가 없다 — 부를 일이 없기 때문이다.
+ * 빈 자리가 여럿이어도 지금 고른 것은 칸의 테두리가 말한다.
  */
 function detailTitle(snapshot: GameViewSnapshot, text: (code: string) => string): string {
   const entry = selectedItem(snapshot);
   if (entry) return `고른 것 — ${itemName(entry.kind, text)} ×${entry.count}`;
   const slot = selectedSlot(snapshot);
   if (!slot) return '고른 것';
-  const at = slots(snapshot).findIndex((s) => s.slotId === slot.slotId) + 1;
-  return slot.item
-    ? `고른 것 — 자리 ${at} · ${itemName(slot.item.kind, text)}`
-    : `고른 것 — 자리 ${at} · 비어 있다`;
+  if (!slot.item) return '고른 것 — 빈 자리';
+  const key = equipmentSlotKeys(slots(snapshot)).get(slot.slotId);
+  const name = itemName(slot.item.kind, text);
+  return key ? `고른 것 — 자리 ${key} · ${name}` : `고른 것 — ${name}`;
 }
 
 function actionRows(
@@ -958,10 +963,22 @@ function actionRows(
  * 그만두기가 **맨 앞**이다: 되돌릴 수 있는 걸음이라 해도 기본 초점은 하지 않는 쪽에 둔다.
  */
 function exchangeRowIds(snapshot: GameViewSnapshot): string[] {
-  return [
-    EXCHANGE_CANCEL_ID,
-    ...slots(snapshot).map((slot) => `${EXCHANGE_ROW_PREFIX}${slot.slotId}`),
-  ];
+  return [EXCHANGE_CANCEL_ID, ...exchangeTargets(snapshot).map((slot) => `${EXCHANGE_ROW_PREFIX}${slot.slotId}`)];
+}
+
+/**
+ * 바꿔 걸 수 있는 자리 — **걸린 자리만** (V-014).
+ *
+ * 빈 자리는 여기 없다. 빈 자리에 거는 것은 바꿔 거는 것이 아니라 그냥 **걸기**이고,
+ * 그 줄은 이미 상세 구획에 따로 서 있다 (세계도 자리를 싣지 않은 걸기를 받는다).
+ * 빈 자리를 여기 세우면 목록이 `빈 자리` 다섯 줄로 채워지는데, 여섯 자리가 서로
+ * 완전히 같으므로(04 C023) 그 다섯은 **서로 구별되지 않는 같은 선택**이다.
+ *
+ * 세계가 판정하는 것도 이것이다 — "이 물건을 **어떤 찬 자리와** 바꿔 걸 수 있는가"
+ * (04 C024 available).
+ */
+function exchangeTargets(snapshot: GameViewSnapshot): EquipmentSlotView[] {
+  return slots(snapshot).filter((slot) => slot.item);
 }
 
 /**
@@ -1007,17 +1024,21 @@ function exchangeRows(
   text: (code: string) => string,
 ): SceneSurfaceRow[] {
   if (exchanging === null) return [];
+  const keys = equipmentSlotKeys(slots(snapshot));
   return [
     { id: EXCHANGE_CANCEL_ID, text: '그만두기', state: 'available' as const },
-    ...slots(snapshot).map((slot, index) => ({
-      id: `${EXCHANGE_ROW_PREFIX}${slot.slotId}`,
-      text: slot.item
-        ? `자리 ${index + 1} · ${itemName(slot.item.kind, text)}`
-        : `자리 ${index + 1} · 비어 있다`,
-      state: 'available' as const,
-      // 이미 찬 자리에 걸면 넣기와 빼내기가 한 번에 일어난다 (C024) — 그 사실을 미리 말한다
-      ...(slot.item ? { hint: '걸린 것과 바뀐다' } : {}),
-    })),
+    ...exchangeTargets(snapshot).map((slot) => {
+      const key = keys.get(slot.slotId);
+      const name = itemName(slot.item!.kind, text);
+      return {
+        id: `${EXCHANGE_ROW_PREFIX}${slot.slotId}`,
+        // 번호는 푸는 지름길이 세는 그 번호다 (V-014) — 화면의 자리 번호는 하나뿐이다
+        text: key ? `자리 ${key} · ${name}` : name,
+        state: 'available' as const,
+        // 넣기와 빼내기가 한 번에 일어난다 (C024) — 그 사실을 미리 말한다
+        hint: '걸린 것과 바뀐다',
+      };
+    }),
   ];
 }
 
@@ -1177,7 +1198,7 @@ export function inventoryWorkspace(
         ? [
             {
               id: 'exchange',
-              title: `어느 자리에 걸까 — ${itemName(exchanging ?? '', text)}`,
+              title: `무엇과 바꿔 걸까 — ${itemName(exchanging ?? '', text)}`,
               rows: choosing,
             },
           ]
