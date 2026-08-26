@@ -68,8 +68,9 @@ Capability   58     IMPLEMENTED 15 · PARTIAL 7 · MISSING 36
                     숫자의 단일 출처는 graph/GRAPH.md 머리말이다 (master:graph 재생성물)
 Item Def     14     IP 5 · IT 6 · IM 3 (growth/items/) — Q22 광물 계통.
                     grants 3건으로 BW §17 순환이 그래프에서 닫혔다
-Frontier      1     SELECTED 0 · PROPOSED 1 (WHAT-YOU-CARRY-CAN-BE-SPENT)
-                    전투 후보는 C019 로 닫혔고, 다음 전투 층은 설계 문서 대기다
+Frontier      8     트랙 셋 — ITEM 5 · TERRAIN 3 · COMBAT 0. SELECTED 는 셋 다 없다
+                    (Human 선택 대기). COMBAT 은 후보가 소진되어 MASTER OPTIONS(Q35) 대기 ·
+                    TERRAIN 은 BT 주입과 Q47~Q51 결정으로 새로 선 트랙이다
 WorldState   22     상위 인과 2 (PRIMAL-WORLD · WORLD-PRESSURE) · 세계압 두 갈래 2
                     (FREE-PRESSURE · BOUND-PRESSURE) · 구조 2 (SAFE-FRONTIER · DEPTH-GRADIENT) ·
                     깊이 층 5 (ZONE-FRINGE ~ ZONE-UNKNOWN) · 대표 지역 2 ·
