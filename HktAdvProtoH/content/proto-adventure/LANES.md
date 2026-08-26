@@ -27,10 +27,10 @@ Feedback · BACKLOG)를 겹쳐 `LANES.html` 로 그린다. `npm run lanes:check`
 |---|---|---|---|
 | FEEDBACK | OPEN | 없음 — 닫힌 Cycle 이 모두 Master 에 들어갔다 | 없음 — 병합 뒤 최신 main 위에서 (`npm run feedback:gate`) |
 | WORLD·ITEM | HUMAN | 후보 5 중 선택 대기 — Agent 추천 FR-THE-PLACES-ARE-NARROWER (+FR-SEE-BEFORE 얹기) | Human Select (frontier/item.md) |
-| WORLD·COMBAT | BLOCKED | 후보 0 — FR-THE-SHAPE-IS-DATA 가 C025 로 닫혔다 | MASTER 의 OPTIONS(Q35) 가 후보를 낳는 것 |
+| WORLD·COMBAT | BLOCKED | 후보 0 — FR-THE-SHAPE-IS-DATA 가 C025 로 닫혔다. UL 주입으로 상층 아홉이 그래프에 섰지만 후보가 되지는 않았다 (주입은 번역, 후보는 NEXT) | MASTER 의 OPTIONS(Q35) 가 후보를 낳는 것 · 상층 쪽은 **Q52**(배분 축이 둘인가 셋인가) 가 먼저다 |
 | WORLD·TERRAIN | OPEN | `C-TERRAIN-001` 착수 대기 — SELECTED `FR-THE-GROUND-HAS-A-LAW`(땅이 법칙을 지닌다). Stage 1 부터, 아직 시작하지 않았다. 시각화의 소유 분해·진행 순서는 [design/Design-Terrain-Visualization.md](../../design/Design-Terrain-Visualization.md) 를 따른다 | 없음 — 다만 이 판과 트랙 파일이 main 에 들어간 뒤에 잡는다 |
 | VIEW | OPEN | BACKLOG 다음 항목(request-feedback)부터 — equipment-panel 은 아래 충돌 칸 | 없음 |
-| MASTER | OPEN | OPTIONS Q35 (몸이 아닌 존재를 요구하는 Possibility) — 대지형 NEXT 는 끝났다 (TERRAIN 트랙 후보 3) | 없음 — 미처리 Feedback 이 0 이라 막던 것이 사라졌다 (`npm run feedback:gate`) |
+| MASTER | OPEN | OPTIONS Q35 (몸이 아닌 존재를 요구하는 Possibility). 전투 상층(UL) 주입은 끝났다 — 결과와 남긴 셋(Q52~Q54)은 HISTORY "전투 상층(UL) 주입" | 없음 — 미처리 Feedback 이 0 이다 (`npm run feedback:gate`). 다만 상층 NEXT 는 Q52 답을 기다린다 |
 | ENGINE | OPEN | 기반 부채 하나 — 표시 문구를 사유 코드로 바꿔 팩에 회수 (C009 폭이 넓고 조립·팩 채택 동반 — 착수 전 범위 확인). 다음: 지면 구역 장치 `SceneGroundZone` ([design/Design-Terrain-Visualization.md](../../design/Design-Terrain-Visualization.md)) — C-TERRAIN-001 의 04 확정 뒤 착수 | 없음 |
 | PROCESS | HOLD | 없음 | — (공정 변경 중에는 다른 레인을 새로 띄우지 않는다) |
 
@@ -56,3 +56,7 @@ Human 이 답하면 풀리는 것들이다. 답의 자리는 괄호가 가리킨
 | Q37 — 자리에 이름을 줄 것인가 (open-questions.md) | FR-ARRANGE-WHAT-YOU-CARRY 존치/삭제 |
 | Design-Creature-Behavior-R0.md 승인 | Inject → MC-PREDICT · MC-OBSERVE 습성 해금 |
 | Design-Resource-Catalog-R0.md 승인 | Inject → Q36 · 회복 아이템 해금 · BT 자원 24종의 자리 (그 문서가 받기로 정해졌다 — HISTORY Q50(a)) |
+| Q52 — 힘의 배분 축이 둘인가 셋인가 (open-questions.md) | 전투 상층(MS-AURA-NEN)의 Frontier 후보 · MC-COMBAT-FLOW 존치 여부 |
+| Q53 — 세계에 아군을 세울 것인가 (open-questions.md) | 수호 갈래(MC-INTERCEPT · 대상 이전)의 자리 |
+| Q54 — 기회·계약·표식은 기록인가 조건인가 (open-questions.md) | 상층 Cycle 이 늘릴 세계 상태의 수 |
+| 전투 상층 DC 7종 승인 (constraints/DC-COMBAT-* DRAFT) | 상층 Cycle 의 판정 기준 확정 |

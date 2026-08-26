@@ -44,6 +44,21 @@ sections:
       (SK §4 · §5). 연쇄 · 이동 결합 · 소환은 아예 이 사다리의 자리가 아니게 되었다 —
       앞의 둘은 기존 실행의 반복이고, 소환은 존재를 하나 더 세우는 일이다.
       나머지 다섯 칸이 왜 비어 있는지, 무엇이 그것을 요구하게 될지는 open-questions Q35 다.
+
+      **UL(전투 상층) 주입은 이 표에 아홉 줄을 더했다.** SK 와 반대인데, 이유는 UL 이
+      Capability 만이 아니라 그것을 요구하는 갈래까지 함께 공급했기 때문이다 — 힘을
+      몰아 두는 갈래 · 계약으로 묶는 갈래 · 상대의 규칙을 알아내는 갈래 · 받아낸 것을
+      저장하는 갈래 넷이 Possibility 표에 함께 섰다.
+      R1 이 이름만 댔던 위 두 칸이 열리면서 기존 다섯 줄의 성격도 바뀌었다 —
+      MC-PERFECT-GUARD · MC-COUNTER · MC-EVADE · MC-VOW · MC-DISRUPT-ABILITY 가
+      `grounded: false`(이름만) 에서 `true`(정의됨)로 올라섰다. 특히 MC-VOW 는 뜻이
+      달라졌다: 제약이 사는 것이 더 큰 위력이 아니라 **평소에는 허락되지 않는 행동**이다
+      (UL §20). 자리의 목록은 `graph/systems.yaml` 의 MS-ACTIVE-DEFENSE(셋) ·
+      MS-AURA-NEN(넷)이 소유한다.
+      아홉 중 여덟이 MISSING 이고 하나만 PARTIAL 이다 — 못 쓰는 사유를 세계가 골라
+      하나 내보내는 자리가 이미 있기 때문이다 (`view/skill-presentation.ts`).
+      **세우지 않은 것이 하나 있다** — 아군에게 가는 공격을 자신이 받는 조작(UL §9 · §27)은
+      세계에 아군이 없어 요구하는 갈래를 만들 수 없었다 (open-questions Q53).
     rows:
       - MC-COMBAT-STRIKE
       - MC-BODY-FACING
@@ -64,6 +79,15 @@ sections:
       - MC-COMBAT-FLOW
       - MC-FORTIFY
       - MC-VOW
+      - MC-ACTIVE-RESPONSE
+      - MC-PRECISION-RESPONSE
+      - MC-OPPORTUNITY
+      - MC-ABSORB
+      - MC-AURA-ALLOCATION
+      - MC-ABILITY-CONDITION
+      - MC-MARK
+      - MC-BIND
+      - MC-OBSERVE-ABILITY
   - kind: capability
     title: "Capability — 탐험 영역 (BW)"
     intro: |
@@ -219,7 +243,7 @@ sections:
     intro: |
       어느 경로가 지금 얼마나 닫혀 있는가 — Frontier 는 이 표에서 고른다.
   - kind: possibility
-    title: "MG-OVERCOME-SUPERIOR-OPPONENT (11 갈래)"
+    title: "MG-OVERCOME-SUPERIOR-OPPONENT (14 갈래)"
     rows:
       - MP-MATCH-WEAPON-TO-ARMOR
       - MP-PIERCE-THE-HARD-DEFENSE
@@ -232,12 +256,16 @@ sections:
       - MP-CONTROL-MOVEMENT
       - MP-STAKE-EVERYTHING-ON-ONE-BLOW
       - MP-WEAPONIZE-ENVIRONMENT
+      - MP-CONCENTRATE-THE-POWER
+      - MP-BIND-BY-CONTRACT
+      - MP-KNOW-THE-OPPONENT-RULE
   - kind: possibility
-    title: "MG-SURVIVE-ENEMY-OFFENSIVE (3 갈래)"
+    title: "MG-SURVIVE-ENEMY-OFFENSIVE (4 갈래)"
     rows:
       - MP-TRADE-BODY-FOR-RESOURCE
       - MP-EVADE-BY-MOVING-THE-BODY
       - MP-HOLD-FORTIFIED
+      - MP-STORE-AND-RELEASE
   - kind: possibility
     title: "MG-EXPLORE-BEIRA (3 갈래)"
     intro: |

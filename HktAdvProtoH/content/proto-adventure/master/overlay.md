@@ -54,6 +54,21 @@ C025 로 그 칸의 **모양이 값이 되었다** — 남은 다섯 칸이 서�
 앞의 둘은 기존 실행의 반복이고, 소환은 존재를 하나 더 세우는 일이다.
 나머지 다섯 칸이 왜 비어 있는지, 무엇이 그것을 요구하게 될지는 open-questions Q35 다.
 
+**UL(전투 상층) 주입은 이 표에 아홉 줄을 더했다.** SK 와 반대인데, 이유는 UL 이
+Capability 만이 아니라 그것을 요구하는 갈래까지 함께 공급했기 때문이다 — 힘을
+몰아 두는 갈래 · 계약으로 묶는 갈래 · 상대의 규칙을 알아내는 갈래 · 받아낸 것을
+저장하는 갈래 넷이 Possibility 표에 함께 섰다.
+R1 이 이름만 댔던 위 두 칸이 열리면서 기존 다섯 줄의 성격도 바뀌었다 —
+MC-PERFECT-GUARD · MC-COUNTER · MC-EVADE · MC-VOW · MC-DISRUPT-ABILITY 가
+`grounded: false`(이름만) 에서 `true`(정의됨)로 올라섰다. 특히 MC-VOW 는 뜻이
+달라졌다: 제약이 사는 것이 더 큰 위력이 아니라 **평소에는 허락되지 않는 행동**이다
+(UL §20). 자리의 목록은 `graph/systems.yaml` 의 MS-ACTIVE-DEFENSE(셋) ·
+MS-AURA-NEN(넷)이 소유한다.
+아홉 중 여덟이 MISSING 이고 하나만 PARTIAL 이다 — 못 쓰는 사유를 세계가 골라
+하나 내보내는 자리가 이미 있기 때문이다 (`view/skill-presentation.ts`).
+**세우지 않은 것이 하나 있다** — 아군에게 가는 공격을 자신이 받는 조작(UL §9 · §27)은
+세계에 아군이 없어 요구하는 갈래를 만들 수 없었다 (open-questions Q53).
+
 | Capability | 상태 | 근거 | 부족한 것 |
 |---|---|---|---|
 | MC-COMBAT-STRIKE | IMPLEMENTED | C007 · C010 이 피해 산정을 하나의 공식으로 교체. C025 가 휘두름의 **모양**(각·길이·굵기)을 전역 상수에서 기술 정의로 내려 이 노드에 걸린 마지막 UNRESOLVED 를 닫았다 | — |
@@ -74,7 +89,16 @@ C025 로 그 칸의 **모양이 값이 되었다** — 남은 다섯 칸이 서�
 | MC-EVADE | MISSING | — | 회피 행동이 없다. 다만 공격이 이미 공간 판정이라 얹힐 바닥은 서 있다 (R1 §13 이연). C025 로 그 공간이 **기술마다 달라졌다** — 피할 대상이 하나가 아니므로 회피가 설 때 다룰 것이 늘었다 |
 | MC-COMBAT-FLOW | MISSING | — | 공격/방어에 힘을 배분하는 상태가 없다 (R1 §14 Aura/Nen 층) |
 | MC-FORTIFY | MISSING | — | 배분이 없으므로 방어 쪽에 몰아 둔 자세도 없다 (R1 §14 Aura/Nen 층) |
-| MC-VOW | MISSING | — | 제약·실패 대가가 없다 (R1 §14 Aura/Nen 층) |
+| MC-VOW | MISSING | — | 제약·실패 대가가 없다 (R1 §14 Aura/Nen 층). UL §21 이 요구하는 세 부분 중 세계에 있는 것은 **하나도 없다** — 제약을 선언하는 자리도, 그것이 여는 행동도, 위반 판정도 없다 |
+| MC-ACTIVE-RESPONSE | MISSING | — | 공격이 닿는 순간에 실행하는 행동이라는 개념이 없다. 막기는 미리 켜 두는 자세이고, 켠 뒤에는 받는 쪽이 개입할 자리가 없다 (`world/semantic/combat.ts` 의 `GuardOutcome`). 얹힐 바닥은 하나 서 있다 — C019 로 행동 안의 시점을 읽는 규칙이 생겼다 |
+| MC-PRECISION-RESPONSE | MISSING | — | 대응 자체가 없으므로 그 시점 축도 없다. 다만 C019 가 행동 안의 시점을 읽는 규칙을 세워 두어, 판정에 쓸 시각은 세계에 이미 있다 |
+| MC-OPPORTUNITY | MISSING | — | 기회라는 개념이 없고, 같은 자리의 행동이 상황에 따라 다른 것으로 바뀌는 규칙도 없다 |
+| MC-ABSORB | MISSING | — | 막힌 피해는 줄어들 뿐 어디에도 남지 않는다 (`world/semantic/combat.ts` — 막힌 타격이 남기는 비율만 있다). 받아낸 것이 값으로 저장되는 자리가 없다 |
+| MC-AURA-ALLOCATION | MISSING | — | 힘을 어디에 몰아 두었는가라는 상태가 없다. 능력치는 있으나 전투 중에 바뀌지 않고, 무엇을 쓸 수 있는지를 능력치가 여닫지도 않는다 |
+| MC-ABILITY-CONDITION | PARTIAL | 코드 대조 — 못 쓰는 사유를 세계가 골라 하나 내보내는 자리가 이미 있다 (`view/skill-presentation.ts` 의 `unavailableReason` · 인벤토리·장비도 같은 칸을 쓴다) | 그 사유의 원천이 전부 자기 조건이다 — 자원이 모자라거나 거리가 멀거나 장착하지 않았거나. 세계의 사실(상대가 나를 먼저 쳤는가 · 표식이 있는가)이 능력의 가능 여부를 여는 자리가 없다 |
+| MC-MARK | MISSING | — | 대상에 남는 표식이라는 개념이 없다. 존재 사이에 남는 것은 태도(C018)와 지목(C017)뿐이고, 둘 다 거는 쪽의 상태이지 걸린 쪽에 붙은 것이 아니다 |
+| MC-BIND | MISSING | — | 존재 사이를 잇는 실체가 없고, 남의 행동 범위를 줄이는 규칙도 없다. 관계는 태도 하나뿐이고 (C018) 그것은 칠 수 있는가만 가른다 |
+| MC-OBSERVE-ABILITY | MISSING | — | 상대가 가진 능력이라는 것이 세계에 없다 — 적대 존재는 하나의 행동만 하고 그것에 규칙도 조건도 없다. 알아낼 대상 자체가 서지 않았다 |
 
 ## Capability — 탐험 영역 (BW)
 
@@ -94,7 +118,7 @@ C025 로 그 칸의 **모양이 값이 되었다** — 남은 다섯 칸이 서�
 | MC-USE-TERRAIN (FRINGE §21) | MISSING | — | 지형이 없다 — 무대는 아무 성질도 없는 평평한 사각형 하나다 |
 | MC-DISCOVER-WEAKNESS · MC-PRECISE-TARGETING · MC-CONTROL-SPACE (WILD §22) | MISSING | — | 약점 발견·부위 조준·공간 통제의 의미가 없다 |
 | MC-READ-ENVIRONMENT · MC-USE-HAZARD (DANGER §23) | MISSING | — | 환경 위험이라는 개념 자체가 없다 — 피해의 출처는 타격 하나뿐이다 |
-| MC-DISRUPT-ABILITY · MC-MAINTAIN-PRESSURE · MC-TARGET-SPECIFIC-PART · MC-READ-CREATURE-SYSTEM (DEEP §24) | MISSING | — | 재생·공생·부위라는 개념 자체가 없다 |
+| MC-DISRUPT-ABILITY · MC-MAINTAIN-PRESSURE · MC-TARGET-SPECIFIC-PART · MC-READ-CREATURE-SYSTEM (DEEP §24) | MISSING | — | 재생·공생·부위라는 개념 자체가 없고, 능력을 봉인한다는 개념도 없다 — 지금 세계에서 못 쓰는 사유는 자원·거리·장착 같은 자기 조건뿐이고 **남이 걸어 둔 것** 때문에 못 쓰는 자리가 없다 |
 | MC-PROTECT-PERCEPTION · MC-VERIFY-REALITY · MC-IDENTITY-ANCHOR · MC-RESIST-INFLUENCE · MC-BREAK-BIOLOGICAL-LINK · MC-ESCAPE-ALTERED-SPACE (UNKNOWN §25) | MISSING | — | 지각·정체성·공간 변형이라는 개념 자체가 없다 |
 | MC-RESTORE-BIOLOGICAL-STATE (자원 §8) | MISSING | — | 회복이라는 개념이 없다 — 생명은 줄기만 하고 되돌리는 경로는 디버그뿐이다 |
 | MC-CUT-ABNORMAL-STRUCTURE (자원 §10 · §17) | MISSING | — | 제작·장착이 없고, 통하지 않는 구조라는 개념도 없다 |
@@ -212,7 +236,7 @@ Capability 만 보면 전투가 꽤 찬 것처럼 보이지만, 그 전투가 �
 
 어느 경로가 지금 얼마나 닫혀 있는가 — Frontier 는 이 표에서 고른다.
 
-### MG-OVERCOME-SUPERIOR-OPPONENT (11 갈래)
+### MG-OVERCOME-SUPERIOR-OPPONENT (14 갈래)
 
 | Possibility | 요구 중 없는 것 | 비고 |
 |---|---|---|
@@ -222,19 +246,23 @@ Capability 만 보면 전투가 꽤 찬 것처럼 보이지만, 그 전투가 �
 | MP-BET-ON-THE-CRITICAL-BLOW | 요구 Capability 는 **없음** · `requires.resource` 미충족 | **C015 로 절반 닫혔다** — 증폭이 터지는 것과 그 경위가 다 보인다. 그러나 "준비로 기대값을 올린다" 는 나머지 절반이 남았다: Critical 성질을 올릴 성장·장비가 세계에 없어 경로가 종류 초기값과 디버그뿐이다 |
 | MP-INTERRUPT | **없음** | **C019 로 닫혔다** — 지금 플레이 가능하다. 상대의 선딜을 노려 끊고, 늦으면 이미 나간 칼을 무르지 못한다. 요구는 MC-INTERRUPT 하나뿐이었고 그것이 섰다 |
 | MP-BREAK-THE-GUARD | MC-BREAK(PARTIAL) | 무너지는 상태는 있고 무너뜨리는 행동만 없다 (R1 §14 Active Defense 층) |
-| MP-READ-AND-COUNTER | MC-PERFECT-GUARD · MC-COUNTER | R1 §15 층 그림에서 Active Defense 는 Penetration 위이고 그 아래층은 C013 으로 섰다 — 이제 그 층의 설계 문서만 없다 |
+| MP-READ-AND-COUNTER | MC-ACTIVE-RESPONSE · MC-PRECISION-RESPONSE · MC-PERFECT-GUARD · MC-OPPORTUNITY · MC-COUNTER | UL 이 그 층의 설계 문서다 — 이 갈래는 이제 두 조각이 아니라 다섯 조각으로 갈린다. 완벽한 막기는 정밀 응답을 막기에 적용한 결과이고 되받아치기는 기회를 통해 온다 (UL §6 · §7). 순서는 UL §42 F1 → F2 → F3 다 |
 | MP-EXPLOIT-OPEN-BODY | MC-COMBAT-FLOW | R1 §14 Aura/Nen 층 |
 | MP-CONTROL-MOVEMENT | MC-CONTROL-SPACE + MC-FORCE-MOVEMENT·MC-REPOSITION(둘 다 PARTIAL) | 셋 중 둘이 절반 서 있다 |
 | MP-STAKE-EVERYTHING-ON-ONE-BLOW | MC-VOW · MC-COMBAT-FLOW + MC-CONDITION-STACKING(PARTIAL) | Aura/Nen 층 — 가장 멀다 |
 | MP-WEAPONIZE-ENVIRONMENT | MC-READ-ENVIRONMENT · MC-USE-HAZARD + MW-ZONE-DANGER | 환경 위험 개념 자체가 없다 |
+| MP-CONCENTRATE-THE-POWER | MC-AURA-ALLOCATION | UL §42 F4 — 상층 넷 중 첫 칸. 아래 세 칸(응답 · 정밀 · 기회)이 먼저 서야 한다는 순서가 문서에 있다 |
+| MP-BIND-BY-CONTRACT | MC-VOW · MC-BIND · MC-MARK · MC-ABILITY-CONDITION | UL §42 F5~F7 — 상층의 마지막 세 칸이 전부 걸린다. 이 세계에서 가장 먼 갈래이고, 동시에 UL 이 §23 에서 대표 실물로 든 갈래다 |
+| MP-KNOW-THE-OPPONENT-RULE | MC-OBSERVE-ABILITY · MC-AURA-ALLOCATION · MC-ABILITY-CONDITION · MC-DISRUPT-ABILITY | 알아낼 대상 자체가 없다 — 적대 존재에게 규칙 있는 능력이 없다. 이 갈래는 상대 쪽에 상층이 서야 성립한다 |
 
-### MG-SURVIVE-ENEMY-OFFENSIVE (3 갈래)
+### MG-SURVIVE-ENEMY-OFFENSIVE (4 갈래)
 
 | Possibility | 요구 중 없는 것 | 비고 |
 |---|---|---|
 | MP-TRADE-BODY-FOR-RESOURCE | **없음** | **C011 로 닫혔다** — 지금 플레이 가능하다 |
-| MP-EVADE-BY-MOVING-THE-BODY | MC-EVADE | R1 §13 이 이후 확장으로만 지정 |
+| MP-EVADE-BY-MOVING-THE-BODY | MC-EVADE · MC-ACTIVE-RESPONSE | R1 §13 이 이후 확장으로만 지정했고 UL §8 이 그 형태를 확정했다 — 짧은 이동에 짧은 판정 무효 구간을 얹는다. 회피는 응답 자리에 끼우는 것 중 하나다 |
 | MP-HOLD-FORTIFIED | MC-FORTIFY · MC-COMBAT-FLOW | Aura/Nen 층 |
+| MP-STORE-AND-RELEASE | MC-ABSORB · MC-ACTIVE-RESPONSE · MC-PRECISION-RESPONSE | UL §28 (축적자) — 응답 자리(F1)와 정밀 구간(F2) 위에 얹힌다. 막기는 이미 섰다 (C011) |
 
 ### MG-EXPLORE-BEIRA (3 갈래)
 
