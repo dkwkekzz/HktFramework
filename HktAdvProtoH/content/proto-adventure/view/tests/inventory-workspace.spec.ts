@@ -34,6 +34,7 @@ import {
   workspaceSelection,
 } from '../inventory-workspace';
 import { setFilter, setOrder } from '../inventory-view';
+import { inventorySlots } from '../inventory-presentation';
 import { typeInto } from '../inventory-workspace';
 import { resolvePresentation } from '../resolve';
 import { closeSurface, surfaceIsOpen, toggleSurface } from '../surface-state';
@@ -225,9 +226,13 @@ describe('V-008 — 거르고 차례를 바꿔도 지닌 것은 그대로다', (
   });
 
   it('분류를 걸면 보이는 것만 줄어든다', () => {
-    expect(section(mining, 'items').cells?.map((c) => c.text)).toEqual(['🪨 돌', '⛏ 곡괭이']);
+    expect(section(mining, 'items').cells?.map((c) => c.text)).toEqual([
+      '1. 🪨 돌',
+      '2. ⛏ 곡괭이',
+    ]);
     setFilter('material');
-    expect(section(mining, 'items').cells?.map((c) => c.text)).toEqual(['🪨 돌']);
+    // **번호는 그대로다** (V-013) — 걸러도 지름길이 세는 차례는 바뀌지 않는다
+    expect(section(mining, 'items').cells?.map((c) => c.text)).toEqual(['1. 🪨 돌']);
     // 두 수를 함께 보인다 — 보이는 수만 말하면 지닌 것이 줄어든 것으로 읽힌다
     expect(section(mining, 'items').title).toBe('지닌 것 — 1 / 2 종류 · 재료');
   });
@@ -257,7 +262,11 @@ describe('V-008 — 거르고 차례를 바꿔도 지닌 것은 그대로다', (
 
   it('보기 차례를 바꾸면 칸의 차례가 바뀐다 — 세계가 보낸 것은 그대로다', () => {
     setOrder('name');
-    expect(section(mining, 'items').cells?.map((c) => c.text)).toEqual(['⛏ 곡괭이', '🪨 돌']);
+    // 자리는 바뀌었는데 **번호는 물건을 따라간다** (V-013) — 2 번이 앞에 선다
+    expect(section(mining, 'items').cells?.map((c) => c.text)).toEqual([
+      '2. ⛏ 곡괭이',
+      '1. 🪨 돌',
+    ]);
     expect(section(mining, 'items').title).toBe('지닌 것 — 2 종류'); // 거른 것이 아니다
   });
 
@@ -363,7 +372,8 @@ describe('V-009 — 이름으로 좁힌다', () => {
 
   it('쳐 넣으면 이름에 그 말이 든 것만 남는다', () => {
     typeInto(INVENTORY_SURFACE_ID, 'search', '곡');
-    expect(section(mining, 'items').cells?.map((c) => c.text)).toEqual(['⛏ 곡괭이']);
+    // 좁혀도 번호는 제 것을 지닌다 (V-013) — 혼자 남아도 1 번이 되지 않는다
+    expect(section(mining, 'items').cells?.map((c) => c.text)).toEqual(['2. ⛏ 곡괭이']);
     // 왜 줄었는지가 제목에 선다 — 분류는 `전체` 인데 수만 줄면 읽을 길이 없다
     expect(section(mining, 'items').title).toBe('지닌 것 — 1 / 2 종류 · "곡"');
   });
@@ -516,7 +526,7 @@ describe('VUX-IE-V-07 — 걸어 둔 것은 가방에 중복되지 않는다', (
 
 describe('VUX-IE-V-09 — 모르는 코드가 와도 멈추지 않는다', () => {
   it('모르는 종류는 코드 그대로 보인다', () => {
-    expect(section(unknown, 'items').cells?.[0]?.text).toBe('moonshard');
+    expect(section(unknown, 'items').cells?.[0]?.text).toBe('1. moonshard');
   });
 
   it('모르는 분류에는 아이콘이 없다 — 표에 없다고 화면이 멈추지 않는다', () => {
@@ -1092,5 +1102,67 @@ describe('V-012 — 걸어 둔 자리가 작업 공간에 선다', () => {
 
   it('세계가 자리를 보내지 않으면 구획 자체가 없다', () => {
     expect(bag(mining).sections.some((s) => s.id === 'equipment')).toBe(false);
+  });
+});
+
+// ── V-013 — 칸이 자기 번호를 지닌다 ─────────────────────────────────
+//
+// 번호는 화면이 매기는 것이 아니라 **세계가 준 차례**다. 두 걸음 지름길이 세는 것이
+// 그 차례이고(`inventorySlots`), 이 칸에 적히는 것도 같은 표에서 온다 — 그래서
+// "화면이 부르라고 한 번호" 와 "실제로 부르는 번호" 가 갈라질 자리가 없다.
+
+describe('V-013 — 칸의 번호는 지름길이 세는 그 번호다', () => {
+  beforeEach(() => {
+    resetWorkspace();
+    closeSurface(INVENTORY_SURFACE_ID);
+    toggleSurface(INVENTORY_SURFACE_ID);
+  });
+
+  const cellTexts = (fixture: unknown) =>
+    (section(fixture, 'items').cells ?? []).map((c) => c.text);
+
+  it('번호와 지름길의 차례가 **같은 표**에서 온다', () => {
+    // 지름길이 세는 차례 (bindings.ts 가 이 함수를 부른다)
+    const called = inventorySlots(resolvePresentation(snap(mining)));
+    const texts = cellTexts(mining);
+    called.forEach((kind, index) => {
+      const cell = (section(mining, 'items').cells ?? []).find((c) => c.id === `item.${kind}`);
+      expect(cell?.text.startsWith(`${index + 1}.`)).toBe(true);
+    });
+    expect(texts).toHaveLength(called.length);
+  });
+
+  it('거르고 정렬하고 좁혀도 번호는 물건을 따라간다', () => {
+    const before = cellTexts(mining);
+    setOrder('name');
+    setFilter('all');
+    const after = cellTexts(mining);
+    // 차례는 바뀌었지만 **같은 번호 표**다 — 집합으로 보면 그대로다
+    expect([...after].sort()).toEqual([...before].sort());
+  });
+
+  it('아홉을 넘는 것에는 번호가 없다 — 없는 손가락 자리를 짓지 않는다', () => {
+    const many = {
+      ...(mining as object),
+      inventory: Array.from({ length: 11 }, (_, i) => ({
+        kind: `k${i}`,
+        count: 1,
+        category: 'material',
+        stackable: true,
+        actions: [],
+      })),
+    };
+    const texts = cellTexts(many);
+    expect(texts[0]).toBe('1. 🪨 k0');
+    expect(texts[8]).toBe('9. 🪨 k8');
+    // 열째부터는 이름만 선다
+    expect(texts[9]).toBe('🪨 k9');
+    expect(texts[10]).toBe('🪨 k10');
+  });
+
+  it('읽어 주는 이름에도 번호가 실린다 — 눈으로만 아는 번호가 되지 않게', () => {
+    const cell = (section(mining, 'items').cells ?? [])[0];
+    // 접근성 이름은 능력이 text 로 짓는다 (engine/view-kernel/hud/surface.ts)
+    expect(cell?.text).toContain('1.');
   });
 });

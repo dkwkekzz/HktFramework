@@ -25,7 +25,7 @@
 // 세계가 새 아이템을 정의해도 이 파일은 바뀌지 않는다 (DC-ITEM-KIND-IS-DATA-NOT-BRANCH).
 
 import type { SceneHudItem, SceneState } from '../../../engine/view-kernel/scene/scene-state';
-import type { GameViewSnapshot } from '../protocol/gameview';
+import type { GameViewSnapshot, InventoryItemView } from '../protocol/gameview';
 import { keyLabel, SLOT_KEY_LABELS } from './key-registry';
 // 종류 이름은 한 자리에서 온다 (V-008) — 같은 세 줄이 세 파일에 있던 자리다
 import { itemName } from './inventory-view';
@@ -97,6 +97,30 @@ export function inventoryKindOf(hudId: string): string | undefined {
 }
 
 /**
+ * 종류 → **그 종류를 부르는 번호** (V-013).
+ *
+ * 번호는 화면이 매기는 것이 아니라 **세계가 보낸 차례**에 자리를 붙인 것이다.
+ * 두 걸음 지름길(`B` → 번호 · `N` → 번호 …)이 세는 것이 바로 이 차례다
+ * (`inventorySlots` 가 같은 순서를 낸다).
+ *
+ * 그래서 이 함수가 하나 있어야 한다 — 띠도 작업 공간도 여기서 번호를 가져간다.
+ * 두 곳이 따로 매기면 **화면이 부르라고 한 번호와 실제로 부르는 번호가 갈라지고**,
+ * 그것을 아는 방법은 눌러 보는 것뿐이다 (V-003 이 키 표기에서 막은 것과 같은 어긋남).
+ *
+ * 아홉을 넘는 것에는 번호가 없다 — 세지 못하는 것이 아니라 손가락 자리가 거기까지다.
+ */
+export function inventorySlotKeys(
+  inventory: readonly InventoryItemView[],
+): ReadonlyMap<string, string> {
+  const keys = new Map<string, string>();
+  inventory.forEach((entry, index) => {
+    const slot = SLOT_KEYS[index];
+    if (slot) keys.set(entry.kind, slot);
+  });
+  return keys;
+}
+
+/**
  * 지금 장면의 소지품 칸들 — 세계가 보낸 순서 그대로다.
  *
  * 조립 루트는 이것으로 "1 번 칸이 무엇인가" 를 안다. 화면이 순서를 만들지 않는다 —
@@ -147,13 +171,15 @@ export function inventoryHudItems(
     ];
   }
 
+  const slotKeys = inventorySlotKeys(inventory);
   // 항목마다 **한 칸**이다. 수량은 한눈에 읽히고 자주 바뀌므로 띠에 남는다 —
   // 캐서 늘어난 것이 반짝이는 자리도 여기다 (celebrateText 는 counter 에만 붙는다).
   // 그것으로 무엇이 되는가는 읽어야 아는 것이라 self 패널로 내려간다.
   return [
     ...roomLine,
-    ...inventory.map((entry, index) => {
-      const slot = SLOT_KEYS[index];
+    ...inventory.map((entry) => {
+      // 번호는 한 자리에서 온다 (V-013) — 작업 공간의 칸도 같은 표를 읽는다
+      const slot = slotKeys.get(entry.kind);
       const icon = CATEGORY_ICON[entry.category];
       return {
         id: `${INVENTORY_HUD_PREFIX}${entry.kind}`,

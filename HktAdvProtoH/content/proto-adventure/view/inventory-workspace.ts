@@ -48,6 +48,7 @@ import {
   setSearch,
   visibleItems,
 } from './inventory-view';
+import { inventorySlotKeys } from './inventory-presentation';
 import { isFresh, markSeen, noteObserved, resetFresh } from './inventory-new';
 import { keyLabel } from './key-registry';
 import { openSurface, surfaceIsOpen } from './surface-state';
@@ -777,6 +778,8 @@ function itemTip(
 
 function itemCells(
   shown: readonly InventoryItemView[],
+  /** 지닌 것 **전부** — 번호는 걸러지기 전의 차례에서 온다 (아래) */
+  all: readonly InventoryItemView[],
   text: (code: string) => string,
   shortText: (code: string) => string,
 ): SceneSurfaceCell[] {
@@ -784,11 +787,22 @@ function itemCells(
   // "몇 개부터 많은 것인가" 를 화면이 정하면, 세계가 겹침 한도를 바꿀 때마다 화면이
   // 거짓말을 하게 된다 (기술 띠의 넓이 막대가 같은 규칙으로 선다 — skill-presentation).
   const most = Math.max(0, ...shown.map((entry) => entry.count));
+  // 부르는 번호 (V-013) — **보이는 차례가 아니라 세계가 준 차례**다.
+  //
+  // 이 구분이 이 작업의 전부다. 거르고 정렬하면 칸이 서는 자리는 바뀌지만 지름길이
+  // 세는 차례는 그대로다 (지름길은 이 표면을 보지 않는다). 보이는 자리로 번호를
+  // 매기면 걸러진 화면에서 `B → 2` 가 눈에 보이는 둘째가 아닌 것을 짚는다 —
+  // 그리고 그것을 아는 방법은 눌러 보는 것뿐이다.
+  const slotKeys = inventorySlotKeys(all);
   return shown.map((entry) => {
     const icon = CATEGORY_ICON[entry.category];
+    const key = slotKeys.get(entry.kind);
+    const name = itemName(entry.kind, text);
     return {
       id: `item.${entry.kind}`,
-      text: icon ? `${icon} ${itemName(entry.kind, text)}` : itemName(entry.kind, text),
+      // 번호가 이름 앞에 선다 — 위쪽 소지품 띠가 이미 `1. 곡괭이` 로 적는 그 꼴이다.
+      // 아홉을 넘는 것에는 번호가 없고, 그때는 이름만 선다 (없는 자리를 짓지 않는다)
+      text: [key ? `${key}.` : '', icon, name].filter(Boolean).join(' '),
       // 수량은 **숫자와 명암을 함께** 쓴다 — 색만으로 구분하지 않는다 (문서 §3)
       detail: `×${entry.count}`,
       ...(most > 0 ? { level: entry.count / most } : {}),
@@ -1136,7 +1150,7 @@ export function inventoryWorkspace(
           ? `지닌 것 — ${shown.length} / ${all.length} 종류 · ${narrowedBy().join(' · ')}`
           : `지닌 것 — ${all.length} 종류`,
         columns: COLUMNS,
-        cells: itemCells(shown, text, shortText),
+        cells: itemCells(shown, all, text, shortText),
         // 지닌 것이 없는 것과 조건에 걸린 것이 없는 것은 다른 일이다 (문서 §6)
         emptyText:
           all.length === 0 ? '소지품 없음' : '조건에 맞는 아이템 없음 · 필터 초기화',
