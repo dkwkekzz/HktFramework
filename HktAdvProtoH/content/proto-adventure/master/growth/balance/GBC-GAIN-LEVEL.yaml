@@ -1,0 +1,74 @@
+# 원본 근거: content/proto-adventure/design/Design-Growth-Balance-R0.md (GB) §31 Growth Balance Contract.
+# 대상 성장: frontier/growth.md 의 FR-WHAT-YOU-DID-MAKES-YOU (C-GROWTH-001 · 착수 전).
+id: GBC-GAIN-LEVEL
+type: growth_balance_contract
+
+grants: [MC-GAIN-LEVEL]
+route: >
+  세계 안에서 한 일 — 싸우고 · 탐험하고 · 발견하고 · 사건을 해결한 것 — 이 쌓여 문턱을
+  넘으면 몸의 기본값이 오른다 (GS §5 · §19). 지금 그 값을 바꾸는 유일한 길은 세계 밖의
+  디버그 명령이며, 이 성장이 그것을 대신한다.
+tier: GT1
+# GB §19 의 GT1 허용 목록이 "소규모 Attribute 증가" 를 그대로 든다 — 지어낸 배정이 아니다.
+
+cost_profile:
+  time: 3          # 문턱을 넘으려면 여러 번의 의미 있는 플레이가 필요하다 (GB §4.1)
+  risk: 2          # 전투에서 쌓는 몫에는 죽을 위험이 걸리지만 이 성장만의 특별한 위험은 없다
+  skill: 1         # 잘해야 오르는 것이 아니다 — 그것은 숙련 축의 몫이다 (MC-GROW-CLASS-MASTERY)
+  knowledge: 1     # 세계를 알아야 오르지 않는다
+  resource: 1      # 자원을 소비하지 않는다
+  opportunity: 1   # 이것을 올린다고 다른 성장이 막히지 않는다
+  repeatability: 1 # 같은 방법을 무한히 반복할 수 있다 — 그래서 비용이 낮다 (GB §4.7)
+
+reward_profile:
+  vertical_power: 4     # 하던 것을 더 세게 한다 — 이 성장의 본체다
+  survivability: 3      # 생명력과 버티는 값이 함께 오른다
+  capability_access: 1  # **새로 할 수 있게 되는 것이 없다** — 그것은 스킬 숙련과 형태의 몫이다
+  applicability: 5      # 모든 상황·모든 상대에 걸린다
+  reliability: 5        # 조건 없이 언제나 적용된다
+  permanence: 5         # 한 번 오르면 내려가지 않는다
+  economic_utility: 1   # 전투와 탐험 밖에서 쓸모가 없다
+
+power_envelope:
+  general_combat: small_change_per_step
+  # 적용·발동·지속이 전부 최대치이므로 한 단계의 폭이 작아야 한다 —
+  # 강도와 범용성을 동시에 주지 않는다 (GB §20 · DC-GROWTH-POWER-PAYS-IN-REACH-OR-CONSTRAINT).
+  specialized_combat: same_as_general
+  # 이 축은 상대를 가리지 않는다 — 특정 상대에게만 크게 듣는 몫이 없다.
+  exploration_gate: none
+  # **땅의 문턱을 이 값으로 열지 않는다** (HISTORY Q53(a)). 갈 수 있는 곳은 감당 여부가 정한다.
+  economy: none
+
+capability_reach:
+  effective:
+    - 몸의 기본값이 들어가는 판정 전부 (때리는 값 · 버티는 값 · 기력 · 기본 이동)
+  partial:
+    - 걸어 둔 것이 얹는 유효 값 — 기본값이 올라 함께 커지지만 이 성장이 그 물건을 바꾸지는 않는다
+  ineffective:
+    - 할 수 있는 **행동**을 늘리지 않는다 — 못 하던 일은 올라도 못 한다
+    - 땅의 법칙을 감당하게 하지 않는다 (열을 거두는 땅은 값이 높아도 거둔다)
+    - 형태(Class)를 바꾸지 않는다 — 문턱 넷 중 하나일 뿐이다 (GS §6)
+
+gate_coverage: []
+# 이 성장은 어떤 관문도 열지 않는다. 그래서 DC-GROWTH-NOT-A-MASTER-KEY 와 부딪힐 여지가 없고,
+# 동시에 이 성장만으로는 세계가 넓어지지 않는다는 뜻이기도 하다 (GB §9 · §24).
+
+constraints:
+  - DC-WORLD-PROGRESSION-IS-REACH
+  - DC-GROWTH-GOAL-FIRST
+  - DC-GROWTH-POWER-PAYS-IN-REACH-OR-CONSTRAINT
+  - DC-GROWTH-CAPABILITY-DECLARES-ITS-LIMITS
+  - DC-GROWTH-REWARD-IS-NEW-REACH
+  - DC-COMBAT-PLAYER-CAUSALITY
+constraint_evaluation:
+  DC-WORLD-PROGRESSION-IS-REACH: SATISFIED                  # exploration_gate: none 이 그 원칙 그대로다
+  DC-GROWTH-GOAL-FIRST: SATISFIED                           # 오르는 것 자체가 Goal 이 아니다
+  DC-GROWTH-POWER-PAYS-IN-REACH-OR-CONSTRAINT: UNRESOLVED   # 범용·상시·영구이므로 한 단계의 폭이 작아야 한다 — 그 폭은 C-GROWTH-001 의 03 이 정한다
+  DC-GROWTH-CAPABILITY-DECLARES-ITS-LIMITS: SATISFIED       # 위 capability_reach 세 칸이 그 요구다
+  DC-GROWTH-REWARD-IS-NEW-REACH: SATISFIED                  # 값을 일곱 축으로 밝혔고 capability_access 가 1 임을 숨기지 않는다
+  DC-COMBAT-PLAYER-CAUSALITY: SATISFIED                     # 오른 원인이 관찰 가능한 행위이고 난수가 없다
+
+validation:
+  static: PENDING      # 비교 집합이 이 하나뿐이다 — 견줄 상대가 없어 Dominance 를 잴 수 없다 (GB §16)
+  benchmark: N/A       # Cycle 착수 전이다. 전/후 대조는 C-GROWTH-001 의 08 이 돌린다
+  human_review: REQUIRED

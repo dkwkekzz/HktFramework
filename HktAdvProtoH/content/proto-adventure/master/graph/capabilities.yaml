@@ -7,6 +7,8 @@
 #        BW = content/proto-adventure/design/Master-World-Beira.md (탐험 — Q18(a) 매핑된 전투 노드에는 보조 근거로 허용)
 #        TG = content/proto-adventure/design/Design-Targeting-R0.md (지목)
 #        BT = content/proto-adventure/design/Master-World-Beira-Terrain.md (대지형)
+#        GS = content/proto-adventure/design/Master-Fairy-Growth-System.md (성장 — 요정 캐릭터 성장 시스템)
+#        GB = content/proto-adventure/design/Design-Growth-Balance-R0.md (성장 — 비용·보상 균형)
 #
 # ── 이 파일을 읽는 법 ────────────────────────────────────────────────────
 # Capability 는 "세계가 할 줄 아는 일" 의 목록이다. 스킬 목록도 구현 모듈 목록도 아니다.
@@ -1479,6 +1481,10 @@ nodes:
         - system: MS-RESOURCE-GATE
           source: IS §4 (BW §17 의 게이트가 몸에 닿는 지점)
           role: 성질에서 능력으로 이어지는 사슬이 실제 몸에 적용되는 자리
+        - system: MS-GROWTH-SOURCE
+          segment: EQUIPMENT
+          source: GS §5 · §19 (성장 다섯 축 중 장비 축 — 이미 선 이 노드가 그 자리다)
+          role: 다섯 성장 축 가운데 유일하게 이미 세계에 서 있는 축
     required_by: [MP-ADAPT-BY-RESOURCE]
     demanded_by: []
     constraints: [DC-ITEM-HOLDING-IS-NOT-APPLYING, DC-ITEM-CAPABILITY-COMES-FROM-GRANTS, DC-GROWTH-NO-CAPABILITY-DUPLICATION, DC-ITEM-CAPACITY-IS-FINITE, DC-ITEM-LIVES-IN-ONE-PLACE, DC-ITEM-CHANGE-IS-ONE-UNIT]
@@ -1864,6 +1870,185 @@ nodes:
     overlay_gap: >-
       몸의 상태를 좇는 것이 없다 — 남은 생명은 관찰에 실리지만 그것을 근거로 삼는 존재가 없다
 
+  # ══ 성장의 원천 (GS) ═══════════════════════════════════════════════════
+  # GS 가 낳은 DC 여덟은 Q52 로, GB 가 낳은 일곱은 Q56 으로 승인되어 아래 다섯에 배선되었다.
+  # GB 쪽 판정이 UNRESOLVED 로 남는 자리가 있다 — 그 원칙이 요구하는 칸(reach · envelope)이
+  # growth/balance/ 에 채워질 때 닫힌다 (HISTORY Q56 · Q58(c)).
+
+  - id: MC-GAIN-LEVEL
+    type: capability
+    semantic: >
+      세계에서 한 일 — 싸우고, 탐험하고, 발견하고, 사건을 해결한 것 — 이 몸의 기본값을
+      키운다.
+    detail: >
+      이 노드가 채우는 자리를 먼저 말하는 편이 빠르다. 지금 세계에는 능력치가 결과를
+      바꾸는 규칙은 있지만 그 값을 세계 안의 행위로 키우는 경로가 없고, 그것이
+      MP-OUTGROW-THE-OPPONENT 가 "자라는 축이 없다" 고 적어 둔 자리다. GS §19 가 그 축을
+      처음으로 명명한다 — 전투와 탐험과 발견과 사건 해결이 오르는 값이 되고, 그 값이
+      생명력·공격력·방어력·기력·기본 이동 능력을 키운다 (GS §5). 문서가 MC-ATTACK-POWER 를
+      이름으로 지목해 "이제 디버그 명령이 아니라" 라고 적은 것이 바로 이 경로다 (GS §19).
+      다른 축과 헷갈리면 안 된다. 이것은 누구에게나 같은 방식으로 오르는 바닥이고,
+      형태마다 다르게 오르는 것은 숙련(MC-GROW-CLASS-MASTERY)이다.
+    world_shape: >
+      세계 안에서 한 일이 몸의 기본값을 바꾸고, 그 값이 오른 뒤 같은 상대·같은 행동의
+      결과가 실제로 달라져야 한다. 값을 바꾸는 경로가 개발자 명령뿐이면 이 능력은 없는 것이다.
+    part_of:
+      grounded: true
+      memberships:
+        - system: MS-GROWTH-SOURCE
+          segment: LEVEL
+          source: GS §5 · §19
+          role: 누구에게나 같은 방식으로 오르는 바닥 축
+    required_by: [MP-OUTGROW-THE-OPPONENT, MP-BECOME-A-HIGHER-FORM]
+    demanded_by: []
+    constraints: [DC-WORLD-PROGRESSION-IS-REACH, DC-GROWTH-GOAL-FIRST, DC-GROWTH-CLASS-CHANGE-NEEDS-THE-WORLD,
+                  DC-GROWTH-POWER-PAYS-IN-REACH-OR-CONSTRAINT, DC-GROWTH-CAPABILITY-DECLARES-ITS-LIMITS]
+    constraint_evaluation:
+      DC-WORLD-PROGRESSION-IS-REACH: SATISFIED    # 레벨은 기본값을 키우는 바닥 축이고 어디에 갈 수 있는가는 여전히 감당 여부가 정한다 — 땅의 문턱을 레벨로 걸지 않는다 (HISTORY Q53(a))
+      DC-GROWTH-GOAL-FIRST: SATISFIED             # 레벨 자체는 Goal 이 아니다 — 갈래의 조건으로만 선다
+      DC-GROWTH-CLASS-CHANGE-NEEDS-THE-WORLD: SATISFIED   # 이 축만으로는 형태가 바뀌지 않는다 — 문턱 넷 중 하나일 뿐이다 (GS §6)
+      DC-GROWTH-POWER-PAYS-IN-REACH-OR-CONSTRAINT: UNRESOLVED   # 모든 상황에 걸리는 범용 축이므로 한 단계의 폭이 작아야 한다 — 그 폭은 C-GROWTH-001 의 03 이 정한다 (GB §20)
+      DC-GROWTH-CAPABILITY-DECLARES-ITS-LIMITS: SATISFIED        # growth/balance/GBC-GAIN-LEVEL.yaml 이 통함/부분/안 통함을 밝힌다
+    overlay: MISSING
+    overlay_gap: >-
+      값을 키우는 축이 세계에 없다 — 능력치를 바꾸는 유일한 규칙이 디버그 명령이고 나머지는 걸어 둔 물건이 잠시 얹는 유효 값뿐이다
+
+  - id: MC-GROW-CLASS-MASTERY
+    type: capability
+    semantic: >
+      그 형태 고유의 행동을 해낸 것이 그 형태의 숙련으로 쌓인다 — 같은 상대를 같은 횟수로
+      상대해도 형태마다 자라는 것이 다르다.
+    detail: >
+      괴력 형태는 강한 적과 힘겨루기 · 공격을 정면으로 받아내기 · 거대한 구조물 파괴로
+      오르고, 속도 형태는 연속 이동 · 공격 직전 위치 변경 · 투사체 방향 변경으로 오른다
+      (GS §5). 기준이 "무엇을 몇 번 잡았는가" 가 아니라 "무엇을 했는가" 라는 점이 이 노드의
+      전부이며, 레벨(MC-GAIN-LEVEL)과 갈리는 지점도 거기다.
+      탐험 쪽 얼굴은 MC-GROW-EXPLORATION-MASTERY 다 — 둘은 다른 능력이 아니라 같은 원리의
+      두 쓰임이며 (GS §8), GS §19 가 성장 원천 표에서 둘을 따로 세었기 때문에 노드도 둘이다.
+    world_shape: >
+      형태마다 세는 행동이 다르고, 그 행동을 해낸 것이 몸에 남으며, 쌓인 것이 다음 형태로
+      넘어가는 조건이 되어야 한다. 무엇을 하든 같은 값이 오르면 이 능력이 아니다.
+    part_of:
+      grounded: true
+      memberships:
+        - system: MS-GROWTH-SOURCE
+          segment: CLASS-MASTERY
+          source: GS §5 · §19
+        - system: MS-CLASS-EVOLUTION
+          source: GS §6
+          role: 다음 층으로 넘어가는 네 문턱 중 하나
+    required_by: [MP-BECOME-A-HIGHER-FORM]
+    demanded_by: []
+    constraints: [DC-GROWTH-MASTERY-FROM-OWN-BEHAVIOR, DC-GROWTH-DIFFERENCE-IS-BEHAVIOR,
+                  DC-GROWTH-CAPABILITY-DECLARES-ITS-LIMITS]
+    constraint_evaluation:
+      DC-GROWTH-MASTERY-FROM-OWN-BEHAVIOR: SATISFIED   # 세는 행동이 형태의 원리에서 나온다 (GS §5)
+      DC-GROWTH-DIFFERENCE-IS-BEHAVIOR: SATISFIED      # 자라는 방법의 차이가 곧 반복하는 행동의 차이다
+      DC-GROWTH-CAPABILITY-DECLARES-ITS-LIMITS: UNRESOLVED   # 통함/부분/안 통함이 아직 없다 — growth/balance/ 에 이 성장의 Contract 가 서면 닫힌다
+    overlay: MISSING
+    overlay_gap: >-
+      형태(Class)라는 것이 세계에 없다 — 몸이 한 종류이고 무엇을 했는지 세는 자리도 없다
+
+  - id: MC-MASTER-A-SKILL
+    type: capability
+    semantic: >
+      같은 스킬을 실제로 쓰고 어렵게 쓸수록 그 스킬이 할 수 있는 행동이 늘어난다.
+    detail: >
+      GS §18 이 한 스킬의 성장을 끝까지 적는다 — 짧은 직선 Dash 가 공중에서도 쓸 수 있게
+      되고, Dash 도중 방향을 바꿀 수 있게 되고, 적을 통과하면 추가 공격이 되고, 연속으로
+      방향을 바꿀 수 있게 된다. 새 스킬을 하나 더 받는 것이 아니라 쓰던 것의 쓰임새가
+      넓어지는 것이며, 그래서 이 축이 오르면 같은 스킬이 이전에는 성립하지 않던 상황에서
+      성립하게 된다. 수치만 오르는 성장과 갈리는 지점이 거기다 (GS §18 마지막 줄).
+    world_shape: >
+      한 스킬이 쓰인 이력이 세계에 남고, 그것이 쌓이면 같은 스킬이 이전에 못 하던 상황에서
+      성립해야 한다. 늘어난 것이 값뿐이면 이 능력이 아니다.
+    part_of:
+      grounded: true
+      memberships:
+        - system: MS-GROWTH-SOURCE
+          segment: SKILL-MASTERY
+          source: GS §18 · §19
+    required_by: [MP-BECOME-A-HIGHER-FORM]
+    demanded_by: []
+    constraints: [DC-GROWTH-SKILL-GAINS-BEHAVIOR, DC-GROWTH-CAPABILITY-DECLARES-ITS-LIMITS,
+                  DC-GROWTH-POWER-PAYS-IN-REACH-OR-CONSTRAINT]
+    constraint_evaluation:
+      DC-GROWTH-SKILL-GAINS-BEHAVIOR: SATISFIED   # 늘어나는 것이 행동 가능성이라고 semantic 이 직접 말한다 (GS §18)
+      DC-GROWTH-CAPABILITY-DECLARES-ITS-LIMITS: UNRESOLVED       # 자란 스킬이 무엇에 통하지 않는지가 아직 없다 — growth/balance/ 의 Contract 가 닫는다
+      DC-GROWTH-POWER-PAYS-IN-REACH-OR-CONSTRAINT: UNRESOLVED    # 늘어난 행동이 넓어지는 만큼 조건이 붙는지는 그 Cycle 이 정한다 (GB §20)
+    overlay: MISSING
+    overlay_gap: >-
+      스킬이 자란다는 개념이 없다 — 기술은 종류가 정한 값 그대로이고 쓴 이력이 어디에도 남지 않는다
+
+  - id: MC-GROW-EXPLORATION-MASTERY
+    type: capability
+    semantic: >
+      자기 원리로 환경이 낸 문제를 푼 것이 숙련으로 쌓인다.
+    detail: >
+      전투 쪽 얼굴(MC-GROW-CLASS-MASTERY)과 같은 원리의 다른 쓰임이다 (GS §8) — 방향을
+      바꾸는 힘은 적의 돌진을 옆으로 돌리는 데도 쓰이고 자신의 낙하 방향을 바꿔 천장을
+      걷는 데도 쓰인다. 여기서 세는 "환경의 문제" 는 각 땅이 자기 법칙으로 요구하는
+      대응이다 (MW-TERRAIN-* 의 demands). 지나간 것과 푼 것이 다르다는 점이 요점이며,
+      그래서 이 축은 통과 횟수가 아니라 해결의 기록으로만 오른다 (GS §19).
+    world_shape: >
+      환경이 내는 문제가 세계에 있고, 그것을 자기 원리로 푼 것이 남아야 한다.
+      지나간 것만으로 오르면 이 능력이 아니다.
+    part_of:
+      grounded: true
+      memberships:
+        - system: MS-GROWTH-SOURCE
+          segment: EXPLORATION-MASTERY
+          source: GS §8 · §19
+    required_by: [MP-BECOME-A-HIGHER-FORM]
+    demanded_by: []
+    constraints: [DC-GROWTH-EXPLORATION-SHARES-THE-PRINCIPLE, DC-GROWTH-MASTERY-FROM-OWN-BEHAVIOR,
+                  DC-GROWTH-CAPABILITY-DECLARES-ITS-LIMITS]
+    constraint_evaluation:
+      DC-GROWTH-EXPLORATION-SHARES-THE-PRINCIPLE: SATISFIED   # 전투 쪽 숙련과 같은 원리의 다른 쓰임으로 정의된다 (GS §8)
+      DC-GROWTH-MASTERY-FROM-OWN-BEHAVIOR: SATISFIED          # 푼 것만 세고, 무엇을 푸는가는 형태의 원리가 정한다
+      DC-GROWTH-CAPABILITY-DECLARES-ITS-LIMITS: UNRESOLVED    # 어느 환경 문제에 통하지 않는지가 아직 없다 — 땅이 서고 Contract 가 서야 닫힌다
+    overlay: MISSING
+    overlay_gap: >-
+      땅이 없어 풀 환경 문제가 없다 — 세계가 장소에 대해 아는 것은 사각형 하나의 경계뿐이다
+
+  - id: MC-CHANGE-CLASS
+    type: capability
+    semantic: >
+      조건을 갖춘 몸이 이전 형태를 기반으로 삼아 상위 형태가 된다 — 갈아 끼우는 것이
+      아니라 자라는 것이다.
+    detail: >
+      네 가지가 함께 차야 열린다 — Level · 그 형태의 숙련 · 자기 원리와 관련된 세계 현상을
+      직접 겪은 것 · 그 강한 형태를 유지하는 세계의 Property (GS §6). 그리고 바뀌는 것이
+      값이 아니라는 점이 이 노드의 요점이다: 외형과 실루엣이 바뀌고, 그 형태의 Signature 가
+      강해지고, 새 Skill 과 Ultimate 와 새 탐험 Capability 가 함께 온다 (GS §7 · §20).
+      전직과 헷갈리면 안 된다 — 이전 형태는 사라지지 않고 상위 형태의 기반으로 남는다
+      (GS §3.1).
+    world_shape: >
+      몸이 형태를 가지고, 그 형태가 네 조건을 만족하면 상위 형태가 되며, 바뀐 뒤에는
+      이전에 못 하던 일이 되고 그 사실이 멀리서 보아도 읽혀야 한다. 조건이 레벨 하나뿐이면
+      이 능력이 아니다.
+    part_of:
+      grounded: true
+      memberships:
+        - system: MS-CLASS-EVOLUTION
+          source: GS §3 · §4 · §6 · §7
+          role: 층과 층 사이를 넘는 자리 — 어느 한 층에 속하지 않는다
+    required_by: [MP-BECOME-A-HIGHER-FORM]
+    demanded_by: []
+    constraints: [DC-GROWTH-CLASS-CHANGE-KEEPS-THE-PAST, DC-GROWTH-CLASS-CHANGE-NEEDS-THE-WORLD,
+                  DC-GROWTH-STAGE-READS-AT-A-DISTANCE, DC-GROWTH-PRINCIPLE-IS-PLAYED,
+                  DC-GROWTH-NOT-A-MASTER-KEY, DC-GROWTH-CAPABILITY-DECLARES-ITS-LIMITS]
+    constraint_evaluation:
+      DC-GROWTH-CLASS-CHANGE-KEEPS-THE-PAST: SATISFIED     # 이전 형태가 기반으로 남는다고 semantic 이 직접 말한다 (GS §3.1)
+      DC-GROWTH-CLASS-CHANGE-NEEDS-THE-WORLD: SATISFIED    # 네 조건 중 둘이 세계에서만 온다 (GS §6)
+      DC-GROWTH-STAGE-READS-AT-A-DISTANCE: SATISFIED       # 단계가 외형으로 함께 바뀐다 (GS §7)
+      DC-GROWTH-PRINCIPLE-IS-PLAYED: SATISFIED             # 상위 형태가 값이 아니라 할 수 있는 행동과 외형으로 나타난다 (GS §7 · §20)
+      DC-GROWTH-NOT-A-MASTER-KEY: UNRESOLVED               # 한 형태가 여는 관문의 목록은 CL-* 가 서야 셀 수 있다 (GB §24)
+      DC-GROWTH-CAPABILITY-DECLARES-ITS-LIMITS: UNRESOLVED # 상위 형태가 무엇에 통하지 않는지도 CL-* 와 함께 선다
+    overlay: MISSING
+    overlay_gap: >-
+      몸이 형태를 갖지 않는다 — CL-* 노드가 0 개이고 세계의 몸은 종류 하나로 고정이다
+
 # ── 근거와 비주입 ────────────────────────────────────────────────────────
 # 전투  R1  content/proto-adventure/design/Design-Combat-OffenseDefense-R0.md
 #           §1~§5 · §10 신규 INTENT · §13 하지 않을 것 · §14 확장 순서 · §15 층 그림
@@ -1945,3 +2130,51 @@ nodes:
 # 2026-08-26 Human 승인, HISTORY Q51).
 # §12 의 지형 간 연결(자원이 다음 지형을 연다)도 새 노드가 아니다 —
 # MP-ADAPT-BY-RESOURCE 와 DC-WORLD-PROGRESSION-IS-REACH 가 이미 소유한 형태다.
+
+# 비주입 — GS (content/proto-adventure/design/Master-Fairy-Growth-System.md) 의 계열별 능력 목록
+# (§9~§16 의 전투 · 탐험 나열 — 충격 저장 · 낙하 방향 전환 · 열 흡수 · 표식 · 호흡 공간
+# 생성 · 거대 생물 교감 …)은 노드로 세우지 않았다. 문서 자신이 그 절을 "대지형을 플레이어
+# 캐릭터의 능력으로 변환한 **예시**" 라고 밝히고 (GS §9 머리), 그 능력들을 요구하는
+# Possibility 를 공급하지 않는다 — 지금 세우면 required_by 와 demanded_by 가 둘 다 빈
+# 노드가 된다 (SCHEMA). 게다가 여덟 계열의 능력 대부분은 그 계열이 딛고 선 땅이 이미
+# 요구하고 있다 (MC-IMPERSONATE-IDENTITY · MC-REALIZE-ONE-POSSIBILITY ·
+# MC-RESTORE-BIOLOGICAL-STATE · MC-CARRY-LIFE-SUPPORT · MC-ANCHOR-LOCAL-LAW …) —
+# 같은 의미를 계열 이름으로 복제하지 않는다 (DC-GROWTH-NO-CAPABILITY-DUPLICATION).
+# 계열 자체는 사라지지 않았다: graph/systems.yaml 의 MS-FAIRY-LINEAGE 여덟 자리가 그것이며,
+# 그 자리를 채우는 것은 계열별 설계 문서의 주입이다.
+#
+# 비주입 — GS §8 이 모든 Class 에 요구하는 구성(Signature Attack · Mobility/Defense ·
+# Utility/Control · Class Mechanic · Ultimate · World Action 둘 · Passive)은 Capability 가
+# 아니라 **Class 정의의 형태**다 — CL-* 가 세워질 때 그 노드가 지는 요구이며, 그 자리는
+# growth/classes/ 다. 지금 비어 있는 이유는 이름 충돌이 아니라 순서다 (HISTORY Q55(b) —
+# 이름은 GS 소유로 정해졌고, CL-* 는 계열별 설계 문서의 주입이 세운다).
+#
+# 비주입 — GS §5 의 "현재 전투력 = Level + Class Mastery + Skill Mastery +
+# Exploration Mastery + Equipment Property" 는 합산 공식이므로 여기에 올리지 않았다.
+# 다섯 축이 각각 노드이고, 그것들이 어떻게 합쳐져 결과가 되는지는 Cycle 의
+# 03-world-semantic.md 소유다 (정책 §7.2).
+
+# 비주입 — GB (content/proto-adventure/design/Design-Growth-Balance-R0.md) 는 이 파일에
+# **노드를 하나도 더하지 않는다.** 새 Goal · Possibility · Capability 를 공급하지 않기
+# 때문이다 — 그 문서가 다루는 것은 세계가 무엇을 할 수 있는가가 아니라 **이미 있는 성장을
+# 어떻게 평가하는가**다. 옮긴 것은 전부 constraints/ 로 갔다 (DRAFT 7종 — Q56).
+#
+# 비주입 — GB 가 요구하는 평가 칸(Cost Profile §4 · Reward Profile §6 · Power Envelope §25 ·
+# Capability Reach §23 · Gate Coverage §24 · Growth Balance Contract §31)은 이 노드들에
+# 더하지 않았다. SCHEMA 의 Capability 에 그런 칸이 없고, **없는 칸을 주입이 만들지 않는다**
+# (HISTORY Q51 선례 — 형식을 바꾸는 일은 주입의 몫이 아니다). 그 칸이 어디에 사는지는
+# open-questions Q58 이 정한다. 그때까지 DC-GROWTH-CAPABILITY-DECLARES-ITS-LIMITS 와
+# DC-GROWTH-INTENT-IS-MEASURED 는 원칙으로만 서 있고 검사할 자리가 없다.
+#
+# 비주입 — GB §26~§28 의 Benchmark(BM-01~BM-08 · 측정 항목 아홉) · §30 의 세 단계 검증 ·
+# §33 의 실패 상태 코드 열두 개는 Master 의 것이 아니다. 같은 조건을 성장 전후로 굴려
+# 재는 일은 Cycle 의 08-verification.md 와 검증 도구가 소유한다 (정책 §7.2). 여기 남는
+# 것은 "그렇게 대조한다" 는 원칙 하나뿐이다 (DC-GROWTH-INTENT-IS-MEASURED).
+#
+# 비주입 — GB §5 의 5단계 점수(1~5)와 §31 Contract 의 값들은 수치이므로 옮기지 않았다.
+# §18 의 여섯 단계(GT0~GT5)만은 값이 아니라 구조여서 graph/systems.yaml 의
+# MS-GROWTH-TIER 로 섰다 — 다만 **어느 노드가 어느 단계인지는 GB 가 말하지 않으므로
+# 배정하지 않았다** (배정된 노드 0). 지어내면 주입이 아니라 창작이 된다.
+#
+# 비주입 — GB §29 의 자원 Profile(IP-* 의 acquisition · utility · limitations)도 같은
+# 이유로 growth/items 에 더하지 않았다. 칸의 자리가 Q58 이다.

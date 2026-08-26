@@ -187,6 +187,31 @@ C026 이 그 셋을 한 표면에 세웠다. **이 표는 한 칸도 바뀌지 �
 | MC-CRAFT-FROM-MATERIALS | MISSING | 코드 대조 — 재료를 다른 것으로 바꾸는 규칙이 0건이다. 재료를 **줄이는** 통로는 C020 으로 생겼다 | 제작법 데이터 · 가능 여부 판정 · 재료 소모와 결과물 생성의 한 단위 처리 |
 | MC-TRANSFER-ITEM | MISSING | 코드 대조 — 물건은 언제나 누군가의 몸 안에 있다. 위치를 가진 아이템 존재가 없다. 몸 **안**에서 사라지는 경로는 C020 으로 생겼다 | 몸 밖의 아이템 · 줍기 · 버리기 · 전리품 보관소 · 획득 권한 · 소멸. 쓰러진 몸에서 아무것도 나오지 않는 것이 이 결손이다. IE 가 더한 것: 적용해 둔 것을 내려놓는 길이 담을 곳을 거치지 않는다는 것 (IE §35) |
 
+## Capability — 성장 영역 (GS)
+
+`content/proto-adventure/design/Master-Fairy-Growth-System.md`(GS) 주입으로 섰다. 이 표는 overlay 의 둘째 구멍
+("성장이 세계 밖에 있다")에 **처음으로 이름을 붙인 자리**다 — 지금까지 능력치를 바꾸는
+유일한 경로는 디버그 명령이었고, 그것이 결손인 줄은 알았지만 **무엇이 그 자리에
+들어와야 하는지**는 어느 문서도 말하지 않았다. GS §5 · §19 가 그 축을 다섯으로
+명명한다.
+
+다섯 중 넷이 여기 있고 **다섯째(장비)는 이 표에 없다** — 이미 아이템 영역에서
+IMPLEMENTED 로 서 있는 MC-EQUIP-ITEM 이 그 자리이기 때문이다 (같은 의미를 성장
+이름으로 복제하지 않는다 — DC-GROWTH-NO-CAPABILITY-DUPLICATION). 그래서 다섯 축 중
+**하나는 이미 서 있고 넷이 비어 있다**는 것이 이 절의 그림이며, 서 있는 그 하나조차
+성장이 아니라 자원으로 감당하는 갈래에 매달려 있다.
+
+마지막 줄(MC-CHANGE-CLASS)은 나머지 넷과 성격이 다르다 — 축이 아니라 축들이 다 찼을 때
+넘는 **문턱**이고, 그것이 넘어가는 형태(CL-*)가 아직 노드로 서지 못했다
+(Class Line 의 이름이 문서마다 어긋난다 — open-questions Q55).
+
+| Capability | 상태 | 근거 | 부족한 것 |
+|---|---|---|---|
+| MC-GAIN-LEVEL | MISSING | — | 값을 키우는 축이 세계에 없다 — 능력치를 바꾸는 유일한 규칙이 디버그 명령이고 나머지는 걸어 둔 물건이 잠시 얹는 유효 값뿐이다 |
+| MC-GROW-CLASS-MASTERY · MC-GROW-EXPLORATION-MASTERY (같은 원리의 두 쓰임 — GS §8) | MISSING | — | 형태(Class)라는 것이 세계에 없다 — 몸이 한 종류이고 무엇을 했는지 세는 자리도 없다 |
+| MC-MASTER-A-SKILL | MISSING | — | 스킬이 자란다는 개념이 없다 — 기술은 종류가 정한 값 그대로이고 쓴 이력이 어디에도 남지 않는다 |
+| MC-CHANGE-CLASS | MISSING | — | 몸이 형태를 갖지 않는다 — CL-* 노드가 0 개이고 세계의 몸은 종류 하나로 고정이다 |
+
 ## World / Actor / Knowledge — 세계 자체는 얼마나 서 있는가
 
 Capability 만 보면 전투가 꽤 찬 것처럼 보이지만, 그 전투가 놓일 **세계**가 거의 없다.
@@ -202,11 +227,12 @@ Capability 만 보면 전투가 꽤 찬 것처럼 보이지만, 그 전투가 �
 | MW-HYPER-PREDATION · MW-SPATIAL-SHEAR | ABSENT | 대표 지역 둘 다 없다 |
 | MW-MACRO-TERRAIN | ABSENT | 땅이라는 것이 없다 — 세계가 장소에 대해 아는 것은 사각형 하나의 경계뿐이다 (`world/semantic/position.ts#WorldBounds`) |
 | MW-TERRAIN-* 8종 (BT §4~§11) | ABSENT | 머물 곳과 나갈 곳의 구분이 없다 — 무대가 하나다 |
-| MA-PLAYER | PARTIAL | 몸이 한 종류로 고정이라 고를 갈래 자체가 없다 |
+| MA-PLAYER | PARTIAL | 몸이 한 종류로 고정이라 고를 갈래 자체가 없다 — 요정 계열 여덟(MS-FAIRY-LINEAGE)이 그 자리이고 아직 비어 있다 |
 | MA-HOSTILE-COMBATANT | PRESENT | **C018 로 마지막 칸이 닫혔다** — 스스로 순찰·추격·공격하고, 플레이어와 **같은 관문**을 지나며(몬스터 전용 규칙 없음), 이제 지킬 자리를 지녀 그 행동이 자기 영역을 지키는 것으로 읽힌다. 같은 종류 두 개체가 하나는 적대하고 하나는 하지 않는다 — 적대가 종류가 아니라 사정의 결과다 |
 | MK-LOCAL-WORLDSTATE | ABSENT | 지역이 없다. 다만 "모르는 상태" 라는 것 자체는 C014 로 세계에 생겼다 (살펴봄 이전) — 얹힐 바닥은 섰다 |
 | MK-OPPONENT-DEFENSE-SHAPE | PARTIAL | 방어 형태와 관통 반영값이 관찰에 실리고 (C012 · C013), 그것을 **알게 되는 과정**이 생겼다 — 살펴보기 전에는 가려져 있고 (C014), 통찰을 기르면 자리별로 열린다 (C016) |
 | MK-OPPONENT-FLOW-PATTERN | ABSENT | 힘을 배분하는 상태가 없다 |
+| MK-WITNESSED-WORLD-PHENOMENON | ABSENT | 드물게 일어나는 세계 현상이 없다 — 세계에서 일어나는 일은 존재들의 행동뿐이고 그 자리에 있었다는 사실도 남지 않는다 |
 
 ## Possibility 별로 본 상태
 
@@ -218,7 +244,7 @@ Capability 만 보면 전투가 꽤 찬 것처럼 보이지만, 그 전투가 �
 |---|---|---|
 | MP-MATCH-WEAPON-TO-ARMOR | **없음** | **C012 로 닫혔다** — 지금 플레이 가능하다 |
 | MP-PIERCE-THE-HARD-DEFENSE | **없음** | **C013 로 닫혔다** — 지금 플레이 가능하다. 다만 아직 좁다: 플레이어가 관통을 **얻는** 경로가 세계에 없다 (종류가 정한 값과 디버그뿐 — growth/growth-graph.md) |
-| MP-OUTGROW-THE-OPPONENT | MC-ATTACK-POWER(PARTIAL) + 성장의 원천 | 능력치가 결과를 바꾸는 것은 닫혔고, **C023 으로 그 값을 플레이로 바꾸는 첫 경로가 열렸다**(걸면 오르고 풀면 돌아온다). 그러나 이 갈래가 말하는 것은 *압도*이므로 **자라는 축**이 여전히 없다 — 걸고 푸는 것은 값을 오르내리게 할 뿐 키우지 않는다 |
+| MP-OUTGROW-THE-OPPONENT | MC-ATTACK-POWER(PARTIAL) + 성장의 원천 | 능력치가 결과를 바꾸는 것은 닫혔고, **C023 으로 그 값을 플레이로 바꾸는 첫 경로가 열렸다**(걸면 오르고 풀면 돌아온다). 그러나 이 갈래가 말하는 것은 *압도*이므로 **자라는 축**이 여전히 없다 — 걸고 푸는 것은 값을 오르내리게 할 뿐 키우지 않는다. **GS 주입으로 그 축이 이름을 얻었다** (MC-GAIN-LEVEL — 전투·탐험·발견·사건 해결이 기본값을 키운다). 없는 것은 이제 이름이 아니라 세계 쪽이다 |
 | MP-BET-ON-THE-CRITICAL-BLOW | 요구 Capability 는 **없음** · `requires.resource` 미충족 | **C015 로 절반 닫혔다** — 증폭이 터지는 것과 그 경위가 다 보인다. 그러나 "준비로 기대값을 올린다" 는 나머지 절반이 남았다: Critical 성질을 올릴 성장·장비가 세계에 없어 경로가 종류 초기값과 디버그뿐이다 |
 | MP-INTERRUPT | **없음** | **C019 로 닫혔다** — 지금 플레이 가능하다. 상대의 선딜을 노려 끊고, 늦으면 이미 나간 칼을 무르지 못한다. 요구는 MC-INTERRUPT 하나뿐이었고 그것이 섰다 |
 | MP-BREAK-THE-GUARD | MC-BREAK(PARTIAL) | 무너지는 상태는 있고 무너뜨리는 행동만 없다 (R1 §14 Active Defense 층) |
@@ -236,16 +262,21 @@ Capability 만 보면 전투가 꽤 찬 것처럼 보이지만, 그 전투가 �
 | MP-EVADE-BY-MOVING-THE-BODY | MC-EVADE | R1 §13 이 이후 확장으로만 지정 |
 | MP-HOLD-FORTIFIED | MC-FORTIFY · MC-COMBAT-FLOW | Aura/Nen 층 |
 
-### MG-EXPLORE-BEIRA (3 갈래)
+### MG-EXPLORE-BEIRA (4 갈래)
 
 층 진입은 더 이상 Possibility 가 아니다 — 층은 세계 상태이고 그 요구는 `demands` 가
-소유한다 (HISTORY Q21). 여기 셋은 **어떻게 감당하는가**다.
+소유한다 (HISTORY Q21). 여기 넷은 **어떻게 감당하는가**다.
+
+**넷째가 GS 주입으로 들어왔다.** 앞의 셋이 감당할 것을 바깥에서 구해 오는 갈래라면
+(겪어서 익힌다 · 자원이 대신한다 · 문명권에서 사서 준비한다) 넷째는 **몸 자체가
+상위 형태가 되어** 감당한다 — 잃을 수 없고 되돌아가지도 않는 대신 문턱이 넷이다.
 
 | Possibility | 요구 중 없는 것 | 비고 |
 |---|---|---|
 | MP-LEARN-TO-HANDLE-THE-LAYER | **MC-PREDICT 하나** (+ MC-OBSERVE 는 PARTIAL — 같은 자리다) | **네 칸 중 셋이 닫혔다.** C014·C016 이 살펴봄과 그것에 이르는 두 길을, C017 이 지목 둘(MC-DESIGNATE-TARGET · MC-WATCH-TARGET)을, C018 이 관계(MC-RELATION-STANCE)를 세웠다. 남은 것은 **예측 하나**이며 그것이 MC-OBSERVE 의 마지막 결손과 같은 자리다 — 닫히면 이 갈래가 통째로 선다 — 다만 **보류(Human)** (AI 기획서 대기 · frontier "지금 열 수 없는 것"). 탐험의 기본 갈래이자 다른 둘의 앞이다 (먼저 겪은 사람이 없으면 살 정보도 가져올 자원도 없다) |
 | MP-ADAPT-BY-RESOURCE | MC-RESTORE-BIOLOGICAL-STATE · MC-CUT-ABNORMAL-STRUCTURE + **MC-EQUIP-ITEM(IMPLEMENTED)** + **MC-CRAFT-FROM-MATERIALS** + MK-LOCAL-WORLDSTATE + 자원 | **이 갈래의 문장이 세계에서 통째로 참이 되었다** — "물건이 대신해 주고, **물건을 잃으면 도로 못 하게 된다**"(BW §17). 앞 절반은 C020(쓰면 없어진다)이, 뒤 절반은 **C023**(풀면 캘 수 없게 된다)이 세웠고, **C024** 가 그 둘 사이를 오가는 길(교체)을 냈다. 걸 물건이 둘이 되어 **갈래가 처음으로 둘**이다 — 공격을 얹을지 방어를 얹을지. 다만 자리가 여섯이라 아직 둘 다 걸 수 있으므로 그것이 진짜 선택이 되려면 자리가 걸 것보다 좁아져야 한다. 쓸 물건은 여전히 한 종류뿐이고, 남은 것은 제작이며 그것이 회복·절단 앞을 막고 있다 |
 | MP-PREPARE-IN-CIVILIZATION | **MC-CRAFT-FROM-MATERIALS** + MK-LOCAL-WORLDSTATE + MW-SAFE-FRONTIER + 관계·대가 | BW §14 가 열거한 활동 중 제작만 근거 문서를 얻어 배선되었다 (IS §4). 나머지(정보·교역·훈련)는 여전히 이름을 댄 문서가 없다. 막는 것은 능력만이 아니라 문명권·거래라는 세계 기반이다 |
+| MP-BECOME-A-HIGHER-FORM | 다섯 축 전부 (MC-GAIN-LEVEL · MC-GROW-CLASS-MASTERY · MC-MASTER-A-SKILL · MC-GROW-EXPLORATION-MASTERY · MC-CHANGE-CLASS) + MK-WITNESSED-WORLD-PHENOMENON + Catalyst 자원 | **한 칸도 서 있지 않다.** 다만 이 갈래가 서면 overlay 의 둘째 구멍("성장이 세계 밖에 있다")이 통째로 닫힌다 — 지금 능력치를 바꾸는 유일한 경로는 디버그 명령이고, GS 주입이 처음으로 그 값이 **어디에서** 올라오는지를 명명했다. 다섯 축 중 **장비 하나만 이미 서 있고** (MC-EQUIP-ITEM — C023 · C024), 그것도 이 갈래가 아니라 자원으로 감당하는 갈래에 매달려 있다 |
 
 ### 층이 요구하는 것 — MW-ZONE-* 의 demands
 
@@ -299,9 +330,15 @@ Capability 만 보면 전투가 꽤 찬 것처럼 보이지만, 그 전투가 �
    닫혔지만 (growth/growth-graph.md), 그 grants 가 몸에 닿으려면 적용이 서야 한다.
    그리고 쓸 물건의 **종류**가 좁다 — 소비재 계통이 아직 세계에도 그래프에도 없다.
 
-2. 성장이 세계 밖에 있다
+2. 성장이 세계 밖에 있다  (GS 주입으로 **그 자리의 이름**이 생겼다)
    능력치가 결과를 바꾸는 것은 닫혔지만 그 값을 올리는 유일한 경로가 디버그 명령이다.
    MP-OUTGROW-THE-OPPONENT 가 "닫힌 경로" 로 보였던 것은 이 구분을 놓쳤기 때문이다.
+   GS §5 · §19 가 그 값이 어디에서 올라오는지를 다섯 축으로 명명했고 (Level · Class
+   Mastery · Skill Mastery · Exploration Mastery · Equipment), 그중 넷이 노드로 섰다 —
+   다섯째는 이미 선 MC-EQUIP-ITEM 이다. 그래서 이 구멍은 **크기가 그대로이되 모양이
+   달라졌다**: 무엇을 만들어야 하는지 모르는 공백이 아니라, 무엇을 만들어야 하는지
+   아는 결손이다. 그리고 그 넷 위에 형태(Class)를 넘는 문턱이 하나 더 있는데
+   (MC-CHANGE-CLASS), 그것이 넘어갈 CL-* 는 이름이 문서마다 어긋나 아직 서지 못했다.
 
 3. 앞날을 읽을 것이 없다  (C014·C016 으로 "지금" 은 읽히게 되었다)
    C014 가 "살펴보기 전에는 겨루는 힘을 모른다" 를 세우고 C016 이 거기 이르는 두 번째

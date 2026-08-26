@@ -5,6 +5,7 @@
 #
 # 인용 — BW = content/proto-adventure/design/Master-World-Beira.md · R1 = content/proto-adventure/design/Design-Combat-OffenseDefense-R0.md
 #        DT = content/proto-adventure/design/Design-Combat-DamageType-R0.md
+#        GS = content/proto-adventure/design/Master-Fairy-Growth-System.md (성장)
 version: 1
 nodes:
 
@@ -40,6 +41,33 @@ nodes:
     revealed_by:
       - MP-LEARN-TO-HANDLE-THE-LAYER    # 들어가서 겪어 안다
       - MP-PREPARE-IN-CIVILIZATION      # 다녀온 사람에게 사서 안다
+
+  - id: MK-WITNESSED-WORLD-PHENOMENON
+    type: knowledge
+    holder:
+      - MA-PLAYER
+    statement: >
+      자신의 원리와 관련된 강력한 세계 현상을 직접 겪었다 — 그 자리에 있었고 그것이
+      무엇이었는지 안다. (GS §6 World Experience)
+    detail: >
+      Class Change 의 네 문턱 중 하나이며, 넷 가운데 **살 수 없는 유일한 것**이다
+      (GS §6). Catalyst 는 남에게서 얻거나 거래할 수 있지만 이것은 그 현상이 일어나는
+      자리에 자기 몸으로 있어야 생긴다. 그래서 상위 형태의 캐릭터를 보면 그가 어디에
+      다녀왔는지가 읽힌다.
+      지역에 대한 앎(MK-LOCAL-WORLDSTATE)과 다르다 — 저쪽은 "그곳에 지금 무엇이
+      참인가" 이고 이쪽은 "그 일이 일어날 때 내가 거기 있었다" 다. 앞의 것은 겪은 사람에게
+      사서 알 수 있고 뒤의 것은 그럴 수 없다.
+      무엇이 그 현상인지는 계열마다 다르다 — 자기 원리와 관련된 것이어야 하기 때문이다
+      (GS §6). 어느 현상이 어느 계열의 문턱인지는 계열별 설계 문서와 그 땅이 정한다.
+    world_shape: >
+      세계에 드물게 일어나는 큰 현상이 있고, 그 자리에 있었다는 사실이 몸에 남으며,
+      남에게 사거나 대신 얻어 올 수 없어야 한다. 어디서나 얻을 수 있으면 이 지식이 아니다.
+    implemented: ABSENT
+    implemented_note: >-
+      드물게 일어나는 세계 현상이 없다 — 세계에서 일어나는 일은 존재들의 행동뿐이고 그 자리에 있었다는 사실도 남지 않는다
+    contradicts: []
+    revealed_by:
+      - MP-LEARN-TO-HANDLE-THE-LAYER    # 들어가서 겪는 갈래가 이 앎에 이르는 유일한 길이다 (GS §6)
 
   # ── 전투에서 얻는 지식 (R1 · DT) ───────────────────────────────────────
 

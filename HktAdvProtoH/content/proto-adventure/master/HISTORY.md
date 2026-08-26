@@ -2514,3 +2514,301 @@ Human 이 "FR-ACTION-PHASE 의 근간이 무엇인가" 를 물어 근간을 역�
     Cycle 은 아직 시작하지 않았다 — 판(LANES.md)과 트랙 파일에만 반영했고, 다음 세션이
     `advprotoh-cycle` 로 Stage 1 부터 잡는다. 넘어갈 MASTER TRACE 는 frontier/terrain.md
     의 SELECTED 절이 그대로 들고 있다.
+
+## 주입 — 요정 캐릭터 성장 시스템(GS) · 2026-08-26
+
+    Human 지시: "LANES.md 참고하여 이 기획에 대한 master 주입을 진행한다.
+    content/proto-adventure/design/Master-Fairy-Growth-System.md"
+
+    BW 가 세계를, BT 가 그 세계의 땅을 공급했다면 GS 는 **그 땅의 원리가 하나의 인격에
+    집중되면 무엇이 되는가**를 공급한다 (GS §1). 인용 약칭을 `GS` 로 새로 두었다
+    (성장 영역 — 기존 GR 은 공정 원본이라 자리가 다르다).
+
+    **바뀐 것** — overlay 의 둘째 구멍("성장이 세계 밖에 있다")에 처음으로 이름이 붙었다.
+    지금까지 능력치를 바꾸는 유일한 경로는 디버그 명령이었고, 그것이 결손인 줄은 알았지만
+    무엇이 그 자리에 들어와야 하는지는 어느 문서도 말하지 않았다. GS §5 · §19 가 그 축을
+    다섯으로 명명한다 — Level · Class Mastery · Skill Mastery · Exploration Mastery ·
+    Equipment. 다섯 중 **장비 하나는 이미 서 있다** (MC-EQUIP-ITEM — C023 · C024).
+
+    산출물:
+        constraints/    DRAFT 8종 — PRINCIPLE-IS-PLAYED(§1 · §2 · §21) ·
+                        CLASS-CHANGE-KEEPS-THE-PAST(§3.1) · CLASS-CHANGE-NEEDS-THE-WORLD(§6) ·
+                        MASTERY-FROM-OWN-BEHAVIOR(§5) · EXPLORATION-SHARES-THE-PRINCIPLE(§8) ·
+                        DIFFERENCE-IS-BEHAVIOR(§17) · SKILL-GAINS-BEHAVIOR(§18) ·
+                        STAGE-READS-AT-A-DISTANCE(§7). 승인 대기 → Q52.
+                        BT 선례대로 승인 전에는 어느 노드에도 배선하지 않았다
+        graph/          MC 5종 — GAIN-LEVEL · GROW-CLASS-MASTERY · MASTER-A-SKILL ·
+                        GROW-EXPLORATION-MASTERY · CHANGE-CLASS. 요구처가 전부 방법이다
+                        (required_by) — 장소가 요구하는 것은 없다 ·
+                        MP 1종 — BECOME-A-HIGHER-FORM. MG-EXPLORE-BEIRA 의 **넷째 갈래**이며
+                        앞의 셋과 달리 바깥에서 구해 오지 않고 몸 자체가 상위 형태가 된다 ·
+                        MK 1종 — WITNESSED-WORLD-PHENOMENON. Class Change 의 네 문턱 중
+                        **살 수 없는 유일한 것**이다 (GS §6) ·
+                        MS 3종 — CLASS-EVOLUTION(층 넷) · GROWTH-SOURCE(축 다섯) ·
+                        FAIRY-LINEAGE(계열 여덟 — 대지형 여덟의 거울, 순서 없음)
+        기존 노드 2종    CHANGED — MC-EQUIP-ITEM 에 MS-GROWTH-SOURCE/EQUIPMENT 소속을 더했다
+                        (다섯째 축은 새 노드가 아니라 이미 선 그 노드다) ·
+                        MP-OUTGROW-THE-OPPONENT 의 requires 에 MC-GAIN-LEVEL 을 더했다
+                        ("자라는 축이 없다" 고 적어 두던 그 자리다)
+        growth/         growth-graph.md 에 "성장의 원천" 표가 생겼다 — 일곱 줄 중 하나만
+                        세계에 서 있다. CL-* 는 **하나도 세우지 않았다** (Q55)
+        open-questions  Q52(승인) · Q53(레벨 ↔ 도달) · Q54(요정은 플레이어인가) ·
+                        Q55(Class Line 이름 충돌 — 차단)
+
+    **세우지 않은 것 셋** (지어내지 않았다):
+
+        계열별 능력 목록 (§9~§16)   문서 자신이 "예시" 라고 밝히고, 그것을 요구하는
+                                    Possibility 를 공급하지 않는다. 게다가 여덟 계열의
+                                    능력 대부분은 그 계열이 딛고 선 땅이 이미 요구하고
+                                    있다 (BT 주입의 MC 아홉) — 계열 이름으로 복제하지
+                                    않는다 (DC-GROWTH-NO-CAPABILITY-DUPLICATION)
+        CL-* (Class 정의)           Class Line 의 이름이 문서마다 다르다 → Q55.
+                                    이름이 곧 정체라 나중에 고치면 origin_trace 와
+                                    grants 가 통째로 흔들린다
+        Class Catalyst 의 자원      GS 는 "세계의 Property" 라고만 적고 어느 자원인지
+                                    명명하지 않는다 (태양심은 예시다) — 자원의 이름과
+                                    유래는 카탈로그 문서가 소유한다 (Q50(a) 선례)
+
+    **부딪힌 것 둘** — 임의로 풀지 않고 노출했다. 레벨 축과 "진행은 도달"(Q53),
+    고정된 캐릭터 판타지와 "역할을 고정하지 않는다"(Q54). 둘 다 해당 노드의 판정을
+    UNRESOLVED 로 남겼다 — SATISFIED 로 덮지 않았다.
+
+## Q52. 성장 Constraint 여덟을 승인하는가 — CLOSED
+
+    무엇          GS 주입이 DC 여덟을 DRAFT 로 세웠다. 전부 문서가 절을 따로 두어 명시한
+                  원칙이며 원본보다 세게 쓰지 않았다.
+
+    DECISION      **(a) 여덟 다 승인한다** (2026-08-26 · Human — "모두 권장대로 진행")
+
+                  PRINCIPLE-IS-PLAYED · CLASS-CHANGE-KEEPS-THE-PAST ·
+                  CLASS-CHANGE-NEEDS-THE-WORLD · MASTERY-FROM-OWN-BEHAVIOR ·
+                  EXPLORATION-SHARES-THE-PRINCIPLE · DIFFERENCE-IS-BEHAVIOR ·
+                  SKILL-GAINS-BEHAVIOR · STAGE-READS-AT-A-DISTANCE
+
+                  → GROWTH 영역의 Filter 가 6종에서 **14종**이 되었다. 승인과 함께
+                    성장 노드 여섯(MC 5 · MP 1)에 배선했고 판정은 전부 SATISFIED 다.
+                    둘은 이미 승인된 대지형 Constraint 를 땅에서 몸으로 옮긴 것이다 —
+                    PRINCIPLE-IS-PLAYED ↔ TERRAIN-LAW-IS-OBSERVABLE ·
+                    STAGE-READS-AT-A-DISTANCE ↔ TERRAIN-READS-AT-A-DISTANCE
+
+## Q53. Character Level 은 "진행은 도달" 과 어떻게 공존하는가 — CLOSED
+
+    무엇          DC-WORLD-PROGRESSION-IS-REACH 는 진행이 Level 이 아니라 대응 가능한
+                  세계 범위의 확장이라고 못박는데 (BW §1 · §32), GS §5 · §19 는 다섯 축의
+                  첫째로 Character Level 을 둔다.
+
+    DECISION      **(a) 공존한다 — 레벨은 바닥, 도달은 기준** (2026-08-26 · Human)
+
+                  레벨은 기본값을 키우는 다섯 축 중 하나일 뿐이고, 어디에 갈 수 있는가는
+                  여전히 **감당할 수 있는가**가 정한다 (BT §12).
+                  → **땅의 문턱을 레벨로 걸지 않는다.** "지역 입장 제한 레벨" 형태는
+                    이 결정으로 금지된다. MC-GAIN-LEVEL 의 PROGRESSION-IS-REACH 판정을
+                    UNRESOLVED → SATISFIED 로 닫았다.
+                  근거는 GS 자신이다 — §6 이 Class Change 문턱에 Level 만으로는 부족하다고
+                  적고 세계 경험과 Catalyst 를 함께 요구한다. 문서가 이미 레벨을 바닥으로만 쓴다.
+
+## Q55. Class Line 의 이름을 어느 문서가 소유하는가 — CLOSED
+
+    무엇          같은 계열의 Class Line 이 문서마다 달랐다.
+                      GS §9                          골완투사 → 왕골권사 → 백왕투신 → 백왕현신
+                      Design-Fairy-Baiwang-Growth-R0 백골권희 → 왕골가디언 → 백왕발키리 → 백왕현신
+                      Design-Fairy-Class-Layer0-R0   Origin = 골완투사 (GS 와 같다)
+
+    DECISION      **(b) GS 가 소유한다** (2026-08-26 · Human)
+
+                  셋 중 둘이 이미 GS 의 이름을 쓰고, 그중 하나(Layer0)가 가장 나중에 쓰인
+                  문서다 — 어긋난 백왕 성장 문서가 그 이름으로 맞춘다 (문서 개정은 Human 소유).
+                  → CL-* 를 막던 것이 사라졌다. 다만 이 주입이 CL-* 를 세우지는 않는다 —
+                    Class 정의는 **계열별 설계 문서의 주입**이 세운다. 지금 CL 이 0 인 것은
+                    이름 충돌이 아니라 순서다.
+
+## 세 결정의 반영 — 무엇이 어디에 들어갔나
+
+    Q52 승인         constraints/    DC-GROWTH-* 8종 DRAFT → APPROVED
+                     capabilities    MC 5종에 배선 + 판정 (전부 SATISFIED)
+                     possibilities   MP-BECOME-A-HIGHER-FORM 에 성장 DC 셋 추가 배선
+                     constraints/README  보류 절 → Active 절 · Active 36 → 44
+
+    Q53(a) 공존      capabilities    MC-GAIN-LEVEL 의 PROGRESSION-IS-REACH SATISFIED,
+                                     사유에 "땅의 문턱을 레벨로 걸지 않는다" 를 남겼다
+
+    Q55(b) GS 소유   systems         MS-FAIRY-LINEAGE semantic — 이름의 소유와 CL-* 의 자리
+                     growth-graph    "이름의 충돌" → "남은 것은 계열별 문서의 주입"
+                     master/README   아직 비어 있는 것 표의 Growth 줄
+
+    **Q54 는 열려 있다** — 요정이 플레이어 캐릭터인가. 이 질문만 Agent 권장안이 없었다:
+    GS 가 요정이 플레이어에게 어떻게 오는지를 공급하지 않아 (§20 의 "캐릭터를 얻는다"
+    한 줄뿐) 고를 근거가 없다. 지어내지 않았고, MP-BECOME-A-HIGHER-FORM 의
+    DC-WORLD-PLAYER-UNFIXED-PATH 는 UNRESOLVED 로 남았다.
+    GROWTH 트랙의 첫 후보 둘은 형태(Class) 없이 성립하므로 이 질문이 트랙을 막지는 않는다.
+
+## NEXT — GROWTH 트랙 신설과 성장을 여는 후보 셋 · 2026-08-26
+
+    Q52 · Q53 · Q55 가 닫히자 성장이 후보를 낼 수 있게 되었다. 네 번째 트랙
+    (GROWTH — 근거 문서 영역 GS · 시스템 축 MS-GROWTH-SOURCE · MS-CLASS-EVOLUTION)을
+    세우고 후보 셋을 냈다.
+
+        FR-WHAT-YOU-DID-MAKES-YOU        한 일이 몸을 키운다 (MC-GAIN-LEVEL)
+        FR-THE-BODY-REMEMBERS-ITS-WAY    몸이 자기 방식을 기억한다 (MC-GROW-CLASS-MASTERY)
+        FR-THE-SKILL-LEARNS-A-NEW-MOVE   쓰던 기술이 새 수를 배운다 (MC-MASTER-A-SKILL)
+
+    셋 다 형태(Class)를 요구하지 않는다 — CL-* 없이 성립하는 축부터 세운다는 뜻이며,
+    그래서 Q54 가 열려 있어도 트랙이 돈다. 문턱(MC-CHANGE-CLASS)은 후보가 아니라
+    "지금 열 수 없는 것" 에 있다 — 넘어갈 형태가 아직 없다.
+
+## GROWTH 첫 후보 선택 — Human 위임 · 2026-08-26
+
+    Human 지시: "후보 선택은 알아서 정하고 LANES에 반영해줘."
+
+    Frontier 선택은 Human 소유다 (CLAUDE.md 원칙 19). 이번에도 Human 이 그 선택을
+    Agent 에게 **명시적으로 위임**했으므로 Agent 가 골랐고, 위임의 사실을 여기 남긴다 —
+    TERRAIN 첫 후보와 같은 형태다.
+
+    고른 것      FR-WHAT-YOU-DID-MAKES-YOU (한 일이 몸을 키운다) → C-GROWTH-001
+    근거         성장 축 다섯 중 넷이 MISSING 인데 그중 셋(Class Mastery · Skill Mastery ·
+                 Exploration Mastery)이 전부 "쌓인다" 를 전제한다 — 이것이 그 형태를
+                 처음 세운다. 그리고 세계에서 몸의 값을 바꾸는 유일한 길이 아직
+                 디버그 명령이라(`RULE-ATTRIBUTE-SET-001`), overlay 의 둘째 구멍
+                 ("성장이 세계 밖에 있다")을 실제로 닫는 것은 셋 중 이것뿐이다.
+                 요구하는 갈래(MP-OUTGROW-THE-OPPONENT)가 결손의 이름으로 이 노드를
+                 직접 가리키고 있다는 점도 함께 봤다
+    고르지 않은 것 스킬 성장은 값이 싸지만 그 위에 얹히는 축이 없다 — 먼저 해도 되나
+                 "쌓인다" 를 두 번 세우게 된다. 방식의 기억(숙련)은 셋 중 유일하게
+                 판정을 절반만 닫는다 (형태가 없어 "형태마다 다르다" 가 성립하지 않는다)
+
+    Cycle 은 아직 시작하지 않았다 — 판(LANES.md)과 트랙 파일에만 반영했다. 넘어갈
+    MASTER TRACE 여섯 칸은 frontier/growth.md 의 SELECTED 절이 그대로 들고 있으며,
+    그 Constraint Note 가 이 Cycle 의 경계를 못박는다: **레벨로 문턱을 걸지 않는다**
+    (Q53(a)).
+
+    이로써 지금 병렬로 돌 수 있는 WORLD 트랙이 둘이다 — TERRAIN(C-TERRAIN-001)과
+    GROWTH(C-GROWTH-001). 둘 다 `world/semantic/actor.ts` 에 몸의 새 자리를 더하므로
+    판의 충돌 칸에 "자기 영역 끝에 추가만" 을 적어 두었다.
+
+## 주입 — 성장 비용·보상 균형(GB) · 2026-08-26
+
+    Human 지시: "content/proto-adventure/design/Design-Growth-Balance-R0.md 해당 내용
+    추가로 master 주입해줘."
+
+    GS 가 **무엇이 자라는가**(축 다섯과 형태의 문턱)를 공급했다면 GB 는 **그 자람이
+    치른 것과 맞는가**를 공급한다. 같은 성장(GROWTH) 영역의 둘째 문서이며 인용 약칭을
+    `GB` 로 새로 두었다.
+
+    **성격이 다른 주입이다** — 이 문서는 노드를 하나도 낳지 않는다. 새 Goal 도
+    Possibility 도 Capability 도 공급하지 않기 때문이다. 다루는 것이 "세계가 무엇을 할 수
+    있는가" 가 아니라 "이미 있는 성장을 어떻게 평가하는가" 여서, 옮긴 것이 거의 전부
+    constraints/ 로 갔다. 그래서 노드 수는 120 그대로이고 Constraint 만 44 → 51 이 되었다.
+
+    산출물:
+        constraints/    DRAFT 7종 — COST-IS-THE-WHOLE-BURDEN(§3 · §4) ·
+                        REWARD-IS-NEW-REACH(§6~§13 · §15) · NO-DOMINATED-ROUTE(§16 · §17) ·
+                        POWER-PAYS-IN-REACH-OR-CONSTRAINT(§20 · §21) ·
+                        CAPABILITY-DECLARES-ITS-LIMITS(§23) · NOT-A-MASTER-KEY(§24) ·
+                        INTENT-IS-MEASURED(§25 · §26~§28). 승인 대기 → Q56.
+                        선례대로 승인 전에는 어느 노드에도 배선하지 않았다
+        graph/          MS-GROWTH-TIER — 여섯 단계(GT0~GT5). 값이 아니라 구조여서 세웠다.
+                        **배정된 노드는 0** 이다 — GB 는 단계의 정의와 예산만 공급하고
+                        기존 노드가 어느 단계인지는 말하지 않는다
+        open-questions  Q56(승인) · Q57(기존 DC 개정) · Q58(평가 칸의 자리)
+
+    **세우지 않은 것** (지어내지 않았다):
+
+        평가 칸 전부              Cost/Reward Profile · Power Envelope · Capability Reach ·
+                                  Gate Coverage · Balance Contract. SCHEMA 에 그런 칸이 없고
+                                  없는 칸을 주입이 만들지 않는다 (Q51 선례) → Q58
+        Benchmark 기구            BM-01~BM-08 · 측정 항목 아홉 · 세 단계 검증 · 실패 상태 열둘.
+                                  같은 조건을 전후로 굴려 재는 일은 Cycle 08 과 도구의 것이다
+        5단계 점수와 Contract 값   수치다 (정책 §7.2)
+        Tier 배정                 GB 가 우리 노드의 단계를 말하지 않는다
+        자원 Profile (§29)        같은 이유 — 칸의 자리가 Q58 이다
+
+    **겹친 것 하나** — GB §22 · GB-08(Class 문턱을 자원 구매로 우회할 수 없다)은 이미
+    승인된 DC-GROWTH-CLASS-CHANGE-NEEDS-THE-WORLD 와 같은 자리다. 같은 의미를 새 이름으로
+    만들지 않고 개정안을 Q57 로 남겼다 — 승인된 Constraint 의 문안을 바꾸는 것은 Human 소유다.
+
+    **지금 도는 것에 걸리는 것 하나** — 고른 `C-GROWTH-001`(한 일이 몸을 키운다)은 모든
+    상황에 적용되는 범용 축이라, Q56 이 승인되면 POWER-PAYS-IN-REACH-OR-CONSTRAINT 가
+    "한 단계의 폭은 작아야 한다" 를 그 Cycle 의 03 에 건다 (GB §20). 그 사실을
+    frontier/growth.md 의 Constraint Note 에 적어 두었다.
+
+## Q54. 요정은 플레이어 캐릭터인가 — CLOSED
+
+    무엇          MA-PLAYER 는 "문명권에서 출발한 사람" 이었고 (BW §1), GS 는 요정을
+                  "원리가 하나의 인격에 표현된 존재" 로 정의하며 계열마다 고정된 판타지를
+                  준다 (§2). 둘의 관계와, 그 고정이 DC-WORLD-PLAYER-UNFIXED-PATH 와
+                  부딪히는가가 열려 있었다.
+
+    DECISION      **플레이어가 요정 역할을 수행한다** (2026-08-26 · Human)
+
+                  → 고르는 것은 자유이고, 고른 뒤 고정되는 것은 **그 몸이 무엇을 잘하는가**
+                    다. 무엇을 하러 갈지는 여전히 세계가 정해 주지 않으므로
+                    DC-WORLD-PLAYER-UNFIXED-PATH 와 부딪히지 않는다 —
+                    MP-BECOME-A-HIGHER-FORM 의 그 판정을 UNRESOLVED → SATISFIED 로 닫았다.
+                  → 대신 조건이 하나 붙는다: 갈래가 **실제로 다르게 플레이되어야** 그 고름이
+                    고름이 된다 (DC-GROWTH-DIFFERENCE-IS-BEHAVIOR). 그래서 "고를 수 있는 몸이
+                    둘 이상" 은 계열별 설계 문서 없이는 후보로 세우지 않는다 — 그 전에 세우면
+                    외형만 다른 같은 몸이 된다 (frontier/growth.md 의 "지금 열 수 없는 것").
+                  → MS-FAIRY-LINEAGE 여덟은 이제 **플레이어가 고를 수 있는 갈래**다.
+
+## Q56. 성장 균형 Constraint 일곱을 승인하는가 — CLOSED
+
+    DECISION      **(a) 일곱 다 승인한다** (2026-08-26 · Human — "권장대로")
+
+                  COST-IS-THE-WHOLE-BURDEN · REWARD-IS-NEW-REACH · NO-DOMINATED-ROUTE ·
+                  POWER-PAYS-IN-REACH-OR-CONSTRAINT · CAPABILITY-DECLARES-ITS-LIMITS ·
+                  NOT-A-MASTER-KEY · INTENT-IS-MEASURED
+
+                  → GROWTH 영역의 Filter 가 14종에서 **21종**이 되었다 (Active 51).
+                    승인과 함께 성장 노드 일곱(MC 5 · MP 2 — OUTGROW 포함)에 배선했다.
+                    UNRESOLVED 로 남은 판정들은 전부 **아직 세우지 않은 것**을 가리킨다 —
+                    한 단계의 폭(Cycle 03) · 아직 없는 Contract · 아직 없는 CL-*.
+                    지어내 SATISFIED 로 덮지 않았다.
+
+## Q57. Class 의 문턱을 자원 구매로 우회할 수 없다 — CLOSED
+
+    DECISION      **(a) 개정한다 (REVISED)** (2026-08-26 · Human — "권장대로")
+
+                  DC-GROWTH-CLASS-CHANGE-NEEDS-THE-WORLD 를 개정했다. ID 는 유지한다.
+                      requires  + Class Change 조건에 선택과 시련이 포함된다 (GB §22)
+                      prohibits + 자원을 사 모으는 것만으로 성립하는 Class 문턱 (GB-08)
+                      status    APPROVED → REVISED · provenance 에 GB 근거 추가
+                  → 거래가 세계에 들어오는 날(MC-TRANSFER-ITEM) 시험받을 조각이 명문화되었다.
+                    같은 의미의 DC 를 새로 만들지 않았다.
+
+## Q58. 비용·보상 Profile 과 Capability Reach 는 어디에 사는가 — CLOSED
+
+    DECISION      **(c) 별도 자리를 만든다** (2026-08-26 · Human — "권장대로")
+
+                  `master/growth/balance/` 가 섰다. 파일 하나 = 성장 하나 (`GBC-*.yaml`).
+                      SCHEMA.md      ID 네임스페이스 GBC-* 와 Contract 형식 절 추가
+                      balance/README 세 자리의 축 구분과 "여기 없는 것" 규약
+                      GBC-GAIN-LEVEL 첫 Contract — C-GROWTH-001 이 세울 성장의 선언
+
+                  세 자리의 축이 다르다는 것이 이 결정의 요점이다.
+                      overlay.md        그 의미가 세계에 있는가
+                      growth-graph.md   그것을 얻는 경로가 있는가
+                      growth/balance/   그 값이 치른 것과 맞는가
+
+                  Benchmark 장면·측정·실패 상태는 여기 오지 않는다 — Cycle 08 과 도구의 것이다.
+                  Profile 의 1~5 는 **비교 단위이지 세계의 수치가 아니다** (GB §5).
+                  비교 집합이 하나뿐이라 첫 Contract 의 `static` 은 PENDING 이다.
+
+## 네 결정의 반영 — 무엇이 어디에 들어갔나
+
+    Q54(a) 요정     actors          MA-PLAYER 의 perspective · detail · world_shape 개정 —
+                                    "요정의 역할을 수행한다" · 고정되는 것은 무엇을 잘하는가
+                    possibilities   MP-BECOME-A-HIGHER-FORM 의 UNFIXED-PATH SATISFIED
+                    systems         MS-FAIRY-LINEAGE — 여덟이 고를 수 있는 갈래다
+                    frontier        "고를 수 있는 몸이 둘 이상" 을 열 수 없는 것에 사유와 함께
+
+    Q56(a) 승인     constraints/    DC-GROWTH-* (GB) 7종 DRAFT → APPROVED
+                    capabilities    MC 5종에 배선 · possibilities MP 2종에 배선
+                    frontier        후보 셋의 Active Constraints · Eval 갱신
+
+    Q57(a) 개정     constraints/    CLASS-CHANGE-NEEDS-THE-WORLD REVISED
+
+    Q58(c) 새 자리  growth/balance/ 신설 + README + 첫 Contract · SCHEMA 절 ·
+                    growth-graph 와 master/README 의 포인터
+
+    **성장 영역의 Human 대기가 0 이 되었다.** 남은 여섯(Q29 · Q35 · Q36 · Q37 · Q38 · Q46)은
+    통찰 · 스킬 · 아이템 · 공정의 것이다.

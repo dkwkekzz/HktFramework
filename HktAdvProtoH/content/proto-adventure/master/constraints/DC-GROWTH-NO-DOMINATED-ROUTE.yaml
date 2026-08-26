@@ -1,0 +1,51 @@
+# 원본 근거: content/proto-adventure/design/Design-Growth-Balance-R0.md (GB) §2-1 · §16 Dominance Test ·
+#   §17 좋은 성장 Route 는 Trade-off 를 가진다 · GB-03
+id: DC-GROWTH-NO-DOMINATED-ROUTE
+type: constraint
+
+statement: >
+  더 싸면서 모든 면에서 더 좋은 성장 경로를 두지 않는다 — 나란히 선 경로들은 서로 다른
+  장단점을 가져야 하고, 어느 하나가 다른 하나를 완전히 압도하면 압도당한 쪽은 존재할
+  이유가 없다.
+rationale: >
+  ❌ 흔한 형태는 상위 호환이다 — 같은 자리에 A 와 B 가 있는데 A 가 더 싸고 모든 면에서
+  더 좋다. 그러면 B 는 목록에만 남고 아무도 고르지 않으며, 플레이어가 하는 일은 선택이
+  아니라 정답 확인이 된다.
+  ✅ GB 는 이것을 자동 검사로 만든다 (§16) — 비용 여섯 항이 모두 같거나 낮으면서 보상
+  다섯 항이 모두 같거나 높으면 상대는 `Dominated Growth Route` 이고 그대로 실패다.
+  그리고 좋은 경로의 모양을 함께 적는다 (§17): 하나는 세지만 위험하고 좁으며, 다른 하나는
+  약하지만 안전하고 넓다.
+
+  이것은 이 세계의 전투 갈래가 이미 지키는 것과 같은 요구다 — 정면으로 압도하는 갈래
+  (MP-OUTGROW-THE-OPPONENT)가 "언제나 성립하되 가장 비싸야 한다" 고 적혀 있는 이유가
+  이것이다. 그 한 줄이 없으면 나머지 아홉 갈래가 존재 이유를 잃는다.
+
+  지켜서 얻는 것은 **고르는 일이 실제로 고르는 일**이 된다는 것이다. 어겼을 때 잃는 것:
+  압도하는 경로가 하나 생기는 순간 나머지 경로를 만든 노력이 전부 배경이 되고, 세계의
+  다채로움은 목록의 길이로만 남는다.
+
+  가장 안 읽히는 조각은 **"나란히 선"** 이다. 모든 성장을 서로 비교하라는 뜻이 아니라,
+  같은 단계에서 같은 자리를 두고 겨루는 것들끼리 비교한다는 뜻이다 (§16 의 비교 집합).
+
+  경계 — 이것은 모든 선택을 같은 값으로 만들라는 뜻이 아니다. 밸런스의 핵심은 동일함이
+  아니라 서로 다른 장단점이라고 문서가 직접 못박는다 (§17).
+
+scope:
+  - GROWTH
+
+requires:
+  - 같은 자리를 두고 겨루는 성장 경로들이 서로 다른 장단점을 가진다            # GB §17
+prohibits:
+  - 비용이 모두 같거나 낮으면서 보상이 모두 같거나 높은 경로 쌍               # GB §16 · GB-03
+prefers:
+  - 가장 단순한 경로를 가장 비싸게 두어 나머지가 존재 이유를 갖게 하는 것      # GB §17
+
+status: APPROVED
+provenance:
+  - HUMAN_DESIGN        # content/proto-adventure/design/Design-Growth-Balance-R0.md 주입 → Human 승인 (HISTORY Q56)
+
+relations:
+  supports:
+    - DC-GROWTH-DIFFERENCE-IS-BEHAVIOR
+    - DC-WORLD-PLAYER-UNFIXED-PATH
+  conflicts_with: []
