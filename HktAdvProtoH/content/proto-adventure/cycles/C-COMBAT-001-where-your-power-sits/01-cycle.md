@@ -3,7 +3,7 @@
 [PASS] Cycle Definition           (배분 하나 · 값만 오르내린다 · 여닫는 것은 EXCLUDED)
 [PASS] Intent                     (세 축은 겹치지 않는다 · 고른 배분은 0 · 형태는 보이고 값은 관문 안)
 [PASS] World Semantic             (몫 합 6 · 고른 배분은 0 · 유효 값에 0 바닥 · GAP 없음)
-[    ] GameView Specification
+[PASS] GameView Specification      (더하는 것 셋 · 형태는 그대로 수만 움직인다 · GAP 없음)
 [    ] Human Semantic Review
 [    ] World Implementation
 [    ] View Implementation
