@@ -258,13 +258,15 @@ describe('INTENT-DAMAGE-BREAKDOWN-001 (CHANGED) — 무엇을 골랐는지가 �
   it('물리 타격의 경위', () => {
     expect(strikeWith('attack').observe().strikes[0]?.breakdown).toEqual({
       damageType: 'physical',
-      offenseStat: { name: 'physicalAttack', value: 40 },
+      attackerAllocation: 'balanced',
+      targetAllocation: 'balanced',
+      offenseStat: { name: 'physicalAttack', value: 40, fromAllocation: 0 },
       baseDamage: 6,
       attackContribution: 20,
       rawDamage: 26,
-      defenseStat: { name: 'armor', value: 30 },
+      defenseStat: { name: 'armor', value: 30, fromAllocation: 0 },
       // C013 — 치는 쪽에 관통이 없다. 걷히기 전과 걷힌 뒤가 같다
-      penetrationStat: { name: 'armorPenetration', value: 0 },
+      penetrationStat: { name: 'armorPenetration', value: 0, fromAllocation: 0 },
       effectiveDefense: 30,
       defenseMultiplier: 100 / 130,
       finalDamage: 20,
@@ -277,13 +279,15 @@ describe('INTENT-DAMAGE-BREAKDOWN-001 (CHANGED) — 무엇을 골랐는지가 �
   it('오라 타격의 경위 — 같은 스킬 값에 다른 방어를 읽었다', () => {
     expect(strikeWith('skill-aura').observe().strikes[0]?.breakdown).toEqual({
       damageType: 'aura',
-      offenseStat: { name: 'auraAttack', value: 40 },
+      attackerAllocation: 'balanced',
+      targetAllocation: 'balanced',
+      offenseStat: { name: 'auraAttack', value: 40, fromAllocation: 0 },
       baseDamage: 6,
       attackContribution: 20,
       rawDamage: 26,
-      defenseStat: { name: 'resistance', value: 90 },
+      defenseStat: { name: 'resistance', value: 90, fromAllocation: 0 },
       // C013 — 오라 쪽 관통도 없다. 방식이 고른 쪽의 관통만 실린다
-      penetrationStat: { name: 'resistancePenetration', value: 0 },
+      penetrationStat: { name: 'resistancePenetration', value: 0, fromAllocation: 0 },
       effectiveDefense: 90,
       defenseMultiplier: 100 / 190,
       finalDamage: 14,

@@ -29,6 +29,11 @@ export interface ActionRequest extends CoreActionRequest {
   // (INTENT-THE-DISPLACED-IS-NAMED-001). 빈 자리들 사이에서 고르는 것은 자리들이
   // 서로 같으므로 여전히 세계의 몫이다.
   equipSlotId?: string;
+  // C-COMBAT-001 — 어느 배분으로 갈 것인가 하나. **몫을 싣지 않는다** —
+  // 사람이 하는 일은 배분 하나를 고르는 것이며, 몫을 실을 수 있게 하는 순간 이 계약이
+  // 실시간 조절 UI 의 문을 연다 (DC-COMBAT-AURA-IS-A-PROFILE-NOT-A-DIAL · UL §41.1).
+  // 토글도 "다음 것" 도 아닌 명시값이다 — 같은 요청이 두 번 와도 결과가 같다.
+  allocationId?: string;
   // C014 — 살펴봄과 되돌림은 봉투의 targetEntityId 를 그대로 쓴다.
   // 새 파라미터가 필요하지 않다: 살펴볼 대상도, 잊을 대상도 존재 하나를 지목하는 일이며
   // 그것은 이미 봉투가 실을 수 있다 (INTENT-ENTITY-ADDRESSABLE-001).

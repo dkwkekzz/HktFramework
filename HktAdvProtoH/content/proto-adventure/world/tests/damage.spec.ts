@@ -224,14 +224,18 @@ describe('INTENT-DAMAGE-BREAKDOWN-001 — 한 방의 크기가 나온 경위가 
     expect(strike?.breakdown).toEqual({
       // C012 — 방식과 그 방식이 고른 두 능력이 함께 실린다
       damageType: 'physical',
-      offenseStat: { name: 'physicalAttack', value: 40 },
+      // C-COMBAT-001 — 두 몸이 어디에 몰아 두었는가. 고른 배분이므로 아래 세
+      // fromAllocation 이 전부 0 이다 — 이 층이 들어온 뒤에도 값이 그대로라는 증거다
+      attackerAllocation: 'balanced',
+      targetAllocation: 'balanced',
+      offenseStat: { name: 'physicalAttack', value: 40, fromAllocation: 0 },
       baseDamage: 6,
       attackContribution: 20, // 40 × 0.5
       rawDamage: 26,
-      defenseStat: { name: 'armor', value: 30 },
+      defenseStat: { name: 'armor', value: 30, fromAllocation: 0 },
       // C013 — 치는 쪽(rabbit-swordsman)에게 관통이 없으므로 걷힌 것이 없다.
       // 그래도 두 항목은 실린다 — 통하지 않았다는 사실도 관찰이어야 한다
-      penetrationStat: { name: 'armorPenetration', value: 0 },
+      penetrationStat: { name: 'armorPenetration', value: 0, fromAllocation: 0 },
       effectiveDefense: 30,
       defenseMultiplier: 100 / 130,
       finalDamage: 20,

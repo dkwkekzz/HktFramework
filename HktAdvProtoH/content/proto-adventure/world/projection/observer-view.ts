@@ -9,6 +9,7 @@
 // View 의 Presentation 결정 Layer 책임이며 여기 싣지 않는다.
 
 import type {
+  AllocationChoiceView,
   EntityView,
   GameViewSnapshot,
   InteractionView,
@@ -19,6 +20,7 @@ import type {
 import { actionProgress, actionTargetId } from '../semantic/action';
 import { ruleStance } from '../rules/relation';
 import { actionCollider } from '../semantic/collision';
+import { evaluateAllocationSet } from '../rules/allocation-set';
 import { evaluateAttributeSetAvailability } from '../rules/attribute-set';
 import { evaluateForgetAcquaintance, evaluateObserveBegin } from '../rules/observe';
 import { evaluateMineTargeted } from '../rules/mine';
@@ -40,6 +42,12 @@ import {
   skillPhase,
 } from '../semantic/combat';
 import { concealedKeys, isAcquainted, isSeatOpen } from '../semantic/acquaintance';
+import {
+  ALLOCATION_IDS,
+  ALLOCATION_SWITCH_CP_COST,
+  allocationShares,
+  type AllocationId,
+} from '../semantic/allocation';
 import { projectCommandCatalog } from '../semantic/command-catalog';
 import { selectedEntityId } from '../semantic/target-selection';
 import type { ActorState } from '../semantic/actor';
@@ -91,12 +99,17 @@ export function projectObserverView(
     // C016 — 가려짐이 자리마다 갈린다 (RULE-INSIGHT-REVEAL-001).
     // 여는 통찰은 **보는 이가 지금 조종하는 몸**의 것이다 (INTENT-INSIGHT-001) —
     // 앎은 사람에게 남고 통찰은 몸에 붙어 있으므로 한 칸을 되짚어 읽는다.
-    const concealed = concealedKeys(learned, self.insight);
+    // C-COMBAT-001 CHANGED — 견주는 통찰이 **유효 값**이다
+    // (INTENT-EVERY-JUDGEMENT-READS-THE-EFFECTIVE-001 CHANGED). 문턱도 자리의 차례도
+    // 한 톨도 바뀌지 않는다 — 달라지는 것은 어떤 통찰을 견주는가 하나뿐이며,
+    // 그것이 없으면 인지 축이 아무 일도 하지 않는다.
+    const selfInsight = effectiveStat(self, 'insight');
+    const concealed = concealedKeys(learned, selfInsight);
     // C016 CHANGED — 뜻이 "살펴봤다" 에서 **"가려진 자리가 하나도 없다"** 로 넓어진다.
     // 살펴봤거나 · 통찰이 세 문턱을 모두 넘었거나 · 자기 몸이면 참이다.
     const acquainted = concealed.length === 0;
     const seatOpen = (key: 'combatStats' | 'versusObserver' | 'defenseShape') =>
-      isSeatOpen(key, learned, self.insight);
+      isSeatOpen(key, learned, selfInsight);
     // Collision.ActionColliders (C006) — attack 진행 중에만 존재하는 파생 상태
     const swing = actionCollider(actor);
     // C007 R2 — 모든 Actor 의 모든 속성을 싣는다. 가리는 경계를 두지 않는다
@@ -155,7 +168,16 @@ export function projectObserverView(
         // 가려지는 목록에 넣지 않는다 — 겨루는 힘이 아니라 아는 힘이고, 목록은
         // C014 가 정한 셋 그대로다 (01 EXCLUDED). 이 값이 보여야 가려진 목록이
         // 왜 그 길이인지가 설명된다.
-        insight: actor.insight,
+        // C-COMBAT-001 CHANGED — **기본값이 아니라 유효 값이다.** 인지에 몰면 이 수가
+        // 오르고 덜면 내린다. 가려지지 않는 성질은 그대로다 (겨루는 힘이 아니라 아는 힘).
+        insight: effectiveStat(actor, 'insight'),
+        // C-COMBAT-001 ADDED — 지금의 배분 (INTENT-ALLOCATION-IS-OBSERVED-001).
+        // **모든 존재에 언제나 실리고 가려지지 않는다** — 몰아 두는 일은 몸이 드러내는
+        // 것이며, 가리면 "얇아진 쪽을 노린다" 가 성립하지 않는다. 태도(C018)·통찰(C016)과
+        // 같은 자리다. 값(combatStats)은 여전히 문턱 90 뒤이므로 새는 것은 형태뿐이다.
+        // 몫을 함께 싣는다 — View 가 이름으로 자기 표를 만들지 않는다
+        // (DC-WORLD-OWNS-THE-SURFACE-LIST).
+        allocation: { id: actor.allocation, shares: { ...allocationShares(actor.allocation) } },
         // C018 ADDED — 둘 사이의 태도 두 방향 (INTENT-STANCE-OBSERVE-001).
         // 언제나 실리고 가려지지 않는다 — 가리면 물러날 판단 자체가 성립하지 않는다.
         // 매 관찰마다 다시 계산된다: 걸어 들어가면 neutral 이 hostile 이 되고
@@ -219,8 +241,15 @@ export function projectObserverView(
                     effectiveStat(self, 'armorPenetration'),
                   ),
                 ),
+                // C-COMBAT-001 — 위 세 줄과 같은 유효 값을 읽는다. 기본값을 읽고 있었던
+                // 자리이며(C023 이 나머지 셋만 옮겼다), 배분이 방어를 움직이는 지금은
+                // 같은 칸의 값과 배율이 서로 어긋나게 된다
+                // (INTENT-EVERY-JUDGEMENT-READS-THE-EFFECTIVE-001).
                 resistanceMultiplier: defenseMultiplier(
-                  effectiveDefense(actor.resistance, self.resistancePenetration),
+                  effectiveDefense(
+                    effectiveStat(actor, 'resistance'),
+                    effectiveStat(self, 'resistancePenetration'),
+                  ),
                 ),
               },
             }
@@ -495,6 +524,9 @@ export function projectObserverView(
     // 둘이 답하는 질문이 다르다 ("무엇을 지녔는가" 와 "몸이 지금 무엇으로 되어 있는가").
     // 비어 있는 자리도 전부 실린다.
     equipment: projectEquipment(state, self, observerId),
+    // C-COMBAT-001 — 고를 수 있는 배분 전부. 소지품·적용 자리와 나란한 세 번째 목록이며
+    // 내 몸의 것만 실린다 (INTENT-PER-OBSERVER-PROJECTION-001).
+    allocations: projectAllocations(self),
     hud: [
       // 내 몸의 것만 실린다. 다른 관찰자의 소지품과 가용성은 실리지 않는다
       // (INTENT-PER-OBSERVER-PROJECTION-001).
@@ -576,7 +608,28 @@ export function projectObserverView(
       // 아는 것이다 (C013 이 관통 0 을, C015 가 가능성 0 을 실은 판단 그대로).
       // 값을 바꾼 직후 이 자리에서 즉시 확인되어야 "올렸더니 가려진 목록이 짧아졌다" 가
       // 한 화면에서 읽힌다. combat 이 아닌 자기 자리를 쓴다 — 겨루는 힘이 아니다.
-      { id: 'self.insight', kind: 'counter', value: self.insight },
+      // C-COMBAT-001 — 유효 값이다. 배분을 바꾼 직후 이 자리에서 확인되어야
+      // "인지에 몰았더니 가려진 목록이 짧아졌다" 가 한 화면에서 읽힌다.
+      { id: 'self.insight', kind: 'counter', value: effectiveStat(self, 'insight') },
+      // C-COMBAT-001 — 지금 어디에 두었는가와 그 세 몫. 고를 수 있는 배분들은 hud 가
+      // 아니라 allocations 가 지닌다 — 어디에 그리는가는 View 가 정한다
+      // (C023 이 적용 자리에 대해 내린 판단 그대로).
+      { id: 'self.allocation', kind: 'label', value: self.allocation },
+      {
+        id: 'self.allocation.share.body',
+        kind: 'counter',
+        value: allocationShares(self.allocation).body,
+      },
+      {
+        id: 'self.allocation.share.ability',
+        kind: 'counter',
+        value: allocationShares(self.allocation).ability,
+      },
+      {
+        id: 'self.allocation.share.awareness',
+        kind: 'counter',
+        value: allocationShares(self.allocation).awareness,
+      },
       { id: 'self.tempo.moveSpeed', kind: 'counter', value: self.moveSpeed },
       { id: 'self.tempo.runSpeedMultiplier', kind: 'counter', value: self.runSpeedMultiplier },
       { id: 'self.tempo.actionSpeed', kind: 'counter', value: self.actionSpeed },
@@ -656,6 +709,40 @@ export function projectObserverView(
  *
  * 종류가 늘어도 이 함수는 바뀌지 않는다 — 정의가 하나 늘어날 뿐이다.
  */
+/**
+ * 고를 수 있는 배분들 (C-COMBAT-001 ADDED — 04 의 allocations).
+ *
+ * **네 항목이 언제나 전부 실린다.** 지금 고를 수 없는 것도 실린다 — 못 고른다는 것과
+ * 존재하지 않는다는 것은 다르며, 그 구분이 없으면 "기력을 모으면 저것으로 갈 수 있다"
+ * 를 사람이 알 수 없다 (C023 이 빈 자리를 싣기로 한 판단 그대로).
+ *
+ * **되는 것도 안 되는 사유도 세계가 싣는다** — 화면이 기력과 비용을 견주어 스스로
+ * 판단하지 않는다 (DC-WORLD-OWNS-THE-SURFACE-LIST · DC-COMBAT-UNAVAILABLE-HAS-A-REASON).
+ * Rule 과 **같은 판정을 공유**하므로 화면이 되겠다고 본 것은 세계도 된다고 본다.
+ *
+ * 차례는 카탈로그의 차례다 — 같은 세계 상태면 같은 순서이고, 화면은 정렬하지 않는다.
+ */
+function projectAllocations(self: ActorState): AllocationChoiceView[] {
+  return ALLOCATION_IDS.map((id: AllocationId) => {
+    const failure = evaluateAllocationSet(self, id);
+    const current = id === self.allocation;
+    return {
+      id,
+      shares: { ...allocationShares(id) },
+      // current 는 available 과 별개다 — 지금 있는 자리는 거절이 아니다
+      // (INTENT-CHANGE-ALLOCATION-REFUSAL-001).
+      current,
+      // 이미 그 자리에 있는 것에는 값을 물리지 않는다. 상수를 화면이 지니지 않게
+      // 세계가 싣는다 — 값이 바뀌어도 화면이 열리지 않는다.
+      cpCost: current ? 0 : ALLOCATION_SWITCH_CP_COST,
+      available: failure === null,
+      ...(failure ? { unavailableReason: failure } : {}),
+      // 요청의 주소. 화면이 문자열을 지어내지 않는다.
+      interactionId: 'set-allocation',
+    };
+  });
+}
+
 function projectInventory(
   state: WorldState,
   self: ActorState,

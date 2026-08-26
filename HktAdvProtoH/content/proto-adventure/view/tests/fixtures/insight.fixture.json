@@ -65,7 +65,15 @@
         },
         "insight": 0,
         "stanceTowardObserver": "neutral",
-        "stanceFromObserver": "neutral"
+        "stanceFromObserver": "neutral",
+        "allocation": {
+          "id": "balanced",
+          "shares": {
+            "body": 2,
+            "ability": 2,
+            "awareness": 2
+          }
+        }
       },
       "body": {
         "radius": 0.7,
@@ -130,7 +138,15 @@
           "armorMultiplier": 0.7692307692307693,
           "resistanceMultiplier": 0.64
         },
-        "defenseShape": "aura-tougher"
+        "defenseShape": "aura-tougher",
+        "allocation": {
+          "id": "balanced",
+          "shares": {
+            "body": 2,
+            "ability": 2,
+            "awareness": 2
+          }
+        }
       },
       "body": {
         "radius": 0.7,
@@ -204,7 +220,15 @@
         },
         "insight": 60,
         "stanceTowardObserver": "neutral",
-        "stanceFromObserver": "neutral"
+        "stanceFromObserver": "neutral",
+        "allocation": {
+          "id": "balanced",
+          "shares": {
+            "body": 2,
+            "ability": 2,
+            "awareness": 2
+          }
+        }
       },
       "body": {
         "radius": 0.85,
@@ -668,5 +692,6 @@
     "used": 0,
     "capacity": 4
   },
-  "equipment": []
+  "equipment": [],
+  "allocations": []
 }

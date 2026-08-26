@@ -19,6 +19,60 @@ export interface VitalityView {
 // 그럼에도 세계가 "숨기지 않는다" 는 성질은 잃지 않는다 — 뜻이 옮겨간다:
 // 전부 보여준다는 뜻에서 **가린 것이 있으면 가렸다는 사실을 밝힌다**는 뜻으로.
 // 실린다고 해서 늘 화면에 띄우라는 뜻은 아니다. 표시 기본값은 View 가 정한다.
+// ── 힘의 배분 (C-COMBAT-001 ADDED) ───────────────────────────────────
+//
+// 지금 자신의 힘을 몸 · 능력 · 인지 중 어디에 몰아 두었는가.
+//
+// **몫을 함께 싣는다.** View 가 이름을 보고 자기 표에서 몫을 찾아내지 않게 하기
+// 위해서다 (DC-WORLD-OWNS-THE-SURFACE-LIST) — 배분을 하나 더 지어도 화면 코드가
+// 열리지 않고, 세 몫의 합이 어느 항목에서나 같다는 것도 이 값으로 확인된다.
+// 합을 따로 싣지 않는 이유가 그것이다.
+
+/** 지금의 배분 하나 (C-COMBAT-001 ADDED) */
+export interface AllocationView {
+  id: string; // 배분의 의미 코드 — 표시 이름은 View 책임
+  shares: {
+    body: number;
+    ability: number;
+    awareness: number;
+  };
+}
+
+/**
+ * 고를 수 있는 배분 하나 (C-COMBAT-001 ADDED).
+ *
+ * **소지품(C020) · 적용 자리(C023) 와 나란한 세 번째 목록의 항목이다.** 셋이 답하는
+ * 질문이 다르다 — 무엇을 지녔는가 / 몸이 무엇으로 되어 있는가 / 지금 힘을 어디에 두었는가.
+ *
+ * **네 항목이 언제나 전부 실린다.** 지금 고를 수 없는 것도 실린다 — 못 고른다는 것과
+ * 존재하지 않는다는 것은 다르며, 그 구분이 없으면 "기력을 모으면 저것으로 갈 수 있다"
+ * 를 사람이 알 수 없다 (C023 이 빈 자리를 싣기로 한 판단 그대로).
+ *
+ * 내 몸의 것만 실린다 (INTENT-PER-OBSERVER-PROJECTION-001). 남이 무엇으로 바꿀 수
+ * 있는지는 세계가 아직 묻지 않는 질문이고, 남이 지금 어디에 두었는지는
+ * AttributesView.allocation 이 이미 싣는다.
+ */
+export interface AllocationChoiceView {
+  id: string;
+  shares: {
+    body: number;
+    ability: number;
+    awareness: number;
+  };
+  /**
+   * 지금 이것인가. **available 과 별개다** — 지금 있는 자리는 거절이 아니므로
+   * available 이 참인 채로 current 도 참이다 (INTENT-CHANGE-ALLOCATION-REFUSAL-001).
+   */
+  current: boolean;
+  /** 치를 기력. current 면 0 이다 — 이미 그 자리에 있는 것에 값을 물리지 않는다 */
+  cpCost: number;
+  available: boolean;
+  /** 불가 사유 코드 (downed | insufficient-cp) — 문구 변환은 View 책임 */
+  unavailableReason?: string;
+  /** 이 배분으로 가는 요청의 주소 — 화면이 문자열을 지어내지 않는다 */
+  interactionId: string;
+}
+
 export interface AttributesView {
   // ── 앎의 상태 (C014 ADDED) — 아는 존재에도 모르는 존재에도 언제나 실린다 ──
   /**
@@ -45,6 +99,18 @@ export interface AttributesView {
    * 가려지지 않는다 — 겨루는 힘이 아니라 아는 힘이다. 남의 것도 그대로 실린다.
    */
   insight: number;
+  /**
+   * C-COMBAT-001 ADDED — 지금의 배분 (INTENT-ALLOCATION-IS-OBSERVED-001).
+   *
+   * **모든 존재에 언제나 실린다. 가려지지 않는다.** 몰아 두는 일은 몸이 드러내는
+   * 것이며, 가리면 "얇아진 쪽을 노린다" 가 세계에서 성립하지 않는다. 태도(C018)와
+   * 통찰(C016)이 가려지지 않는 자리에 나란히 선다.
+   *
+   * **그러나 값을 새게 하지는 않는다** — 저 몸의 방어가 배분 때문에 얼마가 되었는지는
+   * combatStats 이고 그것은 여전히 문턱 90 뒤다. 보이는 것은 형태이고 값이 아니며,
+   * 이 구분이 C016 이 세운 "일부만 안다" 를 지킨다.
+   */
+  allocation: AllocationView;
   // ── 둘 사이의 태도 (C018 ADDED, INTENT-STANCE-OBSERVE-001) ──────────────
   // **모든 존재에 언제나 둘 다 실린다.** 가려지지 않는다 — 겨루는 힘이 아니라 지금 둘
   // 사이에 있는 일이며, 가리면 물러날 판단 자체가 성립하지 않는다.
@@ -145,6 +211,18 @@ export interface TypedStatView {
   // armorPenetration | resistancePenetration (C013)
   name: string;
   value: number;
+  /**
+   * C-COMBAT-001 ADDED — 배분이 이 값에 보탠 몫. 음수일 수 있고 **0 이어도 실린다.**
+   *
+   * 터지지 않은 치명이 실리는 이유와 같다 (C015) — "이번 한 방에 배분이 아무것도 하지
+   * 않았다" 는 사실 역시 관찰이어야, 배분을 바꿀 근거가 생긴다. 음수도 그대로 싣는다:
+   * 몰지 않은 축의 값이 얼마나 얇아졌는지가 경위에서 읽혀야 맞바꿈이 눈에 닿는다.
+   * 관통에서는 언제나 0 이다 — 관통은 어느 축에도 들지 않는다.
+   *
+   * **View 가 빼서 만들지 않는다.** 화면이 combatStats 와 배분 표를 견주어 이 수를
+   * 계산하는 순간 세계와 화면에 두 개의 진실이 생긴다 (DC-WORLD-OWNS-THE-SURFACE-LIST).
+   */
+  fromAllocation: number;
 }
 
 // 이 한 방이 크게 터졌는가와 그 경위 (C015 ADDED).
@@ -174,6 +252,10 @@ export interface GuardOutcomeView {
 // 한 방의 크기가 어떻게 나왔는가 (C010 ADDED) — 세계는 결과와 함께 그 경위를 낸다.
 export interface DamageBreakdownView {
   damageType: string; // C012 — 이 타격의 방식 (physical | aura)
+  /** C-COMBAT-001 — 타격 시점 치는 쪽의 배분 (의미 코드) */
+  attackerAllocation: string;
+  /** C-COMBAT-001 — 타격 시점 맞는 쪽의 배분 (의미 코드) */
+  targetAllocation: string;
   offenseStat: TypedStatView; // C012 — 방식이 고른 공격 능력
   baseDamage: number; // 스킬 자체의 강함
   attackContribution: number; // 고른 공격 능력이 더한 몫 = OffenseStat × AttackRatio

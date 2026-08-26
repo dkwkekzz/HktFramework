@@ -65,6 +65,14 @@
         "guard": {
           "guarding": false,
           "broken": false
+        },
+        "allocation": {
+          "id": "balanced",
+          "shares": {
+            "body": 2,
+            "ability": 2,
+            "awareness": 2
+          }
         }
       },
       "body": {
@@ -710,5 +718,6 @@
         }
       ]
     }
-  ]
+  ],
+  "allocations": []
 }

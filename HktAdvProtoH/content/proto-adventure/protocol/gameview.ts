@@ -18,6 +18,7 @@ import type {
   InteractionView as CoreInteractionView,
 } from '../../../engine/protocol-core/gameview';
 import type {
+  AllocationChoiceView,
   AttributesView,
   CancelEventView,
   CurrentTargetView,
@@ -84,4 +85,7 @@ export interface GameViewSnapshot extends CoreGameViewSnapshot {
   inventory: InventoryItemView[]; // C020 ADDED — 내 몸이 지닌 것 전부
   inventoryRoom: InventoryRoomView; // C022 ADDED — 쓴 자리와 전체
   equipment: EquipmentSlotView[]; // C023 ADDED — 적용 자리 전부 (빈 자리 포함)
+  // C-COMBAT-001 ADDED — 고를 수 있는 배분 전부 (지금 고를 수 없는 것도 포함).
+  // 소지품·적용 자리와 나란한 세 번째 목록이며 내 몸의 것만 실린다.
+  allocations: AllocationChoiceView[];
 }

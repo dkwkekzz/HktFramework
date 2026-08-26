@@ -57,6 +57,7 @@
 // Resistance 는 막아낼 **확률**이 아니라 Armor 와 같은 감쇄식에 들어가는 값이다.
 
 import type { ActorState } from '../semantic/actor';
+import { allocationContribution } from '../semantic/allocation';
 import {
   DAMAGE_TYPE_STATS,
   defenseMultiplier,
@@ -102,14 +103,33 @@ export function ruleDamageCalculate(
 
   return {
     damageType: type,
-    offenseStat: { name: stats.offense, value: offenseValue },
+    // C-COMBAT-001 — 두 몸이 이 순간 어디에 몰아 두었는가. 아래 fromAllocation 셋과
+    // 함께 "같은 기술이 왜 다른 값을 냈는가" 를 경위 하나로 읽게 한다
+    // (INTENT-DAMAGE-BREAKDOWN-001 CHANGED).
+    attackerAllocation: attacker.allocation,
+    targetAllocation: target.allocation,
+    offenseStat: {
+      name: stats.offense,
+      value: offenseValue,
+      fromAllocation: allocationContribution(attacker.allocation, stats.offense),
+    },
     baseDamage: skill.baseDamage,
     attackContribution,
     rawDamage: raw,
     // C013 — value 는 **걷히기 전** 방어다 (상대가 지닌 값과 같다).
     // 감쇄식에 실제로 들어간 값은 effectiveDefense 가 가진다.
-    defenseStat: { name: stats.defense, value: defenseValue },
-    penetrationStat: { name: stats.penetration, value: penetrationValue },
+    defenseStat: {
+      name: stats.defense,
+      value: defenseValue,
+      fromAllocation: allocationContribution(target.allocation, stats.defense),
+    },
+    penetrationStat: {
+      name: stats.penetration,
+      value: penetrationValue,
+      // 관통은 어느 축에도 들지 않으므로 언제나 0 이다. 그래도 싣는다 — 0 이라는 것이
+      // "배분으로는 이 값을 움직일 수 없다" 의 관찰이다.
+      fromAllocation: allocationContribution(attacker.allocation, stats.penetration),
+    },
     effectiveDefense: effective,
     defenseMultiplier: multiplier,
     finalDamage,

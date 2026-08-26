@@ -254,12 +254,18 @@ describe('INTENT-SKILL-COST-GATE-001 — 기력이 모자라면 시작되지 않
 
 describe('INTENT-DOWNED-001 — 생명이 다하면 쓰러진다', () => {
   // 맞은 몸은 밀려나므로(C006) 한자리에서 연달아 때려 눕히기 어렵다.
-  // 생명을 한 대 분량만 남겨 두고 한 번 때린다 — 쓰러짐 자체가 이 describe 의 대상이다.
+  // 생명을 한 대로 확실히 지는 만큼만 남겨 두고 한 번 때린다 — 쓰러짐 자체가 이
+  // describe 의 대상이며 한 대의 크기는 발판일 뿐이다.
+  //
+  // C-COMBAT-001 CHANGED — 남기는 값이 BASIC_DAMAGE 에서 1 로 바뀐다. 자율 존재는
+  // 생명이 절반 아래로 내려가면 몸에 몰아 단단해지므로(RULE-NPC-ALLOCATION-001),
+  // "한 대 분량" 을 남겨 두면 그 한 대가 줄어들어 3 이 남는다. 그것은 이 Cycle 이
+  // 의도한 결과이고(03 BALANCE ⑤), 여기서 검증할 것은 그 크기가 아니라 쓰러짐이다.
   const downNpc = (world: WorldDriver) => {
     world.dispatch({
       interactionId: 'set-attribute',
       targetEntityId: 'npc-1',
-      attribute: { id: 'hp', value: BASIC_DAMAGE },
+      attribute: { id: 'hp', value: 1 },
     });
     world.dispatch({ interactionId: 'attack' });
     tickFor(world, BASIC.baseDuration + TICK_INTERVAL);
@@ -496,6 +502,9 @@ describe('INTENT-ATTRIBUTE-OBSERVE-001 — 세계가 무엇이 언제 실리는�
       control: 'autonomous',
       tempoStats: { moveSpeed: 2.5, runSpeedMultiplier: 1.4, actionSpeed: 0.85 },
       modifiers: { energyCharge: 1, energyConsume: 1, moveSpeed: 1, actionSpeed: 1 },
+      // C-COMBAT-001 — 지금의 배분도 가려지지 않는다. 몰아 두는 일은 몸이 드러내는
+      // 것이며, 이 존재는 성한 채이므로 고르게 나눈 배분이다 (모든 값에 0 을 보탠다)
+      allocation: { id: 'balanced', shares: { body: 2, ability: 2, awareness: 2 } },
       // C011 — 자율 존재는 막지 않지만 그 사실도 실린다
       guard: { guarding: false, broken: false },
       // C014 — 겨루는 힘 셋만 살펴봄 뒤로 갔고, 가렸다는 사실이 그 자리를 대신한다.
@@ -525,6 +534,9 @@ describe('INTENT-ATTRIBUTE-OBSERVE-001 — 세계가 무엇이 언제 실리는�
       control: 'autonomous',
       tempoStats: { moveSpeed: 2.5, runSpeedMultiplier: 1.4, actionSpeed: 0.85 },
       modifiers: { energyCharge: 1, energyConsume: 1, moveSpeed: 1, actionSpeed: 1 },
+      // C-COMBAT-001 — 지금의 배분도 가려지지 않는다. 몰아 두는 일은 몸이 드러내는
+      // 것이며, 이 존재는 성한 채이므로 고르게 나눈 배분이다 (모든 값에 0 을 보탠다)
+      allocation: { id: 'balanced', shares: { body: 2, ability: 2, awareness: 2 } },
       // C010 → C012 → C013 → C015 — 새 속성도 예외 없이 실린다.
       // 여섯 능력과 두 배율과 Critical 둘이 모두 실린다
       combatStats: {

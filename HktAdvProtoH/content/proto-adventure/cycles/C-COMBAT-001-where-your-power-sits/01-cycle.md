@@ -4,8 +4,8 @@
 [PASS] Intent                     (세 축은 겹치지 않는다 · 고른 배분은 0 · 형태는 보이고 값은 관문 안)
 [PASS] World Semantic             (몫 합 6 · 고른 배분은 0 · 유효 값에 0 바닥 · GAP 없음)
 [PASS] GameView Specification      (더하는 것 셋 · 형태는 그대로 수만 움직인다 · GAP 없음)
-[    ] Human Semantic Review
-[    ] World Implementation
+[PASS] Human Semantic Review       (APPROVED — Human 위임 · 축의 자리·가려짐·수치 다섯 확정)
+[PASS] World Implementation        (1366 tests · engine 무변경 · 6대→7대는 의도된 변화)
 [    ] View Implementation
 [    ] Verification
 
