@@ -2,20 +2,23 @@
 
 파일 하나 = Constraint 하나. 이름은 `DC-<NAME>.yaml`. 형식은 [../SCHEMA.md](../SCHEMA.md).
 
-현재: **Active 51종** — 전투 5종(1종 REVISED) + **성장 21종**(GS 8 · GB 7 포함 · 1종 REVISED) +
-세계 9종(대지형 4종 포함) + 아이템 6종(1종 REVISED) + 스킬 6종(3종 REVISED) +
-GLOBAL 4종. 보류(DRAFT)는 없다.
+현재: **Active 58종** — **전투 12종**(하층 5 · 상층 7 · 그중 1종 REVISED) +
+**성장 21종**(GS 8 · GB 7 포함 · 1종 REVISED) + 세계 9종(대지형 4종 포함) +
+아이템 6종(1종 REVISED) + 스킬 6종(3종 REVISED) + GLOBAL 4종. 보류(DRAFT)는 없다.
 
-성장이 가장 촘촘한 영역이 되었다 — 21종 중 15종이 성장 두 문서(GS · GB)의 주입에서 왔다.
+성장이 가장 촘촘한 영역이고 (21종 중 15종이 GS · GB 주입에서 왔다) 전투가 그다음이다
+(12종 중 7종이 UL 주입에서 왔다). 세 주입이 같은 시기에 들어와 Active 가 36종에서
+58종이 되었다.
 
 근거 문서:
 
 ```text
-content/proto-adventure/design/   팩 기획서 — R1 · DT · TG · BW · BT · IS · IE · GS · GB
+content/proto-adventure/design/   팩 기획서 — R1 · DT · UL · TG · BW · BT · IS · IE · GS · GB
 design/                           공정·기반 원본(루트) — GR
 
 R1 §x   Design-Combat-OffenseDefense-R0.md   전투 영역
 DT §x   Design-Combat-DamageType-R0.md       전투 영역
+UL §x   Design-Combat-UpperLayer-R0.md       전투 영역 — R1 §14 의 위 두 칸(능동 방어 · 기력 배분)
 GR §x   Master-Intent-Graph-Growth.md        성장(GROWTH) 영역 한정
 TG §x   Design-Targeting-R0.md               지목(GLOBAL)
 BW §x   Master-World-Beira.md                세계(WORLD) 영역
@@ -43,6 +46,30 @@ GB §x   Design-Growth-Balance-R0.md          성장(GROWTH) 영역 — 비용·
 | DC-COMBAT-ONE-LAYER-AT-A-TIME | 한 번에 한 층 — 현재 층이 플레이로 검증되기 전에 다음 층을 올리지 않는다 | R1 §0 · §13 · §14 · §16 · DT §13 · §15 |
 | DC-COMBAT-SHARED-BUDGET | 전투 행동은 하나의 기력 예산을 나눈다 — 행동별 전용 게이지 신설 금지 | R1 §1 · §11 · §14 Aura/Nen · 핵심 원칙 |
 | DC-COMBAT-MATCHUP-SOFT | 상성은 선택을 만들되 지배하지 않는다 — 배율표가 아니라 대응 능력치 차이로만 | DT §4 · §5 · §7 · §14-7 · §14-10 |
+
+### Active — APPROVED (전투 상층 — UL 주입 · 2026-08-26 Human 승인)
+
+아래 일곱은 전투 **상층**을 규율한다. 위 다섯이 "피해가 어떻게 계산되는가" 를 지킨다면
+이 일곱은 "그 계산에 이르기 전후에 세계가 무엇을 허용하는가" 를 지킨다.
+
+| Constraint | 한 줄 | 근거 |
+|---|---|---|
+| DC-COMBAT-ONE-RESPONSE-INPUT | 공격을 받는 순간의 대응은 입력 하나 — 무엇이 되는지는 무엇을 끼웠는가가 정한다 | UL §3.1 · §4.2 · §7 · §31 · §41.2 · §44 |
+| DC-COMBAT-RESPONSE-IS-OPTIONAL-MASTERY | 대응하지 않아도 기본 전투는 성립한다 — 능동 방어는 요구가 아니라 숙련이다 | UL §3.2 · §5 · §32 · §44 |
+| DC-COMBAT-AURA-IS-A-PROFILE-NOT-A-DIAL | 힘의 배분은 수치 조절이 아니라 미리 만든 상태 하나를 고르는 일이다 | UL §3.3 · §14 · §30 · §41.1 · §44 |
+| DC-COMBAT-CONTRACT-BUYS-CAPABILITY | 스스로 건 제약이 사는 것은 수치가 아니라 새로 허용되는 행동이다 | UL §20 · §21 · §41.3 · §44 |
+| DC-COMBAT-STRONG-RULE-HAS-COUNTERPLAY | 상대의 행동 범위를 줄이는 능력에는 발견 가능한 대응책이 최소 하나 있다 | UL §16 · §24 · §36 · §39 · §41.5 · §44 |
+| DC-COMBAT-ABILITY-IS-A-RULE | 능력의 다양성은 피해 배율이 아니라 세계 조작의 종류와 조건의 조합에서 나온다 | UL §2 · §16 · §22 · §23 · §36 · §41.4 · §44 |
+| DC-COMBAT-UNAVAILABLE-HAS-A-REASON | 일어나지 않은 일도 사유를 답한다 — 상층이 만든 상태는 전부 관찰 가능하다 | UL §3.4 · §33 · §34 · §35 · §44 |
+
+이 일곱은 서로를 떠받친다 — 대응책은 읽힐 때만 대응책이고(COUNTERPLAY → UNAVAILABLE-HAS-A-REASON),
+계약의 제약이 곧 상대의 공략 지점이며(CONTRACT-BUYS-CAPABILITY → COUNTERPLAY),
+입력 하나와 배분 하나는 같은 뿌리다(ONE-RESPONSE-INPUT ↔ AURA-IS-A-PROFILE).
+
+UL 이 명시한 원칙 중 **이미 덮인 것**은 새로 만들지 않았다 — §10 · §12(전용 게이지
+금지)는 DC-COMBAT-SHARED-BUDGET 이, §1 · §45(피해 공식을 교체하지 않는다)는
+DC-COMBAT-ONE-FORMULA 가, §42(한 번에 한 층)는 DC-COMBAT-ONE-LAYER-AT-A-TIME 이
+이미 진다. §32(자동 전투)는 규율할 대상이 세계에 없어 옮기지 않았다.
 
 ### Active — APPROVED (성장)
 

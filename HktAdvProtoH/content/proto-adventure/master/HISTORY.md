@@ -2812,3 +2812,285 @@ Human 이 "FR-ACTION-PHASE 의 근간이 무엇인가" 를 물어 근간을 역�
 
     **성장 영역의 Human 대기가 0 이 되었다.** 남은 여섯(Q29 · Q35 · Q36 · Q37 · Q38 · Q46)은
     통찰 · 스킬 · 아이템 · 공정의 것이다.
+
+## 전투 상층(UL) 주입 — 2026-08-26
+
+    원본         content/proto-adventure/design/Design-Combat-UpperLayer-R0.md (UL)
+    지시         Human — "LANES.md 참고하여 이 기획에 대한 master 주입을 진행한다"
+    성격         주입(번역)이다 — 문서에 있는 의미만 옮겼고, 문서에 없는 Goal ·
+                 Possibility · Capability 를 만들지 않았다 (guides/master-inject.md)
+
+### 무엇이 열렸는가
+
+    R1 §14 의 전투 사다리는 위 두 칸(Active Defense · Aura/Nen)을 **이름만** 갖고
+    있었다. UL 이 그 두 칸의 설계 문서이므로, 이번 주입의 본체는 그 안의 자리를
+    세우고 이름만이던 노드들을 정의된 노드로 올리는 일이다.
+
+    graph/systems.yaml   MS-ACTIVE-DEFENSE (RESPONSE · PRECISION · OPPORTUNITY)
+                         MS-AURA-NEN (ALLOCATION · CONDITION · CONTRACT · OPERATION)
+                         둘 다 `parent: MS-COMBAT-LADDER` — 자리 목록은 UL §42 의
+                         점진 구현 순서(F1~F7)가 공급한다. 도구는 parent 를 읽지
+                         않으므로 관찰에는 나타나지 않지만 SCHEMA 가 정한 중첩 형태다
+
+### ADDED — Capability 9
+
+    MC-ACTIVE-RESPONSE      UL §4.1 · §4.2 · §5 · §42 F1
+    MC-PRECISION-RESPONSE   UL §5 · §6 · §42 F2
+    MC-OPPORTUNITY          UL §7 · §42 F3
+    MC-ABSORB               UL §4.2 · §9 · §28
+    MC-AURA-ALLOCATION      UL §13 · §14 · §15 · §42 F4
+    MC-ABILITY-CONDITION    UL §18 · §19 · §33 · §42 F5
+    MC-MARK                 UL §22 · §42 F7
+    MC-BIND                 UL §22 · §23 · §42 F7
+    MC-OBSERVE-ABILITY      UL §22 · §25 · §26 · §42 F7
+
+### ADDED — Possibility 4
+
+    MP-CONCENTRATE-THE-POWER    UL §13~§15    힘을 몰아 다른 몸이 된다
+    MP-BIND-BY-CONTRACT         UL §20~§24    제약을 지고 상대의 범위를 줄인다
+    MP-KNOW-THE-OPPONENT-RULE   UL §25 · §29 · §39   상대의 규칙을 알아낸다
+    MP-STORE-AND-RELEASE        UL §9 · §28   받아낸 것을 저장했다 되돌린다
+
+    Capability 만 세우고 갈래를 세우지 않으면 `required_by` 가 비어 노드가 되지
+    못한다 (SK 주입이 표에 한 줄도 더하지 못한 이유가 그것이었다). UL 은 §27~§29 ·
+    §37 에서 그 갈래들을 함께 공급하므로 이번에는 양쪽이 다 섰다.
+
+### CHANGED — 이름만이던 다섯이 정의되었다
+
+    MC-PERFECT-GUARD    grounded false → true.  UL §6 — 별개 행동이 아니라 막기의
+                        정밀 결과다. 얻는 것이 피해 0 하나에서 셋(피해 없음 · 상대
+                        노출 · 되받아칠 기회)으로 늘었다
+    MC-COUNTER          grounded false → true.  UL §7 — 전용 버튼이 아니라 기회를
+                        통해 온다. 기회를 가진 동안 기존 행동이 다른 것으로 바뀐다
+    MC-EVADE            grounded false → true.  UL §8 — 짧은 이동 + 짧은 판정 무효
+                        구간. 사다리에서 자리 없이 떠 있던 것이 ACTIVE-DEFENSE 로 들어갔다
+    MC-VOW              grounded false → true. **뜻이 바뀌었다** — R1 을 옮길 때는
+                        "제약을 걸어 더 큰 위력과 바꾼다" 였는데, UL §20 이 그 형태를
+                        나쁜 예로 들고 좋은 형태는 **새로운 행동의 허락**이라고 적는다.
+                        SCHEMA 가 정한 개정 경로 그대로다 (grounded: false 노드는
+                        그 전체의 설계 문서가 서면 semantic 을 개정한다)
+    MC-DISRUPT-ABILITY  grounded false → true.  UL §22 · §42 F7 이 봉인(Seal)을
+                        처음 여는 다섯에 넣었다. **봉인을 새 노드로 만들지 않고 이
+                        노드를 넓혔다** — 재생을 멈추는 것과 기술을 봉인하는 것은
+                        둘 다 "지금부터 그 능력이 성립하지 않는다" 이고 대상이
+                        성질이냐 이름 붙은 기술이냐만 다르다
+                        (DC-GROWTH-NO-CAPABILITY-DUPLICATION). 나중에 갈라야 한다면
+                        그때 Human 이 정한다
+
+### ADDED — Constraint 7 (전부 DRAFT · Human 승인 대기)
+
+    DC-COMBAT-ONE-RESPONSE-INPUT             UL §3.1 · §4.2 · §31 · §41.2
+    DC-COMBAT-RESPONSE-IS-OPTIONAL-MASTERY   UL §3.2 · §5 · §44
+    DC-COMBAT-AURA-IS-A-PROFILE-NOT-A-DIAL   UL §3.3 · §14 · §41.1
+    DC-COMBAT-CONTRACT-BUYS-CAPABILITY       UL §20 · §21 · §41.3
+    DC-COMBAT-STRONG-RULE-HAS-COUNTERPLAY    UL §24 · §41.5
+    DC-COMBAT-ABILITY-IS-A-RULE              UL §2 · §16 · §22 · §41.4
+    DC-COMBAT-UNAVAILABLE-HAS-A-REASON       UL §3.4 · §33 · §35
+
+    승인 전에는 DRAFT 다 — Agent 는 Constraint 를 승격하지 않는다.
+
+### 이미 있어서 새로 만들지 않은 것
+
+    UL §10 · §12 (응답 전용 게이지를 만들지 않는다 · 초기에는 기존 자원을 쓴다)
+        → DC-COMBAT-SHARED-BUDGET 이 그대로 덮는다. 승인된 DC 라 건드리지 않았다
+    UL §1 · §45 (상층은 기존 피해 공식을 교체하지 않는다)
+        → DC-COMBAT-ONE-FORMULA 그대로. UL §1 이 더한 경계(피해 공식의 확장과
+          행동 종류의 확장은 다른 문제다)는 DC-COMBAT-ABILITY-IS-A-RULE 의 경계 절이 진다.
+          그 DC 의 `prohibits` 는 여전히 `parallel_damage_formula` 하나뿐이므로 충돌이 아니다
+    UL §42 (한 번에 한 층씩) → DC-COMBAT-ONE-LAYER-AT-A-TIME
+    UL §29 (관찰 → 지식 → 기회 → 약점 이용)
+        → MC-DISCOVER-WEAKNESS 가 이미 그 자리다. UL 은 그 메커니즘을 보강할 뿐
+          새 자리를 요구하지 않으므로 노드를 건드리지 않았다
+
+### 옮기지 않은 것과 그 사유
+
+    가로채기(Intercept) · 대상 이전(Redirect · Retarget) · 지킴(Protect)
+        세계에 아군이 없어 요구하는 갈래를 만들 수 없다. 지어내지 않고
+        open-questions **Q60** 으로 노출했다
+    UL §22 의 열두 영역 전부
+        표는 능력 목록이 아니라 확장 공간의 지도다. §42 F7 이 처음 열 다섯만
+        지정하므로 그 다섯만 노드로 세웠다 (그중 봉인은 기존 노드 재사용, 대상
+        변경은 Q60 으로 보류). 나머지 영역은 MS-AURA-NEN 의 `semantic` 이 이름으로 들고 있다
+    UL §32 (자동 전투에서 AUTO 는 기본 응답 · MANUAL 은 정밀 응답)
+        명시된 원칙이지만 이 세계에 자동 전투가 없다 — 규율할 대상이 0 인 Constraint 를
+        만들지 않았다. 자동 전투가 서는 날 그 작업이 받는다
+    UL §43 의 검증용 캐릭터 3종 (Guardian · Observer · Binder)
+        Class 정의가 아니라 상층이 성립했는지 확인하는 **검증 묶음**이다 (문서가
+        스스로 그렇게 부른다). growth/classes/ 에 CL-* 로 세우지 않았다
+    UL §37 의 빌드 5축 · §30 의 HUD 구성 · §40 의 시각 표현
+        각각 성장 · View · 표현의 몫이고 Master 노드가 아니다
+    수치 · 판정 상수 (§6 의 Damage × 0.5, §34 의 duration = 1.2, §14 의 배분 값)
+        정책 §7.2 — Cycle 의 03-world-semantic.md 소유다
+
+### 충돌 · 공백 — Human 결정 대기
+
+    Q59   힘의 배분 축은 둘(R1)인가 셋(UL)인가 — **차단**.
+          MC-COMBAT-FLOW 를 건드리지 않고 MC-AURA-ALLOCATION 을 따로 세워
+          둘이 나란히 서 있다. 정해지기 전에는 그 층의 Cycle 을 열 수 없다
+    Q60   아군이 없어 수호 갈래가 통째로 비어 있다
+    Q61   기회 · 계약 · 표식은 기록인가 조건인가 —
+          DC-CONDITION-OPENS-WITHOUT-RECORDING 의 경계 문제
+
+### 다음
+
+    Frontier 후보는 세우지 않았다 — NEXT 작업의 몫이고, Q59 가 차단이라 그 전에
+    후보를 세우면 어느 축 위에 세울지가 정해지지 않는다. COMBAT 트랙이 후보 0 인
+    상태는 그대로이며, 이제 그것을 막는 것이 Q35 하나에서 Q35 · Q59 둘이 되었다.
+
+## Q59 · Q60 · Q61 — 전투 상층 주입이 낸 셋 · Human 위임 · 2026-08-26
+
+    **번호가 한 번 바뀌었다.** 이 셋은 작업 중에 Q52 · Q53 · Q54 였다. 같은 시기에
+    다른 갈래에서 성장 두 문서(GS · GB)가 Q52~Q58 을 먼저 쓰고 main 에 들어가 있어,
+    병합하며 뒤로 밀었다. 번호는 재사용하지 않는다 (open-questions.md) —
+    같은 번호가 두 뜻을 갖는 것보다 늦게 온 쪽이 물러나는 것이 맞다.
+    이것이 Q46(레인이 둘일 때 번호를 누가 잡는가)이 묻는 바로 그 자리이며,
+    이번이 **질문 번호에서** 그것이 실제로 부딪힌 첫 사례다.
+
+    Human 지시: "추천대로 진행. frontier까지 진행"
+
+    셋 다 Agent 판단대로 닫혔다. 선택은 Human 소유지만(CLAUDE.md 원칙 19) 이번에는
+    Human 이 그 선택을 **명시적으로 위임**했다 — TERRAIN 첫 후보 선택과 같은 자리다.
+    원칙이 면제된 것이 아니라 그 자리에서 Human 이 답을 준 것이다.
+
+### Q59. 힘의 배분 축은 둘인가 셋인가 — (a) 셋으로 간다
+
+    DECISION      (a) UL 을 따른다 — MC-COMBAT-FLOW 를 폐기하고 MC-AURA-ALLOCATION
+                  하나로 둔다. 몸 · 능력 · 인지 세 축이다
+
+    근거          UL 이 R1 보다 나중이고 이 층을 정의하는 문서다. UL §15 가 기존 구현을
+                  "세 축의 한 칸" 으로 흡수하는 형태로 적혀 있어, 폐기가 아니라 흡수다
+
+    무엇이 바뀌었나
+                  노드 삭제      MC-COMBAT-FLOW (그 의미는 MC-AURA-ALLOCATION 이 받는다)
+                  재배선 3       MP-EXPLOIT-OPEN-BODY · MP-HOLD-FORTIFIED ·
+                                 MP-STAKE-EVERYTHING-ON-ONE-BLOW 의 requires
+                  얹힌 자리 1    MC-FORTIFY — MS-COMBAT-LADDER/AURA-NEN 에서
+                                 MS-AURA-NEN/ALLOCATION 으로. grounded 는 false 그대로다
+                                 (UL 은 자세를 무는 **비용**을 말하지 않는다)
+                  읽는 대상 1    MK-OPPONENT-FLOW-PATTERN — "공격에 몰면 방어가 얇다" 에서
+                                 "한쪽에 몰면 반대쪽이 얇다" 로
+
+    **MP-EXPLOIT-OPEN-BODY 는 잃지 않았다.** 열림의 근거가 사라질 것을 걱정했으나,
+    UL §14 의 배분은 합이 정해져 있어 제로섬이 그대로 남는다 — 무엇과 무엇이
+    맞바꾸이는지만 달라진다. 예전에는 상대가 공격에 몰면 방어가 얇아졌고, 지금은
+    상대가 자기 **능력이나 인지**에 몰아 둔 동안 몸이 얇다 (UL §13 은 때리는 힘과 막는
+    힘을 같은 "몸" 에 함께 넣는다). 노릴 구간이 옮겨졌을 뿐 갈래는 산다.
+
+    갚지 않은 것  MC-FORTIFY 의 "자세를 유지하는 데 자원이 계속 든다" 는 R1 이 이름만
+                  댄 부분이고 UL 이 말하지 않는다. grounded: false 로 남겨 두었다 —
+                  지어내지 않았다는 표시이며, 그 층의 Cycle 이 정하거나 문서가 와야 한다
+
+### Q60. 아군이 없다 — (c) 미룬다
+
+    DECISION      (c) 수호자 갈래를 상층 검증 대상에서 빼고 나머지 셋으로 상층을 연다
+
+    근거          UL §43 의 검증 3종 중 관찰자와 묶는 자는 아군 없이 성립하고, 그 둘만으로도
+                  "같은 입력이 전혀 다른 전투가 되는가" 는 검증된다
+
+    무엇이 바뀌었나
+                  없다. MC-INTERCEPT 는 애초에 세우지 않았고 그대로 세우지 않는다.
+                  frontier/combat.md 의 "지금 열 수 없는 것" 에 그 사유가 남는다
+
+    나중에         아군을 세울 때는 (b) 를 따른다 — 사람을 지어내지 말고 세계의 존재
+                  (길들인 것 · 구조 대상 · 다른 플레이어)로 받는다. MG-RESCUE-THE-TAKEN 이
+                  이미 "남을 되찾는" 목적으로 서 있어 이어 붙일 자리가 있다
+
+### Q61. 기회 · 계약 · 표식은 기록인가 조건인가 — (a) 전부 조건형
+
+    DECISION      (a) 전부 시각에서 매번 다시 계산한다 — 상태로 적어 두고 지우지 않는다
+
+    근거          `world/semantic/combat.ts` 의 `isGuardBroken` 이 이미 그 형태다.
+                  "무너져 있다" 를 상태로 두지 않고 `guardBrokenUntil` 이라는 시각 하나에서
+                  매번 계산하므로 세우는 규칙도 지우는 규칙도 없다.
+                  표식도 "건 시각 + 지속" 이면 같은 꼴이 된다 — 조건이 없는 것이 아니라
+                  조건이 시각인 것이다
+
+    무엇이 바뀌었나
+                  MC-OPPORTUNITY        DC-CONDITION-OPENS-WITHOUT-RECORDING UNRESOLVED → SATISFIED
+                  MC-ABILITY-CONDITION  같음 — 과거 사건을 보는 조건은 그 DC 의 경계가 이미 허용한다
+                  MC-MARK               그 DC 를 새로 걸고 SATISFIED 로 판정했다
+
+    남은 UNRESOLVED 둘은 이 결정과 무관하다 — MC-ABSORB 의 저장된 힘이 기력 예산 안인가
+    (UL 이 정하지 않는다) · MC-DISRUPT-ABILITY 의 대응책 형태 (UL §24 가 예로만 든다).
+    둘 다 그 층의 Cycle 이 정할 자리다.
+
+## 전투 상층 DC 7종 승인 — 2026-08-26
+
+    Human 지시: "DC 모두 승인"
+
+    DRAFT → APPROVED   DC-COMBAT-ONE-RESPONSE-INPUT · DC-COMBAT-RESPONSE-IS-OPTIONAL-MASTERY ·
+                       DC-COMBAT-AURA-IS-A-PROFILE-NOT-A-DIAL · DC-COMBAT-CONTRACT-BUYS-CAPABILITY ·
+                       DC-COMBAT-STRONG-RULE-HAS-COUNTERPLAY · DC-COMBAT-ABILITY-IS-A-RULE ·
+                       DC-COMBAT-UNAVAILABLE-HAS-A-REASON
+
+    문안은 손대지 않았다 — 승인은 상태 변경이지 재작성이 아니다. 바뀐 것은 각 파일의
+    `status` 와 provenance 한 줄, 그리고 constraints/README.md 의 절 이름이다.
+
+    이로써 전투 영역의 Active Constraint 가 다섯에서 **열둘**이 되었다. 아래 다섯이
+    "피해가 어떻게 계산되는가" 를 지키고 위 일곱이 "그 계산에 이르기 전후에 세계가
+    무엇을 허용하는가" 를 지킨다. 전체는 36종에서 43종이 되었고 DRAFT 는 다시 0 이다.
+
+    승인 전에 이미 COMBAT Frontier 후보 열의 `Constraint Eval` 이 이 일곱을 기준으로
+    쓰여 있었다 — 승인으로 그 판정이 그대로 굳었고 다시 볼 칸이 없다.
+
+## COMBAT 첫 후보 선택 — Human 위임 · 2026-08-26
+
+    Human 지시: "후보는 알아서 선택하도록 한다."
+
+    Frontier 선택은 Human 소유다 (CLAUDE.md 원칙 19). 이번에도 Human 이 그 선택을
+    Agent 에게 **명시적으로 위임**했으므로 Agent 가 골랐고, 위임의 사실을 여기 남긴다 —
+    TERRAIN 첫 후보 선택과 같은 자리다.
+
+    고른 것       FR-WHERE-YOUR-POWER-SITS (지금 힘이 어디에 몰려 있는가) → C-COMBAT-001
+
+    근거          ① **갈래가 닫힌다** — MP-EXPLOIT-OPEN-BODY 의 요구 넷 중 셋이 이미
+                    서 있다. 후보 열 중 의존이 없으면서 갈래를 닫는 것은 이것뿐이다
+                  ② **새로 만드는 것이 가장 적다** — 판정이 읽는 값을 매번 다시 세는
+                    얼개(`effectiveStat`, C023)에 항을 하나 더하는 일이고, 세 축이 걸릴
+                    값(`physicalAttack`·`armor` / 스킬 값 / `insight`)이 셋 다 세계에 있다
+                  ③ **상층의 정체성이 한 번에 보인다** — "같은 몸이 국면마다 다른 몸이
+                    된다" (UL §45)를 가장 적은 코드로 보여 준다
+
+    감수한 것     **UL §42 의 번호 순서(F1 대답 → … → F4 배분)를 벗어난다.** 배분의
+                  진짜 값어치(§15 — 무엇을 할 수 있는지 자체를 여닫는다)는 여닫을 능력이
+                  서야 드러나므로, 지금 세우면 당분간 "수치가 맞바뀐다" 까지만 한다.
+                  그 손해를 치르고 갈래 하나를 얻는 것이 이 선택이다.
+                  DC-COMBAT-ONE-LAYER-AT-A-TIME 은 순서를 강제하지 않는다 — 각 층이
+                  아래 층 없이도 동작할 것만 요구하고 배분은 그 조건을 만족한다
+
+    고르지 않은 것 사슬 A(대답 → 정밀 → 기회)는 문서의 순서를 지키지만 셋을 다 돌아야
+                  갈래 하나(MP-READ-AND-COUNTER)가 닫힌다. 사슬 B(조건 → 표식 → 계약·묶음)는
+                  더 멀고, 그중 계약·묶음은 쪼갤 수 없어 후보 중 가장 크다
+
+    Cycle 은 아직 시작하지 않았다 — 판(LANES.md)과 트랙 파일에만 반영했고, 다음 세션이
+    `advprotoh-cycle` 로 Stage 1 부터 잡는다. 넘어갈 MASTER TRACE 는 frontier/combat.md
+    의 SELECTED 절이 그대로 들고 있다.
+
+## COMBAT Frontier — UL 전체를 후보로 세웠다 · 2026-08-26
+
+    Human 지시: "위의 기획서에 대한 내용 전부 frontier에 있어야 할 것"
+
+    처음 NEXT 는 **지금 고를 수 있는 넷**만 후보로 세우고 나머지를 "지금 열 수 없는 것"
+    으로 보냈다 (guides/master-frontier.md — 트랙 파일에는 지금 고를 수 있는 후보만 둔다).
+    Human 이 그 판단을 뒤집었다 — 기획서가 세운 것 전부가 트랙 파일에 보여야 한다.
+
+    넷 → 열       더한 여섯: FR-WHAT-YOU-BLOCK-BECOMES-YOURS(흡수·저장) ·
+                  FR-THE-WORLD-DECIDES-WHAT-IS-POSSIBLE(조건) ·
+                  FR-WHAT-YOU-LEAVE-ON-THEM(표식) · FR-A-PROMISE-BINDS-BOTH(계약·묶음) ·
+                  FR-KNOW-WHAT-THEY-CAN-DO(능력 관찰) ·
+                  FR-TAKE-AWAY-WHAT-THEY-CAN-DO(봉인)
+
+    규칙과의 정합  "지금 고를 수 있는 후보만" 의 뜻은 Human 이 근거를 보고 하나를 고를 수
+                  있어야 한다는 것이다. 후보마다 `Depends on` 을 적어 무엇이 지금 열려
+                  있는지가 한 줄로 읽히게 했으므로 그 뜻은 지켜진다 — 대신 이 층 전체가
+                  어디로 가는지가 한 화면에 남는다.
+                  후보마다 `UL 근거` 칸을 새로 두어 그 문서의 어느 절에서 왔는지를
+                  적었다. 문서와 판을 나란히 놓고 빠진 것을 셀 수 있게 하기 위해서다.
+
+    후보가 되지 못한 것은 하나다 — **수호 · 대상 이전**(UL §4.2 · §9 · §27). 세계에
+    아군이 없어 요구하는 갈래를 만들 수 없고 Q60(c) 로 미루기로 이미 정해졌다.
+    그 외에 트랙 파일의 "지금 열 수 없는 것" 에 남은 것은 UL 이 세운 것이 아니거나
+    (§32 자동 전투 — 세계에 없다 · §22 의 나머지 아홉 영역 — 확장 공간의 지도이지
+    능력 목록이 아니다) 후보의 Target 이 될 수 없는 것(MC-FORTIFY — grounded: false)이다.
+    §42 F8 과 §43 의 검증 3종도 후보가 아니다 — 새 능력이 아니라 앞의 것들이 다 선 뒤의
+    조합이고 검증 묶음이기 때문이다.

@@ -15,7 +15,7 @@ systems:
 
   - id: MS-COMBAT-LADDER
     name: 전투 사다리
-    source: R1 §14 · §15 · DT
+    source: R1 §14 · §15 · DT · UL §0 · §1 (위 두 칸의 설계)
     status: DEFINED
     semantic: >
       전투 Capability 가 쌓이는 층 구조. 아래층이 서야 위층이 의미를 갖는다.
@@ -29,6 +29,41 @@ systems:
       - { id: CRITICAL,       name: Critical }
       - { id: ACTIVE-DEFENSE, name: Active Defense }
       - { id: AURA-NEN,       name: Aura / Nen }
+
+  - id: MS-ACTIVE-DEFENSE
+    name: 능동 방어
+    parent: MS-COMBAT-LADDER
+    source: UL §4~§10 · §42 F1~F3
+    status: DEFINED
+    semantic: >
+      공격이 자신에게 닿는 순간 무엇을 할 수 있는가의 자리들. R1 이 이름만 댔던
+      전투 사다리의 ACTIVE-DEFENSE 칸 안을 UL 이 열어 셋으로 나눴다.
+      막기 · 피하기 · 받아넘기기 · 되받아치기를 각각의 시스템으로 만들지 않는다 —
+      전부 하나의 응답이라는 공통 구조를 쓰고, 무엇이 일어나는지는 그 자리에
+      무엇을 끼웠는가가 정한다 (UL §4.1).
+    segments:
+      - { id: RESPONSE,    name: 응답 — 닿는 순간 하나를 고른다 }
+      - { id: PRECISION,   name: 정밀 — 언제 골랐는가가 결과를 가른다 }
+      - { id: OPPORTUNITY, name: 기회 — 잘 된 응답이 다음 수를 연다 }
+
+  - id: MS-AURA-NEN
+    name: 기력 배분과 계약
+    parent: MS-COMBAT-LADDER
+    source: UL §11~§24 · §42 F4~F7
+    status: DEFINED
+    semantic: >
+      개인의 능력이 어떤 규칙으로 작동하는지를 바꾸는 최상층. R1 이 이름만 댔던
+      전투 사다리의 AURA-NEN 칸 안을 UL 이 열어 넷으로 나눴다. 새로운 피해 타입이
+      아니라, 지금 힘을 어디에 몰아 두었고 어떤 조건과 제약 아래 쓰는가가
+      **무엇을 할 수 있는가** 자체를 바꾸는 자리다 (UL §11).
+      마지막 자리(세계 조작)가 이 층의 실제 확장 공간이며, UL §22 가 그 지도를
+      열두 영역(생명 · 위치 · 행동 · 관계 · 대상 · 정보 · 자원 · 피해 · 개체 ·
+      Skill · 영역 · 시간)으로 그려 두었다. 처음 여는 것은 그중 다섯뿐이다 (UL §42 F7).
+    segments:
+      - { id: ALLOCATION, name: 배분 — 지금 힘을 어디에 몰아 두었는가 }
+      - { id: CONDITION,  name: 조건 — 세계가 어떠해야 그것이 가능한가 }
+      - { id: CONTRACT,   name: 계약 — 무엇을 포기하고 무엇을 허락받는가 }
+      - { id: OPERATION,  name: 세계 조작 — 피해 말고 무엇을 하는가 }
 
   - id: MS-BEIRA-LADDER
     name: 베이라 층 사다리

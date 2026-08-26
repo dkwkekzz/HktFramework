@@ -1,0 +1,67 @@
+# 원본 근거: content/proto-adventure/design/Design-Combat-UpperLayer-R0.md **UL**
+#   §2 ("상층의 목표는 Damage Variation 이 아니라 Rule Variation 을 만든다")
+#   §16 (모든 고급 Skill 은 Trigger · Target · Requirement · Condition · World Operation ·
+#        Cost · Contract · Failure · Counterplay 구조를 가진다) · §36 (AbilityDefinition —
+#        Class · Item · Fairy · Monster · Region · Artifact · Aura 출처가 달라도 같은 Rule)
+#   §22 (World Operation 표 — 피해 이외에 세계에 가할 수 있는 조작의 공간)
+#   §23 (Chain Bind — "이 Skill 은 Damage 가 없어도 강력하다")
+#   §41.4 (Ability = Damage + Debuff 로 수렴) · §44 Aura/Nen 성공 조건 4
+# 2026-08-26 UL 주입으로 신설 · 같은 날 Human 승인 (전투 상층 DC 7종 일괄).
+id: DC-COMBAT-ABILITY-IS-A-RULE
+type: constraint
+
+statement: >
+  능력의 다양성은 피해 배율의 가짓수가 아니라 세계에 가하는 조작의 종류와 그것을 여는
+  조건의 조합에서 나온다. 피해가 전혀 없는 능력도 강력할 수 있어야 하고, 능력의 출처가
+  무엇이든 세계에서는 같은 형태의 규칙이다.
+rationale: >
+  ❌ 흔한 구현은 능력을 효과 목록으로 만든다 — 피해, 피해+둔화, 범위 피해, 지속 피해,
+  강화된 피해. 이름과 연출은 달라도 세계가 겪는 일은 하나뿐이라, 능력을 백 개 더해도
+  전투는 같은 전투로 남는다. UL 은 그 수렴을 §2 에서 열거하고 §41.4 에서 금지한다.
+
+  대신 능력을 **규칙**으로 적는다 — 언제 시작될 수 있고(Trigger), 무엇이 갖춰져야 하며
+  (Requirement), 어떤 세계 조건에서 강해지고(Condition), 세계에 무엇을 하며(Operation),
+  무엇을 대가로 하고(Cost · Contract), 실패하면 어떻게 되며(Failure), 상대는 무엇을 할 수
+  있는가(Counterplay) — 아홉 칸이다 (§16 · §36).
+
+  무엇이 달라지나 — 지켰을 때: 피해 한 줄 없이도 강한 능력이 성립한다. 사슬로 묶어
+  이동을 제한하는 능력은 피해가 0 인데 상대의 전투를 통째로 바꾼다 (§23). 그리고 출처가
+  달라도 형태가 같으므로, 나중에 아이템이 주는 능력 · 정령이 주는 능력 · 몬스터의 능력을
+  각각 다른 시스템으로 만들지 않아도 된다 (§36 · §38). 어겼을 때: 확장할수록 능력 표만
+  길어지고 전투의 종류는 늘지 않는다 — 이 프로젝트가 CLAUDE.md 첫 문단에서 벗어나려는
+  바로 그 "일반적인 MMORPG" 로 되돌아간다.
+
+  가장 안 읽히는 조각 — "세계에 가하는 조작의 종류". UL §22 가 그 공간을 표로 열거한다:
+  생명 · 위치 · 행동 · 관계 · 대상 · 정보 · 자원 · 피해 · 개체 · Skill · 영역 · 시간.
+  이 목록은 능력 목록이 아니라 **확장 공간의 지도**다 — 무엇을 만들어야 한다는 뜻이 아니라,
+  능력을 설계할 때 피해 칸만 보지 말라는 뜻이다. 처음 열 것은 다섯뿐이다 (§42 F7 —
+  표식 · 묶음 · 대상 변경 · 관찰 · 봉인).
+
+  경계 — 이것은 피해 공식을 하나로 두라는 DC-COMBAT-ONE-FORMULA 와 다른 층의 규칙이다.
+  UL §1 이 그 둘을 직접 구분한다: "피해 공식을 확장하는 것과 전투에서 가능한 행동의
+  종류를 확장하는 것은 서로 다른 문제다." 피해가 발생하는 능력은 여전히 그 하나의 공식을
+  지나고 (§1 · §28), 이 제약은 그 공식 **바깥**의 조작에 대해서만 말한다.
+  또한 모든 능력이 아홉 칸을 다 채워야 한다는 뜻이 아니다 — 채우지 않은 칸이 없는 것으로
+  읽히면 된다.
+
+scope:
+  - COMBAT
+
+requires:
+  - 능력은 발동 조건 · 요구 · 세계 조건 · 세계 조작 · 대가 · 실패 · 대응책의 형태로 정의된다
+  - 피해가 없는 능력도 성립한다
+  - 출처(Class · Item · Monster …)가 달라도 세계에서는 같은 형태의 규칙이다
+prohibits:
+  - 상층 능력의 다양성을 피해 배율과 디버프의 조합만으로 만드는 것
+prefers:
+  - 새 능력을 만들 때 피해 이외의 세계 조작을 먼저 검토하는 것
+
+status: APPROVED
+provenance:
+  - HUMAN_DESIGN        # UL 주입 2026-08-26 — 같은 날 Human 승인 (7종 일괄)
+
+relations:
+  supports:
+    - DC-COMBAT-ONE-FORMULA        # 피해가 나는 경우는 여전히 그 하나의 공식을 지난다
+    - DC-SKILL-IS-COMBINATION-NOT-NAME
+  conflicts_with: []

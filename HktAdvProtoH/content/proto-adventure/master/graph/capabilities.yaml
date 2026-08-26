@@ -88,7 +88,7 @@ nodes:
         - system: MS-COMBAT-LADDER
           source: R1 §1 · §11
           role: 모든 층이 공유하는 기력 예산
-    required_by: [MP-READ-AND-COUNTER, MP-BREAK-THE-GUARD, MP-STAKE-EVERYTHING-ON-ONE-BLOW, MP-TRADE-BODY-FOR-RESOURCE, MP-EVADE-BY-MOVING-THE-BODY, MP-HOLD-FORTIFIED, MP-OUTGROW-THE-OPPONENT]
+    required_by: [MP-READ-AND-COUNTER, MP-BREAK-THE-GUARD, MP-STAKE-EVERYTHING-ON-ONE-BLOW, MP-TRADE-BODY-FOR-RESOURCE, MP-EVADE-BY-MOVING-THE-BODY, MP-HOLD-FORTIFIED, MP-OUTGROW-THE-OPPONENT, MP-CONCENTRATE-THE-POWER]
     demanded_by: []
     constraints: [DC-COMBAT-SHARED-BUDGET]
     constraint_evaluation:
@@ -143,7 +143,7 @@ nodes:
         - system: MS-COMBAT-LADDER
           source: DT §10 · §14
           role: 계산 경위 관찰 — 전 층 공통
-    required_by: [MP-EXPLOIT-OPEN-BODY]
+    required_by: [MP-EXPLOIT-OPEN-BODY, MP-CONCENTRATE-THE-POWER]
     demanded_by: []
     constraints: [DC-COMBAT-PLAYER-CAUSALITY]
     constraint_evaluation:
@@ -180,7 +180,7 @@ nodes:
           segment: SAFE
           source: BW §20
           role: SAFE 기본기 — BW 의 MC-DEFEND 가 이 노드다 (HISTORY Q18(a))
-    required_by: [MP-READ-AND-COUNTER, MP-TRADE-BODY-FOR-RESOURCE]
+    required_by: [MP-READ-AND-COUNTER, MP-TRADE-BODY-FOR-RESOURCE, MP-STORE-AND-RELEASE]
     demanded_by: [MW-SAFE-FRONTIER]
     constraints: [DC-COMBAT-SHARED-BUDGET]
     constraint_evaluation:
@@ -386,26 +386,35 @@ nodes:
   - id: MC-PERFECT-GUARD
     type: capability
     semantic: >
-      정확한 시점에 시작한 방어는 피해를 받지 않는다.
+      정확한 시점에 시작한 방어는 피해를 받지 않고, 때린 쪽이 잠시 노출된다.
       성패는 확률이 아니라 방어를 시작한 시각과 공격이 닿은 시각의 관계로 갈린다.
     detail: >
       막기(MC-GUARD)에 시점이라는 축을 더한다. 지금의 막기는 켜 두면 되는 자세라
       숙련이 개입할 여지가 적은데, 시작 시각이 판정에 들어가면 같은 막기라도 잘하는
       사람과 못하는 사람의 결과가 갈린다. 확률이 아니라 시각 관계여야 한다는 점이 핵심이다.
+      별개의 행동이 아니라는 점이 UL 이 확정한 것이다 — "완벽한 막기" 라는 버튼은 없고,
+      정밀 응답(MC-PRECISION-RESPONSE)을 막기에 적용했을 때 나오는 결과가 이 노드다.
+      그래서 얻는 것도 피해 0 하나가 아니라 셋이다: 피해 없음 · 때린 쪽의 노출 ·
+      되받아칠 기회 (UL §6).
     world_shape: >
       방어를 시작한 시각과 공격이 닿은 시각의 차이가 판정에 쓰이고, 좁은 구간에
-      맞추면 피해를 전혀 받지 않아야 한다.
+      맞추면 피해를 전혀 받지 않으며, 때린 쪽이 잠시 취약해져야 한다.
     part_of:
-      grounded: false   # 근거 문서가 이름만 댔다 — 그 전체의 설계 문서가 서면 semantic 을 개정한다
+      grounded: true
       memberships:
+        - system: MS-ACTIVE-DEFENSE
+          segment: PRECISION
+          source: UL §6 (Guard 의 Precision 결과 — 별개 행동이 아니다)
         - system: MS-COMBAT-LADDER
           segment: ACTIVE-DEFENSE
-          source: R1 §14 (이름만)
+          source: R1 §14 (이름만) · UL §6 (정의)
     required_by: [MP-READ-AND-COUNTER]
     demanded_by: []
-    constraints: [DC-COMBAT-PLAYER-CAUSALITY]
+    constraints: [DC-COMBAT-PLAYER-CAUSALITY, DC-COMBAT-ONE-RESPONSE-INPUT, DC-COMBAT-RESPONSE-IS-OPTIONAL-MASTERY]
     constraint_evaluation:
       DC-COMBAT-PLAYER-CAUSALITY: SATISFIED    # 확률이 아니라 시각 관계로 판정된다 (R1 §6)
+      DC-COMBAT-ONE-RESPONSE-INPUT: SATISFIED  # 전용 입력이 아니라 막기가 낸 정밀 결과다 (UL §6)
+      DC-COMBAT-RESPONSE-IS-OPTIONAL-MASTERY: SATISFIED  # 맞춰야만 사는 것이 아니라 맞추면 더 얻는다 (UL §3.2)
     overlay: MISSING
     overlay_gap: >-
       막기는 있으나 **시작 시각**이 판정에 쓰이지 않는다. 막기는 켜 두는 자세이고 결과는 막힘/무너짐 둘뿐이다 (R1 §14 Active Defense 층).
@@ -419,20 +428,28 @@ nodes:
       방어를 공격으로 전환하는 노드다. 이것이 없으면 방어는 언제나 손해를 줄이는
       일일 뿐이고, 밀리는 국면을 뒤집는 방법이 "버티다가 상대가 지치기를 기다린다"
       하나로 줄어든다. 되받아치기가 있어야 방어가 적극적인 선택이 된다.
+      UL 이 확정한 것은 그 발동 경로다 — 되받아치기는 자기 버튼을 갖지 않고
+      기회(MC-OPPORTUNITY)를 통해 온다. 기회를 가진 동안 평소의 빠른 베기가
+      뒤집기 베기로 **바뀐다** (UL §7).
     world_shape: >
       상대가 취약해진 상태가 존재하고, 그 상태의 상대에게 넣은 공격이 평소보다
-      크게 들어가야 한다.
+      크게 들어가야 한다. 그 공격은 새 입력이 아니라 기회를 가진 동안 기존 행동이
+      다른 것으로 바뀐 것이어야 한다.
     part_of:
-      grounded: false   # 근거 문서가 이름만 댔다 — 그 전체의 설계 문서가 서면 semantic 을 개정한다
+      grounded: true
       memberships:
+        - system: MS-ACTIVE-DEFENSE
+          segment: OPPORTUNITY
+          source: UL §7 (Counter 는 별도 버튼이 아니라 기회를 통해 발동한다)
         - system: MS-COMBAT-LADDER
           segment: ACTIVE-DEFENSE
-          source: R1 §14 (이름만)
+          source: R1 §14 (이름만) · UL §7 (정의)
     required_by: [MP-READ-AND-COUNTER]
     demanded_by: []
-    constraints: [DC-COMBAT-PLAYER-CAUSALITY]
+    constraints: [DC-COMBAT-PLAYER-CAUSALITY, DC-COMBAT-ONE-RESPONSE-INPUT]
     constraint_evaluation:
       DC-COMBAT-PLAYER-CAUSALITY: SATISFIED    # 명시된 조건이 성립할 때만 성립한다 (R1 §6)
+      DC-COMBAT-ONE-RESPONSE-INPUT: SATISFIED  # 되받아치기 전용 입력을 만들지 않는다 — 기회가 기존 행동을 바꾼다 (UL §7)
     overlay: MISSING
     overlay_gap: >-
       취약 상태(Exposed)라는 개념이 없다 (R1 §14 Active Defense 층)
@@ -471,49 +488,27 @@ nodes:
     overlay_gap: >-
       무너뜨리기 위한 **행동**이 없다. 지금은 상대가 자원을 다 쓴 결과로만 일어나므로 플레이어가 만들어 내는 구간이 아니다
 
-  - id: MC-COMBAT-FLOW
-    type: capability
-    semantic: >
-      지금 몸의 힘을 공격과 방어 중 어디에 얼마나 몰았는지가 상태로 드러나고,
-      한쪽에 몰수록 반대쪽이 실제로 빈다. 그 빈 구간은 상대가 읽을 수 있다.
-    detail: >
-      전투 사다리에서 가장 파급이 큰 노드다. 이것이 서면 "지금 상대가 어디에 힘을
-      쏟고 있는가" 가 관찰 대상이 되고, 그 위에 열린 곳 노리기·자세 유지·서약이
-      전부 얹힌다. 반대로 이것이 없으면 그 세 갈래는 얹힐 바닥이 없다.
-    world_shape: >
-      공격과 방어에 힘을 배분하는 상태가 존재하고, 한쪽에 몰면 반대쪽 수치가 실제로
-      낮아지며, 그 배분이 상대에게 관찰 가능해야 한다.
-    part_of:
-      grounded: false   # 근거 문서가 이름만 댔다 — 그 전체의 설계 문서가 서면 semantic 을 개정한다
-      memberships:
-        - system: MS-COMBAT-LADDER
-          segment: AURA-NEN
-          source: R1 §14 (이름만)
-    required_by: [MP-EXPLOIT-OPEN-BODY, MP-STAKE-EVERYTHING-ON-ONE-BLOW, MP-HOLD-FORTIFIED]
-    demanded_by: []
-    constraints: [DC-COMBAT-ONE-FORMULA]
-    constraint_evaluation:
-      DC-COMBAT-ONE-FORMULA: SATISFIED         # 새 공식이 아니라 Attack/Defense 를 변화시키는 상위 규칙이다
-    overlay: MISSING
-    overlay_gap: >-
-      공격/방어에 힘을 배분하는 상태가 없다 (R1 §14 Aura/Nen 층)
-
   - id: MC-FORTIFY
     type: capability
     semantic: >
       자원을 계속 흘리며 방어 쪽에 힘을 몰아 둔 자세를 유지한다.
     detail: >
       막기가 타격 하나에 대응하는 것이라면 이것은 국면 전체에 대한 태세다.
-      배분(MC-COMBAT-FLOW) 위에 얹히는 노드라 그것 없이는 성립하지 않는다.
+      배분(MC-AURA-ALLOCATION) 위에 얹히는 노드라 그것 없이는 성립하지 않는다.
+      **얹히는 자리가 Q59(a) 로 바뀌었다** — 예전에는 공격/방어 두 축의 배분 위에
+      섰고 지금은 몸·능력·인지 세 축의 배분 위에 선다. 그래서 대가도 바뀐다:
+      공격이 약해지는 것이 아니라 몸에 몰아 둔 만큼 능력과 인지가 얇아진다.
+      다만 UL 은 배분을 **유지하는 데 자원이 든다**고 말하지 않는다 — 자세를 무는
+      비용은 R1 이 이름만 댄 부분이라 이 노드는 아직 잠정이다.
     world_shape: >
-      방어 쪽으로 기울인 자세가 유지되는 동안 자원이 지속적으로 들고,
-      방어가 실제로 오르되 공격이 약해져야 한다.
+      몸 쪽으로 기울인 자세가 유지되는 동안 자원이 지속적으로 들고,
+      방어가 실제로 오르되 몰지 않은 쪽(능력 · 인지)이 얇아져야 한다.
     part_of:
       grounded: false   # 근거 문서가 이름만 댔다 — 그 전체의 설계 문서가 서면 semantic 을 개정한다
       memberships:
-        - system: MS-COMBAT-LADDER
-          segment: AURA-NEN
-          source: R1 §14 (이름만)
+        - system: MS-AURA-NEN
+          segment: ALLOCATION
+          source: R1 §14 (이름만) — 자세를 무는 비용은 UL 이 말하지 않는다
     required_by: [MP-HOLD-FORTIFIED]
     demanded_by: []
     constraints: [DC-COMBAT-SHARED-BUDGET]
@@ -521,7 +516,7 @@ nodes:
       DC-COMBAT-SHARED-BUDGET: SATISFIED       # 흘리는 자원이 같은 기력 예산이다 (R1 §1 · §14)
     overlay: MISSING
     overlay_gap: >-
-      배분이 없으므로 방어 쪽에 몰아 둔 자세도 없다 (R1 §14 Aura/Nen 층)
+      배분이 없으므로 몸 쪽에 몰아 둔 자세도 없다. 배분(MC-AURA-ALLOCATION)이 먼저 서야 한다
 
   - id: MC-EVADE
     type: capability
@@ -531,24 +526,31 @@ nodes:
       "빗나감" 을 확률로 처리하지 않겠다는 선언이 담긴 노드다. 회피는 주사위가 아니라
       위치 이동이어야 하고, 그래서 성공하면 자리가 바뀐다 — 이득과 손해가 함께 온다.
       이 세계는 공격이 이미 공간 판정이므로 얹힐 바닥은 서 있다.
+      UL 이 그 최소 형태를 확정했다 — 짧은 이동에 짧은 공격 판정 무효 구간을 얹는다.
+      무효 구간이 붙는 이유는 판정이 순간이 아니라 폭을 갖기 때문이며, 그 폭 없이
+      위치만 옮기면 이미 진행 중인 판정을 벗어나지 못한다 (UL §8).
     world_shape: >
       회피 행동이 몸을 실제로 다른 자리로 옮기고, 그 결과로 공격이 닿지 않아야 한다.
       확률 판정으로 빗나가면 이 노드가 아니다.
     part_of:
-      grounded: false   # 근거 문서가 이름만 댔다 — 그 전체의 설계 문서가 서면 semantic 을 개정한다
+      grounded: true
       memberships:
+        - system: MS-ACTIVE-DEFENSE
+          segment: RESPONSE
+          source: UL §8 (짧은 이동 + 짧은 판정 무효 구간 — 확률 회피가 아니다)
         - system: MS-COMBAT-LADDER
-          source: R1 §13 (자리만)
-          role: 이후 확장 — §14 순서에 아직 자리가 없다
+          segment: ACTIVE-DEFENSE
+          source: R1 §13 (자리만) · UL §8 (정의)
         - system: MS-BEIRA-LADDER
           segment: SAFE
           source: BW §20 (이름만)
           role: SAFE 기본기
     required_by: [MP-EVADE-BY-MOVING-THE-BODY]
     demanded_by: [MW-SAFE-FRONTIER]
-    constraints: [DC-COMBAT-PLAYER-CAUSALITY]
+    constraints: [DC-COMBAT-PLAYER-CAUSALITY, DC-COMBAT-ONE-RESPONSE-INPUT]
     constraint_evaluation:
       DC-COMBAT-PLAYER-CAUSALITY: SATISFIED    # 무적·확률이 아니라 실제 위치 이동이다 (R1 §6 · §13)
+      DC-COMBAT-ONE-RESPONSE-INPUT: SATISFIED  # 회피 전용 입력이 아니라 응답 자리에 끼우는 것 중 하나다 (UL §4.2)
     overlay: MISSING
     overlay_gap: >-
       회피 행동이 없다. 다만 공격이 이미 공간 판정이라 얹힐 바닥은 서 있다 (R1 §13 이연). C025 로 그 공간이 **기술마다 달라졌다** — 피할 대상이
@@ -586,30 +588,398 @@ nodes:
   - id: MC-VOW
     type: capability
     semantic: >
-      세계가 참·거짓을 판정할 수 있는 제약을 스스로 걸어 더 큰 위력과 바꾼다.
-      제약을 어기거나 실패하면 정의된 대가를 즉시 치른다.
+      세계가 참·거짓을 판정할 수 있는 제약을 스스로 걸고, 그 대가로 평소에는
+      허락되지 않는 행동을 허락받는다. 제약을 어기면 정의된 대가를 즉시 치른다.
     detail: >
       사다리의 꼭대기다. 플레이어가 자기 선택지를 스스로 줄이고 그 대가로 규칙 안의
       상한을 넘는다. 성립하려면 세계가 그 제약의 참·거짓을 실제로 판정할 수 있어야
       한다 — 판정할 수 없는 선언은 서약이 아니라 문구다.
+      **UL 이 그 대가의 성격을 바꿨다.** R1 을 옮길 때 이 노드는 "더 큰 위력과 바꾼다"
+      였는데, UL 은 그 형태(체력을 깎아 피해를 사는 식)를 명시적으로 나쁜 예로 들고
+      좋은 형태는 **새로운 행동의 허락**이라고 적는다 — "나를 먼저 공격한 대상에게만
+      쓸 수 있다" 를 받아들이면 "그 대상의 이동을 봉인할 수 있다" 가 열린다 (UL §20).
+      그래서 세 부분이 모두 있어야 계약이다: 제약 · 허락되는 것 · 어겼을 때 치르는 것
+      (UL §21). 위력 교환을 금지하는 것은 아니지만 이 층이 그것만으로 이루어지지는 않는다.
     world_shape: >
-      플레이어가 제약을 선언할 수 있고, 세계가 그 성립 여부를 판정하며,
-      지키는 동안 실제로 강해지고 어기면 즉시 대가가 치러져야 한다.
+      플레이어가 제약을 선언할 수 있고, 세계가 그 성립 여부를 매 순간 판정하며,
+      지키는 동안 평소에는 할 수 없는 것이 실제로 가능해지고, 어기면 즉시 대가가
+      치러져야 한다. 그 제약이 무엇인지가 상대에게도 읽혀야 한다.
     part_of:
-      grounded: false   # 근거 문서가 이름만 댔다 — 그 전체의 설계 문서가 서면 semantic 을 개정한다
+      grounded: true
       memberships:
+        - system: MS-AURA-NEN
+          segment: CONTRACT
+          source: UL §20 · §21 (제약 → 허락 → 위반의 대가)
         - system: MS-COMBAT-LADDER
           segment: AURA-NEN
-          source: R1 §14 (이름만)
+          source: R1 §14 (이름만) · UL §20 (정의)
           role: 사다리의 꼭대기
-    required_by: [MP-STAKE-EVERYTHING-ON-ONE-BLOW]
+    required_by: [MP-STAKE-EVERYTHING-ON-ONE-BLOW, MP-BIND-BY-CONTRACT]
     demanded_by: []
-    constraints: [DC-COMBAT-PLAYER-CAUSALITY]
+    constraints: [DC-COMBAT-PLAYER-CAUSALITY, DC-COMBAT-CONTRACT-BUYS-CAPABILITY, DC-COMBAT-STRONG-RULE-HAS-COUNTERPLAY]
     constraint_evaluation:
       DC-COMBAT-PLAYER-CAUSALITY: SATISFIED    # 제약의 성립·위반을 세계가 판정한다 (R1 §6 · §14)
+      DC-COMBAT-CONTRACT-BUYS-CAPABILITY: SATISFIED   # 대가가 수치가 아니라 허락되는 행동이다 (UL §20)
+      DC-COMBAT-STRONG-RULE-HAS-COUNTERPLAY: SATISFIED  # 제약 자체가 상대의 공략 지점이 된다 — 위반을 유도할 수 있다 (UL §21 · §24)
     overlay: MISSING
     overlay_gap: >-
-      제약·실패 대가가 없다 (R1 §14 Aura/Nen 층)
+      제약·실패 대가가 없다 (R1 §14 Aura/Nen 층). UL §21 이 요구하는 세 부분 중 세계에 있는 것은 **하나도 없다** — 제약을 선언하는 자리도, 그것이
+      여는 행동도, 위반 판정도 없다
+
+
+  # ══════════════════════════════════════════════════════════════════════
+  # 전투 상층 (UL — Design-Combat-UpperLayer-R0)
+  #
+  # R1 이 이름만 댔던 사다리의 위 두 칸(ACTIVE-DEFENSE · AURA-NEN)을 UL 이 열었다.
+  # 아래 아홉은 그 안의 자리들이며, 자리 목록은 graph/systems.yaml 의
+  # MS-ACTIVE-DEFENSE · MS-AURA-NEN 가 소유한다.
+  # UL 이 이름만 대고 요구하는 Possibility 가 없는 것(수호 · 대상 이전)은 세우지 않았다 —
+  # 세계에 아군이 없기 때문이다 (open-questions Q60).
+  # ══════════════════════════════════════════════════════════════════════
+
+  - id: MC-ACTIVE-RESPONSE
+    type: capability
+    semantic: >
+      공격이 자신에게 닿는 순간, 지금 몸에 끼워 둔 대응 하나를 실행한다.
+      막기든 피하기든 받아넘기기든 같은 자리에서 나오고, 무엇이 일어나는지는
+      그 자리에 무엇이 들어 있는가가 정한다.
+    detail: >
+      이 노드가 상층 전투 전체의 입구다. 지금 세계에서 공격을 받는 쪽이 할 수 있는
+      일은 미리 막기를 켜 두는 것뿐이라, 타격이 오는 그 순간은 결과를 받아 적는
+      시간일 뿐이다. 이것이 서면 그 순간이 선택의 자리가 된다.
+      비슷한 것과 갈리는 지점이 둘 있다. 첫째, 이것은 대응의 종류가 아니라 대응이
+      들어가는 자리다 — 막기(MC-GUARD)나 피하기(MC-EVADE)는 그 자리에 끼우는
+      것이고, 이 노드는 그 자리가 존재한다는 것 자체다. 둘째, 시점의 정확함은 여기
+      없다 — 그것은 위에 얹히는 정밀 응답(MC-PRECISION-RESPONSE)이 진다.
+      자리를 하나로 고정하는 것이 UL 의 핵심 판단이다. 그래야 캐릭터마다 전혀 다른
+      대응을 줘도 손가락이 늘지 않는다 (UL §4.2 · §31).
+    world_shape: >
+      공격이 닿기 전에 대응할 수 있는 시간이 있고, 그 시간에 실행한 대응 하나가
+      그 공격의 결과를 바꾸며, 지금 그 자리에 무엇이 들어 있는지가 관찰 가능해야 한다.
+      대응하지 않아도 기존 피해 계산이 그대로 성립해야 한다.
+    part_of:
+      grounded: true
+      memberships:
+        - system: MS-ACTIVE-DEFENSE
+          segment: RESPONSE
+          source: UL §4.1 · §4.2 · §5 · §42 F1
+    required_by: [MP-READ-AND-COUNTER, MP-EVADE-BY-MOVING-THE-BODY, MP-STORE-AND-RELEASE]
+    demanded_by: []
+    constraints: [DC-COMBAT-ONE-RESPONSE-INPUT, DC-COMBAT-RESPONSE-IS-OPTIONAL-MASTERY, DC-COMBAT-SHARED-BUDGET]
+    constraint_evaluation:
+      DC-COMBAT-ONE-RESPONSE-INPUT: SATISFIED           # 이 노드가 그 "하나" 자체다 (UL §4.2)
+      DC-COMBAT-RESPONSE-IS-OPTIONAL-MASTERY: SATISFIED # 무대응이 정상 경로로 남는다 (UL §5 NONE)
+      DC-COMBAT-SHARED-BUDGET: SATISFIED                # 전용 게이지 없이 기존 기력 예산을 쓴다 (UL §10)
+    overlay: MISSING
+    overlay_gap: >-
+      공격이 닿는 순간에 실행하는 행동이라는 개념이 없다. 막기는 미리 켜 두는 자세이고, 켠 뒤에는 받는 쪽이 개입할 자리가 없다
+      (`world/semantic/combat.ts` 의 `GuardOutcome`). 얹힐 바닥은 하나 서 있다 — C019 로 행동 안의 시점을 읽는 규칙이 생겼다
+
+  - id: MC-PRECISION-RESPONSE
+    type: capability
+    semantic: >
+      대응의 결과가 언제 했는가로 갈린다 — 하지 않음 · 안에서 함 · 좁은 구간에 맞춤
+      세 단계이고, 맞췄을 때만 그 대응의 강화된 결과가 나온다.
+    detail: >
+      대응의 자리(MC-ACTIVE-RESPONSE)에 시점이라는 축을 더한다. 이것이 없으면
+      대응은 켜면 되는 것이라 잘하고 못하고가 없고, 이것이 서면 같은 대응이라도
+      숙련이 결과를 가른다.
+      중요한 것은 세 단계 중 첫째가 정상이라는 점이다 — 아무것도 하지 않아도
+      전투는 그대로 굴러가고, 안에서 하면 기본 효과가, 좁은 구간에 맞추면 강화
+      효과가 나온다 (UL §5). 그래서 이것은 생존의 요구가 아니라 숙련의 보상이다.
+      완벽한 막기(MC-PERFECT-GUARD)와 헷갈리면 안 된다 — 그것은 이 노드를 막기에
+      적용했을 때 나오는 결과이고, 이 노드는 모든 대응이 공유하는 시점 축이다.
+      피하기에 적용하면 상대 후방의 기회가 되고, 흡수에 적용하면 줄인 만큼이 힘으로
+      남는다 (UL §8 · §9).
+    world_shape: >
+      대응이 가능한 시간 안에 더 좁은 구간이 있고, 그 구간에 맞췄는지에 따라 같은
+      대응이 다른 결과를 내며, 어느 단계였는지가 결과에서 읽혀야 한다.
+      확률로 갈리면 이 노드가 아니다.
+    part_of:
+      grounded: true
+      memberships:
+        - system: MS-ACTIVE-DEFENSE
+          segment: PRECISION
+          source: UL §5 · §6 · §42 F2
+    required_by: [MP-READ-AND-COUNTER, MP-STORE-AND-RELEASE]
+    demanded_by: []
+    constraints: [DC-COMBAT-PLAYER-CAUSALITY, DC-COMBAT-RESPONSE-IS-OPTIONAL-MASTERY]
+    constraint_evaluation:
+      DC-COMBAT-PLAYER-CAUSALITY: SATISFIED             # 확률이 아니라 시각 관계로 갈린다 (R1 §6 · UL §5)
+      DC-COMBAT-RESPONSE-IS-OPTIONAL-MASTERY: SATISFIED # 세 단계 중 첫째가 정상 경로다 (UL §5)
+    overlay: MISSING
+    overlay_gap: >-
+      대응 자체가 없으므로 그 시점 축도 없다. 다만 C019 가 행동 안의 시점을 읽는 규칙을 세워 두어, 판정에 쓸 시각은 세계에 이미 있다
+
+  - id: MC-OPPORTUNITY
+    type: capability
+    semantic: >
+      잘 된 대응이 짧은 기회를 남기고, 그 기회를 가진 동안 기존 행동이 다른 것으로
+      바뀐다. 기회는 새 버튼이 아니라 이미 있는 행동의 변형이다.
+    detail: >
+      이것이 상층 전투에서 버튼이 늘지 않는 이유다. 되받아치기 · 후방 공격 · 무기
+      파괴를 각각의 입력으로 만드는 대신, 기회를 가진 동안 스킬 하나가 다른 스킬로
+      바뀐다 (UL §7). 평소에는 빠른 베기인 자리가 기회를 가진 동안에는 뒤집기
+      베기가 된다.
+      어떤 대응이 어떤 기회를 남기는지가 이 층의 설계 공간이다 — 정밀 막기는
+      되받아칠 기회를, 정밀 회피는 후방을 잡을 기회를, 받아넘기기는 무기를 부술
+      기회를 남긴다 (UL §7).
+      기회는 짧다. 그 짧음이 이 노드를 상태 관리가 아니라 순간의 판단으로 만든다.
+    world_shape: >
+      대응의 결과로 기회가 생기고, 기회를 가진 동안 특정 행동이 다른 행동으로
+      바뀌며, 지금 어떤 기회를 가졌는지와 그것이 언제 사라지는지가 보여야 한다.
+    part_of:
+      grounded: true
+      memberships:
+        - system: MS-ACTIVE-DEFENSE
+          segment: OPPORTUNITY
+          source: UL §7 · §42 F3
+    required_by: [MP-READ-AND-COUNTER]
+    demanded_by: []
+    constraints: [DC-COMBAT-ONE-RESPONSE-INPUT, DC-CONDITION-OPENS-WITHOUT-RECORDING, DC-COMBAT-UNAVAILABLE-HAS-A-REASON]
+    constraint_evaluation:
+      DC-COMBAT-ONE-RESPONSE-INPUT: SATISFIED           # 기회는 입력을 늘리지 않고 기존 행동을 바꾼다 (UL §7)
+      DC-CONDITION-OPENS-WITHOUT-RECORDING: SATISFIED   # 기회를 상태로 적지 않고 마지막 정밀 응답 시각에서 매번 계산한다 (Q61(a) — `isGuardBroken` 과 같은 꼴)
+      DC-COMBAT-UNAVAILABLE-HAS-A-REASON: SATISFIED     # 기회가 없어서 평소 형태인 것도 사유로 읽힌다 (UL §33)
+    overlay: MISSING
+    overlay_gap: >-
+      기회라는 개념이 없고, 같은 자리의 행동이 상황에 따라 다른 것으로 바뀌는 규칙도 없다
+
+  - id: MC-ABSORB
+    type: capability
+    semantic: >
+      받아낸 공격을 줄이는 데서 끝내지 않고 줄인 만큼을 힘으로 저장했다가
+      나중에 한 번에 쓴다. 맞을수록 되돌려 줄 것이 커진다.
+    detail: >
+      막기(MC-GUARD)와 나란히 두면 방향이 반대다. 막기는 피해를 자원으로 바꿔
+      치르는 것이고, 이것은 받아낸 것을 자원으로 바꿔 버는 것이다.
+      그래서 상대의 공세가 이쪽의 밑천이 되고, 상대는 때릴수록 손해를 본다.
+      대응의 자리(MC-ACTIVE-RESPONSE)에 끼우는 것 중 하나이며, 정밀하게 맞추면
+      저장량이 커진다 (UL §9 · §28).
+      저장한 것을 쓰는 쪽도 이 노드다 — 저장은 쌓아 두는 것이 목적이 아니라
+      한 번에 되돌리기 위한 것이고, 되돌릴 때는 새 피해 공식을 만들지 않고
+      기존 공식의 기본 피해에 더한다 (UL §28).
+      상대에게 대응책이 있어야 한다 — 저장 중인 쪽을 알아보면 약한 공격으로
+      묶어 두거나 큰 공격을 아낄 수 있다 (UL §28).
+    world_shape: >
+      받아낸 피해가 사라지지 않고 저장되는 값으로 남고, 그 값이 관찰 가능하며,
+      쓰면 기존 피해 계산의 입력으로 들어가 한 번에 나가야 한다.
+      저장 중이라는 사실이 상대에게도 읽혀야 한다.
+    part_of:
+      grounded: true
+      memberships:
+        - system: MS-ACTIVE-DEFENSE
+          segment: RESPONSE
+          source: UL §4.2 · §9 (흡수자) · §28 (축적자)
+        - system: MS-AURA-NEN
+          segment: OPERATION
+          source: UL §22 (자원 — Store · 피해 — Absorb)
+          role: 받아낸 것을 자원으로 바꾸는 조작
+    required_by: [MP-STORE-AND-RELEASE]
+    demanded_by: []
+    constraints: [DC-COMBAT-ONE-FORMULA, DC-COMBAT-SHARED-BUDGET, DC-COMBAT-STRONG-RULE-HAS-COUNTERPLAY]
+    constraint_evaluation:
+      DC-COMBAT-ONE-FORMULA: SATISFIED                  # 저장분은 기존 공식의 기본 피해에 더해진다 (UL §28)
+      DC-COMBAT-SHARED-BUDGET: UNRESOLVED               # 저장된 힘이 기력 예산 안인지 별도 값인지 UL 이 정하지 않는다 (§10 · §12 는 초기에 CP 를 쓰라고만 한다)
+      DC-COMBAT-STRONG-RULE-HAS-COUNTERPLAY: SATISFIED  # 저장 중임이 읽히고 그것을 이용한 대응이 성립한다 (UL §28)
+    overlay: MISSING
+    overlay_gap: >-
+      막힌 피해는 줄어들 뿐 어디에도 남지 않는다 (`world/semantic/combat.ts` — 막힌 타격이 남기는 비율만 있다). 받아낸 것이 값으로 저장되는 자리가 없다
+
+  - id: MC-AURA-ALLOCATION
+    type: capability
+    semantic: >
+      지금 자신의 힘을 몸 · 능력 · 인지 중 어디에 몰아 두었는가가 상태로 존재하고,
+      그 선택이 수치뿐 아니라 지금 무엇을 할 수 있는가 자체를 가른다.
+      전투 중에는 미리 만들어 둔 배분 하나를 고르는 것으로만 바꾼다.
+    detail: >
+      상층 전투에서 플레이어가 국면마다 내리는 유일한 큰 결정이다. 몸에 몰면
+      때리고 막는 것이 강해지고, 능력에 몰면 자기 기술의 힘 · 지속 · 사거리가 커지며,
+      인지에 몰면 숨은 것을 보고 상대의 기술을 읽는 폭이 넓어진다 (UL §13).
+      단순한 능력치 버프가 아니라는 점이 핵심이다. 인지를 일정 이상 몰아야만
+      숨은 존재가 보이고, 능력을 일정 이상 몰아야만 계약의 두 번째 조건을 쓸 수
+      있는 식으로 가능 여부가 갈린다 (UL §15).
+      조작 부담은 여기서 막는다 — 전투 중에 비율을 만지지 않고, 이름 붙은 배분
+      하나를 고른다 (UL §14). 그 선택은 상대에게도 보이므로 (UL §40) 무엇을
+      골랐는지가 그 자체로 정보가 된다.
+      R1 이 이름만 댄 공격/방어 두 축의 배분은 **이 노드로 흡수되었다** (Q59(a) —
+      HISTORY). 그쪽의 두 축을 이쪽의 "몸" 하나가 함께 올리므로, 한쪽에 몰수록
+      반대쪽이 빈다는 성질은 그대로 남되 무엇과 무엇이 맞바꾸이는지가 달라진다 —
+      몸에 몰면 능력과 인지가 얇아지고, 능력이나 인지에 몰면 몸이 얇아진다.
+      그 얇아진 쪽이 상대가 노릴 자리다 (MP-EXPLOIT-OPEN-BODY).
+    world_shape: >
+      힘을 어디에 몰아 두었는지가 이름 붙은 상태로 존재하고, 전투 중 그 상태를
+      바꾸는 입력이 하나이며, 어느 상태냐에 따라 쓸 수 있는 것의 목록이 실제로
+      달라지고, 지금 어느 상태인지가 자신에게도 상대에게도 보여야 한다.
+    part_of:
+      grounded: true
+      memberships:
+        - system: MS-AURA-NEN
+          segment: ALLOCATION
+          source: UL §13 · §14 · §15 · §42 F4
+    required_by: [MP-CONCENTRATE-THE-POWER, MP-KNOW-THE-OPPONENT-RULE, MP-EXPLOIT-OPEN-BODY, MP-HOLD-FORTIFIED, MP-STAKE-EVERYTHING-ON-ONE-BLOW]
+    demanded_by: []
+    constraints: [DC-COMBAT-AURA-IS-A-PROFILE-NOT-A-DIAL, DC-COMBAT-ONE-FORMULA, DC-COMBAT-SHARED-BUDGET]
+    constraint_evaluation:
+      DC-COMBAT-AURA-IS-A-PROFILE-NOT-A-DIAL: SATISFIED  # 이 노드가 그 원칙의 실물이다 (UL §14)
+      DC-COMBAT-ONE-FORMULA: SATISFIED                   # 새 공식이 아니라 기존 입력값을 바꾸고 가능 여부를 여닫는다 (UL §15)
+      DC-COMBAT-SHARED-BUDGET: SATISFIED                 # 초기에는 기존 기력을 그대로 쓴다 — 분리는 나중이다 (UL §12)
+    overlay: MISSING
+    overlay_gap: >-
+      힘을 어디에 몰아 두었는가라는 상태가 없다. 능력치는 있으나 전투 중에 바뀌지 않고, 무엇을 쓸 수 있는지를 능력치가 여닫지도 않는다
+
+  - id: MC-ABILITY-CONDITION
+    type: capability
+    semantic: >
+      능력이 지금 가능한가가 세계의 상태로 갈린다 — 무엇이 참이어야 쓸 수 있고,
+      무엇이 참일 때 더 강해지는가. 못 쓸 때는 그 사유가 함께 보인다.
+    detail: >
+      이것이 상층 능력을 "언제나 쓸 수 있는 버튼" 에서 "세계를 만들어 놓고 쓰는 것"
+      으로 바꾼다. 상대가 나를 먼저 공격했는가, 표식이 걸려 있는가, 내 체력이 절반
+      이하인가, 그 기술을 직접 본 적이 있는가 — 전부 세계에서 확인할 수 있는
+      사실이어야 하고 확률이면 이 노드가 아니다 (UL §18 · §19).
+      조건이 겹칠수록 결과가 커지는 것(MC-CONDITION-STACKING)과 자리가 다르다.
+      그쪽은 성립한 조건들이 결과의 크기를 합성하는 규칙이고, 이쪽은 조건이
+      능력의 가능 여부를 여닫는 관문이다. 크기의 문제와 가능의 문제는 다르다.
+      못 쓰는 이유가 보여야 한다는 것이 이 노드의 절반이다 — 회색으로 칠하고 끝내면
+      플레이어는 실험으로만 규칙을 알아낼 수 있고, 그러면 상층은 운처럼 보인다 (UL §33).
+    world_shape: >
+      능력마다 지금 가능한가가 세계 상태에서 계산되고, 불가능하면 그 사유가 하나
+      드러나며, 조건이 참인 동안에만 강화된 결과가 나와야 한다.
+      확률로 가능 여부가 갈리면 이 노드가 아니다.
+    part_of:
+      grounded: true
+      memberships:
+        - system: MS-AURA-NEN
+          segment: CONDITION
+          source: UL §18 · §19 · §33 · §42 F5
+    required_by: [MP-BIND-BY-CONTRACT, MP-KNOW-THE-OPPONENT-RULE]
+    demanded_by: []
+    constraints: [DC-COMBAT-PLAYER-CAUSALITY, DC-COMBAT-UNAVAILABLE-HAS-A-REASON, DC-CONDITION-OPENS-WITHOUT-RECORDING]
+    constraint_evaluation:
+      DC-COMBAT-PLAYER-CAUSALITY: SATISFIED            # 조건은 확률이 아니라 세계 상태다 (UL §19)
+      DC-COMBAT-UNAVAILABLE-HAS-A-REASON: SATISFIED    # 못 쓰는 사유가 함께 나온다 (UL §33)
+      DC-CONDITION-OPENS-WITHOUT-RECORDING: SATISFIED  # 과거 사건을 보는 조건은 그 DC 의 경계가 이미 허용한다 (살펴봄 · 배운 것과 같은 자리) — Q61(a)
+    overlay: PARTIAL
+    overlay_evidence: >-
+      코드 대조 — 못 쓰는 사유를 세계가 골라 하나 내보내는 자리가 이미 있다 (`view/skill-presentation.ts` 의 `unavailableReason` · 인벤토리·장비도 같은 칸을 쓴다)
+    overlay_gap: >-
+      그 사유의 원천이 전부 자기 조건이다 — 자원이 모자라거나 거리가 멀거나 장착하지 않았거나. 세계의 사실(상대가 나를 먼저 쳤는가 · 표식이 있는가)이
+      능력의 가능 여부를 여는 자리가 없다
+
+  - id: MC-MARK
+    type: capability
+    semantic: >
+      대상에게 표식을 남겨, 이후의 판정이 그 표식을 보고 달라지게 한다.
+      표식은 피해가 아니라 이후에 쓰일 자리를 만드는 조작이다.
+    detail: >
+      세계 조작 중 가장 값이 싼 것이고, 그래서 처음 여는 다섯에 든다 (UL §42 F7).
+      표식 자체는 아무것도 하지 않는다 — 그다음에 오는 것이 그 표식을 조건으로
+      삼을 때 비로소 의미가 생긴다 (UL §18 "Target 에 Mark 존재").
+      그래서 이 노드는 조건(MC-ABILITY-CONDITION)과 짝으로만 값어치가 있다.
+      표식이 세계에 보인다는 점이 중요하다 — 걸린 쪽이 자기에게 무엇이 붙었는지
+      알아야 다음에 무엇이 올지 대비할 수 있다 (UL §40 · §30).
+      지목(MC-DESIGNATE-TARGET)과 헷갈리면 안 된다. 지목은 내가 지금 누구에게
+      의도를 두었는가이고 언제든 옮길 수 있다. 표식은 그 대상에 남은 것이고
+      내가 다른 곳을 봐도 남아 있다.
+    world_shape: >
+      대상에 붙는 표식이 세계의 사실로 존재하고, 그것이 붙어 있다는 것이 양쪽 모두에게
+      보이며, 이후의 판정이 그 표식의 유무로 달라져야 한다.
+    part_of:
+      grounded: true
+      memberships:
+        - system: MS-AURA-NEN
+          segment: OPERATION
+          source: UL §22 (관계 — Mark) · §42 F7 (처음 여는 다섯 중 하나)
+    required_by: [MP-BIND-BY-CONTRACT]
+    demanded_by: []
+    constraints: [DC-COMBAT-ABILITY-IS-A-RULE, DC-COMBAT-UNAVAILABLE-HAS-A-REASON, DC-CONDITION-OPENS-WITHOUT-RECORDING]
+    constraint_evaluation:
+      DC-COMBAT-ABILITY-IS-A-RULE: SATISFIED               # 피해가 아닌 세계 조작이다 (UL §22)
+      DC-COMBAT-UNAVAILABLE-HAS-A-REASON: SATISFIED        # 표식이 없어서 못 쓰는 것도 사유로 읽힌다 (UL §33)
+      DC-CONDITION-OPENS-WITHOUT-RECORDING: SATISFIED      # 표식도 건 시각 하나에서 재계산한다 — 조건이 없는 것이 아니라 조건이 시각이다 (Q61(a))
+    overlay: MISSING
+    overlay_gap: >-
+      대상에 남는 표식이라는 개념이 없다. 존재 사이에 남는 것은 태도(C018)와 지목(C017)뿐이고, 둘 다 거는 쪽의 상태이지 걸린 쪽에 붙은 것이 아니다
+
+  - id: MC-BIND
+    type: capability
+    semantic: >
+      두 존재 사이에 실체를 가진 관계를 만들어, 그 관계가 있는 동안 상대가 할 수
+      있는 일의 범위를 실제로 줄인다. 그 실체는 세계에 있으므로 부술 수 있다.
+    detail: >
+      상층 전투가 피해 없이도 성립한다는 것의 대표 실물이다. 묶는 능력은 피해를
+      한 점도 넣지 않지만 상대의 전투를 통째로 바꾼다 (UL §23).
+      성립 조건이 셋이다. 첫째, 관계가 세계의 사실이어야 한다 — 상태 표시가 아니라
+      양쪽을 잇는 것이 실제로 있어야 한다. 둘째, 그것이 상대의 행동 범위를 실제로
+      줄여야 한다. 셋째, 부술 수 있어야 한다 — 사슬 실체를 파괴하거나, 건 쪽을
+      움직이게 만들거나, 건 쪽의 계약 위반을 유도하는 세 갈래가 UL 의 예다 (UL §24).
+      묶는 쪽도 대가를 진다 — 묶은 동안 다른 대상을 공격할 수 없다는 계약이 붙고,
+      어기면 묶음이 즉시 풀린다 (UL §21 · §23). 그래서 이 노드는 계약(MC-VOW)
+      없이 홀로 서면 위험하다.
+      멈춰 세우는 것(MC-INTERRUPT)이나 밀고 당기는 것(MC-FORCE-MOVEMENT)과 다르다.
+      그 둘은 한 번의 사건이고 이것은 지속하는 관계다.
+    world_shape: >
+      두 존재를 잇는 것이 세계에 실체로 존재하고, 그것이 있는 동안 상대의 행동
+      범위가 실제로 좁아지며, 그 실체를 없애는 길이 최소한 하나 있어야 한다.
+      왜 움직일 수 없는지가 걸린 쪽에 사유로 보여야 한다.
+    part_of:
+      grounded: true
+      memberships:
+        - system: MS-AURA-NEN
+          segment: OPERATION
+          source: UL §22 (관계 — Bind · 위치 — Fix) · §23 · §42 F7 (처음 여는 다섯 중 하나)
+    required_by: [MP-BIND-BY-CONTRACT]
+    demanded_by: []
+    constraints: [DC-COMBAT-ABILITY-IS-A-RULE, DC-COMBAT-STRONG-RULE-HAS-COUNTERPLAY, DC-COMBAT-UNAVAILABLE-HAS-A-REASON]
+    constraint_evaluation:
+      DC-COMBAT-ABILITY-IS-A-RULE: SATISFIED            # 피해 0 으로 성립하는 세계 조작이다 (UL §23)
+      DC-COMBAT-STRONG-RULE-HAS-COUNTERPLAY: SATISFIED  # 실체 파괴 · 이동 강제 · 계약 위반 유도 세 갈래가 있다 (UL §24)
+      DC-COMBAT-UNAVAILABLE-HAS-A-REASON: SATISFIED     # 왜 움직일 수 없는지가 관계로 드러난다 (UL §35)
+    overlay: MISSING
+    overlay_gap: >-
+      존재 사이를 잇는 실체가 없고, 남의 행동 범위를 줄이는 규칙도 없다. 관계는 태도 하나뿐이고 (C018) 그것은 칠 수 있는가만 가른다
+
+  - id: MC-OBSERVE-ABILITY
+    type: capability
+    semantic: >
+      상대의 능력을 직접 겪거나 지켜보아 그 규칙을 알아 간다 — 이름 · 종류 ·
+      성립 조건 · 걸린 계약 · 대응책 순으로, 인지에 몰아 둘수록 더 깊이 읽힌다.
+    detail: >
+      정보 자체를 전투의 자원으로 만드는 노드다. 강한 능력을 맞아 보고 외우는 것이
+      아니라 세계 안에서 분석할 수 있어야 한다는 것이 UL 의 요구다 (UL §25).
+      깊이가 인지 배분(MC-AURA-ALLOCATION)에 걸린다는 점이 이 노드의 핵심이다 —
+      같은 것을 봐도 인지에 몰아 둔 사람은 그 능력의 계약과 대응책까지 읽고,
+      몰지 않은 사람은 이름까지만 읽는다. 그래서 배분의 선택이 전투 밖의 준비가
+      아니라 지금 이 싸움에서 무엇을 알게 되는가로 이어진다.
+      대상을 관찰하는 것(MC-OBSERVE)과 갈린다. 그쪽은 그 존재가 지금 어떤 상태이고
+      어떤 습성을 지녔는가를 읽고, 이쪽은 그 존재가 가진 규칙을 읽는다.
+      약점을 찾는 것(MC-DISCOVER-WEAKNESS)과도 다르다 — 그쪽은 어디가 무른가이고
+      이쪽은 무엇이 그 능력을 성립시키는가다.
+      읽은 것은 사라지지 않는다 — 한 번 안 규칙은 다음 싸움에서도 안다 (UL §25 · §39).
+    world_shape: >
+      상대의 능력이 처음에는 알 수 없는 것으로 있고, 겪거나 지켜본 만큼 그 규칙이
+      단계적으로 드러나며, 인지에 얼마나 몰았는가가 드러나는 깊이를 가르고,
+      알아낸 것이 이후의 판단에 실제로 쓰여야 한다.
+    part_of:
+      grounded: true
+      memberships:
+        - system: MS-AURA-NEN
+          segment: OPERATION
+          source: UL §22 (정보 — Observe · Record) · §25 · §26 · §42 F7 (처음 여는 다섯 중 하나)
+        - system: MS-KNOWING-CHAIN
+          segment: OBSERVE
+          source: UL §25 · BW §32
+          role: 앎의 사슬에서 대상이 존재가 아니라 그 존재가 지닌 규칙인 칸
+    required_by: [MP-KNOW-THE-OPPONENT-RULE]
+    demanded_by: []
+    constraints: [DC-COMBAT-STRONG-RULE-HAS-COUNTERPLAY, DC-COMBAT-UNAVAILABLE-HAS-A-REASON]
+    constraint_evaluation:
+      DC-COMBAT-STRONG-RULE-HAS-COUNTERPLAY: SATISFIED  # 이 노드가 대응책을 "발견 가능" 하게 만드는 경로다 (UL §25)
+      DC-COMBAT-UNAVAILABLE-HAS-A-REASON: SATISFIED     # 아직 모르는 것이 가려져 있다는 사실 자체가 드러난다 (UL §25)
+    overlay: MISSING
+    overlay_gap: >-
+      상대가 가진 능력이라는 것이 세계에 없다 — 적대 존재는 하나의 행동만 하고 그것에 규칙도 조건도 없다. 알아낼 대상 자체가 서지 않았다
 
   # ══════════════════════════════════════════════════════════════════════
   # 베이라 사다리 (BW §20~§25)
@@ -961,28 +1331,44 @@ nodes:
   - id: MC-DISRUPT-ABILITY
     type: capability
     semantic: >
-      상대의 능력(재생·공생·적응) 자체가 작동하지 못하게 방해한다 —
-      피해를 넣는 것이 아니라 능력의 성립을 끊는다.
+      상대의 능력 자체가 작동하지 못하게 만든다 — 피해를 넣는 것이 아니라
+      능력의 성립을 끊는다. 지속적으로 굴러가는 성질을 멈추는 것과 특정 능력을
+      쓰지 못하게 봉인하는 것이 같은 자리다.
     detail: >
       행동을 끊는 것(MC-INTERRUPT)과 층이 다르다. 그것은 지금 하려는 한 동작을 막는
       것이고, 이것은 상대를 그 상대이게 하는 성질 자체를 멈추는 것이다. 재생하는
       상대에게 피해를 넣는 것은 무의미하고, 재생을 멈춰야 비로소 피해가 쌓인다.
+      **UL 이 이 자리를 넓혔다.** BW 는 심부의 재생·공생을 끊는 쪽만 이름 댔는데,
+      UL 은 같은 의미를 세계 조작의 하나(봉인)로 세우고 처음 열 다섯 중 하나로 지정한다
+      (UL §22 Skill 행 · §42 F7). 봉인은 재생을 멈추는 것과 다른 시스템이 아니다 —
+      둘 다 "지금부터 그 능력이 성립하지 않는다" 이며, 대상이 성질이냐 이름 붙은
+      기술이냐만 다르다. 그래서 노드를 하나로 둔다.
+      강한 조작이므로 대응책이 함께 있어야 한다 — UL 은 봉인의 예로 "건 쪽에서
+      일정 거리 이상 멀어지면 풀린다" 를 든다 (UL §24).
     world_shape: >
-      상대가 지속적으로 작동시키는 능력이 있고, 그것을 멈추게 만드는 수단이 있으며,
-      멈춘 동안에만 유효한 대응이 존재해야 한다.
+      상대가 굴리는 능력(지속하는 성질이든 이름 붙은 기술이든)이 있고, 그것을
+      성립하지 않게 만드는 수단이 있으며, 멈춘 동안에만 유효한 대응이 존재해야 한다.
+      당한 쪽에는 왜 쓸 수 없는지가 사유로 보여야 하고, 그것을 푸는 길이 하나는 있어야 한다.
     part_of:
-      grounded: false   # 근거 문서가 이름만 댔다 — 그 전체의 설계 문서가 서면 semantic 을 개정한다
+      grounded: true
       memberships:
+        - system: MS-AURA-NEN
+          segment: OPERATION
+          source: UL §22 (Skill — Seal) · §26 · §42 F7 (처음 여는 다섯 중 하나)
         - system: MS-BEIRA-LADDER
           segment: DEEP
           source: BW §24 (이름만)
-    required_by: []
+          role: 심부의 재생·공생을 끊는 쪽 — 같은 의미의 다른 대상
+    required_by: [MP-KNOW-THE-OPPONENT-RULE]
     demanded_by: [MW-ZONE-DEEP]
-    constraints: []
-    constraint_evaluation: {}
+    constraints: [DC-COMBAT-STRONG-RULE-HAS-COUNTERPLAY, DC-COMBAT-UNAVAILABLE-HAS-A-REASON]
+    constraint_evaluation:
+      DC-COMBAT-STRONG-RULE-HAS-COUNTERPLAY: UNRESOLVED   # 대응책의 형태를 UL 이 예로만 든다 (§24) — 어떤 것을 둘지는 그 Cycle 이 정한다
+      DC-COMBAT-UNAVAILABLE-HAS-A-REASON: SATISFIED       # 봉인은 못 쓰는 사유로 드러난다 (UL §33)
     overlay: MISSING
     overlay_gap: >-
-      재생·공생·부위라는 개념 자체가 없다
+      재생·공생·부위라는 개념 자체가 없고, 능력을 봉인한다는 개념도 없다 — 지금 세계에서 못 쓰는 사유는 자원·거리·장착 같은 자기 조건뿐이고
+      **남이 걸어 둔 것** 때문에 못 쓰는 자리가 없다
 
   - id: MC-MAINTAIN-PRESSURE
     type: capability
@@ -1313,7 +1699,7 @@ nodes:
       memberships:
         - system: MS-TARGETING
           source: TG §0 · §2 · §3
-    required_by: [MP-LEARN-TO-HANDLE-THE-LAYER]
+    required_by: [MP-LEARN-TO-HANDLE-THE-LAYER, MP-BIND-BY-CONTRACT]
     demanded_by: []
     constraints: [DC-TARGET-IS-INTENT-NOT-AIM, DC-WORLD-OWNS-THE-SURFACE-LIST]
     constraint_evaluation:
