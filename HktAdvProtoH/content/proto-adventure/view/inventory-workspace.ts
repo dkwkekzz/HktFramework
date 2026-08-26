@@ -40,6 +40,7 @@ import {
   setSearch,
   visibleItems,
 } from './inventory-view';
+import { isFresh, markSeen, noteObserved, resetFresh } from './inventory-new';
 import { keyLabel } from './key-registry';
 import { openSurface, surfaceIsOpen } from './surface-state';
 
@@ -192,6 +193,7 @@ export function resetWorkspace(): void {
   observed = null;
   pending.clear();
   resetView();
+  resetFresh();
 }
 
 // ── 조작 ─────────────────────────────────────────────────────────────
@@ -534,12 +536,20 @@ function itemCells(
   shown: readonly InventoryItemView[],
   text: (code: string) => string,
 ): SceneSurfaceCell[] {
+  // 명암이 견주는 기준은 **지금 목록 안에서 가장 많은 것**이다 (V-010).
+  // "몇 개부터 많은 것인가" 를 화면이 정하면, 세계가 겹침 한도를 바꿀 때마다 화면이
+  // 거짓말을 하게 된다 (기술 띠의 넓이 막대가 같은 규칙으로 선다 — skill-presentation).
+  const most = Math.max(0, ...shown.map((entry) => entry.count));
   return shown.map((entry) => {
     const icon = CATEGORY_ICON[entry.category];
     return {
       id: `item.${entry.kind}`,
       text: icon ? `${icon} ${itemName(entry.kind, text)}` : itemName(entry.kind, text),
+      // 수량은 **숫자와 명암을 함께** 쓴다 — 색만으로 구분하지 않는다 (문서 §3)
       detail: `×${entry.count}`,
+      ...(most > 0 ? { level: entry.count / most } : {}),
+      // 새로 온 것 — 상세를 보면(고르면) 사라지는 화면의 상태다
+      ...(isFresh(entry.kind) ? { badge: 'NEW' } : {}),
       empty: false,
       selected: entry.kind === selectedKind,
     };
@@ -647,6 +657,9 @@ export function inventoryWorkspace(
 ): SceneSurface {
   observed = snapshot;
   reconcileSelection(snapshot);
+  // 무엇이 새로 왔는가 — 표면이 닫혀 있어도 센다. 열었을 때 그동안 얻은 것에
+  // 표식이 붙어 있어야 하며, 닫혀 있는 동안 얻은 것이야말로 못 본 것이다
+  noteObserved(items(snapshot).map((entry) => entry.kind));
 
   const open = surfaceIsOpen(INVENTORY_SURFACE_ID);
   // 닫히면 확인도 사라진다 — 보이지 않는 확인은 확인이 아니다. 닫는 길(Esc · ✕)이
@@ -657,6 +670,9 @@ export function inventoryWorkspace(
   const left = room ? Math.max(0, room.capacity - room.used) : 0;
   const full = room ? room.used >= room.capacity : false;
   const entry = selectedItem(snapshot);
+  // 고른 것이 곧 **상세를 본 것**이다 — 고르면 그 물건의 행동 줄이 아래에 선다.
+  // 열려 있을 때만이다: 닫힌 표면의 남은 고르기는 아무도 보지 않았다
+  if (open && entry) markSeen(entry.kind);
   // 보이는 목록과 지닌 것 전부는 **다른 수**다 (V-008 · 문서 §6). 걸러도 지닌 것은
   // 줄지 않으므로 아래 자리 구획은 이 값에 반응하지 않는다
   const all = items(snapshot);

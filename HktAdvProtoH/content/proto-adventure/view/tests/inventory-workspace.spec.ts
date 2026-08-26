@@ -287,6 +287,68 @@ describe('V-008 — 거르고 차례를 바꿔도 지닌 것은 그대로다', (
   });
 });
 
+// ── V-010 — 칸 하나가 스스로 말한다 (문서 §3) ────────────────────────
+describe('V-010 — 수량이 숫자와 명암으로 함께 읽힌다', () => {
+  it('수량은 언제나 글자로 선다 — 색만으로 구분하지 않는다', () => {
+    expect(section(mining, 'items').cells?.map((c) => c.detail)).toEqual(['×2', '×1']);
+  });
+
+  it('명암은 **목록 안에서 가장 많은 것**에 견준다 — 문턱을 화면이 정하지 않는다', () => {
+    // mining: 돌 ×2 · 곡괭이 ×1 → 1.0 과 0.5
+    expect(section(mining, 'items').cells?.map((c) => c.level)).toEqual([1, 0.5]);
+    // full: 돌 ×9 · 곡괭이 ×1 → 같은 목록의 가장 많은 것이 기준이므로 달라진다
+    expect(section(full, 'items').cells?.map((c) => c.level)).toEqual([1, 1 / 9]);
+  });
+
+  it('걸러도 남은 목록 안에서 다시 견준다 — 보이지 않는 것에 견주지 않는다', () => {
+    setFilter('material');
+    expect(section(mining, 'items').cells?.map((c) => c.level)).toEqual([1]);
+  });
+
+  it('빈 자리에는 명암이 없다 — 담은 것이 없다', () => {
+    expect(section(mining, 'room').cells?.every((c) => c.level === undefined)).toBe(true);
+  });
+});
+
+describe('V-010 — 새로 온 것에 표식이 붙었다가 상세를 보면 사라진다', () => {
+  it('열자마자 있던 것에는 표식이 없다 — 첫 관찰은 기준선이다', () => {
+    expect(section(mining, 'items').cells?.every((c) => c.badge === undefined)).toBe(true);
+  });
+
+  it('뒤에 온 것이 표식을 얻고, 고르면 사라진다', () => {
+    // 곡괭이만 있던 가방에 돌이 늘었다 (같은 관찰 둘을 잇는다)
+    const onlyTool = {
+      ...snap(mining),
+      inventory: [snap(mining).inventory![1]],
+    } as GameViewSnapshot;
+    bag(onlyTool);
+    const withStone = section(mining, 'items').cells ?? [];
+    expect(withStone.find((c) => c.id === 'item.stone')?.badge).toBe('NEW');
+    expect(withStone.find((c) => c.id === 'item.pickaxe')?.badge).toBeUndefined();
+
+    // 고른 것이 곧 상세를 본 것이다 — **열려 있을 때만이다.**
+    // 닫힌 표면에 남은 고르기는 아무도 보지 않았다
+    moveSelection(snap(mining), 1);
+    expect(workspaceSelection()).toBe('stone');
+    expect(section(mining, 'items').cells?.find((c) => c.id === 'item.stone')?.badge).toBe('NEW');
+    toggleSurface(INVENTORY_SURFACE_ID);
+    expect(section(mining, 'items').cells?.find((c) => c.id === 'item.stone')?.badge)
+      .toBeUndefined();
+  });
+
+  it('닫혀 있는 동안 얻은 것에도 표식이 붙는다 — 그것이야말로 못 본 것이다', () => {
+    closeSurface(INVENTORY_SURFACE_ID);
+    const onlyTool = {
+      ...snap(mining),
+      inventory: [snap(mining).inventory![1]],
+    } as GameViewSnapshot;
+    bag(onlyTool);
+    bag(mining); // 닫힌 채로 돌이 늘었다
+    toggleSurface(INVENTORY_SURFACE_ID);
+    expect(section(mining, 'items').cells?.find((c) => c.id === 'item.stone')?.badge).toBe('NEW');
+  });
+});
+
 // ── V-009 — 이름으로 찾는다 (문서 §6 · §2.2 의 `[검색 /]`) ───────────
 describe('V-009 — 이름으로 좁힌다', () => {
   it('도구 띠가 글자 받는 자리를 지닌다 — 띠 꼴로 그려진다', () => {
