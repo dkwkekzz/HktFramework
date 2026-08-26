@@ -1612,8 +1612,9 @@ nodes:
           role: 두 지형(빙원 · 무호흡해)이 같은 형태로 요구한다
     required_by: []
     demanded_by: [MW-TERRAIN-SUNEATER-ICEFIELD, MW-TERRAIN-BREATHLESS-SEA]
-    constraints: []
-    constraint_evaluation: {}
+    constraints: [DC-WORLD-SAFETY-IS-A-NATURAL-EXCEPTION]
+    constraint_evaluation:
+      DC-WORLD-SAFETY-IS-A-NATURAL-EXCEPTION: SATISFIED   # 나르는 것의 출처가 자연적 예외다 — 숨나무와 해숨구멍이 만든 것을 가져갈 뿐 사람이 안전을 만들지 않는다
     overlay: MISSING
     overlay_gap: >-
       몸이 열·공기 같은 것을 요구하지 않는다 — 지금 몸이 지닌 것은 생명과 기력뿐이고, 둘 다 나눠 줄 수 없다
@@ -1644,8 +1645,9 @@ nodes:
       - MW-TERRAIN-BREATHLESS-SEA
       - MW-TERRAIN-WALKING-CONTINENTS
       - MW-TERRAIN-BLOODBLOOM-FOREST
-    constraints: []
-    constraint_evaluation: {}
+    constraints: [DC-WORLD-TERRAIN-LAW-IS-OBSERVABLE]
+    constraint_evaluation:
+      DC-WORLD-TERRAIN-LAW-IS-OBSERVABLE: SATISFIED   # 창이 언제 열리는지가 풍경의 증거로 읽힌다 (밤마다 떠오르는 열기둥 · 굴절선) — 설명문이 아니다
     overlay: MISSING
     overlay_gap: >-
       세계에 주기를 가진 것이 없다 — 시간이 흐르지만 그 흐름으로 달라지는 땅의 조건이 없다
@@ -1677,8 +1679,10 @@ nodes:
       - MW-TERRAIN-BREATHLESS-SEA
       - MW-TERRAIN-SKYFALL-RANGE
       - MW-TERRAIN-WALKING-CONTINENTS
-    constraints: []
-    constraint_evaluation: {}
+    constraints: [DC-WORLD-SAFETY-IS-A-NATURAL-EXCEPTION, DC-WORLD-TERRAIN-LAW-IS-OBSERVABLE]
+    constraint_evaluation:
+      DC-WORLD-SAFETY-IS-A-NATURAL-EXCEPTION: SATISFIED   # 이을 자리가 자연적 예외라는 것이 이 능력의 전제다 (BT §13)
+      DC-WORLD-TERRAIN-LAW-IS-OBSERVABLE: SATISFIED       # 어느 자리가 안전한지를 증거로 알아본다 — 따뜻한 짐승의 길 · 흔들리는 식물
     overlay: MISSING
     overlay_gap: >-
       땅에 안전한 자리와 위험한 자리의 구분이 없다 — 이을 것도 피할 것도 없다
@@ -1708,8 +1712,9 @@ nodes:
       - MW-TERRAIN-SKYFALL-RANGE
       - MW-TERRAIN-UNHAPPENED-DESERT
       - MW-TERRAIN-BLOODBLOOM-FOREST
-    constraints: []
-    constraint_evaluation: {}
+    constraints: [DC-WORLD-SAFETY-IS-A-NATURAL-EXCEPTION]
+    constraint_evaluation:
+      DC-WORLD-SAFETY-IS-A-NATURAL-EXCEPTION: SATISFIED   # 예외를 확대하는 방식 그 자체다 — 사람은 돌을 만들지 못하고 옮겨 놓을 뿐이다
     overlay: MISSING
     overlay_gap: >-
       고정할 흔들림이 없다 — 땅이 아무 법칙도 가지지 않는다
@@ -1736,8 +1741,9 @@ nodes:
           role: 이름을 먹는 수해를 감당하는 두 길 중 하나 (다른 하나는 자기를 붙들어 두는 것)
     required_by: []
     demanded_by: [MW-TERRAIN-NAME-EATING-FOREST]
-    constraints: []
-    constraint_evaluation: {}
+    constraints: [DC-WORLD-TERRAIN-LAW-IS-OBSERVABLE]
+    constraint_evaluation:
+      DC-WORLD-TERRAIN-LAW-IS-OBSERVABLE: SATISFIED   # 같은 법칙을 이해한 사람에게 열리는 행동이 둘이다 — 자기를 붙들거나(ANCHOR) 다른 것으로 읽히거나
     overlay: MISSING
     overlay_gap: >-
       존재의 신원이라는 것이 세계에 없다 — 구분되는 것은 종류와 개체 번호뿐이고 그것을 빌릴 자리가 없다
@@ -1763,8 +1769,9 @@ nodes:
           role: 무호흡해가 여럿이 함께 움직이는 데 요구하는 것
     required_by: []
     demanded_by: [MW-TERRAIN-BREATHLESS-SEA]
-    constraints: []
-    constraint_evaluation: {}
+    constraints: [DC-WORLD-TERRAIN-LAW-IS-OBSERVABLE]
+    constraint_evaluation:
+      DC-WORLD-TERRAIN-LAW-IS-OBSERVABLE: SATISFIED   # 소리가 없다는 사실이 설명 없이 보인다 — 천과 머리카락이 움직이지 않고 붕괴가 무음이다
     overlay: MISSING
     overlay_gap: >-
       세계에 소리가 없다 — 없앨 것도 대신할 것도 아직 없다
@@ -1791,8 +1798,9 @@ nodes:
           role: 백왕의 갈비분지가 안전을 유지하는 데 요구하는 것
     required_by: []
     demanded_by: [MW-TERRAIN-BAIWANG-BASIN]
-    constraints: []
-    constraint_evaluation: {}
+    constraints: [DC-WORLD-SAFETY-IS-A-NATURAL-EXCEPTION]
+    constraint_evaluation:
+      DC-WORLD-SAFETY-IS-A-NATURAL-EXCEPTION: SATISFIED   # 분지의 안전은 뼈가 흡수하고 입구가 좁아서이고, 감별은 그 좁은 입구를 사람이 쓰는 방식이다
     overlay: MISSING
     overlay_gap: >-
       물건이 정체를 감추지 않는다 — 정의소에 있는 것은 처음부터 전부 알려져 있다
@@ -1820,8 +1828,9 @@ nodes:
           role: 아직 일어나지 않은 사막을 감당하는 자리
     required_by: []
     demanded_by: [MW-TERRAIN-UNHAPPENED-DESERT]
-    constraints: []
-    constraint_evaluation: {}
+    constraints: [DC-WORLD-TERRAIN-LAW-IS-OBSERVABLE]
+    constraint_evaluation:
+      DC-WORLD-TERRAIN-LAW-IS-OBSERVABLE: SATISFIED   # 여러 Route 의 결과를 먼저 보고 그중 하나를 고른다 — 증거가 먼저이고 열리는 행동이 여럿이다
     overlay: MISSING
     overlay_gap: >-
       세계에 가능성이라는 상태가 없다 — 참인 것은 지금의 하나뿐이고 선택되지 않은 것은 남지 않는다
@@ -1848,8 +1857,9 @@ nodes:
           role: 사람을 꽃피우는 혈화수해를 감당하는 자리
     required_by: []
     demanded_by: [MW-TERRAIN-BLOODBLOOM-FOREST]
-    constraints: []
-    constraint_evaluation: {}
+    constraints: [DC-WORLD-TERRAIN-LAW-IS-OBSERVABLE]
+    constraint_evaluation:
+      DC-WORLD-TERRAIN-LAW-IS-OBSERVABLE: SATISFIED   # 추적의 조건이 증거로 보인다 — 상처 입은 것을 향해 꽃이 일제히 돌아선다
     overlay: MISSING
     overlay_gap: >-
       몸의 상태를 좇는 것이 없다 — 남은 생명은 관찰에 실리지만 그것을 근거로 삼는 존재가 없다
@@ -1920,15 +1930,18 @@ nodes:
 # 미궁상인 · 장송원 …)은 노드로 세우지 않았다. 자원은 growth/items 가, 세력은 actors.yaml 이
 # 받을 자리인데 BT 는 각 자원이 어느 기존 MC-* 를 여는지(grants)와 각 세력이 무엇을
 # 이해관계로 삼는지(perspective · wants)를 공급하지 않는다. 지어내면 주입이 아니라 창작이
-# 된다 — 자리와 사유는 open-questions Q50 이 들고 있다. 다만 지형이 낳은 자원의 이름은
-# 각 MW-TERRAIN-* 의 detail 이 그대로 담고 있어 그 자리가 비어 있다는 것이 보인다.
+# 된다. **Human 이 그 자리를 확정했다 (HISTORY Q50(a))** — 자원은 승인 대기 중인 카탈로그
+# 문서(Design-Resource-Catalog-R0)의 주입이, 세력은 그 지형의 WHY 확장이 받는다.
+# 다만 지형이 낳은 자원의 이름은 각 MW-TERRAIN-* 의 detail 이 그대로 담고 있어
+# 그 자리가 비어 있다는 것이 보인다.
 #
 # 비주입 — BT §11.5 회귀밀은 새 노드가 아니다. 그것이 주는 의미는 이미
 # MC-RESTORE-BIOLOGICAL-STATE 다 (BW §8 회귀초와 같은 자리) — 같은 능력을 Source 별로
 # 복제하지 않는다 (DC-GROWTH-NO-CAPABILITY-DUPLICATION). 두 문서가 같은 능력을 서로 다른
-# 지형에서 낳는다는 사실 자체는 open-questions Q49 가 다룬다.
+# 지형에서 낳는다는 사실은 그대로 둔다 (HISTORY Q49(c)) — 획득 경로가 둘인 것은 정상이다.
 #
 # 비주입 — BT §15 의 열 항(지형 하나를 설계하는 규칙)과 §14(시각 설계 규칙)는 Capability 가
-# 아니라 설계의 형태를 제한하는 원칙이므로 constraints/ 로 갔다 (DC-WORLD-TERRAIN-* 4종, DRAFT).
+# 아니라 설계의 형태를 제한하는 원칙이므로 constraints/ 로 갔다 (DC-WORLD-TERRAIN-* 4종 —
+# 2026-08-26 Human 승인, HISTORY Q51).
 # §12 의 지형 간 연결(자원이 다음 지형을 연다)도 새 노드가 아니다 —
 # MP-ADAPT-BY-RESOURCE 와 DC-WORLD-PROGRESSION-IS-REACH 가 이미 소유한 형태다.

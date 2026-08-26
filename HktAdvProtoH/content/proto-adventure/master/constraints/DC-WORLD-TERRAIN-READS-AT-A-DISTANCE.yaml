@@ -37,9 +37,9 @@ prohibits:
   - 가까이 가야만 다른 대지형과 구분되는 지형                               # BT §14
 prefers: []
 
-status: DRAFT
+status: APPROVED
 provenance:
-  - HUMAN_DESIGN        # content/proto-adventure/design/Master-World-Beira-Terrain.md 주입 — Human 승인 대기
+  - HUMAN_DESIGN        # content/proto-adventure/design/Master-World-Beira-Terrain.md 주입 → Human 승인 (HISTORY Q51)
 
 relations:
   supports:

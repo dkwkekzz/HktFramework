@@ -55,7 +55,7 @@ FRINGE 의 첫 칸(살펴봄 + 그것에 이르는 두 경로)까지 서 있고,
 세계에 생겼다 — 기술에는 아직 나가지 않은 구간이 있고 그 구간에만 끊긴다.
 
 ```text
-Constraint   36     Active 32 (APPROVED 27 · REVISED 5) · DRAFT 4 (대지형 — BT 주입, Q51)
+Constraint   36     Active 36 (APPROVED 31 · REVISED 5) · DRAFT 0 — 대지형 4종 승인 (Q51)
 Candidate    12     APPROVED 3 (→ DC) · PENDING 9 (무리별 읽는 법은 candidates/README.md)
 Actor         2     Knowledge 3 · Belief 0 (Belief 는 도입하지 않는다 — Q3 결정)
 Goal          6     Possibility 22 — 상대 넘어서기 11 · 밀리는 국면 3 · 탐험 3 · 기관 획득 5.
@@ -74,11 +74,13 @@ WorldState   22     상위 인과 2 (PRIMAL-WORLD · WORLD-PRESSURE) · 세계�
                     (FREE-PRESSURE · BOUND-PRESSURE) · 구조 2 (SAFE-FRONTIER · DEPTH-GRADIENT) ·
                     깊이 층 5 (ZONE-FRINGE ~ ZONE-UNKNOWN) · 대표 지역 2 ·
                     **대지형 9** (MACRO-TERRAIN + TERRAIN-* 8 — BT 주입).
-                    세계를 나누는 축이 둘이고 그 둘의 관계는 아직 정해지지 않았다 (Q47)
+                    세계를 나누는 축이 둘이며 **직교한다** (Q47(a)) — 대지형은 어떤 법칙의
+                    땅인가, 층은 그 땅 안에서 얼마나 깊은가. 한 지역은 둘을 함께 가진다
 
 Open Question     수와 내용은 open-questions.md 가 소유한다. 다음 Cycle 선택을 막는 것은
-                  Q35(COMBAT 트랙) 하나이며, 대지형이 남긴 Q47~Q51 은 땅이 세계에
-                  들어오는 첫 Cycle 전까지 막는 것이 없다
+                  Q35(COMBAT 트랙) 하나다. 대지형이 냈던 다섯(Q47~Q51)은 2026-08-26
+                  전부 닫혔다 — 땅을 세우는 첫 Cycle 의 모양이 정해질 수 있게 되었고,
+                  Frontier 후보는 아직 없다 (NEXT 작업)
 ```
 
 무엇이 언제 왜 바뀌었는지는 Cycle 반영이면 `feedback/<CycleId>.md`, Master 층 자체의

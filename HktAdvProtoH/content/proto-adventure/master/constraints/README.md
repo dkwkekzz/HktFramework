@@ -2,9 +2,8 @@
 
 파일 하나 = Constraint 하나. 이름은 `DC-<NAME>.yaml`. 형식은 [../SCHEMA.md](../SCHEMA.md).
 
-현재: **Active 32종** — 전투 5종(1종 REVISED) + 성장 6종 + 세계 5종 +
-아이템 6종(1종 REVISED) + 스킬 6종(3종 REVISED) + GLOBAL 4종.
-**보류(DRAFT) 4종** — 대지형(BT 주입, 2026-08-26). Human 승인 대기 → [../open-questions.md](../open-questions.md) Q51.
+현재: **Active 36종** — 전투 5종(1종 REVISED) + 성장 6종 + 세계 9종(대지형 4종 포함) +
+아이템 6종(1종 REVISED) + 스킬 6종(3종 REVISED) + GLOBAL 4종. 보류(DRAFT)는 없다.
 
 근거 문서:
 
@@ -61,11 +60,10 @@ IE §x   Design-Inventory-Equipment-D1.md     아이템(ITEM) 영역 — IS §5.
 | DC-WORLD-PLAYER-UNFIXED-PATH | Player 의 역할·Class·진영·탐험 이유를 하나로 고정하지 않는다 | BW §1 · §15 · §31 |
 | DC-WORLD-PROGRESSION-IS-REACH | Progression 은 Level 이 아니라 대응 가능한 세계 범위의 확장 | BW §1 · §17 · §32 |
 
-### DRAFT — 승인 대기 (세계 — BT 주입 · Q51)
+### Active — APPROVED (세계 — BT 주입 · Q51 승인)
 
-넷 다 BT 가 절을 따로 두어 명시한 규칙이다. 원본보다 세게 쓰지 않았고, 승인 전이므로
-**어느 노드에도 배선하지 않았다** (`constraints:` 0건). 승인되면 대지형 Capability
-아홉과 MW-TERRAIN-* 여덟에 걸고 판정을 채운다.
+넷 다 BT 가 절을 따로 두어 명시한 규칙이다. 원본보다 세게 쓰지 않았다.
+2026-08-26 Human 승인 (HISTORY Q51).
 
 | Constraint | 한 줄 | 근거 |
 |---|---|---|
@@ -73,6 +71,12 @@ IE §x   Design-Inventory-Equipment-D1.md     아이템(ITEM) 영역 — IS §5.
 | DC-WORLD-SAFETY-IS-A-NATURAL-EXCEPTION | 안전한 자리는 그 지형의 법칙이 안정되거나 균형을 이루는 자연적 예외 — 문화와 건축은 그 예외를 확대한다 | BT §3 · §4.2 · §13 |
 | DC-WORLD-TERRAIN-LAW-IS-OBSERVABLE | 법칙은 설명 없이 보이는 증거로 먼저 드러나고, 이해한 사람에게 열리는 행동이 하나가 아니다 | BT §2 · §15.8 · §15.9 |
 | DC-WORLD-TERRAIN-READS-AT-A-DISTANCE | 각 대지형은 멀리서 한 장면만으로 구분된다 — 그 형상이 그 지형의 법칙에서 나온다 | BT §14 |
+
+**앞의 둘은 대지형 Capability 아홉에 걸려 전부 SATISFIED 다** (LAW-IS-OBSERVABLE 6건 ·
+SAFETY-IS-A-NATURAL-EXCEPTION 4건 — MC-FIND-SAFE-ROUTE 는 둘 다). **뒤의 둘은 걸린 노드가
+0 이다** — 그 둘은 Capability 가 아니라 **땅 자체의 형태**를 규율하는데 SCHEMA 의
+world_state 에는 `constraints` 칸이 없기 때문이다. 없는 칸을 주입이 만들지 않았다 —
+그 둘이 판정되는 자리는 새 대지형을 세우는 작업과 그 땅을 만드는 Cycle 이다 (HISTORY Q51).
 
 BT §12(자원이 다음 지형을 연다)와 §11(자원의 유래)은 새 DC 로 만들지 않았다 —
 DC-WORLD-PROGRESSION-IS-REACH 와 DC-WORLD-RESOURCE-ADAPTATION-TRACE 가 이미 같은 것을

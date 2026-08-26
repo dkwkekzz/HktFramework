@@ -50,9 +50,9 @@ prohibits:
 prefers:
   - 새 대지형이 BT §15 의 열 항(매질 → 다음 탐험)에 답할 수 있는 것        # BT §15
 
-status: DRAFT
+status: APPROVED
 provenance:
-  - HUMAN_DESIGN        # content/proto-adventure/design/Master-World-Beira-Terrain.md 주입 — Human 승인 대기
+  - HUMAN_DESIGN        # content/proto-adventure/design/Master-World-Beira-Terrain.md 주입 → Human 승인 (HISTORY Q51)
 
 relations:
   supports:
