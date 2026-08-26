@@ -3,7 +3,7 @@
 #   §14 (Aura Profile — 미리 만들고 전투 중에는 바꾸기만 한다)
 #   §30 (전투 HUD 에는 현재 Profile 하나) · §41.1 (실시간 Aura Slider → 조작 부담)
 #   §44 Aura/Nen 성공 조건 1
-# 2026-08-26 UL 주입으로 신설 — DRAFT.
+# 2026-08-26 UL 주입으로 신설 · 같은 날 Human 승인 (전투 상층 DC 7종 일괄).
 id: DC-COMBAT-AURA-IS-A-PROFILE-NOT-A-DIAL
 type: constraint
 
@@ -46,9 +46,9 @@ prohibits:
 prefers:
   - 배분이 수치뿐 아니라 지금 쓸 수 있는 능력의 목록을 바꾸는 것
 
-status: DRAFT
+status: APPROVED
 provenance:
-  - HUMAN_DESIGN        # UL 주입 2026-08-26 — Human 승인 대기
+  - HUMAN_DESIGN        # UL 주입 2026-08-26 — 같은 날 Human 승인 (7종 일괄)
 
 relations:
   supports:

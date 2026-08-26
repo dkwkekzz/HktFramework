@@ -5,7 +5,7 @@
 #   §7 ("Perfect Guard 버튼 / Counter 버튼 / Dodge 버튼 / Parry 버튼 을 각각 만들 필요가 없다")
 #   §31 (모바일 입력 원칙 — 하지 않는다 목록) · §41.2 (모든 Active Defense 별도 버튼 → 입력 과부하)
 #   §44 Active Defense 성공 조건 1 · 4
-# 2026-08-26 UL 주입으로 신설 — DRAFT.
+# 2026-08-26 UL 주입으로 신설 · 같은 날 Human 승인 (전투 상층 DC 7종 일괄).
 id: DC-COMBAT-ONE-RESPONSE-INPUT
 type: constraint
 
@@ -50,9 +50,9 @@ prohibits:
 prefers:
   - 같은 입력이 캐릭터에 따라 다른 세계 변화를 만드는 것
 
-status: DRAFT
+status: APPROVED
 provenance:
-  - HUMAN_DESIGN        # UL 주입 2026-08-26 — Human 승인 대기
+  - HUMAN_DESIGN        # UL 주입 2026-08-26 — 같은 날 Human 승인 (7종 일괄)
 
 relations:
   supports:

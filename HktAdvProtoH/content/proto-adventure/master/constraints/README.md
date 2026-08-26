@@ -2,9 +2,9 @@
 
 파일 하나 = Constraint 하나. 이름은 `DC-<NAME>.yaml`. 형식은 [../SCHEMA.md](../SCHEMA.md).
 
-현재: **Active 36종** — 전투 5종(1종 REVISED) + 성장 6종 + 세계 9종(대지형 4종 포함) +
-아이템 6종(1종 REVISED) + 스킬 6종(3종 REVISED) + GLOBAL 4종.
-그리고 **DRAFT 7종** — 전투 상층(UL) 주입이 낸 것들로 Human 승인을 기다린다 (아래 표).
+현재: **Active 43종** — 전투 12종(하층 5종 · 상층 7종 · 그중 1종 REVISED) + 성장 6종 +
+세계 9종(대지형 4종 포함) + 아이템 6종(1종 REVISED) + 스킬 6종(3종 REVISED) + GLOBAL 4종.
+보류(DRAFT)는 없다.
 
 근거 문서:
 
@@ -41,11 +41,10 @@ IE §x   Design-Inventory-Equipment-D1.md     아이템(ITEM) 영역 — IS §5.
 | DC-COMBAT-SHARED-BUDGET | 전투 행동은 하나의 기력 예산을 나눈다 — 행동별 전용 게이지 신설 금지 | R1 §1 · §11 · §14 Aura/Nen · 핵심 원칙 |
 | DC-COMBAT-MATCHUP-SOFT | 상성은 선택을 만들되 지배하지 않는다 — 배율표가 아니라 대응 능력치 차이로만 | DT §4 · §5 · §7 · §14-7 · §14-10 |
 
-### DRAFT — 승인 대기 (전투 상층 — UL 주입 2026-08-26)
+### Active — APPROVED (전투 상층 — UL 주입 · 2026-08-26 Human 승인)
 
-일곱 다 **DRAFT** 다. Agent 는 Constraint 를 승격하지 않는다 — Human 이 승인하면
-`status: APPROVED` 로 바꾸고 위 표로 옮긴다. 경위는 [../HISTORY.md](../HISTORY.md) 의
-"전투 상층(UL) 주입" 이 소유한다.
+아래 일곱은 전투 **상층**을 규율한다. 위 다섯이 "피해가 어떻게 계산되는가" 를 지킨다면
+이 일곱은 "그 계산에 이르기 전후에 세계가 무엇을 허용하는가" 를 지킨다.
 
 | Constraint | 한 줄 | 근거 |
 |---|---|---|
@@ -56,6 +55,10 @@ IE §x   Design-Inventory-Equipment-D1.md     아이템(ITEM) 영역 — IS §5.
 | DC-COMBAT-STRONG-RULE-HAS-COUNTERPLAY | 상대의 행동 범위를 줄이는 능력에는 발견 가능한 대응책이 최소 하나 있다 | UL §16 · §24 · §36 · §39 · §41.5 · §44 |
 | DC-COMBAT-ABILITY-IS-A-RULE | 능력의 다양성은 피해 배율이 아니라 세계 조작의 종류와 조건의 조합에서 나온다 | UL §2 · §16 · §22 · §23 · §36 · §41.4 · §44 |
 | DC-COMBAT-UNAVAILABLE-HAS-A-REASON | 일어나지 않은 일도 사유를 답한다 — 상층이 만든 상태는 전부 관찰 가능하다 | UL §3.4 · §33 · §34 · §35 · §44 |
+
+이 일곱은 서로를 떠받친다 — 대응책은 읽힐 때만 대응책이고(COUNTERPLAY → UNAVAILABLE-HAS-A-REASON),
+계약의 제약이 곧 상대의 공략 지점이며(CONTRACT-BUYS-CAPABILITY → COUNTERPLAY),
+입력 하나와 배분 하나는 같은 뿌리다(ONE-RESPONSE-INPUT ↔ AURA-IS-A-PROFILE).
 
 UL 이 명시한 원칙 중 **이미 덮인 것**은 새로 만들지 않았다 — §10 · §12(전용 게이지
 금지)는 DC-COMBAT-SHARED-BUDGET 이, §1 · §45(피해 공식을 교체하지 않는다)는

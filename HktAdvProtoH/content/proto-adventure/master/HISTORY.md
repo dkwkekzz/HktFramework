@@ -2708,3 +2708,84 @@ Human 이 "FR-ACTION-PHASE 의 근간이 무엇인가" 를 물어 근간을 역�
     남은 UNRESOLVED 둘은 이 결정과 무관하다 — MC-ABSORB 의 저장된 힘이 기력 예산 안인가
     (UL 이 정하지 않는다) · MC-DISRUPT-ABILITY 의 대응책 형태 (UL §24 가 예로만 든다).
     둘 다 그 층의 Cycle 이 정할 자리다.
+
+## 전투 상층 DC 7종 승인 — 2026-08-26
+
+    Human 지시: "DC 모두 승인"
+
+    DRAFT → APPROVED   DC-COMBAT-ONE-RESPONSE-INPUT · DC-COMBAT-RESPONSE-IS-OPTIONAL-MASTERY ·
+                       DC-COMBAT-AURA-IS-A-PROFILE-NOT-A-DIAL · DC-COMBAT-CONTRACT-BUYS-CAPABILITY ·
+                       DC-COMBAT-STRONG-RULE-HAS-COUNTERPLAY · DC-COMBAT-ABILITY-IS-A-RULE ·
+                       DC-COMBAT-UNAVAILABLE-HAS-A-REASON
+
+    문안은 손대지 않았다 — 승인은 상태 변경이지 재작성이 아니다. 바뀐 것은 각 파일의
+    `status` 와 provenance 한 줄, 그리고 constraints/README.md 의 절 이름이다.
+
+    이로써 전투 영역의 Active Constraint 가 다섯에서 **열둘**이 되었다. 아래 다섯이
+    "피해가 어떻게 계산되는가" 를 지키고 위 일곱이 "그 계산에 이르기 전후에 세계가
+    무엇을 허용하는가" 를 지킨다. 전체는 36종에서 43종이 되었고 DRAFT 는 다시 0 이다.
+
+    승인 전에 이미 COMBAT Frontier 후보 열의 `Constraint Eval` 이 이 일곱을 기준으로
+    쓰여 있었다 — 승인으로 그 판정이 그대로 굳었고 다시 볼 칸이 없다.
+
+## COMBAT 첫 후보 선택 — Human 위임 · 2026-08-26
+
+    Human 지시: "후보는 알아서 선택하도록 한다."
+
+    Frontier 선택은 Human 소유다 (CLAUDE.md 원칙 19). 이번에도 Human 이 그 선택을
+    Agent 에게 **명시적으로 위임**했으므로 Agent 가 골랐고, 위임의 사실을 여기 남긴다 —
+    TERRAIN 첫 후보 선택과 같은 자리다.
+
+    고른 것       FR-WHERE-YOUR-POWER-SITS (지금 힘이 어디에 몰려 있는가) → C-COMBAT-001
+
+    근거          ① **갈래가 닫힌다** — MP-EXPLOIT-OPEN-BODY 의 요구 넷 중 셋이 이미
+                    서 있다. 후보 열 중 의존이 없으면서 갈래를 닫는 것은 이것뿐이다
+                  ② **새로 만드는 것이 가장 적다** — 판정이 읽는 값을 매번 다시 세는
+                    얼개(`effectiveStat`, C023)에 항을 하나 더하는 일이고, 세 축이 걸릴
+                    값(`physicalAttack`·`armor` / 스킬 값 / `insight`)이 셋 다 세계에 있다
+                  ③ **상층의 정체성이 한 번에 보인다** — "같은 몸이 국면마다 다른 몸이
+                    된다" (UL §45)를 가장 적은 코드로 보여 준다
+
+    감수한 것     **UL §42 의 번호 순서(F1 대답 → … → F4 배분)를 벗어난다.** 배분의
+                  진짜 값어치(§15 — 무엇을 할 수 있는지 자체를 여닫는다)는 여닫을 능력이
+                  서야 드러나므로, 지금 세우면 당분간 "수치가 맞바뀐다" 까지만 한다.
+                  그 손해를 치르고 갈래 하나를 얻는 것이 이 선택이다.
+                  DC-COMBAT-ONE-LAYER-AT-A-TIME 은 순서를 강제하지 않는다 — 각 층이
+                  아래 층 없이도 동작할 것만 요구하고 배분은 그 조건을 만족한다
+
+    고르지 않은 것 사슬 A(대답 → 정밀 → 기회)는 문서의 순서를 지키지만 셋을 다 돌아야
+                  갈래 하나(MP-READ-AND-COUNTER)가 닫힌다. 사슬 B(조건 → 표식 → 계약·묶음)는
+                  더 멀고, 그중 계약·묶음은 쪼갤 수 없어 후보 중 가장 크다
+
+    Cycle 은 아직 시작하지 않았다 — 판(LANES.md)과 트랙 파일에만 반영했고, 다음 세션이
+    `advprotoh-cycle` 로 Stage 1 부터 잡는다. 넘어갈 MASTER TRACE 는 frontier/combat.md
+    의 SELECTED 절이 그대로 들고 있다.
+
+## COMBAT Frontier — UL 전체를 후보로 세웠다 · 2026-08-26
+
+    Human 지시: "위의 기획서에 대한 내용 전부 frontier에 있어야 할 것"
+
+    처음 NEXT 는 **지금 고를 수 있는 넷**만 후보로 세우고 나머지를 "지금 열 수 없는 것"
+    으로 보냈다 (guides/master-frontier.md — 트랙 파일에는 지금 고를 수 있는 후보만 둔다).
+    Human 이 그 판단을 뒤집었다 — 기획서가 세운 것 전부가 트랙 파일에 보여야 한다.
+
+    넷 → 열       더한 여섯: FR-WHAT-YOU-BLOCK-BECOMES-YOURS(흡수·저장) ·
+                  FR-THE-WORLD-DECIDES-WHAT-IS-POSSIBLE(조건) ·
+                  FR-WHAT-YOU-LEAVE-ON-THEM(표식) · FR-A-PROMISE-BINDS-BOTH(계약·묶음) ·
+                  FR-KNOW-WHAT-THEY-CAN-DO(능력 관찰) ·
+                  FR-TAKE-AWAY-WHAT-THEY-CAN-DO(봉인)
+
+    규칙과의 정합  "지금 고를 수 있는 후보만" 의 뜻은 Human 이 근거를 보고 하나를 고를 수
+                  있어야 한다는 것이다. 후보마다 `Depends on` 을 적어 무엇이 지금 열려
+                  있는지가 한 줄로 읽히게 했으므로 그 뜻은 지켜진다 — 대신 이 층 전체가
+                  어디로 가는지가 한 화면에 남는다.
+                  후보마다 `UL 근거` 칸을 새로 두어 그 문서의 어느 절에서 왔는지를
+                  적었다. 문서와 판을 나란히 놓고 빠진 것을 셀 수 있게 하기 위해서다.
+
+    후보가 되지 못한 것은 하나다 — **수호 · 대상 이전**(UL §4.2 · §9 · §27). 세계에
+    아군이 없어 요구하는 갈래를 만들 수 없고 Q53(c) 로 미루기로 이미 정해졌다.
+    그 외에 트랙 파일의 "지금 열 수 없는 것" 에 남은 것은 UL 이 세운 것이 아니거나
+    (§32 자동 전투 — 세계에 없다 · §22 의 나머지 아홉 영역 — 확장 공간의 지도이지
+    능력 목록이 아니다) 후보의 Target 이 될 수 없는 것(MC-FORTIFY — grounded: false)이다.
+    §42 F8 과 §43 의 검증 3종도 후보가 아니다 — 새 능력이 아니라 앞의 것들이 다 선 뒤의
+    조합이고 검증 묶음이기 때문이다.

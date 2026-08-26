@@ -18,7 +18,7 @@ NEXT 작업(직렬)만 한다.
 | 트랙 | 파일 | 근거 문서 영역 | SELECTED |
 |---|---|---|---|
 | ITEM | [item.md](item.md) | 아이템 IS · 인벤토리 IE | 없음 — Human 선택 대기 |
-| COMBAT | [combat.md](combat.md) | 전투 R1 · DT · **UL** · 스킬 SK | 없음 — 후보 4 · Human 선택 대기 |
+| COMBAT | [combat.md](combat.md) | 전투 R1 · DT · **UL** · 스킬 SK | `FR-WHERE-YOUR-POWER-SITS` → C-COMBAT-001 (착수 대기) |
 | TERRAIN | [terrain.md](terrain.md) | 세계 BW · BT (대지형 · 시스템 축 MS-BEIRA-TERRAIN) | 없음 — Human 선택 대기 |
 
 ## 병렬 규칙 — 구조가 지키는 것
@@ -58,9 +58,9 @@ ITEM 안의 순서는 IS §6 이 그은 것(바닥 → 장착 → 제작 → 세
 Human 선택을 기다린다. TERRAIN 안의 순서는 셋 중 하나가 바닥이라는 것이며(땅이 먼저
 있어야 나머지가 겪힌다) 그 트랙 파일이 소유한다.
 
-**COMBAT 이 다시 열렸다.** 전투 상층(UL) 주입이 R1 §14 의 위 두 칸을 세워 후보 넷이
-섰다 — 셋은 공격을 받는 순간을 여는 사슬이고 하나는 힘의 배분이다. 그러므로 지금
-**병렬로 돌 수 있는 WORLD 트랙은 셋 다**이다.
+**COMBAT 이 다시 열렸다.** 전투 상층(UL) 주입이 R1 §14 의 위 두 칸을 세워 후보 열이
+섰고 — 그 기획서가 세운 것이 전부 그 트랙 파일에 있다 — 첫 하나가 SELECTED 다.
+그러므로 지금 **병렬로 돌 수 있는 WORLD 트랙은 셋 다**이다.
 
 Q35(몸이 아닌 존재를 요구하는 Possibility)는 여전히 열려 있지만 더 이상 COMBAT 을
 막지 않는다 — 그것이 막는 것은 스킬 실행 형태(MS-SKILL-FORM)의 빈 다섯 칸이고,

@@ -4,7 +4,7 @@
 #   §21 (Restriction → Capability Permission → Violation Result 세 부분)
 #   §41.3 (Contract = Stat Penalty 만 반복 → 능력 다양성을 만들지 못함)
 #   §44 Aura/Nen 성공 조건 3 · 4
-# 2026-08-26 UL 주입으로 신설 — DRAFT.
+# 2026-08-26 UL 주입으로 신설 · 같은 날 Human 승인 (전투 상층 DC 7종 일괄).
 id: DC-COMBAT-CONTRACT-BUYS-CAPABILITY
 type: constraint
 
@@ -52,9 +52,9 @@ prohibits:
 prefers:
   - 제약이 그 자체로 상대의 공략 지점이 되는 것
 
-status: DRAFT
+status: APPROVED
 provenance:
-  - HUMAN_DESIGN        # UL 주입 2026-08-26 — Human 승인 대기
+  - HUMAN_DESIGN        # UL 주입 2026-08-26 — 같은 날 Human 승인 (7종 일괄)
 
 relations:
   supports:

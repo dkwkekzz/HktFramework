@@ -3,7 +3,7 @@
 #   §33 (관찰 가능한 Combat State — ability.available · ability.unavailableReason)
 #   §34 (Combat Event) · §35 (설명 가능한 전투 결과 — WHY 를 따라 올라간다)
 #   §44 Aura/Nen 성공 조건 6
-# 2026-08-26 UL 주입으로 신설 — DRAFT.
+# 2026-08-26 UL 주입으로 신설 · 같은 날 Human 승인 (전투 상층 DC 7종 일괄).
 id: DC-COMBAT-UNAVAILABLE-HAS-A-REASON
 type: constraint
 
@@ -51,9 +51,9 @@ prohibits:
 prefers:
   - 사유를 문구가 아니라 코드로 두고 표현은 표시 층이 고르는 것
 
-status: DRAFT
+status: APPROVED
 provenance:
-  - HUMAN_DESIGN        # UL 주입 2026-08-26 — Human 승인 대기
+  - HUMAN_DESIGN        # UL 주입 2026-08-26 — 같은 날 Human 승인 (7종 일괄)
 
 relations:
   supports:

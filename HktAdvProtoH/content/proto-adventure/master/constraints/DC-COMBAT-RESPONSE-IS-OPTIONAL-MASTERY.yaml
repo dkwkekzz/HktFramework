@@ -3,7 +3,7 @@
 #         시스템이 아니라 잘하면 새로운 가능성이 열리는 시스템")
 #   §5 (Response 결과 세 단계 — NONE 은 기존 Damage Pipeline 그대로)
 #   §32 (AUTO 는 Normal, MANUAL 은 Precision) · §44 Active Defense 성공 조건 2 · 3
-# 2026-08-26 UL 주입으로 신설 — DRAFT.
+# 2026-08-26 UL 주입으로 신설 · 같은 날 Human 승인 (전투 상층 DC 7종 일괄).
 id: DC-COMBAT-RESPONSE-IS-OPTIONAL-MASTERY
 type: constraint
 
@@ -48,9 +48,9 @@ prohibits:
 prefers:
   - 숙련의 보상을 피해 감소가 아니라 새로 열리는 선택지로 주는 것
 
-status: DRAFT
+status: APPROVED
 provenance:
-  - HUMAN_DESIGN        # UL 주입 2026-08-26 — Human 승인 대기
+  - HUMAN_DESIGN        # UL 주입 2026-08-26 — 같은 날 Human 승인 (7종 일괄)
 
 relations:
   supports:

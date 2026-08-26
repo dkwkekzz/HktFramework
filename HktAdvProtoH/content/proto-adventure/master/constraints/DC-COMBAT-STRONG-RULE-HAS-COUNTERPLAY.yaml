@@ -4,7 +4,7 @@
 #   §16 · §36 (Ability 정의에 counterplay 칸이 있다) · §41.5 (Counterplay 없는 강제 Rule)
 #   §39 (강력한 능력일수록 Condition · Contract · Tell · Counterplay 가 중요하다)
 #   §44 Aura/Nen 성공 조건 5
-# 2026-08-26 UL 주입으로 신설 — DRAFT.
+# 2026-08-26 UL 주입으로 신설 · 같은 날 Human 승인 (전투 상층 DC 7종 일괄).
 id: DC-COMBAT-STRONG-RULE-HAS-COUNTERPLAY
 type: constraint
 
@@ -48,9 +48,9 @@ prohibits:
 prefers:
   - 대응책이 그 능력의 조건 · 계약에서 자연히 나오는 것
 
-status: DRAFT
+status: APPROVED
 provenance:
-  - HUMAN_DESIGN        # UL 주입 2026-08-26 — Human 승인 대기
+  - HUMAN_DESIGN        # UL 주입 2026-08-26 — 같은 날 Human 승인 (7종 일괄)
 
 relations:
   supports:

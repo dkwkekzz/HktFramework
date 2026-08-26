@@ -6,7 +6,7 @@
 #   §22 (World Operation 표 — 피해 이외에 세계에 가할 수 있는 조작의 공간)
 #   §23 (Chain Bind — "이 Skill 은 Damage 가 없어도 강력하다")
 #   §41.4 (Ability = Damage + Debuff 로 수렴) · §44 Aura/Nen 성공 조건 4
-# 2026-08-26 UL 주입으로 신설 — DRAFT.
+# 2026-08-26 UL 주입으로 신설 · 같은 날 Human 승인 (전투 상층 DC 7종 일괄).
 id: DC-COMBAT-ABILITY-IS-A-RULE
 type: constraint
 
@@ -56,9 +56,9 @@ prohibits:
 prefers:
   - 새 능력을 만들 때 피해 이외의 세계 조작을 먼저 검토하는 것
 
-status: DRAFT
+status: APPROVED
 provenance:
-  - HUMAN_DESIGN        # UL 주입 2026-08-26 — Human 승인 대기
+  - HUMAN_DESIGN        # UL 주입 2026-08-26 — 같은 날 Human 승인 (7종 일괄)
 
 relations:
   supports:
