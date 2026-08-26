@@ -233,9 +233,9 @@ nodes:
   - id: MP-EXPLOIT-OPEN-BODY
     type: possibility
     overlay_missing: >-
-      MC-COMBAT-FLOW
+      MC-AURA-ALLOCATION
     overlay_note: >-
-      R1 §14 Aura/Nen 층
+      Q52(a) 로 축이 셋이 되었다 — 열림이 "공격에 몰아 방어가 얇다" 에서 "능력·인지에 몰아 몸이 얇다" 로 바뀌었을 뿐 갈래는 그대로 산다
     achieves: [MG-OVERCOME-SUPERIOR-OPPONENT]
     meaningful_difference: >
       상대가 스스로 만든 취약 구간을 노린다. 자원도 위치도 요구하지 않고 오직 관찰과 대기가
@@ -243,17 +243,22 @@ nodes:
       필요가 없다.
     detail: >
       되받아치기와 나란히 두면 차이가 분명하다. 되받아치기는 상대의 공격을 **받아내면서**
-      뒤집는 것이고, 이것은 상대가 공격에 힘을 몰아 방어가 얇아진 구간을 **옆에서**
+      뒤집는 것이고, 이것은 상대가 힘을 다른 곳에 몰아 몸이 얇아진 구간을 **옆에서**
       때리는 것이다. 그래서 맞을 필요가 없다. 대신 그 구간이 올 때까지 기다려야 하고,
-      기다리는 동안은 아무 이득도 없다. 상대가 힘을 어디에 몰고 있는지가 보여야
-      성립하므로, 공격·방어 배분이라는 상태가 세계에 있어야 한다.
+      기다리는 동안은 아무 이득도 없다.
+      **무엇이 비는가가 Q52(a) 로 바뀌었다.** 예전에는 상대가 공격에 몰면 방어가
+      얇아진다고 보았는데, UL 의 세 축에서는 때리는 힘과 막는 힘이 같은 "몸" 에 함께
+      들어 있다 (UL §13). 그래서 이제 노릴 자리는 상대가 자기 **능력이나 인지**에
+      힘을 몰아 둔 동안이다 — 그동안 몸이 얇아 정면 타격이 잘 든다 (UL §14 의 배분은
+      합이 정해져 있어 한쪽에 몰면 반대쪽이 실제로 준다).
+      상대가 지금 어느 배분인지가 보여야 성립하며, UL §40 이 그 표현을 요구한다.
     world_shape: >
-      상대가 공격에 힘을 몰면 방어 쪽이 실제로 얇아지고, 그 상태가 관찰 가능하며,
-      그 구간에 넣은 공격이 다른 때보다 잘 들어가야 한다.
+      상대가 능력이나 인지에 힘을 몰면 몸 쪽이 실제로 얇아지고, 지금 어느 배분인지가
+      관찰 가능하며, 그 구간에 넣은 공격이 다른 때보다 잘 들어가야 한다.
     implemented: ABSENT
     requires:
       goals: []
-      capabilities: [MC-COMBAT-FLOW, MC-COMBAT-STRIKE, MC-COMBAT-CAUSE-READING]
+      capabilities: [MC-AURA-ALLOCATION, MC-COMBAT-STRIKE, MC-COMBAT-CAUSE-READING]
       knowledge: [MK-OPPONENT-FLOW-PATTERN]
       world_state: []
       relationship: []
@@ -266,8 +271,7 @@ nodes:
     creates_goal: []
     constraints: [DC-COMBAT-PLAYER-CAUSALITY]
     constraint_evaluation:
-      DC-COMBAT-PLAYER-CAUSALITY: SATISFIED    # 열림은 배분 상태라는 관찰 가능한 원인이다 (R1 §6)
-    # R1 §14 Aura/Nen 층이 예고한다.
+      DC-COMBAT-PLAYER-CAUSALITY: SATISFIED    # 열림은 배분 상태라는 관찰 가능한 원인이다 (R1 §6 · UL §14)
 
   - id: MP-INTERRUPT
     type: possibility
@@ -428,9 +432,9 @@ nodes:
   - id: MP-STAKE-EVERYTHING-ON-ONE-BLOW
     type: possibility
     overlay_missing: >-
-      MC-VOW · MC-COMBAT-FLOW + MC-CONDITION-STACKING(PARTIAL)
+      MC-VOW · MC-AURA-ALLOCATION + MC-CONDITION-STACKING(PARTIAL)
     overlay_note: >-
-      Aura/Nen 층 — 가장 멀다
+      Aura/Nen 층 — 가장 멀다. UL §20 이 계약의 대가를 바꾼 뒤로 이 갈래는 "제약으로 위력을 산다" 쪽 반쪽만 쓴다 — 허락을 사는 반쪽은 MP-BIND-BY-CONTRACT 다
     achieves: [MG-OVERCOME-SUPERIOR-OPPONENT]
     meaningful_difference: >
       다른 모든 경로가 반복 가능한 데 비해 이것은 한 번이다. 스스로 제약을 걸어 조건을
@@ -447,7 +451,7 @@ nodes:
     implemented: ABSENT
     requires:
       goals: []
-      capabilities: [MC-VOW, MC-COMBAT-FLOW, MC-CP-ECONOMY, MC-CONDITION-STACKING]
+      capabilities: [MC-VOW, MC-AURA-ALLOCATION, MC-CP-ECONOMY, MC-CONDITION-STACKING]
       knowledge: []
       world_state: []
       relationship: []
@@ -460,10 +464,10 @@ nodes:
     reveals: []
     creates_goal:
       - MG-SURVIVE-ENEMY-OFFENSIVE   # 실패의 대가가 곧바로 다음 국면을 만든다
-    constraints: [DC-COMBAT-PLAYER-CAUSALITY]
+    constraints: [DC-COMBAT-PLAYER-CAUSALITY, DC-COMBAT-CONTRACT-BUYS-CAPABILITY]
     constraint_evaluation:
       DC-COMBAT-PLAYER-CAUSALITY: SATISFIED    # 큰 결과는 스스로 만든 조건들의 합이지 난수가 아니다
-    # R1 §14 Aura/Nen 층이 이름만 예고한다 — 그 층의 설계 문서 대기.
+      DC-COMBAT-CONTRACT-BUYS-CAPABILITY: UNRESOLVED   # UL §20 은 위력 교환**만으로** 이 층을 구성하지 말라고 한다 — 이 갈래 홀로면 어긋나고 MP-BIND-BY-CONTRACT 와 함께면 맞는다
 
 
   # ── 상층 전투 (UL) — 규칙을 바꿔서 넘어서는 갈래들 ─────────────────────
@@ -690,26 +694,29 @@ nodes:
   - id: MP-HOLD-FORTIFIED
     type: possibility
     overlay_missing: >-
-      MC-FORTIFY · MC-COMBAT-FLOW
+      MC-FORTIFY · MC-AURA-ALLOCATION
     overlay_note: >-
-      Aura/Nen 층
+      Q52(a) 로 몸·능력·인지 세 축 위에 선다 — 대가가 "공격이 약해진다" 에서 "능력과 인지가 얇아진다" 로 바뀌었다
     achieves: [MG-SURVIVE-ENEMY-OFFENSIVE]
     meaningful_difference: >
       한 번의 방어가 아니라 자세를 유지한다. 매 순간 자원을 흘리는 대신 판정마다 정확할
       필요가 없다 — 손이 아니라 자원으로 사는 안정성이다. 그동안 내 공격은 약해진다.
     detail: >
-      막기가 타격 하나하나에 대응하는 것이라면, 이것은 아예 방어 쪽으로 몸을 기울여
+      막기가 타격 하나하나에 대응하는 것이라면, 이것은 아예 몸 쪽으로 힘을 기울여
       두는 것이다. 매 순간 자원이 새지만 그동안은 판정마다 잘할 필요가 없다.
-      대가는 공격이다 — 방어에 힘을 몰아 두면 그만큼 때리는 쪽이 약해진다.
+      대가가 Q52(a) 로 바뀌었다 — 예전에는 공격이 약해지는 것이었는데, 세 축에서는
+      때리는 힘도 막는 힘도 같은 "몸" 에 있으므로 얇아지는 것은 **능력과 인지**다
+      (UL §13). 즉 버티는 동안 자기 기술이 작아지고 상대를 읽지 못하게 된다.
       그래서 이 갈래는 "지금은 못 이기니 상황이 바뀔 때까지 안전하게 있는다" 를
-      고르는 것이고, 상황을 바꿀 다른 수가 없으면 그냥 지는 길이기도 하다.
+      고르는 것이고, 그동안 상황을 읽지 못하므로 상황을 바꿀 수도 없다 — 상황을 바꿀
+      다른 수가 없으면 그냥 지는 길이기도 하다.
     world_shape: >
-      방어 쪽으로 기울인 자세가 상태로 존재하고, 유지하는 동안 자원이 지속적으로 들며,
-      그 대가로 공격이 실제로 약해져야 한다.
+      몸 쪽으로 기울인 자세가 상태로 존재하고, 유지하는 동안 자원이 지속적으로 들며,
+      그 대가로 능력과 인지가 실제로 얇아져야 한다.
     implemented: ABSENT
     requires:
       goals: []
-      capabilities: [MC-FORTIFY, MC-DEFENSE-MITIGATION, MC-COMBAT-FLOW, MC-CP-ECONOMY]
+      capabilities: [MC-FORTIFY, MC-DEFENSE-MITIGATION, MC-AURA-ALLOCATION, MC-CP-ECONOMY]
       knowledge: []
       world_state: []
       relationship: []
@@ -717,13 +724,12 @@ nodes:
     supports: []
     opposes: [MG-OVERCOME-SUPERIOR-OPPONENT]   # 버티는 동안 상대를 넘어서지는 못한다
     changes:
-      - 버티는 동안 안정되지만 공격이 약해진다
+      - 버티는 동안 안정되지만 능력과 인지가 얇아진다
     reveals: []
     creates_goal: []
     constraints: [DC-COMBAT-SHARED-BUDGET]
     constraint_evaluation:
       DC-COMBAT-SHARED-BUDGET: SATISFIED       # 자세 유지가 새 게이지가 아니라 같은 기력 예산을 흘린다 (R1 §1 · §11)
-    # R1 §14 Aura/Nen 층이 예고한다.
 
 
   - id: MP-STORE-AND-RELEASE

@@ -486,49 +486,27 @@ nodes:
     overlay_gap: >-
       무너뜨리기 위한 **행동**이 없다. 지금은 상대가 자원을 다 쓴 결과로만 일어나므로 플레이어가 만들어 내는 구간이 아니다
 
-  - id: MC-COMBAT-FLOW
-    type: capability
-    semantic: >
-      지금 몸의 힘을 공격과 방어 중 어디에 얼마나 몰았는지가 상태로 드러나고,
-      한쪽에 몰수록 반대쪽이 실제로 빈다. 그 빈 구간은 상대가 읽을 수 있다.
-    detail: >
-      전투 사다리에서 가장 파급이 큰 노드다. 이것이 서면 "지금 상대가 어디에 힘을
-      쏟고 있는가" 가 관찰 대상이 되고, 그 위에 열린 곳 노리기·자세 유지·서약이
-      전부 얹힌다. 반대로 이것이 없으면 그 세 갈래는 얹힐 바닥이 없다.
-    world_shape: >
-      공격과 방어에 힘을 배분하는 상태가 존재하고, 한쪽에 몰면 반대쪽 수치가 실제로
-      낮아지며, 그 배분이 상대에게 관찰 가능해야 한다.
-    part_of:
-      grounded: false   # 근거 문서가 이름만 댔다 — 그 전체의 설계 문서가 서면 semantic 을 개정한다
-      memberships:
-        - system: MS-COMBAT-LADDER
-          segment: AURA-NEN
-          source: R1 §14 (이름만)
-    required_by: [MP-EXPLOIT-OPEN-BODY, MP-STAKE-EVERYTHING-ON-ONE-BLOW, MP-HOLD-FORTIFIED]
-    demanded_by: []
-    constraints: [DC-COMBAT-ONE-FORMULA]
-    constraint_evaluation:
-      DC-COMBAT-ONE-FORMULA: SATISFIED         # 새 공식이 아니라 Attack/Defense 를 변화시키는 상위 규칙이다
-    overlay: MISSING
-    overlay_gap: >-
-      공격/방어에 힘을 배분하는 상태가 없다 (R1 §14 Aura/Nen 층)
-
   - id: MC-FORTIFY
     type: capability
     semantic: >
       자원을 계속 흘리며 방어 쪽에 힘을 몰아 둔 자세를 유지한다.
     detail: >
       막기가 타격 하나에 대응하는 것이라면 이것은 국면 전체에 대한 태세다.
-      배분(MC-COMBAT-FLOW) 위에 얹히는 노드라 그것 없이는 성립하지 않는다.
+      배분(MC-AURA-ALLOCATION) 위에 얹히는 노드라 그것 없이는 성립하지 않는다.
+      **얹히는 자리가 Q52(a) 로 바뀌었다** — 예전에는 공격/방어 두 축의 배분 위에
+      섰고 지금은 몸·능력·인지 세 축의 배분 위에 선다. 그래서 대가도 바뀐다:
+      공격이 약해지는 것이 아니라 몸에 몰아 둔 만큼 능력과 인지가 얇아진다.
+      다만 UL 은 배분을 **유지하는 데 자원이 든다**고 말하지 않는다 — 자세를 무는
+      비용은 R1 이 이름만 댄 부분이라 이 노드는 아직 잠정이다.
     world_shape: >
-      방어 쪽으로 기울인 자세가 유지되는 동안 자원이 지속적으로 들고,
-      방어가 실제로 오르되 공격이 약해져야 한다.
+      몸 쪽으로 기울인 자세가 유지되는 동안 자원이 지속적으로 들고,
+      방어가 실제로 오르되 몰지 않은 쪽(능력 · 인지)이 얇아져야 한다.
     part_of:
       grounded: false   # 근거 문서가 이름만 댔다 — 그 전체의 설계 문서가 서면 semantic 을 개정한다
       memberships:
-        - system: MS-COMBAT-LADDER
-          segment: AURA-NEN
-          source: R1 §14 (이름만)
+        - system: MS-AURA-NEN
+          segment: ALLOCATION
+          source: R1 §14 (이름만) — 자세를 무는 비용은 UL 이 말하지 않는다
     required_by: [MP-HOLD-FORTIFIED]
     demanded_by: []
     constraints: [DC-COMBAT-SHARED-BUDGET]
@@ -536,7 +514,7 @@ nodes:
       DC-COMBAT-SHARED-BUDGET: SATISFIED       # 흘리는 자원이 같은 기력 예산이다 (R1 §1 · §14)
     overlay: MISSING
     overlay_gap: >-
-      배분이 없으므로 방어 쪽에 몰아 둔 자세도 없다 (R1 §14 Aura/Nen 층)
+      배분이 없으므로 몸 쪽에 몰아 둔 자세도 없다. 배분(MC-AURA-ALLOCATION)이 먼저 서야 한다
 
   - id: MC-EVADE
     type: capability
@@ -759,7 +737,7 @@ nodes:
     constraints: [DC-COMBAT-ONE-RESPONSE-INPUT, DC-CONDITION-OPENS-WITHOUT-RECORDING, DC-COMBAT-UNAVAILABLE-HAS-A-REASON]
     constraint_evaluation:
       DC-COMBAT-ONE-RESPONSE-INPUT: SATISFIED           # 기회는 입력을 늘리지 않고 기존 행동을 바꾼다 (UL §7)
-      DC-CONDITION-OPENS-WITHOUT-RECORDING: UNRESOLVED  # 기간을 가진 기회를 기록으로 둘지 시각에서 재계산할지 미정 — open-questions Q54
+      DC-CONDITION-OPENS-WITHOUT-RECORDING: SATISFIED   # 기회를 상태로 적지 않고 마지막 정밀 응답 시각에서 매번 계산한다 (Q54(a) — `isGuardBroken` 과 같은 꼴)
       DC-COMBAT-UNAVAILABLE-HAS-A-REASON: SATISFIED     # 기회가 없어서 평소 형태인 것도 사유로 읽힌다 (UL §33)
     overlay: MISSING
     overlay_gap: >-
@@ -822,9 +800,11 @@ nodes:
       조작 부담은 여기서 막는다 — 전투 중에 비율을 만지지 않고, 이름 붙은 배분
       하나를 고른다 (UL §14). 그 선택은 상대에게도 보이므로 (UL §40) 무엇을
       골랐는지가 그 자체로 정보가 된다.
-      R1 이 이름만 댄 공격/방어 배분(MC-COMBAT-FLOW)과 축이 다르다 — 그쪽은
-      공격과 방어 둘 사이의 배분이고 이쪽은 셋 사이의 배분이며, 이쪽의 "몸" 이
-      그쪽의 둘을 함께 올린다. 둘을 어떻게 할지는 미정이다 (open-questions Q52).
+      R1 이 이름만 댄 공격/방어 두 축의 배분은 **이 노드로 흡수되었다** (Q52(a) —
+      HISTORY). 그쪽의 두 축을 이쪽의 "몸" 하나가 함께 올리므로, 한쪽에 몰수록
+      반대쪽이 빈다는 성질은 그대로 남되 무엇과 무엇이 맞바꾸이는지가 달라진다 —
+      몸에 몰면 능력과 인지가 얇아지고, 능력이나 인지에 몰면 몸이 얇아진다.
+      그 얇아진 쪽이 상대가 노릴 자리다 (MP-EXPLOIT-OPEN-BODY).
     world_shape: >
       힘을 어디에 몰아 두었는지가 이름 붙은 상태로 존재하고, 전투 중 그 상태를
       바꾸는 입력이 하나이며, 어느 상태냐에 따라 쓸 수 있는 것의 목록이 실제로
@@ -835,7 +815,7 @@ nodes:
         - system: MS-AURA-NEN
           segment: ALLOCATION
           source: UL §13 · §14 · §15 · §42 F4
-    required_by: [MP-CONCENTRATE-THE-POWER, MP-KNOW-THE-OPPONENT-RULE]
+    required_by: [MP-CONCENTRATE-THE-POWER, MP-KNOW-THE-OPPONENT-RULE, MP-EXPLOIT-OPEN-BODY, MP-HOLD-FORTIFIED, MP-STAKE-EVERYTHING-ON-ONE-BLOW]
     demanded_by: []
     constraints: [DC-COMBAT-AURA-IS-A-PROFILE-NOT-A-DIAL, DC-COMBAT-ONE-FORMULA, DC-COMBAT-SHARED-BUDGET]
     constraint_evaluation:
@@ -877,7 +857,7 @@ nodes:
     constraint_evaluation:
       DC-COMBAT-PLAYER-CAUSALITY: SATISFIED            # 조건은 확률이 아니라 세계 상태다 (UL §19)
       DC-COMBAT-UNAVAILABLE-HAS-A-REASON: SATISFIED    # 못 쓰는 사유가 함께 나온다 (UL §33)
-      DC-CONDITION-OPENS-WITHOUT-RECORDING: UNRESOLVED # UL 의 조건 중 일부는 과거 사건을 본다 (§19 · §23) — 그 DC 의 경계 안인지 Q54 가 묻는다
+      DC-CONDITION-OPENS-WITHOUT-RECORDING: SATISFIED  # 과거 사건을 보는 조건은 그 DC 의 경계가 이미 허용한다 (살펴봄 · 배운 것과 같은 자리) — Q54(a)
     overlay: PARTIAL
     overlay_evidence: >-
       코드 대조 — 못 쓰는 사유를 세계가 골라 하나 내보내는 자리가 이미 있다 (`view/skill-presentation.ts` 의 `unavailableReason` · 인벤토리·장비도 같은 칸을 쓴다)
@@ -911,10 +891,11 @@ nodes:
           source: UL §22 (관계 — Mark) · §42 F7 (처음 여는 다섯 중 하나)
     required_by: [MP-BIND-BY-CONTRACT]
     demanded_by: []
-    constraints: [DC-COMBAT-ABILITY-IS-A-RULE, DC-COMBAT-UNAVAILABLE-HAS-A-REASON]
+    constraints: [DC-COMBAT-ABILITY-IS-A-RULE, DC-COMBAT-UNAVAILABLE-HAS-A-REASON, DC-CONDITION-OPENS-WITHOUT-RECORDING]
     constraint_evaluation:
-      DC-COMBAT-ABILITY-IS-A-RULE: SATISFIED         # 피해가 아닌 세계 조작이다 (UL §22)
-      DC-COMBAT-UNAVAILABLE-HAS-A-REASON: SATISFIED  # 표식이 없어서 못 쓰는 것도 사유로 읽힌다 (UL §33)
+      DC-COMBAT-ABILITY-IS-A-RULE: SATISFIED               # 피해가 아닌 세계 조작이다 (UL §22)
+      DC-COMBAT-UNAVAILABLE-HAS-A-REASON: SATISFIED        # 표식이 없어서 못 쓰는 것도 사유로 읽힌다 (UL §33)
+      DC-CONDITION-OPENS-WITHOUT-RECORDING: SATISFIED      # 표식도 건 시각 하나에서 재계산한다 — 조건이 없는 것이 아니라 조건이 시각이다 (Q54(a))
     overlay: MISSING
     overlay_gap: >-
       대상에 남는 표식이라는 개념이 없다. 존재 사이에 남는 것은 태도(C018)와 지목(C017)뿐이고, 둘 다 거는 쪽의 상태이지 걸린 쪽에 붙은 것이 아니다

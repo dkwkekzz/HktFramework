@@ -76,7 +76,6 @@ sections:
       - MC-PERFECT-GUARD
       - MC-COUNTER
       - MC-EVADE
-      - MC-COMBAT-FLOW
       - MC-FORTIFY
       - MC-VOW
       - MC-ACTIVE-RESPONSE

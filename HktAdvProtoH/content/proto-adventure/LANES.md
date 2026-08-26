@@ -27,10 +27,10 @@ Feedback · BACKLOG)를 겹쳐 `LANES.html` 로 그린다. `npm run lanes:check`
 |---|---|---|---|
 | FEEDBACK | OPEN | 없음 — 닫힌 Cycle 이 모두 Master 에 들어갔다 | 없음 — 병합 뒤 최신 main 위에서 (`npm run feedback:gate`) |
 | WORLD·ITEM | HUMAN | 후보 5 중 선택 대기 — Agent 추천 FR-THE-PLACES-ARE-NARROWER (+FR-SEE-BEFORE 얹기) | Human Select (frontier/item.md) |
-| WORLD·COMBAT | BLOCKED | 후보 0 — FR-THE-SHAPE-IS-DATA 가 C025 로 닫혔다. UL 주입으로 상층 아홉이 그래프에 섰지만 후보가 되지는 않았다 (주입은 번역, 후보는 NEXT) | MASTER 의 OPTIONS(Q35) 가 후보를 낳는 것 · 상층 쪽은 **Q52**(배분 축이 둘인가 셋인가) 가 먼저다 |
+| WORLD·COMBAT | HUMAN | 후보 4 중 선택 대기 — Agent 추천 FR-WHERE-YOUR-POWER-SITS (갈래 하나가 한 Cycle 로 닫힌다) | Human Select (frontier/combat.md) |
 | WORLD·TERRAIN | OPEN | `C-TERRAIN-001` 착수 대기 — SELECTED `FR-THE-GROUND-HAS-A-LAW`(땅이 법칙을 지닌다). Stage 1 부터, 아직 시작하지 않았다. 시각화의 소유 분해·진행 순서는 [design/Design-Terrain-Visualization.md](../../design/Design-Terrain-Visualization.md) 를 따른다 | 없음 — 다만 이 판과 트랙 파일이 main 에 들어간 뒤에 잡는다 |
 | VIEW | OPEN | BACKLOG 다음 항목(request-feedback)부터 — equipment-panel 은 아래 충돌 칸 | 없음 |
-| MASTER | OPEN | OPTIONS Q35 (몸이 아닌 존재를 요구하는 Possibility). 전투 상층(UL) 주입은 끝났다 — 결과와 남긴 셋(Q52~Q54)은 HISTORY "전투 상층(UL) 주입" | 없음 — 미처리 Feedback 이 0 이다 (`npm run feedback:gate`). 다만 상층 NEXT 는 Q52 답을 기다린다 |
+| MASTER | OPEN | OPTIONS Q35 (몸이 아닌 존재를 요구하는 Possibility) — 이제 스킬 실행 형태의 빈 칸만 막는다. 전투 상층(UL) 주입과 그 NEXT 는 끝났다 (COMBAT 후보 4) | 없음 — 미처리 Feedback 이 0 이다 (`npm run feedback:gate`) |
 | ENGINE | OPEN | 기반 부채 하나 — 표시 문구를 사유 코드로 바꿔 팩에 회수 (C009 폭이 넓고 조립·팩 채택 동반 — 착수 전 범위 확인). 다음: 지면 구역 장치 `SceneGroundZone` ([design/Design-Terrain-Visualization.md](../../design/Design-Terrain-Visualization.md)) — C-TERRAIN-001 의 04 확정 뒤 착수 | 없음 |
 | PROCESS | HOLD | 없음 | — (공정 변경 중에는 다른 레인을 새로 띄우지 않는다) |
 
@@ -43,6 +43,7 @@ Feedback · BACKLOG)를 겹쳐 `LANES.html` 로 그린다. `npm run lanes:check`
 | VIEW 의 equipment-panel ↔ WORLD·ITEM | ITEM Cycle 이 장비 유효 값 화면을 건드릴 수 있다 — equipment-panel 은 ITEM Cycle 병합 뒤에 연다 (그 뒤의 drag-and-drop · responsive-workspace 도 함께 밀린다) |
 | WORLD·TERRAIN ↔ WORLD·ITEM | **지금은 겹치지 않는다** — 고른 것이 첫 후보(땅이 법칙을 지닌다)라 아이템 파일에 닿지 않는다. 겹치는 것은 셋째 후보(FR-WHAT-KEEPS-YOU-ALIVE-IS-CARRIED)이며, 그것을 고를 때 ITEM 이 무엇을 도는 중인지 먼저 본다 |
 | WORLD·TERRAIN ↔ VIEW | 땅은 화면에 보여야 하므로 이 Cycle 이 `view/` 를 건드린다. VIEW 의 다음 항목(request-feedback)은 요청 결과 표면이라 자리가 다르지만 표면 상태·HUD 에서 스칠 수 있다 — **둘 다 자기 영역 끝에 추가만 하고 기존 줄을 옮기지 않는다** (frontier/README.md 공유 지점 규칙과 같다) |
+| WORLD·COMBAT ↔ VIEW | 상층 후보 넷이 전부 전투 HUD 에 자리를 요구한다 (지금의 배분 · 대답 가능 여부 · 기회). VIEW 와 같은 파일(`hud-presentation.ts` · `combat-presentation.ts`)에서 만나므로 위와 같은 규칙 — 자기 영역 끝에 추가만 한다 |
 | VIEW 의 touch-reason ↔ ENGINE | ENGINE 이 열었다 — touch-pad 가 `unavailableText` 를 버튼에 그린다. VIEW 는 눈검증·백로그 정리만 남았다 |
 | WORLD·TERRAIN ↔ ENGINE | ENGINE 의 지면 구역 장치(`SceneGroundZone`)를 TERRAIN 의 Stage 7 이 소비한다 — 04 가 관찰 표면을 확정한 뒤 ENGINE 이 착수하고, fallback(안 그림)이 있어 BLOCKED 는 아니다. 소유 분해·순서: [design/Design-Terrain-Visualization.md](../../design/Design-Terrain-Visualization.md) |
 
@@ -56,7 +57,5 @@ Human 이 답하면 풀리는 것들이다. 답의 자리는 괄호가 가리킨
 | Q37 — 자리에 이름을 줄 것인가 (open-questions.md) | FR-ARRANGE-WHAT-YOU-CARRY 존치/삭제 |
 | Design-Creature-Behavior-R0.md 승인 | Inject → MC-PREDICT · MC-OBSERVE 습성 해금 |
 | Design-Resource-Catalog-R0.md 승인 | Inject → Q36 · 회복 아이템 해금 · BT 자원 24종의 자리 (그 문서가 받기로 정해졌다 — HISTORY Q50(a)) |
-| Q52 — 힘의 배분 축이 둘인가 셋인가 (open-questions.md) | 전투 상층(MS-AURA-NEN)의 Frontier 후보 · MC-COMBAT-FLOW 존치 여부 |
-| Q53 — 세계에 아군을 세울 것인가 (open-questions.md) | 수호 갈래(MC-INTERCEPT · 대상 이전)의 자리 |
-| Q54 — 기회·계약·표식은 기록인가 조건인가 (open-questions.md) | 상층 Cycle 이 늘릴 세계 상태의 수 |
-| 전투 상층 DC 7종 승인 (constraints/DC-COMBAT-* DRAFT) | 상층 Cycle 의 판정 기준 확정 |
+| WORLD·COMBAT 후보 선택 (frontier/combat.md SELECTED) | WORLD·COMBAT 레인 착수 |
+| 전투 상층 DC 7종 승인 (constraints/DC-COMBAT-* DRAFT) | 상층 Cycle 의 판정 기준 확정 — 후보의 Constraint Eval 이 이미 그 일곱을 기준으로 쓴다 |

@@ -2638,3 +2638,73 @@ Human 이 "FR-ACTION-PHASE 의 근간이 무엇인가" 를 물어 근간을 역�
     Frontier 후보는 세우지 않았다 — NEXT 작업의 몫이고, Q52 가 차단이라 그 전에
     후보를 세우면 어느 축 위에 세울지가 정해지지 않는다. COMBAT 트랙이 후보 0 인
     상태는 그대로이며, 이제 그것을 막는 것이 Q35 하나에서 Q35 · Q52 둘이 되었다.
+
+## Q52 · Q53 · Q54 — 전투 상층 주입이 낸 셋 · Human 위임 · 2026-08-26
+
+    Human 지시: "추천대로 진행. frontier까지 진행"
+
+    셋 다 Agent 판단대로 닫혔다. 선택은 Human 소유지만(CLAUDE.md 원칙 19) 이번에는
+    Human 이 그 선택을 **명시적으로 위임**했다 — TERRAIN 첫 후보 선택과 같은 자리다.
+    원칙이 면제된 것이 아니라 그 자리에서 Human 이 답을 준 것이다.
+
+### Q52. 힘의 배분 축은 둘인가 셋인가 — (a) 셋으로 간다
+
+    DECISION      (a) UL 을 따른다 — MC-COMBAT-FLOW 를 폐기하고 MC-AURA-ALLOCATION
+                  하나로 둔다. 몸 · 능력 · 인지 세 축이다
+
+    근거          UL 이 R1 보다 나중이고 이 층을 정의하는 문서다. UL §15 가 기존 구현을
+                  "세 축의 한 칸" 으로 흡수하는 형태로 적혀 있어, 폐기가 아니라 흡수다
+
+    무엇이 바뀌었나
+                  노드 삭제      MC-COMBAT-FLOW (그 의미는 MC-AURA-ALLOCATION 이 받는다)
+                  재배선 3       MP-EXPLOIT-OPEN-BODY · MP-HOLD-FORTIFIED ·
+                                 MP-STAKE-EVERYTHING-ON-ONE-BLOW 의 requires
+                  얹힌 자리 1    MC-FORTIFY — MS-COMBAT-LADDER/AURA-NEN 에서
+                                 MS-AURA-NEN/ALLOCATION 으로. grounded 는 false 그대로다
+                                 (UL 은 자세를 무는 **비용**을 말하지 않는다)
+                  읽는 대상 1    MK-OPPONENT-FLOW-PATTERN — "공격에 몰면 방어가 얇다" 에서
+                                 "한쪽에 몰면 반대쪽이 얇다" 로
+
+    **MP-EXPLOIT-OPEN-BODY 는 잃지 않았다.** 열림의 근거가 사라질 것을 걱정했으나,
+    UL §14 의 배분은 합이 정해져 있어 제로섬이 그대로 남는다 — 무엇과 무엇이
+    맞바꾸이는지만 달라진다. 예전에는 상대가 공격에 몰면 방어가 얇아졌고, 지금은
+    상대가 자기 **능력이나 인지**에 몰아 둔 동안 몸이 얇다 (UL §13 은 때리는 힘과 막는
+    힘을 같은 "몸" 에 함께 넣는다). 노릴 구간이 옮겨졌을 뿐 갈래는 산다.
+
+    갚지 않은 것  MC-FORTIFY 의 "자세를 유지하는 데 자원이 계속 든다" 는 R1 이 이름만
+                  댄 부분이고 UL 이 말하지 않는다. grounded: false 로 남겨 두었다 —
+                  지어내지 않았다는 표시이며, 그 층의 Cycle 이 정하거나 문서가 와야 한다
+
+### Q53. 아군이 없다 — (c) 미룬다
+
+    DECISION      (c) 수호자 갈래를 상층 검증 대상에서 빼고 나머지 셋으로 상층을 연다
+
+    근거          UL §43 의 검증 3종 중 관찰자와 묶는 자는 아군 없이 성립하고, 그 둘만으로도
+                  "같은 입력이 전혀 다른 전투가 되는가" 는 검증된다
+
+    무엇이 바뀌었나
+                  없다. MC-INTERCEPT 는 애초에 세우지 않았고 그대로 세우지 않는다.
+                  frontier/combat.md 의 "지금 열 수 없는 것" 에 그 사유가 남는다
+
+    나중에         아군을 세울 때는 (b) 를 따른다 — 사람을 지어내지 말고 세계의 존재
+                  (길들인 것 · 구조 대상 · 다른 플레이어)로 받는다. MG-RESCUE-THE-TAKEN 이
+                  이미 "남을 되찾는" 목적으로 서 있어 이어 붙일 자리가 있다
+
+### Q54. 기회 · 계약 · 표식은 기록인가 조건인가 — (a) 전부 조건형
+
+    DECISION      (a) 전부 시각에서 매번 다시 계산한다 — 상태로 적어 두고 지우지 않는다
+
+    근거          `world/semantic/combat.ts` 의 `isGuardBroken` 이 이미 그 형태다.
+                  "무너져 있다" 를 상태로 두지 않고 `guardBrokenUntil` 이라는 시각 하나에서
+                  매번 계산하므로 세우는 규칙도 지우는 규칙도 없다.
+                  표식도 "건 시각 + 지속" 이면 같은 꼴이 된다 — 조건이 없는 것이 아니라
+                  조건이 시각인 것이다
+
+    무엇이 바뀌었나
+                  MC-OPPORTUNITY        DC-CONDITION-OPENS-WITHOUT-RECORDING UNRESOLVED → SATISFIED
+                  MC-ABILITY-CONDITION  같음 — 과거 사건을 보는 조건은 그 DC 의 경계가 이미 허용한다
+                  MC-MARK               그 DC 를 새로 걸고 SATISFIED 로 판정했다
+
+    남은 UNRESOLVED 둘은 이 결정과 무관하다 — MC-ABSORB 의 저장된 힘이 기력 예산 안인가
+    (UL 이 정하지 않는다) · MC-DISRUPT-ABILITY 의 대응책 형태 (UL §24 가 예로만 든다).
+    둘 다 그 층의 Cycle 이 정할 자리다.

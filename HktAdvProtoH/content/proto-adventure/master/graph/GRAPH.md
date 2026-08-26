@@ -4,9 +4,9 @@
 > 원본은 `graph/*.yaml` 과 `constraints/DC-*.yaml` 이다.
 > 인터랙티브 관찰(필터 · 서브그래프 · 상세)은 같은 명령이 만드는 `graph-view.html` 을 연다.
 
-노드 126 — WorldState 22 · Actor 2 · Goal 6 · Possibility 26 · Capability 67 · Knowledge 3
+노드 125 — WorldState 22 · Actor 2 · Goal 6 · Possibility 26 · Capability 66 · Knowledge 3
 
-Capability 구현 상태 — ■ IMPLEMENTED 15 · ▨ PARTIAL 8 · □ MISSING 44
+Capability 구현 상태 — ■ IMPLEMENTED 15 · ▨ PARTIAL 8 · □ MISSING 43
 
 ## 인과 뼈대 — WorldState → Goal → Possibility
 
@@ -159,39 +159,37 @@ Capability 는 시스템(전체)의 조각이다. 시스템과 그 안의 자리
 ```mermaid
 flowchart TB
   subgraph SEG0 ["Aura / Nen"]
-    N0["□ COMBAT-FLOW"]
-    N1["□ FORTIFY"]
-    N2["▨ CONDITION-STACKING"]
-    N3["□ VOW"]
+    N0["▨ CONDITION-STACKING"]
+    N1["□ VOW"]
   end
   subgraph SEG1 ["Active Defense"]
-    N4["□ PERFECT-GUARD"]
-    N5["□ COUNTER"]
-    N6["▨ BREAK"]
-    N7["□ EVADE"]
+    N2["□ PERFECT-GUARD"]
+    N3["□ COUNTER"]
+    N4["▨ BREAK"]
+    N5["□ EVADE"]
   end
   subgraph SEG2 ["Critical"]
-    N8["■ CRITICAL-STRIKE"]
+    N6["■ CRITICAL-STRIKE"]
   end
   subgraph SEG3 ["Penetration"]
-    N9["■ PENETRATION"]
+    N7["■ PENETRATION"]
   end
   subgraph SEG4 ["Damage Type"]
-    N10["■ ATTACK-ARMOR-MATCHUP"]
+    N8["■ ATTACK-ARMOR-MATCHUP"]
   end
   subgraph SEG5 ["Defense Action"]
-    N11["■ GUARD"]
+    N9["■ GUARD"]
   end
   subgraph SEG6 ["Basic Damage"]
-    N12["■ COMBAT-STRIKE"]
-    N13["■ DEFENSE-MITIGATION"]
+    N10["■ COMBAT-STRIKE"]
+    N11["■ DEFENSE-MITIGATION"]
   end
   subgraph SEGBASE ["공통 바닥 — 층에 속하지 않는다"]
-    N14["▨ CP-ECONOMY"]
-    N15["■ BODY-FACING"]
-    N16["■ COMBAT-CAUSE-READING"]
-    N17["▨ ATTACK-POWER"]
-    N18["■ SKILL-SCALING"]
+    N12["▨ CP-ECONOMY"]
+    N13["■ BODY-FACING"]
+    N14["■ COMBAT-CAUSE-READING"]
+    N15["▨ ATTACK-POWER"]
+    N16["■ SKILL-SCALING"]
   end
   SEG0 ~~~ SEG1
   SEG1 ~~~ SEG2
@@ -207,11 +205,10 @@ flowchart TB
   classDef implS fill:#16351f,stroke:#3f8a52,color:#d8f2df,stroke-dasharray:5 4;
   classDef partS fill:#3a3315,stroke:#9a8a2e,color:#f2ecd0,stroke-dasharray:5 4;
   classDef missS fill:#2a2a2e,stroke:#5c5c66,color:#b8b8c2,stroke-dasharray:5 4;
-  class N8,N9,N10,N11,N12,N13,N15,N16,N18 impl;
-  class N14,N17 part;
-  class N3,N4,N5,N7 miss;
-  class N2,N6 partS;
-  class N0,N1 missS;
+  class N6,N7,N8,N9,N10,N11,N13,N14,N16 impl;
+  class N12,N15 part;
+  class N1,N2,N3,N5 miss;
+  class N0,N4 partS;
 ```
 
 ### 능동 방어 — UL §4~§10 · §42 F1~F3
@@ -265,7 +262,8 @@ flowchart TB
     N6["▨ ABILITY-CONDITION"]
   end
   subgraph SEG3 ["배분 — 지금 힘을 어디에 몰아 두었는가"]
-    N7["□ AURA-ALLOCATION"]
+    N7["□ FORTIFY"]
+    N8["□ AURA-ALLOCATION"]
   end
   SEG0 ~~~ SEG1
   SEG1 ~~~ SEG2
@@ -278,7 +276,8 @@ flowchart TB
   classDef partS fill:#3a3315,stroke:#9a8a2e,color:#f2ecd0,stroke-dasharray:5 4;
   classDef missS fill:#2a2a2e,stroke:#5c5c66,color:#b8b8c2,stroke-dasharray:5 4;
   class N6 part;
-  class N0,N1,N2,N3,N4,N5,N7 miss;
+  class N0,N1,N2,N3,N4,N5,N8 miss;
+  class N7 missS;
 ```
 
 ### 베이라 층 사다리 — BW §19~§25
@@ -553,13 +552,13 @@ flowchart TB
 | `OUTGROW-THE-OPPONENT` | OVERCOME-SUPERIOR-OPPONENT | ●●●●○ 3/5 | ATTACK-POWER · CP-ECONOMY |
 | `LEARN-TO-HANDLE-THE-LAYER` | EXPLORE-BEIRA | ●●●●○ 3/5 | OBSERVE · PREDICT |
 | `BREAK-THE-GUARD` | OVERCOME-SUPERIOR-OPPONENT | ●●●○○ 1/3 | BREAK · CP-ECONOMY |
-| `EXPLOIT-OPEN-BODY` | OVERCOME-SUPERIOR-OPPONENT | ●●●○○ 2/3 | COMBAT-FLOW |
+| `EXPLOIT-OPEN-BODY` | OVERCOME-SUPERIOR-OPPONENT | ●●●○○ 2/3 | AURA-ALLOCATION |
 | `CONCENTRATE-THE-POWER` | OVERCOME-SUPERIOR-OPPONENT | ●●●○○ 1/3 | AURA-ALLOCATION · CP-ECONOMY |
 | `ADAPT-BY-RESOURCE` | EXPLORE-BEIRA | ●●○○○ 2/5 | RESTORE-BIOLOGICAL-STATE · CUT-ABNORMAL-STRUCTURE · CRAFT-FROM-MATERIALS |
-| `HOLD-FORTIFIED` | SURVIVE-ENEMY-OFFENSIVE | ●●○○○ 1/4 | FORTIFY · COMBAT-FLOW · CP-ECONOMY |
+| `HOLD-FORTIFIED` | SURVIVE-ENEMY-OFFENSIVE | ●●○○○ 1/4 | FORTIFY · AURA-ALLOCATION · CP-ECONOMY |
 | `CONTROL-MOVEMENT` | OVERCOME-SUPERIOR-OPPONENT | ●●○○○ 0/3 | FORCE-MOVEMENT · CONTROL-SPACE · REPOSITION |
 | `BIND-BY-CONTRACT` | OVERCOME-SUPERIOR-OPPONENT | ●●○○○ 1/5 | VOW · BIND · MARK · ABILITY-CONDITION |
-| `STAKE-EVERYTHING-ON-ONE-BLOW` | OVERCOME-SUPERIOR-OPPONENT | ●○○○○ 0/4 | VOW · COMBAT-FLOW · CP-ECONOMY · CONDITION-STACKING |
+| `STAKE-EVERYTHING-ON-ONE-BLOW` | OVERCOME-SUPERIOR-OPPONENT | ●○○○○ 0/4 | VOW · AURA-ALLOCATION · CP-ECONOMY · CONDITION-STACKING |
 | `STORE-AND-RELEASE` | SURVIVE-ENEMY-OFFENSIVE | ●○○○○ 1/4 | ABSORB · ACTIVE-RESPONSE · PRECISION-RESPONSE |
 | `READ-AND-COUNTER` | OVERCOME-SUPERIOR-OPPONENT | ●○○○○ 1/7 | ACTIVE-RESPONSE · PRECISION-RESPONSE · PERFECT-GUARD · OPPORTUNITY · COUNTER · CP-ECONOMY |
 | `EVADE-BY-MOVING-THE-BODY` | SURVIVE-ENEMY-OFFENSIVE | ●○○○○ 0/3 | EVADE · ACTIVE-RESPONSE · CP-ECONOMY |
@@ -592,7 +591,6 @@ flowchart LR
   MC-PERFECT-GUARD["□ PERFECT-GUARD"]
   MC-COUNTER["□ COUNTER"]
   MC-BREAK["▨ BREAK"]
-  MC-COMBAT-FLOW["□ COMBAT-FLOW"]
   MC-FORTIFY["□ FORTIFY"]
   MC-EVADE["□ EVADE"]
   MC-CONDITION-STACKING["▨ CONDITION-STACKING"]
@@ -670,7 +668,7 @@ flowchart LR
   MP-READ-AND-COUNTER --> MC-OPPORTUNITY
   MP-READ-AND-COUNTER --> MC-COUNTER
   MP-READ-AND-COUNTER --> MC-CP-ECONOMY
-  MP-EXPLOIT-OPEN-BODY --> MC-COMBAT-FLOW
+  MP-EXPLOIT-OPEN-BODY --> MC-AURA-ALLOCATION
   MP-EXPLOIT-OPEN-BODY --> MC-COMBAT-STRIKE
   MP-EXPLOIT-OPEN-BODY --> MC-COMBAT-CAUSE-READING
   MP-INTERRUPT --> MC-INTERRUPT
@@ -683,7 +681,7 @@ flowchart LR
   MP-BET-ON-THE-CRITICAL-BLOW --> MC-COMBAT-STRIKE
   MP-BET-ON-THE-CRITICAL-BLOW --> MC-ATTACK-POWER
   MP-STAKE-EVERYTHING-ON-ONE-BLOW --> MC-VOW
-  MP-STAKE-EVERYTHING-ON-ONE-BLOW --> MC-COMBAT-FLOW
+  MP-STAKE-EVERYTHING-ON-ONE-BLOW --> MC-AURA-ALLOCATION
   MP-STAKE-EVERYTHING-ON-ONE-BLOW --> MC-CP-ECONOMY
   MP-STAKE-EVERYTHING-ON-ONE-BLOW --> MC-CONDITION-STACKING
   MP-CONCENTRATE-THE-POWER --> MC-AURA-ALLOCATION
@@ -707,7 +705,7 @@ flowchart LR
   MP-EVADE-BY-MOVING-THE-BODY --> MC-CP-ECONOMY
   MP-HOLD-FORTIFIED --> MC-FORTIFY
   MP-HOLD-FORTIFIED --> MC-DEFENSE-MITIGATION
-  MP-HOLD-FORTIFIED --> MC-COMBAT-FLOW
+  MP-HOLD-FORTIFIED --> MC-AURA-ALLOCATION
   MP-HOLD-FORTIFIED --> MC-CP-ECONOMY
   MP-STORE-AND-RELEASE --> MC-ABSORB
   MP-STORE-AND-RELEASE --> MC-ACTIVE-RESPONSE
@@ -734,7 +732,7 @@ flowchart LR
   classDef poss fill:#1c3330,stroke:#3f7d6f,color:#d6f0e9;
   class MC-COMBAT-STRIKE,MC-BODY-FACING,MC-COMBAT-CAUSE-READING,MC-GUARD,MC-DEFENSE-MITIGATION,MC-SKILL-SCALING,MC-ATTACK-ARMOR-MATCHUP,MC-PENETRATION,MC-CRITICAL-STRIKE,MC-INTERRUPT,MC-DESIGNATE-TARGET,MC-WATCH-TARGET,MC-RELATION-STANCE,MC-USE-ITEM,MC-EQUIP-ITEM impl;
   class MC-CP-ECONOMY,MC-ATTACK-POWER,MC-BREAK,MC-CONDITION-STACKING,MC-ABILITY-CONDITION,MC-REPOSITION,MC-OBSERVE,MC-FORCE-MOVEMENT part;
-  class MC-PERFECT-GUARD,MC-COUNTER,MC-COMBAT-FLOW,MC-FORTIFY,MC-EVADE,MC-VOW,MC-ACTIVE-RESPONSE,MC-PRECISION-RESPONSE,MC-OPPORTUNITY,MC-ABSORB,MC-AURA-ALLOCATION,MC-MARK,MC-BIND,MC-OBSERVE-ABILITY,MC-PREDICT,MC-CONTROL-SPACE,MC-READ-ENVIRONMENT,MC-USE-HAZARD,MC-DISRUPT-ABILITY,MC-RESTORE-BIOLOGICAL-STATE,MC-CUT-ABNORMAL-STRUCTURE,MC-CRAFT-FROM-MATERIALS,MC-TRANSFER-ITEM miss;
+  class MC-PERFECT-GUARD,MC-COUNTER,MC-FORTIFY,MC-EVADE,MC-VOW,MC-ACTIVE-RESPONSE,MC-PRECISION-RESPONSE,MC-OPPORTUNITY,MC-ABSORB,MC-AURA-ALLOCATION,MC-MARK,MC-BIND,MC-OBSERVE-ABILITY,MC-PREDICT,MC-CONTROL-SPACE,MC-READ-ENVIRONMENT,MC-USE-HAZARD,MC-DISRUPT-ABILITY,MC-RESTORE-BIOLOGICAL-STATE,MC-CUT-ABNORMAL-STRUCTURE,MC-CRAFT-FROM-MATERIALS,MC-TRANSFER-ITEM miss;
   class MP-OUTGROW-THE-OPPONENT,MP-MATCH-WEAPON-TO-ARMOR,MP-PIERCE-THE-HARD-DEFENSE,MP-BREAK-THE-GUARD,MP-READ-AND-COUNTER,MP-EXPLOIT-OPEN-BODY,MP-INTERRUPT,MP-CONTROL-MOVEMENT,MP-WEAPONIZE-ENVIRONMENT,MP-BET-ON-THE-CRITICAL-BLOW,MP-STAKE-EVERYTHING-ON-ONE-BLOW,MP-CONCENTRATE-THE-POWER,MP-BIND-BY-CONTRACT,MP-KNOW-THE-OPPONENT-RULE,MP-TRADE-BODY-FOR-RESOURCE,MP-EVADE-BY-MOVING-THE-BODY,MP-HOLD-FORTIFIED,MP-STORE-AND-RELEASE,MP-LEARN-TO-HANDLE-THE-LAYER,MP-ADAPT-BY-RESOURCE,MP-PREPARE-IN-CIVILIZATION,MP-KILL-CREATURE,MP-TAKE-SHED-ORGAN,MP-TRADE-WITH-ACTOR poss;
 ```
 
@@ -746,9 +744,9 @@ Constraint 는 단계가 아니라 각 선택 지점의 Filter 다. 아래는 �
 |---|---|---|---:|---|
 | `COMBAT-ABILITY-IS-A-RULE` | COMBAT | DRAFT | 3 | 능력의 다양성은 피해 배율의 가짓수가 아니라 세계에 가하는 조작의 종류와 그것을 여는 조건의 조합에서 나온다. 피해가 전혀 없는 능력도 강력할 수 있어야 하고, 능력의 출처가 무엇이든 세계에서는 같은 형태의 규칙이다. |
 | `COMBAT-AURA-IS-A-PROFILE-NOT-A-DIAL` | COMBAT | DRAFT | 2 | 힘의 배분은 전투 중에 수치를 조절하는 일이 아니라 미리 만들어 둔 상태 하나를 고르는 일이다. 내부의 배분이 아무리 복잡해도 전투 중 입력은 "지금 어느 상태인가" 한 번이다. |
-| `COMBAT-CONTRACT-BUYS-CAPABILITY` | COMBAT | DRAFT | 2 | 스스로 건 제약이 사는 것은 수치가 아니라 새로 허용되는 행동이다. 제약 · 그 대가로 열리는 것 · 어겼을 때 치르는 것 세 부분이 모두 정의되어야 계약이며, 세계가 그 성립과 위반을 판정할 수 있어야 한다. |
+| `COMBAT-CONTRACT-BUYS-CAPABILITY` | COMBAT | DRAFT | 3 | 스스로 건 제약이 사는 것은 수치가 아니라 새로 허용되는 행동이다. 제약 · 그 대가로 열리는 것 · 어겼을 때 치르는 것 세 부분이 모두 정의되어야 계약이며, 세계가 그 성립과 위반을 판정할 수 있어야 한다. |
 | `COMBAT-MATCHUP-SOFT` | COMBAT | APPROVED | 4 | 공격 형태와 방어 형태의 상성은 선택을 만들되 결과를 지배하지 않는다. 상성은 별도 피해 배율이 아니라 대응 공격·방어 능력치의 차이로 표현한다. |
-| `COMBAT-ONE-FORMULA` | COMBAT | APPROVED | 9 | 전투에는 하나의 기반 피해 공식만 존재한다. 새로운 전투 시스템은 새로운 피해 공식을 만들지 않고, 기존 공식의 입력값이나 결과값에 한 가지 의미만 더한다. |
+| `COMBAT-ONE-FORMULA` | COMBAT | APPROVED | 8 | 전투에는 하나의 기반 피해 공식만 존재한다. 새로운 전투 시스템은 새로운 피해 공식을 만들지 않고, 기존 공식의 입력값이나 결과값에 한 가지 의미만 더한다. |
 | `COMBAT-ONE-LAYER-AT-A-TIME` | COMBAT | APPROVED | 0 | 전투 시스템은 한 번에 한 층만 추가하며, 현재 층이 플레이로 검증되기 전에는 다음 층을 올리지 않는다. 각 층은 아래 층 없이도 완전히 동작하는 상태를 유지한다. |
 | `COMBAT-ONE-RESPONSE-INPUT` | COMBAT | DRAFT | 5 | 공격을 받는 순간의 대응은 입력 하나다. 막기 · 피하기 · 받아넘기기 · 되받아치기를 각각의 입력으로 늘리지 않고, 그 하나가 무엇이 되는지는 지금 무엇을 끼워 두었는가가 정한다. |
 | `COMBAT-PLAYER-CAUSALITY` | COMBAT | REVISED | 30 | 전투의 중요한 결과는 관찰 가능한 세계 상태와 플레이어의 선택·행동에서 나오며, 같은 상태·같은 조건·같은 행동이면 언제나 같은 결과가 나온다. 단 하나의 예외로, Critical 은 확률 판정을 허용한다 — 그 경우에도 발생 확률과 증폭 결과는 관찰로 읽을 수 있어야 한다. |
@@ -756,7 +754,7 @@ Constraint 는 단계가 아니라 각 선택 지점의 Filter 다. 아래는 �
 | `COMBAT-SHARED-BUDGET` | COMBAT | APPROVED | 9 | 전투 행동은 하나의 공통 기력(CP) 예산을 나눠 쓴다. 행동별 전용 게이지를 신설하지 않는다. |
 | `COMBAT-STRONG-RULE-HAS-COUNTERPLAY` | COMBAT | DRAFT | 8 | 상대의 행동 가능 범위를 줄이는 능력에는 상대가 알아내고 실행할 수 있는 대응책이 최소한 하나 있어야 한다. 대응책은 그 능력의 설명에 함께 정의되며, 세계 안에서 발견 가능해야 한다. |
 | `COMBAT-UNAVAILABLE-HAS-A-REASON` | COMBAT | DRAFT | 7 | 일어난 일뿐 아니라 **일어나지 않은 일**도 세계가 사유를 답한다. 능력을 쓸 수 없거나 행동이 막힌 상태는 그 원인이 되는 세계 상태를 함께 드러내며, 상층이 만든 상태 (계약 · 표식 · 관계 · 기회 · 관찰한 것)는 전부 관찰 가능하다. |
-| `CONDITION-OPENS-WITHOUT-RECORDING` | GLOBAL | APPROVED | 3 | 지금의 조건으로 열리는 것은 어디에도 기록하지 않는다. 조건이 사라지면 저절로 닫혀야 하고, 그것을 되돌리는 규칙이 따로 있어서는 안 된다. |
+| `CONDITION-OPENS-WITHOUT-RECORDING` | GLOBAL | APPROVED | 4 | 지금의 조건으로 열리는 것은 어디에도 기록하지 않는다. 조건이 사라지면 저절로 닫혀야 하고, 그것을 되돌리는 규칙이 따로 있어서는 안 된다. |
 | `GROWTH-CLASS-ORIGIN-TRACE` | GROWTH | APPROVED | 0 | Class 는 세계와 Actor 가 상호작용한 결과다. 모든 Class 는 하나 이상의 origin_trace(WorldState → Goal → Possibility)를 가지며, 그 Class 를 제거해도 원인이 된 세계 요소는 독립적으로 성립해야 한다. |
 | `GROWTH-DEFINITION-INSTANCE-SPLIT` | GROWTH | APPROVED | 1 | Master 는 유한한 Definition(Class · Item Type · Property · Modifier · 조합 규칙)만 소유한다. 실제 생성된 Item Instance(II-*)와 조합 결과는 Runtime World 가 소유하며, 가능한 조합을 사전에 Node 로 생성하지 않는다. |
 | `GROWTH-GOAL-FIRST` | GROWTH | APPROVED | 0 | 성장(새 Class · Item · Capability 의 획득) 자체를 Goal 로 세우지 않는다. 성장은 Actor 의 현재 Goal 을 현재 Capability 로 달성하기 어려울 때, 그 Goal 을 달성하는 하나의 Possibility 로만 성립한다. |
