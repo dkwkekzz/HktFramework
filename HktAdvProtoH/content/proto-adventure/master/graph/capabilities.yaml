@@ -1870,9 +1870,7 @@ nodes:
       몸의 상태를 좇는 것이 없다 — 남은 생명은 관찰에 실리지만 그것을 근거로 삼는 존재가 없다
 
   # ══ 성장의 원천 (GS) ═══════════════════════════════════════════════════
-  # GS 가 낳은 DC 여덟은 아직 DRAFT 다 — 승인 전에는 노드에 배선하지 않는다
-  # (BT 선례 · open-questions Q52). 그래서 아래 다섯의 constraints 에는 이미 승인된
-  # 것만 있고, 성장 원칙의 판정 자리는 Q52 가 닫힐 때 함께 채운다.
+  # GS 가 낳은 DC 여덟은 Q52 로 승인되어 아래 다섯에 배선되었다 (HISTORY Q52).
 
   - id: MC-GAIN-LEVEL
     type: capability
@@ -1900,10 +1898,11 @@ nodes:
           role: 누구에게나 같은 방식으로 오르는 바닥 축
     required_by: [MP-OUTGROW-THE-OPPONENT, MP-BECOME-A-HIGHER-FORM]
     demanded_by: []
-    constraints: [DC-WORLD-PROGRESSION-IS-REACH, DC-GROWTH-GOAL-FIRST]
+    constraints: [DC-WORLD-PROGRESSION-IS-REACH, DC-GROWTH-GOAL-FIRST, DC-GROWTH-CLASS-CHANGE-NEEDS-THE-WORLD]
     constraint_evaluation:
-      DC-WORLD-PROGRESSION-IS-REACH: UNRESOLVED   # 진행이 "도달" 인 세계에 레벨 축이 들어온다 — 공존 형태는 Human 결정 대기 (open-questions Q53)
+      DC-WORLD-PROGRESSION-IS-REACH: SATISFIED    # 레벨은 기본값을 키우는 바닥 축이고 어디에 갈 수 있는가는 여전히 감당 여부가 정한다 — 땅의 문턱을 레벨로 걸지 않는다 (HISTORY Q53(a))
       DC-GROWTH-GOAL-FIRST: SATISFIED             # 레벨 자체는 Goal 이 아니다 — 갈래의 조건으로만 선다
+      DC-GROWTH-CLASS-CHANGE-NEEDS-THE-WORLD: SATISFIED   # 이 축만으로는 형태가 바뀌지 않는다 — 문턱 넷 중 하나일 뿐이다 (GS §6)
     overlay: MISSING
     overlay_gap: >-
       값을 키우는 축이 세계에 없다 — 능력치를 바꾸는 유일한 규칙이 디버그 명령이고 나머지는 걸어 둔 물건이 잠시 얹는 유효 값뿐이다
@@ -1934,8 +1933,10 @@ nodes:
           role: 다음 층으로 넘어가는 네 문턱 중 하나
     required_by: [MP-BECOME-A-HIGHER-FORM]
     demanded_by: []
-    constraints: []
-    constraint_evaluation: {}
+    constraints: [DC-GROWTH-MASTERY-FROM-OWN-BEHAVIOR, DC-GROWTH-DIFFERENCE-IS-BEHAVIOR]
+    constraint_evaluation:
+      DC-GROWTH-MASTERY-FROM-OWN-BEHAVIOR: SATISFIED   # 세는 행동이 형태의 원리에서 나온다 (GS §5)
+      DC-GROWTH-DIFFERENCE-IS-BEHAVIOR: SATISFIED      # 자라는 방법의 차이가 곧 반복하는 행동의 차이다
     overlay: MISSING
     overlay_gap: >-
       형태(Class)라는 것이 세계에 없다 — 몸이 한 종류이고 무엇을 했는지 세는 자리도 없다
@@ -1961,8 +1962,9 @@ nodes:
           source: GS §18 · §19
     required_by: [MP-BECOME-A-HIGHER-FORM]
     demanded_by: []
-    constraints: []
-    constraint_evaluation: {}
+    constraints: [DC-GROWTH-SKILL-GAINS-BEHAVIOR]
+    constraint_evaluation:
+      DC-GROWTH-SKILL-GAINS-BEHAVIOR: SATISFIED   # 늘어나는 것이 행동 가능성이라고 semantic 이 직접 말한다 (GS §18)
     overlay: MISSING
     overlay_gap: >-
       스킬이 자란다는 개념이 없다 — 기술은 종류가 정한 값 그대로이고 쓴 이력이 어디에도 남지 않는다
@@ -1988,8 +1990,10 @@ nodes:
           source: GS §8 · §19
     required_by: [MP-BECOME-A-HIGHER-FORM]
     demanded_by: []
-    constraints: []
-    constraint_evaluation: {}
+    constraints: [DC-GROWTH-EXPLORATION-SHARES-THE-PRINCIPLE, DC-GROWTH-MASTERY-FROM-OWN-BEHAVIOR]
+    constraint_evaluation:
+      DC-GROWTH-EXPLORATION-SHARES-THE-PRINCIPLE: SATISFIED   # 전투 쪽 숙련과 같은 원리의 다른 쓰임으로 정의된다 (GS §8)
+      DC-GROWTH-MASTERY-FROM-OWN-BEHAVIOR: SATISFIED          # 푼 것만 세고, 무엇을 푸는가는 형태의 원리가 정한다
     overlay: MISSING
     overlay_gap: >-
       땅이 없어 풀 환경 문제가 없다 — 세계가 장소에 대해 아는 것은 사각형 하나의 경계뿐이다
@@ -2018,8 +2022,13 @@ nodes:
           role: 층과 층 사이를 넘는 자리 — 어느 한 층에 속하지 않는다
     required_by: [MP-BECOME-A-HIGHER-FORM]
     demanded_by: []
-    constraints: []
-    constraint_evaluation: {}
+    constraints: [DC-GROWTH-CLASS-CHANGE-KEEPS-THE-PAST, DC-GROWTH-CLASS-CHANGE-NEEDS-THE-WORLD,
+                  DC-GROWTH-STAGE-READS-AT-A-DISTANCE, DC-GROWTH-PRINCIPLE-IS-PLAYED]
+    constraint_evaluation:
+      DC-GROWTH-CLASS-CHANGE-KEEPS-THE-PAST: SATISFIED     # 이전 형태가 기반으로 남는다고 semantic 이 직접 말한다 (GS §3.1)
+      DC-GROWTH-CLASS-CHANGE-NEEDS-THE-WORLD: SATISFIED    # 네 조건 중 둘이 세계에서만 온다 (GS §6)
+      DC-GROWTH-STAGE-READS-AT-A-DISTANCE: SATISFIED       # 단계가 외형으로 함께 바뀐다 (GS §7)
+      DC-GROWTH-PRINCIPLE-IS-PLAYED: SATISFIED             # 상위 형태가 값이 아니라 할 수 있는 행동과 외형으로 나타난다 (GS §7 · §20)
     overlay: MISSING
     overlay_gap: >-
       몸이 형태를 갖지 않는다 — CL-* 노드가 0 개이고 세계의 몸은 종류 하나로 고정이다
@@ -2121,7 +2130,8 @@ nodes:
 # 비주입 — GS §8 이 모든 Class 에 요구하는 구성(Signature Attack · Mobility/Defense ·
 # Utility/Control · Class Mechanic · Ultimate · World Action 둘 · Passive)은 Capability 가
 # 아니라 **Class 정의의 형태**다 — CL-* 가 세워질 때 그 노드가 지는 요구이며, 그 자리는
-# growth/classes/ 다 (지금은 비어 있다 — open-questions Q55).
+# growth/classes/ 다. 지금 비어 있는 이유는 이름 충돌이 아니라 순서다 (HISTORY Q55(b) —
+# 이름은 GS 소유로 정해졌고, CL-* 는 계열별 설계 문서의 주입이 세운다).
 #
 # 비주입 — GS §5 의 "현재 전투력 = Level + Class Mastery + Skill Mastery +
 # Exploration Mastery + Equipment Property" 는 합산 공식이므로 여기에 올리지 않았다.

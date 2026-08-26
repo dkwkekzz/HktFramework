@@ -818,12 +818,16 @@ nodes:
       - 그 캐릭터가 어느 단계인지가 멀리서 보아도 읽힌다 (GS §7)
     reveals: []
     creates_goal: []
-    constraints: [DC-WORLD-PROGRESSION-IS-REACH, DC-GROWTH-GOAL-FIRST, DC-WORLD-PLAYER-UNFIXED-PATH]
-    # GS 가 낳은 성장 DC 여덟은 DRAFT 라 여기에 배선하지 않았다 (open-questions Q52).
+    constraints: [DC-WORLD-PROGRESSION-IS-REACH, DC-GROWTH-GOAL-FIRST, DC-WORLD-PLAYER-UNFIXED-PATH,
+                  DC-GROWTH-CLASS-CHANGE-NEEDS-THE-WORLD, DC-GROWTH-CLASS-CHANGE-KEEPS-THE-PAST,
+                  DC-GROWTH-EXPLORATION-SHARES-THE-PRINCIPLE]
     constraint_evaluation:
       DC-WORLD-PROGRESSION-IS-REACH: SATISFIED    # 이 갈래의 결과가 "닿을 수 있는 범위" 로 정의된다 (GS §20 마지막 줄)
       DC-GROWTH-GOAL-FIRST: SATISFIED             # 성장이 Goal 이 아니라 MG-EXPLORE-BEIRA 를 이루는 갈래로 서 있다
       DC-WORLD-PLAYER-UNFIXED-PATH: UNRESOLVED    # 고정된 캐릭터 판타지와의 관계가 Human 결정 대기 (open-questions Q54)
+      DC-GROWTH-CLASS-CHANGE-NEEDS-THE-WORLD: SATISFIED       # 문턱 넷 중 둘이 세계에서만 온다 (GS §6)
+      DC-GROWTH-CLASS-CHANGE-KEEPS-THE-PAST: SATISFIED        # 이전 형태가 기반으로 남는다 (GS §3.1)
+      DC-GROWTH-EXPLORATION-SHARES-THE-PRINCIPLE: SATISFIED   # 형태가 오르면 전투와 탐험 능력이 같은 원리로 함께 넓어진다 (GS §4 · §8)
 
   # ══════════════════════════════════════════════════════════════════════
   # MG-ACQUIRE-RARE-ORGAN — 특정 생물의 기관을 얻는 갈래들

@@ -87,7 +87,7 @@ UNKNOWN 에서 얻은 것이 다시 UNKNOWN 을 더 감당하게 한다. 한 번
 | MC-PENETRATION | **없음** | C013 08-verification 은 관통 값의 변경을 **디버그 명령**으로 실측했다. 종류가 정한 초기값 외에 이 값을 바꾸는 세계 내 행위가 없다 — 08 이 그 사실을 Possibility 주의로 직접 보고했다 | 관통을 얻는 경로 전부. 형태(장비·성장·준비 행동)가 정해지지 않았다 |
 | MC-ATTACK-POWER | **부분** — 장착 하나 (C023 · C024) | 코드 대조 — 걸어 둔 물건이 유효 값을 얹지만 기본값은 스폰 시 정해진 뒤 그대로이고, 그 값을 바꾸는 유일한 규칙은 여전히 디버그 명령이다 | 기본값을 **키우는** 경로. GS §19 주입으로 그 형태는 정해졌다 — 전투·탐험·발견·사건 해결이 Level 을 올리고 Level 이 기본값을 올린다 (MC-GAIN-LEVEL). 세계에 그 축이 없다 |
 | MC-RESTORE-BIOLOGICAL-STATE | **없음** | BW §8 은 원천(회귀초)만 명시하고 Item ID 를 명명하지 않았다 | 회귀초의 IT-* 와 획득·사용 규칙. 문서가 ID 를 주지 않아 세우지 않았다 — 광물은 Q22 로 정의했으나 식물은 Human 지시 범위 밖이었다 쓰는 개념(MC-USE-ITEM)이 선 다음 Cycle 이 원천과 함께 가져온다 (HISTORY Q31) |
-| 전투 Capability 전반 | **없음** | 코드 대조 — 배우거나 얻거나 되는 사건이 세계에 없다 | Class(CL-*) 노드 0 개. **GS 주입으로 그 자리의 형태는 섰다** — 사다리 넷(MS-CLASS-EVOLUTION)과 계열 여덟(MS-FAIRY-LINEAGE). 노드가 서지 못하는 이유는 이제 근거의 부재가 아니라 **이름의 충돌**이다 (open-questions Q55) |
+| 전투 Capability 전반 | **없음** | 코드 대조 — 배우거나 얻거나 되는 사건이 세계에 없다 | Class(CL-*) 노드 0 개. **GS 주입으로 그 자리의 형태는 섰다** — 사다리 넷(MS-CLASS-EVOLUTION)과 계열 여덟(MS-FAIRY-LINEAGE). 이름의 소유도 정해졌다 (HISTORY Q55(b) — GS 가 소유한다). 남은 것은 **계열별 설계 문서의 주입** 하나다 |
 
 ### grants 가 몸에 닿으려면 무엇이 먼저 서야 하는가
 
@@ -119,7 +119,7 @@ Growth 의 관점에서 이것은 경로가 아니라 경로의 앞부분 한 �
 
 | 층 | 상태 |
 |---|---|
-| 설계 (이 문서) | IP 5 · IT 6 · IM 3 · grants 3 건 — BW §17 순환이 그래프에서 닫혔다. **CL 0** — 사다리와 계열은 systems.yaml 에 섰으나 Class 이름이 문서마다 어긋난다 (Q55) |
+| 설계 (이 문서) | IP 5 · IT 6 · IM 3 · grants 3 건 — BW §17 순환이 그래프에서 닫혔다. **CL 0** — 사다리와 계열은 systems.yaml 에 섰고, 채우는 것은 계열별 문서의 주입이다 (Q55(b)) |
 | 세계 (`world/`) | 광물 1 종(돌)만 존재하고 쓰임이 없다. 제작·장착·거래 규칙 전무 |
 | 결손의 이름 | IS 주입으로 넷이 노드가 되었다 — MC-USE-ITEM · MC-EQUIP-ITEM · MC-CRAFT-FROM-MATERIALS · MC-TRANSFER-ITEM (모두 MISSING) |
 

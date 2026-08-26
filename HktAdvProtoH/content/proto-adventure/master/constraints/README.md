@@ -2,9 +2,9 @@
 
 파일 하나 = Constraint 하나. 이름은 `DC-<NAME>.yaml`. 형식은 [../SCHEMA.md](../SCHEMA.md).
 
-현재: **Active 36종** — 전투 5종(1종 REVISED) + 성장 6종 + 세계 9종(대지형 4종 포함) +
-아이템 6종(1종 REVISED) + 스킬 6종(3종 REVISED) + GLOBAL 4종.
-**보류(DRAFT) 8종** — 성장(GS 주입, open-questions Q52 승인 대기).
+현재: **Active 44종** — 전투 5종(1종 REVISED) + 성장 14종(GS 주입 8종 포함) +
+세계 9종(대지형 4종 포함) + 아이템 6종(1종 REVISED) + 스킬 6종(3종 REVISED) +
+GLOBAL 4종. 보류(DRAFT)는 없다.
 
 근거 문서:
 
@@ -52,11 +52,12 @@ GS §x   Master-Fairy-Growth-System.md        성장(GROWTH) 영역 — 요정 �
 | DC-GROWTH-NOT-A-STAGE | Growth 는 Master Stage 가 아니라 NEED 위의 Overlay | GR §21 · §22.1 |
 | DC-GROWTH-GOAL-FIRST | 성장 자체를 Goal 로 세우지 않는다 — 현재 Goal 의 Possibility 로만 | GR §34 · §42 |
 
-### 보류 — DRAFT (성장 — GS 주입 · Q52 승인 대기)
+### Active — APPROVED (성장 — GS 주입 · Q52 승인)
 
 여덟 다 GS 가 절을 따로 두어 명시한 규칙이다. 원본보다 세게 쓰지 않았다.
-**승인 전이라 어느 노드에도 배선하지 않았다** — 대지형 넷(BT 주입)이 그랬던 것과 같다.
-승인이 오면 그때 걸린 노드와 판정이 함께 선다.
+승인과 함께 성장 노드 여섯(MC 5 · MP 1)에 배선했고 판정은 전부 SATISFIED 다 —
+UNRESOLVED 로 남은 하나는 성장 원칙이 아니라 세계 원칙이다
+(MP-BECOME-A-HIGHER-FORM 의 DC-WORLD-PLAYER-UNFIXED-PATH — Q54).
 
 | Constraint | 한 줄 | 근거 |
 |---|---|---|

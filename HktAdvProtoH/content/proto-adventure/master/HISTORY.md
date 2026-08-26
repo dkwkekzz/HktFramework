@@ -2572,3 +2572,86 @@ Human 이 "FR-ACTION-PHASE 의 근간이 무엇인가" 를 물어 근간을 역�
     **부딪힌 것 둘** — 임의로 풀지 않고 노출했다. 레벨 축과 "진행은 도달"(Q53),
     고정된 캐릭터 판타지와 "역할을 고정하지 않는다"(Q54). 둘 다 해당 노드의 판정을
     UNRESOLVED 로 남겼다 — SATISFIED 로 덮지 않았다.
+
+## Q52. 성장 Constraint 여덟을 승인하는가 — CLOSED
+
+    무엇          GS 주입이 DC 여덟을 DRAFT 로 세웠다. 전부 문서가 절을 따로 두어 명시한
+                  원칙이며 원본보다 세게 쓰지 않았다.
+
+    DECISION      **(a) 여덟 다 승인한다** (2026-08-26 · Human — "모두 권장대로 진행")
+
+                  PRINCIPLE-IS-PLAYED · CLASS-CHANGE-KEEPS-THE-PAST ·
+                  CLASS-CHANGE-NEEDS-THE-WORLD · MASTERY-FROM-OWN-BEHAVIOR ·
+                  EXPLORATION-SHARES-THE-PRINCIPLE · DIFFERENCE-IS-BEHAVIOR ·
+                  SKILL-GAINS-BEHAVIOR · STAGE-READS-AT-A-DISTANCE
+
+                  → GROWTH 영역의 Filter 가 6종에서 **14종**이 되었다. 승인과 함께
+                    성장 노드 여섯(MC 5 · MP 1)에 배선했고 판정은 전부 SATISFIED 다.
+                    둘은 이미 승인된 대지형 Constraint 를 땅에서 몸으로 옮긴 것이다 —
+                    PRINCIPLE-IS-PLAYED ↔ TERRAIN-LAW-IS-OBSERVABLE ·
+                    STAGE-READS-AT-A-DISTANCE ↔ TERRAIN-READS-AT-A-DISTANCE
+
+## Q53. Character Level 은 "진행은 도달" 과 어떻게 공존하는가 — CLOSED
+
+    무엇          DC-WORLD-PROGRESSION-IS-REACH 는 진행이 Level 이 아니라 대응 가능한
+                  세계 범위의 확장이라고 못박는데 (BW §1 · §32), GS §5 · §19 는 다섯 축의
+                  첫째로 Character Level 을 둔다.
+
+    DECISION      **(a) 공존한다 — 레벨은 바닥, 도달은 기준** (2026-08-26 · Human)
+
+                  레벨은 기본값을 키우는 다섯 축 중 하나일 뿐이고, 어디에 갈 수 있는가는
+                  여전히 **감당할 수 있는가**가 정한다 (BT §12).
+                  → **땅의 문턱을 레벨로 걸지 않는다.** "지역 입장 제한 레벨" 형태는
+                    이 결정으로 금지된다. MC-GAIN-LEVEL 의 PROGRESSION-IS-REACH 판정을
+                    UNRESOLVED → SATISFIED 로 닫았다.
+                  근거는 GS 자신이다 — §6 이 Class Change 문턱에 Level 만으로는 부족하다고
+                  적고 세계 경험과 Catalyst 를 함께 요구한다. 문서가 이미 레벨을 바닥으로만 쓴다.
+
+## Q55. Class Line 의 이름을 어느 문서가 소유하는가 — CLOSED
+
+    무엇          같은 계열의 Class Line 이 문서마다 달랐다.
+                      GS §9                          골완투사 → 왕골권사 → 백왕투신 → 백왕현신
+                      Design-Fairy-Baiwang-Growth-R0 백골권희 → 왕골가디언 → 백왕발키리 → 백왕현신
+                      Design-Fairy-Class-Layer0-R0   Origin = 골완투사 (GS 와 같다)
+
+    DECISION      **(b) GS 가 소유한다** (2026-08-26 · Human)
+
+                  셋 중 둘이 이미 GS 의 이름을 쓰고, 그중 하나(Layer0)가 가장 나중에 쓰인
+                  문서다 — 어긋난 백왕 성장 문서가 그 이름으로 맞춘다 (문서 개정은 Human 소유).
+                  → CL-* 를 막던 것이 사라졌다. 다만 이 주입이 CL-* 를 세우지는 않는다 —
+                    Class 정의는 **계열별 설계 문서의 주입**이 세운다. 지금 CL 이 0 인 것은
+                    이름 충돌이 아니라 순서다.
+
+## 세 결정의 반영 — 무엇이 어디에 들어갔나
+
+    Q52 승인         constraints/    DC-GROWTH-* 8종 DRAFT → APPROVED
+                     capabilities    MC 5종에 배선 + 판정 (전부 SATISFIED)
+                     possibilities   MP-BECOME-A-HIGHER-FORM 에 성장 DC 셋 추가 배선
+                     constraints/README  보류 절 → Active 절 · Active 36 → 44
+
+    Q53(a) 공존      capabilities    MC-GAIN-LEVEL 의 PROGRESSION-IS-REACH SATISFIED,
+                                     사유에 "땅의 문턱을 레벨로 걸지 않는다" 를 남겼다
+
+    Q55(b) GS 소유   systems         MS-FAIRY-LINEAGE semantic — 이름의 소유와 CL-* 의 자리
+                     growth-graph    "이름의 충돌" → "남은 것은 계열별 문서의 주입"
+                     master/README   아직 비어 있는 것 표의 Growth 줄
+
+    **Q54 는 열려 있다** — 요정이 플레이어 캐릭터인가. 이 질문만 Agent 권장안이 없었다:
+    GS 가 요정이 플레이어에게 어떻게 오는지를 공급하지 않아 (§20 의 "캐릭터를 얻는다"
+    한 줄뿐) 고를 근거가 없다. 지어내지 않았고, MP-BECOME-A-HIGHER-FORM 의
+    DC-WORLD-PLAYER-UNFIXED-PATH 는 UNRESOLVED 로 남았다.
+    GROWTH 트랙의 첫 후보 둘은 형태(Class) 없이 성립하므로 이 질문이 트랙을 막지는 않는다.
+
+## NEXT — GROWTH 트랙 신설과 성장을 여는 후보 셋 · 2026-08-26
+
+    Q52 · Q53 · Q55 가 닫히자 성장이 후보를 낼 수 있게 되었다. 네 번째 트랙
+    (GROWTH — 근거 문서 영역 GS · 시스템 축 MS-GROWTH-SOURCE · MS-CLASS-EVOLUTION)을
+    세우고 후보 셋을 냈다.
+
+        FR-WHAT-YOU-DID-MAKES-YOU        한 일이 몸을 키운다 (MC-GAIN-LEVEL)
+        FR-THE-BODY-REMEMBERS-ITS-WAY    몸이 자기 방식을 기억한다 (MC-GROW-CLASS-MASTERY)
+        FR-THE-SKILL-LEARNS-A-NEW-MOVE   쓰던 기술이 새 수를 배운다 (MC-MASTER-A-SKILL)
+
+    셋 다 형태(Class)를 요구하지 않는다 — CL-* 없이 성립하는 축부터 세운다는 뜻이며,
+    그래서 Q54 가 열려 있어도 트랙이 돈다. 문턱(MC-CHANGE-CLASS)은 후보가 아니라
+    "지금 열 수 없는 것" 에 있다 — 넘어갈 형태가 아직 없다.

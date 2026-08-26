@@ -19,7 +19,8 @@ NEXT 작업(직렬)만 한다.
 |---|---|---|---|
 | ITEM | [item.md](item.md) | 아이템 IS · 인벤토리 IE | 없음 — Human 선택 대기 |
 | COMBAT | [combat.md](combat.md) | 전투 R1 · DT · 스킬 SK | 없음 — 후보 0 · MASTER OPTIONS 대기 |
-| TERRAIN | [terrain.md](terrain.md) | 세계 BW · BT (대지형 · 시스템 축 MS-BEIRA-TERRAIN) | 없음 — Human 선택 대기 |
+| TERRAIN | [terrain.md](terrain.md) | 세계 BW · BT (대지형 · 시스템 축 MS-BEIRA-TERRAIN) | FR-THE-GROUND-HAS-A-LAW — C-TERRAIN-001 착수 대기 |
+| GROWTH | [growth.md](growth.md) | 성장 GS (시스템 축 MS-GROWTH-SOURCE · MS-CLASS-EVOLUTION) | 없음 — Human 선택 대기 |
 
 ## 병렬 규칙 — 구조가 지키는 것
 
@@ -53,19 +54,27 @@ Feedback 경위 = 자기 파일     닫힌 Cycle 의 반영 경위는 feedback/<
 
 ## 트랙 간 순서
 
-세 트랙 사이에 의존이 없다 — 어느 쪽을 먼저 골라도 된다.
+네 트랙 사이에 **막는 의존은 없다** — 어느 쪽을 먼저 골라도 된다.
 ITEM 안의 순서는 IS §6 이 그은 것(바닥 → 장착 → 제작 → 세계의 아이템)이고, 후보 다섯이
 Human 선택을 기다린다. TERRAIN 안의 순서는 셋 중 하나가 바닥이라는 것이며(땅이 먼저
-있어야 나머지가 겪힌다) 그 트랙 파일이 소유한다.
+있어야 나머지가 겪힌다) 그 트랙 파일이 소유한다. GROWTH 안의 순서는 "쌓인다" 가 먼저라는
+것이다 — 나머지 축들이 그 형태를 재사용한다.
+
+한 방향의 **약한** 의존이 트랙 사이에 하나 있다: GROWTH 의 탐험 숙련
+(MC-GROW-EXPLORATION-MASTERY)은 풀 환경 문제가 있어야 성립하므로 TERRAIN 의 첫 Cycle 을
+기다린다. 그래서 그것은 GROWTH 의 후보가 아니라 그 트랙의 "지금 열 수 없는 것" 에 있다 —
+지금 선 후보 셋은 땅 없이 성립한다.
 
 **COMBAT 은 지금 새 Cycle 을 열 수 없다.** 하나뿐이던 후보가 C025 로 닫혔고 그 반영이
 끝나 **후보가 0** 이다. 다음 COMBAT Cycle 은 MASTER 레인의 OPTIONS 작업(Q35 — 몸이 아닌
 존재를 요구하는 Possibility)이 후보를 낳은 뒤에야 열린다. 그러므로 지금 **병렬로 돌 수
-있는 WORLD 트랙은 ITEM 과 TERRAIN 둘**이다.
+있는 WORLD 트랙은 ITEM · TERRAIN · GROWTH 셋**이다.
 
-두 트랙이 겹치는 자리가 하나 있다 — TERRAIN 의 세 번째 후보
+트랙이 겹치는 자리가 둘 있다. TERRAIN 의 세 번째 후보
 (FR-WHAT-KEEPS-YOU-ALIVE-IS-CARRIED)가 지니고 나누는 것을 다루므로 아이템 쪽 파일에
-닿는다. 그 후보를 고를 때는 ITEM 트랙이 무엇을 도는 중인지 먼저 본다 (LANES 의 충돌 칸).
+닿는다. 그리고 GROWTH 의 후보 셋은 전부 **몸의 값과 전투 판정**에 닿으므로 COMBAT 이
+열리면 같은 파일을 본다 — 지금은 COMBAT 이 후보 0 이라 겹치지 않는다.
+어느 쪽이든 고를 때 상대 트랙이 무엇을 도는 중인지 먼저 본다 (LANES 의 충돌 칸).
 
 ## 지금 열 수 없는 것 — 트랙 밖
 

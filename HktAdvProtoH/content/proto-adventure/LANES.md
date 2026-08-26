@@ -29,6 +29,7 @@ Feedback · BACKLOG)를 겹쳐 `LANES.html` 로 그린다. `npm run lanes:check`
 | WORLD·ITEM | HUMAN | 후보 5 중 선택 대기 — Agent 추천 FR-THE-PLACES-ARE-NARROWER (+FR-SEE-BEFORE 얹기) | Human Select (frontier/item.md) |
 | WORLD·COMBAT | BLOCKED | 후보 0 — FR-THE-SHAPE-IS-DATA 가 C025 로 닫혔다 | MASTER 의 OPTIONS(Q35) 가 후보를 낳는 것 |
 | WORLD·TERRAIN | OPEN | `C-TERRAIN-001` 착수 대기 — SELECTED `FR-THE-GROUND-HAS-A-LAW`(땅이 법칙을 지닌다). Stage 1 부터, 아직 시작하지 않았다 | 없음 — 다만 이 판과 트랙 파일이 main 에 들어간 뒤에 잡는다 |
+| WORLD·GROWTH | HUMAN | 후보 3 중 선택 대기 — Agent 추천 FR-WHAT-YOU-DID-MAKES-YOU (한 일이 몸을 키운다) | Human Select (frontier/growth.md) |
 | VIEW | OPEN | BACKLOG 다음 항목(request-feedback)부터 — equipment-panel 은 아래 충돌 칸 | 없음 |
 | MASTER | OPEN | OPTIONS Q35 (몸이 아닌 존재를 요구하는 Possibility) — 대지형 NEXT 는 끝났고 (TERRAIN 트랙 후보 3) 성장(GS) 주입과 그 NEXT 도 끝났다 (GROWTH 트랙 후보 3) | 없음 — 미처리 Feedback 이 0 이라 막던 것이 사라졌다 (`npm run feedback:gate`) |
 | ENGINE | OPEN | 기반 부채 하나 — 표시 문구를 사유 코드로 바꿔 팩에 회수 (C009 폭이 넓고 조립·팩 채택 동반 — 착수 전 범위 확인) | 없음 |
@@ -43,6 +44,7 @@ Feedback · BACKLOG)를 겹쳐 `LANES.html` 로 그린다. `npm run lanes:check`
 | VIEW 의 equipment-panel ↔ WORLD·ITEM | ITEM Cycle 이 장비 유효 값 화면을 건드릴 수 있다 — equipment-panel 은 ITEM Cycle 병합 뒤에 연다 (그 뒤의 drag-and-drop · responsive-workspace 도 함께 밀린다) |
 | WORLD·TERRAIN ↔ WORLD·ITEM | **지금은 겹치지 않는다** — 고른 것이 첫 후보(땅이 법칙을 지닌다)라 아이템 파일에 닿지 않는다. 겹치는 것은 셋째 후보(FR-WHAT-KEEPS-YOU-ALIVE-IS-CARRIED)이며, 그것을 고를 때 ITEM 이 무엇을 도는 중인지 먼저 본다 |
 | WORLD·TERRAIN ↔ VIEW | 땅은 화면에 보여야 하므로 이 Cycle 이 `view/` 를 건드린다. VIEW 의 다음 항목(request-feedback)은 요청 결과 표면이라 자리가 다르지만 표면 상태·HUD 에서 스칠 수 있다 — **둘 다 자기 영역 끝에 추가만 하고 기존 줄을 옮기지 않는다** (frontier/README.md 공유 지점 규칙과 같다) |
+| WORLD·GROWTH ↔ WORLD·COMBAT | GROWTH 후보 셋이 전부 몸의 값과 전투 판정에 닿는다 (`world/semantic/actor.ts` · `combat.ts`). **지금은 겹치지 않는다** — COMBAT 이 후보 0 이라 열려 있지 않다. Q35 가 COMBAT 후보를 낳으면 그때 둘 중 하나만 돈다 |
 | VIEW 의 touch-reason ↔ ENGINE | ENGINE 이 열었다 — touch-pad 가 `unavailableText` 를 버튼에 그린다. VIEW 는 눈검증·백로그 정리만 남았다 |
 
 ## HUMAN 대기
@@ -55,7 +57,6 @@ Human 이 답하면 풀리는 것들이다. 답의 자리는 괄호가 가리킨
 | Q37 — 자리에 이름을 줄 것인가 (open-questions.md) | FR-ARRANGE-WHAT-YOU-CARRY 존치/삭제 |
 | Design-Creature-Behavior-R0.md 승인 | Inject → MC-PREDICT · MC-OBSERVE 습성 해금 |
 | Design-Resource-Catalog-R0.md 승인 | Inject → Q36 · 회복 아이템 해금 · BT 자원 24종의 자리 (그 문서가 받기로 정해졌다 — HISTORY Q50(a)) · GS 의 Class Catalyst 자리 |
-| Q52 — 성장 Constraint 여덟 승인 (open-questions.md) | GROWTH Filter 6종 → 14종 · 성장 노드에 판정 배선 |
-| Q53 — Character Level 과 "진행은 도달" 의 공존 | MC-GAIN-LEVEL 판정 · 성장 Cycle 이 무엇을 올릴지 |
-| Q54 — 요정은 플레이어 캐릭터인가 | MP-BECOME-A-HIGHER-FORM 판정 · MA-* 배선 |
-| Q55 — Class Line 의 이름을 어느 문서가 소유하는가 | **차단** — CL-* 착수 · 계열별 문서(백왕 성장 · Layer0) 주입 |
+| 계열별 요정 문서(백왕 성장 · Layer0) 주입 | CL-* 착수 — 이름의 소유는 정해졌다 (HISTORY Q55(b)). MC-CHANGE-CLASS 가 넘어갈 형태가 생긴다 |
+| WORLD·GROWTH 후보 선택 (frontier/growth.md SELECTED) | WORLD·GROWTH 레인 착수 |
+| Q54 — 요정은 플레이어 캐릭터인가 (open-questions.md) | MP-BECOME-A-HIGHER-FORM 판정 · 요정 계열의 소유 주체. 트랙을 막지는 않는다 |

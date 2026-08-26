@@ -518,7 +518,7 @@ flowchart TB
 
 ### 요정 계열 — GS (content/proto-adventure/design/Master-Fairy-Growth-System.md) §1 · §2 · §9~§16
 
-하나의 세계 원리가 대륙이 아니라 **하나의 인격**에 집중되어 태어난 존재의 갈래 (GS §1). 대지형(MS-BEIRA-TERRAIN)의 거울이다 — 여덟 계열이 여덟 대지형의 원리와 하나씩 짝을 이룬다. 순서가 없다는 것도 그쪽과 같다 (GS §9 는 이 여덟을 예시로 들 뿐 난이도나 계보로 늘어놓지 않는다). GS 는 계열마다 Principle · Power Fantasy · Class Line · 전투 · 탐험 · 성장 행동을 공급하지만 각 Class 의 정의(CL-*)는 세우지 않는다 — 그 자리는 계열별 설계 문서가 소유하며, Class Line 의 이름이 문서마다 어긋나 있어 아직 세울 수 없다 (open-questions Q55).
+하나의 세계 원리가 대륙이 아니라 **하나의 인격**에 집중되어 태어난 존재의 갈래 (GS §1). 대지형(MS-BEIRA-TERRAIN)의 거울이다 — 여덟 계열이 여덟 대지형의 원리와 하나씩 짝을 이룬다. 순서가 없다는 것도 그쪽과 같다 (GS §9 는 이 여덟을 예시로 들 뿐 난이도나 계보로 늘어놓지 않는다). GS 는 계열마다 Principle · Power Fantasy · Class Line · 전투 · 탐험 · 성장 행동을 공급하지만 각 Class 의 정의(CL-*)는 세우지 않는다. **Class Line 의 이름은 GS 가 소유한다** (HISTORY Q55(b)) — 어긋난 계열 문서는 그 이름으로 맞춘다. CL-* 를 세우는 것은 계열별 설계 문서의 주입이며, 그때 이 여덟 자리가 채워진다.
 
 아직 이 시스템에 속한 조각이 없다.
 
@@ -708,20 +708,20 @@ Constraint 는 단계가 아니라 각 선택 지점의 Filter 다. 아래는 �
 | `COMBAT-PLAYER-CAUSALITY` | COMBAT | REVISED | 28 | 전투의 중요한 결과는 관찰 가능한 세계 상태와 플레이어의 선택·행동에서 나오며, 같은 상태·같은 조건·같은 행동이면 언제나 같은 결과가 나온다. 단 하나의 예외로, Critical 은 확률 판정을 허용한다 — 그 경우에도 발생 확률과 증폭 결과는 관찰로 읽을 수 있어야 한다. |
 | `COMBAT-SHARED-BUDGET` | COMBAT | APPROVED | 6 | 전투 행동은 하나의 공통 기력(CP) 예산을 나눠 쓴다. 행동별 전용 게이지를 신설하지 않는다. |
 | `CONDITION-OPENS-WITHOUT-RECORDING` | GLOBAL | APPROVED | 1 | 지금의 조건으로 열리는 것은 어디에도 기록하지 않는다. 조건이 사라지면 저절로 닫혀야 하고, 그것을 되돌리는 규칙이 따로 있어서는 안 된다. |
-| `GROWTH-CLASS-CHANGE-KEEPS-THE-PAST` | GROWTH | DRAFT | 0 | Class Change 는 다른 Class 로 교체하는 것이 아니라 같은 캐릭터가 상위 형태가 되는 것이며, 이전 Class 는 사라지지 않고 그 상위 형태의 기반으로 남는다. |
-| `GROWTH-CLASS-CHANGE-NEEDS-THE-WORLD` | GROWTH | DRAFT | 0 | Class Change 의 문턱은 시간과 수치만으로 넘을 수 없다 — 그 캐릭터의 원리와 관련된 세계 현상을 직접 겪은 것과 세계에서만 얻는 Property 를 함께 요구한다. |
+| `GROWTH-CLASS-CHANGE-KEEPS-THE-PAST` | GROWTH | APPROVED | 2 | Class Change 는 다른 Class 로 교체하는 것이 아니라 같은 캐릭터가 상위 형태가 되는 것이며, 이전 Class 는 사라지지 않고 그 상위 형태의 기반으로 남는다. |
+| `GROWTH-CLASS-CHANGE-NEEDS-THE-WORLD` | GROWTH | APPROVED | 3 | Class Change 의 문턱은 시간과 수치만으로 넘을 수 없다 — 그 캐릭터의 원리와 관련된 세계 현상을 직접 겪은 것과 세계에서만 얻는 Property 를 함께 요구한다. |
 | `GROWTH-CLASS-ORIGIN-TRACE` | GROWTH | APPROVED | 0 | Class 는 세계와 Actor 가 상호작용한 결과다. 모든 Class 는 하나 이상의 origin_trace(WorldState → Goal → Possibility)를 가지며, 그 Class 를 제거해도 원인이 된 세계 요소는 독립적으로 성립해야 한다. |
 | `GROWTH-DEFINITION-INSTANCE-SPLIT` | GROWTH | APPROVED | 1 | Master 는 유한한 Definition(Class · Item Type · Property · Modifier · 조합 규칙)만 소유한다. 실제 생성된 Item Instance(II-*)와 조합 결과는 Runtime World 가 소유하며, 가능한 조합을 사전에 Node 로 생성하지 않는다. |
-| `GROWTH-DIFFERENCE-IS-BEHAVIOR` | GROWTH | DRAFT | 0 | 캐릭터 사이의 차이는 능력치 값의 차이가 아니라 전투에서 반복하는 행동의 차이로 드러나야 한다. |
-| `GROWTH-EXPLORATION-SHARES-THE-PRINCIPLE` | GROWTH | DRAFT | 0 | 탐험 능력은 전투와 별개로 주어지는 별도의 기능이 아니라, 같은 원리를 다른 방식으로 쓰는 것이어야 한다. |
+| `GROWTH-DIFFERENCE-IS-BEHAVIOR` | GROWTH | APPROVED | 1 | 캐릭터 사이의 차이는 능력치 값의 차이가 아니라 전투에서 반복하는 행동의 차이로 드러나야 한다. |
+| `GROWTH-EXPLORATION-SHARES-THE-PRINCIPLE` | GROWTH | APPROVED | 2 | 탐험 능력은 전투와 별개로 주어지는 별도의 기능이 아니라, 같은 원리를 다른 방식으로 쓰는 것이어야 한다. |
 | `GROWTH-GOAL-FIRST` | GROWTH | APPROVED | 2 | 성장(새 Class · Item · Capability 의 획득) 자체를 Goal 로 세우지 않는다. 성장은 Actor 의 현재 Goal 을 현재 Capability 로 달성하기 어려울 때, 그 Goal 을 달성하는 하나의 Possibility 로만 성립한다. |
-| `GROWTH-MASTERY-FROM-OWN-BEHAVIOR` | GROWTH | DRAFT | 0 | 숙련은 무엇을 얼마나 반복했는가가 아니라 그 형태 고유의 행동을 수행했는가에서 오르며, 같은 상황에서도 캐릭터마다 오르는 행동이 다르다. |
+| `GROWTH-MASTERY-FROM-OWN-BEHAVIOR` | GROWTH | APPROVED | 2 | 숙련은 무엇을 얼마나 반복했는가가 아니라 그 형태 고유의 행동을 수행했는가에서 오르며, 같은 상황에서도 캐릭터마다 오르는 행동이 다르다. |
 | `GROWTH-NEED-FROM-POSSIBILITY` | GROWTH | APPROVED | 0 | Class 와 Item 은 Capability 를 획득하는 세계 내 경로일 뿐이다. Capability 의 필요성은 항상 기존 Master 인과(Goal → Possibility --requires-->)에서 나오며, Class 나 Item 이 존재한다는 이유로 Capability 를 만들지 않는다. |
 | `GROWTH-NO-CAPABILITY-DUPLICATION` | GROWTH | APPROVED | 1 | 같은 플레이 의미의 Capability 를 획득 Source(Class / Item / Actor)별로 복제하지 않는다. 하나의 MC-* 에 여러 획득 경로가 grants 로 연결된다. |
 | `GROWTH-NOT-A-STAGE` | GROWTH | APPROVED | 0 | Growth 는 별도 Master Stage 가 아니다. 기본 절차 WHY → OPTIONS → NEED → NEXT 는 그대로 유지되고, Growth Graph 는 NEED 에서 발견된 Capability 에 대해 "세계에서 어떻게 얻는가"를 덧씌우는 보조 Overlay 로만 존재한다. |
-| `GROWTH-PRINCIPLE-IS-PLAYED` | GROWTH | DRAFT | 0 | 캐릭터가 지닌 세계의 원리는 설정 문구가 아니라 그 캐릭터가 실제로 하는 행동으로 화면 위에 있어야 한다. |
-| `GROWTH-SKILL-GAINS-BEHAVIOR` | GROWTH | DRAFT | 0 | 스킬의 성장은 수치의 증가만으로 성립하지 않는다 — 그 스킬이 할 수 있는 행동 자체가 늘어나야 한다. |
-| `GROWTH-STAGE-READS-AT-A-DISTANCE` | GROWTH | DRAFT | 0 | 캐릭터의 성장 단계는 멀리서 보기만 해도 알아볼 수 있어야 한다 — 힘의 증가가 외형의 변화로 함께 나타난다. |
+| `GROWTH-PRINCIPLE-IS-PLAYED` | GROWTH | APPROVED | 1 | 캐릭터가 지닌 세계의 원리는 설정 문구가 아니라 그 캐릭터가 실제로 하는 행동으로 화면 위에 있어야 한다. |
+| `GROWTH-SKILL-GAINS-BEHAVIOR` | GROWTH | APPROVED | 1 | 스킬의 성장은 수치의 증가만으로 성립하지 않는다 — 그 스킬이 할 수 있는 행동 자체가 늘어나야 한다. |
+| `GROWTH-STAGE-READS-AT-A-DISTANCE` | GROWTH | APPROVED | 1 | 캐릭터의 성장 단계는 멀리서 보기만 해도 알아볼 수 있어야 한다 — 힘의 증가가 외형의 변화로 함께 나타난다. |
 | `ITEM-CAPABILITY-COMES-FROM-GRANTS` | ITEM | APPROVED | 1 | 아이템의 성질(IP-*)은 세계 압력에서 유래한 것만이고, 아이템의 용도는 그 종류가 가진다. 능력 판정은 성질 목록을 조회해서가 아니라 그 아이템이 지금 무엇을 주고 있는가로 한다. |
 | `ITEM-CAPACITY-IS-FINITE` | ITEM | APPROVED | 1 | 가진 것을 담을 자리도, 몸에 적용할 자리도 유한하다. 적용할 자리는 담을 자리보다 훨씬 좁고, 그 좁음이 무엇을 들고 나갈지를 선택으로 만든다. 몇 개인가는 Cycle 이 소유한다. |
 | `ITEM-CHANGE-IS-ONE-UNIT` | ITEM | APPROVED | 4 | 아이템이 관련된 변화는 하나의 성공 단위다. 효과와 수량은 함께 변하거나 함께 변하지 않으며, 실패한 시도는 세계에 아무 흔적도 남기지 않는다. |

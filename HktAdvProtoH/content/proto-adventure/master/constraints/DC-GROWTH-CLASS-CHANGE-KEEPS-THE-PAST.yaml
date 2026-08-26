@@ -40,9 +40,9 @@ prohibits:
 prefers:
   - 층이 오를수록 같은 행동이 더 넓은 범위에 미치는 형태                      # GS §4 High Class
 
-status: DRAFT
+status: APPROVED
 provenance:
-  - HUMAN_DESIGN        # content/proto-adventure/design/Master-Fairy-Growth-System.md 주입 — Human 승인 대기 (open-questions Q52)
+  - HUMAN_DESIGN        # content/proto-adventure/design/Master-Fairy-Growth-System.md 주입 → Human 승인 (HISTORY Q52)
 
 relations:
   supports:

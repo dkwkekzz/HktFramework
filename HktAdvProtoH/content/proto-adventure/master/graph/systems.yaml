@@ -188,9 +188,9 @@ systems:
       하나씩 짝을 이룬다. 순서가 없다는 것도 그쪽과 같다 (GS §9 는 이 여덟을 예시로 들 뿐
       난이도나 계보로 늘어놓지 않는다).
       GS 는 계열마다 Principle · Power Fantasy · Class Line · 전투 · 탐험 · 성장 행동을
-      공급하지만 각 Class 의 정의(CL-*)는 세우지 않는다 — 그 자리는 계열별 설계 문서가
-      소유하며, Class Line 의 이름이 문서마다 어긋나 있어 아직 세울 수 없다
-      (open-questions Q55).
+      공급하지만 각 Class 의 정의(CL-*)는 세우지 않는다. **Class Line 의 이름은 GS 가
+      소유한다** (HISTORY Q55(b)) — 어긋난 계열 문서는 그 이름으로 맞춘다. CL-* 를 세우는
+      것은 계열별 설계 문서의 주입이며, 그때 이 여덟 자리가 채워진다.
     segments:
       - { id: BAIWANG,     name: 백왕계 — 결속 (백왕의 갈비분지) }
       - { id: YEOKRAK,     name: 역락계 — 방향 (하늘로 떨어지는 산맥) }

@@ -41,9 +41,9 @@ prohibits:
 prefers:
   - 한 능력이 전투와 탐험에서 서로 다른 결과를 내도록 쓰이는 형태             # GS §8 · §21-5
 
-status: DRAFT
+status: APPROVED
 provenance:
-  - HUMAN_DESIGN        # content/proto-adventure/design/Master-Fairy-Growth-System.md 주입 — Human 승인 대기 (open-questions Q52)
+  - HUMAN_DESIGN        # content/proto-adventure/design/Master-Fairy-Growth-System.md 주입 → Human 승인 (HISTORY Q52)
 
 relations:
   supports:

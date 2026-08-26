@@ -41,9 +41,9 @@ prohibits:
 prefers:
   - 그 캐릭터의 원리와 같은 계열의 현상·자원을 문턱으로 삼는 것               # GS §6 · §20
 
-status: DRAFT
+status: APPROVED
 provenance:
-  - HUMAN_DESIGN        # content/proto-adventure/design/Master-Fairy-Growth-System.md 주입 — Human 승인 대기 (open-questions Q52)
+  - HUMAN_DESIGN        # content/proto-adventure/design/Master-Fairy-Growth-System.md 주입 → Human 승인 (HISTORY Q52)
 
 relations:
   supports:
