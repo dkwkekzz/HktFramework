@@ -33,6 +33,8 @@ const LABEL_OF_CODE: Record<string, string> = {
   KeyN: 'N',
   KeyM: 'M',
   KeyI: 'I',
+  KeyJ: 'J',
+  KeyK: 'K',
   KeyQ: 'Q',
   Comma: ',',
   Enter: 'Enter',
@@ -54,10 +56,14 @@ export interface PackKey {
   /**
    * 표면이 열린 동안에만 듣는가.
    *
-   * 방향키와 Enter 가 그렇다. 이 키들은 평소 엔진이 이동으로 먼저 가져가지만
-   * (RESERVED_KEY_CODES), 표면이 열리면 조립 루트가 이동을 멈추므로 팩까지 온다
-   * (`app/main.ts` 의 suspendMovement). **그 사정을 여기 적어 두지 않으면**
-   * 아래 검사가 "남이 먼저 가져간 키" 로 잡는다.
+   * 두 갈래가 이 자리에 온다.
+   *
+   *   ① 엔진이 평소 삼키는 키 — 방향키와 Enter. 표면이 열리면 조립 루트가 이동을
+   *      멈추므로 팩까지 온다 (`app/main.ts` 의 suspendMovement). **그 사정을 여기
+   *      적어 두지 않으면** 아래 검사가 "남이 먼저 가져간 키" 로 잡는다
+   *   ② 표면 안에서만 뜻이 있는 키 — 분류·보기 정렬 (V-008). 닫혀 있을 때 눌러도
+   *      아무 일이 없으므로 늘 떠 있는 안내 패널에 두면 거짓이 된다. 그 안내는
+   *      표면 자신의 아래 줄이 지닌다
    */
   whileSurfaceOpen?: boolean;
   /**
@@ -111,6 +117,9 @@ export const PACK_KEYS = {
   actionUp: { code: 'ArrowUp', what: '행동', whileSurfaceOpen: true },
   actionDown: { code: 'ArrowDown', what: '행동', whileSurfaceOpen: true },
   invoke: { code: 'Enter', what: '실행', whileSurfaceOpen: true },
+  // 많은 것 중에서 찾는 자리 (V-008 · 문서 §6) — 작업 공간이 열린 동안에만 뜻이 있다
+  viewFilter: { code: 'KeyJ', what: '분류', whileSurfaceOpen: true },
+  viewOrder: { code: 'KeyK', what: '보기 정렬', whileSurfaceOpen: true },
   close: {
     code: 'Escape',
     what: '닫기',

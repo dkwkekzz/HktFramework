@@ -8,6 +8,7 @@ import type { ActionRequest } from '../protocol/actions';
 import type { GameViewSnapshot } from '../protocol/gameview';
 import { equipmentSlotIds } from './equipment-presentation';
 import { inventorySlots } from './inventory-presentation';
+import { cycleFilter, cycleOrder } from './inventory-view';
 import {
   INVENTORY_SURFACE_ID,
   armDiscardConfirm,
@@ -209,9 +210,10 @@ function slotKey(index: number): KeyBinding {
 // 조작은 세 축이다. 어느 것도 세계로 나가지 않는다 — 마지막 Enter 하나만 나간다.
 //
 //     I            여닫는다
-//     ← →          지닌 것 사이에서 고른다
+//     ← →          **화면에 선 차례대로** 지닌 것 사이에서 고른다 (V-008)
 //     ↑ ↓          고른 것의 행동 줄 사이에서 초점을 옮긴다
 //     Enter        초점이 있는 행동을 요청한다
+//     J · K        분류를 거르고 보기 차례를 바꾼다 (V-008 — 세계로 나가지 않는다)
 //     Esc · ✕      닫는다 (기반의 표면 능력이 받아 조립을 거쳐 closeSurface 로 온다)
 //
 // 방향키가 여기까지 오는 것은 표면이 열린 동안 이동이 멈추기 때문이다
@@ -268,6 +270,9 @@ export const KEY_BINDINGS: readonly KeyBinding[] = [
   workspaceKey(keyCode('actionUp'), (snapshot) => moveActionFocus(snapshot, -1)),
   workspaceKey(keyCode('actionDown'), (snapshot) => moveActionFocus(snapshot, 1)),
   workspaceKey(keyCode('invoke'), (snapshot, send) => invokeFocusedAction(snapshot, send)),
+  // V-008 — 많은 것 중에서 찾는 자리. 세계로 나가지 않는다: 무엇을 볼지가 바뀔 뿐이다
+  workspaceKey(keyCode('viewFilter'), () => cycleFilter()),
+  workspaceKey(keyCode('viewOrder'), () => cycleOrder()),
   // Escape 는 여기 없다 — 기반의 표면 능력이 붙잡아 조립을 거쳐 closeSurface 로 온다
   // (engine/view-kernel/hud/surface.ts · app/main.ts). 두 곳에서 받으면 두 번 닫힌다
   // 첫 아홉 칸. 칸이 그만큼 없으면 아무 일도 일어나지 않는다

@@ -31,6 +31,7 @@ import {
   workspacePendingCount,
   workspaceSelection,
 } from '../inventory-workspace';
+import { setFilter, setOrder } from '../inventory-view';
 import { resolvePresentation } from '../resolve';
 import { closeSurface, surfaceIsOpen, toggleSurface } from '../surface-state';
 import empty from './fixtures/inventory-empty.fixture.json';
@@ -199,6 +200,89 @@ describe('VUX-IE-V-04 · V-06 — 고르고 읽고 실행한다 (자판만으로
       return 1;
     });
     expect(sent).toEqual([]);
+  });
+});
+
+// ── V-008 · VUX-IE-04 — 많은 것 중에서 찾는다 (문서 §6) ─────────────
+describe('V-008 — 거르고 차례를 바꿔도 지닌 것은 그대로다', () => {
+  it('도구 띠가 표면에 선다 — 분류 다섯과 보기 정렬 셋', () => {
+    expect(section(mining, 'filter').cells?.map((c) => c.text)).toEqual([
+      '전체',
+      '장비',
+      '소비',
+      '재료',
+      '기타',
+    ]);
+    expect(section(mining, 'order').title).toBe('보기 정렬'); // `정렬` 이 아니다 (문서 §6)
+    expect(section(mining, 'order').cells?.map((c) => c.text)).toEqual([
+      '세계 차례',
+      '이름',
+      '수량',
+    ]);
+  });
+
+  it('분류를 걸면 보이는 것만 줄어든다', () => {
+    expect(section(mining, 'items').cells?.map((c) => c.text)).toEqual(['🪨 돌', '⛏ 곡괭이']);
+    setFilter('material');
+    expect(section(mining, 'items').cells?.map((c) => c.text)).toEqual(['🪨 돌']);
+    // 두 수를 함께 보인다 — 보이는 수만 말하면 지닌 것이 줄어든 것으로 읽힌다
+    expect(section(mining, 'items').title).toBe('지닌 것 — 1 / 2 종류 · 재료');
+  });
+
+  it('**자리 수는 그대로다** — 거르기는 덜어내기가 아니다 (문서 §6)', () => {
+    const before = section(mining, 'room');
+    setFilter('gear'); // 걸리는 것이 하나도 없는 분류
+    const after = section(mining, 'room');
+    expect(after.title).toBe(before.title);
+    expect(after.cells).toEqual(before.cells);
+    expect(after.title).toBe('자리 2 / 4 · 남은 자리 2');
+  });
+
+  it('걸린 것이 없으면 지닌 것이 없는 것과 다른 말을 한다', () => {
+    setFilter('consumable');
+    expect(section(mining, 'items').cells).toEqual([]);
+    expect(section(mining, 'items').emptyText).toBe('조건에 맞는 아이템 없음 · 필터 초기화');
+    // 정말로 아무것도 지니지 않은 가방은 여전히 그렇게 말한다
+    expect(section(empty, 'items').emptyText).toBe('소지품 없음');
+  });
+
+  it('되돌릴 자리가 화면에 남는다 — 걸린 것이 없어도 도구 띠는 사라지지 않는다', () => {
+    setFilter('consumable');
+    expect(section(mining, 'filter').cells).toHaveLength(5);
+    expect(section(mining, 'filter').cells?.find((c) => c.id === 'filter.all')?.selected).toBe(false);
+  });
+
+  it('보기 차례를 바꾸면 칸의 차례가 바뀐다 — 세계가 보낸 것은 그대로다', () => {
+    setOrder('name');
+    expect(section(mining, 'items').cells?.map((c) => c.text)).toEqual(['⛏ 곡괭이', '🪨 돌']);
+    expect(section(mining, 'items').title).toBe('지닌 것 — 2 종류'); // 거른 것이 아니다
+  });
+
+  it('방향키는 **화면에 선 차례대로** 걷는다 — 걸러진 것을 지나가지 않는다', () => {
+    setFilter('material');
+    moveSelection(snap(mining), 1);
+    expect(workspaceSelection()).toBe('stone');
+    // 하나뿐이므로 한 번 더 밀어도 그 자리다 (감기지만 갈 곳이 하나다)
+    moveSelection(snap(mining), 1);
+    expect(workspaceSelection()).toBe('stone');
+  });
+
+  it('차례를 바꾸면 방향키가 그 차례대로 간다', () => {
+    setOrder('name');
+    moveSelection(snap(mining), 1);
+    expect(workspaceSelection()).toBe('pickaxe'); // 이름 차례의 첫째
+  });
+
+  it('도구 띠의 칸은 고르는 칸이 아니다 — 고른 것도 초점도 건드리지 않는다', () => {
+    moveSelection(snap(mining), 1);
+    expect(workspaceSelection()).toBe('stone');
+    expect(pickCell(INVENTORY_SURFACE_ID, 'filter.gear')).toBe(false);
+    expect(workspaceSelection()).toBe('stone');
+  });
+
+  it('안내 줄이 두 키를 세운다 — 늘 떠 있는 패널에는 서지 않는 키다', () => {
+    expect(bag(mining).footer).toContain('분류 J');
+    expect(bag(mining).footer).toContain('보기 정렬 K');
   });
 });
 

@@ -27,6 +27,8 @@
 import type { SceneHudItem, SceneState } from '../../../engine/view-kernel/scene/scene-state';
 import type { GameViewSnapshot } from '../protocol/gameview';
 import { keyLabel, SLOT_KEY_LABELS } from './key-registry';
+// 종류 이름은 한 자리에서 온다 (V-008) — 같은 세 줄이 세 파일에 있던 자리다
+import { itemName } from './inventory-view';
 
 /** 소지품 줄의 id 앞머리 — 조립 루트가 칸 번호를 되읽을 때 쓴다 */
 export const INVENTORY_HUD_PREFIX = 'inventory.';
@@ -84,11 +86,6 @@ const ACTION_KEY_HINT: Record<string, (slot?: string) => string | undefined> = {
  * (`stone` 은 광맥의 종류로도 쓰인다). 표에 없어도 화면이 멈추지 않는 것이 요점이다 —
  * 세계가 새 아이템을 정의하는 것만으로 소지품에 나타나야 한다.
  */
-function itemName(kind: string, text: (code: string) => string): string {
-  const code = `item.${kind}`;
-  const named = text(code);
-  return named === code ? kind : named;
-}
 
 /** 그 칸이 무엇의 칸인가 — id 에서 종류를 되읽는다 (조립 루트가 요청을 만들 때 쓴다) */
 export function inventoryKindOf(hudId: string): string | undefined {

@@ -22,6 +22,8 @@
 import type { SceneHudItem, SceneState } from '../../../engine/view-kernel/scene/scene-state';
 import type { EquipmentSlotView, GameViewSnapshot } from '../protocol/gameview';
 import { keyLabel, SLOT_KEY_LABELS } from './key-registry';
+// 종류 이름은 한 자리에서 온다 (V-008) — 같은 세 줄이 세 파일에 있던 자리다
+import { itemName } from './inventory-view';
 
 /** 걸린 자리 줄의 id 앞머리 */
 export const EQUIPMENT_HUD_PREFIX = 'equipment.';
@@ -47,11 +49,6 @@ const ACTION_LABEL: Record<string, string> = {
   'unequip-item': '풀기',
 };
 
-function itemName(kind: string, text: (code: string) => string): string {
-  const code = `item.${kind}`;
-  const named = text(code);
-  return named === code ? kind : named;
-}
 
 /** 능력 이름 — `stat.<name>` 으로 찾고, 표에 없으면 코드 그대로 보인다 */
 function statName(name: string, text: (code: string) => string): string {
