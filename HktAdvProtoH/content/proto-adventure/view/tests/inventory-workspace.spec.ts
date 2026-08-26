@@ -875,3 +875,54 @@ describe('V-004 — 눌러서 고르고 실행하고 목록을 연다', () => {
     expect(workspaceConfirming()).toBeNull();
   });
 });
+
+// ── V-011 — 고르기 전에 읽는다 (UX 문서 §8) ──────────────────────────
+//
+// 곁말이 **여닫히는 일**은 능력의 몫이고 (engine/view-kernel/hud/surface.ts —
+// 손을 얹은 것과 초점이 닿은 것을 같은 하나로 다루고 Escape 로 닫는다),
+// 여기서 보는 것은 **무엇이 실리는가** 다. 화면이 지어낸 것이 하나도 없어야 한다.
+
+describe('V-011 — 칸이 고르기 전에 자기를 말한다', () => {
+  beforeEach(() => {
+    resetWorkspace();
+    closeSurface(INVENTORY_SURFACE_ID);
+  });
+
+  const cellOf = (fixture: unknown, id: string) =>
+    (section(fixture, 'items').cells ?? []).find((c) => c.id === id);
+
+  it('분류는 거르는 칸이 쓰는 그 이름이다 — 새 이름을 짓지 않는다', () => {
+    toggleSurface(INVENTORY_SURFACE_ID);
+    // 곡괭이의 분류는 `tool` 이며 이름 붙은 셋 밖이므로 `기타` 로 선다 (V-008 과 같은 결론)
+    expect(cellOf(mining, 'item.pickaxe')?.tip?.[0]).toBe('기타');
+    expect(cellOf(mining, 'item.stone')?.tip?.[0]).toBe('재료');
+  });
+
+  it('되는 것은 세계가 된다고 한 것뿐이다', () => {
+    toggleSurface(INVENTORY_SURFACE_ID);
+    const tip = cellOf(mining, 'item.pickaxe')?.tip ?? [];
+    const doable = tip.find((line) => line.startsWith('할 수 있다'));
+    // 이 장면에서 세계가 된다고 한 것은 쓰기 하나다 — 화면이 그 목록을 늘리지 않는다
+    expect(doable).toBe('할 수 있다: 쓰기');
+  });
+
+  it('아무것도 되지 않으면 그 사유가 곁말이 된다 — 침묵하지 않는다', () => {
+    toggleSurface(INVENTORY_SURFACE_ID);
+    // 모르는 코드의 물건 — 세계가 아무 행동도 되지 않는다고 말한 자리
+    const cells = section(unknown, 'items').cells ?? [];
+    for (const cell of cells) {
+      const tip = cell.tip ?? [];
+      expect(tip.length).toBeGreaterThan(0);
+      // 첫 줄은 언제나 분류다 — 그다음이 되는 것이거나 안 되는 사유다
+      expect(tip.length === 1 || tip.slice(1).every((line) => line.length > 0)).toBe(true);
+    }
+  });
+
+  it('빈 자리에는 곁말이 없다 — 없는 것이 스스로를 말할 수는 없다', () => {
+    toggleSurface(INVENTORY_SURFACE_ID);
+    // 남은 자리는 자기 구획에 산다 — 항목의 수와 쓴 자리의 수는 다른 축이다
+    const rooms = (section(mining, 'room').cells ?? []).filter((c) => c.empty);
+    expect(rooms.length).toBeGreaterThan(0);
+    for (const cell of rooms) expect(cell.tip).toBeUndefined();
+  });
+});

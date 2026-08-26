@@ -30,6 +30,7 @@ import type { ActionRequest } from '../protocol/actions';
 import type { GameViewSnapshot, InventoryItemView, ItemActionView } from '../protocol/gameview';
 import {
   applyViewCell,
+  categoryLabel,
   filterCells,
   itemName,
   narrowedBy,
@@ -532,9 +533,45 @@ export function forgetPending(): void {
 
 // ── 표면 짓기 ────────────────────────────────────────────────────────
 
+/**
+ * 칸의 곁말 — **고르지 않고도 읽는 것** (UX 문서 §8 · V-011).
+ *
+ * 지어내는 것이 하나도 없다. 분류는 거르는 칸이 쓰는 그 이름이고, 되는지 안 되는지는
+ * 세계가 이미 `available` 로 말해 둔 것이며, 사유도 세계가 보낸 코드의 짧은 말이다
+ * (DC-WORLD-OWNS-THE-SURFACE-LIST).
+ *
+ * 아래 행동 줄과 겹치지 않는가 — 겹치지 않는다. 그 줄들은 **고른 뒤**에 서고,
+ * 이 곁말은 고르기 전에 선다. 무엇을 고를지 정하는 자리가 바로 여기다.
+ */
+function itemTip(
+  entry: InventoryItemView,
+  shortText: (code: string) => string,
+): readonly string[] {
+  const lines = [categoryLabel(entry.category)];
+  const doable = entry.actions
+    .filter((action) => action.available)
+    .map((action) => ACTION_LABEL[action.role] ?? action.role);
+  if (doable.length > 0) {
+    lines.push(`할 수 있다: ${doable.join(' · ')}`);
+    return lines;
+  }
+  // 아무것도 되지 않는다면 **왜 안 되는지**가 이 자리의 값어치다.
+  // 같은 사유가 여러 줄에 되풀이되지 않게 한 번씩만 세운다
+  const reasons: string[] = [];
+  for (const action of entry.actions) {
+    const reason = action.unavailableReason ? shortText(action.unavailableReason) : '안 됨';
+    const label = ACTION_LABEL[action.role] ?? action.role;
+    const line = `${label} — ${reason}`;
+    if (!reasons.includes(line)) reasons.push(line);
+  }
+  lines.push(...reasons);
+  return lines;
+}
+
 function itemCells(
   shown: readonly InventoryItemView[],
   text: (code: string) => string,
+  shortText: (code: string) => string,
 ): SceneSurfaceCell[] {
   // 명암이 견주는 기준은 **지금 목록 안에서 가장 많은 것**이다 (V-010).
   // "몇 개부터 많은 것인가" 를 화면이 정하면, 세계가 겹침 한도를 바꿀 때마다 화면이
@@ -550,6 +587,8 @@ function itemCells(
       ...(most > 0 ? { level: entry.count / most } : {}),
       // 새로 온 것 — 상세를 보면(고르면) 사라지는 화면의 상태다
       ...(isFresh(entry.kind) ? { badge: 'NEW' } : {}),
+      // 고르기 전에 읽는 곁말 — 손을 얹어도, 초점이 닿아도 같은 것이 열린다
+      tip: itemTip(entry, shortText),
       empty: false,
       selected: entry.kind === selectedKind,
     };
@@ -720,7 +759,7 @@ export function inventoryWorkspace(
           ? `지닌 것 — ${shown.length} / ${all.length} 종류 · ${narrowedBy().join(' · ')}`
           : `지닌 것 — ${all.length} 종류`,
         columns: COLUMNS,
-        cells: itemCells(shown, text),
+        cells: itemCells(shown, text, shortText),
         // 지닌 것이 없는 것과 조건에 걸린 것이 없는 것은 다른 일이다 (문서 §6)
         emptyText:
           all.length === 0 ? '소지품 없음' : '조건에 맞는 아이템 없음 · 필터 초기화',

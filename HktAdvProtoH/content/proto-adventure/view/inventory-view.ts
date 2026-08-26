@@ -70,6 +70,16 @@ export const INVENTORY_FILTERS: readonly InventoryFilter[] = [
   },
 ];
 
+/**
+ * 이 분류를 사람 말로 — 다섯 중 이것을 받아들이는 칸의 이름이다.
+ *
+ * 새 이름을 짓지 않는다. 거르는 칸의 이름과 **같은 한 자리**에서 오므로, `기타` 로
+ * 걸러지는 것과 `기타` 라고 읽히는 것이 갈라질 수 없다.
+ */
+export function categoryLabel(category: string): string {
+  return INVENTORY_FILTERS.find((f) => f.id !== 'all' && f.admits(category))?.label ?? category;
+}
+
 // ── 보기 차례 (문서 §6) ──────────────────────────────────────────────
 //
 // 기본은 **세계가 보낸 차례**다. 화면이 처음부터 다른 차례로 보이면, 세계가 지닌 순서를
