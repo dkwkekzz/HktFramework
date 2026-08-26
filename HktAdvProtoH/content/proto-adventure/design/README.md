@@ -18,7 +18,7 @@ Agent 는 이 문서들을 **바꾸지 않는다** — 승인·개정은 Human �
 |---|---|---|
 | 세계 | `Master-World-Beira.md` · `Master-World-Beira-Terrain.md` | BW |
 | 성장 | `Master-Fairy-Growth-System.md` · `Design-Growth-Balance-R0.md` · `Design-Fairy-Baiwang-Growth-R0.md` · `Design-Fairy-Baiwang-Skill-R0.md` | — |
-| 전투 | `Design-Combat-OffenseDefense-R0.md` · `Design-Combat-DamageType-R0.md` | R1 · DT |
+| 전투 | `Design-Combat-OffenseDefense-R0.md` · `Design-Combat-DamageType-R0.md` · `Design-Combat-UpperLayer-R0.md` · `Design-Combat-Knowledge-Extension-R0.md` | R1 · DT · UL · CK |
 | 지목 | `Design-Targeting-R0.md` | TG |
 | 아이템 | `Design-Item-System-R0.md` · `Design-Item-System-R1.md` · `Design-Item-Chain-R0.md` · `Design-Item-Instance-State-R0.md` · `Design-Item-Lifecycle-Progression-R0.md` · `Design-Inventory-Equipment-D1.md` · `Design-Resource-Catalog-R0.md` | IS · IE |
 | 스킬 | `Skill/Skill-System.md` · `Skill/Skill-Execution-Form.md` · `Skill/Skill-Effect.md` · `Skill/World-Spatial-Presence.md` | SK |
