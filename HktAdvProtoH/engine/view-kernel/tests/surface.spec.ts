@@ -210,6 +210,63 @@ describe('surfaceMarkup — 표면 하나의 표시 지시', () => {
     for (const code of SURFACE_TEXT_CODES) expect(code.startsWith('surface.')).toBe(true);
   });
 
+  // 곁말 — 고르기 전에 읽는 자리 (UX 문서 §8). 여는 산수는 DOM 쪽이고,
+  // 여기서 보는 것은 **그려지는가**와 **읽어 주는 이름에 실리는가** 둘이다.
+  it('곁말은 읽어 주는 이름에도 실린다 — 손이 있어야만 아는 것이 되지 않게', () => {
+    const html = surfaceMarkup(
+      surface({
+        sections: [
+          {
+            id: 'cells',
+            cells: [
+              {
+                id: 'c0',
+                text: '곡괭이',
+                detail: '×1',
+                tip: ['기타', '걸 수 있다'],
+                empty: false,
+                selected: false,
+              },
+            ],
+          },
+        ],
+      }),
+      TEXT,
+    );
+    expect(html).toContain('aria-label="곡괭이, ×1, 기타, 걸 수 있다"');
+    expect(html).toContain('class="sf-tip" role="tooltip"');
+    expect(html).toContain('data-tip="true"');
+  });
+
+  it('곁말이 없는 칸에는 곁말 자리 자체가 없다 — 빈 상자가 떠 있지 않게', () => {
+    const html = surfaceMarkup(
+      surface({
+        sections: [
+          { id: 'cells', cells: [{ id: 'c0', text: '돌', empty: false, selected: false }] },
+        ],
+      }),
+      TEXT,
+    );
+    expect(html).not.toContain('sf-tip');
+    expect(html).not.toContain('data-tip="true"');
+  });
+
+  it('곁말도 글자다 — 들어온 표시가 그대로 뜻이 되지 않는다', () => {
+    const html = surfaceMarkup(
+      surface({
+        sections: [
+          {
+            id: 'cells',
+            cells: [{ id: 'c0', text: '돌', tip: ['<b>&"'], empty: false, selected: false }],
+          },
+        ],
+      }),
+      TEXT,
+    );
+    expect(html).toContain('&lt;b&gt;&amp;&quot;');
+    expect(html).not.toContain('<b>&');
+  });
+
   it('안내 줄이 없으면 아래 자리 자체가 없다', () => {
     expect(surfaceMarkup(surface())).not.toContain('sf-foot');
     expect(surfaceMarkup(surface({ footer: ['닫기 Esc'] }))).toContain('닫기 Esc');

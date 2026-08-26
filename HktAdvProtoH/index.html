@@ -311,6 +311,21 @@
     .sf-cell:not([data-empty="true"]):hover { border-color: #6d7f99; }
     .sf-cell-text { color: #eaf0ff; font-size: 12px; line-height: 1.25; word-break: break-all; }
     .sf-cell-detail { color: #9fa9bd; font-size: 11px; }
+    /* 곁말 — 고르기 전에 읽는 자리. **손을 얹었을 때와 초점이 닿았을 때가 같다**
+       (문서 §8). 여는 것도 닫는 것도 CSS 가 아니라 능력이 정한다 — Escape 로 닫히려면
+       상태가 어딘가에 있어야 하고, :hover 로만 열면 그 상태가 없다. */
+    .sf-tip {
+      /* 칸 **아래**로 편다 — 표면이 세로로 구르는 자리(.sf overflow-y)이므로 위로
+         펴면 첫 줄의 곁말이 잘린다. 아래는 뒤따르는 절이 이미 자리를 지니고 있다 */
+      position: absolute; left: 50%; top: calc(100% + 6px); transform: translateX(-50%);
+      z-index: 3; display: none; flex-direction: column; gap: 1px;
+      min-width: 96px; max-width: 200px; padding: 5px 7px;
+      background: #0d1119; border: 1px solid #3a465c; border-radius: 5px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.45);
+      color: #d6dcea; font-size: 11px; line-height: 1.35; text-align: left;
+      white-space: normal; word-break: keep-all; pointer-events: none;
+    }
+    .sf-cell[data-tip-open="true"] .sf-tip { display: flex; }
     /* 줄 — 되는 것도 안 되는 것도 여기 선다 */
     .sf-rows { display: flex; flex-direction: column; gap: 2px; }
     .sf-row {
