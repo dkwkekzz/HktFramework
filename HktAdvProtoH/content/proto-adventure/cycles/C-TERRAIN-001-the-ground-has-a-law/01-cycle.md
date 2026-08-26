@@ -1,7 +1,7 @@
 # CYCLE C-TERRAIN-001 — 땅이 법칙을 지닌다
 
 [PASS] Cycle Definition
-[    ] Intent
+[PASS] Intent
 [    ] World Semantic
 [    ] GameView Specification
 [    ] Human Semantic Review
@@ -69,7 +69,11 @@ STATUS  IN PROGRESS
     지니고 나르는 것   FR-WHAT-KEEPS-YOU-ALIVE-IS-CARRIED 의 몫 — 채우는 것도 나누는 것도 없다
     작용 전의 예고     FR-THE-LAND-SHOWS-BEFORE-IT-TAKES 의 몫. 증거도 퍼지는 무늬도 없다.
                        이 Cycle 은 겪는 것까지만 세운다
-    새로운 죽음의 형태 거둠이 몸을 어디까지 몰고 가는지의 새 규칙을 세우지 않는다
+    새로운 죽음의 형태 얼어붙은 몸을 위한 별도의 상태도, 즉사도, 되돌릴 수 없는 소멸도
+                       세우지 않는다. 생명이 다한 몸이 어떻게 되는가는 이미 세계에 있고
+                       (INTENT-DOWNED-001) 땅은 그 끝에 이르는 **새 길**일 뿐이다 —
+                       길은 이 Cycle 이 열고 끝의 형태는 손대지 않는다.
+                       이 읽기의 승인은 Stage 5 에 묻는다 (02-intent.md REVIEW QUESTION 1)
     주기 · 안전한 길   MC-TIME-THE-CYCLE · MC-FIND-SAFE-ROUTE 는 아직 Target 이 아니다
                        (`part_of.grounded: false`)
     미니맵 · 경고 UI   세계의 사실이 아닌 화면의 친절은 이 트랙이 금지한 방향이다
