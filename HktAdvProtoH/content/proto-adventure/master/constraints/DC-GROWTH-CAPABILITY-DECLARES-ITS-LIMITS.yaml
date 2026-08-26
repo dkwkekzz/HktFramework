@@ -1,0 +1,51 @@
+# 원본 근거: content/proto-adventure/design/Design-Growth-Balance-R0.md (GB) §2-6 · §23 Capability Reach ·
+#   GB-05 · GB-10
+id: DC-GROWTH-CAPABILITY-DECLARES-ITS-LIMITS
+type: constraint
+
+statement: >
+  모든 Capability 는 무엇을 잘하는지와 함께 무엇에 부분적으로만 통하고 무엇에는 통하지
+  않는지를 밝힌다 — 성장은 가능해지는 것뿐 아니라 여전히 불가능한 것도 정의한다.
+rationale: >
+  ❌ 흔한 형태는 잘하는 것만 적는 것이다 — "생체 상태를 되돌린다". 그러면 플레이어는
+  그것으로 무엇이든 될 것이라 기대하고, 안 되는 자리를 만날 때마다 세계가 인색하다고 느낀다.
+  경계가 없는 능력은 설계자에게도 위험하다 — 다음 문제가 생길 때마다 "그건 이걸로 되지
+  않나" 가 되어 능력이 조용히 만능이 된다.
+  ✅ GB 는 능력마다 세 칸을 요구한다 (§23) — 통하는 것 · 부분적으로 통하는 것 · 통하지
+  않는 것. 생체 회복을 예로 들면 물리 손상과 기관 손상에는 통하고, 독과 생체 변형에는
+  부분적이며, 기억 손실 · 정체 손실 · 공간 절단에는 통하지 않는다.
+
+  이 세계에서 그 세 칸은 곧 **다음에 무엇이 필요한가**의 지도이기도 하다. 통하지 않는
+  것이 적혀 있어야 그 자리를 채우는 다른 성장이 존재 이유를 갖는다 — 그것이 자원이
+  능력을 열고 그 능력이 다음 층을 여는 순환(BW §17)의 실제 모양이다.
+
+  지켜서 얻는 것은 **성장이 기대를 배신하지 않는다**는 것이다. 무엇을 못 하는지 미리
+  알고 고르기 때문이다. 어겼을 때 잃는 것: 능력이 만능이 되고, 만능이 된 능력 하나가
+  세계의 다른 문제들을 전부 시시하게 만든다.
+
+  가장 안 읽히는 조각은 **부분적으로 통하는 칸**이다. 되거나 안 되거나 둘뿐이면 세계가
+  거칠어진다 — 절반만 듣는 자리가 있어야 "이걸로 버티고 저것으로 마무리한다" 가 생긴다.
+
+  경계 — 이것은 능력마다 상성표를 만들라는 뜻이 아니다. 무엇에 통하지 않는지를 밝힌다는
+  것까지가 이 원칙이고, 판정의 형태와 수치는 Cycle 이 소유한다.
+
+scope:
+  - GROWTH
+
+requires:
+  - 모든 Capability 가 통하는 것 · 부분적으로 통하는 것 · 통하지 않는 것을 밝힌다   # GB §23 · GB-05
+  - 성장을 정의할 때 여전히 불가능한 것을 함께 적는다                               # GB §2-6 · GB-10
+prohibits:
+  - 적용 범위의 경계 없이 정의된 Capability                                         # GB §23
+prefers: []
+
+status: DRAFT
+provenance:
+  - HUMAN_DESIGN        # content/proto-adventure/design/Design-Growth-Balance-R0.md 주입 — Human 승인 대기 (open-questions Q56)
+                        # 이 원칙이 요구하는 칸이 SCHEMA 에 아직 없다 — 자리는 Q58 이 정한다
+
+relations:
+  supports:
+    - DC-GROWTH-NOT-A-MASTER-KEY
+    - DC-GROWTH-REWARD-IS-NEW-REACH
+  conflicts_with: []

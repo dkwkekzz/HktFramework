@@ -1,0 +1,53 @@
+# 원본 근거: content/proto-adventure/design/Design-Growth-Balance-R0.md (GB) §2-4 · §20 강도와 범용성의 Trade-off ·
+#   §21 Constraint 역시 성장 비용이다 · §19 Tier별 Reward Budget · GB-04
+id: DC-GROWTH-POWER-PAYS-IN-REACH-OR-CONSTRAINT
+type: constraint
+
+statement: >
+  강한 효과와 넓은 적용 범위를 동시에 주지 않는다 — 강해질수록 적용 범위가 좁아지거나
+  분명한 조건이 붙어야 하며, 그 조건도 자원과 마찬가지로 성장의 값이다.
+rationale: >
+  ❌ 흔한 형태는 자원으로만 값을 매기는 것이다 — 강한 효과가 필요하면 요구 자원을 늘린다.
+  그러면 강력한 성장은 결국 "많이 모은 사람" 의 것이 되고, 세계는 그 자원을 가장 빨리
+  모으는 한 가지 놀이가 된다.
+  ✅ GB 는 두 축을 함께 쓴다. 범용 성장은 작게(모든 적에게 통하는 +5%), 전문 성장은 크게
+  (특정 구조에만 +80%) 허용하고 (§20), 발동 조건 · 대상 제한 · 기력 소비 · 선행 관찰 ·
+  위치 조건 · 사용 후 취약 시간 같은 제약도 값의 일부로 센다 (§21). 그래서 설계의 형태가
+  "강한 효과 = 많은 자원" 이 아니라 **"강한 효과 = 높은 획득 부담 + 좁은 적용 범위 +
+  분명한 조건"** 이 된다 (§21).
+
+  이 세계에서 이것이 잘 맞는 이유는 전투가 이미 그렇게 서 있기 때문이다 — 행동들이 하나의
+  기력 예산을 나누고 (DC-COMBAT-SHARED-BUDGET), 상성은 선택을 만들되 지배하지 않는다
+  (DC-COMBAT-MATCHUP-SOFT). 강함에 대가가 붙는다는 말을 성장 층에서 되풀이하는 것이 이 원칙이다.
+
+  지켜서 얻는 것은 **강력한 것이 세계를 지루하게 만들지 않는다**는 것이다. 크게 터지는
+  능력일수록 쓸 자리를 고르게 되므로, 얻은 뒤에도 판단이 남는다. 어겼을 때 잃는 것:
+  강하고 넓은 것이 하나 생기면 그 아래의 모든 선택이 의미를 잃는다 — 그것이 곧
+  Dominated Route 다 (DC-GROWTH-NO-DOMINATED-ROUTE).
+
+  가장 안 읽히는 조각은 **"조건도 값이다"** 다. 제약을 붙이는 것이 플레이어에게서 무언가를
+  빼앗는 일이 아니라, 그 성장의 가격을 자원이 아닌 방식으로 치르게 하는 일이라는 뜻이다.
+
+  경계 — 이것은 강한 성장을 금지하지 않는다. 무엇으로 그 값을 치를지를 정할 뿐이며,
+  얼마나 강한지·얼마나 좁은지의 수치는 Cycle 이 소유한다.
+
+scope:
+  - GROWTH
+
+requires:
+  - 강한 효과에는 좁은 적용 범위 또는 분명한 발동 조건이 함께 붙는다           # GB §20 · §21
+  - 제약을 성장의 값으로 함께 센다                                             # GB §21
+prohibits:
+  - 강한 효과와 넓은 적용 범위를 대가 없이 함께 주는 것                        # GB §20 · GB-04
+prefers:
+  - 자원 요구를 늘리는 대신 적용 범위를 좁히거나 조건을 붙이는 것               # GB §21
+
+status: DRAFT
+provenance:
+  - HUMAN_DESIGN        # content/proto-adventure/design/Design-Growth-Balance-R0.md 주입 — Human 승인 대기 (open-questions Q56)
+
+relations:
+  supports:
+    - DC-GROWTH-NO-DOMINATED-ROUTE
+    - DC-COMBAT-MATCHUP-SOFT
+  conflicts_with: []

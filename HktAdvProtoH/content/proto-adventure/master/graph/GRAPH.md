@@ -522,6 +522,12 @@ flowchart TB
 
 아직 이 시스템에 속한 조각이 없다.
 
+### 성장 단계 (Growth Tier) — GB (content/proto-adventure/design/Design-Growth-Balance-R0.md) §18 · §19
+
+한 성장이 어느 정도의 것을 건드리는가의 여섯 단계. 기본 능력에서 시작해 전문화와 특수 능력을 지나 원리 조작과 추상 세계 상태 개입까지 오르며, 단계마다 허용되는 것과 금지되는 것이 정해져 있다 (GB §19 — 예컨대 GT1 에서는 공간 조작 · 정체 조작 · 죽음 무효가 금지되고, GT5 의 추상 개입은 강한 Constraint · 좁은 조건 · 높은 획득 부담 중 하나 이상을 반드시 요구한다). **세계의 깊이와 같지 않다** — GB §18 이 직접 못박는다. 깊은 곳에서 얻었다고 높은 단계의 성장이 아니고, 낮은 단계의 성장이 깊은 곳에서 나올 수 있다. Class 진화 사다리(MS-CLASS-EVOLUTION)와도 다르다: 그쪽은 한 캐릭터가 거치는 형태의 층이고 이쪽은 **성장 하나가 세계에 대해 갖는 권한의 크기**다. 지금 이 여섯 자리에 배정된 노드는 없다 — GB 는 단계의 정의와 예산만 공급하고 기존 노드가 어느 단계인지는 말하지 않는다. 배정은 지어내지 않는다.
+
+아직 이 시스템에 속한 조각이 없다.
+
 ## 갈래별 준비도 — 어느 경로가 세계에 가장 가까운가
 
 요구 Capability 중 이미 세계에 있는 것의 비율. `IMPLEMENTED` 1.0 · `PARTIAL` 0.5 로 센다.
@@ -708,18 +714,25 @@ Constraint 는 단계가 아니라 각 선택 지점의 Filter 다. 아래는 �
 | `COMBAT-PLAYER-CAUSALITY` | COMBAT | REVISED | 28 | 전투의 중요한 결과는 관찰 가능한 세계 상태와 플레이어의 선택·행동에서 나오며, 같은 상태·같은 조건·같은 행동이면 언제나 같은 결과가 나온다. 단 하나의 예외로, Critical 은 확률 판정을 허용한다 — 그 경우에도 발생 확률과 증폭 결과는 관찰로 읽을 수 있어야 한다. |
 | `COMBAT-SHARED-BUDGET` | COMBAT | APPROVED | 6 | 전투 행동은 하나의 공통 기력(CP) 예산을 나눠 쓴다. 행동별 전용 게이지를 신설하지 않는다. |
 | `CONDITION-OPENS-WITHOUT-RECORDING` | GLOBAL | APPROVED | 1 | 지금의 조건으로 열리는 것은 어디에도 기록하지 않는다. 조건이 사라지면 저절로 닫혀야 하고, 그것을 되돌리는 규칙이 따로 있어서는 안 된다. |
+| `GROWTH-CAPABILITY-DECLARES-ITS-LIMITS` | GROWTH | DRAFT | 0 | 모든 Capability 는 무엇을 잘하는지와 함께 무엇에 부분적으로만 통하고 무엇에는 통하지 않는지를 밝힌다 — 성장은 가능해지는 것뿐 아니라 여전히 불가능한 것도 정의한다. |
 | `GROWTH-CLASS-CHANGE-KEEPS-THE-PAST` | GROWTH | APPROVED | 2 | Class Change 는 다른 Class 로 교체하는 것이 아니라 같은 캐릭터가 상위 형태가 되는 것이며, 이전 Class 는 사라지지 않고 그 상위 형태의 기반으로 남는다. |
 | `GROWTH-CLASS-CHANGE-NEEDS-THE-WORLD` | GROWTH | APPROVED | 3 | Class Change 의 문턱은 시간과 수치만으로 넘을 수 없다 — 그 캐릭터의 원리와 관련된 세계 현상을 직접 겪은 것과 세계에서만 얻는 Property 를 함께 요구한다. |
 | `GROWTH-CLASS-ORIGIN-TRACE` | GROWTH | APPROVED | 0 | Class 는 세계와 Actor 가 상호작용한 결과다. 모든 Class 는 하나 이상의 origin_trace(WorldState → Goal → Possibility)를 가지며, 그 Class 를 제거해도 원인이 된 세계 요소는 독립적으로 성립해야 한다. |
+| `GROWTH-COST-IS-THE-WHOLE-BURDEN` | GROWTH | DRAFT | 0 | 성장의 비용은 소비한 자원의 개수가 아니라 그 성장을 얻기까지 치른 전체 플레이 부담이다 — 시간 · 위험 · 실력 · 앎 · 자원 · 기회 · 반복 가능성이 함께 비용이다. |
 | `GROWTH-DEFINITION-INSTANCE-SPLIT` | GROWTH | APPROVED | 1 | Master 는 유한한 Definition(Class · Item Type · Property · Modifier · 조합 규칙)만 소유한다. 실제 생성된 Item Instance(II-*)와 조합 결과는 Runtime World 가 소유하며, 가능한 조합을 사전에 Node 로 생성하지 않는다. |
 | `GROWTH-DIFFERENCE-IS-BEHAVIOR` | GROWTH | APPROVED | 1 | 캐릭터 사이의 차이는 능력치 값의 차이가 아니라 전투에서 반복하는 행동의 차이로 드러나야 한다. |
 | `GROWTH-EXPLORATION-SHARES-THE-PRINCIPLE` | GROWTH | APPROVED | 2 | 탐험 능력은 전투와 별개로 주어지는 별도의 기능이 아니라, 같은 원리를 다른 방식으로 쓰는 것이어야 한다. |
 | `GROWTH-GOAL-FIRST` | GROWTH | APPROVED | 2 | 성장(새 Class · Item · Capability 의 획득) 자체를 Goal 로 세우지 않는다. 성장은 Actor 의 현재 Goal 을 현재 Capability 로 달성하기 어려울 때, 그 Goal 을 달성하는 하나의 Possibility 로만 성립한다. |
+| `GROWTH-INTENT-IS-MEASURED` | GROWTH | DRAFT | 0 | 중요한 성장은 자신이 무엇을 얼마나 바꿀 작정인지를 미리 밝히고, 실제로 굴려 본 결과가 그 범위를 벗어나면 실패로 다룬다. |
 | `GROWTH-MASTERY-FROM-OWN-BEHAVIOR` | GROWTH | APPROVED | 2 | 숙련은 무엇을 얼마나 반복했는가가 아니라 그 형태 고유의 행동을 수행했는가에서 오르며, 같은 상황에서도 캐릭터마다 오르는 행동이 다르다. |
 | `GROWTH-NEED-FROM-POSSIBILITY` | GROWTH | APPROVED | 0 | Class 와 Item 은 Capability 를 획득하는 세계 내 경로일 뿐이다. Capability 의 필요성은 항상 기존 Master 인과(Goal → Possibility --requires-->)에서 나오며, Class 나 Item 이 존재한다는 이유로 Capability 를 만들지 않는다. |
 | `GROWTH-NO-CAPABILITY-DUPLICATION` | GROWTH | APPROVED | 1 | 같은 플레이 의미의 Capability 를 획득 Source(Class / Item / Actor)별로 복제하지 않는다. 하나의 MC-* 에 여러 획득 경로가 grants 로 연결된다. |
+| `GROWTH-NO-DOMINATED-ROUTE` | GROWTH | DRAFT | 0 | 더 싸면서 모든 면에서 더 좋은 성장 경로를 두지 않는다 — 나란히 선 경로들은 서로 다른 장단점을 가져야 하고, 어느 하나가 다른 하나를 완전히 압도하면 압도당한 쪽은 존재할 이유가 없다. |
+| `GROWTH-NOT-A-MASTER-KEY` | GROWTH | DRAFT | 0 | 하나의 성장이 서로 무관한 여러 관문을 한꺼번에 열지 않는다 — 열쇠 하나가 모든 문을 열면 그 뒤의 문들이 사라진다. |
 | `GROWTH-NOT-A-STAGE` | GROWTH | APPROVED | 0 | Growth 는 별도 Master Stage 가 아니다. 기본 절차 WHY → OPTIONS → NEED → NEXT 는 그대로 유지되고, Growth Graph 는 NEED 에서 발견된 Capability 에 대해 "세계에서 어떻게 얻는가"를 덧씌우는 보조 Overlay 로만 존재한다. |
+| `GROWTH-POWER-PAYS-IN-REACH-OR-CONSTRAINT` | GROWTH | DRAFT | 0 | 강한 효과와 넓은 적용 범위를 동시에 주지 않는다 — 강해질수록 적용 범위가 좁아지거나 분명한 조건이 붙어야 하며, 그 조건도 자원과 마찬가지로 성장의 값이다. |
 | `GROWTH-PRINCIPLE-IS-PLAYED` | GROWTH | APPROVED | 1 | 캐릭터가 지닌 세계의 원리는 설정 문구가 아니라 그 캐릭터가 실제로 하는 행동으로 화면 위에 있어야 한다. |
+| `GROWTH-REWARD-IS-NEW-REACH` | GROWTH | DRAFT | 0 | 성장의 가치는 커진 숫자가 아니라 이전에는 할 수 없던 무엇을 할 수 있게 되었는가를 포함하며, 비용과 보상을 하나의 점수로 환산해 맞추지 않는다. |
 | `GROWTH-SKILL-GAINS-BEHAVIOR` | GROWTH | APPROVED | 1 | 스킬의 성장은 수치의 증가만으로 성립하지 않는다 — 그 스킬이 할 수 있는 행동 자체가 늘어나야 한다. |
 | `GROWTH-STAGE-READS-AT-A-DISTANCE` | GROWTH | APPROVED | 1 | 캐릭터의 성장 단계는 멀리서 보기만 해도 알아볼 수 있어야 한다 — 힘의 증가가 외형의 변화로 함께 나타난다. |
 | `ITEM-CAPABILITY-COMES-FROM-GRANTS` | ITEM | APPROVED | 1 | 아이템의 성질(IP-*)은 세계 압력에서 유래한 것만이고, 아이템의 용도는 그 종류가 가진다. 능력 판정은 성질 목록을 조회해서가 아니라 그 아이템이 지금 무엇을 주고 있는가로 한다. |

@@ -1,0 +1,50 @@
+# 원본 근거: content/proto-adventure/design/Design-Growth-Balance-R0.md (GB) §24 Gate Coverage · GB-06 ·
+#   §2-2 (의도한 Progression 단계를 지나치게 건너뛰지 않는다)
+id: DC-GROWTH-NOT-A-MASTER-KEY
+type: constraint
+
+statement: >
+  하나의 성장이 서로 무관한 여러 관문을 한꺼번에 열지 않는다 — 열쇠 하나가 모든 문을
+  열면 그 뒤의 문들이 사라진다.
+rationale: >
+  ❌ 흔한 형태는 만능 해결책이다 — 어떤 능력을 얻고 나니 독성 지역도, 공간이 어긋난 곳도,
+  정신을 흔드는 곳도 전부 지나갈 수 있다. 그러면 그 능력을 얻기 전과 후로 게임이 갈리고,
+  각 지역이 자기 법칙으로 요구하던 대응들이 한꺼번에 무의미해진다.
+  ✅ GB 는 능력마다 **어떤 관문을 여는가**를 세고, 하나의 성장이 지나치게 많은 독립적인
+  관문을 열면 경고를 낸다 (§24 · GB-06). 예로 든 절단 능력은 공간 단층 구조 · 비정상 갑각
+  연결 · 일부 생체 연결을 열지만, 독성 환경 · 정신 간섭 · 정체 침식에는 아무것도 하지 않는다.
+
+  이 세계에서 이것은 땅의 구조와 직접 맞물린다. 여덟 대지형은 저마다 다른 법칙이 다른
+  대응을 요구하고 (MW-TERRAIN-* 의 demands), 깊이 층도 층마다 요구가 다르다. 관문이 서로
+  다르다는 것이 그 세계의 넓이 자체이므로, 그 전부를 여는 열쇠 하나는 세계를 좁히는 일이다.
+
+  지켜서 얻는 것은 **어디에 가려면 무엇을 갖춰야 하는가가 계속 질문으로 남는다**는 것이다.
+  어겼을 때 잃는 것: 성장 하나가 지도의 절반을 열어 버리면, 그 뒤의 탐험은 이미 답을 아는
+  길을 걷는 일이 된다.
+
+  가장 안 읽히는 조각은 **"서로 무관한"** 이다. 한 능력이 여러 자리에서 쓰이는 것은 정상이며
+  (같은 원리의 다른 쓰임 — DC-GROWTH-EXPLORATION-SHARES-THE-PRINCIPLE), 금지되는 것은 서로
+  다른 법칙이 낸 **독립된** 관문들을 같은 하나로 통과하는 것이다.
+
+  경계 — 이것은 강력한 능력을 금지하지 않는다. 강력함은 좁음과 조건으로 값을 치르면 되고
+  (DC-GROWTH-POWER-PAYS-IN-REACH-OR-CONSTRAINT), 이 원칙이 막는 것은 **폭**이다.
+
+scope:
+  - GROWTH
+
+requires:
+  - 성장이 여는 관문의 목록을 밝힌다                                          # GB §24
+prohibits:
+  - 서로 무관한 다수의 관문을 한꺼번에 여는 단일 성장                         # GB §24 · GB-06
+  - 의도한 진행 단계를 통째로 건너뛰게 하는 성장                              # GB §2-2
+prefers: []
+
+status: DRAFT
+provenance:
+  - HUMAN_DESIGN        # content/proto-adventure/design/Design-Growth-Balance-R0.md 주입 — Human 승인 대기 (open-questions Q56)
+
+relations:
+  supports:
+    - DC-GROWTH-CAPABILITY-DECLARES-ITS-LIMITS
+    - DC-WORLD-PROGRESSION-IS-REACH
+  conflicts_with: []

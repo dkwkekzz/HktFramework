@@ -12,8 +12,13 @@ Master Capability 를 **"세계 안에서 어떻게 얻는가"**(Class / Item / 
 있는 것(획득 경로)은 다른 이야기이고, 지금 이 프로젝트가 정확히 그 사이에 걸려 있다.
 
 GR = `design/Master-Intent-Graph-Growth.md` (공정 원본) ·
-GS = `content/proto-adventure/design/Master-Fairy-Growth-System.md` (성장 기획 원본).
+GS = `content/proto-adventure/design/Master-Fairy-Growth-System.md` (성장 기획 원본) ·
+GB = `content/proto-adventure/design/Design-Growth-Balance-R0.md` (비용·보상 균형).
 형식: [../SCHEMA.md](../SCHEMA.md).
+
+이 문서가 답하는 것은 **얻을 수 있는가**다. GB 가 묻는 **그 값이 치른 것과 맞는가**는
+아직 이 표에 없다 — 비용·보상 Profile 이 어디에 사는지가 정해지지 않았기 때문이다
+(open-questions Q58). 정해지면 아래 표에 칸이 붙거나 옆에 표가 하나 선다.
 
 ## 성장의 원천 — 값이 어디에서 올라오는가
 

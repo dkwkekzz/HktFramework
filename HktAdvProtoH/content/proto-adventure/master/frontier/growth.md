@@ -172,7 +172,11 @@ Cycle ID   C-GROWTH-001         트랙의 첫 번호 (cycles/ 에 C-GROWTH-* 가
                              키우는 바닥 축이고 **어디에 갈 수 있는가를 이 값으로 정하지
                              않는다** (HISTORY Q53(a)). 문턱·관문에 이 값을 걸지 않는다.
                              OWNS-THE-SURFACE-LIST 는 UNRESOLVED 로 넘어간다 — 무엇을
-                             관찰에 싣는지는 04 가 정한다
+                             관찰에 싣는지는 04 가 정한다.
+                             **승인되면 하나가 더 걸린다** — 이 성장은 모든 상황에 적용되는
+                             범용 축이므로 DC-GROWTH-POWER-PAYS-IN-REACH-OR-CONSTRAINT 가
+                             "한 단계의 폭은 작아야 한다" 를 03 의 수치 결정에 건다
+                             (GB §20 · 승인 대기 Q56)
 
 ## 지금 열 수 없는 것
 

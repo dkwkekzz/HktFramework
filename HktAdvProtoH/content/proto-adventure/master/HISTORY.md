@@ -2684,3 +2684,49 @@ Human 이 "FR-ACTION-PHASE 의 근간이 무엇인가" 를 물어 근간을 역�
     이로써 지금 병렬로 돌 수 있는 WORLD 트랙이 둘이다 — TERRAIN(C-TERRAIN-001)과
     GROWTH(C-GROWTH-001). 둘 다 `world/semantic/actor.ts` 에 몸의 새 자리를 더하므로
     판의 충돌 칸에 "자기 영역 끝에 추가만" 을 적어 두었다.
+
+## 주입 — 성장 비용·보상 균형(GB) · 2026-08-26
+
+    Human 지시: "content/proto-adventure/design/Design-Growth-Balance-R0.md 해당 내용
+    추가로 master 주입해줘."
+
+    GS 가 **무엇이 자라는가**(축 다섯과 형태의 문턱)를 공급했다면 GB 는 **그 자람이
+    치른 것과 맞는가**를 공급한다. 같은 성장(GROWTH) 영역의 둘째 문서이며 인용 약칭을
+    `GB` 로 새로 두었다.
+
+    **성격이 다른 주입이다** — 이 문서는 노드를 하나도 낳지 않는다. 새 Goal 도
+    Possibility 도 Capability 도 공급하지 않기 때문이다. 다루는 것이 "세계가 무엇을 할 수
+    있는가" 가 아니라 "이미 있는 성장을 어떻게 평가하는가" 여서, 옮긴 것이 거의 전부
+    constraints/ 로 갔다. 그래서 노드 수는 120 그대로이고 Constraint 만 44 → 51 이 되었다.
+
+    산출물:
+        constraints/    DRAFT 7종 — COST-IS-THE-WHOLE-BURDEN(§3 · §4) ·
+                        REWARD-IS-NEW-REACH(§6~§13 · §15) · NO-DOMINATED-ROUTE(§16 · §17) ·
+                        POWER-PAYS-IN-REACH-OR-CONSTRAINT(§20 · §21) ·
+                        CAPABILITY-DECLARES-ITS-LIMITS(§23) · NOT-A-MASTER-KEY(§24) ·
+                        INTENT-IS-MEASURED(§25 · §26~§28). 승인 대기 → Q56.
+                        선례대로 승인 전에는 어느 노드에도 배선하지 않았다
+        graph/          MS-GROWTH-TIER — 여섯 단계(GT0~GT5). 값이 아니라 구조여서 세웠다.
+                        **배정된 노드는 0** 이다 — GB 는 단계의 정의와 예산만 공급하고
+                        기존 노드가 어느 단계인지는 말하지 않는다
+        open-questions  Q56(승인) · Q57(기존 DC 개정) · Q58(평가 칸의 자리)
+
+    **세우지 않은 것** (지어내지 않았다):
+
+        평가 칸 전부              Cost/Reward Profile · Power Envelope · Capability Reach ·
+                                  Gate Coverage · Balance Contract. SCHEMA 에 그런 칸이 없고
+                                  없는 칸을 주입이 만들지 않는다 (Q51 선례) → Q58
+        Benchmark 기구            BM-01~BM-08 · 측정 항목 아홉 · 세 단계 검증 · 실패 상태 열둘.
+                                  같은 조건을 전후로 굴려 재는 일은 Cycle 08 과 도구의 것이다
+        5단계 점수와 Contract 값   수치다 (정책 §7.2)
+        Tier 배정                 GB 가 우리 노드의 단계를 말하지 않는다
+        자원 Profile (§29)        같은 이유 — 칸의 자리가 Q58 이다
+
+    **겹친 것 하나** — GB §22 · GB-08(Class 문턱을 자원 구매로 우회할 수 없다)은 이미
+    승인된 DC-GROWTH-CLASS-CHANGE-NEEDS-THE-WORLD 와 같은 자리다. 같은 의미를 새 이름으로
+    만들지 않고 개정안을 Q57 로 남겼다 — 승인된 Constraint 의 문안을 바꾸는 것은 Human 소유다.
+
+    **지금 도는 것에 걸리는 것 하나** — 고른 `C-GROWTH-001`(한 일이 몸을 키운다)은 모든
+    상황에 적용되는 범용 축이라, Q56 이 승인되면 POWER-PAYS-IN-REACH-OR-CONSTRAINT 가
+    "한 단계의 폭은 작아야 한다" 를 그 Cycle 의 03 에 건다 (GB §20). 그 사실을
+    frontier/growth.md 의 Constraint Note 에 적어 두었다.

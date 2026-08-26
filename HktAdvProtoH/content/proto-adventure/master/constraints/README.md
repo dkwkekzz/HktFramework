@@ -4,12 +4,13 @@
 
 현재: **Active 44종** — 전투 5종(1종 REVISED) + 성장 14종(GS 주입 8종 포함) +
 세계 9종(대지형 4종 포함) + 아이템 6종(1종 REVISED) + 스킬 6종(3종 REVISED) +
-GLOBAL 4종. 보류(DRAFT)는 없다.
+GLOBAL 4종.
+**보류(DRAFT) 7종** — 성장 균형(GB 주입, open-questions Q56 승인 대기).
 
 근거 문서:
 
 ```text
-content/proto-adventure/design/   팩 기획서 — R1 · DT · TG · BW · BT · IS · IE · GS
+content/proto-adventure/design/   팩 기획서 — R1 · DT · TG · BW · BT · IS · IE · GS · GB
 design/                           공정·기반 원본(루트) — GR
 
 R1 §x   Design-Combat-OffenseDefense-R0.md   전투 영역
@@ -21,6 +22,7 @@ BT §x   Master-World-Beira-Terrain.md        세계(WORLD) 영역 — 대지형
 IS §x   Design-Item-System-R0.md             아이템(ITEM) 영역
 IE §x   Design-Inventory-Equipment-D1.md     아이템(ITEM) 영역 — IS §5.4 · §10 의 후속
 GS §x   Master-Fairy-Growth-System.md        성장(GROWTH) 영역 — 요정 캐릭터 성장 시스템
+GB §x   Design-Growth-Balance-R0.md          성장(GROWTH) 영역 — 비용·보상 균형
 ```
 
 근거는 영역을 넘지 않는다 — 전투 노드에 GR 을, 성장 노드에 R1/DT 를 인용하지 않는다.
@@ -73,6 +75,29 @@ UNRESOLVED 로 남은 하나는 성장 원칙이 아니라 세계 원칙이다
 여덟 중 둘은 이미 승인된 대지형 Constraint 를 **땅에서 몸으로 옮긴 것**이다 —
 PRINCIPLE-IS-PLAYED 는 DC-WORLD-TERRAIN-LAW-IS-OBSERVABLE 의, STAGE-READS-AT-A-DISTANCE 는
 DC-WORLD-TERRAIN-READS-AT-A-DISTANCE 의 짝이다.
+
+### 보류 — DRAFT (성장 균형 — GB 주입 · Q56 승인 대기)
+
+일곱 다 GB 가 절을 따로 두어 명시한 규칙이다. 원본보다 세게 쓰지 않았다.
+**승인 전이라 어느 노드에도 배선하지 않았다** — 앞선 두 주입(BT · GS)과 같다.
+
+| Constraint | 한 줄 | 근거 |
+|---|---|---|
+| DC-GROWTH-COST-IS-THE-WHOLE-BURDEN | 성장의 비용은 자원 개수가 아니라 치른 전체 플레이 부담이다 — 시간·위험·실력·앎·기회·반복 가능성 | GB §1 · §3 · §4 · §36 |
+| DC-GROWTH-REWARD-IS-NEW-REACH | 성장의 값은 커진 숫자가 아니라 이전에 못 하던 것 — 비용과 보상을 하나의 점수로 맞추지 않는다 | GB §6~§13 · §15 · §36 |
+| DC-GROWTH-NO-DOMINATED-ROUTE | 더 싸면서 모든 면에서 더 좋은 경로를 두지 않는다 — 나란한 경로는 서로 다른 장단점을 가진다 | GB §16 · §17 · GB-03 |
+| DC-GROWTH-POWER-PAYS-IN-REACH-OR-CONSTRAINT | 강한 효과와 넓은 범위를 동시에 주지 않는다 — 제약도 성장의 값이다 | GB §20 · §21 · GB-04 |
+| DC-GROWTH-CAPABILITY-DECLARES-ITS-LIMITS | 모든 Capability 는 통하는 것·부분적인 것·통하지 않는 것을 밝힌다 | GB §23 · GB-05 · GB-10 |
+| DC-GROWTH-NOT-A-MASTER-KEY | 하나의 성장이 서로 무관한 여러 관문을 한꺼번에 열지 않는다 | GB §24 · GB-06 |
+| DC-GROWTH-INTENT-IS-MEASURED | 의도한 영향 범위를 미리 밝히고, 굴려 본 결과가 그 범위를 벗어나면 실패로 다룬다 | GB §25 · §26~§28 · GB-07 |
+
+일곱 중 **둘은 요구하는 칸이 아직 없다** — CAPABILITY-DECLARES-ITS-LIMITS 의 통함/부분/
+안 통함과 INTENT-IS-MEASURED 의 선언한 영향 범위다. 그 칸을 어디에 둘지는 Q58 이 정한다
+(없는 칸을 주입이 만들지 않는다 — HISTORY Q51 선례).
+
+GB §22 · GB-08(Class 문턱을 자원 구매로 우회할 수 없다)은 **새 DC 로 만들지 않았다** —
+이미 승인된 DC-GROWTH-CLASS-CHANGE-NEEDS-THE-WORLD 와 같은 자리이며, 그 개정안을
+Q57 로 남겼다. 같은 의미를 새 이름으로 만들지 않는다.
 
 ### Active — APPROVED (세계 — BW 주입 · Q17(a) 승인)
 

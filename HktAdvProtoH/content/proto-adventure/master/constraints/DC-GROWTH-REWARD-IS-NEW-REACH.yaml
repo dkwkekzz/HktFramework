@@ -1,0 +1,51 @@
+# 원본 근거: content/proto-adventure/design/Design-Growth-Balance-R0.md (GB) §6 Reward Profile · §9 Capability Access ·
+#   §10 Applicability · §11 Reliability · §12 Permanence · §15 하나의 Balance Score 에 의존하지 않는다 · §36
+id: DC-GROWTH-REWARD-IS-NEW-REACH
+type: constraint
+
+statement: >
+  성장의 가치는 커진 숫자가 아니라 이전에는 할 수 없던 무엇을 할 수 있게 되었는가를 포함하며,
+  비용과 보상을 하나의 점수로 환산해 맞추지 않는다.
+rationale: >
+  ❌ 흔한 형태는 총점 맞추기다 — "Cost 47 · Reward 45 → Balanced". 그러면 모든 상황에서
+  공격력이 오르는 성장과 특정 상황에서만 열리는 탐험 능력이 같은 칸에 들어가고, 둘의 성질
+  차이가 숫자 뒤로 사라진다 (§15).
+  ✅ GB 는 보상을 일곱으로 나눈다 — 이미 하던 것을 얼마나 세게 하는가(수직 강화) ·
+  죽지 않게 하는가 · **없던 것을 가능하게 하는가(Capability Access)** · 얼마나 넓은 상황에
+  적용되는가 · 얼마나 쉽게 발동하는가 · 얼마나 오래 남는가 · 전투 밖에서도 쓸모가 있는가
+  (§6~§13). 그중 **없던 것을 가능하게 하는가가 가장 중요하다**고 문서가 직접 말한다 (§9).
+
+  이것은 이 세계의 진행 정의와 같은 말이다 — 진행은 레벨이 아니라 대응할 수 있는 범위의
+  확장이다 (DC-WORLD-PROGRESSION-IS-REACH). 그 원칙이 세계 쪽에서 말한 것을 이 원칙은
+  **성장 하나하나의 값을 매길 때** 되풀이한다.
+
+  지켜서 얻는 것은 **작은 수치의 성장과 큰 가능성의 성장을 나란히 놓고 고를 수 있게**
+  된다는 것이다. 어겼을 때 잃는 것: 총점으로 맞추면 "숫자가 큰 쪽" 이 언제나 이기고,
+  세계를 넓히는 성장은 저평가되어 만들어지지 않는다.
+
+  가장 안 읽히는 조각은 **Reliability** 다 (§11). 항상 붙는 +20% 와 관찰해서 약점을
+  확인한 뒤에만 붙는 +20% 는 같은 수치이지만 같은 값어치가 아니라는 뜻이다.
+
+  경계 — 이것은 수치 성장을 금지하지 않는다. 수치만으로 값을 매기지 말라는 것까지가
+  이 원칙이며, 어느 축을 몇 점으로 볼지는 이 원칙이 정하지 않는다.
+
+scope:
+  - GROWTH
+
+requires:
+  - 성장의 값을 여러 축으로 밝힌다 — 적어도 세기 · 적용 범위 · 발동 조건 · 지속       # GB §6~§12
+  - 새로 가능해지는 것이 있으면 그것을 값의 첫 항으로 센다                             # GB §9
+prohibits:
+  - 비용과 보상을 각각 하나의 점수로 환산해 맞추는 것                                  # GB §15
+prefers:
+  - 같은 효과라면 영구적인 쪽을 더 높은 값으로 보는 것                                 # GB §12 · GB-09
+
+status: DRAFT
+provenance:
+  - HUMAN_DESIGN        # content/proto-adventure/design/Design-Growth-Balance-R0.md 주입 — Human 승인 대기 (open-questions Q56)
+
+relations:
+  supports:
+    - DC-WORLD-PROGRESSION-IS-REACH
+    - DC-GROWTH-SKILL-GAINS-BEHAVIOR
+  conflicts_with: []

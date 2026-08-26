@@ -61,3 +61,6 @@ Human 이 답하면 풀리는 것들이다. 답의 자리는 괄호가 가리킨
 | Design-Resource-Catalog-R0.md 승인 | Inject → Q36 · 회복 아이템 해금 · BT 자원 24종의 자리 (그 문서가 받기로 정해졌다 — HISTORY Q50(a)) · GS 의 Class Catalyst 자리 |
 | 계열별 요정 문서(백왕 성장 · Layer0) 주입 | CL-* 착수 — 이름의 소유는 정해졌다 (HISTORY Q55(b)). MC-CHANGE-CLASS 가 넘어갈 형태가 생긴다 |
 | Q54 — 요정은 플레이어 캐릭터인가 (open-questions.md) | MP-BECOME-A-HIGHER-FORM 판정 · 요정 계열의 소유 주체. 트랙을 막지는 않는다 |
+| Q56 — 성장 균형 Constraint 일곱 승인 | GROWTH Filter 14종 → 21종 · `C-GROWTH-001` 의 수치 폭에 걸리는 원칙 하나 |
+| Q57 — Class 문턱의 자원 구매 우회 금지를 명문화할 것인가 | 기존 DC-GROWTH-CLASS-CHANGE-NEEDS-THE-WORLD 개정(REVISED) |
+| Q58 — 비용·보상 Profile 과 Capability Reach 의 자리 | Q56 의 일곱 중 둘이 검사 가능해진다 · 성장끼리 비교(Dominance)를 어디서 도는가 |
