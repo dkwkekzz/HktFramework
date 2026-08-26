@@ -1,0 +1,563 @@
+{
+  "specId": "VIEW-THE-GROUND-HAS-A-LAW-001",
+  "scene": "mining-field",
+  "observer": {
+    "id": "observer-1",
+    "characterId": "player-1",
+    "acknowledgedMark": 7
+  },
+  "entities": [
+    {
+      "id": "player-1",
+      "role": "player-character",
+      "state": "heavy-attack",
+      "name": "Player 1",
+      "kind": "rabbit-swordsman",
+      "position": {
+        "x": 0,
+        "z": 0
+      },
+      "progress": 0.4,
+      "vitality": {
+        "health": 150,
+        "healthMaximum": 200,
+        "downed": false
+      },
+      "attributes": {
+        "energy": 24,
+        "energyMaximum": 100,
+        "moveMode": "run",
+        "control": "player",
+        "tempoStats": {
+          "moveSpeed": 6,
+          "runSpeedMultiplier": 1.8,
+          "actionSpeed": 1
+        },
+        "modifiers": {
+          "energyCharge": 0.5,
+          "energyConsume": 1,
+          "moveSpeed": 1,
+          "actionSpeed": 1
+        },
+        "acquainted": true,
+        "concealed": [],
+        "combatStats": {
+          "physicalAttack": 40,
+          "auraAttack": 40,
+          "armor": 50,
+          "resistance": 50,
+          "armorPenetration": 0,
+          "resistancePenetration": 0,
+          "armorMultiplier": 0.666667,
+          "resistanceMultiplier": 0.666667,
+          "criticalChance": 0,
+          "criticalDamage": 1
+        },
+        "versusObserver": {
+          "armor": 50,
+          "resistance": 50,
+          "armorMultiplier": 0.666667,
+          "resistanceMultiplier": 0.666667
+        },
+        "guard": {
+          "guarding": false,
+          "broken": false
+        },
+        "defenseShape": "even",
+        "insight": 0,
+        "stanceTowardObserver": "neutral",
+        "stanceFromObserver": "neutral"
+      },
+      "body": {
+        "radius": 0.5,
+        "height": 1.7,
+        "mass": 1,
+        "facing": {
+          "x": 1,
+          "z": 0
+        },
+        "velocity": {
+          "x": 0,
+          "z": 0
+        }
+      }
+    },
+    {
+      "id": "npc-1",
+      "role": "npc-character",
+      "state": "hit",
+      "name": "Wanderer 1",
+      "kind": "wanderer",
+      "position": {
+        "x": 1.4,
+        "z": 0
+      },
+      "vitality": {
+        "health": 65,
+        "healthMaximum": 120,
+        "downed": false
+      },
+      "attributes": {
+        "energy": 20,
+        "energyMaximum": 60,
+        "moveMode": "walk",
+        "control": "autonomous",
+        "tempoStats": {
+          "moveSpeed": 2.5,
+          "runSpeedMultiplier": 1.4,
+          "actionSpeed": 0.85
+        },
+        "modifiers": {
+          "energyCharge": 0.2,
+          "energyConsume": 1,
+          "moveSpeed": 1,
+          "actionSpeed": 1
+        },
+        "acquainted": true,
+        "concealed": [],
+        "combatStats": {
+          "physicalAttack": 40,
+          "auraAttack": 40,
+          "armor": 30,
+          "resistance": 30,
+          "armorPenetration": 0,
+          "resistancePenetration": 0,
+          "armorMultiplier": 0.769231,
+          "resistanceMultiplier": 0.769231,
+          "criticalChance": 0,
+          "criticalDamage": 1
+        },
+        "versusObserver": {
+          "armor": 30,
+          "resistance": 30,
+          "armorMultiplier": 0.769231,
+          "resistanceMultiplier": 0.769231
+        },
+        "guard": {
+          "guarding": false,
+          "broken": false
+        },
+        "defenseShape": "even",
+        "insight": 0,
+        "stanceTowardObserver": "neutral",
+        "stanceFromObserver": "neutral"
+      },
+      "body": {
+        "radius": 0.5,
+        "height": 1.7,
+        "mass": 1,
+        "facing": {
+          "x": -1,
+          "z": 0
+        },
+        "velocity": {
+          "x": 2,
+          "z": 0
+        }
+      }
+    },
+    {
+      "id": "npc-2",
+      "role": "npc-character",
+      "state": "downed",
+      "name": "Wanderer 2",
+      "kind": "wanderer",
+      "position": {
+        "x": 4,
+        "z": 2
+      },
+      "vitality": {
+        "health": 0,
+        "healthMaximum": 120,
+        "downed": true
+      },
+      "attributes": {
+        "energy": 8,
+        "energyMaximum": 60,
+        "moveMode": "walk",
+        "control": "autonomous",
+        "tempoStats": {
+          "moveSpeed": 2.5,
+          "runSpeedMultiplier": 1.4,
+          "actionSpeed": 0.85
+        },
+        "modifiers": {
+          "energyCharge": 1,
+          "energyConsume": 1,
+          "moveSpeed": 1,
+          "actionSpeed": 1
+        },
+        "acquainted": true,
+        "concealed": [],
+        "combatStats": {
+          "physicalAttack": 40,
+          "auraAttack": 40,
+          "armor": 30,
+          "resistance": 30,
+          "armorPenetration": 0,
+          "resistancePenetration": 0,
+          "armorMultiplier": 0.769231,
+          "resistanceMultiplier": 0.769231,
+          "criticalChance": 0,
+          "criticalDamage": 1
+        },
+        "versusObserver": {
+          "armor": 30,
+          "resistance": 30,
+          "armorMultiplier": 0.769231,
+          "resistanceMultiplier": 0.769231
+        },
+        "guard": {
+          "guarding": false,
+          "broken": false
+        },
+        "defenseShape": "even",
+        "insight": 0,
+        "stanceTowardObserver": "neutral",
+        "stanceFromObserver": "neutral"
+      },
+      "body": {
+        "radius": 0.5,
+        "height": 1.7,
+        "mass": 1,
+        "facing": {
+          "x": 0,
+          "z": 1
+        },
+        "velocity": {
+          "x": 0,
+          "z": 0
+        }
+      }
+    }
+  ],
+  "interactions": [
+    {
+      "id": "select-target",
+      "role": "select-target",
+      "targetEntityId": "player-1",
+      "available": false,
+      "reason": "target-is-self"
+    },
+    {
+      "id": "select-target",
+      "role": "select-target",
+      "targetEntityId": "npc-1",
+      "available": true
+    },
+    {
+      "id": "select-target",
+      "role": "select-target",
+      "targetEntityId": "npc-2",
+      "available": true
+    },
+    {
+      "id": "observe",
+      "role": "observe-character",
+      "available": false,
+      "reason": "no-target-selected"
+    },
+    {
+      "id": "move",
+      "role": "move-to",
+      "available": true
+    },
+    {
+      "id": "attack",
+      "role": "skill-basic",
+      "available": true,
+      "profile": {
+        "baseDamage": 6,
+        "attackRatio": 0.5,
+        "rawDamage": 26,
+        "charge": 12,
+        "cost": 0,
+        "damageType": "physical"
+      }
+    },
+    {
+      "id": "skill-heavy",
+      "role": "skill-heavy",
+      "available": false,
+      "reason": "insufficient-cp",
+      "profile": {
+        "baseDamage": 32,
+        "attackRatio": 1.0,
+        "rawDamage": 72,
+        "charge": 8,
+        "cost": 30,
+        "damageType": "physical"
+      }
+    },
+    {
+      "id": "move-mode",
+      "role": "set-move-mode",
+      "available": true
+    },
+    {
+      "id": "set-attribute",
+      "role": "debug-set-attribute",
+      "available": true
+    },
+    {
+      "id": "mine",
+      "role": "mine-deposit",
+      "available": false,
+      "reason": "no-target-selected"
+    },
+    {
+      "id": "clear-target",
+      "role": "clear-target",
+      "available": true
+    }
+  ],
+  "hud": [
+    {
+      "id": "world.time",
+      "kind": "counter",
+      "value": 12.5
+    },
+    {
+      "id": "self.hp",
+      "kind": "counter",
+      "value": 150
+    },
+    {
+      "id": "self.hpMax",
+      "kind": "counter",
+      "value": 200
+    },
+    {
+      "id": "self.cp",
+      "kind": "counter",
+      "value": 24
+    },
+    {
+      "id": "self.cpMax",
+      "kind": "counter",
+      "value": 100
+    },
+    {
+      "id": "self.downed",
+      "kind": "flag",
+      "value": false
+    },
+    {
+      "id": "self.moveMode",
+      "kind": "label",
+      "value": "run"
+    },
+    {
+      "id": "self.combat.physicalAttack",
+      "kind": "counter",
+      "value": 40
+    },
+    {
+      "id": "self.combat.auraAttack",
+      "kind": "counter",
+      "value": 40
+    },
+    {
+      "id": "self.combat.armor",
+      "kind": "counter",
+      "value": 50
+    },
+    {
+      "id": "self.combat.resistance",
+      "kind": "counter",
+      "value": 50
+    },
+    {
+      "id": "self.combat.armorMultiplier",
+      "kind": "counter",
+      "value": 0.6666666666666666
+    },
+    {
+      "id": "self.combat.resistanceMultiplier",
+      "kind": "counter",
+      "value": 0.6666666666666666
+    },
+    {
+      "id": "self.combat.defenseShape",
+      "kind": "label",
+      "value": "even"
+    },
+    {
+      "id": "self.tempo.moveSpeed",
+      "kind": "counter",
+      "value": 6
+    },
+    {
+      "id": "self.tempo.runSpeedMultiplier",
+      "kind": "counter",
+      "value": 1.8
+    },
+    {
+      "id": "self.tempo.actionSpeed",
+      "kind": "counter",
+      "value": 1
+    },
+    {
+      "id": "self.modifier.cpCharge",
+      "kind": "counter",
+      "value": 0.5
+    },
+    {
+      "id": "self.modifier.cpConsume",
+      "kind": "counter",
+      "value": 1
+    },
+    {
+      "id": "self.modifier.moveSpeed",
+      "kind": "counter",
+      "value": 1
+    },
+    {
+      "id": "self.modifier.actionSpeed",
+      "kind": "counter",
+      "value": 1
+    },
+    {
+      "id": "self.guard.guarding",
+      "kind": "flag",
+      "value": false
+    },
+    {
+      "id": "self.guard.broken",
+      "kind": "flag",
+      "value": false
+    },
+    {
+      "id": "self.warmth",
+      "kind": "counter",
+      "value": 62
+    },
+    {
+      "id": "self.warmthMax",
+      "kind": "counter",
+      "value": 100
+    }
+  ],
+  "strikes": [
+    {
+      "attackerId": "player-1",
+      "targetId": "npc-1",
+      "skill": "heavy-attack",
+      "amount": 55,
+      "at": {
+        "x": 1.4,
+        "z": 0
+      },
+      "since": 12.1,
+      "breakdown": {
+        "damageType": "physical",
+        "offenseStat": {
+          "name": "physicalAttack",
+          "value": 80
+        },
+        "baseDamage": 32,
+        "attackContribution": 40,
+        "rawDamage": 72,
+        "defenseStat": {
+          "name": "armor",
+          "value": 30
+        },
+        "penetrationStat": {
+          "name": "armorPenetration",
+          "value": 0
+        },
+        "effectiveDefense": 30,
+        "defenseMultiplier": 0.7692307692307693,
+        "finalDamage": 55,
+        "appliedDamage": 55,
+        "critical": {
+          "occurred": false,
+          "chance": 0,
+          "multiplier": 1,
+          "damageBeforeCritical": 55
+        }
+      }
+    },
+    {
+      "attackerId": "npc-1",
+      "targetId": "player-1",
+      "skill": "attack",
+      "amount": 17,
+      "at": {
+        "x": 0,
+        "z": 0
+      },
+      "since": 11.6,
+      "breakdown": {
+        "damageType": "physical",
+        "offenseStat": {
+          "name": "physicalAttack",
+          "value": 40
+        },
+        "baseDamage": 6,
+        "attackContribution": 20,
+        "rawDamage": 26,
+        "defenseStat": {
+          "name": "armor",
+          "value": 50
+        },
+        "penetrationStat": {
+          "name": "armorPenetration",
+          "value": 0
+        },
+        "effectiveDefense": 50,
+        "defenseMultiplier": 0.6666666666666666,
+        "finalDamage": 17,
+        "appliedDamage": 17,
+        "critical": {
+          "occurred": false,
+          "chance": 0,
+          "multiplier": 1,
+          "damageBeforeCritical": 17
+        }
+      }
+    }
+  ],
+  "contacts": [],
+  "cancels": [],
+  "debug": {
+    "open": true
+  },
+  "commands": [],
+  "currentTarget": {},
+  "inventory": [],
+  "inventoryRoom": {
+    "used": 0,
+    "capacity": 4
+  },
+  "equipment": [],
+  "ground": {
+    "zones": [
+      {
+        "id": "zone-ice-field",
+        "law": "heat-binding",
+        "role": "law",
+        "center": {
+          "x": -11,
+          "z": 11
+        },
+        "radius": 7.0
+      },
+      {
+        "id": "zone-sunbreath",
+        "law": "heat-binding",
+        "role": "respite",
+        "center": {
+          "x": -13,
+          "z": 13
+        },
+        "radius": 2.5
+      }
+    ],
+    "self": {
+      "law": "heat-binding",
+      "state": "taking",
+      "takes": "warmth"
+    }
+  }
+}

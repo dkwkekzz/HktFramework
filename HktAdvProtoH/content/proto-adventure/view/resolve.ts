@@ -50,6 +50,7 @@ import { cancelMark } from './phase-presentation';
 import { kindPresentation } from './kind-presentation';
 import { rolePresentation } from './role-presentation';
 import { TARGET_TINT, targetDetailLines, targetHudItems } from './target-presentation';
+import { groundDetailLines } from './terrain-presentation';
 
 // 관찰자 쪽 표시 선택 (C006) — 충돌체 디버그 관찰을 켤지. World 에 아무것도 요청하지 않는다.
 export interface PresentationOptions {
@@ -271,6 +272,10 @@ export function resolvePresentation(
             ...self,
             lines: [
               ...self.lines,
+              // C-TERRAIN-001 — 땅이 가장 먼저다. 지금 무언가가 나에게서 빠져나가는
+              // 중이라면 그것이 다른 무엇보다 급한 사실이며, 자리 밖에서는 줄이 아예
+              // 없으므로(자리 밖 = 이 Cycle 이전의 세계) 기존 배치가 밀리지 않는다.
+              ...groundDetailLines(snapshot),
               ...targetDetailLines(snapshot, shortCodeText),
               // 병합 — 두 갈래가 각자 한 벌씩 더했다. 순서는 **결정이 급한 것부터**다.
               //   기술   지금 이 순간 고르는 것 (C025)
