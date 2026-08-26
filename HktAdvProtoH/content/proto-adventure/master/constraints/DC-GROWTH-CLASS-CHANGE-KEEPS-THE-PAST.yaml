@@ -1,0 +1,50 @@
+# 원본 근거: content/proto-adventure/design/Master-Fairy-Growth-System.md (GS) §3.1 Class Change = 상위 형태로의 성장 ·
+#   §4 기본 Class Evolution 구조 · §20 전체 플레이 루프(Class Change 항)
+id: DC-GROWTH-CLASS-CHANGE-KEEPS-THE-PAST
+type: constraint
+
+statement: >
+  Class Change 는 다른 Class 로 교체하는 것이 아니라 같은 캐릭터가 상위 형태가 되는
+  것이며, 이전 Class 는 사라지지 않고 그 상위 형태의 기반으로 남는다.
+rationale: >
+  ❌ 흔한 형태는 전직이다 — 전직소에서 직업을 고르면 쓰던 스킬 목록이 통째로 새 목록으로
+  갈리고, 이전 직업의 행동은 더 이상 쓸 수 없다. 그러면 성장은 캐릭터가 자라는 일이 아니라
+  캐릭터를 갈아 끼우는 일이 된다.
+  ✅ GS 는 검사 → 마검사 → 룬나이트 → 용왕기사처럼 **같은 몸이 형태를 더해 간다**고 적는다
+  (GS §3.1). Origin 의 단순하고 명확한 능력이 Advanced 에서 전투 기술이 되고, High 에서
+  전장 전체에 미치고, Crown 에서 원리 자체가 현현한다 (GS §4) — 뒤의 층은 앞 층을 대체하지
+  않고 그 위에 선다.
+
+  지켜서 얻는 것은 **성장이 손의 기억을 배신하지 않는다**는 것이다. 백 시간을 들여 익힌
+  주먹의 감각이 다음 단계에서도 그대로 쓰이고, 달라지는 것은 그 주먹이 할 수 있는 일이다.
+  어겼을 때 잃는 것: 단계마다 조작을 다시 배워야 하면 플레이어는 성장을 보상이 아니라
+  비용으로 겪는다. 그리고 "이전 Class 로 돌아가고 싶다" 는 요구가 생기는데, 그 요구는
+  교체형 설계에서만 생긴다.
+
+  가장 안 읽히는 조각은 **"기반으로 남는다"** 다. 이전 능력을 목록에 그대로 남겨 두라는
+  뜻이 아니라, 상위 형태의 능력이 이전 능력의 발전형이어서 그 계보가 읽혀야 한다는 뜻이다
+  (GS §18 의 스킬 성장이 그 실례다 — 짧은 Dash 가 공중 Dash 가 되고 방향 전환 Dash 가 된다).
+
+  경계 — 이것은 캐릭터가 하나의 직선 경로만 가져야 한다는 뜻이 아니다. 어느 갈래로 자라든
+  이전 형태가 버려지지 않는다는 것까지가 이 원칙이며, 갈래가 하나인지 여럿인지는 여기서
+  정하지 않는다.
+
+scope:
+  - GROWTH
+
+requires:
+  - 상위 Class 의 능력이 이전 Class 능력의 발전형으로 읽힌다                  # GS §3.1 · §18
+  - Class Change 뒤에도 이전 Class 의 핵심 행동이 성립한다                    # GS §3.1
+prohibits:
+  - 이전 Class 의 능력을 무효로 만드는 교체형 전직                            # GS §3.1
+prefers:
+  - 층이 오를수록 같은 행동이 더 넓은 범위에 미치는 형태                      # GS §4 High Class
+
+status: APPROVED
+provenance:
+  - HUMAN_DESIGN        # content/proto-adventure/design/Master-Fairy-Growth-System.md 주입 → Human 승인 (HISTORY Q52)
+
+relations:
+  supports:
+    - DC-GROWTH-SKILL-GAINS-BEHAVIOR    # 같은 것이 자란다는 말을 스킬 층에서 되풀이한다
+  conflicts_with: []

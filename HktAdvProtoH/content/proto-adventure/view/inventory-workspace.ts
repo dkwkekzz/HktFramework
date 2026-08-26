@@ -24,9 +24,23 @@ import type {
   SceneSurfaceRow,
 } from '../../../engine/view-kernel/scene/scene-state';
 import { createPendingRequests } from '../../../engine/view-kernel/net/pending';
+import { waitStage, waitText } from './request-timing';
 import { moveFocus } from '../../../engine/view-kernel/input/focus';
 import type { ActionRequest } from '../protocol/actions';
 import type { GameViewSnapshot, InventoryItemView, ItemActionView } from '../protocol/gameview';
+import {
+  applyViewCell,
+  filterCells,
+  itemName,
+  narrowedBy,
+  orderCells,
+  resetView,
+  searchField,
+  SEARCH_FIELD_ID,
+  setSearch,
+  visibleItems,
+} from './inventory-view';
+import { isFresh, markSeen, noteObserved, resetFresh } from './inventory-new';
 import { keyLabel } from './key-registry';
 import { openSurface, surfaceIsOpen } from './surface-state';
 
@@ -90,6 +104,7 @@ const CONFIRM_CANCEL_ID = 'confirm.cancel';
 
 /** 지금 고른 종류. 관찰에서 사라지면 지운다 — 다른 것을 대신 고르지 않는다 */
 let selectedKind: string | null = null;
+
 /** 지금 자판이 가리키는 행동 줄 */
 let focusedActionId: string | null = null;
 
@@ -113,8 +128,14 @@ let confirming: { kind: string; actionId: string } | null = null;
 /** 확인 구획에서 지금 고른 답. **기본은 그만두기다** — 되돌릴 수 없는 것의 기본값은 하지 않는 것이다 */
 let confirmChoice: 'commit' | 'cancel' = 'cancel';
 
-/** 보냈고 아직 대답이 오지 않은 요청들 — 표식으로 짚는다 (C009) */
-const pending = createPendingRequests<{ kind: string; actionId: string }>();
+/**
+ * 보냈고 아직 대답이 오지 않은 요청들 — 표식으로 짚는다 (C009).
+ *
+ * `since` 는 **보낸 그 순간**이다 (V-007). 기다림을 곧바로 그리지 않고 늦을 때만
+ * 그리려면 언제부터 기다렸는지를 알아야 하며, 이 자리는 자기가 보냈으므로 그것을
+ * 정확히 안다 (기술 쪽은 결과만 내려와서 처음 본 순간으로 대신한다).
+ */
+const pending = createPendingRequests<{ kind: string; actionId: string; since: number }>();
 
 /**
  * 마지막으로 이 표면을 지은 관찰 — **겪는 사람이 지금 보고 있는 바로 그것**이다.
@@ -171,6 +192,8 @@ export function resetWorkspace(): void {
   confirmChoice = 'cancel';
   observed = null;
   pending.clear();
+  resetView();
+  resetFresh();
 }
 
 // ── 조작 ─────────────────────────────────────────────────────────────
@@ -219,7 +242,9 @@ export function moveSelection(snapshot: GameViewSnapshot, delta: number): void {
     confirming = null;
     return;
   }
-  const kinds = items(snapshot).map((entry) => entry.kind);
+  // **화면에 선 차례대로** 걷는다 (V-008) — 걸러진 것은 지나가지 않는다.
+  // 칸을 그리는 자리와 같은 함수를 부르므로 둘이 어긋날 자리가 없다
+  const kinds = visibleItems(items(snapshot)).map((entry) => entry.kind);
   const next = moveFocus(kinds, selectedKind ?? undefined, delta);
   if (next === undefined) {
     selectedKind = null;
@@ -287,7 +312,7 @@ export function invokeFocusedAction(
     if (!target || !action || !action.available) return;
     if (pending.waiting((w) => w.kind === target.kind && w.actionId === action.id)) return;
     const commit = send({ interactionId: action.id, itemKind: target.kind });
-    pending.add(commit, { kind: target.kind, actionId: action.id });
+    pending.add(commit, { kind: target.kind, actionId: action.id, since: performance.now() });
     return;
   }
 
@@ -316,7 +341,7 @@ export function invokeFocusedAction(
   }
 
   const mark = send({ interactionId: action.id, itemKind: entry.kind });
-  pending.add(mark, { kind: entry.kind, actionId: action.id });
+  pending.add(mark, { kind: entry.kind, actionId: action.id, since: performance.now() });
 }
 
 // ── 손가락 (V-004) ───────────────────────────────────────────────────
@@ -355,6 +380,9 @@ function mine(surfaceId: string): GameViewSnapshot | null {
 export function pickCell(surfaceId: string, cellId: string): boolean {
   const snapshot = mine(surfaceId);
   if (!snapshot) return false;
+  // 도구 띠의 칸은 **고르는 칸이 아니다** (V-008) — 무엇을 볼지를 바꿀 뿐이므로
+  // 고른 것도 초점도 건드리지 않고, 거짓을 내어 두 번 누름·목록 청함이 여기서 멈춘다
+  if (applyViewCell(cellId)) return false;
   const kind = cellKind(cellId);
   if (kind === undefined) return false;
   if (!items(snapshot).some((e) => e.kind === kind)) return false;
@@ -387,6 +415,23 @@ export function commitCell(
   // 되돌릴 수 없는 것에는 확인이 그대로 선다 (V-002). 되는 것이 하나도 없으면
   // 아무 일도 일어나지 않는다 — 사유는 줄에 이미 서 있다
   invokeFocusedAction(snapshot, send);
+}
+
+/**
+ * 글자 받는 자리에 쳐 넣었다 — **찾는 말이 된다.**
+ *
+ * 조립은 이 글자가 무엇인지 모르고 (`app/main.ts` 는 id 와 글자를 넘길 뿐이다),
+ * 기반은 그것을 쥐지도 않는다. 무엇이 될지 정하는 자리가 여기 하나다.
+ */
+export function typeInto(surfaceId: string, fieldId: string, text: string): void {
+  // 관찰을 묻지 않는다 — 찾는 말은 **겪는 사람 쪽 상태**이고, 세계가 아직 아무것도
+  // 보내지 않았어도 칠 수는 있다 (다른 손짓들은 관찰의 칸을 짚으므로 관찰이 필요하다)
+  if (surfaceId !== INVENTORY_SURFACE_ID) return;
+  if (fieldId !== SEARCH_FIELD_ID) return;
+  setSearch(text);
+  // 찾는 말이 바뀌면 고른 것이 목록 밖으로 나갈 수 있다. **그래도 지우지 않는다** —
+  // 고른 것은 겪는 사람이 고른 것이고, 보이지 않게 되었다는 것과 고르기를 그만두었다는
+  // 것은 다른 일이다 (04 workspace.selection 과 같은 자세).
 }
 
 /**
@@ -487,19 +532,24 @@ export function forgetPending(): void {
 
 // ── 표면 짓기 ────────────────────────────────────────────────────────
 
-function itemName(kind: string, text: (code: string) => string): string {
-  const code = `item.${kind}`;
-  const named = text(code);
-  return named === code ? kind : named;
-}
-
-function itemCells(snapshot: GameViewSnapshot, text: (code: string) => string): SceneSurfaceCell[] {
-  return items(snapshot).map((entry) => {
+function itemCells(
+  shown: readonly InventoryItemView[],
+  text: (code: string) => string,
+): SceneSurfaceCell[] {
+  // 명암이 견주는 기준은 **지금 목록 안에서 가장 많은 것**이다 (V-010).
+  // "몇 개부터 많은 것인가" 를 화면이 정하면, 세계가 겹침 한도를 바꿀 때마다 화면이
+  // 거짓말을 하게 된다 (기술 띠의 넓이 막대가 같은 규칙으로 선다 — skill-presentation).
+  const most = Math.max(0, ...shown.map((entry) => entry.count));
+  return shown.map((entry) => {
     const icon = CATEGORY_ICON[entry.category];
     return {
       id: `item.${entry.kind}`,
       text: icon ? `${icon} ${itemName(entry.kind, text)}` : itemName(entry.kind, text),
+      // 수량은 **숫자와 명암을 함께** 쓴다 — 색만으로 구분하지 않는다 (문서 §3)
       detail: `×${entry.count}`,
+      ...(most > 0 ? { level: entry.count / most } : {}),
+      // 새로 온 것 — 상세를 보면(고르면) 사라지는 화면의 상태다
+      ...(isFresh(entry.kind) ? { badge: 'NEW' } : {}),
       empty: false,
       selected: entry.kind === selectedKind,
     };
@@ -527,6 +577,7 @@ function roomCells(snapshot: GameViewSnapshot): SceneSurfaceCell[] {
 function actionRows(
   snapshot: GameViewSnapshot,
   shortText: (code: string) => string,
+  now: number,
 ): SceneSurfaceRow[] {
   const entry = selectedItem(snapshot);
   if (!entry) return [];
@@ -537,8 +588,13 @@ function actionRows(
       const reason = action.unavailableReason ? shortText(action.unavailableReason) : '안 됨';
       return { id: action.id, text: `${label} — ${reason}`, state: 'blocked' as const };
     }
-    if (pending.waiting((w) => w.kind === entry.kind && w.actionId === action.id)) {
-      return { id: action.id, text: `${label} — 보냈다`, state: 'pending' as const };
+    // 기다림은 **늦을 때만** 보인다 (V-007 · UX 문서 §7 응답 지연).
+    // 늦지 않은 기다림 동안 줄은 그대로 서 있고, 곧 오는 답이 값을 옮기거나 사유를 붙인다.
+    // 그동안 다시 눌러도 두 번 나가지 않는다 — 막는 것은 이 표시가 아니라 아래 기다림 표다
+    const waiting = pending.values().find((w) => w.kind === entry.kind && w.actionId === action.id);
+    const stage = waitStage(waiting?.since, now);
+    if (waiting && stage !== 'silent') {
+      return { id: action.id, text: `${label} — ${waitText(stage)}`, state: 'pending' as const };
     }
     // **세계가 된다고 말한 것을 안 된다고 그리지 않는다.** 이 자리에서 그 길이 아직
     // 없을 뿐이며, 그 사정은 화면의 것이지 세계의 판정이 아니다
@@ -597,9 +653,13 @@ export function inventoryWorkspace(
   snapshot: GameViewSnapshot,
   text: (code: string) => string,
   shortText: (code: string) => string,
+  now: number = performance.now(),
 ): SceneSurface {
   observed = snapshot;
   reconcileSelection(snapshot);
+  // 무엇이 새로 왔는가 — 표면이 닫혀 있어도 센다. 열었을 때 그동안 얻은 것에
+  // 표식이 붙어 있어야 하며, 닫혀 있는 동안 얻은 것이야말로 못 본 것이다
+  noteObserved(items(snapshot).map((entry) => entry.kind));
 
   const open = surfaceIsOpen(INVENTORY_SURFACE_ID);
   // 닫히면 확인도 사라진다 — 보이지 않는 확인은 확인이 아니다. 닫는 길(Esc · ✕)이
@@ -610,6 +670,14 @@ export function inventoryWorkspace(
   const left = room ? Math.max(0, room.capacity - room.used) : 0;
   const full = room ? room.used >= room.capacity : false;
   const entry = selectedItem(snapshot);
+  // 고른 것이 곧 **상세를 본 것**이다 — 고르면 그 물건의 행동 줄이 아래에 선다.
+  // 열려 있을 때만이다: 닫힌 표면의 남은 고르기는 아무도 보지 않았다
+  if (open && entry) markSeen(entry.kind);
+  // 보이는 목록과 지닌 것 전부는 **다른 수**다 (V-008 · 문서 §6). 걸러도 지닌 것은
+  // 줄지 않으므로 아래 자리 구획은 이 값에 반응하지 않는다
+  const all = items(snapshot);
+  const shown = visibleItems(all);
+  const filtered = shown.length !== all.length;
   const confirm = confirmRows(snapshot, text);
   // 확인이 떠 있으면 초점은 그 구획의 답에 있다 — Enter 가 할 일이 곧 초점이다
   const focusId =
@@ -625,12 +693,37 @@ export function inventoryWorkspace(
     title: '가진 것',
     ...(focusId === null ? {} : { focusId }),
     sections: [
+      // 도구 띠 (문서 §2.2 의 `[전체⌄] [정렬⌄]` 자리) — **거는 것은 보기이지 세계가 아니다.**
+      // 빈 목록에서도 사라지지 않는다: 사라지면 되돌릴 자리가 화면에서 없어진다
+      {
+        id: 'filter',
+        title: '분류',
+        // 고르는 단추이지 자리가 아니다 — 물건 칸과 같은 크기로 그리면 띠가 아니라
+        // 또 하나의 격자가 된다 (V-009 · 문서 §2.2 의 한 줄 도구 띠)
+        shape: 'chip',
+        // 이름으로 찾는 자리 — 문서 §2.2 가 `[검색 /]` 을 이 띠에 둔다
+        field: searchField(),
+        cells: filterCells(),
+      },
+      {
+        id: 'order',
+        // `정렬` 이 아니라 `보기 정렬` 이다 — 세계의 차례를 바꾸지 않는다 (문서 §6)
+        title: '보기 정렬',
+        shape: 'chip',
+        cells: orderCells(),
+      },
       {
         id: 'items',
-        title: `지닌 것 — ${items(snapshot).length} 종류`,
+        // 좁혔으면 **두 수와 그 사유를 함께** 보인다 — 보이는 수만 말하면 지닌 것이
+        // 줄어든 것으로 읽히고, 사유가 없으면 왜 줄었는지 알 길이 없다
+        title: filtered
+          ? `지닌 것 — ${shown.length} / ${all.length} 종류 · ${narrowedBy().join(' · ')}`
+          : `지닌 것 — ${all.length} 종류`,
         columns: COLUMNS,
-        cells: itemCells(snapshot, text),
-        emptyText: '소지품 없음',
+        cells: itemCells(shown, text),
+        // 지닌 것이 없는 것과 조건에 걸린 것이 없는 것은 다른 일이다 (문서 §6)
+        emptyText:
+          all.length === 0 ? '소지품 없음' : '조건에 맞는 아이템 없음 · 필터 초기화',
       },
       {
         id: 'room',
@@ -647,7 +740,7 @@ export function inventoryWorkspace(
         title: entry
           ? `고른 것 — ${itemName(entry.kind, text)} ×${entry.count}`
           : '고른 것',
-        rows: actionRows(snapshot, shortText),
+        rows: actionRows(snapshot, shortText, now),
         emptyText: `${keyLabel('pickLeft')} ${keyLabel('pickRight')} 로 고른다`,
       },
       // 확인 구획은 **기다리는 것이 있을 때만 선다.** 늘 서 있으면 되돌릴 수 없다는
@@ -670,6 +763,11 @@ export function inventoryWorkspace(
             `고르기 ${keyLabel('pickLeft')} ${keyLabel('pickRight')}`,
             `행동 ${keyLabel('actionUp')} ${keyLabel('actionDown')}`,
             `실행 ${keyLabel('invoke')}`,
+            // V-008 — 늘 떠 있는 안내 패널에는 서지 않는다 (닫혀 있을 때 거짓이 된다).
+            // 그 줄이 서는 자리가 여기다
+            `분류 ${keyLabel('viewFilter')}`,
+            `보기 정렬 ${keyLabel('viewOrder')}`,
+            `이름으로 찾기 ${keyLabel('viewSearch')}`,
           ],
   };
 }

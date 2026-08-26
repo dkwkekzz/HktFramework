@@ -2,14 +2,18 @@
 
 파일 하나 = Constraint 하나. 이름은 `DC-<NAME>.yaml`. 형식은 [../SCHEMA.md](../SCHEMA.md).
 
-현재: **Active 43종** — 전투 12종(하층 5종 · 상층 7종 · 그중 1종 REVISED) + 성장 6종 +
-세계 9종(대지형 4종 포함) + 아이템 6종(1종 REVISED) + 스킬 6종(3종 REVISED) + GLOBAL 4종.
-보류(DRAFT)는 없다.
+현재: **Active 58종** — **전투 12종**(하층 5 · 상층 7 · 그중 1종 REVISED) +
+**성장 21종**(GS 8 · GB 7 포함 · 1종 REVISED) + 세계 9종(대지형 4종 포함) +
+아이템 6종(1종 REVISED) + 스킬 6종(3종 REVISED) + GLOBAL 4종. 보류(DRAFT)는 없다.
+
+성장이 가장 촘촘한 영역이고 (21종 중 15종이 GS · GB 주입에서 왔다) 전투가 그다음이다
+(12종 중 7종이 UL 주입에서 왔다). 세 주입이 같은 시기에 들어와 Active 가 36종에서
+58종이 되었다.
 
 근거 문서:
 
 ```text
-content/proto-adventure/design/   팩 기획서 — R1 · DT · UL · TG · BW · BT · IS · IE
+content/proto-adventure/design/   팩 기획서 — R1 · DT · UL · TG · BW · BT · IS · IE · GS · GB
 design/                           공정·기반 원본(루트) — GR
 
 R1 §x   Design-Combat-OffenseDefense-R0.md   전투 영역
@@ -21,6 +25,8 @@ BW §x   Master-World-Beira.md                세계(WORLD) 영역
 BT §x   Master-World-Beira-Terrain.md        세계(WORLD) 영역 — 대지형
 IS §x   Design-Item-System-R0.md             아이템(ITEM) 영역
 IE §x   Design-Inventory-Equipment-D1.md     아이템(ITEM) 영역 — IS §5.4 · §10 의 후속
+GS §x   Master-Fairy-Growth-System.md        성장(GROWTH) 영역 — 요정 캐릭터 성장 시스템
+GB §x   Design-Growth-Balance-R0.md          성장(GROWTH) 영역 — 비용·보상 균형
 ```
 
 근거는 영역을 넘지 않는다 — 전투 노드에 GR 을, 성장 노드에 R1/DT 를 인용하지 않는다.
@@ -75,6 +81,54 @@ DC-COMBAT-ONE-FORMULA 가, §42(한 번에 한 층)는 DC-COMBAT-ONE-LAYER-AT-A-
 | DC-GROWTH-DEFINITION-INSTANCE-SPLIT | Master 는 유한 Definition 만 — II-*/조합 결과는 Runtime, 사전 생성 금지 | GR §28~§32 · §42 |
 | DC-GROWTH-NOT-A-STAGE | Growth 는 Master Stage 가 아니라 NEED 위의 Overlay | GR §21 · §22.1 |
 | DC-GROWTH-GOAL-FIRST | 성장 자체를 Goal 로 세우지 않는다 — 현재 Goal 의 Possibility 로만 | GR §34 · §42 |
+
+### Active — APPROVED (성장 — GS 주입 · Q52 승인)
+
+여덟 다 GS 가 절을 따로 두어 명시한 규칙이다. 원본보다 세게 쓰지 않았다.
+승인과 함께 성장 노드 여섯(MC 5 · MP 1)에 배선했고 판정은 전부 SATISFIED 다.
+마지막까지 UNRESOLVED 였던 세계 원칙 하나(MP-BECOME-A-HIGHER-FORM 의
+DC-WORLD-PLAYER-UNFIXED-PATH)도 Q54(a) 로 닫혔다 — 플레이어가 요정 역할을 수행하되
+어느 계열을 고를지도 무엇을 하러 갈지도 강제되지 않는다.
+
+| Constraint | 한 줄 | 근거 |
+|---|---|---|
+| DC-GROWTH-PRINCIPLE-IS-PLAYED | 원리는 설정 문구가 아니라 캐릭터가 하는 행동으로 화면 위에 있어야 한다 | GS §1 · §2 · §21 |
+| DC-GROWTH-CLASS-CHANGE-KEEPS-THE-PAST | Class Change 는 교체가 아니라 상위 형태로의 성장 — 이전 Class 가 기반으로 남는다 | GS §3.1 · §4 |
+| DC-GROWTH-CLASS-CHANGE-NEEDS-THE-WORLD **(REVISED)** | 단계의 문턱은 Level 만으로 넘을 수 없다 — 세계 현상의 직접 경험 · 세계의 Property · **선택과 시련**을 함께 요구하고 **자원 구매만으로는 성립하지 않는다** (Q57(a)) | GS §6 · §19 · GB §22 · GB-08 |
+| DC-GROWTH-MASTERY-FROM-OWN-BEHAVIOR | 숙련은 반복량이 아니라 그 형태 고유의 행동에서 오른다 | GS §5 · §19 |
+| DC-GROWTH-EXPLORATION-SHARES-THE-PRINCIPLE | 탐험 능력은 전투와 같은 원리의 다른 쓰임 — 별도 미니게임 스킬이 아니다 | GS §8 |
+| DC-GROWTH-DIFFERENCE-IS-BEHAVIOR | 캐릭터 차이는 능력치 값이 아니라 반복하는 행동에서 드러난다 | GS §2 · §17 |
+| DC-GROWTH-SKILL-GAINS-BEHAVIOR | 스킬 성장 = 숫자 증가 + 행동 가능성 증가 | GS §18 · §19 |
+| DC-GROWTH-STAGE-READS-AT-A-DISTANCE | 성장 단계는 멀리서 보아도 읽힌다 — 힘의 증가가 외형으로 함께 나타난다 | GS §7 · §20 |
+
+여덟 중 둘은 이미 승인된 대지형 Constraint 를 **땅에서 몸으로 옮긴 것**이다 —
+PRINCIPLE-IS-PLAYED 는 DC-WORLD-TERRAIN-LAW-IS-OBSERVABLE 의, STAGE-READS-AT-A-DISTANCE 는
+DC-WORLD-TERRAIN-READS-AT-A-DISTANCE 의 짝이다.
+
+### Active — APPROVED (성장 균형 — GB 주입 · Q56 승인)
+
+일곱 다 GB 가 절을 따로 두어 명시한 규칙이다. 원본보다 세게 쓰지 않았다.
+승인과 함께 성장 노드 일곱(MC 5 · MP 2)에 배선했다. UNRESOLVED 로 남은 판정들은 전부
+**아직 세우지 않은 것**을 가리킨다 — 한 단계의 폭(Cycle 03) · 아직 없는 Contract ·
+아직 없는 CL-*. 지어내 SATISFIED 로 덮지 않았다.
+
+| Constraint | 한 줄 | 근거 |
+|---|---|---|
+| DC-GROWTH-COST-IS-THE-WHOLE-BURDEN | 성장의 비용은 자원 개수가 아니라 치른 전체 플레이 부담이다 — 시간·위험·실력·앎·기회·반복 가능성 | GB §1 · §3 · §4 · §36 |
+| DC-GROWTH-REWARD-IS-NEW-REACH | 성장의 값은 커진 숫자가 아니라 이전에 못 하던 것 — 비용과 보상을 하나의 점수로 맞추지 않는다 | GB §6~§13 · §15 · §36 |
+| DC-GROWTH-NO-DOMINATED-ROUTE | 더 싸면서 모든 면에서 더 좋은 경로를 두지 않는다 — 나란한 경로는 서로 다른 장단점을 가진다 | GB §16 · §17 · GB-03 |
+| DC-GROWTH-POWER-PAYS-IN-REACH-OR-CONSTRAINT | 강한 효과와 넓은 범위를 동시에 주지 않는다 — 제약도 성장의 값이다 | GB §20 · §21 · GB-04 |
+| DC-GROWTH-CAPABILITY-DECLARES-ITS-LIMITS | 모든 Capability 는 통하는 것·부분적인 것·통하지 않는 것을 밝힌다 | GB §23 · GB-05 · GB-10 |
+| DC-GROWTH-NOT-A-MASTER-KEY | 하나의 성장이 서로 무관한 여러 관문을 한꺼번에 열지 않는다 | GB §24 · GB-06 |
+| DC-GROWTH-INTENT-IS-MEASURED | 의도한 영향 범위를 미리 밝히고, 굴려 본 결과가 그 범위를 벗어나면 실패로 다룬다 | GB §25 · §26~§28 · GB-07 |
+
+일곱 중 둘이 요구하는 칸(통함/부분/안 통함 · 선언한 영향 범위)은 **`growth/balance/` 가
+소유한다** (HISTORY Q58(c) — 파일 하나 = 성장 하나). 그래서 그 둘의 판정은 노드가 아니라
+그 성장의 Contract 가 서면 닫힌다.
+
+GB §22 · GB-08(Class 문턱을 자원 구매로 우회할 수 없다)은 새 DC 로 만들지 않았다 —
+같은 자리의 기존 원칙을 **개정했다** (Q57(a) · 성장 절의
+DC-GROWTH-CLASS-CHANGE-NEEDS-THE-WORLD **(REVISED)**).
 
 ### Active — APPROVED (세계 — BW 주입 · Q17(a) 승인)
 

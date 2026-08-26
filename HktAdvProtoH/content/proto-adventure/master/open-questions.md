@@ -13,10 +13,10 @@ Human 이 답한다    DECISION 줄
 
 미해결 **6건** — 닫힌 질문은 HISTORY.md.
 
-[frontier/](frontier/) 의 `SELECTED` 는 두 트랙 다 비어 있다. COMBAT 은 하나뿐이던
-후보가 C025 로 닫혀 **후보가 0** 이고 — 다음 후보는 Q35 가 걸린 OPTIONS 작업이 낳는다 —
-ITEM 은 후보 다섯이 Human 선택을 기다린다.
-아래 여섯 중 COMBAT 을 막는 것은 Q35 하나다.
+[frontier/](frontier/) 는 네 트랙이다. COMBAT · TERRAIN · GROWTH 는 `SELECTED` 가 차 있고
+(C-COMBAT-001 · C-TERRAIN-001 · C-GROWTH-001 착수 대기), ITEM 은 후보 다섯이 Human 선택을
+기다린다. **아래 여섯 중 어느 트랙도 막지 않는다** — Q35 가 막던 COMBAT 은 전투 상층(UL)
+주입이 후보 열을 세워 열렸고, Q35 가 남아 막는 것은 스킬 실행 형태의 빈 다섯 칸뿐이다.
 
     Q29        통찰을 Graph 에서 어떻게 잡을 것인가
     Q35        **스킬(SK)** 이 남긴 것 — 그 다음 전투 Cycle 의 크기를 정한다
@@ -26,8 +26,13 @@ ITEM 은 후보 다섯이 Human 선택을 기다린다.
                세 번 겹친 뒤에 올라왔다. 다른 것들과 달리 게임의 의미가 아니라
                두 층이 굴러가는 방식을 묻는다
 
-대지형(BT) 주입이 낸 다섯(Q47~Q51)과 전투 상층(UL) 주입이 낸 셋(Q52~Q54)은
-2026-08-26 전부 닫혔다 — HISTORY.md.
+대지형(BT) 주입이 낸 다섯(Q47~Q51)은 전부 닫혔다 — HISTORY.md.
+
+성장 두 문서(GS · GB)가 낸 일곱(Q52~Q58)은 **전부 닫혔다** — HISTORY.md.
+성장 영역에 남은 Human 대기는 없다.
+
+전투 상층(UL) 주입이 낸 셋(Q59~Q61)도 2026-08-26 전부 닫혔다 — HISTORY.md.
+전투 영역에 남은 Human 대기도 없다.
 
 
 번호가 띄엄띄엄한 것은 앞선 질문들이 이미 닫혀 HISTORY 로 갔기 때문이다 —

@@ -148,7 +148,9 @@ function contestedLines(a: AttributesView): string[] {
   // 플레이어는 세계에 그 값이 없다고 배운다 (04 EMPTY-SLOT NOTE).
   if (a.concealed.length > 0) {
     lines.push(
-      `${a.concealed.map(codeText).join(' · ')} — ${codeText(a.unacquaintedReason ?? 'not-observed')}`,
+      // `map(codeText)` 로 넘기지 않는다 — 문구 표가 값 자리(둘째 인자)를 받게 되면서
+      // 그렇게 넘기면 **배열 색인이 값으로 끼어든다**
+      `${a.concealed.map((code) => codeText(code)).join(' · ')} — ${codeText(a.unacquaintedReason ?? 'not-observed')}`,
     );
   }
 
@@ -339,9 +341,13 @@ export function selfPanel(snapshot: GameViewSnapshot): SceneSelf | undefined {
     health: Math.round(health),
     healthMaximum: Math.round(healthMaximum),
     healthRatio: healthMaximum > 0 ? Math.max(0, Math.min(1, health / healthMaximum)) : 0,
+    // 막대의 이름 — 기반이 `HP` · `CP` 를 직접 적던 자리다 (기반 부채 ②).
+    // 무엇을 자원으로 삼는 세계인지는 팩의 일이므로 그 이름도 팩이 쥔다
+    healthLabel: codeText('self.health'),
     energy: Math.round(energy),
     energyMaximum: Math.round(energyMaximum),
     energyRatio: energyMaximum > 0 ? Math.max(0, Math.min(1, energy / energyMaximum)) : 0,
+    energyLabel: codeText('self.energy'),
     downed: value('self.downed') === true,
     moveMode: codeText(moveModeCode),
     moveModeCode,

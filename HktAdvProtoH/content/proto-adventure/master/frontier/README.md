@@ -18,8 +18,9 @@ NEXT 작업(직렬)만 한다.
 | 트랙 | 파일 | 근거 문서 영역 | SELECTED |
 |---|---|---|---|
 | ITEM | [item.md](item.md) | 아이템 IS · 인벤토리 IE | 없음 — Human 선택 대기 |
-| COMBAT | [combat.md](combat.md) | 전투 R1 · DT · **UL** · 스킬 SK | `FR-WHERE-YOUR-POWER-SITS` → C-COMBAT-001 (착수 대기) |
-| TERRAIN | [terrain.md](terrain.md) | 세계 BW · BT (대지형 · 시스템 축 MS-BEIRA-TERRAIN) | 없음 — Human 선택 대기 |
+| COMBAT | [combat.md](combat.md) | 전투 R1 · DT · **UL** · 스킬 SK | FR-WHERE-YOUR-POWER-SITS — C-COMBAT-001 착수 대기 |
+| TERRAIN | [terrain.md](terrain.md) | 세계 BW · BT (대지형 · 시스템 축 MS-BEIRA-TERRAIN) | FR-THE-GROUND-HAS-A-LAW — C-TERRAIN-001 착수 대기 |
+| GROWTH | [growth.md](growth.md) | 성장 GS (시스템 축 MS-GROWTH-SOURCE · MS-CLASS-EVOLUTION) | FR-WHAT-YOU-DID-MAKES-YOU — C-GROWTH-001 착수 대기 |
 
 ## 병렬 규칙 — 구조가 지키는 것
 
@@ -53,24 +54,41 @@ Feedback 경위 = 자기 파일     닫힌 Cycle 의 반영 경위는 feedback/<
 
 ## 트랙 간 순서
 
-세 트랙 사이에 의존이 없다 — 어느 쪽을 먼저 골라도 된다.
+네 트랙 사이에 **막는 의존은 없다** — 어느 쪽을 먼저 골라도 된다.
 ITEM 안의 순서는 IS §6 이 그은 것(바닥 → 장착 → 제작 → 세계의 아이템)이고, 후보 다섯이
 Human 선택을 기다린다. TERRAIN 안의 순서는 셋 중 하나가 바닥이라는 것이며(땅이 먼저
-있어야 나머지가 겪힌다) 그 트랙 파일이 소유한다.
+있어야 나머지가 겪힌다) 그 트랙 파일이 소유한다. GROWTH 안의 순서는 "쌓인다" 가 먼저라는
+것이다 — 나머지 축들이 그 형태를 재사용한다.
+
+한 방향의 **약한** 의존이 트랙 사이에 하나 있다: GROWTH 의 탐험 숙련
+(MC-GROW-EXPLORATION-MASTERY)은 풀 환경 문제가 있어야 성립하므로 TERRAIN 의 첫 Cycle 을
+기다린다. 그래서 그것은 GROWTH 의 후보가 아니라 그 트랙의 "지금 열 수 없는 것" 에 있다 —
+지금 선 후보 셋은 땅 없이 성립한다.
 
 **COMBAT 이 다시 열렸다.** 전투 상층(UL) 주입이 R1 §14 의 위 두 칸을 세워 후보 열이
 섰고 — 그 기획서가 세운 것이 전부 그 트랙 파일에 있다 — 첫 하나가 SELECTED 다.
-그러므로 지금 **병렬로 돌 수 있는 WORLD 트랙은 셋 다**이다.
+그러므로 지금 **네 트랙 다 SELECTED 를 갖거나 후보를 갖고 있다.**
 
 Q35(몸이 아닌 존재를 요구하는 Possibility)는 여전히 열려 있지만 더 이상 COMBAT 을
 막지 않는다 — 그것이 막는 것은 스킬 실행 형태(MS-SKILL-FORM)의 빈 다섯 칸이고,
-상층 넷은 그 자리를 쓰지 않는다.
+상층 후보 열은 그 자리를 쓰지 않는다.
 
-겹치는 자리가 둘 있다.
-TERRAIN 의 세 번째 후보(FR-WHAT-KEEPS-YOU-ALIVE-IS-CARRIED)가 지니고 나누는 것을
-다루므로 아이템 쪽 파일에 닿는다 — 고를 때 ITEM 트랙이 무엇을 도는 중인지 먼저 본다.
-COMBAT 의 넷은 전부 전투 판정과 HUD 를 건드리므로 **VIEW 레인과 스친다** — 둘 다 자기
+트랙이 겹치는 자리가 셋 있다.
+
+**COMBAT ↔ GROWTH — 지금 실제로 겹친다.** GROWTH 의 후보 셋은 전부 몸의 값과 전투
+판정에 닿고, COMBAT 의 SELECTED(FR-WHERE-YOUR-POWER-SITS)도 같은 자리를 쓴다 —
+둘 다 `world/semantic/combat.ts` 의 유효 값 계산(`effectiveStat`)에 항을 더한다.
+"COMBAT 이 후보 0 이라 겹치지 않는다" 던 조건이 사라졌으므로, 두 Cycle 중 하나가
+먼저 그 함수에 손대면 다른 쪽은 최신 main 위에서 다시 잡는다. 둘을 같은 시기에
+띄우려면 순서를 Human 이 정한다 (LANES 의 충돌 칸).
+
+**TERRAIN ↔ ITEM** — TERRAIN 의 세 번째 후보(FR-WHAT-KEEPS-YOU-ALIVE-IS-CARRIED)가
+지니고 나누는 것을 다루므로 아이템 쪽 파일에 닿는다.
+
+**COMBAT ↔ VIEW** — 상층 후보 열이 전부 전투 HUD 에 자리를 요구한다. 둘 다 자기
 영역 끝에 추가만 하고 기존 줄을 옮기지 않는다 (아래 공유 지점 규칙과 같다).
+
+어느 쪽이든 고를 때 상대 트랙이 무엇을 도는 중인지 먼저 본다 (LANES 의 충돌 칸).
 
 ## 지금 열 수 없는 것 — 트랙 밖
 

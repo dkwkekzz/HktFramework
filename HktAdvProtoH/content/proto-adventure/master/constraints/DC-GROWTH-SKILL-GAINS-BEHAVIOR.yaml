@@ -1,0 +1,48 @@
+# 원본 근거: content/proto-adventure/design/Master-Fairy-Growth-System.md (GS) §18 Skill 성장 방식 ·
+#   §19 성장 원천 표(Skill Mastery 행)
+id: DC-GROWTH-SKILL-GAINS-BEHAVIOR
+type: constraint
+
+statement: >
+  스킬의 성장은 수치의 증가만으로 성립하지 않는다 — 그 스킬이 할 수 있는 행동 자체가
+  늘어나야 한다.
+rationale: >
+  ❌ 흔한 형태는 레벨당 피해 +5 다. 5 레벨을 올려도 손이 하는 일은 똑같고, 달라진 것은
+  숫자뿐이다.
+  ✅ GS 는 같은 스킬이 자라며 무엇을 할 수 있게 되는지를 적는다 — 짧은 직선 Dash 가
+  공중에서도 쓸 수 있게 되고, Dash 도중 방향을 바꿀 수 있게 되고, 적을 통과하면 추가
+  공격이 되고, 연속으로 방향을 바꿀 수 있게 되고, 마지막에는 적과 투사체의 방향까지 함께
+  바꾼다 (GS §18). 요약하면 **스킬 성장 = 숫자 증가 + 행동 가능성 증가** 다 (GS §18).
+
+  지켜서 얻는 것은 **성장이 세계와의 관계를 바꾼다**는 것이다. 공중에서 쓸 수 있게 되면
+  전에는 넘지 못한 지형을 넘고, 방향을 바꿀 수 있게 되면 전에는 피하지 못한 공격을 피한다 —
+  진행이 "대응 가능한 범위의 확장" 이라는 이 세계의 정의(DC-WORLD-PROGRESSION-IS-REACH)와
+  같은 말이 된다. 어겼을 때 잃는 것: 성장은 같은 벽을 더 큰 망치로 두드리는 일이 되고,
+  강해졌다는 것을 전투 로그의 숫자로만 확인하게 된다.
+
+  가장 안 읽히는 조각은 **"할 수 있는 행동"** 이다. 새 스킬을 하나 더 준다는 뜻이 아니라,
+  쓰던 그 스킬의 쓰임새가 넓어진다는 뜻이다 — 그래야 이전 형태가 기반으로 남는다
+  (DC-GROWTH-CLASS-CHANGE-KEEPS-THE-PAST).
+
+  경계 — 이것은 모든 성장 단계마다 새 행동을 요구하지 않는다. 수치만 오르는 단계가 있어도
+  되지만, 스킬의 성장 전체가 수치뿐이어서는 안 된다는 것까지가 이 원칙이다.
+
+scope:
+  - GROWTH
+
+requires:
+  - 스킬 성장 경로에 행동 가능성의 증가가 포함된다                            # GS §18
+prohibits:
+  - 수치 증가만으로 구성된 스킬 성장 경로                                     # GS §18
+prefers:
+  - 늘어난 행동이 이전 행동의 확장으로 읽히는 형태                            # GS §18 · §3.1
+
+status: APPROVED
+provenance:
+  - HUMAN_DESIGN        # content/proto-adventure/design/Master-Fairy-Growth-System.md 주입 → Human 승인 (HISTORY Q52)
+
+relations:
+  supports:
+    - DC-GROWTH-CLASS-CHANGE-KEEPS-THE-PAST
+    - DC-WORLD-PROGRESSION-IS-REACH
+  conflicts_with: []

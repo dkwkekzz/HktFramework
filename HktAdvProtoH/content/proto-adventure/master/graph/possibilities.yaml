@@ -8,6 +8,7 @@
 # 인용 — BW = content/proto-adventure/design/Master-World-Beira.md (탐험) ·
 #        R1 = content/proto-adventure/design/Design-Combat-OffenseDefense-R0.md · DT = content/proto-adventure/design/Design-Combat-DamageType-R0.md (전투)
 #        TG = content/proto-adventure/design/Design-Targeting-R0.md (지목)
+#        GS = content/proto-adventure/design/Master-Fairy-Growth-System.md (성장)
 #
 # ── 이 파일을 읽는 법 ────────────────────────────────────────────────────
 # Goal 하나에 매달린 여러 MP-* 는 "둘 다 해야 하는 단계" 가 아니라 "골라서 하는 갈래" 다.
@@ -31,7 +32,8 @@ nodes:
       MC-ATTACK-POWER(PARTIAL) + 성장의 원천
     overlay_note: >-
       능력치가 결과를 바꾸는 것은 닫혔고, **C023 으로 그 값을 플레이로 바꾸는 첫 경로가 열렸다**(걸면 오르고 풀면 돌아온다). 그러나 이 갈래가 말하는 것은
-      *압도*이므로 **자라는 축**이 여전히 없다 — 걸고 푸는 것은 값을 오르내리게 할 뿐 키우지 않는다
+      *압도*이므로 **자라는 축**이 여전히 없다 — 걸고 푸는 것은 값을 오르내리게 할 뿐 키우지 않는다. **GS 주입으로 그 축이 이름을 얻었다**
+      (MC-GAIN-LEVEL — 전투·탐험·발견·사건 해결이 기본값을 키운다). 없는 것은 이제 이름이 아니라 세계 쪽이다
     achieves: [MG-OVERCOME-SUPERIOR-OPPONENT]
     meaningful_difference: >
       다른 경로가 전투 중의 실행(정확한 시점·위치·이어 가는 압박)으로 이기는 데 비해,
@@ -52,20 +54,26 @@ nodes:
     implemented: PARTIAL
     requires:
       goals: []
-      capabilities: [MC-ATTACK-POWER, MC-SKILL-SCALING, MC-DEFENSE-MITIGATION, MC-COMBAT-STRIKE, MC-CP-ECONOMY]
+      capabilities: [MC-ATTACK-POWER, MC-SKILL-SCALING, MC-DEFENSE-MITIGATION, MC-COMBAT-STRIKE, MC-CP-ECONOMY,
+                     MC-GAIN-LEVEL]
+      # 마지막 하나가 GS 주입으로 들어왔다 — 이 갈래가 "자라는 축이 없다" 고 적어 두던 그
+      # 자리이며, GS §19 가 그 축을 명명한다 (전투·탐험·발견·사건 해결 → 기본값).
       knowledge: []
       world_state: []
       relationship: []
-      resource: [능력치를 올릴 장비·성장의 원천]
+      resource: [능력치를 올릴 장비 — 성장의 원천은 이제 MC-GAIN-LEVEL 이 소유한다 (GS §19)]
     supports: [MG-SURVIVE-ENEMY-OFFENSIVE]   # 방어 능력치 절반이 같은 성장에서 나온다 (R1 §8 · §12)
     opposes: []
     changes:
       - 같은 스킬·같은 상대에 대한 교환비가 성장 전후로 달라진다
     reveals: []
     creates_goal: []
-    constraints: [DC-COMBAT-PLAYER-CAUSALITY]
+    constraints: [DC-COMBAT-PLAYER-CAUSALITY, DC-GROWTH-NO-DOMINATED-ROUTE,
+                  DC-GROWTH-POWER-PAYS-IN-REACH-OR-CONSTRAINT]
     constraint_evaluation:
       DC-COMBAT-PLAYER-CAUSALITY: SATISFIED    # 같은 능력치·같은 스킬·같은 상대면 항상 같은 피해 — 난수 없음 (R1 §6)
+      DC-GROWTH-NO-DOMINATED-ROUTE: SATISFIED  # 이 갈래의 detail 이 "언제나 성립하되 가장 비싸야 한다" 를 이미 적는다 — 그것이 이 원칙의 요구다 (GB §17)
+      DC-GROWTH-POWER-PAYS-IN-REACH-OR-CONSTRAINT: UNRESOLVED   # 가장 넓은 갈래이므로 한 단계의 폭이 작아야 한다 — 그 폭은 Cycle 이 정한다 (GB §20)
 
   - id: MP-MATCH-WEAPON-TO-ARMOR
     type: possibility
@@ -235,7 +243,7 @@ nodes:
     overlay_missing: >-
       MC-AURA-ALLOCATION
     overlay_note: >-
-      Q52(a) 로 축이 셋이 되었다 — 열림이 "공격에 몰아 방어가 얇다" 에서 "능력·인지에 몰아 몸이 얇다" 로 바뀌었을 뿐 갈래는 그대로 산다
+      Q59(a) 로 축이 셋이 되었다 — 열림이 "공격에 몰아 방어가 얇다" 에서 "능력·인지에 몰아 몸이 얇다" 로 바뀌었을 뿐 갈래는 그대로 산다
     achieves: [MG-OVERCOME-SUPERIOR-OPPONENT]
     meaningful_difference: >
       상대가 스스로 만든 취약 구간을 노린다. 자원도 위치도 요구하지 않고 오직 관찰과 대기가
@@ -246,7 +254,7 @@ nodes:
       뒤집는 것이고, 이것은 상대가 힘을 다른 곳에 몰아 몸이 얇아진 구간을 **옆에서**
       때리는 것이다. 그래서 맞을 필요가 없다. 대신 그 구간이 올 때까지 기다려야 하고,
       기다리는 동안은 아무 이득도 없다.
-      **무엇이 비는가가 Q52(a) 로 바뀌었다.** 예전에는 상대가 공격에 몰면 방어가
+      **무엇이 비는가가 Q59(a) 로 바뀌었다.** 예전에는 상대가 공격에 몰면 방어가
       얇아진다고 보았는데, UL 의 세 축에서는 때리는 힘과 막는 힘이 같은 "몸" 에 함께
       들어 있다 (UL §13). 그래서 이제 노릴 자리는 상대가 자기 **능력이나 인지**에
       힘을 몰아 둔 동안이다 — 그동안 몸이 얇아 정면 타격이 잘 든다 (UL §14 의 배분은
@@ -696,7 +704,7 @@ nodes:
     overlay_missing: >-
       MC-FORTIFY · MC-AURA-ALLOCATION
     overlay_note: >-
-      Q52(a) 로 몸·능력·인지 세 축 위에 선다 — 대가가 "공격이 약해진다" 에서 "능력과 인지가 얇아진다" 로 바뀌었다
+      Q59(a) 로 몸·능력·인지 세 축 위에 선다 — 대가가 "공격이 약해진다" 에서 "능력과 인지가 얇아진다" 로 바뀌었다
     achieves: [MG-SURVIVE-ENEMY-OFFENSIVE]
     meaningful_difference: >
       한 번의 방어가 아니라 자세를 유지한다. 매 순간 자원을 흘리는 대신 판정마다 정확할
@@ -704,7 +712,7 @@ nodes:
     detail: >
       막기가 타격 하나하나에 대응하는 것이라면, 이것은 아예 몸 쪽으로 힘을 기울여
       두는 것이다. 매 순간 자원이 새지만 그동안은 판정마다 잘할 필요가 없다.
-      대가가 Q52(a) 로 바뀌었다 — 예전에는 공격이 약해지는 것이었는데, 세 축에서는
+      대가가 Q59(a) 로 바뀌었다 — 예전에는 공격이 약해지는 것이었는데, 세 축에서는
       때리는 힘도 막는 힘도 같은 "몸" 에 있으므로 얇아지는 것은 **능력과 인지**다
       (UL §13). 즉 버티는 동안 자기 기술이 작아지고 상대를 읽지 못하게 된다.
       그래서 이 갈래는 "지금은 못 이기니 상황이 바뀔 때까지 안전하게 있는다" 를
@@ -947,6 +955,75 @@ nodes:
     constraint_evaluation:
       DC-WORLD-PROGRESSION-IS-REACH: SATISFIED    # 준비의 결과도 "감당 가능한 범위" 로 나타난다 (BW §14 · §32)
       DC-WORLD-PLAYER-UNFIXED-PATH: SATISFIED     # 무엇을 준비할지는 플레이어가 고른다
+
+  - id: MP-BECOME-A-HIGHER-FORM
+    type: possibility
+    overlay_missing: >-
+      다섯 축 전부 (MC-GAIN-LEVEL · MC-GROW-CLASS-MASTERY · MC-MASTER-A-SKILL ·
+      MC-GROW-EXPLORATION-MASTERY · MC-CHANGE-CLASS) + MK-WITNESSED-WORLD-PHENOMENON + Catalyst 자원
+    overlay_note: >-
+      **한 칸도 서 있지 않다.** 다만 이 갈래가 서면 overlay 의 둘째 구멍("성장이 세계 밖에 있다")이 통째로 닫힌다 — 지금 능력치를 바꾸는
+      유일한 경로는 디버그 명령이고, GS 주입이 처음으로 그 값이 **어디에서** 올라오는지를 명명했다. 다섯 축 중 **장비 하나만 이미 서 있고**
+      (MC-EQUIP-ITEM — C023 · C024), 그것도 이 갈래가 아니라 자원으로 감당하는 갈래에 매달려 있다
+    achieves: [MG-EXPLORE-BEIRA]
+    meaningful_difference: >
+      다른 세 갈래가 **바깥에서** 감당할 것을 구해 오는 데 비해 — 겪어서 익히거나, 자원이
+      대신하게 하거나, 문명권에서 사서 준비하거나 — 이것은 **몸 자체가 상위 형태가 되어**
+      감당한다. 그래서 잃어버릴 수 없고 되돌아가지도 않는다 (물건은 잃으면 도로 못 하게
+      되지만 형태는 남는다). 대신 문턱이 넷이고 그중 둘은 세계에서만 온다 — 자기 원리와
+      관련된 강력한 현상을 직접 겪은 것과, 그 형태를 유지하는 세계의 Property (GS §6).
+    detail: >
+      GS §20 의 플레이 루프가 이 노드다 — 고유한 능력을 체험하고, 전투와 탐험으로 값을
+      올리고, 그 형태 고유의 행동으로 숙련을 올리고, 더 위험한 대지형에 들어가 자기 힘과
+      관계된 세계 현상을 겪고, Catalyst 를 얻어 상위 형태가 되고, 그래서 이전에는 상대할 수
+      없던 적과 지역에 도전한다. 마지막 칸이 이 갈래가 탐험의 갈래인 이유다: 형태가 바뀌는
+      것 자체가 목적이 아니라 **닿지 못하던 곳에 닿는 방법**이다 (DC-GROWTH-GOAL-FIRST).
+      익히는 갈래와 겹치지 않는다. 저쪽은 그 층이 무엇을 요구하는지 알아내 대응을 익히는
+      일이고, 이쪽은 그렇게 익힌 것이 몸에 쌓여 형태가 되는 일이다 — 그래서 이 갈래는
+      혼자 서지 못하고 앞선 갈래들이 만든 축적 위에서만 성립한다.
+      바뀌는 것이 값이 아니라는 점도 이 갈래의 성격이다: 외형과 실루엣이 바뀌고, Signature 가
+      강해지고, 새 Skill 과 Ultimate 와 **새 탐험 Capability** 가 함께 온다 (GS §20).
+    world_shape: >
+      몸이 형태를 가지고, 세계에서 한 일이 그 형태의 축을 키우며, 축이 차면 상위 형태가
+      되고, 그 뒤에 이전에는 감당할 수 없던 곳을 감당할 수 있어야 한다. 그리고 그 변화가
+      멀리서 보아도 읽혀야 한다 (GS §7). 형태가 바뀌어도 갈 수 있는 곳이 그대로면
+      이 갈래는 열린 것이 아니다.
+    implemented: ABSENT
+    requires:
+      goals: []
+      capabilities: [MC-CHANGE-CLASS, MC-GAIN-LEVEL, MC-GROW-CLASS-MASTERY,
+                     MC-MASTER-A-SKILL, MC-GROW-EXPLORATION-MASTERY]
+      # 앞의 하나가 문턱을 넘는 자리이고, 뒤의 넷이 그 문턱을 채우는 축이다 (GS §5 · §6 · §19).
+      # 다섯째 축(Equipment)은 이미 MC-EQUIP-ITEM 으로 서 있어 여기 다시 적지 않는다 —
+      # 그 노드가 MS-GROWTH-SOURCE 의 EQUIPMENT 자리에 함께 속한다.
+      knowledge: [MK-WITNESSED-WORLD-PHENOMENON]
+      world_state: []
+      relationship: []
+      resource: [Class Catalyst — 그 강한 형태를 유지하기 위해 필요한 세계의 Property (GS §6)]
+    supports: [MG-OVERCOME-SUPERIOR-OPPONENT]
+    # 형태가 오르면 정면으로 넘는 갈래(MP-OUTGROW-THE-OPPONENT)의 값도 함께 오른다 —
+    # 다만 그 갈래는 값으로 압도하는 일이고 이쪽은 감당하는 범위를 넓히는 일이다.
+    opposes: []
+    changes:
+      - 이전에는 감당할 수 없던 대지형·깊이를 감당하게 된다 (GS §20)
+      - 같은 능력이 전투와 탐험 양쪽에서 더 넓은 범위에 미치게 된다 (GS §4)
+      - 그 캐릭터가 어느 단계인지가 멀리서 보아도 읽힌다 (GS §7)
+    reveals: []
+    creates_goal: []
+    constraints: [DC-WORLD-PROGRESSION-IS-REACH, DC-GROWTH-GOAL-FIRST, DC-WORLD-PLAYER-UNFIXED-PATH,
+                  DC-GROWTH-CLASS-CHANGE-NEEDS-THE-WORLD, DC-GROWTH-CLASS-CHANGE-KEEPS-THE-PAST,
+                  DC-GROWTH-EXPLORATION-SHARES-THE-PRINCIPLE, DC-GROWTH-COST-IS-THE-WHOLE-BURDEN,
+                  DC-GROWTH-REWARD-IS-NEW-REACH, DC-GROWTH-NO-DOMINATED-ROUTE]
+    constraint_evaluation:
+      DC-WORLD-PROGRESSION-IS-REACH: SATISFIED    # 이 갈래의 결과가 "닿을 수 있는 범위" 로 정의된다 (GS §20 마지막 줄)
+      DC-GROWTH-GOAL-FIRST: SATISFIED             # 성장이 Goal 이 아니라 MG-EXPLORE-BEIRA 를 이루는 갈래로 서 있다
+      DC-WORLD-PLAYER-UNFIXED-PATH: SATISFIED     # 플레이어가 요정 역할을 수행하되 어느 계열을 고를지도 무엇을 하러 갈지도 강제되지 않는다 (HISTORY Q54(a))
+      DC-GROWTH-COST-IS-THE-WHOLE-BURDEN: SATISFIED   # 문턱이 넷이고 그중 둘은 자원으로 살 수 없다 (GS §6 · GB §22)
+      DC-GROWTH-REWARD-IS-NEW-REACH: SATISFIED        # 이 갈래의 값이 수치가 아니라 감당할 수 있게 되는 범위다 (GB §9)
+      DC-GROWTH-NO-DOMINATED-ROUTE: SATISFIED         # meaningful_difference 가 앞의 세 갈래와 다른 장단점을 적는다 — 잃을 수 없는 대신 문턱이 넷이다
+      DC-GROWTH-CLASS-CHANGE-NEEDS-THE-WORLD: SATISFIED       # 문턱 넷 중 둘이 세계에서만 온다 (GS §6)
+      DC-GROWTH-CLASS-CHANGE-KEEPS-THE-PAST: SATISFIED        # 이전 형태가 기반으로 남는다 (GS §3.1)
+      DC-GROWTH-EXPLORATION-SHARES-THE-PRINCIPLE: SATISFIED   # 형태가 오르면 전투와 탐험 능력이 같은 원리로 함께 넓어진다 (GS §4 · §8)
 
   # ══════════════════════════════════════════════════════════════════════
   # MG-ACQUIRE-RARE-ORGAN — 특정 생물의 기관을 얻는 갈래들

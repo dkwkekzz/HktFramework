@@ -134,9 +134,13 @@ export interface SceneSelf {
   health: number;
   healthMaximum: number;
   healthRatio: number;
+  /** 생명 막대를 부르는 말 (형식화 완료 — 예: `HP`). **기반은 이 이름을 짓지 않는다** */
+  healthLabel: string;
   energy: number;
   energyMaximum: number;
   energyRatio: number;
+  /** 기력 막대를 부르는 말 (형식화 완료 — 예: `CP`) */
+  energyLabel: string;
   downed: boolean;
   moveMode: string; // walk | run (의미 코드 — 문구는 이미 결정됐다)
   moveModeCode: string; // 요청에 쓸 원래 코드
@@ -167,7 +171,12 @@ export interface SceneHudItem {
   icon?: string;
   value: number | boolean | string;
   progress?: number; // 0..1 — 값에 진행 막대가 동반되는 경우 (C002)
-  celebrateGain?: boolean;
+  /**
+   * counter 가 늘었을 때 잠시 떠오르는 말 — **문장째** 결정 Layer 가 짓는다.
+   * `{}` 자리에 늘어난 만큼이 들어간다 (예: `+{} 돌 획득!`).
+   * 없으면 늘어도 아무것도 뜨지 않는다 — 무엇이 축하할 일인지는 팩이 정한다.
+   */
+  celebrateText?: string;
 }
 
 // 충돌체 디버그 지시 (C006 / R1) — 지면 위 캡슐·구체 부피와 화살표.
@@ -216,7 +225,11 @@ export interface SceneCommandSlot {
   required: boolean;
   hint: string; // 이 자리가 받는 것 (예: "0 … 100", "walk | run", "존재")
   options?: string[]; // 고를 수 있는 이름들 (있을 때만)
-  omittedMeaning?: string; // 비워 두면 무엇이 되는가 (문구)
+  /**
+   * 비워 두면 어떻게 되는가 — **문장째다** (예: `비우면 내 몸`).
+   * 비울 수 없는 자리에는 없다. 그리는 쪽은 "비우면" 이라는 말을 알지 못한다.
+   */
+  omittedText?: string;
 }
 
 export interface SceneCommandEntry {
@@ -224,6 +237,8 @@ export interface SceneCommandEntry {
   title: string; // 무엇을 하는가 (문구)
   /** 세계로 가는가, 관찰자 쪽에서 끝나는가 — 04 commandSurface.origin */
   origin: 'world' | 'observer';
+  /** 그 경계를 부르는 말 (형식화 완료 — 예: `세계` · `내 화면`) */
+  originText: string;
   available: boolean;
   unavailableText?: string;
   usage: string; // 어떻게 쓰는가 한 줄 (예: "set-attribute [대상] <속성> <값>")
@@ -239,6 +254,8 @@ export interface SceneCommandComposition {
   candidates: SceneCommandEntry[];
   /** 무엇을 더 적어야 하는가 — 다 채웠으면 없다 */
   nextSlot?: SceneCommandSlot;
+  /** 그 자리를 가리키는 말 (형식화 완료 — 예: `다음: 속성`). nextSlot 과 함께 온다 */
+  nextText?: string;
   /** 그 자리에 넣을 수 있는 것들 (적은 것으로 좁혀진 뒤) */
   suggestions: string[];
   /** 틀린 것이 있으면 무엇이 틀렸는지 — 걸기 전에 알려 준다 */
@@ -255,6 +272,8 @@ export interface SceneCommandHistoryLine {
 
 export interface SceneCommandSurface {
   open: boolean;
+  /** 닫는 자리를 부르는 말 (형식화 완료) — 손가락·읽어 주는 장치가 이것으로 닿는다 */
+  closeText: string;
   entries: SceneCommandEntry[];
   composition: SceneCommandComposition;
   history: SceneCommandHistoryLine[];
@@ -290,6 +309,23 @@ export interface SceneSurfaceCell {
   text: string;
   /** 칸에 곁들이는 작은 글자 (수량 등, 형식화 완료) */
   detail?: string;
+  /**
+   * 이 칸이 **얼마나 찼는가** — 0..1. 그리는 쪽은 이것을 배경의 명암으로 옮긴다.
+   *
+   * 무엇의 양인지 알지 못한다 (수량일 수도, 남은 쓰임일 수도 있다). 견주는 기준을
+   * 정하는 것도 결정 Layer 다 — 이 능력은 받은 비율을 그릴 뿐이다.
+   *
+   * **곁들이는 표시다.** 같은 값이 언제나 글자로도 서 있어야 한다 (`detail`) —
+   * 명암만으로 세는 것은 눈이 밝은 사람에게만 참인 화면이 된다.
+   */
+  level?: number;
+  /**
+   * 칸 귀퉁이에 붙는 **짧은 표식** (형식화 완료 — 예: `NEW`).
+   *
+   * 무슨 뜻인지 알지 못한다. 읽어 주는 장치에도 이 글자가 그대로 실린다 —
+   * 표식이 색이나 점이면 보이지 않는 사람에게는 없는 것과 같다.
+   */
+  badge?: string;
   /** 아무것도 없는 자리인가 — 그리는 쪽이 다르게 그린다. **빈 칸도 그려진다** */
   empty: boolean;
   /** 겪는 사람이 골라 둔 칸인가. 초점과 다른 것이다 (surface.focusId) */
@@ -305,12 +341,57 @@ export interface SceneSurfaceRow {
   state?: SceneSurfaceRowState;
 }
 
+/**
+ * 글자를 받는 자리 하나 — **표면 안에서 사람이 쳐 넣는 것**.
+ *
+ * 여기 있는 것은 지금 들어 있는 글자와 빈 자리의 안내뿐이다. 그 글자가 무엇을 하는지
+ * (거르는 말인지, 이름인지, 찾는 말인지) 이 형도 그리는 쪽도 알지 못한다 —
+ * 쳐 넣은 것을 결정 Layer 에게 돌려줄 뿐이고, 무엇이 될지는 그쪽이 정한다.
+ *
+ * **글자는 결정 Layer 가 쥔다.** 표면은 그것을 비출 뿐이다. 그리는 쪽이 자기 안에
+ * 글자를 쥐면 같은 표면을 두 번 그릴 때 둘이 어긋나고, 그때 화면에 있는 글자와
+ * 판단에 쓰인 글자가 달라진다.
+ */
+export interface SceneSurfaceField {
+  id: string;
+  /** 지금 들어 있는 글자 */
+  text: string;
+  /** 비어 있을 때 그 자리에 남는 안내 (형식화 완료) */
+  placeholder?: string;
+  /** 읽어 주는 장치를 위한 이름 — 글자가 없는 자리이므로 이것이 그 이름이다 */
+  label: string;
+  /**
+   * **지금 이 자리로 캐럿을 옮겨 달라** — 결정 Layer 의 청함이다.
+   *
+   * 표면이 열리자마자 캐럿이 여기 앉으면 방향키도 다른 키도 전부 글자가 되어,
+   * 자판으로 표면을 몰 수 없게 된다. 그래서 이 자리는 **청할 때만** 캐럿을 받는다.
+   *
+   * 참인 프레임에 한 번 옮긴다. 결정 Layer 는 이것을 **한 프레임만** 참으로 둔다 —
+   * 계속 참으로 두면 사람이 다른 곳을 눌러 빠져나가도 다음 프레임이 도로 끌어온다.
+   */
+  claimFocus?: boolean;
+}
+
+/**
+ * 칸을 어떤 꼴로 그릴 것인가 — **그리는 쪽의 결정**이며 계약에서 오지 않는다.
+ *
+ *     slot   자리 하나 (기본) — 격자에 나란히 서고 빈 자리도 자리로 읽힌다
+ *     chip   고르는 단추 — 글자만큼만 차지하고 한 줄로 흐른다.
+ *            도구 띠처럼 "무엇을 볼지" 를 고르는 자리가 물건 칸만 한 자리를 쓰면
+ *            띠가 아니라 또 하나의 격자가 된다
+ */
+export type SceneSurfaceShape = 'slot' | 'chip';
+
 /** 표면 안의 한 구획 — 칸들이거나 줄들이다 */
 export interface SceneSurfaceSection {
   id: string;
   title?: string;
-  /** 몇 칸씩 놓을 것인가 — 그리는 쪽의 결정이며 계약에서 오지 않는다 */
+  /** 몇 칸씩 놓을 것인가 — 그리는 쪽의 결정이며 계약에서 오지 않는다 (chip 은 쓰지 않는다) */
   columns?: number;
+  /** 칸의 꼴 — 없으면 `slot` 이다 */
+  shape?: SceneSurfaceShape;
+  /** 글자를 받는 자리 — 제목 아래, 칸·줄 위에 선다 */
+  field?: SceneSurfaceField;
   cells?: SceneSurfaceCell[];
   rows?: SceneSurfaceRow[];
   /** 담을 것이 없을 때 그 자리에 남길 글자 — 비어 있음과 안 그림은 다르다 */

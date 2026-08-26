@@ -1,8 +1,12 @@
 // Web HUD — HUD Capability 엔진. counter / flag 위젯 · 프롬프트 · 획득 토스트 ·
 // entity 라벨을 그릴 뿐, 라벨·아이콘·문구는 전부 Snapshot 의 지시를 그대로 표시한다.
+//
+// **사람이 읽을 말을 하나도 짓지 않는다.** 자원 막대의 이름(HP·CP)도, 늘어난 것을
+// 축하하는 말도, 조작 안내의 줄도 전부 실려 온다 — 짓는 자리는 팩의 문구 표 하나다
+// (design/Design-System-Content-Separation.md 남은 부채 ②).
 
 import type { SessionPresentation } from '../presentation/session-presentation';
-import type { SceneState } from '../scene/scene-state';
+import type { SceneHudItem, SceneState } from '../scene/scene-state';
 
 export interface EntityLabel {
   /** 어느 몸의 것인가 — 프레임 사이에 같은 요소를 이어 쓰기 위한 키 */
@@ -52,6 +56,25 @@ export interface Hud {
     session?: SessionPresentation,
     overlays?: HudOverlays,
   ): void;
+}
+
+/**
+ * 늘어난 것을 축하하는 말 — **브라우저 없이 확인할 수 있는 자리**로 빼 둔다.
+ *
+ * 이 함수는 무엇이 늘었는지 모른다. 문장은 실려 오고(`celebrateText`) 여기서 하는 일은
+ * `{}` 자리에 늘어난 만큼을 끼우는 셈뿐이다 — 셈은 기반의 것이고 말은 팩의 것이다
+ * (design/Design-System-Content-Separation.md 남은 부채 ②).
+ *
+ * 처음 본 값에는 뜨지 않는다 — 세계에 이어 붙은 순간 지니고 있던 것 전부가 방금 얻은
+ * 것처럼 쏟아지면 그것은 축하가 아니라 소음이다.
+ */
+export function celebrationText(
+  item: Pick<SceneHudItem, 'celebrateText'>,
+  previous: number | undefined,
+  value: number,
+): string | undefined {
+  if (!item.celebrateText || previous === undefined || value <= previous) return undefined;
+  return item.celebrateText.replace('{}', String(value - previous));
 }
 
 /** 값이 그대로면 DOM 을 건드리지 않는다 — 프레임마다 글자를 다시 래스터화하지 않게 한다 */
@@ -215,10 +238,10 @@ export function createHud(container: HTMLElement): Hud {
         if (item.widget === 'counter') {
           const value = item.value as number;
           parts.push(`<span class="hud-item">${item.icon ?? ''} ${item.label}: ${value}</span>`);
-          // 획득 토스트 — celebrateGain 지시가 있는 counter 의 증가를 표시
-          const prev = lastCounters.get(item.id);
-          if (item.celebrateGain && prev !== undefined && value > prev) {
-            toast.textContent = `+${value - prev} ${item.label} 획득!`;
+          // 획득 토스트 — celebrateText 지시가 있는 counter 의 증가를 표시
+          const gained = celebrationText(item, lastCounters.get(item.id), value);
+          if (gained !== undefined) {
+            toast.textContent = gained;
             toastUntil = performance.now() + 1600;
           }
           lastCounters.set(item.id, value);
@@ -238,21 +261,15 @@ export function createHud(container: HTMLElement): Hud {
       items.innerHTML = parts.join('');
       toast.style.opacity = performance.now() < toastUntil ? '1' : '0';
 
-      // 조작 안내 — 이동(엔진 기본) + 키 지시가 있는 interaction
-      // 같은 키·프롬프트가 대상 수만큼 오더라도 안내는 한 줄이다
-      // 충돌체 관찰 토글은 View 자체 기능이라 엔진 기본 안내에 둔다 (C006)
-      // 속성 관찰 토글도 View 자체 기능이라 엔진 기본 안내에 둔다 (C007 R2)
-      // C009 — 명령 표면을 여는 안내가 맨 위다. 여기부터가 "무엇을 할 수 있는지"의
-      // 입구이며, 아래 두 줄은 그 목록에도 있는 것의 지름길이다.
-      const keyLines = new Set([
-        '명령: /',
-        '이동: WASD / 방향키',
-        '충돌체 관찰: C',
-        '속성 관찰: V',
-      ]);
-      // 팩이 보탠 줄 — 엔진 기본 바로 아래다. 팩의 여는 키들은 세계의 interaction 이
-      // 아니라 화면 자신의 규칙이므로 아래 목록으로는 영영 오지 않는다
-      for (const line of scene.keyHints ?? []) keyLines.add(line);
+      // 조작 안내 — 실려 온 줄 + 키 지시가 있는 interaction.
+      // 같은 키·프롬프트가 대상 수만큼 오더라도 안내는 한 줄이다.
+      //
+      // **엔진 기본 넷(명령 · 이동 · 충돌체 관찰 · 속성 관찰)이 여기서 사라졌다.**
+      // 기반이 먼저 가져가는 키가 무엇인지는 기반이 알지만(input/keyboard.ts 의
+      // MOVE_KEY_CODES · TURN_KEY_CODES · hud/engine-keys.ts), 그것을 **무엇이라
+      // 부르는지**는 팩의 말이다. 이제 그 넷도 keyHints 를 타고 온다 —
+      // 팩이 자기 다섯을 얹던 자리에 함께 선다.
+      const keyLines = new Set<string>(scene.keyHints ?? []);
       for (const i of scene.interactions) {
         if (i.key && i.prompt) keyLines.add(`${i.prompt}: ${i.keyLabel ?? i.key}`);
       }
@@ -281,10 +298,10 @@ export function createHud(container: HTMLElement): Hud {
         const s = scene.self;
         selfPanel.dataset.downed = String(s.downed);
         selfPanel.innerHTML =
-          `<span class="hud-self-row"><b>HP</b>` +
+          `<span class="hud-self-row"><b>${s.healthLabel}</b>` +
           `<span class="hud-self-bar" data-kind="hp"><i style="width:${Math.round(s.healthRatio * 100)}%"></i></span>` +
           `<em>${s.health} / ${s.healthMaximum}</em></span>` +
-          `<span class="hud-self-row"><b>CP</b>` +
+          `<span class="hud-self-row"><b>${s.energyLabel}</b>` +
           `<span class="hud-self-bar" data-kind="cp"><i style="width:${Math.round(s.energyRatio * 100)}%"></i></span>` +
           `<em>${s.energy} / ${s.energyMaximum}</em></span>` +
           `<span class="hud-self-mode">${s.moveMode}</span>` +

@@ -11,11 +11,15 @@
 // ── 이 표가 담는 것과 담지 않는 것 ───────────────────────────────────
 //
 //     담는다      팩이 자기 규칙으로 듣는 키 (`view/bindings.ts` 의 KEY_BINDINGS) 와
-//                 그 키가 화면에 뜰 때의 표기
+//                 그 키가 화면에 뜰 때의 표기.
+//                 기반이 먼저 가져가는 자리에 **줄 이름**도 담는다 (아래 ENGINE_KEY_TEXT) —
+//                 코드는 기반이 소유하고(ENGINE_KEYS) 사람이 읽는 말은 팩의 것이다
 //     담지 않는다  interaction 의 키 (`interaction-presentation.ts` 가 이미 role 마다
 //                 하나씩 쥐고 있다 — 그쪽은 세계가 실어 온 목록에 붙는다)
-//                 엔진이 먼저 가져가는 키 (이동·시점 — RESERVED_KEY_CODES 가 사본을 쥔다)
+//                 기반 키의 **코드** (원본은 `engine/view-kernel/input/engine-keys.ts`)
 //
+import { ENGINE_KEYS, type EngineKeyId } from '../../../engine/view-kernel/input/engine-keys';
+
 // 검사는 `view/tests/key-hints.spec.ts` 가 한다. 표기가 코드에서 나오므로 "둘이
 // 어긋난다" 는 이제 **다른 형태**로만 일어난다 — 등록했는데 듣지 않거나, 듣는데
 // 등록하지 않거나, 남이 먼저 가져간 키를 등록하는 것. 검사가 그 셋을 잡는다.
@@ -29,6 +33,9 @@ const LABEL_OF_CODE: Record<string, string> = {
   KeyN: 'N',
   KeyM: 'M',
   KeyI: 'I',
+  KeyJ: 'J',
+  KeyK: 'K',
+  KeyL: 'L',
   KeyQ: 'Q',
   Comma: ',',
   Enter: 'Enter',
@@ -50,10 +57,14 @@ export interface PackKey {
   /**
    * 표면이 열린 동안에만 듣는가.
    *
-   * 방향키와 Enter 가 그렇다. 이 키들은 평소 엔진이 이동으로 먼저 가져가지만
-   * (RESERVED_KEY_CODES), 표면이 열리면 조립 루트가 이동을 멈추므로 팩까지 온다
-   * (`app/main.ts` 의 suspendMovement). **그 사정을 여기 적어 두지 않으면**
-   * 아래 검사가 "남이 먼저 가져간 키" 로 잡는다.
+   * 두 갈래가 이 자리에 온다.
+   *
+   *   ① 엔진이 평소 삼키는 키 — 방향키와 Enter. 표면이 열리면 조립 루트가 이동을
+   *      멈추므로 팩까지 온다 (`app/main.ts` 의 suspendMovement). **그 사정을 여기
+   *      적어 두지 않으면** 아래 검사가 "남이 먼저 가져간 키" 로 잡는다
+   *   ② 표면 안에서만 뜻이 있는 키 — 분류·보기 정렬 (V-008). 닫혀 있을 때 눌러도
+   *      아무 일이 없으므로 늘 떠 있는 안내 패널에 두면 거짓이 된다. 그 안내는
+   *      표면 자신의 아래 줄이 지닌다
    */
   whileSurfaceOpen?: boolean;
   /**
@@ -107,6 +118,12 @@ export const PACK_KEYS = {
   actionUp: { code: 'ArrowUp', what: '행동', whileSurfaceOpen: true },
   actionDown: { code: 'ArrowDown', what: '행동', whileSurfaceOpen: true },
   invoke: { code: 'Enter', what: '실행', whileSurfaceOpen: true },
+  // 많은 것 중에서 찾는 자리 (V-008 · 문서 §6) — 작업 공간이 열린 동안에만 뜻이 있다
+  viewFilter: { code: 'KeyJ', what: '분류', whileSurfaceOpen: true },
+  viewOrder: { code: 'KeyK', what: '보기 정렬', whileSurfaceOpen: true },
+  // 글자 자리로 가는 길 (V-009) — Tab 은 화면의 다른 단추들을 먼저 지나므로
+  // 자판만 쓰는 사람에게는 이것이 그 자리에 닿는 길이다
+  viewSearch: { code: 'KeyL', what: '이름으로 찾기', whileSurfaceOpen: true },
   close: {
     code: 'Escape',
     what: '닫기',
@@ -156,9 +173,36 @@ export const SLOT_KEY_IDS = [
 export const SLOT_KEY_LABELS: readonly string[] = SLOT_KEY_IDS.map((id) => keyLabel(id));
 
 /**
- * 조작 안내 패널에 설 줄들 (V-005) — `<무엇>: <표기>` 꼴이며 엔진의 줄과 같은 모양이다.
+ * 기반이 먼저 가져가는 자리에 **팩이 주는 이름** (기반 부채 ②).
  *
- * **여기 서는 것은 팩만의 키다.** 셋을 뺀다.
+ * 그 넷은 지금까지 `engine/view-kernel/hud/hud.ts` 안에 한국어 문장으로 박혀 있었다 —
+ * 팩을 갈아 끼워도 그 줄만은 이 세계의 말로 떠 있었다는 뜻이다. 코드는 여전히 기반의
+ * 것이고(어느 키를 먼저 삼키는지는 기반이 안다), **부르는 말만** 여기로 왔다.
+ *
+ * 시점(`turn`)은 뺀다 — 지금까지도 안내에 서지 않았고, 이 작업은 말의 자리를 옮길 뿐
+ * 화면에 없던 줄을 새로 세우지 않는다.
+ */
+const ENGINE_KEY_TEXT: Partial<Record<EngineKeyId, { what: string; keys: string }>> = {
+  // 명령이 맨 위다 — 여기부터가 "무엇을 할 수 있는지" 의 입구이고,
+  // 아래 둘은 그 목록에도 있는 것의 지름길이다 (C009)
+  command: { what: '명령', keys: '/' },
+  move: { what: '이동', keys: 'WASD / 방향키' },
+  colliderObserve: { what: '충돌체 관찰', keys: 'C' },
+  attributeInspect: { what: '속성 관찰', keys: 'V' },
+};
+
+/** 기반 키의 안내 줄 — 패널의 위 네 줄이다 */
+export function engineKeyHints(): string[] {
+  return (Object.keys(ENGINE_KEYS) as EngineKeyId[])
+    .filter((id) => ENGINE_KEY_TEXT[id] !== undefined)
+    .map((id) => `${ENGINE_KEY_TEXT[id]!.what}: ${ENGINE_KEY_TEXT[id]!.keys}`);
+}
+
+/**
+ * 조작 안내 패널에 설 줄들 (V-005 · 기반 부채 ②) — `<무엇>: <표기>` 꼴이다.
+ * 기반 키 넷이 먼저 서고 팩의 키가 그 아래에 선다.
+ *
+ * **팩 쪽에서 여기 서는 것은 팩만의 키다.** 셋을 뺀다.
  *   · 표면이 열린 동안에만 듣는 키 (방향키·Enter) — 그 안내는 표면 자신의 아래 줄이
  *     이미 지닌다. 늘 떠 있는 패널에 두면 표면이 닫혀 있을 때 거짓이 된다
  *   · 칸 번호 아홉 — 무엇을 부르는지가 소지품 줄에 이미 번호로 붙어 있다
@@ -170,11 +214,14 @@ export const SLOT_KEY_LABELS: readonly string[] = SLOT_KEY_IDS.map((id) => keyLa
  * 바꿔 걸기.
  */
 export function panelKeyHints(): string[] {
-  return packKeys()
-    .filter((k) => !k.whileSurfaceOpen && k.boundBy !== 'engine' && k.shadows === undefined)
-    .filter((k) => k.sameAs === undefined)
-    .filter((k) => !k.code.startsWith('Digit'))
-    .map((k) => `${k.what}: ${keyLabel(k.id as PackKeyId)}`);
+  return [
+    ...engineKeyHints(),
+    ...packKeys()
+      .filter((k) => !k.whileSurfaceOpen && k.boundBy !== 'engine' && k.shadows === undefined)
+      .filter((k) => k.sameAs === undefined)
+      .filter((k) => !k.code.startsWith('Digit'))
+      .map((k) => `${k.what}: ${keyLabel(k.id as PackKeyId)}`),
+  ];
 }
 
 /** 검증용 — 표가 쥔 전부 */
