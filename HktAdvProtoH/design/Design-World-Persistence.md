@@ -1,6 +1,7 @@
 # Design — 세계의 영속과 복구
 
-status: DRAFT — Human 승인 대기 (승인 시 ENGINE 레인이 구현에 착수한다)
+status: IMPLEMENTED — 검증은 `engine/world-kernel/tests/persistence.spec.ts`(커널 계약) ·
+`content/proto-adventure/world/tests/persistence.spec.ts`(팩 실측)가 상시 확인한다
 
 ## 목적
 
@@ -62,22 +63,33 @@ INTENT-OBSERVER-REJOIN-001 이 이미 소유하고, 영속은 그 의미가 성�
 상태인데 캔 돌은 가방에 없는 세계). 복구란 "Tick N 이 끝난 순간의 세계"를
 통째로 다시 붙드는 것이다.
 
-## 계약 (형태 제안)
+## 계약
 
 ```text
-engine/world-kernel
-  World.snapshot(): WorldSnapshot        Tick 사이에 현재 State 를 데이터로 내놓는다
+engine/world-kernel/persistence.ts
   WorldSnapshot = { version: string, state: <팩 State, plain JSON 데이터> }
-  복구 = createWorldKernel(snapshot.state, content)  — 커널은 이미 State 를 받아
-    조립되므로 새 개념이 없다. 복구 경로가 observers[].present 를 false 로 눕힌다
+  takeSnapshot(version, state)      복제해 담는다 — 이후의 세계 진행이 스냅샷을 못 건드린다
+  restoreState(snapshot, version)   되살린다 — 버전 불일치면 null. 복구 시 Engine 이
+                                    손대는 유일한 지점: 모든 observers[].present = false
+
+engine/world-kernel/kernel.ts
+  World.snapshot(): WorldSnapshot   Tick 사이에 현재 State 를 데이터로 내놓는다.
+                                    버전은 WorldContent.stateVersion — 팩이 선언하고 올린다
 
 content/<pack>/world/index.ts
-  createWorld(setup, restored?) — restored 가 있으면 초기 배치 대신 그 State 로
-    커널을 조립한다. 팩이 소유하는 것은 초기 배치뿐이며 복구 State 는 해석하지 않는다
+  createWorld(setup, restored?)     restored 가 있으면 초기 배치 대신 그 State 로 커널을
+                                    조립한다. 팩은 복구 State 를 해석하지 않는다
+  restoreWorld(snapshot)            restoreState 를 자기 STATE_VERSION 으로 부른다
+                                    (STATE_VERSION 은 semantic/world-state.ts 헤더 상수)
 
 server/ (조립 — 세계를 띄우는 쪽)
-  저장 어댑터: 파일 하나(JSON). 기동 시 있으면 복구, 없으면 초기 배치.
-  저장 시점: 주기 저장(기본 5초, 조정 가능) + 정상 종료(Ctrl+C) 시 마지막 저장.
+  world-store.ts                    파일 하나(JSON) 어댑터 — 임시 파일 + rename 이라
+                                    저장 도중 죽어도 직전 스냅샷이 깨지지 않는다
+  main.ts                           기동 시 있으면 복구, 없으면 초기 배치. 주기 저장 +
+                                    정상 종료(SIGINT/SIGTERM) 시 저장. 조정 손잡이:
+                                    HKT_WORLD_SAVE(자리, 기본 .world/snapshot.json) ·
+                                    HKT_WORLD_SAVE_INTERVAL_MS(주기 ms, 기본 5000,
+                                    0 이하 = 저장 끔)
   Tick 마다 저장하지 않는 이유: 프로토타입에서 직렬화 비용 대비 얻는 것이 없고,
   비정상 종료 시 최근 몇 초의 유실은 정직한 한계로 받아들인다
 ```
@@ -96,14 +108,14 @@ Cycle 마다 State 형태가 자라는 프로토타입에서 마이그레이션 
 
 ## 검증
 
-Engine 테스트로 닫는다 (`engine/world-kernel/tests/`):
+두 층의 테스트가 상시 확인한다 (`npm test`):
 
-1. 세계 진행 → 스냅샷 → 새 커널로 복구 → 자리·소지품·장비·광맥 잔량이 동일하다
-2. 복구 직후 모든 관찰자의 present 가 false 이고, 같은 Id 로 재참여하면 새 몸이
-   생기지 않고 이전 몸이 이어진다 — "걸어 둔 것이 재접속 후 그대로" 의 실측
-3. 결정론: 같은 세계를 (a) 끊김 없이 2N Tick (b) N Tick → 스냅샷 → 복구 → N Tick
-   돌린 결과가 동일하다
-4. 버전 불일치 스냅샷은 복구되지 않고 새 세계가 뜬다
+1. 커널 계약 (`engine/world-kernel/tests/persistence.spec.ts` — 인라인 최소 팩, content
+   무의존): 스냅샷 격리 · present=false 와 재참여 시 몸 이어짐 · 결정론(끊김 없이
+   2N Tick == N Tick → 스냅샷 → 복구 → N Tick) · 버전 불일치 거부
+2. 팩 실측 (`content/proto-adventure/world/tests/persistence.spec.ts`): 소지품·장비·
+   광맥 잔량이 스냅샷을 거쳐 그대로다 — "걸어 둔 것이 재접속 후 그대로" 의 실측 —
+   그리고 자율 존재가 있는 기본 배치 세계의 결정론이 스냅샷을 거쳐도 이어진다
 
 ## 레인과 경계
 
@@ -111,13 +123,5 @@ Engine 테스트로 닫는다 (`engine/world-kernel/tests/`):
   works.md 의 ENGINE 쓰기 범위(`engine/`)에 조립 층(`server/`)이 어느 레인
   소유인지 공백이 있다. 이 작업 한정으로 engine+server 를 한 몸으로 보되,
   공백 자체는 PROCESS 레인에 보고한다.
-- `content/` 는 `createWorld` 의 restored 인자 한 줄 외에 열리지 않는다.
-  팩 채택이 필요한 시점에 그 한 줄이 컨텐츠 쪽 작업으로 함께 확인된다.
-
-## Human 결정
-
-| 질문 | 제안 |
-|---|---|
-| 이 설계로 구현 착수하는가 | — |
-| 저장 시점 | 주기 5초 + 정상 종료 시 (조정 가능한 값으로 노출) |
-| 버전 불일치 정책 | 복구 포기 + 새 세계 + 로그 (마이그레이션 없음) |
+- `content/` 는 팩 채택 최소분만 열린다 — `createWorld` 의 restored 인자 ·
+  `restoreWorld` · `STATE_VERSION` 상수 (proto-adventure 와 blank 두 팩 모두).

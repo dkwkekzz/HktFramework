@@ -30,6 +30,11 @@ export interface WorldContent<S extends CoreWorldState> {
   /** World.TickInterval — 세계의 시계가 도는 주기 (초). 결정론 시뮬레이션 값이다 */
   tickInterval: number;
   /**
+   * 팩 id + State 형태 버전 — 스냅샷에 찍힌다 (persistence.ts). State 의 형태를
+   * 바꾼 Cycle 이 이 값을 올릴 책임을 진다. 불일치 스냅샷은 복구되지 않는다.
+   */
+  stateVersion: string;
+  /**
    * 처음 보는 관찰자의 몸을 만들고 Actor.Id 를 돌려준다 (RULE-OBSERVER-JOIN-001 의 몸 부분).
    * 어떤 몸인지(종류·자리·소지품)는 컨텐츠가 정하고, 언제 만들어지는지는 Engine 이 정한다.
    */

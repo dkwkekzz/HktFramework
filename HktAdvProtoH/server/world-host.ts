@@ -14,7 +14,13 @@
 import type { ActionRequest } from '../engine/protocol-core/actions';
 import type { GameViewSnapshot, RequestOutcomeView } from '../engine/protocol-core/gameview';
 import { startWorldClock, type WorldClock } from '../engine/world-kernel/clock';
-import { createWorld, TICK_INTERVAL, type World, type WorldSetup } from '../content/active';
+import {
+  createWorld,
+  TICK_INTERVAL,
+  type World,
+  type WorldSetup,
+  type WorldState,
+} from '../content/active';
 
 export type Observer = (snapshot: GameViewSnapshot) => void;
 
@@ -53,8 +59,9 @@ export interface WorldHost {
   world: World;
 }
 
-export function createWorldHost(setup: WorldSetup = {}): WorldHost {
-  const world = createWorld(setup);
+// restored — 스냅샷에서 되살린 State (restoreWorld). 있으면 세계는 그 순간부터 이어진다.
+export function createWorldHost(setup: WorldSetup = {}, restored?: WorldState): WorldHost {
+  const world = createWorld(setup, restored);
   const links = new Map<string, Link>();
   let clock: WorldClock | null = null;
 

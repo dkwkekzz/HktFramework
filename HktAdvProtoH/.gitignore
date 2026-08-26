@@ -1,6 +1,9 @@
 node_modules/
 dist/
 
+# 세계 스냅샷 — server/world-store.ts 가 쓰는 영속 파일 (로컬 세계의 것이다)
+.world/
+
 # Master Graph 뷰어 — npm run master:graph 가 만드는 생성물 (GRAPH.md 만 커밋한다)
 content/*/master/graph/graph-view.html
 content/*/master/graph/graph-view.artifact.html

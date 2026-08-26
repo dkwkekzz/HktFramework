@@ -30,7 +30,7 @@ Feedback · BACKLOG)를 겹쳐 `LANES.html` 로 그린다. `npm run lanes:check`
 | WORLD·COMBAT | BLOCKED | 후보 0 — FR-THE-SHAPE-IS-DATA 가 C025 로 닫혔다 | MASTER 의 OPTIONS(Q35) 가 후보를 낳는 것 |
 | VIEW | OPEN | BACKLOG 다음 항목(request-feedback)부터 — equipment-panel 은 아래 충돌 칸 | 없음 |
 | MASTER | BLOCKED | OPTIONS Q35 (몸이 아닌 존재를 요구하는 Possibility) | FEEDBACK 의 병합 (미처리 Feedback 이 먼저다) |
-| ENGINE | OPEN | 기반 부채 하나 — 표시 문구를 사유 코드로 바꿔 팩에 회수 (C009 폭이 넓고 조립·팩 채택 동반 — 착수 전 범위 확인). 영속(저장·복구)은 설계 승인 대기 — 아래 HUMAN 대기 | 없음 |
+| ENGINE | OPEN | 기반 부채 하나 — 표시 문구를 사유 코드로 바꿔 팩에 회수 (C009 폭이 넓고 조립·팩 채택 동반 — 착수 전 범위 확인) | 없음 |
 | PROCESS | HOLD | 없음 | — (공정 변경 중에는 다른 레인을 새로 띄우지 않는다) |
 
 ## 레인 사이 충돌 — 순서가 아니라 파일이 겹치는 곳
@@ -52,4 +52,3 @@ Human 이 답하면 풀리는 것들이다. 답의 자리는 괄호가 가리킨
 | Q37 — 자리에 이름을 줄 것인가 (open-questions.md) | FR-ARRANGE-WHAT-YOU-CARRY 존치/삭제 |
 | Design-Creature-Behavior-R0.md 승인 | Inject → MC-PREDICT · MC-OBSERVE 습성 해금 |
 | Design-Resource-Catalog-R0.md 승인 | Inject → Q36 · 회복 아이템 해금 |
-| Design-World-Persistence.md 승인 (루트 design/) | ENGINE 영속(스냅샷·복구) 구현 착수 |
