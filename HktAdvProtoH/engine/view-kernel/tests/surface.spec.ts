@@ -180,3 +180,86 @@ describe('surfaceMarkup — 표면 하나의 표시 지시', () => {
     expect(surfaceMarkup(surface({ footer: ['닫기 Esc'] }))).toContain('닫기 Esc');
   });
 });
+
+// ── 글자를 받는 자리 · 칸의 꼴 ───────────────────────────────────────
+//
+// 두 원소 모두 **무엇을 위한 것인지 알지 못한다.** 실려 온 글자를 비추고, 실려 온
+// 꼴대로 그릴 뿐이다.
+
+describe('글자를 받는 자리 (SceneSurfaceField)', () => {
+  const withField = (text: string) =>
+    surfaceMarkup(
+      surface({
+        sections: [
+          {
+            id: 'tools',
+            field: { id: 'search', text, placeholder: '이름으로 찾기', label: '이름으로 찾기' },
+            cells: [{ id: 'c0', text: '전체', empty: false, selected: true }],
+          },
+        ],
+      }),
+    );
+
+  it('실려 온 글자를 그대로 비춘다 — 그리는 쪽이 쥐지 않는다', () => {
+    expect(withField('곡')).toContain('value="곡"');
+    expect(withField('')).toContain('value=""');
+  });
+
+  it('빈 자리의 안내와 읽어 주는 이름을 가진다 — 글자가 없는 자리이기 때문이다', () => {
+    const html = withField('');
+    expect(html).toContain('placeholder="이름으로 찾기"');
+    expect(html).toContain('aria-label="이름으로 찾기"');
+  });
+
+  it('되돌아오는 열쇠를 지닌다 — 어느 자리에 쳐 넣었는지 결정 Layer 가 짚는다', () => {
+    expect(withField('')).toContain('class="sf-field" data-id="search"');
+  });
+
+  it('글자에 든 따옴표가 자리를 깨뜨리지 않는다', () => {
+    expect(withField('"곡"')).toContain('value="&quot;곡&quot;"');
+  });
+
+  it('그 자리가 없으면 아무것도 그리지 않는다', () => {
+    expect(surfaceMarkup(surface())).not.toContain('sf-field');
+  });
+
+  it('캐럿을 청했는지가 실려 온다 — 청하지 않으면 캐럿은 그대로 있다', () => {
+    const claim = (claimFocus?: boolean) =>
+      surfaceMarkup(
+        surface({
+          sections: [
+            {
+              id: 'tools',
+              field: { id: 'search', text: '', label: '찾기', ...(claimFocus ? { claimFocus } : {}) },
+              cells: [],
+            },
+          ],
+        }),
+      );
+    expect(claim()).toContain('data-claim-focus="false"');
+    expect(claim(true)).toContain('data-claim-focus="true"');
+  });
+});
+
+describe('칸의 꼴 (shape)', () => {
+  const shaped = (shape?: 'slot' | 'chip') =>
+    surfaceMarkup(
+      surface({
+        sections: [
+          {
+            id: 'tools',
+            ...(shape ? { shape } : {}),
+            cells: [{ id: 'c0', text: '전체', empty: false, selected: true }],
+          },
+        ],
+      }),
+    );
+
+  it('밝히지 않으면 자리다 — 지금까지 그리던 그대로', () => {
+    expect(shaped()).toContain('data-shape="slot"');
+  });
+
+  it('띠라고 밝히면 띠로 그린다 — 무엇을 고르는 띠인지는 묻지 않는다', () => {
+    expect(shaped('chip')).toContain('data-shape="chip"');
+  });
+});

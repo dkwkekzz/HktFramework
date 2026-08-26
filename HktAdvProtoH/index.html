@@ -264,6 +264,23 @@
       display: grid; gap: 6px;
       grid-template-columns: repeat(var(--sf-columns, 6), minmax(0, 1fr));
     }
+    /* 도구 띠의 칸 — **고르는 단추이지 자리가 아니다.** 글자만큼만 차지하고 한 줄로
+       흐른다. 물건 칸과 같은 크기로 그리면 띠가 아니라 또 하나의 격자가 된다 */
+    .sf-cells[data-shape="chip"] {
+      display: flex; flex-wrap: wrap; gap: 6px;
+    }
+    .sf-cells[data-shape="chip"] .sf-cell {
+      min-height: 0; padding: 5px 12px; border-radius: 999px;
+      flex-direction: row; gap: 6px;
+    }
+    /* 글자를 받는 자리 — 표면 안에서 유일하게 자판을 붙잡는 원소다 */
+    .sf-field {
+      display: block; width: 100%; margin-bottom: 8px;
+      background: #0f141d; border: 1px solid #2c3648; border-radius: 6px;
+      color: #eaf0ff; font: inherit; font-size: 13px; padding: 7px 10px;
+    }
+    .sf-field::placeholder { color: #6c7789; }
+    .sf-field:focus { outline: 2px solid #ffd98a; outline-offset: 1px; border-color: #6d7f99; }
     .sf-cell {
       display: flex; flex-direction: column; align-items: center; justify-content: center;
       gap: 2px; min-height: 58px; padding: 6px 4px;

@@ -11,6 +11,8 @@
 //   · 초점 링을 고른 것과 **다르게** 그리는 일
 //   · **눌리면 그 칸·줄의 id 를 돌려주는 일** — 한 번 누름 · 두 번 누름 · 목록 청함이
 //     서로 다른 소식이다. 무슨 뜻인지는 결정 Layer 가 정한다 (슬롯 띠와 같은 규칙)
+//   · **글자를 받아 그대로 돌려주는 일** (SceneSurfaceField) — 그 글자가 무엇을 하는지
+//     알지 못한다. 쥐고 있지도 않는다: 실려 온 것을 비추고, 쳐 넣은 것을 돌려준다
 //
 // 이 능력이 소유하지 않는 것:
 //   · 무엇이 고른 것인가 (cell.selected 로 실려 온다 — 결정 Layer 가 쥔다)
@@ -39,6 +41,14 @@ export interface SurfaceHandlers {
   onMenuCell?(surfaceId: string, cellId: string): void;
   /** 줄이 눌렸다 — 되는 줄인지 안 되는 줄인지는 묻지 않는다 (state 는 실려 온 것이다) */
   onPressRow?(surfaceId: string, rowId: string): void;
+  /**
+   * 글자 받는 자리에 무언가 쳐 넣었다 — **그 글자를 그대로 돌려준다.**
+   *
+   * 그리는 쪽은 이 글자를 쥐지 않는다. 결정 Layer 가 받아 자기 상태로 삼고, 다음
+   * 프레임의 `field.text` 로 되돌아온다. 그래서 화면에 있는 글자와 판단에 쓰인 글자가
+   * 갈라질 자리가 없다.
+   */
+  onFieldInput?(surfaceId: string, fieldId: string, text: string): void;
 }
 
 function escape(text: string): string {
@@ -51,12 +61,26 @@ function escape(text: string): string {
 function renderSection(section: SceneSurfaceSection, focusId: string | undefined): string {
   const title = section.title ? `<div class="sf-section-title">${escape(section.title)}</div>` : '';
 
+  // 글자를 받는 자리 — 제목 아래, 칸·줄 위. **글자는 실려 온 것을 비출 뿐이다.**
+  const field = section.field;
+  const head =
+    title +
+    (field
+      ? `<input type="text" class="sf-field" data-id="${escape(field.id)}"` +
+        ` value="${escape(field.text)}"` +
+        (field.placeholder ? ` placeholder="${escape(field.placeholder)}"` : '') +
+        ` aria-label="${escape(field.label)}"` +
+        ` data-claim-focus="${field.claimFocus === true}"` +
+        ` autocomplete="off" spellcheck="false" />`
+      : '');
+
   // 칸들 — **빈 칸도 그린다.** 남은 자리가 자리로 읽히는 것이 이 원소의 값어치다.
   if (section.cells) {
     if (section.cells.length === 0 && section.emptyText) {
-      return `<div class="sf-section">${title}<div class="sf-empty">${escape(section.emptyText)}</div></div>`;
+      return `<div class="sf-section">${head}<div class="sf-empty">${escape(section.emptyText)}</div></div>`;
     }
     const columns = section.columns && section.columns > 0 ? section.columns : 6;
+    const shape = section.shape ?? 'slot';
     const cells = section.cells
       .map((cell) => {
         // 접근성 이름 — 이름과 곁글자를 한 줄로. **빈 자리도 이름을 가진다**
@@ -75,15 +99,16 @@ function renderSection(section: SceneSurfaceSection, focusId: string | undefined
       })
       .join('');
     return (
-      `<div class="sf-section">${title}` +
-      `<div class="sf-cells" style="--sf-columns:${columns}" role="group">${cells}</div></div>`
+      `<div class="sf-section">${head}` +
+      `<div class="sf-cells" data-shape="${shape}" style="--sf-columns:${columns}"` +
+      ` role="group">${cells}</div></div>`
     );
   }
 
   // 줄들 — 되는 것도 안 되는 것도 여기 선다. 안 되는 것이 목록에서 빠지지 않는다
   const rows = section.rows ?? [];
   if (rows.length === 0 && section.emptyText) {
-    return `<div class="sf-section">${title}<div class="sf-empty">${escape(section.emptyText)}</div></div>`;
+    return `<div class="sf-section">${head}<div class="sf-empty">${escape(section.emptyText)}</div></div>`;
   }
   const body = rows
     .map((row) => {
@@ -123,7 +148,7 @@ function renderSection(section: SceneSurfaceSection, focusId: string | undefined
       );
     })
     .join('');
-  return `<div class="sf-section">${title}<div class="sf-rows">${body}</div></div>`;
+  return `<div class="sf-section">${head}<div class="sf-rows">${body}</div></div>`;
 }
 
 /**
@@ -180,6 +205,26 @@ export function createSurfaceLayer(container: HTMLElement, handlers: SurfaceHand
   function surfaceOf(target: HTMLElement | null): string | undefined {
     return target?.closest<HTMLElement>('.sf')?.dataset.surface;
   }
+
+  // 쳐 넣은 글자를 그대로 돌려준다 — 쥐지 않는다.
+  root.addEventListener('input', (ev) => {
+    const target = ev.target as HTMLElement | null;
+    const field = target?.closest<HTMLInputElement>('.sf-field');
+    const surfaceId = surfaceOf(target);
+    if (!field || field.dataset.id === undefined || !surfaceId) return;
+    handlers.onFieldInput?.(surfaceId, field.dataset.id, field.value);
+  });
+
+  // 글자를 쓰는 동안 그 키는 **그 자리의 것이다.** 여기서 멈추지 않으면 같은 키가
+  // 세계로도 나가, 이름을 치는 동안 몸이 움직이거나 표면의 규칙이 함께 불린다.
+  // Escape 만은 흘려보낸다 — 닫는 길은 붙잡는 단계가 이미 지니고 있고
+  // (위 keydown), 그것마저 막으면 자판으로 이 자리를 빠져나갈 수 없다.
+  root.addEventListener('keydown', (ev) => {
+    const target = ev.target as HTMLElement | null;
+    if (!target?.closest('.sf-field')) return;
+    if (ev.key === 'Escape') return;
+    ev.stopPropagation();
+  });
 
   // 닫는 자리 — Escape 는 자판이 있는 기기에만 있다. 손가락뿐인 기기에서 열기만 되고
   // 닫히지 않으면 그 표면은 갇힌 것이다 (명령 콘솔이 같은 이유로 같은 자리를 둔다).
@@ -273,8 +318,38 @@ export function createSurfaceLayer(container: HTMLElement, handlers: SurfaceHand
 
         // 값이 그대로면 DOM 을 건드리지 않는다 — 프레임마다 글자를 다시 래스터화하지 않게
         if (entry.html !== html) {
+          // 글자를 쓰는 중이었다면 **어디까지 썼는지**를 붙들었다 놓아 준다.
+          // 이 표면은 통째로 다시 그려지므로(innerHTML), 붙들지 않으면 한 글자를 칠
+          // 때마다 초점이 튀어나가고 커서가 맨 앞으로 간다 — 두 글자를 이어 칠 수 없다.
+          const active = document.activeElement as HTMLInputElement | null;
+          const typing =
+            active?.classList.contains('sf-field') && entry.node.contains(active)
+              ? { id: active.dataset.id, at: active.selectionStart }
+              : null;
+
           entry.node.innerHTML = html;
           entry.html = html;
+
+          if (typing?.id !== undefined) {
+            const again = entry.node.querySelector<HTMLInputElement>(
+              `.sf-field[data-id="${CSS.escape(typing.id)}"]`,
+            );
+            if (again) {
+              again.focus();
+              const at = typing.at ?? again.value.length;
+              again.setSelectionRange(at, at);
+            }
+          }
+
+          // 결정 Layer 가 캐럿을 청했으면 그리로 옮긴다 — 자판만 쓰는 사람이 이 자리에
+          // 닿는 유일한 길이다 (Tab 은 화면의 다른 단추들을 먼저 지난다).
+          const claimed = entry.node.querySelector<HTMLInputElement>(
+            '.sf-field[data-claim-focus="true"]',
+          );
+          if (claimed && document.activeElement !== claimed) {
+            claimed.focus();
+            claimed.setSelectionRange(claimed.value.length, claimed.value.length);
+          }
         }
       }
 
