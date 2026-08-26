@@ -211,5 +211,11 @@
     "used": 1,
     "capacity": 4
   },
-  "equipment": []
+  "equipment": [],
+  "ground": {
+    "zones": [],
+    "self": {
+      "state": "none"
+    }
+  }
 }

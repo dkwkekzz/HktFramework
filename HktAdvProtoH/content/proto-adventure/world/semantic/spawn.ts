@@ -14,6 +14,7 @@ import type { Inventory } from './inventory';
 import { createInventory } from './inventory';
 import type { WorldPosition } from './position';
 import type { GuardedGround } from './relation';
+import { WARMTH_MAX } from './world-state';
 
 export interface ActorSpawn {
   id: string;
@@ -74,6 +75,11 @@ export function spawnActor(spawn: ActorSpawn): ActorState {
           radius: spawn.guardedGround.radius,
         }
       : null,
+    // C-TERRAIN-001 — 열을 가득 지니고 태어난다. 종류를 가리지 않으므로 카탈로그가
+    // 아니라 세계의 값을 쓴다 (world-state.ts#WARMTH_MAX). 자율 존재도 같다 —
+    // 법칙이 몸을 가리지 않으려면 지니는 것도 가리지 않아야 한다.
+    warmth: WARMTH_MAX,
+    warmthMax: WARMTH_MAX,
     inventory: spawn.inventory ?? createInventory(),
     // C023 — 아무것도 걸지 않은 채로 태어난다. 막기를 안 든 채로 태어나는 것과 같은
     // 초기값이며 조종 주체에 따른 예외가 아니다. 관찰자의 몸이 곡괭이를 **가방에**

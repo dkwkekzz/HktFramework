@@ -5,7 +5,7 @@
 [PASS] World Semantic
 [PASS] GameView Specification
 [PASS] Human Semantic Review
-[    ] World Implementation
+[PASS] World Implementation
 [    ] View Implementation
 [    ] Verification
 

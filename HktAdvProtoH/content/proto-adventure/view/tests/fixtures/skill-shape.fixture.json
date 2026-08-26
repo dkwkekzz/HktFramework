@@ -541,5 +541,11 @@
   "inventoryRoom": {
     "used": 0,
     "capacity": 4
+  },
+  "ground": {
+    "zones": [],
+    "self": {
+      "state": "none"
+    }
   }
 }

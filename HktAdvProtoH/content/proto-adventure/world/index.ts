@@ -17,6 +17,7 @@ import type { WorldPosition } from './semantic/position';
 import { spawnActor } from './semantic/spawn';
 import {
   DEFAULT_CHANCE_SEED,
+  GROUND_ZONES,
   SPAWN_POINTS,
   STATE_VERSION,
   TICK_INTERVAL,
@@ -27,6 +28,7 @@ import { ruleActionProgress } from './simulation/action-progress';
 import { ruleBodyMomentum } from './simulation/body-momentum';
 import { ruleBodyPush } from './simulation/body-push';
 import { ruleCpRunDrain } from './simulation/cp-run-drain';
+import { ruleGroundLawApply } from './simulation/ground-law-apply';
 import { ruleMoveProgress } from './simulation/move-progress';
 import { ruleNpcDecideAll } from './simulation/npc-decide';
 import { ruleStrikeEventExpire } from './simulation/strike-event-expire';
@@ -117,6 +119,11 @@ const SYSTEMS: WorldContent<WorldState>['systems'] = [
   (state, dt) => ruleBodyPush(state, dt), // RULE-BODY-PUSH-001 (C006)
   (state, dt) => ruleBodyMomentum(state, dt), // RULE-BODY-MOMENTUM-001 (C006)
   (state, dt) => ruleCpRunDrain(state, dt), // RULE-CP-RUN-DRAIN-001 (C007)
+  // C-TERRAIN-001 — 땅이 거두어 간다. 기력 누수 바로 뒤인 이유가 같다: 의도한 이동과
+  // 물리 보정이 모두 끝난 뒤라야 "어디에 서 있는가" 가 확정되고, 이 Tick 에 실제로
+  // 서 있게 된 자리에 대해 값을 치른다 (RULE-GROUND-LAW-APPLY-001).
+  // 지목 정리보다 **앞**이어야 한다 — 이 규칙이 몸을 쓰러뜨릴 수 있다.
+  (state, dt) => ruleGroundLawApply(state, dt),
   // C017 — 성립하지 않게 된 지목을 비운다. 이 Tick 의 모든 변화가 끝난 뒤에 훑어야
   // 그 Tick 에 사라진 존재까지 본다 (RULE-TARGET-CLEAR-STALE-001).
   (state) => ruleTargetClearStale(state),
@@ -159,6 +166,12 @@ export function createWorld(setup: WorldSetup = {}, restored?: WorldState): Worl
   const state: WorldState = restored ?? {
     bounds: WORLD_BOUNDS,
     actors: npcs,
+    // C-TERRAIN-001 — 무대의 자리들. 헤더 상수를 State 로 놓는다 (world-state.ts#GROUND_ZONES).
+    // 어떤 Rule 도 이것을 바꾸지 않는다 — 그럼에도 State 인 이유는 그 파일이 적는다.
+    groundZones: GROUND_ZONES.map((zone) => ({
+      ...zone,
+      center: { x: zone.center.x, z: zone.center.z },
+    })),
     deposits: [
       {
         id: 'deposit-1',
