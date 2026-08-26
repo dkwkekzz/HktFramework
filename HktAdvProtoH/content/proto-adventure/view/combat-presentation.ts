@@ -14,6 +14,7 @@ import type {
 } from '../protocol/gameview';
 import type { SceneNameplate, SceneSelf, SceneStrike } from '../../../engine/view-kernel/scene/scene-state';
 import { codeText } from './code-text';
+import { allocationLine, allocationMark } from './allocation-presentation';
 import { stanceLine, stanceMark } from './relation-presentation';
 import { startupMark } from './phase-presentation';
 
@@ -44,9 +45,13 @@ export function nameplate(entity: EntityView, spriteSize: number): SceneNameplat
     // C019 — 선딜 표시가 관계 표시 뒤, 이름 앞에 붙는다. 선딜일 때만 붙으며,
     // 이 표시가 없다는 것이 곧 "이미 나갔다 — 지금 넣어도 늦었다" 는 뜻이다
     // (phase-presentation 의 결정 1·2).
-    name: `${stanceMark(entity.attributes)}${startupMark(entity)}${
-      entity.attributes?.acquainted === false ? `${entity.name} ?` : entity.name
-    }`,
+    // C-COMBAT-001 — 배분 표시가 관계·선딜 표시 뒤, 이름 앞에 붙는다. 어디에도 몰지
+    // 않은 몸에는 붙지 않으며, **붙지 않았다는 것이 곧 관찰이다** (앞의 둘과 같은 태도).
+    // 가려지지 않는 값이므로 살펴보지 않은 상대에게도 뜬다 — 얇아진 쪽을 노리는 수가
+    // 여기서 시작한다 (04 entities.character.attributes.allocation.meaning).
+    name: `${stanceMark(entity.attributes)}${startupMark(entity)}${allocationMark(
+      entity.attributes?.allocation,
+    )}${entity.attributes?.acquainted === false ? `${entity.name} ?` : entity.name}`,
     health: Math.round(health),
     healthMaximum: Math.round(healthMaximum),
     healthRatio: healthMaximum > 0 ? Math.max(0, Math.min(1, health / healthMaximum)) : 0,
@@ -67,8 +72,12 @@ export function inspectLines(entity: EntityView): string[] | undefined {
       a.tempoStats.runSpeedMultiplier,
     )}`,
     `공속 ×${round(a.tempoStats.actionSpeed)}`,
+    // C-COMBAT-001 — 이 존재가 지금 어디에 몰아 두었는가. 가려지지 않으며 통찰 바로
+    // 위에 둔다 — 아래 두 줄(통찰과 겨루는 힘)이 왜 그 값인지를 이 줄이 설명한다.
+    allocationLine(a.allocation),
     // C016 — 이 존재의 통찰. 가려지지 않는 값이며, 겨루는 힘 바로 위에 둔다 —
     // 아래 줄들이 왜 그만큼만 열려 있는지를 이 줄이 설명한다 (04 insight.meaning).
+    // C-COMBAT-001 — 유효 값이 온다. 인지에 몰아 둔 몸은 이 수가 높다
     `통찰 ${round(a.insight)}`,
     // C014 — 겨루는 힘은 **아는 존재에만** 나오고, 모르는 존재에는 그 자리에
     // "무엇을 모르는지" 가 온다. 자리를 비우지 않는 것이 핵심이다 —
@@ -292,6 +301,13 @@ export function selfPanel(snapshot: GameViewSnapshot): SceneSelf | undefined {
   const moveModeCode = String(value('self.moveMode') ?? 'walk');
 
   const lines: string[] = [
+    // C-COMBAT-001 — 지금 내 힘이 어디에 몰려 있는가. **맨 앞이다** — 아래 모든 줄의
+    // 값이 이 한 줄에 따라 움직이므로, 그것을 읽고 나서 나머지를 읽어야 한다.
+    // 세 몫은 세계가 보낸 그대로다 (hud self.allocation.share.*).
+    `배분 ${codeText(`allocation.${String(value('self.allocation') ?? 'balanced')}`)}` +
+      ` (몸 ${round(Number(value('self.allocation.share.body') ?? 0))}` +
+      ` · 능력 ${round(Number(value('self.allocation.share.ability') ?? 0))}` +
+      ` · 인지 ${round(Number(value('self.allocation.share.awareness') ?? 0))})`,
     // C010 → C012 — 내가 어느 쪽으로 더 세게 때리고 어느 쪽으로 덜 맞는가.
     // 고르는 일은 상대의 방어와 내 공격 능력을 함께 보는 일이므로 둘 다 눈앞에 둔다.
     `물리 공격 ${round(Number(value('self.combat.physicalAttack') ?? 0))}` +

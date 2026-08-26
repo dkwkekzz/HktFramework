@@ -34,6 +34,7 @@ import {
   type EffectMemory,
 } from './effect-presentation';
 import { hudPresentation } from './hud-presentation';
+import { allocationHudItems } from './allocation-presentation';
 import { equipmentDetailLines, equipmentHudItems } from './equipment-presentation';
 import { inventoryDetailLines, inventoryHudItems } from './inventory-presentation';
 import { inventoryWorkspace } from './inventory-workspace';
@@ -334,6 +335,10 @@ export function resolvePresentation(
       // (slotBars) 여기 두면 한 화면에 같은 말이 두 번 있게 된다.
       // C025 가 세운 것(모양을 견준다 · 사유는 패널로)은 그대로 살아 자리만 옮겼다.
       // C023 — 걸린 것. 소지품보다 앞에 둔다 — 몸이 무엇으로 되어 있는지가 먼저다
+      // C-COMBAT-001 — 고를 수 있는 배분 넷. 걸린 것보다 앞에 둔다 — 지금 힘이 어디에
+      // 몰려 있는가는 무엇을 걸었는가보다 국면마다 자주 바뀌고, 자주 바뀌는 것이 위에
+      // 있어야 눈이 먼저 닿는다
+      ...allocationHudItems(snapshot),
       ...equipmentHudItems(snapshot, codeText),
       // C020 — 가진 것 전부. 세계가 준 순서에 칸 번호만 붙인다
       ...inventoryHudItems(snapshot, codeText),

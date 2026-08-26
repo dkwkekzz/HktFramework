@@ -33,7 +33,7 @@ Feedback · BACKLOG)를 겹쳐 `LANES.html` 로 그린다. `npm run lanes:check`
 |---|---|---|---|
 | FEEDBACK | OPEN | 없음 — 닫힌 Cycle 이 모두 Master 에 들어갔다 | 없음 — 병합 뒤 최신 main 위에서 (`npm run feedback:gate`) |
 | WORLD·ITEM | HUMAN | 후보 5 중 선택 대기 — Agent 추천 FR-THE-PLACES-ARE-NARROWER (+FR-SEE-BEFORE 얹기) | Human Select (frontier/item.md) |
-| WORLD·COMBAT | HUMAN | `C-COMBAT-001-where-your-power-sits` — Stage 1~4 닫힘. **Stage 5(Human Semantic Review) 대기** — 승인 전에는 Stage 6 으로 넘어가지 않는다. 남은 후보 아홉이 UL 전체를 덮는다 | Human 승인 (`cycles/C-COMBAT-001-where-your-power-sits/05-review.md`) |
+| WORLD·COMBAT | OPEN | `C-COMBAT-001-where-your-power-sits` — Stage 1~7 닫힘 (1383 tests · engine 무변경). **Stage 8(Verification) 부터** — 그 STATUS 는 Human 이 실제로 플레이해 본 뒤에만 COMPLETE 다. 남은 후보 아홉이 UL 전체를 덮는다 | 없음 |
 | WORLD·TERRAIN | OPEN | `C-TERRAIN-001` 착수 대기 — SELECTED `FR-THE-GROUND-HAS-A-LAW`(땅이 법칙을 지닌다). Stage 1 부터, 아직 시작하지 않았다. 시각화의 소유 분해·진행 순서는 [design/Design-Terrain-Visualization.md](../../design/Design-Terrain-Visualization.md) 를 따른다 | 없음 — 다만 이 판과 트랙 파일이 main 에 들어간 뒤에 잡는다 |
 | WORLD·GROWTH | OPEN | `C-GROWTH-001` 착수 대기 — SELECTED `FR-WHAT-YOU-DID-MAKES-YOU`(한 일이 몸을 키운다). Stage 1 부터, 아직 시작하지 않았다. **COMBAT 과 같은 파일을 본다 — 아래 충돌 칸** | 없음 — 다만 이 판과 트랙 파일이 main 에 들어간 뒤에 잡는다 |
 | VIEW | OPEN | BACKLOG 다음 항목(tooltip-on-focus)부터 — equipment-panel 은 아래 충돌 칸 | 없음 |
@@ -65,7 +65,7 @@ Human 이 답하면 풀리는 것들이다. 답의 자리는 괄호가 가리킨
 | 무엇 | 풀리는 것 |
 |---|---|
 | WORLD·ITEM 후보 선택 (frontier/item.md SELECTED) | WORLD·ITEM 레인 착수 |
-| C-COMBAT-001 Stage 5 — Semantic Review (`cycles/C-COMBAT-001-where-your-power-sits/05-review.md`) | WORLD·COMBAT 의 Stage 6·7(구현) 착수. APPROVED 가 아니면 넘어가지 않는다 |
+| C-COMBAT-001 Human Play — 배분을 실제로 바꿔 보기 (`U` → 숫자) | Stage 8 의 STATUS 가 COMPLETE 로 닫힌다. 코드가 도는 것은 완료가 아니다 (CLAUDE.md 원칙 15) |
 | `lanes:check` 의 SELECTED 규칙 (PROCESS — 이 판을 고치지 않고 보고만 한다) | 지금 이 판에서 어긋남 1건이 상시로 뜬다. 검사는 "SELECTED 가 있으면 레인은 OPEN·RUNNING" 만 보고 **그 트랙의 Cycle 이 도는 중인지를 보지 않는다** — works.md 는 Human 대기면 HUMAN 이라 적었으므로 판이 맞고 검사가 좁다. 고칠 자리는 `tools/lanes/build.ts` 의 `crossCheck` 이며 재료는 이미 있다 (`t.cycle` 의 Stage·Status). PROCESS 가 HOLD 라 착수하지 않았다 |
 | 문서의 분류 다섯에 `도구` 를 더할 것인가 (Design-View-Inventory-Equipment-UX-D1 §6) | 곡괭이가 `기타` 대신 자기 칸을 얻는다 (V-008 REPORT) |
 | Q37 — 자리에 이름을 줄 것인가 (open-questions.md) | FR-ARRANGE-WHAT-YOU-CARRY 존치/삭제 |

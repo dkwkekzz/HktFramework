@@ -19,15 +19,15 @@ describe('hud.self.combatStats — 내 두 능력은 늘 눈앞에 있다', () =
   it('공격력·방어력과 그 방어가 남기는 비율이 첫 줄에 온다', () => {
     const lines = plan().self?.lines ?? [];
     // C012 — 두 줄로 갈린다. 고를 때 견주는 축이 공격/방어가 아니라 물리/오라이기 때문이다
-    expect(lines[0]).toBe('물리 공격 40 · 물리 방어 50 (받는 피해 67%)');
-    expect(lines[1]).toBe('오라 공격 40 · 오라 방어 50 (받는 피해 67%)');
-    expect(lines[2]).toBe('관통 물리 0 · 오라 0'); // C013
-    expect(lines[3]).toBe('내 약점 치우침 없음');
+    expect(lines[1]).toBe('물리 공격 40 · 물리 방어 50 (받는 피해 67%)');
+    expect(lines[2]).toBe('오라 공격 40 · 오라 방어 50 (받는 피해 67%)');
+    expect(lines[3]).toBe('관통 물리 0 · 오라 0'); // C013
+    expect(lines[4]).toBe('내 약점 치우침 없음');
   });
 
   it('비율은 백분율로 읽힌다 — 0.67 보다 67% 가 먼저 이해된다', () => {
     // 세계가 보내는 값은 100/150 = 0.6666… 이다. 결정 Layer 가 읽을 형태로 바꾼다.
-    expect(plan().self?.lines[0]).not.toContain('0.66');
+    expect(plan().self?.lines[1]).not.toContain('0.66');
   });
 });
 

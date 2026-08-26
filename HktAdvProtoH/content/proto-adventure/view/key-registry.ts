@@ -37,6 +37,7 @@ const LABEL_OF_CODE: Record<string, string> = {
   KeyK: 'K',
   KeyL: 'L',
   KeyQ: 'Q',
+  KeyU: 'U',
   Comma: ',',
   Enter: 'Enter',
   Escape: 'Esc',
@@ -113,6 +114,14 @@ export const PACK_KEYS = {
   unequip: { code: 'KeyM', what: '풀기' },
   exchange: { code: 'Comma', what: '바꿔 걸기' },
   inventory: { code: 'KeyI', what: '가진 것' },
+  // C-COMBAT-001 — 힘의 배분. B·N·M·, 와 같은 **두 걸음**이다 (bindings.ts).
+  // 손가락 자리가 모자란 것은 조작 계층의 사정이며 게임의 판정이 아니다:
+  // 세계로 나가는 요청은 여전히 "배분 하나를 고른다" 하나뿐이다
+  // (DC-COMBAT-AURA-IS-A-PROFILE-NOT-A-DIAL).
+  // `KeyR` 이 아니다 — 시점이 먼저 가져간 자리다. C025 도 여기서 걸렸고
+  // `key-hints.spec.ts` 의 검사가 이번에도 잡았다 (engine-keys.ts 의 TURN_KEY_CODES).
+  // 지금 남은 글자 자리는 O · P · U 셋뿐이며 그중 손이 가장 가까운 것을 쓴다.
+  allocation: { code: 'KeyU', what: '배분' },
   pickLeft: { code: 'ArrowLeft', what: '고르기', whileSurfaceOpen: true },
   pickRight: { code: 'ArrowRight', what: '고르기', whileSurfaceOpen: true },
   actionUp: { code: 'ArrowUp', what: '행동', whileSurfaceOpen: true },

@@ -34,6 +34,15 @@ const CODE_TEXT: Record<string, string> = {
   downed: '쓰러짐',
   // 불가 사유 (C007)
   'insufficient-cp': '기력이 모자란다',
+  // 힘의 배분 (C-COMBAT-001) — 세계가 지어 보내는 이름 넷. 표에 없는 이름은 코드
+  // 그대로 보인다: 세계가 배분을 하나 더 지어도 화면이 멈추지 않는다
+  'allocation.balanced': '균형',
+  'allocation.reinforce': '강화',
+  'allocation.hatsu': '발현',
+  'allocation.hunter': '사냥꾼',
+  // 배분을 바꿀 수 없는 사유 (C-COMBAT-001). `insufficient-cp` · `downed` 는 이미 위에 있다
+  'unknown-allocation': '세계가 모르는 배분이다',
+  unavailable: '지금은 안 된다',
   // 둘 사이의 태도 (C018) — 세계가 보내는 갈래 셋
   hostile: '적대',
   neutral: '중립',
