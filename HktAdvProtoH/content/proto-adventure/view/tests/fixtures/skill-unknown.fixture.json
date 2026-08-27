@@ -40,6 +40,7 @@
           "actionSpeed": 1
         },
         "acquainted": true,
+        "marks": [],
         "concealed": [],
         "combatStats": {
           "physicalAttack": 40,
@@ -122,6 +123,7 @@
           "actionSpeed": 1
         },
         "acquainted": true,
+        "marks": [],
         "concealed": [],
         "combatStats": {
           "physicalAttack": 40,
@@ -204,6 +206,7 @@
           "actionSpeed": 1
         },
         "acquainted": true,
+        "marks": [],
         "concealed": [],
         "combatStats": {
           "physicalAttack": 40,
@@ -511,7 +514,8 @@
           "damageBeforeCritical": 55
         },
         "attackerAllocation": "balanced",
-        "targetAllocation": "balanced"
+        "targetAllocation": "balanced",
+        "conditions": []
       }
     },
     {
@@ -558,7 +562,8 @@
           "damageBeforeCritical": 17
         },
         "attackerAllocation": "balanced",
-        "targetAllocation": "balanced"
+        "targetAllocation": "balanced",
+        "conditions": []
       }
     }
   ],

@@ -78,13 +78,22 @@ Human 선택을 기다린다. TERRAIN 안의 순서는 셋 중 하나가 바닥�
 그러므로 지금 **다섯 트랙 중 GROWTH 하나만 SELECTED 를 갖고 넷이 후보를 든 채
 Human 선택을 기다린다** — C-TERRAIN-001 이 닫히며 그 트랙도 비었다.
 
-Q35(몸이 아닌 존재를 요구하는 Possibility)는 여전히 열려 있지만 더 이상 COMBAT 을
-막지 않는다 — 그것이 막는 것은 스킬 실행 형태(MS-SKILL-FORM)의 빈 다섯 칸이고,
-상층 후보 열은 그 자리를 쓰지 않는다.
+**FC 주입과 Q71(b) 확장이 후보 넷을 더했다** — GROWTH 에 `FR-YOUR-BODY-HAS-A-FORM`
+(몸이 형태를 가진다), COMBAT 에 `FR-TAKE-WHAT-MAKES-THEM-STRONG`(상대를 이루는 것을
+빼앗는다), TERRAIN 에 `FR-LOSING-IS-A-PROCESS`(잃는 것은 한순간이 아니다)와
+`FR-THE-LAND-IS-ALIVE-AND-ANSWERS`(땅이 살아 있고 응답한다). 넷 중 셋이 의존이 비어 있다.
+
+그중 `FR-LOSING-IS-A-PROCESS` 가 **트랙 밖까지 걸린다** — MG-RESCUE-THE-TAKEN 은 이제
+갈래 셋을 가졌으나 셋 다 "되돌릴 자리가 남아 있다" 를 전제하고, 지금 세계에서 존재는
+멀쩡하거나 쓰러지거나 둘뿐이다. 그 Goal 을 열려면 이것이 먼저다.
+
+Q35(스킬 실행 형태가 층인가 갈래인가)는 여전히 Human 결정이지만 **그 7 조건 2 는
+충족됐다** — `MP-REACH-THE-UNREACHABLE` 이 `MC-PLACE-FOOTING`(공간 존재 칸)을 요구한다.
+막는 것은 이제 배선의 부재가 아니라 세계의 축 두 가지다 (아래 "지금 열 수 없는 것").
 
 트랙이 겹치는 자리가 셋 있다.
 
-**COMBAT ↔ GROWTH — 지금 실제로 겹친다.** GROWTH 의 후보 셋은 전부 몸의 값과 전투
+**COMBAT ↔ GROWTH — 지금 실제로 겹친다.** GROWTH 의 후보 넷은 전부 몸의 값과 전투
 판정에 닿고, COMBAT 의 SELECTED(FR-WHERE-YOUR-POWER-SITS)도 같은 자리를 쓴다 —
 둘 다 `world/semantic/combat.ts` 의 유효 값 계산(`effectiveStat`)에 항을 더한다.
 "COMBAT 이 후보 0 이라 겹치지 않는다" 던 조건이 사라졌으므로, 두 Cycle 중 하나가
@@ -108,6 +117,15 @@ COMBAT 의 조건 관문(`FR-THE-WORLD-DECIDES-WHAT-IS-POSSIBLE`)이 서면 배�
 그리고 전투 지식의 자리 수가 성장의 여섯째 축이 되었으므로(Q65(b) ·
 MS-GROWTH-SOURCE 의 KNOWLEDGE-CAPACITY) 자리가 자라는 일은 GROWTH 쪽과 함께 본다.
 
+**GROWTH ↔ COMBAT — 새 후보 둘도 같은 함수에서 만난다.** `FR-YOUR-BODY-HAS-A-FORM`
+(형태가 유효 값에 셋째 항을 더한다)과 `FR-TAKE-WHAT-MAKES-THEM-STRONG`(빼앗은 것이
+유효 값으로 들어온다)이 둘 다 `world/semantic/combat.ts` 의 `effectiveStat` 에 닿는다.
+끝에 항을 더하는 것이라 갈라지지 않지만, 같은 시기에 띄우면 뒤에 잡는 쪽이 최신 main
+위에서 시작한다.
+
+**TERRAIN ↔ GROWTH — FR-LOSING-IS-A-PROCESS 는 겹치지 않는다.** 그것이 더하는 것은
+몸의 진행 상태이고 유효 값 계산에 닿지 않는다 — 자기 영역 끝에 더한다.
+
 어느 쪽이든 고를 때 상대 트랙이 무엇을 도는 중인지 먼저 본다 (LANES 의 충돌 칸).
 
 ## 지금 열 수 없는 것 — 트랙 밖
@@ -119,5 +137,6 @@ MS-GROWTH-SOURCE 의 KNOWLEDGE-CAPACITY) 자리가 자라는 일은 GROWTH 쪽�
 |---|---|
 | 문명권 준비 갈래 · 희귀 기관 갈래 | 세계 기반(문명권 · 거래 주체)이 없다 (overlay.md World 표 ABSENT). 희귀 기관 쪽은 그 위에 **물건이 몸 밖에 놓인다**(FR-THINGS-LIE-IN-THE-WORLD)까지 필요하다 — IS 주입으로 공통 앞칸이 드러났다. **지형은 이 줄에서 빠졌다** — BT 주입과 Q47~Q51 결정으로 TERRAIN 트랙이 서서 후보 셋을 얻었다 |
 | 베이라 사다리의 잠정 조각 | 그 전체의 설계 문서가 없다 (`part_of.grounded: false` — 척추 시각화의 점선). **능동 방어와 Aura/Nen 은 이 줄에서 빠졌다** — UL 주입이 그 두 칸의 설계 문서를 공급해 COMBAT 트랙이 후보 넷을 얻었다 |
+| **세계에 위아래가 없다** (MC-REDEFINE-DOWN · MC-REDIRECT-FALLING-THING · MC-PLACE-FOOTING) | `world/semantic/position.ts` 의 `WorldPosition` 이 `x` · `z` 뿐이고 떨어지는 일이 규칙에 없다. 셋 다 `grounded: true` 이고 요구처도 있으므로(MW-TERRAIN-SKYFALL-RANGE · MW-TERRAIN-BREATHLESS-SEA) 막는 것은 근거가 아니라 **세계의 축**이며, 그 축은 팩이 아니라 기반(`engine/physics`)에 걸려 **ENGINE 트랙 작업**이다 (guides/works.md 의 WORLD → ENGINE 승격). TERRAIN 트랙 파일의 같은 절이 이 셋을 자세히 적는다 |
 | 다음 수를 읽는다 (MC-PREDICT · MC-OBSERVE 습성) | 위와 같음 — 반쪽을 소유한 시스템(MS-CREATURE-BEHAVIOR)이 DRAFT 다. 초안 [content/proto-adventure/design/Design-Creature-Behavior-R0.md](../../design/Design-Creature-Behavior-R0.md) 승인 → Inject → 재판정. **Q62 로 경계가 정해졌다** — 전투 지식은 지능 있는 존재의 전투 행동만 소유하고, 자율 행동의 기반은 그 문서가 소유한다 |
 | Tab 후보 추리기 · 대상 프레임 관계 표시 | 세계의 결손이 아니라 화면의 편의 — Cycle 이 아니라 **VIEW 레인** 작업이다 (guides/view-work.md · `works/V-*`) |

@@ -14,6 +14,6 @@ detail: >
 requires: [IP-STATE-PRESERVING]
 grants:   [MC-RESTORE-BIOLOGICAL-STATE]
 
-# 주의 (RC §23.3 — Human 판정 대기 · Q72): Design-Item-Lifecycle-Progression-R0 §18 의
+# 주의 (RC §23.3 — HISTORY Q75): Design-Item-Lifecycle-Progression-R0 §18 의
 # IM-BIOLOGICAL-RESTORATION 은 이 노드의 다른 이름일 가능성이 높다 — 판정 전까지
 # 그쪽 이름으로 새 IM 을 세우지 않는다.

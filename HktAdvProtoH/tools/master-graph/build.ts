@@ -15,6 +15,7 @@ import { renderOverlay } from './overlay';
 import { renderArtifactPage, renderHtml } from './html';
 import { collectWorkLinks } from './works';
 import { loadConcepts } from './concepts';
+import { checkClasses } from './classes';
 import { renderConceptMapArtifact, renderConceptMapHtml } from './concept-map';
 import { activePackDir } from '../active-pack';
 
@@ -40,6 +41,8 @@ export function run(argv: string[]): number {
   }
 
   const graph = loadMasterGraph(masterDir);
+  const classes = checkClasses(masterDir, new Set(graph.nodes.keys()));
+  graph.problems.push(...classes.problems);
   const mermaid = renderMermaid(graph);
   const overlay = renderOverlay(graph, masterDir);
   const mermaidPath = join(masterDir, MERMAID_FILE);
@@ -90,7 +93,7 @@ export function run(argv: string[]): number {
   }
 
   const rel = (p: string) => relative(root, p);
-  console.log(`노드 ${graph.nodes.size} · 관계 ${graph.edges.length} · Constraint ${graph.constraints.size} · 구멍 ${graph.holes.length}`);
+  console.log(`노드 ${graph.nodes.size} · 관계 ${graph.edges.length} · Constraint ${graph.constraints.size} · Class ${classes.count} · 구멍 ${graph.holes.length}`);
   for (const p of graph.problems) console.log(`  ${p.severity === 'ERROR' ? '✗' : '·'} ${p.code} — ${p.message}`);
   console.log(`\n  ${rel(mermaidPath)}   Mermaid 스냅샷 — PR·GitHub 에서 그대로 렌더된다`);
   console.log(`  ${rel(overlayPath)}   Capability Overlay — 노드 필드에서 생성 (커밋한다)`);

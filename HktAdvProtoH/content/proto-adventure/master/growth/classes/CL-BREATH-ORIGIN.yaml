@@ -1,0 +1,110 @@
+# 원본 근거: content/proto-adventure/design/Design-Fairy-Class-Layer0-R0.md (FC) §7 숨결계 요정 —
+#   §7.1 정체성 · §7.4 전투 역할 · §7.5 Breath Zone · §7.6 기막 · §7.7 Skill · §7.8 숨의 방 ·
+#   §7.9 Aura · §7.10 Counterplay · §7.11 모험 · §7.12 Mastery · §7.13 외형 · §10 현재 한계
+# 이름의 소유는 성장 기획 문서(GS)다 (HISTORY Q55(b)) — 부르는 이름은 숨결술사 하나뿐이다.
+id: CL-BREATH-ORIGIN
+type: class
+
+semantic: >
+  숨결술사 — 숨결계의 Origin Class. 공기가 있는 곳에서 바람을 다루는 형태가 아니라,
+  공기가 성립하지 않는 자리에 공기가 존재할 조건 자체를 만드는 형태다. 자신이 선 곳을
+  살아갈 수 있는 공간으로 바꾼다.
+detail: >
+  이 형태의 플레이는 공간을 만든다 · 압력차를 만든다 · 위치를 바꾼다로 반복된다 (FC §9).
+  다른 형태와 갈리는 지점은 **먼저 만드는 것이 피해가 아니라 자리**라는 것이다. 상대를
+  직접 부수는 것에서 시작하지 않고 공간의 상태를 바꾸는 것에서 시작하며 (FC §7.2),
+  그래서 이 몸의 모든 기술은 자기가 만든 영역과 바깥 사이의 압력 차이를 재료로 쓴다
+  (FC §7.5). 만들 수 있는 영역의 수가 제한되어 있다는 점이 이 자원의 성격이다.
+  맞는 순간의 자리에는 기막이 들어간다. 공기를 순간 압축해 몸 앞에 탄성막을 세우는
+  것이며, 그냥 하면 피해와 밀림이 줄고, 정확히 하면 그 힘을 압력차로 되돌려 때린 쪽을
+  밀어낸다 (FC §7.6).
+  숨결계의 진공절은 침묵이나 강제 행동불능이 아니다. 아주 짧은 순간 좁은 공간에서 공기를
+  없애 지금 하던 것을 끊는 정도이며, 문서가 그 경계를 직접 긋는다 (FC §7.7 Skill 3).
+  탐험에서도 같은 원리를 쓴다 — 무산소 지역을 지나고, 수중에 호흡 공간을 만들고, 밀폐
+  공간을 환기하고, 공기 발판으로 오르고, 바람으로 장치를 움직인다. 보이지 않는 틈과
+  통로의 공기 이동을 감지한다 (FC §7.11).
+  지금 할 수 없는 것은 분명하다 — 만들 수 있는 것이 작은 대기 영역이다. 거대한 지역의
+  대기 법칙 자체를 바꾸는 일은 이 층에 없고, 그 한계가 상위 Layer 의 출발점이다 (FC §10).
+world_shape: >
+  공기가 없는 자리가 세계에 있어야 하고, 이 형태가 만든 영역 안에서만 그 자리가 살아갈 수
+  있는 곳이 되어야 한다. 영역의 경계에 압력 차이가 생기고 그 차이가 밀기 · 당기기 · 궤적
+  변화의 근거가 되어야 하며, 영역 밖으로 나가거나 영역이 부서지면 그 근거가 함께 사라져야
+  한다. 만들 수 있는 영역의 수가 유한해야 하고, 어디에 몇 개를 두었는지가 관찰 가능해야
+  한다. 영역 둘레에 투명한 구형 경계와 부유 입자가 보이고 옷과 머리카락이 늘 약한 바람을
+  받아 멀리서도 이 몸이 무엇을 하는 몸인지 읽혀야 한다 (FC §7.13).
+  영역 없이도 같은 기술이 성립하면 이 형태가 아니다.
+
+origin_trace:
+  world_state: [MW-TERRAIN-BREATHLESS-SEA]      # 암초가 대기를 결정 안에 결속해 공기가 밀물처럼 흐르는 땅 (FC §7.1 · BT §7)
+  goal:        [MG-EXPLORE-BEIRA, MG-SURVIVE-ENEMY-OFFENSIVE]
+  possibility: [MP-CONTROL-MOVEMENT, MP-INTERRUPT]
+
+requires: []          # Origin 은 시작 형태다 — FC 는 이 층에 진입 조건을 두지 않는다 (FC §1 · GS §4)
+
+grants:
+  - MC-ACTIVE-RESPONSE        # 맞는 순간의 자리에 기막이 들어간다 (FC §7.6)
+  - MC-PRECISION-RESPONSE     # 그 기막이 언제 됐는가로 결과가 갈린다 (FC §7.6 Precision)
+  - MC-OPPORTUNITY            # 잘 된 기막이 때린 쪽을 밀어내는 다음 수를 연다 (FC §7.6)
+  - MC-CONTROL-SPACE          # 숨결장 — 자기 영역을 만들고 상대의 공간을 좁힌다 (FC §7.5 · §7.7 Skill 1)
+  - MC-FORCE-MOVEMENT         # 풍압 — 압력차로 대상을 밀고 당긴다 (FC §7.7 Skill 2)
+  - MC-INTERRUPT              # 진공절 — 하던 행동을 짧게 끊는다 (FC §7.7 Skill 3)
+  - MC-CARRY-LIFE-SUPPORT     # 그 땅에서 저절로 주어지지 않는 공기를 만들고 나눈다 (FC §7.8 · §7.11)
+  - MC-READ-ENVIRONMENT       # 기류감지 — 보이지 않는 틈과 통로의 공기 이동을 읽는다 (FC §7.11 Passive)
+  - MC-ABILITY-CONDITION      # 영역의 안과 밖이 무엇이 가능한지를 가른다 (FC §7.5 · §7.10)
+  - MC-PLACE-FOOTING          # 공기발판 — 없는 자리에 딛고 설 것을 둔다 (FC §7.7 Skill 4)
+grants_note: >
+  누구나 가진 바닥(때리기 · 기력 예산 · 몸의 방향)은 적지 않는다.
+  임시 표면 생성은 Q71(b) 확장으로 MC-PLACE-FOOTING 이 되었다 — 근거는 두 땅이다
+  (BT §7.7 "공기 덩어리를 길처럼 연결" · BT §8.7 "정박암을 임시 발판으로 설치").
+  같은 요구를 두 대지형이 따로 적었으므로 노드는 하나이고 요구처가 둘이다.
+  그것이 MS-SKILL-FORM 의 공간 존재 칸을 요구하는 첫 노드이기도 하다.
+
+  **기술 쪽에서 걸리는 것 둘.** 압기탄은 **날아가는 것**을, 숨결장과 숨의 방은
+  **머무는 영역**을 요구한다 — 여덟 중 공기발판만 MC-PLACE-FOOTING 으로 자리를 얻었고
+  나머지는 MS-SKILL-FORM 의 빈 칸을 기다린다 (Q35). 그리고 숨의 방의 "아군 호흡 안정"
+  (FC §7.8)은 **세계에 아군이 없어** 대상 자체가 없다 (Q60(c)).
+
+# ── 관문 넷 (Human 결정 — HISTORY Q70(c)) ─────────────────────────────
+response: >
+  기막 — 공기를 순간 압축해 몸 앞에 탄성막을 세운다. 그냥 하면 피해와 밀림이 줄고,
+  정확히 하면 그 힘을 압력차로 되돌려 때린 쪽을 밀어낸다 (FC §7.6).
+counterplay:          # FC 의 Counterplay 절
+  - 만들어 둔 영역 밖으로 나간다
+  - 영역을 부순다
+  - 영역과 영역 사이의 연결을 끊는다
+  - 시전자를 계속 움직이게 해 영역을 세울 틈을 주지 않는다
+cannot_yet:           # FC §10 이 이 층에서 의도적으로 막아 둔 것
+  - 거대한 지역의 대기 법칙을 바꾸는 일
+  - 영역을 제한 없이 두는 일
+extends_toward: >
+  만드는 것의 크기가 작은 영역 밖으로 넓어지는 쪽 — 한 지역의 대기 법칙 자체를
+  바꾸는 형태다 (FC §10).
+
+transitions_to: []   # 아직 상위 형태의 CL-* 가 없다 — Layer 1 설계 문서가 세운다.
+                     # **한 칸에 여러 형태가 설 수 있다** (Human 결정 — HISTORY Q69(b)):
+                     # GS 가 이름을 준 풍압사는 그중 **한 갈래**이고, 다른 Principle 이
+                     # 결합된 갈래는 자기 설계 문서가 세우며 이름도 그때 따라온다
+                     # (DC-GROWTH-CLASS-COMES-FROM-A-PRINCIPLE — 이름이 먼저가 아니다).
+
+constraints:
+  - DC-GROWTH-CLASS-ORIGIN-TRACE
+  - DC-GROWTH-PRINCIPLE-IS-PLAYED
+  - DC-GROWTH-DIFFERENCE-IS-BEHAVIOR
+  - DC-GROWTH-EXPLORATION-SHARES-THE-PRINCIPLE
+  - DC-GROWTH-STAGE-READS-AT-A-DISTANCE
+  - DC-COMBAT-STRONG-RULE-HAS-COUNTERPLAY
+  - DC-GROWTH-CLASS-OWNS-THE-RESPONSE
+  - DC-GROWTH-ORIGIN-IS-SIMPLE-FIRST
+  - DC-GROWTH-CLASS-CLOSES-BEFORE-THE-NEXT-LAYER
+  - DC-GROWTH-NO-CAPABILITY-DUPLICATION
+constraint_evaluation:
+  DC-GROWTH-CLASS-ORIGIN-TRACE: SATISFIED               # 무호흡해가 이 형태 없이도 성립한다 (BT §7)
+  DC-GROWTH-PRINCIPLE-IS-PLAYED: SATISFIED              # 대기가 설정이 아니라 만들어 둔 영역과 그 경계의 압력차로 나타난다
+  DC-GROWTH-DIFFERENCE-IS-BEHAVIOR: SATISFIED           # 먼저 만드는 것이 피해가 아니라 자리라는 점이 다른 다섯과 갈린다 (FC §9)
+  DC-GROWTH-EXPLORATION-SHARES-THE-PRINCIPLE: SATISFIED # 무산소 탐험·환기·발판이 전투의 영역·압력차와 같은 원리다 (FC §7.11)
+  DC-GROWTH-STAGE-READS-AT-A-DISTANCE: SATISFIED        # 영역의 구형 경계와 늘 흔들리는 옷·머리로 보인다 (FC §7.13)
+  DC-COMBAT-STRONG-RULE-HAS-COUNTERPLAY: SATISFIED      # 영역 밖으로 이동·영역 파괴·연결 차단·시전자를 계속 움직이게 함 (FC §7.10)
+  DC-GROWTH-CLASS-OWNS-THE-RESPONSE: SATISFIED          # 그 자리에 기막이 들어간다 (FC §7.6)
+  DC-GROWTH-ORIGIN-IS-SIMPLE-FIRST: SATISFIED           # 조건이 "영역 안인가" 한 줄이고 계약을 쓰지 않는다
+  DC-GROWTH-CLASS-CLOSES-BEFORE-THE-NEXT-LAYER: SATISFIED   # 지금 할 수 없는 것과 확장 방향이 FC §10 에 있다
+  DC-GROWTH-NO-CAPABILITY-DUPLICATION: SATISFIED       # 임시 표면 생성이 MC-PLACE-FOOTING 으로 섰다

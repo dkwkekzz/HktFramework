@@ -39,6 +39,7 @@
           "actionSpeed": 1
         },
         "acquainted": true,
+        "marks": [],
         "concealed": [],
         "insight": 0,
         "stanceTowardObserver": "neutral",

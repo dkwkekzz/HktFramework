@@ -782,7 +782,8 @@ nodes:
     causes: [MG-RESCUE-THE-TAKEN]
     # BT §7.7 — 고립된 탐험가 구조.
     changed_by: []
-    demands: [MC-CARRY-LIFE-SUPPORT, MC-TIME-THE-CYCLE, MC-FIND-SAFE-ROUTE, MC-COORDINATE-WITHOUT-SOUND]
+    demands: [MC-CARRY-LIFE-SUPPORT, MC-TIME-THE-CYCLE, MC-FIND-SAFE-ROUTE, MC-COORDINATE-WITHOUT-SOUND,
+              MC-PLACE-FOOTING]
     # BT §7.7 — 숨결 자원 분배 · 공기 조수 주기 관찰 · 공기 덩어리를 길처럼 연결 ·
     # 소리 없는 협동과 전투.
 
@@ -811,7 +812,8 @@ nodes:
     causes: [MG-RESCUE-THE-TAKEN]
     # BT §8.7 — 하늘로 추락하는 동료 구조.
     changed_by: []
-    demands: [MC-READ-ENVIRONMENT, MC-ANCHOR-LOCAL-LAW, MC-FIND-SAFE-ROUTE, MC-FORCE-MOVEMENT]
+    demands: [MC-READ-ENVIRONMENT, MC-ANCHOR-LOCAL-LAW, MC-FIND-SAFE-ROUTE, MC-FORCE-MOVEMENT,
+              MC-REDEFINE-DOWN, MC-REDIRECT-FALLING-THING, MC-PLACE-FOOTING]
     # BT §8.7 — 현재 낙하 방향 관찰 · 정박암을 임시 발판으로 설치 · 상향 폭포를 이동
     # Route 로 사용 · 적과 투사체의 낙하 방향 변경.
 
@@ -841,7 +843,7 @@ nodes:
     # §9.6 의 "진로를 바꿀지 선택" · "자원 채굴과 대지 생존 사이의 갈등" 은 갈등의 자리를
     # 가리키지만 누가 무엇을 원하는지를 공급하지 않는다. 지어내지 않는다.
     changed_by: []
-    demands: [MC-PREDICT, MC-TIME-THE-CYCLE, MC-FIND-SAFE-ROUTE]
+    demands: [MC-PREDICT, MC-TIME-THE-CYCLE, MC-FIND-SAFE-ROUTE, MC-LINK-TO-LIVING-WORLD]
     # BT §9.5 길청자(심장음과 별의 위치로 다음 경로를 예측한다) · §9.6 정해진 시기에 탑승 ·
     # 탈피 시기에 자원 채집 · 대지의 움직임으로만 열리는 Route 이용.
 

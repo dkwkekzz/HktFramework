@@ -61,6 +61,8 @@ export function spawnActor(spawn: ActorSpawn): ActorState {
     // 태어나며, 그 배분은 어느 값에도 0 을 보탠다 — 그래서 이 항목이 들어오는 것만으로는
     // 지금까지의 어떤 결과도 달라지지 않는다 (INTENT-THE-EVEN-ALLOCATION-ADDS-NOTHING-001).
     allocation: DEFAULT_ALLOCATION,
+    // C-COMBAT-004 — 새로 난 몸에는 아무것도 붙어 있지 않다
+    marks: {},
     // C-GROWTH-001 — 한 일은 종류가 정하는 값이 아니다. 어떤 몸이든 아무것도 하지 않은
     // 채로 태어나며, 단계 0 은 어느 값에도 0 을 보탠다 — 그래서 이 항목이 들어오는
     // 것만으로는 지금까지의 어떤 결과도 달라지지 않는다

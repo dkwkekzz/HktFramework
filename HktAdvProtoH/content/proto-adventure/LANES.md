@@ -31,15 +31,17 @@ Feedback · BACKLOG)를 겹쳐 `LANES.html` 로 그린다. `npm run lanes:check`
 
 | 레인 | 상태 | 지금 | 기다리는 것 |
 |---|---|---|---|
-| FEEDBACK | OPEN | 없음 — 미처리 0 (`npm run feedback:gate -- --pending`) | 없음 — 병합 뒤 최신 main 위에서 |
+| FEEDBACK | OPEN | 미처리 **2건** — `C-COMBAT-003`(Overlay 둘 · Constraint 일곱 · 후보 둘 · Gap 셋) · `C-COMBAT-004`(MC-MARK MISSING→IMPLEMENTED · Constraint 일곱 · 후보 둘 · Gap 셋). `npm run feedback:gate` | 없음 — 다만 **병합 뒤 최신 main 위에서** 돈다 (`overlay.md` 는 공유 파일이다) |
 | WORLD·ITEM | HUMAN | 후보 5 중 선택 대기 — Agent 추천 FR-THE-PLACES-ARE-NARROWER (+FR-SEE-BEFORE 얹기) | Human Select (frontier/item.md) |
-| WORLD·COMBAT | HUMAN | 후보 5 중 선택 대기 — **SELECTED 가 비었다.** `C-COMBAT-002`(사슬 A 의 대답)는 Stage 5 앞에서 **철회됐다** (Human · 타이밍 맞춰 막는 기능은 세우지 않는다 · 대응은 전투 지식이 운용한다 — 그 층의 형태는 UL 이 그대로 소유한다). 사슬 A 넷이 트랙에서 빠져 남은 갈래는 하나다. Agent 추천 `FR-THE-WORLD-DECIDES-WHAT-IS-POSSIBLE` — 의존이 빈 유일한 후보이자 **직전 Cycle 이 남긴 절반도 닫는다**. `C-COMBAT-001` 은 Feedback 반영이 끝났으나 여전히 Human Play 대기 (`npm run dev` → `U` → `2`) | Human Select (frontier/combat.md) |
-| WORLD·TERRAIN | RUNNING | `C-TERRAIN-003-the-world-is-born-of-its-law` — Human 지시로 `FR-THE-WORLD-IS-BORN-OF-ITS-LAW`(세계가 법칙에서 태어난다) SELECTED. BT §1 생성 사슬(원리→변화→생김새→적응→자원→사람→탐험 경험)의 설립이 트랙 최우선이다 — 직전 003(예고) 폐기의 사유. 예고·나르기 후보는 그 다음 순서로 남아 있다 | 없음 |
-| WORLD·GROWTH | HUMAN | 후보 2 중 선택 대기 — **SELECTED 가 비었다.** `C-GROWTH-001` COMPLETE · Feedback 반영 끝. Agent 추천 `FR-THE-SKILL-LEARNS-A-NEW-MOVE`(쓰던 기술이 새 수를 배운다) — 승인된 Constraint 하나를 세계에서 닫는 유일한 후보이고 바닥이 선 지금 얹히는 비용이 가장 작다 | Human Select (frontier/growth.md) |
+| WORLD·COMBAT | HUMAN | 후보 셋 중 선택 대기 — **SELECTED 가 비었다.** `C-COMBAT-003`(조건 관문) · `C-COMBAT-004`(표식) 둘 다 COMPLETE 이며 사슬 B 의 아래 두 칸이 섰다. 의존이 빈 것은 `FR-A-PROMISE-BINDS-BOTH`(스스로 건 약속이 둘을 묶는다) 하나이고 **그것으로 `MP-BIND-BY-CONTRACT` 가 닫힌다** — 다만 **다른 것보다 눈에 띄게 크다** (계약과 묶음을 쪼갤 수 없다). 고르기 전에 볼 것 둘이 frontier 의 "추천 순서" 에 있다 — 키 자리가 바닥났고, 자율 존재의 판단이 두 번 같은 자리에서 걸렸다. `C-COMBAT-001` 은 여전히 Human Play 대기 (`U` → `2`). **여섯째 후보 `FR-TAKE-WHAT-MAKES-THEM-STRONG`(상대를 이루는 것을 빼앗는다)이 Q71(b) 확장으로 섰다 — 의존이 빈 둘 중 하나이고 이 트랙에서 가장 싸다** | Human Select (frontier/combat.md) |
+| WORLD·TERRAIN | RUNNING | `C-TERRAIN-003-the-world-is-born-of-its-law` — Human 지시로 `FR-THE-WORLD-IS-BORN-OF-ITS-LAW`(세계가 법칙에서 태어난다) SELECTED. BT §1 생성 사슬(원리→변화→생김새→적응→자원→사람→탐험 경험)의 설립이 트랙 최우선이다 — 직전 003(예고) 폐기의 사유. 후보는 넷이 더 남아 있다 (예고 · 나르기 · Q71(b) 확장 둘 — `FR-LOSING-IS-A-PROCESS` 는 `MG-RESCUE-THE-TAKEN` 을 통째로 연다) | 없음 |
+| WORLD·GROWTH | HUMAN | 후보 2 중 선택 대기 — **SELECTED 가 비었다.** `C-GROWTH-001` COMPLETE · Feedback 반영 끝. Agent 추천 `FR-THE-SKILL-LEARNS-A-NEW-MOVE`(쓰던 기술이 새 수를 배운다) — 승인된 Constraint 하나를 세계에서 닫는 유일한 후보이고 바닥이 선 지금 얹히는 비용이 가장 작다. **FC 주입이 셋째를 열었다** — `FR-YOUR-BODY-HAS-A-FORM`(몸이 형태를 가진다). 그것이 서면 캐릭터의 차이가 값의 차이뿐인 상태가 처음으로 깨진다 | Human Select (frontier/growth.md) |
 | WORLD·KNOWLEDGE | HUMAN | **트랙이 방금 섰다** — 후보 일곱 중 선택 대기. 전투 지식(CK) 주입으로 판단이라는 층이 세워졌다. 의존이 빈 것은 `FR-WHAT-YOU-KNOW-FIGHTS-WITH-YOU`(배운 것이 몸의 판단이 된다) 하나이며 나머지 여섯이 전부 그것을 전제한다 — 이 트랙에는 고민할 순서가 없다. **철회된 대응 층이 돌아올 자리이기도 하다** (CK §15) | Human Select (frontier/knowledge.md) |
 | VIEW | OPEN | BACKLOG 다음 항목(drag-and-drop)부터 — 기반 동반이 필요한 셋(tip-flip-at-the-edge · escape-leaves-the-field · workspace-two-columns)은 ENGINE 뒤에 잡는다 | 없음 |
-| MASTER | OPEN | **자원 카탈로그(Design-Resource-Catalog-R0) 주입 끝** — IP 11 · IT 13 · IM 4 · grants 4 (전부 기존 MC · 새 MC 0) 가 growth/items 에 섰다. Q36(곡괭이) 닫힘 — IT-MINING-PICK. §23 이음매 셋은 Q70~Q72 로 Human 앞에 있다 (지리 좌표 · 이름 정본 · 회복 조합). §12 의 18종과 BT 자원 24종은 Q71 판정 전에는 세우지 않는다. **BT §16 세계 골격 주입 끝** — 열한 고리 중 열이 노드로 섰고(순환·지형·생존 압력·적응·자원·피난처·정착·증거 일곱이 신규), 대응표가 `graph/world-state.yaml` 머리에 있다. Q68(a)·Q69(b) 닫힘 — 순환이 이제 `MG-EXPLORE-BEIRA` 를 낳는다. 다음은 OPTIONS Q35 (몸이 아닌 존재를 요구하는 Possibility) — 이제 스킬 실행 형태의 빈 다섯 칸만 막는다. 성장(GS · GB)과 전투 상층(UL) 주입은 둘 다 끝났다: 결정 열(Q52~Q61) 반영 · GROWTH 후보 3 · COMBAT 후보 10 과 SELECTED 까지 | 없음 — 미처리 Feedback 이 0 이다 (`npm run feedback:gate`) |
+| MASTER | OPEN | **자원 카탈로그(RC) 주입 끝 + Q73~Q75 판정·BT 자원 24종 완료** — IP · IT · IM 이 growth/items 에 섰다 (grants 는 전부 기존 MC · 새 MC 0). Q36(곡괭이) 닫힘 — IT-MINING-PICK. RC §23 이음매 셋은 Q73(좌표)·Q74(이름 정본=BT)·Q75(회복 조합 단일) 로 닫혔다 (HISTORY). **BT §16 세계 골격 주입 끝** — 열한 고리 중 열이 노드로 섰고, 대응표가 `graph/world-state.yaml` 머리에 있다. **계열별 요정 Layer 0(FC) 주입도 끝났다** — Origin Class 여섯 · Constraint 넷 승인 · Q71(b) 확장 · Frontier 후보 넷. **새 이슈 Q72** — 전투 지식의 정의가 앎(MK-*)의 자리에 있다 (SCHEMA 결정) | 없음 — 미처리 Feedback 은 FEEDBACK 레인이 진다 |
 | ENGINE | OPEN | 셋 — ① **자판이 표면 안을 다니는 길** — 정해진 초점 차례가 없고(`tabindex` 0건), 글자 자리에서 `Esc` 가 죽는다(붙잡는 단계가 `INPUT` 에서 비켜 주고 받는 자리가 없다). 다시 그릴 때 초점을 붙드는 자리는 이미 섰다. BACKLOG 의 `escape-leaves-the-field` · `skill-focus-order` 가 이것을 기다린다 ② **겹침 표면의 자리 잡기** — 곁말이 가장자리에서 접히는 일 · 구획을 나란히 놓는 일 · **패널이 서로 위에 포개지는 일** (`tip-flip-at-the-edge` · `workspace-two-columns` · `panels-do-not-overlap` — 셋 다 `hud.ts` 의 배치가 소유한다. 검증 그림마다 디버그 패널과 self 패널이 겹쳐 글자가 포개진다) ③ 지면 구역 장치 `SceneGroundZone` ([design/Design-Terrain-Visualization.md](../../design/Design-Terrain-Visualization.md)) — C-TERRAIN-001 의 04 확정 뒤 | 없음 |
+
+| PROCESS | OPEN | **Q67 이 열렸다** — 병렬 레인이 공유하는 두 자리가 어긋난다 (Q 번호공간이 레인 소유가 아니다 · `frontier/README.md` 트랙 표가 낡는다). 마지막으로 닫은 것 둘: `arises_from` 이 어떤 생성 뷰에도 그려지지 않던 것 (`tools/master-graph/` — SCHEMA 가 "세계의 인과 척추" 라 부르면서도 간선이 아니었다) · `lanes:check` 가 Human 관문에 선 트랙을 상시 어긋남으로 세던 것 (`tools/lanes/build.ts`) | 없음 **이번 합류에서 ① 이 또 났다** — main 이 BT §16 주입에 Q68 · Q69 를 썼고 이 브랜치가 FC 주입에 Q68~Q72 를 썼다. 둘 다 닫힌 질문이라 HISTORY 안에서만 겹치며, 열린 것은 Q72 하나뿐이라 옮기지 않았다 |
 
 ## 레인 사이 충돌 — 순서가 아니라 파일이 겹치는 곳
 
@@ -68,11 +70,15 @@ Human 이 답하면 풀리는 것들이다. 답의 자리는 괄호가 가리킨
 | WORLD·ITEM 후보 선택 (frontier/item.md SELECTED) | WORLD·ITEM 레인 착수 |
 | WORLD·GROWTH 다음 후보 선택 (frontier/growth.md SELECTED) | WORLD·GROWTH 레인 착수. 둘 중 의존이 빈 것은 둘 다이며, 바닥(쌓인다)이 선 지금 값이 싼 쪽은 `FR-THE-SKILL-LEARNS-A-NEW-MOVE` 다 |
 | WORLD·KNOWLEDGE 첫 후보 선택 (frontier/knowledge.md SELECTED) | WORLD·KNOWLEDGE 레인 착수. 의존이 빈 것은 `FR-WHAT-YOU-KNOW-FIGHTS-WITH-YOU` 하나다 — 나머지 여섯이 전부 그것을 전제하므로 고를 것이 사실상 하나다 |
-| WORLD·COMBAT 다음 후보 선택 (frontier/combat.md SELECTED) | WORLD·COMBAT 레인 착수. 사슬 A 가 빠져 지금 의존이 빈 것은 `FR-THE-WORLD-DECIDES-WHAT-IS-POSSIBLE` 하나다 |
+| WORLD·COMBAT 다음 후보 선택 (frontier/combat.md SELECTED) | WORLD·COMBAT 레인 착수. 의존이 빈 것은 `FR-A-PROMISE-BINDS-BOTH` 하나다 — **다른 것보다 크다**는 것을 알고 고르는 것이 Human 의 몫이다 (master-frontier Do 6) |
 | Q66 — 갈래를 노드의 완결로 판정하는가 플레이의 성립으로 판정하는가 (open-questions.md) | Overlay 를 읽는 법 · Frontier 가 무엇을 결손으로 세는가 |
 | Q67 — 병렬 레인이 공유하는 두 자리가 어긋난다 (open-questions.md · PROCESS) | Q 번호 충돌과 `frontier/README.md` 트랙 표의 낡음이 되풀이되는 것을 막는다. 이번 합류에서 둘 다 실제로 났다 |
 | `CC-THE-RULE-DOES-NOT-ASK-WHO-DRIVES` 승격 여부 (candidates/) | 규칙이 조종 주체를 묻지 않는 것이 원칙이 되는가 — 다섯 Cycle 이 같은 판단을 반복했다. `DC-GROWTH-DIFFERENCE-IS-BEHAVIOR` 와 합칠지도 함께 |
 | `CC-ORDER-IS-THE-ADDRESS` 승격 여부 (candidates/) | 순서로 짚는 것이 원칙이 되는가 — DC-WORLD-OWNS-THE-SURFACE-LIST 와 합칠지도 함께 |
+| C-COMBAT-003 의 Overlay 판정 하나 (08-verification MASTER FEEDBACK) | `MC-AURA-ALLOCATION` 을 IMPLEMENTED 로 볼 것인가 — semantic("무엇을 할 수 있는가를 가른다")으로 읽으면 닫혔고, detail 의 예 둘(인지 축도 관문이 된다)을 요구로 읽으면 아직 PARTIAL 이다. Q66 과 같은 종류의 물음이다 |
+| `CC-THE-LIST-IS-THE-JUDGE-TOO` 승격 여부 (08-verification MASTER FEEDBACK) | 세계가 목록을 소유한다는 규율이 **투영뿐 아니라 판정에도** 걸리는가 — 이번에 `isSkillKind` 가 목록 대신 이름 셋을 적어 두어 새 기술이 시작은 되고 칼끝을 만들지 않았다. 관찰 둘째다 (C018 이 첫째). 기존 `DC-WORLD-OWNS-THE-SURFACE-LIST` 의 scope 를 넓힐지도 함께 |
+| **키 자리가 바닥났다** (C-COMBAT-004 Master Gap ②) | 글자 키가 남지 않았다 — `O`(C-COMBAT-003) · `P`(C-COMBAT-004) 로 끝. 사슬 B 에 후보 셋이 남았으므로 **다음 Cycle 은 키 없는 기술을 세운다**. 막힘은 아니다 (띠는 눌러서도 부른다) — `works/BACKLOG.md` 의 `skill-slot-crowds-the-keyboard` 가 VIEW/ENGINE 레인에서 그 자리를 기다린다 |
+| **자율 존재의 판단이 두 번 같은 자리에서 걸렸다** (C-COMBAT-003 Gap ① · C-COMBAT-004 Gap ①) | `Design-Creature-Behavior-R0.md` 승인이 이 트랙의 다음 층을 가른다 — 사슬 B 의 남은 셋(계약 · 규칙 관찰 · 봉인)이 전부 "상대가 무엇을 하는가" 를 전제하므로, 그 문서가 서지 않으면 **반쪽만 검증되는 층**을 쌓게 된다 |
 | C-COMBAT-001 Human Play — 손으로 `U` → 숫자를 눌러 보기 | Stage 8 STATUS 가 COMPLETE 로 닫힌다 (Feedback 은 이미 반영됐다). 봐야 할 것은 이제 **하나**다 (나머지 둘은 08 의 HUMAN PLAY 보조가 재어 BACKLOG 로 넘겼다): 상대를 절반 아래로 때렸을 때 뜨는 `[몸]` 이, 표시가 셋까지 앞에 붙은 이름(`[적대] 준비! [몸]Wanderer 1 ?`)에서 교전 중에 읽히는가 |
 | C-GROWTH-001 의 Master Gap ① (08-verification.md) | `GBC-GAIN-LEVEL` 의 `capability_reach.effective` 가 실제보다 넓다 — "기력 · 기본 이동" 은 이 Cycle 이 닿지 않았다. 좁힐 것인가, 그 셋에 유효 값 자리를 여는 것을 후보로 세울 것인가 |
 | **C-GROWTH-001 의 Master Gap ③** — 잘 터뜨린 판이 덜 쌓는다 (feedback/C-GROWTH-001…md) | 한 마리의 벌이가 18~21 로 흔들리고 열 판 중 둘은 넘어뜨리고도 첫 문턱에 못 닿는다. 선택지 셋: (a) 그대로 둔다 — Goal 이 적은 길(쓰러뜨리고 캐면)은 어느 판에서도 넘는다 (b) 쓰러뜨림을 14 → 16 (c) 치기의 몫을 0 으로 두고 **끝난 일**만 센다. 수치는 Human 소유다 (원칙 19) |
@@ -81,5 +87,6 @@ Human 이 답하면 풀리는 것들이다. 답의 자리는 괄호가 가리킨
 | 문서의 분류 다섯에 `도구` 를 더할 것인가 (Design-View-Inventory-Equipment-UX-D1 §6) | 곡괭이가 `기타` 대신 자기 칸을 얻는다 (V-008 REPORT) |
 | Q37 — 자리에 이름을 줄 것인가 (open-questions.md) | FR-ARRANGE-WHAT-YOU-CARRY 존치/삭제 |
 | Design-Creature-Behavior-R0.md 승인 | Inject → MC-PREDICT · MC-OBSERVE 습성 해금 |
-| RC §23 이음매 셋 판정 — Q70(지리 좌표) · Q71(이름 정본) · Q72(회복 조합) (open-questions.md) | BT 자원 24종과 §12 초기 카탈로그 18종이 노드로 선다 (Q50(a) 의 자리가 Q71 에 걸려 있다) · 회복 조합 단일화 |
-| 계열별 요정 문서(백왕 성장 · Layer0) 주입 | CL-* 착수 — 이름의 소유는 정해졌다 (HISTORY Q55(b)). MC-CHANGE-CLASS 가 넘어갈 형태가 생긴다 |
+| **Q72 — 전투 지식의 정의가 앎(MK-*)의 자리에 있다** (open-questions.md) | 전투법의 정의가 어디 사는지가 정해진다. 지금 `MK-HOW-TO-FIGHT-IT` 이 앎의 파일에 있으나 형태는 아이템에 가깝다(획득·보유·자리·깊이·전수). 막는 것은 없으나 KNOWLEDGE Cycle 의 03 이 저장 형태를 정할 때 걸린다. Agent 추천 (a) — 정의를 `growth/` 로 옮긴다 |
+| Layer 1 설계 문서 (계열별 상위 형태) | 여섯 CL-* 의 `transitions_to` 가 채워진다. 갈래는 여럿으로 정해졌으므로(Q69(b)) 계열마다 몇 갈래를 세울지가 그 문서의 첫 결정이다 |
+| 백왕 계열 문서 둘(`Design-Fairy-Baiwang-Growth-R0` · `Design-Fairy-Baiwang-Skill-R0`) 주입 | 한 계열의 성장과 스킬이 CL-BAIWANG-ORIGIN 위에 얹힌다 — 이번 주입은 Human 이 지목한 Layer 0 문서 하나만 옮겼다 |
