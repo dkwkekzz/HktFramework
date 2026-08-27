@@ -315,5 +315,11 @@
       ]
     }
   ],
+  "ground": {
+    "zones": [],
+    "self": {
+      "state": "none"
+    }
+  },
   "allocations": []
 }

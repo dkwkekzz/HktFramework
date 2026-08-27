@@ -22,6 +22,10 @@ const HUD: Record<string, HudPresentation> = {
   'target.name': { label: '고른 대상', icon: '🎯' },
   'target.state': { label: '지금' },
   'target.health': { label: '생명', icon: '❤' },
+  // C-TERRAIN-001 — `self.warmth` 는 여기 없다. `self.*` 는 가로 띠로 가지 않고
+  // self 패널이 가져간다 (C007 · combat-presentation.ts#isSelfHudId). 온기의 줄은
+  // view/terrain-presentation.ts 의 groundHeldLines 가 이름까지 함께 지닌다 —
+  // 소지품·대상 자리가 그렇게 한 것과 같은 자리다.
   // C022 — `target.observe` · `target.mine` 이 여기서 사라졌다. 그 둘은 사유가 문장이라
   // 가로 띠에서 자리를 가장 많이 먹었고, self 패널의 줄로 내려갔다 (target-presentation).
   // 줄을 만드는 쪽이 이름을 함께 지니므로 이 표에 남길 것이 없다.

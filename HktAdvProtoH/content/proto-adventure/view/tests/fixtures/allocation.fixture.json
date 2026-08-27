@@ -600,5 +600,11 @@
       "available": true,
       "interactionId": "set-allocation"
     }
-  ]
+  ],
+  "ground": {
+    "zones": [],
+    "self": {
+      "state": "none"
+    }
+  }
 }

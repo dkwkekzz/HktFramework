@@ -56,6 +56,8 @@ export function resolvePresentation(
     terrain: snapshot.scene,
     // 겹침 표면 — 이 팩은 아무것도 열지 않는다. 능력이 있는 것과 쓰는 것은 다르다
     surfaces: [],
+    // 지면 구역 — 이 팩의 세계에는 자리가 없다. 같은 이유로 비어 있다
+    zones: [],
     slotBars: [],
     entities: snapshot.entities.map((entity) => ({
       id: entity.id,

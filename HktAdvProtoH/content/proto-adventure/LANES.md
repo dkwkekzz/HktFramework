@@ -31,10 +31,10 @@ Feedback · BACKLOG)를 겹쳐 `LANES.html` 로 그린다. `npm run lanes:check`
 
 | 레인 | 상태 | 지금 | 기다리는 것 |
 |---|---|---|---|
-| FEEDBACK | OPEN | `C-COMBAT-001` 의 MASTER FEEDBACK 이 미처리다 (08-verification.md) — Overlay 판정 둘(PARTIAL)과 Constraint 후보 하나 | C-COMBAT-001 이 COMPLETE 로 닫히고 병합된 뒤 최신 main 위에서 (`npm run feedback:gate`) |
+| FEEDBACK | OPEN | **둘이 밀렸다** — `C-TERRAIN-001`(Constraint 재판정 DC-WORLD-TERRAIN-IS-A-PRINCIPLE SATISFIED → PARTIAL · Master Gap: BT §15 셋째 항이 비어 있다 · 다음 후보는 이미 트랙 파일에 섰다) 과 `C-COMBAT-001`(Overlay 판정 둘 PARTIAL · Constraint 후보 하나). 한 실행이 배치로 처리하되 `feedback/<CycleId>.md` 는 따로 만든다 | 없음 — 병합 뒤 최신 main 위에서 (`npm run feedback:gate`) |
 | WORLD·ITEM | HUMAN | 후보 5 중 선택 대기 — Agent 추천 FR-THE-PLACES-ARE-NARROWER (+FR-SEE-BEFORE 얹기) | Human Select (frontier/item.md) |
 | WORLD·COMBAT | HUMAN | `C-COMBAT-001-where-your-power-sits` — Stage 1~8 닫힘. 검사 6종 통과 · 실제 브라우저에서 키→요청→세계→관찰 왕복 실측. **STATUS 는 IN PROGRESS** — 사람이 손으로 눌러 본 뒤에만 COMPLETE 다 (Gate 14항). 남은 후보 아홉이 UL 전체를 덮는다 | Human Play (`npm run dev` → `U` → `2`) |
-| WORLD·TERRAIN | OPEN | `C-TERRAIN-001` 착수 대기 — SELECTED `FR-THE-GROUND-HAS-A-LAW`(땅이 법칙을 지닌다). Stage 1 부터, 아직 시작하지 않았다. 시각화의 소유 분해·진행 순서는 [design/Design-Terrain-Visualization.md](../../design/Design-Terrain-Visualization.md) 를 따른다 | 없음 — 다만 이 판과 트랙 파일이 main 에 들어간 뒤에 잡는다 |
+| WORLD·TERRAIN | OPEN | `C-TERRAIN-001` **COMPLETE**. 다음 후보는 `FR-THE-LAND-KEEPS-WHAT-IT-TAKES`(땅이 거둔 것을 간직한다) — PROPOSED 이며 Human 선택 대기. **미처리 MASTER FEEDBACK 이 있다** (08 의 Constraint 재판정 · Master Gap) — Feedback 레인이 먼저 돈 뒤 잡는다 | 병합 뒤 최신 main 위에서 (`npm run feedback:gate`) |
 | WORLD·GROWTH | OPEN | `C-GROWTH-001` 착수 대기 — SELECTED `FR-WHAT-YOU-DID-MAKES-YOU`(한 일이 몸을 키운다). Stage 1 부터, 아직 시작하지 않았다. **COMBAT 과 같은 파일을 본다 — 아래 충돌 칸** | 없음 — 다만 이 판과 트랙 파일이 main 에 들어간 뒤에 잡는다 |
 | VIEW | OPEN | BACKLOG 다음 항목(drag-and-drop)부터 — 기반 동반이 필요한 셋(tip-flip-at-the-edge · escape-leaves-the-field · workspace-two-columns)은 ENGINE 뒤에 잡는다 | 없음 |
 | MASTER | OPEN | OPTIONS Q35 (몸이 아닌 존재를 요구하는 Possibility) — 이제 스킬 실행 형태의 빈 다섯 칸만 막는다. 성장(GS · GB)과 전투 상층(UL) 주입은 둘 다 끝났다: 결정 열(Q52~Q61) 반영 · GROWTH 후보 3 · COMBAT 후보 10 과 SELECTED 까지 | 없음 — 미처리 Feedback 이 0 이다 (`npm run feedback:gate`) |

@@ -1,5 +1,5 @@
 {
-  "specId": "VIEW-THE-SHAPE-IS-DATA-001",
+  "specId": "VIEW-THE-GROUND-HAS-A-LAW-001",
   "scene": "mining-field",
   "observer": {
     "id": "observer-1",
@@ -296,10 +296,7 @@
         "rawDamage": 26,
         "charge": 12,
         "cost": 0,
-        "damageType": "physical",
-        "swingArc": 2.6179938779914944,
-        "swingReach": 1.3,
-        "swingTipRadius": 0.7
+        "damageType": "physical"
       }
     },
     {
@@ -313,10 +310,7 @@
         "rawDamage": 72,
         "charge": 8,
         "cost": 30,
-        "damageType": "physical",
-        "swingArc": 0.6981317007977318,
-        "swingReach": 2.2,
-        "swingTipRadius": 0.55
+        "damageType": "physical"
       }
     },
     {
@@ -339,22 +333,6 @@
       "id": "clear-target",
       "role": "clear-target",
       "available": true
-    },
-    {
-      "id": "skill-aura",
-      "role": "skill-aura",
-      "available": true,
-      "profile": {
-        "baseDamage": 6,
-        "attackRatio": 0.5,
-        "rawDamage": 26,
-        "charge": 12,
-        "cost": 0,
-        "damageType": "aura",
-        "swingArc": 2.6179938779914944,
-        "swingReach": 1.3,
-        "swingTipRadius": 0.7
-      }
     }
   ],
   "hud": [
@@ -472,6 +450,16 @@
       "id": "self.guard.broken",
       "kind": "flag",
       "value": false
+    },
+    {
+      "id": "self.warmth",
+      "kind": "counter",
+      "value": 44
+    },
+    {
+      "id": "self.warmthMax",
+      "kind": "counter",
+      "value": 100
     }
   ],
   "strikes": [
@@ -576,10 +564,34 @@
     "used": 0,
     "capacity": 4
   },
+  "equipment": [],
   "ground": {
-    "zones": [],
+    "zones": [
+      {
+        "id": "zone-ice-field",
+        "law": "heat-binding",
+        "role": "law",
+        "center": {
+          "x": -11,
+          "z": 11
+        },
+        "radius": 7.0
+      },
+      {
+        "id": "zone-sunbreath",
+        "law": "heat-binding",
+        "role": "respite",
+        "center": {
+          "x": -13,
+          "z": 13
+        },
+        "radius": 2.5
+      }
+    ],
     "self": {
-      "state": "none"
+      "law": "heat-binding",
+      "state": "sheltered",
+      "takes": "warmth"
     }
   },
   "allocations": []
