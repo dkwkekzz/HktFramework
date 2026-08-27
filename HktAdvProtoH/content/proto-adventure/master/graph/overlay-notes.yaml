@@ -236,6 +236,36 @@ sections:
         ids: [MC-GROW-CLASS-MASTERY, MC-GROW-EXPLORATION-MASTERY]
       - MC-MASTER-A-SKILL
       - MC-CHANGE-CLASS
+  - kind: capability
+    title: "Capability — 전투 지식 영역 (CK)"
+    intro: |
+      `content/proto-adventure/design/Design-Combat-Knowledge-Extension-R0.md`(CK) 주입으로 섰다.
+      **일곱 줄이 전부 MISSING 이며, 그것이 이 표에서 가장 정직한 그림이다** — 이 층은
+      세계에 한 조각도 없다.
+
+      비어 있는 방식이 다른 표들과 다르다. 전투 영역의 결손은 "판정 하나가 없다" 였고
+      아이템 영역의 결손은 "상태 하나가 없다" 였는데, 여기는 **판단이라는 것 자체가
+      세계에 없다.** 사람의 몸은 요청받은 것만 하고, 자율 존재는 고정된 규칙 하나로
+      움직인다 (RULE-NPC-DECIDE-001 — 기력이 되면 큰 기술, 아니면 기본 기술).
+      그래서 이 일곱은 하나씩 채워 넣는 목록이 아니라 **한 층을 통째로 세우는 일**이다.
+
+      셋째 줄(MC-CONDUCT-BY-KNOWLEDGE)이 이 층의 문이다. 나머지 여섯은 그것에 재료를
+      대거나(습득 · 선택 · 성장 · 전수) 그것을 읽히게 하거나(설명) 그 위에 얹힌다(조합).
+      운용이 서지 않으면 나머지는 아무 데도 닿지 않는다.
+
+      **철회된 사슬 A 가 돌아올 자리도 여기다.** 플레이어가 시점을 맞춰 대응하는 층은
+      세우지 않기로 정해졌고 (HISTORY "사슬 A 철회"), CK §15 는 그 대신 기본 대응
+      Capability 는 그대로 두고 **지식이 그 운용을 개선하는** 형태를 제시한다.
+      그 형태로 다시 들어올 때 MC-ACTIVE-RESPONSE 계열의 semantic 을 어디까지 고칠
+      것인가는 아직 정해지지 않았다 (open-questions Q63).
+    rows:
+      - MC-LEARN-COMBAT-KNOWLEDGE
+      - MC-CARRY-COMBAT-KNOWLEDGE
+      - MC-CONDUCT-BY-KNOWLEDGE
+      - MC-DEEPEN-COMBAT-KNOWLEDGE
+      - MC-EXPLAIN-COMBAT-DECISION
+      - MC-TEACH-COMBAT-KNOWLEDGE
+      - MC-COMBINE-KNOWLEDGE
   - kind: world
     title: "World / Actor / Knowledge — 세계 자체는 얼마나 서 있는가"
     intro: |

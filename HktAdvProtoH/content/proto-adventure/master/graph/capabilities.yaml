@@ -9,6 +9,7 @@
 #        BT = content/proto-adventure/design/Master-World-Beira-Terrain.md (대지형)
 #        GS = content/proto-adventure/design/Master-Fairy-Growth-System.md (성장 — 요정 캐릭터 성장 시스템)
 #        GB = content/proto-adventure/design/Design-Growth-Balance-R0.md (성장 — 비용·보상 균형)
+#        CK = content/proto-adventure/design/Design-Combat-Knowledge-Extension-R0.md (전투 지식)
 #
 # ── 이 파일을 읽는 법 ────────────────────────────────────────────────────
 # Capability 는 "세계가 할 줄 아는 일" 의 목록이다. 스킬 목록도 구현 모듈 목록도 아니다.
@@ -971,7 +972,7 @@ nodes:
           segment: OBSERVE
           source: UL §25 · BW §32
           role: 앎의 사슬에서 대상이 존재가 아니라 그 존재가 지닌 규칙인 칸
-    required_by: [MP-KNOW-THE-OPPONENT-RULE]
+    required_by: [MP-KNOW-THE-OPPONENT-RULE, MP-LEARN-HOW-TO-FIGHT-IT]
     demanded_by: []
     constraints: [DC-COMBAT-STRONG-RULE-HAS-COUNTERPLAY, DC-COMBAT-UNAVAILABLE-HAS-A-REASON]
     constraint_evaluation:
@@ -2564,3 +2565,267 @@ nodes:
 #
 # 비주입 — GB §29 의 자원 Profile(IP-* 의 acquisition · utility · limitations)도 같은
 # 이유로 growth/items 에 더하지 않았다. 칸의 자리가 Q58 이다.
+
+  # ── 전투 지식 (CK 주입 2026-08-27) ─────────────────────────────────────
+  #
+  # 이 다섯 + 둘은 새 전투 판정을 하나도 만들지 않는다 (CK §0). 이미 있는 능력을
+  # 언제 어떻게 쓸지를 정하는 층이며, 그래서 전투 사다리 위가 아니라 옆에 선다.
+
+  - id: MC-LEARN-COMBAT-KNOWLEDGE
+    type: capability
+    semantic: >
+      세계에서 겪은 것으로 전투법을 습득한다 — 반복 관찰 · 실패 · 전수 · 연구 ·
+      소속으로 얻으며, 얻은 것은 하나의 완성된 판단법으로 몸에 남는다.
+    detail: >
+      사실을 아는 것과 전투법을 얻는 것을 가르는 노드다. 거대 악마의 공격을 여러 번
+      지켜보면 "날개를 펼친 동안에만 되돌아온다" 는 사실이 생기고, 그 사실을 들고
+      사냥꾼에게 묻거나 스스로 연구해야 「악마의 날개 파훼법」이 된다 (CK §9).
+      두 걸음이 따로라는 것이 이 노드의 전부이며, 그래서 정보를 아는 사람과 싸울 줄
+      아는 사람이 세계에서 갈린다.
+      실패도 원천이라는 점이 특징이다 — 전멸한 자리에서도 "세 번째 포효 뒤에 항상
+      기력 폭발" 이라는 관찰이 남아 다음 지식으로 자란다 (CK §29). 그래서 이 능력이
+      있는 세계에서는 진 판이 손실로만 끝나지 않는다.
+      스킬을 배우는 것(MC-MASTER-A-SKILL)과 갈린다. 그쪽은 쓰던 행동의 쓰임새가
+      넓어지는 것이고 이쪽은 할 수 있는 일은 그대로인 채 언제 무엇을 할지를 아는 것이다.
+    world_shape: >
+      전투법이 세계 안의 사건(반복 관찰 · 실패 · 전수 · 연구 · 소속)을 거쳐야 생기고,
+      같은 사실을 가진 둘 중 그 걸음을 밟은 쪽만 전투법을 지녀야 한다.
+      메뉴에서 재화만으로 열리면 이 능력이 아니다.
+    part_of:
+      grounded: true
+      memberships:
+        - system: MS-COMBAT-KNOWLEDGE
+          segment: ACQUIRE
+          source: CK §8 · §9 · §24 · §29
+        - system: MS-GROWTH-SOURCE
+          source: CK §34 (Class Change 가 새 전투 지식 접근을 함께 제공한다)
+          role: 성장의 원천 다섯 축과 나란한 자리 — GS 가 세지 않은 축이므로 segment 를 두지 않는다
+    required_by: [MP-LEARN-HOW-TO-FIGHT-IT]
+    demanded_by: []
+    constraints: [DC-KNOWLEDGE-HAS-A-WORLD-CAUSE, DC-KNOWLEDGE-IS-NOT-A-SCRIPT,
+                  DC-GROWTH-PRINCIPLE-IS-PLAYED]
+    constraint_evaluation:
+      DC-KNOWLEDGE-HAS-A-WORLD-CAUSE: SATISFIED   # 획득처가 전부 세계 안의 사건이라고 semantic 이 직접 말한다
+      DC-KNOWLEDGE-IS-NOT-A-SCRIPT: SATISFIED     # 얻는 것이 완성된 판단법이고 조립하지 않는다
+      DC-GROWTH-PRINCIPLE-IS-PLAYED: UNRESOLVED   # 겪어서 얻는다는 형태는 맞으나 무엇을 얼마나 겪어야 하는가는 CK 가 말하지 않는다
+    overlay: MISSING
+    overlay_gap: >-
+      전투법이라는 것이 세계에 없다 — 배울 대상도 배우는 길도 없다
+
+  - id: MC-CARRY-COMBAT-KNOWLEDGE
+    type: capability
+    semantic: >
+      배운 전투법 중 이번 싸움에 가져갈 것을 제한된 자리에 고른다 — 지닌 것과
+      지금 작동하는 것이 갈리고, 그 선택이 이 판의 그 캐릭터를 정한다.
+    detail: >
+      모은 것이 곧 힘이 되지 않게 하는 자리다. 자리가 보유량보다 적으므로 같은
+      수호자라도 공격대에 갈 때와 대인전에 갈 때와 탐험에 갈 때 전혀 다른 넷을
+      들고 나간다 (CK §11). 전투 전 준비가 형식이 아니라 실제 Build 선택이 되는
+      지점이며 (CK §27), 잘못 준비한 것도 플레이의 일부가 된다 (CK §28).
+      걸어 두는 것(MC-EQUIP-ITEM)과 형태가 같고 대상이 다르다 — 저쪽은 몸에 무엇을
+      걸었는가이고 이쪽은 머리에 무엇을 담고 왔는가다. 지닌 것과 적용된 것을 가르는
+      규율도 같다 (DC-ITEM-HOLDING-IS-NOT-APPLYING 의 형태).
+      자리의 수는 이 노드가 정하지 않는다 — CK §10 의 넷은 예시이며 수치는 이 층을
+      세우는 Cycle 이 소유한다.
+    world_shape: >
+      배운 전투법의 목록과 지금 작동하는 전투법의 목록이 따로 있고, 뒤쪽이 앞쪽보다
+      적어 고르는 일이 강제되며, 무엇을 골랐는가가 그 싸움의 행동을 바꿔야 한다.
+    part_of:
+      grounded: true
+      memberships:
+        - system: MS-COMBAT-KNOWLEDGE
+          segment: CARRY
+          source: CK §10 · §11 · §27
+    required_by: [MP-PREPARE-THE-RIGHT-KNOWLEDGE]
+    demanded_by: []
+    constraints: [DC-KNOWLEDGE-IS-CARRIED-NOT-HOARDED, DC-KNOWLEDGE-CONFLICT-IS-DESIGNED,
+                  DC-WORLD-OWNS-THE-SURFACE-LIST]
+    constraint_evaluation:
+      DC-KNOWLEDGE-IS-CARRIED-NOT-HOARDED: SATISFIED   # 이 노드가 그 규율의 실물이다
+      DC-KNOWLEDGE-CONFLICT-IS-DESIGNED: UNRESOLVED    # 함께 설 수 없는 짝을 장착 단계에서 막을지는 CK §32 가 "필요하다면" 으로 남겼다
+      DC-WORLD-OWNS-THE-SURFACE-LIST: SATISFIED        # 고를 수 있는 목록과 자리 수를 세계가 싣는다
+    overlay: MISSING
+    overlay_gap: >-
+      가져갈 것이 없다 — 전투법도, 그것을 담는 자리도 없다
+
+  - id: MC-CONDUCT-BY-KNOWLEDGE
+    type: capability
+    semantic: >
+      가져간 전투법이 지금의 상황을 읽어 이 몸이 무엇을 우선할지 정한다 — 플레이어가
+      매 순간 지시하지 않아도, 무엇을 억제하고 무엇을 앞세울지가 그 지식에서 나온다.
+    detail: >
+      이 층 전체가 서기 위해 반드시 있어야 하는 노드다. 앞의 둘(습득 · 선택)이 재료를
+      준비한다면 이것이 실제로 전투를 바꾼다. CK §40 의 구조에서 "상황을 Knowledge 로
+      해석 → Combat Intent → 기력 · 대응 · 능력" 이 이 자리다.
+      같은 지식이 몸마다 다른 행동이 된다는 것이 핵심이다 — 「위험한 동료를 우선
+      보호한다」가 수호자에게는 가로채기가, 방벽술사에게는 길을 끊는 방벽이,
+      공간술사에게는 위치 교환이 된다 (CK §13). 지식은 목적과 판단법을 주고 실행은
+      그 몸이 가진 능력이 하므로, 없는 능력이 생기지 않는다 (CK §12).
+      **사람의 몸에만 서는 것이 아니다.** 지능 있는 자율 존재도 자기 전투법을 지니며,
+      그러면 그 존재의 행동이 임의의 AI 가 아니라 "그가 세계에서 무엇을 배웠는가" 로
+      설명된다 (CK §35). 지금 세계의 고정된 판단 규칙 하나(RULE-NPC-DECIDE-001)가
+      대체될 자리가 여기다.
+      대응 자리(MC-ACTIVE-RESPONSE 계열)와 갈린다 — 저쪽은 무엇을 할 수 있는가이고
+      이쪽은 그중 무엇을 언제 하는가다. CK §15 가 그 둘을 명시적으로 갈라 둔다.
+    world_shape: >
+      같은 몸이 다른 전투법을 지녔을 때 관찰 가능하게 다르게 싸우고, 그 차이가 값의
+      크기가 아니라 무엇을 하는가에서 나며, 지식이 지시한 운용이 그 몸에 없는 능력이면
+      성립하지 않아야 한다.
+    part_of:
+      grounded: true
+      memberships:
+        - system: MS-COMBAT-KNOWLEDGE
+          segment: CONDUCT
+          source: CK §2 · §12 · §13 · §17 · §40
+        - system: MS-CREATURE-BEHAVIOR
+          source: CK §35
+          role: 자율 존재의 행동도 배운 전투법으로 설명된다 — 그쪽 문서와의 경계는 Q62
+    required_by: [MP-LEARN-HOW-TO-FIGHT-IT, MP-PREPARE-THE-RIGHT-KNOWLEDGE]
+    demanded_by: []
+    constraints: [DC-KNOWLEDGE-RUNS-CAPABILITY-NEVER-CREATES-IT, DC-KNOWLEDGE-SHOWS-IN-BEHAVIOR,
+                  DC-KNOWLEDGE-CONFLICT-IS-DESIGNED, DC-MASTERY-IS-KNOWING-NOT-REFLEX,
+                  DC-KNOWLEDGE-IS-NOT-A-SCRIPT]
+    constraint_evaluation:
+      DC-KNOWLEDGE-RUNS-CAPABILITY-NEVER-CREATES-IT: SATISFIED   # 실행이 그 몸의 능력에서 나온다고 semantic 이 직접 말한다 (CK §12 · §13)
+      DC-KNOWLEDGE-SHOWS-IN-BEHAVIOR: SATISFIED                  # world_shape 가 그 차이를 판정 조건으로 세운다
+      DC-MASTERY-IS-KNOWING-NOT-REFLEX: SATISFIED                # 판단의 주체가 배운 지식이고 플레이어의 손이 아니다
+      DC-KNOWLEDGE-IS-NOT-A-SCRIPT: SATISFIED                    # 운용이 완성된 지식에서 나오고 플레이어가 조건을 엮지 않는다
+      DC-KNOWLEDGE-CONFLICT-IS-DESIGNED: UNRESOLVED              # 둘이 다른 판단을 요구할 때의 우선순위를 무엇이 지니는지는 이 층을 세우는 Cycle 이 정한다
+    overlay: MISSING
+    overlay_gap: >-
+      판단이라는 것이 세계에 없다 — 사람의 몸은 요청받은 것만 하고, 자율 존재는 고정된 규칙 하나로 움직인다
+
+  - id: MC-DEEPEN-COMBAT-KNOWLEDGE
+    type: capability
+    semantic: >
+      겪은 것이 이미 지닌 전투법을 더 깊게 만든다 — 커지는 것은 효과가 아니라
+      그 지식이 헤아릴 수 있는 세계 상태의 폭이다.
+    detail: >
+      CK §18 이 「기력 보존」을 셋으로 적는다. 처음에는 기력이 부족하면 비싼 능력을
+      아끼고, 다음에는 앞으로 필요할 대응 비용까지 미리 헤아리며, 그다음에는 계약
+      성립 가능성과 상대의 능력까지 넣어 남길 양을 정한다. 세 단계 어디에도 "효과
+      +10%" 가 없다 — 판단에 들어가는 세계 상태가 하나씩 늘 뿐이다.
+      성장의 근거가 실제 경험이라는 점도 함께 온다 (CK §19) — 기력 보존을 쓰면서
+      고갈을 여러 번 겪어야 다음 단계가 열린다. 그리고 성장이 직선이 아닐 수 있다
+      (CK §20) — 검술 대응이 중검 · 쌍검 · 장검 반격으로 갈라지듯 지식 자신이
+      성장 그래프를 이룬다.
+    world_shape: >
+      지닌 전투법에 깊이가 있고, 그것을 쓰며 겪은 것이 쌓여야 다음 깊이가 열리며,
+      깊어진 지식이 이전에는 헤아리지 않던 것을 판단에 넣어야 한다.
+      늘어난 것이 값뿐이면 이 능력이 아니다.
+    part_of:
+      grounded: true
+      memberships:
+        - system: MS-COMBAT-KNOWLEDGE
+          segment: DEEPEN
+          source: CK §18 · §19 · §20
+    required_by: [MP-LEARN-HOW-TO-FIGHT-IT]
+    demanded_by: []
+    constraints: [DC-GROWTH-REWARD-IS-NEW-REACH, DC-KNOWLEDGE-HAS-A-WORLD-CAUSE,
+                  DC-GROWTH-MASTERY-FROM-OWN-BEHAVIOR]
+    constraint_evaluation:
+      DC-GROWTH-REWARD-IS-NEW-REACH: SATISFIED             # 자라는 것이 헤아릴 수 있는 세계 상태라고 semantic 이 직접 말한다 (CK §18)
+      DC-GROWTH-MASTERY-FROM-OWN-BEHAVIOR: SATISFIED       # 그 지식을 쓰며 겪은 것만 센다 (CK §19)
+      DC-KNOWLEDGE-HAS-A-WORLD-CAUSE: SATISFIED            # 깊어지는 근거도 실제 경험이다 (CK §19)
+    overlay: MISSING
+    overlay_gap: >-
+      깊어질 지식이 없다
+
+  - id: MC-EXPLAIN-COMBAT-DECISION
+    type: capability
+    semantic: >
+      캐릭터가 왜 그렇게 싸웠는지가 세계에서 읽힌다 — 어떤 전투법이 켜져 있었고
+      무엇을 보았고 무엇을 정했으며 그 사유가 무엇인지가 남는다.
+    detail: >
+      판단의 주체가 플레이어가 아니게 되는 순간 반드시 함께 서야 하는 노드다.
+      편집기를 닫는 대신 관찰을 여는 것이 CK §31 의 교환이며, 그것이 없으면
+      플레이어는 자기 캐릭터가 왜 그러는지 알 수 없어 지식 선택이 도박이 된다.
+      남는 것이 개발자 로그가 아니라는 점이 중요하다 — CK §39-10 은 판단 결과를
+      세계 상태와 전투 기록에서 설명할 수 있어야 한다고 적는다. 즉 추적의 재료를
+      세계가 지녀야 하고 화면이 되짚어 만들어내지 않는다.
+      못 쓰는 사유를 세계가 하나 골라 내보내는 자리(DC-COMBAT-UNAVAILABLE-HAS-A-REASON)와
+      같은 계열이다 — 저쪽은 왜 안 되는가이고 이쪽은 왜 그것을 했는가다.
+    world_shape: >
+      한 판단마다 그것을 낸 전투법과 그때 읽은 세계 상태와 고른 것이 함께 남고,
+      사람이 그 기록만으로 "왜 그렇게 싸웠는가" 에 답할 수 있어야 한다.
+    part_of:
+      grounded: true
+      memberships:
+        - system: MS-COMBAT-KNOWLEDGE
+          segment: CONDUCT
+          source: CK §31 · §39-10
+          role: 운용의 짝 — 판단이 서면 그 판단의 설명도 함께 서야 한다
+    required_by: [MP-LEARN-HOW-TO-FIGHT-IT]
+    demanded_by: []
+    constraints: [DC-KNOWLEDGE-DECISION-IS-TRACEABLE, DC-WORLD-OWNS-THE-SURFACE-LIST]
+    constraint_evaluation:
+      DC-KNOWLEDGE-DECISION-IS-TRACEABLE: SATISFIED   # 이 노드가 그 규율의 실물이다
+      DC-WORLD-OWNS-THE-SURFACE-LIST: SATISFIED       # 추적 재료를 세계가 싣고 화면은 옮긴다 (CK §39-10)
+    overlay: MISSING
+    overlay_gap: >-
+      설명할 판단이 없다. 다만 경위를 세계가 싣고 화면이 옮기는 형태는 이미 섰다 (C010 이래의 breakdown)
+
+  - id: MC-TEACH-COMBAT-KNOWLEDGE
+    type: capability
+    semantic: >
+      지닌 전투법을 다른 존재에게 전수한다 — 받은 쪽은 배운 채로 시작하되
+      직접 써 보기 전까지는 온전하지 않다.
+    detail: >
+      지식이 세계의 객체이기 때문에 성립하는 노드다 (CK §23). 스승에게 받으면 전투법이
+      생기지만 실전 경험이 없어 숙련이 낮고, 쓰면서 겪어야 온전히 자리잡는다.
+      이것이 있어야 교관 · 길드 · 학교 · 기사단 · 협회 · 비밀 유파가 장식이 아니라
+      실제 성장 콘텐츠가 된다 (CK §23). 조직마다 가르치는 것이 다르므로 조직의
+      차이가 장비 외형이 아니라 **싸우는 사고방식**으로 표현된다 (CK §22).
+      책으로 전하는 것도 같은 자리다 (CK §24) — 다만 책과 배운 결과는 구분되어,
+      책을 버려도 배운 것은 남는다.
+    world_shape: >
+      한 존재의 전투법이 다른 존재에게 옮겨 가는 길이 있고, 옮겨 받은 것이 직접 겪어
+      얻은 것과 처음에는 다른 상태여야 하며, 쓰면서 그 차이가 좁혀져야 한다.
+    part_of:
+      grounded: true
+      memberships:
+        - system: MS-COMBAT-KNOWLEDGE
+          segment: ACQUIRE
+          source: CK §22 · §23 · §24
+          role: 획득의 한 길 — 겪어서 얻는 것과 나란한 다른 원천이다
+    required_by: [MP-LEARN-HOW-TO-FIGHT-IT]
+    demanded_by: []
+    constraints: [DC-KNOWLEDGE-HAS-A-WORLD-CAUSE]
+    constraint_evaluation:
+      DC-KNOWLEDGE-HAS-A-WORLD-CAUSE: SATISFIED   # 전수가 세계 안의 관계로 일어난다
+    overlay: MISSING
+    overlay_gap: >-
+      전할 지식도 전할 상대도 없다 — 세계에 다른 플레이어 말고는 말을 주고받는 존재가 없다
+
+  - id: MC-COMBINE-KNOWLEDGE
+    type: capability
+    semantic: >
+      지닌 전투법 둘이 맞물려 어느 하나만으로는 성립하지 않던 운용이 열린다 —
+      플레이어가 엮는 것이 아니라 세계가 정해 둔 맞물림을 발견하는 것이다.
+    detail: >
+      CK §33 이 예로 드는 것은 둘이다 — 능력 관찰과 능력 봉인이 맞물려 「관찰 후 봉인」
+      이 되고, 가로채기와 기력 흡수가 맞물려 「대신 받아 흡수한다」가 된다.
+      맞물림을 플레이어가 설계하지 않는다는 점이 이 노드의 경계다 (CK §33 마지막 줄) —
+      그것을 허용하면 곧 규칙 편집기가 된다.
+      문서가 "일부 Knowledge 는" 이라고 적으므로 이것은 모든 지식에 걸리는 성질이 아니라
+      일부에 설계로 부여되는 것이다. 그래서 이 노드는 전투 지식 층의 필수 자리가 아니라
+      그 위에 얹히는 확장이며, 앞의 다섯이 서기 전에는 요구되지 않는다.
+    world_shape: >
+      함께 지녔을 때만 성립하는 운용이 있고, 그 맞물림이 세계에 미리 정해져 있으며,
+      플레이어가 그것을 찾아내는 것으로 열려야 한다.
+    part_of:
+      grounded: true
+      memberships:
+        - system: MS-COMBAT-KNOWLEDGE
+          segment: CONDUCT
+          source: CK §33
+          role: 운용 위에 얹히는 확장 — 필수 자리가 아니다
+    required_by: [MP-PREPARE-THE-RIGHT-KNOWLEDGE]
+    demanded_by: []
+    constraints: [DC-KNOWLEDGE-IS-NOT-A-SCRIPT, DC-SKILL-COMBINE-BEFORE-NEW-FORM]
+    constraint_evaluation:
+      DC-KNOWLEDGE-IS-NOT-A-SCRIPT: SATISFIED   # 맞물림을 세계가 정하고 플레이어는 발견한다 (CK §33)
+      DC-SKILL-COMBINE-BEFORE-NEW-FORM: SATISFIED   # 새 형태를 짓기 전에 이미 있는 둘의 조합을 먼저 본다
+    overlay: MISSING
+    overlay_gap: >-
+      맞물릴 지식이 없다

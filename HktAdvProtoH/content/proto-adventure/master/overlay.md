@@ -235,6 +235,38 @@ IMPLEMENTED 로 서 있는 MC-EQUIP-ITEM 이 그 자리이기 때문이다 (같�
 | MC-MASTER-A-SKILL | MISSING | — | 스킬이 자란다는 개념이 없다 — 기술은 종류가 정한 값 그대로이고 쓴 이력이 어디에도 남지 않는다 |
 | MC-CHANGE-CLASS | MISSING | — | 몸이 형태를 갖지 않는다 — CL-* 노드가 0 개이고 세계의 몸은 종류 하나로 고정이다 |
 
+## Capability — 전투 지식 영역 (CK)
+
+`content/proto-adventure/design/Design-Combat-Knowledge-Extension-R0.md`(CK) 주입으로 섰다.
+**일곱 줄이 전부 MISSING 이며, 그것이 이 표에서 가장 정직한 그림이다** — 이 층은
+세계에 한 조각도 없다.
+
+비어 있는 방식이 다른 표들과 다르다. 전투 영역의 결손은 "판정 하나가 없다" 였고
+아이템 영역의 결손은 "상태 하나가 없다" 였는데, 여기는 **판단이라는 것 자체가
+세계에 없다.** 사람의 몸은 요청받은 것만 하고, 자율 존재는 고정된 규칙 하나로
+움직인다 (RULE-NPC-DECIDE-001 — 기력이 되면 큰 기술, 아니면 기본 기술).
+그래서 이 일곱은 하나씩 채워 넣는 목록이 아니라 **한 층을 통째로 세우는 일**이다.
+
+셋째 줄(MC-CONDUCT-BY-KNOWLEDGE)이 이 층의 문이다. 나머지 여섯은 그것에 재료를
+대거나(습득 · 선택 · 성장 · 전수) 그것을 읽히게 하거나(설명) 그 위에 얹힌다(조합).
+운용이 서지 않으면 나머지는 아무 데도 닿지 않는다.
+
+**철회된 사슬 A 가 돌아올 자리도 여기다.** 플레이어가 시점을 맞춰 대응하는 층은
+세우지 않기로 정해졌고 (HISTORY "사슬 A 철회"), CK §15 는 그 대신 기본 대응
+Capability 는 그대로 두고 **지식이 그 운용을 개선하는** 형태를 제시한다.
+그 형태로 다시 들어올 때 MC-ACTIVE-RESPONSE 계열의 semantic 을 어디까지 고칠
+것인가는 아직 정해지지 않았다 (open-questions Q63).
+
+| Capability | 상태 | 근거 | 부족한 것 |
+|---|---|---|---|
+| MC-LEARN-COMBAT-KNOWLEDGE | MISSING | — | 전투법이라는 것이 세계에 없다 — 배울 대상도 배우는 길도 없다 |
+| MC-CARRY-COMBAT-KNOWLEDGE | MISSING | — | 가져갈 것이 없다 — 전투법도, 그것을 담는 자리도 없다 |
+| MC-CONDUCT-BY-KNOWLEDGE | MISSING | — | 판단이라는 것이 세계에 없다 — 사람의 몸은 요청받은 것만 하고, 자율 존재는 고정된 규칙 하나로 움직인다 |
+| MC-DEEPEN-COMBAT-KNOWLEDGE | MISSING | — | 깊어질 지식이 없다 |
+| MC-EXPLAIN-COMBAT-DECISION | MISSING | — | 설명할 판단이 없다. 다만 경위를 세계가 싣고 화면이 옮기는 형태는 이미 섰다 (C010 이래의 breakdown) |
+| MC-TEACH-COMBAT-KNOWLEDGE | MISSING | — | 전할 지식도 전할 상대도 없다 — 세계에 다른 플레이어 말고는 말을 주고받는 존재가 없다 |
+| MC-COMBINE-KNOWLEDGE | MISSING | — | 맞물릴 지식이 없다 |
+
 ## World / Actor / Knowledge — 세계 자체는 얼마나 서 있는가
 
 Capability 만 보면 전투가 꽤 찬 것처럼 보이지만, 그 전투가 놓일 **세계**가 거의 없다.

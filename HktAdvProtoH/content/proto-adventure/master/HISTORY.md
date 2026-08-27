@@ -3138,3 +3138,128 @@ Human 이 "FR-ACTION-PHASE 의 근간이 무엇인가" 를 물어 근간을 역�
                     그것은 새 갈래를 여는 동시에 C-COMBAT-001 이 남긴 결손
                     (배분이 값만 바꾸고 가능의 목록을 바꾸지 않는다)도 닫는다.
                     **다음 후보는 아직 고르지 않았다** — SELECTED 는 비어 있다.
+
+## 전투 지식(CK) 주입 — 2026-08-27
+
+    Human 지시: 문서를 지목하고 "이걸로 master 트랙 inject 진행해".
+    원본: `content/proto-adventure/design/Design-Combat-Knowledge-Extension-R0.md` (CK · 1835줄).
+
+    직전 결정과 이어진다 — 사슬 A(플레이어가 타이밍 맞춰 대답하는 넷)를 철회하며
+    "대응은 전투 지식이 운용한다" 고 정했고, 그 문서가 이것이다.
+
+### 무엇이 열렸는가
+
+    이 문서는 새 전투 판정을 하나도 만들지 않는다 (CK §0). 이미 있는 능력을 **언제
+    어떻게 쓸지**를 정하는 층이며, 그래서 전투 사다리 위가 아니라 **옆**에 선다.
+
+    핵심 명제 하나 — 플레이어는 전투 규칙을 쓰지 않는다. 세계에서 이미 성립한 완성된
+    전투 지식을 발견하고 배우고 성장시켜 골라 캐릭터에 적용한다. 숙련은 손이 빨라지는
+    것이 아니라 더 많이 아는 것이다 (CK §42).
+
+### ADDED — System 1
+
+    MS-COMBAT-KNOWLEDGE   전투 지식 (CK §40 · §41)
+        자리 넷: 획득(ACQUIRE) · 성장(DEEPEN) · 선택(CARRY) · 운용(CONDUCT).
+        능력의 층이 아니라 **한 지식이 거치는 걸음**이다.
+        CK §7 의 네 계열(대응 · 기력 · 상대 · 능력)은 자리로 세우지 않았다 —
+        문서 자신이 "시스템적으로 지나치게 분리할 필요는 없다" 고 적는다.
+
+### ADDED — Knowledge 2
+
+    MK-OPPONENT-ABILITY-RULE   상대의 능력이 언제 성립하고 무엇으로 풀리는가 (CK §4 · §6 · §9)
+    MK-HOW-TO-FIGHT-IT         그 사실을 전투 운용으로 바꾸는 법 (CK §2 · §4 · §5)
+
+    **둘을 가른 것이 이 주입의 첫 판단이다.** CK §5 가 그 둘을 갈라 두기 때문이다 —
+    "악마의 피는 독성이 있다" 를 아는 것과 "피 흘리는 악마와 싸우는 법" 을 아는 것은
+    다르고, 전투법은 사실 위에서 **따로** 얻는다.
+
+### ADDED — Capability 7
+
+    MC-LEARN-COMBAT-KNOWLEDGE     세계에서 겪은 것으로 전투법을 습득한다 (§8 · §9 · §24 · §29)
+    MC-CARRY-COMBAT-KNOWLEDGE     이번 싸움에 가져갈 것을 제한된 자리에 고른다 (§10 · §11 · §27)
+    MC-CONDUCT-BY-KNOWLEDGE       가져간 지식이 상황을 읽어 무엇을 우선할지 정한다 (§2 · §12 · §13 · §17 · §40)
+    MC-DEEPEN-COMBAT-KNOWLEDGE    겪은 것이 그 지식을 더 깊게 만든다 (§18 · §19 · §20)
+    MC-EXPLAIN-COMBAT-DECISION    왜 그렇게 싸웠는지가 세계에서 읽힌다 (§31 · §39-10)
+    MC-TEACH-COMBAT-KNOWLEDGE     지닌 전투법을 다른 존재에게 전수한다 (§22 · §23 · §24)
+    MC-COMBINE-KNOWLEDGE          지식 둘이 맞물려 새 운용이 열린다 (§33)
+
+    셋째가 이 층의 문이다 — 나머지 여섯은 그것에 재료를 대거나, 읽히게 하거나, 위에 얹힌다.
+    일곱 다 overlay: MISSING. **판단이라는 것 자체가 세계에 없다.**
+
+### ADDED — Possibility 2
+
+    MP-LEARN-HOW-TO-FIGHT-IT       전투 밖에서 그 상대를 상대하는 법을 배워 와서 이긴다
+                                   (MG-OVERCOME-SUPERIOR-OPPONENT)
+    MP-PREPARE-THE-RIGHT-KNOWLEDGE 이미 아는 것들 중 이번 상대에 맞는 것을 골라 이긴다
+                                   (MG-OVERCOME-SUPERIOR-OPPONENT · MG-SURVIVE-ENEMY-OFFENSIVE)
+
+    둘은 짝으로 돈다 — 모으는 갈래가 없으면 고를 것이 없고, 고르는 갈래가 없으면
+    모은 것이 다 켜져 아무 판단도 되지 않는다.
+
+### ADDED — Constraint 9 (전부 DRAFT · Human 승인 대기)
+
+    DC-MASTERY-IS-KNOWING-NOT-REFLEX               숙련은 손이 아니라 아는 것이다 (§42 · §15 · §14 · §25)
+    DC-KNOWLEDGE-IS-NOT-A-SCRIPT                   플레이어가 규칙을 쓰지 않는다 (§1 · §2 · §6 · §30 · §32)
+    DC-KNOWLEDGE-HAS-A-WORLD-CAUSE                 획득에 세계 안의 원인이 있다 (§8 · §9 · §19 · §23 · §29)
+    DC-KNOWLEDGE-RUNS-CAPABILITY-NEVER-CREATES-IT  없는 능력을 만들지 않는다 (§12 · §13)
+    DC-KNOWLEDGE-IS-CARRIED-NOT-HOARDED            모은 것이 아니라 가져간 것이 선다 (§10 · §11 · §27)
+    DC-KNOWLEDGE-SHOWS-IN-BEHAVIOR                 지식 차이가 행동 차이로 보인다 (§37 · §38)
+    DC-KNOWLEDGE-DECISION-IS-TRACEABLE             왜 그렇게 싸웠는지 설명된다 (§31 · §36 · §39-10)
+    DC-KNOWLEDGE-HAS-NO-SINGLE-ANSWER              한 상황에 정답 하나를 두지 않는다 (§21 · §26 · §28)
+    DC-KNOWLEDGE-CONFLICT-IS-DESIGNED              충돌 우선순위를 플레이어가 매기지 않는다 (§32 · §33)
+
+    첫째가 Human 이 직전에 말한 것의 문서 근거다 — CK §42 가 "Response 숙련은 반사
+    신경의 향상이 아니라 더 나은 대응법을 습득하는 것" 이라고 적고, UL §32 가 그것을
+    잴 자를 준다 (NORMAL Response 는 자동 전투가 할 수 있어야 하므로 반사신경일 수 없다).
+
+### 이미 있어서 새로 만들지 않은 것
+
+    DC-GROWTH-REWARD-IS-NEW-REACH   CK §18 의 "효과 +10% 가 아니라 판단할 수 있는 세계
+                                    상태가 증가" 는 이 DC 가 이미 말하는 것이다 —
+                                    지식 전용판을 따로 세우지 않고 그 노드에 걸었다
+    DC-ITEM-HOLDING-IS-NOT-APPLYING 지닌 것과 적용된 것을 가르는 형태가 같다 —
+                                    DC-KNOWLEDGE-IS-CARRIED-NOT-HOARDED 가 supports 로 잇는다
+    MC-OBSERVE-ABILITY              상대 능력을 읽는 능력은 UL 주입 때 이미 섰다.
+                                    MP-LEARN-HOW-TO-FIGHT-IT 의 requires 에 넣고
+                                    required_by 만 채웠다 (복제하지 않았다)
+    MC-MASTER-A-SKILL               스킬 숙련과 전투 지식은 다르다 — 저쪽은 쓰던 행동의
+                                    쓰임새가 넓어지는 것이고 이쪽은 언제 무엇을 할지를
+                                    아는 것이다. 노드를 합치지 않았다
+
+### 옮기지 않은 것과 그 사유
+
+    Combat Knowledge 의 내부 구조 (§6 의 열 칸)
+        Rule Editor 로 공개하지 않는다고 문서 자신이 적는다. 구현 형태이므로 Cycle 소유다.
+
+    슬롯 수 · 희소성 등급 · 성장 단계 수 (§10 · §21 · §18)
+        수치는 Master 로 옮기지 않는다 (정책 §7.2). 다만 자리 수가 성장하는가는
+        설계 질문이라 Q65 로 남겼다.
+
+    Class 성장과의 연결 (§34)
+        MC-LEARN-COMBAT-KNOWLEDGE 의 part_of 에 MS-GROWTH-SOURCE 소속으로 걸었다.
+        새 노드를 만들지 않았다 — Class Change 는 이미 MC-CHANGE-CLASS 가 있다.
+
+    지식의 조직·유파 (§22)
+        MC-TEACH-COMBAT-KNOWLEDGE 의 detail 에 담았다. 조직을 Actor 노드로 세우려면
+        그 조직들의 설계 문서가 먼저다 (지금 MA-* 는 둘뿐이다).
+
+    Combat Intent (§17)
+        UL 이 원본인데 UL 주입이 옮기지 않았다 — CK 주입이 대신 세우지 않는다. Q64.
+
+### 충돌 · 공백 — Human 결정 대기
+
+    Q62   자율 존재의 행동은 전투 지식이 정하는가 습성이 정하는가 (CK §35 ↔ MS-CREATURE-BEHAVIOR)
+    Q63   철회된 능동 대응 넷(MC-ACTIVE-RESPONSE 계열)은 어떤 형태로 돌아오는가 (CK §15)
+    Q64   Combat Intent 가 그래프에 없다 (CK §17 ↔ UL 주입 누락)
+    Q65   전투 지식의 자리 수는 성장하는가 (CK §10 ↔ GS §5 의 다섯 축)
+
+    Q63 이 가장 급하다 — 그 넷의 semantic 이 아직 "플레이어가 시점을 맞춘다" 로 적혀
+    있어 DC-MASTERY-IS-KNOWING-NOT-REFLEX 와 어긋난다. Inject 는 임의로 고치지 않았다:
+    원본 문서가 그 넷을 어떻게 다시 쓰라고 적지 않았기 때문이다 (번역이지 창작이 아니다).
+
+### 다음
+
+    Frontier 후보는 세우지 않았다 — 이것은 NEXT 가 아니라 Inject 다.
+    새 트랙(WORLD·KNOWLEDGE)을 열지도 않았다: 트랙 신설은 직렬 NEXT 작업의 몫이다
+    (frontier/README.md). 후보를 뽑으려면 Q63 이 먼저 답해져야 한다 —
+    대응 넷의 자리가 정해지지 않으면 이 층의 첫 후보가 무엇을 겨냥하는지가 흔들린다.
