@@ -1,0 +1,26 @@
+# 원본 근거: content/proto-adventure/design/Design-Resource-Catalog-R0.md (RC) §14.1 · §14.2
+# 원천은 BW §8 이 이미 명명한 회귀초 — "낫게 한다" 가 아니라 "유지한다" 가 이 성질의 전부다.
+id: IP-STATE-PRESERVING
+type: item_property
+
+semantic: >
+  겪은 변화와 무관하게 이전의 안정된 생체 상태를 유지한다.
+detail: >
+  "상처를 빨리 낫게 한다" 가 아니다 — 안정되어 있던 이전 상태를 붙들어, 그 뒤의
+  변화를 없던 일로 만든다 (BW §8). 재생(IP-REGENERATIVE)과 헷갈리면 안 된다:
+  회귀는 변화 자체를 되돌리므로 되돌릴 이전 상태가 있어야 성립하고, 즉시이며,
+  한 번이다 (RC §14.9 의 구분 표).
+world_shape: >
+  체력을 양으로 채우는 것으로 보이면 실패다. 되돌릴 이전 상태가 없으면
+  아무 일도 하지 않아야 한다.
+
+origin_trace:
+  world_state: [MW-HYPER-PREDATION]
+  pressure: >
+    포식 경쟁이 극단적이어서 몸이 부서지는 것이 일상이다. 보통 속도의 회복으로는
+    아무도 살아남지 못한다. (BW §8)
+  why_it_remains: >
+    빨리 낫는 쪽이 아니라 애초에 변하지 않는 쪽이 남았다 — 안정된 상태를
+    유지하는 작용만 잔존했다.
+  human_value: >
+    치명상 · 장기 손상 · 절단 · 일부 질병 — 문명권 의료의 한계를 넘는다.

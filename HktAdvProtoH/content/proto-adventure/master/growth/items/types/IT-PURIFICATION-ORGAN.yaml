@@ -1,0 +1,23 @@
+# 원본 근거: RC §14.5 — BW §17 · §18 이 ID 까지 명명했다. Master 는 이것을 "요구가
+# 없다" 는 사유로 비주입 판정했었다 (capabilities.yaml 말미 · HISTORY Q14) —
+# IP-CORROSIVE 계통이 서면서 그 사유가 사라져 이제 선다.
+id: IT-PURIFICATION-ORGAN
+type: item_type
+
+semantic: >
+  삭이는 것을 몸 안에서 중화하는 기관. 장착형.
+detail: >
+  요구가 먼저, 경로가 나중 — 이것이 BW §18 의 방향 그 자체다. 이 노드는 경로만
+  준비해 두고 요구는 만들지 않는다. (RC §14.5)
+world_shape: >
+  같은 독성 아래에서 이것을 지닌 몸만 견뎌야 한다.
+
+origin_trace:
+  world_state: [MW-ZONE-WILD]
+  property:    [IP-TOXIN-NEUTRALIZING]
+  human_value: >
+    더 강한 독성 지역으로 들어갈 수 있게 된다 (BW §17 Capability Gate).
+
+grants_note: >
+  없음 — BW §18 의 MC-DETOXIFY 는 존재하지 않는 노드이고, 이 아이템 때문에 새 MC 를
+  만들지 않는다. 요구하는 Possibility 가 설 때 잇는다. (RC §14.5)

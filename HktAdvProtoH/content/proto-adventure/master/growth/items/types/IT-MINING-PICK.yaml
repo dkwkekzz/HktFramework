@@ -1,0 +1,25 @@
+# 원본 근거: RC §15 — 세계에는 있는데 Master 에는 없던 유일한 어긋남.
+# world/semantic/item.ts 에 pickaxe 가 실재하고 채굴 판정이 그것을 직접 묻는다.
+id: IT-MINING-PICK
+type: item_type
+
+semantic: >
+  채굴 용도를 지닌 도구. 문명권의 산물 — 평범한 돌과 같은 지역에서 나온다.
+detail: >
+  성질(IP-*)이 없고, **없는 것이 맞다** — "채굴" 은 세계압이 남긴 성질이 아니라
+  종류가 가진 용도다 (IS §3.3). 성질로 세우면 그 성질이 어느 지역에서 왔는지 답할
+  수 없다. 이 노드가 여는 것: 채굴 판정이 "든 것이 곡괭이인가" 에서 "이 몸에 채굴
+  용도가 지금 있는가" 로 바뀐다 (DC-ITEM-CAPABILITY-COMES-FROM-GRANTS) — 그러면
+  다른 도구가 생겨도 채굴 규칙은 한 줄도 바뀌지 않는다. (RC §15 · Q36 이 이
+  자리를 기다리고 있었다)
+world_shape: >
+  캘 수 있게 한다. 어떤 특별한 일도 하지 않는다.
+
+origin_trace:
+  world_state: [MW-SAFE-FRONTIER]
+  property:    []   # 성질 없음이 이 노드의 내용이다 (RC §15)
+  human_value: >
+    캘 수 있게 한다 — 기적은 없고 용도가 있다.
+
+grants_note: >
+  없음 — 용도는 grants 사슬이 아니라 카탈로그의 행동 선언에 산다. (RC §15)

@@ -1,0 +1,28 @@
+# 원본 근거: RC §14.9 (BW §24 "극단적 재생")
+id: IP-REGENERATIVE
+type: item_property
+
+semantic: >
+  잃은 구조를 시간에 걸쳐 다시 만든다.
+detail: >
+  회귀(IP-STATE-PRESERVING)와의 구분이 이 카탈로그에서 가장 중요한 구분이다 —
+  회귀는 변화 자체를 되돌리므로 이전 상태가 있어야 하고 즉시이며 한 번이다.
+  재생은 잃은 것을 다시 만들므로 이전 상태를 몰라도 성립하고, 시간에 걸쳐, 계속이다.
+  MC-MAINTAIN-PRESSURE 의 detail 이 이미 재생을 적의 성질로 적어 두었다 — 이
+  성질은 그것을 인간 쪽으로 가져온 것이고, 그래서 그 능력이 왜 필요한지가 같은
+  지역 안에서 설명된다. (RC §14.9)
+world_shape: >
+  잃은 것이 시간에 걸쳐 돌아와야 한다. 즉시 되돌아오면 회귀와 갈리지 않은 것이다.
+
+origin_trace:
+  world_state: [MW-ZONE-DEEP]
+  pressure: >
+    인간의 전투 상식이 무너지는 층. 한 번 이겼다고 끝나지 않는다. (BW §24)
+  why_it_remains: >
+    잃은 채로 남은 것은 다음 교전에서 사라졌고, 다시 만드는 것만 잔존했다.
+  human_value: >
+    끊기지 않고 이어지는 회복.
+
+grants_note: >
+  여는 Capability 없음 — 이것은 능력이 아니라 이름 붙은 조건이다
+  (MC-CONDITION-STACKING 소유). (RC §14.9)

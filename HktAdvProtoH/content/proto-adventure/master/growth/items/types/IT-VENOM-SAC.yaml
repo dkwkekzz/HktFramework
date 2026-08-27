@@ -1,0 +1,22 @@
+# 원본 근거: RC §14.4 (BW §22) — MG-ACQUIRE-RARE-ORGAN 이 요구하는 "몸에서 나오는 것"
+# 중 유일하게 **상대에게 쓰는** 것이다.
+id: IT-VENOM-SAC
+type: item_type
+
+semantic: >
+  구조를 시간에 걸쳐 무너뜨리는 독을 담은 주머니. 쓰면 없어진다. 고른 대상에게 쓴다.
+detail: >
+  세 축(역할 · 대상 · 시간)에서 "고른 대상" 칸을 채우는 첫 소모품이다 (RC §17) —
+  고른 대상 관계는 C017 로 이미 서 있다.
+world_shape: >
+  쓴 순간이 아니라 그 뒤의 시간에 상대가 무너져야 한다.
+
+origin_trace:
+  world_state: [MW-ZONE-WILD]
+  property:    [IP-CORROSIVE]
+  human_value: >
+    정면 전투력이 앞서는 상대를 힘 아닌 것으로 뒤집는 수단.
+
+grants_note: >
+  없음 — 독은 능력이 아니라 이름 붙은 조건이다. 그 자리는
+  MC-CONDITION-STACKING(PARTIAL)이 소유한다. (RC §14.4)

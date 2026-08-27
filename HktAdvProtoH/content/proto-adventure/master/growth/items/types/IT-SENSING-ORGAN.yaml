@@ -1,0 +1,21 @@
+# 원본 근거: RC §14.6 (BW §22 "비정상적 감각")
+id: IT-SENSING-ORGAN
+type: item_type
+
+semantic: >
+  진동 · 열 · 압력의 결로 닿지 않은 것을 읽는 기관. 장착형.
+detail: >
+  Q29 (아는 힘은 독립한 Capability 인가)를 대신 결정하지 않는다 — 다만 Q29 가
+  (b)나 (c)로 답해질 때 "그 힘을 세계에서 어떻게 얻는가" 의 답이 미리 준비되어
+  있게 한다. (RC §14.6)
+world_shape: >
+  보이지 않는 것을 이것을 단 몸만 먼저 알아야 한다.
+
+origin_trace:
+  world_state: [MW-ZONE-WILD]
+  property:    [IP-FIELD-SENSING]
+  human_value: >
+    살펴보지 않고도 아는 힘의 세계 안 원천.
+
+grants_note: >
+  없음 — Q29 의 답이 나오기 전에는 잇지 않는다. (RC §14.6)

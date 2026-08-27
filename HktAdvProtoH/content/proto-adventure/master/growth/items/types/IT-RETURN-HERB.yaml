@@ -1,0 +1,22 @@
+# 원본 근거: RC §14.1 — BW §8 이 이름까지 명명한 회귀초. RC §18 이 아이템 바닥
+# Cycle(쓴다·없어진다)의 첫 물건으로 지목했다 — 기관 계통과 달리 그 자리에 남는
+# 식물이라 세계의 아이템 층(Cycle 4)을 기다리지 않는다.
+id: IT-RETURN-HERB
+type: item_type
+
+semantic: >
+  이전의 안정된 생체 상태를 유지하는 성질을 지닌 식물 — 회귀초. 쓰면 없어진다.
+detail: >
+  체력을 얼마 채워 주는 물약으로 읽히면 실패다. 양을 더하는 것이 아니라
+  **되돌리는** 것이고, 되돌릴 이전 상태가 없으면 아무 일도 하지 않는다. (RC §14.1)
+world_shape: >
+  치명상 · 절단 같은, 문명권 의료가 못 푸는 변화가 이것으로만 되돌아가야 한다.
+
+origin_trace:
+  world_state: [MW-HYPER-PREDATION]
+  property:    [IP-STATE-PRESERVING]
+  human_value: >
+    문명권 의료의 한계를 넘는 회복 — MP-ADAPT-BY-RESOURCE 가 요구하는
+    "세계가 만든 것을 가져와 감당한다" 의 첫 실물이다.
+
+# 여는 Capability 는 IM-STATE-RESTORING 이 grants 로 잇는다 (스키마상 grants 는 IM 소유).

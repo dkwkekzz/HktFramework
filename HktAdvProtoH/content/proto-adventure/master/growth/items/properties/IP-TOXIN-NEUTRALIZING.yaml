@@ -1,0 +1,28 @@
+# 원본 근거: RC §14.5 (BW §17 · §18 — 문서가 IT-PURIFICATION-ORGAN ID 까지 명명했다)
+id: IP-TOXIN-NEUTRALIZING
+type: item_property
+
+semantic: >
+  삭이는 작용을 중화한다.
+detail: >
+  IP-CORROSIVE 의 뒷면이다 — 같은 지역에 삭이는 것이 만연하므로, 그것을 몸 안에서
+  중화하는 기관을 기른 것만 남았다. 불식광(반응하지 않음)과 다르다: 그쪽은 반응에
+  참여하지 않는 것이고 이쪽은 반응을 **되돌리는** 것이다.
+world_shape: >
+  삭이는 작용 아래에서 이것을 지닌 몸만 무너지지 않아야 한다.
+
+origin_trace:
+  world_state: [MW-ZONE-WILD]
+  pressure: >
+    같은 지역에 삭이는 것이 만연하다 (RC §14.4 의 뒷면 · BW §22).
+  why_it_remains: >
+    중화하지 못한 것은 삭아 사라졌다.
+  human_value: >
+    더 강한 독성 지역으로 들어갈 수 있게 된다 — BW §17 Capability Gate 의
+    교과서 예시다.
+
+grants_note: >
+  여는 Capability 없음. BW §18 은 MC-DETOXIFY 를 예로 들지만 그 노드는 존재하지
+  않고, 이 아이템 때문에 새 MC 를 만들지 않는다 (BW §18 이 스스로 금지한다).
+  독이 세계의 상태가 되고 어떤 Possibility 가 "그것을 견디고 들어간다" 를 요구할 때
+  MC 가 서고, 그때 잇는다. (RC §14.5)

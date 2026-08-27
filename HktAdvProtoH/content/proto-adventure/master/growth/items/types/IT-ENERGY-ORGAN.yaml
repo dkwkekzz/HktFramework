@@ -1,0 +1,24 @@
+# 원본 근거: RC §14.10 (BW §6 "엄청난 에너지를 저장하는 기관")
+id: IT-ENERGY-ORGAN
+type: item_type
+
+semantic: >
+  자기 크기보다 큰 힘을 담아 두는 기관.
+  쓰면 없어지는 형태(즉시 회복)와 장착형(용량 증가) 둘 다.
+detail: >
+  이 계통이 동시에 겨냥하는 세 자리 — MC-CP-ECONOMY(PARTIAL — 회복 경로가 타격
+  성공 하나뿐)의 두 번째 경로 · MC-ATTACK-POWER(PARTIAL — 올릴 세계 내 경로 없음)의
+  첫 경로 · MP-OUTGROW-THE-OPPONENT 의 resource 칸의 원천. (RC §14.10)
+world_shape: >
+  기력이 스스로 돌아오지 않는 세계에서, 이것으로만 그것이 돌아와야 한다.
+
+origin_trace:
+  world_state: [MW-ZONE-DEEP]
+  property:    [IP-ENERGY-DENSE]
+  human_value: >
+    기력을 되찾는 첫 경로이자 능력치를 올릴 장비의 원천.
+
+grants_note: >
+  없음 — MC-CP-ECONOMY 는 이미 있는 노드다. 능력치 증분은 Cycle 소유이고,
+  MC-ATTACK-POWER 를 채우려면 장착 Cycle 이 먼저 서야 grants 가 몸에 닿는다.
+  (RC §14.10 — Human 판단 자리)

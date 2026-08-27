@@ -440,8 +440,12 @@ Capability 만 보면 전투가 꽤 찬 것처럼 보이지만, 그 전투가 �
 
    그리고 순환이 서면서 **그 아래가 열렸다** — `MW-ADAPTED-LIFE`(무엇이 어디 사는가) ·
    `MW-TERRAIN-RESOURCE`(그 법칙이 낳는 자원) · `MW-NATURAL-SETTLEMENT`(정착) 셋이
-   매달릴 자리를 지녔고 셋 다 ABSENT 다. 그 셋은 각각 기획서 승인을 기다린다
-   (Design-Creature-Behavior-R0 · Design-Resource-Catalog-R0 — HUMAN 대기).
+   매달릴 자리를 지녔고 셋 다 ABSENT 다. 적응·정착은 기획서 승인을 기다린다
+   (Design-Creature-Behavior-R0 — HUMAN 대기). 자원 쪽 문서
+   (Design-Resource-Catalog-R0)는 **주입되었다** — 종류와 유래(IP 11 · IT 13 ·
+   IM 4 · grants 4)가 growth/items 에 섰고, 남은 것은 이름·좌표 이음매의
+   Human 판정(Q70~Q72)과 세계 구현이다. Master 에 유래가 선 것이
+   세계에 자원이 선 것은 아니다 — MW-TERRAIN-RESOURCE 는 여전히 ABSENT 다.
 
    **그리고 이것은 대지형 하나의 결손이 아니다.** BT §16 의 세계 골격에서 순환은
    지형과 생존 압력 사이의 고리이고, 그 아래에 생명과 물질의 적응 · 위험과 자원 ·

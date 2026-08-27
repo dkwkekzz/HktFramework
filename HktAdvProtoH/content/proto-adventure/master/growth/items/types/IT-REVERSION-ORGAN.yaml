@@ -1,0 +1,24 @@
+# 원본 근거: RC §14.2 (BW §6 "신체를 원래 상태로 복원하는 생명") —
+# MG-ACQUIRE-RARE-ORGAN (특정 생물의 희귀한 기관을 손에 넣는다)의 **첫 실물**.
+id: IT-REVERSION-ORGAN
+type: item_type
+
+semantic: >
+  되돌리는 작용을 몸 안의 한 기관에 모은 것. 몸에서 꺼내야 얻는다.
+detail: >
+  회귀초와 같은 지역 · 같은 압력의 생물판이다. 식물은 그 자리에 남고 생물은 그
+  성질을 몸 안에 기른다 — 그래서 이쪽은 몸에서 나오는 것이고, 그 사실이
+  MG-ACQUIRE-RARE-ORGAN 의 첫 실물이 된다. 같은 성질 · 같은 조합을 회귀초와
+  공유한다 — 같은 의미의 능력을 출처별로 복제하지 않는다
+  (DC-GROWTH-NO-CAPABILITY-DUPLICATION). 차이는 능력이 아니라 얻는 경로와 대가다.
+world_shape: >
+  회귀초보다 강하고, 대신 그 생물을 상대해야만 얻어야 한다.
+
+origin_trace:
+  world_state: [MW-HYPER-PREDATION]
+  property:    [IP-STATE-PRESERVING]
+  human_value: >
+    움직이는 것은 그 자리의 식물을 기다릴 수 없다 — 지니고 다니는 회귀.
+
+# 여는 Capability 는 IM-STATE-RESTORING 이 grants 로 잇는다 (회귀초와 같은 조합을 공유한다).
+# 몸에서 나오는 것이므로 세계의 아이템 층(IS §6 Cycle 4)을 기다린다 (RC §18).

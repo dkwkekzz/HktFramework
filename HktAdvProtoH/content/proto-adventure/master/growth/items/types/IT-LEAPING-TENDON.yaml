@@ -1,0 +1,21 @@
+# 원본 근거: RC §14.7 (BW §22 "특수 이동") — overlay 가 MC-REPOSITION 의 부족을
+# "유리한 자리를 빠르게·의도적으로 잡는 전용 수단. 걸어가서 만들 수는 있다" 로
+# 적어 두었고, 이 계통이 정확히 그 문장을 겨냥한다.
+id: IT-LEAPING-TENDON
+type: item_type
+
+semantic: >
+  모아 둔 힘을 한 번에 푸는 근·건. 장착형.
+detail: >
+  지속 속도가 아니라 한 번의 도약이다 — 걷는 속도로는 죽는 세계가 남긴 형태.
+world_shape: >
+  이것을 단 몸만 한 번에 자리를 바꿀 수 있어야 한다.
+
+origin_trace:
+  world_state: [MW-ZONE-WILD]
+  property:    [IP-EXPLOSIVE-RELEASE]
+  human_value: >
+    유리한 자리를 의도적으로 · 빠르게 잡는 수단.
+
+# 여는 Capability(MC-REPOSITION)는 IM-LEAP-LOADED 가 grants 로 잇는다
+# (스키마상 grants 는 IM 소유 — IM-BOUNDARY-EDGED 와 같은 번역 패턴).

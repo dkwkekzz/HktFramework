@@ -3525,3 +3525,46 @@ Human 이 "FR-ACTION-PHASE 의 근간이 무엇인가" 를 물어 근간을 역�
 
     지금 상태   다섯 트랙 중 GROWTH 하나만 SELECTED 를 갖고,
                 ITEM · COMBAT · TERRAIN · KNOWLEDGE 넷이 후보를 든 채 선택을 기다린다.
+
+## Q36. 곡괭이에 상위 정의(IT-*)가 없다 — CLOSED
+
+    무엇          C020 MASTER GAP — 세계에는 곡괭이가 있는데 어느 IT-* 에서 왔는지
+                  답할 자리가 없었다. C024 에서 손방패가 더해져 무게가 둘이 되었다.
+
+    DECISION      (a) — 문명권 유래의 평범한 도구 노드를 세운다. Human 이
+                  Design-Resource-Catalog-R0 의 주입을 지시했고(2026-08-27 대화),
+                  그 문서 §15 가 정확히 이 답이다. IT-MINING-PICK 이 섰다 —
+                  IP 없음(용도는 성질이 아니다 · IS §3.3), grants 없음(용도는
+                  카탈로그의 행동 선언에 산다). 손방패의 소급은 그 종류를 처음
+                  건드리는 다음 Cycle 의 몫이다.
+
+## Design-Resource-Catalog-R0 주입 — 2026-08-27
+
+    Human 지시(대화 — "inject 했는데 산출물이 없다 · 제대로 주입해 연결하라")로
+    수행. 그전까지 이 문서는 "승인 대기" 로 기록되어 주입이 돈 적이 없었다 —
+    참조는 전부 대기 표시였고 master 산출물이 0 이었다.
+
+    세운 것       IP 11 (STATE-PRESERVING · PENETRATION-RESISTANT · CORROSIVE ·
+                  TOXIN-NEUTRALIZING · FIELD-SENSING · EXPLOSIVE-RELEASE ·
+                  HAZARD-TOLERANT · REGENERATIVE · ENERGY-DENSE · MEMORY-BEARING ·
+                  SPACE-FOLDING)
+                  IT 13 (RETURN-HERB · REVERSION-ORGAN · LAYERED-SHELL · VENOM-SAC ·
+                  PURIFICATION-ORGAN · SENSING-ORGAN · LEAPING-TENDON · HAZARD-HIDE ·
+                  REGENERATIVE-TISSUE · ENERGY-ORGAN · MEMORY-CAST · NEST-ORGAN ·
+                  MINING-PICK)
+                  IM 4 (STATE-RESTORING — 문서 명명 · LEAP-LOADED · FACT-ANCHORED ·
+                  SPACE-UNFOLDING — 문서가 IT 에 적은 grants 를 스키마대로 나르는
+                  운반 노드, IM-BOUNDARY-EDGED 선례)
+                  grants 4 — 전부 기존 MC (RESTORE-BIOLOGICAL-STATE · REPOSITION ·
+                  VERIFY-REALITY · ESCAPE-ALTERED-SPACE). 새 MC 0.
+
+    세우지 않은 것  §14.13 노화 물질 (압력을 가진 지역이 없다 — 문서 자신의 사유) ·
+                  §16 넷 (동기·자리이지 자원이 아니다) · §12 초기 카탈로그 18종과
+                  BT 자원 24종 (이름 이음매 Q71 판정 전) · §20 P1/P2 는 새 DC 로
+                  세우지 않고 기존 DC 의 적용 예로 남겼다 (문서 자신의 지시 —
+                  DC-WORLD-RESOURCE-ADAPTATION-TRACE · DC-GROWTH-NO-CAPABILITY-DUPLICATION)
+
+    연 질문       Q70 (지리 좌표 — §23.1 잔여 · Q47(a) 직교가 두 갈래를 닫았다) ·
+                  Q71 (이름 정본 — §23.2 · Q50(a) 의 24종이 이것에 걸린다) ·
+                  Q72 (회복 조합 중복 — §23.3)
+    닫은 질문     Q36 (곡괭이 → IT-MINING-PICK)

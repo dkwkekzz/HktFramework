@@ -35,3 +35,6 @@ provenance:
 relations:
   supports: []
   conflicts_with: []
+
+# 적용 예 (RC §20 P1): Design-Resource-Catalog-R0 의 12 계통이 전부 이 Constraint 의
+# Trace(압력 → 적응 → 성질 → 종류)를 계통마다 답한다 — 새 DC 를 만들지 않고 여기 남긴다.

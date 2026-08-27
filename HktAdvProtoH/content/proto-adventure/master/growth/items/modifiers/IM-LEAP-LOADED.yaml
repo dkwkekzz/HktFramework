@@ -1,0 +1,15 @@
+# 원본 근거: RC §14.7 · §19 — 문서는 grants 를 IT-LEAPING-TENDON 에 직접 적었다.
+# 스키마상 grants 는 IM 소유이므로 이 노드가 그것을 나른다 — IM-BOUNDARY-EDGED 와
+# 같은 번역 패턴이다. grants 는 기존 Capability 다 — MC-REPOSITION 은
+# MP-CONTROL-MOVEMENT 가 이미 요구 중이던 노드(PARTIAL)다.
+id: IM-LEAP-LOADED
+type: item_modifier
+
+semantic: >
+  도약근을 장구로 마감한 것. 지닌 몸이 모아 둔 힘을 한 번에 풀어 자리를 바꾼다.
+detail: >
+  overlay 가 적어 둔 MC-REPOSITION 의 부족 — "유리한 자리를 빠르게·의도적으로 잡는
+  전용 수단. 걸어가서 만들 수는 있다" — 을 정확히 겨냥한다. (RC §14.7)
+
+requires: [IP-EXPLOSIVE-RELEASE]
+grants:   [MC-REPOSITION]

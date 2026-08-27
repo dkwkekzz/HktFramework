@@ -1,0 +1,20 @@
+# 원본 근거: RC §14.12 (BW §25 "공간을 둥지로 사용하는 생명")
+id: IT-NEST-ORGAN
+type: item_type
+
+semantic: >
+  변형된 공간의 안팎을 오가는 기관. 쓰면 없어진다 — 한 번의 탈출.
+detail: >
+  세 축의 "대상 없음" 칸을 채우는 첫 소모품이다 (RC §17) — 이것과 독(고른 대상)이
+  서면 IS §5.3 대상 정책 세 갈래가 실물로 다 있게 된다.
+world_shape: >
+  변형된 공간에 갇힌 몸이 이것으로만 나올 수 있어야 한다.
+
+origin_trace:
+  world_state: [MW-ZONE-UNKNOWN]
+  property:    [IP-SPACE-FOLDING]
+  human_value: >
+    변형된 공간에서 빠져나오는 유일한 수단.
+
+# 여는 Capability(MC-ESCAPE-ALTERED-SPACE — MW-ZONE-UNKNOWN 의 demands)는
+# IM-SPACE-UNFOLDING 이 grants 로 잇는다 (스키마상 grants 는 IM 소유).

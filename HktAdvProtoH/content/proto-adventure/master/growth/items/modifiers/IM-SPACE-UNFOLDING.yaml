@@ -1,0 +1,14 @@
+# 원본 근거: RC §14.12 · §19 — 문서는 grants 를 IT-NEST-ORGAN 에 직접 적었다.
+# 스키마상 grants 는 IM 소유이므로 이 노드가 그것을 나른다. grants 는 기존
+# Capability 다 — MC-ESCAPE-ALTERED-SPACE 는 MW-ZONE-UNKNOWN 이 demands 로 요구 중이다.
+id: IM-SPACE-UNFOLDING
+type: item_modifier
+
+semantic: >
+  둥지 기관을 터뜨려 쓰는 형태. 변형된 공간의 안팎을 한 번 오간다.
+detail: >
+  쓰면 없어진다 — 한 번의 탈출이며, 갇히는 것이 곧 죽음인 층에서 그 한 번이
+  값이다. (RC §14.12)
+
+requires: [IP-SPACE-FOLDING]
+grants:   [MC-ESCAPE-ALTERED-SPACE]
