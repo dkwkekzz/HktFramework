@@ -80,5 +80,6 @@ Human 이 답하면 풀리는 것들이다. 답의 자리는 괄호가 가리킨
 | Q37 — 자리에 이름을 줄 것인가 (open-questions.md) | FR-ARRANGE-WHAT-YOU-CARRY 존치/삭제 |
 | Design-Creature-Behavior-R0.md 승인 | Inject → MC-PREDICT · MC-OBSERVE 습성 해금 |
 | Design-Resource-Catalog-R0.md 승인 | Inject → Q36 · 회복 아이템 해금 · BT 자원 24종의 자리 (그 문서가 받기로 정해졌다 — HISTORY Q50(a)) · GS 의 Class Catalyst 자리 |
+| **Q72 — 전투 지식의 정의가 앎(MK-*)의 자리에 있다** (open-questions.md) | 전투법의 정의가 어디 사는지가 정해진다. 지금 `MK-HOW-TO-FIGHT-IT` 이 앎의 파일에 있으나 형태는 아이템에 가깝다(획득·보유·자리·깊이·전수). 막는 것은 없으나 KNOWLEDGE Cycle 의 03 이 저장 형태를 정할 때 걸린다. Agent 추천 (a) — 정의를 `growth/` 로 옮긴다 |
 | Layer 1 설계 문서 (계열별 상위 형태) | 여섯 CL-* 의 `transitions_to` 가 채워진다. 갈래는 여럿으로 정해졌으므로(Q69(b)) 계열마다 몇 갈래를 세울지가 그 문서의 첫 결정이다 |
 | 백왕 계열 문서 둘(`Design-Fairy-Baiwang-Growth-R0` · `Design-Fairy-Baiwang-Skill-R0`) 주입 | 한 계열의 성장과 스킬이 CL-BAIWANG-ORIGIN 위에 얹힌다 — 이번 주입은 Human 이 지목한 Layer 0 문서 하나만 옮겼다 |
