@@ -2,7 +2,7 @@
 
 [PASS] Cycle Definition           (새 상태 하나 · 표식이 요구도 조건도 된다 · 관문이 대상을 받는다)
 [PASS] Intent                     (Goal 5 · Intent 11 · 표식은 시각이다 · 관문이 고른 상대를 본다)
-[    ] World Semantic
+[PASS] World Semantic             (새 상태 하나 · 표식은 시각이다 · 관문이 고른 상대를 받는다 · GAP 없음)
 [    ] GameView Specification
 [    ] Human Semantic Review
 [    ] World Implementation
