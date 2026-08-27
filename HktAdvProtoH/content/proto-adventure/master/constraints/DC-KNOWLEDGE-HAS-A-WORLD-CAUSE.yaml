@@ -49,9 +49,9 @@ prohibits:
 prefers:
   - 지식의 획득처가 세계의 조직·장소·존재와 묶이는 것
 
-status: DRAFT
+status: APPROVED
 provenance:
-  - HUMAN_DESIGN        # CK 주입 2026-08-27
+  - HUMAN_DESIGN        # CK 주입 2026-08-27 · 같은 날 Human 승인 (전투 지식 DC 9종 일괄)
 
 relations:
   supports:

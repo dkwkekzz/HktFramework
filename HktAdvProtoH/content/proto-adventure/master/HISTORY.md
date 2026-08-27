@@ -3366,3 +3366,62 @@ Human 이 "FR-ACTION-PHASE 의 근간이 무엇인가" 를 물어 근간을 역�
 
     이 규칙이 재는 것은 **동시에 몇 개인가**가 아니라
     **배운 것 전부인가 그중 일부인가**다.
+
+## 전투 지식 DC 9종 승인 · KNOWLEDGE 트랙 신설 — Human · 2026-08-27
+
+    Human 지시: "나머지 dc 전부 승인하고 frontier까지 뽑아줘."
+
+### 승인 — DC 9종 DRAFT → APPROVED
+
+    DC-MASTERY-IS-KNOWING-NOT-REFLEX (Q63 으로 좁힌 판) ·
+    DC-KNOWLEDGE-IS-NOT-A-SCRIPT · DC-KNOWLEDGE-HAS-A-WORLD-CAUSE ·
+    DC-KNOWLEDGE-RUNS-CAPABILITY-NEVER-CREATES-IT ·
+    DC-KNOWLEDGE-IS-CARRIED-NOT-HOARDED (문안 정정 뒤) ·
+    DC-KNOWLEDGE-SHOWS-IN-BEHAVIOR · DC-KNOWLEDGE-DECISION-IS-TRACEABLE ·
+    DC-KNOWLEDGE-HAS-NO-SINGLE-ANSWER · DC-KNOWLEDGE-CONFLICT-IS-DESIGNED
+
+    승인 전 대조    아홉의 prohibits 를 원본(CK)과 다시 맞췄다 — DC-MASTERY 에서
+                   한 번 겪은 자리이기 때문이다 (원본보다 세게 쓰지 않는다).
+                   여덟은 원본과 일치했고 하나를 고쳤다:
+
+        DC-KNOWLEDGE-HAS-NO-SINGLE-ANSWER
+            requires 가 "하나의 상황에 통하는 대응 지식이 둘 이상 존재한다" 였는데,
+            CK §26 은 "존재할 **수 있어야** 한다" 로 적는다. 그대로 두면 세계에 지식이
+            하나뿐인 첫 Cycle 이 곧바로 위반이 된다.
+            고침 — 재는 자리를 **상대 쪽**으로 옮겼다: "어떤 상대·상황도 특정 지식
+            하나를 요구하지 않는다" · "한 상황을 한 지식이 독점하지 않는다".
+            경계 절에 "지식을 언제나 둘 이상 만들라는 요구가 아니다" 를 박았다.
+
+### 신설 — KNOWLEDGE 트랙 (후보 7)
+
+    새 트랙은 직렬 NEXT 작업만 한다 (frontier/README.md). 전투 지식 주입이 시스템 축
+    (MS-COMBAT-KNOWLEDGE)과 Capability 일곱을 세웠으므로 그 도메인이 트랙이 된다.
+
+        1. FR-WHAT-YOU-KNOW-FIGHTS-WITH-YOU   배운 것이 몸의 판단이 된다   ← 유일한 시작점
+        2. FR-YOU-CHOOSE-WHAT-TO-BRING        무엇을 들고 갈지 고른다
+        3. FR-WHEN-TWO-ANSWERS-DISAGREE       둘이 다른 것을 말할 때
+        4. FR-THE-WORLD-TEACHES-YOU           겪은 것이 전투법이 된다
+        5. FR-THE-SAME-KNOWLEDGE-GOES-DEEPER  같은 전투법이 더 깊어진다
+        6. FR-TWO-KNOWINGS-MAKE-A-THIRD       둘이 맞물려 새것이 열린다
+        7. FR-SOMEONE-TAUGHT-YOU              남에게서 배운다 (MP-LEARN-HOW-TO-FIGHT-IT 이 닫힌다)
+
+    **이 트랙에는 고민할 순서가 없다.** 나머지 여섯이 전부 첫째를 전제한다 — 담을 자리도,
+    부딪침도, 배움도, 깊이도, 맞물림도, 전수도, 판단이 세계에 없으면 닿을 곳이 없다.
+
+    첫째가 CK 가 스스로 정한 검증과 겹친다 — §37 이 첫 구현 범위를 넷으로 적고 §38 이
+    검증 시나리오를 준다. 그 Cycle 의 Stage 8 이 쓸 판정이 이미 문서에 있다.
+
+    첫째의 주의   전투법으로 무엇을 세우느냐에 따라 `Actor.Allocation`(C-COMBAT-001,
+                 아직 Human Play 대기)에 닿을 수 있다. 배분을 쓰지 않는 전투법으로
+                 시작하면 겹치지 않는다 — 억제/우선의 대상을 스킬 가부로 잡으면
+                 C007 이래의 얼개만 쓴다.
+
+### 함께 고친 것
+
+    frontier/README.md   트랙 표에 KNOWLEDGE 추가. **COMBAT 의 SELECTED 를 "없음" 으로
+                        고쳤다** — 사슬 A 철회 때 트랙 파일은 비웠으나 이 인덱스가
+                        옛 값을 들고 있었다. 트랙 간 겹침 둘(↔COMBAT · ↔GROWTH) 추가.
+    LANES.md            WORLD·KNOWLEDGE 레인 신설(HUMAN) · 충돌 칸 둘 · HUMAN 대기 한 줄.
+
+    남은 Frontier 상태  다섯 트랙 중 TERRAIN · GROWTH 가 SELECTED 를 갖고,
+                        ITEM · COMBAT · KNOWLEDGE 셋이 후보를 든 채 Human 선택을 기다린다.

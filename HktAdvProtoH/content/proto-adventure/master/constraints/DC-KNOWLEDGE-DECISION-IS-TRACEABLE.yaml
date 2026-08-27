@@ -47,9 +47,9 @@ prohibits:
 prefers:
   - 추적 재료를 세계가 싣고 화면은 옮기기만 하는 것
 
-status: DRAFT
+status: APPROVED
 provenance:
-  - HUMAN_DESIGN        # CK 주입 2026-08-27
+  - HUMAN_DESIGN        # CK 주입 2026-08-27 · 같은 날 Human 승인 (전투 지식 DC 9종 일괄)
 
 relations:
   supports:

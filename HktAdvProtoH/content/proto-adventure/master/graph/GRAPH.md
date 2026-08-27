@@ -934,15 +934,15 @@ Constraint 는 단계가 아니라 각 선택 지점의 Filter 다. 아래는 �
 | `ITEM-HOLDING-IS-NOT-APPLYING` | ITEM | REVISED | 1 | 아이템을 가지고 있는 것만으로는 몸이 달라지지 않는다. 능력치와 가능한 행동이 달라지는 것은 지금 적용된 것 때문이며, 적용을 풀면 정확히 원래대로 돌아온다. |
 | `ITEM-KIND-IS-DATA-NOT-BRANCH` | ITEM | APPROVED | 2 | 아이템의 종류 이름은 정의를 찾는 열쇠일 뿐이며 규칙의 분기 조건이 되지 않는다. 새 아이템은 정의를 더하는 것으로 끝나고, 그 아이템을 쓰는 규칙 코드는 바뀌지 않는다. |
 | `ITEM-LIVES-IN-ONE-PLACE` | ITEM | APPROVED | 2 | 아이템은 정확히 한 곳에 있다. 저장소가 아이템을 직접 담고, 다른 저장소의 자리를 가리키지 않는다. |
-| `KNOWLEDGE-CONFLICT-IS-DESIGNED` | COMBAT | DRAFT | 2 | 두 지식이 서로 다른 판단을 요구할 때 그 우선순위는 지식 자신이 지닌다 — 플레이어가 순위를 매기지 않고, 상황에 더 구체적인 쪽이 일반적인 쪽을 이긴다. |
-| `KNOWLEDGE-DECISION-IS-TRACEABLE` | COMBAT | DRAFT | 1 | 지식이 내린 판단은 무엇을 보고 무엇을 정했으며 어느 지식 때문인지가 세계에서 읽힌다. 캐릭터가 왜 그렇게 싸웠는지에 언제나 답할 수 있어야 한다. |
-| `KNOWLEDGE-HAS-A-WORLD-CAUSE` | COMBAT · GLOBAL | DRAFT | 4 | 전투 지식은 세계 안에서 일어난 일 때문에 생긴다 — 관찰 · 반복 · 실패 · 전수 · 연구 · 소속. 메뉴에서 점수로 사는 항목이 되지 않는다. |
-| `KNOWLEDGE-HAS-NO-SINGLE-ANSWER` | COMBAT | DRAFT | 2 | 한 상황에 통하는 전투 지식이 하나뿐이지 않다. 그 지식이 없으면 그 상대를 상대할 수 없게 만들지 않는다. |
-| `KNOWLEDGE-IS-CARRIED-NOT-HOARDED` | COMBAT | DRAFT | 2 | 전투 지식은 **여러 개가 동시에 작동한다.** 다만 작동하는 자리가 배운 것보다 적어, 이번 전투에 어느 것들을 가져갈지 골라야 하고 그 선택이 곧 이 싸움의 그 캐릭터다. |
-| `KNOWLEDGE-IS-NOT-A-SCRIPT` | COMBAT | DRAFT | 3 | 플레이어는 전투 판단 규칙을 쓰거나 고치지 않는다. 전투 지식은 내부를 열 수 없는 하나의 완성된 판단법으로 존재하고, 플레이어가 다루는 것은 그것을 고르는 일뿐이다. |
-| `KNOWLEDGE-RUNS-CAPABILITY-NEVER-CREATES-IT` | COMBAT | DRAFT | 2 | 전투 지식은 그 몸이 이미 가진 능력을 더 잘 쓰게 할 뿐, 없는 능력을 만들어내지 않는다. 같은 지식이라도 실행되는 모습은 그 몸이 가진 능력에서 나온다. |
-| `KNOWLEDGE-SHOWS-IN-BEHAVIOR` | COMBAT | DRAFT | 2 | 어떤 지식을 가져왔는가가 실제 전투 행동의 차이로 나타난다. 보이지 않는 보정만 주는 지식은 지식이 아니다. |
-| `MASTERY-IS-KNOWING-NOT-REFLEX` | COMBAT · GLOBAL | DRAFT | 3 | 전투 숙련의 축은 조작 속도가 아니라 아는 것과 준비한 것이다. Response 층의 정교함은 캐릭터가 배운 것이 수행하며, 그것을 플레이어의 손이 대신해야만 성립하게 만들지 않는다. |
+| `KNOWLEDGE-CONFLICT-IS-DESIGNED` | COMBAT | APPROVED | 2 | 두 지식이 서로 다른 판단을 요구할 때 그 우선순위는 지식 자신이 지닌다 — 플레이어가 순위를 매기지 않고, 상황에 더 구체적인 쪽이 일반적인 쪽을 이긴다. |
+| `KNOWLEDGE-DECISION-IS-TRACEABLE` | COMBAT | APPROVED | 1 | 지식이 내린 판단은 무엇을 보고 무엇을 정했으며 어느 지식 때문인지가 세계에서 읽힌다. 캐릭터가 왜 그렇게 싸웠는지에 언제나 답할 수 있어야 한다. |
+| `KNOWLEDGE-HAS-A-WORLD-CAUSE` | COMBAT · GLOBAL | APPROVED | 4 | 전투 지식은 세계 안에서 일어난 일 때문에 생긴다 — 관찰 · 반복 · 실패 · 전수 · 연구 · 소속. 메뉴에서 점수로 사는 항목이 되지 않는다. |
+| `KNOWLEDGE-HAS-NO-SINGLE-ANSWER` | COMBAT | APPROVED | 2 | 한 상황에 통하는 전투 지식이 하나뿐이지 않다. 그 지식이 없으면 그 상대를 상대할 수 없게 만들지 않는다. |
+| `KNOWLEDGE-IS-CARRIED-NOT-HOARDED` | COMBAT | APPROVED | 2 | 전투 지식은 **여러 개가 동시에 작동한다.** 다만 작동하는 자리가 배운 것보다 적어, 이번 전투에 어느 것들을 가져갈지 골라야 하고 그 선택이 곧 이 싸움의 그 캐릭터다. |
+| `KNOWLEDGE-IS-NOT-A-SCRIPT` | COMBAT | APPROVED | 3 | 플레이어는 전투 판단 규칙을 쓰거나 고치지 않는다. 전투 지식은 내부를 열 수 없는 하나의 완성된 판단법으로 존재하고, 플레이어가 다루는 것은 그것을 고르는 일뿐이다. |
+| `KNOWLEDGE-RUNS-CAPABILITY-NEVER-CREATES-IT` | COMBAT | APPROVED | 2 | 전투 지식은 그 몸이 이미 가진 능력을 더 잘 쓰게 할 뿐, 없는 능력을 만들어내지 않는다. 같은 지식이라도 실행되는 모습은 그 몸이 가진 능력에서 나온다. |
+| `KNOWLEDGE-SHOWS-IN-BEHAVIOR` | COMBAT | APPROVED | 2 | 어떤 지식을 가져왔는가가 실제 전투 행동의 차이로 나타난다. 보이지 않는 보정만 주는 지식은 지식이 아니다. |
+| `MASTERY-IS-KNOWING-NOT-REFLEX` | COMBAT · GLOBAL | APPROVED | 3 | 전투 숙련의 축은 조작 속도가 아니라 아는 것과 준비한 것이다. Response 층의 정교함은 캐릭터가 배운 것이 수행하며, 그것을 플레이어의 손이 대신해야만 성립하게 만들지 않는다. |
 | `SKILL-ANCHOR-IS-NOT-RESOLUTION` | SKILL | APPROVED | 1 | 어디를 기준으로 쓰는가와 결과적으로 누가 효과를 받는가는 서로 다른 질문이다. 하나를 다른 하나로 대신하지 않고, 한 명이냐 여럿이냐를 스킬의 종류로 만들지 않는다. |
 | `SKILL-COMBINE-BEFORE-NEW-FORM` | SKILL | REVISED | 1 | 새 스킬 요구는 먼저 기존 형태의 조합으로 표현한다. 새 실행 형태는 조합으로도 파라미터로도 표현할 수 없고, 세계에 다른 생명주기나 판정이 필요할 때만 추가한다. |
 | `SKILL-DELIVERY-IS-NOT-EFFECT` | SKILL | REVISED | 1 | 효과가 세계를 지나 대상에 닿는 방식과, 대상에게 실제로 일어나는 일은 서로 다른 축이다. 한쪽을 다른 쪽의 종류로 만들지 않는다. |
