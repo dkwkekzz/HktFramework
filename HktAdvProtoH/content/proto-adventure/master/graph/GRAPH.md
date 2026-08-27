@@ -938,7 +938,7 @@ Constraint 는 단계가 아니라 각 선택 지점의 Filter 다. 아래는 �
 | `KNOWLEDGE-DECISION-IS-TRACEABLE` | COMBAT | DRAFT | 1 | 지식이 내린 판단은 무엇을 보고 무엇을 정했으며 어느 지식 때문인지가 세계에서 읽힌다. 캐릭터가 왜 그렇게 싸웠는지에 언제나 답할 수 있어야 한다. |
 | `KNOWLEDGE-HAS-A-WORLD-CAUSE` | COMBAT · GLOBAL | DRAFT | 4 | 전투 지식은 세계 안에서 일어난 일 때문에 생긴다 — 관찰 · 반복 · 실패 · 전수 · 연구 · 소속. 메뉴에서 점수로 사는 항목이 되지 않는다. |
 | `KNOWLEDGE-HAS-NO-SINGLE-ANSWER` | COMBAT | DRAFT | 2 | 한 상황에 통하는 전투 지식이 하나뿐이지 않다. 그 지식이 없으면 그 상대를 상대할 수 없게 만들지 않는다. |
-| `KNOWLEDGE-IS-CARRIED-NOT-HOARDED` | COMBAT | DRAFT | 2 | 획득한 전투 지식이 모두 동시에 작동하지 않는다. 이번 전투에 가져갈 것을 골라야 하고, 그 선택이 곧 그 캐릭터가 이 싸움에서 무엇인가를 정한다. |
+| `KNOWLEDGE-IS-CARRIED-NOT-HOARDED` | COMBAT | DRAFT | 2 | 전투 지식은 **여러 개가 동시에 작동한다.** 다만 작동하는 자리가 배운 것보다 적어, 이번 전투에 어느 것들을 가져갈지 골라야 하고 그 선택이 곧 이 싸움의 그 캐릭터다. |
 | `KNOWLEDGE-IS-NOT-A-SCRIPT` | COMBAT | DRAFT | 3 | 플레이어는 전투 판단 규칙을 쓰거나 고치지 않는다. 전투 지식은 내부를 열 수 없는 하나의 완성된 판단법으로 존재하고, 플레이어가 다루는 것은 그것을 고르는 일뿐이다. |
 | `KNOWLEDGE-RUNS-CAPABILITY-NEVER-CREATES-IT` | COMBAT | DRAFT | 2 | 전투 지식은 그 몸이 이미 가진 능력을 더 잘 쓰게 할 뿐, 없는 능력을 만들어내지 않는다. 같은 지식이라도 실행되는 모습은 그 몸이 가진 능력에서 나온다. |
 | `KNOWLEDGE-SHOWS-IN-BEHAVIOR` | COMBAT | DRAFT | 2 | 어떤 지식을 가져왔는가가 실제 전투 행동의 차이로 나타난다. 보이지 않는 보정만 주는 지식은 지식이 아니다. |

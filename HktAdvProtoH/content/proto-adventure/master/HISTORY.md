@@ -3176,7 +3176,7 @@ Human 이 "FR-ACTION-PHASE 의 근간이 무엇인가" 를 물어 근간을 역�
 ### ADDED — Capability 7
 
     MC-LEARN-COMBAT-KNOWLEDGE     세계에서 겪은 것으로 전투법을 습득한다 (§8 · §9 · §24 · §29)
-    MC-CARRY-COMBAT-KNOWLEDGE     이번 싸움에 가져갈 것을 제한된 자리에 고른다 (§10 · §11 · §27)
+    MC-CARRY-COMBAT-KNOWLEDGE     이번 싸움에 가져갈 여러 개를 자리에 고른다 (§10 · §11 · §27)
     MC-CONDUCT-BY-KNOWLEDGE       가져간 지식이 상황을 읽어 무엇을 우선할지 정한다 (§2 · §12 · §13 · §17 · §40)
     MC-DEEPEN-COMBAT-KNOWLEDGE    겪은 것이 그 지식을 더 깊게 만든다 (§18 · §19 · §20)
     MC-EXPLAIN-COMBAT-DECISION    왜 그렇게 싸웠는지가 세계에서 읽힌다 (§31 · §39-10)
@@ -3336,3 +3336,33 @@ Human 이 "FR-ACTION-PHASE 의 근간이 무엇인가" 를 물어 근간을 역�
             GS §5 의 다섯 축 표가 여섯이 된다. MC-CARRY-COMBAT-KNOWLEDGE 가 그 자리에
             속한다. 자리 수 자체(넷 등)는 여전히 수치이므로 Cycle 소유다.
             늘어도 보유량보다는 적어야 고르는 일이 남는다 (DC-KNOWLEDGE-IS-CARRIED-NOT-HOARDED).
+
+## DC-KNOWLEDGE-IS-CARRIED-NOT-HOARDED 문안 정정 — Human 지적 · 2026-08-27
+
+    Human 지적: "전투 지식 슬롯은 여러 개 있고 여러개가 동시에 작동할 수 있어야 할거같은데
+    왜 하나만 작동해야 한다는거야?"
+
+    **설계가 아니라 문장의 결함이었다.** 처음 판의 statement 가 이랬다:
+
+        "획득한 전투 지식이 모두 동시에 작동하지 않는다"
+
+    한국어에서 이 문장은 두 가지로 읽힌다 —
+    부분 부정("전부 다 작동하지는 않는다", 의도한 뜻)과
+    전체 부정("동시에 작동하지 않는다" = 하나만, 읽힌 뜻).
+    requires 의 "작동하는 자리가 보유량보다 적어" 가 의도를 드러내고 있었으나,
+    statement 를 먼저 읽는 사람에게는 늦다.
+
+    고친 것   statement 를 긍정문으로 뒤집었다 — "전투 지식은 **여러 개가 동시에
+              작동한다.** 다만 작동하는 자리가 배운 것보다 적어…".
+              requires 에 "자리들이 한 전투 동안 함께 작동한다" 를 명시로 더했고,
+              prohibits 를 "빠짐없이 전부 적용되게 하는 것" 으로 좁혔다.
+              경계 절에 "이것은 한 번에 하나만이 아니다" 를 박고 근거를 붙였다 —
+              **여럿이 함께 돌기 때문에** 지식끼리 부딪칠 수 있고 그래서
+              DC-KNOWLEDGE-CONFLICT-IS-DESIGNED 가 존재한다. 하나만 돈다면 그 규칙은
+              존재할 이유가 없다. 그 두 DC 가 서로를 증명한다.
+
+    같은 중의성이 번진 곳 둘도 함께 고쳤다 — MK-HOW-TO-FIGHT-IT 의 detail 과
+    MC-CARRY-COMBAT-KNOWLEDGE 의 semantic · world_shape.
+
+    이 규칙이 재는 것은 **동시에 몇 개인가**가 아니라
+    **배운 것 전부인가 그중 일부인가**다.
