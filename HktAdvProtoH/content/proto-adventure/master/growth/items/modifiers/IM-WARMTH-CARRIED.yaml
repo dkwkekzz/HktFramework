@@ -1,0 +1,14 @@
+# 원본 근거: BT §5.5 · §12 (태양심 — "무호흡해와 극한 심부에서 체온과 불꽃 유지").
+# grants 는 기존 Capability 다 — MC-CARRY-LIFE-SUPPORT 는 빙원·무호흡해가 demands 로
+# 요구 중이던 MISSING 노드이며(획득 경로 없음), 이 조합이 그 첫 경로다
+# (IM-BIO-SEVERING 선례 — 필요가 먼저, 경로가 나중).
+id: IM-WARMTH-CARRIED
+type: item_modifier
+semantic: >
+  태양심을 지니고 나르는 형태 — 그 땅에 없는 열을 몸 밖에서 가져간다.
+detail: >
+  FR-WHAT-KEEPS-YOU-ALIVE-IS-CARRIED 후보가 겨누는 바로 그 자리의 재료 쪽 절반이다 —
+  능력(지니고 · 나누고 · 옮긴다)은 그 Cycle 이 세우고, 이 조합은 무엇을 지니는지를
+  공급한다.
+requires: [IP-HEAT-STORING]
+grants:   [MC-CARRY-LIFE-SUPPORT]

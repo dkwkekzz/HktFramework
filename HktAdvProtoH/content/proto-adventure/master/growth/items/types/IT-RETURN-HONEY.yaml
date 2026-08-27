@@ -1,0 +1,19 @@
+# 원본 근거: BT §11.5 (회귀밀)
+id: IT-RETURN-HONEY
+type: item_type
+semantic: >
+  사람꽃에서 극소량 얻는 꿀 — 대상을 최근의 안정된 생체 상태로 되돌린다.
+  쓰면 없어진다.
+detail: >
+  성질과 조합은 회귀초·회귀 기관과 같은 것을 공유한다 (Q74 · P2 · RC §23.2 대응) —
+  다른 것은 얻는 경로와 대가다: 생체 신호를 가리는 가면을 쓰고 꽃 곁에서 캐는
+  위험한 채집 (BT §11.6 꽃가면 채집단). 다른 대지형의 치명적인 생체 변화에
+  대응하는 것이 이 자원의 자리다. (BT §12)
+world_shape: >
+  회귀초와 같은 일을 하되, 얻는 자리와 대가가 달라야 한다.
+origin_trace:
+  world_state: [MW-TERRAIN-BLOODBLOOM-FOREST]
+  property:    [IP-STATE-PRESERVING]
+  human_value: >
+    치명적인 생체 변화의 대응 — 회귀 계열 중 가장 얻기 위험하고 가장 강하다.
+# 여는 Capability(MC-RESTORE-BIOLOGICAL-STATE)는 IM-STATE-RESTORING 이 잇는다 (P2 — 조합 공유).

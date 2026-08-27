@@ -1,0 +1,22 @@
+# 원본 근거: BT §8.1 · §8.5 (방향결속 광맥 · 방향석)
+id: IP-DIRECTION-BINDING
+type: item_property
+semantic: >
+  작은 범위의 낙하 방향을 바꾼다.
+detail: >
+  물과 느슨한 물체의 이동 방향을 세계압의 흐름에 결속하는 광맥의 조각이다 (BT §8.1).
+  아래쪽이 하나가 아닌 산맥의 법칙이 손에 잡히는 크기로 굳은 것.
+world_shape: >
+  이것이 정한 범위 안에서만 떨어지는 방향이 달라야 한다.
+origin_trace:
+  world_state: [MW-TERRAIN-SKYFALL-RANGE]
+  pressure: >
+    광맥을 넘는 순간 낙하 방향이 변하는 땅이다. (BT §8.2)
+  why_it_remains: >
+    방향을 결속한 광맥의 파편이 그 성질을 유지한 채 남았다.
+  human_value: >
+    이동과 수송 — 적과 투사체의 낙하 방향을 바꾸는 수단. (BT §8.7)
+
+grants_note: >
+  여는 Capability 없음 — 낙하·방향을 받을 세계의 축(위아래)이 아직 없다
+  (MC-REDIRECT-FALLING-THING 은 ENGINE 트랙의 축을 기다린다 · frontier/terrain.md).

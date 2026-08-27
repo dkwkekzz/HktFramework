@@ -13,3 +13,7 @@ detail: >
 
 requires: [IP-SELF-IDENTICAL]
 grants:   [MC-IDENTITY-ANCHOR]
+
+# 조합 공유 (Q74 · P2): 이름목(IT-NAME-WOOD — BT §6.5 정박물)과 정박암(IT-ANCHOR-ROCK —
+# BT §8.5)이 같은 성질을 지닌다. 몸에 지니는 기준(정박정·이름목)과 자리에 놓는 기준
+# (정박암)의 차이는 조합이 아니라 쓰임이다.

@@ -1,0 +1,18 @@
+# 원본 근거: BT §7.5 (숨결진주 — "다량의 공기를 작은 구슬 안에 저장한다")
+id: IP-AIR-STORING
+type: item_property
+semantic: >
+  다량의 공기를 작은 부피에 저장했다가 내놓는다 — 깨뜨리면 임시 대기권이 생긴다.
+detail: >
+  기체결속 암초와 같은 원리의 굳은 몫이다 — 위험을 만드는 결속이 자원도 만든다
+  (BT §2 · §7.1).
+world_shape: >
+  공기가 없는 자리에서 이것을 깨뜨린 범위만 숨 쉴 수 있어야 한다.
+origin_trace:
+  world_state: [MW-TERRAIN-BREATHLESS-SEA]
+  pressure: >
+    분지의 대기가 암초에 결속되어 평상시 공기가 거의 없다. (BT §7.1 · §7.2)
+  why_it_remains: >
+    결속된 대기가 진주 형태로 안정되어 남았다.
+  human_value: >
+    무호흡해 · 빙하 내부 · 거대 생물 체내 탐험을 연다. (BT §12)

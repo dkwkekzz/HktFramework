@@ -1,0 +1,18 @@
+# 원본 근거: BT §9.4 (천행토 — "수많은 Property 가 섞인 토양")
+id: IP-MIXED-PROPERTY
+type: item_property
+semantic: >
+  여러 지형의 Property 가 섞여 있다 — 무엇을 심느냐가 무엇이 자라는지를 정한다.
+detail: >
+  걷는 대륙이 여러 대지형을 지나며 등에 쌓은 흙이다. 성질이 하나로 정해져 있지
+  않다는 것이 성질이다 — 씨앗이 그중 무엇과 결합할지를 고른다.
+world_shape: >
+  같은 흙에 다른 씨앗을 심으면 전혀 다른 것이 자라야 한다.
+origin_trace:
+  world_state: [MW-TERRAIN-WALKING-CONTINENTS]
+  pressure: >
+    한 자리에 머물지 않는 대지가 여러 법칙의 땅을 차례로 지난다. (BT §9.1)
+  why_it_remains: >
+    지나온 지형마다의 몫이 씻기지 않고 겹겹이 쌓였다.
+  human_value: >
+    기르는 일의 폭 — 한 흙에서 여러 지형의 산물을 얻는 길.

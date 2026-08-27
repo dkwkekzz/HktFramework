@@ -13,3 +13,6 @@ detail: >
 
 requires: [IP-BOUNDARY-STABLE]
 grants:   [MC-CUT-ABNORMAL-STRUCTURE]
+
+# 조합 공유 (Q74 · P2): 백왕의 치아(IT-KING-TOOTH — BT §4.4)가 같은 성질에서 같은
+# 무기가 된다 — 다른 것은 유래와 얻는 경로뿐이다.

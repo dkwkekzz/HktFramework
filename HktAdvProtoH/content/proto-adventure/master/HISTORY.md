@@ -3701,3 +3701,62 @@ Human 이 "FR-ACTION-PHASE 의 근간이 무엇인가" 를 물어 근간을 역�
                   ※ 처음 Q70~Q72 로 적었다가 합류에서 main 의 같은 번호(FC 주입 Q70·Q71 ·
                   전투 지식 Q72)와 충돌해 재배정했다 — Q67 이 경고한 바로 그 유형이다
     닫은 질문     Q36 (곡괭이 → IT-MINING-PICK)
+
+## Q73. 자원 노드의 지리 좌표 — CLOSED
+
+    무엇          RC §23.1 의 잔여 — 자원 노드가 층(MW-ZONE-*)과 대지형(MW-TERRAIN-*)
+                  두 좌표를 다 갖는가. 두 축의 직교는 Q47(a)가 이미 정했다.
+
+    DECISION      (b) — 2026-08-27 Human 지시 ("권장대로"). **원본 문서가 적은 좌표만
+                  적는다** — RC 계통은 층을, BT 자원 24종은 대지형을. 발명 없는
+                  번역이 기준이며, 다른 축의 좌표는 그것을 공급하는 문서가 나올 때
+                  더한다 (직교이므로 언제든 더할 수 있다).
+
+## Q74. 자원의 이름 정본 — CLOSED
+
+    무엇          같은 성질의 자원이 문서마다 다른 이름을 가졌다 (태양심↔열기억철 ·
+                  숨결진주↔숨결석 · 정박암↔고정암 …). BT 24종의 자리가 이름 판정에
+                  걸려 있었다 (Q50(a)).
+
+    DECISION      (a) — 2026-08-27 Human 지시 ("권장대로"). **BT(Master-World-Beira-
+                  Terrain)가 자연 자원 이름의 정본이다** — 세계관의 원본이고 대지형
+                  노드가 이미 BT 이름으로 서 있다. RC §12 초기 카탈로그 18종의
+                  이름은 노드로 세우지 않으며, 겹치는 것은 BT 이름의 노드가 그 옛
+                  이름을 주석으로 지닌다 (열기억철→태양심 · 숨결석→숨결진주 ·
+                  무음결정→무음막 · 상향맥석→방향석 · 고정암→정박암 · 탈피암→탈피대지 ·
+                  압력진주→맥동정 · 등토→천행토). 성질이 겹치는 것은 기존 IP 를
+                  공유한다 (P2) — 종류가 갈리는 기준은 얻는 경로와 대가다.
+                  BW 가 명명한 것(경계결정 · 정박정 등 Q22 광물)은 BW 이름 그대로다 —
+                  정본 규칙은 문서 사이 겹침에만 적용된다.
+
+## Q75. 회복 조합이 같은 MC 를 두 이름으로 가리킨다 — CLOSED
+
+    무엇          RC 의 IM-STATE-RESTORING 과 Item-Lifecycle 문서의
+                  IM-BIOLOGICAL-RESTORATION 이 같은 MC-RESTORE-BIOLOGICAL-STATE 를
+                  가리켰다.
+
+    DECISION      (a) — 2026-08-27 Human 지시 ("권장대로"). **같은 노드다** —
+                  IM-BIOLOGICAL-RESTORATION 이라는 이름은 쓰지 않는다
+                  (IM-STATE-RESTORING 의 다른 이름 · P2). 회귀 계열의 출처 셋
+                  (회귀초 · 회귀 기관 · 회귀밀)이 한 조합을 공유하고, 차이는
+                  경로와 대가다.
+
+## BT 자원 24종 세움 — 2026-08-27
+
+    Q74(a) 판정으로 자리가 열려 세웠다 (Q50(a) 의 그 자리). 좌표는 Q73(b) — 대지형.
+
+    세운 것       IP 14 신규 (PRESSURE-BUFFERING · HEAT-STORING · SENSE-NUMBING ·
+                  HEAT-REDIRECTING · MARK-MIMICKING · AIR-STORING · VIBRATION-BLOCKING ·
+                  DIRECTION-BINDING · LEVITATING · PRESSURE-HARDENED ·
+                  PRESSURE-CIRCULATING · MIXED-PROPERTY · UNCHOSEN-BEARING ·
+                  VITAL-REACTIVE) — 사막 셋은 한 성질(UNCHOSEN-BEARING)을 공유한다
+                  IT 24 (지형마다 셋 — BT §4.4~§11.5 의 이름 그대로)
+                  IM 3 신규 (WARMTH-CARRIED · BREATH-CARRIED → MC-CARRY-LIFE-SUPPORT ·
+                  MARK-BORROWED → MC-IMPERSONATE-IDENTITY — 셋 다 demands 로 요구
+                  중이던 기존 MC · 새 MC 0)
+                  조합 공유 셋 (P2): 백왕의 치아→IM-BOUNDARY-EDGED ·
+                  이름목→IM-IDENTITY-ANCHORED · 회귀밀→IM-STATE-RESTORING
+                  성질 공유 다섯 (P2): 골수천·천공수→IP-UNREACTIVE ·
+                  치아→IP-BOUNDARY-STABLE · 이름목·정박암→IP-SELF-IDENTICAL ·
+                  회귀밀→IP-STATE-PRESERVING · 기억수액·마지막 씨앗→IP-MEMORY-BEARING
+

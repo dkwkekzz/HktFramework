@@ -1,0 +1,20 @@
+# 원본 근거: BT §8.5 (정박암). RC §12 의 "고정암" 은 이것의 옛 이름이다 (Q74(a))
+id: IT-ANCHOR-ROCK
+type: item_type
+semantic: >
+  공간·방향 변화 속에서 자신의 기준을 유지하는 검은 바위. 재료 · 설치물의 원석.
+detail: >
+  성질은 정박정(IT-ANCHOR-STONE)과 같은 것을 공유한다 (Q74 · P2 · RC §23.2 대응) —
+  다른 것은 규모와 쓰임이다: 정박정이 몸에 지니는 기준점이라면 정박암은 **자리에
+  놓는** 기준이다. 사람들은 그 절벽 아래에 마을을 만든다 (BT §8.3). 방향 변화와
+  이동하는 대지 위에서 기준점을 준다. (BT §12)
+world_shape: >
+  주변의 방향·공간이 흔들려도 이것과 그 곁만 기준을 지켜야 한다.
+origin_trace:
+  world_state: [MW-TERRAIN-SKYFALL-RANGE]
+  property:    [IP-SELF-IDENTICAL]
+  human_value: >
+    임시 발판 · 마을이 서는 자리 · 이동하는 대지 위의 기준. (BT §8.7 · §12)
+grants_note: >
+  없음 — MC-ANCHOR-LOCAL-LAW 는 part_of.grounded: false 다 (frontier/terrain.md).
+  그 묶음이 확정되면 잇는다.

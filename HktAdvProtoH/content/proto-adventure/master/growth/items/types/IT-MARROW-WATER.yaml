@@ -1,0 +1,18 @@
+# 원본 근거: BT §4.4 (골수천)
+id: IT-MARROW-WATER
+type: item_type
+semantic: >
+  외부 Property 에 쉽게 변질되지 않는 물 — 골수천. 쓰면 없어진다.
+detail: >
+  골수에서 흘러나와 분지의 세 강을 이룬 물이다 (BT §4.1). 성질은 불식광과
+  같은 것을 공유한다 (Q74 · P2 — 반응하지 않음) — 다른 것은 형태(물)와 쓰임이다:
+  독성 · 변형 · 기억 간섭에 노출된 몸을 안정시킨다.
+world_shape: >
+  변질시키는 것에 노출된 몸이 이것으로 안정되어야 한다.
+origin_trace:
+  world_state: [MW-TERRAIN-BAIWANG-BASIN]
+  property:    [IP-UNREACTIVE]
+  human_value: >
+    바깥 대지형에 다녀온 탐험가가 몸을 안정시키는 데 쓴다. (BT §4.4)
+grants_note: >
+  없음 — 씻어 내는 대상(변형 · 기억 간섭)이 세계에 아직 없다. 그 상태가 서면 본다.

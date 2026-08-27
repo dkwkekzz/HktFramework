@@ -1,0 +1,17 @@
+# 원본 근거: BT §8.5 (방향석). RC §12 의 "상향맥석" 은 이것의 옛 이름이다 (Q74(a))
+id: IT-DIRECTION-STONE
+type: item_type
+semantic: >
+  작은 범위의 낙하 방향을 바꾸는 돌. 쓰면 없어진다.
+detail: >
+  방향결속 광맥의 파편 — 세계가 정한 아래쪽을 국소적으로 바꾸는 물건이다.
+world_shape: >
+  이것이 정한 범위에서 떨어지는 것들의 방향이 바뀌어야 한다.
+origin_trace:
+  world_state: [MW-TERRAIN-SKYFALL-RANGE]
+  property:    [IP-DIRECTION-BINDING]
+  human_value: >
+    이동 · 수송 · 적과 투사체의 방향 바꾸기. (BT §8.7)
+grants_note: >
+  없음 — 세계에 위아래가 없다 (ENGINE 트랙의 축 대기 — frontier/terrain.md).
+  축이 서는 날 MC-REDIRECT-FALLING-THING 쪽 조합이 선다.

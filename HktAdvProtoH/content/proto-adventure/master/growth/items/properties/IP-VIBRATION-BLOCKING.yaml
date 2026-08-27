@@ -1,0 +1,17 @@
+# 원본 근거: BT §7.5 (무음막 — "진동과 소리 전달을 차단하는 암초막")
+id: IP-VIBRATION-BLOCKING
+type: item_property
+semantic: >
+  진동과 소리의 전달을 끊는다.
+detail: >
+  소리를 전달할 매질이 없는 바다가 남긴 성질이다 — 그곳의 무음이 물질에 굳었다.
+world_shape: >
+  이것을 사이에 둔 두 자리 사이에서 진동·소리가 건너가지 않아야 한다.
+origin_trace:
+  world_state: [MW-TERRAIN-BREATHLESS-SEA]
+  pressure: >
+    매질이 없어 소리가 존재하지 않는 환경이 상시였다. (BT §7.2 · §7.4)
+  why_it_remains: >
+    전달하지 않는 막만이 그 환경 그대로 남았다.
+  human_value: >
+    은폐와 정밀한 일 — 소리가 없어야 하는 자리를 만든다.

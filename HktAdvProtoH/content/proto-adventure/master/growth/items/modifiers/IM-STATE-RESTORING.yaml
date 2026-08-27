@@ -17,3 +17,6 @@ grants:   [MC-RESTORE-BIOLOGICAL-STATE]
 # 주의 (RC §23.3 — HISTORY Q75): Design-Item-Lifecycle-Progression-R0 §18 의
 # IM-BIOLOGICAL-RESTORATION 은 이 노드의 다른 이름일 가능성이 높다 — 판정 전까지
 # 그쪽 이름으로 새 IM 을 세우지 않는다.
+
+# 조합 공유 (Q74 · Q75 · P2): 회귀밀(IT-RETURN-HONEY — BT §11.5)이 셋째 출처로 더해졌다.
+# 회귀초 · 회귀 기관 · 회귀밀 — 능력은 하나, 경로와 대가가 셋이다.

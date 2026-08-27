@@ -1,0 +1,19 @@
+# 원본 근거: BT §6.5 (기억수액)
+id: IT-MEMORY-SAP
+type: item_type
+semantic: >
+  숲에 흡수된 기억의 일부가 액체로 결속된 것. 쓰면 없어진다.
+detail: >
+  잃어버린 정보를 찾을 수 있지만 다른 존재의 기억이 섞일 수 있다 (BT §6.5).
+  성질은 기억을 뜬 것과 같은 것을 공유한다 (P2 — 기억이 물질에 새겨진다) —
+  다른 것은 새김의 주인이다: 그쪽은 내가 새겼고, 이쪽은 숲이 빼앗아 모은 것이다.
+world_shape: >
+  잃어버린 정보가 이것으로 돌아오되, 온전하다는 보장이 없어야 한다.
+origin_trace:
+  world_state: [MW-TERRAIN-NAME-EATING-FOREST]
+  property:    [IP-MEMORY-BEARING]
+  human_value: >
+    지워진 흔적으로 실종자를 추적하고 잃은 기억을 회수한다. (BT §6.7)
+grants_note: >
+  없음 — 기억·정보라는 세계 상태가 아직 없다. MC-VERIFY-REALITY 쪽 조합
+  (IM-FACT-ANCHORED)은 "지금 보는 것의 검증" 이라 뜻이 다르다 — 복제하지 않는다.

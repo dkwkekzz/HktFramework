@@ -1,0 +1,16 @@
+# 원본 근거: BT §11.5 (혈화섬유)
+id: IT-BLOODBLOOM-FIBER
+type: item_type
+semantic: >
+  생체 상태에 반응해 스스로 조여지거나 풀리는 붉은 실. 장착형 재료.
+detail: >
+  스스로 맞춰지는 장비의 재료 — 붕대는 조이고, 덫은 상대의 상태를 따라 죈다.
+world_shape: >
+  같은 물건이 쓰는 몸의 상태에 따라 다르게 움직여야 한다.
+origin_trace:
+  world_state: [MW-TERRAIN-BLOODBLOOM-FOREST]
+  property:    [IP-VITAL-REACTIVE]
+  human_value: >
+    생체 상태를 다루는 장비의 재료.
+grants_note: >
+  없음 — 반응할 생체 상태의 폭(상처 · 약함)이 세계에 아직 없다 (남은 생명뿐이다).

@@ -1,0 +1,17 @@
+# 원본 근거: BT §10.5 (갈림씨)
+id: IT-FORKING-SEED
+type: item_type
+semantic: >
+  심어진 환경에 따라 여러 식물 가운데 하나가 선택되어 자라는 씨앗.
+detail: >
+  천행토(IT-WANDER-SOIL)와 반대편에서 만난다 — 그쪽은 흙이 여럿을 품고,
+  이쪽은 씨앗이 여럿을 품는다. 함께 쓰면 조합이 가장 넓다.
+world_shape: >
+  같은 씨앗이 다른 환경에서 다른 식물이 되어야 한다.
+origin_trace:
+  world_state: [MW-TERRAIN-UNHAPPENED-DESERT]
+  property:    [IP-UNCHOSEN-BEARING]
+  human_value: >
+    환경을 고르는 것이 곧 수확을 고르는 것이 된다.
+grants_note: >
+  없음 — 심고 기르는 행동이 세계에 아직 없다.

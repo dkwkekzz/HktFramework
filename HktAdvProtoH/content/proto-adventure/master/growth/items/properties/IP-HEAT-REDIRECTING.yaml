@@ -1,0 +1,18 @@
+# 원본 근거: BT §5.5 (백야수의 털 — "주변 열이 빠져나가는 방향을 바꾸는 특수 섬유")
+id: IP-HEAT-REDIRECTING
+type: item_property
+semantic: >
+  열이 빠져나가는 방향을 바꾼다.
+detail: >
+  거두어 가는 법칙을 막을 수는 없지만 **어디로 빠져나가는지**는 틀 수 있다 —
+  빙원 위를 걷는 짐승이 제 몸의 열을 지킨 방식이다.
+world_shape: >
+  같은 자리에서 이것을 두른 몸의 열이 다르게 빠져나가야 한다.
+origin_trace:
+  world_state: [MW-TERRAIN-SUNEATER-ICEFIELD]
+  pressure: >
+    해숨구멍 사이를 건너는 동안 열을 지켜야 산다. (BT §5.3 · §5.4)
+  why_it_remains: >
+    열을 그대로 내준 짐승은 얼었고, 방향을 트는 털을 기른 것이 잔존했다.
+  human_value: >
+    거두는 땅 위에서 버티는 시간을 늘린다.

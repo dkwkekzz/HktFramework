@@ -1,0 +1,16 @@
+# 원본 근거: BT §8.5 (하늘물)
+id: IT-SKY-WATER
+type: item_type
+semantic: >
+  가벼운 물질을 부유시키는 물. 쓰면 없어진다.
+detail: >
+  여러 방향의 세계압을 통과한 물 — 하늘에 매달린 호수에서 뜬다.
+world_shape: >
+  이 물에 닿은 가벼운 것이 떠올라야 한다.
+origin_trace:
+  world_state: [MW-TERRAIN-SKYFALL-RANGE]
+  property:    [IP-LEVITATING]
+  human_value: >
+    무게를 다루는 일 — 들 수 없는 것을 옮기는 재료.
+grants_note: >
+  없음 — 무게라는 세계 상태가 아직 없다 (담을 자리의 수만 있다 — C022).

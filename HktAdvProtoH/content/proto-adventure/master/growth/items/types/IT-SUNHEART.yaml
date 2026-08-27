@@ -1,0 +1,18 @@
+# 원본 근거: BT §5.5 (태양심). RC §12 의 "열기억철" 은 이것의 옛 이름이다 (Q74(a) — BT 정본)
+id: IT-SUNHEART
+type: item_type
+semantic: >
+  흡수한 열을 수십 년 보존하는 검은 결정 — 깨뜨리면 작은 태양처럼 방출한다.
+  쓰면 없어진다.
+detail: >
+  세계에 이미 도는 열결속 순환(kept · saturation — C-TERRAIN-002)의 굳은 몫이다.
+  광맥이 포화되는 짧은 순간에만 캘 수 있다 (BT §5.6 태양심 사냥꾼) — 채굴이
+  위험을 키울 수 있다는 선택이 이 자원의 경험이다 (BT §5.7).
+world_shape: >
+  거두어 가는 땅 위에서 이것을 깨뜨린 몸만 열을 되찾아야 한다.
+origin_trace:
+  world_state: [MW-TERRAIN-SUNEATER-ICEFIELD]
+  property:    [IP-HEAT-STORING]
+  human_value: >
+    무호흡해와 극한 심부에서 체온과 불꽃 유지. (BT §12)
+# 여는 Capability(MC-CARRY-LIFE-SUPPORT)는 IM-WARMTH-CARRIED 가 잇는다.

@@ -1,0 +1,16 @@
+# 원본 근거: BT §9.4 (천행토). RC §12 의 "등토" 는 이것의 옛 이름이다 (Q74(a))
+id: IT-WANDER-SOIL
+type: item_type
+semantic: >
+  여러 지형을 지나며 수많은 Property 가 섞인 토양 — 심는 씨앗이 무엇이 자랄지 정한다.
+detail: >
+  기르는 일이 세계에 서는 날, 한 흙에서 여러 지형의 산물이 나오는 유일한 자리다.
+world_shape: >
+  같은 흙에 다른 씨앗을 심으면 전혀 다른 식물이 자라야 한다.
+origin_trace:
+  world_state: [MW-TERRAIN-WALKING-CONTINENTS]
+  property:    [IP-MIXED-PROPERTY]
+  human_value: >
+    기르는 일의 폭 — 지형에 가지 않고 그 지형의 것을 얻는 길.
+grants_note: >
+  없음 — 심고 기르는 행동이 세계에 아직 없다.

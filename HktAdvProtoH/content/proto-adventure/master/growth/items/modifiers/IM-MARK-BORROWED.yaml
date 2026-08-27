@@ -1,0 +1,12 @@
+# 원본 근거: BT §6.5 (가면열매) — grants 는 기존 Capability 다.
+# MC-IMPERSONATE-IDENTITY 는 이름을 먹는 수해가 demands 로 요구 중이던 MISSING 노드이며,
+# 이 조합이 그 첫 획득 경로다.
+id: IM-MARK-BORROWED
+type: item_modifier
+semantic: >
+  가면열매를 쓰는 형태 — 다른 존재의 표식을 잠시 두른다.
+detail: >
+  세계에 신원이 서기 전에는 돌 수 없다 (frontier/terrain.md — "구분되는 것은 종류와
+  개체 번호뿐이다"). 경로를 먼저 준비해 두는 것이지 그 결손을 대신 여는 것이 아니다.
+requires: [IP-MARK-MIMICKING]
+grants:   [MC-IMPERSONATE-IDENTITY]

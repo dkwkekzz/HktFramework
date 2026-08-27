@@ -1,0 +1,17 @@
+# 원본 근거: BT §10.5 (가능유리)
+id: IT-POSSIBILITY-GLASS
+type: item_type
+semantic: >
+  선택되지 않은 상태 하나를 짧게 현실화하는 유리. 쓰면 없어진다.
+detail: >
+  유랑대지가 지나갈 Route 와 혈화수 개화 결과를 일시적으로 확인하는 데도 쓰인다
+  (BT §12) — 보는 것과 만드는 것이 같은 물건이다.
+world_shape: >
+  지금 참이 아닌 상태가 이것을 통해 짧게 참이 되고, 곧 되돌아가야 한다.
+origin_trace:
+  world_state: [MW-TERRAIN-UNHAPPENED-DESERT]
+  property:    [IP-UNCHOSEN-BEARING]
+  human_value: >
+    파괴된 길의 복원 · 다른 결과의 확인. (BT §10.7 · §12)
+grants_note: >
+  없음 — MC-REALIZE-ONE-POSSIBILITY 는 grounded: false (세계에 가능성 상태가 없다).

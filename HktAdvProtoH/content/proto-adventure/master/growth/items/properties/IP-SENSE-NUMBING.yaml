@@ -1,0 +1,18 @@
+# 원본 근거: BT §5.2 · §5.5 (무감빙 — "몸이 차갑다는 감각까지 함께 결속된다")
+id: IP-SENSE-NUMBING
+type: item_property
+semantic: >
+  감각과 열을 함께 흡수한다 — 닿은 곳의 고통과 느낌이 멎는다.
+detail: >
+  빙원의 일부 구역에서 광맥이 열만이 아니라 감각까지 결속한 결과다 (BT §5.2).
+  회복이 아니다 — 느끼지 못하게 할 뿐이며, 과하면 잃는 쪽이 몸이다.
+world_shape: >
+  고통이 멎는 것과 감각을 잃는 것이 같은 자리에서 나와야 한다 — 약이자 대가다.
+origin_trace:
+  world_state: [MW-TERRAIN-SUNEATER-ICEFIELD]
+  pressure: >
+    열을 잃었다는 사실을 즉시 느끼지 못하는 것이 얼어 죽는 것보다 위험한 곳이다. (BT §5.2)
+  why_it_remains: >
+    감각까지 결속된 얼음은 더 이상 변하지 않아 그대로 남았다.
+  human_value: >
+    고통을 멈추는 약재 — 과하게 쓰면 신체 감각을 잃는다. (BT §5.5)

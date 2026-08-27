@@ -1,0 +1,18 @@
+# 원본 근거: BT §9.4 (탈피대지 — "수백 년간 세계압과 충격을 견딘 외피")
+id: IP-PRESSURE-HARDENED
+type: item_property
+semantic: >
+  오랜 세계압과 충격을 견디도록 굳었다 — 지속되는 압력 아래에서 변하지 않는다.
+detail: >
+  산격석(IP-SHOCK-DISPERSING — 큰 한 번을 흩어 보낸다)과 다르다 — 이쪽은 **오래
+  누르는 것**을 견딘다. 걷는 대륙의 등에서 수백 년을 버틴 외피만이 이 성질을 지닌다.
+world_shape: >
+  지속 압력 아래에서 이것으로 만든 것만 형태를 지켜야 한다.
+origin_trace:
+  world_state: [MW-TERRAIN-WALKING-CONTINENTS]
+  pressure: >
+    움직이는 대지 위의 모든 것이 지속적인 진동과 압력을 받는다. (BT §9.2 · §9.3)
+  why_it_remains: >
+    견디지 못한 외피는 벗겨져 부서졌고, 굳은 것만 탈피로 남았다.
+  human_value: >
+    방어구 — 오래 견디는 것이 필요한 자리의 재료. (BT §9.4)

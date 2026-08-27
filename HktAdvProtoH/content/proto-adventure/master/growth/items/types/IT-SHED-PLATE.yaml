@@ -1,0 +1,17 @@
+# 원본 근거: BT §9.4 (탈피대지). RC §12 의 "탈피암" 은 이것의 옛 이름이다 (Q74(a))
+id: IT-SHED-PLATE
+type: item_type
+semantic: >
+  수백 년 세계압과 충격을 견딘 외피 — 탈피 시기에만 얻는 방어구 재료.
+detail: >
+  대지의 성장이 벗어 놓는 것이라 죽이지 않고 얻는다 — 탈피 시기의 채집이
+  그 땅의 경험이다 (BT §9.6).
+world_shape: >
+  지속 압력·진동 아래에서 이것으로 만든 방어구만 형태를 지켜야 한다.
+origin_trace:
+  world_state: [MW-TERRAIN-WALKING-CONTINENTS]
+  property:    [IP-PRESSURE-HARDENED]
+  human_value: >
+    방어구 — 갑각(관통) · 산격석(충격 한 번)과 다른 세 번째 축: 오래 견딘다.
+grants_note: >
+  없음 — 방어의 형태는 이미 세계에 있다 (C012 · C013). 재료로 선다 (갑각과 같은 판단).
