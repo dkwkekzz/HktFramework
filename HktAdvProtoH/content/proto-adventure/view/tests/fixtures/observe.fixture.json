@@ -683,5 +683,11 @@
     "capacity": 4
   },
   "equipment": [],
+  "ground": {
+    "zones": [],
+    "self": {
+      "state": "none"
+    }
+  },
   "allocations": []
 }

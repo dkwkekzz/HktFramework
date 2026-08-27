@@ -5,13 +5,12 @@
 
     기준 Overlay   master/overlay.md — 전투 사다리는 Critical 층까지, 그 위에 고른
                    대상(C017) · 태도(C018) · 행동 안의 시점(C019) · 휘두름의 모양(C025)이
-                   얹혔다. 스킬(SK) · 전투 상층(UL) 주입 반영.
-                   능동 대응 사슬은 이 트랙 밖이다 (아래 "지금 열 수 없는 것" 첫 줄)
+                   얹혔다. 스킬(SK) · 전투 상층(UL) 주입 반영
 
 ## 한눈에 보기
 
-여섯이다. **UL 이 세운 것 중 사슬 A(플레이어가 타이밍을 맞춰 대답하는 넷)는 이 트랙에
-없다** — 아래 "지금 열 수 없는 것" 의 첫 줄이 그 사유를 지닌다.
+다섯이다. 사슬 하나만 남았다 — **UL 이 세운 것 중 능동 대응 사슬(넷)은 이 트랙에 없다.**
+아래 "지금 열 수 없는 것" 의 첫 줄이 그 사유를 지닌다.
 
     사슬 B — 능력이 규칙이 된다
     THE-WORLD-DECIDES-WHAT-IS-POSSIBLE
@@ -24,71 +23,10 @@
       ↓
     TAKE-AWAY-WHAT-THEY-CAN-DO
 
-    독립
-    WHERE-YOUR-POWER-SITS   ← C-COMBAT-001 (Human Play 대기)
-
-`Depends on` 이 빈 것과 그 앞이 이미 닫힌 것만 지금 고를 수 있다. 나머지는 자리를
-잡아 두는 것이며, 그래야 이 층 전체가 어디로 가는지가 한 화면에서 보인다.
+`Depends on` 이 빈 것과 그 앞이 이미 닫힌 것만 지금 고를 수 있다 — **지금은 첫째 하나다.**
+나머지는 자리를 잡아 두는 것이며, 그래야 이 층 전체가 어디로 가는지가 한 화면에서 보인다.
 
 ## 후보
-
-### FR-WHERE-YOUR-POWER-SITS — 지금 힘이 어디에 몰려 있는가
-
-    UL 근거              §11 (Aura/Nen 의 정의) · §12 (자원은 당분간 기력) ·
-                         §13 (BODY · ABILITY · AWARENESS) · §14 (Profile) ·
-                         §15 (배분은 수치만이 아니다) · §40 (배분이 보인다) · §42 F4
-
-    이것이 무엇인가      몸이 지금 자기 힘을 몸 · 능력 · 인지 중 어디에 몰아 두었는지가
-                         상태로 있고, 한쪽에 몰수록 나머지가 실제로 얇아진다.
-                         전투 중에는 미리 정해진 배분 하나를 고르는 것으로만 바꾼다
-
-    세계에 생기는 것      ① 몸마다 지금의 배분이 이름 붙은 상태로 있다
-                         ② 그 배분이 판정이 읽는 **유효 값**에 들어간다 — 몸에 몰면 때리고
-                            막는 값이 오르고 능력과 인지의 값이 내린다
-                         ③ 전투 중 배분을 바꾸는 입력이 하나 있고, 바꾸는 데 대가가 있다
-                         ④ 남의 배분도 관찰된다 — 상대가 어디에 몰아 두었는지가 보인다
-                         ⑤ 자율 존재도 배분을 지니고 국면에 따라 바꾼다
-
-    이 기능이 아닌 것     비율을 실시간으로 조절하는 것이 아니다 — 이름 붙은 배분을 고른다
-                         능력의 가능 여부를 여닫는 것이 아니다 — 그것은 조건(아래)의 몫이고,
-                         여기서는 값만 오르내린다
-                         새 자원이 아니다 — 배분은 게이지가 아니라 상태다
-                         버프가 아니다 — 걸고 푸는 것이 아니라 언제나 어느 하나다
-                         능력치를 **키우는** 것이 아니다 — 같은 총량을 다르게 나눌 뿐이다
-
-    이미 있는 것          **판정이 읽는 값을 매번 다시 세는 얼개가 이미 있다** —
-                         `world/semantic/combat.ts` 의 `effectiveStat`(기본값 + 걸린 것들의
-                         기여, 저장하지 않는다, C023 · RULE-EFFECTIVE-STATS-001). 배분은
-                         그 합에 들어가는 항을 하나 더하는 일이지 새 축을 만드는 일이 아니다
-                         세 축이 걸릴 값이 셋 다 이미 세계에 있다 —
-                         몸: `physicalAttack` · `armor` (C010 · C012) /
-                         능력: 스킬 값 배율 (MC-SKILL-SCALING) /
-                         인지: `insight` — 살펴보지 않고도 아는 범위 (C016)
-                         계산 경위를 통째로 싣는 자리 (MC-COMBAT-CAUSE-READING)
-
-    Playable Result      Player 가 배분을 바꾸면 자기 방어와 아는 범위가 눈에 띄게 맞바뀌고,
-                         상대가 어디에 몰아 두었는지를 보고 얇아진 쪽을 노려 때릴 수 있다
-
-    Source Goal          MG-OVERCOME-SUPERIOR-OPPONENT
-    Source Possibility   MP-EXPLOIT-OPEN-BODY — **이 후보로 그 갈래가 닫힌다**
-                         (나머지 요구 셋이 전부 서 있다: MC-COMBAT-STRIKE IMPLEMENTED ·
-                          MC-COMBAT-CAUSE-READING IMPLEMENTED · MK-OPPONENT-FLOW-PATTERN 은
-                          "상대의 배분이 관찰된다" 가 곧 그 지식이다 — 위 ④⑤ 가 그것이다)
-                         MP-CONCENTRATE-THE-POWER · MP-HOLD-FORTIFIED 도 전진한다
-    Missing / Partial    MC-AURA-ALLOCATION (MISSING)
-    Active Constraints   DC-COMBAT-AURA-IS-A-PROFILE-NOT-A-DIAL · DC-COMBAT-ONE-FORMULA ·
-                         DC-COMBAT-SHARED-BUDGET · DC-COMBAT-PLAYER-CAUSALITY ·
-                         DC-COMBAT-ONE-LAYER-AT-A-TIME · DC-WORLD-OWNS-THE-SURFACE-LIST
-    Constraint Eval      SATISFIED — 전투 중 입력이 배분 하나를 고르는 것뿐이고,
-                         새 공식 없이 기존 유효 값 계산에 항을 더하며, 새 게이지가 없고,
-                         결과가 관찰 가능한 상태에서 나온다. 대답 없이도 완전히 동작한다
-    Observable Result    같은 상대에게 같은 기술을 넣어도 그 상대의 배분에 따라 피해가 달라지고,
-                         경위에 어느 배분이 얼마를 기여했는지가 실린다
-    Why one Cycle        새 상태가 하나다 — 지금의 배분. 그 효과는 `effectiveStat` 이
-                         이미 매번 다시 세므로 저장되는 것이 늘지 않는다
-    Depends on           없음
-    Status               C-COMBAT-001 (Stage 1~8 닫힘 · Human Play 대기)
-                         COMPLETE 로 닫히면 이 후보는 여기서 지우고 HISTORY 가 받는다
 
 ### FR-THE-WORLD-DECIDES-WHAT-IS-POSSIBLE — 세계가 무엇이 가능한지를 정한다
 
@@ -334,16 +272,18 @@
 
 ## 추천 순서 (Agent 제안 — 확정은 Human)
 
-    1. FR-THE-WORLD-DECIDES-WHAT-IS-POSSIBLE  사슬 B 의 바닥 — 의존이 없다
+    1. FR-THE-WORLD-DECIDES-WHAT-IS-POSSIBLE  사슬 B 의 바닥 — 의존이 없다.
+                                           **직전 Cycle 이 남긴 절반을 닫는다** —
+                                           배분이 값만 바꾸고 무엇을 할 수 있는가의
+                                           목록을 바꾸지 않는 것이 MC-AURA-ALLOCATION 의
+                                           남은 결손이고, 그 관문이 여기다
     2. FR-WHAT-YOU-LEAVE-ON-THEM
     3. FR-A-PROMISE-BINDS-BOTH             MP-BIND-BY-CONTRACT 가 닫힌다 · 가장 크다
     4. FR-KNOW-WHAT-THEY-CAN-DO
     5. FR-TAKE-AWAY-WHAT-THEY-CAN-DO       MP-KNOW-THE-OPPONENT-RULE 이 닫힌다
 
 **지금 의존이 빈 것은 첫째뿐이다.** 사슬 A 가 빠지면서 이 트랙에 남은 갈래는 하나이고,
-그 바닥이 조건 관문이다. C-COMBAT-001 이 남긴 결손(MC-AURA-ALLOCATION 이 값만 바꾸고
-**무엇을 할 수 있는가의 목록을 바꾸지 않는다**)도 이것이 서야 닫힌다 — 즉 첫째는
-새 갈래를 여는 동시에 이미 연 갈래를 마저 닫는다.
+그 바닥이 조건 관문이다. 그것은 새 갈래를 여는 동시에 **직전 Cycle 이 남긴 절반도 닫는다.**
 
 **3 이 눈에 띄게 크다.** 계약과 묶음을 쪼갤 수 없는 사유는 그 후보의 `Why one Cycle` 에
 적혀 있다. 고르기 전에 그것을 읽는 것을 권한다.
@@ -356,11 +296,13 @@ Q60(c) 로 빠졌으므로 관찰자와 묶는 자 둘로 검증한다.
 ## SELECTED
 
 ```text
-없음 — 다음 후보를 고르지 않았다.
+없음 — Human 선택 대기
 ```
 
-`FR-THE-BLOW-CAN-BE-ANSWERED` 로 열었던 `C-COMBAT-002` 는 Stage 5 앞에서 **철회됐다**
-(Human · 2026-08-27). 경위는 master/HISTORY.md "사슬 A 철회" 가 지닌다.
+    직전 반영 경위: [../feedback/C-COMBAT-001-where-your-power-sits.md](../feedback/C-COMBAT-001-where-your-power-sits.md)
+
+    사슬 A 로 열었던 `C-COMBAT-002` 는 Stage 5 앞에서 **철회됐다** (Human · 2026-08-27).
+    경위는 master/HISTORY.md "사슬 A 철회" 가 지닌다.
 
 ## 지금 열 수 없는 것
 
@@ -369,11 +311,11 @@ Q60(c) 로 빠졌으므로 관찰자와 묶는 자 둘로 검증한다.
 
 | 기능 / 층 | 무엇이 막고 있는가 |
 |---|---|
-| **능동 대응 사슬 전체** (UL §4 · §5 · §6 · §7 · §8 · §42 F1~F3 — Active Response · Response Window · Perfect Guard · Counter · Evade) | **막는 것이 없어졌다 — 이 트랙의 것이 아니게 됐다** (Human · 2026-08-27). 플레이어가 특정 시점에 맞춰 눌러 막는 기능은 세우지 않는다. 근거는 기획서 자신이 지닌다: `Design-Combat-Knowledge-Extension-R0.md` §15 — **"숙련은 Response 버튼 추가가 아니라 Response를 사용하는 지능의 증가다."** 대응은 손가락이 아니라 **캐릭터가 배운 전투 지식**이 운용한다. UL §32 도 같은 곳을 가리킨다 — NORMAL Response 는 자동 전투가 할 수 있어야 하므로 반사신경일 수 없다. 이 층은 전투 지식 트랙이 서면 그 문서의 §7.1(Response Knowledge) · §15 로 다시 들어온다. 그 트랙은 아직 주입되지 않았다 (Inject 대기) |
+| **능동 대응 사슬** (UL §4 · §5 · §6 · §7 · §8 · §42 F1~F3 — Active Response · Response Window · Perfect Guard · Counter · Evade) | **막는 것이 아니라 자리가 옮겨졌다** (Human · 2026-08-27 · Q63). 플레이어가 특정 시점에 맞춰 눌러 막는 층은 세우지 않는다 — 대응은 **캐릭터가 배운 전투 지식**이 운용한다 (`Design-Combat-Knowledge-Extension-R0.md` §15: "숙련은 Response 버튼 추가가 아니라 Response를 사용하는 지능의 증가다"). **그 층의 형태 자체는 UL 이 그대로 소유한다** — 노드 넷(MC-ACTIVE-RESPONSE · MC-PRECISION-RESPONSE · MC-PERFECT-GUARD · MC-COUNTER)은 한 글자도 고치지 않았다. 다시 들어오는 자리는 [knowledge.md](knowledge.md) 다 |
 | **수호 · 대상 이전** (UL §4.2 · §9 · §27 — Intercept · Redirect · Retarget · Protect) | 세계에 아군이 없다. Actor 가 플레이어와 적대 존재 둘뿐이라 요구하는 갈래를 만들 수 없고, 그래서 Capability 자체를 세우지 않았다. **Q60(c) 로 미루기로 정해졌다** — 아군을 세울 때는 사람을 지어내지 말고 세계의 존재(길들인 것 · 구조 대상 · 다른 플레이어)로 받는다 (HISTORY) |
 | 자세 유지 (MC-FORTIFY) | `part_of.grounded: false` — UL 은 배분을 **유지하는 비용**을 말하지 않는다. R1 이 이름만 댄 부분이라 후보의 Target 이 되지 않는다 (guides/master-frontier.md MUST NOT). 배분(C-COMBAT-001)이 서면 그 위에서 다시 본다 |
 | 조건이 겹칠수록 커진다 (MC-CONDITION-STACKING PARTIAL) | 어느 갈래도 지금 이것의 결손을 필요로 하지 않는다 (7 조건 2). 조건 관문(FR-THE-WORLD-DECIDES-WHAT-IS-POSSIBLE)이 서면 그 위에서 다시 본다 — 가능의 문제가 먼저이고 크기의 문제가 그다음이다 |
-| **스킬 실행 형태** (MS-SKILL-FORM 의 빈 다섯 칸) | **그 형태를 요구하는 Possibility 가 없다** (Q35 의 7 조건 2 — OPTIONS 작업이 먼저다). 기획 공백은 SK 최종안이 메웠고 자리도 열넷에서 여섯으로 줄었다. 남은 실질 장벽 하나: 투사체·장판·설치는 세계에 **몸이 아닌 존재**가 먼저 서야 한다. 남은 후보 여섯은 이 자리를 쓰지 않으므로 이것이 COMBAT 을 막지 않는다 |
+| **스킬 실행 형태** (MS-SKILL-FORM 의 빈 다섯 칸) | **그 형태를 요구하는 Possibility 가 없다** (Q35 의 7 조건 2 — OPTIONS 작업이 먼저다). 기획 공백은 SK 최종안이 메웠고 자리도 열넷에서 여섯으로 줄었다. 남은 실질 장벽 하나: 투사체·장판·설치는 세계에 **몸이 아닌 존재**가 먼저 서야 한다. 남은 후보 다섯은 이 자리를 쓰지 않으므로 이것이 COMBAT 을 막지 않는다 |
 | 위협도 · 진영 · 도발 | 막는 것은 없다 (`HOSTILITY_REASONS` 에 항목 추가로 시작) — 아직 어느 Possibility 도 요구하지 않는다 (7 조건 2) |
 | UL §32 자동 전투 (AUTO 는 기본 대답 · MANUAL 은 정밀 대답) | 세계에 자동 전투가 없다. 규율할 대상이 0 이라 Constraint 도 후보도 세우지 않았다 — 자동 전투가 서는 날 그 작업이 받는다 |
 | UL §22 의 나머지 아홉 영역 (생명 · 위치 · 행동 · 대상 · 자원 · 개체 · 영역 · 시간 …) | 그 표는 능력 목록이 아니라 **확장 공간의 지도**다. UL §42 F7 이 처음 열 다섯만 지정했고 그 다섯(표식 · 묶음 · 대상 변경 · 관찰 · 봉인)은 위 후보와 첫 줄에 전부 나가 있다. 나머지는 요구하는 갈래가 생길 때 OPTIONS 가 낳는다 |

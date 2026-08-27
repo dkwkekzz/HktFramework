@@ -7,6 +7,7 @@
 //   semantic-id-core.ts     공통 — 몸·이동·행동·명령·링크
 //   semantic-id-combat.ts   전투 — 타격·기력·막기·앎·지목 (COMBAT 트랙)
 //   semantic-id-item.ts     아이템 — 채광·소지·자리·적용·사용 (ITEM 트랙)
+//   semantic-id-terrain.ts  땅 — 자리·법칙·거둠 (TERRAIN 트랙)
 //   이 파일                 재수출만. 새 식별자를 여기 더하지 않는다
 //
 // 소비처는 언제나 이 파일 하나만 import 한다 — 도메인 파일을 직접 import 하지 않는다.
@@ -23,3 +24,4 @@ export {
 export * from './semantic-id-core';
 export * from './semantic-id-combat';
 export * from './semantic-id-item';
+export * from './semantic-id-terrain';

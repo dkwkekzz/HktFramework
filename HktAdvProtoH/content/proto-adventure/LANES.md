@@ -31,16 +31,16 @@ Feedback · BACKLOG)를 겹쳐 `LANES.html` 로 그린다. `npm run lanes:check`
 
 | 레인 | 상태 | 지금 | 기다리는 것 |
 |---|---|---|---|
-| FEEDBACK | OPEN | `C-COMBAT-001` 의 MASTER FEEDBACK 이 미처리다 (08-verification.md) — Overlay 판정 둘(PARTIAL)과 Constraint 후보 하나 | C-COMBAT-001 이 COMPLETE 로 닫히고 병합된 뒤 최신 main 위에서 (`npm run feedback:gate`) |
+| FEEDBACK | OPEN | 없음 — 미처리 0 (`npm run feedback:gate -- --pending`) | 없음 — 병합 뒤 최신 main 위에서 |
 | WORLD·ITEM | HUMAN | 후보 5 중 선택 대기 — Agent 추천 FR-THE-PLACES-ARE-NARROWER (+FR-SEE-BEFORE 얹기) | Human Select (frontier/item.md) |
-| WORLD·COMBAT | HUMAN | 후보 여섯 중 선택 대기 — **SELECTED 가 비었다.** `C-COMBAT-002`(사슬 A 의 대답)는 Stage 5 앞에서 **철회됐다** (Human · 타이밍 맞춰 막는 기능은 세우지 않는다 · 대응은 전투 지식이 운용한다). 사슬 A 넷이 트랙에서 빠졌고 경위는 HISTORY "사슬 A 철회" 가 지닌다. Agent 추천 `FR-THE-WORLD-DECIDES-WHAT-IS-POSSIBLE` — 의존이 빈 유일한 후보이자 C-COMBAT-001 의 남은 결손도 닫는다. 그와 별개로 `C-COMBAT-001` 은 여전히 IN PROGRESS (Human Play) | Human Select (frontier/combat.md) |
-| WORLD·TERRAIN | OPEN | `C-TERRAIN-001` 착수 대기 — SELECTED `FR-THE-GROUND-HAS-A-LAW`(땅이 법칙을 지닌다). Stage 1 부터, 아직 시작하지 않았다. 시각화의 소유 분해·진행 순서는 [design/Design-Terrain-Visualization.md](../../design/Design-Terrain-Visualization.md) 를 따른다 | 없음 — 다만 이 판과 트랙 파일이 main 에 들어간 뒤에 잡는다 |
+| WORLD·COMBAT | HUMAN | 후보 5 중 선택 대기 — **SELECTED 가 비었다.** `C-COMBAT-002`(사슬 A 의 대답)는 Stage 5 앞에서 **철회됐다** (Human · 타이밍 맞춰 막는 기능은 세우지 않는다 · 대응은 전투 지식이 운용한다 — 그 층의 형태는 UL 이 그대로 소유한다). 사슬 A 넷이 트랙에서 빠져 남은 갈래는 하나다. Agent 추천 `FR-THE-WORLD-DECIDES-WHAT-IS-POSSIBLE` — 의존이 빈 유일한 후보이자 **직전 Cycle 이 남긴 절반도 닫는다**. `C-COMBAT-001` 은 Feedback 반영이 끝났으나 여전히 Human Play 대기 (`npm run dev` → `U` → `2`) | Human Select (frontier/combat.md) |
+| WORLD·TERRAIN | HUMAN | 후보 3 중 선택 대기 — Agent 추천 `FR-THE-LAND-KEEPS-WHAT-IT-TAKES`(땅이 거둔 것을 간직한다). `C-TERRAIN-001` COMPLETE · Feedback 반영 끝 | Human Select (frontier/terrain.md) |
 | WORLD·GROWTH | OPEN | `C-GROWTH-001` 착수 대기 — SELECTED `FR-WHAT-YOU-DID-MAKES-YOU`(한 일이 몸을 키운다). Stage 1 부터, 아직 시작하지 않았다. **COMBAT 과 같은 파일을 본다 — 아래 충돌 칸** | 없음 — 다만 이 판과 트랙 파일이 main 에 들어간 뒤에 잡는다 |
 | WORLD·KNOWLEDGE | HUMAN | **트랙이 방금 섰다** — 후보 일곱 중 선택 대기. 전투 지식(CK) 주입으로 판단이라는 층이 세워졌다. 의존이 빈 것은 `FR-WHAT-YOU-KNOW-FIGHTS-WITH-YOU`(배운 것이 몸의 판단이 된다) 하나이며 나머지 여섯이 전부 그것을 전제한다 — 이 트랙에는 고민할 순서가 없다. **철회된 대응 층이 돌아올 자리이기도 하다** (CK §15) | Human Select (frontier/knowledge.md) |
 | VIEW | OPEN | BACKLOG 다음 항목(drag-and-drop)부터 — 기반 동반이 필요한 셋(tip-flip-at-the-edge · escape-leaves-the-field · workspace-two-columns)은 ENGINE 뒤에 잡는다 | 없음 |
 | MASTER | OPEN | OPTIONS Q35 (몸이 아닌 존재를 요구하는 Possibility) — 이제 스킬 실행 형태의 빈 다섯 칸만 막는다. 성장(GS · GB)과 전투 상층(UL) 주입은 둘 다 끝났다: 결정 열(Q52~Q61) 반영 · GROWTH 후보 3 · COMBAT 후보 10 과 SELECTED 까지 | 없음 — 미처리 Feedback 이 0 이다 (`npm run feedback:gate`) |
 | ENGINE | OPEN | 셋 — ① **자판이 표면 안을 다니는 길** — 정해진 초점 차례가 없고(`tabindex` 0건), 글자 자리에서 `Esc` 가 죽는다(붙잡는 단계가 `INPUT` 에서 비켜 주고 받는 자리가 없다). 다시 그릴 때 초점을 붙드는 자리는 이미 섰다. BACKLOG 의 `escape-leaves-the-field` · `skill-focus-order` 가 이것을 기다린다 ② **겹침 표면의 자리 잡기** — 곁말이 가장자리에서 접히는 일 · 구획을 나란히 놓는 일 (`tip-flip-at-the-edge` · `workspace-two-columns`) ③ 지면 구역 장치 `SceneGroundZone` ([design/Design-Terrain-Visualization.md](../../design/Design-Terrain-Visualization.md)) — C-TERRAIN-001 의 04 확정 뒤 | 없음 |
-| PROCESS | OPEN | 없음 — 보고 형식이 guides/works.md 의 "보고" 절에 섰다 | 없음 |
+| PROCESS | OPEN | **Q67 이 열렸다** — 병렬 레인이 공유하는 두 자리가 어긋난다 (Q 번호공간이 레인 소유가 아니다 · `frontier/README.md` 트랙 표가 트랙 파일과 어긋난다). 이번 합류에서 둘 다 실제로 났고 손으로 고쳤다. 그 밖에는 없음 — 보고 형식이 guides/works.md 의 "보고" 절에 섰다 | 없음 |
 
 ## 레인 사이 충돌 — 순서가 아니라 파일이 겹치는 곳
 
@@ -69,7 +69,11 @@ Human 이 답하면 풀리는 것들이다. 답의 자리는 괄호가 가리킨
 | WORLD·ITEM 후보 선택 (frontier/item.md SELECTED) | WORLD·ITEM 레인 착수 |
 | WORLD·KNOWLEDGE 첫 후보 선택 (frontier/knowledge.md SELECTED) | WORLD·KNOWLEDGE 레인 착수. 의존이 빈 것은 `FR-WHAT-YOU-KNOW-FIGHTS-WITH-YOU` 하나다 — 나머지 여섯이 전부 그것을 전제하므로 고를 것이 사실상 하나다 |
 | WORLD·COMBAT 다음 후보 선택 (frontier/combat.md SELECTED) | WORLD·COMBAT 레인 착수. 사슬 A 가 빠져 지금 의존이 빈 것은 `FR-THE-WORLD-DECIDES-WHAT-IS-POSSIBLE` 하나다 |
-| C-COMBAT-001 Human Play — 손으로 `U` → 숫자를 눌러 보기 | Stage 8 STATUS 가 COMPLETE 로 닫히고 FEEDBACK 레인이 열린다. 봐야 할 것은 이제 **하나**다 (나머지 둘은 08 의 HUMAN PLAY 보조가 재어 BACKLOG 로 넘겼다): 상대를 절반 아래로 때렸을 때 뜨는 `[몸]` 이, 표시가 셋까지 앞에 붙은 이름(`[적대] 준비! [몸]Wanderer 1 ?`)에서 교전 중에 읽히는가 |
+| WORLD·TERRAIN 후보 선택 (frontier/terrain.md SELECTED) | WORLD·TERRAIN 레인 착수 |
+| Q66 — 갈래를 노드의 완결로 판정하는가 플레이의 성립으로 판정하는가 (open-questions.md) | Overlay 를 읽는 법 · Frontier 가 무엇을 결손으로 세는가 |
+| Q67 — 병렬 레인이 공유하는 두 자리가 어긋난다 (open-questions.md · PROCESS) | Q 번호 충돌과 `frontier/README.md` 트랙 표의 낡음이 되풀이되는 것을 막는다. 이번 합류에서 둘 다 실제로 났다 |
+| `CC-ORDER-IS-THE-ADDRESS` 승격 여부 (candidates/) | 순서로 짚는 것이 원칙이 되는가 — DC-WORLD-OWNS-THE-SURFACE-LIST 와 합칠지도 함께 |
+| C-COMBAT-001 Human Play — 손으로 `U` → 숫자를 눌러 보기 | Stage 8 STATUS 가 COMPLETE 로 닫힌다 (Feedback 은 이미 반영됐다). 봐야 할 것은 이제 **하나**다 (나머지 둘은 08 의 HUMAN PLAY 보조가 재어 BACKLOG 로 넘겼다): 상대를 절반 아래로 때렸을 때 뜨는 `[몸]` 이, 표시가 셋까지 앞에 붙은 이름(`[적대] 준비! [몸]Wanderer 1 ?`)에서 교전 중에 읽히는가 |
 | C-COMBAT-001 의 PARTIAL 판정 둘 (08-verification.md MASTER FEEDBACK) | `MC-AURA-ALLOCATION` · `MP-EXPLOIT-OPEN-BODY` 를 어디까지로 볼 것인가 — 플레이로는 갈래가 성립하나 노드는 덜 찼다. Master(Human)가 정한다 |
 | `lanes:check` 의 SELECTED 규칙 (PROCESS — 이 판을 고치지 않고 보고만 한다) | 지금 이 판에서 어긋남 1건이 상시로 뜬다. 검사는 "SELECTED 가 있으면 레인은 OPEN·RUNNING" 만 보고 **그 트랙의 Cycle 이 도는 중인지를 보지 않는다** — works.md 는 Human 대기면 HUMAN 이라 적었으므로 판이 맞고 검사가 좁다. 고칠 자리는 `tools/lanes/build.ts` 의 `crossCheck` 이며 재료는 이미 있다 (`t.cycle` 의 Stage·Status). PROCESS 가 HOLD 라 착수하지 않았다 |
 | 문서의 분류 다섯에 `도구` 를 더할 것인가 (Design-View-Inventory-Equipment-UX-D1 §6) | 곡괭이가 `기타` 대신 자기 칸을 얻는다 (V-008 REPORT) |

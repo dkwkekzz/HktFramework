@@ -123,4 +123,28 @@ export interface ActorState {
    */
   equipment: Equipment;
   currentAction: CurrentAction;
+  /**
+   * C-TERRAIN-001 ADDED — 몸이 지닌 열 (INTENT-BODY-HOLDS-WHAT-THE-LAND-TAKES-001).
+   *
+   * 땅이 거두어 가는 것이다. **줄어드는 동안 몸은 상하지 않는다** — 얼어 죽는 것보다
+   * 위험한 것은 잃고 있다는 사실을 즉시 느끼지 못하는 것이다 (BT §5.2). 그래서 이것은
+   * 피해가 아니다. 피해는 맞는 것이고 이것은 **빠져나가는 것**이며, 둘을 같은 것으로
+   * 만들면 땅의 법칙이 "지형이 때린다" 가 되어 그 문장이 통째로 사라진다.
+   *
+   * RULE-GROUND-LAW-APPLY-001 과 RULE-ATTRIBUTE-SET-001 만이 바꾼다.
+   * **되채우는 규칙이 아직 없다** — 채우는 것은 다음 후보의 몫이다
+   * (FR-WHAT-KEEPS-YOU-ALIVE-IS-CARRIED · 05-review.md 승인 ②).
+   *
+   * 겨루는 힘(Cp)이 그러하듯 **몸의 형편**이지 물건의 성질이 아니다.
+   * 어떤 몸이든 지닌다 — 조종 주체를 가리지 않는다.
+   */
+  warmth: number;
+  /**
+   * C-TERRAIN-001 ADDED — 지닐 수 있는 열의 최대.
+   *
+   * 지금은 모든 몸이 같은 값이다 (WARMTH_MAX). 종류마다 다른 값은 종류의 정의
+   * (character-catalog)로 옮기는 한 줄 이사이며, 그럴 이유가 생겼을 때 한다 —
+   * C022 가 InventoryCapacity 에 대해 내린 판단 그대로다.
+   */
+  warmthMax: number;
 }

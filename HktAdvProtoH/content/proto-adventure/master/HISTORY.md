@@ -3425,3 +3425,49 @@ Human 이 "FR-ACTION-PHASE 의 근간이 무엇인가" 를 물어 근간을 역�
 
     남은 Frontier 상태  다섯 트랙 중 TERRAIN · GROWTH 가 SELECTED 를 갖고,
                         ITEM · COMBAT · KNOWLEDGE 셋이 후보를 든 채 Human 선택을 기다린다.
+
+## 병렬 레인 합류 — TERRAIN 과의 충돌 해소 · 2026-08-27
+
+    `C-TERRAIN-001`(COMPLETE)과 그 Master Feedback 이 main 에 들어간 뒤, 전투 지식 쪽
+    작업을 그 위에 합쳤다. 공유 파일 넷이 부딪쳤고 해소 방식을 남긴다 —
+    같은 형태가 다시 올 것이기 때문이다.
+
+    frontier/combat.md
+        두 쪽이 **서로 다른 것을 지웠다.** main 은 C-COMBAT-001 Feedback 으로
+        `FR-WHERE-YOUR-POWER-SITS` 를 지웠고, 이쪽은 사슬 A 넷을 지웠다.
+        **둘 다 지우는 것이 맞다** — 손으로 병합하지 않고 main 판을 받아 사슬 A 제거를
+        다시 얹었다. 후보가 아홉에서 **다섯**으로 줄었고 SELECTED 는 양쪽 다 "없음"
+        이므로 main 의 Feedback 링크와 철회 주가 나란히 선다.
+
+    master/open-questions.md
+        **Q 번호가 충돌했다.** main 이 Q62("갈래를 노드의 완결로 판정하는가")를 열었고,
+        같은 시기에 전투 지식 주입이 Q62~Q65 를 쓰고 닫아 HISTORY 로 옮겼다.
+        **닫힌 쪽을 고치는 것보다 열린 쪽을 잇는 것이 싸다** — main 의 것이 Q66 이
+        되었고, 그것을 가리키던 세 자리(feedback/C-COMBAT-001 · possibilities.yaml 의
+        overlay_note · LANES)도 함께 옮겼다.
+        **번호공간이 레인 소유가 아니라는 것이 이번에 드러났다** — Cycle ID 는 트랙
+        번호공간으로 갈라 두었는데(원칙 22) Q 번호는 그렇지 않다. 공정 결손으로 남긴다.
+
+    LANES.md
+        COMBAT 줄은 양쪽 사실을 합쳤고(사슬 A 철회 + Feedback 반영 끝 + 여전히
+        Human Play 대기), TERRAIN 줄은 main 이 최신이므로 그대로 받았다.
+        HUMAN 대기 표는 양쪽 항목을 모두 실었다.
+
+    master/graph/GRAPH.md · overlay.md
+        생성물이므로 병합하지 않고 `npm run master:graph` 로 다시 만들었다.
+
+### 합치는 김에 고친 것 — frontier/README.md 의 낡은 행 둘
+
+    트랙 인덱스가 실제와 어긋나 있었다. **양쪽 다 자기 트랙 파일만 고치고 인덱스를
+    잊었다:**
+
+        COMBAT    사슬 A 철회 때 트랙 파일은 비웠으나 인덱스가 옛 SELECTED 를 들고 있었다
+        TERRAIN   C-TERRAIN-001 이 닫히며 terrain.md 는 "없음" 이 되었으나
+                  인덱스는 "C-TERRAIN-001 착수 대기" 그대로였다
+
+    둘 다 "없음 — Human 선택 대기" 로 고쳤다. **같은 실수가 두 레인에서 각자 났다는
+    것이 요점이다** — 트랙 파일과 인덱스가 갈라져 있는 한 이 어긋남은 되풀이된다.
+    `lanes:check` 는 트랙 파일을 보므로 이것을 잡지 못했다. 공정 결손으로 남긴다.
+
+    지금 상태   다섯 트랙 중 GROWTH 하나만 SELECTED 를 갖고,
+                ITEM · COMBAT · TERRAIN · KNOWLEDGE 넷이 후보를 든 채 선택을 기다린다.

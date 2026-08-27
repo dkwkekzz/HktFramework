@@ -19,6 +19,13 @@ const CODE_TEXT: Record<string, string> = {
   'no-mining-tool': '채집 도구를 걸지 않았다',
   'out-of-range': '너무 멀다 — 가까이 이동하자',
   'deposit-depleted': '광맥이 고갈되었다',
+  // 땅의 의미 코드 (C-TERRAIN-001) — 법칙 이름과 자리 이름은
+  // view/terrain-presentation.ts 의 표가 지닌다 (색과 한 벌이라 함께 산다).
+  // 여기 두는 것은 그 표가 쓰지 않는 낱말들이다.
+  'heat-binding': '열결속',
+  taking: '거두어 가는 중',
+  sheltered: '멎어 있다',
+  warmth: '열',
   // 불가 사유 (C002)
   'action-busy': '지금 하는 행동이 끝나야 한다',
   'no-target': '대상이 없다',

@@ -51,6 +51,7 @@ import { cancelMark } from './phase-presentation';
 import { kindPresentation } from './kind-presentation';
 import { rolePresentation } from './role-presentation';
 import { TARGET_TINT, targetDetailLines, targetHudItems } from './target-presentation';
+import { groundDetailLines, groundZonePlans } from './terrain-presentation';
 
 // 관찰자 쪽 표시 선택 (C006) — 충돌체 디버그 관찰을 켤지. World 에 아무것도 요청하지 않는다.
 export interface PresentationOptions {
@@ -171,6 +172,10 @@ export function resolvePresentation(
   return {
     specId: snapshot.specId,
     terrain: snapshot.scene,
+    // C-TERRAIN-001 — 땅의 자리들. 세계가 보낸 범위에 팩이 색·이름을 입혀 넘긴다.
+    // **판정은 여기 없다** — 안인지 밖인지는 세계가 ground.self.state 로 이미 답했고,
+    // 이 범위는 그리기 위한 것이다 (DC-WORLD-OWNS-THE-SURFACE-LIST).
+    zones: groundZonePlans(snapshot),
     commandSurface: commandSurface(snapshot, options),
     // 겹침 표면 (기반 capability) — C026 의 소지품 작업 공간.
     // 열려 있지 않아도 싣는다: 열림은 표면 자신이 지닌 값이고, 그리는 쪽이 그것을 본다
@@ -272,6 +277,10 @@ export function resolvePresentation(
             ...self,
             lines: [
               ...self.lines,
+              // C-TERRAIN-001 — 땅이 가장 먼저다. 지금 무언가가 나에게서 빠져나가는
+              // 중이라면 그것이 다른 무엇보다 급한 사실이며, 자리 밖에서는 줄이 아예
+              // 없으므로(자리 밖 = 이 Cycle 이전의 세계) 기존 배치가 밀리지 않는다.
+              ...groundDetailLines(snapshot),
               ...targetDetailLines(snapshot, shortCodeText),
               // 병합 — 두 갈래가 각자 한 벌씩 더했다. 순서는 **결정이 급한 것부터**다.
               //   기술   지금 이 순간 고르는 것 (C025)

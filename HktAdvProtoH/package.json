@@ -22,7 +22,8 @@
     "fx:shot": "node tools/fx-lab/test/fx-shot.js",
     "fx:overlay": "node tools/fx-lab/test/overlay-shot.js",
     "fx:game": "node tools/fx-lab/test/game-shot.js",
-    "test": "tsx tools/boundary/check.ts && vitest run"
+    "test": "tsx tools/boundary/check.ts && vitest run",
+    "terrain:shot": "node tools/fx-lab/test/terrain-shot.js"
   },
   "dependencies": {
     "three": "^0.168.0",

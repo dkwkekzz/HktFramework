@@ -1,7 +1,10 @@
 # Design — 지형 시각화 (지면 구역 장치)
 
-status: PLANNED — `FR-THE-GROUND-HAS-A-LAW` (C-TERRAIN-001) 와 함께 선다.
-ENGINE 산출(SceneGroundZone)이 서고 Cycle Stage 8 이 그것으로 검증을 닫으면 IMPLEMENTED 로 바꾼다.
+status: IMPLEMENTED — `SceneGroundZone` 이 섰고(engine/view-kernel/scene · renderer)
+C-TERRAIN-001 의 Stage 8 이 그것으로 검증을 닫았다.
+최종 모양은 04 의 `engine_contract` 가 정했다 — 원만, `rect`·폴리곤은 빼고,
+`intensity` 는 다음 Cycle 의 예고를 위해 지금 넣었다.
+재현: `CHROMIUM_PATH=<크로뮴> npm run terrain:shot -- <png>`
 
 ## 목적
 

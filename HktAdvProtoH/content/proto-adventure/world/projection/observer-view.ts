@@ -12,6 +12,7 @@ import type {
   AllocationChoiceView,
   EntityView,
   GameViewSnapshot,
+  GroundSelfView,
   InteractionView,
   EquipmentSlotView,
   InventoryItemView,
@@ -61,6 +62,7 @@ import {
   evaluateItemUnequip,
 } from '../rules/item-equip';
 import { equipmentSlots } from '../semantic/equipment';
+import { activeGroundLaws, coveringGroundLaws, GROUND_LAWS } from '../semantic/terrain';
 import { ruleInventoryRoom } from '../rules/inventory-room';
 import {
   actorOfObserver,
@@ -72,6 +74,33 @@ import {
 } from '../semantic/world-state';
 
 export const SPEC_ID = 'VIEW-BASIC-COMBAT-POLICY-001';
+
+/**
+ * C-TERRAIN-001 — 지금 이 몸에 무엇이 일어나는 중인가 (INTENT-GROUND-LAW-IS-OBSERVED-001).
+ *
+ * **`sheltered` 가 `none` 과 구분되는 것이 요점이다.** 아무 일도 일어나지 않는 것과
+ * 법칙이 멎어서 아무 일도 일어나지 않는 것은 다르며, 뒤엣것이 읽히지 않으면 예외
+ * 자리는 그냥 아무것도 없는 땅이 된다.
+ *
+ * 규칙이 매 Tick 쓰는 것과 **같은 함수**로 계산한다 (activeGroundLaws). 그래서
+ * 관찰에 실리는 것과 실제로 일어나는 것이 어긋날 자리가 없다.
+ */
+function projectGroundSelf(state: WorldState, self: ActorState): GroundSelfView {
+  const [takingId] = activeGroundLaws(state.groundZones, self.position);
+  if (takingId !== undefined) {
+    const law = GROUND_LAWS[takingId];
+    return { law: law.id, state: 'taking', takes: law.takes };
+  }
+
+  // 자리 안이지만 멎어 있는가 — 겪지 않는 것과 자리 밖인 것을 가른다.
+  const [shelteredId] = coveringGroundLaws(state.groundZones, self.position);
+  if (shelteredId !== undefined) {
+    const law = GROUND_LAWS[shelteredId];
+    return { law: law.id, state: 'sheltered', takes: law.takes };
+  }
+
+  return { state: 'none' };
+}
 
 // 관찰자가 세계에 없으면 관찰 결과도 없다 — 세계는 모르는 이에게 자신을 보여주지 않는다.
 export function projectObserverView(
@@ -524,6 +553,24 @@ export function projectObserverView(
     // 둘이 답하는 질문이 다르다 ("무엇을 지녔는가" 와 "몸이 지금 무엇으로 되어 있는가").
     // 비어 있는 자리도 전부 실린다.
     equipment: projectEquipment(state, self, observerId),
+    // C-TERRAIN-001 — 무대 자체. **몸이 아닌 것이 실리는 첫 항목이다.**
+    //
+    // zones 는 관찰자에 딸리지 않는다 — 누가 보든 같은 자리가 거기 있다. 감추지 않는
+    // 이유는 04 가 적는다 (감추라는 것은 법칙이지 지금 보이는 풍경이 아니다).
+    //
+    // self 는 **세계가 판정한 결과다.** View 가 zones 와 내 위치로 다시 계산하지
+    // 않는다 — 계산하는 순간 판정이 두 곳에 생기고 어긋나는 자리가 열린다
+    // (DC-WORLD-OWNS-THE-SURFACE-LIST).
+    ground: {
+      zones: state.groundZones.map((zone) => ({
+        id: zone.id,
+        law: zone.law,
+        role: zone.role,
+        center: { x: zone.center.x, z: zone.center.z },
+        radius: zone.radius,
+      })),
+      self: projectGroundSelf(state, self),
+    },
     // C-COMBAT-001 — 고를 수 있는 배분 전부. 소지품·적용 자리와 나란한 세 번째 목록이며
     // 내 몸의 것만 실린다 (INTENT-PER-OBSERVER-PROJECTION-001).
     allocations: projectAllocations(self),
@@ -548,6 +595,10 @@ export function projectObserverView(
       { id: 'self.cp', kind: 'counter', value: self.cp },
       { id: 'self.cpMax', kind: 'counter', value: self.cpMax },
       { id: 'self.downed', kind: 'flag', value: isDowned(self) },
+      // C-TERRAIN-001 — 지닌 열. 둘이 **함께** 온다 — 남은 양만으로는 얼마나 남았는지
+      // 읽히지 않는다 (self.hp / self.hpMax 가 나란히 실리는 것과 같은 자리).
+      { id: 'self.warmth', kind: 'counter', value: self.warmth },
+      { id: 'self.warmthMax', kind: 'counter', value: self.warmthMax },
       { id: 'self.moveMode', kind: 'label', value: self.moveMode },
       // hud.self.guard (C011) — 막기는 스스로 끝나지 않는다. 내가 들고 있다는 것을 잊으면
       // 스킬이 왜 안 나가는지 알 수 없게 되므로 늘 눈앞에 둔다.

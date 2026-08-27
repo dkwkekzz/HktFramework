@@ -19,7 +19,7 @@ NEXT 작업(직렬)만 한다.
 |---|---|---|---|
 | ITEM | [item.md](item.md) | 아이템 IS · 인벤토리 IE | 없음 — Human 선택 대기 |
 | COMBAT | [combat.md](combat.md) | 전투 R1 · DT · **UL** · 스킬 SK | 없음 — Human 선택 대기 |
-| TERRAIN | [terrain.md](terrain.md) | 세계 BW · BT (대지형 · 시스템 축 MS-BEIRA-TERRAIN) | FR-THE-GROUND-HAS-A-LAW — C-TERRAIN-001 착수 대기 |
+| TERRAIN | [terrain.md](terrain.md) | 세계 BW · BT (대지형 · 시스템 축 MS-BEIRA-TERRAIN) | 없음 — Human 선택 대기 |
 | GROWTH | [growth.md](growth.md) | 성장 GS (시스템 축 MS-GROWTH-SOURCE · MS-CLASS-EVOLUTION) | FR-WHAT-YOU-DID-MAKES-YOU — C-GROWTH-001 착수 대기 |
 | KNOWLEDGE | [knowledge.md](knowledge.md) | 전투 지식 **CK** (시스템 축 MS-COMBAT-KNOWLEDGE) | 없음 — Human 선택 대기 |
 
@@ -75,7 +75,8 @@ Human 선택을 기다린다. TERRAIN 안의 순서는 셋 중 하나가 바닥�
 지식이 그 운용을 개선한다). 이 트랙은 **전투 사다리 위가 아니라 옆에 선다** (CK §0) —
 새 피해 공식도 새 판정도 만들지 않는다.
 
-그러므로 지금 **다섯 트랙 중 둘(TERRAIN · GROWTH)이 SELECTED 를 갖고 셋이 후보를 갖는다.**
+그러므로 지금 **다섯 트랙 중 GROWTH 하나만 SELECTED 를 갖고 넷이 후보를 든 채
+Human 선택을 기다린다** — C-TERRAIN-001 이 닫히며 그 트랙도 비었다.
 
 Q35(몸이 아닌 존재를 요구하는 Possibility)는 여전히 열려 있지만 더 이상 COMBAT 을
 막지 않는다 — 그것이 막는 것은 스킬 실행 형태(MS-SKILL-FORM)의 빈 다섯 칸이고,

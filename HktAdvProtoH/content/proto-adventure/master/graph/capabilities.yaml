@@ -820,14 +820,19 @@ nodes:
           source: UL §13 · §14 · §15 · §42 F4
     required_by: [MP-CONCENTRATE-THE-POWER, MP-KNOW-THE-OPPONENT-RULE, MP-EXPLOIT-OPEN-BODY, MP-HOLD-FORTIFIED, MP-STAKE-EVERYTHING-ON-ONE-BLOW]
     demanded_by: []
-    constraints: [DC-COMBAT-AURA-IS-A-PROFILE-NOT-A-DIAL, DC-COMBAT-ONE-FORMULA, DC-COMBAT-SHARED-BUDGET]
+    constraints: [DC-COMBAT-AURA-IS-A-PROFILE-NOT-A-DIAL, DC-COMBAT-ONE-FORMULA, DC-COMBAT-SHARED-BUDGET, DC-COMBAT-PLAYER-CAUSALITY, DC-COMBAT-ONE-LAYER-AT-A-TIME, DC-WORLD-OWNS-THE-SURFACE-LIST]
     constraint_evaluation:
-      DC-COMBAT-AURA-IS-A-PROFILE-NOT-A-DIAL: SATISFIED  # 이 노드가 그 원칙의 실물이다 (UL §14)
-      DC-COMBAT-ONE-FORMULA: SATISFIED                   # 새 공식이 아니라 기존 입력값을 바꾸고 가능 여부를 여닫는다 (UL §15)
-      DC-COMBAT-SHARED-BUDGET: SATISFIED                 # 초기에는 기존 기력을 그대로 쓴다 — 분리는 나중이다 (UL §12)
-    overlay: MISSING
+      DC-COMBAT-AURA-IS-A-PROFILE-NOT-A-DIAL: SATISFIED  # 전투 중 입력이 배분 하나를 고르는 것뿐이다 (C-COMBAT-001)
+      DC-COMBAT-ONE-FORMULA: SATISFIED                   # 피해 식에 배분이 등장하지 않는다 — 읽는 입력값만 바꾼다 (C-COMBAT-001)
+      DC-COMBAT-SHARED-BUDGET: SATISFIED                 # 대가가 기존 기력이다 — 새 게이지가 없다 (C-COMBAT-001)
+      DC-COMBAT-PLAYER-CAUSALITY: SATISFIED              # 확률이 개입하지 않는다 — 같은 배분·같은 타격은 같은 값 (C-COMBAT-001)
+      DC-COMBAT-ONE-LAYER-AT-A-TIME: SATISFIED           # 고른 배분이 모든 값에 0 을 보태므로 아래 층이 그대로 선다 (C-COMBAT-001)
+      DC-WORLD-OWNS-THE-SURFACE-LIST: SATISFIED          # 목록·몫·가능 여부·사유·비용을 전부 세계가 싣는다 (C-COMBAT-001)
+    overlay: PARTIAL
+    overlay_evidence: >-
+      C-COMBAT-001 08-verification 의 WORLD SCENARIO · PLAYABLE — 배분이 이름 붙은 상태로 있고, 전투 중 하나를 고르는 것으로만 바뀌며, 유효 값에 항으로 들어가고, 자기에게도 상대에게도 보인다
     overlay_gap: >-
-      힘을 어디에 몰아 두었는가라는 상태가 없다. 능력치는 있으나 전투 중에 바뀌지 않고, 무엇을 쓸 수 있는지를 능력치가 여닫지도 않는다
+      배분이 **값만 바꾸고 무엇을 할 수 있는가의 목록을 바꾸지 않는다.** semantic 의 절반(UL §15 — 인지를 일정 이상 몰아야 숨은 것이 보이는 식의 가능 여부 갈림)이 아직 없고, 조건 관문(FR-THE-WORLD-DECIDES-WHAT-IS-POSSIBLE)이 서야 닫힌다
 
   - id: MC-ABILITY-CONDITION
     type: capability

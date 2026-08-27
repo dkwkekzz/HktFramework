@@ -6,6 +6,7 @@
 //
 //   gameview-combat.ts   전투 — 생명·능력치·타격 경위·앎·지목·태도 (COMBAT 트랙)
 //   gameview-item.ts     아이템 — 소지품·자리·적용 (ITEM 트랙)
+//   gameview-terrain.ts  땅 — 자리의 범위·지금 걸린 법칙 (TERRAIN 트랙)
 //   이 파일              봉투 재수출 + 스냅샷 조립만. 새 도메인 타입을 여기 더하지 않는다
 //
 // 팩의 world 가 채우고 팩의 view 가 읽으므로 타입 안전은 팩 안에서 완결된다.
@@ -32,6 +33,7 @@ import type {
   InventoryItemView,
   InventoryRoomView,
 } from './gameview-item';
+import type { GroundView } from './gameview-terrain';
 
 // 봉투 타입은 그대로 다시 내보낸다 — 팩 코드는 자기 protocol 하나만 바라본다.
 export type {
@@ -52,6 +54,7 @@ export type {
 // 도메인 타입도 여기서 전부 다시 내보낸다.
 export type * from './gameview-combat';
 export type * from './gameview-item';
+export type * from './gameview-terrain';
 
 // 이 팩의 존재 관찰 — 봉투의 EntityView 에 생명과 속성이 더해진다.
 export interface EntityView extends CoreEntityView {
@@ -85,6 +88,9 @@ export interface GameViewSnapshot extends CoreGameViewSnapshot {
   inventory: InventoryItemView[]; // C020 ADDED — 내 몸이 지닌 것 전부
   inventoryRoom: InventoryRoomView; // C022 ADDED — 쓴 자리와 전체
   equipment: EquipmentSlotView[]; // C023 ADDED — 적용 자리 전부 (빈 자리 포함)
+  // C-TERRAIN-001 ADDED — 무대의 자리들과 지금 내게 걸린 법칙.
+  // **몸이 아닌 것이 실리는 첫 항목이다** (gameview-terrain.ts).
+  ground: GroundView;
   // C-COMBAT-001 ADDED — 고를 수 있는 배분 전부 (지금 고를 수 없는 것도 포함).
   // 소지품·적용 자리와 나란한 세 번째 목록이며 내 몸의 것만 실린다.
   allocations: AllocationChoiceView[];
