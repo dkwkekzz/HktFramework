@@ -385,10 +385,16 @@ describe('INTENT-A-STEP-IS-A-SMALL-CHANGE-001 — 한 단계의 폭은 작다 (B
     expect(Math.ceil(HP / 25)).toBe(5); // 단계 3 — 여기서 바뀐다
   });
 
-  it('첫 문턱은 Frontier 의 문장에 맞춘 값이다 — 쓰러뜨리고 캐면 넘는다 (BALANCE ②)', () => {
-    const basicRoute = 6 * DEED_AMOUNTS.strike + DEED_AMOUNTS.down; // 기본 기술 여섯 대
+  it('첫 문턱은 자율 존재 하나를 넘어뜨리면 닿는 값이다 (BALANCE ②)', () => {
+    // 03 의 BALANCE ② 는 여섯 대로 셈했으나 **실제 각본은 일곱 대**다 —
+    // 생명이 절반 아래로 내려간 방랑자가 몸에 몰아 단단해지기 때문이다
+    // (C-COMBAT-001 · RULE-NPC-ALLOCATION-001). 08 이 그것을 실측해 보고한다.
+    // 문턱을 넘는다는 결론은 그대로이고 **여유가 늘었을 뿐**이다.
+    const sixHitKill = 6 * DEED_AMOUNTS.strike + DEED_AMOUNTS.down; // 셈으로 본 바닥
+    const sevenHitKill = 7 * DEED_AMOUNTS.strike + DEED_AMOUNTS.down; // 실제로 도는 각본
     const heavyRoute = 3 * DEED_AMOUNTS.strike + DEED_AMOUNTS.down; // 고급 기술을 섞은 길
-    expect(basicRoute).toBe(GROWTH_THRESHOLDS[0]); // 정확히 닿는다
+    expect(sixHitKill).toBe(GROWTH_THRESHOLDS[0]); // 가장 짧은 길이 정확히 닿는다
+    expect(sevenHitKill).toBeGreaterThan(GROWTH_THRESHOLDS[0] as number);
     expect(heavyRoute + DEED_AMOUNTS.mine).toBeGreaterThanOrEqual(GROWTH_THRESHOLDS[0] as number);
   });
 });
