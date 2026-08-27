@@ -1,4 +1,4 @@
-// 땅 검증 촬영 — C-TERRAIN-001 의 Stage 8 이 요구하는 ①② 를 눈으로 닫는다.
+// 땅 검증 촬영 — C-TERRAIN-001 · C-TERRAIN-002 의 Stage 8 을 눈으로 닫는다.
 //
 // game-shot.js 가 이펙트 경로를 보는 자리라면, 여기서는 **지면 구역**을 본다:
 // 세계(GroundZones) → 관찰 계약(ground.zones) → 결정 Layer(groundZonePlans)
@@ -10,6 +10,15 @@
 //   ③ 지금 내 몸에 어느 법칙이 작용 중인가 + 사유
 //   ④ 값이 줄어드는 것 / 멎는 것
 //
+// C-TERRAIN-002 가 더하는 판정 — **머물면 발밑의 땅이 열린다**
+//   ⑤ 자리마다 얼마나 찼는지가 이름에 실린다 (`빙원 · 찬 NN%`)
+//   ⑥ 머무는 동안 그 값이 오른다 — 내가 준 열이 그 자리에 쌓인다
+//   ⑦ 넘치면 그 자리가 분출구가 되고 (`해숨구멍 · 남은 NN%`) 그 순간 거둠이 멎는다
+//   ⑧ 그리고 열이 **돌아온다** (`열을 돌려받는 중`)
+//
+// 그림은 둘을 찍는다 — 열리기 전과 열린 뒤. 같은 자리가 다른 시각에 다르다는 것이
+// 이 Cycle 의 전부이므로, 한 장으로는 보일 수가 없다.
+//
 // ①② 는 픽셀로, ③④ 는 HUD 글자로 판정한다. 플레이어를 빙원까지 걸려 보내므로
 // 조작 없이는 ③④ 가 서지 않는다 — 걷는 것이 이 Cycle 의 유일한 입력이다.
 //
@@ -19,9 +28,12 @@ const { spawn } = require('node:child_process');
 const { launch, collectErrors } = require('./_common');
 
 const [out = 'terrain.png'] = process.argv.slice(2);
+const outBefore = out.replace(/\.png$/, '-before.png');
+const outAfter = out.replace(/\.png$/, '-after.png');
 const PORT = 5201;
 const ROOT = path.join(__dirname, '..', '..', '..');
-// 빙원(-11, 11 · 반경 7) 안쪽이되 해숨구멍(-13, 13 · 반경 2.5) 밖 — 거두어 가는 자리다.
+// zone-vein-4(-8.5, 8.5 · 반경 5) 의 중심 부근이되 뿜는 중인 zone-vein-1(-13.5, 13.5)
+// 밖이다 — 거두어 가는 자리이고, **머물면 이 맥이 먼저 찬다** (중심까지 0.7 로 가장 가깝다).
 const SPAWN = process.env.HKT_SPAWN || '-9,9';
 
 function startVite() {
@@ -100,27 +112,57 @@ const panelText = (page) =>
     await new Promise((r) => setTimeout(r, 300));
   }
 
-  // 빙원 안에서 잠시 머문다 — 머무는 동안 줄어드는 것이 이 Cycle 의 요점이다.
-  if (/빙원/.test(inField)) await new Promise((r) => setTimeout(r, 3000));
-  inField = await panelText(page);
+  // ── 열리기 전 ───────────────────────────────────────────────────────
+  // 빙원 안에서 잠시 머문다 — 머무는 동안 줄어드는 것이 C-TERRAIN-001 의 요점이었다.
+  if (/빙원/.test(inField)) await new Promise((r) => setTimeout(r, 2500));
+  const before = await panelText(page);
+  await page.screenshot({ path: path.resolve(outBefore) }).catch(() => {});
+
+  // ── 머문다 — 그리고 발밑이 열리기를 기다린다 ────────────────────────
+  // zone-vein-4 는 60 중 30 이 차 있고 rate 4.0 이므로 7.5초를 머물면 넘친다.
+  // 조작은 하나도 하지 않는다 — **아무것도 하지 않는 것**이 이 Cycle 의 입력이다.
+  const seen = [];
+  let after = before;
+  for (let i = 0; i < 25; i++) {
+    await new Promise((r) => setTimeout(r, 1000));
+    after = await panelText(page);
+    seen.push(after);
+    if (/돌려받는 중/.test(after)) break;
+  }
+  await page.screenshot({ path: path.resolve(outAfter) }).catch(() => {});
+  // 두 장 중 뒤엣것을 기본 이름으로도 남긴다 (옛 호출부 호환)
   await page.screenshot({ path: path.resolve(out) }).catch(() => {});
 
-  const warmth = /온기 (\d+)\/(\d+)/.exec(inField);
+  inField = after;
+  const warmth = /온기 (\d+)\/(\d+)/.exec(before);
+  const warmthAfter = /온기 (\d+)\/(\d+)/.exec(after);
   const real = errors.filter((e) => !e.includes('404'));
 
-  console.log(`self 패널: ${inField}`);
-  console.log(`저장 ${path.resolve(out)}`);
+  console.log(`self 패널 (열리기 전): ${before}`);
+  console.log(`self 패널 (열린 뒤):   ${after}`);
+  console.log(`저장 ${path.resolve(outBefore)}`);
+  console.log(`저장 ${path.resolve(outAfter)}`);
 
   // ①② (범위가 땅 위에 보인다)는 이 도구가 판정하지 않는다 — **사람이 그림을 본다.**
   // 색 맞추기로 자동 판정하면 채움이 18% 라 지형 초록과 21 단계밖에 안 벌어져,
   // 통과해도 통과의 뜻이 없고 실패해도 실패의 뜻이 없다. 저장된 그림이 그 판정의 자리다.
   const gates = [
-    ['지금 걸린 법칙이 읽힌다 (③)', /빙원/.test(inField)],
-    ['거두어 가는 중임이 읽힌다 (③)', /거두어 가는 중|여기서는 멎는다/.test(inField)],
+    ['지금 걸린 법칙이 읽힌다 (③)', /빙원|해숨구멍/.test(before)],
+    ['거두어 가는 중임이 읽힌다 (③)', /거두어 가는 중/.test(before)],
     ['지닌 열이 읽힌다 (④)', warmth !== null],
     ['열이 실제로 줄었다 (④)', warmth !== null && Number(warmth[1]) < Number(warmth[2])],
+    // ⑦⑧ — 발밑이 열렸다. self 패널의 전이가 그 증거다: 거두어 가던 자리가 같은
+    // 자리에서 돌려주는 자리가 되었고, 나는 한 걸음도 옮기지 않았다.
+    ['머문 자리가 분출구가 되었다 (⑦)', /해숨구멍/.test(after)],
+    ['열이 돌아온다 (⑧)', /돌려받는 중/.test(after)],
+    ['돌아온 열이 실제로 늘었다 (⑧)',
+      warmth !== null && warmthAfter !== null && Number(warmthAfter[1]) > Number(warmth[1])],
     ['페이지 오류 0', real.length === 0],
   ];
+  // ⑤⑥ (자리 이름의 퍼센트가 오른다)는 이 도구가 판정하지 않는다 — 라벨이 캔버스 안에
+  // 스프라이트로 그려져 DOM 에서 읽히지 않고, 그것을 읽으려면 엔진이 Render Plan 을
+  // 밖으로 내주어야 한다(기반 변경). 결정 Layer 를 직접 돌리는 검사가 그 자리를 맡는다
+  // (view/tests/terrain.spec.ts — '이름에 지금이 실린다').
   for (const [label, ok] of gates) console.log(`판정: ${label} → ${ok ? 'OK' : '실패'}`);
   if (real.length) console.log('오류:', real);
   const ok = gates.every(([, v]) => v);

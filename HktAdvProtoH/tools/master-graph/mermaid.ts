@@ -65,7 +65,9 @@ export function renderMermaid(graph: MasterGraph): string {
   // ── 1. 인과 뼈대 ────────────────────────────────────────────────────
   out('## 인과 뼈대 — WorldState → Goal → Possibility');
   out();
-  out('세계의 사정이 Goal 을 만들고, 각 Goal 은 여러 Possibility 로 갈린다 (OR).');
+  out('굵은 화살표(**==>**)가 **세계의 인과 척추**다 — 어떤 상태가 어떤 상태를 낳았는가')
+  out('(`arises_from`). 그 위에서 세계의 사정이 Goal 을 만들고, 각 Goal 은 여러')
+  out('Possibility 로 갈린다 (OR).');
   out();
   out('```mermaid');
   out('flowchart LR');
@@ -77,7 +79,8 @@ export function renderMermaid(graph: MasterGraph): string {
     const a = graph.nodes.get(e.from)!;
     const b = graph.nodes.get(e.to)!;
     if (!backbone.has(a.type) || !backbone.has(b.type)) continue;
-    if (e.kind === 'causes') out(`  ${e.from} --> ${e.to}`);
+    if (e.kind === 'arises_from') out(`  ${e.from} ==> ${e.to}`); // 세계의 인과 척추 — 굵게
+    else if (e.kind === 'causes') out(`  ${e.from} --> ${e.to}`);
     else if (e.kind === 'wants') out(`  ${e.from} -.-> ${e.to}`);
     else if (e.kind === 'achieves') out(`  ${e.to} --> ${e.from}`); // 갈래는 Goal 에서 뻗어 나가게 그린다
     else if (e.kind === 'motivation') out(`  ${e.from} --> ${e.to}`);

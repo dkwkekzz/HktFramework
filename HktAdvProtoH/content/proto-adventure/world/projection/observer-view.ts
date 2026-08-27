@@ -13,10 +13,13 @@ import type {
   EntityView,
   GameViewSnapshot,
   GroundSelfView,
+  GrowthEventView,
+  GrowthView,
   InteractionView,
   EquipmentSlotView,
   InventoryItemView,
   ItemActionView,
+  SkillProfileView,
 } from '../../protocol/gameview';
 import { actionProgress, actionTargetId } from '../semantic/action';
 import { ruleStance } from '../rules/relation';
@@ -41,8 +44,19 @@ import {
   rawDamage,
   skillDefinition,
   skillPhase,
+  type SkillKind,
 } from '../semantic/combat';
+import { abilityCircumstance } from '../semantic/circumstance';
+import { borneMarks } from '../semantic/mark';
 import { concealedKeys, isAcquainted, isSeatOpen } from '../semantic/acquaintance';
+import {
+  GROWABLE_STATS,
+  MAX_GROWTH_LEVEL,
+  deedsToNextThreshold,
+  growthContribution,
+  growthLevel,
+  nextGrowthThreshold,
+} from '../semantic/growth';
 import {
   ALLOCATION_IDS,
   ALLOCATION_SWITCH_CP_COST,
@@ -62,7 +76,13 @@ import {
   evaluateItemUnequip,
 } from '../rules/item-equip';
 import { equipmentSlots } from '../semantic/equipment';
-import { activeGroundLaws, coveringGroundLaws, GROUND_LAWS } from '../semantic/terrain';
+import {
+  activeGroundLaws,
+  coveringGroundLaws,
+  GROUND_LAWS,
+  groundZoneFill,
+  ventingZonesAt,
+} from '../semantic/terrain';
 import { ruleInventoryRoom } from '../rules/inventory-room';
 import {
   actorOfObserver,
@@ -92,7 +112,17 @@ function projectGroundSelf(state: WorldState, self: ActorState): GroundSelfView 
     return { law: law.id, state: 'taking', takes: law.takes };
   }
 
-  // 자리 안이지만 멎어 있는가 — 겪지 않는 것과 자리 밖인 것을 가른다.
+  // C-TERRAIN-002 — 뿜는 자리 안인가. 멎기만 하는 것과 **받는 중**인 것을 가른다.
+  // 받을 자리가 있는지(몸이 가득하지 않은지)는 규칙이 주는 조건과 같다
+  // (RULE-GROUND-VENT-001 의 give > 0). 화면이 이것을 계산하지 않는다.
+  const [ventingZone] = ventingZonesAt(state.groundZones, self.position);
+  if (ventingZone !== undefined) {
+    const law = GROUND_LAWS[ventingZone.law];
+    const receiving = self.warmth < self.warmthMax && ventingZone.kept > 0;
+    return { law: law.id, state: receiving ? 'warming' : 'sheltered', takes: law.takes };
+  }
+
+  // 자리 안이지만 아무 일도 없는가 — 겪지 않는 것과 자리 밖인 것을 가른다.
   const [shelteredId] = coveringGroundLaws(state.groundZones, self.position);
   if (shelteredId !== undefined) {
     const law = GROUND_LAWS[shelteredId];
@@ -289,6 +319,19 @@ export function projectObserverView(
         // 살펴봄이 할 일이 없어진다.
         // C016 — 세 자리 중 가장 얕다. 통찰이 조금만 있어도 이것부터 열린다.
         ...(seatOpen('defenseShape') ? { defenseShape: defenseShape(actor) } : {}),
+        /**
+         * C-COMBAT-004 ADDED — 그 몸에 지금 붙어 있는 표식들
+         * (INTENT-THE-BORNE-IS-SEEN-BY-BOTH-001).
+         *
+         * **모든 존재에 언제나 실리고 가려지지 않는다.** 살펴봄의 관문 뒤에 두지
+         * 않는다 — 겨루는 힘이 아니라 그 몸에 일어난 일이며, 태도(C018)와
+         * 배분(C-COMBAT-001)이 선 자리와 같다. 걸린 쪽이 자기에게 무엇이 붙었는지
+         * 모르면 대비가 성립하지 않는다 (UL §30 · §40).
+         *
+         * **닫힌 표식은 나가지 않고 언제까지인지도 싣지 않는다** — 세계가 이미
+         * "지금 붙어 있는가" 를 답한다 (C016 이 통찰 문턱을 싣지 않은 판단 그대로).
+         */
+        marks: borneMarks(actor.marks, state.time),
         // 막기 (C011) — 모든 존재에 실린다. 자율 존재는 이번 Cycle 에서 막지 않으므로
         // 늘 거짓이지만 그래도 싣는다. "지금은 아무도 안 막는다" 와
         // "세계가 안 알려준다" 는 다른 일이다 (INTENT-GUARD-OBSERVE-001).
@@ -376,74 +419,129 @@ export function projectObserverView(
   // C010 CHANGED — damage 하나가 셋으로 나뉜다. rawDamage 는 지금 내 공격 능력으로
   // 이 스킬을 쓰면 나오는 공격 피해이며, 최종 피해는 실리지 않는다 —
   // 대상이 정해지기 전에는 세계도 모르는 값이다.
-  const basicFailure = evaluateSkillPreconditions(self, 'attack');
-  const basic = skillDefinition('attack');
+  // C-COMBAT-003 — 조건 사정이 **누구에 대해** 참인가는 지금 고른 대상이 정한다 (C017).
+  // 고른 대상이 없으면 상대를 읽는 조건은 거짓으로 실린다 — 세계가 아직 누구인지
+  // 모르기 때문이며, 모름을 참으로 싣는 것보다 정직하다.
+  //
+  // **이것은 예고이지 약속이 아니다.** 실제로 닿은 몸이 고른 대상과 다르면 그 몸에
+  // 대해 다시 세어진다 (RULE-ABILITY-CONDITION-001 은 대상마다 따로 돈다).
+  const chosenEntityId = selectedEntityId(state.targetSelections, observerId);
+  const chosenTarget =
+    chosenEntityId === undefined
+      ? null
+      : (state.actors.find((a) => a.id === chosenEntityId) ?? null);
+
+  // 기술 하나의 profile — 쓰기 전에 알 수 있어야 하는 값 전부.
+  // C-COMBAT-003 ADDED — 여기에 **사정 둘**이 실린다. C019 가 시간 축을, C025 가
+  // 공간 축을 실은 그 자리이며 이유도 같다: 무엇을 갖춰야 하고 무엇이 그것을 키우는지를
+  // 걸어 보고 아는 것은 늦다. 세계가 지닌 값이며 View 가 기술 이름으로 자기 표를
+  // 만들지 않는다 (DC-WORLD-OWNS-THE-SURFACE-LIST).
+  //
+  // **요구와 조건은 다른 칸이다** — 못 쓰는 사유와 더 잘 드는 사유는 다른 물음의
+  // 답이며, 같은 칸에 실으면 닫힌 기술과 강해진 기술이 구별되지 않는다.
+  //
+  // 문턱 값은 싣지 않는다. 세계가 이미 "참인가" 를 답하고 있으므로 관찰자가 규칙을
+  // 자기 안에 복제할 자리가 없다 (C016 이 통찰 문턱을 싣지 않은 판단 그대로).
+  const skillProfile = (kind: SkillKind): SkillProfileView => {
+    const definition = skillDefinition(kind);
+    return {
+      baseDamage: definition.baseDamage,
+      attackRatio: definition.attackRatio,
+      // **본래 크기다** — 조건이 실리지 않은 값. 조건이 얼마를 더하는지는 아래
+      // conditions 가 따로 답한다. 둘을 섞으면 "지금 얼마인가" 와 "왜 그만큼인가" 가
+      // 한 수에 뭉개진다 (04 GameView Specification).
+      rawDamage: rawDamage(self, kind),
+      charge: definition.cpCharge,
+      cost: definition.cpCost,
+      damageType: definition.damageType, // C012 — 각 스킬이 어떤 방식인지 세계가 밝힌다
+      swingBegin: definition.swingBegin, // C019 — 고르기 전에 아는 선딜
+      swingEnd: definition.swingEnd,
+      swingArc: definition.swingArc, // C025 — 고르기 전에 아는 모양
+      swingReach: definition.swingReach,
+      swingTipRadius: definition.swingTipRadius,
+      // C-COMBAT-003 — 갖춰졌어도 실린다. 무엇을 지고 있는지가 곧 그 기술의 정체다.
+      // C-COMBAT-004 CHANGED — 이제 **지금 고른 상대에 대한** 답이다. 아무도 고르지
+      // 않았으면 상대를 읽는 요구는 갖춰지지 않은 것으로 온다 (모름은 참이 아니다).
+      requires: definition.requires.map((id) => {
+        const circumstance = abilityCircumstance(id);
+        return {
+          id,
+          met: circumstance.holds(self, chosenTarget, state),
+          reason: circumstance.unmetReason,
+        };
+      }),
+      conditions: definition.amplifiedBy.map((share) => ({
+        id: share.circumstance,
+        holds: abilityCircumstance(share.circumstance).holds(self, chosenTarget, state),
+        bonus: share.attackRatioShare,
+      })),
+    };
+  };
+
+  // interactions.attack / skill-heavy (C007) — 대상이 없다. 무엇이 맞을지는
+  // 요청할 때가 아니라 휘두름 구간의 접촉이 정한다.
+  // profile 이 함께 나간다 — 쓰기 전에 무엇이 오갈지 알아야
+  // "지금 고급 스킬을 쓸 것인가" 를 판단할 수 있다 (INTENT-SELF-OBSERVE-001).
+  // C010 CHANGED — damage 하나가 셋으로 나뉜다. rawDamage 는 지금 내 공격 능력으로
+  // 이 스킬을 쓰면 나오는 공격 피해이며, 최종 피해는 실리지 않는다 —
+  // 대상이 정해지기 전에는 세계도 모르는 값이다.
+  const basicFailure = evaluateSkillPreconditions(self, 'attack', state, chosenTarget);
   interactions.push({
     id: 'attack',
     role: 'skill-basic',
     available: basicFailure === null,
     ...(basicFailure ? { reason: basicFailure } : {}),
-    profile: {
-      baseDamage: basic.baseDamage,
-      attackRatio: basic.attackRatio,
-      rawDamage: rawDamage(self, 'attack'),
-      charge: basic.cpCharge,
-      cost: basic.cpCost,
-      damageType: basic.damageType, // C012 — 각 스킬이 어떤 방식인지 세계가 밝힌다
-      swingBegin: basic.swingBegin, // C019 — 고르기 전에 아는 선딜
-      swingEnd: basic.swingEnd,
-      swingArc: basic.swingArc, // C025 — 고르기 전에 아는 모양
-      swingReach: basic.swingReach,
-      swingTipRadius: basic.swingTipRadius,
-    },
+    profile: skillProfile('attack'),
   });
 
-  const heavyFailure = evaluateSkillPreconditions(self, 'heavy-attack');
-  const heavy = skillDefinition('heavy-attack');
+  const heavyFailure = evaluateSkillPreconditions(self, 'heavy-attack', state, chosenTarget);
   interactions.push({
     id: 'skill-heavy',
     role: 'skill-heavy',
     available: heavyFailure === null,
     ...(heavyFailure ? { reason: heavyFailure } : {}),
-    profile: {
-      baseDamage: heavy.baseDamage,
-      attackRatio: heavy.attackRatio,
-      rawDamage: rawDamage(self, 'heavy-attack'),
-      charge: heavy.cpCharge,
-      cost: heavy.cpCost,
-      damageType: heavy.damageType, // C012
-      swingBegin: heavy.swingBegin, // C019
-      swingEnd: heavy.swingEnd,
-      swingArc: heavy.swingArc, // C025 — 고르기 전에 아는 모양
-      swingReach: heavy.swingReach,
-      swingTipRadius: heavy.swingTipRadius,
-    },
+    profile: skillProfile('heavy-attack'),
   });
 
   // interactions.skillAura (C012 ADDED) — 오라 방식으로 친다.
   // 새 관문도 새 사유도 없다. 기존 스킬이 지나는 자리를 그대로 지난다
   // (INTENT-AURA-SKILL-001). rawDamage 가 기본 스킬과 다르게 나오는 것은
   // 내 두 공격 능력이 다르기 때문이지 스킬 값이 달라서가 아니다.
-  const auraFailure = evaluateSkillPreconditions(self, 'aura-strike');
-  const aura = skillDefinition('aura-strike');
+  const auraFailure = evaluateSkillPreconditions(self, 'aura-strike', state, chosenTarget);
   interactions.push({
     id: 'skill-aura',
     role: 'skill-aura',
     available: auraFailure === null,
     ...(auraFailure ? { reason: auraFailure } : {}),
-    profile: {
-      baseDamage: aura.baseDamage,
-      attackRatio: aura.attackRatio,
-      rawDamage: rawDamage(self, 'aura-strike'),
-      charge: aura.cpCharge,
-      cost: aura.cpCost,
-      damageType: aura.damageType, // C012
-      swingBegin: aura.swingBegin, // C019
-      swingEnd: aura.swingEnd,
-      swingArc: aura.swingArc, // C025 — 고르기 전에 아는 모양
-      swingReach: aura.swingReach,
-      swingTipRadius: aura.swingTipRadius,
-    },
+    profile: skillProfile('aura-strike'),
+  });
+
+  // interactions.skillMark (C-COMBAT-004 ADDED) — 표식을 남기는 기술.
+  // **피해가 0 이다.** profile 이 그것을 그대로 싣는다 — 화면이 0 을 지어내지 않는다.
+  // 요구가 **지금 고른 상대**를 보는 첫 자리이기도 하다.
+  const markFailure = evaluateSkillPreconditions(self, 'mark-strike', state, chosenTarget);
+  interactions.push({
+    id: 'skill-mark',
+    role: 'skill-mark',
+    available: markFailure === null,
+    ...(markFailure ? { reason: markFailure } : {}),
+    profile: skillProfile('mark-strike'),
+  });
+
+  // interactions.skillHatsu (C-COMBAT-003 ADDED) — 사정을 지는 기술.
+  // **기존 셋과 같은 모양의 자리다.** 새 갈래도 새 칸도 아니며, 다른 것은 requires 와
+  // conditions 가 비어 있지 않다는 사실뿐이다 (INTENT-CIRCUMSTANCES-ARE-A-LIST-001).
+  //
+  // 갖춰지지 않아도 **목록에서 사라지지 않는다** — 사라지면 사유를 실을 자리가 없고,
+  // 그러면 무엇을 갖추면 열리는지 알 길이 없다 (C-COMBAT-001 이 지금 고를 수 없는
+  // 배분까지 싣기로 한 판단 그대로).
+  const hatsuFailure = evaluateSkillPreconditions(self, 'hatsu-burst', state, chosenTarget);
+  interactions.push({
+    id: 'skill-hatsu',
+    role: 'skill-hatsu',
+    available: hatsuFailure === null,
+    ...(hatsuFailure ? { reason: hatsuFailure } : {}),
+    profile: skillProfile('hatsu-burst'),
   });
 
   // interactions.guardBegin / guardRelease (C011) — 세계가 "막기를 걸 수 있다" 와
@@ -565,7 +663,10 @@ export function projectObserverView(
       zones: state.groundZones.map((zone) => ({
         id: zone.id,
         law: zone.law,
-        role: zone.role,
+        phase: zone.phase,
+        // 비율로 나가고 날값은 나가지 않는다 — 화면이 넘침을 스스로 판정하지 못하게 한다
+        // (DC-WORLD-OWNS-THE-SURFACE-LIST · 04-gameview.spec.yaml).
+        fill: groundZoneFill(zone),
         center: { x: zone.center.x, z: zone.center.z },
         radius: zone.radius,
       })),
@@ -574,6 +675,10 @@ export function projectObserverView(
     // C-COMBAT-001 — 고를 수 있는 배분 전부. 소지품·적용 자리와 나란한 세 번째 목록이며
     // 내 몸의 것만 실린다 (INTENT-PER-OBSERVER-PROJECTION-001).
     allocations: projectAllocations(self),
+    // C-GROWTH-001 — 자란 것과 방금 쌓인 일들. 둘 다 내 몸의 것만 실린다
+    // (INTENT-PER-OBSERVER-PROJECTION-001).
+    growth: projectGrowth(self),
+    growthEvents: projectGrowthEvents(state, self),
     hud: [
       // 내 몸의 것만 실린다. 다른 관찰자의 소지품과 가용성은 실리지 않는다
       // (INTENT-PER-OBSERVER-PROJECTION-001).
@@ -681,6 +786,26 @@ export function projectObserverView(
         kind: 'counter',
         value: allocationShares(self.allocation).awareness,
       },
+      // C-GROWTH-001 — 자란 것. 쌓인 양과 다음 문턱이 **함께** 온다 —
+      // 남은 양만으로는 얼마나 왔는지 읽히지 않는다 (self.hp / self.hpMax 가 나란히
+      // 실리는 것과 같은 자리). 최대 단계면 문턱 둘이 실리지 않는다.
+      { id: 'self.growth.level', kind: 'counter', value: growthLevel(self.deeds) },
+      { id: 'self.growth.maxLevel', kind: 'counter', value: MAX_GROWTH_LEVEL },
+      { id: 'self.growth.deeds', kind: 'counter', value: self.deeds },
+      ...(nextGrowthThreshold(self.deeds) !== null
+        ? ([
+            {
+              id: 'self.growth.nextThreshold',
+              kind: 'counter' as const,
+              value: nextGrowthThreshold(self.deeds) as number,
+            },
+            {
+              id: 'self.growth.deedsToNext',
+              kind: 'counter' as const,
+              value: deedsToNextThreshold(self.deeds) as number,
+            },
+          ])
+        : []),
       { id: 'self.tempo.moveSpeed', kind: 'counter', value: self.moveSpeed },
       { id: 'self.tempo.runSpeedMultiplier', kind: 'counter', value: self.runSpeedMultiplier },
       { id: 'self.tempo.actionSpeed', kind: 'counter', value: self.actionSpeed },
@@ -701,7 +826,12 @@ export function projectObserverView(
       // C015 — 그 안에 critical 이 함께 실린다. 타격 경위는 살펴봄 관문 뒤가 아니다 —
       // 모르는 상대에게 크게 터진 것은 보인다. 그 상대가 **얼마나 자주** 터뜨리는
       // 몸인지는 여전히 살펴봐야 안다 (combatStats 안이다).
-      breakdown: { ...event.breakdown },
+      // C-COMBAT-003 — 참인 조건들이 함께 나간다. 세계 안의 이름(attackRatioShare)이
+      // 아니라 관찰의 이름(bonus)으로 옮긴다 — 계약은 세계의 자료구조가 아니다.
+      breakdown: {
+        ...event.breakdown,
+        conditions: event.breakdown.conditions.map((c) => ({ id: c.id, bonus: c.attackRatioShare })),
+      },
     })),
     // World.UnharmedContacts (C018) — 닿았으나 해가 성립하지 않은 접촉.
     // 타격 결과와 나란히 실린다. 이것이 없으면 화면에서 무산은 빗나감과 구분되지 않는다
@@ -773,6 +903,55 @@ export function projectObserverView(
  *
  * 차례는 카탈로그의 차례다 — 같은 세계 상태면 같은 순서이고, 화면은 정렬하지 않는다.
  */
+/**
+ * C-GROWTH-001 — 자란 것 (INTENT-THE-LEDGER-IS-OBSERVED-001).
+ *
+ * **세계가 세어서 싣는다** — 화면이 쌓인 값을 문턱으로 나누지도, 남은 양을 빼지도,
+ * 단계에 몫을 곱하지도 않는다 (DC-WORLD-OWNS-THE-SURFACE-LIST).
+ *
+ * 최대 단계면 다음 문턱과 남은 양이 **오지 않는다** — 없다는 것이 곧 "더 오를 곳이
+ * 없다" 이며, 0 을 실으면 "다 왔다" 로 잘못 읽힌다.
+ */
+function projectGrowth(self: ActorState): GrowthView {
+  const threshold = nextGrowthThreshold(self.deeds);
+  const remaining = deedsToNextThreshold(self.deeds);
+  return {
+    deeds: self.deeds,
+    level: growthLevel(self.deeds),
+    maxLevel: MAX_GROWTH_LEVEL,
+    ...(threshold !== null ? { nextThreshold: threshold } : {}),
+    ...(remaining !== null ? { deedsToNext: remaining } : {}),
+    // 단계 0 에서는 넷이 전부 0 이고 **그래도 실린다** — 0 이 실려야
+    // "아직 아무것도 보태고 있지 않다" 가 관찰이 된다 (C013 이 관통 0 을,
+    // C015 가 가능성 0 을 실은 판단 그대로).
+    contributions: GROWABLE_STATS.map((stat) => ({
+      stat,
+      amount: growthContribution(self.deeds, stat),
+    })),
+  };
+}
+
+/**
+ * C-GROWTH-001 — 방금 무엇을 해서 얼마가 쌓였는가
+ * (INTENT-GROWING-CARRIES-ITS-REASON-001).
+ *
+ * **내 것만 실린다.** 남이 무엇으로 자랐는지는 오지 않는다 — 세계에 그 관찰이 없다.
+ * 타격 결과(strikes)가 남의 것도 싣는 것과 갈리는 지점이며, 이유는 소지품·적용 자리와
+ * 같다 (INTENT-PER-OBSERVER-PROJECTION-001).
+ */
+function projectGrowthEvents(state: WorldState, self: ActorState): GrowthEventView[] {
+  return state.growthEvents
+    .filter((event) => event.actorId === self.id)
+    .map((event) => ({
+      source: event.source,
+      amount: event.amount,
+      deedsAfter: event.deedsAfter,
+      levelBefore: event.levelBefore,
+      levelAfter: event.levelAfter,
+      since: event.time,
+    }));
+}
+
 function projectAllocations(self: ActorState): AllocationChoiceView[] {
   return ALLOCATION_IDS.map((id: AllocationId) => {
     const failure = evaluateAllocationSet(self, id);

@@ -308,6 +308,14 @@ sections:
       - label: "MW-HYPER-PREDATION · MW-SPATIAL-SHEAR"
         ids: [MW-HYPER-PREDATION, MW-SPATIAL-SHEAR]
       - MW-MACRO-TERRAIN
+      - MW-TERRAIN-CIRCULATION
+      - MW-SHAPED-LANDFORM
+      - MW-SURVIVAL-PRESSURE
+      - MW-ADAPTED-LIFE
+      - MW-TERRAIN-RESOURCE
+      - MW-NATURAL-REFUGE
+      - MW-NATURAL-SETTLEMENT
+      - MW-CIRCULATION-EVIDENCE
       - label: "MW-TERRAIN-* 8종 (BT §4~§11)"
         ids: [MW-TERRAIN-BAIWANG-BASIN, MW-TERRAIN-SUNEATER-ICEFIELD, MW-TERRAIN-NAME-EATING-FOREST,
               MW-TERRAIN-BREATHLESS-SEA, MW-TERRAIN-SKYFALL-RANGE, MW-TERRAIN-WALKING-CONTINENTS,
@@ -459,16 +467,45 @@ holes: |
      없고, 행동의 앞 구간이 앎의 관문과 무관하게 누구에게나 그냥 온다.
      발견·검증은 그 뒤에 얹힌다.
 
-  4. 땅에 시간이 없다  (C-TERRAIN-001 로 **바닥은 깔렸다**)
+  4. 땅이 무엇을 할지 미리 말해 주지 않는다  (C-TERRAIN-002 로 **땅이 돌기 시작했다**)
      "땅이 없다" 는 닫혔다. 무대가 자리로 나뉘고 자리가 법칙을 지니며 그 법칙이 멎는
      예외 자리가 그 안에 있다 (MW-MACRO-TERRAIN · MW-TERRAIN-SUNEATER-ICEFIELD 둘 다
      ABSENT → PARTIAL). 앞의 셋이 놓일 바닥은 이제 있다.
 
-     남은 것은 **그 땅이 도는 일**이다. 거둔 것이 어디에도 저장되지 않아 땅이 포화되지도
-     분출하지도 않으므로, 예외 자리가 원인 없이 놓인 상수이고 거두는 속도가 상수다.
-     그래서 BT §15 의 셋째 항(대지 순환)이 통째로 비어 있고, 그 위에 얹히는 것들이
-     설 자리를 얻지 못한다 — 셀 주기가 없어 창에 맞출 수 없고(MC-TIME-THE-CYCLE),
-     이을 자리가 하나뿐이라 길을 만들 수 없다(MC-FIND-SAFE-ROUTE).
-     BT §5.7 이 빙원의 핵심 경험을 "대지가 열을 **어디에서 빼앗고 어디에 저장하는지**를
-     읽는 것" 으로 못 박았는데, 지금 선 것은 앞 절뿐이다.
+     **BT §15 의 셋째 항(대지 순환)이 닫혔다.** C-TERRAIN-002 로 거둔 것이 그 자리에
+     쌓이고, 넘치면 뿜고, 뿜는 것을 몸이 받고, 다 쓰면 닫혀 도로 거둔다. 예외 자리는
+     이제 놓이는 것이 아니라 넘침의 한 국면이며 옮겨 다닌다. BT §5.7 이 못 박은
+     "대지가 열을 어디에서 빼앗고 **어디에 저장하는지**" 의 뒤 절이 섰다.
+
+     **남은 것은 그것을 미리 읽는 일이다.** 지금 세계는 안전한 자리가 옮겨 다니는데
+     그 움직임을 앞질러 읽을 방법이 없다 — 그것은 깊이가 아니라 불공정이다.
+     BT §15.8 의 여덟째 항(관찰 — "설명 없이 볼 수 있는 증거")이 그 자리이고
+     `MW-CIRCULATION-EVIDENCE` 가 ABSENT 다. 셀 주기는 생겼으나 언제 창이 열리는지를
+     읽을 증거가 없어 여전히 겪어 봐야만 안다(MC-TIME-THE-CYCLE), 이을 자리는 여럿이
+     되었으나 어느 것이 곧 닫히는지 모른다(MC-FIND-SAFE-ROUTE).
+
+     그리고 순환이 서면서 **그 아래가 열렸다** — `MW-ADAPTED-LIFE`(무엇이 어디 사는가) ·
+     `MW-TERRAIN-RESOURCE`(그 법칙이 낳는 자원) · `MW-NATURAL-SETTLEMENT`(정착) 셋이
+     매달릴 자리를 지녔고 셋 다 ABSENT 다. 그 셋은 각각 기획서 승인을 기다린다
+     (Design-Creature-Behavior-R0 · Design-Resource-Catalog-R0 — HUMAN 대기).
+
+     **그리고 이것은 대지형 하나의 결손이 아니다.** BT §16 의 세계 골격에서 순환은
+     지형과 생존 압력 사이의 고리이고, 그 아래에 생명과 물질의 적응 · 위험과 자원 ·
+     자연적 피난처 · 사람과 문화가 전부 매달려 있다. 순환이 없는 동안 그 아래의 모든
+     것은 **놓는 수밖에 없다** — 무엇이 어디에 사는지도, 어디가 안전한지도, 무엇이
+     어디서 나는지도 세계가 답하지 못하고 세계를 적는 사람이 좌표에 찍는다. 지금
+     세계가 정확히 그렇다: 해숨구멍은 손으로 놓인 예외 자리이고 광맥은 좌표에 찍혀
+     있으며, `Design-Resource-Catalog-R0.md` §4 가 모든 자원에 요구하는 질문
+     ("그 상태가 오랜 시간 반복되면 무엇이 만들어지는가")에 답할 수 있는 자원이
+     세계에 하나도 없다. 이 사슬은 이제 그래프에 서 있다 — `MW-TERRAIN-CIRCULATION`
+     아래로 지형(`MW-SHAPED-LANDFORM`) · 생존 압력(`MW-SURVIVAL-PRESSURE`) · 적응
+     (`MW-ADAPTED-LIFE`) · 자원(`MW-TERRAIN-RESOURCE`) · 피난처(`MW-NATURAL-REFUGE`) ·
+     정착(`MW-NATURAL-SETTLEMENT`) · 증거(`MW-CIRCULATION-EVIDENCE`) 일곱이며,
+     `world-state.yaml` 머리의 §16 대조표가 열한 고리와 노드의 대응을 갖는다.
+     그리고 순환은 이제 Goal 을 낳는다 (`MG-EXPLORE-BEIRA` — Q69(b) Human 결정) —
+     그래서 다음 후보는 자기 이유를 Constraint 부기가 아니라 Goal 경로로 적을 수 있다.
+
+     **일곱 중 여섯이 ABSENT 다.** 선 것은 생존 압력과 피난처의 절반뿐이며(C-TERRAIN-001),
+     그 절반마저 순환에서 나오지 않고 상수로 놓여 있다. 이 층이 이 세계에서 가장 큰
+     구멍인 이유가 그 수다.
   ```

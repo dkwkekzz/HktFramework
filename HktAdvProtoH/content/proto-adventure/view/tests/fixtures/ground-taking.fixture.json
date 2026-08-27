@@ -40,6 +40,7 @@
           "actionSpeed": 1
         },
         "acquainted": true,
+        "marks": [],
         "concealed": [],
         "combatStats": {
           "physicalAttack": 40,
@@ -122,6 +123,7 @@
           "actionSpeed": 1
         },
         "acquainted": true,
+        "marks": [],
         "concealed": [],
         "combatStats": {
           "physicalAttack": 40,
@@ -204,6 +206,7 @@
           "actionSpeed": 1
         },
         "acquainted": true,
+        "marks": [],
         "concealed": [],
         "combatStats": {
           "physicalAttack": 40,
@@ -478,7 +481,8 @@
         "offenseStat": {
           "name": "physicalAttack",
           "value": 80,
-          "fromAllocation": 0
+          "fromAllocation": 0,
+          "fromGrowth": 0
         },
         "baseDamage": 32,
         "attackContribution": 40,
@@ -486,12 +490,14 @@
         "defenseStat": {
           "name": "armor",
           "value": 30,
-          "fromAllocation": 0
+          "fromAllocation": 0,
+          "fromGrowth": 0
         },
         "penetrationStat": {
           "name": "armorPenetration",
           "value": 0,
-          "fromAllocation": 0
+          "fromAllocation": 0,
+          "fromGrowth": 0
         },
         "effectiveDefense": 30,
         "defenseMultiplier": 0.7692307692307693,
@@ -504,7 +510,8 @@
           "damageBeforeCritical": 55
         },
         "attackerAllocation": "balanced",
-        "targetAllocation": "balanced"
+        "targetAllocation": "balanced",
+        "conditions": []
       }
     },
     {
@@ -522,7 +529,8 @@
         "offenseStat": {
           "name": "physicalAttack",
           "value": 40,
-          "fromAllocation": 0
+          "fromAllocation": 0,
+          "fromGrowth": 0
         },
         "baseDamage": 6,
         "attackContribution": 20,
@@ -530,12 +538,14 @@
         "defenseStat": {
           "name": "armor",
           "value": 50,
-          "fromAllocation": 0
+          "fromAllocation": 0,
+          "fromGrowth": 0
         },
         "penetrationStat": {
           "name": "armorPenetration",
           "value": 0,
-          "fromAllocation": 0
+          "fromAllocation": 0,
+          "fromGrowth": 0
         },
         "effectiveDefense": 50,
         "defenseMultiplier": 0.6666666666666666,
@@ -548,7 +558,8 @@
           "damageBeforeCritical": 17
         },
         "attackerAllocation": "balanced",
-        "targetAllocation": "balanced"
+        "targetAllocation": "balanced",
+        "conditions": []
       }
     }
   ],
@@ -568,24 +579,48 @@
   "ground": {
     "zones": [
       {
-        "id": "zone-ice-field",
+        "id": "zone-vein-1",
         "law": "heat-binding",
-        "role": "law",
+        "phase": "venting",
+        "fill": 1.0,
         "center": {
-          "x": -11,
-          "z": 11
+          "x": -13.5,
+          "z": 13.5
         },
-        "radius": 7.0
+        "radius": 5.0
       },
       {
-        "id": "zone-sunbreath",
+        "id": "zone-vein-2",
         "law": "heat-binding",
-        "role": "respite",
+        "phase": "binding",
+        "fill": 0.75,
         "center": {
-          "x": -13,
-          "z": 13
+          "x": -8.5,
+          "z": 13.5
         },
-        "radius": 2.5
+        "radius": 5.0
+      },
+      {
+        "id": "zone-vein-3",
+        "law": "heat-binding",
+        "phase": "binding",
+        "fill": 0.25,
+        "center": {
+          "x": -13.5,
+          "z": 8.5
+        },
+        "radius": 5.0
+      },
+      {
+        "id": "zone-vein-4",
+        "law": "heat-binding",
+        "phase": "binding",
+        "fill": 0.5,
+        "center": {
+          "x": -8.5,
+          "z": 8.5
+        },
+        "radius": 5.0
       }
     ],
     "self": {
@@ -594,5 +629,31 @@
       "takes": "warmth"
     }
   },
-  "allocations": []
+  "allocations": [],
+  "growth": {
+    "deeds": 0,
+    "level": 0,
+    "maxLevel": 5,
+    "nextThreshold": 20,
+    "deedsToNext": 20,
+    "contributions": [
+      {
+        "stat": "physicalAttack",
+        "amount": 0
+      },
+      {
+        "stat": "auraAttack",
+        "amount": 0
+      },
+      {
+        "stat": "armor",
+        "amount": 0
+      },
+      {
+        "stat": "resistance",
+        "amount": 0
+      }
+    ]
+  },
+  "growthEvents": []
 }

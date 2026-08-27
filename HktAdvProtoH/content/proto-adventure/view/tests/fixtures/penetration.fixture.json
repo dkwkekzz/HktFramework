@@ -39,6 +39,7 @@
           "actionSpeed": 1
         },
         "acquainted": true,
+        "marks": [],
         "concealed": [],
         "combatStats": {
           "physicalAttack": 40,
@@ -122,6 +123,7 @@
           "actionSpeed": 1
         },
         "acquainted": true,
+        "marks": [],
         "concealed": [],
         "combatStats": {
           "physicalAttack": 40,
@@ -456,7 +458,8 @@
         "offenseStat": {
           "name": "auraAttack",
           "value": 40,
-          "fromAllocation": 0
+          "fromAllocation": 0,
+          "fromGrowth": 0
         },
         "baseDamage": 6,
         "attackContribution": 20,
@@ -464,12 +467,14 @@
         "defenseStat": {
           "name": "resistance",
           "value": 90,
-          "fromAllocation": 0
+          "fromAllocation": 0,
+          "fromGrowth": 0
         },
         "penetrationStat": {
           "name": "resistancePenetration",
           "value": 60,
-          "fromAllocation": 0
+          "fromAllocation": 0,
+          "fromGrowth": 0
         },
         "effectiveDefense": 56.25,
         "defenseMultiplier": 0.64,
@@ -482,7 +487,8 @@
           "damageBeforeCritical": 17
         },
         "attackerAllocation": "balanced",
-        "targetAllocation": "balanced"
+        "targetAllocation": "balanced",
+        "conditions": []
       }
     }
   ],
@@ -656,5 +662,31 @@
       "state": "none"
     }
   },
-  "allocations": []
+  "allocations": [],
+  "growth": {
+    "deeds": 0,
+    "level": 0,
+    "maxLevel": 5,
+    "nextThreshold": 20,
+    "deedsToNext": 20,
+    "contributions": [
+      {
+        "stat": "physicalAttack",
+        "amount": 0
+      },
+      {
+        "stat": "auraAttack",
+        "amount": 0
+      },
+      {
+        "stat": "armor",
+        "amount": 0
+      },
+      {
+        "stat": "resistance",
+        "amount": 0
+      }
+    ]
+  },
+  "growthEvents": []
 }

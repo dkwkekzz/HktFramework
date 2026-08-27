@@ -4,8 +4,10 @@
 판단은 [README.md](README.md), 읽는 법은 guides/master-frontier.md 소유다.
 
     기준 Overlay   master/overlay.md — 전투 사다리는 Critical 층까지, 그 위에 고른
-                   대상(C017) · 태도(C018) · 행동 안의 시점(C019) · 휘두름의 모양(C025)이
-                   얹혔다. 스킬(SK) · 전투 상층(UL) 주입 반영
+                   대상(C017) · 태도(C018) · 행동 안의 시점(C019) · 휘두름의 모양(C025) ·
+                   힘의 배분(C-COMBAT-001)이 얹혔다. 스킬(SK) · 전투 상층(UL) 주입 반영.
+                   **`C-COMBAT-003`(조건 관문) · `C-COMBAT-004`(표식)는 아직 반영 전이다** —
+                   그 둘의 MASTER FEEDBACK 이 미처리다 (`npm run feedback:gate`)
 
 ## 한눈에 보기
 
@@ -23,8 +25,12 @@
       ↓
     TAKE-AWAY-WHAT-THEY-CAN-DO
 
-`Depends on` 이 빈 것과 그 앞이 이미 닫힌 것만 지금 고를 수 있다 — **지금은 첫째 하나다.**
-나머지는 자리를 잡아 두는 것이며, 그래야 이 층 전체가 어디로 가는지가 한 화면에서 보인다.
+`Depends on` 이 빈 것과 그 앞이 이미 닫힌 것만 지금 고를 수 있다 — **앞의 둘이 닫혔으므로
+지금은 셋째 하나다.** 나머지는 자리를 잡아 두는 것이며, 그래야 이 층 전체가 어디로 가는지가
+한 화면에서 보인다.
+
+**셋째가 눈에 띄게 크다** — 계약과 묶음을 쪼갤 수 없는 사유는 그 후보의 `Why one Cycle` 이
+지닌다. 고르기 전에 그것을 읽는 것을 권한다.
 
 ## 후보
 
@@ -75,7 +81,9 @@
                          느는 것은 사정 목록의 항목과 그것을 읽는 관문 하나다
     Depends on           없음 — 다만 첫 조건이 무엇을 볼지는 그 Cycle 의 Stage 1 이 고른다.
                          "상대가 나를 먼저 쳤는가" 는 지금 세계에서 이미 판정 가능하다
-    Status               PROPOSED
+    Status               DONE — `C-COMBAT-003` COMPLETE (2026-08-27).
+                         **Overlay 반영은 아직이다** — 그 Cycle 의 MASTER FEEDBACK 이
+                         미처리이며 병합 뒤 최신 main 위에서 돈다 (feedback:gate)
 
 ### FR-WHAT-YOU-LEAVE-ON-THEM — 상대에게 남긴 것이 다음을 바꾼다
 
@@ -118,8 +126,11 @@
                          그 차이의 원인이 표식으로 경위에 남는다
     Why one Cycle        새 상태가 하나다 — 누가 누구에게 언제 표식을 남겼는가
     Depends on           FR-THE-WORLD-DECIDES-WHAT-IS-POSSIBLE — 표식을 읽을 관문이 먼저다.
-                         관문 없이 표식만 있으면 아무것도 달라지지 않는다
-    Status               PROPOSED
+                         관문 없이 표식만 있으면 아무것도 달라지지 않는다.
+                         **그 관문이 섰다** (`C-COMBAT-003` COMPLETE) — 의존이 풀렸다
+    Status               DONE — `C-COMBAT-004` COMPLETE (2026-08-27).
+                         **Overlay 반영은 아직이다** — 그 Cycle 의 MASTER FEEDBACK 이
+                         미처리이며 병합 뒤 최신 main 위에서 돈다 (feedback:gate)
 
 ### FR-A-PROMISE-BINDS-BOTH — 스스로 건 약속이 둘을 묶는다
 
@@ -177,7 +188,9 @@
                          골라야 한다** (guides/master-frontier.md Do 6 — 쪼갤 수 없으면
                          사유를 적고 Human 판단으로 넘긴다)
     Depends on           FR-THE-WORLD-DECIDES-WHAT-IS-POSSIBLE · FR-WHAT-YOU-LEAVE-ON-THEM
-    Status               PROPOSED
+                         **둘 다 섰다** (`C-COMBAT-003` · `C-COMBAT-004` COMPLETE) —
+                         의존이 풀렸다. 조건 관문도 표식도 세계에 있다
+    Status               PROPOSED — **지금 의존이 빈 유일한 후보다**
 
 ### FR-KNOW-WHAT-THEY-CAN-DO — 상대의 규칙을 알아낸다
 
@@ -318,36 +331,53 @@
     Why one Cycle        옮길 값도, 그 값을 매번 다시 세는 자리도, 값을 dt 로 빼 가는 규칙도
                          이미 있다. 새로 서는 것은 **뺀 것을 상대가 아니라 나에게 넣는다**
                          하나이며, 나머지는 그 하나의 결과다
-    의존                 없음 — 이 후보만으로 성립한다. 조건 관문
-                         (FR-THE-WORLD-DECIDES-WHAT-IS-POSSIBLE)이 먼저 서면 "빼앗을 것이
-                         남았는가" 를 조건으로 쓸 수 있어 두꺼워지지만, **막는 의존은 아니다**
+    의존                 없음 — 이 후보만으로 성립한다. **조건 관문은 이미 섰으므로**
+                         (C-COMBAT-003) "빼앗을 것이 남았는가" 를 조건으로 곧바로 쓸 수 있다
     Status               PROPOSED
 
 ## 추천 순서 (Agent 제안 — 확정은 Human)
 
-    1. FR-THE-WORLD-DECIDES-WHAT-IS-POSSIBLE  사슬 B 의 바닥 — 의존이 없다.
+    1. FR-THE-WORLD-DECIDES-WHAT-IS-POSSIBLE  ← DONE (C-COMBAT-003) · 사슬 B 의 바닥.
                                            **직전 Cycle 이 남긴 절반을 닫는다** —
                                            배분이 값만 바꾸고 무엇을 할 수 있는가의
                                            목록을 바꾸지 않는 것이 MC-AURA-ALLOCATION 의
                                            남은 결손이고, 그 관문이 여기다
-    2. FR-WHAT-YOU-LEAVE-ON-THEM
-    3. FR-A-PROMISE-BINDS-BOTH             MP-BIND-BY-CONTRACT 가 닫힌다 · 가장 크다
+    2. FR-WHAT-YOU-LEAVE-ON-THEM           ← DONE (C-COMBAT-004) · 표식이 섰다
+    3. FR-A-PROMISE-BINDS-BOTH             ← 지금 의존이 빈 유일한 후보 ·
+                                           MP-BIND-BY-CONTRACT 가 닫힌다 · 가장 크다
     4. FR-KNOW-WHAT-THEY-CAN-DO
     5. FR-TAKE-AWAY-WHAT-THEY-CAN-DO       MP-KNOW-THE-OPPONENT-RULE 이 닫힌다
-    6. FR-TAKE-WHAT-MAKES-THEM-STRONG      **Q71(b) 확장으로 새로 열렸다.** 의존이 없는
-                                           두 번째 후보이며, 열다섯 갈래 중 유일하게
+    6. FR-TAKE-WHAT-MAKES-THEM-STRONG      **Q71(b) 확장으로 새로 열렸다.** 의존이 빈
+                                           둘 중 하나이며, 열다섯 갈래 중 유일하게
                                            격차를 양쪽에서 좁힌다. 값이 싸다 — 옮길 값도
                                            다시 세는 자리도 빼 가는 규칙도 이미 있다
 
-**지금 의존이 빈 것은 첫째와 여섯째다.** 사슬 A 가 빠지면서 이 트랙에 남은 갈래는 하나이고,
-그 바닥이 조건 관문이다. 그것은 새 갈래를 여는 동시에 **직전 Cycle 이 남긴 절반도 닫는다.**
+**지금 의존이 빈 것은 셋째와 여섯째다.** 앞의 둘이 닫히면서 조건 관문과 표식이 세계에 섰고,
+계약(3)은 그 둘 위에 서는 첫 후보다. 그리고 **그것으로 `MP-BIND-BY-CONTRACT` 가 닫힌다** —
+요구 넷 중 둘이 이미 섰으므로 남은 `MC-VOW` · `MC-BIND` 를 그 하나가 함께 세운다.
+여섯째(빼앗기)는 Q71(b) 확장으로 새로 섰고 아무것도 기다리지 않는다.
 
-**여섯째가 이 트랙에서 가장 싸다.** 첫째가 이 트랙의 바닥이자 직전 Cycle 의 나머지
-절반이라 추천은 그대로 1 이지만, 작게 한 바퀴를 돌고 싶다면 6 이 그 자리다 — 새 판정도
-새 게이지도 만들지 않고 이미 도는 규칙의 방향만 상대 있는 판으로 바꾼다.
+**여섯째가 이 트랙에서 가장 싸다.** 셋째(계약)가 갈래 하나를 통째로 닫아 값이 크므로
+추천은 3 이지만, 작게 한 바퀴를 돌고 싶다면 6 이 그 자리다 — 새 판정도 새 게이지도
+만들지 않고 이미 도는 규칙의 방향만 상대 있는 판으로 바꾼다.
 
 **3 이 눈에 띄게 크다.** 계약과 묶음을 쪼갤 수 없는 사유는 그 후보의 `Why one Cycle` 에
-적혀 있다. 고르기 전에 그것을 읽는 것을 권한다.
+적혀 있다 — 계약만 세우면 허락할 조작이 없어 수치 교환으로 흐르고, 묶음만 세우면 대가 없는
+강제 조작이 된다. 고르기 전에 그것을 읽는 것을 권한다.
+
+**그리고 고르기 전에 알아야 할 것이 둘 더 있다** (C-COMBAT-004 의 MASTER FEEDBACK).
+
+    키 자리가 바닥났다        글자 키가 남지 않았다 — `O`(003) · `P`(004) 로 끝.
+                            계약은 조작이 둘 이상일 수 있으므로 **키 없는 기술**을
+                            세우게 된다. 막힘은 아니다 (띠는 눌러서도 부른다) —
+                            `works/BACKLOG.md` 의 `skill-slot-crowds-the-keyboard` 가
+                            VIEW/ENGINE 레인에서 그 자리를 기다린다
+    자율 존재가 두 번 걸렸다   003 은 배분에 몰지 않아, 004 는 고르지 않아 관문을 못 지났다.
+                            규칙의 구멍이 아니라 **판단 구조의 미개방**이며 둘 다 같은
+                            문서를 기다린다 (`Design-Creature-Behavior-R0` — HUMAN 대기).
+                            남은 셋(계약 · 규칙 관찰 · 봉인)이 전부 "상대가 무엇을 하는가"
+                            를 전제하므로, 그 문서가 서지 않으면 **반쪽만 검증되는 층**을
+                            쌓게 된다
 
 **UL §42 의 F8(각 캐릭터가 하나의 전투 정체성을 갖는다)은 후보가 아니다** — 새 능력이
 아니라 앞의 것들이 다 선 뒤의 **조합**이기 때문이다. 마찬가지로 §43 의 검증용 캐릭터
@@ -360,7 +390,13 @@ Q60(c) 로 빠졌으므로 관찰자와 묶는 자 둘로 검증한다.
 없음 — Human 선택 대기
 ```
 
+    의존이 빈 것은 `FR-A-PROMISE-BINDS-BOTH` 하나다 (위 "추천 순서").
+    그 후보는 **다른 것보다 크며**, 그것을 알고 고르는 것이 Human 의 몫이다
+    (guides/master-frontier.md Do 6).
+
     직전 반영 경위: [../feedback/C-COMBAT-001-where-your-power-sits.md](../feedback/C-COMBAT-001-where-your-power-sits.md)
+    `C-COMBAT-003` · `C-COMBAT-004` 의 MASTER FEEDBACK 은 **둘 다 미처리다** —
+    병합 뒤 최신 main 위에서 FEEDBACK 레인이 받는다 (`npm run feedback:gate`).
 
     사슬 A 로 열었던 `C-COMBAT-002` 는 Stage 5 앞에서 **철회됐다** (Human · 2026-08-27).
     경위는 master/HISTORY.md "사슬 A 철회" 가 지닌다.

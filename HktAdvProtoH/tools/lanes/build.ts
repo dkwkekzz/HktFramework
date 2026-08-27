@@ -213,7 +213,13 @@ function crossCheck(board: Board, facts: Facts): string[] {
     const hasSelected = !/없음|대기/.test(t.selected);
     // 닫혔지만 Feedback 이 아직 후보를 쓸어내지 않은 트랙은 후보 수가 부풀어 있다 — 대조하지 않는다
     const unswept = t.cycle !== null && facts.pendingFeedback.includes(t.cycle.id);
-    if (hasSelected && !['OPEN', 'RUNNING'].includes(r.state))
+    // SELECTED 가 있으면 레인은 대개 OPEN·RUNNING 이다. **다만 HUMAN 은 예외다** —
+    // 그 트랙의 Cycle 이 Human 관문(Stage 5 Semantic Review · Stage 8 Human Play)에
+    // 서 있으면 works.md 는 HUMAN 이라 적으라고 한다. 그 경우까지 어긋남으로 세면
+    // 판이 맞는데 검사가 상시로 시끄러워지고, 시끄러운 검사는 아무도 안 본다.
+    const waitsOnHuman =
+      r.state === 'HUMAN' && t.cycle !== null && !/COMPLETE/.test(t.cycle.status);
+    if (hasSelected && !['OPEN', 'RUNNING'].includes(r.state) && !waitsOnHuman)
       warns.push(`${t.track}: SELECTED 가 있는데("${t.selected}") 레인이 ${r.state} 다`);
     if (!hasSelected && !unswept && t.candidates > 0 && r.state === 'BLOCKED')
       warns.push(`${t.track}: 후보가 ${t.candidates}개 있는데 BLOCKED 다 — HUMAN(선택 대기)이 맞지 않나`);

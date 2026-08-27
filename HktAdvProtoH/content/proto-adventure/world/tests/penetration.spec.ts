@@ -129,7 +129,7 @@ describe('INTENT-PENETRATION-001 — 관통은 존재가 지니는 능력이다'
 
   it('"관통이 없다" 는 별도 상태가 아니라 값 0 이다', () => {
     const zero = breakdownOf('wanderer', 'rabbit-swordsman');
-    expect(zero.penetrationStat).toEqual({ name: 'resistancePenetration', value: 0, fromAllocation: 0 });
+    expect(zero.penetrationStat).toEqual({ name: 'resistancePenetration', value: 0, fromAllocation: 0, fromGrowth: 0 });
     expect(zero.effectiveDefense).toBe(zero.defenseStat.value);
   });
 });
@@ -142,13 +142,13 @@ describe('INTENT-PENETRATION-MATCH-001 — 방식이 고른 쪽 관통만 작용
     });
 
     expect(armorPen.finalDamage).toBe(base.finalDamage);
-    expect(armorPen.penetrationStat).toEqual({ name: 'resistancePenetration', value: 60, fromAllocation: 0 });
+    expect(armorPen.penetrationStat).toEqual({ name: 'resistancePenetration', value: 60, fromAllocation: 0, fromGrowth: 0 });
   });
 
   it('물리 타격은 물리 관통만 읽는다 — 관찰자의 오라 관통은 물리에 닿지 않는다', () => {
     // 이것이 C007·C010·C011 의 물리 기준값이 이 층에서도 그대로인 이유다
     const physical = breakdownOf('rabbit-swordsman', 'wanderer', 'attack');
-    expect(physical.penetrationStat).toEqual({ name: 'armorPenetration', value: 0, fromAllocation: 0 });
+    expect(physical.penetrationStat).toEqual({ name: 'armorPenetration', value: 0, fromAllocation: 0, fromGrowth: 0 });
     expect(physical.effectiveDefense).toBe(30);
     expect(physical.finalDamage).toBe(20); // C010 그대로
   });
@@ -289,12 +289,13 @@ describe('INTENT-DAMAGE-BREAKDOWN-001 (CHANGED) — 걷히기 전과 걷힌 뒤�
       damageType: 'aura',
       attackerAllocation: 'balanced',
       targetAllocation: 'balanced',
-      offenseStat: { name: 'auraAttack', value: 40, fromAllocation: 0 },
+      conditions: [], // C-COMBAT-003 — 참인 사정이 없어도 빈 목록으로 실린다,
+      offenseStat: { name: 'auraAttack', value: 40, fromAllocation: 0, fromGrowth: 0 },
       baseDamage: 6,
       attackContribution: 20,
       rawDamage: 26,
-      defenseStat: { name: 'resistance', value: 90, fromAllocation: 0 }, // 상대가 지닌 방어
-      penetrationStat: { name: 'resistancePenetration', value: 60, fromAllocation: 0 },
+      defenseStat: { name: 'resistance', value: 90, fromAllocation: 0, fromGrowth: 0 }, // 상대가 지닌 방어
+      penetrationStat: { name: 'resistancePenetration', value: 60, fromAllocation: 0, fromGrowth: 0 },
       effectiveDefense: 56.25, // 걷힌 뒤 — 감쇄식이 읽은 값
       defenseMultiplier: 100 / 156.25,
       finalDamage: 17, // 관통이 없었다면 14 이다
@@ -307,7 +308,7 @@ describe('INTENT-DAMAGE-BREAKDOWN-001 (CHANGED) — 걷히기 전과 걷힌 뒤�
   it('관통이 0 인 타격에서도 두 항목이 실린다 — 통하지 않았다는 것도 관찰이다', () => {
     // 물리 타격은 관찰자의 물리 관통이 0 이다
     const breakdown = strikeWith('attack').observe().strikes[0]?.breakdown;
-    expect(breakdown?.penetrationStat).toEqual({ name: 'armorPenetration', value: 0, fromAllocation: 0 });
+    expect(breakdown?.penetrationStat).toEqual({ name: 'armorPenetration', value: 0, fromAllocation: 0, fromGrowth: 0 });
     expect(breakdown?.effectiveDefense).toBe(30);
     expect(breakdown?.effectiveDefense).toBe(breakdown?.defenseStat.value);
     expect(breakdown?.finalDamage).toBe(20); // C010 그대로

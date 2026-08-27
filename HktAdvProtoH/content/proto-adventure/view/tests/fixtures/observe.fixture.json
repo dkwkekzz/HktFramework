@@ -39,6 +39,7 @@
           "actionSpeed": 1
         },
         "acquainted": true,
+        "marks": [],
         "concealed": [],
         "combatStats": {
           "physicalAttack": 40,
@@ -121,6 +122,7 @@
           "actionSpeed": 1
         },
         "acquainted": false,
+        "marks": [],
         "concealed": [
           "combatStats",
           "versusObserver",
@@ -189,6 +191,7 @@
           "actionSpeed": 1
         },
         "acquainted": true,
+        "marks": [],
         "concealed": [],
         "combatStats": {
           "physicalAttack": 40,
@@ -689,5 +692,31 @@
       "state": "none"
     }
   },
-  "allocations": []
+  "allocations": [],
+  "growth": {
+    "deeds": 0,
+    "level": 0,
+    "maxLevel": 5,
+    "nextThreshold": 20,
+    "deedsToNext": 20,
+    "contributions": [
+      {
+        "stat": "physicalAttack",
+        "amount": 0
+      },
+      {
+        "stat": "auraAttack",
+        "amount": 0
+      },
+      {
+        "stat": "armor",
+        "amount": 0
+      },
+      {
+        "stat": "resistance",
+        "amount": 0
+      }
+    ]
+  },
+  "growthEvents": []
 }

@@ -39,6 +39,7 @@
           "actionSpeed": 1
         },
         "acquainted": true,
+        "marks": [],
         "concealed": [],
         "combatStats": {
           "physicalAttack": 40,
@@ -121,6 +122,7 @@
           "actionSpeed": 1
         },
         "acquainted": true,
+        "marks": [],
         "concealed": [],
         "combatStats": {
           "physicalAttack": 40,
@@ -204,6 +206,7 @@
           "actionSpeed": 1
         },
         "acquainted": true,
+        "marks": [],
         "concealed": [],
         "combatStats": {
           "physicalAttack": 40,
@@ -542,7 +545,8 @@
         "offenseStat": {
           "name": "physicalAttack",
           "value": 40,
-          "fromAllocation": 0
+          "fromAllocation": 0,
+          "fromGrowth": 0
         },
         "baseDamage": 6,
         "attackContribution": 20,
@@ -550,12 +554,14 @@
         "defenseStat": {
           "name": "armor",
           "value": 30,
-          "fromAllocation": 0
+          "fromAllocation": 0,
+          "fromGrowth": 0
         },
         "penetrationStat": {
           "name": "armorPenetration",
           "value": 0,
-          "fromAllocation": 0
+          "fromAllocation": 0,
+          "fromGrowth": 0
         },
         "effectiveDefense": 30,
         "defenseMultiplier": 0.7692307692307693,
@@ -568,7 +574,8 @@
           "damageBeforeCritical": 20
         },
         "attackerAllocation": "balanced",
-        "targetAllocation": "balanced"
+        "targetAllocation": "balanced",
+        "conditions": []
       }
     },
     {
@@ -586,7 +593,8 @@
         "offenseStat": {
           "name": "physicalAttack",
           "value": 40,
-          "fromAllocation": 0
+          "fromAllocation": 0,
+          "fromGrowth": 0
         },
         "baseDamage": 6,
         "attackContribution": 20,
@@ -594,12 +602,14 @@
         "defenseStat": {
           "name": "armor",
           "value": 30,
-          "fromAllocation": 0
+          "fromAllocation": 0,
+          "fromGrowth": 0
         },
         "penetrationStat": {
           "name": "armorPenetration",
           "value": 0,
-          "fromAllocation": 0
+          "fromAllocation": 0,
+          "fromGrowth": 0
         },
         "effectiveDefense": 30,
         "defenseMultiplier": 0.7692307692307693,
@@ -612,7 +622,8 @@
           "damageBeforeCritical": 20
         },
         "attackerAllocation": "balanced",
-        "targetAllocation": "balanced"
+        "targetAllocation": "balanced",
+        "conditions": []
       }
     }
   ],
@@ -820,5 +831,31 @@
       "state": "none"
     }
   },
-  "allocations": []
+  "allocations": [],
+  "growth": {
+    "deeds": 0,
+    "level": 0,
+    "maxLevel": 5,
+    "nextThreshold": 20,
+    "deedsToNext": 20,
+    "contributions": [
+      {
+        "stat": "physicalAttack",
+        "amount": 0
+      },
+      {
+        "stat": "auraAttack",
+        "amount": 0
+      },
+      {
+        "stat": "armor",
+        "amount": 0
+      },
+      {
+        "stat": "resistance",
+        "amount": 0
+      }
+    ]
+  },
+  "growthEvents": []
 }

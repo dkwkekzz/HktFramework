@@ -10,6 +10,7 @@ import type { ActorState } from './actor';
 import type { CancelEvent, StrikeEvent } from './combat';
 import type { TargetSelectionState } from './target-selection';
 import type { DepositState } from './deposit';
+import type { GrowthEvent } from './growth';
 import type { UnharmedContact } from './relation';
 import type { WorldBounds, WorldPosition } from './position';
 import type { GroundZone } from './terrain';
@@ -45,6 +46,11 @@ export interface WorldState extends CoreWorldState {
   // StrikeEvents · UnharmedContacts 와 나란한 자리이며 같은 수명을 가진다
   // (semantic/combat.ts).
   cancelEvents: CancelEvent[];
+  // World.GrowthEvents (C-GROWTH-001 ADDED) — 방금 무엇을 해서 얼마가 쌓였고
+  // 그것이 단계를 올렸는가. StrikeEvents · UnharmedContacts · CancelEvents 와 나란한
+  // 자리이며 **같은 수명을 가진다** — 수명 규칙을 넷으로 나누지 않는다
+  // (semantic/growth.ts · RULE-STRIKE-EVENT-EXPIRE-001).
+  growthEvents: GrowthEvent[];
   // World.TargetSelections (C017 ADDED) — 지금 이 관찰자가 누구를 고르고 있는가.
   // 항목이 없는 관찰자는 아무것도 고르지 않은 것이다 (semantic/target-selection.ts).
   targetSelections: TargetSelectionState[];
@@ -126,37 +132,51 @@ export const WORLD_BOUNDS: WorldBounds = { minX: -20, maxX: 20, minZ: -20, maxZ:
 export const WARMTH_MAX = 100;
 
 /**
- * World.GroundZones 의 초기 배치 (C-TERRAIN-001 ADDED).
+ * World.GroundZones 의 초기 배치 (C-TERRAIN-001 ADDED · C-TERRAIN-002 CHANGED).
  *
- * **자리를 기존 무대의 빈 곳에 놓았다.** 지금 세계가 쓰는 자리는 셋이다 — 관찰자가
- * 놓이는 원점 부근(SPAWN_POINTS), 지키는 자리를 가진 방랑자 부근(-10, -8 반경 7),
- * 광맥(8, -6). 빙원은 이 셋 어디와도 닿지 않는다.
+ * ── 빙원 하나 + 예외 하나 → **맥 넷** ────────────────────────────────
  *
- * 그래서 **기존 플레이가 한 걸음도 달라지지 않는다.** 캐는 일도 겨루는 일도 그대로이며,
- * 빙원은 걸어서 찾아가는 것이다 — 원점에서 가장자리까지 8.6.
+ * C-TERRAIN-001 은 법칙의 자리(반경 7) 하나와 손으로 놓은 예외 자리(반경 2.5) 하나를
+ * 두었다. 이제 예외를 놓을 형이 없으므로(GroundZone.role 삭제) 그 자리에 **맥 넷**이
+ * 선다. 넷의 합집합이 옛 빙원과 대략 같은 자리를 덮으므로 밖에서 보는 무대는 달라지지
+ * 않는다 — 달라지는 것은 그 안에서 무엇이 도는가다.
  *
- * 자율 존재는 빙원에 들어가지 않는다 — 순회 경로가 닿지 않는다. 이것은 규칙의 예외가
- * 아니라 **배치의 결과**다. 법칙이 몸을 가리지 않는다는 것은 규칙이 신원을 읽지 않는
- * 것으로 이미 참이며, 자율 존재를 빙원 안에 두면 매 세션 구석에서 방랑자 하나가
- * 천천히 얼어 죽는 세계가 된다 — 그것은 이 Cycle 이 보여주려는 것이 아니다.
+ * 넷이 서로 겹친다 (중심 사이 5.0 · 반경 5.0). 겹친 자리에서도 거두는 일은 한 번만
+ * 일어나고(법칙당 하나) 받는 자리는 **중심이 가까운 쪽**이다 — 그래서 맥의 중심 가까이
+ * 머무를수록 그 맥이 빨리 찬다 (bindingZonesAt).
  *
- * 해숨구멍은 빙원 **안**에 온전히 들어 있다 — 중심 사이 거리 2.83 에 반경 2.5 를
- * 더해도 7.0 안이다. 예외가 법칙 안에 있다는 것이 배치로도 참이어야 한다 (BT §5.3).
+ * ── 시작할 때 이미 도는 중이다 ───────────────────────────────────────
+ *
+ * kept 가 0 이 아닌 것이 요점이다. 광맥은 수천 년 열을 결속해 왔으므로(BT §5.1) 세계가
+ * 시작할 때 이미 차 있고, 하나는 이미 넘쳐 뿜는 중이다 — **그것이 오늘의 해숨구멍이다.**
+ * C-TERRAIN-001 이 (-13, 13) 에 손으로 놓았던 자리와 거의 같은 곳에 있지만, 자리가
+ * 옮겨 간 것이 아니라 **그 자리의 이유가 바뀌었다** — "여기는 안전한 곳이다" 에서
+ * "여기는 지금 넘쳐 뿜는 중인 맥이다" 로.
+ *
+ * 시작 자리(0,0)에서 걸어가면 가장 먼저 닿는 것이 zone-vein-4 다 (중심까지 12.0).
+ * 60 중 30 이 차 있어 **가로지르면 열리지 않고 7.5초를 머물면 열린다** — 그 사이 몸은
+ * 30 을 치른다. 그동안 zone-vein-1 은 흩어져 40초에 닫힌다. 그래서 한 판 안에서
+ * 열린 자리가 옮겨 간다 (03-world-semantic.md BALANCE 2·3).
+ *
+ * 빙원은 시작 자리 다섯, npc-1 의 지키는 자리((-10,-8) 반경 7)와 순회 경로, npc-2 의
+ * 순회 경로((12,8)–(4,12)), 광맥((8,-6)) 어디와도 닿지 않는다. 무대 경계(±20) 안이다.
  *
  * 결정론 시뮬레이션 값이므로 헤더 상수로 고정한다.
  */
 export const GROUND_ZONES: readonly GroundZone[] = [
-  // 해를 삼킨 빙원 — 대지가 살아 있는 모든 것으로부터 열을 거두어 간다 (BT §5.1)
-  { id: 'zone-ice-field', law: 'heat-binding', role: 'law', center: { x: -11, z: 11 }, radius: 7.0 },
-  // 해숨구멍 — 포화된 광맥이 거둔 열을 도로 뿜는 자리 (BT §5.3).
-  // 사람이 만든 안전이 아니라 그 법칙이 스스로 멎는 곳이다.
+  // 오늘의 해숨구멍 — 넘쳐서 뿜는 중인 맥. 내일은 다른 자리일 수 있다 (BT §5.3)
   {
-    id: 'zone-sunbreath',
+    id: 'zone-vein-1',
     law: 'heat-binding',
-    role: 'respite',
-    center: { x: -13, z: 13 },
-    radius: 2.5,
+    center: { x: -13.5, z: 13.5 },
+    radius: 5.0,
+    kept: 60,
+    phase: 'venting',
   },
+  { id: 'zone-vein-2', law: 'heat-binding', center: { x: -8.5, z: 13.5 }, radius: 5.0, kept: 45, phase: 'binding' },
+  { id: 'zone-vein-3', law: 'heat-binding', center: { x: -13.5, z: 8.5 }, radius: 5.0, kept: 15, phase: 'binding' },
+  // 시작 자리에서 가장 가까운 맥 — 머물면 열린다
+  { id: 'zone-vein-4', law: 'heat-binding', center: { x: -8.5, z: 8.5 }, radius: 5.0, kept: 30, phase: 'binding' },
 ];
 
 // World.SpawnPoints — 관찰자의 몸이 처음 놓이는 자리들 (C004 ADDED).
@@ -188,11 +208,13 @@ export const TICK_INTERVAL = 1 / 30;
 // 스냅샷에 찍히는 State 형태 버전 (design/Design-World-Persistence.md).
 // WorldState 나 그 하위 형태를 바꾸는 Cycle 이 숫자를 올린다 — 불일치 스냅샷은
 // 복구되지 않고 버려지므로, 올리지 않으면 옛 형태의 State 가 새 규칙 위에서 돈다.
-// C-TERRAIN-001 CHANGED — 1 → 2. 이 Cycle 이 State 의 **형태**를 바꿨다:
+// C-TERRAIN-001 CHANGED — 1 → 2. 그 Cycle 이 State 의 **형태**를 바꿨다:
 // WorldState 에 groundZones 가, ActorState 에 warmth · warmthMax 가 늘었다.
 // 형태를 바꾼 Cycle 이 버전을 올릴 책임을 진다 (engine/world-kernel/persistence.ts).
 //
-// 올리지 않으면 옛 스냅샷이 **복구되어** groundZones 없이 굴러가고,
-// RULE-GROUND-LAW-APPLY-001 이 없는 목록을 훑다 멈춘다. 마이그레이션은 없다 —
-// 불일치 스냅샷은 복구를 포기하고 새 세계로 시작한다.
-export const STATE_VERSION = 'proto-adventure/2';
+// C-TERRAIN-002 CHANGED — 2 → 3. GroundZone 의 형태가 바뀌었다:
+// `role` 이 사라지고 `kept` · `phase` 가 늘었다. 올리지 않으면 옛 스냅샷이 **복구되어**
+// role 만 있는 자리 위에서 새 규칙이 돌고, 모든 자리가 phase 없이 굴러 아무것도 거두지
+// 않는 세계가 된다. 마이그레이션은 없다 — 불일치 스냅샷은 복구를 포기하고 새 세계로
+// 시작한다.
+export const STATE_VERSION = 'proto-adventure/3';

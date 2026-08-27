@@ -19,6 +19,7 @@ import type { AllocationId } from './allocation';
 import type { MoveMode } from './combat';
 import type { Equipment } from './equipment';
 import type { Inventory } from './inventory';
+import type { Marks } from './mark';
 import type { GuardedGround } from './relation';
 import type { WorldPosition } from './position';
 
@@ -75,6 +76,29 @@ export interface ActorState {
   // 하나뿐이다 (RULE-INSIGHT-REVEAL-001). "다가가야만 안다" 는 값 0 이다.
   insight: number; // 0~100 — 살펴보지 않고도 아는 범위를 정한다
   /**
+   * C-GROWTH-001 ADDED — 지금까지 한 일 (INTENT-THE-BODY-KEEPS-WHAT-IT-DID-001).
+   *
+   * 세계 안에서 한 일이 여기 쌓인다. **하나이며 갈래로 나뉘지 않는다** — 무엇을 했든
+   * 같은 곳에 쌓이며, 나누는 순간 그것은 다른 축(숙련)이 된다.
+   *
+   * 종류가 정하는 값이 아니다 — 카탈로그에 두지 않는다. 같은 종류의 두 몸이라도 한
+   * 일이 다르면 이 값이 다르며, 새로 난 몸은 언제나 0 이다 (C-COMBAT-001 의 allocation ·
+   * C-TERRAIN-001 의 warmth 와 같은 자리).
+   *
+   * **어떤 몸이든 지닌다** — 조종 주체를 가리지 않는다. 쌓는 규칙도 마찬가지로
+   * 누구에게나 돈다 (RULE-DEEDS-ADD-001).
+   *
+   * 겨루는 힘이 아니다. 어떤 판정도 이 값을 직접 읽지 않으며, 읽히는 곳은 단계를
+   * 세는 자리 하나뿐이다 (semantic/growth.ts growthLevel) — C016 의 insight 가
+   * 가려짐 관문 하나에서만 읽히는 것과 같은 성질이다.
+   *
+   * **세계 안의 사정으로는 줄지 않는다** (INTENT-WHAT-IS-KEPT-ONLY-GROWS-001) —
+   * 쓰러져도 · 시간이 지나도 · 걸어 둔 것을 벗어도 · 배분을 바꾸어도 그대로다.
+   * RULE-DEEDS-ADD-001 과 RULE-ATTRIBUTE-SET-001 만이 바꾸며, 줄이는 쪽으로 여는
+   * 것은 밖의 손뿐이다 — 되돌릴 수 있어야 디버그의 자리이기 때문이다.
+   */
+  deeds: number;
+  /**
    * C-COMBAT-001 ADDED — 지금의 배분 (INTENT-BODY-HAS-AN-ALLOCATION-001).
    *
    * 지금 자신의 힘을 몸 · 능력 · 인지 중 어디에 몰아 두었는가. 이름 하나이며
@@ -95,6 +119,14 @@ export interface ActorState {
   // 막기 (C011) — 행동과 나란한 몸의 상태다. CurrentAction 자리를 쓰지 않는다.
   // 막으면서 걸을 수 있어야 하는데, 행동 자리를 쓰면 걷기와 자리를 다투게 되어
   // INTENT-ACTION-STATE-001("언제나 정확히 하나의 행동")을 깨야 하기 때문이다.
+  /**
+   * Actor.Marks (C-COMBAT-004 ADDED) — 이 몸에 남은 표식들.
+   * **남긴 자의 Id → 남긴 시각**이며, 지금 붙어 있는가는 그 시각에서 매번 다시
+   * 세어진다 (semantic/mark.ts `isMarkedBy`). 아래 guardBrokenUntil 과 같은 꼴이다 —
+   * 담기는 것이 상태가 아니라 시각이므로 지우는 규칙이 세계에 없다.
+   * RULE-MARK-LEAVE-001 만이 바꾼다.
+   */
+  marks: Marks;
   guarding: boolean; // 지금 앞을 향해 버티고 있는가 — RULE-GUARD-* 와 RULE-MOVE-MODE-001 만이 바꾼다
   guardBrokenUntil: number; // 이 세계 시각까지는 다시 막을 수 없다 (무너짐의 대가). 초기값 0
   // 템포 능력치 (C007) — 존재 종류가 정하는 고정값. 세계의 속도를 정한다

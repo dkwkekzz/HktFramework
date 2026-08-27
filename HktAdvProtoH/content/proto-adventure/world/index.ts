@@ -29,6 +29,7 @@ import { ruleBodyMomentum } from './simulation/body-momentum';
 import { ruleBodyPush } from './simulation/body-push';
 import { ruleCpRunDrain } from './simulation/cp-run-drain';
 import { ruleGroundLawApply } from './simulation/ground-law-apply';
+import { ruleGroundVent } from './simulation/ground-vent';
 import { ruleMoveProgress } from './simulation/move-progress';
 import { ruleNpcAllocationAll } from './simulation/npc-allocation';
 import { ruleNpcDecideAll } from './simulation/npc-decide';
@@ -129,6 +130,11 @@ const SYSTEMS: WorldContent<WorldState>['systems'] = [
   // 서 있게 된 자리에 대해 값을 치른다 (RULE-GROUND-LAW-APPLY-001).
   // 지목 정리보다 **앞**이어야 한다 — 이 규칙이 몸을 쓰러뜨릴 수 있다.
   (state, dt) => ruleGroundLawApply(state, dt),
+  // C-TERRAIN-002 — 넘친 자리가 뿜고, 뿜는 것을 그 안의 몸이 받고, 다 쓰면 닫힌다.
+  // 거두는 규칙 **바로 뒤**여야 한다: 이 Tick 의 kept 가 먼저 확정된 뒤 그것이 넘침인지를
+  // 같은 Tick 에서 물어야 "찼다" 와 "열린다" 사이에 한 Tick 의 틈이 없다
+  // (RULE-GROUND-VENT-001).
+  (state, dt) => ruleGroundVent(state, dt),
   // C017 — 성립하지 않게 된 지목을 비운다. 이 Tick 의 모든 변화가 끝난 뒤에 훑어야
   // 그 Tick 에 사라진 존재까지 본다 (RULE-TARGET-CLEAR-STALE-001).
   (state) => ruleTargetClearStale(state),
@@ -173,6 +179,8 @@ export function createWorld(setup: WorldSetup = {}, restored?: WorldState): Worl
     actors: npcs,
     // C-TERRAIN-001 — 무대의 자리들. 헤더 상수를 State 로 놓는다 (world-state.ts#GROUND_ZONES).
     // 어떤 Rule 도 이것을 바꾸지 않는다 — 그럼에도 State 인 이유는 그 파일이 적는다.
+    // C-TERRAIN-002 — kept · phase 가 실제로 변하므로 복사는 이제 필수다.
+    // 헤더 상수를 그대로 넘기면 세계가 상수를 갈아 다음 세계가 오염된다.
     groundZones: GROUND_ZONES.map((zone) => ({
       ...zone,
       center: { x: zone.center.x, z: zone.center.z },
@@ -200,6 +208,7 @@ export function createWorld(setup: WorldSetup = {}, restored?: WorldState): Worl
     // C018 — 아무것도 무산되지 않은 채로 세계가 시작된다 (semantic/relation.ts).
     unharmedContacts: [],
     cancelEvents: [], // C019 ADDED
+    growthEvents: [], // C-GROWTH-001 ADDED
     // C007 R2 — 속성 변경 권한은 세계 밖(세계를 띄우는 쪽)이 정한다.
     // 기본은 열려 있다: 이 프로토타입은 관찰과 시험이 목적이며, 닫으려면 세계를 그렇게 띄운다.
     debugAuthority: { open: setup.debugAuthority ?? true },

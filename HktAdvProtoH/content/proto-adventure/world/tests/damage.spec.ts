@@ -228,14 +228,15 @@ describe('INTENT-DAMAGE-BREAKDOWN-001 — 한 방의 크기가 나온 경위가 
       // fromAllocation 이 전부 0 이다 — 이 층이 들어온 뒤에도 값이 그대로라는 증거다
       attackerAllocation: 'balanced',
       targetAllocation: 'balanced',
-      offenseStat: { name: 'physicalAttack', value: 40, fromAllocation: 0 },
+      conditions: [], // C-COMBAT-003 — 참인 사정이 없어도 빈 목록으로 실린다,
+      offenseStat: { name: 'physicalAttack', value: 40, fromAllocation: 0, fromGrowth: 0 },
       baseDamage: 6,
       attackContribution: 20, // 40 × 0.5
       rawDamage: 26,
-      defenseStat: { name: 'armor', value: 30, fromAllocation: 0 },
+      defenseStat: { name: 'armor', value: 30, fromAllocation: 0, fromGrowth: 0 },
       // C013 — 치는 쪽(rabbit-swordsman)에게 관통이 없으므로 걷힌 것이 없다.
       // 그래도 두 항목은 실린다 — 통하지 않았다는 사실도 관찰이어야 한다
-      penetrationStat: { name: 'armorPenetration', value: 0, fromAllocation: 0 },
+      penetrationStat: { name: 'armorPenetration', value: 0, fromAllocation: 0, fromGrowth: 0 },
       effectiveDefense: 30,
       defenseMultiplier: 100 / 130,
       finalDamage: 20,

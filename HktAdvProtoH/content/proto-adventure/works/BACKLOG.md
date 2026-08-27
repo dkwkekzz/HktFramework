@@ -32,6 +32,20 @@
 나누기 · 세계 정렬 · 희귀도 · 검색 태그. 그 여섯은 Frontier 재료이며 이 파일의 몫이
 아니다 (guides/works.md 레인 판정 · 주입 보고).
 
+### panels-do-not-overlap — 패널이 서로 위에 포개지지 않는다
+    출처   C-TERRAIN-002 08 "못 한 것" ① (Cycle 이관)
+    목표   디버그 패널과 self 패널이 겹쳐 글자가 포개지는 것을 없앤다.
+           작은 화면(560×420)에서 특히 심하다 — 두 Cycle 의 검증 그림이 모두 그렇다.
+    크기   보통
+    의존   **기반 동반** — 패널의 자리와 겹침은 `engine/view-kernel/hud/hud.ts` 가
+           소유한다 (`hud-panel` · `hud-self` · `hud-linkpanel` 의 배치). 팩의 `view/` 는
+           무엇을 어떤 글자로 낼지만 정하고 어디에 놓을지는 정하지 않는다
+    비고   Cycle 이 만든 문제가 아니다. C-TERRAIN-001 의 그림도 같았고, 이제 땅의 줄이
+           늘어 더 눈에 걸린다. 관찰은 이미 다 와 있고 **읽기가 막힌 것**이다.
+           **처음 이 항목을 "의존 없음" 으로 적은 것은 틀렸다** — 코드를 짚어 보니
+           자리 잡기가 기반 소유였다. ENGINE 의 ② (겹침 표면의 자리 잡기)와 같은 자리다
+    상태   PROPOSED
+
 ### escape-leaves-the-field — 글자 자리에서 나오는 길
     출처   V-013 REPORT ② · UX 문서 §2.1 · §8
     목표   이름 칸에 초점이 있어도 `Esc` 가 그 자리를 빠져나가거나 표면을 닫는다
@@ -192,3 +206,66 @@
            패널이 세 줄(y 23 · 54 · 85)로 선다. 글자 17px 로 본문보다 크다.
            **넷을 줄이는 것은 답이 아니다** — 못 가는 것도 사유와 함께 실려야 한다
            (04 allocations.meaning · DC-WORLD-OWNS-THE-SURFACE-LIST)
+
+## 성장 (이관 — C-GROWTH-001)
+
+이관 출처: `cycles/C-GROWTH-001-what-you-did-makes-you/07-view-implementation.md` 의
+NOTES · 08 의 "Works 로 넘긴 화면 몫". 둘 다 세계도 계약도 요구하지 않는다 —
+세계는 이미 보내고 있고, 화면이 그것을 **어떻게 보이게 하는가**만 남았다.
+
+### growth-cause-in-the-breakdown — 자란 몫이 한 방의 경위에 실린다
+    출처   C-GROWTH-001 07 NOTES · 08 Works 로 넘긴 화면 몫 ①
+    목표   속성 관찰(`inspect`)을 켰을 때 타격 경위 줄에 배분의 몫과 나란히
+           **단계가 보탠 몫**이 읽힌다 — "이 한 방이 왜 22 인가" 가 한 줄에서 닫힌다
+    크기   작음
+    의존   없음 — **세계는 이미 보내고 있다** (`strikes[].breakdown.*.fromGrowth`).
+           관찰 계약을 넓힐 필요가 없으므로 온전히 VIEW 레인의 일이다
+    상태   PROPOSED
+    주     지금 경위 줄이 이미 길다. 배분의 몫과 자란 몫을 그냥 나란히 쓰면 한 줄이
+           두 줄이 되므로, 0 인 항을 접는 규칙이 함께 필요하다
+
+### growth-step-is-a-moment — 오른 순간이 눈에 걸린다
+    출처   C-GROWTH-001 07 NOTES · 08 Works 로 넘긴 화면 몫 ②
+    목표   단계가 오른 순간이 놓치기 어렵게 보인다 — 지금은 self 패널의 줄 하나가
+           1.2초 서 있다 사라지므로, 싸우는 중에는 그 순간을 지나치기 쉽다
+    크기   작음
+    의존   없음 — 판정은 이미 있다 (`view/growth-presentation.ts` 의 `justLeveled`)
+    상태   PROPOSED
+    주     이펙트로 갈 경우 **예산 일곱 중 무엇을 뺄지 함께 정한다** (F1 규칙 ③).
+           이펙트가 아니어도 된다 — 줄의 강조나 토스트도 같은 문을 쓴다
+
+## 전투 사정 (이관 — C-COMBAT-003)
+
+이관 출처: `cycles/C-COMBAT-003-the-world-decides-what-is-possible/07-view-implementation.md`
+NOTES ③ · 08 의 "VIEW 레인으로 넘기는 것". 세계도 계약도 요구하지 않는다 —
+세계는 이미 보내고 있고, 화면이 그것을 **어떻게 펼쳐 보이게 하는가**만 남았다.
+
+### condition-in-the-breakdown — 참인 사정이 한 방의 경위에 실린다
+    출처   C-COMBAT-003 07 NOTES ③ · 08 VIEW 레인으로 넘기는 것
+           C-COMBAT-004 07 NOTES ⑤ — 그 목록에 표식이 하나 더 늘었다 (조건 셋)
+    목표   떠오르는 타격 결과의 경위에서 "이 한 방이 왜 76 인가" 가 닫힌다 —
+           어느 사정이 참이어서 계수가 얼마나 커졌는지가 읽힌다
+    크기   작음
+    의존   없음 — **세계는 이미 보내고 있다** (`strikes[].breakdown.conditions`).
+           관찰 계약을 넓힐 필요가 없으므로 온전히 VIEW 레인의 일이다
+    상태   PROPOSED
+    주     `growth-cause-in-the-breakdown` 과 **같은 줄에서 만난다.** 그 줄은 이미
+           방식 · 관통 · 치명 · 막기 · 배분을 지고 있어, 셋째 항을 그냥 더하면 C025 가
+           띠에서 겪은 실패(한 줄이 세 배로 길어짐)를 결과 표시에서 되풀이한다.
+           **둘을 함께 잡고 0 인 항을 접는 규칙을 한 번에 세우는 것**이 값이 싸다
+
+### skill-slot-crowds-the-keyboard — 기술이 늘수록 부를 자리가 없다
+    출처   C-COMBAT-003 07 INPUT → ACTION REQUEST · 08 Master Gap ③
+           C-COMBAT-004 08 Master Gap ② — **시한이 왔다**
+    목표   기술을 부르는 데 글자 키 하나씩을 쓰지 않는다 — 띠의 칸을 숫자로 부르거나,
+           그에 준하는 길이 선다
+    크기   보통
+    의존   없음 (띠는 이미 눌러서 부를 수 있다 — C025). 다만 `skill-focus-order` 와
+           같은 자리를 건드리므로 **그것과 함께 잡는다**
+    상태   PROPOSED
+    주     기반이 W·A·S·D·화살표·Z·X·R·T·C·V·`/` 를, 팩이
+           E·F·G·H·Q·Y·B·N·M·I·U·J·K·L·Shift 를 쓴다.
+           C-COMBAT-003 이 `O` 를, C-COMBAT-004 가 `P` 를 썼다 — **글자 키가 남지 않았다.**
+           사슬 B 에 후보 셋이 남았고 그중 계약은 조작이 둘 이상일 수 있으므로,
+           **다음 Cycle 은 키 없는 기술을 세운다.** 막힘은 아니다 (띠는 눌러서도
+           부른다 — C025) 그러나 시한은 지났다

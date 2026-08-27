@@ -1,5 +1,7 @@
 // RULE-STRIKE-DAMAGE-001 — Implements INTENT-STRIKE-DAMAGE-001 · INTENT-DAMAGE-APPLY-001
-// Input          공격자 Actor, 대상 Actor, **Force**, 이름표(무엇으로), World
+// Input          공격자 Actor, 대상 Actor, **Force**, 이름표(무엇으로), 참인 조건들, World
+//                C-COMBAT-003 CHANGED — 참인 조건들이 함께 온다. 위력을 고른 자리가
+//                무엇이 참이었는지도 넘겨야 경위가 "왜 이 값인가" 에 답할 수 있다.
 //                C020 CHANGED — 위력의 출처가 스킬 하나가 아니게 되었다. 판정 순서
 //                (계산 → 치명 → 막기 → 적용 → 사건 기록 → 쓰러짐)는 그대로다.
 // Preconditions  대상이 쓰러지지 않았다 (쓰러진 몸은 더 이상 타격 대상이 아니다)
@@ -45,13 +47,14 @@
 // downed 가 대체 불가능하므로 모든 행동 시작이 자동으로 막힌다 —
 // RULE-ACTION-BEGIN-001 에 예외를 더하지 않는다.
 
-import { isDowned, type DamageBreakdown } from '../semantic/combat';
+import { isDowned, type DamageBreakdown, type MetCondition } from '../semantic/combat';
 import type { Force } from '../semantic/item';
 import type { ActorState } from '../semantic/actor';
 import type { WorldState } from '../semantic/world-state';
 import { beginAction } from './action-begin';
 import { ruleCriticalStrike } from './critical-strike';
 import { ruleDamageCalculate } from './damage-calculate';
+import { ruleDeedsAdd } from './deeds-add';
 import { ruleGuardBlock } from './guard';
 
 export function ruleDowned(actor: ActorState): void {
@@ -66,6 +69,10 @@ export function ruleStrikeDamage(
   target: ActorState,
   force: Force,
   label: string,
+  // C-COMBAT-003 ADDED — 이 한 방에서 참이었던 조건들. **없어도 빈 목록으로 실린다**
+  // (INTENT-CONDITION-IN-THE-CAUSE-READING-001). 위력을 고른 자리가 무엇이 참이었는지도
+  // 함께 넘겨야 경위가 "왜 이 값인가" 에 답할 수 있다.
+  conditions: readonly MetCondition[] = [],
 ): number | null {
   if (isDowned(target)) return null;
 
@@ -78,6 +85,7 @@ export function ruleStrikeDamage(
   const critical = ruleCriticalStrike(state, attacker, calculation.finalDamage);
   const breakdown: DamageBreakdown = {
     ...calculation,
+    conditions,
     critical: critical.outcome,
     finalDamage: critical.amplified,
     appliedDamage: critical.amplified,
@@ -101,7 +109,19 @@ export function ruleStrikeDamage(
     time: state.time,
   });
 
-  if (target.hp === 0) ruleDowned(target);
+  // C-GROWTH-001 — 한 일이 몸에 남는다 (RULE-DEEDS-ADD-001).
+  // **닿아서 해가 성립했다는 사실**이 쌓임의 조건이다 — 얼마나 아팠는지는 묻지 않는다
+  // (막혀서 0 이 들어가도 친 것은 친 것이다). 같은 일은 같은 양을 쌓는다.
+  ruleDeedsAdd(state, attacker, 'strike');
+
+  if (target.hp === 0) {
+    ruleDowned(target);
+    // **쓰러뜨림은 여기서 쌓는다 — RULE-DOWNED-001 안이 아니다.**
+    // 그 규칙은 쓰러진 몸만 알고 쓰러뜨린 몸을 모르며, 세계 밖의 손이 생명을 0 으로
+    // 만들 때도 불린다 (RULE-ATTRIBUTE-SET-001). 밖의 손이 만든 쓰러짐은 **아무의
+    // 일도 아니다** — 일을 한 몸이 있어야 쌓임이 성립한다.
+    ruleDeedsAdd(state, attacker, 'down');
+  }
 
   return amount;
 }

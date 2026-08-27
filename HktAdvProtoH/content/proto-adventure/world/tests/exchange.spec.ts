@@ -306,8 +306,15 @@ describe('IE §15 · §16.1 — 가득 찬 가방에서 해제는 막히고 교�
     exchange(world, 'buckler', 'E1');
 
     const after = world.observe();
-    expect(stats(after)?.physicalAttack).toBe(BASE.physicalAttack);
-    expect(stats(after)?.armor).toBe(BASE.armor + BUCKLER_ARMOR);
+    // C-GROWTH-001 — 여기까지 오려면 아홉 번 캐야 하고, 그 36 이 첫 문턱(20)을 넘어
+    // 몸이 한 단계 자란다. 이 검사가 보는 것은 **바꿔 낀 일이 값을 옳게 옮기는가**이므로
+    // 자란 몫은 세계가 스스로 밝힌 값을 그대로 견준다 — 걸린 것을 벗어도 자란 것은
+    // 그대로이며, 그것이 성장이 장비가 아니라 몸의 값이라는 증거다.
+    const grown = (stat: string) =>
+      after.growth.contributions.find((c) => c.stat === stat)?.amount ?? 0;
+    expect(after.growth.level).toBe(1);
+    expect(stats(after)?.physicalAttack).toBe(BASE.physicalAttack + grown('physicalAttack'));
+    expect(stats(after)?.armor).toBe(BASE.armor + BUCKLER_ARMOR + grown('armor'));
     expect(mine(after)?.available).toBe(false);
   });
 });
