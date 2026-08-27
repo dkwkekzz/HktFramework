@@ -48,13 +48,16 @@ grants:
   - MC-ABILITY-CONDITION      # 저장량의 네 구간이 무엇이 가능한지를 가른다 (FC §5.5)
   - MC-CARRY-LIFE-SUPPORT     # 추운 지역의 보온과 열원 확보 — 그 땅에서 저절로 주어지지 않는 것 (FC §5.11)
   - MC-READ-ENVIRONMENT       # 열시야 — 생물과 장치가 남긴 열의 흐름을 읽는다 (FC §5.11 Passive)
+  - MC-DRAIN                  # 냉취 — 주변과 상대에게서 열을 빼앗는다 (FC §5.7 Skill 1)
 grants_note: >
   누구나 가진 바닥(때리기 · 기력 예산 · 몸의 방향)은 적지 않는다.
-  아직 노드가 없어 적지 못한 것 둘 — ① 상대와 환경에서 열을 능동으로 빼앗아 자기 자원으로
-  만드는 일 (FC §5.7 냉취), ② 그 결과로 상대가 느려지는 일. MC-ABSORB 는 "받아낸 공격을
-  저장한다" 까지이고 빼앗아 오는 의미는 담지 않는다 — FC 를 근거로 그 노드를 넓히지 않았다.
-  숨어 있는 생물의 체열을 감지하는 인지(FC §5.9)도 MC-READ-ENVIRONMENT("생물과 독립적으로
-  환경을 읽는다")와 어긋나 적지 않았다. Human 결정 대기: open-questions Q71.
+  빼앗는 흡수는 Q71(b) 확장으로 MC-DRAIN 이 되었다 — 근거는 이 계열이 딛고 선 땅이다
+  (BT §5.1 검은 광맥이 주변의 열을 결정 안에 결속한다). 빼앗긴 쪽이 느려지는 것은 별개의
+  조작이 아니라 그 노드의 semantic 자체다.
+  MC-ABSORB 는 그대로 둔다 — 받아낸 것을 저장하는 일과 빼앗아 오는 일은 다르며, 이 형태는
+  둘 다 한다 (버티며 벌지 않고 모아서 터뜨린다는 점이 백왕계와 갈리는 자리다).
+  숨어 있는 생물의 체열을 감지하는 인지(FC §5.9)는 여전히 노드가 없다 —
+  MC-READ-ENVIRONMENT 는 "생물과 독립적으로 환경을 읽는다" 라 어긋난다.
 
 # ── 관문 넷 (Human 결정 — HISTORY Q70(c)) ─────────────────────────────
 response: >
@@ -100,4 +103,4 @@ constraint_evaluation:
   DC-GROWTH-CLASS-OWNS-THE-RESPONSE: SATISFIED          # 그 자리에 열방출이 들어간다 (FC §5.6)
   DC-GROWTH-ORIGIN-IS-SIMPLE-FIRST: SATISFIED           # 조건이 저장량 한 축이고 계약을 쓰지 않는다
   DC-GROWTH-CLASS-CLOSES-BEFORE-THE-NEXT-LAYER: SATISFIED   # 지금 할 수 없는 것과 확장 방향이 FC §10 에 있다
-  DC-GROWTH-NO-CAPABILITY-DUPLICATION: UNRESOLVED       # 빼앗는 흡수와 느려짐이 기존 노드에 없다 — 새 노드를 만들지 않고 grants_note 로 남겼다 (Q71)
+  DC-GROWTH-NO-CAPABILITY-DUPLICATION: SATISFIED       # 빼앗는 흡수가 MC-DRAIN 으로 섰고, 느려짐은 그 안에 담겼다

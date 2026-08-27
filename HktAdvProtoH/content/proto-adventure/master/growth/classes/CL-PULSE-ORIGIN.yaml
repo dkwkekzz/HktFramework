@@ -49,14 +49,16 @@ grants:
   - MC-OBSERVE                # 지맥청 — 지면을 통해 지금 무엇이 움직이는지 본다 (FC §8.7 Skill 1)
   - MC-READ-ENVIRONMENT       # 생맥 — 살아 있는 지형과 생명의 박동을 읽는다 (FC §8.11 Passive)
   - MC-ABILITY-CONDITION      # 연결이 없으면 강화가 없고 인공 바닥에서는 성립하지 않는다 (FC §8.6 · §8.7)
+  - MC-LINK-TO-LIVING-WORLD   # 공명선 — 살아 있는 것과 이어져 읽고 전한다 (FC §8.5 · §8.7)
+  - MC-HOLD-BIOLOGICAL-STATE  # 생근결 — 일정 시간 생체 안정성을 붙든다 (FC §8.7 Skill 3)
 grants_note: >
   누구나 가진 바닥(때리기 · 기력 예산 · 몸의 방향)은 적지 않는다.
-  아직 노드가 없어 적지 못한 것 둘 — ① 살아 있는 대상과 맺어 충격 · 회복 · 박동을 주고받는
-  통로 (FC §8.5 공명선 · §8.7 맥진 · §8.8 대맥동). MC-BIND 는 "상대가 할 수 있는 일의 범위를
-  줄이는 관계" 까지이고 무언가를 **전달하는** 관계는 담지 않는다 — 형태가 같고 방향이 반대다.
-  ② 일정 시간 생체의 안정성을 높이는 일 (FC §8.7 생근결). MC-RESTORE-BIOLOGICAL-STATE 는
-  "최근의 안정적인 생체 상태로 복원" 이라 다른 의미이며, FC 자신이 "즉시 큰 Heal 이 아니다"
-  라고 갈라 둔다. Human 결정 대기: open-questions Q71.
+  둘 다 Q71(b) 확장으로 노드가 되었고, 근거는 FC 가 아니라 세계 쪽 문서다 —
+  전달하는 연결은 걷는 대륙이 요구하고 (BT §9.6 "유랑대지의 진로를 바꿀지 선택" ·
+  §9.5 대지치유사), 생체 붙들기는 혈화수해가 요구한다 (BT §11.7 "완전히 개화하기 전
+  대상 구조" · §11.3 장송석).
+  MC-BIND 는 그대로 둔다 — 뿌리로 붙들어 움직임을 제한하는 것(줄이는 관계)과
+  이어져 무언가를 주고받는 것(전달하는 관계)은 형태가 같고 방향이 반대다.
 
 # ── 관문 넷 (Human 결정 — HISTORY Q70(c)) ─────────────────────────────
 response: >
@@ -104,4 +106,4 @@ constraint_evaluation:
   DC-GROWTH-CLASS-OWNS-THE-RESPONSE: SATISFIED          # 그 자리에 역맥이 들어간다 (FC §8.6)
   DC-GROWTH-ORIGIN-IS-SIMPLE-FIRST: SATISFIED           # 요구가 "연결이 있는가" 한 줄이고 계약을 쓰지 않는다
   DC-GROWTH-CLASS-CLOSES-BEFORE-THE-NEXT-LAYER: SATISFIED   # 지금 할 수 없는 것과 확장 방향이 FC §10 에 있다
-  DC-GROWTH-NO-CAPABILITY-DUPLICATION: UNRESOLVED       # 전달하는 연결과 생체 안정화가 기존 노드에 없다 — 새 노드를 만들지 않고 grants_note 로 남겼다 (Q71)
+  DC-GROWTH-NO-CAPABILITY-DUPLICATION: SATISFIED       # 전달하는 연결과 생체 붙들기가 각각 노드로 섰다

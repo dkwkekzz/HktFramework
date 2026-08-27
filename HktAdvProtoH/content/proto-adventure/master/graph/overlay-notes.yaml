@@ -87,6 +87,7 @@ sections:
       - MC-MARK
       - MC-BIND
       - MC-OBSERVE-ABILITY
+      - MC-DRAIN
   - kind: capability
     title: "Capability — 탐험 영역 (BW)"
     intro: |
@@ -144,6 +145,14 @@ sections:
       MC-VERIFY-REALITY · MC-FORCE-MOVEMENT · MC-CRAFT-FROM-MATERIALS · MC-TRANSFER-ITEM)에는
       **줄을 더하지 않았다** — 지형을 요구처(demanded_by)로 더했을 뿐 같은 의미를 새 이름으로
       복제하지 않았기 때문이다. 그것들의 판정은 원래 자리의 줄이 그대로 소유한다.
+
+      **다섯 줄이 Q71(b) 확장으로 늘었다.** BT 가 각 대지형의 주요 경험으로 이미 적어 두었으나
+      BT 주입이 Capability 로 들어 올리지 않았던 것들이다 — 산맥의 아래쪽 바꾸기 · 낙하 방향
+      틀기 · 발판 놓기 (§8.7), 무호흡해의 공기 길 잇기 (§7.7), 혈화수해의 개화 전 구조
+      (§11.7), 걷는 대륙의 진로 바꾸기 (§9.6). 계열별 요정 문서(FC)가 같은 것을 캐릭터 능력으로
+      요구하면서 그 공백이 드러났고, **요구부터 찾아** 세웠다 (HISTORY Q71(b)).
+      다섯 다 MISSING 이고 사유가 하나로 모인다 — 무대가 한 평면이라 아래쪽도, 날아가는 중인
+      것도, 놓을 자리도, 살아 있는 땅도 세계에 없다.
     rows:
       - label: "MC-CARRY-LIFE-SUPPORT (빙원 §5.7 · 무호흡해 §7.7)"
         ids: [MC-CARRY-LIFE-SUPPORT]
@@ -163,6 +172,16 @@ sections:
         ids: [MC-REALIZE-ONE-POSSIBILITY]
       - label: "MC-CONCEAL-BIOLOGICAL-SIGNAL (혈화수해 §11.6)"
         ids: [MC-CONCEAL-BIOLOGICAL-SIGNAL]
+      - label: "MC-REDEFINE-DOWN (산맥 §8.7 핵심 경험)"
+        ids: [MC-REDEFINE-DOWN]
+      - label: "MC-REDIRECT-FALLING-THING (산맥 §8.7)"
+        ids: [MC-REDIRECT-FALLING-THING]
+      - label: "MC-PLACE-FOOTING (산맥 §8.7 · 무호흡해 §7.7)"
+        ids: [MC-PLACE-FOOTING]
+      - label: "MC-HOLD-BIOLOGICAL-STATE (혈화수해 §11.2 · §11.3 · §11.7)"
+        ids: [MC-HOLD-BIOLOGICAL-STATE]
+      - label: "MC-LINK-TO-LIVING-WORLD (걷는 대륙 §9.5 · §9.6)"
+        ids: [MC-LINK-TO-LIVING-WORLD]
   - kind: capability
     title: "Capability — 지목·관계 영역 (TG · BW §21)"
     intro: |
@@ -304,7 +323,7 @@ sections:
     intro: |
       어느 경로가 지금 얼마나 닫혀 있는가 — Frontier 는 이 표에서 고른다.
   - kind: possibility
-    title: "MG-OVERCOME-SUPERIOR-OPPONENT (14 갈래)"
+    title: "MG-OVERCOME-SUPERIOR-OPPONENT (15 갈래)"
     rows:
       - MP-MATCH-WEAPON-TO-ARMOR
       - MP-PIERCE-THE-HARD-DEFENSE
@@ -320,6 +339,7 @@ sections:
       - MP-CONCENTRATE-THE-POWER
       - MP-BIND-BY-CONTRACT
       - MP-KNOW-THE-OPPONENT-RULE
+      - MP-TAKE-WHAT-MAKES-IT-STRONG
   - kind: possibility
     title: "MG-SURVIVE-ENEMY-OFFENSIVE (4 갈래)"
     rows:
@@ -382,6 +402,26 @@ sections:
         ids: [MW-TERRAIN-UNHAPPENED-DESERT]
       - label: "사람을 꽃피우는 혈화수해 (§11)"
         ids: [MW-TERRAIN-BLOODBLOOM-FOREST]
+  - kind: possibility
+    title: "MG-RESCUE-THE-TAKEN (3 갈래)"
+    intro: |
+      **이 Goal 은 갈래가 하나도 없는 채로 서 있었다.** BT 주입이 네 대지형에서 같은 행동을
+      발견해 Goal 을 세웠으나, 그 문서가 구출이 일어난다는 사실만 적고 어떻게 하는지를
+      말하지 않아 Possibility 를 만들지 않았기 때문이다. Q71(b) 확장이 그 셋을 열었다
+      (HISTORY Q71(b)).
+
+      셋은 무엇을 다루느냐가 서로 다르다 — 옮겨 가는 **과정**을 붙들거나, 법칙이 걸어 둔
+      **것**을 끊거나, 사람이 갈 수 없는 **자리**에 도달하거나. 그래서 배타적이지 않고
+      앞뒤로 붙는다: 시간을 벌어 두고 끊는 것도, 도달해서 붙드는 것도 한 판 안에서 성립한다.
+
+      **둘째는 새 Capability 를 하나도 요구하지 않는다** — 이미 선 둘로 성립한다. 그런데도
+      셋 다 열리지 않는 이유는 그 둘 역시 MISSING 이기 때문이고, 더 근본적으로는 이 Goal 이
+      기대는 것이 세계에 없어서다: **존재가 단계적으로 다른 것이 되어 가는 과정**이 없다.
+      지금 세계에서 존재는 멀쩡하거나 쓰러지거나 둘뿐이라 되돌릴 자리가 생기지 않는다.
+    rows:
+      - MP-STOP-THE-TRANSFER
+      - MP-CUT-WHAT-HOLDS-THEM
+      - MP-REACH-THE-UNREACHABLE
   - kind: possibility
     title: "MG-ACQUIRE-RARE-ORGAN (5 갈래)"
     rows:

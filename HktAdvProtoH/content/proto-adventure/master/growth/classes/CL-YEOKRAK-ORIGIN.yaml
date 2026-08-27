@@ -45,13 +45,16 @@ grants:
   - MC-REPOSITION             # 낙선 — 다음 행동에 유리한 자리를 만드는 가속 (FC §4.7 Skill 1)
   - MC-USE-TERRAIN            # 벽천보 — 벽과 천장을 자기 지면으로 쓴다 (FC §4.7 Skill 2 · §4.11)
   - MC-ABILITY-CONDITION      # 흐름이 유지되는 동안에만 열리는 이동 연결이 있다 (FC §4.5)
+  - MC-REDEFINE-DOWN          # 낙선 · 벽천보 — 아래쪽을 바꾸고 벽·천장을 지면으로 쓴다 (FC §4.5 · §4.7)
+  - MC-REDIRECT-FALLING-THING # 반류 — 접촉한 투사체의 진행 방향을 비튼다 (FC §4.7 Skill 3)
 grants_note: >
   누구나 가진 바닥(때리기 · 기력 예산 · 몸의 방향)은 적지 않는다.
-  아직 노드가 없어 적지 못한 것 셋 — ① 자신에게 작용하는 아래쪽 자체를 바꾸는 일 (FC §4.5 ·
-  §4.7 낙선), ② 벽·천장을 일정 시간 새 지면으로 삼는 표면 주행 (FC §4.7 벽천보), ③ 접촉한
-  투사체의 진행 방향을 비트는 일 (FC §4.7 반류). MC-USE-TERRAIN 은 "지형을 유리함으로 쓴다",
-  MC-REPOSITION 은 "자리를 고쳐 잡는다" 까지이고 중력의 방향 자체를 바꾸는 의미는 담지 않는다.
-  FC 를 근거로 그 두 노드의 semantic 을 넓히지 않았다 — 넓히는 판단은 Human 의 몫이다 (Q71).
+  이 형태가 요구하던 셋은 Q71(b) 확장으로 노드가 되었다 — 아래쪽 바꾸기와 표면 주행은
+  하나로(MC-REDEFINE-DOWN), 투사체 방향 전환은 따로(MC-REDIRECT-FALLING-THING).
+  둘 다 근거는 FC 가 아니라 이 계열이 딛고 선 땅이다 — BT §8.7 이 "세계가 정한 아래쪽을
+  바꾸는 것" 을 산맥의 핵심 경험으로, "적과 투사체의 낙하 방향 변경" 을 주요 경험으로
+  적어 두었다. 필요가 먼저 서고 노드가 따라왔다.
+  MC-USE-TERRAIN 은 그대로 둔다 — 지형을 유리하게 쓰는 것과 아래쪽을 바꾸는 것은 다른 일이다.
 
 # ── 관문 넷 (Human 결정 — HISTORY Q70(c)) ─────────────────────────────
 response: >
@@ -97,4 +100,4 @@ constraint_evaluation:
   DC-GROWTH-CLASS-OWNS-THE-RESPONSE: SATISFIED          # 그 자리에 역보가 들어간다 (FC §4.6)
   DC-GROWTH-ORIGIN-IS-SIMPLE-FIRST: SATISFIED           # 조건이 흐름 한 축이고 계약을 쓰지 않는다
   DC-GROWTH-CLASS-CLOSES-BEFORE-THE-NEXT-LAYER: SATISFIED   # 지금 할 수 없는 것과 확장 방향이 FC §10 에 있다
-  DC-GROWTH-NO-CAPABILITY-DUPLICATION: UNRESOLVED       # 방향 전환·표면 주행·투사체 반사 셋이 기존 노드에 없다 — 새 노드를 만들지 않고 grants_note 로 남겼다 (Q71)
+  DC-GROWTH-NO-CAPABILITY-DUPLICATION: SATISFIED       # 셋 다 Q71(b) 로 노드가 섰고, 표면 주행은 MC-REDEFINE-DOWN 하나에 담겼다

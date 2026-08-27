@@ -3402,6 +3402,60 @@ Human 이 "FR-ACTION-PHASE 의 근간이 무엇인가" 를 물어 근간을 역�
                      (CLASS_UNKNOWN_REF) · transitions_to 가 없는 Class 를 가리킴
                      (CLASS_UNKNOWN_TRANSITION). 전부 ERROR 다.
 
+## Q71 — FC 의 능력들을 노드로 세울 것인가 · Human · 2026-08-27 · (b) 요구를 먼저 찾는다
+
+    질문이 한 번 읽히지 않아 다시 설명한 뒤 Human 이 (b)를 골랐다 — "지금 세운다"(c)가
+    아니라 **그것들을 요구하는 갈래를 WHY/OPTIONS 로 먼저 찾는다**.
+    제목의 "아홉" 은 묶어 센 수이고 실제 항목은 열셋이었다.
+
+### 확장이 실제로 한 일
+
+    출발점이 예상과 달랐다. 아홉(열셋)을 요구할 갈래를 **새로 상상해야 할 줄 알았는데,
+    BT 가 이미 각 대지형의 "주요 경험" 으로 적어 두었고 BT 주입이 그것을 Capability 로
+    들어 올리지 않았을 뿐이었다.** 그래서 이 확장은 창작이 아니라 누락 회수에 가깝다.
+
+        MC-REDEFINE-DOWN            BT §8.7 핵심 경험 — "세계가 정한 아래쪽을 바꾸는 것"
+        MC-REDIRECT-FALLING-THING   BT §8.7 — "적과 투사체의 낙하 방향 변경"
+        MC-PLACE-FOOTING            BT §8.7 "정박암을 임시 발판으로 설치" ·
+                                    BT §7.7 "공기 덩어리를 길처럼 연결" (두 땅이 따로 명명)
+        MC-HOLD-BIOLOGICAL-STATE    BT §11.7 "완전히 개화하기 전 대상 구조" · §11.3 장송석
+        MC-LINK-TO-LIVING-WORLD     BT §9.6 "유랑대지의 진로를 바꿀지 선택" · §9.5 대지치유사
+        MC-DRAIN                    BT §5.1 (광맥이 주변의 열을 결속한다) — 세계의 법칙을
+                                    사람이 작게 하는 것. 유일하게 갈래 쪽에서 나왔다
+
+    **셋은 노드가 되지 않고 접혔다.** 표면 주행은 MC-REDEFINE-DOWN 의 결과이고(아래쪽이
+    그 면을 향하면 그 면이 바닥이다), 빼앗김에 따르는 느려짐은 MC-DRAIN 의 semantic
+    자체다. 같은 의미를 둘로 세우지 않았다 (DC-GROWTH-NO-CAPABILITY-DUPLICATION).
+
+### 갈래 넷 — 그중 셋이 빈 Goal 을 채웠다
+
+    가장 큰 소득은 능력이 아니라 **MG-RESCUE-THE-TAKEN 이 갈래를 갖게 된 것**이다.
+    그 Goal 은 BT 주입 때 세워졌으나 "구출이 일어난다" 는 사실만 있고 방법이 없어
+    Possibility 가 0 이었다 — 그래프에 목적만 있고 길이 없는 자리였다.
+
+        MP-STOP-THE-TRANSFER       시간을 산다 — 옮겨 가는 과정을 붙들어 둔다
+        MP-CUT-WHAT-HOLDS-THEM     붙잡은 것을 끊는다 — **새 Capability 를 요구하지 않는다**
+        MP-REACH-THE-UNREACHABLE   거기까지 간다 — 요구가 넷으로 가장 무겁다
+        MP-TAKE-WHAT-MAKES-IT-STRONG  (MG-OVERCOME 의 열다섯째) 격차를 양쪽에서 좁히는
+                                   유일한 갈래 — 내가 커지는 동시에 상대가 작아진다
+
+### 세우지 않은 것 — 확장의 실패가 아니라 결과다
+
+        기술 흉내 · 앎의 공유 (진명)        어느 땅도 어느 갈래도 요구하지 않는다
+        괴력 · 지지 · 세계압 내성 (백왕)     백왕의 갈비분지는 **가장 안전한 땅**이라
+                                          그런 요구를 내지 않는다 (BT §4.6 — 원정 준비 ·
+                                          거래 · 증언 수집이 그 땅의 주요 경험이다)
+
+    다섯 다 각 CL-* 의 grants_note 가 소유한다. 요구하는 자리가 서면 그때 잇는다.
+    가까운 기존 노드를 넓히지도 않았다 — MC-IMPERSONATE-IDENTITY 를 "남처럼 행동한다" 로,
+    MC-IDENTITY-ANCHOR 를 "남의 정체를 붙든다" 로 넓히는 것은 그 노드의 의미를 바꾸는 일이다.
+    뒤엣것은 MP-CUT-WHAT-HOLDS-THEM 의 detail 이 빈자리로 적어 두었다.
+
+    반영    graph/capabilities.yaml (MC 6) · graph/possibilities.yaml (MP 4) ·
+            graph/goals.yaml (RESCUE 주석) · graph/world-state.yaml (대지형 셋의 demands) ·
+            graph/overlay-notes.yaml (표 여섯 줄 · RESCUE 절 신설) ·
+            growth/classes/ 여섯의 grants · growth/growth-graph.md
+
 ## DC-KNOWLEDGE-IS-CARRIED-NOT-HOARDED 문안 정정 — Human 지적 · 2026-08-27
 
     Human 지적: "전투 지식 슬롯은 여러 개 있고 여러개가 동시에 작동할 수 있어야 할거같은데

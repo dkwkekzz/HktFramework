@@ -1067,7 +1067,7 @@ nodes:
         - system: MS-BEIRA-TERRAIN
           source: BT §6.7
           role: 동료의 Identity 가 지금 어떤 상태인지 확인하는 것도 이 자리다
-    required_by: [MP-LEARN-TO-HANDLE-THE-LAYER]
+    required_by: [MP-LEARN-TO-HANDLE-THE-LAYER, MP-STOP-THE-TRANSFER]
     demanded_by: [MW-ZONE-FRINGE, MW-TERRAIN-NAME-EATING-FOREST]
     constraints: [DC-WORLD-PROGRESSION-IS-REACH, DC-COMBAT-MATCHUP-SOFT,
                   DC-WORLD-PLAYER-UNFIXED-PATH]
@@ -1175,7 +1175,7 @@ nodes:
           segment: DEEP
           source: BW §24 (이름만)
           role: 두 층이 같은 이름을 요구한다 — 노드는 하나다
-    required_by: []
+    required_by: [MP-CUT-WHAT-HOLDS-THEM]
     demanded_by: [MW-ZONE-WILD, MW-ZONE-DEEP]
     constraints: []
     constraint_evaluation: {}
@@ -1587,7 +1587,7 @@ nodes:
         - system: MS-BEIRA-LADDER
           segment: UNKNOWN
           source: BW §25 (이름만)
-    required_by: []
+    required_by: [MP-CUT-WHAT-HOLDS-THEM]
     demanded_by: [MW-ZONE-UNKNOWN]
     constraints: []
     constraint_evaluation: {}
@@ -2022,7 +2022,7 @@ nodes:
         - system: MS-BEIRA-TERRAIN
           source: BT §7.7 · §7.5 · §5.7
           role: 두 지형(빙원 · 무호흡해)이 같은 형태로 요구한다
-    required_by: []
+    required_by: [MP-REACH-THE-UNREACHABLE]
     demanded_by: [MW-TERRAIN-SUNEATER-ICEFIELD, MW-TERRAIN-BREATHLESS-SEA]
     constraints: [DC-WORLD-SAFETY-IS-A-NATURAL-EXCEPTION]
     constraint_evaluation:
@@ -2915,3 +2915,243 @@ nodes:
 # 비주입 — FC 는 여덟 계열 중 여섯만 다룬다. 가능성계와 혈화계의 Origin Class 는 이
 # 문서에 없으므로 CL-* 를 세우지 않았다 — 지어내지 않는다. 두 자리는
 # graph/systems.yaml 의 MS-FAIRY-LINEAGE 에 빈 채로 남아 있다.
+
+  # ── 대지형이 요구하던 것 · 빼앗는 갈래 (Q71(b) WHY/OPTIONS 확장 2026-08-27) ──
+  #
+  # FC 주입이 "옮길 기존 노드가 없다" 로 남긴 것들을 **요구부터 찾아** 세운 여섯이다.
+  # 여섯 전부 근거가 FC 가 아니라 세계 쪽 문서에 있다 — BT 가 각 대지형의 주요 경험으로
+  # 이미 적어 두었는데 BT 주입이 Capability 로 들어 올리지 않았던 것들이다.
+  # 필요가 먼저 서고 노드가 따라왔다 (DC-GROWTH-NEED-FROM-POSSIBILITY).
+
+  - id: MC-REDEFINE-DOWN
+    type: capability
+    semantic: >
+      자기에게 작용하는 아래쪽이 어느 쪽인지를 스스로 정한다 — 그렇게 정한 면이 그 몸에게는
+      지면이 되어, 벽과 천장과 허공이 딛고 다닐 자리가 된다.
+    detail: >
+      하늘로 떨어지는 산맥의 핵심 경험이 이것이다 — "높은 곳을 오르는 것이 아니라 세계가
+      정한 아래쪽을 바꾸는 것" (BT §8.7). 그 땅에서는 광맥을 넘는 순간 낙하 방향이 바뀌고
+      (BT §8.2), 사람들은 절벽 옆과 천장과 바닥을 함께 쓰는 입체적인 마을에 산다 (BT §8.3).
+      비슷한 셋과 갈린다. 자리를 고쳐 잡는 것(MC-REPOSITION)은 여전히 같은 바닥 위의
+      이동이고, 지형을 유리하게 쓰는 것(MC-USE-TERRAIN)은 있는 지형을 이용하는 것이다.
+      법칙을 하나로 고정하는 것(MC-ANCHOR-LOCAL-LAW)과는 방향이 반대다 — 저쪽은 흔들리는
+      세계의 방향을 붙들어 모두에게 하나로 만들고, 이쪽은 세계는 그대로 둔 채 자기 것만
+      바꾼다. 그래서 정박암 마을에 사는 사람과 이 능력을 가진 사람은 같은 땅을 다르게 다닌다.
+      **벽과 천장을 밟는 일은 별도의 능력이 아니라 이것의 결과다.** 아래쪽이 그 면을 향하면
+      그 면이 바닥이기 때문이다 — 같은 의미를 둘로 세우지 않는다.
+    world_shape: >
+      낙하 방향이 세계 전체에 하나가 아니라 몸마다 따로 있고, 이 능력을 가진 몸이 그것을
+      바꾸면 방금까지 벽이던 면이 그 몸에게 바닥으로 작동해야 한다. 지금 그 몸의 아래쪽이
+      어느 쪽인지가 자신에게도 남에게도 보여야 한다.
+      바뀐 방향이 이동에만 쓰이고 떨어지는 방향에는 쓰이지 않으면 이 능력이 아니다.
+    part_of:
+      grounded: true
+      memberships:
+        - system: MS-BEIRA-TERRAIN
+          source: BT §8.2 · §8.3 · §8.7
+          role: 산맥의 법칙을 감당하는 쪽이 아니라 그 법칙을 자기 것으로 쓰는 자리
+    required_by: [MP-REACH-THE-UNREACHABLE]
+    demanded_by: [MW-TERRAIN-SKYFALL-RANGE]
+    constraints: [DC-WORLD-PROGRESSION-IS-REACH, DC-COMBAT-STRONG-RULE-HAS-COUNTERPLAY,
+                  DC-GROWTH-POWER-PAYS-IN-REACH-OR-CONSTRAINT, DC-GROWTH-NO-CAPABILITY-DUPLICATION]
+    constraint_evaluation:
+      DC-WORLD-PROGRESSION-IS-REACH: SATISFIED              # 이전에 갈 수 없던 자리(떠 있는 호수·섬)에 닿게 된다 (BT §8.7)
+      DC-COMBAT-STRONG-RULE-HAS-COUNTERPLAY: SATISFIED      # 좁은 공간·경로 봉쇄·표면 제거가 이것을 막는다 (FC §4.10)
+      DC-GROWTH-POWER-PAYS-IN-REACH-OR-CONSTRAINT: UNRESOLVED   # 얼마나 오래·얼마나 자주 바꿀 수 있는가는 이 층을 세우는 Cycle 이 정한다
+      DC-GROWTH-NO-CAPABILITY-DUPLICATION: SATISFIED        # 표면 주행을 별도 노드로 세우지 않고 이 하나로 담았다
+    overlay: MISSING
+    overlay_gap: >-
+      세계에 아래쪽이라는 것이 없다 — 떨어지는 일도 오르는 일도 없고, 무대는 한 평면이라 벽도 천장도 자리로 존재하지 않는다
+
+  - id: MC-REDIRECT-FALLING-THING
+    type: capability
+    semantic: >
+      이미 움직이고 있는 것의 진행 방향을 바꾼다 — 내 힘으로 밀어 옮기는 것이 아니라,
+      그것이 지닌 기세가 그대로 다른 쪽으로 간다.
+    detail: >
+      산맥의 주요 경험이 이것을 직접 적는다 — "적과 투사체의 낙하 방향 변경" (BT §8.7).
+      그 땅에서는 떨어지는 것이 어디로 가는지가 세계의 변수이므로, 그것을 트는 일이
+      살아남는 수단이자 싸우는 수단이 된다.
+      미는 것(MC-FORCE-MOVEMENT)과 갈리는 지점이 분명하다. 저쪽은 내가 낸 힘만큼 상대가
+      옮겨 가므로 상대가 무거우면 안 되고, 이쪽은 상대가 이미 가진 기세를 쓰므로 **세게
+      올수록 크게 돌아간다.** 그리고 이쪽의 대상은 상대일 필요가 없다 — 날아오는 것과
+      떨어지는 것이 더 흔한 대상이다.
+      끊는 것(MC-INTERRUPT)과도 다르다. 진행을 없애지 않고 방향만 바꾸므로 그것은 여전히
+      어딘가에 도착한다 — 어디에 도착하게 만드느냐가 이 능력의 내용이다.
+    world_shape: >
+      세계에 움직이는 중인 것이 방향과 기세를 지닌 상태로 있고, 그것에 닿아 방향만 바꿀 수
+      있으며, 바뀐 뒤에도 원래의 기세가 남아 그 끝에서 결과를 내야 한다.
+      바꾼 것이 그 자리에서 사라지면 이 능력이 아니다.
+    part_of:
+      grounded: true
+      memberships:
+        - system: MS-BEIRA-TERRAIN
+          source: BT §8.7
+    required_by: [MP-REACH-THE-UNREACHABLE]
+    demanded_by: [MW-TERRAIN-SKYFALL-RANGE]
+    constraints: [DC-COMBAT-ABILITY-IS-A-RULE, DC-COMBAT-STRONG-RULE-HAS-COUNTERPLAY,
+                  DC-GROWTH-NO-CAPABILITY-DUPLICATION]
+    constraint_evaluation:
+      DC-COMBAT-ABILITY-IS-A-RULE: SATISFIED                # 피해 배율이 아니라 세계에 가하는 조작이다 — 피해가 0 이어도 성립한다
+      DC-COMBAT-STRONG-RULE-HAS-COUNTERPLAY: SATISFIED      # 닿아야 하므로 닿지 않는 것(느린 것 · 큰 것 · 멀리서 오는 것)에는 통하지 않는다
+      DC-GROWTH-NO-CAPABILITY-DUPLICATION: SATISFIED        # 미는 것(MC-FORCE-MOVEMENT)과 갈리는 지점을 detail 이 밝힌다
+    overlay: MISSING
+    overlay_gap: >-
+      날아가는 중인 것이 세계에 없다 — 공격은 즉시 닿거나 닿지 않고, 진행 중인 것에 개입할 자리가 없다
+
+  - id: MC-PLACE-FOOTING
+    type: capability
+    semantic: >
+      딛고 설 것이 없는 자리에 딛고 설 것을 둔다 — 몸이 아닌 것이 세계의 한 자리를 차지하고,
+      그 위에 다른 존재가 설 수 있다.
+    detail: >
+      두 대지형이 같은 것을 각자 따로 명명했다 — 산맥에서는 "정박암을 임시 발판으로 설치"
+      (BT §8.7), 무호흡해에서는 "공기 덩어리를 길처럼 연결" (BT §7.7)이다. 한쪽은 돌이고
+      한쪽은 공기지만 세계에 요구하는 것은 하나다: 없던 자리가 생기고 그 위를 지날 수 있어야
+      한다.
+      공간을 다루는 것(MC-CONTROL-SPACE)과 갈린다 — 저쪽은 쓸 수 있는 공간을 넓히거나
+      좁히는 것이고 이쪽은 **없던 자리를 만드는 것**이다. 그리고 이것은 스킬이 자기 안에
+      임시 존재를 만드는 일이 아니라 세계가 지는 일이다 (DC-SKILL-PRESENCE-IS-WORLD-NOT-SKILL) —
+      그래서 만들어 둔 것은 남도 밟을 수 있고, 부술 수도 있다.
+    world_shape: >
+      몸이 아닌 것이 세계의 한 자리를 차지한 채로 존재하고, 그 위에 서는 일이 실제로
+      성립하며, 그것이 사라지거나 부서지면 그 위에 있던 것이 함께 떨어져야 한다.
+      만든 사람만 쓸 수 있으면 이 능력이 아니다 — 세계에 놓인 것이기 때문이다.
+    part_of:
+      grounded: true
+      memberships:
+        - system: MS-BEIRA-TERRAIN
+          source: BT §8.7 · §7.7
+        - system: MS-SKILL-FORM
+          segment: SPATIAL-PRESENCE
+          source: SK §4 (몸이 아닌 것이 세계에 자리를 가진다) — 이 자리를 요구하는 첫 노드다
+    required_by: [MP-REACH-THE-UNREACHABLE]
+    demanded_by: [MW-TERRAIN-SKYFALL-RANGE, MW-TERRAIN-BREATHLESS-SEA]
+    constraints: [DC-SKILL-PRESENCE-IS-WORLD-NOT-SKILL, DC-COMBAT-STRONG-RULE-HAS-COUNTERPLAY,
+                  DC-GROWTH-POWER-PAYS-IN-REACH-OR-CONSTRAINT]
+    constraint_evaluation:
+      DC-SKILL-PRESENCE-IS-WORLD-NOT-SKILL: SATISFIED       # 놓인 것이 세계의 개체이고 스킬 안의 임시 존재가 아니다
+      DC-COMBAT-STRONG-RULE-HAS-COUNTERPLAY: SATISFIED      # 세계에 놓인 것이므로 부술 수 있다
+      DC-GROWTH-POWER-PAYS-IN-REACH-OR-CONSTRAINT: UNRESOLVED   # 몇 개를 얼마나 오래 둘 수 있는가는 이 층을 세우는 Cycle 이 정한다
+    overlay: MISSING
+    overlay_gap: >-
+      몸이 아닌 것이 세계에 자리를 갖지 못한다 — MS-SKILL-FORM 의 공간 존재 칸이 통째로 비어 있고, 무대에는 놓을 자리도 없다
+
+  - id: MC-DRAIN
+    type: capability
+    semantic: >
+      상대나 환경이 가진 것을 빼앗아 자기 것으로 삼는다 — 빼앗긴 쪽은 그만큼 줄어들어
+      하던 일을 덜 하게 된다.
+    detail: >
+      세계의 법칙이 이미 이렇게 한다. 해를 삼킨 빙원의 검은 광맥은 주변의 열을 결정 안에
+      결속해 대지를 얼리고 (BT §5.1), 그 땅의 핵심 경험은 "대지가 열을 어디에서 빼앗고
+      어디에 저장하는지를 읽는 것" 이다 (BT §5.7). 사람이 그 법칙을 자기 것으로 쓰면
+      **격차가 양쪽에서 좁는다** — 내가 커지는 동시에 상대가 작아진다.
+      받아내 저장하는 것(MC-ABSORB)과 갈린다. 저쪽은 맞아야 벌므로 위험을 치르고 시간이
+      이쪽 편이지만, 이쪽은 맞지 않고도 벌되 닿거나 그 곁에 있어야 하므로 **거리를
+      포기한다.** 그리고 저쪽은 상대에게서 아무것도 덜어내지 않는다.
+      **빼앗긴 쪽이 느려지는 것은 별개의 조작이 아니라 빼앗김의 다른 얼굴이다** — 가진
+      것이 줄면 하던 일을 덜 하게 되는 것이 이 노드의 semantic 자체다. 무엇을 얼마나
+      빼앗으면 무엇이 얼마나 줄어드는지는 이 층을 세우는 Cycle 이 정한다.
+    world_shape: >
+      상대와 환경이 **유한하게 가진 것**이 세계에 있고, 그것이 빼앗기면 빼앗은 쪽으로
+      옮겨 가며, 빼앗긴 쪽이 실제로 이전만큼 하지 못해야 한다.
+      빼앗은 쪽만 늘고 빼앗긴 쪽이 그대로면 이 능력이 아니다 — 그것은 그냥 자원 생성이다.
+    part_of:
+      grounded: true
+      memberships:
+        - system: MS-AURA-NEN
+          segment: OPERATION
+          source: UL §22 (세계 조작 열두 영역 중 자원) · BT §5.1 · §5.7
+          role: 피해가 아니라 상대가 가진 것을 옮기는 조작
+    required_by: [MP-TAKE-WHAT-MAKES-IT-STRONG]
+    demanded_by: []
+    constraints: [DC-COMBAT-ABILITY-IS-A-RULE, DC-COMBAT-ONE-FORMULA,
+                  DC-COMBAT-STRONG-RULE-HAS-COUNTERPLAY, DC-GROWTH-POWER-PAYS-IN-REACH-OR-CONSTRAINT]
+    constraint_evaluation:
+      DC-COMBAT-ABILITY-IS-A-RULE: SATISFIED                # 피해 배율이 아니라 가진 것을 옮기는 조작이다
+      DC-COMBAT-ONE-FORMULA: SATISFIED                      # 피해 식을 바꾸지 않는다 — 그 식이 읽는 입력값을 옮길 뿐이다
+      DC-COMBAT-STRONG-RULE-HAS-COUNTERPLAY: SATISFIED      # 거리를 유지하고 빼앗길 것을 주지 않는 것이 대응이다 (FC §5.10)
+      DC-GROWTH-POWER-PAYS-IN-REACH-OR-CONSTRAINT: SATISFIED    # 닿거나 곁에 있어야 한다는 조건이 값의 대가다
+    overlay: MISSING
+    overlay_gap: >-
+      상대가 유한하게 가진 것이 세계에 없다 — 기력은 자기 것만 줄고, 남의 것을 옮기는 규칙이 하나도 없다
+
+  - id: MC-HOLD-BIOLOGICAL-STATE
+    type: capability
+    semantic: >
+      지금의 생체 상태를 그 자리에 붙들어, 그것이 다른 것으로 옮겨 가거나 더 무너지지
+      않게 한다.
+    detail: >
+      사람을 꽃피우는 혈화수해가 이것을 요구한다. 그 땅에서 잃는 방식은 죽는 것이 아니라
+      **생명 상태가 꽃으로 옮겨 가는 것**이고 (BT §11.2), 그래서 그 땅의 주요 경험에
+      "완전히 개화하기 전 대상 구조" 가 있다 (BT §11.7). 세계는 이미 그것을 막는 물건도
+      가지고 있다 — 장송석은 "생명의 마지막 상태가 식물로 전달되는 것을 막는 검은 돌" 이다
+      (BT §11.3).
+      되돌리는 것(MC-RESTORE-BIOLOGICAL-STATE)과 갈린다. 저쪽은 **이미 잃은 것**을 최근의
+      안정된 상태로 되돌리고, 이쪽은 **아직 잃지 않은 것**을 붙든다. 이쪽이 훨씬 싸지만
+      늦으면 아무것도 하지 못한다 — 그래서 이 능력이 있는 세계에서는 구출에 시간이 걸린다.
+      치료가 아니라는 점도 중요하다. 나아지게 하지 않고 **지금 상태를 지금 상태로 묶어
+      둘 뿐**이다.
+    world_shape: >
+      존재가 단계적으로 다른 것이 되어 가는 과정이 세계에 있고, 그 과정이 어디까지 왔는지가
+      보이며, 이 능력이 그 진행을 멈춰 세울 수 있어야 한다. 멈춘 동안에도 원인은 사라지지
+      않아, 붙들기를 놓으면 다시 진행되어야 한다.
+      진행이 없고 상태가 즉시 결정되면 이 능력이 걸릴 자리가 없다.
+    part_of:
+      grounded: true
+      memberships:
+        - system: MS-BEIRA-TERRAIN
+          source: BT §11.2 · §11.3 · §11.7
+        - system: MS-AURA-NEN
+          segment: OPERATION
+          source: UL §22 (세계 조작 열두 영역 중 생명)
+    required_by: [MP-STOP-THE-TRANSFER]
+    demanded_by: []
+    constraints: [DC-COMBAT-ABILITY-IS-A-RULE, DC-CONDITION-OPENS-WITHOUT-RECORDING,
+                  DC-COMBAT-STRONG-RULE-HAS-COUNTERPLAY]
+    constraint_evaluation:
+      DC-COMBAT-ABILITY-IS-A-RULE: SATISFIED                # 피해가 전혀 없는 조작이며 그래서 강하다
+      DC-CONDITION-OPENS-WITHOUT-RECORDING: SATISFIED       # 붙들기를 놓으면 저절로 다시 진행된다 — 되돌리는 규칙이 따로 없다
+      DC-COMBAT-STRONG-RULE-HAS-COUNTERPLAY: UNRESOLVED     # 붙들린 것을 상대가 어떻게 다시 끌어가는가는 그 땅의 Cycle 이 정한다
+    overlay: MISSING
+    overlay_gap: >-
+      존재가 단계적으로 다른 것이 되어 가는 과정이 세계에 없다 — 쓰러지는 것 하나뿐이라 붙들 진행이 없다
+
+  - id: MC-LINK-TO-LIVING-WORLD
+    type: capability
+    semantic: >
+      살아 있는 땅이나 거대 생명과 이어져, 그 상태를 자기 몸으로 읽고 그것에 무언가를 전한다.
+    detail: >
+      걷는 대륙의 무리에서는 지도가 바뀌는 것이 아니라 **지도 자체가 살아 움직인다**
+      (BT §9.2). 그 위에 사는 일과 그것과 이야기하는 일은 다른 일이며, BT 는 뒤쪽을 주요
+      경험으로 적는다 — "유랑대지의 진로를 바꿀지 선택" (BT §9.6). 그 땅의 한 세력이
+      그것으로 산다: 대지치유사는 기생 생물과 상처를 다루며 유랑대지와 공생한다 (BT §9.5).
+      묶는 것(MC-BIND)과 형태가 같고 방향이 반대다. 저쪽은 관계를 만들어 상대가 할 수 있는
+      일을 **줄이고**, 이쪽은 관계를 만들어 무언가를 **주고받는다.** 읽는 것
+      (MC-READ-ENVIRONMENT)과도 갈린다 — 이쪽은 읽기만 하지 않고 전한다.
+      이어진 상대가 세계의 크기라는 점이 이 노드의 성격을 정한다. 이 능력으로 옮길 수 있는
+      것은 그 몸이 낼 수 있는 힘이 아니라 **이어진 쪽이 지닌 힘**이며, 그래서 이어지지
+      않은 자리에서는 아무 일도 일어나지 않는다.
+    world_shape: >
+      땅과 존재가 살아 있는 것과 죽은 것으로 갈려 세계에 있고, 그중 살아 있는 것과 맺은
+      연결이 상태로 존재하며, 그 연결을 통해 상태를 읽는 일과 전하는 일이 둘 다 성립해야
+      한다. 연결이 없는 자리에서는 그 행동이 성립하지 않고 그 사유가 함께 와야 한다.
+      이어져도 아무것도 오가지 않으면 이 능력이 아니다.
+    part_of:
+      grounded: true
+      memberships:
+        - system: MS-BEIRA-TERRAIN
+          source: BT §9.2 · §9.5 · §9.6
+    required_by: []
+    demanded_by: [MW-TERRAIN-WALKING-CONTINENTS]
+    constraints: [DC-COMBAT-ABILITY-IS-A-RULE, DC-COMBAT-UNAVAILABLE-HAS-A-REASON,
+                  DC-COMBAT-STRONG-RULE-HAS-COUNTERPLAY, DC-GROWTH-NO-CAPABILITY-DUPLICATION]
+    constraint_evaluation:
+      DC-COMBAT-ABILITY-IS-A-RULE: SATISFIED                # 피해가 아니라 관계를 만드는 조작이다
+      DC-COMBAT-UNAVAILABLE-HAS-A-REASON: SATISFIED         # 이어지지 않은 자리에서 못 쓴다는 사유가 그대로 드러난다
+      DC-COMBAT-STRONG-RULE-HAS-COUNTERPLAY: SATISFIED      # 죽은 땅 · 인공 구조물 · 공중이 이 능력을 끊는다 (FC §8.10)
+      DC-GROWTH-NO-CAPABILITY-DUPLICATION: SATISFIED        # 묶는 것(MC-BIND)과 갈리는 지점을 detail 이 밝힌다
+    overlay: MISSING
+    overlay_gap: >-
+      땅이 살아 있지 않다 — 무대는 자리와 법칙을 가질 뿐 상태도 의사도 없고, 존재와 이어지는 관계는 태도(적대·중립·우호) 하나뿐이다

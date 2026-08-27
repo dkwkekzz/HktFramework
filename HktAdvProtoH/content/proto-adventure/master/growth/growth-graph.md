@@ -53,11 +53,11 @@ FC 주입으로 `growth/classes/` 에 CL-* 여섯이 섰다 (백왕 · 역락 ·
 | Class (계열) | Principle | 맞는 순간의 대응 | 여는 Capability | 옮기지 못한 것 |
 |---|---|---|---|---|
 | 골완투사 (백왕) | 결속 | 버티기 | MC-GUARD · MC-FORTIFY · MC-ABSORB · MC-BREAK · MC-FORCE-MOVEMENT | 괴력 · 지지 · 세계압 내성 |
-| 역락검사 (역락) | 방향 | 역보 | MC-EVADE · MC-REPOSITION · MC-USE-TERRAIN | 낙하 방향 전환 · 표면 주행 · 투사체 반사 |
-| 열술사 (태양심) | 축적 | 열방출 | MC-ABSORB · MC-CONTROL-SPACE · MC-CARRY-LIFE-SUPPORT · MC-READ-ENVIRONMENT | 빼앗는 흡수 · 느려짐 |
+| 역락검사 (역락) | 방향 | 역보 | MC-EVADE · MC-REPOSITION · MC-USE-TERRAIN · **MC-REDEFINE-DOWN** · **MC-REDIRECT-FALLING-THING** | 없음 |
+| 열술사 (태양심) | 축적 | 열방출 | MC-ABSORB · MC-CONTROL-SPACE · MC-CARRY-LIFE-SUPPORT · MC-READ-ENVIRONMENT · **MC-DRAIN** | 체열 감지 |
 | 명각사 (진명) | 정체성 | 판독 | MC-OBSERVE · MC-OBSERVE-ABILITY · MC-MARK · MC-DISCOVER-WEAKNESS · MC-IMPERSONATE-IDENTITY · MC-VERIFY-REALITY | 기술 흉내 · 앎의 공유 |
-| 숨결술사 (숨결) | 대기 | 기막 | MC-CONTROL-SPACE · MC-FORCE-MOVEMENT · MC-INTERRUPT · MC-CARRY-LIFE-SUPPORT · MC-READ-ENVIRONMENT | 임시 표면 생성 |
-| 맥동사 (맥동) | 공명 | 역맥 | MC-BIND · MC-OBSERVE · MC-READ-ENVIRONMENT | 전달하는 연결 · 생체 안정화 |
+| 숨결술사 (숨결) | 대기 | 기막 | MC-CONTROL-SPACE · MC-FORCE-MOVEMENT · MC-INTERRUPT · MC-CARRY-LIFE-SUPPORT · MC-READ-ENVIRONMENT · **MC-PLACE-FOOTING** | 없음 |
+| 맥동사 (맥동) | 공명 | 역맥 | MC-BIND · MC-OBSERVE · MC-READ-ENVIRONMENT · **MC-LINK-TO-LIVING-WORLD** · **MC-HOLD-BIOLOGICAL-STATE** | 없음 |
 
 여섯 전부가 대응 자리 셋(MC-ACTIVE-RESPONSE · MC-PRECISION-RESPONSE · MC-OPPORTUNITY)과
 조건 자리(MC-ABILITY-CONDITION)를 함께 연다 — 같은 자리에 서로 다른 것을 끼우는 형태이므로
@@ -71,13 +71,34 @@ FC 주입으로 `growth/classes/` 에 CL-* 여섯이 섰다 (백왕 · 역락 ·
 것은 다르다: 세계의 몸은 여전히 종류 하나이고 형태를 고르는 일도 바꾸는 일도 없다
 (MC-CHANGE-CLASS · MC-GROW-CLASS-MASTERY 둘 다 MISSING).
 
-### 옮기지 못한 것 — 왜 비워 두었는가
+### 굵은 여섯은 Q71(b) 확장으로 섰다
 
-표의 마지막 열 아홉 항목은 FC 가 각 계열에 준 능력인데 가리킬 기존 MC-* 가 없다.
-새로 만들지 않은 이유는 하나다 — 어느 Possibility 도 그것들을 요구하지 않고 어느 층도
-demands 로 걸지 않는다 (SCHEMA · DC-GROWTH-NEED-FROM-POSSIBILITY). Class 가 존재한다는
-이유로 Capability 를 만들면 방향이 뒤집힌다. 요구하는 경로가 생기면 그때 잇는다.
-Human 결정 대기: [../open-questions.md](../open-questions.md) Q71.
+Human 이 "지금 만든다" 가 아니라 **"요구를 먼저 찾는다"** 를 골랐고 (HISTORY Q71(b)),
+찾아보니 대부분 이미 요구되고 있었다 — BT 가 각 대지형의 **주요 경험**으로 적어 두었는데
+BT 주입이 Capability 로 들어 올리지 않았을 뿐이다.
+
+```text
+MC-REDEFINE-DOWN            산맥 §8.7 핵심 경험 — 세계가 정한 아래쪽을 바꾼다
+MC-REDIRECT-FALLING-THING   산맥 §8.7 — 적과 투사체의 낙하 방향 변경
+MC-PLACE-FOOTING            산맥 §8.7 · 무호흡해 §7.7 — 두 땅이 따로 명명했다
+MC-HOLD-BIOLOGICAL-STATE    혈화수해 §11.7 — 완전히 개화하기 전 대상 구조
+MC-LINK-TO-LIVING-WORLD     걷는 대륙 §9.6 — 유랑대지의 진로를 바꿀지 선택
+MC-DRAIN                    빙원 §5.1 의 법칙을 사람이 작게 한다 (유일하게 갈래 쪽에서 나왔다)
+```
+
+**셋은 노드가 되지 않고 접혔다** — 표면 주행은 MC-REDEFINE-DOWN 의 결과이고, 빼앗김에
+따르는 느려짐은 MC-DRAIN 의 semantic 자체다. 같은 의미를 둘로 세우지 않는다.
+
+### 아직 비어 있는 다섯
+
+| 계열 | 없는 것 | 왜 세우지 않았나 |
+|---|---|---|
+| 진명 | 기술 흉내 · 앎의 공유 | 어느 땅도 어느 갈래도 요구하지 않는다 |
+| 백왕 | 괴력 · 지지 · 세계압 내성 | 백왕의 갈비분지는 **가장 안전한 땅**이라 그런 요구를 내지 않는다 (BT §4.6) |
+| 태양심 | 숨은 생물의 체열 감지 | MC-READ-ENVIRONMENT 는 "생물과 독립적으로 환경을 읽는다" 라 어긋난다 |
+
+요구가 없는데 Class 가 있다는 이유로 Capability 를 만들면 방향이 뒤집힌다
+(DC-GROWTH-NEED-FROM-POSSIBILITY). 요구하는 자리가 서면 그때 잇는다.
 
 ### 위쪽이 비어 있다 — 다만 모양은 정해졌다
 

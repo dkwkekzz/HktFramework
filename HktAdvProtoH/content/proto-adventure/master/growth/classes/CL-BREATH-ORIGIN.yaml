@@ -51,12 +51,13 @@ grants:
   - MC-CARRY-LIFE-SUPPORT     # 그 땅에서 저절로 주어지지 않는 공기를 만들고 나눈다 (FC §7.8 · §7.11)
   - MC-READ-ENVIRONMENT       # 기류감지 — 보이지 않는 틈과 통로의 공기 이동을 읽는다 (FC §7.11 Passive)
   - MC-ABILITY-CONDITION      # 영역의 안과 밖이 무엇이 가능한지를 가른다 (FC §7.5 · §7.10)
+  - MC-PLACE-FOOTING          # 공기발판 — 없는 자리에 딛고 설 것을 둔다 (FC §7.7 Skill 4)
 grants_note: >
   누구나 가진 바닥(때리기 · 기력 예산 · 몸의 방향)은 적지 않는다.
-  아직 노드가 없어 적지 못한 것 하나 — 짧은 시간 압축된 공기층을 만들어 딛는 일
-  (FC §7.7 공기발판). 몸이 아닌 것이 세계의 한 자리를 차지하는 일은 세계의 능력이고
-  (DC-SKILL-PRESENCE-IS-WORLD-NOT-SKILL), 그 자리는 MS-SKILL-FORM 의 SPATIAL-PRESENCE 가
-  기다리고 있다 — 아직 어느 Possibility 도 요구하지 않아 MC-* 로 세우지 않았다 (Q71).
+  임시 표면 생성은 Q71(b) 확장으로 MC-PLACE-FOOTING 이 되었다 — 근거는 두 땅이다
+  (BT §7.7 "공기 덩어리를 길처럼 연결" · BT §8.7 "정박암을 임시 발판으로 설치").
+  같은 요구를 두 대지형이 따로 적었으므로 노드는 하나이고 요구처가 둘이다.
+  그것이 MS-SKILL-FORM 의 공간 존재 칸을 요구하는 첫 노드이기도 하다.
 
 # ── 관문 넷 (Human 결정 — HISTORY Q70(c)) ─────────────────────────────
 response: >
@@ -101,4 +102,4 @@ constraint_evaluation:
   DC-GROWTH-CLASS-OWNS-THE-RESPONSE: SATISFIED          # 그 자리에 기막이 들어간다 (FC §7.6)
   DC-GROWTH-ORIGIN-IS-SIMPLE-FIRST: SATISFIED           # 조건이 "영역 안인가" 한 줄이고 계약을 쓰지 않는다
   DC-GROWTH-CLASS-CLOSES-BEFORE-THE-NEXT-LAYER: SATISFIED   # 지금 할 수 없는 것과 확장 방향이 FC §10 에 있다
-  DC-GROWTH-NO-CAPABILITY-DUPLICATION: UNRESOLVED       # 임시 표면 생성이 기존 노드에 없다 — 새 노드를 만들지 않고 grants_note 로 남겼다 (Q71)
+  DC-GROWTH-NO-CAPABILITY-DUPLICATION: SATISFIED       # 임시 표면 생성이 MC-PLACE-FOOTING 으로 섰다

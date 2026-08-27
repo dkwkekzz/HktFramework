@@ -1350,3 +1350,193 @@ nodes:
       MC-CARRY-COMBAT-KNOWLEDGE · MC-CONDUCT-BY-KNOWLEDGE · MC-COMBINE-KNOWLEDGE + MK-LOCAL-WORLDSTATE
     overlay_note: >-
       고를 것도 자리도 없고, 무엇이 올지 미리 아는 길(지역에 대한 앎)도 없다 — 지역 자체가 세계에 없다
+
+  # ══════════════════════════════════════════════════════════════════════
+  # MG-RESCUE-THE-TAKEN — 법칙에 붙들려 사라지는 것을 되찾는 갈래들
+  # ══════════════════════════════════════════════════════════════════════
+  # 이 Goal 은 BT 주입 때 세워졌으나 **갈래가 하나도 없었다** — BT 가 구출이 일어난다는
+  # 사실만 공급하고 어떻게 하는지를 말하지 않았기 때문이다. 그 셋을 여기서 연다.
+  # 재료는 지어낸 것이 아니라 BT 가 네 대지형에 흩어 적어 둔 것이다:
+  #   숲에 흡수되기 직전의 존재 추적 (§6.6) · 공기가 사라진 자리의 고립자 구조 (§7.7) ·
+  #   하늘로 추락하는 동료 구조 (§8.7) · 완전히 개화하기 전 대상 구조 (§11.7)
+  #
+  # 셋은 무엇을 다루느냐가 서로 다르다 —
+  #   시간을 산다      옮겨 가는 과정을 붙들어 둔다
+  #   붙잡은 것을 끊는다  법칙이 걸어 둔 것 자체를 끊는다
+  #   거기까지 간다     사람이 갈 수 없는 자리에 도달한다
+
+  - id: MP-STOP-THE-TRANSFER
+    type: possibility
+    overlay_missing: >-
+      MC-HOLD-BIOLOGICAL-STATE · MC-OBSERVE
+    overlay_note: >-
+      진행이라는 것이 세계에 없어 붙들 대상이 없다 — 존재는 멀쩡하거나 쓰러지거나 둘뿐이다
+    achieves: [MG-RESCUE-THE-TAKEN]
+    meaningful_difference: >
+      셋 중 유일하게 **아무것도 해결하지 않는 갈래다 — 시간을 산다.** 붙잡은 것을 끊지도
+      않고 거기까지 가지도 않고, 옮겨 가는 과정을 그 자리에 세워 두고 나머지를 나중에 한다.
+      즉시 성립하고 실력을 거의 요구하지 않지만 붙들고 있는 동안 다른 것을 하지 못하며,
+      놓는 순간 다시 진행된다.
+    detail: >
+      이 지형들에서 잃는 방식이 단계적이기 때문에 성립하는 갈래다. 꽃이 완성되기까지는
+      시간이 걸리고 (BT §11.2), 그 사이에 진행을 세워 두면 나머지 둘 중 무엇이든 뒤에 올
+      수 있다. 그래서 이것은 다른 둘과 배타적이지 않고 **앞에 붙는다.**
+      대가가 분명하다. 붙들고 있는 쪽은 그 자리에 묶이므로, 붙잡은 것이 여럿이면 하나만
+      살릴 수 있다 — 누구를 붙들지가 실제 선택이 된다 (BT §11.7 "무엇을 되돌리며 무엇을
+      남길지 선택").
+    world_shape: >
+      다른 것이 되어 가는 진행이 세계에 값으로 있고, 그 값이 멈춘 동안 아무 일도 일어나지
+      않으며, 붙들기를 놓으면 멈춘 자리에서 다시 이어져야 한다.
+    implemented: ABSENT
+    requires:
+      goals: []
+      capabilities: [MC-HOLD-BIOLOGICAL-STATE, MC-OBSERVE]
+      knowledge: []
+      world_state: []
+      relationship: []
+      resource: []
+    supports: []
+    opposes: []
+    changes:
+      - 붙들린 존재의 진행이 멈춘다
+      - 붙들고 있는 쪽은 그동안 다른 것을 하지 못한다
+    reveals: []
+    creates_goal: []
+    constraints: [DC-WORLD-OWNS-THE-CHANCE, DC-CONDITION-OPENS-WITHOUT-RECORDING,
+                  DC-GROWTH-POWER-PAYS-IN-REACH-OR-CONSTRAINT]
+    constraint_evaluation:
+      DC-WORLD-OWNS-THE-CHANCE: SATISFIED                   # 성패가 확률이 아니라 진행이 어디까지 왔는가로 갈린다
+      DC-CONDITION-OPENS-WITHOUT-RECORDING: SATISFIED       # 놓으면 저절로 다시 진행된다
+      DC-GROWTH-POWER-PAYS-IN-REACH-OR-CONSTRAINT: SATISFIED    # 붙드는 동안 묶인다는 것이 값의 대가다
+
+  - id: MP-CUT-WHAT-HOLDS-THEM
+    type: possibility
+    overlay_missing: >-
+      MC-BREAK-BIOLOGICAL-LINK · MC-DISCOVER-WEAKNESS
+    overlay_note: >-
+      **셋 중 유일하게 새 Capability 를 요구하지 않는다** — 이미 선 둘로 성립한다. 다만 그 둘이 모두 MISSING 이다
+    achieves: [MG-RESCUE-THE-TAKEN]
+    meaningful_difference: >
+      과정을 늦추는 것이 아니라 **붙잡고 있는 것 자체를 끊는다.** 한 번에 끝나지만 무엇이
+      붙잡고 있는지 먼저 알아내야 하고, 잘못 끊으면 붙들려 있던 쪽이 함께 무너진다.
+      비용은 시간이 아니라 앎이며, 셋 중 유일하게 새 능력 없이 이미 선 것들로 성립한다.
+    detail: >
+      숲은 뿌리망으로 이름을 붙잡고 (BT §6.2), 혈화수는 뿌리로 마지막 모습을 미리 만들며
+      (BT §11.2), 무명사냥꾼은 흡수되기 직전의 존재를 추적해 구출한다 (BT §6.6).
+      붙잡는 방식이 땅마다 다르므로 무엇을 끊어야 하는지도 다르다 — 그래서 이 갈래는
+      그 땅의 법칙을 먼저 읽은 사람에게만 열린다.
+      **한 자리가 아직 비어 있다.** 숲이 이름으로 붙잡은 경우, 끊어야 하는 것은 생체
+      연결이 아니라 정체의 편입이다. 지금 세계에서 정체를 붙드는 노드는
+      MC-IDENTITY-ANCHOR 하나인데 그것은 **자기 자신**을 붙드는 능력이라 남에게 걸리지
+      않는다. 그 노드를 이 갈래를 위해 넓히지 않았다 — 남의 정체를 붙드는 일은 다른
+      의미이고, 세우려면 그것을 요구하는 자리가 먼저 있어야 한다.
+    world_shape: >
+      법칙이 대상을 붙잡고 있다는 사실이 세계에 실체로 있고(연결·표식·뿌리), 그것을 찾아
+      끊을 수 있으며, 끊긴 뒤에는 진행이 이어지지 않아야 한다.
+    implemented: ABSENT
+    requires:
+      goals: []
+      capabilities: [MC-BREAK-BIOLOGICAL-LINK, MC-DISCOVER-WEAKNESS]
+      knowledge: []
+      world_state: []
+      relationship: []
+      resource: []
+    supports: []
+    opposes: []
+    changes:
+      - 법칙이 대상에게 걸어 둔 것이 사라진다
+    reveals: []
+    creates_goal: []
+    constraints: [DC-COMBAT-STRONG-RULE-HAS-COUNTERPLAY, DC-WORLD-TERRAIN-LAW-IS-OBSERVABLE]
+    constraint_evaluation:
+      DC-COMBAT-STRONG-RULE-HAS-COUNTERPLAY: SATISFIED      # 잘못 끊으면 붙들린 쪽이 함께 무너진다 — 실패가 정의되어 있다
+      DC-WORLD-TERRAIN-LAW-IS-OBSERVABLE: SATISFIED         # 무엇이 붙잡고 있는지가 증거로 먼저 드러나야 이 갈래가 열린다 (BT §11.4)
+
+  - id: MP-REACH-THE-UNREACHABLE
+    type: possibility
+    overlay_missing: >-
+      MC-REDEFINE-DOWN · MC-PLACE-FOOTING · MC-REDIRECT-FALLING-THING · MC-CARRY-LIFE-SUPPORT
+    overlay_note: >-
+      넷 다 MISSING 이다. 무대가 한 평면이라 닿을 수 없는 자리라는 것 자체가 세계에 없다
+    achieves: [MG-RESCUE-THE-TAKEN]
+    meaningful_difference: >
+      붙잡은 것을 어찌하지 않는다 — **거기까지 간다.** 하늘로 추락하는 동료와 공기가 사라진
+      자리에 고립된 사람은 붙들려서 못 오는 것이 아니라 사람이 갈 수 없는 자리에 있다.
+      셋 중 유일하게 법칙을 건드리지 않으며, 대신 도달 수단을 **미리** 갖춰야 한다 —
+      현장에서 배울 수 없는 유일한 갈래다.
+    detail: >
+      BT 가 두 땅에서 같은 장면을 적는다 — "하늘로 추락하는 동료 구조" (§8.7)와 "고립된
+      탐험가 구조" (§7.7). 두 경우 모두 구조자가 먼저 그 자리에 닿을 수 있어야 하고,
+      그 자리는 각각 아래쪽이 뒤집힌 허공과 숨 쉴 수 없는 물속이다.
+      요구가 넷이나 되는 것이 이 갈래의 성격이다. 앞의 둘보다 준비가 무겁고, 그래서
+      **한 번 갖추면 세 땅에서 함께 쓰인다** — 아래쪽을 바꾸는 힘도, 없는 자리에 발판을
+      두는 힘도, 살아 있게 하는 것을 지니고 가는 힘도 구조에만 쓰이지 않는다.
+    world_shape: >
+      사람이 그냥은 닿을 수 없는 자리가 세계에 있고(뒤집힌 낙하 · 숨 쉴 수 없음), 그 자리에
+      도달하는 수단이 존재하며, 도달한 뒤 대상을 데리고 돌아오는 일이 성립해야 한다.
+    implemented: ABSENT
+    requires:
+      goals: []
+      capabilities: [MC-REDEFINE-DOWN, MC-PLACE-FOOTING, MC-REDIRECT-FALLING-THING, MC-CARRY-LIFE-SUPPORT]
+      knowledge: []
+      world_state: []
+      relationship: []
+      resource: []
+    supports: []
+    opposes: []
+    changes:
+      - 닿을 수 없던 자리에 있던 존재가 돌아온다
+    reveals: []
+    creates_goal: []
+    constraints: [DC-WORLD-PROGRESSION-IS-REACH, DC-GROWTH-POWER-PAYS-IN-REACH-OR-CONSTRAINT]
+    constraint_evaluation:
+      DC-WORLD-PROGRESSION-IS-REACH: SATISFIED              # 이 갈래의 내용 자체가 닿는 범위의 확장이다
+      DC-GROWTH-POWER-PAYS-IN-REACH-OR-CONSTRAINT: SATISFIED    # 요구가 넷이라는 것이 이 갈래의 대가다
+
+  # ── MG-OVERCOME-SUPERIOR-OPPONENT 의 열다섯째 갈래 ──────────────────────
+
+  - id: MP-TAKE-WHAT-MAKES-IT-STRONG
+    type: possibility
+    overlay_missing: >-
+      MC-DRAIN
+    overlay_note: >-
+      상대가 유한하게 가진 것이 세계에 없다 — 옮길 것이 없다
+    achieves: [MG-OVERCOME-SUPERIOR-OPPONENT]
+    meaningful_difference: >
+      열다섯 갈래 중 유일하게 **격차를 양쪽에서 좁힌다** — 내가 커지는 동시에 상대가
+      작아진다. 미리 키워 두는 갈래(MP-OUTGROW-THE-OPPONENT)와 달리 이 판 안에서 벌고,
+      받아낸 것을 버는 갈래(MP-STORE-AND-RELEASE)와 달리 맞지 않고도 번다. 대신 빼앗으려면
+      닿거나 곁에 있어야 하므로 **거리를 포기하고**, 상대에게 빼앗을 것이 없으면 아무 일도
+      일어나지 않는다.
+    detail: >
+      세계가 이미 이 방식으로 굴러가는 곳이 있다 — 해를 삼킨 빙원의 광맥이 주변의 열을
+      결속해 대지를 얼린다 (BT §5.1). 그 땅에서 사는 법을 익힌 사람이 같은 일을 작게
+      한다고 보면 된다.
+      느린 갈래다. 한 번 빼앗아 이기지 못하고, 빼앗을수록 유리해지는 것이 쌓여야 한다.
+      그래서 상대는 **길어지기 전에 끝내거나 거리를 벌리는 것**으로 대응한다 — 즉
+      이 갈래를 고른 쪽은 시간을 벌어야 하고, 그것이 다른 갈래와 함께 쓰이는 이유가 된다.
+      빼앗은 것을 어디에 쓰는가는 이 갈래가 정하지 않는다 — 그 몸이 가진 능력이 정한다.
+    world_shape: >
+      상대가 유한하게 가진 것이 세계에 값으로 있고, 그것이 이쪽으로 옮겨 오며, 옮겨 간
+      만큼 상대가 이전만큼 하지 못하고, 그 사실이 양쪽 모두에게 보여야 한다.
+    implemented: ABSENT
+    requires:
+      goals: []
+      capabilities: [MC-DRAIN]
+      knowledge: []
+      world_state: []
+      relationship: []
+      resource: []
+    supports: []
+    opposes: []
+    changes:
+      - 상대가 가진 것이 줄고 그만큼 이쪽이 는다
+    reveals: []
+    creates_goal: []
+    constraints: [DC-COMBAT-ONE-FORMULA, DC-COMBAT-STRONG-RULE-HAS-COUNTERPLAY,
+                  DC-COMBAT-SHARED-BUDGET, DC-GROWTH-NO-DOMINATED-ROUTE]
+    constraint_evaluation:
+      DC-COMBAT-ONE-FORMULA: SATISFIED                      # 피해 식을 바꾸지 않고 그 식이 읽는 값을 옮긴다
+      DC-COMBAT-STRONG-RULE-HAS-COUNTERPLAY: SATISFIED      # 거리 유지 · 빠르게 끝내기 · 빼앗길 것을 주지 않기 (FC §5.10)
+      DC-COMBAT-SHARED-BUDGET: UNRESOLVED                   # 빼앗은 것이 기존 기력 예산으로 들어오는지 별도 값인지는 이 층의 Cycle 이 정한다
+      DC-GROWTH-NO-DOMINATED-ROUTE: SATISFIED               # 거리를 포기하므로 원거리 갈래를 압도하지 않는다

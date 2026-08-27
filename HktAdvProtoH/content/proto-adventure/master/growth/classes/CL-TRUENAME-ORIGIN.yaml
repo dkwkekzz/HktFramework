@@ -53,11 +53,15 @@ grants:
   - MC-ABILITY-CONDITION      # 표식이 있는 대상에게만 열리는 기술이 있다 (FC §6.5)
 grants_note: >
   누구나 가진 바닥(때리기 · 기력 예산 · 몸의 방향)은 적지 않는다.
-  아직 노드가 없어 적지 못한 것 둘 — ① 관찰해 기록한 남의 기술 하나의 행동적 특징을
-  흉내 내는 일 (FC §6.7 가면흉내). MC-IMPERSONATE-IDENTITY 는 "표식을 빌려 다른 존재로
-  인식된다" 까지이고 남의 행동을 재현하는 의미는 담지 않는다. ② 지정 대상의 표식을 완전히
-  전개해 파티 전체가 그 정보를 쓰게 하는 일 (FC §6.8 초명) — 앎을 남과 나누는 자리가
-  아직 없다. Human 결정 대기: open-questions Q71.
+  **이 형태만 Q71(b) 확장에서 아무것도 얻지 못했다.** 둘이 여전히 노드가 없다 —
+  ① 관찰해 기록한 남의 기술 하나를 흉내 내는 일 (FC §6.7 가면흉내), ② 지정 대상의 표식을
+  전개해 파티 전체가 그 정보를 쓰게 하는 일 (FC §6.8 초명).
+  세우지 않은 이유는 확장이 실패해서가 아니라 **요구가 나오지 않아서다.** 다른 다섯의
+  결손은 전부 어느 대지형이 이미 주요 경험으로 요구하고 있었는데, 이 둘은 어느 땅도
+  어느 갈래도 요구하지 않는다. 지금 세우면 required_by 와 demanded_by 가 둘 다 빈다
+  (SCHEMA · DC-GROWTH-NEED-FROM-POSSIBILITY).
+  MC-IMPERSONATE-IDENTITY 를 넓히지도 않았다 — 남처럼 보이는 일과 남처럼 행동하는 일은
+  다른 의미다.
 
 # ── 관문 넷 (Human 결정 — HISTORY Q70(c)) ─────────────────────────────
 response: >
@@ -104,5 +108,5 @@ constraint_evaluation:
   DC-GROWTH-CLASS-OWNS-THE-RESPONSE: SATISFIED          # 그 자리에 판독이 들어간다 (FC §6.6)
   DC-GROWTH-ORIGIN-IS-SIMPLE-FIRST: SATISFIED           # 요구가 "표식이 있는가" 한 줄이고 계약을 쓰지 않는다
   DC-GROWTH-CLASS-CLOSES-BEFORE-THE-NEXT-LAYER: SATISFIED   # 지금 할 수 없는 것과 확장 방향이 FC §10 에 있다
-  DC-GROWTH-NO-CAPABILITY-DUPLICATION: UNRESOLVED       # 기술 흉내와 앎의 공유가 기존 노드에 없다 — 새 노드를 만들지 않고 grants_note 로 남겼다 (Q71)
+  DC-GROWTH-NO-CAPABILITY-DUPLICATION: SATISFIED       # grants 가 전부 기존 MC-* 를 가리킨다 — 노드가 없는 둘은 grants_note 가 소유한다
   DC-CONDITION-OPENS-WITHOUT-RECORDING: UNRESOLVED      # 표식과 정체의 조각은 남는 것이므로 "조건으로 열리고 저절로 닫힌다" 와 형태가 다르다 — 어느 쪽인지는 이 층을 세우는 Cycle 이 정한다
