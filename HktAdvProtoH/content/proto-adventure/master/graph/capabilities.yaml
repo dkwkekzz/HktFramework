@@ -2294,16 +2294,24 @@ nodes:
     required_by: [MP-OUTGROW-THE-OPPONENT, MP-BECOME-A-HIGHER-FORM]
     demanded_by: []
     constraints: [DC-WORLD-PROGRESSION-IS-REACH, DC-GROWTH-GOAL-FIRST, DC-GROWTH-CLASS-CHANGE-NEEDS-THE-WORLD,
-                  DC-GROWTH-POWER-PAYS-IN-REACH-OR-CONSTRAINT, DC-GROWTH-CAPABILITY-DECLARES-ITS-LIMITS]
+                  DC-GROWTH-POWER-PAYS-IN-REACH-OR-CONSTRAINT, DC-GROWTH-CAPABILITY-DECLARES-ITS-LIMITS,
+                  DC-WORLD-OWNS-THE-SURFACE-LIST, DC-COMBAT-PLAYER-CAUSALITY]
     constraint_evaluation:
       DC-WORLD-PROGRESSION-IS-REACH: SATISFIED    # 레벨은 기본값을 키우는 바닥 축이고 어디에 갈 수 있는가는 여전히 감당 여부가 정한다 — 땅의 문턱을 레벨로 걸지 않는다 (HISTORY Q53(a))
       DC-GROWTH-GOAL-FIRST: SATISFIED             # 레벨 자체는 Goal 이 아니다 — 갈래의 조건으로만 선다
       DC-GROWTH-CLASS-CHANGE-NEEDS-THE-WORLD: SATISFIED   # 이 축만으로는 형태가 바뀌지 않는다 — 문턱 넷 중 하나일 뿐이다 (GS §6)
-      DC-GROWTH-POWER-PAYS-IN-REACH-OR-CONSTRAINT: UNRESOLVED   # 모든 상황에 걸리는 범용 축이므로 한 단계의 폭이 작아야 한다 — 그 폭은 C-GROWTH-001 의 03 이 정한다 (GB §20)
+      DC-GROWTH-POWER-PAYS-IN-REACH-OR-CONSTRAINT: SATISFIED    # 한 단계가 대수를 바꾸지 않고 세 단계를 모아야 바뀐다 — 폭이 실측으로 확인됐다 (C-GROWTH-001 08)
       DC-GROWTH-CAPABILITY-DECLARES-ITS-LIMITS: SATISFIED        # growth/balance/GBC-GAIN-LEVEL.yaml 이 통함/부분/안 통함을 밝힌다
-    overlay: MISSING
+      DC-WORLD-OWNS-THE-SURFACE-LIST: SATISFIED                  # 단계·남은 양·보태는 몫을 전부 세계가 세어서 싣는다 — 화면에 산술이 없다
+      DC-COMBAT-PLAYER-CAUSALITY: PARTIAL                        # 한 일의 값에는 흔들림이 닿지 않으나 몇 번 하게 되는가를 통해 간접으로 닿는다 — 한 마리의 벌이가 18~21
+    overlay: PARTIAL
+    overlay_evidence: >-
+      C-GROWTH-001 — 세계 안의 행위가 몸에 쌓이고 문턱을 넘으면 겨루는 값 넷이 오른다. world_shape 두 문장이 실측으로 닫혔다: 걸어가 살펴보고 쳐서 넘어뜨리니
+      쌓인 것 0 → 22 · 단계 0 → 1 이 되었고, 그 뒤 같은 기술의 피해가 26 → 28 로 · 한 대가 남기는 값이 20 → 22 로 달라졌다. 디버그 명령을 한 번도 열지 않았다
+      (08 의 WORLD SCENARIO ①③ · PLAYABLE 5 · shots/)
     overlay_gap: >-
-      값을 키우는 축이 세계에 없다 — 능력치를 바꾸는 유일한 규칙이 디버그 명령이고 나머지는 걸어 둔 물건이 잠시 얹는 유효 값뿐이다
+      쌓이는 원천이 이 노드가 든 넷 중 둘뿐이다 — "탐험하고" 와 "사건을 해결한 것" 이 세계에 없다. 그리고 GS §5 가 든 다섯 중 셋(생명력 · 기력 · 기본 이동)이
+      자라지 않는다 — 그 셋은 아직 "유효 값" 이라는 자리를 지니지 않아 걸린 것도 배분도 성장도 닿을 곳이 없다
 
   - id: MC-GROW-CLASS-MASTERY
     type: capability
