@@ -101,21 +101,30 @@ const commandConsole = createCommandConsole(container, {
 // 여기는 그리는 능력을 붙이고 닫기를 그쪽으로 돌려보낼 뿐이다 (반전 ⑤).
 // V-004 — 눌린 칸·줄의 id 를 팩으로 그대로 넘긴다. 조립은 그 칸이 무엇인지도,
 // 한 번 누름이 무슨 뜻인지도 알지 못한다 (슬롯 띠가 세운 규칙과 같다).
-const surfaces = createSurfaceLayer(container, {
-  onClose: (id) => closeSurface(id),
-  // 쳐 넣은 글자가 무슨 뜻인지 조립은 알지 못한다 — 그 자리의 id 와 글자를 넘길 뿐이다
-  // (눌린 칸·줄을 넘기는 것과 같은 규칙이다).
-  onFieldInput: (surfaceId, fieldId, text) => typeInto(surfaceId, fieldId, text),
-  onPickCell: (surfaceId, cellId) => pickCell(surfaceId, cellId),
-  onCommitCell: (surfaceId, cellId) =>
-    commitCell(surfaceId, cellId, (action) => link.sendMarked(action)),
-  onMenuCell: (surfaceId, cellId) => menuCell(surfaceId, cellId),
-  onPressRow: (surfaceId, rowId) =>
-    pressRow(surfaceId, rowId, (action) => link.sendMarked(action)),
-});
+// 표면이 쓰는 말(닫기·빈 자리·상태)도 팩의 것이다 — 조립은 표를 넘길 뿐이다.
+const surfaces = createSurfaceLayer(
+  container,
+  {
+    onClose: (id) => closeSurface(id),
+    // 쳐 넣은 글자가 무슨 뜻인지 조립은 알지 못한다 — 그 자리의 id 와 글자를 넘길 뿐이다
+    // (눌린 칸·줄을 넘기는 것과 같은 규칙이다).
+    onFieldInput: (surfaceId, fieldId, text) => typeInto(surfaceId, fieldId, text),
+    onPickCell: (surfaceId, cellId) => pickCell(surfaceId, cellId),
+    onCommitCell: (surfaceId, cellId) =>
+      commitCell(surfaceId, cellId, (action) => link.sendMarked(action)),
+    onMenuCell: (surfaceId, cellId) => menuCell(surfaceId, cellId),
+    onPressRow: (surfaceId, rowId) =>
+      pressRow(surfaceId, rowId, (action) => link.sendMarked(action)),
+  },
+  codeText,
+);
 // 늘 서 있는 칸 띠 (C027) — 눌린 칸은 **키가 부른 것과 같은 요청**이 된다.
 // 조립은 그 칸이 무엇인지 모른다 — id 가 곧 interactionId 다.
-const slotBars = createSlotBarLayer(container, { onPress: (cellId) => requestInteraction(cellId) });
+const slotBars = createSlotBarLayer(
+  container,
+  { onPress: (cellId) => requestInteraction(cellId) },
+  codeText,
+);
 
 const keyboard = attachKeyboard();
 
@@ -150,7 +159,8 @@ const touch = attachTouchControls(renderer.domElement, (dTurn, dTilt) => {
   if (commandConsole.capturing() || surfaces.capturing()) return;
   renderer.turnView(dTurn, dTilt);
 });
-const touchPad = createTouchPad(container);
+// 관찰 토글 버튼의 이름도 팩의 것이다 — 조작 안내 줄과 **같은 문구 코드**를 읽는다
+const touchPad = createTouchPad(container, codeText);
 // 손가락을 쓰는 기기인가 — 기기 이름(UA)을 묻지 않고 무엇으로 가리키는지만 본다.
 // 아니어도 손가락이 한 번 닿으면 그때부터 조작 자리가 나타난다 (touch.engaged()).
 const COARSE_POINTER = window.matchMedia?.('(pointer: coarse)').matches ?? false;
@@ -244,7 +254,7 @@ function submitCommand(): void {
     latestScene.commandSurface.entries,
     snapshot,
     { 'collider-observe': debugObserve, 'attribute-inspect': inspect },
-    codeText, // 거절의 말도 팩의 것이다 (기반 부채 ②)
+    codeText, // 거절의 말도 팩의 것이다 (문구 반전 ⑤)
   );
 
   if (invocation.kind === 'rejected') {
@@ -614,12 +624,17 @@ function frame(now: number): void {
     sessionPresentation(
       link.state(),
       link.stale(),
-      telemetryLines(link.telemetry(nowMs)),
-      bindingLines({
-        observerId,
-        characterId: snapshot?.observer.characterId ?? '—',
-        worldAddress: link.address(),
-      }),
+      telemetryLines(link.telemetry(nowMs), codeText),
+      bindingLines(
+        {
+          observerId,
+          characterId: snapshot?.observer.characterId ?? '—',
+          worldAddress: link.address(),
+        },
+        codeText,
+      ),
+      // 이어짐의 상태와 계량 이름도 팩의 것이다 (문구 반전 ⑤)
+      codeText,
     ),
     { plates, strikes },
   );

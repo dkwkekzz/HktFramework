@@ -11,22 +11,19 @@
 // 이는 hud.ts 의 키 안내가 이미 그렇게 하고 있는 것과 같다.
 
 import type { SceneInteraction, SceneState } from '../scene/scene-state';
-import { engineKeyCode } from '../input/engine-keys';
+import { engineKeyCode, engineKeyTextCode, type EngineKeyId } from '../input/engine-keys';
+import { RAW_CODE, type CodeTextFn } from '../presentation/code-text';
 import type { StickView } from '../input/touch';
 
 /**
  * 관찰자 쪽에서 끝나는 것들 — 세계로 나가지 않는다 (C006 · C007 R2 · C009).
  *
- * 코드는 **원본에서 온다** (`input/engine-keys.ts`) — 여기 손으로 적어 두면 기반이
- * 자리를 옮겨도 이 버튼만 옛 키를 계속 내놓는다.
- * 이름은 아직 여기 있다 — 기반이 사람의 말을 쥔 마지막 자리 중 하나이며,
- * 팩으로 되돌리는 일은 design/Design-System-Content-Separation.md 남은 부채에 있다.
+ * 코드도 이름도 **원본에서 온다** (`input/engine-keys.ts`) — 여기 손으로 적어 두면
+ * 기반이 자리를 옮겨도 이 버튼만 옛 키를 계속 내놓는다. 이름은 이제 문구 코드이며,
+ * 무슨 말이 되는지는 팩의 표가 정한다 (문구 반전 ⑤). 그래서 이 버튼에 적히는 말과
+ * 조작 안내 줄에 서는 말은 **같은 한 자리**에서 온다.
  */
-const OBSERVER_BUTTONS: { code: string; label: string }[] = [
-  { code: engineKeyCode('command'), label: '명령' },
-  { code: engineKeyCode('colliderObserve'), label: '충돌체' },
-  { code: engineKeyCode('attributeInspect'), label: '속성' },
-];
+const OBSERVER_BUTTONS: readonly EngineKeyId[] = ['command', 'colliderObserve', 'attributeInspect'];
 
 export interface TouchPad {
   /** visible 이 false 면 자리를 차지하지 않는다 — 손가락이 닿기 전에는 보이지 않는다 */
@@ -64,7 +61,7 @@ export function touchActionViews(scene: SceneState): TouchActionView[] {
   }));
 }
 
-export function createTouchPad(container: HTMLElement): TouchPad {
+export function createTouchPad(container: HTMLElement, textOf: CodeTextFn = RAW_CODE): TouchPad {
   const root = document.createElement('div');
   root.id = 'touchpad';
   root.innerHTML = `
@@ -99,11 +96,11 @@ export function createTouchPad(container: HTMLElement): TouchPad {
     el.addEventListener('pointerleave', clear);
   };
 
-  for (const button of OBSERVER_BUTTONS) {
+  for (const id of OBSERVER_BUTTONS) {
     const el = document.createElement('button');
     el.className = 'tp-button tp-button-observer';
-    el.textContent = button.label;
-    press(el, button.code);
+    el.textContent = textOf(engineKeyTextCode(id));
+    press(el, engineKeyCode(id));
     observerEl.appendChild(el);
   }
 

@@ -57,6 +57,29 @@ content/<packId>/            컨텐츠 팩 = 교체 단위
 관찰자의 몸(spawnObserverBody)·투영(projectObserver)·tickInterval 도 팩이
 `WorldContent` 계약(`engine/world-kernel/content.ts`)으로 등록한다.
 
+### ⑤ 의 문구 — 기반은 사람이 읽을 말을 짓지 않는다
+
+기반이 그리는 표면(명령 표면 · 겹침 표면 · 슬롯 띠 · 손가락 띠 · 이어짐)은 **무엇을
+말해야 하는지를 코드로 부르고**, 그 코드가 무슨 말이 되는지는 팩의 문구 표가 정한다
+(`CodeTextFn` — 형과 기본값은 `engine/view-kernel/presentation/code-text.ts`).
+값이 끼는 자리는 `{}` 이며, **값은 기반이 데이터로 넘기고 문장은 팩이 소유한다** —
+기반은 `{}` 가 문장의 어디에 있는지조차 알지 못한다.
+
+```text
+목록의 소유    코드를 부르는 자리가 자기 목록을 export 한다
+              (SURFACE_TEXT_CODES · SLOT_BAR_TEXT_CODES · ENGINE_KEY_TEXT_CODES ·
+               SESSION_TEXT_CODES · LINK_TEXT_CODES · COMMAND_TEXT_CODES)
+합집합        engine/view-kernel/presentation/text-codes.ts 의 ENGINE_TEXT_CODES —
+              모으기만 한다. 자리가 자기 목록에 한 줄을 더하면 합집합이 함께 자란다
+검사          팩이 덮지 못한 코드를 팩의 검사가 잡는다
+              (content/<pack>/view/tests/engine-text.spec.ts)
+덮지 않으면    코드가 그대로 화면에 뜬다 — 표현 누락이 게임을 멈추지 않는다.
+              하지만 조용히 그렇게 되는 것과 검사가 말해 주는 것은 다르다
+```
+
+말이 아닌 것은 이 길을 타지 않는다 — 표식 글자(`✓` `✗` `…` `✕`)와 값 없음 표시(`—`),
+단위(`ms` `/s`)는 기반이 그대로 쓴다. 개발자에게만 가는 말(`throw` · `console`)도 같다.
+
 ## 엔진 물리 (engine/physics) 와 승격 규칙
 
 특정 세계관이 아닌 **기본 세계의 규칙**(밀어내기·관성·추적 이동·호 스윕 접촉)은 엔진이
@@ -120,12 +143,5 @@ content/<packId>/            컨텐츠 팩 = 교체 단위
   후보 좁힘이라는 자기 기계장치를 가지며, 그것을 범용 형에 밀어 넣으면 형이 명령의
   모양을 닮는다 (승격 규칙 1 — 하나의 게임에서 일반화하지 않는다).
   셋을 하나로 합칠지는 **다음 팩이 실제로 다른 패널을 요구할 때** 정한다.
-- 기반의 **나머지 표면**에 아직 표시 문구(한국어)가 남아 있다 — 겹침 표면
-  (`hud/surface.ts` 의 `'빈 자리'` `'불가'` `'기다리는 중'` `'가능'` `'닫기'`), 슬롯 띠
-  (`hud/slot-bar.ts` 의 읽어 주는 말), 손가락 띠(`hud/touch-pad.ts` 의 기반 키 이름 셋),
-  이어짐(`presentation/session-presentation.ts` · `link-presentation.ts` 의 상태·계량 이름).
-  명령 표면 쪽이 간 길이 그대로 쓰인다 — **기반은 코드를 부르고 팩의 표가 말을 준다**
-  (`COMMAND_TEXT_CODES` 와 같은 목록 + 팩 검사). 손가락 띠의 셋은 이미 자리가 있다:
-  `input/engine-keys.ts` 가 그 키들의 원본을 쥐고, 팩이 `ENGINE_KEY_TEXT` 에서 이름을 준다.
 - `engine/view-kernel/terrain/terrain.ts` 의 구릉·풀색은 엔진의 기본 지면이다 —
   팩별 지형 표현이 필요해지면 ⑤ 와 같은 주입 자리로 뺀다.

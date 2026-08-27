@@ -60,13 +60,41 @@ function statName(name: string, text: (code: string) => string): string {
 /**
  * 그 자리가 지금 보태고 있는 것 — `물리 공격 +12` 처럼 읽는다.
  *
+ * 작업 공간의 장비 구획도 이 함수를 부른다 (V-012) — 같은 값을 두 곳에서 짓지 않는다.
+ *
  * **화면이 이 값을 어디에도 더하지 않는다.** 몸의 값(combatStats)은 이미 더해진 값으로
  * 오며, 이 줄은 "그 값이 왜 그 값인가" 의 경위일 뿐이다 (04 equipment.contributions).
  */
-function contributionText(slot: EquipmentSlotView, text: (code: string) => string): string {
+export function contributionText(slot: EquipmentSlotView, text: (code: string) => string): string {
   return slot.contributions
     .map((c) => `${statName(c.name, text)} ${c.value >= 0 ? '+' : ''}${c.value}`)
     .join(' · ');
+}
+
+/**
+ * 자리 → **그 자리를 부르는 번호** (V-014).
+ *
+ * **걸린 자리에만 붙는다.** 푸는 일은 걸린 것에만 있으므로 번호도 거기까지이며,
+ * 빈 자리에 번호를 주면 여섯 개가 늘 떠 있는데 그중 쓸 수 있는 것은 몇 개뿐이다.
+ * 두 걸음 지름길(`M` → 번호)이 세는 것이 바로 이 차례다 (`equipmentSlotIds` 가
+ * 같은 순서를 낸다 — 띠에 서는 것도 걸린 자리뿐이기 때문이다).
+ *
+ * 이 함수가 하나 있어야 하는 이유는 소지품 쪽과 같다 (V-013) — 번호를 두 곳에서
+ * 따로 매기면 화면이 부르라고 한 번호와 실제로 부르는 번호가 갈라지고,
+ * 그것을 아는 방법은 눌러 보는 것뿐이다.
+ */
+export function equipmentSlotKeys(
+  equipment: readonly EquipmentSlotView[],
+): ReadonlyMap<string, string> {
+  const keys = new Map<string, string>();
+  let filled = 0;
+  for (const slot of equipment) {
+    if (!slot.item) continue;
+    const key = SLOT_KEYS[filled];
+    filled += 1;
+    if (key) keys.set(slot.slotId, key);
+  }
+  return keys;
 }
 
 /** 그 줄이 어느 자리의 줄인가 — id 에서 자리를 되읽는다 */
@@ -145,15 +173,15 @@ export function equipmentDetailLines(
     `걸어 둔 것 (${keyLabel('unequip')} → 번호 · 바꿔 걸기는 ${keyLabel('exchange')} → 소지품 → 번호)`,
   ];
   // 번호는 **걸린 자리에만** 붙는다 — 띠에 선 순서와 같다 (equipmentSlotIds).
-  let filledIndex = 0;
+  // 번호를 매기는 자리는 하나다 (V-014) — 작업 공간의 칸도 이 표를 읽는다
+  const keys = equipmentSlotKeys(equipment);
   equipment.forEach((slot) => {
     if (!slot.item) {
       // 비었다는 것도 관찰의 내용이다 — 감추면 "여기 걸 수 있다" 를 알 길이 없다.
       lines.push('·  빈 자리');
       return;
     }
-    const key = SLOT_KEYS[filledIndex];
-    filledIndex += 1;
+    const key = keys.get(slot.slotId);
     const head = key ? `${key}.` : '·';
 
     const parts: string[] = [itemName(slot.item.kind, text)];

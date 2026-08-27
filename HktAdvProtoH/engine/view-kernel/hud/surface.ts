@@ -15,13 +15,32 @@
 //     알지 못한다. 쥐고 있지도 않는다: 실려 온 것을 비추고, 쳐 넣은 것을 돌려준다
 //   · 칸이 **얼마나 찼는지**(level)를 명암으로, **표식**(badge)을 귀퉁이 글자로 옮기는 일 —
 //     무엇의 양인지도 무슨 표식인지도 알지 못한다
+//   · **곁말**(tip)을 여는 일 — 손을 얹었을 때와 **초점이 닿았을 때 똑같이** 열고,
+//     Escape 로 닫는다. 곁말의 Escape 는 표면의 Escape 보다 먼저다: 읽던 것을 닫자고
+//     누른 손이 표면째 닫아 버리면 그 자리로 돌아오는 길이 사라진다
 //
 // 이 능력이 소유하지 않는 것:
 //   · 무엇이 고른 것인가 (cell.selected 로 실려 온다 — 결정 Layer 가 쥔다)
 //   · 초점이 지금 어디인가 (surface.focusId 로 실려 온다 — 옮기는 산수는 input/focus.ts)
 //   · 되는지 안 되는지 (row.state 로 실려 온다 — 세계가 판정한 것이다)
+//   · **사람이 읽을 말** — 닫는 자리의 이름도, 빈 자리를 부르는 말도, 상태를 소리로
+//     옮기는 말도 짓지 않는다. 코드로 부르고 팩의 문구 표가 말을 준다
+//     (문구 반전 ⑤ — 명령 표면이 간 길 그대로)
 
+import { RAW_CODE, type CodeTextFn } from '../presentation/code-text';
 import type { SceneSurface, SceneSurfaceSection } from '../scene/scene-state';
+
+/**
+ * 이 능력이 부르는 문구 코드 전부 — 팩이 덮지 못한 것을 검사가 잡는다.
+ * 덮지 않아도 게임은 멈추지 않는다 (코드가 그대로 보인다).
+ */
+export const SURFACE_TEXT_CODES = [
+  'surface.close',
+  'surface.empty-cell',
+  'surface.state.available',
+  'surface.state.blocked',
+  'surface.state.pending',
+] as const;
 
 export interface SurfaceLayer {
   render(surfaces: readonly SceneSurface[]): void;
@@ -60,7 +79,11 @@ function escape(text: string): string {
   );
 }
 
-function renderSection(section: SceneSurfaceSection, focusId: string | undefined): string {
+function renderSection(
+  section: SceneSurfaceSection,
+  focusId: string | undefined,
+  textOf: CodeTextFn,
+): string {
   const title = section.title ? `<div class="sf-section-title">${escape(section.title)}</div>` : '';
 
   // 글자를 받는 자리 — 제목 아래, 칸·줄 위. **글자는 실려 온 것을 비출 뿐이다.**
@@ -88,9 +111,16 @@ function renderSection(section: SceneSurfaceSection, focusId: string | undefined
         // 접근성 이름 — 이름과 곁글자와 표식을 한 줄로. **빈 자리도 이름을 가진다**.
         // 명암(level)은 여기 없다 — 같은 값이 곁글자로 이미 서 있고, 같은 것을 두 번
         // 읽어 주면 목록이 길어지기만 한다
+        // 곁말은 **읽어 주는 이름에도 실린다** — 손을 얹어야만 열리는 정보는
+        // 눈과 손이 있는 사람에게만 있는 정보다
         const label = cell.empty
-          ? cell.text || '빈 자리'
-          : [cell.badge, cell.text, cell.detail].filter(Boolean).join(', ');
+          ? cell.text || textOf('surface.empty-cell')
+          : [cell.badge, cell.text, cell.detail, ...(cell.tip ?? [])].filter(Boolean).join(', ');
+        const tip = cell.tip?.length
+          ? `<span class="sf-tip" role="tooltip">${cell.tip
+              .map((line) => `<span>${escape(line)}</span>`)
+              .join('')}</span>`
+          : '';
         // 얼마나 찼는가 — 0..1 밖의 값은 그 끝으로 붙인다 (그리는 쪽의 산수다)
         const level =
           cell.level === undefined ? undefined : Math.max(0, Math.min(1, cell.level));
@@ -98,11 +128,13 @@ function renderSection(section: SceneSurfaceSection, focusId: string | undefined
           `<button type="button" class="sf-cell" data-id="${escape(cell.id)}"` +
           ` data-empty="${cell.empty}" data-selected="${cell.selected}"` +
           ` data-focused="${cell.id === focusId}"` +
+          (tip ? ' data-tip="true"' : '') +
           (level === undefined ? '' : ` style="--sf-level:${level.toFixed(3)}"`) +
           ` aria-label="${escape(label)}" aria-pressed="${cell.selected}">` +
           (cell.badge ? `<span class="sf-cell-badge">${escape(cell.badge)}</span>` : '') +
           `<span class="sf-cell-text">${escape(cell.text)}</span>` +
           (cell.detail ? `<span class="sf-cell-detail">${escape(cell.detail)}</span>` : '') +
+          tip +
           `</button>`
         );
       })
@@ -131,14 +163,7 @@ function renderSection(section: SceneSurfaceSection, focusId: string | undefined
               ? '✓'
               : '';
       // 소리로 읽는 사람에게 표식은 글자가 아니다 — 상태를 말로도 둔다
-      const spokenState =
-        row.state === 'blocked'
-          ? '불가'
-          : row.state === 'pending'
-            ? '기다리는 중'
-            : row.state === 'available'
-              ? '가능'
-              : '';
+      const spokenState = row.state ? textOf(`surface.state.${row.state}`) : '';
       const spoken = [row.text, row.hint, spokenState].filter(Boolean).join(', ');
       // **줄도 단추다.** div 였던 동안 이 자리는 손가락으로 닿지 않았고 자판 초점도
       // 받지 못했다 — 되는 것을 눌러 실행하는 길이 자판에만 있었다는 뜻이다.
@@ -167,13 +192,16 @@ function renderSection(section: SceneSurfaceSection, focusId: string | undefined
  * 빈 칸이 그려지는가, 안 되는 줄이 사라지지 않는가, 초점과 고른 것이 다른 자리에
  * 표시되는가 — 전부 브라우저 없이 확인할 수 있어야 하는 성질이다.
  */
-export function surfaceMarkup(surface: SceneSurface): string {
+export function surfaceMarkup(surface: SceneSurface, textOf: CodeTextFn = RAW_CODE): string {
+  // 닫는 자리의 이름 — 글자가 아니라 ✕ 하나이므로, 이 이름이 없으면 손가락과
+  // 읽어 주는 장치에게 이 버튼은 이름 없는 무엇이 된다 (명령 표면과 같은 이유).
+  const closeText = escape(textOf('surface.close'));
   return (
     `<header class="sf-head"><h2 class="sf-title">${escape(surface.title)}</h2>` +
     `<button type="button" class="sf-close" data-surface="${escape(surface.id)}"` +
-    ` title="닫기" aria-label="닫기">✕</button></header>` +
+    ` title="${closeText}" aria-label="${closeText}">✕</button></header>` +
     `<div class="sf-body">${surface.sections
-      .map((section) => renderSection(section, surface.focusId))
+      .map((section) => renderSection(section, surface.focusId, textOf))
       .join('')}</div>` +
     (surface.footer.length > 0
       ? `<footer class="sf-foot">${surface.footer
@@ -183,7 +211,11 @@ export function surfaceMarkup(surface: SceneSurface): string {
   );
 }
 
-export function createSurfaceLayer(container: HTMLElement, handlers: SurfaceHandlers): SurfaceLayer {
+export function createSurfaceLayer(
+  container: HTMLElement,
+  handlers: SurfaceHandlers,
+  textOf: CodeTextFn = RAW_CODE,
+): SurfaceLayer {
   const root = document.createElement('div');
   root.id = 'surfaces';
   container.appendChild(root);
@@ -192,6 +224,82 @@ export function createSurfaceLayer(container: HTMLElement, handlers: SurfaceHand
   let openIds: string[] = [];
   // 프레임마다 innerHTML 을 갈아 끼우지 않기 위해 마지막으로 그린 것을 기억한다
   const drawn = new Map<string, { node: HTMLElement; html: string }>();
+
+  // ── 곁말 (tip) ──────────────────────────────────────────────────
+  //
+  // 손을 얹은 것과 초점이 닿은 것을 **같은 하나의 상태**로 다룬다. 둘을 따로 두면
+  // 손이 얹힌 채 초점이 옮겨갈 때 곁말이 둘 열리고, 어느 것이 지금 것인지 알 수 없다.
+  //
+  // 닫은 것은 기억한다 — Escape 로 닫았는데 손이 그 자리에 그대로 있으면 다음
+  // 손짓 하나에 곧바로 다시 열리고, 그러면 닫은 것이 닫힌 것이 아니게 된다.
+  // 그 자리를 **떠나면** 잊는다: 다시 오는 것은 다시 읽겠다는 뜻이다.
+  let openTip: { surfaceId: string; cellId: string } | null = null;
+  let dismissedTip: string | null = null;
+  const tipKey = (surfaceId: string, cellId: string): string => `${surfaceId}\u0000${cellId}`;
+
+  /** 상태를 DOM 에 바른다 — 다시 그린 뒤에도 같은 함수가 다시 바른다 */
+  function paintTip(): void {
+    for (const entry of drawn.values()) {
+      const cells = Array.from(entry.node.querySelectorAll<HTMLElement>('.sf-cell[data-tip]'));
+      for (const el of cells) {
+        const on =
+          openTip !== null &&
+          entry.node.dataset.surface === openTip.surfaceId &&
+          el.dataset.id === openTip.cellId;
+        if (on) el.dataset.tipOpen = 'true';
+        else delete el.dataset.tipOpen;
+      }
+    }
+  }
+
+  function showTip(surfaceId: string, cellId: string): void {
+    if (dismissedTip === tipKey(surfaceId, cellId)) return;
+    if (openTip?.surfaceId === surfaceId && openTip.cellId === cellId) return;
+    openTip = { surfaceId, cellId };
+    paintTip();
+  }
+
+  function hideTip(surfaceId?: string, cellId?: string): void {
+    if (!openTip) return;
+    if (surfaceId !== undefined && (openTip.surfaceId !== surfaceId || openTip.cellId !== cellId)) {
+      return;
+    }
+    openTip = null;
+    paintTip();
+  }
+
+  /** 곁말을 지닌 칸인가 — 지니지 않은 칸은 이 길에 아무 일도 일으키지 않는다 */
+  function tipCellOf(target: EventTarget | null): { surfaceId: string; cellId: string } | null {
+    const el = (target as HTMLElement | null)?.closest<HTMLElement>('.sf-cell[data-tip]');
+    const surfaceId = surfaceOf(el ?? null);
+    if (!el || el.dataset.id === undefined || !surfaceId) return null;
+    return { surfaceId, cellId: el.dataset.id };
+  }
+
+  root.addEventListener('pointerover', (ev) => {
+    const at = tipCellOf(ev.target);
+    if (at) showTip(at.surfaceId, at.cellId);
+  });
+  root.addEventListener('pointerout', (ev) => {
+    const at = tipCellOf(ev.target);
+    // 자리를 떠났다 — 닫은 기억도 함께 잊는다 (다시 오면 다시 읽는다)
+    if (at) {
+      if (dismissedTip === tipKey(at.surfaceId, at.cellId)) dismissedTip = null;
+      hideTip(at.surfaceId, at.cellId);
+    }
+  });
+  // 초점은 손과 **같은 자격**이다 — 자판만 쓰는 사람에게 이것이 곁말에 닿는 유일한 길이다
+  root.addEventListener('focusin', (ev) => {
+    const at = tipCellOf(ev.target);
+    if (at) showTip(at.surfaceId, at.cellId);
+  });
+  root.addEventListener('focusout', (ev) => {
+    const at = tipCellOf(ev.target);
+    if (at) {
+      if (dismissedTip === tipKey(at.surfaceId, at.cellId)) dismissedTip = null;
+      hideTip(at.surfaceId, at.cellId);
+    }
+  });
 
   window.addEventListener(
     'keydown',
@@ -204,6 +312,13 @@ export function createSurfaceLayer(container: HTMLElement, handlers: SurfaceHand
       if (tag === 'INPUT' || tag === 'TEXTAREA' || target?.isContentEditable) return;
       ev.preventDefault();
       ev.stopPropagation();
+      // **곁말이 먼저다.** 읽던 것을 닫자고 누른 손이 표면째 닫아 버리면,
+      // 그 자리로 돌아오는 길이 사라진다 (문서 §8 — `Esc` 로 닫힌다).
+      if (openTip) {
+        dismissedTip = tipKey(openTip.surfaceId, openTip.cellId);
+        hideTip();
+        return;
+      }
       handlers.onClose(openIds[openIds.length - 1]!);
     },
     // 붙잡는 단계에서 받는다 — 다른 처리가 먼저 삼키지 않게
@@ -323,7 +438,7 @@ export function createSurfaceLayer(container: HTMLElement, handlers: SurfaceHand
         if (!surface.open) continue;
         nowOpen.push(surface.id);
 
-        const html = surfaceMarkup(surface);
+        const html = surfaceMarkup(surface, textOf);
 
         // 값이 그대로면 DOM 을 건드리지 않는다 — 프레임마다 글자를 다시 래스터화하지 않게
         if (entry.html !== html) {
@@ -335,9 +450,27 @@ export function createSurfaceLayer(container: HTMLElement, handlers: SurfaceHand
             active?.classList.contains('sf-field') && entry.node.contains(active)
               ? { id: active.dataset.id, at: active.selectionStart }
               : null;
+          // 칸·줄에 닿아 있던 초점도 붙들었다 놓아 준다. 붙들지 않으면 목록이
+          // 한 번 다시 그려질 때마다 초점이 화면 밖으로 튀어나가고, 자판만 쓰는
+          // 사람은 방금 읽던 자리를 잃는다 — 곁말도 함께 닫힌다.
+          const focused =
+            active && entry.node.contains(active) && !typing
+              ? (active.closest<HTMLElement>('.sf-cell, .sf-row') ?? null)
+              : null;
+          const focusedAgain = focused
+            ? { selector: focused.classList.contains('sf-cell') ? '.sf-cell' : '.sf-row', id: focused.dataset.id }
+            : null;
 
           entry.node.innerHTML = html;
           entry.html = html;
+
+          if (focusedAgain?.id !== undefined) {
+            entry.node
+              .querySelector<HTMLElement>(
+                `${focusedAgain.selector}[data-id="${CSS.escape(focusedAgain.id)}"]`,
+              )
+              ?.focus();
+          }
 
           if (typing?.id !== undefined) {
             const again = entry.node.querySelector<HTMLInputElement>(
@@ -370,6 +503,13 @@ export function createSurfaceLayer(container: HTMLElement, handlers: SurfaceHand
       }
 
       openIds = nowOpen;
+      // 닫힌 표면의 곁말은 함께 사라진다 — 없는 자리에 열린 곁말이 남으면
+      // 다음에 그 표면을 열었을 때 아무도 손을 얹지 않았는데 곁말이 떠 있다
+      if (openTip && !nowOpen.includes(openTip.surfaceId)) {
+        openTip = null;
+        dismissedTip = null;
+      }
+      paintTip();
     },
   };
 }

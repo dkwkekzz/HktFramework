@@ -8,7 +8,19 @@
 // (INTENT-LINK-ALWAYS-SHOWN-001). 수치와 신원 줄이 여기에 함께 실린다.
 
 import type { LinkState } from '../../protocol-core/transport';
+import { RAW_CODE, type CodeTextFn } from './code-text';
 import type { LinkLine } from './link-presentation';
+
+/**
+ * 이어짐 상태를 부르는 문구 코드 — **말은 팩의 것이다** (문구 반전 ⑤).
+ * 무엇이 이어짐이고 어떤 갈래가 있는지는 기반이 알지만, 그것을 사람에게 뭐라 이르는지는
+ * 세계마다 다르다.
+ */
+export const SESSION_TEXT_CODES = [
+  'link.state.connected',
+  'link.state.connecting',
+  'link.state.disconnected',
+] as const;
 
 export interface SessionPresentation {
   state: LinkState;
@@ -21,17 +33,12 @@ export interface SessionPresentation {
   binding: LinkLine[];
 }
 
-const LINK_TEXT: Record<LinkState, string> = {
-  connected: '세계와 이어짐',
-  connecting: '세계에 잇는 중…',
-  disconnected: '세계와 끊김 — 마지막으로 본 모습입니다',
-};
-
 export function sessionPresentation(
   state: LinkState,
   stale: boolean,
   telemetry: LinkLine[] = [],
   binding: LinkLine[] = [],
+  textOf: CodeTextFn = RAW_CODE,
 ): SessionPresentation {
-  return { state, text: LINK_TEXT[state], stale, telemetry, binding };
+  return { state, text: textOf(`link.state.${state}`), stale, telemetry, binding };
 }
