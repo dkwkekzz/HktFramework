@@ -78,7 +78,15 @@
         "defenseShape": "even",
         "insight": 0,
         "stanceTowardObserver": "neutral",
-        "stanceFromObserver": "neutral"
+        "stanceFromObserver": "neutral",
+        "allocation": {
+          "id": "balanced",
+          "shares": {
+            "body": 2,
+            "ability": 2,
+            "awareness": 2
+          }
+        }
       }
     },
     {
@@ -152,7 +160,15 @@
         "defenseShape": "even",
         "insight": 0,
         "stanceTowardObserver": "neutral",
-        "stanceFromObserver": "neutral"
+        "stanceFromObserver": "neutral",
+        "allocation": {
+          "id": "balanced",
+          "shares": {
+            "body": 2,
+            "ability": 2,
+            "awareness": 2
+          }
+        }
       }
     }
   ],
@@ -291,5 +307,6 @@
     "used": 0,
     "capacity": 4
   },
-  "equipment": []
+  "equipment": [],
+  "allocations": []
 }

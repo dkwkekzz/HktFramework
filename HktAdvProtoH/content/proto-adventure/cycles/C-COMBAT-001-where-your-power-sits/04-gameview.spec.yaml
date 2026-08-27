@@ -1,0 +1,359 @@
+# CYCLE C-COMBAT-001 — GameView Specification
+#
+# 이 Cycle 이 계약에 더하는 것은 셋뿐이다.
+#
+#   ① 모든 존재에 **지금의 배분** 한 자리 — 가려지지 않는다. 형태는 보이고 값은 아니다.
+#   ② 내 몸에만 **고를 수 있는 배분들의 목록** — 소지품·적용 자리와 나란한 세 번째 목록.
+#      항목마다 자기 행동과 사유를 지닌다 (C020 · C023 의 형태 그대로).
+#   ③ 한 방의 경위에 **배분이 보탠 몫** — 0 이어도 실린다.
+#
+# 그 밖의 모든 값은 형태가 한 글자도 바뀌지 않는다. combatStats 도 insight 도
+# concealed 도 그대로 오고, **다만 그 안의 수가 국면마다 움직인다.**
+# 그것이 이 Cycle 이 만드는 변화이며 계약이 아니라 세계에서 온다.
+#
+# 이 계약을 받은 View 는 **배분을 한 번도 계산하지 않는다.** 어느 배분이 어느 값을
+# 얼마나 올리는지도, 지금 바꿀 기력이 되는지도, 왜 안 되는지도 묻지 않는다 —
+# 받은 값을 옮긴다. 배분 이름이 화면의 조건이 되지 않는다.
+id: VIEW-WHERE-YOUR-POWER-SITS-001
+observer: player
+
+delta:
+  reused:
+    - scene.mining-field
+    - entities.character                    # 위치·역할·이름·종류·모션·body·swing·상태 그대로
+    - entities.deposit
+    - entities.character.vitality           # 생명 — 자율 존재의 배분을 읽는 근거가 여기 있다
+    - entities.character.attributes.energy  # 기력 — 바꿀 수 있는가의 근거
+    - entities.character.attributes.guard
+    - entities.character.attributes.stanceTowardObserver / stanceFromObserver
+    - entities.character.attributes.tempoStats / modifiers / moveMode / control
+    - entities.character.attributes.acquainted / unacquaintedReason
+    - entities.character.attributes.versusObserver / defenseShape
+    - inventory / inventoryRoom / equipment
+    - strikes / contacts / cancels
+    - currentTarget / commandCatalog
+    - observer / session / delivery / identity / telemetry
+    - interactions.*                        # 기존 열일곱 — 하나도 바뀌지 않는다
+  added:
+    - allocations                                   # 고를 수 있는 배분들 (내 몸에만)
+    - allocations[].actions[role=set-allocation]
+    - entities.character.attributes.allocation      # 지금의 배분 (모든 존재)
+    - interactions.setAllocation                    # 요청의 자리
+    - strikes[].breakdown.attackerAllocation
+    - strikes[].breakdown.targetAllocation
+    - strikes[].breakdown.offenseStat.fromAllocation
+    - strikes[].breakdown.defenseStat.fromAllocation
+    - strikes[].breakdown.penetrationStat.fromAllocation
+    - hud.self.allocation
+  changed:
+    # 셋 다 **형태가 바뀌지 않는다** — 싣는 수의 출처가 넓어질 뿐이다
+    - entities.character.attributes.combatStats     # 유효 값에 배분 항이 든다
+    - entities.character.attributes.insight         # 기본값 → 유효 값
+    - entities.character.attributes.concealed       # 인지 배분이 자리를 여닫는다
+  removed: []
+
+scene: mining-field
+
+# ─────────────────────────────────────────────────────────────────
+# allocations — 이 Cycle 이 세우는 목록
+#
+#   **소지품(C020) · 적용 자리(C023) 와 나란한 세 번째 목록이다.** 셋이 답하는 질문이
+#   다르다 — 무엇을 지녔는가 / 몸이 무엇으로 되어 있는가 / 지금 힘을 어디에 두었는가.
+#
+#   **네 항목이 언제나 전부 실린다.** 지금 고를 수 없는 것도 실린다 — 못 고른다는 것과
+#   존재하지 않는다는 것은 다르며, 그 구분이 없으면 "기력을 모으면 저것으로 갈 수 있다"
+#   를 사람이 알 수 없다 (C023 이 빈 자리를 싣는 것과 같은 판단).
+#
+#   **내 몸의 것만 실린다** (INTENT-PER-OBSERVER-PROJECTION-001). 남이 무엇으로 바꿀 수
+#   있는지는 오지 않는다 — 세계에 그 관찰이 없다. 남이 지금 어디에 두었는지는
+#   attributes.allocation 이 이미 싣고 있다.
+# ─────────────────────────────────────────────────────────────────
+allocations:
+  cardinality: many                 # World.AllocationCatalog 의 항목 수만큼
+  source: World.AllocationCatalog
+  order:
+    source: World.AllocationCatalog 의 차례
+    meaning: >
+      같은 세계 상태면 같은 순서다. **화면은 정렬하지 않는다** — 받은 차례로 그린다.
+  fields:
+    id:
+      source: AllocationCatalog 항목의 이름 (의미 코드)
+      meaning: 표시 이름은 View 책임. 화면이 이 코드로 분기하지 않는다
+    shares:
+      source: AllocationCatalog 항목의 세 몫
+      fields:
+        body: { source: 몫 (정수) }
+        ability: { source: 몫 (정수) }
+        awareness: { source: 몫 (정수) }
+      meaning: >
+        **세계가 몫을 싣는다.** 화면이 이름을 보고 자기 표에서 찾아내지 않는다
+        (DC-WORLD-OWNS-THE-SURFACE-LIST). 배분을 하나 더 지어도 화면 코드가 열리지 않는다.
+        세 몫의 합이 어느 항목에서나 같다는 것도 이 값으로 확인된다 — 합을 따로 싣지
+        않는 이유다.
+    current:
+      source: Actor.Allocation == 이 항목의 id
+      meaning: >
+        **available 과 별개다.** 지금 있는 자리는 거절이 아니므로 available 이 참인 채로
+        current 도 참이다 (INTENT-CHANGE-ALLOCATION-REFUSAL-001).
+    cpCost:
+      source: current 이면 0, 아니면 World.AllocationSwitchCpCost
+      meaning: >
+        치를 값을 세계가 싣는다. 화면이 상수를 지니지 않는다 — 값이 바뀌어도 화면이 열리지
+        않는다. current 에서 0 인 것은 "이미 그 자리에 있는 것에 값을 물리지 않는다" 의
+        관찰이다.
+    actions:
+      cardinality: 0..1
+      meaning: 이 배분으로 지금 갈 수 있는가. 언제나 정확히 하나 실린다
+      fields:
+        interactionId: { source: 'set-allocation' }
+        role: { source: 'set-allocation' }
+        available:
+          source: RULE-ALLOCATION-SET-001 의 판정 (Rule 과 같은 판정을 공유한다)
+        unavailableReason:
+          source: RULE-ALLOCATION-SET-001 의 실패 사유
+          values:
+            - downed             # 쓰러진 몸은 아무 배분으로도 가지 않는다
+            - insufficient-cp    # 기력이 15 에 못 미친다
+          meaning: >
+            `unknown-allocation` 은 **여기 오지 않는다** — 이 목록 자체가 세계의 목록이므로
+            화면이 목록 밖의 이름을 보낼 길이 없다. 그럼에도 Rule 은 그 사유를 지닌다
+            (다른 경로의 요청을 위해). 계약이 싣지 않는 사유가 있는 것은 정상이다.
+
+# ─────────────────────────────────────────────────────────────────
+# entities — 한 자리가 는다
+# ─────────────────────────────────────────────────────────────────
+entities:
+  character:
+    reused: true
+    attributes:
+      allocation:
+        added: true
+        source: Actor.Allocation (+ 그 항목의 세 몫)
+        fields:
+          id: { source: 배분 이름 (의미 코드) }
+          shares:
+            body: { source: 몫 }
+            ability: { source: 몫 }
+            awareness: { source: 몫 }
+        concealed: false
+        meaning: >
+          **모든 존재에 언제나 실린다. 가려지지 않는다.**
+          몰아 두는 일은 몸이 드러내는 것이며(INTENT-ALLOCATION-IS-OBSERVED-001),
+          가리면 "얇아진 쪽을 노린다" 가 세계에서 성립하지 않는다.
+          태도(C018)와 통찰(C016)이 가려지지 않는 자리에 나란히 선다.
+
+          **그러나 이것이 값을 새게 하지는 않는다.** 저 몸의 방어가 배분 때문에 얼마가
+          되었는지는 combatStats 이고 그것은 여전히 문턱 90 뒤에 있다. 보이는 것은
+          형태이고 값이 아니다 — 이 구분이 C016 이 세운 "일부만 안다" 를 지킨다.
+
+          몫을 함께 싣는 이유는 allocations 와 같다. 화면이 이름으로 표를 만들지 않는다.
+
+      combatStats:
+        changed: true
+        meaning: >
+          **형태가 한 글자도 바뀌지 않는다.** 여덟 값과 두 배율이 그대로 온다.
+          바뀌는 것은 그 안의 수다 — 이제 기본값 + 걸린 것 + **지금의 배분**이며,
+          같은 몸이 국면마다 다른 수를 싣는다. C023 이 "유효 값" 을 세운 그 자리를
+          그대로 쓴다.
+          여전히 문턱 90 뒤에 있다 (C016 무변경).
+
+      insight:
+        changed: true
+        meaning: >
+          **기본값이 아니라 유효 값이 온다.** 인지에 몰면 이 수가 오르고 덜면 내린다.
+          가려지지 않는 성질은 그대로다 — 겨루는 힘이 아니라 아는 힘이다 (C016).
+          남의 것도 그대로 실린다.
+
+      concealed:
+        changed: true
+        meaning: >
+          **형태도 목록도 바뀌지 않는다.** 세 이름과 문턱 셋(30·60·90)이 그대로다.
+          바뀌는 것은 그 판정이 견주는 통찰이 유효 값이라는 것뿐이다.
+          그래서 **인지에 몰면 살펴보지 않은 존재의 자리가 열리고, 덜면 다시 닫힌다.**
+          연 것을 적어 두지 않는 C016 의 성질이 그대로 이 왕복을 만든다.
+          문턱 값은 여전히 싣지 않는다 — 세계가 답을 이미 싣고 있다.
+
+  deposit: { reused: true }
+
+# ─────────────────────────────────────────────────────────────────
+# interactions — 자리 하나가 는다
+# ─────────────────────────────────────────────────────────────────
+interactions:
+  setAllocation:
+    added: true
+    id: set-allocation
+    role: set-allocation
+    request:
+      allocationId:
+        source: allocations[].id 중 하나
+        meaning: >
+          **요청은 명시값이다.** 토글도 아니고 "다음 것" 도 아니다 — 같은 요청이 두 번 와도
+          결과가 같다 (RULE-MOVE-MODE-001 의 형태 그대로).
+          몫을 싣지 않는다. 사람이 하는 일은 배분 하나를 고르는 것이며, 몫을 실을 수 있게
+          하는 순간 이 계약이 실시간 조절 UI 의 문을 연다
+          (DC-COMBAT-AURA-IS-A-PROFILE-NOT-A-DIAL).
+    available:
+      source: allocations[].actions[0].available 와 같은 판정
+      meaning: >
+        이 자리는 **요청의 주소**이고, 무엇으로 갈 수 있는지는 allocations 목록이 답한다.
+        interaction 하나가 항목마다 available 을 다르게 지닐 수 없으므로 둘로 나눈다 —
+        `use-item` 하나가 소지품 항목마다의 가능 여부를 목록에 두는 것과 같다 (C020).
+    unavailableReason:
+      values: [downed, insufficient-cp, unknown-allocation]
+
+  attack: { reused: true }
+  skillHeavy: { reused: true }
+  skillAura: { reused: true }
+  guardBegin: { reused: true }
+  guardRelease: { reused: true }
+  observe:
+    reused: true
+    meaning: >
+      `already-known` 이 오는 조건이 넓어진다 — 인지에 몰아 세 문턱을 다 넘은 몸에게는
+      살펴볼 것이 남지 않기 때문이다. **사유 코드도 계약도 바뀌지 않는다.**
+      지금 세계의 통찰(0)과 인지 몫(최대 +40)으로는 그 일이 일어나지 않는다.
+  forgetAcquaintance: { reused: true }
+  selectTarget: { reused: true }
+  clearTarget: { reused: true }
+  move: { reused: true }
+  moveMode: { reused: true }
+  mine: { reused: true }
+  useItem: { reused: true }
+  discardItem: { reused: true }
+  equipItem: { reused: true }
+  unequipItem: { reused: true }
+  setAttribute:
+    reused: true
+    meaning: >
+      밖에서 넣는 값은 여전히 **기본값**이다. 배분이 걸려 있으면 넣은 수와 combatStats 에
+      보이는 수가 다르다 — 걸린 것에 대해 C023 이 적은 것과 같은 결과이며 옳다.
+      계약은 바뀌지 않는다.
+
+# ─────────────────────────────────────────────────────────────────
+# strikes — 경위에 배분이 실린다
+# ─────────────────────────────────────────────────────────────────
+strikes:
+  reused: true
+  breakdown:
+    attackerAllocation:
+      added: true
+      source: 타격 시점 치는 쪽의 Actor.Allocation (의미 코드)
+    targetAllocation:
+      added: true
+      source: 타격 시점 맞는 쪽의 Actor.Allocation (의미 코드)
+    offenseStat.fromAllocation:
+      added: true
+      source: 배분이 이 공격 값에 보탠 몫
+    defenseStat.fromAllocation:
+      added: true
+      source: 배분이 이 방어 값에 보탠 몫
+    penetrationStat.fromAllocation:
+      added: true
+      source: 언제나 0 — 관통은 어느 축에도 들지 않는다
+    meaning: >
+      **셋 다 0 이어도 실린다.** 터지지 않은 치명이 실리는 이유와 같다 (C015) —
+      "이번 한 방에 배분이 아무것도 하지 않았다" 는 사실 역시 관찰이어야, 배분을 바꿀
+      근거가 생긴다. 음수도 그대로 실린다: 몰지 않은 축의 값이 얼마나 얇아졌는지가
+      경위에서 읽혀야 맞바꿈이 눈에 닿는다.
+
+      **View 가 빼서 만들지 않는다.** 화면이 combatStats 와 배분 표를 견주어 이 수를
+      계산하는 순간 세계와 화면에 두 개의 진실이 생긴다 (DC-WORLD-OWNS-THE-SURFACE-LIST).
+
+# ─────────────────────────────────────────────────────────────────
+# hud
+# ─────────────────────────────────────────────────────────────────
+hud:
+  added:
+    - id: self.allocation
+      kind: label
+      source: 관찰자 몸의 Actor.Allocation
+      meaning: 지금 어디에 두었는가 — 의미 코드. 문구 변환은 View 책임
+    - id: self.allocation.share.body
+      kind: counter
+      source: 지금 배분의 몸 몫
+    - id: self.allocation.share.ability
+      kind: counter
+      source: 지금 배분의 능력 몫
+    - id: self.allocation.share.awareness
+      kind: counter
+      source: 지금 배분의 인지 몫
+  reused:
+    - self.combat.*      # 값이 국면마다 움직인다 — 형태는 그대로
+    - self.insight       # 유효 값이 온다 — 형태는 그대로
+    - self.cp            # 바꿀 수 있는가의 근거
+  meaning: >
+    고를 수 있는 배분들은 hud 가 아니라 allocations 가 지닌다 —
+    **어디에 그리는가는 View 가 정한다** (C023 이 적용 자리에 대해 내린 판단 그대로).
+    이 계약은 값이 어디서 오는지만 말한다.
+
+# ─────────────────────────────────────────────────────────────────
+# designer — 같은 계약을 쓴다
+# ─────────────────────────────────────────────────────────────────
+designer:
+  uses: 이 계약 그대로. World 로 가는 별도 경로를 만들지 않는다
+  goal:
+    - GOAL-THE-BODY-HAS-A-PRESENT-ALLOCATION
+    - GOAL-CONCENTRATING-THINS-THE-REST
+    - GOAL-ALLOCATION-ENTERS-THE-EFFECTIVE-VALUE
+    - GOAL-CHANGING-IS-ONE-ACT-WITH-A-COST
+    - GOAL-AN-ALLOCATION-CAN-BE-READ
+    - GOAL-NO-BODY-IS-EXEMPT
+  possibility:
+    - POSSIBILITY-ALLOCATION-IS-A-NAMED-STATE
+    - POSSIBILITY-EVERY-BODY-ALWAYS-HAS-EXACTLY-ONE
+    - POSSIBILITY-THE-ALLOCATIONS-ARE-A-VALUE-NOT-A-RULE
+    - POSSIBILITY-THE-SHARES-SUM-THE-SAME
+    - POSSIBILITY-THE-AXES-DO-NOT-OVERLAP
+    - POSSIBILITY-NOT-EVERY-VALUE-BELONGS-TO-AN-AXIS
+    - POSSIBILITY-ANOTHER-TERM-NOT-ANOTHER-FORMULA
+    - POSSIBILITY-THE-BASE-IS-NEVER-TOUCHED-BY-ALLOCATING
+    - POSSIBILITY-THE-EVEN-ALLOCATION-ADDS-NOTHING
+    - POSSIBILITY-EVERY-READER-READS-THE-EFFECTIVE-ONE
+    - POSSIBILITY-ONE-INPUT-CHOOSES-ONE-STATE
+    - POSSIBILITY-THE-COST-COMES-FROM-THE-SHARED-BUDGET
+    - POSSIBILITY-A-REFUSAL-CARRIES-ITS-REASON
+    - POSSIBILITY-A-FAILED-CHANGE-LEAVES-NOTHING
+    - POSSIBILITY-CHANGING-TO-WHERE-YOU-ARE-IS-NOT-AN-ACT
+    - POSSIBILITY-YOUR-OWN-IS-ALWAYS-SEEN
+    - POSSIBILITY-THE-OPPONENTS-SHAPE-IS-SEEN-TOO
+    - POSSIBILITY-THE-SHAPE-IS-SEEN-BUT-THE-NUMBERS-ARE-NOT
+    - POSSIBILITY-THE-CAUSE-READING-CARRIES-THE-ALLOCATION
+    - POSSIBILITY-AUTONOMOUS-BODIES-ALLOCATE-TOO
+  availability:
+    - allocations[].actions[0].available + unavailableReason
+  preconditions:
+    - RULE-ALLOCATION-SET-001 — 목록에 있는 이름 · 쓰러지지 않음 · Cp >= 15 (다른 배분일 때)
+  beforeAfter:
+    - Before  allocation=balanced · cp=30 · combatStats.armor=50
+      Input   set-allocation(reinforce)
+      After   allocation=reinforce · cp=15 · combatStats.armor=70
+  reason:
+    - downed · insufficient-cp · unknown-allocation
+
+# ─────────────────────────────────────────────────────────────────
+# OBSERVABLE PROJECTION NOTE — 싣지 않는 것과 그 사유
+# ─────────────────────────────────────────────────────────────────
+# 1. **축이 어느 값에 얼마를 보태는지의 표(AllocationAxes)를 싣지 않는다.**
+#    세계가 이미 답을 싣고 있기 때문이다 — combatStats 에 결과가, breakdown 에 몫이
+#    온다. 표를 실으면 화면이 그것으로 예측값을 계산할 수 있게 되고, 그 순간 화면에
+#    두 번째 계산이 생긴다 (C016 이 문턱 값을 싣지 않은 것과 같은 판단).
+#
+#    **"바꾸면 어떻게 되는가" 를 미리 보여주는 것은 이 Cycle 이 아니다.** 그것은
+#    세계에 없는 관찰이며(장비의 FR-SEE-BEFORE-YOU-WEAR 와 같은 자리), 화면이
+#    만들어내서는 안 된다.
+#
+# 2. **World.AllocationShareTotal 과 EvenShare 를 싣지 않는다.** 세 몫이 항목마다
+#    오므로 합은 보는 것으로 확인된다. 상수를 실으면 화면이 "고른 배분인가" 를
+#    스스로 판정하게 되고, 그 판정은 세계의 것이다.
+#
+# 3. **바꿀 수 있게 되기까지 얼마나 남았는지를 싣지 않는다.** 기력과 cpCost 가 이미
+#    와 있고, 그 뺄셈은 표시의 문제다. 세계에 "언제 될 것인가" 라는 상태가 없다.
+#
+# 4. **남의 allocations 목록을 싣지 않는다.** 세계에 그 관찰이 없다. 남이 지금 어디에
+#    두었는지는 attributes.allocation 이 답하고, 남이 어디로 갈 수 있는지는 세계가
+#    아직 묻지 않는 질문이다.
+#
+# 5. **자율 존재의 문턱(0.5)을 싣지 않는다.** 사람이 관찰로 배우는 것이 이 층의 목적이다
+#    (UL §39 — 내가 아는 상대의 규칙). 생명도 배분도 이미 실려 있으므로 배울 재료는 다 있다.
+#
+# GAP — 없음. 03-world-semantic.md 의 Observable Semantic 이 모두 투영되었다.

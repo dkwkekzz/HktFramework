@@ -6,6 +6,7 @@
 import type { KeyBinding } from '../../../engine/view-kernel/input/bindings';
 import type { ActionRequest } from '../protocol/actions';
 import type { GameViewSnapshot } from '../protocol/gameview';
+import { allocationSlots } from './allocation-presentation';
 import { equipmentSlotIds } from './equipment-presentation';
 import { inventorySlots } from './inventory-presentation';
 import { claimSearchFocus, cycleFilter, cycleOrder } from './inventory-view';
@@ -81,9 +82,19 @@ const DISCARD_ARM_KEY = keyCode('discard');
 const EQUIP_ARM_KEY = keyCode('equip');
 const UNEQUIP_ARM_KEY = keyCode('unequip');
 const EXCHANGE_ARM_KEY = keyCode('exchange');
+// C-COMBAT-001 — 배분도 같은 두 걸음이다. 넷을 각각 한 키에 두려면 손가락 자리가 넷
+// 더 필요한데 남은 자리가 그만큼 없고, 무엇보다 **화면이 배분 이름마다 키를 적어 두면**
+// 세계가 배분을 하나 더 지을 때 조작 코드가 열린다. 순서로 짚으면 열리지 않는다.
+const ALLOCATION_ARM_KEY = keyCode('allocation');
 
 /** 다음 숫자 키가 무엇인가. **화면의 조작 상태이지 세계의 상태가 아니다** */
-type ArmedRole = 'discard-item' | 'equip-item' | 'unequip-item' | 'exchange-item' | null;
+type ArmedRole =
+  | 'discard-item'
+  | 'equip-item'
+  | 'unequip-item'
+  | 'exchange-item'
+  | 'set-allocation'
+  | null;
 let armed: ArmedRole = null;
 
 /**
@@ -166,6 +177,18 @@ function slotKey(index: number): KeyBinding {
 
       // 열려 있었으면 이 한 번으로 닫힌다 — 열린 채로 남지 않는다.
       armed = null;
+
+      // C-COMBAT-001 — 배분은 **순서로** 짚는다. 이름을 적어 두지 않으므로 세계가
+      // 배분을 하나 더 지어도 이 줄이 열리지 않는다. 되는지 안 되는지는 판정하지
+      // 않는다 — 안 되면 세계가 사유와 함께 거절하고 그 사유는 이미 배분 자리에
+      // 떠 있다 (DC-WORLD-OWNS-THE-SURFACE-LIST).
+      if (role === 'set-allocation') {
+        const allocationId = allocationSlots(scene)[index];
+        if (allocationId === undefined) return;
+        const request: ActionRequest = { interactionId: 'set-allocation', allocationId };
+        send(request);
+        return;
+      }
 
       // C023 — 풀기만 **자리**를 가리킨다. 요청이 싣는 것도 자리 하나뿐이며
       // 무엇을 푸는지는 싣지 않는다 (04 equipment.actions.unequip-item).
@@ -264,6 +287,8 @@ export const KEY_BINDINGS: readonly KeyBinding[] = [
   armKey(EQUIP_ARM_KEY, 'equip-item'),
   armKey(UNEQUIP_ARM_KEY, 'unequip-item'),
   armKey(EXCHANGE_ARM_KEY, 'exchange-item'),
+  // C-COMBAT-001 — 배분. 같은 두 걸음이며 다음 숫자가 배분의 차례를 가리킨다
+  armKey(ALLOCATION_ARM_KEY, 'set-allocation'),
   // C026 — 소지품 작업 공간. 방향키·Enter 는 열려 있을 때만 듣는다
   inventoryToggle,
   workspaceKey(keyCode('pickLeft'), (snapshot) => moveSelection(snapshot, -1)),

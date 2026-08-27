@@ -72,9 +72,16 @@ const arena = (setup: (world: WorldDriver) => void = () => {}, chanceSeed?: numb
     ...(chanceSeed === undefined ? {} : { chanceSeed }),
   });
   aimRight(world);
+  // C-COMBAT-001 — 기력을 먼저 채운다. 아래 두 줄 사이의 한 순간에 이 몸은
+  // 생명 120 / 최대 100000 이 되어 **다 죽어가는 것처럼 보이고**, 자율 존재는 그때
+  // 몸으로 몰아붙인다 (RULE-NPC-ALLOCATION-001). 기력이 모자라면 되돌아오지 못해
+  // 이 시험대의 상대가 내내 단단한 몸으로 남는다 — 세계의 결함이 아니라 밖에서 값에
+  // 손대는 순서가 만든 한 순간이므로, 되돌아올 기력을 미리 쥐여 준다.
+  setAttribute(world, 'cp', 60, 'npc-1');
   // 여러 대를 견디게 한다 — 이 Cycle 이 보는 것은 쓰러짐이 아니라 한 방의 크기다
   setAttribute(world, 'hpMax', 100000, 'npc-1');
   setAttribute(world, 'hp', 100000, 'npc-1');
+  world.tick(TICK_INTERVAL); // 국면이 제자리로 돌아오는 것을 한 번 지나 보낸다
   setup(world);
   return world;
 };
@@ -325,10 +332,10 @@ describe('INTENT-CRITICAL-AMPLIFY-001 — 계산이 내놓은 값이 커진다',
 
     // C010 · C012 · C013 이 낸 값이 한 톨도 다르지 않다
     expect(b.damageType).toBe('physical');
-    expect(b.offenseStat).toEqual({ name: 'physicalAttack', value: 40 });
+    expect(b.offenseStat).toEqual({ name: 'physicalAttack', value: 40, fromAllocation: 0 });
     expect(b.rawDamage).toBe(26);
-    expect(b.defenseStat).toEqual({ name: 'armor', value: 30 });
-    expect(b.penetrationStat).toEqual({ name: 'armorPenetration', value: 0 });
+    expect(b.defenseStat).toEqual({ name: 'armor', value: 30, fromAllocation: 0 });
+    expect(b.penetrationStat).toEqual({ name: 'armorPenetration', value: 0, fromAllocation: 0 });
     expect(b.effectiveDefense).toBe(30);
     expect(b.defenseMultiplier).toBe(100 / 130);
     // 달라진 것은 마지막 값과 그 경위뿐이다

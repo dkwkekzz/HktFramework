@@ -51,7 +51,15 @@
         },
         "insight": 0,
         "stanceTowardObserver": "neutral",
-        "stanceFromObserver": "neutral"
+        "stanceFromObserver": "neutral",
+        "allocation": {
+          "id": "balanced",
+          "shares": {
+            "body": 2,
+            "ability": 2,
+            "awareness": 2
+          }
+        }
       },
       "progress": 0.28333333333333327,
       "body": {
@@ -137,7 +145,15 @@
         },
         "insight": 0,
         "stanceTowardObserver": "neutral",
-        "stanceFromObserver": "neutral"
+        "stanceFromObserver": "neutral",
+        "allocation": {
+          "id": "balanced",
+          "shares": {
+            "body": 2,
+            "ability": 2,
+            "awareness": 2
+          }
+        }
       },
       "progress": 0,
       "body": {
@@ -440,18 +456,21 @@
         "damageType": "physical",
         "offenseStat": {
           "name": "physicalAttack",
-          "value": 40
+          "value": 40,
+          "fromAllocation": 0
         },
         "baseDamage": 6,
         "attackContribution": 20,
         "rawDamage": 26,
         "defenseStat": {
           "name": "armor",
-          "value": 50
+          "value": 50,
+          "fromAllocation": 0
         },
         "penetrationStat": {
           "name": "armorPenetration",
-          "value": 0
+          "value": 0,
+          "fromAllocation": 0
         },
         "effectiveDefense": 50,
         "defenseMultiplier": 0.6666666666666666,
@@ -468,7 +487,9 @@
           "broken": false,
           "cpPaid": 21,
           "prevented": 17
-        }
+        },
+        "attackerAllocation": "balanced",
+        "targetAllocation": "balanced"
       }
     }
   ],
@@ -669,5 +690,6 @@
     "used": 0,
     "capacity": 4
   },
-  "equipment": []
+  "equipment": [],
+  "allocations": []
 }

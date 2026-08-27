@@ -151,5 +151,6 @@
     "used": 0,
     "capacity": 4
   },
-  "equipment": []
+  "equipment": [],
+  "allocations": []
 }

@@ -7,6 +7,11 @@
 
 import { actionProgress, type ActionKind } from './action';
 import type { ActorState } from './actor';
+import {
+  allocationContribution,
+  type AllocatableStat,
+  type AllocationId,
+} from './allocation';
 import { equipmentContributions } from './equipment';
 import type { ContributableStat, Force } from './item';
 import type { WorldPosition } from './position';
@@ -357,6 +362,16 @@ export function defenseShape(actor: ActorState): DefenseShape {
 }
 
 /**
+ * 유효 값을 물을 수 있는 값의 목록 (C-COMBAT-001 ADDED).
+ *
+ * 걸린 것이 보탤 수 있는 목록(item.ts ContributableStat — 여덟)과 배분이 보탤 수 있는
+ * 목록(allocation.ts AllocatableStat — 다섯)의 **합집합**이다. 둘은 서로 다른 목록이며
+ * 그것이 정상이다 — 물건이 통찰을 보태지 않고, 배분이 관통을 움직이지 않는다.
+ * ContributableStat 은 한 글자도 바뀌지 않는다 (C023 그대로).
+ */
+export type EffectiveStatName = ContributableStat | AllocatableStat;
+
+/**
  * RULE-EFFECTIVE-STATS-001 — Implements
  * INTENT-EFFECTIVE-IS-RECOMPUTED-NOT-ACCUMULATED-001 ·
  * INTENT-EVERY-JUDGEMENT-READS-THE-EFFECTIVE-001 (C023 ADDED)
@@ -380,9 +395,32 @@ export function defenseShape(actor: ActorState): DefenseShape {
  *
  * 이 파일에 있는 이유: semantic 은 rules 를 import 하지 않으며(계층), 아래 세 함수와
  * rawDamage 가 semantic 안에서 이 값을 읽어야 한다. 순수 파생이므로 semantic 에 둔다.
+ *
+ * C-COMBAT-001 CHANGED — 셋이 바뀐다 (INTENT-ALLOCATION-ENTERS-THE-EFFECTIVE-VALUE-001).
+ *
+ *     항이 하나 는다   합에 **지금의 배분**이 더해진다. 걸린 것의 기여 옆에 서는
+ *                      다른 항이지, 같은 항의 확장이 아니다
+ *     바닥이 생긴다     배분이 음의 항을 낳으므로 결과가 0 아래로 내려가지 않게 막는다
+ *     목록이 넓어진다   물을 수 있는 값이 여덟에서 아홉으로 — insight 가 든다
+ *                      (INTENT-EVERY-JUDGEMENT-READS-THE-EFFECTIVE-001 CHANGED)
+ *
+ * **새 공식이 아니다.** 피해도 방어도 감쇄도 지금의 한 공식을 그대로 지나며, 배분이
+ * 하는 일은 그 공식이 읽는 입력값을 바꾸는 것뿐이다 (DC-COMBAT-ONE-FORMULA).
+ * 그리고 고른 배분(balanced)에서는 세 항 중 셋째가 모두 0 이므로, 배분을 한 번도
+ * 바꾸지 않은 몸의 값은 C023 까지와 한 톨도 다르지 않다 (DC-COMBAT-ONE-LAYER-AT-A-TIME).
  */
-export function effectiveStat(actor: ActorState, stat: ContributableStat): number {
-  return actor[stat] + (equipmentContributions(actor.equipment)[stat] ?? 0);
+export function effectiveStat(actor: ActorState, stat: EffectiveStatName): number {
+  const contributions = equipmentContributions(actor.equipment) as Partial<
+    Record<EffectiveStatName, number>
+  >;
+  const sum =
+    actor[stat] + (contributions[stat] ?? 0) + allocationContribution(actor.allocation, stat);
+  // C-COMBAT-001 — 바닥. 배분이 처음으로 **음의 항**을 낳으므로 합이 0 아래로 갈 수 있다.
+  // 음의 방어는 감쇄식을 1 초과로 만들어 "맞으면 더 아프다" 를 낳고, 음의 통찰은 문턱
+  // 비교의 뜻을 흐린다. 그러므로 여기서 막는다.
+  // **지금까지의 어떤 결과도 바꾸지 않는다** — 기본값이 0 이상이고 걸린 것의 기여가
+  // 음이 아니므로 배분 전에는 언제나 0 이상이었다 (회귀 무변경).
+  return Math.max(0, sum);
 }
 
 // 이 방식이 이 Actor 에게서 고르는 공격 능력의 값 (C012 ADDED / C023 CHANGED — 유효 값).
@@ -409,6 +447,20 @@ export function rawDamage(actor: ActorState, kind: SkillKind): number {
   return skill.baseDamage + offenseStatValue(actor, skill.damageType) * skill.attackRatio;
 }
 
+/**
+ * 방식이 고른 능력 하나와, 그 값이 어떻게 그만큼이 되었는가 (C012 → C-COMBAT-001).
+ *
+ * `value` 는 판정이 실제로 읽은 **유효 값**이고, `fromAllocation` 은 그중 배분이
+ * 보탠 몫이다. 음수일 수 있고 **0 이어도 실린다** — 터지지 않은 치명이 실리는 이유와
+ * 같다 (C015): "이번 한 방에 배분이 아무것도 하지 않았다" 는 사실 역시 관찰이어야
+ * 배분을 바꿀 근거가 생긴다. 관통에서는 언제나 0 이다 (어느 축에도 들지 않는다).
+ */
+export interface TypedStat {
+  name: OffenseStatName | DefenseStatName | PenetrationStatName;
+  value: number;
+  fromAllocation: number;
+}
+
 // 한 방의 크기가 어떻게 나왔는가 (C010 ADDED) — RULE-DAMAGE-CALCULATE-001 의 산출물.
 // 저장하지 않는다. 계산이 낳고 StrikeEvent 가 싣는다.
 // C011 CHANGED — 뒤의 두 항목이 더해진다. finalDamage 의 의미는 그대로다
@@ -416,8 +468,17 @@ export function rawDamage(actor: ActorState, kind: SkillKind): number {
 export interface DamageBreakdown {
   /** 이 타격의 방식 (C012 ADDED) */
   damageType: DamageType;
+  /**
+   * 타격 시점 두 몸의 배분 (C-COMBAT-001 ADDED, INTENT-DAMAGE-BREAKDOWN-001 CHANGED).
+   *
+   * 같은 몸이 같은 기술로 다른 피해를 냈을 때 그 차이가 배분에서 왔다면, 그것이
+   * 경위에서 읽혀야 한다. 읽히지 않으면 배분은 "가끔 숫자가 달라지는 일" 이 되고
+   * 고르는 근거가 사라진다.
+   */
+  attackerAllocation: AllocationId;
+  targetAllocation: AllocationId;
   /** 방식이 고른 공격 능력 (C012 ADDED) — 이름이 없으면 왜 이 값인지 알 수 없다 */
-  offenseStat: { name: OffenseStatName; value: number };
+  offenseStat: TypedStat;
   baseDamage: number;
   attackContribution: number;
   rawDamage: number;
@@ -428,12 +489,12 @@ export interface DamageBreakdown {
    * 값만으로는 무엇을 읽었는지 알 수 없게 되었다 — 30 이 물리 방어인지 오라 방어인지가
    * 결과를 완전히 가른다. 옛 이름은 별칭으로도 남기지 않는다 (설계 §9).
    */
-  defenseStat: { name: DefenseStatName; value: number };
+  defenseStat: TypedStat;
   /**
    * 이 타격에서 작용한 관통 (C013 ADDED). 값이 0 이어도 실린다 —
    * 이름이 없으면 "왜 안 걷혔는가" 를 알 수 없다 (INTENT-DAMAGE-BREAKDOWN-001).
    */
-  penetrationStat: { name: PenetrationStatName; value: number };
+  penetrationStat: TypedStat;
   /**
    * 걷힌 뒤의 방어 (C013 ADDED) — defenseMultiplier 가 실제로 읽은 값이다.
    * defenseStat.value 와 이 값이 같다는 것이 "이 상대에게는 통하지 않았다" 의 관찰이다.
