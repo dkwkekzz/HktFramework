@@ -471,10 +471,12 @@ nodes:
       같은 자리를 다른 시각에 보면 달라야 하고, 그 다름이 무작위가 아니라 그 사이에
       무슨 일이 있었는가로 설명되어야 한다. 그 땅이 거두어 간 것이 지금 어디에 있는지를
       물을 수 있어야 하고, 세계가 그 물음에 답을 지녀야 한다.
-    implemented: ABSENT
+    implemented: PRESENT
     implemented_note: >-
-      거둔 것이 어디에도 저장되지 않는다 — 자리가 포화되지도 분출하지도 않고 거두는
-      속도가 상수다. C-TERRAIN-002 가 이 층을 여는 Cycle 이며 Stage 5 대기다
+      C-TERRAIN-002 — 자리가 거둔 것을 지니고(kept), 넘치면 뿜고, 그 안의 몸에게
+      돌려주고, 다 쓰면 닫혀 도로 거둔다. 같은 자리를 다른 시각에 보면 다르고 그 다름이
+      "그 사이에 누가 거기서 얼마나 빼앗겼는가" 로 설명된다 — 주기는 세계가 정한 것이
+      아니다
     arises_from: [MW-MACRO-TERRAIN]
     causes: [MG-EXPLORE-BEIRA]
     # Q64(b) — Human 이 정했다 (HISTORY.md). BT §5.7 이 빙원의 핵심 경험을 "대지가 열을
@@ -525,8 +527,10 @@ nodes:
       해도 무언가가 일어나야 한다.
     implemented: PARTIAL
     implemented_note: >-
-      빙원의 자리 안에 서 있으면 몸의 값이 줄고 다하면 생명에 닿는다 (C-TERRAIN-001).
-      다만 그 압력이 순환에서 나오지 않고 상수라 읽어서 이용할 거리가 없다
+      C-TERRAIN-002 로 압력이 순환에서 나온다 — 어디가 거두고 어디가 돌려주는지가
+      내가 한 일의 결과이므로 읽어서 이용할 거리가 생겼다. 남은 절반은 world_shape 의
+      "읽은 사람과 읽지 못한 사람이 다른 결과를 낸다" 다: **지금 상태는 읽히나 앞으로
+      일어날 일은 읽히지 않는다** (MW-CIRCULATION-EVIDENCE 가 그 자리다)
     arises_from: [MW-TERRAIN-CIRCULATION, MW-SHAPED-LANDFORM]
     causes: []
     changed_by: []
@@ -572,11 +576,12 @@ nodes:
     world_shape: >
       법칙이 멎는 자리가 있어야 하고, 그 자리가 왜 하필 거기인가에 세계가 답해야 한다.
       그리고 조건이 달라지면 그 자리가 옮겨 가거나 사라져야 한다.
-    implemented: PARTIAL
+    implemented: PRESENT
     implemented_note: >-
-      법칙이 멎는 자리가 있고 자기가 멎게 하는 법칙의 이름을 지닌다 (C-TERRAIN-001 —
-      zone-sunbreath). 다만 손으로 놓인 상수라 "왜 하필 거기인가" 에 세계가 답하지
-      못하고, 옮겨 가지도 사라지지도 않는다
+      C-TERRAIN-002 — 예외를 놓을 형이 사라졌다(GroundZone.role 삭제). 법칙이 멎는
+      자리는 넘쳐서 뿜는 중인 맥뿐이므로 "왜 하필 거기가 안전한가" 에 세계가 답한다 —
+      거기에 열이 모였기 때문이고, 모인 것은 누군가 거기서 빼앗겼기 때문이다.
+      그리고 생겨나고 사라진다
     arises_from: [MW-TERRAIN-CIRCULATION]
     causes: []
     changed_by: []

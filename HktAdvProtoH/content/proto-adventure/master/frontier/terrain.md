@@ -15,15 +15,23 @@
     이미 있는 것         **코드 대조.** 아직 일어나지 않은 것이 관찰에 실리는 형태 —
                          행동의 앞 구간과 그 진행도(C019 · `world/semantic/collision.ts`
                          SWING_BEGIN · 계약의 `state` · `progress`) · 살펴보기 전에는 모르는
-                         것이 있다는 형태 (C014 · `world/semantic/acquaintance.ts`)
+                         것이 있다는 형태 (C014 · `world/semantic/acquaintance.ts`) ·
+                         **예고할 거리가 이제 실제로 있다** (C-TERRAIN-002 —
+                         자리마다 `kept` 가 있고 `saturation` 까지 남은 양이 정해지므로
+                         "언제 넘치는가" 가 세계 안에서 계산 가능한 값이 되었다) ·
+                         그리는 자리도 이미 있다 (`SceneGroundZone.intensity` — 그 Cycle 이
+                         뿜음의 맥동으로 처음 썼다)
     Playable Result      Player 가 땅에 퍼지는 무늬를 보고 자리를 옮겨, 거두어 가는 순간을
                          겪지 않는다
     Source Goal          MG-EXPLORE-BEIRA
     Source Possibility   MP-LEARN-TO-HANDLE-THE-LAYER
-    Missing / Partial    Capability 를 Target 으로 삼지 않는다 — 이 후보가 닫는 것은
-                         DC-WORLD-TERRAIN-LAW-IS-OBSERVABLE 의 `증거가 먼저` 절이다.
-                         MC-READ-ENVIRONMENT 가 같은 자리를 보지만 `grounded: false` 라
-                         Target 이 되지 않는다 (guides/master-frontier.md)
+    Missing / Partial    **MW-CIRCULATION-EVIDENCE (ABSENT)** — 이 후보가 여는 노드다.
+                         BT §15.8("플레이어가 설명 없이 볼 수 있는 증거는 무엇인가")이
+                         주입되며 섰다. 함께 움직이는 것: MW-SURVIVAL-PRESSURE (PARTIAL —
+                         world_shape 의 "읽은 사람과 읽지 못한 사람이 다른 결과를 낸다"
+                         가 여기서 닫힌다).
+                         Capability 쪽은 여전히 Target 이 아니다 — MC-READ-ENVIRONMENT 가
+                         같은 자리를 보지만 `grounded: false` 다
     Active Constraints   DC-WORLD-TERRAIN-LAW-IS-OBSERVABLE · DC-COMBAT-PLAYER-CAUSALITY ·
                          DC-WORLD-OWNS-THE-SURFACE-LIST
     Constraint Eval      LAW-IS-OBSERVABLE: SATISFIED — 이 후보가 그 원칙을 세계에서 닫는다
@@ -34,8 +42,11 @@
                          결과가 다르다
     Why one Cycle        예고와 그 관찰은 이미 행동 쪽에 서 있다 (C019). 새로 서는 것은
                          그것을 땅에 붙이는 것이다
-    의존                 FR-THE-GROUND-HAS-A-LAW 없이 하면 **아무 일도 일어나지 않는 것의
-                         예고**가 된다
+    의존                 **둘 다 닫혔다.** FR-THE-GROUND-HAS-A-LAW (C-TERRAIN-001) 없이는
+                         아무 일도 일어나지 않는 것의 예고가 되고,
+                         FR-THE-LAND-KEEPS-WHAT-IT-TAKES (C-TERRAIN-002) 없이는 거두는
+                         속도가 상수라 예고할 것이 없어 "곧 위험" 타이머가 된다.
+                         **이제 막는 것이 없다**
     Status               PROPOSED
 
 ### FR-WHAT-KEEPS-YOU-ALIVE-IS-CARRIED — 살아 있게 하는 것을 지니고 나른다
@@ -71,126 +82,32 @@
                          없다
     Status               PROPOSED
 
-### FR-THE-LAND-KEEPS-WHAT-IT-TAKES — 땅이 거둔 것을 간직한다
-
-    이것이 무엇인가      거두어 간 것이 사라지지 않고 그 땅에 쌓인다. 쌓인 것이 넘치면
-                         도로 뿜어져 나오고, **법칙이 멎는 자리는 그 뿜어짐이다** —
-                         상수로 놓인 것이 아니라 법칙이 낳은 것이다
-    세계에 생기는 것      ① 자리가 내부 상태를 지닌다 — 몸에서 거둔 만큼 그 자리에 쌓인다
-                            (보존. 지금은 거둔 것이 어디로도 가지 않고 사라진다)
-                         ② 쌓인 것이 임계를 넘으면 분출한다. 분출하는 동안 그 법칙이 멎고,
-                            분출은 쌓인 것을 소모한다 (BT §5.3 — 광맥이 포화되면 열을 분출한다)
-                         ③ 그래서 예외 자리가 **생겨나고 사라진다.** 어디에 생기는가는
-                            어디서 거두었는가의 결과다
-                         ④ 관찰: 열이 어느 쪽으로 빠져나가는지와 그 자리가 지금 얼마나
-                            찼는지가 읽힌다 (BT §5.7 첫 줄 — "열이 빠져나가는 방향 관찰")
-    이 기능이 아닌 것     작용 전의 예고가 아니다 (FR-THE-LAND-SHOWS-BEFORE-IT-TAKES) —
-                         다만 **그쪽이 성립하려면 이쪽이 먼저다** (아래 순서 경고) ·
-                         태양심을 비롯한 자원이 아니다 (자원 카탈로그의 몫) ·
-                         주기를 읽고 창에 맞추는 **능력**이 아니다 (MC-TIME-THE-CYCLE 은
-                         `grounded: false`) · 안전한 자리를 잇는 것이 아니다
-                         (MC-FIND-SAFE-ROUTE 도 같다) · 여덟 대지형이 아니다 ·
-                         지니고 나르는 것이 아니다
-    이미 있는 것         **코드 대조.** 자리가 이미 상수가 아니라 State 다 —
-                         `world/semantic/world-state.ts#WorldState.groundZones`
-                         (C-TERRAIN-001 이 BT §9.2 를 근거로 그렇게 두었다) ·
-                         법칙이 규칙이 읽는 카탈로그다 —
-                         `world/semantic/terrain.ts#GROUND_LAWS` (줄이 늘어도 규칙이 안 열린다) ·
-                         거두는 규칙이 이미 dt 로 몸에서 뺀다 —
-                         `world/simulation/ground-law-apply.ts` (**보존은 뺀 만큼 자리에
-                         더하는 것이다**) · 예외가 이미 자기 법칙의 이름을 지닌다 —
-                         `GroundZone.role='respite'` + `law` (손으로 놓이던 것이 포화가
-                         낳는 것으로 바뀌는 일은 **그 필드를 누가 쓰는가**의 변경이다) ·
-                         자리가 관찰 계약에 실린다 — `protocol/gameview-terrain.ts`
-    Playable Result      사람이 자주 지나는 길목의 땅이 먼저 차올라 **그 자리에 분출구가
-                         생긴다.** 어제 쉬어 간 자리가 오늘은 닫혀 있고, 대신 다른 곳이
-                         열려 있다 — 좌표를 외운 사람이 아니라 **법칙을 읽은 사람**이 건넌다
-    Source Goal          MG-EXPLORE-BEIRA
-    Source Possibility   MP-LEARN-TO-HANDLE-THE-LAYER (들어가서 겪으며 알아낸다)
-    Missing / Partial    Capability 를 Target 으로 삼지 않는다 — 세우는 것은 능력이 아니라
-                         땅의 **시간**이다. MC-TIME-THE-CYCLE 과 MC-FIND-SAFE-ROUTE 가 설
-                         바닥이며(둘 다 `grounded: false` 라 Target 이 되지 않는다), 이름이
-                         확정되어도 **셀 주기와 이을 자리가 없으면 설 수 없다**
-    Active Constraints   DC-WORLD-TERRAIN-IS-A-PRINCIPLE · DC-WORLD-SAFETY-IS-A-NATURAL-EXCEPTION ·
-                         DC-WORLD-TERRAIN-LAW-IS-OBSERVABLE · DC-WORLD-OWNS-THE-SURFACE-LIST
-    Constraint Eval      IS-A-PRINCIPLE: **이 후보가 PARTIAL 을 닫는다.** 그 Constraint 의
-                         requires 는 "어떤 상태를 어떤 조건에서 **반복** 변화시키는지" 인데
-                         C-TERRAIN-001 이 세운 것은 반복이 아니라 지속이다
-                         (C-TERRAIN-001 08 MASTER FEEDBACK). 포화와 분출이 그 반복이다
-                         SAFETY-IS-A-NATURAL-EXCEPTION: **이 후보가 그 원칙을 형태로 닫는다** —
-                         지금은 예외가 상수로 놓여 "왜 하필 거기가 안전한가" 에 세계가
-                         답하지 못한다. 분출이 그 답이다
-                         LAW-IS-OBSERVABLE: UNRESOLVED — 증거가 **먼저** 오는 절은 여전히
-                         다음 후보의 몫이다. 다만 이 후보가 예고할 거리를 만든다
-                         OWNS-THE-SURFACE-LIST: UNRESOLVED — 04 가 정한다
-    Observable Result    자리가 차오르는 것과 분출이 화면에서 읽히고, 같은 자리를 다른
-                         시각에 보면 다르다. 열이 어느 쪽으로 흐르는지가 보인다
-    Why one Cycle        형태가 이미 전부 서 있다 — 자리가 State 이고, 법칙이 카탈로그이고,
-                         거두는 규칙이 dt 로 돈다. 새로 서는 것은 **뺀 것을 어디에
-                         넣는가** 하나이며, 나머지(분출·예외 생성)는 그 하나의 결과다
-    의존                 FR-THE-GROUND-HAS-A-LAW (C-TERRAIN-001) 가 먼저 — 거두는 것이
-                         없으면 쌓일 것이 없다. 그 Cycle 이 닫힌 뒤 최신 main 위에서 잡는다
-    순서 경고            **이 후보만 넣고 예고가 없으면 게임이 지금보다 나빠진다.**
-                         안전한 자리가 움직이는데 읽을 방법이 없으면 그것은 깊이가 아니라
-                         불공정이다. 역방향도 참이다 — 순환 없이는 예고가 가짜다(속도가
-                         상수면 예고할 것이 없어 "곧 위험" 타이머가 된다). 둘은 한 몸이며
-                         **이쪽을 먼저, 예고를 바로 다음에** 두는 것이 Agent 의 판단이다
-    Status               SELECTED
-
-    ── 근거: BT 가 이 후보를 이미 적었다 ──────────────────────────────
-
-    BT §5.7 이 빙원의 핵심 경험을 한 줄로 못 박는다.
-
-        핵심 경험은 추위를 버티는 것이 아니라:
-        **대지가 열을 어디에서 빼앗고 어디에 저장하는지를 읽는 것**
-
-    C-TERRAIN-001 이 세운 것은 앞 절(어디에서 빼앗는가)이고, **뒤 절(어디에 저장하는가)이
-    통째로 비어 있다.** BT §15 가 대지형을 정의하는 순서에서도 이것은 셋째 항이다 —
-    매질 → 지배 원리 → **대지 순환** → 위험 → 자연적 예외. 그 Cycle 은 셋째를 건너뛰고
-    원리에서 위험·예외로 갔다.
-
-    §5.7 의 주요 경험 일곱 중 이 후보가 여는 것이 넷이다.
-
-        열이 빠져나가는 **방향** 관찰      열이 어디로 가는지가 있어야 방향이 생긴다
-        따뜻한 생물의 이동 추적           지나간 몸의 열이 땅으로 되나와야 자취가 남는다
-        해숨구멍 사이의 **Route 발견**     하나가 상수로 박혀 있으면 발견이 성립하지 않는다
-        짧은 **분출 시간**에 광맥 진입     분출 = 포화의 방출. 창이 여기서 나온다
-
-    그리고 일곱째 줄이 이 후보의 값어치를 가장 잘 보여준다 —
-    **"태양심을 채굴해 위험을 키울지 결정"**. 태양심은 광맥이 결속한 열이 굳은 것이므로,
-    캐어 내가면 그 계에서 열이 빠져나가 분출이 짧아지고 그 지역이 모두에게 추워진다.
-    보존이 없으면 그것은 그냥 주워 담는 채집물이고, 프로젝트가 경계한 "단조롭게 채집물을
-    배치하는 것" 그 자체다. 보존이 있으면 **개인의 이득이 집단의 비용으로 환산되는
-    공유 자원**이 되며, 진영 퀘스트 없이 다툴 이유가 세계 물리에서 나온다.
-
 ## 추천 순서
 
-    1. FR-THE-LAND-KEEPS-WHAT-IT-TAKES      **직전 Cycle 이 세운 것의 나머지 절반이다.**
-                                            BT §5.7 이 핵심 경험을 "어디에서 빼앗고
-                                            **어디에 저장하는지**" 로 못 박았는데 선 것은
-                                            앞 절뿐이다. 형태가 이미 전부 서 있어 값이 싸고,
-                                            2 가 가짜가 되지 않게 한다
-    2. FR-THE-LAND-SHOWS-BEFORE-IT-TAKES    승인된 원칙 하나(LAW-IS-OBSERVABLE)를 세계에서
-                                            닫는다. **1 보다 뒤여야 한다** — 거두는 속도가
-                                            상수인 동안에는 예고할 것이 없어 타이머가 된다
-    3. FR-WHAT-KEEPS-YOU-ALIVE-IS-CARRIED   대지형 Capability 표의 첫 칸을 채운다. 셋 중
-                                            가장 크고, 아이템 쪽 파일과 닿는다
+    1. FR-THE-LAND-SHOWS-BEFORE-IT-TAKES    **순서 경고가 이 자리를 가리켰고 그 앞이
+                                            닫혔다.** C-TERRAIN-002 의 순서 경고가
+                                            "이쪽(순환)을 먼저, 예고를 바로 다음에" 라고
+                                            적었다. 그리고 지금 상태는 **불공정하다** —
+                                            안전한 자리가 옮겨 다니는데 읽을 방법이 없다.
+                                            그것이 깊이가 아니라 불공정이라는 것이
+                                            그 경고의 본문이었다
+    2. FR-WHAT-KEEPS-YOU-ALIVE-IS-CARRIED   대지형 Capability 표의 첫 칸을 채운다.
+                                            둘 중 크고, 아이템 쪽 파일과 닿는다.
+                                            **채울 자리가 이제 진짜로 있다** — 분출구가
+                                            생겨나고 사라지므로 "언제 어디서 채우는가" 가
+                                            판단이 된다
 
-    Agent 추천은 **1** 이다. 근거는 의존이 아니라 판정이다 — 땅에 시간이 없는 동안
-    나머지 둘은 각자 반쪽만 선다 (overlay.md 의 "가장 큰 구멍" 넷째 항).
-    순서는 Human 이 정한다.
+    Agent 추천은 **1** 이다. 근거는 의존이 아니라 **지금 세계가 나빠져 있다**는 것이다 —
+    C-TERRAIN-002 가 예외를 움직이게 만들었고, 예고가 없으면 플레이어는 그 움직임을
+    겪기만 할 뿐 읽을 수 없다. 순서는 Human 이 정한다.
 
 ## SELECTED
 
 ```text
-FR-THE-LAND-KEEPS-WHAT-IT-TAKES — 땅이 거둔 것을 간직한다
-Cycle   C-TERRAIN-002-the-land-keeps-what-it-takes
+없음 — Human 선택 대기
 ```
 
-    Human 이 추천 순서 1 을 그대로 골랐다. 다음 후보(FR-THE-LAND-SHOWS-BEFORE-IT-TAKES)는
-    이것이 닫힌 뒤 바로 잡는다 — 위 "순서 경고" 가 둘을 한 몸으로 묶는다.
-
-    직전 반영 경위: [../feedback/C-TERRAIN-001-the-ground-has-a-law.md](../feedback/C-TERRAIN-001-the-ground-has-a-law.md)
+    직전 반영 경위: [../feedback/C-TERRAIN-002-the-land-keeps-what-it-takes.md](../feedback/C-TERRAIN-002-the-land-keeps-what-it-takes.md)
 
 ## 지금 열 수 없는 것
 
