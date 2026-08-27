@@ -229,6 +229,50 @@ function worldNow(skill: SkillObservation, short: (c: string) => string): string
   return '지금 됨';
 }
 
+/**
+ * 이 기술이 지는 사정 — **있으면 적고 없으면 건너뛴다** (C-COMBAT-003).
+ *
+ * 모양을 다루는 `shapeOf` 와 같은 규율이다: 사정을 기술의 조건으로 삼으면 사정 없는
+ * 기술이 생기는 날 그 기술이 목록에서 조용히 사라진다. 기존 세 기술은 빈 목록으로
+ * 오므로 이 함수가 아무것도 더하지 않고, 그래서 그 셋의 줄은 한 글자도 바뀌지 않는다.
+ *
+ * **요구와 조건을 다른 말로 적는다.** 계약이 둘을 다른 칸에 실어 보낸 이유가 그대로다 —
+ * 못 쓰는 사유와 더 잘 드는 사유는 다른 물음의 답이다 (04 GameView Specification).
+ *
+ * 여기서도 판정하지 않는다. 갖춰졌는지도 참인지도 세계가 실은 값이며, 화면은 그것을
+ * ✓ 와 ✗ 로 옮길 뿐이다 (DC-WORLD-OWNS-THE-SURFACE-LIST).
+ */
+function circumstanceText(
+  profile: SkillProfileView,
+  text: (code: string) => string,
+): string | undefined {
+  const parts: string[] = [];
+
+  const requires = profile.requires ?? [];
+  if (requires.length > 0) {
+    // **사정의 이름으로 적는다** — 긴 사유(`무엇을 하면 열리는가`)가 아니다.
+    // 그것은 이미 줄 앞머리에 서 있고(`panelMark`), 여기에 또 적으면 한 줄에 같은
+    // 문장이 두 번 실린다. 실제로 그렇게 나왔고 브라우저에서 눈으로 잡았다
+    // (07-view-implementation.md NOTES ②).
+    parts.push('요구 ' + requires.map((r) => `${r.met ? '✓' : '✗'}${text(r.id)}`).join(' · '));
+  }
+
+  const conditions = profile.conditions ?? [];
+  if (conditions.length > 0) {
+    // 몫을 함께 적는다 — 얼마나 커지는지를 알아야 사정을 만들러 갈 값이 선다.
+    // 세계가 실은 수를 그대로 쓴다 (화면이 피해로 환산하지 않는다 — 대상이 정해지기
+    // 전에는 세계도 모르는 값이다).
+    parts.push(
+      '조건 ' +
+        conditions
+          .map((c) => `${c.holds ? '✓' : '✗'}${text(c.id)} +${round(c.bonus)}`)
+          .join(' · '),
+    );
+  }
+
+  return parts.length > 0 ? parts.join(' · ') : undefined;
+}
+
 /** `-0 / +12` 처럼 읽는 기력 수지 — 두 값을 합치지 않는다. 서로 다른 일이기 때문이다 */
 function energyText(profile: SkillProfileView): string {
   return `기력 -${round(profile.cost)} / +${round(profile.charge)}`;
@@ -292,10 +336,14 @@ export function skillDetailLines(
     ...skills.map((skill) => {
       const mark = panelMark(skill, answers[skill.id], text, stageOf(skill.id, answers, now));
       const type = text(skill.profile.damageType);
+      // C-COMBAT-003 — 사정은 **패널에만** 온다. 띠에 두면 사정을 지는 기술마다 줄이
+      // 배로 길어지고, 그것이 정확히 C025 가 실측으로 배운 실패다 (이 파일 머리말).
+      const circumstances = circumstanceText(skill.profile, text);
       return (
         `${skill.label} ${mark}` +
         ` · ${energyText(skill.profile)}` +
-        ` · 공격 피해 ${round(skill.profile.rawDamage)} (${type})`
+        ` · 공격 피해 ${round(skill.profile.rawDamage)} (${type})` +
+        (circumstances ? ` · ${circumstances}` : '')
       );
     }),
   ];

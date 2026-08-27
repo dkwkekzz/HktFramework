@@ -24,6 +24,7 @@
 //   hatsu 배분의 AuraAtk      40 + (4−2)×12 = 64
 
 import { describe, expect, it } from 'vitest';
+import type { ActionResult } from '../../protocol/actions';
 import type { GameViewSnapshot } from '../../protocol/gameview';
 import {
   ABILITY_ALLOCATION_REQUIREMENT,
@@ -65,6 +66,9 @@ const dummyAt = (x: number, z: number, perceptionRange = 0, id = 'npc-1') => ({
 });
 
 const skill = (v: GameViewSnapshot, id: string) => v.interactions.find((i) => i.id === id);
+/** 거절 사유 — 성공한 판정에는 없다 */
+const failureReason = (result: ActionResult) =>
+  result.status === 'failure' ? result.reason : undefined;
 const setAttribute = (world: WorldDriver, id: string, value: number, targetEntityId?: string) =>
   world.dispatch({
     interactionId: 'set-attribute',
@@ -151,7 +155,7 @@ describe('INTENT-REQUIREMENT-GATES-THE-ABILITY-001 — 갖춰지지 않으면 �
     const world = arena();
     const result = world.dispatch({ interactionId: 'skill-hatsu' });
     expect(result.status).toBe('failure');
-    expect(result.reason).toBe('power-not-in-ability');
+    expect(failureReason(result)).toBe('power-not-in-ability');
   });
 
   it('시작한 뒤 실패하는 것이 아니다 — 아무것도 소모되지 않고 행동도 그대로다', () => {
@@ -170,7 +174,7 @@ describe('INTENT-REQUIREMENT-GATES-THE-ABILITY-001 — 갖춰지지 않으면 �
     const world = arena();
     setAttribute(world, 'cp', 0);
     const result = world.dispatch({ interactionId: 'skill-hatsu' });
-    expect(result.reason).toBe('power-not-in-ability');
+    expect(failureReason(result)).toBe('power-not-in-ability');
   });
 
   it('사정을 갖춘 뒤에야 대가가 물어진다 — 그때의 사유는 기력이다', () => {
@@ -178,7 +182,7 @@ describe('INTENT-REQUIREMENT-GATES-THE-ABILITY-001 — 갖춰지지 않으면 �
     world.dispatch({ interactionId: 'set-allocation', allocationId: 'hatsu' });
     setAttribute(world, 'cp', 0);
     const result = world.dispatch({ interactionId: 'skill-hatsu' });
-    expect(result.reason).toBe('insufficient-cp');
+    expect(failureReason(result)).toBe('insufficient-cp');
   });
 });
 

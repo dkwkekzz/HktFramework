@@ -6,7 +6,7 @@
 [PASS] GameView Specification      (더하는 것 셋 · 기존 셋은 빈 목록 · HUD 무변경 · GAP 없음)
 [PASS] Human Semantic Review       (APPROVED — Human 위임 · 사정 셋·수치 다섯·관문 자리 확정)
 [PASS] World Implementation        (1554 tests · engine 무변경 · isSkillKind 가 목록에 묻는다)
-[    ] View Implementation
+[PASS] View Implementation         (1570 tests · 화면이 아는 자리는 표 세 줄 · 브라우저로 확인)
 [    ] Verification
 
 STATUS  IN PROGRESS

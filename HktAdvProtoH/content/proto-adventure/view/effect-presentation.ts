@@ -138,6 +138,25 @@ export const SKILL_EFFECTS: Readonly<Record<string, SkillEffectTuning>> = {
     rollSpread: 0,
     lift: 0.15,
   },
+  // 발현 일격 (C-COMBAT-003 — baseDamage 10 · ratio 1.3 · 0.9s) — 오라 결의 큰 기술.
+  // 오라 스킬의 **방전**에 고급 스킬의 **화구**를 함께 올린다: 방식은 오라 쪽에서,
+  // 무게는 큰 기술 쪽에서 온다. 새 게놈을 만들지 않는다 (F1 규칙 2 · 예산 7 그대로).
+  //
+  // 기준이 60 인 것은 관문을 지난 몸이 내는 값이기 때문이다 — 사정 없이 60, 조건
+  // 하나에 76, 둘에 92 (03 BALANCE ②). 고급 스킬(55)의 자로 재면 조건이 붙은 한 방이
+  // 늘 천장에 붙어 **사정이 화면에서 구별되지 않는다**.
+  'hatsu-burst': {
+    effect: '전격',
+    with: ['파이어볼 폭발'],
+    reference: 60,
+    floor: 0.85,
+    ceiling: 2.6,
+    criticalBoost: 1.25,
+    elevationRatio: 0.55,
+    radius: 0.12,
+    rollSpread: 0,
+    lift: 0.3,
+  },
 };
 
 /**

@@ -121,6 +121,8 @@ const CODE_TEXT: Record<string, string> = {
   run: '달리기',
   // 행동 코드 · 피해 방식 (C012)
   'aura-strike': '오라 일격',
+  // C-COMBAT-003 — 사정을 지는 첫 기술
+  'hatsu-burst': '발현 일격',
   physical: '물리',
   aura: '오라',
   // 방식이 고른 능력의 이름 (C012)
@@ -138,6 +140,16 @@ const CODE_TEXT: Record<string, string> = {
   'physical-tougher': '오라에 약하다',
   'aura-tougher': '물리에 약하다',
   even: '치우침 없음',
+  // ── C-COMBAT-003 능력의 성립 사정 ──────────────────────────────────
+  // 사정의 이름 — 무엇을 지고 있는가. 갖춰졌든 아니든 이 말로 읽힌다
+  'power-in-ability': '능력에 힘을 몰아 둠',
+  'struck-by-them': '그 상대에게 방금 맞음',
+  'life-below-half': '생명이 절반 아래',
+  // 갖춰지지 않았을 때의 사유 — **무엇을 하면 열리는지**까지 말한다.
+  // 회색으로 칠하고 끝내지 않는 것이 이 층의 절반이다 (UL §33)
+  'power-not-in-ability': '힘을 능력에 몰아 두어야 나간다 — 배분을 발현으로 옮겨라',
+  'not-struck-by-them': '그 상대에게 아직 맞지 않았다',
+  'life-not-below-half': '생명이 아직 절반 위다',
   // 불가 사유 — 막기 (C011)
   guarding: '막는 중에는 휘두를 수 없다',
   'guard-broken': '방어가 무너져 아직 다시 들 수 없다',
