@@ -1,0 +1,59 @@
+# 원본 근거: content/proto-adventure/design/Design-Combat-Knowledge-Extension-R0.md **CK**
+#   §31 (내부 Rule 은 관찰 가능해야 한다 — Active Knowledge / Observed / Decision /
+#        Intent / Aura / Reason 이 남고 "왜 이 행동을 했는가" 를 항상 추적할 수 있다)
+#   §36 (지식 접근이 제한되는 특수 상황도 명시적인 WorldState 변화여야 한다)
+#   §39-10 (모든 판단 결과를 WorldState 와 Combat Report 에서 설명할 수 있다)
+# 2026-08-27 CK 주입으로 신설.
+id: DC-KNOWLEDGE-DECISION-IS-TRACEABLE
+type: constraint
+
+statement: >
+  지식이 내린 판단은 무엇을 보고 무엇을 정했으며 어느 지식 때문인지가 세계에서 읽힌다.
+  캐릭터가 왜 그렇게 싸웠는지에 언제나 답할 수 있어야 한다.
+rationale: >
+  ❌ 흔한 구현은 행동 결정을 블랙박스로 둔다. 그러면 캐릭터가 이상하게 움직여도
+  플레이어는 자기가 낀 지식 탓인지 버그인지 알 수 없고, 만드는 쪽도 고칠 자리를 찾지 못한다.
+  지식이 판단을 대신하는 시스템에서 이것은 치명적이다 — 판단의 주체가 플레이어가 아니므로
+  **설명이 없으면 플레이어는 자기 캐릭터를 이해할 수 없다.**
+
+  CK §31 은 편집 권한을 주지 않는 대신 관찰을 요구한다. 어떤 지식이 켜져 있었고
+  (Active Knowledge), 무엇을 보았고 (Observed), 무엇을 정했으며 (Decision),
+  그래서 어떤 의도와 운용으로 갔는지 (Intent · Aura), 그 사유가 무엇인지 (Reason)가
+  남아야 한다. 편집기를 닫는 것과 내부를 숨기는 것은 다르다.
+
+  무엇이 달라지나 — 지켰을 때: 플레이어는 실패한 판을 되짚어 "이 지식은 이 상황을
+  이렇게 읽는구나" 를 배우고, 그 배움이 다음 준비(§27)로 이어져 순환이 닫힌다.
+  만드는 쪽은 지식끼리 부딪친 자리(§32)를 실물로 볼 수 있다.
+  어겼을 때: 지식 선택이 도박이 되고, 캐릭터의 행동이 마음에 안 들 때 플레이어가
+  할 수 있는 일이 지식을 무작위로 바꿔 보는 것뿐이 된다.
+
+  가장 안 읽히는 조각 — "세계에서 읽힌다". 개발자용 로그를 말하는 것이 아니다.
+  §39-10 은 판단 결과를 **WorldState 와 Combat Report** 에서 설명할 수 있어야 한다고
+  적는다. 즉 추적의 재료가 세계가 지니는 것이어야 하고, 화면이 그것을 되짚어
+  추측해 만들어내는 것이 아니다.
+
+  경계 — 상대의 판단까지 전부 읽히라는 요구가 아니다. 남의 지식이 무엇인지는
+  알아내야 하는 것이며 (§25 · MC-OBSERVE-ABILITY), 이 규칙이 보장하는 것은
+  자기 몸의 판단에 대한 설명이다.
+
+scope:
+  - COMBAT
+
+requires:
+  - 한 판단마다 그것을 낸 지식과 그때 읽은 세계 상태가 남는다
+  - 지식 접근이 제한되는 상황도 명시적인 세계 상태 변화로 나타난다
+prohibits:
+  - 판단의 사유를 남기지 않고 결과만 적용하는 것
+prefers:
+  - 추적 재료를 세계가 싣고 화면은 옮기기만 하는 것
+
+status: APPROVED
+provenance:
+  - HUMAN_DESIGN        # CK 주입 2026-08-27 · 같은 날 Human 승인 (전투 지식 DC 9종 일괄)
+
+relations:
+  supports:
+    - DC-WORLD-OWNS-THE-SURFACE-LIST
+    - DC-COMBAT-UNAVAILABLE-HAS-A-REASON
+    - DC-KNOWLEDGE-IS-NOT-A-SCRIPT     # 편집을 닫는 대신 관찰을 연다 — 짝이다
+  conflicts_with: []
