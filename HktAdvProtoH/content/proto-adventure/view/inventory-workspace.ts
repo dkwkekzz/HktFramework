@@ -26,7 +26,6 @@ import type {
 import { createPendingRequests } from '../../../engine/view-kernel/net/pending';
 import { waitStage, waitText } from './request-timing';
 import { moveFocus } from '../../../engine/view-kernel/input/focus';
-import { EXECUTION_LOG_SURFACE_ID, pickLogEntry } from './execution-log';
 import type { ActionRequest } from '../protocol/actions';
 import type {
   EquipmentSlotView,
@@ -669,13 +668,6 @@ export function pressRow(
   rowId: string,
   send: (action: ActionRequest) => number | null,
 ): void {
-  // **다른 표면의 줄도 이 문으로 들어온다.** 조립(`content/active-view.ts`)이 표면
-  // 손짓의 수신자로 이 모듈 하나를 이름 지어 두었기 때문이다 — 표면이 둘이 된 지금
-  // 그 이름이 좁다 (V-018 REPORT ①). 여기서는 갈라 보내는 일만 한다
-  if (surfaceId === EXECUTION_LOG_SURFACE_ID) {
-    pickLogEntry(rowId);
-    return;
-  }
   const snapshot = mine(surfaceId);
   if (!snapshot) return;
   if (confirming !== null) {

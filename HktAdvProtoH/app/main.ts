@@ -22,6 +22,7 @@ import { attachPointerLook } from '../engine/view-kernel/input/pointer';
 import { attachTouchControls } from '../engine/view-kernel/input/touch';
 import type { ScreenSide } from '../engine/view-kernel/presentation/facing-presentation';
 import { browserIdentityStorage, resolveObserverId } from '../engine/view-kernel/net/observer-identity';
+import { dispatchKey } from '../engine/view-kernel/input/bindings';
 import { browserSocketFactory, createWorldLink } from '../engine/view-kernel/net/world-link';
 import { bindingLines, telemetryLines } from '../engine/view-kernel/presentation/link-presentation';
 
@@ -537,9 +538,9 @@ function frame(now: number): void {
     }
     if (typing) continue;
     if (surfaceOpen) {
-      // 표면이 열린 동안에는 팩 규칙만 듣는다 — 세계 안의 몸에 닿는 키는 멈춘다
-      const open = KEY_BINDINGS.find((b) => b.code === code);
-      if (open) open.invoke(latestScene, (action) => link.sendMarked(action));
+      // 표면이 열린 동안에는 팩 규칙만 듣는다 — 세계 안의 몸에 닿는 키는 멈춘다.
+      // 사양하는 바인딩이 있어도 여기서는 세계로 흘리지 않는다 (표면이 잡고 있다)
+      dispatchKey(KEY_BINDINGS, code, latestScene, (action) => link.sendMarked(action));
       continue;
     }
     if (code === DEBUG_OBSERVE_KEY) {
@@ -551,10 +552,12 @@ function frame(now: number): void {
       continue;
     }
     // 팩 고유 특수 키 (P3) — 장면을 읽어 요청을 고르는 규칙은 팩이 등록한다.
-    // 여기서는 code 가 맞는 바인딩을 부를 뿐, 그 안에서 무엇이 골라지는지 모른다.
-    const binding = KEY_BINDINGS.find((b) => b.code === code);
-    if (binding) {
-      binding.invoke(latestScene, (action) => link.sendMarked(action));
+    // 여기서는 그 눌림을 팩에게 물을 뿐, 그 안에서 무엇이 골라지는지 모른다.
+    //
+    // **가져가지 않으면 그대로 흐른다** — 같은 코드에 바인딩이 여럿일 수 있고, 전부
+    // 사양하면 아래 세계의 interaction 이 그 눌림을 받는다. 그래서 팩이 `Escape` 에
+    // 자기 규칙을 얹어도 지목 해제가 죽지 않는다 (dispatchKey 의 머리말)
+    if (dispatchKey(KEY_BINDINGS, code, latestScene, (action) => link.sendMarked(action))) {
       continue;
     }
     const keyed = latestScene.interactions.filter((i) => i.key === code);

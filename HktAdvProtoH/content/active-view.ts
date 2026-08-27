@@ -14,17 +14,24 @@ export { KEY_BINDINGS } from './proto-adventure/view/bindings';
 // 겹침 표면의 열림 상태 (기반 capability 의 Escape·✕ 가 조립을 거쳐 닫기를 부른다).
 // 무엇이 열려 있는가는 결정 Layer 가 쥔다 — 기반은 그리는 능력만 가진다 (반전 ⑤).
 export { closeSurface, surfaceIsOpen, toggleSurface } from './proto-adventure/view/surface-state';
-// C026 — 소지품 작업 공간이 세계의 대답을 받아 기다림을 푸는 자리.
-// V-004 — 기반이 돌려준 눌림(칸 한 번·두 번·목록 청함·줄)이 무슨 뜻인지도 팩이 정한다.
+// V-004 — 기반이 돌려준 눌림(칸 한 번·두 번·목록 청함·줄)이 무슨 뜻인지는 팩이 정한다.
 // 조립은 눌린 id 를 그대로 넘길 뿐 그것이 무엇인지 알지 못한다.
+//
+// **표면 이름이 없는 자리 하나를 부른다** (V-021) — 예전에는 `inventory-workspace` 를
+// 이름 지어 두었고, 표면이 둘이 되자 소지품 모듈이 남의 표면까지 갈라 보내야 했다.
+// 이제 표면이 셋째가 되어도 이 파일은 바뀌지 않는다.
+//
+// C026 — 소지품 작업 공간이 세계의 대답을 받아 기다림을 푸는 자리 (아래 둘).
 export {
   commitCell,
-  forgetPending,
   menuCell,
   pickCell,
   pressRow,
-  settleOutcome,
   typeInto,
+} from './proto-adventure/view/surface-dispatch';
+export {
+  forgetPending,
+  settleOutcome,
 } from './proto-adventure/view/inventory-workspace';
 // 기술 (C027) — 조립 루트가 "이 요청에 표식을 달까" 를 이것으로 안다.
 // 무엇이 기술인지는 팩이 판단한다 — 조립은 이름을 하나도 알지 못한다.

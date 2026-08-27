@@ -261,6 +261,26 @@ const executionLogToggle: KeyBinding = {
   },
 };
 
+/**
+ * 걸어 둔 것을 `Esc` 로 놓는다 (V-021 · V-020 REPORT ①).
+ *
+ * **걸린 것이 없으면 사양한다** — 그래야 같은 `Esc` 가 그대로 세계로 흘러 지목 해제가
+ * 된다. 이 바인딩이 생기기 전에는 그 둘 중 하나만 가질 수 있었다: `Escape` 에 규칙을
+ * 얹는 순간 지목 해제가 죽었기 때문이다 (기반이 사양하는 길을 연 뒤에 풀렸다).
+ *
+ * 겹침 표면이 열려 있는 동안에는 이 자리에 오지 않는다 — 그때 `Esc` 는 기반의 표면
+ * 능력이 붙잡는 단계에서 받아 표면을 닫는 데 쓴다.
+ */
+const armedRelease: KeyBinding = {
+  code: keyCode('close'),
+  invoke: () => {
+    if (armed === null && exchangeKind === null) return false;
+    armed = null;
+    exchangeKind = null;
+    return true;
+  },
+};
+
 const inventoryToggle: KeyBinding = {
   code: INVENTORY_OPEN_KEY,
   invoke: () => {
@@ -285,35 +305,33 @@ function workspaceKey(
   return {
     code,
     invoke: (_scene, send) => {
-      if (!surfaceIsOpen(INVENTORY_SURFACE_ID)) return;
+      // **사양한다** (V-021) — 그래야 같은 방향키가 표면 밖에서 이동으로 남고,
+      // 같은 코드의 다른 표면 바인딩이 자기 차례를 얻는다
+      if (!surfaceIsOpen(INVENTORY_SURFACE_ID)) return false;
       // 표면을 지은 그 관찰을 읽는다 — SceneState 는 이미 표시 지시라 원래의 관찰을
       // 담고 있지 않다 (inventory-workspace.ts 의 observedNow 주석)
       const snapshot = observedNow();
-      if (!snapshot) return;
+      if (!snapshot) return false;
       act(snapshot, send);
+      return true;
     },
   };
 }
 
 /**
- * 위아래 축 — 지금 열려 있는 표면이 그 뜻을 정한다.
+ * 되짚는 자리의 위아래 축 (V-018) — **그 표면이 닫혀 있으면 사양한다.**
  *
- * 소지품이면 행동 줄 사이의 초점이고, 되짚는 자리면 사건 줄 사이의 고르기다.
- * 둘 다 닫혀 있으면 아무 일도 하지 않는다 — 그래야 같은 키가 표면 밖에서 이동으로 남는다.
+ * 사양하면 같은 코드의 다음 바인딩(소지품 쪽)이 묻고, 그마저 사양하면 그 눌림은
+ * 세계로 흐른다. 표면마다 자기 바인딩을 두는 이 모양이 가능해진 것은 기반이
+ * 사양하는 길을 연 뒤다 (V-021 · `dispatchKey`).
  */
-function surfaceAxis(code: string, delta: number): KeyBinding {
+function logAxis(code: string, delta: number): KeyBinding {
   return {
     code,
-    invoke: (_scene, send) => {
-      if (surfaceIsOpen(EXECUTION_LOG_SURFACE_ID)) {
-        moveLogSelection(delta);
-        return;
-      }
-      if (!surfaceIsOpen(INVENTORY_SURFACE_ID)) return;
-      const snapshot = observedNow();
-      if (!snapshot) return;
-      moveActionFocus(snapshot, delta);
-      void send;
+    invoke: () => {
+      if (!surfaceIsOpen(EXECUTION_LOG_SURFACE_ID)) return false;
+      moveLogSelection(delta);
+      return true;
     },
   };
 }
@@ -328,23 +346,30 @@ export const KEY_BINDINGS: readonly KeyBinding[] = [
   armKey(EXCHANGE_ARM_KEY, 'exchange-item'),
   // C-COMBAT-001 — 배분. 같은 두 걸음이며 다음 숫자가 배분의 차례를 가리킨다
   armKey(ALLOCATION_ARM_KEY, 'set-allocation'),
+  // V-021 — 걸어 둔 것을 놓는 길. 걸린 것이 없으면 사양해 지목 해제로 흐른다
+  armedRelease,
   // C026 — 소지품 작업 공간. 방향키·Enter 는 열려 있을 때만 듣는다
   inventoryToggle,
   // V-018 — 방금 있었던 일
   executionLogToggle,
   workspaceKey(keyCode('pickLeft'), (snapshot) => moveSelection(snapshot, -1)),
   workspaceKey(keyCode('pickRight'), (snapshot) => moveSelection(snapshot, 1)),
-  // ↑ ↓ 는 **열려 있는 표면의 것**이다 — 조립은 코드가 같은 바인딩 중 하나만 부르므로
-  // (KEY_BINDINGS.find) 같은 키로 둘을 등록할 수 없다. 어느 표면의 손짓인지는 여기서 가른다
-  surfaceAxis(keyCode('actionUp'), -1),
-  surfaceAxis(keyCode('actionDown'), 1),
+  // ↑ ↓ 는 **열려 있는 표면의 것**이다 — 표면마다 자기 바인딩을 두고, 닫혀 있으면
+  // 사양한다 (V-021). 되짚는 자리가 먼저 묻고 그다음이 소지품이며, 둘 다 닫혀 있으면
+  // 그 눌림은 세계로 흘러 이동으로 남는다
+  logAxis(keyCode('actionUp'), -1),
+  logAxis(keyCode('actionDown'), 1),
+  workspaceKey(keyCode('actionUp'), (snapshot) => moveActionFocus(snapshot, -1)),
+  workspaceKey(keyCode('actionDown'), (snapshot) => moveActionFocus(snapshot, 1)),
   workspaceKey(keyCode('invoke'), (snapshot, send) => invokeFocusedAction(snapshot, send)),
   // V-008 — 많은 것 중에서 찾는 자리. 세계로 나가지 않는다: 무엇을 볼지가 바뀔 뿐이다
   workspaceKey(keyCode('viewFilter'), () => cycleFilter()),
   workspaceKey(keyCode('viewOrder'), () => cycleOrder()),
   workspaceKey(keyCode('viewSearch'), () => claimSearchFocus()),
-  // Escape 는 여기 없다 — 기반의 표면 능력이 붙잡아 조립을 거쳐 closeSurface 로 온다
-  // (engine/view-kernel/hud/surface.ts · app/main.ts). 두 곳에서 받으면 두 번 닫힌다
+  // 표면을 닫는 Escape 는 여기 없다 — 기반의 표면 능력이 붙잡는 단계에서 받아 조립을
+  // 거쳐 closeSurface 로 온다 (engine/view-kernel/hud/surface.ts · app/main.ts).
+  // 두 곳에서 받으면 두 번 닫힌다. 위의 `armedRelease` 는 표면이 **닫혀 있을 때**의
+  // 같은 키이며 (그때 기반은 아무것도 붙잡지 않는다), 걸린 것이 없으면 사양한다
   // 첫 아홉 칸. 칸이 그만큼 없으면 아무 일도 일어나지 않는다
   ...Array.from({ length: 9 }, (_, i) => slotKey(i)),
 ];
