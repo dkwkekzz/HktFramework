@@ -31,9 +31,9 @@ Feedback · BACKLOG)를 겹쳐 `LANES.html` 로 그린다. `npm run lanes:check`
 
 | 레인 | 상태 | 지금 | 기다리는 것 |
 |---|---|---|---|
-| FEEDBACK | OPEN | `C-COMBAT-003` 의 MASTER FEEDBACK 이 미처리 1건 (`npm run feedback:gate`) — Overlay 둘(MC-ABILITY-CONDITION · MC-AURA-ALLOCATION) · Constraint 판정 일곱 · 후보 둘 · Gap 셋 | 없음 — 다만 **병합 뒤 최신 main 위에서** 돈다 (`overlay.md` 는 공유 파일이다) |
+| FEEDBACK | OPEN | 미처리 **2건** — `C-COMBAT-003`(Overlay 둘 · Constraint 일곱 · 후보 둘 · Gap 셋) · `C-COMBAT-004`(MC-MARK MISSING→IMPLEMENTED · Constraint 일곱 · 후보 둘 · Gap 셋). `npm run feedback:gate` | 없음 — 다만 **병합 뒤 최신 main 위에서** 돈다 (`overlay.md` 는 공유 파일이다) |
 | WORLD·ITEM | HUMAN | 후보 5 중 선택 대기 — Agent 추천 FR-THE-PLACES-ARE-NARROWER (+FR-SEE-BEFORE 얹기) | Human Select (frontier/item.md) |
-| WORLD·COMBAT | RUNNING | `C-COMBAT-004` — `FR-WHAT-YOU-LEAVE-ON-THEM`(상대에게 남긴 것이 다음을 바꾼다). `C-COMBAT-003` 은 **COMPLETE** — 그 Cycle 의 MASTER FEEDBACK 이 미처리로 FEEDBACK 레인에 걸려 있다. `C-COMBAT-001` 은 여전히 Human Play 대기 (`U` → `2`) | 없음 |
+| WORLD·COMBAT | HUMAN | `C-COMBAT-004`(상대에게 남긴 것이 다음을 바꾼다) Stage 8 까지 닫혔다 — 6종 중 Playable 만 HOLD. **Human Play 대기**: `npm run dev` → `P` 가 "먼저 대상을 고르자" 라고 말하는가 → 고르고 `P` 로 생명이 줄지 않는데 `◈` 가 붙는가 → 다시 `P` 가 막히는가 → `U`→`3`→`O` 가 60 이 아니라 80 인가 → 6초 뒤 `◈` 가 사라지는가. `C-COMBAT-001` 도 여전히 Human Play 대기 (`U` → `2`) | Human Play (두 Cycle) |
 | WORLD·TERRAIN | HUMAN | 후보 3 중 선택 대기 — Agent 추천 `FR-THE-LAND-KEEPS-WHAT-IT-TAKES`(땅이 거둔 것을 간직한다). `C-TERRAIN-001` COMPLETE · Feedback 반영 끝 | Human Select (frontier/terrain.md) |
 | WORLD·GROWTH | HUMAN | 후보 2 중 선택 대기 — **SELECTED 가 비었다.** `C-GROWTH-001` COMPLETE · Feedback 반영 끝. Agent 추천 `FR-THE-SKILL-LEARNS-A-NEW-MOVE`(쓰던 기술이 새 수를 배운다) — 승인된 Constraint 하나를 세계에서 닫는 유일한 후보이고 바닥이 선 지금 얹히는 비용이 가장 작다 | Human Select (frontier/growth.md) |
 | WORLD·KNOWLEDGE | HUMAN | **트랙이 방금 섰다** — 후보 일곱 중 선택 대기. 전투 지식(CK) 주입으로 판단이라는 층이 세워졌다. 의존이 빈 것은 `FR-WHAT-YOU-KNOW-FIGHTS-WITH-YOU`(배운 것이 몸의 판단이 된다) 하나이며 나머지 여섯이 전부 그것을 전제한다 — 이 트랙에는 고민할 순서가 없다. **철회된 대응 층이 돌아올 자리이기도 하다** (CK §15) | Human Select (frontier/knowledge.md) |
@@ -76,6 +76,9 @@ Human 이 답하면 풀리는 것들이다. 답의 자리는 괄호가 가리킨
 | `CC-ORDER-IS-THE-ADDRESS` 승격 여부 (candidates/) | 순서로 짚는 것이 원칙이 되는가 — DC-WORLD-OWNS-THE-SURFACE-LIST 와 합칠지도 함께 |
 | C-COMBAT-003 의 Overlay 판정 하나 (08-verification MASTER FEEDBACK) | `MC-AURA-ALLOCATION` 을 IMPLEMENTED 로 볼 것인가 — semantic("무엇을 할 수 있는가를 가른다")으로 읽으면 닫혔고, detail 의 예 둘(인지 축도 관문이 된다)을 요구로 읽으면 아직 PARTIAL 이다. Q66 과 같은 종류의 물음이다 |
 | `CC-THE-LIST-IS-THE-JUDGE-TOO` 승격 여부 (08-verification MASTER FEEDBACK) | 세계가 목록을 소유한다는 규율이 **투영뿐 아니라 판정에도** 걸리는가 — 이번에 `isSkillKind` 가 목록 대신 이름 셋을 적어 두어 새 기술이 시작은 되고 칼끝을 만들지 않았다. 관찰 둘째다 (C018 이 첫째). 기존 `DC-WORLD-OWNS-THE-SURFACE-LIST` 의 scope 를 넓힐지도 함께 |
+| C-COMBAT-004 Human Play — `P` → `U` → `3` → `O` | Stage 8 STATUS 가 COMPLETE 로 닫힌다. 봐야 할 것은 여섯: 고르지 않았을 때 사유가 참인가 · 생명이 줄지 않는데 표식이 붙는가 · 다시 걸기가 막히는가 · 발현 일격이 60→80 인가 · 다른 곳을 골라도 남아 있는가 · 6초 뒤 사라지는가 |
+| **키 자리가 바닥났다** (C-COMBAT-004 Master Gap ②) | 글자 키가 남지 않았다 — `O`(C-COMBAT-003) · `P`(C-COMBAT-004) 로 끝. 사슬 B 에 후보 셋이 남았으므로 **다음 Cycle 은 키 없는 기술을 세운다**. 막힘은 아니다 (띠는 눌러서도 부른다) — `works/BACKLOG.md` 의 `skill-slot-crowds-the-keyboard` 가 VIEW/ENGINE 레인에서 그 자리를 기다린다 |
+| **자율 존재의 판단이 두 번 같은 자리에서 걸렸다** (C-COMBAT-003 Gap ① · C-COMBAT-004 Gap ①) | `Design-Creature-Behavior-R0.md` 승인이 이 트랙의 다음 층을 가른다 — 사슬 B 의 남은 셋(계약 · 규칙 관찰 · 봉인)이 전부 "상대가 무엇을 하는가" 를 전제하므로, 그 문서가 서지 않으면 **반쪽만 검증되는 층**을 쌓게 된다 |
 | C-COMBAT-001 Human Play — 손으로 `U` → 숫자를 눌러 보기 | Stage 8 STATUS 가 COMPLETE 로 닫힌다 (Feedback 은 이미 반영됐다). 봐야 할 것은 이제 **하나**다 (나머지 둘은 08 의 HUMAN PLAY 보조가 재어 BACKLOG 로 넘겼다): 상대를 절반 아래로 때렸을 때 뜨는 `[몸]` 이, 표시가 셋까지 앞에 붙은 이름(`[적대] 준비! [몸]Wanderer 1 ?`)에서 교전 중에 읽히는가 |
 | C-GROWTH-001 의 Master Gap ① (08-verification.md) | `GBC-GAIN-LEVEL` 의 `capability_reach.effective` 가 실제보다 넓다 — "기력 · 기본 이동" 은 이 Cycle 이 닿지 않았다. 좁힐 것인가, 그 셋에 유효 값 자리를 여는 것을 후보로 세울 것인가 |
 | **C-GROWTH-001 의 Master Gap ③** — 잘 터뜨린 판이 덜 쌓는다 (feedback/C-GROWTH-001…md) | 한 마리의 벌이가 18~21 로 흔들리고 열 판 중 둘은 넘어뜨리고도 첫 문턱에 못 닿는다. 선택지 셋: (a) 그대로 둔다 — Goal 이 적은 길(쓰러뜨리고 캐면)은 어느 판에서도 넘는다 (b) 쓰러뜨림을 14 → 16 (c) 치기의 몫을 0 으로 두고 **끝난 일**만 센다. 수치는 Human 소유다 (원칙 19) |
