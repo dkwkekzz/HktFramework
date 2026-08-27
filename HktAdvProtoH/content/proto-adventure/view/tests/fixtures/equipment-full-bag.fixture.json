@@ -320,5 +320,6 @@
     "self": {
       "state": "none"
     }
-  }
+  },
+  "allocations": []
 }

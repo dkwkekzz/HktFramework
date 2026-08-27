@@ -197,5 +197,6 @@
     "self": {
       "state": "none"
     }
-  }
+  },
+  "allocations": []
 }

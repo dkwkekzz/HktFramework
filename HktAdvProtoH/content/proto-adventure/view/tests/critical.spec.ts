@@ -124,8 +124,8 @@ describe('entities.attributes.combatStats — 상대가 얼마나 터뜨리는 �
 describe('hud.self — 내가 터뜨리는 몸인지는 늘 눈앞에 있다', () => {
   it('내 약점 뒤에 내 치명타가 온다', () => {
     const lines = plan().self?.lines ?? [];
-    expect(lines[3]).toContain('내 약점');
-    expect(lines[4]).toBe('치명타 50% · ×2');
+    expect(lines[4]).toContain('내 약점');
+    expect(lines[5]).toBe('치명타 50% · ×2');
   });
 
   it('살펴봄과 무관하다 — 자기 것은 언제나 실린다', () => {

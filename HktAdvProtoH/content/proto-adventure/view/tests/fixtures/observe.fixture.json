@@ -65,7 +65,15 @@
         },
         "insight": 0,
         "stanceTowardObserver": "neutral",
-        "stanceFromObserver": "neutral"
+        "stanceFromObserver": "neutral",
+        "allocation": {
+          "id": "balanced",
+          "shares": {
+            "body": 2,
+            "ability": 2,
+            "awareness": 2
+          }
+        }
       },
       "body": {
         "radius": 0.7,
@@ -125,7 +133,15 @@
         },
         "insight": 0,
         "stanceTowardObserver": "neutral",
-        "stanceFromObserver": "neutral"
+        "stanceFromObserver": "neutral",
+        "allocation": {
+          "id": "balanced",
+          "shares": {
+            "body": 2,
+            "ability": 2,
+            "awareness": 2
+          }
+        }
       },
       "body": {
         "radius": 0.7,
@@ -199,7 +215,15 @@
         },
         "insight": 0,
         "stanceTowardObserver": "neutral",
-        "stanceFromObserver": "neutral"
+        "stanceFromObserver": "neutral",
+        "allocation": {
+          "id": "balanced",
+          "shares": {
+            "body": 2,
+            "ability": 2,
+            "awareness": 2
+          }
+        }
       },
       "body": {
         "radius": 0.85,
@@ -664,5 +688,6 @@
     "self": {
       "state": "none"
     }
-  }
+  },
+  "allocations": []
 }

@@ -7,6 +7,7 @@
 
 import { idleAction } from './action';
 import type { ActorControl, ActorState, CharacterKind } from './actor';
+import { DEFAULT_ALLOCATION } from './allocation';
 import { characterDefinition } from './character-catalog';
 import type { Equipment } from './equipment';
 import { createEquipment } from './equipment';
@@ -56,6 +57,10 @@ export function spawnActor(spawn: ActorSpawn): ActorState {
     criticalChance: def.combat.criticalChance, // C015 — 종류가 정하는 Critical 둘
     criticalDamage: def.combat.criticalDamage,
     insight: def.insight, // C016 — 종류가 정하는 통찰 (지금은 모두 0)
+    // C-COMBAT-001 — 배분은 종류가 정하는 값이 아니다. 누구나 고르게 나눈 채로
+    // 태어나며, 그 배분은 어느 값에도 0 을 보탠다 — 그래서 이 항목이 들어오는 것만으로는
+    // 지금까지의 어떤 결과도 달라지지 않는다 (INTENT-THE-EVEN-ALLOCATION-ADDS-NOTHING-001).
+    allocation: DEFAULT_ALLOCATION,
     guarding: false, // C011 — 막기는 종류가 정하는 값이 아니다. 누구나 안 든 채로 태어난다
     guardBrokenUntil: 0,
     moveMode: 'walk',

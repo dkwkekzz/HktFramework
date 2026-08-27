@@ -30,6 +30,7 @@ import { ruleBodyPush } from './simulation/body-push';
 import { ruleCpRunDrain } from './simulation/cp-run-drain';
 import { ruleGroundLawApply } from './simulation/ground-law-apply';
 import { ruleMoveProgress } from './simulation/move-progress';
+import { ruleNpcAllocationAll } from './simulation/npc-allocation';
 import { ruleNpcDecideAll } from './simulation/npc-decide';
 import { ruleStrikeEventExpire } from './simulation/strike-event-expire';
 import { ruleTargetClearStale } from './simulation/target-clear-stale';
@@ -112,6 +113,10 @@ const DEFAULT_NPCS: NpcSetup[] = [
 // 세계 규칙으로 보정한다. 기력 누수가 물리 뒤에 오는 이유 (C007): 이 Tick 에
 // 실제로 달려 움직인 결과에 값을 치른다.
 const SYSTEMS: WorldContent<WorldState>['systems'] = [
+  // C-COMBAT-001 — 배분이 먼저다. 몰아 두는 일은 **자세**이고 기술 고르기는 그 자세로
+  // 하는 **행동**이므로, 같은 Tick 안에서 자세가 먼저 정해져야 그 Tick 의 판정이
+  // 방금 고른 배분을 읽는다 (RULE-NPC-ALLOCATION-001).
+  (state) => ruleNpcAllocationAll(state),
   (state) => ruleNpcDecideAll(state), // RULE-NPC-DECIDE-001
   (state, dt) => ruleMoveProgress(state, dt), // RULE-MOVE-PROGRESS-001
   (state, dt) => ruleActionProgress(state, dt), // RULE-ACTION-PROGRESS-001

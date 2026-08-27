@@ -24,6 +24,7 @@
 
 import type { ActionRequest, ActionResult } from '../../protocol/actions';
 import type { InteractionHandler } from '../../../../engine/world-kernel/content';
+import { ruleAllocationSet } from '../rules/allocation-set';
 import { ruleAttributeSet } from '../rules/attribute-set';
 import { ruleGuardBegin, ruleGuardRelease } from '../rules/guard';
 import { ruleItemUse } from '../rules/item-use';
@@ -177,6 +178,18 @@ export const INTERACTIONS: readonly InteractionHandler<WorldState>[] = [
     id: 'forget-acquaintance',
     handle: (state, observerId, action) =>
       ruleObserveForget(state, observerId, action.targetEntityId),
+  },
+  {
+    // C-COMBAT-001 — 배분을 바꾼다. 몸이 세계 안에서 하는 일이므로 interaction 이다.
+    // 요청이 싣는 것은 **어느 배분인가** 하나뿐이다 — 몫을 싣지 않는다
+    // (DC-COMBAT-AURA-IS-A-PROFILE-NOT-A-DIAL). move-mode 와 같은 형태:
+    // 토글이 아니라 명시값이므로 같은 요청이 두 번 와도 결과가 같다.
+    id: 'set-allocation',
+    handle: withActor((_state, actor, action) => {
+      if (!action.allocationId)
+        return { status: 'failure', rule: DISPATCH, reason: 'missing-allocation' };
+      return ruleAllocationSet(actor, action.allocationId);
+    }),
   },
   {
     id: 'set-attribute',

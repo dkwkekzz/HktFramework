@@ -19,6 +19,7 @@ import type {
   InteractionView as CoreInteractionView,
 } from '../../../engine/protocol-core/gameview';
 import type {
+  AllocationChoiceView,
   AttributesView,
   CancelEventView,
   CurrentTargetView,
@@ -90,4 +91,7 @@ export interface GameViewSnapshot extends CoreGameViewSnapshot {
   // C-TERRAIN-001 ADDED — 무대의 자리들과 지금 내게 걸린 법칙.
   // **몸이 아닌 것이 실리는 첫 항목이다** (gameview-terrain.ts).
   ground: GroundView;
+  // C-COMBAT-001 ADDED — 고를 수 있는 배분 전부 (지금 고를 수 없는 것도 포함).
+  // 소지품·적용 자리와 나란한 세 번째 목록이며 내 몸의 것만 실린다.
+  allocations: AllocationChoiceView[];
 }

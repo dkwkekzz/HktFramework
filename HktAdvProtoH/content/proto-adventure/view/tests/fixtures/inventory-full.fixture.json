@@ -238,5 +238,6 @@
     "self": {
       "state": "none"
     }
-  }
+  },
+  "allocations": []
 }

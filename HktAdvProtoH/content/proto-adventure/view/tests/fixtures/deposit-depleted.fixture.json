@@ -239,5 +239,6 @@
     "self": {
       "state": "none"
     }
-  }
+  },
+  "allocations": []
 }

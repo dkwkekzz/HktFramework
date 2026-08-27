@@ -15,6 +15,7 @@
 //   Facing 은 몸이 향한 방향 (R1) — 이동이 갱신하고, 휘두름 충돌체가 나가는 쪽이다.
 
 import type { CurrentAction } from './action';
+import type { AllocationId } from './allocation';
 import type { MoveMode } from './combat';
 import type { Equipment } from './equipment';
 import type { Inventory } from './inventory';
@@ -73,6 +74,24 @@ export interface ActorState {
   // 않는다 — 피해·기력·속도·판정 어디에도 이 값이 없다. 읽히는 곳은 가려짐 관문
   // 하나뿐이다 (RULE-INSIGHT-REVEAL-001). "다가가야만 안다" 는 값 0 이다.
   insight: number; // 0~100 — 살펴보지 않고도 아는 범위를 정한다
+  /**
+   * C-COMBAT-001 ADDED — 지금의 배분 (INTENT-BODY-HAS-AN-ALLOCATION-001).
+   *
+   * 지금 자신의 힘을 몸 · 능력 · 인지 중 어디에 몰아 두었는가. 이름 하나이며
+   * 몫의 묶음이 아니다 (DC-COMBAT-AURA-IS-A-PROFILE-NOT-A-DIAL).
+   *
+   * **어떤 몸이든 언제나 정확히 하나를 지닌다** — 조종 주체를 가리지 않고 비어 있는
+   * 값도 없다. 그러므로 걸고 푸는 것이 아니며 "배분이 없는 몸" 이라는 갈래가 세계에
+   * 생기지 않는다: 그런 몸은 고르게 나눈 배분(balanced)을 지닌 몸이다.
+   *
+   * 종류가 정하는 값이 아니다 — 카탈로그에 두지 않는다. 같은 종류라도 지금 어디에
+   * 몰아 두었는지는 개체마다 다르며 국면마다 바뀐다 (C018 의 guardedGround 와 같은 자리).
+   *
+   * 유효 값에 어떻게 들어가는지는 semantic/allocation.ts 와 semantic/combat.ts 의
+   * effectiveStat 이 소유한다. RULE-ALLOCATION-SET-001 만이 이 값을 바꾼다
+   * (자율 존재의 RULE-NPC-ALLOCATION-001 도 그 규칙을 지나간다).
+   */
+  allocation: AllocationId;
   // 막기 (C011) — 행동과 나란한 몸의 상태다. CurrentAction 자리를 쓰지 않는다.
   // 막으면서 걸을 수 있어야 하는데, 행동 자리를 쓰면 걷기와 자리를 다투게 되어
   // INTENT-ACTION-STATE-001("언제나 정확히 하나의 행동")을 깨야 하기 때문이다.

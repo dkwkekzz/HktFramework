@@ -71,11 +71,11 @@ describe('entities.attributes — 상대의 두 방어와 약점이 보인다', 
 describe('hud.self — 내 네 능력과 내 약점', () => {
   it('물리·오라가 각각 한 줄로, 그다음 내 약점이 온다', () => {
     const lines = plan().self?.lines ?? [];
-    expect(lines[0]).toBe('물리 공격 40 · 물리 방어 50 (받는 피해 67%)');
-    expect(lines[1]).toBe('오라 공격 40 · 오라 방어 20 (받는 피해 83%)');
+    expect(lines[1]).toBe('물리 공격 40 · 물리 방어 50 (받는 피해 67%)');
+    expect(lines[2]).toBe('오라 공격 40 · 오라 방어 20 (받는 피해 83%)');
     // rabbit-swordsman 은 물리 쪽(50)이 오라 쪽(20)보다 단단하다 → 오라에 약하다
-    expect(lines[2]).toBe('관통 물리 0 · 오라 0'); // C013
-    expect(lines[3]).toBe('내 약점 오라에 약하다');
+    expect(lines[3]).toBe('관통 물리 0 · 오라 0'); // C013
+    expect(lines[4]).toBe('내 약점 오라에 약하다');
   });
 });
 

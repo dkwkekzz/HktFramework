@@ -66,7 +66,15 @@
         "defenseShape": "even",
         "insight": 0,
         "stanceTowardObserver": "neutral",
-        "stanceFromObserver": "neutral"
+        "stanceFromObserver": "neutral",
+        "allocation": {
+          "id": "balanced",
+          "shares": {
+            "body": 2,
+            "ability": 2,
+            "awareness": 2
+          }
+        }
       },
       "body": {
         "radius": 0.5,
@@ -140,7 +148,15 @@
         "defenseShape": "even",
         "insight": 0,
         "stanceTowardObserver": "neutral",
-        "stanceFromObserver": "neutral"
+        "stanceFromObserver": "neutral",
+        "allocation": {
+          "id": "balanced",
+          "shares": {
+            "body": 2,
+            "ability": 2,
+            "awareness": 2
+          }
+        }
       },
       "body": {
         "radius": 0.5,
@@ -214,7 +230,15 @@
         "defenseShape": "even",
         "insight": 0,
         "stanceTowardObserver": "neutral",
-        "stanceFromObserver": "neutral"
+        "stanceFromObserver": "neutral",
+        "allocation": {
+          "id": "balanced",
+          "shares": {
+            "body": 2,
+            "ability": 2,
+            "awareness": 2
+          }
+        }
       },
       "body": {
         "radius": 0.5,
@@ -465,18 +489,21 @@
         "damageType": "physical",
         "offenseStat": {
           "name": "physicalAttack",
-          "value": 80
+          "value": 80,
+          "fromAllocation": 0
         },
         "baseDamage": 32,
         "attackContribution": 40,
         "rawDamage": 72,
         "defenseStat": {
           "name": "armor",
-          "value": 30
+          "value": 30,
+          "fromAllocation": 0
         },
         "penetrationStat": {
           "name": "armorPenetration",
-          "value": 0
+          "value": 0,
+          "fromAllocation": 0
         },
         "effectiveDefense": 30,
         "defenseMultiplier": 0.7692307692307693,
@@ -487,7 +514,9 @@
           "chance": 0,
           "multiplier": 1,
           "damageBeforeCritical": 55
-        }
+        },
+        "attackerAllocation": "balanced",
+        "targetAllocation": "balanced"
       }
     },
     {
@@ -504,18 +533,21 @@
         "damageType": "physical",
         "offenseStat": {
           "name": "physicalAttack",
-          "value": 40
+          "value": 40,
+          "fromAllocation": 0
         },
         "baseDamage": 6,
         "attackContribution": 20,
         "rawDamage": 26,
         "defenseStat": {
           "name": "armor",
-          "value": 50
+          "value": 50,
+          "fromAllocation": 0
         },
         "penetrationStat": {
           "name": "armorPenetration",
-          "value": 0
+          "value": 0,
+          "fromAllocation": 0
         },
         "effectiveDefense": 50,
         "defenseMultiplier": 0.6666666666666666,
@@ -526,7 +558,9 @@
           "chance": 0,
           "multiplier": 1,
           "damageBeforeCritical": 17
-        }
+        },
+        "attackerAllocation": "balanced",
+        "targetAllocation": "balanced"
       }
     }
   ],
@@ -547,5 +581,6 @@
     "self": {
       "state": "none"
     }
-  }
+  },
+  "allocations": []
 }

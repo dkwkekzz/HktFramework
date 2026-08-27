@@ -186,6 +186,7 @@ describe('결정 Layer 의 유연 대응 — 미등록 항목도 기본 결정�
       inventoryRoom: { used: 0, capacity: 4 },
       equipment: [],
       ground: { zones: [], self: { state: 'none' } },
+      allocations: [],
       entities: [
         { id: 'npc-1', role: 'wandering-merchant', state: 'idle', position: { x: 1, z: 1 } },
       ],

@@ -1,5 +1,5 @@
 {
-  "specId": "VIEW-THE-GROUND-HAS-A-LAW-001",
+  "specId": "VIEW-WHERE-YOUR-POWER-SITS-001",
   "scene": "mining-field",
   "observer": {
     "id": "observer-1",
@@ -64,15 +64,15 @@
           "broken": false
         },
         "defenseShape": "even",
-        "insight": 0,
+        "insight": 40,
         "stanceTowardObserver": "neutral",
         "stanceFromObserver": "neutral",
         "allocation": {
-          "id": "balanced",
+          "id": "hunter",
           "shares": {
-            "body": 2,
-            "ability": 2,
-            "awareness": 2
+            "body": 1,
+            "ability": 1,
+            "awareness": 4
           }
         }
       },
@@ -121,40 +121,25 @@
           "moveSpeed": 1,
           "actionSpeed": 1
         },
-        "acquainted": true,
-        "concealed": [],
-        "combatStats": {
-          "physicalAttack": 40,
-          "auraAttack": 40,
-          "armor": 30,
-          "resistance": 30,
-          "armorPenetration": 0,
-          "resistancePenetration": 0,
-          "armorMultiplier": 0.769231,
-          "resistanceMultiplier": 0.769231,
-          "criticalChance": 0,
-          "criticalDamage": 1
-        },
-        "versusObserver": {
-          "armor": 30,
-          "resistance": 30,
-          "armorMultiplier": 0.769231,
-          "resistanceMultiplier": 0.769231
-        },
+        "acquainted": false,
+        "concealed": [
+          "combatStats",
+          "versusObserver"
+        ],
         "guard": {
           "guarding": false,
           "broken": false
         },
-        "defenseShape": "even",
+        "defenseShape": "aura-tougher",
         "insight": 0,
         "stanceTowardObserver": "neutral",
         "stanceFromObserver": "neutral",
         "allocation": {
-          "id": "balanced",
+          "id": "reinforce",
           "shares": {
-            "body": 2,
-            "ability": 2,
-            "awareness": 2
+            "body": 4,
+            "ability": 1,
+            "awareness": 1
           }
         }
       },
@@ -203,40 +188,25 @@
           "moveSpeed": 1,
           "actionSpeed": 1
         },
-        "acquainted": true,
-        "concealed": [],
-        "combatStats": {
-          "physicalAttack": 40,
-          "auraAttack": 40,
-          "armor": 30,
-          "resistance": 30,
-          "armorPenetration": 0,
-          "resistancePenetration": 0,
-          "armorMultiplier": 0.769231,
-          "resistanceMultiplier": 0.769231,
-          "criticalChance": 0,
-          "criticalDamage": 1
-        },
-        "versusObserver": {
-          "armor": 30,
-          "resistance": 30,
-          "armorMultiplier": 0.769231,
-          "resistanceMultiplier": 0.769231
-        },
+        "acquainted": false,
+        "concealed": [
+          "combatStats",
+          "versusObserver"
+        ],
         "guard": {
           "guarding": false,
           "broken": false
         },
-        "defenseShape": "even",
+        "defenseShape": "aura-tougher",
         "insight": 0,
         "stanceTowardObserver": "neutral",
         "stanceFromObserver": "neutral",
         "allocation": {
-          "id": "balanced",
+          "id": "reinforce",
           "shares": {
-            "body": 2,
-            "ability": 2,
-            "awareness": 2
+            "body": 4,
+            "ability": 1,
+            "awareness": 1
           }
         }
       },
@@ -354,7 +324,7 @@
     {
       "id": "self.cp",
       "kind": "counter",
-      "value": 24
+      "value": 45
     },
     {
       "id": "self.cpMax",
@@ -374,22 +344,22 @@
     {
       "id": "self.combat.physicalAttack",
       "kind": "counter",
-      "value": 40
+      "value": 32
     },
     {
       "id": "self.combat.auraAttack",
       "kind": "counter",
-      "value": 40
+      "value": 28
     },
     {
       "id": "self.combat.armor",
       "kind": "counter",
-      "value": 50
+      "value": 40
     },
     {
       "id": "self.combat.resistance",
       "kind": "counter",
-      "value": 50
+      "value": 14
     },
     {
       "id": "self.combat.armorMultiplier",
@@ -452,14 +422,29 @@
       "value": false
     },
     {
-      "id": "self.warmth",
-      "kind": "counter",
-      "value": 62
+      "id": "self.allocation",
+      "kind": "label",
+      "value": "hunter"
     },
     {
-      "id": "self.warmthMax",
+      "id": "self.allocation.share.body",
       "kind": "counter",
-      "value": 100
+      "value": 1
+    },
+    {
+      "id": "self.allocation.share.ability",
+      "kind": "counter",
+      "value": 1
+    },
+    {
+      "id": "self.allocation.share.awareness",
+      "kind": "counter",
+      "value": 4
+    },
+    {
+      "id": "self.insight",
+      "kind": "counter",
+      "value": 40
     }
   ],
   "strikes": [
@@ -565,34 +550,61 @@
     "capacity": 4
   },
   "equipment": [],
-  "ground": {
-    "zones": [
-      {
-        "id": "zone-ice-field",
-        "law": "heat-binding",
-        "role": "law",
-        "center": {
-          "x": -11,
-          "z": 11
-        },
-        "radius": 7.0
+  "allocations": [
+    {
+      "id": "balanced",
+      "shares": {
+        "body": 2,
+        "ability": 2,
+        "awareness": 2
       },
-      {
-        "id": "zone-sunbreath",
-        "law": "heat-binding",
-        "role": "respite",
-        "center": {
-          "x": -13,
-          "z": 13
-        },
-        "radius": 2.5
-      }
-    ],
-    "self": {
-      "law": "heat-binding",
-      "state": "taking",
-      "takes": "warmth"
+      "current": false,
+      "cpCost": 15,
+      "available": true,
+      "interactionId": "set-allocation"
+    },
+    {
+      "id": "reinforce",
+      "shares": {
+        "body": 4,
+        "ability": 1,
+        "awareness": 1
+      },
+      "current": false,
+      "cpCost": 15,
+      "available": true,
+      "interactionId": "set-allocation"
+    },
+    {
+      "id": "hatsu",
+      "shares": {
+        "body": 1,
+        "ability": 4,
+        "awareness": 1
+      },
+      "current": false,
+      "cpCost": 15,
+      "available": false,
+      "interactionId": "set-allocation",
+      "unavailableReason": "insufficient-cp"
+    },
+    {
+      "id": "hunter",
+      "shares": {
+        "body": 1,
+        "ability": 1,
+        "awareness": 4
+      },
+      "current": true,
+      "cpCost": 0,
+      "available": true,
+      "interactionId": "set-allocation"
     }
-  },
-  "allocations": []
+  ],
+  "ground": {
+    "zones": [],
+    "self": {
+      "state": "none"
+    }
+  }
 }
