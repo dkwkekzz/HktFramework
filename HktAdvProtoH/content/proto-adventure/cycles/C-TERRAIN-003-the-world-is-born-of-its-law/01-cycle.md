@@ -1,7 +1,7 @@
 # CYCLE C-TERRAIN-003 — 세계가 법칙에서 태어난다
 
 [PASS] Cycle Definition
-[    ] Intent
+[PASS] Intent
 [    ] World Semantic
 [    ] GameView Specification
 [    ] Human Semantic Review
