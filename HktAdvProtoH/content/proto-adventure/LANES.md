@@ -34,12 +34,12 @@ Feedback · BACKLOG)를 겹쳐 `LANES.html` 로 그린다. `npm run lanes:check`
 | FEEDBACK | OPEN | 없음 — 미처리 0 (`npm run feedback:gate -- --pending`) | 없음 — 병합 뒤 최신 main 위에서 |
 | WORLD·ITEM | HUMAN | 후보 5 중 선택 대기 — Agent 추천 FR-THE-PLACES-ARE-NARROWER (+FR-SEE-BEFORE 얹기) | Human Select (frontier/item.md) |
 | WORLD·COMBAT | HUMAN | 후보 5 중 선택 대기 — **SELECTED 가 비었다.** `C-COMBAT-002`(사슬 A 의 대답)는 Stage 5 앞에서 **철회됐다** (Human · 타이밍 맞춰 막는 기능은 세우지 않는다 · 대응은 전투 지식이 운용한다 — 그 층의 형태는 UL 이 그대로 소유한다). 사슬 A 넷이 트랙에서 빠져 남은 갈래는 하나다. Agent 추천 `FR-THE-WORLD-DECIDES-WHAT-IS-POSSIBLE` — 의존이 빈 유일한 후보이자 **직전 Cycle 이 남긴 절반도 닫는다**. `C-COMBAT-001` 은 Feedback 반영이 끝났으나 여전히 Human Play 대기 (`npm run dev` → `U` → `2`) | Human Select (frontier/combat.md) |
-| WORLD·TERRAIN | HUMAN | 후보 2 중 선택 대기 — **SELECTED 가 비었다.** `C-TERRAIN-002` COMPLETE · Feedback 반영 끝 (Gate 14 는 자동 증거로 닫혔다 — 08 STATUS). Agent 추천 `FR-THE-LAND-SHOWS-BEFORE-IT-TAKES`(땅이 거두기 전에 보인다) — **지금 세계가 불공정하다**: 안전한 자리가 옮겨 다니는데 읽을 방법이 없다. 그 후보에 Target 이 생겼다 (`MW-CIRCULATION-EVIDENCE`) | Human Select (frontier/terrain.md) |
+| WORLD·TERRAIN | RUNNING | `C-TERRAIN-003` — SELECTED `FR-THE-LAND-SHOWS-BEFORE-IT-TAKES`(땅이 거두기 전에 보인다). Target `MW-CIRCULATION-EVIDENCE`. 직전 `C-TERRAIN-002` COMPLETE · Feedback 반영 끝 | 없음 |
 | WORLD·GROWTH | HUMAN | 후보 2 중 선택 대기 — **SELECTED 가 비었다.** `C-GROWTH-001` COMPLETE · Feedback 반영 끝. Agent 추천 `FR-THE-SKILL-LEARNS-A-NEW-MOVE`(쓰던 기술이 새 수를 배운다) — 승인된 Constraint 하나를 세계에서 닫는 유일한 후보이고 바닥이 선 지금 얹히는 비용이 가장 작다 | Human Select (frontier/growth.md) |
 | WORLD·KNOWLEDGE | HUMAN | **트랙이 방금 섰다** — 후보 일곱 중 선택 대기. 전투 지식(CK) 주입으로 판단이라는 층이 세워졌다. 의존이 빈 것은 `FR-WHAT-YOU-KNOW-FIGHTS-WITH-YOU`(배운 것이 몸의 판단이 된다) 하나이며 나머지 여섯이 전부 그것을 전제한다 — 이 트랙에는 고민할 순서가 없다. **철회된 대응 층이 돌아올 자리이기도 하다** (CK §15) | Human Select (frontier/knowledge.md) |
 | VIEW | OPEN | BACKLOG 다음 항목(drag-and-drop)부터 — 기반 동반이 필요한 셋(tip-flip-at-the-edge · escape-leaves-the-field · workspace-two-columns)은 ENGINE 뒤에 잡는다 | 없음 |
 | MASTER | OPEN | **BT §16 세계 골격 주입 끝** — 열한 고리 중 열이 노드로 섰고(순환·지형·생존 압력·적응·자원·피난처·정착·증거 일곱이 신규), 대응표가 `graph/world-state.yaml` 머리에 있다. Q68(a)·Q69(b) 닫힘 — 순환이 이제 `MG-EXPLORE-BEIRA` 를 낳는다. 다음은 OPTIONS Q35 (몸이 아닌 존재를 요구하는 Possibility) — 이제 스킬 실행 형태의 빈 다섯 칸만 막는다. 성장(GS · GB)과 전투 상층(UL) 주입은 둘 다 끝났다: 결정 열(Q52~Q61) 반영 · GROWTH 후보 3 · COMBAT 후보 10 과 SELECTED 까지 | 없음 — 미처리 Feedback 이 0 이다 (`npm run feedback:gate`) |
-| ENGINE | OPEN | 셋 — ① **자판이 표면 안을 다니는 길** — 정해진 초점 차례가 없고(`tabindex` 0건), 글자 자리에서 `Esc` 가 죽는다(붙잡는 단계가 `INPUT` 에서 비켜 주고 받는 자리가 없다). 다시 그릴 때 초점을 붙드는 자리는 이미 섰다. BACKLOG 의 `escape-leaves-the-field` · `skill-focus-order` 가 이것을 기다린다 ② **겹침 표면의 자리 잡기** — 곁말이 가장자리에서 접히는 일 · 구획을 나란히 놓는 일 (`tip-flip-at-the-edge` · `workspace-two-columns`) ③ 지면 구역 장치 `SceneGroundZone` ([design/Design-Terrain-Visualization.md](../../design/Design-Terrain-Visualization.md)) — C-TERRAIN-001 의 04 확정 뒤 | 없음 |
+| ENGINE | OPEN | 셋 — ① **자판이 표면 안을 다니는 길** — 정해진 초점 차례가 없고(`tabindex` 0건), 글자 자리에서 `Esc` 가 죽는다(붙잡는 단계가 `INPUT` 에서 비켜 주고 받는 자리가 없다). 다시 그릴 때 초점을 붙드는 자리는 이미 섰다. BACKLOG 의 `escape-leaves-the-field` · `skill-focus-order` 가 이것을 기다린다 ② **겹침 표면의 자리 잡기** — 곁말이 가장자리에서 접히는 일 · 구획을 나란히 놓는 일 · **패널이 서로 위에 포개지는 일** (`tip-flip-at-the-edge` · `workspace-two-columns` · `panels-do-not-overlap` — 셋 다 `hud.ts` 의 배치가 소유한다. 검증 그림마다 디버그 패널과 self 패널이 겹쳐 글자가 포개진다) ③ 지면 구역 장치 `SceneGroundZone` ([design/Design-Terrain-Visualization.md](../../design/Design-Terrain-Visualization.md)) — C-TERRAIN-001 의 04 확정 뒤 | 없음 |
 
 ## 레인 사이 충돌 — 순서가 아니라 파일이 겹치는 곳
 
@@ -69,7 +69,7 @@ Human 이 답하면 풀리는 것들이다. 답의 자리는 괄호가 가리킨
 | WORLD·GROWTH 다음 후보 선택 (frontier/growth.md SELECTED) | WORLD·GROWTH 레인 착수. 둘 중 의존이 빈 것은 둘 다이며, 바닥(쌓인다)이 선 지금 값이 싼 쪽은 `FR-THE-SKILL-LEARNS-A-NEW-MOVE` 다 |
 | WORLD·KNOWLEDGE 첫 후보 선택 (frontier/knowledge.md SELECTED) | WORLD·KNOWLEDGE 레인 착수. 의존이 빈 것은 `FR-WHAT-YOU-KNOW-FIGHTS-WITH-YOU` 하나다 — 나머지 여섯이 전부 그것을 전제하므로 고를 것이 사실상 하나다 |
 | WORLD·COMBAT 다음 후보 선택 (frontier/combat.md SELECTED) | WORLD·COMBAT 레인 착수. 사슬 A 가 빠져 지금 의존이 빈 것은 `FR-THE-WORLD-DECIDES-WHAT-IS-POSSIBLE` 하나다 |
-| WORLD·TERRAIN 후보 선택 (frontier/terrain.md SELECTED) | WORLD·TERRAIN 레인 착수 |
+| C-TERRAIN-003 Human Semantic Review (05-review.md) | Stage 6 착수. 물어 둘 것은 그 Cycle 의 02-intent.md REVIEW QUESTION 에 선다 |
 | Q66 — 갈래를 노드의 완결로 판정하는가 플레이의 성립으로 판정하는가 (open-questions.md) | Overlay 를 읽는 법 · Frontier 가 무엇을 결손으로 세는가 |
 | Q67 — 병렬 레인이 공유하는 두 자리가 어긋난다 (open-questions.md · PROCESS) | Q 번호 충돌과 `frontier/README.md` 트랙 표의 낡음이 되풀이되는 것을 막는다. 이번 합류에서 둘 다 실제로 났다 |
 | `CC-THE-RULE-DOES-NOT-ASK-WHO-DRIVES` 승격 여부 (candidates/) | 규칙이 조종 주체를 묻지 않는 것이 원칙이 되는가 — 다섯 Cycle 이 같은 판단을 반복했다. `DC-GROWTH-DIFFERENCE-IS-BEHAVIOR` 와 합칠지도 함께 |
