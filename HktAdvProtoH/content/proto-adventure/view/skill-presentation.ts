@@ -44,7 +44,7 @@ import type {
   SceneSlotState,
 } from '../../../engine/view-kernel/scene/scene-state';
 import type { GameViewSnapshot, InteractionView, SkillProfileView } from '../protocol/gameview';
-import { interactionPresentation } from './interaction-presentation';
+import { interactionPresentation, interactionIcon} from './interaction-presentation';
 import { waitingSince, waitStage, waitText, type WaitStage } from './request-timing';
 
 /** 기술 줄의 id 앞머리 — 조립 루트가 이것으로 자기 칸을 되찾는다 */
@@ -423,7 +423,10 @@ export function skillSlotBar(
       return {
         id: skill.id,
         ...(skill.keyLabel ? { key: skill.keyLabel } : {}),
-        title: skill.label,
+        // 표식은 **이름과 함께** 선다 (V-019) — 글자를 읽지 않고도 칸이 갈리되,
+        // 표식만으로는 무엇인지 아는 사람에게만 참인 화면이 되기 때문이다.
+        // 표에 없는 기술도 표식을 얻는다: 칸이 사라지거나 비지 않는다
+        title: `${interactionIcon(skill.role)} ${skill.label}`,
         // 고르기 전에 아는 값 — 모양이 있으면 모양을, 없으면 치를 기력을 보인다.
         // 둘 다 세계가 실은 값이며 화면이 만들지 않는다.
         detail: shape

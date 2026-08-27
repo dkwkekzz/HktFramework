@@ -237,7 +237,8 @@ describe('VUX-SK-FX-UNKNOWN — 모르는 것이 와도 화면이 멈추지 않�
   });
 
   it('키가 정해지지 않은 기술도 사라지지 않는다 — 부르지 못할 뿐 존재는 관찰된다', () => {
-    expect(slot(unknown, 'skill-tideturn')?.title).toBe('skill-tideturn');
+    // V-019 — 모르는 역할도 표식을 얻는다 (`✳`). 그 칸만 다른 모양이 되지 않는다
+    expect(slot(unknown, 'skill-tideturn')?.title).toBe('✳ skill-tideturn');
   });
 
   it('모르는 사유 코드는 원문 그대로 보인다 (VUX-SK-V-10)', () => {

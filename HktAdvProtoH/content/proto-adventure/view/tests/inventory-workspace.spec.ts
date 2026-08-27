@@ -33,6 +33,7 @@ import {
   workspacePendingCount,
   workspaceSelection,
 } from '../inventory-workspace';
+import { EXECUTION_LOG_SURFACE_ID } from '../execution-log';
 import { setFilter, setOrder } from '../inventory-view';
 import { inventorySlots } from '../inventory-presentation';
 import { equipmentSlotKeys } from '../equipment-presentation';
@@ -100,7 +101,11 @@ describe('VUX-IE-V-01 — 여닫아도 세계는 흔들리지 않는다', () => 
   });
 
   it('닫혀 있어도 표면은 장면에 실린다 — 열림은 표면 자신이 지닌 값이다', () => {
-    expect(resolvePresentation(snap(mining)).surfaces).toHaveLength(1);
+    // 표면이 둘이다 (V-018 이 되짚는 자리를 더했다). 둘 다 **닫힌 채로도 실린다** —
+    // 열림은 표면 자신이 지닌 값이고, 그리는 쪽이 그것을 본다
+    const surfaces = resolvePresentation(snap(mining)).surfaces;
+    expect(surfaces.map((s) => s.id)).toEqual([INVENTORY_SURFACE_ID, EXECUTION_LOG_SURFACE_ID]);
+    expect(surfaces.every((s) => !s.open)).toBe(true);
   });
 });
 

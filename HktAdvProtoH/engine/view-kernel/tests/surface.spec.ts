@@ -5,7 +5,7 @@
 // 그리고 화면이 조용히 지우는 것이 없어야 한다 — 빈 칸도, 안 되는 줄도 남는다.
 
 import { describe, expect, it } from 'vitest';
-import { SURFACE_TEXT_CODES, surfaceMarkup } from '../hud/surface';
+import { SURFACE_TEXT_CODES, groupSections, surfaceMarkup } from '../hud/surface';
 import type { CodeTextFn } from '../presentation/code-text';
 import type { SceneSurface } from '../scene/scene-state';
 
@@ -397,5 +397,145 @@ describe('칸의 꼴 (shape)', () => {
 
   it('띠라고 밝히면 띠로 그린다 — 무엇을 고르는 띠인지는 묻지 않는다', () => {
     expect(shaped('chip')).toContain('data-shape="chip"');
+  });
+});
+
+describe('surfaceMarkup — 자판이 서는 자리', () => {
+  it('닫는 자리와 글자 자리는 언제나 Tab 자리다', () => {
+    const html = surfaceMarkup(
+      surface({
+        sections: [
+          {
+            id: 'find',
+            field: { id: 'q', text: '', label: '찾는 말' },
+            rows: [{ id: 'r0', text: '한 줄' }],
+          },
+        ],
+      }),
+      TEXT,
+    );
+    expect(html).toContain('class="sf-close" data-surface="bag" tabindex="0"');
+    expect(html).toContain('class="sf-field" data-id="q"');
+    expect(html).toContain(' tabindex="0" autocomplete');
+  });
+
+  it('실려 온 초점이 있으면 그 무리의 Tab 자리는 하나다 — 나머지는 방향키의 자리다', () => {
+    const html = surfaceMarkup(
+      surface({
+        focusId: 'c2',
+        sections: [
+          {
+            id: 'cells',
+            cells: [
+              { id: 'c0', text: '돌', empty: false, selected: false },
+              { id: 'c1', text: '흙', empty: false, selected: false },
+              { id: 'c2', text: '곡괭이', empty: false, selected: false },
+            ],
+          },
+        ],
+      }),
+      TEXT,
+    );
+    expect(html.match(/class="sf-cell"[^>]*tabindex="0"/g)).toHaveLength(1);
+    expect(html.match(/class="sf-cell"[^>]*tabindex="-1"/g)).toHaveLength(2);
+    // 선 자리는 링이 있는 자리다 — 링과 Tab 자리가 갈라지지 않는다
+    expect(html).toContain('data-id="c2" data-empty="false" data-selected="false" data-focused="true" tabindex="0"');
+  });
+
+  it('초점이 다른 무리에 있어도 이 무리는 첫 자리를 남긴다 — 닿는 길이 사라지지 않는다', () => {
+    const html = surfaceMarkup(
+      surface({
+        focusId: 'r1',
+        sections: [
+          {
+            id: 'cells',
+            cells: [
+              { id: 'c0', text: '돌', empty: false, selected: false },
+              { id: 'c1', text: '흙', empty: false, selected: false },
+            ],
+          },
+          {
+            id: 'detail',
+            rows: [
+              { id: 'r0', text: '버린다' },
+              { id: 'r1', text: '건다' },
+            ],
+          },
+        ],
+      }),
+      TEXT,
+    );
+    expect(html.match(/class="sf-cell"[^>]*tabindex="0"/g)).toHaveLength(1);
+    expect(html).toContain('data-id="c0" data-empty="false" data-selected="false" data-focused="false" tabindex="0"');
+    expect(html.match(/class="sf-row"[^>]*tabindex="0"/g)).toHaveLength(1);
+    expect(html).toContain('data-id="r1" data-focused="true" tabindex="0"');
+  });
+
+  it('실려 온 초점이 없으면 칸도 줄도 전부 Tab 자리다 — 링을 모는 손이 없다는 뜻이다', () => {
+    const html = surfaceMarkup(
+      surface({
+        sections: [
+          {
+            id: 'cells',
+            cells: [
+              { id: 'c0', text: '돌', empty: false, selected: false },
+              { id: 'c1', text: '', empty: true, selected: false },
+            ],
+          },
+          { id: 'detail', rows: [{ id: 'r0', text: '버린다' }, { id: 'r1', text: '건다' }] },
+        ],
+      }),
+      TEXT,
+    );
+    expect(html.match(/tabindex="-1"/g)).toBeNull();
+    expect(html.match(/class="sf-cell"[^>]*tabindex="0"/g)).toHaveLength(2);
+    expect(html.match(/class="sf-row"[^>]*tabindex="0"/g)).toHaveLength(2);
+  });
+});
+
+describe('groupSections — 나란히 서는 묶음', () => {
+  const at = (id: string, group?: string) => ({ id, ...(group === undefined ? {} : { group }) });
+
+  it('이름이 없으면 저마다 홀로 선다 — 오늘까지의 모든 표면이 그렇다', () => {
+    expect(groupSections([at('a'), at('b'), at('c')]).map((r) => r.length)).toEqual([1, 1, 1]);
+  });
+
+  it('이어지는 같은 이름끼리 묶인다', () => {
+    const runs = groupSections([at('tools'), at('worn', 'work'), at('bag', 'work'), at('detail')]);
+    expect(runs.map((r) => r.map((s) => s.id))).toEqual([['tools'], ['worn', 'bag'], ['detail']]);
+  });
+
+  it('사이에 다른 이름이 끼면 묶음은 거기서 끝난다 — 차례가 어긋나지 않게', () => {
+    const runs = groupSections([at('a', 'x'), at('b', 'y'), at('c', 'x')]);
+    expect(runs.map((r) => r.map((s) => s.id))).toEqual([['a'], ['b'], ['c']]);
+  });
+});
+
+describe('surfaceMarkup — 구획을 나란히 놓는다', () => {
+  it('묶인 것은 한 자리에 함께 들어가고 문턱은 첫 구획이 준다', () => {
+    const html = surfaceMarkup(
+      surface({
+        sections: [
+          { id: 'tools', rows: [{ id: 't0', text: '도구' }] },
+          { id: 'worn', group: 'work', groupMin: 300, rows: [{ id: 'w0', text: '걸어 둔 것' }] },
+          { id: 'bag', group: 'work', rows: [{ id: 'b0', text: '지닌 것' }] },
+        ],
+      }),
+      TEXT,
+    );
+    expect(html).toContain('<div class="sf-group" data-group="work" style="--sf-group-min:300px">');
+    // 묶이지 않은 구획은 감싸지 않는다 — 홀로 선 것에 자리를 하나 더 두지 않는다
+    expect(html.match(/class="sf-group"/g)).toHaveLength(1);
+    // 차례는 목록의 차례 그대로다
+    expect(html.indexOf('도구')).toBeLessThan(html.indexOf('걸어 둔 것'));
+    expect(html.indexOf('걸어 둔 것')).toBeLessThan(html.indexOf('지닌 것'));
+  });
+
+  it('혼자 남은 이름은 묶음이 되지 않는다 — 나란히 설 짝이 없다', () => {
+    const html = surfaceMarkup(
+      surface({ sections: [{ id: 'worn', group: 'work', rows: [{ id: 'w0', text: '걸어 둔 것' }] }] }),
+      TEXT,
+    );
+    expect(html).not.toContain('sf-group');
   });
 });
