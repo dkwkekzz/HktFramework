@@ -35,7 +35,7 @@ Feedback · BACKLOG)를 겹쳐 `LANES.html` 로 그린다. `npm run lanes:check`
 | WORLD·ITEM | HUMAN | 후보 5 중 선택 대기 — Agent 추천 FR-THE-PLACES-ARE-NARROWER (+FR-SEE-BEFORE 얹기) | Human Select (frontier/item.md) |
 | WORLD·COMBAT | HUMAN | `C-COMBAT-001-where-your-power-sits` — Stage 1~8 닫힘. 검사 6종 통과 · 실제 브라우저에서 키→요청→세계→관찰 왕복 실측. **STATUS 는 IN PROGRESS** — 사람이 손으로 눌러 본 뒤에만 COMPLETE 다 (Gate 14항). 남은 후보 아홉이 UL 전체를 덮는다 | Human Play (`npm run dev` → `U` → `2`) |
 | WORLD·TERRAIN | OPEN | `C-TERRAIN-001` **COMPLETE**. 다음 후보는 `FR-THE-LAND-KEEPS-WHAT-IT-TAKES`(땅이 거둔 것을 간직한다) — PROPOSED 이며 Human 선택 대기. **미처리 MASTER FEEDBACK 이 있다** (08 의 Constraint 재판정 · Master Gap) — Feedback 레인이 먼저 돈 뒤 잡는다 | 병합 뒤 최신 main 위에서 (`npm run feedback:gate`) |
-| WORLD·GROWTH | RUNNING | `C-GROWTH-001-what-you-did-makes-you` — Stage 1 닫힘. C-COMBAT-001 이 main 에 든 뒤 최신 main 위에서 잡았다 (`effectiveStat` 은 이미 세 항이다). **COMBAT 과 같은 파일을 본다 — 아래 충돌 칸** | 없음 |
+| WORLD·GROWTH | HUMAN | `C-GROWTH-001-what-you-did-makes-you` — Stage 1~4 닫힘 (GAP 0). 자란 것은 `effectiveStat` 의 **넷째 항**이고 기본값을 덮지 않는다 · 문턱 다섯 · 새 조작 0. **COMBAT 과 같은 파일을 본다 — 아래 충돌 칸** | Human Semantic Review (`05-review.md`) |
 | VIEW | OPEN | BACKLOG 다음 항목(drag-and-drop)부터 — 기반 동반이 필요한 셋(tip-flip-at-the-edge · escape-leaves-the-field · workspace-two-columns)은 ENGINE 뒤에 잡는다 | 없음 |
 | MASTER | OPEN | OPTIONS Q35 (몸이 아닌 존재를 요구하는 Possibility) — 이제 스킬 실행 형태의 빈 다섯 칸만 막는다. 성장(GS · GB)과 전투 상층(UL) 주입은 둘 다 끝났다: 결정 열(Q52~Q61) 반영 · GROWTH 후보 3 · COMBAT 후보 10 과 SELECTED 까지 | 없음 — 미처리 Feedback 이 0 이다 (`npm run feedback:gate`) |
 | ENGINE | OPEN | 셋 — ① **자판이 표면 안을 다니는 길** — 정해진 초점 차례가 없고(`tabindex` 0건), 글자 자리에서 `Esc` 가 죽는다(붙잡는 단계가 `INPUT` 에서 비켜 주고 받는 자리가 없다). 다시 그릴 때 초점을 붙드는 자리는 이미 섰다. BACKLOG 의 `escape-leaves-the-field` · `skill-focus-order` 가 이것을 기다린다 ② **겹침 표면의 자리 잡기** — 곁말이 가장자리에서 접히는 일 · 구획을 나란히 놓는 일 (`tip-flip-at-the-edge` · `workspace-two-columns`) ③ 지면 구역 장치 `SceneGroundZone` ([design/Design-Terrain-Visualization.md](../../design/Design-Terrain-Visualization.md)) — C-TERRAIN-001 의 04 확정 뒤 | 없음 |
@@ -65,6 +65,7 @@ Human 이 답하면 풀리는 것들이다. 답의 자리는 괄호가 가리킨
 |---|---|
 | WORLD·ITEM 후보 선택 (frontier/item.md SELECTED) | WORLD·ITEM 레인 착수 |
 | C-COMBAT-001 Human Play — 손으로 `U` → 숫자를 눌러 보기 | Stage 8 STATUS 가 COMPLETE 로 닫히고 FEEDBACK 레인이 열린다. 봐야 할 것 셋: 두 걸음이 전투 중 손에 맞는가 · 세로 목록 넷이 눈에 걸리는가 · 상대의 `[몸]` 표시가 교전 중 읽히는가 |
+| C-GROWTH-001 Semantic Review (05-review.md) | Stage 6·7 착수. 승인이 함께 확정할 것 넷: **자란 몫이 기본값을 덮지 않고 넷째 항이 되는 것** · 자라는 것이 겨루는 값 넷뿐인 것(생명력·기력·이동은 결손으로 08 이 보고) · 수치 셋(원천 1·14·4·3 · 문턱 20·50·90·140·200 · 단계당 4·4·3·3) · 자율 존재도 쌓는 것 |
 | C-COMBAT-001 의 PARTIAL 판정 둘 (08-verification.md MASTER FEEDBACK) | `MC-AURA-ALLOCATION` · `MP-EXPLOIT-OPEN-BODY` 를 어디까지로 볼 것인가 — 플레이로는 갈래가 성립하나 노드는 덜 찼다. Master(Human)가 정한다 |
 | `lanes:check` 의 SELECTED 규칙 (PROCESS — 이 판을 고치지 않고 보고만 한다) | 지금 이 판에서 어긋남 1건이 상시로 뜬다. 검사는 "SELECTED 가 있으면 레인은 OPEN·RUNNING" 만 보고 **그 트랙의 Cycle 이 도는 중인지를 보지 않는다** — works.md 는 Human 대기면 HUMAN 이라 적었으므로 판이 맞고 검사가 좁다. 고칠 자리는 `tools/lanes/build.ts` 의 `crossCheck` 이며 재료는 이미 있다 (`t.cycle` 의 Stage·Status). PROCESS 가 HOLD 라 착수하지 않았다 |
 | 문서의 분류 다섯에 `도구` 를 더할 것인가 (Design-View-Inventory-Equipment-UX-D1 §6) | 곡괭이가 `기타` 대신 자기 칸을 얻는다 (V-008 REPORT) |
