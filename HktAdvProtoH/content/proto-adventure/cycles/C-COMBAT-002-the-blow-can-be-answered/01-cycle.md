@@ -2,7 +2,7 @@
 
 [PASS] Cycle Definition
 [PASS] Intent
-[    ] World Semantic
+[PASS] World Semantic
 [    ] GameView Specification
 [    ] Human Semantic Review
 [    ] World Implementation
