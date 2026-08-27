@@ -45,6 +45,7 @@ const LABEL_OF_CODE: Record<string, string> = {
   KeyL: 'L',
   KeyQ: 'Q',
   KeyU: 'U',
+  KeyO: 'O',
   Comma: ',',
   Enter: 'Enter',
   Escape: 'Esc',
@@ -129,6 +130,8 @@ export const PACK_KEYS = {
   // `key-hints.spec.ts` 의 검사가 이번에도 잡았다 (engine-keys.ts 의 TURN_KEY_CODES).
   // 지금 남은 글자 자리는 O · P · U 셋뿐이며 그중 손이 가장 가까운 것을 쓴다.
   allocation: { code: 'KeyU', what: '배분' },
+  // V-018 — 방금 있었던 일을 되짚는 자리. 남은 글자 자리는 이제 P 하나다
+  executionLog: { code: 'KeyO', what: '방금 있었던 일' },
   pickLeft: { code: 'ArrowLeft', what: '고르기', whileSurfaceOpen: true },
   pickRight: { code: 'ArrowRight', what: '고르기', whileSurfaceOpen: true },
   actionUp: { code: 'ArrowUp', what: '행동', whileSurfaceOpen: true },

@@ -48,6 +48,7 @@ import {
 import { codeText, shortCodeText } from './code-text';
 import { contactMark } from './relation-presentation';
 import { cancelMark } from './phase-presentation';
+import { executionLogSurface, rememberExecutions } from './execution-log';
 import { kindPresentation } from './kind-presentation';
 import { rolePresentation } from './role-presentation';
 import { TARGET_TINT, targetDetailLines, targetHudItems } from './target-presentation';
@@ -170,6 +171,10 @@ export function resolvePresentation(
   // 기다림의 나이를 재는 시각 — 한 프레임 안에서는 하나여야 한다 (V-007).
   // 자리마다 따로 읽으면 같은 프레임의 두 표면이 다른 지금을 말하게 된다
   const now = options.now ?? performance.now();
+  // V-018 — 이번 관찰에 실린 타격·무산·끊김을 기억한다. 세계는 그것을 잠시만 보내므로
+  // (같은 수명), 되짚는 자리는 본 것을 쌓아 두지 않으면 지어낼 수밖에 없다.
+  // 표면을 짓기 **전**에 부른다 — 이번 프레임의 사건이 이번 목록에 서야 한다
+  rememberExecutions(snapshot);
   return {
     specId: snapshot.specId,
     terrain: snapshot.scene,
@@ -180,7 +185,11 @@ export function resolvePresentation(
     commandSurface: commandSurface(snapshot, options),
     // 겹침 표면 (기반 capability) — C026 의 소지품 작업 공간.
     // 열려 있지 않아도 싣는다: 열림은 표면 자신이 지닌 값이고, 그리는 쪽이 그것을 본다
-    surfaces: [inventoryWorkspace(snapshot, codeText, shortCodeText, now)],
+    surfaces: [
+      inventoryWorkspace(snapshot, codeText, shortCodeText, now),
+      // V-018 — 방금 있었던 일. 사건은 잠시 실렸다 사라지므로 **본 그대로 쌓아 둔다**
+      executionLogSurface(snapshot),
+    ],
     // 늘 서 있는 띠 — 지금 이 순간 고르는 것이 자기 자리를 갖는다 (VUX-SK §2.1).
     slotBars: [
       skillSlotBar(snapshot, shortCodeText, options.skillAnswers ?? NO_SKILL_ANSWERS, now),

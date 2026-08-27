@@ -10,6 +10,7 @@ import { allocationSlots } from './allocation-presentation';
 import { equipmentSlotIds } from './equipment-presentation';
 import { inventorySlots } from './inventory-presentation';
 import { claimSearchFocus, cycleFilter, cycleOrder } from './inventory-view';
+import { EXECUTION_LOG_SURFACE_ID, moveLogSelection } from './execution-log';
 import {
   INVENTORY_SURFACE_ID,
   armDiscardConfirm,
@@ -245,6 +246,21 @@ function slotKey(index: number): KeyBinding {
 
 const INVENTORY_OPEN_KEY = keyCode('inventory');
 
+/**
+ * 방금 있었던 일 (V-018) — 여닫는 손짓 하나. 세계로 아무것도 나가지 않는다.
+ *
+ * 소지품과 마찬가지로 **같은 키가 열고 닫는다**. 열려 있는 동안 두 걸음이 반쯤
+ * 남아 있었다면 함께 놓는다 — 열린 것이 둘이면 다음 키의 뜻이 흐려진다.
+ */
+const executionLogToggle: KeyBinding = {
+  code: keyCode('executionLog'),
+  invoke: () => {
+    toggleSurface(EXECUTION_LOG_SURFACE_ID);
+    armed = null;
+    exchangeKind = null;
+  },
+};
+
 const inventoryToggle: KeyBinding = {
   code: INVENTORY_OPEN_KEY,
   invoke: () => {
@@ -279,6 +295,29 @@ function workspaceKey(
   };
 }
 
+/**
+ * 위아래 축 — 지금 열려 있는 표면이 그 뜻을 정한다.
+ *
+ * 소지품이면 행동 줄 사이의 초점이고, 되짚는 자리면 사건 줄 사이의 고르기다.
+ * 둘 다 닫혀 있으면 아무 일도 하지 않는다 — 그래야 같은 키가 표면 밖에서 이동으로 남는다.
+ */
+function surfaceAxis(code: string, delta: number): KeyBinding {
+  return {
+    code,
+    invoke: (_scene, send) => {
+      if (surfaceIsOpen(EXECUTION_LOG_SURFACE_ID)) {
+        moveLogSelection(delta);
+        return;
+      }
+      if (!surfaceIsOpen(INVENTORY_SURFACE_ID)) return;
+      const snapshot = observedNow();
+      if (!snapshot) return;
+      moveActionFocus(snapshot, delta);
+      void send;
+    },
+  };
+}
+
 export const KEY_BINDINGS: readonly KeyBinding[] = [
   guardToggle,
   moveModeToggle(keyCode('moveModeLeft')),
@@ -291,10 +330,14 @@ export const KEY_BINDINGS: readonly KeyBinding[] = [
   armKey(ALLOCATION_ARM_KEY, 'set-allocation'),
   // C026 — 소지품 작업 공간. 방향키·Enter 는 열려 있을 때만 듣는다
   inventoryToggle,
+  // V-018 — 방금 있었던 일
+  executionLogToggle,
   workspaceKey(keyCode('pickLeft'), (snapshot) => moveSelection(snapshot, -1)),
   workspaceKey(keyCode('pickRight'), (snapshot) => moveSelection(snapshot, 1)),
-  workspaceKey(keyCode('actionUp'), (snapshot) => moveActionFocus(snapshot, -1)),
-  workspaceKey(keyCode('actionDown'), (snapshot) => moveActionFocus(snapshot, 1)),
+  // ↑ ↓ 는 **열려 있는 표면의 것**이다 — 조립은 코드가 같은 바인딩 중 하나만 부르므로
+  // (KEY_BINDINGS.find) 같은 키로 둘을 등록할 수 없다. 어느 표면의 손짓인지는 여기서 가른다
+  surfaceAxis(keyCode('actionUp'), -1),
+  surfaceAxis(keyCode('actionDown'), 1),
   workspaceKey(keyCode('invoke'), (snapshot, send) => invokeFocusedAction(snapshot, send)),
   // V-008 — 많은 것 중에서 찾는 자리. 세계로 나가지 않는다: 무엇을 볼지가 바뀔 뿐이다
   workspaceKey(keyCode('viewFilter'), () => cycleFilter()),

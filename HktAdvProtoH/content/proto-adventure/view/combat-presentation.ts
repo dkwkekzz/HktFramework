@@ -266,7 +266,7 @@ function guardLine(event: StrikeEventView): string | undefined {
 // 얼마를 보태 = 얼마였고, 그 방식에 대응하는 상대 방어가 몇 할로 줄여 = 얼마가 되었다.
 // C012 — 고른 능력의 **이름**이 함께 나온다. 값만 있으면 왜 이쪽으로 계산되었는지
 // 알 수 없다 (04 strikeEvents.meaning).
-function breakdownLine(event: StrikeEventView): string {
+export function breakdownLine(event: StrikeEventView): string {
   const b = event.breakdown;
   return (
     `${codeText(b.damageType)} · ` +

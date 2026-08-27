@@ -116,6 +116,10 @@ const CODE_TEXT: Record<string, string> = {
   active: '나감',
   recovery: '거둠',
   cancelled: '끊김',
+  // V-018 — 되짚는 자리가 사건의 종류를 부르는 말. 타격 표시는 사유만 띄우지만
+  // (relation-presentation), 목록에서는 셋이 섞이므로 무엇인지를 함께 말해야 한다
+  unharmed: '무산',
+  struck: '타격',
   // 이동 모드 (C007)
   walk: '걷기',
   run: '달리기',
