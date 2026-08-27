@@ -1,0 +1,79 @@
+# 원본 근거: content/proto-adventure/design/Design-Fairy-Class-Layer0-R0.md (FC) §4 역락계 요정 —
+#   §4.1 정체성 · §4.4 전투 역할 · §4.5 연속낙하 · §4.6 역보 · §4.7 Skill · §4.8 역락연무 ·
+#   §4.9 Aura · §4.10 Counterplay · §4.11 모험 · §4.12 Mastery · §4.13 외형 · §10 현재 한계
+# 이름의 소유는 성장 기획 문서(GS)다 (HISTORY Q55(b)) — 부르는 이름은 역락검사 하나뿐이다.
+id: CL-YEOKRAK-ORIGIN
+type: class
+
+semantic: >
+  역락검사 — 역락계의 Origin Class. 빠른 것이 아니라 자신에게 작용하는 아래쪽과 운동의
+  방향을 바꾸는 형태이며, 방향을 바꾼 직후에 생기는 운동량을 칼로 전달한다.
+detail: >
+  이 형태의 플레이는 달린다 · 방향을 바꾼다 · 파고든다 · 다시 달린다로 반복된다 (FC §9).
+  전장이 바닥 하나로 되어 있다고 보지 않는 것이 이 몸의 전제여서, 바닥과 벽과 천장과 공중과
+  적의 등 뒤가 전부 같은 이동 공간이다 (FC §4.1).
+  다른 형태와 갈리는 지점은 **멈추면 약해진다**는 것이다. 방향을 바꾼 뒤 일정 시간 안에 다시
+  바꾸면 흐름이 유지되고, 흐름이 높을수록 새로운 이동 연결이 열리며, 멈추면 빠르게 사라진다
+  (FC §4.5). 그래서 이 몸의 자원은 쌓아 두는 것이 아니라 계속 굴려야 남는 것이다 —
+  같은 자리에 서서 받아내는 백왕계와 정확히 반대다.
+  맞는 순간의 자리에는 역보가 들어간다. 공격이 닿기 직전 자신의 낙하 방향을 옆으로 바꾸는
+  것이며, 그냥 하면 판정에서 벗어나고 정확히 하면 흐름을 유지한 채 공격자의 측면이나 후방으로
+  갈 수 있는 방향의 틈이 열린다 (FC §4.6).
+  탐험에서도 같은 원리를 쓴다 — 벽 달리기, 천장 이동, 위로 떨어지는 폭포 타기, 절벽 우회,
+  낙하 방향 변경이며, 그 땅의 중력 방향과 비정상적인 낙하 흐름을 눈으로 감지한다 (FC §4.11).
+  지금 할 수 없는 것은 분명하다 — 방향을 바꿀 수 있는 대상이 주로 자기 자신이다. 여러 존재와
+  공간 전체의 방향을 지배하는 일은 이 층에 없고, 그 한계가 상위 Layer 의 출발점이다 (FC §10).
+world_shape: >
+  이 형태만 자기에게 작용하는 아래쪽을 바꿀 수 있어야 하고, 그 결과로 벽과 천장이 실제 이동
+  경로가 되어야 한다. 방향을 이어서 바꾸는 동안에만 유지되는 상태가 있어야 하고, 그 상태가
+  있을 때와 없을 때 열리는 이동 연결이 달라야 한다. 멈춰 서서 싸워도 똑같이 강하면 이 형태가
+  아니다. 리본과 머리카락이 지금의 중력 방향을 그대로 보여 주고, 방향을 바꾸는 순간 발밑에
+  짧은 화살촉 형태가 나타나 무엇이 일어났는지 멀리서도 읽혀야 한다 (FC §4.13).
+
+origin_trace:
+  world_state: [MW-TERRAIN-SKYFALL-RANGE]     # 낙하 방향이 세계압의 흐름에 결속된 땅 (FC §4.1 · BT §8)
+  goal:        [MG-EXPLORE-BEIRA, MG-OVERCOME-SUPERIOR-OPPONENT]
+  possibility: [MP-EVADE-BY-MOVING-THE-BODY, MP-EXPLOIT-OPEN-BODY]
+
+requires: []          # Origin 은 시작 형태다 — FC 는 이 층에 진입 조건을 두지 않는다 (FC §1 · GS §4)
+
+grants:
+  - MC-ACTIVE-RESPONSE        # 맞는 순간의 자리에 역보가 들어간다 (FC §4.6)
+  - MC-PRECISION-RESPONSE     # 그 역보가 언제 됐는가로 결과가 갈린다 (FC §4.6 Precision)
+  - MC-OPPORTUNITY            # 잘 된 역보가 측면·후방으로 갈 방향의 틈을 남긴다 (FC §4.6)
+  - MC-EVADE                  # 막지 않고 몸을 옮겨 판정에서 벗어난다 (FC §4.6 Normal)
+  - MC-REPOSITION             # 낙선 — 다음 행동에 유리한 자리를 만드는 가속 (FC §4.7 Skill 1)
+  - MC-USE-TERRAIN            # 벽천보 — 벽과 천장을 자기 지면으로 쓴다 (FC §4.7 Skill 2 · §4.11)
+  - MC-ABILITY-CONDITION      # 흐름이 유지되는 동안에만 열리는 이동 연결이 있다 (FC §4.5)
+grants_note: >
+  누구나 가진 바닥(때리기 · 기력 예산 · 몸의 방향)은 적지 않는다.
+  아직 노드가 없어 적지 못한 것 셋 — ① 자신에게 작용하는 아래쪽 자체를 바꾸는 일 (FC §4.5 ·
+  §4.7 낙선), ② 벽·천장을 일정 시간 새 지면으로 삼는 표면 주행 (FC §4.7 벽천보), ③ 접촉한
+  투사체의 진행 방향을 비트는 일 (FC §4.7 반류). MC-USE-TERRAIN 은 "지형을 유리함으로 쓴다",
+  MC-REPOSITION 은 "자리를 고쳐 잡는다" 까지이고 중력의 방향 자체를 바꾸는 의미는 담지 않는다.
+  FC 를 근거로 그 두 노드의 semantic 을 넓히지 않았다 — 넓히는 판단은 Human 의 몫이다 (Q71).
+
+transitions_to: []   # 다음 형태는 천주질주자다 (GS §10 Class Line · HISTORY Q55(b)) — 그 CL-* 는 아직 없다. 갈래 문제는 Q69.
+
+constraints:
+  - DC-GROWTH-CLASS-ORIGIN-TRACE
+  - DC-GROWTH-PRINCIPLE-IS-PLAYED
+  - DC-GROWTH-DIFFERENCE-IS-BEHAVIOR
+  - DC-GROWTH-EXPLORATION-SHARES-THE-PRINCIPLE
+  - DC-GROWTH-STAGE-READS-AT-A-DISTANCE
+  - DC-COMBAT-STRONG-RULE-HAS-COUNTERPLAY
+  - DC-GROWTH-CLASS-OWNS-THE-RESPONSE
+  - DC-GROWTH-ORIGIN-IS-SIMPLE-FIRST
+  - DC-GROWTH-CLASS-CLOSES-BEFORE-THE-NEXT-LAYER
+  - DC-GROWTH-NO-CAPABILITY-DUPLICATION
+constraint_evaluation:
+  DC-GROWTH-CLASS-ORIGIN-TRACE: SATISFIED               # 하늘로 떨어지는 산맥이 이 형태 없이도 성립한다 (BT §8)
+  DC-GROWTH-PRINCIPLE-IS-PLAYED: SATISFIED              # 방향이 설정이 아니라 이동 경로와 유지되는 흐름으로 나타난다
+  DC-GROWTH-DIFFERENCE-IS-BEHAVIOR: SATISFIED           # 멈추면 약해진다는 점이 다른 다섯과 갈린다 (FC §9)
+  DC-GROWTH-EXPLORATION-SHARES-THE-PRINCIPLE: SATISFIED # 벽 달리기·낙하 방향 변경이 전투의 방향 전환과 같은 원리다 (FC §4.11)
+  DC-GROWTH-STAGE-READS-AT-A-DISTANCE: SATISFIED        # 리본과 발밑의 화살촉이 지금의 방향을 보여 준다 (FC §4.13)
+  DC-COMBAT-STRONG-RULE-HAS-COUNTERPLAY: SATISFIED      # 좁은 공간·경로 봉쇄·표면 제거·광역 지대로 흐름을 끊는다 (FC §4.10)
+  DC-GROWTH-CLASS-OWNS-THE-RESPONSE: SATISFIED          # 그 자리에 역보가 들어간다 (FC §4.6)
+  DC-GROWTH-ORIGIN-IS-SIMPLE-FIRST: SATISFIED           # 조건이 흐름 한 축이고 계약을 쓰지 않는다
+  DC-GROWTH-CLASS-CLOSES-BEFORE-THE-NEXT-LAYER: SATISFIED   # 지금 할 수 없는 것과 확장 방향이 FC §10 에 있다
+  DC-GROWTH-NO-CAPABILITY-DUPLICATION: UNRESOLVED       # 방향 전환·표면 주행·투사체 반사 셋이 기존 노드에 없다 — 새 노드를 만들지 않고 grants_note 로 남겼다 (Q71)

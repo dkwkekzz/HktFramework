@@ -1,0 +1,86 @@
+# 원본 근거: content/proto-adventure/design/Design-Fairy-Class-Layer0-R0.md (FC) §8 맥동계 요정 —
+#   §8.1 정체성 · §8.4 전투 역할 · §8.5 공명선 · §8.6 역맥 · §8.7 Skill · §8.8 대맥동 ·
+#   §8.9 Aura · §8.10 Counterplay · §8.11 모험 · §8.12 Mastery · §8.13 외형 · §10 현재 한계
+# 이름의 소유는 성장 기획 문서(GS)다 (HISTORY Q55(b)) — 부르는 이름은 맥동사 하나뿐이다.
+id: CL-PULSE-ORIGIN
+type: class
+
+semantic: >
+  맥동사 — 맥동계의 Origin Class. 자기 힘만 쓰는 형태가 아니라 살아 있는 대지와 거대한
+  생물의 박동에 자기 박동을 맞추어 그 존재가 가진 힘을 빌리는 형태다. 땅을 밟는 순간
+  혼자가 아니게 된다.
+detail: >
+  이 형태의 플레이는 듣는다 · 연결한다 · 전달한다 · 함께 움직인다로 반복된다 (FC §9).
+  다른 형태와 갈리는 지점은 **혼자서는 성립하지 않는다**는 것이다. 맥동창을 땅에 꽂거나
+  직접 닿아 살아 있는 대상과 연결을 만들고, 그 연결이 있는 동안에만 쓸 수 있는 능력이
+  따로 있다 (FC §8.5). 연결이 없으면 강화 효과가 없다는 요구가 문서에 한 줄로 명시되어
+  있어 (FC §8.6), 이 몸은 어디에 서 있는가가 곧 얼마나 강한가다.
+  맞는 순간의 자리에는 역맥이 들어간다. 충격을 자기 몸에서 끝내지 않고 연결된 지면으로
+  흘려보내는 것이며, 그냥 하면 피해가 일부 줄고, 정확히 하면 충격이 땅으로 넘어가면서
+  때린 쪽에 짧은 공명의 흔들림이 남는다 — 다만 연결이 없으면 그 강화가 아예 없다 (FC §8.6).
+  뿌리깨움은 인공 바닥에서는 쓸 수 없다 (FC §8.7 Skill 4). 이 층의 조건이 상태가 아니라
+  **장소**라는 점이 다른 다섯과 크게 다른 자리다.
+  탐험에서도 같은 원리를 쓴다 — 유랑대지의 움직임을 감지하고, 거대 생명체와 교감하고,
+  생체 경로를 찾고, 손상된 생체 구조를 진단하고, 살아 있는 문을 연다. 가까운 생명체와
+  살아 있는 지형의 박동을 느낀다 (FC §8.11).
+  지금 할 수 없는 것은 분명하다 — 연결의 상대가 개별 생명과 지형이다. 거대한 생태계
+  전체를 동기화하는 일은 이 층에 없고, 그 한계가 상위 Layer 의 출발점이다 (FC §10).
+world_shape: >
+  땅과 생명이 살아 있는 것과 죽은 것으로 갈려 세계에 있어야 하고, 이 형태가 그중 살아 있는
+  것과 맺은 연결이 상태로 존재해야 한다. 그 연결이 있을 때와 없을 때 같은 행동의 결과가
+  달라야 하며, 없을 때는 왜 안 되는지가 함께 와야 한다. 연결은 세계에 있는 것이므로 상대가
+  끊거나 부술 수 있어야 하고, 공중이나 인공 바닥에서는 성립하지 않아야 한다. 공명 중에는
+  발에서 다리로, 몸으로, 창으로, 지면으로 이어지는 빛의 맥이 실제로 나타나 멀리서도 지금
+  연결되어 있는지가 읽혀야 한다 (FC §8.13).
+  어디에 서 있든 똑같이 강하면 이 형태가 아니다.
+
+origin_trace:
+  world_state: [MW-TERRAIN-WALKING-CONTINENTS]  # 암반이 생명과 물질의 경계를 넘어 이동하는 땅 (FC §8.1 · BT §9)
+  goal:        [MG-EXPLORE-BEIRA, MG-SURVIVE-ENEMY-OFFENSIVE]
+  possibility: [MP-CONTROL-MOVEMENT, MP-LEARN-TO-HANDLE-THE-LAYER]
+
+requires: []          # Origin 은 시작 형태다 — FC 는 이 층에 진입 조건을 두지 않는다 (FC §1 · GS §4)
+
+grants:
+  - MC-ACTIVE-RESPONSE        # 맞는 순간의 자리에 역맥이 들어간다 (FC §8.6)
+  - MC-PRECISION-RESPONSE     # 그 역맥이 언제 됐는가로 결과가 갈린다 (FC §8.6 Precision)
+  - MC-OPPORTUNITY            # 잘 된 역맥이 때린 쪽의 흔들림이라는 다음 수를 연다 (FC §8.6)
+  - MC-BIND                   # 뿌리깨움 — 살아 있는 뿌리로 붙들어 움직임을 제한한다 (FC §8.7 Skill 4)
+  - MC-OBSERVE                # 지맥청 — 지면을 통해 지금 무엇이 움직이는지 본다 (FC §8.7 Skill 1)
+  - MC-READ-ENVIRONMENT       # 생맥 — 살아 있는 지형과 생명의 박동을 읽는다 (FC §8.11 Passive)
+  - MC-ABILITY-CONDITION      # 연결이 없으면 강화가 없고 인공 바닥에서는 성립하지 않는다 (FC §8.6 · §8.7)
+grants_note: >
+  누구나 가진 바닥(때리기 · 기력 예산 · 몸의 방향)은 적지 않는다.
+  아직 노드가 없어 적지 못한 것 둘 — ① 살아 있는 대상과 맺어 충격 · 회복 · 박동을 주고받는
+  통로 (FC §8.5 공명선 · §8.7 맥진 · §8.8 대맥동). MC-BIND 는 "상대가 할 수 있는 일의 범위를
+  줄이는 관계" 까지이고 무언가를 **전달하는** 관계는 담지 않는다 — 형태가 같고 방향이 반대다.
+  ② 일정 시간 생체의 안정성을 높이는 일 (FC §8.7 생근결). MC-RESTORE-BIOLOGICAL-STATE 는
+  "최근의 안정적인 생체 상태로 복원" 이라 다른 의미이며, FC 자신이 "즉시 큰 Heal 이 아니다"
+  라고 갈라 둔다. Human 결정 대기: open-questions Q71.
+
+transitions_to: []   # 다음 형태는 대지공명사다 (GS §14 Class Line · HISTORY Q55(b)) — 그 CL-* 는 아직 없다. 갈래 문제는 Q69.
+
+constraints:
+  - DC-GROWTH-CLASS-ORIGIN-TRACE
+  - DC-GROWTH-PRINCIPLE-IS-PLAYED
+  - DC-GROWTH-DIFFERENCE-IS-BEHAVIOR
+  - DC-GROWTH-EXPLORATION-SHARES-THE-PRINCIPLE
+  - DC-GROWTH-STAGE-READS-AT-A-DISTANCE
+  - DC-COMBAT-STRONG-RULE-HAS-COUNTERPLAY
+  - DC-COMBAT-UNAVAILABLE-HAS-A-REASON
+  - DC-GROWTH-CLASS-OWNS-THE-RESPONSE
+  - DC-GROWTH-ORIGIN-IS-SIMPLE-FIRST
+  - DC-GROWTH-CLASS-CLOSES-BEFORE-THE-NEXT-LAYER
+  - DC-GROWTH-NO-CAPABILITY-DUPLICATION
+constraint_evaluation:
+  DC-GROWTH-CLASS-ORIGIN-TRACE: SATISFIED               # 걷는 대륙의 무리가 이 형태 없이도 성립한다 (BT §9)
+  DC-GROWTH-PRINCIPLE-IS-PLAYED: SATISFIED              # 공명이 설정이 아니라 맺은 연결과 그 연결이 여는 행동으로 나타난다
+  DC-GROWTH-DIFFERENCE-IS-BEHAVIOR: SATISFIED           # 어디에 서 있는가가 강함을 정한다는 점이 다른 다섯과 갈린다 (FC §9)
+  DC-GROWTH-EXPLORATION-SHARES-THE-PRINCIPLE: SATISFIED # 유랑대지 감지·생체 구조 진단이 전투의 연결과 같은 원리다 (FC §8.11)
+  DC-GROWTH-STAGE-READS-AT-A-DISTANCE: SATISFIED        # 발에서 지면까지 이어지는 빛의 맥으로 보인다 (FC §8.13)
+  DC-COMBAT-STRONG-RULE-HAS-COUNTERPLAY: SATISFIED      # 공중 이동·죽은 지형·인공 구조물·말뚝 파괴·강제 이동 (FC §8.10)
+  DC-COMBAT-UNAVAILABLE-HAS-A-REASON: SATISFIED         # 연결이 없어 못 쓴다는 사유가 그대로 드러나는 형태다 (FC §8.6)
+  DC-GROWTH-CLASS-OWNS-THE-RESPONSE: SATISFIED          # 그 자리에 역맥이 들어간다 (FC §8.6)
+  DC-GROWTH-ORIGIN-IS-SIMPLE-FIRST: SATISFIED           # 요구가 "연결이 있는가" 한 줄이고 계약을 쓰지 않는다
+  DC-GROWTH-CLASS-CLOSES-BEFORE-THE-NEXT-LAYER: SATISFIED   # 지금 할 수 없는 것과 확장 방향이 FC §10 에 있다
+  DC-GROWTH-NO-CAPABILITY-DUPLICATION: UNRESOLVED       # 전달하는 연결과 생체 안정화가 기존 노드에 없다 — 새 노드를 만들지 않고 grants_note 로 남겼다 (Q71)

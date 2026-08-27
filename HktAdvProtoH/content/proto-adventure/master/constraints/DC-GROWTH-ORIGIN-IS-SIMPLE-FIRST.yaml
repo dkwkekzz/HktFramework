@@ -1,0 +1,55 @@
+# 원본 근거: content/proto-adventure/design/Design-Fairy-Class-Layer0-R0.md (FC) §2 —
+#   "Origin Class에서는 복잡한 Contract를 주력으로 사용하지 않는다 / 단순한 Requirement ·
+#   단순한 Condition · 명확한 World Operation · 명확한 Counterplay 를 먼저 갖춘다 /
+#   상위 Layer로 올라갈수록 이것들이 Contract와 복합 Rule Ability로 발전한다"
+id: DC-GROWTH-ORIGIN-IS-SIMPLE-FIRST
+type: constraint
+
+statement: >
+  Origin Class 는 복합 계약과 복합 규칙을 주력으로 쓰지 않는다. 단순한 Requirement ·
+  단순한 Condition · 명확한 World Operation · 명확한 Counterplay 넷을 먼저 갖추고,
+  그것들이 계약과 복합 규칙으로 발전하는 것은 상위 Layer 의 몫이다.
+rationale: >
+  ❌ 흔한 형태는 첫 형태부터 전부 주는 것이다 — 시작 클래스에 자원 게이지와 스택과
+  조건부 계약을 함께 얹고, 튜토리얼로 그것을 설명한다. 그러면 처음 만난 플레이어가
+  캐릭터의 재미를 느끼기 전에 규칙을 먼저 외워야 한다.
+  ✅ FC 는 Origin 에 넷만 요구한다 (FC §2). 맥동사의 요구는 "연결이 없으면 강화 효과가
+  없다" 한 줄이고 (FC §8.6), 골완투사의 조건은 "결속력이 얼마나 쌓였는가" 한 축이며
+  (FC §3.5), 세계 조작은 밀기 · 고정 · 파괴처럼 한 마디로 읽히고 (FC §3.4), 대응책은
+  "거리를 유지하고 강한 공격을 주지 않는다" 처럼 상대가 곧바로 실행할 수 있다 (FC §3.10).
+
+  지켜서 얻는 것은 **처음 플레이해도 캐릭터의 재미가 바로 느껴진다**는 것이다
+  (GS §4 Origin Class). 그리고 넷이 단순하기 때문에 상위 Layer 가 그 넷을 각각 두껍게
+  만드는 것으로 자랄 수 있다 — 조건이 계약이 되고, 하나의 조작이 여러 조작의 규칙이 된다.
+  어겼을 때 잃는 것: Origin 이 이미 복잡하면 상위 Layer 에 남는 성장 방향이 "수치를
+  키운다" 뿐이다. 복잡함을 앞에서 다 써 버리면 뒤가 비는 것이 이 원칙의 요점이다.
+
+  가장 안 읽히는 조각은 **"주력으로"** 다. 계약이나 복합 규칙이 Origin 에서 금지된다는
+  뜻이 아니라, 그 형태가 그 Class 의 중심 플레이가 되어서는 안 된다는 뜻이다. 백왕계의
+  왕골격처럼 조건 하나가 행동 가능성을 여는 것은 단순한 Condition 이고, 무엇을 포기하는
+  대가로 무엇을 허락받는 계약(MC-VOW)이 매 전투의 축이 되면 그것은 주력이다.
+
+  경계 — 이것은 Origin 이 약해야 한다는 뜻이 아니다. FC 의 여섯은 전부 Ultimate 와
+  고유 자원을 가진다. 제한하는 것은 힘의 크기가 아니라 **규칙의 겹수**다.
+
+scope:
+  - COMBAT
+  - GROWTH
+
+requires:
+  - Origin Class 가 Requirement · Condition · World Operation · Counterplay 넷을 갖춘다   # FC §2
+  - 그 넷이 각각 한 마디로 읽힌다                                                          # FC §2 · §3.10
+prohibits:
+  - 복합 Contract 를 Origin Class 의 중심 플레이로 두는 것                                 # FC §2
+prefers:
+  - 상위 Layer 가 그 넷을 두껍게 만드는 방식으로 자라는 형태                               # FC §2 · §11
+
+status: DRAFT
+provenance:
+  - HUMAN_DESIGN        # content/proto-adventure/design/Design-Fairy-Class-Layer0-R0.md 주입 (Q68 승인 대기)
+
+relations:
+  supports:
+    - DC-COMBAT-ONE-LAYER-AT-A-TIME       # 전투 층을 한 번에 하나씩 올리는 규율의 Class 판이다
+    - DC-COMBAT-STRONG-RULE-HAS-COUNTERPLAY   # 넷 중 하나가 대응책이라는 요구를 되풀이한다
+  conflicts_with: []

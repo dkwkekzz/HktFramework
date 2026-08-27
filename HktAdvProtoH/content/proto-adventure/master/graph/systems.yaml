@@ -181,7 +181,8 @@ systems:
 
   - id: MS-CLASS-EVOLUTION
     name: Class 진화 사다리
-    source: GS (content/proto-adventure/design/Master-Fairy-Growth-System.md) §3 · §4 · §7
+    source: GS (content/proto-adventure/design/Master-Fairy-Growth-System.md) §3 · §4 · §7 ·
+      FC (content/proto-adventure/design/Design-Fairy-Class-Layer0-R0.md) §1 · §2 · §10 · §12 (ORIGIN 칸의 설계)
     status: DEFINED
     semantic: >
       한 캐릭터가 자기 원리를 발전시키며 거치는 형태의 층. 아래 형태를 버리고 갈아 끼우는
@@ -190,6 +191,9 @@ systems:
       바뀌어 멀리서도 어느 단계인지 읽힌다 (GS §7).
       층과 층 사이를 넘는 자리(MC-CHANGE-CLASS)는 어느 한 층에 속하지 않는다 —
       segment 없이 이 시스템에 속한다.
+      **바닥 칸(ORIGIN)이 FC 로 채워졌다** — 여섯 계열의 Origin Class 가 growth/classes/ 에
+      CL-*-ORIGIN 으로 서 있다. 위의 세 칸은 아직 이름뿐이며, FC §1 이 한 형태에서 갈래가
+      여럿일 수 있다고 적어 GS 의 단일 사슬과 어긋나 있다 (open-questions Q69).
     segments:
       - { id: ORIGIN,   name: Origin Class — 가장 단순하고 명확한 능력 }
       - { id: ADVANCED, name: Advanced Class — 고유 능력이 전투 기술이 된다 }
@@ -219,7 +223,8 @@ systems:
 
   - id: MS-FAIRY-LINEAGE
     name: 요정 계열
-    source: GS (content/proto-adventure/design/Master-Fairy-Growth-System.md) §1 · §2 · §9~§16
+    source: GS (content/proto-adventure/design/Master-Fairy-Growth-System.md) §1 · §2 · §9~§16 ·
+      FC (content/proto-adventure/design/Design-Fairy-Class-Layer0-R0.md) §1 · §3~§8 (여섯 계열의 Origin Class)
     status: DEFINED
     semantic: >
       하나의 세계 원리가 대륙이 아니라 **하나의 인격**에 집중되어 태어난 존재의 갈래
@@ -232,6 +237,9 @@ systems:
       공급하지만 각 Class 의 정의(CL-*)는 세우지 않는다. **Class Line 의 이름은 GS 가
       소유한다** (HISTORY Q55(b)) — 어긋난 계열 문서는 그 이름으로 맞춘다. CL-* 를 세우는
       것은 계열별 설계 문서의 주입이며, 그때 이 여덟 자리가 채워진다.
+      **여덟 중 여섯이 FC 로 채워졌다** — 백왕 · 역락 · 태양심 · 진명 · 숨결 · 맥동의
+      Origin Class 가 CL-*-ORIGIN 으로 서 있다. 가능성계와 혈화계는 FC 가 다루지 않아
+      비어 있으며, 그 둘의 계열 문서를 기다린다.
     segments:
       - { id: BAIWANG,     name: 백왕계 — 결속 (백왕의 갈비분지) }
       - { id: YEOKRAK,     name: 역락계 — 방향 (하늘로 떨어지는 산맥) }

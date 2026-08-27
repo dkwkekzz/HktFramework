@@ -1,0 +1,87 @@
+# 원본 근거: content/proto-adventure/design/Design-Fairy-Class-Layer0-R0.md (FC) §6 진명계 요정 —
+#   §6.1 정체성 · §6.4 전투 역할 · §6.5 Name Mark · §6.6 판독 · §6.7 Skill · §6.8 초명 ·
+#   §6.9 Aura · §6.10 Counterplay · §6.11 모험 · §6.12 Mastery · §6.13 외형 · §10 현재 한계
+# 이름의 소유는 성장 기획 문서(GS)다 (HISTORY Q55(b)) — 부르는 이름은 명각사 하나뿐이다.
+id: CL-TRUENAME-ORIGIN
+type: class
+
+semantic: >
+  명각사 — 진명계의 Origin Class. 존재를 구분하고 기록하는 세계 원리를 다루는 형태이며,
+  상대를 관찰해 정체의 조각을 모으고 그 조각으로 표식을 새겨 그 존재의 규칙을 이용한다.
+detail: >
+  이 형태의 플레이는 본다 · 알아낸다 · 새긴다 · 이용한다로 반복된다 (FC §9).
+  다른 형태와 갈리는 지점은 **처음 만난 상대에게 약하다**는 것이다. 모르는 대상에게
+  즉시 강해서는 안 된다고 문서가 못박으며 (FC §6.10), 그래서 이 몸의 강함은 판이 지날수록
+  자란다. 관찰하고 기술을 목격하고 특정 행동을 확인해야 정체의 조각이 생기고, 그 조각이
+  모여야 표식이 되며, 표식이 있는 대상에게만 상위 기술을 쓸 수 있다 (FC §6.5).
+  맞는 순간의 자리에는 판독이 들어간다. 그냥 하면 짧게 피하고, 정확히 하면 피하면서
+  지금 쓰인 기술을 기록하고 정체의 조각을 얻는다 — 잘 피한 것이 곧 앎이 되는 형태이며,
+  전투 설계의 관찰 응답 구조를 그대로 캐릭터로 만든 자리다 (FC §6.6).
+  Origin 단계의 흉내는 완전한 복제가 아니다. 직접 보고 기록한 단순한 기술 하나의 행동적
+  특징만 따라 할 수 있고, 돌진이나 짧은 투사체나 간단한 이동기 정도다 (FC §6.7).
+  탐험에서도 같은 원리를 쓴다 — 정체를 빌려 적대 생물 사이를 지나고, 소유자의 표식을
+  확인하고, 지워진 흔적을 좇고, 진짜와 가짜를 가른다. 세계 개체에 남은 정체의 잔영을
+  희미하게 본다 (FC §6.11).
+  지금 할 수 없는 것은 분명하다 — 정체를 읽고 새기고 일부 흉내 낼 수 있을 뿐, 정체 자체를
+  강제로 바꾸지는 못한다. 그 한계가 상위 Layer 의 출발점이다 (FC §10).
+world_shape: >
+  같은 상대를 처음 만났을 때와 여러 번 겪은 뒤가 달라야 하고, 그 차이가 값이 아니라
+  쓸 수 있는 것의 목록에서 나야 한다. 표식이 세계 안에서 실제 문양으로 보이고, 표식이
+  없는 대상에게는 그 기술이 성립하지 않으며 왜 안 되는지가 함께 와야 한다. 기록한 정체가
+  늘면 허리와 머리 뒤의 가면 조각에 새 문양이 생기고, 표식이 켜지면 눈동자 안에도 같은
+  문양이 나타나 지금 무엇을 아는 몸인지 읽혀야 한다 (FC §6.13).
+  관찰 없이도 처음부터 상대의 약점을 쓸 수 있으면 이 형태가 아니다.
+
+origin_trace:
+  world_state: [MW-TERRAIN-NAME-EATING-FOREST]  # 나무들이 서로를 구분하려 Identity 를 기록하는 땅 (FC §6.1 · BT §6)
+  goal:        [MG-EXPLORE-BEIRA, MG-OVERCOME-SUPERIOR-OPPONENT]
+  possibility: [MP-KNOW-THE-OPPONENT-RULE, MP-READ-AND-COUNTER]
+
+requires: []          # Origin 은 시작 형태다 — FC 는 이 층에 진입 조건을 두지 않는다 (FC §1 · GS §4)
+
+grants:
+  - MC-ACTIVE-RESPONSE        # 맞는 순간의 자리에 판독이 들어간다 (FC §6.6)
+  - MC-PRECISION-RESPONSE     # 그 판독이 언제 됐는가로 결과가 갈린다 (FC §6.6 Precision)
+  - MC-OPPORTUNITY            # 잘 된 판독이 기록과 조각이라는 다음 수를 연다 (FC §6.6)
+  - MC-EVADE                  # 판독의 기본은 짧은 회피다 (FC §6.6 Normal)
+  - MC-OBSERVE                # 먼저 보고 기억하고 구분한다 (FC §6.2 · §6.4)
+  - MC-OBSERVE-ABILITY        # 쓰인 기술을 기록해 그 규칙을 알아 간다 (FC §6.6 · §6.12)
+  - MC-MARK                   # 명각 — 대상에게 표식을 새겨 이후 판정이 그것을 본다 (FC §6.7 Skill 1)
+  - MC-DISCOVER-WEAKNESS      # 명파 — 표식이 있는 대상의 약점을 드러낸다 (FC §6.7 Skill 2)
+  - MC-IMPERSONATE-IDENTITY   # 위명 — 하급 생물에게 자신을 다르게 인식시킨다 (FC §6.7 Skill 4 · §6.11)
+  - MC-VERIFY-REALITY         # 진짜와 가짜를 가른다 (FC §6.11)
+  - MC-ABILITY-CONDITION      # 표식이 있는 대상에게만 열리는 기술이 있다 (FC §6.5)
+grants_note: >
+  누구나 가진 바닥(때리기 · 기력 예산 · 몸의 방향)은 적지 않는다.
+  아직 노드가 없어 적지 못한 것 둘 — ① 관찰해 기록한 남의 기술 하나의 행동적 특징을
+  흉내 내는 일 (FC §6.7 가면흉내). MC-IMPERSONATE-IDENTITY 는 "표식을 빌려 다른 존재로
+  인식된다" 까지이고 남의 행동을 재현하는 의미는 담지 않는다. ② 지정 대상의 표식을 완전히
+  전개해 파티 전체가 그 정보를 쓰게 하는 일 (FC §6.8 초명) — 앎을 남과 나누는 자리가
+  아직 없다. Human 결정 대기: open-questions Q71.
+
+transitions_to: []   # 다음 형태는 가면술사다 (GS §12 Class Line · HISTORY Q55(b)) — 그 CL-* 는 아직 없다. 갈래 문제는 Q69.
+
+constraints:
+  - DC-GROWTH-CLASS-ORIGIN-TRACE
+  - DC-GROWTH-PRINCIPLE-IS-PLAYED
+  - DC-GROWTH-DIFFERENCE-IS-BEHAVIOR
+  - DC-GROWTH-EXPLORATION-SHARES-THE-PRINCIPLE
+  - DC-GROWTH-STAGE-READS-AT-A-DISTANCE
+  - DC-COMBAT-STRONG-RULE-HAS-COUNTERPLAY
+  - DC-GROWTH-CLASS-OWNS-THE-RESPONSE
+  - DC-GROWTH-ORIGIN-IS-SIMPLE-FIRST
+  - DC-GROWTH-CLASS-CLOSES-BEFORE-THE-NEXT-LAYER
+  - DC-GROWTH-NO-CAPABILITY-DUPLICATION
+  - DC-CONDITION-OPENS-WITHOUT-RECORDING
+constraint_evaluation:
+  DC-GROWTH-CLASS-ORIGIN-TRACE: SATISFIED               # 이름을 먹는 수해가 이 형태 없이도 성립한다 (BT §6)
+  DC-GROWTH-PRINCIPLE-IS-PLAYED: SATISFIED              # 정체성이 설정이 아니라 표식과 그 표식이 여는 기술로 나타난다
+  DC-GROWTH-DIFFERENCE-IS-BEHAVIOR: SATISFIED           # 처음에는 약하고 알수록 강해진다는 점이 다른 다섯과 갈린다 (FC §9)
+  DC-GROWTH-EXPLORATION-SHARES-THE-PRINCIPLE: SATISFIED # 흔적 추적·진위 판별이 전투의 관찰·표식과 같은 원리다 (FC §6.11)
+  DC-GROWTH-STAGE-READS-AT-A-DISTANCE: SATISFIED        # 기록한 정체가 가면 조각의 문양으로 늘어난다 (FC §6.13)
+  DC-COMBAT-STRONG-RULE-HAS-COUNTERPLAY: SATISFIED      # 표식 제거·시야 차단·행동 패턴 변경·분신·관찰되지 않은 기술 (FC §6.10)
+  DC-GROWTH-CLASS-OWNS-THE-RESPONSE: SATISFIED          # 그 자리에 판독이 들어간다 (FC §6.6)
+  DC-GROWTH-ORIGIN-IS-SIMPLE-FIRST: SATISFIED           # 요구가 "표식이 있는가" 한 줄이고 계약을 쓰지 않는다
+  DC-GROWTH-CLASS-CLOSES-BEFORE-THE-NEXT-LAYER: SATISFIED   # 지금 할 수 없는 것과 확장 방향이 FC §10 에 있다
+  DC-GROWTH-NO-CAPABILITY-DUPLICATION: UNRESOLVED       # 기술 흉내와 앎의 공유가 기존 노드에 없다 — 새 노드를 만들지 않고 grants_note 로 남겼다 (Q71)
+  DC-CONDITION-OPENS-WITHOUT-RECORDING: UNRESOLVED      # 표식과 정체의 조각은 남는 것이므로 "조건으로 열리고 저절로 닫힌다" 와 형태가 다르다 — 어느 쪽인지는 이 층을 세우는 Cycle 이 정한다

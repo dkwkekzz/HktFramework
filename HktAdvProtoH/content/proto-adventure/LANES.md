@@ -38,7 +38,7 @@ Feedback · BACKLOG)를 겹쳐 `LANES.html` 로 그린다. `npm run lanes:check`
 | WORLD·GROWTH | OPEN | `C-GROWTH-001` 착수 대기 — SELECTED `FR-WHAT-YOU-DID-MAKES-YOU`(한 일이 몸을 키운다). Stage 1 부터, 아직 시작하지 않았다. **COMBAT 과 같은 파일을 본다 — 아래 충돌 칸** | 없음 — 다만 이 판과 트랙 파일이 main 에 들어간 뒤에 잡는다 |
 | WORLD·KNOWLEDGE | HUMAN | **트랙이 방금 섰다** — 후보 일곱 중 선택 대기. 전투 지식(CK) 주입으로 판단이라는 층이 세워졌다. 의존이 빈 것은 `FR-WHAT-YOU-KNOW-FIGHTS-WITH-YOU`(배운 것이 몸의 판단이 된다) 하나이며 나머지 여섯이 전부 그것을 전제한다 — 이 트랙에는 고민할 순서가 없다. **철회된 대응 층이 돌아올 자리이기도 하다** (CK §15) | Human Select (frontier/knowledge.md) |
 | VIEW | OPEN | BACKLOG 다음 항목(drag-and-drop)부터 — 기반 동반이 필요한 셋(tip-flip-at-the-edge · escape-leaves-the-field · workspace-two-columns)은 ENGINE 뒤에 잡는다 | 없음 |
-| MASTER | OPEN | OPTIONS Q35 (몸이 아닌 존재를 요구하는 Possibility) — 이제 스킬 실행 형태의 빈 다섯 칸만 막는다. 성장(GS · GB)과 전투 상층(UL) 주입은 둘 다 끝났다: 결정 열(Q52~Q61) 반영 · GROWTH 후보 3 · COMBAT 후보 10 과 SELECTED 까지 | 없음 — 미처리 Feedback 이 0 이다 (`npm run feedback:gate`) |
+| MASTER | HUMAN | **계열별 요정 Layer 0(FC) 주입이 끝났다** — 여섯 계열의 Origin Class 가 `growth/classes/` 에 CL-* 로 섰고(백왕 · 역락 · 태양심 · 진명 · 숨결 · 맥동), Growth Overlay 의 비어 있던 Class 쪽 절반이 채워졌다. 남은 열린 일은 OPTIONS Q35 (몸이 아닌 존재를 요구하는 Possibility — 스킬 실행 형태의 빈 다섯 칸) 하나다. 다만 **주입이 Human 결정 넷을 남겼다** (Q68~Q71) — 그중 Q69(갈래가 하나인가 여럿인가)가 Layer 1 주입을 막는다 | Human 결정 Q68 · Q69(차단) · Q70 · Q71 (open-questions.md) |
 | ENGINE | OPEN | 셋 — ① **자판이 표면 안을 다니는 길** — 정해진 초점 차례가 없고(`tabindex` 0건), 글자 자리에서 `Esc` 가 죽는다(붙잡는 단계가 `INPUT` 에서 비켜 주고 받는 자리가 없다). 다시 그릴 때 초점을 붙드는 자리는 이미 섰다. BACKLOG 의 `escape-leaves-the-field` · `skill-focus-order` 가 이것을 기다린다 ② **겹침 표면의 자리 잡기** — 곁말이 가장자리에서 접히는 일 · 구획을 나란히 놓는 일 (`tip-flip-at-the-edge` · `workspace-two-columns`) ③ 지면 구역 장치 `SceneGroundZone` ([design/Design-Terrain-Visualization.md](../../design/Design-Terrain-Visualization.md)) — C-TERRAIN-001 의 04 확정 뒤 | 없음 |
 | PROCESS | OPEN | **Q67 이 열렸다** — 병렬 레인이 공유하는 두 자리가 어긋난다 (Q 번호공간이 레인 소유가 아니다 · `frontier/README.md` 트랙 표가 트랙 파일과 어긋난다). 이번 합류에서 둘 다 실제로 났고 손으로 고쳤다. 그 밖에는 없음 — 보고 형식이 guides/works.md 의 "보고" 절에 섰다 | 없음 |
 
@@ -80,4 +80,8 @@ Human 이 답하면 풀리는 것들이다. 답의 자리는 괄호가 가리킨
 | Q37 — 자리에 이름을 줄 것인가 (open-questions.md) | FR-ARRANGE-WHAT-YOU-CARRY 존치/삭제 |
 | Design-Creature-Behavior-R0.md 승인 | Inject → MC-PREDICT · MC-OBSERVE 습성 해금 |
 | Design-Resource-Catalog-R0.md 승인 | Inject → Q36 · 회복 아이템 해금 · BT 자원 24종의 자리 (그 문서가 받기로 정해졌다 — HISTORY Q50(a)) · GS 의 Class Catalyst 자리 |
-| 계열별 요정 문서(백왕 성장 · Layer0) 주입 | CL-* 착수 — 이름의 소유는 정해졌다 (HISTORY Q55(b)). MC-CHANGE-CLASS 가 넘어갈 형태가 생긴다 |
+| Q68 — FC 주입이 세운 Constraint 넷 승인 (open-questions.md) | 여섯 CL-* 가 걸고 있는 판정의 근거가 선다. 특히 ④가 승인되어야 Layer 1 을 막을 관문이 생긴다 |
+| Q69 — Class 의 갈래는 하나인가 여럿인가 (open-questions.md) | **Layer 1 주입 착수**. 여섯 CL-* 의 `transitions_to` 가 비어 있는 이유이며, FC §1(여럿)과 GS §9~§16(사슬 하나)이 어긋난다 |
+| Q70 — Class 의 열두 답을 어디에 담는가 (open-questions.md) | 열두 질문이 산문이 아니라 검사할 수 있는 칸이 된다 |
+| Q71 — FC 의 능력 아홉을 노드로 세울 것인가 (open-questions.md) | 여섯 계열의 세계 조작 차이가 그래프에 보인다. 지금은 대응과 조건에서만 갈린다 |
+| 백왕 계열 문서 둘(`Design-Fairy-Baiwang-Growth-R0` · `Design-Fairy-Baiwang-Skill-R0`) 주입 | 한 계열의 성장과 스킬이 CL-BAIWANG-ORIGIN 위에 얹힌다 — 이번 주입은 Human 이 지목한 Layer 0 문서 하나만 옮겼다 |

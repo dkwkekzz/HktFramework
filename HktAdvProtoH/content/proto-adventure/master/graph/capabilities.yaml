@@ -654,6 +654,12 @@ nodes:
       없다 — 그것은 위에 얹히는 정밀 응답(MC-PRECISION-RESPONSE)이 진다.
       자리를 하나로 고정하는 것이 UL 의 핵심 판단이다. 그래야 캐릭터마다 전혀 다른
       대응을 줘도 손가락이 늘지 않는다 (UL §4.2 · §31).
+      **그 자리를 누가 채우는지는 FC 가 답했다** — 그 몸의 Class 다 (FC §2). 여섯 Origin
+      Class 가 같은 자리에 서로 다른 것을 끼운다: 골완투사는 봉을 박아 버티고, 역락검사는
+      자기 낙하 방향을 옆으로 꺾고, 열술사는 저장한 열을 터뜨리고, 명각사는 그 공격 자체를
+      읽고, 숨결술사는 앞에 탄성막을 세우고, 맥동사는 충격을 연결된 지면으로 흘려보낸다.
+      입력은 하나인데 여섯 개의 다른 행동이 나온다는 것이 이 자리의 값이며, 그래서 이
+      노드는 계열의 차이가 가장 먼저 드러나는 지점이기도 하다 (FC §9).
     world_shape: >
       공격이 닿기 전에 대응할 수 있는 시간이 있고, 그 시간에 실행한 대응 하나가
       그 공격의 결과를 바꾸며, 지금 그 자리에 무엇이 들어 있는지가 관찰 가능해야 한다.
@@ -666,11 +672,13 @@ nodes:
           source: UL §4.1 · §4.2 · §5 · §42 F1
     required_by: [MP-READ-AND-COUNTER, MP-EVADE-BY-MOVING-THE-BODY, MP-STORE-AND-RELEASE]
     demanded_by: []
-    constraints: [DC-COMBAT-ONE-RESPONSE-INPUT, DC-COMBAT-RESPONSE-IS-OPTIONAL-MASTERY, DC-COMBAT-SHARED-BUDGET]
+    constraints: [DC-COMBAT-ONE-RESPONSE-INPUT, DC-COMBAT-RESPONSE-IS-OPTIONAL-MASTERY, DC-COMBAT-SHARED-BUDGET,
+                  DC-GROWTH-CLASS-OWNS-THE-RESPONSE]
     constraint_evaluation:
       DC-COMBAT-ONE-RESPONSE-INPUT: SATISFIED           # 이 노드가 그 "하나" 자체다 (UL §4.2)
       DC-COMBAT-RESPONSE-IS-OPTIONAL-MASTERY: SATISFIED # 무대응이 정상 경로로 남는다 (UL §5 NONE)
       DC-COMBAT-SHARED-BUDGET: SATISFIED                # 전용 게이지 없이 기존 기력 예산을 쓴다 (UL §10)
+      DC-GROWTH-CLASS-OWNS-THE-RESPONSE: SATISFIED      # 여섯 Origin Class 가 같은 자리에 각자의 대응을 끼운다 (FC §2 · §9)
     overlay: MISSING
     overlay_gap: >-
       공격이 닿는 순간에 실행하는 행동이라는 개념이 없다. 막기는 미리 켜 두는 자세이고, 켠 뒤에는 받는 쪽이 개입할 자리가 없다
@@ -808,6 +816,12 @@ nodes:
       반대쪽이 빈다는 성질은 그대로 남되 무엇과 무엇이 맞바꾸이는지가 달라진다 —
       몸에 몰면 능력과 인지가 얇아지고, 능력이나 인지에 몰면 몸이 얇아진다.
       그 얇아진 쪽이 상대가 노릴 자리다 (MP-EXPLOIT-OPEN-BODY).
+      **세 축이 무엇이 되는지는 Class 마다 다르다** (FC §2 · 각 계열의 Aura 절). 골완투사가
+      몸에 몰면 결속할 수 있는 충격이 커지고 더 큰 대상과 힘겨루기가 되며, 명각사가 인지에
+      몰면 한 번의 관찰에서 읽어 내는 정체의 폭이 넓어진다. 그래서 계열마다 기본으로
+      기대는 축이 있고 (백왕·역락은 몸, 태양심·숨결은 능력, 진명은 인지, 맥동은 인지와
+      능력 사이), 그 성향이 곧 그 몸이 무엇을 잘하는가다. 축을 늘리지 않고 축의 의미를
+      Class 가 갈라 쓰는 형태다.
     world_shape: >
       힘을 어디에 몰아 두었는지가 이름 붙은 상태로 존재하고, 전투 중 그 상태를
       바꾸는 입력이 하나이며, 어느 상태냐에 따라 쓸 수 있는 것의 목록이 실제로
@@ -2317,6 +2331,11 @@ nodes:
       전부이며, 레벨(MC-GAIN-LEVEL)과 갈리는 지점도 거기다.
       탐험 쪽 얼굴은 MC-GROW-EXPLORATION-MASTERY 다 — 둘은 다른 능력이 아니라 같은 원리의
       두 쓰임이며 (GS §8), GS §19 가 성장 원천 표에서 둘을 따로 세었기 때문에 노드도 둘이다.
+      **세는 행동의 실제 목록이 FC 로 생겼다** — 여섯 Origin Class 가 각자 무엇을 해야
+      오르는지를 적는다 (FC 각 계열의 Mastery 절). 골완투사는 강한 공격을 정면에서 받아내고
+      자기보다 큰 적을 밀어내고 붕괴를 막을 때, 역락검사는 이동을 끊지 않고 싸우고 연속으로
+      방향을 바꿀 때, 명각사는 새로운 종을 관찰하고 위장을 간파할 때 오른다. 여섯 목록이
+      서로 겹치지 않는다는 것이 이 노드가 요구하는 바로 그 성질이다.
     world_shape: >
       형태마다 세는 행동이 다르고, 그 행동을 해낸 것이 몸에 남으며, 쌓인 것이 다음 형태로
       넘어가는 조건이 되어야 한다. 무엇을 하든 같은 값이 오르면 이 능력이 아니다.
@@ -2415,6 +2434,11 @@ nodes:
       강해지고, 새 Skill 과 Ultimate 와 새 탐험 Capability 가 함께 온다 (GS §7 · §20).
       전직과 헷갈리면 안 된다 — 이전 형태는 사라지지 않고 상위 형태의 기반으로 남는다
       (GS §3.1).
+      **넘어갈 형태의 아래쪽 절반이 FC 로 섰다** — 여섯 계열의 Origin Class 가 정의되어
+      growth/classes/ 에 있다 (CL-*-ORIGIN 6). 아직 서지 않은 것은 그 위다: 상위 형태의
+      CL-* 가 하나도 없어 이 능력이 옮겨 갈 곳이 없다. FC §1 은 한 형태에서 갈래가 여럿일
+      수 있다고 적고 GS 는 계열마다 하나의 사슬을 이름으로 적어 두 문서가 어긋나 있다
+      (open-questions Q69) — 그 답이 상위 CL-* 의 모양을 정한다.
     world_shape: >
       몸이 형태를 가지고, 그 형태가 네 조건을 만족하면 상위 형태가 되며, 바뀐 뒤에는
       이전에 못 하던 일이 되고 그 사실이 멀리서 보아도 읽혀야 한다. 조건이 레벨 하나뿐이면
@@ -2439,7 +2463,7 @@ nodes:
       DC-GROWTH-CAPABILITY-DECLARES-ITS-LIMITS: UNRESOLVED # 상위 형태가 무엇에 통하지 않는지도 CL-* 와 함께 선다
     overlay: MISSING
     overlay_gap: >-
-      몸이 형태를 갖지 않는다 — CL-* 노드가 0 개이고 세계의 몸은 종류 하나로 고정이다
+      몸이 형태를 갖지 않는다 — 세계의 몸은 종류 하나로 고정이고, 형태를 바꾸는 사건도 그 조건을 세는 자리도 없다. 설계 쪽은 절반이 섰다 (Origin CL-* 6) — 넘어갈 상위 형태의 CL-* 가 아직 0 이다
 
 # ── 근거와 비주입 ────────────────────────────────────────────────────────
 # 전투  R1  content/proto-adventure/design/Design-Combat-OffenseDefense-R0.md
@@ -2852,3 +2876,40 @@ nodes:
     overlay: MISSING
     overlay_gap: >-
       맞물릴 지식이 없다
+
+# ── 계열별 요정 Layer 0 (FC 주입 2026-08-27) ────────────────────────────
+#
+# FC = content/proto-adventure/design/Design-Fairy-Class-Layer0-R0.md
+#
+# **이 문서는 이 파일에 노드를 하나도 더하지 않는다.** 여섯 Origin Class 를 정의하는
+# 문서이며, Class 는 Capability 가 아니라 Capability 를 세계 안에서 얻는 경로이기
+# 때문이다 (DC-GROWTH-NEED-FROM-POSSIBILITY). 옮긴 것은 growth/classes/ 의 CL-* 여섯과
+# constraints/ 의 DC 넷(DRAFT)이고, 이 파일에서는 네 노드의 산문이 FC 로 두꺼워졌다 —
+# MC-ACTIVE-RESPONSE(그 자리를 Class 가 채운다) · MC-AURA-ALLOCATION(세 축이 Class 마다
+# 무엇이 되는가) · MC-GROW-CLASS-MASTERY(세는 행동의 실제 목록) · MC-CHANGE-CLASS
+# (넘어갈 형태의 아래쪽 절반이 섰다). IE 가 MC-EQUIP-ITEM 의 world_shape 만 두껍게 한
+# 것과 같은 형태의 반영이다.
+#
+# 비주입 — FC 가 각 계열에 준 능력 중 **기존 MC-* 로 옮길 수 없는 것 아홉**은 노드로
+# 세우지 않았다. 어느 Possibility 도 그것들을 요구하지 않고 어느 층도 demands 로 걸지
+# 않아 required_by 와 demanded_by 가 둘 다 비기 때문이다 (SCHEMA · GS 주입 때의 같은
+# 판정). 무엇이 빠졌는지는 각 CL-* 의 grants_note 가 하나씩 적고 있으며, 세울지 말지는
+# Human 이 정한다 (open-questions Q71).
+#   자기 낙하 방향 전환 · 표면 주행 · 투사체 방향 전환 (역락) ·
+#   빼앗는 흡수와 그로 인한 느려짐 (태양심) · 기술 흉내 · 앎의 공유 (진명) ·
+#   임시 표면 생성 (숨결) · 전달하는 연결 · 생체 안정화 (맥동) ·
+#   무거운 세계 개체 이동 · 붕괴 지탱 · 세계압 내성 (백왕)
+#
+# 비주입 — FC 의 스킬 이름(골쇄연격 · 백왕철추 · 낙선 · 벽천보 · 열탄 · 각침 · 압기탄 ·
+# 맥창 …)과 Ultimate 여섯은 Capability 가 아니다. 스킬은 발동 · 대상 기준 · 실행 ·
+# 대상 결정 · 효과의 조합을 고른 정의이고 (DC-SKILL-IS-COMBINATION-NOT-NAME), 그 조합이
+# 부를 수 있는 효과는 이미 세계에 있는 것뿐이다 (DC-SKILL-EFFECT-MUST-ALREADY-EXIST).
+# 그래서 이름들은 CL-* 의 산문에 근거로만 남고 노드가 되지 않는다.
+#
+# 비주입 — FC 의 외형 절(체형 · 실루엣 · 색 · 전투 연출)은 노드가 아니다. 다만 그것이
+# 요구하는 성질(단계가 멀리서 읽힌다)은 이미 DC-GROWTH-STAGE-READS-AT-A-DISTANCE 가
+# 소유하고 있고, 각 CL-* 의 world_shape 가 그 요구를 관찰 조건으로 받는다.
+#
+# 비주입 — FC 는 여덟 계열 중 여섯만 다룬다. 가능성계와 혈화계의 Origin Class 는 이
+# 문서에 없으므로 CL-* 를 세우지 않았다 — 지어내지 않는다. 두 자리는
+# graph/systems.yaml 의 MS-FAIRY-LINEAGE 에 빈 채로 남아 있다.

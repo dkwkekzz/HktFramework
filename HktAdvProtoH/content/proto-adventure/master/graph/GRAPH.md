@@ -547,9 +547,9 @@ flowchart TB
   class N1,N2,N4,N5,N9,N10,N11 missS;
 ```
 
-### Class 진화 사다리 — GS (content/proto-adventure/design/Master-Fairy-Growth-System.md) §3 · §4 · §7
+### Class 진화 사다리 — GS (content/proto-adventure/design/Master-Fairy-Growth-System.md) §3 · §4 · §7 · FC (content/proto-adventure/design/Design-Fairy-Class-Layer0-R0.md) §1 · §2 · §10 · §12 (ORIGIN 칸의 설계)
 
-한 캐릭터가 자기 원리를 발전시키며 거치는 형태의 층. 아래 형태를 버리고 갈아 끼우는 것이 아니라 그 위에 서는 구조이며 (GS §3.1), 층이 오를수록 능력이 미치는 범위가 개인에서 전장으로, 전장에서 원리의 현현으로 넓어진다 (GS §4). 층마다 외형이 함께 바뀌어 멀리서도 어느 단계인지 읽힌다 (GS §7). 층과 층 사이를 넘는 자리(MC-CHANGE-CLASS)는 어느 한 층에 속하지 않는다 — segment 없이 이 시스템에 속한다.
+한 캐릭터가 자기 원리를 발전시키며 거치는 형태의 층. 아래 형태를 버리고 갈아 끼우는 것이 아니라 그 위에 서는 구조이며 (GS §3.1), 층이 오를수록 능력이 미치는 범위가 개인에서 전장으로, 전장에서 원리의 현현으로 넓어진다 (GS §4). 층마다 외형이 함께 바뀌어 멀리서도 어느 단계인지 읽힌다 (GS §7). 층과 층 사이를 넘는 자리(MC-CHANGE-CLASS)는 어느 한 층에 속하지 않는다 — segment 없이 이 시스템에 속한다. **바닥 칸(ORIGIN)이 FC 로 채워졌다** — 여섯 계열의 Origin Class 가 growth/classes/ 에 CL-*-ORIGIN 으로 서 있다. 위의 세 칸은 아직 이름뿐이며, FC §1 이 한 형태에서 갈래가 여럿일 수 있다고 적어 GS 의 단일 사슬과 어긋나 있다 (open-questions Q69).
 
 ```mermaid
 flowchart TB
@@ -611,9 +611,9 @@ flowchart TB
   class N0,N2,N3,N4,N5,N6 miss;
 ```
 
-### 요정 계열 — GS (content/proto-adventure/design/Master-Fairy-Growth-System.md) §1 · §2 · §9~§16
+### 요정 계열 — GS (content/proto-adventure/design/Master-Fairy-Growth-System.md) §1 · §2 · §9~§16 · FC (content/proto-adventure/design/Design-Fairy-Class-Layer0-R0.md) §1 · §3~§8 (여섯 계열의 Origin Class)
 
-하나의 세계 원리가 대륙이 아니라 **하나의 인격**에 집중되어 태어난 존재의 갈래 (GS §1). **플레이어가 수행하는 역할이 이것이다** — 여덟은 고를 수 있는 갈래이며, 고른 뒤 그 몸이 무엇을 잘하는가는 고정되지만 무엇을 하러 갈지는 고정되지 않는다 (HISTORY Q54(a)). 대지형(MS-BEIRA-TERRAIN)의 거울이다 — 여덟 계열이 여덟 대지형의 원리와 하나씩 짝을 이룬다. 순서가 없다는 것도 그쪽과 같다 (GS §9 는 이 여덟을 예시로 들 뿐 난이도나 계보로 늘어놓지 않는다). GS 는 계열마다 Principle · Power Fantasy · Class Line · 전투 · 탐험 · 성장 행동을 공급하지만 각 Class 의 정의(CL-*)는 세우지 않는다. **Class Line 의 이름은 GS 가 소유한다** (HISTORY Q55(b)) — 어긋난 계열 문서는 그 이름으로 맞춘다. CL-* 를 세우는 것은 계열별 설계 문서의 주입이며, 그때 이 여덟 자리가 채워진다.
+하나의 세계 원리가 대륙이 아니라 **하나의 인격**에 집중되어 태어난 존재의 갈래 (GS §1). **플레이어가 수행하는 역할이 이것이다** — 여덟은 고를 수 있는 갈래이며, 고른 뒤 그 몸이 무엇을 잘하는가는 고정되지만 무엇을 하러 갈지는 고정되지 않는다 (HISTORY Q54(a)). 대지형(MS-BEIRA-TERRAIN)의 거울이다 — 여덟 계열이 여덟 대지형의 원리와 하나씩 짝을 이룬다. 순서가 없다는 것도 그쪽과 같다 (GS §9 는 이 여덟을 예시로 들 뿐 난이도나 계보로 늘어놓지 않는다). GS 는 계열마다 Principle · Power Fantasy · Class Line · 전투 · 탐험 · 성장 행동을 공급하지만 각 Class 의 정의(CL-*)는 세우지 않는다. **Class Line 의 이름은 GS 가 소유한다** (HISTORY Q55(b)) — 어긋난 계열 문서는 그 이름으로 맞춘다. CL-* 를 세우는 것은 계열별 설계 문서의 주입이며, 그때 이 여덟 자리가 채워진다. **여덟 중 여섯이 FC 로 채워졌다** — 백왕 · 역락 · 태양심 · 진명 · 숨결 · 맥동의 Origin Class 가 CL-*-ORIGIN 으로 서 있다. 가능성계와 혈화계는 FC 가 다루지 않아 비어 있으며, 그 둘의 계열 문서를 기다린다.
 
 아직 이 시스템에 속한 조각이 없다.
 
@@ -910,7 +910,10 @@ Constraint 는 단계가 아니라 각 선택 지점의 Filter 다. 아래는 �
 | `GROWTH-CAPABILITY-DECLARES-ITS-LIMITS` | GROWTH | APPROVED | 5 | 모든 Capability 는 무엇을 잘하는지와 함께 무엇에 부분적으로만 통하고 무엇에는 통하지 않는지를 밝힌다 — 성장은 가능해지는 것뿐 아니라 여전히 불가능한 것도 정의한다. |
 | `GROWTH-CLASS-CHANGE-KEEPS-THE-PAST` | GROWTH | APPROVED | 2 | Class Change 는 다른 Class 로 교체하는 것이 아니라 같은 캐릭터가 상위 형태가 되는 것이며, 이전 Class 는 사라지지 않고 그 상위 형태의 기반으로 남는다. |
 | `GROWTH-CLASS-CHANGE-NEEDS-THE-WORLD` | GROWTH | REVISED | 3 | Class Change 의 문턱은 시간과 수치만으로 넘을 수 없다 — 그 캐릭터의 원리와 관련된 세계 현상을 직접 겪은 것과 세계에서만 얻는 Property 를 함께 요구한다. |
+| `GROWTH-CLASS-CLOSES-BEFORE-THE-NEXT-LAYER` | GROWTH | DRAFT | 0 | Class 하나는 자신에 대한 열두 질문에 즉시 답할 수 있을 때 완성이며, 특히 지금 할 수 없는 것과 원리가 하나 더해지면 어디로 넓어지는가가 닫히기 전에는 그 계열의 다음 Layer 를 세우지 않는다. |
+| `GROWTH-CLASS-COMES-FROM-A-PRINCIPLE` | GROWTH | DRAFT | 0 | 새 Class 는 이름에서 시작하지 않는다. 먼저 새 Principle 이 있고, 거기서 새 Rule 과 새 행동, 전투 방식의 변화, 탐험 방식의 변화, 외형의 변화가 차례로 나온 뒤에야 그것이 Class 다. |
 | `GROWTH-CLASS-ORIGIN-TRACE` | GROWTH | APPROVED | 0 | Class 는 세계와 Actor 가 상호작용한 결과다. 모든 Class 는 하나 이상의 origin_trace(WorldState → Goal → Possibility)를 가지며, 그 Class 를 제거해도 원인이 된 세계 요소는 독립적으로 성립해야 한다. |
+| `GROWTH-CLASS-OWNS-THE-RESPONSE` | COMBAT · GROWTH | DRAFT | 1 | 공격에 대응하는 입력은 하나뿐이고, 그 자리에 무엇이 들어 있는가는 그 캐릭터의 Class 가 정한다. 같은 입력이 Class 마다 전혀 다른 행동이 된다. |
 | `GROWTH-COST-IS-THE-WHOLE-BURDEN` | GROWTH | APPROVED | 1 | 성장의 비용은 소비한 자원의 개수가 아니라 그 성장을 얻기까지 치른 전체 플레이 부담이다 — 시간 · 위험 · 실력 · 앎 · 자원 · 기회 · 반복 가능성이 함께 비용이다. |
 | `GROWTH-DEFINITION-INSTANCE-SPLIT` | GROWTH | APPROVED | 1 | Master 는 유한한 Definition(Class · Item Type · Property · Modifier · 조합 규칙)만 소유한다. 실제 생성된 Item Instance(II-*)와 조합 결과는 Runtime World 가 소유하며, 가능한 조합을 사전에 Node 로 생성하지 않는다. |
 | `GROWTH-DIFFERENCE-IS-BEHAVIOR` | GROWTH | APPROVED | 1 | 캐릭터 사이의 차이는 능력치 값의 차이가 아니라 전투에서 반복하는 행동의 차이로 드러나야 한다. |
@@ -923,6 +926,7 @@ Constraint 는 단계가 아니라 각 선택 지점의 Filter 다. 아래는 �
 | `GROWTH-NO-DOMINATED-ROUTE` | GROWTH | APPROVED | 2 | 더 싸면서 모든 면에서 더 좋은 성장 경로를 두지 않는다 — 나란히 선 경로들은 서로 다른 장단점을 가져야 하고, 어느 하나가 다른 하나를 완전히 압도하면 압도당한 쪽은 존재할 이유가 없다. |
 | `GROWTH-NOT-A-MASTER-KEY` | GROWTH | APPROVED | 1 | 하나의 성장이 서로 무관한 여러 관문을 한꺼번에 열지 않는다 — 열쇠 하나가 모든 문을 열면 그 뒤의 문들이 사라진다. |
 | `GROWTH-NOT-A-STAGE` | GROWTH | APPROVED | 0 | Growth 는 별도 Master Stage 가 아니다. 기본 절차 WHY → OPTIONS → NEED → NEXT 는 그대로 유지되고, Growth Graph 는 NEED 에서 발견된 Capability 에 대해 "세계에서 어떻게 얻는가"를 덧씌우는 보조 Overlay 로만 존재한다. |
+| `GROWTH-ORIGIN-IS-SIMPLE-FIRST` | COMBAT · GROWTH | DRAFT | 0 | Origin Class 는 복합 계약과 복합 규칙을 주력으로 쓰지 않는다. 단순한 Requirement · 단순한 Condition · 명확한 World Operation · 명확한 Counterplay 넷을 먼저 갖추고, 그것들이 계약과 복합 규칙으로 발전하는 것은 상위 Layer 의 몫이다. |
 | `GROWTH-POWER-PAYS-IN-REACH-OR-CONSTRAINT` | GROWTH | APPROVED | 3 | 강한 효과와 넓은 적용 범위를 동시에 주지 않는다 — 강해질수록 적용 범위가 좁아지거나 분명한 조건이 붙어야 하며, 그 조건도 자원과 마찬가지로 성장의 값이다. |
 | `GROWTH-PRINCIPLE-IS-PLAYED` | GROWTH | APPROVED | 2 | 캐릭터가 지닌 세계의 원리는 설정 문구가 아니라 그 캐릭터가 실제로 하는 행동으로 화면 위에 있어야 한다. |
 | `GROWTH-REWARD-IS-NEW-REACH` | GROWTH | APPROVED | 2 | 성장의 가치는 커진 숫자가 아니라 이전에는 할 수 없던 무엇을 할 수 있게 되었는가를 포함하며, 비용과 보상을 하나의 점수로 환산해 맞추지 않는다. |
