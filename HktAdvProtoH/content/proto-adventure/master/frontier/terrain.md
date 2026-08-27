@@ -47,7 +47,7 @@
                          FR-THE-LAND-KEEPS-WHAT-IT-TAKES (C-TERRAIN-002) 없이는 거두는
                          속도가 상수라 예고할 것이 없어 "곧 위험" 타이머가 된다.
                          **이제 막는 것이 없다**
-    Status               SELECTED
+    Status               PROPOSED
 
 ### FR-WHAT-KEEPS-YOU-ALIVE-IS-CARRIED — 살아 있게 하는 것을 지니고 나른다
     이것이 무엇인가      그 땅에 없는 것을 몸 밖에서 얻어 지니고, 나누고, 필요한 자리로 옮긴다
@@ -104,13 +104,8 @@
 ## SELECTED
 
 ```text
-FR-THE-LAND-SHOWS-BEFORE-IT-TAKES — 땅이 거두기 전에 보인다
-Cycle   C-TERRAIN-003-the-land-shows-before-it-takes
+없음 — Human 선택 대기
 ```
-
-    Human 이 추천 순서 1 을 그대로 골랐다. 근거는 의존이 아니라 **부채**다 —
-    C-TERRAIN-002 가 예외를 움직이게 만들었고, 예고가 없으면 그 움직임은 깊이가 아니라
-    불공정이다 (그 Cycle 의 순서 경고 본문).
 
     직전 반영 경위: [../feedback/C-TERRAIN-002-the-land-keeps-what-it-takes.md](../feedback/C-TERRAIN-002-the-land-keeps-what-it-takes.md)
 
