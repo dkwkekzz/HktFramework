@@ -14,6 +14,7 @@ import {
 } from './allocation';
 import { equipmentContributions } from './equipment';
 import { growthContribution, type GrowableStat } from './growth';
+import type { CircumstanceId } from './circumstance';
 import type { ContributableStat, Force } from './item';
 import type { WorldPosition } from './position';
 
@@ -22,7 +23,12 @@ export type MoveMode = 'walk' | 'run';
 
 // 스킬 = 휘두르는 행동. 기존 attack 이 기본 스킬이고, heavy-attack 이 고급 스킬,
 // aura-strike 가 C012 에서 더해진 오라 방식 스킬이다.
-export type SkillKind = Extract<ActionKind, 'attack' | 'heavy-attack' | 'aura-strike'>;
+// C-COMBAT-003 ADDED — hatsu-burst. **세계의 사정을 지는 첫 기술**이며, 그 밖에는
+// 다른 셋과 같은 자리를 같은 방법으로 지난다 (INTENT-CIRCUMSTANCES-ARE-A-LIST-001).
+export type SkillKind = Extract<
+  ActionKind,
+  'attack' | 'heavy-attack' | 'aura-strike' | 'hatsu-burst' | 'mark-strike'
+>;
 
 // DamageType (C012 ADDED, INTENT-DAMAGE-TYPE-001) — 피해를 만드는 방식.
 // 값은 둘뿐이고 한 타격은 정확히 하나를 가진다. 혼합 피해는 세계에 없다.
@@ -69,6 +75,39 @@ export interface SkillDefinition {
   swingArc: number; // 훑는 전체 각 (rad) — 끝점은 +Arc/2 에서 −Arc/2 로 지나간다
   swingReach: number; // 몸 중심에서 끝점 중심까지의 거리
   swingTipRadius: number; // 끝점 충돌 구의 반경 — 닿음의 판정 반경 그 자체다
+  // C-COMBAT-003 ADDED — 이 기술이 지는 세계의 사정 (INTENT-ABILITY-HAS-CIRCUMSTANCES-001).
+  //
+  // 무엇이 요구이고 무엇이 조건인지는 **기술이** 정한다 — 사정 자신이 아니다.
+  // 그래서 같은 사정이 어느 기술에서는 관문이고 다른 기술에서는 강화일 수 있다.
+  //
+  // **빈 목록이 기본이며 빈 목록은 언제나 갖춰진 것이다.** 그래서 사정을 지지 않는
+  // 기술은 이 층이 생기기 전과 한 톨도 다르지 않다 — 검사가 아니라 산술로 성립한다
+  // (INTENT-NO-CIRCUMSTANCE-NO-CHANGE-001 · DC-COMBAT-ONE-LAYER-AT-A-TIME).
+  requires: readonly CircumstanceId[]; // 갖춰져야 시작된다 — 차례가 곧 사유의 차례다
+  amplifiedBy: readonly ConditionShare[]; // 참인 동안 계수가 커진다
+  // C-COMBAT-004 ADDED — 닿은 몸에 표식을 남기는가 (INTENT-A-MARK-RESTS-ON-THE-OTHER-001).
+  // **값이지 이름이 아니다** — 휘두름이 "어느 기술인가" 를 묻는 분기를 만들지 않기
+  // 위해서다. C-COMBAT-003 이 `isSkillKind` 에서 겪은 자리와 같은 종류의 판단이다.
+  leavesMark: boolean;
+}
+
+/**
+ * 조건 하나와 그것이 계수에 더하는 몫 (C-COMBAT-003 ADDED).
+ *
+ * 기본 피해가 아니라 **계수**를 움직인다. 기본 피해를 올리면 몰아 두지 않은 몸에게도
+ * 같은 크기로 실려 "세계를 만들어 놓고 쓴다" 가 "더 큰 기술이 하나 생겼다" 가 된다.
+ * 계수를 올리면 몰아 둔 만큼 보답이 커지므로 관문과 조건이 같은 방향을 가리킨다
+ * (03-world-semantic.md BALANCE ③).
+ */
+export interface ConditionShare {
+  circumstance: CircumstanceId;
+  attackRatioShare: number;
+}
+
+/** 한 방에서 실제로 참이었던 조건과 그 몫 (파생 — 저장하지 않는다) */
+export interface MetCondition {
+  id: CircumstanceId;
+  attackRatioShare: number;
 }
 
 // C019 ADDED — 구간 경계의 기본값. 기술이 자기 값을 갖지만, 기본 기술 둘은 지금까지
@@ -104,6 +143,9 @@ export const SKILL_DEFINITIONS: Readonly<Record<SkillKind, SkillDefinition>> = {
     swingArc: DEFAULT_SWING_ARC, // C025 — 모양도 마찬가지다 (03 BALANCE ①)
     swingReach: DEFAULT_SWING_REACH,
     swingTipRadius: DEFAULT_SWING_TIP_RADIUS,
+    requires: [], // C-COMBAT-003 — 사정을 지지 않는다. 빈 목록은 언제나 갖춰진 것이다
+    amplifiedBy: [],
+    leavesMark: false, // C-COMBAT-004 — 남기지 않는다
   },
   // 고급 스킬 — 충전하면서 더 크게 소모한다 (붉은보석식 수지). 순수지 -22.
   'heavy-attack': {
@@ -126,6 +168,9 @@ export const SKILL_DEFINITIONS: Readonly<Record<SkillKind, SkillDefinition>> = {
     swingArc: (40 * Math.PI) / 180,
     swingReach: 2.2,
     swingTipRadius: 0.55,
+    requires: [], // C-COMBAT-003 — 그대로다
+    amplifiedBy: [],
+    leavesMark: false, // C-COMBAT-004 — 그대로다
   },
   // 오라 스킬 (C012 ADDED) — 기본 스킬과 **모든 값이 같고 방식만 다르다**.
   // 일부러 그렇게 두었다: 값이 다르면 결과 차이가 방식 때문인지 값 때문인지 갈리지 않는다.
@@ -144,6 +189,90 @@ export const SKILL_DEFINITIONS: Readonly<Record<SkillKind, SkillDefinition>> = {
     swingArc: DEFAULT_SWING_ARC,
     swingReach: DEFAULT_SWING_REACH,
     swingTipRadius: DEFAULT_SWING_TIP_RADIUS,
+    requires: [], // C-COMBAT-003 — 그대로다
+    amplifiedBy: [],
+    leavesMark: false, // C-COMBAT-004 — 그대로다
+  },
+  // 발현 일격 (C-COMBAT-003 ADDED) — **세계의 사정을 지는 첫 기술**이다.
+  //
+  // 방식이 aura 인 이유: 능력 축이 닿는 값이 `auraAttack` 이기 때문이다
+  // (allocation.ts 의 ALLOCATION_AXIS_STEPS.ability). 물리로 두면 능력에 몰아 둔 힘이
+  // 이 기술에 한 톨도 실리지 않아 관문의 뜻이 사라진다.
+  //
+  // 모양과 구간은 heavy-attack 과 **같은 값**이다. 큰 기술의 무게는 C019·C025 가 이미
+  // 정했고, 새 값을 지어내면 결과 차이가 사정 때문인지 모양 때문인지 갈리지 않는다 —
+  // C012 가 aura-strike 를 기본 기술과 같은 값으로 둔 그 판단 그대로다.
+  //
+  // 기본 피해가 10 으로 낮은 것은 **이 기술의 크기가 몰아 둔 힘에서 와야 하기**
+  // 때문이다. 소모가 25 로 heavy-attack(30)보다 싼 것은 관문이 이미 대가를 하나
+  // 물었기 때문이다 — 능력에 몰면 몸과 인지가 얇아진다.
+  // 값의 근거는 03-world-semantic.md 의 BALANCE ①②③④⑤ 가 소유한다.
+  'hatsu-burst': {
+    baseDuration: 0.9,
+    baseDamage: 10,
+    // 계수가 고급 기술(1.0)보다 높다. 관문을 지나는 값이 이미 치러졌기 때문이다 —
+    // 능력에 몰면 몸과 인지가 얇아지므로, 그 대가로 얻는 한 방이 포기한 고급 기술보다
+    // 크지 않으면 이 기술은 존재하되 쓰이지 않는다 (03-world-semantic.md BALANCE ②).
+    // 그리고 능력 축은 "몸이 아니라 기술이 내는 쪽" 이다 (UL §13 ABILITY) — 몰아 둔
+    // 힘이 크게 실리는 것이 그 축의 성질이다.
+    attackRatio: 1.3,
+    cpCharge: 6,
+    cpCost: 25,
+    damageType: 'aura',
+    swingBegin: 0.5, // heavy-attack 과 같은 값
+    swingEnd: 0.85,
+    swingArc: (40 * Math.PI) / 180,
+    swingReach: 2.2,
+    swingTipRadius: 0.55,
+    // 능력에 몰아 두지 않으면 나가지 않는다 (UL §18 · MC-AURA-ALLOCATION 의 남은 절반).
+    requires: ['power-in-ability'],
+    // 참인 동안 계수가 커진다 (UL §19). 사정마다 독립이며 서로 곱해지지 않는다 —
+    // 겹침의 합성은 이 세계에 없다 (INTENT-EACH-CIRCUMSTANCE-STANDS-ALONE-001).
+    amplifiedBy: [
+      { circumstance: 'struck-by-them', attackRatioShare: 0.4 },
+      { circumstance: 'life-below-half', attackRatioShare: 0.4 },
+      // C-COMBAT-004 ADDED — 표식. 다른 둘(+0.4)보다 몫이 크다: **값을 미리
+      // 치렀기 때문이다.** 맞은 것은 공짜로 참이 되고 다친 것은 위기의 결과지만,
+      // 표식은 한 행동과 기력 10 을 버려 스스로 만든 사실이다
+      // (03-world-semantic.md BALANCE ④).
+      //
+      // **요구가 아니라 조건이다.** 요구로 걸면 "배분만 갖추면 나간다" 가 깨져
+      // C-COMBAT-003 의 회귀가 무너진다 (03 JUDGEMENT ③).
+      { circumstance: 'bears-my-mark', attackRatioShare: 0.5 },
+    ],
+    leavesMark: false, // 표식을 쓰는 기술이지 남기는 기술이 아니다
+  },
+  // 표식 남기기 (C-COMBAT-004 ADDED) — **피해가 0 인 첫 기술이다.**
+  //
+  // 1 이라도 넣으면 "아주 약한 공격" 이 되고, 그러면 이 기술은 값이 아니라 손해가
+  // 된다. 피해 없이도 강한 능력이 성립한다는 것이 DC-COMBAT-ABILITY-IS-A-RULE 이
+  // 요구한 바로 그 형태이며 (UL §23), 이 기술이 그 실물이다.
+  //
+  // 모양·구간·길이는 **기본 기술과 같은 값**이다. 자리를 만드는 한 대이므로 크게 걸
+  // 이유가 없고, 새 값을 지어내면 결과 차이가 표식 때문인지 모양 때문인지 갈리지
+  // 않는다 (C012 · C-COMBAT-003 이 따른 판단 그대로).
+  //
+  // 방식이 aura 인 것은 표식이 오라의 조작이기 때문이다 (MS-AURA-NEN / OPERATION).
+  // 피해가 0 이므로 방식이 결과를 가르지 않지만 경위에 실릴 이름은 있어야 한다.
+  //
+  // 요구가 상대를 본다 — **이 세계에서 처음이다** (C-COMBAT-003 Master Gap ②).
+  'mark-strike': {
+    baseDuration: 0.6,
+    baseDamage: 0,
+    attackRatio: 0,
+    cpCharge: 0, // 아프게 하지 않았으므로 돌아오는 것도 없다
+    cpCost: 10, // 한 대를 버려 자리를 산다 — 기본 기술이 채우는 12 언저리
+    damageType: 'aura',
+    swingBegin: DEFAULT_SWING_BEGIN,
+    swingEnd: DEFAULT_SWING_END,
+    swingArc: DEFAULT_SWING_ARC,
+    swingReach: DEFAULT_SWING_REACH,
+    swingTipRadius: DEFAULT_SWING_TIP_RADIUS,
+    // 이미 걸어 둔 상대에게는 나가지 않는다. 걸어 두고 또 거는 것은 기력만 버리는
+    // 일이며, 세계가 그것을 막고 사유를 말하면 표식이 자원처럼 읽힌다.
+    requires: ['no-mark-of-mine-yet'],
+    amplifiedBy: [],
+    leavesMark: true,
   },
 };
 
@@ -171,8 +300,13 @@ export function skillPhase(actor: ActorState): SkillPhase | null {
   return 'recovery';
 }
 
+// C-COMBAT-003 CHANGED — 목록에 묻는다. 세 이름을 여기 적어 두면 기술이 하나 늘 때마다
+// 이 문장도 함께 고쳐야 하고, 잊으면 그 기술은 시작은 되지만 칼끝을 만들지 않는다
+// (실제로 그렇게 되었다). 무엇이 기술인가의 단일 출처는 SKILL_DEFINITIONS 다 —
+// 정의를 찾는 열쇠로 이름을 쓰는 것과, 이름 자체를 판정 조건으로 쓰는 것은 다르다
+// (DC-SKILL-IS-COMBINATION-NOT-NAME · DC-WORLD-OWNS-THE-SURFACE-LIST).
 export function isSkillKind(kind: ActionKind): kind is SkillKind {
-  return kind === 'attack' || kind === 'heavy-attack' || kind === 'aura-strike';
+  return kind in SKILL_DEFINITIONS;
 }
 
 export function skillDefinition(kind: SkillKind): SkillDefinition {
@@ -238,11 +372,15 @@ export function engagementReachViolations(engagementRange: number): SkillKind[] 
  * 식은 한 글자도 바뀌지 않았으므로 같은 입력이면 이 Cycle 전후로 같은 값이 나온다
  * (DC-COMBAT-ONE-FORMULA).
  */
-export function forceOfSkill(kind: SkillKind): Force {
+export function forceOfSkill(kind: SkillKind, attackRatioBonus = 0): Force {
   const skill = SKILL_DEFINITIONS[kind];
   return {
     baseDamage: skill.baseDamage,
-    attackRatio: skill.attackRatio,
+    // C-COMBAT-003 — 참인 조건이 보탠 몫이 여기 더해진다 (INTENT-CONDITION-CHOOSES-THE-FORCE-001).
+    // **더해지는 자리가 위력 정의 안이라는 것이 핵심이다** — 피해를 세는 식은 이 값을
+    // 받아 지금까지와 똑같이 곱한다 (DC-COMBAT-ONE-FORMULA).
+    // 보탬이 0 이면 이 Cycle 이전과 완전히 같은 값이다.
+    attackRatio: skill.attackRatio + attackRatioBonus,
     damageType: skill.damageType,
   };
 }
@@ -509,6 +647,18 @@ export interface DamageBreakdown {
    */
   attackerAllocation: AllocationId;
   targetAllocation: AllocationId;
+  /**
+   * 이 한 방에서 참이었던 조건들과 각자의 몫 (C-COMBAT-003 ADDED,
+   * INTENT-DAMAGE-BREAKDOWN-001 CHANGED · INTENT-CONDITION-IN-THE-CAUSE-READING-001).
+   *
+   * **참인 것이 없어도 빈 목록으로 실린다** — `fromAllocation` 이 0 이어도 실리는 것과
+   * 같은 이유다: "이번 한 방에 사정이 아무것도 하지 않았다" 는 사실 역시 관찰이어야
+   * 사정을 만들러 갈 근거가 생긴다.
+   *
+   * 계산(DamageCalculation)은 이것을 모른다 — `critical` 을 그 형에서 뺀 것과 같은
+   * 자리, 같은 이유다. 조건은 위력 정의를 고르는 일이고 계산은 고른 위력을 받는 일이다.
+   */
+  conditions: readonly MetCondition[];
   /** 방식이 고른 공격 능력 (C012 ADDED) — 이름이 없으면 왜 이 값인지 알 수 없다 */
   offenseStat: TypedStat;
   baseDamage: number;
@@ -563,7 +713,7 @@ export interface DamageBreakdown {
  * 값이라는 것을 형이 말하게 하기 위해서다 — 중립값을 미리 채워 두면
  * "가능성 0" 과 "아직 판정하지 않았다" 가 같은 모양이 되어 경위를 읽을 수 없다.
  */
-export type DamageCalculation = Omit<DamageBreakdown, 'critical' | 'guard'>;
+export type DamageCalculation = Omit<DamageBreakdown, 'critical' | 'guard' | 'conditions'>;
 
 // ── Critical (C015 ADDED) ────────────────────────────────────────────
 //

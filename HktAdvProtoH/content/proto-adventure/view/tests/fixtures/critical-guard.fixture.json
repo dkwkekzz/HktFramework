@@ -39,6 +39,7 @@
           "actionSpeed": 1
         },
         "acquainted": false,
+        "marks": [],
         "concealed": [
           "combatStats",
           "versusObserver",
@@ -119,6 +120,7 @@
           "actionSpeed": 1
         },
         "acquainted": true,
+        "marks": [],
         "concealed": [],
         "combatStats": {
           "physicalAttack": 40,
@@ -492,7 +494,8 @@
           "prevented": 17
         },
         "attackerAllocation": "balanced",
-        "targetAllocation": "balanced"
+        "targetAllocation": "balanced",
+        "conditions": []
       }
     }
   ],

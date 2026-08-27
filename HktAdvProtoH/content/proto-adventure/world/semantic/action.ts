@@ -16,6 +16,12 @@ export type ActionKind =
   | 'attack'
   | 'heavy-attack'
   | 'aura-strike'
+  // C-COMBAT-003 ADDED — hatsu-burst (발현 일격). 세계의 사정을 지는 첫 기술이며,
+  // 행동으로서는 다른 스킬과 완전히 같다 (INTENT-ABILITY-HAS-CIRCUMSTANCES-001).
+  | 'hatsu-burst'
+  // C-COMBAT-004 ADDED — mark-strike (표식 남기기). 피해가 0 인 첫 기술이며,
+  // 행동으로서는 다른 스킬과 완전히 같다.
+  | 'mark-strike'
   | 'mine'
   | 'observe'
   // C020 ADDED — use-item (물건을 쓴다). 스킬이 아니다 — 치르는 것은 기력이 아니라
@@ -34,7 +40,7 @@ export interface CurrentAction {
   // 시작한 뒤에 다른 것을 골라도 진행 중인 사용은 처음 고른 것을 향한다
   // (INTENT-TARGET-PERSISTS-001 — 살펴봄·채집과 같은 판단이다).
   usedItemTargetId?: string;
-  struckActorIds?: string[]; // kind = attack | heavy-attack | aura-strike (C006) — 이 휘두름이 이미 타격한 몸들.
+  struckActorIds?: string[]; // kind = attack | heavy-attack | aura-strike | hatsu-burst (C006) — 이 휘두름이 이미 타격한 몸들.
   // 같은 몸은 휘두름당 한 번만 맞는다 (INTENT-SWING-IMPACT-001). 행동과 함께 사라진다.
   budgetSettled?: boolean; // 스킬 (C007) — 이 휘두름이 기력 수지를 이미 냈는가.
   // 여러 몸을 때려도 정산은 한 번이다 (RULE-SKILL-BUDGET-001). 행동과 함께 사라진다.
@@ -57,6 +63,10 @@ export const ACTION_DEFINITIONS: Readonly<Record<ActionKind, ActionDefinition>> 
   'heavy-attack': { duration: 0.9, replaceable: false },
   // C012 — 기본 스킬과 같은 길이다. 다른 것은 피해의 방식뿐이다.
   'aura-strike': { duration: 0.6, replaceable: false },
+  // C-COMBAT-003 — 고급 스킬과 같은 길이다. 다른 것은 지는 사정뿐이다.
+  'hatsu-burst': { duration: 0.9, replaceable: false },
+  // C-COMBAT-004 — 기본 스킬과 같은 길이다. 다른 것은 남기는 일뿐이다.
+  'mark-strike': { duration: 0.6, replaceable: false },
   mine: { duration: 1.2, replaceable: false },
   // C014 — 살펴봄. 기본 스킬(0.6)보다 길고 채굴(1.2)보다 짧다 —
   // 한 번 휘두를 기회를 버리고 얻는 앎이다 (03 BALANCE).

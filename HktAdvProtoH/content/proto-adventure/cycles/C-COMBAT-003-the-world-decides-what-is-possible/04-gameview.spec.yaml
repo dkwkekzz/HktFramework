@@ -1,0 +1,176 @@
+# CYCLE C-COMBAT-003 — GameView Specification
+#
+# 이 Cycle 이 계약에 더하는 것은 셋뿐이다.
+#
+#   ① 기술마다 **요구 사정**과 **조건 사정** 두 칸 — 쓰기 전에 안다.
+#      C019 가 시간 축 둘을, C025 가 공간 축 셋을 profile 에 실은 그 자리다.
+#   ② 기술 하나 — `skill-hatsu`. 기존 셋과 같은 모양의 interaction 이며,
+#      다른 것은 그것이 지는 사정뿐이다.
+#   ③ 한 방의 경위에 **참인 조건과 각자의 몫** — 없어도 빈 목록으로 실린다.
+#
+# 그 밖의 모든 값은 형태가 한 글자도 바뀌지 않는다. 기존 세 기술의 profile 도
+# available 도 reason 도 그대로 오고, **그 안의 수도 그대로다** — 이 Cycle 은
+# 그 셋에 사정을 걸지 않는다.
+#
+# 이 계약을 받은 View 는 **사정을 한 번도 판정하지 않는다.** 어느 기술이 무엇을
+# 요구하는지도, 지금 그것이 참인지도, 참이면 얼마나 커지는지도 묻지 않는다 —
+# 받은 값을 옮긴다. 기술 이름이 화면의 조건이 되지 않는다
+# (DC-WORLD-OWNS-THE-SURFACE-LIST).
+id: VIEW-THE-WORLD-DECIDES-WHAT-IS-POSSIBLE-001
+observer: player
+
+delta:
+  reused:
+    - scene.mining-field
+    - entities.character                    # 위치·역할·이름·종류·모션·body·swing·상태 그대로
+    - entities.character.attributes.*       # 능력치·배분·통찰·태도·가려짐 — 한 자리도 바뀌지 않는다
+    - entities.deposit
+    - inventory / inventoryRoom / equipment / ground / allocations / growth
+    - contacts / cancels / growthEvents
+    - currentTarget                         # 조건 사정이 "누구에 대해" 인가를 이것이 정한다
+    - commandCatalog
+    - observer / session / delivery / identity / telemetry
+    - interactions.attack / skill-heavy / skill-aura
+                                            # 셋 다 **한 글자도 바뀌지 않는다** —
+                                            # requires 와 conditions 가 빈 목록으로 실릴 뿐이다
+  added:
+    - interactions[].profile.requires       # 갖춰야 하는 사정들 (빈 목록일 수 있다)
+    - interactions[].profile.conditions     # 키우는 사정들 (빈 목록일 수 있다)
+    - interactions.skillHatsu               # 사정을 지는 기술 하나
+    - strikes[].breakdown.conditions        # 참인 사정과 각자의 몫 (언제나 실린다)
+  changed:
+    # 형태가 바뀌지 않는다 — 실릴 수 있는 값의 갈래가 넓어질 뿐이다
+    - interactions[].reason                 # 세계의 사실을 가리키는 코드가 실릴 수 있다
+  removed: []
+
+scene: mining-field
+
+# ─────────────────────────────────────────────────────────────────
+# interactions[].profile.requires — 갖춰야 하는 사정들
+#
+#   이 기술이 지금 나가려면 무엇이 참이어야 하는가. **순서가 있다** — 세계가 거절
+#   사유를 고르는 차례가 이 차례이며, 그래서 같은 상태면 언제나 같은 사유가 나온다.
+#
+#   갖춰지지 않은 기술도 **목록에서 사라지지 않는다.** 사라지면 사유를 실을 자리가
+#   없어지고, 그러면 무엇을 갖추면 열리는지 알 길이 없다 (C-COMBAT-001 이 지금
+#   고를 수 없는 배분까지 싣기로 한 판단 그대로).
+#
+#   **문턱 값은 실리지 않는다.** 세계가 이미 "참인가" 를 답하고 있으므로 관찰자가
+#   규칙을 자기 안에 복제할 자리가 없다 (C016 이 통찰 문턱을 싣지 않은 판단 그대로).
+# ─────────────────────────────────────────────────────────────────
+
+interactions:
+  attack:
+    role: skill-basic
+    reused: true                            # C007 — 이 Cycle 이 값을 바꾸지 않는다
+    profile:
+      requires: []                          # ADDED — 빈 목록. 언제나 갖춰진 것이다
+      conditions: []                        # ADDED — 빈 목록. 커지지 않는다
+
+  skillHeavy:
+    role: skill-heavy
+    reused: true
+    profile:
+      requires: []
+      conditions: []
+
+  skillAura:
+    role: skill-aura
+    reused: true
+    profile:
+      requires: []
+      conditions: []
+
+  # ADDED — 사정을 지는 기술. 기존 셋과 **같은 모양의 interaction** 이다.
+  # 새 갈래도 새 칸도 아니며, 다른 것은 requires 와 conditions 가 비어 있지 않다는
+  # 사실뿐이다 (INTENT-CIRCUMSTANCES-ARE-A-LIST-001).
+  skillHatsu:
+    role: skill-hatsu
+    target: none                            # 대상을 담지 않는다 — 무엇이 맞을지는 접촉이 정한다
+    available: { source: Skill.Availability }
+    unavailableReason: { source: Skill.FailureReason }
+                                            # downed | guarding | action-busy |
+                                            # power-not-in-ability | insufficient-cp
+    profile:
+      baseDamage:      { source: SkillDefinition.BaseDamage }
+      attackRatio:     { source: SkillDefinition.AttackRatio }
+      rawDamage:       { source: Skill.RawDamage }
+                                            # **본래 크기다** — 조건이 실리지 않은 값.
+                                            # 조건이 얼마를 더하는지는 아래 conditions 가
+                                            # 따로 답한다. 둘을 섞으면 "지금 얼마인가" 와
+                                            # "왜 그만큼인가" 가 한 수에 뭉개진다
+      charge:          { source: SkillDefinition.CpCharge }
+      cost:            { source: SkillDefinition.CpCost }
+      damageType:      { source: SkillDefinition.DamageType }
+      swingBegin:      { source: SkillDefinition.SwingBegin }
+      swingEnd:        { source: SkillDefinition.SwingEnd }
+      swingArc:        { source: SkillDefinition.SwingArc }
+      swingReach:      { source: SkillDefinition.SwingReach }
+      swingTipRadius:  { source: SkillDefinition.SwingTipRadius }
+      requires:
+        - id:     { source: AbilityCircumstance.Id }
+          met:    { source: AbilityCircumstance.Holds }
+          reason: { source: AbilityCircumstance.UnmetReason }
+                                            # 갖춰졌어도 실린다 — 무엇을 지고 있는지가
+                                            # 곧 그 기술의 정체다
+      conditions:
+        - id:    { source: AbilityCircumstance.Id }
+          holds: { source: AbilityCircumstance.Holds }
+          bonus: { source: SkillDefinition.AmplifiedBy.Share }
+                                            # 계수에 더해지는 몫
+
+# ─────────────────────────────────────────────────────────────────
+# 조건 사정은 **누구에 대해** 참인가
+#
+#   요구 사정은 상대를 묻지 않는다 (쓰기 전이라 대상이 없다).
+#   조건 사정 중에는 상대를 읽는 것이 있다 — "그 상대가 나를 먼저 쳤다".
+#   관찰에서 그 답은 **지금 고른 대상**(currentTarget · C017)에 대한 것이다.
+#
+#   고른 대상이 없으면 상대를 읽는 조건은 거짓으로 실린다 — 세계가 아직 누구인지
+#   모르기 때문이며, 모름을 참으로 싣는 것보다 정직하다.
+#
+#   그리고 이것은 **예고이지 약속이 아니다.** 실제로 닿은 몸이 고른 대상과 다르면
+#   그 몸에 대해 다시 세어진다 (RULE-ABILITY-CONDITION-001 은 대상마다 따로 돈다).
+#   그래서 한 휘두름이 둘에게 닿으면 한쪽에는 크게, 다른 쪽에는 본래 크기로 들어갈
+#   수 있고, 그 차이는 아래 strikes[].breakdown.conditions 가 답한다.
+# ─────────────────────────────────────────────────────────────────
+
+strikes:
+  breakdown:
+    conditions:                             # ADDED
+      - id:    { source: DamageBreakdown.Conditions.Id }
+        bonus: { source: DamageBreakdown.Conditions.Share }
+    # **참인 것이 없어도 빈 목록으로 실린다.** 배분의 몫이 0 이어도 실리는 것과
+    # 같은 이유다 (C-COMBAT-001) — "이번 한 방에 사정이 아무것도 하지 않았다" 는
+    # 사실 역시 관찰이어야 사정을 만들러 갈 근거가 생긴다.
+    #
+    # 이 값과 offenseStat 둘로 되짚기가 성립한다 (UL §35):
+    #   이 한 방이 96 이다 → 계수가 1.8 이었다 → 두 사정이 참이었다
+    #   → 그 상대가 나를 쳤고 내 생명이 절반 아래였다
+    offenseStat: { reused: true }           # 방식이 고른 능력과 배분·성장의 몫 — 그대로
+
+hud:
+  # 이 Cycle 은 HUD 에 새 자리를 요구하지 않는다.
+  # 기술의 사정은 기술 자리(interactions[].profile)에 실리므로 그것을 그리는 화면이
+  # 이미 있는 곳에서 함께 그려진다. **VIEW 레인과 같은 파일에 새 줄을 만들지 않는
+  # 것이 이 판단의 값이다** (LANES 의 WORLD·COMBAT ↔ VIEW 충돌 칸).
+  change: NONE
+
+# ─────────────────────────────────────────────────────────────────
+# OBSERVABLE CLOSURE — 03 의 Observable 이 전부 투영되었는가
+#
+#   Skill.Availability          → interactions.skillHatsu.available          ✔ (기존 자리)
+#   Skill.FailureReason         → interactions.skillHatsu.unavailableReason  ✔ (기존 자리)
+#   Skill.Requires              → profile.requires                           ✔
+#   Skill.Conditions            → profile.conditions                         ✔
+#   Damage.Breakdown.Conditions → strikes[].breakdown.conditions             ✔
+#
+#   투영하지 않은 것 하나 — **사정 목록 전체**(World.AbilityCircumstances).
+#   세계가 아는 사정이 셋이라는 사실 자체는 실리지 않고, 각 기술이 지는 것만 실린다.
+#   사유: 어느 기술도 지지 않는 사정은 지금 플레이에서 아무것도 하지 않으며, 그것을
+#   실으면 관찰자가 "언젠가 쓰일 사정" 을 화면에 두는 일이 생긴다. 사정이 능력과
+#   무관하게 세계에 존재해야 하는 날(예 — 무대의 사정)이 오면 그때 그 Cycle 이
+#   자리를 연다.
+#
+# GAP 없음.
+# ─────────────────────────────────────────────────────────────────

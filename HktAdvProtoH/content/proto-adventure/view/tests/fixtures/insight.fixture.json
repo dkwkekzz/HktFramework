@@ -39,6 +39,7 @@
           "actionSpeed": 1
         },
         "acquainted": true,
+        "marks": [],
         "concealed": [],
         "combatStats": {
           "physicalAttack": 40,
@@ -121,6 +122,7 @@
           "actionSpeed": 1
         },
         "acquainted": false,
+        "marks": [],
         "concealed": [
           "combatStats"
         ],
@@ -194,6 +196,7 @@
           "actionSpeed": 1
         },
         "acquainted": true,
+        "marks": [],
         "concealed": [],
         "combatStats": {
           "physicalAttack": 40,
