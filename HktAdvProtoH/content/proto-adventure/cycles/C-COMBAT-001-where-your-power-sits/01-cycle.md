@@ -7,7 +7,7 @@
 [PASS] Human Semantic Review       (APPROVED — Human 위임 · 축의 자리·가려짐·수치 다섯 확정)
 [PASS] World Implementation        (1366 tests · engine 무변경 · 6대→7대는 의도된 변화)
 [PASS] View Implementation         (1383 tests · GAP 0 · U→숫자 두 걸음 · 이름이 조작에 없다)
-[    ] Verification
+[PASS] Verification                (6종 통과 · 실제 브라우저 왕복 · Human Play 대기)
 
 STATUS  IN PROGRESS
 
