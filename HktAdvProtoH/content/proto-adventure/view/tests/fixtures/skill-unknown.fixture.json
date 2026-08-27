@@ -511,7 +511,8 @@
           "damageBeforeCritical": 55
         },
         "attackerAllocation": "balanced",
-        "targetAllocation": "balanced"
+        "targetAllocation": "balanced",
+        "conditions": []
       }
     },
     {
@@ -558,7 +559,8 @@
           "damageBeforeCritical": 17
         },
         "attackerAllocation": "balanced",
-        "targetAllocation": "balanced"
+        "targetAllocation": "balanced",
+        "conditions": []
       }
     }
   ],

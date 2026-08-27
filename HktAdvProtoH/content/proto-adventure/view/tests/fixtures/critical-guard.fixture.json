@@ -492,7 +492,8 @@
           "prevented": 17
         },
         "attackerAllocation": "balanced",
-        "targetAllocation": "balanced"
+        "targetAllocation": "balanced",
+        "conditions": []
       }
     }
   ],

@@ -228,6 +228,7 @@ describe('INTENT-DAMAGE-BREAKDOWN-001 — 한 방의 크기가 나온 경위가 
       // fromAllocation 이 전부 0 이다 — 이 층이 들어온 뒤에도 값이 그대로라는 증거다
       attackerAllocation: 'balanced',
       targetAllocation: 'balanced',
+      conditions: [], // C-COMBAT-003 — 참인 사정이 없어도 빈 목록으로 실린다,
       offenseStat: { name: 'physicalAttack', value: 40, fromAllocation: 0, fromGrowth: 0 },
       baseDamage: 6,
       attackContribution: 20, // 40 × 0.5

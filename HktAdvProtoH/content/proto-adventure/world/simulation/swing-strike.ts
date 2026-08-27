@@ -20,7 +20,8 @@
 
 import { applyRadialImpulse, circleHits } from '../../../../engine/physics/sweep';
 import { actionCollider, SWING_IMPULSE } from '../semantic/collision';
-import { forceOfSkill, isDowned, isSkillKind } from '../semantic/combat';
+import { isDowned, isSkillKind } from '../semantic/combat';
+import { ruleAbilityCondition } from '../rules/ability-circumstance';
 import type { WorldState } from '../semantic/world-state';
 import { ruleHarmGate } from '../rules/relation';
 import { ruleHit } from '../rules/attack';
@@ -75,8 +76,20 @@ export function ruleSwingStrike(state: WorldState): number {
       // 밀쳐냄은 휘두른 몸의 중심에서 멀어지는 방사 방향 (칼끝이 아니라 몸에서) — P6: 엔진 솔버
       applyRadialImpulse(attacker.position, target, SWING_IMPULSE);
 
-      // C007 — 고정 피해가 들어가고, 이 휘두름의 첫 타격이면 기력 수지를 낸다.
-      ruleStrikeDamage(state, attacker, target, forceOfSkill(skill), skill);
+      // C007 — 피해가 들어가고, 이 휘두름의 첫 타격이면 기력 수지를 낸다.
+      // C-COMBAT-003 CHANGED — 넘기는 위력을 조건이 고른다 (RULE-ABILITY-CONDITION-001).
+      // **대상마다 따로 돈다** — "그 상대가 나를 먼저 쳤다" 는 몸마다 다른 답이므로,
+      // 한 휘두름이 둘에게 닿으면 한쪽에는 크게 다른 쪽에는 본래 크기로 들어간다.
+      // C015 의 터짐이 몸마다 따로 도는 것과 같은 자리, 같은 이유다.
+      const conditioned = ruleAbilityCondition(attacker, target, skill, state);
+      ruleStrikeDamage(
+        state,
+        attacker,
+        target,
+        conditioned.force,
+        skill,
+        conditioned.conditions,
+      );
       ruleSkillBudget(attacker, skill);
 
       struckCount++;

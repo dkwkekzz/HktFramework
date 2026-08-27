@@ -203,6 +203,37 @@ export interface SkillProfileView {
   swingArc: number; // 훑는 전체 각 (rad) — 클수록 옆까지 훑는다
   swingReach: number; // 몸 중심에서 칼끝 중심까지 — 클수록 멀리 닿는다
   swingTipRadius: number; // 칼끝의 굵기 — 닿음의 판정 반경. 거는 동안 swing.radius 로도 온다
+  // C-COMBAT-003 ADDED — 이 기술이 지는 **세계의 사정**. 고르기 전에 안다.
+  // C019 가 시간 축 둘을, C025 가 공간 축 셋을 실은 그 자리에 사정 둘이 선다 —
+  // 같은 이유다: 무엇을 갖춰야 하고 무엇이 그것을 키우는지를 걸어 보고 아는 것은 늦다.
+  //
+  // **둘은 다른 칸이다.** 못 쓰는 사유와 더 잘 드는 사유는 다른 물음의 답이며,
+  // 같은 칸에 실으면 닫힌 기술과 강해진 기술이 구별되지 않는다.
+  //
+  // 사정을 지지 않는 기술에서는 둘 다 빈 배열이다. 문턱 값은 실리지 않는다 —
+  // 세계가 이미 "참인가" 를 답하고 있으므로 View 가 규칙을 복제할 자리가 없다.
+  requires: SkillRequirementView[];
+  conditions: SkillConditionView[];
+}
+
+/** 갖춰져야 이 기술이 시작되는 사정 하나 (C-COMBAT-003 ADDED) */
+export interface SkillRequirementView {
+  id: string; // 사정의 이름 — 문구 변환은 View 책임
+  met: boolean; // 지금 갖춰졌는가
+  reason: string; // 갖춰지지 않았을 때의 사유 코드 — **갖춰졌어도 실린다**
+}
+
+/**
+ * 참인 동안 이 기술을 키우는 사정 하나 (C-COMBAT-003 ADDED).
+ *
+ * `holds` 는 **지금 고른 대상**에 대한 답이며 예고이지 약속이 아니다 — 실제로 닿은
+ * 몸이 다르면 그 몸에 대해 다시 세어진다. 고른 대상이 없으면 상대를 읽는 조건은
+ * 거짓으로 온다.
+ */
+export interface SkillConditionView {
+  id: string;
+  holds: boolean;
+  bonus: number; // 계수에 더해지는 몫
 }
 
 // 방식이 고른 능력 하나 (C012 ADDED) — 무엇을 얼마로 읽었는가.
@@ -265,6 +296,12 @@ export interface GuardOutcomeView {
   prevented: number; // 막아서 덜 들어간 값 = finalDamage - appliedDamage
 }
 
+/** 한 방에서 참이었던 조건 하나와 그 몫 (C-COMBAT-003 ADDED) */
+export interface MetConditionView {
+  id: string; // 사정의 이름 — 문구 변환은 View 책임
+  bonus: number; // 계수에 더해진 몫
+}
+
 // 한 방의 크기가 어떻게 나왔는가 (C010 ADDED) — 세계는 결과와 함께 그 경위를 낸다.
 export interface DamageBreakdownView {
   damageType: string; // C012 — 이 타격의 방식 (physical | aura)
@@ -272,6 +309,16 @@ export interface DamageBreakdownView {
   attackerAllocation: string;
   /** C-COMBAT-001 — 타격 시점 맞는 쪽의 배분 (의미 코드) */
   targetAllocation: string;
+  /**
+   * C-COMBAT-003 — 이 한 방에서 참이었던 조건들과 각자의 몫.
+   *
+   * **참인 것이 없어도 빈 배열로 실린다** — `fromAllocation` 이 0 이어도 실리는 것과
+   * 같은 이유다: "이번 한 방에 사정이 아무것도 하지 않았다" 는 사실 역시 관찰이어야
+   * 사정을 만들러 갈 근거가 생긴다.
+   *
+   * offenseStat 과 이 값 둘로 되짚기가 성립한다 (UL §35) — 이 한 방이 왜 이만큼인지.
+   */
+  conditions: MetConditionView[];
   offenseStat: TypedStatView; // C012 — 방식이 고른 공격 능력
   baseDamage: number; // 스킬 자체의 강함
   attackContribution: number; // 고른 공격 능력이 더한 몫 = OffenseStat × AttackRatio

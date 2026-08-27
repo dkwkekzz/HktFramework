@@ -289,6 +289,7 @@ describe('INTENT-DAMAGE-BREAKDOWN-001 (CHANGED) — 걷히기 전과 걷힌 뒤�
       damageType: 'aura',
       attackerAllocation: 'balanced',
       targetAllocation: 'balanced',
+      conditions: [], // C-COMBAT-003 — 참인 사정이 없어도 빈 목록으로 실린다,
       offenseStat: { name: 'auraAttack', value: 40, fromAllocation: 0, fromGrowth: 0 },
       baseDamage: 6,
       attackContribution: 20,

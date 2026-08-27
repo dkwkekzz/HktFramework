@@ -235,6 +235,10 @@ describe('INTENT-SKILL-COST-GATE-001 — 기력이 모자라면 시작되지 않
       swingArc: BASIC.swingArc, // C025 — 고르기 전에 아는 모양
       swingReach: BASIC.swingReach,
       swingTipRadius: BASIC.swingTipRadius,
+      // C-COMBAT-003 — 사정을 지지 않는 기술이라 둘 다 비어 있다.
+      // **빈 목록은 언제나 갖춰진 것이며, 그것이 이 기술이 그대로라는 근거다.**
+      requires: [],
+      conditions: [],
     });
     expect(skill(view, 'skill-heavy')?.profile).toEqual({
       baseDamage: 32,
@@ -248,6 +252,10 @@ describe('INTENT-SKILL-COST-GATE-001 — 기력이 모자라면 시작되지 않
       swingArc: HEAVY.swingArc, // C025 — 큰 기술은 좁고 멀리 닿는다
       swingReach: HEAVY.swingReach,
       swingTipRadius: HEAVY.swingTipRadius,
+      // C-COMBAT-003 — 사정을 지지 않는 기술이라 둘 다 비어 있다.
+      // **빈 목록은 언제나 갖춰진 것이며, 그것이 이 기술이 그대로라는 근거다.**
+      requires: [],
+      conditions: [],
     });
   });
 });

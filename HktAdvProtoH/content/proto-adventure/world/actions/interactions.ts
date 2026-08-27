@@ -134,18 +134,28 @@ export const INTERACTIONS: readonly InteractionHandler<WorldState>[] = [
   {
     id: 'attack',
     // 기본 스킬 — 대상을 받지 않는다 (C002)
-    handle: withActor((_state, actor) => ruleSkillBegin(actor, 'attack')),
+    // C-COMBAT-003 CHANGED — 세계를 함께 넘긴다. 사정이 세계의 사실을 읽기 때문이며,
+    // 사정을 지지 않는 기술에서는 아무것도 달라지지 않는다.
+    handle: withActor((state, actor) => ruleSkillBegin(actor, 'attack', state)),
   },
   {
     id: 'skill-heavy',
     // 고급 스킬 (C007)
-    handle: withActor((_state, actor) => ruleSkillBegin(actor, 'heavy-attack')),
+    handle: withActor((state, actor) => ruleSkillBegin(actor, 'heavy-attack', state)),
   },
   {
     // C012 — 오라 스킬. 같은 Rule 을 그대로 지난다. 다른 것은 피해의 방식뿐이다
     // (INTENT-AURA-SKILL-001).
     id: 'skill-aura',
-    handle: withActor((_state, actor) => ruleSkillBegin(actor, 'aura-strike')),
+    handle: withActor((state, actor) => ruleSkillBegin(actor, 'aura-strike', state)),
+  },
+  {
+    // C-COMBAT-003 — 발현 일격. **같은 Rule 을 그대로 지난다.** 다른 것은 그 기술이
+    // 지는 사정뿐이며, 관문은 RULE-SKILL-BEGIN-001 안에 이미 서 있다
+    // (INTENT-REQUIREMENT-GATES-THE-ABILITY-001). 여기에 사정을 묻는 문장이 없는 것이
+    // 이 층이 제대로 선 증거다 — 새 기술을 더하는 일이 수용층을 열지 않는다.
+    id: 'skill-hatsu',
+    handle: withActor((state, actor) => ruleSkillBegin(actor, 'hatsu-burst', state)),
   },
   {
     // C011 — 막기는 몸이 세계 안에서 하는 일이므로 interaction 이다 (command 가 아니다).
