@@ -385,17 +385,39 @@ describe('INTENT-A-STEP-IS-A-SMALL-CHANGE-001 — 한 단계의 폭은 작다 (B
     expect(Math.ceil(HP / 25)).toBe(5); // 단계 3 — 여기서 바뀐다
   });
 
-  it('첫 문턱은 자율 존재 하나를 넘어뜨리면 닿는 값이다 (BALANCE ②)', () => {
-    // 03 의 BALANCE ② 는 여섯 대로 셈했으나 **실제 각본은 일곱 대**다 —
-    // 생명이 절반 아래로 내려간 방랑자가 몸에 몰아 단단해지기 때문이다
-    // (C-COMBAT-001 · RULE-NPC-ALLOCATION-001). 08 이 그것을 실측해 보고한다.
-    // 문턱을 넘는다는 결론은 그대로이고 **여유가 늘었을 뿐**이다.
-    const sixHitKill = 6 * DEED_AMOUNTS.strike + DEED_AMOUNTS.down; // 셈으로 본 바닥
-    const sevenHitKill = 7 * DEED_AMOUNTS.strike + DEED_AMOUNTS.down; // 실제로 도는 각본
-    const heavyRoute = 3 * DEED_AMOUNTS.strike + DEED_AMOUNTS.down; // 고급 기술을 섞은 길
-    expect(sixHitKill).toBe(GROWTH_THRESHOLDS[0]); // 가장 짧은 길이 정확히 닿는다
-    expect(sevenHitKill).toBeGreaterThan(GROWTH_THRESHOLDS[0] as number);
-    expect(heavyRoute + DEED_AMOUNTS.mine).toBeGreaterThanOrEqual(GROWTH_THRESHOLDS[0] as number);
+  it('한 마리를 넘어뜨리면 18~21 이 쌓인다 — 흔들림이 그 폭을 정한다 (08 실측)', () => {
+    // **03 의 BALANCE ② 를 08 이 고쳐 적었다.** 그 절은 "여섯 대 + 쓰러뜨림 = 정확히
+    // 20" 이라 셈했으나, 실제로 도는 각본은 넷~일곱 대 사이에서 흔들린다.
+    //
+    //     아래로  치명이 터지면 **덜 때리고 넘어뜨린다** → 덜 쌓인다 (넷 대 = 18)
+    //     위로    절반 아래에서 상대가 몸에 몰아 단단해진다 → 더 때린다 (일곱 대 = 21)
+    //             (C-COMBAT-001 · RULE-NPC-ALLOCATION-001)
+    //
+    // 그러므로 **한 마리를 넘어뜨리는 것만으로는 첫 문턱이 보장되지 않는다** (씨앗 열 중 둘).
+    // Frontier 가 적은 길("쓰러뜨리고 광맥을 캐면")은 어느 경우에도 넘는다.
+    // 이 사실은 08 의 MASTER FEEDBACK 이 위층에 보고했고, 수치를 고칠지는 Human 이 정한다.
+    const luckyKill = 4 * DEED_AMOUNTS.strike + DEED_AMOUNTS.down; // 넷에 넘어뜨린 판
+    const plainKill = 6 * DEED_AMOUNTS.strike + DEED_AMOUNTS.down; // 흔들림 없이
+    const toughKill = 7 * DEED_AMOUNTS.strike + DEED_AMOUNTS.down; // 상대가 단단해진 판
+
+    expect(luckyKill).toBe(18);
+    expect(plainKill).toBe(GROWTH_THRESHOLDS[0]); // 20 — 흔들림이 없으면 정확히 닿는다
+    expect(toughKill).toBe(21);
+
+    // 넘어뜨리는 것만으로는 모자랄 수 있다 — 그것이 이 층의 지금 모습이다
+    expect(luckyKill).toBeLessThan(GROWTH_THRESHOLDS[0] as number);
+    // 그러나 광맥을 한 번 캐면 **어느 판에서도** 넘는다 (Frontier 의 Playable Result)
+    for (const kill of [luckyKill, plainKill, toughKill]) {
+      expect(kill + DEED_AMOUNTS.mine).toBeGreaterThanOrEqual(GROWTH_THRESHOLDS[0] as number);
+    }
+  });
+
+  it('잘 터뜨린 판이 덜 쌓는다 — 흔들림이 쌓임에 간접으로 닿는다 (08 실측)', () => {
+    // **한 대의 값에는 흔들림이 없다** (DC-COMBAT-PLAYER-CAUSALITY — 위 검사가 확인했다).
+    // 그러나 **몇 대에 넘어뜨리는가**에는 흔들림이 있으므로, 한 마리에서 얻는 총량이
+    // 판마다 다르다. 효율이 벌을 받는 모습이며 08 이 그 판정을 PARTIAL 로 내렸다.
+    const deedsOfKill = (hits: number) => hits * DEED_AMOUNTS.strike + DEED_AMOUNTS.down;
+    expect(deedsOfKill(4)).toBeLessThan(deedsOfKill(7));
   });
 });
 
