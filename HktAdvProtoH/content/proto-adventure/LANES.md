@@ -34,7 +34,7 @@ Feedback · BACKLOG)를 겹쳐 `LANES.html` 로 그린다. `npm run lanes:check`
 | FEEDBACK | OPEN | 없음 — 미처리 0 (`npm run feedback:gate -- --pending`) | 없음 — 병합 뒤 최신 main 위에서 |
 | WORLD·ITEM | HUMAN | 후보 5 중 선택 대기 — Agent 추천 FR-THE-PLACES-ARE-NARROWER (+FR-SEE-BEFORE 얹기) | Human Select (frontier/item.md) |
 | WORLD·COMBAT | HUMAN | 후보 9 중 선택 대기 — Agent 추천 `FR-THE-WORLD-DECIDES-WHAT-IS-POSSIBLE`(직전 Cycle 이 남긴 절반을 닫아 MC-AURA-ALLOCATION 이 IMPLEMENTED 가 된다). `C-COMBAT-001` 은 여전히 Human Play 대기 (`npm run dev` → `U` → `2`) | Human Select (frontier/combat.md) |
-| WORLD·TERRAIN | HUMAN | 후보 3 중 선택 대기 — Agent 추천 `FR-THE-LAND-KEEPS-WHAT-IT-TAKES`(땅이 거둔 것을 간직한다). `C-TERRAIN-001` COMPLETE · Feedback 반영 끝 | Human Select (frontier/terrain.md) |
+| WORLD·TERRAIN | RUNNING | `C-TERRAIN-002` — SELECTED `FR-THE-LAND-KEEPS-WHAT-IT-TAKES`(땅이 거둔 것을 간직한다). Stage 1~4 까지 서고 **Stage 5 Human Semantic Review 대기** | 없음 |
 | WORLD·GROWTH | OPEN | `C-GROWTH-001` 착수 대기 — SELECTED `FR-WHAT-YOU-DID-MAKES-YOU`(한 일이 몸을 키운다). Stage 1 부터, 아직 시작하지 않았다. **COMBAT 과 같은 파일을 본다 — 아래 충돌 칸** | 없음 — 다만 이 판과 트랙 파일이 main 에 들어간 뒤에 잡는다 |
 | VIEW | OPEN | BACKLOG 다음 항목(drag-and-drop)부터 — 기반 동반이 필요한 셋(tip-flip-at-the-edge · escape-leaves-the-field · workspace-two-columns)은 ENGINE 뒤에 잡는다 | 없음 |
 | MASTER | OPEN | OPTIONS Q35 (몸이 아닌 존재를 요구하는 Possibility) — 이제 스킬 실행 형태의 빈 다섯 칸만 막는다. 성장(GS · GB)과 전투 상층(UL) 주입은 둘 다 끝났다: 결정 열(Q52~Q61) 반영 · GROWTH 후보 3 · COMBAT 후보 10 과 SELECTED 까지 | 없음 — 미처리 Feedback 이 0 이다 (`npm run feedback:gate`) |
@@ -48,7 +48,7 @@ Feedback · BACKLOG)를 겹쳐 `LANES.html` 로 그린다. `npm run lanes:check`
 | 겹침 | 지금의 판단 |
 |---|---|
 | VIEW 의 장비 구획 ↔ WORLD·ITEM | 장비 구획이 V-012 로 섰다 — 이제 겹치는 것은 **고른 것 구획**이다. ITEM 의 후보 `FR-SEE-BEFORE-YOU-WEAR`(걸기 전에 안다)가 골라지면 그 Cycle 이 미리 본 값을 그 자리에 싣는다. **둘 다 자기 영역 끝에 더하고 기존 줄을 옮기지 않는다** |
-| WORLD·TERRAIN ↔ WORLD·ITEM | **지금은 겹치지 않는다** — 고른 것이 첫 후보(땅이 법칙을 지닌다)라 아이템 파일에 닿지 않는다. 겹치는 것은 셋째 후보(FR-WHAT-KEEPS-YOU-ALIVE-IS-CARRIED)이며, 그것을 고를 때 ITEM 이 무엇을 도는 중인지 먼저 본다 |
+| WORLD·TERRAIN ↔ WORLD·ITEM | **지금은 겹치지 않는다** — 고른 것이 `FR-THE-LAND-KEEPS-WHAT-IT-TAKES`(땅이 거둔 것을 간직한다)라 아이템 파일에 닿지 않는다. 겹치는 것은 셋째 후보(FR-WHAT-KEEPS-YOU-ALIVE-IS-CARRIED)이며, 그것을 고를 때 ITEM 이 무엇을 도는 중인지 먼저 본다 |
 | WORLD·TERRAIN ↔ VIEW | 땅은 화면에 보여야 하므로 이 Cycle 이 `view/` 를 건드린다. VIEW 의 다음 항목(drag-and-drop)은 소지품 표면 안의 일이라 자리가 다르지만 표면 상태·HUD 에서 스칠 수 있다 — **둘 다 자기 영역 끝에 추가만 하고 기존 줄을 옮기지 않는다** (frontier/README.md 공유 지점 규칙과 같다) |
 | WORLD·GROWTH ↔ WORLD·TERRAIN | 둘 다 `world/semantic/actor.ts` 에 몸의 새 자리를 더한다 (성장은 쌓이는 것, 땅은 거두어 가는 것). **자기 영역 끝에 추가만 하고 기존 줄을 옮기지 않는다** (frontier/README.md 공유 지점 규칙). 둘 다 관찰 계약을 넓히므로 `gameview-*` 도메인 파일도 각자 자기 파일에만 더한다 |
 | **WORLD·GROWTH ↔ WORLD·COMBAT** | **겹친다 — 순서는 정해졌다: COMBAT 이 먼저다** (Human 지시). 둘 다 `world/semantic/combat.ts` 의 **유효 값 계산**(`effectiveStat`)에 항을 더한다 — 성장은 자란 값을, 배분은 지금 몰아 둔 곳을. 같은 함수 안이라 끝에 추가하는 것으로 갈라지지 않는다. **GROWTH 를 잡는 세션은 C-COMBAT-001 이 main 에 들어간 뒤 최신 main 위에서 시작한다** — 그때 `effectiveStat` 은 이미 세 항이고 성장이 넷째가 된다. 자기 줄(OPEN)은 그 세션이 스스로 고친다 (works.md 쓰기 규칙) |
@@ -64,7 +64,7 @@ Human 이 답하면 풀리는 것들이다. 답의 자리는 괄호가 가리킨
 | 무엇 | 풀리는 것 |
 |---|---|
 | WORLD·ITEM 후보 선택 (frontier/item.md SELECTED) | WORLD·ITEM 레인 착수 |
-| WORLD·TERRAIN 후보 선택 (frontier/terrain.md SELECTED) | WORLD·TERRAIN 레인 착수 |
+| C-TERRAIN-002 Human Semantic Review (05-review.md) | Stage 6 World Implementation 착수. 물어 둔 것 셋은 그 Cycle 의 02-intent.md REVIEW QUESTION 에 있다 — 분출이 몸에 열을 **돌려주는가** · 손으로 놓인 예외(`respite`)를 **지우는가** · 맥 넷의 배치와 초기 적재 |
 | WORLD·COMBAT 후보 선택 (frontier/combat.md SELECTED) | WORLD·COMBAT 레인 착수 |
 | Q62 — 갈래를 노드의 완결로 판정하는가 플레이의 성립으로 판정하는가 (open-questions.md) | Overlay 를 읽는 법 · Frontier 가 무엇을 결손으로 세는가 |
 | `CC-ORDER-IS-THE-ADDRESS` 승격 여부 (candidates/) | 순서로 짚는 것이 원칙이 되는가 — DC-WORLD-OWNS-THE-SURFACE-LIST 와 합칠지도 함께 |

@@ -135,7 +135,7 @@
                          불공정이다. 역방향도 참이다 — 순환 없이는 예고가 가짜다(속도가
                          상수면 예고할 것이 없어 "곧 위험" 타이머가 된다). 둘은 한 몸이며
                          **이쪽을 먼저, 예고를 바로 다음에** 두는 것이 Agent 의 판단이다
-    Status               PROPOSED
+    Status               SELECTED
 
     ── 근거: BT 가 이 후보를 이미 적었다 ──────────────────────────────
 
@@ -183,8 +183,12 @@
 ## SELECTED
 
 ```text
-없음 — Human 선택 대기
+FR-THE-LAND-KEEPS-WHAT-IT-TAKES — 땅이 거둔 것을 간직한다
+Cycle   C-TERRAIN-002-the-land-keeps-what-it-takes
 ```
+
+    Human 이 추천 순서 1 을 그대로 골랐다. 다음 후보(FR-THE-LAND-SHOWS-BEFORE-IT-TAKES)는
+    이것이 닫힌 뒤 바로 잡는다 — 위 "순서 경고" 가 둘을 한 몸으로 묶는다.
 
     직전 반영 경위: [../feedback/C-TERRAIN-001-the-ground-has-a-law.md](../feedback/C-TERRAIN-001-the-ground-has-a-law.md)
 
