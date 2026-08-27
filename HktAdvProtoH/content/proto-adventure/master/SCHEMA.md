@@ -19,6 +19,7 @@ MB-*    Master Belief           CC-*    Constraint Candidate
 
 CL-*    Class Definition        IT-*    Item Type          (growth/ — GR §37)
 IP-*    Item Property           IM-*    Item Modifier
+GBC-*   Growth Balance Contract                            (growth/balance/ — GB §31)
 ```
 
 `II-*`(Item Instance)는 **Runtime World ID 다** — Master Registry 의 정적 Node 로
@@ -485,6 +486,72 @@ BW §11 · §34 가 금지하는 바로 그 방향이다 (DC-WORLD-RESOURCE-ADAP
 기존 `overlay.md`(그 의미가 세계에 **구현되어 있는가**)와 축이 다르다 —
 여기는 그 Capability 를 세계 안에서 **얻는 경로가 존재하는가**다 (GR §22.1 · §39).
 Growth 는 별도 Master Stage 가 아니다 — NEED 에서 발견된 Capability 위의 Overlay 다.
+
+### growth/balance/GBC-*.yaml — Growth Balance Contract
+
+성장 하나가 **치른 것과 준 것이 맞는가**를 적는 자리다 (원본: GB =
+`content/proto-adventure/design/Design-Growth-Balance-R0.md` §31).
+파일 하나 = 성장 하나. Human 결정으로 이 세 번째 자리가 섰다 (HISTORY Q58(c)).
+
+세 자리가 축이 다르다 — 헷갈리면 안 된다.
+
+```text
+overlay.md          그 의미가 세계에 구현되어 있는가          있는가 / 없는가
+growth-graph.md     그것을 세계 안에서 얻는 경로가 있는가      가질 수 있는가 / 없는가
+growth/balance/     그 값이 치른 것과 맞는가                  값이 맞는가 / 어긋나는가
+```
+
+```yaml
+id: GBC-<NAME>
+type: growth_balance_contract
+
+grants:   [MC-...]            # 이 성장이 여는 Capability — 반드시 기존 노드
+route: >
+  세계 안에서 이것을 얻는 방법 한 문장 (어느 Cycle · 어느 획득 경로인가)
+tier: GT0 | GT1 | GT2 | GT3 | GT4 | GT5      # graph/systems.yaml 의 MS-GROWTH-TIER 자리
+
+cost_profile:                 # 1 매우 낮음 ~ 5 매우 높음 (GB §5)
+  time: 0                     # **세계의 수치가 아니다** — 다른 성장과 견주기 위한 상대 단위다
+  risk: 0
+  skill: 0
+  knowledge: 0
+  resource: 0
+  opportunity: 0
+  repeatability: 0            # 쉽게 반복할수록 낮다
+
+reward_profile:               # 1 ~ 5 (GB §6~§13)
+  vertical_power: 0           # 하던 것을 얼마나 세게 하는가
+  survivability: 0
+  capability_access: 0        # **없던 것을 가능하게 하는가** — GB 가 가장 중요하다고 한 항
+  applicability: 0            # 얼마나 넓은 상황에 걸리는가
+  reliability: 0              # 얼마나 쉽게 발동하는가
+  permanence: 0
+  economic_utility: 0
+
+power_envelope:               # 무엇을 얼마나 바꿀 작정인가 (GB §25) — 실측이 대조할 선언
+  <상황>: <의도한 변화>
+
+capability_reach:             # 통하는 것 · 부분적인 것 · 통하지 않는 것 (GB §23 · DC-GROWTH-CAPABILITY-DECLARES-ITS-LIMITS)
+  effective:   []
+  partial:     []
+  ineffective: []
+
+gate_coverage: []             # 이 성장이 여는 관문 (GB §24) — 비면 "관문을 열지 않는다"
+
+constraints: [DC-...]
+validation:
+  static: PENDING | PASS | FAIL          # 비교 집합 안에서 Dominance·Tier·Envelope 검사 (GB §30 Phase 1)
+  benchmark: N/A | PENDING | PASS | FAIL # 전/후 실행 대조 — **Cycle 08 이 돌리고 결과만 여기 적는다**
+  human_review: REQUIRED | DONE          # 마지막 판단은 사람이다 (GB §30 Phase 3)
+```
+
+여기에 두지 않는 것 — Benchmark 장면과 측정 항목, 실패 상태 코드, 세계의 수치·공식.
+같은 조건을 전후로 굴려 재는 일은 Cycle 의 `08-verification.md` 와 검증 도구가 소유하고,
+이 파일은 **무엇을 선언했는가와 그 결과가 무엇이었는가**만 담는다 (정책 §7.2).
+
+`cost_profile` · `reward_profile` 의 값은 **비교 단위이지 세계의 수치가 아니다** (GB §5) —
+피해량·경험치·요구 개수 같은 것은 여전히 Cycle 의 `03-world-semantic.md` 소유다.
+비교 집합이 하나뿐이면 `static: PENDING` 이다 — 견줄 상대가 없으면 Dominance 를 잴 수 없다.
 
 ### Growth Edge 규칙
 

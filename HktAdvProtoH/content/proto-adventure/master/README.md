@@ -58,19 +58,21 @@ FRINGE 의 첫 칸(살펴봄 + 그것에 이르는 두 경로)까지 서 있고,
 Constraint   36     Active 36 (APPROVED 31 · REVISED 5) · DRAFT 0 — 대지형 4종 승인 (Q51)
 Candidate    12     APPROVED 3 (→ DC) · PENDING 9 (무리별 읽는 법은 candidates/README.md)
 Actor         2     Knowledge 3 · Belief 0 (Belief 는 도입하지 않는다 — Q3 결정)
-Goal          6     Possibility 22 — 상대 넘어서기 11 · 밀리는 국면 3 · 탐험 3 · 기관 획득 5.
+Goal          6     Possibility 23 — 상대 넘어서기 11 · 밀리는 국면 3 · 탐험 4 · 기관 획득 5.
                     여섯째는 MG-RESCUE-THE-TAKEN (BT — 갈래 미배선)
-                    탐험 3 은 **방법**이다 (익힌다 · 빌린다 · 준비해 간다 — Q21).
+                    탐험 4 는 **방법**이다 (익힌다 · 빌린다 · 준비해 간다 · 상위 형태가 된다 — Q21 · GS).
                     층은 Possibility 가 아니라 MW-ZONE-* 의 demands 다
                     §27 기관 대안 4종만 requires 미배선
-Capability   58     IMPLEMENTED 15 · PARTIAL 7 · MISSING 36
+Capability   63     IMPLEMENTED 15 · PARTIAL 7 · MISSING 41
                     요구처는 둘이다 — 방법의 required_by · 장소의 demanded_by
                     숫자의 단일 출처는 graph/GRAPH.md 머리말이다 (master:graph 재생성물)
 Item Def     14     IP 5 · IT 6 · IM 3 (growth/items/) — Q22 광물 계통.
                     grants 3건으로 BW §17 순환이 그래프에서 닫혔다
-Frontier      8     트랙 셋 — ITEM 5 · TERRAIN 3 · COMBAT 0. SELECTED 는 셋 다 없다
-                    (Human 선택 대기). COMBAT 은 후보가 소진되어 MASTER OPTIONS(Q35) 대기 ·
-                    TERRAIN 은 BT 주입과 Q47~Q51 결정으로 새로 선 트랙이다
+Balance       1     GBC-GAIN-LEVEL (growth/balance/) — 성장 하나의 비용·보상 (Q58(c)).
+                    Class(CL-*)는 0 — 계열별 설계 문서의 주입이 세운다 (Q55(b))
+Frontier     11     트랙 넷 — ITEM 5 · TERRAIN 3 · GROWTH 3 · COMBAT 0.
+                    SELECTED 둘 — TERRAIN(C-TERRAIN-001) · GROWTH(C-GROWTH-001), 둘 다 착수 전.
+                    ITEM 은 Human 선택 대기 · COMBAT 은 후보가 소진되어 MASTER OPTIONS(Q35) 대기
 WorldState   22     상위 인과 2 (PRIMAL-WORLD · WORLD-PRESSURE) · 세계압 두 갈래 2
                     (FREE-PRESSURE · BOUND-PRESSURE) · 구조 2 (SAFE-FRONTIER · DEPTH-GRADIENT) ·
                     깊이 층 5 (ZONE-FRINGE ~ ZONE-UNKNOWN) · 대표 지역 2 ·
@@ -100,7 +102,7 @@ MP-PIERCE-THE-HARD-DEFENSE(C013) · MP-INTERRUPT(C019). MP-OUTGROW-THE-OPPONENT 
 §27 기관 대안 4종의 requires   BW 는 대안 구조만 공급했다 — 배선은 OPTIONS/NEED 몫
 지역이라는 세계 기반           SAFE↔FRINGE 경계·이동이 세계에 없다 — 탐험 Cycle 들의 전제
 각 층이 만드는 Local Goal      §16 은 순환(발견 → Local Goal)만 공급했다 — WHY 몫
-Growth 획득 경로               CL-* 0 건 · grants 배선 없음 — growth/growth-graph.md
+Growth 획득 경로               CL-* 0 건 — 사다리·계열은 섰다. 계열별 문서 주입이 채운다
 ```
 
 닫힌 결정(2026-08-19): Belief 비도입(Q3) · 전투는 전투로(Q8) · Critical 확률 허용(Q11) ·
@@ -140,18 +142,20 @@ master/     현재 상태    world/ view/ 처럼 계속 갱신된다
 Graph 를 눈으로 보려면 프로젝트 루트에서 다음을 실행한다. 원본은 아무것도 바뀌지 않는다.
 
 ```text
-npm run master:graph         GRAPH.md · overlay.md · graph/graph-view.html 을 다시 만든다
+npm run master:graph         GRAPH.md · overlay.md · 뷰어 둘(그래프 · 개념 지도)을 다시 만든다
 npm run master:graph:check   정합성 + GRAPH.md·overlay.md 최신 여부만 확인한다 (아무것도 쓰지 않는다)
 ```
 
-네 산출물이 나온다. HTML 둘은 커밋하지 않는다.
+여섯 산출물이 나온다. HTML 넷은 커밋하지 않는다 (`.gitignore`).
 
 | 파일 | 보는 곳 |
 |---|---|
 | `graph/GRAPH.md` | GitHub · 에디터 — Mermaid 와 표. **커밋한다** |
 | `overlay.md` | Capability × 구현 상태 — 노드 필드에서 생성. **커밋한다** |
 | `graph/graph-view.html` | 브라우저 — 인터랙티브 뷰어 (서버 없이 `file://` 로 열린다) |
-| `graph/graph-view.artifact.html` | Artifact 게시용 — 아래 고정 링크에 덮어쓸 때 이 파일을 올린다 |
+| `graph/graph-view.artifact.html` | Artifact 게시용 — 아래 고정 링크 ①에 덮어쓸 때 이 파일을 올린다 |
+| `graph/concept-map.html` | 브라우저 — 개념 지도 |
+| `graph/concept-map.artifact.html` | Artifact 게시용 — 아래 고정 링크 ②에 덮어쓸 때 이 파일을 올린다 |
 
 뷰어는 층(WorldState → Goal → Possibility → Capability)으로 배치하고, Capability 는
 overlay 색으로, Possibility 는 **준비도**(요구 Capability 중 세계에 이미 있는 것의 비율)로
@@ -160,14 +164,28 @@ overlay 색으로, Possibility 는 **준비도**(요구 Capability 중 세계에
 
 ### 고정 링크 — Artifact
 
-브라우저만 있으면 어디서나 열리는 뷰어다. **링크는 이 하나이며 바뀌지 않는다.**
+브라우저만 있으면 어디서나 열리는 뷰어다. **링크는 아래 셋이며 바뀌지 않는다.**
+셋 다 main 을 가리킨다.
 
 ```text
-https://claude.ai/code/artifact/c3c54815-4a6a-47e7-83ce-2cd169acdef5
+① Master Intent Graph   graph/graph-view.artifact.html
+   https://claude.ai/code/artifact/c3c54815-4a6a-47e7-83ce-2cd169acdef5
+
+② Concept Map           graph/concept-map.artifact.html
+   https://claude.ai/code/artifact/ec1fd0e1-3af5-498c-a7ad-0feaae5d1a45
+
+③ Lanes Board           ../LANES.artifact.html   (npm run lanes 가 만든다)
+   https://claude.ai/code/artifact/ca6a873b-1e46-4ac6-8db7-54edd562fae3
 ```
 
-`graph/` 나 `constraints/` 를 고친 Agent 는 재생성 후 이 링크를 갱신한다 —
-**단 그 변경이 main 에 들어간 뒤다.** 이 링크는 main 의 그래프를 가리킨다.
+**주소를 여기 적어 두는 것이 규칙의 절반이다.** 적혀 있지 않으면 다음 세션이 그것을
+찾지 못해 `url` 없이 새로 올리고, 그러면 같은 이름의 아티팩트가 둘이 되어 어느 것이
+지금인지 아무도 모르게 된다 — 실제로 한 번 그렇게 되었다 (Master Intent Graph 가
+`745ac158`…과 `c3c54815`… 둘이다. 지금 것은 ①이다).
+
+`graph/` 나 `constraints/` 를 고친 Agent 는 재생성 후 ①②를 갱신하고, `LANES.md` 나
+트랙 상태를 고친 Agent 는 `npm run lanes` 뒤에 ③을 갱신한다 —
+**단 그 변경이 main 에 들어간 뒤다.** 셋 다 main 의 상태를 가리킨다.
 
 작업 브랜치에서 그래프를 보여 줘야 하면 이 링크를 덮어쓰지 말고 **별도 Artifact 를
 새로 올린다** (Artifact 도구에 `url` 을 넘기지 않으면 새 주소가 생긴다). 그 링크는
@@ -175,8 +193,8 @@ https://claude.ai/code/artifact/c3c54815-4a6a-47e7-83ce-2cd169acdef5
 브랜치의 그래프를 덮어쓰면 main 을 보는 사람이 아직 없는 것을 보게 된다.
 
 ```text
-Artifact 도구에 file_path = graph/graph-view.artifact.html
-                 url       = 위 링크          ← 반드시 함께 넘긴다
+Artifact 도구에 file_path = 위 표의 .artifact.html
+                 url       = 그 줄의 링크      ← 반드시 함께 넘긴다
 ```
 
 `url` 을 빼면 **같은 링크에 덮어쓰지 않고 새 아티팩트가 새 주소로 생긴다.** 링크가 하나로

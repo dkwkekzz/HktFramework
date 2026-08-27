@@ -1,0 +1,54 @@
+# 원본 근거: content/proto-adventure/design/Design-Growth-Balance-R0.md (GB) §2-5 · §25 Power Envelope ·
+#   §26~§28 Benchmark · §30 세 단계 Balance Validation · GB-07
+id: DC-GROWTH-INTENT-IS-MEASURED
+type: constraint
+
+statement: >
+  중요한 성장은 자신이 무엇을 얼마나 바꿀 작정인지를 미리 밝히고, 실제로 굴려 본 결과가
+  그 범위를 벗어나면 실패로 다룬다.
+rationale: >
+  ❌ 흔한 형태는 의도를 머릿속에만 두는 것이다 — "이 Class 는 탐험용이야". 그러면 그것이
+  일반 전투도 40% 빠르게 만들고 있다는 사실을 아무도 검출하지 못한다. 설계 문서에 적힌
+  성격과 실제로 굴러가는 성격이 다른 채로 남는다.
+  ✅ GB 는 성장마다 **의도한 영향 범위**를 선언하게 하고 (§25 — 일반 전투는 작게, 구조적
+  적에게는 크게, 공간 위험은 해결 가능하게), 같은 조건을 성장 전후로 굴려 그 선언과 대조한다
+  (§26~§28). 벗어나면 `POWER-ENVELOPE-VIOLATION` 이다. 마지막 판단은 사람이 하되 (§30
+  Phase 3), 그 앞의 두 단계는 기계가 반증한다.
+
+  이 세계에서 이 검사가 실제로 신뢰할 만한 이유는 판정에 난수가 없기 때문이다 —
+  같은 능력치 · 같은 기술 · 같은 상대면 언제나 같은 결과다 (DC-COMBAT-PLAYER-CAUSALITY).
+  결정론이 곧 "전후를 같은 조건으로 비교할 수 있다" 는 뜻이고, GB §30 이 그 점을 근거로 든다.
+
+  지켜서 얻는 것은 **밸런스가 주장이 아니라 반증 가능한 것**이 된다는 것이다. 문서가
+  스스로 말하듯 이 시스템의 역할은 밸런스가 완벽함을 증명하는 것이 아니라 잘못된 밸런스를
+  드러나게 만드는 것이다 (§2). 어겼을 때 잃는 것: 의도와 실제가 갈라진 성장이 쌓이고,
+  어느 것이 세계를 망가뜨리고 있는지 아무도 짚지 못한다.
+
+  가장 안 읽히는 조각은 **"미리"** 다. 굴려 본 뒤에 의도를 적으면 그것은 검사가 아니라
+  기록이다 — 선언이 먼저여야 어긋남이 보인다.
+
+  경계 — 이것은 검증 절차나 측정 항목을 여기서 정하지 않는다. 무엇을 선언해야 하고 그
+  선언이 실측과 대조되어야 한다는 것까지가 이 원칙이며, 어떤 장면을 어떻게 재는지는
+  Cycle 의 검증(08)과 도구가 소유한다.
+
+scope:
+  - GROWTH
+
+requires:
+  - 중요한 성장이 의도한 영향 범위를 미리 밝힌다                              # GB §25
+  - 성장 전후를 같은 조건으로 굴려 그 선언과 대조한다                         # GB §26~§28 · GB-07
+prohibits:
+  - 선언한 범위를 크게 벗어난 채로 완료되는 성장                              # GB §28 · §33
+prefers:
+  - 사람의 최종 판단을 마지막 단계로 두는 것                                  # GB §30 Phase 3
+
+status: APPROVED
+provenance:
+  - HUMAN_DESIGN        # content/proto-adventure/design/Design-Growth-Balance-R0.md 주입 → Human 승인 (HISTORY Q56)
+                        # 이 원칙이 요구하는 선언(Power Envelope)은 growth/balance/ 에 산다 (HISTORY Q58(c))
+
+relations:
+  supports:
+    - DC-COMBAT-PLAYER-CAUSALITY
+    - DC-GROWTH-POWER-PAYS-IN-REACH-OR-CONSTRAINT
+  conflicts_with: []

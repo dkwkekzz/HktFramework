@@ -5,6 +5,7 @@
 #
 # 인용 — BW = content/proto-adventure/design/Master-World-Beira.md · R1 = content/proto-adventure/design/Design-Combat-OffenseDefense-R0.md
 #        DT = content/proto-adventure/design/Design-Combat-DamageType-R0.md
+#        GS = content/proto-adventure/design/Master-Fairy-Growth-System.md (성장)
 version: 1
 nodes:
 
@@ -41,6 +42,33 @@ nodes:
       - MP-LEARN-TO-HANDLE-THE-LAYER    # 들어가서 겪어 안다
       - MP-PREPARE-IN-CIVILIZATION      # 다녀온 사람에게 사서 안다
 
+  - id: MK-WITNESSED-WORLD-PHENOMENON
+    type: knowledge
+    holder:
+      - MA-PLAYER
+    statement: >
+      자신의 원리와 관련된 강력한 세계 현상을 직접 겪었다 — 그 자리에 있었고 그것이
+      무엇이었는지 안다. (GS §6 World Experience)
+    detail: >
+      Class Change 의 네 문턱 중 하나이며, 넷 가운데 **살 수 없는 유일한 것**이다
+      (GS §6). Catalyst 는 남에게서 얻거나 거래할 수 있지만 이것은 그 현상이 일어나는
+      자리에 자기 몸으로 있어야 생긴다. 그래서 상위 형태의 캐릭터를 보면 그가 어디에
+      다녀왔는지가 읽힌다.
+      지역에 대한 앎(MK-LOCAL-WORLDSTATE)과 다르다 — 저쪽은 "그곳에 지금 무엇이
+      참인가" 이고 이쪽은 "그 일이 일어날 때 내가 거기 있었다" 다. 앞의 것은 겪은 사람에게
+      사서 알 수 있고 뒤의 것은 그럴 수 없다.
+      무엇이 그 현상인지는 계열마다 다르다 — 자기 원리와 관련된 것이어야 하기 때문이다
+      (GS §6). 어느 현상이 어느 계열의 문턱인지는 계열별 설계 문서와 그 땅이 정한다.
+    world_shape: >
+      세계에 드물게 일어나는 큰 현상이 있고, 그 자리에 있었다는 사실이 몸에 남으며,
+      남에게 사거나 대신 얻어 올 수 없어야 한다. 어디서나 얻을 수 있으면 이 지식이 아니다.
+    implemented: ABSENT
+    implemented_note: >-
+      드물게 일어나는 세계 현상이 없다 — 세계에서 일어나는 일은 존재들의 행동뿐이고 그 자리에 있었다는 사실도 남지 않는다
+    contradicts: []
+    revealed_by:
+      - MP-LEARN-TO-HANDLE-THE-LAYER    # 들어가서 겪는 갈래가 이 앎에 이르는 유일한 길이다 (GS §6)
+
   # ── 전투에서 얻는 지식 (R1 · DT) ───────────────────────────────────────
 
   - id: MK-OPPONENT-FLOW-PATTERN
@@ -48,18 +76,20 @@ nodes:
     holder:
       - MA-PLAYER
     statement: >
-      상대가 어느 구간에서 힘을 공격에 몰아 방어가 낮아지는지를 안다.
+      상대가 지금 힘을 어디에 몰아 두었고 그래서 어느 쪽이 비어 있는지를 안다.
     detail: >
-      외운 스킬 이름이 아니라 관찰로 얻는 지식이다. 상대의 몸이 공격 쪽으로 기울면
-      그동안은 지키는 쪽이 얇아지는데, 그 구간이 언제인지를 아는 사람만 되받아치는
-      순간을 고를 수 있다. 이것이 없으면 반격은 운이고, 있으면 판단이 된다.
+      외운 스킬 이름이 아니라 관찰로 얻는 지식이다. 상대가 한쪽에 힘을 몰면 그동안
+      다른 쪽이 얇아지는데, 지금 어느 쪽이 얇은지를 아는 사람만 때릴 순간을 고를 수
+      있다. 이것이 없으면 반격은 운이고, 있으면 판단이 된다.
+      **읽는 대상이 Q59(a) 로 바뀌었다** — 예전에는 공격과 방어 둘 사이의 기울기였고
+      지금은 몸 · 능력 · 인지 셋 사이의 배분이다 (UL §13 · §14). 상대가 몸에 몰아
+      두었으면 그 상대는 나를 잘 읽지 못하고, 능력이나 인지에 몰아 두었으면 몸이 얇다.
     world_shape: >
       상대의 힘 배분이 시간에 따라 달라지고 그 변화가 관찰 가능해야 하며,
       그 구간을 노린 행동이 노리지 않은 행동보다 실제로 유리해야 한다.
     implemented: ABSENT
     implemented_note: >-
       힘을 배분하는 상태가 없다
-    # 공격/방어에 힘을 배분하는 상태 자체가 세계에 없다 (MC-COMBAT-FLOW MISSING).
     contradicts: []
     revealed_by:
       - MP-EXPLOIT-OPEN-BODY
@@ -97,5 +127,5 @@ nodes:
 # MK-OPPONENT-DEFENSE-SHAPE 는 C012 로 세계에 세워졌고 (Actor 의 방어 형태가 모든 관찰에
 # 실린다 — DT §10 Actor 관찰 계약), C013 이 그것을 넓혔다 — "상대가 어떤 방어를 지녔는가" 에
 # "그 방어가 나에게 얼마인가" 가 더해졌다 (같은 지식의 관계 형태).
-# MK-OPPONENT-FLOW-PATTERN 이 읽는 대상(힘의 배분)은 R1 §14 Aura/Nen 층이 예고한다 —
-# 그 층의 설계 문서가 나올 때 노드를 개정한다.
+# MK-OPPONENT-FLOW-PATTERN 이 읽는 대상(힘의 배분)은 UL §13 · §14 가 정의했고
+# 그 상태는 MC-AURA-ALLOCATION 이다 (Q59(a) — HISTORY).
