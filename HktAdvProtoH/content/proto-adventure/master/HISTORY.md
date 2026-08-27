@@ -3656,3 +3656,37 @@ Human 이 "FR-ACTION-PHASE 의 근간이 무엇인가" 를 물어 근간을 역�
 
     지금 상태   다섯 트랙 중 GROWTH 하나만 SELECTED 를 갖고,
                 ITEM · COMBAT · TERRAIN · KNOWLEDGE 넷이 후보를 든 채 선택을 기다린다.
+
+## Q72 — 전투 지식의 정의가 앎(MK-*)의 자리에 있다 · Human · 2026-08-28 · (a) 정의를 growth/ 로 옮긴다
+
+    "지식" 의 자리가 둘인데 CK 주입이 한 파일에 섞었다 — graph/knowledge.yaml 의 MK-* 는
+    액터의 인식 상태(holder · contradicts · revealed_by)이고, 전투법은 획득·보유·장착·
+    깊이·전수의 형태를 가진 **정의**다. 섞인 노드는 MK-HOW-TO-FIGHT-IT 하나였다
+    (증거 넷은 질문 원문 — 칸 불일치 · 노드 자신의 detail · MC-CARRY 의 아이템 평행 ·
+    reveals 동사 어긋남). Human 이 FC Layer 0 재주입 정리를 지시했고, Agent 추천 (a) 를
+    그대로 반영했다 — 아이템 정의가 graph 가 아니라 growth/items/ 에 사는 선례를 따른다.
+
+    반영    SCHEMA.md — ID Namespace 에 CK-*(Combat Knowledge Definition) ·
+            growth/knowledge/CK-*.yaml 골격 신설 (kind 네 계열 · required_knowledge ·
+            acquired_from · conducts — 내부 판단 규칙·수치는 Cycle 03 소유)
+            graph/knowledge.yaml — MK-HOW-TO-FIGHT-IT 삭제 · MK-OPPONENT-ABILITY-RULE
+            detail 이 전투법의 새 자리를 가리키게 정정 · 머리 주석에 사실/전투법 경계(CK §5)
+            graph/possibilities.yaml — MP-LEARN-HOW-TO-FIGHT-IT 의 requires.knowledge 와
+            reveals, MP-PREPARE-THE-RIGHT-KNOWLEDGE 의 requires.knowledge 에서
+            MK-HOW-TO-FIGHT-IT 제거 — 전투법은 드러나는 것이 아니라 획득된다 (CK §9)
+
+    잃은 의미는 없다 — 그 노드의 semantic 은 MC-LEARN/CARRY/CONDUCT/EXPLAIN-COMBAT-
+    KNOWLEDGE 넷이 이미 지니고 있었다 (그래서 possibilities 의 요구도 능력 여섯이 진다).
+    MK-OPPONENT-ABILITY-RULE(사실 층)은 자리가 맞아 남았고, frontier/knowledge.md 의
+    후보 일곱은 전부 MC-* 를 겨냥하고 있어 손대지 않았다.
+
+    CK-* 인스턴스는 지금 만들지 않았다 — 디렉터리는 첫 노드가 생길 때 만든다 (GR §40 과
+    같다). CK §37 의 첫 넷(견고한 수호 · 기력 보존 · 악마의 날개 파훼법 · 관찰 후 봉인)은
+    KNOWLEDGE 트랙의 첫 Cycle 이 세울 때 이 골격으로 온다.
+
+## 백왕 계열 문서 둘 철회 — Human · 2026-08-28
+
+    Human 이 Design-Fairy-Baiwang-Growth-R0 · Design-Fairy-Baiwang-Skill-R0 를 저장소에서
+    삭제했다 (커밋 df06086). LANES 의 HUMAN 대기에 서 있던 "백왕 계열 문서 둘 주입" 행은
+    대상 문서가 사라져 함께 내렸다. 계열별 Origin 층의 원본은 FC(Design-Fairy-Class-
+    Layer0-R0)로 남고, 백왕 계열의 성장·스킬 세부는 새 판이 오면 그때 주입 대기로 다시 선다.
