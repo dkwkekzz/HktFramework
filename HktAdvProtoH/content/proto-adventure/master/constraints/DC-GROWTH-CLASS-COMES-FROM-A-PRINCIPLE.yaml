@@ -43,9 +43,9 @@ prohibits:
 prefers:
   - 하나의 Principle 결합이 여러 갈래를 낳을 수 있는 형태                     # FC §1 분기
 
-status: DRAFT
+status: APPROVED
 provenance:
-  - HUMAN_DESIGN        # content/proto-adventure/design/Design-Fairy-Class-Layer0-R0.md 주입 (Q68 승인 대기)
+  - HUMAN_DESIGN        # content/proto-adventure/design/Design-Fairy-Class-Layer0-R0.md 주입 → Human 승인 (HISTORY Q68)
 
 relations:
   supports:

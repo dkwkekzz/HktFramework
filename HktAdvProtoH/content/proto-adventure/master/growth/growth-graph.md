@@ -79,12 +79,26 @@ demands 로 걸지 않는다 (SCHEMA · DC-GROWTH-NEED-FROM-POSSIBILITY). Class 
 이유로 Capability 를 만들면 방향이 뒤집힌다. 요구하는 경로가 생기면 그때 잇는다.
 Human 결정 대기: [../open-questions.md](../open-questions.md) Q71.
 
-### 위쪽이 비어 있다
+### 위쪽이 비어 있다 — 다만 모양은 정해졌다
 
-여섯 CL-* 의 `transitions_to` 가 전부 비어 있다. 상위 형태의 이름은 GS 가 소유하고 있으나
-(왕골권사 · 천주질주자 · 태양포식자 · 가면술사 · 풍압사 · 대지공명사) 그 CL-* 를 세우는
-것은 다음 Layer 의 설계 문서이며, 그전에 **갈래가 하나인가 여럿인가**가 답해져야 한다 —
-FC §1 은 여럿을 허용하고 GS 는 하나의 사슬을 적는다 (Q69).
+여섯 CL-* 의 `transitions_to` 가 전부 비어 있다. 상위 형태의 CL-* 를 세우는 것은 다음
+Layer 의 설계 문서다.
+
+**갈래는 여럿이다** (Human 결정 — HISTORY Q69(b)). 한 칸에 형태가 하나씩 서는 사슬이
+아니라, 기초 원리에 어떤 원리가 결합되었는가에 따라 같은 칸에서 갈라지는 나무다 (FC §1).
+GS 가 이름을 준 여섯(왕골권사 · 천주질주자 · 태양포식자 · 가면술사 · 풍압사 · 대지공명사)은
+각 계열에서 **한 갈래**이고, 나머지 갈래의 이름은 그 갈래를 세우는 문서가 원리에서 도출한
+뒤에 따라온다 — 이름이 먼저가 아니다 (DC-GROWTH-CLASS-COMES-FROM-A-PRINCIPLE).
+
+이 결정이 늘리는 것은 작업량만이 아니다. `MC-CHANGE-CLASS` 가 닫히려면 조건 넷(GS §6)에
+더해 **여럿 중 무엇으로 갈지 고르는 일**이 세계에 서야 하고, 갈래마다 관문 넷을 따로
+닫아야 한다 (SCHEMA 의 CL-* — `response` · `counterplay` · `cannot_yet` · `extends_toward`).
+
+### 관문 넷은 이제 값이다
+
+`npm run master:graph` 가 CL-* 의 네 칸이 비었는지, `grants` 와 `origin_trace` 가 없는
+노드를 가리키는지 검사한다 (Human 결정 — HISTORY Q70(c)). 열두 질문 중 다른 DC 가 값으로
+요구하는 넷만 칸이고, 나머지 여덟은 `semantic` · `detail` · `world_shape` 산문에 남는다.
 
 ## 광물 — 어디서 왔고 무엇을 여는가
 

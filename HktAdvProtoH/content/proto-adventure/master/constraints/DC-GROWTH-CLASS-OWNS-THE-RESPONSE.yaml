@@ -45,9 +45,9 @@ prohibits:
 prefers:
   - 그 대응이 잘 되었을 때 열리는 기회도 Class 고유의 것이 되는 형태          # FC §2 Precision Response
 
-status: DRAFT
+status: APPROVED
 provenance:
-  - HUMAN_DESIGN        # content/proto-adventure/design/Design-Fairy-Class-Layer0-R0.md 주입 (Q68 승인 대기)
+  - HUMAN_DESIGN        # content/proto-adventure/design/Design-Fairy-Class-Layer0-R0.md 주입 → Human 승인 (HISTORY Q68)
 
 relations:
   supports:

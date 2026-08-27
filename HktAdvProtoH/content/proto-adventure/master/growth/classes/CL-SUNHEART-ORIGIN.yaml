@@ -56,7 +56,28 @@ grants_note: >
   숨어 있는 생물의 체열을 감지하는 인지(FC §5.9)도 MC-READ-ENVIRONMENT("생물과 독립적으로
   환경을 읽는다")와 어긋나 적지 않았다. Human 결정 대기: open-questions Q71.
 
-transitions_to: []   # 다음 형태는 태양포식자다 (GS §11 Class Line · HISTORY Q55(b)) — 그 CL-* 는 아직 없다. 갈래 문제는 Q69.
+# ── 관문 넷 (Human 결정 — HISTORY Q70(c)) ─────────────────────────────
+response: >
+  열방출 — 저장한 열을 순간적으로 터뜨려 공격을 밀어낸다. 그냥 하면 저장량을 써서
+  피해가 줄고, 근접 공격에 정확히 하면 열교환이 일어나 상대의 열을 빼앗으면서 저장량이
+  오히려 회복된다 (FC §5.6).
+counterplay:          # FC 의 Counterplay 절
+  - 열원이 적은 환경으로 끌어들인다
+  - 흡수 대상과의 거리를 유지한다
+  - 과충전을 유도해 스스로 위험해지게 한다
+  - 크게 방출한 직후를 친다
+cannot_yet:           # FC §10 이 이 층에서 의도적으로 막아 둔 것
+  - 열 말고 다른 종류의 힘을 저장하는 일
+  - 상태 자체를 저장하는 일
+extends_toward: >
+  저장할 수 있는 것이 열 밖으로 넓어지는 쪽 — 다른 에너지와 상태까지 담는 형태다
+  (FC §10).
+
+transitions_to: []   # 아직 상위 형태의 CL-* 가 없다 — Layer 1 설계 문서가 세운다.
+                     # **한 칸에 여러 형태가 설 수 있다** (Human 결정 — HISTORY Q69(b)):
+                     # GS 가 이름을 준 태양포식자는 그중 **한 갈래**이고, 다른 Principle 이
+                     # 결합된 갈래는 자기 설계 문서가 세우며 이름도 그때 따라온다
+                     # (DC-GROWTH-CLASS-COMES-FROM-A-PRINCIPLE — 이름이 먼저가 아니다).
 
 constraints:
   - DC-GROWTH-CLASS-ORIGIN-TRACE

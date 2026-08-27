@@ -58,7 +58,27 @@ grants_note: >
   (DC-SKILL-PRESENCE-IS-WORLD-NOT-SKILL), 그 자리는 MS-SKILL-FORM 의 SPATIAL-PRESENCE 가
   기다리고 있다 — 아직 어느 Possibility 도 요구하지 않아 MC-* 로 세우지 않았다 (Q71).
 
-transitions_to: []   # 다음 형태는 풍압사다 (GS §13 Class Line · HISTORY Q55(b)) — 그 CL-* 는 아직 없다. 갈래 문제는 Q69.
+# ── 관문 넷 (Human 결정 — HISTORY Q70(c)) ─────────────────────────────
+response: >
+  기막 — 공기를 순간 압축해 몸 앞에 탄성막을 세운다. 그냥 하면 피해와 밀림이 줄고,
+  정확히 하면 그 힘을 압력차로 되돌려 때린 쪽을 밀어낸다 (FC §7.6).
+counterplay:          # FC 의 Counterplay 절
+  - 만들어 둔 영역 밖으로 나간다
+  - 영역을 부순다
+  - 영역과 영역 사이의 연결을 끊는다
+  - 시전자를 계속 움직이게 해 영역을 세울 틈을 주지 않는다
+cannot_yet:           # FC §10 이 이 층에서 의도적으로 막아 둔 것
+  - 거대한 지역의 대기 법칙을 바꾸는 일
+  - 영역을 제한 없이 두는 일
+extends_toward: >
+  만드는 것의 크기가 작은 영역 밖으로 넓어지는 쪽 — 한 지역의 대기 법칙 자체를
+  바꾸는 형태다 (FC §10).
+
+transitions_to: []   # 아직 상위 형태의 CL-* 가 없다 — Layer 1 설계 문서가 세운다.
+                     # **한 칸에 여러 형태가 설 수 있다** (Human 결정 — HISTORY Q69(b)):
+                     # GS 가 이름을 준 풍압사는 그중 **한 갈래**이고, 다른 Principle 이
+                     # 결합된 갈래는 자기 설계 문서가 세우며 이름도 그때 따라온다
+                     # (DC-GROWTH-CLASS-COMES-FROM-A-PRINCIPLE — 이름이 먼저가 아니다).
 
 constraints:
   - DC-GROWTH-CLASS-ORIGIN-TRACE

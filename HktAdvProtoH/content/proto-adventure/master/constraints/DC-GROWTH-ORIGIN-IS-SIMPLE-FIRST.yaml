@@ -44,9 +44,9 @@ prohibits:
 prefers:
   - 상위 Layer 가 그 넷을 두껍게 만드는 방식으로 자라는 형태                               # FC §2 · §11
 
-status: DRAFT
+status: APPROVED
 provenance:
-  - HUMAN_DESIGN        # content/proto-adventure/design/Design-Fairy-Class-Layer0-R0.md 주입 (Q68 승인 대기)
+  - HUMAN_DESIGN        # content/proto-adventure/design/Design-Fairy-Class-Layer0-R0.md 주입 → Human 승인 (HISTORY Q68)
 
 relations:
   supports:

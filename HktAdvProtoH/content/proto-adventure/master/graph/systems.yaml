@@ -192,8 +192,14 @@ systems:
       층과 층 사이를 넘는 자리(MC-CHANGE-CLASS)는 어느 한 층에 속하지 않는다 —
       segment 없이 이 시스템에 속한다.
       **바닥 칸(ORIGIN)이 FC 로 채워졌다** — 여섯 계열의 Origin Class 가 growth/classes/ 에
-      CL-*-ORIGIN 으로 서 있다. 위의 세 칸은 아직 이름뿐이며, FC §1 이 한 형태에서 갈래가
-      여럿일 수 있다고 적어 GS 의 단일 사슬과 어긋나 있다 (open-questions Q69).
+      CL-*-ORIGIN 으로 서 있다. 위의 세 칸은 아직 비어 있다.
+      **한 칸에 여러 형태가 선다** (Human 결정 — HISTORY Q69(b)): 같은 계열을 고른 두 사람이
+      같은 칸에서 서로 다른 형태가 될 수 있다. 기초 원리에 어떤 원리가 결합되었는가가 그
+      갈래를 가르며 (FC §1), 그래서 이 사다리는 네 칸짜리 사슬 하나가 아니라 네 칸짜리
+      나무다. GS 가 계열마다 이름을 준 사슬(왕골권사 · 천주질주자 · 태양포식자 · 가면술사 ·
+      풍압사 · 대지공명사)은 그 나무의 **한 갈래**이고, 다른 갈래의 이름은 그 갈래를 세우는
+      설계 문서가 원리에서 도출한 뒤에 따라온다 (DC-GROWTH-CLASS-COMES-FROM-A-PRINCIPLE —
+      이름을 먼저 만들고 능력을 끼워 맞추지 않는다).
     segments:
       - { id: ORIGIN,   name: Origin Class — 가장 단순하고 명확한 능력 }
       - { id: ADVANCED, name: Advanced Class — 고유 능력이 전투 기술이 된다 }

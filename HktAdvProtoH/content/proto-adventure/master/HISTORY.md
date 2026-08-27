@@ -3337,6 +3337,71 @@ Human 이 "FR-ACTION-PHASE 의 근간이 무엇인가" 를 물어 근간을 역�
             속한다. 자리 수 자체(넷 등)는 여전히 수치이므로 Cycle 소유다.
             늘어도 보유량보다는 적어야 고르는 일이 남는다 (DC-KNOWLEDGE-IS-CARRIED-NOT-HOARDED).
 
+## Q68 · Q69 · Q70 — 계열별 요정 Layer 0(FC) 주입이 낸 넷 중 셋 · Human · 2026-08-27
+
+    주입 직후 Human 이 셋을 답했다. 넷째(Q71 — 옮길 기존 노드가 없는 능력 아홉)는
+    질문이 읽히지 않아 다시 설명했고 open-questions.md 에 남아 있다.
+
+### Q68. FC 가 세운 Constraint 넷을 승인하는가 — (a) 넷 다 승인
+
+    DC-GROWTH-CLASS-OWNS-THE-RESPONSE          대응 입력은 하나이고 그 자리에 무엇이
+                                               들어 있는지는 Class 가 정한다 (FC §2)
+    DC-GROWTH-CLASS-COMES-FROM-A-PRINCIPLE     새 Class 는 이름이 아니라 새 Principle 에서
+                                               시작한다 (FC §11)
+    DC-GROWTH-ORIGIN-IS-SIMPLE-FIRST           Origin 은 복합 계약을 주력으로 쓰지 않는다 (FC §2)
+    DC-GROWTH-CLASS-CLOSES-BEFORE-THE-NEXT-LAYER
+                                               열두 질문이 닫히기 전에는 다음 Layer 를
+                                               세우지 않는다 (FC §10 · §12)
+
+    반영    네 파일의 status DRAFT → APPROVED · provenance 에 승인 기록.
+            넷 다 여섯 CL-* 가 constraints 로 걸고 있다. 문안은 승인 시점 그대로 두었다.
+
+### Q69. Class 의 갈래는 하나인가 여럿인가 — (b) 갈래 여럿
+
+    두 Human 문서가 어긋났다 — FC §1(한 Class 에서 여러 상위 Class 가 나올 수 있다)과
+    GS §9~§16(계열마다 네 칸짜리 사슬 하나를 이름으로 적는다). Human 이 FC 쪽을 골랐다.
+
+        사다리의 모양      네 칸짜리 사슬이 아니라 **네 칸짜리 나무**다. 같은 계열을 고른
+                          두 사람이 같은 칸에서 서로 다른 형태가 될 수 있다
+        갈래를 가르는 것    기초 원리에 어떤 원리가 결합되었는가 (FC §1)
+
+    **이름의 소유가 좁아졌다.** Q55(b)는 "Class Line 의 이름은 GS 가 소유한다" 였는데,
+    갈래가 여럿이면 GS 가 이름을 주지 않은 형태가 생긴다. GS 가 이름을 준 여섯
+    (왕골권사 · 천주질주자 · 태양포식자 · 가면술사 · 풍압사 · 대지공명사)은 각 계열에서
+    **한 갈래**이고, 나머지 갈래의 이름은 그 갈래를 세우는 설계 문서가 원리에서 도출한
+    뒤에 따라온다 — 이름이 먼저가 아니다 (DC-GROWTH-CLASS-COMES-FROM-A-PRINCIPLE).
+    Q55(b)가 뒤집힌 것이 아니라 적용 범위가 "GS 가 이름을 준 갈래" 로 좁아진 것이다.
+
+    반영    MS-CLASS-EVOLUTION 의 semantic · 여섯 CL-* 의 transitions_to 주석 ·
+            MC-CHANGE-CLASS 의 detail · growth/growth-graph.md 의 "위쪽이 비어 있다".
+
+    따라오는 것   MC-CHANGE-CLASS 가 닫히려면 조건 넷(GS §6)에 더해 **여럿 중 무엇으로
+                 갈지 고르는 일**이 세계에 서야 한다. 그리고 갈래마다 관문 넷을 따로
+                 닫아야 하므로 (Q70) Layer 를 올릴 때마다 작업량이 갈래 수만큼 는다.
+
+### Q70. Class 의 열두 답을 어디에 담는가 — (c) 검사할 넷만 칸으로
+
+    FC §12 는 Class 하나에 열두 질문을 요구하지만, 칸이 된 것은 **다른 DC 가 값으로
+    요구하는 넷**뿐이다. 나머지 여덟(원리 · 판타지 · 반복 행동 · Aura · 피해 외 세계
+    변화 · 탐험 쓰임 · 숙련 행동 · 실루엣)은 산문에 남는다.
+
+        response         DC-GROWTH-CLASS-OWNS-THE-RESPONSE
+        counterplay      DC-COMBAT-STRONG-RULE-HAS-COUNTERPLAY
+        cannot_yet       DC-GROWTH-CAPABILITY-DECLARES-ITS-LIMITS
+        extends_toward   DC-GROWTH-CLASS-CLOSES-BEFORE-THE-NEXT-LAYER
+
+    이것은 SCHEMA 를 늘리는 결정이므로 주입의 몫이 아니었다 — 그래서 질문으로 남겼고
+    (Q51 · Q58 선례) Human 이 답한 뒤에 만들었다.
+
+    반영    SCHEMA.md 의 CL-* 골격에 네 칸 + detail · world_shape · grants_note ·
+            여섯 CL-* 에 값 · tools/master-graph/classes.ts (검사기) ·
+            build.ts 가 그것을 같은 통과에서 돌린다.
+
+    검사기가 잡는 것   네 칸이 빔 (CLASS_GATE_EMPTY) · origin_trace 의 셋 중 하나가 빔
+                     (CLASS_NO_ORIGIN) · grants/origin_trace 가 없는 노드를 가리킴
+                     (CLASS_UNKNOWN_REF) · transitions_to 가 없는 Class 를 가리킴
+                     (CLASS_UNKNOWN_TRANSITION). 전부 ERROR 다.
+
 ## DC-KNOWLEDGE-IS-CARRIED-NOT-HOARDED 문안 정정 — Human 지적 · 2026-08-27
 
     Human 지적: "전투 지식 슬롯은 여러 개 있고 여러개가 동시에 작동할 수 있어야 할거같은데
