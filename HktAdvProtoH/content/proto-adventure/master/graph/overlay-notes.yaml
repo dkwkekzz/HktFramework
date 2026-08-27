@@ -258,9 +258,13 @@ sections:
         ids: [MW-HYPER-PREDATION, MW-SPATIAL-SHEAR]
       - MW-MACRO-TERRAIN
       - MW-TERRAIN-CIRCULATION
+      - MW-SHAPED-LANDFORM
       - MW-SURVIVAL-PRESSURE
       - MW-ADAPTED-LIFE
+      - MW-TERRAIN-RESOURCE
       - MW-NATURAL-REFUGE
+      - MW-NATURAL-SETTLEMENT
+      - MW-CIRCULATION-EVIDENCE
       - label: "MW-TERRAIN-* 8종 (BT §4~§11)"
         ids: [MW-TERRAIN-BAIWANG-BASIN, MW-TERRAIN-SUNEATER-ICEFIELD, MW-TERRAIN-NAME-EATING-FOREST,
               MW-TERRAIN-BREATHLESS-SEA, MW-TERRAIN-SKYFALL-RANGE, MW-TERRAIN-WALKING-CONTINENTS,
@@ -412,6 +416,15 @@ holes: |
      세계가 정확히 그렇다: 해숨구멍은 손으로 놓인 예외 자리이고 광맥은 좌표에 찍혀
      있으며, `Design-Resource-Catalog-R0.md` §4 가 모든 자원에 요구하는 질문
      ("그 상태가 오랜 시간 반복되면 무엇이 만들어지는가")에 답할 수 있는 자원이
-     세계에 하나도 없다. 이 사슬은 `MW-TERRAIN-CIRCULATION` → `MW-SURVIVAL-PRESSURE`
-     → `MW-ADAPTED-LIFE` · `MW-NATURAL-REFUGE` 로 그래프에 섰다.
+     세계에 하나도 없다. 이 사슬은 이제 그래프에 서 있다 — `MW-TERRAIN-CIRCULATION`
+     아래로 지형(`MW-SHAPED-LANDFORM`) · 생존 압력(`MW-SURVIVAL-PRESSURE`) · 적응
+     (`MW-ADAPTED-LIFE`) · 자원(`MW-TERRAIN-RESOURCE`) · 피난처(`MW-NATURAL-REFUGE`) ·
+     정착(`MW-NATURAL-SETTLEMENT`) · 증거(`MW-CIRCULATION-EVIDENCE`) 일곱이며,
+     `world-state.yaml` 머리의 §16 대조표가 열한 고리와 노드의 대응을 갖는다.
+     그리고 순환은 이제 Goal 을 낳는다 (`MG-EXPLORE-BEIRA` — Q64(b) Human 결정) —
+     그래서 다음 후보는 자기 이유를 Constraint 부기가 아니라 Goal 경로로 적을 수 있다.
+
+     **일곱 중 여섯이 ABSENT 다.** 선 것은 생존 압력과 피난처의 절반뿐이며(C-TERRAIN-001),
+     그 절반마저 순환에서 나오지 않고 상수로 놓여 있다. 이 층이 이 세계에서 가장 큰
+     구멍인 이유가 그 수다.
   ```

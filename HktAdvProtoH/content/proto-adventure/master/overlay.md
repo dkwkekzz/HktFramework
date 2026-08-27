@@ -255,9 +255,13 @@ Capability 만 보면 전투가 꽤 찬 것처럼 보이지만, 그 전투가 �
 | MW-HYPER-PREDATION · MW-SPATIAL-SHEAR | ABSENT | 대표 지역 둘 다 없다 |
 | MW-MACRO-TERRAIN | PARTIAL | 땅이 자리로 나뉘고 그 자리가 법칙을 지닌다 (C-TERRAIN-001 — World.GroundZones · GroundLawDefinition). 남은 것은 world_shape 의 나머지다: 법칙이 하나뿐이고, 그 법칙이 낳는 자원이 없으며, 어디에 갈 수 있는가가 감당으로 정해지지 않고, 깊이와의 직교도 아직 없다 |
 | MW-TERRAIN-CIRCULATION | ABSENT | 거둔 것이 어디에도 저장되지 않는다 — 자리가 포화되지도 분출하지도 않고 거두는 속도가 상수다. C-TERRAIN-002 가 이 층을 여는 Cycle 이며 Stage 5 대기다 |
+| MW-SHAPED-LANDFORM | ABSENT | 무대가 평면 하나다 — 산도 물길도 대기도 없고, 자리의 경계는 원으로 그려진 범위이지 순환이 빚은 생김새가 아니다 |
 | MW-SURVIVAL-PRESSURE | PARTIAL | 빙원의 자리 안에 서 있으면 몸의 값이 줄고 다하면 생명에 닿는다 (C-TERRAIN-001). 다만 그 압력이 순환에서 나오지 않고 상수라 읽어서 이용할 거리가 없다 |
 | MW-ADAPTED-LIFE | ABSENT | 세계에 있는 것은 좌표로 놓인 방랑자 둘과 광맥 하나뿐이고 셋 다 땅의 법칙과 무관한 자리에 있다. 놓는 것 말고 다른 길이 세계에 없다 |
+| MW-TERRAIN-RESOURCE | ABSENT | 캘 수 있는 것은 광맥의 돌 하나뿐이고, 그것은 어떤 법칙이 낳은 것이 아니라 좌표에 놓인 것이다. 캐어도 세계에 아무 되돌림이 없다 |
 | MW-NATURAL-REFUGE | PARTIAL | 법칙이 멎는 자리가 있고 자기가 멎게 하는 법칙의 이름을 지닌다 (C-TERRAIN-001 — zone-sunbreath). 다만 손으로 놓인 상수라 "왜 하필 거기인가" 에 세계가 답하지 못하고, 옮겨 가지도 사라지지도 않는다 |
+| MW-NATURAL-SETTLEMENT | ABSENT | 사람도 문화도 없다 — 세계에 있는 존재는 순회하는 방랑자 둘뿐이고 어디에도 정착하지 않는다 |
+| MW-CIRCULATION-EVIDENCE | ABSENT | 자리의 범위가 화면에 보이지만 그것은 법칙의 경계이지 순환이 남긴 증거가 아니다 — 아직 일어나지 않은 것을 가리키는 것이 세계에 하나도 없다. TERRAIN 트랙의 다음 후보(FR-THE-LAND-SHOWS-BEFORE-IT-TAKES)가 이 노드를 연다 |
 | MW-TERRAIN-* 8종 (BT §4~§11) | ABSENT | 머물 곳과 나갈 곳의 구분이 없다 — 무대가 하나다 |
 | MA-PLAYER | PARTIAL | 몸이 한 종류로 고정이라 고를 갈래 자체가 없다 — 요정 계열 여덟(MS-FAIRY-LINEAGE)이 그 자리이고 아직 비어 있다 |
 | MA-HOSTILE-COMBATANT | PRESENT | **C018 로 마지막 칸이 닫혔다** — 스스로 순찰·추격·공격하고, 플레이어와 **같은 관문**을 지나며(몬스터 전용 규칙 없음), 이제 지킬 자리를 지녀 그 행동이 자기 영역을 지키는 것으로 읽힌다. 같은 종류 두 개체가 하나는 적대하고 하나는 하지 않는다 — 적대가 종류가 아니라 사정의 결과다 |
@@ -404,8 +408,17 @@ Capability 만 보면 전투가 꽤 찬 것처럼 보이지만, 그 전투가 �
    세계가 정확히 그렇다: 해숨구멍은 손으로 놓인 예외 자리이고 광맥은 좌표에 찍혀
    있으며, `Design-Resource-Catalog-R0.md` §4 가 모든 자원에 요구하는 질문
    ("그 상태가 오랜 시간 반복되면 무엇이 만들어지는가")에 답할 수 있는 자원이
-   세계에 하나도 없다. 이 사슬은 `MW-TERRAIN-CIRCULATION` → `MW-SURVIVAL-PRESSURE`
-   → `MW-ADAPTED-LIFE` · `MW-NATURAL-REFUGE` 로 그래프에 섰다.
+   세계에 하나도 없다. 이 사슬은 이제 그래프에 서 있다 — `MW-TERRAIN-CIRCULATION`
+   아래로 지형(`MW-SHAPED-LANDFORM`) · 생존 압력(`MW-SURVIVAL-PRESSURE`) · 적응
+   (`MW-ADAPTED-LIFE`) · 자원(`MW-TERRAIN-RESOURCE`) · 피난처(`MW-NATURAL-REFUGE`) ·
+   정착(`MW-NATURAL-SETTLEMENT`) · 증거(`MW-CIRCULATION-EVIDENCE`) 일곱이며,
+   `world-state.yaml` 머리의 §16 대조표가 열한 고리와 노드의 대응을 갖는다.
+   그리고 순환은 이제 Goal 을 낳는다 (`MG-EXPLORE-BEIRA` — Q64(b) Human 결정) —
+   그래서 다음 후보는 자기 이유를 Constraint 부기가 아니라 Goal 경로로 적을 수 있다.
+
+   **일곱 중 여섯이 ABSENT 다.** 선 것은 생존 압력과 피난처의 절반뿐이며(C-TERRAIN-001),
+   그 절반마저 순환에서 나오지 않고 상수로 놓여 있다. 이 층이 이 세계에서 가장 큰
+   구멍인 이유가 그 수다.
 ```
 
 ## 갱신 경로

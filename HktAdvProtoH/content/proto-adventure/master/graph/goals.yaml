@@ -51,7 +51,11 @@ nodes:
     stakes:
       - 나가지 않으면 문명권의 한계 안에 머문다 — 그 안에서 얻을 수 없는 것에 닿지 못한다 (BW §7)
       - 위 motivation 중 무엇을 품었든 그것이 영영 해결되지 않는다
-    caused_by: [MW-SAFE-FRONTIER]
+    caused_by: [MW-SAFE-FRONTIER, MW-TERRAIN-CIRCULATION]
+    # Q64(b) — Human 결정 (HISTORY.md). 문명권의 한계가 나가게 만들고(SAFE-FRONTIER),
+    # 그 땅이 도는 방식을 읽어 감당하게 되는 것이 곧 대응 범위의 확장이다 (BT §5.7).
+    # 이 둘째 간선이 없는 동안 순환 계열은 어떤 Goal 도 낳지 않았고, 그래서 그 층을
+    # 여는 Frontier 후보가 이유를 Goal 이 아닌 Constraint 부기로 적게 되었다.
     constraints: [DC-WORLD-PLAYER-UNFIXED-PATH, DC-WORLD-PROGRESSION-IS-REACH]
     constraint_evaluation:
       DC-WORLD-PLAYER-UNFIXED-PATH: SATISFIED    # motivation 이 병렬 11 개이고 어느 하나가 필수가 아니다
