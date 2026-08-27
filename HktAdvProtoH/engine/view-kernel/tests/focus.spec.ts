@@ -4,7 +4,7 @@
 // 위아래로는 감기지 않는다. 마지막 하나가 가장 안 읽히는 성질이라 따로 검사한다.
 
 import { describe, expect, it } from 'vitest';
-import { moveFocus, moveFocusGrid } from '../input/focus';
+import { moveFocus, moveFocusGrid, nextIndex } from '../input/focus';
 
 const IDS = ['a', 'b', 'c', 'd'];
 
@@ -75,5 +75,17 @@ describe('moveFocusGrid — 여러 줄 사이의 이동', () => {
 
   it('빈 목록에는 초점이 없다', () => {
     expect(moveFocusGrid([], undefined, 3, { dy: 1 })).toBeUndefined();
+  });
+});
+
+describe('nextIndex — 자리 번호 위의 같은 산수', () => {
+  it('양쪽으로 감긴다 — moveFocus 가 쓰는 것과 같은 산수다', () => {
+    expect(nextIndex(4, 3, 1)).toBe(0);
+    expect(nextIndex(4, 0, -1)).toBe(3);
+    expect(nextIndex(4, 1, 2)).toBe(3);
+  });
+
+  it('빈 목록에서는 0 이다 — 부르는 쪽이 그때 아무것도 하지 않는다', () => {
+    expect(nextIndex(0, 0, 1)).toBe(0);
   });
 });

@@ -39,7 +39,7 @@ Feedback · BACKLOG)를 겹쳐 `LANES.html` 로 그린다. `npm run lanes:check`
 | WORLD·KNOWLEDGE | HUMAN | **트랙이 방금 섰다** — 후보 일곱 중 선택 대기. 전투 지식(CK) 주입으로 판단이라는 층이 세워졌다. 의존이 빈 것은 `FR-WHAT-YOU-KNOW-FIGHTS-WITH-YOU`(배운 것이 몸의 판단이 된다) 하나이며 나머지 여섯이 전부 그것을 전제한다 — 이 트랙에는 고민할 순서가 없다. **철회된 대응 층이 돌아올 자리이기도 하다** (CK §15) | Human Select (frontier/knowledge.md) |
 | VIEW | OPEN | BACKLOG 다음 항목(drag-and-drop)부터 — 기반 동반이 필요한 셋(tip-flip-at-the-edge · escape-leaves-the-field · workspace-two-columns)은 ENGINE 뒤에 잡는다 | 없음 |
 | MASTER | OPEN | OPTIONS Q35 (몸이 아닌 존재를 요구하는 Possibility) — 이제 스킬 실행 형태의 빈 다섯 칸만 막는다. 성장(GS · GB)과 전투 상층(UL) 주입은 둘 다 끝났다: 결정 열(Q52~Q61) 반영 · GROWTH 후보 3 · COMBAT 후보 10 과 SELECTED 까지 | 없음 — 미처리 Feedback 이 0 이다 (`npm run feedback:gate`) |
-| ENGINE | OPEN | 셋 — ① **자판이 표면 안을 다니는 길** — 정해진 초점 차례가 없고(`tabindex` 0건), 글자 자리에서 `Esc` 가 죽는다(붙잡는 단계가 `INPUT` 에서 비켜 주고 받는 자리가 없다). 다시 그릴 때 초점을 붙드는 자리는 이미 섰다. BACKLOG 의 `escape-leaves-the-field` · `skill-focus-order` 가 이것을 기다린다 ② **겹침 표면의 자리 잡기** — 곁말이 가장자리에서 접히는 일 · 구획을 나란히 놓는 일 (`tip-flip-at-the-edge` · `workspace-two-columns`) ③ 지면 구역 장치 `SceneGroundZone` ([design/Design-Terrain-Visualization.md](../../design/Design-Terrain-Visualization.md)) — C-TERRAIN-001 의 04 확정 뒤 | 없음 |
+| ENGINE | OPEN | 둘 — ① **겹침 표면의 자리 잡기** — 곁말이 가장자리에서 접히는 일 · 구획을 나란히 놓는 일 (`tip-flip-at-the-edge` · `workspace-two-columns`) ② 지면 구역 장치 `SceneGroundZone` ([design/Design-Terrain-Visualization.md](../../design/Design-Terrain-Visualization.md)) — C-TERRAIN-001 의 04 확정 뒤. **자판이 표면 안을 다니는 길은 섰다** — Tab 이 표면 안에서 감기고, 실려 온 초점이 곧 브라우저의 초점이며, 글자 자리의 `Esc` 가 그 자리를 빠져나온다. BACKLOG 의 `escape-leaves-the-field` · `skill-focus-order` 는 기반 쪽이 풀렸다 (VIEW 가 잡는다) | 없음 |
 | PROCESS | OPEN | **Q67 이 열렸다** — 병렬 레인이 공유하는 두 자리가 어긋난다 (Q 번호공간이 레인 소유가 아니다 · `frontier/README.md` 트랙 표가 트랙 파일과 어긋난다). 이번 합류에서 둘 다 실제로 났고 손으로 고쳤다. 그 밖에는 없음 — 보고 형식이 guides/works.md 의 "보고" 절에 섰다 | 없음 |
 
 ## 레인 사이 충돌 — 순서가 아니라 파일이 겹치는 곳
@@ -58,7 +58,7 @@ Feedback · BACKLOG)를 겹쳐 `LANES.html` 로 그린다. `npm run lanes:check`
 | WORLD·KNOWLEDGE ↔ WORLD·COMBAT | 첫 후보가 전투법으로 무엇을 세우느냐에 따라 `Actor.Allocation`(C-COMBAT-001)에 닿을 수 있다. **배분을 쓰지 않는 전투법으로 시작하면 겹치지 않는다** — 억제/우선의 대상을 스킬 가부로 잡으면 C007 이래의 얼개만 쓴다 (frontier/knowledge.md 첫 후보의 "주"). 그리고 지식이 상대의 규칙을 읽는 갈래는 COMBAT 의 조건 관문이 서면 두꺼워진다 — 막는 의존은 아니다 |
 | WORLD·KNOWLEDGE ↔ WORLD·GROWTH | 지식의 깊이와 성장의 숙련 축이 같은 형태다 ("쓴 것이 쌓여 무엇이 열린다") — **먼저 서는 쪽의 형태를 뒤가 재사용한다**. 그리고 전투 지식의 자리 수가 성장의 여섯째 축이 되었으므로(Q65(b) · `MS-GROWTH-SOURCE` 의 KNOWLEDGE-CAPACITY) 자리가 자라는 일은 GROWTH 와 함께 본다 |
 | 기반의 문구 ↔ VIEW 의 문구 표 | 기반이 새 문구 코드를 부르면 팩의 `view/code-text.ts` 에 줄이 는다 — 그 한 줄이 겹치는 전부다. 코드의 단일 출처는 `engine/view-kernel/presentation/text-codes.ts` 의 `ENGINE_TEXT_CODES` 이고, 덮이지 않은 것은 팩의 검사(`view/tests/engine-text.spec.ts`)가 어느 자리인지 가리킨다 |
-| VIEW 의 skill-focus-order ↔ ENGINE | 초점 차례를 세우는 자리가 기반이면 ENGINE 동반이 필요하다 — 지금은 팩 키(`L`)가 지름길로 그 구멍을 메우고 있다 |
+| VIEW 의 skill-focus-order ↔ ENGINE | **기반 쪽은 섰다** — 표면 안의 차례는 겹침 표면 능력이 지닌다 (Tab 이 안에서 감기고, Tab 자리는 무리마다 하나이며, 실려 온 초점이 곧 브라우저의 초점이다). 팩 키(`L`)는 이제 지름길로 남는다. 표면 **밖**의 차례(대상 → Skill Bar → 상세 → 오버레이)는 여전히 VIEW 의 몫이다 |
 
 ## HUMAN 대기
 

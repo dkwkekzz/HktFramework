@@ -18,6 +18,13 @@
 //   · **곁말**(tip)을 여는 일 — 손을 얹었을 때와 **초점이 닿았을 때 똑같이** 열고,
 //     Escape 로 닫는다. 곁말의 Escape 는 표면의 Escape 보다 먼저다: 읽던 것을 닫자고
 //     누른 손이 표면째 닫아 버리면 그 자리로 돌아오는 길이 사라진다
+//   · **자판이 표면 안을 다니는 길** — 잡아 둔 자판이 갈 곳을 주는 일이다
+//     (판단은 `surface-focus.ts`, 여기서는 마디를 만진다)
+//       Tab 은 표면 안에서 감긴다 — 뒤의 페이지로 새어 나가지 않는다
+//       Tab 자리는 무리마다 하나다 — 무리 안을 걷는 것은 방향키의 일이다
+//       실려 온 초점(`focusId`)이 곧 브라우저의 초점이다 — 링과 캐럿이 갈라지지 않는다
+//       글자 자리의 Escape 는 그 자리에서 나온다 — 표면은 열린 채다
+//       열기 전에 초점이 있던 자리는 닫힐 때 되돌려 준다
 //
 // 이 능력이 소유하지 않는 것:
 //   · 무엇이 고른 것인가 (cell.selected 로 실려 온다 — 결정 Layer 가 쥔다)
@@ -27,8 +34,18 @@
 //     옮기는 말도 짓지 않는다. 코드로 부르고 팩의 문구 표가 말을 준다
 //     (문구 반전 ⑤ — 명령 표면이 간 길 그대로)
 
+import { nextIndex } from '../input/focus';
 import { RAW_CODE, type CodeTextFn } from '../presentation/code-text';
 import type { SceneSurface, SceneSurfaceSection } from '../scene/scene-state';
+import { enterStop, escapeMeans, focusToClaim, tabStopId } from './surface-focus';
+
+/**
+ * Tab 이 서는 자리들 — **문서에 놓인 차례 그대로**다 (querySelectorAll 이 그 차례를 준다).
+ *
+ * 칸·줄은 `tabindex="0"` 인 것만 여기 든다. 나머지는 `-1` 이라 Tab 에 걸리지 않지만
+ * 초점 자체는 받을 수 있다 — 방향키가 옮겨 주는 자리이기 때문이다.
+ */
+const TAB_STOPS = '.sf-close, .sf-field, .sf-cell[tabindex="0"], .sf-row[tabindex="0"]';
 
 /**
  * 이 능력이 부르는 문구 코드 전부 — 팩이 덮지 못한 것을 검사가 잡는다.
@@ -72,6 +89,22 @@ export interface SurfaceHandlers {
   onFieldInput?(surfaceId: string, fieldId: string, text: string): void;
 }
 
+/**
+ * 다시 그린 뒤 **같은 자리를 되찾는 열쇠** — 없으면 null.
+ *
+ * 표면은 통째로 다시 그려지므로(innerHTML) 마디는 매번 새것이다. 붙들 수 있는 것은
+ * 마디가 아니라 그 자리를 가리키는 말뿐이다.
+ */
+function holdSelector(el: HTMLElement | null): string | null {
+  if (!el) return null;
+  if (el.classList.contains('sf-close')) return '.sf-close';
+  const id = el.dataset.id;
+  if (id === undefined) return null;
+  if (el.classList.contains('sf-cell')) return `.sf-cell[data-id="${CSS.escape(id)}"]`;
+  if (el.classList.contains('sf-row')) return `.sf-row[data-id="${CSS.escape(id)}"]`;
+  return null;
+}
+
 function escape(text: string): string {
   return text.replace(
     /[&<>"]/g,
@@ -96,6 +129,7 @@ function renderSection(
         (field.placeholder ? ` placeholder="${escape(field.placeholder)}"` : '') +
         ` aria-label="${escape(field.label)}"` +
         ` data-claim-focus="${field.claimFocus === true}"` +
+        ' tabindex="0"' +
         ` autocomplete="off" spellcheck="false" />`
       : '');
 
@@ -106,6 +140,16 @@ function renderSection(
     }
     const columns = section.columns && section.columns > 0 ? section.columns : 6;
     const shape = section.shape ?? 'slot';
+    // 이 무리에서 Tab 이 서는 한 자리 — 나머지는 방향키가 옮겨 주는 자리다.
+    // **실려 온 초점이 없으면 전부 Tab 자리로 둔다**: 링을 모는 손이 없다는 뜻이므로,
+    // 그때 한 자리로 줄이면 나머지 칸에 닿는 길이 자판에서 사라진다
+    const cellStop =
+      focusId === undefined
+        ? undefined
+        : tabStopId(
+            section.cells.map((cell) => cell.id),
+            focusId,
+          );
     const cells = section.cells
       .map((cell) => {
         // 접근성 이름 — 이름과 곁글자와 표식을 한 줄로. **빈 자리도 이름을 가진다**.
@@ -128,6 +172,7 @@ function renderSection(
           `<button type="button" class="sf-cell" data-id="${escape(cell.id)}"` +
           ` data-empty="${cell.empty}" data-selected="${cell.selected}"` +
           ` data-focused="${cell.id === focusId}"` +
+          ` tabindex="${cellStop === undefined || cell.id === cellStop ? 0 : -1}"` +
           (tip ? ' data-tip="true"' : '') +
           (level === undefined ? '' : ` style="--sf-level:${level.toFixed(3)}"`) +
           ` aria-label="${escape(label)}" aria-pressed="${cell.selected}">` +
@@ -151,6 +196,8 @@ function renderSection(
   if (rows.length === 0 && section.emptyText) {
     return `<div class="sf-section">${head}<div class="sf-empty">${escape(section.emptyText)}</div></div>`;
   }
+  const rowStop =
+    focusId === undefined ? undefined : tabStopId(rows.map((row) => row.id), focusId);
   const body = rows
     .map((row) => {
       // 상태를 색 하나로 전하지 않는다 — 표식 글자를 함께 둔다
@@ -173,6 +220,7 @@ function renderSection(
         `<button type="button" class="sf-row" data-id="${escape(row.id)}"` +
         (row.state ? ` data-state="${row.state}"` : '') +
         ` data-focused="${row.id === focusId}"` +
+        ` tabindex="${rowStop === undefined || row.id === rowStop ? 0 : -1}"` +
         (row.state === 'blocked' ? ' aria-disabled="true"' : '') +
         ` aria-label="${escape(spoken)}">` +
         (badge ? `<span class="sf-row-badge">${badge}</span>` : '') +
@@ -199,7 +247,7 @@ export function surfaceMarkup(surface: SceneSurface, textOf: CodeTextFn = RAW_CO
   return (
     `<header class="sf-head"><h2 class="sf-title">${escape(surface.title)}</h2>` +
     `<button type="button" class="sf-close" data-surface="${escape(surface.id)}"` +
-    ` title="${closeText}" aria-label="${closeText}">✕</button></header>` +
+    ` tabindex="0" title="${closeText}" aria-label="${closeText}">✕</button></header>` +
     `<div class="sf-body">${surface.sections
       .map((section) => renderSection(section, surface.focusId, textOf))
       .join('')}</div>` +
@@ -224,6 +272,16 @@ export function createSurfaceLayer(
   let openIds: string[] = [];
   // 프레임마다 innerHTML 을 갈아 끼우지 않기 위해 마지막으로 그린 것을 기억한다
   const drawn = new Map<string, { node: HTMLElement; html: string }>();
+  // 표면마다 지난 프레임에 실려 온 초점 — 링이 움직였는지는 이 둘의 차이가 말한다
+  const lastFocus = new Map<string, string | undefined>();
+  /**
+   * 표면이 열리기 전에 초점이 있던 자리 — 닫히면 그리로 되돌려 준다.
+   *
+   * 표면을 여는 것은 대개 화면의 어떤 단추이고, 닫고 나면 겪는 사람은 그 자리에서
+   * 하던 일을 잇는다. 되돌리지 않으면 초점은 문서의 맨 앞으로 떨어지고, 자판만 쓰는
+   * 사람은 방금 있던 자리를 처음부터 다시 찾아가야 한다.
+   */
+  let focusBefore: HTMLElement | null = null;
 
   // ── 곁말 (tip) ──────────────────────────────────────────────────
   //
@@ -301,21 +359,97 @@ export function createSurfaceLayer(
     }
   });
 
+  // ── 자판이 다니는 길 ────────────────────────────────────────────
+  //
+  // 판단은 `surface-focus.ts` 가 지닌다. 여기 있는 것은 그 판단대로 마디를 만지는 일뿐이다.
+
+  /** 맨 위 표면의 마디 — 겹쳐 있으면 뒤의 것이 위다 (닫히는 차례와 같다) */
+  function topSurfaceNode(): HTMLElement | undefined {
+    const id = openIds[openIds.length - 1];
+    return id === undefined ? undefined : drawn.get(id)?.node;
+  }
+
+  function tabStopsOf(node: HTMLElement): HTMLElement[] {
+    return Array.from(node.querySelectorAll<HTMLElement>(TAB_STOPS));
+  }
+
+  /** 지금 링이 그려진 자리 — 실려 온 초점을 마디에서 되읽는다 */
+  function ringOf(node: HTMLElement): HTMLElement | null {
+    return node.querySelector<HTMLElement>('[data-focused="true"]');
+  }
+
+  /**
+   * 표면 안으로 들어간다 — 링이 있으면 그 자리, 없으면 **표면 자신**이다.
+   *
+   * 첫 Tab 자리(닫는 단추)로 들어가지 않는 이유가 있다. 그 자리에 서면 Enter 한 번이
+   * 곧 닫기가 되고, 방금 연 표면이 무엇을 하는 곳인지 읽기도 전에 닫힌다. 표면 자신에
+   * 서면 읽어 주는 장치는 제목과 "대화 상자" 를 먼저 말하고, 다음 Tab 이 안으로 들어간다.
+   */
+  function focusInto(node: HTMLElement): void {
+    (ringOf(node) ?? node).focus();
+  }
+
+  /**
+   * Tab 은 표면 안에서 감긴다.
+   *
+   * 표면은 이미 자판을 잡고 있다 (`capturing`). 그런데 Tab 만은 뒤의 페이지로 새어
+   * 나갔고, 그러면 자판을 쥔 채 화면 밖으로 걸어 나간 꼴이 된다 — 돌아오는 길은
+   * 눈에 보이지 않는다. 감기는 이유는 `input/focus.ts` 와 같다: 감기지 않으면 양 끝이
+   * 막다른 곳이 되고, 그때 겪는 사람은 끝에 선 것인지 조작이 죽은 것인지 알 수 없다.
+   */
   window.addEventListener(
     'keydown',
     (ev) => {
-      if (ev.key !== 'Escape' || openIds.length === 0) return;
-      // 글자를 쓰고 있는 자리의 Escape 는 그 자리의 것이다 — 붙잡는 단계에서 받으므로
-      // 여기서 비켜 주지 않으면 다른 표면의 Escape 를 이쪽이 가로챈다.
-      const target = ev.target as HTMLElement | null;
-      const tag = target?.tagName;
-      if (tag === 'INPUT' || tag === 'TEXTAREA' || target?.isContentEditable) return;
+      if (ev.key !== 'Tab') return;
+      const node = topSurfaceNode();
+      if (!node) return;
+      const stops = tabStopsOf(node);
+      // 설 자리가 하나도 없는 표면은 가두지 않는다 — 가두면 Tab 이 아무 데도 가지
+      // 못하는 자리가 되고, 그것은 붙잡은 것이 아니라 막아 둔 것이다
+      if (stops.length === 0) return;
       ev.preventDefault();
       ev.stopPropagation();
-      // **곁말이 먼저다.** 읽던 것을 닫자고 누른 손이 표면째 닫아 버리면,
-      // 그 자리로 돌아오는 길이 사라진다 (문서 §8 — `Esc` 로 닫힌다).
-      if (openTip) {
-        dismissedTip = tipKey(openTip.surfaceId, openTip.cellId);
+      const at = stops.indexOf(document.activeElement as HTMLElement);
+      const to =
+        at < 0
+          ? enterStop(stops.length, ev.shiftKey)
+          : nextIndex(stops.length, at, ev.shiftKey ? -1 : 1);
+      stops[to]?.focus();
+    },
+    true,
+  );
+
+  window.addEventListener(
+    'keydown',
+    (ev) => {
+      if (ev.key !== 'Escape') return;
+      const target = ev.target as HTMLElement | null;
+      // 우리 표면의 글자 자리인가 — 표면 밖의 글자 자리(다른 화면의 입력)는 그 자리의
+      // 것이므로 건드리지 않는다
+      const field = target?.closest<HTMLElement>('.sf-field') ?? null;
+      const inField = field !== null && root.contains(field);
+      if (!inField) {
+        const tag = target?.tagName;
+        if (tag === 'INPUT' || tag === 'TEXTAREA' || target?.isContentEditable) return;
+      }
+      const meaning = escapeMeans({
+        anyOpen: openIds.length > 0,
+        inField,
+        tipOpen: openTip !== null,
+      });
+      if (meaning === 'none') return;
+      ev.preventDefault();
+      ev.stopPropagation();
+      if (meaning === 'leave-field') {
+        // **표면은 열린 채다.** 한 번에 하나씩 닫히므로 다음 Escape 가 표면을 닫는다 —
+        // 그 전까지 이 자리를 떠나는 것만으로 자판이 표면 안을 다시 다닐 수 있다
+        // (글자 자리에 있는 동안 방향키·Tab 은 전부 그 자리의 것이었다).
+        const node = target?.closest<HTMLElement>('.sf');
+        if (node) focusInto(node);
+        return;
+      }
+      if (meaning === 'close-tip') {
+        dismissedTip = tipKey(openTip!.surfaceId, openTip!.cellId);
         hideTip();
         return;
       }
@@ -418,6 +552,13 @@ export function createSurfaceLayer(
     render(surfaces) {
       const seen = new Set<string>();
       const nowOpen: string[] = [];
+      const wasOpen = openIds;
+      // 아무것도 열려 있지 않은 동안에는 지금 초점이 있는 자리가 곧 "열기 전 자리" 다.
+      // 열린 뒤에 재면 이미 표면 안이라 되돌릴 자리가 아니다
+      if (wasOpen.length === 0) {
+        const active = document.activeElement as HTMLElement | null;
+        focusBefore = active && !root.contains(active) ? active : null;
+      }
 
       for (const surface of surfaces) {
         seen.add(surface.id);
@@ -428,6 +569,13 @@ export function createSurfaceLayer(
           // 눌린 자리가 어느 표면의 것인지 되읽는 열쇠 — 닫는 단추만 알던 것을
           // 마디 자신이 지닌다
           node.dataset.surface = surface.id;
+          // 자판을 가두는 자리는 **가둔다고 말해야 한다** — 읽어 주는 장치는 이 표시가
+          // 없으면 뒤의 페이지를 계속 읽고, 그러면 갇힌 것은 초점뿐이고 목소리는 밖에 있다
+          node.setAttribute('role', 'dialog');
+          node.setAttribute('aria-modal', 'true');
+          // 마디 자신이 초점을 받을 수 있어야 한다 — 열린 표면이 처음 서는 자리다.
+          // Tab 자리는 아니다 (-1): 다니는 차례는 안의 것들이 지닌다
+          node.tabIndex = -1;
           root.appendChild(node);
           entry = { node, html: '' };
           drawn.set(surface.id, entry);
@@ -435,6 +583,8 @@ export function createSurfaceLayer(
 
         entry.node.classList.toggle('sf-open', surface.open);
         entry.node.setAttribute('aria-hidden', String(!surface.open));
+        // 이름 없는 대화 상자가 되지 않게 — 제목이 곧 이 자리의 이름이다
+        entry.node.setAttribute('aria-label', surface.title);
         if (!surface.open) continue;
         nowOpen.push(surface.id);
 
@@ -450,27 +600,22 @@ export function createSurfaceLayer(
             active?.classList.contains('sf-field') && entry.node.contains(active)
               ? { id: active.dataset.id, at: active.selectionStart }
               : null;
-          // 칸·줄에 닿아 있던 초점도 붙들었다 놓아 준다. 붙들지 않으면 목록이
+          // 칸·줄·닫는 자리에 닿아 있던 초점도 붙들었다 놓아 준다. 붙들지 않으면 목록이
           // 한 번 다시 그려질 때마다 초점이 화면 밖으로 튀어나가고, 자판만 쓰는
           // 사람은 방금 읽던 자리를 잃는다 — 곁말도 함께 닫힌다.
-          const focused =
+          //
+          // **닫는 자리도 함께 센다.** Tab 이 표면 안에서 감기게 된 뒤로 그 자리에
+          // 서 있는 시간이 생겼고, 세지 않으면 거기 선 채로 한 번 다시 그려질 때
+          // 초점이 통째로 사라진다.
+          const held =
             active && entry.node.contains(active) && !typing
-              ? (active.closest<HTMLElement>('.sf-cell, .sf-row') ?? null)
+              ? holdSelector(active.closest<HTMLElement>('.sf-cell, .sf-row, .sf-close'))
               : null;
-          const focusedAgain = focused
-            ? { selector: focused.classList.contains('sf-cell') ? '.sf-cell' : '.sf-row', id: focused.dataset.id }
-            : null;
 
           entry.node.innerHTML = html;
           entry.html = html;
 
-          if (focusedAgain?.id !== undefined) {
-            entry.node
-              .querySelector<HTMLElement>(
-                `${focusedAgain.selector}[data-id="${CSS.escape(focusedAgain.id)}"]`,
-              )
-              ?.focus();
-          }
+          if (held) entry.node.querySelector<HTMLElement>(held)?.focus();
 
           if (typing?.id !== undefined) {
             const again = entry.node.querySelector<HTMLInputElement>(
@@ -493,6 +638,26 @@ export function createSurfaceLayer(
             claimed.setSelectionRange(claimed.value.length, claimed.value.length);
           }
         }
+
+        // 실려 온 초점을 브라우저의 초점으로 삼는다 — 링과 캐럿이 갈라지지 않게.
+        // 판단은 surface-focus.ts 가 하고 여기서는 그대로 옮긴다
+        const active = document.activeElement as HTMLElement | null;
+        const claim = focusToClaim({
+          focusId: surface.focusId,
+          lastFocus: lastFocus.get(surface.id),
+          justOpened: !wasOpen.includes(surface.id),
+          typing: active !== null && entry.node.contains(active) && active.closest('.sf-field') !== null,
+        });
+        lastFocus.set(surface.id, surface.focusId);
+        if (claim.move === 'ring') {
+          entry.node
+            .querySelector<HTMLElement>(
+              `.sf-cell[data-id="${CSS.escape(claim.id)}"], .sf-row[data-id="${CSS.escape(claim.id)}"]`,
+            )
+            ?.focus();
+        } else if (claim.move === 'enter') {
+          focusInto(entry.node);
+        }
       }
 
       // 지시에서 사라진 표면은 함께 사라진다
@@ -500,6 +665,27 @@ export function createSurfaceLayer(
         if (seen.has(id)) continue;
         entry.node.remove();
         drawn.delete(id);
+      }
+
+      // 닫힌 표면은 지난 초점도 함께 잊는다 — 다시 열리면 그때 실려 오는 것이 참이다
+      for (const id of lastFocus.keys()) {
+        if (!nowOpen.includes(id)) lastFocus.delete(id);
+      }
+
+      // 마지막 표면이 닫혔다 — 열기 전 자리로 되돌려 준다.
+      //
+      // 그 자리가 사라졌으면(`isConnected` 가 거짓이면) 아무 데도 옮기지 않는다: 없는
+      // 자리를 찾아 헤매느니 브라우저가 정한 자리에 두는 편이 예측된다.
+      //
+      // 그리고 **빼앗지 않는다.** 되돌리는 것은 초점이 표면과 함께 사라졌을 때뿐이다 —
+      // 닫히는 사이에 겪는 사람이 표면 밖 어딘가를 짚었으면 그 자리가 그 사람의 뜻이다.
+      // 표면이 숨겨지는 순간 브라우저가 초점을 놓아 버리므로(문서 몸통으로 떨어진다)
+      // 그 자리도 "사라진 초점" 으로 함께 센다.
+      if (wasOpen.length > 0 && nowOpen.length === 0) {
+        const active = document.activeElement as HTMLElement | null;
+        const lost = active === null || active === document.body || root.contains(active);
+        if (focusBefore?.isConnected && lost) focusBefore.focus();
+        focusBefore = null;
       }
 
       openIds = nowOpen;

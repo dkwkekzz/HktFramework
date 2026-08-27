@@ -7,6 +7,19 @@
 // 이 파일에는 게임의 명사가 하나도 없다. 무엇의 목록인지 알지 못한다.
 
 /**
+ * 늘어선 것들의 **자리 번호** 위에서 다음 자리를 구한다 — 감기는 산수 그 자체다.
+ *
+ * 목록이 id 로 오지 않는 자리(그려진 마디 그대로)를 위해 따로 서 있다. `at` 은 목록
+ * 안의 자리여야 한다 — 목록 밖에서 들어오는 일(초점이 아직 아무 데도 없는 일)은
+ * 어느 끝으로 들어올지가 부르는 쪽의 뜻이므로 여기서 정하지 않는다.
+ */
+export function nextIndex(count: number, at: number, delta: number): number {
+  if (count <= 0) return 0;
+  // 나머지 연산이 음수를 내지 않게 한 번 더 더한다 — 왼쪽으로 감기는 자리다
+  return (((at + delta) % count) + count) % count;
+}
+
+/**
  * 한 줄로 늘어선 것들 사이의 이동.
  *
  * 목록이 비었으면 초점도 없다. 지금 자리가 목록에 없으면(방금 사라졌으면) 첫 자리로
@@ -23,10 +36,7 @@ export function moveFocus(
   if (ids.length === 0) return undefined;
   const at = current === undefined ? -1 : ids.indexOf(current);
   if (at < 0) return ids[0];
-  const size = ids.length;
-  // 나머지 연산이 음수를 내지 않게 한 번 더 더한다 — 왼쪽으로 감기는 자리다
-  const next = (((at + delta) % size) + size) % size;
-  return ids[next];
+  return ids[nextIndex(ids.length, at, delta)];
 }
 
 /**

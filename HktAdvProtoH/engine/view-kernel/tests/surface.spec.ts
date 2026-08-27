@@ -399,3 +399,96 @@ describe('칸의 꼴 (shape)', () => {
     expect(shaped('chip')).toContain('data-shape="chip"');
   });
 });
+
+describe('surfaceMarkup — 자판이 서는 자리', () => {
+  it('닫는 자리와 글자 자리는 언제나 Tab 자리다', () => {
+    const html = surfaceMarkup(
+      surface({
+        sections: [
+          {
+            id: 'find',
+            field: { id: 'q', text: '', label: '찾는 말' },
+            rows: [{ id: 'r0', text: '한 줄' }],
+          },
+        ],
+      }),
+      TEXT,
+    );
+    expect(html).toContain('class="sf-close" data-surface="bag" tabindex="0"');
+    expect(html).toContain('class="sf-field" data-id="q"');
+    expect(html).toContain(' tabindex="0" autocomplete');
+  });
+
+  it('실려 온 초점이 있으면 그 무리의 Tab 자리는 하나다 — 나머지는 방향키의 자리다', () => {
+    const html = surfaceMarkup(
+      surface({
+        focusId: 'c2',
+        sections: [
+          {
+            id: 'cells',
+            cells: [
+              { id: 'c0', text: '돌', empty: false, selected: false },
+              { id: 'c1', text: '흙', empty: false, selected: false },
+              { id: 'c2', text: '곡괭이', empty: false, selected: false },
+            ],
+          },
+        ],
+      }),
+      TEXT,
+    );
+    expect(html.match(/class="sf-cell"[^>]*tabindex="0"/g)).toHaveLength(1);
+    expect(html.match(/class="sf-cell"[^>]*tabindex="-1"/g)).toHaveLength(2);
+    // 선 자리는 링이 있는 자리다 — 링과 Tab 자리가 갈라지지 않는다
+    expect(html).toContain('data-id="c2" data-empty="false" data-selected="false" data-focused="true" tabindex="0"');
+  });
+
+  it('초점이 다른 무리에 있어도 이 무리는 첫 자리를 남긴다 — 닿는 길이 사라지지 않는다', () => {
+    const html = surfaceMarkup(
+      surface({
+        focusId: 'r1',
+        sections: [
+          {
+            id: 'cells',
+            cells: [
+              { id: 'c0', text: '돌', empty: false, selected: false },
+              { id: 'c1', text: '흙', empty: false, selected: false },
+            ],
+          },
+          {
+            id: 'detail',
+            rows: [
+              { id: 'r0', text: '버린다' },
+              { id: 'r1', text: '건다' },
+            ],
+          },
+        ],
+      }),
+      TEXT,
+    );
+    expect(html.match(/class="sf-cell"[^>]*tabindex="0"/g)).toHaveLength(1);
+    expect(html).toContain('data-id="c0" data-empty="false" data-selected="false" data-focused="false" tabindex="0"');
+    expect(html.match(/class="sf-row"[^>]*tabindex="0"/g)).toHaveLength(1);
+    expect(html).toContain('data-id="r1" data-focused="true" tabindex="0"');
+  });
+
+  it('실려 온 초점이 없으면 칸도 줄도 전부 Tab 자리다 — 링을 모는 손이 없다는 뜻이다', () => {
+    const html = surfaceMarkup(
+      surface({
+        sections: [
+          {
+            id: 'cells',
+            cells: [
+              { id: 'c0', text: '돌', empty: false, selected: false },
+              { id: 'c1', text: '', empty: true, selected: false },
+            ],
+          },
+          { id: 'detail', rows: [{ id: 'r0', text: '버린다' }, { id: 'r1', text: '건다' }] },
+        ],
+      }),
+      TEXT,
+    );
+    expect(html.match(/tabindex="-1"/g)).toBeNull();
+    expect(html.match(/class="sf-cell"[^>]*tabindex="0"/g)).toHaveLength(2);
+    expect(html.match(/class="sf-row"[^>]*tabindex="0"/g)).toHaveLength(2);
+  });
+});
