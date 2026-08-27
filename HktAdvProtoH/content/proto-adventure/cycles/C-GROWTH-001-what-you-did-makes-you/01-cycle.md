@@ -6,7 +6,7 @@
 [PASS] GameView Specification      (더하는 것 셋 · 새 조작 0 · 남의 것은 오지 않는다 · GAP 없음)
 [PASS] Human Semantic Review       (APPROVED — Human 위임 · 넷째 항·자라는 값 넷·수치 셋 확정)
 [PASS] World Implementation        (1504 tests · engine 무변경 · 새 조작 0 · 넷째 항)
-[    ] View Implementation
+[PASS] View Implementation         (1520 tests · 새 조작 0 · 화면에 산술 0 · GAP 0)
 [    ] Verification
 
 STATUS  IN PROGRESS

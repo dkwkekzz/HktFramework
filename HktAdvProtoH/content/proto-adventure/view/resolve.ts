@@ -52,6 +52,7 @@ import { kindPresentation } from './kind-presentation';
 import { rolePresentation } from './role-presentation';
 import { TARGET_TINT, targetDetailLines, targetHudItems } from './target-presentation';
 import { groundDetailLines, groundZonePlans } from './terrain-presentation';
+import { growthEventLines, growthLines } from './growth-presentation';
 
 // 관찰자 쪽 표시 선택 (C006) — 충돌체 디버그 관찰을 켤지. World 에 아무것도 요청하지 않는다.
 export interface PresentationOptions {
@@ -295,6 +296,16 @@ export function resolvePresentation(
               ),
               ...equipmentDetailLines(snapshot, codeText, shortCodeText),
               ...inventoryDetailLines(snapshot, codeText, shortCodeText),
+              // C-GROWTH-001 — 자란 것은 **맨 뒤다.** 이 값은 국면이 아니라 이력이라
+              // 지금 이 순간의 결정(기술·대상·자리)을 재촉하지 않는다. 급한 것부터
+              // 세우는 이 목록의 순서에서 가장 급하지 않은 자리가 여기다.
+              // 그리고 자기 영역 **끝에만** 더하므로 기존 줄이 한 칸도 밀리지 않는다
+              // (guides/works.md 공유 지점 규칙 · LANES 충돌 칸).
+              ...growthLines(snapshot, codeText),
+              // 방금 쌓인 일들 — 세계가 같은 수명으로 지우므로 스스로 사라진다.
+              // 자란 것 바로 아래에 서야 "무엇 때문에 저 숫자가 움직였는가" 가
+              // 한눈에 이어진다.
+              ...growthEventLines(snapshot, codeText),
             ],
           },
         }
