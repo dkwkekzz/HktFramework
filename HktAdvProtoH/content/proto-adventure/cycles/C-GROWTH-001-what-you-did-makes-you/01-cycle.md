@@ -1,7 +1,7 @@
 # CYCLE C-GROWTH-001 — What You Did Makes You
 
-[PASS] Cycle Definition           (쌓이는 자리 하나 · 기본값이 오른다 · 여는 것은 EXCLUDED)
-[    ] Intent
+[PASS] Cycle Definition           (쌓이는 자리 하나 · 한 일이 몸을 키운다 · 여는 것은 EXCLUDED)
+[PASS] Intent                     (Goal 넷 · 자라는 것은 겨루는 값 둘 · 단계는 파생 · 넷째 항)
 [    ] World Semantic
 [    ] GameView Specification
 [    ] Human Semantic Review
