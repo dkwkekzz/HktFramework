@@ -98,6 +98,7 @@ MS-AURA-NEN(넷)이 소유한다.
 | MC-MARK | MISSING | — | 대상에 남는 표식이라는 개념이 없다. 존재 사이에 남는 것은 태도(C018)와 지목(C017)뿐이고, 둘 다 거는 쪽의 상태이지 걸린 쪽에 붙은 것이 아니다 |
 | MC-BIND | MISSING | — | 존재 사이를 잇는 실체가 없고, 남의 행동 범위를 줄이는 규칙도 없다. 관계는 태도 하나뿐이고 (C018) 그것은 칠 수 있는가만 가른다 |
 | MC-OBSERVE-ABILITY | MISSING | — | 상대가 가진 능력이라는 것이 세계에 없다 — 적대 존재는 하나의 행동만 하고 그것에 규칙도 조건도 없다. 알아낼 대상 자체가 서지 않았다 |
+| MC-DRAIN | MISSING | — | 상대가 유한하게 가진 것이 세계에 없다 — 기력은 자기 것만 줄고, 남의 것을 옮기는 규칙이 하나도 없다 |
 
 ## Capability — 탐험 영역 (BW)
 
@@ -145,6 +146,14 @@ MC-VERIFY-REALITY · MC-FORCE-MOVEMENT · MC-CRAFT-FROM-MATERIALS · MC-TRANSFER
 **줄을 더하지 않았다** — 지형을 요구처(demanded_by)로 더했을 뿐 같은 의미를 새 이름으로
 복제하지 않았기 때문이다. 그것들의 판정은 원래 자리의 줄이 그대로 소유한다.
 
+**다섯 줄이 Q71(b) 확장으로 늘었다.** BT 가 각 대지형의 주요 경험으로 이미 적어 두었으나
+BT 주입이 Capability 로 들어 올리지 않았던 것들이다 — 산맥의 아래쪽 바꾸기 · 낙하 방향
+틀기 · 발판 놓기 (§8.7), 무호흡해의 공기 길 잇기 (§7.7), 혈화수해의 개화 전 구조
+(§11.7), 걷는 대륙의 진로 바꾸기 (§9.6). 계열별 요정 문서(FC)가 같은 것을 캐릭터 능력으로
+요구하면서 그 공백이 드러났고, **요구부터 찾아** 세웠다 (HISTORY Q71(b)).
+다섯 다 MISSING 이고 사유가 하나로 모인다 — 무대가 한 평면이라 아래쪽도, 날아가는 중인
+것도, 놓을 자리도, 살아 있는 땅도 세계에 없다.
+
 | Capability | 상태 | 근거 | 부족한 것 |
 |---|---|---|---|
 | MC-CARRY-LIFE-SUPPORT (빙원 §5.7 · 무호흡해 §7.7) | MISSING | — | 몸이 열·공기 같은 것을 요구하지 않는다 — 지금 몸이 지닌 것은 생명과 기력뿐이고, 둘 다 나눠 줄 수 없다 |
@@ -156,6 +165,11 @@ MC-VERIFY-REALITY · MC-FORCE-MOVEMENT · MC-CRAFT-FROM-MATERIALS · MC-TRANSFER
 | MC-APPRAISE-UNKNOWN-MATTER (갈비분지 §4.5) | MISSING | — | 물건이 정체를 감추지 않는다 — 정의소에 있는 것은 처음부터 전부 알려져 있다 |
 | MC-REALIZE-ONE-POSSIBILITY (사막 §10.5) | MISSING | — | 세계에 가능성이라는 상태가 없다 — 참인 것은 지금의 하나뿐이고 선택되지 않은 것은 남지 않는다 |
 | MC-CONCEAL-BIOLOGICAL-SIGNAL (혈화수해 §11.6) | MISSING | — | 몸의 상태를 좇는 것이 없다 — 남은 생명은 관찰에 실리지만 그것을 근거로 삼는 존재가 없다 |
+| MC-REDEFINE-DOWN (산맥 §8.7 핵심 경험) | MISSING | — | 세계에 아래쪽이라는 것이 없다 — 떨어지는 일도 오르는 일도 없고, 무대는 한 평면이라 벽도 천장도 자리로 존재하지 않는다 |
+| MC-REDIRECT-FALLING-THING (산맥 §8.7) | MISSING | — | 날아가는 중인 것이 세계에 없다 — 공격은 즉시 닿거나 닿지 않고, 진행 중인 것에 개입할 자리가 없다 |
+| MC-PLACE-FOOTING (산맥 §8.7 · 무호흡해 §7.7) | MISSING | — | 몸이 아닌 것이 세계에 자리를 갖지 못한다 — MS-SKILL-FORM 의 공간 존재 칸이 통째로 비어 있고, 무대에는 놓을 자리도 없다 |
+| MC-HOLD-BIOLOGICAL-STATE (혈화수해 §11.2 · §11.3 · §11.7) | MISSING | — | 존재가 단계적으로 다른 것이 되어 가는 과정이 세계에 없다 — 쓰러지는 것 하나뿐이라 붙들 진행이 없다 |
+| MC-LINK-TO-LIVING-WORLD (걷는 대륙 §9.5 · §9.6) | MISSING | — | 땅이 살아 있지 않다 — 무대는 자리와 법칙을 가질 뿐 상태도 의사도 없고, 존재와 이어지는 관계는 태도(적대·중립·우호) 하나뿐이다 |
 
 ## Capability — 지목·관계 영역 (TG · BW §21)
 
@@ -238,7 +252,7 @@ IMPLEMENTED 로 서 있는 MC-EQUIP-ITEM 이 그 자리이기 때문이다 (같�
 | MC-GAIN-LEVEL | PARTIAL | C-GROWTH-001 — 세계 안의 행위가 몸에 쌓이고 문턱을 넘으면 겨루는 값 넷이 오른다. world_shape 두 문장이 실측으로 닫혔다: 걸어가 살펴보고 쳐서 넘어뜨리니 쌓인 것 0 → 22 · 단계 0 → 1 이 되었고, 그 뒤 같은 기술의 피해가 26 → 28 로 · 한 대가 남기는 값이 20 → 22 로 달라졌다. 디버그 명령을 한 번도 열지 않았다 (08 의 WORLD SCENARIO ①③ · PLAYABLE 5 · shots/) | 쌓이는 원천이 이 노드가 든 넷 중 둘뿐이다 — "탐험하고" 와 "사건을 해결한 것" 이 세계에 없다. 그리고 GS §5 가 든 다섯 중 셋(생명력 · 기력 · 기본 이동)이 자라지 않는다 — 그 셋은 아직 "유효 값" 이라는 자리를 지니지 않아 걸린 것도 배분도 성장도 닿을 곳이 없다 |
 | MC-GROW-CLASS-MASTERY · MC-GROW-EXPLORATION-MASTERY (같은 원리의 두 쓰임 — GS §8) | MISSING | — | 형태(Class)라는 것이 세계에 없다 — 몸이 한 종류이고 무엇을 했는지 세는 자리도 없다 |
 | MC-MASTER-A-SKILL | MISSING | — | 스킬이 자란다는 개념이 없다 — 기술은 종류가 정한 값 그대로이고 쓴 이력이 어디에도 남지 않는다 |
-| MC-CHANGE-CLASS | MISSING | — | 몸이 형태를 갖지 않는다 — CL-* 노드가 0 개이고 세계의 몸은 종류 하나로 고정이다 |
+| MC-CHANGE-CLASS | MISSING | — | 몸이 형태를 갖지 않는다 — 세계의 몸은 종류 하나로 고정이고, 형태를 바꾸는 사건도 그 조건을 세는 자리도 없다. 설계 쪽은 절반이 섰다 (Origin CL-* 6) — 넘어갈 상위 형태의 CL-* 가 아직 0 이다 |
 
 ## Capability — 전투 지식 영역 (CK)
 
@@ -288,6 +302,14 @@ Capability 만 보면 전투가 꽤 찬 것처럼 보이지만, 그 전투가 �
 | MW-ZONE-FRINGE | PARTIAL | 정면 전투력이 우위인 적대 존재는 있다. 그것이 사는 **층**이 없고, 우위를 힘 아닌 것으로 뒤집을 수단도 없다 |
 | MW-HYPER-PREDATION · MW-SPATIAL-SHEAR | ABSENT | 대표 지역 둘 다 없다 |
 | MW-MACRO-TERRAIN | PARTIAL | 땅이 자리로 나뉘고 그 자리가 법칙을 지닌다 (C-TERRAIN-001 — World.GroundZones · GroundLawDefinition). 남은 것은 world_shape 의 나머지다: 법칙이 하나뿐이고, 그 법칙이 낳는 자원이 없으며, 어디에 갈 수 있는가가 감당으로 정해지지 않고, 깊이와의 직교도 아직 없다 |
+| MW-TERRAIN-CIRCULATION | PRESENT | C-TERRAIN-002 — 자리가 거둔 것을 지니고(kept), 넘치면 뿜고, 그 안의 몸에게 돌려주고, 다 쓰면 닫혀 도로 거둔다. 같은 자리를 다른 시각에 보면 다르고 그 다름이 "그 사이에 누가 거기서 얼마나 빼앗겼는가" 로 설명된다 — 주기는 세계가 정한 것이 아니다 |
+| MW-SHAPED-LANDFORM | ABSENT | 무대가 평면 하나다 — 산도 물길도 대기도 없고, 자리의 경계는 원으로 그려진 범위이지 순환이 빚은 생김새가 아니다 |
+| MW-SURVIVAL-PRESSURE | PARTIAL | C-TERRAIN-002 로 압력이 순환에서 나온다 — 어디가 거두고 어디가 돌려주는지가 내가 한 일의 결과이므로 읽어서 이용할 거리가 생겼다. 남은 절반은 world_shape 의 "읽은 사람과 읽지 못한 사람이 다른 결과를 낸다" 다: **지금 상태는 읽히나 앞으로 일어날 일은 읽히지 않는다** (MW-CIRCULATION-EVIDENCE 가 그 자리다) |
+| MW-ADAPTED-LIFE | ABSENT | 세계에 있는 것은 좌표로 놓인 방랑자 둘과 광맥 하나뿐이고 셋 다 땅의 법칙과 무관한 자리에 있다. 놓는 것 말고 다른 길이 세계에 없다 |
+| MW-TERRAIN-RESOURCE | ABSENT | 캘 수 있는 것은 광맥의 돌 하나뿐이고, 그것은 어떤 법칙이 낳은 것이 아니라 좌표에 놓인 것이다. 캐어도 세계에 아무 되돌림이 없다 |
+| MW-NATURAL-REFUGE | PRESENT | C-TERRAIN-002 — 예외를 놓을 형이 사라졌다(GroundZone.role 삭제). 법칙이 멎는 자리는 넘쳐서 뿜는 중인 맥뿐이므로 "왜 하필 거기가 안전한가" 에 세계가 답한다 — 거기에 열이 모였기 때문이고, 모인 것은 누군가 거기서 빼앗겼기 때문이다. 그리고 생겨나고 사라진다 |
+| MW-NATURAL-SETTLEMENT | ABSENT | 사람도 문화도 없다 — 세계에 있는 존재는 순회하는 방랑자 둘뿐이고 어디에도 정착하지 않는다 |
+| MW-CIRCULATION-EVIDENCE | ABSENT | 자리의 범위가 화면에 보이지만 그것은 법칙의 경계이지 순환이 남긴 증거가 아니다 — 아직 일어나지 않은 것을 가리키는 것이 세계에 하나도 없다. TERRAIN 트랙의 다음 후보(FR-THE-LAND-SHOWS-BEFORE-IT-TAKES)가 이 노드를 연다 |
 | MW-TERRAIN-* 8종 (BT §4~§11) | ABSENT | 머물 곳과 나갈 곳의 구분이 없다 — 무대가 하나다 |
 | MA-PLAYER | PARTIAL | 몸이 한 종류로 고정이라 고를 갈래 자체가 없다 — 요정 계열 여덟(MS-FAIRY-LINEAGE)이 그 자리이고 아직 비어 있다 |
 | MA-HOSTILE-COMBATANT | PRESENT | **C018 로 마지막 칸이 닫혔다** — 스스로 순찰·추격·공격하고, 플레이어와 **같은 관문**을 지나며(몬스터 전용 규칙 없음), 이제 지킬 자리를 지녀 그 행동이 자기 영역을 지키는 것으로 읽힌다. 같은 종류 두 개체가 하나는 적대하고 하나는 하지 않는다 — 적대가 종류가 아니라 사정의 결과다 |
@@ -300,7 +322,7 @@ Capability 만 보면 전투가 꽤 찬 것처럼 보이지만, 그 전투가 �
 
 어느 경로가 지금 얼마나 닫혀 있는가 — Frontier 는 이 표에서 고른다.
 
-### MG-OVERCOME-SUPERIOR-OPPONENT (14 갈래)
+### MG-OVERCOME-SUPERIOR-OPPONENT (15 갈래)
 
 | Possibility | 요구 중 없는 것 | 비고 |
 |---|---|---|
@@ -318,6 +340,7 @@ Capability 만 보면 전투가 꽤 찬 것처럼 보이지만, 그 전투가 �
 | MP-CONCENTRATE-THE-POWER | MC-AURA-ALLOCATION (PARTIAL) | UL §42 F4 — 상층 넷 중 첫 칸. 아래 세 칸(응답 · 정밀 · 기회)이 먼저 서야 한다는 순서가 문서에 있다 |
 | MP-BIND-BY-CONTRACT | MC-VOW · MC-BIND · MC-MARK · MC-ABILITY-CONDITION | UL §42 F5~F7 — 상층의 마지막 세 칸이 전부 걸린다. 이 세계에서 가장 먼 갈래이고, 동시에 UL 이 §23 에서 대표 실물로 든 갈래다 |
 | MP-KNOW-THE-OPPONENT-RULE | MC-OBSERVE-ABILITY · MC-AURA-ALLOCATION · MC-ABILITY-CONDITION · MC-DISRUPT-ABILITY | 알아낼 대상 자체가 없다 — 적대 존재에게 규칙 있는 능력이 없다. 이 갈래는 상대 쪽에 상층이 서야 성립한다 |
+| MP-TAKE-WHAT-MAKES-IT-STRONG | MC-DRAIN | 상대가 유한하게 가진 것이 세계에 없다 — 옮길 것이 없다 |
 
 ### MG-SURVIVE-ENEMY-OFFENSIVE (4 갈래)
 
@@ -369,11 +392,33 @@ Capability 만 보면 전투가 꽤 찬 것처럼 보이지만, 그 전투가 �
 | 백왕의 갈비분지 (§4) | MC-APPRAISE-UNKNOWN-MATTER · MC-CRAFT-FROM-MATERIALS · MC-TRANSFER-ITEM | 0 / 3 (없음: APPRAISE-UNKNOWN-MATTER · CRAFT-FROM-MATERIALS · TRANSFER-ITEM) |
 | 해를 삼킨 빙원 (§5) | MC-READ-ENVIRONMENT · MC-CARRY-LIFE-SUPPORT · MC-TIME-THE-CYCLE · MC-FIND-SAFE-ROUTE | 0 / 4 (없음: READ-ENVIRONMENT · CARRY-LIFE-SUPPORT · TIME-THE-CYCLE · FIND-SAFE-ROUTE) |
 | 이름을 먹는 수해 (§6) | MC-IDENTITY-ANCHOR · MC-IMPERSONATE-IDENTITY · MC-OBSERVE | 0 / 3 (없음: IDENTITY-ANCHOR · IMPERSONATE-IDENTITY / 절반: OBSERVE) |
-| 무호흡해 (§7) | MC-CARRY-LIFE-SUPPORT · MC-TIME-THE-CYCLE · MC-FIND-SAFE-ROUTE · MC-COORDINATE-WITHOUT-SOUND | 0 / 4 (없음: CARRY-LIFE-SUPPORT · TIME-THE-CYCLE · FIND-SAFE-ROUTE · COORDINATE-WITHOUT-SOUND) |
-| 하늘로 떨어지는 산맥 (§8) | MC-READ-ENVIRONMENT · MC-ANCHOR-LOCAL-LAW · MC-FIND-SAFE-ROUTE · MC-FORCE-MOVEMENT | 0 / 4 (없음: READ-ENVIRONMENT · ANCHOR-LOCAL-LAW · FIND-SAFE-ROUTE / 절반: FORCE-MOVEMENT) |
-| 걷는 대륙의 무리 (§9) | MC-PREDICT · MC-TIME-THE-CYCLE · MC-FIND-SAFE-ROUTE | 0 / 3 (없음: PREDICT · TIME-THE-CYCLE · FIND-SAFE-ROUTE) |
+| 무호흡해 (§7) | MC-CARRY-LIFE-SUPPORT · MC-TIME-THE-CYCLE · MC-FIND-SAFE-ROUTE · MC-COORDINATE-WITHOUT-SOUND · MC-PLACE-FOOTING | 0 / 5 (없음: CARRY-LIFE-SUPPORT · TIME-THE-CYCLE · FIND-SAFE-ROUTE · COORDINATE-WITHOUT-SOUND · PLACE-FOOTING) |
+| 하늘로 떨어지는 산맥 (§8) | MC-READ-ENVIRONMENT · MC-ANCHOR-LOCAL-LAW · MC-FIND-SAFE-ROUTE · MC-FORCE-MOVEMENT · MC-REDEFINE-DOWN · MC-REDIRECT-FALLING-THING · MC-PLACE-FOOTING | 0 / 7 (없음: READ-ENVIRONMENT · ANCHOR-LOCAL-LAW · FIND-SAFE-ROUTE · REDEFINE-DOWN · REDIRECT-FALLING-THING · PLACE-FOOTING / 절반: FORCE-MOVEMENT) |
+| 걷는 대륙의 무리 (§9) | MC-PREDICT · MC-TIME-THE-CYCLE · MC-FIND-SAFE-ROUTE · MC-LINK-TO-LIVING-WORLD | 0 / 4 (없음: PREDICT · TIME-THE-CYCLE · FIND-SAFE-ROUTE · LINK-TO-LIVING-WORLD) |
 | 아직 일어나지 않은 사막 (§10) | MC-VERIFY-REALITY · MC-ANCHOR-LOCAL-LAW · MC-REALIZE-ONE-POSSIBILITY | 0 / 3 (없음: VERIFY-REALITY · ANCHOR-LOCAL-LAW · REALIZE-ONE-POSSIBILITY) |
 | 사람을 꽃피우는 혈화수해 (§11) | MC-CONCEAL-BIOLOGICAL-SIGNAL · MC-TIME-THE-CYCLE · MC-ANCHOR-LOCAL-LAW | 0 / 3 (없음: CONCEAL-BIOLOGICAL-SIGNAL · TIME-THE-CYCLE · ANCHOR-LOCAL-LAW) |
+
+### MG-RESCUE-THE-TAKEN (3 갈래)
+
+**이 Goal 은 갈래가 하나도 없는 채로 서 있었다.** BT 주입이 네 대지형에서 같은 행동을
+발견해 Goal 을 세웠으나, 그 문서가 구출이 일어난다는 사실만 적고 어떻게 하는지를
+말하지 않아 Possibility 를 만들지 않았기 때문이다. Q71(b) 확장이 그 셋을 열었다
+(HISTORY Q71(b)).
+
+셋은 무엇을 다루느냐가 서로 다르다 — 옮겨 가는 **과정**을 붙들거나, 법칙이 걸어 둔
+**것**을 끊거나, 사람이 갈 수 없는 **자리**에 도달하거나. 그래서 배타적이지 않고
+앞뒤로 붙는다: 시간을 벌어 두고 끊는 것도, 도달해서 붙드는 것도 한 판 안에서 성립한다.
+
+**둘째는 새 Capability 를 하나도 요구하지 않는다** — 이미 선 둘로 성립한다. 그런데도
+셋 다 열리지 않는 이유는 그 둘 역시 MISSING 이기 때문이고, 더 근본적으로는 이 Goal 이
+기대는 것이 세계에 없어서다: **존재가 단계적으로 다른 것이 되어 가는 과정**이 없다.
+지금 세계에서 존재는 멀쩡하거나 쓰러지거나 둘뿐이라 되돌릴 자리가 생기지 않는다.
+
+| Possibility | 요구 중 없는 것 | 비고 |
+|---|---|---|
+| MP-STOP-THE-TRANSFER | MC-HOLD-BIOLOGICAL-STATE · MC-OBSERVE | 진행이라는 것이 세계에 없어 붙들 대상이 없다 — 존재는 멀쩡하거나 쓰러지거나 둘뿐이다 |
+| MP-CUT-WHAT-HOLDS-THEM | MC-BREAK-BIOLOGICAL-LINK · MC-DISCOVER-WEAKNESS | **셋 중 유일하게 새 Capability 를 요구하지 않는다** — 이미 선 둘로 성립한다. 다만 그 둘이 모두 MISSING 이다 |
+| MP-REACH-THE-UNREACHABLE | MC-REDEFINE-DOWN · MC-PLACE-FOOTING · MC-REDIRECT-FALLING-THING · MC-CARRY-LIFE-SUPPORT | 넷 다 MISSING 이다. 무대가 한 평면이라 닿을 수 없는 자리라는 것 자체가 세계에 없다 |
 
 ### MG-ACQUIRE-RARE-ORGAN (5 갈래)
 
@@ -413,18 +458,47 @@ Capability 만 보면 전투가 꽤 찬 것처럼 보이지만, 그 전투가 �
    없고, 행동의 앞 구간이 앎의 관문과 무관하게 누구에게나 그냥 온다.
    발견·검증은 그 뒤에 얹힌다.
 
-4. 땅에 시간이 없다  (C-TERRAIN-001 로 **바닥은 깔렸다**)
+4. 땅이 무엇을 할지 미리 말해 주지 않는다  (C-TERRAIN-002 로 **땅이 돌기 시작했다**)
    "땅이 없다" 는 닫혔다. 무대가 자리로 나뉘고 자리가 법칙을 지니며 그 법칙이 멎는
    예외 자리가 그 안에 있다 (MW-MACRO-TERRAIN · MW-TERRAIN-SUNEATER-ICEFIELD 둘 다
    ABSENT → PARTIAL). 앞의 셋이 놓일 바닥은 이제 있다.
 
-   남은 것은 **그 땅이 도는 일**이다. 거둔 것이 어디에도 저장되지 않아 땅이 포화되지도
-   분출하지도 않으므로, 예외 자리가 원인 없이 놓인 상수이고 거두는 속도가 상수다.
-   그래서 BT §15 의 셋째 항(대지 순환)이 통째로 비어 있고, 그 위에 얹히는 것들이
-   설 자리를 얻지 못한다 — 셀 주기가 없어 창에 맞출 수 없고(MC-TIME-THE-CYCLE),
-   이을 자리가 하나뿐이라 길을 만들 수 없다(MC-FIND-SAFE-ROUTE).
-   BT §5.7 이 빙원의 핵심 경험을 "대지가 열을 **어디에서 빼앗고 어디에 저장하는지**를
-   읽는 것" 으로 못 박았는데, 지금 선 것은 앞 절뿐이다.
+   **BT §15 의 셋째 항(대지 순환)이 닫혔다.** C-TERRAIN-002 로 거둔 것이 그 자리에
+   쌓이고, 넘치면 뿜고, 뿜는 것을 몸이 받고, 다 쓰면 닫혀 도로 거둔다. 예외 자리는
+   이제 놓이는 것이 아니라 넘침의 한 국면이며 옮겨 다닌다. BT §5.7 이 못 박은
+   "대지가 열을 어디에서 빼앗고 **어디에 저장하는지**" 의 뒤 절이 섰다.
+
+   **남은 것은 그것을 미리 읽는 일이다.** 지금 세계는 안전한 자리가 옮겨 다니는데
+   그 움직임을 앞질러 읽을 방법이 없다 — 그것은 깊이가 아니라 불공정이다.
+   BT §15.8 의 여덟째 항(관찰 — "설명 없이 볼 수 있는 증거")이 그 자리이고
+   `MW-CIRCULATION-EVIDENCE` 가 ABSENT 다. 셀 주기는 생겼으나 언제 창이 열리는지를
+   읽을 증거가 없어 여전히 겪어 봐야만 안다(MC-TIME-THE-CYCLE), 이을 자리는 여럿이
+   되었으나 어느 것이 곧 닫히는지 모른다(MC-FIND-SAFE-ROUTE).
+
+   그리고 순환이 서면서 **그 아래가 열렸다** — `MW-ADAPTED-LIFE`(무엇이 어디 사는가) ·
+   `MW-TERRAIN-RESOURCE`(그 법칙이 낳는 자원) · `MW-NATURAL-SETTLEMENT`(정착) 셋이
+   매달릴 자리를 지녔고 셋 다 ABSENT 다. 그 셋은 각각 기획서 승인을 기다린다
+   (Design-Creature-Behavior-R0 · Design-Resource-Catalog-R0 — HUMAN 대기).
+
+   **그리고 이것은 대지형 하나의 결손이 아니다.** BT §16 의 세계 골격에서 순환은
+   지형과 생존 압력 사이의 고리이고, 그 아래에 생명과 물질의 적응 · 위험과 자원 ·
+   자연적 피난처 · 사람과 문화가 전부 매달려 있다. 순환이 없는 동안 그 아래의 모든
+   것은 **놓는 수밖에 없다** — 무엇이 어디에 사는지도, 어디가 안전한지도, 무엇이
+   어디서 나는지도 세계가 답하지 못하고 세계를 적는 사람이 좌표에 찍는다. 지금
+   세계가 정확히 그렇다: 해숨구멍은 손으로 놓인 예외 자리이고 광맥은 좌표에 찍혀
+   있으며, `Design-Resource-Catalog-R0.md` §4 가 모든 자원에 요구하는 질문
+   ("그 상태가 오랜 시간 반복되면 무엇이 만들어지는가")에 답할 수 있는 자원이
+   세계에 하나도 없다. 이 사슬은 이제 그래프에 서 있다 — `MW-TERRAIN-CIRCULATION`
+   아래로 지형(`MW-SHAPED-LANDFORM`) · 생존 압력(`MW-SURVIVAL-PRESSURE`) · 적응
+   (`MW-ADAPTED-LIFE`) · 자원(`MW-TERRAIN-RESOURCE`) · 피난처(`MW-NATURAL-REFUGE`) ·
+   정착(`MW-NATURAL-SETTLEMENT`) · 증거(`MW-CIRCULATION-EVIDENCE`) 일곱이며,
+   `world-state.yaml` 머리의 §16 대조표가 열한 고리와 노드의 대응을 갖는다.
+   그리고 순환은 이제 Goal 을 낳는다 (`MG-EXPLORE-BEIRA` — Q69(b) Human 결정) —
+   그래서 다음 후보는 자기 이유를 Constraint 부기가 아니라 Goal 경로로 적을 수 있다.
+
+   **일곱 중 여섯이 ABSENT 다.** 선 것은 생존 압력과 피난처의 절반뿐이며(C-TERRAIN-001),
+   그 절반마저 순환에서 나오지 않고 상수로 놓여 있다. 이 층이 이 세계에서 가장 큰
+   구멍인 이유가 그 수다.
 ```
 
 ## 갱신 경로

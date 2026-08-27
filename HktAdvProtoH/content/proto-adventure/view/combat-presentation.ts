@@ -15,6 +15,7 @@ import type {
 import type { SceneNameplate, SceneSelf, SceneStrike } from '../../../engine/view-kernel/scene/scene-state';
 import { codeText } from './code-text';
 import { allocationLine, allocationMark } from './allocation-presentation';
+import { markLine, markMark } from './mark-presentation';
 import { stanceLine, stanceMark } from './relation-presentation';
 import { startupMark } from './phase-presentation';
 
@@ -49,9 +50,16 @@ export function nameplate(entity: EntityView, spriteSize: number): SceneNameplat
     // 않은 몸에는 붙지 않으며, **붙지 않았다는 것이 곧 관찰이다** (앞의 둘과 같은 태도).
     // 가려지지 않는 값이므로 살펴보지 않은 상대에게도 뜬다 — 얇아진 쪽을 노리는 수가
     // 여기서 시작한다 (04 entities.character.attributes.allocation.meaning).
+    // C-COMBAT-004 — 표식 표기가 배분 표기 뒤, 이름 앞에 붙는다. 아무것도 붙지
+    // 않은 몸에는 없으며, **없다는 것이 곧 관찰이다** (앞의 셋과 같은 태도).
+    // 가려지지 않는 값이므로 살펴보지 않은 상대에게도 뜬다 — 걸린 쪽이 자기에게
+    // 무엇이 붙었는지 알아야 대비가 성립한다 (04 marks.meaning).
+    // 누가 남겼는지는 여기 쓰지 않는다 — 이름줄이 길어진다 (mark-presentation).
     name: `${stanceMark(entity.attributes)}${startupMark(entity)}${allocationMark(
       entity.attributes?.allocation,
-    )}${entity.attributes?.acquainted === false ? `${entity.name} ?` : entity.name}`,
+    )}${markMark(entity.attributes)}${
+      entity.attributes?.acquainted === false ? `${entity.name} ?` : entity.name
+    }`,
     health: Math.round(health),
     healthMaximum: Math.round(healthMaximum),
     healthRatio: healthMaximum > 0 ? Math.max(0, Math.min(1, health / healthMaximum)) : 0,
@@ -91,6 +99,9 @@ export function inspectLines(entity: EntityView): string[] | undefined {
     // C018 — 두 방향을 따로 보인다. 몸 위에는 관계 하나만 붙으므로,
     // 어느 쪽에서 본 태도인지는 여기서 읽는다 (relation-presentation 결정 ②).
     stanceLine(a),
+    // C-COMBAT-004 — 이 몸에 지금 붙어 있는 표식. 몸 위에는 붙었는지만 뜨므로
+    // **누가 남겼는지**는 여기서 읽는다 (관계와 같은 가름).
+    markLine(a.marks),
   ];
 }
 

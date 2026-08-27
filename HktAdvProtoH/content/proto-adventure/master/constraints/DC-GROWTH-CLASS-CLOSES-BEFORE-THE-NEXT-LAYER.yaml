@@ -1,0 +1,53 @@
+# 원본 근거: content/proto-adventure/design/Design-Fairy-Class-Layer0-R0.md (FC) §12 최종 기준(열두 질문) ·
+#   §10 Layer 0 에서 의도적으로 제한하는 것("이 현재 한계가 다음 Class Layer 를 만드는 출발점이 된다")
+id: DC-GROWTH-CLASS-CLOSES-BEFORE-THE-NEXT-LAYER
+type: constraint
+
+statement: >
+  Class 하나는 자신에 대한 열두 질문에 즉시 답할 수 있을 때 완성이며, 특히 지금 할 수
+  없는 것과 원리가 하나 더해지면 어디로 넓어지는가가 닫히기 전에는 그 계열의 다음
+  Layer 를 세우지 않는다.
+rationale: >
+  ❌ 흔한 형태는 위로 먼저 가는 것이다 — 1차 직업의 세부가 비어 있는데 2차와 3차의
+  이름과 궁극기를 먼저 그린다. 그러면 아래층이 나중에 위층에 맞춰 뜯어고쳐지고,
+  플레이어가 가장 오래 머무는 첫 형태가 가장 덜 설계된 형태가 된다.
+  ✅ FC 는 열두 질문을 닫기 전에는 다음 Layer 로 넘어가지 않는다고 적는다 (FC §12) —
+  원리 · 플레이어가 보는 판타지 · 전투에서 반복하는 행동 · 대응 입력이 만드는 행동 ·
+  Aura 를 어디에 몰아 두는가 · 피해 말고 세계의 무엇을 바꾸는가 · 상대의 대응책 ·
+  같은 힘의 탐험 쓰임 · 무엇을 해야 숙련이 오르는가 · 실루엣만으로 구분되는가 ·
+  지금 할 수 없는 것 · 원리가 하나 더해지면 어디로 넓어지는가.
+
+  지켜서 얻는 것은 **다음 Layer 가 발명이 아니라 도출이 된다**는 것이다. 열둘 중 열한째
+  ("지금 할 수 없는 것")가 채워져 있으면 상위 Layer 는 그 빈칸을 메우는 일이 된다 —
+  골완투사가 자신에게만 힘을 결속할 수 있다는 한계가 곧 "타인과 공간에 결속하는" 다음
+  형태의 출발점이다 (FC §10). 어겼을 때 잃는 것: 한계가 적혀 있지 않으면 상위 Layer 는
+  아무 방향으로나 갈 수 있고, 그렇게 만든 층은 아래층과 계보가 끊긴다.
+
+  가장 안 읽히는 조각은 **열두째("어떤 방향으로 확장될 수 있는가")** 다. 상위 Class 를
+  미리 설계하라는 뜻이 아니다 — 미리 설계하는 것은 이 원칙이 금지하는 바로 그 일이다.
+  요구하는 것은 방향 하나이며, 그 방향은 열한째의 한계에서 자동으로 나온다.
+
+  경계 — 이것은 열두 답을 어디에 어떤 칸으로 적어야 하는지를 정하지 않는다. 담기는
+  자리는 형식의 문제이며 Human 이 정한다 (open-questions Q70). 이 원칙이 요구하는 것은
+  **답할 수 있는가**뿐이다.
+
+scope:
+  - GROWTH
+
+requires:
+  - 모든 Class 가 지금 할 수 없는 것을 밝힌다                                  # FC §10 · §12 (11)
+  - 모든 Class 가 원리가 더해졌을 때의 확장 방향을 밝힌다                      # FC §12 (12)
+prohibits:
+  - 아래 Layer 의 열두 답이 비어 있는 상태에서 다음 Layer 를 세우는 것         # FC §12
+prefers:
+  - 상위 Layer 의 출발점을 아래 Layer 의 한계에서 그대로 가져오는 형태         # FC §10
+
+status: APPROVED
+provenance:
+  - HUMAN_DESIGN        # content/proto-adventure/design/Design-Fairy-Class-Layer0-R0.md 주입 → Human 승인 (HISTORY Q68)
+
+relations:
+  supports:
+    - DC-GROWTH-CAPABILITY-DECLARES-ITS-LIMITS   # 능력이 한계를 밝힌다는 요구를 Class 층에서 되풀이한다
+    - DC-COMBAT-ONE-LAYER-AT-A-TIME              # 아래층이 닫히기 전에 위층을 올리지 않는다는 형태가 같다
+  conflicts_with: []

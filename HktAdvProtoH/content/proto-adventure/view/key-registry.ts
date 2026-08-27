@@ -45,7 +45,7 @@ const LABEL_OF_CODE: Record<string, string> = {
   KeyL: 'L',
   KeyQ: 'Q',
   KeyU: 'U',
-  KeyO: 'O',
+  Backquote: '`',
   Comma: ',',
   Enter: 'Enter',
   Escape: 'Esc',
@@ -130,8 +130,14 @@ export const PACK_KEYS = {
   // `key-hints.spec.ts` 의 검사가 이번에도 잡았다 (engine-keys.ts 의 TURN_KEY_CODES).
   // 지금 남은 글자 자리는 O · P · U 셋뿐이며 그중 손이 가장 가까운 것을 쓴다.
   allocation: { code: 'KeyU', what: '배분' },
-  // V-018 — 방금 있었던 일을 되짚는 자리. 남은 글자 자리는 이제 P 하나다
-  executionLog: { code: 'KeyO', what: '방금 있었던 일' },
+  // V-018 — 방금 있었던 일을 되짚는 자리.
+  //
+  // **글자 자리가 아니다.** 처음에는 `KeyO` 를 썼는데, 합류해 보니 C-COMBAT-003 이
+  // 그 자리를 발현 일격에 주고 있었다 (C-COMBAT-004 가 `KeyP` 까지 가져가 글자 키는
+  // 하나도 남지 않았다 — 백로그의 `skill-slot-crowds-the-keyboard`).
+  // 나중에 합류하는 쪽이 옮긴다. 명령 표면의 `/` 와 나란한 자리로 간다 —
+  // 둘 다 세계를 건드리지 않고 지나간 것을 읽는 자리다.
+  executionLog: { code: 'Backquote', what: '방금 있었던 일' },
   pickLeft: { code: 'ArrowLeft', what: '고르기', whileSurfaceOpen: true },
   pickRight: { code: 'ArrowRight', what: '고르기', whileSurfaceOpen: true },
   actionUp: { code: 'ArrowUp', what: '행동', whileSurfaceOpen: true },

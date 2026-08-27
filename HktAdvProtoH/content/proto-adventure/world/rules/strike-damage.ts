@@ -1,5 +1,7 @@
 // RULE-STRIKE-DAMAGE-001 — Implements INTENT-STRIKE-DAMAGE-001 · INTENT-DAMAGE-APPLY-001
-// Input          공격자 Actor, 대상 Actor, **Force**, 이름표(무엇으로), World
+// Input          공격자 Actor, 대상 Actor, **Force**, 이름표(무엇으로), 참인 조건들, World
+//                C-COMBAT-003 CHANGED — 참인 조건들이 함께 온다. 위력을 고른 자리가
+//                무엇이 참이었는지도 넘겨야 경위가 "왜 이 값인가" 에 답할 수 있다.
 //                C020 CHANGED — 위력의 출처가 스킬 하나가 아니게 되었다. 판정 순서
 //                (계산 → 치명 → 막기 → 적용 → 사건 기록 → 쓰러짐)는 그대로다.
 // Preconditions  대상이 쓰러지지 않았다 (쓰러진 몸은 더 이상 타격 대상이 아니다)
@@ -45,7 +47,7 @@
 // downed 가 대체 불가능하므로 모든 행동 시작이 자동으로 막힌다 —
 // RULE-ACTION-BEGIN-001 에 예외를 더하지 않는다.
 
-import { isDowned, type DamageBreakdown } from '../semantic/combat';
+import { isDowned, type DamageBreakdown, type MetCondition } from '../semantic/combat';
 import type { Force } from '../semantic/item';
 import type { ActorState } from '../semantic/actor';
 import type { WorldState } from '../semantic/world-state';
@@ -67,6 +69,10 @@ export function ruleStrikeDamage(
   target: ActorState,
   force: Force,
   label: string,
+  // C-COMBAT-003 ADDED — 이 한 방에서 참이었던 조건들. **없어도 빈 목록으로 실린다**
+  // (INTENT-CONDITION-IN-THE-CAUSE-READING-001). 위력을 고른 자리가 무엇이 참이었는지도
+  // 함께 넘겨야 경위가 "왜 이 값인가" 에 답할 수 있다.
+  conditions: readonly MetCondition[] = [],
 ): number | null {
   if (isDowned(target)) return null;
 
@@ -79,6 +85,7 @@ export function ruleStrikeDamage(
   const critical = ruleCriticalStrike(state, attacker, calculation.finalDamage);
   const breakdown: DamageBreakdown = {
     ...calculation,
+    conditions,
     critical: critical.outcome,
     finalDamage: critical.amplified,
     appliedDamage: critical.amplified,

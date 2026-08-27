@@ -87,6 +87,7 @@ sections:
       - MC-MARK
       - MC-BIND
       - MC-OBSERVE-ABILITY
+      - MC-DRAIN
   - kind: capability
     title: "Capability — 탐험 영역 (BW)"
     intro: |
@@ -144,6 +145,14 @@ sections:
       MC-VERIFY-REALITY · MC-FORCE-MOVEMENT · MC-CRAFT-FROM-MATERIALS · MC-TRANSFER-ITEM)에는
       **줄을 더하지 않았다** — 지형을 요구처(demanded_by)로 더했을 뿐 같은 의미를 새 이름으로
       복제하지 않았기 때문이다. 그것들의 판정은 원래 자리의 줄이 그대로 소유한다.
+
+      **다섯 줄이 Q71(b) 확장으로 늘었다.** BT 가 각 대지형의 주요 경험으로 이미 적어 두었으나
+      BT 주입이 Capability 로 들어 올리지 않았던 것들이다 — 산맥의 아래쪽 바꾸기 · 낙하 방향
+      틀기 · 발판 놓기 (§8.7), 무호흡해의 공기 길 잇기 (§7.7), 혈화수해의 개화 전 구조
+      (§11.7), 걷는 대륙의 진로 바꾸기 (§9.6). 계열별 요정 문서(FC)가 같은 것을 캐릭터 능력으로
+      요구하면서 그 공백이 드러났고, **요구부터 찾아** 세웠다 (HISTORY Q71(b)).
+      다섯 다 MISSING 이고 사유가 하나로 모인다 — 무대가 한 평면이라 아래쪽도, 날아가는 중인
+      것도, 놓을 자리도, 살아 있는 땅도 세계에 없다.
     rows:
       - label: "MC-CARRY-LIFE-SUPPORT (빙원 §5.7 · 무호흡해 §7.7)"
         ids: [MC-CARRY-LIFE-SUPPORT]
@@ -163,6 +172,16 @@ sections:
         ids: [MC-REALIZE-ONE-POSSIBILITY]
       - label: "MC-CONCEAL-BIOLOGICAL-SIGNAL (혈화수해 §11.6)"
         ids: [MC-CONCEAL-BIOLOGICAL-SIGNAL]
+      - label: "MC-REDEFINE-DOWN (산맥 §8.7 핵심 경험)"
+        ids: [MC-REDEFINE-DOWN]
+      - label: "MC-REDIRECT-FALLING-THING (산맥 §8.7)"
+        ids: [MC-REDIRECT-FALLING-THING]
+      - label: "MC-PLACE-FOOTING (산맥 §8.7 · 무호흡해 §7.7)"
+        ids: [MC-PLACE-FOOTING]
+      - label: "MC-HOLD-BIOLOGICAL-STATE (혈화수해 §11.2 · §11.3 · §11.7)"
+        ids: [MC-HOLD-BIOLOGICAL-STATE]
+      - label: "MC-LINK-TO-LIVING-WORLD (걷는 대륙 §9.5 · §9.6)"
+        ids: [MC-LINK-TO-LIVING-WORLD]
   - kind: capability
     title: "Capability — 지목·관계 영역 (TG · BW §21)"
     intro: |
@@ -289,6 +308,14 @@ sections:
       - label: "MW-HYPER-PREDATION · MW-SPATIAL-SHEAR"
         ids: [MW-HYPER-PREDATION, MW-SPATIAL-SHEAR]
       - MW-MACRO-TERRAIN
+      - MW-TERRAIN-CIRCULATION
+      - MW-SHAPED-LANDFORM
+      - MW-SURVIVAL-PRESSURE
+      - MW-ADAPTED-LIFE
+      - MW-TERRAIN-RESOURCE
+      - MW-NATURAL-REFUGE
+      - MW-NATURAL-SETTLEMENT
+      - MW-CIRCULATION-EVIDENCE
       - label: "MW-TERRAIN-* 8종 (BT §4~§11)"
         ids: [MW-TERRAIN-BAIWANG-BASIN, MW-TERRAIN-SUNEATER-ICEFIELD, MW-TERRAIN-NAME-EATING-FOREST,
               MW-TERRAIN-BREATHLESS-SEA, MW-TERRAIN-SKYFALL-RANGE, MW-TERRAIN-WALKING-CONTINENTS,
@@ -304,7 +331,7 @@ sections:
     intro: |
       어느 경로가 지금 얼마나 닫혀 있는가 — Frontier 는 이 표에서 고른다.
   - kind: possibility
-    title: "MG-OVERCOME-SUPERIOR-OPPONENT (14 갈래)"
+    title: "MG-OVERCOME-SUPERIOR-OPPONENT (15 갈래)"
     rows:
       - MP-MATCH-WEAPON-TO-ARMOR
       - MP-PIERCE-THE-HARD-DEFENSE
@@ -320,6 +347,7 @@ sections:
       - MP-CONCENTRATE-THE-POWER
       - MP-BIND-BY-CONTRACT
       - MP-KNOW-THE-OPPONENT-RULE
+      - MP-TAKE-WHAT-MAKES-IT-STRONG
   - kind: possibility
     title: "MG-SURVIVE-ENEMY-OFFENSIVE (4 갈래)"
     rows:
@@ -383,6 +411,26 @@ sections:
       - label: "사람을 꽃피우는 혈화수해 (§11)"
         ids: [MW-TERRAIN-BLOODBLOOM-FOREST]
   - kind: possibility
+    title: "MG-RESCUE-THE-TAKEN (3 갈래)"
+    intro: |
+      **이 Goal 은 갈래가 하나도 없는 채로 서 있었다.** BT 주입이 네 대지형에서 같은 행동을
+      발견해 Goal 을 세웠으나, 그 문서가 구출이 일어난다는 사실만 적고 어떻게 하는지를
+      말하지 않아 Possibility 를 만들지 않았기 때문이다. Q71(b) 확장이 그 셋을 열었다
+      (HISTORY Q71(b)).
+
+      셋은 무엇을 다루느냐가 서로 다르다 — 옮겨 가는 **과정**을 붙들거나, 법칙이 걸어 둔
+      **것**을 끊거나, 사람이 갈 수 없는 **자리**에 도달하거나. 그래서 배타적이지 않고
+      앞뒤로 붙는다: 시간을 벌어 두고 끊는 것도, 도달해서 붙드는 것도 한 판 안에서 성립한다.
+
+      **둘째는 새 Capability 를 하나도 요구하지 않는다** — 이미 선 둘로 성립한다. 그런데도
+      셋 다 열리지 않는 이유는 그 둘 역시 MISSING 이기 때문이고, 더 근본적으로는 이 Goal 이
+      기대는 것이 세계에 없어서다: **존재가 단계적으로 다른 것이 되어 가는 과정**이 없다.
+      지금 세계에서 존재는 멀쩡하거나 쓰러지거나 둘뿐이라 되돌릴 자리가 생기지 않는다.
+    rows:
+      - MP-STOP-THE-TRANSFER
+      - MP-CUT-WHAT-HOLDS-THEM
+      - MP-REACH-THE-UNREACHABLE
+  - kind: possibility
     title: "MG-ACQUIRE-RARE-ORGAN (5 갈래)"
     rows:
       - MP-KILL-CREATURE
@@ -419,16 +467,45 @@ holes: |
      없고, 행동의 앞 구간이 앎의 관문과 무관하게 누구에게나 그냥 온다.
      발견·검증은 그 뒤에 얹힌다.
 
-  4. 땅에 시간이 없다  (C-TERRAIN-001 로 **바닥은 깔렸다**)
+  4. 땅이 무엇을 할지 미리 말해 주지 않는다  (C-TERRAIN-002 로 **땅이 돌기 시작했다**)
      "땅이 없다" 는 닫혔다. 무대가 자리로 나뉘고 자리가 법칙을 지니며 그 법칙이 멎는
      예외 자리가 그 안에 있다 (MW-MACRO-TERRAIN · MW-TERRAIN-SUNEATER-ICEFIELD 둘 다
      ABSENT → PARTIAL). 앞의 셋이 놓일 바닥은 이제 있다.
 
-     남은 것은 **그 땅이 도는 일**이다. 거둔 것이 어디에도 저장되지 않아 땅이 포화되지도
-     분출하지도 않으므로, 예외 자리가 원인 없이 놓인 상수이고 거두는 속도가 상수다.
-     그래서 BT §15 의 셋째 항(대지 순환)이 통째로 비어 있고, 그 위에 얹히는 것들이
-     설 자리를 얻지 못한다 — 셀 주기가 없어 창에 맞출 수 없고(MC-TIME-THE-CYCLE),
-     이을 자리가 하나뿐이라 길을 만들 수 없다(MC-FIND-SAFE-ROUTE).
-     BT §5.7 이 빙원의 핵심 경험을 "대지가 열을 **어디에서 빼앗고 어디에 저장하는지**를
-     읽는 것" 으로 못 박았는데, 지금 선 것은 앞 절뿐이다.
+     **BT §15 의 셋째 항(대지 순환)이 닫혔다.** C-TERRAIN-002 로 거둔 것이 그 자리에
+     쌓이고, 넘치면 뿜고, 뿜는 것을 몸이 받고, 다 쓰면 닫혀 도로 거둔다. 예외 자리는
+     이제 놓이는 것이 아니라 넘침의 한 국면이며 옮겨 다닌다. BT §5.7 이 못 박은
+     "대지가 열을 어디에서 빼앗고 **어디에 저장하는지**" 의 뒤 절이 섰다.
+
+     **남은 것은 그것을 미리 읽는 일이다.** 지금 세계는 안전한 자리가 옮겨 다니는데
+     그 움직임을 앞질러 읽을 방법이 없다 — 그것은 깊이가 아니라 불공정이다.
+     BT §15.8 의 여덟째 항(관찰 — "설명 없이 볼 수 있는 증거")이 그 자리이고
+     `MW-CIRCULATION-EVIDENCE` 가 ABSENT 다. 셀 주기는 생겼으나 언제 창이 열리는지를
+     읽을 증거가 없어 여전히 겪어 봐야만 안다(MC-TIME-THE-CYCLE), 이을 자리는 여럿이
+     되었으나 어느 것이 곧 닫히는지 모른다(MC-FIND-SAFE-ROUTE).
+
+     그리고 순환이 서면서 **그 아래가 열렸다** — `MW-ADAPTED-LIFE`(무엇이 어디 사는가) ·
+     `MW-TERRAIN-RESOURCE`(그 법칙이 낳는 자원) · `MW-NATURAL-SETTLEMENT`(정착) 셋이
+     매달릴 자리를 지녔고 셋 다 ABSENT 다. 그 셋은 각각 기획서 승인을 기다린다
+     (Design-Creature-Behavior-R0 · Design-Resource-Catalog-R0 — HUMAN 대기).
+
+     **그리고 이것은 대지형 하나의 결손이 아니다.** BT §16 의 세계 골격에서 순환은
+     지형과 생존 압력 사이의 고리이고, 그 아래에 생명과 물질의 적응 · 위험과 자원 ·
+     자연적 피난처 · 사람과 문화가 전부 매달려 있다. 순환이 없는 동안 그 아래의 모든
+     것은 **놓는 수밖에 없다** — 무엇이 어디에 사는지도, 어디가 안전한지도, 무엇이
+     어디서 나는지도 세계가 답하지 못하고 세계를 적는 사람이 좌표에 찍는다. 지금
+     세계가 정확히 그렇다: 해숨구멍은 손으로 놓인 예외 자리이고 광맥은 좌표에 찍혀
+     있으며, `Design-Resource-Catalog-R0.md` §4 가 모든 자원에 요구하는 질문
+     ("그 상태가 오랜 시간 반복되면 무엇이 만들어지는가")에 답할 수 있는 자원이
+     세계에 하나도 없다. 이 사슬은 이제 그래프에 서 있다 — `MW-TERRAIN-CIRCULATION`
+     아래로 지형(`MW-SHAPED-LANDFORM`) · 생존 압력(`MW-SURVIVAL-PRESSURE`) · 적응
+     (`MW-ADAPTED-LIFE`) · 자원(`MW-TERRAIN-RESOURCE`) · 피난처(`MW-NATURAL-REFUGE`) ·
+     정착(`MW-NATURAL-SETTLEMENT`) · 증거(`MW-CIRCULATION-EVIDENCE`) 일곱이며,
+     `world-state.yaml` 머리의 §16 대조표가 열한 고리와 노드의 대응을 갖는다.
+     그리고 순환은 이제 Goal 을 낳는다 (`MG-EXPLORE-BEIRA` — Q69(b) Human 결정) —
+     그래서 다음 후보는 자기 이유를 Constraint 부기가 아니라 Goal 경로로 적을 수 있다.
+
+     **일곱 중 여섯이 ABSENT 다.** 선 것은 생존 압력과 피난처의 절반뿐이며(C-TERRAIN-001),
+     그 절반마저 순환에서 나오지 않고 상수로 놓여 있다. 이 층이 이 세계에서 가장 큰
+     구멍인 이유가 그 수다.
   ```

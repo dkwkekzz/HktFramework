@@ -51,7 +51,11 @@ nodes:
     stakes:
       - 나가지 않으면 문명권의 한계 안에 머문다 — 그 안에서 얻을 수 없는 것에 닿지 못한다 (BW §7)
       - 위 motivation 중 무엇을 품었든 그것이 영영 해결되지 않는다
-    caused_by: [MW-SAFE-FRONTIER]
+    caused_by: [MW-SAFE-FRONTIER, MW-TERRAIN-CIRCULATION]
+    # Q69(b) — Human 결정 (HISTORY.md). 문명권의 한계가 나가게 만들고(SAFE-FRONTIER),
+    # 그 땅이 도는 방식을 읽어 감당하게 되는 것이 곧 대응 범위의 확장이다 (BT §5.7).
+    # 이 둘째 간선이 없는 동안 순환 계열은 어떤 Goal 도 낳지 않았고, 그래서 그 층을
+    # 여는 Frontier 후보가 이유를 Goal 이 아닌 Constraint 부기로 적게 되었다.
     constraints: [DC-WORLD-PLAYER-UNFIXED-PATH, DC-WORLD-PROGRESSION-IS-REACH]
     constraint_evaluation:
       DC-WORLD-PLAYER-UNFIXED-PATH: SATISFIED    # motivation 이 병렬 11 개이고 어느 하나가 필수가 아니다
@@ -215,8 +219,10 @@ nodes:
     constraints: [DC-WORLD-PLAYER-UNFIXED-PATH]
     constraint_evaluation:
       DC-WORLD-PLAYER-UNFIXED-PATH: SATISFIED   # 아무도 이 목적을 강제받지 않는다 — 발견한 세계 상태에서 생긴다
-    # 이 Goal 을 달성하는 Possibility 는 세우지 않았다 — BT 는 구출이 일어난다는 사실만
-    # 공급하고 어떻게 하는지를 말하지 않는다 (§27 기관 대안 4종과 같은 자리다).
+    # 갈래 셋이 Q71(b) 확장으로 섰다 — MP-STOP-THE-TRANSFER(시간을 산다) ·
+    # MP-CUT-WHAT-HOLDS-THEM(붙잡은 것을 끊는다) · MP-REACH-THE-UNREACHABLE(거기까지 간다).
+    # BT 가 네 대지형에 흩어 적어 둔 구출 장면(§6.6 · §7.7 · §8.7 · §11.7)에서 나왔고,
+    # 셋은 무엇을 다루느냐가 서로 다르다 (과정 · 붙잡은 것 · 도달).
 
 # 근거 문서는 영역별로 분리된다 — 근거는 영역을 넘지 않는다 (HISTORY Q15).
 #   탐험  BW  content/proto-adventure/design/Master-World-Beira.md

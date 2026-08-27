@@ -19,6 +19,7 @@ import type { AllocationId } from './allocation';
 import type { MoveMode } from './combat';
 import type { Equipment } from './equipment';
 import type { Inventory } from './inventory';
+import type { Marks } from './mark';
 import type { GuardedGround } from './relation';
 import type { WorldPosition } from './position';
 
@@ -118,6 +119,14 @@ export interface ActorState {
   // 막기 (C011) — 행동과 나란한 몸의 상태다. CurrentAction 자리를 쓰지 않는다.
   // 막으면서 걸을 수 있어야 하는데, 행동 자리를 쓰면 걷기와 자리를 다투게 되어
   // INTENT-ACTION-STATE-001("언제나 정확히 하나의 행동")을 깨야 하기 때문이다.
+  /**
+   * Actor.Marks (C-COMBAT-004 ADDED) — 이 몸에 남은 표식들.
+   * **남긴 자의 Id → 남긴 시각**이며, 지금 붙어 있는가는 그 시각에서 매번 다시
+   * 세어진다 (semantic/mark.ts `isMarkedBy`). 아래 guardBrokenUntil 과 같은 꼴이다 —
+   * 담기는 것이 상태가 아니라 시각이므로 지우는 규칙이 세계에 없다.
+   * RULE-MARK-LEAVE-001 만이 바꾼다.
+   */
+  marks: Marks;
   guarding: boolean; // 지금 앞을 향해 버티고 있는가 — RULE-GUARD-* 와 RULE-MOVE-MODE-001 만이 바꾼다
   guardBrokenUntil: number; // 이 세계 시각까지는 다시 막을 수 없다 (무너짐의 대가). 초기값 0
   // 템포 능력치 (C007) — 존재 종류가 정하는 고정값. 세계의 속도를 정한다

@@ -3095,6 +3095,66 @@ Human 이 "FR-ACTION-PHASE 의 근간이 무엇인가" 를 물어 근간을 역�
     §42 F8 과 §43 의 검증 3종도 후보가 아니다 — 새 능력이 아니라 앞의 것들이 다 선 뒤의
     조합이고 검증 묶음이기 때문이다.
 
+## Q68. 여덟 대지형을 순환 아래로 옮기지 않는다 — CLOSED (a)
+
+> **번호 주의** — 이 Q68 · Q69 는 BT §16 세계 골격 주입의 것이다.
+> 같은 번호를 계열별 요정 Layer 0(FC) 주입이 다른 갈래에서 함께 썼고 (아래 "계열별 요정
+> Layer 0(FC) 주입이 낸 넷 중 셋"), 두 갈래가 합류하며 겹쳤다. 둘 다 닫힌 질문이라
+> 열린 것을 옮길 필요가 없어 번호를 그대로 두었다 — 되짚을 때 문맥으로 가른다.
+> 되풀이를 막는 일은 Q67 이 소유한다.
+
+    Human 결정: **(a) 형제로 둔다.**
+
+    BT §16 의 골격은 `기이한 자연 순환 → 압도적인 지형` 순이지만, 거기서 "지형" 은
+    산맥·수계·대기 같은 **생김새**를 뜻한다 (§15.3 이 그렇게 묻는다). `MW-TERRAIN-*`
+    여덟은 §15 의 아홉 질문을 한 벌로 지닌 **대지형 자체**이므로 각자가 순환을 하나씩
+    지니는 것이지 순환에서 생겨나는 것이 아니다.
+
+    그래서 순환 계열 일곱(순환 · 지형 · 생존 압력 · 적응 · 자원 · 피난처 · 정착 ·
+    증거)은 여덟의 부모가 아니라 **여덟이 각자 한 벌씩 인스턴스화하는 일반 층**이며,
+    여덟의 `arises_from` 은 `MW-MACRO-TERRAIN` 그대로다. §16 의 "압도적인 지형" 은
+    별도 노드 `MW-SHAPED-LANDFORM` 이 받았다.
+
+## Q69. 대지 순환은 탐험 Goal 을 낳는다 — CLOSED (b)
+
+    Human 결정: **(b) `MG-EXPLORE-BEIRA` 에 잇는다.**
+
+    `MW-TERRAIN-CIRCULATION.causes: [MG-EXPLORE-BEIRA]` · `MG-EXPLORE-BEIRA.caused_by`
+    에 순환을 더했다. 근거는 BT §5.7 — 빙원의 핵심 경험이 "대지가 열을 어디에서
+    빼앗고 어디에 저장하는지를 **읽는 것**" 이고, 읽어서 감당하게 되는 것이 곧 대응
+    범위의 확장(BW §1 · §32)이다.
+
+    무엇이 풀렸나  이 간선이 없는 동안 순환 계열은 어떤 Goal 도 낳지 않았고, Frontier 는
+                  `Goal → Possibility → Capability` 경로에서 후보를 뽑으므로 그 층을
+                  여는 Cycle 이 자기 이유를 Goal 이 아닌 것으로 번역할 수밖에 없었다.
+                  **C-TERRAIN-002 가 실제로 그렇게 되었다** — 후보의 이유가
+                  "DC-WORLD-TERRAIN-IS-A-PRINCIPLE 이 PARTIAL 이다" 였고, "이것이
+                  없으면 생명과 자원을 놓는 수밖에 없다" 가 아니었다. 이제 그 경로가
+                  그래프에 있다.
+
+    고르지 않은 것 (c) 새 Goal 을 세우는 것은 탐색(4단계 WHY)의 몫이며, 주입(Inject)이
+                  문서에 없는 Goal 을 지어내지 않는다는 규칙에 걸린다. 필요해지면
+                  Human 이 WHY 로 연다.
+
+## BT §16 세계 골격을 열한 고리로 대조했다 · 2026-08-27
+
+    Human 질문: "세계압 → … → 사람과 문화 → … 지금 이걸 충분히 master graph 에
+    반영한 거야?"
+
+    답은 **아니오** 였다. 1 차 주입은 넷만 세웠고(순환 · 생존 압력 · 적응 · 피난처),
+    §16 의 열한 고리 중 넷(④ 압도적인 지형 · ⑦ 자원 · ⑨ 사람과 문화 · ⑩ 관찰과 추론)이
+    비어 있었으며 그 사실이 어디에도 적혀 있지 않았다 — Inject Guide 의 Done When
+    ("문서의 플레이 의미가 노드로 존재하거나, **옮기지 않은 사유가 있다**")을 어겼다.
+
+    2 차에서 넷을 더 세우고(`MW-SHAPED-LANDFORM` · `MW-TERRAIN-RESOURCE` ·
+    `MW-NATURAL-SETTLEMENT` · `MW-CIRCULATION-EVIDENCE`), 열한 고리와 노드의 대응을
+    `graph/world-state.yaml` 머리의 **§16 대조표**로 박았다. 앞으로 이 사슬에 무엇이
+    비었는지는 그 표가 답한다.
+
+    ⑪ 다양한 행동 가능성만 MW 로 세우지 않았다 — 그것은 세계의 상태가 아니라 갈래이며
+    `possibilities.yaml` 의 MP-* 와 BT §15.9 의 행동 열하나(capabilities.yaml)가
+    소유한다. 대조표에 그 사유가 적혀 있다.
+
 ## 사슬 A 철회 — 플레이어가 타이밍을 맞춰 막는 기능은 세우지 않는다 · Human · 2026-08-27
 
     Human 지시: "결과적으로 플레이어가 특정 타이밍에 맞춰서 막기등을 하는 기능은
@@ -3336,6 +3396,131 @@ Human 이 "FR-ACTION-PHASE 의 근간이 무엇인가" 를 물어 근간을 역�
             GS §5 의 다섯 축 표가 여섯이 된다. MC-CARRY-COMBAT-KNOWLEDGE 가 그 자리에
             속한다. 자리 수 자체(넷 등)는 여전히 수치이므로 Cycle 소유다.
             늘어도 보유량보다는 적어야 고르는 일이 남는다 (DC-KNOWLEDGE-IS-CARRIED-NOT-HOARDED).
+
+## Q68 · Q69 · Q70 — 계열별 요정 Layer 0(FC) 주입이 낸 넷 중 셋 · Human · 2026-08-27
+
+    **번호 주의** — 이 Q68 · Q69 는 FC 주입의 것이다. 같은 번호를 BT §16 세계 골격
+    주입이 다른 갈래에서 함께 썼다 (위 "여덟 대지형을 순환 아래로 옮기지 않는다" ·
+    "대지 순환은 탐험 Goal 을 낳는다"). 합류에서 겹쳤으나 둘 다 닫힌 질문이라 그대로 두었다.
+    이 문서 밖에서 `HISTORY Q68` · `Q69` 를 가리키는 곳은 전부 FC 쪽이다
+    (CL-* 여섯 · systems.yaml · growth-graph.md · DC 넷 · frontier/growth.md).
+
+    주입 직후 Human 이 셋을 답했다. 넷째(Q71 — 옮길 기존 노드가 없는 능력 아홉)는
+    질문이 읽히지 않아 다시 설명했고 open-questions.md 에 남아 있다.
+
+### Q68. FC 가 세운 Constraint 넷을 승인하는가 — (a) 넷 다 승인
+
+    DC-GROWTH-CLASS-OWNS-THE-RESPONSE          대응 입력은 하나이고 그 자리에 무엇이
+                                               들어 있는지는 Class 가 정한다 (FC §2)
+    DC-GROWTH-CLASS-COMES-FROM-A-PRINCIPLE     새 Class 는 이름이 아니라 새 Principle 에서
+                                               시작한다 (FC §11)
+    DC-GROWTH-ORIGIN-IS-SIMPLE-FIRST           Origin 은 복합 계약을 주력으로 쓰지 않는다 (FC §2)
+    DC-GROWTH-CLASS-CLOSES-BEFORE-THE-NEXT-LAYER
+                                               열두 질문이 닫히기 전에는 다음 Layer 를
+                                               세우지 않는다 (FC §10 · §12)
+
+    반영    네 파일의 status DRAFT → APPROVED · provenance 에 승인 기록.
+            넷 다 여섯 CL-* 가 constraints 로 걸고 있다. 문안은 승인 시점 그대로 두었다.
+
+### Q69. Class 의 갈래는 하나인가 여럿인가 — (b) 갈래 여럿
+
+    두 Human 문서가 어긋났다 — FC §1(한 Class 에서 여러 상위 Class 가 나올 수 있다)과
+    GS §9~§16(계열마다 네 칸짜리 사슬 하나를 이름으로 적는다). Human 이 FC 쪽을 골랐다.
+
+        사다리의 모양      네 칸짜리 사슬이 아니라 **네 칸짜리 나무**다. 같은 계열을 고른
+                          두 사람이 같은 칸에서 서로 다른 형태가 될 수 있다
+        갈래를 가르는 것    기초 원리에 어떤 원리가 결합되었는가 (FC §1)
+
+    **이름의 소유가 좁아졌다.** Q55(b)는 "Class Line 의 이름은 GS 가 소유한다" 였는데,
+    갈래가 여럿이면 GS 가 이름을 주지 않은 형태가 생긴다. GS 가 이름을 준 여섯
+    (왕골권사 · 천주질주자 · 태양포식자 · 가면술사 · 풍압사 · 대지공명사)은 각 계열에서
+    **한 갈래**이고, 나머지 갈래의 이름은 그 갈래를 세우는 설계 문서가 원리에서 도출한
+    뒤에 따라온다 — 이름이 먼저가 아니다 (DC-GROWTH-CLASS-COMES-FROM-A-PRINCIPLE).
+    Q55(b)가 뒤집힌 것이 아니라 적용 범위가 "GS 가 이름을 준 갈래" 로 좁아진 것이다.
+
+    반영    MS-CLASS-EVOLUTION 의 semantic · 여섯 CL-* 의 transitions_to 주석 ·
+            MC-CHANGE-CLASS 의 detail · growth/growth-graph.md 의 "위쪽이 비어 있다".
+
+    따라오는 것   MC-CHANGE-CLASS 가 닫히려면 조건 넷(GS §6)에 더해 **여럿 중 무엇으로
+                 갈지 고르는 일**이 세계에 서야 한다. 그리고 갈래마다 관문 넷을 따로
+                 닫아야 하므로 (Q70) Layer 를 올릴 때마다 작업량이 갈래 수만큼 는다.
+
+### Q70. Class 의 열두 답을 어디에 담는가 — (c) 검사할 넷만 칸으로
+
+    FC §12 는 Class 하나에 열두 질문을 요구하지만, 칸이 된 것은 **다른 DC 가 값으로
+    요구하는 넷**뿐이다. 나머지 여덟(원리 · 판타지 · 반복 행동 · Aura · 피해 외 세계
+    변화 · 탐험 쓰임 · 숙련 행동 · 실루엣)은 산문에 남는다.
+
+        response         DC-GROWTH-CLASS-OWNS-THE-RESPONSE
+        counterplay      DC-COMBAT-STRONG-RULE-HAS-COUNTERPLAY
+        cannot_yet       DC-GROWTH-CAPABILITY-DECLARES-ITS-LIMITS
+        extends_toward   DC-GROWTH-CLASS-CLOSES-BEFORE-THE-NEXT-LAYER
+
+    이것은 SCHEMA 를 늘리는 결정이므로 주입의 몫이 아니었다 — 그래서 질문으로 남겼고
+    (Q51 · Q58 선례) Human 이 답한 뒤에 만들었다.
+
+    반영    SCHEMA.md 의 CL-* 골격에 네 칸 + detail · world_shape · grants_note ·
+            여섯 CL-* 에 값 · tools/master-graph/classes.ts (검사기) ·
+            build.ts 가 그것을 같은 통과에서 돌린다.
+
+    검사기가 잡는 것   네 칸이 빔 (CLASS_GATE_EMPTY) · origin_trace 의 셋 중 하나가 빔
+                     (CLASS_NO_ORIGIN) · grants/origin_trace 가 없는 노드를 가리킴
+                     (CLASS_UNKNOWN_REF) · transitions_to 가 없는 Class 를 가리킴
+                     (CLASS_UNKNOWN_TRANSITION). 전부 ERROR 다.
+
+## Q71 — FC 의 능력들을 노드로 세울 것인가 · Human · 2026-08-27 · (b) 요구를 먼저 찾는다
+
+    질문이 한 번 읽히지 않아 다시 설명한 뒤 Human 이 (b)를 골랐다 — "지금 세운다"(c)가
+    아니라 **그것들을 요구하는 갈래를 WHY/OPTIONS 로 먼저 찾는다**.
+    제목의 "아홉" 은 묶어 센 수이고 실제 항목은 열셋이었다.
+
+### 확장이 실제로 한 일
+
+    출발점이 예상과 달랐다. 아홉(열셋)을 요구할 갈래를 **새로 상상해야 할 줄 알았는데,
+    BT 가 이미 각 대지형의 "주요 경험" 으로 적어 두었고 BT 주입이 그것을 Capability 로
+    들어 올리지 않았을 뿐이었다.** 그래서 이 확장은 창작이 아니라 누락 회수에 가깝다.
+
+        MC-REDEFINE-DOWN            BT §8.7 핵심 경험 — "세계가 정한 아래쪽을 바꾸는 것"
+        MC-REDIRECT-FALLING-THING   BT §8.7 — "적과 투사체의 낙하 방향 변경"
+        MC-PLACE-FOOTING            BT §8.7 "정박암을 임시 발판으로 설치" ·
+                                    BT §7.7 "공기 덩어리를 길처럼 연결" (두 땅이 따로 명명)
+        MC-HOLD-BIOLOGICAL-STATE    BT §11.7 "완전히 개화하기 전 대상 구조" · §11.3 장송석
+        MC-LINK-TO-LIVING-WORLD     BT §9.6 "유랑대지의 진로를 바꿀지 선택" · §9.5 대지치유사
+        MC-DRAIN                    BT §5.1 (광맥이 주변의 열을 결속한다) — 세계의 법칙을
+                                    사람이 작게 하는 것. 유일하게 갈래 쪽에서 나왔다
+
+    **셋은 노드가 되지 않고 접혔다.** 표면 주행은 MC-REDEFINE-DOWN 의 결과이고(아래쪽이
+    그 면을 향하면 그 면이 바닥이다), 빼앗김에 따르는 느려짐은 MC-DRAIN 의 semantic
+    자체다. 같은 의미를 둘로 세우지 않았다 (DC-GROWTH-NO-CAPABILITY-DUPLICATION).
+
+### 갈래 넷 — 그중 셋이 빈 Goal 을 채웠다
+
+    가장 큰 소득은 능력이 아니라 **MG-RESCUE-THE-TAKEN 이 갈래를 갖게 된 것**이다.
+    그 Goal 은 BT 주입 때 세워졌으나 "구출이 일어난다" 는 사실만 있고 방법이 없어
+    Possibility 가 0 이었다 — 그래프에 목적만 있고 길이 없는 자리였다.
+
+        MP-STOP-THE-TRANSFER       시간을 산다 — 옮겨 가는 과정을 붙들어 둔다
+        MP-CUT-WHAT-HOLDS-THEM     붙잡은 것을 끊는다 — **새 Capability 를 요구하지 않는다**
+        MP-REACH-THE-UNREACHABLE   거기까지 간다 — 요구가 넷으로 가장 무겁다
+        MP-TAKE-WHAT-MAKES-IT-STRONG  (MG-OVERCOME 의 열다섯째) 격차를 양쪽에서 좁히는
+                                   유일한 갈래 — 내가 커지는 동시에 상대가 작아진다
+
+### 세우지 않은 것 — 확장의 실패가 아니라 결과다
+
+        기술 흉내 · 앎의 공유 (진명)        어느 땅도 어느 갈래도 요구하지 않는다
+        괴력 · 지지 · 세계압 내성 (백왕)     백왕의 갈비분지는 **가장 안전한 땅**이라
+                                          그런 요구를 내지 않는다 (BT §4.6 — 원정 준비 ·
+                                          거래 · 증언 수집이 그 땅의 주요 경험이다)
+
+    다섯 다 각 CL-* 의 grants_note 가 소유한다. 요구하는 자리가 서면 그때 잇는다.
+    가까운 기존 노드를 넓히지도 않았다 — MC-IMPERSONATE-IDENTITY 를 "남처럼 행동한다" 로,
+    MC-IDENTITY-ANCHOR 를 "남의 정체를 붙든다" 로 넓히는 것은 그 노드의 의미를 바꾸는 일이다.
+    뒤엣것은 MP-CUT-WHAT-HOLDS-THEM 의 detail 이 빈자리로 적어 두었다.
+
+    반영    graph/capabilities.yaml (MC 6) · graph/possibilities.yaml (MP 4) ·
+            graph/goals.yaml (RESCUE 주석) · graph/world-state.yaml (대지형 셋의 demands) ·
+            graph/overlay-notes.yaml (표 여섯 줄 · RESCUE 절 신설) ·
+            growth/classes/ 여섯의 grants · growth/growth-graph.md
 
 ## DC-KNOWLEDGE-IS-CARRIED-NOT-HOARDED 문안 정정 — Human 지적 · 2026-08-27
 
