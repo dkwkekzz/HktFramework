@@ -10,7 +10,7 @@
 [PASS] Regression           (1520 tests · 자라지 않은 몸의 값이 한 톨도 다르지 않다)
 [PASS] Catalog              (존재 종류를 더하지도 바꾸지도 않았다 — `catalog:check` 정합)
 
-STATUS  IN PROGRESS   ← Human Play 확인 전에는 COMPLETE 로 바꾸지 않는다 (CLAUDE.md 원칙 15)
+STATUS  COMPLETE   ← Human 이 찍힌 화면으로 Cycle Goal 달성을 확인했다 (Gate 14)
 
 ## NEW BEHAVIOR
 
@@ -351,4 +351,9 @@ STATUS  IN PROGRESS   ← Human Play 확인 전에는 COMPLETE 로 바꾸지 않
 
 ## STATUS
 
-    IN PROGRESS   ← Human Play 뒤에만 COMPLETE (Gate 14)
+    COMPLETE
+
+    Gate 14 는 Human 이 `shots/crossed-the-threshold.png` 로 닫았다 — 걸어가 살펴보고
+    쳐서 넘는 왕복이 한 화면에 담겼고, 그 화면에서 자란 값들과 오른 사유가 함께 읽힌다.
+    남은 물음(Master Gap ③ 의 수치)은 이 Cycle 의 완료를 막지 않는다 —
+    **위층이 정할 일**이며 FEEDBACK 레인이 그것을 위로 나른다.
