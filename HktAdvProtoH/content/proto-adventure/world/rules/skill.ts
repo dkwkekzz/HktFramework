@@ -42,6 +42,7 @@ import {
   skillDuration,
   type SkillKind,
 } from '../semantic/combat';
+import type { TargetDirectedFailureReason } from '../semantic/target-selection';
 import { ruleAbilityRequirement } from './ability-circumstance';
 import { beginAction, evaluateActionBegin, type ActionBusyReason } from './action-begin';
 
@@ -54,7 +55,10 @@ export type SkillFailureReason =
   | 'downed'
   | 'guarding'
   | 'insufficient-cp'
-  | CircumstanceUnmetReason;
+  | CircumstanceUnmetReason
+  // C-COMBAT-004 — 상대를 읽는 요구인데 아무도 고르지 않았다. C017 이 세운 코드를
+  // 그대로 쓴다 (새 말을 만들지 않는다).
+  | TargetDirectedFailureReason;
 
 // Precondition 평가 — Observable(Skill.Availability / Skill.FailureReason)과 공유한다.
 // 판정이 한 곳에만 있어야 "왜 안 되는가"와 실제 거절 사유가 어긋나지 않는다.

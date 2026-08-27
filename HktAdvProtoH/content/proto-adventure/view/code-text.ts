@@ -123,6 +123,9 @@ const CODE_TEXT: Record<string, string> = {
   'aura-strike': '오라 일격',
   // C-COMBAT-003 — 사정을 지는 첫 기술
   'hatsu-burst': '발현 일격',
+  // C-COMBAT-004 — 피해가 0 인 첫 기술
+  'mark-strike': '표식 남기기',
+  'mark.none': '없음',
   physical: '물리',
   aura: '오라',
   // 방식이 고른 능력의 이름 (C012)
@@ -149,6 +152,11 @@ const CODE_TEXT: Record<string, string> = {
   // 회색으로 칠하고 끝내지 않는 것이 이 층의 절반이다 (UL §33)
   'power-not-in-ability': '힘을 능력에 몰아 두어야 나간다 — 배분을 발현으로 옮겨라',
   'not-struck-by-them': '그 상대에게 아직 맞지 않았다',
+  // C-COMBAT-004 — 상대에게 남은 것을 보는 사정 둘. 서로의 부정이다
+  'bears-my-mark': '그 상대에게 내 표식',
+  'no-mark-of-mine-yet': '그 상대에게 내 표식 없음',
+  'no-mark-on-them': '그 상대에게 내 표식이 없다',
+  'already-marked-by-them': '이미 표식을 남겨 두었다 — 먼저 쓰거나 지워지기를 기다려라',
   'life-not-below-half': '생명이 아직 절반 위다',
   // 불가 사유 — 막기 (C011)
   guarding: '막는 중에는 휘두를 수 없다',

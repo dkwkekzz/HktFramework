@@ -53,6 +53,10 @@ const INTERACTIONS: Record<string, InteractionPresentation> = {
   // 가져간다 (engine-keys.ts). 남은 글자가 `KeyO`·`KeyP` 둘뿐이라 앞의 것으로 간다.
   // **기술이 늘수록 이 자리 찾기가 좁아진다** — 08 MASTER FEEDBACK 에 적는다.
   'skill-hatsu': { priority: 16, key: 'KeyO', keyLabel: 'O', prompt: '발현 일격' },
+  // C-COMBAT-004 — 표식 남기기. **남은 마지막 글자다** (`KeyP`).
+  // 기술이 하나 더 늘면 부를 자리가 없다 — `works/BACKLOG.md` 의
+  // `skill-slot-crowds-the-keyboard` 가 그 자리를 기다린다.
+  'skill-mark': { priority: 11, key: 'KeyP', keyLabel: 'P', prompt: '표식 남기기' },
   // 막기 (C011) — 세계에는 걸기와 놓기가 따로 있다(명시값). 화면에서는 한 키로 오간다.
   // 어떤 손짓으로 그 둘을 부를지는 View 의 결정이며, 이동 모드가 이미 같은 모양이다.
   // 그래서 키는 걸기 쪽에만 두고, 오가는 것은 조립 루트가 다룬다 —

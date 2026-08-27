@@ -52,6 +52,7 @@ import {
   type CircumstanceNow,
   type CircumstanceUnmetReason,
 } from '../semantic/circumstance';
+import type { TargetDirectedFailureReason } from '../semantic/target-selection';
 import { forceOfSkill, skillDefinition, type MetCondition, type SkillKind } from '../semantic/combat';
 import type { Force } from '../semantic/item';
 
@@ -61,9 +62,15 @@ export function ruleAbilityRequirement(
   kind: SkillKind,
   now: CircumstanceNow,
   other: ActorState | null = null,
-): CircumstanceUnmetReason | null {
+): CircumstanceUnmetReason | TargetDirectedFailureReason | null {
   for (const id of skillDefinition(kind).requires) {
     const circumstance = abilityCircumstance(id);
+    // C-COMBAT-004 — 상대를 읽는 사정인데 고른 상대가 없으면, 그 사정의 사유가 아니라
+    // **고르지 않았다는 사유**를 낸다. 그러지 않으면 아무도 고르지 않았는데
+    // "이미 표식을 남겨 두었다" 처럼 참이 아닌 말이 나간다
+    // (DC-COMBAT-UNAVAILABLE-HAS-A-REASON — 사유는 읽을 수 있어야 한다).
+    // 코드는 C017 이 이미 세운 것을 그대로 쓴다 — 새 말을 만들지 않는다.
+    if (circumstance.readsOther && other === null) return 'no-target-selected';
     if (!circumstance.holds(actor, other, now)) return circumstance.unmetReason;
   }
   return null;

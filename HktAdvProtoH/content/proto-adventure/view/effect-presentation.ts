@@ -157,6 +157,22 @@ export const SKILL_EFFECTS: Readonly<Record<string, SkillEffectTuning>> = {
     rollSpread: 0,
     lift: 0.3,
   },
+  // 표식 남기기 (C-COMBAT-004 — 피해 0) — **세기가 없다.**
+  // 바닥과 천장을 같은 값으로 두어 언제나 같은 크기로 찍힌다: 이 기술에는 잴 피해가
+  // 없으므로 세기의 기준도 없다 (F1 규칙 2 는 "세기는 사건의 값에서 나온다" 인데,
+  // 값이 0 인 사건에서 나올 세기가 없다는 것이 이 표의 정직한 답이다).
+  // 새 게놈을 만들지 않는다 — 오라의 결(전격)을 작고 낮게 쓴다 (예산 7 그대로).
+  'mark-strike': {
+    effect: '전격',
+    reference: 1,
+    floor: 0.55,
+    ceiling: 0.55,
+    criticalBoost: 1.0, // 터지지 않는다 — 터질 피해가 없다
+    elevationRatio: 0.55,
+    radius: 0.04,
+    rollSpread: 0,
+    lift: 0.1,
+  },
 };
 
 /**

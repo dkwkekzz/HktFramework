@@ -214,10 +214,12 @@ describe('INTENT-MARKS-DO-NOT-PILE-UP-001 — 쌍마다 하나다', () => {
 
 // ─────────────────────────────────────────────────────────────────
 describe('INTENT-THE-GATE-SEES-THE-CHOSEN-ONE-001 — 관문이 상대를 본다', () => {
-  it('아무도 고르지 않았으면 상대를 읽는 요구는 갖춰지지 않은 것이다', () => {
+  it('아무도 고르지 않았으면 갖춰지지 않고, 사유가 **참인 것**을 말한다', () => {
     const self = body();
+    // 그 사정의 사유("이미 남겨 두었다")가 아니다 — 아무도 고르지 않았는데 그렇게
+    // 말하면 세계가 참이 아닌 것을 말하게 된다 (브라우저에서 눈으로 잡았다).
     expect(ruleAbilityRequirement(self, 'mark-strike', EMPTY_NOW, null)).toBe(
-      'already-marked-by-them',
+      'no-target-selected',
     );
   });
 
@@ -257,6 +259,17 @@ describe('INTENT-THE-GATE-SEES-THE-CHOSEN-ONE-001 — 관문이 상대를 본다
 
 // ─────────────────────────────────────────────────────────────────
 describe('INTENT-THE-MARK-IS-A-CIRCUMSTANCE-001 — 표식은 사정이다', () => {
+  it('상대를 읽는 사정은 그 성질을 스스로 밝힌다 — 관문이 정직한 사유를 낼 수 있게', () => {
+    const reads = Object.fromEntries(ABILITY_CIRCUMSTANCES.map((c) => [c.id, c.readsOther]));
+    expect(reads).toEqual({
+      'power-in-ability': false,
+      'struck-by-them': true,
+      'life-below-half': false,
+      'bears-my-mark': true,
+      'no-mark-of-mine-yet': true,
+    });
+  });
+
   it('목록에 항목이 둘 늘었을 뿐이다 — 서로의 부정이다', () => {
     const ids = ABILITY_CIRCUMSTANCES.map((c) => c.id);
     expect(ids).toContain('bears-my-mark');

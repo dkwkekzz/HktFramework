@@ -273,6 +273,21 @@ function circumstanceText(
   return parts.length > 0 ? parts.join(' · ') : undefined;
 }
 
+/**
+ * 이 기술이 실어 보내는 공격 피해 (C-COMBAT-004 CHANGED).
+ *
+ * **0 을 그대로 쓰지 않는다.** `공격 피해 0` 은 "아주 약한 공격" 으로 읽히는데,
+ * 세계가 말하는 것은 그것이 아니라 **이 기술은 피해를 내지 않는다** 다
+ * (INTENT-A-BLOW-THAT-LEAVES-INSTEAD-OF-HURTS-001).
+ *
+ * 지어내는 것이 아니다 — 세계가 보낸 0 을 다른 말로 옮길 뿐이며, 옮기는 말을 정하는
+ * 것이 결정 Layer 의 일이다. 값이 있으면 지금까지와 한 글자도 같다.
+ */
+function damageText(profile: SkillProfileView, type: string): string {
+  if (profile.rawDamage === 0) return '피해 없음';
+  return `공격 피해 ${round(profile.rawDamage)} (${type})`;
+}
+
 /** `-0 / +12` 처럼 읽는 기력 수지 — 두 값을 합치지 않는다. 서로 다른 일이기 때문이다 */
 function energyText(profile: SkillProfileView): string {
   return `기력 -${round(profile.cost)} / +${round(profile.charge)}`;
@@ -342,7 +357,7 @@ export function skillDetailLines(
       return (
         `${skill.label} ${mark}` +
         ` · ${energyText(skill.profile)}` +
-        ` · 공격 피해 ${round(skill.profile.rawDamage)} (${type})` +
+        ` · ${damageText(skill.profile, type)}` +
         (circumstances ? ` · ${circumstances}` : '')
       );
     }),

@@ -94,6 +94,17 @@ export interface AbilityCircumstance {
   id: CircumstanceId;
   /** 갖춰지지 않았을 때 세계가 내보내는 사유 코드 (DC-COMBAT-UNAVAILABLE-HAS-A-REASON) */
   unmetReason: CircumstanceUnmetReason;
+  /**
+   * 이 사정이 **상대를 읽는가** (C-COMBAT-004).
+   *
+   * 사정의 *내용*이 아니라 **성질**이다. 관문이 이것을 보는 이유는 하나뿐이다 —
+   * 고른 상대가 없을 때 정직한 사유를 내기 위해서다. 그것 없이 `holds` 만 보면
+   * "상대가 없다" 가 "그 사정이 거짓이다" 로 뭉개져, 아무도 고르지 않았는데
+   * "이미 표식을 남겨 두었다" 같은 **참이 아닌 사유**가 나간다.
+   *
+   * 브라우저에서 눈으로 잡은 것이다 (07-view-implementation.md NOTES ②).
+   */
+  readsOther: boolean;
   holds(self: ActorState, other: ActorState | null, now: CircumstanceNow): boolean;
 }
 
@@ -119,6 +130,7 @@ export const ABILITY_CIRCUMSTANCES: readonly AbilityCircumstance[] = [
     // **C-COMBAT-001 이 남긴 결손을 닫는 항목이다** — 배분이 값만 바꾸고 무엇을 할 수
     // 있는가의 목록을 바꾸지 않던 자리에, 목록을 바꾸는 첫 사정이 선다.
     id: 'power-in-ability',
+    readsOther: false,
     unmetReason: 'power-not-in-ability',
     holds: (self) => allocationShares(self.allocation).ability >= ABILITY_ALLOCATION_REQUIREMENT,
   },
@@ -126,6 +138,7 @@ export const ABILITY_CIRCUMSTANCES: readonly AbilityCircumstance[] = [
     // 그 상대가 최근에 나를 쳤다 (UL §19 의 첫 예).
     // 상대를 읽으므로 **관문 자리에서는 언제나 거짓**이다 — 조건으로만 걸린다.
     id: 'struck-by-them',
+    readsOther: true,
     unmetReason: 'not-struck-by-them',
     holds: (self, other, now) =>
       other !== null &&
@@ -135,6 +148,7 @@ export const ABILITY_CIRCUMSTANCES: readonly AbilityCircumstance[] = [
     // 내 생명이 절반 이하다 (UL §19 의 넷째 예).
     // 지금의 값에서 매번 다시 센다 — `isDowned` 와 같은 자리, 같은 꼴이다.
     id: 'life-below-half',
+    readsOther: false,
     unmetReason: 'life-not-below-half',
     holds: (self) => self.hp * 2 <= self.hpMax,
   },
@@ -142,6 +156,7 @@ export const ABILITY_CIRCUMSTANCES: readonly AbilityCircumstance[] = [
     // 그 상대에게 **내가 남긴** 표식이 지금 붙어 있다 (UL §18 "Target 에 Mark 존재").
     // 남긴 시각에서 매번 다시 센다 — 닫는 규칙이 세계에 없다 (semantic/mark.ts).
     id: 'bears-my-mark',
+    readsOther: true,
     unmetReason: 'no-mark-on-them',
     holds: (self, other, now) =>
       other !== null && isMarkedBy(other.marks, self.id, now.time),
@@ -150,6 +165,7 @@ export const ABILITY_CIRCUMSTANCES: readonly AbilityCircumstance[] = [
     // 그 상대에게 내 표식이 **아직 없다.** 위의 뒤집은 답이며, 걸어 두고 또 거는
     // 일을 막는다 — 세계가 막고 사유를 말하면 표식이 자원처럼 읽힌다.
     id: 'no-mark-of-mine-yet',
+    readsOther: true,
     unmetReason: 'already-marked-by-them',
     holds: (self, other, now) =>
       other !== null && !isMarkedBy(other.marks, self.id, now.time),
