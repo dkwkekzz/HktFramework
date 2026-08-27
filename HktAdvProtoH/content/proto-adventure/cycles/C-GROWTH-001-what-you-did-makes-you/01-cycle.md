@@ -7,7 +7,7 @@
 [PASS] Human Semantic Review       (APPROVED — Human 위임 · 넷째 항·자라는 값 넷·수치 셋 확정)
 [PASS] World Implementation        (1504 tests · engine 무변경 · 새 조작 0 · 넷째 항)
 [PASS] View Implementation         (1520 tests · 새 조작 0 · 화면에 산술 0 · GAP 0)
-[PASS] Verification               (6종 통과 + Playable 은 부분 · 실제 브라우저 왕복 · Human Play 대기)
+[PASS] Verification               (7종 통과 · 브라우저에서 문턱 넘는 장면 실측 · shots/ · Human Play 대기)
 
 STATUS  IN PROGRESS
 
