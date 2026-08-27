@@ -77,7 +77,7 @@
     Why one Cycle        새 상태가 둘뿐이다 — 자리에 무엇이 있는가 · 지금 대답 구간인가.
                          두 번째는 이미 있는 `SkillPhase` 에서 계산되므로 저장하지 않는다
     Depends on           없음
-    Status               PROPOSED
+    Status               SELECTED
 
 ### FR-WHEN-YOU-ANSWER-DECIDES — 언제 대답했는가가 결과를 가른다
 
@@ -260,7 +260,8 @@
     Why one Cycle        새 상태가 하나다 — 지금의 배분. 그 효과는 `effectiveStat` 이
                          이미 매번 다시 세므로 저장되는 것이 늘지 않는다
     Depends on           없음 — 사슬 A 와 독립이다
-    Status               SELECTED
+    Status               C-COMBAT-001 (Stage 1~8 닫힘 · Human Play 대기)
+                         COMPLETE 로 닫히면 이 후보는 여기서 지우고 HISTORY 가 받는다
 
 ### FR-THE-WORLD-DECIDES-WHAT-IS-POSSIBLE — 세계가 무엇이 가능한지를 정한다
 
@@ -506,8 +507,8 @@
 
 ## 추천 순서 (Agent 제안 — 확정은 Human)
 
-    1. FR-WHERE-YOUR-POWER-SITS            갈래 하나가 이 Cycle 로 닫힌다   ← SELECTED
-    2. FR-THE-BLOW-CAN-BE-ANSWERED         사슬 A 의 바닥
+    1. FR-WHERE-YOUR-POWER-SITS            갈래 하나가 이 Cycle 로 닫힌다   ← C-COMBAT-001
+    2. FR-THE-BLOW-CAN-BE-ANSWERED         사슬 A 의 바닥                  ← SELECTED
     3. FR-WHEN-YOU-ANSWER-DECIDES
     4. FR-A-GOOD-ANSWER-OPENS-A-DOOR       MP-READ-AND-COUNTER 가 닫힌다
     5. FR-WHAT-YOU-BLOCK-BECOMES-YOURS     MP-STORE-AND-RELEASE 가 닫힌다
@@ -550,21 +551,30 @@ Q60(c) 로 빠졌으므로 관찰자와 묶는 자 둘로 검증한다.
 ## SELECTED
 
 ```text
-FR-WHERE-YOUR-POWER-SITS — 지금 힘이 어디에 몰려 있는가
-Cycle   C-COMBAT-001 (착수 대기 — 아직 시작하지 않았다)
-선택    Human 위임 · 2026-08-26 (경위: HISTORY "COMBAT 첫 후보 선택")
+FR-THE-BLOW-CAN-BE-ANSWERED — 닿는 순간에 대답할 수 있다
+Cycle   C-COMBAT-002 (착수 — Stage 1 부터)
+선택    Human · 2026-08-27
 ```
 
-    Source Goal          MG-OVERCOME-SUPERIOR-OPPONENT
-    Source Possibility   MP-EXPLOIT-OPEN-BODY (이 Cycle 로 닫힌다) ·
-                         MP-CONCENTRATE-THE-POWER · MP-HOLD-FORTIFIED (전진)
-    Target Capability    MC-AURA-ALLOCATION (overlay: MISSING)
-    Active Constraints   DC-COMBAT-AURA-IS-A-PROFILE-NOT-A-DIAL · DC-COMBAT-ONE-FORMULA ·
-                         DC-COMBAT-SHARED-BUDGET · DC-COMBAT-PLAYER-CAUSALITY ·
-                         DC-COMBAT-ONE-LAYER-AT-A-TIME · DC-WORLD-OWNS-THE-SURFACE-LIST
-    Constraint Note      여섯 다 SATISFIED. 가장 주의할 것은 첫째다 — 전투 중 입력이
-                         **배분 하나를 고르는 것**을 넘어서는 순간 이 층이 UL §41.1 이
-                         금지한 실시간 조절 UI 가 된다
+    Source Goal          MG-SURVIVE-ENEMY-OFFENSIVE
+    Source Possibility   MP-READ-AND-COUNTER · MP-EVADE-BY-MOVING-THE-BODY ·
+                         MP-STORE-AND-RELEASE (셋 다 전진 — 어느 것도 이 Cycle 로
+                         닫히지 않는다. 셋 다 정밀 판정이나 기회를 더 요구한다)
+    Target Capability    MC-ACTIVE-RESPONSE (overlay: MISSING)
+    Active Constraints   DC-COMBAT-ONE-RESPONSE-INPUT · DC-COMBAT-RESPONSE-IS-OPTIONAL-MASTERY ·
+                         DC-COMBAT-SHARED-BUDGET · DC-COMBAT-ONE-LAYER-AT-A-TIME ·
+                         DC-COMBAT-PLAYER-CAUSALITY · DC-WORLD-OWNS-THE-SURFACE-LIST
+    Constraint Note      여섯 다 SATISFIED. 가장 주의할 것은 둘째다 —
+                         **대답하지 않는 것이 정상 경로로 남아야 한다.** 대답이 사실상
+                         필수가 되는 순간(안 하면 못 버티는 수치) 이 층은 선택적 숙련이
+                         아니라 새 세금이 된다. 첫째도 나란히 본다: 자리가 하나이므로
+                         키도 하나여야 하고, 대답의 종류를 여럿 만들지 않는다
+
+    앞 Cycle 과의 순서    C-COMBAT-001 이 STATUS IN PROGRESS 로 남아 있다 (Human Play 대기).
+                         **트랙은 직렬이나 이 둘은 파일이 겹치지 않는다** — 배분은
+                         `effectiveStat` 의 항이고 대답은 타격이 닿는 순간의 판정이다.
+                         C-COMBAT-001 이 COMPLETE 로 닫히면 그 Feedback 이 overlay 를
+                         고치므로, 이 Cycle 의 08 은 그 뒤 최신 main 위에서 돈다
 
 ## 지금 열 수 없는 것
 

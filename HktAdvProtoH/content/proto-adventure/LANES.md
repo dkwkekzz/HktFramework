@@ -33,7 +33,7 @@ Feedback · BACKLOG)를 겹쳐 `LANES.html` 로 그린다. `npm run lanes:check`
 |---|---|---|---|
 | FEEDBACK | OPEN | `C-COMBAT-001` 의 MASTER FEEDBACK 이 미처리다 (08-verification.md) — Overlay 판정 둘(PARTIAL)과 Constraint 후보 하나 | C-COMBAT-001 이 COMPLETE 로 닫히고 병합된 뒤 최신 main 위에서 (`npm run feedback:gate`) |
 | WORLD·ITEM | HUMAN | 후보 5 중 선택 대기 — Agent 추천 FR-THE-PLACES-ARE-NARROWER (+FR-SEE-BEFORE 얹기) | Human Select (frontier/item.md) |
-| WORLD·COMBAT | HUMAN | `C-COMBAT-001-where-your-power-sits` — Stage 1~8 닫힘. 검사 6종 통과 · 실제 브라우저에서 왕복 실측. **STATUS 는 IN PROGRESS** — 사람이 손으로 눌러 본 뒤에만 COMPLETE 다 (Gate 14항). 사람이 볼 셋을 1440×900 교전 상태에서 미리 재어 08 에 실었다 — 둘은 화면 결손으로 판명나 BACKLOG 로 이관했고, **손에 남은 것은 상대의 `[몸]` 하나다**. 남은 후보 아홉이 UL 전체를 덮는다 | Human Play (`npm run dev` → `U` → `2`, 그리고 Wanderer 를 `60 / 120` 아래로) |
+| WORLD·COMBAT | RUNNING | `C-COMBAT-002-the-blow-can-be-answered` — SELECTED `FR-THE-BLOW-CAN-BE-ANSWERED`(닿는 순간에 대답할 수 있다, 사슬 A 의 바닥). Stage 1 닫힘. 앞 Cycle `C-COMBAT-001` 은 세계에서 겹치지 않으나 **STATUS 가 IN PROGRESS 로 남아 있다** — 상대의 `[몸]` 하나가 Human Play 에 걸려 있고, 이 Cycle 의 Stage 8 은 그것이 닫힌 뒤 최신 main 위에서 돈다 | 없음 (Stage 5 에서 Human Semantic Review 를 받는다) |
 | WORLD·TERRAIN | OPEN | `C-TERRAIN-001` 착수 대기 — SELECTED `FR-THE-GROUND-HAS-A-LAW`(땅이 법칙을 지닌다). Stage 1 부터, 아직 시작하지 않았다. 시각화의 소유 분해·진행 순서는 [design/Design-Terrain-Visualization.md](../../design/Design-Terrain-Visualization.md) 를 따른다 | 없음 — 다만 이 판과 트랙 파일이 main 에 들어간 뒤에 잡는다 |
 | WORLD·GROWTH | OPEN | `C-GROWTH-001` 착수 대기 — SELECTED `FR-WHAT-YOU-DID-MAKES-YOU`(한 일이 몸을 키운다). Stage 1 부터, 아직 시작하지 않았다. **COMBAT 과 같은 파일을 본다 — 아래 충돌 칸** | 없음 — 다만 이 판과 트랙 파일이 main 에 들어간 뒤에 잡는다 |
 | VIEW | OPEN | BACKLOG 다음 항목(drag-and-drop)부터 — 기반 동반이 필요한 셋(tip-flip-at-the-edge · escape-leaves-the-field · workspace-two-columns)은 ENGINE 뒤에 잡는다 | 없음 |
