@@ -64,7 +64,7 @@ Human 이 답하면 풀리는 것들이다. 답의 자리는 괄호가 가리킨
 | 무엇 | 풀리는 것 |
 |---|---|
 | WORLD·ITEM 후보 선택 (frontier/item.md SELECTED) | WORLD·ITEM 레인 착수 |
-| C-TERRAIN-002 Human Semantic Review (05-review.md) | Stage 6 World Implementation 착수. 물어 둔 것 셋은 그 Cycle 의 02-intent.md REVIEW QUESTION 에 있다 — 분출이 몸에 열을 **돌려주는가** · 손으로 놓인 예외(`respite`)를 **지우는가** · 맥 넷의 배치와 초기 적재 |
+| C-TERRAIN-002 Human Semantic Review (05-review.md) | Stage 6 World Implementation 착수. 물어 둔 것 넷은 그 Cycle 의 02-intent.md REVIEW QUESTION 에 있다 — 분출이 몸에 열을 **돌려주는가** · 손으로 놓인 예외(`respite`)를 **지우는가** · 한 자리에 머무는 평형을 받아들이는가 · **흐름이 몸↔땅까지인가 땅↔땅까지인가** |
 | WORLD·COMBAT 후보 선택 (frontier/combat.md SELECTED) | WORLD·COMBAT 레인 착수 |
 | Q62 — 갈래를 노드의 완결로 판정하는가 플레이의 성립으로 판정하는가 (open-questions.md) | Overlay 를 읽는 법 · Frontier 가 무엇을 결손으로 세는가 |
 | `CC-ORDER-IS-THE-ADDRESS` 승격 여부 (candidates/) | 순서로 짚는 것이 원칙이 되는가 — DC-WORLD-OWNS-THE-SURFACE-LIST 와 합칠지도 함께 |
