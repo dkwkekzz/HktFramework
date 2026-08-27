@@ -1,0 +1,111 @@
+# 원본 근거: content/proto-adventure/design/Design-Fairy-Class-Layer0-R0.md (FC) §5 태양심계 요정 —
+#   §5.1 정체성 · §5.4 전투 역할 · §5.5 Heat Gauge · §5.6 열방출 · §5.7 Skill · §5.8 일심폭발 ·
+#   §5.9 Aura · §5.10 Counterplay · §5.11 모험 · §5.12 Mastery · §5.13 외형 · §10 현재 한계
+# 이름의 소유는 성장 기획 문서(GS)다 (HISTORY Q55(b)) — 부르는 이름은 열술사 하나뿐이다.
+id: CL-SUNHEART-ORIGIN
+type: class
+
+semantic: >
+  열술사 — 태양심계의 Origin Class. 주변과 상대에게서 열을 빼앗아 자기 안에 저장하고,
+  포화된 만큼을 한 번에 돌려주는 형태이며, 싸울수록 전장이 차가워지고 자신은 뜨거워진다.
+detail: >
+  이 형태의 플레이는 빼앗는다 · 저장한다 · 위험을 감수한다 · 방출한다로 반복된다 (FC §9).
+  다른 형태와 갈리는 지점은 **자기 자원이 위험을 함께 키운다**는 것이다. 저장한 열이 낮으면
+  안전하지만 약하고, 높으면 강하지만 과열의 위험이 생긴다 — 차가움 · 안정 · 뜨거움 · 과열
+  네 상태로 읽히며, 지금 어느 상태인가가 무엇을 할 수 있는지를 가른다 (FC §5.5).
+  백왕계의 결속과 헷갈리면 안 된다. 저쪽은 받아낸 충격이 쌓이는 것이라 쌓일수록 좋기만
+  하지만, 이쪽은 스스로 원천을 찾아다녀 채워야 하고 너무 채우면 자기가 위험해진다.
+  그래서 이 몸의 성격 자체가 저온에서 안정, 축적에서 흥분, 과충전에서 폭발이라는 리듬을
+  가진다 (FC §5.2).
+  맞는 순간의 자리에는 열방출이 들어간다. 그냥 하면 저장한 열을 써서 피해를 줄이고,
+  근접 공격에 정확히 하면 순간적인 열교환이 일어나 상대의 열을 빼앗으면서 자기 저장량이
+  오히려 회복된다 (FC §5.6).
+  탐험에서도 같은 원리를 쓴다 — 얼음을 녹이고, 추운 지역에서 몸을 데우고, 열의 흔적을
+  좇고, 얼어붙은 장치를 가동하며, 생물과 장치가 남긴 열의 흐름을 본다 (FC §5.11).
+  지금 할 수 없는 것은 분명하다 — 저장할 수 있는 것이 열뿐이다. 다른 종류의 에너지와
+  상태까지 저장하는 일은 이 층에 없고, 그 한계가 상위 Layer 의 출발점이다 (FC §10).
+world_shape: >
+  전장의 열이 유한한 것으로 세계에 있어야 하고, 이 형태가 그것을 빼앗으면 빼앗긴 쪽이
+  실제로 달라져야 한다 — 상대는 느려지고 그 자리는 차가워진다. 저장량이 네 구간으로
+  읽히고 구간마다 쓸 수 있는 것이 달라야 하며, 가장 높은 구간에서는 이득과 함께 위험이
+  와야 한다. 저장량이 오르면 결정 안 · 의상 문양 · 머리카락 끝 · 주변 공기 순으로 빛이
+  번지고, 과열에서는 주변 공기가 일렁여 멀리서도 지금이 어느 구간인지 읽혀야 한다 (FC §5.13).
+  열원이 없는 곳에서도 똑같이 강하면 이 형태가 아니다.
+
+origin_trace:
+  world_state: [MW-TERRAIN-SUNEATER-ICEFIELD]   # 검은 광맥이 주변의 열을 결정 안에 결속한 땅 (FC §5.1 · BT §5)
+  goal:        [MG-EXPLORE-BEIRA, MG-OVERCOME-SUPERIOR-OPPONENT]
+  possibility: [MP-STORE-AND-RELEASE, MP-CONTROL-MOVEMENT]
+
+requires: []          # Origin 은 시작 형태다 — FC 는 이 층에 진입 조건을 두지 않는다 (FC §1 · GS §4)
+
+grants:
+  - MC-ACTIVE-RESPONSE        # 맞는 순간의 자리에 열방출이 들어간다 (FC §5.6)
+  - MC-PRECISION-RESPONSE     # 그 방출이 언제 됐는가로 결과가 갈린다 (FC §5.6 Precision)
+  - MC-OPPORTUNITY            # 잘 된 방출이 열교환이라는 다음 수를 연다 (FC §5.6)
+  - MC-ABSORB                 # 받아낸 것을 저장했다 한 번에 쓴다 — 일심폭발 (FC §5.5 · §5.8)
+  - MC-CONTROL-SPACE          # 냉각장 — 주변 열을 계속 빨아들이는 영역을 만든다 (FC §5.7 Skill 3)
+  - MC-ABILITY-CONDITION      # 저장량의 네 구간이 무엇이 가능한지를 가른다 (FC §5.5)
+  - MC-CARRY-LIFE-SUPPORT     # 추운 지역의 보온과 열원 확보 — 그 땅에서 저절로 주어지지 않는 것 (FC §5.11)
+  - MC-READ-ENVIRONMENT       # 열시야 — 생물과 장치가 남긴 열의 흐름을 읽는다 (FC §5.11 Passive)
+  - MC-DRAIN                  # 냉취 — 주변과 상대에게서 열을 빼앗는다 (FC §5.7 Skill 1)
+grants_note: >
+  누구나 가진 바닥(때리기 · 기력 예산 · 몸의 방향)은 적지 않는다.
+  빼앗는 흡수는 Q71(b) 확장으로 MC-DRAIN 이 되었다 — 근거는 이 계열이 딛고 선 땅이다
+  (BT §5.1 검은 광맥이 주변의 열을 결정 안에 결속한다). 빼앗긴 쪽이 느려지는 것은 별개의
+  조작이 아니라 그 노드의 semantic 자체다.
+  MC-ABSORB 는 그대로 둔다 — 받아낸 것을 저장하는 일과 빼앗아 오는 일은 다르며, 이 형태는
+  둘 다 한다 (버티며 벌지 않고 모아서 터뜨린다는 점이 백왕계와 갈리는 자리다).
+  숨어 있는 생물의 체열을 감지하는 인지(FC §5.9)는 여전히 노드가 없다 —
+  MC-READ-ENVIRONMENT 는 "생물과 독립적으로 환경을 읽는다" 라 어긋난다.
+
+  **기술 쪽에서 이 계열이 가장 크게 걸린다.** 여덟 중 넷이 전달 형태를 요구한다 —
+  열탄 · 태양탄 · 열광선은 **날아가는 것**을, 냉각장은 **머무는 영역**을, 일심폭발은
+  **한 번에 여럿**을 요구하는데 MS-SKILL-FORM 의 그 세 칸이 전부 비어 있다 (Q35).
+  MC-DRAIN 이 섰어도 **빼앗는 손이 닿는 방식**이 없으면 냉취 하나만 성립한다.
+
+# ── 관문 넷 (Human 결정 — HISTORY Q70(c)) ─────────────────────────────
+response: >
+  열방출 — 저장한 열을 순간적으로 터뜨려 공격을 밀어낸다. 그냥 하면 저장량을 써서
+  피해가 줄고, 근접 공격에 정확히 하면 열교환이 일어나 상대의 열을 빼앗으면서 저장량이
+  오히려 회복된다 (FC §5.6).
+counterplay:          # FC 의 Counterplay 절
+  - 열원이 적은 환경으로 끌어들인다
+  - 흡수 대상과의 거리를 유지한다
+  - 과충전을 유도해 스스로 위험해지게 한다
+  - 크게 방출한 직후를 친다
+cannot_yet:           # FC §10 이 이 층에서 의도적으로 막아 둔 것
+  - 열 말고 다른 종류의 힘을 저장하는 일
+  - 상태 자체를 저장하는 일
+extends_toward: >
+  저장할 수 있는 것이 열 밖으로 넓어지는 쪽 — 다른 에너지와 상태까지 담는 형태다
+  (FC §10).
+
+transitions_to: []   # 아직 상위 형태의 CL-* 가 없다 — Layer 1 설계 문서가 세운다.
+                     # **한 칸에 여러 형태가 설 수 있다** (Human 결정 — HISTORY Q69(b)):
+                     # GS 가 이름을 준 태양포식자는 그중 **한 갈래**이고, 다른 Principle 이
+                     # 결합된 갈래는 자기 설계 문서가 세우며 이름도 그때 따라온다
+                     # (DC-GROWTH-CLASS-COMES-FROM-A-PRINCIPLE — 이름이 먼저가 아니다).
+
+constraints:
+  - DC-GROWTH-CLASS-ORIGIN-TRACE
+  - DC-GROWTH-PRINCIPLE-IS-PLAYED
+  - DC-GROWTH-DIFFERENCE-IS-BEHAVIOR
+  - DC-GROWTH-EXPLORATION-SHARES-THE-PRINCIPLE
+  - DC-GROWTH-STAGE-READS-AT-A-DISTANCE
+  - DC-COMBAT-STRONG-RULE-HAS-COUNTERPLAY
+  - DC-GROWTH-CLASS-OWNS-THE-RESPONSE
+  - DC-GROWTH-ORIGIN-IS-SIMPLE-FIRST
+  - DC-GROWTH-CLASS-CLOSES-BEFORE-THE-NEXT-LAYER
+  - DC-GROWTH-NO-CAPABILITY-DUPLICATION
+constraint_evaluation:
+  DC-GROWTH-CLASS-ORIGIN-TRACE: SATISFIED               # 해를 삼킨 빙원이 이 형태 없이도 성립한다 (BT §5)
+  DC-GROWTH-PRINCIPLE-IS-PLAYED: SATISFIED              # 축적이 설정이 아니라 네 구간의 상태와 그 구간이 여는 행동으로 나타난다
+  DC-GROWTH-DIFFERENCE-IS-BEHAVIOR: SATISFIED           # 자원이 위험을 함께 키운다는 점이 다른 다섯과 갈린다 (FC §9)
+  DC-GROWTH-EXPLORATION-SHARES-THE-PRINCIPLE: SATISFIED # 얼음 녹이기·열 추적이 전투의 흡수·방출과 같은 원리다 (FC §5.11)
+  DC-GROWTH-STAGE-READS-AT-A-DISTANCE: SATISFIED        # 저장량이 결정→문양→머리→공기로 번지는 빛으로 보인다 (FC §5.13)
+  DC-COMBAT-STRONG-RULE-HAS-COUNTERPLAY: SATISFIED      # 열원이 적은 환경·거리 유지·과충전 유도·폭발 직후 공격 (FC §5.10)
+  DC-GROWTH-CLASS-OWNS-THE-RESPONSE: SATISFIED          # 그 자리에 열방출이 들어간다 (FC §5.6)
+  DC-GROWTH-ORIGIN-IS-SIMPLE-FIRST: SATISFIED           # 조건이 저장량 한 축이고 계약을 쓰지 않는다
+  DC-GROWTH-CLASS-CLOSES-BEFORE-THE-NEXT-LAYER: SATISFIED   # 지금 할 수 없는 것과 확장 방향이 FC §10 에 있다
+  DC-GROWTH-NO-CAPABILITY-DUPLICATION: SATISFIED       # 빼앗는 흡수가 MC-DRAIN 으로 섰고, 느려짐은 그 안에 담겼다

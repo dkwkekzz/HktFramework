@@ -1,0 +1,109 @@
+# 원본 근거: content/proto-adventure/design/Design-Fairy-Class-Layer0-R0.md (FC) §4 역락계 요정 —
+#   §4.1 정체성 · §4.4 전투 역할 · §4.5 연속낙하 · §4.6 역보 · §4.7 Skill · §4.8 역락연무 ·
+#   §4.9 Aura · §4.10 Counterplay · §4.11 모험 · §4.12 Mastery · §4.13 외형 · §10 현재 한계
+# 이름의 소유는 성장 기획 문서(GS)다 (HISTORY Q55(b)) — 부르는 이름은 역락검사 하나뿐이다.
+id: CL-YEOKRAK-ORIGIN
+type: class
+
+semantic: >
+  역락검사 — 역락계의 Origin Class. 빠른 것이 아니라 자신에게 작용하는 아래쪽과 운동의
+  방향을 바꾸는 형태이며, 방향을 바꾼 직후에 생기는 운동량을 칼로 전달한다.
+detail: >
+  이 형태의 플레이는 달린다 · 방향을 바꾼다 · 파고든다 · 다시 달린다로 반복된다 (FC §9).
+  전장이 바닥 하나로 되어 있다고 보지 않는 것이 이 몸의 전제여서, 바닥과 벽과 천장과 공중과
+  적의 등 뒤가 전부 같은 이동 공간이다 (FC §4.1).
+  다른 형태와 갈리는 지점은 **멈추면 약해진다**는 것이다. 방향을 바꾼 뒤 일정 시간 안에 다시
+  바꾸면 흐름이 유지되고, 흐름이 높을수록 새로운 이동 연결이 열리며, 멈추면 빠르게 사라진다
+  (FC §4.5). 그래서 이 몸의 자원은 쌓아 두는 것이 아니라 계속 굴려야 남는 것이다 —
+  같은 자리에 서서 받아내는 백왕계와 정확히 반대다.
+  맞는 순간의 자리에는 역보가 들어간다. 공격이 닿기 직전 자신의 낙하 방향을 옆으로 바꾸는
+  것이며, 그냥 하면 판정에서 벗어나고 정확히 하면 흐름을 유지한 채 공격자의 측면이나 후방으로
+  갈 수 있는 방향의 틈이 열린다 (FC §4.6).
+  탐험에서도 같은 원리를 쓴다 — 벽 달리기, 천장 이동, 위로 떨어지는 폭포 타기, 절벽 우회,
+  낙하 방향 변경이며, 그 땅의 중력 방향과 비정상적인 낙하 흐름을 눈으로 감지한다 (FC §4.11).
+  지금 할 수 없는 것은 분명하다 — 방향을 바꿀 수 있는 대상이 주로 자기 자신이다. 여러 존재와
+  공간 전체의 방향을 지배하는 일은 이 층에 없고, 그 한계가 상위 Layer 의 출발점이다 (FC §10).
+world_shape: >
+  이 형태만 자기에게 작용하는 아래쪽을 바꿀 수 있어야 하고, 그 결과로 벽과 천장이 실제 이동
+  경로가 되어야 한다. 방향을 이어서 바꾸는 동안에만 유지되는 상태가 있어야 하고, 그 상태가
+  있을 때와 없을 때 열리는 이동 연결이 달라야 한다. 멈춰 서서 싸워도 똑같이 강하면 이 형태가
+  아니다. 리본과 머리카락이 지금의 중력 방향을 그대로 보여 주고, 방향을 바꾸는 순간 발밑에
+  짧은 화살촉 형태가 나타나 무엇이 일어났는지 멀리서도 읽혀야 한다 (FC §4.13).
+
+origin_trace:
+  world_state: [MW-TERRAIN-SKYFALL-RANGE]     # 낙하 방향이 세계압의 흐름에 결속된 땅 (FC §4.1 · BT §8)
+  goal:        [MG-EXPLORE-BEIRA, MG-OVERCOME-SUPERIOR-OPPONENT]
+  possibility: [MP-EVADE-BY-MOVING-THE-BODY, MP-EXPLOIT-OPEN-BODY]
+
+requires: []          # Origin 은 시작 형태다 — FC 는 이 층에 진입 조건을 두지 않는다 (FC §1 · GS §4)
+
+grants:
+  - MC-ACTIVE-RESPONSE        # 맞는 순간의 자리에 역보가 들어간다 (FC §4.6)
+  - MC-PRECISION-RESPONSE     # 그 역보가 언제 됐는가로 결과가 갈린다 (FC §4.6 Precision)
+  - MC-OPPORTUNITY            # 잘 된 역보가 측면·후방으로 갈 방향의 틈을 남긴다 (FC §4.6)
+  - MC-EVADE                  # 막지 않고 몸을 옮겨 판정에서 벗어난다 (FC §4.6 Normal)
+  - MC-REPOSITION             # 낙선 — 다음 행동에 유리한 자리를 만드는 가속 (FC §4.7 Skill 1)
+  - MC-USE-TERRAIN            # 벽천보 — 벽과 천장을 자기 지면으로 쓴다 (FC §4.7 Skill 2 · §4.11)
+  - MC-ABILITY-CONDITION      # 흐름이 유지되는 동안에만 열리는 이동 연결이 있다 (FC §4.5)
+  - MC-REDEFINE-DOWN          # 낙선 · 벽천보 — 아래쪽을 바꾸고 벽·천장을 지면으로 쓴다 (FC §4.5 · §4.7)
+  - MC-REDIRECT-FALLING-THING # 반류 — 접촉한 투사체의 진행 방향을 비튼다 (FC §4.7 Skill 3)
+grants_note: >
+  누구나 가진 바닥(때리기 · 기력 예산 · 몸의 방향)은 적지 않는다.
+  이 형태가 요구하던 셋은 Q71(b) 확장으로 노드가 되었다 — 아래쪽 바꾸기와 표면 주행은
+  하나로(MC-REDEFINE-DOWN), 투사체 방향 전환은 따로(MC-REDIRECT-FALLING-THING).
+  둘 다 근거는 FC 가 아니라 이 계열이 딛고 선 땅이다 — BT §8.7 이 "세계가 정한 아래쪽을
+  바꾸는 것" 을 산맥의 핵심 경험으로, "적과 투사체의 낙하 방향 변경" 을 주요 경험으로
+  적어 두었다. 필요가 먼저 서고 노드가 따라왔다.
+  MC-USE-TERRAIN 은 그대로 둔다 — 지형을 유리하게 쓰는 것과 아래쪽을 바꾸는 것은 다른 일이다.
+
+  **기술 쪽에서 걸리는 것 둘.** 반류가 비틀 **투사체 자체가 세계에 없고**
+  (MS-SKILL-FORM 의 빈 칸 · Q35), 천락참(FC §4.7 Skill 4)의 "낙하 거리가 길수록 충돌
+  Momentum 이 커진다" 는 위아래가 서야 성립한다. MC-REDEFINE-DOWN 과
+  MC-REDIRECT-FALLING-THING 은 노드로 섰으나 **세계에 위아래가 없어** 아직 놓을 자리가
+  없다 (`WorldPosition` 은 x·z 뿐 — frontier/terrain.md 의 "지금 열 수 없는 것").
+
+# ── 관문 넷 (Human 결정 — HISTORY Q70(c)) ─────────────────────────────
+response: >
+  역보 — 공격이 닿기 직전 자신의 낙하 방향을 옆으로 바꾼다. 그냥 하면 판정에서
+  벗어나고, 정확히 하면 흐름을 유지한 채 공격자의 측면이나 후방으로 갈 수 있는 방향의
+  틈이 열린다 (FC §4.6).
+counterplay:          # FC 의 Counterplay 절
+  - 좁은 공간으로 몰아 방향을 고를 여지를 없앤다
+  - 이동 경로를 봉쇄한다
+  - 밟을 표면을 없앤다
+  - 광범위한 지대로 흐름을 끊는다
+cannot_yet:           # FC §10 이 이 층에서 의도적으로 막아 둔 것
+  - 여러 존재의 방향을 바꾸는 일
+  - 공간 전체의 방향을 지배하는 일
+extends_toward: >
+  방향을 바꾸는 대상이 자기 자신 밖으로 넓어지는 쪽 — 적과 투사체를 지나 공간까지
+  간다 (FC §4.1 · §10).
+
+transitions_to: []   # 아직 상위 형태의 CL-* 가 없다 — Layer 1 설계 문서가 세운다.
+                     # **한 칸에 여러 형태가 설 수 있다** (Human 결정 — HISTORY Q69(b)):
+                     # GS 가 이름을 준 천주질주자는 그중 **한 갈래**이고, 다른 Principle 이
+                     # 결합된 갈래는 자기 설계 문서가 세우며 이름도 그때 따라온다
+                     # (DC-GROWTH-CLASS-COMES-FROM-A-PRINCIPLE — 이름이 먼저가 아니다).
+
+constraints:
+  - DC-GROWTH-CLASS-ORIGIN-TRACE
+  - DC-GROWTH-PRINCIPLE-IS-PLAYED
+  - DC-GROWTH-DIFFERENCE-IS-BEHAVIOR
+  - DC-GROWTH-EXPLORATION-SHARES-THE-PRINCIPLE
+  - DC-GROWTH-STAGE-READS-AT-A-DISTANCE
+  - DC-COMBAT-STRONG-RULE-HAS-COUNTERPLAY
+  - DC-GROWTH-CLASS-OWNS-THE-RESPONSE
+  - DC-GROWTH-ORIGIN-IS-SIMPLE-FIRST
+  - DC-GROWTH-CLASS-CLOSES-BEFORE-THE-NEXT-LAYER
+  - DC-GROWTH-NO-CAPABILITY-DUPLICATION
+constraint_evaluation:
+  DC-GROWTH-CLASS-ORIGIN-TRACE: SATISFIED               # 하늘로 떨어지는 산맥이 이 형태 없이도 성립한다 (BT §8)
+  DC-GROWTH-PRINCIPLE-IS-PLAYED: SATISFIED              # 방향이 설정이 아니라 이동 경로와 유지되는 흐름으로 나타난다
+  DC-GROWTH-DIFFERENCE-IS-BEHAVIOR: SATISFIED           # 멈추면 약해진다는 점이 다른 다섯과 갈린다 (FC §9)
+  DC-GROWTH-EXPLORATION-SHARES-THE-PRINCIPLE: SATISFIED # 벽 달리기·낙하 방향 변경이 전투의 방향 전환과 같은 원리다 (FC §4.11)
+  DC-GROWTH-STAGE-READS-AT-A-DISTANCE: SATISFIED        # 리본과 발밑의 화살촉이 지금의 방향을 보여 준다 (FC §4.13)
+  DC-COMBAT-STRONG-RULE-HAS-COUNTERPLAY: SATISFIED      # 좁은 공간·경로 봉쇄·표면 제거·광역 지대로 흐름을 끊는다 (FC §4.10)
+  DC-GROWTH-CLASS-OWNS-THE-RESPONSE: SATISFIED          # 그 자리에 역보가 들어간다 (FC §4.6)
+  DC-GROWTH-ORIGIN-IS-SIMPLE-FIRST: SATISFIED           # 조건이 흐름 한 축이고 계약을 쓰지 않는다
+  DC-GROWTH-CLASS-CLOSES-BEFORE-THE-NEXT-LAYER: SATISFIED   # 지금 할 수 없는 것과 확장 방향이 FC §10 에 있다
+  DC-GROWTH-NO-CAPABILITY-DUPLICATION: SATISFIED       # 셋 다 Q71(b) 로 노드가 섰고, 표면 주행은 MC-REDEFINE-DOWN 하나에 담겼다

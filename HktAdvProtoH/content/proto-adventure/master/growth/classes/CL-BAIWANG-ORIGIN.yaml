@@ -1,0 +1,112 @@
+# 원본 근거: content/proto-adventure/design/Design-Fairy-Class-Layer0-R0.md (FC) §3 백왕계 요정 —
+#   §3.1 정체성 · §3.4 전투 역할 · §3.5 왕골격 · §3.6 버티기 · §3.7 Skill · §3.8 왕골해방 ·
+#   §3.9 Aura · §3.10 Counterplay · §3.11 모험 · §3.12 Mastery · §3.13 외형 · §10 현재 한계
+# 이름의 소유는 성장 기획 문서(GS)다 (HISTORY Q55(b)) — 여기의 ID 는 자리를 가리키는 주소이지
+# 두 번째 이름이 아니다. 부르는 이름은 골완투사 하나뿐이다.
+id: CL-BAIWANG-ORIGIN
+type: class
+
+semantic: >
+  골완투사 — 백왕계의 Origin Class. 세계압을 자기 육체와 왕골봉에 결속하는 형태이며,
+  받아낸 충격과 직접 가한 힘이 결속력으로 쌓이고 그 쌓인 양이 지금 무엇을 할 수 있는지를
+  가른다.
+detail: >
+  이 형태의 플레이는 다섯 마디로 반복된다 — 막는다 · 버틴다 · 모은다 · 밀어낸다 · 부순다
+  (FC §3.1). 빠르지도 화려하지도 않고, 상대가 거대할수록 오히려 자기 자리가 커진다.
+  다른 다섯 형태와 갈리는 지점은 **맞는 것이 손해가 아니라는 점**이다. 강한 공격을
+  받아내거나 힘겨루기를 하거나 무거운 것을 부술 때마다 결속력이 오르고, 그 값이 0 일 때는
+  일반 밀치기밖에 못 하던 것이 오르면서 대형 대상 밀치기와 자세 붕괴로 바뀐다 (FC §3.5).
+  값이 세지는 것이 아니라 할 수 있는 일이 늘어난다는 점이 이 자원의 성격이다.
+  맞는 순간의 자리에는 버티기가 들어간다. 그냥 하면 피해와 밀림이 줄고, 정확히 하면 충격을
+  흘리지 않고 그대로 결속해 결속력을 얻으면서 상대에게 균형의 틈을 만든다 — 잘 막은 것이
+  다음 공격을 여는 형태다 (FC §3.6).
+  탐험에서도 같은 원리를 쓴다. 거대한 바위를 옮기고 문을 강제로 열고 무너지는 구조물을
+  지탱하며, 압력과 하중이 높은 지역을 다른 형태보다 안정적으로 지난다 (FC §3.11).
+  지금 할 수 없는 것은 분명하다 — 결속의 대상이 자기 자신뿐이다. 타인이나 넓은 공간에
+  힘을 결속하는 일은 이 층에 없고, 그 한계가 상위 Layer 의 출발점이다 (FC §10).
+world_shape: >
+  같은 상대를 같은 시간 동안 상대해도 이 형태만 받아낸 충격이 몸에 쌓여야 하고, 그 쌓인
+  양에 따라 같은 행동(밀기 · 내려찍기)의 결과가 밀치기에서 자세 붕괴로 갈라져야 한다.
+  맞는 순간의 대응이 다른 형태와 다른 행동이어야 하고, 그 대응을 정확히 했을 때만 결속력과
+  상대의 틈이 함께 생겨야 한다. 힘이 쌓일수록 몸 · 왕골봉 · 등 뒤 순으로 백색 골격의
+  기운이 이어져 멀리서도 지금 얼마나 찼는지 읽혀야 한다 (FC §3.13).
+  결속력이 늘 최대이거나 무엇을 해도 같은 속도로 오르면 이 형태가 아니다.
+
+origin_trace:
+  world_state: [MW-TERRAIN-BAIWANG-BASIN]     # 백왕의 골격이 세계압을 한 육체에 붙잡아 둔 땅 (FC §3.1 · BT §4)
+  goal:        [MG-EXPLORE-BEIRA, MG-SURVIVE-ENEMY-OFFENSIVE]
+  possibility: [MP-STORE-AND-RELEASE, MP-HOLD-FORTIFIED, MP-BREAK-THE-GUARD]
+
+requires: []          # Origin 은 시작 형태다 — FC 는 이 층에 진입 조건을 두지 않는다 (FC §1 · GS §4)
+
+grants:
+  - MC-ACTIVE-RESPONSE        # 맞는 순간의 자리에 버티기가 들어간다 (FC §3.6)
+  - MC-PRECISION-RESPONSE     # 그 버티기가 언제 됐는가로 결과가 갈린다 (FC §3.6 Precision)
+  - MC-OPPORTUNITY            # 잘 된 버티기가 상대에게 균형의 틈을 남긴다 (FC §3.6)
+  - MC-GUARD                  # 왕골봉을 지면·몸에 고정해 피해를 줄인다 (FC §3.6 Normal)
+  - MC-FORTIFY                # 골주박기 — 자세를 유지해 밀림에 맞선다 (FC §3.7 Skill 2)
+  - MC-ABSORB                 # 받아낸 것이 결속력으로 쌓이고 왕골해방으로 나간다 (FC §3.5 · §3.8)
+  - MC-BREAK                  # 백왕철추의 자세 붕괴 · 압축파쇄의 Break (FC §3.7)
+  - MC-FORCE-MOVEMENT         # 왕골밀기 — 대상을 몸 전체로 밀어낸다 (FC §3.7 Skill 3)
+  - MC-ABILITY-CONDITION      # 결속력의 단계가 무엇이 가능한지를 가른다 (FC §3.5)
+grants_note: >
+  누구나 가진 바닥(때리기 · 기력 예산 · 몸의 방향)은 적지 않는다.
+  셋이 여전히 노드가 없다 — 무거운 세계 개체를 옮기는 괴력, 무너지는 구조물을 지탱하는
+  지지, 압력이 높은 지역을 견디는 세계압 내성이다 (FC §3.11).
+  Q71(b) 확장이 이 셋을 세우지 못했다. 다른 계열의 결손은 그 계열이 딛고 선 땅이 이미
+  주요 경험으로 요구하고 있었는데, 백왕의 갈비분지는 **가장 안전한 땅**이라 그런 요구를
+  내지 않는다 — 그 지형의 주요 경험은 원정 준비 · 거래 · 증언 수집이다 (BT §4.6).
+  이 셋을 요구할 자리는 다른 땅이거나 아직 없는 갈래이며, 그것이 설 때 잇는다
+  (DC-GROWTH-NEED-FROM-POSSIBILITY).
+
+  **기술 쪽에서 걸리는 것 둘.** 압축파쇄(FC §3.7 Skill 4)의 Area Stagger 는 한 번에
+  여럿에게 닿아야 하는데 MS-SKILL-FORM 의 **공간 조회** 칸이 비어 있고, 왕골해방
+  (FC §3.8)의 주변 구조물 파괴는 **부술 수 있는 세계 개체**가 없다. 둘 다 능력의 결손이
+  아니라 세계의 축이다.
+
+# ── 관문 넷 (Human 결정 — HISTORY Q70(c)) ─────────────────────────────
+response: >
+  버티기 — 왕골봉을 지면이나 자기 몸에 고정해 받아낸다. 그냥 하면 피해와 밀림이 줄고,
+  정확히 하면 충격을 흘리지 않고 그대로 결속해 결속력을 얻으면서 상대에게 균형의 틈을
+  남긴다 (FC §3.6).
+counterplay:          # FC 의 Counterplay 절
+  - 거리를 유지해 접촉 자체를 주지 않는다
+  - 약한 연속 공격으로 대응을 소모시킨다
+  - 강한 공격을 일부러 주지 않아 결속할 것을 주지 않는다
+  - 고정되지 않은 지형에서 싸워 버틸 자리를 없앤다
+cannot_yet:           # FC §10 이 이 층에서 의도적으로 막아 둔 것
+  - 타인에게 힘을 결속하는 일
+  - 넓은 공간에 힘을 결속하는 일
+extends_toward: >
+  결속의 대상이 자기 몸과 무기 밖으로 넓어지는 쪽 — 동료와 공간까지 붙잡아 두는
+  형태다 (FC §10).
+
+transitions_to: []   # 아직 상위 형태의 CL-* 가 없다 — Layer 1 설계 문서가 세운다.
+                     # **한 칸에 여러 형태가 설 수 있다** (Human 결정 — HISTORY Q69(b)):
+                     # GS 가 이름을 준 왕골권사는 그중 **한 갈래**이고, 다른 Principle 이
+                     # 결합된 갈래는 자기 설계 문서가 세우며 이름도 그때 따라온다
+                     # (DC-GROWTH-CLASS-COMES-FROM-A-PRINCIPLE — 이름이 먼저가 아니다).
+                     # FC §1 은 한 Class 에서 갈래가 여럿일 수 있다고 적어 GS 의 단일 사슬과 어긋난다 (Q69).
+
+constraints:
+  - DC-GROWTH-CLASS-ORIGIN-TRACE
+  - DC-GROWTH-PRINCIPLE-IS-PLAYED
+  - DC-GROWTH-DIFFERENCE-IS-BEHAVIOR
+  - DC-GROWTH-EXPLORATION-SHARES-THE-PRINCIPLE
+  - DC-GROWTH-STAGE-READS-AT-A-DISTANCE
+  - DC-COMBAT-STRONG-RULE-HAS-COUNTERPLAY
+  - DC-GROWTH-CLASS-OWNS-THE-RESPONSE
+  - DC-GROWTH-ORIGIN-IS-SIMPLE-FIRST
+  - DC-GROWTH-CLASS-CLOSES-BEFORE-THE-NEXT-LAYER
+  - DC-GROWTH-NO-CAPABILITY-DUPLICATION
+constraint_evaluation:
+  DC-GROWTH-CLASS-ORIGIN-TRACE: SATISFIED               # 백왕의 갈비분지라는 땅이 이 형태 없이도 성립한다 (BT §4)
+  DC-GROWTH-PRINCIPLE-IS-PLAYED: SATISFIED              # 결속이 설정이 아니라 쌓이는 자원과 그 자원이 여는 행동으로 나타난다
+  DC-GROWTH-DIFFERENCE-IS-BEHAVIOR: SATISFIED           # 반복하는 행동(받아내고 모아 부순다)이 다른 다섯과 다르다 (FC §9)
+  DC-GROWTH-EXPLORATION-SHARES-THE-PRINCIPLE: SATISFIED # 괴력·지지·압력 내성이 전투의 결속과 같은 원리다 (FC §3.11)
+  DC-GROWTH-STAGE-READS-AT-A-DISTANCE: SATISFIED        # 결속량이 몸→봉→등 뒤로 이어지는 형태로 보인다 (FC §3.13)
+  DC-COMBAT-STRONG-RULE-HAS-COUNTERPLAY: SATISFIED      # 거리 유지·약한 연속 공격·강한 공격을 주지 않음 (FC §3.10)
+  DC-GROWTH-CLASS-OWNS-THE-RESPONSE: SATISFIED          # 그 자리에 버티기가 들어간다 (FC §3.6)
+  DC-GROWTH-ORIGIN-IS-SIMPLE-FIRST: SATISFIED           # 조건이 결속량 한 축이고 계약을 쓰지 않는다
+  DC-GROWTH-CLASS-CLOSES-BEFORE-THE-NEXT-LAYER: SATISFIED   # 지금 할 수 없는 것과 확장 방향이 FC §10 에 있다
+  DC-GROWTH-NO-CAPABILITY-DUPLICATION: SATISFIED        # grants 가 전부 기존 MC-* 를 가리킨다 — 계열 이름의 사본을 만들지 않았다

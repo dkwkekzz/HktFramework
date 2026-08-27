@@ -390,6 +390,11 @@ type: class
 semantic: >
   이 Class 가 어떤 의미 있는 성장 상태인가.
   Skill 목록을 담는 Container 가 아니다 (GR §24.1)
+detail: >
+  <풀어서 — 이 형태로 노는 사람이 실제로 무엇을 반복하는가 ·
+   다른 형태와 무엇으로 갈리는가>
+world_shape: >
+  <이 형태가 세계에 있다는 것을 무엇으로 확인하는가>
 
 origin_trace:               # 필수 — Class 는 세계와 Actor 가 상호작용한 결과다 (GR §24.2)
   world_state: [MW-...]
@@ -399,14 +404,32 @@ origin_trace:               # 필수 — Class 는 세계와 Actor 가 상호작
 requires: [MC-...]          # 되기 전에 갖춰야 하는 것 — MC / MW / 관계 / Item (GR §26)
 grants:   [MC-...]          # 되고 나서 쓸 수 있게 되는 것 — 기존 MC-* 를 가리킨다.
                             # Source 별 Capability 복제 금지 (GR §33)
-transitions_to:             # Class Change — Tree 일 필요 없다. 진입 경로 복수 허용 (GR §25)
-  - to: CL-<NAME>
+grants_note: >              # 가리킬 기존 MC-* 가 없어 적지 못한 것과 그 사유 (없으면 생략)
+transitions_to:             # Class Change — Tree 일 필요 없다. 진입 경로 복수 허용 (GR §25).
+  - to: CL-<NAME>           # **한 칸에 여러 형태가 설 수 있다** (Human 결정 — HISTORY Q69(b))
     requires: [...]         # MC / MW / Item / 관계 / 기존 Class
+
+# ── 관문 넷 — 이 Class 가 닫혔는지를 값으로 대조하는 자리 (Human 결정 — HISTORY Q70(c))
+response: >                 # 맞는 순간의 그 하나뿐인 자리에 이 Class 는 무엇을 끼우는가
+                            #   DC-GROWTH-CLASS-OWNS-THE-RESPONSE
+counterplay: []             # 상대가 이 형태를 어떻게 막는가 — 하나 이상, 세계에서 발견 가능해야 한다
+                            #   DC-COMBAT-STRONG-RULE-HAS-COUNTERPLAY
+cannot_yet: []              # 이 층이 아직 할 수 없는 것 — 다음 Layer 의 출발점이다
+                            #   DC-GROWTH-CAPABILITY-DECLARES-ITS-LIMITS
+extends_toward: >           # 원리가 하나 더해지면 어디로 넓어지는가 — 방향 하나면 된다.
+                            #   상위 Class 를 미리 설계하는 자리가 아니다
+                            #   DC-GROWTH-CLASS-CLOSES-BEFORE-THE-NEXT-LAYER
 
 constraints: [DC-...]
 constraint_evaluation:
   DC-...: UNRESOLVED
 ```
+
+`response` · `counterplay` · `cannot_yet` · `extends_toward` 는 **비면 그 Class 는 닫히지
+않은 것이다** — `npm run master:graph` 가 경고한다. FC §12 는 Class 하나에 열두 질문을
+요구하지만 칸이 된 것은 그중 넷뿐이다 (Human 결정 — HISTORY Q70(c)): 나머지 여덟(원리 ·
+판타지 · 반복 행동 · Aura · 피해 외 세계 변화 · 탐험 쓰임 · 숙련 행동 · 실루엣)은 다른
+DC 가 값으로 요구하지 않으므로 `semantic` · `detail` · `world_shape` 산문에 남는다.
 
 ### growth/items/ — IT- / IP- / IM-
 
