@@ -454,7 +454,7 @@
     {
       "id": "self.warmth",
       "kind": "counter",
-      "value": 62
+      "value": 44
     },
     {
       "id": "self.warmthMax",
@@ -614,7 +614,7 @@
     ],
     "self": {
       "law": "heat-binding",
-      "state": "taking",
+      "state": "warming",
       "takes": "warmth"
     }
   },

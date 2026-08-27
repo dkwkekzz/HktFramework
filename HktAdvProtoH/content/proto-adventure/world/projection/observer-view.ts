@@ -62,7 +62,13 @@ import {
   evaluateItemUnequip,
 } from '../rules/item-equip';
 import { equipmentSlots } from '../semantic/equipment';
-import { activeGroundLaws, coveringGroundLaws, GROUND_LAWS } from '../semantic/terrain';
+import {
+  activeGroundLaws,
+  coveringGroundLaws,
+  GROUND_LAWS,
+  groundZoneFill,
+  ventingZonesAt,
+} from '../semantic/terrain';
 import { ruleInventoryRoom } from '../rules/inventory-room';
 import {
   actorOfObserver,
@@ -92,7 +98,17 @@ function projectGroundSelf(state: WorldState, self: ActorState): GroundSelfView 
     return { law: law.id, state: 'taking', takes: law.takes };
   }
 
-  // 자리 안이지만 멎어 있는가 — 겪지 않는 것과 자리 밖인 것을 가른다.
+  // C-TERRAIN-002 — 뿜는 자리 안인가. 멎기만 하는 것과 **받는 중**인 것을 가른다.
+  // 받을 자리가 있는지(몸이 가득하지 않은지)는 규칙이 주는 조건과 같다
+  // (RULE-GROUND-VENT-001 의 give > 0). 화면이 이것을 계산하지 않는다.
+  const [ventingZone] = ventingZonesAt(state.groundZones, self.position);
+  if (ventingZone !== undefined) {
+    const law = GROUND_LAWS[ventingZone.law];
+    const receiving = self.warmth < self.warmthMax && ventingZone.kept > 0;
+    return { law: law.id, state: receiving ? 'warming' : 'sheltered', takes: law.takes };
+  }
+
+  // 자리 안이지만 아무 일도 없는가 — 겪지 않는 것과 자리 밖인 것을 가른다.
   const [shelteredId] = coveringGroundLaws(state.groundZones, self.position);
   if (shelteredId !== undefined) {
     const law = GROUND_LAWS[shelteredId];
@@ -565,7 +581,10 @@ export function projectObserverView(
       zones: state.groundZones.map((zone) => ({
         id: zone.id,
         law: zone.law,
-        role: zone.role,
+        phase: zone.phase,
+        // 비율로 나가고 날값은 나가지 않는다 — 화면이 넘침을 스스로 판정하지 못하게 한다
+        // (DC-WORLD-OWNS-THE-SURFACE-LIST · 04-gameview.spec.yaml).
+        fill: groundZoneFill(zone),
         center: { x: zone.center.x, z: zone.center.z },
         radius: zone.radius,
       })),

@@ -31,10 +31,10 @@ Feedback · BACKLOG)를 겹쳐 `LANES.html` 로 그린다. `npm run lanes:check`
 
 | 레인 | 상태 | 지금 | 기다리는 것 |
 |---|---|---|---|
-| FEEDBACK | OPEN | 없음 — 미처리 0 (`npm run feedback:gate -- --pending`) | 없음 — 병합 뒤 최신 main 위에서 |
+| FEEDBACK | OPEN | `C-TERRAIN-002` 의 MASTER FEEDBACK 이 미처리다 — WorldState Overlay 셋(`MW-TERRAIN-CIRCULATION` ABSENT→PRESENT · `MW-NATURAL-REFUGE` PARTIAL→PRESENT · `MW-SURVIVAL-PRESSURE` 넓어짐)과 Constraint 판정 다섯을 반영할 것 | 둘 — ① 그 Cycle 의 Human Play 확인 (08 STATUS 가 COMPLETE 여야 한다) ② 병합 뒤 최신 main 위에서 |
 | WORLD·ITEM | HUMAN | 후보 5 중 선택 대기 — Agent 추천 FR-THE-PLACES-ARE-NARROWER (+FR-SEE-BEFORE 얹기) | Human Select (frontier/item.md) |
 | WORLD·COMBAT | HUMAN | 후보 9 중 선택 대기 — Agent 추천 `FR-THE-WORLD-DECIDES-WHAT-IS-POSSIBLE`(직전 Cycle 이 남긴 절반을 닫아 MC-AURA-ALLOCATION 이 IMPLEMENTED 가 된다). `C-COMBAT-001` 은 여전히 Human Play 대기 (`npm run dev` → `U` → `2`) | Human Select (frontier/combat.md) |
-| WORLD·TERRAIN | RUNNING | `C-TERRAIN-002` — SELECTED `FR-THE-LAND-KEEPS-WHAT-IT-TAKES`(땅이 거둔 것을 간직한다). Stage 1~4 까지 서고 **Stage 5 Human Semantic Review 대기** | 없음 |
+| WORLD·TERRAIN | HUMAN | `C-TERRAIN-002` Stage 1~8 섰다 — 검사 1489 통과 · 실제 클라이언트 촬영 OK. **Gate 15 중 열넷이 참이고 남은 하나가 Human Play** (`npm run dev` → 빙원에 들어가 8초 서 있기). 그 확인이 오면 08 STATUS 가 COMPLETE 로 닫히고 FEEDBACK 레인이 열린다 | Human Play (08-verification.md STATUS) |
 | WORLD·GROWTH | OPEN | `C-GROWTH-001` 착수 대기 — SELECTED `FR-WHAT-YOU-DID-MAKES-YOU`(한 일이 몸을 키운다). Stage 1 부터, 아직 시작하지 않았다. **COMBAT 과 같은 파일을 본다 — 아래 충돌 칸** | 없음 — 다만 이 판과 트랙 파일이 main 에 들어간 뒤에 잡는다 |
 | VIEW | OPEN | BACKLOG 다음 항목(drag-and-drop)부터 — 기반 동반이 필요한 셋(tip-flip-at-the-edge · escape-leaves-the-field · workspace-two-columns)은 ENGINE 뒤에 잡는다 | 없음 |
 | MASTER | OPEN | **BT §16 세계 골격 주입 끝** — 열한 고리 중 열이 노드로 섰고(순환·지형·생존 압력·적응·자원·피난처·정착·증거 일곱이 신규), 대응표가 `graph/world-state.yaml` 머리에 있다. Q63(a)·Q64(b) 닫힘 — 순환이 이제 `MG-EXPLORE-BEIRA` 를 낳는다. 다음은 OPTIONS Q35 (몸이 아닌 존재를 요구하는 Possibility) — 이제 스킬 실행 형태의 빈 다섯 칸만 막는다. 성장(GS · GB)과 전투 상층(UL) 주입은 둘 다 끝났다: 결정 열(Q52~Q61) 반영 · GROWTH 후보 3 · COMBAT 후보 10 과 SELECTED 까지 | 없음 — 미처리 Feedback 이 0 이다 (`npm run feedback:gate`) |
@@ -64,13 +64,13 @@ Human 이 답하면 풀리는 것들이다. 답의 자리는 괄호가 가리킨
 | 무엇 | 풀리는 것 |
 |---|---|
 | WORLD·ITEM 후보 선택 (frontier/item.md SELECTED) | WORLD·ITEM 레인 착수 |
-| C-TERRAIN-002 Human Semantic Review (05-review.md) | Stage 6 World Implementation 착수. 물어 둔 것 넷은 그 Cycle 의 02-intent.md REVIEW QUESTION 에 있다 — 분출이 몸에 열을 **돌려주는가** · 손으로 놓인 예외(`respite`)를 **지우는가** · 한 자리에 머무는 평형을 받아들이는가 · **흐름이 몸↔땅까지인가 땅↔땅까지인가** |
+| C-TERRAIN-002 Human Play — `npm run dev` → 빙원에 걸어 들어가 **8초 서 있기** | 08 STATUS 가 COMPLETE 로 닫히고 FEEDBACK 레인이 열린다. 봐야 할 것 셋: 발밑 자리의 `찬 NN%` 가 오르는가 · 100% 에서 `해숨구멍 · 남은 NN%` 로 바뀌며 맥동하는가 · self 패널이 `열을 돌려받는 중` 으로 바뀌며 온기가 오르는가 |
 | WORLD·COMBAT 후보 선택 (frontier/combat.md SELECTED) | WORLD·COMBAT 레인 착수 |
 | Q62 — 갈래를 노드의 완결로 판정하는가 플레이의 성립으로 판정하는가 (open-questions.md) | Overlay 를 읽는 법 · Frontier 가 무엇을 결손으로 세는가 |
 | `CC-ORDER-IS-THE-ADDRESS` 승격 여부 (candidates/) | 순서로 짚는 것이 원칙이 되는가 — DC-WORLD-OWNS-THE-SURFACE-LIST 와 합칠지도 함께 |
 | C-COMBAT-001 Human Play — 손으로 `U` → 숫자를 눌러 보기 | Stage 8 STATUS 가 COMPLETE 로 닫히고 FEEDBACK 레인이 열린다. 봐야 할 것 셋: 두 걸음이 전투 중 손에 맞는가 · 세로 목록 넷이 눈에 걸리는가 · 상대의 `[몸]` 표시가 교전 중 읽히는가 |
 | C-COMBAT-001 의 PARTIAL 판정 둘 (08-verification.md MASTER FEEDBACK) | `MC-AURA-ALLOCATION` · `MP-EXPLOIT-OPEN-BODY` 를 어디까지로 볼 것인가 — 플레이로는 갈래가 성립하나 노드는 덜 찼다. Master(Human)가 정한다 |
-| `lanes:check` 의 SELECTED 규칙 (PROCESS — 이 판을 고치지 않고 보고만 한다) | TERRAIN 이 Human 대기로 돌아가는 순간 이 판에서 어긋남 1건이 다시 뜬다 (지금은 그 레인이 RUNNING 이라 잠잠하다). 검사는 "SELECTED 가 있으면 레인은 OPEN·RUNNING" 만 보고 **그 트랙의 Cycle 이 도는 중인지를 보지 않는다** — works.md 는 Human 대기면 HUMAN 이라 적었으므로 판이 맞고 검사가 좁다. 고칠 자리는 `tools/lanes/build.ts` 의 `crossCheck` 이며 재료는 이미 있다 (`t.cycle` 의 Stage·Status). PROCESS 가 HOLD 라 착수하지 않았다 |
+| `lanes:check` 의 SELECTED 규칙 (PROCESS — 이 판을 고치지 않고 보고만 한다) | **지금 이 판에서 어긋남 1건이 떠 있다** — C-TERRAIN-002 가 Human Play 를 기다리며 HUMAN 으로 돌아왔기 때문이다. 검사는 "SELECTED 가 있으면 레인은 OPEN·RUNNING" 만 보고 **그 트랙의 Cycle 이 도는 중인지를 보지 않는다** — works.md 는 Human 대기면 HUMAN 이라 적었으므로 판이 맞고 검사가 좁다. 고칠 자리는 `tools/lanes/build.ts` 의 `crossCheck` 이며 재료는 이미 있다 (`t.cycle` 의 Stage·Status). PROCESS 가 HOLD 라 착수하지 않았다 |
 | 문서의 분류 다섯에 `도구` 를 더할 것인가 (Design-View-Inventory-Equipment-UX-D1 §6) | 곡괭이가 `기타` 대신 자기 칸을 얻는다 (V-008 REPORT) |
 | Q37 — 자리에 이름을 줄 것인가 (open-questions.md) | FR-ARRANGE-WHAT-YOU-CARRY 존치/삭제 |
 | Design-Creature-Behavior-R0.md 승인 | Inject → MC-PREDICT · MC-OBSERVE 습성 해금 |

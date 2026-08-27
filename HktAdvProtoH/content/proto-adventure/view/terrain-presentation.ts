@@ -1,6 +1,8 @@
 // Terrain Presentation — 땅의 관찰값을 어떻게 보일지 결정한다 (결정 Layer 데이터).
 //
-// World 는 **의미 코드만** 보낸다 (`ground.zones[].law` · `role` · `ground.self.state`).
+// World 는 **의미 코드와 비율만** 보낸다 (`ground.zones[].law` · `phase` · `fill` ·
+// `ground.self.state`). 넘침 지점도 뿜는 속도도 오지 않으므로 화면은 "몇 초 뒤에
+// 넘친다" 를 계산할 수 없다 — 그것은 예고이고 다음 후보의 몫이다.
 // 색도 문구도 여기서 정한다 — 미등록 코드도 기본 결정으로 그려진다.
 //
 // ── 이 파일이 판정하지 않는 것 ────────────────────────────────────────
@@ -20,10 +22,12 @@ import type { GameViewSnapshot, GroundZoneView } from '../protocol/gameview';
 export interface GroundLawPresentation {
   /** 이 법칙의 자리를 부르는 말 */
   name: string;
-  /** 그 법칙이 작용하는 범위의 색 */
+  /** 거두는 중인 맥의 색 */
   lawColor: number;
-  /** 그 법칙이 멎는 범위의 색 — 같은 법칙의 것이므로 같은 계열에서 고른다 */
+  /** 뿜는 중인 맥의 색 — 같은 법칙의 것이므로 같은 계열에서 고른다 */
   respiteColor: number;
+  /** 뿜는 중인 자리를 부르는 말 (C-TERRAIN-002) — 놓인 성질이 아니라 지금 하는 일이다 */
+  ventingName: string;
 }
 
 const GROUND_LAWS: Record<string, GroundLawPresentation> = {
@@ -31,13 +35,19 @@ const GROUND_LAWS: Record<string, GroundLawPresentation> = {
   // 푸른 쪽이 거두는 자리, 따뜻한 쪽이 멎는 자리다. **같은 계열이 아니라 반대 계열**을
   // 고른 이유는 그 둘이 한눈에 갈려야 하기 때문이다 — 예외 자리를 못 찾으면
   // 이 Cycle 의 플레이가 성립하지 않는다.
-  'heat-binding': { name: '빙원', lawColor: 0x4a7fb5, respiteColor: 0xd98b45 },
+  'heat-binding': {
+    name: '빙원',
+    lawColor: 0x4a7fb5,
+    respiteColor: 0xd98b45,
+    ventingName: '해숨구멍',
+  },
 };
 
 const DEFAULT_LAW: GroundLawPresentation = {
   name: '이름 없는 자리',
   lawColor: 0x8a8a8a,
   respiteColor: 0xc8c8c8,
+  ventingName: '멎는 자리',
 };
 
 export function groundLawPresentation(law: string): GroundLawPresentation {
@@ -66,22 +76,40 @@ export interface GroundZonePlan {
 
 export function groundZonePlan(zone: GroundZoneView): GroundZonePlan {
   const law = groundLawPresentation(zone.law);
-  const respite = zone.role === 'respite';
-  const color = respite ? law.respiteColor : law.lawColor;
+  const venting = zone.phase === 'venting';
+  const color = venting ? law.respiteColor : law.lawColor;
+  const fill = clamp01(zone.fill);
+  const percent = Math.round(fill * 100);
 
   return {
     id: zone.id,
     shape: { kind: 'circle', center: { x: zone.center.x, z: zone.center.z }, radius: zone.radius },
-    // 멎는 자리를 더 진하게 둔다 — 작고, 찾아야 하는 것이기 때문이다.
+    // 멎는 자리를 더 진하게 둔다 — 찾아야 하는 것이기 때문이다.
     //
     // 법칙의 자리도 **눈으로 경계를 찾을 수 있을 만큼**은 진해야 한다. 0.18 로는
     // 지형 초록과 스무 단계밖에 벌어지지 않아 실제 화면에서 범위가 읽히지 않았다
-    // (Stage 8 눈검증 1차). 범위가 읽히지 않으면 "어디에 서 있는가" 를 고를 수 없고
-    // 그것이 이 Cycle 의 Goal 이다.
-    fill: { color, opacity: respite ? 0.34 : 0.26 },
-    edge: { color, opacity: respite ? 0.9 : 0.75, width: respite ? 3 : 1.5 },
-    label: respite ? `${law.name} — 멎는 자리` : law.name,
+    // (C-TERRAIN-001 Stage 8 눈검증 1차). 범위가 읽히지 않으면 "어디에 서 있는가" 를
+    // 고를 수 없고 그것이 그 Cycle 의 Goal 이었다.
+    //
+    // C-TERRAIN-002 — **찬 만큼 진해진다.** 차오르는 것이 보이지 않으면 넘침은
+    // 원인 없는 사건으로 보이고, 그러면 이 Cycle 은 세계에 시간을 준 것이 아니라
+    // 우연을 하나 더한 것이 된다 (INTENT-WHAT-A-PLACE-HOLDS-IS-OBSERVED-001).
+    // 뿜는 자리는 반대로 **비워질수록 옅어진다** — 닫혀 가는 것이 그대로 보인다.
+    fill: { color, opacity: venting ? 0.22 + 0.24 * fill : 0.2 + 0.22 * fill },
+    edge: { color, opacity: venting ? 0.9 : 0.75, width: venting ? 3 : 1.5 },
+    // 뿜는 동안만 맥동한다 — 남은 것이 많을수록 세게. 엔진이 이미 지닌 자리이며
+    // (SceneGroundZone.intensity) 이 Cycle 이 처음 쓴다. 거두는 자리는 맥동하지 않는다:
+    // 맥동할 이유는 "지금 무언가 일어나는 중" 이고, 거둠은 늘 일어나는 일이다.
+    ...(venting ? { intensity: fill } : {}),
+    // 퍼센트를 라벨에 실어 **차오름이 눈으로 세어진다.** 세계는 비율만 보내고
+    // (fill 0..1) 그것을 몇 퍼센트로 부를지는 화면의 결정이다.
+    label: venting ? `${law.ventingName} · 남은 ${percent}%` : `${law.name} · 찬 ${percent}%`,
   };
+}
+
+function clamp01(v: number): number {
+  if (!Number.isFinite(v)) return 0;
+  return Math.min(1, Math.max(0, v));
 }
 
 export function groundZonePlans(snapshot: GameViewSnapshot): GroundZonePlan[] {
@@ -128,7 +156,15 @@ export function groundLawLines(snapshot: GameViewSnapshot): string[] {
 
   const law = groundLawPresentation(self.law ?? '');
 
-  if (self.state === 'sheltered') return [`${law.name} — 여기서는 멎는다`];
+  // C-TERRAIN-002 — 돌려받는 중과 멎기만 하는 것을 가른다. 한 줄로 묶으면 플레이어는
+  // 자기 열이 왜 늘었는지 알 수 없고, `sheltered` 로 바뀌는 순간(몸이 가득 찼다)이
+  // 곧 "이제 이 분출구를 더 소모하지 않는다" 가 읽히는 자리다.
+  if (self.state === 'warming') {
+    const takes = self.takes === undefined ? '무언가' : groundTakesText(self.takes);
+    return [`${law.ventingName} — ${withObjectParticle(takes)} 돌려받는 중`];
+  }
+
+  if (self.state === 'sheltered') return [`${law.ventingName} — 여기서는 멎는다`];
 
   if (self.state === 'taking') {
     const takes = self.takes === undefined ? '무언가' : groundTakesText(self.takes);
