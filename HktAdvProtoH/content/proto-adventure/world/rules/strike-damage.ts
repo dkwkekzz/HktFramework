@@ -52,6 +52,7 @@ import type { WorldState } from '../semantic/world-state';
 import { beginAction } from './action-begin';
 import { ruleCriticalStrike } from './critical-strike';
 import { ruleDamageCalculate } from './damage-calculate';
+import { ruleDeedsAdd } from './deeds-add';
 import { ruleGuardBlock } from './guard';
 
 export function ruleDowned(actor: ActorState): void {
@@ -101,7 +102,19 @@ export function ruleStrikeDamage(
     time: state.time,
   });
 
-  if (target.hp === 0) ruleDowned(target);
+  // C-GROWTH-001 — 한 일이 몸에 남는다 (RULE-DEEDS-ADD-001).
+  // **닿아서 해가 성립했다는 사실**이 쌓임의 조건이다 — 얼마나 아팠는지는 묻지 않는다
+  // (막혀서 0 이 들어가도 친 것은 친 것이다). 같은 일은 같은 양을 쌓는다.
+  ruleDeedsAdd(state, attacker, 'strike');
+
+  if (target.hp === 0) {
+    ruleDowned(target);
+    // **쓰러뜨림은 여기서 쌓는다 — RULE-DOWNED-001 안이 아니다.**
+    // 그 규칙은 쓰러진 몸만 알고 쓰러뜨린 몸을 모르며, 세계 밖의 손이 생명을 0 으로
+    // 만들 때도 불린다 (RULE-ATTRIBUTE-SET-001). 밖의 손이 만든 쓰러짐은 **아무의
+    // 일도 아니다** — 일을 한 몸이 있어야 쌓임이 성립한다.
+    ruleDeedsAdd(state, attacker, 'down');
+  }
 
   return amount;
 }

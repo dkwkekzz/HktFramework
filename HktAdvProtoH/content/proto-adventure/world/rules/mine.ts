@@ -45,6 +45,7 @@ import { RULE_MINE, RULE_MINE_COMPLETE } from '../../protocol/semantic-id';
 import type { ActorState } from '../semantic/actor';
 import type { DepositState } from '../semantic/deposit';
 import { bodyHasUse } from './body-uses';
+import { ruleDeedsAdd } from './deeds-add';
 import { evaluateInventoryAdd, ruleInventoryAdd } from './inventory';
 import { distance } from '../semantic/position';
 import { selectedEntityId } from '../semantic/target-selection';
@@ -124,5 +125,9 @@ export function ruleMineComplete(state: WorldState, actor: ActorState): ActionRe
   // C020 CHANGED — 획득이 변경 단일 통로를 지난다 (INTENT-INVENTORY-SINGLE-CHANNEL-001).
   // C022 CHANGED — 얻는 종류는 광맥이 답한다. 규칙이 이름으로 알지 않는다.
   ruleInventoryAdd(actor, deposit.resourceKind, 1);
+  // C-GROWTH-001 — 캔 일이 몸에 남는다 (RULE-DEEDS-ADD-001).
+  // **여기까지 온 것만 쌓는다** — 자리가 없어 거절되었으면 캐는 일이 끝나지 않은
+  // 것이므로 위에서 이미 돌아갔다.
+  ruleDeedsAdd(state, actor, 'mine');
   return { status: 'success', rule: RULE_MINE_COMPLETE };
 }

@@ -61,6 +61,12 @@ export function spawnActor(spawn: ActorSpawn): ActorState {
     // 태어나며, 그 배분은 어느 값에도 0 을 보탠다 — 그래서 이 항목이 들어오는 것만으로는
     // 지금까지의 어떤 결과도 달라지지 않는다 (INTENT-THE-EVEN-ALLOCATION-ADDS-NOTHING-001).
     allocation: DEFAULT_ALLOCATION,
+    // C-GROWTH-001 — 한 일은 종류가 정하는 값이 아니다. 어떤 몸이든 아무것도 하지 않은
+    // 채로 태어나며, 단계 0 은 어느 값에도 0 을 보탠다 — 그래서 이 항목이 들어오는
+    // 것만으로는 지금까지의 어떤 결과도 달라지지 않는다
+    // (INTENT-THE-ZEROTH-STEP-ADDS-NOTHING-001).
+    // **08 의 "같은 종류의 다른 개체" 비교가 이 한 줄에 기댄다** — 새 몸은 언제나 0 이다.
+    deeds: 0,
     guarding: false, // C011 — 막기는 종류가 정하는 값이 아니다. 누구나 안 든 채로 태어난다
     guardBrokenUntil: 0,
     moveMode: 'walk',

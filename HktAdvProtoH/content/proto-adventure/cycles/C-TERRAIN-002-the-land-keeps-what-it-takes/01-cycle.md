@@ -62,7 +62,7 @@ STATUS  COMPLETE  (Gate 14 는 자동 증거로 닫혔다 — 08 STATUS)
                          MW-SHAPED-LANDFORM · MW-SURVIVAL-PRESSURE · MW-ADAPTED-LIFE ·
                          MW-TERRAIN-RESOURCE · MW-NATURAL-REFUGE ·
                          MW-NATURAL-SETTLEMENT · MW-CIRCULATION-EVIDENCE)
-                         순환이 Source Goal 을 낳게 되면서(HISTORY Q64(b)) 이 Cycle 은
+                         순환이 Source Goal 을 낳게 되면서(HISTORY Q69(b)) 이 Cycle 은
                          비로소 **Goal 경로로 역추적된다**:
                          MG-EXPLORE-BEIRA ← MW-TERRAIN-CIRCULATION ← MW-MACRO-TERRAIN
     Active Constraints   DC-WORLD-TERRAIN-IS-A-PRINCIPLE ·

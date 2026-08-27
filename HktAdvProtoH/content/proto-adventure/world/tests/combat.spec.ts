@@ -616,6 +616,8 @@ describe('INTENT-ATTRIBUTE-MUTATE-001 — 세계가 허용하면 속성을 바�
       'criticalDamage',
       // C016 — 통찰이 목록에 더해진다. 이것이 이 Cycle 의 확인 경로다
       'insight',
+      // C-GROWTH-001 — 한 일이 목록에 더해진다. 이 한 줄이 다섯 단계를 만들어 보는 길이다
+      'deeds',
       'moveSpeed',
       'runSpeedMultiplier',
       'actionSpeed',

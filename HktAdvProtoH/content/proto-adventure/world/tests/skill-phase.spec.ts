@@ -50,6 +50,7 @@ function bench() {
     time: 10,
     actors: [attacker, target],
     cancelEvents: [],
+    growthEvents: [],
     strikeEvents: [],
     unharmedContacts: [],
   } as unknown as WorldState;

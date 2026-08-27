@@ -41,7 +41,7 @@
 
 ## 함께 확인한 것
 
-    이 Cycle 이 도는 동안 Master 가 순환 사슬을 그래프에 세웠다 (BT §16 · HISTORY Q64(b)).
+    이 Cycle 이 도는 동안 Master 가 순환 사슬을 그래프에 세웠다 (BT §16 · HISTORY Q69(b)).
     그래서 01-cycle.md 에 `Target WorldState` 가 생겼고, 이 Cycle 은 이제 Goal 경로로
     역추적된다 — `MG-EXPLORE-BEIRA ← MW-TERRAIN-CIRCULATION ← MW-MACRO-TERRAIN`.
     Stage 8 의 MASTER FEEDBACK 은 그 셋의 `implemented` 를 판정한다.

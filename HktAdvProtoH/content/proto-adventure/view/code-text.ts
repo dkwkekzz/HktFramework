@@ -50,6 +50,16 @@ const CODE_TEXT: Record<string, string> = {
   // 배분을 바꿀 수 없는 사유 (C-COMBAT-001). `insufficient-cp` · `downed` 는 이미 위에 있다
   'unknown-allocation': '세계가 모르는 배분이다',
   unavailable: '지금은 안 된다',
+  // 쌓임의 원천 (C-GROWTH-001) — 세계가 보내는 코드 넷. 표에 없는 코드는 코드 그대로
+  // 보인다: 세계가 원천을 하나 더 지어도 화면이 멈추지 않는다.
+  // `deed.` 를 앞에 붙인 것은 `mine` · `attack` 이 이미 **행동 코드**로 위에 있기
+  // 때문이다 — 같은 문자열이 다른 것을 뜻하면 문구가 어긋난다.
+  'deed.strike': '한 대',
+  'deed.down': '쓰러뜨림',
+  'deed.mine': '캠',
+  'deed.observe': '살펴봄',
+  // 자라는 값의 이름은 **이미 이 표에 있다** (위 능력치 이름 넷) — self 패널의
+  // "단계 몫" 줄이 세계가 보낸 목록을 그 표로 옮긴다. 여기 다시 적지 않는다.
   // 둘 사이의 태도 (C018) — 세계가 보내는 갈래 셋
   hostile: '적대',
   neutral: '중립',

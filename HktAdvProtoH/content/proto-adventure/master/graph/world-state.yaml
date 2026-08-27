@@ -36,7 +36,7 @@
 #                                       걷는 대륙 · 사막 · 혈화수해 (BT §4~§11)
 #
 #   가운데 일곱은 여덟의 **부모가 아니라** 여덟이 각자 한 벌씩 지니는 층이다
-#   (Q63(a) — Human 결정, HISTORY.md). 이 층들이 노드로 서기 전에는 그 사슬이
+#   (Q68(a) — Human 결정, HISTORY.md). 이 층들이 노드로 서기 전에는 그 사슬이
 #   MW-MACRO-TERRAIN 의 detail 산문에만 있었고, 간선이 없으므로 Overlay 도 Frontier 도
 #   그것을 보지 못했다.
 #
@@ -479,7 +479,7 @@ nodes:
       아니다
     arises_from: [MW-MACRO-TERRAIN]
     causes: [MG-EXPLORE-BEIRA]
-    # Q64(b) — Human 이 정했다 (HISTORY.md). BT §5.7 이 빙원의 핵심 경험을 "대지가 열을
+    # Q69(b) — Human 이 정했다 (HISTORY.md). BT §5.7 이 빙원의 핵심 경험을 "대지가 열을
     # 어디에서 빼앗고 어디에 저장하는지를 **읽는 것**" 이라 했고, 읽어서 감당하게 되는
     # 것이 곧 대응 범위의 확장(MG-EXPLORE-BEIRA)이다. 이 간선이 없는 동안 순환 계열은
     # 어떤 Goal 도 낳지 않아, 그 층을 여는 Cycle 이 자기 이유를 Constraint 부기로

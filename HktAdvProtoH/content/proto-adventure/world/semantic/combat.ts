@@ -13,6 +13,7 @@ import {
   type AllocationId,
 } from './allocation';
 import { equipmentContributions } from './equipment';
+import { growthContribution, type GrowableStat } from './growth';
 import type { ContributableStat, Force } from './item';
 import type { WorldPosition } from './position';
 
@@ -362,14 +363,19 @@ export function defenseShape(actor: ActorState): DefenseShape {
 }
 
 /**
- * 유효 값을 물을 수 있는 값의 목록 (C-COMBAT-001 ADDED).
+ * 유효 값을 물을 수 있는 값의 목록 (C-COMBAT-001 ADDED / C-GROWTH-001 CHANGED).
  *
- * 걸린 것이 보탤 수 있는 목록(item.ts ContributableStat — 여덟)과 배분이 보탤 수 있는
- * 목록(allocation.ts AllocatableStat — 다섯)의 **합집합**이다. 둘은 서로 다른 목록이며
- * 그것이 정상이다 — 물건이 통찰을 보태지 않고, 배분이 관통을 움직이지 않는다.
+ * 걸린 것이 보탤 수 있는 목록(item.ts ContributableStat — 여덟) · 배분이 보탤 수 있는
+ * 목록(allocation.ts AllocatableStat — 다섯) · 단계가 보탤 수 있는 목록
+ * (growth.ts GrowableStat — 넷)의 **합집합**이다. 셋은 서로 다른 목록이며 그것이
+ * 정상이다 — 물건이 통찰을 보태지 않고, 배분이 관통을 움직이지 않으며, 성장은
+ * 겨룸에서 읽히는 값에만 닿는다.
+ *
+ * **C-GROWTH-001 로 목록이 넓어지지 않는다** — GrowableStat 넷은 이미 ContributableStat
+ * 안에 있다. 늘어나는 것은 합의 항이지 물을 수 있는 이름이 아니다.
  * ContributableStat 은 한 글자도 바뀌지 않는다 (C023 그대로).
  */
-export type EffectiveStatName = ContributableStat | AllocatableStat;
+export type EffectiveStatName = ContributableStat | AllocatableStat | GrowableStat;
 
 /**
  * RULE-EFFECTIVE-STATS-001 — Implements
@@ -408,13 +414,28 @@ export type EffectiveStatName = ContributableStat | AllocatableStat;
  * 하는 일은 그 공식이 읽는 입력값을 바꾸는 것뿐이다 (DC-COMBAT-ONE-FORMULA).
  * 그리고 고른 배분(balanced)에서는 세 항 중 셋째가 모두 0 이므로, 배분을 한 번도
  * 바꾸지 않은 몸의 값은 C023 까지와 한 톨도 다르지 않다 (DC-COMBAT-ONE-LAYER-AT-A-TIME).
+ *
+ * C-GROWTH-001 CHANGED — **항이 하나 더 는다** (INTENT-THE-STEP-ENTERS-THE-EFFECTIVE-VALUE-001).
+ *
+ *     넷째 항   합에 **지금 단계의 기여**가 더해진다. 걸린 것·배분 옆에 서는 또 하나의
+ *               항이며, 저장되지 않고 쌓인 것에서 매번 다시 세어진다.
+ *               **기본값은 이 일로 한 톨도 바뀌지 않는다** — 그래야 밖의 손
+ *               (RULE-ATTRIBUTE-SET-001)과 안의 성장이 서로를 지우지 않는다
+ *     목록은 그대로  물을 수 있는 이름이 늘지 않는다 (GrowableStat 넷은 이미 안에 있다)
+ *     바닥도 그대로  성장의 항은 음수가 되지 않는다 — 자라는 것은 얻는 일이다
+ *
+ * 아무것도 쌓지 않은 몸(deeds 0)의 단계는 0 이고 그 기여는 어느 값에서도 0 이므로,
+ * 이 항이 들어오는 것만으로는 지금까지의 어떤 결과도 달라지지 않는다 (회귀).
  */
 export function effectiveStat(actor: ActorState, stat: EffectiveStatName): number {
   const contributions = equipmentContributions(actor.equipment) as Partial<
     Record<EffectiveStatName, number>
   >;
   const sum =
-    actor[stat] + (contributions[stat] ?? 0) + allocationContribution(actor.allocation, stat);
+    actor[stat] +
+    (contributions[stat] ?? 0) +
+    allocationContribution(actor.allocation, stat) +
+    growthContribution(actor.deeds, stat);
   // C-COMBAT-001 — 바닥. 배분이 처음으로 **음의 항**을 낳으므로 합이 0 아래로 갈 수 있다.
   // 음의 방어는 감쇄식을 1 초과로 만들어 "맞으면 더 아프다" 를 낳고, 음의 통찰은 문턱
   // 비교의 뜻을 흐린다. 그러므로 여기서 막는다.
@@ -459,6 +480,17 @@ export interface TypedStat {
   name: OffenseStatName | DefenseStatName | PenetrationStatName;
   value: number;
   fromAllocation: number;
+  /**
+   * C-GROWTH-001 ADDED — 그 값 중 **지금 단계가 보탠 몫**.
+   *
+   * `fromAllocation` 과 나란히 서며 같은 성질이다 — 0 이어도 실린다. 관통에서는
+   * 언제나 0 이다 (자라지 않는 값이므로). 그럼에도 자리를 비우지 않는 이유는
+   * 세 칸의 생김새가 같아야 화면이 갈래를 짓지 않기 때문이다.
+   *
+   * `fromAllocation` 과 달리 **음수가 되지 않는다** — 자라는 것은 얻는 일이지
+   * 나누는 일이 아니다.
+   */
+  fromGrowth: number;
 }
 
 // 한 방의 크기가 어떻게 나왔는가 (C010 ADDED) — RULE-DAMAGE-CALCULATE-001 의 산출물.
@@ -690,6 +722,7 @@ export type MutableAttributeId =
   | 'criticalChance'
   | 'criticalDamage'
   | 'insight'
+  | 'deeds' // C-GROWTH-001
   | 'moveSpeed'
   | 'runSpeedMultiplier'
   | 'actionSpeed'
@@ -730,6 +763,17 @@ export const MUTABLE_ATTRIBUTES: readonly MutableAttribute[] = [
   // 세 문턱(30·60·90)을 모두 넘는 값이 범위 안에 있어야 "통찰만으로 전부 아는 몸" 을
   // 만들어 보고 그때 살펴봄이 거절되는 것까지 확인할 수 있다 (03 BALANCE).
   { id: 'insight', min: 0, max: 100 },
+  // C-GROWTH-001 ADDED — 지금까지 한 일. 이 목록의 다른 값들과 달리 **그 자체로는
+  // 아무 판정에도 들어가지 않고**, 단계를 세는 자리 하나에서만 읽힌다
+  // (semantic/growth.ts growthLevel). 올리면 단계가 따라 오르고 겨루는 값 넷이 커진다.
+  // **줄이는 쪽으로도 열린다** — 밖의 손은 되돌릴 수 있어야 디버그의 자리이며,
+  // "쌓인 것은 줄지 않는다" 는 세계 **안**의 사정을 말한 것이다
+  // (INTENT-WHAT-IS-KEPT-ONLY-GROWS-001).
+  // 단계(growthLevel)는 이 목록에 들지 않는다 — 파생이므로 따로 밀어 올리면 세계에
+  // 두 개의 진실이 생긴다 (INTENT-ENOUGH-IS-A-STEP-001).
+  // 상한 100000 은 다른 수량 값들과 같다. 최대 단계 문턱(200)이 한참 안쪽이므로
+  // 다섯 단계를 전부 만들어 볼 수 있다.
+  { id: 'deeds', min: 0, max: 100000 },
   { id: 'moveSpeed', min: 0, max: 100 },
   { id: 'runSpeedMultiplier', min: 0.1, max: 10 },
   { id: 'actionSpeed', min: 0.1, max: 10 },

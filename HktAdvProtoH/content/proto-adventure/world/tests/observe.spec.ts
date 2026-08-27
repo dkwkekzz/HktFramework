@@ -426,11 +426,12 @@ describe('INTENT-UNSEEN-CAPABILITY-001 — 타격 경위는 가려지지 않는�
     const strike = world.observe().strikes[0];
     expect(strike).toBeDefined();
     // 맞아 본 것은 겨뤄 본 것이다 — 그 타격이 마주한 방어가 경위에 그대로 있다
-    expect(strike?.breakdown.defenseStat).toEqual({ name: 'resistance', value: 90, fromAllocation: 0 });
+    expect(strike?.breakdown.defenseStat).toEqual({ name: 'resistance', value: 90, fromAllocation: 0, fromGrowth: 0 });
     expect(strike?.breakdown.penetrationStat).toEqual({
       name: 'resistancePenetration',
       value: 60,
       fromAllocation: 0, // C-COMBAT-001 — 관통은 어느 축에도 들지 않는다
+      fromGrowth: 0, // C-GROWTH-001 — 관통은 자라지도 않는다
     });
     // 그러나 그 존재를 아는 것으로 바뀌지는 않는다
     expect(actor(world.observe(), 'npc-1')?.attributes?.acquainted).toBe(false);

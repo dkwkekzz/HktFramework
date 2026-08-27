@@ -235,10 +235,44 @@ IMPLEMENTED 로 서 있는 MC-EQUIP-ITEM 이 그 자리이기 때문이다 (같�
 
 | Capability | 상태 | 근거 | 부족한 것 |
 |---|---|---|---|
-| MC-GAIN-LEVEL | MISSING | — | 값을 키우는 축이 세계에 없다 — 능력치를 바꾸는 유일한 규칙이 디버그 명령이고 나머지는 걸어 둔 물건이 잠시 얹는 유효 값뿐이다 |
+| MC-GAIN-LEVEL | PARTIAL | C-GROWTH-001 — 세계 안의 행위가 몸에 쌓이고 문턱을 넘으면 겨루는 값 넷이 오른다. world_shape 두 문장이 실측으로 닫혔다: 걸어가 살펴보고 쳐서 넘어뜨리니 쌓인 것 0 → 22 · 단계 0 → 1 이 되었고, 그 뒤 같은 기술의 피해가 26 → 28 로 · 한 대가 남기는 값이 20 → 22 로 달라졌다. 디버그 명령을 한 번도 열지 않았다 (08 의 WORLD SCENARIO ①③ · PLAYABLE 5 · shots/) | 쌓이는 원천이 이 노드가 든 넷 중 둘뿐이다 — "탐험하고" 와 "사건을 해결한 것" 이 세계에 없다. 그리고 GS §5 가 든 다섯 중 셋(생명력 · 기력 · 기본 이동)이 자라지 않는다 — 그 셋은 아직 "유효 값" 이라는 자리를 지니지 않아 걸린 것도 배분도 성장도 닿을 곳이 없다 |
 | MC-GROW-CLASS-MASTERY · MC-GROW-EXPLORATION-MASTERY (같은 원리의 두 쓰임 — GS §8) | MISSING | — | 형태(Class)라는 것이 세계에 없다 — 몸이 한 종류이고 무엇을 했는지 세는 자리도 없다 |
 | MC-MASTER-A-SKILL | MISSING | — | 스킬이 자란다는 개념이 없다 — 기술은 종류가 정한 값 그대로이고 쓴 이력이 어디에도 남지 않는다 |
 | MC-CHANGE-CLASS | MISSING | — | 몸이 형태를 갖지 않는다 — CL-* 노드가 0 개이고 세계의 몸은 종류 하나로 고정이다 |
+
+## Capability — 전투 지식 영역 (CK)
+
+`content/proto-adventure/design/Design-Combat-Knowledge-Extension-R0.md`(CK) 주입으로 섰다.
+**일곱 줄이 전부 MISSING 이며, 그것이 이 표에서 가장 정직한 그림이다** — 이 층은
+세계에 한 조각도 없다.
+
+비어 있는 방식이 다른 표들과 다르다. 전투 영역의 결손은 "판정 하나가 없다" 였고
+아이템 영역의 결손은 "상태 하나가 없다" 였는데, 여기는 **판단이라는 것 자체가
+세계에 없다.** 사람의 몸은 요청받은 것만 하고, 자율 존재는 고정된 규칙 하나로
+움직인다 (RULE-NPC-DECIDE-001 — 기력이 되면 큰 기술, 아니면 기본 기술).
+그래서 이 일곱은 하나씩 채워 넣는 목록이 아니라 **한 층을 통째로 세우는 일**이다.
+
+셋째 줄(MC-CONDUCT-BY-KNOWLEDGE)이 이 층의 문이다. 나머지 여섯은 그것에 재료를
+대거나(습득 · 선택 · 성장 · 전수) 그것을 읽히게 하거나(설명) 그 위에 얹힌다(조합).
+운용이 서지 않으면 나머지는 아무 데도 닿지 않는다.
+
+**철회된 사슬 A 가 돌아올 자리도 여기다.** 다만 그 층이 지워진 것이 아니라
+**누가 그것을 수행하는가**가 정해진 것이다 (Q63 — Human). Response 층의 형태는
+전투 상층 문서(UL §4.1 · §4.2 · §5 · §6 · §7 · §9)가 그대로 소유하고,
+전투 영역 표의 MC-ACTIVE-RESPONSE 계열 넷은 한 글자도 고치지 않았다.
+바뀐 것은 그 층을 **플레이어의 손이 아니라 배운 것이 수행한다**는 것이며
+(CK §15), 그 선을 재는 자는 UL §32 다 — 기본 형태를 자동 전투가 수행할 수 있으면
+지킨 것이다. 그래서 이 표와 전투 영역 표는 경쟁하지 않고 위아래로 선다.
+
+| Capability | 상태 | 근거 | 부족한 것 |
+|---|---|---|---|
+| MC-LEARN-COMBAT-KNOWLEDGE | MISSING | — | 전투법이라는 것이 세계에 없다 — 배울 대상도 배우는 길도 없다 |
+| MC-CARRY-COMBAT-KNOWLEDGE | MISSING | — | 가져갈 것이 없다 — 전투법도, 그것을 담는 자리도 없다 |
+| MC-CONDUCT-BY-KNOWLEDGE | MISSING | — | 판단이라는 것이 세계에 없다 — 사람의 몸은 요청받은 것만 하고, 자율 존재는 고정된 규칙 하나로 움직인다 |
+| MC-DEEPEN-COMBAT-KNOWLEDGE | MISSING | — | 깊어질 지식이 없다 |
+| MC-EXPLAIN-COMBAT-DECISION | MISSING | — | 설명할 판단이 없다. 다만 경위를 세계가 싣고 화면이 옮기는 형태는 이미 섰다 (C010 이래의 breakdown) |
+| MC-TEACH-COMBAT-KNOWLEDGE | MISSING | — | 전할 지식도 전할 상대도 없다 — 세계에 다른 플레이어 말고는 말을 주고받는 존재가 없다 |
+| MC-COMBINE-KNOWLEDGE | MISSING | — | 맞물릴 지식이 없다 |
 
 ## World / Actor / Knowledge — 세계 자체는 얼마나 서 있는가
 
@@ -280,12 +314,12 @@ Capability 만 보면 전투가 꽤 찬 것처럼 보이지만, 그 전투가 �
 |---|---|---|
 | MP-MATCH-WEAPON-TO-ARMOR | **없음** | **C012 로 닫혔다** — 지금 플레이 가능하다 |
 | MP-PIERCE-THE-HARD-DEFENSE | **없음** | **C013 로 닫혔다** — 지금 플레이 가능하다. 다만 아직 좁다: 플레이어가 관통을 **얻는** 경로가 세계에 없다 (종류가 정한 값과 디버그뿐 — growth/growth-graph.md) |
-| MP-OUTGROW-THE-OPPONENT | MC-ATTACK-POWER(PARTIAL) + 성장의 원천 | 능력치가 결과를 바꾸는 것은 닫혔고, **C023 으로 그 값을 플레이로 바꾸는 첫 경로가 열렸다**(걸면 오르고 풀면 돌아온다). 그러나 이 갈래가 말하는 것은 *압도*이므로 **자라는 축**이 여전히 없다 — 걸고 푸는 것은 값을 오르내리게 할 뿐 키우지 않는다. **GS 주입으로 그 축이 이름을 얻었다** (MC-GAIN-LEVEL — 전투·탐험·발견·사건 해결이 기본값을 키운다). 없는 것은 이제 이름이 아니라 세계 쪽이다 |
+| MP-OUTGROW-THE-OPPONENT | MC-ATTACK-POWER(PARTIAL) + 전투 밖의 원천 | **C-GROWTH-001 로 자라는 축이 섰다** — 세계 안에서 한 일이 몸에 쌓이고 문턱을 넘으면 겨루는 값이 오르며, 같은 상대·같은 기술의 결과가 실제로 달라진다. world_shape 의 마지막 문장("세계 안의 행위로 올릴 수 있어야 한다")이 닫혔다. 그러나 이 갈래가 말하는 것은 **전투 밖에서 기른 값으로 정면 교환을 이기는 것**인데, 선 원천 넷 중 전투 밖의 것은 캐는 일 하나뿐이고(4/회 · 첫 문턱까지 다섯 번) 한 단계의 폭이 작아(한 대에 2) 그것만으로 판이 뒤집히지 않는다. 없는 것은 이제 축이 아니라 **전투 밖의 원천**이다 |
 | MP-BET-ON-THE-CRITICAL-BLOW | 요구 Capability 는 **없음** · `requires.resource` 미충족 | **C015 로 절반 닫혔다** — 증폭이 터지는 것과 그 경위가 다 보인다. 그러나 "준비로 기대값을 올린다" 는 나머지 절반이 남았다: Critical 성질을 올릴 성장·장비가 세계에 없어 경로가 종류 초기값과 디버그뿐이다 |
 | MP-INTERRUPT | **없음** | **C019 로 닫혔다** — 지금 플레이 가능하다. 상대의 선딜을 노려 끊고, 늦으면 이미 나간 칼을 무르지 못한다. 요구는 MC-INTERRUPT 하나뿐이었고 그것이 섰다 |
 | MP-BREAK-THE-GUARD | MC-BREAK(PARTIAL) | 무너지는 상태는 있고 무너뜨리는 행동만 없다 (R1 §14 Active Defense 층) |
 | MP-READ-AND-COUNTER | MC-ACTIVE-RESPONSE · MC-PRECISION-RESPONSE · MC-PERFECT-GUARD · MC-OPPORTUNITY · MC-COUNTER | UL 이 그 층의 설계 문서다 — 이 갈래는 이제 두 조각이 아니라 다섯 조각으로 갈린다. 완벽한 막기는 정밀 응답을 막기에 적용한 결과이고 되받아치기는 기회를 통해 온다 (UL §6 · §7). 순서는 UL §42 F1 → F2 → F3 다 |
-| MP-EXPLOIT-OPEN-BODY | MC-AURA-ALLOCATION (PARTIAL) | 요구 넷 중 셋이 섰고 넷째(MC-AURA-ALLOCATION)가 PARTIAL 이라 갈래도 PARTIAL 이다. 다만 **플레이로는 이미 성립한다** — 상대가 물리에 무른 것을 알아내고 배분으로 그 무른 쪽을 친다 (C-COMBAT-001 WORLD SCENARIO). 노드의 완결과 플레이의 성립이 갈리는 자리이며, 어느 쪽으로 판정할지는 Q62 다 |
+| MP-EXPLOIT-OPEN-BODY | MC-AURA-ALLOCATION (PARTIAL) | 요구 넷 중 셋이 섰고 넷째(MC-AURA-ALLOCATION)가 PARTIAL 이라 갈래도 PARTIAL 이다. 다만 **플레이로는 이미 성립한다** — 상대가 물리에 무른 것을 알아내고 배분으로 그 무른 쪽을 친다 (C-COMBAT-001 WORLD SCENARIO). 노드의 완결과 플레이의 성립이 갈리는 자리이며, 어느 쪽으로 판정할지는 Q66 다 |
 | MP-CONTROL-MOVEMENT | MC-CONTROL-SPACE + MC-FORCE-MOVEMENT·MC-REPOSITION(둘 다 PARTIAL) | 셋 중 둘이 절반 서 있다 |
 | MP-STAKE-EVERYTHING-ON-ONE-BLOW | MC-VOW · MC-AURA-ALLOCATION + MC-CONDITION-STACKING(PARTIAL) | Aura/Nen 층 — 가장 멀다. UL §20 이 계약의 대가를 바꾼 뒤로 이 갈래는 "제약으로 위력을 산다" 쪽 반쪽만 쓴다 — 허락을 사는 반쪽은 MP-BIND-BY-CONTRACT 다 |
 | MP-WEAPONIZE-ENVIRONMENT | MC-READ-ENVIRONMENT · MC-USE-HAZARD + MW-ZONE-DANGER | 환경 위험 개념 자체가 없다 |
@@ -422,7 +456,7 @@ Capability 만 보면 전투가 꽤 찬 것처럼 보이지만, 그 전투가 �
    (`MW-ADAPTED-LIFE`) · 자원(`MW-TERRAIN-RESOURCE`) · 피난처(`MW-NATURAL-REFUGE`) ·
    정착(`MW-NATURAL-SETTLEMENT`) · 증거(`MW-CIRCULATION-EVIDENCE`) 일곱이며,
    `world-state.yaml` 머리의 §16 대조표가 열한 고리와 노드의 대응을 갖는다.
-   그리고 순환은 이제 Goal 을 낳는다 (`MG-EXPLORE-BEIRA` — Q64(b) Human 결정) —
+   그리고 순환은 이제 Goal 을 낳는다 (`MG-EXPLORE-BEIRA` — Q69(b) Human 결정) —
    그래서 다음 후보는 자기 이유를 Constraint 부기가 아니라 Goal 경로로 적을 수 있다.
 
    **일곱 중 여섯이 ABSENT 다.** 선 것은 생존 압력과 피난처의 절반뿐이며(C-TERRAIN-001),

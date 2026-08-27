@@ -3095,7 +3095,7 @@ Human 이 "FR-ACTION-PHASE 의 근간이 무엇인가" 를 물어 근간을 역�
     §42 F8 과 §43 의 검증 3종도 후보가 아니다 — 새 능력이 아니라 앞의 것들이 다 선 뒤의
     조합이고 검증 묶음이기 때문이다.
 
-## Q63. 여덟 대지형을 순환 아래로 옮기지 않는다 — CLOSED (a)
+## Q68. 여덟 대지형을 순환 아래로 옮기지 않는다 — CLOSED (a)
 
     Human 결정: **(a) 형제로 둔다.**
 
@@ -3109,7 +3109,7 @@ Human 이 "FR-ACTION-PHASE 의 근간이 무엇인가" 를 물어 근간을 역�
     여덟의 `arises_from` 은 `MW-MACRO-TERRAIN` 그대로다. §16 의 "압도적인 지형" 은
     별도 노드 `MW-SHAPED-LANDFORM` 이 받았다.
 
-## Q64. 대지 순환은 탐험 Goal 을 낳는다 — CLOSED (b)
+## Q69. 대지 순환은 탐험 Goal 을 낳는다 — CLOSED (b)
 
     Human 결정: **(b) `MG-EXPLORE-BEIRA` 에 잇는다.**
 
@@ -3149,3 +3149,379 @@ Human 이 "FR-ACTION-PHASE 의 근간이 무엇인가" 를 물어 근간을 역�
     `possibilities.yaml` 의 MP-* 와 BT §15.9 의 행동 열하나(capabilities.yaml)가
     소유한다. 대조표에 그 사유가 적혀 있다.
 
+## 사슬 A 철회 — 플레이어가 타이밍을 맞춰 막는 기능은 세우지 않는다 · Human · 2026-08-27
+
+    Human 지시: "결과적으로 플레이어가 특정 타이밍에 맞춰서 막기등을 하는 기능은
+    없어야 한다. 이후 진행될 전투 지식으로 처리할 것이다."
+
+    무엇이 닫혔나   COMBAT 트랙의 사슬 A 넷 전부
+                      FR-THE-BLOW-CAN-BE-ANSWERED      (닿는 순간에 대답할 수 있다)
+                      FR-WHEN-YOU-ANSWER-DECIDES       (언제 대답했는가가 결과를 가른다)
+                      FR-A-GOOD-ANSWER-OPENS-A-DOOR    (잘 된 대답이 다음 수를 연다)
+                      FR-WHAT-YOU-BLOCK-BECOMES-YOURS  (받아낸 것이 내 것이 된다)
+                    그리고 첫째로 열었던 Cycle `C-COMBAT-002` — Stage 1~4 를 닫은 뒤
+                    Stage 5(Human Semantic Review) 앞에서 철회했다. 세계 코드는 한 줄도
+                    쓰이지 않았으므로 `world/` `view/` `protocol/` 에 남은 것이 없다.
+
+    근거는 기획서 자신이 지녔다
+
+        Design-Combat-Knowledge-Extension-R0.md §15
+            "숙련은 Response 버튼 추가가 아니라 **Response를 사용하는 지능의 증가**다."
+            대응(Guard · Evade · Intercept · Counter · Absorb · Redirect)은 §7.1 의
+            Response Knowledge 가 운용한다 — 플레이어의 손가락이 아니다.
+
+        Design-Combat-UpperLayer-R0.md §32
+            "AUTO → Normal Response 가능 / MANUAL → Precision Response 가능."
+            **NORMAL 은 자동 전투가 할 수 있어야 한다** — 그러므로 반사신경일 수 없다.
+
+    무엇이 이것을 드러냈나   C-COMBAT-002 의 Stage 3~4 가 닫힌 뒤, 설계를 세계의 실제
+                    값으로 재어 보니 기본 기술의 대답 구간이 **0.15초**였다 (고급 기술
+                    0.45초). 사람의 시각 반응(0.2~0.25초)보다 짧다. "구간 안이면 전부
+                    같은 결과 — 정밀 판정이 아니다" 라고 적은 설계가, 구간 자체가
+                    반사신경 시험이어서 그 문장을 지킬 수 없었다.
+                    **Agent 는 그것을 재어 놓고도 "그대로 두자" 고 추천했고, Human 이
+                    그 자리에서 잡았다.** 재는 것과 판정하는 것은 다르다는 자국을 남긴다.
+
+    어디로 갔나     전투 지식 트랙. `Design-Combat-Knowledge-Extension-R0.md` 는 아직
+                    Master 에 주입되지 않았다 (`master/` 안에 참조 0건) — Inject 가
+                    먼저다 (guides/master-inject.md). 그 트랙이 서면 대응은 §7.1 ·
+                    §15 의 형태로, 즉 **캐릭터가 배운 지식이 운용하는 것**으로 들어온다.
+
+    남은 COMBAT     여섯. 사슬 B 다섯과 C-COMBAT-001 (Human Play 대기).
+                    의존이 빈 것은 `FR-THE-WORLD-DECIDES-WHAT-IS-POSSIBLE` 하나이며,
+                    그것은 새 갈래를 여는 동시에 C-COMBAT-001 이 남긴 결손
+                    (배분이 값만 바꾸고 가능의 목록을 바꾸지 않는다)도 닫는다.
+                    **다음 후보는 아직 고르지 않았다** — SELECTED 는 비어 있다.
+
+## 전투 지식(CK) 주입 — 2026-08-27
+
+    Human 지시: 문서를 지목하고 "이걸로 master 트랙 inject 진행해".
+    원본: `content/proto-adventure/design/Design-Combat-Knowledge-Extension-R0.md` (CK · 1835줄).
+
+    직전 결정과 이어진다 — 사슬 A(플레이어가 타이밍 맞춰 대답하는 넷)를 철회하며
+    "대응은 전투 지식이 운용한다" 고 정했고, 그 문서가 이것이다.
+
+### 무엇이 열렸는가
+
+    이 문서는 새 전투 판정을 하나도 만들지 않는다 (CK §0). 이미 있는 능력을 **언제
+    어떻게 쓸지**를 정하는 층이며, 그래서 전투 사다리 위가 아니라 **옆**에 선다.
+
+    핵심 명제 하나 — 플레이어는 전투 규칙을 쓰지 않는다. 세계에서 이미 성립한 완성된
+    전투 지식을 발견하고 배우고 성장시켜 골라 캐릭터에 적용한다. 숙련은 손이 빨라지는
+    것이 아니라 더 많이 아는 것이다 (CK §42).
+
+### ADDED — System 1
+
+    MS-COMBAT-KNOWLEDGE   전투 지식 (CK §40 · §41)
+        자리 넷: 획득(ACQUIRE) · 성장(DEEPEN) · 선택(CARRY) · 운용(CONDUCT).
+        능력의 층이 아니라 **한 지식이 거치는 걸음**이다.
+        CK §7 의 네 계열(대응 · 기력 · 상대 · 능력)은 자리로 세우지 않았다 —
+        문서 자신이 "시스템적으로 지나치게 분리할 필요는 없다" 고 적는다.
+
+### ADDED — Knowledge 2
+
+    MK-OPPONENT-ABILITY-RULE   상대의 능력이 언제 성립하고 무엇으로 풀리는가 (CK §4 · §6 · §9)
+    MK-HOW-TO-FIGHT-IT         그 사실을 전투 운용으로 바꾸는 법 (CK §2 · §4 · §5)
+
+    **둘을 가른 것이 이 주입의 첫 판단이다.** CK §5 가 그 둘을 갈라 두기 때문이다 —
+    "악마의 피는 독성이 있다" 를 아는 것과 "피 흘리는 악마와 싸우는 법" 을 아는 것은
+    다르고, 전투법은 사실 위에서 **따로** 얻는다.
+
+### ADDED — Capability 7
+
+    MC-LEARN-COMBAT-KNOWLEDGE     세계에서 겪은 것으로 전투법을 습득한다 (§8 · §9 · §24 · §29)
+    MC-CARRY-COMBAT-KNOWLEDGE     이번 싸움에 가져갈 여러 개를 자리에 고른다 (§10 · §11 · §27)
+    MC-CONDUCT-BY-KNOWLEDGE       가져간 지식이 상황을 읽어 무엇을 우선할지 정한다 (§2 · §12 · §13 · §17 · §40)
+    MC-DEEPEN-COMBAT-KNOWLEDGE    겪은 것이 그 지식을 더 깊게 만든다 (§18 · §19 · §20)
+    MC-EXPLAIN-COMBAT-DECISION    왜 그렇게 싸웠는지가 세계에서 읽힌다 (§31 · §39-10)
+    MC-TEACH-COMBAT-KNOWLEDGE     지닌 전투법을 다른 존재에게 전수한다 (§22 · §23 · §24)
+    MC-COMBINE-KNOWLEDGE          지식 둘이 맞물려 새 운용이 열린다 (§33)
+
+    셋째가 이 층의 문이다 — 나머지 여섯은 그것에 재료를 대거나, 읽히게 하거나, 위에 얹힌다.
+    일곱 다 overlay: MISSING. **판단이라는 것 자체가 세계에 없다.**
+
+### ADDED — Possibility 2
+
+    MP-LEARN-HOW-TO-FIGHT-IT       전투 밖에서 그 상대를 상대하는 법을 배워 와서 이긴다
+                                   (MG-OVERCOME-SUPERIOR-OPPONENT)
+    MP-PREPARE-THE-RIGHT-KNOWLEDGE 이미 아는 것들 중 이번 상대에 맞는 것을 골라 이긴다
+                                   (MG-OVERCOME-SUPERIOR-OPPONENT · MG-SURVIVE-ENEMY-OFFENSIVE)
+
+    둘은 짝으로 돈다 — 모으는 갈래가 없으면 고를 것이 없고, 고르는 갈래가 없으면
+    모은 것이 다 켜져 아무 판단도 되지 않는다.
+
+### ADDED — Constraint 9 (전부 DRAFT · Human 승인 대기)
+
+    DC-MASTERY-IS-KNOWING-NOT-REFLEX               숙련은 손이 아니라 아는 것이다 (§42 · §15 · §14 · §25)
+    DC-KNOWLEDGE-IS-NOT-A-SCRIPT                   플레이어가 규칙을 쓰지 않는다 (§1 · §2 · §6 · §30 · §32)
+    DC-KNOWLEDGE-HAS-A-WORLD-CAUSE                 획득에 세계 안의 원인이 있다 (§8 · §9 · §19 · §23 · §29)
+    DC-KNOWLEDGE-RUNS-CAPABILITY-NEVER-CREATES-IT  없는 능력을 만들지 않는다 (§12 · §13)
+    DC-KNOWLEDGE-IS-CARRIED-NOT-HOARDED            모은 것이 아니라 가져간 것이 선다 (§10 · §11 · §27)
+    DC-KNOWLEDGE-SHOWS-IN-BEHAVIOR                 지식 차이가 행동 차이로 보인다 (§37 · §38)
+    DC-KNOWLEDGE-DECISION-IS-TRACEABLE             왜 그렇게 싸웠는지 설명된다 (§31 · §36 · §39-10)
+    DC-KNOWLEDGE-HAS-NO-SINGLE-ANSWER              한 상황에 정답 하나를 두지 않는다 (§21 · §26 · §28)
+    DC-KNOWLEDGE-CONFLICT-IS-DESIGNED              충돌 우선순위를 플레이어가 매기지 않는다 (§32 · §33)
+
+    첫째가 Human 이 직전에 말한 것의 문서 근거다 — CK §42 가 "Response 숙련은 반사
+    신경의 향상이 아니라 더 나은 대응법을 습득하는 것" 이라고 적고, UL §32 가 그것을
+    잴 자를 준다 (NORMAL Response 는 자동 전투가 할 수 있어야 하므로 반사신경일 수 없다).
+
+### 이미 있어서 새로 만들지 않은 것
+
+    DC-GROWTH-REWARD-IS-NEW-REACH   CK §18 의 "효과 +10% 가 아니라 판단할 수 있는 세계
+                                    상태가 증가" 는 이 DC 가 이미 말하는 것이다 —
+                                    지식 전용판을 따로 세우지 않고 그 노드에 걸었다
+    DC-ITEM-HOLDING-IS-NOT-APPLYING 지닌 것과 적용된 것을 가르는 형태가 같다 —
+                                    DC-KNOWLEDGE-IS-CARRIED-NOT-HOARDED 가 supports 로 잇는다
+    MC-OBSERVE-ABILITY              상대 능력을 읽는 능력은 UL 주입 때 이미 섰다.
+                                    MP-LEARN-HOW-TO-FIGHT-IT 의 requires 에 넣고
+                                    required_by 만 채웠다 (복제하지 않았다)
+    MC-MASTER-A-SKILL               스킬 숙련과 전투 지식은 다르다 — 저쪽은 쓰던 행동의
+                                    쓰임새가 넓어지는 것이고 이쪽은 언제 무엇을 할지를
+                                    아는 것이다. 노드를 합치지 않았다
+
+### 옮기지 않은 것과 그 사유
+
+    Combat Knowledge 의 내부 구조 (§6 의 열 칸)
+        Rule Editor 로 공개하지 않는다고 문서 자신이 적는다. 구현 형태이므로 Cycle 소유다.
+
+    슬롯 수 · 희소성 등급 · 성장 단계 수 (§10 · §21 · §18)
+        수치는 Master 로 옮기지 않는다 (정책 §7.2). 다만 자리 수가 성장하는가는
+        설계 질문이라 Q65 로 남겼다.
+
+    Class 성장과의 연결 (§34)
+        MC-LEARN-COMBAT-KNOWLEDGE 의 part_of 에 MS-GROWTH-SOURCE 소속으로 걸었다.
+        새 노드를 만들지 않았다 — Class Change 는 이미 MC-CHANGE-CLASS 가 있다.
+
+    지식의 조직·유파 (§22)
+        MC-TEACH-COMBAT-KNOWLEDGE 의 detail 에 담았다. 조직을 Actor 노드로 세우려면
+        그 조직들의 설계 문서가 먼저다 (지금 MA-* 는 둘뿐이다).
+
+    Combat Intent (§17)
+        UL 이 원본인데 UL 주입이 옮기지 않았다 — CK 주입이 대신 세우지 않는다. Q64.
+
+### 충돌 · 공백 — Human 결정 대기
+
+    Q62   자율 존재의 행동은 전투 지식이 정하는가 습성이 정하는가 (CK §35 ↔ MS-CREATURE-BEHAVIOR)
+    Q63   철회된 능동 대응 넷(MC-ACTIVE-RESPONSE 계열)은 어떤 형태로 돌아오는가 (CK §15)
+    Q64   Combat Intent 가 그래프에 없다 (CK §17 ↔ UL 주입 누락)
+    Q65   전투 지식의 자리 수는 성장하는가 (CK §10 ↔ GS §5 의 다섯 축)
+
+    Q63 이 가장 급하다 — 그 넷의 semantic 이 아직 "플레이어가 시점을 맞춘다" 로 적혀
+    있어 DC-MASTERY-IS-KNOWING-NOT-REFLEX 와 어긋난다. Inject 는 임의로 고치지 않았다:
+    원본 문서가 그 넷을 어떻게 다시 쓰라고 적지 않았기 때문이다 (번역이지 창작이 아니다).
+
+### 다음
+
+    Frontier 후보는 세우지 않았다 — 이것은 NEXT 가 아니라 Inject 다.
+    새 트랙(WORLD·KNOWLEDGE)을 열지도 않았다: 트랙 신설은 직렬 NEXT 작업의 몫이다
+    (frontier/README.md). 후보를 뽑으려면 Q63 이 먼저 답해져야 한다 —
+    대응 넷의 자리가 정해지지 않으면 이 층의 첫 후보가 무엇을 겨냥하는지가 흔들린다.
+
+## Q62 · Q63 · Q64 · Q65 — 전투 지식 주입이 낸 넷 · Human · 2026-08-27
+
+    주입 직후 Human 이 넷을 한 번에 답했다. 그중 Q63 이 이미 커밋된 것을 되돌렸으므로
+    그 경위를 함께 남긴다.
+
+### Q62. 자율 존재의 행동은 전투 지식이 정하는가 — (별도 기획 · 여지를 남긴다)
+
+    Human 답: "자율 존재의 행동은 별도의 기획 작성 예정. 전투 지식을 이용해서 전투를
+    하지만 모든 AI가 여기에 지배되지는 않음. 자율 행동의 기반 자체는 여지를 남겨두도록 한다."
+
+    선택지 (a)(b)(c) 중 어느 것도 아니고 **경계를 그어 미룬 것**이다.
+
+        전투 지식이 소유하는 것    지능 있는 자율 존재의 **전투** 행동
+        전투 지식이 소유하지 않는 것 자율 행동의 기반 — 왜 움직이는가(목적 · 영역 ·
+                                 인지 · 국면). 별도 기획이 소유한다 (작성 예정)
+        따라서                    지능이 없는 존재는 전투 지식 없이 싸운다.
+                                 지금의 고정 규칙(RULE-NPC-DECIDE-001)이 사라지는 것이
+                                 아니라, 지식을 지닌 존재만 그 위에서 이 층을 쓴다
+
+    반영    MC-CONDUCT-BY-KNOWLEDGE 의 MS-CREATURE-BEHAVIOR 소속 role 과 detail.
+
+### Q63. 철회된 능동 대응 넷은 어떤 형태로 돌아오는가 — (UL 을 전적으로 따른다)
+
+    Human 답: "충돌되는 부분은 위에 언급한 기획과 Design-Combat-UpperLayer-R0.md 를
+    전적으로 따른다."
+
+    **선택지 셋이 전부 틀린 질문이었다.** (a)(b)(c) 는 모두 "그 넷을 어떻게 고칠까" 를
+    물었는데, 답은 **고치지 않는다** 다. Response 층의 형태는 UL 이 소유한다.
+
+        고치지 않은 것   MC-ACTIVE-RESPONSE · MC-PRECISION-RESPONSE ·
+                        MC-PERFECT-GUARD · MC-COUNTER (그리고 MC-EVADE · MC-ABSORB)
+                        — UL §4.1 · §4.2 · §5 · §6 · §7 · §9 가 세운 그대로 남는다
+
+        고친 것         **DC-MASTERY-IS-KNOWING-NOT-REFLEX** — 주입 때 Agent 가 이
+                        Constraint 를 원본보다 세게 썼다. 처음 판의 prohibits 가
+                        "누른 시각과 판정 시각의 차이로 결과가 갈리는 층을 세우는 것" 이었는데,
+                        그것은 UL §5(NONE · NORMAL · PRECISION)와 §32(MANUAL →
+                        Precision Response 가능)를 정면으로 무효화한다.
+                        master-inject.md 의 MUST NOT("원본보다 세게 쓰지 않는다")
+                        위반이며, Human 결정으로 좁혔다:
+
+                            무엇을 세우지 말라  →  숙련의 축을 어디에 두라
+
+                        지금 판의 prohibits 는 둘이다 — 플레이어의 입력 정밀도로만
+                        열리는 층(배운 것으로는 닿을 수 없는 자리)을 두지 않는 것,
+                        그리고 조작 속도 자체를 성장·보상의 축으로 삼지 않는 것.
+                        **정밀 대응이 존재하는 것**과 **정밀 대응이 오직 사람의 손으로만
+                        열리는 것**은 다르며, 앞의 것은 UL 이 세운 것이다.
+
+    사슬 A 철회와의 관계   철회는 **Frontier 결정**이지 UL 의 설계를 지운 것이 아니다.
+                        그 층은 지워진 것이 아니라 **어떻게 돌아오는가**가 정해진 것이다 —
+                        플레이어의 손이 아니라 배운 것이 그것을 수행한다 (CK §15).
+                        선을 재는 자는 UL §32 가 준다: 그 층의 기본 형태를 자동 전투가
+                        수행할 수 있으면 지킨 것이다.
+
+### Q64. Combat Intent 를 노드로 세울 것인가 — (a) 세운다
+
+    반영    CN-COMBAT-INTENT (개념 노드). CK §17 의 다섯(ASSAULT · DEFEND · OBSERVE ·
+            PRESERVE · ABILITY)이며, 지식의 출력이자 능력의 입력인 **중간 어휘**다.
+            이것이 없으면 지식이 매 순간의 행동을 직접 지시해야 하고, 그러면 지식마다
+            모든 능력을 알아야 해서 "같은 지식이 캐릭터마다 다른 행동이 된다" (CK §13)가
+            성립하지 않는다. MC-CONDUCT-BY-KNOWLEDGE 의 world_shape 이 이것을 요구한다.
+
+### Q65. 전투 지식의 자리 수는 성장하는가 — (b) 성장한다
+
+    Class 층이 오르면 자리가 는다 (CK §34 가 Class Change 에 "새로운 Combat Knowledge
+    접근" 을 넣은 것과 이어진다).
+
+    반영    MS-GROWTH-SOURCE 에 여섯째 자리 KNOWLEDGE-CAPACITY 를 더했다 —
+            GS §5 의 다섯 축 표가 여섯이 된다. MC-CARRY-COMBAT-KNOWLEDGE 가 그 자리에
+            속한다. 자리 수 자체(넷 등)는 여전히 수치이므로 Cycle 소유다.
+            늘어도 보유량보다는 적어야 고르는 일이 남는다 (DC-KNOWLEDGE-IS-CARRIED-NOT-HOARDED).
+
+## DC-KNOWLEDGE-IS-CARRIED-NOT-HOARDED 문안 정정 — Human 지적 · 2026-08-27
+
+    Human 지적: "전투 지식 슬롯은 여러 개 있고 여러개가 동시에 작동할 수 있어야 할거같은데
+    왜 하나만 작동해야 한다는거야?"
+
+    **설계가 아니라 문장의 결함이었다.** 처음 판의 statement 가 이랬다:
+
+        "획득한 전투 지식이 모두 동시에 작동하지 않는다"
+
+    한국어에서 이 문장은 두 가지로 읽힌다 —
+    부분 부정("전부 다 작동하지는 않는다", 의도한 뜻)과
+    전체 부정("동시에 작동하지 않는다" = 하나만, 읽힌 뜻).
+    requires 의 "작동하는 자리가 보유량보다 적어" 가 의도를 드러내고 있었으나,
+    statement 를 먼저 읽는 사람에게는 늦다.
+
+    고친 것   statement 를 긍정문으로 뒤집었다 — "전투 지식은 **여러 개가 동시에
+              작동한다.** 다만 작동하는 자리가 배운 것보다 적어…".
+              requires 에 "자리들이 한 전투 동안 함께 작동한다" 를 명시로 더했고,
+              prohibits 를 "빠짐없이 전부 적용되게 하는 것" 으로 좁혔다.
+              경계 절에 "이것은 한 번에 하나만이 아니다" 를 박고 근거를 붙였다 —
+              **여럿이 함께 돌기 때문에** 지식끼리 부딪칠 수 있고 그래서
+              DC-KNOWLEDGE-CONFLICT-IS-DESIGNED 가 존재한다. 하나만 돈다면 그 규칙은
+              존재할 이유가 없다. 그 두 DC 가 서로를 증명한다.
+
+    같은 중의성이 번진 곳 둘도 함께 고쳤다 — MK-HOW-TO-FIGHT-IT 의 detail 과
+    MC-CARRY-COMBAT-KNOWLEDGE 의 semantic · world_shape.
+
+    이 규칙이 재는 것은 **동시에 몇 개인가**가 아니라
+    **배운 것 전부인가 그중 일부인가**다.
+
+## 전투 지식 DC 9종 승인 · KNOWLEDGE 트랙 신설 — Human · 2026-08-27
+
+    Human 지시: "나머지 dc 전부 승인하고 frontier까지 뽑아줘."
+
+### 승인 — DC 9종 DRAFT → APPROVED
+
+    DC-MASTERY-IS-KNOWING-NOT-REFLEX (Q63 으로 좁힌 판) ·
+    DC-KNOWLEDGE-IS-NOT-A-SCRIPT · DC-KNOWLEDGE-HAS-A-WORLD-CAUSE ·
+    DC-KNOWLEDGE-RUNS-CAPABILITY-NEVER-CREATES-IT ·
+    DC-KNOWLEDGE-IS-CARRIED-NOT-HOARDED (문안 정정 뒤) ·
+    DC-KNOWLEDGE-SHOWS-IN-BEHAVIOR · DC-KNOWLEDGE-DECISION-IS-TRACEABLE ·
+    DC-KNOWLEDGE-HAS-NO-SINGLE-ANSWER · DC-KNOWLEDGE-CONFLICT-IS-DESIGNED
+
+    승인 전 대조    아홉의 prohibits 를 원본(CK)과 다시 맞췄다 — DC-MASTERY 에서
+                   한 번 겪은 자리이기 때문이다 (원본보다 세게 쓰지 않는다).
+                   여덟은 원본과 일치했고 하나를 고쳤다:
+
+        DC-KNOWLEDGE-HAS-NO-SINGLE-ANSWER
+            requires 가 "하나의 상황에 통하는 대응 지식이 둘 이상 존재한다" 였는데,
+            CK §26 은 "존재할 **수 있어야** 한다" 로 적는다. 그대로 두면 세계에 지식이
+            하나뿐인 첫 Cycle 이 곧바로 위반이 된다.
+            고침 — 재는 자리를 **상대 쪽**으로 옮겼다: "어떤 상대·상황도 특정 지식
+            하나를 요구하지 않는다" · "한 상황을 한 지식이 독점하지 않는다".
+            경계 절에 "지식을 언제나 둘 이상 만들라는 요구가 아니다" 를 박았다.
+
+### 신설 — KNOWLEDGE 트랙 (후보 7)
+
+    새 트랙은 직렬 NEXT 작업만 한다 (frontier/README.md). 전투 지식 주입이 시스템 축
+    (MS-COMBAT-KNOWLEDGE)과 Capability 일곱을 세웠으므로 그 도메인이 트랙이 된다.
+
+        1. FR-WHAT-YOU-KNOW-FIGHTS-WITH-YOU   배운 것이 몸의 판단이 된다   ← 유일한 시작점
+        2. FR-YOU-CHOOSE-WHAT-TO-BRING        무엇을 들고 갈지 고른다
+        3. FR-WHEN-TWO-ANSWERS-DISAGREE       둘이 다른 것을 말할 때
+        4. FR-THE-WORLD-TEACHES-YOU           겪은 것이 전투법이 된다
+        5. FR-THE-SAME-KNOWLEDGE-GOES-DEEPER  같은 전투법이 더 깊어진다
+        6. FR-TWO-KNOWINGS-MAKE-A-THIRD       둘이 맞물려 새것이 열린다
+        7. FR-SOMEONE-TAUGHT-YOU              남에게서 배운다 (MP-LEARN-HOW-TO-FIGHT-IT 이 닫힌다)
+
+    **이 트랙에는 고민할 순서가 없다.** 나머지 여섯이 전부 첫째를 전제한다 — 담을 자리도,
+    부딪침도, 배움도, 깊이도, 맞물림도, 전수도, 판단이 세계에 없으면 닿을 곳이 없다.
+
+    첫째가 CK 가 스스로 정한 검증과 겹친다 — §37 이 첫 구현 범위를 넷으로 적고 §38 이
+    검증 시나리오를 준다. 그 Cycle 의 Stage 8 이 쓸 판정이 이미 문서에 있다.
+
+    첫째의 주의   전투법으로 무엇을 세우느냐에 따라 `Actor.Allocation`(C-COMBAT-001,
+                 아직 Human Play 대기)에 닿을 수 있다. 배분을 쓰지 않는 전투법으로
+                 시작하면 겹치지 않는다 — 억제/우선의 대상을 스킬 가부로 잡으면
+                 C007 이래의 얼개만 쓴다.
+
+### 함께 고친 것
+
+    frontier/README.md   트랙 표에 KNOWLEDGE 추가. **COMBAT 의 SELECTED 를 "없음" 으로
+                        고쳤다** — 사슬 A 철회 때 트랙 파일은 비웠으나 이 인덱스가
+                        옛 값을 들고 있었다. 트랙 간 겹침 둘(↔COMBAT · ↔GROWTH) 추가.
+    LANES.md            WORLD·KNOWLEDGE 레인 신설(HUMAN) · 충돌 칸 둘 · HUMAN 대기 한 줄.
+
+    남은 Frontier 상태  다섯 트랙 중 TERRAIN · GROWTH 가 SELECTED 를 갖고,
+                        ITEM · COMBAT · KNOWLEDGE 셋이 후보를 든 채 Human 선택을 기다린다.
+
+## 병렬 레인 합류 — TERRAIN 과의 충돌 해소 · 2026-08-27
+
+    `C-TERRAIN-001`(COMPLETE)과 그 Master Feedback 이 main 에 들어간 뒤, 전투 지식 쪽
+    작업을 그 위에 합쳤다. 공유 파일 넷이 부딪쳤고 해소 방식을 남긴다 —
+    같은 형태가 다시 올 것이기 때문이다.
+
+    frontier/combat.md
+        두 쪽이 **서로 다른 것을 지웠다.** main 은 C-COMBAT-001 Feedback 으로
+        `FR-WHERE-YOUR-POWER-SITS` 를 지웠고, 이쪽은 사슬 A 넷을 지웠다.
+        **둘 다 지우는 것이 맞다** — 손으로 병합하지 않고 main 판을 받아 사슬 A 제거를
+        다시 얹었다. 후보가 아홉에서 **다섯**으로 줄었고 SELECTED 는 양쪽 다 "없음"
+        이므로 main 의 Feedback 링크와 철회 주가 나란히 선다.
+
+    master/open-questions.md
+        **Q 번호가 충돌했다.** main 이 Q62("갈래를 노드의 완결로 판정하는가")를 열었고,
+        같은 시기에 전투 지식 주입이 Q62~Q65 를 쓰고 닫아 HISTORY 로 옮겼다.
+        **닫힌 쪽을 고치는 것보다 열린 쪽을 잇는 것이 싸다** — main 의 것이 Q66 이
+        되었고, 그것을 가리키던 세 자리(feedback/C-COMBAT-001 · possibilities.yaml 의
+        overlay_note · LANES)도 함께 옮겼다.
+        **번호공간이 레인 소유가 아니라는 것이 이번에 드러났다** — Cycle ID 는 트랙
+        번호공간으로 갈라 두었는데(원칙 22) Q 번호는 그렇지 않다. 공정 결손으로 남긴다.
+
+    LANES.md
+        COMBAT 줄은 양쪽 사실을 합쳤고(사슬 A 철회 + Feedback 반영 끝 + 여전히
+        Human Play 대기), TERRAIN 줄은 main 이 최신이므로 그대로 받았다.
+        HUMAN 대기 표는 양쪽 항목을 모두 실었다.
+
+    master/graph/GRAPH.md · overlay.md
+        생성물이므로 병합하지 않고 `npm run master:graph` 로 다시 만들었다.
+
+### 합치는 김에 고친 것 — frontier/README.md 의 낡은 행 둘
+
+    트랙 인덱스가 실제와 어긋나 있었다. **양쪽 다 자기 트랙 파일만 고치고 인덱스를
+    잊었다:**
+
+        COMBAT    사슬 A 철회 때 트랙 파일은 비웠으나 인덱스가 옛 SELECTED 를 들고 있었다
+        TERRAIN   C-TERRAIN-001 이 닫히며 terrain.md 는 "없음" 이 되었으나
+                  인덱스는 "C-TERRAIN-001 착수 대기" 그대로였다
+
+    둘 다 "없음 — Human 선택 대기" 로 고쳤다. **같은 실수가 두 레인에서 각자 났다는
+    것이 요점이다** — 트랙 파일과 인덱스가 갈라져 있는 한 이 어긋남은 되풀이된다.
+    `lanes:check` 는 트랙 파일을 보므로 이것을 잡지 못했다. 공정 결손으로 남긴다.
+
+    지금 상태   다섯 트랙 중 GROWTH 하나만 SELECTED 를 갖고,
+                ITEM · COMBAT · TERRAIN · KNOWLEDGE 넷이 후보를 든 채 선택을 기다린다.

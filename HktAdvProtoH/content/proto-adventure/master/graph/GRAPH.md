@@ -4,9 +4,9 @@
 > 원본은 `graph/*.yaml` 과 `constraints/DC-*.yaml` 이다.
 > 인터랙티브 관찰(필터 · 서브그래프 · 상세)은 같은 명령이 만드는 `graph-view.html` 을 연다.
 
-노드 140 — WorldState 30 · Actor 2 · Goal 6 · Possibility 27 · Capability 71 · Knowledge 4
+노드 151 — WorldState 30 · Actor 2 · Goal 6 · Possibility 29 · Capability 78 · Knowledge 6
 
-Capability 구현 상태 — ■ IMPLEMENTED 15 · ▨ PARTIAL 9 · □ MISSING 47
+Capability 구현 상태 — ■ IMPLEMENTED 15 · ▨ PARTIAL 10 · □ MISSING 53
 
 ## 인과 뼈대 — WorldState → Goal → Possibility
 
@@ -51,6 +51,8 @@ flowchart LR
   MP-TRADE-WITH-ACTOR["TRADE-WITH-ACTOR"]
   MP-FIND-DEAD-SPECIMEN["FIND-DEAD-SPECIMEN"]
   MP-FORCE-CREATURE-TO-RELEASE["FORCE-CREATURE-TO-RELEASE"]
+  MP-LEARN-HOW-TO-FIGHT-IT["LEARN-HOW-TO-FIGHT-IT"]
+  MP-PREPARE-THE-RIGHT-KNOWLEDGE["PREPARE-THE-RIGHT-KNOWLEDGE"]
   MW-PRIMAL-WORLD[/"PRIMAL-WORLD"/]
   MW-WORLD-PRESSURE[/"WORLD-PRESSURE"/]
   MW-FREE-PRESSURE[/"FREE-PRESSURE"/]
@@ -138,6 +140,9 @@ flowchart LR
   MG-ACQUIRE-RARE-ORGAN --> MP-TRADE-WITH-ACTOR
   MG-ACQUIRE-RARE-ORGAN --> MP-FIND-DEAD-SPECIMEN
   MG-ACQUIRE-RARE-ORGAN --> MP-FORCE-CREATURE-TO-RELEASE
+  MG-OVERCOME-SUPERIOR-OPPONENT --> MP-LEARN-HOW-TO-FIGHT-IT
+  MG-OVERCOME-SUPERIOR-OPPONENT --> MP-PREPARE-THE-RIGHT-KNOWLEDGE
+  MG-SURVIVE-ENEMY-OFFENSIVE --> MP-PREPARE-THE-RIGHT-KNOWLEDGE
   MW-PRIMAL-WORLD ==> MW-WORLD-PRESSURE
   MW-WORLD-PRESSURE ==> MW-FREE-PRESSURE
   MW-WORLD-PRESSURE ==> MW-BOUND-PRESSURE
@@ -189,7 +194,7 @@ flowchart LR
   class MW-PRIMAL-WORLD,MW-WORLD-PRESSURE,MW-FREE-PRESSURE,MW-BOUND-PRESSURE,MW-SAFE-FRONTIER,MW-DEPTH-GRADIENT,MW-ZONE-FRINGE,MW-ZONE-WILD,MW-ZONE-DANGER,MW-ZONE-DEEP,MW-ZONE-UNKNOWN,MW-HYPER-PREDATION,MW-SPATIAL-SHEAR,MW-MACRO-TERRAIN,MW-TERRAIN-CIRCULATION,MW-SHAPED-LANDFORM,MW-SURVIVAL-PRESSURE,MW-ADAPTED-LIFE,MW-NATURAL-REFUGE,MW-TERRAIN-RESOURCE,MW-NATURAL-SETTLEMENT,MW-CIRCULATION-EVIDENCE,MW-TERRAIN-BAIWANG-BASIN,MW-TERRAIN-SUNEATER-ICEFIELD,MW-TERRAIN-NAME-EATING-FOREST,MW-TERRAIN-BREATHLESS-SEA,MW-TERRAIN-SKYFALL-RANGE,MW-TERRAIN-WALKING-CONTINENTS,MW-TERRAIN-UNHAPPENED-DESERT,MW-TERRAIN-BLOODBLOOM-FOREST world;
   class MA-PLAYER,MA-HOSTILE-COMBATANT actor;
   class MG-EXPLORE-BEIRA,MG-ACQUIRE-RARE-ORGAN,MG-OVERCOME-SUPERIOR-OPPONENT,MG-SURVIVE-ENEMY-OFFENSIVE,MG-HOLD-HUNTING-GROUND,MG-RESCUE-THE-TAKEN goal;
-  class MP-OUTGROW-THE-OPPONENT,MP-MATCH-WEAPON-TO-ARMOR,MP-PIERCE-THE-HARD-DEFENSE,MP-BREAK-THE-GUARD,MP-READ-AND-COUNTER,MP-EXPLOIT-OPEN-BODY,MP-INTERRUPT,MP-CONTROL-MOVEMENT,MP-WEAPONIZE-ENVIRONMENT,MP-BET-ON-THE-CRITICAL-BLOW,MP-STAKE-EVERYTHING-ON-ONE-BLOW,MP-CONCENTRATE-THE-POWER,MP-BIND-BY-CONTRACT,MP-KNOW-THE-OPPONENT-RULE,MP-TRADE-BODY-FOR-RESOURCE,MP-EVADE-BY-MOVING-THE-BODY,MP-HOLD-FORTIFIED,MP-STORE-AND-RELEASE,MP-LEARN-TO-HANDLE-THE-LAYER,MP-ADAPT-BY-RESOURCE,MP-PREPARE-IN-CIVILIZATION,MP-BECOME-A-HIGHER-FORM,MP-KILL-CREATURE,MP-TAKE-SHED-ORGAN,MP-TRADE-WITH-ACTOR,MP-FIND-DEAD-SPECIMEN,MP-FORCE-CREATURE-TO-RELEASE poss;
+  class MP-OUTGROW-THE-OPPONENT,MP-MATCH-WEAPON-TO-ARMOR,MP-PIERCE-THE-HARD-DEFENSE,MP-BREAK-THE-GUARD,MP-READ-AND-COUNTER,MP-EXPLOIT-OPEN-BODY,MP-INTERRUPT,MP-CONTROL-MOVEMENT,MP-WEAPONIZE-ENVIRONMENT,MP-BET-ON-THE-CRITICAL-BLOW,MP-STAKE-EVERYTHING-ON-ONE-BLOW,MP-CONCENTRATE-THE-POWER,MP-BIND-BY-CONTRACT,MP-KNOW-THE-OPPONENT-RULE,MP-TRADE-BODY-FOR-RESOURCE,MP-EVADE-BY-MOVING-THE-BODY,MP-HOLD-FORTIFIED,MP-STORE-AND-RELEASE,MP-LEARN-TO-HANDLE-THE-LAYER,MP-ADAPT-BY-RESOURCE,MP-PREPARE-IN-CIVILIZATION,MP-BECOME-A-HIGHER-FORM,MP-KILL-CREATURE,MP-TAKE-SHED-ORGAN,MP-TRADE-WITH-ACTOR,MP-FIND-DEAD-SPECIMEN,MP-FORCE-CREATURE-TO-RELEASE,MP-LEARN-HOW-TO-FIGHT-IT,MP-PREPARE-THE-RIGHT-KNOWLEDGE poss;
 ```
 
 ## 척추 — 어떤 전체의 조각인가 (part_of)
@@ -483,6 +488,7 @@ flowchart TB
   subgraph SEGBASE ["자율 존재 행동"]
     N0["▨ OBSERVE"]
     N1["□ PREDICT"]
+    N2["□ CONDUCT-BY-KNOWLEDGE"]
   end
 
   classDef impl fill:#16351f,stroke:#3f8a52,color:#d8f2df;
@@ -492,6 +498,7 @@ flowchart TB
   classDef partS fill:#3a3315,stroke:#9a8a2e,color:#f2ecd0,stroke-dasharray:5 4;
   classDef missS fill:#2a2a2e,stroke:#5c5c66,color:#b8b8c2,stroke-dasharray:5 4;
   class N0 part;
+  class N2 miss;
   class N1 missS;
 ```
 
@@ -604,31 +611,39 @@ flowchart TB
   class N0,N1 miss;
 ```
 
-### 성장의 원천 — GS (content/proto-adventure/design/Master-Fairy-Growth-System.md) §5 · §19
+### 성장의 원천 — GS (content/proto-adventure/design/Master-Fairy-Growth-System.md) §5 · §19 · CK §34 (여섯째)
 
-지금의 힘이 어디에서 올라오는가의 축들. GS §5 는 현재 전투력을 다섯 축의 합으로 적고 §19 는 축마다 무엇을 해야 오르는지를 명명한다 — 이 시스템은 그 다섯 자리다. 층이 아니라 나란한 축이며 순서는 GS §5 의 나열 순서다 (아래에서 위로 읽는 사다리가 아니다). 마지막 자리(장비)는 이미 아이템 시스템이 세운 것과 같은 자리다 — 새로 만들지 않고 그 노드가 두 시스템에 속한다.
+지금의 힘이 어디에서 올라오는가의 축들. GS §5 는 현재 전투력을 다섯 축의 합으로 적고 §19 는 축마다 무엇을 해야 오르는지를 명명한다 — 그 다섯에 전투 지식을 몇 개나 지고 갈 수 있는가(CK §34 · Q65(b))가 여섯째로 더해졌다. 층이 아니라 나란한 축이며 순서는 GS §5 의 나열 순서다 (아래에서 위로 읽는 사다리가 아니다). 마지막 자리(장비)는 이미 아이템 시스템이 세운 것과 같은 자리다 — 새로 만들지 않고 그 노드가 두 시스템에 속한다.
 
 ```mermaid
 flowchart TB
-  subgraph SEG0 ["Equipment — 세계 자원 획득·제작·강화"]
-    N0["■ EQUIP-ITEM"]
+  subgraph SEG0 ["Knowledge Capacity — 전투 지식을 몇 개나 지고 갈 수 있는가"]
+    N0["□ CARRY-COMBAT-KNOWLEDGE"]
   end
-  subgraph SEG1 ["Exploration Mastery — 원리로 환경 문제 해결"]
-    N1["□ GROW-EXPLORATION-MASTERY"]
+  subgraph SEG1 ["Equipment — 세계 자원 획득·제작·강화"]
+    N1["■ EQUIP-ITEM"]
   end
-  subgraph SEG2 ["Skill Mastery — 실제 사용과 난도 높은 활용"]
-    N2["□ MASTER-A-SKILL"]
+  subgraph SEG2 ["Exploration Mastery — 원리로 환경 문제 해결"]
+    N2["□ GROW-EXPLORATION-MASTERY"]
   end
-  subgraph SEG3 ["Class Mastery — 그 형태 고유의 행동"]
-    N3["□ GROW-CLASS-MASTERY"]
+  subgraph SEG3 ["Skill Mastery — 실제 사용과 난도 높은 활용"]
+    N3["□ MASTER-A-SKILL"]
   end
-  subgraph SEG4 ["Character Level — 전투·탐험·발견·사건 해결"]
-    N4["□ GAIN-LEVEL"]
+  subgraph SEG4 ["Class Mastery — 그 형태 고유의 행동"]
+    N4["□ GROW-CLASS-MASTERY"]
+  end
+  subgraph SEG5 ["Character Level — 전투·탐험·발견·사건 해결"]
+    N5["▨ GAIN-LEVEL"]
+  end
+  subgraph SEGBASE ["공통 바닥 — 층에 속하지 않는다"]
+    N6["□ LEARN-COMBAT-KNOWLEDGE"]
   end
   SEG0 ~~~ SEG1
   SEG1 ~~~ SEG2
   SEG2 ~~~ SEG3
   SEG3 ~~~ SEG4
+  SEG4 ~~~ SEG5
+  SEG5 ~~~ SEGBASE
 
   classDef impl fill:#16351f,stroke:#3f8a52,color:#d8f2df;
   classDef part fill:#3a3315,stroke:#9a8a2e,color:#f2ecd0;
@@ -636,8 +651,9 @@ flowchart TB
   classDef implS fill:#16351f,stroke:#3f8a52,color:#d8f2df,stroke-dasharray:5 4;
   classDef partS fill:#3a3315,stroke:#9a8a2e,color:#f2ecd0,stroke-dasharray:5 4;
   classDef missS fill:#2a2a2e,stroke:#5c5c66,color:#b8b8c2,stroke-dasharray:5 4;
-  class N0 impl;
-  class N1,N2,N3,N4 miss;
+  class N1 impl;
+  class N5 part;
+  class N0,N2,N3,N4,N6 miss;
 ```
 
 ### 요정 계열 — GS (content/proto-adventure/design/Master-Fairy-Growth-System.md) §1 · §2 · §9~§16
@@ -652,6 +668,40 @@ flowchart TB
 
 아직 이 시스템에 속한 조각이 없다.
 
+### 전투 지식 — CK (content/proto-adventure/design/Design-Combat-Knowledge-Extension-R0.md) §40 · §41
+
+세계에서 얻은 사실을 실제 전투 운용으로 바꾸는 습득 가능한 판단법의 층. 전투 사다리(MS-COMBAT-LADDER) 위가 아니라 **옆**에 선다 — 새 피해 공식도 새 판정도 만들지 않고, 이미 있는 능력을 언제 어떻게 쓸지를 정한다 (CK §0). 플레이어는 규칙을 쓰지 않고 완성된 지식을 얻어 골라 간다. 그래서 이 시스템의 자리들은 능력의 층이 아니라 **한 지식이 거치는 걸음**이다 (CK §40 · §41). CK §7 의 네 계열(대응 · 기력 · 상대 · 능력)은 층이 아니라 지식이 무엇에 닿는가의 분류이므로 자리로 세우지 않는다 — 문서 자신이 "시스템적으로 지나치게 분리할 필요는 없다" 고 적는다.
+
+```mermaid
+flowchart TB
+  subgraph SEG0 ["운용 — 가져간 지식이 상황을 읽어 행동을 정한다"]
+    N0["□ CONDUCT-BY-KNOWLEDGE"]
+    N1["□ EXPLAIN-COMBAT-DECISION"]
+    N2["□ COMBINE-KNOWLEDGE"]
+  end
+  subgraph SEG1 ["선택 — 이번 싸움에 무엇을 가져갈지 고른다"]
+    N3["□ CARRY-COMBAT-KNOWLEDGE"]
+  end
+  subgraph SEG2 ["성장 — 겪은 것이 그 지식을 더 깊게 만든다"]
+    N4["□ DEEPEN-COMBAT-KNOWLEDGE"]
+  end
+  subgraph SEG3 ["획득 — 세계 안의 원인으로 전투법을 얻는다"]
+    N5["□ LEARN-COMBAT-KNOWLEDGE"]
+    N6["□ TEACH-COMBAT-KNOWLEDGE"]
+  end
+  SEG0 ~~~ SEG1
+  SEG1 ~~~ SEG2
+  SEG2 ~~~ SEG3
+
+  classDef impl fill:#16351f,stroke:#3f8a52,color:#d8f2df;
+  classDef part fill:#3a3315,stroke:#9a8a2e,color:#f2ecd0;
+  classDef miss fill:#2a2a2e,stroke:#5c5c66,color:#b8b8c2;
+  classDef implS fill:#16351f,stroke:#3f8a52,color:#d8f2df,stroke-dasharray:5 4;
+  classDef partS fill:#3a3315,stroke:#9a8a2e,color:#f2ecd0,stroke-dasharray:5 4;
+  classDef missS fill:#2a2a2e,stroke:#5c5c66,color:#b8b8c2,stroke-dasharray:5 4;
+  class N0,N1,N2,N3,N4,N5,N6 miss;
+```
+
 ## 갈래별 준비도 — 어느 경로가 세계에 가장 가까운가
 
 요구 Capability 중 이미 세계에 있는 것의 비율. `IMPLEMENTED` 1.0 · `PARTIAL` 0.5 로 센다.
@@ -664,8 +714,8 @@ flowchart TB
 | `TRADE-BODY-FOR-RESOURCE` | SURVIVE-ENEMY-OFFENSIVE | ●●●●○ 3/4 | CP-ECONOMY |
 | `EXPLOIT-OPEN-BODY` | OVERCOME-SUPERIOR-OPPONENT | ●●●●○ 2/3 | AURA-ALLOCATION |
 | `BET-ON-THE-CRITICAL-BLOW` | OVERCOME-SUPERIOR-OPPONENT | ●●●●○ 2/3 | ATTACK-POWER |
+| `OUTGROW-THE-OPPONENT` | OVERCOME-SUPERIOR-OPPONENT | ●●●●○ 3/6 | ATTACK-POWER · CP-ECONOMY · GAIN-LEVEL |
 | `LEARN-TO-HANDLE-THE-LAYER` | EXPLORE-BEIRA | ●●●●○ 3/5 | OBSERVE · PREDICT |
-| `OUTGROW-THE-OPPONENT` | OVERCOME-SUPERIOR-OPPONENT | ●●●○○ 3/6 | ATTACK-POWER · CP-ECONOMY · GAIN-LEVEL |
 | `BREAK-THE-GUARD` | OVERCOME-SUPERIOR-OPPONENT | ●●●○○ 1/3 | BREAK · CP-ECONOMY |
 | `CONCENTRATE-THE-POWER` | OVERCOME-SUPERIOR-OPPONENT | ●●●○○ 1/3 | AURA-ALLOCATION · CP-ECONOMY |
 | `HOLD-FORTIFIED` | SURVIVE-ENEMY-OFFENSIVE | ●●●○○ 1/4 | FORTIFY · AURA-ALLOCATION · CP-ECONOMY |
@@ -677,12 +727,14 @@ flowchart TB
 | `STORE-AND-RELEASE` | SURVIVE-ENEMY-OFFENSIVE | ●○○○○ 1/4 | ABSORB · ACTIVE-RESPONSE · PRECISION-RESPONSE |
 | `READ-AND-COUNTER` | OVERCOME-SUPERIOR-OPPONENT | ●○○○○ 1/7 | ACTIVE-RESPONSE · PRECISION-RESPONSE · PERFECT-GUARD · OPPORTUNITY · COUNTER · CP-ECONOMY |
 | `EVADE-BY-MOVING-THE-BODY` | SURVIVE-ENEMY-OFFENSIVE | ●○○○○ 0/3 | EVADE · ACTIVE-RESPONSE · CP-ECONOMY |
+| `BECOME-A-HIGHER-FORM` | EXPLORE-BEIRA | ●○○○○ 0/5 | CHANGE-CLASS · GAIN-LEVEL · GROW-CLASS-MASTERY · MASTER-A-SKILL · GROW-EXPLORATION-MASTERY |
 | `WEAPONIZE-ENVIRONMENT` | OVERCOME-SUPERIOR-OPPONENT | ○○○○○ 0/2 | READ-ENVIRONMENT · USE-HAZARD |
 | `PREPARE-IN-CIVILIZATION` | EXPLORE-BEIRA | ○○○○○ 0/1 | CRAFT-FROM-MATERIALS |
-| `BECOME-A-HIGHER-FORM` | EXPLORE-BEIRA | ○○○○○ 0/5 | CHANGE-CLASS · GAIN-LEVEL · GROW-CLASS-MASTERY · MASTER-A-SKILL · GROW-EXPLORATION-MASTERY |
 | `KILL-CREATURE` | ACQUIRE-RARE-ORGAN | ○○○○○ 0/1 | TRANSFER-ITEM |
 | `TAKE-SHED-ORGAN` | ACQUIRE-RARE-ORGAN | ○○○○○ 0/1 | TRANSFER-ITEM |
 | `TRADE-WITH-ACTOR` | ACQUIRE-RARE-ORGAN | ○○○○○ 0/1 | TRANSFER-ITEM |
+| `LEARN-HOW-TO-FIGHT-IT` | OVERCOME-SUPERIOR-OPPONENT | ○○○○○ 0/6 | OBSERVE-ABILITY · LEARN-COMBAT-KNOWLEDGE · CONDUCT-BY-KNOWLEDGE · DEEPEN-COMBAT-KNOWLEDGE · TEACH-COMBAT-KNOWLEDGE · EXPLAIN-COMBAT-DECISION |
+| `PREPARE-THE-RIGHT-KNOWLEDGE` | OVERCOME-SUPERIOR-OPPONENT · SURVIVE-ENEMY-OFFENSIVE | ○○○○○ 0/3 | CARRY-COMBAT-KNOWLEDGE · CONDUCT-BY-KNOWLEDGE · COMBINE-KNOWLEDGE |
 | `FIND-DEAD-SPECIMEN` | ACQUIRE-RARE-ORGAN | 요구 미기재 | 없음 |
 | `FORCE-CREATURE-TO-RELEASE` | ACQUIRE-RARE-ORGAN | 요구 미기재 | 없음 |
 
@@ -737,11 +789,18 @@ flowchart LR
   MC-EQUIP-ITEM["■ EQUIP-ITEM"]
   MC-CRAFT-FROM-MATERIALS["□ CRAFT-FROM-MATERIALS"]
   MC-TRANSFER-ITEM["□ TRANSFER-ITEM"]
-  MC-GAIN-LEVEL["□ GAIN-LEVEL"]
+  MC-GAIN-LEVEL["▨ GAIN-LEVEL"]
   MC-GROW-CLASS-MASTERY["□ GROW-CLASS-MASTERY"]
   MC-MASTER-A-SKILL["□ MASTER-A-SKILL"]
   MC-GROW-EXPLORATION-MASTERY["□ GROW-EXPLORATION-MASTERY"]
   MC-CHANGE-CLASS["□ CHANGE-CLASS"]
+  MC-LEARN-COMBAT-KNOWLEDGE["□ LEARN-COMBAT-KNOWLEDGE"]
+  MC-CARRY-COMBAT-KNOWLEDGE["□ CARRY-COMBAT-KNOWLEDGE"]
+  MC-CONDUCT-BY-KNOWLEDGE["□ CONDUCT-BY-KNOWLEDGE"]
+  MC-DEEPEN-COMBAT-KNOWLEDGE["□ DEEPEN-COMBAT-KNOWLEDGE"]
+  MC-EXPLAIN-COMBAT-DECISION["□ EXPLAIN-COMBAT-DECISION"]
+  MC-TEACH-COMBAT-KNOWLEDGE["□ TEACH-COMBAT-KNOWLEDGE"]
+  MC-COMBINE-KNOWLEDGE["□ COMBINE-KNOWLEDGE"]
   MP-OUTGROW-THE-OPPONENT["OUTGROW-THE-OPPONENT"]
   MP-MATCH-WEAPON-TO-ARMOR["MATCH-WEAPON-TO-ARMOR"]
   MP-PIERCE-THE-HARD-DEFENSE["PIERCE-THE-HARD-DEFENSE"]
@@ -767,6 +826,8 @@ flowchart LR
   MP-KILL-CREATURE["KILL-CREATURE"]
   MP-TAKE-SHED-ORGAN["TAKE-SHED-ORGAN"]
   MP-TRADE-WITH-ACTOR["TRADE-WITH-ACTOR"]
+  MP-LEARN-HOW-TO-FIGHT-IT["LEARN-HOW-TO-FIGHT-IT"]
+  MP-PREPARE-THE-RIGHT-KNOWLEDGE["PREPARE-THE-RIGHT-KNOWLEDGE"]
 
   MP-OUTGROW-THE-OPPONENT --> MC-ATTACK-POWER
   MP-OUTGROW-THE-OPPONENT --> MC-SKILL-SCALING
@@ -852,15 +913,24 @@ flowchart LR
   MP-KILL-CREATURE --> MC-TRANSFER-ITEM
   MP-TAKE-SHED-ORGAN --> MC-TRANSFER-ITEM
   MP-TRADE-WITH-ACTOR --> MC-TRANSFER-ITEM
+  MP-LEARN-HOW-TO-FIGHT-IT --> MC-OBSERVE-ABILITY
+  MP-LEARN-HOW-TO-FIGHT-IT --> MC-LEARN-COMBAT-KNOWLEDGE
+  MP-LEARN-HOW-TO-FIGHT-IT --> MC-CONDUCT-BY-KNOWLEDGE
+  MP-LEARN-HOW-TO-FIGHT-IT --> MC-DEEPEN-COMBAT-KNOWLEDGE
+  MP-LEARN-HOW-TO-FIGHT-IT --> MC-TEACH-COMBAT-KNOWLEDGE
+  MP-LEARN-HOW-TO-FIGHT-IT --> MC-EXPLAIN-COMBAT-DECISION
+  MP-PREPARE-THE-RIGHT-KNOWLEDGE --> MC-CARRY-COMBAT-KNOWLEDGE
+  MP-PREPARE-THE-RIGHT-KNOWLEDGE --> MC-CONDUCT-BY-KNOWLEDGE
+  MP-PREPARE-THE-RIGHT-KNOWLEDGE --> MC-COMBINE-KNOWLEDGE
 
   classDef impl fill:#16351f,stroke:#3f8a52,color:#d8f2df;
   classDef part fill:#3a3315,stroke:#9a8a2e,color:#f2ecd0;
   classDef miss fill:#2a2a2e,stroke:#5c5c66,color:#b8b8c2;
   classDef poss fill:#1c3330,stroke:#3f7d6f,color:#d6f0e9;
   class MC-COMBAT-STRIKE,MC-BODY-FACING,MC-COMBAT-CAUSE-READING,MC-GUARD,MC-DEFENSE-MITIGATION,MC-SKILL-SCALING,MC-ATTACK-ARMOR-MATCHUP,MC-PENETRATION,MC-CRITICAL-STRIKE,MC-INTERRUPT,MC-DESIGNATE-TARGET,MC-WATCH-TARGET,MC-RELATION-STANCE,MC-USE-ITEM,MC-EQUIP-ITEM impl;
-  class MC-CP-ECONOMY,MC-ATTACK-POWER,MC-BREAK,MC-CONDITION-STACKING,MC-AURA-ALLOCATION,MC-ABILITY-CONDITION,MC-REPOSITION,MC-OBSERVE,MC-FORCE-MOVEMENT part;
-  class MC-PERFECT-GUARD,MC-COUNTER,MC-FORTIFY,MC-EVADE,MC-VOW,MC-ACTIVE-RESPONSE,MC-PRECISION-RESPONSE,MC-OPPORTUNITY,MC-ABSORB,MC-MARK,MC-BIND,MC-OBSERVE-ABILITY,MC-PREDICT,MC-CONTROL-SPACE,MC-READ-ENVIRONMENT,MC-USE-HAZARD,MC-DISRUPT-ABILITY,MC-RESTORE-BIOLOGICAL-STATE,MC-CUT-ABNORMAL-STRUCTURE,MC-CRAFT-FROM-MATERIALS,MC-TRANSFER-ITEM,MC-GAIN-LEVEL,MC-GROW-CLASS-MASTERY,MC-MASTER-A-SKILL,MC-GROW-EXPLORATION-MASTERY,MC-CHANGE-CLASS miss;
-  class MP-OUTGROW-THE-OPPONENT,MP-MATCH-WEAPON-TO-ARMOR,MP-PIERCE-THE-HARD-DEFENSE,MP-BREAK-THE-GUARD,MP-READ-AND-COUNTER,MP-EXPLOIT-OPEN-BODY,MP-INTERRUPT,MP-CONTROL-MOVEMENT,MP-WEAPONIZE-ENVIRONMENT,MP-BET-ON-THE-CRITICAL-BLOW,MP-STAKE-EVERYTHING-ON-ONE-BLOW,MP-CONCENTRATE-THE-POWER,MP-BIND-BY-CONTRACT,MP-KNOW-THE-OPPONENT-RULE,MP-TRADE-BODY-FOR-RESOURCE,MP-EVADE-BY-MOVING-THE-BODY,MP-HOLD-FORTIFIED,MP-STORE-AND-RELEASE,MP-LEARN-TO-HANDLE-THE-LAYER,MP-ADAPT-BY-RESOURCE,MP-PREPARE-IN-CIVILIZATION,MP-BECOME-A-HIGHER-FORM,MP-KILL-CREATURE,MP-TAKE-SHED-ORGAN,MP-TRADE-WITH-ACTOR poss;
+  class MC-CP-ECONOMY,MC-ATTACK-POWER,MC-BREAK,MC-CONDITION-STACKING,MC-AURA-ALLOCATION,MC-ABILITY-CONDITION,MC-REPOSITION,MC-OBSERVE,MC-FORCE-MOVEMENT,MC-GAIN-LEVEL part;
+  class MC-PERFECT-GUARD,MC-COUNTER,MC-FORTIFY,MC-EVADE,MC-VOW,MC-ACTIVE-RESPONSE,MC-PRECISION-RESPONSE,MC-OPPORTUNITY,MC-ABSORB,MC-MARK,MC-BIND,MC-OBSERVE-ABILITY,MC-PREDICT,MC-CONTROL-SPACE,MC-READ-ENVIRONMENT,MC-USE-HAZARD,MC-DISRUPT-ABILITY,MC-RESTORE-BIOLOGICAL-STATE,MC-CUT-ABNORMAL-STRUCTURE,MC-CRAFT-FROM-MATERIALS,MC-TRANSFER-ITEM,MC-GROW-CLASS-MASTERY,MC-MASTER-A-SKILL,MC-GROW-EXPLORATION-MASTERY,MC-CHANGE-CLASS,MC-LEARN-COMBAT-KNOWLEDGE,MC-CARRY-COMBAT-KNOWLEDGE,MC-CONDUCT-BY-KNOWLEDGE,MC-DEEPEN-COMBAT-KNOWLEDGE,MC-EXPLAIN-COMBAT-DECISION,MC-TEACH-COMBAT-KNOWLEDGE,MC-COMBINE-KNOWLEDGE miss;
+  class MP-OUTGROW-THE-OPPONENT,MP-MATCH-WEAPON-TO-ARMOR,MP-PIERCE-THE-HARD-DEFENSE,MP-BREAK-THE-GUARD,MP-READ-AND-COUNTER,MP-EXPLOIT-OPEN-BODY,MP-INTERRUPT,MP-CONTROL-MOVEMENT,MP-WEAPONIZE-ENVIRONMENT,MP-BET-ON-THE-CRITICAL-BLOW,MP-STAKE-EVERYTHING-ON-ONE-BLOW,MP-CONCENTRATE-THE-POWER,MP-BIND-BY-CONTRACT,MP-KNOW-THE-OPPONENT-RULE,MP-TRADE-BODY-FOR-RESOURCE,MP-EVADE-BY-MOVING-THE-BODY,MP-HOLD-FORTIFIED,MP-STORE-AND-RELEASE,MP-LEARN-TO-HANDLE-THE-LAYER,MP-ADAPT-BY-RESOURCE,MP-PREPARE-IN-CIVILIZATION,MP-BECOME-A-HIGHER-FORM,MP-KILL-CREATURE,MP-TAKE-SHED-ORGAN,MP-TRADE-WITH-ACTOR,MP-LEARN-HOW-TO-FIGHT-IT,MP-PREPARE-THE-RIGHT-KNOWLEDGE poss;
 ```
 
 ## Constraint — 무엇이 걸러지는가
@@ -876,7 +946,7 @@ Constraint 는 단계가 아니라 각 선택 지점의 Filter 다. 아래는 �
 | `COMBAT-ONE-FORMULA` | COMBAT | APPROVED | 8 | 전투에는 하나의 기반 피해 공식만 존재한다. 새로운 전투 시스템은 새로운 피해 공식을 만들지 않고, 기존 공식의 입력값이나 결과값에 한 가지 의미만 더한다. |
 | `COMBAT-ONE-LAYER-AT-A-TIME` | COMBAT | APPROVED | 1 | 전투 시스템은 한 번에 한 층만 추가하며, 현재 층이 플레이로 검증되기 전에는 다음 층을 올리지 않는다. 각 층은 아래 층 없이도 완전히 동작하는 상태를 유지한다. |
 | `COMBAT-ONE-RESPONSE-INPUT` | COMBAT | APPROVED | 5 | 공격을 받는 순간의 대응은 입력 하나다. 막기 · 피하기 · 받아넘기기 · 되받아치기를 각각의 입력으로 늘리지 않고, 그 하나가 무엇이 되는지는 지금 무엇을 끼워 두었는가가 정한다. |
-| `COMBAT-PLAYER-CAUSALITY` | COMBAT | REVISED | 31 | 전투의 중요한 결과는 관찰 가능한 세계 상태와 플레이어의 선택·행동에서 나오며, 같은 상태·같은 조건·같은 행동이면 언제나 같은 결과가 나온다. 단 하나의 예외로, Critical 은 확률 판정을 허용한다 — 그 경우에도 발생 확률과 증폭 결과는 관찰로 읽을 수 있어야 한다. |
+| `COMBAT-PLAYER-CAUSALITY` | COMBAT | REVISED | 32 | 전투의 중요한 결과는 관찰 가능한 세계 상태와 플레이어의 선택·행동에서 나오며, 같은 상태·같은 조건·같은 행동이면 언제나 같은 결과가 나온다. 단 하나의 예외로, Critical 은 확률 판정을 허용한다 — 그 경우에도 발생 확률과 증폭 결과는 관찰로 읽을 수 있어야 한다. |
 | `COMBAT-RESPONSE-IS-OPTIONAL-MASTERY` | COMBAT | APPROVED | 3 | 대응하지 않아도 기본 전투는 그대로 성립한다. 능동 방어는 살아남기 위한 요구가 아니라 잘했을 때 다른 것이 열리는 숙련이며, 일반 공격을 넘기기 위해 정확한 시점을 요구하지 않는다. |
 | `COMBAT-SHARED-BUDGET` | COMBAT | APPROVED | 9 | 전투 행동은 하나의 공통 기력(CP) 예산을 나눠 쓴다. 행동별 전용 게이지를 신설하지 않는다. |
 | `COMBAT-STRONG-RULE-HAS-COUNTERPLAY` | COMBAT | APPROVED | 8 | 상대의 행동 가능 범위를 줄이는 능력에는 상대가 알아내고 실행할 수 있는 대응책이 최소한 하나 있어야 한다. 대응책은 그 능력의 설명에 함께 정의되며, 세계 안에서 발견 가능해야 한다. |
@@ -892,15 +962,15 @@ Constraint 는 단계가 아니라 각 선택 지점의 Filter 다. 아래는 �
 | `GROWTH-EXPLORATION-SHARES-THE-PRINCIPLE` | GROWTH | APPROVED | 2 | 탐험 능력은 전투와 별개로 주어지는 별도의 기능이 아니라, 같은 원리를 다른 방식으로 쓰는 것이어야 한다. |
 | `GROWTH-GOAL-FIRST` | GROWTH | APPROVED | 2 | 성장(새 Class · Item · Capability 의 획득) 자체를 Goal 로 세우지 않는다. 성장은 Actor 의 현재 Goal 을 현재 Capability 로 달성하기 어려울 때, 그 Goal 을 달성하는 하나의 Possibility 로만 성립한다. |
 | `GROWTH-INTENT-IS-MEASURED` | GROWTH | APPROVED | 0 | 중요한 성장은 자신이 무엇을 얼마나 바꿀 작정인지를 미리 밝히고, 실제로 굴려 본 결과가 그 범위를 벗어나면 실패로 다룬다. |
-| `GROWTH-MASTERY-FROM-OWN-BEHAVIOR` | GROWTH | APPROVED | 2 | 숙련은 무엇을 얼마나 반복했는가가 아니라 그 형태 고유의 행동을 수행했는가에서 오르며, 같은 상황에서도 캐릭터마다 오르는 행동이 다르다. |
+| `GROWTH-MASTERY-FROM-OWN-BEHAVIOR` | GROWTH | APPROVED | 3 | 숙련은 무엇을 얼마나 반복했는가가 아니라 그 형태 고유의 행동을 수행했는가에서 오르며, 같은 상황에서도 캐릭터마다 오르는 행동이 다르다. |
 | `GROWTH-NEED-FROM-POSSIBILITY` | GROWTH | APPROVED | 0 | Class 와 Item 은 Capability 를 획득하는 세계 내 경로일 뿐이다. Capability 의 필요성은 항상 기존 Master 인과(Goal → Possibility --requires-->)에서 나오며, Class 나 Item 이 존재한다는 이유로 Capability 를 만들지 않는다. |
 | `GROWTH-NO-CAPABILITY-DUPLICATION` | GROWTH | APPROVED | 1 | 같은 플레이 의미의 Capability 를 획득 Source(Class / Item / Actor)별로 복제하지 않는다. 하나의 MC-* 에 여러 획득 경로가 grants 로 연결된다. |
 | `GROWTH-NO-DOMINATED-ROUTE` | GROWTH | APPROVED | 2 | 더 싸면서 모든 면에서 더 좋은 성장 경로를 두지 않는다 — 나란히 선 경로들은 서로 다른 장단점을 가져야 하고, 어느 하나가 다른 하나를 완전히 압도하면 압도당한 쪽은 존재할 이유가 없다. |
 | `GROWTH-NOT-A-MASTER-KEY` | GROWTH | APPROVED | 1 | 하나의 성장이 서로 무관한 여러 관문을 한꺼번에 열지 않는다 — 열쇠 하나가 모든 문을 열면 그 뒤의 문들이 사라진다. |
 | `GROWTH-NOT-A-STAGE` | GROWTH | APPROVED | 0 | Growth 는 별도 Master Stage 가 아니다. 기본 절차 WHY → OPTIONS → NEED → NEXT 는 그대로 유지되고, Growth Graph 는 NEED 에서 발견된 Capability 에 대해 "세계에서 어떻게 얻는가"를 덧씌우는 보조 Overlay 로만 존재한다. |
 | `GROWTH-POWER-PAYS-IN-REACH-OR-CONSTRAINT` | GROWTH | APPROVED | 3 | 강한 효과와 넓은 적용 범위를 동시에 주지 않는다 — 강해질수록 적용 범위가 좁아지거나 분명한 조건이 붙어야 하며, 그 조건도 자원과 마찬가지로 성장의 값이다. |
-| `GROWTH-PRINCIPLE-IS-PLAYED` | GROWTH | APPROVED | 1 | 캐릭터가 지닌 세계의 원리는 설정 문구가 아니라 그 캐릭터가 실제로 하는 행동으로 화면 위에 있어야 한다. |
-| `GROWTH-REWARD-IS-NEW-REACH` | GROWTH | APPROVED | 1 | 성장의 가치는 커진 숫자가 아니라 이전에는 할 수 없던 무엇을 할 수 있게 되었는가를 포함하며, 비용과 보상을 하나의 점수로 환산해 맞추지 않는다. |
+| `GROWTH-PRINCIPLE-IS-PLAYED` | GROWTH | APPROVED | 2 | 캐릭터가 지닌 세계의 원리는 설정 문구가 아니라 그 캐릭터가 실제로 하는 행동으로 화면 위에 있어야 한다. |
+| `GROWTH-REWARD-IS-NEW-REACH` | GROWTH | APPROVED | 2 | 성장의 가치는 커진 숫자가 아니라 이전에는 할 수 없던 무엇을 할 수 있게 되었는가를 포함하며, 비용과 보상을 하나의 점수로 환산해 맞추지 않는다. |
 | `GROWTH-SKILL-GAINS-BEHAVIOR` | GROWTH | APPROVED | 1 | 스킬의 성장은 수치의 증가만으로 성립하지 않는다 — 그 스킬이 할 수 있는 행동 자체가 늘어나야 한다. |
 | `GROWTH-STAGE-READS-AT-A-DISTANCE` | GROWTH | APPROVED | 1 | 캐릭터의 성장 단계는 멀리서 보기만 해도 알아볼 수 있어야 한다 — 힘의 증가가 외형의 변화로 함께 나타난다. |
 | `ITEM-CAPABILITY-COMES-FROM-GRANTS` | ITEM | APPROVED | 1 | 아이템의 성질(IP-*)은 세계 압력에서 유래한 것만이고, 아이템의 용도는 그 종류가 가진다. 능력 판정은 성질 목록을 조회해서가 아니라 그 아이템이 지금 무엇을 주고 있는가로 한다. |
@@ -909,8 +979,17 @@ Constraint 는 단계가 아니라 각 선택 지점의 Filter 다. 아래는 �
 | `ITEM-HOLDING-IS-NOT-APPLYING` | ITEM | REVISED | 1 | 아이템을 가지고 있는 것만으로는 몸이 달라지지 않는다. 능력치와 가능한 행동이 달라지는 것은 지금 적용된 것 때문이며, 적용을 풀면 정확히 원래대로 돌아온다. |
 | `ITEM-KIND-IS-DATA-NOT-BRANCH` | ITEM | APPROVED | 2 | 아이템의 종류 이름은 정의를 찾는 열쇠일 뿐이며 규칙의 분기 조건이 되지 않는다. 새 아이템은 정의를 더하는 것으로 끝나고, 그 아이템을 쓰는 규칙 코드는 바뀌지 않는다. |
 | `ITEM-LIVES-IN-ONE-PLACE` | ITEM | APPROVED | 2 | 아이템은 정확히 한 곳에 있다. 저장소가 아이템을 직접 담고, 다른 저장소의 자리를 가리키지 않는다. |
+| `KNOWLEDGE-CONFLICT-IS-DESIGNED` | COMBAT | APPROVED | 2 | 두 지식이 서로 다른 판단을 요구할 때 그 우선순위는 지식 자신이 지닌다 — 플레이어가 순위를 매기지 않고, 상황에 더 구체적인 쪽이 일반적인 쪽을 이긴다. |
+| `KNOWLEDGE-DECISION-IS-TRACEABLE` | COMBAT | APPROVED | 1 | 지식이 내린 판단은 무엇을 보고 무엇을 정했으며 어느 지식 때문인지가 세계에서 읽힌다. 캐릭터가 왜 그렇게 싸웠는지에 언제나 답할 수 있어야 한다. |
+| `KNOWLEDGE-HAS-A-WORLD-CAUSE` | COMBAT · GLOBAL | APPROVED | 4 | 전투 지식은 세계 안에서 일어난 일 때문에 생긴다 — 관찰 · 반복 · 실패 · 전수 · 연구 · 소속. 메뉴에서 점수로 사는 항목이 되지 않는다. |
+| `KNOWLEDGE-HAS-NO-SINGLE-ANSWER` | COMBAT | APPROVED | 2 | 한 상황에 통하는 전투 지식이 하나뿐이지 않다. 그 지식이 없으면 그 상대를 상대할 수 없게 만들지 않는다. |
+| `KNOWLEDGE-IS-CARRIED-NOT-HOARDED` | COMBAT | APPROVED | 2 | 전투 지식은 **여러 개가 동시에 작동한다.** 다만 작동하는 자리가 배운 것보다 적어, 이번 전투에 어느 것들을 가져갈지 골라야 하고 그 선택이 곧 이 싸움의 그 캐릭터다. |
+| `KNOWLEDGE-IS-NOT-A-SCRIPT` | COMBAT | APPROVED | 3 | 플레이어는 전투 판단 규칙을 쓰거나 고치지 않는다. 전투 지식은 내부를 열 수 없는 하나의 완성된 판단법으로 존재하고, 플레이어가 다루는 것은 그것을 고르는 일뿐이다. |
+| `KNOWLEDGE-RUNS-CAPABILITY-NEVER-CREATES-IT` | COMBAT | APPROVED | 2 | 전투 지식은 그 몸이 이미 가진 능력을 더 잘 쓰게 할 뿐, 없는 능력을 만들어내지 않는다. 같은 지식이라도 실행되는 모습은 그 몸이 가진 능력에서 나온다. |
+| `KNOWLEDGE-SHOWS-IN-BEHAVIOR` | COMBAT | APPROVED | 2 | 어떤 지식을 가져왔는가가 실제 전투 행동의 차이로 나타난다. 보이지 않는 보정만 주는 지식은 지식이 아니다. |
+| `MASTERY-IS-KNOWING-NOT-REFLEX` | COMBAT · GLOBAL | APPROVED | 3 | 전투 숙련의 축은 조작 속도가 아니라 아는 것과 준비한 것이다. Response 층의 정교함은 캐릭터가 배운 것이 수행하며, 그것을 플레이어의 손이 대신해야만 성립하게 만들지 않는다. |
 | `SKILL-ANCHOR-IS-NOT-RESOLUTION` | SKILL | APPROVED | 1 | 어디를 기준으로 쓰는가와 결과적으로 누가 효과를 받는가는 서로 다른 질문이다. 하나를 다른 하나로 대신하지 않고, 한 명이냐 여럿이냐를 스킬의 종류로 만들지 않는다. |
-| `SKILL-COMBINE-BEFORE-NEW-FORM` | SKILL | REVISED | 0 | 새 스킬 요구는 먼저 기존 형태의 조합으로 표현한다. 새 실행 형태는 조합으로도 파라미터로도 표현할 수 없고, 세계에 다른 생명주기나 판정이 필요할 때만 추가한다. |
+| `SKILL-COMBINE-BEFORE-NEW-FORM` | SKILL | REVISED | 1 | 새 스킬 요구는 먼저 기존 형태의 조합으로 표현한다. 새 실행 형태는 조합으로도 파라미터로도 표현할 수 없고, 세계에 다른 생명주기나 판정이 필요할 때만 추가한다. |
 | `SKILL-DELIVERY-IS-NOT-EFFECT` | SKILL | REVISED | 1 | 효과가 세계를 지나 대상에 닿는 방식과, 대상에게 실제로 일어나는 일은 서로 다른 축이다. 한쪽을 다른 쪽의 종류로 만들지 않는다. |
 | `SKILL-EFFECT-MUST-ALREADY-EXIST` | SKILL | APPROVED | 0 | 스킬은 지금 세계에 실제로 있는 상태 변화만 부를 수 있다. 아직 없는 효과의 이름을 미리 목록에 두지 않는다. |
 | `SKILL-IS-COMBINATION-NOT-NAME` | SKILL | REVISED | 1 | 스킬의 이름은 세계가 아는 종류가 아니다. 시스템에는 발동·대상 기준·실행·대상 결정· 효과의 형태만 있고, 하나의 스킬은 그 형태들의 조합을 고른 정의일 뿐이다. |
@@ -919,7 +998,7 @@ Constraint 는 단계가 아니라 각 선택 지점의 Filter 다. 아래는 �
 | `WORLD-COMBAT-IS-ONE-POSSIBILITY` | WORLD | APPROVED | 8 | Creature 의 발견·존재만으로 처치 Goal 을 만들지 않는다. Goal 은 WorldState (자원을 지킨다 · 길을 막는다 · 사냥한다 · 기관이 필요하다)에서 발생하며, 전투는 그 Goal 을 달성하는 Possibility 중 하나로만 성립한다. |
 | `WORLD-CREATURE-FROM-PRESSURE` | WORLD | APPROVED | 2 | 전투 Creature 를 먼저 만들지 않는다. Creature 의 Capability 는 세계압이 만든 환경과 생존 압력에 대한 적응의 결과이며, Player 의 Capability Requirement 는 그 Creature 와의 조우가 만든 Goal 과 Combat Possibility 에서만 파생된다. |
 | `WORLD-OWNS-THE-CHANCE` | GLOBAL | APPROVED | 0 | 우연의 원천은 세계가 지니는 상태이고, 그 상태는 관찰에 실리지 않으며, 그럼에도 결과는 끝까지 설명된다. 이미 결과가 정해진 판정에서는 그 원천을 소비하지 않는다. |
-| `WORLD-OWNS-THE-SURFACE-LIST` | GLOBAL | APPROVED | 6 | 무엇을 할 수 있고 그 값이 어디까지 허용되는지의 목록은 세계가 소유하고 관찰 결과에 실어 보낸다. 관찰자(View)는 그 목록을 스스로 만들지 않는다. |
+| `WORLD-OWNS-THE-SURFACE-LIST` | GLOBAL | APPROVED | 9 | 무엇을 할 수 있고 그 값이 어디까지 허용되는지의 목록은 세계가 소유하고 관찰 결과에 실어 보낸다. 관찰자(View)는 그 목록을 스스로 만들지 않는다. |
 | `WORLD-PLAYER-UNFIXED-PATH` | WORLD | APPROVED | 7 | Player 의 역할·Class·진영·전투 방식과 탐험의 이유를 하나로 고정하지 않는다. Root Goal(베이라를 탐험한다) 아래의 Local Goal 은 Actor 와 상황마다 발견된 세계 상태로부터 생성된다. |
 | `WORLD-PROGRESSION-IS-REACH` | WORLD | APPROVED | 8 | Progression 의 핵심은 수치 Level 의 상승이 아니라, 관찰과 이해로 대응 방법을 발견하고 Capability 와 Resource 를 얻어 이전에는 갈 수 없던 세계 범위에 도달하게 되는 확장이다. |
 | `WORLD-RESOURCE-ADAPTATION-TRACE` | WORLD | APPROVED | 3 | 중요한 베이라 Resource 는 World Pressure → Environment → Survival Pressure → Adaptation → Special Property → Resource 의 인과 Trace 로 설명할 수 있어야 하며, 좋은 아이템을 위험한 곳에 배치하는 방향으로 만들지 않는다. |

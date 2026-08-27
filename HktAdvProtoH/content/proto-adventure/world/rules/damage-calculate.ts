@@ -58,6 +58,7 @@
 
 import type { ActorState } from '../semantic/actor';
 import { allocationContribution } from '../semantic/allocation';
+import { growthContribution } from '../semantic/growth';
 import {
   DAMAGE_TYPE_STATS,
   defenseMultiplier,
@@ -112,6 +113,8 @@ export function ruleDamageCalculate(
       name: stats.offense,
       value: offenseValue,
       fromAllocation: allocationContribution(attacker.allocation, stats.offense),
+      // C-GROWTH-001 — 그 값 중 친 자의 지금 단계가 보탠 몫.
+      fromGrowth: growthContribution(attacker.deeds, stats.offense),
     },
     baseDamage: skill.baseDamage,
     attackContribution,
@@ -122,6 +125,8 @@ export function ruleDamageCalculate(
       name: stats.defense,
       value: defenseValue,
       fromAllocation: allocationContribution(target.allocation, stats.defense),
+      // C-GROWTH-001 — 그 값 중 맞는 자의 지금 단계가 보탠 몫.
+      fromGrowth: growthContribution(target.deeds, stats.defense),
     },
     penetrationStat: {
       name: stats.penetration,
@@ -129,6 +134,10 @@ export function ruleDamageCalculate(
       // 관통은 어느 축에도 들지 않으므로 언제나 0 이다. 그래도 싣는다 — 0 이라는 것이
       // "배분으로는 이 값을 움직일 수 없다" 의 관찰이다.
       fromAllocation: allocationContribution(attacker.allocation, stats.penetration),
+      // C-GROWTH-001 — 관통은 자라지 않으므로 언제나 0 이다. 그래도 싣는다 —
+      // 위 fromAllocation 이 0 을 싣는 것과 같은 이유이고, 세 칸의 생김새가 같아야
+      // 화면이 갈래를 짓지 않는다.
+      fromGrowth: growthContribution(attacker.deeds, stats.penetration),
     },
     effectiveDefense: effective,
     defenseMultiplier: multiplier,

@@ -123,6 +123,9 @@ const bench = (chanceSeed: number = DEFAULT_CHANCE_SEED) => {
   const state = {
     time: 0,
     strikeEvents: [],
+    // C-GROWTH-001 — 친 자가 쌓는 자리. 이 검사가 보는 것은 흔들림이지 성장이 아니므로
+    // 여기 쌓이는 것을 읽지 않는다. 다만 자리가 없으면 RULE-DEEDS-ADD-001 이 설 곳이 없다.
+    growthEvents: [],
     chanceSeed,
     chanceCursor: 0,
   } as unknown as WorldState;
@@ -332,10 +335,10 @@ describe('INTENT-CRITICAL-AMPLIFY-001 — 계산이 내놓은 값이 커진다',
 
     // C010 · C012 · C013 이 낸 값이 한 톨도 다르지 않다
     expect(b.damageType).toBe('physical');
-    expect(b.offenseStat).toEqual({ name: 'physicalAttack', value: 40, fromAllocation: 0 });
+    expect(b.offenseStat).toEqual({ name: 'physicalAttack', value: 40, fromAllocation: 0, fromGrowth: 0 });
     expect(b.rawDamage).toBe(26);
-    expect(b.defenseStat).toEqual({ name: 'armor', value: 30, fromAllocation: 0 });
-    expect(b.penetrationStat).toEqual({ name: 'armorPenetration', value: 0, fromAllocation: 0 });
+    expect(b.defenseStat).toEqual({ name: 'armor', value: 30, fromAllocation: 0, fromGrowth: 0 });
+    expect(b.penetrationStat).toEqual({ name: 'armorPenetration', value: 0, fromAllocation: 0, fromGrowth: 0 });
     expect(b.effectiveDefense).toBe(30);
     expect(b.defenseMultiplier).toBe(100 / 130);
     // 달라진 것은 마지막 값과 그 경위뿐이다
