@@ -1,4 +1,4 @@
-// 기반이 먼저 가져가는 손가락 자리 — **원본이자 단일 출처** (기반 부채 ②).
+// 기반이 먼저 가져가는 손가락 자리 — **원본이자 단일 출처** (문구 반전 ⑤).
 //
 // 이 파일이 서기 전까지 이 사실은 세 곳에 흩어져 있었다. 이동·시점은
 // `input/keyboard.ts` 가, 명령·관찰 토글은 조립 루트(`app/main.ts`)의 상수가,
@@ -13,7 +13,7 @@
 //
 //     있다    무슨 자리가 있고 그 자리가 **어떤 코드**를 먼저 가져가는가
 //     없다    그 자리를 **무엇이라 부르는가**. 이름은 사람이 읽는 말이고,
-//             사람이 읽는 말은 전부 컨텐츠 팩의 것이다 (남은 부채 ②).
+//             사람이 읽는 말은 전부 컨텐츠 팩의 것이다 (문구 반전 ⑤).
 //             팩이 `view/key-registry.ts` 에서 이 자리들에 이름을 준다
 
 import { MOVE_KEY_CODES, TURN_KEY_CODES } from './keyboard';
@@ -47,3 +47,18 @@ export function engineKeyCode(id: EngineKeyId): string {
 export const ENGINE_KEY_CODES: readonly string[] = Object.values(ENGINE_KEYS).flatMap((key) => [
   ...key.codes,
 ]);
+
+/**
+ * 그 자리를 **무엇이라 부르는가** 를 묻는 문구 코드.
+ *
+ * 이름 자체는 여기 없다 (위 머리말) — 기반은 코드를 부르고 팩의 문구 표가 말을 준다.
+ * 한 자리에 한 이름이므로, 안내 줄에 서는 말과 손가락 버튼에 적히는 말이 갈라질 수 없다.
+ */
+export function engineKeyTextCode(id: EngineKeyId): string {
+  return `engine.key.${id}`;
+}
+
+/** 팩이 이름을 주어야 하는 자리 전부 — 덮지 못한 것은 팩의 검사가 잡는다 */
+export const ENGINE_KEY_TEXT_CODES: readonly string[] = (
+  Object.keys(ENGINE_KEYS) as EngineKeyId[]
+).map(engineKeyTextCode);

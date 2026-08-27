@@ -341,7 +341,7 @@ export function selfPanel(snapshot: GameViewSnapshot): SceneSelf | undefined {
     health: Math.round(health),
     healthMaximum: Math.round(healthMaximum),
     healthRatio: healthMaximum > 0 ? Math.max(0, Math.min(1, health / healthMaximum)) : 0,
-    // 막대의 이름 — 기반이 `HP` · `CP` 를 직접 적던 자리다 (기반 부채 ②).
+    // 막대의 이름 — 기반이 `HP` · `CP` 를 직접 적던 자리다 (문구 반전 ⑤).
     // 무엇을 자원으로 삼는 세계인지는 팩의 일이므로 그 이름도 팩이 쥔다
     healthLabel: codeText('self.health'),
     energy: Math.round(energy),

@@ -5,16 +5,31 @@
 // 그리고 화면이 조용히 지우는 것이 없어야 한다 — 빈 칸도, 안 되는 줄도 남는다.
 
 import { describe, expect, it } from 'vitest';
-import { surfaceMarkup } from '../hud/surface';
+import { SURFACE_TEXT_CODES, surfaceMarkup } from '../hud/surface';
+import type { CodeTextFn } from '../presentation/code-text';
 import type { SceneSurface } from '../scene/scene-state';
 
 function surface(partial: Partial<SceneSurface> = {}): SceneSurface {
   return { id: 'bag', open: true, title: '가진 것', sections: [], footer: [], ...partial };
 }
 
+/**
+ * 이 검사가 **팩 노릇을 한다** — 기반은 말을 짓지 않으므로(문구 반전 ⑤) 말이 화면에
+ * 서는지 보려면 누군가 표를 주어야 한다. 여기 있는 것은 이 팩의 말이 아니라
+ * "표를 주면 그 말이 선다" 를 보이기 위한 표다.
+ */
+const TABLE: Record<string, string> = {
+  'surface.close': '닫기',
+  'surface.empty-cell': '빈 자리',
+  'surface.state.available': '가능',
+  'surface.state.blocked': '불가',
+  'surface.state.pending': '기다리는 중',
+};
+const TEXT: CodeTextFn = (code) => TABLE[code] ?? code;
+
 describe('surfaceMarkup — 표면 하나의 표시 지시', () => {
   it('제목과 닫는 자리가 언제나 있다 — 열기만 되고 닫히지 않으면 갇힌 것이다', () => {
-    const html = surfaceMarkup(surface());
+    const html = surfaceMarkup(surface(), TEXT);
     expect(html).toContain('가진 것');
     expect(html).toContain('class="sf-close" data-surface="bag"');
     expect(html).toContain('aria-label="닫기"');
@@ -46,6 +61,7 @@ describe('surfaceMarkup — 표면 하나의 표시 지시', () => {
       surface({
         sections: [{ id: 'cells', cells: [{ id: 'c1', text: '', empty: true, selected: false }] }],
       }),
+      TEXT,
     );
     expect(html).toContain('aria-label="빈 자리"');
   });
@@ -169,10 +185,86 @@ describe('surfaceMarkup — 표면 하나의 표시 지시', () => {
           },
         ],
       }),
+      TEXT,
     );
     expect(html).toContain('aria-label="쓰기, 1, 가능"');
     expect(html).toContain('aria-label="덜어내기, 불가"');
     expect(html).toContain('aria-label="걸기, 기다리는 중"');
+  });
+
+  // 문구 반전 ⑤ — 이 능력은 사람이 읽을 말을 하나도 짓지 않는다.
+  it('말을 짓지 않는다 — 표를 주지 않으면 코드가 그대로 선다', () => {
+    const html = surfaceMarkup(
+      surface({
+        sections: [
+          { id: 'cells', cells: [{ id: 'c1', text: '', empty: true, selected: false }] },
+          { id: 'rows', rows: [{ id: 'a', text: '쓰기', state: 'blocked' }] },
+        ],
+      }),
+    );
+    // 화면에 코드가 뜰 뿐 게임은 멈추지 않는다 — 그것이 이 길의 규칙이다
+    expect(html).toContain('aria-label="surface.close"');
+    expect(html).toContain('aria-label="surface.empty-cell"');
+    expect(html).toContain('surface.state.blocked');
+    // 부르는 코드는 목록에 남는다 — 팩의 검사가 덮이지 않은 것을 잡는 근거다
+    for (const code of SURFACE_TEXT_CODES) expect(code.startsWith('surface.')).toBe(true);
+  });
+
+  // 곁말 — 고르기 전에 읽는 자리 (UX 문서 §8). 여는 산수는 DOM 쪽이고,
+  // 여기서 보는 것은 **그려지는가**와 **읽어 주는 이름에 실리는가** 둘이다.
+  it('곁말은 읽어 주는 이름에도 실린다 — 손이 있어야만 아는 것이 되지 않게', () => {
+    const html = surfaceMarkup(
+      surface({
+        sections: [
+          {
+            id: 'cells',
+            cells: [
+              {
+                id: 'c0',
+                text: '곡괭이',
+                detail: '×1',
+                tip: ['기타', '걸 수 있다'],
+                empty: false,
+                selected: false,
+              },
+            ],
+          },
+        ],
+      }),
+      TEXT,
+    );
+    expect(html).toContain('aria-label="곡괭이, ×1, 기타, 걸 수 있다"');
+    expect(html).toContain('class="sf-tip" role="tooltip"');
+    expect(html).toContain('data-tip="true"');
+  });
+
+  it('곁말이 없는 칸에는 곁말 자리 자체가 없다 — 빈 상자가 떠 있지 않게', () => {
+    const html = surfaceMarkup(
+      surface({
+        sections: [
+          { id: 'cells', cells: [{ id: 'c0', text: '돌', empty: false, selected: false }] },
+        ],
+      }),
+      TEXT,
+    );
+    expect(html).not.toContain('sf-tip');
+    expect(html).not.toContain('data-tip="true"');
+  });
+
+  it('곁말도 글자다 — 들어온 표시가 그대로 뜻이 되지 않는다', () => {
+    const html = surfaceMarkup(
+      surface({
+        sections: [
+          {
+            id: 'cells',
+            cells: [{ id: 'c0', text: '돌', tip: ['<b>&"'], empty: false, selected: false }],
+          },
+        ],
+      }),
+      TEXT,
+    );
+    expect(html).toContain('&lt;b&gt;&amp;&quot;');
+    expect(html).not.toContain('<b>&');
   });
 
   it('안내 줄이 없으면 아래 자리 자체가 없다', () => {

@@ -3,7 +3,7 @@
 //
 // **사람이 읽을 말을 하나도 짓지 않는다.** 자원 막대의 이름(HP·CP)도, 늘어난 것을
 // 축하하는 말도, 조작 안내의 줄도 전부 실려 온다 — 짓는 자리는 팩의 문구 표 하나다
-// (design/Design-System-Content-Separation.md 남은 부채 ②).
+// (design/Design-System-Content-Separation.md 반전 ⑤ 문구).
 
 import type { SessionPresentation } from '../presentation/session-presentation';
 import type { SceneHudItem, SceneState } from '../scene/scene-state';
@@ -63,7 +63,7 @@ export interface Hud {
  *
  * 이 함수는 무엇이 늘었는지 모른다. 문장은 실려 오고(`celebrateText`) 여기서 하는 일은
  * `{}` 자리에 늘어난 만큼을 끼우는 셈뿐이다 — 셈은 기반의 것이고 말은 팩의 것이다
- * (design/Design-System-Content-Separation.md 남은 부채 ②).
+ * (design/Design-System-Content-Separation.md 반전 ⑤ 문구).
  *
  * 처음 본 값에는 뜨지 않는다 — 세계에 이어 붙은 순간 지니고 있던 것 전부가 방금 얻은
  * 것처럼 쏟아지면 그것은 축하가 아니라 소음이다.

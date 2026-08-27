@@ -36,10 +36,10 @@ Feedback · BACKLOG)를 겹쳐 `LANES.html` 로 그린다. `npm run lanes:check`
 | WORLD·COMBAT | OPEN | `C-COMBAT-001` 착수 대기 — SELECTED `FR-WHERE-YOUR-POWER-SITS`(지금 힘이 어디에 몰려 있는가). Stage 1 부터, 아직 시작하지 않았다. 남은 후보 아홉이 UL 전체를 덮는다 | 없음 — 다만 이 판과 트랙 파일이 main 에 들어간 뒤에 잡는다 |
 | WORLD·TERRAIN | OPEN | `C-TERRAIN-001` **COMPLETE**. 다음 후보는 `FR-THE-LAND-KEEPS-WHAT-IT-TAKES`(땅이 거둔 것을 간직한다) — PROPOSED 이며 Human 선택 대기. **미처리 MASTER FEEDBACK 이 있다** (08 의 Constraint 재판정 · Master Gap) — Feedback 레인이 먼저 돈 뒤 잡는다 | 병합 뒤 최신 main 위에서 (`npm run feedback:gate`) |
 | WORLD·GROWTH | OPEN | `C-GROWTH-001` 착수 대기 — SELECTED `FR-WHAT-YOU-DID-MAKES-YOU`(한 일이 몸을 키운다). Stage 1 부터, 아직 시작하지 않았다. **COMBAT 과 같은 파일을 본다 — 아래 충돌 칸** | 없음 — 다만 이 판과 트랙 파일이 main 에 들어간 뒤에 잡는다 |
-| VIEW | OPEN | BACKLOG 다음 항목(tooltip-on-focus)부터 — equipment-panel 은 아래 충돌 칸 | 없음 |
+| VIEW | OPEN | BACKLOG 다음 항목(drag-and-drop)부터 — 기반 동반이 필요한 셋(tip-flip-at-the-edge · escape-leaves-the-field · workspace-two-columns)은 ENGINE 뒤에 잡는다 | 없음 |
 | MASTER | OPEN | OPTIONS Q35 (몸이 아닌 존재를 요구하는 Possibility) — 이제 스킬 실행 형태의 빈 다섯 칸만 막는다. 성장(GS · GB)과 전투 상층(UL) 주입은 둘 다 끝났다: 결정 열(Q52~Q61) 반영 · GROWTH 후보 3 · COMBAT 후보 10 과 SELECTED 까지 | 없음 — 미처리 Feedback 이 0 이다 (`npm run feedback:gate`) |
-| ENGINE | OPEN | 셋 — ① 남은 기반 문구(겹침 표면·슬롯 띠·손가락 띠·이어짐; 명령 표면이 간 길 그대로) ② 표면 안의 **초점 차례**(`tabindex` 0건 — Tab 이 글자 자리·슬롯에 한 번에 닿지 못한다) ③ **해소됨** — 지면 구역 장치 `SceneGroundZone` 이 섰다 (C-TERRAIN-001 Stage 8 이 그것으로 닫혔다) | 없음 |
-| PROCESS | HOLD | 없음 | — (공정 변경 중에는 다른 레인을 새로 띄우지 않는다) |
+| ENGINE | OPEN | 둘 — ① **자판이 표면 안을 다니는 길** — 정해진 초점 차례가 없고(`tabindex` 0건), 글자 자리에서 `Esc` 가 죽는다(붙잡는 단계가 `INPUT` 에서 비켜 주고 받는 자리가 없다). 다시 그릴 때 초점을 붙드는 자리는 이미 섰다. BACKLOG 의 `escape-leaves-the-field` · `skill-focus-order` 가 이것을 기다린다 ② **겹침 표면의 자리 잡기** — 곁말이 가장자리에서 접히는 일 · 구획을 나란히 놓는 일 (`tip-flip-at-the-edge` · `workspace-two-columns`) | 없음 — 지면 구역 장치(`SceneGroundZone`)는 섰다 (C-TERRAIN-001 Stage 8 이 그것으로 닫혔다) |
+| PROCESS | OPEN | 없음 — 보고 형식이 guides/works.md 의 "보고" 절에 섰다 | 없음 |
 
 ## 레인 사이 충돌 — 순서가 아니라 파일이 겹치는 곳
 
@@ -47,15 +47,14 @@ Feedback · BACKLOG)를 겹쳐 `LANES.html` 로 그린다. `npm run lanes:check`
 
 | 겹침 | 지금의 판단 |
 |---|---|
-| VIEW 의 equipment-panel ↔ WORLD·ITEM | ITEM Cycle 이 장비 유효 값 화면을 건드릴 수 있다 — equipment-panel 은 ITEM Cycle 병합 뒤에 연다 (그 뒤의 drag-and-drop · responsive-workspace 도 함께 밀린다) |
+| VIEW 의 장비 구획 ↔ WORLD·ITEM | 장비 구획이 V-012 로 섰다 — 이제 겹치는 것은 **고른 것 구획**이다. ITEM 의 후보 `FR-SEE-BEFORE-YOU-WEAR`(걸기 전에 안다)가 골라지면 그 Cycle 이 미리 본 값을 그 자리에 싣는다. **둘 다 자기 영역 끝에 더하고 기존 줄을 옮기지 않는다** |
 | WORLD·TERRAIN ↔ WORLD·ITEM | **지금은 겹치지 않는다** — 고른 것이 첫 후보(땅이 법칙을 지닌다)라 아이템 파일에 닿지 않는다. 겹치는 것은 셋째 후보(FR-WHAT-KEEPS-YOU-ALIVE-IS-CARRIED)이며, 그것을 고를 때 ITEM 이 무엇을 도는 중인지 먼저 본다 |
-| WORLD·TERRAIN ↔ VIEW | 땅은 화면에 보여야 하므로 이 Cycle 이 `view/` 를 건드린다. VIEW 의 다음 항목(tooltip-on-focus)은 상세를 여는 자리라 자리가 다르지만 표면 상태·HUD 에서 스칠 수 있다 — **둘 다 자기 영역 끝에 추가만 하고 기존 줄을 옮기지 않는다** (frontier/README.md 공유 지점 규칙과 같다) |
+| WORLD·TERRAIN ↔ VIEW | 땅은 화면에 보여야 하므로 이 Cycle 이 `view/` 를 건드린다. VIEW 의 다음 항목(drag-and-drop)은 소지품 표면 안의 일이라 자리가 다르지만 표면 상태·HUD 에서 스칠 수 있다 — **둘 다 자기 영역 끝에 추가만 하고 기존 줄을 옮기지 않는다** (frontier/README.md 공유 지점 규칙과 같다) |
 | WORLD·GROWTH ↔ WORLD·TERRAIN | 둘 다 `world/semantic/actor.ts` 에 몸의 새 자리를 더한다 (성장은 쌓이는 것, 땅은 거두어 가는 것). **자기 영역 끝에 추가만 하고 기존 줄을 옮기지 않는다** (frontier/README.md 공유 지점 규칙). 둘 다 관찰 계약을 넓히므로 `gameview-*` 도메인 파일도 각자 자기 파일에만 더한다 |
 | **WORLD·GROWTH ↔ WORLD·COMBAT** | **이제 겹친다.** "COMBAT 이 후보 0 이라 겹치지 않는다" 던 조건이 UL 주입으로 사라졌다. 둘 다 `world/semantic/combat.ts` 의 **유효 값 계산**(`effectiveStat`)에 항을 더한다 — 성장은 자란 값을, 배분은 지금 몰아 둔 곳을. 같은 함수 안이라 끝에 추가하는 것으로 갈라지지 않는다. **둘 중 하나를 먼저 돌리고 다른 쪽은 병합 뒤 최신 main 위에서 잡는다** — 순서는 Human 이 정한다 (아래 HUMAN 대기) |
 | WORLD·COMBAT ↔ VIEW | 상층 후보 열이 전부 전투 HUD 에 자리를 요구한다 (지금의 배분 · 대답 가능 여부 · 기회). VIEW 와 같은 파일(`hud-presentation.ts` · `combat-presentation.ts`)에서 만나므로 위와 같은 규칙 — 자기 영역 끝에 추가만 한다 |
-| VIEW 의 touch-reason ↔ ENGINE | ENGINE 이 열었다 — touch-pad 가 `unavailableText` 를 버튼에 그린다. VIEW 는 눈검증·백로그 정리만 남았다 |
 | WORLD·TERRAIN ↔ ENGINE | **끝났다** — `SceneGroundZone` 이 서고 TERRAIN 이 그것으로 Stage 8 을 닫았다. 다음 후보(순환)는 `intensity` 자리를 쓰므로 엔진이 다시 열리지 않는다 |
-| VIEW 의 슬롯 띠·표면 문구 ↔ ENGINE | ENGINE 이 남은 기반 문구를 회수하면 `hud/surface.ts` · `hud/slot-bar.ts` 가 팩의 문구 표를 타게 된다 — 그때 그 표에 줄이 는다 (VIEW 가 쓰는 자리이므로 병합 뒤에 잇는다) |
+| 기반의 문구 ↔ VIEW 의 문구 표 | 기반이 새 문구 코드를 부르면 팩의 `view/code-text.ts` 에 줄이 는다 — 그 한 줄이 겹치는 전부다. 코드의 단일 출처는 `engine/view-kernel/presentation/text-codes.ts` 의 `ENGINE_TEXT_CODES` 이고, 덮이지 않은 것은 팩의 검사(`view/tests/engine-text.spec.ts`)가 어느 자리인지 가리킨다 |
 | VIEW 의 skill-focus-order ↔ ENGINE | 초점 차례를 세우는 자리가 기반이면 ENGINE 동반이 필요하다 — 지금은 팩 키(`L`)가 지름길로 그 구멍을 메우고 있다 |
 
 ## HUMAN 대기

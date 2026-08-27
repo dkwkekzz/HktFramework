@@ -12,13 +12,20 @@
 //
 //     담는다      팩이 자기 규칙으로 듣는 키 (`view/bindings.ts` 의 KEY_BINDINGS) 와
 //                 그 키가 화면에 뜰 때의 표기.
-//                 기반이 먼저 가져가는 자리에 **줄 이름**도 담는다 (아래 ENGINE_KEY_TEXT) —
-//                 코드는 기반이 소유하고(ENGINE_KEYS) 사람이 읽는 말은 팩의 것이다
+//                 기반이 먼저 가져가는 자리의 **표기**도 담는다 (아래 ENGINE_KEY_HINT) —
+//                 코드는 기반이 소유하고(ENGINE_KEYS) 사람이 읽는 말은 팩의 것이다.
+//                 그 이름은 문구 표(`code-text.ts` 의 `engine.key.*`)가 쥔다 — 손가락
+//                 버튼도 같은 자리에서 이름을 가져가므로 갈라질 자리가 없다
 //     담지 않는다  interaction 의 키 (`interaction-presentation.ts` 가 이미 role 마다
 //                 하나씩 쥐고 있다 — 그쪽은 세계가 실어 온 목록에 붙는다)
 //                 기반 키의 **코드** (원본은 `engine/view-kernel/input/engine-keys.ts`)
 //
-import { ENGINE_KEYS, type EngineKeyId } from '../../../engine/view-kernel/input/engine-keys';
+import {
+  ENGINE_KEYS,
+  engineKeyTextCode,
+  type EngineKeyId,
+} from '../../../engine/view-kernel/input/engine-keys';
+import { codeText } from './code-text';
 
 // 검사는 `view/tests/key-hints.spec.ts` 가 한다. 표기가 코드에서 나오므로 "둘이
 // 어긋난다" 는 이제 **다른 형태**로만 일어난다 — 등록했는데 듣지 않거나, 듣는데
@@ -173,33 +180,33 @@ export const SLOT_KEY_IDS = [
 export const SLOT_KEY_LABELS: readonly string[] = SLOT_KEY_IDS.map((id) => keyLabel(id));
 
 /**
- * 기반이 먼저 가져가는 자리에 **팩이 주는 이름** (기반 부채 ②).
+ * 기반이 먼저 가져가는 자리의 **안내 표기** (문구 반전 ⑤).
  *
- * 그 넷은 지금까지 `engine/view-kernel/hud/hud.ts` 안에 한국어 문장으로 박혀 있었다 —
- * 팩을 갈아 끼워도 그 줄만은 이 세계의 말로 떠 있었다는 뜻이다. 코드는 여전히 기반의
- * 것이고(어느 키를 먼저 삼키는지는 기반이 안다), **부르는 말만** 여기로 왔다.
+ * 이름은 여기 없다 — 문구 표의 `engine.key.<id>` 가 쥔다. 그 자리가 하나인 덕에
+ * 안내 줄의 말과 손가락 버튼의 말이 같다 (`hud/touch-pad.ts` 가 같은 코드를 부른다).
+ * 남은 것은 **무엇을 누르는가** 이며, 그것은 기반의 코드를 사람이 읽는 표기로 옮긴 것이다.
  *
- * 시점(`turn`)은 뺀다 — 지금까지도 안내에 서지 않았고, 이 작업은 말의 자리를 옮길 뿐
+ * 시점(`turn`)은 뺀다 — 지금까지도 안내에 서지 않았고, 이 자리는 말의 출처를 옮길 뿐
  * 화면에 없던 줄을 새로 세우지 않는다.
  */
-const ENGINE_KEY_TEXT: Partial<Record<EngineKeyId, { what: string; keys: string }>> = {
+const ENGINE_KEY_HINT: Partial<Record<EngineKeyId, string>> = {
   // 명령이 맨 위다 — 여기부터가 "무엇을 할 수 있는지" 의 입구이고,
   // 아래 둘은 그 목록에도 있는 것의 지름길이다 (C009)
-  command: { what: '명령', keys: '/' },
-  move: { what: '이동', keys: 'WASD / 방향키' },
-  colliderObserve: { what: '충돌체 관찰', keys: 'C' },
-  attributeInspect: { what: '속성 관찰', keys: 'V' },
+  command: '/',
+  move: 'WASD / 방향키',
+  colliderObserve: 'C',
+  attributeInspect: 'V',
 };
 
 /** 기반 키의 안내 줄 — 패널의 위 네 줄이다 */
 export function engineKeyHints(): string[] {
   return (Object.keys(ENGINE_KEYS) as EngineKeyId[])
-    .filter((id) => ENGINE_KEY_TEXT[id] !== undefined)
-    .map((id) => `${ENGINE_KEY_TEXT[id]!.what}: ${ENGINE_KEY_TEXT[id]!.keys}`);
+    .filter((id) => ENGINE_KEY_HINT[id] !== undefined)
+    .map((id) => `${codeText(engineKeyTextCode(id))}: ${ENGINE_KEY_HINT[id]!}`);
 }
 
 /**
- * 조작 안내 패널에 설 줄들 (V-005 · 기반 부채 ②) — `<무엇>: <표기>` 꼴이다.
+ * 조작 안내 패널에 설 줄들 (V-005 · 문구 반전 ⑤) — `<무엇>: <표기>` 꼴이다.
  * 기반 키 넷이 먼저 서고 팩의 키가 그 아래에 선다.
  *
  * **팩 쪽에서 여기 서는 것은 팩만의 키다.** 셋을 뺀다.
