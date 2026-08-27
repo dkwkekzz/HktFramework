@@ -3094,3 +3094,47 @@ Human 이 "FR-ACTION-PHASE 의 근간이 무엇인가" 를 물어 근간을 역�
     능력 목록이 아니다) 후보의 Target 이 될 수 없는 것(MC-FORTIFY — grounded: false)이다.
     §42 F8 과 §43 의 검증 3종도 후보가 아니다 — 새 능력이 아니라 앞의 것들이 다 선 뒤의
     조합이고 검증 묶음이기 때문이다.
+
+## 사슬 A 철회 — 플레이어가 타이밍을 맞춰 막는 기능은 세우지 않는다 · Human · 2026-08-27
+
+    Human 지시: "결과적으로 플레이어가 특정 타이밍에 맞춰서 막기등을 하는 기능은
+    없어야 한다. 이후 진행될 전투 지식으로 처리할 것이다."
+
+    무엇이 닫혔나   COMBAT 트랙의 사슬 A 넷 전부
+                      FR-THE-BLOW-CAN-BE-ANSWERED      (닿는 순간에 대답할 수 있다)
+                      FR-WHEN-YOU-ANSWER-DECIDES       (언제 대답했는가가 결과를 가른다)
+                      FR-A-GOOD-ANSWER-OPENS-A-DOOR    (잘 된 대답이 다음 수를 연다)
+                      FR-WHAT-YOU-BLOCK-BECOMES-YOURS  (받아낸 것이 내 것이 된다)
+                    그리고 첫째로 열었던 Cycle `C-COMBAT-002` — Stage 1~4 를 닫은 뒤
+                    Stage 5(Human Semantic Review) 앞에서 철회했다. 세계 코드는 한 줄도
+                    쓰이지 않았으므로 `world/` `view/` `protocol/` 에 남은 것이 없다.
+
+    근거는 기획서 자신이 지녔다
+
+        Design-Combat-Knowledge-Extension-R0.md §15
+            "숙련은 Response 버튼 추가가 아니라 **Response를 사용하는 지능의 증가**다."
+            대응(Guard · Evade · Intercept · Counter · Absorb · Redirect)은 §7.1 의
+            Response Knowledge 가 운용한다 — 플레이어의 손가락이 아니다.
+
+        Design-Combat-UpperLayer-R0.md §32
+            "AUTO → Normal Response 가능 / MANUAL → Precision Response 가능."
+            **NORMAL 은 자동 전투가 할 수 있어야 한다** — 그러므로 반사신경일 수 없다.
+
+    무엇이 이것을 드러냈나   C-COMBAT-002 의 Stage 3~4 가 닫힌 뒤, 설계를 세계의 실제
+                    값으로 재어 보니 기본 기술의 대답 구간이 **0.15초**였다 (고급 기술
+                    0.45초). 사람의 시각 반응(0.2~0.25초)보다 짧다. "구간 안이면 전부
+                    같은 결과 — 정밀 판정이 아니다" 라고 적은 설계가, 구간 자체가
+                    반사신경 시험이어서 그 문장을 지킬 수 없었다.
+                    **Agent 는 그것을 재어 놓고도 "그대로 두자" 고 추천했고, Human 이
+                    그 자리에서 잡았다.** 재는 것과 판정하는 것은 다르다는 자국을 남긴다.
+
+    어디로 갔나     전투 지식 트랙. `Design-Combat-Knowledge-Extension-R0.md` 는 아직
+                    Master 에 주입되지 않았다 (`master/` 안에 참조 0건) — Inject 가
+                    먼저다 (guides/master-inject.md). 그 트랙이 서면 대응은 §7.1 ·
+                    §15 의 형태로, 즉 **캐릭터가 배운 지식이 운용하는 것**으로 들어온다.
+
+    남은 COMBAT     여섯. 사슬 B 다섯과 C-COMBAT-001 (Human Play 대기).
+                    의존이 빈 것은 `FR-THE-WORLD-DECIDES-WHAT-IS-POSSIBLE` 하나이며,
+                    그것은 새 갈래를 여는 동시에 C-COMBAT-001 이 남긴 결손
+                    (배분이 값만 바꾸고 가능의 목록을 바꾸지 않는다)도 닫는다.
+                    **다음 후보는 아직 고르지 않았다** — SELECTED 는 비어 있다.

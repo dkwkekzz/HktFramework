@@ -33,7 +33,7 @@ Feedback · BACKLOG)를 겹쳐 `LANES.html` 로 그린다. `npm run lanes:check`
 |---|---|---|---|
 | FEEDBACK | OPEN | `C-COMBAT-001` 의 MASTER FEEDBACK 이 미처리다 (08-verification.md) — Overlay 판정 둘(PARTIAL)과 Constraint 후보 하나 | C-COMBAT-001 이 COMPLETE 로 닫히고 병합된 뒤 최신 main 위에서 (`npm run feedback:gate`) |
 | WORLD·ITEM | HUMAN | 후보 5 중 선택 대기 — Agent 추천 FR-THE-PLACES-ARE-NARROWER (+FR-SEE-BEFORE 얹기) | Human Select (frontier/item.md) |
-| WORLD·COMBAT | HUMAN | `C-COMBAT-002-the-blow-can-be-answered` — SELECTED `FR-THE-BLOW-CAN-BE-ANSWERED`(닿는 순간에 대답할 수 있다, 사슬 A 의 바닥). **Stage 1~4 닫힘 — 다음이 Stage 5 (Human Semantic Review)다.** 앞 Cycle `C-COMBAT-001` 은 세계에서 겹치지 않으나 **STATUS 가 IN PROGRESS 로 남아 있다** — 상대의 `[몸]` 하나가 Human Play 에 걸려 있고, 이 Cycle 의 Stage 8 은 그것이 닫힌 뒤 최신 main 위에서 돈다 | Human Semantic Review — `cycles/C-COMBAT-002-the-blow-can-be-answered/` 의 01~04 를 읽고 `05-review.md` 를 APPROVED 로 여는 것 |
+| WORLD·COMBAT | HUMAN | 후보 여섯 중 선택 대기 — **SELECTED 가 비었다.** `C-COMBAT-002`(사슬 A 의 대답)는 Stage 5 앞에서 **철회됐다** (Human · 타이밍 맞춰 막는 기능은 세우지 않는다 · 대응은 전투 지식이 운용한다). 사슬 A 넷이 트랙에서 빠졌고 경위는 HISTORY "사슬 A 철회" 가 지닌다. Agent 추천 `FR-THE-WORLD-DECIDES-WHAT-IS-POSSIBLE` — 의존이 빈 유일한 후보이자 C-COMBAT-001 의 남은 결손도 닫는다. 그와 별개로 `C-COMBAT-001` 은 여전히 IN PROGRESS (Human Play) | Human Select (frontier/combat.md) |
 | WORLD·TERRAIN | OPEN | `C-TERRAIN-001` 착수 대기 — SELECTED `FR-THE-GROUND-HAS-A-LAW`(땅이 법칙을 지닌다). Stage 1 부터, 아직 시작하지 않았다. 시각화의 소유 분해·진행 순서는 [design/Design-Terrain-Visualization.md](../../design/Design-Terrain-Visualization.md) 를 따른다 | 없음 — 다만 이 판과 트랙 파일이 main 에 들어간 뒤에 잡는다 |
 | WORLD·GROWTH | OPEN | `C-GROWTH-001` 착수 대기 — SELECTED `FR-WHAT-YOU-DID-MAKES-YOU`(한 일이 몸을 키운다). Stage 1 부터, 아직 시작하지 않았다. **COMBAT 과 같은 파일을 본다 — 아래 충돌 칸** | 없음 — 다만 이 판과 트랙 파일이 main 에 들어간 뒤에 잡는다 |
 | VIEW | OPEN | BACKLOG 다음 항목(drag-and-drop)부터 — 기반 동반이 필요한 셋(tip-flip-at-the-edge · escape-leaves-the-field · workspace-two-columns)은 ENGINE 뒤에 잡는다 | 없음 |
@@ -64,7 +64,7 @@ Human 이 답하면 풀리는 것들이다. 답의 자리는 괄호가 가리킨
 | 무엇 | 풀리는 것 |
 |---|---|
 | WORLD·ITEM 후보 선택 (frontier/item.md SELECTED) | WORLD·ITEM 레인 착수 |
-| C-COMBAT-002 Semantic Review (05-review.md) | Stage 6(World 구현)이 열린다. 볼 것 셋: **쳐내기가 막기와 같은 몫(0.5)을 서로 다른 대가로 사는 것**이 맞는가 (03 BALANCE ②) · 대답 한 번의 값 10 이 맞는가 · 자율 존재가 대답하지 않는 채로 두는 것(BALANCE ④)이 맞는가 |
+| WORLD·COMBAT 다음 후보 선택 (frontier/combat.md SELECTED) | WORLD·COMBAT 레인 착수. 사슬 A 가 빠져 지금 의존이 빈 것은 `FR-THE-WORLD-DECIDES-WHAT-IS-POSSIBLE` 하나다 |
 | C-COMBAT-001 Human Play — 손으로 `U` → 숫자를 눌러 보기 | Stage 8 STATUS 가 COMPLETE 로 닫히고 FEEDBACK 레인이 열린다. 봐야 할 것은 이제 **하나**다 (나머지 둘은 08 의 HUMAN PLAY 보조가 재어 BACKLOG 로 넘겼다): 상대를 절반 아래로 때렸을 때 뜨는 `[몸]` 이, 표시가 셋까지 앞에 붙은 이름(`[적대] 준비! [몸]Wanderer 1 ?`)에서 교전 중에 읽히는가 |
 | C-COMBAT-001 의 PARTIAL 판정 둘 (08-verification.md MASTER FEEDBACK) | `MC-AURA-ALLOCATION` · `MP-EXPLOIT-OPEN-BODY` 를 어디까지로 볼 것인가 — 플레이로는 갈래가 성립하나 노드는 덜 찼다. Master(Human)가 정한다 |
 | `lanes:check` 의 SELECTED 규칙 (PROCESS — 이 판을 고치지 않고 보고만 한다) | 지금 이 판에서 어긋남 1건이 상시로 뜬다. 검사는 "SELECTED 가 있으면 레인은 OPEN·RUNNING" 만 보고 **그 트랙의 Cycle 이 도는 중인지를 보지 않는다** — works.md 는 Human 대기면 HUMAN 이라 적었으므로 판이 맞고 검사가 좁다. 고칠 자리는 `tools/lanes/build.ts` 의 `crossCheck` 이며 재료는 이미 있다 (`t.cycle` 의 Stage·Status). PROCESS 가 HOLD 라 착수하지 않았다 |
