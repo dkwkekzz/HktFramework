@@ -3,7 +3,7 @@
 [PASS] Cycle Definition           (쌓이는 자리 하나 · 한 일이 몸을 키운다 · 여는 것은 EXCLUDED)
 [PASS] Intent                     (Goal 넷 · 자라는 것은 겨루는 값 둘 · 단계는 파생 · 넷째 항)
 [PASS] World Semantic             (문턱 20·50·90·140·200 · 단계당 4·4·3·3 · 넷째 항 · GAP 없음)
-[    ] GameView Specification
+[PASS] GameView Specification      (더하는 것 셋 · 새 조작 0 · 남의 것은 오지 않는다 · GAP 없음)
 [    ] Human Semantic Review
 [    ] World Implementation
 [    ] View Implementation
