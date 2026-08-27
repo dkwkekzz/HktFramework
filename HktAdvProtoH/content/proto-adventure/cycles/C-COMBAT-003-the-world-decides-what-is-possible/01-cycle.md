@@ -1,7 +1,7 @@
 # CYCLE C-COMBAT-003 — The World Decides What Is Possible
 
 [PASS] Cycle Definition           (사정 목록 하나 · 읽는 자리 둘 · 새 상태 0 · 새 기술 하나)
-[    ] Intent
+[PASS] Intent                     (Goal 4 · Intent 13 · 관문과 강화가 한 목록을 읽는다 · GAP 없음)
 [    ] World Semantic
 [    ] GameView Specification
 [    ] Human Semantic Review
