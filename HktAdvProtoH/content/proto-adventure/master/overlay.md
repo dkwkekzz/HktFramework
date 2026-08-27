@@ -93,7 +93,7 @@ MS-AURA-NEN(넷)이 소유한다.
 | MC-PRECISION-RESPONSE | MISSING | — | 대응 자체가 없으므로 그 시점 축도 없다. 다만 C019 가 행동 안의 시점을 읽는 규칙을 세워 두어, 판정에 쓸 시각은 세계에 이미 있다 |
 | MC-OPPORTUNITY | MISSING | — | 기회라는 개념이 없고, 같은 자리의 행동이 상황에 따라 다른 것으로 바뀌는 규칙도 없다 |
 | MC-ABSORB | MISSING | — | 막힌 피해는 줄어들 뿐 어디에도 남지 않는다 (`world/semantic/combat.ts` — 막힌 타격이 남기는 비율만 있다). 받아낸 것이 값으로 저장되는 자리가 없다 |
-| MC-AURA-ALLOCATION | MISSING | — | 힘을 어디에 몰아 두었는가라는 상태가 없다. 능력치는 있으나 전투 중에 바뀌지 않고, 무엇을 쓸 수 있는지를 능력치가 여닫지도 않는다 |
+| MC-AURA-ALLOCATION | PARTIAL | C-COMBAT-001 08-verification 의 WORLD SCENARIO · PLAYABLE — 배분이 이름 붙은 상태로 있고, 전투 중 하나를 고르는 것으로만 바뀌며, 유효 값에 항으로 들어가고, 자기에게도 상대에게도 보인다 | 배분이 **값만 바꾸고 무엇을 할 수 있는가의 목록을 바꾸지 않는다.** semantic 의 절반(UL §15 — 인지를 일정 이상 몰아야 숨은 것이 보이는 식의 가능 여부 갈림)이 아직 없고, 조건 관문(FR-THE-WORLD-DECIDES-WHAT-IS-POSSIBLE)이 서야 닫힌다 |
 | MC-ABILITY-CONDITION | PARTIAL | 코드 대조 — 못 쓰는 사유를 세계가 골라 하나 내보내는 자리가 이미 있다 (`view/skill-presentation.ts` 의 `unavailableReason` · 인벤토리·장비도 같은 칸을 쓴다) | 그 사유의 원천이 전부 자기 조건이다 — 자원이 모자라거나 거리가 멀거나 장착하지 않았거나. 세계의 사실(상대가 나를 먼저 쳤는가 · 표식이 있는가)이 능력의 가능 여부를 여는 자리가 없다 |
 | MC-MARK | MISSING | — | 대상에 남는 표식이라는 개념이 없다. 존재 사이에 남는 것은 태도(C018)와 지목(C017)뿐이고, 둘 다 거는 쪽의 상태이지 걸린 쪽에 붙은 것이 아니다 |
 | MC-BIND | MISSING | — | 존재 사이를 잇는 실체가 없고, 남의 행동 범위를 줄이는 규칙도 없다. 관계는 태도 하나뿐이고 (C018) 그것은 칠 수 있는가만 가른다 |
@@ -130,10 +130,15 @@ MS-AURA-NEN(넷)이 소유한다.
 한 지역은 "어느 대지형의 어느 깊이" 를 함께 가지므로, 땅이 들어오는 Cycle 은 두 표의
 요구를 함께 본다.
 
-아홉 줄 전부 MISSING 이며 사유가 하나다: **세계에 땅이 없다.** 장소에 대해 세계가
-아는 것은 사각형 하나의 경계뿐이고(`world/semantic/position.ts#WorldBounds`), 그 안
-어디에 서 있든 성질이 같다. 그래서 여기의 결손은 개별 능력의 결손이 아니라 그 능력들이
-놓일 바닥의 부재다 — 아래 "가장 큰 구멍" 의 넷째 항이 그것이다.
+아홉 줄은 여전히 MISSING 이나 **사유가 달라졌다.** C-TERRAIN-001 이 바닥을 깔았다 —
+무대가 자리로 나뉘고, 자리가 법칙(무엇을 어떤 조건에서 거두어 가는가)을 지니며,
+그 법칙이 멎는 예외 자리가 그 안에 있다. 그래서 위치는 이제 **한 몸 혼자만으로도
+결과가 정해지는 물음**이다.
+
+막고 있는 것이 "놓일 바닥이 없다" 에서 **"땅에 시간이 없다"** 로 옮겨갔다. 거둔 것이
+어디에도 저장되지 않으므로 땅이 포화되지도 분출하지도 않고, 그래서 셀 주기도
+이어 갈 자리도 생기지 않는다 — 아홉 중 주기·경로·고정을 요구하는 것들이 여기 걸린다
+(아래 "가장 큰 구멍" 의 넷째 항).
 
 기존 노드 여덟(MC-READ-ENVIRONMENT · MC-OBSERVE · MC-PREDICT · MC-IDENTITY-ANCHOR ·
 MC-VERIFY-REALITY · MC-FORCE-MOVEMENT · MC-CRAFT-FROM-MATERIALS · MC-TRANSFER-ITEM)에는
@@ -235,6 +240,40 @@ IMPLEMENTED 로 서 있는 MC-EQUIP-ITEM 이 그 자리이기 때문이다 (같�
 | MC-MASTER-A-SKILL | MISSING | — | 스킬이 자란다는 개념이 없다 — 기술은 종류가 정한 값 그대로이고 쓴 이력이 어디에도 남지 않는다 |
 | MC-CHANGE-CLASS | MISSING | — | 몸이 형태를 갖지 않는다 — CL-* 노드가 0 개이고 세계의 몸은 종류 하나로 고정이다 |
 
+## Capability — 전투 지식 영역 (CK)
+
+`content/proto-adventure/design/Design-Combat-Knowledge-Extension-R0.md`(CK) 주입으로 섰다.
+**일곱 줄이 전부 MISSING 이며, 그것이 이 표에서 가장 정직한 그림이다** — 이 층은
+세계에 한 조각도 없다.
+
+비어 있는 방식이 다른 표들과 다르다. 전투 영역의 결손은 "판정 하나가 없다" 였고
+아이템 영역의 결손은 "상태 하나가 없다" 였는데, 여기는 **판단이라는 것 자체가
+세계에 없다.** 사람의 몸은 요청받은 것만 하고, 자율 존재는 고정된 규칙 하나로
+움직인다 (RULE-NPC-DECIDE-001 — 기력이 되면 큰 기술, 아니면 기본 기술).
+그래서 이 일곱은 하나씩 채워 넣는 목록이 아니라 **한 층을 통째로 세우는 일**이다.
+
+셋째 줄(MC-CONDUCT-BY-KNOWLEDGE)이 이 층의 문이다. 나머지 여섯은 그것에 재료를
+대거나(습득 · 선택 · 성장 · 전수) 그것을 읽히게 하거나(설명) 그 위에 얹힌다(조합).
+운용이 서지 않으면 나머지는 아무 데도 닿지 않는다.
+
+**철회된 사슬 A 가 돌아올 자리도 여기다.** 다만 그 층이 지워진 것이 아니라
+**누가 그것을 수행하는가**가 정해진 것이다 (Q63 — Human). Response 층의 형태는
+전투 상층 문서(UL §4.1 · §4.2 · §5 · §6 · §7 · §9)가 그대로 소유하고,
+전투 영역 표의 MC-ACTIVE-RESPONSE 계열 넷은 한 글자도 고치지 않았다.
+바뀐 것은 그 층을 **플레이어의 손이 아니라 배운 것이 수행한다**는 것이며
+(CK §15), 그 선을 재는 자는 UL §32 다 — 기본 형태를 자동 전투가 수행할 수 있으면
+지킨 것이다. 그래서 이 표와 전투 영역 표는 경쟁하지 않고 위아래로 선다.
+
+| Capability | 상태 | 근거 | 부족한 것 |
+|---|---|---|---|
+| MC-LEARN-COMBAT-KNOWLEDGE | MISSING | — | 전투법이라는 것이 세계에 없다 — 배울 대상도 배우는 길도 없다 |
+| MC-CARRY-COMBAT-KNOWLEDGE | MISSING | — | 가져갈 것이 없다 — 전투법도, 그것을 담는 자리도 없다 |
+| MC-CONDUCT-BY-KNOWLEDGE | MISSING | — | 판단이라는 것이 세계에 없다 — 사람의 몸은 요청받은 것만 하고, 자율 존재는 고정된 규칙 하나로 움직인다 |
+| MC-DEEPEN-COMBAT-KNOWLEDGE | MISSING | — | 깊어질 지식이 없다 |
+| MC-EXPLAIN-COMBAT-DECISION | MISSING | — | 설명할 판단이 없다. 다만 경위를 세계가 싣고 화면이 옮기는 형태는 이미 섰다 (C010 이래의 breakdown) |
+| MC-TEACH-COMBAT-KNOWLEDGE | MISSING | — | 전할 지식도 전할 상대도 없다 — 세계에 다른 플레이어 말고는 말을 주고받는 존재가 없다 |
+| MC-COMBINE-KNOWLEDGE | MISSING | — | 맞물릴 지식이 없다 |
+
 ## World / Actor / Knowledge — 세계 자체는 얼마나 서 있는가
 
 Capability 만 보면 전투가 꽤 찬 것처럼 보이지만, 그 전투가 놓일 **세계**가 거의 없다.
@@ -248,7 +287,7 @@ Capability 만 보면 전투가 꽤 찬 것처럼 보이지만, 그 전투가 �
 | MW-DEPTH-GRADIENT · MW-ZONE-WILD/DANGER/DEEP/UNKNOWN | ABSENT | 깊이도 층도 없다 |
 | MW-ZONE-FRINGE | PARTIAL | 정면 전투력이 우위인 적대 존재는 있다. 그것이 사는 **층**이 없고, 우위를 힘 아닌 것으로 뒤집을 수단도 없다 |
 | MW-HYPER-PREDATION · MW-SPATIAL-SHEAR | ABSENT | 대표 지역 둘 다 없다 |
-| MW-MACRO-TERRAIN | ABSENT | 땅이라는 것이 없다 — 세계가 장소에 대해 아는 것은 사각형 하나의 경계뿐이다 (`world/semantic/position.ts#WorldBounds`) |
+| MW-MACRO-TERRAIN | PARTIAL | 땅이 자리로 나뉘고 그 자리가 법칙을 지닌다 (C-TERRAIN-001 — World.GroundZones · GroundLawDefinition). 남은 것은 world_shape 의 나머지다: 법칙이 하나뿐이고, 그 법칙이 낳는 자원이 없으며, 어디에 갈 수 있는가가 감당으로 정해지지 않고, 깊이와의 직교도 아직 없다 |
 | MW-TERRAIN-* 8종 (BT §4~§11) | ABSENT | 머물 곳과 나갈 곳의 구분이 없다 — 무대가 하나다 |
 | MA-PLAYER | PARTIAL | 몸이 한 종류로 고정이라 고를 갈래 자체가 없다 — 요정 계열 여덟(MS-FAIRY-LINEAGE)이 그 자리이고 아직 비어 있다 |
 | MA-HOSTILE-COMBATANT | PRESENT | **C018 로 마지막 칸이 닫혔다** — 스스로 순찰·추격·공격하고, 플레이어와 **같은 관문**을 지나며(몬스터 전용 규칙 없음), 이제 지킬 자리를 지녀 그 행동이 자기 영역을 지키는 것으로 읽힌다. 같은 종류 두 개체가 하나는 적대하고 하나는 하지 않는다 — 적대가 종류가 아니라 사정의 결과다 |
@@ -272,11 +311,11 @@ Capability 만 보면 전투가 꽤 찬 것처럼 보이지만, 그 전투가 �
 | MP-INTERRUPT | **없음** | **C019 로 닫혔다** — 지금 플레이 가능하다. 상대의 선딜을 노려 끊고, 늦으면 이미 나간 칼을 무르지 못한다. 요구는 MC-INTERRUPT 하나뿐이었고 그것이 섰다 |
 | MP-BREAK-THE-GUARD | MC-BREAK(PARTIAL) | 무너지는 상태는 있고 무너뜨리는 행동만 없다 (R1 §14 Active Defense 층) |
 | MP-READ-AND-COUNTER | MC-ACTIVE-RESPONSE · MC-PRECISION-RESPONSE · MC-PERFECT-GUARD · MC-OPPORTUNITY · MC-COUNTER | UL 이 그 층의 설계 문서다 — 이 갈래는 이제 두 조각이 아니라 다섯 조각으로 갈린다. 완벽한 막기는 정밀 응답을 막기에 적용한 결과이고 되받아치기는 기회를 통해 온다 (UL §6 · §7). 순서는 UL §42 F1 → F2 → F3 다 |
-| MP-EXPLOIT-OPEN-BODY | MC-AURA-ALLOCATION | Q59(a) 로 축이 셋이 되었다 — 열림이 "공격에 몰아 방어가 얇다" 에서 "능력·인지에 몰아 몸이 얇다" 로 바뀌었을 뿐 갈래는 그대로 산다 |
+| MP-EXPLOIT-OPEN-BODY | MC-AURA-ALLOCATION (PARTIAL) | 요구 넷 중 셋이 섰고 넷째(MC-AURA-ALLOCATION)가 PARTIAL 이라 갈래도 PARTIAL 이다. 다만 **플레이로는 이미 성립한다** — 상대가 물리에 무른 것을 알아내고 배분으로 그 무른 쪽을 친다 (C-COMBAT-001 WORLD SCENARIO). 노드의 완결과 플레이의 성립이 갈리는 자리이며, 어느 쪽으로 판정할지는 Q66 다 |
 | MP-CONTROL-MOVEMENT | MC-CONTROL-SPACE + MC-FORCE-MOVEMENT·MC-REPOSITION(둘 다 PARTIAL) | 셋 중 둘이 절반 서 있다 |
 | MP-STAKE-EVERYTHING-ON-ONE-BLOW | MC-VOW · MC-AURA-ALLOCATION + MC-CONDITION-STACKING(PARTIAL) | Aura/Nen 층 — 가장 멀다. UL §20 이 계약의 대가를 바꾼 뒤로 이 갈래는 "제약으로 위력을 산다" 쪽 반쪽만 쓴다 — 허락을 사는 반쪽은 MP-BIND-BY-CONTRACT 다 |
 | MP-WEAPONIZE-ENVIRONMENT | MC-READ-ENVIRONMENT · MC-USE-HAZARD + MW-ZONE-DANGER | 환경 위험 개념 자체가 없다 |
-| MP-CONCENTRATE-THE-POWER | MC-AURA-ALLOCATION | UL §42 F4 — 상층 넷 중 첫 칸. 아래 세 칸(응답 · 정밀 · 기회)이 먼저 서야 한다는 순서가 문서에 있다 |
+| MP-CONCENTRATE-THE-POWER | MC-AURA-ALLOCATION (PARTIAL) | UL §42 F4 — 상층 넷 중 첫 칸. 아래 세 칸(응답 · 정밀 · 기회)이 먼저 서야 한다는 순서가 문서에 있다 |
 | MP-BIND-BY-CONTRACT | MC-VOW · MC-BIND · MC-MARK · MC-ABILITY-CONDITION | UL §42 F5~F7 — 상층의 마지막 세 칸이 전부 걸린다. 이 세계에서 가장 먼 갈래이고, 동시에 UL 이 §23 에서 대표 실물로 든 갈래다 |
 | MP-KNOW-THE-OPPONENT-RULE | MC-OBSERVE-ABILITY · MC-AURA-ALLOCATION · MC-ABILITY-CONDITION · MC-DISRUPT-ABILITY | 알아낼 대상 자체가 없다 — 적대 존재에게 규칙 있는 능력이 없다. 이 갈래는 상대 쪽에 상층이 서야 성립한다 |
 
@@ -286,7 +325,7 @@ Capability 만 보면 전투가 꽤 찬 것처럼 보이지만, 그 전투가 �
 |---|---|---|
 | MP-TRADE-BODY-FOR-RESOURCE | **없음** | **C011 로 닫혔다** — 지금 플레이 가능하다 |
 | MP-EVADE-BY-MOVING-THE-BODY | MC-EVADE · MC-ACTIVE-RESPONSE | R1 §13 이 이후 확장으로만 지정했고 UL §8 이 그 형태를 확정했다 — 짧은 이동에 짧은 판정 무효 구간을 얹는다. 회피는 응답 자리에 끼우는 것 중 하나다 |
-| MP-HOLD-FORTIFIED | MC-FORTIFY · MC-AURA-ALLOCATION | Q59(a) 로 몸·능력·인지 세 축 위에 선다 — 대가가 "공격이 약해진다" 에서 "능력과 인지가 얇아진다" 로 바뀌었다 |
+| MP-HOLD-FORTIFIED | MC-FORTIFY · MC-AURA-ALLOCATION (PARTIAL) | Q59(a) 로 몸·능력·인지 세 축 위에 선다 — 대가가 "공격이 약해진다" 에서 "능력과 인지가 얇아진다" 로 바뀌었다 |
 | MP-STORE-AND-RELEASE | MC-ABSORB · MC-ACTIVE-RESPONSE · MC-PRECISION-RESPONSE | UL §28 (축적자) — 응답 자리(F1)와 정밀 구간(F2) 위에 얹힌다. 막기는 이미 섰다 (C011) |
 
 ### MG-EXPLORE-BEIRA (4 갈래)
@@ -374,13 +413,18 @@ Capability 만 보면 전투가 꽤 찬 것처럼 보이지만, 그 전투가 �
    없고, 행동의 앞 구간이 앎의 관문과 무관하게 누구에게나 그냥 온다.
    발견·검증은 그 뒤에 얹힌다.
 
-4. 땅이 없다  (BT 주입으로 그 크기가 드러났다)
-   세계가 장소에 대해 아는 것은 사각형 하나의 경계뿐이다
-   (`world/semantic/position.ts#WorldBounds`) — 어디에 서 있든 성질이 같다.
-   BT 가 세운 아홉 노드와 그 아홉이 요구하는 능력 전부가 이 하나에 막혀 있고,
-   BW 쪽의 층(MW-ZONE-*)과 대표 지역 둘도 같은 이유로 ABSENT 다.
-   이것은 개별 결손이 아니라 앞의 셋이 놓일 바닥이다 — 관찰할 것도(3),
-   캘 것도(1), 감당해서 넓어질 범위도(2) 전부 땅 위에서 생긴다.
+4. 땅에 시간이 없다  (C-TERRAIN-001 로 **바닥은 깔렸다**)
+   "땅이 없다" 는 닫혔다. 무대가 자리로 나뉘고 자리가 법칙을 지니며 그 법칙이 멎는
+   예외 자리가 그 안에 있다 (MW-MACRO-TERRAIN · MW-TERRAIN-SUNEATER-ICEFIELD 둘 다
+   ABSENT → PARTIAL). 앞의 셋이 놓일 바닥은 이제 있다.
+
+   남은 것은 **그 땅이 도는 일**이다. 거둔 것이 어디에도 저장되지 않아 땅이 포화되지도
+   분출하지도 않으므로, 예외 자리가 원인 없이 놓인 상수이고 거두는 속도가 상수다.
+   그래서 BT §15 의 셋째 항(대지 순환)이 통째로 비어 있고, 그 위에 얹히는 것들이
+   설 자리를 얻지 못한다 — 셀 주기가 없어 창에 맞출 수 없고(MC-TIME-THE-CYCLE),
+   이을 자리가 하나뿐이라 길을 만들 수 없다(MC-FIND-SAFE-ROUTE).
+   BT §5.7 이 빙원의 핵심 경험을 "대지가 열을 **어디에서 빼앗고 어디에 저장하는지**를
+   읽는 것" 으로 못 박았는데, 지금 선 것은 앞 절뿐이다.
 ```
 
 ## 갱신 경로

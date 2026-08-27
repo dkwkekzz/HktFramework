@@ -130,10 +130,15 @@ sections:
       한 지역은 "어느 대지형의 어느 깊이" 를 함께 가지므로, 땅이 들어오는 Cycle 은 두 표의
       요구를 함께 본다.
 
-      아홉 줄 전부 MISSING 이며 사유가 하나다: **세계에 땅이 없다.** 장소에 대해 세계가
-      아는 것은 사각형 하나의 경계뿐이고(`world/semantic/position.ts#WorldBounds`), 그 안
-      어디에 서 있든 성질이 같다. 그래서 여기의 결손은 개별 능력의 결손이 아니라 그 능력들이
-      놓일 바닥의 부재다 — 아래 "가장 큰 구멍" 의 넷째 항이 그것이다.
+      아홉 줄은 여전히 MISSING 이나 **사유가 달라졌다.** C-TERRAIN-001 이 바닥을 깔았다 —
+      무대가 자리로 나뉘고, 자리가 법칙(무엇을 어떤 조건에서 거두어 가는가)을 지니며,
+      그 법칙이 멎는 예외 자리가 그 안에 있다. 그래서 위치는 이제 **한 몸 혼자만으로도
+      결과가 정해지는 물음**이다.
+
+      막고 있는 것이 "놓일 바닥이 없다" 에서 **"땅에 시간이 없다"** 로 옮겨갔다. 거둔 것이
+      어디에도 저장되지 않으므로 땅이 포화되지도 분출하지도 않고, 그래서 셀 주기도
+      이어 갈 자리도 생기지 않는다 — 아홉 중 주기·경로·고정을 요구하는 것들이 여기 걸린다
+      (아래 "가장 큰 구멍" 의 넷째 항).
 
       기존 노드 여덟(MC-READ-ENVIRONMENT · MC-OBSERVE · MC-PREDICT · MC-IDENTITY-ANCHOR ·
       MC-VERIFY-REALITY · MC-FORCE-MOVEMENT · MC-CRAFT-FROM-MATERIALS · MC-TRANSFER-ITEM)에는
@@ -236,6 +241,38 @@ sections:
         ids: [MC-GROW-CLASS-MASTERY, MC-GROW-EXPLORATION-MASTERY]
       - MC-MASTER-A-SKILL
       - MC-CHANGE-CLASS
+  - kind: capability
+    title: "Capability — 전투 지식 영역 (CK)"
+    intro: |
+      `content/proto-adventure/design/Design-Combat-Knowledge-Extension-R0.md`(CK) 주입으로 섰다.
+      **일곱 줄이 전부 MISSING 이며, 그것이 이 표에서 가장 정직한 그림이다** — 이 층은
+      세계에 한 조각도 없다.
+
+      비어 있는 방식이 다른 표들과 다르다. 전투 영역의 결손은 "판정 하나가 없다" 였고
+      아이템 영역의 결손은 "상태 하나가 없다" 였는데, 여기는 **판단이라는 것 자체가
+      세계에 없다.** 사람의 몸은 요청받은 것만 하고, 자율 존재는 고정된 규칙 하나로
+      움직인다 (RULE-NPC-DECIDE-001 — 기력이 되면 큰 기술, 아니면 기본 기술).
+      그래서 이 일곱은 하나씩 채워 넣는 목록이 아니라 **한 층을 통째로 세우는 일**이다.
+
+      셋째 줄(MC-CONDUCT-BY-KNOWLEDGE)이 이 층의 문이다. 나머지 여섯은 그것에 재료를
+      대거나(습득 · 선택 · 성장 · 전수) 그것을 읽히게 하거나(설명) 그 위에 얹힌다(조합).
+      운용이 서지 않으면 나머지는 아무 데도 닿지 않는다.
+
+      **철회된 사슬 A 가 돌아올 자리도 여기다.** 다만 그 층이 지워진 것이 아니라
+      **누가 그것을 수행하는가**가 정해진 것이다 (Q63 — Human). Response 층의 형태는
+      전투 상층 문서(UL §4.1 · §4.2 · §5 · §6 · §7 · §9)가 그대로 소유하고,
+      전투 영역 표의 MC-ACTIVE-RESPONSE 계열 넷은 한 글자도 고치지 않았다.
+      바뀐 것은 그 층을 **플레이어의 손이 아니라 배운 것이 수행한다**는 것이며
+      (CK §15), 그 선을 재는 자는 UL §32 다 — 기본 형태를 자동 전투가 수행할 수 있으면
+      지킨 것이다. 그래서 이 표와 전투 영역 표는 경쟁하지 않고 위아래로 선다.
+    rows:
+      - MC-LEARN-COMBAT-KNOWLEDGE
+      - MC-CARRY-COMBAT-KNOWLEDGE
+      - MC-CONDUCT-BY-KNOWLEDGE
+      - MC-DEEPEN-COMBAT-KNOWLEDGE
+      - MC-EXPLAIN-COMBAT-DECISION
+      - MC-TEACH-COMBAT-KNOWLEDGE
+      - MC-COMBINE-KNOWLEDGE
   - kind: world
     title: "World / Actor / Knowledge — 세계 자체는 얼마나 서 있는가"
     intro: |
@@ -382,11 +419,16 @@ holes: |
      없고, 행동의 앞 구간이 앎의 관문과 무관하게 누구에게나 그냥 온다.
      발견·검증은 그 뒤에 얹힌다.
 
-  4. 땅이 없다  (BT 주입으로 그 크기가 드러났다)
-     세계가 장소에 대해 아는 것은 사각형 하나의 경계뿐이다
-     (`world/semantic/position.ts#WorldBounds`) — 어디에 서 있든 성질이 같다.
-     BT 가 세운 아홉 노드와 그 아홉이 요구하는 능력 전부가 이 하나에 막혀 있고,
-     BW 쪽의 층(MW-ZONE-*)과 대표 지역 둘도 같은 이유로 ABSENT 다.
-     이것은 개별 결손이 아니라 앞의 셋이 놓일 바닥이다 — 관찰할 것도(3),
-     캘 것도(1), 감당해서 넓어질 범위도(2) 전부 땅 위에서 생긴다.
+  4. 땅에 시간이 없다  (C-TERRAIN-001 로 **바닥은 깔렸다**)
+     "땅이 없다" 는 닫혔다. 무대가 자리로 나뉘고 자리가 법칙을 지니며 그 법칙이 멎는
+     예외 자리가 그 안에 있다 (MW-MACRO-TERRAIN · MW-TERRAIN-SUNEATER-ICEFIELD 둘 다
+     ABSENT → PARTIAL). 앞의 셋이 놓일 바닥은 이제 있다.
+
+     남은 것은 **그 땅이 도는 일**이다. 거둔 것이 어디에도 저장되지 않아 땅이 포화되지도
+     분출하지도 않으므로, 예외 자리가 원인 없이 놓인 상수이고 거두는 속도가 상수다.
+     그래서 BT §15 의 셋째 항(대지 순환)이 통째로 비어 있고, 그 위에 얹히는 것들이
+     설 자리를 얻지 못한다 — 셀 주기가 없어 창에 맞출 수 없고(MC-TIME-THE-CYCLE),
+     이을 자리가 하나뿐이라 길을 만들 수 없다(MC-FIND-SAFE-ROUTE).
+     BT §5.7 이 빙원의 핵심 경험을 "대지가 열을 **어디에서 빼앗고 어디에 저장하는지**를
+     읽는 것" 으로 못 박았는데, 지금 선 것은 앞 절뿐이다.
   ```

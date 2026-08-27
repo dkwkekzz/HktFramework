@@ -161,6 +161,44 @@
     주     720px 미만은 문서가 지원 대상 밖으로 둔다.
            V-006 이 480×900 에서 **손가락 버튼 띠와 기술 슬롯 띠가 겹치는 것**을 보았다
 
+## 전투 (이관 — C-COMBAT-001)
+
+이관 출처: `cycles/C-COMBAT-001-where-your-power-sits/08-verification.md` 의
+"HUMAN PLAY 보조". 둘 다 세계도 계약도 요구하지 않는다 — 세계는 넷과 그 몫·가부·사유를
+이미 보내고 있고, 화면이 그것을 **어디에 어떻게 두는가**만 남았다.
+
+### allocation-armed-shows — 두 걸음의 첫 걸음이 화면에 남는다
+    출처   C-COMBAT-001 08 HUMAN PLAY 보조 ①
+    목표   `U`(또는 B·N·M·,)를 누른 뒤 "지금 무엇의 번호를 기다리는 중인지" 가
+           화면에 서고, 다시 누르거나 `Esc` 로 물러나면 사라진다
+    크기   작음
+    의존   없음 — `view/bindings.ts` 가 `armedAction()` 을 이미 내보내고 있다.
+           지금 그것을 읽는 자리가 팩에 하나도 없다 (검색 0건)
+    상태   PROPOSED
+    주     배분만의 문제가 아니다 — B·N·M·, 가 같은 얼개이며 C026 의 주석이 이미
+           같은 결손을 적어 두었다 (소지품은 `I` 표면으로 메웠고 배분에는 그 자리가 없다).
+           **표면을 하나 더 여는 것이 유일한 답은 아니다** — 지름길은 지름길로 남기고
+           걸린 상태만 보이면 된다
+
+### allocation-list-crowds-the-top — 배분 넷이 위 패널을 삼키지 않는다
+    출처   C-COMBAT-001 08 HUMAN PLAY 보조 ②
+    목표   배분 넷이 서 있어도 위 패널의 나머지(고른 대상 · 걸린 것 · 자리 · 소지품 ·
+           행동 · 세계 시간 · 함께)가 배분 뒤로 밀리지 않는다
+    크기   작음
+    의존   없음 — 무엇을 어디에 둘지는 결정 Layer 의 몫이다
+           (`view/allocation-presentation.ts` · `view/hud-presentation.ts`)
+    상태   PROPOSED
+    주     실측(1440×900): 넷의 폭 합 1480px · 패널 폭 1400px → 두 줄을 채우고
+           패널이 세 줄(y 23 · 54 · 85)로 선다. 글자 17px 로 본문보다 크다.
+           **넷을 줄이는 것은 답이 아니다** — 못 가는 것도 사유와 함께 실려야 한다
+           (04 allocations.meaning · DC-WORLD-OWNS-THE-SURFACE-LIST)
+
+## 성장 (이관 — C-GROWTH-001)
+
+이관 출처: `cycles/C-GROWTH-001-what-you-did-makes-you/07-view-implementation.md` 의
+NOTES · 08 의 "Works 로 넘긴 화면 몫". 둘 다 세계도 계약도 요구하지 않는다 —
+세계는 이미 보내고 있고, 화면이 그것을 **어떻게 보이게 하는가**만 남았다.
+
 ### growth-cause-in-the-breakdown — 자란 몫이 한 방의 경위에 실린다
     출처   C-GROWTH-001 07 NOTES · 08 Works 로 넘긴 화면 몫 ①
     목표   속성 관찰(`inspect`)을 켰을 때 타격 경위 줄에 배분의 몫과 나란히
