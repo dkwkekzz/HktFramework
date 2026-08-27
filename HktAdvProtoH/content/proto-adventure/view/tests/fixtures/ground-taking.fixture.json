@@ -574,24 +574,48 @@
   "ground": {
     "zones": [
       {
-        "id": "zone-ice-field",
+        "id": "zone-vein-1",
         "law": "heat-binding",
-        "role": "law",
+        "phase": "venting",
+        "fill": 1.0,
         "center": {
-          "x": -11,
-          "z": 11
+          "x": -13.5,
+          "z": 13.5
         },
-        "radius": 7.0
+        "radius": 5.0
       },
       {
-        "id": "zone-sunbreath",
+        "id": "zone-vein-2",
         "law": "heat-binding",
-        "role": "respite",
+        "phase": "binding",
+        "fill": 0.75,
         "center": {
-          "x": -13,
-          "z": 13
+          "x": -8.5,
+          "z": 13.5
         },
-        "radius": 2.5
+        "radius": 5.0
+      },
+      {
+        "id": "zone-vein-3",
+        "law": "heat-binding",
+        "phase": "binding",
+        "fill": 0.25,
+        "center": {
+          "x": -13.5,
+          "z": 8.5
+        },
+        "radius": 5.0
+      },
+      {
+        "id": "zone-vein-4",
+        "law": "heat-binding",
+        "phase": "binding",
+        "fill": 0.5,
+        "center": {
+          "x": -8.5,
+          "z": 8.5
+        },
+        "radius": 5.0
       }
     ],
     "self": {

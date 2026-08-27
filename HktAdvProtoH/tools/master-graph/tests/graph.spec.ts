@@ -28,6 +28,42 @@ describe('loadMasterGraph', () => {
     expect(dangling, dangling.map((p) => p.message).join('\n')).toEqual([]);
   });
 
+  // SCHEMA.md 가 arises_from 을 "세계의 인과 척추" 라 부르면서도 오래 간선이 아니었다.
+  // 척추가 그림에 없으면 세계의 인과는 world-state.yaml 머리의 손으로 그린 주석으로만
+  // 남고, GRAPH.md 를 읽는 사람(특히 Frontier 후보를 뽑는 사람)은 그것을 보지 못한다.
+  it('arises_from 을 간선으로 만든다 — 낳은 쪽에서 낳아진 쪽으로', () => {
+    const spine = graph.edges.filter((e) => e.kind === 'arises_from');
+    expect(spine.length).toBeGreaterThan(0);
+
+    for (const e of spine) {
+      // 척추는 세계 안에서만 흐른다
+      expect(graph.nodes.get(e.from)!.type).toBe('world_state');
+      expect(graph.nodes.get(e.to)!.type).toBe('world_state');
+      // 방향 — 낳아진 쪽(to)이 자기 arises_from 에 낳은 쪽(from)을 적는다
+      const declared = graph.nodes.get(e.to)!.raw.arises_from as string[] | undefined;
+      expect(declared ?? []).toContain(e.from);
+    }
+
+    // arises_from 을 적은 모든 노드가 간선을 얻는다 — 하나도 빠지지 않는다
+    for (const n of graph.nodes.values()) {
+      if (n.type !== 'world_state') continue;
+      for (const parent of (n.raw.arises_from as string[] | undefined) ?? []) {
+        expect(
+          spine.some((e) => e.from === parent && e.to === n.id),
+          `${n.id}.arises_from 의 ${parent} 가 간선이 되지 않았다`,
+        ).toBe(true);
+      }
+    }
+  });
+
+  it('인과 뼈대 그림이 척추를 굵은 화살표로 그린다', () => {
+    const md = renderMermaid(graph);
+    const spine = graph.edges.filter((e) => e.kind === 'arises_from');
+    for (const e of spine.slice(0, 5)) {
+      expect(md).toContain(`${e.from} ==> ${e.to}`);
+    }
+  });
+
   it('requires 와 required_by 가 양방향으로 일치한다', () => {
     const asym = graph.problems.filter((p) => p.code.startsWith('ASYMMETRIC'));
     expect(asym, asym.map((p) => p.message).join('\n')).toEqual([]);
