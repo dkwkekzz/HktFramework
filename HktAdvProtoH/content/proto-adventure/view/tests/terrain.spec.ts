@@ -1,5 +1,9 @@
-// C-TERRAIN-001 땅 표현 결정 Layer 단독 테스트 — World 미기동, Fixture 만으로
+// 땅 표현 결정 Layer 단독 테스트 — World 미기동, Fixture 만으로
 // 자리의 범위 지시(GroundZonePlan) · 지금 걸린 법칙의 줄 · 지닌 열의 표시를 검증한다.
+//
+// C-TERRAIN-002 — 자리에 시간이 생겼으므로 지시도 시간을 지닌다: 찬 만큼 진해지고,
+// 뿜는 동안 맥동하고, 이름에 퍼센트가 붙는다. 그리고 self 의 `warming` 이 `sheltered`
+// 와 갈린다.
 //
 // 이 Layer 가 **판정하지 않는다**는 것이 검사의 요점 하나다 — 안인지 밖인지도,
 // 지금 걸려 있는지도 세계가 보낸 값 그대로 쓴다 (DC-WORLD-OWNS-THE-SURFACE-LIST).
@@ -15,43 +19,66 @@ import {
 } from '../terrain-presentation';
 import taking from './fixtures/ground-taking.fixture.json';
 import sheltered from './fixtures/ground-sheltered.fixture.json';
+import warming from './fixtures/ground-warming.fixture.json';
 import plain from './fixtures/combat.fixture.json';
 
 const takingView = taking as GameViewSnapshot;
 const shelteredView = sheltered as GameViewSnapshot;
+const warmingView = warming as GameViewSnapshot;
 const plainView = plain as GameViewSnapshot;
 
 describe('자리의 범위 — 엔진의 지면 구역 장치가 소비할 지시', () => {
   it('세계가 보낸 자리마다 지시가 하나씩 나온다', () => {
     const plans = groundZonePlans(takingView);
 
-    expect(plans.map((p) => p.id)).toEqual(['zone-ice-field', 'zone-sunbreath']);
+    expect(plans.map((p) => p.id)).toEqual([
+      'zone-vein-1', 'zone-vein-2', 'zone-vein-3', 'zone-vein-4',
+    ]);
   });
 
   it('범위는 세계가 보낸 값 그대로다 — 결정 Layer 가 자리를 옮기지 않는다', () => {
-    const [ice] = groundZonePlans(takingView);
+    const [first] = groundZonePlans(takingView);
 
-    expect(ice?.shape).toEqual({ kind: 'circle', center: { x: -11, z: 11 }, radius: 7 });
+    expect(first?.shape).toEqual({ kind: 'circle', center: { x: -13.5, z: 13.5 }, radius: 5 });
   });
 
-  it('작용하는 자리와 멎는 자리가 한눈에 갈린다 — 색도 진하기도 다르다', () => {
-    const [ice, respite] = groundZonePlans(takingView);
+  it('거두는 맥과 뿜는 맥이 한눈에 갈린다 — 색도 진하기도 다르다', () => {
+    const [venting, binding] = groundZonePlans(takingView);
 
-    expect(ice?.fill.color).not.toBe(respite?.fill.color);
-    // 멎는 자리는 작고 찾아야 하는 것이라 더 진하다
-    expect(respite!.fill.opacity).toBeGreaterThan(ice!.fill.opacity);
-    expect(respite!.edge.width).toBeGreaterThan(ice!.edge.width);
+    expect(venting?.fill.color).not.toBe(binding?.fill.color);
+    expect(venting!.edge.width).toBeGreaterThan(binding!.edge.width);
   });
 
-  it('자리마다 부를 이름이 붙는다 — 멎는 자리는 그 사실이 이름에 있다', () => {
-    const [ice, respite] = groundZonePlans(takingView);
+  it('**찬 만큼 진해진다** — 차오르는 것이 눈에 보여야 넘침이 우연으로 보이지 않는다', () => {
+    const plans = groundZonePlans(takingView);
+    const full = plans.find((p) => p.id === 'zone-vein-2')!; // fill 0.75
+    const empty = plans.find((p) => p.id === 'zone-vein-3')!; // fill 0.25
 
-    expect(ice?.label).toBe('빙원');
-    expect(respite?.label).toBe('빙원 — 멎는 자리');
+    expect(full.fill.opacity).toBeGreaterThan(empty.fill.opacity);
   });
 
-  it('이 Cycle 은 맥동하지 않는다 — intensity 를 싣지 않는다', () => {
-    for (const plan of groundZonePlans(takingView)) expect(plan.intensity).toBeUndefined();
+  it('이름에 지금이 실린다 — 얼마나 찼는지 · 얼마나 남았는지', () => {
+    const plans = groundZonePlans(takingView);
+
+    expect(plans.find((p) => p.id === 'zone-vein-1')?.label).toBe('해숨구멍 · 남은 100%');
+    expect(plans.find((p) => p.id === 'zone-vein-2')?.label).toBe('빙원 · 찬 75%');
+    expect(plans.find((p) => p.id === 'zone-vein-4')?.label).toBe('빙원 · 찬 50%');
+  });
+
+  it('뿜는 동안만 맥동한다 — 거두는 것은 늘 일어나는 일이라 맥동할 이유가 없다', () => {
+    const plans = groundZonePlans(takingView);
+
+    expect(plans.find((p) => p.id === 'zone-vein-1')?.intensity).toBe(1);
+    for (const p of plans.filter((x) => x.id !== 'zone-vein-1')) {
+      expect(p.intensity).toBeUndefined();
+    }
+  });
+
+  it('화면은 넘침을 스스로 판정하지 않는다 — 계약에 넘침 지점이 오지 않는다', () => {
+    const zone = takingView.ground.zones[0] as unknown as Record<string, unknown>;
+
+    expect(zone.saturation).toBeUndefined();
+    expect(zone.kept).toBeUndefined();
   });
 
   it('모르는 법칙도 그려진다 — 표현 등록 누락이 게임을 멈추지 않는다', () => {
@@ -70,8 +97,10 @@ describe('자리가 화면 지시까지 실려 간다 — 07 NOTE 1 이 예고�
   it('resolve 가 zones 를 그대로 실어 보낸다', () => {
     const zones = resolvePresentation(takingView).zones;
 
-    expect(zones.map((z) => z.id)).toEqual(['zone-ice-field', 'zone-sunbreath']);
-    expect(zones[0]?.shape).toEqual({ kind: 'circle', center: { x: -11, z: 11 }, radius: 7 });
+    expect(zones.map((z) => z.id)).toEqual([
+      'zone-vein-1', 'zone-vein-2', 'zone-vein-3', 'zone-vein-4',
+    ]);
+    expect(zones[0]?.shape).toEqual({ kind: 'circle', center: { x: -13.5, z: 13.5 }, radius: 5 });
   });
 
   it('자리가 없는 세계에서는 빈 배열이다 — 엔진이 아무것도 그리지 않는다', () => {
@@ -85,7 +114,24 @@ describe('지금 걸린 법칙 — 값이 줄어드는 것만 보이면 버그�
   });
 
   it('멎어 있으면 그 사실이 실린다 — 자리 밖과 구분된다', () => {
-    expect(groundLawLines(shelteredView)).toEqual(['빙원 — 여기서는 멎는다']);
+    // C-TERRAIN-002 — 멎게 하는 것은 놓인 예외가 아니라 **뿜는 중인 맥**이므로
+    // 그 자리를 그 일로 부른다
+    expect(groundLawLines(shelteredView)).toEqual(['해숨구멍 — 여기서는 멎는다']);
+  });
+
+  it('돌려받는 중이면 그 사실이 실린다 — 멎기만 하는 것과 갈린다', () => {
+    // 한 줄로 묶이면 플레이어는 자기 열이 **왜 늘었는지** 알 수 없다.
+    expect(groundLawLines(warmingView)).toEqual(['해숨구멍 — 열을 돌려받는 중']);
+    expect(groundLawLines(warmingView)).not.toEqual(groundLawLines(shelteredView));
+  });
+
+  it('미등록 상태 코드도 그려진다 — 표현 누락이 게임을 멈추지 않는다', () => {
+    const future = {
+      ...warmingView,
+      ground: { ...warmingView.ground, self: { law: 'heat-binding', state: 'some-future-state' } },
+    };
+
+    expect(groundLawLines(future)).toEqual(['빙원 — some-future-state']);
   });
 
   it('자리 밖이면 법칙의 줄이 없다', () => {

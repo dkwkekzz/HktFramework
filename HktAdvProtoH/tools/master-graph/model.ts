@@ -72,6 +72,7 @@ export interface GraphEdge {
 }
 
 export type EdgeKind =
+  | 'arises_from' // MW → MW   이 상태를 낳은 상위 세계 상태 — **세계의 인과 척추**
   | 'causes' // MW → MG   이 상태가 Goal 을 발생시킨다
   | 'changed_by' // MW → MP   이 상태를 바꾸는 Possibility
   | 'demands' // MW → MC   이곳을 감당하려면 갖춰야 하는 Capability
@@ -320,6 +321,11 @@ function deriveEdges(nodes: Map<string, GraphNode>): GraphEdge[] {
     const r = node.raw;
     switch (node.type) {
       case 'world_state':
+        // arises_from 은 **부모를 가리킨다** — 간선은 낳은 쪽에서 낳아진 쪽으로 그린다.
+        // SCHEMA.md 가 이것을 "세계의 인과 척추" 라 부르는데도 오래 간선이 아니었다.
+        // 그동안 척추는 world-state.yaml 머리의 손으로 그린 ASCII 주석으로만 있었고,
+        // 그래서 GRAPH.md 를 읽는 사람은 세계의 인과를 볼 수 없었다.
+        for (const t of asList(r.arises_from)) push(t, node.id, 'arises_from');
         for (const t of asList(r.causes)) push(node.id, t, 'causes');
         for (const t of asList(r.changed_by)) push(node.id, t, 'changed_by');
         for (const t of asList(r.demands)) push(node.id, t, 'demands');

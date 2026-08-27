@@ -14,7 +14,7 @@
       "name": "Wanderer 1",
       "kind": "wanderer",
       "position": {
-        "x": 3.2464793691123273,
+        "x": 3.4305302379284592,
         "z": 0
       },
       "vitality": {
@@ -39,7 +39,6 @@
           "actionSpeed": 1
         },
         "acquainted": false,
-        "marks": [],
         "concealed": [
           "combatStats",
           "versusObserver",
@@ -57,6 +56,7 @@
         },
         "stanceTowardObserver": "hostile",
         "stanceFromObserver": "neutral",
+        "marks": [],
         "guard": {
           "guarding": false,
           "broken": false
@@ -71,7 +71,7 @@
           "z": 1
         },
         "velocity": {
-          "x": 0.18329662483221304,
+          "x": 0.2302177493839772,
           "z": 0
         }
       }
@@ -83,7 +83,7 @@
       "name": "Player 1",
       "kind": "rabbit-swordsman",
       "position": {
-        "x": -0.040563607056827156,
+        "x": -0.03236360284688907,
         "z": 0
       },
       "vitality": {
@@ -108,7 +108,6 @@
           "actionSpeed": 1
         },
         "acquainted": true,
-        "marks": [],
         "concealed": [],
         "insight": 0,
         "allocation": {
@@ -140,6 +139,7 @@
           "resistanceMultiplier": 0.9195402298850575
         },
         "defenseShape": "physical-tougher",
+        "marks": [],
         "guard": {
           "guarding": false,
           "broken": false
@@ -261,6 +261,32 @@
       }
     },
     {
+      "id": "skill-mark",
+      "role": "skill-mark",
+      "available": true,
+      "profile": {
+        "baseDamage": 0,
+        "attackRatio": 0,
+        "rawDamage": 0,
+        "charge": 0,
+        "cost": 10,
+        "damageType": "aura",
+        "swingBegin": 0.25,
+        "swingEnd": 0.75,
+        "swingArc": 2.6179938779914944,
+        "swingReach": 1.3,
+        "swingTipRadius": 0.7,
+        "requires": [
+          {
+            "id": "no-mark-of-mine-yet",
+            "met": true,
+            "reason": "already-marked-by-them"
+          }
+        ],
+        "conditions": []
+      }
+    },
+    {
       "id": "skill-hatsu",
       "role": "skill-hatsu",
       "available": true,
@@ -293,6 +319,11 @@
             "id": "life-below-half",
             "holds": true,
             "bonus": 0.4
+          },
+          {
+            "id": "bears-my-mark",
+            "holds": false,
+            "bonus": 0.5
           }
         ]
       }
@@ -479,24 +510,48 @@
   "ground": {
     "zones": [
       {
-        "id": "zone-ice-field",
+        "id": "zone-vein-1",
         "law": "heat-binding",
-        "role": "law",
+        "phase": "venting",
+        "fill": 0.9733333333333348,
         "center": {
-          "x": -11,
-          "z": 11
+          "x": -13.5,
+          "z": 13.5
         },
-        "radius": 7
+        "radius": 5
       },
       {
-        "id": "zone-sunbreath",
+        "id": "zone-vein-2",
         "law": "heat-binding",
-        "role": "respite",
+        "phase": "binding",
+        "fill": 0.75,
         "center": {
-          "x": -13,
-          "z": 13
+          "x": -8.5,
+          "z": 13.5
         },
-        "radius": 2.5
+        "radius": 5
+      },
+      {
+        "id": "zone-vein-3",
+        "law": "heat-binding",
+        "phase": "binding",
+        "fill": 0.25,
+        "center": {
+          "x": -13.5,
+          "z": 8.5
+        },
+        "radius": 5
+      },
+      {
+        "id": "zone-vein-4",
+        "law": "heat-binding",
+        "phase": "binding",
+        "fill": 0.5,
+        "center": {
+          "x": -8.5,
+          "z": 8.5
+        },
+        "radius": 5
       }
     ],
     "self": {
@@ -585,7 +640,7 @@
       "deedsAfter": 1,
       "levelBefore": 0,
       "levelAfter": 0,
-      "since": 0.49999999999999994
+      "since": 0.5333333333333333
     }
   ],
   "hud": [
@@ -802,10 +857,10 @@
       "skill": "hatsu-burst",
       "amount": 76,
       "at": {
-        "x": 1.920361251752349,
+        "x": 2.1057369505939203,
         "z": 0
       },
-      "since": 0.49999999999999994,
+      "since": 0.5333333333333333,
       "breakdown": {
         "damageType": "aura",
         "attackerAllocation": "hatsu",
