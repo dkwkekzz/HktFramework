@@ -39,7 +39,7 @@ Feedback · BACKLOG)를 겹쳐 `LANES.html` 로 그린다. `npm run lanes:check`
 | VIEW | OPEN | BACKLOG 다음 항목(drag-and-drop)부터 — 기반 동반이 필요한 셋(tip-flip-at-the-edge · escape-leaves-the-field · workspace-two-columns)은 ENGINE 뒤에 잡는다 | 없음 |
 | MASTER | OPEN | **BT §16 세계 골격 주입 끝** — 열한 고리 중 열이 노드로 섰고(순환·지형·생존 압력·적응·자원·피난처·정착·증거 일곱이 신규), 대응표가 `graph/world-state.yaml` 머리에 있다. Q63(a)·Q64(b) 닫힘 — 순환이 이제 `MG-EXPLORE-BEIRA` 를 낳는다. 다음은 OPTIONS Q35 (몸이 아닌 존재를 요구하는 Possibility) — 이제 스킬 실행 형태의 빈 다섯 칸만 막는다. 성장(GS · GB)과 전투 상층(UL) 주입은 둘 다 끝났다: 결정 열(Q52~Q61) 반영 · GROWTH 후보 3 · COMBAT 후보 10 과 SELECTED 까지 | 없음 — 미처리 Feedback 이 0 이다 (`npm run feedback:gate`) |
 | ENGINE | OPEN | 셋 — ① **자판이 표면 안을 다니는 길** — 정해진 초점 차례가 없고(`tabindex` 0건), 글자 자리에서 `Esc` 가 죽는다(붙잡는 단계가 `INPUT` 에서 비켜 주고 받는 자리가 없다). 다시 그릴 때 초점을 붙드는 자리는 이미 섰다. BACKLOG 의 `escape-leaves-the-field` · `skill-focus-order` 가 이것을 기다린다 ② **겹침 표면의 자리 잡기** — 곁말이 가장자리에서 접히는 일 · 구획을 나란히 놓는 일 (`tip-flip-at-the-edge` · `workspace-two-columns`) ③ 지면 구역 장치 `SceneGroundZone` ([design/Design-Terrain-Visualization.md](../../design/Design-Terrain-Visualization.md)) — C-TERRAIN-001 의 04 확정 뒤 | 없음 |
-| PROCESS | OPEN | 없음 — 보고 형식이 guides/works.md 의 "보고" 절에 섰다 | 없음 |
+| PROCESS | OPEN | 없음 — 마지막 작업: `arises_from` 이 어떤 생성 뷰에도 그려지지 않던 것을 고쳤다 (`tools/master-graph/` — SCHEMA 가 "세계의 인과 척추" 라 부르면서도 간선이 아니었다). 보고 형식은 guides/works.md 의 "보고" 절에 섰다 | 없음 |
 
 ## 레인 사이 충돌 — 순서가 아니라 파일이 겹치는 곳
 

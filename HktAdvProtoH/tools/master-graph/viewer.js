@@ -27,6 +27,7 @@
   const layerOf = (t) => (t === 'belief' ? 'knowledge' : t);
 
   const EDGE_STYLE = {
+    arises_from: { color: 'var(--world)', label: '낳는다 (인과 척추)', dash: '', w: 2.4 },
     causes: { color: 'var(--world)', label: '세계가 만든다', dash: '', w: 1.6 },
     wants: { color: 'var(--actor)', label: '원한다', dash: '4 3', w: 1.4 },
     achieves: { color: 'var(--goal)', label: '갈래 (OR)', dash: '', w: 1.6 },
@@ -44,7 +45,7 @@
   };
 
   // 서브그래프 추적에 쓰는 뼈대 관계 — supports/opposes 는 곁가지라 제외한다
-  const BACKBONE = new Set(['causes', 'wants', 'achieves', 'requires', 'reveals', 'motivation', 'creates_goal']);
+  const BACKBONE = new Set(['arises_from', 'causes', 'wants', 'achieves', 'requires', 'reveals', 'motivation', 'creates_goal']);
 
   const byId = new Map(G.nodes.map((n) => [n.id, n]));
   const readiness = G.readiness;
