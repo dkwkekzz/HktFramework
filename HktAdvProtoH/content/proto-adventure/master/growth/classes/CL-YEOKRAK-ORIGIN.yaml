@@ -56,6 +56,12 @@ grants_note: >
   적어 두었다. 필요가 먼저 서고 노드가 따라왔다.
   MC-USE-TERRAIN 은 그대로 둔다 — 지형을 유리하게 쓰는 것과 아래쪽을 바꾸는 것은 다른 일이다.
 
+  **기술 쪽에서 걸리는 것 둘.** 반류가 비틀 **투사체 자체가 세계에 없고**
+  (MS-SKILL-FORM 의 빈 칸 · Q35), 천락참(FC §4.7 Skill 4)의 "낙하 거리가 길수록 충돌
+  Momentum 이 커진다" 는 위아래가 서야 성립한다. MC-REDEFINE-DOWN 과
+  MC-REDIRECT-FALLING-THING 은 노드로 섰으나 **세계에 위아래가 없어** 아직 놓을 자리가
+  없다 (`WorldPosition` 은 x·z 뿐 — frontier/terrain.md 의 "지금 열 수 없는 것").
+
 # ── 관문 넷 (Human 결정 — HISTORY Q70(c)) ─────────────────────────────
 response: >
   역보 — 공격이 닿기 직전 자신의 낙하 방향을 옆으로 바꾼다. 그냥 하면 판정에서
