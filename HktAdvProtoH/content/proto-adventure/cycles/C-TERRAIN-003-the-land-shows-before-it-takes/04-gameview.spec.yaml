@@ -1,0 +1,154 @@
+# CYCLE C-TERRAIN-003 — GameView Specification
+#
+# C-TERRAIN-002 가 자리에 **시간**을 실었다 (지금 어느 단계이고 얼마나 찼는가).
+# 이 계약이 자리에 **앞**을 싣는다 — 아직 일어나지 않은 것.
+#
+# 더하는 것은 둘뿐이고 둘 다 같은 값이다.
+#
+#   ① ground.zones[].omen   그 자리에 오는 것이 얼마나 다가왔는가 (0..1)
+#   ② ground.self.omen      내가 선 자리의 같은 값
+#
+# 이 세계의 관찰에 **아직 일어나지 않은 것**이 실리는 것은 처음이 아니다 — C019 가
+# 행동의 앞 구간과 그 진행도를 실었다 (`state: swing-begin` · `progress`). 그 형태를
+# 땅에 붙이는 것이 이 계약이며, 그래서 새 모양을 만들지 않는다.
+#
+# 남은 초는 실리지 않는다. `omenLead` 도 실리지 않으므로 화면은 초로 환산할 수 없고,
+# "3.2초 뒤" 를 그릴 방법이 없다 (DC-WORLD-OWNS-THE-SURFACE-LIST).
+id: VIEW-THE-LAND-SHOWS-BEFORE-IT-TAKES-001
+observer: player
+
+delta:
+  reused:
+    - scene.mining-field
+    - entities.* / entityHud
+    - inventory / inventoryRoom / equipment / allocations / growth / growthEvents
+    - strikeEvents / unharmedContacts / cancelEvents
+    - currentTarget / commandCatalog
+    - debugObserve / debugAuthority
+    - observer / session / delivery / identity / telemetry
+    - ground.zones[].id / law / phase / fill / center / radius
+    - ground.self.law / state / takes          # **state 에 새 값이 없다** (03 OBSERVABLE)
+    - hud.*                                    # self.warmth · self.warmthMax 포함해 그대로
+    - interactions.*
+  added:
+    - ground.zones[].omen                      # 그 자리에 오는 것의 진행도
+    - ground.self.omen                         # 내가 선 자리의 같은 값
+  changed: []
+  removed: []
+
+scene: mining-field
+
+ground:
+  zones:
+    cardinality: many
+    source: World.GroundZones
+    fields:
+      # id · law · phase · fill · center · radius 는 C-TERRAIN-002 그대로 — 여기 다시 적지 않는다
+      omen:
+        source: GroundZone.Omen / Law.OmenLead   # 세계가 나눈다
+        meaning: >
+          **그 자리에 오는 것이 얼마나 다가왔는가** — 0 은 막 드러난 것, 1 은 곧 온다.
+          조짐이 없으면 **없음**이다.
+
+          "있다/없다" 가 아니라 진행도인 것이 이 항목의 요점이다. 드러난 직후와 곧 올 때가
+          구분되지 않으면 "읽고 움직일 시간이 있다" 가 플레이에서 성립하지 않는다 —
+          보자마자 뛰거나 보고도 모르거나 둘뿐이 된다.
+
+          **남은 초가 아니다.** 초를 실으면 화면이 시계를 그리게 되고, 그것은 세계가
+          답할 이유가 없는 물음이다. 사람은 무늬가 짙어지는 것을 보고 판단한다.
+
+          `phase = venting` 인 자리에는 실리지 않는다 — 뿜는 자리는 급습하지 않는다.
+        range: [0, 1]
+        nullable: true
+        delta: ADDED
+    meaning: >
+      조짐은 **자리 전체**의 것이다. 자리 안에서 어디에 서 있는가로 다시 갈리지 않는다
+      (02-intent.md REVIEW QUESTION 3). BT §5.4 의 "원형으로 퍼지는 서리 무늬" 처럼
+      중심에서 퍼지는 그림을 원하면 **화면이 그렇게 그리면 된다** — 세계는 자리 하나에
+      진행도 하나를 준다.
+
+  self:
+    cardinality: one
+    source: 관찰자의 몸
+    fields:
+      # law · state · takes 는 C-TERRAIN-002 그대로. **state 값은 넷 그대로다**
+      omen:
+        source: 내가 선 자리의 GroundZone.Omen / Law.OmenLead
+        meaning: >
+          내가 선 자리에 오는 것이 얼마나 다가왔는가. 조짐이 없으면 없음.
+
+          `zones` 에서 내 위치로 골라 낼 수 있는 값을 **굳이 다시 싣는 이유**는,
+          그것을 골라 내는 일이 판정이기 때문이다 — 어느 자리가 나를 품는가는 세계가
+          이미 아는 것이고, 화면이 거리를 재는 순간 판정이 두 곳에 산다
+          (`ground.self.state` 를 따로 싣는 것과 같은 이유 · C-TERRAIN-001).
+
+          겹친 자리 여럿이 조짐을 지니면 세계가 **가장 다가온 것**을 준다 — 사람이
+          치를 다음 값이 그것이기 때문이다.
+        range: [0, 1]
+        nullable: true
+        delta: ADDED
+
+hud:
+  change: NONE
+  # 지닌 열은 이미 실려 있다. 급습으로 크게 줄어드는 것은 같은 값이 크게 움직이는 것이다.
+
+interactions:
+  change: NONE
+  # 읽는 것도 피하는 것도 아무 요청을 요구하지 않는다. 걷기 하나뿐이다
+  # (INTENT-STANDING-IS-THE-WHOLE-INPUT-001). **읽기를 Action 으로 만들지 않는다** —
+  # 만들면 "읽었다" 가 세계의 상태가 되고, 읽은 사람과 아닌 사람을 세계가 가르게 된다.
+  # 이 Cycle 의 요점은 그 판정이 **사람의 눈**에 있다는 것이다.
+
+designer:
+  goal: 미리 아는 것이 결과를 바꾼다
+  possibility: 들어가서 겪으며 알아낸다 (MP-LEARN-TO-HANDLE-THE-LAYER)
+  availability:
+    - ground.self.omen                 # 지금 나에게 무언가 오는가
+    - ground.zones[].omen              # 어느 자리가 곧 터지는가
+  preconditions:
+    - ground.zones[].fill              # 문턱에 얼마나 가까운가 (조짐의 원인)
+    - ground.zones[].phase             # 뿜는 자리는 조짐을 지니지 않는다
+  before_after:
+    - hud[self.warmth]                 # 급습에서 한 번에 크게 준다 · 읽고 나가면 그대로다
+    - ground.zones[].fill              # 급습이 넣은 만큼 오른다
+    - ground.zones[].phase             # 그래서 넘침이 앞당겨진다
+  reason:
+    - taking · warming · sheltered · none   # 그대로 — 조짐은 state 를 늘리지 않는다
+
+closure:
+  - 어느 자리에 무언가 오는지 본다              zones[].omen 이 있다
+  - 얼마나 다가왔는지 안다                     그 값이 0 → 1 로 오른다
+  - 내 발밑에 오는지 안다                      self.omen
+  - 읽고 걸어 나갈 시간이 있다                  omen 이 1 에 닿기 전에 자리를 벗어난다
+  - 나가면 겪지 않는 것을 본다                  hud[self.warmth] 가 그대로다
+  - 읽지 못하면 겪는 것을 본다                  hud[self.warmth] 가 한 번에 크게 준다
+  - 겪은 뒤 그 자리가 열리는 것을 본다           zones[].fill 이 1 이 되고 phase 가 venting
+  - 뿜는 자리에는 조짐이 없는 것을 본다          phase = venting 이면 omen 이 없다
+  - 조짐이 걷히는 것을 본다                    자리가 비어 문턱 아래로 내려가면 omen 이 사라진다
+
+excluded:
+  문턱 · 앞선 시간 · 급습이 거두는 양 (surgeAt · omenLead · surgeTake):
+    실으면 화면이 "몇 초 뒤에 얼마를 잃는다" 를 계산할 수 있게 된다. 그것은 세계가
+    답할 이유가 없는 물음이며, 이 Cycle 이 세우는 것은 **읽는 사람의 판단**이지
+    화면이 대신해 주는 계산이 아니다
+  남은 초:
+    같은 이유. 진행도만 싣는다
+  급습이 언제 다시 오는가:
+    세계 안에는 규칙이 있으나(문턱 위면 다시 선다) 그것을 예고로 싣지 않는다 —
+    한 번의 앞만 싣는다. 주기를 세는 것은 MC-TIME-THE-CYCLE 이며 아직 Target 이 아니다
+  남의 몸에 오는 조짐:
+    내 몸의 것만 실린다 (INTENT-PER-OBSERVER-PROJECTION-001). 다만 `zones` 는 모두의
+    것이므로 남이 어딘가를 채워 문턱을 넘기면 **그 자리의 omen 으로 보인다**
+  안전한 자리까지의 거리 · 어디로 피하라는 안내:
+    실으면 화면이 길을 안내하게 된다. MC-FIND-SAFE-ROUTE 는 아직 Target 이 아니다
+  조짐의 모양 (원형 · 중심 · 색):
+    세계는 진행도 하나를 준다. 그것을 서리 무늬로 그릴지 검은 빛으로 그릴지는
+    화면의 결정이다 (BT §5.4 가 둘 다 적어 두었다)
+
+engine_contract:
+  primitive: SceneGroundZone
+  change: NONE
+  note: >
+    `intensity` 를 C-TERRAIN-002 가 뿜음의 맥동으로 이미 쓴다. 조짐은 그것과 겹치지
+    않는 자리로 그려야 하며(뿜는 자리에는 조짐이 없으므로 한 자리에서 동시에 쓰일 일은
+    없다), 어떻게 그릴지는 07 이 정한다. 기반은 열지 않는다.
