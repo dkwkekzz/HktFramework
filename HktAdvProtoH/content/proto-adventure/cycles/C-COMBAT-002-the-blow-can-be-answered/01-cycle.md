@@ -1,7 +1,7 @@
 # CYCLE C-COMBAT-002 — 닿는 순간에 대답할 수 있다
 
 [PASS] Cycle Definition
-[    ] Intent
+[PASS] Intent
 [    ] World Semantic
 [    ] GameView Specification
 [    ] Human Semantic Review
