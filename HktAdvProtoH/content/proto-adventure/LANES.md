@@ -33,7 +33,7 @@ Feedback · BACKLOG)를 겹쳐 `LANES.html` 로 그린다. `npm run lanes:check`
 |---|---|---|---|
 | FEEDBACK | OPEN | `C-COMBAT-003` 의 MASTER FEEDBACK 이 미처리 1건 (`npm run feedback:gate`) — Overlay 둘(MC-ABILITY-CONDITION · MC-AURA-ALLOCATION) · Constraint 판정 일곱 · 후보 둘 · Gap 셋 | 없음 — 다만 **병합 뒤 최신 main 위에서** 돈다 (`overlay.md` 는 공유 파일이다) |
 | WORLD·ITEM | HUMAN | 후보 5 중 선택 대기 — Agent 추천 FR-THE-PLACES-ARE-NARROWER (+FR-SEE-BEFORE 얹기) | Human Select (frontier/item.md) |
-| WORLD·COMBAT | HUMAN | `C-COMBAT-003`(세계가 무엇이 가능한지를 정한다) Stage 8 까지 닫혔다 — 6종 중 Playable 만 HOLD. **Human Play 대기**: `npm run dev` → 넷째 기술 칸(`O` 발현 일격)이 회색이고 사유가 읽히는가 → `U` → `3` 으로 옮기면 살아나는가 → `O` 가 고급 기술(`G`)보다 크게 들어가는가. `C-COMBAT-001` 도 여전히 Human Play 대기 (`U` → `2`) | Human Play (두 Cycle) |
+| WORLD·COMBAT | RUNNING | `C-COMBAT-004` — `FR-WHAT-YOU-LEAVE-ON-THEM`(상대에게 남긴 것이 다음을 바꾼다). `C-COMBAT-003` 은 **COMPLETE** — 그 Cycle 의 MASTER FEEDBACK 이 미처리로 FEEDBACK 레인에 걸려 있다. `C-COMBAT-001` 은 여전히 Human Play 대기 (`U` → `2`) | 없음 |
 | WORLD·TERRAIN | HUMAN | 후보 3 중 선택 대기 — Agent 추천 `FR-THE-LAND-KEEPS-WHAT-IT-TAKES`(땅이 거둔 것을 간직한다). `C-TERRAIN-001` COMPLETE · Feedback 반영 끝 | Human Select (frontier/terrain.md) |
 | WORLD·GROWTH | HUMAN | 후보 2 중 선택 대기 — **SELECTED 가 비었다.** `C-GROWTH-001` COMPLETE · Feedback 반영 끝. Agent 추천 `FR-THE-SKILL-LEARNS-A-NEW-MOVE`(쓰던 기술이 새 수를 배운다) — 승인된 Constraint 하나를 세계에서 닫는 유일한 후보이고 바닥이 선 지금 얹히는 비용이 가장 작다 | Human Select (frontier/growth.md) |
 | WORLD·KNOWLEDGE | HUMAN | **트랙이 방금 섰다** — 후보 일곱 중 선택 대기. 전투 지식(CK) 주입으로 판단이라는 층이 세워졌다. 의존이 빈 것은 `FR-WHAT-YOU-KNOW-FIGHTS-WITH-YOU`(배운 것이 몸의 판단이 된다) 하나이며 나머지 여섯이 전부 그것을 전제한다 — 이 트랙에는 고민할 순서가 없다. **철회된 대응 층이 돌아올 자리이기도 하다** (CK §15) | Human Select (frontier/knowledge.md) |
@@ -74,7 +74,6 @@ Human 이 답하면 풀리는 것들이다. 답의 자리는 괄호가 가리킨
 | Q67 — 병렬 레인이 공유하는 두 자리가 어긋난다 (open-questions.md · PROCESS) | Q 번호 충돌과 `frontier/README.md` 트랙 표의 낡음이 되풀이되는 것을 막는다. 이번 합류에서 둘 다 실제로 났다 |
 | `CC-THE-RULE-DOES-NOT-ASK-WHO-DRIVES` 승격 여부 (candidates/) | 규칙이 조종 주체를 묻지 않는 것이 원칙이 되는가 — 다섯 Cycle 이 같은 판단을 반복했다. `DC-GROWTH-DIFFERENCE-IS-BEHAVIOR` 와 합칠지도 함께 |
 | `CC-ORDER-IS-THE-ADDRESS` 승격 여부 (candidates/) | 순서로 짚는 것이 원칙이 되는가 — DC-WORLD-OWNS-THE-SURFACE-LIST 와 합칠지도 함께 |
-| C-COMBAT-003 Human Play — `U` → `3` → `O` | Stage 8 STATUS 가 COMPLETE 로 닫힌다. 이 환경(헤드리스·소프트웨어 GPU)에서는 어떤 요청도 세계에 닿지 않아 재지 못했다 — 이 Cycle 의 결함이 아니다 (같은 절차에서 기본 기술도 닿지 않는다). 봐야 할 것은 넷: 회색 칸의 사유가 읽히는가 · 옮기면 살아나는가 · 고급 기술보다 크게 들어가는가 · 생명이 절반 아래일 때 더 크게 들어가고 그 이유가 경위에서 되짚어지는가 |
 | C-COMBAT-003 의 Overlay 판정 하나 (08-verification MASTER FEEDBACK) | `MC-AURA-ALLOCATION` 을 IMPLEMENTED 로 볼 것인가 — semantic("무엇을 할 수 있는가를 가른다")으로 읽으면 닫혔고, detail 의 예 둘(인지 축도 관문이 된다)을 요구로 읽으면 아직 PARTIAL 이다. Q66 과 같은 종류의 물음이다 |
 | `CC-THE-LIST-IS-THE-JUDGE-TOO` 승격 여부 (08-verification MASTER FEEDBACK) | 세계가 목록을 소유한다는 규율이 **투영뿐 아니라 판정에도** 걸리는가 — 이번에 `isSkillKind` 가 목록 대신 이름 셋을 적어 두어 새 기술이 시작은 되고 칼끝을 만들지 않았다. 관찰 둘째다 (C018 이 첫째). 기존 `DC-WORLD-OWNS-THE-SURFACE-LIST` 의 scope 를 넓힐지도 함께 |
 | C-COMBAT-001 Human Play — 손으로 `U` → 숫자를 눌러 보기 | Stage 8 STATUS 가 COMPLETE 로 닫힌다 (Feedback 은 이미 반영됐다). 봐야 할 것은 이제 **하나**다 (나머지 둘은 08 의 HUMAN PLAY 보조가 재어 BACKLOG 로 넘겼다): 상대를 절반 아래로 때렸을 때 뜨는 `[몸]` 이, 표시가 셋까지 앞에 붙은 이름(`[적대] 준비! [몸]Wanderer 1 ?`)에서 교전 중에 읽히는가 |

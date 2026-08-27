@@ -23,8 +23,9 @@
       ↓
     TAKE-AWAY-WHAT-THEY-CAN-DO
 
-`Depends on` 이 빈 것과 그 앞이 이미 닫힌 것만 지금 고를 수 있다 — **지금은 첫째 하나다.**
-나머지는 자리를 잡아 두는 것이며, 그래야 이 층 전체가 어디로 가는지가 한 화면에서 보인다.
+`Depends on` 이 빈 것과 그 앞이 이미 닫힌 것만 지금 고를 수 있다 — **첫째가 닫혔으므로
+지금은 둘째 하나다.** 나머지는 자리를 잡아 두는 것이며, 그래야 이 층 전체가 어디로 가는지가
+한 화면에서 보인다.
 
 ## 후보
 
@@ -75,7 +76,9 @@
                          느는 것은 사정 목록의 항목과 그것을 읽는 관문 하나다
     Depends on           없음 — 다만 첫 조건이 무엇을 볼지는 그 Cycle 의 Stage 1 이 고른다.
                          "상대가 나를 먼저 쳤는가" 는 지금 세계에서 이미 판정 가능하다
-    Status               SELECTED
+    Status               DONE — `C-COMBAT-003` COMPLETE (2026-08-27).
+                         **Overlay 반영은 아직이다** — 그 Cycle 의 MASTER FEEDBACK 이
+                         미처리이며 병합 뒤 최신 main 위에서 돈다 (feedback:gate)
 
 ### FR-WHAT-YOU-LEAVE-ON-THEM — 상대에게 남긴 것이 다음을 바꾼다
 
@@ -118,8 +121,9 @@
                          그 차이의 원인이 표식으로 경위에 남는다
     Why one Cycle        새 상태가 하나다 — 누가 누구에게 언제 표식을 남겼는가
     Depends on           FR-THE-WORLD-DECIDES-WHAT-IS-POSSIBLE — 표식을 읽을 관문이 먼저다.
-                         관문 없이 표식만 있으면 아무것도 달라지지 않는다
-    Status               PROPOSED
+                         관문 없이 표식만 있으면 아무것도 달라지지 않는다.
+                         **그 관문이 섰다** (`C-COMBAT-003` COMPLETE) — 의존이 풀렸다
+    Status               SELECTED
 
 ### FR-A-PROMISE-BINDS-BOTH — 스스로 건 약속이 둘을 묶는다
 
@@ -272,12 +276,12 @@
 
 ## 추천 순서 (Agent 제안 — 확정은 Human)
 
-    1. FR-THE-WORLD-DECIDES-WHAT-IS-POSSIBLE  ← SELECTED · 사슬 B 의 바닥 — 의존이 없다.
+    1. FR-THE-WORLD-DECIDES-WHAT-IS-POSSIBLE  ← DONE (C-COMBAT-003) · 사슬 B 의 바닥.
                                            **직전 Cycle 이 남긴 절반을 닫는다** —
                                            배분이 값만 바꾸고 무엇을 할 수 있는가의
                                            목록을 바꾸지 않는 것이 MC-AURA-ALLOCATION 의
                                            남은 결손이고, 그 관문이 여기다
-    2. FR-WHAT-YOU-LEAVE-ON-THEM
+    2. FR-WHAT-YOU-LEAVE-ON-THEM           ← SELECTED · 관문이 서서 의존이 풀렸다
     3. FR-A-PROMISE-BINDS-BOTH             MP-BIND-BY-CONTRACT 가 닫힌다 · 가장 크다
     4. FR-KNOW-WHAT-THEY-CAN-DO
     5. FR-TAKE-AWAY-WHAT-THEY-CAN-DO       MP-KNOW-THE-OPPONENT-RULE 이 닫힌다
@@ -296,21 +300,24 @@ Q60(c) 로 빠졌으므로 관찰자와 묶는 자 둘로 검증한다.
 ## SELECTED
 
 ```text
-FR-THE-WORLD-DECIDES-WHAT-IS-POSSIBLE — 세계가 무엇이 가능한지를 정한다
-Cycle   C-COMBAT-003 (착수)
+FR-WHAT-YOU-LEAVE-ON-THEM — 상대에게 남긴 것이 다음을 바꾼다
+Cycle   C-COMBAT-004 (착수)
 선택    Human 위임 — Agent 추천대로 · 2026-08-27
 ```
 
-    고른 사유는 셋이다. **의존이 비었다** — 사슬 A 가 빠진 뒤 이 트랙에서 지금 고를 수
-    있는 것은 이것뿐이다. **직전 Cycle 의 남은 절반을 닫는다** — 배분(C-COMBAT-001)이
-    값만 바꾸고 무엇을 할 수 있는가의 목록을 바꾸지 않는 것이 `MC-AURA-ALLOCATION` 의
-    결손이고, 그 관문이 이 후보다. **사슬 B 의 바닥이다** — 표식 · 계약 · 규칙 관찰 ·
-    봉인 넷이 전부 이 관문 위에 선다.
+    고른 사유는 셋이다. **의존이 방금 풀렸다** — 표식을 읽을 관문이
+    `C-COMBAT-003` 으로 섰고, 이 트랙에서 지금 고를 수 있는 것은 이것뿐이다.
+    **사슬 B 의 둘째다** — 계약(3)도 규칙 관찰(4)도 봉인(5)도 전부 이 위에 선다.
+    **관문이 읽을 첫 세계 사실이 된다** — 지금 사정 셋은 전부 *자기* 쪽을 보고
+    (배분 · 생명) 하나만 상대를 본다(맞음). 표식은 **대상에 남는** 첫 사실이다.
 
-    Cycle ID 는 `C-COMBAT-002` 를 재사용하지 않는다 — 그 번호는 철회된 사슬 A 의
-    첫 Cycle 이 이미 썼다 (HISTORY "사슬 A 철회").
+    직전 Cycle 이 남긴 Master Gap ② 를 이 Cycle 이 정면으로 받는다 —
+    관문에는 상대가 없어 "대상에 표식이 있는가" 를 요구로 걸 수 없다.
+    그것을 넓히는 일이 이 Cycle 의 첫 일이며, 후보의 결손이 아니다.
 
     직전 반영 경위: [../feedback/C-COMBAT-001-where-your-power-sits.md](../feedback/C-COMBAT-001-where-your-power-sits.md)
+    `C-COMBAT-003` 의 MASTER FEEDBACK 은 **미처리다** — 병합 뒤 최신 main 위에서
+    FEEDBACK 레인이 받는다 (`npm run feedback:gate`).
 
     사슬 A 로 열었던 `C-COMBAT-002` 는 Stage 5 앞에서 **철회됐다** (Human · 2026-08-27).
     경위는 master/HISTORY.md "사슬 A 철회" 가 지닌다.

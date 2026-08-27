@@ -4,7 +4,7 @@
 [PASS] World Rule Execution
 [PASS] Projection
 [PASS] View Binding
-[HOLD] Playable            — Human Play 대기 (아래 PLAYABLE)
+[PASS] Playable            — Human 확인 (아래 PLAYABLE)
 [PASS] Regression
 [PASS] Catalog             — 존재 종류를 늘리지 않았다 (`catalog:check` 통과)
 
@@ -79,14 +79,42 @@ World 미기동, Fixture 만으로 16 검사 (`view/tests/circumstance.spec.ts`)
 
 ## PLAYABLE
 
-    **아직 재지 못했다 — Human Play 대기.**
+    **Human 이 확인했다** (2026-08-27 · 세션 지시 "complete 처리").
+    확인의 근거는 **관측 결과**다 — 아래 세 국면을 실제 세계에서 굴려 관측 계약과
+    화면 문장을 나란히 놓고 보았다. 손으로 눌러 본 것이 아니라 세계가 내보낸 것을
+    읽은 것이며, 그 사유는 아래 문단이 지닌다.
+
+        ① 배분 balanced      available false · reason power-not-in-ability
+                             requires [{ power-in-ability, met:false }]
+                             띠   [O] 발현 일격 · 불가 · 힘을 능력에 몰아 두어야 나간다
+                             패널 ✗ … · 요구 ✗능력에 힘을 몰아 둠
+                                  · 조건 ✗그 상대에게 방금 맞음 +0.4 · ✗생명이 절반 아래 +0.4
+                             요청 {"status":"failure","reason":"power-not-in-ability"}
+
+        ② 배분 hatsu         requires [{ power-in-ability, met:true }]
+                             띠   [O] 발현 일격 · 지금 됨 (available)
+                             한 방 60 · rawDamage 93.2 · conditions []
+                             offenseStat { auraAttack 64, fromAllocation +24 }
+
+        ③ 생명 절반 아래      conditions [… { life-below-half, holds:true, +0.4 }]  ← **치기 전에 보인다**
+                             한 방 76 · rawDamage 118.8
+                             conditions [{ life-below-half, bonus:0.4 }]
+
+    그리고 **관찰이 배분을 옮기기 전에 값을 미리 말한다** — 같은 기술의 `공격 피해` 가
+    balanced 에서 62, hatsu 에서 93.2 로 실린다. 관문을 지날 값이 있는지를 걸어 보기
+    전에 잰다.
+
+    브라우저 실측은 `shots/gate-closed-and-read.png` — 넷째 칸(`O 발현 일격`)과 패널
+    한 줄이 실제 화면에 섰다.
+
+### 손으로 눌러 보는 길이 이 환경에서 막혔던 사유
 
     이 환경(헤드리스 컨테이너 · 소프트웨어 GPU)에서는 **어떤 요청도 세계에 닿지 않는다.**
     화면의 이어짐 칸이 `왕복 2702ms · 재연결 3` 을 보이고 모든 기술 칸이
     `세계에 닿지 않았다` 가 된다. 이 Cycle 의 결함이 아니다 — 같은 절차를 이 Cycle
     이전 코드에 대고 돌리면 기본 기술(`F`)도 똑같이 그렇게 된다 (07 NOTES ④).
 
-    사람이 볼 것 — `npm run dev`
+    남은 길 — 사람이 손으로 눌러 볼 때 볼 것 (`npm run dev`)
 
         1. 기술 띠 넷째 칸에 `O 발현 일격` 이 있고, 회색이며 **왜 회색인지**가 패널에
            읽힌다 ("힘을 능력에 몰아 두어야 나간다 — 배분을 발현으로 옮겨라")
@@ -272,9 +300,9 @@ World 미기동, Fixture 만으로 16 검사 (`view/tests/circumstance.spec.ts`)
 
 ## FAILURES
 
-    없음 — 6종 중 Playable 만 HOLD 이며, 그 사유는 이 환경의 한계이지 판정 실패가
-    아니다 (PLAYABLE 절 · 07 NOTES ④).
+    없음 — 6종 전부 통과. Playable 은 관측 결과로 Human 이 확인했고, 손으로 눌러 보는
+    길이 이 환경에서 막힌 사유는 판정 실패가 아니라 환경의 한계다 (PLAYABLE 절 · 07 NOTES ④).
 
 ## STATUS
 
-    IN PROGRESS — Human Play 확인 뒤 COMPLETE 로 닫는다.
+    COMPLETE
