@@ -18,6 +18,9 @@
 //   · **곁말**(tip)을 여는 일 — 손을 얹었을 때와 **초점이 닿았을 때 똑같이** 열고,
 //     Escape 로 닫는다. 곁말의 Escape 는 표면의 Escape 보다 먼저다: 읽던 것을 닫자고
 //     누른 손이 표면째 닫아 버리면 그 자리로 돌아오는 길이 사라진다
+//   · **자리 잡기** — 넘쳐 잘리지 않게 놓는 일이다. 곁말이 가장자리에서 **반대쪽으로
+//     접히고**(어느 쪽이 남았는지 재는 것은 그리는 쪽의 몫이다 — 판단은 `surface-tip.ts`),
+//     같은 이름의 이어진 구획이 **나란히 서고** 좁아지면 목록의 차례대로 다시 쌓인다
 //   · **자판이 표면 안을 다니는 길** — 잡아 둔 자판이 갈 곳을 주는 일이다
 //     (판단은 `surface-focus.ts`, 여기서는 마디를 만진다)
 //       Tab 은 표면 안에서 감긴다 — 뒤의 페이지로 새어 나가지 않는다
@@ -38,6 +41,10 @@ import { nextIndex } from '../input/focus';
 import { RAW_CODE, type CodeTextFn } from '../presentation/code-text';
 import type { SceneSurface, SceneSurfaceSection } from '../scene/scene-state';
 import { enterStop, escapeMeans, focusToClaim, tabStopId } from './surface-focus';
+import { tipPlacement } from './surface-tip';
+
+/** 곁말과 칸 사이의 틈 — CSS 의 같은 수와 짝이다 (`.sf-tip` 의 `calc(100% + 6px)`) */
+const TIP_GAP = 6;
 
 /**
  * Tab 이 서는 자리들 — **문서에 놓인 차례 그대로**다 (querySelectorAll 이 그 차례를 준다).
@@ -234,6 +241,44 @@ function renderSection(
 }
 
 /**
+ * 이어지는 같은 이름의 구획을 **한 묶음**으로 가른다.
+ *
+ * 이어진 것만 묶는다 — 사이에 다른 이름이 끼면 묶음은 거기서 끝난다. 그래야 화면에
+ * 서는 차례가 목록의 차례와 어긋나지 않는다 (좁아져 다시 쌓일 때도 같은 차례다).
+ *
+ * 이름이 없는 구획은 저마다 홀로 선다 — 오늘까지의 모든 표면이 그렇다.
+ */
+export function groupSections(
+  sections: readonly SceneSurfaceSection[],
+): SceneSurfaceSection[][] {
+  const runs: SceneSurfaceSection[][] = [];
+  for (const section of sections) {
+    const last = runs[runs.length - 1];
+    const lastName = last?.[0]?.group;
+    if (section.group !== undefined && last && lastName === section.group) last.push(section);
+    else runs.push([section]);
+  }
+  return runs;
+}
+
+function surfaceBody(surface: SceneSurface, textOf: CodeTextFn): string {
+  return groupSections(surface.sections)
+    .map((run) => {
+      const drawn = run.map((section) => renderSection(section, surface.focusId, textOf)).join('');
+      if (run.length < 2) return drawn;
+      // 한 자리의 가장 좁은 너비는 **묶음의 첫 구획**이 지닌다. 이 수가 곧 다시 쌓이는
+      // 문턱이다 — 좁아지면 그리는 쪽이 스스로 한 열로 돌아간다 (auto-fit)
+      const min = run[0]?.groupMin;
+      return (
+        `<div class="sf-group" data-group="${escape(run[0]!.group!)}"` +
+        (min !== undefined && min > 0 ? ` style="--sf-group-min:${Math.round(min)}px"` : '') +
+        `>${drawn}</div>`
+      );
+    })
+    .join('');
+}
+
+/**
  * 표면 하나의 표시 지시를 글자로 옮긴다 — **DOM 을 건드리지 않는 순수 함수**다.
  *
  * 그리는 일에서 이 부분만 떼어 둔 이유는 검사할 수 있게 하기 위해서다.
@@ -248,9 +293,7 @@ export function surfaceMarkup(surface: SceneSurface, textOf: CodeTextFn = RAW_CO
     `<header class="sf-head"><h2 class="sf-title">${escape(surface.title)}</h2>` +
     `<button type="button" class="sf-close" data-surface="${escape(surface.id)}"` +
     ` tabindex="0" title="${closeText}" aria-label="${closeText}">✕</button></header>` +
-    `<div class="sf-body">${surface.sections
-      .map((section) => renderSection(section, surface.focusId, textOf))
-      .join('')}</div>` +
+    `<div class="sf-body">${surfaceBody(surface, textOf)}</div>` +
     (surface.footer.length > 0
       ? `<footer class="sf-foot">${surface.footer
           .map((line) => `<span>${escape(line)}</span>`)
@@ -308,6 +351,33 @@ export function createSurfaceLayer(
         else delete el.dataset.tipOpen;
       }
     }
+    placeTip();
+  }
+
+  /**
+   * 열린 곁말 하나가 **어느 쪽으로 펴지는지** 재어 마디에 바른다.
+   *
+   * 펴 놓고 재는 순서다 — 접힌 채로는 크기가 없어 잴 것이 없다. 재는 것은 열려 있는
+   * 하나뿐이므로 한 프레임에 자 한 번이고, 그 자는 표면이 다시 그려진 뒤에도 다시
+   * 대어야 한다 (마디가 새것이라 발라 둔 것이 함께 사라진다).
+   */
+  function placeTip(): void {
+    if (!openTip) return;
+    const entry = drawn.get(openTip.surfaceId);
+    const cell = entry?.node.querySelector<HTMLElement>(
+      `.sf-cell[data-id="${CSS.escape(openTip.cellId)}"]`,
+    );
+    const tip = cell?.querySelector<HTMLElement>('.sf-tip');
+    if (!entry || !cell || !tip) return;
+    const box = tip.getBoundingClientRect();
+    const at = tipPlacement(
+      cell.getBoundingClientRect(),
+      entry.node.getBoundingClientRect(),
+      { width: box.width, height: box.height },
+      TIP_GAP,
+    );
+    cell.dataset.tipSide = at.side;
+    cell.dataset.tipAlign = at.align;
   }
 
   function showTip(surfaceId: string, cellId: string): void {
@@ -585,6 +655,13 @@ export function createSurfaceLayer(
         entry.node.setAttribute('aria-hidden', String(!surface.open));
         // 이름 없는 대화 상자가 되지 않게 — 제목이 곧 이 자리의 이름이다
         entry.node.setAttribute('aria-label', surface.title);
+        // 청한 너비 — **청함이지 명령이 아니다.** 화면이 그만큼 없으면 CSS 가 화면에
+        // 맞춘다 (그리는 쪽의 산수이며, 그래서 여기서는 재지 않는다)
+        if (surface.width !== undefined && surface.width > 0) {
+          entry.node.style.setProperty('--sf-width', `${Math.round(surface.width)}px`);
+        } else {
+          entry.node.style.removeProperty('--sf-width');
+        }
         if (!surface.open) continue;
         nowOpen.push(surface.id);
 

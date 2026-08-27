@@ -5,7 +5,7 @@
 // 그리고 화면이 조용히 지우는 것이 없어야 한다 — 빈 칸도, 안 되는 줄도 남는다.
 
 import { describe, expect, it } from 'vitest';
-import { SURFACE_TEXT_CODES, surfaceMarkup } from '../hud/surface';
+import { SURFACE_TEXT_CODES, groupSections, surfaceMarkup } from '../hud/surface';
 import type { CodeTextFn } from '../presentation/code-text';
 import type { SceneSurface } from '../scene/scene-state';
 
@@ -490,5 +490,52 @@ describe('surfaceMarkup — 자판이 서는 자리', () => {
     expect(html.match(/tabindex="-1"/g)).toBeNull();
     expect(html.match(/class="sf-cell"[^>]*tabindex="0"/g)).toHaveLength(2);
     expect(html.match(/class="sf-row"[^>]*tabindex="0"/g)).toHaveLength(2);
+  });
+});
+
+describe('groupSections — 나란히 서는 묶음', () => {
+  const at = (id: string, group?: string) => ({ id, ...(group === undefined ? {} : { group }) });
+
+  it('이름이 없으면 저마다 홀로 선다 — 오늘까지의 모든 표면이 그렇다', () => {
+    expect(groupSections([at('a'), at('b'), at('c')]).map((r) => r.length)).toEqual([1, 1, 1]);
+  });
+
+  it('이어지는 같은 이름끼리 묶인다', () => {
+    const runs = groupSections([at('tools'), at('worn', 'work'), at('bag', 'work'), at('detail')]);
+    expect(runs.map((r) => r.map((s) => s.id))).toEqual([['tools'], ['worn', 'bag'], ['detail']]);
+  });
+
+  it('사이에 다른 이름이 끼면 묶음은 거기서 끝난다 — 차례가 어긋나지 않게', () => {
+    const runs = groupSections([at('a', 'x'), at('b', 'y'), at('c', 'x')]);
+    expect(runs.map((r) => r.map((s) => s.id))).toEqual([['a'], ['b'], ['c']]);
+  });
+});
+
+describe('surfaceMarkup — 구획을 나란히 놓는다', () => {
+  it('묶인 것은 한 자리에 함께 들어가고 문턱은 첫 구획이 준다', () => {
+    const html = surfaceMarkup(
+      surface({
+        sections: [
+          { id: 'tools', rows: [{ id: 't0', text: '도구' }] },
+          { id: 'worn', group: 'work', groupMin: 300, rows: [{ id: 'w0', text: '걸어 둔 것' }] },
+          { id: 'bag', group: 'work', rows: [{ id: 'b0', text: '지닌 것' }] },
+        ],
+      }),
+      TEXT,
+    );
+    expect(html).toContain('<div class="sf-group" data-group="work" style="--sf-group-min:300px">');
+    // 묶이지 않은 구획은 감싸지 않는다 — 홀로 선 것에 자리를 하나 더 두지 않는다
+    expect(html.match(/class="sf-group"/g)).toHaveLength(1);
+    // 차례는 목록의 차례 그대로다
+    expect(html.indexOf('도구')).toBeLessThan(html.indexOf('걸어 둔 것'));
+    expect(html.indexOf('걸어 둔 것')).toBeLessThan(html.indexOf('지닌 것'));
+  });
+
+  it('혼자 남은 이름은 묶음이 되지 않는다 — 나란히 설 짝이 없다', () => {
+    const html = surfaceMarkup(
+      surface({ sections: [{ id: 'worn', group: 'work', rows: [{ id: 'w0', text: '걸어 둔 것' }] }] }),
+      TEXT,
+    );
+    expect(html).not.toContain('sf-group');
   });
 });
