@@ -52,6 +52,7 @@ import {
   RULE_OBSERVE_COMPLETE,
   RULE_OBSERVE_FORGET,
 } from '../../protocol/semantic-id';
+import { ruleDeedsAdd } from './deeds-add';
 import { concealedKeys, forgetActor, isAcquainted, learnActor } from '../semantic/acquaintance';
 import type { ActorState } from '../semantic/actor';
 import { distance } from '../semantic/position';
@@ -124,6 +125,10 @@ export function ruleObserveComplete(state: WorldState, actor: ActorState): Actio
   if (!observer) return { status: 'failure', rule: RULE_OBSERVE_COMPLETE, reason: 'no-observer' };
 
   learnActor(state.acquaintances, observer.id, targetId);
+  // C-GROWTH-001 — 살펴본 일이 몸에 남는다 (RULE-DEEDS-ADD-001).
+  // 이미 다 아는 상대는 살펴봄 자체가 거절되므로 (RULE-OBSERVE-BEGIN-001 · C016),
+  // 같은 상대를 되풀이해 살펴 무한히 쌓는 길은 세계에 없다.
+  ruleDeedsAdd(state, actor, 'observe');
   return { status: 'success', rule: RULE_OBSERVE_COMPLETE };
 }
 

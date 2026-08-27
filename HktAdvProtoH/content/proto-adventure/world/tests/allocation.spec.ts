@@ -343,7 +343,7 @@ describe('INTENT-DAMAGE-BREAKDOWN-001 (CHANGED) — 경위에 배분이 실린�
     const b = strikeOnce(arena());
     expect(b.attackerAllocation).toBe('balanced');
     expect(b.targetAllocation).toBe('balanced');
-    expect(b.offenseStat).toEqual({ name: 'physicalAttack', value: 40, fromAllocation: 0 });
+    expect(b.offenseStat).toEqual({ name: 'physicalAttack', value: 40, fromAllocation: 0, fromGrowth: 0 });
     expect(b.finalDamage).toBe(20); // C007 이래의 기준값
   });
 
@@ -353,7 +353,7 @@ describe('INTENT-DAMAGE-BREAKDOWN-001 (CHANGED) — 경위에 배분이 실린�
     const b = strikeOnce(world);
 
     expect(b.attackerAllocation).toBe('reinforce');
-    expect(b.offenseStat).toEqual({ name: 'physicalAttack', value: 56, fromAllocation: 16 });
+    expect(b.offenseStat).toEqual({ name: 'physicalAttack', value: 56, fromAllocation: 16, fromGrowth: 0 });
     expect(b.rawDamage).toBe(34); // 6 + 56 × 0.5
     expect(b.finalDamage).toBe(26); // 34 × 100/130 = 26.15 → 26
   });
@@ -362,7 +362,7 @@ describe('INTENT-DAMAGE-BREAKDOWN-001 (CHANGED) — 경위에 배분이 실린�
     const world = arena();
     setAllocation(world, 'hatsu');
     const b = strikeOnce(world);
-    expect(b.offenseStat).toEqual({ name: 'physicalAttack', value: 32, fromAllocation: -8 });
+    expect(b.offenseStat).toEqual({ name: 'physicalAttack', value: 32, fromAllocation: -8, fromGrowth: 0 });
     expect(b.finalDamage).toBe(17); // 22 × 100/130 = 16.9 → 17
   });
 
@@ -410,7 +410,7 @@ describe('INTENT-INSIGHT-001 (CHANGED) — 인지에 몰면 아는 범위가 넓
     setAllocation(world, 'hunter');
     const b = strikeOnce(world);
     // 인지에 몬 대가로 몸이 얇아졌을 뿐, 통찰이 피해에 들어가지는 않는다
-    expect(b.offenseStat).toEqual({ name: 'physicalAttack', value: 32, fromAllocation: -8 });
+    expect(b.offenseStat).toEqual({ name: 'physicalAttack', value: 32, fromAllocation: -8, fromGrowth: 0 });
     expect(b.finalDamage).toBe(17);
   });
 });
@@ -440,7 +440,7 @@ describe('RULE-NPC-ALLOCATION-001 — 자율 존재도 배분을 지닌다', () 
 
     const b = strikeOnce(world);
     expect(b.targetAllocation).toBe('reinforce');
-    expect(b.defenseStat).toEqual({ name: 'armor', value: 50, fromAllocation: 20 });
+    expect(b.defenseStat).toEqual({ name: 'armor', value: 50, fromAllocation: 20, fromGrowth: 0 });
     expect(b.finalDamage).toBe(17); // 26 × 100/150 = 17.3 → 17 (고른 배분에서는 20)
   });
 

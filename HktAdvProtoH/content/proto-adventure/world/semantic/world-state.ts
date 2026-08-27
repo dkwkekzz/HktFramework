@@ -10,6 +10,7 @@ import type { ActorState } from './actor';
 import type { CancelEvent, StrikeEvent } from './combat';
 import type { TargetSelectionState } from './target-selection';
 import type { DepositState } from './deposit';
+import type { GrowthEvent } from './growth';
 import type { UnharmedContact } from './relation';
 import type { WorldBounds, WorldPosition } from './position';
 import type { GroundZone } from './terrain';
@@ -45,6 +46,11 @@ export interface WorldState extends CoreWorldState {
   // StrikeEvents · UnharmedContacts 와 나란한 자리이며 같은 수명을 가진다
   // (semantic/combat.ts).
   cancelEvents: CancelEvent[];
+  // World.GrowthEvents (C-GROWTH-001 ADDED) — 방금 무엇을 해서 얼마가 쌓였고
+  // 그것이 단계를 올렸는가. StrikeEvents · UnharmedContacts · CancelEvents 와 나란한
+  // 자리이며 **같은 수명을 가진다** — 수명 규칙을 넷으로 나누지 않는다
+  // (semantic/growth.ts · RULE-STRIKE-EVENT-EXPIRE-001).
+  growthEvents: GrowthEvent[];
   // World.TargetSelections (C017 ADDED) — 지금 이 관찰자가 누구를 고르고 있는가.
   // 항목이 없는 관찰자는 아무것도 고르지 않은 것이다 (semantic/target-selection.ts).
   targetSelections: TargetSelectionState[];

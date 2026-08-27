@@ -4,8 +4,8 @@
 [PASS] Intent                     (Goal 넷 · 자라는 것은 겨루는 값 둘 · 단계는 파생 · 넷째 항)
 [PASS] World Semantic             (문턱 20·50·90·140·200 · 단계당 4·4·3·3 · 넷째 항 · GAP 없음)
 [PASS] GameView Specification      (더하는 것 셋 · 새 조작 0 · 남의 것은 오지 않는다 · GAP 없음)
-[    ] Human Semantic Review
-[    ] World Implementation
+[PASS] Human Semantic Review       (APPROVED — Human 위임 · 넷째 항·자라는 값 넷·수치 셋 확정)
+[PASS] World Implementation        (1504 tests · engine 무변경 · 새 조작 0 · 넷째 항)
 [    ] View Implementation
 [    ] Verification
 
