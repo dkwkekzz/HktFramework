@@ -616,7 +616,8 @@
       "law": "heat-binding",
       "state": "warming",
       "takes": "warmth"
-    }
+    },
+    "genesisSeed": 1
   },
   "allocations": []
 }

@@ -69,9 +69,24 @@ export interface WorldState extends CoreWorldState {
    */
   chanceCursor: number;
   /**
-   * World.GroundZones (C-TERRAIN-001 ADDED) — 무대의 자리들.
+   * World.GenesisSeed (C-TERRAIN-003 ADDED) — 태어남의 뿌리.
    *
-   * **어떤 Rule 도 이 목록을 바꾸지 않는다.** 세계가 만들어질 때 놓이고 그대로다.
+   * 세계가 만들어질 때 정해지고 **어떤 규칙도 바꾸지 않는다** (chanceSeed 와 같은 지위).
+   * 같은 씨앗 → 같은 세계 (INTENT-SAME-SEED-SAME-WORLD-001). State 로 두는 이유는
+   * 관찰과 재현이다 — 이 세계가 어느 씨앗에서 태어났는지가 세계 안에 남아야
+   * "같은 세계를 다시 띄운다" 가 성립한다.
+   *
+   * 흔들림의 뿌리(chanceSeed)와 **가른다** (05-review.md 답 3) — 같은 땅에서 다른
+   * 흔들림(재현·검증)이 성립해야 하고, 소비 시점도 다르다 (만들어질 때 한 번 vs
+   * 도는 동안 계속).
+   */
+  genesisSeed: number;
+  /**
+   * World.GroundZones (C-TERRAIN-001 ADDED · C-TERRAIN-003 CHANGED) — 무대의 자리들.
+   *
+   * **어떤 Rule 도 이 목록을 바꾸지 않는다.** 세계가 만들어질 때 **태어나고** 그대로다 —
+   * C-TERRAIN-003 부터 이 목록의 유일한 원천은 RULE-WORLD-GENESIS-001 이다
+   * (rules/world-genesis.ts). 자리를 목록으로 적는 형은 사라졌다.
    * 그럼에도 상수가 아니라 State 인 이유는 둘이다 — 관찰이 State 를 투영하는 하나의
    * 길을 지나야 하고(광맥이 그러하듯), **예외가 사라질 수 있다는 것이 이 세계의
    * 원칙**이기 때문이다 (BT §9.2 유랑대지 · DC-WORLD-SAFETY-IS-A-NATURAL-EXCEPTION).
@@ -131,53 +146,21 @@ export const WORLD_BOUNDS: WorldBounds = { minX: -20, maxX: 20, minZ: -20, maxZ:
  */
 export const WARMTH_MAX = 100;
 
-/**
- * World.GroundZones 의 초기 배치 (C-TERRAIN-001 ADDED · C-TERRAIN-002 CHANGED).
- *
- * ── 빙원 하나 + 예외 하나 → **맥 넷** ────────────────────────────────
- *
- * C-TERRAIN-001 은 법칙의 자리(반경 7) 하나와 손으로 놓은 예외 자리(반경 2.5) 하나를
- * 두었다. 이제 예외를 놓을 형이 없으므로(GroundZone.role 삭제) 그 자리에 **맥 넷**이
- * 선다. 넷의 합집합이 옛 빙원과 대략 같은 자리를 덮으므로 밖에서 보는 무대는 달라지지
- * 않는다 — 달라지는 것은 그 안에서 무엇이 도는가다.
- *
- * 넷이 서로 겹친다 (중심 사이 5.0 · 반경 5.0). 겹친 자리에서도 거두는 일은 한 번만
- * 일어나고(법칙당 하나) 받는 자리는 **중심이 가까운 쪽**이다 — 그래서 맥의 중심 가까이
- * 머무를수록 그 맥이 빨리 찬다 (bindingZonesAt).
- *
- * ── 시작할 때 이미 도는 중이다 ───────────────────────────────────────
- *
- * kept 가 0 이 아닌 것이 요점이다. 광맥은 수천 년 열을 결속해 왔으므로(BT §5.1) 세계가
- * 시작할 때 이미 차 있고, 하나는 이미 넘쳐 뿜는 중이다 — **그것이 오늘의 해숨구멍이다.**
- * C-TERRAIN-001 이 (-13, 13) 에 손으로 놓았던 자리와 거의 같은 곳에 있지만, 자리가
- * 옮겨 간 것이 아니라 **그 자리의 이유가 바뀌었다** — "여기는 안전한 곳이다" 에서
- * "여기는 지금 넘쳐 뿜는 중인 맥이다" 로.
- *
- * 시작 자리(0,0)에서 걸어가면 가장 먼저 닿는 것이 zone-vein-4 다 (중심까지 12.0).
- * 60 중 30 이 차 있어 **가로지르면 열리지 않고 7.5초를 머물면 열린다** — 그 사이 몸은
- * 30 을 치른다. 그동안 zone-vein-1 은 흩어져 40초에 닫힌다. 그래서 한 판 안에서
- * 열린 자리가 옮겨 간다 (03-world-semantic.md BALANCE 2·3).
- *
- * 빙원은 시작 자리 다섯, npc-1 의 지키는 자리((-10,-8) 반경 7)와 순회 경로, npc-2 의
- * 순회 경로((12,8)–(4,12)), 광맥((8,-6)) 어디와도 닿지 않는다. 무대 경계(±20) 안이다.
- *
- * 결정론 시뮬레이션 값이므로 헤더 상수로 고정한다.
- */
-export const GROUND_ZONES: readonly GroundZone[] = [
-  // 오늘의 해숨구멍 — 넘쳐서 뿜는 중인 맥. 내일은 다른 자리일 수 있다 (BT §5.3)
-  {
-    id: 'zone-vein-1',
-    law: 'heat-binding',
-    center: { x: -13.5, z: 13.5 },
-    radius: 5.0,
-    kept: 60,
-    phase: 'venting',
-  },
-  { id: 'zone-vein-2', law: 'heat-binding', center: { x: -8.5, z: 13.5 }, radius: 5.0, kept: 45, phase: 'binding' },
-  { id: 'zone-vein-3', law: 'heat-binding', center: { x: -13.5, z: 8.5 }, radius: 5.0, kept: 15, phase: 'binding' },
-  // 시작 자리에서 가장 가까운 맥 — 머물면 열린다
-  { id: 'zone-vein-4', law: 'heat-binding', center: { x: -8.5, z: 8.5 }, radius: 5.0, kept: 30, phase: 'binding' },
-];
+// World.GenesisSeed 의 기본 뿌리 (C-TERRAIN-003 ADDED) — 세계를 띄우는 쪽이 밝히지
+// 않으면 이 값이다 (DEFAULT_CHANCE_SEED 와 같은 판단).
+//
+// **씨앗을 고르는 것은 손배치가 아니다** (03 RATIONALE 1) — 자리를 적는 형은 사라졌고,
+// 고를 수 있는 것은 "태어난 세계들 가운데 어느 것을 기본으로 보여 주는가" 뿐이다.
+// 이 값은 03 BALANCE 2 의 조건(맥 넷이 이웃하여 서고 하나가 뿜는다 · 조용한 자리가
+// 비어 있다 · 시작 자리에서 걸어 닿는다)을 만족하는 세계를 고른 것이며, 그 확인은
+// world/tests/world-genesis.spec.ts 가 지킨다. 조건을 어기는 값으로 바꾸면 그 검사가
+// 막는다 — 규칙이 먼저다.
+//
+// 결정론에 영향을 주므로 헤더 상수로 고정한다 (CVar 아님).
+export const DEFAULT_GENESIS_SEED = 1;
+
+// 손배치 GROUND_ZONES 는 C-TERRAIN-003 으로 사라졌다 — 자리의 유일한 원천은
+// RULE-WORLD-GENESIS-001 (rules/world-genesis.ts) 이다.
 
 // World.SpawnPoints — 관찰자의 몸이 처음 놓이는 자리들 (C004 ADDED).
 // 몇 번째 몸인지로 자리가 정해지므로 같은 순서로 들어오면 언제나 같은 배치가 된다.
@@ -217,4 +200,4 @@ export const TICK_INTERVAL = 1 / 30;
 // role 만 있는 자리 위에서 새 규칙이 돌고, 모든 자리가 phase 없이 굴러 아무것도 거두지
 // 않는 세계가 된다. 마이그레이션은 없다 — 불일치 스냅샷은 복구를 포기하고 새 세계로
 // 시작한다.
-export const STATE_VERSION = 'proto-adventure/3';
+export const STATE_VERSION = 'proto-adventure/4';

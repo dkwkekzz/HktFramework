@@ -89,6 +89,17 @@ export interface GroundLawDefinition {
   ventRate: number;
   /** 받는 몸이 없을 때 초당 하늘로 흩어지는 양 (C-TERRAIN-002 ADDED) */
   escapeRate: number;
+  /** 이 법칙이 무대에 세우는 맥의 수 (C-TERRAIN-003 ADDED) */
+  veins: number;
+  /** 맥 하나의 범위 (C-TERRAIN-003 ADDED) */
+  veinRadius: number;
+  /**
+   * 이웃 맥 중심 사이의 거리 (C-TERRAIN-003 ADDED) — 맥은 흩어진 점이 아니라
+   * 이어진 밭으로 뻗는다 (대륙 규모의 결속 · BT §1). 셋 다 **자리가 아니라 법칙이
+   * 지닌다** — 자리마다 손으로 정하면 "이 자리는 크다" 를 적을 수 있게 되고,
+   * 그것은 목록이 이름을 바꿔 돌아온 것이다 (C-TERRAIN-002 와 같은 규율).
+   */
+  veinStride: number;
 }
 
 /**
@@ -132,6 +143,15 @@ export const GROUND_LAWS: Readonly<Record<GroundLawId, GroundLawDefinition>> = {
     saturation: 60,
     ventRate: 6.0,
     escapeRate: 1.5,
+    // C-TERRAIN-003 (03 BALANCE 1) — 태어남의 항 셋. 이 Cycle 은 밀도를 바꾸는
+    // Cycle 이 아니라 **출처를 바꾸는** Cycle 이므로 손배치 시절의 규모를 유지한다:
+    //   veins      4    맥 수 그대로
+    //   veinRadius 5.0  범위 그대로
+    //   veinStride 5.0  겹침(중심 사이 5.0 · 반경 5.0) 그대로 — 겹친 채로 서로 다른
+    //                   단계에 있는 것이 C-TERRAIN-002 플레이의 핵심이었다
+    veins: 4,
+    veinRadius: 5.0,
+    veinStride: 5.0,
   },
 };
 

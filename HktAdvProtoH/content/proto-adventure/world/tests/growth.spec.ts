@@ -434,8 +434,18 @@ describe('INTENT-THE-STEP-OPENS-NOTHING-001 — 단계는 아무 관문도 열�
     const world = driveWorld({});
     setAttribute(world, 'deeds', 200);
     const before = hud(world.observe(), 'self.warmth') as number;
-    // 관찰자를 법칙의 자리로 옮긴다 — 자리는 세계가 이미 지녀 있다
-    const zone = world.observe().ground.zones.find((z) => z.role === 'law');
+    // 관찰자를 거두는 자리로 옮긴다 — 자리는 세계가 태어나며 지녔다 (C-TERRAIN-003).
+    // 맥은 겹치므로 뿜는 맥 안에 중심을 둔 거두는 맥은 그 자리에서 멎어 있다 —
+    // 뿜는 맥 밖의 거두는 맥을 고른다.
+    const ground = world.observe().ground.zones;
+    const venting = ground.find((z) => z.phase === 'venting');
+    const zone = ground.find(
+      (z) =>
+        z.phase === 'binding' &&
+        (!venting ||
+          Math.hypot(z.center.x - venting.center.x, z.center.z - venting.center.z) >
+            venting.radius),
+    );
     if (!zone) return; // 자리가 없는 세계면 이 검사는 성립하지 않는다
     world.dispatch({ interactionId: 'move', position: { x: zone.center.x, z: zone.center.z } });
     tickFor(world, 8);

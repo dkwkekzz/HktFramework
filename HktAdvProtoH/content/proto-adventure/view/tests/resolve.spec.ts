@@ -185,7 +185,7 @@ describe('결정 Layer 의 유연 대응 — 미등록 항목도 기본 결정�
       inventory: [],
       inventoryRoom: { used: 0, capacity: 4 },
       equipment: [],
-      ground: { zones: [], self: { state: 'none' } },
+      ground: { zones: [], self: { state: 'none' }, genesisSeed: 1 },
       allocations: [],
       growth: { deeds: 0, level: 0, maxLevel: 5, nextThreshold: 20, deedsToNext: 20, contributions: [] },
       growthEvents: [],

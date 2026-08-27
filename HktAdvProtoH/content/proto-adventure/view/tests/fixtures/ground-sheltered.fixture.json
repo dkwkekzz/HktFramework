@@ -627,7 +627,8 @@
       "law": "heat-binding",
       "state": "sheltered",
       "takes": "warmth"
-    }
+    },
+    "genesisSeed": 1
   },
   "allocations": [],
   "growth": {
