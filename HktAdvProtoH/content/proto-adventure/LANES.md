@@ -33,7 +33,7 @@ Feedback · BACKLOG)를 겹쳐 `LANES.html` 로 그린다. `npm run lanes:check`
 |---|---|---|---|
 | FEEDBACK | OPEN | 없음 — 미처리 0 (`npm run feedback:gate -- --pending`) | 없음 — 병합 뒤 최신 main 위에서 |
 | WORLD·ITEM | HUMAN | 후보 5 중 선택 대기 — Agent 추천 FR-THE-PLACES-ARE-NARROWER (+FR-SEE-BEFORE 얹기) | Human Select (frontier/item.md) |
-| WORLD·COMBAT | HUMAN | 후보 5 중 선택 대기 — **SELECTED 가 비었다.** `C-COMBAT-002`(사슬 A 의 대답)는 Stage 5 앞에서 **철회됐다** (Human · 타이밍 맞춰 막는 기능은 세우지 않는다 · 대응은 전투 지식이 운용한다 — 그 층의 형태는 UL 이 그대로 소유한다). 사슬 A 넷이 트랙에서 빠져 남은 갈래는 하나다. Agent 추천 `FR-THE-WORLD-DECIDES-WHAT-IS-POSSIBLE` — 의존이 빈 유일한 후보이자 **직전 Cycle 이 남긴 절반도 닫는다**. `C-COMBAT-001` 은 Feedback 반영이 끝났으나 여전히 Human Play 대기 (`npm run dev` → `U` → `2`) | Human Select (frontier/combat.md) |
+| WORLD·COMBAT | RUNNING | `C-COMBAT-003` — `FR-THE-WORLD-DECIDES-WHAT-IS-POSSIBLE`(세계가 무엇이 가능한지를 정한다). 선택은 Human 이 Agent 추천으로 위임했다. `C-COMBAT-001` 은 Feedback 반영이 끝났으나 여전히 Human Play 대기 (`npm run dev` → `U` → `2`) | 없음 |
 | WORLD·TERRAIN | HUMAN | 후보 3 중 선택 대기 — Agent 추천 `FR-THE-LAND-KEEPS-WHAT-IT-TAKES`(땅이 거둔 것을 간직한다). `C-TERRAIN-001` COMPLETE · Feedback 반영 끝 | Human Select (frontier/terrain.md) |
 | WORLD·GROWTH | HUMAN | 후보 2 중 선택 대기 — **SELECTED 가 비었다.** `C-GROWTH-001` COMPLETE · Feedback 반영 끝. Agent 추천 `FR-THE-SKILL-LEARNS-A-NEW-MOVE`(쓰던 기술이 새 수를 배운다) — 승인된 Constraint 하나를 세계에서 닫는 유일한 후보이고 바닥이 선 지금 얹히는 비용이 가장 작다 | Human Select (frontier/growth.md) |
 | WORLD·KNOWLEDGE | HUMAN | **트랙이 방금 섰다** — 후보 일곱 중 선택 대기. 전투 지식(CK) 주입으로 판단이라는 층이 세워졌다. 의존이 빈 것은 `FR-WHAT-YOU-KNOW-FIGHTS-WITH-YOU`(배운 것이 몸의 판단이 된다) 하나이며 나머지 여섯이 전부 그것을 전제한다 — 이 트랙에는 고민할 순서가 없다. **철회된 대응 층이 돌아올 자리이기도 하다** (CK §15) | Human Select (frontier/knowledge.md) |
@@ -69,7 +69,6 @@ Human 이 답하면 풀리는 것들이다. 답의 자리는 괄호가 가리킨
 | WORLD·ITEM 후보 선택 (frontier/item.md SELECTED) | WORLD·ITEM 레인 착수 |
 | WORLD·GROWTH 다음 후보 선택 (frontier/growth.md SELECTED) | WORLD·GROWTH 레인 착수. 둘 중 의존이 빈 것은 둘 다이며, 바닥(쌓인다)이 선 지금 값이 싼 쪽은 `FR-THE-SKILL-LEARNS-A-NEW-MOVE` 다 |
 | WORLD·KNOWLEDGE 첫 후보 선택 (frontier/knowledge.md SELECTED) | WORLD·KNOWLEDGE 레인 착수. 의존이 빈 것은 `FR-WHAT-YOU-KNOW-FIGHTS-WITH-YOU` 하나다 — 나머지 여섯이 전부 그것을 전제하므로 고를 것이 사실상 하나다 |
-| WORLD·COMBAT 다음 후보 선택 (frontier/combat.md SELECTED) | WORLD·COMBAT 레인 착수. 사슬 A 가 빠져 지금 의존이 빈 것은 `FR-THE-WORLD-DECIDES-WHAT-IS-POSSIBLE` 하나다 |
 | WORLD·TERRAIN 후보 선택 (frontier/terrain.md SELECTED) | WORLD·TERRAIN 레인 착수 |
 | Q66 — 갈래를 노드의 완결로 판정하는가 플레이의 성립으로 판정하는가 (open-questions.md) | Overlay 를 읽는 법 · Frontier 가 무엇을 결손으로 세는가 |
 | Q67 — 병렬 레인이 공유하는 두 자리가 어긋난다 (open-questions.md · PROCESS) | Q 번호 충돌과 `frontier/README.md` 트랙 표의 낡음이 되풀이되는 것을 막는다. 이번 합류에서 둘 다 실제로 났다 |

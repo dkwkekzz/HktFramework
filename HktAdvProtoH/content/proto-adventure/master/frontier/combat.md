@@ -75,7 +75,7 @@
                          느는 것은 사정 목록의 항목과 그것을 읽는 관문 하나다
     Depends on           없음 — 다만 첫 조건이 무엇을 볼지는 그 Cycle 의 Stage 1 이 고른다.
                          "상대가 나를 먼저 쳤는가" 는 지금 세계에서 이미 판정 가능하다
-    Status               PROPOSED
+    Status               SELECTED
 
 ### FR-WHAT-YOU-LEAVE-ON-THEM — 상대에게 남긴 것이 다음을 바꾼다
 
@@ -272,7 +272,7 @@
 
 ## 추천 순서 (Agent 제안 — 확정은 Human)
 
-    1. FR-THE-WORLD-DECIDES-WHAT-IS-POSSIBLE  사슬 B 의 바닥 — 의존이 없다.
+    1. FR-THE-WORLD-DECIDES-WHAT-IS-POSSIBLE  ← SELECTED · 사슬 B 의 바닥 — 의존이 없다.
                                            **직전 Cycle 이 남긴 절반을 닫는다** —
                                            배분이 값만 바꾸고 무엇을 할 수 있는가의
                                            목록을 바꾸지 않는 것이 MC-AURA-ALLOCATION 의
@@ -296,8 +296,19 @@ Q60(c) 로 빠졌으므로 관찰자와 묶는 자 둘로 검증한다.
 ## SELECTED
 
 ```text
-없음 — Human 선택 대기
+FR-THE-WORLD-DECIDES-WHAT-IS-POSSIBLE — 세계가 무엇이 가능한지를 정한다
+Cycle   C-COMBAT-003 (착수)
+선택    Human 위임 — Agent 추천대로 · 2026-08-27
 ```
+
+    고른 사유는 셋이다. **의존이 비었다** — 사슬 A 가 빠진 뒤 이 트랙에서 지금 고를 수
+    있는 것은 이것뿐이다. **직전 Cycle 의 남은 절반을 닫는다** — 배분(C-COMBAT-001)이
+    값만 바꾸고 무엇을 할 수 있는가의 목록을 바꾸지 않는 것이 `MC-AURA-ALLOCATION` 의
+    결손이고, 그 관문이 이 후보다. **사슬 B 의 바닥이다** — 표식 · 계약 · 규칙 관찰 ·
+    봉인 넷이 전부 이 관문 위에 선다.
+
+    Cycle ID 는 `C-COMBAT-002` 를 재사용하지 않는다 — 그 번호는 철회된 사슬 A 의
+    첫 Cycle 이 이미 썼다 (HISTORY "사슬 A 철회").
 
     직전 반영 경위: [../feedback/C-COMBAT-001-where-your-power-sits.md](../feedback/C-COMBAT-001-where-your-power-sits.md)
 
