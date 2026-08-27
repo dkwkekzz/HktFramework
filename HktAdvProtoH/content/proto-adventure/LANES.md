@@ -37,7 +37,7 @@ Feedback · BACKLOG)를 겹쳐 `LANES.html` 로 그린다. `npm run lanes:check`
 | WORLD·TERRAIN | RUNNING | `C-TERRAIN-002` — SELECTED `FR-THE-LAND-KEEPS-WHAT-IT-TAKES`(땅이 거둔 것을 간직한다). Stage 1~4 까지 서고 **Stage 5 Human Semantic Review 대기** | 없음 |
 | WORLD·GROWTH | OPEN | `C-GROWTH-001` 착수 대기 — SELECTED `FR-WHAT-YOU-DID-MAKES-YOU`(한 일이 몸을 키운다). Stage 1 부터, 아직 시작하지 않았다. **COMBAT 과 같은 파일을 본다 — 아래 충돌 칸** | 없음 — 다만 이 판과 트랙 파일이 main 에 들어간 뒤에 잡는다 |
 | VIEW | OPEN | BACKLOG 다음 항목(drag-and-drop)부터 — 기반 동반이 필요한 셋(tip-flip-at-the-edge · escape-leaves-the-field · workspace-two-columns)은 ENGINE 뒤에 잡는다 | 없음 |
-| MASTER | OPEN | OPTIONS Q35 (몸이 아닌 존재를 요구하는 Possibility) — 이제 스킬 실행 형태의 빈 다섯 칸만 막는다. 성장(GS · GB)과 전투 상층(UL) 주입은 둘 다 끝났다: 결정 열(Q52~Q61) 반영 · GROWTH 후보 3 · COMBAT 후보 10 과 SELECTED 까지 | 없음 — 미처리 Feedback 이 0 이다 (`npm run feedback:gate`) |
+| MASTER | OPEN | **BT 순환 사슬 주입 끝** — `MW-TERRAIN-CIRCULATION` → `MW-SURVIVAL-PRESSURE` → `MW-ADAPTED-LIFE` · `MW-NATURAL-REFUGE` 가 섰다 (BT §15.3~§15.6 · §16). Q63·Q64 가 열렸다. 다음은 OPTIONS Q35 (몸이 아닌 존재를 요구하는 Possibility) — 이제 스킬 실행 형태의 빈 다섯 칸만 막는다. 성장(GS · GB)과 전투 상층(UL) 주입은 둘 다 끝났다: 결정 열(Q52~Q61) 반영 · GROWTH 후보 3 · COMBAT 후보 10 과 SELECTED 까지 | 없음 — 미처리 Feedback 이 0 이다 (`npm run feedback:gate`) |
 | ENGINE | OPEN | 셋 — ① **자판이 표면 안을 다니는 길** — 정해진 초점 차례가 없고(`tabindex` 0건), 글자 자리에서 `Esc` 가 죽는다(붙잡는 단계가 `INPUT` 에서 비켜 주고 받는 자리가 없다). 다시 그릴 때 초점을 붙드는 자리는 이미 섰다. BACKLOG 의 `escape-leaves-the-field` · `skill-focus-order` 가 이것을 기다린다 ② **겹침 표면의 자리 잡기** — 곁말이 가장자리에서 접히는 일 · 구획을 나란히 놓는 일 (`tip-flip-at-the-edge` · `workspace-two-columns`) ③ 지면 구역 장치 `SceneGroundZone` ([design/Design-Terrain-Visualization.md](../../design/Design-Terrain-Visualization.md)) — C-TERRAIN-001 의 04 확정 뒤 | 없음 |
 | PROCESS | OPEN | 없음 — 보고 형식이 guides/works.md 의 "보고" 절에 섰다 | 없음 |
 
@@ -67,6 +67,8 @@ Human 이 답하면 풀리는 것들이다. 답의 자리는 괄호가 가리킨
 | C-TERRAIN-002 Human Semantic Review (05-review.md) | Stage 6 World Implementation 착수. 물어 둔 것 넷은 그 Cycle 의 02-intent.md REVIEW QUESTION 에 있다 — 분출이 몸에 열을 **돌려주는가** · 손으로 놓인 예외(`respite`)를 **지우는가** · 한 자리에 머무는 평형을 받아들이는가 · **흐름이 몸↔땅까지인가 땅↔땅까지인가** |
 | WORLD·COMBAT 후보 선택 (frontier/combat.md SELECTED) | WORLD·COMBAT 레인 착수 |
 | Q62 — 갈래를 노드의 완결로 판정하는가 플레이의 성립으로 판정하는가 (open-questions.md) | Overlay 를 읽는 법 · Frontier 가 무엇을 결손으로 세는가 |
+| Q63 — 여덟 대지형을 순환 아래로 옮길 것인가 (open-questions.md) | BT §16 골격과 그래프의 대응. Agent 는 지금의 형제 배치(a)를 권한다 |
+| Q64 — 대지 순환이 낳는 Goal 이 무엇인가 (open-questions.md) | **다음 TERRAIN 후보가 이유를 Goal 로 적을 수 있는가.** 지금은 순환 계열이 어떤 Goal 도 낳지 않아 후보가 이유를 Constraint 부기로 번역하게 된다 — C-TERRAIN-002 가 실제로 그랬다. Agent 는 (b) `MG-EXPLORE-BEIRA.caused_by` 에 잇기를 권한다 |
 | `CC-ORDER-IS-THE-ADDRESS` 승격 여부 (candidates/) | 순서로 짚는 것이 원칙이 되는가 — DC-WORLD-OWNS-THE-SURFACE-LIST 와 합칠지도 함께 |
 | C-COMBAT-001 Human Play — 손으로 `U` → 숫자를 눌러 보기 | Stage 8 STATUS 가 COMPLETE 로 닫히고 FEEDBACK 레인이 열린다. 봐야 할 것 셋: 두 걸음이 전투 중 손에 맞는가 · 세로 목록 넷이 눈에 걸리는가 · 상대의 `[몸]` 표시가 교전 중 읽히는가 |
 | C-COMBAT-001 의 PARTIAL 판정 둘 (08-verification.md MASTER FEEDBACK) | `MC-AURA-ALLOCATION` · `MP-EXPLOIT-OPEN-BODY` 를 어디까지로 볼 것인가 — 플레이로는 갈래가 성립하나 노드는 덜 찼다. Master(Human)가 정한다 |

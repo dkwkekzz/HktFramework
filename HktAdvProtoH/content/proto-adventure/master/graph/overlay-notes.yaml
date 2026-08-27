@@ -257,6 +257,10 @@ sections:
       - label: "MW-HYPER-PREDATION · MW-SPATIAL-SHEAR"
         ids: [MW-HYPER-PREDATION, MW-SPATIAL-SHEAR]
       - MW-MACRO-TERRAIN
+      - MW-TERRAIN-CIRCULATION
+      - MW-SURVIVAL-PRESSURE
+      - MW-ADAPTED-LIFE
+      - MW-NATURAL-REFUGE
       - label: "MW-TERRAIN-* 8종 (BT §4~§11)"
         ids: [MW-TERRAIN-BAIWANG-BASIN, MW-TERRAIN-SUNEATER-ICEFIELD, MW-TERRAIN-NAME-EATING-FOREST,
               MW-TERRAIN-BREATHLESS-SEA, MW-TERRAIN-SKYFALL-RANGE, MW-TERRAIN-WALKING-CONTINENTS,
@@ -399,4 +403,15 @@ holes: |
      이을 자리가 하나뿐이라 길을 만들 수 없다(MC-FIND-SAFE-ROUTE).
      BT §5.7 이 빙원의 핵심 경험을 "대지가 열을 **어디에서 빼앗고 어디에 저장하는지**를
      읽는 것" 으로 못 박았는데, 지금 선 것은 앞 절뿐이다.
+
+     **그리고 이것은 대지형 하나의 결손이 아니다.** BT §16 의 세계 골격에서 순환은
+     지형과 생존 압력 사이의 고리이고, 그 아래에 생명과 물질의 적응 · 위험과 자원 ·
+     자연적 피난처 · 사람과 문화가 전부 매달려 있다. 순환이 없는 동안 그 아래의 모든
+     것은 **놓는 수밖에 없다** — 무엇이 어디에 사는지도, 어디가 안전한지도, 무엇이
+     어디서 나는지도 세계가 답하지 못하고 세계를 적는 사람이 좌표에 찍는다. 지금
+     세계가 정확히 그렇다: 해숨구멍은 손으로 놓인 예외 자리이고 광맥은 좌표에 찍혀
+     있으며, `Design-Resource-Catalog-R0.md` §4 가 모든 자원에 요구하는 질문
+     ("그 상태가 오랜 시간 반복되면 무엇이 만들어지는가")에 답할 수 있는 자원이
+     세계에 하나도 없다. 이 사슬은 `MW-TERRAIN-CIRCULATION` → `MW-SURVIVAL-PRESSURE`
+     → `MW-ADAPTED-LIFE` · `MW-NATURAL-REFUGE` 로 그래프에 섰다.
   ```
