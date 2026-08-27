@@ -110,14 +110,6 @@
     주     복합 Activation(Cast·Charge·Hold·Combo·Toggle)은 여기 없다 — 세계에 없다.
            **이 항목은 §5 중 지금 세계로 참인 부분만**이다
 
-### skill-slot-icon — 글자를 읽지 않고도 칸이 갈린다
-    출처   UX 문서 §3 (중앙: Skill 표현)
-    목표   칸마다 그 기술을 나타내는 표식이 서고, 표에 없는 기술은 일반 표식으로
-           서되 칸이 사라지지 않는다
-    크기   아주 작음
-    의존   없음 — 무엇으로 그릴지는 화면의 결정이다 (`interaction-presentation`)
-    상태   PROPOSED
-
 ### skill-focus-order — 자판만으로 고르고 실행한다
     출처   UX 문서 §9 (포커스 순서 `대상 → Skill Bar → 상세 → 오버레이`) · V-009 REPORT ①
     목표   Tab 으로 그 차례대로 옮겨 다니고, 슬롯에서 Enter 로 실행되며,

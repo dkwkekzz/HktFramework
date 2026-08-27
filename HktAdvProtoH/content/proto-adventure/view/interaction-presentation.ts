@@ -7,6 +7,16 @@ export interface InteractionPresentation {
   key?: string; // KeyboardEvent.code
   keyLabel?: string;
   prompt?: string;
+  /**
+   * 이 역할을 **글자 없이 가리키는 표식** (V-019 · VUX-SK 문서 §3).
+   *
+   * 이름 옆 자리이지 이름을 대신하는 것이 아니다 — 표식만 있고 글자가 없으면 그것이
+   * 무엇인지는 아는 사람에게만 참인 화면이 된다. 그래서 언제나 이름과 함께 선다.
+   *
+   * `prompt` 와 같은 자격의 결정이다: 둘 다 "이 역할을 화면에서 무엇이라 부르는가" 이며,
+   * 세계는 역할 코드만 보낸다.
+   */
+  icon?: string;
   terrainTarget?: boolean;
   /**
    * 바닥 프롬프트에서 앞자리를 다투는 순서 — **작을수록 먼저** (기본 50).
@@ -27,6 +37,19 @@ export interface InteractionPresentation {
 /** 순서를 밝히지 않은 역할의 자리 — 주된 것과 정리하는 것의 사이다 */
 export const DEFAULT_INTERACTION_PRIORITY = 50;
 
+/**
+ * 표에 없는 역할의 표식 — **칸은 사라지지 않는다.**
+ *
+ * 세계가 새 기술을 하나 지니면 그 칸은 곧바로 선다. 그때 표식이 없어 칸이 비거나
+ * 사라지면, 화면은 세계에 있는 것을 없는 것처럼 보이게 된다. 모르는 것에는 모르는
+ * 것의 표식을 준다 — 그러고 나서 이 표에 한 줄이 는다 (분류 아이콘이 간 길 그대로).
+ */
+export const GENERIC_INTERACTION_ICON = '✳';
+
+// 표식은 **색 이모지**로 고른다 — 소지품 분류 아이콘이 간 길 그대로다
+// (`🪨 ⛏ 🧪 🛡`). 선 하나짜리 기호(`⚔` `✦`)는 칸 크기에서 가늘게 뭉개져 다른 뜻으로
+// 읽힌다: 처음 고른 `⚔` 는 화면에서 `✕` 로 보였고, 그것은 닫기·불가의 표식이다.
+
 const INTERACTIONS: Record<string, InteractionPresentation> = {
   'move-to': { terrainTarget: true },
   // C017 CHANGED — 대상이 사라졌다. 이제 고른 것을 캐므로 키 하나로 부른다
@@ -34,8 +57,8 @@ const INTERACTIONS: Record<string, InteractionPresentation> = {
   'mine-deposit': { priority: 10, key: 'KeyE', keyLabel: 'E', prompt: '채굴' },
   'attack-swing': { priority: 12, key: 'KeyF', keyLabel: 'F', prompt: '공격' }, // C002 role (C007 이전)
   // C007 — 휘두름이 스킬 둘로 갈렸다. 기본은 기존 자리(F)를 그대로 쓴다.
-  'skill-basic': { priority: 12, key: 'KeyF', keyLabel: 'F', prompt: '기본 스킬' },
-  'skill-heavy': { priority: 13, key: 'KeyG', keyLabel: 'G', prompt: '고급 스킬' },
+  'skill-basic': { priority: 12, key: 'KeyF', keyLabel: 'F', icon: '🗡', prompt: '기본 스킬' },
+  'skill-heavy': { priority: 13, key: 'KeyG', keyLabel: 'G', icon: '🪓', prompt: '고급 스킬' },
   // C012 — 오라 스킬. 기본 스킬(F) 과 나란히 둔다 — 둘은 세기가 아니라
   // 방식으로 갈리는 선택이므로 나란히 놓여야 고르는 일로 읽힌다.
   //
@@ -44,7 +67,7 @@ const INTERACTIONS: Record<string, InteractionPresentation> = {
   // 그 키들은 눌린 순간 삼켜져 interaction 까지 오지 않는다. 그래서 **C012 이래로
   // 오라 스킬은 키보드로 부를 수 없었다** — 표에는 있고 화면 안내에도 떴지만
   // 눌러도 아무 일이 없었다. 아래 RESERVED_KEY_CODES 가 이것이 다시 생기지 않게 한다.
-  'skill-aura': { priority: 14, key: 'KeyH', keyLabel: 'H', prompt: '오라 스킬' },
+  'skill-aura': { priority: 14, key: 'KeyH', keyLabel: 'H', icon: '✨', prompt: '오라 스킬' },
   // 막기 (C011) — 세계에는 걸기와 놓기가 따로 있다(명시값). 화면에서는 한 키로 오간다.
   // 어떤 손짓으로 그 둘을 부를지는 View 의 결정이며, 이동 모드가 이미 같은 모양이다.
   // 그래서 키는 걸기 쪽에만 두고, 오가는 것은 조립 루트가 다룬다 —
@@ -87,6 +110,17 @@ export const RESERVED_KEY_CODES: readonly string[] = ENGINE_KEY_CODES;
 
 export function interactionPresentation(role: string): InteractionPresentation {
   return INTERACTIONS[role] ?? {};
+}
+
+/**
+ * 이 역할의 표식 — 표에 없으면 **모르는 것의 표식**이다.
+ *
+ * `interactionPresentation(role).icon` 을 그냥 읽지 않고 이 문을 두는 이유는, 빈 자리와
+ * 모르는 자리가 화면에서 같아지지 않게 하기 위해서다. 부르는 쪽마다 폴백을 적으면
+ * 어느 자리에서는 표식이 빠지고, 그때 그 칸만 다른 모양이 된다.
+ */
+export function interactionIcon(role: string): string {
+  return interactionPresentation(role).icon ?? GENERIC_INTERACTION_ICON;
 }
 
 /** 검증용 — 지금 표가 쥐고 있는 (역할, 키) 전부 */

@@ -33,10 +33,11 @@ describe('기술 줄 (Semantic → Render Plan) — 셋을 견준다', () => {
   it('줄마다 그 기술을 부르는 키와 이름이 붙는다 (Human 지시 — 셋 다 쓸 수 있어야 한다)', () => {
     const lines = skillLines(resolvePresentation(snapshot));
     // 부르는 자리와 이름은 이제 칸 안의 **다른 자리**다 (VUX-SK §3).
+    // V-019 — 표식이 이름 앞에 함께 선다 (글자를 읽지 않고도 칸이 갈린다)
     expect(lines.map((l) => `${l.key} ${l.title}`)).toEqual([
-      'F 기본 스킬',
-      'G 고급 스킬',
-      'H 오라 스킬',
+      'F 🗡 기본 스킬',
+      'G 🪓 고급 스킬',
+      'H ✨ 오라 스킬',
     ]);
   });
 
@@ -106,8 +107,9 @@ describe('기술 줄 (Semantic → Render Plan) — 셋을 견준다', () => {
     });
     const lines = skillLines(resolvePresentation(withFourth));
     expect(lines).toHaveLength(4);
-    // 표에 없어도 화면이 멈추지 않는다 — 역할 코드가 그대로 보이고 부를 자리만 없다
-    expect(lines[3]!.title).toBe('skill-unknown');
+    // 표에 없어도 화면이 멈추지 않는다 — 역할 코드가 그대로 보이고 부를 자리만 없다.
+    // V-019 — 표식도 **모르는 것의 표식**으로 선다: 칸이 비거나 사라지지 않는다
+    expect(lines[3]!.title).toBe('✳ skill-unknown');
     expect(lines[3]!.key).toBeUndefined();
   });
 });
