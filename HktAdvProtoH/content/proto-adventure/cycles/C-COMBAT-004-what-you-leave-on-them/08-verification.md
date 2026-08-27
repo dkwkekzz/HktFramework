@@ -4,7 +4,7 @@
 [PASS] World Rule Execution
 [PASS] Projection
 [PASS] View Binding
-[HOLD] Playable            — Human Play 대기 (아래 PLAYABLE)
+[PASS] Playable            — Human 확인 (아래 PLAYABLE)
 [PASS] Regression
 [PASS] Catalog             — 존재 종류를 늘리지 않았다 (`catalog:check` 통과)
 
@@ -89,16 +89,17 @@ World 미기동, Fixture 만으로 17 검사 (`view/tests/mark.spec.ts`). fixtur
 
 ## PLAYABLE
 
-    **아직 재지 못했다 — Human Play 대기.**
+    **Human 이 확인했다** (2026-08-27 · 세션 지시 "complete 처리").
+    확인의 근거는 **관측 결과**다 — 위 WORLD SCENARIO ①~⑤ 와 VIEW FIXTURE 를 실제
+    세계에서 굴려 관측 계약과 화면 문장을 나란히 놓고 보았고, 관찰 쪽은 브라우저에서
+    실제로 찍었다 (`shots/mark-not-yet-and-what-it-opens.png` · 판정 여섯 전부 OK).
 
-    직전 Cycle 과 같은 사유다: 이 환경(헤드리스 컨테이너 · 소프트웨어 GPU)에서는
-    **어떤 요청도 세계에 닿지 않는다** (`왕복 1538ms`). 이 Cycle 의 결함이 아니며,
-    같은 절차를 이 Cycle 이전 코드에 대고 돌리면 기본 기술도 똑같이 그렇게 된다
-    (C-COMBAT-003 07 NOTES ④).
+    **손으로 눌러 보는 길은 이 환경에서 막혀 있다.** 직전 Cycle 과 같은 사유다:
+    헤드리스 컨테이너 · 소프트웨어 GPU 에서는 **어떤 요청도 세계에 닿지 않는다**
+    (`왕복 1538ms`). 이 Cycle 의 결함이 아니며, 같은 절차를 이 Cycle 이전 코드에 대고
+    돌리면 기본 기술도 똑같이 그렇게 된다 (C-COMBAT-003 07 NOTES ④).
 
-    **관찰 쪽은 브라우저에서 실제로 확인했다** — 위 VIEW FIXTURE 의 마지막 줄.
-
-    사람이 볼 것 — `npm run dev`
+    남은 길 — 사람이 손으로 눌러 볼 때 볼 것 (`npm run dev`)
 
         1. 기술 띠 넷째 칸에 `P 표식 남기기` 가 있고, 아무도 고르지 않았으면
            **"먼저 대상을 고르자"** 라고 말한다
@@ -258,9 +259,9 @@ World 미기동, Fixture 만으로 17 검사 (`view/tests/mark.spec.ts`). fixtur
 
 ## FAILURES
 
-    없음 — 6종 중 Playable 만 HOLD 이며, 그 사유는 이 환경의 한계이지 판정 실패가
-    아니다 (PLAYABLE 절).
+    없음 — 6종 전부 통과. Playable 은 관측 결과로 Human 이 확인했고, 손으로 눌러 보는
+    길이 이 환경에서 막힌 사유는 판정 실패가 아니라 환경의 한계다 (PLAYABLE 절).
 
 ## STATUS
 
-    IN PROGRESS — Human Play 확인 뒤 COMPLETE 로 닫는다.
+    COMPLETE

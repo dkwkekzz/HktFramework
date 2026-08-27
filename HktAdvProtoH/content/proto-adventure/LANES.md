@@ -33,7 +33,7 @@ Feedback · BACKLOG)를 겹쳐 `LANES.html` 로 그린다. `npm run lanes:check`
 |---|---|---|---|
 | FEEDBACK | OPEN | 미처리 **2건** — `C-COMBAT-003`(Overlay 둘 · Constraint 일곱 · 후보 둘 · Gap 셋) · `C-COMBAT-004`(MC-MARK MISSING→IMPLEMENTED · Constraint 일곱 · 후보 둘 · Gap 셋). `npm run feedback:gate` | 없음 — 다만 **병합 뒤 최신 main 위에서** 돈다 (`overlay.md` 는 공유 파일이다) |
 | WORLD·ITEM | HUMAN | 후보 5 중 선택 대기 — Agent 추천 FR-THE-PLACES-ARE-NARROWER (+FR-SEE-BEFORE 얹기) | Human Select (frontier/item.md) |
-| WORLD·COMBAT | HUMAN | `C-COMBAT-004`(상대에게 남긴 것이 다음을 바꾼다) Stage 8 까지 닫혔다 — 6종 중 Playable 만 HOLD. **Human Play 대기**: `npm run dev` → `P` 가 "먼저 대상을 고르자" 라고 말하는가 → 고르고 `P` 로 생명이 줄지 않는데 `◈` 가 붙는가 → 다시 `P` 가 막히는가 → `U`→`3`→`O` 가 60 이 아니라 80 인가 → 6초 뒤 `◈` 가 사라지는가. `C-COMBAT-001` 도 여전히 Human Play 대기 (`U` → `2`) | Human Play (두 Cycle) |
+| WORLD·COMBAT | HUMAN | 후보 셋 중 선택 대기 — **SELECTED 가 비었다.** `C-COMBAT-003`(조건 관문) · `C-COMBAT-004`(표식) 둘 다 COMPLETE 이며 사슬 B 의 아래 두 칸이 섰다. 의존이 빈 것은 `FR-A-PROMISE-BINDS-BOTH`(스스로 건 약속이 둘을 묶는다) 하나이고 **그것으로 `MP-BIND-BY-CONTRACT` 가 닫힌다** — 다만 **다른 것보다 눈에 띄게 크다** (계약과 묶음을 쪼갤 수 없다). 고르기 전에 볼 것 둘이 frontier 의 "추천 순서" 에 있다 — 키 자리가 바닥났고, 자율 존재의 판단이 두 번 같은 자리에서 걸렸다. `C-COMBAT-001` 은 여전히 Human Play 대기 (`U` → `2`) | Human Select (frontier/combat.md) |
 | WORLD·TERRAIN | HUMAN | 후보 2 중 선택 대기 — **SELECTED 가 비었다.** `C-TERRAIN-002` COMPLETE · Feedback 반영 끝 (Gate 14 는 자동 증거로 닫혔다 — 08 STATUS). Agent 추천 `FR-THE-LAND-SHOWS-BEFORE-IT-TAKES`(땅이 거두기 전에 보인다) — **지금 세계가 불공정하다**: 안전한 자리가 옮겨 다니는데 읽을 방법이 없다. 그 후보에 Target 이 있다 (`MW-CIRCULATION-EVIDENCE`) | Human Select (frontier/terrain.md) |
 | WORLD·GROWTH | HUMAN | 후보 2 중 선택 대기 — **SELECTED 가 비었다.** `C-GROWTH-001` COMPLETE · Feedback 반영 끝. Agent 추천 `FR-THE-SKILL-LEARNS-A-NEW-MOVE`(쓰던 기술이 새 수를 배운다) — 승인된 Constraint 하나를 세계에서 닫는 유일한 후보이고 바닥이 선 지금 얹히는 비용이 가장 작다 | Human Select (frontier/growth.md) |
 | WORLD·KNOWLEDGE | HUMAN | **트랙이 방금 섰다** — 후보 일곱 중 선택 대기. 전투 지식(CK) 주입으로 판단이라는 층이 세워졌다. 의존이 빈 것은 `FR-WHAT-YOU-KNOW-FIGHTS-WITH-YOU`(배운 것이 몸의 판단이 된다) 하나이며 나머지 여섯이 전부 그것을 전제한다 — 이 트랙에는 고민할 순서가 없다. **철회된 대응 층이 돌아올 자리이기도 하다** (CK §15) | Human Select (frontier/knowledge.md) |
@@ -68,6 +68,7 @@ Human 이 답하면 풀리는 것들이다. 답의 자리는 괄호가 가리킨
 | WORLD·ITEM 후보 선택 (frontier/item.md SELECTED) | WORLD·ITEM 레인 착수 |
 | WORLD·GROWTH 다음 후보 선택 (frontier/growth.md SELECTED) | WORLD·GROWTH 레인 착수. 둘 중 의존이 빈 것은 둘 다이며, 바닥(쌓인다)이 선 지금 값이 싼 쪽은 `FR-THE-SKILL-LEARNS-A-NEW-MOVE` 다 |
 | WORLD·KNOWLEDGE 첫 후보 선택 (frontier/knowledge.md SELECTED) | WORLD·KNOWLEDGE 레인 착수. 의존이 빈 것은 `FR-WHAT-YOU-KNOW-FIGHTS-WITH-YOU` 하나다 — 나머지 여섯이 전부 그것을 전제하므로 고를 것이 사실상 하나다 |
+| WORLD·COMBAT 다음 후보 선택 (frontier/combat.md SELECTED) | WORLD·COMBAT 레인 착수. 의존이 빈 것은 `FR-A-PROMISE-BINDS-BOTH` 하나다 — **다른 것보다 크다**는 것을 알고 고르는 것이 Human 의 몫이다 (master-frontier Do 6) |
 | WORLD·TERRAIN 후보 선택 (frontier/terrain.md SELECTED) | WORLD·TERRAIN 레인 착수 |
 | Q66 — 갈래를 노드의 완결로 판정하는가 플레이의 성립으로 판정하는가 (open-questions.md) | Overlay 를 읽는 법 · Frontier 가 무엇을 결손으로 세는가 |
 | Q67 — 병렬 레인이 공유하는 두 자리가 어긋난다 (open-questions.md · PROCESS) | Q 번호 충돌과 `frontier/README.md` 트랙 표의 낡음이 되풀이되는 것을 막는다. 이번 합류에서 둘 다 실제로 났다 |
@@ -75,7 +76,6 @@ Human 이 답하면 풀리는 것들이다. 답의 자리는 괄호가 가리킨
 | `CC-ORDER-IS-THE-ADDRESS` 승격 여부 (candidates/) | 순서로 짚는 것이 원칙이 되는가 — DC-WORLD-OWNS-THE-SURFACE-LIST 와 합칠지도 함께 |
 | C-COMBAT-003 의 Overlay 판정 하나 (08-verification MASTER FEEDBACK) | `MC-AURA-ALLOCATION` 을 IMPLEMENTED 로 볼 것인가 — semantic("무엇을 할 수 있는가를 가른다")으로 읽으면 닫혔고, detail 의 예 둘(인지 축도 관문이 된다)을 요구로 읽으면 아직 PARTIAL 이다. Q66 과 같은 종류의 물음이다 |
 | `CC-THE-LIST-IS-THE-JUDGE-TOO` 승격 여부 (08-verification MASTER FEEDBACK) | 세계가 목록을 소유한다는 규율이 **투영뿐 아니라 판정에도** 걸리는가 — 이번에 `isSkillKind` 가 목록 대신 이름 셋을 적어 두어 새 기술이 시작은 되고 칼끝을 만들지 않았다. 관찰 둘째다 (C018 이 첫째). 기존 `DC-WORLD-OWNS-THE-SURFACE-LIST` 의 scope 를 넓힐지도 함께 |
-| C-COMBAT-004 Human Play — `P` → `U` → `3` → `O` | Stage 8 STATUS 가 COMPLETE 로 닫힌다. 봐야 할 것은 여섯: 고르지 않았을 때 사유가 참인가 · 생명이 줄지 않는데 표식이 붙는가 · 다시 걸기가 막히는가 · 발현 일격이 60→80 인가 · 다른 곳을 골라도 남아 있는가 · 6초 뒤 사라지는가 |
 | **키 자리가 바닥났다** (C-COMBAT-004 Master Gap ②) | 글자 키가 남지 않았다 — `O`(C-COMBAT-003) · `P`(C-COMBAT-004) 로 끝. 사슬 B 에 후보 셋이 남았으므로 **다음 Cycle 은 키 없는 기술을 세운다**. 막힘은 아니다 (띠는 눌러서도 부른다) — `works/BACKLOG.md` 의 `skill-slot-crowds-the-keyboard` 가 VIEW/ENGINE 레인에서 그 자리를 기다린다 |
 | **자율 존재의 판단이 두 번 같은 자리에서 걸렸다** (C-COMBAT-003 Gap ① · C-COMBAT-004 Gap ①) | `Design-Creature-Behavior-R0.md` 승인이 이 트랙의 다음 층을 가른다 — 사슬 B 의 남은 셋(계약 · 규칙 관찰 · 봉인)이 전부 "상대가 무엇을 하는가" 를 전제하므로, 그 문서가 서지 않으면 **반쪽만 검증되는 층**을 쌓게 된다 |
 | C-COMBAT-001 Human Play — 손으로 `U` → 숫자를 눌러 보기 | Stage 8 STATUS 가 COMPLETE 로 닫힌다 (Feedback 은 이미 반영됐다). 봐야 할 것은 이제 **하나**다 (나머지 둘은 08 의 HUMAN PLAY 보조가 재어 BACKLOG 로 넘겼다): 상대를 절반 아래로 때렸을 때 뜨는 `[몸]` 이, 표시가 셋까지 앞에 붙은 이름(`[적대] 준비! [몸]Wanderer 1 ?`)에서 교전 중에 읽히는가 |
