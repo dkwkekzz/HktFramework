@@ -567,35 +567,39 @@ flowchart TB
   class N0,N1 miss;
 ```
 
-### 성장의 원천 — GS (content/proto-adventure/design/Master-Fairy-Growth-System.md) §5 · §19
+### 성장의 원천 — GS (content/proto-adventure/design/Master-Fairy-Growth-System.md) §5 · §19 · CK §34 (여섯째)
 
-지금의 힘이 어디에서 올라오는가의 축들. GS §5 는 현재 전투력을 다섯 축의 합으로 적고 §19 는 축마다 무엇을 해야 오르는지를 명명한다 — 이 시스템은 그 다섯 자리다. 층이 아니라 나란한 축이며 순서는 GS §5 의 나열 순서다 (아래에서 위로 읽는 사다리가 아니다). 마지막 자리(장비)는 이미 아이템 시스템이 세운 것과 같은 자리다 — 새로 만들지 않고 그 노드가 두 시스템에 속한다.
+지금의 힘이 어디에서 올라오는가의 축들. GS §5 는 현재 전투력을 다섯 축의 합으로 적고 §19 는 축마다 무엇을 해야 오르는지를 명명한다 — 그 다섯에 전투 지식을 몇 개나 지고 갈 수 있는가(CK §34 · Q65(b))가 여섯째로 더해졌다. 층이 아니라 나란한 축이며 순서는 GS §5 의 나열 순서다 (아래에서 위로 읽는 사다리가 아니다). 마지막 자리(장비)는 이미 아이템 시스템이 세운 것과 같은 자리다 — 새로 만들지 않고 그 노드가 두 시스템에 속한다.
 
 ```mermaid
 flowchart TB
-  subgraph SEG0 ["Equipment — 세계 자원 획득·제작·강화"]
-    N0["■ EQUIP-ITEM"]
+  subgraph SEG0 ["Knowledge Capacity — 전투 지식을 몇 개나 지고 갈 수 있는가"]
+    N0["□ CARRY-COMBAT-KNOWLEDGE"]
   end
-  subgraph SEG1 ["Exploration Mastery — 원리로 환경 문제 해결"]
-    N1["□ GROW-EXPLORATION-MASTERY"]
+  subgraph SEG1 ["Equipment — 세계 자원 획득·제작·강화"]
+    N1["■ EQUIP-ITEM"]
   end
-  subgraph SEG2 ["Skill Mastery — 실제 사용과 난도 높은 활용"]
-    N2["□ MASTER-A-SKILL"]
+  subgraph SEG2 ["Exploration Mastery — 원리로 환경 문제 해결"]
+    N2["□ GROW-EXPLORATION-MASTERY"]
   end
-  subgraph SEG3 ["Class Mastery — 그 형태 고유의 행동"]
-    N3["□ GROW-CLASS-MASTERY"]
+  subgraph SEG3 ["Skill Mastery — 실제 사용과 난도 높은 활용"]
+    N3["□ MASTER-A-SKILL"]
   end
-  subgraph SEG4 ["Character Level — 전투·탐험·발견·사건 해결"]
-    N4["□ GAIN-LEVEL"]
+  subgraph SEG4 ["Class Mastery — 그 형태 고유의 행동"]
+    N4["□ GROW-CLASS-MASTERY"]
+  end
+  subgraph SEG5 ["Character Level — 전투·탐험·발견·사건 해결"]
+    N5["□ GAIN-LEVEL"]
   end
   subgraph SEGBASE ["공통 바닥 — 층에 속하지 않는다"]
-    N5["□ LEARN-COMBAT-KNOWLEDGE"]
+    N6["□ LEARN-COMBAT-KNOWLEDGE"]
   end
   SEG0 ~~~ SEG1
   SEG1 ~~~ SEG2
   SEG2 ~~~ SEG3
   SEG3 ~~~ SEG4
-  SEG4 ~~~ SEGBASE
+  SEG4 ~~~ SEG5
+  SEG5 ~~~ SEGBASE
 
   classDef impl fill:#16351f,stroke:#3f8a52,color:#d8f2df;
   classDef part fill:#3a3315,stroke:#9a8a2e,color:#f2ecd0;
@@ -603,8 +607,8 @@ flowchart TB
   classDef implS fill:#16351f,stroke:#3f8a52,color:#d8f2df,stroke-dasharray:5 4;
   classDef partS fill:#3a3315,stroke:#9a8a2e,color:#f2ecd0,stroke-dasharray:5 4;
   classDef missS fill:#2a2a2e,stroke:#5c5c66,color:#b8b8c2,stroke-dasharray:5 4;
-  class N0 impl;
-  class N1,N2,N3,N4,N5 miss;
+  class N1 impl;
+  class N0,N2,N3,N4,N5,N6 miss;
 ```
 
 ### 요정 계열 — GS (content/proto-adventure/design/Master-Fairy-Growth-System.md) §1 · §2 · §9~§16
@@ -938,7 +942,7 @@ Constraint 는 단계가 아니라 각 선택 지점의 Filter 다. 아래는 �
 | `KNOWLEDGE-IS-NOT-A-SCRIPT` | COMBAT | DRAFT | 3 | 플레이어는 전투 판단 규칙을 쓰거나 고치지 않는다. 전투 지식은 내부를 열 수 없는 하나의 완성된 판단법으로 존재하고, 플레이어가 다루는 것은 그것을 고르는 일뿐이다. |
 | `KNOWLEDGE-RUNS-CAPABILITY-NEVER-CREATES-IT` | COMBAT | DRAFT | 2 | 전투 지식은 그 몸이 이미 가진 능력을 더 잘 쓰게 할 뿐, 없는 능력을 만들어내지 않는다. 같은 지식이라도 실행되는 모습은 그 몸이 가진 능력에서 나온다. |
 | `KNOWLEDGE-SHOWS-IN-BEHAVIOR` | COMBAT | DRAFT | 2 | 어떤 지식을 가져왔는가가 실제 전투 행동의 차이로 나타난다. 보이지 않는 보정만 주는 지식은 지식이 아니다. |
-| `MASTERY-IS-KNOWING-NOT-REFLEX` | COMBAT · GLOBAL | DRAFT | 3 | 전투 숙련은 손이 빨라지는 것이 아니라 더 많이 아는 것이다. 플레이어가 정확한 시점에 맞춰 누르는 것으로 결과가 갈리는 층을 세우지 않는다. |
+| `MASTERY-IS-KNOWING-NOT-REFLEX` | COMBAT · GLOBAL | DRAFT | 3 | 전투 숙련의 축은 조작 속도가 아니라 아는 것과 준비한 것이다. Response 층의 정교함은 캐릭터가 배운 것이 수행하며, 그것을 플레이어의 손이 대신해야만 성립하게 만들지 않는다. |
 | `SKILL-ANCHOR-IS-NOT-RESOLUTION` | SKILL | APPROVED | 1 | 어디를 기준으로 쓰는가와 결과적으로 누가 효과를 받는가는 서로 다른 질문이다. 하나를 다른 하나로 대신하지 않고, 한 명이냐 여럿이냐를 스킬의 종류로 만들지 않는다. |
 | `SKILL-COMBINE-BEFORE-NEW-FORM` | SKILL | REVISED | 1 | 새 스킬 요구는 먼저 기존 형태의 조합으로 표현한다. 새 실행 형태는 조합으로도 파라미터로도 표현할 수 없고, 세계에 다른 생명주기나 판정이 필요할 때만 추가한다. |
 | `SKILL-DELIVERY-IS-NOT-EFFECT` | SKILL | REVISED | 1 | 효과가 세계를 지나 대상에 닿는 방식과, 대상에게 실제로 일어나는 일은 서로 다른 축이다. 한쪽을 다른 쪽의 종류로 만들지 않는다. |

@@ -2626,7 +2626,9 @@ nodes:
       걸었는가이고 이쪽은 머리에 무엇을 담고 왔는가다. 지닌 것과 적용된 것을 가르는
       규율도 같다 (DC-ITEM-HOLDING-IS-NOT-APPLYING 의 형태).
       자리의 수는 이 노드가 정하지 않는다 — CK §10 의 넷은 예시이며 수치는 이 층을
-      세우는 Cycle 이 소유한다.
+      세우는 Cycle 이 소유한다. 다만 **그 수가 자란다는 것은 정해졌다** (Q65(b) — Human):
+      Class 층이 오르면 자리가 늘고 (CK §34), 그래서 이 자리는 성장의 여섯째 축이기도
+      하다. 늘어도 보유량보다는 적어야 고르는 일이 남는다.
     world_shape: >
       배운 전투법의 목록과 지금 작동하는 전투법의 목록이 따로 있고, 뒤쪽이 앞쪽보다
       적어 고르는 일이 강제되며, 무엇을 골랐는가가 그 싸움의 행동을 바꿔야 한다.
@@ -2636,6 +2638,10 @@ nodes:
         - system: MS-COMBAT-KNOWLEDGE
           segment: CARRY
           source: CK §10 · §11 · §27
+        - system: MS-GROWTH-SOURCE
+          segment: KNOWLEDGE-CAPACITY
+          source: CK §34 · Q65(b)
+          role: 자리 수가 Class 층과 함께 자란다 — 그래서 이 자리가 성장의 여섯째 축이다
     required_by: [MP-PREPARE-THE-RIGHT-KNOWLEDGE]
     demanded_by: []
     constraints: [DC-KNOWLEDGE-IS-CARRIED-NOT-HOARDED, DC-KNOWLEDGE-CONFLICT-IS-DESIGNED,
@@ -2662,15 +2668,22 @@ nodes:
       공간술사에게는 위치 교환이 된다 (CK §13). 지식은 목적과 판단법을 주고 실행은
       그 몸이 가진 능력이 하므로, 없는 능력이 생기지 않는다 (CK §12).
       **사람의 몸에만 서는 것이 아니다.** 지능 있는 자율 존재도 자기 전투법을 지니며,
-      그러면 그 존재의 행동이 임의의 AI 가 아니라 "그가 세계에서 무엇을 배웠는가" 로
-      설명된다 (CK §35). 지금 세계의 고정된 판단 규칙 하나(RULE-NPC-DECIDE-001)가
-      대체될 자리가 여기다.
+      그러면 그 존재의 전투 행동이 임의의 AI 가 아니라 "그가 세계에서 무엇을 배웠는가"
+      로 설명된다 (CK §35).
+      다만 **자율 행동의 기반 전체가 이것으로 대체되지는 않는다** (Q62 — Human).
+      전투 지식은 전투를 다루고, 자율 존재가 애초에 왜 움직이는가(목적 · 영역 · 인지 ·
+      국면)는 별도 기획이 소유한다. 지능이 없는 존재는 전투 지식 없이도 싸운다 —
+      그래서 지금의 고정된 판단 규칙(RULE-NPC-DECIDE-001)이 사라지는 것이 아니라
+      그 위에 지식을 지닌 존재만 이 층을 쓴다.
       대응 자리(MC-ACTIVE-RESPONSE 계열)와 갈린다 — 저쪽은 무엇을 할 수 있는가이고
       이쪽은 그중 무엇을 언제 하는가다. CK §15 가 그 둘을 명시적으로 갈라 둔다.
     world_shape: >
       같은 몸이 다른 전투법을 지녔을 때 관찰 가능하게 다르게 싸우고, 그 차이가 값의
       크기가 아니라 무엇을 하는가에서 나며, 지식이 지시한 운용이 그 몸에 없는 능력이면
       성립하지 않아야 한다.
+      지식과 실제 행동 사이에 **지금 무엇을 하려는가**(CN-COMBAT-INTENT)가 한 마디로
+      서고 그것이 관찰되어야 한다 — 지식이 행동을 직접 지시하면 지식마다 모든 능력을
+      알아야 하고, 그러면 같은 지식이 캐릭터마다 다른 행동이 되지 못한다 (Q64(a)).
     part_of:
       grounded: true
       memberships:
@@ -2678,8 +2691,11 @@ nodes:
           segment: CONDUCT
           source: CK §2 · §12 · §13 · §17 · §40
         - system: MS-CREATURE-BEHAVIOR
-          source: CK §35
-          role: 자율 존재의 행동도 배운 전투법으로 설명된다 — 그쪽 문서와의 경계는 Q62
+          source: CK §35 · Q62(Human)
+          role: >-
+            지능 있는 자율 존재의 **전투** 행동이 배운 전투법으로 설명되는 자리다.
+            자율 행동의 기반 전체를 이 노드가 소유하지 않는다 — 그 기반은 별도 기획이
+            소유하고(작성 예정), **모든 자율 존재가 전투 지식에 지배되지 않는다** (Q62)
     required_by: [MP-LEARN-HOW-TO-FIGHT-IT, MP-PREPARE-THE-RIGHT-KNOWLEDGE]
     demanded_by: []
     constraints: [DC-KNOWLEDGE-RUNS-CAPABILITY-NEVER-CREATES-IT, DC-KNOWLEDGE-SHOWS-IN-BEHAVIOR,

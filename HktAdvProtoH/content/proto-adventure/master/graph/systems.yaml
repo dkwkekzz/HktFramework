@@ -198,11 +198,12 @@ systems:
 
   - id: MS-GROWTH-SOURCE
     name: 성장의 원천
-    source: GS (content/proto-adventure/design/Master-Fairy-Growth-System.md) §5 · §19
+    source: GS (content/proto-adventure/design/Master-Fairy-Growth-System.md) §5 · §19 · CK §34 (여섯째)
     status: DEFINED
     semantic: >
       지금의 힘이 어디에서 올라오는가의 축들. GS §5 는 현재 전투력을 다섯 축의 합으로
-      적고 §19 는 축마다 무엇을 해야 오르는지를 명명한다 — 이 시스템은 그 다섯 자리다.
+      적고 §19 는 축마다 무엇을 해야 오르는지를 명명한다 — 그 다섯에 전투 지식을 몇 개나
+      지고 갈 수 있는가(CK §34 · Q65(b))가 여섯째로 더해졌다.
       층이 아니라 나란한 축이며 순서는 GS §5 의 나열 순서다 (아래에서 위로 읽는 사다리가
       아니다). 마지막 자리(장비)는 이미 아이템 시스템이 세운 것과 같은 자리다 —
       새로 만들지 않고 그 노드가 두 시스템에 속한다.
@@ -212,6 +213,9 @@ systems:
       - { id: SKILL-MASTERY,        name: Skill Mastery — 실제 사용과 난도 높은 활용 }
       - { id: EXPLORATION-MASTERY,  name: Exploration Mastery — 원리로 환경 문제 해결 }
       - { id: EQUIPMENT,            name: Equipment — 세계 자원 획득·제작·강화 }
+      # Q65(b) — CK §34 가 Class Change 에 "새로운 Combat Knowledge 접근" 을 넣었고,
+      # Human 이 자리 수가 성장하는 쪽을 골랐다. GS §5 의 다섯에 더해지는 여섯째 축이다.
+      - { id: KNOWLEDGE-CAPACITY,   name: Knowledge Capacity — 전투 지식을 몇 개나 지고 갈 수 있는가 }
 
   - id: MS-FAIRY-LINEAGE
     name: 요정 계열
