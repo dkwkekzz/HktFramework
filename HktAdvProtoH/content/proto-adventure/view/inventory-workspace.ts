@@ -67,6 +67,15 @@ const COLUMNS = 4;
  */
 const EQUIPMENT_COLUMNS = 6;
 
+// 작업 공간의 좌우 두 열 (문서 §2.2 · §2.3) — **넓이는 청함이고 문턱은 이 수다.**
+//
+// 문서는 `≥ 1100px` 을 말하지만 그것은 창의 너비이고, 나란히 놓을 자리를 지니는 것은
+// 표면 자신이다. 그래서 문턱을 **한 열의 가장 좁은 너비**로 적는다 — 표면이 두 열을
+// 담을 만큼 넓으면 서고, 아니면 목록의 차례 그대로 다시 쌓인다.
+const WORKSPACE_WIDTH = 1100;
+const WORKSPACE_GROUP = 'workspace';
+const WORKSPACE_COLUMN_MIN = 470;
+
 /**
  * 이 표면에서 **실행하지 않는** 역할 (04 unexecutable_actions).
  *
@@ -1130,6 +1139,10 @@ export function inventoryWorkspace(
     id: INVENTORY_SURFACE_ID,
     open,
     title: '가진 것',
+    // 이 표면은 **작업 공간**이다 (문서 §2.2) — 걸어 둔 것과 지닌 것이 나란히 서려면
+    // 읽을 것 하나짜리 표면보다 넓어야 한다. 청함이지 명령이 아니므로 화면이 좁으면
+    // 기반이 화면에 맞춘다 (SceneSurface.width)
+    width: WORKSPACE_WIDTH,
     ...(focusId === null ? {} : { focusId }),
     sections: [
       // 도구 띠 (문서 §2.2 의 `[전체⌄] [정렬⌄]` 자리) — **거는 것은 보기이지 세계가 아니다.**
@@ -1159,6 +1172,10 @@ export function inventoryWorkspace(
               id: 'equipment',
               title: `걸어 둔 것 — ${filledSlots} / ${worn.length}`,
               columns: EQUIPMENT_COLUMNS,
+              // 지닌 것과 **나란히** 선다 (문서 §2.3) — 넓으면 좌우 두 열, 좁으면
+              // 목록의 차례 그대로 다시 쌓인다. 문턱은 묶음의 첫 구획이 준다
+              group: WORKSPACE_GROUP,
+              groupMin: WORKSPACE_COLUMN_MIN,
               cells: slotCells(snapshot, text, shortText),
             },
           ]
@@ -1171,6 +1188,9 @@ export function inventoryWorkspace(
           ? `지닌 것 — ${shown.length} / ${all.length} 종류 · ${narrowedBy().join(' · ')}`
           : `지닌 것 — ${all.length} 종류`,
         columns: COLUMNS,
+        // 걸어 둔 것과 같은 묶음 — 둘이 한 줄에 선다. 걸어 둔 자리가 하나도 없으면
+        // 이 구획만 남고, 그때는 홀로 서므로 묶음이 되지 않는다 (기반이 가른다)
+        group: WORKSPACE_GROUP,
         cells: itemCells(shown, all, text, shortText),
         // 지닌 것이 없는 것과 조건에 걸린 것이 없는 것은 다른 일이다 (문서 §6)
         emptyText:
@@ -1183,6 +1203,10 @@ export function inventoryWorkspace(
           ? `자리 ${room.used} / ${room.capacity}${full ? ' · 가득' : ` · 남은 자리 ${left}`}`
           : '자리',
         columns: COLUMNS,
+        // 남은 자리도 같은 묶음이다 — 밖에 두면 이 구획만 표면 폭 전체로 늘어나고,
+        // 그러면 같은 화면의 빈 칸이 물건 칸의 두 배가 된다 (한 칸 265px 대 132px).
+        // 자리가 둘뿐이면 한 줄에 둘만 서고 이 구획은 그 아래 줄로 내려간다
+        group: WORKSPACE_GROUP,
         cells: roomCells(snapshot),
         emptyText: '남은 자리 없음',
       },
