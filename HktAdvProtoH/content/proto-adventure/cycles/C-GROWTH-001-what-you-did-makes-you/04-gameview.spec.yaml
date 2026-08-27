@@ -1,0 +1,330 @@
+# CYCLE C-GROWTH-001 — GameView Specification
+#
+# 이 Cycle 이 계약에 더하는 것은 셋뿐이다.
+#
+#   ① 내 몸에만 **자란 것** 한 자리 — 쌓인 양 · 지금 단계 · 다음 문턱 · 단계가 보태는 몫.
+#      남의 것은 오지 않는다.
+#   ② 방금 일어난 **쌓임**의 목록 — 타격·접촉·캔슬과 나란한 네 번째 목록이며 같은 수명을
+#      가진다. 오르지 않은 쌓임도 실린다.
+#   ③ 한 방의 경위에 **단계가 보탠 몫** — `fromAllocation` 옆에 서며 0 이어도 실린다.
+#
+# **새 조작이 하나도 없다.** 이 Cycle 은 요청의 자리를 더하지 않는다 — 자라게 하는
+# 행위는 이미 세계에 있는 것들(치고 · 쓰러뜨리고 · 캐고 · 살펴보는 것)이고, 사람이
+# 하는 일은 지금까지 하던 일 그대로다. 그것이 이 Cycle 의 뜻이기도 하다:
+# **한 일이 몸을 키운다** — 따로 무엇을 눌러서가 아니라.
+#
+# 그 밖의 모든 값은 형태가 한 글자도 바뀌지 않는다. combatStats 는 그대로 오고,
+# **다만 그 안의 수가 이력에 따라 커진다.** 그것이 이 Cycle 이 만드는 변화이며
+# 계약이 아니라 세계에서 온다.
+#
+# 이 계약을 받은 View 는 **단계를 한 번도 계산하지 않는다.** 쌓인 값을 문턱으로 나누지
+# 않고, 다음 문턱까지 얼마인지 빼지 않으며, 어느 단계가 어느 값을 얼마나 올리는지
+# 묻지 않는다 — 받은 값을 옮긴다 (DC-WORLD-OWNS-THE-SURFACE-LIST).
+id: VIEW-WHAT-YOU-DID-MAKES-YOU-001
+observer: player
+
+delta:
+  reused:
+    - scene.mining-field
+    - entities.character                    # 위치·역할·이름·종류·모션·body·swing·상태 그대로
+    - entities.deposit
+    - entities.character.vitality
+    - entities.character.attributes.energy
+    - entities.character.attributes.allocation      # C-COMBAT-001 — 그대로
+    - entities.character.attributes.insight
+    - entities.character.attributes.concealed
+    - entities.character.attributes.acquainted / unacquaintedReason
+    - entities.character.attributes.versusObserver / defenseShape
+    - entities.character.attributes.guard / stanceTowardObserver / stanceFromObserver
+    - entities.character.attributes.tempoStats / modifiers / moveMode / control
+    - inventory / inventoryRoom / equipment / allocations
+    - strikes / contacts / cancels
+    - currentTarget / commandCatalog
+    - observer / session / delivery / identity / telemetry
+    - interactions.*                        # 기존 전부 — **하나도 바뀌지 않고 하나도 늘지 않는다**
+  added:
+    - growth                                        # 자란 것 (내 몸에만)
+    - growthEvents                                  # 방금 쌓인 일들 (내 것만)
+    - strikes[].breakdown.offenseStat.fromGrowth
+    - strikes[].breakdown.defenseStat.fromGrowth
+    - strikes[].breakdown.penetrationStat.fromGrowth
+    - hud.self.growth.*
+  changed:
+    # 형태가 바뀌지 않는다 — 싣는 수의 출처가 넓어질 뿐이다
+    - entities.character.attributes.combatStats     # 유효 값에 단계 항이 든다
+  removed: []
+
+scene: mining-field
+
+# ─────────────────────────────────────────────────────────────────
+# growth — 이 Cycle 이 세우는 자리
+#
+#   **내 몸의 것만 실린다** (INTENT-PER-OBSERVER-PROJECTION-001). 남이 얼마나 자랐는지는
+#   오지 않는다 — 세계에 그 관찰이 없다 (03 OBSERVABLE SEMANTIC).
+#   남이 자란 결과는 이미 combatStats 가 싣고 있고, 그것이 어디까지 보이는가는
+#   C016 의 가려짐 관문이 정한다. 이 Cycle 이 그 관문을 넓히지 않는다.
+#
+#   **언제나 실린다.** 아직 아무것도 쌓지 않았어도 온다 — 0 이라는 사실과 자리가
+#   없다는 사실은 다르며, 그 구분이 없으면 "무엇을 하면 는다" 를 사람이 알 수 없다
+#   (C023 이 빈 적용 자리를 싣는 것과 같은 판단).
+# ─────────────────────────────────────────────────────────────────
+growth:
+  cardinality: 1
+  source: 관찰자 몸의 Actor.Deeds 와 그 파생
+  fields:
+    deeds:
+      source: Actor.Deeds
+      meaning: 지금까지 쌓인 양. 세계 안의 사정으로는 줄지 않는다
+    level:
+      source: RULE-GROWTH-LEVEL-001(Actor.Deeds)
+      meaning: >
+        **세계가 세어서 싣는다.** 화면이 deeds 를 문턱으로 나누지 않는다.
+        0 이면 아직 한 번도 오르지 않은 것이다.
+    maxLevel:
+      source: World.GrowthThresholds 의 항목 수
+      meaning: >
+        표가 몇 칸인가. 화면이 상수를 지니지 않으므로, 문턱을 늘려도 화면이 열리지 않는다.
+    nextThreshold:
+      cardinality: 0..1
+      source: World.GrowthThresholds 중 아직 넘지 않은 첫 값
+      meaning: 최대 단계면 오지 않는다 — 없다는 것이 곧 "더 오를 곳이 없다" 이다
+    deedsToNext:
+      cardinality: 0..1
+      source: nextThreshold - Actor.Deeds
+      meaning: >
+        **세계가 빼서 싣는다.** 화면이 두 값을 받아 빼지 않는다.
+        최대 단계면 오지 않는다.
+    contributions:
+      cardinality: many
+      source: 지금 단계가 각 값에 보태고 있는 몫 (World.GrowthLevelSteps × level)
+      order:
+        source: World.GrowthLevelSteps 의 차례
+        meaning: 같은 세계 상태면 같은 순서다. 화면은 정렬하지 않는다
+      fields:
+        stat:
+          source: 능력의 이름 (의미 코드)
+          meaning: 표시 이름은 View 책임. 화면이 이 코드로 분기하지 않는다
+        amount:
+          source: 지금 단계가 그 값에 보태는 몫
+          meaning: >
+            단계 0 에서는 넷이 전부 0 이다 — **그래도 실린다.**
+            0 이 실려야 "아직 아무것도 보태고 있지 않다" 가 관찰이 된다.
+      meaning: >
+        **여기 없는 값은 자라지 않는다.** 관통 둘 · 치명 둘 · 통찰 · 생명력 · 기력 ·
+        이동은 이 목록에 오지 않으며, 그것이 결손이 아니라 그 값들의 성질이다
+        (INTENT-WHAT-GROWS-IS-WHAT-THE-CONTEST-READS-001).
+
+# ─────────────────────────────────────────────────────────────────
+# growthEvents — 방금 무엇을 해서 얼마가 쌓였는가
+#
+#   strikes · contacts · cancels 와 **나란한 네 번째 목록**이며 같은 수명을 가진다
+#   (03 WORLD STATE · RULE-STRIKE-EVENT-EXPIRE-001). 넷이 답하는 질문이 다르다 —
+#   닿아서 해가 성립했다 / 닿았으나 막혔다 / 하려던 것이 사라졌다 / 한 일이 몸에 남았다.
+#
+#   **내 것만 실린다.** 남이 무엇으로 자랐는지는 오지 않는다.
+# ─────────────────────────────────────────────────────────────────
+growthEvents:
+  cardinality: many
+  source: World.GrowthEvents 중 관찰자 몸의 것
+  order:
+    source: World.GrowthEvents 의 차례 (일어난 순서)
+    meaning: 같은 세계 상태면 같은 순서다. 화면은 정렬하지 않는다
+  fields:
+    source:
+      source: GrowthEvent.source
+      values:
+        - strike     # 한 대가 들어갔다
+        - down       # 쓰러뜨렸다
+        - mine       # 캤다
+        - observe    # 살펴봐 알게 되었다
+      meaning: >
+        의미 코드다. 문구 변환은 View 책임이며, **모르는 코드를 만나도 화면이
+        성립해야 한다** — 받은 코드를 그대로 보여도 된다 (C020 이 세운 규칙 그대로).
+        원천이 늘어도 계약의 형태는 바뀌지 않는다.
+    amount:
+      source: GrowthEvent.amount
+      meaning: 이번에 쌓인 양. 같은 원천은 언제나 같은 양이다
+    deedsAfter:
+      source: GrowthEvent.deedsAfter
+      meaning: 쌓은 뒤의 총량
+    levelBefore: { source: GrowthEvent.levelBefore }
+    levelAfter:
+      source: GrowthEvent.levelAfter
+      meaning: >
+        **levelBefore 와 다르면 그것이 "올랐다" 는 사실이다.** 화면이 이전 값을
+        기억해 두었다가 견주지 않는다 — 세계가 둘을 함께 싣는다.
+        문턱 둘을 한 번에 넘으면 둘 차이가 난다.
+  meaning: >
+    **오르지 않은 쌓임도 실린다** (levelBefore == levelAfter). 터지지 않은 치명이
+    실리는 이유와 같다 (C015) — 오르지 않았다는 사실도 관찰이어야 다음 문턱까지의
+    거리가 읽힌다.
+
+# ─────────────────────────────────────────────────────────────────
+# entities — 형태가 바뀌는 곳은 없다
+# ─────────────────────────────────────────────────────────────────
+entities:
+  character:
+    changed:
+      attributes.combatStats:
+        source: 각 능력의 **유효 값** (기본값 + 걸린 것 + 배분 + 단계)
+        meaning: >
+          **형태가 한 글자도 바뀌지 않는다.** 지금까지 오던 그 자리에 그 이름으로 온다.
+          달라지는 것은 그 안의 수이며, 이제 그 수가 이력에 따라 커진다.
+          화면은 무엇이 그 수를 그만큼 만들었는지 묻지 않는다.
+    unchanged:
+      - attributes.allocation        # 지금 어디에 두었는가 — 그대로
+      - attributes.insight           # 자라지 않는다 — 그대로
+      - attributes.concealed         # 가려짐 관문 — 그대로
+      - vitality                     # 생명력은 자라지 않는다 — 그대로
+      - attributes.energy            # 기력도 자라지 않는다 — 그대로
+      - attributes.tempoStats        # 걸음도 자라지 않는다 — 그대로
+    not_projected:
+      Actor.Deeds (남의 것):
+        reason: >
+          세계에 그 관찰이 없다 (03 OBSERVABLE SEMANTIC). 상대가 얼마나 자랐는지는
+          이 Cycle 의 Goal 이 요구하지 않으며, 요구되면 C016 의 가려짐 관문을
+          지나야 한다 — 그것은 후보로 승격할 일이지 여기서 몰래 열 일이 아니다.
+
+# ─────────────────────────────────────────────────────────────────
+# strikes — 한 방의 경위에 한 칸이 는다
+# ─────────────────────────────────────────────────────────────────
+strikes:
+  added:
+    breakdown.offenseStat.fromGrowth:
+      source: TypedStat.fromGrowth
+      meaning: 그 공격 능력 중 지금 단계가 보탠 몫
+    breakdown.defenseStat.fromGrowth:
+      source: TypedStat.fromGrowth
+      meaning: 그 방어 능력 중 맞는 쪽 단계가 보탠 몫
+    breakdown.penetrationStat.fromGrowth:
+      source: TypedStat.fromGrowth
+      meaning: >
+        **언제나 0 이다** — 관통은 자라지 않는다. 그럼에도 자리를 비우지 않는 이유는
+        `fromAllocation` 이 같은 자리에서 같은 이유로 0 을 싣기 때문이다
+        (C-COMBAT-001). 세 칸의 생김새가 같아야 화면이 갈래를 짓지 않는다.
+  meaning: >
+    `fromAllocation` 과 나란히 서며 같은 성질이다 — **0 이어도 실린다.**
+    "이번 한 방에 자란 것이 아무것도 하지 않았다" 는 사실 역시 관찰이어야
+    자란 몫이 어디에 걸리는지 사람이 안다.
+
+# ─────────────────────────────────────────────────────────────────
+# interactions — 더하는 것이 없다
+# ─────────────────────────────────────────────────────────────────
+interactions:
+  added: []
+  changed: []
+  meaning: >
+    이 Cycle 은 요청의 자리를 만들지 않는다. 자라게 하는 일은 이미 있는 조작
+    (치기 · 캐기 · 살펴보기)이 하고, 그 조작의 가용성도 사유도 한 글자 바뀌지 않는다.
+    **성장을 요청하는 조작은 세계에 없다** — 그것이 있으면 성장이 세계 안의 일이
+    아니라 사람이 누르는 일이 된다.
+
+# ─────────────────────────────────────────────────────────────────
+# hud
+# ─────────────────────────────────────────────────────────────────
+hud:
+  added:
+    - id: self.growth.level
+      kind: counter
+      source: growth.level
+      meaning: 지금 몇 단계인가
+    - id: self.growth.deeds
+      kind: counter
+      source: growth.deeds
+      meaning: 지금까지 쌓인 양
+    - id: self.growth.nextThreshold
+      kind: counter
+      source: growth.nextThreshold
+      meaning: 다음 문턱의 값 — 없으면 그리지 않는다 (최대 단계)
+    - id: self.growth.deedsToNext
+      kind: counter
+      source: growth.deedsToNext
+      meaning: 다음 문턱까지 남은 양 — 세계가 빼서 싣는다
+    - id: self.growth.contributions
+      kind: list
+      source: growth.contributions
+      meaning: 단계가 지금 어느 값에 얼마를 보태고 있는가 (넷)
+    - id: self.growth.recent
+      kind: list
+      source: growthEvents
+      meaning: >
+        방금 무엇을 해서 얼마가 쌓였는가. 오른 것(levelBefore ≠ levelAfter)을
+        더 크게 알릴지는 View 가 정한다 — 계약은 두 값을 실을 뿐이다.
+  reused:
+    - self.combat.*      # 값이 이력에 따라 커진다 — 형태는 그대로
+    - self.allocation.*  # 그대로
+  meaning: >
+    **어디에 그리는가는 View 가 정한다** (C023 이 적용 자리에, C-COMBAT-001 이
+    배분 목록에 대해 내린 판단 그대로). 이 계약은 값이 어디서 오는지만 말한다.
+    성장만을 위한 새 표면(성장 창 · 오름 연출)은 이 Cycle 의 몫이 아니다 —
+    필요하면 works/BACKLOG.md 로 넘긴다.
+
+# ─────────────────────────────────────────────────────────────────
+# designer — 같은 계약을 쓴다
+# ─────────────────────────────────────────────────────────────────
+designer:
+  uses: 이 계약 그대로. World 로 가는 별도 경로를 만들지 않는다
+  goal:
+    - GOAL-WHAT-THE-BODY-DID-IS-KEPT
+    - GOAL-ENOUGH-BECOMES-A-STEP
+    - GOAL-THE-STEP-MAKES-THE-BODY-BIGGER
+    - GOAL-THE-CAUSE-OF-GROWING-IS-READ
+  possibility:
+    - POSSIBILITY-ONE-LEDGER-NOT-MANY
+    - POSSIBILITY-THE-WORLD-ITSELF-ADDS-IT
+    - POSSIBILITY-ONLY-WHAT-THE-WORLD-CAN-DO-COUNTS
+    - POSSIBILITY-EVERY-BODY-HAS-THE-PLACE
+    - POSSIBILITY-WHAT-IS-KEPT-IS-NEVER-LOST
+    - POSSIBILITY-THE-STEP-IS-READ-FROM-WHAT-IS-KEPT
+    - POSSIBILITY-THE-THRESHOLDS-ARE-A-VALUE-NOT-A-RULE
+    - POSSIBILITY-ONE-ACT-MAY-CROSS-MORE-THAN-ONE
+    - POSSIBILITY-THE-STEP-NEVER-GOES-BACK
+    - POSSIBILITY-ANOTHER-TERM-NOT-ANOTHER-FORMULA
+    - POSSIBILITY-THE-BASE-IS-NEVER-TOUCHED-BY-GROWING
+    - POSSIBILITY-GROWING-IS-VISIBLE-AS-THE-BODY-GETTING-BIGGER
+    - POSSIBILITY-WHAT-GROWS-IS-WHAT-THE-CONTEST-READS
+    - POSSIBILITY-NOT-EVERY-VALUE-GROWS
+    - POSSIBILITY-THE-ZEROTH-STEP-ADDS-NOTHING
+    - POSSIBILITY-A-SMALL-STEP-BECAUSE-IT-IS-EVERYWHERE
+    - POSSIBILITY-THE-STEP-OPENS-NOTHING
+    - POSSIBILITY-THE-LEDGER-IS-OBSERVED
+    - POSSIBILITY-AN-ACT-THAT-ADDS-SAYS-SO
+    - POSSIBILITY-A-STEP-CARRIES-ITS-REASON
+    - POSSIBILITY-THE-SAME-ACT-ADDS-THE-SAME
+  availability:
+    - 없음 — 이 Cycle 이 더하는 규칙에는 거절이 없다.
+      RULE-DEEDS-ADD-001 은 선행 조건이 없고 (부르는 자리가 관문이다),
+      RULE-GROWTH-LEVEL-001 은 읽기 판정이다
+  preconditions:
+    - RULE-DEEDS-ADD-001 — 없음. 일이 실제로 끝났다는 사실이 곧 불리는 조건이다
+    - RULE-STRIKE-DAMAGE-001 — 피해가 성립했는가 / 그 타격이 쓰러뜨렸는가 (기존 판정)
+    - RULE-MINE-COMPLETE-001 — 캐는 일이 끝났는가 (기존 판정)
+    - RULE-OBSERVE-COMPLETE-001 — 살펴봄이 끝났는가 (기존 판정)
+  before_after:
+    - growthEvents[].deedsAfter · levelBefore · levelAfter
+    - strikes[].breakdown.*.fromGrowth
+  reason:
+    - growthEvents[].source — 무엇을 해서 쌓였는가
+
+# ─────────────────────────────────────────────────────────────────
+# 투영하지 않은 Observable 과 그 사유
+# ─────────────────────────────────────────────────────────────────
+not_projected:
+  World.DeedCatalog:
+    reason: >
+      어떤 일이 얼마를 쌓는지의 **표 전체**는 오지 않는다. 실제로 쌓인 양은
+      growthEvents[].amount 가 그때그때 싣고, 그것으로 사람이 표를 알아 간다 —
+      세계를 미리 펼쳐 보이는 것은 이 Cycle 의 뜻이 아니다.
+      필요해지면 그때 계약을 넓힌다 (C020 의 명령 목록이 그렇게 섰다).
+  World.GrowthThresholds:
+    reason: >
+      표 전체는 오지 않는다. 지금 필요한 두 값(다음 문턱 · 남은 양)과 칸 수(maxLevel)만
+      온다. 나머지 문턱을 미리 아는 것은 이 Cycle 의 Goal 이 요구하지 않는다.
+  World.GrowthLevelSteps:
+    reason: >
+      단계당 몫의 표가 아니라 **지금 보태고 있는 몫**(growth.contributions)이 온다.
+      화면이 표를 받아 단계를 곱하지 않는다 (DC-WORLD-OWNS-THE-SURFACE-LIST).
+  남의 GrowthEvents:
+    reason: 세계가 관찰자 자신의 것만 싣는다 (03 OBSERVABLE SEMANTIC)
+
+# GAP  없음.

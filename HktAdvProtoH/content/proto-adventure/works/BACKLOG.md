@@ -192,3 +192,30 @@
            패널이 세 줄(y 23 · 54 · 85)로 선다. 글자 17px 로 본문보다 크다.
            **넷을 줄이는 것은 답이 아니다** — 못 가는 것도 사유와 함께 실려야 한다
            (04 allocations.meaning · DC-WORLD-OWNS-THE-SURFACE-LIST)
+
+## 성장 (이관 — C-GROWTH-001)
+
+이관 출처: `cycles/C-GROWTH-001-what-you-did-makes-you/07-view-implementation.md` 의
+NOTES · 08 의 "Works 로 넘긴 화면 몫". 둘 다 세계도 계약도 요구하지 않는다 —
+세계는 이미 보내고 있고, 화면이 그것을 **어떻게 보이게 하는가**만 남았다.
+
+### growth-cause-in-the-breakdown — 자란 몫이 한 방의 경위에 실린다
+    출처   C-GROWTH-001 07 NOTES · 08 Works 로 넘긴 화면 몫 ①
+    목표   속성 관찰(`inspect`)을 켰을 때 타격 경위 줄에 배분의 몫과 나란히
+           **단계가 보탠 몫**이 읽힌다 — "이 한 방이 왜 22 인가" 가 한 줄에서 닫힌다
+    크기   작음
+    의존   없음 — **세계는 이미 보내고 있다** (`strikes[].breakdown.*.fromGrowth`).
+           관찰 계약을 넓힐 필요가 없으므로 온전히 VIEW 레인의 일이다
+    상태   PROPOSED
+    주     지금 경위 줄이 이미 길다. 배분의 몫과 자란 몫을 그냥 나란히 쓰면 한 줄이
+           두 줄이 되므로, 0 인 항을 접는 규칙이 함께 필요하다
+
+### growth-step-is-a-moment — 오른 순간이 눈에 걸린다
+    출처   C-GROWTH-001 07 NOTES · 08 Works 로 넘긴 화면 몫 ②
+    목표   단계가 오른 순간이 놓치기 어렵게 보인다 — 지금은 self 패널의 줄 하나가
+           1.2초 서 있다 사라지므로, 싸우는 중에는 그 순간을 지나치기 쉽다
+    크기   작음
+    의존   없음 — 판정은 이미 있다 (`view/growth-presentation.ts` 의 `justLeveled`)
+    상태   PROPOSED
+    주     이펙트로 갈 경우 **예산 일곱 중 무엇을 뺄지 함께 정한다** (F1 규칙 ③).
+           이펙트가 아니어도 된다 — 줄의 강조나 토스트도 같은 문을 쓴다

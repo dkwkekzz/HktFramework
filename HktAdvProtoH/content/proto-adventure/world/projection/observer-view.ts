@@ -13,6 +13,8 @@ import type {
   EntityView,
   GameViewSnapshot,
   GroundSelfView,
+  GrowthEventView,
+  GrowthView,
   InteractionView,
   EquipmentSlotView,
   InventoryItemView,
@@ -43,6 +45,14 @@ import {
   skillPhase,
 } from '../semantic/combat';
 import { concealedKeys, isAcquainted, isSeatOpen } from '../semantic/acquaintance';
+import {
+  GROWABLE_STATS,
+  MAX_GROWTH_LEVEL,
+  deedsToNextThreshold,
+  growthContribution,
+  growthLevel,
+  nextGrowthThreshold,
+} from '../semantic/growth';
 import {
   ALLOCATION_IDS,
   ALLOCATION_SWITCH_CP_COST,
@@ -574,6 +584,10 @@ export function projectObserverView(
     // C-COMBAT-001 — 고를 수 있는 배분 전부. 소지품·적용 자리와 나란한 세 번째 목록이며
     // 내 몸의 것만 실린다 (INTENT-PER-OBSERVER-PROJECTION-001).
     allocations: projectAllocations(self),
+    // C-GROWTH-001 — 자란 것과 방금 쌓인 일들. 둘 다 내 몸의 것만 실린다
+    // (INTENT-PER-OBSERVER-PROJECTION-001).
+    growth: projectGrowth(self),
+    growthEvents: projectGrowthEvents(state, self),
     hud: [
       // 내 몸의 것만 실린다. 다른 관찰자의 소지품과 가용성은 실리지 않는다
       // (INTENT-PER-OBSERVER-PROJECTION-001).
@@ -681,6 +695,26 @@ export function projectObserverView(
         kind: 'counter',
         value: allocationShares(self.allocation).awareness,
       },
+      // C-GROWTH-001 — 자란 것. 쌓인 양과 다음 문턱이 **함께** 온다 —
+      // 남은 양만으로는 얼마나 왔는지 읽히지 않는다 (self.hp / self.hpMax 가 나란히
+      // 실리는 것과 같은 자리). 최대 단계면 문턱 둘이 실리지 않는다.
+      { id: 'self.growth.level', kind: 'counter', value: growthLevel(self.deeds) },
+      { id: 'self.growth.maxLevel', kind: 'counter', value: MAX_GROWTH_LEVEL },
+      { id: 'self.growth.deeds', kind: 'counter', value: self.deeds },
+      ...(nextGrowthThreshold(self.deeds) !== null
+        ? ([
+            {
+              id: 'self.growth.nextThreshold',
+              kind: 'counter' as const,
+              value: nextGrowthThreshold(self.deeds) as number,
+            },
+            {
+              id: 'self.growth.deedsToNext',
+              kind: 'counter' as const,
+              value: deedsToNextThreshold(self.deeds) as number,
+            },
+          ])
+        : []),
       { id: 'self.tempo.moveSpeed', kind: 'counter', value: self.moveSpeed },
       { id: 'self.tempo.runSpeedMultiplier', kind: 'counter', value: self.runSpeedMultiplier },
       { id: 'self.tempo.actionSpeed', kind: 'counter', value: self.actionSpeed },
@@ -773,6 +807,55 @@ export function projectObserverView(
  *
  * 차례는 카탈로그의 차례다 — 같은 세계 상태면 같은 순서이고, 화면은 정렬하지 않는다.
  */
+/**
+ * C-GROWTH-001 — 자란 것 (INTENT-THE-LEDGER-IS-OBSERVED-001).
+ *
+ * **세계가 세어서 싣는다** — 화면이 쌓인 값을 문턱으로 나누지도, 남은 양을 빼지도,
+ * 단계에 몫을 곱하지도 않는다 (DC-WORLD-OWNS-THE-SURFACE-LIST).
+ *
+ * 최대 단계면 다음 문턱과 남은 양이 **오지 않는다** — 없다는 것이 곧 "더 오를 곳이
+ * 없다" 이며, 0 을 실으면 "다 왔다" 로 잘못 읽힌다.
+ */
+function projectGrowth(self: ActorState): GrowthView {
+  const threshold = nextGrowthThreshold(self.deeds);
+  const remaining = deedsToNextThreshold(self.deeds);
+  return {
+    deeds: self.deeds,
+    level: growthLevel(self.deeds),
+    maxLevel: MAX_GROWTH_LEVEL,
+    ...(threshold !== null ? { nextThreshold: threshold } : {}),
+    ...(remaining !== null ? { deedsToNext: remaining } : {}),
+    // 단계 0 에서는 넷이 전부 0 이고 **그래도 실린다** — 0 이 실려야
+    // "아직 아무것도 보태고 있지 않다" 가 관찰이 된다 (C013 이 관통 0 을,
+    // C015 가 가능성 0 을 실은 판단 그대로).
+    contributions: GROWABLE_STATS.map((stat) => ({
+      stat,
+      amount: growthContribution(self.deeds, stat),
+    })),
+  };
+}
+
+/**
+ * C-GROWTH-001 — 방금 무엇을 해서 얼마가 쌓였는가
+ * (INTENT-GROWING-CARRIES-ITS-REASON-001).
+ *
+ * **내 것만 실린다.** 남이 무엇으로 자랐는지는 오지 않는다 — 세계에 그 관찰이 없다.
+ * 타격 결과(strikes)가 남의 것도 싣는 것과 갈리는 지점이며, 이유는 소지품·적용 자리와
+ * 같다 (INTENT-PER-OBSERVER-PROJECTION-001).
+ */
+function projectGrowthEvents(state: WorldState, self: ActorState): GrowthEventView[] {
+  return state.growthEvents
+    .filter((event) => event.actorId === self.id)
+    .map((event) => ({
+      source: event.source,
+      amount: event.amount,
+      deedsAfter: event.deedsAfter,
+      levelBefore: event.levelBefore,
+      levelAfter: event.levelAfter,
+      since: event.time,
+    }));
+}
+
 function projectAllocations(self: ActorState): AllocationChoiceView[] {
   return ALLOCATION_IDS.map((id: AllocationId) => {
     const failure = evaluateAllocationSet(self, id);

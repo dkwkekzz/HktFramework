@@ -133,6 +133,15 @@ function applyNumeric(actor: ActorState, id: string, value: number): void {
     case 'insight':
       actor.insight = value;
       return;
+    // C-GROWTH-001 — 지금까지 한 일. 다른 값들과 달리 이 값 **자체**는 어떤 판정에도
+    // 들어가지 않는다 — 단계를 세는 자리 하나에서만 읽히고(semantic/growth.ts),
+    // 그 단계가 겨루는 값 넷에 몫을 보탠다. 그래서 이 한 줄이 다섯 단계를 전부
+    // 만들어 보는 길이며, 플레이로 오르기를 기다리지 않고 이 층을 확인할 수 있다
+    // (C013 · C015 · C016 이 각자 자기 층을 그렇게 확인한 것과 같다).
+    // 내리는 쪽으로도 열려 있다 — 밖의 손은 되돌릴 수 있어야 디버그의 자리다.
+    case 'deeds':
+      actor.deeds = value;
+      return;
     case 'moveSpeed':
       actor.moveSpeed = value;
       return;

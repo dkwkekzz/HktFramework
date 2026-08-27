@@ -87,6 +87,7 @@ describe('INTENT-COMMAND-CATALOG-001 — 세계가 걸 수 있는 것을 밝힌�
       'criticalChance',
       'criticalDamage',
       'insight', // C016
+      'deeds', // C-GROWTH-001
       'moveSpeed',
       'runSpeedMultiplier',
       'actionSpeed',
