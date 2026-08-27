@@ -49,6 +49,22 @@ STATUS  IN PROGRESS
                          MC-TIME-THE-CYCLE · MC-FIND-SAFE-ROUTE 가 설 바닥이지만
                          둘 다 `part_of.grounded: false` 라 Target 이 되지 않는다
                          (frontier/terrain.md Missing / Partial · C-TERRAIN-001 선례)
+    Target WorldState    **MW-TERRAIN-CIRCULATION (ABSENT)** — 이 Cycle 이 여는 노드다.
+                         함께 움직이는 것 둘: MW-NATURAL-REFUGE (PARTIAL — 예외가 손으로
+                         놓인 상수에서 순환의 한 국면이 된다) · MW-SURVIVAL-PRESSURE
+                         (PARTIAL — 압력이 상수에서 순환의 결과가 된다).
+                         Stage 8 MASTER FEEDBACK 이 이 셋의 `implemented` 를 판정한다.
+
+                         **이 줄은 Master 가 이 Cycle 중에 세워 준 것이다.** 처음 01 을
+                         쓸 때 순환 계열은 그래프에 노드가 없었고, 그래서 이 Cycle 은
+                         자기 이유를 Constraint 의 PARTIAL 로만 적을 수 있었다.
+                         BT §16 사슬이 주입되고(MW-TERRAIN-CIRCULATION →
+                         MW-SHAPED-LANDFORM · MW-SURVIVAL-PRESSURE · MW-ADAPTED-LIFE ·
+                         MW-TERRAIN-RESOURCE · MW-NATURAL-REFUGE ·
+                         MW-NATURAL-SETTLEMENT · MW-CIRCULATION-EVIDENCE)
+                         순환이 Source Goal 을 낳게 되면서(HISTORY Q64(b)) 이 Cycle 은
+                         비로소 **Goal 경로로 역추적된다**:
+                         MG-EXPLORE-BEIRA ← MW-TERRAIN-CIRCULATION ← MW-MACRO-TERRAIN
     Active Constraints   DC-WORLD-TERRAIN-IS-A-PRINCIPLE ·
                          DC-WORLD-SAFETY-IS-A-NATURAL-EXCEPTION ·
                          DC-WORLD-TERRAIN-LAW-IS-OBSERVABLE ·
