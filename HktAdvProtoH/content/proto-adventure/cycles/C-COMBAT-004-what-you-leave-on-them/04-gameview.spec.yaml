@@ -1,0 +1,158 @@
+# CYCLE C-COMBAT-004 — GameView Specification
+#
+# 이 Cycle 이 계약에 더하는 것은 셋뿐이다.
+#
+#   ① 존재마다 **지금 붙어 있는 표식들** — 가려지지 않는다. 남긴 자와 남긴 시각.
+#      태도(C018) · 배분(C-COMBAT-001) 이 선 자리에 나란히 선다.
+#   ② 기술 하나 — `skill-mark`. 기존 넷과 같은 모양의 자리이며, 다른 것은
+#      **피해가 0** 이라는 사실과 그것이 지는 요구뿐이다.
+#   ③ `skill-hatsu` 의 조건 목록에 항목 하나 (표식).
+#
+# 그 밖의 값은 형태가 한 글자도 바뀌지 않는다. 다만 **요구가 답하는 물음의 뜻이
+# 넓어진다** — 지금까지 요구는 내 몸만 보았고, 이제 **지금 고른 상대**를 함께 본다.
+# 계약의 자리는 그대로이고 그 값이 무엇에 대한 답인지가 넓어진 것이다.
+#
+# 이 계약을 받은 View 는 **표식을 한 번도 판정하지 않는다.** 언제까지 붙어 있는지도,
+# 그것이 무엇을 여는지도, 지금 참인지도 묻지 않는다 — 받은 값을 옮긴다
+# (DC-WORLD-OWNS-THE-SURFACE-LIST).
+id: VIEW-WHAT-YOU-LEAVE-ON-THEM-001
+observer: player
+
+delta:
+  reused:
+    - scene.mining-field
+    - entities.character                      # 위치·역할·이름·종류·모션·body·swing·상태 그대로
+    - entities.character.attributes.*         # 능력치·배분·통찰·태도·가려짐 — 한 자리도 바뀌지 않는다
+    - entities.deposit
+    - inventory / inventoryRoom / equipment / ground / allocations / growth
+    - contacts / cancels / growthEvents
+    - currentTarget                           # **관문이 무엇을 보는가**가 이것으로 정해진다
+    - commandCatalog
+    - observer / session / delivery / identity / telemetry
+    - interactions.attack / skill-heavy / skill-aura
+                                              # 셋 다 한 글자도 바뀌지 않는다 —
+                                              # requires 와 conditions 가 빈 목록 그대로다
+    - strikes[].breakdown.conditions          # C-COMBAT-003 이 연 자리를 그대로 쓴다
+  added:
+    - entities.character.attributes.marks     # 그 몸에 지금 붙어 있는 표식들
+    - interactions.skillMark                  # 피해가 0 인 기술
+  changed:
+    # 형태가 바뀌지 않는다 — 답이 무엇에 대한 것인지가 넓어질 뿐이다
+    - interactions[].profile.requires         # 이제 **지금 고른 상대**를 함께 본 답이다
+    - interactions[].reason                   # 상대 쪽 사실을 가리키는 코드가 실릴 수 있다
+    - interactions.skillHatsu.profile.conditions   # 항목이 둘 → 셋
+  removed: []
+
+scene: mining-field
+
+# ─────────────────────────────────────────────────────────────────
+# entities[].attributes.marks — 그 몸에 지금 붙어 있는 표식들
+#
+#   **가려지지 않는다.** 살펴봄의 관문(C014 · C016) 뒤에 두지 않는다 — 겨루는 힘이
+#   아니라 그 몸에 일어난 일이며, 태도(C018)와 배분(C-COMBAT-001)이 선 자리와 같다.
+#   걸린 쪽이 자기에게 무엇이 붙었는지 모르면 대비가 성립하지 않는다 (UL §30 · §40).
+#
+#   **닫힌 표식은 실리지 않는다.** 세계가 싣는 것은 지금의 사실뿐이며, 언제까지인지도
+#   싣지 않는다 — 남은 시간을 세는 일은 세계의 몫이고 화면은 붙었는지만 안다.
+#   (C016 이 통찰 문턱을, C-COMBAT-003 이 사정 문턱을 싣지 않은 판단 그대로.)
+#
+#   **모든 존재에 언제나 실린다.** 붙은 것이 없으면 빈 목록이다 — "아무것도 안 붙었다"
+#   와 "세계가 안 알려준다" 는 다른 일이다 (C011 의 guard 가 선 판단 그대로).
+# ─────────────────────────────────────────────────────────────────
+
+entities:
+  character:
+    attributes:
+      marks:                                  # ADDED
+        - byId:  { source: Actor.Marks.LeftBy }     # 누가 남겼는가 (존재 Id)
+          since: { source: Actor.Marks.LeftAt }     # 언제 남겼는가 (세계 시각)
+        # 언제까지인가는 실리지 않는다 — 세계가 "지금 붙어 있는가" 를 이미 답한다
+
+interactions:
+  attack:      { role: skill-basic, reused: true }
+  skillHeavy:  { role: skill-heavy, reused: true }
+  skillAura:   { role: skill-aura,  reused: true }
+
+  # CHANGED — 조건 목록에 항목 하나. **요구는 그대로다** (배분 하나).
+  # 요구로 걸지 않는 것이 이 Cycle 의 결정이며 사유는 회귀다 (03 JUDGEMENT ③).
+  skillHatsu:
+    role: skill-hatsu
+    reused: true
+    profile:
+      conditions:
+        - { id: struck-by-them,  holds: …, bonus: 0.4 }   # 그대로
+        - { id: life-below-half, holds: …, bonus: 0.4 }   # 그대로
+        - { id: bears-my-mark,   holds: { source: AbilityCircumstance.Holds },
+                                 bonus: { source: SkillDefinition.AmplifiedBy.Share } }  # ADDED
+
+  # ADDED — 표식을 남기는 기술. 기존 넷과 **같은 모양의 자리**다.
+  # 다른 것은 profile 이 싣는 값 둘뿐이다 — 피해가 0 이고, 요구가 상대를 본다.
+  skillMark:
+    role: skill-mark
+    target: none                              # 대상을 담지 않는다 — 접촉이 정한다
+    available: { source: Skill.Availability }
+    unavailableReason: { source: Skill.FailureReason }
+                                              # downed | guarding | action-busy |
+                                              # already-marked-by-them | insufficient-cp
+    profile:
+      baseDamage:      { source: SkillDefinition.BaseDamage }      # 0
+      attackRatio:     { source: SkillDefinition.AttackRatio }     # 0
+      rawDamage:       { source: Skill.RawDamage }                 # 0 — 지어내지 않는다
+      charge:          { source: SkillDefinition.CpCharge }
+      cost:            { source: SkillDefinition.CpCost }
+      damageType:      { source: SkillDefinition.DamageType }
+      swingBegin:      { source: SkillDefinition.SwingBegin }
+      swingEnd:        { source: SkillDefinition.SwingEnd }
+      swingArc:        { source: SkillDefinition.SwingArc }
+      swingReach:      { source: SkillDefinition.SwingReach }
+      swingTipRadius:  { source: SkillDefinition.SwingTipRadius }
+      requires:
+        - id:     { source: AbilityCircumstance.Id }        # no-mark-of-mine-yet
+          met:    { source: AbilityCircumstance.Holds }     # **지금 고른 상대에 대해**
+          reason: { source: AbilityCircumstance.UnmetReason }
+      conditions: []
+
+# ─────────────────────────────────────────────────────────────────
+# 요구가 답하는 물음이 넓어진다 — 무엇에 대한 답인가
+#
+#   지금까지 요구는 내 몸만 보았다 (배분에 얼마나 몰았는가). 이제 **지금 고른
+#   상대**(currentTarget · C017)를 함께 본다.
+#
+#   아무도 고르지 않았으면 상대를 읽는 요구는 **갖춰지지 않은 것**으로 온다 —
+#   모름을 참으로 싣는 것보다 정직하다 (C-COMBAT-003 이 조건 관찰에서 내린 판단 그대로).
+#
+#   그리고 **예고이지 약속이 아니다.** 관문이 본 몸과 실제로 닿는 몸은 다를 수 있고,
+#   표식은 닿은 몸에 남는다. 화면은 그 갈림을 설명하지 않는다 — 설명할 값을 세계가
+#   싣지 않았기 때문이며, 그것이 결손이 아니라 이 층의 경계다.
+#
+#   피해가 0 인 한 대는 어떻게 읽히는가
+#     그 한 대는 여느 타격 결과와 같은 자리로 온다 (strikes · amount 0). 그리고
+#     **다음 관찰에서 대상에 표식이 생겨 있다.** 둘로 "닿았고 남겼다" 가 읽히므로
+#     남김 전용 사건 목록을 세우지 않는다.
+# ─────────────────────────────────────────────────────────────────
+
+hud:
+  # 이 Cycle 은 HUD 에 새 자리를 요구하지 않는다.
+  # 표식은 존재의 자리(entities[].attributes)에 실리므로 존재를 그리는 화면이 그것을
+  # 함께 그린다. **VIEW 레인과 같은 파일에 새 줄을 만들지 않는 것이 이 판단의 값이다**
+  # (LANES 의 WORLD·COMBAT ↔ VIEW 충돌 칸 · C-COMBAT-003 이 내린 판단 그대로).
+  change: NONE
+
+# ─────────────────────────────────────────────────────────────────
+# OBSERVABLE CLOSURE — 03 의 Observable 이 전부 투영되었는가
+#
+#   Actor.Marks                 → entities[].attributes.marks              ✔
+#   Skill.Requires (넓어짐)      → interactions[].profile.requires          ✔
+#   Skill.Conditions            → interactions.skillHatsu.profile.conditions ✔
+#   Skill.FailureReason         → interactions[].unavailableReason          ✔ (기존 자리)
+#   Damage.Breakdown.Conditions → strikes[].breakdown.conditions            ✔ (기존 자리)
+#   남긴 일                      → strikes(amount 0) + 다음 관찰의 marks      ✔
+#
+#   투영하지 않은 것 하나 — **표식이 언제까지 붙어 있는가**(MARK_DURATION).
+#   사유: 세계가 이미 "지금 붙어 있는가" 를 답하고 있으므로 화면이 시계를 들고 규칙을
+#   복제할 자리가 없다. 남은 시간을 눈에 보이게 하고 싶어지는 날, 그것은 세계가
+#   "얼마나 남았는가" 를 실을지의 물음이며 그때 Frontier 로 올린다.
+#   (`since` 는 실린다 — 언제 붙었는지는 일어난 일이고, 언제까지인지는 규칙이다.)
+#
+# GAP 없음.
+# ─────────────────────────────────────────────────────────────────
