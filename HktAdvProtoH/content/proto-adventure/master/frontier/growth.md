@@ -147,6 +147,68 @@
                          두 판정이 UNRESOLVED 로 남는다
     Status               PROPOSED
 
+### FR-YOUR-BODY-HAS-A-FORM — 몸이 형태를 가진다
+
+    이것이 무엇인가      몸이 종류만이 아니라 **형태**를 가진다. 형태는 그 몸이 어떤 원리로
+                         싸우고 무엇을 할 수 있는지를 정하며, 같은 종류의 두 몸이 형태가
+                         다르면 다르게 싸운다
+    세계에 생기는 것      ① 몸이 형태 하나를 지닌다 — 여섯 Origin 중 하나 (CL-*-ORIGIN)
+                         ② 형태가 **여는 것**이 있다 — 그 형태의 `grants` 가 그 몸이 쓸 수
+                            있는 것을 정한다. 형태가 다르면 쓸 수 있는 것의 목록이 다르다
+                         ③ 형태가 유효 값에 항을 더한다 — 걸어 둔 것과 몰아 둔 곳 옆에
+                            셋째 항이 선다
+                         ④ 관찰: 지금 어느 형태인지와 그 형태가 무엇을 여는지가 읽힌다
+    이 기능이 아닌 것     상위 형태가 되는 일이 아니다 (MC-CHANGE-CLASS 는 Target 이 아니다 —
+                         넘어갈 위층 CL-* 가 아직 없다) · 형태 고유의 스킬 목록을 만드는 일이
+                         아니다 (스킬은 조합을 고른 정의다 — DC-SKILL-IS-COMBINATION-NOT-NAME) ·
+                         숙련이 쌓이는 일이 아니다 (MC-GROW-CLASS-MASTERY 는 다음 후보) ·
+                         외형을 바꾸는 일이 아니다 (그것은 VIEW 가 받는다) ·
+                         여섯 계열의 능력을 전부 세우는 일이 아니다 — **여는 것은 이미
+                         세계에 선 MC-* 뿐이다** (없는 것은 각 CL-* 의 `grants_note` 가 안다)
+    이미 있는 것         **코드 대조.** 이름 붙은 상태 하나를 골라 두고 판정이 그것을 읽는
+                         형태가 이미 있다 — `world/semantic/allocation.ts` 의 배분과
+                         `effectiveStat` 의 `allocationContribution` (C-COMBAT-001) ·
+                         종류가 초기값을 정하는 카탈로그가 있다 —
+                         `world/semantic/character-catalog.ts` ·
+                         유효 값이 저장되지 않고 매번 다시 세어진다 —
+                         `world/semantic/combat.ts#effectiveStat` (C023) ·
+                         무엇을 쓸 수 있고 왜 못 쓰는지를 세계가 실어 보낸다 —
+                         `view/skill-presentation.ts` 가 읽는 사유 목록
+    Playable Result      Player 가 같은 종류의 두 몸을 나란히 두고, 하나는 골완투사로 하나는
+                         명각사로 두어, **같은 상대에게 서로 다른 것을 할 수 있음**을 본다 —
+                         한쪽은 밀고 부수고 다른 쪽은 표식을 새기고 약점을 드러낸다
+    Source Goal          MG-EXPLORE-BEIRA
+    Source Possibility   MP-BECOME-A-HIGHER-FORM (몸 자체가 감당하는 갈래 — 그 첫 칸)
+    Missing / Partial    Capability 를 Target 으로 삼지 않는다 — 세우는 것은 능력이 아니라
+                         **몸의 형태**다. 이것이 서야 `growth/classes/` 의 CL-* 여섯이
+                         처음으로 세계에 닿고, MC-GROW-CLASS-MASTERY 의 결손 절반
+                         ("형태라는 것이 세계에 없다")과 MC-CHANGE-CLASS 의 전제가 닫힌다
+    Active Constraints   DC-GROWTH-DIFFERENCE-IS-BEHAVIOR · DC-GROWTH-PRINCIPLE-IS-PLAYED ·
+                         DC-GROWTH-CLASS-OWNS-THE-RESPONSE · DC-GROWTH-ORIGIN-IS-SIMPLE-FIRST ·
+                         DC-GROWTH-NO-CAPABILITY-DUPLICATION · DC-WORLD-OWNS-THE-SURFACE-LIST ·
+                         DC-WORLD-PLAYER-UNFIXED-PATH
+    Constraint Eval      DIFFERENCE-IS-BEHAVIOR: SATISFIED — 형태의 차이가 값이 아니라 쓸 수
+                         있는 것의 목록에서 난다. 값만 달라지면 이 후보가 실패한 것이다
+                         PRINCIPLE-IS-PLAYED: SATISFIED — 원리가 그 형태가 여는 행동으로 나온다
+                         CLASS-OWNS-THE-RESPONSE: UNRESOLVED — 대응 자리 자체가 아직 세계에
+                         없다 (MC-ACTIVE-RESPONSE MISSING). 그 자리가 선 뒤 형태가 채운다
+                         ORIGIN-IS-SIMPLE-FIRST: SATISFIED — 여섯 다 Origin 이고 계약을 쓰지 않는다
+                         NO-CAPABILITY-DUPLICATION: SATISFIED — 여는 것이 전부 기존 MC-* 다
+                         OWNS-THE-SURFACE-LIST: UNRESOLVED — 04 가 정한다
+                         PLAYER-UNFIXED-PATH: SATISFIED — 형태가 무엇을 잘하는지는 고정되나
+                         무엇을 하러 갈지는 고정되지 않는다 (HISTORY Q54(a))
+    Observable Result    형태가 다른 두 몸이 같은 상황에서 **할 수 있는 것의 목록이 다르고**,
+                         못 하는 쪽에는 사유가 함께 온다
+    Why one Cycle        형태가 쓸 자리가 이미 전부 서 있다 — 이름 붙은 상태를 고르는 형태
+                         (배분) · 유효 값의 항을 더하는 자리(`effectiveStat`) · 종류별
+                         카탈로그 · 못 쓰는 사유를 싣는 관찰. 새로 서는 것은 **형태가 여는
+                         것의 목록** 하나다
+    의존                 없음 — 여섯 CL-* 가 이미 서 있고(FC 주입), 여는 것이 전부 기존
+                         MC-* 라 다른 후보를 기다리지 않는다. 다만 여섯 중 대부분이 MISSING
+                         Capability 를 여므로 **이 Cycle 이 여는 목록은 지금 세계에 있는
+                         것만**이다 — 그 경계를 01 이 명시한다
+    Status               PROPOSED
+
 ## 추천 순서
 
     1. FR-WHAT-YOU-DID-MAKES-YOU        바닥이다. overlay 의 둘째 구멍("성장이 세계 밖에
@@ -160,9 +222,20 @@
                                         형태가 선 뒤에 하면 온전해지지만, 그 전에 해도
                                         축 자체는 성립한다
 
+    4. FR-YOUR-BODY-HAS-A-FORM          **FC 주입으로 새로 열렸다.** 앞의 셋이 "얼마나
+                                        자라는가" 라면 이것은 "어떤 몸인가" 다 — 성장의
+                                        축이 아니라 그 축들이 붙을 **자리**이며, 3 의
+                                        판정이 절반만 닫히는 이유(형태가 없다)를 직접
+                                        없앤다. 값이 싸다: 형태가 쓸 자리가 이미 전부 서 있다
+
     Agent 추천은 **1** 이다. 근거는 취향이 아니라 판정이다 — 성장 축 다섯 중 넷이 MISSING
     이고 그중 셋이 이것 위에 쌓이며(숙련 · 스킬 숙련 · 탐험 숙련 모두 "쌓인다" 를 전제한다),
     세계에서 값을 바꾸는 유일한 길이 아직 디버그 명령이다. 순서는 Human 이 정한다.
+
+    **다만 4 를 1 뒤에 두는 것을 함께 권한다.** 4 는 다른 셋과 겹치지 않는 자리를 세우고
+    (값이 아니라 몸의 형태), 그것이 서면 3 이 절반만 닫히는 문제가 사라지며, 무엇보다
+    **지금 세계에서 캐릭터의 차이가 값의 차이뿐**이라는 상태가 처음으로 깨진다 —
+    프로젝트가 경계한 바로 그 지점이다 (DC-GROWTH-DIFFERENCE-IS-BEHAVIOR).
 
 ## SELECTED
 
@@ -207,7 +280,7 @@ Cycle ID   C-GROWTH-001         트랙의 첫 번호 (cycles/ 에 C-GROWTH-* 가
 | 기능 / 층 | 무엇이 막고 있는가 |
 |---|---|
 | 원리로 환경 문제를 푼 것이 쌓인다 (MC-GROW-EXPLORATION-MASTERY) | 풀 환경 문제가 없다 — 땅이 없다. TERRAIN 트랙의 `C-TERRAIN-001`(땅이 법칙을 지닌다)이 그 바닥을 세운다 |
-| 형태가 상위 형태가 된다 (MC-CHANGE-CLASS) | 넘어갈 형태가 없다 — `CL-*` 가 0 이다. 이름의 소유는 정해졌고 (HISTORY Q55(b) — GS 가 소유한다) 남은 것은 **계열별 설계 문서의 주입**이다 |
+| 형태가 상위 형태가 된다 (MC-CHANGE-CLASS) | **아래쪽 절반이 섰다** — Origin CL-* 여섯이 FC 주입으로 있다. 막는 것은 두 가지다: 몸이 아직 형태를 갖지 않고(FR-YOUR-BODY-HAS-A-FORM 이 그것을 연다), 넘어갈 **위층 CL-* 가 0** 이다. 갈래는 여럿으로 정해졌으므로(HISTORY Q69(b)) 위층은 계열마다 여러 형태가 되며, 그것을 세우는 것은 Layer 1 설계 문서다 |
 | 자기 원리와 관련된 세계 현상을 겪는다 (MK-WITNESSED-WORLD-PHENOMENON) | 드물게 일어나는 세계 현상이 세계에 없다 — 그것은 땅 위에서 생긴다 (TERRAIN 트랙) |
 | Class Catalyst — 형태를 유지하는 세계의 Property | GS 는 "세계의 Property" 라고만 적고 어느 자원인지 명명하지 않는다. 자원 카탈로그 문서의 승인·주입이 그 자리를 받는다 (HISTORY Q50(a)) |
 | 요정 계열 여덟의 고유 능력 (MS-FAIRY-LINEAGE 여덟 자리) | **누구의 것인지는 정해졌다** — 플레이어가 요정 역할을 수행한다 (HISTORY Q54(a)). 남은 것은 계열별 설계 문서의 주입이며, 그것이 서야 CL-* 와 계열 고유 능력이 노드가 된다 |

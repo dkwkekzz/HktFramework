@@ -270,6 +270,59 @@
     Depends on           FR-KNOW-WHAT-THEY-CAN-DO — 알아낸 것만 봉인할 수 있다 (UL §26)
     Status               PROPOSED
 
+### FR-TAKE-WHAT-MAKES-THEM-STRONG — 상대를 이루는 것을 빼앗는다
+
+    이것이 무엇인가      상대가 유한하게 가진 것이 **이쪽으로 옮겨 온다**. 상대는 그만큼
+                         줄고 나는 그만큼 는다 — 격차가 한쪽이 아니라 양쪽에서 좁는다
+    세계에 생기는 것      ① 상대가 가진 것이 옮길 수 있는 것으로 존재한다 (지금은 자기 것만
+                            자기가 쓴다)
+                         ② 빼앗는 행동이 있고, 빼앗은 만큼 두 몸의 값이 반대로 움직인다
+                         ③ 빼앗긴 쪽이 실제로 이전만큼 하지 못한다 — 값만 줄고 행동이
+                            그대로면 이 후보가 실패한 것이다
+                         ④ 관찰: 무엇이 얼마나 옮겨 갔는지가 **양쪽 모두에게** 보인다
+    이 기능이 아닌 것     받아낸 것을 저장하는 일이 아니다 (MC-ABSORB — 저쪽은 맞아야 벌고
+                         상대에게서 아무것도 덜어내지 않는다) · 피해가 아니다 — 생명을 깎지
+                         않고도 성립한다 · 능력을 못 쓰게 만드는 일이 아니다
+                         (MC-DISRUPT-ABILITY 는 Target 이 아니다) · 표식을 남기는 일이
+                         아니다 (MC-MARK) · 새 피해 공식이 아니다 —
+                         기존 식이 읽는 **입력값**을 옮길 뿐이다
+    이미 있는 것         **코드 대조.** 몸이 유한한 자원을 지닌다 —
+                         `world/semantic/actor.ts` 의 `hp` · `cp` 와 능력치 여덟 ·
+                         유효 값이 저장되지 않고 매번 다시 세어진다 —
+                         `world/semantic/combat.ts#effectiveStat` (C023 · C-COMBAT-001) ·
+                         **무언가가 dt 로 몸에서 값을 빼 가는 규칙이 이미 돈다** —
+                         `world/simulation/ground-law-apply.ts` (땅이 거두어 간다 ·
+                         C-TERRAIN-001). 빼앗기는 그 형태의 상대 있는 판이다 ·
+                         계산 경위가 끝까지 읽힌다 (MC-COMBAT-CAUSE-READING · C010~C015)
+    Playable Result      Player 가 상대에게 붙어 열을 빼앗아, 자기 값이 오르는 동시에 상대의
+                         공격이 눈에 띄게 무뎌지는 것을 본다 — 한 방도 더 때리지 않고 격차가
+                         뒤집힌다
+    Source Goal          MG-OVERCOME-SUPERIOR-OPPONENT
+    Source Possibility   MP-TAKE-WHAT-MAKES-IT-STRONG
+    Missing / Partial    MC-DRAIN (MISSING · `grounded: true`)
+    Active Constraints   DC-COMBAT-ONE-FORMULA · DC-COMBAT-ABILITY-IS-A-RULE ·
+                         DC-COMBAT-SHARED-BUDGET · DC-COMBAT-STRONG-RULE-HAS-COUNTERPLAY ·
+                         DC-GROWTH-NO-DOMINATED-ROUTE · DC-COMBAT-PLAYER-CAUSALITY
+    Constraint Eval      ONE-FORMULA: SATISFIED — 새 식을 만들지 않는다. 기존 식이 읽는
+                         입력값이 두 몸 사이를 옮겨 갈 뿐이다
+                         ABILITY-IS-A-RULE: SATISFIED — 피해가 0 이어도 성립하는 조작이다
+                         SHARED-BUDGET: UNRESOLVED — 빼앗은 것이 기존 기력 예산으로 들어오는지
+                         따로 담기는지는 03 이 정한다. **새 게이지를 만들면 위반이다**
+                         STRONG-RULE-HAS-COUNTERPLAY: SATISFIED — 거리를 유지하고 빼앗길 것을
+                         주지 않는 것이 대응이며, 빼앗김이 양쪽에 보이므로 발견 가능하다
+                         NO-DOMINATED-ROUTE: SATISFIED — 닿거나 곁에 있어야 하므로 원거리
+                         갈래를 압도하지 않는다
+                         PLAYER-CAUSALITY: SATISFIED — 확률이 개입하지 않는다
+    Observable Result    빼앗기 전후로 **두 몸의 값이 반대로** 움직이고, 무엇이 얼마나
+                         옮겨 갔는지가 계산 경위에 그대로 남는다
+    Why one Cycle        옮길 값도, 그 값을 매번 다시 세는 자리도, 값을 dt 로 빼 가는 규칙도
+                         이미 있다. 새로 서는 것은 **뺀 것을 상대가 아니라 나에게 넣는다**
+                         하나이며, 나머지는 그 하나의 결과다
+    의존                 없음 — 이 후보만으로 성립한다. 조건 관문
+                         (FR-THE-WORLD-DECIDES-WHAT-IS-POSSIBLE)이 먼저 서면 "빼앗을 것이
+                         남았는가" 를 조건으로 쓸 수 있어 두꺼워지지만, **막는 의존은 아니다**
+    Status               PROPOSED
+
 ## 추천 순서 (Agent 제안 — 확정은 Human)
 
     1. FR-THE-WORLD-DECIDES-WHAT-IS-POSSIBLE  사슬 B 의 바닥 — 의존이 없다.
@@ -281,9 +334,17 @@
     3. FR-A-PROMISE-BINDS-BOTH             MP-BIND-BY-CONTRACT 가 닫힌다 · 가장 크다
     4. FR-KNOW-WHAT-THEY-CAN-DO
     5. FR-TAKE-AWAY-WHAT-THEY-CAN-DO       MP-KNOW-THE-OPPONENT-RULE 이 닫힌다
+    6. FR-TAKE-WHAT-MAKES-THEM-STRONG      **Q71(b) 확장으로 새로 열렸다.** 의존이 없는
+                                           두 번째 후보이며, 열다섯 갈래 중 유일하게
+                                           격차를 양쪽에서 좁힌다. 값이 싸다 — 옮길 값도
+                                           다시 세는 자리도 빼 가는 규칙도 이미 있다
 
-**지금 의존이 빈 것은 첫째뿐이다.** 사슬 A 가 빠지면서 이 트랙에 남은 갈래는 하나이고,
+**지금 의존이 빈 것은 첫째와 여섯째다.** 사슬 A 가 빠지면서 이 트랙에 남은 갈래는 하나이고,
 그 바닥이 조건 관문이다. 그것은 새 갈래를 여는 동시에 **직전 Cycle 이 남긴 절반도 닫는다.**
+
+**여섯째가 이 트랙에서 가장 싸다.** 첫째가 이 트랙의 바닥이자 직전 Cycle 의 나머지
+절반이라 추천은 그대로 1 이지만, 작게 한 바퀴를 돌고 싶다면 6 이 그 자리다 — 새 판정도
+새 게이지도 만들지 않고 이미 도는 규칙의 방향만 상대 있는 판으로 바꾼다.
 
 **3 이 눈에 띄게 크다.** 계약과 묶음을 쪼갤 수 없는 사유는 그 후보의 `Why one Cycle` 에
 적혀 있다. 고르기 전에 그것을 읽는 것을 권한다.
@@ -315,7 +376,7 @@ Q60(c) 로 빠졌으므로 관찰자와 묶는 자 둘로 검증한다.
 | **수호 · 대상 이전** (UL §4.2 · §9 · §27 — Intercept · Redirect · Retarget · Protect) | 세계에 아군이 없다. Actor 가 플레이어와 적대 존재 둘뿐이라 요구하는 갈래를 만들 수 없고, 그래서 Capability 자체를 세우지 않았다. **Q60(c) 로 미루기로 정해졌다** — 아군을 세울 때는 사람을 지어내지 말고 세계의 존재(길들인 것 · 구조 대상 · 다른 플레이어)로 받는다 (HISTORY) |
 | 자세 유지 (MC-FORTIFY) | `part_of.grounded: false` — UL 은 배분을 **유지하는 비용**을 말하지 않는다. R1 이 이름만 댄 부분이라 후보의 Target 이 되지 않는다 (guides/master-frontier.md MUST NOT). 배분(C-COMBAT-001)이 서면 그 위에서 다시 본다 |
 | 조건이 겹칠수록 커진다 (MC-CONDITION-STACKING PARTIAL) | 어느 갈래도 지금 이것의 결손을 필요로 하지 않는다 (7 조건 2). 조건 관문(FR-THE-WORLD-DECIDES-WHAT-IS-POSSIBLE)이 서면 그 위에서 다시 본다 — 가능의 문제가 먼저이고 크기의 문제가 그다음이다 |
-| **스킬 실행 형태** (MS-SKILL-FORM 의 빈 다섯 칸) | **그 형태를 요구하는 Possibility 가 없다** (Q35 의 7 조건 2 — OPTIONS 작업이 먼저다). 기획 공백은 SK 최종안이 메웠고 자리도 열넷에서 여섯으로 줄었다. 남은 실질 장벽 하나: 투사체·장판·설치는 세계에 **몸이 아닌 존재**가 먼저 서야 한다. 남은 후보 다섯은 이 자리를 쓰지 않으므로 이것이 COMBAT 을 막지 않는다 |
+| **스킬 실행 형태** (MS-SKILL-FORM 의 빈 다섯 칸) | **Q35 의 7 조건 2 가 처음으로 충족됐다** — `MP-REACH-THE-UNREACHABLE` 이 `MC-PLACE-FOOTING`(공간 존재 칸)을 요구한다 (Q71(b) 확장). 남은 장벽은 둘이다: 세계에 **몸이 아닌 존재**가 서야 하고, 발판·투사체가 뜻을 가지려면 **위아래**가 있어야 한다 (`WorldPosition` 은 x·z 뿐 — [README.md](README.md) 의 같은 절). Q35(층인가 갈래인가)는 여전히 Human 결정이다. 남은 후보 여섯은 이 자리를 쓰지 않으므로 이것이 COMBAT 을 막지 않는다 |
 | 위협도 · 진영 · 도발 | 막는 것은 없다 (`HOSTILITY_REASONS` 에 항목 추가로 시작) — 아직 어느 Possibility 도 요구하지 않는다 (7 조건 2) |
 | UL §32 자동 전투 (AUTO 는 기본 대답 · MANUAL 은 정밀 대답) | 세계에 자동 전투가 없다. 규율할 대상이 0 이라 Constraint 도 후보도 세우지 않았다 — 자동 전투가 서는 날 그 작업이 받는다 |
 | UL §22 의 나머지 아홉 영역 (생명 · 위치 · 행동 · 대상 · 자원 · 개체 · 영역 · 시간 …) | 그 표는 능력 목록이 아니라 **확장 공간의 지도**다. UL §42 F7 이 처음 열 다섯만 지정했고 그 다섯(표식 · 묶음 · 대상 변경 · 관찰 · 봉인)은 위 후보와 첫 줄에 전부 나가 있다. 나머지는 요구하는 갈래가 생길 때 OPTIONS 가 낳는다 |
