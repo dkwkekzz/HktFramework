@@ -205,63 +205,6 @@
     Depends on           FR-THE-BLOW-CAN-BE-ANSWERED · FR-WHEN-YOU-ANSWER-DECIDES
     Status               PROPOSED
 
-### FR-WHERE-YOUR-POWER-SITS — 지금 힘이 어디에 몰려 있는가
-
-    UL 근거              §11 (Aura/Nen 의 정의) · §12 (자원은 당분간 기력) ·
-                         §13 (BODY · ABILITY · AWARENESS) · §14 (Profile) ·
-                         §15 (배분은 수치만이 아니다) · §40 (배분이 보인다) · §42 F4
-
-    이것이 무엇인가      몸이 지금 자기 힘을 몸 · 능력 · 인지 중 어디에 몰아 두었는지가
-                         상태로 있고, 한쪽에 몰수록 나머지가 실제로 얇아진다.
-                         전투 중에는 미리 정해진 배분 하나를 고르는 것으로만 바꾼다
-
-    세계에 생기는 것      ① 몸마다 지금의 배분이 이름 붙은 상태로 있다
-                         ② 그 배분이 판정이 읽는 **유효 값**에 들어간다 — 몸에 몰면 때리고
-                            막는 값이 오르고 능력과 인지의 값이 내린다
-                         ③ 전투 중 배분을 바꾸는 입력이 하나 있고, 바꾸는 데 대가가 있다
-                         ④ 남의 배분도 관찰된다 — 상대가 어디에 몰아 두었는지가 보인다
-                         ⑤ 자율 존재도 배분을 지니고 국면에 따라 바꾼다
-
-    이 기능이 아닌 것     비율을 실시간으로 조절하는 것이 아니다 — 이름 붙은 배분을 고른다
-                         능력의 가능 여부를 여닫는 것이 아니다 — 그것은 조건(아래)의 몫이고,
-                         여기서는 값만 오르내린다
-                         새 자원이 아니다 — 배분은 게이지가 아니라 상태다
-                         버프가 아니다 — 걸고 푸는 것이 아니라 언제나 어느 하나다
-                         능력치를 **키우는** 것이 아니다 — 같은 총량을 다르게 나눌 뿐이다
-
-    이미 있는 것          **판정이 읽는 값을 매번 다시 세는 얼개가 이미 있다** —
-                         `world/semantic/combat.ts` 의 `effectiveStat`(기본값 + 걸린 것들의
-                         기여, 저장하지 않는다, C023 · RULE-EFFECTIVE-STATS-001). 배분은
-                         그 합에 들어가는 항을 하나 더하는 일이지 새 축을 만드는 일이 아니다
-                         세 축이 걸릴 값이 셋 다 이미 세계에 있다 —
-                         몸: `physicalAttack` · `armor` (C010 · C012) /
-                         능력: 스킬 값 배율 (MC-SKILL-SCALING) /
-                         인지: `insight` — 살펴보지 않고도 아는 범위 (C016)
-                         계산 경위를 통째로 싣는 자리 (MC-COMBAT-CAUSE-READING)
-
-    Playable Result      Player 가 배분을 바꾸면 자기 방어와 아는 범위가 눈에 띄게 맞바뀌고,
-                         상대가 어디에 몰아 두었는지를 보고 얇아진 쪽을 노려 때릴 수 있다
-
-    Source Goal          MG-OVERCOME-SUPERIOR-OPPONENT
-    Source Possibility   MP-EXPLOIT-OPEN-BODY — **이 후보로 그 갈래가 닫힌다**
-                         (나머지 요구 셋이 전부 서 있다: MC-COMBAT-STRIKE IMPLEMENTED ·
-                          MC-COMBAT-CAUSE-READING IMPLEMENTED · MK-OPPONENT-FLOW-PATTERN 은
-                          "상대의 배분이 관찰된다" 가 곧 그 지식이다 — 위 ④⑤ 가 그것이다)
-                         MP-CONCENTRATE-THE-POWER · MP-HOLD-FORTIFIED 도 전진한다
-    Missing / Partial    MC-AURA-ALLOCATION (MISSING)
-    Active Constraints   DC-COMBAT-AURA-IS-A-PROFILE-NOT-A-DIAL · DC-COMBAT-ONE-FORMULA ·
-                         DC-COMBAT-SHARED-BUDGET · DC-COMBAT-PLAYER-CAUSALITY ·
-                         DC-COMBAT-ONE-LAYER-AT-A-TIME · DC-WORLD-OWNS-THE-SURFACE-LIST
-    Constraint Eval      SATISFIED — 전투 중 입력이 배분 하나를 고르는 것뿐이고,
-                         새 공식 없이 기존 유효 값 계산에 항을 더하며, 새 게이지가 없고,
-                         결과가 관찰 가능한 상태에서 나온다. 대답 없이도 완전히 동작한다
-    Observable Result    같은 상대에게 같은 기술을 넣어도 그 상대의 배분에 따라 피해가 달라지고,
-                         경위에 어느 배분이 얼마를 기여했는지가 실린다
-    Why one Cycle        새 상태가 하나다 — 지금의 배분. 그 효과는 `effectiveStat` 이
-                         이미 매번 다시 세므로 저장되는 것이 늘지 않는다
-    Depends on           없음 — 사슬 A 와 독립이다
-    Status               SELECTED
-
 ### FR-THE-WORLD-DECIDES-WHAT-IS-POSSIBLE — 세계가 무엇이 가능한지를 정한다
 
     UL 근거              §17 (Trigger) · §18 (Requirement) · §19 (Condition) ·
@@ -506,16 +449,19 @@
 
 ## 추천 순서 (Agent 제안 — 확정은 Human)
 
-    1. FR-WHERE-YOUR-POWER-SITS            갈래 하나가 이 Cycle 로 닫힌다   ← SELECTED
+    1. FR-THE-WORLD-DECIDES-WHAT-IS-POSSIBLE  사슬 B 의 바닥 — 의존이 없다.
+                                           **직전 Cycle 이 남긴 절반을 닫는다** —
+                                           배분이 값만 바꾸고 무엇을 할 수 있는가의
+                                           목록을 바꾸지 않는 것이 MC-AURA-ALLOCATION 의
+                                           남은 결손이고, 그 관문이 여기다
     2. FR-THE-BLOW-CAN-BE-ANSWERED         사슬 A 의 바닥
     3. FR-WHEN-YOU-ANSWER-DECIDES
     4. FR-A-GOOD-ANSWER-OPENS-A-DOOR       MP-READ-AND-COUNTER 가 닫힌다
     5. FR-WHAT-YOU-BLOCK-BECOMES-YOURS     MP-STORE-AND-RELEASE 가 닫힌다
-    6. FR-THE-WORLD-DECIDES-WHAT-IS-POSSIBLE  사슬 B 의 바닥 — 의존이 없다
-    7. FR-WHAT-YOU-LEAVE-ON-THEM
-    8. FR-A-PROMISE-BINDS-BOTH             MP-BIND-BY-CONTRACT 가 닫힌다 · 가장 크다
-    9. FR-KNOW-WHAT-THEY-CAN-DO
-   10. FR-TAKE-AWAY-WHAT-THEY-CAN-DO       MP-KNOW-THE-OPPONENT-RULE 이 닫힌다
+    6. FR-WHAT-YOU-LEAVE-ON-THEM
+    7. FR-A-PROMISE-BINDS-BOTH             MP-BIND-BY-CONTRACT 가 닫힌다 · 가장 크다
+    8. FR-KNOW-WHAT-THEY-CAN-DO
+    9. FR-TAKE-AWAY-WHAT-THEY-CAN-DO       MP-KNOW-THE-OPPONENT-RULE 이 닫힌다
 
 첫째를 먼저 두는 근거는 셋이다.
 
@@ -550,21 +496,10 @@ Q60(c) 로 빠졌으므로 관찰자와 묶는 자 둘로 검증한다.
 ## SELECTED
 
 ```text
-FR-WHERE-YOUR-POWER-SITS — 지금 힘이 어디에 몰려 있는가
-Cycle   C-COMBAT-001 (착수 대기 — 아직 시작하지 않았다)
-선택    Human 위임 · 2026-08-26 (경위: HISTORY "COMBAT 첫 후보 선택")
+없음 — Human 선택 대기
 ```
 
-    Source Goal          MG-OVERCOME-SUPERIOR-OPPONENT
-    Source Possibility   MP-EXPLOIT-OPEN-BODY (이 Cycle 로 닫힌다) ·
-                         MP-CONCENTRATE-THE-POWER · MP-HOLD-FORTIFIED (전진)
-    Target Capability    MC-AURA-ALLOCATION (overlay: MISSING)
-    Active Constraints   DC-COMBAT-AURA-IS-A-PROFILE-NOT-A-DIAL · DC-COMBAT-ONE-FORMULA ·
-                         DC-COMBAT-SHARED-BUDGET · DC-COMBAT-PLAYER-CAUSALITY ·
-                         DC-COMBAT-ONE-LAYER-AT-A-TIME · DC-WORLD-OWNS-THE-SURFACE-LIST
-    Constraint Note      여섯 다 SATISFIED. 가장 주의할 것은 첫째다 — 전투 중 입력이
-                         **배분 하나를 고르는 것**을 넘어서는 순간 이 층이 UL §41.1 이
-                         금지한 실시간 조절 UI 가 된다
+    직전 반영 경위: [../feedback/C-COMBAT-001-where-your-power-sits.md](../feedback/C-COMBAT-001-where-your-power-sits.md)
 
 ## 지금 열 수 없는 것
 

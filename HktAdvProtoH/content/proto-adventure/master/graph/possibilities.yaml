@@ -241,9 +241,9 @@ nodes:
   - id: MP-EXPLOIT-OPEN-BODY
     type: possibility
     overlay_missing: >-
-      MC-AURA-ALLOCATION
+      MC-AURA-ALLOCATION (PARTIAL)
     overlay_note: >-
-      Q59(a) 로 축이 셋이 되었다 — 열림이 "공격에 몰아 방어가 얇다" 에서 "능력·인지에 몰아 몸이 얇다" 로 바뀌었을 뿐 갈래는 그대로 산다
+      요구 넷 중 셋이 섰고 넷째(MC-AURA-ALLOCATION)가 PARTIAL 이라 갈래도 PARTIAL 이다. 다만 **플레이로는 이미 성립한다** — 상대가 물리에 무른 것을 알아내고 배분으로 그 무른 쪽을 친다 (C-COMBAT-001 WORLD SCENARIO). 노드의 완결과 플레이의 성립이 갈리는 자리이며, 어느 쪽으로 판정할지는 Q62 다
     achieves: [MG-OVERCOME-SUPERIOR-OPPONENT]
     meaningful_difference: >
       상대가 스스로 만든 취약 구간을 노린다. 자원도 위치도 요구하지 않고 오직 관찰과 대기가
@@ -485,7 +485,7 @@ nodes:
   - id: MP-CONCENTRATE-THE-POWER
     type: possibility
     overlay_missing: >-
-      MC-AURA-ALLOCATION
+      MC-AURA-ALLOCATION (PARTIAL)
     overlay_note: >-
       UL §42 F4 — 상층 넷 중 첫 칸. 아래 세 칸(응답 · 정밀 · 기회)이 먼저 서야 한다는 순서가 문서에 있다
     achieves: [MG-OVERCOME-SUPERIOR-OPPONENT]
@@ -702,7 +702,7 @@ nodes:
   - id: MP-HOLD-FORTIFIED
     type: possibility
     overlay_missing: >-
-      MC-FORTIFY · MC-AURA-ALLOCATION
+      MC-FORTIFY · MC-AURA-ALLOCATION (PARTIAL)
     overlay_note: >-
       Q59(a) 로 몸·능력·인지 세 축 위에 선다 — 대가가 "공격이 약해진다" 에서 "능력과 인지가 얇아진다" 로 바뀌었다
     achieves: [MG-SURVIVE-ENEMY-OFFENSIVE]

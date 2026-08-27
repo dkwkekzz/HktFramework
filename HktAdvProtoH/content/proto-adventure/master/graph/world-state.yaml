@@ -398,9 +398,11 @@ nodes:
       감당할 수 있게 되었는가로 정해져야 한다 (BT §12). 한 땅 안에 머물 수 있는 자리와
       감당할 수 없는 심부가 함께 있어야 한다 — 깊이와 직교한다는 것이 그 뜻이다
       (BT §3 · HISTORY Q47(a)).
-    implemented: ABSENT
+    implemented: PARTIAL
     implemented_note: >-
-      땅이라는 것이 없다 — 세계가 장소에 대해 아는 것은 사각형 하나의 경계뿐이다 (`world/semantic/position.ts#WorldBounds`)
+      땅이 자리로 나뉘고 그 자리가 법칙을 지닌다 (C-TERRAIN-001 — World.GroundZones · GroundLawDefinition).
+      남은 것은 world_shape 의 나머지다: 법칙이 하나뿐이고, 그 법칙이 낳는 자원이 없으며,
+      어디에 갈 수 있는가가 감당으로 정해지지 않고, 깊이와의 직교도 아직 없다
     arises_from: [MW-FREE-PRESSURE, MW-BOUND-PRESSURE]
     # 위험 쪽과 자원 쪽이 한 땅에서 만나는 자리다 — BT §1 이 둘을 함께 든다.
     causes: []
@@ -461,9 +463,11 @@ nodes:
       열이 어디로 이동하는지가 풍경으로 보여야 한다 — 얼음 아래의 검은 빛, 원형 서리
       무늬, 그 자세 그대로 얼어붙은 거수. 그리고 그것을 읽은 사람과 읽지 못한 사람이
       같은 길에서 다른 결과를 내야 한다.
-    implemented: ABSENT
+    implemented: PARTIAL
     implemented_note: >-
-      땅이 성질을 갖지 않는다 — 어디에 서 있든 같다
+      열을 거두는 법칙과 그것이 멎는 해숨구멍이 섰다 (C-TERRAIN-001 — heat-binding · zone-sunbreath).
+      world_shape 가 요구하는 **풍경이 없다**: 열이 어디로 이동하는지의 증거(검은 빛 · 서리 무늬 ·
+      얼어붙은 거수)가 하나도 없고, 거둔 열이 어디에도 저장되지 않아 해숨구멍이 원인 없이 놓여 있다
     arises_from: [MW-MACRO-TERRAIN]
     causes: []
     # BT 는 이 지형이 어떤 Goal 을 낳는지 명명하지 않는다 — WHY 확장 몫이다.
