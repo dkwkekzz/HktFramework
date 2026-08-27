@@ -26,6 +26,8 @@
 //       Tab 은 표면 안에서 감긴다 — 뒤의 페이지로 새어 나가지 않는다
 //       Tab 자리는 무리마다 하나다 — 무리 안을 걷는 것은 방향키의 일이다
 //       실려 온 초점(`focusId`)이 곧 브라우저의 초점이다 — 링과 캐럿이 갈라지지 않는다
+//       **겪는 사람이 옮긴 초점은 되돌려 알린다** (onFocusCell · onFocusRow) — Tab 으로
+//       옮긴 자리를 결정 Layer 가 모르면 링이 떠난 자리에 남아 초점이 둘 보인다
 //       글자 자리의 Escape 는 그 자리에서 나온다 — 표면은 열린 채다
 //       열기 전에 초점이 있던 자리는 닫힐 때 되돌려 준다
 //
@@ -86,6 +88,20 @@ export interface SurfaceHandlers {
   onMenuCell?(surfaceId: string, cellId: string): void;
   /** 줄이 눌렸다 — 되는 줄인지 안 되는 줄인지는 묻지 않는다 (state 는 실려 온 것이다) */
   onPressRow?(surfaceId: string, rowId: string): void;
+  /**
+   * 자판이 이 칸으로 **옮겨 갔다** — 누른 것이 아니다.
+   *
+   * 표면 안에는 초점이 둘 있다. 결정 Layer 가 보내는 `focusId`(그려지는 링)와 브라우저가
+   * 쥔 것이다. 브라우저 쪽은 Tab 으로도 움직이고, 그때 결정 Layer 가 그것을 모르면 링은
+   * 방금 떠난 자리에 남는다 — 화면에 초점이 둘 보이고, `Enter` 는 눈이 보는 자리가 아니라
+   * 링이 있는 자리에 가 닿는다.
+   *
+   * **우리가 옮긴 초점은 알리지 않는다** — 실려 온 링을 따라간 것을 되돌려 알리면 제가
+   * 낸 소식을 제가 듣는 꼴이다. 여기 오는 것은 겪는 사람이 옮긴 것뿐이다.
+   */
+  onFocusCell?(surfaceId: string, cellId: string): void;
+  /** 자판이 이 줄로 옮겨 갔다 — 칸과 같은 규칙이다 */
+  onFocusRow?(surfaceId: string, rowId: string): void;
   /**
    * 글자 받는 자리에 무언가 쳐 넣었다 — **그 글자를 그대로 돌려준다.**
    *
@@ -420,6 +436,19 @@ export function createSurfaceLayer(
   root.addEventListener('focusin', (ev) => {
     const at = tipCellOf(ev.target);
     if (at) showTip(at.surfaceId, at.cellId);
+
+    // 겪는 사람이 옮긴 초점만 알린다 — 링이 따라올 수 있게 (SurfaceHandlers.onFocusCell)
+    if (claiming) return;
+    const target = ev.target as HTMLElement | null;
+    const surfaceId = surfaceOf(target);
+    if (!surfaceId) return;
+    const cell = target?.closest<HTMLElement>('.sf-cell');
+    if (cell?.dataset.id !== undefined) {
+      handlers.onFocusCell?.(surfaceId, cell.dataset.id);
+      return;
+    }
+    const row = target?.closest<HTMLElement>('.sf-row');
+    if (row?.dataset.id !== undefined) handlers.onFocusRow?.(surfaceId, row.dataset.id);
   });
   root.addEventListener('focusout', (ev) => {
     const at = tipCellOf(ev.target);
@@ -432,6 +461,23 @@ export function createSurfaceLayer(
   // ── 자판이 다니는 길 ────────────────────────────────────────────
   //
   // 판단은 `surface-focus.ts` 가 지닌다. 여기 있는 것은 그 판단대로 마디를 만지는 일뿐이다.
+
+  /**
+   * 우리가 옮기는 초점 — 옮기는 동안에는 결정 Layer 에게 알리지 않는다.
+   *
+   * 실려 온 링을 따라간 것과 다시 그린 뒤 제자리를 되찾은 것은 **소식이 아니다**.
+   * 알리면 제가 낸 소식을 제가 듣고, 결정 Layer 는 자기가 이미 아는 것을 다시 받는다.
+   */
+  let claiming = false;
+  function claimFocusTo(el: HTMLElement | null | undefined): void {
+    if (!el) return;
+    claiming = true;
+    try {
+      el.focus();
+    } finally {
+      claiming = false;
+    }
+  }
 
   /** 맨 위 표면의 마디 — 겹쳐 있으면 뒤의 것이 위다 (닫히는 차례와 같다) */
   function topSurfaceNode(): HTMLElement | undefined {
@@ -456,7 +502,7 @@ export function createSurfaceLayer(
    * 서면 읽어 주는 장치는 제목과 "대화 상자" 를 먼저 말하고, 다음 Tab 이 안으로 들어간다.
    */
   function focusInto(node: HTMLElement): void {
-    (ringOf(node) ?? node).focus();
+    claimFocusTo(ringOf(node) ?? node);
   }
 
   /**
@@ -692,14 +738,14 @@ export function createSurfaceLayer(
           entry.node.innerHTML = html;
           entry.html = html;
 
-          if (held) entry.node.querySelector<HTMLElement>(held)?.focus();
+          if (held) claimFocusTo(entry.node.querySelector<HTMLElement>(held));
 
           if (typing?.id !== undefined) {
             const again = entry.node.querySelector<HTMLInputElement>(
               `.sf-field[data-id="${CSS.escape(typing.id)}"]`,
             );
             if (again) {
-              again.focus();
+              claimFocusTo(again);
               const at = typing.at ?? again.value.length;
               again.setSelectionRange(at, at);
             }
@@ -711,7 +757,7 @@ export function createSurfaceLayer(
             '.sf-field[data-claim-focus="true"]',
           );
           if (claimed && document.activeElement !== claimed) {
-            claimed.focus();
+            claimFocusTo(claimed);
             claimed.setSelectionRange(claimed.value.length, claimed.value.length);
           }
         }
@@ -727,11 +773,11 @@ export function createSurfaceLayer(
         });
         lastFocus.set(surface.id, surface.focusId);
         if (claim.move === 'ring') {
-          entry.node
-            .querySelector<HTMLElement>(
+          claimFocusTo(
+            entry.node.querySelector<HTMLElement>(
               `.sf-cell[data-id="${CSS.escape(claim.id)}"], .sf-row[data-id="${CSS.escape(claim.id)}"]`,
-            )
-            ?.focus();
+            ),
+          );
         } else if (claim.move === 'enter') {
           focusInto(entry.node);
         }
