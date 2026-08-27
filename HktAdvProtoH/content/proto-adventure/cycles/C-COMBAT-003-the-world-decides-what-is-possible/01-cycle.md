@@ -2,7 +2,7 @@
 
 [PASS] Cycle Definition           (사정 목록 하나 · 읽는 자리 둘 · 새 상태 0 · 새 기술 하나)
 [PASS] Intent                     (Goal 4 · Intent 13 · 관문과 강화가 한 목록을 읽는다 · GAP 없음)
-[    ] World Semantic
+[PASS] World Semantic             (새 상태 0 · 사정 셋 · 관문은 넷째 · 계수만 움직인다 · GAP 없음)
 [    ] GameView Specification
 [    ] Human Semantic Review
 [    ] World Implementation
