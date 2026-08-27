@@ -204,9 +204,11 @@
         몸인지를 알아야 그 앞에서 무엇을 칠지 고를 수 있고, 그것이 이 층이 여는 수다
         (C-COMBAT-001 의 배분이 가려지지 않는 것과 같은 근거)
 
-    Response.Choices                     고를 수 있는 대답들 + 각각의 몫과 값
-        목록·가능 여부·사유·비용을 **전부 세계가 싣는다** (DC-WORLD-OWNS-THE-SURFACE-LIST).
-        지금은 항목이 하나이고, 둘째가 생겨도 화면 코드가 열리지 않는다
+    **목록을 두지 않는다** — Intent 어느 문장도 "고를 수 있는 대답들" 을 요구하지 않는다.
+    자리를 갈아 끼우는 규칙이 이 Cycle 에 없으므로(01 EXCLUDED) 목록을 실으면 아무도
+    행동할 수 없는 계약이 생긴다. 자리에 무엇이 있는가는 Actor.Response 하나가 답한다.
+    둘째 종류와 함께 고르는 규칙이 서는 Cycle 이 그때 목록을 세운다 —
+    그 Cycle 이 열게 되는 것은 화면 코드가 아니라 계약이며, 그것이 옳은 순서다.
 
     Response.Available                   지금 대답할 수 있는가
     Response.UnavailableReason           안 되면 왜 — 하나만 나간다
@@ -291,7 +293,8 @@
     INTENT-RESPONSE-OBSERVABLE-001
 
         "지금 대답할 수 있는가"                      → Response.Available · Response.Incoming
-        "자리에 무엇이 있는가"                       → Actor.Response (가려지지 않는다)
+        "자리에 무엇이 있는가"                       → Actor.Response (가려지지 않는다).
+                                                    **목록이 아니다** — 위 OBSERVABLE 의 주
         "안 되면 왜"                                → Response.UnavailableReason (하나)
         "그 타격이 대답을 받았는가"                   → DamageBreakdown.Response
 
