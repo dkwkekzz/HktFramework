@@ -27,7 +27,7 @@ export type MoveMode = 'walk' | 'run';
 // 다른 셋과 같은 자리를 같은 방법으로 지난다 (INTENT-CIRCUMSTANCES-ARE-A-LIST-001).
 export type SkillKind = Extract<
   ActionKind,
-  'attack' | 'heavy-attack' | 'aura-strike' | 'hatsu-burst'
+  'attack' | 'heavy-attack' | 'aura-strike' | 'hatsu-burst' | 'mark-strike'
 >;
 
 // DamageType (C012 ADDED, INTENT-DAMAGE-TYPE-001) — 피해를 만드는 방식.
@@ -85,6 +85,10 @@ export interface SkillDefinition {
   // (INTENT-NO-CIRCUMSTANCE-NO-CHANGE-001 · DC-COMBAT-ONE-LAYER-AT-A-TIME).
   requires: readonly CircumstanceId[]; // 갖춰져야 시작된다 — 차례가 곧 사유의 차례다
   amplifiedBy: readonly ConditionShare[]; // 참인 동안 계수가 커진다
+  // C-COMBAT-004 ADDED — 닿은 몸에 표식을 남기는가 (INTENT-A-MARK-RESTS-ON-THE-OTHER-001).
+  // **값이지 이름이 아니다** — 휘두름이 "어느 기술인가" 를 묻는 분기를 만들지 않기
+  // 위해서다. C-COMBAT-003 이 `isSkillKind` 에서 겪은 자리와 같은 종류의 판단이다.
+  leavesMark: boolean;
 }
 
 /**
@@ -141,6 +145,7 @@ export const SKILL_DEFINITIONS: Readonly<Record<SkillKind, SkillDefinition>> = {
     swingTipRadius: DEFAULT_SWING_TIP_RADIUS,
     requires: [], // C-COMBAT-003 — 사정을 지지 않는다. 빈 목록은 언제나 갖춰진 것이다
     amplifiedBy: [],
+    leavesMark: false, // C-COMBAT-004 — 남기지 않는다
   },
   // 고급 스킬 — 충전하면서 더 크게 소모한다 (붉은보석식 수지). 순수지 -22.
   'heavy-attack': {
@@ -165,6 +170,7 @@ export const SKILL_DEFINITIONS: Readonly<Record<SkillKind, SkillDefinition>> = {
     swingTipRadius: 0.55,
     requires: [], // C-COMBAT-003 — 그대로다
     amplifiedBy: [],
+    leavesMark: false, // C-COMBAT-004 — 그대로다
   },
   // 오라 스킬 (C012 ADDED) — 기본 스킬과 **모든 값이 같고 방식만 다르다**.
   // 일부러 그렇게 두었다: 값이 다르면 결과 차이가 방식 때문인지 값 때문인지 갈리지 않는다.
@@ -185,6 +191,7 @@ export const SKILL_DEFINITIONS: Readonly<Record<SkillKind, SkillDefinition>> = {
     swingTipRadius: DEFAULT_SWING_TIP_RADIUS,
     requires: [], // C-COMBAT-003 — 그대로다
     amplifiedBy: [],
+    leavesMark: false, // C-COMBAT-004 — 그대로다
   },
   // 발현 일격 (C-COMBAT-003 ADDED) — **세계의 사정을 지는 첫 기술**이다.
   //
@@ -224,7 +231,48 @@ export const SKILL_DEFINITIONS: Readonly<Record<SkillKind, SkillDefinition>> = {
     amplifiedBy: [
       { circumstance: 'struck-by-them', attackRatioShare: 0.4 },
       { circumstance: 'life-below-half', attackRatioShare: 0.4 },
+      // C-COMBAT-004 ADDED — 표식. 다른 둘(+0.4)보다 몫이 크다: **값을 미리
+      // 치렀기 때문이다.** 맞은 것은 공짜로 참이 되고 다친 것은 위기의 결과지만,
+      // 표식은 한 행동과 기력 10 을 버려 스스로 만든 사실이다
+      // (03-world-semantic.md BALANCE ④).
+      //
+      // **요구가 아니라 조건이다.** 요구로 걸면 "배분만 갖추면 나간다" 가 깨져
+      // C-COMBAT-003 의 회귀가 무너진다 (03 JUDGEMENT ③).
+      { circumstance: 'bears-my-mark', attackRatioShare: 0.5 },
     ],
+    leavesMark: false, // 표식을 쓰는 기술이지 남기는 기술이 아니다
+  },
+  // 표식 남기기 (C-COMBAT-004 ADDED) — **피해가 0 인 첫 기술이다.**
+  //
+  // 1 이라도 넣으면 "아주 약한 공격" 이 되고, 그러면 이 기술은 값이 아니라 손해가
+  // 된다. 피해 없이도 강한 능력이 성립한다는 것이 DC-COMBAT-ABILITY-IS-A-RULE 이
+  // 요구한 바로 그 형태이며 (UL §23), 이 기술이 그 실물이다.
+  //
+  // 모양·구간·길이는 **기본 기술과 같은 값**이다. 자리를 만드는 한 대이므로 크게 걸
+  // 이유가 없고, 새 값을 지어내면 결과 차이가 표식 때문인지 모양 때문인지 갈리지
+  // 않는다 (C012 · C-COMBAT-003 이 따른 판단 그대로).
+  //
+  // 방식이 aura 인 것은 표식이 오라의 조작이기 때문이다 (MS-AURA-NEN / OPERATION).
+  // 피해가 0 이므로 방식이 결과를 가르지 않지만 경위에 실릴 이름은 있어야 한다.
+  //
+  // 요구가 상대를 본다 — **이 세계에서 처음이다** (C-COMBAT-003 Master Gap ②).
+  'mark-strike': {
+    baseDuration: 0.6,
+    baseDamage: 0,
+    attackRatio: 0,
+    cpCharge: 0, // 아프게 하지 않았으므로 돌아오는 것도 없다
+    cpCost: 10, // 한 대를 버려 자리를 산다 — 기본 기술이 채우는 12 언저리
+    damageType: 'aura',
+    swingBegin: DEFAULT_SWING_BEGIN,
+    swingEnd: DEFAULT_SWING_END,
+    swingArc: DEFAULT_SWING_ARC,
+    swingReach: DEFAULT_SWING_REACH,
+    swingTipRadius: DEFAULT_SWING_TIP_RADIUS,
+    // 이미 걸어 둔 상대에게는 나가지 않는다. 걸어 두고 또 거는 것은 기력만 버리는
+    // 일이며, 세계가 그것을 막고 사유를 말하면 표식이 자원처럼 읽힌다.
+    requires: ['no-mark-of-mine-yet'],
+    amplifiedBy: [],
+    leavesMark: true,
   },
 };
 

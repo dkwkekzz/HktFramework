@@ -47,6 +47,7 @@ import {
   type SkillKind,
 } from '../semantic/combat';
 import { abilityCircumstance } from '../semantic/circumstance';
+import { borneMarks } from '../semantic/mark';
 import { concealedKeys, isAcquainted, isSeatOpen } from '../semantic/acquaintance';
 import {
   GROWABLE_STATS,
@@ -302,6 +303,19 @@ export function projectObserverView(
         // 살펴봄이 할 일이 없어진다.
         // C016 — 세 자리 중 가장 얕다. 통찰이 조금만 있어도 이것부터 열린다.
         ...(seatOpen('defenseShape') ? { defenseShape: defenseShape(actor) } : {}),
+        /**
+         * C-COMBAT-004 ADDED — 그 몸에 지금 붙어 있는 표식들
+         * (INTENT-THE-BORNE-IS-SEEN-BY-BOTH-001).
+         *
+         * **모든 존재에 언제나 실리고 가려지지 않는다.** 살펴봄의 관문 뒤에 두지
+         * 않는다 — 겨루는 힘이 아니라 그 몸에 일어난 일이며, 태도(C018)와
+         * 배분(C-COMBAT-001)이 선 자리와 같다. 걸린 쪽이 자기에게 무엇이 붙었는지
+         * 모르면 대비가 성립하지 않는다 (UL §30 · §40).
+         *
+         * **닫힌 표식은 나가지 않고 언제까지인지도 싣지 않는다** — 세계가 이미
+         * "지금 붙어 있는가" 를 답한다 (C016 이 통찰 문턱을 싣지 않은 판단 그대로).
+         */
+        marks: borneMarks(actor.marks, state.time),
         // 막기 (C011) — 모든 존재에 실린다. 자율 존재는 이번 Cycle 에서 막지 않으므로
         // 늘 거짓이지만 그래도 싣는다. "지금은 아무도 안 막는다" 와
         // "세계가 안 알려준다" 는 다른 일이다 (INTENT-GUARD-OBSERVE-001).
@@ -430,11 +444,13 @@ export function projectObserverView(
       swingReach: definition.swingReach,
       swingTipRadius: definition.swingTipRadius,
       // C-COMBAT-003 — 갖춰졌어도 실린다. 무엇을 지고 있는지가 곧 그 기술의 정체다.
+      // C-COMBAT-004 CHANGED — 이제 **지금 고른 상대에 대한** 답이다. 아무도 고르지
+      // 않았으면 상대를 읽는 요구는 갖춰지지 않은 것으로 온다 (모름은 참이 아니다).
       requires: definition.requires.map((id) => {
         const circumstance = abilityCircumstance(id);
         return {
           id,
-          met: circumstance.holds(self, null, state),
+          met: circumstance.holds(self, chosenTarget, state),
           reason: circumstance.unmetReason,
         };
       }),
@@ -453,7 +469,7 @@ export function projectObserverView(
   // C010 CHANGED — damage 하나가 셋으로 나뉜다. rawDamage 는 지금 내 공격 능력으로
   // 이 스킬을 쓰면 나오는 공격 피해이며, 최종 피해는 실리지 않는다 —
   // 대상이 정해지기 전에는 세계도 모르는 값이다.
-  const basicFailure = evaluateSkillPreconditions(self, 'attack', state);
+  const basicFailure = evaluateSkillPreconditions(self, 'attack', state, chosenTarget);
   interactions.push({
     id: 'attack',
     role: 'skill-basic',
@@ -462,7 +478,7 @@ export function projectObserverView(
     profile: skillProfile('attack'),
   });
 
-  const heavyFailure = evaluateSkillPreconditions(self, 'heavy-attack', state);
+  const heavyFailure = evaluateSkillPreconditions(self, 'heavy-attack', state, chosenTarget);
   interactions.push({
     id: 'skill-heavy',
     role: 'skill-heavy',
@@ -475,13 +491,25 @@ export function projectObserverView(
   // 새 관문도 새 사유도 없다. 기존 스킬이 지나는 자리를 그대로 지난다
   // (INTENT-AURA-SKILL-001). rawDamage 가 기본 스킬과 다르게 나오는 것은
   // 내 두 공격 능력이 다르기 때문이지 스킬 값이 달라서가 아니다.
-  const auraFailure = evaluateSkillPreconditions(self, 'aura-strike', state);
+  const auraFailure = evaluateSkillPreconditions(self, 'aura-strike', state, chosenTarget);
   interactions.push({
     id: 'skill-aura',
     role: 'skill-aura',
     available: auraFailure === null,
     ...(auraFailure ? { reason: auraFailure } : {}),
     profile: skillProfile('aura-strike'),
+  });
+
+  // interactions.skillMark (C-COMBAT-004 ADDED) — 표식을 남기는 기술.
+  // **피해가 0 이다.** profile 이 그것을 그대로 싣는다 — 화면이 0 을 지어내지 않는다.
+  // 요구가 **지금 고른 상대**를 보는 첫 자리이기도 하다.
+  const markFailure = evaluateSkillPreconditions(self, 'mark-strike', state, chosenTarget);
+  interactions.push({
+    id: 'skill-mark',
+    role: 'skill-mark',
+    available: markFailure === null,
+    ...(markFailure ? { reason: markFailure } : {}),
+    profile: skillProfile('mark-strike'),
   });
 
   // interactions.skillHatsu (C-COMBAT-003 ADDED) — 사정을 지는 기술.
@@ -491,7 +519,7 @@ export function projectObserverView(
   // 갖춰지지 않아도 **목록에서 사라지지 않는다** — 사라지면 사유를 실을 자리가 없고,
   // 그러면 무엇을 갖추면 열리는지 알 길이 없다 (C-COMBAT-001 이 지금 고를 수 없는
   // 배분까지 싣기로 한 판단 그대로).
-  const hatsuFailure = evaluateSkillPreconditions(self, 'hatsu-burst', state);
+  const hatsuFailure = evaluateSkillPreconditions(self, 'hatsu-burst', state, chosenTarget);
   interactions.push({
     id: 'skill-hatsu',
     role: 'skill-hatsu',

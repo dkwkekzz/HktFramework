@@ -73,6 +73,14 @@ export interface AllocationChoiceView {
   interactionId: string;
 }
 
+/** 그 몸에 지금 붙어 있는 표식 하나 (C-COMBAT-004 ADDED) */
+export interface BorneMarkView {
+  /** 누가 남겼는가 (존재 Id) */
+  byId: string;
+  /** 언제 남겼는가 (세계 시각). **언제까지인지는 실리지 않는다** — 그것은 규칙이다 */
+  since: number;
+}
+
 export interface AttributesView {
   // ── 앎의 상태 (C014 ADDED) — 아는 존재에도 모르는 존재에도 언제나 실린다 ──
   /**
@@ -82,6 +90,14 @@ export interface AttributesView {
    * 판단하지 않는다 — 그 판단은 자리마다 다르다 (04 SEAT NOTE).
    */
   acquainted: boolean;
+  /**
+   * C-COMBAT-004 ADDED — 그 몸에 지금 붙어 있는 표식들.
+   *
+   * **모든 존재에 언제나 실리고 가려지지 않는다.** 붙은 것이 없으면 빈 배열이다 —
+   * "아무것도 안 붙었다" 와 "세계가 안 알려준다" 는 다른 일이다.
+   * 태도(C018) · 배분(C-COMBAT-001) 이 선 자리에 나란히 선다.
+   */
+  marks: BorneMarkView[];
   /**
    * 지금 이 존재에 대해 **가려진 항목의 이름들**. 전부 열렸으면 빈 배열이다.
    * 이 목록의 단일 출처는 세계다 (world/semantic/acquaintance.ts) —

@@ -5,7 +5,8 @@
 //                                           INTENT-REFUSAL-NAMES-THE-WORLD-001 ·
 //                                           INTENT-ALLOCATION-OPENS-WHAT-IS-POSSIBLE-001 ·
 //                                           INTENT-THE-GATE-DOES-NOT-ASK-WHO-DRIVES-001
-// Input          Actor, SkillKind, Now
+// Input          Actor, SkillKind, Now, **지금 노리는 상대 (없을 수 있다)**
+//                C-COMBAT-004 CHANGED — 관문이 상대를 받는다.
 // Preconditions  없음 — 모든 기술에 답이 있다
 // Transition     없음 — 세계 상태를 바꾸지 않는다 (파생 판정)
 // Result         Met(null) | Unmet(UnmetReason)
@@ -14,9 +15,13 @@
 // 차례가 정해져 있으므로 둘이 함께 거짓이어도 사유는 언제나 같다
 // (DC-COMBAT-PLAYER-CAUSALITY — 같은 상태면 같은 답).
 //
-// `other` 가 없다 — 관문은 쓰기 전에 서므로 대상이 정해지지 않았다. 상대를 읽는 사정을
-// 요구로 걸면 그 기술은 결코 나가지 않으며, 세계는 지금 그런 조합을 만들지 않는다
-// (semantic/circumstance.ts 의 AbilityCircumstance 주석).
+// `other` 는 **지금 노리는 상대**다 (World.TargetSelections · C017). 부르는 쪽이 찾아
+// 넘기며, 이 규칙도 사정도 "누가 고르고 있는가" 를 모른다. 아무도 고르지 않았으면
+// 없고, 그때 상대를 읽는 사정은 갖춰지지 않은 것이다 — 모름을 참으로 두지 않는다.
+//
+// **관문이 본 상대와 실제로 닿는 몸은 다를 수 있다.** 관문은 걸 수 있는가만 답하며,
+// 닿은 몸에 무슨 일이 일어나는지는 닿은 뒤에 정해진다
+// (INTENT-THE-GATE-SEES-THE-CHOSEN-ONE-001).
 //
 // 이 규칙은 조종 주체를 묻지 않는다 — Input 에 누가 움직이는 몸인지가 없다.
 //
@@ -55,11 +60,11 @@ export function ruleAbilityRequirement(
   actor: ActorState,
   kind: SkillKind,
   now: CircumstanceNow,
+  other: ActorState | null = null,
 ): CircumstanceUnmetReason | null {
   for (const id of skillDefinition(kind).requires) {
     const circumstance = abilityCircumstance(id);
-    // 관문에는 상대가 없다 — 쓰기 전이기 때문이다.
-    if (!circumstance.holds(actor, null, now)) return circumstance.unmetReason;
+    if (!circumstance.holds(actor, other, now)) return circumstance.unmetReason;
   }
   return null;
 }

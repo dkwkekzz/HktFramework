@@ -19,6 +19,9 @@ export type ActionKind =
   // C-COMBAT-003 ADDED — hatsu-burst (발현 일격). 세계의 사정을 지는 첫 기술이며,
   // 행동으로서는 다른 스킬과 완전히 같다 (INTENT-ABILITY-HAS-CIRCUMSTANCES-001).
   | 'hatsu-burst'
+  // C-COMBAT-004 ADDED — mark-strike (표식 남기기). 피해가 0 인 첫 기술이며,
+  // 행동으로서는 다른 스킬과 완전히 같다.
+  | 'mark-strike'
   | 'mine'
   | 'observe'
   // C020 ADDED — use-item (물건을 쓴다). 스킬이 아니다 — 치르는 것은 기력이 아니라
@@ -62,6 +65,8 @@ export const ACTION_DEFINITIONS: Readonly<Record<ActionKind, ActionDefinition>> 
   'aura-strike': { duration: 0.6, replaceable: false },
   // C-COMBAT-003 — 고급 스킬과 같은 길이다. 다른 것은 지는 사정뿐이다.
   'hatsu-burst': { duration: 0.9, replaceable: false },
+  // C-COMBAT-004 — 기본 스킬과 같은 길이다. 다른 것은 남기는 일뿐이다.
+  'mark-strike': { duration: 0.6, replaceable: false },
   mine: { duration: 1.2, replaceable: false },
   // C014 — 살펴봄. 기본 스킬(0.6)보다 길고 채굴(1.2)보다 짧다 —
   // 한 번 휘두를 기회를 버리고 얻는 앎이다 (03 BALANCE).

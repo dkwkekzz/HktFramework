@@ -28,9 +28,19 @@
 
 import type { ActorState } from './actor';
 import { allocationShares } from './allocation';
+import { isMarkedBy } from './mark';
 
 /** 세계가 아는 사정의 이름 */
-export type CircumstanceId = 'power-in-ability' | 'struck-by-them' | 'life-below-half';
+export type CircumstanceId =
+  | 'power-in-ability'
+  | 'struck-by-them'
+  | 'life-below-half'
+  // C-COMBAT-004 ADDED — 상대에게 남은 것을 보는 첫 사정 둘.
+  // **둘은 서로의 부정이다.** 그래도 두 항목으로 두는 이유는 사정이 "지금 참인가"
+  // 하나만 답하는 물음이기 때문이다 — 부정을 다루는 문법을 목록에 들이면 그때부터
+  // 판정이 사정의 내용을 알아야 하고, "판정은 목록을 읽을 뿐" 이 깨진다.
+  | 'bears-my-mark'
+  | 'no-mark-of-mine-yet';
 
 /**
  * 갖춰지지 않았을 때 세계가 내보내는 사유 코드.
@@ -42,7 +52,9 @@ export type CircumstanceId = 'power-in-ability' | 'struck-by-them' | 'life-below
 export type CircumstanceUnmetReason =
   | 'power-not-in-ability'
   | 'not-struck-by-them'
-  | 'life-not-below-half';
+  | 'life-not-below-half'
+  | 'no-mark-on-them'
+  | 'already-marked-by-them';
 
 /**
  * 사정이 읽는 **지금** — 수명이 정해진 세계의 사실들.
@@ -51,6 +63,11 @@ export type CircumstanceUnmetReason =
  * combat.ts 를 읽지 않고, 사정이 세계의 무엇이든 볼 수 있다는 착각도 생기지 않는다.
  */
 export interface CircumstanceNow {
+  /**
+   * 지금의 세계 시각 (C-COMBAT-004 ADDED) — 표식이 지금 붙어 있는가를 재려면 필요하다.
+   * World.Time 에 이름을 맞춰 두므로 세계 자체가 이 형에 그대로 들어맞는다.
+   */
+  time: number;
   /**
    * 아직 살아 있는 타격 결과들 — RULE-STRIKE-EVENT-EXPIRE-001 이 지운 뒤의 것.
    *
@@ -63,10 +80,15 @@ export interface CircumstanceNow {
 /**
  * 사정 하나. `holds(self, other, now)` 는 "지금 이것이 참인가" 를 답한다.
  *
- * `other` 는 **관문 자리에서 없다** (쓰기 전이라 대상이 정해지지 않았다). 그러므로
- * 상대를 읽는 사정은 관문에서 언제나 거짓이며, 그런 사정을 요구로 걸면 그 기술은
- * 결코 나가지 않는다 — **세계는 지금 그런 조합을 만들지 않는다.** 그것이 필요해지는
- * 날은 관문이 고른 대상을 받는 날이다 (표식이 요구가 되는 Cycle).
+ * C-COMBAT-004 CHANGED — **관문에서도 `other` 가 있을 수 있다.** 그 자리에 오는 것은
+ * *지금 노리는 상대*(World.TargetSelections · C017)이며, 관문을 부르는 쪽이 찾아
+ * 넘긴다 — 사정도 관문도 "누가 고르고 있는가" 를 모른다.
+ *
+ * 아무도 고르지 않았으면 `other` 는 없고, 상대를 읽는 사정은 갖춰지지 않은 것이다 —
+ * 모름을 참으로 두지 않는다.
+ *
+ * **관문이 본 상대와 실제로 닿는 몸은 다를 수 있다.** 관문은 걸 수 있는가만 답하며,
+ * 닿은 몸에 무슨 일이 일어나는지는 닿은 뒤에 정해진다.
  */
 export interface AbilityCircumstance {
   id: CircumstanceId;
@@ -116,6 +138,22 @@ export const ABILITY_CIRCUMSTANCES: readonly AbilityCircumstance[] = [
     unmetReason: 'life-not-below-half',
     holds: (self) => self.hp * 2 <= self.hpMax,
   },
+  {
+    // 그 상대에게 **내가 남긴** 표식이 지금 붙어 있다 (UL §18 "Target 에 Mark 존재").
+    // 남긴 시각에서 매번 다시 센다 — 닫는 규칙이 세계에 없다 (semantic/mark.ts).
+    id: 'bears-my-mark',
+    unmetReason: 'no-mark-on-them',
+    holds: (self, other, now) =>
+      other !== null && isMarkedBy(other.marks, self.id, now.time),
+  },
+  {
+    // 그 상대에게 내 표식이 **아직 없다.** 위의 뒤집은 답이며, 걸어 두고 또 거는
+    // 일을 막는다 — 세계가 막고 사유를 말하면 표식이 자원처럼 읽힌다.
+    id: 'no-mark-of-mine-yet',
+    unmetReason: 'already-marked-by-them',
+    holds: (self, other, now) =>
+      other !== null && !isMarkedBy(other.marks, self.id, now.time),
+  },
 ];
 
 /** 이름으로 사정을 찾는다. 모르는 이름은 오지 않는다 — 기술의 정의가 앞에 선다 */
@@ -136,4 +174,4 @@ export function circumstanceHolds(
 }
 
 /** 아무 사실도 없는 지금 — 사정을 물을 자리에 세계가 없을 때의 기준값 */
-export const EMPTY_NOW: CircumstanceNow = { strikeEvents: [] };
+export const EMPTY_NOW: CircumstanceNow = { time: 0, strikeEvents: [] };

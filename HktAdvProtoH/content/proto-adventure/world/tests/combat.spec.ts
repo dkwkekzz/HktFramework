@@ -514,6 +514,10 @@ describe('INTENT-ATTRIBUTE-OBSERVE-001 — 세계가 무엇이 언제 실리는�
       // 것이며, 이 존재는 성한 채이므로 고르게 나눈 배분이다 (모든 값에 0 을 보탠다)
       allocation: { id: 'balanced', shares: { body: 2, ability: 2, awareness: 2 } },
       // C011 — 자율 존재는 막지 않지만 그 사실도 실린다
+      // C-COMBAT-004 — 그 몸에 붙은 표식도 가려지지 않는다. 겨루는 힘이 아니라
+      // 그 몸에 일어난 일이며, 아직 아무도 남기지 않았으므로 비어 있다 —
+      // "아무것도 안 붙었다" 와 "세계가 안 알려준다" 는 다른 일이다
+      marks: [],
       guard: { guarding: false, broken: false },
       // C014 — 겨루는 힘 셋만 살펴봄 뒤로 갔고, 가렸다는 사실이 그 자리를 대신한다.
       // 몰래 가리지 않는다 — 무엇을 모르는지를 모르는 일은 없다
@@ -574,6 +578,10 @@ describe('INTENT-ATTRIBUTE-OBSERVE-001 — 세계가 무엇이 언제 실리는�
       defenseShape: 'aura-tougher',
       // C011 — 자율 존재는 막지 않지만 그 사실도 실린다.
       // "지금은 아무도 안 막는다" 와 "세계가 안 알려준다" 는 다른 일이다
+      // C-COMBAT-004 — 그 몸에 붙은 표식도 가려지지 않는다. 겨루는 힘이 아니라
+      // 그 몸에 일어난 일이며, 아직 아무도 남기지 않았으므로 비어 있다 —
+      // "아무것도 안 붙었다" 와 "세계가 안 알려준다" 는 다른 일이다
+      marks: [],
       guard: { guarding: false, broken: false },
       // C014 — 알게 되었으므로 가려진 것이 없다
       acquainted: true,

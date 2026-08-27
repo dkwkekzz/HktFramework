@@ -37,12 +37,30 @@ import { ruleObserveBegin, ruleObserveForget } from '../rules/observe';
 import { ruleSkillBegin } from '../rules/skill';
 import { ruleTargetClear, ruleTargetSelect } from '../rules/target';
 import { actorOfObserver, type WorldState } from '../semantic/world-state';
+import { selectedEntityId } from '../semantic/target-selection';
 import type { ActorState } from '../semantic/actor';
 
 const DISPATCH = 'DISPATCH';
 
 // 주체 해석 — 몸(Actor)은 이 팩의 개념이므로 요청을 몸에 붙이는 일도 팩의 몫이다.
 // Engine 은 관찰자 장부만 확인한다 (engine/world-kernel/dispatch.ts).
+/**
+ * 지금 이 관찰자가 노리는 상대 (C-COMBAT-004).
+ *
+ * 관문이 상대를 읽는 사정을 물을 때 그 자리에 오는 몸이다 (C017 의 고른 것을
+ * **읽기만** 한다 — 고르기의 뜻을 바꾸지 않는다). 아무것도 고르지 않았거나 고른
+ * 것이 몸이 아니면 없다.
+ *
+ * 이 자리를 관문 안에 두지 않은 이유: 관문은 "누가 고르고 있는가" 를 몰라야 한다.
+ * 고른 것은 **관찰자**의 장부이고 관문이 받는 것은 **몸**이므로, 둘을 잇는 일은
+ * 관찰자를 아는 이 수용층의 몫이다.
+ */
+function chosenTarget(state: WorldState, observerId: string): ActorState | null {
+  const entityId = selectedEntityId(state.targetSelections, observerId);
+  if (entityId === undefined) return null;
+  return state.actors.find((a) => a.id === entityId) ?? null;
+}
+
 function withActor(
   handle: (
     state: WorldState,
@@ -136,18 +154,25 @@ export const INTERACTIONS: readonly InteractionHandler<WorldState>[] = [
     // 기본 스킬 — 대상을 받지 않는다 (C002)
     // C-COMBAT-003 CHANGED — 세계를 함께 넘긴다. 사정이 세계의 사실을 읽기 때문이며,
     // 사정을 지지 않는 기술에서는 아무것도 달라지지 않는다.
-    handle: withActor((state, actor) => ruleSkillBegin(actor, 'attack', state)),
+    // C-COMBAT-004 CHANGED — 지금 노리는 상대도 함께 넘긴다 (아래 chosenTarget).
+    handle: withActor((state, actor, _action, observerId) =>
+      ruleSkillBegin(actor, 'attack', state, chosenTarget(state, observerId)),
+    ),
   },
   {
     id: 'skill-heavy',
     // 고급 스킬 (C007)
-    handle: withActor((state, actor) => ruleSkillBegin(actor, 'heavy-attack', state)),
+    handle: withActor((state, actor, _action, observerId) =>
+      ruleSkillBegin(actor, 'heavy-attack', state, chosenTarget(state, observerId)),
+    ),
   },
   {
     // C012 — 오라 스킬. 같은 Rule 을 그대로 지난다. 다른 것은 피해의 방식뿐이다
     // (INTENT-AURA-SKILL-001).
     id: 'skill-aura',
-    handle: withActor((state, actor) => ruleSkillBegin(actor, 'aura-strike', state)),
+    handle: withActor((state, actor, _action, observerId) =>
+      ruleSkillBegin(actor, 'aura-strike', state, chosenTarget(state, observerId)),
+    ),
   },
   {
     // C-COMBAT-003 — 발현 일격. **같은 Rule 을 그대로 지난다.** 다른 것은 그 기술이
@@ -155,7 +180,17 @@ export const INTERACTIONS: readonly InteractionHandler<WorldState>[] = [
     // (INTENT-REQUIREMENT-GATES-THE-ABILITY-001). 여기에 사정을 묻는 문장이 없는 것이
     // 이 층이 제대로 선 증거다 — 새 기술을 더하는 일이 수용층을 열지 않는다.
     id: 'skill-hatsu',
-    handle: withActor((state, actor) => ruleSkillBegin(actor, 'hatsu-burst', state)),
+    handle: withActor((state, actor, _action, observerId) =>
+      ruleSkillBegin(actor, 'hatsu-burst', state, chosenTarget(state, observerId)),
+    ),
+  },
+  {
+    // C-COMBAT-004 — 표식 남기기. **여기에도 표식을 묻는 문장이 없다** —
+    // 요구도 남기는 일도 세계가 정의에서 읽는다.
+    id: 'skill-mark',
+    handle: withActor((state, actor, _action, observerId) =>
+      ruleSkillBegin(actor, 'mark-strike', state, chosenTarget(state, observerId)),
+    ),
   },
   {
     // C011 — 막기는 몸이 세계 안에서 하는 일이므로 interaction 이다 (command 가 아니다).

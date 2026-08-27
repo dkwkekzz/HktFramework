@@ -9,7 +9,8 @@
 //                RULE-HIT-001 (C019 CHANGED — 선딜이면 캔슬 · 이미 나갔으면 그대로) +
 //                SWING_IMPULSE 충격량 (C006 그대로),
 //                RULE-STRIKE-DAMAGE-001 (그 스킬의 고정 피해),
-//                이 휘두름의 첫 타격이면 RULE-SKILL-BUDGET-001 (기력 수지 정산)
+//                이 휘두름의 첫 타격이면 RULE-SKILL-BUDGET-001 (기력 수지 정산),
+//                그 기술이 남기는 기술이면 RULE-MARK-LEAVE-001 (C-COMBAT-004)
 // Result         Struck(대상 수)
 //
 // C007 CHANGED — 휘두름은 이제 피해를 실어 나르고, 맞혀야 기력이 돈다.
@@ -20,8 +21,9 @@
 
 import { applyRadialImpulse, circleHits } from '../../../../engine/physics/sweep';
 import { actionCollider, SWING_IMPULSE } from '../semantic/collision';
-import { isDowned, isSkillKind } from '../semantic/combat';
+import { isDowned, isSkillKind, skillDefinition } from '../semantic/combat';
 import { ruleAbilityCondition } from '../rules/ability-circumstance';
+import { ruleMarkLeave } from '../rules/mark-leave';
 import type { WorldState } from '../semantic/world-state';
 import { ruleHarmGate } from '../rules/relation';
 import { ruleHit } from '../rules/attack';
@@ -91,6 +93,13 @@ export function ruleSwingStrike(state: WorldState): number {
         conditioned.conditions,
       );
       ruleSkillBudget(attacker, skill);
+
+      // C-COMBAT-004 — 남기는 기술이면 닿은 몸에 표식을 남긴다 (RULE-MARK-LEAVE-001).
+      // **닿은 몸마다 따로 남는다** — 한 휘두름이 둘에게 닿으면 둘 다에게 남는다.
+      // 표식은 지목이 아니므로 "하나만" 이라는 규칙을 두지 않는다.
+      // 적대가 성립하지 않은 접촉에는 오지 않는다 — 위 관문이 이미 continue 했다.
+      // 어느 기술인지 묻는 분기가 아니라 **정의가 답한 값**을 읽는다.
+      if (skillDefinition(skill).leavesMark) ruleMarkLeave(attacker, target, state.time);
 
       struckCount++;
     }

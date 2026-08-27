@@ -5,7 +5,7 @@
 [PASS] World Semantic             (새 상태 하나 · 표식은 시각이다 · 관문이 고른 상대를 받는다 · GAP 없음)
 [PASS] GameView Specification      (더하는 것 셋 · 표식은 가려지지 않는다 · HUD 무변경 · GAP 없음)
 [PASS] Human Semantic Review       (APPROVED — Human 위임 · 판단 아홉·수치 넷 확정)
-[    ] World Implementation
+[PASS] World Implementation        (1601 tests · engine 무변경 · 관문은 관찰자를 모른다)
 [    ] View Implementation
 [    ] Verification
 

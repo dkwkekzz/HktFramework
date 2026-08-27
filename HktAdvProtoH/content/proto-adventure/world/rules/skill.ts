@@ -1,7 +1,9 @@
 // RULE-SKILL-BEGIN-001 — Implements INTENT-ATTACK-001(C007 CHANGED) ·
 //                                   INTENT-SKILL-COST-GATE-001 · INTENT-DOWNED-001 ·
 //                                   INTENT-TEMPO-ACTION-001
-// Input          Actor, SkillKind, Now (C-COMBAT-003 CHANGED — 사정이 세계를 읽는다)
+// Input          Actor, SkillKind, Now, 지금 노리는 상대
+//                (C-COMBAT-003 CHANGED — 사정이 세계를 읽는다 ·
+//                 C-COMBAT-004 CHANGED — 사정이 상대도 읽는다)
 // Preconditions  1. Actor 가 쓰러지지 않았다
 //                2. 막고 있지 않다 (C011 ADDED — 버티는 몸으로는 휘두르지 못한다)
 //                3. 현재 행동이 대체 가능하다 (RULE-ACTION-BEGIN-001 의 관문)
@@ -60,6 +62,10 @@ export function evaluateSkillPreconditions(
   actor: ActorState,
   kind: SkillKind,
   now: CircumstanceNow = EMPTY_NOW,
+  // C-COMBAT-004 — 지금 노리는 상대. 부르는 쪽이 찾아 넘긴다 (World.TargetSelections).
+  // 자율 존재는 그 장부를 읽지 않으므로 언제나 없다 — 규칙이 조종 주체를 묻는 것이
+  // 아니라 자율 존재가 아직 고르지 않기 때문이다 (03 JUDGEMENT ①).
+  chosen: ActorState | null = null,
 ): SkillFailureReason | null {
   if (isDowned(actor)) return 'downed';
 
@@ -77,7 +83,7 @@ export function evaluateSkillPreconditions(
   // 기력만 모으는 사람에게 세계가 insufficient-cp 만 계속 말하게 되고, 그러면 관문이
   // 있다는 사실 자체가 보이지 않는다 (DC-COMBAT-UNAVAILABLE-HAS-A-REASON).
   // C011 이 막기를 행동 관문 앞에 둔 것과 같은 종류의 판단이다.
-  const unmet = ruleAbilityRequirement(actor, kind, now);
+  const unmet = ruleAbilityRequirement(actor, kind, now, chosen);
   if (unmet) return unmet;
 
   const cost = skillDefinition(kind).cpCost * actorModifiers(actor).cpConsume;
@@ -90,8 +96,9 @@ export function ruleSkillBegin(
   actor: ActorState,
   kind: SkillKind,
   now: CircumstanceNow = EMPTY_NOW,
+  chosen: ActorState | null = null,
 ): ActionResult {
-  const failure = evaluateSkillPreconditions(actor, kind, now);
+  const failure = evaluateSkillPreconditions(actor, kind, now, chosen);
   if (failure) return { status: 'failure', rule: RULE_SKILL_BEGIN, reason: failure };
 
   // 길이는 지금의 공격 속도가 정한다 (INTENT-TEMPO-ACTION-001).

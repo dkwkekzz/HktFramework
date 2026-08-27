@@ -99,15 +99,21 @@ const body = (allocation?: 'hatsu' | 'reinforce') => {
 // ─────────────────────────────────────────────────────────────────
 describe('INTENT-CIRCUMSTANCES-ARE-A-LIST-001 — 사정은 목록이고 판정은 읽기만 한다', () => {
   it('세계가 아는 사정이 목록으로 있고 저마다 자기 사유 코드를 지닌다', () => {
+    // C-COMBAT-004 — 항목이 둘 늘었다 (표식). **관문도 관찰도 열리지 않았다** —
+    // 그것이 이 검사가 지키는 것이다.
     expect(ABILITY_CIRCUMSTANCES.map((c) => c.id)).toEqual([
       'power-in-ability',
       'struck-by-them',
       'life-below-half',
+      'bears-my-mark',
+      'no-mark-of-mine-yet',
     ]);
     expect(ABILITY_CIRCUMSTANCES.map((c) => c.unmetReason)).toEqual([
       'power-not-in-ability',
       'not-struck-by-them',
       'life-not-below-half',
+      'no-mark-on-them',
+      'already-marked-by-them',
     ]);
   });
 
@@ -116,6 +122,8 @@ describe('INTENT-CIRCUMSTANCES-ARE-A-LIST-001 — 사정은 목록이고 판정�
     expect(HATSU.amplifiedBy).toEqual([
       { circumstance: 'struck-by-them', attackRatioShare: 0.4 },
       { circumstance: 'life-below-half', attackRatioShare: 0.4 },
+      // C-COMBAT-004 — 표식. **조건이지 요구가 아니다** (아래 회귀가 그것을 지킨다)
+      { circumstance: 'bears-my-mark', attackRatioShare: 0.5 },
     ]);
   });
 
@@ -234,8 +242,8 @@ describe('INTENT-CIRCUMSTANCE-IS-DERIVED-NOT-RECORDED-001 — 조건이 사라�
       control: 'autonomous',
       position: { x: 1, z: 0 },
     });
-    const struckMe = { strikeEvents: [{ attackerId: 'other', targetId: 'x' }] };
-    const struckThem = { strikeEvents: [{ attackerId: 'x', targetId: 'other' }] };
+    const struckMe = { time: 0, strikeEvents: [{ attackerId: 'other', targetId: 'x' }] };
+    const struckThem = { time: 0, strikeEvents: [{ attackerId: 'x', targetId: 'other' }] };
 
     expect(circumstanceHolds('struck-by-them', self, other, struckMe)).toBe(true);
     // 내가 친 것은 이 사정이 아니다 — (a,b) 와 (b,a) 는 다른 물음이다
@@ -246,7 +254,7 @@ describe('INTENT-CIRCUMSTANCE-IS-DERIVED-NOT-RECORDED-001 — 조건이 사라�
 
   it('관문 자리에는 상대가 없다 — 상대를 읽는 사정은 거기서 언제나 거짓이다', () => {
     const self = body();
-    const now = { strikeEvents: [{ attackerId: 'other', targetId: 'x' }] };
+    const now = { time: 0, strikeEvents: [{ attackerId: 'other', targetId: 'x' }] };
     expect(circumstanceHolds('struck-by-them', self, null, now)).toBe(false);
   });
 });
@@ -312,7 +320,7 @@ describe('INTENT-EACH-CIRCUMSTANCE-STANDS-ALONE-001 — 사정마다 독립이�
       control: 'autonomous',
       position: { x: 1, z: 0 },
     });
-    const now = { strikeEvents: [{ attackerId: 'other', targetId: 'x' }] };
+    const now = { time: 0, strikeEvents: [{ attackerId: 'other', targetId: 'x' }] };
 
     const both = ruleAbilityCondition(self, other, 'hatsu-burst', now);
     expect(both.conditions).toEqual([
@@ -368,6 +376,7 @@ describe('INTENT-CIRCUMSTANCES-ARE-OBSERVED-001 — 사정은 쓰기 전에 보�
     expect(profile?.conditions).toEqual([
       { id: 'struck-by-them', holds: false, bonus: 0.4 },
       { id: 'life-below-half', holds: false, bonus: 0.4 },
+      { id: 'bears-my-mark', holds: false, bonus: 0.5 }, // C-COMBAT-004
     ]);
   });
 
