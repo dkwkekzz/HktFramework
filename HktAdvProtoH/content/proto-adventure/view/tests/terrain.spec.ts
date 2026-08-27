@@ -197,3 +197,16 @@ describe('온기는 가로 띠가 아니라 self 패널에 있다', () => {
     expect(resolvePresentation(takingView).self?.lines).toContain('온기 62/100');
   });
 });
+
+describe('세계 씨앗 — 진단 표면에서만 보인다 (C-TERRAIN-003)', () => {
+  it('진단 표면(C)을 켜면 self 패널에 씨앗이 한 줄로 온다', () => {
+    const plan = resolvePresentation(takingView, undefined, { debugObserve: true });
+    expect(plan.self?.lines).toContain('세계 씨앗 1');
+  });
+
+  it('평시 표면은 이 값을 그리지 않는다 — 플레이어에게 씨앗은 세계 밖의 사실이다', () => {
+    const plan = resolvePresentation(takingView);
+    expect(plan.self?.lines.some((l) => l.includes('세계 씨앗'))).toBe(false);
+  });
+});
+
