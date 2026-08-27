@@ -16,12 +16,32 @@ import { createWorldHost } from './server/world-host';
 
 const externalWorld = process.env.HKT_WORLD_URL;
 
+/**
+ * HKT_SPAWN="x,z" — 이 프로세스 안에서 도는 세계에서 관찰자의 몸이 처음 놓일 자리.
+ *
+ * **검증용 손잡이다.** 걸어서 갈 수 있는 자리를 걸어가지 않고 시작하기 위한 것이며,
+ * 세계의 규칙을 바꾸지 않는다 (WorldSetup.actorPosition 은 이미 있는 자리다).
+ * 밝히지 않으면 평소대로 SPAWN_POINTS 가 정한다.
+ *
+ * 소프트웨어 GPU 로 도는 촬영 하네스에서는 프레임이 수 초씩 걸려 **걷는 조작이
+ * 이어지지 않는다** — 그래서 먼 자리를 찍으려면 거기서 시작해야 한다
+ * (tools/fx-lab/test/terrain-shot.js).
+ */
+function spawnFromEnv(): { actorPosition?: { x: number; z: number } } {
+  const raw = process.env.HKT_SPAWN;
+  if (!raw) return {};
+  const [x, z] = raw.split(',').map(Number);
+  if (x === undefined || z === undefined) return {};
+  if (!Number.isFinite(x) || !Number.isFinite(z)) return {};
+  return { actorPosition: { x, z } };
+}
+
 function worldServerPlugin(): Plugin {
   return {
     name: 'hkt-world-server',
     configureServer(server) {
       if (!server.httpServer) return;
-      const host = createWorldHost();
+      const host = createWorldHost(spawnFromEnv());
       attachWorldServer(server.httpServer as HttpServer, host);
       server.httpServer.on('close', () => host.stop());
       server.config.logger.info(`  ➜  세계:     이 프로세스 안에서 돌고 있음 (ws ${TRANSPORT_PATH})`);

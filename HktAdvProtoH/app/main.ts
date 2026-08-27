@@ -123,6 +123,7 @@ const keyboard = attachKeyboard();
 const EMPTY_SCENE: SceneState = {
   specId: 'pending',
   terrain: 'mining-field',
+  zones: [], // 아직 세계를 받지 못했으니 그릴 구역도 없다
   entities: [],
   interactions: [],
   hud: [],

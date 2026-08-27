@@ -430,6 +430,13 @@ export interface SceneState {
   /** 늘 떠 있는 칸 띠들 — 자판을 잡지 않는다. 없으면 빈 배열이다 */
   slotBars: SceneSlotBar[];
   /**
+   * 지면 위에 그릴 구역들 — 비면 아무것도 그리지 않는다.
+   *
+   * **이 층은 그것이 무엇의 구역인지 모른다** (설계 반전 ⑤ — capability 는 엔진,
+   * 결정은 팩). 법칙도 예외도 안전지대도 알지 못하고, 범위와 색과 이름을 그릴 뿐이다.
+   */
+  zones: SceneGroundZone[];
+  /**
    * 조작 안내 패널에 **팩이 보태는 줄들** (형식화 완료 — 예: `가진 것: I`).
    *
    * 그 패널은 지금까지 엔진 기본 넷과 `interactions` 중 키를 지닌 것만 세웠다.
@@ -439,6 +446,30 @@ export interface SceneState {
    * 엔진은 줄을 **그대로 세운다.** 무슨 키인지도, 왜 그 순서인지도 묻지 않는다.
    */
   keyHints?: readonly string[];
+}
+
+// ── 지면 구역 (범용 capability) ───────────────────────────────────────
+//
+// 지면 위에 범위 하나를 그린다. **의미가 없다** — 무엇의 구역인지 이 형도, 그리는 쪽도
+// 모른다. 팩이 색·이름·강조를 정해 넘기고 엔진은 지형을 따라가는 반투명 면으로 그린다.
+//
+// 모양은 원 하나다. 사각형도 폴리곤도 두지 않는다 — 요구가 실제로 생길 때 더한다.
+
+export interface SceneGroundZone {
+  /** 같은 구역을 프레임 사이에 이어 보기 위한 이름 */
+  id: string;
+  shape: { kind: 'circle'; center: { x: number; z: number }; radius: number };
+  /** 채움. 없으면 테두리만 그린다 */
+  fill?: { color: number; opacity: number };
+  /** 테두리. 없으면 채움만 그린다 */
+  edge?: { color: number; opacity: number; width: number };
+  /**
+   * 0..1 — 강조. 이 값이 있으면 구역이 세계 시각에 맞추어 맥동한다.
+   * 팩이 "지금 작용 중" 같은 것을 이 값으로 표현한다. 없으면 맥동하지 않는다.
+   */
+  intensity?: number;
+  /** 형식화 완료된 구역 이름 — 없으면 안 그린다. 엔진은 이 글자의 뜻을 모른다 */
+  label?: string;
 }
 
 // ── 슬롯 띠 (범용 capability) ─────────────────────────────────────────

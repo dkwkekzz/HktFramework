@@ -6,7 +6,7 @@ import * as THREE from 'three';
 import { createViewCamera } from '../camera/camera';
 import { createEffectLayer, type EffectLayer, type EffectLayerOptions } from '../fx/effect-layer';
 import type { PlaneDirection } from '../camera/orientation';
-import type { SceneState } from '../scene/scene-state';
+import type { SceneGroundZone, SceneState } from '../scene/scene-state';
 import { createBillboard, type Billboard } from '../sprites/billboard';
 import { createTerrain, heightAt } from '../terrain/terrain';
 
@@ -142,6 +142,124 @@ export function createRenderer(
       opacity,
       depthWrite: false,
     });
+  }
+
+  // 지면 구역 capability — 지형을 따라가는 반투명 면으로 그린다.
+  // **이 층은 그것이 무엇의 구역인지 모른다** (설계 반전 ⑤). 디버그 도형과 같은 방식으로
+  // 프레임마다 통째로 갈아 끼운다 — 구역이 생기고 사라지는 세계에서도 그대로 선다.
+  const zoneGroup = new THREE.Group();
+  zoneGroup.renderOrder = 1; // 지형 위에 얹는다
+  scene.add(zoneGroup);
+  const ZONE_LIFT = 0.06; // 지면에 묻히지 않도록 띄운다 (스프라이트·트레일과 같은 관용구)
+  const ZONE_SEGMENTS = 64;
+
+  function clearZoneGroup(): void {
+    for (const child of zoneGroup.children) {
+      const mesh = child as THREE.Mesh | THREE.Sprite;
+      mesh.geometry?.dispose?.();
+      const material = mesh.material as THREE.Material & { map?: THREE.Texture };
+      material.map?.dispose();
+      material.dispose();
+    }
+    zoneGroup.clear();
+  }
+
+  /** 지형을 따라가도록 각 꼭짓점의 높이를 지면에서 읽어 올린다 */
+  function drapeOnTerrain(geometry: THREE.BufferGeometry, cx: number, cz: number): void {
+    const pos = geometry.attributes.position as THREE.BufferAttribute;
+    for (let i = 0; i < pos.count; i++) {
+      const x = cx + pos.getX(i);
+      const z = cz + pos.getZ(i);
+      pos.setY(i, heightAt(x, z) + ZONE_LIFT);
+    }
+    pos.needsUpdate = true;
+  }
+
+  /** 구역 이름표 — 글자를 캔버스에 그려 지면 위에 띄운다. 엔진은 이 글자의 뜻을 모른다 */
+  function zoneLabelSprite(text: string, color: number): THREE.Sprite {
+    const canvas = document.createElement('canvas');
+    canvas.width = 512;
+    canvas.height = 128;
+    const ctx = canvas.getContext('2d');
+    if (ctx) {
+      ctx.font = 'bold 56px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.lineWidth = 10;
+      ctx.strokeStyle = 'rgba(0,0,0,0.75)';
+      ctx.strokeText(text, 256, 64);
+      ctx.fillStyle = `#${color.toString(16).padStart(6, '0')}`;
+      ctx.fillText(text, 256, 64);
+    }
+    const texture = new THREE.CanvasTexture(canvas);
+    const sprite = new THREE.Sprite(
+      new THREE.SpriteMaterial({ map: texture, transparent: true, depthTest: false }),
+    );
+    sprite.scale.set(6, 1.5, 1);
+    return sprite;
+  }
+
+  function drawZones(zones: readonly SceneGroundZone[], worldTime: number): void {
+    for (const zone of zones) {
+      const { center, radius } = zone.shape;
+      // 맥동 — 세계 시각으로 위상을 잡으므로 같은 세계는 언제나 같게 보인다.
+      // intensity 가 없으면 맥동하지 않는다 (배율 1).
+      const pulse =
+        zone.intensity === undefined
+          ? 1
+          : 1 + 0.25 * zone.intensity * Math.sin(worldTime * 3);
+
+      if (zone.fill) {
+        const disc = new THREE.CircleGeometry(radius, ZONE_SEGMENTS);
+        disc.rotateX(-Math.PI / 2);
+        drapeOnTerrain(disc, center.x, center.z);
+        const mesh = new THREE.Mesh(
+          disc,
+          new THREE.MeshBasicMaterial({
+            color: zone.fill.color,
+            transparent: true,
+            opacity: Math.min(1, zone.fill.opacity * pulse),
+            depthWrite: false,
+            side: THREE.DoubleSide,
+          }),
+        );
+        mesh.position.set(center.x, 0, center.z);
+        mesh.renderOrder = 1;
+        zoneGroup.add(mesh);
+      }
+
+      if (zone.edge) {
+        // width 는 세계 단위 두께로 읽는다 — 화면 픽셀이 아니라 땅 위의 띠다.
+        const thickness = Math.max(0.1, zone.edge.width * 0.16);
+        const ring = new THREE.RingGeometry(
+          Math.max(0.01, radius - thickness),
+          radius,
+          ZONE_SEGMENTS,
+        );
+        ring.rotateX(-Math.PI / 2);
+        drapeOnTerrain(ring, center.x, center.z);
+        const mesh = new THREE.Mesh(
+          ring,
+          new THREE.MeshBasicMaterial({
+            color: zone.edge.color,
+            transparent: true,
+            opacity: Math.min(1, zone.edge.opacity * pulse),
+            depthWrite: false,
+            side: THREE.DoubleSide,
+          }),
+        );
+        mesh.position.set(center.x, 0, center.z);
+        mesh.renderOrder = 2;
+        zoneGroup.add(mesh);
+      }
+
+      if (zone.label) {
+        const sprite = zoneLabelSprite(zone.label, zone.edge?.color ?? zone.fill?.color ?? 0xffffff);
+        sprite.position.set(center.x, heightAt(center.x, center.z) + 1.2, center.z);
+        sprite.renderOrder = 3;
+        zoneGroup.add(sprite);
+      }
+    }
   }
 
   function drawDebug(debug: NonNullable<SceneState['colliderDebug']>): void {
@@ -282,6 +400,10 @@ export function createRenderer(
           drawn.delete(id);
         }
       }
+
+      // 지면 구역 — 지시가 오는 그대로 갈아 끼운다. 비면 아무것도 그리지 않는다.
+      clearZoneGroup();
+      if (state.zones?.length) drawZones(state.zones, state.worldTime);
 
       // 디버그 도형 — 지시가 있으면 그 프레임의 도형으로 갈아 끼운다 (C006)
       clearDebugGroup();

@@ -31,14 +31,14 @@ Feedback · BACKLOG)를 겹쳐 `LANES.html` 로 그린다. `npm run lanes:check`
 
 | 레인 | 상태 | 지금 | 기다리는 것 |
 |---|---|---|---|
-| FEEDBACK | OPEN | 없음 — 닫힌 Cycle 이 모두 Master 에 들어갔다 | 없음 — 병합 뒤 최신 main 위에서 (`npm run feedback:gate`) |
+| FEEDBACK | OPEN | `C-TERRAIN-001` 의 MASTER FEEDBACK 이 미처리다 — Constraint 재판정(DC-WORLD-TERRAIN-IS-A-PRINCIPLE SATISFIED → PARTIAL) · Master Gap(BT §15 셋째 항이 비어 있다) · 다음 후보 `FR-THE-LAND-KEEPS-WHAT-IT-TAKES` 는 이미 트랙 파일에 섰다 | 없음 — 병합 뒤 최신 main 위에서 (`npm run feedback:gate`) |
 | WORLD·ITEM | HUMAN | 후보 5 중 선택 대기 — Agent 추천 FR-THE-PLACES-ARE-NARROWER (+FR-SEE-BEFORE 얹기) | Human Select (frontier/item.md) |
 | WORLD·COMBAT | OPEN | `C-COMBAT-001` 착수 대기 — SELECTED `FR-WHERE-YOUR-POWER-SITS`(지금 힘이 어디에 몰려 있는가). Stage 1 부터, 아직 시작하지 않았다. 남은 후보 아홉이 UL 전체를 덮는다 | 없음 — 다만 이 판과 트랙 파일이 main 에 들어간 뒤에 잡는다 |
-| WORLD·TERRAIN | OPEN | `C-TERRAIN-001` — Stage 1~7 닫혔다 (05 는 Human 승인, 세 읽기 기록). 다음은 **Stage 8 검증**이며, 그것은 자리의 범위가 화면에 보일 것을 요구한다 — ENGINE 의 `SceneGroundZone` 합류가 먼저다 | ENGINE 의 `SceneGroundZone` — 그 전에는 Stage 8 을 닫을 수 없다 (04 `engine_contract` · 07 NOTE 1) |
+| WORLD·TERRAIN | OPEN | `C-TERRAIN-001` **COMPLETE**. 다음 후보는 `FR-THE-LAND-KEEPS-WHAT-IT-TAKES`(땅이 거둔 것을 간직한다) — PROPOSED 이며 Human 선택 대기. **미처리 MASTER FEEDBACK 이 있다** (08 의 Constraint 재판정 · Master Gap) — Feedback 레인이 먼저 돈 뒤 잡는다 | 병합 뒤 최신 main 위에서 (`npm run feedback:gate`) |
 | WORLD·GROWTH | OPEN | `C-GROWTH-001` 착수 대기 — SELECTED `FR-WHAT-YOU-DID-MAKES-YOU`(한 일이 몸을 키운다). Stage 1 부터, 아직 시작하지 않았다. **COMBAT 과 같은 파일을 본다 — 아래 충돌 칸** | 없음 — 다만 이 판과 트랙 파일이 main 에 들어간 뒤에 잡는다 |
 | VIEW | OPEN | BACKLOG 다음 항목(tooltip-on-focus)부터 — equipment-panel 은 아래 충돌 칸 | 없음 |
 | MASTER | OPEN | OPTIONS Q35 (몸이 아닌 존재를 요구하는 Possibility) — 이제 스킬 실행 형태의 빈 다섯 칸만 막는다. 성장(GS · GB)과 전투 상층(UL) 주입은 둘 다 끝났다: 결정 열(Q52~Q61) 반영 · GROWTH 후보 3 · COMBAT 후보 10 과 SELECTED 까지 | 없음 — 미처리 Feedback 이 0 이다 (`npm run feedback:gate`) |
-| ENGINE | OPEN | 셋 — ① 남은 기반 문구(겹침 표면·슬롯 띠·손가락 띠·이어짐; 명령 표면이 간 길 그대로) ② 표면 안의 **초점 차례**(`tabindex` 0건 — Tab 이 글자 자리·슬롯에 한 번에 닿지 못한다) ③ 지면 구역 장치 `SceneGroundZone` — **지금 이것이 급하다.** C-TERRAIN-001 이 Stage 7 까지 닫고 이것을 기다린다. 모양은 04 의 `engine_contract` 가 확정했고 소비할 지시는 `view/terrain-presentation.ts#groundZonePlans` 가 이미 낸다 — `SceneState.zones` 와 렌더러만 서면 `resolve.ts` 한 줄로 붙는다 | 없음 |
+| ENGINE | OPEN | 셋 — ① 남은 기반 문구(겹침 표면·슬롯 띠·손가락 띠·이어짐; 명령 표면이 간 길 그대로) ② 표면 안의 **초점 차례**(`tabindex` 0건 — Tab 이 글자 자리·슬롯에 한 번에 닿지 못한다) ③ **해소됨** — 지면 구역 장치 `SceneGroundZone` 이 섰다 (C-TERRAIN-001 Stage 8 이 그것으로 닫혔다) | 없음 |
 | PROCESS | HOLD | 없음 | — (공정 변경 중에는 다른 레인을 새로 띄우지 않는다) |
 
 ## 레인 사이 충돌 — 순서가 아니라 파일이 겹치는 곳
@@ -54,7 +54,7 @@ Feedback · BACKLOG)를 겹쳐 `LANES.html` 로 그린다. `npm run lanes:check`
 | **WORLD·GROWTH ↔ WORLD·COMBAT** | **이제 겹친다.** "COMBAT 이 후보 0 이라 겹치지 않는다" 던 조건이 UL 주입으로 사라졌다. 둘 다 `world/semantic/combat.ts` 의 **유효 값 계산**(`effectiveStat`)에 항을 더한다 — 성장은 자란 값을, 배분은 지금 몰아 둔 곳을. 같은 함수 안이라 끝에 추가하는 것으로 갈라지지 않는다. **둘 중 하나를 먼저 돌리고 다른 쪽은 병합 뒤 최신 main 위에서 잡는다** — 순서는 Human 이 정한다 (아래 HUMAN 대기) |
 | WORLD·COMBAT ↔ VIEW | 상층 후보 열이 전부 전투 HUD 에 자리를 요구한다 (지금의 배분 · 대답 가능 여부 · 기회). VIEW 와 같은 파일(`hud-presentation.ts` · `combat-presentation.ts`)에서 만나므로 위와 같은 규칙 — 자기 영역 끝에 추가만 한다 |
 | VIEW 의 touch-reason ↔ ENGINE | ENGINE 이 열었다 — touch-pad 가 `unavailableText` 를 버튼에 그린다. VIEW 는 눈검증·백로그 정리만 남았다 |
-| WORLD·TERRAIN ↔ ENGINE | **TERRAIN 이 Stage 8 에서 이것을 기다린다.** 최종 모양은 04 의 `engine_contract` 가 소유한다 — 원(circle) 하나만, `rect`·폴리곤은 뺀다, `intensity` 는 지금 넣어 둔다(다음 Cycle 의 예고가 쓴다). TERRAIN 의 Stage 7 이 소비하며 fallback(안 그림)이 있어 BLOCKED 는 아니다. 소유 분해: [design/Design-Terrain-Visualization.md](../../design/Design-Terrain-Visualization.md) |
+| WORLD·TERRAIN ↔ ENGINE | **끝났다** — `SceneGroundZone` 이 서고 TERRAIN 이 그것으로 Stage 8 을 닫았다. 다음 후보(순환)는 `intensity` 자리를 쓰므로 엔진이 다시 열리지 않는다 |
 | VIEW 의 슬롯 띠·표면 문구 ↔ ENGINE | ENGINE 이 남은 기반 문구를 회수하면 `hud/surface.ts` · `hud/slot-bar.ts` 가 팩의 문구 표를 타게 된다 — 그때 그 표에 줄이 는다 (VIEW 가 쓰는 자리이므로 병합 뒤에 잇는다) |
 | VIEW 의 skill-focus-order ↔ ENGINE | 초점 차례를 세우는 자리가 기반이면 ENGINE 동반이 필요하다 — 지금은 팩 키(`L`)가 지름길로 그 구멍을 메우고 있다 |
 

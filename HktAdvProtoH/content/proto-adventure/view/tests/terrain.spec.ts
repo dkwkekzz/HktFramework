@@ -66,6 +66,19 @@ describe('자리의 범위 — 엔진의 지면 구역 장치가 소비할 지�
   });
 });
 
+describe('자리가 화면 지시까지 실려 간다 — 07 NOTE 1 이 예고한 배선', () => {
+  it('resolve 가 zones 를 그대로 실어 보낸다', () => {
+    const zones = resolvePresentation(takingView).zones;
+
+    expect(zones.map((z) => z.id)).toEqual(['zone-ice-field', 'zone-sunbreath']);
+    expect(zones[0]?.shape).toEqual({ kind: 'circle', center: { x: -11, z: 11 }, radius: 7 });
+  });
+
+  it('자리가 없는 세계에서는 빈 배열이다 — 엔진이 아무것도 그리지 않는다', () => {
+    expect(resolvePresentation(plainView).zones).toEqual([]);
+  });
+});
+
 describe('지금 걸린 법칙 — 값이 줄어드는 것만 보이면 버그와 구분되지 않는다', () => {
   it('거두어 가는 중이면 무엇을 거두는지가 실린다 — 조사가 이름에 맞게 붙는다', () => {
     expect(groundLawLines(takingView)).toEqual(['빙원 — 열을 거두어 가는 중']);

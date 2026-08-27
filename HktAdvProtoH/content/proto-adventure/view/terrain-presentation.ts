@@ -72,9 +72,14 @@ export function groundZonePlan(zone: GroundZoneView): GroundZonePlan {
   return {
     id: zone.id,
     shape: { kind: 'circle', center: { x: zone.center.x, z: zone.center.z }, radius: zone.radius },
-    // 멎는 자리를 조금 더 진하게 둔다 — 작고, 찾아야 하는 것이기 때문이다.
-    fill: { color, opacity: respite ? 0.3 : 0.18 },
-    edge: { color, opacity: respite ? 0.85 : 0.6, width: respite ? 2 : 1 },
+    // 멎는 자리를 더 진하게 둔다 — 작고, 찾아야 하는 것이기 때문이다.
+    //
+    // 법칙의 자리도 **눈으로 경계를 찾을 수 있을 만큼**은 진해야 한다. 0.18 로는
+    // 지형 초록과 스무 단계밖에 벌어지지 않아 실제 화면에서 범위가 읽히지 않았다
+    // (Stage 8 눈검증 1차). 범위가 읽히지 않으면 "어디에 서 있는가" 를 고를 수 없고
+    // 그것이 이 Cycle 의 Goal 이다.
+    fill: { color, opacity: respite ? 0.34 : 0.26 },
+    edge: { color, opacity: respite ? 0.9 : 0.75, width: respite ? 3 : 1.5 },
     label: respite ? `${law.name} — 멎는 자리` : law.name,
   };
 }
