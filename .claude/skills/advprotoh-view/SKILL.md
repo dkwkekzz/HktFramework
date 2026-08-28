@@ -1,6 +1,6 @@
 ---
 name: advprotoh-view
-description: HktAdvProtoH 의 VIEW 레인 작업(관찰만을 위한 화면 작업 — 세계·관찰 계약 불변)을 실행한다 — 레인 판정 → 할일 확정(works/BACKLOG.md 의 다음 항목 · Human 목표 · UX 기획서 주입=번역) → V-NNN 발급 → view/ 구현 → 눈검증 → works/ 기록·백로그 정리 → 발견한 관찰 결손 REPORT. 할일의 단일 출처는 works/BACKLOG.md 다 — 다른 세션이 그것만 보고 잇는다. Cycle 이 아니다 — 8 Stage·Cycle 번호·Master Feedback 이 없다. world/ 나 protocol/ 을 바꿔야 성립하는 요청이면 시작하지 않고 Frontier/Cycle 경로로 승격을 보고한다. 사용자가 "AdvProtoH UI 작업 / UX 개선 / 화면 정리 / view 작업 / V 작업 / 다음 view 할일 / UX 기획서 반영·주입 / view backlog" 를 요청하면 사용.
+description: HktAdvProtoH 의 VIEW 레인 작업(관찰만을 위한 화면 작업 — 세계·관찰 계약 불변)을 실행한다 — 레인 판정 → 할일 확정(works/BACKLOG.md 의 다음 항목 · Human 목표 · UX 기획서 주입=번역) → view/ 구현 → 눈검증 → 백로그 정리(완료 항목 삭제 — 기록은 커밋) → 발견한 관찰 결손을 BACKLOG 의 REPORT 절로. 할일의 단일 출처는 works/BACKLOG.md 다 — 다른 세션이 그것만 보고 잇는다. Cycle 이 아니다 — 8 Stage·Cycle 번호·Master Feedback 이 없다. world/ 나 protocol/ 을 바꿔야 성립하는 요청이면 시작하지 않고 Frontier/Cycle 경로로 승격을 보고한다. 사용자가 "AdvProtoH UI 작업 / UX 개선 / 화면 정리 / view 작업 / V 작업 / 다음 view 할일 / UX 기획서 반영·주입 / view backlog" 를 요청하면 사용.
 ---
 
 # HktAdvProtoH View Work Runner
@@ -47,22 +47,22 @@ VIEW 레인      view/ 와 works/ 만 쓴다. 세계(world/)와 관찰 계약(pr
 ## 3. 실행
 
 1. **레인 판정** — `world/` `protocol/` 을 바꿔야 성립하면 여기서 멈추고 승격 사유를 보고한다.
-2. `works/` 에서 `V-NNN` 을 딴다 (최대 +1 — VIEW 레인은 동시에 한 세션이므로 안전하다).
-   백로그 항목의 상태를 `IN PROGRESS (V-NNN)` 로 바꾼다.
+2. 백로그 항목의 상태를 `IN PROGRESS` 로 바꾼다 — 작업의 키는 슬러그다.
+   별도 작업 번호·기록 파일은 없다 (기존 `works/V-*` 는 과거 형식의 History 다).
 3. Guide 의 `DO` 를 순서대로 수행하고 `MUST` / `MUST NOT` 을 위반하지 않는다.
 4. 실제 Client 를 띄워 목표 문장을 눈으로 확인한다 (`scripts/run-client.sh` · `.bat`). 같은 화면의 기존
    표면 회귀도 함께 본다.
-5. `works/V-NNN-<name>.md` 를 남기고 **백로그에서 그 항목을 지운다.** 발견한 세계
-   관찰의 결손은 REPORT 절로 — view 계산으로 메우지 않는다. 후속 화면 할일은
-   백로그에 새 항목으로 남긴다.
+5. **백로그에서 그 항목을 지우고 커밋한다** — 완료의 기록은 커밋이다. 발견한 세계
+   관찰의 결손은 BACKLOG 의 `## 관찰 결손 REPORT` 절로 — view 계산으로 메우지
+   않는다. 후속 화면 할일은 백로그에 새 항목으로 남긴다.
 
 ## 4. 닫기
 
 * 닫기 전 `git diff` 로 `world/` `protocol/` `engine/` `master/` `cycles/` 가
   비어 있음을 확인한다 — 하나라도 있으면 이 작업은 VIEW 가 아니었다. 되돌리고 보고한다.
 * Kind 표현을 바꿨으면 `npm run catalog:check`.
-* 커밋 메시지 형식: `HktAdvProtoH: V-NNN — <한 줄 요약>`
+* 커밋 메시지 형식: `HktAdvProtoH: VIEW <슬러그> — <이전 → 지금 한 줄>`
 * 보고는 **`이전 → 지금`** 이다 (guides/works.md 의 "보고" 절) — 같은 자리가 전에
   무엇이었고 지금 무엇인지를 **화면의 글자 그대로**. 실제로 밟은 걸음을 함께 적고,
   눈으로 보지 못한 것(검사만 통과한 것)은 그렇게 적는다.
-* 무엇이 끝났고, REPORT 에 무엇을 남겼는지 보고한다.
+* 무엇이 끝났고, BACKLOG 의 REPORT 절에 무엇을 남겼는지 보고한다.

@@ -3,7 +3,8 @@
 ## Role
 
 기본 4단계 중 Graph 를 만드는 부분을 담당한다.
-NEED 의 Overlay 판정은 `master-overlay.md`, NEXT 는 `master-frontier.md` 가 잇는다.
+NEXT 는 `master-frontier.md` 가 잇는다. Overlay 판정은 단계가 아니라 Feedback·Inject 의
+절차다 — 기준은 `master/SCHEMA.md` "모든 Node 공통".
 
 ```text
 WHY       누가 무엇을 왜 원하는가            → MW / MA / (필요시 MK·MB) / MG

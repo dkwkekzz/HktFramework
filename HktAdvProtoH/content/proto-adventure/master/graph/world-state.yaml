@@ -1,912 +1,385 @@
 # Master WorldState — MW-*
-# 세계에서 현재 참인 의미 있는 상태. Goal 과 Possibility 를 발생시키는 원인이 될 수 있다.
-# 자료구조가 아니다 — 자료구조는 Cycle 의 03-world-semantic.md 가 소유한다.
-# 형식: ../SCHEMA.md
+# 노드는 의미의 주소다 — 전문·이유는 source 의 기획서가 소유한다 (../SCHEMA.md "모든 Node 공통").
+# 형식: ../SCHEMA.md · 관찰: npm run master:graph (뷰어) — 이 파일을 사람이 통독하지 않는다.
 #
 # 인용 표기 — BW §x = content/proto-adventure/design/Master-World-Beira.md
 #              BT §x = content/proto-adventure/design/Master-World-Beira-Terrain.md (대지형)
-#
-# ── 이 파일을 읽는 법 ────────────────────────────────────────────────────
-# arises_from 이 세계의 인과 척추다. 위에서 아래로 읽으면 BW §30 의
-# "베이라 Graph 의 최상위 인과" 가 그대로 나온다.
-#
-#   MW-PRIMAL-WORLD                     세계는 본래 변할 수 있다
-#     └ MW-WORLD-PRESSURE               그 변화 가능성이 지금도 밀고 있다
-#         ├ MW-FREE-PRESSURE            아직 아무것으로도 굳지 않은 몫  → 위험
-#         │   ├ MW-DEPTH-GRADIENT       깊이별로 이 몫이 다르다
-#         │   │   ├ MW-ZONE-FRINGE ─ WILD ─ DANGER ─ DEEP ─ UNKNOWN
-#         │   ├ MW-HYPER-PREDATION      극단적인 포식 경쟁이 벌어지는 지역
-#         │   └ MW-SPATIAL-SHEAR        공간의 경계가 어긋나는 지역
-#         ├ MW-BOUND-PRESSURE           무언가의 성질로 굳은 몫      → 자원
-#         └ MW-SAFE-FRONTIER            굳어서 조용해진 영역          → 문명
-#
-#   FREE 와 BOUND 가 한 땅에서 만나는 자리가 하나 더 있다 (BT 주입):
-#
-#     MW-MACRO-TERRAIN                  하나의 원리가 매질에 대륙 규모로 결속된 땅
-#       ├ MW-TERRAIN-CIRCULATION        그 원리의 반복이 만든 되풀이 — 땅의 시간
-#       │   ├ MW-SHAPED-LANDFORM        그 되풀이가 빚은 생김새 (산맥·수계·대기)
-#       │   │   └ MW-SURVIVAL-PRESSURE  (아래와 같은 노드 — 부모가 둘이다)
-#       │   ├ MW-SURVIVAL-PRESSURE      그 되풀이가 몸·인식·이동에 닿는 방식 → 위험
-#       │   │   ├ MW-ADAPTED-LIFE       그 압력에 적응한 것만 남는다 → 무엇이 어디 사는가
-#       │   │   └ MW-TERRAIN-RESOURCE   같은 법칙이 남긴 Property → 그 땅의 자원
-#       │   ├ MW-NATURAL-REFUGE         순환이 스스로 만드는, 법칙이 멎는 자리
-#       │   │   └ MW-NATURAL-SETTLEMENT 그 예외에 얹혀 사는 사람과 문화
-#       │   └ MW-CIRCULATION-EVIDENCE   설명 없이 볼 수 있는 증거 → 읽고 대응한다
-#       └ MW-TERRAIN-* 8종              갈비분지 · 빙원 · 수해 · 무호흡해 · 산맥 ·
-#                                       걷는 대륙 · 사막 · 혈화수해 (BT §4~§11)
-#
-#   가운데 일곱은 여덟의 **부모가 아니라** 여덟이 각자 한 벌씩 지니는 층이다
-#   (Q68(a) — Human 결정, HISTORY.md). 이 층들이 노드로 서기 전에는 그 사슬이
-#   MW-MACRO-TERRAIN 의 detail 산문에만 있었고, 간선이 없으므로 Overlay 도 Frontier 도
-#   그것을 보지 못했다.
-#
-# ── BT §16 세계 골격 대조표 — 열한 고리가 어디에 있는가 ──────────────────
-#
-#   ①  세계압                     MW-WORLD-PRESSURE                       (BW 주입)
-#   ②  Principle Manifestation    MW-MACRO-TERRAIN                        (BT 주입)
-#   ③  기이한 자연 순환            MW-TERRAIN-CIRCULATION
-#   ④  압도적인 지형               MW-SHAPED-LANDFORM
-#   ⑤  생존 압력                  MW-SURVIVAL-PRESSURE
-#   ⑥  생명과 물질의 적응          MW-ADAPTED-LIFE
-#   ⑦  위험과 기적적인 자원        MW-SURVIVAL-PRESSURE (위험) · MW-TERRAIN-RESOURCE (자원)
-#   ⑧  자연적 피난처               MW-NATURAL-REFUGE
-#   ⑨  사람과 문화                 MW-NATURAL-SETTLEMENT
-#   ⑩  관찰과 추론                 MW-CIRCULATION-EVIDENCE (세계 쪽 증거) +
-#                                 MK-* (아는 쪽) — MK-LOCAL-WORLDSTATE 가 그 자리다
-#   ⑪  다양한 행동 가능성          **MW 가 아니다** — possibilities.yaml 의 MP-* 가 소유한다.
-#                                 BT §15.9 의 행동 열하나(피한다·따라간다·기다린다 …)는
-#                                 Capability 이므로 capabilities.yaml 이 받는다
-#
-#   깊이(MW-ZONE-*)와 대지형(MW-TERRAIN-*)은 **직교한다** (Human 결정 — HISTORY Q47(a)).
-#   대지형은 "어떤 법칙의 땅인가" 이고 깊이는 "그 땅 안에서 얼마나 들어갔는가" 다.
-#   그래서 한 지역은 둘을 함께 가지며, 그 형태(지역 노드가 둘을 어떻게 적는가)는
-#   땅을 세우는 첫 Cycle 의 03-world-semantic.md 가 정한다 (정책 §7.2).
-#
-# 위험(FREE)과 자원(BOUND)이 같은 부모(MW-WORLD-PRESSURE)를 갖는 것이
-# 이 세계의 핵심 주장이다 (BW §6 · §36). 그래서 둘을 형제로 세웠다.
+
 version: 1
 nodes:
-
-  # ══ 최상위 전제 (BW §30) ═══════════════════════════════════════════════
-  # 이 둘은 "상태" 라기보다 세계의 성질이다 — root.md 의 WORLD PREMISE 와 겹친다.
-  # 그럼에도 노드로 두는 이유는 BW §30 이 이 둘을 그래프의 뿌리로 직접 명명했고,
-  # 아래 모든 노드가 여기에 arises_from 으로 매달려야 인과가 추적되기 때문이다.
-
   - id: MW-PRIMAL-WORLD
     type: world_state
-    statement: >
-      세계는 본래 높은 변화 가능성을 가진다. (BW §30)
-    detail: >
-      이 세계의 기본값은 안정이 아니라 변화다. 생명과 물질이 지금의 모습에 머무는 것이
-      자연스러운 것이 아니라, 무언가가 그것을 붙잡고 있을 때만 머문다. 인간이 사는
-      문명권이 조용한 것은 세계가 원래 조용해서가 아니라 그 지역의 변화 가능성이
-      이미 다 쓰이고 굳었기 때문이다. 이 전제가 무너지면 베이라는 그냥 "몬스터가 센
-      지역" 이 되고, 위험과 보물이 같은 뿌리라는 이 게임의 주장도 함께 무너진다.
-    world_shape: >
-      직접 관찰되는 상태가 아니다 — 세계의 전제이므로 다른 모든 MW-* 가 이것에서
-      내려온다는 사실로만 확인된다. 게임 안에 이것을 보여주는 표면은 없어야 한다.
+    statement: 세계는 본래 높은 변화 가능성을 가진다. (BW §30)
+    source: BW §30
+    world_shape: 직접 관찰되는 상태가 아니다 — 세계의 전제이므로 다른 모든 MW-* 가 이것에서 내려온다는 사실로만 확인된다. 게임 안에 이것을 보여주는 표면은 없어야 한다.
     implemented: PRESENT
-    implemented_note: >-
-      전제이므로 어긋나는 규칙이 없으면 성립
-    # 전제는 구현 대상이 아니다 — 어긋나는 규칙이 없으면 성립한 것으로 본다.
+    implemented_note: 전제이므로 어긋나는 규칙이 없으면 성립
     arises_from: []
     causes: []
     changed_by: []
-
   - id: MW-WORLD-PRESSURE
     type: world_state
-    statement: >
-      세계압이 생명과 물질을 현재 상태 너머로 변화시킬 수 있도록 밀고 있다. (BW §3)
-    detail: >
-      세계압은 마나 같은 에너지 자원이 아니다. 쓰거나 모으거나 발사하는 것이 아니라,
-      "이 생명은 지금과 다른 것이 될 수 있다" 는 가능성의 크기다. 세계압이 높은 곳에서는
-      환경이 극단으로 치닫고, 그래서 생존 경쟁이 극단이 되고, 그래서 인간의 상식으로는
-      불가능한 성질을 가진 것들이 태어난다 (BW §3). 중요한 것은 이 하나의 압력이
-      갈라져서 위험과 자원 **양쪽**을 만든다는 점이다 — 아래 두 자식 노드가 그 갈래다.
-    world_shape: >
-      세계압 자체가 수치로 노출될 필요는 없다. 대신 지역마다 "여기는 얼마나 변할 수
-      있는 곳인가" 가 그 지역의 생태·자원·위험으로 일관되게 드러나야 하고,
+    statement: 세계압이 생명과 물질을 현재 상태 너머로 변화시킬 수 있도록 밀고 있다. (BW §3)
+    source: BW §3
+    world_shape: 세계압 자체가 수치로 노출될 필요는 없다. 대신 지역마다 "여기는 얼마나 변할 수 있는 곳인가" 가 그 지역의 생태·자원·위험으로 일관되게 드러나야 하고,
       위험이 큰 곳에서 나온 것일수록 인간 세계에 없는 성질을 지녀야 한다.
     implemented: PARTIAL
-    implemented_note: >-
-      세계가 만들어질 때 에너지의 분포(씨앗의 표본열)가 먼저 서고 자리들이 그 결과다 —
-      "표현될 자리가 없다" 던 그 자리가 생겼다 (C-TERRAIN-003). 발현 하나(heat-binding)에
-      한하며, 지역 개념 · 여러 법칙 · Free/Bound 의 세계 표현은 남아 있다
-    arises_from: [MW-PRIMAL-WORLD]
+    implemented_note: 세계가 만들어질 때 에너지의 분포(씨앗의 표본열)가 먼저 서고 자리들이 그 결과다 — "표현될 자리가 없다" 던 그 자리가 생겼다
+      (C-TERRAIN-003). 발현 하나(heat-binding)에 한하며, 지역 개념 · 여러 법칙 · Free/Bound 의 세계 표현은 남아 있다
+    arises_from: [ MW-PRIMAL-WORLD ]
     causes: []
     changed_by: []
-
-  # ══ 세계압의 두 갈래 (BW §5) ═══════════════════════════════════════════
-  # BW §5 가 "세계압을 두 상태로 구분한다" 고 직접 나눈 것이다.
-  # 이 둘이 형제라는 사실이 BW §6 "위험과 보물은 같은 세계압의 서로 다른 결과다" 다.
-
   - id: MW-FREE-PRESSURE
     type: world_state
-    statement: >
-      아직 어떤 생명이나 물질의 안정된 성질로도 굳지 않은 세계압이 남아 있다. (BW §5)
-    detail: >
-      굳지 않은 세계압(Free World Pressure)은 계속 무언가를 바꾸고 있는 몫이다.
-      환경이 가만히 있지 않으니 생물도 가만히 있을 수 없고, 그래서 생태가 안정되지
-      못한 채 적응 경쟁이 끝나지 않는다. 이것이 베이라의 위험을 만드는 쪽이다.
-      주의할 것은 이것이 "몬스터가 강함" 을 뜻하지 않는다는 점이다 — 강한 것이 아니라
-      **예측할 수 없는** 것이 위험의 정체다. 무엇이 나올지 세계 자신도 정하지 않았다.
-    world_shape: >
-      같은 지역이라도 시간·상황에 따라 무엇을 만날지, 그것이 어떤 성질을 지녔을지가
-      고정되어 있지 않아야 한다. 플레이어가 "이 지역에는 이것이 나온다" 를 한 번 외워
-      영구히 해결되면 이 상태는 세계에 없는 것이다.
+    statement: 아직 어떤 생명이나 물질의 안정된 성질로도 굳지 않은 세계압이 남아 있다. (BW §5)
+    source: BW §5
+    world_shape: 같은 지역이라도 시간·상황에 따라 무엇을 만날지, 그것이 어떤 성질을 지녔을지가 고정되어 있지 않아야 한다. 플레이어가 "이 지역에는 이것이 나온다" 를 한
+      번 외워 영구히 해결되면 이 상태는 세계에 없는 것이다.
     implemented: ABSENT
-    implemented_note: >-
-      지역이라는 개념이 없어 "여기는 얼마나 변할 수 있는 곳인가" 가 표현될 자리가 없다
-    arises_from: [MW-WORLD-PRESSURE]
+    implemented_note: 지역이라는 개념이 없어 "여기는 얼마나 변할 수 있는 곳인가" 가 표현될 자리가 없다
+    arises_from: [ MW-WORLD-PRESSURE ]
     causes: []
     changed_by: []
-
   - id: MW-BOUND-PRESSURE
     type: world_state
-    statement: >
-      일부 세계압은 생명이나 물질의 특수한 성질로 굳어 안정적으로 정착해 있다. (BW §5)
-    detail: >
-      굳은 세계압(Bound World Pressure)은 어떤 생명이나 물질이 극단적인 압력을 견디는
-      과정에서 하나의 성질로 붙잡아 고정시킨 몫이다. 특수한 생물 기관, 특수한 식물,
-      특수한 광물이 전부 이 결과다. 인간 입장에서 자원이 되는 것은 정확히 이쪽이다
-      (BW §5). 그러므로 자원은 세계가 뿌려 둔 보상이 아니라 **누군가가 살아남은 흔적**
-      이고, 그 자원이 무엇을 할 수 있는지는 그것이 무엇을 견디고 살아남았는지로 정해진다.
-    world_shape: >
-      가치 있는 자원마다 그것이 어떤 환경의 어떤 압력을 견딘 결과인지가 세계 안에서
-      추적 가능해야 한다. 자원의 효과가 그 유래와 무관한 수치 보너스(공격력 +N)로만
-      드러나면 이 상태는 세계에 없는 것이다.
+    statement: 일부 세계압은 생명이나 물질의 특수한 성질로 굳어 안정적으로 정착해 있다. (BW §5)
+    source: BW §5
+    world_shape: 가치 있는 자원마다 그것이 어떤 환경의 어떤 압력을 견딘 결과인지가 세계 안에서 추적 가능해야 한다. 자원의 효과가 그 유래와 무관한 수치 보너스(공격력
+      +N)로만 드러나면 이 상태는 세계에 없는 것이다.
     implemented: ABSENT
-    implemented_note: >-
-      지역이라는 개념이 없어 "여기는 얼마나 변할 수 있는 곳인가" 가 표현될 자리가 없다
-    arises_from: [MW-WORLD-PRESSURE]
+    implemented_note: 지역이라는 개념이 없어 "여기는 얼마나 변할 수 있는 곳인가" 가 표현될 자리가 없다
+    arises_from: [ MW-WORLD-PRESSURE ]
     causes: []
     changed_by: []
-
-  # ══ 인간이 사는 쪽 (BW §13 · §14 · §20) ════════════════════════════════
-
   - id: MW-SAFE-FRONTIER
     type: world_state
-    statement: >
-      플레이어가 출발하는 문명권은 굳지 않은 세계압이 적어 생태가 예측 가능하다. (BW §14)
-    detail: >
-      문명권은 세계압이 없는 곳이 아니다. 그 지역의 변화 가능성이 이미 대부분 쓰이고
-      굳어서 더 이상 크게 변하지 않는 상태다 (BW §13). 그래서 장기 예측이 가능하고
-      정착이 가능하고 문명이 생겼다 — 인간이 세계를 안전하게 만든 것이 아니라,
-      안정된 세계였기 때문에 인간의 문명이 가능했다는 순서다. 여기서는 휴식·교역·제작·
-      정보 획득·관계·훈련·거래·성장 경로 탐색·탐험 준비를 할 수 있다 (BW §14).
-      그리고 바로 그 안정 때문에, 여기서 아무리 기술을 발전시켜도 얻을 수 없는 것들이
-      있다 (BW §7). 그 결핍이 플레이어를 밖으로 내보낸다.
-    world_shape: >
-      플레이어가 위험 없이 머물며 준비할 수 있는 장소가 존재하고, 그곳에서 할 수 있는
-      일(거래·제작·정보·훈련)과 그곳에서는 결코 얻을 수 없는 것이 명확히 갈려야 한다.
-      "여기서도 결국 다 되는데 밖이 효율만 좋다" 면 이 상태는 세계에 없는 것이다.
+    statement: 플레이어가 출발하는 문명권은 굳지 않은 세계압이 적어 생태가 예측 가능하다. (BW §14)
+    source: BW §14 · BW §13 · BW §7
+    world_shape: 플레이어가 위험 없이 머물며 준비할 수 있는 장소가 존재하고, 그곳에서 할 수 있는 일(거래·제작·정보·훈련)과 그곳에서는 결코 얻을 수 없는 것이 명확히
+      갈려야 한다. "여기서도 결국 다 되는데 밖이 효율만 좋다" 면 이 상태는 세계에 없는 것이다.
     implemented: ABSENT
-    implemented_note: >-
-      안전한 곳과 위험한 곳의 구분이 없다 — 무대가 하나다
-    # 현재 세계는 무대 하나짜리 전투 프로토타입이라 "안전한 장소" 라는 구분이 없다.
-    # 이곳은 베이라 **밖**이다 (Human 결정 — HISTORY Q48(a)). 베이라 안쪽의 자연적
-    # 안전지대는 MW-TERRAIN-BAIWANG-BASIN 이며 안전한 사유가 다르다 — 여기는 변화
-    # 가능성이 이미 굳어서 조용하고, 그쪽은 백왕의 뼈가 변화를 흡수해서 조용하다.
-    arises_from: [MW-BOUND-PRESSURE]
-    causes: [MG-EXPLORE-BEIRA]
+    implemented_note: 안전한 곳과 위험한 곳의 구분이 없다 — 무대가 하나다
+    arises_from: [ MW-BOUND-PRESSURE ]
+    causes: [ MG-EXPLORE-BEIRA ]
     changed_by: []
-    demands: [MC-COMBAT-STRIKE, MC-GUARD, MC-EVADE, MC-REPOSITION]
-    # BW §20 — 평범한 생태·예측 가능한 전투를 감당하는 기본기.
-    # 앞의 셋은 기존 전투 노드 재사용이다 (MC-ATTACK ≙ MC-COMBAT-STRIKE ·
-    # MC-DEFEND ≙ MC-GUARD · MC-EVADE 그대로) — HISTORY Q18(a).
-
-  # ══ 베이라의 깊이 (BW §19) ═════════════════════════════════════════════
-
+    demands: [ MC-COMBAT-STRIKE, MC-GUARD, MC-EVADE, MC-REPOSITION ]
   - id: MW-DEPTH-GRADIENT
     type: world_state
-    statement: >
-      베이라는 깊이 들어갈수록 굳지 않은 세계압이 높아지는 기울기를 가진다. (BW §19)
-    detail: >
-      바깥에서 안쪽으로 FRINGE · WILD · DANGER · DEEP · UNKNOWN 순으로 깊어지고,
-      그 너머에는 이름조차 붙지 않은 영역이 남아 있다. 깊어질수록 위험해지지만 동시에
-      더 기적적인 것이 태어날 가능성도 커진다 — 하나의 축이 양쪽을 함께 올린다.
-      두 가지를 헷갈리면 안 된다. 첫째, 이것은 거리 공식이 아니다. 지역마다 국지적인
-      사정이 달라서 얕은 곳에 이상한 것이 있을 수도 있다 (BW §19). 둘째, 세계압은
-      가능성을 늘릴 뿐 전리품을 보장하지 않는다 — 위험한 곳에 갔다고 반드시 값진 것을
-      얻는 것이 아니다 (BW §12). 깊이를 보상 등급표로 만들면 이 노드는 배신당한다.
-      이 기울기는 대지형과 직교한다 (HISTORY Q47(a)) — 어느 법칙의 땅이든 그 안에서
-      깊어질 수 있고, 깊이가 지형의 순서를 정하지는 않는다.
-    world_shape: >
-      깊이가 다른 영역이 여럿 존재하고, 각 영역이 요구하는 대응이 질적으로 달라야 한다
-      (같은 대응의 난이도만 올라가는 것이 아니다). 그리고 깊은 곳에 갔는데 아무것도
-      얻지 못하는 일이 정상적으로 일어나야 한다.
+    statement: 베이라는 깊이 들어갈수록 굳지 않은 세계압이 높아지는 기울기를 가진다. (BW §19)
+    source: BW §19 · BW §12
+    world_shape: 깊이가 다른 영역이 여럿 존재하고, 각 영역이 요구하는 대응이 질적으로 달라야 한다 (같은 대응의 난이도만 올라가는 것이 아니다). 그리고 깊은 곳에 갔는데
+      아무것도 얻지 못하는 일이 정상적으로 일어나야 한다.
     implemented: ABSENT
-    implemented_note: >-
-      깊이도 층도 없다
-    arises_from: [MW-FREE-PRESSURE]
+    implemented_note: 깊이도 층도 없다
+    arises_from: [ MW-FREE-PRESSURE ]
     causes: []
     changed_by: []
-    # 각 층의 생태와 그 층이 요구하는 것(demands)은 아래 MW-ZONE-* 5종이 소유한다 —
-    # BW §21~§25 의 "필요:" 목록이 그 원본이다.
-    # SAFE FRONTIER 층은 MW-SAFE-FRONTIER 가 그 자리다 (BW §14 · §20).
-
-  # ══ 깊이별 층 (BW §21~§25) ═════════════════════════════════════════════
-  # BW 가 한 절씩 서술한 세계 사실이다. 각 층의 demands 가 그 절의 "필요:" 목록이다.
-  #
-  # demands 는 "그곳을 감당하려면 무엇이 필요한가" 이지 "어떻게 가는가" 가 아니다.
-  # 어떻게 감당할 것인가는 MG-EXPLORE-BEIRA 아래의 방법 3종이 소유한다
-  # (익힌다 · 자원으로 빌린다 · 문명권에서 준비한다). 같은 층을 여러 방법으로
-  # 감당할 수 있다는 것이 이 분리의 요점이다.
-
   - id: MW-ZONE-FRINGE
     type: world_state
-    statement: >
-      베이라의 바깥 층에는 변화 가능성이 조금 높아 강해진 토착 포식자가 산다. (BW §21)
-    detail: >
-      가장 얕은 층이다. 여기의 위협은 이상한 성질이 아니라 그냥 강한 짐승이다 —
-      인간의 전투 상식이 아직 통한다. 다만 정면으로 힘을 겨루면 진다. 그래서 이 층이
-      요구하는 것은 더 센 공격이 아니라 보고·읽고·지형을 쓰는 정보의 능력이다.
-      이 층의 포식자는 자기 사냥터에 들어온 것을 사냥감으로 본다. 그래서 플레이어에게
-      "길을 막는 상대" 와 "나를 쫓는 상대" 라는 두 종류의 문제가 동시에 생긴다 (BW §27).
-    world_shape: >
-      플레이어보다 정면 전투력이 우위인 존재가 있고, 그 우위를 힘이 아니라 관찰·예측·
-      위치 선택으로 뒤집을 수 있어야 한다. 스탯을 올려야만 이길 수 있으면 이 층이 아니다.
+    statement: 베이라의 바깥 층에는 변화 가능성이 조금 높아 강해진 토착 포식자가 산다. (BW §21)
+    source: BW §21 · BW §27
+    world_shape: 플레이어보다 정면 전투력이 우위인 존재가 있고, 그 우위를 힘이 아니라 관찰·예측· 위치 선택으로 뒤집을 수 있어야 한다. 스탯을 올려야만 이길 수 있으면
+      이 층이 아니다.
     implemented: PARTIAL
-    implemented_note: >-
-      정면 전투력이 우위인 적대 존재는 있다. 그것이 사는 **층**이 없고, 우위를 힘 아닌 것으로 뒤집을 수단도 없다
-    # 적대 존재와 정면 전투는 있다 (C007~C013). 관찰·예측·지형이라는 뒤집는 수단이 없고,
-    # 이 층이 지역으로 존재하지도 않는다. 근거는 overlay.md.
-    arises_from: [MW-DEPTH-GRADIENT]
-    causes: [MG-OVERCOME-SUPERIOR-OPPONENT, MG-SURVIVE-ENEMY-OFFENSIVE, MG-HOLD-HUNTING-GROUND]
+    implemented_note: 정면 전투력이 우위인 적대 존재는 있다. 그것이 사는 층이 없고, 우위를 힘 아닌 것으로 뒤집을 수단도 없다
+    arises_from: [ MW-DEPTH-GRADIENT ]
+    causes: [ MG-OVERCOME-SUPERIOR-OPPONENT, MG-SURVIVE-ENEMY-OFFENSIVE, MG-HOLD-HUNTING-GROUND ]
     changed_by: []
-    demands: [MC-OBSERVE, MC-PREDICT, MC-USE-TERRAIN]
-    # BW §21 — 힘이 아니라 정보로 우위를 뒤집는 층이다.
-
+    demands: [ MC-OBSERVE, MC-PREDICT, MC-USE-TERRAIN ]
   - id: MW-ZONE-WILD
     type: world_state
-    statement: >
-      그 안쪽 층에는 특수 갑각·독·비정상적 감각·특수 이동을 가진 생물이 산다. (BW §22)
-    detail: >
-      여기서부터 정보만으로는 부족해진다. 상대가 인간의 무기 상식에 맞지 않는 몸을
-      가지고 있어서, 보고 예측해도 때릴 방법이 없는 경우가 생긴다. 그래서 방어를 깨고,
-      약점을 찾아내고, 노린 곳에 정확히 넣고, 상대가 쓸 공간을 좁히는 개입의 능력이
-      필요해진다 (BW §22). 동시에 이 층이 인간에게 값진 특수 생물 소재가 본격적으로
-      등장하는 첫 층이다 — 이 생물들을 그렇게 만든 적응이 곧 자원이기 때문이다.
-      그래서 여기서 "저 기관이 필요하다" 는 목적이 처음 생긴다 (BW §27).
-    world_shape: >
-      기본 공격이 통하지 않는 방어 형태를 가진 존재가 있고, 그 존재의 몸에서 인간이
-      쓸 수 있는 것이 나와야 한다. 그리고 그 소재의 쓸모가 그 생물의 적응과 이어져야 한다.
+    statement: 그 안쪽 층에는 특수 갑각·독·비정상적 감각·특수 이동을 가진 생물이 산다. (BW §22)
+    source: BW §22 · BW §27
+    world_shape: 기본 공격이 통하지 않는 방어 형태를 가진 존재가 있고, 그 존재의 몸에서 인간이 쓸 수 있는 것이 나와야 한다. 그리고 그 소재의 쓸모가 그 생물의 적응과
+      이어져야 한다.
     implemented: ABSENT
-    implemented_note: >-
-      깊이도 층도 없다
-    arises_from: [MW-DEPTH-GRADIENT]
-    causes: [MG-ACQUIRE-RARE-ORGAN]
+    implemented_note: 깊이도 층도 없다
+    arises_from: [ MW-DEPTH-GRADIENT ]
+    causes: [ MG-ACQUIRE-RARE-ORGAN ]
     changed_by: []
-    demands: [MC-BREAK, MC-DISCOVER-WEAKNESS, MC-PRECISE-TARGETING, MC-CONTROL-SPACE]
-    # BW §22 — 관찰만으로는 부족해지고 개입이 필요해진다.
-    # MC-BREAK 는 전투 노드 재사용이다 (semantic 을 방어 구조 전반으로 넓혀 둔 것).
-
+    demands: [ MC-BREAK, MC-DISCOVER-WEAKNESS, MC-PRECISE-TARGETING, MC-CONTROL-SPACE ]
   - id: MW-ZONE-DANGER
     type: world_state
-    statement: >
-      더 안쪽에서는 생물과 환경을 따로 떼어 볼 수 없다 — 위험·생물·지형이 한 덩어리다. (BW §23)
-    detail: >
-      앞의 두 층에서는 "상대" 가 있고 "장소" 가 배경이었다. 이 층에서는 장소가 상대의
-      일부다. 지형 자체가 해를 입히고, 생물이 그 지형을 자기 편으로 쓰고 있으며,
-      플레이어도 그것을 자기 편으로 쓸 수 있다. 그래서 필요한 것은 환경을 읽고,
-      위험 요소를 자기 수단으로 쓰고, 상대를 그리로 몰고, 상대의 행동을 끊는 능력이다.
-      자원도 이때부터 특정 환경의 성질을 몸에 지닌 채로 나온다 (BW §23).
-    world_shape: >
-      플레이어와 상대 모두에게 작용하는 환경 위험이 존재하고, 그것을 누가 더 잘 쓰는가가
-      승패를 가를 수 있어야 한다. 환경이 그냥 장식이거나 플레이어에게만 불리하면 이 층이 아니다.
+    statement: 더 안쪽에서는 생물과 환경을 따로 떼어 볼 수 없다 — 위험·생물·지형이 한 덩어리다. (BW §23)
+    source: BW §23
+    world_shape: 플레이어와 상대 모두에게 작용하는 환경 위험이 존재하고, 그것을 누가 더 잘 쓰는가가 승패를 가를 수 있어야 한다. 환경이 그냥 장식이거나 플레이어에게만
+      불리하면 이 층이 아니다.
     implemented: ABSENT
-    arises_from: [MW-DEPTH-GRADIENT]
+    arises_from: [ MW-DEPTH-GRADIENT ]
     causes: []
-    # 이 층이 만드는 구체 Goal 을 BW 가 명명하지 않았다 — WHY 확장 몫이다.
     changed_by: []
-    demands: [MC-READ-ENVIRONMENT, MC-FORCE-MOVEMENT, MC-USE-HAZARD, MC-INTERRUPT]
-    # BW §23 — 장소가 상대의 일부이므로 환경을 다루는 능력이 요구된다.
-
+    demands: [ MC-READ-ENVIRONMENT, MC-FORCE-MOVEMENT, MC-USE-HAZARD, MC-INTERRUPT ]
   - id: MW-ZONE-DEEP
     type: world_state
-    statement: >
-      더 깊은 곳에서는 인간의 전투 상식이 무너진다. (BW §24)
-    detail: >
-      극단적인 재생, 몸 구조를 바꾸는 적응, 여러 개체가 하나처럼 묶인 공생 관계,
-      생물이 자기 영역으로 만들어 버린 공간, 공격 자체가 적응해 오는 상대가 여기 있다
-      (BW §24). 앞 층까지는 "어떻게 때리는가" 가 문제였다면 여기서는 "때린다는 것이
-      무슨 의미인가" 가 흔들린다. 죽여도 돌아오고, 부위를 부숴도 다른 부위가 대신한다.
-      그래서 상대를 하나의 체계로 읽고, 그 체계가 성립하는 조건 자체를 끊고, 끊긴 동안
-      압박을 유지하고, 특정 부위를 노려야 한다. 특히 강력한 자원이 나오는 층이기도 하다.
-    world_shape: >
-      단순히 체력을 0 으로 만드는 것으로는 해결되지 않는 상대가 있어야 하고,
-      그 상대를 무력화하는 방법이 상대의 구조를 이해한 결과여야 한다.
+    statement: 더 깊은 곳에서는 인간의 전투 상식이 무너진다. (BW §24)
+    source: BW §24
+    world_shape: 단순히 체력을 0 으로 만드는 것으로는 해결되지 않는 상대가 있어야 하고, 그 상대를 무력화하는 방법이 상대의 구조를 이해한 결과여야 한다.
     implemented: ABSENT
-    arises_from: [MW-DEPTH-GRADIENT]
+    arises_from: [ MW-DEPTH-GRADIENT ]
     causes: []
     changed_by: []
-    demands: [MC-DISCOVER-WEAKNESS, MC-DISRUPT-ABILITY, MC-MAINTAIN-PRESSURE, MC-TARGET-SPECIFIC-PART, MC-READ-CREATURE-SYSTEM]
-    # BW §24 — 상대를 체계로 읽고 그 성립 조건을 끊어야 한다.
-    # MC-DISCOVER-WEAKNESS 는 WILD 와 공유한다 (§22 · §24 가 같은 이름을 두 번 든다).
-
+    demands:
+      [
+        MC-DISCOVER-WEAKNESS,
+        MC-DISRUPT-ABILITY,
+        MC-MAINTAIN-PRESSURE,
+        MC-TARGET-SPECIFIC-PART,
+        MC-READ-CREATURE-SYSTEM
+      ]
   - id: MW-ZONE-UNKNOWN
     type: world_state
-    statement: >
-      가장 깊은 곳에서는 세계압이 기억·감각·인식·정체성·공간까지 변화시킨다. (BW §25)
-    detail: >
-      여기서는 몸이 아닌 것이 공격면이 된다. 인간이 추상적이라고 여기던 것들 —
-      기억, 감각, 인식, 자기 자신이라는 감각, 공간, 관계, 행동의 습관 — 이 이 층에서는
-      생존을 위해 먹고 뺏고 바꿀 수 있는 대상이다 (BW §25). 그래서 필요한 것은
-      지각을 지키고, 지금 보는 것이 실재인지 검증하고, 자기를 붙들어 두고, 간섭에
-      저항하고, 생체적으로 묶인 연결을 끊고, 변형된 공간에서 빠져나오는 능력이다.
-      그리고 이런 것들을 견디도록 적응한 기관은 인간에게 상상을 초월하는 자원이 된다.
-    world_shape: >
-      플레이어가 보고 있는 정보 자체가 훼손될 수 있어야 하고, 그것을 의심하고 검증하는
-      수단이 있어야 한다. 표현만 기괴하고 판정은 여전히 체력 깎기면 이 층이 아니다.
+    statement: 가장 깊은 곳에서는 세계압이 기억·감각·인식·정체성·공간까지 변화시킨다. (BW §25)
+    source: BW §25
+    world_shape: 플레이어가 보고 있는 정보 자체가 훼손될 수 있어야 하고, 그것을 의심하고 검증하는 수단이 있어야 한다. 표현만 기괴하고 판정은 여전히 체력 깎기면 이 층이 아니다.
     implemented: ABSENT
-    arises_from: [MW-DEPTH-GRADIENT]
+    arises_from: [ MW-DEPTH-GRADIENT ]
     causes: []
     changed_by: []
-    demands: [MC-PROTECT-PERCEPTION, MC-VERIFY-REALITY, MC-IDENTITY-ANCHOR, MC-RESIST-INFLUENCE, MC-BREAK-BIOLOGICAL-LINK, MC-ESCAPE-ALTERED-SPACE]
-    # BW §25 — 지켜야 하는 것이 몸이 아니라 지각·정체다.
-    # §25 의 "기억을 먹는 생명 · 관찰자를 추적하는 생명" 등은 예시다 — 개체 노드로
-    # 세우지 않는다 (지어내지 않는다 · HISTORY Q14 삽화 선례).
-
-  # ══ 대표 지역 — 위험과 자원이 같은 인과에서 나오는 실례 (BW §8~§10) ════
-  # 이 두 노드가 BW 전체의 논증 사례다. arises_from 은 위험 쪽(FREE)이고,
-  # 각 노드가 낳은 자원은 굳은 쪽(BOUND)이다 — 하나의 지역이 둘을 동시에 만든다.
-  #
-  # 여덟 대지형과의 관계는 **그대로 둔다** (Human 결정 — HISTORY Q49(c)). 두 문서가
-  # 세운 것을 각자 두고, 이 둘이 어느 대지형 안의 국지 사정인지는 그 땅이 실제로
-  # 세계에 들어올 때 판단한다 — 지금 고르면 근거 없이 고르는 것이 된다.
-
+    demands:
+      [
+        MC-PROTECT-PERCEPTION,
+        MC-VERIFY-REALITY,
+        MC-IDENTITY-ANCHOR,
+        MC-RESIST-INFLUENCE,
+        MC-BREAK-BIOLOGICAL-LINK,
+        MC-ESCAPE-ALTERED-SPACE
+      ]
   - id: MW-HYPER-PREDATION
     type: world_state
-    statement: >
-      어떤 베이라 지역에서는 포식 경쟁이 극단적이어서 생명체가 일상적으로 치명적인
-      육체 손상을 입는다. (BW §8)
-    detail: >
-      이 지역에서는 몸이 부서지는 것이 사고가 아니라 일상이다. 보통 속도의 회복으로는
-      아무도 살아남지 못한다. 그래서 어떤 식물은 "상처를 빨리 낫게 한다" 가 아니라
-      전혀 다른 방향으로 적응했다 — **안정되어 있던 이전의 생체 상태를 유지한다**
-      는 방향이다 (BW §8). 그 결과물이 회귀초다. 인과의 방향을 뒤집어 읽으면 안 된다.
-      회귀초가 특별해서 위험한 곳에 있는 것이 아니라, 그렇게 끔찍한 생태였기 때문에
-      회귀초 같은 것이 태어날 수 있었다 (BW §9).
-    world_shape: >
-      이 지역의 존재들이 일상적으로 심각한 손상을 주고받는 것이 관찰되어야 하고,
-      거기서 나오는 자원의 효과가 그 손상 압력에 대한 답으로 읽혀야 한다.
-      좋은 회복 아이템이 위험한 지역에 놓여 있는 것으로 보이면 실패다.
+    statement: 어떤 베이라 지역에서는 포식 경쟁이 극단적이어서 생명체가 일상적으로 치명적인 육체 손상을 입는다. (BW §8)
+    source: BW §8 · BW §9
+    world_shape: 이 지역의 존재들이 일상적으로 심각한 손상을 주고받는 것이 관찰되어야 하고, 거기서 나오는 자원의 효과가 그 손상 압력에 대한 답으로 읽혀야 한다. 좋은
+      회복 아이템이 위험한 지역에 놓여 있는 것으로 보이면 실패다.
     implemented: ABSENT
-    implemented_note: >-
-      대표 지역 둘 다 없다
-    arises_from: [MW-FREE-PRESSURE]
+    implemented_note: 대표 지역 둘 다 없다
+    arises_from: [ MW-FREE-PRESSURE ]
     causes: []
-    # 이 지역이 어떤 Goal 을 만드는지는 BW 가 명명하지 않았다 — WHY/OPTIONS 몫.
     changed_by: []
-    # 회귀초가 준 능력은 MC-RESTORE-BIOLOGICAL-STATE (capabilities.yaml).
-
   - id: MW-SPATIAL-SHEAR
     type: world_state
-    statement: >
-      어떤 지역에서는 공간 자체의 경계가 반복적으로 어긋나 대부분의 물질이 소멸한다. (BW §10)
-    detail: >
-      공간에 단층이 생기고 어긋나면서 그 안에 있던 것 대부분이 구조를 잃고 사라진다.
-      살아남는 것은 공간이 변하는 동안에도 자기 구조의 연속성을 유지하는 특수한 구조뿐이다.
-      그렇게 남은 광물이 경계결정이다 (BW §10). 이 광물로 만든 무기는 공격력이 큰 검이
-      아니라, 다른 물질의 구조적 연결을 끊거나 정상적이지 않은 방어 구조에도 작용할 수
-      있는 무기가 된다 — 그것이 이 광물이 살아남은 방식 그 자체이기 때문이다.
-    world_shape: >
-      이 지역에서 일반 물질이 실제로 소멸하는 것이 관찰되어야 하고, 살아남은 광물의
-      쓸모가 "구조를 유지한다" 는 그 성질에서 곧바로 나와야 한다.
+    statement: 어떤 지역에서는 공간 자체의 경계가 반복적으로 어긋나 대부분의 물질이 소멸한다. (BW §10)
+    source: BW §10
+    world_shape: 이 지역에서 일반 물질이 실제로 소멸하는 것이 관찰되어야 하고, 살아남은 광물의 쓸모가 "구조를 유지한다" 는 그 성질에서 곧바로 나와야 한다.
     implemented: ABSENT
-    implemented_note: >-
-      대표 지역 둘 다 없다
-    arises_from: [MW-FREE-PRESSURE]
+    implemented_note: 대표 지역 둘 다 없다
+    arises_from: [ MW-FREE-PRESSURE ]
     causes: []
     changed_by: []
-    # 경계결정의 성질은 growth/items/properties/IP-BOUNDARY-STABLE.yaml,
-    # 제작물은 growth/items/types/IT-BOUNDARY-BLADE.yaml,
-    # 그것이 여는 능력은 MC-CUT-ABNORMAL-STRUCTURE (capabilities.yaml).
-
-  # ══ 대지형 — 법칙이 대륙 규모로 결속된 땅 (BT §1 · §4~§11) ══════════════
-  # BT = content/proto-adventure/design/Master-World-Beira-Terrain.md.
-  # 여덟은 순서가 없다 — 난이도 순으로 배치된 목록이 아니다 (BT §16).
-  # 각 지형의 demands 가 그 절의 "왜 위험한가" 와 "주요 경험" 에서 온다.
-  # 깊이 층(MW-ZONE-*)과 이 여덟은 직교한다 (HISTORY Q47(a)) — 한 대지형 안에 안전한
-  # 마을과 극단적으로 위험한 심부가 함께 있다 (BT §3).
-
   - id: MW-MACRO-TERRAIN
     type: world_state
-    statement: >
-      베이라의 대지는 하나의 원리가 어떤 매질에 대륙 규모로 결속되어 형성된
-      대지형들로 나뉜다. (BT §1)
-    detail: >
-      대지형은 기후와 식생으로 구분되는 배경이 아니다. 어떤 매질 하나 — 암석·물·대기·
-      열·생명·공간·기억·Identity·소리·관계 중 하나 — 에 세계압이 대륙 규모로 결속되면,
-      그 결속이 수천 년 반복되며 산맥과 수계와 대기와 생태를 함께 만든다 (BT §1 · §15).
-      아직 굳지 않은 몫은 대지를 계속 변화시켜 위험이 되고, 굳은 몫은 광물·식물·기관·
-      소재 같은 안정된 성질이 되어 사람에게 자원이 된다. 그래서 한 지형의 위험과 그
-      지형의 보물은 언제나 같은 법칙에서 나온다 — 눈과 비, 더위와 추위는 그 법칙이
-      표면에 드러난 결과일 뿐 정체성이 아니다. 여덟이 문서에 서 있고 (BT §4~§11),
-      그 여덟은 난이도 순으로 늘어선 목록이 아니다 (BT §16).
-    world_shape: >
-      서로 다른 법칙을 가진 땅이 여럿 존재하고, 각 땅에서 위험한 것과 값진 것이 같은
-      법칙으로 설명되어야 한다. 그리고 어느 땅에 갈 수 있는가가 수치가 아니라 무엇을
-      감당할 수 있게 되었는가로 정해져야 한다 (BT §12). 한 땅 안에 머물 수 있는 자리와
-      감당할 수 없는 심부가 함께 있어야 한다 — 깊이와 직교한다는 것이 그 뜻이다
-      (BT §3 · HISTORY Q47(a)).
+    statement: 베이라의 대지는 하나의 원리가 어떤 매질에 대륙 규모로 결속되어 형성된 대지형들로 나뉜다. (BT §1)
+    source: BT §1 · BT §12 · BT §3 · · BT §1 · §15 · BT §4~§11 · BT §16
+    world_shape: 서로 다른 법칙을 가진 땅이 여럿 존재하고, 각 땅에서 위험한 것과 값진 것이 같은 법칙으로 설명되어야 한다. 그리고 어느 땅에 갈 수 있는가가 수치가
+      아니라 무엇을 감당할 수 있게 되었는가로 정해져야 한다 (BT §12). 한 땅 안에 머물 수 있는 자리와 감당할 수 없는 심부가 함께 있어야 한다 — 깊이와 직교한다는
+      것이 그 뜻이다 (BT §3 · HISTORY Q47(a)).
     implemented: PARTIAL
-    implemented_note: >-
-      땅이 자리로 나뉘고 그 자리가 법칙을 지닌다 (C-TERRAIN-001 — World.GroundZones · GroundLawDefinition).
-      남은 것은 world_shape 의 나머지다: 법칙이 하나뿐이고, 그 법칙이 낳는 자원이 없으며,
-      어디에 갈 수 있는가가 감당으로 정해지지 않고, 깊이와의 직교도 아직 없다
-    arises_from: [MW-FREE-PRESSURE, MW-BOUND-PRESSURE]
-    # 위험 쪽과 자원 쪽이 한 땅에서 만나는 자리다 — BT §1 이 둘을 함께 든다.
+    implemented_note: "땅이 자리로 나뉘고 그 자리가 법칙을 지닌다 (C-TERRAIN-001 — World.GroundZones ·
+      GroundLawDefinition). 남은 것은 world_shape 의 나머지다: 법칙이 하나뿐이고, 그 법칙이 낳는 자원이 없으며, 어디에 갈 수 있는가가 감당으로
+      정해지지 않고, 깊이와의 직교도 아직 없다"
+    arises_from: [ MW-FREE-PRESSURE, MW-BOUND-PRESSURE ]
     causes: []
-    # BT 는 대지형 일반이 어떤 Goal 을 낳는지를 명명하지 않는다 — 각 지형이 따로 낳는다.
     changed_by: []
-
-  # ══ 대지 순환과 그 아래 (BT §15.3~§15.6 · §16 · BW §11) ═══════════════════
-  # 아래 넷은 **여덟 대지형이 각자 하나씩 지니는 층**이다 — 여덟의 부모가 아니라
-  # 여덟이 공통으로 인스턴스화하는 자리다. BT §16 의 세계 골격이 이 순서를 정했다:
-  #
-  #     세계압 → Principle Manifestation → 기이한 자연 순환 → 압도적인 지형
-  #     → 생존 압력 → 생명과 물질의 적응 → 위험과 기적적인 자원
-  #     → 자연적 피난처 → 사람과 문화 → 관찰과 추론 → 다양한 행동 가능성
-  #
-  # 이 넷이 노드로 서기 전에는 그 사슬이 MW-MACRO-TERRAIN 의 detail 산문에만
-  # 있었다 — 간선이 없으므로 Overlay 도 Frontier 도 그것을 볼 수 없었고,
-  # 순환을 여는 Cycle 이 자기 이유를 Constraint 부기로 번역하게 되었다
-  # (C-TERRAIN-002 01-cycle.md).
-
   - id: MW-TERRAIN-CIRCULATION
     type: world_state
-    statement: >
-      한 대지형의 지배 원리는 수천 년 반복되며, 그 땅이 무언가를 거두고 쌓고 되돌리는
-      되풀이를 만든다 — 그것이 대지 순환이다. (BT §15.3 · §16)
-    detail: >
-      지배 원리는 "어떤 상태를 어떤 조건에서 반복적으로 변화시키는가" 이고 (BT §15.2),
-      그 반복이 한 번으로 끝나지 않기 때문에 땅에 시간이 생긴다. 거두어 간 것이 어딘가에
-      쌓이고, 쌓인 것이 넘치면 어딘가로 되돌아가고, 그 되돌아감이 다시 다음 거둠의
-      조건이 된다. 이 층이 없으면 **그 아래의 모든 것을 놓는 수밖에 없다** — 위험도
-      예외 자리도 자원도 생명도, 세계를 적는 사람이 좌표에 찍은 것이 된다. BT §15 가
-      대지형을 정의하는 아홉 질문에서 이것이 셋째이고, 넷째(위험)부터 일곱째(자원)까지가
-      전부 "그 순환이 …" 로 시작한다. 여덟 대지형이 각자 하나씩 지니며, 이 노드는 그
-      여덟이 공통으로 인스턴스화하는 층이다.
-    world_shape: >
-      같은 자리를 다른 시각에 보면 달라야 하고, 그 다름이 무작위가 아니라 그 사이에
-      무슨 일이 있었는가로 설명되어야 한다. 그 땅이 거두어 간 것이 지금 어디에 있는지를
-      물을 수 있어야 하고, 세계가 그 물음에 답을 지녀야 한다.
+    statement: 한 대지형의 지배 원리는 수천 년 반복되며, 그 땅이 무언가를 거두고 쌓고 되돌리는 되풀이를 만든다 — 그것이 대지 순환이다. (BT §15.3 · §16)
+    source: BT §15.3 · §16 · BT §15.2 · BT §15
+    world_shape: 같은 자리를 다른 시각에 보면 달라야 하고, 그 다름이 무작위가 아니라 그 사이에 무슨 일이 있었는가로 설명되어야 한다. 그 땅이 거두어 간 것이 지금
+      어디에 있는지를 물을 수 있어야 하고, 세계가 그 물음에 답을 지녀야 한다.
     implemented: PRESENT
-    implemented_note: >-
-      C-TERRAIN-002 — 자리가 거둔 것을 지니고(kept), 넘치면 뿜고, 그 안의 몸에게
-      돌려주고, 다 쓰면 닫혀 도로 거둔다. 같은 자리를 다른 시각에 보면 다르고 그 다름이
-      "그 사이에 누가 거기서 얼마나 빼앗겼는가" 로 설명된다 — 주기는 세계가 정한 것이
-      아니다
-    arises_from: [MW-MACRO-TERRAIN]
-    causes: [MG-EXPLORE-BEIRA]
-    # Q69(b) — Human 이 정했다 (HISTORY.md). BT §5.7 이 빙원의 핵심 경험을 "대지가 열을
-    # 어디에서 빼앗고 어디에 저장하는지를 **읽는 것**" 이라 했고, 읽어서 감당하게 되는
-    # 것이 곧 대응 범위의 확장(MG-EXPLORE-BEIRA)이다. 이 간선이 없는 동안 순환 계열은
-    # 어떤 Goal 도 낳지 않아, 그 층을 여는 Cycle 이 자기 이유를 Constraint 부기로
-    # 번역하게 되었다 (C-TERRAIN-002).
+    implemented_note: C-TERRAIN-002 — 자리가 거둔 것을 지니고(kept), 넘치면 뿜고, 그 안의 몸에게 돌려주고, 다 쓰면 닫혀 도로 거둔다. 같은 자리를
+      다른 시각에 보면 다르고 그 다름이 "그 사이에 누가 거기서 얼마나 빼앗겼는가" 로 설명된다 — 주기는 세계가 정한 것이 아니다
+    arises_from: [ MW-MACRO-TERRAIN ]
+    causes: [ MG-EXPLORE-BEIRA ]
     changed_by: []
-
   - id: MW-SHAPED-LANDFORM
     type: world_state
-    statement: >
-      순환이 수천 년 되풀이되면 산맥과 수계와 대기가 그 순환의 모양으로 빚어진다 —
-      지형의 생김새는 법칙이 남긴 자국이다. (BT §15.3 · §16)
-    detail: >
-      §16 의 골격에서 순환 다음 고리가 "압도적인 지형" 이다. 여기서 지형은 대지형
-      여덟(MW-TERRAIN-*)을 뜻하지 않는다 — 그 여덟은 §15 의 아홉 질문을 한 벌로 지닌
-      **묶음**이고, 이 노드는 그 안에서 순환이 실제로 깎아 놓은 **생김새**다. 산이
-      거기 있는 것도, 물이 그리로 흐르는 것도, 대기가 그렇게 도는 것도 법칙의 결과여야
-      한다는 주장이며, 그래서 지형은 배경 그림이 아니라 **읽을 수 있는 증거의 표면**이
-      된다. 이것이 없으면 순환은 눈에 보이는 자국을 남기지 못하고 수치로만 존재한다.
-    world_shape: >
-      땅의 생김새를 보고 그 땅의 법칙을 짐작할 수 있어야 한다. 같은 법칙이 도는 곳은
-      비슷하게 생기고, 법칙이 다른 곳은 다르게 생겨야 한다.
+    statement: 순환이 수천 년 되풀이되면 산맥과 수계와 대기가 그 순환의 모양으로 빚어진다 — 지형의 생김새는 법칙이 남긴 자국이다. (BT §15.3 · §16)
+    source: BT §15.3 · §16
+    world_shape: 땅의 생김새를 보고 그 땅의 법칙을 짐작할 수 있어야 한다. 같은 법칙이 도는 곳은 비슷하게 생기고, 법칙이 다른 곳은 다르게 생겨야 한다.
     implemented: PARTIAL
-    implemented_note: >-
-      자리의 배치가 손이 아니라 순환의 원리(씨앗·법칙)에서 나온다 — 맥은 흩어진 점이
-      아니라 이웃으로 뻗은 밭이다 (C-TERRAIN-003). 남은 것은 생김새 자체 — 산맥·수계·
-      대기가 없고 무대는 여전히 평면이며, 선 것은 자리의 분포까지다
-    arises_from: [MW-TERRAIN-CIRCULATION]
+    implemented_note: 자리의 배치가 손이 아니라 순환의 원리(씨앗·법칙)에서 나온다 — 맥은 흩어진 점이 아니라 이웃으로 뻗은 밭이다 (C-TERRAIN-003). 남은
+      것은 생김새 자체 — 산맥·수계· 대기가 없고 무대는 여전히 평면이며, 선 것은 자리의 분포까지다
+    arises_from: [ MW-TERRAIN-CIRCULATION ]
     causes: []
     changed_by: []
-
   - id: MW-SURVIVAL-PRESSURE
     type: world_state
-    statement: >
-      대지 순환은 그 땅에 있는 몸과 인식과 이동에 끊임없이 작용한다 — 그것이 생존
-      압력이다. (BT §15.4 · §16 · BW §11)
-    detail: >
-      위험은 그 땅에 배치된 강한 것이 아니라 **순환이 몸에 닿는 방식**이다 — BT §15.4 가
-      위험을 "그 순환이 인간의 몸·인식·관계·이동에 어떤 방식으로 작용하는가" 로 묻는다.
-      빙원이 위험한 것은 거기 사나운 것이 살아서가 아니라 대지가 열을 거두어 가기
-      때문이고, 그래서 그 위험은 읽을 수도 피할 수도 이용할 수도 있다 — 배치된 위험은
-      그럴 수 없다. 이 층이 세계압의 자유로운 몫(MW-FREE-PRESSURE)과 다른 것은 규모다:
-      그쪽은 왜 이 땅이 위험한가를 말하고, 이쪽은 지금 이 몸에 무엇이 일어나는가를 말한다.
-    world_shape: >
-      그 땅에서 겪는 나쁜 일이 그 땅의 법칙으로 설명되어야 하고, 법칙을 읽은 사람과
-      읽지 못한 사람이 같은 자리에서 다른 결과를 내야 한다. 아무것도 하지 않고 서 있기만
-      해도 무언가가 일어나야 한다.
+    statement: 대지 순환은 그 땅에 있는 몸과 인식과 이동에 끊임없이 작용한다 — 그것이 생존 압력이다. (BT §15.4 · §16 · BW §11)
+    source: BT §15.4 · §16 · · BW §11 · BT §15.4
+    world_shape: 그 땅에서 겪는 나쁜 일이 그 땅의 법칙으로 설명되어야 하고, 법칙을 읽은 사람과 읽지 못한 사람이 같은 자리에서 다른 결과를 내야 한다. 아무것도 하지
+      않고 서 있기만 해도 무언가가 일어나야 한다.
     implemented: PARTIAL
-    implemented_note: >-
-      C-TERRAIN-002 로 압력이 순환에서 나온다 — 어디가 거두고 어디가 돌려주는지가
-      내가 한 일의 결과이므로 읽어서 이용할 거리가 생겼다. 남은 절반은 world_shape 의
-      "읽은 사람과 읽지 못한 사람이 다른 결과를 낸다" 다: **지금 상태는 읽히나 앞으로
-      일어날 일은 읽히지 않는다** (MW-CIRCULATION-EVIDENCE 가 그 자리다)
-    arises_from: [MW-TERRAIN-CIRCULATION, MW-SHAPED-LANDFORM]
+    implemented_note: 'C-TERRAIN-002 로 압력이 순환에서 나온다 — 어디가 거두고 어디가 돌려주는지가 내가 한 일의 결과이므로 읽어서 이용할 거리가 생겼다.
+      남은 절반은 world_shape 의 "읽은 사람과 읽지 못한 사람이 다른 결과를 낸다" 다: 지금 상태는 읽히나 앞으로 일어날 일은 읽히지 않는다
+      (MW-CIRCULATION-EVIDENCE 가 그 자리다)'
+    arises_from: [ MW-TERRAIN-CIRCULATION, MW-SHAPED-LANDFORM ]
     causes: []
     changed_by: []
-
   - id: MW-ADAPTED-LIFE
     type: world_state
-    statement: >
-      생존 압력 아래에서 생명과 물질은 그 압력에 적응한 형태로만 남는다 — 무엇이 어디에
-      있는가는 순환의 결과다. (BT §16 · BW §11)
-    detail: >
-      이 층이 이 세계와 보통의 게임이 갈리는 자리다. 보통은 지역마다 어울리는 것을
-      배치하지만, 여기서는 그 땅의 순환이 무엇을 허용하는가가 무엇이 사는가를 정한다.
-      BT §5.3 이 빙원에서 살 수 있는 자리로 해숨구멍 주변과 거대 털짐승이 지나간 자리를
-      드는데, 그 둘은 모두 순환이 열을 되돌려 놓은 자리다. BW §11 이 같은 사슬을
-      세계압 → 환경 → 생존 압력 → 적응 → Property → 자원 으로 적는다. 적응이 남긴
-      Property 가 곧 사람에게 자원이 되므로(MW-BOUND-PRESSURE), 이 층은 위험 쪽과
-      자원 쪽이 다시 만나는 자리이기도 하다.
-    world_shape: >
-      어떤 생명이나 물질이 왜 하필 거기 있는지를 그 땅의 법칙으로 답할 수 있어야 한다.
-      순환이 달라지면 무엇이 어디에 있는지도 따라 달라져야 한다 — 그러지 않으면 그것은
-      적응이 아니라 배치다.
+    statement: 생존 압력 아래에서 생명과 물질은 그 압력에 적응한 형태로만 남는다 — 무엇이 어디에 있는가는 순환의 결과다. (BT §16 · BW §11)
+    source: BT §16 · · BW §11 · BT §5.3
+    world_shape: 어떤 생명이나 물질이 왜 하필 거기 있는지를 그 땅의 법칙으로 답할 수 있어야 한다. 순환이 달라지면 무엇이 어디에 있는지도 따라 달라져야 한다 — 그러지
+      않으면 그것은 적응이 아니라 배치다.
     implemented: ABSENT
-    implemented_note: >-
-      세계에 있는 것은 좌표로 놓인 방랑자 둘과 광맥 하나뿐이고 셋 다 땅의 법칙과 무관한
-      자리에 있다. 놓는 것 말고 다른 길이 세계에 없다
-    arises_from: [MW-SURVIVAL-PRESSURE]
+    implemented_note: 세계에 있는 것은 좌표로 놓인 방랑자 둘과 광맥 하나뿐이고 셋 다 땅의 법칙과 무관한 자리에 있다. 놓는 것 말고 다른 길이 세계에 없다
+    arises_from: [ MW-SURVIVAL-PRESSURE ]
     causes: []
     changed_by: []
-
   - id: MW-NATURAL-REFUGE
     type: world_state
-    statement: >
-      순환은 자기 법칙이 멎는 자리를 스스로 만든다 — 자연적 예외는 법칙에 저항하는 것이
-      아니라 법칙이 낳은 것이다. (BT §15.5 · §16)
-    detail: >
-      BT §15.5 는 자연적 예외를 "무엇이 그 법칙에 저항하거나 균형을 이루는가" 로 묻는다.
-      빙원의 해숨구멍은 포화된 광맥이 흡수한 열을 도로 뿜는 자리이므로(BT §5.3), 그것은
-      안전지대가 아니라 **순환의 한 국면**이다. 이 구분이 중요한 이유는, 예외가 순환에서
-      나오지 않으면 그것은 세계를 적는 사람이 "여기는 안전한 곳" 이라고 선언한 것이 되고,
-      그 순간 왜 하필 거기가 안전한가에 세계가 답하지 못하기 때문이다. 그리고 순환에서
-      나온 예외는 생겨나고 사라진다 — 사람과 지성 생명이 그 예외를 이용해 살아가는 일
-      (BT §15.6) 도 그래서 영구한 것이 아니다.
-    world_shape: >
-      법칙이 멎는 자리가 있어야 하고, 그 자리가 왜 하필 거기인가에 세계가 답해야 한다.
-      그리고 조건이 달라지면 그 자리가 옮겨 가거나 사라져야 한다.
+    statement: 순환은 자기 법칙이 멎는 자리를 스스로 만든다 — 자연적 예외는 법칙에 저항하는 것이 아니라 법칙이 낳은 것이다. (BT §15.5 · §16)
+    source: BT §15.5 · §16 · BT §15.5 · BT §5.3 · BT §15.6
+    world_shape: 법칙이 멎는 자리가 있어야 하고, 그 자리가 왜 하필 거기인가에 세계가 답해야 한다. 그리고 조건이 달라지면 그 자리가 옮겨 가거나 사라져야 한다.
     implemented: PRESENT
-    implemented_note: >-
-      C-TERRAIN-002 — 예외를 놓을 형이 사라졌다(GroundZone.role 삭제). 법칙이 멎는
-      자리는 넘쳐서 뿜는 중인 맥뿐이므로 "왜 하필 거기가 안전한가" 에 세계가 답한다 —
-      거기에 열이 모였기 때문이고, 모인 것은 누군가 거기서 빼앗겼기 때문이다.
-      그리고 생겨나고 사라진다
-    arises_from: [MW-TERRAIN-CIRCULATION]
+    implemented_note: C-TERRAIN-002 — 예외를 놓을 형이 사라졌다(GroundZone.role 삭제). 법칙이 멎는 자리는 넘쳐서 뿜는 중인 맥뿐이므로 "왜
+      하필 거기가 안전한가" 에 세계가 답한다 — 거기에 열이 모였기 때문이고, 모인 것은 누군가 거기서 빼앗겼기 때문이다. 그리고 생겨나고 사라진다
+    arises_from: [ MW-TERRAIN-CIRCULATION ]
     causes: []
     changed_by: []
-
   - id: MW-TERRAIN-RESOURCE
     type: world_state
-    statement: >
-      그 땅의 위험을 만든 것과 **같은 법칙**이 인간 세계에 없는 Property 를 남긴다 —
-      그것이 그 땅의 자원이다. (BT §15.7 · BW §11)
-    detail: >
-      BT §15.7 은 자원을 "이 위험을 만든 동일한 법칙이 어떤 기적적인 Property 를
-      만드는가" 로 묻는다. 그러므로 자원은 그 땅에 숨겨 둔 보물이 아니라 순환과 적응이
-      남긴 찌꺼기이며, 위험과 같은 뿌리를 갖는다는 이 세계의 핵심 주장(BW §6 · §36)이
-      지형 층에서 다시 나타나는 자리다. 세계 전체 규모의 MW-BOUND-PRESSURE 와 다른
-      것은 크기다 — 그쪽은 "세계압 중 굳은 몫" 이라는 성질이고, 이쪽은 "이 땅의 이
-      법칙이 낳은 이 물건" 이다. `Design-Resource-Catalog-R0.md` §4 가 모든 자원에
-      요구하는 질문("왜 여기에서만 생기는가 → 어떤 Principle 때문인가 → 그 상태가 오랜
-      시간 반복되면 무엇이 만들어지는가")이 답해지는 곳이 이 노드다.
-    world_shape: >
-      어떤 물건이 왜 하필 그 땅에서만 나는지를 그 땅의 법칙으로 답할 수 있어야 한다.
-      그리고 그것을 캐어 가는 일이 그 땅의 순환에 되돌아가야 한다 — 되돌아가지 않으면
-      그것은 자원이 아니라 채집물이다.
+    statement: 그 땅의 위험을 만든 것과 같은 법칙이 인간 세계에 없는 Property 를 남긴다 — 그것이 그 땅의 자원이다. (BT §15.7 · BW §11)
+    source: BT §15.7 · · BW §11 · BT §15.7 · BW §6 · §36
+    world_shape: 어떤 물건이 왜 하필 그 땅에서만 나는지를 그 땅의 법칙으로 답할 수 있어야 한다. 그리고 그것을 캐어 가는 일이 그 땅의 순환에 되돌아가야 한다 —
+      되돌아가지 않으면 그것은 자원이 아니라 채집물이다.
     implemented: ABSENT
-    implemented_note: >-
-      캘 수 있는 것은 광맥의 돌 하나뿐이고, 그것은 어떤 법칙이 낳은 것이 아니라 좌표에
-      놓인 것이다. 캐어도 세계에 아무 되돌림이 없다
-    arises_from: [MW-SURVIVAL-PRESSURE, MW-ADAPTED-LIFE]
+    implemented_note: 캘 수 있는 것은 광맥의 돌 하나뿐이고, 그것은 어떤 법칙이 낳은 것이 아니라 좌표에 놓인 것이다. 캐어도 세계에 아무 되돌림이 없다
+    arises_from: [ MW-SURVIVAL-PRESSURE, MW-ADAPTED-LIFE ]
     causes: []
     changed_by: []
-
   - id: MW-NATURAL-SETTLEMENT
     type: world_state
-    statement: >
-      사람과 지성 생명은 그 순환이 만든 예외 자리를 이용해 그 땅에서 살아간다 —
-      정착은 자연을 이긴 것이 아니라 예외에 얹힌 것이다. (BT §15.6 · §16)
-    detail: >
-      BT §15.6 은 정착을 "사람과 지성 생명은 그 예외를 어떻게 이용해 살아가는가" 로
-      묻는다. 순서가 요점이다 — 사람이 안전을 만든 것이 아니라, 순환이 허용한 안전
-      위에 사람이 자란다. 백왕의 갈비분지가 그 실물이며(MW-TERRAIN-BAIWANG-BASIN),
-      그 노드의 detail 이 "도시가 이곳을 안전하게 만든 것이 아니라 백왕의 유해가 허용한
-      안정 위에 도시가 자라났다" 로 같은 말을 한다. 이 노드는 그 하나를 일반화한 층이며,
-      예외가 옮겨 다니면 정착도 영구할 수 없다는 결과를 함께 지닌다.
-    world_shape: >
-      사람이 모여 사는 자리가 그 땅의 법칙이 멎는 곳과 겹쳐야 하고, 그 겹침이 우연이
-      아니어야 한다. 예외가 사라지면 그 자리의 삶도 흔들려야 한다.
+    statement: 사람과 지성 생명은 그 순환이 만든 예외 자리를 이용해 그 땅에서 살아간다 — 정착은 자연을 이긴 것이 아니라 예외에 얹힌 것이다. (BT §15.6 · §16)
+    source: BT §15.6 · §16 · BT §15.6
+    world_shape: 사람이 모여 사는 자리가 그 땅의 법칙이 멎는 곳과 겹쳐야 하고, 그 겹침이 우연이 아니어야 한다. 예외가 사라지면 그 자리의 삶도 흔들려야 한다.
     implemented: ABSENT
-    implemented_note: >-
-      사람도 문화도 없다 — 세계에 있는 존재는 순회하는 방랑자 둘뿐이고 어디에도
-      정착하지 않는다
-    arises_from: [MW-NATURAL-REFUGE]
+    implemented_note: 사람도 문화도 없다 — 세계에 있는 존재는 순회하는 방랑자 둘뿐이고 어디에도 정착하지 않는다
+    arises_from: [ MW-NATURAL-REFUGE ]
     causes: []
     changed_by: []
-
   - id: MW-CIRCULATION-EVIDENCE
     type: world_state
-    statement: >
-      순환은 설명 없이 볼 수 있는 증거를 표면에 남긴다 — 읽을 줄 아는 사람은 그것으로
-      다음에 무엇이 일어날지 안다. (BT §15.8 · §5.4)
-    detail: >
-      BT §15.8 은 관찰을 "플레이어가 설명 없이 볼 수 있는 증거는 무엇인가" 로 묻는다.
-      빙원에서는 얼음 아래의 검은 빛, 땅에 퍼지는 원형 서리 무늬, 걷던 자세 그대로
-      얼어붙은 거수가 그것이다 (BT §5.2 · §5.4). 증거는 화면의 친절이 아니라 **세계에
-      실재하는 것**이며, 그래서 읽은 사람과 읽지 못한 사람이 같은 길에서 다른 결과를
-      낸다 (§15.9 의 서로 다른 행동이 여기서 갈린다). 이 노드가 없으면 순환은 일어나되
-      아무도 그것을 미리 알 수 없고, 그러면 겪는 일이 깊이가 아니라 불공정이 된다.
-    world_shape: >
-      무언가가 일어나기 전에 그 자리에 표시가 먼저 나타나야 하고, 그 표시와 일어남
-      사이에 읽고 움직일 만한 시간이 있어야 한다. 표시를 보고 움직인 쪽과 그러지 않은
-      쪽의 결과가 달라야 한다.
+    statement: 순환은 설명 없이 볼 수 있는 증거를 표면에 남긴다 — 읽을 줄 아는 사람은 그것으로 다음에 무엇이 일어날지 안다. (BT §15.8 · §5.4)
+    source: BT §15.8 · §5.4 · BT §15.8 · BT §5.2 · §5.4
+    world_shape: 무언가가 일어나기 전에 그 자리에 표시가 먼저 나타나야 하고, 그 표시와 일어남 사이에 읽고 움직일 만한 시간이 있어야 한다. 표시를 보고 움직인 쪽과
+      그러지 않은 쪽의 결과가 달라야 한다.
     implemented: ABSENT
-    implemented_note: >-
-      자리의 범위가 화면에 보이지만 그것은 법칙의 경계이지 순환이 남긴 증거가 아니다 —
-      아직 일어나지 않은 것을 가리키는 것이 세계에 하나도 없다.
+    implemented_note: 자리의 범위가 화면에 보이지만 그것은 법칙의 경계이지 순환이 남긴 증거가 아니다 — 아직 일어나지 않은 것을 가리키는 것이 세계에 하나도 없다.
       TERRAIN 트랙의 다음 후보(FR-THE-LAND-SHOWS-BEFORE-IT-TAKES)가 이 노드를 연다
-    arises_from: [MW-TERRAIN-CIRCULATION]
+    arises_from: [ MW-TERRAIN-CIRCULATION ]
     causes: []
     changed_by: []
-
   - id: MW-TERRAIN-BAIWANG-BASIN
     type: world_state
-    statement: >
-      백왕의 갈비분지 — 죽은 초거대 생명체의 골격이 주변 세계압을 흡수해, 하늘을 떠받치는
-      흰 갈비뼈 안쪽에 도시와 강과 숲이 자라난 땅이다. (BT §4)
-    detail: >
-      먼 옛날 베이라를 떠돌던 거대한 생명체가 이곳에서 죽었고, 살아 있을 때 제 몸의
-      형태를 유지하려고 주변의 과도한 세계압을 몸 안에 결속하던 골격이 그대로 남았다
-      (BT §4.1). 그 뼈가 지금도 급격한 변화를 흡수하기 때문에 갈비뼈 안쪽에서는 변화의
-      폭이 좁아지고, 강과 토양과 숲이 오래 유지된다. 들어오는 길이 척추 사이의 몇 개
-      협곡뿐이라는 것과 뼈가 내는 낮은 울림을 견디지 못하는 외래 생물이 있다는 것이
-      그 안정을 지킨다 (BT §4.2). 도시가 이곳을 안전하게 만든 것이 아니라 백왕의 유해가
-      허용한 안정 위에 도시가 자라났다는 순서가 이 지형의 요점이다. 평범한 시작 마을이
-      아니라 원정을 꾸리고, 돌아온 자의 증언을 모으고, 바깥에서 가져온 것을 감별하고
-      거래하는 자리다 (BT §4.6).
-    world_shape: >
-      위험을 흡수하는 자연의 구조가 눈에 보이고, 그 구조 안쪽에서만 사람이 오래 머물 수
-      있어야 한다. 그리고 그곳에서 하는 일(원정 준비 · 거래 · 감별 · 증언 수집)이 바깥에
-      다녀온 사람이 있어야 성립해야 한다 — 혼자 다 되면 이 지형이 아니다.
+    statement: 백왕의 갈비분지 — 죽은 초거대 생명체의 골격이 주변 세계압을 흡수해, 하늘을 떠받치는 흰 갈비뼈 안쪽에 도시와 강과 숲이 자라난 땅이다. (BT §4)
+    source: BT §4 · BT §4.1 · BT §4.2 · BT §4.6
+    world_shape: 위험을 흡수하는 자연의 구조가 눈에 보이고, 그 구조 안쪽에서만 사람이 오래 머물 수 있어야 한다. 그리고 그곳에서 하는 일(원정 준비 · 거래 · 감별 ·
+      증언 수집)이 바깥에 다녀온 사람이 있어야 성립해야 한다 — 혼자 다 되면 이 지형이 아니다.
     implemented: ABSENT
-    implemented_note: >-
-      머물 곳과 나갈 곳의 구분이 없다 — 무대가 하나다
-    arises_from: [MW-MACRO-TERRAIN]
-    causes: [MG-EXPLORE-BEIRA]
-    # BT §4.6 — 원정 준비와 "새로운 탐험 Goal 선택" 이 이곳에서 일어난다.
-    # 새 Goal 을 세우지 않는다: MW-SAFE-FRONTIER 가 이미 낳는 그 Goal 이다 (중복 금지).
-    # MW-SAFE-FRONTIER 와의 관계는 정해졌다 (HISTORY Q48(a)): 둘 다 있다. 문명권은
-    # 베이라 **밖**의 안정된 인간 세계이고 이 분지는 베이라 **안**의 자연적 안전지대다.
-    # 준비 갈래(MP-PREPARE-IN-CIVILIZATION)는 두 곳 모두에서 서되 파는 것이 다르다 —
-    # 밖에서는 평범한 것을, 여기서는 베이라에서 나온 것과 다녀온 자의 증언을 얻는다.
+    implemented_note: 머물 곳과 나갈 곳의 구분이 없다 — 무대가 하나다
+    arises_from: [ MW-MACRO-TERRAIN ]
+    causes: [ MG-EXPLORE-BEIRA ]
     changed_by: []
-    demands: [MC-APPRAISE-UNKNOWN-MATTER, MC-CRAFT-FROM-MATERIALS, MC-TRANSFER-ITEM]
-    # BT §4.5 골각 장인(왕골과 외부 소재를 결합해 장비를 만든다) · 원정 조합(자원과 정보를
-    # 거래한다) · 골문지기(외부 생물과 탐험가를 감별한다).
-
+    demands: [ MC-APPRAISE-UNKNOWN-MATTER, MC-CRAFT-FROM-MATERIALS, MC-TRANSFER-ITEM ]
   - id: MW-TERRAIN-SUNEATER-ICEFIELD
     type: world_state
-    statement: >
-      해를 삼킨 빙원 — 대지 아래의 검은 광맥이 주변의 열을 결정 안에 결속해, 얼음 속에
-      수천 개의 작은 태양이 갇힌 땅이다. (BT §5)
-    detail: >
-      이곳이 추운 것은 위도가 높아서가 아니라 대지가 살아 있는 모든 것으로부터 열을
-      거두어 가기 때문이다 (BT §5.1). 광맥은 일정한 속도로 흡수하지 않는다 — 굵기와
-      포화 상태와 지하 흐름에 따라 어느 순간 주변의 열을 한꺼번에 빼앗고, 멀쩡히 걷던
-      생물이 그대로 얼어붙는다. 얼어 죽는 것보다 위험한 것은 열을 잃었다는 사실을 즉시
-      느끼지 못하는 것이고, 일부 구역에서는 차갑다는 감각까지 함께 결속된다 (BT §5.2).
-      살 수 있는 자리는 포화된 광맥이 흡수한 열을 도로 뿜는 해숨구멍 주변과, 빙원을
-      횡단하는 거대한 털짐승이 지나간 자리다 (BT §5.3). 그래서 이 땅의 핵심 경험은
-      추위를 버티는 것이 아니라 대지가 열을 어디에서 빼앗고 어디에 저장하는지를 읽는
-      것이다 (BT §5.7).
-    world_shape: >
-      열이 어디로 이동하는지가 풍경으로 보여야 한다 — 얼음 아래의 검은 빛, 원형 서리
-      무늬, 그 자세 그대로 얼어붙은 거수. 그리고 그것을 읽은 사람과 읽지 못한 사람이
-      같은 길에서 다른 결과를 내야 한다.
+    statement: 해를 삼킨 빙원 — 대지 아래의 검은 광맥이 주변의 열을 결정 안에 결속해, 얼음 속에 수천 개의 작은 태양이 갇힌 땅이다. (BT §5)
+    source: BT §5 · BT §5.1 · BT §5.2 · BT §5.3 · BT §5.7
+    world_shape: 열이 어디로 이동하는지가 풍경으로 보여야 한다 — 얼음 아래의 검은 빛, 원형 서리 무늬, 그 자세 그대로 얼어붙은 거수. 그리고 그것을 읽은 사람과 읽지
+      못한 사람이 같은 길에서 다른 결과를 내야 한다.
     implemented: PARTIAL
-    implemented_note: >-
-      열을 거두는 법칙과 그것이 멎는 해숨구멍이 섰다 (C-TERRAIN-001 — heat-binding · zone-sunbreath).
-      world_shape 가 요구하는 **풍경이 없다**: 열이 어디로 이동하는지의 증거(검은 빛 · 서리 무늬 ·
-      얼어붙은 거수)가 하나도 없고, 거둔 열이 어디에도 저장되지 않아 해숨구멍이 원인 없이 놓여 있다
-    arises_from: [MW-MACRO-TERRAIN]
+    implemented_note: "열을 거두는 법칙과 그것이 멎는 해숨구멍이 섰다 (C-TERRAIN-001 — heat-binding · zone-sunbreath).
+      world_shape 가 요구하는 풍경이 없다: 열이 어디로 이동하는지의 증거(검은 빛 · 서리 무늬 · 얼어붙은 거수)가 하나도 없고, 거둔 열이 어디에도 저장되지
+      않아 해숨구멍이 원인 없이 놓여 있다"
+    arises_from: [ MW-MACRO-TERRAIN ]
     causes: []
-    # BT 는 이 지형이 어떤 Goal 을 낳는지 명명하지 않는다 — WHY 확장 몫이다.
     changed_by: []
-    demands: [MC-READ-ENVIRONMENT, MC-CARRY-LIFE-SUPPORT, MC-TIME-THE-CYCLE, MC-FIND-SAFE-ROUTE]
-    # BT §5.7 — 열이 빠져나가는 방향 관찰 · 동료와 열 분배 · 짧은 분출 시간에 광맥 진입 ·
-    # 해숨구멍 사이의 Route 발견.
-
+    demands: [ MC-READ-ENVIRONMENT, MC-CARRY-LIFE-SUPPORT, MC-TIME-THE-CYCLE, MC-FIND-SAFE-ROUTE ]
   - id: MW-TERRAIN-NAME-EATING-FOREST
     type: world_state
-    statement: >
-      이름을 먹는 수해 — 하나의 뿌리망으로 이어진 나무들이 서로를 구분하려고 Identity 를
-      기록하고, 기록되지 않은 생명을 자기 일부로 삼는 땅이다. (BT §6)
-    detail: >
-      초기의 나무들은 서로를 구별하지 못해 같은 숲의 생명까지 흡수했고, 살아남은 쪽은
-      개체를 구분하는 표식을 뿌리에 새기기 시작했다 (BT §6.1). 그래서 이 숲은 발을 들인
-      것의 이름과 존재 표식을 천천히 읽고, 숲에 등록되지 않은 존재는 점차 주변에서
-      인식되지 않게 된다. 위험은 죽는 것이 아니라 세상에서 개인으로 구분되지 않게 되는
-      것이다 — 동료가 이름을 잊고, 얼굴을 기억하지 못하고, 소지품의 주인을 알 수 없게
-      되다가, 마침내 숲이 그 존재를 자기 일부로 흡수한다 (BT §6.2). 살 수 있는 자리는
-      수천 년 동안 자기 Identity 를 지킨 명목수 주변과 뿌리가 닿지 못하는 부유암 위다
-      (BT §6.3). 이 땅이 보이는 것은 세계압이 몸과 물질뿐 아니라 기억·인식·Identity
-      같은 것에도 작용한다는 사실이다 (BT §6.1).
-    world_shape: >
-      존재가 단계적으로 지워지는 과정이 관찰되어야 한다 — 지워진 글자, 기록마다 다른
-      동료의 수, 나무껍질에 겹친 얼굴. 그리고 자신이 누구인지를 계속 증명하는 수단이
-      있어야 한다. 즉시 죽거나 아무 일도 없거나 둘뿐이면 이 지형이 아니다.
+    statement: 이름을 먹는 수해 — 하나의 뿌리망으로 이어진 나무들이 서로를 구분하려고 Identity 를 기록하고, 기록되지 않은 생명을 자기 일부로 삼는 땅이다. (BT §6)
+    source: BT §6 · BT §6.1 · BT §6.2 · BT §6.3
+    world_shape: 존재가 단계적으로 지워지는 과정이 관찰되어야 한다 — 지워진 글자, 기록마다 다른 동료의 수, 나무껍질에 겹친 얼굴. 그리고 자신이 누구인지를 계속 증명하는
+      수단이 있어야 한다. 즉시 죽거나 아무 일도 없거나 둘뿐이면 이 지형이 아니다.
     implemented: ABSENT
-    implemented_note: >-
-      존재의 신원이라는 것이 세계에 없다
-    arises_from: [MW-MACRO-TERRAIN]
-    causes: [MG-RESCUE-THE-TAKEN]
-    # BT §6.6 무명사냥꾼 — 숲에 흡수되기 직전의 존재를 추적해 구출한다.
+    implemented_note: 존재의 신원이라는 것이 세계에 없다
+    arises_from: [ MW-MACRO-TERRAIN ]
+    causes: [ MG-RESCUE-THE-TAKEN ]
     changed_by: []
-    demands: [MC-IDENTITY-ANCHOR, MC-IMPERSONATE-IDENTITY, MC-OBSERVE]
-    # BT §6.5 이름목(Identity 를 안정시킨다) · 가면열매(다른 존재의 표식을 모방한다) ·
-    # §6.7 동료의 Identity 상태 확인.
-
+    demands: [ MC-IDENTITY-ANCHOR, MC-IMPERSONATE-IDENTITY, MC-OBSERVE ]
   - id: MW-TERRAIN-BREATHLESS-SEA
     type: world_state
-    statement: >
-      무호흡해 — 투명한 암초가 주변 대기를 결정 안에 결속해, 공기가 물처럼 밀물과 썰물로
-      흐르는 땅이다. (BT §7)
-    detail: >
-      분지를 채운 기체결속 암초가 산소와 수증기와 바람을 흡수해 평상시에는 공기가 거의
-      없고, 암초가 포화되는 날에는 저장된 공기가 거대한 조수처럼 계곡을 휩쓴다 (BT §7.1).
-      그래서 숨을 쉴 수 없고, 소리가 전달되지 않고, 불꽃이 존재할 수 없고, 조수가 지나간
-      뒤 남겨질 수 있고, 암초가 몸과 장비 안의 공기까지 흡수한다 (BT §7.2). 같은 장소도
-      조수 시점에 따라 살 수 있는 곳이 되었다가 아니게 된다. 살 수 있는 자리는 공기를
-      저장했다 천천히 내뿜는 숨나무 아래, 등에 공기주머니를 지고 이동하는 공각수 주변,
-      암초가 닿지 않는 검은 암반 속 동굴이다 (BT §7.3). 핵심 경험은 숨을 참는 것이 아니라
-      호흡 가능한 공간을 찾아 만들고 운반하는 것이다 (BT §7.7).
-    world_shape: >
-      공기가 자원처럼 흐르고 고이고 사라지는 것이 관찰되어야 하며, 그것을 지니고 나누고
-      옮길 수 있어야 한다. 그리고 소리가 전달되지 않는다는 사실이 표현이 아니라 판정에
-      닿아야 한다 — 전투와 붕괴가 무음으로 진행된다 (BT §7.4).
+    statement: 무호흡해 — 투명한 암초가 주변 대기를 결정 안에 결속해, 공기가 물처럼 밀물과 썰물로 흐르는 땅이다. (BT §7)
+    source: BT §7 · BT §7.4 · BT §7.1 · BT §7.2 · BT §7.3 · BT §7.7
+    world_shape: 공기가 자원처럼 흐르고 고이고 사라지는 것이 관찰되어야 하며, 그것을 지니고 나누고 옮길 수 있어야 한다. 그리고 소리가 전달되지 않는다는 사실이 표현이
+      아니라 판정에 닿아야 한다 — 전투와 붕괴가 무음으로 진행된다 (BT §7.4).
     implemented: ABSENT
-    implemented_note: >-
-      몸이 숨·소리 같은 것을 요구하지 않는다
-    arises_from: [MW-MACRO-TERRAIN]
-    causes: [MG-RESCUE-THE-TAKEN]
-    # BT §7.7 — 고립된 탐험가 구조.
+    implemented_note: 몸이 숨·소리 같은 것을 요구하지 않는다
+    arises_from: [ MW-MACRO-TERRAIN ]
+    causes: [ MG-RESCUE-THE-TAKEN ]
     changed_by: []
-    demands: [MC-CARRY-LIFE-SUPPORT, MC-TIME-THE-CYCLE, MC-FIND-SAFE-ROUTE, MC-COORDINATE-WITHOUT-SOUND,
-              MC-PLACE-FOOTING]
-    # BT §7.7 — 숨결 자원 분배 · 공기 조수 주기 관찰 · 공기 덩어리를 길처럼 연결 ·
-    # 소리 없는 협동과 전투.
-
+    demands:
+      [
+        MC-CARRY-LIFE-SUPPORT,
+        MC-TIME-THE-CYCLE,
+        MC-FIND-SAFE-ROUTE,
+        MC-COORDINATE-WITHOUT-SOUND,
+        MC-PLACE-FOOTING
+      ]
   - id: MW-TERRAIN-SKYFALL-RANGE
     type: world_state
-    statement: >
-      하늘로 떨어지는 산맥 — 은빛 광맥이 물과 느슨한 물체의 낙하 방향을 세계압의 흐름에
-      결속해, 강이 하늘로 떨어지고 정상에 바다가 매달린 땅이다. (BT §8)
-    detail: >
-      이곳에서 아래쪽은 하나가 아니다. 광맥의 방향에 따라 절벽도, 하늘도, 동굴 천장도
-      각각 아래가 될 수 있다 (BT §8.1). 광맥을 넘는 순간 낙하 방향이 바뀌므로 절벽 아래로
-      떨어지던 존재가 갑자기 하늘로 추락하고, 상향 폭포가 경로를 바꾸면 계곡 전체가
-      휩쓸린다. 방향의 변화는 눈에 직접 보이지 않아서 물방울과 풀잎과 먼지와 작은 생물의
-      움직임으로 먼저 알아내야 한다 (BT §8.2). 살 수 있는 자리는 주변 방향을 하나로
-      고정하는 검은 정박암 곁이고, 그래서 집은 땅 위가 아니라 절벽 옆과 천장과 바닥을
-      함께 쓰는 입체가 된다 (BT §8.3). 핵심 경험은 높은 곳을 오르는 것이 아니라 세계가
-      정한 아래쪽을 바꾸는 것이다 (BT §8.7).
-    world_shape: >
-      낙하 방향이 장소마다 다르고 그 경계가 작은 것들의 움직임으로 읽혀야 한다. 그리고
-      그 방향을 사람이 국소적으로 고정하거나 바꿀 수 있어야 하며, 그것이 상대와 날아가는
-      것에도 같은 규칙으로 작용해야 한다 (BT §8.7).
+    statement: 하늘로 떨어지는 산맥 — 은빛 광맥이 물과 느슨한 물체의 낙하 방향을 세계압의 흐름에 결속해, 강이 하늘로 떨어지고 정상에 바다가 매달린 땅이다. (BT §8)
+    source: BT §8 · BT §8.7 · BT §8.1 · BT §8.2 · BT §8.3
+    world_shape: 낙하 방향이 장소마다 다르고 그 경계가 작은 것들의 움직임으로 읽혀야 한다. 그리고 그 방향을 사람이 국소적으로 고정하거나 바꿀 수 있어야 하며, 그것이
+      상대와 날아가는 것에도 같은 규칙으로 작용해야 한다 (BT §8.7).
     implemented: ABSENT
-    implemented_note: >-
-      세계에 아래쪽이라는 개념이 없다 — 평면 하나다
-    arises_from: [MW-MACRO-TERRAIN]
-    causes: [MG-RESCUE-THE-TAKEN]
-    # BT §8.7 — 하늘로 추락하는 동료 구조.
+    implemented_note: 세계에 아래쪽이라는 개념이 없다 — 평면 하나다
+    arises_from: [ MW-MACRO-TERRAIN ]
+    causes: [ MG-RESCUE-THE-TAKEN ]
     changed_by: []
-    demands: [MC-READ-ENVIRONMENT, MC-ANCHOR-LOCAL-LAW, MC-FIND-SAFE-ROUTE, MC-FORCE-MOVEMENT,
-              MC-REDEFINE-DOWN, MC-REDIRECT-FALLING-THING, MC-PLACE-FOOTING]
-    # BT §8.7 — 현재 낙하 방향 관찰 · 정박암을 임시 발판으로 설치 · 상향 폭포를 이동
-    # Route 로 사용 · 적과 투사체의 낙하 방향 변경.
-
+    demands:
+      [
+        MC-READ-ENVIRONMENT,
+        MC-ANCHOR-LOCAL-LAW,
+        MC-FIND-SAFE-ROUTE,
+        MC-FORCE-MOVEMENT,
+        MC-REDEFINE-DOWN,
+        MC-REDIRECT-FALLING-THING,
+        MC-PLACE-FOOTING
+      ]
   - id: MW-TERRAIN-WALKING-CONTINENTS
     type: world_state
-    statement: >
-      걷는 대륙의 무리 — 세계압을 오래 흡수한 암반이 생명과 물질의 경계를 넘어, 산과 숲과
-      강을 등에 지고 이동하는 땅이다. (BT §9)
-    detail: >
-      압력이 풍부한 장소를 찾아 움직이는 구조를 얻은 암반이 느린 이동 능력을 갖추고,
-      그 등에 토양과 수계가 쌓여 하나의 생명체가 대지형으로 자랐다 (BT §9.1). 등껍질의
-      골과 움푹한 지대에는 물과 흙이 고여 사람이 산다. 그러나 방향 전환, 탈피, 수면에서
-      깨어남, 다른 유랑대지와의 충돌, 기생 생물의 침입, 세계압이 부족한 지역에서의 굶주림이
-      한순간에 그 자리를 위험하게 만든다 (BT §9.2). 지도가 바뀌는 것이 아니라 지도 자체가
-      살아 움직이므로, 먼 산의 위치가 매일 달라지고 계곡 전체가 천천히 열리고 닫힌다
-      (BT §9.3). 핵심 경험은 세계를 여행하는 것이 아니라 여행하는 세계 위에서 살아가는
-      것이다 (BT §9.6).
-    world_shape: >
-      땅 자체가 자기 목적으로 움직이고 그 움직임이 예고를 가져야 한다 — 심장음, 보행 진동,
-      탈피. 그리고 그 움직임으로만 열리는 길과 시기가 있어야 한다.
+    statement: 걷는 대륙의 무리 — 세계압을 오래 흡수한 암반이 생명과 물질의 경계를 넘어, 산과 숲과 강을 등에 지고 이동하는 땅이다. (BT §9)
+    source: BT §9 · BT §9.1 · BT §9.2 · BT §9.3 · BT §9.6
+    world_shape: 땅 자체가 자기 목적으로 움직이고 그 움직임이 예고를 가져야 한다 — 심장음, 보행 진동, 탈피. 그리고 그 움직임으로만 열리는 길과 시기가 있어야 한다.
     implemented: ABSENT
-    implemented_note: >-
-      땅이 상태를 갖지 않는다 — 움직일 것도 예고할 것도 없다
-    arises_from: [MW-MACRO-TERRAIN]
+    implemented_note: 땅이 상태를 갖지 않는다 — 움직일 것도 예고할 것도 없다
+    arises_from: [ MW-MACRO-TERRAIN ]
     causes: []
-    # BT 는 이 지형이 어떤 Goal 을 낳는지 명명하지 않는다 — WHY 확장 몫이다.
-    # §9.6 의 "진로를 바꿀지 선택" · "자원 채굴과 대지 생존 사이의 갈등" 은 갈등의 자리를
-    # 가리키지만 누가 무엇을 원하는지를 공급하지 않는다. 지어내지 않는다.
     changed_by: []
-    demands: [MC-PREDICT, MC-TIME-THE-CYCLE, MC-FIND-SAFE-ROUTE, MC-LINK-TO-LIVING-WORLD]
-    # BT §9.5 길청자(심장음과 별의 위치로 다음 경로를 예측한다) · §9.6 정해진 시기에 탑승 ·
-    # 탈피 시기에 자원 채집 · 대지의 움직임으로만 열리는 Route 이용.
-
+    demands: [ MC-PREDICT, MC-TIME-THE-CYCLE, MC-FIND-SAFE-ROUTE, MC-LINK-TO-LIVING-WORLD ]
   - id: MW-TERRAIN-UNHAPPENED-DESERT
     type: world_state
-    statement: >
-      아직 일어나지 않은 사막 — 모래가 일어난 사건뿐 아니라 선택되지 않은 상태까지 결속해,
-      수천 개의 미래가 도시와 괴물과 사람의 모습으로 나타나는 땅이다. (BT §10)
-    detail: >
-      이 사막은 거짓 환영을 보여 주는 것이 아니라 짧은 시간 동안 다른 가능성을 실제로
-      현실로 만든다 (BT §10.2). 존재하지 않는 길이 실제 길처럼 나타나고, 죽었을 가능성의
-      자신이 눈앞에 서고, 선택하지 않은 행동의 결과가 현재를 공격한다. 하나의 가능성을
-      선택하면 다른 경로가 사라지고, 오래 머물면 자신이 어떤 결과에서 온 존재인지
-      혼동하게 된다. 살 수 있는 자리는 가능성 변화에 반응하지 않는 검은 확정암 위이며,
-      그 위에서는 한 가지 상태만 유지된다 (BT §10.3). 이 땅은 베이라의 가장 상위 원리 —
-      현재 상태가 최종 상태가 아니라는 가능성 — 가 안정되지 못하고 지형 전체에 쌓인
-      자리다 (BT §10.1). 핵심 경험은 올바른 길을 찾는 것이 아니라 어떤 길을 현실로 만들지
-      고르는 것이다 (BT §10.7).
-    world_shape: >
-      지금 보이는 것이 실재인지 아닌지가 갈릴 수 있어야 하고, 그것을 의심하고 검증하는
-      수단이 있어야 한다. 그리고 여러 결과 중 하나를 골라 현실로 만드는 행위가 있어야
-      하며, 고르는 순간 나머지가 닫혀야 한다.
+    statement: 아직 일어나지 않은 사막 — 모래가 일어난 사건뿐 아니라 선택되지 않은 상태까지 결속해, 수천 개의 미래가 도시와 괴물과 사람의 모습으로 나타나는 땅이다. (BT §10)
+    source: BT §10 · BT §10.2 · BT §10.3 · BT §10.1 · BT §10.7
+    world_shape: 지금 보이는 것이 실재인지 아닌지가 갈릴 수 있어야 하고, 그것을 의심하고 검증하는 수단이 있어야 한다. 그리고 여러 결과 중 하나를 골라 현실로 만드는
+      행위가 있어야 하며, 고르는 순간 나머지가 닫혀야 한다.
     implemented: ABSENT
-    implemented_note: >-
-      세계에 가능성이라는 상태가 없다 — 지금 참인 것 하나뿐이다
-    arises_from: [MW-MACRO-TERRAIN]
+    implemented_note: 세계에 가능성이라는 상태가 없다 — 지금 참인 것 하나뿐이다
+    arises_from: [ MW-MACRO-TERRAIN ]
     causes: []
-    # BT 는 이 지형이 어떤 Goal 을 낳는지 명명하지 않는다 — WHY 확장 몫이다.
     changed_by: []
-    demands: [MC-VERIFY-REALITY, MC-ANCHOR-LOCAL-LAW, MC-REALIZE-ONE-POSSIBILITY]
-    # BT §10.4 확정암 위에서는 모든 신기루가 사라진다 · §10.5 가능유리(선택되지 않은 상태
-    # 하나를 짧게 현실화한다) · §10.7 여러 Route 의 결과 미리 관찰.
-
+    demands: [ MC-VERIFY-REALITY, MC-ANCHOR-LOCAL-LAW, MC-REALIZE-ONE-POSSIBILITY ]
   - id: MW-TERRAIN-BLOODBLOOM-FOREST
     type: world_state
-    statement: >
-      사람을 꽃피우는 혈화수해 — 혈화수가 죽은 생물의 마지막 상태를 꽃 안에 보존하고,
-      살아 있는 것에게 그 종결 상태를 유도하는 땅이다. (BT §11)
-    detail: >
-      처음에는 주변의 시체에서 영양과 생체 정보를 얻던 식물이 세계압에 오래 노출되면서
-      죽음과 개화를 하나의 번식 과정으로 결속했다 (BT §11.1). 숲이 사람을 미워해서 죽이는
-      것이 아니라, 혈화수에게 죽음은 꽃이 피기 위해 필요한 자연 상태다. 꽃가루가 상처와
-      약한 생체 상태를 추적하고, 뿌리가 목표의 마지막 모습을 미리 만들기 시작하며, 꽃이
-      완성되면 대상의 생명 상태가 꽃으로 옮겨간다 (BT §11.2). 쓰러진 존재의 기억과 목소리는
-      꽃에서 반복되고, 일부 나무는 자신이 피워 낸 사람꽃의 목소리로 다른 사람을 부른다.
-      살 수 있는 자리는 화재로 뿌리망이 소실된 회색재 지대, 꽃과 꽃가루를 먹는 거대 초식
-      생물의 주변, 생체 상태가 식물로 전달되는 것을 막는 장송석 곁이다 (BT §11.3).
-      핵심 경험은 죽음과 보존을 구분하고 무엇을 되돌리며 무엇을 남길지 고르는 것이다.
-    world_shape: >
-      약해진 생체 상태가 세계에 읽히고 그것이 추적의 근거가 되어야 하며, 그 신호를 가리는
-      수단이 있어야 한다. 그리고 완성되기 전에 개입할 수 있는 진행이 있어야 한다 —
-      한 번에 죽는 것이면 이 지형이 아니다.
+    statement: 사람을 꽃피우는 혈화수해 — 혈화수가 죽은 생물의 마지막 상태를 꽃 안에 보존하고, 살아 있는 것에게 그 종결 상태를 유도하는 땅이다. (BT §11)
+    source: BT §11 · BT §11.1 · BT §11.2 · BT §11.3
+    world_shape: 약해진 생체 상태가 세계에 읽히고 그것이 추적의 근거가 되어야 하며, 그 신호를 가리는 수단이 있어야 한다. 그리고 완성되기 전에 개입할 수 있는 진행이
+      있어야 한다 — 한 번에 죽는 것이면 이 지형이 아니다.
     implemented: ABSENT
-    implemented_note: >-
-      몸의 상태가 세계에 읽히지 않는다 — 남은 생명은 관찰에 실리지만 그것을 좇는 것이 없다
-    arises_from: [MW-MACRO-TERRAIN]
-    causes: [MG-RESCUE-THE-TAKEN]
-    # BT §11.7 — 완전히 개화하기 전 대상 구조.
+    implemented_note: 몸의 상태가 세계에 읽히지 않는다 — 남은 생명은 관찰에 실리지만 그것을 좇는 것이 없다
+    arises_from: [ MW-MACRO-TERRAIN ]
+    causes: [ MG-RESCUE-THE-TAKEN ]
     changed_by: []
-    demands: [MC-CONCEAL-BIOLOGICAL-SIGNAL, MC-TIME-THE-CYCLE, MC-ANCHOR-LOCAL-LAW]
-    # BT §11.6 꽃가면 채집단(자신의 생체 신호를 가리는 가면) · §11.7 꽃가루가 추적하는
-    # 조건 파악 · 완전히 개화하기 전 구조 · §11.3 장송석(전달을 막는 검은 돌).
-    # §11.5 회귀밀이 주는 의미는 이미 MC-RESTORE-BIOLOGICAL-STATE 다 (BW §8 회귀초와 같은
-    # 자리 — 능력 노드를 복제하지 않는다). 회귀밀과 회귀초가 서로 다른 땅에서 같은 능력을 낳는다는 사실은 그대로 둔다 (HISTORY Q49(c)).
+    demands: [ MC-CONCEAL-BIOLOGICAL-SIGNAL, MC-TIME-THE-CYCLE, MC-ANCHOR-LOCAL-LAW ]

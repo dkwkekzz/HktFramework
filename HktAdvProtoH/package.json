@@ -16,6 +16,7 @@
     "lanes": "tsx tools/lanes/build.ts",
     "lanes:check": "tsx tools/lanes/build.ts --check",
     "feedback:gate": "tsx tools/feedback-gate/check.ts",
+    "cycle:lint": "tsx tools/cycle-lint/check.ts",
     "surface:lab": "tsx tools/surface-lab/build.ts",
     "boundary:check": "tsx tools/boundary/check.ts",
     "fx:lab": "node tools/fx-lab/test/lab-smoke.js",

@@ -102,29 +102,33 @@ nodes:
 
 아래 절의 예시는 그 `nodes:` 아래에 들어가는 **항목 하나**의 형태다.
 
-### 모든 Node 공통 — 읽히는 형태와 구현 정합
+### 모든 Node 공통 — 주소와 판정 기준
 
-Graph 는 설계자만 보는 메모가 아니라 Cycle 이 소비하는 입력이다. 읽어서 무슨 말인지
-모르는 노드는 Cycle 로 내려가지 못한다. 따라서 모든 Node 는 **세 겹**으로 쓴다.
-
-```text
-① 한 줄       무엇인가            statement / desired_state / semantic / meaningful_difference
-② 풀어서      detail:             왜 그런가 · 무엇이 뒤따르는가 · 무엇과 헷갈리면 안 되는가
-③ 세계에서    world_shape:        이 노드가 "세계에 실제로 있다" 를 무엇으로 확인하는가
-```
-
-`detail` 규칙 — 여기가 가독성을 책임진다.
+Graph 는 **의미의 저장소가 아니라 전달 계층**이다. 의미의 전문은 `source` 가 가리키는
+기획서(`content/<pack>/design/`)가 소유하고, 노드는 그 의미의 **주소 + 구조(간선) +
+상태**만 지닌다. 사람이 노드를 읽고 이해하는 것이 목표가 아니다 — 기획의 정보가
+Frontier 후보를 거쳐 Cycle 에 정확히 전달되는 것이 목표다. 모든 Node 는 **두 겹 + 주소**다.
 
 ```text
-평서문으로 쓴다. 도식(↓ 화살표 나열)과 명사 나열로 대신하지 않는다.
-영문 대문자 용어를 문장 주어로 쓰지 않는다 — "FREE WORLD PRESSURE 는" 이 아니라
-  "아직 무엇으로도 굳지 않은 세계압은" 으로 쓰고 괄호로 원어를 붙인다.
-독자는 이 프로젝트를 처음 보는 사람이다. 앞 노드를 읽었다고 가정하지 않는다.
-원문 인용(BW §x)은 문장 끝 괄호에 둔다. 인용이 문장을 대신하지 않는다.
-분량은 3~6 문장. 한 문장으로 충분하면 detail 을 생략하지 말고 그 한 문장을 쓴다.
+① 한 줄     무엇인가         statement / desired_state / semantic / meaningful_difference
+② 세계에서  world_shape:     이 노드가 "세계에 실제로 있다" 를 무엇으로 확인하는가
+   주소     source:          의미의 전문이 사는 곳 — 기획서 약어 §번호 (파일 머리 인용표)
 ```
 
-`world_shape` 규칙 — 여기가 구현 정합을 책임진다.
+`source` 규칙 — 여기가 의미의 소유를 책임진다.
+
+```text
+필수다. 의미의 깊이가 필요한 작업(NEXT · Inject · Cycle)은 이 주소의 기획서 §를 연다.
+grounded: false 노드는 "(이름만)" + 이름을 댄 문서 §를 적는다.
+기획서에 없는 정밀화(닫힌 Q 의 결과 등)는 노드 산문으로 돌아오지 않는다 —
+  경위는 HISTORY, 결과는 ①/world_shape 반영, Cycle 전달 형태는 Frontier 후보가 싣는다.
+detail 필드는 폐기되었다 — "왜 그런가 · 무엇이 뒤따르는가" 는 기획서와
+  Goal/Possibility 경로(간선)가 답한다. 새로 쓰지 않는다.
+```
+
+`world_shape` 규칙 — 여기가 구현 정합을 책임진다. **의미 산문 중 유일하게 노드에
+남는 것**이다 — 사람용 설명이 아니라 overlay 판정의 수락 기준(master ↔ 08-verification
+계약)이기 때문이다.
 
 ```text
 관찰 가능한 조건으로 쓴다 — "플레이어가 X 하면 Y 가 보인다".
@@ -137,7 +141,7 @@ Cycle 은 이 칸을 만족시켰는지로 08-verification 을 쓰고, 그 결�
 `implemented:` 는 그 `world_shape` 가 지금 `world/` `view/` 에 있는가다.
 
 ```text
-PRESENT | PARTIAL | ABSENT       근거는 overlay.md 가 소유한다 (여기에는 값만)
+PRESENT | PARTIAL | ABSENT       노드에는 값만 — 근거·부족은 *_evidence · *_note · *_gap 필드
 ```
 
 Capability 의 기존 `overlay:` 필드가 같은 역할을 한다 — Capability 는 `overlay:` 를
@@ -150,11 +154,10 @@ Capability 의 기존 `overlay:` 필드가 같은 역할을 한다 — Capabilit
 - id: MW-FOREST-CORRUPTED
   type: world_state
   statement: Forest 가 Corrupted 상태다
-  detail: >
-    <풀어서 — 왜 그렇게 되었고 무엇이 뒤따르는가>
+  source: BW §12              # 의미의 주소 — 전문은 기획서 소유
   world_shape: >
     <이 상태가 세계에 있다는 것을 무엇으로 확인하는가>
-  implemented: ABSENT         # PRESENT | PARTIAL | ABSENT — 근거는 overlay.md
+  implemented: ABSENT         # PRESENT | PARTIAL | ABSENT — 근거는 implemented_note
   arises_from: [MW-...]       # 이 상태를 낳은 상위 세계 상태 (World → World 인과)
   causes: [MG-...]            # 이 상태가 발생시키는 Goal
   changed_by: [MP-...]        # 이 상태를 바꾸는 Possibility
@@ -184,8 +187,7 @@ Capability 쪽 거울은 `demanded_by` 다 (`required_by` 와 같은 방식의 �
   kind: NPC                   # PLAYER | NPC | CREATURE | FACTION | GUILD | SETTLEMENT
   perspective: >
     이 주체가 세계를 어떻게 보는가 · 무엇을 이해관계로 삼는가
-  detail: >
-    <풀어서 — 이 주체가 무엇을 알고 무엇을 모르는가 · 무엇을 두려워하는가>
+  source: BW §22
   world_shape: >
     <이 주체가 세계에 있다는 것을 무엇으로 확인하는가>
   implemented: ABSENT         # PRESENT | PARTIAL | ABSENT
@@ -202,8 +204,7 @@ Capability 쪽 거울은 `demanded_by` 다 (`required_by` 와 같은 방식의 �
   holder: [MA-...]
   statement: >
     확보한 정보(knowledge) 또는 사실이라 믿는 것(belief)
-  detail: >
-    <풀어서 — 이것을 아는 사람과 모르는 사람의 판단이 무엇이 갈리는가>
+  source: CK §3
   world_shape: >
     <이 정보가 세계에 있다는 것을 무엇으로 확인하는가 —
      모를 때 무엇이 가려져 있고 알고 나면 무엇이 보이는가>
@@ -219,8 +220,7 @@ Capability 쪽 거울은 `demanded_by` 다 (`required_by` 와 같은 방식의 �
   type: goal
   owner: MA-PLAYER
   desired_state: <원하는 세계의 상태>
-  detail: >
-    <풀어서 — 이 Goal 을 가진 사람이 실제로 무엇을 바라는가>
+  source: BW §30
   world_shape: >
     <이 Goal 이 세계에서 성립한다는 것을 무엇으로 확인하는가 — 달성 판정의 관찰 조건>
   implemented: ABSENT         # PRESENT | PARTIAL | ABSENT
@@ -244,8 +244,7 @@ Capability 쪽 거울은 `demanded_by` 다 (`required_by` 와 같은 방식의 �
   meaningful_difference: >
     다른 Possibility 와 Gameplay/Cost/Risk/Relationship/Consequence 중
     무엇이 실질적으로 다른가. 답할 수 없으면 동의어이지 대안이 아니다
-  detail: >
-    <풀어서 — 이 경로를 고른 플레이어가 실제로 무엇을 하게 되는가>
+  source: R1 §9
   world_shape: >
     <이 경로가 세계에서 열려 있다는 것을 무엇으로 확인하는가>
   implemented: ABSENT         # PRESENT | PARTIAL | ABSENT
@@ -272,11 +271,9 @@ Capability 쪽 거울은 `demanded_by` 다 (`required_by` 와 같은 방식의 �
 - id: MC-PERFECT-GUARD
   type: capability
   semantic: >
-    재사용 가능한 플레이 의미 한 문단. 왜 필요한지는 쓰지 않는다 —
+    재사용 가능한 플레이 의미 한두 문장. 왜 필요한지는 쓰지 않는다 —
     그것은 Goal/Possibility 경로가 설명한다
-  detail: >
-    <풀어서 — 이 능력이 있는 몸과 없는 몸이 무엇이 다른가.
-     비슷한 다른 Capability 와 무엇으로 갈리는가>
+  source: R1 §7 · BW §20      # 의미의 주소 — 전문·이유·구분은 기획서 소유
   world_shape: >
     <이 능력이 세계에 있다는 것을 무엇으로 확인하는가 — Cycle 이 이 칸을 닫는다>
   part_of:                    # 이 조각이 속한 전체 — 노드가 목록으로 뽑혀도 자리가 보이게 한다
@@ -291,8 +288,11 @@ Capability 쪽 거울은 `demanded_by` 다 (`required_by` 와 같은 방식의 �
   demanded_by:  [MW-...]      # 이 능력을 요구하는 장소
   constraints: [DC-...]
   constraint_evaluation:
-    DC-...: UNRESOLVED        # 판정 값 + 한 줄 사유까지만 — 실측 서사는 08-verification 소유
-  overlay: MISSING            # IMPLEMENTED | PARTIAL | MISSING — 근거는 overlay.md
+    DC-...: UNRESOLVED        # 판정 값만 — 사유·실측 서사는 08-verification 소유
+  overlay: MISSING            # IMPLEMENTED | PARTIAL | MISSING
+  overlay_evidence: C010 08-verification   # 주소만 — Cycle ID / 코드 실측 포인터.
+                              # 무엇이 어떻게 닫혔는지를 여기 재서술하지 않는다
+  overlay_gap: <PARTIAL 일 때 — 남은 것 한두 줄>
 ```
 
 구현 모듈명(`world/combat/guard.ts`)을 `semantic` 에 쓰지 않는다.
@@ -341,7 +341,7 @@ status: DRAFT/PLANNED 시스템은 "문서를 기다리는 전체" 를 그래프
 그 시스템에 결손의 반쪽을 맡긴 노드는 grounded: false 로 남는다.
 
 `overlay:` / `implemented:` 에는 **값만** 둔다 — 근거·정정 경위·날짜를 노드 주석으로
-쌓지 않는다. 근거는 `overlay.md`, 경위는 `HISTORY.md` 소유다 (CLAUDE.md 원칙 20).
+쌓지 않는다. 근거는 노드의 evidence 필드(주소), 경위는 `HISTORY.md` 소유다 (CLAUDE.md 원칙 20).
 
 `required_by` 와 `demanded_by` 가 **둘 다 비면** 그 Capability 는 노드가 아니다 —
 아무도 요구하지 않는 능력은 세계가 필요로 하지 않는 것이다. 어느 쪽이든 하나는
@@ -553,7 +553,7 @@ constraint_evaluation:
 | MC-... | 없음 | ... | ... |
 ```
 
-기존 `overlay.md`(그 의미가 세계에 **구현되어 있는가**)와 축이 다르다 —
+기존 Overlay 판정(그 의미가 세계에 **구현되어 있는가**)과 축이 다르다 —
 여기는 그 Capability 를 세계 안에서 **얻는 경로가 존재하는가**다 (GR §22.1 · §39).
 Growth 는 별도 Master Stage 가 아니다 — NEED 에서 발견된 Capability 위의 Overlay 다.
 
@@ -566,7 +566,7 @@ Growth 는 별도 Master Stage 가 아니다 — NEED 에서 발견된 Capabilit
 세 자리가 축이 다르다 — 헷갈리면 안 된다.
 
 ```text
-overlay.md          그 의미가 세계에 구현되어 있는가          있는가 / 없는가
+Overlay(노드 필드)   그 의미가 세계에 구현되어 있는가          있는가 / 없는가
 growth-graph.md     그것을 세계 안에서 얻는 경로가 있는가      가질 수 있는가 / 없는가
 growth/balance/     그 값이 치른 것과 맞는가                  값이 맞는가 / 어긋나는가
 ```
@@ -631,23 +631,31 @@ Runtime Instance 의 관계이며 Master 에 오지 않는다 (GR §38).
 
 ---
 
-## overlay.md — 생성물
+## Overlay 판정 — 노드 필드 (생성물: GRAPH.md 의 Capability Overlay 절)
 
-`overlay.md` 는 GRAPH.md 처럼 **생성물이다. 손으로 고치지 않는다** —
-`npm run master:graph` 가 아래 원본에서 만든다.
+Overlay 는 Graph 를 현재 세계와 겹쳐 본 판정이다. **단계가 아니라 절차다** —
+Feedback(실측 반영)과 Inject(초기 판정)가 노드 필드를 고치고, `npm run master:graph`
+가 GRAPH.md 의 Capability Overlay 절로 렌더한다. 손으로 고치는 문서는 없다.
 
 ```text
+판정 기준
+  IMPLEMENTED   그 의미를 닫은 Cycle 이 있고 08-verification 이 실측으로 통과했다
+  PARTIAL       일부만 닫혔거나 요구하는 형태에 못 미친다 — overlay_gap 을 반드시 채운다
+  MISSING       세계에 그 의미가 없다
+  코드가 존재한다는 이유만으로 IMPLEMENTED 판정하지 않는다 — 플레이로 닫혔는가가 기준이다.
+  Constraint Violation 과 혼동하지 않는다 — 있는가/없는가이지 허용되는가가 아니다.
+
 표의 값 (노드 필드가 소유)
   capabilities.yaml     overlay: IMPLEMENTED | PARTIAL | MISSING
-                        overlay_evidence: >-   근거 — Cycle ID 또는 코드 실측. 주장만 적지 않는다
+                        overlay_evidence: >-   근거 주소 — Cycle ID 또는 코드 실측. 재서술 금지
                         overlay_gap: >-        부족한 것 — PARTIAL/MISSING 이면 반드시 채운다
   possibilities.yaml    overlay_missing: >-    이 경로의 요구 중 없는 것
-                        overlay_note: >-       비고 — 경로가 지금 어디까지 닫혔는가
+                        overlay_note: >-       비고 — 경로가 지금 어디까지 닫혔는가 (2~3줄)
   world-state/actors/   implemented: PRESENT | PARTIAL | ABSENT
   knowledge.yaml        implemented_note: >-   지금 세계에 있는 것 / 없는 것
 
 편집 산문 (graph/overlay-notes.yaml 이 소유)
-  header · 섹션 구성(제목·intro·행 순서·묶인 행) · 가장 큰 구멍 절
+  header · 섹션 구성(제목·intro 2~4줄·행 순서·묶인 행) · 가장 큰 구멍 절
   "층이 요구하는 것" 표는 어디에도 적지 않는다 — demands × overlay 에서 계산된다
 ```
 
@@ -672,35 +680,51 @@ frontier/<트랙>.md      그 트랙의 후보 · 추천 순서 · SELECTED · �
 ```markdown
 # Frontier — ITEM 트랙
 
+## 한눈에 보기 — 추천 순서대로
+
+| 순위 | FR | 기능 | 세계에 없는 것 | 크기 | 추천 사유 (한 줄) |
+|---|---|---|---|---|---|
+
 ## 후보
 
 ### FR-PERFECT-GUARD-OPENING — 완벽한 막기
-    이것이 무엇인가      방어의 성패가 시작 시각과 공격이 닿은 시각의 관계로 갈린다
-    세계에 생기는 것      ① 방어에 시작 시각이 남는다 ② 그 시각과 타격 시각의 관계로
-                         결과가 갈린다 ③ 관찰: 무엇이 왜 그렇게 판정되었는가
-    이 기능이 아닌 것     되받아치기가 아니다 · 무적이 아니다 · 확률이 아니다
-    이미 있는 것         막기 행동과 정면 판정이 이미 있다
-    Playable Result      Player 가 적의 공격 직전에 Guard 하여 피해를 받지 않고
-                         상대를 노출 상태로 만들 수 있다
-    Source Goal          MG-DEFEAT-ANCIENT-KNIGHT
-    Source Possibility   MP-READ-AND-COUNTER
-    Missing / Partial    MC-PERFECT-GUARD (MISSING)
-    Active Constraints   DC-<NAME>
-    Constraint Eval      SATISFIED | UNRESOLVED — 판정 근거
-    Observable Result    무엇을 보고 성공/실패를 아는가
-    Why one Cycle        왜 한 Cycle 안에서 닫히는가
-    Status               PROPOSED       # PROPOSED | SELECTED | DEFERRED | DROPPED
+    무엇               방어의 성패가 시작 시각과 공격이 닿은 시각의 관계로 갈린다
+    세계에 생기는 것    ① 방어에 시작 시각이 남는다 ② 그 시각과 타격 시각의 관계로
+                       결과가 갈린다 ③ 관찰: 무엇이 왜 그렇게 판정되었는가
+    아닌 것            되받아치기가 아니다 · 무적이 아니다 · 확률이 아니다
+    이미 있는 것        막기 행동과 정면 판정 (코드 대조 — world/rules/guard.ts)
+    결과               Playable    Player 가 적의 공격 직전에 Guard 하여 피해를 받지
+                                   않고 상대를 노출 상태로 만든다
+                       Observable  무엇을 보고 성공/실패를 아는가
+    Trace              MG-DEFEAT-ANCIENT-KNIGHT / MP-READ-AND-COUNTER ·
+                       Target MC-PERFECT-GUARD (MISSING) · 근거 R1 §N
+    Constraints        DC-<NAME> — Eval 은 형태를 실제로 좁힐 때만 한 줄
+    판정               한 Cycle: <왜 한 Cycle 안에서 닫히는가 한 줄> ·
+                       7조건: 약함·위반 항목만 (없으면 `전부 충족`) ·
+                       의존: <FR-ID 또는 없음> · Status: PROPOSED
 ```
+
+`Status` 는 PROPOSED | SELECTED | DEFERRED | DROPPED.
+Capability 노드를 목표로 삼지 않는 후보는 `Trace` 의 Target 자리에 그 사유를 한 줄로 적는다.
 
 트랙 파일에는 **지금 고를 수 있는 후보만** 둔다. Cycle 이 닫히면 그 `FR-*` 를 지우고
 결과를 `feedback/<CycleId>.md` 에 적는다.
 
-후보 하나는 **세계가 갖게 되는 개념 하나**다. 앞의 네 칸(이것이 무엇인가 · 세계에
-생기는 것 · 이 기능이 아닌 것 · 이미 있는 것)이 그 개념의 경계를 정한다 — 특히
-`이 기능이 아닌 것` 이 비면 후보가 아니라 소원이다 (guides/master-frontier.md).
+후보 하나는 **세계가 갖게 되는 개념 하나**다. 앞의 네 칸(무엇 · 세계에 생기는 것 ·
+아닌 것 · 이미 있는 것)이 그 개념의 경계를 정한다 — 특히 `아닌 것` 이 비면 후보가
+아니라 소원이다 (guides/master-frontier.md).
+
+추천 순서의 자리는 **한눈에 보기 표 하나**다 — 순위 열과 사유 한 줄이 그 전부이며,
+별도의 순서 다이어그램·후보별 추천 산문 블록을 두지 않는다 (근거의 상세는 각 후보의
+`판정` 칸 소유). `SELECTED` 절은 현재 상태만 담는다 — 닫힌 후보의 경위·배운 것은
+`feedback/<CycleId>.md` 소유이며 여기 다시 적지 않는다 (CLAUDE.md 원칙 20).
 
 `VIOLATED` 후보를 여기에 올리지 않는다 — Design Conflict 로 Human 에게 따로 제시한다.
 Agent 는 후보와 근거를 제공하되 우선순위를 확정하지 않는다.
+
+구 골격(16필드 · 순서 다이어그램 · 추천 산문 블록)으로 남아 있는 트랙 파일은
+다음 NEXT / Feedback 작업이 그 파일을 고치는 김에 이 골격으로 이행한다 —
+이행만을 위한 별도 세션을 세우지 않는다.
 
 ---
 

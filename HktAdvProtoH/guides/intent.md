@@ -14,14 +14,15 @@ Cycle Goal 을 Goal / Possibility 와 Intent 로 변환한다.
 1. Goal 을 정의한다 — 세계에서 달성하려는 상태.
 2. Goal 을 달성하는 Possibility 를 정의한다 — 그 상태에 이르는 가능한 경로.
 3. Intent 를 추출한다 — **어떤 조건의 주체가 무엇을 하면 세계가 어떻게 변하는가**.
-4. 각 Intent 를 Source Goal / Possibility 와 연결한다 (Design Trace).
+4. 각 Intent 를 Source Goal / Possibility 와 연결한다 — 항목 안의 `Trace` 줄로
+   (별도 절을 만들지 않는다).
 5. 기존 Intent 를 확장/변경하는 경우 무엇이 바뀌는지 명시한다.
 
 ## Output
 
 `cycles/<CycleId>/02-intent.md`
 
-항목: `GOAL / POSSIBILITY` · `INTENT SET` · `DESIGN TRACE` · `EXISTING INTENT DELTA`
+항목: `GOAL / POSSIBILITY` · `INTENT SET` (Trace 인라인) · `EXISTING INTENT DELTA`
 
 형식과 작성 예시는 `advprotoh-cycle` 스킬의 `references/artifact-format.md` 가 단일 출처다.
 
