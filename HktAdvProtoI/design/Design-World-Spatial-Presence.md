@@ -1,6 +1,6 @@
 # SYSTEM DESIGN DOCUMENT
 
-## World Spatial Presence — Actor가 아닌 존재의 공간 존재
+## Design World Spatial Presence — Actor가 아닌 존재의 공간 존재
 
 | 항목        | 내용                                                                                       |
 | --------- | ------------------------------------------------------------------------------------------ |
