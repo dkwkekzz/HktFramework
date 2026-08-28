@@ -130,6 +130,8 @@ Decision By  Human
 
 ## 4. 닫기
 
+* `npm run cycle:lint -- <CycleId>` 로 표기법 위반을 확인한다 (형식은
+  references/artifact-format.md 의 "표기법" 절 · 기준 예시는 references/notation-example/).
 * 출력 Artifact 커밋. 메시지 형식: `HktAdvProtoH: <CycleId> <Stage> — <한 줄 요약>`
 * Stage 6/7 은 구현 코드와 Artifact 를 함께 커밋한다.
 * Stage 8 이 전 항목 통과면 `08-verification.md` 의 STATUS 를 `COMPLETE` 로,

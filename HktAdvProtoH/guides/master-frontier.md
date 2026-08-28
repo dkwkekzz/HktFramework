@@ -42,7 +42,9 @@ BAD    Perfect Guard 시스템 구현
 GOOD   Player 가 적의 공격 직전에 Guard 하여 피해를 받지 않고 상대를 노출시킬 수 있다
 ```
 
-3. 7 조건으로 검사한다 (정책 §8).
+3. 7 조건으로 검사한다 (정책 §8). **기록은 약함·위반 항목만** — 전부 충족이면
+   `전부 충족` 한 줄이다. 약한 칸을 감추지 않는 것이 이 기록의 목적이지,
+   일곱 칸을 다시 서술하는 것이 아니다.
 
 ```text
 1. MISSING 이거나 필요한 수준에 못 미치는 PARTIAL 인가
@@ -70,12 +72,14 @@ GOOD   Player 가 적의 공격 직전에 Guard 하여 피해를 받지 않고 �
    경계 칸이 핵심이다. 같은 장면을 만드는 방법은 여럿이지만 **개념의 경계**가 정해지면
    그 안에서 어떻게 만들든 같은 것이 된다.
 
-5. 각 후보에 Source Goal / Possibility / Missing Capability / Active Constraints /
-   Constraint Evaluation / Observable Result / Why one Cycle 을 적는다.
+5. 나머지는 후보의 `Trace`(Source Goal / Possibility / Target Capability / 원본 근거) ·
+   `Constraints`(Eval 은 형태를 실제로 좁힐 때만) · `결과`(Playable / Observable) ·
+   `판정`(한 Cycle 사유 · 7조건 · 의존 · Status) 네 칸에 담는다 —
+   형식은 `master/SCHEMA.md` 의 후보 골격이 단일 출처다.
 6. 크면 쪼갠다 — 경계 칸이 두 개념을 담고 있으면 그것이 쪼갤 자리다.
    쪼갤 수 없으면 그 사유를 적고 Human 판단으로 넘긴다.
-7. 후보 사이의 의존(A 없이 B 를 하면 무엇이 되는가)을 적는다.
-8. 추천 순서와 근거를 제시한다 — **확정하지 않는다.**
+7. 추천 순서는 **한눈에 보기 표 하나**로 제시한다 — 순위 열 + 사유 한 줄.
+   별도 다이어그램·후보별 추천 산문을 두지 않으며, **확정하지 않는다.**
 
 ## Output
 
@@ -103,8 +107,8 @@ Frontier 선택 이후는 **기존 8 Stage Cycle Workflow 를 변경 없이** �
 
 - 후보 하나 = 세계가 갖게 되는 개념 하나. **경계(이 기능이 아닌 것)를 반드시 적는다.**
 - Playable Result 를 플레이어 관점 한 문장으로 쓴다.
-- 7 조건 판정 결과를 남긴다.
-- Constraint Evaluation 을 명시한다.
+- 7 조건은 약함·위반 항목만 남긴다 (없으면 `전부 충족`).
+- Constraint Eval 은 Constraint 가 후보의 형태를 실제로 좁힐 때만 한 줄로 적는다.
 - 상위 Goal / Possibility 로 역추적 가능하게 한다.
 - 후보의 키는 FR-ID 다 — 위치 번호를 매기지 않는다.
 

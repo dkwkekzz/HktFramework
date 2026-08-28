@@ -3,6 +3,27 @@
 각 Stage 출력의 골격. 항목 이름은 유지하고 내용만 채운다.
 값이 없는 항목은 지우지 말고 `없음` 또는 사유를 적는다.
 
+## 표기법 — artifact 는 명세다
+
+작성 기준 예시는 [notation-example/](notation-example/) (C026 재작성본) — 새 artifact 는
+과거 `cycles/` 의 문체가 아니라 **이 예시의 문체**를 따른다. 닫기 전에
+`npm run cycle:lint -- <CycleId>` 로 형식을 확인한다.
+
+```text
+1. 장르     artifact 는 명세다. 판정 = 결론 + 근거 포인터 1줄.
+            결론에 이르는 논증·서두 에세이·굵은 글씨 재강조는 형식 위반이다.
+2. 문형     아래 골격의 절과 필드로만 쓴다. 필드 밖 산문·골격에 없는 절을 만들지 않는다.
+3. 참조     이미 소유된 의미는 `ID (소유 Cycle)` 로만 가리킨다. 재설명은 문체 문제가
+            아니라 명세 오류다 — 의미의 두 번째 출처를 만든다. REUSED 항목에 허용되는
+            것은 이번 Cycle 과의 관련성(사실·확인·따름)뿐이다.
+4. 한 자리  파일 안에서 같은 정보는 한 번만 나타난다. Trace 는 항목 인라인으로 적고
+            별도 절로 반복하지 않는다.
+5. 보존     부정형 발견 · GAP · ADDED/CHANGED delta · 실측 기록 · EXCLUDED 경계는
+            필드를 다 채워 자세히 적는다 — 압축 대상은 수사이지 정보가 아니다.
+6. 공정     번호 이동·병합 경위 같은 공정 이야기는 git/PR 소유다. artifact 에는
+            이후 판정에 필요한 결과만 한 줄 남긴다.
+```
+
 디렉터리: `cycles/C-<트랙>-<번호>-<이름>/` (예: `cycles/C-ITEM-001-inventory-capacity/`) —
 번호공간은 트랙 소유다 (`guides/cycle-definition.md` Do 1). `C<번호>-<이름>`(C001~C023)은
 트랙 도입 전의 옛 형식이다.
@@ -83,26 +104,26 @@ Return To World Semantic
         └── POSSIBILITY-MINE-STONE
 
 ## INTENT SET
-    INTENT-MINING-001
+    INTENT-MINING-001                        ADDED
+        사실    Stone Deposit 을 알고, Mining 가능한 Tool 을 보유하고, Deposit 에
+                접근 가능한 Actor 는 Mine 을 수행하여 Deposit 의 Resource 를 줄이고
+                자신의 Inventory 에 Stone 을 얻는다
+        Trace   GOAL-RESOURCE-ACQUIRE-STONE / POSSIBILITY-MINE-STONE
 
-        Stone Deposit 을 알고 있고,
-        Mining 가능한 Tool 을 보유하고 있으며,
-        Deposit 에 접근 가능한 Actor 는
-
-        Mine 을 수행하여
-
-        Deposit 의 Resource 를 감소시키고
-        자신의 Inventory 에 Stone 을 획득할 수 있다.
-
-## DESIGN TRACE
-    INTENT-MINING-001
-        Source Goal         GOAL-RESOURCE-ACQUIRE-STONE
-        Source Possibility  POSSIBILITY-MINE-STONE
+    INTENT-INVENTORY-IS-OBSERVED-001         REUSED — C020
+        사실    <원 소유 Cycle 이 세운 선언 — 조건·행위·결과 한 문장>
+        확인    <이번 Cycle 이 이 문장에서 확인·의존하는 것 한 줄>
+        Trace   <Source Goal / Source Possibility>
 
 ## EXISTING INTENT DELTA
     REUSED   ...
     CHANGED  ...
 ```
+
+Trace 는 항목 인라인이다 — 별도 `DESIGN TRACE` 절을 만들지 않는다 (표기법 4).
+REUSED 항목은 `사실·확인·따름` 만 적는다 — 원 소유 Cycle 의 의미를 다시 풀어 쓰지
+않는다 (표기법 3). 부정형 발견(세계에 없는 것을 처음 명시하는 문장)은 `사실·따름·명시
+사유` 를 다 채운다 (표기법 5 — notation-example/02-intent.md 의 EMPTY-ROOM 항목 참조).
 
 ---
 

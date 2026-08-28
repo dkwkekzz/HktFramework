@@ -672,35 +672,51 @@ frontier/<트랙>.md      그 트랙의 후보 · 추천 순서 · SELECTED · �
 ```markdown
 # Frontier — ITEM 트랙
 
+## 한눈에 보기 — 추천 순서대로
+
+| 순위 | FR | 기능 | 세계에 없는 것 | 크기 | 추천 사유 (한 줄) |
+|---|---|---|---|---|---|
+
 ## 후보
 
 ### FR-PERFECT-GUARD-OPENING — 완벽한 막기
-    이것이 무엇인가      방어의 성패가 시작 시각과 공격이 닿은 시각의 관계로 갈린다
-    세계에 생기는 것      ① 방어에 시작 시각이 남는다 ② 그 시각과 타격 시각의 관계로
-                         결과가 갈린다 ③ 관찰: 무엇이 왜 그렇게 판정되었는가
-    이 기능이 아닌 것     되받아치기가 아니다 · 무적이 아니다 · 확률이 아니다
-    이미 있는 것         막기 행동과 정면 판정이 이미 있다
-    Playable Result      Player 가 적의 공격 직전에 Guard 하여 피해를 받지 않고
-                         상대를 노출 상태로 만들 수 있다
-    Source Goal          MG-DEFEAT-ANCIENT-KNIGHT
-    Source Possibility   MP-READ-AND-COUNTER
-    Missing / Partial    MC-PERFECT-GUARD (MISSING)
-    Active Constraints   DC-<NAME>
-    Constraint Eval      SATISFIED | UNRESOLVED — 판정 근거
-    Observable Result    무엇을 보고 성공/실패를 아는가
-    Why one Cycle        왜 한 Cycle 안에서 닫히는가
-    Status               PROPOSED       # PROPOSED | SELECTED | DEFERRED | DROPPED
+    무엇               방어의 성패가 시작 시각과 공격이 닿은 시각의 관계로 갈린다
+    세계에 생기는 것    ① 방어에 시작 시각이 남는다 ② 그 시각과 타격 시각의 관계로
+                       결과가 갈린다 ③ 관찰: 무엇이 왜 그렇게 판정되었는가
+    아닌 것            되받아치기가 아니다 · 무적이 아니다 · 확률이 아니다
+    이미 있는 것        막기 행동과 정면 판정 (코드 대조 — world/rules/guard.ts)
+    결과               Playable    Player 가 적의 공격 직전에 Guard 하여 피해를 받지
+                                   않고 상대를 노출 상태로 만든다
+                       Observable  무엇을 보고 성공/실패를 아는가
+    Trace              MG-DEFEAT-ANCIENT-KNIGHT / MP-READ-AND-COUNTER ·
+                       Target MC-PERFECT-GUARD (MISSING) · 근거 R1 §N
+    Constraints        DC-<NAME> — Eval 은 형태를 실제로 좁힐 때만 한 줄
+    판정               한 Cycle: <왜 한 Cycle 안에서 닫히는가 한 줄> ·
+                       7조건: 약함·위반 항목만 (없으면 `전부 충족`) ·
+                       의존: <FR-ID 또는 없음> · Status: PROPOSED
 ```
+
+`Status` 는 PROPOSED | SELECTED | DEFERRED | DROPPED.
+Capability 노드를 목표로 삼지 않는 후보는 `Trace` 의 Target 자리에 그 사유를 한 줄로 적는다.
 
 트랙 파일에는 **지금 고를 수 있는 후보만** 둔다. Cycle 이 닫히면 그 `FR-*` 를 지우고
 결과를 `feedback/<CycleId>.md` 에 적는다.
 
-후보 하나는 **세계가 갖게 되는 개념 하나**다. 앞의 네 칸(이것이 무엇인가 · 세계에
-생기는 것 · 이 기능이 아닌 것 · 이미 있는 것)이 그 개념의 경계를 정한다 — 특히
-`이 기능이 아닌 것` 이 비면 후보가 아니라 소원이다 (guides/master-frontier.md).
+후보 하나는 **세계가 갖게 되는 개념 하나**다. 앞의 네 칸(무엇 · 세계에 생기는 것 ·
+아닌 것 · 이미 있는 것)이 그 개념의 경계를 정한다 — 특히 `아닌 것` 이 비면 후보가
+아니라 소원이다 (guides/master-frontier.md).
+
+추천 순서의 자리는 **한눈에 보기 표 하나**다 — 순위 열과 사유 한 줄이 그 전부이며,
+별도의 순서 다이어그램·후보별 추천 산문 블록을 두지 않는다 (근거의 상세는 각 후보의
+`판정` 칸 소유). `SELECTED` 절은 현재 상태만 담는다 — 닫힌 후보의 경위·배운 것은
+`feedback/<CycleId>.md` 소유이며 여기 다시 적지 않는다 (CLAUDE.md 원칙 20).
 
 `VIOLATED` 후보를 여기에 올리지 않는다 — Design Conflict 로 Human 에게 따로 제시한다.
 Agent 는 후보와 근거를 제공하되 우선순위를 확정하지 않는다.
+
+구 골격(16필드 · 순서 다이어그램 · 추천 산문 블록)으로 남아 있는 트랙 파일은
+다음 NEXT / Feedback 작업이 그 파일을 고치는 김에 이 골격으로 이행한다 —
+이행만을 위한 별도 세션을 세우지 않는다.
 
 ---
 
