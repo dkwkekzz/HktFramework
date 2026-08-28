@@ -269,15 +269,15 @@
 ## SELECTED
 
 ```text
-FR-THE-WORLD-IS-BORN-OF-ITS-LAW — 세계가 법칙에서 태어난다
-Cycle   C-TERRAIN-003-the-world-is-born-of-its-law
+없음 — Human 선택 대기
 ```
 
-    Human 이 직접 지시했다 — BT §1 의 사슬(World Principle → 대륙 규모의 변화 →
-    산맥·수계·대기·생태 형성 → 살아남은 존재의 적응 → 희귀한 자연 자원 → 그 자원을
-    이용하는 생명과 사람 → 고유한 탐험 경험)이 **가장 먼저 설립되는 것**이며, 이 원리가
-    frontier 에 적용되어 cycle 에 작업된다. 직전 C-TERRAIN-003(예고) 폐기의 사유가
-    이것이다 — 뜨겁냐 차갑냐 같은 발현 한 칸이 아니라 세계를 낳는 에너지의 원리가 먼저다.
+    직전 선택 `FR-THE-WORLD-IS-BORN-OF-ITS-LAW` 는
+    `C-TERRAIN-003-the-world-is-born-of-its-law` 로 COMPLETE 되어 소비되었다
+    (Gate 14 는 Human 이 자동 증거를 받아들여 닫혔다 — 그 Cycle 의 08 STATUS).
+    MASTER FEEDBACK 반영은 미처리다 — 반영 전까지 이 파일의 추천 순서는
+    그 08 의 제안(예고 `FR-THE-LAND-SHOWS-BEFORE-IT-TAKES` 재추천)을 아직
+    모른 채로 서 있다.
 
     직전 반영 경위: [../feedback/C-TERRAIN-002-the-land-keeps-what-it-takes.md](../feedback/C-TERRAIN-002-the-land-keeps-what-it-takes.md)
 
