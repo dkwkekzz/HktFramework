@@ -1,6 +1,6 @@
 # SYSTEM DESIGN DOCUMENT
 
-## Skill Effect — 실행 결과의 World State Transition
+## Design Skill Effect — 실행 결과의 World State Transition
 
 | 항목        | 내용                                                                                      |
 | --------- | ----------------------------------------------------------------------------------------- |
