@@ -7,6 +7,7 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { loadMasterGraph } from '../model';
 import { renderMermaid } from '../mermaid';
+import { renderOverlay } from '../overlay';
 import { renderArtifactPage, renderHtml, serialize } from '../html';
 import { activePackDir } from '../../active-pack';
 
@@ -147,8 +148,10 @@ describe('renderMermaid', () => {
   });
 
   it('커밋된 GRAPH.md 가 현재 graph/*.yaml 과 일치한다 (master:graph:check 동치)', () => {
-    // graph/*.yaml 을 고치고 npm run master:graph 를 잊으면 여기서 걸린다
-    expect(readFileSync(join(masterDir, 'graph', 'GRAPH.md'), 'utf8')).toBe(md);
+    // graph/*.yaml 을 고치고 npm run master:graph 를 잊으면 여기서 걸린다.
+    // GRAPH.md = 그래프 스냅샷 + Capability Overlay 절 (build.ts 와 같은 합성)
+    const merged = `${md}\n${renderOverlay(graph, masterDir).text}`;
+    expect(readFileSync(join(masterDir, 'graph', 'GRAPH.md'), 'utf8')).toBe(merged);
   });
 });
 

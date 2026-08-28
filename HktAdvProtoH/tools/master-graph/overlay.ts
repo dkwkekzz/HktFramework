@@ -1,4 +1,4 @@
-// Overlay 렌더 — master/overlay.md 를 graph/*.yaml 에서 생성한다 (GRAPH.md 와 같은 방식).
+// Overlay 렌더 — GRAPH.md 의 'Capability Overlay' 절을 graph/*.yaml 에서 생성한다.
 //
 // 표의 값은 노드 필드가 소유한다:
 //   Capability   overlay · overlay_evidence · overlay_gap
@@ -48,7 +48,7 @@ function raw(node: GraphNode | undefined, field: string): string {
   return typeof v === 'string' ? v.trim().replace(/\s+/g, ' ') : '';
 }
 
-const CRITERIA = `## 판정 기준
+const CRITERIA = `### 판정 기준
 
 \`\`\`text
 IMPLEMENTED   그 의미를 닫은 Cycle 이 있고 08-verification 이 실측으로 통과했다
@@ -59,23 +59,12 @@ MISSING       세계에 그 의미가 없다
 근거 칸에는 Cycle ID 또는 코드 실측을 적는다. **주장만 적지 않는다.**
 Constraint Violation 과 혼동하지 않는다 — 여기는 **있는가/없는가**이지 **허용되는가**가 아니다.`;
 
-const UPDATE_PATH = `## 갱신 경로
+const UPDATE_PATH = `### 갱신 경로
 
-이 파일은 생성물이다 — Feedback 이 고치는 것은 노드 필드다.
-
-\`\`\`text
-cycles/<CycleId>/08-verification.md 의 MASTER FEEDBACK
-        ↓
-guides/master-feedback.md (Feedback — 위쪽 접합점 반영)
-        ↓
-graph/*.yaml 노드의 overlay · overlay_evidence · overlay_gap ·
-overlay_missing · overlay_note · implemented · implemented_note
-(+ 섹션 구성이 바뀌면 graph/overlay-notes.yaml)
-        ↓
-npm run master:graph  →  이 파일 재생성 (경위는 feedback/<CycleId>.md 소유)
-\`\`\`
-
-Cycle Agent 가 이 파일을 직접 편집하지 않는다.`;
+원본은 노드 필드(overlay · overlay_evidence · overlay_gap · overlay_missing ·
+overlay_note · implemented · implemented_note)와 graph/overlay-notes.yaml 이다 —
+Feedback · Inject 가 판정을 고치고 \`npm run master:graph\` 가 이 절을 다시 만든다.
+경위는 feedback/<CycleId>.md 소유다. Cycle Agent 는 편집하지 않는다.`;
 
 export function renderOverlay(graph: MasterGraph, masterDir: string): { text: string; warnings: string[] } {
   const notes = parseYaml(readFileSync(join(masterDir, 'graph', 'overlay-notes.yaml'), 'utf8')) as OverlayNotes;
@@ -83,9 +72,7 @@ export function renderOverlay(graph: MasterGraph, masterDir: string): { text: st
   const listed = new Set<string>();
   const out: string[] = [];
 
-  out.push('# Capability Overlay');
-  out.push('');
-  out.push('<!-- 생성물 — 손으로 고치지 않는다. 원본: graph/*.yaml 노드 필드 + graph/overlay-notes.yaml · 재생성: npm run master:graph -->');
+  out.push('## Capability Overlay — Graph 를 세계와 겹쳐 본 상태');
   out.push('');
   out.push(notes.header.trimEnd());
   out.push('');
@@ -99,7 +86,7 @@ export function renderOverlay(graph: MasterGraph, masterDir: string): { text: st
 
   for (const sec of notes.sections) {
     out.push('');
-    out.push(`${sec.kind === 'possibility' || sec.kind === 'zones' ? '###' : '##'} ${sec.title}`);
+    out.push(`${sec.kind === 'possibility' || sec.kind === 'zones' ? '####' : '###'} ${sec.title}`);
     if (sec.intro) {
       out.push('');
       out.push(sec.intro.trimEnd());
@@ -130,11 +117,13 @@ export function renderOverlay(graph: MasterGraph, masterDir: string): { text: st
         out.push(`| ${r.label} | ${raw(n, 'implemented') || '?'} | ${raw(n, 'implemented_note') || '—'} |`);
       }
     } else if (sec.kind === 'possibility') {
-      out.push('| Possibility | 요구 중 없는 것 | 비고 |');
-      out.push('|---|---|---|');
+      out.push('| Possibility | 준비도 | 요구 중 없는 것 | 비고 |');
+      out.push('|---|---|---:|---|'.replace('---:', '---'));
       for (const r of rows(sec)) {
         const n = node(r.first, sec.title);
-        out.push(`| ${r.label} | ${raw(n, 'overlay_missing') || '—'} | ${raw(n, 'overlay_note') || '—'} |`);
+        const rd = graph.readiness.get(r.first);
+        const gauge = !rd ? '—' : rd.unspecified ? '요구 미기재' : `${rd.implemented}/${rd.total}`;
+        out.push(`| ${r.label} | ${gauge} | ${raw(n, 'overlay_missing') || '—'} | ${raw(n, 'overlay_note') || '—'} |`);
       }
     } else if (sec.kind === 'zones') {
       out.push('| 층 | demands | 지금 채워진 것 |');
@@ -158,7 +147,7 @@ export function renderOverlay(graph: MasterGraph, masterDir: string): { text: st
   }
 
   out.push('');
-  out.push('## 지금 세계에서 가장 큰 구멍');
+  out.push('### 지금 세계에서 가장 큰 구멍');
   out.push('');
   out.push(notes.holes.trimEnd());
   out.push('');

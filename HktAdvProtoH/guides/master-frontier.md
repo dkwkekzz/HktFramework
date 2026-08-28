@@ -8,7 +8,7 @@ NEED 가 판정한 Missing / Partial Capability 중 **한 Cycle 안에서 닫히
 
 ## Input
 
-- `master/overlay.md`
+- `graph/*.yaml` 의 `overlay*` · `implemented*` 필드 (관찰: `graph/GRAPH.md` 의 Capability Overlay 절)
 - `master/graph/possibilities.yaml` · `capabilities.yaml`
 - `master/constraints/` — Active Constraint (Filter)
 - `master/frontier/` — 트랙 인덱스(README.md)와 대상 트랙 파일의 기존 후보
@@ -34,7 +34,7 @@ SELECTED 는 트랙별              "지금 도는 것"이 트랙마다 하나�
 
 ## Do
 
-1. `overlay.md` 의 MISSING / PARTIAL 항목에서 시작한다.
+1. 노드의 `overlay` MISSING / PARTIAL 에서 시작한다 (GRAPH.md 의 Capability Overlay 절).
 2. 각 후보를 **플레이 결과 한 문장**으로 쓴다 — 기능 이름이 아니다.
 
 ```text

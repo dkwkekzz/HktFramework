@@ -9,7 +9,7 @@ Cycle 은 **보고**까지 하고, 반영은 이 작업이 한다.
 
 ## Where — 병합 뒤, 최신 main 위에서
 
-이 작업은 공유 파일(`overlay.md` · `graph/capabilities.yaml`)을 고치므로 실행 위치가
+이 작업은 공유 파일(`graph/*.yaml`)을 고치므로 실행 위치가
 정해져 있다. 트랙 브랜치 위에서 돌리면 병렬 갈래의 Feedback 끼리 병합이 사실을 고르는
 일이 된다 (HISTORY — 한쪽 Overlay 통째 누락 사고).
 
@@ -26,7 +26,7 @@ MASTER FEEDBACK 이 무엇인가를 기계적으로 검사한다 (`--pending` �
 ## Input
 
 - `cycles/<CycleId>/08-verification.md` 의 `MASTER FEEDBACK`
-- `master/overlay.md` · `graph/capabilities.yaml`
+- `graph/capabilities.yaml` 의 overlay 필드 (관찰: `graph/GRAPH.md` 의 Capability Overlay 절)
 - `master/frontier/<트랙>.md` — 그 Cycle 이 속한 트랙 파일 (트랙은 Cycle ID 가 말한다)
 - `master/constraints/` · `master/candidates/`
 
@@ -36,7 +36,9 @@ MASTER FEEDBACK 이 무엇인가를 기계적으로 검사한다 (`--pending` �
    `capabilities.yaml` 의 `overlay` · `overlay_evidence` · `overlay_gap`, 경로 요약이
    바뀌면 `possibilities.yaml` 의 `overlay_missing` · `overlay_note`, 세계 표가 바뀌면
    해당 노드의 `implemented` · `implemented_note`. 그리고 `npm run master:graph` 로
-   `overlay.md` 를 재생성해 같은 커밋에 넣는다 — **overlay.md 는 생성물이다.**
+   `GRAPH.md`(Overlay 절 포함)를 재생성해 같은 커밋에 넣는다 — **생성물이다.**
+   판정 기준은 SCHEMA "모든 Node 공통" — 코드가 존재한다는 것만으로 IMPLEMENTED
+   판정하지 않는다 (플레이로 닫혔는가가 기준이다).
    근거는 그 Cycle 의 `08-verification.md` 다. 실측 없이 승격하지 않는다.
 
 ```text
@@ -70,7 +72,7 @@ MC-PERFECT-GUARD   overlay: MISSING → IMPLEMENTED   overlay_evidence: C010 08-
 
 - `master/feedback/<CycleId>.md` (신규 — 이번 반영의 경위 전부)
 - `master/graph/capabilities.yaml` 등 노드의 `overlay*` · `implemented*` ·
-  `constraint_evaluation` (갱신) → 재생성된 `master/overlay.md` (같은 커밋)
+  `constraint_evaluation` (갱신) → 재생성된 `graph/GRAPH.md` (같은 커밋)
 - `master/frontier/<트랙>.md` (닫힌 후보 제거 · 새 후보 반영)
 - `master/candidates/CC-*.md` (있으면 신규)
 
@@ -81,7 +83,7 @@ MC-PERFECT-GUARD   overlay: MISSING → IMPLEMENTED   overlay_evidence: C010 08-
   이미 채워진 Capability 를 결손으로 표시하고, 그 상태의 Frontier 는 "다음에 할 것이 없다"
   로 읽힌다 (C011·C012 에서 실제로 일어났다).
 - 병합 뒤 최신 main 위에서 돌린다 (위 Where).
-- 살아 있는 문서(`overlay.md` · `frontier/` · `open-questions.md`)에 닫힌 것을 쌓지 않는다.
+- 살아 있는 문서(`frontier/` · `open-questions.md` · overlay-notes)에 닫힌 것을 쌓지 않는다.
 - Frontier 후보의 키는 FR-ID 다 — 위치 번호를 매기지 않고, 후보가 줄어도
   남은 후보를 다시 매기지 않는다.
 - Candidate 는 `PENDING` 으로 둔다.
@@ -89,7 +91,7 @@ MC-PERFECT-GUARD   overlay: MISSING → IMPLEMENTED   overlay_evidence: C010 08-
 ## Must Not
 
 - graph 노드에 근거·정정 경위·날짜 주석을 쌓지 않는다 — 노드에는 **값만** 둔다.
-  근거는 `overlay.md`, 경위는 `feedback/<CycleId>.md` 소유다 (SCHEMA · CLAUDE.md 원칙 20).
+  근거는 노드의 `overlay_evidence`(주소만), 경위는 `feedback/<CycleId>.md` 소유다 (SCHEMA · CLAUDE.md 원칙 20).
 - 자기 Cycle 의 트랙 밖 `frontier/` 파일을 수정하지 않는다.
 - `feedback/` 의 기존 파일을 수정하지 않는다 — 보관소다.
 - Cycle Artifact 를 수정하지 않는다 — History 다.

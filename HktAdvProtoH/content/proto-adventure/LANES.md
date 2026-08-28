@@ -31,7 +31,7 @@ Feedback · BACKLOG)를 겹쳐 `LANES.html` 로 그린다. `npm run lanes:check`
 
 | 레인 | 상태 | 지금 | 기다리는 것 |
 |---|---|---|---|
-| FEEDBACK | OPEN | 미처리 **0건** — `C-COMBAT-003` · `C-COMBAT-004` 처리 완료 (MC-ABILITY-CONDITION · MC-AURA-ALLOCATION · MC-MARK → IMPLEMENTED · 후보 신규 둘 · WHO-DRIVES 일곱째 — feedback/ 두 파일). `npm run feedback:gate` | 없음 — 다만 **병합 뒤 최신 main 위에서** 돈다 (`overlay.md` 는 공유 파일이다) |
+| FEEDBACK | OPEN | 미처리 **0건** — `C-COMBAT-003` · `C-COMBAT-004` 처리 완료 (MC-ABILITY-CONDITION · MC-AURA-ALLOCATION · MC-MARK → IMPLEMENTED · 후보 신규 둘 · WHO-DRIVES 일곱째 — feedback/ 두 파일). `npm run feedback:gate` | 없음 — 다만 **병합 뒤 최신 main 위에서** 돈다 (`graph/*.yaml` 은 공유 파일이다) |
 | WORLD·ITEM | HUMAN | 후보 5 중 선택 대기 — Agent 추천 FR-THE-PLACES-ARE-NARROWER (+FR-SEE-BEFORE 얹기) | Human Select (frontier/item.md) |
 | WORLD·COMBAT | HUMAN | 후보 넷 중 선택 대기 — **SELECTED 가 비었다.** 사슬 B 아래 두 칸 반영 끝 (조건 관문 · 표식 → Overlay IMPLEMENTED). 의존이 빈 것은 둘 — `FR-A-PROMISE-BINDS-BOTH`(크다 — `MP-BIND-BY-CONTRACT` 가 닫힌다) · `FR-TAKE-WHAT-MAKES-THEM-STRONG`(가장 싸다). 고르기 전에 볼 것 둘이 frontier "한눈에 보기" 아래 있다 — 키 자리 바닥 · 자율 존재 미개방(습성 문서 대기). `C-COMBAT-001` 은 여전히 Human Play 대기 (`U` → `2`) | Human Select (frontier/combat.md) |
 | WORLD·TERRAIN | HUMAN | 다음 후보 선택 대기 — `C-TERRAIN-003-the-world-is-born-of-its-law` **COMPLETE** (Gate 14 는 Human 이 자동 증거를 받아들여 닫혔다 — 08 STATUS). 세계가 씨앗에서 태어난다 — 손배치 상수가 사라졌고 태어난 자리 위에서 순환이 변경 없이 돈다. MASTER FEEDBACK 반영 끝 — 세계 표 둘이 PARTIAL 로 섰다. 남은 후보는 다섯 (예고 `FR-THE-LAND-SHOWS-BEFORE-IT-TAKES` — 08 이 그대로 재추천 · 나르기 · Q71(b) 확장 둘 — `FR-LOSING-IS-A-PROCESS` 는 `MG-RESCUE-THE-TAKEN` 을 통째로 연다) | Human Select (frontier/terrain.md) |

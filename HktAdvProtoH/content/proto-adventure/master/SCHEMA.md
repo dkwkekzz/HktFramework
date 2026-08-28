@@ -141,7 +141,7 @@ Cycle 은 이 칸을 만족시켰는지로 08-verification 을 쓰고, 그 결�
 `implemented:` 는 그 `world_shape` 가 지금 `world/` `view/` 에 있는가다.
 
 ```text
-PRESENT | PARTIAL | ABSENT       근거는 overlay.md 가 소유한다 (여기에는 값만)
+PRESENT | PARTIAL | ABSENT       노드에는 값만 — 근거·부족은 *_evidence · *_note · *_gap 필드
 ```
 
 Capability 의 기존 `overlay:` 필드가 같은 역할을 한다 — Capability 는 `overlay:` 를
@@ -157,7 +157,7 @@ Capability 의 기존 `overlay:` 필드가 같은 역할을 한다 — Capabilit
   source: BW §12              # 의미의 주소 — 전문은 기획서 소유
   world_shape: >
     <이 상태가 세계에 있다는 것을 무엇으로 확인하는가>
-  implemented: ABSENT         # PRESENT | PARTIAL | ABSENT — 근거는 overlay.md
+  implemented: ABSENT         # PRESENT | PARTIAL | ABSENT — 근거는 implemented_note
   arises_from: [MW-...]       # 이 상태를 낳은 상위 세계 상태 (World → World 인과)
   causes: [MG-...]            # 이 상태가 발생시키는 Goal
   changed_by: [MP-...]        # 이 상태를 바꾸는 Possibility
@@ -341,7 +341,7 @@ status: DRAFT/PLANNED 시스템은 "문서를 기다리는 전체" 를 그래프
 그 시스템에 결손의 반쪽을 맡긴 노드는 grounded: false 로 남는다.
 
 `overlay:` / `implemented:` 에는 **값만** 둔다 — 근거·정정 경위·날짜를 노드 주석으로
-쌓지 않는다. 근거는 `overlay.md`, 경위는 `HISTORY.md` 소유다 (CLAUDE.md 원칙 20).
+쌓지 않는다. 근거는 노드의 evidence 필드(주소), 경위는 `HISTORY.md` 소유다 (CLAUDE.md 원칙 20).
 
 `required_by` 와 `demanded_by` 가 **둘 다 비면** 그 Capability 는 노드가 아니다 —
 아무도 요구하지 않는 능력은 세계가 필요로 하지 않는 것이다. 어느 쪽이든 하나는
@@ -553,7 +553,7 @@ constraint_evaluation:
 | MC-... | 없음 | ... | ... |
 ```
 
-기존 `overlay.md`(그 의미가 세계에 **구현되어 있는가**)와 축이 다르다 —
+기존 Overlay 판정(그 의미가 세계에 **구현되어 있는가**)과 축이 다르다 —
 여기는 그 Capability 를 세계 안에서 **얻는 경로가 존재하는가**다 (GR §22.1 · §39).
 Growth 는 별도 Master Stage 가 아니다 — NEED 에서 발견된 Capability 위의 Overlay 다.
 
@@ -566,7 +566,7 @@ Growth 는 별도 Master Stage 가 아니다 — NEED 에서 발견된 Capabilit
 세 자리가 축이 다르다 — 헷갈리면 안 된다.
 
 ```text
-overlay.md          그 의미가 세계에 구현되어 있는가          있는가 / 없는가
+Overlay(노드 필드)   그 의미가 세계에 구현되어 있는가          있는가 / 없는가
 growth-graph.md     그것을 세계 안에서 얻는 경로가 있는가      가질 수 있는가 / 없는가
 growth/balance/     그 값이 치른 것과 맞는가                  값이 맞는가 / 어긋나는가
 ```
@@ -631,23 +631,31 @@ Runtime Instance 의 관계이며 Master 에 오지 않는다 (GR §38).
 
 ---
 
-## overlay.md — 생성물
+## Overlay 판정 — 노드 필드 (생성물: GRAPH.md 의 Capability Overlay 절)
 
-`overlay.md` 는 GRAPH.md 처럼 **생성물이다. 손으로 고치지 않는다** —
-`npm run master:graph` 가 아래 원본에서 만든다.
+Overlay 는 Graph 를 현재 세계와 겹쳐 본 판정이다. **단계가 아니라 절차다** —
+Feedback(실측 반영)과 Inject(초기 판정)가 노드 필드를 고치고, `npm run master:graph`
+가 GRAPH.md 의 Capability Overlay 절로 렌더한다. 손으로 고치는 문서는 없다.
 
 ```text
+판정 기준
+  IMPLEMENTED   그 의미를 닫은 Cycle 이 있고 08-verification 이 실측으로 통과했다
+  PARTIAL       일부만 닫혔거나 요구하는 형태에 못 미친다 — overlay_gap 을 반드시 채운다
+  MISSING       세계에 그 의미가 없다
+  코드가 존재한다는 이유만으로 IMPLEMENTED 판정하지 않는다 — 플레이로 닫혔는가가 기준이다.
+  Constraint Violation 과 혼동하지 않는다 — 있는가/없는가이지 허용되는가가 아니다.
+
 표의 값 (노드 필드가 소유)
   capabilities.yaml     overlay: IMPLEMENTED | PARTIAL | MISSING
-                        overlay_evidence: >-   근거 — Cycle ID 또는 코드 실측. 주장만 적지 않는다
+                        overlay_evidence: >-   근거 주소 — Cycle ID 또는 코드 실측. 재서술 금지
                         overlay_gap: >-        부족한 것 — PARTIAL/MISSING 이면 반드시 채운다
   possibilities.yaml    overlay_missing: >-    이 경로의 요구 중 없는 것
-                        overlay_note: >-       비고 — 경로가 지금 어디까지 닫혔는가
+                        overlay_note: >-       비고 — 경로가 지금 어디까지 닫혔는가 (2~3줄)
   world-state/actors/   implemented: PRESENT | PARTIAL | ABSENT
   knowledge.yaml        implemented_note: >-   지금 세계에 있는 것 / 없는 것
 
 편집 산문 (graph/overlay-notes.yaml 이 소유)
-  header · 섹션 구성(제목·intro·행 순서·묶인 행) · 가장 큰 구멍 절
+  header · 섹션 구성(제목·intro 2~4줄·행 순서·묶인 행) · 가장 큰 구멍 절
   "층이 요구하는 것" 표는 어디에도 적지 않는다 — demands × overlay 에서 계산된다
 ```
 

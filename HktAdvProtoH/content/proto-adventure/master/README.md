@@ -5,9 +5,9 @@
 > 전투 기본 규칙(OffenseDefense) 트랙을 마무리하는 것이 먼저다. 그 전에는 이 디렉터리를
 > **새 영역으로** 넓히는 작업(다른 주제의 WHY/OPTIONS/NEED Graph 확장 · Constraint 신설)을
 > 시작하지 않는다. 닫힌 Cycle 을 반영하는 Feedback 은 그 제한에 걸리지 않는다 — 그것을 미루면
-> `frontier/` 와 `overlay.md` 가 현재 세계와 어긋나 다음 선택을 흐린다.
+> `frontier/` 와 Overlay 판정이 현재 세계와 어긋나 다음 선택을 흐린다.
 >
-> Human 이 직접 세운 것은 `constraints/` 뿐이다. `graph/` `overlay.md` `frontier/` 는
+> Human 이 직접 세운 것은 `constraints/` 뿐이다. `graph/` `frontier/` 는
 > R1 개정 때 설계 문서의 의미를 옮겨 둔 것이며 Master 를 처음부터 세운 결과가 아니다.
 >
 > **2026-08-18 — 이 지시 아래에서 Graph 확장을 한 번 실행했다.** OffenseDefense 트랙 자신의
@@ -46,7 +46,7 @@ Human 이 여는 파일은 결정 지점 셋뿐이다.
 | 열린 질문 답변 | `open-questions.md` 의 `DECISION` |
 | Constraint 승격 승인 | `candidates/README.md` (인덱스) → 해당 `CC-*.md` |
 
-나머지(`graph/` · `overlay.md` · `GRAPH.md`)는 Agent 와 도구의 것이다. 눈으로 훑고
+나머지(`graph/` · `GRAPH.md`)는 Agent 와 도구의 것이다. 눈으로 훑고
 싶으면 아래 "관찰"의 뷰어를 연다 — 원문 YAML 을 읽지 않는다.
 
 ## 현재 상태
@@ -103,8 +103,8 @@ Open Question     수와 내용은 open-questions.md 가 소유한다. 다음 Cy
 ```
 
 무엇이 언제 왜 바뀌었는지는 Cycle 반영이면 `feedback/<CycleId>.md`, Master 층 자체의
-결정이면 `HISTORY.md` 가 소유한다. 살아 있는 문서(`overlay.md` · `frontier/` ·
-`open-questions.md` · `constraints/README.md`)에는 **지금 할 일과 현재 상태만** 남긴다 —
+결정이면 `HISTORY.md` 가 소유한다. 살아 있는 문서(`frontier/` ·
+`open-questions.md` · `constraints/README.md` · overlay-notes)에는 **지금 할 일과 현재 상태만** 남긴다 —
 닫힌 것은 그 자리에서 지우고 보관소로 옮긴다.
 
 닫힌 Possibility 4종 — MP-TRADE-BODY-FOR-RESOURCE(C011) · MP-MATCH-WEAPON-TO-ARMOR(C012) ·
@@ -141,13 +141,12 @@ master/     현재 상태    world/ view/ 처럼 계속 갱신된다
 | [root.md](root.md) | Root Game Goal · World Premise | **Human** |
 | [constraints/](constraints/) | `DC-*.yaml` — 승인된 Design Constraint | **Human** 승인 |
 | [graph/](graph/) | MW · MA · MK · MB · MG · MP · MC · edges | Master Design Agent |
-| [overlay.md](overlay.md) | Capability × 현재 구현 상태 — **생성물, 손으로 고치지 않는다** (원본: graph/ 노드 필드 + overlay-notes.yaml) | `npm run master:graph` |
 | [frontier/](frontier/) | 트랙별 `FR-*` 후보 + Human 선택 — 트랙 목록·병렬 규칙은 [frontier/README.md](frontier/README.md) | Agent 제안 / **Human** 선택 |
 | [candidates/](candidates/) | `CC-*.md` — 미승인 Constraint Candidate | Agent 제안 / **Human** 승인 |
 | [open-questions.md](open-questions.md) | 승인 대기 · Constraint 충돌 · 설계 공백 · Trade-off | Agent 제기 / **Human** 결정 |
 | [feedback/](feedback/) | Cycle 반영 경위 — 한 Cycle = 한 파일, 평소에 읽지 않는다 | Master Feedback 작업 |
 | [HISTORY.md](HISTORY.md) | Master 층 자체의 닫힌 것 보관소 — 평소에 읽지 않는다 | Master Design Agent |
-| [graph/GRAPH.md](graph/GRAPH.md) | Graph 스냅샷 (Mermaid · 표) — **생성물, 손으로 고치지 않는다** | `npm run master:graph` |
+| [graph/GRAPH.md](graph/GRAPH.md) | Graph 스냅샷 + Capability Overlay — **생성물, 손으로 고치지 않는다** (원본: graph/ 노드 필드 + overlay-notes.yaml) | `npm run master:graph` |
 
 위 문서들은 **지금 할 일과 현재 상태만** 담는다. 닫힌 항목은 그 자리에서 지우고
 보관소(Cycle 반영은 `feedback/<CycleId>.md` · Master 층 결정은 `HISTORY.md`)로 옮긴다 —
@@ -158,16 +157,15 @@ master/     현재 상태    world/ view/ 처럼 계속 갱신된다
 Graph 를 눈으로 보려면 프로젝트 루트에서 다음을 실행한다. 원본은 아무것도 바뀌지 않는다.
 
 ```text
-npm run master:graph         GRAPH.md · overlay.md · 뷰어 둘(그래프 · 개념 지도)을 다시 만든다
-npm run master:graph:check   정합성 + GRAPH.md·overlay.md 최신 여부만 확인한다 (아무것도 쓰지 않는다)
+npm run master:graph         GRAPH.md(Overlay 절 포함) · 뷰어 둘(그래프 · 개념 지도)을 다시 만든다
+npm run master:graph:check   정합성 + GRAPH.md 최신 여부만 확인한다 (아무것도 쓰지 않는다)
 ```
 
-여섯 산출물이 나온다. HTML 넷은 커밋하지 않는다 (`.gitignore`).
+다섯 산출물이 나온다. HTML 넷은 커밋하지 않는다 (`.gitignore`).
 
 | 파일 | 보는 곳 |
 |---|---|
-| `graph/GRAPH.md` | GitHub · 에디터 — Mermaid 와 표. **커밋한다** |
-| `overlay.md` | Capability × 구현 상태 — 노드 필드에서 생성. **커밋한다** |
+| `graph/GRAPH.md` | GitHub · 에디터 — 트리·표·척추 그림 + Capability Overlay. **커밋한다** |
 | `graph/graph-view.html` | 브라우저 — 인터랙티브 뷰어 (서버 없이 `file://` 로 열린다) |
 | `graph/graph-view.artifact.html` | Artifact 게시용 — 아래 고정 링크 ①에 덮어쓸 때 이 파일을 올린다 |
 | `graph/concept-map.html` | 브라우저 — 개념 지도 |
@@ -226,7 +224,7 @@ Artifact 도구에 file_path = 위 표의 .artifact.html
 
 ```text
 아래로   frontier/<트랙>.md 의 선택된 FR-*   →  cycles/<CycleId>/01-cycle.md 의 MASTER TRACE
-위로     08-verification.md 의 MASTER FEEDBACK  →  overlay.md · frontier/<트랙>.md 갱신 ·
+위로     08-verification.md 의 MASTER FEEDBACK  →  노드 overlay 필드 · frontier/<트랙>.md 갱신 ·
          feedback/<CycleId>.md 기록 · candidates/ 제출
 ```
 

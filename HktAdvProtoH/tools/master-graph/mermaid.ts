@@ -166,29 +166,7 @@ export function renderMermaid(graph: MasterGraph): string {
     }
   }
 
-  // ── 2. Goal 별 갈래와 준비도 ────────────────────────────────────────
-  out('## 갈래별 준비도 — 어느 경로가 세계에 가장 가까운가');
-  out();
-  out('요구 Capability 중 이미 세계에 있는 것의 비율. `IMPLEMENTED` 1.0 · `PARTIAL` 0.5 로 센다.');
-  out();
-  out('| Possibility | 달성 Goal | 준비도 | 아직 없는 요구 |');
-  out('|---|---|---:|---|');
-  const ranked = [...graph.readiness.entries()].sort((a, b) => {
-    if (a[1].unspecified !== b[1].unspecified) return a[1].unspecified ? 1 : -1;
-    return b[1].score - a[1].score;
-  });
-  for (const [id, r] of ranked) {
-    const node = graph.nodes.get(id)!;
-    const goals = ((node.raw.achieves as string[]) ?? []).map(short).join(' · ') || '—';
-    // 5칸은 전부 갖췄을 때만 채운다 — 4/5 와 2/2 가 같은 모양이면 게이지가 거짓말을 한다
-    const filled = r.score === 1 ? 5 : Math.min(4, Math.round(r.score * 5));
-    const gauge = r.unspecified
-      ? '요구 미기재'
-      : `${'●'.repeat(filled)}${'○'.repeat(5 - filled)} ${r.implemented}/${r.total}`;
-    const blockers = r.blockers.map(short).join(' · ') || '없음';
-    out(`| \`${short(id)}\` | ${goals} | ${gauge} | ${blockers} |`);
-  }
-  out();
+  // ── 2. 갈래별 상태는 Capability Overlay 절의 Possibility 표가 담는다 (overlay.ts)
 
   // ── 3. 요구 그물은 그리지 않는다 — 준비도 표(위)가 같은 사실을 담고,
   //       그림이 필요하면 뷰어가 맡는다.

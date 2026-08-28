@@ -1,4 +1,4 @@
-# Overlay 편집 산문 — overlay.md 는 생성물이고, 이 파일이 그 편집적 부분(섹션 구성·산문)을 소유한다.
+# Overlay 편집 산문 — GRAPH.md 의 Capability Overlay 절은 생성물이고, 이 파일이 그 편집적 부분(섹션 구성·산문)을 소유한다.
 # 표의 값(상태·근거·부족한 것)은 각 노드의 overlay*/implemented* 필드가 소유한다 — 여기 적지 않는다.
 # intro 는 현재 상태 2~4줄이다 — Cycle 별 경위·승격 이야기를 쌓지 않는다 (그것은
 # feedback/<CycleId>.md · HISTORY.md 소유다). 재생성: npm run master:graph

@@ -24,7 +24,7 @@ Human 이 범위를 한정하면(예: "Constraint 만 추출") **그 범위만**
 ## Input
 
 - 대상 기반 기획 문서 (Human 지정 — 신규 또는 개정)
-- `master/constraints/` · `master/graph/` · `master/overlay.md` — 기존 상태 (중복·충돌 대조용)
+- `master/constraints/` · `master/graph/` — 기존 상태 (중복·충돌 대조용 · 관찰: GRAPH.md)
 - `master/root.md`
 
 ## Do
@@ -38,8 +38,9 @@ Human 이 범위를 한정하면(예: "Constraint 만 추출") **그 범위만**
      그 층은 Overlay 에도 Frontier 에도 나타나지 못한다.
    - WHY / OPTIONS / NEED Guide 의 MUST / MUST NOT 은 동일하게 적용된다.
      단, "폭으로 탐색"은 하지 않는다 — 문서에 있는 의미만 옮긴다.
-3. **Overlay 정합** — 주입·변경된 Capability 를 현재 세계와 겹쳐 판정한다
-   (`master-overlay.md` 의 절차와 판정 기준).
+3. **Overlay 정합** — 주입·변경된 Capability 를 현재 세계와 겹쳐 판정해 노드의
+   `overlay*` · `implemented*` 필드에 쓴다 (기준: SCHEMA "모든 Node 공통" — 코드
+   존재만으로 IMPLEMENTED 판정 금지) · `npm run master:graph` 재생성을 같은 커밋에.
 4. **기존 노드와의 충돌** — 문서 개정이 기존 노드·DC 의미와 어긋나면 임의로 고치지 않고
    Conflict · Affected Nodes · Trade-off 로 `open-questions.md` 에 노출한다.
    (예: R1 개정이 기존 DC 5종의 근거를 바꿔 Q10 이 열렸다.)
@@ -50,7 +51,7 @@ Human 이 범위를 한정하면(예: "Constraint 만 추출") **그 범위만**
 
 - `master/constraints/DC-*.yaml` (DRAFT — Human 승인 대기)
 - `master/graph/*.yaml` (문서 § provenance 포함)
-- `master/overlay.md` (갱신)
+- `graph/GRAPH.md` (재생성 — Overlay 절 포함)
 - `master/open-questions.md` (충돌·공백)
 
 형식은 `master/SCHEMA.md` 가 단일 출처다.

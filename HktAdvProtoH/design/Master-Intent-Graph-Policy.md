@@ -496,7 +496,9 @@ Active Constraint 에 명백히 어긋나는 후보는 제거한다.
 
 각 유효한 Possibility 가 실제로 요구하는 Requirement 를 찾는다.
 재사용 가능한 플레이 의미는 Capability 로 만든다.
-Existing World Overlay 를 확인한다.
+Existing World Overlay 는 노드 필드(`overlay*` · `implemented*`)의 현재 값으로 확인한다 —
+새 판정과 갱신은 단계가 아니라 **Feedback(실측 반영) · Inject(초기 판정)의 절차**다.
+관찰은 GRAPH.md 의 Capability Overlay 절이 렌더한다.
 
 ### Step 4 — NEXT
 
@@ -921,7 +923,6 @@ HktAdvProtoH/
 │
 ├── guides/
 │   ├── master-graph.md
-│   ├── master-overlay.md
 │   ├── master-frontier.md
 │   ├── master-feedback.md
 │   └── cycle-definition.md ~ verification.md
@@ -934,7 +935,6 @@ HktAdvProtoH/
     │   ├── root.md
     │   ├── constraints/
     │   ├── graph/
-    │   ├── overlay.md
     │   ├── frontier/          # 트랙(도메인)별 후보 파일 + README 인덱스
     │   ├── feedback/          # Cycle 반영 경위 — 한 Cycle = 한 파일
     │   └── candidates/
