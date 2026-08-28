@@ -19,6 +19,7 @@ MB-*    Master Belief           CC-*    Constraint Candidate
 
 CL-*    Class Definition        IT-*    Item Type          (growth/ — GR §37)
 IP-*    Item Property           IM-*    Item Modifier
+CK-*    Combat Knowledge Definition                        (growth/knowledge/ — CK · HISTORY Q72)
 GBC-*   Growth Balance Contract                            (growth/balance/ — GB §31)
 ```
 
@@ -374,6 +375,8 @@ growth/
 │   ├── types/        IT-*.yaml
 │   ├── properties/   IP-*.yaml
 │   └── modifiers/    IM-*.yaml
+├── knowledge/        CK-*.yaml   (파일 하나 = 전투법 하나)
+├── balance/          GBC-*.yaml  (파일 하나 = 성장 하나)
 └── growth-graph.md   Growth Overlay — Capability 획득 경로 판정
 ```
 
@@ -493,6 +496,50 @@ Loot 를 보장하지 않는다 (BW §12).
 BW §11 · §34 가 금지하는 바로 그 방향이다 (DC-WORLD-RESOURCE-ADAPTATION-TRACE).
 
 구체 수치(공격력 +13 등)는 Cycle / World Rule 이 소유한다 (GR §28.2 · §39 — 정책 §7.2 와 동일).
+
+### growth/knowledge/CK-*.yaml — 전투법 정의
+
+전투법(Combat Knowledge — CK = `content/proto-adventure/design/Design-Combat-Knowledge-Extension-R0.md`)의
+**Definition** 이다. 전투법은 앎이 아니라 획득·보유·장착·깊이·전수의 형태를 가진 정의라서
+아이템 정의와 같은 자리(growth/)에 산다 (HISTORY Q72). 경계는 CK §4 · §5 다 —
+
+```text
+MK-*  (graph/knowledge.yaml)   사실 — 누가 아는가 · 무엇과 어긋나는가 · 무엇이 드러내는가
+CK-*  (growth/knowledge/)      전투법 — 그 사실을 운용으로 바꾼 완성된 판단법의 정의
+```
+
+디렉터리는 첫 노드가 생길 때 만든다 (GR §40 과 같다). 개별 전투법을 그래프 노드로
+복제하지 않는다 — graph 에는 전투법 층을 여는 Capability(MC-LEARN/CARRY/CONDUCT/…)만 있다.
+
+```yaml
+id: CK-<NAME>
+type: combat_knowledge
+
+semantic: >
+  이 전투법이 어떤 완성된 판단법인가 — 내부 규칙이 아니라 의미로 적는다 (CK §2 · §30)
+detail: >
+  <풀어서 — 이것을 지닌 몸과 지니지 않은 몸이 같은 상황에서 무엇이 갈리는가>
+world_shape: >
+  <이 전투법이 세계에 있다는 것을 무엇으로 확인하는가 —
+   지녔을 때 행동이 어떻게 달라지고, 그 판단이 무엇으로 읽히는가>
+
+kind: RESPONSE | AURA | ENEMY | ABILITY    # CK §7 의 네 계열
+
+required_knowledge: [MK-...]  # 이 전투법이 전제하는 사실 (CK §6) — 없으면 []
+acquired_from: >              # 세계 안의 획득 원인 (CK §8 — DC-KNOWLEDGE-HAS-A-WORLD-CAUSE).
+                              # 비면 그 전투법은 메뉴의 Perk 다 — 만들지 않는다
+conducts: [MC-...]            # 이 판단법이 운용하는 **기존** Capability —
+                              # 없는 Capability 를 만들어내지 않는다 (CK §12 ·
+                              # DC-KNOWLEDGE-RUNS-CAPABILITY-NEVER-CREATES-IT)
+
+constraints: [DC-...]
+constraint_evaluation:
+  DC-...: UNRESOLVED
+```
+
+여기에 두지 않는 것 — 내부 판단 규칙·우선순위 값·상황 판정 조건·깊이 문턱 수치.
+그것은 이 층을 세우는 Cycle 의 `03-world-semantic.md` 소유다 (정책 §7.2).
+깊이 단계(CK §18)가 갈리면 단계마다 **무엇을 새로 헤아리는지**까지만 `detail` 이 적는다.
 
 ### growth/growth-graph.md — Growth Overlay
 

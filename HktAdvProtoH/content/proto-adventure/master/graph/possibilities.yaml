@@ -1280,7 +1280,7 @@ nodes:
       capabilities: [MC-OBSERVE-ABILITY, MC-LEARN-COMBAT-KNOWLEDGE, MC-CONDUCT-BY-KNOWLEDGE,
                      MC-DEEPEN-COMBAT-KNOWLEDGE, MC-TEACH-COMBAT-KNOWLEDGE,
                      MC-EXPLAIN-COMBAT-DECISION]
-      knowledge: [MK-OPPONENT-ABILITY-RULE, MK-HOW-TO-FIGHT-IT]
+      knowledge: [MK-OPPONENT-ABILITY-RULE]   # 전투법 자체는 앎이 아니라 정의(growth/knowledge/ 의 CK-*)다 — 그 몫은 위 능력 여섯이 진다
       world_state: []
       relationship: []
       resource: []
@@ -1289,7 +1289,7 @@ nodes:
     changes:
       - 그 상대를 상대하는 법이 몸에 남아 다음 판에도 선다
       - 진 판이 관찰로 남아 다음 지식의 재료가 된다
-    reveals: [MK-OPPONENT-ABILITY-RULE, MK-HOW-TO-FIGHT-IT]
+    reveals: [MK-OPPONENT-ABILITY-RULE]   # 드러나는 것은 사실까지다 — 전투법은 드러나는 것이 아니라 그 위에서 획득된다 (CK §9)
     creates_goal: []
     constraints: [DC-KNOWLEDGE-HAS-A-WORLD-CAUSE, DC-MASTERY-IS-KNOWING-NOT-REFLEX,
                   DC-KNOWLEDGE-RUNS-CAPABILITY-NEVER-CREATES-IT, DC-KNOWLEDGE-HAS-NO-SINGLE-ANSWER]
@@ -1330,7 +1330,7 @@ nodes:
     requires:
       goals: []
       capabilities: [MC-CARRY-COMBAT-KNOWLEDGE, MC-CONDUCT-BY-KNOWLEDGE, MC-COMBINE-KNOWLEDGE]
-      knowledge: [MK-HOW-TO-FIGHT-IT, MK-LOCAL-WORLDSTATE]
+      knowledge: [MK-LOCAL-WORLDSTATE]   # 고를 전투법은 앎이 아니라 정의(CK-*)와 그것을 담는 능력(MC-CARRY-COMBAT-KNOWLEDGE)이 진다
       world_state: []
       relationship: []
       resource: []
