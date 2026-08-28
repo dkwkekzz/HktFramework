@@ -545,7 +545,7 @@ nodes:
     type: capability
     semantic: 지금 자신의 힘을 몸 · 능력 · 인지 중 어디에 몰아 두었는가가 상태로 존재하고, 그 선택이 수치뿐 아니라 지금 무엇을 할 수 있는가 자체를 가른다. 전투
       중에는 미리 만들어 둔 배분 하나를 고르는 것으로만 바꾼다.
-    source: UL §13 · §14 · §15 · §42 · UL §13 · UL §15 · UL §14 · UL §40 · FC §2 ·
+    source: UL §13 · §14 · §15 · §40 · §42 · FC §2
     world_shape: 힘을 어디에 몰아 두었는지가 이름 붙은 상태로 존재하고, 전투 중 그 상태를 바꾸는 입력이 하나이며, 어느 상태냐에 따라 쓸 수 있는 것의 목록이 실제로
       달라지고, 지금 어느 상태인지가 자신에게도 상대에게도 보여야 한다.
     part_of:
@@ -577,14 +577,12 @@ nodes:
       DC-COMBAT-PLAYER-CAUSALITY: SATISFIED
       DC-COMBAT-ONE-LAYER-AT-A-TIME: SATISFIED
       DC-WORLD-OWNS-THE-SURFACE-LIST: SATISFIED
-    overlay: PARTIAL
-    overlay_evidence: C-COMBAT-001 08-verification
-    overlay_gap: 배분이 값만 바꾸고 무엇을 할 수 있는가의 목록을 바꾸지 않는다. semantic 의 절반(UL §15 — 인지를 일정 이상 몰아야 숨은 것이 보이는 식의
-      가능 여부 갈림)이 아직 없고, 조건 관문(FR-THE-WORLD-DECIDES-WHAT-IS-POSSIBLE)이 서야 닫힌다
+    overlay: IMPLEMENTED
+    overlay_evidence: C-COMBAT-001 · C-COMBAT-003 08-verification
   - id: MC-ABILITY-CONDITION
     type: capability
     semantic: 능력이 지금 가능한가가 세계의 상태로 갈린다 — 무엇이 참이어야 쓸 수 있고, 무엇이 참일 때 더 강해지는가. 못 쓸 때는 그 사유가 함께 보인다.
-    source: UL §18 · §19 · §33 · §42 · UL §18 · §19 · UL §33
+    source: UL §18 · §19 · §33 · §42
     world_shape: 능력마다 지금 가능한가가 세계 상태에서 계산되고, 불가능하면 그 사유가 하나 드러나며, 조건이 참인 동안에만 강화된 결과가 나와야 한다. 확률로 가능 여부가
       갈리면 이 노드가 아니다.
     part_of:
@@ -605,14 +603,12 @@ nodes:
       DC-COMBAT-PLAYER-CAUSALITY: SATISFIED
       DC-COMBAT-UNAVAILABLE-HAS-A-REASON: SATISFIED
       DC-CONDITION-OPENS-WITHOUT-RECORDING: SATISFIED
-    overlay: PARTIAL
-    overlay_evidence: 코드 실측 — view/skill-presentation.ts
-    overlay_gap: 그 사유의 원천이 전부 자기 조건이다 — 자원이 모자라거나 거리가 멀거나 장착하지 않았거나. 세계의 사실(상대가 나를 먼저 쳤는가 · 표식이 있는가)이
-      능력의 가능 여부를 여는 자리가 없다
+    overlay: IMPLEMENTED
+    overlay_evidence: C-COMBAT-003 · C-COMBAT-004 08-verification
   - id: MC-MARK
     type: capability
     semantic: 대상에게 표식을 남겨, 이후의 판정이 그 표식을 보고 달라지게 한다. 표식은 피해가 아니라 이후에 쓰일 자리를 만드는 조작이다.
-    source: UL §22 · UL §42 · UL §18 · UL §40 · §30
+    source: UL §18 · §22 · §30 · §40 · §42
     world_shape: 대상에 붙는 표식이 세계의 사실로 존재하고, 그것이 붙어 있다는 것이 양쪽 모두에게 보이며, 이후의 판정이 그 표식의 유무로 달라져야 한다.
     part_of:
       grounded: true
@@ -632,8 +628,8 @@ nodes:
       DC-COMBAT-ABILITY-IS-A-RULE: SATISFIED
       DC-COMBAT-UNAVAILABLE-HAS-A-REASON: SATISFIED
       DC-CONDITION-OPENS-WITHOUT-RECORDING: SATISFIED
-    overlay: MISSING
-    overlay_gap: 대상에 남는 표식이라는 개념이 없다. 존재 사이에 남는 것은 태도(C018)와 지목(C017)뿐이고, 둘 다 거는 쪽의 상태이지 걸린 쪽에 붙은 것이 아니다
+    overlay: IMPLEMENTED
+    overlay_evidence: C-COMBAT-004 08-verification
   - id: MC-BIND
     type: capability
     semantic: 두 존재 사이에 실체를 가진 관계를 만들어, 그 관계가 있는 동안 상대가 할 수 있는 일의 범위를 실제로 줄인다. 그 실체는 세계에 있으므로 부술 수 있다.

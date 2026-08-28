@@ -2,10 +2,13 @@
 
 파일 하나 = 후보 하나. 이름은 `CC-<NAME>.md`. 형식은 [../SCHEMA.md](../SCHEMA.md).
 
-현재: **PENDING 13종**
+현재: **PENDING 19종** — 수와 상태의 단일 출처는 파일이다 (표는 색인 · 뒤에 선
+후보 넷이 아직 무리 배정 전이다)
 
 | 후보 | 출처 | 관찰 | 상태 |
 |---|---|---|---|
+| CC-THE-LIST-IS-THE-JUDGE-TOO | C-COMBAT-003 | 2회 (C018 선례 · C-COMBAT-003 위반 실측) | PENDING |
+| CC-A-REASON-MUST-BE-TRUE | C-COMBAT-004 | 4회 판단 (C011 · C017 · C024 소급) · 위반 실측 1회 | PENDING |
 | CC-RESOURCE-GATE-IS-ALL-OR-NOTHING | C011 | 2회 (C007 · C011) | PENDING |
 | CC-THE-WORLD-NAMES-WHAT-IT-READ | C012 | 1회 (C012 · C010 은 전조) | PENDING |
 | CC-THE-WORLD-OWNS-THE-RELATION | C013 | 1회 (C013 — 관계 형태는 처음) | PENDING |

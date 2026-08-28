@@ -53,9 +53,9 @@ MS-ACTIVE-DEFENSE · MS-AURA-NEN 이 소유한다. 빈 칸을 막는 것은 형�
 | MC-PRECISION-RESPONSE | MISSING | — | 대응 자체가 없으므로 그 시점 축도 없다. 다만 C019 가 행동 안의 시점을 읽는 규칙을 세워 두어, 판정에 쓸 시각은 세계에 이미 있다 |
 | MC-OPPORTUNITY | MISSING | — | 기회라는 개념이 없고, 같은 자리의 행동이 상황에 따라 다른 것으로 바뀌는 규칙도 없다 |
 | MC-ABSORB | MISSING | — | 막힌 피해는 줄어들 뿐 어디에도 남지 않는다 (`world/semantic/combat.ts` — 막힌 타격이 남기는 비율만 있다). 받아낸 것이 값으로 저장되는 자리가 없다 |
-| MC-AURA-ALLOCATION | PARTIAL | C-COMBAT-001 08-verification | 배분이 값만 바꾸고 무엇을 할 수 있는가의 목록을 바꾸지 않는다. semantic 의 절반(UL §15 — 인지를 일정 이상 몰아야 숨은 것이 보이는 식의 가능 여부 갈림)이 아직 없고, 조건 관문(FR-THE-WORLD-DECIDES-WHAT-IS-POSSIBLE)이 서야 닫힌다 |
-| MC-ABILITY-CONDITION | PARTIAL | 코드 실측 — view/skill-presentation.ts | 그 사유의 원천이 전부 자기 조건이다 — 자원이 모자라거나 거리가 멀거나 장착하지 않았거나. 세계의 사실(상대가 나를 먼저 쳤는가 · 표식이 있는가)이 능력의 가능 여부를 여는 자리가 없다 |
-| MC-MARK | MISSING | — | 대상에 남는 표식이라는 개념이 없다. 존재 사이에 남는 것은 태도(C018)와 지목(C017)뿐이고, 둘 다 거는 쪽의 상태이지 걸린 쪽에 붙은 것이 아니다 |
+| MC-AURA-ALLOCATION | IMPLEMENTED | C-COMBAT-001 · C-COMBAT-003 08-verification | — |
+| MC-ABILITY-CONDITION | IMPLEMENTED | C-COMBAT-003 · C-COMBAT-004 08-verification | — |
+| MC-MARK | IMPLEMENTED | C-COMBAT-004 08-verification | — |
 | MC-BIND | MISSING | — | 존재 사이를 잇는 실체가 없고, 남의 행동 범위를 줄이는 규칙도 없다. 관계는 태도 하나뿐이고 (C018) 그것은 칠 수 있는가만 가른다 |
 | MC-OBSERVE-ABILITY | MISSING | — | 상대가 가진 능력이라는 것이 세계에 없다 — 적대 존재는 하나의 행동만 하고 그것에 규칙도 조건도 없다. 알아낼 대상 자체가 서지 않았다 |
 | MC-DRAIN | MISSING | — | 상대가 유한하게 가진 것이 세계에 없다 — 기력은 자기 것만 줄고, 남의 것을 옮기는 규칙이 하나도 없다 |
@@ -212,8 +212,8 @@ Capability 만 보면 전투가 꽤 찬 것처럼 보이지만, 그 전투가 �
 | MP-STAKE-EVERYTHING-ON-ONE-BLOW | MC-VOW · MC-AURA-ALLOCATION + MC-CONDITION-STACKING(PARTIAL) | Aura/Nen 층 — 가장 멀다. UL §20 이 계약의 대가를 바꾼 뒤로 이 갈래는 "제약으로 위력을 산다" 쪽 반쪽만 쓴다 — 허락을 사는 반쪽은 MP-BIND-BY-CONTRACT 다 |
 | MP-WEAPONIZE-ENVIRONMENT | MC-READ-ENVIRONMENT · MC-USE-HAZARD + MW-ZONE-DANGER | 환경 위험 개념 자체가 없다 |
 | MP-CONCENTRATE-THE-POWER | MC-AURA-ALLOCATION (PARTIAL) | UL §42 F4 — 상층 넷 중 첫 칸. 아래 세 칸(응답 · 정밀 · 기회)이 먼저 서야 한다는 순서가 문서에 있다 |
-| MP-BIND-BY-CONTRACT | MC-VOW · MC-BIND · MC-MARK · MC-ABILITY-CONDITION | UL §42 F5~F7 — 상층의 마지막 세 칸이 전부 걸린다. 이 세계에서 가장 먼 갈래이고, 동시에 UL 이 §23 에서 대표 실물로 든 갈래다 |
-| MP-KNOW-THE-OPPONENT-RULE | MC-OBSERVE-ABILITY · MC-AURA-ALLOCATION · MC-ABILITY-CONDITION · MC-DISRUPT-ABILITY | 알아낼 대상 자체가 없다 — 적대 존재에게 규칙 있는 능력이 없다. 이 갈래는 상대 쪽에 상층이 서야 성립한다 |
+| MP-BIND-BY-CONTRACT | MC-VOW · MC-BIND | 요구 다섯 중 셋이 섰다 — 지목(C017) · 조건 관문(C-COMBAT-003) · 표식(C-COMBAT-004). 남은 둘(계약 · 묶음)은 쪼갤 수 없어 FR-A-PROMISE-BINDS-BOTH 하나가 함께 세운다 |
+| MP-KNOW-THE-OPPONENT-RULE | MC-OBSERVE-ABILITY · MC-DISRUPT-ABILITY | 관문(C-COMBAT-003)과 배분(C-COMBAT-001·003)이 섰다. 남은 것은 관찰·봉인 — 그리고 알아낼 대상(자율 존재의 규칙 있는 능력과 그것을 쓰는 판단)이 세계에 없다 (Design-Creature-Behavior-R0 승인 대기) |
 | MP-TAKE-WHAT-MAKES-IT-STRONG | MC-DRAIN | 상대가 유한하게 가진 것이 세계에 없다 — 옮길 것이 없다 |
 
 ### MG-SURVIVE-ENEMY-OFFENSIVE (4 갈래)

@@ -355,8 +355,9 @@ nodes:
       DC-COMBAT-ONE-FORMULA: SATISFIED
   - id: MP-BIND-BY-CONTRACT
     type: possibility
-    overlay_missing: MC-VOW · MC-BIND · MC-MARK · MC-ABILITY-CONDITION
-    overlay_note: UL §42 F5~F7 — 상층의 마지막 세 칸이 전부 걸린다. 이 세계에서 가장 먼 갈래이고, 동시에 UL 이 §23 에서 대표 실물로 든 갈래다
+    overlay_missing: MC-VOW · MC-BIND
+    overlay_note: 요구 다섯 중 셋이 섰다 — 지목(C017) · 조건 관문(C-COMBAT-003) · 표식(C-COMBAT-004).
+      남은 둘(계약 · 묶음)은 쪼갤 수 없어 FR-A-PROMISE-BINDS-BOTH 하나가 함께 세운다
     achieves: [ MG-OVERCOME-SUPERIOR-OPPONENT ]
     meaningful_difference: 상대를 약하게 만들지 않고 상대가 할 수 있는 일 자체를 줄인다. 피해가 0 이어도 성립하며, 비용은 자원이 아니라 자기 선택지다 — 묶은
       동안 다른 것을 하지 못한다. 다른 어떤 갈래보다 대가가 크고, 그 대가가 곧 상대의 공략 지점이 된다.
@@ -388,8 +389,10 @@ nodes:
       DC-COMBAT-STRONG-RULE-HAS-COUNTERPLAY: SATISFIED
   - id: MP-KNOW-THE-OPPONENT-RULE
     type: possibility
-    overlay_missing: MC-OBSERVE-ABILITY · MC-AURA-ALLOCATION · MC-ABILITY-CONDITION · MC-DISRUPT-ABILITY
-    overlay_note: 알아낼 대상 자체가 없다 — 적대 존재에게 규칙 있는 능력이 없다. 이 갈래는 상대 쪽에 상층이 서야 성립한다
+    overlay_missing: MC-OBSERVE-ABILITY · MC-DISRUPT-ABILITY
+    overlay_note: 관문(C-COMBAT-003)과 배분(C-COMBAT-001·003)이 섰다. 남은 것은 관찰·봉인 —
+      그리고 알아낼 대상(자율 존재의 규칙 있는 능력과 그것을 쓰는 판단)이 세계에 없다
+      (Design-Creature-Behavior-R0 승인 대기)
     achieves: [ MG-OVERCOME-SUPERIOR-OPPONENT ]
     meaningful_difference: 상대를 바꾸는 것도 자신을 키우는 것도 아니라 상대에 대해 아는 것을 늘린다. 비용은 시간과 맞아 보는 위험이고, 얻은 것은 사라지지 않아
       다음 싸움에도 남는다. 한 판 안에서 가장 느리고 판을 넘어서면 가장 값싼 갈래다.
