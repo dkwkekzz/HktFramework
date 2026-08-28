@@ -3,7 +3,7 @@
 아이템(IS) · 인벤토리(IE) 도메인의 후보와 지금 도는 것을 담는다. 트랙 규칙과 트랙 간
 판단은 [README.md](README.md), 읽는 법은 guides/master-frontier.md 소유다.
 
-    기준 Overlay   master/overlay.md — 아이템의 바닥(C020) · 자리의 유한함(C022) ·
+    기준 Overlay   graph/GRAPH.md 의 Capability Overlay 절 — 아이템의 바닥(C020) · 자리의 유한함(C022) ·
                    적용(C023) · **교체(C024)** 까지 닫혔고, **C026 으로 그 넷에 닿는
                    자리가 생겼다** (표에는 줄도 상태도 늘지 않는다).
                    **MC-EQUIP-ITEM 이 IMPLEMENTED 다.**
@@ -307,7 +307,7 @@ ARRANGE          7 조건 2·5 가 약하다 — 새 게임 의미보다 편의 
     건너뛰고 착수를 지시했다. **이 파일에 후보로 서지 않았던 것이 맞다** — 세계가 할 수
     있는 일을 하나도 늘리지 않으므로 Master Layer 가 고를 것이 없었다. 결과는 HISTORY.md
     로 옮겼다. 그 Cycle 이 SEE-BEFORE · ARRANGE 를 **더 싸게** 만들었다 (위 두 블록).
-    이런 성격의 작업은 이제 **VIEW 레인**(guides/view-work.md · `works/V-*`)이 담당한다
+    이런 성격의 작업은 이제 **VIEW 레인**(guides/view-work.md · `BACKLOG.md`)이 담당한다
     — Cycle 번호를 다투지 않는다.
 
     다음은 위 다섯 중 하나를 Human 이 고르는 자리다. Agent 추천은

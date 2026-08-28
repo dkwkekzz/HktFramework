@@ -9,7 +9,7 @@
 //   흐름 축   기획서 → master → 후보(작업리스트) → Cycle 1~8 → Feedback — 일감이 어디 있나
 //   배차 축   어느 레인이 열려/막혀 있나 — LANES.md 렌더
 //
-// 원천은 전부 기존 Artifact 다 — 이 도구는 읽고 그릴 뿐, master/ 나 works/ 를 수정하지
+// 원천은 전부 기존 Artifact 다 — 이 도구는 읽고 그릴 뿐, master/ 나 BACKLOG.md 를 수정하지
 // 않는다. 판(LANES.md)의 판단(막힘·충돌)은 사람/Agent 소유이고, 여기서 겹치는 것은
 // 기계가 셀 수 있는 사실(Stage 도달 · SELECTED · 미처리 Feedback · BACKLOG 수)뿐이다.
 
@@ -57,7 +57,6 @@ interface Facts {
   pendingFeedback: string[]; // 08 에 MASTER FEEDBACK 이 있는데 feedback/<id>.md 가 없다
   backlogItems: number;
   backlogStarted: string[]; // 상태에 V 번호가 적힌 항목
-  closedViews: number; // works/V-*.md
   designDocs: number; // <pack>/design/Design-*.md
 }
 
@@ -91,7 +90,6 @@ function collectFacts(packDir: string): Facts {
   const cyclesDir = join(packDir, 'cycles');
   const frontierDir = join(packDir, 'master', 'frontier');
   const feedbackDir = join(packDir, 'master', 'feedback');
-  const worksDir = join(packDir, 'works');
   const designDir = join(packDir, 'design');
 
   const tracks: TrackFacts[] = [];
@@ -132,24 +130,20 @@ function collectFacts(packDir: string): Facts {
 
   let backlogItems = 0;
   const backlogStarted: string[] = [];
-  const backlogPath = join(worksDir, 'BACKLOG.md');
+  const backlogPath = join(packDir, 'BACKLOG.md');
   if (existsSync(backlogPath)) {
     const text = readFileSync(backlogPath, 'utf8');
     const items = text.split(/^### /m).slice(1);
     backlogItems = items.length;
     for (const item of items) {
-      const started = item.match(/상태\s+.*?(V-\d{3})/);
-      if (started) backlogStarted.push(`${item.split(/\s|—/)[0]} → ${started[1]}`);
+      if (/상태\s+IN PROGRESS/.test(item)) backlogStarted.push(item.split(/\s|—/)[0] ?? '?');
     }
   }
-  const closedViews = existsSync(worksDir)
-    ? readdirSync(worksDir).filter((f) => /^V-\d{3}-.*\.md$/.test(f)).length
-    : 0;
   const designDocs = existsSync(designDir)
     ? readdirSync(designDir).filter((f) => /^Design-.*\.md$/.test(f)).length
     : 0;
 
-  return { tracks, pendingFeedback, backlogItems, backlogStarted, closedViews, designDocs };
+  return { tracks, pendingFeedback, backlogItems, backlogStarted, designDocs };
 }
 
 // ── 배차판 파싱 ────────────────────────────────────────────────────────────
@@ -269,7 +263,7 @@ function renderParts(board: Board, facts: Facts, warns: string[]): { style: stri
     .join('\n');
 
   const viewFlow = `<div class="flow">
-  <div class="fhead"><b>VIEW</b><span class="dim">닫힘 ${facts.closedViews}</span></div>
+  <div class="fhead"><b>VIEW</b></div>
   <div class="pipe">UX 기획서 → 주입(번역) → <b>BACKLOG ${facts.backlogItems}건</b>${
     facts.backlogStarted.length ? ` · 착수 ${facts.backlogStarted.map(esc).join(', ')}` : ''
   } → V-NNN 닫기</div>
@@ -319,7 +313,7 @@ tr:first-child td{border-top:0}
 .warn{color:var(--warn)}a{color:var(--run)}
 </style>`;
   const body = `<h1>Lanes — 흐름 · 배차 관찰판</h1>
-<p class="sub">생성물이다 — 원천은 LANES.md · frontier/ · cycles/ · works/. 의미 축(Goal→Capability)은
+<p class="sub">생성물이다 — 원천은 LANES.md · frontier/ · cycles/ · BACKLOG.md. 의미 축(Goal→Capability)은
 <a href="master/graph/graph-view.html">master graph 뷰어</a>가 소유한다. 팩 기획서(design/) ${facts.designDocs}건.</p>
 ${warnBlock}
 <div class="sec"><h2>흐름 축 — 일감이 어디 있나</h2>

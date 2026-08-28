@@ -107,7 +107,7 @@
 **계약·세계를 요구하는 요구사항은 여기 없다** — 조준(Anchor 넷) · 복합 Activation
 (Cast·Charge·Hold·Combo·Toggle) · Spatial Presence · 재사용 대기 · 한 실행을 묶는
 `executionId`. 그 다섯은 세계에 개념 자체가 없어(`grep` 0건) Frontier 재료이며
-이 파일의 몫이 아니다 (근거: `works/V-001-what-you-can-do-and-why-not.md` REPORT ①~⑤).
+이 파일의 몫이 아니다 (근거: V-001 REPORT ①~⑤ — git 이력).
 
 ### skill-activation-progress — 거는 동안 어디쯤인지 보인다
     출처   UX 문서 §5 · §3 (하단 진행 표시)

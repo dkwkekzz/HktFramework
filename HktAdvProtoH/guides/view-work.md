@@ -9,7 +9,7 @@ Cycle 이 아니다 — 8 Stage 를 돌지 않고, Cycle 번호를 쓰지 않고
 
 ## Input
 
-- `works/BACKLOG.md` — 남은 할일 (이 레인의 frontier 대응물)
+- `BACKLOG.md` — 남은 할일 (이 레인의 frontier 대응물)
 - Human 의 작업 목표, 또는 주입이면 **Human 이 지목한 UX 기획서** (`content/<pack>/design/Design-View-*.md`)
 - 대상 화면의 `view/` 코드
 - 관련 GameView 관찰 (읽기만 — 무엇이 이미 실려 오는가를 아는 용도)
@@ -17,7 +17,7 @@ Cycle 이 아니다 — 8 Stage 를 돌지 않고, Cycle 번호를 쓰지 않고
 ## 할일의 출처 — 백로그가 세션을 잇는다
 
 Master 가 기획서를 Inject 로 번역해 Frontier 에 쌓듯, VIEW 는 UX 기획서를 번역해
-`works/BACKLOG.md` 에 쌓는다. **할일이 백로그에 있어야 다른 세션이 잇는다** —
+`BACKLOG.md` 에 쌓는다. **할일이 백로그에 있어야 다른 세션이 잇는다** —
 대화에만 있는 할일은 세션과 함께 사라진다.
 
 ```text
@@ -50,7 +50,7 @@ Master 가 기획서를 Inject 로 번역해 Frontier 에 쌓듯, VIEW 는 UX �
 
 1. **레인 판정을 먼저 통과한다** (guides/works.md) — `world/` `protocol/` 을 바꿔야
    성립하는 목표면 시작하지 않고 승격 사유를 보고한다.
-2. 할일을 정한다 — 지정이 없으면 `works/BACKLOG.md` 의 다음 항목. 백로그 밖의 새
+2. 할일을 정한다 — 지정이 없으면 `BACKLOG.md` 의 다음 항목. 백로그 밖의 새
    목표면 항목을 먼저 세운다 (위 형식). 상태를 `IN PROGRESS` 로 바꾼다.
 3. 목표를 **화면에서 확인 가능한 한 문장**으로 쓴다
    (예: "막힌 행동은 버튼이 흐려지고 사유가 툴팁으로 보인다").
@@ -64,9 +64,9 @@ Master 가 기획서를 Inject 로 번역해 Frontier 에 쌓듯, VIEW 는 UX �
 
 ## Output
 
-`view/` 코드 + `works/BACKLOG.md` 갱신 (항목 삭제 · 관찰 결손 REPORT · 후속 항목) —
+`view/` 코드 + `BACKLOG.md` 갱신 (항목 삭제 · 관찰 결손 REPORT · 후속 항목) —
 **별도 기록 파일은 만들지 않는다.** 완료의 기록은 커밋이다. 주입만 한 바퀴면
-BACKLOG.md 만 바뀌는 것도 정상이다. 기존 `works/V-*` 21건은 과거 형식의 History 다.
+BACKLOG.md 만 바뀌는 것도 정상이다. 기존 `V-*` 기록 파일은 없다 — 과거 기록은 git 이력 소유다.
 
 ## Must
 
@@ -85,8 +85,7 @@ BACKLOG.md 만 바뀌는 것도 정상이다. 기존 `works/V-*` 21건은 과거
 - `world/` · `protocol/` · `engine/` · `master/` · `cycles/` 를 편집하지 않는다.
 - Cycle 번호(`C-*`)를 쓰지 않고 `cycles/` 에 디렉터리를 만들지 않는다.
 - 관찰의 결손을 view 쪽 계산·추측으로 메우지 않는다 — REPORT 로 보고한다.
-- 기존 `works/V-*` 기록을 수정하지 않는다 — 과거 형식의 History 다. 새 기록 파일을
-  만들지도 않는다. BACKLOG.md 는 살아 있는 문서다 — 완료·경위를 쌓지 않고, 닫힌
+- 별도 기록 파일을 만들지 않는다 — 완료 경위는 git 이력 소유다. BACKLOG.md 는 살아 있는 문서다 — 완료·경위를 쌓지 않고, 닫힌
   항목은 지운다.
 - 주입에서 기획서에 없는 할일을 지어내지 않는다 — 번역이지 창작이 아니다.
 
@@ -95,5 +94,5 @@ BACKLOG.md 만 바뀌는 것도 정상이다. 기존 `works/V-*` 21건은 과거
 - 목표 한 문장이 실제 화면에서 확인된다.
 - 계약 diff 가 없다 (`world/` `protocol/` 무변경).
 - 발견한 결손이 BACKLOG 의 `## 관찰 결손 REPORT` 절에 노출되어 있다.
-- `works/BACKLOG.md` 가 실제 남은 할일과 일치한다 — 닫힌 항목은 지워졌고,
+- `BACKLOG.md` 가 실제 남은 할일과 일치한다 — 닫힌 항목은 지워졌고,
   이번 작업이 낳은 후속이 올라가 있다. **다음 세션이 이 파일만 보고 이어갈 수 있다.**

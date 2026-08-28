@@ -3,7 +3,7 @@
 전투(R1 · DT · UL) · 스킬(SK) 도메인의 후보와 지금 도는 것을 담는다. 트랙 규칙과 트랙 간
 판단은 [README.md](README.md), 읽는 법은 guides/master-frontier.md 소유다.
 
-    기준 Overlay   master/overlay.md — 사슬 B 의 아래 두 칸이 섰다: 조건 관문
+    기준 Overlay   graph/GRAPH.md 의 Capability Overlay 절 — 사슬 B 의 아래 두 칸이 섰다: 조건 관문
                    (MC-ABILITY-CONDITION · C-COMBAT-003) · 표식 (MC-MARK · C-COMBAT-004).
                    전투 사다리는 Critical 층까지 + 지목 · 태도 · 시점 · 모양 · 배분.
                    능동 대응 사슬(넷)은 이 트랙에 없다 — "지금 열 수 없는 것" 첫 줄.
@@ -20,7 +20,7 @@
 고르기 전에 알아야 할 것 둘 (C-COMBAT-003 · 004 Feedback):
 
     키 자리 바닥        글자 키가 남지 않았다 (`O` · `P` 로 끝) — 다음 기술은 키 없이 선다.
-                        works/BACKLOG.md `skill-slot-crowds-the-keyboard` (VIEW/ENGINE) 몫
+                        BACKLOG.md `skill-slot-crowds-the-keyboard` (VIEW/ENGINE) 몫
     자율 존재 미개방     두 Cycle 이 같은 자리에서 걸렸다 (배분에 몰지 않아 · 고르지 않아).
                         남은 후보들이 전부 "상대가 무엇을 하는가" 를 전제한다 —
                         Design-Creature-Behavior-R0 승인 전에는 반쪽만 검증되는 층을 쌓는다
