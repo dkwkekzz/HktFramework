@@ -409,3 +409,32 @@ Human 이 답한다    DECISION 줄
                   (Q51 · Q58 · Q70 과 같은 자리).
 
     DECISION      PENDING
+
+
+## Q76. 조립(`app/` · `content/active*.ts`)이 어느 레인의 것인지 레인 표에 없다 — OPEN
+
+    무엇          `guides/works.md` 의 레인 표에 ENGINE 은 `engine/`, VIEW 는
+                  `view/`·`works/`, PROCESS 는 `guides/`·`tools/`·스킬로 적혀 있는데
+                  **조립 — `app/` 과 `content/active*.ts` — 은 어느 줄에도 없다.**
+                  V-021 (REPORT ①) 이 그 자리를 고쳐야 했고, 규칙이 없어 기반 트랙의
+                  일로 보고 진행했다 (경계 검사는 `content/active*.ts` 를 assembly 로
+                  분류한다 — content 가 아니다).
+
+    영향          조립을 고치는 작업마다 세션이 스스로 레인을 정해야 한다 — 같은
+                  판단이 반복되고, 두 레인이 동시에 조립을 만지면 잡는 규칙이 없다.
+
+    선택지        (a) **ENGINE 레인의 쓰기 범위에 조립을 더한다** — 경계 검사의 분류
+                      (assembly = 기반 쪽)와 일치하고, V-021 의 선례를 규칙으로 굳힌다
+                  (b) VIEW 레인에 더한다 — active-view.ts 를 고치는 일이 대부분 화면
+                      작업의 끝자락에서 난다는 실태 쪽
+                  (c) 조립 전용 줄을 새로 만든다 — 파일 수가 둘뿐이라 과하다
+
+    Agent 판단     (a) 를 권한다 — V-021 이 이미 그렇게 진행했고 경계 검사의 분류와
+                  맞는다. 다만 레인 표(`guides/works.md`)를 늘리는 결정이므로 Agent 가
+                  시작하지 않는다 (Q67 과 같은 자리).
+
+    번호 주       V-021 은 이 질문을 Q68 로 적었고, main 합류가 Q73 으로 옮겼으나
+                  그 번호도 다른 갈래가 RC 이음매 판정(Q73~Q75 · HISTORY)에 이미 쓴
+                  뒤였다 — Q67 ① 의 세 번째 재발. 이 합류에서 Q76 으로 실체를 세웠다.
+
+    DECISION      PENDING

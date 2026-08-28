@@ -236,7 +236,11 @@
     .sf {
       display: none;
       position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
-      width: min(680px, calc(100% - 32px)); max-height: min(72vh, 640px);
+      /* 청한 너비가 있으면 그만큼까지 — 없으면 680px. 어느 쪽이든 화면을 넘지 않는다
+         (청함이지 명령이 아니다 — SceneSurface.width).
+         테두리까지 이 수 안이다 — 아니면 청한 너비도 남길 여백도 30px 씩 어긋난다 */
+      box-sizing: border-box;
+      width: min(var(--sf-width, 680px), calc(100% - 32px)); max-height: min(72vh, 640px);
       overflow-y: auto;
       background: rgba(10, 13, 20, 0.96);
       border: 1px solid #2c3648; border-radius: 10px;
@@ -253,6 +257,15 @@
     }
     .sf-section { margin-bottom: 12px; }
     .sf-section:last-child { margin-bottom: 0; }
+    /* 나란히 서는 묶음 — **표면 자신의 너비**에 따라 갈린다 (화면 너비가 아니다).
+       놓을 자리가 없으면 auto-fit 이 스스로 한 열로 돌아가고, 그때 서는 차례는
+       목록의 차례 그대로다. 문턱은 결정 Layer 가 준다 (--sf-group-min) */
+    .sf-group {
+      display: grid; gap: 12px; margin-bottom: 12px; align-items: start;
+      grid-template-columns: repeat(auto-fit, minmax(min(100%, var(--sf-group-min, 240px)), 1fr));
+    }
+    .sf-group:last-child { margin-bottom: 0; }
+    .sf-group > .sf-section { margin-bottom: 0; }
     /* 대소문자를 건드리지 않는다 — 세계가 보낸 코드가 그대로 보여야 하고,
        text-transform 은 모르는 코드(moonshard)를 MOONSHARD 로 바꿔 버린다 */
     .sf-section-title {
@@ -326,6 +339,11 @@
       white-space: normal; word-break: keep-all; pointer-events: none;
     }
     .sf-cell[data-tip-open="true"] .sf-tip { display: flex; }
+    /* 가장자리에서 접힌다 — **어느 쪽이 남았는지는 능력이 재어 발라 준다**
+       (engine/view-kernel/hud/surface-tip.ts). CSS 는 그 답대로 놓을 뿐이다 */
+    .sf-cell[data-tip-side="above"] .sf-tip { top: auto; bottom: calc(100% + 6px); }
+    .sf-cell[data-tip-align="start"] .sf-tip { left: 0; right: auto; transform: none; }
+    .sf-cell[data-tip-align="end"] .sf-tip { left: auto; right: 0; transform: none; }
     /* 줄 — 되는 것도 안 되는 것도 여기 선다 */
     .sf-rows { display: flex; flex-direction: column; gap: 2px; }
     .sf-row {

@@ -48,6 +48,8 @@ import {
 import { codeText, shortCodeText } from './code-text';
 import { contactMark } from './relation-presentation';
 import { cancelMark } from './phase-presentation';
+import { armedHudItems } from './armed-presentation';
+import { executionLogSurface, rememberExecutions } from './execution-log';
 import { kindPresentation } from './kind-presentation';
 import { rolePresentation } from './role-presentation';
 import { TARGET_TINT, targetDetailLines, targetHudItems } from './target-presentation';
@@ -170,6 +172,10 @@ export function resolvePresentation(
   // 기다림의 나이를 재는 시각 — 한 프레임 안에서는 하나여야 한다 (V-007).
   // 자리마다 따로 읽으면 같은 프레임의 두 표면이 다른 지금을 말하게 된다
   const now = options.now ?? performance.now();
+  // V-018 — 이번 관찰에 실린 타격·무산·끊김을 기억한다. 세계는 그것을 잠시만 보내므로
+  // (같은 수명), 되짚는 자리는 본 것을 쌓아 두지 않으면 지어낼 수밖에 없다.
+  // 표면을 짓기 **전**에 부른다 — 이번 프레임의 사건이 이번 목록에 서야 한다
+  rememberExecutions(snapshot);
   return {
     specId: snapshot.specId,
     terrain: snapshot.scene,
@@ -180,7 +186,11 @@ export function resolvePresentation(
     commandSurface: commandSurface(snapshot, options),
     // 겹침 표면 (기반 capability) — C026 의 소지품 작업 공간.
     // 열려 있지 않아도 싣는다: 열림은 표면 자신이 지닌 값이고, 그리는 쪽이 그것을 본다
-    surfaces: [inventoryWorkspace(snapshot, codeText, shortCodeText, now)],
+    surfaces: [
+      inventoryWorkspace(snapshot, codeText, shortCodeText, now),
+      // V-018 — 방금 있었던 일. 사건은 잠시 실렸다 사라지므로 **본 그대로 쌓아 둔다**
+      executionLogSurface(snapshot),
+    ],
     // 늘 서 있는 띠 — 지금 이 순간 고르는 것이 자기 자리를 갖는다 (VUX-SK §2.1).
     slotBars: [
       skillSlotBar(snapshot, shortCodeText, options.skillAnswers ?? NO_SKILL_ANSWERS, now),
@@ -353,6 +363,9 @@ export function resolvePresentation(
     // 결정 Layer 가 모아 만든 줄들이다 (04 VIEW ASSEMBLY NOTE). 앞에 둔다 —
     // "지금 누구를 상대하는가" 는 소지품보다 먼저 읽혀야 한다.
     hud: [
+      // V-020 — 두 걸음의 첫 걸음. **맨 앞이다**: 평소에는 아예 없고, 걸린 동안에만
+      // 서므로 그 자리가 배경이 되지 않는다. 다음 숫자 키가 무엇을 뜻하는지 이 줄이 말한다
+      ...armedHudItems(codeText),
       ...targetHudItems(snapshot, codeText),
       // C027 — 기술은 위쪽 띠를 **떠났다.** 같은 값이 화면 아래 슬롯 띠에 서므로
       // (slotBars) 여기 두면 한 화면에 같은 말이 두 번 있게 된다.

@@ -51,7 +51,9 @@ describe('기술이 넷이 되어도 화면은 이름으로 가르지 않는다'
     const cell = cells(open).find((c) => c.id === 'skill-hatsu');
     // 모양이 있으므로 다른 기술과 똑같이 모양을 보인다 (C025 의 결정 그대로)
     expect(cell?.detail).toMatch(/도달 /);
-    expect(cell?.title).toBe('발현 일격');
+    // V-019 이후 칸의 이름은 `표식 + 이름` 이다 — 이 기술도 **다른 셋과 똑같이**
+    // 표식을 하나 얻는다. 이름으로 가르지 않는다는 이 검사의 뜻은 그대로다
+    expect(cell?.title).toBe('💥 발현 일격');
   });
 });
 
