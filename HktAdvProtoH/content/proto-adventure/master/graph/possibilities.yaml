@@ -1,1103 +1,707 @@
 # Master Possibility — MP-*
-# Goal 을 달성·진전시키는 의미 있게 다른 후보 방법. Goal→Possibility 는 OR,
-# Possibility→requires 는 AND 다.
-# Gameplay/Cost/Risk/Relationship/Consequence 중 하나 이상이 실질적으로 달라야
-# 별도 Possibility 다. 동의어를 늘리지 않는다.
-# 형식: ../SCHEMA.md
+# 노드는 의미의 주소다 — 전문·이유는 source 의 기획서가 소유한다 (../SCHEMA.md "모든 Node 공통").
+# 형식: ../SCHEMA.md · 관찰: npm run master:graph (뷰어) — 이 파일을 사람이 통독하지 않는다.
 #
 # 인용 — BW = content/proto-adventure/design/Master-World-Beira.md (탐험) ·
 #        R1 = content/proto-adventure/design/Design-Combat-OffenseDefense-R0.md · DT = content/proto-adventure/design/Design-Combat-DamageType-R0.md (전투)
 #        TG = content/proto-adventure/design/Design-Targeting-R0.md (지목)
 #        GS = content/proto-adventure/design/Master-Fairy-Growth-System.md (성장)
-#
-# ── 이 파일을 읽는 법 ────────────────────────────────────────────────────
-# Goal 하나에 매달린 여러 MP-* 는 "둘 다 해야 하는 단계" 가 아니라 "골라서 하는 갈래" 다.
-# 그러니 한 Goal 아래를 세로로 읽으면서 "나라면 어느 쪽을 고를까" 를 물으면 된다.
-# 각 노드의 meaningful_difference 가 그 선택의 근거이고, detail 이 그것을 풀어 쓴 것이다.
-#
-#   MG-OVERCOME-SUPERIOR-OPPONENT   앞을 막는 강한 상대를 넘어선다      → 갈래 10
-#   MG-SURVIVE-ENEMY-OFFENSIVE      밀리는 국면을 버티고 되돌린다        → 갈래 3
-#   MG-EXPLORE-BEIRA                대응 가능한 세계를 넓힌다            → 갈래 3
-#   MG-ACQUIRE-RARE-ORGAN           특정 생물의 기관을 얻는다            → 갈래 5
+#        UL = content/proto-adventure/design/Design-Combat-UpperLayer-R0.md (전투 상층)
+
 version: 1
 nodes:
-
-  # ══════════════════════════════════════════════════════════════════════
-  # MG-OVERCOME-SUPERIOR-OPPONENT — 넘을 수 없어 보이는 상대를 넘어서는 갈래들
-  # ══════════════════════════════════════════════════════════════════════
-
   - id: MP-OUTGROW-THE-OPPONENT
     type: possibility
-    overlay_missing: >-
-      MC-ATTACK-POWER(PARTIAL) + 전투 밖의 원천
-    overlay_note: >-
-      **C-GROWTH-001 로 자라는 축이 섰다** — 세계 안에서 한 일이 몸에 쌓이고 문턱을 넘으면 겨루는 값이 오르며, 같은 상대·같은 기술의 결과가 실제로 달라진다.
-      world_shape 의 마지막 문장("세계 안의 행위로 올릴 수 있어야 한다")이 닫혔다. 그러나 이 갈래가 말하는 것은 **전투 밖에서 기른 값으로 정면 교환을 이기는 것**인데,
-      선 원천 넷 중 전투 밖의 것은 캐는 일 하나뿐이고(4/회 · 첫 문턱까지 다섯 번) 한 단계의 폭이 작아(한 대에 2) 그것만으로 판이 뒤집히지 않는다.
-      없는 것은 이제 축이 아니라 **전투 밖의 원천**이다
-    achieves: [MG-OVERCOME-SUPERIOR-OPPONENT]
-    meaningful_difference: >
-      다른 경로가 전투 중의 실행(정확한 시점·위치·이어 가는 압박)으로 이기는 데 비해,
-      이것은 전투 밖에서 기른 공격·방어 능력치로 정면 교환 자체를 유리하게 만든다.
-      손의 정확함이 아니라 축적을 요구하고, 같은 행동이 성장 전후로 다른 결과를 낸다 —
-      전투가 시작되기 전에 이미 절반이 결정되는 유일한 경로다.
-    detail: >
-      가장 단순한 갈래다. 더 세게 때리고 더 잘 버티는 몸이 되어서 이긴다.
-      플레이어가 전투 중에 특별히 잘할 필요가 없고, 대신 그 몸을 만들기까지의 축적이
-      필요하다. 이 갈래의 값어치는 그것이 쉬워서가 아니라 **다른 갈래들의 기준선**이기
-      때문이다 — "성장만으로도 되는데 왜 굳이 읽고 깨고 고르는가" 에 답할 수 있어야
-      나머지 아홉 갈래가 존재 이유를 갖는다. 그래서 이 갈래는 언제나 성립하되
-      가장 비싸야 한다.
-    world_shape: >
-      능력치를 올리면 같은 스킬·같은 상대에 대한 결과가 실제로 좋아지고, 그 변화가
-      계산 내역으로 설명되어야 한다. 그리고 그 능력치를 **세계 안의 행위로** 올릴 수
-      있어야 한다 — 올릴 방법이 세계 밖에 있으면 이 경로는 열린 것이 아니다.
+    overlay_missing: MC-ATTACK-POWER(PARTIAL) + 전투 밖의 원천
+    overlay_note: C-GROWTH-001 로 자라는 축이 섰다 — 세계 안에서 한 일이 몸에 쌓이고 문턱을 넘으면 겨루는 값이 오르며, 같은 상대·같은 기술의 결과가 실제로
+      달라진다. world_shape 의 마지막 문장("세계 안의 행위로 올릴 수 있어야 한다")이 닫혔다. 그러나 이 갈래가 말하는 것은 전투 밖에서 기른 값으로 정면
+      교환을 이기는 것인데, 선 원천 넷 중 전투 밖의 것은 캐는 일 하나뿐이고(4/회 · 첫 문턱까지 다섯 번) 한 단계의 폭이 작아(한 대에 2) 그것만으로 판이 뒤집히지
+      않는다. 없는 것은 이제 축이 아니라 전투 밖의 원천이다
+    achieves: [ MG-OVERCOME-SUPERIOR-OPPONENT ]
+    meaningful_difference: 다른 경로가 전투 중의 실행(정확한 시점·위치·이어 가는 압박)으로 이기는 데 비해, 이것은 전투 밖에서 기른 공격·방어 능력치로 정면
+      교환 자체를 유리하게 만든다. 손의 정확함이 아니라 축적을 요구하고, 같은 행동이 성장 전후로 다른 결과를 낸다 — 전투가 시작되기 전에 이미 절반이 결정되는 유일한
+      경로다.
+    source: R1 (§ 미지정 — 주입기 이전 번역)
+    world_shape: 능력치를 올리면 같은 스킬·같은 상대에 대한 결과가 실제로 좋아지고, 그 변화가 계산 내역으로 설명되어야 한다. 그리고 그 능력치를 세계 안의 행위로 올릴
+      수 있어야 한다 — 올릴 방법이 세계 밖에 있으면 이 경로는 열린 것이 아니다.
     implemented: PARTIAL
     requires:
       goals: []
-      capabilities: [MC-ATTACK-POWER, MC-SKILL-SCALING, MC-DEFENSE-MITIGATION, MC-COMBAT-STRIKE, MC-CP-ECONOMY,
-                     MC-GAIN-LEVEL]
-      # 마지막 하나가 GS 주입으로 들어왔다 — 이 갈래가 "자라는 축이 없다" 고 적어 두던 그
-      # 자리이며, GS §19 가 그 축을 명명한다 (전투·탐험·발견·사건 해결 → 기본값).
+      capabilities:
+        [
+          MC-ATTACK-POWER,
+          MC-SKILL-SCALING,
+          MC-DEFENSE-MITIGATION,
+          MC-COMBAT-STRIKE,
+          MC-CP-ECONOMY,
+          MC-GAIN-LEVEL
+        ]
       knowledge: []
       world_state: []
       relationship: []
-      resource: [능력치를 올릴 장비 — 성장의 원천은 이제 MC-GAIN-LEVEL 이 소유한다 (GS §19)]
-    supports: [MG-SURVIVE-ENEMY-OFFENSIVE]   # 방어 능력치 절반이 같은 성장에서 나온다 (R1 §8 · §12)
+      resource: [ 능력치를 올릴 장비 — 성장의 원천은 이제 MC-GAIN-LEVEL 이 소유한다 (GS §19) ]
+    supports: [ MG-SURVIVE-ENEMY-OFFENSIVE ]
     opposes: []
-    changes:
-      - 같은 스킬·같은 상대에 대한 교환비가 성장 전후로 달라진다
+    changes: [ 같은 스킬·같은 상대에 대한 교환비가 성장 전후로 달라진다 ]
     reveals: []
     creates_goal: []
-    constraints: [DC-COMBAT-PLAYER-CAUSALITY, DC-GROWTH-NO-DOMINATED-ROUTE,
-                  DC-GROWTH-POWER-PAYS-IN-REACH-OR-CONSTRAINT]
+    constraints:
+      [
+        DC-COMBAT-PLAYER-CAUSALITY,
+        DC-GROWTH-NO-DOMINATED-ROUTE,
+        DC-GROWTH-POWER-PAYS-IN-REACH-OR-CONSTRAINT
+      ]
     constraint_evaluation:
-      DC-COMBAT-PLAYER-CAUSALITY: SATISFIED    # 같은 능력치·같은 스킬·같은 상대면 항상 같은 피해 — 난수 없음 (R1 §6)
-      DC-GROWTH-NO-DOMINATED-ROUTE: SATISFIED  # 이 갈래의 detail 이 "언제나 성립하되 가장 비싸야 한다" 를 이미 적는다 — 그것이 이 원칙의 요구다 (GB §17)
-      DC-GROWTH-POWER-PAYS-IN-REACH-OR-CONSTRAINT: UNRESOLVED   # 가장 넓은 갈래이므로 한 단계의 폭이 작아야 한다 — 그 폭은 Cycle 이 정한다 (GB §20)
-
+      DC-COMBAT-PLAYER-CAUSALITY: SATISFIED
+      DC-GROWTH-NO-DOMINATED-ROUTE: SATISFIED
+      DC-GROWTH-POWER-PAYS-IN-REACH-OR-CONSTRAINT: UNRESOLVED
   - id: MP-MATCH-WEAPON-TO-ARMOR
     type: possibility
-    overlay_missing: >-
-      **없음**
-    overlay_note: >-
-      **C012 로 닫혔다** — 지금 플레이 가능하다
-    achieves: [MG-OVERCOME-SUPERIOR-OPPONENT]
-    meaningful_difference: >
-      전투 중의 실행이 아니라 전투 전의 선택으로 이긴다. 준비 단계에서 결정되며 교전 중에는
-      바꿀 수 없다. 성장의 축적(MP-OUTGROW-THE-OPPONENT)과 달리 상대별로 다시 고르는
-      판단이다 — 같은 능력치로도 상대에 따라 결과가 달라진다.
-    detail: >
-      상대의 방어에는 형태가 있고, 그 형태마다 덜 버티는 공격 형태가 있다. 그래서
-      싸우기 전에 상대를 보고 무엇을 들고 갈지 고른다. 이 갈래가 성립하려면 두 가지가
-      필요하다 — 상대의 방어 형태를 알 수 있어야 하고(MK-OPPONENT-DEFENSE-SHAPE),
-      고른 것이 실제로 결과를 바꿔야 한다. 주의할 것은 이것이 "약점 부위 때리기" 가
-      아니라는 점이다. 어디를 때리는가가 아니라 **무엇으로** 때리는가의 선택이다.
-      그리고 상성은 배율표가 아니라 대응 능력치 차이로 생겨야 한다 (DT §4 · §7) —
-      표로 만들면 외우면 끝나는 정답이 되고 선택이 사라진다.
-    world_shape: >
-      상대마다 방어 형태가 다르고, 같은 스킬 값이 상대에 따라 다른 결과를 내며,
-      그 차이가 계산 내역으로 설명되어야 한다. 그리고 어느 한쪽이 완전 면역이 아니어야 한다.
+    overlay_missing: 없음
+    overlay_note: C012 로 닫혔다 — 지금 플레이 가능하다
+    achieves: [ MG-OVERCOME-SUPERIOR-OPPONENT ]
+    meaningful_difference: 전투 중의 실행이 아니라 전투 전의 선택으로 이긴다. 준비 단계에서 결정되며 교전 중에는 바꿀 수 없다. 성장의
+      축적(MP-OUTGROW-THE-OPPONENT)과 달리 상대별로 다시 고르는 판단이다 — 같은 능력치로도 상대에 따라 결과가 달라진다.
+    source: DT §4 · §7
+    world_shape: 상대마다 방어 형태가 다르고, 같은 스킬 값이 상대에 따라 다른 결과를 내며, 그 차이가 계산 내역으로 설명되어야 한다. 그리고 어느 한쪽이 완전 면역이 아니어야 한다.
     implemented: PRESENT
     requires:
       goals: []
-      capabilities: [MC-ATTACK-ARMOR-MATCHUP, MC-COMBAT-STRIKE]
-      knowledge: [MK-OPPONENT-DEFENSE-SHAPE]
+      capabilities: [ MC-ATTACK-ARMOR-MATCHUP, MC-COMBAT-STRIKE ]
+      knowledge: [ MK-OPPONENT-DEFENSE-SHAPE ]
       world_state: []
       relationship: []
       resource: []
-    supports: [MP-BREAK-THE-GUARD]
+    supports: [ MP-BREAK-THE-GUARD ]
     opposes: []
-    changes:
-      - 같은 스킬이 상대에 따라 다른 효율을 낸다
-    reveals: [MK-OPPONENT-DEFENSE-SHAPE]
+    changes: [ 같은 스킬이 상대에 따라 다른 효율을 낸다 ]
+    reveals: [ MK-OPPONENT-DEFENSE-SHAPE ]
     creates_goal: []
-    constraints: [DC-COMBAT-PLAYER-CAUSALITY, DC-COMBAT-MATCHUP-SOFT]
+    constraints: [ DC-COMBAT-PLAYER-CAUSALITY, DC-COMBAT-MATCHUP-SOFT ]
     constraint_evaluation:
-      DC-COMBAT-PLAYER-CAUSALITY: SATISFIED    # 상성은 결정적이다 — 같은 조합이면 같은 결과 (DT §8)
-      DC-COMBAT-MATCHUP-SOFT: SATISFIED        # 배율표·면역 없이 대응 능력치 차이로만 상성이 생긴다 (DT §4 · §7)
-
+      DC-COMBAT-PLAYER-CAUSALITY: SATISFIED
+      DC-COMBAT-MATCHUP-SOFT: SATISFIED
   - id: MP-PIERCE-THE-HARD-DEFENSE
     type: possibility
-    overlay_missing: >-
-      **없음**
-    overlay_note: >-
-      **C013 로 닫혔다** — 지금 플레이 가능하다. 다만 아직 좁다: 플레이어가 관통을 **얻는** 경로가 세계에 없다 (종류가 정한 값과 디버그뿐 —
-      growth/growth-graph.md)
-    achieves: [MG-OVERCOME-SUPERIOR-OPPONENT]
-    meaningful_difference: >
-      고를 무른 쪽이 없을 때 남는 유일한 길이다. 상성 선택(MP-MATCH-WEAPON-TO-ARMOR)이 상대의
-      무른 쪽으로 피해 가는 것이라면 이것은 마주한 단단한 쪽을 깎아 통과한다 — 상대가 한쪽으로
-      극단으로 굳혔거나 양쪽이 모두 두꺼워 피할 곳이 없을 때 성립한다. 내 세기를 키우는 것이
-      아니라 상대 방어의 값어치를 떨어뜨리므로, 두껍게 굳힌 상대일수록 이득이 커지고 무른
-      상대에게는 거의 의미가 없다 — 상대에 따라 값이 달라지는 투자다.
-    detail: >
-      상성 선택과 헷갈리기 쉬우니 나란히 두고 보면 좋다. 상성은 "저 사람은 이쪽이 무르니
-      이쪽으로 가자" 이고, 관통은 "무른 쪽이 없으니 단단한 쪽을 얇게 만들자" 다.
-      그래서 관통은 상대가 방어에 투자를 많이 했을수록 이득이 커진다 — 방어를 두껍게
-      굳히는 것만으로는 안전하지 않다는 규칙을 세계에 세우는 갈래다.
-      관통은 방어를 없애지 못하고, 마주한 쪽에만 작용하며, 확률로 무시하는 것이 아니라
-      언제나 같은 몫을 걷어낸다.
-    world_shape: >
-      같은 상대·같은 스킬인데 관통을 지닌 쪽이 더 큰 피해를 넣고, 그 차이가 계산 내역으로
-      설명되며, 두꺼운 상대일수록 그 몫이 커져야 한다. 관통이 아무리 커도 방어가
-      완전히 사라지지는 않아야 한다.
+    overlay_missing: 없음
+    overlay_note: "C013 로 닫혔다 — 지금 플레이 가능하다. 다만 아직 좁다: 플레이어가 관통을 얻는 경로가 세계에 없다 (종류가 정한 값과 디버그뿐 —
+      growth/growth-graph.md)"
+    achieves: [ MG-OVERCOME-SUPERIOR-OPPONENT ]
+    meaningful_difference: 고를 무른 쪽이 없을 때 남는 유일한 길이다. 상성 선택(MP-MATCH-WEAPON-TO-ARMOR)이 상대의 무른 쪽으로 피해 가는
+      것이라면 이것은 마주한 단단한 쪽을 깎아 통과한다 — 상대가 한쪽으로 극단으로 굳혔거나 양쪽이 모두 두꺼워 피할 곳이 없을 때 성립한다. 내 세기를 키우는 것이 아니라
+      상대 방어의 값어치를 떨어뜨리므로, 두껍게 굳힌 상대일수록 이득이 커지고 무른 상대에게는 거의 의미가 없다 — 상대에 따라 값이 달라지는 투자다.
+    source: R1 (§ 미지정 — 주입기 이전 번역)
+    world_shape: 같은 상대·같은 스킬인데 관통을 지닌 쪽이 더 큰 피해를 넣고, 그 차이가 계산 내역으로 설명되며, 두꺼운 상대일수록 그 몫이 커져야 한다. 관통이 아무리
+      커도 방어가 완전히 사라지지는 않아야 한다.
     implemented: PRESENT
     requires:
       goals: []
-      capabilities: [MC-PENETRATION, MC-ATTACK-ARMOR-MATCHUP, MC-DEFENSE-MITIGATION, MC-COMBAT-STRIKE]
-      knowledge: [MK-OPPONENT-DEFENSE-SHAPE]
+      capabilities: [ MC-PENETRATION, MC-ATTACK-ARMOR-MATCHUP, MC-DEFENSE-MITIGATION, MC-COMBAT-STRIKE ]
+      knowledge: [ MK-OPPONENT-DEFENSE-SHAPE ]
       world_state: []
       relationship: []
       resource: []
-    supports: [MP-OUTGROW-THE-OPPONENT]
+    supports: [ MP-OUTGROW-THE-OPPONENT ]
     opposes: []
-    changes:
-      - 두껍게 굳힌 방어가 그만큼 값어치를 잃는다
-      - 방어를 올리는 것만으로는 더 이상 안전이 보장되지 않는다
-    reveals: [MK-OPPONENT-DEFENSE-SHAPE]
+    changes: [ 두껍게 굳힌 방어가 그만큼 값어치를 잃는다, 방어를 올리는 것만으로는 더 이상 안전이 보장되지 않는다 ]
+    reveals: [ MK-OPPONENT-DEFENSE-SHAPE ]
     creates_goal: []
-    constraints: [DC-COMBAT-PLAYER-CAUSALITY]
+    constraints: [ DC-COMBAT-PLAYER-CAUSALITY ]
     constraint_evaluation:
-      DC-COMBAT-PLAYER-CAUSALITY: SATISFIED    # 방어를 확률로 무시하는 것이 아니라 결정적으로 깎는다 (R1 §6 · §14 Penetration)
-
+      DC-COMBAT-PLAYER-CAUSALITY: SATISFIED
   - id: MP-BREAK-THE-GUARD
     type: possibility
-    overlay_missing: >-
-      MC-BREAK(PARTIAL)
-    overlay_note: >-
-      무너지는 상태는 있고 무너뜨리는 행동만 없다 (R1 §14 Active Defense 층)
-    achieves: [MG-OVERCOME-SUPERIOR-OPPONENT]
-    meaningful_difference: >
-      상대의 실수를 기다리지 않고 상대의 방어 자체를 무너뜨려 이긴다. 방어가 성립하지 않는
-      구간을 스스로 만들므로 상대의 대응에 덜 의존한다 — 파티가 함께 쓸 수 있는 경로다.
-    detail: >
-      되받아치기(MP-READ-AND-COUNTER)가 상대가 열리기를 기다리는 것이라면, 이것은
-      열리지 않는 상대를 열리게 만드는 것이다. 기다림이 필요 없으니 여럿이 함께
-      압박을 넣을 때 특히 강하고, 대신 무너뜨리는 동안 내가 자원과 거리를 내준다.
-      무너뜨리는 조건은 명시적이어야 한다 — 확률로 뚫리면 이 갈래는 도박이 되고
-      "스스로 구간을 만든다" 는 성격을 잃는다.
-    world_shape: >
-      상대의 방어가 성립하지 않게 되는 구간이 존재하고, 그 구간이 플레이어의 행동으로
-      만들어져야 한다. 그리고 무엇 때문에 무너졌는지가 관찰 가능해야 한다.
+    overlay_missing: MC-BREAK(PARTIAL)
+    overlay_note: 무너지는 상태는 있고 무너뜨리는 행동만 없다 (R1 §14 Active Defense 층)
+    achieves: [ MG-OVERCOME-SUPERIOR-OPPONENT ]
+    meaningful_difference: 상대의 실수를 기다리지 않고 상대의 방어 자체를 무너뜨려 이긴다. 방어가 성립하지 않는 구간을 스스로 만들므로 상대의 대응에 덜 의존한다
+      — 파티가 함께 쓸 수 있는 경로다.
+    source: R1 §14
+    world_shape: 상대의 방어가 성립하지 않게 되는 구간이 존재하고, 그 구간이 플레이어의 행동으로 만들어져야 한다. 그리고 무엇 때문에 무너졌는지가 관찰 가능해야 한다.
     implemented: PARTIAL
     requires:
       goals: []
-      capabilities: [MC-BREAK, MC-COMBAT-STRIKE, MC-CP-ECONOMY]
+      capabilities: [ MC-BREAK, MC-COMBAT-STRIKE, MC-CP-ECONOMY ]
       knowledge: []
       world_state: []
       relationship: []
-      resource: [축적된 CP]
+      resource: [ 축적된 CP ]
     supports: []
-    opposes: [MG-SURVIVE-ENEMY-OFFENSIVE]   # 압박을 유지하려면 방어에 쓸 자원과 거리를 포기해야 한다
-    changes:
-      - 상대의 방어가 일시적으로 성립하지 않는다
+    opposes: [ MG-SURVIVE-ENEMY-OFFENSIVE ]
+    changes: [ 상대의 방어가 일시적으로 성립하지 않는다 ]
     reveals: []
     creates_goal: []
-    constraints: [DC-COMBAT-PLAYER-CAUSALITY]
+    constraints: [ DC-COMBAT-PLAYER-CAUSALITY ]
     constraint_evaluation:
-      DC-COMBAT-PLAYER-CAUSALITY: SATISFIED    # 무너뜨리는 조건이 명시적이다 — 난수가 아니다 (R1 §6)
-    # R1 §14 Active Defense 층이 이름만 예고한다 (Guard Break) — 그 층의 설계 문서 대기.
-
+      DC-COMBAT-PLAYER-CAUSALITY: SATISFIED
   - id: MP-READ-AND-COUNTER
     type: possibility
-    overlay_missing: >-
-      MC-ACTIVE-RESPONSE · MC-PRECISION-RESPONSE · MC-PERFECT-GUARD · MC-OPPORTUNITY · MC-COUNTER
-    overlay_note: >-
-      UL 이 그 층의 설계 문서다 — 이 갈래는 이제 두 조각이 아니라 다섯 조각으로 갈린다. 완벽한 막기는 정밀 응답을 막기에 적용한 결과이고
-      되받아치기는 기회를 통해 온다 (UL §6 · §7). 순서는 UL §42 F1 → F2 → F3 다
-    achieves: [MG-OVERCOME-SUPERIOR-OPPONENT]
-    meaningful_difference: >
-      상대의 공격을 피하거나 견디는 것이 아니라 그 공격 자체를 자원으로 바꾼다.
-      비용은 낮고(성공하면 자원을 오히려 얻는다) 요구되는 것은 정확한 시점이다 —
-      실패하면 그대로 맞는 고위험 저비용 경로다. 다른 어떤 경로보다 상대의 행동에 의존한다.
-    detail: >
-      상대가 때리러 오는 그 순간에 맞춰 받아넘기면 피해를 치르지 않을 뿐 아니라
-      공격권이 이쪽으로 넘어온다. 자원을 거의 쓰지 않으므로 잘하는 플레이어에게는
-      가장 값싼 갈래이고, 시점을 놓치면 그대로 맞으므로 가장 위험한 갈래이기도 하다.
-      이 갈래는 상대의 행동에 완전히 의존한다 — 상대가 공격해 오지 않으면 아무것도
-      할 수 없다. 그래서 상대의 힘이 언제 공격 쪽으로 몰리는지를 아는 지식이 전제다.
-    world_shape: >
-      막기가 성립하는 좁은 시점이 따로 있고, 그 시점에 맞추면 피해를 치르지 않으며
-      상대가 잠시 취약해져야 한다. 그리고 그 시점이 확률이 아니라 관계로 판정되어야 한다.
+    overlay_missing: MC-ACTIVE-RESPONSE · MC-PRECISION-RESPONSE · MC-PERFECT-GUARD · MC-OPPORTUNITY · MC-COUNTER
+    overlay_note: UL 이 그 층의 설계 문서다 — 이 갈래는 이제 두 조각이 아니라 다섯 조각으로 갈린다. 완벽한 막기는 정밀 응답을 막기에 적용한 결과이고 되받아치기는
+      기회를 통해 온다 (UL §6 · §7). 순서는 UL §42 F1 → F2 → F3 다
+    achieves: [ MG-OVERCOME-SUPERIOR-OPPONENT ]
+    meaningful_difference: 상대의 공격을 피하거나 견디는 것이 아니라 그 공격 자체를 자원으로 바꾼다. 비용은 낮고(성공하면 자원을 오히려 얻는다) 요구되는 것은
+      정확한 시점이다 — 실패하면 그대로 맞는 고위험 저비용 경로다. 다른 어떤 경로보다 상대의 행동에 의존한다.
+    source: UL §6 · §7 · UL §42
+    world_shape: 막기가 성립하는 좁은 시점이 따로 있고, 그 시점에 맞추면 피해를 치르지 않으며 상대가 잠시 취약해져야 한다. 그리고 그 시점이 확률이 아니라 관계로 판정되어야 한다.
     implemented: ABSENT
     requires:
       goals: []
-      capabilities: [MC-GUARD, MC-ACTIVE-RESPONSE, MC-PRECISION-RESPONSE, MC-PERFECT-GUARD, MC-OPPORTUNITY, MC-COUNTER, MC-CP-ECONOMY]
-      knowledge: [MK-OPPONENT-FLOW-PATTERN]
+      capabilities:
+        [
+          MC-GUARD,
+          MC-ACTIVE-RESPONSE,
+          MC-PRECISION-RESPONSE,
+          MC-PERFECT-GUARD,
+          MC-OPPORTUNITY,
+          MC-COUNTER,
+          MC-CP-ECONOMY
+        ]
+      knowledge: [ MK-OPPONENT-FLOW-PATTERN ]
       world_state: []
       relationship: []
       resource: []
-    supports: [MG-SURVIVE-ENEMY-OFFENSIVE]
+    supports: [ MG-SURVIVE-ENEMY-OFFENSIVE ]
     opposes: []
-    changes:
-      - 공격권이 상대에서 나에게 넘어온다
-      - 상대가 잠시 취약해진다
-    reveals: [MK-OPPONENT-FLOW-PATTERN]
+    changes: [ 공격권이 상대에서 나에게 넘어온다, 상대가 잠시 취약해진다 ]
+    reveals: [ MK-OPPONENT-FLOW-PATTERN ]
     creates_goal: []
-    constraints: [DC-COMBAT-PLAYER-CAUSALITY]
+    constraints: [ DC-COMBAT-PLAYER-CAUSALITY ]
     constraint_evaluation:
-      DC-COMBAT-PLAYER-CAUSALITY: SATISFIED    # 성패가 확률이 아니라 시점 관계로 갈린다 (R1 §6)
-
+      DC-COMBAT-PLAYER-CAUSALITY: SATISFIED
   - id: MP-EXPLOIT-OPEN-BODY
     type: possibility
-    overlay_missing: >-
-      MC-AURA-ALLOCATION (PARTIAL)
-    overlay_note: >-
-      요구 넷 중 셋이 섰고 넷째(MC-AURA-ALLOCATION)가 PARTIAL 이라 갈래도 PARTIAL 이다. 다만 **플레이로는 이미 성립한다** — 상대가 물리에 무른 것을 알아내고 배분으로 그 무른 쪽을 친다 (C-COMBAT-001 WORLD SCENARIO). 노드의 완결과 플레이의 성립이 갈리는 자리이며, 어느 쪽으로 판정할지는 Q66 다
-    achieves: [MG-OVERCOME-SUPERIOR-OPPONENT]
-    meaningful_difference: >
-      상대가 스스로 만든 취약 구간을 노린다. 자원도 위치도 요구하지 않고 오직 관찰과 대기가
-      비용이다 — 기다리는 동안 아무것도 얻지 못한다. 되받아치기와 달리 상대의 공격을 받아낼
-      필요가 없다.
-    detail: >
-      되받아치기와 나란히 두면 차이가 분명하다. 되받아치기는 상대의 공격을 **받아내면서**
-      뒤집는 것이고, 이것은 상대가 힘을 다른 곳에 몰아 몸이 얇아진 구간을 **옆에서**
-      때리는 것이다. 그래서 맞을 필요가 없다. 대신 그 구간이 올 때까지 기다려야 하고,
-      기다리는 동안은 아무 이득도 없다.
-      **무엇이 비는가가 Q59(a) 로 바뀌었다.** 예전에는 상대가 공격에 몰면 방어가
-      얇아진다고 보았는데, UL 의 세 축에서는 때리는 힘과 막는 힘이 같은 "몸" 에 함께
-      들어 있다 (UL §13). 그래서 이제 노릴 자리는 상대가 자기 **능력이나 인지**에
-      힘을 몰아 둔 동안이다 — 그동안 몸이 얇아 정면 타격이 잘 든다 (UL §14 의 배분은
-      합이 정해져 있어 한쪽에 몰면 반대쪽이 실제로 준다).
-      상대가 지금 어느 배분인지가 보여야 성립하며, UL §40 이 그 표현을 요구한다.
-    world_shape: >
-      상대가 능력이나 인지에 힘을 몰면 몸 쪽이 실제로 얇아지고, 지금 어느 배분인지가
-      관찰 가능하며, 그 구간에 넣은 공격이 다른 때보다 잘 들어가야 한다.
+    overlay_missing: MC-AURA-ALLOCATION (PARTIAL)
+    overlay_note: 요구 넷 중 셋이 섰고 넷째(MC-AURA-ALLOCATION)가 PARTIAL 이라 갈래도 PARTIAL 이다. 다만 플레이로는 이미 성립한다 — 상대가
+      물리에 무른 것을 알아내고 배분으로 그 무른 쪽을 친다 (C-COMBAT-001 WORLD SCENARIO). 노드의 완결과 플레이의 성립이 갈리는 자리이며, 어느
+      쪽으로 판정할지는 Q66 다
+    achieves: [ MG-OVERCOME-SUPERIOR-OPPONENT ]
+    meaningful_difference: 상대가 스스로 만든 취약 구간을 노린다. 자원도 위치도 요구하지 않고 오직 관찰과 대기가 비용이다 — 기다리는 동안 아무것도 얻지 못한다.
+      되받아치기와 달리 상대의 공격을 받아낼 필요가 없다.
+    source: UL §13 · UL §14 · UL §40
+    world_shape: 상대가 능력이나 인지에 힘을 몰면 몸 쪽이 실제로 얇아지고, 지금 어느 배분인지가 관찰 가능하며, 그 구간에 넣은 공격이 다른 때보다 잘 들어가야 한다.
     implemented: ABSENT
     requires:
       goals: []
-      capabilities: [MC-AURA-ALLOCATION, MC-COMBAT-STRIKE, MC-COMBAT-CAUSE-READING]
-      knowledge: [MK-OPPONENT-FLOW-PATTERN]
+      capabilities: [ MC-AURA-ALLOCATION, MC-COMBAT-STRIKE, MC-COMBAT-CAUSE-READING ]
+      knowledge: [ MK-OPPONENT-FLOW-PATTERN ]
       world_state: []
       relationship: []
       resource: []
-    supports: [MP-READ-AND-COUNTER]
+    supports: [ MP-READ-AND-COUNTER ]
     opposes: []
-    changes:
-      - 상대가 힘을 몰았던 순간의 대가를 실제로 치른다
-    reveals: [MK-OPPONENT-FLOW-PATTERN]
+    changes: [ 상대가 힘을 몰았던 순간의 대가를 실제로 치른다 ]
+    reveals: [ MK-OPPONENT-FLOW-PATTERN ]
     creates_goal: []
-    constraints: [DC-COMBAT-PLAYER-CAUSALITY]
+    constraints: [ DC-COMBAT-PLAYER-CAUSALITY ]
     constraint_evaluation:
-      DC-COMBAT-PLAYER-CAUSALITY: SATISFIED    # 열림은 배분 상태라는 관찰 가능한 원인이다 (R1 §6 · UL §14)
-
+      DC-COMBAT-PLAYER-CAUSALITY: SATISFIED
   - id: MP-INTERRUPT
     type: possibility
-    overlay_missing: >-
-      **없음**
-    overlay_note: >-
-      **C019 로 닫혔다** — 지금 플레이 가능하다. 상대의 선딜을 노려 끊고, 늦으면 이미 나간 칼을 무르지 못한다. 요구는 MC-INTERRUPT 하나뿐이었고
-      그것이 섰다
-    achieves: [MG-OVERCOME-SUPERIOR-OPPONENT]
-    meaningful_difference: >
-      상대의 행동이 완성되기 전에 끊는다. 완성된 공격을 받아내는 모든 경로와 달리
-      결과 자체를 존재하지 않게 만들며, 요구되는 것은 상대 행동의 시작을 읽는
-      시점 판단이다. (BW §28)
-    detail: >
-      막기·회피·감쇄는 모두 "이미 날아온 것" 을 처리하는 갈래다. 이것만 유일하게
-      날아오지 못하게 한다. 그래서 상대가 크고 느린 행동을 준비할수록 값어치가 커진다.
-      되받아치기와 다른 점은 맞을 필요가 없고 정확한 한 순간이 아니라 상대 행동의
-      진행 중이면 성립한다는 것이다 — 시점의 폭이 다르다.
-    world_shape: >
-      상대의 행동에 시작과 완성 사이의 진행 구간이 있고, 그 구간에 개입하면 행동이
-      완성되지 못해야 한다. 그리고 무엇이 끊겼는지가 관찰 가능해야 한다.
+    overlay_missing: 없음
+    overlay_note: C019 로 닫혔다 — 지금 플레이 가능하다. 상대의 선딜을 노려 끊고, 늦으면 이미 나간 칼을 무르지 못한다. 요구는 MC-INTERRUPT 하나뿐이었고 그것이 섰다
+    achieves: [ MG-OVERCOME-SUPERIOR-OPPONENT ]
+    meaningful_difference: 상대의 행동이 완성되기 전에 끊는다. 완성된 공격을 받아내는 모든 경로와 달리 결과 자체를 존재하지 않게 만들며, 요구되는 것은 상대
+      행동의 시작을 읽는 시점 판단이다. (BW §28)
+    source: BW §28
+    world_shape: 상대의 행동에 시작과 완성 사이의 진행 구간이 있고, 그 구간에 개입하면 행동이 완성되지 못해야 한다. 그리고 무엇이 끊겼는지가 관찰 가능해야 한다.
     implemented: PRESENT
     requires:
       goals: []
-      capabilities: [MC-INTERRUPT]
+      capabilities: [ MC-INTERRUPT ]
       knowledge: []
       world_state: []
       relationship: []
       resource: []
-    supports: [MG-SURVIVE-ENEMY-OFFENSIVE]   # 끊긴 공세는 받아낼 필요가 없다
+    supports: [ MG-SURVIVE-ENEMY-OFFENSIVE ]
     opposes: []
-    changes:
-      - 상대의 행동이 완성되지 못한다
+    changes: [ 상대의 행동이 완성되지 못한다 ]
     reveals: []
     creates_goal: []
-    constraints: [DC-COMBAT-PLAYER-CAUSALITY]
+    constraints: [ DC-COMBAT-PLAYER-CAUSALITY ]
     constraint_evaluation:
-      DC-COMBAT-PLAYER-CAUSALITY: SATISFIED    # 시점 관계로 판정된다 — 난수가 아니다
-
+      DC-COMBAT-PLAYER-CAUSALITY: SATISFIED
   - id: MP-CONTROL-MOVEMENT
     type: possibility
-    overlay_missing: >-
-      MC-CONTROL-SPACE + MC-FORCE-MOVEMENT·MC-REPOSITION(둘 다 PARTIAL)
-    overlay_note: >-
-      셋 중 둘이 절반 서 있다
-    achieves: [MG-OVERCOME-SUPERIOR-OPPONENT]
-    meaningful_difference: >
-      상대를 이기는 것이 아니라 상대의 위치 선택을 빼앗아 이긴다. 피해 교환 없이
-      상대를 불리한 자리로 강제하는 것이 수단이며, 세기·시점·상성 어느 것도 아닌
-      공간이 승부 축이다. (BW §28)
-    detail: >
-      다른 갈래들이 "어떻게 때릴 것인가" 를 다룬다면 이것은 "어디서 싸울 것인가" 를
-      다룬다. 상대를 원하지 않는 자리로 밀어 넣고, 상대가 쓰고 싶은 공간을 좁히고,
-      나는 유리한 자리를 잡는다. 피해를 한 점도 주지 않고도 판을 유리하게 만들 수
-      있다는 것이 이 갈래의 성격이다. 위험 지형이 있는 곳에서는 다음 갈래
-      (MP-WEAPONIZE-ENVIRONMENT)와 결합해 훨씬 강해진다.
-    world_shape: >
-      위치가 결과를 실제로 가르고(어디에 서 있는지가 판정을 바꾸고), 상대의 위치를
-      내 행동으로 바꿀 수 있으며, 상대가 쓸 수 있는 공간을 좁히는 수단이 있어야 한다.
+    overlay_missing: MC-CONTROL-SPACE + MC-FORCE-MOVEMENT·MC-REPOSITION(둘 다 PARTIAL)
+    overlay_note: 셋 중 둘이 절반 서 있다
+    achieves: [ MG-OVERCOME-SUPERIOR-OPPONENT ]
+    meaningful_difference: 상대를 이기는 것이 아니라 상대의 위치 선택을 빼앗아 이긴다. 피해 교환 없이 상대를 불리한 자리로 강제하는 것이 수단이며,
+      세기·시점·상성 어느 것도 아닌 공간이 승부 축이다. (BW §28)
+    source: BW §28
+    world_shape: 위치가 결과를 실제로 가르고(어디에 서 있는지가 판정을 바꾸고), 상대의 위치를 내 행동으로 바꿀 수 있으며, 상대가 쓸 수 있는 공간을 좁히는 수단이 있어야 한다.
     implemented: PARTIAL
     requires:
       goals: []
-      capabilities: [MC-FORCE-MOVEMENT, MC-CONTROL-SPACE, MC-REPOSITION]
+      capabilities: [ MC-FORCE-MOVEMENT, MC-CONTROL-SPACE, MC-REPOSITION ]
       knowledge: []
       world_state: []
       relationship: []
       resource: []
-    supports: [MP-WEAPONIZE-ENVIRONMENT]   # 몰아넣을 곳이 위험 요소면 두 경로가 결합한다
+    supports: [ MP-WEAPONIZE-ENVIRONMENT ]
     opposes: []
-    changes:
-      - 상대가 원하지 않는 자리에서 싸우게 된다
+    changes: [ 상대가 원하지 않는 자리에서 싸우게 된다 ]
     reveals: []
     creates_goal: []
-    constraints: [DC-COMBAT-PLAYER-CAUSALITY]
+    constraints: [ DC-COMBAT-PLAYER-CAUSALITY ]
     constraint_evaluation:
-      DC-COMBAT-PLAYER-CAUSALITY: SATISFIED    # 강제 이동은 명시 조건의 결과다 — 난수가 아니다
-
+      DC-COMBAT-PLAYER-CAUSALITY: SATISFIED
   - id: MP-WEAPONIZE-ENVIRONMENT
     type: possibility
-    overlay_missing: >-
-      MC-READ-ENVIRONMENT · MC-USE-HAZARD + MW-ZONE-DANGER
-    overlay_note: >-
-      환경 위험 개념 자체가 없다
-    achieves: [MG-OVERCOME-SUPERIOR-OPPONENT]
-    meaningful_difference: >
-      내 힘이 아니라 환경의 위험을 무기로 쓴다. 내 능력치와 무관하게 환경이 낼 수
-      있는 결과를 빌리므로, 나보다 강한 상대에게도 성립하는 유일한 전투 경로다 —
-      대신 그 환경이 있는 곳에서만 가능하다. (BW §28)
-    detail: >
-      이 갈래만 유일하게 내 능력치를 거치지 않는다. 그래서 성장이 한참 뒤처진 플레이어도
-      지형만 맞으면 강한 상대를 처리할 수 있다 — 대신 그 지형이 없는 곳에서는
-      아무 쓸모가 없다. 장소에 완전히 의존하는 것이 비용이다.
-      이것이 성립하려면 환경 위험이 플레이어와 상대 **양쪽에** 작용해야 한다.
-      플레이어만 피해를 입는 장애물이면 그냥 불편함이고, 상대만 걸리면 퍼즐이다.
-    world_shape: >
-      스스로 피해를 주는 환경 요소가 존재하고, 그것이 플레이어와 상대 모두에게 같은
-      규칙으로 작용하며, 누가 그것을 더 잘 쓰는가가 승패를 가를 수 있어야 한다.
+    overlay_missing: MC-READ-ENVIRONMENT · MC-USE-HAZARD + MW-ZONE-DANGER
+    overlay_note: 환경 위험 개념 자체가 없다
+    achieves: [ MG-OVERCOME-SUPERIOR-OPPONENT ]
+    meaningful_difference: 내 힘이 아니라 환경의 위험을 무기로 쓴다. 내 능력치와 무관하게 환경이 낼 수 있는 결과를 빌리므로, 나보다 강한 상대에게도 성립하는
+      유일한 전투 경로다 — 대신 그 환경이 있는 곳에서만 가능하다. (BW §28)
+    source: BW §28
+    world_shape: 스스로 피해를 주는 환경 요소가 존재하고, 그것이 플레이어와 상대 모두에게 같은 규칙으로 작용하며, 누가 그것을 더 잘 쓰는가가 승패를 가를 수 있어야 한다.
     implemented: ABSENT
     requires:
       goals: []
-      capabilities: [MC-READ-ENVIRONMENT, MC-USE-HAZARD]
+      capabilities: [ MC-READ-ENVIRONMENT, MC-USE-HAZARD ]
       knowledge: []
-      world_state: [MW-ZONE-DANGER]
+      world_state: [ MW-ZONE-DANGER ]
       relationship: []
       resource: []
     supports: []
     opposes: []
-    changes:
-      - 환경의 위험이 상대에게 작용한다
+    changes: [ 환경의 위험이 상대에게 작용한다 ]
     reveals: []
     creates_goal: []
-    constraints: [DC-COMBAT-PLAYER-CAUSALITY]
+    constraints: [ DC-COMBAT-PLAYER-CAUSALITY ]
     constraint_evaluation:
-      DC-COMBAT-PLAYER-CAUSALITY: SATISFIED    # 환경 위험의 발동 조건은 세계의 관찰 가능한 규칙이다
-
+      DC-COMBAT-PLAYER-CAUSALITY: SATISFIED
   - id: MP-BET-ON-THE-CRITICAL-BLOW
     type: possibility
-    overlay_missing: >-
-      요구 Capability 는 **없음** · `requires.resource` 미충족
-    overlay_note: >-
-      **C015 로 절반 닫혔다** — 증폭이 터지는 것과 그 경위가 다 보인다. 그러나 "준비로 기대값을 올린다" 는 나머지 절반이 남았다: Critical 성질을
-      올릴 성장·장비가 세계에 없어 경로가 종류 초기값과 디버그뿐이다
-    achieves: [MG-OVERCOME-SUPERIOR-OPPONENT]
-    meaningful_difference: >
-      다른 모든 경로가 확실한 결과를 쌓는 데 비해, 이것은 확률적으로 터지는 큰 증폭에
-      기대를 건다. 준비(Critical 확률·증폭을 키우는 성장·장비)로 기대값을 올리되
-      개별 결과는 확률이 정한다 — 전투 전체에서 유일하게 분산(variance)이 축인 경로다.
-    detail: >
-      이 세계의 전투는 원칙적으로 난수를 쓰지 않는다 — 같은 조건이면 같은 결과다.
-      이 갈래만 그 원칙의 유일한 예외로 열려 있다 (Human 결정). 그래서 다른 갈래와
-      성격이 근본적으로 다르다. 나머지는 "이렇게 하면 이렇게 된다" 를 배우는 것이고,
-      이것은 "여러 번 하면 평균적으로 이득" 을 고르는 것이다. 예외인 만큼 조건이
-      붙는다 — 터졌는지 여부와 얼마나 증폭됐는지가 계산 내역에 반드시 드러나야 한다.
-      숨은 주사위는 허용되지 않는다.
-    world_shape: >
-      같은 조건을 반복하면 대부분 같은 피해가 나오다가 이따금 증폭된 피해가 나오고,
-      그 타격의 계산 내역에 증폭 여부와 배율이 찍혀야 한다. 그리고 증폭 관련 성질을
-      올리면 빈도와 크기가 달라지는 것이 보여야 한다.
+    overlay_missing: 요구 Capability 는 없음 · `requires.resource` 미충족
+    overlay_note: 'C015 로 절반 닫혔다 — 증폭이 터지는 것과 그 경위가 다 보인다. 그러나 "준비로 기대값을 올린다" 는 나머지 절반이 남았다: Critical
+      성질을 올릴 성장·장비가 세계에 없어 경로가 종류 초기값과 디버그뿐이다'
+    achieves: [ MG-OVERCOME-SUPERIOR-OPPONENT ]
+    meaningful_difference: 다른 모든 경로가 확실한 결과를 쌓는 데 비해, 이것은 확률적으로 터지는 큰 증폭에 기대를 건다. 준비(Critical 확률·증폭을 키우는
+      성장·장비)로 기대값을 올리되 개별 결과는 확률이 정한다 — 전투 전체에서 유일하게 분산(variance)이 축인 경로다.
+    source: R1 (§ 미지정 — 주입기 이전 번역)
+    world_shape: 같은 조건을 반복하면 대부분 같은 피해가 나오다가 이따금 증폭된 피해가 나오고, 그 타격의 계산 내역에 증폭 여부와 배율이 찍혀야 한다. 그리고 증폭 관련
+      성질을 올리면 빈도와 크기가 달라지는 것이 보여야 한다.
     implemented: PARTIAL
     requires:
       goals: []
-      capabilities: [MC-CRITICAL-STRIKE, MC-COMBAT-STRIKE, MC-ATTACK-POWER]
+      capabilities: [ MC-CRITICAL-STRIKE, MC-COMBAT-STRIKE, MC-ATTACK-POWER ]
       knowledge: []
       world_state: []
       relationship: []
-      resource: [Critical 성질을 올릴 성장·장비의 원천]
-    supports: [MP-OUTGROW-THE-OPPONENT]   # 같은 성장 축 위에서 작동한다 (R1 §12)
+      resource: [ Critical 성질을 올릴 성장·장비의 원천 ]
+    supports: [ MP-OUTGROW-THE-OPPONENT ]
     opposes: []
-    changes:
-      - 같은 교환에서 이따금 상한을 넘는 결과가 터진다
+    changes: [ 같은 교환에서 이따금 상한을 넘는 결과가 터진다 ]
     reveals: []
     creates_goal: []
-    constraints: [DC-COMBAT-PLAYER-CAUSALITY, DC-COMBAT-ONE-FORMULA]
+    constraints: [ DC-COMBAT-PLAYER-CAUSALITY, DC-COMBAT-ONE-FORMULA ]
     constraint_evaluation:
-      DC-COMBAT-PLAYER-CAUSALITY: SATISFIED    # REVISED 예외 — Critical 만 확률 허용 · 발생 여부와 증폭이 계산 경위에 드러난다
-      DC-COMBAT-ONE-FORMULA: SATISFIED         # 새 공식이 아니라 Final Damage 를 증폭하는 결과값 수정이다
-
+      DC-COMBAT-PLAYER-CAUSALITY: SATISFIED
+      DC-COMBAT-ONE-FORMULA: SATISFIED
   - id: MP-STAKE-EVERYTHING-ON-ONE-BLOW
     type: possibility
-    overlay_missing: >-
-      MC-VOW · MC-AURA-ALLOCATION + MC-CONDITION-STACKING(PARTIAL)
-    overlay_note: >-
-      Aura/Nen 층 — 가장 멀다. UL §20 이 계약의 대가를 바꾼 뒤로 이 갈래는 "제약으로 위력을 산다" 쪽 반쪽만 쓴다 — 허락을 사는 반쪽은 MP-BIND-BY-CONTRACT 다
-    achieves: [MG-OVERCOME-SUPERIOR-OPPONENT]
-    meaningful_difference: >
-      다른 모든 경로가 반복 가능한 데 비해 이것은 한 번이다. 스스로 제약을 걸어 조건을
-      좁히고 실패하면 정의된 대가를 즉시 치른다. 위험을 자원처럼 지불하는 유일한 경로다.
-    detail: >
-      스스로에게 제약을 건다. "이 싸움에서 물러나지 않는다", "이 조건이 아니면 쓰지
-      않는다" 처럼 자기 선택지를 좁히고, 그 대가로 규칙 안의 상한을 넘는 한 번의 결과를
-      얻는다. 실패하면 걸었던 것을 잃는다. 중요한 것은 큰 결과가 운이 아니라
-      **스스로 만든 조건들의 합**이라는 점이다 — 그래서 이것은 도박이 아니라 설계다.
-      전투 사다리의 가장 위층이라 아래가 다 서야 의미가 생긴다.
-    world_shape: >
-      플레이어가 스스로 제약을 선언할 수 있고, 그 제약이 실제로 자기 선택지를 좁히며,
-      대가로 얻는 결과가 제약의 무게에 비례해야 한다. 그리고 실패의 대가가 즉시 치러져야 한다.
+    overlay_missing: MC-VOW · MC-AURA-ALLOCATION + MC-CONDITION-STACKING(PARTIAL)
+    overlay_note: Aura/Nen 층 — 가장 멀다. UL §20 이 계약의 대가를 바꾼 뒤로 이 갈래는 "제약으로 위력을 산다" 쪽 반쪽만 쓴다 — 허락을 사는 반쪽은
+      MP-BIND-BY-CONTRACT 다
+    achieves: [ MG-OVERCOME-SUPERIOR-OPPONENT ]
+    meaningful_difference: 다른 모든 경로가 반복 가능한 데 비해 이것은 한 번이다. 스스로 제약을 걸어 조건을 좁히고 실패하면 정의된 대가를 즉시 치른다. 위험을 자원처럼 지불하는 유일한 경로다.
+    source: UL §20
+    world_shape: 플레이어가 스스로 제약을 선언할 수 있고, 그 제약이 실제로 자기 선택지를 좁히며, 대가로 얻는 결과가 제약의 무게에 비례해야 한다. 그리고 실패의 대가가
+      즉시 치러져야 한다.
     implemented: ABSENT
     requires:
       goals: []
-      capabilities: [MC-VOW, MC-AURA-ALLOCATION, MC-CP-ECONOMY, MC-CONDITION-STACKING]
+      capabilities: [ MC-VOW, MC-AURA-ALLOCATION, MC-CP-ECONOMY, MC-CONDITION-STACKING ]
       knowledge: []
       world_state: []
       relationship: []
-      resource: [축적된 CP, 제약이 요구하는 자기 상태]
+      resource: [ 축적된 CP, 제약이 요구하는 자기 상태 ]
     supports: []
-    opposes: [MG-SURVIVE-ENEMY-OFFENSIVE]   # 제약이 대개 자기 방어를 포기하게 만든다
-    changes:
-      - 규칙 안의 상한을 넘는 한 번의 결과가 나온다
-      - 실패하면 방어권·자원 등 정의된 것을 잃는다
+    opposes: [ MG-SURVIVE-ENEMY-OFFENSIVE ]
+    changes: [ 규칙 안의 상한을 넘는 한 번의 결과가 나온다, 실패하면 방어권·자원 등 정의된 것을 잃는다 ]
     reveals: []
-    creates_goal:
-      - MG-SURVIVE-ENEMY-OFFENSIVE   # 실패의 대가가 곧바로 다음 국면을 만든다
-    constraints: [DC-COMBAT-PLAYER-CAUSALITY, DC-COMBAT-CONTRACT-BUYS-CAPABILITY]
+    creates_goal: [ MG-SURVIVE-ENEMY-OFFENSIVE ]
+    constraints: [ DC-COMBAT-PLAYER-CAUSALITY, DC-COMBAT-CONTRACT-BUYS-CAPABILITY ]
     constraint_evaluation:
-      DC-COMBAT-PLAYER-CAUSALITY: SATISFIED    # 큰 결과는 스스로 만든 조건들의 합이지 난수가 아니다
-      DC-COMBAT-CONTRACT-BUYS-CAPABILITY: UNRESOLVED   # UL §20 은 위력 교환**만으로** 이 층을 구성하지 말라고 한다 — 이 갈래 홀로면 어긋나고 MP-BIND-BY-CONTRACT 와 함께면 맞는다
-
-
-  # ── 상층 전투 (UL) — 규칙을 바꿔서 넘어서는 갈래들 ─────────────────────
-  # 앞의 열하나가 "얼마나 강한가" 를 다투는 갈래라면 아래 셋은 "어떤 규칙 아래에서
-  # 싸우는가" 를 다툰다 (UL §2 · §45). 셋 다 피해를 키우지 않고도 성립한다.
-
+      DC-COMBAT-PLAYER-CAUSALITY: SATISFIED
+      DC-COMBAT-CONTRACT-BUYS-CAPABILITY: UNRESOLVED
   - id: MP-CONCENTRATE-THE-POWER
     type: possibility
-    overlay_missing: >-
-      MC-AURA-ALLOCATION (PARTIAL)
-    overlay_note: >-
-      UL §42 F4 — 상층 넷 중 첫 칸. 아래 세 칸(응답 · 정밀 · 기회)이 먼저 서야 한다는 순서가 문서에 있다
-    achieves: [MG-OVERCOME-SUPERIOR-OPPONENT]
-    meaningful_difference: >
-      다른 갈래는 무엇을 할지 고르고 이 갈래는 어떤 몸이 될지 고른다. 자원도 위치도
-      요구하지 않고 선택 한 번이 비용의 전부지만, 고른 대가로 다른 쪽이 실제로 비고
-      그 빔이 상대에게 읽힌다 — 이득과 노출이 같은 선택에서 나온다.
-    detail: >
-      한 국면 안에서 자신을 다른 종류의 전투원으로 바꾸는 갈래다. 몸에 몰면 때리고
-      막는 것이 강해지고, 능력에 몰면 자기 기술이 멀리·오래·크게 가고, 인지에 몰면
-      숨은 것이 보이고 상대의 기술이 읽힌다. 중요한 것은 수치만 오르내리는 것이
-      아니라는 점이다 — 어느 쪽에 얼마나 몰았는가가 지금 쓸 수 있는 것의 목록
-      자체를 바꾼다 (UL §15).
-      그래서 이 갈래는 상대가 무엇을 하는지 알아야 값어치가 있다. 상대가 숨어 있는데
-      몸에 몰아 두면 아무것도 못 보고, 상대가 정면으로 밀어붙이는데 인지에 몰아 두면
-      그냥 맞는다. 고르는 일이 곧 판단이다.
-    world_shape: >
-      힘을 어디에 몰아 두었는지가 이름 붙은 상태로 존재하고, 전투 중 그것을 바꿀 수
-      있으며, 어느 상태냐에 따라 쓸 수 있는 것이 실제로 달라지고, 그 상태가 상대에게도
-      보여야 한다.
+    overlay_missing: MC-AURA-ALLOCATION (PARTIAL)
+    overlay_note: UL §42 F4 — 상층 넷 중 첫 칸. 아래 세 칸(응답 · 정밀 · 기회)이 먼저 서야 한다는 순서가 문서에 있다
+    achieves: [ MG-OVERCOME-SUPERIOR-OPPONENT ]
+    meaningful_difference: 다른 갈래는 무엇을 할지 고르고 이 갈래는 어떤 몸이 될지 고른다. 자원도 위치도 요구하지 않고 선택 한 번이 비용의 전부지만, 고른
+      대가로 다른 쪽이 실제로 비고 그 빔이 상대에게 읽힌다 — 이득과 노출이 같은 선택에서 나온다.
+    source: UL §42 · UL §15
+    world_shape: 힘을 어디에 몰아 두었는지가 이름 붙은 상태로 존재하고, 전투 중 그것을 바꿀 수 있으며, 어느 상태냐에 따라 쓸 수 있는 것이 실제로 달라지고, 그 상태가
+      상대에게도 보여야 한다.
     implemented: ABSENT
     requires:
       goals: []
-      capabilities: [MC-AURA-ALLOCATION, MC-COMBAT-CAUSE-READING, MC-CP-ECONOMY]
-      knowledge: [MK-OPPONENT-FLOW-PATTERN]
+      capabilities: [ MC-AURA-ALLOCATION, MC-COMBAT-CAUSE-READING, MC-CP-ECONOMY ]
+      knowledge: [ MK-OPPONENT-FLOW-PATTERN ]
       world_state: []
       relationship: []
       resource: []
-    supports: [MP-KNOW-THE-OPPONENT-RULE, MP-BIND-BY-CONTRACT]
+    supports: [ MP-KNOW-THE-OPPONENT-RULE, MP-BIND-BY-CONTRACT ]
     opposes: []
-    changes:
-      - 지금 쓸 수 있는 것의 목록이 바뀐다
-      - 몰지 않은 쪽이 실제로 비고 그 빔이 상대에게 읽힌다
-    reveals: [MK-OPPONENT-FLOW-PATTERN]
+    changes: [ 지금 쓸 수 있는 것의 목록이 바뀐다, 몰지 않은 쪽이 실제로 비고 그 빔이 상대에게 읽힌다 ]
+    reveals: [ MK-OPPONENT-FLOW-PATTERN ]
     creates_goal: []
-    constraints: [DC-COMBAT-AURA-IS-A-PROFILE-NOT-A-DIAL, DC-COMBAT-ONE-FORMULA]
+    constraints: [ DC-COMBAT-AURA-IS-A-PROFILE-NOT-A-DIAL, DC-COMBAT-ONE-FORMULA ]
     constraint_evaluation:
-      DC-COMBAT-AURA-IS-A-PROFILE-NOT-A-DIAL: SATISFIED  # 전투 중 입력은 배분 하나를 고르는 것뿐이다 (UL §14)
-      DC-COMBAT-ONE-FORMULA: SATISFIED                   # 기존 공식의 입력값을 바꾸고 가능 여부를 여닫는다 (UL §15)
-
+      DC-COMBAT-AURA-IS-A-PROFILE-NOT-A-DIAL: SATISFIED
+      DC-COMBAT-ONE-FORMULA: SATISFIED
   - id: MP-BIND-BY-CONTRACT
     type: possibility
-    overlay_missing: >-
-      MC-VOW · MC-BIND · MC-MARK · MC-ABILITY-CONDITION
-    overlay_note: >-
-      UL §42 F5~F7 — 상층의 마지막 세 칸이 전부 걸린다. 이 세계에서 가장 먼 갈래이고, 동시에 UL 이 §23 에서 대표 실물로 든 갈래다
-    achieves: [MG-OVERCOME-SUPERIOR-OPPONENT]
-    meaningful_difference: >
-      상대를 약하게 만들지 않고 상대가 할 수 있는 일 자체를 줄인다. 피해가 0 이어도
-      성립하며, 비용은 자원이 아니라 자기 선택지다 — 묶은 동안 다른 것을 하지 못한다.
-      다른 어떤 갈래보다 대가가 크고, 그 대가가 곧 상대의 공략 지점이 된다.
-    detail: >
-      스스로 제약을 받아들이는 대신 평소에는 허락되지 않는 것을 허락받는 갈래다.
-      "나를 먼저 공격한 대상에게만" 이라는 제약을 지면 그 대상의 이동을 묶을 수 있게
-      되고, 묶은 동안에는 다른 존재를 공격할 수 없다 (UL §20 · §23).
-      다른 갈래와 가장 크게 다른 점은 이기는 방식이다. 넘어서는 것이 "더 큰 피해" 가
-      아니라 "상대가 그 싸움을 자기 방식대로 할 수 없게 되는 것" 이다. 그래서 정면
-      힘겨루기로 이기지 못하는 상대에게 특히 값어치가 있다.
-      대가가 크다는 것이 균형이다. 묶은 쪽은 손이 묶이고, 상대는 셋 중 하나로 풀 수
-      있다 — 사슬을 부수거나, 건 쪽을 억지로 움직이게 하거나, 다른 존재를 앞세워
-      계약 위반을 유도하거나 (UL §24). 강한데 답이 있다.
-    world_shape: >
-      스스로 거는 제약이 세계의 사실로 존재하고, 그것을 지는 대가로 평소에는 할 수
-      없는 조작이 열리며, 그 조작이 상대의 행동 범위를 실제로 줄이고, 제약을 어기면
-      즉시 풀려야 한다. 그리고 상대가 그것을 푸는 길이 최소한 하나 있어야 한다.
+    overlay_missing: MC-VOW · MC-BIND · MC-MARK · MC-ABILITY-CONDITION
+    overlay_note: UL §42 F5~F7 — 상층의 마지막 세 칸이 전부 걸린다. 이 세계에서 가장 먼 갈래이고, 동시에 UL 이 §23 에서 대표 실물로 든 갈래다
+    achieves: [ MG-OVERCOME-SUPERIOR-OPPONENT ]
+    meaningful_difference: 상대를 약하게 만들지 않고 상대가 할 수 있는 일 자체를 줄인다. 피해가 0 이어도 성립하며, 비용은 자원이 아니라 자기 선택지다 — 묶은
+      동안 다른 것을 하지 못한다. 다른 어떤 갈래보다 대가가 크고, 그 대가가 곧 상대의 공략 지점이 된다.
+    source: UL §42 · UL §20 · §23 · UL §24
+    world_shape: 스스로 거는 제약이 세계의 사실로 존재하고, 그것을 지는 대가로 평소에는 할 수 없는 조작이 열리며, 그 조작이 상대의 행동 범위를 실제로 줄이고, 제약을
+      어기면 즉시 풀려야 한다. 그리고 상대가 그것을 푸는 길이 최소한 하나 있어야 한다.
     implemented: ABSENT
     requires:
       goals: []
-      capabilities: [MC-VOW, MC-BIND, MC-MARK, MC-ABILITY-CONDITION, MC-DESIGNATE-TARGET]
+      capabilities: [ MC-VOW, MC-BIND, MC-MARK, MC-ABILITY-CONDITION, MC-DESIGNATE-TARGET ]
       knowledge: []
       world_state: []
       relationship: []
       resource: []
     supports: []
-    opposes: [MP-STAKE-EVERYTHING-ON-ONE-BLOW]   # 같은 제약 자리를 서로 다른 대가로 쓴다
-    changes:
-      - 상대가 할 수 있는 일의 범위가 좁아진다
-      - 거는 쪽도 그동안 할 수 없는 것이 생긴다
+    opposes: [ MP-STAKE-EVERYTHING-ON-ONE-BLOW ]
+    changes: [ 상대가 할 수 있는 일의 범위가 좁아진다, 거는 쪽도 그동안 할 수 없는 것이 생긴다 ]
     reveals: []
     creates_goal: []
-    constraints: [DC-COMBAT-CONTRACT-BUYS-CAPABILITY, DC-COMBAT-ABILITY-IS-A-RULE, DC-COMBAT-STRONG-RULE-HAS-COUNTERPLAY]
+    constraints:
+      [
+        DC-COMBAT-CONTRACT-BUYS-CAPABILITY,
+        DC-COMBAT-ABILITY-IS-A-RULE,
+        DC-COMBAT-STRONG-RULE-HAS-COUNTERPLAY
+      ]
     constraint_evaluation:
-      DC-COMBAT-CONTRACT-BUYS-CAPABILITY: SATISFIED     # 제약이 사는 것이 수치가 아니라 새 조작이다 (UL §20)
-      DC-COMBAT-ABILITY-IS-A-RULE: SATISFIED            # 피해 없이 성립하는 세계 조작이다 (UL §23)
-      DC-COMBAT-STRONG-RULE-HAS-COUNTERPLAY: SATISFIED  # 푸는 길이 셋 있다 (UL §24)
-
+      DC-COMBAT-CONTRACT-BUYS-CAPABILITY: SATISFIED
+      DC-COMBAT-ABILITY-IS-A-RULE: SATISFIED
+      DC-COMBAT-STRONG-RULE-HAS-COUNTERPLAY: SATISFIED
   - id: MP-KNOW-THE-OPPONENT-RULE
     type: possibility
-    overlay_missing: >-
-      MC-OBSERVE-ABILITY · MC-AURA-ALLOCATION · MC-ABILITY-CONDITION · MC-DISRUPT-ABILITY
-    overlay_note: >-
-      알아낼 대상 자체가 없다 — 적대 존재에게 규칙 있는 능력이 없다. 이 갈래는 상대 쪽에 상층이 서야 성립한다
-    achieves: [MG-OVERCOME-SUPERIOR-OPPONENT]
-    meaningful_difference: >
-      상대를 바꾸는 것도 자신을 키우는 것도 아니라 상대에 대해 아는 것을 늘린다.
-      비용은 시간과 맞아 보는 위험이고, 얻은 것은 사라지지 않아 다음 싸움에도 남는다.
-      한 판 안에서 가장 느리고 판을 넘어서면 가장 값싼 갈래다.
-    detail: >
-      되받아치기(MP-READ-AND-COUNTER)와 나란히 두면 시간 규모가 다르다. 그쪽은 지금
-      오는 한 동작을 읽는 것이고, 이쪽은 상대가 지닌 능력의 규칙 — 무엇이 참이어야
-      쓸 수 있고 어떤 제약을 지고 있으며 무엇으로 풀리는가 — 를 여러 국면에 걸쳐
-      알아내는 것이다 (UL §25 · §29).
-      알아낸 것이 곧 대응이 된다. 그 능력이 "나를 먼저 공격한 대상에게만" 성립한다는
-      것을 알면 먼저 치지 않으면 되고, 건 쪽에서 멀어지면 풀린다는 것을 알면 물러나면
-      된다. 그래서 이 갈래는 정보를 전투 자원으로 만든다 (UL §39).
-      인지에 얼마나 몰아 두었는가가 읽히는 깊이를 정하므로 (UL §25) 배분 갈래와 짝으로
-      돈다 — 그것 없이는 이름까지만 읽고 대응책에 닿지 못한다.
-    world_shape: >
-      상대가 규칙을 지닌 능력을 갖고 있고, 그 규칙이 처음에는 가려져 있으며, 겪거나
-      지켜본 만큼 단계적으로 드러나고, 알아낸 규칙을 이용한 대응이 실제로 통해야 한다.
+    overlay_missing: MC-OBSERVE-ABILITY · MC-AURA-ALLOCATION · MC-ABILITY-CONDITION · MC-DISRUPT-ABILITY
+    overlay_note: 알아낼 대상 자체가 없다 — 적대 존재에게 규칙 있는 능력이 없다. 이 갈래는 상대 쪽에 상층이 서야 성립한다
+    achieves: [ MG-OVERCOME-SUPERIOR-OPPONENT ]
+    meaningful_difference: 상대를 바꾸는 것도 자신을 키우는 것도 아니라 상대에 대해 아는 것을 늘린다. 비용은 시간과 맞아 보는 위험이고, 얻은 것은 사라지지 않아
+      다음 싸움에도 남는다. 한 판 안에서 가장 느리고 판을 넘어서면 가장 값싼 갈래다.
+    source: UL §25 · §29 · UL §39 · UL §25
+    world_shape: 상대가 규칙을 지닌 능력을 갖고 있고, 그 규칙이 처음에는 가려져 있으며, 겪거나 지켜본 만큼 단계적으로 드러나고, 알아낸 규칙을 이용한 대응이 실제로 통해야 한다.
     implemented: ABSENT
     requires:
       goals: []
-      capabilities: [MC-OBSERVE-ABILITY, MC-AURA-ALLOCATION, MC-ABILITY-CONDITION, MC-DISRUPT-ABILITY]
+      capabilities: [ MC-OBSERVE-ABILITY, MC-AURA-ALLOCATION, MC-ABILITY-CONDITION, MC-DISRUPT-ABILITY ]
       knowledge: []
       world_state: []
       relationship: []
       resource: []
-    supports: [MP-BIND-BY-CONTRACT]
+    supports: [ MP-BIND-BY-CONTRACT ]
     opposes: []
-    changes:
-      - 상대의 능력 규칙 중 알아낸 부분이 이후에도 남는다
-      - 그 규칙을 깨뜨리는 대응이 가능해진다
+    changes: [ 상대의 능력 규칙 중 알아낸 부분이 이후에도 남는다, 그 규칙을 깨뜨리는 대응이 가능해진다 ]
     reveals: []
     creates_goal: []
-    constraints: [DC-COMBAT-STRONG-RULE-HAS-COUNTERPLAY, DC-COMBAT-UNAVAILABLE-HAS-A-REASON]
+    constraints: [ DC-COMBAT-STRONG-RULE-HAS-COUNTERPLAY, DC-COMBAT-UNAVAILABLE-HAS-A-REASON ]
     constraint_evaluation:
-      DC-COMBAT-STRONG-RULE-HAS-COUNTERPLAY: SATISFIED  # 이 갈래가 "대응책을 발견 가능하게" 의 실물이다 (UL §25)
-      DC-COMBAT-UNAVAILABLE-HAS-A-REASON: SATISFIED     # 아직 모르는 것이 가려져 있음 자체가 드러난다 (UL §25)
-
-  # ══════════════════════════════════════════════════════════════════════
-  # MG-SURVIVE-ENEMY-OFFENSIVE — 밀리는 국면을 버티고 되돌리는 갈래들
-  # ══════════════════════════════════════════════════════════════════════
-
+      DC-COMBAT-STRONG-RULE-HAS-COUNTERPLAY: SATISFIED
+      DC-COMBAT-UNAVAILABLE-HAS-A-REASON: SATISFIED
   - id: MP-TRADE-BODY-FOR-RESOURCE
     type: possibility
-    overlay_missing: >-
-      **없음**
-    overlay_note: >-
-      **C011 로 닫혔다** — 지금 플레이 가능하다
-    achieves: [MG-SURVIVE-ENEMY-OFFENSIVE]
-    meaningful_difference: >
-      피해를 피하지 않고 받되 생명이 아닌 자원으로 받는다. 즉시 성립하고 정확함을 요구하지
-      않지만, 계속 쓰면 자원이 말라 더 나쁜 붕괴로 끝난다 — 시간을 사는 선택이다.
-    detail: >
-      막기다. 정확한 시점을 요구하지 않으므로 누구나 즉시 쓸 수 있고, 그래서 가장
-      기본적인 생존 수단이다. 대가는 명확하다 — 막을 때마다 기력이 줄고, 기력이 마르면
-      방어가 무너지면서 그 타격을 온전히 맞는다. 즉 막기는 문제를 해결하는 것이 아니라
-      **미루는** 것이다. 그 미룬 시간 동안 무엇을 할지가 이 갈래의 실제 내용이다.
-      그리고 막는 데 쓰는 기력은 공격에 쓰는 기력과 같은 예산이라, 방어를 많이 할수록
-      반격할 밑천이 준다.
-    world_shape: >
-      피해를 줄이는 행동이 있고 그것이 자원을 쓰며, 자원이 마르면 그 방어가 무너져야 한다.
-      그리고 그 자원이 공격에 쓰는 것과 같은 예산이어야 한다.
+    overlay_missing: 없음
+    overlay_note: C011 로 닫혔다 — 지금 플레이 가능하다
+    achieves: [ MG-SURVIVE-ENEMY-OFFENSIVE ]
+    meaningful_difference: 피해를 피하지 않고 받되 생명이 아닌 자원으로 받는다. 즉시 성립하고 정확함을 요구하지 않지만, 계속 쓰면 자원이 말라 더 나쁜 붕괴로 끝난다 — 시간을 사는 선택이다.
+    source: R1 (§ 미지정 — 주입기 이전 번역)
+    world_shape: 피해를 줄이는 행동이 있고 그것이 자원을 쓰며, 자원이 마르면 그 방어가 무너져야 한다. 그리고 그 자원이 공격에 쓰는 것과 같은 예산이어야 한다.
     implemented: PRESENT
     requires:
       goals: []
-      capabilities: [MC-GUARD, MC-DEFENSE-MITIGATION, MC-CP-ECONOMY, MC-BODY-FACING]
+      capabilities: [ MC-GUARD, MC-DEFENSE-MITIGATION, MC-CP-ECONOMY, MC-BODY-FACING ]
       knowledge: []
       world_state: []
       relationship: []
-      resource: [남은 CP]
+      resource: [ 남은 CP ]
     supports: []
-    opposes: [MP-STAKE-EVERYTHING-ON-ONE-BLOW, MP-BREAK-THE-GUARD]   # 같은 CP 를 놓고 경쟁한다
-    changes:
-      - 생명 대신 자원이 줄어든다
-      - 자원이 바닥나면 방어 자체가 무너진다
+    opposes: [ MP-STAKE-EVERYTHING-ON-ONE-BLOW, MP-BREAK-THE-GUARD ]
+    changes: [ 생명 대신 자원이 줄어든다, 자원이 바닥나면 방어 자체가 무너진다 ]
     reveals: []
     creates_goal: []
-    constraints: [DC-COMBAT-SHARED-BUDGET]
+    constraints: [ DC-COMBAT-SHARED-BUDGET ]
     constraint_evaluation:
-      DC-COMBAT-SHARED-BUDGET: SATISFIED       # 생명 대신 같은 기력 예산으로 받아 마르면 무너진다 (R1 §1 · §11)
-
+      DC-COMBAT-SHARED-BUDGET: SATISFIED
   - id: MP-EVADE-BY-MOVING-THE-BODY
     type: possibility
-    overlay_missing: >-
-      MC-EVADE · MC-ACTIVE-RESPONSE
-    overlay_note: >-
-      R1 §13 이 이후 확장으로만 지정했고 UL §8 이 그 형태를 확정했다 — 짧은 이동에 짧은 판정 무효 구간을 얹는다. 회피는 응답 자리에 끼우는 것 중 하나다
-    achieves: [MG-SURVIVE-ENEMY-OFFENSIVE]
-    meaningful_difference: >
-      막지 않고 그 자리에 없다. 자원을 쓰고 위치가 바뀌므로 다음 공격 거리도 함께 잃거나 얻는다.
-      막기와 달리 상대의 압박을 누적시키지 않는다.
-    detail: >
-      막기와 나란히 두면 성격이 갈린다. 막기는 제자리에서 받아내는 것이라 위치가
-      그대로지만 자원이 계속 깎인다. 회피는 자원을 쓰되 위치가 바뀌어서, 잘 쓰면
-      다음 공격에 좋은 자리를 얻고 잘못 쓰면 반격 거리를 잃는다. 중요한 것은 이것이
-      확률 회피가 아니라는 점이다 — 주사위로 빗나가는 것이 아니라 실제로 그 자리에
-      없어서 안 맞는다. 그래야 플레이어의 판단이 결과를 만든다.
-    world_shape: >
-      공격이 특정 공간에만 닿고, 그 공간에서 몸을 빼면 실제로 맞지 않아야 한다.
-      빗맞음이 확률 판정으로 결정되면 이 갈래가 아니다.
+    overlay_missing: MC-EVADE · MC-ACTIVE-RESPONSE
+    overlay_note: R1 §13 이 이후 확장으로만 지정했고 UL §8 이 그 형태를 확정했다 — 짧은 이동에 짧은 판정 무효 구간을 얹는다. 회피는 응답 자리에 끼우는 것 중 하나다
+    achieves: [ MG-SURVIVE-ENEMY-OFFENSIVE ]
+    meaningful_difference: 막지 않고 그 자리에 없다. 자원을 쓰고 위치가 바뀌므로 다음 공격 거리도 함께 잃거나 얻는다. 막기와 달리 상대의 압박을 누적시키지 않는다.
+    source: R1 §13 · UL §8
+    world_shape: 공격이 특정 공간에만 닿고, 그 공간에서 몸을 빼면 실제로 맞지 않아야 한다. 빗맞음이 확률 판정으로 결정되면 이 갈래가 아니다.
     implemented: ABSENT
     requires:
       goals: []
-      capabilities: [MC-EVADE, MC-ACTIVE-RESPONSE, MC-CP-ECONOMY]
+      capabilities: [ MC-EVADE, MC-ACTIVE-RESPONSE, MC-CP-ECONOMY ]
       knowledge: []
       world_state: []
       relationship: []
-      resource: [남은 CP]
+      resource: [ 남은 CP ]
     supports: []
     opposes: []
-    changes:
-      - 내 위치가 바뀐다
-      - 상대의 공격이 빗나가되 상대는 대가를 치르지 않는다
+    changes: [ 내 위치가 바뀐다, 상대의 공격이 빗나가되 상대는 대가를 치르지 않는다 ]
     reveals: []
     creates_goal: []
-    constraints: [DC-COMBAT-PLAYER-CAUSALITY, DC-COMBAT-SHARED-BUDGET]
+    constraints: [ DC-COMBAT-PLAYER-CAUSALITY, DC-COMBAT-SHARED-BUDGET ]
     constraint_evaluation:
-      DC-COMBAT-PLAYER-CAUSALITY: SATISFIED    # 확률 회피가 아니라 실제 위치 이동으로 벗어난다 (R1 §6)
-      DC-COMBAT-SHARED-BUDGET: SATISFIED       # 기동도 새 게이지가 아니라 같은 기력 예산을 쓴다 (R1 §1 · §11)
-    # R1 §13 이 Dodge 를 이후 확장으로만 지정한다 — §14 확장 순서에는 아직 자리가 없다.
-
+      DC-COMBAT-PLAYER-CAUSALITY: SATISFIED
+      DC-COMBAT-SHARED-BUDGET: SATISFIED
   - id: MP-HOLD-FORTIFIED
     type: possibility
-    overlay_missing: >-
-      MC-FORTIFY · MC-AURA-ALLOCATION (PARTIAL)
-    overlay_note: >-
-      Q59(a) 로 몸·능력·인지 세 축 위에 선다 — 대가가 "공격이 약해진다" 에서 "능력과 인지가 얇아진다" 로 바뀌었다
-    achieves: [MG-SURVIVE-ENEMY-OFFENSIVE]
-    meaningful_difference: >
-      한 번의 방어가 아니라 자세를 유지한다. 매 순간 자원을 흘리는 대신 판정마다 정확할
-      필요가 없다 — 손이 아니라 자원으로 사는 안정성이다. 그동안 내 공격은 약해진다.
-    detail: >
-      막기가 타격 하나하나에 대응하는 것이라면, 이것은 아예 몸 쪽으로 힘을 기울여
-      두는 것이다. 매 순간 자원이 새지만 그동안은 판정마다 잘할 필요가 없다.
-      대가가 Q59(a) 로 바뀌었다 — 예전에는 공격이 약해지는 것이었는데, 세 축에서는
-      때리는 힘도 막는 힘도 같은 "몸" 에 있으므로 얇아지는 것은 **능력과 인지**다
-      (UL §13). 즉 버티는 동안 자기 기술이 작아지고 상대를 읽지 못하게 된다.
-      그래서 이 갈래는 "지금은 못 이기니 상황이 바뀔 때까지 안전하게 있는다" 를
-      고르는 것이고, 그동안 상황을 읽지 못하므로 상황을 바꿀 수도 없다 — 상황을 바꿀
-      다른 수가 없으면 그냥 지는 길이기도 하다.
-    world_shape: >
-      몸 쪽으로 기울인 자세가 상태로 존재하고, 유지하는 동안 자원이 지속적으로 들며,
-      그 대가로 능력과 인지가 실제로 얇아져야 한다.
+    overlay_missing: MC-FORTIFY · MC-AURA-ALLOCATION (PARTIAL)
+    overlay_note: Q59(a) 로 몸·능력·인지 세 축 위에 선다 — 대가가 "공격이 약해진다" 에서 "능력과 인지가 얇아진다" 로 바뀌었다
+    achieves: [ MG-SURVIVE-ENEMY-OFFENSIVE ]
+    meaningful_difference: 한 번의 방어가 아니라 자세를 유지한다. 매 순간 자원을 흘리는 대신 판정마다 정확할 필요가 없다 — 손이 아니라 자원으로 사는 안정성이다. 그동안 내 공격은 약해진다.
+    source: UL §13
+    world_shape: 몸 쪽으로 기울인 자세가 상태로 존재하고, 유지하는 동안 자원이 지속적으로 들며, 그 대가로 능력과 인지가 실제로 얇아져야 한다.
     implemented: ABSENT
     requires:
       goals: []
-      capabilities: [MC-FORTIFY, MC-DEFENSE-MITIGATION, MC-AURA-ALLOCATION, MC-CP-ECONOMY]
+      capabilities: [ MC-FORTIFY, MC-DEFENSE-MITIGATION, MC-AURA-ALLOCATION, MC-CP-ECONOMY ]
       knowledge: []
       world_state: []
       relationship: []
-      resource: [지속 공급되는 CP]
+      resource: [ 지속 공급되는 CP ]
     supports: []
-    opposes: [MG-OVERCOME-SUPERIOR-OPPONENT]   # 버티는 동안 상대를 넘어서지는 못한다
-    changes:
-      - 버티는 동안 안정되지만 능력과 인지가 얇아진다
+    opposes: [ MG-OVERCOME-SUPERIOR-OPPONENT ]
+    changes: [ 버티는 동안 안정되지만 능력과 인지가 얇아진다 ]
     reveals: []
     creates_goal: []
-    constraints: [DC-COMBAT-SHARED-BUDGET]
+    constraints: [ DC-COMBAT-SHARED-BUDGET ]
     constraint_evaluation:
-      DC-COMBAT-SHARED-BUDGET: SATISFIED       # 자세 유지가 새 게이지가 아니라 같은 기력 예산을 흘린다 (R1 §1 · §11)
-
-
+      DC-COMBAT-SHARED-BUDGET: SATISFIED
   - id: MP-STORE-AND-RELEASE
     type: possibility
-    overlay_missing: >-
-      MC-ABSORB · MC-ACTIVE-RESPONSE · MC-PRECISION-RESPONSE
-    overlay_note: >-
-      UL §28 (축적자) — 응답 자리(F1)와 정밀 구간(F2) 위에 얹힌다. 막기는 이미 섰다 (C011)
-    achieves: [MG-SURVIVE-ENEMY-OFFENSIVE]
-    meaningful_difference: >
-      막기가 피해를 자원으로 치르는 것이라면 이것은 받아낸 것을 자원으로 버는 것이다.
-      버티는 시간이 손해가 아니라 밑천이 되므로 오래 버틸수록 되돌려 줄 것이 커지고,
-      대신 저장한 것을 들고 있는 동안은 배분을 바꾸지 못해 몸이 굳는다.
-    detail: >
-      밀리는 국면을 다루는 세 갈래 중 유일하게 시간이 이쪽 편인 갈래다. 막기는 시간을
-      사는 것이고 회피는 자리를 바꾸는 것이지만, 이것은 버틴 만큼이 그대로 다음 한 방이
-      된다 (UL §28).
-      대가가 분명하다. 저장한 것을 지닌 동안에는 힘의 배분을 바꿀 수 없어, 상대가 그것을
-      알아채면 약한 공격으로 계속 저장을 강요해 몸을 굳혀 두고 정작 큰 공격은 피해 갈 수
-      있다 (UL §28). 그래서 언제 터뜨릴지가 이 갈래의 실제 내용이 된다.
-      정밀하게 받아내면 저장이 더 커지므로 (UL §9) 숙련이 그대로 밑천의 크기가 된다.
-    world_shape: >
-      받아낸 피해가 사라지지 않고 값으로 남으며, 그 값이 양쪽 모두에게 보이고, 쓰면
-      기존 피해 계산에 들어가 한 번에 나가야 한다. 그리고 저장을 지닌 동안 제약이 걸려야 한다.
+    overlay_missing: MC-ABSORB · MC-ACTIVE-RESPONSE · MC-PRECISION-RESPONSE
+    overlay_note: UL §28 (축적자) — 응답 자리(F1)와 정밀 구간(F2) 위에 얹힌다. 막기는 이미 섰다 (C011)
+    achieves: [ MG-SURVIVE-ENEMY-OFFENSIVE ]
+    meaningful_difference: 막기가 피해를 자원으로 치르는 것이라면 이것은 받아낸 것을 자원으로 버는 것이다. 버티는 시간이 손해가 아니라 밑천이 되므로 오래 버틸수록
+      되돌려 줄 것이 커지고, 대신 저장한 것을 들고 있는 동안은 배분을 바꾸지 못해 몸이 굳는다.
+    source: UL §28 · UL §9
+    world_shape: 받아낸 피해가 사라지지 않고 값으로 남으며, 그 값이 양쪽 모두에게 보이고, 쓰면 기존 피해 계산에 들어가 한 번에 나가야 한다. 그리고 저장을 지닌 동안
+      제약이 걸려야 한다.
     implemented: ABSENT
     requires:
       goals: []
-      capabilities: [MC-ABSORB, MC-ACTIVE-RESPONSE, MC-PRECISION-RESPONSE, MC-GUARD]
+      capabilities: [ MC-ABSORB, MC-ACTIVE-RESPONSE, MC-PRECISION-RESPONSE, MC-GUARD ]
       knowledge: []
       world_state: []
       relationship: []
       resource: []
     supports: []
-    opposes: [MP-CONCENTRATE-THE-POWER]   # 저장을 지닌 동안 배분을 바꾸지 못한다 (UL §28)
-    changes:
-      - 받아낸 피해가 되돌려 줄 힘으로 남는다
-      - 저장을 지닌 동안 배분을 바꿀 수 없다
+    opposes: [ MP-CONCENTRATE-THE-POWER ]
+    changes: [ 받아낸 피해가 되돌려 줄 힘으로 남는다, 저장을 지닌 동안 배분을 바꿀 수 없다 ]
     reveals: []
     creates_goal: []
-    constraints: [DC-COMBAT-ONE-FORMULA, DC-COMBAT-STRONG-RULE-HAS-COUNTERPLAY]
+    constraints: [ DC-COMBAT-ONE-FORMULA, DC-COMBAT-STRONG-RULE-HAS-COUNTERPLAY ]
     constraint_evaluation:
-      DC-COMBAT-ONE-FORMULA: SATISFIED                  # 저장분은 기존 공식의 기본 피해에 더해진다 (UL §28)
-      DC-COMBAT-STRONG-RULE-HAS-COUNTERPLAY: SATISFIED  # 저장 중임이 읽히고 그것을 이용한 대응이 성립한다 (UL §28)
-
-  # ══════════════════════════════════════════════════════════════════════
-  # MG-EXPLORE-BEIRA — 대응 가능한 세계를 넓히는 갈래들
-  # ══════════════════════════════════════════════════════════════════════
-  # 여기 있는 셋은 **어떻게 넓히는가**다. 어디로 가는가는 여기 없다 —
-  # 층(MW-ZONE-*)은 세계 상태이고, 각 층이 무엇을 요구하는지는 그 노드의
-  # demands 가 소유한다. 같은 층을 세 방법 중 무엇으로든 감당할 수 있다는 것이
-  # 이 분리의 요점이다.
-  #
-  #   익힌다        그 층이 요구하는 대응을 스스로 배워 감당한다      BW §32
-  #   빌린다        세계가 만든 적응을 자원으로 가져와 감당한다        BW §17
-  #   준비해 간다   문명권에서 미리 갖추고 들어간다                    BW §14
-  #
-  # 셋은 배타적이지 않다 — 섞어 쓸 수 있고, 무엇에 얼마나 기대는지가 플레이어마다
-  # 다른 것이 정상이다. 그러나 비용과 위험이 서로 달라서 고르는 일이 생긴다.
-
+      DC-COMBAT-ONE-FORMULA: SATISFIED
+      DC-COMBAT-STRONG-RULE-HAS-COUNTERPLAY: SATISFIED
   - id: MP-LEARN-TO-HANDLE-THE-LAYER
     type: possibility
-    overlay_missing: >-
-      **MC-PREDICT 하나** (+ MC-OBSERVE 는 PARTIAL — 같은 자리다)
-    overlay_note: >-
-      **네 칸 중 셋이 닫혔다.** C014·C016 이 살펴봄과 그것에 이르는 두 길을, C017 이 지목 둘(MC-DESIGNATE-TARGET ·
-      MC-WATCH-TARGET)을, C018 이 관계(MC-RELATION-STANCE)를 세웠다. 남은 것은 **예측 하나**이며 그것이 MC-OBSERVE 의
-      마지막 결손과 같은 자리다 — 닫히면 이 갈래가 통째로 선다 — 다만 **보류(Human)** (AI 기획서 대기 · frontier "지금 열 수 없는 것").
-      탐험의 기본 갈래이자 다른 둘의 앞이다 (먼저 겪은 사람이 없으면 살 정보도 가져올 자원도 없다)
-    achieves: [MG-EXPLORE-BEIRA]
-    meaningful_difference: >
-      들어가서 겪으며 그 층이 무엇을 요구하는지 알아내고, 그 대응을 스스로 익혀
-      감당한다. 셋 중 유일하게 미리 갖추지 않고 시작하며, 그래서 가장 위험하고
-      가장 싸다 — 치르는 것은 자원이 아니라 시간과 실패다. (BW §32)
-    detail: >
-      이 게임의 기본 진행 방식이다. BW §32 가 진행을 "관찰한다 → 이해한다 →
-      대응 방법을 발견한다 → 능력을 얻는다" 로 정의하는데, 그 네 칸이 통째로
-      이 갈래다. 준비물이 없어도 시작할 수 있다는 점이 값어치이고, 알아낼 때까지
-      계속 죽는다는 점이 비용이다. 그리고 알아낸 것은 그 층에 대한 앎으로 남아
-      다음에 그 층을 훨씬 싸게 감당하게 한다 (MK-LOCAL-WORLDSTATE).
-      나머지 두 갈래와 결정적으로 다른 점은, 이것만이 **새로운 층에 처음 들어갈 때**
-      쓸 수 있다는 것이다 — 아직 아무도 모르는 곳에는 살 정보도 빌릴 자원도 없다.
-    world_shape: >
-      플레이어가 모르는 상태로 들어갈 수 있고, 겪은 것으로부터 그 층이 무엇을
-      요구하는지 알아낼 수 있으며, 알아낸 대응을 익혀 다음에는 감당할 수 있어야 한다.
-      알아내는 과정 없이 처음부터 요구 목록이 주어지면 이 갈래가 아니다.
+    overlay_missing: MC-PREDICT 하나 (+ MC-OBSERVE 는 PARTIAL — 같은 자리다)
+    overlay_note: 네 칸 중 셋이 닫혔다. C014·C016 이 살펴봄과 그것에 이르는 두 길을, C017 이 지목 둘(MC-DESIGNATE-TARGET ·
+      MC-WATCH-TARGET)을, C018 이 관계(MC-RELATION-STANCE)를 세웠다. 남은 것은 예측 하나이며 그것이 MC-OBSERVE 의 마지막 결손과
+      같은 자리다 — 닫히면 이 갈래가 통째로 선다 — 다만 보류(Human) (AI 기획서 대기 · frontier "지금 열 수 없는 것"). 탐험의 기본 갈래이자 다른
+      둘의 앞이다 (먼저 겪은 사람이 없으면 살 정보도 가져올 자원도 없다)
+    achieves: [ MG-EXPLORE-BEIRA ]
+    meaningful_difference: 들어가서 겪으며 그 층이 무엇을 요구하는지 알아내고, 그 대응을 스스로 익혀 감당한다. 셋 중 유일하게 미리 갖추지 않고 시작하며, 그래서
+      가장 위험하고 가장 싸다 — 치르는 것은 자원이 아니라 시간과 실패다. (BW §32)
+    source: BW §32
+    world_shape: 플레이어가 모르는 상태로 들어갈 수 있고, 겪은 것으로부터 그 층이 무엇을 요구하는지 알아낼 수 있으며, 알아낸 대응을 익혀 다음에는 감당할 수 있어야
+      한다. 알아내는 과정 없이 처음부터 요구 목록이 주어지면 이 갈래가 아니다.
     implemented: PARTIAL
     requires:
       goals: []
-      capabilities: [MC-OBSERVE, MC-PREDICT, MC-DESIGNATE-TARGET, MC-WATCH-TARGET,
-                     MC-RELATION-STANCE]
-      # 무엇을 익힐지는 층마다 다르지만(각 층의 demands), 익히는 행위 자체가 요구하는
-      # 것은 보는 것과 읽는 것이다 — BW §32 의 첫 두 칸.
-      # 지목·주시·태도 셋은 그 조건이다 (TG §3.2 · §3.3 · §4.2 · BW §21 — 배선 확정은
-      # HISTORY Q27(a) · Q24(b)). 지목은 이 갈래의 조건이고, 전투는 지목 없이도 성립한다.
+      capabilities: [ MC-OBSERVE, MC-PREDICT, MC-DESIGNATE-TARGET, MC-WATCH-TARGET, MC-RELATION-STANCE ]
       knowledge: []
-      world_state: [MW-DEPTH-GRADIENT]
+      world_state: [ MW-DEPTH-GRADIENT ]
       relationship: []
       resource: []
-    supports: [MP-ADAPT-BY-RESOURCE, MP-PREPARE-IN-CIVILIZATION]
-    # 먼저 겪어 본 사람이 있어야 살 정보도 가져올 자원도 생긴다 — 이 갈래가 다른 둘의 앞이다.
+    supports: [ MP-ADAPT-BY-RESOURCE, MP-PREPARE-IN-CIVILIZATION ]
     opposes: []
-    changes:
-      - 이해·대응 가능한 세계의 범위가 그 층까지 넓어진다 (BW §32)
-    reveals: [MK-LOCAL-WORLDSTATE]
-    creates_goal:
-      - MG-OVERCOME-SUPERIOR-OPPONENT   # 길을 막는 것을 만난다 (BW §21 · §27)
-      - MG-SURVIVE-ENEMY-OFFENSIVE      # 사냥당한다 (BW §21 · §27)
-      - MG-ACQUIRE-RARE-ORGAN           # 값진 것을 가진 생물을 본다 (BW §22 · §27)
-    constraints: [DC-WORLD-PROGRESSION-IS-REACH, DC-WORLD-PLAYER-UNFIXED-PATH]
+    changes: [ 이해·대응 가능한 세계의 범위가 그 층까지 넓어진다 (BW §32) ]
+    reveals: [ MK-LOCAL-WORLDSTATE ]
+    creates_goal: [ MG-OVERCOME-SUPERIOR-OPPONENT, MG-SURVIVE-ENEMY-OFFENSIVE, MG-ACQUIRE-RARE-ORGAN ]
+    constraints: [ DC-WORLD-PROGRESSION-IS-REACH, DC-WORLD-PLAYER-UNFIXED-PATH ]
     constraint_evaluation:
-      DC-WORLD-PROGRESSION-IS-REACH: SATISFIED    # 관찰 → 이해 → 대응 → 도달이 그대로 이 노드다 (BW §32)
-      DC-WORLD-PLAYER-UNFIXED-PATH: SATISFIED     # 무엇을 익힐지 세계가 지시하지 않는다 — 겪은 것에서 나온다
-
+      DC-WORLD-PROGRESSION-IS-REACH: SATISFIED
+      DC-WORLD-PLAYER-UNFIXED-PATH: SATISFIED
   - id: MP-ADAPT-BY-RESOURCE
     type: possibility
-    overlay_missing: >-
-      MC-RESTORE-BIOLOGICAL-STATE · MC-CUT-ABNORMAL-STRUCTURE + **MC-EQUIP-ITEM(IMPLEMENTED)** +
-      **MC-CRAFT-FROM-MATERIALS** + MK-LOCAL-WORLDSTATE + 자원
-    overlay_note: >-
-      **이 갈래의 문장이 세계에서 통째로 참이 되었다** — "물건이 대신해 주고, **물건을 잃으면 도로 못 하게 된다**"(BW §17). 앞 절반은
-      C020(쓰면 없어진다)이, 뒤 절반은 **C023**(풀면 캘 수 없게 된다)이 세웠고, **C024** 가 그 둘 사이를 오가는 길(교체)을 냈다. 걸 물건이
-      둘이 되어 **갈래가 처음으로 둘**이다 — 공격을 얹을지 방어를 얹을지. 다만 자리가 여섯이라 아직 둘 다 걸 수 있으므로 그것이 진짜 선택이 되려면 자리가 걸
-      것보다 좁아져야 한다. 쓸 물건은 여전히 한 종류뿐이고, 남은 것은 제작이며 그것이 회복·절단 앞을 막고 있다
-    achieves: [MG-EXPLORE-BEIRA]
-    meaningful_difference: >
-      그 층이 요구하는 대응을 스스로 익히는 대신, 세계가 이미 만들어 낸 적응을
-      자원으로 가져와 대신하게 한다. 실력도 시간도 아닌 **먼저 다녀온 자리에서
-      얻은 것**이 조건이며, 그래서 탐험의 결과가 다음 탐험의 조건이 되는 유일한
-      경로다. (BW §17)
-    detail: >
-      BW §17 이 "Capability Gate" 라고 부른 것이다. 독에 적응한 생물의 정화 기관을
-      얻으면 더 강한 독성 지역에 들어갈 수 있게 되고, 공간이 어긋나는 지역에서
-      경계결정을 얻어 무기를 만들면 전에는 부술 수 없던 것을 상대할 수 있게 된다.
-      익히는 갈래와 견주면 성격이 분명하다 — 저쪽은 내가 할 줄 알게 되는 것이고
-      이쪽은 물건이 대신해 주는 것이다. 그래서 물건을 잃으면 도로 못 하게 된다.
-      방향을 뒤집으면 안 된다 (BW §18): 자원이 있으니 능력을 만드는 것이 아니라,
-      그 층을 넘으려면 그 능력이 필요하고 그 획득 경로 중 하나가 자원인 것이다.
-    world_shape: >
-      어떤 지역에서 얻은 것이 다른 지역을 감당할 수 있게 만들어야 한다. 그 자원의
-      효과가 그것이 견디고 살아남은 것과 이어져야 하고, 단순한 수치 상승이면 안 된다.
+    overlay_missing: MC-RESTORE-BIOLOGICAL-STATE · MC-CUT-ABNORMAL-STRUCTURE +
+      MC-EQUIP-ITEM(IMPLEMENTED) + MC-CRAFT-FROM-MATERIALS + MK-LOCAL-WORLDSTATE + 자원
+    overlay_note: 이 갈래의 문장이 세계에서 통째로 참이 되었다 — "물건이 대신해 주고, 물건을 잃으면 도로 못 하게 된다"(BW §17). 앞 절반은 C020(쓰면
+      없어진다)이, 뒤 절반은 C023(풀면 캘 수 없게 된다)이 세웠고, C024 가 그 둘 사이를 오가는 길(교체)을 냈다. 걸 물건이 둘이 되어 갈래가 처음으로 둘이다
+      — 공격을 얹을지 방어를 얹을지. 다만 자리가 여섯이라 아직 둘 다 걸 수 있으므로 그것이 진짜 선택이 되려면 자리가 걸 것보다 좁아져야 한다. 쓸 물건은 여전히 한
+      종류뿐이고, 남은 것은 제작이며 그것이 회복·절단 앞을 막고 있다
+    achieves: [ MG-EXPLORE-BEIRA ]
+    meaningful_difference: 그 층이 요구하는 대응을 스스로 익히는 대신, 세계가 이미 만들어 낸 적응을 자원으로 가져와 대신하게 한다. 실력도 시간도 아닌 먼저
+      다녀온 자리에서 얻은 것이 조건이며, 그래서 탐험의 결과가 다음 탐험의 조건이 되는 유일한 경로다. (BW §17)
+    source: BW §17 · BW §18
+    world_shape: 어떤 지역에서 얻은 것이 다른 지역을 감당할 수 있게 만들어야 한다. 그 자원의 효과가 그것이 견디고 살아남은 것과 이어져야 하고, 단순한 수치 상승이면 안 된다.
     implemented: ABSENT
     requires:
       goals: []
-      capabilities: [MC-RESTORE-BIOLOGICAL-STATE, MC-CUT-ABNORMAL-STRUCTURE,
-                     MC-USE-ITEM, MC-EQUIP-ITEM, MC-CRAFT-FROM-MATERIALS]
-      # BW §8 · §10 이 직접 명명한 두 자원 유래 능력이다. 다른 게이트(독 적응 등)는
-      # 삽화라 노드로 세우지 않았다 (HISTORY Q14).
-      # 뒤의 셋은 이 갈래가 이미 전제하던 공통 앞칸이다 — "물건이 대신해 준다" 는 쓰는
-      # 개념을, "물건을 잃으면 도로 못 하게 된다" 는 적용/해제를, "얻어 무기를 만들면"
-      # 은 제작을 요구한다 (IS §4 주입).
-      knowledge: [MK-LOCAL-WORLDSTATE]
-      # 어디서 무엇이 나는지를 모르면 가져올 수 없다 — 익히는 갈래가 앞선다.
+      capabilities:
+        [
+          MC-RESTORE-BIOLOGICAL-STATE,
+          MC-CUT-ABNORMAL-STRUCTURE,
+          MC-USE-ITEM,
+          MC-EQUIP-ITEM,
+          MC-CRAFT-FROM-MATERIALS
+        ]
+      knowledge: [ MK-LOCAL-WORLDSTATE ]
       world_state: []
       relationship: []
-      resource: [베이라에서 얻은 Bound Pressure 유래 자원]
+      resource: [ 베이라에서 얻은 Bound Pressure 유래 자원 ]
     supports: []
     opposes: []
-    changes:
-      - 전에는 감당할 수 없던 층을 감당할 수 있게 된다
-      - 자원이 판매용 전리품이 아니라 다음 탐험의 조건이 된다 (BW §17)
+    changes: [ 전에는 감당할 수 없던 층을 감당할 수 있게 된다, 자원이 판매용 전리품이 아니라 다음 탐험의 조건이 된다 (BW §17) ]
     reveals: []
     creates_goal: []
-    constraints: [DC-WORLD-PROGRESSION-IS-REACH, DC-WORLD-RESOURCE-ADAPTATION-TRACE]
+    constraints: [ DC-WORLD-PROGRESSION-IS-REACH, DC-WORLD-RESOURCE-ADAPTATION-TRACE ]
     constraint_evaluation:
-      DC-WORLD-PROGRESSION-IS-REACH: SATISFIED         # 자원이 Capability 획득 Route 가 되는 것이 이 Constraint 의 requires 다
-      DC-WORLD-RESOURCE-ADAPTATION-TRACE: SATISFIED    # 두 자원 모두 Trace 를 문서가 공급한다 (BW §8~§10)
-
+      DC-WORLD-PROGRESSION-IS-REACH: SATISFIED
+      DC-WORLD-RESOURCE-ADAPTATION-TRACE: SATISFIED
   - id: MP-PREPARE-IN-CIVILIZATION
     type: possibility
-    overlay_missing: >-
-      **MC-CRAFT-FROM-MATERIALS** + MK-LOCAL-WORLDSTATE + MW-SAFE-FRONTIER + 관계·대가
-    overlay_note: >-
-      BW §14 가 열거한 활동 중 제작만 근거 문서를 얻어 배선되었다 (IS §4). 나머지(정보·교역·훈련)는 여전히 이름을 댄 문서가 없다. 막는 것은 능력만이
-      아니라 문명권·거래라는 세계 기반이다
-    achieves: [MG-EXPLORE-BEIRA]
-    meaningful_difference: >
-      들어가기 전에 문명권에서 갖춘다 — 다녀온 사람에게 정보를 사고, 필요한 것을
-      교역으로 구하고, 만들고, 훈련한다. 셋 중 유일하게 베이라 밖에서 이루어지고
-      유일하게 돈과 관계를 비용으로 치른다. 위험이 가장 낮고 값이 가장 비싸다. (BW §14)
-    detail: >
-      BW §14 가 안전권에서 가능한 활동으로 든 것들 — 휴식·교역·제작·정보 획득·
-      Actor 관계·전투 훈련·Item 거래·성장 경로 탐색·탐험 준비 — 이 전부 이 갈래다.
-      이것이 있어야 문명권이 "시작 지점" 이 아니라 계속 돌아올 이유가 있는 곳이 된다.
-      그리고 다른 플레이어와 NPC 가 의미를 갖는 유일한 탐험 경로이기도 하다 —
-      정보를 파는 사람이 있으려면 먼저 겪은 사람이 있어야 하므로, 이 갈래는
-      익히는 갈래 위에 얹혀 세계에 경제와 사회를 만든다.
-      한계도 분명하다. 아무도 가 본 적 없는 층에 대해서는 살 정보도 만들 장비도 없다.
-    world_shape: >
-      베이라 밖에서 준비하는 행위가 존재하고(정보·교역·제작·훈련), 준비한 쪽과
-      준비하지 않은 쪽이 같은 층에서 다른 결과를 내야 한다. 그리고 그 준비의
+    overlay_missing: MC-CRAFT-FROM-MATERIALS + MK-LOCAL-WORLDSTATE + MW-SAFE-FRONTIER + 관계·대가
+    overlay_note: BW §14 가 열거한 활동 중 제작만 근거 문서를 얻어 배선되었다 (IS §4). 나머지(정보·교역·훈련)는 여전히 이름을 댄 문서가 없다. 막는 것은
+      능력만이 아니라 문명권·거래라는 세계 기반이다
+    achieves: [ MG-EXPLORE-BEIRA ]
+    meaningful_difference: 들어가기 전에 문명권에서 갖춘다 — 다녀온 사람에게 정보를 사고, 필요한 것을 교역으로 구하고, 만들고, 훈련한다. 셋 중 유일하게 베이라
+      밖에서 이루어지고 유일하게 돈과 관계를 비용으로 치른다. 위험이 가장 낮고 값이 가장 비싸다. (BW §14)
+    source: BW §14 · IS §4
+    world_shape: 베이라 밖에서 준비하는 행위가 존재하고(정보·교역·제작·훈련), 준비한 쪽과 준비하지 않은 쪽이 같은 층에서 다른 결과를 내야 한다. 그리고 그 준비의
       원천이 다른 주체여야 한다 — 혼자 다 되면 이 갈래가 아니다.
     implemented: ABSENT
     requires:
       goals: []
-      capabilities: [MC-CRAFT-FROM-MATERIALS]
-      # BW §14 는 활동을 열거하고 Capability 를 명명하지 않는다 — 배선은 OPTIONS 몫이다.
-      # 그중 제작만 근거 문서를 얻어 배선되었다 (IS §4 주입). 정보 획득·교역·훈련은
-      # 아직 이름을 댄 문서가 없어 비워 둔다.
-      knowledge: [MK-LOCAL-WORLDSTATE]
-      world_state: [MW-SAFE-FRONTIER]
-      # 이 갈래가 서는 자리는 둘이다 (HISTORY Q48(a)) — 문명권과 백왕의 갈비분지.
-      # requires 는 AND 이므로 두 곳을 함께 적지 않는다: 어느 한 곳이 서면 성립한다.
-      # 파는 것이 다르다 — 밖에서는 평범한 것을, 분지에서는 베이라에서 나온 것과
-      # 다녀온 자의 증언을 얻는다 (BT §4.6).
-      relationship: [정보·물자를 내줄 Actor 와의 관계]
-      resource: [거래 대가]
+      capabilities: [ MC-CRAFT-FROM-MATERIALS ]
+      knowledge: [ MK-LOCAL-WORLDSTATE ]
+      world_state: [ MW-SAFE-FRONTIER ]
+      relationship: [ 정보·물자를 내줄 Actor 와의 관계 ]
+      resource: [ 거래 대가 ]
     supports: []
     opposes: []
-    changes:
-      - 들어가기 전에 이미 그 층의 요구 일부가 채워져 있다
-    reveals: [MK-LOCAL-WORLDSTATE]
-    # 겪어서 아는 것이 아니라 사서 아는 것 — 같은 앎에 이르는 다른 경로다.
+    changes: [ 들어가기 전에 이미 그 층의 요구 일부가 채워져 있다 ]
+    reveals: [ MK-LOCAL-WORLDSTATE ]
     creates_goal: []
-    constraints: [DC-WORLD-PROGRESSION-IS-REACH, DC-WORLD-PLAYER-UNFIXED-PATH]
+    constraints: [ DC-WORLD-PROGRESSION-IS-REACH, DC-WORLD-PLAYER-UNFIXED-PATH ]
     constraint_evaluation:
-      DC-WORLD-PROGRESSION-IS-REACH: SATISFIED    # 준비의 결과도 "감당 가능한 범위" 로 나타난다 (BW §14 · §32)
-      DC-WORLD-PLAYER-UNFIXED-PATH: SATISFIED     # 무엇을 준비할지는 플레이어가 고른다
-
+      DC-WORLD-PROGRESSION-IS-REACH: SATISFIED
+      DC-WORLD-PLAYER-UNFIXED-PATH: SATISFIED
   - id: MP-BECOME-A-HIGHER-FORM
     type: possibility
-    overlay_missing: >-
-      다섯 축 전부 (MC-GAIN-LEVEL · MC-GROW-CLASS-MASTERY · MC-MASTER-A-SKILL ·
+    overlay_missing: 다섯 축 전부 (MC-GAIN-LEVEL · MC-GROW-CLASS-MASTERY · MC-MASTER-A-SKILL ·
       MC-GROW-EXPLORATION-MASTERY · MC-CHANGE-CLASS) + MK-WITNESSED-WORLD-PHENOMENON + Catalyst 자원
-    overlay_note: >-
-      **한 칸도 서 있지 않다.** 다만 이 갈래가 서면 overlay 의 둘째 구멍("성장이 세계 밖에 있다")이 통째로 닫힌다 — 지금 능력치를 바꾸는
-      유일한 경로는 디버그 명령이고, GS 주입이 처음으로 그 값이 **어디에서** 올라오는지를 명명했다. 다섯 축 중 **장비 하나만 이미 서 있고**
-      (MC-EQUIP-ITEM — C023 · C024), 그것도 이 갈래가 아니라 자원으로 감당하는 갈래에 매달려 있다
-    achieves: [MG-EXPLORE-BEIRA]
-    meaningful_difference: >
-      다른 세 갈래가 **바깥에서** 감당할 것을 구해 오는 데 비해 — 겪어서 익히거나, 자원이
-      대신하게 하거나, 문명권에서 사서 준비하거나 — 이것은 **몸 자체가 상위 형태가 되어**
-      감당한다. 그래서 잃어버릴 수 없고 되돌아가지도 않는다 (물건은 잃으면 도로 못 하게
-      되지만 형태는 남는다). 대신 문턱이 넷이고 그중 둘은 세계에서만 온다 — 자기 원리와
-      관련된 강력한 현상을 직접 겪은 것과, 그 형태를 유지하는 세계의 Property (GS §6).
-    detail: >
-      GS §20 의 플레이 루프가 이 노드다 — 고유한 능력을 체험하고, 전투와 탐험으로 값을
-      올리고, 그 형태 고유의 행동으로 숙련을 올리고, 더 위험한 대지형에 들어가 자기 힘과
-      관계된 세계 현상을 겪고, Catalyst 를 얻어 상위 형태가 되고, 그래서 이전에는 상대할 수
-      없던 적과 지역에 도전한다. 마지막 칸이 이 갈래가 탐험의 갈래인 이유다: 형태가 바뀌는
-      것 자체가 목적이 아니라 **닿지 못하던 곳에 닿는 방법**이다 (DC-GROWTH-GOAL-FIRST).
-      익히는 갈래와 겹치지 않는다. 저쪽은 그 층이 무엇을 요구하는지 알아내 대응을 익히는
-      일이고, 이쪽은 그렇게 익힌 것이 몸에 쌓여 형태가 되는 일이다 — 그래서 이 갈래는
-      혼자 서지 못하고 앞선 갈래들이 만든 축적 위에서만 성립한다.
-      바뀌는 것이 값이 아니라는 점도 이 갈래의 성격이다: 외형과 실루엣이 바뀌고, Signature 가
-      강해지고, 새 Skill 과 Ultimate 와 **새 탐험 Capability** 가 함께 온다 (GS §20).
-    world_shape: >
-      몸이 형태를 가지고, 세계에서 한 일이 그 형태의 축을 키우며, 축이 차면 상위 형태가
-      되고, 그 뒤에 이전에는 감당할 수 없던 곳을 감당할 수 있어야 한다. 그리고 그 변화가
-      멀리서 보아도 읽혀야 한다 (GS §7). 형태가 바뀌어도 갈 수 있는 곳이 그대로면
-      이 갈래는 열린 것이 아니다.
+    overlay_note: 한 칸도 서 있지 않다. 다만 이 갈래가 서면 overlay 의 둘째 구멍("성장이 세계 밖에 있다")이 통째로 닫힌다 — 지금 능력치를 바꾸는 유일한
+      경로는 디버그 명령이고, GS 주입이 처음으로 그 값이 어디에서 올라오는지를 명명했다. 다섯 축 중 장비 하나만 이미 서 있고 (MC-EQUIP-ITEM — C023 ·
+      C024), 그것도 이 갈래가 아니라 자원으로 감당하는 갈래에 매달려 있다
+    achieves: [ MG-EXPLORE-BEIRA ]
+    meaningful_difference: 다른 세 갈래가 바깥에서 감당할 것을 구해 오는 데 비해 — 겪어서 익히거나, 자원이 대신하게 하거나, 문명권에서 사서 준비하거나 —
+      이것은 몸 자체가 상위 형태가 되어 감당한다. 그래서 잃어버릴 수 없고 되돌아가지도 않는다 (물건은 잃으면 도로 못 하게 되지만 형태는 남는다). 대신 문턱이 넷이고
+      그중 둘은 세계에서만 온다 — 자기 원리와 관련된 강력한 현상을 직접 겪은 것과, 그 형태를 유지하는 세계의 Property (GS §6).
+    source: GS §6 · GS §7 · GS §20
+    world_shape: 몸이 형태를 가지고, 세계에서 한 일이 그 형태의 축을 키우며, 축이 차면 상위 형태가 되고, 그 뒤에 이전에는 감당할 수 없던 곳을 감당할 수 있어야
+      한다. 그리고 그 변화가 멀리서 보아도 읽혀야 한다 (GS §7). 형태가 바뀌어도 갈 수 있는 곳이 그대로면 이 갈래는 열린 것이 아니다.
     implemented: ABSENT
     requires:
       goals: []
-      capabilities: [MC-CHANGE-CLASS, MC-GAIN-LEVEL, MC-GROW-CLASS-MASTERY,
-                     MC-MASTER-A-SKILL, MC-GROW-EXPLORATION-MASTERY]
-      # 앞의 하나가 문턱을 넘는 자리이고, 뒤의 넷이 그 문턱을 채우는 축이다 (GS §5 · §6 · §19).
-      # 다섯째 축(Equipment)은 이미 MC-EQUIP-ITEM 으로 서 있어 여기 다시 적지 않는다 —
-      # 그 노드가 MS-GROWTH-SOURCE 의 EQUIPMENT 자리에 함께 속한다.
-      knowledge: [MK-WITNESSED-WORLD-PHENOMENON]
+      capabilities:
+        [
+          MC-CHANGE-CLASS,
+          MC-GAIN-LEVEL,
+          MC-GROW-CLASS-MASTERY,
+          MC-MASTER-A-SKILL,
+          MC-GROW-EXPLORATION-MASTERY
+        ]
+      knowledge: [ MK-WITNESSED-WORLD-PHENOMENON ]
       world_state: []
       relationship: []
-      resource: [Class Catalyst — 그 강한 형태를 유지하기 위해 필요한 세계의 Property (GS §6)]
-    supports: [MG-OVERCOME-SUPERIOR-OPPONENT]
-    # 형태가 오르면 정면으로 넘는 갈래(MP-OUTGROW-THE-OPPONENT)의 값도 함께 오른다 —
-    # 다만 그 갈래는 값으로 압도하는 일이고 이쪽은 감당하는 범위를 넓히는 일이다.
+      resource: [ Class Catalyst — 그 강한 형태를 유지하기 위해 필요한 세계의 Property (GS §6) ]
+    supports: [ MG-OVERCOME-SUPERIOR-OPPONENT ]
     opposes: []
     changes:
-      - 이전에는 감당할 수 없던 대지형·깊이를 감당하게 된다 (GS §20)
-      - 같은 능력이 전투와 탐험 양쪽에서 더 넓은 범위에 미치게 된다 (GS §4)
-      - 그 캐릭터가 어느 단계인지가 멀리서 보아도 읽힌다 (GS §7)
+      [
+        이전에는 감당할 수 없던 대지형·깊이를 감당하게 된다 (GS §20),
+        같은 능력이 전투와 탐험 양쪽에서 더 넓은 범위에 미치게 된다 (GS §4),
+        그 캐릭터가 어느 단계인지가 멀리서 보아도 읽힌다 (GS §7)
+      ]
     reveals: []
     creates_goal: []
-    constraints: [DC-WORLD-PROGRESSION-IS-REACH, DC-GROWTH-GOAL-FIRST, DC-WORLD-PLAYER-UNFIXED-PATH,
-                  DC-GROWTH-CLASS-CHANGE-NEEDS-THE-WORLD, DC-GROWTH-CLASS-CHANGE-KEEPS-THE-PAST,
-                  DC-GROWTH-EXPLORATION-SHARES-THE-PRINCIPLE, DC-GROWTH-COST-IS-THE-WHOLE-BURDEN,
-                  DC-GROWTH-REWARD-IS-NEW-REACH, DC-GROWTH-NO-DOMINATED-ROUTE]
+    constraints:
+      - DC-WORLD-PROGRESSION-IS-REACH
+      - DC-GROWTH-GOAL-FIRST
+      - DC-WORLD-PLAYER-UNFIXED-PATH
+      - DC-GROWTH-CLASS-CHANGE-NEEDS-THE-WORLD
+      - DC-GROWTH-CLASS-CHANGE-KEEPS-THE-PAST
+      - DC-GROWTH-EXPLORATION-SHARES-THE-PRINCIPLE
+      - DC-GROWTH-COST-IS-THE-WHOLE-BURDEN
+      - DC-GROWTH-REWARD-IS-NEW-REACH
+      - DC-GROWTH-NO-DOMINATED-ROUTE
     constraint_evaluation:
-      DC-WORLD-PROGRESSION-IS-REACH: SATISFIED    # 이 갈래의 결과가 "닿을 수 있는 범위" 로 정의된다 (GS §20 마지막 줄)
-      DC-GROWTH-GOAL-FIRST: SATISFIED             # 성장이 Goal 이 아니라 MG-EXPLORE-BEIRA 를 이루는 갈래로 서 있다
-      DC-WORLD-PLAYER-UNFIXED-PATH: SATISFIED     # 플레이어가 요정 역할을 수행하되 어느 계열을 고를지도 무엇을 하러 갈지도 강제되지 않는다 (HISTORY Q54(a))
-      DC-GROWTH-COST-IS-THE-WHOLE-BURDEN: SATISFIED   # 문턱이 넷이고 그중 둘은 자원으로 살 수 없다 (GS §6 · GB §22)
-      DC-GROWTH-REWARD-IS-NEW-REACH: SATISFIED        # 이 갈래의 값이 수치가 아니라 감당할 수 있게 되는 범위다 (GB §9)
-      DC-GROWTH-NO-DOMINATED-ROUTE: SATISFIED         # meaningful_difference 가 앞의 세 갈래와 다른 장단점을 적는다 — 잃을 수 없는 대신 문턱이 넷이다
-      DC-GROWTH-CLASS-CHANGE-NEEDS-THE-WORLD: SATISFIED       # 문턱 넷 중 둘이 세계에서만 온다 (GS §6)
-      DC-GROWTH-CLASS-CHANGE-KEEPS-THE-PAST: SATISFIED        # 이전 형태가 기반으로 남는다 (GS §3.1)
-      DC-GROWTH-EXPLORATION-SHARES-THE-PRINCIPLE: SATISFIED   # 형태가 오르면 전투와 탐험 능력이 같은 원리로 함께 넓어진다 (GS §4 · §8)
-
-  # ══════════════════════════════════════════════════════════════════════
-  # MG-ACQUIRE-RARE-ORGAN — 특정 생물의 기관을 얻는 갈래들
-  # ══════════════════════════════════════════════════════════════════════
-  # BW §27 이 다섯을 직접 명명했다. 이 절 전체가 "전투는 Goal 이 아니라 다섯 중
-  # 하나의 방법일 뿐" 이라는 주장의 실물이다 — DC-WORLD-COMBAT-IS-ONE-POSSIBILITY 의 원형.
-  #
-  # 다섯 중 넷은 requires 가 비어 있다. BW 는 대안의 **구조**만 공급하고 각 경로가
-  # 무엇을 요구하는지는 말하지 않기 때문이다. 배선은 OPTIONS/NEED 탐색 몫이며,
-  # 그때까지 이 넷은 Overlay 판정 대상이 아니다 (없는 것이 아니라 아직 재지 않은 것).
-
+      DC-WORLD-PROGRESSION-IS-REACH: SATISFIED
+      DC-GROWTH-GOAL-FIRST: SATISFIED
+      DC-WORLD-PLAYER-UNFIXED-PATH: SATISFIED
+      DC-GROWTH-COST-IS-THE-WHOLE-BURDEN: SATISFIED
+      DC-GROWTH-REWARD-IS-NEW-REACH: SATISFIED
+      DC-GROWTH-NO-DOMINATED-ROUTE: SATISFIED
+      DC-GROWTH-CLASS-CHANGE-NEEDS-THE-WORLD: SATISFIED
+      DC-GROWTH-CLASS-CHANGE-KEEPS-THE-PAST: SATISFIED
+      DC-GROWTH-EXPLORATION-SHARES-THE-PRINCIPLE: SATISFIED
   - id: MP-KILL-CREATURE
     type: possibility
-    overlay_missing: >-
-      **MC-TRANSFER-ITEM**
-    overlay_note: >-
-      쓰러뜨리는 것까지는 된다. **쓰러진 몸에서 아무것도 나오지 않고** 그 몸은 치워지지도 않아 영구 장애물로 남는다 — IS 주입으로 그 결손이 이름을 얻었다
-    achieves: [MG-ACQUIRE-RARE-ORGAN]
-    meaningful_difference: >
-      Creature 를 죽여 기관을 얻는다. 다섯 대안 중 유일하게 전투를 요구하고,
-      기다림·관계·탐색 대신 위험을 비용으로 치른다. (BW §27)
-    detail: >
-      가장 직접적이고 가장 비싼 길이다. 확실하지만 죽을 수도 있고, 성공하면 그 개체가
-      세계에서 사라진다 — 되돌릴 수 없다. 어떻게 죽일 것인가는 이 노드가 정하지 않는다.
-      상대를 넘어서는 갈래 열 가지(MG-OVERCOME-SUPERIOR-OPPONENT 아래)가 그것을
-      소유하고, 이 노드는 그중 무엇이든 하나가 성립하면 된다고만 말한다.
-    world_shape: >
-      생물을 쓰러뜨릴 수 있고, 쓰러진 생물의 몸에서 그 생물이 지녔던 것을 얻을 수
-      있어야 한다. 쓰러뜨려도 아무것도 남지 않으면 이 경로는 열린 것이 아니다.
+    overlay_missing: MC-TRANSFER-ITEM
+    overlay_note: 쓰러뜨리는 것까지는 된다. 쓰러진 몸에서 아무것도 나오지 않고 그 몸은 치워지지도 않아 영구 장애물로 남는다 — IS 주입으로 그 결손이 이름을 얻었다
+    achieves: [ MG-ACQUIRE-RARE-ORGAN ]
+    meaningful_difference: Creature 를 죽여 기관을 얻는다. 다섯 대안 중 유일하게 전투를 요구하고, 기다림·관계·탐색 대신 위험을 비용으로 치른다. (BW §27)
+    source: BW §27
+    world_shape: 생물을 쓰러뜨릴 수 있고, 쓰러진 생물의 몸에서 그 생물이 지녔던 것을 얻을 수 있어야 한다. 쓰러뜨려도 아무것도 남지 않으면 이 경로는 열린 것이 아니다.
     implemented: PARTIAL
     requires:
-      goals: [MG-OVERCOME-SUPERIOR-OPPONENT]
-      capabilities: [MC-TRANSFER-ITEM]
-      # world_shape 의 "쓰러진 생물의 몸에서 얻을 수 있어야 한다" 가 몸 밖의 물건을
-      # 요구한다 (IS §4 주입).
+      goals: [ MG-OVERCOME-SUPERIOR-OPPONENT ]
+      capabilities: [ MC-TRANSFER-ITEM ]
       knowledge: []
       world_state: []
       relationship: []
       resource: []
     supports: []
     opposes: []
-    changes:
-      - 그 Creature 가 세계에서 사라진다
+    changes: [ 그 Creature 가 세계에서 사라진다 ]
     reveals: []
     creates_goal: []
-    constraints: [DC-WORLD-COMBAT-IS-ONE-POSSIBILITY]
+    constraints: [ DC-WORLD-COMBAT-IS-ONE-POSSIBILITY ]
     constraint_evaluation:
-      DC-WORLD-COMBAT-IS-ONE-POSSIBILITY: SATISFIED    # Goal 의 원인이 세계 상태이고 대안 4종이 병렬로 서 있다 (BW §27)
-
+      DC-WORLD-COMBAT-IS-ONE-POSSIBILITY: SATISFIED
   - id: MP-TAKE-SHED-ORGAN
     type: possibility
-    overlay_missing: >-
-      **MC-TRANSFER-ITEM** + 각자의 세계 기반 (탈락을 만드는 자율 행동 · 거래 상대)
-    overlay_note: >-
-      IS §4 로 공통 앞칸 하나가 배선되었다. 몸 밖에 물건이 놓이지 않는 한 셋 다 열리지 않는다
-    achieves: [MG-ACQUIRE-RARE-ORGAN]
-    meaningful_difference: >
-      Creature 가 탈락시킨 기관을 줍는다. 죽이지 않으므로 전투 위험이 없지만
-      탈락이 일어나는 때와 곳을 알아야 한다 — 관찰과 대기가 비용이다. (BW §27)
-    detail: >
-      싸우지 않고 얻는 길이다. 위험이 없는 대신 지식이 든다 — 그 생물이 언제 어디서
-      무엇을 떨구는지 알아야 하고, 그때까지 기다려야 한다. 전투를 아예 못 하는
-      플레이어에게도 열려 있다는 점이 이 갈래의 값어치이고, 급할 때 쓸 수 없다는 것이
-      한계다. 이 경로가 성립하려면 생물이 플레이어와 무관하게 자기 생활을 하고 있어야
-      한다 — 관찰할 대상이 있어야 관찰이 의미를 갖는다.
-    world_shape: >
-      생물이 플레이어와 무관하게 시간에 따라 무언가를 하고, 그 결과로 세계에 남는
-      것이 있으며, 그 시점과 장소를 알아낼 수 있어야 한다.
+    overlay_missing: MC-TRANSFER-ITEM + 각자의 세계 기반 (탈락을 만드는 자율 행동 · 거래 상대)
+    overlay_note: IS §4 로 공통 앞칸 하나가 배선되었다. 몸 밖에 물건이 놓이지 않는 한 셋 다 열리지 않는다
+    achieves: [ MG-ACQUIRE-RARE-ORGAN ]
+    meaningful_difference: Creature 가 탈락시킨 기관을 줍는다. 죽이지 않으므로 전투 위험이 없지만 탈락이 일어나는 때와 곳을 알아야 한다 — 관찰과 대기가 비용이다. (BW §27)
+    source: BW §27 · IS §4
+    world_shape: 생물이 플레이어와 무관하게 시간에 따라 무언가를 하고, 그 결과로 세계에 남는 것이 있으며, 그 시점과 장소를 알아낼 수 있어야 한다.
     implemented: ABSENT
     requires:
       goals: []
-      capabilities: [MC-TRANSFER-ITEM]
-      # world_shape 의 "그 결과로 세계에 남는 것이 있으며" 가 몸 밖의 물건을 요구한다 (IS §4 주입).
+      capabilities: [ MC-TRANSFER-ITEM ]
       knowledge: []
       world_state: []
       relationship: []
@@ -1107,65 +711,42 @@ nodes:
     changes: []
     reveals: []
     creates_goal: []
-    constraints: [DC-WORLD-COMBAT-IS-ONE-POSSIBILITY]
+    constraints: [ DC-WORLD-COMBAT-IS-ONE-POSSIBILITY ]
     constraint_evaluation:
-      DC-WORLD-COMBAT-IS-ONE-POSSIBILITY: SATISFIED    # 전투 없는 대안으로서 병렬 성립 (BW §27)
-
+      DC-WORLD-COMBAT-IS-ONE-POSSIBILITY: SATISFIED
   - id: MP-TRADE-WITH-ACTOR
     type: possibility
-    overlay_missing: >-
-      **MC-TRANSFER-ITEM** + 각자의 세계 기반 (탈락을 만드는 자율 행동 · 거래 상대)
-    overlay_note: >-
-      IS §4 로 공통 앞칸 하나가 배선되었다. 몸 밖에 물건이 놓이지 않는 한 셋 다 열리지 않는다
-    achieves: [MG-ACQUIRE-RARE-ORGAN]
-    meaningful_difference: >
-      그 기관을 가진 다른 Actor 와 거래한다. 유일하게 전투도 현장 탐색도 요구하지
-      않고 관계와 대가를 비용으로 치른다. (BW §27)
-    detail: >
-      베이라에 직접 들어가지 않고도 그 산물을 얻는 길이다. 대신 대가를 치러야 하고,
-      그 대가를 마련하는 과정이 또 다른 플레이가 된다. 그리고 거래할 상대가 있어야
-      하므로 관계가 자원이 된다. 다섯 갈래 중 유일하게 다른 사람을 필요로 한다는
-      점에서, 이 경로가 열리면 세계에 경제와 사회가 생긴다.
-    world_shape: >
-      플레이어 외의 주체가 물건을 가지고 있고, 대가를 주고받아 소유가 옮겨질 수
-      있어야 한다. 그리고 그 상대와의 관계가 거래 조건에 영향을 주어야 한다.
+    overlay_missing: MC-TRANSFER-ITEM + 각자의 세계 기반 (탈락을 만드는 자율 행동 · 거래 상대)
+    overlay_note: IS §4 로 공통 앞칸 하나가 배선되었다. 몸 밖에 물건이 놓이지 않는 한 셋 다 열리지 않는다
+    achieves: [ MG-ACQUIRE-RARE-ORGAN ]
+    meaningful_difference: 그 기관을 가진 다른 Actor 와 거래한다. 유일하게 전투도 현장 탐색도 요구하지 않고 관계와 대가를 비용으로 치른다. (BW §27)
+    source: BW §27 · IS §4
+    world_shape: 플레이어 외의 주체가 물건을 가지고 있고, 대가를 주고받아 소유가 옮겨질 수 있어야 한다. 그리고 그 상대와의 관계가 거래 조건에 영향을 주어야 한다.
     implemented: ABSENT
     requires:
       goals: []
-      capabilities: [MC-TRANSFER-ITEM]
-      # world_shape 의 "대가를 주고받아 소유가 옮겨질 수 있어야 한다" 가 이 능력이다 (IS §4 주입).
+      capabilities: [ MC-TRANSFER-ITEM ]
       knowledge: []
       world_state: []
-      relationship: [기관을 가진 Actor 와의 거래 관계]
-      resource: [거래 대가]
+      relationship: [ 기관을 가진 Actor 와의 거래 관계 ]
+      resource: [ 거래 대가 ]
     supports: []
     opposes: []
     changes: []
     reveals: []
     creates_goal: []
-    constraints: [DC-WORLD-COMBAT-IS-ONE-POSSIBILITY]
+    constraints: [ DC-WORLD-COMBAT-IS-ONE-POSSIBILITY ]
     constraint_evaluation:
       DC-WORLD-COMBAT-IS-ONE-POSSIBILITY: SATISFIED
-
   - id: MP-FIND-DEAD-SPECIMEN
     type: possibility
-    overlay_missing: >-
-      **판정 불가 — requires 미배선**
-    overlay_note: >-
-      BW §27 은 대안 구조만 공급했다. IS §4 가 이름을 댄 셋에 이 둘은 포함되지 않아 배선하지 않았다 — 요구 배선(OPTIONS/NEED)이 끝나야
-      판정된다
-    achieves: [MG-ACQUIRE-RARE-ORGAN]
-    meaningful_difference: >
-      이미 죽은 개체를 찾아 기관을 얻는다. 죽이는 위험도 거래 대가도 없지만
-      발견을 보장할 수 없다 — 탐색 자체가 비용이고 운이 아니라 지식이 성패를 가른다. (BW §27)
-    detail: >
-      베이라는 끊임없이 무언가가 죽는 곳이다 (MW-FREE-PRESSURE). 그러니 찾아다니면
-      이미 죽은 것을 만날 수 있다. 위험도 대가도 없는 대신 확실하지 않다.
-      중요한 것은 이것이 운이 아니어야 한다는 점이다 — 어디서 무엇이 죽는지를 아는
-      사람이 더 잘 찾아야 한다. 그래야 탐색이 도박이 아니라 지식의 행사가 된다.
-    world_shape: >
-      플레이어의 개입 없이도 세계에서 생물이 죽고 그 흔적이 남으며, 그것이 어디에
-      생기는지가 세계의 규칙과 이어져 있어 알 수 있어야 한다.
+    overlay_missing: 판정 불가 — requires 미배선
+    overlay_note: BW §27 은 대안 구조만 공급했다. IS §4 가 이름을 댄 셋에 이 둘은 포함되지 않아 배선하지 않았다 — 요구 배선(OPTIONS/NEED)이 끝나야 판정된다
+    achieves: [ MG-ACQUIRE-RARE-ORGAN ]
+    meaningful_difference: 이미 죽은 개체를 찾아 기관을 얻는다. 죽이는 위험도 거래 대가도 없지만 발견을 보장할 수 없다 — 탐색 자체가 비용이고 운이 아니라
+      지식이 성패를 가른다. (BW §27)
+    source: BW §27 · IS §4
+    world_shape: 플레이어의 개입 없이도 세계에서 생물이 죽고 그 흔적이 남으며, 그것이 어디에 생기는지가 세계의 규칙과 이어져 있어 알 수 있어야 한다.
     implemented: ABSENT
     requires:
       goals: []
@@ -1179,29 +760,18 @@ nodes:
     changes: []
     reveals: []
     creates_goal: []
-    constraints: [DC-WORLD-COMBAT-IS-ONE-POSSIBILITY]
+    constraints: [ DC-WORLD-COMBAT-IS-ONE-POSSIBILITY ]
     constraint_evaluation:
       DC-WORLD-COMBAT-IS-ONE-POSSIBILITY: SATISFIED
-
   - id: MP-FORCE-CREATURE-TO-RELEASE
     type: possibility
-    overlay_missing: >-
-      **판정 불가 — requires 미배선**
-    overlay_note: >-
-      BW §27 은 대안 구조만 공급했다. IS §4 가 이름을 댄 셋에 이 둘은 포함되지 않아 배선하지 않았다 — 요구 배선(OPTIONS/NEED)이 끝나야
-      판정된다
-    achieves: [MG-ACQUIRE-RARE-ORGAN]
-    meaningful_difference: >
-      죽이지 않고 Creature 가 기관을 내놓게 만든다. 전투 압박·환경·유인 무엇으로든
-      개체를 살려 둔 채 목적만 달성한다 — 죽이기보다 어렵지만 생태를 소모하지 않는다. (BW §27)
-    detail: >
-      가장 어려운 길이고 세계에 가장 친절한 길이다. 상대를 살려 두면 그 개체가 계속
-      존재하므로 다음에 또 얻을 수 있다 — 죽이는 길이 한 번으로 끝나는 것과 대비된다.
-      압박해서 뱉게 하든, 환경으로 몰아 떨구게 하든, 유인해서 벗게 하든 수단은 열려
-      있다. 이 갈래가 성립하면 플레이어가 생태를 관리하는 선택을 할 수 있게 된다.
-    world_shape: >
-      생물이 죽지 않고도 지녔던 것을 잃을 수 있고, 그렇게 만드는 수단이 여럿이며,
-      살려 둔 개체가 세계에 남아 계속 자기 일을 해야 한다.
+    overlay_missing: 판정 불가 — requires 미배선
+    overlay_note: BW §27 은 대안 구조만 공급했다. IS §4 가 이름을 댄 셋에 이 둘은 포함되지 않아 배선하지 않았다 — 요구 배선(OPTIONS/NEED)이 끝나야 판정된다
+    achieves: [ MG-ACQUIRE-RARE-ORGAN ]
+    meaningful_difference: 죽이지 않고 Creature 가 기관을 내놓게 만든다. 전투 압박·환경·유인 무엇으로든 개체를 살려 둔 채 목적만 달성한다 — 죽이기보다
+      어렵지만 생태를 소모하지 않는다. (BW §27)
+    source: BW §27 · IS §4
+    world_shape: 생물이 죽지 않고도 지녔던 것을 잃을 수 있고, 그렇게 만드는 수단이 여럿이며, 살려 둔 개체가 세계에 남아 계속 자기 일을 해야 한다.
     implemented: ABSENT
     requires:
       goals: []
@@ -1212,332 +782,205 @@ nodes:
       resource: []
     supports: []
     opposes: []
-    changes:
-      - Creature 는 살아 있고 기관만 세계에 나온다
+    changes: [ Creature 는 살아 있고 기관만 세계에 나온다 ]
     reveals: []
     creates_goal: []
-    constraints: [DC-WORLD-COMBAT-IS-ONE-POSSIBILITY]
+    constraints: [ DC-WORLD-COMBAT-IS-ONE-POSSIBILITY ]
     constraint_evaluation:
       DC-WORLD-COMBAT-IS-ONE-POSSIBILITY: SATISFIED
-
-# ── BW §28 범용 Combat Graph 매핑 (HISTORY Q18(a) 확정) ──────────────────
-# BW §28 의 MP-DEFEAT-BY-COMBAT 는 별도 노드가 아니라 MG-OVERCOME-SUPERIOR-OPPONENT
-# 아래의 전투 서브트리 전체다. 8분기 매핑:
-#     MP-BREAK-DEFENSE     ≙ MP-BREAK-THE-GUARD
-#     MP-READ-AND-PUNISH   ≙ MP-READ-AND-COUNTER
-#     MP-OVERWHELM         ≙ MP-OUTGROW-THE-OPPONENT
-#     MP-EXPLOIT-WEAKNESS  ≙ MP-EXPLOIT-OPEN-BODY / MP-MATCH-WEAPON-TO-ARMOR (분산)
-#     MP-OUTLAST           ≙ MP-HOLD-FORTIFIED
-#     MP-CONTROL-MOVEMENT · MP-INTERRUPT · MP-WEAPONIZE-ENVIRONMENT — 신규 노드
-# BW 는 매핑된 전투 노드의 보조 근거로 허용된다 (Q15 영역 규칙의 예외 — Q18(a)).
-#
-# ── 근거 문서 ────────────────────────────────────────────────────────────
-#   탐험  BW  content/proto-adventure/design/Master-World-Beira.md
-#         §14 문명권의 준비 · §16 탐험 Loop · §17 Capability Gate · §27 대안 5종 · §28 전투 분기
-#         §19~§25 의 깊이별 층은 Possibility 가 아니라 세계 상태다 —
-#         graph/world-state.yaml 의 MW-ZONE-* 와 그 demands 가 소유한다 (HISTORY Q21)
-#   전투  R1  content/proto-adventure/design/Design-Combat-OffenseDefense-R0.md
-#         §0~§5 · §8 · §11 · §12 · §16 → MP-OUTGROW-THE-OPPONENT
-#         §13 하지 않을 것 · §14 확장 순서 · §15 층 그림 → 아직 열리지 않은 경로들
-#         DT  content/proto-adventure/design/Design-Combat-DamageType-R0.md
-#         §0 · §6 · §7 · §17 → MP-MATCH-WEAPON-TO-ARMOR · §15 → MP-PIERCE-THE-HARD-DEFENSE
-#
-# 두 전투 문서가 이름조차 대지 않는 경로는 노드로 두지 않는다. 예고만 된 층은 이름까지만
-# 적고 세부는 그 층의 설계 문서를 기다린다.
-#
-# 탐색하지 않은 Dimension — 같은 Goal(상대를 넘어선다)을 Economy / Social / Faction 으로
-# 달성하는 경로는 근거 문서의 범위 밖이라 여기에 만들어 넣지 않았다.
-
-  # ── 전투 지식 (CK 주입 2026-08-27) ─────────────────────────────────────
-
   - id: MP-LEARN-HOW-TO-FIGHT-IT
     type: possibility
-    achieves: [MG-OVERCOME-SUPERIOR-OPPONENT]
-    meaningful_difference: >
-      자신을 키우지도, 그 자리에서 더 잘 다루지도 않는다 — **전투 밖에서 그 상대를
-      상대하는 법을 배워 와서** 이긴다. 비용은 시간과 진 판이고, 얻은 것은 사라지지
-      않으며 다른 사람에게 전할 수도 있다. 진 것이 손실이 아니라 재료가 되는 유일한
-      갈래다 (CK §29).
-    detail: >
-      처음 만난 상대에게 이유도 모르고 진다. 원거리 공격이 이상하게 되돌아오는데
-      왜인지 모른다. 여러 번 겪고 지켜보아 "날개를 펼친 동안에만 그렇다" 는 사실을
-      얻고, 그 사실을 들고 사냥꾼에게 묻거나 스스로 연구해 「악마의 날개 파훼법」을
-      얻는다. 다음 판에 같은 상대를 전혀 다른 방식으로 상대한다 (CK §9 · §41).
-      상대의 규칙을 알아내는 갈래(MP-KNOW-THE-OPPONENT-RULE)와 나란히 두면 한 걸음
-      더 간다. 그쪽은 사실을 얻는 데서 끝나고, 이쪽은 그 사실을 **운용으로 바꾸는**
-      걸음까지 간다 — CK §5 가 그 둘을 갈라 두는 이유가 이것이다. 사실을 안다고
-      싸울 줄 아는 것이 아니다.
-      배운 것이 몸에 남아 다음 판에도 서므로 이 갈래는 판을 넘어 쌓인다. 그리고
-      전할 수 있으므로 (CK §23) 혼자 하는 갈래가 아니다 — 먼저 배운 사람이 있어야
-      배울 수 있는 길이 열리고, 그래서 이 갈래 위에 조직과 유파가 선다.
-    world_shape: >
-      상대에게 알 수 없는 능력이 있고, 겪고 지켜본 만큼 그 규칙이 드러나며, 드러난
-      사실 위에서 전투법을 따로 얻을 수 있어야 한다. 그리고 그 전투법을 지닌 몸이
-      지니지 않은 몸과 같은 상대 앞에서 다르게 싸워야 한다.
+    achieves: [ MG-OVERCOME-SUPERIOR-OPPONENT ]
+    meaningful_difference: 자신을 키우지도, 그 자리에서 더 잘 다루지도 않는다 — 전투 밖에서 그 상대를 상대하는 법을 배워 와서 이긴다. 비용은 시간과 진
+      판이고, 얻은 것은 사라지지 않으며 다른 사람에게 전할 수도 있다. 진 것이 손실이 아니라 재료가 되는 유일한 갈래다 (CK §29).
+    source: CK §29 · CK §9 · §41 · CK §5 · CK §23
+    world_shape: 상대에게 알 수 없는 능력이 있고, 겪고 지켜본 만큼 그 규칙이 드러나며, 드러난 사실 위에서 전투법을 따로 얻을 수 있어야 한다. 그리고 그 전투법을 지닌
+      몸이 지니지 않은 몸과 같은 상대 앞에서 다르게 싸워야 한다.
     implemented: ABSENT
     requires:
       goals: []
-      capabilities: [MC-OBSERVE-ABILITY, MC-LEARN-COMBAT-KNOWLEDGE, MC-CONDUCT-BY-KNOWLEDGE,
-                     MC-DEEPEN-COMBAT-KNOWLEDGE, MC-TEACH-COMBAT-KNOWLEDGE,
-                     MC-EXPLAIN-COMBAT-DECISION]
-      knowledge: [MK-OPPONENT-ABILITY-RULE]   # 전투법 자체는 앎이 아니라 정의(growth/knowledge/ 의 CK-*)다 — 그 몫은 위 능력 여섯이 진다
+      capabilities:
+        - MC-OBSERVE-ABILITY
+        - MC-LEARN-COMBAT-KNOWLEDGE
+        - MC-CONDUCT-BY-KNOWLEDGE
+        - MC-DEEPEN-COMBAT-KNOWLEDGE
+        - MC-TEACH-COMBAT-KNOWLEDGE
+        - MC-EXPLAIN-COMBAT-DECISION
+      knowledge: [ MK-OPPONENT-ABILITY-RULE ]
       world_state: []
       relationship: []
       resource: []
-    supports: [MP-KNOW-THE-OPPONENT-RULE, MP-PREPARE-THE-RIGHT-KNOWLEDGE]
+    supports: [ MP-KNOW-THE-OPPONENT-RULE, MP-PREPARE-THE-RIGHT-KNOWLEDGE ]
     opposes: []
-    changes:
-      - 그 상대를 상대하는 법이 몸에 남아 다음 판에도 선다
-      - 진 판이 관찰로 남아 다음 지식의 재료가 된다
-    reveals: [MK-OPPONENT-ABILITY-RULE]   # 드러나는 것은 사실까지다 — 전투법은 드러나는 것이 아니라 그 위에서 획득된다 (CK §9)
+    changes: [ 그 상대를 상대하는 법이 몸에 남아 다음 판에도 선다, 진 판이 관찰로 남아 다음 지식의 재료가 된다 ]
+    reveals: [ MK-OPPONENT-ABILITY-RULE ]
     creates_goal: []
-    constraints: [DC-KNOWLEDGE-HAS-A-WORLD-CAUSE, DC-MASTERY-IS-KNOWING-NOT-REFLEX,
-                  DC-KNOWLEDGE-RUNS-CAPABILITY-NEVER-CREATES-IT, DC-KNOWLEDGE-HAS-NO-SINGLE-ANSWER]
+    constraints:
+      - DC-KNOWLEDGE-HAS-A-WORLD-CAUSE
+      - DC-MASTERY-IS-KNOWING-NOT-REFLEX
+      - DC-KNOWLEDGE-RUNS-CAPABILITY-NEVER-CREATES-IT
+      - DC-KNOWLEDGE-HAS-NO-SINGLE-ANSWER
     constraint_evaluation:
-      DC-KNOWLEDGE-HAS-A-WORLD-CAUSE: SATISFIED             # 배우는 자리가 전부 세계 안의 사건이다
-      DC-MASTERY-IS-KNOWING-NOT-REFLEX: SATISFIED           # 이기게 되는 이유가 더 알게 된 것이다
-      DC-KNOWLEDGE-HAS-NO-SINGLE-ANSWER: UNRESOLVED         # 한 상대에 대응 지식이 여럿 서는지는 그 콘텐츠가 정한다 (CK §26)
-      DC-KNOWLEDGE-RUNS-CAPABILITY-NEVER-CREATES-IT: SATISFIED  # 배운 것이 목적과 판단법이고 실행은 그 몸의 능력이다
-    overlay_missing: >-
-      MC-OBSERVE-ABILITY · MC-LEARN-COMBAT-KNOWLEDGE · MC-CONDUCT-BY-KNOWLEDGE ·
+      DC-KNOWLEDGE-HAS-A-WORLD-CAUSE: SATISFIED
+      DC-MASTERY-IS-KNOWING-NOT-REFLEX: SATISFIED
+      DC-KNOWLEDGE-HAS-NO-SINGLE-ANSWER: UNRESOLVED
+      DC-KNOWLEDGE-RUNS-CAPABILITY-NEVER-CREATES-IT: SATISFIED
+    overlay_missing: MC-OBSERVE-ABILITY · MC-LEARN-COMBAT-KNOWLEDGE · MC-CONDUCT-BY-KNOWLEDGE ·
       MC-DEEPEN-COMBAT-KNOWLEDGE · MC-TEACH-COMBAT-KNOWLEDGE · MC-EXPLAIN-COMBAT-DECISION
-    overlay_note: >-
-      배울 대상 자체가 없다 — 적대 존재에게 규칙 있는 능력이 없고, 판단법이라는 것이 세계에 없다. 이 갈래는 상대 쪽에 규칙이 서야 시작된다
-
+    overlay_note: 배울 대상 자체가 없다 — 적대 존재에게 규칙 있는 능력이 없고, 판단법이라는 것이 세계에 없다. 이 갈래는 상대 쪽에 규칙이 서야 시작된다
   - id: MP-PREPARE-THE-RIGHT-KNOWLEDGE
     type: possibility
-    achieves: [MG-OVERCOME-SUPERIOR-OPPONENT, MG-SURVIVE-ENEMY-OFFENSIVE]
-    meaningful_difference: >
-      새로 배우지 않는다 — **이미 아는 것들 중에서 이번 상대에 맞는 것을 골라** 이긴다.
-      비용이 들지 않고 위험도 없으나, 고를 것이 있으려면 먼저 모아 두었어야 하고
-      무엇이 올지 틀리게 읽으면 그대로 진다 (CK §28). 싸움 전에 끝나는 유일한 갈래다.
-    detail: >
-      거대 악마의 땅에 들어가기 전, 알려진 위협 넷과 자기가 지닌 전투법 일곱을 견준다.
-      자리가 넷이면 셋을 두고 가야 한다 (CK §27). 이것이 실질적인 Build 선택이며,
-      같은 캐릭터가 공격대 · 대인전 · 탐험에서 전혀 다른 몸이 되는 이유다 (CK §11).
-      배워 오는 갈래(MP-LEARN-HOW-TO-FIGHT-IT)와 시간 규모가 다르다. 그쪽은 여러 판에
-      걸쳐 새 지식을 만들고, 이쪽은 이미 가진 것들 사이에서 한 번 고른다. 둘은 짝으로
-      돈다 — 모으는 갈래가 없으면 고를 것이 없고, 고르는 갈래가 없으면 모은 것이
-      그냥 다 켜져 아무 판단도 되지 않는다.
-      틀리게 준비하는 일이 이 갈래의 반쪽이다. 예상한 것이 일반 개체였는데 변이
-      개체가 나오면 지닌 전투법이 통하지 않고, 그때는 기본 능력으로 버티며 관찰해
-      새 지식의 실마리를 얻는다 (CK §28) — 그러면 이 갈래가 저 갈래로 넘어간다.
-    world_shape: >
-      배운 전투법이 자리보다 많고, 들어가기 전에 무엇을 가져갈지 고를 수 있으며,
-      무엇을 골랐는가에 따라 같은 상대 앞에서 다르게 싸워야 한다.
-      그리고 무엇이 올지 미리 어느 정도 알 수 있어야 고르는 일이 판단이 된다.
+    achieves: [ MG-OVERCOME-SUPERIOR-OPPONENT, MG-SURVIVE-ENEMY-OFFENSIVE ]
+    meaningful_difference: 새로 배우지 않는다 — 이미 아는 것들 중에서 이번 상대에 맞는 것을 골라 이긴다. 비용이 들지 않고 위험도 없으나, 고를 것이 있으려면
+      먼저 모아 두었어야 하고 무엇이 올지 틀리게 읽으면 그대로 진다 (CK §28). 싸움 전에 끝나는 유일한 갈래다.
+    source: CK §28 · CK §27 · CK §11
+    world_shape: 배운 전투법이 자리보다 많고, 들어가기 전에 무엇을 가져갈지 고를 수 있으며, 무엇을 골랐는가에 따라 같은 상대 앞에서 다르게 싸워야 한다. 그리고 무엇이
+      올지 미리 어느 정도 알 수 있어야 고르는 일이 판단이 된다.
     implemented: ABSENT
     requires:
       goals: []
-      capabilities: [MC-CARRY-COMBAT-KNOWLEDGE, MC-CONDUCT-BY-KNOWLEDGE, MC-COMBINE-KNOWLEDGE]
-      knowledge: [MK-LOCAL-WORLDSTATE]   # 고를 전투법은 앎이 아니라 정의(CK-*)와 그것을 담는 능력(MC-CARRY-COMBAT-KNOWLEDGE)이 진다
+      capabilities: [ MC-CARRY-COMBAT-KNOWLEDGE, MC-CONDUCT-BY-KNOWLEDGE, MC-COMBINE-KNOWLEDGE ]
+      knowledge: [ MK-LOCAL-WORLDSTATE ]
       world_state: []
       relationship: []
       resource: []
-    supports: [MP-LEARN-HOW-TO-FIGHT-IT]
+    supports: [ MP-LEARN-HOW-TO-FIGHT-IT ]
     opposes: []
-    changes:
-      - 이번 싸움 동안 그 몸이 무엇을 우선하는지가 달라진다
+    changes: [ 이번 싸움 동안 그 몸이 무엇을 우선하는지가 달라진다 ]
     reveals: []
     creates_goal: []
-    constraints: [DC-KNOWLEDGE-IS-CARRIED-NOT-HOARDED, DC-KNOWLEDGE-HAS-NO-SINGLE-ANSWER,
-                  DC-KNOWLEDGE-SHOWS-IN-BEHAVIOR, DC-MASTERY-IS-KNOWING-NOT-REFLEX]
+    constraints:
+      [
+        DC-KNOWLEDGE-IS-CARRIED-NOT-HOARDED,
+        DC-KNOWLEDGE-HAS-NO-SINGLE-ANSWER,
+        DC-KNOWLEDGE-SHOWS-IN-BEHAVIOR,
+        DC-MASTERY-IS-KNOWING-NOT-REFLEX
+      ]
     constraint_evaluation:
-      DC-KNOWLEDGE-IS-CARRIED-NOT-HOARDED: SATISFIED   # 이 갈래가 그 규율의 실물이다
-      DC-KNOWLEDGE-SHOWS-IN-BEHAVIOR: SATISFIED        # world_shape 가 그 차이를 판정 조건으로 세운다
-      DC-MASTERY-IS-KNOWING-NOT-REFLEX: SATISFIED      # 승부가 싸움 전의 판단에서 갈린다
-      DC-KNOWLEDGE-HAS-NO-SINGLE-ANSWER: UNRESOLVED    # 고를 갈래가 여럿인지는 지식 콘텐츠가 정한다 (CK §26)
-    overlay_missing: >-
-      MC-CARRY-COMBAT-KNOWLEDGE · MC-CONDUCT-BY-KNOWLEDGE · MC-COMBINE-KNOWLEDGE + MK-LOCAL-WORLDSTATE
-    overlay_note: >-
-      고를 것도 자리도 없고, 무엇이 올지 미리 아는 길(지역에 대한 앎)도 없다 — 지역 자체가 세계에 없다
-
-  # ══════════════════════════════════════════════════════════════════════
-  # MG-RESCUE-THE-TAKEN — 법칙에 붙들려 사라지는 것을 되찾는 갈래들
-  # ══════════════════════════════════════════════════════════════════════
-  # 이 Goal 은 BT 주입 때 세워졌으나 **갈래가 하나도 없었다** — BT 가 구출이 일어난다는
-  # 사실만 공급하고 어떻게 하는지를 말하지 않았기 때문이다. 그 셋을 여기서 연다.
-  # 재료는 지어낸 것이 아니라 BT 가 네 대지형에 흩어 적어 둔 것이다:
-  #   숲에 흡수되기 직전의 존재 추적 (§6.6) · 공기가 사라진 자리의 고립자 구조 (§7.7) ·
-  #   하늘로 추락하는 동료 구조 (§8.7) · 완전히 개화하기 전 대상 구조 (§11.7)
-  #
-  # 셋은 무엇을 다루느냐가 서로 다르다 —
-  #   시간을 산다      옮겨 가는 과정을 붙들어 둔다
-  #   붙잡은 것을 끊는다  법칙이 걸어 둔 것 자체를 끊는다
-  #   거기까지 간다     사람이 갈 수 없는 자리에 도달한다
-
+      DC-KNOWLEDGE-IS-CARRIED-NOT-HOARDED: SATISFIED
+      DC-KNOWLEDGE-SHOWS-IN-BEHAVIOR: SATISFIED
+      DC-MASTERY-IS-KNOWING-NOT-REFLEX: SATISFIED
+      DC-KNOWLEDGE-HAS-NO-SINGLE-ANSWER: UNRESOLVED
+    overlay_missing: MC-CARRY-COMBAT-KNOWLEDGE · MC-CONDUCT-BY-KNOWLEDGE · MC-COMBINE-KNOWLEDGE +
+      MK-LOCAL-WORLDSTATE
+    overlay_note: 고를 것도 자리도 없고, 무엇이 올지 미리 아는 길(지역에 대한 앎)도 없다 — 지역 자체가 세계에 없다
   - id: MP-STOP-THE-TRANSFER
     type: possibility
-    overlay_missing: >-
-      MC-HOLD-BIOLOGICAL-STATE · MC-OBSERVE
-    overlay_note: >-
-      진행이라는 것이 세계에 없어 붙들 대상이 없다 — 존재는 멀쩡하거나 쓰러지거나 둘뿐이다
-    achieves: [MG-RESCUE-THE-TAKEN]
-    meaningful_difference: >
-      셋 중 유일하게 **아무것도 해결하지 않는 갈래다 — 시간을 산다.** 붙잡은 것을 끊지도
-      않고 거기까지 가지도 않고, 옮겨 가는 과정을 그 자리에 세워 두고 나머지를 나중에 한다.
-      즉시 성립하고 실력을 거의 요구하지 않지만 붙들고 있는 동안 다른 것을 하지 못하며,
-      놓는 순간 다시 진행된다.
-    detail: >
-      이 지형들에서 잃는 방식이 단계적이기 때문에 성립하는 갈래다. 꽃이 완성되기까지는
-      시간이 걸리고 (BT §11.2), 그 사이에 진행을 세워 두면 나머지 둘 중 무엇이든 뒤에 올
-      수 있다. 그래서 이것은 다른 둘과 배타적이지 않고 **앞에 붙는다.**
-      대가가 분명하다. 붙들고 있는 쪽은 그 자리에 묶이므로, 붙잡은 것이 여럿이면 하나만
-      살릴 수 있다 — 누구를 붙들지가 실제 선택이 된다 (BT §11.7 "무엇을 되돌리며 무엇을
-      남길지 선택").
-    world_shape: >
-      다른 것이 되어 가는 진행이 세계에 값으로 있고, 그 값이 멈춘 동안 아무 일도 일어나지
-      않으며, 붙들기를 놓으면 멈춘 자리에서 다시 이어져야 한다.
+    overlay_missing: MC-HOLD-BIOLOGICAL-STATE · MC-OBSERVE
+    overlay_note: 진행이라는 것이 세계에 없어 붙들 대상이 없다 — 존재는 멀쩡하거나 쓰러지거나 둘뿐이다
+    achieves: [ MG-RESCUE-THE-TAKEN ]
+    meaningful_difference: 셋 중 유일하게 아무것도 해결하지 않는 갈래다 — 시간을 산다. 붙잡은 것을 끊지도 않고 거기까지 가지도 않고, 옮겨 가는 과정을 그
+      자리에 세워 두고 나머지를 나중에 한다. 즉시 성립하고 실력을 거의 요구하지 않지만 붙들고 있는 동안 다른 것을 하지 못하며, 놓는 순간 다시 진행된다.
+    source: BT §11.2 · BT §11.7
+    world_shape: 다른 것이 되어 가는 진행이 세계에 값으로 있고, 그 값이 멈춘 동안 아무 일도 일어나지 않으며, 붙들기를 놓으면 멈춘 자리에서 다시 이어져야 한다.
     implemented: ABSENT
     requires:
       goals: []
-      capabilities: [MC-HOLD-BIOLOGICAL-STATE, MC-OBSERVE]
+      capabilities: [ MC-HOLD-BIOLOGICAL-STATE, MC-OBSERVE ]
       knowledge: []
       world_state: []
       relationship: []
       resource: []
     supports: []
     opposes: []
-    changes:
-      - 붙들린 존재의 진행이 멈춘다
-      - 붙들고 있는 쪽은 그동안 다른 것을 하지 못한다
+    changes: [ 붙들린 존재의 진행이 멈춘다, 붙들고 있는 쪽은 그동안 다른 것을 하지 못한다 ]
     reveals: []
     creates_goal: []
-    constraints: [DC-WORLD-OWNS-THE-CHANCE, DC-CONDITION-OPENS-WITHOUT-RECORDING,
-                  DC-GROWTH-POWER-PAYS-IN-REACH-OR-CONSTRAINT]
+    constraints:
+      [
+        DC-WORLD-OWNS-THE-CHANCE,
+        DC-CONDITION-OPENS-WITHOUT-RECORDING,
+        DC-GROWTH-POWER-PAYS-IN-REACH-OR-CONSTRAINT
+      ]
     constraint_evaluation:
-      DC-WORLD-OWNS-THE-CHANCE: SATISFIED                   # 성패가 확률이 아니라 진행이 어디까지 왔는가로 갈린다
-      DC-CONDITION-OPENS-WITHOUT-RECORDING: SATISFIED       # 놓으면 저절로 다시 진행된다
-      DC-GROWTH-POWER-PAYS-IN-REACH-OR-CONSTRAINT: SATISFIED    # 붙드는 동안 묶인다는 것이 값의 대가다
-
+      DC-WORLD-OWNS-THE-CHANCE: SATISFIED
+      DC-CONDITION-OPENS-WITHOUT-RECORDING: SATISFIED
+      DC-GROWTH-POWER-PAYS-IN-REACH-OR-CONSTRAINT: SATISFIED
   - id: MP-CUT-WHAT-HOLDS-THEM
     type: possibility
-    overlay_missing: >-
-      MC-BREAK-BIOLOGICAL-LINK · MC-DISCOVER-WEAKNESS
-    overlay_note: >-
-      **셋 중 유일하게 새 Capability 를 요구하지 않는다** — 이미 선 둘로 성립한다. 다만 그 둘이 모두 MISSING 이다
-    achieves: [MG-RESCUE-THE-TAKEN]
-    meaningful_difference: >
-      과정을 늦추는 것이 아니라 **붙잡고 있는 것 자체를 끊는다.** 한 번에 끝나지만 무엇이
-      붙잡고 있는지 먼저 알아내야 하고, 잘못 끊으면 붙들려 있던 쪽이 함께 무너진다.
-      비용은 시간이 아니라 앎이며, 셋 중 유일하게 새 능력 없이 이미 선 것들로 성립한다.
-    detail: >
-      숲은 뿌리망으로 이름을 붙잡고 (BT §6.2), 혈화수는 뿌리로 마지막 모습을 미리 만들며
-      (BT §11.2), 무명사냥꾼은 흡수되기 직전의 존재를 추적해 구출한다 (BT §6.6).
-      붙잡는 방식이 땅마다 다르므로 무엇을 끊어야 하는지도 다르다 — 그래서 이 갈래는
-      그 땅의 법칙을 먼저 읽은 사람에게만 열린다.
-      **한 자리가 아직 비어 있다.** 숲이 이름으로 붙잡은 경우, 끊어야 하는 것은 생체
-      연결이 아니라 정체의 편입이다. 지금 세계에서 정체를 붙드는 노드는
-      MC-IDENTITY-ANCHOR 하나인데 그것은 **자기 자신**을 붙드는 능력이라 남에게 걸리지
-      않는다. 그 노드를 이 갈래를 위해 넓히지 않았다 — 남의 정체를 붙드는 일은 다른
-      의미이고, 세우려면 그것을 요구하는 자리가 먼저 있어야 한다.
-    world_shape: >
-      법칙이 대상을 붙잡고 있다는 사실이 세계에 실체로 있고(연결·표식·뿌리), 그것을 찾아
-      끊을 수 있으며, 끊긴 뒤에는 진행이 이어지지 않아야 한다.
+    overlay_missing: MC-BREAK-BIOLOGICAL-LINK · MC-DISCOVER-WEAKNESS
+    overlay_note: 셋 중 유일하게 새 Capability 를 요구하지 않는다 — 이미 선 둘로 성립한다. 다만 그 둘이 모두 MISSING 이다
+    achieves: [ MG-RESCUE-THE-TAKEN ]
+    meaningful_difference: 과정을 늦추는 것이 아니라 붙잡고 있는 것 자체를 끊는다. 한 번에 끝나지만 무엇이 붙잡고 있는지 먼저 알아내야 하고, 잘못 끊으면 붙들려
+      있던 쪽이 함께 무너진다. 비용은 시간이 아니라 앎이며, 셋 중 유일하게 새 능력 없이 이미 선 것들로 성립한다.
+    source: BT §6.2 · BT §11.2 · BT §6.6
+    world_shape: 법칙이 대상을 붙잡고 있다는 사실이 세계에 실체로 있고(연결·표식·뿌리), 그것을 찾아 끊을 수 있으며, 끊긴 뒤에는 진행이 이어지지 않아야 한다.
     implemented: ABSENT
     requires:
       goals: []
-      capabilities: [MC-BREAK-BIOLOGICAL-LINK, MC-DISCOVER-WEAKNESS]
+      capabilities: [ MC-BREAK-BIOLOGICAL-LINK, MC-DISCOVER-WEAKNESS ]
       knowledge: []
       world_state: []
       relationship: []
       resource: []
     supports: []
     opposes: []
-    changes:
-      - 법칙이 대상에게 걸어 둔 것이 사라진다
+    changes: [ 법칙이 대상에게 걸어 둔 것이 사라진다 ]
     reveals: []
     creates_goal: []
-    constraints: [DC-COMBAT-STRONG-RULE-HAS-COUNTERPLAY, DC-WORLD-TERRAIN-LAW-IS-OBSERVABLE]
+    constraints: [ DC-COMBAT-STRONG-RULE-HAS-COUNTERPLAY, DC-WORLD-TERRAIN-LAW-IS-OBSERVABLE ]
     constraint_evaluation:
-      DC-COMBAT-STRONG-RULE-HAS-COUNTERPLAY: SATISFIED      # 잘못 끊으면 붙들린 쪽이 함께 무너진다 — 실패가 정의되어 있다
-      DC-WORLD-TERRAIN-LAW-IS-OBSERVABLE: SATISFIED         # 무엇이 붙잡고 있는지가 증거로 먼저 드러나야 이 갈래가 열린다 (BT §11.4)
-
+      DC-COMBAT-STRONG-RULE-HAS-COUNTERPLAY: SATISFIED
+      DC-WORLD-TERRAIN-LAW-IS-OBSERVABLE: SATISFIED
   - id: MP-REACH-THE-UNREACHABLE
     type: possibility
-    overlay_missing: >-
-      MC-REDEFINE-DOWN · MC-PLACE-FOOTING · MC-REDIRECT-FALLING-THING · MC-CARRY-LIFE-SUPPORT
-    overlay_note: >-
-      넷 다 MISSING 이다. 무대가 한 평면이라 닿을 수 없는 자리라는 것 자체가 세계에 없다
-    achieves: [MG-RESCUE-THE-TAKEN]
-    meaningful_difference: >
-      붙잡은 것을 어찌하지 않는다 — **거기까지 간다.** 하늘로 추락하는 동료와 공기가 사라진
-      자리에 고립된 사람은 붙들려서 못 오는 것이 아니라 사람이 갈 수 없는 자리에 있다.
-      셋 중 유일하게 법칙을 건드리지 않으며, 대신 도달 수단을 **미리** 갖춰야 한다 —
-      현장에서 배울 수 없는 유일한 갈래다.
-    detail: >
-      BT 가 두 땅에서 같은 장면을 적는다 — "하늘로 추락하는 동료 구조" (§8.7)와 "고립된
-      탐험가 구조" (§7.7). 두 경우 모두 구조자가 먼저 그 자리에 닿을 수 있어야 하고,
-      그 자리는 각각 아래쪽이 뒤집힌 허공과 숨 쉴 수 없는 물속이다.
-      요구가 넷이나 되는 것이 이 갈래의 성격이다. 앞의 둘보다 준비가 무겁고, 그래서
-      **한 번 갖추면 세 땅에서 함께 쓰인다** — 아래쪽을 바꾸는 힘도, 없는 자리에 발판을
-      두는 힘도, 살아 있게 하는 것을 지니고 가는 힘도 구조에만 쓰이지 않는다.
-    world_shape: >
-      사람이 그냥은 닿을 수 없는 자리가 세계에 있고(뒤집힌 낙하 · 숨 쉴 수 없음), 그 자리에
-      도달하는 수단이 존재하며, 도달한 뒤 대상을 데리고 돌아오는 일이 성립해야 한다.
+    overlay_missing: MC-REDEFINE-DOWN · MC-PLACE-FOOTING · MC-REDIRECT-FALLING-THING · MC-CARRY-LIFE-SUPPORT
+    overlay_note: 넷 다 MISSING 이다. 무대가 한 평면이라 닿을 수 없는 자리라는 것 자체가 세계에 없다
+    achieves: [ MG-RESCUE-THE-TAKEN ]
+    meaningful_difference: 붙잡은 것을 어찌하지 않는다 — 거기까지 간다. 하늘로 추락하는 동료와 공기가 사라진 자리에 고립된 사람은 붙들려서 못 오는 것이 아니라
+      사람이 갈 수 없는 자리에 있다. 셋 중 유일하게 법칙을 건드리지 않으며, 대신 도달 수단을 미리 갖춰야 한다 — 현장에서 배울 수 없는 유일한 갈래다.
+    source: BT (§ 미지정 — 구조의 갈래)
+    world_shape: 사람이 그냥은 닿을 수 없는 자리가 세계에 있고(뒤집힌 낙하 · 숨 쉴 수 없음), 그 자리에 도달하는 수단이 존재하며, 도달한 뒤 대상을 데리고 돌아오는
+      일이 성립해야 한다.
     implemented: ABSENT
     requires:
       goals: []
-      capabilities: [MC-REDEFINE-DOWN, MC-PLACE-FOOTING, MC-REDIRECT-FALLING-THING, MC-CARRY-LIFE-SUPPORT]
+      capabilities: [ MC-REDEFINE-DOWN, MC-PLACE-FOOTING, MC-REDIRECT-FALLING-THING, MC-CARRY-LIFE-SUPPORT ]
       knowledge: []
       world_state: []
       relationship: []
       resource: []
     supports: []
     opposes: []
-    changes:
-      - 닿을 수 없던 자리에 있던 존재가 돌아온다
+    changes: [ 닿을 수 없던 자리에 있던 존재가 돌아온다 ]
     reveals: []
     creates_goal: []
-    constraints: [DC-WORLD-PROGRESSION-IS-REACH, DC-GROWTH-POWER-PAYS-IN-REACH-OR-CONSTRAINT]
+    constraints: [ DC-WORLD-PROGRESSION-IS-REACH, DC-GROWTH-POWER-PAYS-IN-REACH-OR-CONSTRAINT ]
     constraint_evaluation:
-      DC-WORLD-PROGRESSION-IS-REACH: SATISFIED              # 이 갈래의 내용 자체가 닿는 범위의 확장이다
-      DC-GROWTH-POWER-PAYS-IN-REACH-OR-CONSTRAINT: SATISFIED    # 요구가 넷이라는 것이 이 갈래의 대가다
-
-  # ── MG-OVERCOME-SUPERIOR-OPPONENT 의 열다섯째 갈래 ──────────────────────
-
+      DC-WORLD-PROGRESSION-IS-REACH: SATISFIED
+      DC-GROWTH-POWER-PAYS-IN-REACH-OR-CONSTRAINT: SATISFIED
   - id: MP-TAKE-WHAT-MAKES-IT-STRONG
     type: possibility
-    overlay_missing: >-
-      MC-DRAIN
-    overlay_note: >-
-      상대가 유한하게 가진 것이 세계에 없다 — 옮길 것이 없다
-    achieves: [MG-OVERCOME-SUPERIOR-OPPONENT]
-    meaningful_difference: >
-      열다섯 갈래 중 유일하게 **격차를 양쪽에서 좁힌다** — 내가 커지는 동시에 상대가
-      작아진다. 미리 키워 두는 갈래(MP-OUTGROW-THE-OPPONENT)와 달리 이 판 안에서 벌고,
-      받아낸 것을 버는 갈래(MP-STORE-AND-RELEASE)와 달리 맞지 않고도 번다. 대신 빼앗으려면
-      닿거나 곁에 있어야 하므로 **거리를 포기하고**, 상대에게 빼앗을 것이 없으면 아무 일도
-      일어나지 않는다.
-    detail: >
-      세계가 이미 이 방식으로 굴러가는 곳이 있다 — 해를 삼킨 빙원의 광맥이 주변의 열을
-      결속해 대지를 얼린다 (BT §5.1). 그 땅에서 사는 법을 익힌 사람이 같은 일을 작게
-      한다고 보면 된다.
-      느린 갈래다. 한 번 빼앗아 이기지 못하고, 빼앗을수록 유리해지는 것이 쌓여야 한다.
-      그래서 상대는 **길어지기 전에 끝내거나 거리를 벌리는 것**으로 대응한다 — 즉
-      이 갈래를 고른 쪽은 시간을 벌어야 하고, 그것이 다른 갈래와 함께 쓰이는 이유가 된다.
-      빼앗은 것을 어디에 쓰는가는 이 갈래가 정하지 않는다 — 그 몸이 가진 능력이 정한다.
-    world_shape: >
-      상대가 유한하게 가진 것이 세계에 값으로 있고, 그것이 이쪽으로 옮겨 오며, 옮겨 간
-      만큼 상대가 이전만큼 하지 못하고, 그 사실이 양쪽 모두에게 보여야 한다.
+    overlay_missing: MC-DRAIN
+    overlay_note: 상대가 유한하게 가진 것이 세계에 없다 — 옮길 것이 없다
+    achieves: [ MG-OVERCOME-SUPERIOR-OPPONENT ]
+    meaningful_difference: 열다섯 갈래 중 유일하게 격차를 양쪽에서 좁힌다 — 내가 커지는 동시에 상대가 작아진다. 미리 키워 두는
+      갈래(MP-OUTGROW-THE-OPPONENT)와 달리 이 판 안에서 벌고, 받아낸 것을 버는 갈래(MP-STORE-AND-RELEASE)와 달리 맞지 않고도 번다.
+      대신 빼앗으려면 닿거나 곁에 있어야 하므로 거리를 포기하고, 상대에게 빼앗을 것이 없으면 아무 일도 일어나지 않는다.
+    source: BT §5.1
+    world_shape: 상대가 유한하게 가진 것이 세계에 값으로 있고, 그것이 이쪽으로 옮겨 오며, 옮겨 간 만큼 상대가 이전만큼 하지 못하고, 그 사실이 양쪽 모두에게 보여야 한다.
     implemented: ABSENT
     requires:
       goals: []
-      capabilities: [MC-DRAIN]
+      capabilities: [ MC-DRAIN ]
       knowledge: []
       world_state: []
       relationship: []
       resource: []
     supports: []
     opposes: []
-    changes:
-      - 상대가 가진 것이 줄고 그만큼 이쪽이 는다
+    changes: [ 상대가 가진 것이 줄고 그만큼 이쪽이 는다 ]
     reveals: []
     creates_goal: []
-    constraints: [DC-COMBAT-ONE-FORMULA, DC-COMBAT-STRONG-RULE-HAS-COUNTERPLAY,
-                  DC-COMBAT-SHARED-BUDGET, DC-GROWTH-NO-DOMINATED-ROUTE]
+    constraints:
+      [
+        DC-COMBAT-ONE-FORMULA,
+        DC-COMBAT-STRONG-RULE-HAS-COUNTERPLAY,
+        DC-COMBAT-SHARED-BUDGET,
+        DC-GROWTH-NO-DOMINATED-ROUTE
+      ]
     constraint_evaluation:
-      DC-COMBAT-ONE-FORMULA: SATISFIED                      # 피해 식을 바꾸지 않고 그 식이 읽는 값을 옮긴다
-      DC-COMBAT-STRONG-RULE-HAS-COUNTERPLAY: SATISFIED      # 거리 유지 · 빠르게 끝내기 · 빼앗길 것을 주지 않기 (FC §5.10)
-      DC-COMBAT-SHARED-BUDGET: UNRESOLVED                   # 빼앗은 것이 기존 기력 예산으로 들어오는지 별도 값인지는 이 층의 Cycle 이 정한다
-      DC-GROWTH-NO-DOMINATED-ROUTE: SATISFIED               # 거리를 포기하므로 원거리 갈래를 압도하지 않는다
+      DC-COMBAT-ONE-FORMULA: SATISFIED
+      DC-COMBAT-STRONG-RULE-HAS-COUNTERPLAY: SATISFIED
+      DC-COMBAT-SHARED-BUDGET: UNRESOLVED
+      DC-GROWTH-NO-DOMINATED-ROUTE: SATISFIED

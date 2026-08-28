@@ -71,30 +71,30 @@ MS-AURA-NEN(넷)이 소유한다.
 
 | Capability | 상태 | 근거 | 부족한 것 |
 |---|---|---|---|
-| MC-COMBAT-STRIKE | IMPLEMENTED | C007 · C010 이 피해 산정을 하나의 공식으로 교체. C025 가 휘두름의 **모양**(각·길이·굵기)을 전역 상수에서 기술 정의로 내려 이 노드에 걸린 마지막 UNRESOLVED 를 닫았다 | — |
-| MC-BODY-FACING | IMPLEMENTED | C006 — 몸이 향한 방향이 막기 판정에 쓰인다 | — |
-| MC-CP-ECONOMY | PARTIAL | C007 · C011 — 기력을 쓰는 자리가 셋(고급 스킬·달리기·막기)이라 공격과 방어가 실제로 경쟁한다 | **기력이 스스로 돌아오지 않는다.** 회복 경로는 "타격을 성공시킨다" 하나뿐이라, 빗나가면 아무것도 벌지 못하고 쉬어도 차지 않는다 |
+| MC-COMBAT-STRIKE | IMPLEMENTED | C007 · C010 · C025 08-verification | — |
+| MC-BODY-FACING | IMPLEMENTED | C006 08-verification | — |
+| MC-CP-ECONOMY | PARTIAL | C007 · C011 08-verification | 기력이 스스로 돌아오지 않는다. 회복 경로는 "타격을 성공시킨다" 하나뿐이라, 빗나가면 아무것도 벌지 못하고 쉬어도 차지 않는다 |
 | MC-COMBAT-CAUSE-READING | IMPLEMENTED | 코드 대조 — 모든 타격이 고른 능력치 이름·값, 기본 피해, 공격 기여, 방어 값, 관통, 유효 방어, 감쇄 배율, 최종·적용 피해, 막기 결과까지 관찰에 싣는다 | — (승격 확인 대기 · open-questions.md) |
-| MC-ATTACK-POWER | PARTIAL | C010 — 공격력 40→80 변경이 피해 20→35 로 실측. **C023 으로 세계 안의 첫 경로가 생겼다** — 곡괭이를 걸면 물리 공격 40 → 52 가 플레이로 관찰되고, 풀면 정확히 40 으로 돌아온다 (C023 08 PLAYABLE ④·⑧) | **값을 키우는 축이 없다.** 물건으로 값이 *달라지는* 것은 섰으나 그것을 *키우는* 것 — 될 Class 도, 배울 상대도, 자라는 경로도 — 은 여전히 없다. 물건 쪽은 **C024 로 둘이 되었으나**(곡괭이 물리 공격 +12 · 손방패 물리 방어 +15) 그 둘은 서로 바꿔 끼는 관계이지 쌓이는 관계가 아니다 |
-| MC-SKILL-SCALING | IMPLEMENTED | C010 — 계수가 큰 스킬이 같은 공격 증가에 더 크게 자라는 것이 실측 | — |
-| MC-DEFENSE-MITIGATION | IMPLEMENTED | C010 — 방어 0/100/200/300 에서 피해 26/13/9/7, 감소폭 단조 감소, 극단값에서도 최소 1 | — (이것은 **수동 감쇄**다. 막는 행동은 MC-GUARD 로 별개) |
-| MC-ATTACK-ARMOR-MATCHUP | IMPLEMENTED | C012 — 같은 스킬 값이 상대에 따라 20/14 ↔ 17/22 로 갈리는 것이 실측 | — |
-| MC-GUARD | IMPLEMENTED | C011 — 막기가 행동으로 존재하고 정면 판정이 방향을 가르며, 막힌 타격이 절반으로 줄고 기력을 치르며, 기력이 마르면 방어가 무너진다 | — |
-| MC-PENETRATION | IMPLEMENTED | C013 — 마주한 방어가 90 → 56.25 로 깎이고, 마주하지 않은 방어는 그대로이며(물리 20 유지), 두꺼울수록 걷어내는 양이 커지고(0/7.5/33.75/112.5), 극단값에서도 방어가 남는다 | — (C013 Human Play 대기 · open-questions.md) |
-| MC-BREAK | PARTIAL | 코드 대조 — 막는 기력이 모자라면 방어가 풀리고 일정 시간 다시 세우지 못하며 그 타격은 그대로 들어간다 (C011) | 무너뜨리기 위한 **행동**이 없다. 지금은 상대가 자원을 다 쓴 결과로만 일어나므로 플레이어가 만들어 내는 구간이 아니다 |
-| MC-CONDITION-STACKING | PARTIAL | 코드 대조 — 조건들을 곱해 합성하고 상·하한으로 묶는 얼개가 있다 | 조건의 출처가 둘(달리는 중·피격 중)뿐이고 둘 다 기력 회복량에만 작용한다. 이름 붙은 조건도, 지속 시간도, 겹침도, 플레이어가 조건을 **만드는** 수단도 없다 |
-| MC-CRITICAL-STRIKE | IMPLEMENTED | C015 — 같은 조건 다섯 대에서 [20, 20, 40, 40, 20] 이 실측되고, 성질을 바꾸면 빈도·크기가 각각 달라지며, 발생 여부·확률·배율·증폭 전 값 넷이 모든 타격의 계산 경위에 실린다 | — (성질을 **올릴** 경로는 이 노드가 아니라 MP-BET-ON-THE-CRITICAL-BLOW 의 `requires.resource` 가 진다 — 아래 Possibility 표) |
-| MC-PERFECT-GUARD | MISSING | — | 막기는 있으나 **시작 시각**이 판정에 쓰이지 않는다. 막기는 켜 두는 자세이고 결과는 막힘/무너짐 둘뿐이다 (R1 §14 Active Defense 층). 다만 C019 로 **행동 안의 시점을 읽는 규칙**이 세계에 생겨 얹힐 바닥은 섰다 |
+| MC-ATTACK-POWER | PARTIAL | C010 · C023 08-verification | 값을 키우는 축이 없다. 물건으로 값이 *달라지는* 것은 섰으나 그것을 *키우는* 것 — 될 Class 도, 배울 상대도, 자라는 경로도 — 은 여전히 없다. 물건 쪽은 C024 로 둘이 되었으나(곡괭이 물리 공격 +12 · 손방패 물리 방어 +15) 그 둘은 서로 바꿔 끼는 관계이지 쌓이는 관계가 아니다 |
+| MC-SKILL-SCALING | IMPLEMENTED | C010 08-verification | — |
+| MC-DEFENSE-MITIGATION | IMPLEMENTED | C010 08-verification | — (이것은 수동 감쇄다. 막는 행동은 MC-GUARD 로 별개) |
+| MC-ATTACK-ARMOR-MATCHUP | IMPLEMENTED | C012 08-verification | — |
+| MC-GUARD | IMPLEMENTED | C011 08-verification | — |
+| MC-PENETRATION | IMPLEMENTED | C013 08-verification | — (C013 Human Play 대기 · open-questions.md) |
+| MC-BREAK | PARTIAL | C011 08-verification | 무너뜨리기 위한 행동이 없다. 지금은 상대가 자원을 다 쓴 결과로만 일어나므로 플레이어가 만들어 내는 구간이 아니다 |
+| MC-CONDITION-STACKING | PARTIAL | 코드 대조 — 조건들을 곱해 합성하고 상·하한으로 묶는 얼개가 있다 | 조건의 출처가 둘(달리는 중·피격 중)뿐이고 둘 다 기력 회복량에만 작용한다. 이름 붙은 조건도, 지속 시간도, 겹침도, 플레이어가 조건을 만드는 수단도 없다 |
+| MC-CRITICAL-STRIKE | IMPLEMENTED | C015 08-verification | — (성질을 올릴 경로는 이 노드가 아니라 MP-BET-ON-THE-CRITICAL-BLOW 의 `requires.resource` 가 진다 — 아래 Possibility 표) |
+| MC-PERFECT-GUARD | MISSING | — | 막기는 있으나 시작 시각이 판정에 쓰이지 않는다. 막기는 켜 두는 자세이고 결과는 막힘/무너짐 둘뿐이다 (R1 §14 Active Defense 층). 다만 C019 로 행동 안의 시점을 읽는 규칙이 세계에 생겨 얹힐 바닥은 섰다 |
 | MC-COUNTER | MISSING | — | 취약 상태(Exposed)라는 개념이 없다 (R1 §14 Active Defense 층) |
-| MC-EVADE | MISSING | — | 회피 행동이 없다. 다만 공격이 이미 공간 판정이라 얹힐 바닥은 서 있다 (R1 §13 이연). C025 로 그 공간이 **기술마다 달라졌다** — 피할 대상이 하나가 아니므로 회피가 설 때 다룰 것이 늘었다 |
+| MC-EVADE | MISSING | — | 회피 행동이 없다. 다만 공격이 이미 공간 판정이라 얹힐 바닥은 서 있다 (R1 §13 이연). C025 로 그 공간이 기술마다 달라졌다 — 피할 대상이 하나가 아니므로 회피가 설 때 다룰 것이 늘었다 |
 | MC-FORTIFY | MISSING | — | 배분이 없으므로 몸 쪽에 몰아 둔 자세도 없다. 배분(MC-AURA-ALLOCATION)이 먼저 서야 한다 |
-| MC-VOW | MISSING | — | 제약·실패 대가가 없다 (R1 §14 Aura/Nen 층). UL §21 이 요구하는 세 부분 중 세계에 있는 것은 **하나도 없다** — 제약을 선언하는 자리도, 그것이 여는 행동도, 위반 판정도 없다 |
+| MC-VOW | MISSING | — | 제약·실패 대가가 없다 (R1 §14 Aura/Nen 층). UL §21 이 요구하는 세 부분 중 세계에 있는 것은 하나도 없다 — 제약을 선언하는 자리도, 그것이 여는 행동도, 위반 판정도 없다 |
 | MC-ACTIVE-RESPONSE | MISSING | — | 공격이 닿는 순간에 실행하는 행동이라는 개념이 없다. 막기는 미리 켜 두는 자세이고, 켠 뒤에는 받는 쪽이 개입할 자리가 없다 (`world/semantic/combat.ts` 의 `GuardOutcome`). 얹힐 바닥은 하나 서 있다 — C019 로 행동 안의 시점을 읽는 규칙이 생겼다 |
 | MC-PRECISION-RESPONSE | MISSING | — | 대응 자체가 없으므로 그 시점 축도 없다. 다만 C019 가 행동 안의 시점을 읽는 규칙을 세워 두어, 판정에 쓸 시각은 세계에 이미 있다 |
 | MC-OPPORTUNITY | MISSING | — | 기회라는 개념이 없고, 같은 자리의 행동이 상황에 따라 다른 것으로 바뀌는 규칙도 없다 |
 | MC-ABSORB | MISSING | — | 막힌 피해는 줄어들 뿐 어디에도 남지 않는다 (`world/semantic/combat.ts` — 막힌 타격이 남기는 비율만 있다). 받아낸 것이 값으로 저장되는 자리가 없다 |
-| MC-AURA-ALLOCATION | PARTIAL | C-COMBAT-001 08-verification 의 WORLD SCENARIO · PLAYABLE — 배분이 이름 붙은 상태로 있고, 전투 중 하나를 고르는 것으로만 바뀌며, 유효 값에 항으로 들어가고, 자기에게도 상대에게도 보인다 | 배분이 **값만 바꾸고 무엇을 할 수 있는가의 목록을 바꾸지 않는다.** semantic 의 절반(UL §15 — 인지를 일정 이상 몰아야 숨은 것이 보이는 식의 가능 여부 갈림)이 아직 없고, 조건 관문(FR-THE-WORLD-DECIDES-WHAT-IS-POSSIBLE)이 서야 닫힌다 |
-| MC-ABILITY-CONDITION | PARTIAL | 코드 대조 — 못 쓰는 사유를 세계가 골라 하나 내보내는 자리가 이미 있다 (`view/skill-presentation.ts` 의 `unavailableReason` · 인벤토리·장비도 같은 칸을 쓴다) | 그 사유의 원천이 전부 자기 조건이다 — 자원이 모자라거나 거리가 멀거나 장착하지 않았거나. 세계의 사실(상대가 나를 먼저 쳤는가 · 표식이 있는가)이 능력의 가능 여부를 여는 자리가 없다 |
+| MC-AURA-ALLOCATION | PARTIAL | C-COMBAT-001 08-verification | 배분이 값만 바꾸고 무엇을 할 수 있는가의 목록을 바꾸지 않는다. semantic 의 절반(UL §15 — 인지를 일정 이상 몰아야 숨은 것이 보이는 식의 가능 여부 갈림)이 아직 없고, 조건 관문(FR-THE-WORLD-DECIDES-WHAT-IS-POSSIBLE)이 서야 닫힌다 |
+| MC-ABILITY-CONDITION | PARTIAL | 코드 실측 — view/skill-presentation.ts | 그 사유의 원천이 전부 자기 조건이다 — 자원이 모자라거나 거리가 멀거나 장착하지 않았거나. 세계의 사실(상대가 나를 먼저 쳤는가 · 표식이 있는가)이 능력의 가능 여부를 여는 자리가 없다 |
 | MC-MARK | MISSING | — | 대상에 남는 표식이라는 개념이 없다. 존재 사이에 남는 것은 태도(C018)와 지목(C017)뿐이고, 둘 다 거는 쪽의 상태이지 걸린 쪽에 붙은 것이 아니다 |
 | MC-BIND | MISSING | — | 존재 사이를 잇는 실체가 없고, 남의 행동 범위를 줄이는 규칙도 없다. 관계는 태도 하나뿐이고 (C018) 그것은 칠 수 있는가만 가른다 |
 | MC-OBSERVE-ABILITY | MISSING | — | 상대가 가진 능력이라는 것이 세계에 없다 — 적대 존재는 하나의 행동만 하고 그것에 규칙도 조건도 없다. 알아낼 대상 자체가 서지 않았다 |
@@ -109,16 +109,16 @@ MS-AURA-NEN(넷)이 소유한다.
 
 | Capability | 상태 | 근거 | 부족한 것 |
 |---|---|---|---|
-| MC-REPOSITION (SAFE §20) | PARTIAL | 코드 대조 — 위치가 판정에 깊이 쓰인다: 휘두른 무기 끝이 훑는 궤적 안의 몸만 맞고, 막기는 정면에서 온 것만 막으며, 채집은 거리 안에서만 된다 | 유리한 자리를 **빠르게·의도적으로** 잡는 전용 수단. 걸어가서 만들 수는 있다 |
-| MC-FORCE-MOVEMENT (DANGER §23) | PARTIAL | 코드 대조 — 타격이 상대를 때린 자리 바깥으로 밀어내고 그 힘이 관성·마찰로 이어진다 | **어디로** 보낼지 고르는 수단. 밀림 방향이 언제나 때린 자리의 반대쪽으로 고정이다 |
-| MC-INTERRUPT (DANGER §23) | IMPLEMENTED | **C019 — 끊김이 선딜 구간에만 성립한다.** 기술마다 다른 선딜(기본 0.15초 · 큰 기술 0.45초), 세계가 판정해 싣는 구간, 같은 개입이 시점만으로 갈리는 것(0.49 캔슬 ↔ 0.51 그대로)이 실측되었다. 캔슬된 기술은 피해 0 이 아니라 산정 자체가 없다 | — (`part_of.grounded: true` 의 근거였던 C002 의 부수 효과가 이제 **노리는 수단**이 되었다) |
-| MC-BREAK (WILD §22) | PARTIAL | 코드 대조 — 막는 기력이 모자라면 방어가 풀리고 일정 시간 다시 세우지 못하며 그 타격은 그대로 들어간다 (C011) | 무너뜨리기 위한 **행동**이 없다. 지금은 상대가 자원을 다 쓴 결과로만 일어나므로 플레이어가 만들어 내는 구간이 아니다 |
-| MC-OBSERVE (FRINGE §21) | PARTIAL | **C014 — 살펴봄이 행동으로 서고, 살펴보기 전에는 상대의 겨루는 힘을 모른다.** **C016 — 앎에 이르는 길이 둘(살펴봄 · 기른 통찰)이 되고, 앎이 존재 단위에서 자리 단위로 넓어졌다** | 남은 결손은 **하나**다: **행동·습성** — 자율 존재의 패턴을 읽는 의미가 없다 (MC-PREDICT 자리). 그 하나가 닫히면 IMPLEMENTED. **그 자리는 보류(Human)** — AI 기획서를 기다린다 (frontier "지금 열 수 없는 것") |
-| MC-PREDICT (FRINGE §21) | MISSING | 코드 대조 — 예고 구간 자체는 **이미 있다**: 휘두름은 앞 구간을 지나서야 닿고(`world/semantic/collision.ts` SWING_BEGIN), 진행 중인 행동의 종류·진행도·칼끝이 계약에 실린다(`EntityView.state` · `progress` · `swing`) | 없는 것은 **읽을 거리**와 **앎의 관문** 둘이다. ① 자율 존재가 쓰는 스킬이 하나뿐이라(`world/simulation/npc-decide.ts` — 언제나 `attack`) 다음 행동에 고를 갈래가 없다 ② 그 앎이 살펴봄·통찰과 무관하게 누구에게나 그냥 온다. **다만 노드의 semantic 자체가 잠정이다 (`part_of.grounded: false` — BW §21 은 이름만 댄다) — 보류(Human), AI 기획서 대기** |
+| MC-REPOSITION (SAFE §20) | PARTIAL | 코드 대조 — 위치가 판정에 깊이 쓰인다: 휘두른 무기 끝이 훑는 궤적 안의 몸만 맞고, 막기는 정면에서 온 것만 막으며, 채집은 거리 안에서만 된다 | 유리한 자리를 빠르게·의도적으로 잡는 전용 수단. 걸어가서 만들 수는 있다 |
+| MC-FORCE-MOVEMENT (DANGER §23) | PARTIAL | 코드 대조 — 타격이 상대를 때린 자리 바깥으로 밀어내고 그 힘이 관성·마찰로 이어진다 | 어디로 보낼지 고르는 수단. 밀림 방향이 언제나 때린 자리의 반대쪽으로 고정이다 |
+| MC-INTERRUPT (DANGER §23) | IMPLEMENTED | C019 08-verification | — (`part_of.grounded: true` 의 근거였던 C002 의 부수 효과가 이제 노리는 수단이 되었다) |
+| MC-BREAK (WILD §22) | PARTIAL | C011 08-verification | 무너뜨리기 위한 행동이 없다. 지금은 상대가 자원을 다 쓴 결과로만 일어나므로 플레이어가 만들어 내는 구간이 아니다 |
+| MC-OBSERVE (FRINGE §21) | PARTIAL | C014 · C016 08-verification | 남은 결손은 하나다: 행동·습성 — 자율 존재의 패턴을 읽는 의미가 없다 (MC-PREDICT 자리). 그 하나가 닫히면 IMPLEMENTED. 그 자리는 보류(Human) — AI 기획서를 기다린다 (frontier "지금 열 수 없는 것") |
+| MC-PREDICT (FRINGE §21) | MISSING | 코드 실측 — world/semantic/collision.ts | 없는 것은 읽을 거리와 앎의 관문 둘이다. ① 자율 존재가 쓰는 스킬이 하나뿐이라(`world/simulation/npc-decide.ts` — 언제나 `attack`) 다음 행동에 고를 갈래가 없다 ② 그 앎이 살펴봄·통찰과 무관하게 누구에게나 그냥 온다. 다만 노드의 semantic 자체가 잠정이다 (`part_of.grounded: false` — BW §21 은 이름만 댄다) — 보류(Human), AI 기획서 대기 |
 | MC-USE-TERRAIN (FRINGE §21) | MISSING | — | 지형이 없다 — 무대는 아무 성질도 없는 평평한 사각형 하나다 |
 | MC-DISCOVER-WEAKNESS · MC-PRECISE-TARGETING · MC-CONTROL-SPACE (WILD §22) | MISSING | — | 약점 발견·부위 조준·공간 통제의 의미가 없다 |
 | MC-READ-ENVIRONMENT · MC-USE-HAZARD (DANGER §23) | MISSING | — | 환경 위험이라는 개념 자체가 없다 — 피해의 출처는 타격 하나뿐이다 |
-| MC-DISRUPT-ABILITY · MC-MAINTAIN-PRESSURE · MC-TARGET-SPECIFIC-PART · MC-READ-CREATURE-SYSTEM (DEEP §24) | MISSING | — | 재생·공생·부위라는 개념 자체가 없고, 능력을 봉인한다는 개념도 없다 — 지금 세계에서 못 쓰는 사유는 자원·거리·장착 같은 자기 조건뿐이고 **남이 걸어 둔 것** 때문에 못 쓰는 자리가 없다 |
+| MC-DISRUPT-ABILITY · MC-MAINTAIN-PRESSURE · MC-TARGET-SPECIFIC-PART · MC-READ-CREATURE-SYSTEM (DEEP §24) | MISSING | — | 재생·공생·부위라는 개념 자체가 없고, 능력을 봉인한다는 개념도 없다 — 지금 세계에서 못 쓰는 사유는 자원·거리·장착 같은 자기 조건뿐이고 남이 걸어 둔 것 때문에 못 쓰는 자리가 없다 |
 | MC-PROTECT-PERCEPTION · MC-VERIFY-REALITY · MC-IDENTITY-ANCHOR · MC-RESIST-INFLUENCE · MC-BREAK-BIOLOGICAL-LINK · MC-ESCAPE-ALTERED-SPACE (UNKNOWN §25) | MISSING | — | 지각·정체성·공간 변형이라는 개념 자체가 없다 |
 | MC-RESTORE-BIOLOGICAL-STATE (자원 §8) | MISSING | — | 회복이라는 개념이 없다 — 생명은 줄기만 하고 되돌리는 경로는 디버그뿐이다 |
 | MC-CUT-ABNORMAL-STRUCTURE (자원 §10 · §17) | MISSING | — | 제작·장착이 없고, 통하지 않는 구조라는 개념도 없다 |
@@ -179,9 +179,9 @@ BT 주입이 Capability 로 들어 올리지 않았던 것들이다 — 산맥�
 
 | Capability | 상태 | 근거 | 부족한 것 |
 |---|---|---|---|
-| MC-DESIGNATE-TARGET | IMPLEMENTED | **C017** — 관찰자별로 고른 존재 하나를 세계가 지니고(`World.TargetSelections` · Id 만), 살펴봄·채집이 요청이 아니라 그 관계에서 대상을 읽으며, 성립하지 않게 된 관계를 세계가 스스로 비운다 | — (`RULE-TARGET-CLEAR-STALE-001` 은 **플레이로 도달하지 않는다** — 존재가 세계에서 사라지는 경로가 0건이다. 규칙과 단위 검증은 섰고, 확인은 존재를 없애는 개념이 오는 Cycle 의 몫이다 — C017 08 주①) |
-| MC-WATCH-TARGET | IMPLEMENTED | **C017** — 고른 상대의 지금 값과, 그에게 지금 무엇이 되고 무엇이 왜 안 되는지가 한자리에서 계속 갱신된다. 사유가 사라지고 행동만 회색으로 남는 형태가 아니라 문구로 온다 | — |
-| MC-RELATION-STANCE | IMPLEMENTED | **C018** — 태도가 방향을 가진 쌍의 값으로 서고(적대·중립·우호), 그 값이 공격 가부를 가르며(중립인 것은 닿아도 상하지 않고 사유가 함께 온다), 두 방향이 모두 관찰에 실린다. 세계 서버 실측: 자리 중심까지 5.70 에서 적대로 갈리고 9.28 에서 풀리며 그 존재가 자기 자리로 돌아간다. **태도를 저장하지 않아** 푸는 규칙이 0줄이다 | — (Human Play 확인 대기 — 기계 검증 6종·794 tests 통과) |
+| MC-DESIGNATE-TARGET | IMPLEMENTED | C017 08-verification | — (`RULE-TARGET-CLEAR-STALE-001` 은 플레이로 도달하지 않는다 — 존재가 세계에서 사라지는 경로가 0건이다. 규칙과 단위 검증은 섰고, 확인은 존재를 없애는 개념이 오는 Cycle 의 몫이다 — C017 08 주①) |
+| MC-WATCH-TARGET | IMPLEMENTED | C017 08-verification | — |
+| MC-RELATION-STANCE | IMPLEMENTED | C018 08-verification | — (Human Play 확인 대기 — 기계 검증 6종·794 tests 통과) |
 
 ## Capability — 아이템 영역 (IS · IE)
 
@@ -224,10 +224,10 @@ C026 이 그 셋을 한 표면에 세웠다. **이 표는 한 칸도 바뀌지 �
 
 | Capability | 상태 | 근거 | 부족한 것 |
 |---|---|---|---|
-| MC-USE-ITEM | IMPLEMENTED | **C020** — 세계 프로세스 실측으로 world_shape 세 문장이 모두 닫혔다: 지금 쓸 수 있는 것과 없는 것이 사유와 함께 구분되어 오고(관찰 계약), 고른 상대에게 돌을 던져 상태가 바뀌며 수량이 준다(타격 기록 `["stone", 3]` · 60초 16회 시도 9회 성립), 끊긴 사용은 수량도 상태도 건드리지 않는다. 규칙은 종류 이름을 묻지 않고 정의소에 묻는다 | — |
-| MC-EQUIP-ITEM | IMPLEMENTED | **C023 · C024** — 세계 프로세스 실측으로 world_shape 네 문장이 모두 닫혔다. C023: 같은 곡괭이를 가지고만 있으면 캐지지 않고 걸어야 캐지며(사유 `no-mining-tool`), 걸면 물리 공격 40 → 52 · 풀면 **정확히 40** 으로 돌아오고, 걸릴 수 없는 물건은 `not-equippable` 로 거절되며, 담을 곳이 모자라면 풀기가 `no-room` 으로 거절되고 자리도 수량도 건드리지 않는다. C024: 가방 **4/4** 인 그 상태에서 해제는 `no-room` 으로 막히는데 **바꿔 끼기는 성립하고 자리가 4/4 그대로다** — 밀려남과 걸림이 한 단위이고, 물리 공격 52 → **40**(기본값) · 물리 방어 50 → 65 로 헌것의 기여가 정확히 사라지며 채집도 함께 사라진다. 실패한 교체 셋(not-enough · not-equippable · unknown-slot)은 자리 · 수량 · 유효 값 · 용도 넷을 그대로 둔다 | — (**곁가지 하나** — 전용 자리를 선언한 물건이 아직 없어 `slot-not-fit` 이 코드에만 서 있고 플레이에서 겪히지 않는다. 그리고 자리 여섯이 걸 것 둘보다 여전히 넓어, 교체가 *불편을 푸는 일*이지 아직 *고르는 일*은 아니다 — C024 08 Master Gap ②) |
-| MC-CRAFT-FROM-MATERIALS | MISSING | 코드 대조 — 재료를 다른 것으로 바꾸는 규칙이 0건이다. 재료를 **줄이는** 통로는 C020 으로 생겼다 | 제작법 데이터 · 가능 여부 판정 · 재료 소모와 결과물 생성의 한 단위 처리 |
-| MC-TRANSFER-ITEM | MISSING | 코드 대조 — 물건은 언제나 누군가의 몸 안에 있다. 위치를 가진 아이템 존재가 없다. 몸 **안**에서 사라지는 경로는 C020 으로 생겼다 | 몸 밖의 아이템 · 줍기 · 버리기 · 전리품 보관소 · 획득 권한 · 소멸. 쓰러진 몸에서 아무것도 나오지 않는 것이 이 결손이다. IE 가 더한 것: 적용해 둔 것을 내려놓는 길이 담을 곳을 거치지 않는다는 것 (IE §35) |
+| MC-USE-ITEM | IMPLEMENTED | C020 08-verification | — |
+| MC-EQUIP-ITEM | IMPLEMENTED | C023 · C024 08-verification | — (곁가지 하나 — 전용 자리를 선언한 물건이 아직 없어 `slot-not-fit` 이 코드에만 서 있고 플레이에서 겪히지 않는다. 그리고 자리 여섯이 걸 것 둘보다 여전히 넓어, 교체가 *불편을 푸는 일*이지 아직 *고르는 일*은 아니다 — C024 08 Master Gap ②) |
+| MC-CRAFT-FROM-MATERIALS | MISSING | C020 08-verification | 제작법 데이터 · 가능 여부 판정 · 재료 소모와 결과물 생성의 한 단위 처리 |
+| MC-TRANSFER-ITEM | MISSING | C020 08-verification | 몸 밖의 아이템 · 줍기 · 버리기 · 전리품 보관소 · 획득 권한 · 소멸. 쓰러진 몸에서 아무것도 나오지 않는 것이 이 결손이다. IE 가 더한 것: 적용해 둔 것을 내려놓는 길이 담을 곳을 거치지 않는다는 것 (IE §35) |
 
 ## Capability — 성장 영역 (GS)
 
@@ -249,7 +249,7 @@ IMPLEMENTED 로 서 있는 MC-EQUIP-ITEM 이 그 자리이기 때문이다 (같�
 
 | Capability | 상태 | 근거 | 부족한 것 |
 |---|---|---|---|
-| MC-GAIN-LEVEL | PARTIAL | C-GROWTH-001 — 세계 안의 행위가 몸에 쌓이고 문턱을 넘으면 겨루는 값 넷이 오른다. world_shape 두 문장이 실측으로 닫혔다: 걸어가 살펴보고 쳐서 넘어뜨리니 쌓인 것 0 → 22 · 단계 0 → 1 이 되었고, 그 뒤 같은 기술의 피해가 26 → 28 로 · 한 대가 남기는 값이 20 → 22 로 달라졌다. 디버그 명령을 한 번도 열지 않았다 (08 의 WORLD SCENARIO ①③ · PLAYABLE 5 · shots/) | 쌓이는 원천이 이 노드가 든 넷 중 둘뿐이다 — "탐험하고" 와 "사건을 해결한 것" 이 세계에 없다. 그리고 GS §5 가 든 다섯 중 셋(생명력 · 기력 · 기본 이동)이 자라지 않는다 — 그 셋은 아직 "유효 값" 이라는 자리를 지니지 않아 걸린 것도 배분도 성장도 닿을 곳이 없다 |
+| MC-GAIN-LEVEL | PARTIAL | C-GROWTH-001 08-verification | 쌓이는 원천이 이 노드가 든 넷 중 둘뿐이다 — "탐험하고" 와 "사건을 해결한 것" 이 세계에 없다. 그리고 GS §5 가 든 다섯 중 셋(생명력 · 기력 · 기본 이동)이 자라지 않는다 — 그 셋은 아직 "유효 값" 이라는 자리를 지니지 않아 걸린 것도 배분도 성장도 닿을 곳이 없다 |
 | MC-GROW-CLASS-MASTERY · MC-GROW-EXPLORATION-MASTERY (같은 원리의 두 쓰임 — GS §8) | MISSING | — | 형태(Class)라는 것이 세계에 없다 — 몸이 한 종류이고 무엇을 했는지 세는 자리도 없다 |
 | MC-MASTER-A-SKILL | MISSING | — | 스킬이 자란다는 개념이 없다 — 기술은 종류가 정한 값 그대로이고 쓴 이력이 어디에도 남지 않는다 |
 | MC-CHANGE-CLASS | MISSING | — | 몸이 형태를 갖지 않는다 — 세계의 몸은 종류 하나로 고정이고, 형태를 바꾸는 사건도 그 조건을 세는 자리도 없다. 설계 쪽은 절반이 섰다 (Origin CL-* 6) — 넘어갈 상위 형태의 CL-* 가 아직 0 이다 |
@@ -299,12 +299,12 @@ Capability 만 보면 전투가 꽤 찬 것처럼 보이지만, 그 전투가 �
 | MW-WORLD-PRESSURE · MW-FREE-PRESSURE · MW-BOUND-PRESSURE | PARTIAL | 세계가 만들어질 때 에너지의 분포(씨앗의 표본열)가 먼저 서고 자리들이 그 결과다 — "표현될 자리가 없다" 던 그 자리가 생겼다 (C-TERRAIN-003). 발현 하나(heat-binding)에 한하며, 지역 개념 · 여러 법칙 · Free/Bound 의 세계 표현은 남아 있다 |
 | MW-SAFE-FRONTIER | ABSENT | 안전한 곳과 위험한 곳의 구분이 없다 — 무대가 하나다 |
 | MW-DEPTH-GRADIENT · MW-ZONE-WILD/DANGER/DEEP/UNKNOWN | ABSENT | 깊이도 층도 없다 |
-| MW-ZONE-FRINGE | PARTIAL | 정면 전투력이 우위인 적대 존재는 있다. 그것이 사는 **층**이 없고, 우위를 힘 아닌 것으로 뒤집을 수단도 없다 |
+| MW-ZONE-FRINGE | PARTIAL | 정면 전투력이 우위인 적대 존재는 있다. 그것이 사는 층이 없고, 우위를 힘 아닌 것으로 뒤집을 수단도 없다 |
 | MW-HYPER-PREDATION · MW-SPATIAL-SHEAR | ABSENT | 대표 지역 둘 다 없다 |
 | MW-MACRO-TERRAIN | PARTIAL | 땅이 자리로 나뉘고 그 자리가 법칙을 지닌다 (C-TERRAIN-001 — World.GroundZones · GroundLawDefinition). 남은 것은 world_shape 의 나머지다: 법칙이 하나뿐이고, 그 법칙이 낳는 자원이 없으며, 어디에 갈 수 있는가가 감당으로 정해지지 않고, 깊이와의 직교도 아직 없다 |
 | MW-TERRAIN-CIRCULATION | PRESENT | C-TERRAIN-002 — 자리가 거둔 것을 지니고(kept), 넘치면 뿜고, 그 안의 몸에게 돌려주고, 다 쓰면 닫혀 도로 거둔다. 같은 자리를 다른 시각에 보면 다르고 그 다름이 "그 사이에 누가 거기서 얼마나 빼앗겼는가" 로 설명된다 — 주기는 세계가 정한 것이 아니다 |
 | MW-SHAPED-LANDFORM | PARTIAL | 자리의 배치가 손이 아니라 순환의 원리(씨앗·법칙)에서 나온다 — 맥은 흩어진 점이 아니라 이웃으로 뻗은 밭이다 (C-TERRAIN-003). 남은 것은 생김새 자체 — 산맥·수계· 대기가 없고 무대는 여전히 평면이며, 선 것은 자리의 분포까지다 |
-| MW-SURVIVAL-PRESSURE | PARTIAL | C-TERRAIN-002 로 압력이 순환에서 나온다 — 어디가 거두고 어디가 돌려주는지가 내가 한 일의 결과이므로 읽어서 이용할 거리가 생겼다. 남은 절반은 world_shape 의 "읽은 사람과 읽지 못한 사람이 다른 결과를 낸다" 다: **지금 상태는 읽히나 앞으로 일어날 일은 읽히지 않는다** (MW-CIRCULATION-EVIDENCE 가 그 자리다) |
+| MW-SURVIVAL-PRESSURE | PARTIAL | C-TERRAIN-002 로 압력이 순환에서 나온다 — 어디가 거두고 어디가 돌려주는지가 내가 한 일의 결과이므로 읽어서 이용할 거리가 생겼다. 남은 절반은 world_shape 의 "읽은 사람과 읽지 못한 사람이 다른 결과를 낸다" 다: 지금 상태는 읽히나 앞으로 일어날 일은 읽히지 않는다 (MW-CIRCULATION-EVIDENCE 가 그 자리다) |
 | MW-ADAPTED-LIFE | ABSENT | 세계에 있는 것은 좌표로 놓인 방랑자 둘과 광맥 하나뿐이고 셋 다 땅의 법칙과 무관한 자리에 있다. 놓는 것 말고 다른 길이 세계에 없다 |
 | MW-TERRAIN-RESOURCE | ABSENT | 캘 수 있는 것은 광맥의 돌 하나뿐이고, 그것은 어떤 법칙이 낳은 것이 아니라 좌표에 놓인 것이다. 캐어도 세계에 아무 되돌림이 없다 |
 | MW-NATURAL-REFUGE | PRESENT | C-TERRAIN-002 — 예외를 놓을 형이 사라졌다(GroundZone.role 삭제). 법칙이 멎는 자리는 넘쳐서 뿜는 중인 맥뿐이므로 "왜 하필 거기가 안전한가" 에 세계가 답한다 — 거기에 열이 모였기 때문이고, 모인 것은 누군가 거기서 빼앗겼기 때문이다. 그리고 생겨나고 사라진다 |
@@ -312,9 +312,9 @@ Capability 만 보면 전투가 꽤 찬 것처럼 보이지만, 그 전투가 �
 | MW-CIRCULATION-EVIDENCE | ABSENT | 자리의 범위가 화면에 보이지만 그것은 법칙의 경계이지 순환이 남긴 증거가 아니다 — 아직 일어나지 않은 것을 가리키는 것이 세계에 하나도 없다. TERRAIN 트랙의 다음 후보(FR-THE-LAND-SHOWS-BEFORE-IT-TAKES)가 이 노드를 연다 |
 | MW-TERRAIN-* 8종 (BT §4~§11) | ABSENT | 머물 곳과 나갈 곳의 구분이 없다 — 무대가 하나다 |
 | MA-PLAYER | PARTIAL | 몸이 한 종류로 고정이라 고를 갈래 자체가 없다 — 요정 계열 여덟(MS-FAIRY-LINEAGE)이 그 자리이고 아직 비어 있다 |
-| MA-HOSTILE-COMBATANT | PRESENT | **C018 로 마지막 칸이 닫혔다** — 스스로 순찰·추격·공격하고, 플레이어와 **같은 관문**을 지나며(몬스터 전용 규칙 없음), 이제 지킬 자리를 지녀 그 행동이 자기 영역을 지키는 것으로 읽힌다. 같은 종류 두 개체가 하나는 적대하고 하나는 하지 않는다 — 적대가 종류가 아니라 사정의 결과다 |
+| MA-HOSTILE-COMBATANT | PRESENT | C018 로 마지막 칸이 닫혔다 — 스스로 순찰·추격·공격하고, 플레이어와 같은 관문을 지나며(몬스터 전용 규칙 없음), 이제 지킬 자리를 지녀 그 행동이 자기 영역을 지키는 것으로 읽힌다. 같은 종류 두 개체가 하나는 적대하고 하나는 하지 않는다 — 적대가 종류가 아니라 사정의 결과다 |
 | MK-LOCAL-WORLDSTATE | ABSENT | 지역이 없다. 다만 "모르는 상태" 라는 것 자체는 C014 로 세계에 생겼다 (살펴봄 이전) — 얹힐 바닥은 섰다 |
-| MK-OPPONENT-DEFENSE-SHAPE | PARTIAL | 방어 형태와 관통 반영값이 관찰에 실리고 (C012 · C013), 그것을 **알게 되는 과정**이 생겼다 — 살펴보기 전에는 가려져 있고 (C014), 통찰을 기르면 자리별로 열린다 (C016) |
+| MK-OPPONENT-DEFENSE-SHAPE | PARTIAL | 방어 형태와 관통 반영값이 관찰에 실리고 (C012 · C013), 그것을 알게 되는 과정이 생겼다 — 살펴보기 전에는 가려져 있고 (C014), 통찰을 기르면 자리별로 열린다 (C016) |
 | MK-OPPONENT-FLOW-PATTERN | ABSENT | 힘을 배분하는 상태가 없다 |
 | MK-WITNESSED-WORLD-PHENOMENON | ABSENT | 드물게 일어나는 세계 현상이 없다 — 세계에서 일어나는 일은 존재들의 행동뿐이고 그 자리에 있었다는 사실도 남지 않는다 |
 
@@ -326,14 +326,14 @@ Capability 만 보면 전투가 꽤 찬 것처럼 보이지만, 그 전투가 �
 
 | Possibility | 요구 중 없는 것 | 비고 |
 |---|---|---|
-| MP-MATCH-WEAPON-TO-ARMOR | **없음** | **C012 로 닫혔다** — 지금 플레이 가능하다 |
-| MP-PIERCE-THE-HARD-DEFENSE | **없음** | **C013 로 닫혔다** — 지금 플레이 가능하다. 다만 아직 좁다: 플레이어가 관통을 **얻는** 경로가 세계에 없다 (종류가 정한 값과 디버그뿐 — growth/growth-graph.md) |
-| MP-OUTGROW-THE-OPPONENT | MC-ATTACK-POWER(PARTIAL) + 전투 밖의 원천 | **C-GROWTH-001 로 자라는 축이 섰다** — 세계 안에서 한 일이 몸에 쌓이고 문턱을 넘으면 겨루는 값이 오르며, 같은 상대·같은 기술의 결과가 실제로 달라진다. world_shape 의 마지막 문장("세계 안의 행위로 올릴 수 있어야 한다")이 닫혔다. 그러나 이 갈래가 말하는 것은 **전투 밖에서 기른 값으로 정면 교환을 이기는 것**인데, 선 원천 넷 중 전투 밖의 것은 캐는 일 하나뿐이고(4/회 · 첫 문턱까지 다섯 번) 한 단계의 폭이 작아(한 대에 2) 그것만으로 판이 뒤집히지 않는다. 없는 것은 이제 축이 아니라 **전투 밖의 원천**이다 |
-| MP-BET-ON-THE-CRITICAL-BLOW | 요구 Capability 는 **없음** · `requires.resource` 미충족 | **C015 로 절반 닫혔다** — 증폭이 터지는 것과 그 경위가 다 보인다. 그러나 "준비로 기대값을 올린다" 는 나머지 절반이 남았다: Critical 성질을 올릴 성장·장비가 세계에 없어 경로가 종류 초기값과 디버그뿐이다 |
-| MP-INTERRUPT | **없음** | **C019 로 닫혔다** — 지금 플레이 가능하다. 상대의 선딜을 노려 끊고, 늦으면 이미 나간 칼을 무르지 못한다. 요구는 MC-INTERRUPT 하나뿐이었고 그것이 섰다 |
+| MP-MATCH-WEAPON-TO-ARMOR | 없음 | C012 로 닫혔다 — 지금 플레이 가능하다 |
+| MP-PIERCE-THE-HARD-DEFENSE | 없음 | C013 로 닫혔다 — 지금 플레이 가능하다. 다만 아직 좁다: 플레이어가 관통을 얻는 경로가 세계에 없다 (종류가 정한 값과 디버그뿐 — growth/growth-graph.md) |
+| MP-OUTGROW-THE-OPPONENT | MC-ATTACK-POWER(PARTIAL) + 전투 밖의 원천 | C-GROWTH-001 로 자라는 축이 섰다 — 세계 안에서 한 일이 몸에 쌓이고 문턱을 넘으면 겨루는 값이 오르며, 같은 상대·같은 기술의 결과가 실제로 달라진다. world_shape 의 마지막 문장("세계 안의 행위로 올릴 수 있어야 한다")이 닫혔다. 그러나 이 갈래가 말하는 것은 전투 밖에서 기른 값으로 정면 교환을 이기는 것인데, 선 원천 넷 중 전투 밖의 것은 캐는 일 하나뿐이고(4/회 · 첫 문턱까지 다섯 번) 한 단계의 폭이 작아(한 대에 2) 그것만으로 판이 뒤집히지 않는다. 없는 것은 이제 축이 아니라 전투 밖의 원천이다 |
+| MP-BET-ON-THE-CRITICAL-BLOW | 요구 Capability 는 없음 · `requires.resource` 미충족 | C015 로 절반 닫혔다 — 증폭이 터지는 것과 그 경위가 다 보인다. 그러나 "준비로 기대값을 올린다" 는 나머지 절반이 남았다: Critical 성질을 올릴 성장·장비가 세계에 없어 경로가 종류 초기값과 디버그뿐이다 |
+| MP-INTERRUPT | 없음 | C019 로 닫혔다 — 지금 플레이 가능하다. 상대의 선딜을 노려 끊고, 늦으면 이미 나간 칼을 무르지 못한다. 요구는 MC-INTERRUPT 하나뿐이었고 그것이 섰다 |
 | MP-BREAK-THE-GUARD | MC-BREAK(PARTIAL) | 무너지는 상태는 있고 무너뜨리는 행동만 없다 (R1 §14 Active Defense 층) |
 | MP-READ-AND-COUNTER | MC-ACTIVE-RESPONSE · MC-PRECISION-RESPONSE · MC-PERFECT-GUARD · MC-OPPORTUNITY · MC-COUNTER | UL 이 그 층의 설계 문서다 — 이 갈래는 이제 두 조각이 아니라 다섯 조각으로 갈린다. 완벽한 막기는 정밀 응답을 막기에 적용한 결과이고 되받아치기는 기회를 통해 온다 (UL §6 · §7). 순서는 UL §42 F1 → F2 → F3 다 |
-| MP-EXPLOIT-OPEN-BODY | MC-AURA-ALLOCATION (PARTIAL) | 요구 넷 중 셋이 섰고 넷째(MC-AURA-ALLOCATION)가 PARTIAL 이라 갈래도 PARTIAL 이다. 다만 **플레이로는 이미 성립한다** — 상대가 물리에 무른 것을 알아내고 배분으로 그 무른 쪽을 친다 (C-COMBAT-001 WORLD SCENARIO). 노드의 완결과 플레이의 성립이 갈리는 자리이며, 어느 쪽으로 판정할지는 Q66 다 |
+| MP-EXPLOIT-OPEN-BODY | MC-AURA-ALLOCATION (PARTIAL) | 요구 넷 중 셋이 섰고 넷째(MC-AURA-ALLOCATION)가 PARTIAL 이라 갈래도 PARTIAL 이다. 다만 플레이로는 이미 성립한다 — 상대가 물리에 무른 것을 알아내고 배분으로 그 무른 쪽을 친다 (C-COMBAT-001 WORLD SCENARIO). 노드의 완결과 플레이의 성립이 갈리는 자리이며, 어느 쪽으로 판정할지는 Q66 다 |
 | MP-CONTROL-MOVEMENT | MC-CONTROL-SPACE + MC-FORCE-MOVEMENT·MC-REPOSITION(둘 다 PARTIAL) | 셋 중 둘이 절반 서 있다 |
 | MP-STAKE-EVERYTHING-ON-ONE-BLOW | MC-VOW · MC-AURA-ALLOCATION + MC-CONDITION-STACKING(PARTIAL) | Aura/Nen 층 — 가장 멀다. UL §20 이 계약의 대가를 바꾼 뒤로 이 갈래는 "제약으로 위력을 산다" 쪽 반쪽만 쓴다 — 허락을 사는 반쪽은 MP-BIND-BY-CONTRACT 다 |
 | MP-WEAPONIZE-ENVIRONMENT | MC-READ-ENVIRONMENT · MC-USE-HAZARD + MW-ZONE-DANGER | 환경 위험 개념 자체가 없다 |
@@ -346,7 +346,7 @@ Capability 만 보면 전투가 꽤 찬 것처럼 보이지만, 그 전투가 �
 
 | Possibility | 요구 중 없는 것 | 비고 |
 |---|---|---|
-| MP-TRADE-BODY-FOR-RESOURCE | **없음** | **C011 로 닫혔다** — 지금 플레이 가능하다 |
+| MP-TRADE-BODY-FOR-RESOURCE | 없음 | C011 로 닫혔다 — 지금 플레이 가능하다 |
 | MP-EVADE-BY-MOVING-THE-BODY | MC-EVADE · MC-ACTIVE-RESPONSE | R1 §13 이 이후 확장으로만 지정했고 UL §8 이 그 형태를 확정했다 — 짧은 이동에 짧은 판정 무효 구간을 얹는다. 회피는 응답 자리에 끼우는 것 중 하나다 |
 | MP-HOLD-FORTIFIED | MC-FORTIFY · MC-AURA-ALLOCATION (PARTIAL) | Q59(a) 로 몸·능력·인지 세 축 위에 선다 — 대가가 "공격이 약해진다" 에서 "능력과 인지가 얇아진다" 로 바뀌었다 |
 | MP-STORE-AND-RELEASE | MC-ABSORB · MC-ACTIVE-RESPONSE · MC-PRECISION-RESPONSE | UL §28 (축적자) — 응답 자리(F1)와 정밀 구간(F2) 위에 얹힌다. 막기는 이미 섰다 (C011) |
@@ -362,10 +362,10 @@ Capability 만 보면 전투가 꽤 찬 것처럼 보이지만, 그 전투가 �
 
 | Possibility | 요구 중 없는 것 | 비고 |
 |---|---|---|
-| MP-LEARN-TO-HANDLE-THE-LAYER | **MC-PREDICT 하나** (+ MC-OBSERVE 는 PARTIAL — 같은 자리다) | **네 칸 중 셋이 닫혔다.** C014·C016 이 살펴봄과 그것에 이르는 두 길을, C017 이 지목 둘(MC-DESIGNATE-TARGET · MC-WATCH-TARGET)을, C018 이 관계(MC-RELATION-STANCE)를 세웠다. 남은 것은 **예측 하나**이며 그것이 MC-OBSERVE 의 마지막 결손과 같은 자리다 — 닫히면 이 갈래가 통째로 선다 — 다만 **보류(Human)** (AI 기획서 대기 · frontier "지금 열 수 없는 것"). 탐험의 기본 갈래이자 다른 둘의 앞이다 (먼저 겪은 사람이 없으면 살 정보도 가져올 자원도 없다) |
-| MP-ADAPT-BY-RESOURCE | MC-RESTORE-BIOLOGICAL-STATE · MC-CUT-ABNORMAL-STRUCTURE + **MC-EQUIP-ITEM(IMPLEMENTED)** + **MC-CRAFT-FROM-MATERIALS** + MK-LOCAL-WORLDSTATE + 자원 | **이 갈래의 문장이 세계에서 통째로 참이 되었다** — "물건이 대신해 주고, **물건을 잃으면 도로 못 하게 된다**"(BW §17). 앞 절반은 C020(쓰면 없어진다)이, 뒤 절반은 **C023**(풀면 캘 수 없게 된다)이 세웠고, **C024** 가 그 둘 사이를 오가는 길(교체)을 냈다. 걸 물건이 둘이 되어 **갈래가 처음으로 둘**이다 — 공격을 얹을지 방어를 얹을지. 다만 자리가 여섯이라 아직 둘 다 걸 수 있으므로 그것이 진짜 선택이 되려면 자리가 걸 것보다 좁아져야 한다. 쓸 물건은 여전히 한 종류뿐이고, 남은 것은 제작이며 그것이 회복·절단 앞을 막고 있다 |
-| MP-PREPARE-IN-CIVILIZATION | **MC-CRAFT-FROM-MATERIALS** + MK-LOCAL-WORLDSTATE + MW-SAFE-FRONTIER + 관계·대가 | BW §14 가 열거한 활동 중 제작만 근거 문서를 얻어 배선되었다 (IS §4). 나머지(정보·교역·훈련)는 여전히 이름을 댄 문서가 없다. 막는 것은 능력만이 아니라 문명권·거래라는 세계 기반이다 |
-| MP-BECOME-A-HIGHER-FORM | 다섯 축 전부 (MC-GAIN-LEVEL · MC-GROW-CLASS-MASTERY · MC-MASTER-A-SKILL · MC-GROW-EXPLORATION-MASTERY · MC-CHANGE-CLASS) + MK-WITNESSED-WORLD-PHENOMENON + Catalyst 자원 | **한 칸도 서 있지 않다.** 다만 이 갈래가 서면 overlay 의 둘째 구멍("성장이 세계 밖에 있다")이 통째로 닫힌다 — 지금 능력치를 바꾸는 유일한 경로는 디버그 명령이고, GS 주입이 처음으로 그 값이 **어디에서** 올라오는지를 명명했다. 다섯 축 중 **장비 하나만 이미 서 있고** (MC-EQUIP-ITEM — C023 · C024), 그것도 이 갈래가 아니라 자원으로 감당하는 갈래에 매달려 있다 |
+| MP-LEARN-TO-HANDLE-THE-LAYER | MC-PREDICT 하나 (+ MC-OBSERVE 는 PARTIAL — 같은 자리다) | 네 칸 중 셋이 닫혔다. C014·C016 이 살펴봄과 그것에 이르는 두 길을, C017 이 지목 둘(MC-DESIGNATE-TARGET · MC-WATCH-TARGET)을, C018 이 관계(MC-RELATION-STANCE)를 세웠다. 남은 것은 예측 하나이며 그것이 MC-OBSERVE 의 마지막 결손과 같은 자리다 — 닫히면 이 갈래가 통째로 선다 — 다만 보류(Human) (AI 기획서 대기 · frontier "지금 열 수 없는 것"). 탐험의 기본 갈래이자 다른 둘의 앞이다 (먼저 겪은 사람이 없으면 살 정보도 가져올 자원도 없다) |
+| MP-ADAPT-BY-RESOURCE | MC-RESTORE-BIOLOGICAL-STATE · MC-CUT-ABNORMAL-STRUCTURE + MC-EQUIP-ITEM(IMPLEMENTED) + MC-CRAFT-FROM-MATERIALS + MK-LOCAL-WORLDSTATE + 자원 | 이 갈래의 문장이 세계에서 통째로 참이 되었다 — "물건이 대신해 주고, 물건을 잃으면 도로 못 하게 된다"(BW §17). 앞 절반은 C020(쓰면 없어진다)이, 뒤 절반은 C023(풀면 캘 수 없게 된다)이 세웠고, C024 가 그 둘 사이를 오가는 길(교체)을 냈다. 걸 물건이 둘이 되어 갈래가 처음으로 둘이다 — 공격을 얹을지 방어를 얹을지. 다만 자리가 여섯이라 아직 둘 다 걸 수 있으므로 그것이 진짜 선택이 되려면 자리가 걸 것보다 좁아져야 한다. 쓸 물건은 여전히 한 종류뿐이고, 남은 것은 제작이며 그것이 회복·절단 앞을 막고 있다 |
+| MP-PREPARE-IN-CIVILIZATION | MC-CRAFT-FROM-MATERIALS + MK-LOCAL-WORLDSTATE + MW-SAFE-FRONTIER + 관계·대가 | BW §14 가 열거한 활동 중 제작만 근거 문서를 얻어 배선되었다 (IS §4). 나머지(정보·교역·훈련)는 여전히 이름을 댄 문서가 없다. 막는 것은 능력만이 아니라 문명권·거래라는 세계 기반이다 |
+| MP-BECOME-A-HIGHER-FORM | 다섯 축 전부 (MC-GAIN-LEVEL · MC-GROW-CLASS-MASTERY · MC-MASTER-A-SKILL · MC-GROW-EXPLORATION-MASTERY · MC-CHANGE-CLASS) + MK-WITNESSED-WORLD-PHENOMENON + Catalyst 자원 | 한 칸도 서 있지 않다. 다만 이 갈래가 서면 overlay 의 둘째 구멍("성장이 세계 밖에 있다")이 통째로 닫힌다 — 지금 능력치를 바꾸는 유일한 경로는 디버그 명령이고, GS 주입이 처음으로 그 값이 어디에서 올라오는지를 명명했다. 다섯 축 중 장비 하나만 이미 서 있고 (MC-EQUIP-ITEM — C023 · C024), 그것도 이 갈래가 아니라 자원으로 감당하는 갈래에 매달려 있다 |
 
 ### 층이 요구하는 것 — MW-ZONE-* 의 demands
 
@@ -417,16 +417,16 @@ Capability 만 보면 전투가 꽤 찬 것처럼 보이지만, 그 전투가 �
 | Possibility | 요구 중 없는 것 | 비고 |
 |---|---|---|
 | MP-STOP-THE-TRANSFER | MC-HOLD-BIOLOGICAL-STATE · MC-OBSERVE | 진행이라는 것이 세계에 없어 붙들 대상이 없다 — 존재는 멀쩡하거나 쓰러지거나 둘뿐이다 |
-| MP-CUT-WHAT-HOLDS-THEM | MC-BREAK-BIOLOGICAL-LINK · MC-DISCOVER-WEAKNESS | **셋 중 유일하게 새 Capability 를 요구하지 않는다** — 이미 선 둘로 성립한다. 다만 그 둘이 모두 MISSING 이다 |
+| MP-CUT-WHAT-HOLDS-THEM | MC-BREAK-BIOLOGICAL-LINK · MC-DISCOVER-WEAKNESS | 셋 중 유일하게 새 Capability 를 요구하지 않는다 — 이미 선 둘로 성립한다. 다만 그 둘이 모두 MISSING 이다 |
 | MP-REACH-THE-UNREACHABLE | MC-REDEFINE-DOWN · MC-PLACE-FOOTING · MC-REDIRECT-FALLING-THING · MC-CARRY-LIFE-SUPPORT | 넷 다 MISSING 이다. 무대가 한 평면이라 닿을 수 없는 자리라는 것 자체가 세계에 없다 |
 
 ### MG-ACQUIRE-RARE-ORGAN (5 갈래)
 
 | Possibility | 요구 중 없는 것 | 비고 |
 |---|---|---|
-| MP-KILL-CREATURE | **MC-TRANSFER-ITEM** | 쓰러뜨리는 것까지는 된다. **쓰러진 몸에서 아무것도 나오지 않고** 그 몸은 치워지지도 않아 영구 장애물로 남는다 — IS 주입으로 그 결손이 이름을 얻었다 |
-| MP-TAKE-SHED-ORGAN · MP-TRADE-WITH-ACTOR | **MC-TRANSFER-ITEM** + 각자의 세계 기반 (탈락을 만드는 자율 행동 · 거래 상대) | IS §4 로 공통 앞칸 하나가 배선되었다. 몸 밖에 물건이 놓이지 않는 한 셋 다 열리지 않는다 |
-| MP-FIND-DEAD-SPECIMEN · MP-FORCE-CREATURE-TO-RELEASE | **판정 불가 — requires 미배선** | BW §27 은 대안 구조만 공급했다. IS §4 가 이름을 댄 셋에 이 둘은 포함되지 않아 배선하지 않았다 — 요구 배선(OPTIONS/NEED)이 끝나야 판정된다 |
+| MP-KILL-CREATURE | MC-TRANSFER-ITEM | 쓰러뜨리는 것까지는 된다. 쓰러진 몸에서 아무것도 나오지 않고 그 몸은 치워지지도 않아 영구 장애물로 남는다 — IS 주입으로 그 결손이 이름을 얻었다 |
+| MP-TAKE-SHED-ORGAN · MP-TRADE-WITH-ACTOR | MC-TRANSFER-ITEM + 각자의 세계 기반 (탈락을 만드는 자율 행동 · 거래 상대) | IS §4 로 공통 앞칸 하나가 배선되었다. 몸 밖에 물건이 놓이지 않는 한 셋 다 열리지 않는다 |
+| MP-FIND-DEAD-SPECIMEN · MP-FORCE-CREATURE-TO-RELEASE | 판정 불가 — requires 미배선 | BW §27 은 대안 구조만 공급했다. IS §4 가 이름을 댄 셋에 이 둘은 포함되지 않아 배선하지 않았다 — 요구 배선(OPTIONS/NEED)이 끝나야 판정된다 |
 
 ## 지금 세계에서 가장 큰 구멍
 

@@ -1,41 +1,22 @@
 # Master Goal — MG-*
-# 특정 Actor 가 어떤 이유로 원하는 Desired State.
-# 누가/왜/어떤 World State 때문에/실패하면 무엇을 잃는지에 답할 수 없으면
-# Goal 이 아니라 Capability 인지 검사한다.
-# 형식: ../SCHEMA.md
+# 노드는 의미의 주소다 — 전문·이유는 source 의 기획서가 소유한다 (../SCHEMA.md "모든 Node 공통").
+# 형식: ../SCHEMA.md · 관찰: npm run master:graph (뷰어) — 이 파일을 사람이 통독하지 않는다.
 #
 # 인용 — BW = content/proto-adventure/design/Master-World-Beira.md (탐험) ·
 #        BT = content/proto-adventure/design/Master-World-Beira-Terrain.md (대지형) ·
 #        R1 = content/proto-adventure/design/Design-Combat-OffenseDefense-R0.md · DT = content/proto-adventure/design/Design-Combat-DamageType-R0.md (전투)
+
 version: 1
 nodes:
-
-  # ══ 탐험 영역 (BW) ═════════════════════════════════════════════════════
-
   - id: MG-EXPLORE-BEIRA
     type: goal
     owner: MA-PLAYER
-    desired_state: >
-      자신이 이해하고 대응할 수 있는 세계의 범위가 지금보다 넓다 — 이전에는 갈 수 없던
-      베이라의 영역에 닿는다. (BW §1 · §32)
-    detail: >
-      이 게임의 최상위 목적이며, 아래의 모든 지역적 목적이 여기에 매달린다.
-      "탐험한다" 를 지도를 채우는 일로 읽으면 안 된다. BW §1 이 말하는 탐험은
-      **대응할 수 있는 범위의 확장**이다. 어떤 지역에 발을 들여놓았는지가 아니라,
-      거기서 벌어지는 일을 이해하고 대처할 수 있게 되었는지가 기준이다.
-      그래서 진행의 단위는 레벨이 아니라 "전에는 못 하던 것을 하게 됨" 이다 (BW §32).
-      플레이어가 왜 이것을 원하는지는 사람마다 다르다 — 아래 motivation 은 그 갈래이고,
-      하나가 정답이 아니다 (BW §15 · §31).
-    world_shape: >
-      플레이어가 지금 대응할 수 있는 영역과 아직 대응할 수 없는 영역이 구분되고,
-      그 경계가 레벨 수치가 아니라 "무엇을 할 줄 아는가" 로 정해져야 한다.
+    desired_state: 자신이 이해하고 대응할 수 있는 세계의 범위가 지금보다 넓다 — 이전에는 갈 수 없던 베이라의 영역에 닿는다. (BW §1 · §32)
+    source: BW §1 · §32 · BW §1 · BW §32 · BW §15 · §31
+    world_shape: 플레이어가 지금 대응할 수 있는 영역과 아직 대응할 수 없는 영역이 구분되고, 그 경계가 레벨 수치가 아니라 "무엇을 할 줄 아는가" 로 정해져야 한다.
       그리고 경계를 넘은 뒤에는 이전 영역이 실제로 쉬워져 있어야 한다.
     implemented: ABSENT
-    # 영역이 하나뿐이라 넓어질 범위가 없다 — 40×40 단일 무대. 근거는 overlay.md.
     motivation:
-      # BW §15 · §31 이 직접 나열한 갈래다. 하나로 고정하지 않는다는 원칙
-      # (DC-WORLD-PLAYER-UNFIXED-PATH)은 여럿을 병렬로 둔다는 뜻이지 비워 둔다는 뜻이 아니다.
-      # 각 항목은 Actor 와 상황에 따라 켜지고, 켜진 것이 그 플레이어의 Local Goal 을 낳는다.
       - 불치병을 치료할 방법을 찾는다 — 문명권 의료의 한계를 넘는 것이 베이라에 있다 (BW §7 · §15)
       - 문명권에서 만들 수 없는 희귀 소재를 찾는다 (BW §15)
       - 전설적인 무기를 원한다 (BW §15)
@@ -49,185 +30,97 @@ nodes:
       - 자신만의 발견을 하고 싶다 — 저 너머에 무엇이 있는지 알고 싶다 (BW §15 · §31)
     belief_context: []
     stakes:
-      - 나가지 않으면 문명권의 한계 안에 머문다 — 그 안에서 얻을 수 없는 것에 닿지 못한다 (BW §7)
-      - 위 motivation 중 무엇을 품었든 그것이 영영 해결되지 않는다
-    caused_by: [MW-SAFE-FRONTIER, MW-TERRAIN-CIRCULATION]
-    # Q69(b) — Human 결정 (HISTORY.md). 문명권의 한계가 나가게 만들고(SAFE-FRONTIER),
-    # 그 땅이 도는 방식을 읽어 감당하게 되는 것이 곧 대응 범위의 확장이다 (BT §5.7).
-    # 이 둘째 간선이 없는 동안 순환 계열은 어떤 Goal 도 낳지 않았고, 그래서 그 층을
-    # 여는 Frontier 후보가 이유를 Goal 이 아닌 Constraint 부기로 적게 되었다.
-    constraints: [DC-WORLD-PLAYER-UNFIXED-PATH, DC-WORLD-PROGRESSION-IS-REACH]
+      [
+        나가지 않으면 문명권의 한계 안에 머문다 — 그 안에서 얻을 수 없는 것에 닿지 못한다 (BW §7),
+        위 motivation 중 무엇을 품었든 그것이 영영 해결되지 않는다
+      ]
+    caused_by: [ MW-SAFE-FRONTIER, MW-TERRAIN-CIRCULATION ]
+    constraints: [ DC-WORLD-PLAYER-UNFIXED-PATH, DC-WORLD-PROGRESSION-IS-REACH ]
     constraint_evaluation:
-      DC-WORLD-PLAYER-UNFIXED-PATH: SATISFIED    # motivation 이 병렬 11 개이고 어느 하나가 필수가 아니다
-      DC-WORLD-PROGRESSION-IS-REACH: SATISFIED   # desired_state 자체가 대응 범위의 확장이다 (BW §1 · §32)
-
+      DC-WORLD-PLAYER-UNFIXED-PATH: SATISFIED
+      DC-WORLD-PROGRESSION-IS-REACH: SATISFIED
   - id: MG-ACQUIRE-RARE-ORGAN
     type: goal
     owner: MA-PLAYER
-    desired_state: >
-      특정 생물의 희귀한 기관을 손에 넣는다. (BW §27)
-    detail: >
-      BW §27 이 "전투는 목적이 아니다" 를 보이기 위해 든 대표 사례다. 어떤 생물의 기관이
-      필요해지는 상황은 여럿인데(자원을 지키고 있다 · 길을 막는다 · 특정 기관이 필요하다),
-      그 상황에서 생기는 목적은 "저것을 죽인다" 가 아니라 "저 기관을 얻는다" 다.
-      죽이는 것은 그 목적을 이루는 다섯 가지 방법 중 하나일 뿐이다 (possibilities.yaml).
-      이 구분이 무너지면 세계는 다시 몬스터 사냥 목록이 된다.
-      기관이 왜 필요한지는 플레이어마다 다르다 — MG-EXPLORE-BEIRA 의 motivation 중
-      무엇을 품었는지가 그것을 정한다.
-    world_shape: >
-      생물의 몸에서 나오는 것이 존재하고, 그것을 얻는 방법이 하나가 아니어야 한다.
-      죽이는 것만이 유일한 경로면 이 Goal 은 세계에서 성립하지 않는다.
+    desired_state: 특정 생물의 희귀한 기관을 손에 넣는다. (BW §27)
+    source: BW §27
+    world_shape: 생물의 몸에서 나오는 것이 존재하고, 그것을 얻는 방법이 하나가 아니어야 한다. 죽이는 것만이 유일한 경로면 이 Goal 은 세계에서 성립하지 않는다.
     implemented: ABSENT
-    # 생물에게서 무언가를 얻는 경로가 없다 — 채집 대상은 광석 광맥 하나뿐이고
-    # 쓰러진 몸에서는 아무것도 나오지 않는다. 근거는 overlay.md.
-    motivation: [MG-EXPLORE-BEIRA]
+    motivation: [ MG-EXPLORE-BEIRA ]
     belief_context: []
     stakes:
-      - 얻지 못하면 그 기관이 있어야 풀리는 일이 풀리지 않는다 — 무엇이 걸려 있는지는
-        그것을 원한 motivation 이 정한다 (병 치료인지 · 무기 재료인지 · 거래 대금인지)
+      - 얻지 못하면 그 기관이 있어야 풀리는 일이 풀리지 않는다 — 무엇이 걸려 있는지는 그것을 원한 motivation 이 정한다 (병 치료인지 · 무기 재료인지 · 거래
+        대금인지)
       - 죽여서 얻는 길을 고르면 그 개체가 세계에서 사라진다 — 되돌릴 수 없는 비용이다
-    caused_by: [MW-ZONE-WILD]
-    constraints: [DC-WORLD-COMBAT-IS-ONE-POSSIBILITY]
+    caused_by: [ MW-ZONE-WILD ]
+    constraints: [ DC-WORLD-COMBAT-IS-ONE-POSSIBILITY ]
     constraint_evaluation:
-      DC-WORLD-COMBAT-IS-ONE-POSSIBILITY: SATISFIED   # 원인이 세계 상태이고 대안 5종 중 전투는 하나다 (BW §27)
-
-  # ══ 전투 영역 (R1 · DT) ════════════════════════════════════════════════
-
+      DC-WORLD-COMBAT-IS-ONE-POSSIBILITY: SATISFIED
   - id: MG-OVERCOME-SUPERIOR-OPPONENT
     type: goal
     owner: MA-PLAYER
-    desired_state: >
-      정면으로 자원을 맞바꾸는 것만으로는 넘을 수 없는 상대가 더 이상 앞을 막지 못한다.
-    detail: >
-      핵심은 "죽인다" 가 아니라 "막지 못하게 한다" 는 점이다. 죽이는 것도 그 방법 중
-      하나지만, 넘어가거나 물러나게 하거나 무력화하는 것도 같은 목적을 이룬다.
-      그리고 이 상대는 정면 힘겨루기로는 이기지 못하도록 설정된 상대다 — 그래서
-      "더 강해진다" 외에도 읽고, 깨고, 상성을 고르고, 통제하고, 환경을 쓰는 여러 갈래가
-      의미를 갖는다 (BW §28 의 여덟 갈래). 넘지 못하면 그 너머의 베이라를 못 본다.
-    world_shape: >
-      같은 힘으로 정면 교환하면 지는 상대가 있고, 그 상대를 힘이 아닌 다른 방법으로
-      넘어설 수 있어야 한다. 그리고 넘어선 결과가 "그 상대가 더 이상 앞을 막지 않는다"
-      로 나타나야 한다.
+    desired_state: 정면으로 자원을 맞바꾸는 것만으로는 넘을 수 없는 상대가 더 이상 앞을 막지 못한다.
+    source: BW §28
+    world_shape: 같은 힘으로 정면 교환하면 지는 상대가 있고, 그 상대를 힘이 아닌 다른 방법으로 넘어설 수 있어야 한다. 그리고 넘어선 결과가 "그 상대가 더 이상 앞을
+      막지 않는다" 로 나타나야 한다.
     implemented: PARTIAL
-    # 적대 존재를 전투로 쓰러뜨릴 수 있고 방법도 여럿이다(성장·상성·관통·막기 교환).
-    # 다만 그 상대가 무엇을 "막고" 있지 않아서 넘어선 결과로 열리는 것이 없다.
-    motivation:
-      - MG-EXPLORE-BEIRA   # 넘어서는 이유는 그 상대 너머의 세계에 닿기 위해서다 (BW §16 · §26)
+    motivation: [ MG-EXPLORE-BEIRA ]
     belief_context: []
-    stakes:
-      - 넘지 못하면 FRINGE 너머의 더 깊은 베이라에 닿지 못한다
-    caused_by: [MW-ZONE-FRINGE]
-    # BW §21 의 토착 포식자가 탐험 경로를 막는다 (BW §27 "Creature 가 길을 막는다").
-    # BW §26 의 MG-OVERCOME-CREATURE 는 이 노드다 (HISTORY Q18(a)).
-    constraints: [DC-WORLD-COMBAT-IS-ONE-POSSIBILITY]
+    stakes: [ 넘지 못하면 FRINGE 너머의 더 깊은 베이라에 닿지 못한다 ]
+    caused_by: [ MW-ZONE-FRINGE ]
+    constraints: [ DC-WORLD-COMBAT-IS-ONE-POSSIBILITY ]
     constraint_evaluation:
-      DC-WORLD-COMBAT-IS-ONE-POSSIBILITY: SATISFIED   # 처치가 아니라 "길을 막지 못하게" 가 Desired State 이고 원인이 세계 상태다
-
+      DC-WORLD-COMBAT-IS-ONE-POSSIBILITY: SATISFIED
   - id: MG-SURVIVE-ENEMY-OFFENSIVE
     type: goal
     owner: MA-PLAYER
-    desired_state: >
-      상대가 공세를 쥔 국면에서 살아남고, 잃은 공격권을 되찾는다.
-    detail: >
-      전투가 한쪽으로 기운 국면을 다루는 목적이다. 두 가지를 동시에 원한다는 점이
-      중요하다 — 그냥 버티는 것만으로는 안 된다. 버티는 데에도 자원이 들기 때문에
-      버티기만 하면 자원이 말라 결국 무너진다 (R1). 그래서 언제까지 버티고 언제
-      되받아칠지를 고르는 것이 이 목적의 실제 내용이다.
-    world_shape: >
-      방어하는 데에도 자원이 들고, 그 자원이 마르면 방어가 무너져야 한다. 그리고
-      공세를 되돌려 받는 수단이 있어서 "버티기" 가 끝이 아니어야 한다.
+    desired_state: 상대가 공세를 쥔 국면에서 살아남고, 잃은 공격권을 되찾는다.
+    source: R1 (§ 미지정 — 주입기 이전 번역)
+    world_shape: 방어하는 데에도 자원이 들고, 그 자원이 마르면 방어가 무너져야 한다. 그리고 공세를 되돌려 받는 수단이 있어서 "버티기" 가 끝이 아니어야 한다.
     implemented: PARTIAL
-    # 막기가 기력을 쓰고 기력이 마르면 방어가 무너지는 것까지는 있다 (C011).
-    # 그러나 기력이 스스로 돌아오지 않고, 공격권을 되찾는 수단(되받아치기)이 없다.
-    motivation:
-      - MG-OVERCOME-SUPERIOR-OPPONENT   # 살아남는 것 자체가 목적이 아니라 넘어서기 위한 전제다
+    motivation: [ MG-OVERCOME-SUPERIOR-OPPONENT ]
     belief_context: []
-    stakes:
-      - 버티지 못하면 쓰러진다
-      - 버티기만 하면 자원이 말라 결국 무너진다
-    caused_by: [MW-ZONE-FRINGE]
-    # 포식자는 침입자를 사냥한다 (BW §21 · §27 "Creature 가 Player 를 사냥한다").
+    stakes: [ 버티지 못하면 쓰러진다, 버티기만 하면 자원이 말라 결국 무너진다 ]
+    caused_by: [ MW-ZONE-FRINGE ]
     constraints: []
     constraint_evaluation: {}
-
-  # ══ Creature 의 Goal ═══════════════════════════════════════════════════
-
   - id: MG-HOLD-HUNTING-GROUND
     type: goal
     owner: MA-HOSTILE-COMBATANT
-    desired_state: >
-      자기 사냥터에 들어온 침입자가 사냥감이 되거나 물러난다.
-    detail: >
-      플레이어의 목적이 아니라 그 층에 사는 생물의 목적이다. 이것이 있어야 전투가
-      "플레이어를 위해 배치된 적" 이 아니라 "서로 다른 목적이 부딪히는 사건" 이 된다.
-      상위 목적이 없다 — 살아남는 것이 끝이고, 그 층의 생존 경쟁이 만든 적응의
-      결과이기 때문이다 (BW §26).
-    world_shape: >
-      플레이어가 아닌 존재가 지키는 범위를 갖고, 그 범위에 들어오면 반응하고
-      나가면 더 쫓지 않아야 한다. 그리고 그 존재가 플레이어의 유무와 무관하게
-      자기 일을 하고 있어야 한다.
+    desired_state: 자기 사냥터에 들어온 침입자가 사냥감이 되거나 물러난다.
+    source: BW §26
+    world_shape: 플레이어가 아닌 존재가 지키는 범위를 갖고, 그 범위에 들어오면 반응하고 나가면 더 쫓지 않아야 한다. 그리고 그 존재가 플레이어의 유무와 무관하게 자기
+      일을 하고 있어야 한다.
     implemented: PRESENT
-    # 스스로 순찰하다가 인지 범위 안의 대상을 쫓아 공격한다. 다만 지키는 "영역" 이
-    # 따로 없어 순찰 경로가 곧 영역이고, 범위를 벗어난 대상을 놓아주는 판단도 없다.
     motivation: []
     belief_context: []
-    stakes:
-      - 사냥터를 지키지 못하면 먹이와 영역을 잃는다
-    caused_by: [MW-ZONE-FRINGE]
-    # 이 Goal 을 달성하는 Possibility 는 세우지 않았다 — 그래프에서 유일하게 갈래가
-    # 없는 Goal 이다. 플레이어의 목적이 아니라 상대편의 목적이고, BW 는 이 생물이
-    # 사냥터를 어떻게 지키는지를 명명하지 않는다. 지어내지 않는다.
-    # 세울 때가 되면 그것은 곧 Creature 의 행동 설계이며 그 층의 문서가 먼저다.
-    constraints: [DC-WORLD-CREATURE-FROM-PRESSURE]
+    stakes: [ 사냥터를 지키지 못하면 먹이와 영역을 잃는다 ]
+    caused_by: [ MW-ZONE-FRINGE ]
+    constraints: [ DC-WORLD-CREATURE-FROM-PRESSURE ]
     constraint_evaluation:
-      DC-WORLD-CREATURE-FROM-PRESSURE: SATISFIED   # 층의 생존 경쟁이 먼저이고 이 Goal 이 그 적응의 결과다
-
-  # ══ 대지형이 낳는 Goal (BT) ════════════════════════════════════════════
-
+      DC-WORLD-CREATURE-FROM-PRESSURE: SATISFIED
   - id: MG-RESCUE-THE-TAKEN
     type: goal
     owner: MA-PLAYER
-    desired_state: >
-      대지형의 법칙에 붙들려 사라지는 중인 존재가 그 법칙 밖으로 돌아온다.
-      (BT §6.6 · §7.7 · §8.7 · §11.7)
-    detail: >
-      네 대지형이 같은 행동을 각자 따로 명명했다 — 숲에 흡수되기 직전의 존재를 추적해
-      구출하고 (BT §6.6 무명사냥꾼), 공기가 사라진 자리에 고립된 탐험가를 구조하고
-      (BT §7.7), 하늘로 추락하는 동료를 붙잡고 (BT §8.7), 꽃이 완성되기 전에 대상을
-      되찾는다 (BT §11.7). 죽음을 막는 것과 다르다는 점이 중요하다. 이 지형들에서 잃는
-      방식은 죽는 것이 아니라 그 땅의 일부가 되는 것이다 — 이름이 뿌리망에 편입되거나
-      (BT §6.2) 생명 상태가 꽃으로 옮겨간다 (BT §11.2). 그래서 이 목적에는 언제나 시간이
-      걸려 있고, 늦으면 되돌릴 자리 자체가 사라진다.
-    world_shape: >
-      존재가 지형의 법칙에 붙들려 단계적으로 사라지는 과정이 세계에 있고, 그 과정이
-      끝나기 전에 개입해 되돌릴 수 있어야 한다. 즉시 죽거나 아무 일도 없거나 둘뿐이면
-      이 Goal 은 세계에서 성립하지 않는다.
+    desired_state: 대지형의 법칙에 붙들려 사라지는 중인 존재가 그 법칙 밖으로 돌아온다. (BT §6.6 · §7.7 · §8.7 · §11.7)
+    source: BT §6.6 · §7.7 · §8.7 · §11.7 · BT §6.6 · BT §7.7 · BT §8.7 · BT §11.7 · BT §6.2 · BT §11.2
+    world_shape: 존재가 지형의 법칙에 붙들려 단계적으로 사라지는 과정이 세계에 있고, 그 과정이 끝나기 전에 개입해 되돌릴 수 있어야 한다. 즉시 죽거나 아무 일도 없거나
+      둘뿐이면 이 Goal 은 세계에서 성립하지 않는다.
     implemented: ABSENT
-    # 존재가 단계적으로 사라지는 과정이 세계에 없다 — 쓰러지는 것 하나뿐이다.
     motivation: []
-    # BT 는 누가 왜 구하는지를 공급하지 않는다 — 무명사냥꾼은 그것을 하는 세력이라고만
-    # 적혀 있다 (§6.6). 지어내지 않는다 — 배선은 WHY 확장 몫이다.
     belief_context: []
     stakes:
-      - 늦으면 그 존재는 죽는 것이 아니라 세상에서 개인으로 구분되지 않게 된다 (BT §6.2)
-      - 꽃이 완성되면 생명 상태가 꽃으로 옮겨가고 목소리만 반복된다 (BT §11.2)
+      [
+        늦으면 그 존재는 죽는 것이 아니라 세상에서 개인으로 구분되지 않게 된다 (BT §6.2),
+        꽃이 완성되면 생명 상태가 꽃으로 옮겨가고 목소리만 반복된다 (BT §11.2)
+      ]
     caused_by:
-      - MW-TERRAIN-NAME-EATING-FOREST
-      - MW-TERRAIN-BREATHLESS-SEA
-      - MW-TERRAIN-SKYFALL-RANGE
-      - MW-TERRAIN-BLOODBLOOM-FOREST
-    constraints: [DC-WORLD-PLAYER-UNFIXED-PATH]
+      [
+        MW-TERRAIN-NAME-EATING-FOREST,
+        MW-TERRAIN-BREATHLESS-SEA,
+        MW-TERRAIN-SKYFALL-RANGE,
+        MW-TERRAIN-BLOODBLOOM-FOREST
+      ]
+    constraints: [ DC-WORLD-PLAYER-UNFIXED-PATH ]
     constraint_evaluation:
-      DC-WORLD-PLAYER-UNFIXED-PATH: SATISFIED   # 아무도 이 목적을 강제받지 않는다 — 발견한 세계 상태에서 생긴다
-    # 갈래 셋이 Q71(b) 확장으로 섰다 — MP-STOP-THE-TRANSFER(시간을 산다) ·
-    # MP-CUT-WHAT-HOLDS-THEM(붙잡은 것을 끊는다) · MP-REACH-THE-UNREACHABLE(거기까지 간다).
-    # BT 가 네 대지형에 흩어 적어 둔 구출 장면(§6.6 · §7.7 · §8.7 · §11.7)에서 나왔고,
-    # 셋은 무엇을 다루느냐가 서로 다르다 (과정 · 붙잡은 것 · 도달).
-
-# 근거 문서는 영역별로 분리된다 — 근거는 영역을 넘지 않는다 (HISTORY Q15).
-#   탐험  BW  content/proto-adventure/design/Master-World-Beira.md
-#   대지형 BT content/proto-adventure/design/Master-World-Beira-Terrain.md
-#   전투  R1  content/proto-adventure/design/Design-Combat-OffenseDefense-R0.md · DT  content/proto-adventure/design/Design-Combat-DamageType-R0.md
-#
-# 두 설계 문서의 원칙("난수를 쓰지 않는다" 등)은 Actor 가 원하는 상태가 아니므로
-# Goal 이 아니라 Constraint 다 — constraints/ 를 보라.
+      DC-WORLD-PLAYER-UNFIXED-PATH: SATISFIED
