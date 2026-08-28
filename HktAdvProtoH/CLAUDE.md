@@ -34,8 +34,8 @@ CYCLE LAYER    cycles/    선택된 하나의 플레이 결과를 World Semantic
 
 ```text
 아래로   master/frontier/<트랙>.md 의 SELECTED   →  01-cycle.md 의 MASTER TRACE
-위로     08-verification.md 의 MASTER FEEDBACK  →  master/overlay.md · frontier/<트랙>.md ·
-         feedback/<CycleId>.md · candidates/ 반영
+위로     08-verification.md 의 MASTER FEEDBACK  →  graph 노드의 overlay 필드 ·
+         frontier/<트랙>.md · feedback/<CycleId>.md · candidates/ 반영
 ```
 
 Cycle Agent 는 `master/` 를 편집하지 않는다 — 보고까지가 Cycle 의 책임이다.
@@ -137,7 +137,8 @@ works.md 의 "배차판" 절, 관찰은 `npm run lanes` (`lanes:check` 가 어�
     자기 Cycle 파일(`master/feedback/`)에 산다. 공유 파일(overlay · capabilities)을
     고치는 Feedback 은 병합 뒤 최신 main 위에서만 돈다.
 23. **View 작업은 Cycle 이 아니다** — `world/` 와 관찰 계약(`protocol/`)을 바꾸지 않는
-    화면 작업은 `V-NNN` 으로 `works/` 에 기록한다 (guides/view-work.md). 관찰을
+    화면 작업은 `works/BACKLOG.md` 의 항목(슬러그)으로 산다 (guides/view-work.md).
+    완료는 커밋이 기록하고 항목은 지운다 — 별도 기록 파일이 없다. 관찰을
     늘리고 싶어지는 순간 그것은 세계의 관찰 확장이다 — Frontier/Cycle 로 승격한다.
 ```
 
@@ -152,13 +153,14 @@ works.md 의 "배차판" 절, 관찰은 `npm run lanes` (`lanes:check` 가 어�
 `master/graph/*.yaml` 은 사람이 눈으로 읽기 어렵다. 관찰·정합 검사는 도구가 맡는다.
 
 ```text
-npm run master:graph         GRAPH.md · overlay.md + 뷰어 + Artifact 판을 다시 만든다
-npm run master:graph:check   정합성 + GRAPH.md·overlay.md 최신 여부만 확인한다 (아무것도 쓰지 않는다)
+npm run master:graph         GRAPH.md(Overlay 절 포함) + 뷰어 + Artifact 판을 다시 만든다
+npm run master:graph:check   정합성 + GRAPH.md 최신 여부만 확인한다 (아무것도 쓰지 않는다)
 npm run feedback:gate        Feedback/Master 작업 전 — 최신 main 여부 + 미처리 MASTER FEEDBACK 검사
 ```
 
-`overlay.md` 는 GRAPH.md 처럼 **생성물**이다 — 상태·근거는 `graph/*.yaml` 노드 필드가,
-편집 산문은 `graph/overlay-notes.yaml` 이 소유한다 (형식: master/SCHEMA.md).
+Overlay(Graph 를 세계와 겹친 판정)는 GRAPH.md 의 한 절로 생성된다 — 상태·근거는
+`graph/*.yaml` 노드 필드가, 편집 산문은 `graph/overlay-notes.yaml` 이 소유한다
+(형식: master/SCHEMA.md). 판정은 단계가 아니라 Feedback·Inject 의 절차다.
 
 `graph/` `constraints/` 를 고친 Agent 는 **재생성물을 같은 커밋에 넣고 고정 링크를 갱신한다**
 — 절차와 그 링크는 [master/README.md](content/proto-adventure/master/README.md) 의 "관찰" 이
@@ -195,11 +197,11 @@ Master 의 기본 절차는 `WHY → OPTIONS → NEED → NEXT` 4단계뿐이다
 |---|---|---|
 | 1. WHY — World/Actor/Goal | [guides/master-graph.md](guides/master-graph.md) | `master/graph/` world-state·actors·knowledge·goals |
 | 2. OPTIONS — 대안 Possibility | [guides/master-graph.md](guides/master-graph.md) | `master/graph/possibilities.yaml` |
-| 3. NEED — Capability + Overlay | [guides/master-graph.md](guides/master-graph.md) · [guides/master-overlay.md](guides/master-overlay.md) | `master/graph/capabilities.yaml` · `master/overlay.md` |
+| 3. NEED — Capability 배선 | [guides/master-graph.md](guides/master-graph.md) | `master/graph/capabilities.yaml` (Overlay 판정은 Feedback·Inject 절차 — SCHEMA) |
 | 4. NEXT — Frontier 후보 | [guides/master-frontier.md](guides/master-frontier.md) | `master/frontier/<트랙>.md` |
 | Human Select | Human | `frontier/<트랙>.md` 의 `SELECTED` → Cycle Stage 1 |
-| Feedback (위쪽 접합점) | [guides/master-feedback.md](guides/master-feedback.md) | `feedback/<CycleId>.md` · `overlay.md` · `frontier/<트랙>.md` · `candidates/` |
-| Inject (기반 기획 주입) | [guides/master-inject.md](guides/master-inject.md) | `constraints/`(DRAFT) · `graph/`(§ provenance) · `overlay.md` · `open-questions.md` |
+| Feedback (위쪽 접합점) | [guides/master-feedback.md](guides/master-feedback.md) | `feedback/<CycleId>.md` · 노드 overlay 필드 · `frontier/<트랙>.md` · `candidates/` |
+| Inject (기반 기획 주입) | [guides/master-inject.md](guides/master-inject.md) | `constraints/`(DRAFT) · `graph/`(`source` §) · `open-questions.md` |
 
 Constraint 정비는 Step 이 아니다 — Human 요청 시에만
 [guides/master-constraint.md](guides/master-constraint.md) (`master/constraints/DC-*.yaml`).
@@ -231,7 +233,7 @@ Root Game Goal / World Premise (`master/root.md`) 와 Constraint 승인은 Human
 | `<pack>/master/` | Master Intent Graph — Constraint · Graph · Overlay · Frontier | 현재 상태만, 닫히면 지운다 |
 | `<pack>/master/HISTORY.md` | 닫힌 질문·선택·갱신의 보관소 | 조회용, 평소 읽지 않는다 |
 | `<pack>/cycles/` | Cycle Artifact — 진행 기록 | History, 수정하지 않는다 |
-| `<pack>/works/` | View 레인 홈 — 할일(`BACKLOG.md`) + 닫힌 기록(`V-*`) | BACKLOG 는 현재 상태만 · `V-*` 는 History |
+| `<pack>/works/` | View 레인 홈 — 할일과 관찰 결손 REPORT (`BACKLOG.md`) | 현재 상태만 — 완료 기록은 git · `V-*` 는 과거 형식 History |
 | `<pack>/world/` | Authoritative World 구현 (Server) — 팩의 Rule·Semantic·투영 | 현재 게임, 계속 발전 |
 | `<pack>/view/` | Client View 결정 Layer — presentation 표·문구·바인딩 | 현재 게임, 계속 발전 |
 | `<pack>/protocol/` | 팩의 GameView·Action 확장 타입 | 현재 게임, 계속 발전 |
