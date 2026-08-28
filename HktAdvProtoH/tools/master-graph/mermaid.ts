@@ -16,25 +16,6 @@ const short = (id: string): string => id.replace(/^M[WAGPCKB]-/, '').replace(/^D
 
 const safe = (s: string): string => s.replace(/"/g, "'").replace(/[[\]{}()]/g, ' ');
 
-/** Mermaid 노드 선언 — 모양이 종류를, 접미 기호가 구현 상태를 말한다 */
-function declare(node: GraphNode): string {
-  const label = short(node.id);
-  switch (node.type) {
-    case 'world_state':
-      return `  ${node.id}[/"${safe(label)}"/]`;
-    case 'actor':
-      return `  ${node.id}(["${safe(label)}"])`;
-    case 'goal':
-      return `  ${node.id}{{"${safe(label)}"}}`;
-    case 'possibility':
-      return `  ${node.id}["${safe(label)}"]`;
-    case 'capability':
-      return `  ${node.id}["${OVERLAY_MARK[node.overlay ?? 'MISSING']} ${safe(label)}"]`;
-    default:
-      return `  ${node.id}>"${safe(label)}"]`;
-  }
-}
-
 export function renderMermaid(graph: MasterGraph): string {
   const lines: string[] = [];
   const out = (s = '') => lines.push(s);
@@ -62,41 +43,37 @@ export function renderMermaid(graph: MasterGraph): string {
   );
   out();
 
-  // ── 1. 인과 뼈대 ────────────────────────────────────────────────────
-  out('## 인과 뼈대 — WorldState → Goal → Possibility');
+  // ── 1. 세계 인과 척추 — arises_from 텍스트 트리 ─────────────────────
+  // 전 노드 mermaid 는 그리지 않는다 — 사람이 볼 그림은 뷰어(graph-view.html)가 맡고,
+  // 이 문서는 agent·PR 이 훑는 표와 트리만 담는다.
+  out('## 세계 인과 척추 — arises_from');
   out();
-  out('굵은 화살표(**==>**)가 **세계의 인과 척추**다 — 어떤 상태가 어떤 상태를 낳았는가')
-  out('(`arises_from`). 그 위에서 세계의 사정이 Goal 을 만들고, 각 Goal 은 여러')
-  out('Possibility 로 갈린다 (OR).');
+  out('어떤 상태가 어떤 상태를 낳았는가. `→ Goal` 은 그 상태가 발생시키는 Goal(`causes`)이다.');
   out();
-  out('```mermaid');
-  out('flowchart LR');
-  const backbone = new Set(['world_state', 'actor', 'goal', 'possibility']);
-  for (const n of nodes.filter((x) => backbone.has(x.type))) out(declare(n));
-  out();
+  out('```text');
+  const children = new Map<string, string[]>();
+  const hasParent = new Set<string>();
   for (const e of graph.edges) {
-    if (!graph.nodes.has(e.to)) continue;
-    const a = graph.nodes.get(e.from)!;
-    const b = graph.nodes.get(e.to)!;
-    if (!backbone.has(a.type) || !backbone.has(b.type)) continue;
-    if (e.kind === 'arises_from') out(`  ${e.from} ==> ${e.to}`); // 세계의 인과 척추 — 굵게
-    else if (e.kind === 'causes') out(`  ${e.from} --> ${e.to}`);
-    else if (e.kind === 'wants') out(`  ${e.from} -.-> ${e.to}`);
-    else if (e.kind === 'achieves') out(`  ${e.to} --> ${e.from}`); // 갈래는 Goal 에서 뻗어 나가게 그린다
-    else if (e.kind === 'motivation') out(`  ${e.from} --> ${e.to}`);
-    else if (e.kind === 'opposes') out(`  ${e.from} -. 방해 .-> ${e.to}`);
-    else if (e.kind === 'creates_goal') out(`  ${e.from} == 새 Goal ==> ${e.to}`);
+    if (e.kind !== 'arises_from') continue;
+    // 모델의 arises_from 엣지는 낳은 쪽(from) → 태어난 쪽(to) 방향이다
+    children.set(e.from, [...(children.get(e.from) ?? []), e.to]);
+    hasParent.add(e.to);
   }
-  out();
-  out('  classDef world fill:#1f2d3d,stroke:#4a6785,color:#dbe6f2;');
-  out('  classDef actor fill:#2d2438,stroke:#6b5b8a,color:#e5dcf0;');
-  out('  classDef goal fill:#3a2f1c,stroke:#8a7440,color:#f0e6cd;');
-  out('  classDef poss fill:#1c3330,stroke:#3f7d6f,color:#d6f0e9;');
-  const cls = (t: string) => nodes.filter((n) => n.type === t).map((n) => n.id).join(',');
-  if (cls('world_state')) out(`  class ${cls('world_state')} world;`);
-  if (cls('actor')) out(`  class ${cls('actor')} actor;`);
-  if (cls('goal')) out(`  class ${cls('goal')} goal;`);
-  if (cls('possibility')) out(`  class ${cls('possibility')} poss;`);
+  const goalsOf = (id: string): string =>
+    [...new Set(
+      graph.edges.filter((e) => e.kind === 'causes' && e.from === id).map((e) => short(e.to)),
+    )].join(' · ');
+  const emitTree = (id: string, depth: number, seen: Set<string>): void => {
+    const g = goalsOf(id);
+    out(`${'  '.repeat(depth)}${short(id)}${g ? `  → Goal: ${g}` : ''}`);
+    if (seen.has(id)) return; // 부모가 둘인 노드 — 두 번째부터는 가지를 펴지 않는다
+    seen.add(id);
+    for (const c of children.get(id) ?? []) emitTree(c, depth + 1, seen);
+  };
+  const seen = new Set<string>();
+  for (const n of nodes.filter((x) => x.type === 'world_state' && !hasParent.has(x.id))) {
+    emitTree(n.id, 0, seen);
+  }
   out('```');
   out();
 
@@ -213,43 +190,8 @@ export function renderMermaid(graph: MasterGraph): string {
   }
   out();
 
-  // ── 3. Capability 요구 그물 ─────────────────────────────────────────
-  out('## 요구 그물 — Possibility → Capability (AND)');
-  out();
-  out('한 Possibility 가 성립하려면 이어진 Capability 가 **전부** 있어야 한다.');
-  out();
-  out('```mermaid');
-  out('flowchart LR');
-  const used = new Set<string>();
-  for (const e of graph.edges) {
-    if (e.kind !== 'requires') continue;
-    const b = graph.nodes.get(e.to);
-    if (!b || b.type !== 'capability') continue;
-    used.add(e.from);
-    used.add(e.to);
-  }
-  for (const n of nodes.filter((x) => used.has(x.id))) out(declare(n));
-  out();
-  for (const e of graph.edges) {
-    if (e.kind !== 'requires') continue;
-    const b = graph.nodes.get(e.to);
-    if (!b || b.type !== 'capability') continue;
-    out(`  ${e.from} --> ${e.to}`);
-  }
-  out();
-  out('  classDef impl fill:#16351f,stroke:#3f8a52,color:#d8f2df;');
-  out('  classDef part fill:#3a3315,stroke:#9a8a2e,color:#f2ecd0;');
-  out('  classDef miss fill:#2a2a2e,stroke:#5c5c66,color:#b8b8c2;');
-  out('  classDef poss fill:#1c3330,stroke:#3f7d6f,color:#d6f0e9;');
-  const caps = (o: string) =>
-    nodes.filter((n) => n.type === 'capability' && n.overlay === o && used.has(n.id)).map((n) => n.id).join(',');
-  if (caps('IMPLEMENTED')) out(`  class ${caps('IMPLEMENTED')} impl;`);
-  if (caps('PARTIAL')) out(`  class ${caps('PARTIAL')} part;`);
-  if (caps('MISSING')) out(`  class ${caps('MISSING')} miss;`);
-  const usedPoss = nodes.filter((n) => n.type === 'possibility' && used.has(n.id)).map((n) => n.id).join(',');
-  if (usedPoss) out(`  class ${usedPoss} poss;`);
-  out('```');
-  out();
+  // ── 3. 요구 그물은 그리지 않는다 — 준비도 표(위)가 같은 사실을 담고,
+  //       그림이 필요하면 뷰어가 맡는다.
 
   // ── 4. Constraint 렌즈 ──────────────────────────────────────────────
   out('## Constraint — 무엇이 걸러지는가');

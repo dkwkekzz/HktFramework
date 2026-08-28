@@ -56,11 +56,14 @@ describe('loadMasterGraph', () => {
     }
   });
 
-  it('인과 뼈대 그림이 척추를 굵은 화살표로 그린다', () => {
+  it('세계 인과 척추가 텍스트 트리로 실린다 — 뿌리는 들여쓰기 0, 자식은 부모 아래', () => {
     const md = renderMermaid(graph);
+    expect(md).toContain('## 세계 인과 척추');
     const spine = graph.edges.filter((e) => e.kind === 'arises_from');
     for (const e of spine.slice(0, 5)) {
-      expect(md).toContain(`${e.from} ==> ${e.to}`);
+      // 낳은 쪽(from)과 태어난 쪽(to) 둘 다 트리에 줄로 존재한다
+      expect(md).toMatch(new RegExp(`^ *${e.from.replace(/^MW-/, '')}`, 'm'));
+      expect(md).toMatch(new RegExp(`^ *${e.to.replace(/^MW-/, '')}`, 'm'));
     }
   });
 
@@ -116,12 +119,11 @@ describe('loadMasterGraph', () => {
 describe('renderMermaid', () => {
   const md = renderMermaid(graph);
 
-  it('mermaid 블록 수 = 뼈대 2 + 조각을 가진 시스템 수', () => {
+  it('mermaid 블록 수 = 조각을 가진 시스템 수 — 전 노드 그림은 그리지 않는다 (뷰어 몫)', () => {
     const withMembers = [...graph.systems.keys()].filter((sysId) =>
       [...graph.nodes.values()].some((n) => n.partOf?.memberships.some((m) => m.system === sysId)),
     );
-    expect(md.match(/```mermaid/g)).toHaveLength(2 + withMembers.length);
-    expect(md.match(/```/g)).toHaveLength((2 + withMembers.length) * 2);
+    expect(md.match(/```mermaid/g)).toHaveLength(withMembers.length);
   });
 
   it('척추 섹션이 레지스트리의 시스템을 전부 싣는다', () => {

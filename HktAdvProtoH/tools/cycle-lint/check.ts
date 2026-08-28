@@ -66,7 +66,7 @@ function lintCycle(cycleDir: string, cycleId: string): Finding[] {
     for (const line of lines) {
       const m = /^## (.+)$/.exec(line);
       if (!m) continue;
-      const title = m[1].split('—')[0].trim(); // "PLAYABLE — 실제 게임 실측" → "PLAYABLE"
+      const title = (m[1] ?? '').split('—')[0]?.trim() ?? ''; // "PLAYABLE — 실제 게임 실측" → "PLAYABLE"
       if (spec.banned?.[title]) {
         findings.push({ level: 'ERROR', file: `${cycleId}/${fileName}`,
           message: `금지된 절 "## ${title}" — ${spec.banned[title]}` });
