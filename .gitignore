@@ -66,3 +66,7 @@ HktInfra/report.html
 
 # Node
 node_modules/
+
+# 에이전트 도구가 CLAUDE.md 를 미러링해 만드는 로컬 생성물
+AGENTS.md
+.agents/
