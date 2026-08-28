@@ -129,4 +129,6 @@ Frontier 선택 이후는 **기존 8 Stage Cycle Workflow 를 변경 없이** �
   상위 Goal/Possibility 전진 / Client 플레이 가능 / 한 Cycle 검증 가능 /
   코드 Task 아님 / Constraint 양립 / 재사용 Capability 로 누적.
 - 각 후보 한 문장을 읽고 "이번 Cycle 이 끝나면 무엇을 플레이할 수 있는가"에 답할 수 있다.
-- Human 이 근거를 보고 하나를 고를 수 있는 상태다.
+- **전달 완결**: 후보와 그 `Trace` 가 가리키는 기획서 § 만 읽고 Cycle Stage 1·2 를
+  시작할 수 있다 — graph 노드나 다른 master 문서를 더 뒤져야 하면 후보가 덜 쓰인 것이다.
+- Human 이 한눈에 보기 표만 보고 하나를 고를 수 있는 상태다.

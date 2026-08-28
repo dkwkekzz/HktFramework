@@ -102,29 +102,33 @@ nodes:
 
 아래 절의 예시는 그 `nodes:` 아래에 들어가는 **항목 하나**의 형태다.
 
-### 모든 Node 공통 — 읽히는 형태와 구현 정합
+### 모든 Node 공통 — 주소와 판정 기준
 
-Graph 는 설계자만 보는 메모가 아니라 Cycle 이 소비하는 입력이다. 읽어서 무슨 말인지
-모르는 노드는 Cycle 로 내려가지 못한다. 따라서 모든 Node 는 **세 겹**으로 쓴다.
-
-```text
-① 한 줄       무엇인가            statement / desired_state / semantic / meaningful_difference
-② 풀어서      detail:             왜 그런가 · 무엇이 뒤따르는가 · 무엇과 헷갈리면 안 되는가
-③ 세계에서    world_shape:        이 노드가 "세계에 실제로 있다" 를 무엇으로 확인하는가
-```
-
-`detail` 규칙 — 여기가 가독성을 책임진다.
+Graph 는 **의미의 저장소가 아니라 전달 계층**이다. 의미의 전문은 `source` 가 가리키는
+기획서(`content/<pack>/design/`)가 소유하고, 노드는 그 의미의 **주소 + 구조(간선) +
+상태**만 지닌다. 사람이 노드를 읽고 이해하는 것이 목표가 아니다 — 기획의 정보가
+Frontier 후보를 거쳐 Cycle 에 정확히 전달되는 것이 목표다. 모든 Node 는 **두 겹 + 주소**다.
 
 ```text
-평서문으로 쓴다. 도식(↓ 화살표 나열)과 명사 나열로 대신하지 않는다.
-영문 대문자 용어를 문장 주어로 쓰지 않는다 — "FREE WORLD PRESSURE 는" 이 아니라
-  "아직 무엇으로도 굳지 않은 세계압은" 으로 쓰고 괄호로 원어를 붙인다.
-독자는 이 프로젝트를 처음 보는 사람이다. 앞 노드를 읽었다고 가정하지 않는다.
-원문 인용(BW §x)은 문장 끝 괄호에 둔다. 인용이 문장을 대신하지 않는다.
-분량은 3~6 문장. 한 문장으로 충분하면 detail 을 생략하지 말고 그 한 문장을 쓴다.
+① 한 줄     무엇인가         statement / desired_state / semantic / meaningful_difference
+② 세계에서  world_shape:     이 노드가 "세계에 실제로 있다" 를 무엇으로 확인하는가
+   주소     source:          의미의 전문이 사는 곳 — 기획서 약어 §번호 (파일 머리 인용표)
 ```
 
-`world_shape` 규칙 — 여기가 구현 정합을 책임진다.
+`source` 규칙 — 여기가 의미의 소유를 책임진다.
+
+```text
+필수다. 의미의 깊이가 필요한 작업(NEXT · Inject · Cycle)은 이 주소의 기획서 §를 연다.
+grounded: false 노드는 "(이름만)" + 이름을 댄 문서 §를 적는다.
+기획서에 없는 정밀화(닫힌 Q 의 결과 등)는 노드 산문으로 돌아오지 않는다 —
+  경위는 HISTORY, 결과는 ①/world_shape 반영, Cycle 전달 형태는 Frontier 후보가 싣는다.
+detail 필드는 폐기되었다 — "왜 그런가 · 무엇이 뒤따르는가" 는 기획서와
+  Goal/Possibility 경로(간선)가 답한다. 새로 쓰지 않는다.
+```
+
+`world_shape` 규칙 — 여기가 구현 정합을 책임진다. **의미 산문 중 유일하게 노드에
+남는 것**이다 — 사람용 설명이 아니라 overlay 판정의 수락 기준(master ↔ 08-verification
+계약)이기 때문이다.
 
 ```text
 관찰 가능한 조건으로 쓴다 — "플레이어가 X 하면 Y 가 보인다".
@@ -150,8 +154,7 @@ Capability 의 기존 `overlay:` 필드가 같은 역할을 한다 — Capabilit
 - id: MW-FOREST-CORRUPTED
   type: world_state
   statement: Forest 가 Corrupted 상태다
-  detail: >
-    <풀어서 — 왜 그렇게 되었고 무엇이 뒤따르는가>
+  source: BW §12              # 의미의 주소 — 전문은 기획서 소유
   world_shape: >
     <이 상태가 세계에 있다는 것을 무엇으로 확인하는가>
   implemented: ABSENT         # PRESENT | PARTIAL | ABSENT — 근거는 overlay.md
@@ -184,8 +187,7 @@ Capability 쪽 거울은 `demanded_by` 다 (`required_by` 와 같은 방식의 �
   kind: NPC                   # PLAYER | NPC | CREATURE | FACTION | GUILD | SETTLEMENT
   perspective: >
     이 주체가 세계를 어떻게 보는가 · 무엇을 이해관계로 삼는가
-  detail: >
-    <풀어서 — 이 주체가 무엇을 알고 무엇을 모르는가 · 무엇을 두려워하는가>
+  source: BW §22
   world_shape: >
     <이 주체가 세계에 있다는 것을 무엇으로 확인하는가>
   implemented: ABSENT         # PRESENT | PARTIAL | ABSENT
@@ -202,8 +204,7 @@ Capability 쪽 거울은 `demanded_by` 다 (`required_by` 와 같은 방식의 �
   holder: [MA-...]
   statement: >
     확보한 정보(knowledge) 또는 사실이라 믿는 것(belief)
-  detail: >
-    <풀어서 — 이것을 아는 사람과 모르는 사람의 판단이 무엇이 갈리는가>
+  source: CK §3
   world_shape: >
     <이 정보가 세계에 있다는 것을 무엇으로 확인하는가 —
      모를 때 무엇이 가려져 있고 알고 나면 무엇이 보이는가>
@@ -219,8 +220,7 @@ Capability 쪽 거울은 `demanded_by` 다 (`required_by` 와 같은 방식의 �
   type: goal
   owner: MA-PLAYER
   desired_state: <원하는 세계의 상태>
-  detail: >
-    <풀어서 — 이 Goal 을 가진 사람이 실제로 무엇을 바라는가>
+  source: BW §30
   world_shape: >
     <이 Goal 이 세계에서 성립한다는 것을 무엇으로 확인하는가 — 달성 판정의 관찰 조건>
   implemented: ABSENT         # PRESENT | PARTIAL | ABSENT
@@ -244,8 +244,7 @@ Capability 쪽 거울은 `demanded_by` 다 (`required_by` 와 같은 방식의 �
   meaningful_difference: >
     다른 Possibility 와 Gameplay/Cost/Risk/Relationship/Consequence 중
     무엇이 실질적으로 다른가. 답할 수 없으면 동의어이지 대안이 아니다
-  detail: >
-    <풀어서 — 이 경로를 고른 플레이어가 실제로 무엇을 하게 되는가>
+  source: R1 §9
   world_shape: >
     <이 경로가 세계에서 열려 있다는 것을 무엇으로 확인하는가>
   implemented: ABSENT         # PRESENT | PARTIAL | ABSENT
@@ -272,11 +271,9 @@ Capability 쪽 거울은 `demanded_by` 다 (`required_by` 와 같은 방식의 �
 - id: MC-PERFECT-GUARD
   type: capability
   semantic: >
-    재사용 가능한 플레이 의미 한 문단. 왜 필요한지는 쓰지 않는다 —
+    재사용 가능한 플레이 의미 한두 문장. 왜 필요한지는 쓰지 않는다 —
     그것은 Goal/Possibility 경로가 설명한다
-  detail: >
-    <풀어서 — 이 능력이 있는 몸과 없는 몸이 무엇이 다른가.
-     비슷한 다른 Capability 와 무엇으로 갈리는가>
+  source: R1 §7 · BW §20      # 의미의 주소 — 전문·이유·구분은 기획서 소유
   world_shape: >
     <이 능력이 세계에 있다는 것을 무엇으로 확인하는가 — Cycle 이 이 칸을 닫는다>
   part_of:                    # 이 조각이 속한 전체 — 노드가 목록으로 뽑혀도 자리가 보이게 한다
@@ -291,8 +288,11 @@ Capability 쪽 거울은 `demanded_by` 다 (`required_by` 와 같은 방식의 �
   demanded_by:  [MW-...]      # 이 능력을 요구하는 장소
   constraints: [DC-...]
   constraint_evaluation:
-    DC-...: UNRESOLVED        # 판정 값 + 한 줄 사유까지만 — 실측 서사는 08-verification 소유
-  overlay: MISSING            # IMPLEMENTED | PARTIAL | MISSING — 근거는 overlay.md
+    DC-...: UNRESOLVED        # 판정 값만 — 사유·실측 서사는 08-verification 소유
+  overlay: MISSING            # IMPLEMENTED | PARTIAL | MISSING
+  overlay_evidence: C010 08-verification   # 주소만 — Cycle ID / 코드 실측 포인터.
+                              # 무엇이 어떻게 닫혔는지를 여기 재서술하지 않는다
+  overlay_gap: <PARTIAL 일 때 — 남은 것 한두 줄>
 ```
 
 구현 모듈명(`world/combat/guard.ts`)을 `semantic` 에 쓰지 않는다.

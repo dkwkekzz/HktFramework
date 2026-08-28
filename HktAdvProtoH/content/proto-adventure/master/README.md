@@ -33,6 +33,22 @@ CYCLE LAYER    선택된 하나의 플레이 결과를 World Semantic 과 Rule �
 소유한다 — 여기에 중복해 두지 않는다. 아래 "현재 상태"의 전투 영역은
 주입(Inject — `../guides/master-inject.md`)으로 들어온 것이다.
 
+## 누가 읽는가 — Human 접점은 셋뿐
+
+master/ 는 사람이 이해하려고 읽는 층이 아니다 — **기획서의 정보를 Cycle 작업으로
+전달하는 층**이며, 노드는 의미의 주소·구조·상태만 지닌다 (SCHEMA "모든 Node 공통").
+의미의 전문이 필요하면 노드의 `source` 가 가리키는 기획서를 연다.
+Human 이 여는 파일은 결정 지점 셋뿐이다.
+
+| 결정 | 여는 파일 |
+|---|---|
+| 다음 Cycle 선택 | `frontier/<트랙>.md` 의 한눈에 보기 표 → `SELECTED` |
+| 열린 질문 답변 | `open-questions.md` 의 `DECISION` |
+| Constraint 승격 승인 | `candidates/README.md` (인덱스) → 해당 `CC-*.md` |
+
+나머지(`graph/` · `overlay.md` · `GRAPH.md`)는 Agent 와 도구의 것이다. 눈으로 훑고
+싶으면 아래 "관찰"의 뷰어를 연다 — 원문 YAML 을 읽지 않는다.
+
 ## 현재 상태
 
 근거 문서는 영역별로 분리된다 — 근거는 영역을 넘지 않는다 (Q15).

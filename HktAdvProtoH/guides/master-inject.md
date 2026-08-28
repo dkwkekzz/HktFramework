@@ -5,10 +5,12 @@
 Human 이 작성·개정한 **기반 기획 문서**(`content/<pack>/design/Design-*.md` — 전투 규칙 등)의 의미를
 Master Layer 로 옮긴다.
 
-**창작이 아니라 번역이다.** 기본 4단계(WHY → OPTIONS → NEED → NEXT)가 Graph 를
+**창작이 아니라 색인이다.** 기본 4단계(WHY → OPTIONS → NEED → NEXT)가 Graph 를
 원본으로 새 의미를 *탐색*하는 공정이라면, 주입은 Human 이 이미 설계한 문서를
-원본으로 의미를 *대조해 옮기는* 공정이다. 둘을 섞으면 문서에 없는 의미를
-Agent 가 지어내게 된다.
+Graph 의 **주소·구조·상태로 등록하는** 공정이다. 의미의 전문은 문서에 남는다 —
+노드로 옮기는 것은 한 줄(①) · `source`(주소) · `world_shape`(판정 기준) · 간선뿐이다
+(SCHEMA "모든 Node 공통"). 문서의 문단을 노드 산문으로 옮겨 적는 것은 번역이 아니라
+전사(轉寫)이며, 어긋날 수 있는 의미의 사본을 만든다 — 하지 않는다.
 
 트리거 — **Human 이 문서를 지목해 반영을 지시할 때만.** Agent 가 스스로 시작하지 않는다.
 Human 이 범위를 한정하면(예: "Constraint 만 추출") **그 범위만** 수행한다 —
@@ -30,8 +32,8 @@ Human 이 범위를 한정하면(예: "Constraint 만 추출") **그 범위만**
 1. **Constraint 추출** — 문서가 **명시한** 설계 원칙만 DC 신규/개정 후보로 만든다.
    작성 규칙은 `master-constraint.md` 를 그대로 따른다. Human 승인 전에는 `DRAFT` 다.
    원본보다 세게 쓰지 않는다 — 문서의 "정도 조절(prefers)"을 "금지(prohibits)"로 바꾸지 않는다.
-2. **Graph 주입** — 문서의 Goal / Possibility / Capability 의미를 노드로 옮긴다.
-   - 각 노드에 문서의 § 를 근거로 남긴다 (주석 provenance) — 어디서 왔는지 답할 수 있어야 한다.
+2. **Graph 주입** — 문서의 Goal / Possibility / Capability 를 노드로 등록한다.
+   - 각 노드의 `source` 에 문서 § 를 적는다 — 의미의 깊이가 필요한 작업은 이 주소를 연다.
    - 문서가 **예고만 한** 확장 층(사다리)도 노드로 먼저 세운다 — 노드가 없으면
      그 층은 Overlay 에도 Frontier 에도 나타나지 못한다.
    - WHY / OPTIONS / NEED Guide 의 MUST / MUST NOT 은 동일하게 적용된다.
