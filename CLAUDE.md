@@ -24,6 +24,7 @@ UE5.6 플러그인 프레임워크. 3개의 독립 플러그인으로 구성된�
 - [HktAtom/CLAUDE.md](HktAtom/CLAUDE.md) — 원자부터 복잡계로 창발하는 규모의 사다리(원자→분자·물질→거시 존재)를 **하나의 커널**(보존 다발 + 국소 교환 + 안정 구조의 승격)로 굴리는 웹 트랙 — 단계(원자·분자·물질·존재)마다 자체 완전한 독립 모듈, 단계 연결은 데이터(입출력)만 (순수 JS+html, UE 빌드·타 플러그인과 무관).
 - [HktAdvWeb/CLAUDE.md](HktAdvWeb/CLAUDE.md) — 목적 기반 오픈월드 MMORPG 웹 프로토타입: 동적 목적 그래프(목적=상태 차이 → 속성 기반 재료 요구 → 기회=무대)가 세계를 굴린다 (독립 트랙, UE 빌드·타 플러그인·타 트랙과 무관).
 - [HktAssetGeneratorA/CLAUDE.md](HktAssetGeneratorA/CLAUDE.md) — 이미지 감독 기반 **파라메트릭 3D 자산 생성** 웹 트랙 (첫 도메인 = 검): 도메인 생성기가 메시와 의미 UV 를 동시 생성, 결정적 CPU 베이커가 절차 PBR 합성, AI 는 구조 선택·장식 마스크만 (three.js/Vite, UE 빌드·타 플러그인과 무관).
+- [HktAdvProtoI/CLAUDE.md](HktAdvProtoI/CLAUDE.md) — 목적 트리 기반 오픈월드 어드벤처 프로토타입 (기반 engine/ + 교체 가능한 컨텐츠 팩; HktAdvProtoH 를 복사해 컨텐츠를 C009 기준선까지 되돌린 재출발판 — 작업 공정은 새로 세운다. UE 빌드·타 플러그인과 무관).
 
 ## Coding Conventions
 

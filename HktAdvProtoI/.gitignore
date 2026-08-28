@@ -1,0 +1,8 @@
+node_modules/
+dist/
+
+# 세계 스냅샷 — server/world-store.ts 가 쓰는 영속 파일 (로컬 세계의 것이다)
+.world/
+
+# Surface Lab — npx tsx tools/surface-lab/build.ts 가 만드는 생성물
+tools/surface-lab/out/

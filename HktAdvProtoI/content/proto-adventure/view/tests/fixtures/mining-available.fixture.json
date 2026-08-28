@@ -1,0 +1,60 @@
+{
+  "specId": "VIEW-STONE-MINING-001",
+  "scene": "mining-field",
+  "observer": {
+    "id": "observer-a",
+    "characterId": "player",
+    "acknowledgedMark": 0
+  },
+  "entities": [
+    {
+      "id": "player",
+      "role": "player-character",
+      "state": "idle",
+      "position": {
+        "x": 7.5,
+        "z": -5.5
+      }
+    },
+    {
+      "id": "deposit-1",
+      "role": "resource-deposit",
+      "state": "available",
+      "position": {
+        "x": 8,
+        "z": -6
+      },
+      "labelValue": 5
+    }
+  ],
+  "interactions": [
+    {
+      "id": "move",
+      "role": "move-to",
+      "available": true
+    },
+    {
+      "id": "mine",
+      "role": "mine-deposit",
+      "targetEntityId": "deposit-1",
+      "available": true
+    }
+  ],
+  "hud": [
+    {
+      "id": "inventory.stone",
+      "kind": "counter",
+      "value": 0
+    },
+    {
+      "id": "tool.hasMiningTool",
+      "kind": "flag",
+      "value": true
+    }
+  ],
+  "strikes": [],
+  "debug": {
+    "open": false
+  },
+  "commands": []
+}
