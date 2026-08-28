@@ -130,6 +130,19 @@ export function groundDetailLines(snapshot: GameViewSnapshot): string[] {
 }
 
 /**
+ * 이 세계가 어느 씨앗에서 태어났는가 — **진단 표면(C)이 켜졌을 때만** 낸다
+ * (C-TERRAIN-003 · 04 debug.genesisSeed).
+ *
+ * 플레이어에게 씨앗은 세계 밖의 사실이다 — 평시 표면은 이 값을 그리지 않는다.
+ * "같은 씨앗 → 같은 세계" 를 사람이 확인하는 유일한 표면이며, 충돌체 진단과 같은
+ * 토글에 얹는다 (그 토글이 이 화면의 디버그 표면이다).
+ */
+export function groundGenesisLines(snapshot: GameViewSnapshot, debugObserve: boolean): string[] {
+  if (!debugObserve) return [];
+  return [`세계 씨앗 ${snapshot.ground.genesisSeed}`];
+}
+
+/**
  * 지닌 열 — **자리 밖에서도 늘 보인다.**
  *
  * 생명·기력과 같은 몸의 값이므로 늘 눈앞에 있어야 하고, 특히 이 값은 **되채워지지

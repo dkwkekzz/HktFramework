@@ -17,13 +17,15 @@ import type { WorldPosition } from './semantic/position';
 import { spawnActor } from './semantic/spawn';
 import {
   DEFAULT_CHANCE_SEED,
-  GROUND_ZONES,
+  DEFAULT_GENESIS_SEED,
+  INTERACTION_RANGE,
   SPAWN_POINTS,
   STATE_VERSION,
   TICK_INTERVAL,
   WORLD_BOUNDS,
   type WorldState,
 } from './semantic/world-state';
+import { bornGroundZones, QUIET_BODY_RADIUS, type QuietSpot } from './rules/world-genesis';
 import { ruleActionProgress } from './simulation/action-progress';
 import { ruleBodyMomentum } from './simulation/body-momentum';
 import { ruleBodyPush } from './simulation/body-push';
@@ -73,6 +75,12 @@ export interface WorldSetup {
    * 되짚기는 여기서 뿌리를 지정해 하는 일이지 관찰로 하는 일이 아니다.
    */
   chanceSeed?: number;
+  /**
+   * C-TERRAIN-003 — 이 세계가 태어날 씨앗 (World.GenesisSeed). 요청으로는 바꿀 수 없다.
+   * 같은 씨앗 + 같은 배치 = 같은 땅. 흔들림의 뿌리(chanceSeed)와 다른 값이다 —
+   * 같은 땅에서 다른 흔들림이 성립해야 한다 (05-review.md 답 3).
+   */
+  genesisSeed?: number;
 }
 
 // 세계의 기본 배치 — 자율 캐릭터 둘. 하나는 지킬 것이 있고 하나는 없다 (C018 CHANGED).
@@ -172,23 +180,38 @@ export function createWorld(setup: WorldSetup = {}, restored?: WorldState): Worl
     }),
   );
 
+  // C-TERRAIN-003 — 결속이 닿지 않는 자리들 (QUIET_GROUND · INTENT-THE-STAGE-IS-NOT-ALL-VEIN-001).
+  // 의미의 방향: 맥이 이들을 "피해 주는" 것이 아니라 **이들이 선 자리가 법칙이 조용한
+  // 자리다** (BT §3 — 정착과 자원은 법칙이 안정되는 지점에 있다). 목록을 상수로 두 번
+  // 적지 않고 실제 배치에서 계산한다 — 붙박이가 단일 출처다.
+  // setup.actorPosition 은 넣지 않는다: 그것은 검증용 오버라이드이고, 보장의 대상은
+  // 몸이 처음 놓이는 자리(SPAWN_POINTS)다 (03 · 05-review.md 답 2).
+  const depositPosition = setup.depositPosition ?? { x: 8, z: -6 };
+  const quiet: QuietSpot[] = [
+    ...SPAWN_POINTS.map((p) => ({ center: p, radius: QUIET_BODY_RADIUS })),
+    ...(setup.npcs ?? DEFAULT_NPCS).flatMap((npc) => [
+      { center: npc.position, radius: QUIET_BODY_RADIUS },
+      ...(npc.wanderPath ?? []).map((p) => ({ center: p, radius: QUIET_BODY_RADIUS })),
+      ...(npc.guardedGround ? [{ center: npc.guardedGround.center, radius: npc.guardedGround.radius }] : []),
+    ]),
+    { center: depositPosition, radius: INTERACTION_RANGE },
+  ];
+  const genesisSeed = setup.genesisSeed ?? DEFAULT_GENESIS_SEED;
+
   // 복구된 State 가 있으면 초기 배치는 일어나지 않는다 — 세계는 스냅샷의 그 순간부터
   // 이어진다 (design/Design-World-Persistence.md). setup 은 새 세계에만 뜻이 있다.
   const state: WorldState = restored ?? {
     bounds: WORLD_BOUNDS,
     actors: npcs,
-    // C-TERRAIN-001 — 무대의 자리들. 헤더 상수를 State 로 놓는다 (world-state.ts#GROUND_ZONES).
-    // 어떤 Rule 도 이것을 바꾸지 않는다 — 그럼에도 State 인 이유는 그 파일이 적는다.
-    // C-TERRAIN-002 — kept · phase 가 실제로 변하므로 복사는 이제 필수다.
-    // 헤더 상수를 그대로 넘기면 세계가 상수를 갈아 다음 세계가 오염된다.
-    groundZones: GROUND_ZONES.map((zone) => ({
-      ...zone,
-      center: { x: zone.center.x, z: zone.center.z },
-    })),
+    // C-TERRAIN-003 — 무대의 자리들이 **태어난다** (RULE-WORLD-GENESIS-001).
+    // 자리를 목록으로 적는 형은 사라졌다 — 적을 수 있는 것은 씨앗 하나뿐이다.
+    // 태어남은 여기 한 번이고, 이후 이 목록을 바꾸는 규칙은 없다 (C-TERRAIN-001 의
+    // "그대로다" 유지). kept · phase 는 C-TERRAIN-002 의 규칙들이 굴린다.
+    groundZones: bornGroundZones(genesisSeed, WORLD_BOUNDS, quiet),
     deposits: [
       {
         id: 'deposit-1',
-        position: setup.depositPosition ?? { x: 8, z: -6 },
+        position: depositPosition,
         resourceKind: 'stone',
         // C022 — 5 → 12. 자리의 유한함은 **세계에 캘 것이 자리보다 많을 때만** 겪힌다.
         // 5 로는 가방이 차기 전에 광맥이 말라 그 Cycle 의 Goal 이 플레이에서 성립하지
@@ -222,6 +245,8 @@ export function createWorld(setup: WorldSetup = {}, restored?: WorldState): Worl
     // RULE-CRITICAL-STRIKE-001 만이 나아가게 한다 (INTENT-WORLD-CHANCE-001).
     chanceSeed: setup.chanceSeed ?? DEFAULT_CHANCE_SEED,
     chanceCursor: 0,
+    // C-TERRAIN-003 — 태어남의 뿌리가 세계에 남는다 (관찰·재현 — world-state.ts).
+    genesisSeed,
   };
 
   // 관찰자의 몸이 처음 만들어질 때 쓰는 기본값 — 세계의 초기 설정이다.

@@ -1,0 +1,25 @@
+# 원본 근거: RC §14.6 (BW §22 "비정상적 감각")
+id: IP-FIELD-SENSING
+type: item_property
+
+semantic: >
+  닿지 않은 것의 존재와 상태를 읽는다.
+detail: >
+  시야가 아닌 것으로 안다 — 진동 · 열 · 압력의 결. "아는 힘" 은 이미 MC-OBSERVE 의
+  경로 하나로 세계에 서 있다 (C016 통찰). 이것은 그 힘의 **세계 안 원천**이다.
+world_shape: >
+  보이지 않는 것을 이것을 지닌 몸만 먼저 안다.
+
+origin_trace:
+  world_state: [MW-ZONE-WILD]
+  pressure: >
+    보이지 않는 것에게 먼저 발견되면 진다. (BW §22)
+  why_it_remains: >
+    시야에만 의존한 것은 먼저 발견되어 사라졌다.
+  human_value: >
+    살펴보지 않고도 아는 힘의 세계 안 원천.
+
+grants_note: >
+  여는 Capability 없음. 이것을 별도 MC 로 세울지는 Q29 가 이미 Human 앞에 둔
+  질문이다 — 그 답이 나오기 전에는 잇지 않는다. 이 계통은 Q29 를 대신 결정하지
+  않는다. (RC §14.6)

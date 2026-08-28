@@ -1,0 +1,17 @@
+# 원본 근거: BT §10.5 (미생수)
+id: IT-UNBORN-WATER
+type: item_type
+semantic: >
+  존재했을 가능성은 있지만 실제로 흐르지 않았던 물 — 특정 조건에서만 마실 수 있다.
+detail: >
+  같은 성질(선택되지 않은 것을 품는다)의 물 형태다 — 조건이 곧 관문이라는 것이
+  이 자원의 성격이다.
+world_shape: >
+  조건을 만족한 몸에게만 물로 성립해야 한다 — 아니면 아무것도 아니다.
+origin_trace:
+  world_state: [MW-TERRAIN-UNHAPPENED-DESERT]
+  property:    [IP-UNCHOSEN-BEARING]
+  human_value: >
+    물이 없는 자리의 물 — 조건을 아는 사람만의 보급.
+grants_note: >
+  없음 — 조건의 형태가 그 지형의 Cycle 소유다.

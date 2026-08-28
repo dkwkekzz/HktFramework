@@ -1,0 +1,28 @@
+# 원본 근거: RC §14.10 (BW §6 "엄청난 에너지를 저장하는 기관") — 이 카탈로그에서
+# 가장 많은 결손을 건드리는 계통이다 (MC-CP-ECONOMY · MC-ATTACK-POWER · MP-OUTGROW 의 자원 칸).
+id: IP-ENERGY-DENSE
+type: item_property
+
+semantic: >
+  자기 크기에 비해 큰 힘을 담아 둔다.
+detail: >
+  계속 내는 것이 아니라 모아 두었다 꺼낸다. 기력이 스스로 돌아오지 않는 세계에서
+  그것을 되찾는 첫 경로가 이 성질에서 나온다 — MC-CP-ECONOMY 의 PARTIAL 사유
+  ("회복 경로가 타격 성공 하나뿐이다")를 세계 안의 경로로 채운다.
+world_shape: >
+  꺼내 쓰면 줄고, 스스로 차지 않아야 한다 — 담아 둔 것이지 샘이 아니다.
+
+origin_trace:
+  world_state: [MW-ZONE-DEEP]
+  pressure: >
+    한 번의 교전이 길고, 힘이 떨어진 쪽이 곧 먹이가 된다. (BW §24 층의 사정 · BW §6)
+  why_it_remains: >
+    쓰는 대로 내던 것은 먼저 바닥나 먹혔고, 담아 두는 기관을 기른 것이 잔존했다.
+  human_value: >
+    기력이 스스로 돌아오지 않는 세계에서 그것을 되찾는 첫 경로.
+
+grants_note: >
+  여는 Capability 없음 — MC-CP-ECONOMY 는 이미 있는 노드이고, 이 계통은 능력을
+  주는 것이 아니라 그 노드의 결손을 세계 안의 경로로 채운다. 능력치 증분은 이
+  문서가 갖지 않는다 (Cycle 소유). MC-ATTACK-POWER 를 채우려면 장착 Cycle 이
+  먼저 서야 한다. (RC §14.10)

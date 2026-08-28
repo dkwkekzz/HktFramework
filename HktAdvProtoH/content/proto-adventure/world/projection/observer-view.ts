@@ -671,6 +671,10 @@ export function projectObserverView(
         radius: zone.radius,
       })),
       self: projectGroundSelf(state, self),
+      // C-TERRAIN-003 — 이 세계가 어느 씨앗에서 태어났는가. designer/디버그 관찰이다 —
+      // 플레이어에게 씨앗은 세계 밖의 사실이고, 표시하는 화면은 디버그 패널뿐이다
+      // (04 의 debug.genesisSeed — debug 봉투는 engine 소유라 땅 도메인에 싣는다).
+      genesisSeed: state.genesisSeed,
     },
     // C-COMBAT-001 — 고를 수 있는 배분 전부. 소지품·적용 자리와 나란한 세 번째 목록이며
     // 내 몸의 것만 실린다 (INTENT-PER-OBSERVER-PROJECTION-001).

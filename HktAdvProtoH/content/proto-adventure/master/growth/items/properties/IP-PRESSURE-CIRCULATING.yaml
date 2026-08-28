@@ -1,0 +1,18 @@
+# 원본 근거: BT §9.4 (맥동정 — "체내에서 세계압을 순환시키는 결정")
+id: IP-PRESSURE-CIRCULATING
+type: item_property
+semantic: >
+  세계압을 몸 안에 담아 순환시킨다.
+detail: >
+  왕골(IP-PRESSURE-BUFFERING — 흡수해 완충)과 다르다 — 이쪽은 죽이지 않고 **돌린다**.
+  암반이 생명이 된 것이 걷는 대륙이고, 그 순환의 심장이 이 결정이다 (BT §9.1).
+world_shape: >
+  이것이 박힌 것 안에서 세계압이 머물지 않고 돌아야 한다.
+origin_trace:
+  world_state: [MW-TERRAIN-WALKING-CONTINENTS]
+  pressure: >
+    세계압을 흡수한 암반이 생명과 물질의 경계를 넘었다. (BT §9.1)
+  why_it_remains: >
+    순환시키지 못한 몸은 대지형이 되지 못했다 — 순환하는 결정이 그 경계의 증거다.
+  human_value: >
+    고급 장치의 심장 — 세계압을 다루는 물건의 핵심 재료.

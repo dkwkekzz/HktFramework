@@ -32,7 +32,7 @@ import { describe, expect, it } from 'vitest';
 import type { GameViewSnapshot } from '../../protocol/gameview';
 import { spawnActor } from '../semantic/spawn';
 import type { ActorState } from '../semantic/actor';
-import { GROUND_ZONES, WARMTH_MAX, type WorldState } from '../semantic/world-state';
+import { WARMTH_MAX, type WorldState } from '../semantic/world-state';
 import { GROUND_LAWS, type GroundZone } from '../semantic/terrain';
 import { ruleGroundLawApply } from '../simulation/ground-law-apply';
 import { ruleGroundVent } from '../simulation/ground-vent';
@@ -65,7 +65,6 @@ function stateOf(actors: ActorState[], zones: GroundZone[]): WorldState {
 
 const player = (v: GameViewSnapshot) => v.entities.find((e) => e.id === PLAYER);
 const hud = (v: GameViewSnapshot, id: string) => v.hud.find((h) => h.id === id)?.value;
-const zoneOf = (v: GameViewSnapshot, id: string) => v.ground.zones.find((z) => z.id === id)!;
 
 // ══ C-TERRAIN-001 회귀 — 그 Cycle 이 세운 것이 그대로 참인가 ═══════════
 
@@ -420,45 +419,96 @@ describe('INTENT-VENTING-SPENDS-WHAT-WAS-KEPT-001 — 다 쓰면 닫히고 도�
   });
 });
 
-// ══ 세계에 놓인 것 — 초기 배치 ═════════════════════════════════════════
+// ══ 태어난 세계 — C-TERRAIN-003 부터 초기 배치는 씨앗의 함수다 ═══════════
+//
+// 좌표·id 를 숫자로 박지 않고 태어난 세계에서 **읽어** 자리를 정한다 — 박으면 기본
+// 씨앗이 바뀔 때 검사가 세계 대신 숫자를 지키게 된다. 태어남 자체의 규칙(결정론 ·
+// 조용한 자리 · 군집 · 해숨구멍)은 world-genesis.spec.ts 가 검사한다.
 
-describe('세계에 놓인 것 — 맥 넷', () => {
-  it('넷이 놓이고 하나가 이미 뿜는 중이다 — 오늘의 해숨구멍', () => {
-    expect(GROUND_ZONES).toHaveLength(4);
-    const venting = GROUND_ZONES.filter((z) => z.phase === 'venting');
+type ZoneView = GameViewSnapshot['ground']['zones'][number];
+
+const dist = (a: { x: number; z: number }, b: { x: number; z: number }) =>
+  Math.hypot(a.x - b.x, a.z - b.z);
+
+const bornZones = (v: GameViewSnapshot) => v.ground.zones;
+const ventingOf = (zones: ZoneView[]) => zones.find((z) => z.phase === 'venting')!;
+
+/**
+ * 거두는 자리 안이면서 뿜는 자리 밖인 점 — "taking" 을 겪는 자리.
+ * 뿜는 맥에서 가장 먼 거두는 맥의 중심에서, 뿜는 맥 반대쪽으로 2.0 물러난다:
+ * 그 맥 안(반경 5)이면서 뿜는 맥 밖(거리 ≥ 7 > 5)이다.
+ */
+function takingSpot(zones: ZoneView[]): { x: number; z: number } {
+  const venting = ventingOf(zones);
+  const binding = zones
+    .filter((z) => z.phase === 'binding')
+    .sort((a, b) => dist(b.center, venting.center) - dist(a.center, venting.center))[0]!;
+  const away = {
+    x: binding.center.x - venting.center.x,
+    z: binding.center.z - venting.center.z,
+  };
+  const len = Math.hypot(away.x, away.z);
+  return {
+    x: binding.center.x + (away.x / len) * 2.0,
+    z: binding.center.z + (away.z / len) * 2.0,
+  };
+}
+
+/** takingSpot 이 물러난 그 거두는 맥 — 거기 서면 이 맥이 받는다 (중심이 가장 가깝다) */
+function takingZoneId(zones: ZoneView[]): string {
+  const venting = ventingOf(zones);
+  return zones
+    .filter((z) => z.phase === 'binding')
+    .sort((a, b) => dist(b.center, venting.center) - dist(a.center, venting.center))[0]!.id;
+}
+
+describe('세계에 놓인 것 — 태어난 맥들 (RULE-WORLD-GENESIS-001)', () => {
+  it('맥 넷이 태어나고 하나가 이미 뿜는 중이다 — 오늘의 해숨구멍', () => {
+    const zones = bornZones(driveWorld({ npcs: [] }).observe());
+
+    expect(zones).toHaveLength(4);
+    const venting = zones.filter((z) => z.phase === 'venting');
     expect(venting).toHaveLength(1);
-    expect(venting[0].id).toBe('zone-vein-1');
+    expect(venting[0]!.fill).toBe(1); // 포화가 해숨구멍의 원인이다 (BT §5.3)
   });
 
-  it('예외를 놓을 형이 없다 — 어떤 자리도 role 을 지니지 않는다', () => {
-    for (const zone of GROUND_ZONES) expect(Object.keys(zone)).not.toContain('role');
+  it('예외를 놓을 형이 없다 — 자리의 항목은 여섯뿐이고 role 이 없다', () => {
+    for (const zone of bornZones(driveWorld({ npcs: [] }).observe())) {
+      expect(Object.keys(zone).sort()).toEqual(['center', 'fill', 'id', 'law', 'phase', 'radius']);
+    }
   });
 
-  it('시작할 때 이미 차 있다 — 광맥은 수천 년 결속해 왔다 (BT §5.1)', () => {
-    for (const zone of GROUND_ZONES) expect(zone.kept).toBeGreaterThan(0);
+  it('찬 정도는 전부 계산된 과거다 — 0..1 사이이고 가장 찬 것이 뿜는다', () => {
+    // 손배치 시절의 "전부 kept > 0" 은 표본에서 보장되지 않는다 — 보장되는 것은
+    // 범위와 "가장 찬 맥이 뿜으며 태어난다" 다 (03 Transition ③).
+    const zones = bornZones(driveWorld({ npcs: [] }).observe());
+    for (const zone of zones) {
+      expect(zone.fill).toBeGreaterThanOrEqual(0);
+      expect(zone.fill).toBeLessThanOrEqual(1);
+    }
+    const fills = zones.map((z) => z.fill);
+    expect(ventingOf(zones).fill).toBe(Math.max(...fills));
   });
 
-  it('빙원은 시작 자리·광맥·순회 경로 어디와도 닿지 않는다 — 회귀', () => {
+  it('맥은 시작 자리·광맥·순회 경로 어디와도 닿지 않는다 — QUIET_GROUND', () => {
+    // INTENT-THE-STAGE-IS-NOT-ALL-VEIN-001 — 씨앗이 무엇이든 규칙이 보장한다.
+    // 기본 배치의 조용한 자리들 (index.ts 가 실제 배치에서 계산하는 그 목록의 점들).
     const away = [
       { x: 0, z: 0 }, { x: 3, z: 2 }, { x: -3, z: 2 }, { x: 3, z: -2 }, { x: -3, z: -2 }, // SPAWN
       { x: 8, z: -6 }, // 광맥
       { x: -10, z: -8 }, { x: -13, z: -8 }, { x: -7, z: -8 }, { x: -10, z: -12 }, // npc-1
       { x: 12, z: 8 }, { x: 4, z: 12 }, // npc-2
     ];
+    const zones = bornZones(driveWorld({}).observe());
     for (const p of away) {
-      for (const zone of GROUND_ZONES) {
-        const d = Math.hypot(zone.center.x - p.x, zone.center.z - p.z);
-        expect(d).toBeGreaterThan(zone.radius);
-      }
+      for (const zone of zones) expect(dist(zone.center, p)).toBeGreaterThan(zone.radius);
     }
   });
 });
 
 // ══ 관찰 ═══════════════════════════════════════════════════════════════
 
-const OUTSIDE = { x: 0, z: 0 }; // 원점 — 어느 맥에도 들지 않는다
-const IN_BINDING = { x: -6, z: 6 }; // zone-vein-4 안 (거두는 중), 다른 맥 밖
-const IN_VENTING = { x: -15, z: 15 }; // zone-vein-1 안 (뿜는 중), 다른 맥 밖
+const OUTSIDE = { x: 0, z: 0 }; // 원점 — 시작 자리라 어느 맥에도 들지 않는 것이 보장된다
 
 describe('INTENT-WHAT-A-PLACE-HOLDS-IS-OBSERVED-001 — 자리가 지닌 것이 실린다', () => {
   it('자리마다 지금 어느 단계이고 얼마나 찼는지가 실린다', () => {
@@ -466,33 +516,31 @@ describe('INTENT-WHAT-A-PLACE-HOLDS-IS-OBSERVED-001 — 자리가 지닌 것이 
     const zones = world.observe().ground.zones;
 
     expect(zones).toHaveLength(4);
-    expect(zones[0]).toEqual({
-      id: 'zone-vein-1',
-      law: 'heat-binding',
-      phase: 'venting',
-      fill: 1, // 60 / 60
-      center: { x: -13.5, z: 13.5 },
-      radius: 5,
-    });
-    expect(zoneOf(world.observe(), 'zone-vein-4').fill).toBeCloseTo(0.5, 6); // 30 / 60
+    for (const zone of zones) {
+      expect(zone.law).toBe('heat-binding');
+      expect(['binding', 'venting']).toContain(zone.phase);
+      expect(zone.radius).toBe(5);
+    }
   });
 
   it('날값도 넘침 지점도 실리지 않는다 — 화면이 넘침을 스스로 판정할 수 없다', () => {
     const world = driveWorld({ npcs: [] });
-    const zone = zoneOf(world.observe(), 'zone-vein-2') as Record<string, unknown>;
+    const zone = world.observe().ground.zones[0] as unknown as Record<string, unknown>;
 
     expect(zone.kept).toBeUndefined();
     expect(zone.saturation).toBeUndefined();
-    expect(zone.fill).toBeCloseTo(0.75, 6); // 45 / 60 — 비율만 온다
+    expect(typeof zone.fill).toBe('number'); // 비율만 온다
   });
 
   it('차오르는 것이 관찰로 보인다 — 넘침이 원인 없는 사건이 되지 않는다', () => {
-    const world = driveWorld({ npcs: [], actorPosition: IN_BINDING });
-    const before = zoneOf(world.observe(), 'zone-vein-4').fill;
+    const zones0 = bornZones(driveWorld({ npcs: [] }).observe());
+    const world = driveWorld({ npcs: [], actorPosition: takingSpot(zones0) });
+    const id = takingZoneId(zones0);
+    const before = world.observe().ground.zones.find((z) => z.id === id)!.fill;
 
     world.tick(2.0);
 
-    expect(zoneOf(world.observe(), 'zone-vein-4').fill).toBeGreaterThan(before);
+    expect(world.observe().ground.zones.find((z) => z.id === id)!.fill).toBeGreaterThan(before);
   });
 });
 
@@ -503,14 +551,16 @@ describe('INTENT-GROUND-LAW-IS-OBSERVED-001 — 지금 걸린 법칙이 실린�
   });
 
   it('거두는 맥 안 — taking 과 그 사유가 함께 온다', () => {
-    const world = driveWorld({ npcs: [], actorPosition: IN_BINDING });
+    const zones0 = bornZones(driveWorld({ npcs: [] }).observe());
+    const world = driveWorld({ npcs: [], actorPosition: takingSpot(zones0) });
     expect(world.observe().ground.self).toEqual({
       law: 'heat-binding', state: 'taking', takes: 'warmth',
     });
   });
 
   it('뿜는 맥 안에서 가득하면 sheltered — none 과 구분된다', () => {
-    const world = driveWorld({ npcs: [], actorPosition: IN_VENTING });
+    const zones0 = bornZones(driveWorld({ npcs: [] }).observe());
+    const world = driveWorld({ npcs: [], actorPosition: ventingOf(zones0).center });
     const self = world.observe().ground.self;
 
     expect(self).toEqual({ law: 'heat-binding', state: 'sheltered', takes: 'warmth' });
@@ -519,16 +569,17 @@ describe('INTENT-GROUND-LAW-IS-OBSERVED-001 — 지금 걸린 법칙이 실린�
 
   it('뿜는 맥 안에서 받는 중이면 warming — sheltered 와 구분된다', () => {
     // 이것이 갈리지 않으면 플레이어는 자기 열이 왜 늘었는지 알 수 없다.
-    const world = driveWorld({ npcs: [], actorPosition: IN_BINDING });
+    const zones0 = bornZones(driveWorld({ npcs: [] }).observe());
+    const world = driveWorld({ npcs: [], actorPosition: takingSpot(zones0) });
     world.tick(3.0); // 열을 좀 잃는다
     expect(hud(world.observe(), 'self.warmth')).toBeLessThan(WARMTH_MAX);
 
-    world.dispatch({ interactionId: 'move', position: IN_VENTING });
+    world.dispatch({ interactionId: 'move', position: ventingOf(zones0).center });
 
     // 걸어 들어가면 **받는 중**이 먼저 온다. 다 채우고 나면 sheltered 로 바뀌므로
     // (가득한 몸은 분출구를 소모하지 않는다) 그 사이를 잡는다.
     const seen: string[] = [];
-    for (let i = 0; i < 60; i++) {
+    for (let i = 0; i < 120; i++) {
       world.tick(0.1);
       seen.push(world.observe().ground.self.state);
     }
@@ -551,33 +602,54 @@ describe('INTENT-GROUND-LAW-IS-OBSERVED-001 — 지금 걸린 법칙이 실린�
 
 describe('Cycle Goal — 어디에 서 있었는가가 어디가 안전한지를 바꾼다', () => {
   it('머물면 발밑의 땅이 넘쳐 분출구가 되고, 그 사이 열려 있던 자리는 닫힌다', () => {
-    const world = driveWorld({ npcs: [], actorPosition: IN_BINDING });
+    const zones0 = bornZones(driveWorld({ npcs: [] }).observe());
+    const spot = takingSpot(zones0);
+    const bornVenting = ventingOf(zones0).id;
+    const underfoot = takingZoneId(zones0);
+    const world = driveWorld({ npcs: [], actorPosition: spot });
 
-    // 처음 — 발밑은 거두는 중이고, 저쪽 맥이 열려 있다
-    expect(zoneOf(world.observe(), 'zone-vein-4').phase).toBe('binding');
-    expect(zoneOf(world.observe(), 'zone-vein-1').phase).toBe('venting');
     expect(world.observe().ground.self.state).toBe('taking');
 
-    // 머문다 — 요청은 걷기 하나뿐이고 그마저 하지 않는다
-    for (let i = 0; i < 90; i++) world.tick(0.1);
+    // 머문다 — 요청은 걷기 하나뿐이고 그마저 하지 않는다. 발밑이 얼마나 차 있었든
+    // 몸이 지닌 100 으로 넘침 지점(60)까지 채울 수 있다 (최대 15초).
+    let vented = false;
+    for (let i = 0; i < 200 && !vented; i++) {
+      world.tick(0.1);
+      vented = world.observe().ground.zones.find((z) => z.id === underfoot)!.phase === 'venting';
+    }
 
     // 발밑이 열렸다 — 내가 준 열이 그 자리에 쌓여 넘쳤다
-    expect(zoneOf(world.observe(), 'zone-vein-4').phase).toBe('venting');
+    expect(vented).toBe(true);
     expect(world.observe().ground.self.state).toBe('warming');
     expect(hud(world.observe(), 'self.warmth')).toBeLessThan(WARMTH_MAX);
 
-    // 그 사이 저쪽은 흩어져 닫혔다 — 어제 쉬어 간 자리가 오늘은 닫혀 있다
-    for (let i = 0; i < 400; i++) world.tick(0.1);
-    expect(zoneOf(world.observe(), 'zone-vein-1').phase).toBe('binding');
+    // 그 사이 태어날 때 열려 있던 자리는 흩어져 닫힌다 — 어제 쉬어 간 자리가
+    // 오늘은 닫혀 있다 (아무도 받지 않으면 40초)
+    for (let i = 0; i < 450; i++) world.tick(0.1);
+    expect(world.observe().ground.zones.find((z) => z.id === bornVenting)!.phase).toBe('binding');
   });
 
   it('가로지르는 것으로는 열리지 않는다 — 머무는 것과 지나는 것이 갈린다', () => {
-    const world = driveWorld({ npcs: [], actorPosition: { x: -4, z: 4 } });
+    // 덜 찬 맥(fill ≤ 0.6 — 기본 씨앗의 세계에 존재함을 world-genesis.spec 이 지킨다)을
+    // 곧장 가로지른다. 지나는 동안 치르는 열(≈7)로는 넘침 지점에 닿지 않는다.
+    const zones0 = bornZones(driveWorld({ npcs: [] }).observe());
+    const venting = ventingOf(zones0);
+    const target = zones0
+      .filter((z) => z.phase === 'binding' && z.fill <= 0.6 && dist(z.center, venting.center) >= 7)
+      [0]!;
+    const away = {
+      x: (target.center.x - venting.center.x), z: (target.center.z - venting.center.z),
+    };
+    const len = Math.hypot(away.x, away.z);
+    const u = { x: away.x / len, z: away.z / len };
+    const from = { x: target.center.x + u.x * 6.0, z: target.center.z + u.z * 6.0 }; // 맥 밖
+    const to = { x: target.center.x - u.x * 6.0, z: target.center.z - u.z * 6.0 }; // 반대편 밖
 
-    world.dispatch({ interactionId: 'move', position: { x: -6, z: 6 } });
-    for (let i = 0; i < 10; i++) world.tick(0.1);
+    const world = driveWorld({ npcs: [], actorPosition: from });
+    world.dispatch({ interactionId: 'move', position: to });
+    for (let i = 0; i < 40; i++) world.tick(0.1);
 
-    expect(zoneOf(world.observe(), 'zone-vein-4').phase).toBe('binding');
+    expect(world.observe().ground.zones.find((z) => z.id === target.id)!.phase).toBe('binding');
   });
 
   it('원점에서 시작하는 기존 플레이는 땅에 닿지 않는다 — 회귀', () => {

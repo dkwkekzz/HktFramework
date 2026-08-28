@@ -1,0 +1,18 @@
+# 원본 근거: BT §5.5 (백야수의 털)
+id: IT-WHITENIGHT-FUR
+type: item_type
+semantic: >
+  주변 열이 빠져나가는 방향을 바꾸는 특수 섬유 — 백야수의 털. 장착형 재료.
+detail: >
+  해숨구멍 사이의 따뜻한 길을 기억하는 털짐승(BT §5.4)의 외피다. 거두는 법칙
+  자체를 멈추지 않고 방향만 튼다 — 법칙 위에서 사는 방식이 굳은 것.
+world_shape: >
+  같은 자리에서 이것을 두른 몸의 열이 덜 빠져나가야 한다.
+origin_trace:
+  world_state: [MW-TERRAIN-SUNEATER-ICEFIELD]
+  property:    [IP-HEAT-REDIRECTING]
+  human_value: >
+    거두는 땅 위에서 버티는 시간을 산다.
+grants_note: >
+  없음 — 거둠의 속도를 바꾸는 항은 Cycle 소유의 수치이고, 요구하는 Possibility 가
+  서면 장착 기여로 잇는다.

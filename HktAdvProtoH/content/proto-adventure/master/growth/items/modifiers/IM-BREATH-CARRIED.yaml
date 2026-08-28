@@ -1,0 +1,13 @@
+# 원본 근거: BT §7.5 · §12 (숨결진주 — "무호흡해, 빙하 내부, 거대 생물 체내 탐험").
+# grants 는 기존 Capability 다 — MC-CARRY-LIFE-SUPPORT (무호흡해 §7.7 "숨결 자원 분배").
+# 같은 MC 를 IM-WARMTH-CARRIED 와 나눠 잇는 것은 복제가 아니다 — 능력은 하나이고
+# 지니는 것(열 · 숨)이 다르다. 무엇이 필요한지는 그 땅의 법칙이 정한다.
+id: IM-BREATH-CARRIED
+type: item_modifier
+semantic: >
+  숨결진주를 지니고 나르는 형태 — 그 땅에 없는 숨을 몸 밖에서 가져간다.
+detail: >
+  호흡 가능한 공간을 찾아 만들고 운반하는 것 (BT §7.7 의 핵심 경험) 이 물건의
+  형태로 굳은 것이다.
+requires: [IP-AIR-STORING]
+grants:   [MC-CARRY-LIFE-SUPPORT]

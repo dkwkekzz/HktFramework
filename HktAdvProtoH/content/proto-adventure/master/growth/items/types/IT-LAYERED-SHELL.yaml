@@ -1,0 +1,21 @@
+# 원본 근거: RC §14.3 (BW §22 "특수 갑각")
+id: IT-LAYERED-SHELL
+type: item_type
+
+semantic: >
+  겹으로 파고드는 것을 붙잡는 갑각을 덧댄 방어구 재료. 장착형.
+detail: >
+  방어의 **형태**는 이미 세계에 있다 (C012 의 방어 종류 · C013 의 관통) — 이것은
+  새 능력이 아니라 그 형태 중 하나를 실제로 지닌 첫 재료다. (RC §14.3)
+world_shape: >
+  관통형 공격 앞에서 이것을 덧댄 쪽만 결과가 달라야 한다.
+
+origin_trace:
+  world_state: [MW-ZONE-WILD]
+  property:    [IP-PENETRATION-RESISTANT]
+  human_value: >
+    관통에 대응하는 유일한 형태의 방어구 재료.
+
+grants_note: >
+  없음 — 방어의 형태는 이미 세계에 있다 (C012 · C013). 새 능력이 아니라 그 형태를
+  지닌 첫 재료다. (RC §14.3)

@@ -2,6 +2,67 @@
 
 ## 후보
 
+### FR-THE-WORLD-IS-BORN-OF-ITS-LAW — 세계가 법칙에서 태어난다
+    이것이 무엇인가      무대의 자리들이 손으로 놓인 상수가 아니라, 세계를 만들 때
+                         원리(세계압이 매질에 결속된 분포)로부터 유도된다 — BT §1 사슬
+                         "World Principle → 대륙 규모의 변화 → 산맥·수계·대기·생태 형성"
+                         의 위 고리들이 세계 생성의 실제 원리가 된다
+    세계에 생기는 것      ① 세계가 만들어질 때 에너지(세계압)의 분포가 먼저 있고, 자리의
+                         위치·범위·처음 지닌 것이 전부 그 분포의 결과다
+                         ② "왜 여기에 이 자리가 있는가" 에 세계가 답한다 — 어떤 자리도
+                         원인 없이 놓이지 않는다
+                         ③ 같은 씨앗이면 같은 세계, 다른 씨앗이면 다른 세계 — 그러나
+                         어느 세계든 같은 법칙으로 설명된다 (결정론)
+                         ④ 그 분포가 화면에서 구분되어 보인다 — 자리의 경계선이 아니라
+                         땅의 생김새로
+    이 기능이 아닌 것     예고가 아니다 — 이것은 "이미 있는 것이 어디서 왔는가" 이지
+                         "다음에 무엇이 오는가"(FR-THE-LAND-SHOWS-BEFORE-IT-TAKES)가
+                         아니다 · 여덟 대지형이 아니다 — 법칙은 여전히 하나로 생성
+                         원리가 서는지만 본다 · 산맥·수계의 지오메트리가 아니다 —
+                         무대는 평면이고 생김새는 자리의 분포·성질까지다 · 사슬의 아래
+                         고리(적응·자원·사람)가 아니다 — 각자의 근거 문서 승인이 먼저다
+                         (지금 열 수 없는 것) · 돌기 시작한 뒤 자리가 생기고 사라지는
+                         것이 아니다 — 그 시간은 순환(C-TERRAIN-002)이 이미 소유한다.
+                         이 후보는 시작점 자체를 법칙의 결과로 만든다
+    이미 있는 것         **코드 대조.** 씨앗 하나에서 결정론적으로 갈라지는 형태 (C015 ·
+                         `world/semantic/world-state.ts` ChanceSeed — "세계가 만들어질 때
+                         정해지고 어떤 규칙도 바꾸지 않는다") · 자리·법칙·순환 전부
+                         (C-TERRAIN-001·002 — `GroundZone` · `GROUND_LAWS` · 넘침과 뿜음) ·
+                         자리가 상수가 아니라 State 로 선 자리 (`world-state.ts`
+                         GroundZones 주석이 "예외가 사라질 수 있다는 것이 원칙" 으로
+                         이 미래를 예약해 두었다) · 초기 배치가 이미 "시작할 때 도는 중"
+                         인 것 (GROUND_ZONES — kept 가 0 이 아닌 이유가 "수천 년 결속해
+                         왔으므로" 다. 이 후보는 그 수천 년을 손 대신 법칙이 계산하게 한다)
+    Playable Result      Player 가 들어가는 세계의 땅이 만들어진 것이 아니라 태어난 것이
+                         된다 — 씨앗이 다르면 다른 땅을 만나고, 어느 땅에서든 자리의
+                         배치가 법칙의 결과로 읽힌다
+    Source Goal          MG-EXPLORE-BEIRA
+    Source Possibility   MP-LEARN-TO-HANDLE-THE-LAYER
+    Missing / Partial    **MW-SHAPED-LANDFORM (ABSENT)** — 이 후보가 여는 노드
+                         ("자리의 경계는 원으로 그려진 범위이지 순환이 빚은 생김새가
+                         아니다"). 함께 움직이는 것: MW-WORLD-PRESSURE (ABSENT —
+                         implemented_note 의 "표현될 자리가 없다" 의 그 자리가 바로
+                         이 분포다)
+    Active Constraints   DC-WORLD-TERRAIN-IS-A-PRINCIPLE ·
+                         DC-WORLD-SAFETY-IS-A-NATURAL-EXCEPTION ·
+                         DC-WORLD-OWNS-THE-SURFACE-LIST · DC-WORLD-TERRAIN-LAW-IS-OBSERVABLE
+    Constraint Eval      IS-A-PRINCIPLE: SATISFIED — 생성이 테마("빙원이니까 이렇게
+                         생겼다")가 아니라 조건과 결과의 반복이 남긴 것이 된다
+                         SAFETY-IS-A-NATURAL-EXCEPTION: SATISFIED — 시작 배치조차 손이
+                         놓지 않는다. 손배치가 남긴 마지막 자리가 사라진다
+                         OWNS-THE-SURFACE-LIST: UNRESOLVED — 무엇이 실리는가는 04 가 정한다
+                         LAW-IS-OBSERVABLE: UNRESOLVED — 생김새 관찰의 범위는 03·04 가 정한다
+    Observable Result    씨앗이 다른 두 세계의 자리 배치가 다르고, 각 배치가 법칙의
+                         분포로 설명되며, 그 분포가 화면에서 읽힌다
+    Why one Cycle        자리·법칙·순환·씨앗이 전부 서 있다. 새로 서는 것은 **놓는 손을
+                         법칙으로 바꾸는 것** 하나다 — 배치를 낳는 원리가 서면 나머지
+                         (순환·관찰)는 이미 있는 것이 받는다
+    의존                 없음 — C-TERRAIN-001·002 로 닫혔다. 예고와는 직교한다 — 그쪽은
+                         도는 세계의 다음 작용을, 이쪽은 세계의 시작을 소유한다.
+                         **사슬의 아래 고리 셋(적응·자원·사람)이 이 후보를 전제한다** —
+                         태어난 땅이 있어야 적응이 남고 자원이 굳는다
+    Status               SELECTED
+
 ### FR-THE-LAND-SHOWS-BEFORE-IT-TAKES — 땅이 거두기 전에 보인다
     이것이 무엇인가      법칙이 작용하기 전에 그 자리에 증거가 먼저 드러나고, 그것을 읽은
                          사람은 겪지 않는다
@@ -180,42 +241,43 @@
 
 ## 추천 순서
 
-    1. FR-THE-LAND-SHOWS-BEFORE-IT-TAKES    **순서 경고가 이 자리를 가리켰고 그 앞이
-                                            닫혔다.** C-TERRAIN-002 의 순서 경고가
-                                            "이쪽(순환)을 먼저, 예고를 바로 다음에" 라고
-                                            적었다. 그리고 지금 상태는 **불공정하다** —
-                                            안전한 자리가 옮겨 다니는데 읽을 방법이 없다.
-                                            그것이 깊이가 아니라 불공정이라는 것이
-                                            그 경고의 본문이었다
-    2. FR-WHAT-KEEPS-YOU-ALIVE-IS-CARRIED   대지형 Capability 표의 첫 칸을 채운다.
-                                            둘 중 크고, 아이템 쪽 파일과 닿는다.
-                                            **채울 자리가 이제 진짜로 있다** — 분출구가
-                                            생겨나고 사라지므로 "언제 어디서 채우는가" 가
-                                            판단이 된다
-
-    3. FR-LOSING-IS-A-PROCESS               **Q71(b) 확장으로 새로 열렸다.** 넷 중
+    1. FR-THE-WORLD-IS-BORN-OF-ITS-LAW      **Human 이 순서의 근거를 바꿨다** — BT §1 의
+                                            생성 사슬(World Principle → 대륙 규모의 변화 →
+                                            생김새 → 적응 → 자원 → 사람 → 탐험 경험)이
+                                            가장 먼저 설립된다. 발현(열)의 다음 칸을 채우기
+                                            전에 세계를 낳는 원리가 서야 한다
+    2. FR-THE-LAND-SHOWS-BEFORE-IT-TAKES    부채(불공정 — 안전한 자리가 옮겨 다니는데
+                                            읽을 방법이 없다)는 그대로 남아 있다.
+                                            생성이 선 다음의 첫 후보다
+    3. FR-WHAT-KEEPS-YOU-ALIVE-IS-CARRIED   대지형 Capability 표의 첫 칸을 채운다.
+                                            아이템 쪽 파일과 닿는다 — 분출구가 생겨나고
+                                            사라지므로 "언제 어디서 채우는가" 가 판단이 된다
+    4. FR-LOSING-IS-A-PROCESS               **Q71(b) 확장으로 새로 열렸다.** 다섯 중
                                             유일하게 **다른 Goal** 을 연다 —
                                             MG-RESCUE-THE-TAKEN 은 갈래 셋을 가졌으나
                                             셋 다 "되돌릴 자리가 남아 있다" 를 전제하고,
                                             그 전제가 이 후보다. 의존이 없다
-    4. FR-THE-LAND-IS-ALIVE-AND-ANSWERS     같은 확장에서 열렸다. **읽을 것은 이제 있다** —
+    5. FR-THE-LAND-IS-ALIVE-AND-ANSWERS     같은 확장에서 열렸다. **읽을 것은 이제 있다** —
                                             C-TERRAIN-002 로 자리가 내부 상태를 쌓으므로
                                             이어졌을 때 읽을 거리가 생겼다
 
-    Agent 추천은 **1** 이다. 근거는 의존이 아니라 **지금 세계가 나빠져 있다**는 것이다 —
-    C-TERRAIN-002 가 예외를 움직이게 만들었고, 예고가 없으면 플레이어는 그 움직임을
-    겪기만 할 뿐 읽을 수 없다. 순서는 Human 이 정한다.
-
-    **다만 3 은 다른 축이다.** 1·2·4 가 전부 "땅이 무엇을 하는가" 라면 3 은 "존재가
+    **다만 4 는 다른 축이다.** 1·2·3·5 가 전부 "땅이 무엇을 하는가" 라면 4 는 "존재가
     어떻게 잃는가" 이고, 그것이 서면 갈래가 0 이던 Goal 하나가 통째로 열린다.
     지금 세계에서 존재는 멀쩡하거나 쓰러지거나 둘뿐이라는 것이 이 트랙 밖까지 걸리는
-    제약이므로, 순서를 고를 때 1 과 나란히 두고 볼 것을 권한다.
+    제약이므로, 생성(1)이 닫힌 뒤 예고(2)와 나란히 두고 볼 것을 권한다.
 
 ## SELECTED
 
 ```text
 없음 — Human 선택 대기
 ```
+
+    직전 선택 `FR-THE-WORLD-IS-BORN-OF-ITS-LAW` 는
+    `C-TERRAIN-003-the-world-is-born-of-its-law` 로 COMPLETE 되어 소비되었다
+    (Gate 14 는 Human 이 자동 증거를 받아들여 닫혔다 — 그 Cycle 의 08 STATUS).
+    MASTER FEEDBACK 반영은 미처리다 — 반영 전까지 이 파일의 추천 순서는
+    그 08 의 제안(예고 `FR-THE-LAND-SHOWS-BEFORE-IT-TAKES` 재추천)을 아직
+    모른 채로 서 있다.
 
     직전 반영 경위: [../feedback/C-TERRAIN-002-the-land-keeps-what-it-takes.md](../feedback/C-TERRAIN-002-the-land-keeps-what-it-takes.md)
 
@@ -229,5 +291,5 @@
 | 다른 표식을 빌린다 (MC-IMPERSONATE-IDENTITY) | 존재의 신원이라는 것이 세계에 없다 — 구분되는 것은 종류와 개체 번호뿐이다 |
 | 가능성 하나를 현실로 만든다 (MC-REALIZE-ONE-POSSIBILITY) | 세계에 가능성이라는 상태가 없다. 우연의 원천(DC-WORLD-OWNS-THE-CHANCE)과 맞닿아 크다 |
 | 생체 신호를 가린다 (MC-CONCEAL-BIOLOGICAL-SIGNAL) | 좇는 쪽의 판단이 필요하고, 그 반쪽을 소유한 MS-CREATURE-BEHAVIOR 가 DRAFT 다 |
-| 여덟 대지형의 자원 24종 | 자원 카탈로그 문서의 승인·주입이 그 자리를 받기로 정해졌다 (HISTORY Q50(a)) |
+| **생성 사슬의 아래 고리 — 적응 (MW-ADAPTED-LIFE) · 자원 (MW-TERRAIN-RESOURCE) · 사람 (MW-NATURAL-SETTLEMENT)** | BT §1 사슬의 ④⑤⑥ 이다 — FR-THE-WORLD-IS-BORN-OF-ITS-LAW 가 닫힌 뒤가 순서다. **자원의 Master 쪽은 열렸다** — RC 주입 + Q73~Q75 판정으로 BT 24종까지 growth/items 에 섰다 (HISTORY). 남은 열쇠는 적응·생명의 `Design-Creature-Behavior-R0.md` 승인과, 자원을 **세계에** 세우는 Cycle (MW-TERRAIN-RESOURCE 는 여전히 ABSENT — 유래가 선 것과 세계에 선 것은 다르다) |
 | **아래쪽을 스스로 정한다 · 날아가는 것의 방향을 튼다 · 없는 자리에 발판을 둔다** (MC-REDEFINE-DOWN · MC-REDIRECT-FALLING-THING · MC-PLACE-FOOTING) | **세계에 위아래가 없다.** `world/semantic/position.ts` 의 `WorldPosition` 은 `x` · `z` 뿐이고 떨어지는 일도 오르는 일도 규칙에 없다 — 셋 다 "아래쪽" 을 전제하므로 그 축이 서기 전에는 개념이 성립하지 않는다. 그리고 그 축을 세우는 일은 팩의 시스템이 아니라 **기반(engine/physics)** 에 걸리므로 Cycle 이 아니라 ENGINE 트랙 작업이다 (guides/works.md 의 WORLD → ENGINE 승격). 셋 다 `grounded: true` 이고 요구처(MW-TERRAIN-SKYFALL-RANGE · MW-TERRAIN-BREATHLESS-SEA)도 있으므로, 축이 서는 날 곧바로 후보가 된다. 발판 쪽은 장벽이 하나 더 있다 — 몸이 아닌 것이 세계의 자리를 갖는 일 (MS-SKILL-FORM 의 공간 존재 칸 · [combat.md](combat.md) 의 같은 절) |

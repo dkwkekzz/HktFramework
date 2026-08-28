@@ -1,0 +1,22 @@
+# 원본 근거: RC §14.1 · §14.2 · §19 — 문서가 이 조합의 ID 를 직접 명명했다.
+# grants 는 기존 Capability 다 — MC-RESTORE-BIOLOGICAL-STATE 는 MP-ADAPT-BY-RESOURCE 가
+# 이미 요구 중이던 노드이며, 이 조합이 그 첫 획득 경로다.
+id: IM-STATE-RESTORING
+type: item_modifier
+
+semantic: >
+  이전의 안정된 생체 상태를 유지하는 성질을 몸에 작용시키는 형태.
+detail: >
+  회귀초(IT-RETURN-HERB)와 회귀 기관(IT-REVERSION-ORGAN)이 이 한 조합을 공유한다 —
+  같은 의미는 출처가 달라도 한 노드다 (RC §20 P2 · DC-GROWTH-NO-CAPABILITY-DUPLICATION).
+  둘의 차이는 능력이 아니라 얻는 경로와 대가다.
+
+requires: [IP-STATE-PRESERVING]
+grants:   [MC-RESTORE-BIOLOGICAL-STATE]
+
+# 주의 (RC §23.3 — HISTORY Q75): Design-Item-Lifecycle-Progression-R0 §18 의
+# IM-BIOLOGICAL-RESTORATION 은 이 노드의 다른 이름일 가능성이 높다 — 판정 전까지
+# 그쪽 이름으로 새 IM 을 세우지 않는다.
+
+# 조합 공유 (Q74 · Q75 · P2): 회귀밀(IT-RETURN-HONEY — BT §11.5)이 셋째 출처로 더해졌다.
+# 회귀초 · 회귀 기관 · 회귀밀 — 능력은 하나, 경로와 대가가 셋이다.

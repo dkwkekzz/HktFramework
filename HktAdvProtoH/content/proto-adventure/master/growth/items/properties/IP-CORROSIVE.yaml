@@ -1,0 +1,24 @@
+# 원본 근거: RC §14.4 (BW §22 "독")
+id: IP-CORROSIVE
+type: item_property
+
+semantic: >
+  닿은 것의 구조를 시간에 걸쳐 무너뜨린다.
+detail: >
+  힘이 아니라 **시간**으로 이긴다 — 닿기만 하면 상대의 구조가 스스로 무너진다.
+  불식광(IP-UNREACTIVE)이 존재하는 이유가 이 성질이다 — 그 광물의 pressure 는
+  "독과 삭임이 만연해 반응하는 것은 다 사라졌다" 라고 이미 적혀 있다 (RC §14.4).
+  이 성질이 서면 기존 광물 하나의 유래가 세계 안에서 확인 가능해진다.
+world_shape: >
+  닿은 순간이 아니라 그 뒤의 시간에 결과가 온다. 즉시 큰 피해면 이 성질이 아니다.
+
+origin_trace:
+  world_state: [MW-ZONE-WILD]
+  pressure: >
+    정면으로 이길 수 없는 것들이 섞여 산다. 한 번에 끝내지 못하면 죽는 쪽이
+    자기다. (BW §22)
+  why_it_remains: >
+    정면의 힘으로 겨루던 것은 밀려났고, 시간에 걸쳐 무너뜨리는 쪽이 잔존했다.
+  human_value: >
+    정면 전투력이 앞서는 상대를 힘 아닌 것으로 뒤집는 수단 — MW-ZONE-FRINGE 의
+    world_shape 가 요구하는 바로 그 형태다.

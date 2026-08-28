@@ -1,0 +1,18 @@
+# 원본 근거: BT §8.5 (하늘물 — "가벼운 물질을 부유시키는 Property 를 얻은 물")
+id: IP-LEVITATING
+type: item_property
+semantic: >
+  가벼운 물질을 띄운다.
+detail: >
+  여러 방향의 세계압을 통과한 물이 얻은 성질이다 — 무엇이 아래인지가 여럿인 땅을
+  지나온 흔적이 곧 성질이 되었다.
+world_shape: >
+  이 물에 닿은 가벼운 것이 떠올라야 한다.
+origin_trace:
+  world_state: [MW-TERRAIN-SKYFALL-RANGE]
+  pressure: >
+    강이 하늘로 흐르고 호수가 매달리는 수직 순환이다. (BT §8.1)
+  why_it_remains: >
+    여러 방향의 결속을 다 지나고도 물로 남은 것이 이것뿐이다.
+  human_value: >
+    무게를 다루는 일 — 들 수 없는 것을 옮긴다.

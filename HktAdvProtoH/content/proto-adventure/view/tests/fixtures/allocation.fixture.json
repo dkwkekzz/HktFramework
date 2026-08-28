@@ -642,6 +642,7 @@
     "zones": [],
     "self": {
       "state": "none"
-    }
+    },
+    "genesisSeed": 1
   }
 }

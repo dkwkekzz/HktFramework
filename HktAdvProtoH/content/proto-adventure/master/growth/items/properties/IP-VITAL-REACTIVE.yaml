@@ -1,0 +1,18 @@
+# 원본 근거: BT §11.5 (혈화섬유 — "생체 상태에 반응해 스스로 조여지거나 풀리는 붉은 실")
+id: IP-VITAL-REACTIVE
+type: item_property
+semantic: >
+  생체 상태에 반응해 스스로 움직인다 — 조여지고, 풀린다.
+detail: >
+  꽃가루가 상처와 약한 생체 상태를 추적하는 숲의 법칙(BT §11.2)이 실 한 가닥에
+  굳은 것이다. 읽는 쪽이 아니라 **반응하는 쪽**이다 — 판단 없이 상태를 따른다.
+world_shape: >
+  같은 실이 상대의 생체 상태에 따라 다르게 움직여야 한다.
+origin_trace:
+  world_state: [MW-TERRAIN-BLOODBLOOM-FOREST]
+  pressure: >
+    약한 생체 상태를 추적하는 것이 숲의 번식이다. (BT §11.1 · §11.2)
+  why_it_remains: >
+    추적의 기관이 실의 형태로 남아 상태 반응성을 유지한다.
+  human_value: >
+    생체 상태를 다루는 장비 — 스스로 맞춰지는 것이 필요한 자리.

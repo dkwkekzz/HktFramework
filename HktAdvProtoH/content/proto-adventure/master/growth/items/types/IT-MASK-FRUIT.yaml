@@ -1,0 +1,16 @@
+# 원본 근거: BT §6.5 (가면열매)
+id: IT-MASK-FRUIT
+type: item_type
+semantic: >
+  특정 생물의 표식을 일시적으로 모방하는 열매. 쓰면 없어진다.
+detail: >
+  숲이나 생물에게 다른 존재로 인식될 수 있다 — 껍질도둑(BT §6.6)이 하는 일이
+  물건이 된 것이다.
+world_shape: >
+  쓴 동안 숲과 생물의 판정이 다른 존재를 향해야 한다.
+origin_trace:
+  world_state: [MW-TERRAIN-NAME-EATING-FOREST]
+  property:    [IP-MARK-MIMICKING]
+  human_value: >
+    임시 이름으로 숲을 통과하고, 다른 이름으로 문과 생물을 속인다. (BT §6.7)
+# 여는 Capability(MC-IMPERSONATE-IDENTITY — 수해의 demands)는 IM-MARK-BORROWED 가 잇는다.

@@ -1,0 +1,19 @@
+# 원본 근거: BT §5.1 · §5.5 (열결속 광맥 · 태양심)
+id: IP-HEAT-STORING
+type: item_property
+semantic: >
+  흡수한 열을 오래 보존하고, 깨지는 순간 한꺼번에 방출한다.
+detail: >
+  세계에 이미 선 열결속 법칙(heat-binding — C-TERRAIN-001·002)이 물질에 굳은
+  결과다 — 광맥이 결정 속에 결속한 열이 수십 년 보존된다 (BT §5.5). 거두는 법칙과
+  이 자원이 같은 원리라는 것이 "위험과 기적의 동일한 기원" (BT §2) 이다.
+world_shape: >
+  지니고 있으면 아무 일도 없고, 깨뜨린 자리에서만 열이 돌아와야 한다.
+origin_trace:
+  world_state: [MW-TERRAIN-SUNEATER-ICEFIELD]
+  pressure: >
+    대지가 살아 있는 모든 것으로부터 열을 거두어 간다. (BT §5.1)
+  why_it_remains: >
+    거둔 열이 사라지지 않고 결정에 결속되었다 — 순환의 굳은 몫이다.
+  human_value: >
+    무호흡해와 극한 심부에서 체온과 불꽃을 유지한다. (BT §12)

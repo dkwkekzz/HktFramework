@@ -1,0 +1,14 @@
+# 원본 근거: RC §14.11 · §19 — 문서는 grants 를 IT-MEMORY-CAST 에 직접 적었다.
+# 스키마상 grants 는 IM 소유이므로 이 노드가 그것을 나른다. grants 는 기존
+# Capability 다 — MC-VERIFY-REALITY 는 MW-ZONE-UNKNOWN 이 demands 로 요구 중이다.
+id: IM-FACT-ANCHORED
+type: item_modifier
+
+semantic: >
+  기억을 뜬 물질을 지니는 형태. 지닌 사람이 무엇이 있었는지를 대조할 기준을 갖는다.
+detail: >
+  IM-IDENTITY-ANCHORED(내가 무엇이었는지)와 지키는 대상이 다르다 — 이쪽은 무엇이
+  있었는지(사실)를 붙든다. 둘을 함께 지녀야 UNKNOWN 층이 온전히 감당된다. (RC §14.11)
+
+requires: [IP-MEMORY-BEARING]
+grants:   [MC-VERIFY-REALITY]

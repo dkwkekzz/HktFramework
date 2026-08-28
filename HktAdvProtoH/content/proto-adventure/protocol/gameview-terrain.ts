@@ -90,4 +90,14 @@ export interface GroundSelfView {
 export interface GroundView {
   zones: GroundZoneView[];
   self: GroundSelfView;
+  /**
+   * 이 세계가 어느 씨앗에서 태어났는가 (C-TERRAIN-003 ADDED).
+   *
+   * **designer/디버그 관찰이다** — 플레이어에게 씨앗은 세계 밖의 사실이고, 플레이어
+   * 표면은 이 값을 그리지 않는다 (04-gameview.spec.yaml — 표시하는 화면은 디버그
+   * 패널뿐이다). "같은 씨앗 → 같은 세계" 를 플레이로 검증하는 유일한 표면이다.
+   * 04 는 이 값의 자리를 debug 로 적었으나 debug 봉투는 engine 소유(편집 금지)라
+   * 땅 도메인이 싣는다 — 뜻은 같다 (06-world-implementation.md NOTES).
+   */
+  genesisSeed: number;
 }

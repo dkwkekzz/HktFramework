@@ -1,0 +1,17 @@
+# 원본 근거: BT §5.5 (무감빙)
+id: IT-NUMB-ICE
+type: item_type
+semantic: >
+  감각과 열을 함께 흡수한 얼음 — 고통을 멈추는 약재. 쓰면 없어진다.
+detail: >
+  과하게 쓰면 신체 감각을 잃는다 (BT §5.5) — 약과 대가가 한 물건이다.
+world_shape: >
+  고통이 멎는 것과 감각이 무뎌지는 것이 함께 관찰되어야 한다.
+origin_trace:
+  world_state: [MW-TERRAIN-SUNEATER-ICEFIELD]
+  property:    [IP-SENSE-NUMBING]
+  human_value: >
+    고통을 멈추는 약재 — 문명권 의술이 못 끄는 고통을 끈다.
+grants_note: >
+  없음 — 고통·감각이라는 상태가 세계에 아직 없다. 이름 붙은 조건의 자리
+  (MC-CONDITION-STACKING)가 받을 후보다.

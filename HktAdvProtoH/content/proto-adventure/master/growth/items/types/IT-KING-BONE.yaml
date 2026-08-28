@@ -1,0 +1,17 @@
+# 원본 근거: BT §4.4 (왕골) — Q74(a): BT 가 자연 자원 이름의 정본이다
+id: IT-KING-BONE
+type: item_type
+semantic: >
+  작은 세계압 변화를 흡수하는 골편 — 왕골. 재료.
+detail: >
+  백왕의 골격이 마모되어 남은 조각이다. 분지를 안전하게 만드는 그 완충이
+  손에 잡히는 크기로 쪼개진 것 — 도시가 아니라 유해가 허용한 안정 (BT §4.2).
+world_shape: >
+  이것으로 만든 것 주변에서만 급격한 세계압 변화가 완충되어야 한다.
+origin_trace:
+  world_state: [MW-TERRAIN-BAIWANG-BASIN]
+  property:    [IP-PRESSURE-BUFFERING]
+  human_value: >
+    장비 보관함 · 부적 · 성벽의 핵심 재료. (BT §4.4)
+grants_note: >
+  없음 — 어떤 Possibility 도 "변화를 완충한다" 를 아직 요구하지 않는다. 재료로 선다.

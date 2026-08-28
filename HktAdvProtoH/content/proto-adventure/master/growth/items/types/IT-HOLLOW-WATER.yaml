@@ -1,0 +1,18 @@
+# 원본 근거: BT §7.5 (천공수)
+id: IT-HOLLOW-WATER
+type: item_type
+semantic: >
+  다른 지형의 Property 를 거의 받아들이지 않는 순수한 물. 쓰면 없어진다.
+detail: >
+  공기 조수에 섞여 이동하며 아무것도 받아들이지 않은 물이다. 성질은 불식광·골수천과
+  같은 것을 공유한다 (P2) — 골수천이 몸을 안정시키는 쪽이라면 이쪽은 섞임 없는
+  바탕이다: 무엇을 녹이고 씻는 일의 기준액.
+world_shape: >
+  다른 Property 가 이 물에 옮지 않아야 한다.
+origin_trace:
+  world_state: [MW-TERRAIN-BREATHLESS-SEA]
+  property:    [IP-UNREACTIVE]
+  human_value: >
+    가공과 약품의 바탕 — 섞임이 없어야 하는 자리의 재료.
+grants_note: >
+  없음 — 제작·가공의 층(IS §6 Cycle 3)이 서면 재료로 쓰인다.

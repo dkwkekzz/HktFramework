@@ -1,0 +1,17 @@
+# 원본 근거: BT §9.4 (맥동정). RC §12 의 "압력진주" 는 이것의 옛 이름이다 (Q74(a))
+id: IT-PULSE-CRYSTAL
+type: item_type
+semantic: >
+  유랑대지의 체내에서 세계압을 순환시키는 결정. 재료.
+detail: >
+  기생광부가 대지의 몸을 파고들어 캐는 것 (BT §9.5) — 채굴과 대지의 생존이
+  갈등하는 자원이다 (BT §9.6). 살아 있는 것에서 꺼낸다는 사실이 이 자원의 대가다.
+world_shape: >
+  이것이 박힌 물건 안에서 세계압이 돌아야 한다 — 죽은 재료가 아니다.
+origin_trace:
+  world_state: [MW-TERRAIN-WALKING-CONTINENTS]
+  property:    [IP-PRESSURE-CIRCULATING]
+  human_value: >
+    고급 장치의 심장 재료. (RC §12 의 옛 표가 같은 자리를 적었다)
+grants_note: >
+  없음 — 세계압을 다루는 장치의 층이 아직 없다.

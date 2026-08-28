@@ -1,0 +1,17 @@
+# 원본 근거: BT §6.5 (이름목)
+id: IT-NAME-WOOD
+type: item_type
+semantic: >
+  대상의 Identity 를 안정시키는 목재 — 강제 변형에 저항하는 정박물의 재료.
+detail: >
+  수천 년 자신을 지킨 명목수의 성질이 목재에 남은 것이다 (BT §6.3). 성질은
+  정박정과 같은 것을 공유한다 (Q74 · P2 — 자기 동일성 유지). 이름을 먹는 수해만이
+  아니라 가능성 사막과 혈화수해에서도 Identity 를 지킨다. (BT §12)
+world_shape: >
+  이름·기억·형태를 빼앗는 작용 아래에서 이것을 지닌 쪽만 자기로 남아야 한다.
+origin_trace:
+  world_state: [MW-TERRAIN-NAME-EATING-FOREST]
+  property:    [IP-SELF-IDENTICAL]
+  human_value: >
+    Class Change 나 강제 변형에 저항하는 정박물. (BT §6.5)
+# 여는 Capability(MC-IDENTITY-ANCHOR)는 IM-IDENTITY-ANCHORED 가 잇는다 (정박정과 조합 공유 — P2).

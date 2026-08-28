@@ -3657,6 +3657,110 @@ Human 이 "FR-ACTION-PHASE 의 근간이 무엇인가" 를 물어 근간을 역�
     지금 상태   다섯 트랙 중 GROWTH 하나만 SELECTED 를 갖고,
                 ITEM · COMBAT · TERRAIN · KNOWLEDGE 넷이 후보를 든 채 선택을 기다린다.
 
+## Q36. 곡괭이에 상위 정의(IT-*)가 없다 — CLOSED
+
+    무엇          C020 MASTER GAP — 세계에는 곡괭이가 있는데 어느 IT-* 에서 왔는지
+                  답할 자리가 없었다. C024 에서 손방패가 더해져 무게가 둘이 되었다.
+
+    DECISION      (a) — 문명권 유래의 평범한 도구 노드를 세운다. Human 이
+                  Design-Resource-Catalog-R0 의 주입을 지시했고(2026-08-27 대화),
+                  그 문서 §15 가 정확히 이 답이다. IT-MINING-PICK 이 섰다 —
+                  IP 없음(용도는 성질이 아니다 · IS §3.3), grants 없음(용도는
+                  카탈로그의 행동 선언에 산다). 손방패의 소급은 그 종류를 처음
+                  건드리는 다음 Cycle 의 몫이다.
+
+## Design-Resource-Catalog-R0 주입 — 2026-08-27
+
+    Human 지시(대화 — "inject 했는데 산출물이 없다 · 제대로 주입해 연결하라")로
+    수행. 그전까지 이 문서는 "승인 대기" 로 기록되어 주입이 돈 적이 없었다 —
+    참조는 전부 대기 표시였고 master 산출물이 0 이었다.
+
+    세운 것       IP 11 (STATE-PRESERVING · PENETRATION-RESISTANT · CORROSIVE ·
+                  TOXIN-NEUTRALIZING · FIELD-SENSING · EXPLOSIVE-RELEASE ·
+                  HAZARD-TOLERANT · REGENERATIVE · ENERGY-DENSE · MEMORY-BEARING ·
+                  SPACE-FOLDING)
+                  IT 13 (RETURN-HERB · REVERSION-ORGAN · LAYERED-SHELL · VENOM-SAC ·
+                  PURIFICATION-ORGAN · SENSING-ORGAN · LEAPING-TENDON · HAZARD-HIDE ·
+                  REGENERATIVE-TISSUE · ENERGY-ORGAN · MEMORY-CAST · NEST-ORGAN ·
+                  MINING-PICK)
+                  IM 4 (STATE-RESTORING — 문서 명명 · LEAP-LOADED · FACT-ANCHORED ·
+                  SPACE-UNFOLDING — 문서가 IT 에 적은 grants 를 스키마대로 나르는
+                  운반 노드, IM-BOUNDARY-EDGED 선례)
+                  grants 4 — 전부 기존 MC (RESTORE-BIOLOGICAL-STATE · REPOSITION ·
+                  VERIFY-REALITY · ESCAPE-ALTERED-SPACE). 새 MC 0.
+
+    세우지 않은 것  §14.13 노화 물질 (압력을 가진 지역이 없다 — 문서 자신의 사유) ·
+                  §16 넷 (동기·자리이지 자원이 아니다) · §12 초기 카탈로그 18종과
+                  BT 자원 24종 (이름 이음매 Q71 판정 전) · §20 P1/P2 는 새 DC 로
+                  세우지 않고 기존 DC 의 적용 예로 남겼다 (문서 자신의 지시 —
+                  DC-WORLD-RESOURCE-ADAPTATION-TRACE · DC-GROWTH-NO-CAPABILITY-DUPLICATION)
+
+    연 질문       Q73 (지리 좌표 — §23.1 잔여 · Q47(a) 직교가 두 갈래를 닫았다) ·
+                  Q74 (이름 정본 — §23.2 · Q50(a) 의 24종이 이것에 걸린다) ·
+                  Q75 (회복 조합 중복 — §23.3)
+                  ※ 처음 Q70~Q72 로 적었다가 합류에서 main 의 같은 번호(FC 주입 Q70·Q71 ·
+                  전투 지식 Q72)와 충돌해 재배정했다 — Q67 이 경고한 바로 그 유형이다
+    닫은 질문     Q36 (곡괭이 → IT-MINING-PICK)
+
+## Q73. 자원 노드의 지리 좌표 — CLOSED
+
+    무엇          RC §23.1 의 잔여 — 자원 노드가 층(MW-ZONE-*)과 대지형(MW-TERRAIN-*)
+                  두 좌표를 다 갖는가. 두 축의 직교는 Q47(a)가 이미 정했다.
+
+    DECISION      (b) — 2026-08-27 Human 지시 ("권장대로"). **원본 문서가 적은 좌표만
+                  적는다** — RC 계통은 층을, BT 자원 24종은 대지형을. 발명 없는
+                  번역이 기준이며, 다른 축의 좌표는 그것을 공급하는 문서가 나올 때
+                  더한다 (직교이므로 언제든 더할 수 있다).
+
+## Q74. 자원의 이름 정본 — CLOSED
+
+    무엇          같은 성질의 자원이 문서마다 다른 이름을 가졌다 (태양심↔열기억철 ·
+                  숨결진주↔숨결석 · 정박암↔고정암 …). BT 24종의 자리가 이름 판정에
+                  걸려 있었다 (Q50(a)).
+
+    DECISION      (a) — 2026-08-27 Human 지시 ("권장대로"). **BT(Master-World-Beira-
+                  Terrain)가 자연 자원 이름의 정본이다** — 세계관의 원본이고 대지형
+                  노드가 이미 BT 이름으로 서 있다. RC §12 초기 카탈로그 18종의
+                  이름은 노드로 세우지 않으며, 겹치는 것은 BT 이름의 노드가 그 옛
+                  이름을 주석으로 지닌다 (열기억철→태양심 · 숨결석→숨결진주 ·
+                  무음결정→무음막 · 상향맥석→방향석 · 고정암→정박암 · 탈피암→탈피대지 ·
+                  압력진주→맥동정 · 등토→천행토). 성질이 겹치는 것은 기존 IP 를
+                  공유한다 (P2) — 종류가 갈리는 기준은 얻는 경로와 대가다.
+                  BW 가 명명한 것(경계결정 · 정박정 등 Q22 광물)은 BW 이름 그대로다 —
+                  정본 규칙은 문서 사이 겹침에만 적용된다.
+
+## Q75. 회복 조합이 같은 MC 를 두 이름으로 가리킨다 — CLOSED
+
+    무엇          RC 의 IM-STATE-RESTORING 과 Item-Lifecycle 문서의
+                  IM-BIOLOGICAL-RESTORATION 이 같은 MC-RESTORE-BIOLOGICAL-STATE 를
+                  가리켰다.
+
+    DECISION      (a) — 2026-08-27 Human 지시 ("권장대로"). **같은 노드다** —
+                  IM-BIOLOGICAL-RESTORATION 이라는 이름은 쓰지 않는다
+                  (IM-STATE-RESTORING 의 다른 이름 · P2). 회귀 계열의 출처 셋
+                  (회귀초 · 회귀 기관 · 회귀밀)이 한 조합을 공유하고, 차이는
+                  경로와 대가다.
+
+## BT 자원 24종 세움 — 2026-08-27
+
+    Q74(a) 판정으로 자리가 열려 세웠다 (Q50(a) 의 그 자리). 좌표는 Q73(b) — 대지형.
+
+    세운 것       IP 14 신규 (PRESSURE-BUFFERING · HEAT-STORING · SENSE-NUMBING ·
+                  HEAT-REDIRECTING · MARK-MIMICKING · AIR-STORING · VIBRATION-BLOCKING ·
+                  DIRECTION-BINDING · LEVITATING · PRESSURE-HARDENED ·
+                  PRESSURE-CIRCULATING · MIXED-PROPERTY · UNCHOSEN-BEARING ·
+                  VITAL-REACTIVE) — 사막 셋은 한 성질(UNCHOSEN-BEARING)을 공유한다
+                  IT 24 (지형마다 셋 — BT §4.4~§11.5 의 이름 그대로)
+                  IM 3 신규 (WARMTH-CARRIED · BREATH-CARRIED → MC-CARRY-LIFE-SUPPORT ·
+                  MARK-BORROWED → MC-IMPERSONATE-IDENTITY — 셋 다 demands 로 요구
+                  중이던 기존 MC · 새 MC 0)
+                  조합 공유 셋 (P2): 백왕의 치아→IM-BOUNDARY-EDGED ·
+                  이름목→IM-IDENTITY-ANCHORED · 회귀밀→IM-STATE-RESTORING
+                  성질 공유 다섯 (P2): 골수천·천공수→IP-UNREACTIVE ·
+                  치아→IP-BOUNDARY-STABLE · 이름목·정박암→IP-SELF-IDENTICAL ·
+                  회귀밀→IP-STATE-PRESERVING · 기억수액·마지막 씨앗→IP-MEMORY-BEARING
+
+
 ## Q72 — 전투 지식의 정의가 앎(MK-*)의 자리에 있다 · Human · 2026-08-28 · (a) 정의를 growth/ 로 옮긴다
 
     "지식" 의 자리가 둘인데 CK 주입이 한 파일에 섞었다 — graph/knowledge.yaml 의 MK-* 는

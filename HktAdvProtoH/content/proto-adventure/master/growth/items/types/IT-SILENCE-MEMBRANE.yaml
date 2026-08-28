@@ -1,0 +1,17 @@
+# 원본 근거: BT §7.5 (무음막). RC §12 의 "무음결정" 은 이것의 옛 이름이다 (Q74(a))
+id: IT-SILENCE-MEMBRANE
+type: item_type
+semantic: >
+  진동과 소리 전달을 차단하는 암초막. 장착형 재료.
+detail: >
+  무음의 바다가 남긴 재료 — 소리가 세계에 서는 날, 그것을 끄는 쪽의 첫 재료가 된다.
+world_shape: >
+  이것을 두른 것의 소리·진동이 밖으로 새지 않아야 한다.
+origin_trace:
+  world_state: [MW-TERRAIN-BREATHLESS-SEA]
+  property:    [IP-VIBRATION-BLOCKING]
+  human_value: >
+    은폐 · 정밀 장치. (RC §12 의 옛 표가 같은 쓰임을 적었다)
+grants_note: >
+  없음 — 세계에 소리가 없다 (MC-COORDINATE-WITHOUT-SOUND 를 막는 그 사유 —
+  frontier/terrain.md). 소리가 서면 이 재료가 그 반대편이 된다.

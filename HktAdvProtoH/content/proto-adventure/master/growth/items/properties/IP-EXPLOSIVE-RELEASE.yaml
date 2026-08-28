@@ -1,0 +1,20 @@
+# 원본 근거: RC §14.7 (BW §22 "특수 이동")
+id: IP-EXPLOSIVE-RELEASE
+type: item_property
+
+semantic: >
+  모아 둔 힘을 한 번에 푼다.
+detail: >
+  지속 속도가 아니라 **한 번의 도약**이다. 힘을 모아 두었다가 한 번에 푸는 형태 —
+  상시 포식 아래에서 걷는 속도로 자리를 옮기는 것은 죽는 것과 같았다.
+world_shape: >
+  이동 속도가 빨라지는 것으로 보이면 실패다 — 한 번에 자리가 바뀌어야 한다.
+
+origin_trace:
+  world_state: [MW-ZONE-WILD]
+  pressure: >
+    상시 포식 아래에서 걷는 속도로 자리를 옮기는 것은 죽는 것과 같다. (BW §22)
+  why_it_remains: >
+    지속 속도를 올리던 것보다, 모았다 한 번에 푸는 쪽이 포식을 피해 잔존했다.
+  human_value: >
+    유리한 자리를 의도적으로 · 빠르게 잡는 수단.

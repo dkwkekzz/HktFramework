@@ -1,0 +1,20 @@
+# 원본 근거: RC §14.9 (BW §24 "극단적 재생")
+id: IT-REGENERATIVE-TISSUE
+type: item_type
+
+semantic: >
+  잃은 구조를 시간에 걸쳐 다시 만드는 조직. 쓰면 없어진다 — 지속되는 조건을 남긴다.
+detail: >
+  회귀(IT-RETURN-HERB)와 헷갈리면 안 된다 — 회귀는 즉시 · 한 번 · 이전 상태 필요,
+  재생은 시간에 걸쳐 · 계속 · 이전 상태 불요. (RC §14.9 구분 표)
+world_shape: >
+  쓴 뒤 시간에 걸쳐 돌아오는 것이 관찰되어야 한다.
+
+origin_trace:
+  world_state: [MW-ZONE-DEEP]
+  property:    [IP-REGENERATIVE]
+  human_value: >
+    끊기지 않고 이어지는 회복.
+
+grants_note: >
+  없음 — 능력이 아니라 이름 붙은 조건이다 (MC-CONDITION-STACKING). (RC §14.9)

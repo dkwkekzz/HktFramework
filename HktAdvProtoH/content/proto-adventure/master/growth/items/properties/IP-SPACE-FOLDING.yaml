@@ -1,0 +1,20 @@
+# 원본 근거: RC §14.12 (BW §25 "공간을 둥지로 사용하는 생명")
+id: IP-SPACE-FOLDING
+type: item_property
+
+semantic: >
+  변형된 공간의 안팎을 오간다.
+detail: >
+  공간이 그대로 있지 않은 층에서 갇히는 것이 곧 죽는 것이었다 — 자기 둥지로 쓰는
+  공간을 드나드는 기관을 기른 것만 남았다.
+world_shape: >
+  변형된 공간에 갇힌 몸이 이것으로만 빠져나올 수 있어야 한다.
+
+origin_trace:
+  world_state: [MW-ZONE-UNKNOWN]
+  pressure: >
+    공간이 그대로 있지 않다. 갇히는 것이 곧 죽는 것이다. (BW §25)
+  why_it_remains: >
+    갇힌 것은 죽었고, 드나드는 기관을 기른 것이 잔존했다.
+  human_value: >
+    변형된 공간에서 빠져나오는 유일한 수단.

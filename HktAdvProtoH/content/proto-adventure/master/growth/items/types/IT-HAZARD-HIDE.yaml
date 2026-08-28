@@ -1,0 +1,22 @@
+# 원본 근거: RC §14.8 (BW §23)
+id: IT-HAZARD-HIDE
+type: item_type
+
+semantic: >
+  특정 환경 작용 아래에서 기능을 유지하는 성질을 지닌 가죽·껍질.
+  쓰면 없어지는 형태와 장착형 둘 다 가능하다.
+detail: >
+  제작 Cycle(IS §6 셋째)에서 재료가 결과물이 되는 첫 자리를 광물 6종과 함께
+  맡는다. (RC §18)
+world_shape: >
+  장소가 해를 입히는 곳에서 이것을 두른 몸만 버티는 시간이 길어야 한다.
+
+origin_trace:
+  world_state: [MW-ZONE-DANGER]
+  property:    [IP-HAZARD-TOLERANT]
+  human_value: >
+    그 환경 아래에서 버티는 시간을 산다.
+
+grants_note: >
+  없음 — 환경 위험이라는 개념이 아직 세계에 없다 (MC-READ-ENVIRONMENT ·
+  MC-USE-HAZARD 둘 다 MISSING). (RC §14.8)

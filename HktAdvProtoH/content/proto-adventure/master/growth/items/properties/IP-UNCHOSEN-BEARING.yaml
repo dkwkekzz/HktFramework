@@ -1,0 +1,23 @@
+# 원본 근거: BT §10.1 · §10.5 (가능성 압력 — 가능유리 · 미생수 · 갈림씨가 공유한다)
+id: IP-UNCHOSEN-BEARING
+type: item_property
+semantic: >
+  선택되지 않은 상태를 품고 있다 — 조건이 맞으면 그중 하나가 짧게 현실이 된다.
+detail: >
+  사막의 모래가 일어난 사건만이 아니라 일어날 수 있었던 상태까지 결속한 결과다
+  (BT §10.1). 사막의 세 자원(가능유리 · 미생수 · 갈림씨)이 이 한 성질을 공유한다 —
+  다른 것은 품은 가능성의 종류(상태 · 물 · 생장)와 현실화의 조건뿐이다.
+world_shape: >
+  지금 참이 아닌 것이 이것을 통해서만 짧게 참이 되어야 한다.
+origin_trace:
+  world_state: [MW-TERRAIN-UNHAPPENED-DESERT]
+  pressure: >
+    높은 가능성 압력 아래에서 하나의 사건이 여러 상태를 낳을 수 있었다. (BT §10.1)
+  why_it_remains: >
+    선택되지 않은 몫이 사라지지 않고 모래와 물질에 잔류했다.
+  human_value: >
+    여러 결과를 미리 보고, 하나를 골라 현실로 만든다. (BT §10.7)
+
+grants_note: >
+  여는 Capability 없음 — MC-REALIZE-ONE-POSSIBILITY 는 part_of.grounded: false 다
+  (세계에 가능성이라는 상태가 없다 · frontier/terrain.md). 그 축이 서면 잇는다.

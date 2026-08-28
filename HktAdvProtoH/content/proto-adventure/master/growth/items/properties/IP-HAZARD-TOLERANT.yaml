@@ -1,0 +1,24 @@
+# 원본 근거: RC §14.8 (BW §23 "Resource 역시 특정 환경 Property 를 가지기 시작한다")
+id: IP-HAZARD-TOLERANT
+type: item_property
+
+semantic: >
+  특정 환경 작용 아래에서 자기 기능을 유지한다.
+detail: >
+  그 환경을 막는 것이 아니라 **몸에 들여 같이 지닌다.** 산격석과 자리가 겹치지
+  않는다 — 산격석은 타격을, 이것은 상시 환경을 상대한다 (RC §14.8).
+world_shape: >
+  장소 자체가 해를 입히는 곳에서 이것을 지닌 쪽만 버티는 시간이 길어야 한다.
+
+origin_trace:
+  world_state: [MW-ZONE-DANGER]
+  pressure: >
+    장소 자체가 해를 입힌다. 위험이 사건이 아니라 상시 조건이다. (BW §23)
+  why_it_remains: >
+    환경을 피하던 것은 살 자리가 없었고, 환경을 몸에 들인 것이 잔존했다.
+  human_value: >
+    그 환경 아래에서 버티는 시간을 산다.
+
+grants_note: >
+  여는 Capability 없음. 환경 위험이라는 개념이 아직 세계에 없다
+  (MC-READ-ENVIRONMENT · MC-USE-HAZARD 둘 다 MISSING). (RC §14.8)
