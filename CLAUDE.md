@@ -14,6 +14,10 @@ UE5.6 플러그인 프레임워크. 3개의 독립 플러그인으로 구성된�
 
 작업 대상 플러그인을 먼저 식별하고 해당 CLAUDE.md를 읽을 것. 루트는 위 문서들에 중복 기재하지 않는다.
 
+## 관통 비전 — 열역학 레이어 스택
+
+위 트랙들이 *각자 다른 이름으로* 좇는 하나의 비전: **미시(원자)에서 거시(오픈월드 MMORPG)로 확장하는 열역학 레이어 스택.** 각 레이어(L0 원자 → L8 세계)는 역할이 분명하고, 병렬로 컨텐츠를 확장하며, 두 법칙(에너지 보존=닫힌 장부 · 엔트로피 증가=구배 흐름)에서 벗어나지 않는다. 이 비전을 문서로 못박는 *지도·계약* 트랙이 [HktThermo/CLAUDE.md](HktThermo/CLAUDE.md) — 레이어 경계와 계약은 [HktThermo/SPINE.md](HktThermo/SPINE.md) 가 권위, 한 상황이 스택을 지나는 워크드 예제는 [HktThermo/EXAMPLE-fireball-slime.md](HktThermo/EXAMPLE-fireball-slime.md)(관측)·[HktThermo/EXAMPLE-unobserved-region.md](HktThermo/EXAMPLE-unobserved-region.md)(비관측).
+
 플러그인 외 독립 트랙:
 - [HktLedgerWeb/CLAUDE.md](HktLedgerWeb/CLAUDE.md) — 에너지 원장 동기화 MMORPG 웹 프로토타입 (UE 빌드·타 플러그인과 무관).
 - [HktFeature/CLAUDE.md](HktFeature/CLAUDE.md) — 오픈월드 MMORPG 규칙을 feature 단위로 정의·시뮬레이션하는 웹 트랙 (원장 엔진 기반, UE 빌드·타 플러그인과 무관).
