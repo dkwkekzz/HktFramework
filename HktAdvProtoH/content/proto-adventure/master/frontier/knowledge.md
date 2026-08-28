@@ -3,7 +3,7 @@
 전투 지식(CK) 도메인의 후보와 지금 도는 것을 담는다. 트랙 규칙과 트랙 간 판단은
 [README.md](README.md), 읽는 법은 guides/master-frontier.md 소유다.
 
-    기준 Overlay   master/overlay.md — "Capability — 전투 지식 영역 (CK)" 절.
+    기준 Overlay   graph/GRAPH.md 의 Capability Overlay 절 — "Capability — 전투 지식 영역 (CK)" 절.
                    **일곱 줄이 전부 MISSING 이다.** 다른 표들과 비어 있는 방식이 다르다 —
                    전투 영역의 결손은 판정 하나가 없는 것이고 아이템 영역은 상태 하나가
                    없는 것인데, 여기는 **판단이라는 것 자체가 세계에 없다**

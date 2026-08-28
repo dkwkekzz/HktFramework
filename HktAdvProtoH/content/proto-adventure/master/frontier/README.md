@@ -7,7 +7,7 @@ Cycle 로 넘어가는 것은 선택된 후보 블록의 MASTER TRACE 칸들이�
 후보를 읽는 법과 작성·트랙 규칙은 guides/master-frontier.md 소유다.
 
     진행 현황   사다리가 어디까지 섰는지는 graph/GRAPH.md 의 "척추" 절이 그린다
-    기준 Overlay master/overlay.md
+    기준 Overlay graph/GRAPH.md 의 Capability Overlay 절
 
 ## 트랙
 
@@ -139,4 +139,4 @@ MS-GROWTH-SOURCE 의 KNOWLEDGE-CAPACITY) 자리가 자라는 일은 GROWTH 쪽�
 | 베이라 사다리의 잠정 조각 | 그 전체의 설계 문서가 없다 (`part_of.grounded: false` — 척추 시각화의 점선). **능동 방어와 Aura/Nen 은 이 줄에서 빠졌다** — UL 주입이 그 두 칸의 설계 문서를 공급해 COMBAT 트랙이 후보 넷을 얻었다 |
 | **세계에 위아래가 없다** (MC-REDEFINE-DOWN · MC-REDIRECT-FALLING-THING · MC-PLACE-FOOTING) | `world/semantic/position.ts` 의 `WorldPosition` 이 `x` · `z` 뿐이고 떨어지는 일이 규칙에 없다. 셋 다 `grounded: true` 이고 요구처도 있으므로(MW-TERRAIN-SKYFALL-RANGE · MW-TERRAIN-BREATHLESS-SEA) 막는 것은 근거가 아니라 **세계의 축**이며, 그 축은 팩이 아니라 기반(`engine/physics`)에 걸려 **ENGINE 트랙 작업**이다 (guides/works.md 의 WORLD → ENGINE 승격). TERRAIN 트랙 파일의 같은 절이 이 셋을 자세히 적는다 |
 | 다음 수를 읽는다 (MC-PREDICT · MC-OBSERVE 습성) | 위와 같음 — 반쪽을 소유한 시스템(MS-CREATURE-BEHAVIOR)이 DRAFT 다. 초안 [content/proto-adventure/design/Design-Creature-Behavior-R0.md](../../design/Design-Creature-Behavior-R0.md) 승인 → Inject → 재판정. **Q62 로 경계가 정해졌다** — 전투 지식은 지능 있는 존재의 전투 행동만 소유하고, 자율 행동의 기반은 그 문서가 소유한다 |
-| Tab 후보 추리기 · 대상 프레임 관계 표시 | 세계의 결손이 아니라 화면의 편의 — Cycle 이 아니라 **VIEW 레인** 작업이다 (guides/view-work.md · `works/V-*`) |
+| Tab 후보 추리기 · 대상 프레임 관계 표시 | 세계의 결손이 아니라 화면의 편의 — Cycle 이 아니라 **VIEW 레인** 작업이다 (guides/view-work.md · `BACKLOG.md`) |

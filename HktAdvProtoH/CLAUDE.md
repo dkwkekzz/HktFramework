@@ -137,7 +137,7 @@ works.md 의 "배차판" 절, 관찰은 `npm run lanes` (`lanes:check` 가 어�
     자기 Cycle 파일(`master/feedback/`)에 산다. 공유 파일(overlay · capabilities)을
     고치는 Feedback 은 병합 뒤 최신 main 위에서만 돈다.
 23. **View 작업은 Cycle 이 아니다** — `world/` 와 관찰 계약(`protocol/`)을 바꾸지 않는
-    화면 작업은 `works/BACKLOG.md` 의 항목(슬러그)으로 산다 (guides/view-work.md).
+    화면 작업은 `BACKLOG.md` 의 항목(슬러그)으로 산다 (guides/view-work.md).
     완료는 커밋이 기록하고 항목은 지운다 — 별도 기록 파일이 없다. 관찰을
     늘리고 싶어지는 순간 그것은 세계의 관찰 확장이다 — Frontier/Cycle 로 승격한다.
 ```
@@ -233,7 +233,7 @@ Root Game Goal / World Premise (`master/root.md`) 와 Constraint 승인은 Human
 | `<pack>/master/` | Master Intent Graph — Constraint · Graph · Overlay · Frontier | 현재 상태만, 닫히면 지운다 |
 | `<pack>/master/HISTORY.md` | 닫힌 질문·선택·갱신의 보관소 | 조회용, 평소 읽지 않는다 |
 | `<pack>/cycles/` | Cycle Artifact — 진행 기록 | History, 수정하지 않는다 |
-| `<pack>/works/` | View 레인 홈 — 할일과 관찰 결손 REPORT (`BACKLOG.md`) | 현재 상태만 — 완료 기록은 git · `V-*` 는 과거 형식 History |
+| `<pack>/BACKLOG.md` | VIEW 레인의 할일과 관찰 결손 REPORT | 현재 상태만 — 완료 기록은 git |
 | `<pack>/world/` | Authoritative World 구현 (Server) — 팩의 Rule·Semantic·투영 | 현재 게임, 계속 발전 |
 | `<pack>/view/` | Client View 결정 Layer — presentation 표·문구·바인딩 | 현재 게임, 계속 발전 |
 | `<pack>/protocol/` | 팩의 GameView·Action 확장 타입 | 현재 게임, 계속 발전 |

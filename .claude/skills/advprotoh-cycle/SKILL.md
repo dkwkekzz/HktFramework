@@ -43,7 +43,7 @@ CYCLE LAYER    선택된 하나의 플레이 결과를 폐쇄한다 — cycles/ 
 ## 1. 대상 Stage 판정
 
 **레인 판정이 먼저다** (guides/works.md) — 요청이 `world/` 와 관찰 계약(`protocol/`)을
-바꾸지 않는 화면 작업이면 Cycle 을 세우지 않는다 → `advprotoh-view` (VIEW 레인, `works/V-*`).
+바꾸지 않는 화면 작업이면 Cycle 을 세우지 않는다 → `advprotoh-view` (VIEW 레인, `BACKLOG.md`).
 
 인자로 Stage 가 지정되면 그것을 쓴다. 지정되지 않으면:
 
