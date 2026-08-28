@@ -1,0 +1,38 @@
+{
+  "name": "hkt-adv-proto-i",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "world": "tsx server/main.ts",
+    "client": "vite",
+    "build": "tsc --noEmit && vite build",
+    "motions:scan": "tsx tools/motion-atlas/scan.ts",
+    "motions:check": "tsx tools/motion-atlas/scan.ts --check",
+    "catalog": "tsx tools/catalog/print.ts",
+    "catalog:check": "tsx tools/catalog/print.ts --check",
+    "surface:lab": "tsx tools/surface-lab/build.ts",
+    "boundary:check": "tsx tools/boundary/check.ts",
+    "fx:lab": "node tools/fx-lab/test/lab-smoke.js",
+    "fx:shot": "node tools/fx-lab/test/fx-shot.js",
+    "fx:overlay": "node tools/fx-lab/test/overlay-shot.js",
+    "fx:game": "node tools/fx-lab/test/game-shot.js",
+    "test": "tsx tools/boundary/check.ts && vitest run",
+    "terrain:shot": "node tools/fx-lab/test/terrain-shot.js"
+  },
+  "dependencies": {
+    "three": "^0.168.0",
+    "ws": "^8.21.3"
+  },
+  "devDependencies": {
+    "@types/node": "^26.2.0",
+    "@types/three": "^0.168.0",
+    "@types/ws": "^8.18.1",
+    "playwright": "^1.48.0",
+    "tsx": "^4.23.12",
+    "typescript": "^5.5.4",
+    "vite": "^5.4.8",
+    "vitest": "^2.1.1",
+    "yaml": "^2.9.0"
+  }
+}

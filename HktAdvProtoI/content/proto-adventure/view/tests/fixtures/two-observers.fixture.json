@@ -1,0 +1,115 @@
+{
+  "specId": "VIEW-MULTI-OBSERVER-001",
+  "scene": "mining-field",
+  "observer": {
+    "id": "observer-a",
+    "characterId": "player-1",
+    "acknowledgedMark": 0
+  },
+  "entities": [
+    {
+      "id": "player-1",
+      "role": "player-character",
+      "state": "idle",
+      "kind": "rabbit-swordsman",
+      "position": {
+        "x": 0,
+        "z": 0
+      }
+    },
+    {
+      "id": "player-2",
+      "role": "other-player-character",
+      "state": "move",
+      "kind": "rabbit-swordsman",
+      "position": {
+        "x": 3,
+        "z": 2
+      },
+      "attended": true
+    },
+    {
+      "id": "player-3",
+      "role": "other-player-character",
+      "state": "idle",
+      "kind": "rabbit-swordsman",
+      "position": {
+        "x": -3,
+        "z": 2
+      },
+      "attended": false
+    },
+    {
+      "id": "npc-1",
+      "role": "npc-character",
+      "state": "move",
+      "kind": "wanderer",
+      "position": {
+        "x": -8,
+        "z": 4
+      }
+    },
+    {
+      "id": "deposit-1",
+      "role": "resource-deposit",
+      "state": "available",
+      "kind": "stone",
+      "position": {
+        "x": 8,
+        "z": -6
+      },
+      "labelValue": 5
+    }
+  ],
+  "interactions": [
+    {
+      "id": "move",
+      "role": "move-to",
+      "available": true
+    },
+    {
+      "id": "attack",
+      "role": "attack-swing",
+      "available": true
+    },
+    {
+      "id": "mine",
+      "role": "mine-deposit",
+      "targetEntityId": "deposit-1",
+      "available": false,
+      "reason": "out-of-range"
+    }
+  ],
+  "hud": [
+    {
+      "id": "inventory.stone",
+      "kind": "counter",
+      "value": 0
+    },
+    {
+      "id": "tool.hasMiningTool",
+      "kind": "flag",
+      "value": true
+    },
+    {
+      "id": "player.action",
+      "kind": "label",
+      "value": "idle"
+    },
+    {
+      "id": "world.time",
+      "kind": "counter",
+      "value": 42.5
+    },
+    {
+      "id": "observers.present",
+      "kind": "counter",
+      "value": 2
+    }
+  ],
+  "strikes": [],
+  "debug": {
+    "open": false
+  },
+  "commands": []
+}

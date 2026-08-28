@@ -1,0 +1,45 @@
+# design — 설계·기획 원본
+
+이 프로젝트의 설계 문서가 **한자리에** 있다. 공정·기반 문서(팩을 갈아 끼워도 참인 것)와
+이 세계의 컨텐츠 기획 원본(세계관·전투·아이템·스킬·UX)이 함께 산다.
+
+Human 이 작성·개정한 **원본**이다. Agent 는 이 문서들을 바꾸지 않는다 —
+승인·개정은 Human 소유다.
+
+> 이 문서들 가운데 상당수는 **아직 코드에 들어오지 않은 것**을 적고 있다.
+> 현재 구현은 C009(개발 명령 표면)까지이며, 그 뒤의 전투·성장·아이템·지형은
+> 기획으로만 존재한다. 무엇을 언제 어떤 순서로 들일지는 새로 세울 작업 공정이 정한다.
+
+## 공정 · 기반
+
+| 문서 | 내용 |
+|---|---|
+| `Design-Concept.md` | 세계와 주체의 행동 구조 — 무엇이 존재하고 어떤 변화가 가능한가 |
+| `Design-Workflow.md` | Goal/Possibility 기반 Observable World 구현 Workflow |
+| `Design-CycleWorkflow.md` | Cycle 단위 점진 개발 공정 |
+| `Design-CycleExecution.md` | Agent 실행 방식 |
+| `Master-Intent-Graph-Policy.md` | Master Layer 정책 — Constraint · Graph · Overlay · Frontier |
+| `Master-Intent-Graph-Growth.md` | Master Graph 성장 규칙 |
+| `Design-System-Content-Separation.md` | **기반(engine) / 컨텐츠(팩) 분리** — 지금 코드가 선 자리 |
+| `Design-World-Persistence.md` | 세계 스냅샷과 복구 |
+| `Design-Effect-Presentation.md` | 이펙트 장치 |
+| `Design-Terrain-Visualization.md` | 지형 시각화 |
+
+## 컨텐츠 기획
+
+| 갈래 | 문서 | 약칭 |
+|---|---|---|
+| 세계 | `Master-World-Beira.md` · `Master-World-Beira-Terrain.md` | BW |
+| 성장 | `Master-Fairy-Growth-System.md` · `Design-Growth-Balance-R0.md` · `Design-Fairy-Class-Layer0-R0.md` | — · FC |
+| 전투 | `Design-Combat-OffenseDefense-R0.md` · `Design-Combat-DamageType-R0.md` · `Design-Combat-UpperLayer-R0.md` · `Design-Combat-Knowledge-Extension-R0.md` | R1 · DT · UL · CK |
+| 지목 | `Design-Targeting-R0.md` | TG |
+| 아이템 | `Design-Item-System-R0.md` · `Design-Item-System-R1.md` · `Design-Item-Chain-R0.md` · `Design-Item-Instance-State-R0.md` · `Design-Item-Lifecycle-Progression-R0.md` · `Design-Inventory-Equipment-D1.md` · `Design-Resource-Catalog-R0.md` | IS · IE |
+| 스킬 | `Skill/Skill-System.md` · `Skill/Skill-Execution-Form.md` · `Skill/Skill-Effect.md` · `Skill/World-Spatial-Presence.md` | SK |
+| 존재 | `Design-Autonomous-Behavior-Knowledge-R0.md` · `Design-Creature-Behavior-R0.md` | — |
+| 화면(UX) | `Design-View-Inventory-Equipment-UX-D1.md` · `Design-View-Skill-UX-D1.md` | VUX-IE · VUX-SK |
+
+약칭은 근거 인용의 이름이다.
+
+## 승인 상태
+
+문서마다 자기 머리(문서 버전 · 상태)에 적혀 있다.

@@ -1,0 +1,18 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    // 스플랫 런타임(engine/view-kernel/fx/splat/*.js)은 HktSplatLife 에서 그대로 옮겨 온
+    // classic script 다 — 고치지 않는 것이 그 자리의 계약이라 .js 인 채로 import 한다.
+    // 형은 fx/splat-runtime.d.ts 가 밖에서 준다 (checkJs 는 켜지 않는다).
+    "allowJs": true,
+    "lib": ["ES2022", "DOM"],
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "types": ["vite/client", "node"]
+  },
+  "include": ["protocol", "engine", "content", "view", "app", "server", "tools", "vite.config.ts"]
+}

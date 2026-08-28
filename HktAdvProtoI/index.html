@@ -1,0 +1,546 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <!-- viewport-fit=cover — 노치·둥근 모서리가 있는 기기에서 화면 전체를 쓰고,
+       가려지는 자리는 CSS 의 env(safe-area-inset-*) 로 피한다. -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="color-scheme" content="dark light" />
+  <!-- 아이콘을 문서 안에 담는다 — 따로 요청이 나가지 않으므로 /favicon.ico 404 가 없다 -->
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23182130'/%3E%3Cpath d='M9 23V9h3.4v5.4h7.2V9H23v14h-3.4v-5.6h-7.2V23z' fill='%237fd4ff'/%3E%3C/svg%3E" />
+  <title>HktAdvProtoI</title>
+  <style>
+    html, body {
+      margin: 0; height: 100%; overflow: hidden; font-family: system-ui, sans-serif;
+      /* 당겨서 새로고침·튕김이 조작을 가로채지 않는다 */
+      overscroll-behavior: none;
+      -webkit-text-size-adjust: 100%;
+      -webkit-tap-highlight-color: transparent;
+    }
+    #game { position: relative; width: 100%; height: 100%; }
+    /* 확대·스크롤 대신 게임이 손짓을 받는다 (view/input/touch.ts).
+       캔버스와 조작 자리에만 건다 — #game 전체에 걸면 그 안의 명령 목록도
+       손가락으로 굴릴 수 없게 된다 (touch-action 은 조상 체인의 교집합이라
+       자식이 되돌릴 수 없다). */
+    #game canvas, #touchpad { touch-action: none; }
+    #hud, #touchpad { -webkit-user-select: none; user-select: none; }
+    #game canvas { display: block; }
+    #hud { position: absolute; inset: 0; pointer-events: none; }
+    .hud-panel {
+      position: absolute; top: 14px; left: 14px;
+      /* 띠는 가로로만 자란다 — 감싸지 않으면 늘어난 칸이 화면 밖으로 잘려 조용히 사라진다.
+         오른쪽 위는 조작 안내의 자리이므로 그 앞에서 멈춘다. */
+      display: flex; align-items: center; gap: 8px 14px;
+      flex-wrap: wrap; max-width: calc(100% - 230px);
+      background: rgba(28, 34, 46, 0.82); color: #f2f4f8;
+      padding: 9px 16px; border-radius: 10px;
+      font-size: 17px; font-weight: 700; letter-spacing: 0.2px;
+    }
+    .hud-item { white-space: nowrap; }
+    .hud-flag[data-on="false"] { opacity: 0.45; }
+    .hud-bar {
+      display: inline-block; vertical-align: middle; margin-left: 8px;
+      width: 62px; height: 7px; border-radius: 4px;
+      background: rgba(255, 255, 255, 0.22); overflow: hidden;
+    }
+    .hud-bar i { display: block; height: 100%; background: #7fd4ff; }
+    .hud-keys {
+      position: absolute; top: 12px; right: 14px;
+      color: rgba(40, 48, 60, 0.75); font-size: 12.5px; text-align: right; line-height: 1.7;
+      text-shadow: 0 1px 2px rgba(255,255,255,0.35);
+    }
+    /* 몸에 붙어 다니는 표시의 자리 — 이 요소는 transform 으로만 움직인다.
+       배치를 다시 하지 않으므로 움직이는 동안에도 글자가 지글거리지 않는다
+       (view/hud/hud.ts 의 pinnedLayer). 크기는 안의 내용이 정한다. */
+    .hud-anchor {
+      position: absolute; left: 0; top: 0;
+      white-space: nowrap; pointer-events: none;
+      will-change: transform;
+    }
+    .hud-label {
+      display: inline-block; transform: translate(-50%, -100%);
+      background: rgba(20, 22, 28, 0.85); color: #fff;
+      padding: 3px 8px; border-radius: 5px; font-size: 13px; font-weight: 700;
+      white-space: nowrap;
+    }
+    /* 존재 HUD (C007) — 이름과 생명은 그 몸 위에 늘 붙어 있다.
+       속성 관찰(V)을 켜면 그 아래로 나머지 속성이 펼쳐진다.
+
+       폭이 0 이라 줄마다 따로 가운데를 맞춘다 — 생명 숫자의 자릿수가 바뀌어도
+       (100 → 98) 표지 전체가 옆으로 밀리지 않는다. */
+    .hud-plate {
+      width: 0; transform: translateY(-100%);
+      display: flex; flex-direction: column; align-items: center; gap: 2px;
+      pointer-events: none; white-space: nowrap;
+    }
+    .hud-plate-name {
+      color: #fff; font-size: 12.5px; font-weight: 700;
+      text-shadow: 0 1px 3px rgba(0,0,0,0.8);
+    }
+    .hud-plate-bar {
+      width: 62px; height: 6px; border-radius: 3px;
+      background: rgba(10, 12, 16, 0.65); overflow: hidden;
+      box-shadow: 0 0 0 1px rgba(0,0,0,0.35);
+    }
+    .hud-plate-bar i { display: block; height: 100%; background: #6fd07f; }
+    .hud-plate-hp {
+      color: #e8ecf4; font-size: 10.5px; font-variant-numeric: tabular-nums;
+      text-shadow: 0 1px 2px rgba(0,0,0,0.8);
+    }
+    .hud-plate-inspect {
+      margin-top: 2px; padding: 4px 7px; border-radius: 5px;
+      background: rgba(14, 16, 22, 0.78); color: #b9c3d6;
+      font-size: 10.5px; line-height: 1.5; font-variant-numeric: tabular-nums;
+      /* 줄바꿈은 개행 문자가 정한다 — 화면 끝에서 저절로 접히지 않는다 */
+      white-space: pre; text-align: center;
+    }
+    /* 속성 관찰이 꺼져 있으면 자리째 없다 */
+    .hud-plate-inspect:empty { display: none; }
+    /* 쓰러진 존재는 살아 있는 존재와 구분되어야 한다 */
+    .hud-plate[data-downed="true"] { opacity: 0.55; }
+    .hud-plate[data-downed="true"] .hud-plate-name { color: #ff9d90; }
+    .hud-plate[data-downed="true"] .hud-plate-bar i { background: #6b3b3b; }
+    /* 타격 결과 (C007) — 맞은 자리에서 떠올랐다 옅어진다 */
+    .hud-strike {
+      position: absolute; transform: translate(-50%, -100%);
+      color: #ffe9a8; font-size: 18px; font-weight: 800;
+      text-shadow: 0 2px 4px rgba(0,0,0,0.65);
+      pointer-events: none;
+    }
+    .hud-strike[data-emphasis="true"] { color: #ffd05a; font-size: 26px; }
+    /* 막힌 타격 (C011) — 막아 낸 것은 푸르게. 아팠다기보다 버틴 것이다 */
+    .hud-strike[data-guard="blocked"] { color: #8fd3ff; }
+    /* 무너진 타격 (C011) — 막힌 것과 눈에 띄게 달라야 한다.
+       피해는 줄지 않았는데 방어는 사라진 순간이다 */
+    .hud-strike[data-guard="broken"] { color: #ff8f6a; font-size: 24px; }
+    /* 한 방의 경위 (C010) — 속성 관찰이 켜졌을 때 숫자 아래에 붙는다.
+       C011 — 막기가 한 일은 관찰이 꺼져 있어도 여기에 붙는다 */
+    .hud-strike-detail {
+      display: block; margin-top: 2px;
+      color: #cfe4ff; font-size: 11px; font-weight: 600; white-space: nowrap;
+    }
+    .hud-strike[data-guard="broken"] .hud-strike-detail { color: #ffc0a8; }
+    /* 자기 정보 (C007) — 내 자원·능력치·배율. 늘 눈앞에 있다. */
+    .hud-self {
+      position: absolute; left: 14px; bottom: 14px;
+      display: flex; flex-direction: column; gap: 4px;
+      padding: 10px 13px; border-radius: 10px;
+      background: rgba(24, 28, 38, 0.8); color: #e9edf5;
+      font-size: 12.5px; font-variant-numeric: tabular-nums; pointer-events: none;
+    }
+    .hud-self:empty { display: none; }
+    .hud-self[data-downed="true"] { background: rgba(70, 26, 24, 0.82); }
+    .hud-self-row { display: flex; align-items: center; gap: 8px; }
+    .hud-self-row b { width: 22px; color: #97a2b8; font-size: 11px; }
+    .hud-self-row em { font-style: normal; font-size: 11.5px; }
+    .hud-self-bar {
+      width: 132px; height: 9px; border-radius: 5px;
+      background: rgba(255,255,255,0.16); overflow: hidden;
+    }
+    .hud-self-bar i { display: block; height: 100%; }
+    .hud-self-bar[data-kind="hp"] i { background: #6fd07f; }
+    .hud-self-bar[data-kind="cp"] i { background: #7fb0ff; }
+    .hud-self-mode { color: #ffd98a; font-weight: 700; font-size: 11.5px; }
+    /* 막기 상태 (C011) — 스스로 끝나지 않으므로 들고 있다는 것이 늘 보여야 한다 */
+    .hud-self-stance { color: #8fd3ff; font-weight: 700; font-size: 11.5px; }
+    .hud-self-stance[data-broken="true"] { color: #ff8f6a; }
+    .hud-self-line { color: #9fa9bd; font-size: 11px; }
+    .hud-toast {
+      position: absolute; bottom: 88px; left: 50%; transform: translateX(-50%);
+      color: #f4c93c; font-size: 21px; font-weight: 800;
+      text-shadow: 0 2px 4px rgba(0,0,0,0.45);
+      opacity: 0; transition: opacity 0.35s;
+    }
+    .hud-hint {
+      position: absolute; bottom: 32px; left: 50%; transform: translateX(-50%);
+      padding: 8px 18px; border-radius: 8px; font-size: 16px; font-weight: 700;
+    }
+    .hud-hint[data-state="available"] { background: rgba(34, 38, 48, 0.85); color: #fff; }
+    .hud-hint[data-state="unavailable"] { background: rgba(66, 66, 74, 0.6); color: #e2e2e8; }
+    .hud-hint:empty { display: none; }
+    .hud-link {
+      position: absolute; top: 62px; left: 14px;
+      padding: 6px 12px; border-radius: 8px; font-size: 13.5px; font-weight: 700;
+      background: rgba(120, 60, 40, 0.85); color: #ffe9d8;
+    }
+    .hud-link[data-state="connecting"] { background: rgba(120, 96, 40, 0.85); }
+    .hud-link:empty { display: none; }
+    /* 이어짐 패널 (C005) — 정상일 때도 보인다. 좋을 때의 값을 알아야 나빠진 것을 안다.
+       게임 진행을 가리지 않도록 오른쪽 아래에 작게 둔다. */
+    .hud-linkpanel {
+      position: absolute; right: 12px; bottom: 12px;
+      display: flex; flex-direction: column; align-items: flex-end; gap: 2px;
+      padding: 8px 10px; border-radius: 8px;
+      background: rgba(18, 20, 26, 0.62); color: #cfd4e0;
+      font-size: 11.5px; line-height: 1.5; font-variant-numeric: tabular-nums;
+      pointer-events: none;
+    }
+    .hud-linkpanel:empty { display: none; }
+    .hud-linkpanel[data-state="disconnected"] { background: rgba(70, 26, 20, 0.72); }
+    .hud-linkline b { color: #8d94a6; font-weight: 600; margin-right: 6px; }
+    .hud-linkline[data-grade="good"] { color: #7fd18f; }
+    .hud-linkline[data-grade="warn"] { color: #e8c467; }
+    .hud-linkline[data-grade="bad"] { color: #ef8b7a; }
+    /* 끊긴 동안 보는 세계는 현재가 아닐 수 있다 — 화면 전체로 그 사실을 표시한다 */
+    #hud[data-stale="true"] ~ canvas, #game[data-stale="true"] canvas { filter: grayscale(0.55); }
+
+    /* 명령 표면 (C009) — 목록 우선 + 타이핑. 닫혀 있으면 자리를 차지하지 않는다. */
+    #command-console {
+      display: none;
+      position: absolute; left: 50%; bottom: 24px; transform: translateX(-50%);
+      width: min(760px, calc(100% - 32px));
+      background: rgba(10, 13, 20, 0.94);
+      border: 1px solid #2c3648; border-radius: 8px;
+      padding: 10px 12px; z-index: 40;
+      font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 12px;
+      color: #d6dcea; pointer-events: auto;
+    }
+    #command-console.cc-open { display: block; }
+    .cc-list { max-height: 34vh; overflow-y: auto; margin-bottom: 8px; }
+    .cc-entry { padding: 6px 0; border-bottom: 1px solid #1b2230; }
+    .cc-entry:last-child { border-bottom: none; }
+    .cc-entry-blocked { opacity: 0.55; }
+    .cc-entry-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .cc-origin {
+      font-size: 10px; padding: 1px 6px; border-radius: 999px; font-weight: 700;
+    }
+    .cc-origin-world { background: #24405f; color: #9dcaff; }
+    .cc-origin-observer { background: #3a3320; color: #ffd98a; }
+    .cc-usage { color: #eaf0ff; font-weight: 700; }
+    .cc-state { color: #ffd98a; font-size: 11px; }
+    .cc-blocked { color: #ff9a9a; font-size: 11px; }
+    .cc-entry-title { color: #9fa9bd; margin: 2px 0 0 0; }
+    .cc-slots { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 3px; }
+    .cc-slot { color: #c3cbdc; font-size: 11px; }
+    .cc-hint { color: #7f8aa0; margin-left: 5px; }
+    .cc-omit { color: #6f7a90; margin-left: 5px; font-style: italic; }
+    .cc-guide { min-height: 16px; margin-bottom: 4px; display: flex; gap: 12px; flex-wrap: wrap; }
+    .cc-next { color: #9dcaff; }
+    .cc-suggest code { color: #d6dcea; background: #1b2230; padding: 0 4px; border-radius: 3px; margin-right: 4px; }
+    .cc-problem { color: #ff9a9a; }
+    .cc-line { display: flex; align-items: center; gap: 6px; }
+    .cc-caret { color: #6fd07f; font-weight: 700; }
+    .cc-input {
+      flex: 1; background: #141a26; border: 1px solid #2c3648; border-radius: 4px;
+      color: #eaf0ff; padding: 5px 8px; font: inherit; outline: none;
+    }
+    .cc-input:focus { border-color: #4a6a9a; }
+    .cc-history { margin-top: 6px; max-height: 16vh; overflow-y: auto; }
+    .cc-hline { display: flex; gap: 10px; padding: 1px 0; color: #8d97ab; }
+    .cc-hline code { color: #c3cbdc; }
+    .cc-hline.cc-ok span { color: #6fd07f; }
+    .cc-hline.cc-no span { color: #ff9a9a; }
+    /* ── 겹침 표면 (기반 capability — engine/view-kernel/hud/surface.ts) ──
+       이 규칙들은 무엇의 목록인지 모른다. 칸과 줄과 초점과 상태를 그릴 뿐이다. */
+    #surfaces { position: absolute; inset: 0; pointer-events: none; z-index: 45; }
+    .sf {
+      display: none;
+      position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+      /* 청한 너비가 있으면 그만큼까지 — 없으면 680px. 어느 쪽이든 화면을 넘지 않는다
+         (청함이지 명령이 아니다 — SceneSurface.width).
+         테두리까지 이 수 안이다 — 아니면 청한 너비도 남길 여백도 30px 씩 어긋난다 */
+      box-sizing: border-box;
+      width: min(var(--sf-width, 680px), calc(100% - 32px)); max-height: min(72vh, 640px);
+      overflow-y: auto;
+      background: rgba(10, 13, 20, 0.96);
+      border: 1px solid #2c3648; border-radius: 10px;
+      padding: 12px 14px 10px;
+      font-size: 12.5px; color: #d6dcea; pointer-events: auto;
+    }
+    .sf.sf-open { display: block; }
+    .sf-head { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+    .sf-title { flex: 1; margin: 0; font-size: 14px; color: #eaf0ff; font-weight: 700; }
+    .sf-close {
+      flex: 0 0 auto; width: 34px; height: 30px;
+      background: #1b2230; border: 1px solid #2c3648; border-radius: 4px;
+      color: #b9c3d6; font: inherit; font-size: 13px; line-height: 1; cursor: pointer;
+    }
+    .sf-section { margin-bottom: 12px; }
+    .sf-section:last-child { margin-bottom: 0; }
+    /* 나란히 서는 묶음 — **표면 자신의 너비**에 따라 갈린다 (화면 너비가 아니다).
+       놓을 자리가 없으면 auto-fit 이 스스로 한 열로 돌아가고, 그때 서는 차례는
+       목록의 차례 그대로다. 문턱은 결정 Layer 가 준다 (--sf-group-min) */
+    .sf-group {
+      display: grid; gap: 12px; margin-bottom: 12px; align-items: start;
+      grid-template-columns: repeat(auto-fit, minmax(min(100%, var(--sf-group-min, 240px)), 1fr));
+    }
+    .sf-group:last-child { margin-bottom: 0; }
+    .sf-group > .sf-section { margin-bottom: 0; }
+    /* 대소문자를 건드리지 않는다 — 세계가 보낸 코드가 그대로 보여야 하고,
+       text-transform 은 모르는 코드(moonshard)를 MOONSHARD 로 바꿔 버린다 */
+    .sf-section-title {
+      color: #7f8aa0; font-size: 10.5px; letter-spacing: 0.06em; margin-bottom: 6px;
+    }
+    .sf-empty { color: #6f7a90; font-style: italic; padding: 6px 0; }
+    /* 칸 — 빈 칸도 그린다. 남은 자리가 자리로 읽혀야 한다 */
+    .sf-cells {
+      display: grid; gap: 6px;
+      grid-template-columns: repeat(var(--sf-columns, 6), minmax(0, 1fr));
+    }
+    /* 도구 띠의 칸 — **고르는 단추이지 자리가 아니다.** 글자만큼만 차지하고 한 줄로
+       흐른다. 물건 칸과 같은 크기로 그리면 띠가 아니라 또 하나의 격자가 된다 */
+    .sf-cells[data-shape="chip"] {
+      display: flex; flex-wrap: wrap; gap: 6px;
+    }
+    .sf-cells[data-shape="chip"] .sf-cell {
+      min-height: 0; padding: 5px 12px; border-radius: 999px;
+      flex-direction: row; gap: 6px;
+    }
+    /* 글자를 받는 자리 — 표면 안에서 유일하게 자판을 붙잡는 원소다 */
+    .sf-field {
+      display: block; width: 100%; margin-bottom: 8px;
+      background: #0f141d; border: 1px solid #2c3648; border-radius: 6px;
+      color: #eaf0ff; font: inherit; font-size: 13px; padding: 7px 10px;
+    }
+    .sf-field::placeholder { color: #6c7789; }
+    .sf-field:focus { outline: 2px solid #ffd98a; outline-offset: 1px; border-color: #6d7f99; }
+    .sf-cell {
+      position: relative;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 2px; min-height: 58px; padding: 6px 4px;
+      background: #141a26; border: 1px solid #2c3648; border-radius: 6px;
+      color: #d6dcea; font: inherit; cursor: pointer; text-align: center;
+    }
+    /* 얼마나 찼는가 — **곁들이는 표시다.** 같은 값이 언제나 곁글자로도 서 있으므로
+       (색만으로 구분하지 않는다) 이 층은 읽는 일을 방해하지 않을 만큼만 짙어진다 */
+    .sf-cell[style*="--sf-level"]::before {
+      content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+      background: #9dcaff; opacity: calc(var(--sf-level, 0) * 0.14);
+    }
+    /* 귀퉁이 표식 — 좌상 (문서 §3 의 와이어프레임 자리) */
+    .sf-cell-badge {
+      position: absolute; top: 3px; left: 4px;
+      font-size: 9px; font-weight: 700; letter-spacing: .04em;
+      color: #0d1119; background: #ffd98a; border-radius: 3px; padding: 0 3px;
+    }
+    /* 빈 자리는 **색만으로** 구분되지 않는다 — 테두리 모양도 함께 달라진다 */
+    .sf-cell[data-empty="true"] {
+      background: transparent; border-style: dashed; border-color: #232c3c; cursor: default;
+    }
+    .sf-cell[data-selected="true"] { border-color: #9dcaff; background: #1a2536; }
+    /* 초점 링은 고른 것과 **다른 자리**에 그린다 — 둘은 다른 것이다 */
+    .sf-cell[data-focused="true"] { outline: 2px solid #ffd98a; outline-offset: 2px; }
+    /* 손을 올리면 닿는 자리임이 보인다 — 빈 자리는 닿을 곳이 아니므로 뺀다 */
+    .sf-cell:not([data-empty="true"]):hover { border-color: #6d7f99; }
+    .sf-cell-text { color: #eaf0ff; font-size: 12px; line-height: 1.25; word-break: break-all; }
+    .sf-cell-detail { color: #9fa9bd; font-size: 11px; }
+    /* 곁말 — 고르기 전에 읽는 자리. **손을 얹었을 때와 초점이 닿았을 때가 같다**
+       (문서 §8). 여는 것도 닫는 것도 CSS 가 아니라 능력이 정한다 — Escape 로 닫히려면
+       상태가 어딘가에 있어야 하고, :hover 로만 열면 그 상태가 없다. */
+    .sf-tip {
+      /* 칸 **아래**로 편다 — 표면이 세로로 구르는 자리(.sf overflow-y)이므로 위로
+         펴면 첫 줄의 곁말이 잘린다. 아래는 뒤따르는 절이 이미 자리를 지니고 있다 */
+      position: absolute; left: 50%; top: calc(100% + 6px); transform: translateX(-50%);
+      z-index: 3; display: none; flex-direction: column; gap: 1px;
+      min-width: 96px; max-width: 200px; padding: 5px 7px;
+      background: #0d1119; border: 1px solid #3a465c; border-radius: 5px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.45);
+      color: #d6dcea; font-size: 11px; line-height: 1.35; text-align: left;
+      white-space: normal; word-break: keep-all; pointer-events: none;
+    }
+    .sf-cell[data-tip-open="true"] .sf-tip { display: flex; }
+    /* 가장자리에서 접힌다 — **어느 쪽이 남았는지는 능력이 재어 발라 준다**
+       (engine/view-kernel/hud/surface-tip.ts). CSS 는 그 답대로 놓을 뿐이다 */
+    .sf-cell[data-tip-side="above"] .sf-tip { top: auto; bottom: calc(100% + 6px); }
+    .sf-cell[data-tip-align="start"] .sf-tip { left: 0; right: auto; transform: none; }
+    .sf-cell[data-tip-align="end"] .sf-tip { left: auto; right: 0; transform: none; }
+    /* 줄 — 되는 것도 안 되는 것도 여기 선다 */
+    .sf-rows { display: flex; flex-direction: column; gap: 2px; }
+    .sf-row {
+      display: flex; align-items: baseline; gap: 8px; padding: 3px 4px; border-radius: 4px;
+      /* 줄은 단추다 — 단추의 기본 생김새를 지우고 줄로 남긴다 (V-004 선행 ENGINE) */
+      width: 100%; text-align: left; background: none; border: 0;
+      color: inherit; font: inherit; cursor: pointer;
+    }
+    .sf-row:hover { background: #16202f; }
+    .sf-row[data-focused="true"] { outline: 2px solid #ffd98a; outline-offset: -1px; }
+    .sf-row-badge { flex: 0 0 auto; width: 12px; text-align: center; }
+    .sf-row-text { flex: 1; }
+    .sf-row-hint { color: #7f8aa0; font-size: 11px; }
+    .sf-row[data-state="available"] .sf-row-badge { color: #6fd07f; }
+    .sf-row[data-state="blocked"] { opacity: 0.62; }
+    .sf-row[data-state="blocked"] .sf-row-badge { color: #ff9a9a; }
+    .sf-row[data-state="pending"] .sf-row-badge { color: #ffd98a; }
+    /* ── 슬롯 띠 (범용 capability — engine/view-kernel/hud/slot-bar.ts) ──
+       늘 서 있고 자판을 잡지 않는다. 화면 아래 가운데가 지금 고르는 것의 자리다. */
+    #slotbars {
+      position: absolute; left: 0; right: 0; bottom: 16px;
+      display: flex; flex-direction: column; align-items: center; gap: 8px;
+      pointer-events: none;
+    }
+    .sb-bar { display: flex; gap: 8px; pointer-events: auto; flex-wrap: wrap; justify-content: center; }
+    .sb-bar[hidden] { display: none; }
+    .sb-cell {
+      position: relative;
+      display: flex; flex-direction: column; align-items: center; justify-content: flex-start;
+      gap: 3px; min-width: 116px; min-height: 74px; padding: 8px 10px 7px;
+      background: rgba(20, 26, 38, 0.92); border: 1px solid #2c3648; border-radius: 8px;
+      color: #d6dcea; font: inherit; cursor: pointer; text-align: center;
+    }
+    /* 부르는 자리 — 칸의 왼쪽 위. 없으면 빈 자리로 남는다 (칸은 사라지지 않는다) */
+    .sb-key {
+      position: absolute; top: 4px; left: 6px;
+      color: #9dcaff; font-size: 11px; font-weight: 700; letter-spacing: 0.04em;
+    }
+    .sb-title { color: #eaf0ff; font-size: 13px; font-weight: 700; line-height: 1.2; }
+    .sb-detail { color: #9fa9bd; font-size: 11px; line-height: 1.2; }
+    .sb-status { color: #c8d2e6; font-size: 11px; line-height: 1.2; }
+    /* 되는 것 · 안 되는 것 · 기다리는 것은 **색만으로** 갈리지 않는다 —
+       테두리 모양과 진하기가 함께 달라진다 (VUX-SK §9). */
+    .sb-cell[data-state="available"] { border-color: #3f7a4e; }
+    .sb-cell[data-state="available"] .sb-status { color: #6fd07f; }
+    .sb-cell[data-state="blocked"] {
+      opacity: 0.62; border-style: dashed; border-color: #4a3340; cursor: default;
+    }
+    .sb-cell[data-state="blocked"] .sb-status { color: #ff9a9a; }
+    .sb-cell[data-state="pending"] { border-color: #8a7330; border-style: dotted; }
+    .sb-cell[data-state="pending"] .sb-status { color: #ffd98a; }
+    .sb-cell:focus-visible { outline: 2px solid #ffd98a; outline-offset: 2px; }
+    .sf-foot {
+      display: flex; flex-wrap: wrap; gap: 12px; margin-top: 10px; padding-top: 8px;
+      border-top: 1px solid #1b2230; color: #7f8aa0; font-size: 11px;
+    }
+    /* 움직임을 줄이라고 한 사람에게는 줄인다 */
+    @media (prefers-reduced-motion: reduce) { .sf { transition: none; } }
+    /* 닫는 자리 — Escape 가 없는 기기에서도 표면을 닫을 수 있어야 한다 */
+    .cc-close {
+      flex: 0 0 auto; width: 34px; height: 30px;
+      background: #1b2230; border: 1px solid #2c3648; border-radius: 4px;
+      color: #b9c3d6; font: inherit; font-size: 13px; line-height: 1; cursor: pointer;
+    }
+    .cc-close:active { background: #2c3648; }
+
+    /* ── 손가락 조작 자리 ──────────────────────────────────────────────
+       키로만 닿던 것에 누를 자리를 낸다. 손가락을 쓰는 기기에서만 나타난다
+       (app/main.ts — 기기 이름이 아니라 무엇으로 가리키는지로 정한다). */
+    #touchpad { position: absolute; inset: 0; pointer-events: none; z-index: 30; }
+    #touchpad[data-visible="false"] { display: none; }
+
+    /* 이동 스틱 — 손가락을 댄 자리에 생긴다. 자리가 고정돼 있지 않으므로
+       기기 크기도 손 크기도 가리지 않는다. */
+    .tp-stick {
+      position: absolute; display: none;
+      width: 112px; height: 112px; margin: -56px 0 0 -56px;
+      border-radius: 50%; border: 2px solid rgba(255, 255, 255, 0.26);
+      background: rgba(18, 22, 30, 0.26);
+    }
+    .tp-stick[data-active="true"] { display: block; }
+    .tp-stick i {
+      position: absolute; left: 50%; top: 50%;
+      width: 52px; height: 52px; margin: -26px 0 0 -26px;
+      border-radius: 50%; background: rgba(226, 234, 250, 0.5);
+      box-shadow: 0 1px 6px rgba(0, 0, 0, 0.35);
+    }
+
+    .tp-button {
+      pointer-events: auto;
+      /* 손가락이 닿는 자리는 손가락 크기여야 한다 — 44px 아래로 내려가지 않는다.
+         이름이 길면 접어서 두 줄로 — 옆으로 자라 세계를 가리지 않게 한다. */
+      min-width: 56px; min-height: 52px; max-width: 92px; padding: 6px 9px;
+      border: 1px solid rgba(255, 255, 255, 0.22); border-radius: 14px;
+      background: rgba(24, 30, 42, 0.82); color: #eaf0ff;
+      font-family: inherit; font-size: 13.5px; font-weight: 700; line-height: 1.25;
+      word-break: keep-all; /* 낱말 가운데서 끊지 않는다 — "달리기 전환" 은 두 낱말이다 */
+      cursor: pointer; touch-action: none;
+    }
+    .tp-button[data-pressed="true"] { background: rgba(70, 96, 140, 0.92); }
+    /* 지금 되는지 안 되는지는 세계가 정한다 — 이름은 흐려지고 사유는 글자로 남는다.
+       눌리지 않게 막지는 않는다. 키를 누를 때와 같이 세계가 사유를 붙여 거절한다.
+       사유까지 함께 흐리면 손가락 사용자는 왜 안 되는지 읽을 자리가 없다 —
+       자판 사용자의 자기 패널에 해당하는 자리가 이 버튼뿐이다. */
+    .tp-button-action[data-available="false"] { border-color: rgba(255, 255, 255, 0.14); }
+    .tp-button-action[data-available="false"] .tp-label { opacity: 0.45; }
+    .tp-label { display: block; }
+    .tp-reason { display: block; margin-top: 2px; font-size: 10.5px; font-weight: 600; color: #ff9a9a; }
+    .tp-reason:empty { display: none; }
+    .tp-button-observer {
+      min-width: 54px; min-height: 40px; font-size: 12px; font-weight: 600;
+      background: rgba(20, 25, 35, 0.7);
+    }
+
+    /* 행동 버튼 — 두 줄로 접어 둔다. 한 줄로 쌓으면 행동이 늘어날 때마다
+       화면 위로 올라와 세계를 가린다. */
+    .tp-actions {
+      position: absolute;
+      right: calc(10px + env(safe-area-inset-right));
+      bottom: calc(10px + env(safe-area-inset-bottom));
+      display: grid; grid-template-columns: repeat(2, auto);
+      justify-items: end; gap: 8px;
+    }
+    .tp-observer {
+      position: absolute;
+      right: calc(12px + env(safe-area-inset-right));
+      top: calc(12px + env(safe-area-inset-top));
+      display: flex; flex-direction: column; align-items: flex-end; gap: 8px;
+    }
+
+    /* ── 좁은 화면 · 손가락 기기 ───────────────────────────────────────
+       HUD 가 서로 겹치거나 잘리지 않게 하고, 기기가 가리는 자리를 피한다. */
+    @media (pointer: coarse), (max-width: 820px) {
+      /* 자판이 없으면 키 안내는 아무 쓸모가 없다 — 그 자리를 조작 버튼이 쓴다 */
+      .hud-keys { display: none; }
+
+      .hud-panel {
+        top: calc(10px + env(safe-area-inset-top));
+        left: calc(10px + env(safe-area-inset-left));
+        right: auto; max-width: calc(100% - 150px);
+        flex-wrap: wrap; gap: 8px 12px;
+        font-size: 14px; padding: 7px 12px;
+      }
+      .hud-link { top: calc(64px + env(safe-area-inset-top)); left: calc(10px + env(safe-area-inset-left)); }
+      .hud-self {
+        left: calc(10px + env(safe-area-inset-left));
+        bottom: calc(10px + env(safe-area-inset-bottom));
+        font-size: 11.5px; padding: 8px 10px;
+        /* 오른쪽 아래는 조작 버튼의 자리다 — 그 밑으로 흘러들지 않는다 */
+        max-width: calc(100% - 200px);
+      }
+      /* 좁아진 자리에 맞춰 막대를 줄인다 — 수치가 줄바꿈되면 읽기 어렵다 */
+      .hud-self-bar { width: 72px; }
+      .hud-self-row { white-space: nowrap; }
+      /* 이어짐 수치 — 오른쪽 아래는 조작 버튼의 자리다. 왼쪽 위로 옮겨
+         이어짐 표시(hud-link) 바로 아래에 붙인다. 늘 보이는 성질은 그대로다 (C005). */
+      .hud-linkpanel {
+        left: calc(10px + env(safe-area-inset-left)); right: auto;
+        top: calc(104px + env(safe-area-inset-top)); bottom: auto;
+        align-items: flex-start;
+        font-size: 10px; padding: 5px 7px; opacity: 0.8;
+      }
+      /* 자기 정보 위로 띄운다 — 둘이 겹치면 어느 쪽도 읽히지 않는다 */
+      .hud-hint {
+        bottom: calc(172px + env(safe-area-inset-bottom));
+        font-size: 14px; padding: 7px 14px;
+        max-width: calc(100% - 24px);
+      }
+      /* 걸 수 있을 때의 힌트는 "[Shift] 달리기 전환" 처럼 키를 앞세운다 —
+         자판이 없는 기기에서는 뜻이 없고, 같은 것을 이미 버튼이 보여준다.
+         걸 수 없을 때의 사유는 버튼이 말해 주지 못하므로 그대로 남긴다. */
+      .hud-hint[data-state="available"] { display: none; }
+      .hud-toast { bottom: calc(214px + env(safe-area-inset-bottom)); font-size: 18px; }
+
+      /* 명령 표면 — 기기 자판이 올라와도 쓰는 줄과 목록이 가려지지 않아야 한다 */
+      .sf {
+        left: calc(8px + env(safe-area-inset-left));
+        right: calc(8px + env(safe-area-inset-right));
+        top: calc(8px + env(safe-area-inset-top));
+        width: auto; transform: none; max-height: 62vh;
+      }
+      #command-console {
+        left: calc(8px + env(safe-area-inset-left));
+        right: calc(8px + env(safe-area-inset-right));
+        bottom: calc(8px + env(safe-area-inset-bottom));
+        width: auto; transform: none; max-width: none;
+        font-size: 12.5px;
+      }
+      .cc-list { max-height: 26vh; }
+      .cc-history { max-height: 12vh; }
+      /* 16px 미만이면 iOS 가 입력 순간 화면을 확대해 버린다 */
+      .cc-input { font-size: 16px; padding: 7px 8px; }
+    }
+  </style>
+</head>
+<body>
+  <div id="game"></div>
+  <script type="module" src="/app/main.ts"></script>
+</body>
+</html>
