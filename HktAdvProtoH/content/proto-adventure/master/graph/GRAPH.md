@@ -4,7 +4,7 @@
 > 원본은 `graph/*.yaml` 과 `constraints/DC-*.yaml` 이다.
 > 인터랙티브 관찰(필터 · 서브그래프 · 상세)은 같은 명령이 만드는 `graph-view.html` 을 연다.
 
-노드 161 — WorldState 30 · Actor 2 · Goal 6 · Possibility 33 · Capability 84 · Knowledge 6
+노드 160 — WorldState 30 · Actor 2 · Goal 6 · Possibility 33 · Capability 84 · Knowledge 5
 
 Capability 구현 상태 — ■ IMPLEMENTED 15 · ▨ PARTIAL 10 · □ MISSING 59
 
