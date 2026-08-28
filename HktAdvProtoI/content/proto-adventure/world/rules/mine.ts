@@ -15,7 +15,7 @@ import type { ActionResult } from '../../protocol/actions';
 import { RULE_MINE, RULE_MINE_COMPLETE } from '../../protocol/semantic-id';
 import type { ActorState } from '../semantic/actor';
 import type { DepositState } from '../semantic/deposit';
-import { hasMiningTool, itemCount } from '../semantic/inventory';
+import { hasMiningTool, itemCount, setItemCount } from '../semantic/inventory';
 import { distance } from '../semantic/position';
 import { INTERACTION_RANGE, type WorldState } from '../semantic/world-state';
 import { beginAction, evaluateActionBegin } from './action-begin';
@@ -60,6 +60,6 @@ export function ruleMineComplete(state: WorldState, actor: ActorState): ActionRe
   }
 
   deposit.resourceAmount -= 1;
-  actor.inventory.items.set('stone', itemCount(actor.inventory, 'stone') + 1);
+  setItemCount(actor.inventory, 'stone', itemCount(actor.inventory, 'stone') + 1);
   return { status: 'success', rule: RULE_MINE_COMPLETE };
 }
