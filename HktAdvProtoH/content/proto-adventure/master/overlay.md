@@ -296,14 +296,14 @@ Capability 만 보면 전투가 꽤 찬 것처럼 보이지만, 그 전투가 �
 | Node | 상태 | 지금 세계에 있는 것 / 없는 것 |
 |---|---|---|
 | MW-PRIMAL-WORLD | PRESENT | 전제이므로 어긋나는 규칙이 없으면 성립 |
-| MW-WORLD-PRESSURE · MW-FREE-PRESSURE · MW-BOUND-PRESSURE | ABSENT | 지역이라는 개념이 없어 "여기는 얼마나 변할 수 있는 곳인가" 가 표현될 자리가 없다 |
+| MW-WORLD-PRESSURE · MW-FREE-PRESSURE · MW-BOUND-PRESSURE | PARTIAL | 세계가 만들어질 때 에너지의 분포(씨앗의 표본열)가 먼저 서고 자리들이 그 결과다 — "표현될 자리가 없다" 던 그 자리가 생겼다 (C-TERRAIN-003). 발현 하나(heat-binding)에 한하며, 지역 개념 · 여러 법칙 · Free/Bound 의 세계 표현은 남아 있다 |
 | MW-SAFE-FRONTIER | ABSENT | 안전한 곳과 위험한 곳의 구분이 없다 — 무대가 하나다 |
 | MW-DEPTH-GRADIENT · MW-ZONE-WILD/DANGER/DEEP/UNKNOWN | ABSENT | 깊이도 층도 없다 |
 | MW-ZONE-FRINGE | PARTIAL | 정면 전투력이 우위인 적대 존재는 있다. 그것이 사는 **층**이 없고, 우위를 힘 아닌 것으로 뒤집을 수단도 없다 |
 | MW-HYPER-PREDATION · MW-SPATIAL-SHEAR | ABSENT | 대표 지역 둘 다 없다 |
 | MW-MACRO-TERRAIN | PARTIAL | 땅이 자리로 나뉘고 그 자리가 법칙을 지닌다 (C-TERRAIN-001 — World.GroundZones · GroundLawDefinition). 남은 것은 world_shape 의 나머지다: 법칙이 하나뿐이고, 그 법칙이 낳는 자원이 없으며, 어디에 갈 수 있는가가 감당으로 정해지지 않고, 깊이와의 직교도 아직 없다 |
 | MW-TERRAIN-CIRCULATION | PRESENT | C-TERRAIN-002 — 자리가 거둔 것을 지니고(kept), 넘치면 뿜고, 그 안의 몸에게 돌려주고, 다 쓰면 닫혀 도로 거둔다. 같은 자리를 다른 시각에 보면 다르고 그 다름이 "그 사이에 누가 거기서 얼마나 빼앗겼는가" 로 설명된다 — 주기는 세계가 정한 것이 아니다 |
-| MW-SHAPED-LANDFORM | ABSENT | 무대가 평면 하나다 — 산도 물길도 대기도 없고, 자리의 경계는 원으로 그려진 범위이지 순환이 빚은 생김새가 아니다 |
+| MW-SHAPED-LANDFORM | PARTIAL | 자리의 배치가 손이 아니라 순환의 원리(씨앗·법칙)에서 나온다 — 맥은 흩어진 점이 아니라 이웃으로 뻗은 밭이다 (C-TERRAIN-003). 남은 것은 생김새 자체 — 산맥·수계· 대기가 없고 무대는 여전히 평면이며, 선 것은 자리의 분포까지다 |
 | MW-SURVIVAL-PRESSURE | PARTIAL | C-TERRAIN-002 로 압력이 순환에서 나온다 — 어디가 거두고 어디가 돌려주는지가 내가 한 일의 결과이므로 읽어서 이용할 거리가 생겼다. 남은 절반은 world_shape 의 "읽은 사람과 읽지 못한 사람이 다른 결과를 낸다" 다: **지금 상태는 읽히나 앞으로 일어날 일은 읽히지 않는다** (MW-CIRCULATION-EVIDENCE 가 그 자리다) |
 | MW-ADAPTED-LIFE | ABSENT | 세계에 있는 것은 좌표로 놓인 방랑자 둘과 광맥 하나뿐이고 셋 다 땅의 법칙과 무관한 자리에 있다. 놓는 것 말고 다른 길이 세계에 없다 |
 | MW-TERRAIN-RESOURCE | ABSENT | 캘 수 있는 것은 광맥의 돌 하나뿐이고, 그것은 어떤 법칙이 낳은 것이 아니라 좌표에 놓인 것이다. 캐어도 세계에 아무 되돌림이 없다 |
