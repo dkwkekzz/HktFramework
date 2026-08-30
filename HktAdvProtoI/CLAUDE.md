@@ -29,10 +29,20 @@ mmorpg에서 컨텐츠를 구성하기 위한 구조를 설계한다.
 세계 영속)이 **그대로 남아 있다.** 컨텐츠가 아직 쓰지 않을 뿐이다 — 쓰기 시작하는 것이
 다음 작업들의 일이다.
 
-**작업 공정(Workflow)은 아직 세워지지 않았다.** 이전 공정의 산출물(`guides/` ·
-`master/` · `cycles/` · `BACKLOG.md` · `LANES.md`)과 그 도구(master-graph · lanes ·
-cycle-lint · feedback-gate)는 이 기준선에서 전부 걷어냈다. 새 공정이 정해지면
-이 문서의 이 절이 그 자리다.
+## 작업 공정 (Workflow)
+
+공정 원본은 [design/Design-CycleExecutionWorkflow.md](design/Design-CycleExecutionWorkflow.md),
+스킬 분할 근거는 [design/Plan-Skill-CycleExecutionWorkflow.md](design/Plan-Skill-CycleExecutionWorkflow.md).
+
+```text
+advprotoi-master  (선택)  다음 Cycle 탐색 — Frontier 후보 제시, 선택은 Human
+advprotoi-plan    의미 확정  CYCLE SPEC → WORLD SEMANTIC + RULE (cycles/<CycleId>/01·02)
+advprotoi-build   실현·검증  구현 ∥ GameView ∥ 검증 병렬 → 실측 검증 (03·04·05)
+```
+
+Cycle Artifact 는 `cycles/<CycleId>/` (CycleId: `C###-이름`) — 파일만이 단계 간
+인터페이스다. 이전 공정의 산출물(`guides/` · `master/` · `BACKLOG.md` · `LANES.md`)과
+그 도구(master-graph · lanes · cycle-lint · feedback-gate)는 이 기준선에서 걷어냈다.
 
 ## 기반 / 컨텐츠 경로 규약
 

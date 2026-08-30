@@ -1,6 +1,6 @@
 # Plan — Cycle Execution Workflow Skill 작성 계획
 
-상태: 제안 (Human 승인 대기)
+상태: 승인 — 스킬 3종(`advprotoi-plan` · `advprotoi-build` · `advprotoi-master`) 작성됨. 남은 것: 시험 Cycle 실주행과 마찰 반영 (§6 의 4–5)
 원본: [Design-CycleExecutionWorkflow.md](Design-CycleExecutionWorkflow.md)
 
 이 문서는 Design-CycleExecutionWorkflow.md 의 공정을 AI Agent 가 그대로 수행할 수
