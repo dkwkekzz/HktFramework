@@ -27,6 +27,7 @@ engine/                      기반. content/ 를 import 하지 않는다
   protocol-core/             Snapshot 봉투 · ActionRequest 코어 · transport · 엔진 semantic-id
   view-kernel/               renderer·hud·input·net·camera·motion 재생·scene(Render Plan)·
                              명령 표면 기계장치·겹침 표면(surface — 열림/초점/Esc/닫는 자리)·
+                             HUD 자리판(hud-layout — 어느 자리에 놓이는가 · 겹침은 불가능)·
                              초점 이동 산수(input/focus)·기다리는 요청 표(net/pending)·
                              collision/facing/link/session presentation
 
