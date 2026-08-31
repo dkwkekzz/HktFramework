@@ -29,8 +29,9 @@ description: HktAdvProtoI 의 Master Graph 탐색을 실행한다 — World/Acto
 3. **Frontier 후보 제시** — 각 후보에: 근거 Design 문서·절 / 성립시킬 플레이 결과
    한 문장 / 필요한 Missing Capability / 예상 REUSED. 3개 내외.
 4. **정지** — 선택은 Human 이 한다. 선택 결과는 `advprotoi-plan` 의 Cycle Goal 로만
-   전달된다 (01-spec.md 의 Source 에 Design 문서로 적힌다 — master 보고를 인용하지
-   않는다). 이후 구현은 Master 탐색을 다시 해석하지 않는다.
+   전달된다. **Master 는 Source 가 아니다** — 의미의 근거(01-spec 의 SOURCE)는
+   반드시 Design 문서이고, Frontier 는 "왜 지금 이걸 하는가"로서 01-spec 의
+   SELECTED_FROM 에만 적힌다. 이후 구현은 Master 탐색을 다시 해석하지 않는다.
 
 ## 금지
 

@@ -22,10 +22,11 @@ description: HktAdvProtoI 의 Cycle 실현·검증 단계를 실행한다 — �
 
 ## 1. 관찰 계약 확정 — fan-out 전 단일 작업
 
-`02-world.md` 의 "관찰 State" 절로부터 World 가 투영할 관찰 계약을
-`content/<active pack>/protocol/` 에 확정한다. 이것이 병렬 Agent 들의 **유일한
-동기화 지점**이다 — W·V 가 계약을 서로 다르게 만들지 못하게 여기서 하나로 고정한다.
-활성 팩은 `hkt.pack.json` 이 가리킨다.
+`02-world.md` 의 Observable 절을 `content/<active pack>/protocol/` 로 옮긴다.
+무엇을 투영할지는 이미 plan 이 닫았다 — 이 작업은 **기계적 변환**이어야 하며, 여기서
+투영 대상을 새로 판단하게 되면 그것은 02-world 의 결손이다 (DESIGN GAP 으로 반환).
+이것이 병렬 Agent 들의 **유일한 동기화 지점**이다 — W·V 가 계약을 서로 다르게 만들지
+못하게 여기서 하나로 고정한다. 활성 팩은 `hkt.pack.json` 이 가리킨다.
 
 ## 2. 3-Agent 병렬 fan-out
 
@@ -41,8 +42,13 @@ Agent T  검증 시나리오 작성  cycles/<CycleId>/05-verification.md 의 Giv
 
 공통 금지 규칙 (각 Agent 프롬프트에 그대로):
 
-- **의미 생성 금지** — Design/Spec/World 에 없는 게임 의미가 필요해지면 지어내지
-  말고 자기 산출물에 CLAUDE.md `GAP` 블록을 남기고 그 부분만 미완으로 종료한다.
+- **의미 생성 금지 + GAP 이분법** — 막히면 종류를 먼저 판정한다.
+  - `IMPLEMENTATION GAP`: Semantic/Rule 은 충분한데 현재 코드 기반에 필요한 기술
+    기능이 없다 (예: 02-world 가 요구하는 Attack.impactTime 을 담을 상태가 runtime
+    에 아직 없다) → **Agent 가 그 자리에서 최소 범위로 구현한다.** Human 반환 불필요.
+  - `DESIGN GAP`: 02-world 로는 게임 의미를 결정할 수 없다 → 지어내지 말고 자기
+    산출물에 CLAUDE.md `GAP` 블록을 남기고 그 부분만 미완으로 종료한다 (plan/Human
+    반환 대상). 기술 결손을 DESIGN GAP 으로 올려 공정을 멈추지 않는다.
 - **선행 추상화 금지** (원본 §10) — 현재 Rule 실행에 필요한 최소 구조만 만든다.
   미래 요구를 예상한 Provider/Strategy/Pipeline/Registry 를 만들지 않는다.
   추상화는 실제 Cycle 반복에서 중복이 발견됐을 때만, 그때도 기존 관찰 가능 행동을
@@ -53,19 +59,23 @@ Agent 별 추가 규칙:
 
 - **W**: 세계 State 변경은 World Rule 의 Transition 에서만 (CLAUDE.md 원칙 4).
   팩 시스템은 `engine/physics` 솔버를 조합한다 — 재구현하지 않는다.
-  구현하며 **Rule ↔ 코드 매핑 표**(R# → 파일·함수)를 기록해 결과로 반환한다.
+  구현하며 **Rule ↔ 코드 매핑 표 후보**(R# → 파일·함수)를 결과로 반환한다 —
+  최종 `03-impl.md` 는 통합 후 build 본체가 쓴다 (통합에서 코드가 바뀔 수 있다).
 - **V**: GameView 는 새 의미를 만들지 않는다 — 관찰 계약의 State 를 표현만 한다
   (원본 §12). `view/resolve.ts` · `code-text.ts` 등 팩 계약 자리를 따른다.
   State → 표현 매핑 표를 결과로 반환한다.
-- **T**: **구현을 보지 않는다.** `01-spec.md` 의 검증 절만으로 Given/When/Then 을
-  쓴다 (원본 §13 — 검증 기준은 코드 구조가 아니라 플레이 결과·World State 다).
-  Human 이 추가 추론 없이 성공/실패를 판단할 수 있는 형태로.
+- **T**: **Black-box Verification 원칙** — 읽는 것은 `01-spec.md`(무엇을 검증할지)
+  와 `02-world.md`(어떤 State 를 조작·관측할지) 둘뿐이다. 구현 코드·W/V 산출물은
+  보지 않는다 — 구현에 맞춰 테스트를 왜곡하는 것을 막는다 (원본 §13 — 검증 기준은
+  코드 구조가 아니라 플레이 결과·World State 다). Given/When/Then 은 02-world 의
+  실제 State 이름(점 경로)으로 쓰고, Human 이 추가 추론 없이 판단 가능한 형태로.
 - GameView 가 불필요한 Cycle 이면 V 를 생략한다 — 형식적으로 채우지 않는다.
 
 ## 3. 통합·검증
 
-1. Agent 산출을 모아 GAP 이 있으면 먼저 처리한다: 모아서 plan 또는 Human 으로
-   반환하고, 해소 전에는 해당 부분을 완료로 표시하지 않는다.
+1. Agent 산출을 모아 GAP 을 먼저 처리한다: IMPLEMENTATION GAP 은 build 본체가
+   최소 범위로 구현해 해소하고, DESIGN GAP 은 모아서 plan 또는 Human 으로 반환한다.
+   해소 전에는 해당 부분을 완료로 표시하지 않는다.
 2. `npm test` (경계 검사 + vitest) · `npm run build` 실행.
 3. T 의 시나리오를 실제로 실행(테스트 코드 또는 실주행 관찰)하고
    `05-verification.md` 에 **실측 결과**(PASS/FAIL + 관찰된 World State)를 기입한다
@@ -77,7 +87,7 @@ Agent 별 추가 규칙:
 
 | 파일 | 내용 |
 |---|---|
-| `03-impl.md` | 변경 파일 목록 + Rule ↔ 코드 매핑 표 (W 결과 검수 — 모든 R# 이 매핑되어야 한다. 코드 자체는 커밋이 소유) |
+| `03-impl.md` | **통합 후 build 본체가 최종 작성** — 변경 파일 목록 + Rule ↔ 코드 매핑 표 (W 의 후보를 통합 결과로 갱신, 모든 R# 매핑 필수) + Architecture 변화 절 (없으면 "없음"; 실제 반복에서 공통화가 생겼으면 무엇을 왜 통합했는지. 코드 자체는 커밋이 소유) |
 | `04-gameview.md` | State → 표현 매핑 표 (V 를 돌린 Cycle 만) |
 | `05-verification.md` | Given/When/Then + 실측 + 완료 조건 체크 |
 
@@ -96,7 +106,5 @@ Agent 별 추가 규칙:
 7항 전부 + 시나리오 전부 PASS 여야 Cycle 완료다. 하나라도 미달이면 미완 항목과
 반환 대상(W/V/plan/Human)을 보고하고 완료 선언하지 않는다.
 
-## Cycle 간 병렬
-
-다른 Cycle 과 동시 진행은 두 Cycle 의 `02-world.md` REUSED+ADDED 목록의 교집합이
-비었을 때만 허용한다. 겹치면 순차로 한다.
+Cycle 간 병렬 규칙은 아직 두지 않는다 — 한 번에 한 Cycle 이 기본이다. 실제로
+동시 진행 필요가 생기면 그때 규칙을 세운다 (선행 추상화 금지를 공정 자신에게도 적용).

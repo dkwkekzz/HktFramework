@@ -34,9 +34,10 @@ description: HktAdvProtoI 의 Cycle 의미 확정 단계를 실행한다 — Cyc
 모든 Artifact 머리에 Trace 블록을 둔다:
 
 ```text
-CYCLE  C###-이름
-SOURCE design/Design-….md
-PREV   (직전 Artifact 파일명 — 이 파일만이 입력이다. 01-spec.md 는 "없음")
+CYCLE          C###-이름
+SOURCE         design/Design-….md   (의미의 근거 — 반드시 Design 문서다)
+SELECTED_FROM  Frontier 후보 이름 또는 "Human"   (왜 지금 이걸 하는가 — Master 는 Source 가 아니다)
+PREV           (직전 Artifact 파일명 — 이 파일만이 입력이다. 01-spec.md 는 "없음")
 ```
 
 ## 2. CYCLE SPEC → `01-spec.md` (원본 §4–5)
@@ -76,7 +77,8 @@ Design 에 없어서 결정하지 못한 의미 목록 (없으면 "없음")
 
 ```text
 ## State (Semantic)
-존재와 그 상태 목록 — 예: Wolf.knowledge · Wolf.behaviorState · Player.heldItem
+존재와 그 상태 목록 — 실제 상태 이름을 점 경로로 확정한다
+예: Wolf.knowledge.fireDanger · Wolf.behaviorState · Player.heldItem
 
 ## Rule
 각 Rule 은 R1, R2… 로 번호를 붙이고 다음 형태로:
@@ -87,8 +89,10 @@ Rule 의 언어는 Design 의 언어와 직접 대응해야 한다.
 REUSED  이미 세계에 있는 Semantic/Rule (재정의 금지 — 이름만 인용)
 ADDED   이번 Cycle 이 새로 더하는 것
 
-## 관찰 State
-Rule 결과 중 GameView·검증이 관찰해야 하는 State 목록 (build 의 관찰 계약 입력)
+## Observable
+외부(GameView·검증)에 투영할 State 목록 — 위 State 의 부분집합을 점 경로로 열거한다.
+build 는 이 목록을 그대로 protocol/ 로 옮긴다 — 무엇을 투영할지 여기서 닫아야
+build 의 관찰 계약 확정이 기획 행위가 아니라 기계적 변환이 된다.
 ```
 
 **금지** (원본 §6): KnowledgeService · Repository · Manager · Component 같은 코드
