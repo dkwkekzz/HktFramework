@@ -42,13 +42,23 @@ Agent T  검증 시나리오 작성  cycles/<CycleId>/05-verification.md 의 Giv
 
 공통 금지 규칙 (각 Agent 프롬프트에 그대로):
 
-- **의미 생성 금지 + GAP 이분법** — 막히면 종류를 먼저 판정한다.
-  - `IMPLEMENTATION GAP`: Semantic/Rule 은 충분한데 현재 코드 기반에 필요한 기술
-    기능이 없다 (예: 02-world 가 요구하는 Attack.impactTime 을 담을 상태가 runtime
-    에 아직 없다) → **Agent 가 그 자리에서 최소 범위로 구현한다.** Human 반환 불필요.
+- **코드 배치** — 새 코드는 전부 `content/<pack>/` 에 쓴다. 판정 기준은 게임의
+  명사다: stone·wolf·worldPressure 같은 이 세계의 이름을 아는 코드는 content 의
+  것이고, 기반은 게임 명사 없이 동작하는 것만 갖는다. 범용해 보이는 개념도 처음엔
+  content 에 두고, 두 번째 실제 사용처가 나타났을 때 기반 트랙이 별도 커밋으로
+  올린다 (승격 시 게임 명사를 벗기고, 기존 관찰 가능 행동을 유지한다).
+- **의미 생성 금지 + GAP 삼분법** — 막히면 종류를 먼저 판정한다.
+  - `IMPLEMENTATION GAP`: Semantic/Rule 은 충분한데 content 쪽 코드에 필요한 기술
+    기능이 없다 (예: 02-world 가 요구하는 Attack.impactTime 을 담을 상태가 팩에
+    아직 없다) → **Agent 가 그 자리에서 최소 범위로 구현한다.** Human 반환 불필요.
+  - `ENGINE GAP`: 결손이 기반(engine) 쪽이다 → 먼저 기존 physics 솔버 조합 등
+    content 쪽 표현으로 풀 수 있는지 시도한다. content 만으로 성립하지 않으면
+    자기 산출물에 `ENGINE GAP` 블록(필요한 기반 능력 · 시도한 우회 · 성립하지 않는
+    이유)을 남기고 그 부분만 미완으로 종료한다 → 기반 트랙이 Human 승인 후 별도
+    커밋으로 최소 구현하고, Cycle 이 재개한다. 기반은 이 발주로만 자란다.
   - `DESIGN GAP`: 02-world 로는 게임 의미를 결정할 수 없다 → 지어내지 말고 자기
     산출물에 CLAUDE.md `GAP` 블록을 남기고 그 부분만 미완으로 종료한다 (plan/Human
-    반환 대상). 기술 결손을 DESIGN GAP 으로 올려 공정을 멈추지 않는다.
+    반환 대상). 기술 결손은 위 두 GAP 으로 보내 공정을 계속 굴린다.
 - **선행 추상화 금지** (원본 §10) — 현재 Rule 실행에 필요한 최소 구조만 만든다.
   미래 요구를 예상한 Provider/Strategy/Pipeline/Registry 를 만들지 않는다.
   추상화는 실제 Cycle 반복에서 중복이 발견됐을 때만, 그때도 기존 관찰 가능 행동을
@@ -74,7 +84,8 @@ Agent 별 추가 규칙:
 ## 3. 통합·검증
 
 1. Agent 산출을 모아 GAP 을 먼저 처리한다: IMPLEMENTATION GAP 은 build 본체가
-   최소 범위로 구현해 해소하고, DESIGN GAP 은 모아서 plan 또는 Human 으로 반환한다.
+   최소 범위로 구현해 해소하고, ENGINE GAP 은 기반 트랙 발주 목록으로 모아 Human 에게
+   보고하며, DESIGN GAP 은 모아서 plan 또는 Human 으로 반환한다.
    해소 전에는 해당 부분을 완료로 표시하지 않는다.
 2. `npm test` (경계 검사 + vitest) · `npm run build` 실행.
 3. T 의 시나리오를 실제로 실행(테스트 코드 또는 실주행 관찰)하고

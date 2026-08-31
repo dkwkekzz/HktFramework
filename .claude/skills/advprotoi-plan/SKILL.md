@@ -28,7 +28,9 @@ description: HktAdvProtoI 의 Cycle 의미 확정 단계를 실행한다 — Cyc
 1. Cycle Goal 을 받는다 — Human 이 직접 지정하거나, `advprotoi-master` 의 Frontier
    선택 결과를 받는다. **master 산출물은 필수가 아니다** (원본 §15) — Source 가
    `design/` 문서면 충분하다.
-2. CycleId 채번: `C###-이름` (`cycles/` 의 최대 번호 +1, 세 자리).
+2. CycleId 채번: `C###-이름` — `cycles/` 디렉터리와 기존 코드 주석의 Cycle 번호(C###)
+   를 통틀어 최대 번호 +1 로 잇는다 (세 자리). 코드에 남은 이전 기준선의 번호도
+   같은 이름 공간이다.
 3. `cycles/<CycleId>/` 생성.
 
 모든 Artifact 머리에 Trace 블록을 둔다:
@@ -64,6 +66,11 @@ Design 을 새 추상 구조로 재해석하지 않고 작업 범위만 고정�
 Design 에 없어서 결정하지 못한 의미 목록 (없으면 "없음")
 ```
 
+**Design 침묵의 판정** — Design 이 말하지 않은 의미를 만나면 둘 중 하나로 처리한다:
+이번 Cycle 이 성립하는 데 그 답이 **필요하면** UNRESOLVED 로 올려 Human 에게 묻고,
+그 답 **없이도 성립하면** "하지 않을 것"에 범위 밖으로 기록해 Cycle 을 움직인다
+(기존 Rule 그대로 두기 · Design 이 준 이름만 쓰기가 범위 밖 처리의 기본형이다).
+
 **범위 게이트**: "성립시킬 것"을 한두 문장으로 말할 수 없으면 Cycle 이 크다 —
 쪼개서 후보를 제시하고 Human 선택을 받는다.
 
@@ -97,6 +104,11 @@ build 의 관찰 계약 확정이 기획 행위가 아니라 기계적 변환이
 
 **금지** (원본 §6): KnowledgeService · Repository · Manager · Component 같은 코드
 클래스·소프트웨어 구조를 여기서 정의하지 않는다. 그것은 IMPLEMENTATION 의 일이다.
+
+**02-world 의 모든 State/Rule 은 컨텐츠(팩)의 의미다** — 기반(engine)은 게임의
+명사를 모르므로 여기 적히는 것은 전부 `content/` 로 간다. 작성 중 기반의 새 능력
+(새 솔버·새 투영 통로 등)이 필요해 보이면 02-world 끝에 `ENGINE GAP 예고` 절로
+그 필요를 적어 build 에 넘긴다 — 판정과 발주는 build 의 일이다.
 
 ## 4. 종료 보고
 
