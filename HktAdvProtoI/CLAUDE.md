@@ -51,8 +51,10 @@ Cycle Artifact 는 `cycles/<CycleId>/` (CycleId: `C###-이름`) — 파일만이
 
 ```text
 engine/            기반 — world-kernel · physics(기본 세계 규칙 솔버) · view-kernel ·
-                   protocol-core. 컨텐츠 작업 중 어떤 Agent 도 편집하지 않는다 (기반 트랙
-                   전용). 팩의 시스템은 physics 솔버를 조합해 만든다 — 직접 재구현하지 않는다
+                   protocol-core. 게임 명사 없이 성립하는 재사용 기구만 갖는다. Cycle 의
+                   기구 추출(advprotoi-build 의 분해 → Agent E, 별도 커밋)로 자라며,
+                   기존 계약의 변경은 ENGINE GAP 으로 Human 승인을 거친다.
+                   팩의 시스템은 physics 솔버를 조합해 만든다 — 직접 재구현하지 않는다
 content/<pack>/    컨텐츠 팩 = 교체 단위 — world/ view/ protocol/ motions/
 content/active*.ts 조립이 소유하는 유일한 팩 선택 지점 (boundary 규칙 4)
 hkt.pack.json      활성 팩 선언 (공정·도구용)
