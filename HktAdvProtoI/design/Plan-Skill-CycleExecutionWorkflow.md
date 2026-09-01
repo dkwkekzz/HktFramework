@@ -43,9 +43,9 @@
 경계다. 그 경계로 기획 1개 + 확정 1개 + 실현 1개로 나눈다.
 
 ```text
-advprotoi-design   기획      GAME/SYSTEM(읽기 전용) → PLAY DESIGN → CYCLE BREAKDOWN
+advprotoi-design   기획      주입(방향/기획서) → PLAY DESIGN 번역 → CYCLE BREAKDOWN
                            산출물: design/play/<name>.md · cycles/<CycleId>/00-cycle.md
-                           Play Goal·Intent·Breath·Cycle 범위는 Human 승인 게이트 (§7)
+                           Human 승인은 Play 문서 통짜 1회 (위층 문서 §8.5)
 
 advprotoi-plan     의미 확정  00-cycle.md → CYCLE SPEC → WORLD SEMANTIC + RULE
                            산출물: 01-spec.md · 02-world.md

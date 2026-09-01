@@ -37,8 +37,8 @@ mmorpg에서 컨텐츠를 구성하기 위한 구조를 설계한다.
 스킬 분할 근거는 [design/Plan-Skill-CycleExecutionWorkflow.md](design/Plan-Skill-CycleExecutionWorkflow.md).
 
 ```text
-advprotoi-design  기획      Game/System → Play Design(design/play/*.md) → Cycle Breakdown
-                           → 00-cycle.md. Goal·Intent·Breath·Cycle 범위는 Human 승인
+advprotoi-design  기획      방향/기획서 주입 → Play Design(design/play/*.md) 번역
+                           → Human 승인 1회 → 00-cycle.md 생성
 advprotoi-plan    의미 확정  00-cycle → CYCLE SPEC → WORLD SEMANTIC + RULE (01·02)
 advprotoi-build   실현·검증  구현 ∥ GameView ∥ 검증 병렬 → 실측 검증 (03·04·05)
                            완료 시 play 문서의 Cycle 체크박스 갱신
