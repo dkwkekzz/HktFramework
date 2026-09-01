@@ -42,9 +42,10 @@ advprotoi-design  기획      Game/System → Play Design(design/play/*.md) → 
 advprotoi-plan    의미 확정  00-cycle → CYCLE SPEC → WORLD SEMANTIC + RULE (01·02)
 advprotoi-build   실현·검증  구현 ∥ GameView ∥ 검증 병렬 → 실측 검증 (03·04·05)
                            완료 시 play 문서의 Cycle 체크박스 갱신
-advprotoi-master  (잔존)   Play Design 이 하나도 없을 때만의 초기 탐색 보조 —
-                           다음 Cycle 은 Play 의 Cycle Breakdown 이 답한다
 ```
+
+"다음에 무엇을 만들까"는 승인된 Play Design 의 Cycle Breakdown 이 답한다 —
+별도의 Master Graph 탐색 공정(advprotoi-master)은 두지 않는다.
 
 Cycle Artifact 는 `cycles/<CycleId>/` (CycleId: `C###-이름`) — 파일만이 단계 간
 인터페이스다. 이전 공정의 산출물(`guides/` · `master/` · `BACKLOG.md` · `LANES.md`)과

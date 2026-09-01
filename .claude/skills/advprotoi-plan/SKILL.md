@@ -41,7 +41,7 @@ description: HktAdvProtoI 의 Cycle 의미 확정 단계를 실행한다 — Cyc
 ```text
 CYCLE          C###-이름
 SOURCE         design/play/….md 또는 design/Design-….md   (의미의 근거 — 반드시 design/ 문서다)
-SELECTED_FROM  Play Cycle Breakdown 항목 / Frontier 후보 이름 / "Human"   (왜 지금 이걸 하는가)
+SELECTED_FROM  Play Cycle Breakdown 항목 또는 "Human"   (왜 지금 이걸 하는가)
 PREV           (직전 Artifact 파일명 — 이 파일만이 입력이다. 01-spec.md 는 00-cycle.md, 없으면 "없음")
 ```
 

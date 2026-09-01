@@ -199,9 +199,9 @@ play 문서를 만질 수 있는 자리는 Cycle Breakdown 체크박스 갱신(�
 ```
 
 Breath · Capability · Cycle 후보는 전부 해당 `play/*.md` 안에서 관리한다.
-`advprotoi-master`(Frontier 탐색)는 이 공정으로 대체된다 — "다음에 무엇을 만들까"는
-승인된 Play Design 의 Cycle Breakdown 이 답한다. Play Design 이 하나도 없는 초기
-탐색에서만 보조 도구로 남는다.
+Master Graph 탐색 공정(advprotoi-master)은 이 공정으로 **대체·제거**한다 —
+"다음에 무엇을 만들까"는 승인된 Play Design 의 Cycle Breakdown 이 답하고,
+Play Design 이 하나도 없으면 첫 Play 를 기획하는 것(advprotoi-design)이 곧 탐색이다.
 
 ## 11. 공정의 핵심 규칙 6개
 
