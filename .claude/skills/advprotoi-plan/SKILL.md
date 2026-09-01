@@ -47,37 +47,34 @@ PREV           (직전 Artifact 파일명 — 이 파일만이 입력이다. 01-
 
 ## 2. CYCLE SPEC → `01-spec.md` (원본 §4–5)
 
-입력은 `00-cycle.md`(있으면 그것만 — Playable Goal·World Change·Observable Result·
-Out of Scope 를 검증 가능한 요구사항으로 폐쇄한다), 없으면 Source Design 문서에서
-이번 Cycle 범위만 잘라낸다. **새 기획서가 아니다** — Design 을 새 추상 구조로
-재해석하지 않고 작업 범위만 고정한다. Experience Intent 는 재해석하지 않는다 —
-PLAN 은 이미 결정된 플레이 기획을 World 명세로 폐쇄한다.
+입력은 `00-cycle.md` 뿐이다 (없는 예외 경로면 Source Design 문서). PLAN 은 이미
+결정된 플레이 기획을 **검증 가능한 요구사항으로 폐쇄**하는 단계다 — Experience
+Intent 를 재해석하지 않고, 새 기획서도 쓰지 않는다.
 
-형식 (4항 고정):
+**델타만 쓴다 (원본 §16 — 정보를 추가하지 않는 단계는 두지 않는다).**
+Playable Goal · World Change · Observable Result · Out of Scope 는 이미 00-cycle 이
+소유한다 — 여기서 재서술·복사하지 않고, 이 단계가 **새로 더하는 것만** 적는다.
 
 ```text
-## Source
-어떤 Design 문서·절에서 나온 작업인가
-
-## 이번 Cycle 에서 성립시킬 것
-플레이어 또는 세계에서 어떤 결과를 만드는가 (구체적 시나리오로)
-
-## 이번 Cycle 에서 하지 않을 것
-범위 제한 목록
-
-## 검증
-무엇을 직접 보면 완료라고 판단할 수 있는가 (구체적 배치·행동·기대 결과)
+## SPEC
+SPEC-001 …  00-cycle 의 World Change·Observable Result 를 참·거짓을 가릴 수 있는
+            문장으로 폐쇄한 목록. 각 항은 하나의 조건과 하나의 기대 결과를 갖는다.
+            경계(성립하지 않는 경우)도 최소 한 항으로 적는다.
 
 ## UNRESOLVED
-Design 에 없어서 결정하지 못한 의미 목록 (없으면 "없음")
+Design·00-cycle 에 없어서 결정하지 못한 의미 (없으면 "없음")
 ```
+
+00-cycle 없이 시작한 예외 경로에서만 위에 `## Source` 와 범위 2항(성립시킬 것 ·
+하지 않을 것)을 덧붙인다 — 00-cycle 이 있으면 그 자리를 만들지 않는다.
 
 **Design 침묵의 판정** — Design 이 말하지 않은 의미를 만나면 둘 중 하나로 처리한다:
 이번 Cycle 이 성립하는 데 그 답이 **필요하면** UNRESOLVED 로 올려 Human 에게 묻고,
-그 답 **없이도 성립하면** "하지 않을 것"에 범위 밖으로 기록해 Cycle 을 움직인다
-(기존 Rule 그대로 두기 · Design 이 준 이름만 쓰기가 범위 밖 처리의 기본형이다).
+그 답 **없이도 성립하면** 00-cycle 의 Out of Scope 로 되돌려 범위 밖임을 확인하고
+Cycle 을 움직인다 (기존 Rule 그대로 두기 · Design 이 준 이름만 쓰기가 기본형이다).
 
-**범위 게이트**: "성립시킬 것"을 한두 문장으로 말할 수 없으면 Cycle 이 크다 —
+**범위 게이트**: 00-cycle 의 Playable Goal 을 한두 문장으로 말할 수 없거나
+SPEC 이 열 항을 넘어가면 Cycle 이 크다 —
 쪼개서 후보를 제시하고 Human 선택을 받는다.
 
 **확장 Cycle** (원본 §18): 기존 기능 확장이면 기존 `02-world.md` 들의 Semantic/Rule

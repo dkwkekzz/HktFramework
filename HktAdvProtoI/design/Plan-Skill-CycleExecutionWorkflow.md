@@ -74,7 +74,7 @@ advprotoi-build    실현·검증  IMPLEMENTATION ∥ GAMEVIEW ∥ 검증 시나
 
 | 파일 | 원본 단계 | 형식 핵심 |
 |---|---|---|
-| `01-spec.md` | CYCLE SPEC (§4) | Source / 이번에 성립시킬 것 / 하지 않을 것 / 검증 방법 + `UNRESOLVED` 목록 |
+| `01-spec.md` | CYCLE SPEC (§4) | **델타만** — 검증 가능한 `SPEC-###` 목록 + `UNRESOLVED`. 범위(Goal·World Change·Out of Scope)는 00-cycle 이 소유하므로 재서술하지 않는다 (§16). 00-cycle 없는 예외 경로에서만 Source·범위 2항을 덧붙인다 |
 | `02-world.md` | WORLD SEMANTIC + RULE (§6–8) | State 목록(개념·상태만) + Rule 목록(`IF … THEN …`) + REUSED/ADDED |
 | `03-impl.md` | IMPLEMENTATION (§9–11) | 변경 파일 목록 + **Rule ↔ 코드 매핑 표**(Trace) — 코드 자체는 커밋이 소유 |
 | `04-gameview.md` | GAMEVIEW (§12) | World State → 표현 매핑 표 (필요한 Cycle 만) |
@@ -167,7 +167,8 @@ PREV   (직전 Artifact 파일명 — 이 파일만이 입력이다)
 
 1. 작업 디렉토리·경로 규약 (CLAUDE.md 위임 — 중복 기재하지 않음)
 2. Cycle 시작: 00-cycle.md(표준) 또는 Human 직접 지정 Goal → CycleId 채번
-3. CYCLE SPEC 작성 — 4항 표 + 범위 게이트("한 문장으로 성립 결과를 말할 수 있는가")
+3. CYCLE SPEC 작성 — **델타만**(SPEC-### + UNRESOLVED, 00-cycle 재서술 금지)
+   + 범위 게이트(Playable Goal 을 한두 문장으로 말할 수 있는가 · SPEC 10항 이내)
 4. **정지 규칙**: Design 에 없는 의미 → `UNRESOLVED` 기록 후 Human 반환. 수치·시간·
    확률은 전부 여기에 해당한다 (§5 의 PerfectGuardWindow 예 그대로 인용)
 5. WORLD SEMANTIC + RULE 작성 — 02-world.md 한 파일, State/Rule 형식, 코드 클래스 금지,

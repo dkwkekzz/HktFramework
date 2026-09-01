@@ -11,7 +11,9 @@ description: HktAdvProtoI 의 Cycle 실현·검증 단계를 실행한다 — �
 `engine/` 수정은 아래 **기구 추출** 경로로만 한다 — `npm run boundary:check`
 (engine→content import 금지)는 항상 통과해야 한다.
 
-입력은 `cycles/<CycleId>/01-spec.md` · `02-world.md` 두 파일뿐이다. 산출물은
+입력은 `cycles/<CycleId>/01-spec.md` · `02-world.md` 두 파일이다 (01 은 델타 —
+범위와 Experience Intent 는 같은 디렉터리의 `00-cycle.md` 가 소유하므로, 범위 확인과
+Experience Verification 기입에만 그것을 연다). 산출물은
 `03-impl.md` · `04-gameview.md`(필요 시) · `05-verification.md` + 코드 커밋이다.
 모든 Artifact 머리에 plan 과 같은 Trace 블록(CYCLE/SOURCE/PREV)을 둔다.
 
