@@ -11,7 +11,9 @@ description: HktAdvProtoI 의 Cycle 실현·검증 단계를 실행한다 — �
 `engine/` 수정은 아래 **기구 추출** 경로로만 한다 — `npm run boundary:check`
 (engine→content import 금지)는 항상 통과해야 한다.
 
-입력은 `cycles/<CycleId>/01-spec.md` · `02-world.md` 두 파일뿐이다. 산출물은
+입력은 `cycles/<CycleId>/01-spec.md` · `02-world.md` 두 파일이다 (01 은 델타 —
+범위와 Experience Intent 는 같은 디렉터리의 `00-cycle.md` 가 소유하므로, 범위 확인과
+Experience Verification 기입에만 그것을 연다). 산출물은
 `03-impl.md` · `04-gameview.md`(필요 시) · `05-verification.md` + 코드 커밋이다.
 모든 Artifact 머리에 plan 과 같은 Trace 블록(CYCLE/SOURCE/PREV)을 둔다.
 
@@ -136,8 +138,19 @@ Agent 별 추가 규칙:
 [ ] Verification   Human 이 추가 추론 없이 판단 가능
 ```
 
+**Experience Verification** (Design Authoring 확장, 원본 위층 문서 §7): Cycle 이
+`00-cycle.md` 에서 왔으면 그 Experience Intent 를 `05-verification.md` 에 실주행
+관찰 항목으로 옮겨 적는다 — 의도한 인지·행동 변화가 실제 플레이에서 발생하는지의
+최종 판단은 Human 몫이므로, 관찰 방법(무엇을 하고 무엇을 보는가)만 적고 판정 칸은
+Human 에게 남긴다.
+
 7항 전부 + 시나리오 전부 PASS 여야 Cycle 완료다. 하나라도 미달이면 미완 항목과
 반환 대상(W/V/plan/Human)을 보고하고 완료 선언하지 않는다.
+
+**Play 문서 갱신**: Cycle 이 `design/play/<PlayName>.md` 의 Cycle Breakdown 에서
+왔으면, 완료 시 그 항목의 체크박스만 `[x]` 로 갱신한다 — play 문서에서 Agent 가
+만질 수 있는 유일한 자리다. 해당 Play 의 모든 Cycle 이 닫혔으면 "Play Goal 실주행
+확인"을 Human 에게 제안한다.
 
 Cycle 간 병렬 규칙은 아직 두지 않는다 — 한 번에 한 Cycle 이 기본이다. 실제로
 동시 진행 필요가 생기면 그때 규칙을 세운다 (선행 추상화 금지를 공정 자신에게도 적용).

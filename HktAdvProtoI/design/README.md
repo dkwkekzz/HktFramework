@@ -15,26 +15,31 @@ Human 이 작성·개정한 **원본**이다. Agent 는 이 문서들을 바꾸�
 | 문서 | 내용 |
 |---|---|
 | `Design-Concept.md` | 세계와 주체의 행동 구조 — 무엇이 존재하고 어떤 변화가 가능한가 |
-| `Design-Workflow.md` | Goal/Possibility 기반 Observable World 구현 Workflow |
-| `Design-CycleWorkflow.md` | Cycle 단위 점진 개발 공정 |
-| `Design-CycleExecution.md` | Agent 실행 방식 |
-| `Master-Intent-Graph-Policy.md` | Master Layer 정책 — Constraint · Graph · Overlay · Frontier |
-| `Master-Intent-Graph-Growth.md` | Master Graph 성장 규칙 |
+| `Design-DesignAuthoringWorkflow.md` | **기획 위층 공정** — Game/System → Play Design(`play/`) → Cycle Breakdown → 00-cycle |
+| `Design-CycleExecutionWorkflow.md` | **Cycle 실행 공정 원본** — SPEC → SEMANTIC/RULE → IMPL → VERIFY |
+| `Plan-Skill-CycleExecutionWorkflow.md` | 공정의 스킬 분할 계획 (advprotoi-design·plan·build) |
+| `Design-Workflow.md` | Goal/Possibility 기반 Observable World 구현 Workflow (이전 기준선 참고 문서) |
 | `Design-System-Content-Separation.md` | **기반(engine) / 컨텐츠(팩) 분리** — 지금 코드가 선 자리 |
 | `Design-World-Persistence.md` | 세계 스냅샷과 복구 |
 | `Design-Effect-Presentation.md` | 이펙트 장치 |
 | `Design-Terrain-Visualization.md` | 지형 시각화 |
 
+## Play Design
+
+`play/` — 실제 플레이 경험 1개당 1문서. 시스템 기획들이 하나의 플레이에서 만나는
+자리이며, Cycle Breakdown(진행 체크박스)을 소유한다. AI 초안 + Human 승인의 공동
+문서다 (Design-DesignAuthoringWorkflow.md §9).
+
 ## 컨텐츠 기획
 
 | 갈래 | 문서 | 약칭 |
 |---|---|---|
-| 세계 | `Master-World-Beira.md` · `Master-World-Beira-Terrain.md` | BW |
-| 성장 | `Master-Fairy-Growth-System.md` · `Design-Growth-Balance-R0.md` · `Design-Fairy-Class-Layer0-R0.md` | — · FC |
+| 세계 | `Design-World-Beira.md` · `Design-World-Beira-Terrain.md` · `Design-World-Spatial-Presence.md` | BW |
+| 성장 | `Design-Fairy-Growth-System.md` · `Design-Growth-Balance-R0.md` · `Design-Fairy-Class-Layer0-R0.md` | — · FC |
 | 전투 | `Design-Combat-OffenseDefense-R0.md` · `Design-Combat-DamageType-R0.md` · `Design-Combat-UpperLayer-R0.md` · `Design-Combat-Knowledge-Extension-R0.md` | R1 · DT · UL · CK |
 | 지목 | `Design-Targeting-R0.md` | TG |
 | 아이템 | `Design-Item-System-R0.md` · `Design-Item-System-R1.md` · `Design-Item-Chain-R0.md` · `Design-Item-Instance-State-R0.md` · `Design-Item-Lifecycle-Progression-R0.md` · `Design-Inventory-Equipment-D1.md` · `Design-Resource-Catalog-R0.md` | IS · IE |
-| 스킬 | `Skill/Skill-System.md` · `Skill/Skill-Execution-Form.md` · `Skill/Skill-Effect.md` · `Skill/World-Spatial-Presence.md` | SK |
+| 스킬 | `Design-Skill-System.md` · `Design-Skill-Execution-Form.md` · `Design-Skill-Effect.md` | SK |
 | 존재 | `Design-Autonomous-Behavior-Knowledge-R0.md` · `Design-Creature-Behavior-R0.md` | — |
 | 화면(UX) | `Design-View-Inventory-Equipment-UX-D1.md` · `Design-View-Skill-UX-D1.md` | VUX-IE · VUX-SK |
 
