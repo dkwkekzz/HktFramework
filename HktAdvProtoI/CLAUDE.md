@@ -32,12 +32,18 @@ mmorpg에서 컨텐츠를 구성하기 위한 구조를 설계한다.
 ## 작업 공정 (Workflow)
 
 공정 원본은 [design/Design-CycleExecutionWorkflow.md](design/Design-CycleExecutionWorkflow.md),
+기획 위층(사람의 아이디어 → Play Design → 00-cycle)은
+[design/Design-DesignAuthoringWorkflow.md](design/Design-DesignAuthoringWorkflow.md),
 스킬 분할 근거는 [design/Plan-Skill-CycleExecutionWorkflow.md](design/Plan-Skill-CycleExecutionWorkflow.md).
 
 ```text
-advprotoi-master  (선택)  다음 Cycle 탐색 — Frontier 후보 제시, 선택은 Human
-advprotoi-plan    의미 확정  CYCLE SPEC → WORLD SEMANTIC + RULE (cycles/<CycleId>/01·02)
+advprotoi-design  기획      Game/System → Play Design(design/play/*.md) → Cycle Breakdown
+                           → 00-cycle.md. Goal·Intent·Breath·Cycle 범위는 Human 승인
+advprotoi-plan    의미 확정  00-cycle → CYCLE SPEC → WORLD SEMANTIC + RULE (01·02)
 advprotoi-build   실현·검증  구현 ∥ GameView ∥ 검증 병렬 → 실측 검증 (03·04·05)
+                           완료 시 play 문서의 Cycle 체크박스 갱신
+advprotoi-master  (잔존)   Play Design 이 하나도 없을 때만의 초기 탐색 보조 —
+                           다음 Cycle 은 Play 의 Cycle Breakdown 이 답한다
 ```
 
 Cycle Artifact 는 `cycles/<CycleId>/` (CycleId: `C###-이름`) — 파일만이 단계 간

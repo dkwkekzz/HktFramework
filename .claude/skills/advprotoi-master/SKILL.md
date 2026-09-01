@@ -8,6 +8,12 @@ description: HktAdvProtoI 의 Master Graph 탐색을 실행한다 — World/Acto
 **작업 디렉토리: `HktAdvProtoI/`**. 공정 원본은
 [design/Design-CycleExecutionWorkflow.md](../../../HktAdvProtoI/design/Design-CycleExecutionWorkflow.md) §15.
 
+**대체 관계** ([design/Design-DesignAuthoringWorkflow.md](../../../HktAdvProtoI/design/Design-DesignAuthoringWorkflow.md) §10):
+"다음에 무엇을 만들까"의 표준 답은 승인된 Play Design(`design/play/*.md`)의
+Cycle Breakdown 이다 — 미완료 Cycle 이 있는 Play 가 존재하면 이 스킬을 쓰지 않고
+`advprotoi-design`/`advprotoi-plan` 으로 안내한다. 이 스킬은 Play Design 이 하나도
+없는 초기 탐색의 보조 도구로만 남는다.
+
 이 스킬은 **설계 탐색 도구**다. Cycle 은 구현 공정이고 둘은 분리한다 (원본 §15).
 코드·`design/`·`cycles/` 를 수정하지 않는다. 산출물은 대화 보고(Frontier 후보 목록)
 뿐이다 — 필요해질 때까지 `master/` 디렉터리·그래프 파일을 만들지 않는다

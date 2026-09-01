@@ -1,7 +1,8 @@
 # Plan — Cycle Execution Workflow Skill 작성 계획
 
-상태: 승인 — 스킬 3종(`advprotoi-plan` · `advprotoi-build` · `advprotoi-master`) 작성됨. 남은 것: 시험 Cycle 실주행과 마찰 반영 (§6 의 4–5)
-원본: [Design-CycleExecutionWorkflow.md](Design-CycleExecutionWorkflow.md)
+상태: 승인 — 스킬 4종(`advprotoi-design` · `advprotoi-plan` · `advprotoi-build` · `advprotoi-master`) 작성됨. 남은 것: 시험 Cycle 실주행과 마찰 반영 (§6 의 4–5)
+원본: [Design-CycleExecutionWorkflow.md](Design-CycleExecutionWorkflow.md) ·
+기획 위층: [Design-DesignAuthoringWorkflow.md](Design-DesignAuthoringWorkflow.md) (§7 로 확장 반영)
 
 이 문서는 Design-CycleExecutionWorkflow.md 의 공정을 AI Agent 가 그대로 수행할 수
 있도록 `.claude/skills/` 스킬을 어떻게 나누고 무엇을 담을지 정하는 **계획**이다.
@@ -197,3 +198,30 @@ PREV   (직전 Artifact 파일명 — 이 파일만이 입력이다)
 | 4 | 시험 Cycle 1개 실주행 (기존 design/ 의 작은 항목, 예: 막기 계열 최소 조각) | 공정 검증은 문서가 아니라 실주행 |
 | 5 | 실주행에서 드러난 마찰만 스킬에 반영, `advprotoi-master` 작성 | 추상화는 반복에서 — 스킬 자신에게도 §10 적용 |
 | 6 | CLAUDE.md "작업 공정" 절에 스킬 진입점 등록 | |
+
+## 7. 확장 — Design Authoring 위층 (advprotoi-design)
+
+[Design-DesignAuthoringWorkflow.md](Design-DesignAuthoringWorkflow.md) 가 Cycle 공정의
+위층으로 승인되면서 스킬 하나를 더한다. 기존 3종의 역할·산출물은 바꾸지 않는다 —
+plan 의 입력에 `00-cycle.md` 가 추가될 뿐이다 (원본 확장 규칙 6: "구현 Workflow 는
+건드리지 않는다").
+
+```text
+advprotoi-design   기획      Game.md/시스템 문서 → design/play/<name>.md
+                            (Play Goal → Intent → Breath → Structure → World Cause
+                             → Capability → Cycle Breakdown, Human 승인 게이트)
+                            → cycles/<CycleId>/00-cycle.md
+```
+
+연결 규칙:
+
+1. **00-cycle.md 가 plan 의 표준 입력이다.** 01-spec 의 PREV = 00-cycle.md,
+   SOURCE = `design/play/<name>.md`. 00-cycle 없이 Human 이 직접 Goal 을 지정하는
+   예외 경로는 유지한다.
+2. **build 마감에 두 가지가 더해진다** — Experience Verification 관찰 항목을
+   05-verification.md 에 기입(판정은 Human), 완료 시 play 문서의 Cycle Breakdown
+   체크박스 갱신 (play 문서에서 Agent 가 만질 수 있는 유일한 자리).
+3. **master 는 대체된다** — 다음 Cycle 은 승인된 Play 의 Cycle Breakdown 이 답한다.
+   Play Design 이 하나도 없는 초기 탐색의 보조 도구로만 남긴다.
+4. Graph 류 관리 artifact 는 만들지 않는다 — Breath·Capability·Cycle 후보는 전부
+   해당 play 문서 안에서 관리한다 (위층 문서 §10).

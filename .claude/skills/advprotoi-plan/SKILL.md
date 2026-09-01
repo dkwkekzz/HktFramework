@@ -1,6 +1,6 @@
 ---
 name: advprotoi-plan
-description: HktAdvProtoI 의 Cycle 의미 확정 단계를 실행한다 — Cycle 시작(Human 지정 Goal 또는 Frontier) → CYCLE SPEC(01-spec.md) → WORLD SEMANTIC + RULE(02-world.md). Design 에 없는 게임 의미는 결정하지 않고 UNRESOLVED 로 정지·Human 반환한다. 코드는 수정하지 않는다 — 구현·검증은 advprotoi-build 가 이어받는다. 사용자가 "AdvProtoI Cycle 시작 / Cycle Spec 작성 / World Semantic 작성 / plan 진행 / 다음 Cycle 계획" 을 요청하면 사용.
+description: HktAdvProtoI 의 Cycle 의미 확정 단계를 실행한다 — Cycle 시작(00-cycle.md 또는 Human 지정 Goal) → CYCLE SPEC(01-spec.md) → WORLD SEMANTIC + RULE(02-world.md). Design 에 없는 게임 의미는 결정하지 않고 UNRESOLVED 로 정지·Human 반환한다. 코드는 수정하지 않는다 — 구현·검증은 advprotoi-build 가 이어받는다. 사용자가 "AdvProtoI Cycle 시작 / Cycle Spec 작성 / World Semantic 작성 / plan 진행 / 다음 Cycle 계획" 을 요청하면 사용.
 ---
 
 # HktAdvProtoI Cycle Plan — 의미 확정 (SPEC → SEMANTIC + RULE)
@@ -25,27 +25,33 @@ description: HktAdvProtoI 의 Cycle 의미 확정 단계를 실행한다 — Cyc
 
 ## 1. Cycle 시작
 
-1. Cycle Goal 을 받는다 — Human 이 직접 지정하거나, `advprotoi-master` 의 Frontier
-   선택 결과를 받는다. **master 산출물은 필수가 아니다** (원본 §15) — Source 가
-   `design/` 문서면 충분하다.
-2. CycleId 채번: `C###-이름` — `cycles/` 디렉터리와 기존 코드 주석의 Cycle 번호(C###)
-   를 통틀어 최대 번호 +1 로 잇는다 (세 자리). 코드에 남은 이전 기준선의 번호도
-   같은 이름 공간이다.
-3. `cycles/<CycleId>/` 생성.
+1. Cycle Goal 을 받는다 — 표준 경로는 `advprotoi-design` 이 만든
+   `cycles/<CycleId>/00-cycle.md` (승인된 Play Design 의 Cycle Breakdown 한 항목)다.
+   00-cycle 이 있으면 **그것이 이 단계의 유일한 입력**이며, Play Design·Design 을
+   되읽어 재해석하지 않는다 (Source 문서는 근거 확인 용도로만 연다).
+   00-cycle 없이 Human 이 직접 Goal 을 지정하는 예외 경로도 유지한다 — 그 경우
+   Source 가 `design/` 문서면 충분하다.
+2. CycleId 채번(00-cycle 이 없을 때만 새로 채번): `C###-이름` — `cycles/` 디렉터리와
+   기존 코드 주석의 Cycle 번호(C###)를 통틀어 최대 번호 +1 로 잇는다 (세 자리).
+   코드에 남은 이전 기준선의 번호도 같은 이름 공간이다.
+3. `cycles/<CycleId>/` 생성 (없으면).
 
 모든 Artifact 머리에 Trace 블록을 둔다:
 
 ```text
 CYCLE          C###-이름
-SOURCE         design/Design-….md   (의미의 근거 — 반드시 Design 문서다)
-SELECTED_FROM  Frontier 후보 이름 또는 "Human"   (왜 지금 이걸 하는가 — Master 는 Source 가 아니다)
-PREV           (직전 Artifact 파일명 — 이 파일만이 입력이다. 01-spec.md 는 "없음")
+SOURCE         design/play/….md 또는 design/Design-….md   (의미의 근거 — 반드시 design/ 문서다)
+SELECTED_FROM  Play Cycle Breakdown 항목 / Frontier 후보 이름 / "Human"   (왜 지금 이걸 하는가)
+PREV           (직전 Artifact 파일명 — 이 파일만이 입력이다. 01-spec.md 는 00-cycle.md, 없으면 "없음")
 ```
 
 ## 2. CYCLE SPEC → `01-spec.md` (원본 §4–5)
 
-Source Design 문서를 읽고 이번 Cycle 범위만 잘라낸다. **새 기획서가 아니다** —
-Design 을 새 추상 구조로 재해석하지 않고 작업 범위만 고정한다.
+입력은 `00-cycle.md`(있으면 그것만 — Playable Goal·World Change·Observable Result·
+Out of Scope 를 검증 가능한 요구사항으로 폐쇄한다), 없으면 Source Design 문서에서
+이번 Cycle 범위만 잘라낸다. **새 기획서가 아니다** — Design 을 새 추상 구조로
+재해석하지 않고 작업 범위만 고정한다. Experience Intent 는 재해석하지 않는다 —
+PLAN 은 이미 결정된 플레이 기획을 World 명세로 폐쇄한다.
 
 형식 (4항 고정):
 

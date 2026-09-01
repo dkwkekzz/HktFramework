@@ -15,6 +15,7 @@ Human 이 작성·개정한 **원본**이다. Agent 는 이 문서들을 바꾸�
 | 문서 | 내용 |
 |---|---|
 | `Design-Concept.md` | 세계와 주체의 행동 구조 — 무엇이 존재하고 어떤 변화가 가능한가 |
+| `Design-DesignAuthoringWorkflow.md` | **기획 위층 공정** — Game/System → Play Design(`play/`) → Cycle Breakdown → 00-cycle |
 | `Design-Workflow.md` | Goal/Possibility 기반 Observable World 구현 Workflow |
 | `Design-CycleWorkflow.md` | Cycle 단위 점진 개발 공정 |
 | `Design-CycleExecution.md` | Agent 실행 방식 |
@@ -24,6 +25,12 @@ Human 이 작성·개정한 **원본**이다. Agent 는 이 문서들을 바꾸�
 | `Design-World-Persistence.md` | 세계 스냅샷과 복구 |
 | `Design-Effect-Presentation.md` | 이펙트 장치 |
 | `Design-Terrain-Visualization.md` | 지형 시각화 |
+
+## Play Design
+
+`play/` — 실제 플레이 경험 1개당 1문서. 시스템 기획들이 하나의 플레이에서 만나는
+자리이며, Cycle Breakdown(진행 체크박스)을 소유한다. AI 초안 + Human 승인의 공동
+문서다 (Design-DesignAuthoringWorkflow.md §9).
 
 ## 컨텐츠 기획
 
