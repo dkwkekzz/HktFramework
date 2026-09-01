@@ -43,7 +43,7 @@
 경계다. 그 경계로 기획 1개 + 확정 1개 + 실현 1개로 나눈다.
 
 ```text
-advprotoi-design   기획      주입(방향/기획서) → PLAY DESIGN 번역 → CYCLE BREAKDOWN
+advprotoi-design   기획      주입(방향/기획서) → PLAY DESIGN 구체화 → CYCLE BREAKDOWN
                            산출물: design/play/<name>.md · cycles/<CycleId>/00-cycle.md
                            Human 승인은 Play 문서 통짜 1회 (위층 문서 §8.5)
 

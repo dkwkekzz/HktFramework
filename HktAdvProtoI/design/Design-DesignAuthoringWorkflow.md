@@ -180,9 +180,11 @@ World Capability 는 이후 Cycle 에서 그대로 재사용한다.
 ```text
 ① 주입    Human 이 방향 한 줄이든 기획서 전문이든 준다 (채팅 텍스트·파일 무관).
           채팅으로 온 주입물은 design/ 에 파일로 보존한다 — 그것이 Source 가 된다.
-② 번역    AI 가 주입물을 Play Design 1문서(7단계)로 변환한다 — 탐색이 아니라
-          번역이다: 주입물과 기존 design/ 에 있는 의미만 옮기고, 없는 의미는
-          지어내지 않고 문서 끝 "Human 질문" 목록에 모은다.
+② 구체화  AI 가 주입물을 Play Design 1문서(7단계)로 구체화한다 (§22 의 AI 수행
+          영역 — Play Structure 구체화와 Experience → World Cause 변환). 즉
+          **플레이 층은 AI 가 제안하고 승인으로 확정**한다. 다만 게임 의미의
+          결정(수치·확률·시간 · 시스템 원리의 확정 · 세계관 사실)은 AI 의 것이
+          아니다 — 지어내지 않고 문서 끝 "Human 질문" 목록에 모은다.
           → Human 승인 1회 (Play 문서 통짜 — Goal·Intent·Breath·Breakdown 개별
           게이트를 두지 않는다. 질문 목록이 있으면 답과 함께 승인된다)
 ③ 생성    승인 즉시 첫 미완료 Cycle 의 00-cycle.md 를 만든다 → plan 으로 이어진다.
@@ -196,11 +198,19 @@ World Capability 는 이후 Cycle 에서 그대로 재사용한다.
 ## 9. Human / AI 역할
 
 ```text
-Human   결정: 게임 전체 방향 / 시스템 핵심 원칙 / Play Goal /
-        Experience Intent · Breath / Cycle 범위 / 실제 플레이 경험 판단
+Human   결정: 게임 전체 방향 / 시스템 핵심 원칙 / 게임 의미(수치·확률·시간·범위,
+        세계관 사실) / 실제 플레이 경험 판단
+        승인: Play Goal · Experience Intent · Breath · Cycle 범위 — AI 가 제안한
+        것을 승인·수정한다 (§8.5 의 승인 1회 게이트)
 AI      수행: 기획 문서 읽기 / Play Structure 구체화 / Experience → World Cause 변환 /
         Capability 분석 / Cycle 후보 분할 / Cycle 문서 작성 / PLAN / BUILD / 검증
+        제안: Play Goal · Experience Intent · Breath (주입물이 말하지 않았으면)
 ```
+
+"결정"과 "제안"의 경계가 이 공정의 핵심이다. **플레이 층**(무엇을 하게 할 것인가,
+어떤 호흡으로, 어떤 사건과 세계 인과로)은 AI 가 지어 올리고 Human 이 승인한다 —
+방향 한 줄만 주입돼도 공정이 굴러가는 이유다. **게임 의미**(그 사건이 성립하는
+수치·원리·세계관 사실)는 AI 가 정하지 않는다 — Human 질문으로 올라간다.
 
 Human 은 게임이 무엇이어야 하는가를 결정하고, AI 는 그것을 구현 가능한 인과와 작은
 작업 단위로 폐쇄한다.

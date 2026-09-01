@@ -1,6 +1,6 @@
 ---
 name: advprotoi-design
-description: HktAdvProtoI 의 기획(Design Authoring) 단계를 실행한다 — Human 이 방향 한 줄이나 기획서를 주입하면 그것을 Play Design(design/play/<name>.md)으로 번역하고, 승인 1회 후 첫 Cycle 의 00-cycle.md 를 생성한다. 없는 의미는 지어내지 않고 Human 질문 목록으로 모은다. 코드는 수정하지 않는다 — 이후는 advprotoi-plan 이 이어받는다. 사용자가 "AdvProtoI 기획 / 기획 주입 / 이 방향으로 만들어줘 / Play Design 작성 / 00-cycle 작성 / design 진행" 을 요청하면 사용.
+description: HktAdvProtoI 의 기획(Design Authoring) 단계를 실행한다 — Human 이 방향 한 줄이나 기획서를 주입하면 그것을 Play Design(design/play/<name>.md)으로 구체화하고, 승인 1회 후 첫 Cycle 의 00-cycle.md 를 생성한다. 플레이 층(Breath·사건·World Cause)은 AI 가 제안하고, 게임 의미의 결정(수치·원리·세계관 사실)은 지어내지 않고 Human 질문 목록으로 모은다. 코드는 수정하지 않는다 — 이후는 advprotoi-plan 이 이어받는다. 사용자가 "AdvProtoI 기획 / 기획 주입 / 이 방향으로 만들어줘 / Play Design 작성 / 00-cycle 작성 / design 진행" 을 요청하면 사용.
 ---
 
 # HktAdvProtoI Design — 주입 → Play Design → 00-cycle
@@ -21,10 +21,25 @@ description: HktAdvProtoI 의 기획(Design Authoring) 단계를 실행한다 �
   참조하고, 없어도 막지 않는다** — 주입물 자체가 그 자리의 근거다. 전 문서 스캔·
   사전 정리 단계를 만들지 않는다.
 
-## ② 번역 → `design/play/<PlayName>.md` (승인 1회)
+## ② 구체화 → `design/play/<PlayName>.md` (승인 1회)
 
-주입물을 Play Design 1문서로 **번역**한다 — 탐색이 아니다: 주입물과 기존 design/
-에 있는 의미만 옮긴다. 골격 (7단계, 원본 §5):
+주입물을 Play Design 1문서로 **구체화**한다. 무엇을 AI 가 정하고 무엇을 Human 이
+정하는지의 경계는 하나다 (원본 §9):
+
+```text
+AI 가 제안한다     플레이 층 — Play Structure 구체화, Breath 의 각 단계를 실제 게임
+                  사건으로 놓기, Experience → World Cause 변환, Capability 분석,
+                  Cycle 분할. 방향 한 줄만 주입돼도 이 층은 AI 가 지어 올린다.
+                  (승인으로 확정되므로 창작이되 독단이 아니다)
+Human 이 정한다    게임 의미 — 수치·확률·시간·범위, 시스템 원리의 확정,
+                  세계관 사실(무엇이 존재하는가·이름). 이것은 제안하지 않고
+                  "Human 질문" 목록에 올린다.
+```
+
+판단이 서지 않으면 Human 질문으로 올린다 — 플레이 층이라도 주입물의 의도를
+크게 벌리는 선택(예: 목표 자체를 바꾸는 갈래)은 질문에 함께 적는다.
+
+골격 (7단계, 원본 §5):
 
 ```text
 # <PlayName>
@@ -39,8 +54,8 @@ description: HktAdvProtoI 의 기획(Design Authoring) 단계를 실행한다 �
 ## Human 질문            주입물·design/ 로 결정할 수 없던 의미 (없으면 "없음")
 ```
 
-- 없는 의미는 지어내지 않고 **문서 끝 "Human 질문" 목록**에 모은다 — 단계마다
-  정지하지 않는다.
+- **게임 의미**(위 표의 Human 몫)는 지어내지 않고 **문서 끝 "Human 질문" 목록**에
+  모은다 — 단계마다 정지하지 않는다. 플레이 층은 제안으로 채워 문서를 완성한다.
 - Cycle Breakdown 각 항목은 6조건(작다/플레이 가능/World 변화 분명/관찰 가능/
   검증 가능/재사용 가능), 순서는 의존성 + Breath 점진 완성. CycleId 는 전
   이름공간(cycles/ + 코드 주석) 최대 번호 +1. Existing 판정은 CLAUDE.md 의
