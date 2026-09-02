@@ -1,13 +1,13 @@
 # design — 설계·기획 원본
 
-이 프로젝트의 설계 문서가 **한자리에** 있다. 공정·기반 문서(팩을 갈아 끼워도 참인 것)와
+이 프로젝트의 설계 문서가 **한자리에** 있다. 공정·기반 문서(컨텐츠를 갈아 끼워도 참인 것)와
 이 세계의 컨텐츠 기획 원본(세계관·전투·아이템·스킬·UX)이 함께 산다.
 
 Human 이 작성·개정한 **원본**이다. Agent 는 이 문서들을 바꾸지 않는다 —
 승인·개정은 Human 소유다.
 
 > 이 문서들 가운데 상당수는 **아직 코드에 들어오지 않은 것**을 적고 있다.
-> 현재 구현은 C009(개발 명령 표면)까지이며, 그 뒤의 전투·성장·아이템·지형은
+> 지금 코드에 있는 것은 채광·행동·관찰·기본 전투·개발 명령 표면까지이며, 그 뒤의 전투·성장·아이템·지형은
 > 기획으로만 존재한다. 무엇을 언제 어떤 순서로 들일지는 새로 세울 작업 공정이 정한다.
 
 ## 공정 · 기반
@@ -19,7 +19,7 @@ Human 이 작성·개정한 **원본**이다. Agent 는 이 문서들을 바꾸�
 | `Design-CycleExecutionWorkflow.md` | **Cycle 실행 공정 원본** — SPEC → SEMANTIC/RULE → IMPL → VERIFY |
 | `Plan-Skill-CycleExecutionWorkflow.md` | 공정의 스킬 분할 계획 (advprotoi-design·plan·build) |
 | `Design-Workflow.md` | Goal/Possibility 기반 Observable World 구현 Workflow (이전 기준선 참고 문서) |
-| `Design-System-Content-Separation.md` | **기반(engine) / 컨텐츠(팩) 분리** — 지금 코드가 선 자리 |
+| `Design-System-Content-Separation.md` | **기반(engine) / 컨텐츠(content) 분리** — 지금 코드가 선 자리 |
 | `Design-World-Persistence.md` | 세계 스냅샷과 복구 |
 | `Design-Effect-Presentation.md` | 이펙트 장치 |
 | `Design-Terrain-Visualization.md` | 지형 시각화 |

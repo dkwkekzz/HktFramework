@@ -1,16 +1,16 @@
 # Design — 지형 시각화 (지면 구역 장치)
 
-status: IMPLEMENTED — `SceneGroundZone` 이 섰고(engine/view-kernel/scene · renderer)
-C-TERRAIN-001 의 Stage 8 이 그것으로 검증을 닫았다.
+status: 기반만 있음 — `SceneGroundZone` 프리미티브는 섰다(engine/view-kernel/scene · renderer).
+컨텐츠 쪽(지형 관찰 계약 · 자리 정의 · 표현 결정)은 이 기준선에 없다 — Cycle 이 세운다.
 최종 모양은 04 의 `engine_contract` 가 정했다 — 원만, `rect`·폴리곤은 빼고,
 `intensity` 는 다음 Cycle 의 예고를 위해 지금 넣었다.
 재현: `CHROMIUM_PATH=<크로뮴> npm run terrain:shot -- <png>`
 
 ## 목적
 
-땅이 법칙을 지니면(`master/frontier/terrain.md` SELECTED) 그것이 화면에서 읽혀야 한다.
+땅이 법칙을 지니면 그것이 화면에서 읽혀야 한다.
 이 문서는 그 시각화를 **어느 레인이 무엇으로 세우는가**를 정한다 — 기반/컨텐츠 분리
-(Design-System-Content-Separation.md)와 설계 반전 ⑤(capability 는 엔진, 결정은 팩)를
+(Design-System-Content-Separation.md)와 설계 반전 ⑤(capability 는 엔진, 결정은 컨텐츠)를
 지형에 적용한 것이다.
 
 ## 요구 분해 — 무엇이 보여야 하는가
@@ -32,14 +32,14 @@ ENGINE 에 새로 필요한 능력은 정확히 하나다 — **지면 위 구�
 ```text
 ENGINE 레인          SceneGroundZone 프리미티브 + 렌더러 구현. 의미 없음(meaning-free) —
                      "법칙"도 "예외"도 모른다. 범위·색·테두리를 그릴 뿐이다
-C-TERRAIN-001        관찰 계약 — protocol/gameview-terrain.ts · semantic-id-terrain.ts
-  (WORLD·TERRAIN)      신규 도메인 파일. 무엇을 싣는지는 Stage 4(04)가 확정한다
+지형 Cycle           관찰 계약 — content/protocol/gameview-terrain.ts · semantic-id-terrain.ts
+                     신규 도메인 파일. 무엇을 싣는지는 `04-gameview.md` 가 확정한다
                        (DC-WORLD-OWNS-THE-SURFACE-LIST)
-                     세계 구현 — 자리 정의 · drain 규칙 · 예외 판정 (Stage 6.
-                       선례: GuardedGround · cp-run-drain · DepositState · WORLD_BOUNDS)
-                     표현 결정 — view/terrain-presentation.ts: 법칙 의미코드 → 색·문구·
-                       intensity. 사유 코드 → HUD 줄 (Stage 7)
-VIEW 레인 (V-NNN)    등장하지 않는다 — 관찰 계약이 바뀌는 작업이라 전부 Cycle 소유다
+                     세계 구현 — 자리 정의 · drain 규칙 · 예외 판정 (`03-impl.md`.
+                       선례: cp-run-drain · DepositState · WORLD_BOUNDS)
+                     표현 결정 — content/view/terrain-presentation.ts: 법칙 의미코드 → 색·문구·
+                       intensity. 사유 코드 → HUD 줄 (`03-impl.md`)
+별도 VIEW 작업       없다 — 관찰 계약이 바뀌는 작업이라 전부 Cycle 소유다
 ```
 
 view 는 판정을 스스로 계산하지 않는다 — 작용 중인가·안인가는 세계가 보낸 값 그대로,
@@ -58,7 +58,7 @@ export interface SceneGroundZone {
        | { kind: 'rect'; min: { x: number; z: number }; max: { x: number; z: number } };
   fill?: { color: number; opacity: number };
   edge?: { color: number; opacity: number; width: number };
-  /** 0..1 — 맥동·강조. "지금 작용 중"을 팩이 이 값으로 표현한다 */
+  /** 0..1 — 맥동·강조. "지금 작용 중"을 컨텐츠가 이 값으로 표현한다 */
   intensity?: number;
   /** 형식화 완료된 구역 이름 — 없으면 안 그린다 */
   label?: string;
@@ -86,25 +86,24 @@ export interface SceneGroundZone {
 
 렌더러의 기존 규칙(미지원 지시도 field 로 그려 게임을 멈추지 않는다)을 그대로 잇는다 —
 `zones` 가 없거나 비면 아무것도 그리지 않고 게임은 돈다. 그래서 ENGINE 산출이 늦어도
-Cycle 은 멈추지 않는다(③④는 HUD 로 이미 읽힌다). 다만 Stage 8 검증("어디에 서 있는가가
+Cycle 은 멈추지 않는다(③④는 HUD 로 이미 읽힌다). 다만 `05-verification.md` 의 검증("어디에 서 있는가가
 결과를 바꾼다"가 화면에서 읽히는가)은 ①②를 요구하므로 **검증 전에는 합류해야 한다**.
 
 ## 진행 순서
 
 ```text
-1. C-TERRAIN-001 Stage 1–4      04 가 관찰 표면을 확정할 때까지 ENGINE 은 착수하지 않는다
-                                — 프리미티브 모양이 04 에 정확히 맞아야 재작업이 없다
-2. ENGINE 착수 (기반 트랙 작업)  Stage 5(Human 리뷰)·Stage 6(World 구현)이 도는 창이
+1. 00-cycle → 01-spec → 02-world  관찰 표면이 확정될 때까지 ENGINE 은 착수하지 않는다
+                                — 프리미티브 모양이 관찰 계약에 정확히 맞아야 재작업이 없다
+2. ENGINE 착수 (기구 추출)       02-world 가 고정된 뒤 build 의 기구 분해가 도는 창이
                                 ENGINE 의 작업 시간이다
-3. Stage 7 View 구현            ENGINE 산출을 소비. 아직이면 zones 매핑까지 해 두고
+3. View 구현 (03-impl)          ENGINE 산출을 소비. 아직이면 zones 매핑까지 해 두고
                                 fallback(안 그림)으로 진행한다
-4. Stage 8 검증                 ①②③④ 전부 화면에서 — 이 시점엔 ENGINE 합류 필수
+4. 05-verification 검증          ①②③④ 전부 화면에서 — 이 시점엔 ENGINE 합류 필수
 ```
 
-발견 경로는 배차판이다 — `LANES.md` 의 ENGINE·WORLD·TERRAIN 줄과 충돌표
-(WORLD·TERRAIN ↔ ENGINE)가 이 문서로 오는 참조를 지닌다. 착수 세션은 works.md 규칙대로
-자기 줄의 상태(RUNNING · 작업 ID)만 갱신하면 된다. ENGINE 의 기존 부채(표시 문구 →
-사유 코드 회수)와 이 작업은 방향이 같으므로 한 세션이 순서대로 둘 다 지나가도 자연스럽다.
+이 작업이 언제 도는지는 승인된 Play Design 의 Cycle Breakdown 이 정한다. ENGINE 의 기존
+부채(표시 문구 → 사유 코드 회수)와 이 작업은 방향이 같으므로 한 Cycle 이 순서대로 둘 다
+지나가도 자연스럽다.
 
 ## 하지 않는 것
 
@@ -113,5 +112,6 @@ Cycle 은 멈추지 않는다(③④는 HUD 로 이미 읽힌다). 다만 Stage 
 예고 시각화(퍼지는 무늬)     FR-THE-LAND-SHOWS-BEFORE-IT-TAKES 의 몫 — 다만 intensity 필드를
                             지금 넣어 두면 다음 Cycle 이 엔진 수정 없이 예고 강도를 실을 수 있다
 미니맵 · 경고 UI            세계의 사실이 아닌 화면의 친절은 이 트랙이 금지한 방향이다
-Cycle 안에서 engine/ 편집    경계는 npm run boundary:check 가 강제한다 (works.md 승격 규칙)
+Cycle 안에서 engine/ 편집    경계는 npm run boundary:check 가 강제한다 (승격 규칙 —
+                            Design-System-Content-Separation.md)
 ```

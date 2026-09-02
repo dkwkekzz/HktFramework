@@ -30,7 +30,7 @@
 |---|---|---|
 | `[WORLD]` | Authoritative World — 규칙과 판정 | 규칙 자체를 확정한다 |
 | `[VIEW]` | Client View — 배치 · 문구 · 조작 | **예시일 뿐 규칙이 아니다.** View 는 다르게 만들어도 된다 |
-| `[CYCLE]` | 해당 Cycle 의 `03-world-semantic.md` | 값을 제안할 뿐 확정하지 않는다 |
+| `[CYCLE]` | 해당 Cycle 의 `02-world.md` | 값을 제안할 뿐 확정하지 않는다 |
 
 ```text
 [WORLD]   §4 · §5 · §6 · §10~§17 · §21~§30 · §33~§35 · §38~§41 · §44
@@ -149,7 +149,7 @@ World 가 소유하는 규칙이다.
 
 ```text
 Inventory.capacity      World 가 소유한다 — 유한하고, 관찰에 실린다
-capacity = 30           Cycle 이 소유한다 — 03-world-semantic.md 가 확정한다
+capacity = 30           Cycle 이 소유한다 — 02-world.md 가 확정한다
 ```
 
 UI의 기본 표현은 다음과 같이 구성할 수 있다 `[VIEW]`.

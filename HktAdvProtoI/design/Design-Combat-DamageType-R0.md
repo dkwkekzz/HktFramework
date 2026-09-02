@@ -7,8 +7,8 @@ Combat Damage Type · 물리 / 오라 피해 분리
 | **문서 버전** | R0 |
 |---------------|----|
 | **상태** | System Design Draft |
-| **기반** | `Design-Combat-OffenseDefense-R0.md` C010 — Basic Attack / Defense Formula |
-| **계획 층** | Damage Type (기본 문서 작성 시점의 계획 번호 C013) |
+| **기반** | `Design-Combat-OffenseDefense-R0.md` — 기본 공격/방어 공식 |
+| **계획 층** | Damage Type (기본 문서 §14 의 4층) |
 | **범위** | Physical Attack / Aura Attack / Armor / Resistance / Skill Damage Type |
 | **작성 목적** | 하나의 기본 피해 공식을 보존하면서 공격과 방어의 준비 선택을 두 갈래로 만든다 |
 
@@ -19,7 +19,7 @@ Combat Damage Type · 물리 / 오라 피해 분리
 
 이 층의 목표는 속성 상성표를 만드는 것이 아니다.
 
-C010에서 검증한 다음 관계를 두 피해 경로에 똑같이 적용한다.
+기본 공식 층에서 검증한 다음 관계를 두 피해 경로에 똑같이 적용한다.
 
 ```text
 공격 능력이 높다 → 그 타입의 스킬이 더 아프다
@@ -57,7 +57,7 @@ Aura
 
 # 2. Actor의 전투 능력치
 
-C010의 `Attack`과 `Defense`를 다음 네 값으로 분리한다.
+기본 공식의 `Attack`과 `Defense`를 다음 네 값으로 분리한다.
 
 ```text
 Physical Attack
@@ -107,11 +107,11 @@ Damage Type은 **스킬 정의의 속성**이다. 공격자의 장비나 대상�
 | Physical | Attacker.PhysicalAttack | Target.Armor |
 | Aura | Attacker.AuraAttack | Target.Resistance |
 
-이 표는 보너스 배율표가 아니다. 단지 C010 공식에 넣을 값을 선택하는 규칙이다.
+이 표는 보너스 배율표가 아니다. 단지 기본 공식에 넣을 값을 선택하는 규칙이다.
 
 # 5. 최종 피해 공식
 
-C010의 공식 형태와 `Defense Constant = 100`을 유지한다.
+기본 공식의 형태와 `Defense Constant = 100`을 유지한다.
 
 ```text
 Offense Stat
@@ -132,7 +132,7 @@ Final Damage
     = round(Raw Damage × Defense Multiplier)
 ```
 
-`Raw Damage > 0`이면 `Final Damage`의 최솟값은 1이고, `Raw Damage = 0`이면 최종 피해도 0이다. C010과 마찬가지로 방어 능력이 피해를 완전히 없애지 않게 하기 위해서다.
+`Raw Damage > 0`이면 `Final Damage`의 최솟값은 1이고, `Raw Damage = 0`이면 최종 피해도 0이다. 기본 공식과 마찬가지로 방어 능력이 피해를 완전히 없애지 않게 하기 위해서다.
 
 즉 타입별로 서로 다른 공식을 만드는 것이 아니라, **하나의 공식이 타입에 따라 입력 능력치만 선택한다.**
 
@@ -223,12 +223,12 @@ Swing Collider가 Body에 닿음
 하나의 공식이 Final Damage를 계산함
 ```
 
-# 9. 기존 C010과의 관계 및 이행
+# 9. 기본 공식 층과의 관계 및 이행
 
-Damage Type 층은 C010을 폐기하지 않고 일반화한다.
+Damage Type 층은 기본 공식을 폐기하지 않고 일반화한다.
 
 ```text
-C010
+기본 공식
     Attack  → 공식의 Offense Stat
     Defense → 공식의 Defense Stat
 
@@ -312,7 +312,7 @@ Physical Attack은 Physical 스킬에만, Aura Attack은 Aura 스킬에만 기�
 
 Actor는 Armor와 Resistance를 가진다.
 
-Armor는 Physical 피해를, Resistance는 Aura 피해를 C010의 감쇄식으로 줄인다. 대응하지 않는 타입의 피해에는 기여하지 않는다.
+Armor는 Physical 피해를, Resistance는 Aura 피해를 기본 공식의 감쇄식으로 줄인다. 대응하지 않는 타입의 피해에는 기여하지 않는다.
 
 ---
 
@@ -320,7 +320,7 @@ Armor는 Physical 피해를, Resistance는 Aura 피해를 C010의 감쇄식으�
 
 타격이 발생하면 세계는 스킬의 Damage Type에 대응하는 공격자의 공격 능력과 대상의 방어 능력을 선택한다.
 
-세계는 선택한 두 값, 스킬의 Base Damage와 Attack Ratio를 C010에서 정한 하나의 공식에 적용하여 최종 피해를 결정한다.
+세계는 선택한 두 값, 스킬의 Base Damage와 Attack Ratio를 기본 공식이 정한 하나의 공식에 적용하여 최종 피해를 결정한다.
 
 계산 결과에는 난수가 개입하지 않는다.
 
@@ -386,11 +386,11 @@ Damage Type 층은 다음 조건을 모두 만족해야 한다.
 1. Physical 스킬은 Physical Attack과 Armor만 읽는다.
 2. Aura 스킬은 Aura Attack과 Resistance만 읽는다.
 3. 모든 피해 스킬은 정확히 하나의 유효한 Damage Type을 가진다.
-4. 두 타입 모두 C010과 같은 단 하나의 감쇄 공식을 사용한다.
+4. 두 타입 모두 기본 공식과 같은 단 하나의 감쇄 공식을 사용한다.
 5. 같은 상태와 같은 접촉은 언제나 같은 피해를 만든다.
 6. Armor 변화는 Aura 피해를 바꾸지 않고, Resistance 변화는 Physical 피해를 바꾸지 않는다.
 7. 양의 Raw Damage는 방어가 아무리 높아도 최소 1의 피해를 만든다.
-8. 기존 콘텐츠를 Physical로 이행했을 때 이행 전 C010의 피해 결과가 유지된다.
+8. 기존 콘텐츠를 Physical로 이행했을 때 이행 전 기본 공식의 피해 결과가 유지된다.
 9. 관찰 결과만으로 스킬 타입, 선택된 공격·방어 능력치, 최종 피해의 계산 경위를 설명할 수 있다.
 10. 별도 타입 보너스, 관통, 면역, 혼합 피해가 숨어서 적용되지 않는다.
 
@@ -447,7 +447,7 @@ WoW의 주문과 능력은 Physical, Holy, Fire, Nature, Frost, Shadow, Arcane �
 
 WoW의 능력도 스킬마다 Attack Power 또는 Spell Power 등에 대한 서로 다른 계수를 가질 수 있다.
 따라서 `Base Damage + Offense Stat × Attack Ratio`로 스킬 자체의 성격과 Actor 성장을 분리하는
-C010 구조는 WoW를 참고해도 자연스럽다.
+기본 공식 구조는 WoW를 참고해도 자연스럽다.
 
 ### Combat Log가 결과의 경위를 전달한다
 

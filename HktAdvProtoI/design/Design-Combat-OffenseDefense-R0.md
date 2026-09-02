@@ -1,45 +1,31 @@
 <!--
 저장소 주석 (원본 아님) — 이 파일은 Human 이 작성한 전투 System Design Document 원본이다.
 
-1. R1 (2026-08-17) 전면 개정 — 구판 R0(FLOW / BREAK / VOW 등 확장 전투 시스템 일괄 설계)을
-   "가장 단순한 공격/방어 공식 먼저" 로 대체했다. 구판의 시스템 다수는 §14 점진 확장 순서로
+1. R1 전면 개정 — 구판 R0(FLOW / BREAK / VOW 등 확장 전투 시스템 일괄 설계)을
+   "가장 단순한 공격/방어 공식 먼저" 로 대체했다. 구판의 시스템 다수는 §14 확장 순서로
    이연되었고 그 세부 수치·판정은 삭제되었다 — 필요하면 git history 의 이 파일에서 본다.
    파일명의 R0 은 저장소 곳곳의 참조 안정성을 위해 유지한다.
-2. 번호 정렬 (2026-08-17 Human 결정) — 첨부 원문은 자신을 "C008", 확장 사다리를
-   C008~C014 로 불렀으나, 이 저장소 반영본은 **저장소 Cycle 번호에 맞춰 재번호했다**:
-   이 문서(기본 공식) = **C010**, 이후 §14 사다리 = C011~C016. 롤백으로 무효가 된
-   C010·C011 번호는 재사용하며, 구 Cycle 과는 전체 ID(번호+이름)로 구분한다
-   (구: `C010-guard-trades-body-for-resource` — git history 전용).
-   §14 의 C011 이후 번호는 **계획 번호**다 — 다른 트랙의 Cycle 이 끼어들면 실제 번호는
-   밀릴 수 있으므로, 층의 정체는 번호가 아니라 이름(Critical · Defense Action ·
-   Damage Type · Penetration · Active Defense · Aura/Nen)으로 식별한다. Master 의
-   참조도 층 이름을 쓴다.
-3. 구 C010·C011 롤백 — 저장소는 이 문서(구판 시절)보다 먼저 막기·방어력(구 C010)과
-   완벽한 막기·되받아침(구 C011)으로 능동 방어를 올렸으나, 이 개정의 층 순서(기본 공식이
-   먼저, 능동 방어는 그 위)와 어긋나 2026-08-17 Human 결정으로 **구현을 롤백했다**.
-   코드는 C009 완료 시점 상태이며, 두 Cycle 의 산출물은 git history 에 있다.
-   막기 계열은 §14 의 Defense Action → Active Defense 층 순서로 재구축한다.
-4. 이 문서의 Goal/Possibility/Capability 의미는 Master Layer 에 주입되어 있다 —
-   Graph `master/graph/*.yaml` · Overlay `master/overlay.md` · Frontier `master/frontier.md`.
-   이번 R1 개정과 함께 갱신되었다.
-5. §3·§4·§5·§11 의 수치·공식은 Master 에 올리지 않는다
-   (Master-Intent-Graph-Policy §7.2 · §16). 그것들은 이 문서에 남아 있다가
-   해당 Cycle 의 `03-world-semantic.md` 가 소유한다. 이 파일이 그 수치의 원본이다.
-6. Constraint — 2026-08-17 Human 지시로 이 개정에 맞춰 재작성되었고, 2026-08-18 Human
-   결정(open-questions.md Q12)으로 보류 상태를 없앴다 (`master/constraints/`).
-   근거 문서는 **이 파일과 `Design-Combat-DamageType-R0.md` 둘뿐이다** — 삭제된 구판(R0)에만
-   근거가 있던 것은 보류가 아니라 삭제한다.
-   Active 5종: PLAYER-CAUSALITY · ONE-FORMULA · ONE-LAYER-AT-A-TIME · SHARED-BUDGET ·
-   MATCHUP-SOFT(DamageType §7 기준 재승인). 여기에 Cycle 관찰에서 승격된 GLOBAL 1종
-   (WORLD-OWNS-THE-SURFACE-LIST)이 있다.
-   삭제 2종: DEFENSE-IS-ACTIVE · POWER-HAS-COST — 근거가 구판뿐이었다. 필요해지면 §14 의
-   해당 확장 층(Active Defense · Aura/Nen) 설계 문서가 나온 뒤 그 문서를 근거로 새로 만든다.
-   §14 Critical 층과 PLAYER-CAUSALITY 의 random_critical 금지 충돌은 미해결 → Q11.
+2. **Cycle 번호를 쓰지 않는다.** 이 기준선은 Cycle 을 처음부터 다시 세므로(첫 Cycle 은
+   C001) 옛 트랙의 번호는 아무것도 가리키지 않는다. 이 문서의 층은 번호가 아니라
+   **이름**으로 식별한다 — 기본 공식 · Critical · Defense Action · Damage Type ·
+   Penetration · Active Defense · Aura/Nen. 실제 Cycle 번호는 승인된 Play Design 의
+   Cycle Breakdown 이 정한다.
+3. 능동 방어(막기·되받아침)는 한때 구현됐다가 이 개정의 층 순서(기본 공식이 먼저,
+   능동 방어는 그 위)와 어긋나 롤백됐다. 지금 코드에 없으며 §14 의
+   Defense Action → Active Defense 순서로 재구축한다.
+4. §3·§4·§5·§11 의 수치·공식은 이 문서가 원본이다 — 해당 Cycle 의 `02-world.md` 가
+   그것을 옮겨 받아 소유한다.
+5. 옛 Master Layer 산출물(`master/graph` · `overlay` · `frontier` · `constraints`)은 이
+   기준선에서 걷어냈다. 이 문서의 Goal/Possibility/Capability 의미를 받는 자리는 이제
+   `design/play/` 다. 구 Constraint 이름(PLAYER-CAUSALITY · ONE-FORMULA ·
+   ONE-LAYER-AT-A-TIME · SHARED-BUDGET · MATCHUP-SOFT)은 이 파일과
+   `Design-Combat-DamageType-R0.md` 가 근거였다 — 필요해지면 Play Design 의 판단
+   기준으로 되살린다.
 -->
 
 # SYSTEM DESIGN DOCUMENT
 
-## C010 — Basic Attack / Defense Formula
+## 기본 공격/방어 공식 (Basic Attack / Defense Formula)
 
 Combat Offense / Defense · 기본 공격·방어 공식
 
@@ -49,13 +35,13 @@ Combat Offense / Defense · 기본 공격·방어 공식
 | **문서 버전** | R1 (전면 개정 — 구판 R0 대체)          |
 |---------------|----------------------------------------|
 | **상태**      | System Design Draft                    |
-| **기반**      | C007 — Intent                          |
+| **기반**      | 지금 있는 기본 전투 정책 (Intent)        |
 | **범위**      | Attack / Defense / Skill Base Damage / Skill Attack Ratio |
 | **작성 목적** | 이후 모든 공격/방어 시스템의 공통 계산 기반 |
 
 # 0. 설계 방향
 
-C010의 목표는 복잡한 전투를 완성하는 것이 아니다.
+이 층의 목표는 복잡한 전투를 완성하는 것이 아니다.
 
 먼저 모든 전투의 기반이 되는 가장 단순한 MMORPG식 공식을 만든다.
 
@@ -66,7 +52,7 @@ C010의 목표는 복잡한 전투를 완성하는 것이 아니다.
 명중, 회피, 치명타, 막기, 속성 상성, 관통, 넨 배분, 가드 브레이크 등의
 시스템은 아직 넣지 않는다.
 
-C010이 이후 모든 공격/방어 시스템의 공통 계산 기반이 된다.
+이 층이 이후 모든 공격/방어 시스템의 공통 계산 기반이 된다.
 
 # 1. 전투의 최소 구조
 
@@ -112,7 +98,7 @@ AttackSpeed
 
 # 2. 스킬은 여전히 자기 피해 성격을 가진다
 
-기존 C007의 **Skill Damage** 개념은 유지한다.
+지금 있는 **Skill Damage** 개념은 유지한다.
 
 다만 이것을 앞으로는 **Skill Base Damage** 라고 정의한다.
 
@@ -205,7 +191,7 @@ Defense Constant = 100
 
 # 5. 최종 피해 공식
 
-따라서 C010의 전체 피해 공식은 단 하나다.
+따라서 이 층의 전체 피해 공식은 단 하나다.
 
 ```text
 Raw Damage
@@ -250,7 +236,7 @@ HP가 500 이었다면 500 → 400 이 된다.
 
 # 6. 중요한 원칙 — RNG는 아직 없다
 
-C010에서는 다음을 전부 만들지 않는다.
+이 층에서는 다음을 전부 만들지 않는다.
 
 ```text
 Miss
@@ -272,7 +258,7 @@ Swing Collider가 실제로 상대 몸에 닿았다면 공격은 성공한다.
     → 항상 같은 Final Damage
 ```
 
-현재 C007의 결정론적 전투 철학을 그대로 유지한다.
+지금 있는 결정론적 전투 철학을 그대로 유지한다.
 
 # 7. 공격 시스템
 
@@ -308,7 +294,7 @@ ACTION · SWING · COLLIDER · BODY · HIT REACTION
 
 구조를 그대로 사용한다.
 
-C010은 단지 피해 계산 단계만 확장한다.
+이 층은 단지 피해 계산 단계만 확장한다.
 
 # 8. 방어 시스템
 
@@ -338,7 +324,7 @@ Guard · Perfect Guard · Shield · Block · Parry
 
 이것들은 Defense 공식 위에 나중에 올라간다.
 
-# 9. 기존 C007과의 관계
+# 9. 지금 있는 전투와의 관계
 
 기존:
 
@@ -347,7 +333,7 @@ INTENT-STRIKE-DAMAGE-001
     스킬이 100 피해라면 언제나 100 피해
 ```
 
-였다면 C010에서는 다음과 같이 바뀐다.
+였다면 이 층에서는 다음과 같이 바뀐다.
 
 **INTENT-STRIKE-DAMAGE-001 — CHANGED**
 
@@ -463,7 +449,7 @@ Defense 적용:
 
 기본 공격보다 약 2.3배 강하다.
 
-따라서 기존 C007의:
+따라서 지금 있는:
 
 ```text
 기본 공격 → CP 충전
@@ -500,7 +486,7 @@ Advanced Attack  75 + 120 × 1.0 = 195
 
 같은 스킬 차별화도 가능해진다.
 
-# 13. C010에서 하지 않을 것
+# 13. 이 층에서 하지 않을 것
 
 이 부분을 명확하게 제한하는 것이 중요하다.
 
@@ -532,7 +518,7 @@ Condition / Vow
 
 기본 공식을 만든 뒤 한 층씩 추가한다.
 
-## C010 — Basic Damage
+## 1층 — Basic Damage
 
 ```text
 Attack
@@ -543,7 +529,7 @@ Skill Attack Ratio
 
 목표: MMORPG 기본 공격/방어 공식 완성.
 
-## C011 — Critical
+## 2층 — Critical
 
 그 다음 가장 전통적인 RPG 요소 하나만 추가한다.
 
@@ -555,9 +541,9 @@ Critical Damage
 다만 현재 시스템이 결정론을 중요하게 여긴다면 Critical 자체를 넣을지
 여기서 다시 판단한다.
 
-C010은 Critical 없이도 완전히 동작해야 한다.
+1층은 Critical 없이도 완전히 동작해야 한다.
 
-## C012 — Defense Action
+## 3층 — Defense Action
 
 그 다음 능동 방어를 추가한다.
 
@@ -573,7 +559,7 @@ Guard → Damage Taken × 0.5
 
 정도로 시작한다. Perfect Guard나 Guard Break는 아직 없다.
 
-## C013 — Damage Type
+## 4층 — Damage Type
 
 전투의 빌드 다양성이 필요해지는 시점에:
 
@@ -586,7 +572,7 @@ Resistance
 
 를 분리한다.
 
-## C014 — Penetration
+## 5층 — Penetration
 
 방어력 메타가 생겼을 때:
 
@@ -597,7 +583,7 @@ Resistance Penetration
 
 을 추가한다.
 
-## C015 — Active Defense
+## 6층 — Active Defense
 
 Guard가 재미있다는 것이 검증된 뒤:
 
@@ -609,7 +595,7 @@ Counter
 
 를 추가한다. 이때부터 액션 전투의 깊이가 생긴다.
 
-## C016 — Aura / Nen Layer
+## 7층 — Aura / Nen Layer
 
 여기까지 기본 RPG 전투가 안정적으로 동작한 뒤에야 넨에서 영감을 받은
 시스템을 올린다.
@@ -667,7 +653,7 @@ Attack · Defense · CP · Skill Ratio
          [ Skill Formula ]
  BaseDamage + Attack × Ratio
                  ↓
-          [ C007 Core ]
+          [ 기본 전투 Core ]
  Collider · HP · CP · Action
 ```
 
@@ -678,7 +664,7 @@ Attack · Defense · CP · Skill Ratio
 이 원칙을 잡아두면 확장할수록 시스템이 난잡해지는 것을 상당히 막을 수
 있다.
 
-# 16. C010의 성공 조건
+# 16. 이 층의 성공 조건
 
 이번 Cycle의 성공 기준 역시 단순하게 잡는다.
 

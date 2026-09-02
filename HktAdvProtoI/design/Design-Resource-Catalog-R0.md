@@ -6,8 +6,8 @@
 |---|---|
 | **상태** | 기초 기획 초안 (Agent 작성 — Human 승인·개정 대기) |
 | **범위** | ① **시스템 층** (§0~§10 · §21) — 자원이 왜 존재하며 어디에서 생기고 어떻게 획득되고 획득이 세계에 무엇을 남기는가 ② **카탈로그 층** (§11~§20) — 그래프가 언급한 자원 종류 전부의 세계 유래 |
-| **기반** | `Master-World-Beira.md` (BW) · `Master-World-Beira-Terrain.md` · `Design-Item-System-R1.md` (IS) |
-| **파일명** | 유지한다 — `master/open-questions.md` · `master/frontier/item.md` · `master/graph/concepts.yaml` · `cycles/C024-one-slot-one-item/` · `LANES.md` 이 이 이름으로 이 문서를 가리킨다. 병합 전 §번호 대응은 §24 |
+| **기반** | `Design-World-Beira.md` (BW) · `Design-World-Beira-Terrain.md` · `Design-Item-System-R1.md` (IS) |
+| **파일명** | 유지한다 — 병합 전 §번호로 이 문서를 가리키는 참조가 밖에 있다. 대응표는 §24 |
 | **미결** | §23 의 이음매 셋은 Human 판정 대기 — **병합은 세계를 새로 정하지 않았다** |
 | **사슬 위치** | 이 문서는 자원 층까지 답하고 멈춘다 — 네 문서가 어떻게 한 사슬인지는 [Design-Item-Chain-R0.md](Design-Item-Chain-R0.md) 가 소유한다 |
 | **선례** | `Design-Creature-Behavior-R0.md` (Agent 초안 → Human 승인 → Inject) |
@@ -464,12 +464,12 @@ Harvest Method 선택
 
 # 11. 전수 조사 — 그래프가 언급한 것 전부
 
-`master/graph/*.yaml` · `master/growth/items/` · `world/` 코드 · 그리고 각 노드가 근거로
+설계 문서들 · `content/world/` 코드 · 그리고 각 노드가 근거로
 가리키는 BW 절을 훑었다. **한 번이라도 이름이 나온 종류는 아래가 전부다.**
 
 | # | 언급된 것 | 어디서 | 지금 상태 | 이 문서의 처리 |
 |---|---|---|---|---|
-| 1 | 평범한 돌 | `IT-COMMON-STONE` · `world/rules/mine.ts` | **설계됨** (Q22) | 그대로 (§13) |
+| 1 | 평범한 돌 | `IT-COMMON-STONE` · `content/world/rules/mine.ts` | **설계됨** (Q22) | 그대로 (§13) |
 | 2 | 경계결정 | `IT-BOUNDARY-BLADE` · BW §10 · §17 | **설계됨** | 그대로 (§13) |
 | 3 | 불식광 | `IT-SEALED-VESSEL` | **설계됨** | 그대로 (§13) |
 | 4 | 산격석 | `IT-WARDING-PLATE` | **설계됨** | 그대로 (§13) |
@@ -489,7 +489,7 @@ Harvest Method 선택
 | 18 | 공간을 둥지로 사용하는 생명 | BW §25 | **이름만** | §14.12 |
 | 19 | 노화를 크게 늦추는 물질 | BW §6 | **이름만** | §14.13 — **세우지 않는다** (사유 있음) |
 | 20 | 희귀한 기관 (일반) | `MG-ACQUIRE-RARE-ORGAN` · `MP-TAKE-SHED-ORGAN` | **자리만** — 실물 0건 | §14.2 · §14.9 · §14.10 이 실물이 된다 |
-| 21 | 곡괭이 | `world/semantic/item.ts` · IS §3.3 | **세계에는 있고 Master 에는 없다** | §15 |
+| 21 | 곡괭이 | `content/world/semantic/item.ts` · IS §3.3 | **세계에는 있고 Master 에는 없다** | §15 |
 | 22 | 능력치를 올릴 장비 | `MP-OUTGROW-THE-OPPONENT.requires.resource` | **자리만** | §14.10 이 원천이 된다 |
 | 23 | Critical 성질을 올릴 장비 | `MP-BET-ON-THE-CRITICAL-BLOW.requires.resource` | **자리만** | §16 — 원천 없음, 사유 |
 | 24 | 전설적인 무기 · 희귀 소재 · 돈 | BW §15 (Player motivation 예시) | **동기이지 자원이 아니다** | §16 |
@@ -524,7 +524,7 @@ Harvest Method 선택
 
 이 자원들은 현재 지형 설계에서 이미 자연적 원천과 용도가 정의되어 있다.
 
-> **대조 주의 (병합이 더한 줄)**: 위 18종의 이름과 지형 이름은 `Master-World-Beira-Terrain.md` 의 자연 자원·대지형 이름과 **글자가 일치하지 않는다** (일치하는 것은 `무호흡해` 하나뿐이다). 겹치는 성질과 남는 것은 §23.2 에 관찰로 적어 두었다 — 어느 쪽이 정본인지는 판정 대기다.
+> **대조 주의 (병합이 더한 줄)**: 위 18종의 이름과 지형 이름은 `Design-World-Beira-Terrain.md` 의 자연 자원·대지형 이름과 **글자가 일치하지 않는다** (일치하는 것은 `무호흡해` 하나뿐이다). 겹치는 성질과 남는 것은 §23.2 에 관찰로 적어 두었다 — 어느 쪽이 정본인지는 판정 대기다.
 
 ---
 
@@ -605,7 +605,8 @@ IM-STATE-RESTORING    (같은 조합을 공유한다) → grants: MC-RESTORE-BIO
 IP-PENETRATION-RESISTANT   파고드는 힘을 여러 겹으로 나누어 붙잡는다
 IT-LAYERED-SHELL           그 갑각을 덧댄 방어구. 장착형
 grants                     없음 — grants_note: 방어의 **형태**는 이미 세계에 있다
-                           (C012 의 방어 종류 · C013 의 관통). 이것은 새 능력이 아니라
+                           (방어 종류 층 · 관통 층 — 설계에 있고 코드에는 아직 없다).
+                           이것은 새 능력이 아니라
                            그 형태 중 하나를 실제로 지닌 첫 재료다
 ```
 
@@ -675,8 +676,8 @@ grants                   없음 — grants_note: BW §18 은 MC-DETOXIFY 를 예
 IP-FIELD-SENSING       닿지 않은 것의 존재와 상태를 읽는다
 IT-SENSING-ORGAN       그 기관. 장착형
 grants                 없음 — grants_note: "아는 힘" 은 이미 MC-OBSERVE 의 경로 하나로
-                       세계에 서 있다 (C016 통찰). 이것을 별도 MC 로 세울지는
-                       open-questions Q29 가 이미 Human 앞에 둔 질문이다.
+                       설계에 서 있다 (통찰 층). 이것을 별도 MC 로 세울지는
+                       아직 Human 앞에 열려 있는 질문이다.
                        그 답이 나오기 전에는 grants 를 잇지 않는다
 ```
 
@@ -825,7 +826,7 @@ BW §6 의 여섯 예시 중 이것 하나만 세우지 않는다. 사유를 남
 
 # 15. 문명권이 만든 것 — 곡괭이 (세계에는 있는데 Master 에는 없다)
 
-`world/semantic/item.ts` 에 `pickaxe` 가 실재하고 채굴 판정이 그것을 직접 묻는다.
+`content/world/semantic/item.ts` 에 `pickaxe` 가 실재하고 채굴 판정이 그것을 직접 묻는다.
 그런데 Master 에는 이 종류의 노드가 **0건**이다. 그래프와 세계가 어긋난 유일한 자리다.
 
 | | |
@@ -865,8 +866,8 @@ grants           없음 — 용도는 grants 사슬이 아니라 카탈로그의
 | 축 | 갈래 | 세계에 이미 있는 것 |
 |---|---|---|
 | 역할 | 쓴다(소모) · 적용한다(장착) · 재료 · 지닌다 | IS §5.1 행동 유형 선언 |
-| 대상 | 자신 · 고른 대상 · 대상 없음 | 고른 대상 관계가 C017 로 서 있다 |
-| 시간 | 즉시 · 이름 붙은 조건으로 남음 · 사용에 시간이 걸리고 끊길 수 있음 | 조건 합성 얼개 · 행동 시간·중단(C019) |
+| 대상 | 자신 · 고른 대상 · 대상 없음 | 고른 대상 관계는 지목 층이 세운다 |
+| 시간 | 즉시 · 이름 붙은 조건으로 남음 · 사용에 시간이 걸리고 끊길 수 있음 | 조건 합성 얼개 · 행동 시간·중단 층 |
 
 | 종류 | 역할 | 대상 | 시간 |
 |---|---|---|---|
@@ -965,7 +966,7 @@ Resource를 통해
 
 ```text
 수치            회복량 · 지속 시간 · 쿨다운 · 능력치 증분 · 사용 시간
-                → Cycle 의 03-world-semantic.md 소유 (정책 §7.2)
+                → Cycle 의 02-world.md 소유 (정책 §7.2)
 획득 경로       **병합으로 범위 안에 들어왔다** — §5 Harvest · §6 Extraction Consequence 가
                 그 층이다 (BW §33 의 다섯째 질문). 다만 종류마다의 채집 방법 선언과 그 결과는
                 여전히 각 층의 설계 문서와 IS §6 Cycle 4 의 몫이다
@@ -985,7 +986,7 @@ Resource를 통해
 
 | | 축 | 실물 |
 |---|---|---|
-| 시스템 층 · §12 | **대지형** — 왕관수계 분지 · 백야철빙원 · 무호흡해 … | `Master-World-Beira-Terrain.md`. 그래프 노드 **0건** |
+| 시스템 층 · §12 | **대지형** — 왕관수계 분지 · 백야철빙원 · 무호흡해 … | `Design-World-Beira-Terrain.md`. 그래프 노드 **0건** |
 | 카탈로그 층 §13 · §14 | **층(Zone)** — SAFE · WILD · DANGER · DEEP · UNKNOWN · SPATIAL-SHEAR | `MW-ZONE-*` 로 그래프에 실재하고 세계 코드가 쓴다 |
 
 대지형 문서는 층을 **한 번도 언급하지 않고**, 카탈로그는 대지형을 한 번도 언급하지 않는다.
@@ -1057,8 +1058,8 @@ Design-Resource-System-R0.md    자원의 원천 · 획득 · 결과의 규칙  
 
 ## 24.2 구 §번호 → 신 §번호
 
-병합 전 §번호로 이 문서를 가리키는 참조가 밖에 있다 (`master/open-questions.md` 는 곡괭이를
-`§5` 로 가리킨다 — 지금은 §15 다).
+병합 전 §번호로 이 문서를 가리키는 참조가 밖에 있다 (예: 곡괭이를 `§5` 로 가리키던 것은
+지금 §15 다).
 
 | 구 Catalog | 신 | | 구 System | 신 |
 |---|---|---|---|---|
