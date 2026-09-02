@@ -9,6 +9,7 @@
 content/roadmap/
   README.md            이 문서 — 기반 층의 순서 · 컨텐츠 층의 행 · 각각의 현재 상태
   Game.md              0층 결과물 — 게임 방향 (Level 0)
+  L1-World-Grammar.md  1층 결과물 — 세계의 문법 (확정 범위 · 경계 · 코드 대응)
   L<N>-<이름>.md        기반 층의 결과물 — 그 층에서 Human 이 확정한 문서
   M<N>-<이름>.md        컨텐츠 층의 결과물 — 그 미지에 대해 Human 이 준 세계관 사실
   play/<PlayName>.md   증명 Play (Level 2, AI 초안 + Human 승인 1회)
@@ -54,7 +55,7 @@ content/  그 위에 놓이는 이 세계          컨텐츠 층  미지를 놓�
 | 순서 | 층 | 주입 내용 (Human 문서) | 재료가 될 `design/` 문서 | 증명 Play (제안) | 결과물 | 상태 |
 |---|---|---|---|---|---|---|
 | 0 | 게임 방향 | 핵심 경험 한 단락 + Core Breath + 핵심 문장 | BW §1·§35·§36 | 없음 — 판단 기준일 뿐 | `Game.md` | **확정** |
-| 1 | 세계의 문법 | 무엇이 존재하고 무엇이 변하는가 — 존재·상태·주체·법칙·시간 (주체가 행동을 **고르는** 과정은 3층) | `Design-Concept.md` | 없음 — 코드가 이미 이 문법 위에 있음 | (Concept 를 그대로 인정) | **확정** |
+| 1 | 세계의 문법 | 무엇이 존재하고 무엇이 변하는가 — 존재·상태·주체·법칙·시간 (주체가 행동을 **고르는** 과정은 3층) | `Design-Concept.md` | 없음 — 코드가 이미 이 문법 위에 있음 | `L1-World-Grammar.md` | **확정** |
 | 2 | 세계 자체 | 세계압은 자연 법칙인가 · 안전권과 깊이 단계 · 지역 지도 · **이름 목록** | `Design-World-Beira.md` · `Design-World-Beira-Terrain.md` · `Design-World-Spatial-Presence.md` | 안전권을 나서 깊이가 달라지는 것을 본다 (아직 아무것도 깎이지 않음) | `L2-*.md` · `play/` | **다음** |
 | 3 | 주체와 몸 | 요정의 몸은 무엇을 가지는가(깎이고 회복되는 값) · 생물은 무엇을 알고 어떻게 행동하는가 | `Design-Subject-Decision.md` · `Design-Autonomous-Behavior-Knowledge-R0.md` · `Design-Creature-Behavior-R0.md` | 세계가 몸을 깎고, 생물이 그것에 반응하는 것을 본다 | `L3-*.md` · `play/` | 미주입 |
 | 4 | 자원과 물건 | 무엇이 어디서 나는가(2 의 지역과 연결) · 소지·장비·가공 사슬 | `Design-Resource-Catalog-R0.md` · `Design-Item-*.md` · `Design-Inventory-Equipment-D1.md` | 캐서 지니면 갈 수 있는 곳이 늘어난다 | `L4-*.md` · `play/` | 미주입 |
