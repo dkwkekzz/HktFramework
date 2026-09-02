@@ -1,6 +1,10 @@
 {
   "specId": "VIEW-DEBUG-COMMAND-001",
   "scene": "mining-field",
+  "region": {
+    "id": "mining-field",
+    "hash": "00000000"
+  },
   "observer": {
     "id": "observer-1",
     "characterId": "player-1",

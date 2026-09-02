@@ -1,9 +1,9 @@
 {
   "specId": "VIEW-STONE-MINING-001",
-  "scene": "mining-field",
+  "scene": "WHITE_KING_DOMAIN",
   "region": {
-    "id": "mining-field",
-    "hash": "00000000"
+    "id": "WHITE_KING_DOMAIN",
+    "hash": "<filled-by-test>"
   },
   "observer": {
     "id": "observer-a",
@@ -15,20 +15,32 @@
       "id": "player",
       "role": "player-character",
       "state": "idle",
+      "kind": "rabbit-swordsman",
       "position": {
-        "x": 7.5,
-        "z": -5.5
+        "x": 0,
+        "z": 16
       }
     },
     {
       "id": "deposit-1",
       "role": "resource-deposit",
-      "state": "depleted",
+      "state": "available",
+      "kind": "stone",
       "position": {
         "x": 8,
         "z": -6
       },
-      "labelValue": 0
+      "labelValue": 5
+    },
+    {
+      "id": "FOREST_PATH",
+      "role": "region-exit",
+      "state": "open",
+      "kind": "road",
+      "position": {
+        "x": 0,
+        "z": 18
+      }
     }
   ],
   "interactions": [
@@ -42,19 +54,25 @@
       "role": "mine-deposit",
       "targetEntityId": "deposit-1",
       "available": false,
-      "reason": "deposit-depleted"
+      "reason": "out-of-range"
+    },
+    {
+      "id": "transit",
+      "role": "transit-connector",
+      "targetEntityId": "FOREST_PATH",
+      "available": true
     }
   ],
   "hud": [
     {
       "id": "inventory.stone",
       "kind": "counter",
-      "value": 5
+      "value": 0
     },
     {
-      "id": "tool.hasMiningTool",
-      "kind": "flag",
-      "value": true
+      "id": "region.depth",
+      "kind": "label",
+      "value": "civil"
     }
   ],
   "strikes": [],

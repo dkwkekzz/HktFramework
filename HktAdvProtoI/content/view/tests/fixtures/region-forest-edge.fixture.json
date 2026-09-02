@@ -1,9 +1,9 @@
 {
   "specId": "VIEW-STONE-MINING-001",
-  "scene": "mining-field",
+  "scene": "FOREST_EDGE",
   "region": {
-    "id": "mining-field",
-    "hash": "00000000"
+    "id": "FOREST_EDGE",
+    "hash": "<filled-by-test>"
   },
   "observer": {
     "id": "observer-a",
@@ -15,20 +15,21 @@
       "id": "player",
       "role": "player-character",
       "state": "idle",
+      "kind": "rabbit-swordsman",
       "position": {
-        "x": 7.5,
-        "z": -5.5
+        "x": 0,
+        "z": -18
       }
     },
     {
-      "id": "deposit-1",
-      "role": "resource-deposit",
-      "state": "depleted",
+      "id": "FOREST_PATH",
+      "role": "region-exit",
+      "state": "open",
+      "kind": "road",
       "position": {
-        "x": 8,
-        "z": -6
-      },
-      "labelValue": 0
+        "x": 0,
+        "z": -18
+      }
     }
   ],
   "interactions": [
@@ -38,23 +39,23 @@
       "available": true
     },
     {
-      "id": "mine",
-      "role": "mine-deposit",
-      "targetEntityId": "deposit-1",
+      "id": "transit",
+      "role": "transit-connector",
+      "targetEntityId": "FOREST_PATH",
       "available": false,
-      "reason": "deposit-depleted"
+      "reason": "action-busy"
     }
   ],
   "hud": [
     {
       "id": "inventory.stone",
       "kind": "counter",
-      "value": 5
+      "value": 0
     },
     {
-      "id": "tool.hasMiningTool",
-      "kind": "flag",
-      "value": true
+      "id": "region.depth",
+      "kind": "label",
+      "value": "outer"
     }
   ],
   "strikes": [],

@@ -19,13 +19,19 @@ mmorpg에서 컨텐츠를 구성하기 위한 구조를 설계한다.
 ```
 
 **Cycle 은 이 프로젝트에서 처음부터 센다.** 이전 트랙의 Cycle 번호는 코드·주석 어디에도
-남기지 않았다 — 첫 Cycle 은 `C001` 이다. 지금 있는 기능은 이전 트랙이 만든 것이지만
-이 프로젝트의 Cycle 이 만든 것은 아직 하나도 없다. 기능은 그대로 두고 다음 Cycle 들이
-그것을 재사용한다.
+남기지 않았다. 첫 Cycle `C001`(방 둘과 길 하나)이 닫혔다 — 진행의 단일 출처는
+[content/roadmap/play/](content/roadmap/play/) 의 Cycle Breakdown 체크박스이고, 산출물은 `cycles/C###-*/` 다.
+
+```text
+이어서 하려면   "다음 Cycle 진행" — advprotoi-design ③ 이 Play 의 다음 미완료 항목(C002)의 00-cycle 을 만들고,
+               advprotoi-plan(01·02) → advprotoi-build(03·04·05 + 코드) 순으로 돈다. 승인 게이트는 없다 (Play 는 승인됨).
+지금 Play      RegionGraphRooms (C001~C004) → RuleBoundRoom (C005~C007) → RoomBecomesLand (C008~C010)
+```
 
 컨텐츠에 지금 있는 것 — 채광 · 캐릭터 행동과 모션 · 세계/클라이언트 분리 ·
 다중 관찰자 · 이어짐 계량 · 몸 충돌 · 기본 전투 정책 · 시점과 그림 방향 ·
-개발 명령 표면과 세계의 대답.
+개발 명령 표면과 세계의 대답 · **Region**(방 둘 백왕령·숲 가장자리와 길 하나 — `content/regions/` 데이터,
+`WorldPosition = regionId + (x, z)`, 건너기 Rule, 방으로 잘리는 투영).
 
 컨텐츠에 **없는** 것 — 전투 공식 · 막기 · 피해 종류 · 관통 · 살펴봄 · 치명 · 지목 · 태도 ·
 선딜 · 소지품 · 자리 · 장비 · 스킬 형태 · 지형 법칙 · 성장. 전부 `design/` 에 기획으로만 있다.
@@ -69,12 +75,14 @@ Cycle Artifact 는 `cycles/<CycleId>/` (CycleId: `C###-이름`) — 파일만이
 
 ```text
 engine/            기반 — world-kernel · physics(기본 세계 규칙 솔버) · view-kernel ·
-                   protocol-core. 게임 명사 없이 성립하는 재사용 기구만 갖는다. Cycle 의
+                   protocol-core · world-authoring(Region Description · Graph · 검사 — 세계 제작 도구의 첫 모듈). 게임 명사 없이 성립하는 재사용 기구만 갖는다. Cycle 의
                    기구 추출(advprotoi-build 의 분해 → Agent E, 별도 커밋)로 자라며,
                    기존 계약의 변경은 ENGINE GAP 으로 Human 승인을 거친다.
                    **Cycle 을 알지 못한다** — 공용 모듈이므로 Cycle 번호를 적지 않는다.
                    컨텐츠의 시스템은 physics 솔버를 조합해 만든다 — 직접 재구현하지 않는다
-content/           컨텐츠 = 이 세계 — world/ view/ protocol/ motions/
+content/           컨텐츠 = 이 세계 — world/ view/ protocol/ motions/ regions/
+content/regions/   이 세계의 Region 데이터 (RegionSpec + Description + Graph) — world 와 view 가 **함께 읽는다**.
+                   engine 만 import 한다 (경계 규칙 4)
 content/roadmap/   이 세계의 주입 순서와 그 결과물 (문서만 — L0-Game.md · 기반 층/컨텐츠 층 확정 문서 · play/)
 content/active*.ts 조립이 컨텐츠를 부르는 유일한 자리 (경계 규칙 3)
 app/ · server/     조립 — 클라이언트 루트와 세계 호스트. 컨텐츠의 속을 알지 못한다
@@ -83,7 +91,7 @@ design/            설계·기획 원본 (공정·기반 + 이 세계의 컨텐�
 ```
 
 경계는 `npm run boundary:check` 가 강제한다 (engine→content import 금지 ·
-content→조립 import 금지 · 컨텐츠를 부르는 것은 조립뿐).
+content→조립 import 금지 · 컨텐츠를 부르는 것은 조립뿐 · regions→world/view import 금지).
 다른 세계를 만든다 = `content/` 를 갈아 끼운다 — 기반은 그대로 둔다.
 
 ### 기반이 컨텐츠에게 요구하는 것

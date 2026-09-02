@@ -1,6 +1,10 @@
 {
   "specId": "VIEW-STONE-MINING-001",
   "scene": "mining-field",
+  "region": {
+    "id": "mining-field",
+    "hash": "00000000"
+  },
   "observer": {
     "id": "observer-a",
     "characterId": "player",

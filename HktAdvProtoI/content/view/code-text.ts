@@ -37,6 +37,14 @@ const CODE_TEXT: Record<string, string> = {
   'missing-position': '어디로 갈지 실리지 않았다',
   'missing-target': '대상이 실리지 않았다',
   'missing-mode': '어떤 걸음인지 실리지 않았다',
+  // 깊이 태그 (C001 — hud region.depth 의 값. L2-World-Concept §3.2)
+  civil: '문명권',
+  outer: '문명의 경계를 넘었다',
+  // 불가 사유 — 건너기 (RULE-REGION-TRANSIT-001)
+  'unknown-connector': '그런 길이 없다',
+  'wrong-region': '여기서 갈 수 있는 길이 아니다',
+  // 내 데이터와 세계의 방이 다르다 (region.hash 대조)
+  'region.hash-mismatch': '세계와 다른 땅을 보고 있다',
   // 명령이 무엇을 하는가 (Command.Effect)
   'set-attribute': '존재의 속성 값을 바꾼다',
   'collider-observe': '몸과 휘두름의 충돌체를 보인다',

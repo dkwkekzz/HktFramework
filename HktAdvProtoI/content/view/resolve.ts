@@ -31,6 +31,7 @@ import { interactionPresentation } from './interaction-presentation';
 import { codeText } from './code-text';
 import { rolePresentation } from './role-presentation';
 import { kindPresentation } from './kind-presentation';
+import { regionZones } from './region-presentation';
 
 // 관찰자 쪽 표시 선택 — 충돌체 디버그 관찰을 켤지. World 에 아무것도 요청하지 않는다.
 export interface PresentationOptions {
@@ -132,7 +133,8 @@ export function resolvePresentation(
     effects: [],
     surfaces: [],
     slotBars: [],
-    zones: [],
+    // 선 방의 바닥 (C001) — 모르는 방이면 비어 있고, 비어 있으면 그려지지 않는다
+    zones: regionZones(snapshot.region),
     // 충돌체 디버그 관찰 — 켜졌을 때만 지시를 담는다
     ...(options.debugObserve ? { colliderDebug: collisionDebug(snapshot) } : {}),
     entities: snapshot.entities.map((e) => {
@@ -140,7 +142,9 @@ export function resolvePresentation(
       const motion = resolveMotion(motions, e.kind, e.state, e.progress);
       // 조종하는 이가 없는 몸의 표현 — attended 가 실린 대상에만 해당한다.
       const unattended = e.attended === false;
-      const tint = unattended && p.unattendedTint !== undefined ? p.unattendedTint : p.tint;
+      // 종류별 색 표가 있으면 그것이 role 의 기본 색보다 우선한다
+      const baseTint = (e.kind !== undefined ? p.tintByKind?.[e.kind] : undefined) ?? p.tint;
+      const tint = unattended && p.unattendedTint !== undefined ? p.unattendedTint : baseTint;
       const label =
         unattended && p.unattendedLabel !== undefined
           ? p.unattendedLabel

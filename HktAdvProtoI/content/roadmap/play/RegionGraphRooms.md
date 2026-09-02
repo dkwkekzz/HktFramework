@@ -226,7 +226,7 @@ E4  tools/world-editor: world:observe --graph (방·Connector 표 + 검사 보�
 ## 7. Cycle Breakdown
 
 ```text
-[ ] C001 — 방 둘과 길 하나: 백왕령 ⇄ 숲 가장자리. Region Graph 데이터 · regionId · 건너기 · 방 그리기 · 이름과 깊이
+[x] C001 — 방 둘과 길 하나: 백왕령 ⇄ 숲 가장자리. Region Graph 데이터 · regionId · 건너기 · 방 그리기 · 이름과 깊이
            (civil → outer — 2층 증명의 최소. 이것만으로 "안전권을 나서 깊이가 달라지는 것을 본다")
 [ ] C002 — 출구는 여럿, 목적지는 모른다: 숲 안쪽 · POI 방 셋 · 닫힌 고대 문 · 붉은 황야/얼음 협곡 쪽 Connector.
            출구는 종류만 보이고 닫힌 문은 거절한다
