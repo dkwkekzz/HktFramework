@@ -47,7 +47,7 @@ content/                     컨텐츠 = 이 세계. 교체 단위다
 
 기획·Cycle 산출물은 코드가 import 하지 않는 문서다:
   design/                    설계·기획 원본 (재료)
-  content/roadmap/           이 세계의 주입 순서와 그 결과물 — Game.md · 층별 확정 문서 · play/ (Play Design)
+  content/roadmap/           이 세계의 주입 순서와 그 결과물 — L0-Game.md · 층별 확정 문서 · play/ (Play Design)
   cycles/C###-이름/          Cycle Artifact (00-cycle … 05-verification)
   tools/content-root.ts      파일시스템 도구가 컨텐츠 자리를 읽는 유일한 경로
 ```

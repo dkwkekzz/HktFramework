@@ -55,7 +55,7 @@ advprotoi-build   실현·검증  구현 ∥ GameView ∥ 검증 병렬 → 실�
 가 답한다 — 로드맵은 코드의 기반/컨텐츠 분리와 같은 두 층이다. **기반 층**(게임 방향 →
 세계의 문법 → 세계 → 몸 → 물건 → 대결 → 능력 → 성장)은 축을 위에서 아래로 하나씩
 주입하고, **컨텐츠 층**은 그 축 위에 미지(지역·생물·자원·구조) 하나씩을 행으로 놓는다.
-한 Play 는 행 하나만 증명한다. 로드맵과 그 결과물(`Game.md` · 층별 확정 문서 · 미지
+한 Play 는 행 하나만 증명한다. 로드맵과 그 결과물(`L0-Game.md` · 층별 확정 문서 · 미지
 문서 · `play/`)은 전부 `content/roadmap/` 에 있다.
 
 Cycle Artifact 는 `cycles/<CycleId>/` (CycleId: `C###-이름`) — 파일만이 단계 간
@@ -75,7 +75,7 @@ engine/            기반 — world-kernel · physics(기본 세계 규칙 솔�
                    **Cycle 을 알지 못한다** — 공용 모듈이므로 Cycle 번호를 적지 않는다.
                    컨텐츠의 시스템은 physics 솔버를 조합해 만든다 — 직접 재구현하지 않는다
 content/           컨텐츠 = 이 세계 — world/ view/ protocol/ motions/
-content/roadmap/   이 세계의 주입 순서와 그 결과물 (문서만 — Game.md · 기반 층/컨텐츠 층 확정 문서 · play/)
+content/roadmap/   이 세계의 주입 순서와 그 결과물 (문서만 — L0-Game.md · 기반 층/컨텐츠 층 확정 문서 · play/)
 content/active*.ts 조립이 컨텐츠를 부르는 유일한 자리 (경계 규칙 3)
 app/ · server/     조립 — 클라이언트 루트와 세계 호스트. 컨텐츠의 속을 알지 못한다
 scripts/           실행 스크립트 — run*.{bat,sh} · scan-motions.{bat,sh}
@@ -178,4 +178,4 @@ Semantic 정보 부족   → 기획 원본 (design/) · Human
 | [Design-Subject-Decision.md](design/Design-Subject-Decision.md) | 주체의 의사결정 — 지식·숙련·경험·선호·목적·가능성 (3층 재료) |
 
 기획을 들일 때는 [content/roadmap/README.md](content/roadmap/README.md)(주입 순서 · 열린 층) 와
-[content/roadmap/Game.md](content/roadmap/Game.md)(게임 방향) 가 먼저다.
+[content/roadmap/L0-Game.md](content/roadmap/L0-Game.md)(게임 방향) 가 먼저다.

@@ -209,7 +209,7 @@ plan 의 입력에 `00-cycle.md` 가 추가될 뿐이다 (원본 확장 규칙 6
 건드리지 않는다").
 
 ```text
-advprotoi-design   기획      Game.md/시스템 문서 → content/roadmap/play/<name>.md
+advprotoi-design   기획      L0-Game.md/시스템 문서 → content/roadmap/play/<name>.md
                             (Play Goal → Intent → Breath → Structure → World Cause
                              → Capability → Cycle Breakdown, Human 승인 게이트)
                             → cycles/<CycleId>/00-cycle.md

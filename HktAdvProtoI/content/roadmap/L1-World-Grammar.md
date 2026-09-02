@@ -36,7 +36,7 @@
 ```
 
 그리고 한 가지 더 — **세 성장 축이 세계에 닿는 자리**를 이 층이 정했다
-([Game.md](Game.md) §1 · Concept §10).
+([L0-Game.md](L0-Game.md) §1 · Concept §10).
 
 ```text
 클래스   어떤 Action Law 를 실행할 수 있는가 — Law 의 조건을 연다

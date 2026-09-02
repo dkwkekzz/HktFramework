@@ -496,7 +496,7 @@ Mine(Fairy02, Ore01, …)
 
 ## 세 성장 축
 
-이 게임의 캐릭터는 세 성장 축을 가진다 ([content/roadmap/Game.md](../content/roadmap/Game.md) §1).
+이 게임의 캐릭터는 세 성장 축을 가진다 ([content/roadmap/L0-Game.md](../content/roadmap/L0-Game.md) §1).
 
 ```text
 클래스    사용할 수 있는 스킬을 제공한다
