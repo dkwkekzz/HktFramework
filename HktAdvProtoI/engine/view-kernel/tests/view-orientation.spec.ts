@@ -1,4 +1,4 @@
-// 시점 방향 단독 테스트 (C008) — 렌더러 없이 값으로만 검증한다.
+// 시점 방향 단독 테스트 — 렌더러 없이 값으로만 검증한다.
 // 04-gameview.spec.yaml 의 viewpoint.orientation 과 interactions.move.direction 이 검증 대상이다.
 
 import { describe, expect, it } from 'vitest';
@@ -19,8 +19,8 @@ import {
 const near = (a: number, b: number) => expect(a).toBeCloseTo(b, 6);
 const QUARTER = Math.PI / 2;
 
-describe('시점 방향 (C008 viewpoint.orientation)', () => {
-  it('기본 시점은 C007 까지의 고정 오프셋(0, 7.5, 13)과 같은 자리를 만든다 — 회귀', () => {
+describe('시점 방향 (viewpoint.orientation)', () => {
+  it('기본 시점은 예전의 고정 오프셋(0, 7.5, 13)과 같은 자리를 만든다 — 회귀', () => {
     const offset = viewOffset(DEFAULT_ORIENTATION);
     near(offset.x, 0);
     near(offset.y, 7.5);
@@ -75,7 +75,7 @@ describe('시점 방향 (C008 viewpoint.orientation)', () => {
   });
 });
 
-describe('시점 기준 이동 (C008 interactions.move.direction)', () => {
+describe('시점 기준 이동 (interactions.move.direction)', () => {
   const W = { x: 0, z: -1 };
   const D = { x: 1, z: 0 };
 
@@ -118,7 +118,7 @@ describe('시점 기준 이동 (C008 interactions.move.direction)', () => {
   });
 });
 
-describe('몸 방향의 화면 좌우 (C008 entities.character.facing.read)', () => {
+describe('몸 방향의 화면 좌우 (entities.character.facing.read)', () => {
   it('turn = 0 에서 +x 를 향한 몸은 오른쪽으로 읽힌다', () => {
     expect(screenSideValue(0, { x: 1, z: 0 })).toBeGreaterThan(0);
     expect(screenSideValue(0, { x: -1, z: 0 })).toBeLessThan(0);

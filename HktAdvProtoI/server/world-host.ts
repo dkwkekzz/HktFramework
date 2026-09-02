@@ -1,9 +1,9 @@
-// World Host — 세계 하나를 붙들고 있는 것 (C003 · C004).
+// World Host — 세계 하나를 붙들고 있는 것.
 //
 // 세계는 여기서 자기 시계로 돈다. 관찰자는 붙었다 떨어질 뿐이고,
 // 관찰자가 하나도 없어도 세계는 계속 진행한다 (INTENT-WORLD-CLOCK-001).
 //
-// C004 — 관찰자는 익명이 아니다. 붙을 때 자신이 누구인지 밝히고,
+// 관찰자는 익명이 아니다. 붙을 때 자신이 누구인지 밝히고,
 // 그 이어짐으로 오는 요청은 그 관찰자의 것으로 세계에 도착한다
 // (INTENT-REQUEST-ATTRIBUTION-001). 같은 관찰자로 두 곳에서 붙으면
 // 나중에 온 이어짐이 몸을 갖고 먼저 있던 이어짐은 떨어진다 (INTENT-OBSERVER-REJOIN-001).
@@ -24,7 +24,7 @@ import {
 
 export type Observer = (snapshot: GameViewSnapshot) => void;
 
-/** 세계가 이 관찰자의 요청들에 내놓은 대답 (C009) — 관찰 결과와 다른 것이다 */
+/** 세계가 이 관찰자의 요청들에 내놓은 대답 — 관찰 결과와 다른 것이다 */
 export type OutcomeSink = (outcomes: RequestOutcomeView[]) => void;
 
 /** 같은 관찰자로 다른 곳에서 들어와 이 이어짐이 밀려났을 때 불린다 */
@@ -49,7 +49,7 @@ export interface WorldHost {
   ): () => void;
   /** 관찰자가 보낸 요청이 세계에 도착한다 */
   receive(observerId: string, action: ActionRequest): void;
-  /** 관찰자가 보낸 표식이 세계에 도착한다 (C005) — 게임을 바꾸지 않는다 */
+  /** 관찰자가 보낸 표식이 세계에 도착한다 — 게임을 바꾸지 않는다 */
   receiveMark(observerId: string, mark: number): void;
   /** 시계를 직접 돌린다 — 검증용. 실행 중에는 startClock 이 맡는다 */
   advance(dt: number): Map<string, GameViewSnapshot>;
@@ -69,7 +69,7 @@ export function createWorldHost(setup: WorldSetup = {}, restored?: WorldState): 
     observations: Map<string, GameViewSnapshot>,
     outcomes?: Map<string, RequestOutcomeView[]>,
   ): void {
-    // C009 — 대답이 관찰 결과보다 먼저 나간다. 대답은 "그 요청이 어떻게 되었는가" 이고
+    // 대답이 관찰 결과보다 먼저 나간다. 대답은 "그 요청이 어떻게 되었는가" 이고
     // 뒤이어 오는 관찰 결과가 "그래서 세계가 어떠한가" 다. 이 순서로 읽혀야 인과가 맞다.
     // 떠난 관찰자에게는 관찰 결과가 만들어지지 않지만 대답은 나갈 수 있다 —
     // 그가 건 요청은 이 Tick 에 판정되었기 때문이다.

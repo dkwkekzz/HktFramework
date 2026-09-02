@@ -15,12 +15,17 @@ mmorpg에서 컨텐츠를 구성하기 위한 구조를 설계한다.
 
 ```text
 기반 (engine/·app/·server/·tools/)   HktAdvProtoH 의 최신 상태 그대로
-컨텐츠 (content/proto-adventure/)     C009(개발 명령 표면)까지의 구현만
+컨텐츠 (content/)                     기능만 남기고 Cycle 이력은 지웠다
 ```
 
-컨텐츠에 지금 있는 것 — 채광(C001) · 캐릭터 행동과 모션(C002) · 세계/클라이언트 분리(C003) ·
-다중 관찰자(C004) · 이어짐 계량(C005) · 몸 충돌(C006) · 기본 전투 정책(C007) ·
-시점과 그림 방향(C008) · 개발 명령 표면과 세계의 대답(C009).
+**Cycle 은 이 프로젝트에서 처음부터 센다.** 이전 트랙의 Cycle 번호는 코드·주석 어디에도
+남기지 않았다 — 첫 Cycle 은 `C001` 이다. 지금 있는 기능은 이전 트랙이 만든 것이지만
+이 프로젝트의 Cycle 이 만든 것은 아직 하나도 없다. 기능은 그대로 두고 다음 Cycle 들이
+그것을 재사용한다.
+
+컨텐츠에 지금 있는 것 — 채광 · 캐릭터 행동과 모션 · 세계/클라이언트 분리 ·
+다중 관찰자 · 이어짐 계량 · 몸 충돌 · 기본 전투 정책 · 시점과 그림 방향 ·
+개발 명령 표면과 세계의 대답.
 
 컨텐츠에 **없는** 것 — 전투 공식 · 막기 · 피해 종류 · 관통 · 살펴봄 · 치명 · 지목 · 태도 ·
 선딜 · 소지품 · 자리 · 장비 · 스킬 형태 · 지형 법칙 · 성장. 전부 `design/` 에 기획으로만 있다.
@@ -53,7 +58,7 @@ Cycle Artifact 는 `cycles/<CycleId>/` (CycleId: `C###-이름`) — 파일만이
 
 ## 기반 / 컨텐츠 경로 규약
 
-기반(Engine)과 컨텐츠(팩)는 물리적으로 분리되어 있다
+기반(Engine)과 컨텐츠(Content)는 물리적으로 분리되어 있다
 ([design/Design-System-Content-Separation.md](design/Design-System-Content-Separation.md)).
 
 ```text
@@ -61,33 +66,34 @@ engine/            기반 — world-kernel · physics(기본 세계 규칙 솔�
                    protocol-core. 게임 명사 없이 성립하는 재사용 기구만 갖는다. Cycle 의
                    기구 추출(advprotoi-build 의 분해 → Agent E, 별도 커밋)로 자라며,
                    기존 계약의 변경은 ENGINE GAP 으로 Human 승인을 거친다.
-                   팩의 시스템은 physics 솔버를 조합해 만든다 — 직접 재구현하지 않는다
-content/<pack>/    컨텐츠 팩 = 교체 단위 — world/ view/ protocol/ motions/
-content/active*.ts 조립이 소유하는 유일한 팩 선택 지점 (boundary 규칙 4)
-hkt.pack.json      활성 팩 선언 (공정·도구용)
-app/ · server/     조립 — 클라이언트 루트와 세계 호스트. 어느 팩이 실렸는지 알지 못한다
+                   **Cycle 을 알지 못한다** — 공용 모듈이므로 Cycle 번호를 적지 않는다.
+                   컨텐츠의 시스템은 physics 솔버를 조합해 만든다 — 직접 재구현하지 않는다
+content/           컨텐츠 = 이 세계 — world/ view/ protocol/ motions/
+content/active*.ts 조립이 컨텐츠를 부르는 유일한 자리 (경계 규칙 3)
+app/ · server/     조립 — 클라이언트 루트와 세계 호스트. 컨텐츠의 속을 알지 못한다
 scripts/           실행 스크립트 — run*.{bat,sh} · scan-motions.{bat,sh}
 design/            설계·기획 원본 (공정·기반 + 이 세계의 컨텐츠 기획) — Human 소유
 ```
 
-경계는 `npm run boundary:check` 가 강제한다 (engine→content import 금지 · 팩 간 격리).
-다른 세계를 만든다 = 새 팩을 만든다 — 기반은 그대로 둔다.
+경계는 `npm run boundary:check` 가 강제한다 (engine→content import 금지 ·
+content→조립 import 금지 · 컨텐츠를 부르는 것은 조립뿐).
+다른 세계를 만든다 = `content/` 를 갈아 끼운다 — 기반은 그대로 둔다.
 
 ### 기반이 컨텐츠에게 요구하는 것
 
 기반은 **사람이 읽을 말을 짓지 않고, 게임의 명사를 알지 못한다** (설계 반전 ⑤).
-그래서 팩이 다음을 준다.
+그래서 컨텐츠가 다음을 준다.
 
 ```text
 world/index.ts            WorldContent 계약 — tick 주기 · 초기 배치 · interaction 목록 ·
                           시스템 진행 순서 · 관찰자 몸 · 투영
 view/resolve.ts           GameView Snapshot → SceneState (결정 Layer 의 유일한 진입점).
-                          봉투 형을 팩 형으로 좁히는 자리도 여기 하나다
+                          봉투 형을 컨텐츠 형으로 좁히는 자리도 여기 하나다
 view/code-text.ts         의미 코드 → 문구. 기반이 부르는 코드 전부를 덮어야 한다 —
                           목록의 단일 출처는 engine/view-kernel/presentation/text-codes.ts
 view/bindings.ts          장면을 읽어 요청을 고르는 특수 키 규칙
 view/sprites.ts           그림표 (SPRITE_SHEET · REGISTERED_SPRITE_IDS)
-view/motion-source.ts     이 팩의 motions/ 폴더와 아틀라스
+view/motion-source.ts     이 세계의 motions/ 폴더와 아틀라스
 protocol/                 봉투(engine/protocol-core)를 확장한 이 세계의 계약
 ```
 

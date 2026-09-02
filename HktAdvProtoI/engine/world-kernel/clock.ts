@@ -1,4 +1,4 @@
-// World Clock — 세계 자신의 시계 (C003 ADDED).
+// World Clock — 세계 자신의 시계.
 //
 // INTENT-WORLD-CLOCK-001: 관찰자가 있든 없든, 보고 있든 아니든 세계는 진행한다.
 // 그래서 시계는 관찰자(렌더 루프)가 아니라 세계 쪽에 있다.
@@ -9,9 +9,9 @@
 import type { GameViewSnapshot, RequestOutcomeView } from '../protocol-core/gameview';
 import type { World } from './kernel';
 
-// C004 CHANGED — 한 Tick 이 내보내는 것은 관찰 결과 하나가 아니라
+// 한 Tick 이 내보내는 것은 관찰 결과 하나가 아니라
 // 보고 있는 관찰자마다의 관찰 결과다 (INTENT-PER-OBSERVER-PROJECTION-001).
-// C009 CHANGED — 그에 더해 이 Tick 이 판정한 요청들의 대답도 함께 나간다.
+// 그에 더해 이 Tick 이 판정한 요청들의 대답도 함께 나간다.
 // 둘은 다른 것이다: 관찰 결과는 세계가 어떠한가이고, 대답은 그 요청이 어떻게 되었는가다.
 export type ObservationSink = (
   observations: Map<string, GameViewSnapshot>,

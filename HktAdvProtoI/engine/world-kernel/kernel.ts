@@ -18,8 +18,8 @@ import {
   type WorldTickResult,
 } from './tick';
 
-// C003 CHANGED — 세계는 요청을 "받아 두고" 자기 Tick 에 판정한다.
-// C004 CHANGED — 관찰자가 누구인지 세계가 알아야 하므로 참여/이탈이 경계에 생겼고,
+// 세계는 요청을 "받아 두고" 자기 Tick 에 판정한다.
+// 관찰자가 누구인지 세계가 알아야 하므로 참여/이탈이 경계에 생겼고,
 //                요청은 어느 이어짐으로 왔는지와 함께 도착한다.
 //                외부가 상태를 읽어 가는 경로(pull)는 여전히 없다.
 export interface World {
@@ -30,7 +30,7 @@ export interface World {
   /** 요청이 세계에 도착한다. 즉시 판정되지 않는다 (INTENT-REMOTE-REQUEST-001) */
   request(observerId: string, action: ActionRequest): void;
   /**
-   * 관찰자의 표식이 세계에 도착한다 (C005). 게임을 아무것도 바꾸지 않는다 —
+   * 관찰자의 표식이 세계에 도착한다. 게임을 아무것도 바꾸지 않는다 —
    * 다음 Tick 이 RULE-OBSERVER-MARK-001 로 받아들이고, 받아들인 자리가
    * 그 관찰자의 관찰 결과에 실려 돌아간다.
    */

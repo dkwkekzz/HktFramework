@@ -9,14 +9,14 @@
 //                3. World.Time += dt
 //                4. 컨텐츠가 선언한 postTimeSystems 를 그 순서대로
 // Result         Observations — 지금 보고 있는 관찰자 각각의 Observer Projection
-//                Outcomes (C009) — 이 Tick 이 판정한 요청들의 대답, 요청한 이별로
+//                Outcomes — 이 Tick 이 판정한 요청들의 대답, 요청한 이별로
 //                (RULE-REQUEST-REPLY-001).
 //
 // 참여가 요청보다 앞서는 이유: 같은 Tick 에 들어오면서 보낸 요청이 그 Tick 에 판정될 수
 // 있어야 "요청 → 다음 관찰 결과" 인과가 밀리지 않는다.
-// 요청 처리가 진행보다 앞서는 이유도 같다 (C003).
+// 요청 처리가 진행보다 앞서는 이유도 같다.
 //
-// 표식이 요청보다 앞서 처리되어도 되는 이유 (C005): 관찰자는 언제나 요청을 보낸 뒤에
+// 표식이 요청보다 앞서 처리되어도 되는 이유: 관찰자는 언제나 요청을 보낸 뒤에
 // 표식을 붙이므로, 같은 Tick 안에서 그 요청도 함께 판정된다 — 받아들인 표식과
 // 그 요청의 결과가 같은 관찰 결과로 나간다.
 //
@@ -38,7 +38,7 @@ import type { CoreWorldState } from './state';
 export interface PendingObserverEvent {
   kind: 'join' | 'leave' | 'mark';
   observerId: string;
-  /** kind = mark 일 때 관찰자가 붙인 표식 (C005) */
+  /** kind = mark 일 때 관찰자가 붙인 표식 */
   mark?: number;
 }
 
@@ -56,7 +56,7 @@ export interface WorldTickResult {
   /** 이 Tick 에 처리된 요청들의 판정 (진단·검증용) */
   results: ActionResult[];
   /**
-   * C009 ADDED — 이 Tick 이 판정한 요청들의 대답, 요청한 관찰자별로 (RULE-REQUEST-REPLY-001).
+   * 이 Tick 이 판정한 요청들의 대답, 요청한 관찰자별로 (RULE-REQUEST-REPLY-001).
    * 관찰 결과와 다른 것이며 요청한 이에게만 간다.
    * 세계는 이것을 쌓아 두지 않는다 — 이 Tick 의 산출물이지 World State 가 아니다.
    */
@@ -83,7 +83,7 @@ export function runWorldTick<S extends CoreWorldState>(
   const results = arrived.map((request) =>
     dispatchAction(state, request.observerId, request.action, handlers),
   );
-  // C009 — 판정 결과를 버리지 않고 요청한 이에게 돌려보낸다 (RULE-REQUEST-REPLY-001).
+  // 판정 결과를 버리지 않고 요청한 이에게 돌려보낸다 (RULE-REQUEST-REPLY-001).
   // 판정 자체는 위에서 이미 끝났다. 여기서 하는 일은 그것을 주소에 붙이는 것뿐이다.
   const outcomes = groupOutcomesByObserver(
     arrived.map((request, index) =>

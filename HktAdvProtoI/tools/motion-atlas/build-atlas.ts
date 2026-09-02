@@ -10,7 +10,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join, relative, sep } from 'node:path';
 import { parseMotionPath } from '../../engine/view-kernel/motion/motion-format';
 import type { MotionAtlas, MotionFrameGeometry, MotionGeometry } from '../../engine/view-kernel/motion/motion-geometry';
-import { activePackDir } from '../active-pack';
+import { contentDir } from '../content-root';
 import { detectSheet, type DetectedSheet } from './detect-frames';
 import { readPngAlpha } from './png-alpha';
 
@@ -160,7 +160,7 @@ function normalize(detected: DetectedSheet, declaredFrames: number): MotionGeome
 }
 
 export function buildAtlas(projectRoot: string, options: AtlasBuildOptions = {}): AtlasBuildResult {
-  const motionsDir = join(activePackDir(projectRoot), 'motions');
+  const motionsDir = join(contentDir(projectRoot), 'motions');
   const files = collectSheets(motionsDir);
 
   // 지문 먼저 — 입력이 그대로면 알파 해독도 기하 검출도 하지 않는다.
@@ -214,7 +214,7 @@ export function buildAtlas(projectRoot: string, options: AtlasBuildOptions = {})
 
 /** motions/ 안 파일들의 크기·수정시각 지문 — 다시 만들지 판단하는 값싼 기준 */
 export function motionsFingerprint(projectRoot: string): string {
-  const files = collectSheets(join(activePackDir(projectRoot), 'motions'));
+  const files = collectSheets(join(contentDir(projectRoot), 'motions'));
   const hash = createHash('sha256');
   for (const file of files) {
     const s = statSync(file);

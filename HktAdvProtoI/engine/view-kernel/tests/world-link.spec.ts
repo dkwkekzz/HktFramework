@@ -1,4 +1,4 @@
-// World Link 단독 테스트 — 소켓 없이 이어짐 상태를 검증한다 (C003 · C004).
+// World Link 단독 테스트 — 소켓 없이 이어짐 상태를 검증한다.
 // Implements INTENT-OBSERVER-LINK-001 · INTENT-OBSERVER-IDENTITY-001
 
 import { describe, expect, it } from 'vitest';
@@ -98,7 +98,7 @@ describe('INTENT-OBSERVER-LINK-001 — 이어짐 상태', () => {
     const link = createWorldLink(w.factory, OBSERVER, w.schedule);
     w.open();
 
-    // sent[0] 은 자기를 밝히는 것이고(C004), 요청 뒤에는 표식이 따라붙는다(C005)
+    // sent[0] 은 자기를 밝히는 것이고, 요청 뒤에는 표식이 따라붙는다
     expect(link.send({ interactionId: 'mine' })).toBe(true);
     expect(JSON.parse(w.sent[1]!)).toEqual({
       type: 'action',
@@ -190,7 +190,7 @@ describe('INTENT-OBSERVER-IDENTITY-001 — 이어질 때마다 같은 나를 밝
   });
 });
 
-describe('C005 — 표식을 붙여 보내고 왕복을 잰다', () => {
+describe('표식을 붙여 보내고 왕복을 잰다', () => {
   it('조용해도 일정 간격으로 표식이 나간다 (게임 요청 없이도 잴 수 있다)', () => {
     const w = fakeWorld();
     let clock = 1000;

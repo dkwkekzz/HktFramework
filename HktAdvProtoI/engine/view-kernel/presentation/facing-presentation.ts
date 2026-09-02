@@ -1,4 +1,4 @@
-// Facing Presentation — 몸이 향한 방향을 그림의 좌우로 옮기는 결정 (C008).
+// Facing Presentation — 몸이 향한 방향을 그림의 좌우로 옮기는 결정.
 // 04-gameview.spec.yaml 의 `entities.character.facing.read` 와 `spriteOrientation` 이 원본이다.
 // 종류별 그림의 기준 방향은 컨텐츠 팩의 kind-presentation(종의 표현 단일 출처)이 정해
 // 인자로 들어온다 — 이 파일은 좌우 읽기의 기계장치만 소유한다 (P3 CHANGED).

@@ -16,7 +16,7 @@ import { RAW_CODE, type CodeTextFn } from '../presentation/code-text';
 import type { StickView } from '../input/touch';
 
 /**
- * 관찰자 쪽에서 끝나는 것들 — 세계로 나가지 않는다 (C006 · C007 R2 · C009).
+ * 관찰자 쪽에서 끝나는 것들 — 세계로 나가지 않는다.
  *
  * 코드도 이름도 **원본에서 온다** (`input/engine-keys.ts`) — 여기 손으로 적어 두면
  * 기반이 자리를 옮겨도 이 버튼만 옛 키를 계속 내놓는다. 이름은 이제 문구 코드이며,
@@ -137,7 +137,7 @@ export function createTouchPad(container: HTMLElement, textOf: CodeTextFn = RAW_
 
       // 지금 되는지 안 되는지는 세계가 정한다 — 그 판정을 흐림과 사유 문구로 비춘다.
       // 눌리지 않게 막지는 않는다. 키를 누를 때와 같이, 안 되는 것을 눌러도
-      // 세계가 사유를 붙여 거절한다 (C009).
+      // 세계가 사유를 붙여 거절한다.
       const children = actionsEl.children;
       for (let index = 0; index < children.length; index += 1) {
         const el = children[index] as HTMLElement;

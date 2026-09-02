@@ -1,4 +1,4 @@
-// Collision Presentation (C006 / R1) — 충돌체 디버그 관찰을 "어떻게 그릴지" 결정한다
+// Collision Presentation — 충돌체 디버그 관찰을 "어떻게 그릴지" 결정한다
 // (결정 Layer). Spec 의 debugObserve 계약을 소비한다:
 //   bodies          → 몸 캡슐 부피 + 속도 화살표
 //   actionColliders → 칼끝 충돌 구 (활성/비활성 구분) + 맞은 몸 표시

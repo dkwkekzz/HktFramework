@@ -1,4 +1,4 @@
-// Motion Data Injection Format v1 (C002)
+// Motion Data Injection Format v1
 //
 //   motions/<characterKind>/<action>[.<옵션>…].png
 //

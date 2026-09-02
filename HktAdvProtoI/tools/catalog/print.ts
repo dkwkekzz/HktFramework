@@ -25,7 +25,7 @@ import {
   ROLE_PRESENTATIONS,
 } from '../../content/active-catalog';
 import { REGISTERED_SPRITE_IDS } from '../../content/active-catalog';
-import { activePackDir } from '../active-pack';
+import { contentDir } from '../content-root';
 import { parseMotionPath, ROOT_DIR, type MotionAsset } from '../../engine/view-kernel/motion/motion-format';
 
 export function projectRoot(): string {
@@ -35,7 +35,7 @@ export function projectRoot(): string {
 /** motions/<kind>/ 를 파일 규약 그대로 읽는다 — Vite glob 과 같은 것을 fs 로 본다 */
 export function scanMotionFolders(root = projectRoot()): Map<string, MotionAsset[]> {
   const byKind = new Map<string, MotionAsset[]>();
-  const motionsDir = join(activePackDir(root), ROOT_DIR);
+  const motionsDir = join(contentDir(root), ROOT_DIR);
   let kinds: string[] = [];
   try {
     kinds = readdirSync(motionsDir).filter((name) =>

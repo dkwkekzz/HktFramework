@@ -1,13 +1,13 @@
-// Client 조립 루트 (C003 · C004) — 여기에는 세계가 없다.
+// Client 조립 루트 — 여기에는 세계가 없다.
 //
 // 세계는 다른 프로세스에서 자기 시계로 돈다. 이 파일이 하는 일은 넷뿐이다.
-//   1. 내가 누구인지 정해 이어짐에 실어 보낸다 (C004)
+//   1. 내가 누구인지 정해 이어짐에 실어 보낸다
 //   2. 받은 관찰 결과를 그린다 (마지막으로 받은 것이 화면이다)
 //   3. 입력을 Action Request 로 만들어 세계로 보낸다
 //   4. 이어짐 상태를 표시한다
 //
 // world/ 를 import 하지 않는다 — 이제는 규율이 아니라 물리적 사실이다.
-// 컨텐츠 팩은 content/active-view 하나로만 닿는다 (boundary 규칙 4) —
+// 컨텐츠는 content/active-view 하나로만 닿는다 (경계 규칙 3) —
 // 이 파일은 어느 팩이 실렸는지 알지 못한다.
 
 import { TRANSPORT_PATH } from '../engine/protocol-core/transport';
@@ -41,7 +41,7 @@ const container = document.getElementById('game');
 if (!container) throw new Error('#game 컨테이너가 없다');
 
 // 내가 누구인지 — 보관해 두었던 것이 있으면 그것을, 없으면 하나 만들어 보관한다.
-// 다시 이을 때 같은 것을 밝히므로 같은 몸으로 돌아온다 (C004).
+// 다시 이을 때 같은 것을 밝히므로 같은 몸으로 돌아온다.
 const observerId = resolveObserverId(browserIdentityStorage());
 
 const wsProtocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -51,7 +51,7 @@ const link = createWorldLink(
   observerId,
   undefined,
   undefined,
-  worldAddress, // C005 binding.worldAddress — 어느 세계에 이어져 있는가
+  worldAddress, // binding.worldAddress — 어느 세계에 이어져 있는가
 );
 
 // 그림표는 컨텐츠의 것이다 — 기반은 등록된 것을 그릴 뿐이다 (P3).
@@ -59,7 +59,7 @@ registerSprites(SPRITE_SHEET);
 
 const renderer = createRenderer(container);
 const hud = createHud(container);
-// 명령 표면 (C009) — 타이핑을 받는 동안 이동·시점·행동 입력이 몸에 닿지 않는다
+// 명령 표면 — 타이핑을 받는 동안 이동·시점·행동 입력이 몸에 닿지 않는다
 // (04 commandSurface.inputCapture).
 const commandConsole = createCommandConsole(container, {
   onText: (text) => {
@@ -97,7 +97,7 @@ const EMPTY_SCENE: SceneState = {
 };
 
 let latestScene: SceneState = EMPTY_SCENE;
-// C009 — 명령을 쓰는 동안에는 화면을 눌러도 몸이 움직이지 않는다
+// 명령을 쓰는 동안에는 화면을 눌러도 몸이 움직이지 않는다
 // (04 commandSurface.inputCapture.suspends: interactions.move · skill).
 attachInput(
   renderer,
@@ -105,8 +105,8 @@ attachInput(
   () => latestScene,
 );
 
-// 시점 조작 (C008) — 세계로 나가지 않는다. 관찰자가 자기 방향을 바꿀 뿐이다.
-// C009 — 명령을 쓰는 동안에는 시점도 돌아가지 않는다.
+// 시점 조작 — 세계로 나가지 않는다. 관찰자가 자기 방향을 바꿀 뿐이다.
+// 명령을 쓰는 동안에는 시점도 돌아가지 않는다.
 attachPointerLook(renderer.domElement, (dTurn, dTilt) => {
   if (commandConsole.capturing()) return;
   renderer.turnView(dTurn, dTilt);
@@ -119,25 +119,25 @@ const KEY_TILT_RATE = 1.0;
 let facingSides: Record<string, ScreenSide> = {};
 
 // WASD 연속 이동 — 진행 방향의 조금 앞 지점을 요청한다. 판정은 세계가 한다.
-// C003: 매 프레임이 아니라 일정 간격으로 보낸다 — 요청은 이제 선을 타고 간다.
+// 매 프레임이 아니라 일정 간격으로 보낸다 — 요청은 이제 선을 타고 간다.
 const KEY_LOOKAHEAD = 1.6;
 const MOVE_REQUEST_INTERVAL = 0.1;
 let moveRequestCooldown = 0;
 let wasKeyMoving = false;
 
-// 충돌체 디버그 관찰 (C006) — 켜고 끄는 것은 관찰자의 선택이다. 기본 off.
+// 충돌체 디버그 관찰 — 켜고 끄는 것은 관찰자의 선택이다. 기본 off.
 // World 에 아무것도 요청하지 않는다 — 이미 와 있는 관찰값을 보일지만 정한다.
-// C009 — 같은 것을 명령으로도 켤 수 있다 (04 observerCommands[collider-observe]).
+// 같은 것을 명령으로도 켤 수 있다 (04 observerCommands[collider-observe]).
 // 키는 아는 사람의 지름길이고, 명령 목록이 처음 보는 사람의 길이다.
 const DEBUG_OBSERVE_KEY = 'KeyC';
 let debugObserve = false;
 
-// 속성 관찰 (C007 R2 — 04 debugAuthority.inspect) — 세계는 이미 모든 속성을 보내고 있다.
+// 속성 관찰 (04 debugAuthority.inspect) — 세계는 이미 모든 속성을 보내고 있다.
 // 이 토글은 그것을 몸 위에 펼쳐 볼지만 정한다. World 에 아무것도 요청하지 않는다.
 const INSPECT_KEY = 'KeyV';
 let inspect = false;
 
-// ── 명령 표면 (C009 — 04 commandSurface) ────────────────────────────
+// ── 명령 표면 (04 commandSurface) ────────────────────────────
 //
 // 관찰자가 쥐는 상태다. 세계는 이것을 알지 못한다 —
 // 열려 있는지도, 무엇을 쓰고 있는지도, 무엇을 주고받았는지도.
@@ -223,10 +223,10 @@ function frame(now: number): void {
 
   // 조용히 죽은 이어짐을 걷어낸다 — 관찰 결과가 끊기면 그것이 끊김이다
   link.poll(Date.now());
-  // 세계의 대답을 받아 기록에 붙인다 (C009). 관찰 결과와 다른 자리다.
+  // 세계의 대답을 받아 기록에 붙인다. 관찰 결과와 다른 자리다.
   drainOutcomes();
 
-  // 시점 조작 (C008) — 그리기 전에 방향을 먼저 정한다. 이번 프레임의 좌우 읽기가
+  // 시점 조작 — 그리기 전에 방향을 먼저 정한다. 이번 프레임의 좌우 읽기가
   // 이 방향을 기준으로 이루어져야 화면과 어긋나지 않는다.
   const capturing = commandConsole.capturing();
   const turning = capturing ? null : keyboard.turn();
@@ -267,7 +267,7 @@ function frame(now: number): void {
     wasKeyMoving = true;
     if (moveRequestCooldown <= 0) {
       moveRequestCooldown = MOVE_REQUEST_INTERVAL;
-      // C008 — 앞은 세계의 축이 아니라 지금 보고 있는 쪽이다.
+      // 앞은 세계의 축이 아니라 지금 보고 있는 쪽이다.
       // 세계 좌표로 환산해 보내므로 세계는 무엇을 기준으로 정했는지 알지 못한다.
       const heading = renderer.viewWorldDirection(dir);
       link.send({
@@ -279,11 +279,11 @@ function frame(now: number): void {
       });
     }
   } else if (!dir && wasKeyMoving) {
-    // 멈춤 — 아무것도 보내지 않는다 (C008 CHANGED).
+    // 멈춤 — 아무것도 보내지 않는다.
     //
     // 예전에는 "마지막으로 관찰한 자리로 가라"를 보내 그 자리에 세웠다. 그런데 그 자리는
     // 이미 지나온 자리다 (관찰은 세계보다 한 걸음 늦게 도착한다). 그래서 몸이 뒤로 한 걸음
-    // 돌아왔고, 움직인 방향이 몸 방향이므로(C006 RULE-BODY-FACING-001) 멈출 때마다
+    // 돌아왔고, 움직인 방향이 몸 방향이므로(RULE-BODY-FACING-001) 멈출 때마다
     // 뒤를 돌아봤다 — 그림도 휘두름도 함께 뒤를 향했다.
     //
     // 마지막으로 요청한 목적지는 늘 몸보다 앞에 있다. 그리로 가다 도착하면 스스로 멈춘다
@@ -294,7 +294,7 @@ function frame(now: number): void {
   }
 
   for (const code of keyboard.consumeKeyPresses()) {
-    // 명령 표면을 연다 (C009). 열려 있는 동안 다른 키는 몸에 닿지 않는다 —
+    // 명령 표면을 연다. 열려 있는 동안 다른 키는 몸에 닿지 않는다 —
     // 콘솔이 자기 입력에서 키를 잡아 두므로 여기까지 오지 않는다.
     if (code === COMMAND_OPEN_KEY) {
       commandOpen = !commandOpen;
@@ -335,7 +335,7 @@ function frame(now: number): void {
     if (screen) labels.push({ id: entity.id, x: screen.x, y: screen.y, text: entity.label });
   }
 
-  // 존재 HUD (C007) — 이름과 생명을 그 몸 위에 붙인다.
+  // 존재 HUD — 이름과 생명을 그 몸 위에 붙인다.
   // 얼마나 띄울지는 결정 Layer 가 그 존재의 그림 크기로 정해 두었다 (nameplate.anchorHeight).
   const plates: EntityPlate[] = [];
   for (const entity of latestScene.entities) {
@@ -355,7 +355,7 @@ function frame(now: number): void {
     });
   }
 
-  // 타격 결과 (C007) — 맞은 자리에서 떠오르며 옅어진다. 나이는 세계 시각으로 잰다.
+  // 타격 결과 — 맞은 자리에서 떠오르며 옅어진다. 나이는 세계 시각으로 잰다.
   const strikes: StrikeMark[] = [];
   for (const strike of latestScene.strikes) {
     const screen = renderer.worldToScreen(
@@ -367,7 +367,7 @@ function frame(now: number): void {
     const age = Math.max(0, Math.min(1, (latestScene.worldTime - strike.since) / STRIKE_FADE_SECONDS));
     strikes.push({ x: screen.x, y: screen.y, text: strike.text, emphasis: strike.emphasis, age });
   }
-  // 이어짐의 수치와 신원 (C005) — 세계에서 오는 것은 acknowledgedMark 하나뿐이고
+  // 이어짐의 수치와 신원 — 세계에서 오는 것은 acknowledgedMark 하나뿐이고
   // 나머지는 link 가 관찰자 쪽 시계로 잰 것이다.
   const nowMs = Date.now();
   hud.render(

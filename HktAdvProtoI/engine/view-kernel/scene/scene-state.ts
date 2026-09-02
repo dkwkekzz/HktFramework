@@ -4,7 +4,7 @@
 
 import type { MotionGeometry } from '../motion/motion-geometry';
 
-// 모션 재생 지시 (C002) — 어떤 시트를 어떻게 재생할지는 결정 Layer 가 이미 정했다.
+// 모션 재생 지시 — 어떤 시트를 어떻게 재생할지는 결정 Layer 가 이미 정했다.
 export interface SceneMotion {
   id: string; // 진단용 (예: rabbit-swordsman/idle)
   url: string; // 시트 이미지 주소
@@ -27,7 +27,7 @@ export interface SceneMotion {
   geometry?: MotionGeometry;
 }
 
-// 몸 위에 붙는 관찰 (C007 entityHud) — 이름과 생명. 늘 보인다.
+// 몸 위에 붙는 관찰 (entityHud) — 이름과 생명. 늘 보인다.
 // 어디에 어떻게 붙여 그릴지는 capability 가 정한다. 여기 있는 것은 무엇을 보일지다.
 export interface SceneNameplate {
   name: string;
@@ -36,7 +36,7 @@ export interface SceneNameplate {
   healthRatio: number; // 0..1 — 막대 길이는 이미 결정 Layer 가 구했다
   downed: boolean; // 참이면 살아 있는 존재와 구분해 그린다
   /**
-   * 지면에서 이 표지를 띄울 높이 — 그 몸의 캡슐 정수리 바로 위다 (C006 Body.Height 기준).
+   * 지면에서 이 표지를 띄울 높이 — 그 몸의 캡슐 정수리 바로 위다 (Body.Height 기준).
    * 몸마다 키가 다르면 표지도 그 키를 따른다.
    */
   anchorHeight: number;
@@ -45,26 +45,26 @@ export interface SceneNameplate {
 export interface SceneEntity {
   id: string;
   spriteId: string; // Asset Registry 키 (예: player-pickaxe:idle) — 모션이 없을 때의 그림
-  motion?: SceneMotion; // 있으면 이 모션을 재생한다 (C002)
+  motion?: SceneMotion; // 있으면 이 모션을 재생한다
   size: number;
-  tint?: number; // 그림에 곱할 색 (C002) — 없으면 원본 그대로
+  tint?: number; // 그림에 곱할 색 — 없으면 원본 그대로
   position: { x: number; z: number };
   label?: string; // 형식화 완료된 라벨 텍스트 (예: "돌 4")
-  nameplate?: SceneNameplate; // C007 — character 에만 있다
-  inspect?: string[]; // C007 R2 — 속성 관찰이 켜졌을 때의 표시 줄들
+  nameplate?: SceneNameplate; // character 에만 있다
+  inspect?: string[]; // 속성 관찰이 켜졌을 때의 표시 줄들
   /**
-   * 이 몸이 지금 시점에서 향한 것으로 읽히는 쪽 (C008).
+   * 이 몸이 지금 시점에서 향한 것으로 읽히는 쪽.
    * 다음 프레임의 모호 구간 판정 기준이 되므로 조립 루트가 기억한다.
    * 몸 방향이 없는 대상(광맥 등)에는 없다.
    */
   facingSide?: 'left' | 'right';
-  /** 그림을 좌우로 뒤집어 그릴 것인가 (C008) — 읽힌 쪽이 그림 기준 방향과 다를 때 참 */
+  /** 그림을 좌우로 뒤집어 그릴 것인가 — 읽힌 쪽이 그림 기준 방향과 다를 때 참 */
   flip?: boolean;
   cameraFollow: boolean;
   trail: boolean;
 }
 
-// 한 번의 타격 결과 (C007 strikeEvents) — 맞은 자리에 잠시 떠올랐다 사라진다.
+// 한 번의 타격 결과 (strikeEvents) — 맞은 자리에 잠시 떠올랐다 사라진다.
 export interface SceneStrike {
   id: string; // 같은 결과를 이어 그리기 위한 키
   position: { x: number; z: number };
@@ -74,17 +74,17 @@ export interface SceneStrike {
   /** 지면에서 이 숫자가 뜰 높이 — 맞은 몸의 가슴께다 */
   anchorHeight: number;
   /**
-   * 그 숫자가 나온 경위 (C010) — 형식화 완료된 한 줄.
+   * 그 숫자가 나온 경위 — 형식화 완료된 한 줄.
    * 속성 관찰이 켜졌을 때만 채워진다. 늘 띄우면 숫자를 읽을 수 없기 때문이며,
    * 감춘 것이 아니라 표시 선택이다 (nameplate / inspect 와 같은 규칙).
    *
-   * C011 — 막힌·무너진 타격에서는 관찰이 꺼져 있어도 채워진다.
+   * 막힌·무너진 타격에서는 관찰이 꺼져 있어도 채워진다.
    * "막아서 이만큼 덜 아팠고 기력을 이만큼 냈다" 를 그 자리에서 읽지 못하면
    * 맞바꿨다는 사실 자체가 플레이어에게 일어나지 않는다 (04 strikeEvents.meaning).
    */
   detail?: string;
   /**
-   * 막기가 이 한 방에 한 일 (C011) — 막지도 무너지지도 않았으면 없다.
+   * 막기가 이 한 방에 한 일 — 막지도 무너지지도 않았으면 없다.
    * 무너짐은 막힘과 눈에 띄게 달라야 하므로 capability 가 다르게 그린다.
    */
   guard?: 'blocked' | 'broken';
@@ -128,7 +128,7 @@ export interface SceneEffect {
   scale?: number;
 }
 
-// 자기 몸에 대한 상시 표시 (C007 hud.self) — 같은 값을 남에 대해서도 볼 수 있지만,
+// 자기 몸에 대한 상시 표시 (hud.self) — 같은 값을 남에 대해서도 볼 수 있지만,
 // 이것은 늘 눈앞에 있는 자리다.
 export interface SceneSelf {
   health: number;
@@ -145,7 +145,7 @@ export interface SceneSelf {
   moveMode: string; // walk | run (의미 코드 — 문구는 이미 결정됐다)
   moveModeCode: string; // 요청에 쓸 원래 코드
   /**
-   * 막기 상태 (C011). 막기는 스스로 끝나지 않으므로 들고 있다는 것을 잊으면
+   * 막기 상태. 막기는 스스로 끝나지 않으므로 들고 있다는 것을 잊으면
    * 스킬이 왜 안 나가는지 알 수 없게 된다 — 늘 눈앞에 둔다.
    * text 는 형식화 완료된 문구이며, 아무것도 아닐 때는 없다.
    */
@@ -170,7 +170,7 @@ export interface SceneHudItem {
   label: string;
   icon?: string;
   value: number | boolean | string;
-  progress?: number; // 0..1 — 값에 진행 막대가 동반되는 경우 (C002)
+  progress?: number; // 0..1 — 값에 진행 막대가 동반되는 경우
   /**
    * counter 가 늘었을 때 잠시 떠오르는 말 — **문장째** 결정 Layer 가 짓는다.
    * `{}` 자리에 늘어난 만큼이 들어간다 (예: `+{} 돌 획득!`).
@@ -179,7 +179,7 @@ export interface SceneHudItem {
   celebrateText?: string;
 }
 
-// 충돌체 디버그 지시 (C006 / R1) — 지면 위 캡슐·구체 부피와 화살표.
+// 충돌체 디버그 지시 — 지면 위 캡슐·구체 부피와 화살표.
 // 결정 Layer 가 켜졌을 때만 담는다. capability 는 이것이 몸인지 휘두름인지 모른다 —
 // 캡슐과 구체와 화살표를 그릴 뿐이다.
 export interface SceneDebugCapsule {
@@ -213,7 +213,7 @@ export interface SceneColliderDebug {
   vectors: SceneDebugVector[];
 }
 
-// ── 명령 표면 (C009 — 04 commandSurface) ────────────────────────────
+// ── 명령 표면 (04 commandSurface) ────────────────────────────
 //
 // 결정 Layer 가 세계의 목록(commandCatalog)과 관찰자 쪽 목록(observerCommands)을
 // 한 벌의 표시 지시로 합쳐 둔 것. capability 는 이것이 무슨 명령인지 모른다 —
@@ -453,13 +453,13 @@ export interface SceneState {
   entities: SceneEntity[];
   interactions: SceneInteraction[];
   hud: SceneHudItem[];
-  colliderDebug?: SceneColliderDebug; // C006 — 디버그 관찰이 켜졌을 때만 존재한다
-  self?: SceneSelf; // C007 — 자기 자원·능력치·배율 (아직 관찰 결과가 없으면 없다)
-  strikes: SceneStrike[]; // C007 — 지금 떠 있는 타격 결과들
+  colliderDebug?: SceneColliderDebug; // 디버그 관찰이 켜졌을 때만 존재한다
+  self?: SceneSelf; // 자기 자원·능력치·배율 (아직 관찰 결과가 없으면 없다)
+  strikes: SceneStrike[]; // 지금 떠 있는 타격 결과들
   /** 이번에 켜야 할 이펙트들 — 이미 켠 사건은 다시 실리지 않는다 (F1) */
   effects: SceneEffect[];
-  worldTime: number; // C007 — 타격 결과의 나이를 재는 기준 (세계 시각)
-  commandSurface: SceneCommandSurface; // C009 — 명령 목록·안내·기록
+  worldTime: number; // 타격 결과의 나이를 재는 기준 (세계 시각)
+  commandSurface: SceneCommandSurface; // 명령 목록·안내·기록
   /**
    * 지금 떠 있는 겹침 표면들 — 열리지 않은 것도 실릴 수 있다 (open 이 가른다).
    * 여러 개가 열려 있으면 **뒤의 것이 위**다 — Escape 는 위의 것부터 닫는다.

@@ -1,4 +1,4 @@
-// 명령 표면 Capability (C009) — 04 commandSurface 를 그리는 능력만 제공한다.
+// 명령 표면 Capability — 04 commandSurface 를 그리는 능력만 제공한다.
 //
 // 이 파일은 어떤 명령이 있는지, 무엇이 세계로 가는지 알지 못한다.
 // 결정 Layer 가 만든 SceneCommandSurface 의 지시를 그대로 그릴 뿐이다.

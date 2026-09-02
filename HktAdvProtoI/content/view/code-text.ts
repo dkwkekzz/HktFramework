@@ -1,0 +1,122 @@
+// 의미 코드 → 플레이어 표시 문구 (결정 Layer 데이터).
+// World 는 코드만 보낸다 — 불가 사유 코드, 행동 코드 등. 문구는 여기서 정한다.
+// 미등록 코드는 코드 그대로 표시된다 — 표현 누락이 게임을 멈추지 않는다.
+
+const CODE_TEXT: Record<string, string> = {
+  // 불가 사유
+  'no-mining-tool': '곡괭이가 없다',
+  'out-of-range': '너무 멀다 — 가까이 이동하자',
+  'deposit-depleted': '광맥이 고갈되었다',
+  // 불가 사유
+  'action-busy': '지금 하는 행동이 끝나야 한다',
+  'no-target': '대상이 없다',
+  'out-of-bounds': '더 갈 수 없는 곳이다',
+  // 행동 코드
+  idle: '대기',
+  move: '이동',
+  attack: '공격',
+  mine: '채굴',
+  hit: '피격',
+  // 행동 코드
+  'heavy-attack': '강공격',
+  downed: '쓰러짐',
+  // 불가 사유
+  'insufficient-cp': '기력이 모자란다',
+  // 이동 모드
+  walk: '걷기',
+  run: '달리기',
+  // 불가 사유 — 속성 변경
+  'debug-closed': '이 세계는 속성 변경을 허용하지 않는다',
+  'unknown-target': '그런 존재가 없다',
+  'unknown-attribute': '그런 속성이 없다',
+  'value-out-of-range': '허용된 범위를 벗어난 값이다',
+  // 불가 사유 — 요청 수용 경로 (세계가 이제 이 사유들도 되돌려 준다)
+  'unknown-interaction': '그런 명령이 없다',
+  'unknown-observer': '세계가 나를 알지 못한다',
+  'missing-attribute': '무엇을 바꿀지 실리지 않았다',
+  'missing-position': '어디로 갈지 실리지 않았다',
+  'missing-target': '대상이 실리지 않았다',
+  'missing-mode': '어떤 걸음인지 실리지 않았다',
+  // 명령이 무엇을 하는가 (Command.Effect)
+  'set-attribute': '존재의 속성 값을 바꾼다',
+  'collider-observe': '몸과 휘두름의 충돌체를 보인다',
+  'attribute-inspect': '존재의 모든 속성을 그 몸 위에 펼친다',
+  // 명령이 받는 자리 (Parameter.Id)
+  'param:target': '대상',
+  'param:attribute': '속성',
+  'param:value': '값',
+  // 비워 두면 무엇이 되는가 (Parameter.OmittedMeaning)
+  'omitted:self': '내 몸',
+  // ── 기반이 부르는 문구 (반전 ⑤) ────────────────────────────────
+  //
+  // 기반은 사람이 읽을 말을 짓지 않는다 — 코드로 부르고 팩이 말을 준다.
+  // 목록의 단일 출처는 engine/view-kernel/presentation/text-codes.ts 의
+  // ENGINE_TEXT_CODES 다. `{}` 자리는 기반이 값을 끼운다.
+  //
+  // 명령 표면
+  'command.domain.entity': '존재의 이름',
+  'command.domain.previous': '앞에서 고른 것이 정하는 값',
+  'command.domain.value': '값',
+  'command.state.on': '켜짐',
+  'command.state.off': '꺼짐',
+  'command.origin.world': '세계',
+  'command.origin.observer': '내 화면',
+  'command.unavailable': '지금은 걸 수 없다',
+  'command.omitted': '비우면 {}',
+  'command.omitted.nothing': '없음',
+  'command.next': '다음: {}',
+  'command.close': '닫기',
+  'command.no-such': '그런 명령이 없다 — {}',
+  'command.takes-nothing': '{} 은 아무것도 받지 않는다',
+  'command.out-of-range': '허용된 범위를 벗어난 값이다 — {}',
+  'command.not-here': '그 자리에 넣을 수 없다 — {}',
+  'command.leftover': '받지 않는 것이 남았다 — {}',
+  'command.incomplete': '아직 다 적지 않았다',
+  // 겹침 표면 · 칸 띠 (기반 capability — 이 세계는 아직 쓰지 않는다)
+  'surface.close': '닫기',
+  'surface.empty-cell': '빈 자리',
+  'surface.state.available': '가능',
+  'surface.state.blocked': '불가',
+  'surface.state.pending': '기다리는 중',
+  'slot.key': '{} 키',
+  'slot.no-key': '부를 수 없음',
+  // 기반이 스스로 듣는 키의 이름
+  'engine.key.command': '명령',
+  'engine.key.move': '이동',
+  'engine.key.turn': '시점',
+  'engine.key.colliderObserve': '충돌체 관찰',
+  'engine.key.attributeInspect': '속성 관찰',
+  // 이어짐
+  'link.state.connected': '세계와 이어짐',
+  'link.state.connecting': '세계에 잇는 중…',
+  'link.state.disconnected': '세계와 끊김 — 마지막으로 본 모습입니다',
+  'link.round-trip': '왕복',
+  'link.arrival-rate': '수신',
+  'link.since-last': '마지막',
+  'link.since-last.value': '{}ms 전',
+  'link.sent': '보냄',
+  'link.reconnects': '재연결',
+  'binding.observer': '나',
+  'binding.character': '내 몸',
+  'binding.world': '세계',
+  'binding.world.in-process': '(같은 프로세스)',
+  // 자기 자원 막대를 부르는 말
+  'self.health': 'HP',
+  'self.energy': 'CP',
+};
+
+/**
+ * 코드를 사람이 읽는 말로.
+ *
+ * `detail` 은 **문장에 끼울 값**이다 (친 낱말 · 범위 밖의 값 · 남은 낱말). 등록된 문구에
+ * `{}` 가 있으면 그 자리에 들어가고, 없으면 값은 버려진다 — 문장이 값을 부르지 않는데
+ * 뒤에 억지로 붙이면 말이 아니라 찌꺼기가 된다.
+ *
+ * 등록되지 않은 코드는 **코드 그대로**이며, 값이 있으면 코드 뒤에 붙는다 —
+ * 표현 누락이 게임을 멈추지 않고, 무엇이 빠졌는지는 화면에 그대로 드러난다.
+ */
+export function codeText(code: string, detail?: string): string {
+  const text = CODE_TEXT[code];
+  if (text === undefined) return detail === undefined ? code : `${code}: ${detail}`;
+  return detail === undefined ? text : text.replace('{}', detail);
+}

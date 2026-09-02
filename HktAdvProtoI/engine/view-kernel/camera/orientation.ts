@@ -1,4 +1,4 @@
-// 시점 방향 (C008) — 04-gameview.spec.yaml `viewpoint.orientation`.
+// 시점 방향 — 04-gameview.spec.yaml `viewpoint.orientation`.
 //
 // 관찰자가 소유하는 값이다. 세계는 이 값을 알지 않는다 (03-world-semantic.md WORLD STATE).
 // 그래서 여기에는 World 에서 오는 것이 하나도 없다 — 두 각과 그로부터 유도되는 방향뿐이다.
@@ -22,7 +22,7 @@ export interface PlaneDirection {
   z: number;
 }
 
-/** 기본 시점 — C007 까지의 고정 오프셋(0, 7.5, 13)과 같은 자리를 만든다 */
+/** 기본 시점 — 예전의 고정 오프셋(0, 7.5, 13)과 같은 자리를 만든다 */
 export const DEFAULT_ORIENTATION: Readonly<ViewOrientation> = { turn: 0, tilt: Math.PI / 6 };
 
 /** 시점이 몸에서 떨어져 있는 거리 — 줌은 이번 Cycle 의 대상이 아니다 (01 EXCLUDED) */

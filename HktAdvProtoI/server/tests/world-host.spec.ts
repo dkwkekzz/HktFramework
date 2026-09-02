@@ -1,11 +1,11 @@
-// World Host 단독 테스트 — 소켓 없이 "세계가 밖에서 돈다"를 검증한다 (C003 · C004).
+// World Host 단독 테스트 — 소켓 없이 "세계가 밖에서 돈다"를 검증한다.
 //
-// C004 — 관찰자는 익명이 아니다. 붙을 때 자신을 밝히고, 첫 관찰 결과는
+// 관찰자는 익명이 아니다. 붙을 때 자신을 밝히고, 첫 관찰 결과는
 // 세계가 참여를 판정한 다음 Tick 에 온다.
 
 import { describe, expect, it } from 'vitest';
 import type { GameViewSnapshot, RequestOutcomeView } from '../../engine/protocol-core/gameview';
-import type { ActionRequest } from '../../content/proto-adventure/protocol/actions';
+import type { ActionRequest } from '../../content/protocol/actions';
 import { parseClientMessage, parseServerMessage } from '../../engine/protocol-core/transport';
 import { createWorldHost } from '../world-host';
 
@@ -165,7 +165,7 @@ describe('WorldHost — 같은 관찰자로 다시 들어오기 (INTENT-OBSERVER
   });
 });
 
-describe('WorldHost — 표식 (C005)', () => {
+describe('WorldHost — 표식', () => {
   it('관찰자가 보낸 표식이 세계에 도착해 관찰 결과로 돌아온다', () => {
     const host = createWorldHost({ npcs: [] });
     const seen: GameViewSnapshot[] = [];
@@ -208,8 +208,8 @@ describe('WorldHost — 자기 시계', () => {
   });
 });
 
-// C009 — 세계 → 관찰자 방향에 관찰 결과 말고 다른 것이 실린다.
-describe('WorldHost — 세계의 대답이 요청한 이에게 닿는다 (C009)', () => {
+// 세계 → 관찰자 방향에 관찰 결과 말고 다른 것이 실린다.
+describe('WorldHost — 세계의 대답이 요청한 이에게 닿는다', () => {
   function attachWithOutcomes(host: ReturnType<typeof createWorldHost>, observerId: string) {
     const snapshots: GameViewSnapshot[] = [];
     const outcomes: RequestOutcomeView[][] = [];
@@ -281,7 +281,7 @@ describe('WorldHost — 세계의 대답이 요청한 이에게 닿는다 (C009)
   it('대답을 받을 자리를 두지 않아도 세계는 그대로 돈다', () => {
     const host = createWorldHost({ npcs: [] });
     const received: GameViewSnapshot[] = [];
-    host.attach(A, (s) => received.push(s)); // onOutcomes 없음 — C009 이전과 같은 붙임
+    host.attach(A, (s) => received.push(s)); // onOutcomes 없음 — 예전과 같은 붙임
     host.advance(0);
 
     const setHp4: ActionRequest = { interactionId: 'set-attribute', attribute: { id: 'hp', value: 4 } };
@@ -302,7 +302,7 @@ describe('transport — 오가는 것의 형태', () => {
     expect(parsed?.type === 'observation' && parsed.snapshot).toEqual(snapshot);
   });
 
-  it('대답 봉투를 주고받을 수 있다 (C009)', () => {
+  it('대답 봉투를 주고받을 수 있다', () => {
     const outcomes: RequestOutcomeView[] = [
       { accepted: false, rule: 'RULE-ATTRIBUTE-SET-001', reason: 'debug-closed', mark: 3 },
     ];
@@ -329,7 +329,7 @@ describe('transport — 오가는 것의 형태', () => {
     expect(message?.type === 'action' && message.action.interactionId).toBe('mine');
   });
 
-  it('표식 봉투를 주고받을 수 있다 (C005)', () => {
+  it('표식 봉투를 주고받을 수 있다', () => {
     const message = parseClientMessage(JSON.stringify({ type: 'mark', mark: 9 }));
     expect(message?.type).toBe('mark');
     expect(message?.type === 'mark' && message.mark).toBe(9);

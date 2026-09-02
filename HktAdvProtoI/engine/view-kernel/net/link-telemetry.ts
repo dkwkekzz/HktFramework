@@ -1,4 +1,4 @@
-// Link Telemetry — 이어짐이 얼마나 잘 통하는지 관찰자 쪽에서 재는 것 (C005).
+// Link Telemetry — 이어짐이 얼마나 잘 통하는지 관찰자 쪽에서 재는 것.
 //
 // 04-gameview.spec.yaml 의 telemetry 절(owner: observer)을 구현한다.
 // 세계에서 오는 값은 observer.acknowledgedMark 하나뿐이고, 나머지는 전부 여기서

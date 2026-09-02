@@ -1,4 +1,4 @@
-// 명령 표면의 결정 Layer (C009) — 04 commandCatalog · observerCommands · commandSurface.
+// 명령 표면의 결정 Layer — 04 commandCatalog · observerCommands · commandSurface.
 //
 // 세계는 의미 코드만 보낸다 (Command.Id · Effect · Parameter.Id · Domain).
 // 무슨 문구로 보이고 어떤 문장으로 쓰는지는 전부 여기서 정한다 — 세계는 문법을 모른다.
@@ -63,7 +63,7 @@ export const COMMAND_TEXT_CODES = [
 
 // ── 관찰자 쪽 명령 (04 observerCommands.items) ───────────────────────
 // 세계로 가지 않는다. 세계는 이런 것이 걸렸다는 사실조차 알지 못한다.
-// viewpoint(C008) 와 같은 자리의, 같은 성격의 항목이다.
+// viewpoint 와 같은 자리의, 같은 성격의 항목이다.
 
 export type ObserverCommandId = 'collider-observe' | 'attribute-inspect';
 
