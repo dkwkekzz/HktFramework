@@ -51,6 +51,9 @@ advprotoi-build   실현·검증  구현 ∥ GameView ∥ 검증 병렬 → 실�
 
 "다음에 무엇을 만들까"는 승인된 Play Design 의 Cycle Breakdown 이 답한다 —
 별도의 Master Graph 탐색 공정(advprotoi-master)은 두지 않는다.
+"다음에 무엇을 **주입**할까"는 [design/Design-InjectionRoadmap.md](design/Design-InjectionRoadmap.md)
+의 층 순서가 답한다 — 기반 층(게임 방향 → 세계의 문법 → 세계 → 몸 → 물건 → 대결 →
+능력 → 성장)을 위에서 아래로 하나씩 주입하고, 한 Play 는 열린 층 하나만 증명한다.
 
 Cycle Artifact 는 `cycles/<CycleId>/` (CycleId: `C###-이름`) — 파일만이 단계 간
 인터페이스다. 이전 공정의 산출물(`guides/` · `master/` · `BACKLOG.md` · `LANES.md`)과
@@ -168,3 +171,6 @@ Semantic 정보 부족   → 기획 원본 (design/) · Human
 |---|---|
 | [Design-System-Content-Separation.md](design/Design-System-Content-Separation.md) | 기반/컨텐츠 분리 — 이 저장소 구조의 근거 |
 | [Design-Concept.md](design/Design-Concept.md) | 세계와 주체의 행동 구조 |
+
+기획을 들일 때는 [design/Game.md](design/Game.md)(게임 방향) 와
+[design/Design-InjectionRoadmap.md](design/Design-InjectionRoadmap.md)(주입 순서 · 열린 층) 가 먼저다.

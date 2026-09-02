@@ -195,6 +195,10 @@ World Capability 는 이후 Cycle 에서 그대로 재사용한다.
 점진적으로 두꺼워진다 (한 번에 Game → System 을 완성할 수 없다는 전제).
 큰 주입물이면 Play 를 여러 개로 나눠 제안하되, 승인은 여전히 문서당 1회다.
 
+주입의 **순서**는 [Design-InjectionRoadmap.md](Design-InjectionRoadmap.md) 가 소유한다 —
+기반 층을 위에서 아래로 하나씩 주입하고, 한 Play 는 열린 층 하나만 증명한다.
+아래 층의 의미가 필요해지면 Required 가 아니라 Human 질문으로 남긴다.
+
 ## 9. Human / AI 역할
 
 ```text

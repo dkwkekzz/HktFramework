@@ -8,13 +8,15 @@ Human 이 작성·개정한 **원본**이다. Agent 는 이 문서들을 바꾸�
 
 > 이 문서들 가운데 상당수는 **아직 코드에 들어오지 않은 것**을 적고 있다.
 > 지금 코드에 있는 것은 채광·행동·관찰·기본 전투·개발 명령 표면까지이며, 그 뒤의 전투·성장·아이템·지형은
-> 기획으로만 존재한다. 무엇을 언제 어떤 순서로 들일지는 새로 세울 작업 공정이 정한다.
+> 기획으로만 존재한다. 무엇을 어떤 순서로 들일지는 `Design-InjectionRoadmap.md` 의 층 순서가 정한다.
 
 ## 공정 · 기반
 
 | 문서 | 내용 |
 |---|---|
-| `Design-Concept.md` | 세계와 주체의 행동 구조 — 무엇이 존재하고 어떤 변화가 가능한가 |
+| `Game.md` | **게임 방향 (Level 0)** — 핵심 경험 · Core Breath · 판단 기준 · 핵심 문장 |
+| `Design-Concept.md` | 세계와 주체의 행동 구조 — 무엇이 존재하고 어떤 변화가 가능한가 (Level 1) |
+| `Design-InjectionRoadmap.md` | **주입 순서** — 기반 층 0~8 을 위에서 아래로, 층마다 Play 하나. 열린 층의 현재 상태를 소유 |
 | `Design-DesignAuthoringWorkflow.md` | **기획 위층 공정** — Game/System → Play Design(`play/`) → Cycle Breakdown → 00-cycle |
 | `Design-CycleExecutionWorkflow.md` | **Cycle 실행 공정 원본** — SPEC → SEMANTIC/RULE → IMPL → VERIFY |
 | `Plan-Skill-CycleExecutionWorkflow.md` | 공정의 스킬 분할 계획 (advprotoi-design·plan·build) |
@@ -28,7 +30,8 @@ Human 이 작성·개정한 **원본**이다. Agent 는 이 문서들을 바꾸�
 
 `play/` — 실제 플레이 경험 1개당 1문서. 시스템 기획들이 하나의 플레이에서 만나는
 자리이며, Cycle Breakdown(진행 체크박스)을 소유한다. AI 초안 + Human 승인의 공동
-문서다 (Design-DesignAuthoringWorkflow.md §9).
+문서다 (Design-DesignAuthoringWorkflow.md §9). 한 Play 는 `Design-InjectionRoadmap.md`
+의 열린 층 하나만 증명한다 — 층을 건너뛰는 Play 는 만들지 않는다.
 
 ## 컨텐츠 기획
 
