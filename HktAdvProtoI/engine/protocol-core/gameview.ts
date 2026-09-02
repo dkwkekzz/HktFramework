@@ -164,4 +164,6 @@ export interface GameViewSnapshot {
   // 세계가 밝히는 "걸 수 있는 명령". 관찰 결과에 늘 실린다.
   // 걸 수 있는 것은 언제나 먼저 밝혀져 있다 — 걸어 보아야 알게 되는 것이 없다.
   commands: CommandView[];
+  /** 관찰자의 몸이 선 구역 — 봉투는 뜻을 모른다. scene 과 같은 값에 hash 가 붙은 것 (C001 ADDED) */
+  region?: { id: string; hash: string };
 }

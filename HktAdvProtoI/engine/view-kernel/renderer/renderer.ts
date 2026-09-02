@@ -152,6 +152,7 @@ export function createRenderer(
   scene.add(zoneGroup);
   const ZONE_LIFT = 0.06; // 지면에 묻히지 않도록 띄운다 (스프라이트·트레일과 같은 관용구)
   const ZONE_SEGMENTS = 64;
+  const ZONE_EDGE_STEP = 1; // 폴리곤 변을 지형에 드리울 때의 분할 간격 (세계 단위)
 
   function clearZoneGroup(): void {
     for (const child of zoneGroup.children) {
@@ -199,16 +200,112 @@ export function createRenderer(
     return sprite;
   }
 
+  /** 반투명 지면 재질 — 채움·테두리가 같은 관용구를 쓴다 */
+  function zoneMaterial(color: number, opacity: number): THREE.MeshBasicMaterial {
+    return new THREE.MeshBasicMaterial({
+      color,
+      transparent: true,
+      opacity: Math.min(1, opacity),
+      depthWrite: false,
+      side: THREE.DoubleSide,
+    });
+  }
+
   function drawZones(zones: readonly SceneGroundZone[], worldTime: number): void {
     for (const zone of zones) {
-      const { center, radius } = zone.shape;
       // 맥동 — 세계 시각으로 위상을 잡으므로 같은 세계는 언제나 같게 보인다.
       // intensity 가 없으면 맥동하지 않는다 (배율 1).
       const pulse =
         zone.intensity === undefined
           ? 1
           : 1 + 0.25 * zone.intensity * Math.sin(worldTime * 3);
+      if (zone.shape.kind === 'polygon') drawPolygonZone(zone, zone.shape.points, pulse);
+      else drawCircleZone(zone, zone.shape.center, zone.shape.radius, pulse);
+    }
+  }
 
+  /**
+   * 폴리곤 바닥 (C001 ADDED) — 절대 좌표의 닫힌 점열. 채움은 Shape 삼각분할, 테두리는
+   * 변마다 세계 단위 두께의 얇은 띠, 이름표는 점들의 평균 자리. 원 경로는 손대지 않는다.
+   */
+  function drawPolygonZone(
+    zone: SceneGroundZone,
+    points: readonly { x: number; z: number }[],
+    pulse: number,
+  ): void {
+    if (points.length < 3) return;
+
+    if (zone.fill) {
+      // Shape 는 XY 평면에 놓이고 rotateX(-π/2) 가 y → -z 로 보내므로 z 를 뒤집어 넣는다.
+      const shape = new THREE.Shape(points.map((p) => new THREE.Vector2(p.x, -p.z)));
+      const geometry = new THREE.ShapeGeometry(shape);
+      geometry.rotateX(-Math.PI / 2);
+      drapeOnTerrain(geometry, 0, 0); // 점이 이미 절대 좌표다
+      const mesh = new THREE.Mesh(geometry, zoneMaterial(zone.fill.color, zone.fill.opacity * pulse));
+      mesh.renderOrder = 1;
+      zoneGroup.add(mesh);
+    }
+
+    if (zone.edge) {
+      // width 는 세계 단위 두께 — WebGL 선 굵기는 1px 이 한계라 변마다 얇은 띠 메시를 깐다.
+      // 긴 변은 잘게 나누어 지형을 따라가게 한다 (원의 64 분할과 같은 뜻).
+      const half = Math.max(0.05, zone.edge.width * 0.08);
+      const positions: number[] = [];
+      const indices: number[] = [];
+      for (let i = 0; i < points.length; i++) {
+        const a = points[i]!;
+        const b = points[(i + 1) % points.length]!;
+        const dx = b.x - a.x;
+        const dz = b.z - a.z;
+        const len = Math.hypot(dx, dz);
+        if (len < 1e-6) continue;
+        const nx = (-dz / len) * half;
+        const nz = (dx / len) * half;
+        const steps = Math.max(1, Math.ceil(len / ZONE_EDGE_STEP));
+        const base = positions.length / 3;
+        for (let k = 0; k <= steps; k++) {
+          const t = k / steps;
+          const x = a.x + dx * t;
+          const z = a.z + dz * t;
+          positions.push(x - nx, 0, z - nz, x + nx, 0, z + nz);
+        }
+        for (let k = 0; k < steps; k++) {
+          const o = base + k * 2;
+          indices.push(o, o + 1, o + 2, o + 1, o + 3, o + 2);
+        }
+      }
+      const geometry = new THREE.BufferGeometry();
+      geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+      geometry.setIndex(indices);
+      drapeOnTerrain(geometry, 0, 0);
+      const mesh = new THREE.Mesh(geometry, zoneMaterial(zone.edge.color, zone.edge.opacity * pulse));
+      mesh.renderOrder = 2;
+      zoneGroup.add(mesh);
+    }
+
+    if (zone.label) {
+      let sx = 0;
+      let sz = 0;
+      for (const p of points) {
+        sx += p.x;
+        sz += p.z;
+      }
+      const cx = sx / points.length;
+      const cz = sz / points.length;
+      const sprite = zoneLabelSprite(zone.label, zone.edge?.color ?? zone.fill?.color ?? 0xffffff);
+      sprite.position.set(cx, heightAt(cx, cz) + 1.2, cz);
+      sprite.renderOrder = 3;
+      zoneGroup.add(sprite);
+    }
+  }
+
+  function drawCircleZone(
+    zone: SceneGroundZone,
+    center: { x: number; z: number },
+    radius: number,
+    pulse: number,
+  ): void {
+    {
       if (zone.fill) {
         const disc = new THREE.CircleGeometry(radius, ZONE_SEGMENTS);
         disc.rotateX(-Math.PI / 2);
