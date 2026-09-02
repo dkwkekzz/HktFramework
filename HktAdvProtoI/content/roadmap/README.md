@@ -56,7 +56,7 @@ content/  그 위에 놓이는 이 세계          컨텐츠 층  미지를 놓�
 |---|---|---|---|---|---|---|
 | 0 | 게임 방향 | 핵심 경험 한 단락 + Core Breath + 핵심 문장 | `L0-Game.md` 가 원문을 소유한다 | 없음 — 판단 기준일 뿐 | `L0-Game.md` | **확정** |
 | 1 | 세계의 문법 | 무엇이 존재하고 무엇이 변하는가 — 존재·상태·주체·법칙·시간 (주체가 행동을 **고르는** 과정은 3층) | `Design-Concept.md` | 없음 — 코드가 이미 이 문법 위에 있음 | `L1-World-Grammar.md` | **확정** |
-| 2 | 세계 자체 | **도구 절반** — 세계를 쓰는 문법과 컴파일러 (engine, 확정) · **세계 절반** — ① 세계관 컨셉(세계의 법칙 · 안전권과 깊이 단계 · 지역 지도 · **이름 목록**) ② 세계 content 구성(Region 마다 무엇이 어디에) — 들어오는 자리는 `L2-World-Tool.md` §3 | 도구: `Design-World-Editor-Terrain-Compiler.md` (WE) · `Plan-World-Authoring-Engine.md` · 세계: 재료 없음 — 새 주입이 준다 | 안전권을 나서 깊이가 달라지는 것을 본다 (아직 아무것도 깎이지 않음) | `L2-World-Tool.md` (도구) · `L2-World-*.md` (세계) · `play/` | **다음** |
+| 2 | 세계 자체 | **도구 절반** — 세계를 쓰는 문법과 컴파일러 (engine, 확정) · **세계 절반** — ① 세계관 컨셉(확정) ② 세계 content 구성(Region 마다 무엇이 어디에 — **대기**) | 도구: `Design-World-Editor-Terrain-Compiler.md` (WE) · `Plan-World-Authoring-Engine.md` · 세계 ①: `L2-World-Concept.md` (주입 원문) | 안전권을 나서 깊이가 달라지는 것을 본다 (아직 아무것도 깎이지 않음) | `L2-World-Tool.md` (도구) · `L2-World-Concept.md` (세계 ①) · `play/` | **다음** — ② 대기 |
 | 3 | 주체와 몸 | 요정의 몸은 무엇을 가지는가(깎이고 회복되는 값) · 생물은 무엇을 알고 어떻게 행동하는가 | `Design-Subject-Decision.md` · `Design-Autonomous-Behavior-Knowledge-R0.md` · `Design-Creature-Behavior-R0.md` | 세계가 몸을 깎고, 생물이 그것에 반응하는 것을 본다 | `L3-*.md` · `play/` | 미주입 |
 | 4 | 자원과 물건 | 무엇이 어디서 나는가(2 의 지역과 연결) · 소지·장비·가공 사슬 | `Design-Resource-Catalog-R0.md` · `Design-Item-*.md` · `Design-Inventory-Equipment-D1.md` | 캐서 지니면 갈 수 있는 곳이 늘어난다 | `L4-*.md` · `play/` | 미주입 |
 | 5 | 대결 | 공격·방어·피해 종류·지목 | `Design-Combat-*.md` · `Design-Targeting-R0.md` | 처음으로 맞서 이긴다 | `L5-*.md` · `play/` | 미주입 |
@@ -65,9 +65,11 @@ content/  그 위에 놓이는 이 세계          컨텐츠 층  미지를 놓�
 | 8 | 화면 | UX | `Design-View-*.md` | 별도 주입 없음 — 각 행의 Play 의 Required 로 들어온다 | — | — |
 
 2층은 절반이 둘이다 — **도구가 먼저, 세계가 다음**. 도구 절반은 확정이다 (`L2-World-Tool.md`) —
-게임 명사를 모르므로 세계 주입을 기다리지 않고 ENGINE 레인으로 선다. 세계 절반은 Human 이
-세계관 컨셉 → 세계 content 구성 순으로 주입하고, 그것이 도구의 어느 자리(layer · tag · op)에
-닿는지는 `L2-World-Tool.md` §3 의 연결 계약이 미리 정해 두었다. 2층 Play 는 그 둘이 만나는 자리다.
+게임 명사를 모르므로 세계 주입을 기다리지 않고 ENGINE 레인으로 선다. 세계 절반은 ① 세계관
+컨셉(`L2-World-Concept.md` — 주입됨: 위험 일곱 갈래 · 깊이 다섯 단계 · 위험과 보상의 동근원 ·
+제작 일곱 단계)과 ② 세계 content 구성(대기: 지역 지도 · 이름 · Region 마다 무엇이 어디에)이다.
+주입이 도구의 어느 자리(layer · tag · op)에 닿는지는 `L2-World-Tool.md` §3 의 연결 계약이
+정한다. 2층 Play 는 그 둘이 만나는 자리다.
 
 "증명 Play" 열은 방향 제안이다 — 실제 Play 는 그 층을 주입할 때 `play/` 문서로
 구체화하고 승인한다. 지금 코드에 있는 것(채광·이동·관찰·기본 전투·몸)은 1층 위에
@@ -111,7 +113,7 @@ content/  그 위에 놓이는 이 세계          컨텐츠 층  미지를 놓�
 세계 인과 (자원을 설계할 때 반드시 묻는 여섯 질문 — 이 문서가 소유한다)
   ① 어디에서 발생했는가         어떤 WorldState 인가
   ② 왜 그 Property 가 필요한가   어떤 생존 압력에 대한 적응인가
-  ③ 무엇이 세계압을 고정했는가   식물 · 생물 기관 · 광물 · 다른 구조
+  ③ 무엇이 그것을 붙잡아 두는가   식물 · 생물 기관 · 광물 · 다른 구조
   ④ 인간에게 왜 가치 있는가      문명권에서는 불가능한 어떤 문제를 해결하는가
   ⑤ 어떤 Gameplay 가 발생하는가  Combat · Exploration · Observation · Negotiation · Harvest · Craft
   ⑥ 어떤 Capability 를 여는가    새로운 지역이나 Possibility 를 열 수 있는가
@@ -125,6 +127,9 @@ content/  그 위에 놓이는 이 세계          컨텐츠 층  미지를 놓�
 
 ①~③ 이 Play 의 World Cause 가 되고, ④~⑥ 이 Play Goal 과 Required 가 되며, ⑦~⑩ 이
 그 Play 가 이 게임의 것인지 판정한다. 열 답이 다 서면 Play 문서(7단계)를 쓴다.
+
+이 열 질문은 **검사**다. 미지 하나를 **쓰는 순서**는 [L2-World-Concept.md](L2-World-Concept.md) §17 의
+일곱 단계가 정한다 — 그 순서로 쓰고 이 열로 검사한다. 둘은 같은 관문의 앞뒤다.
 
 ## 5. 상태 갱신 규칙
 

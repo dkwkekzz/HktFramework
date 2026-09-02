@@ -1,8 +1,9 @@
 # L2 — 세계 제작 도구 (기반 층 2 · 도구 절반)
 
 상태: **확정**. 로드맵 2층 결과물의 **절반**이다 ([README.md](README.md) §2) — 2층은 도구 절반과
-세계 절반으로 되어 있고, 이 문서는 도구 쪽이다. 세계 절반(세계관 컨셉 · 세계 content 구성)은
-Human 이 따로 주입하며, 그것이 이 도구의 어느 자리에 닿는지를 §3 이 미리 정해 둔다.
+세계 절반으로 되어 있고, 이 문서는 도구 쪽이다. 세계 절반은 ① 세계관 컨셉
+([L2-World-Concept.md](L2-World-Concept.md) — **주입됨**) 과 ② 세계 content 구성(대기)이며,
+그것이 이 도구의 어느 자리에 닿는지를 §3 이 정해 둔다.
 
 재료: [design/Design-World-Editor-Terrain-Compiler.md](../../design/Design-World-Editor-Terrain-Compiler.md) (WE) ·
 [design/Plan-World-Authoring-Engine.md](../../design/Plan-World-Authoring-Engine.md) (적용 검토, 확정).
@@ -44,9 +45,9 @@ Brush · Spline UI 는 두지 않는다        lab 페이지(top view · op 목�
 
 | 무엇을 | 어디가 답하는가 |
 |---|---|
-| 세계의 법칙(세계압이 자연 법칙인가) · 안전권과 깊이 단계 · 지역 지도 · 이름 목록 | **2층 세계 절반** — 세계관 컨셉 주입 (§3.1) |
+| 지역 지도 · 이름 목록 · 세계의 이름 | **2층 세계 절반** — ① 이 주지 않았다 (`L2-World-Concept.md` §3.3·§3.4·§6) |
 | 어느 Region 에 무엇이 어디에 있는가 (지형·물길·바이옴·랜드마크·자원 자리) | **2층 세계 절반** — 세계 content 구성 주입 (§3.2) |
-| layer 의 목록과 tag 의 어휘 | 위 두 주입이 준다. 도구는 빈 자리만 갖는다 |
+| layer 의 목록과 tag 의 어휘 | ① 이 `hazard` 일곱과 `depth` 다섯을 주었다 (`L2-World-Concept.md` §3.1·§3.2). 나머지는 ② 가 준다 — 도구는 여전히 뜻을 모른다 |
 | 높이·경사·구역이 몸에 무엇을 하는가 | 2층 Play 의 02-world (traversable 하나부터) · 3층 |
 | Biome 이 무엇을 낳는가 (surface · scatter 규칙) | 컨텐츠 데이터 (`content/view/biome-rules.ts` 자리) — 세계 content 구성이 준다 |
 | 땅이 시간에 따라 바뀌는가 | 땅이 State 가 되는 층 — 이 도구는 정적 땅을 만든다 |
@@ -59,12 +60,15 @@ Brush · Spline UI 는 두지 않는다        lab 페이지(top view · op 목�
 
 ### 3.1 세계관 컨셉 → 세계의 어휘와 지도
 
+**주입됨** — [L2-World-Concept.md](L2-World-Concept.md). 아래 표의 1·2 는 답이 왔고(§3.1·§3.2),
+3·4·5 는 오지 않았다(§3.3·§3.4) — ② 가 주거나 §6 의 질문으로 답한다.
+
 | 주입이 주는 것 | 도구의 어느 자리로 | 형태 |
 |---|---|---|
-| 세계의 법칙 — 무엇이 위험과 재료를 낳는가 | 문법이 아니라 **tag 의 뜻**. `layer = semantic` 의 어휘가 되고, 몸에 닿는 규칙은 Play 가 세운다 | 태그 이름 + 한 줄 뜻 |
-| 안전권 · 깊이 단계 | `area(layer: 'depth', tag: <단계 이름>)` — 깊이는 구역의 태그, 경계는 polygon | 단계 이름 목록 (순서 있음) |
-| 지역 지도 — 어떤 Region 이 있고 무엇이 무엇과 닿는가 | Region `id` 목록 + `connector(tag, border, to)` — Region Graph 는 이 둘의 합이다 | Region 이름 · 인접 쌍 · 잇는 것(길·강·고개) |
-| 이름 목록 — 지역 · 랜드마크 · 자원 · 세력 | tag 어휘의 카탈로그 (`character-catalog` 선례 — 한 항목 = 이름 + 종류 + 세계 사실) | 이름 · 종류 · 한 줄 사실 |
+| 세계의 법칙 — 무엇이 위험과 재료를 낳는가 | 문법이 아니라 **tag 의 뜻**. `layer = hazard` 의 어휘가 되고, 몸에 닿는 규칙은 Play 가 세운다 | ✔ `hazard` 일곱 갈래 (Concept §5 · §3.1) |
+| 안전권 · 깊이 단계 | `area(layer: 'depth', tag: <단계 이름>)` — 깊이는 구역의 태그, 경계는 polygon | ✔ `civil · outer · wild · deep · abyss` (Concept §13 · §3.2). 안전권은 별도 layer 가 아니라 `settlement` + 안전 조건의 자리다 |
+| 지역 지도 — 어떤 Region 이 있고 무엇이 무엇과 닿는가 | Region `id` 목록 + `connector(tag, border, to)` — Region Graph 는 이 둘의 합이다 | ✗ 아직 없다 (Concept §3.3) |
+| 이름 목록 — 지역 · 랜드마크 · 자원 · 세력 | tag 어휘의 카탈로그 (`character-catalog` 선례 — 한 항목 = 이름 + 종류 + 세계 사실) | △ 원문에 여덟이 나왔으나 삽화/정본 판정 대기 (Concept §3.4) |
 | 각 Region 의 정체 한 문장 | `RegionDescription.id` 옆 identity 주석 — 컴파일러는 읽지 않는다 | 한 문장 |
 
 이 주입이 오면 `L2-World-*.md`(세계 절반) 가 되고, tag 어휘는 `content/` 의 카탈로그 파일로
@@ -82,6 +86,10 @@ Region 하나의 구성은 op 로 1:1 번역된다. 한 항목의 답이 곧 op 
 | 랜드마크 · POI · 자원 자리 · 존재의 자리 | `point` (layer=`landmark` / `poi` / `deposit` / `actor`) | 무엇(태그) · 어디 — 지금의 `SPAWN_POINTS` · `DEFAULT_NPCS` · deposit 자리가 여기로 옮겨진다 |
 | 드나드는 곳 — 다른 Region 과의 접점 | `connector` | 어느 변 · 어디쯤 · 무엇으로(길·강·고개) · 어느 Region 으로 |
 | 자연물의 규칙 — 무엇이 어디에 얼마나 나는가 | op 가 아니라 **규칙 표** (`biome-rules`) | 바이옴별 surface 규칙 · scatter 종류와 밀도 |
+
+② 를 쓰는 **순서**는 Concept §17 의 일곱 단계가 정한다 (이곳은 무엇이 특별한가 → 왜 이런
+환경이 되었는가 → 무엇이 살아가는가 → 무엇이 위험한가 → 무엇이 귀해지는가 → 무엇을 발견하는가
+→ 어떤 가능성이 열리는가). 그 순서로 적으면 위 표의 op 순서가 그대로 나온다.
 
 Region 하나의 주입은 WE §32 의 순서(정체 → 접점 → 랜드마크 → 게임 구조 → 길·물길 → 지형 →
 바이옴 → POI → 장식 → 의미)로 적으면 op 순서가 그대로 나온다.
@@ -120,7 +128,9 @@ tools/boundary/check.ts           규칙 4
 
 ```text
 ENGINE 레인 A     위 자리를 게임 명사 없이 세운다. 완료 조건은 Plan §4 의 1~3.
-세계 절반 주입     세계관 컨셉 (§3.1) → 세계 content 구성 (§3.2). 순서는 이 둘이 맞다 — 어휘가 먼저다.
+세계 절반 ① 컨셉   주입됨 — L2-World-Concept.md.
+세계 절반 ② 구성   대기 — Region 하나가 무엇이고 무엇이 어디에 있는가 (§3.2 · Concept §17 순서).
 2층 Play          첫 Region 을 §3.2 로 Description 에 쓰고, "안전권을 나서 깊이가 달라지는 것을 본다".
+                  깊이 단계는 이미 있다 (Concept §3.2) — 두 단계가 맞닿은 자리를 ② 가 준다.
                   Plan §4 의 완료 조건 4 가 여기서 닫히고, 그때 2층이 닫힌다.
 ```
