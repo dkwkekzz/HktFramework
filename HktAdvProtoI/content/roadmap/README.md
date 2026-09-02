@@ -56,7 +56,7 @@ content/  그 위에 놓이는 이 세계          컨텐츠 층  미지를 놓�
 |---|---|---|---|---|---|---|
 | 0 | 게임 방향 | 핵심 경험 한 단락 + Core Breath + 핵심 문장 | `L0-Game.md` 가 원문을 소유한다 | 없음 — 판단 기준일 뿐 | `L0-Game.md` | **확정** |
 | 1 | 세계의 문법 | 무엇이 존재하고 무엇이 변하는가 — 존재·상태·주체·법칙·시간 (주체가 행동을 **고르는** 과정은 3층) | `Design-Concept.md` | 없음 — 코드가 이미 이 문법 위에 있음 | `L1-World-Grammar.md` | **확정** |
-| 2 | 세계 자체 | **도구 절반** — 세계를 쓰는 문법과 컴파일러 (engine) · **세계 절반** — ① 세계관 컨셉 ② 세계 content 구성(Region Graph · Region Rule · Connector · 중첩) — 셋 다 확정 | 도구: `Design-World-Editor-Terrain-Compiler.md` (WE) · `Plan-World-Authoring-Engine.md` · 세계: 주입 원문은 결과물 안에 |안전권을 나서 깊이가 달라지는 것을 본다 — 백왕령(civil) ⇄ 거대 악마의 숲(outer) | `L2-World-Tool.md` · `L2-World-Concept.md` · `L2-World-Region.md` · `play/` | **다음** — 주입 완료, Play 대기 |
+| 2 | 세계 자체 | **도구 절반** — 세계를 쓰는 문법과 컴파일러 (engine) · **세계 절반** — ① 세계관 컨셉 ② 세계 content 구성(Region Graph · Region Rule · Connector · 중첩) — 셋 다 확정 | 도구: `Design-World-Editor-Terrain-Compiler.md` (WE) · `Plan-World-Authoring-Engine.md` · 세계: 주입 원문은 결과물 안에 |안전권을 나서 깊이가 달라지는 것을 본다 — 백왕령(civil) ⇄ 거대 악마의 숲(outer) | `L2-World-Tool.md` · `L2-World-Concept.md` · `L2-World-Region.md` · `play/RegionGraphRooms.md` · `play/RuleBoundRoom.md` · `play/RoomBecomesLand.md` | **다음** — Play 셋 승인, C001 진행 |
 | 3 | 주체와 몸 | 요정의 몸은 무엇을 가지는가(깎이고 회복되는 값) · 생물은 무엇을 알고 어떻게 행동하는가 | `Design-Subject-Decision.md` · `Design-Autonomous-Behavior-Knowledge-R0.md` · `Design-Creature-Behavior-R0.md` | 세계가 몸을 깎고, 생물이 그것에 반응하는 것을 본다 | `L3-*.md` · `play/` | 미주입 |
 | 4 | 자원과 물건 | 무엇이 어디서 나는가(2 의 지역과 연결) · 소지·장비·가공 사슬 | `Design-Resource-Catalog-R0.md` · `Design-Item-*.md` · `Design-Inventory-Equipment-D1.md` | 캐서 지니면 갈 수 있는 곳이 늘어난다 | `L4-*.md` · `play/` | 미주입 |
 | 5 | 대결 | 공격·방어·피해 종류·지목 | `Design-Combat-*.md` · `Design-Targeting-R0.md` | 처음으로 맞서 이긴다 | `L5-*.md` · `play/` | 미주입 |
@@ -84,7 +84,9 @@ Region Graph · Region Rule · Connector · 중첩 · 제작 12단계 · Region 
 
 | 미지 | 종류 | 주입 내용 (Human 문서) | 요구 축 | 증명 Play | 결과물 | 상태 |
 |---|---|---|---|---|---|---|
-| — | 지역 · 생물 · 자원 · 구조 | 그 미지가 무엇이고 어디에 있으며 왜 그런가 | 2 · 3 · … | 그 미지 하나를 만나는 Play | `M<N>-*.md` · `play/` | — |
+| **M1 거대 악마의 숲** | 지역 | 이름 · 방 구성 · 깊이 · 무엇으로 이어지는가 — `L2-World-Region.md` §5.1·§5.4 와 `play/RegionGraphRooms.md` §5.8 | 2 | `play/RegionGraphRooms.md` | 그 Play 가 소유 | **다음** |
+| **M2 환상의 미로** | 지역 | 이름 · Region Spec 통째 — `L2-World-Region.md` §16 | 2 | `play/RuleBoundRoom.md` | 그 Play 가 소유 | **다음** |
+| (이후) | 지역 · 생물 · 자원 · 구조 | 그 미지가 무엇이고 어디에 있으며 왜 그런가 | 2 · 3 · … | 그 미지 하나를 만나는 Play | `M<N>-*.md` · `play/` | — |
 
 ## 4. 한 행을 주입하는 방식
 
