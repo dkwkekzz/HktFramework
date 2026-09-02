@@ -11,34 +11,16 @@ mmorpg에서 컨텐츠를 구성하기 위한 구조를 설계한다.
 
 ## 지금 어디에 서 있는가
 
-이 프로젝트는 HktAdvProtoH 를 복사해 **다시 세운 기준선**이다.
+**[STATE.md](STATE.md)** 가 소유한다 — 다음에 할 일 · Play 와 Cycle 진행 · 로드맵 주입 상태 ·
+코드에 있는 것과 없는 것 · 열린 부채. 이 문서(CLAUDE.md)에는 상태를 적지 않는다.
+
+이 프로젝트는 HktAdvProtoH 를 복사해 **다시 세운 기준선**이고, Cycle 은 여기서 처음부터 센다 —
+이전 트랙의 Cycle 번호는 코드·주석 어디에도 남기지 않았다.
 
 ```text
-기반 (engine/·app/·server/·tools/)   HktAdvProtoH 의 최신 상태 그대로
-컨텐츠 (content/)                     기능만 남기고 Cycle 이력은 지웠다
+기반 (engine/·app/·server/·tools/)   HktAdvProtoH 의 최신 상태에서 이어 자란다
+컨텐츠 (content/)                     이 프로젝트의 Cycle 들이 만든다
 ```
-
-**Cycle 은 이 프로젝트에서 처음부터 센다.** 이전 트랙의 Cycle 번호는 코드·주석 어디에도
-남기지 않았다. 첫 Cycle `C001`(방 둘과 길 하나)이 닫혔다 — 진행의 단일 출처는
-[content/roadmap/play/](content/roadmap/play/) 의 Cycle Breakdown 체크박스이고, 산출물은 `cycles/C###-*/` 다.
-
-```text
-이어서 하려면   "다음 Cycle 진행" — advprotoi-design ③ 이 Play 의 다음 미완료 항목(C002)의 00-cycle 을 만들고,
-               advprotoi-plan(01·02) → advprotoi-build(03·04·05 + 코드) 순으로 돈다. 승인 게이트는 없다 (Play 는 승인됨).
-지금 Play      RegionGraphRooms (C001~C004) → RuleBoundRoom (C005~C007) → RoomBecomesLand (C008~C010)
-```
-
-컨텐츠에 지금 있는 것 — 채광 · 캐릭터 행동과 모션 · 세계/클라이언트 분리 ·
-다중 관찰자 · 이어짐 계량 · 몸 충돌 · 기본 전투 정책 · 시점과 그림 방향 ·
-개발 명령 표면과 세계의 대답 · **Region**(방 둘 백왕령·숲 가장자리와 길 하나 — `content/regions/` 데이터,
-`WorldPosition = regionId + (x, z)`, 건너기 Rule, 방으로 잘리는 투영).
-
-컨텐츠에 **없는** 것 — 전투 공식 · 막기 · 피해 종류 · 관통 · 살펴봄 · 치명 · 지목 · 태도 ·
-선딜 · 소지품 · 자리 · 장비 · 스킬 형태 · 지형 법칙 · 성장. 전부 `design/` 에 기획으로만 있다.
-
-기반에는 그 뒤에 자란 능력(겹침 표면 · 칸 띠 · 터치 입력 · 이펙트 레이어 · 지면 구역 ·
-세계 영속)이 **그대로 남아 있다.** 컨텐츠가 아직 쓰지 않을 뿐이다 — 쓰기 시작하는 것이
-다음 작업들의 일이다.
 
 ## 작업 공정 (Workflow)
 
@@ -150,8 +132,9 @@ npm run surface:lab            겹침 표면 capability 눈검증 페이지
  7. 새 규칙·표현을 더할 때 REUSED / ADDED / CHANGED / AFFECTED 를 명시한다.
  8. 영향을 받는 기존 Rule 과 플레이 Scenario 도 함께 검증한다.
  9. 최종 완료 조건은 코드 작성이 아니라 실제로 플레이되는가다.
-10. 살아 있는 문서(README·상태 문서)에는 **현재 상태만** 둔다 —
-    완료·승인·날짜 경위를 본문에 쌓지 않는다. 경위는 git history 가 소유한다.
+10. 살아 있는 문서(STATE.md · README)에는 **현재 상태만** 둔다 —
+    완료·승인·날짜 경위를 본문에 쌓지 않는다. 경위는 git history 와 cycles/ 가 소유한다.
+    진행 상태는 CLAUDE.md 가 아니라 STATE.md 에 적는다.
 11. 코드 주석은 한국어로 쓴다.
 ```
 
@@ -177,10 +160,11 @@ Semantic 정보 부족   → 기획 원본 (design/) · Human
 ## 기준 문서 (Source of Truth)
 
 `design/` 의 목록과 갈래는 [design/README.md](design/README.md) 가 소유한다.
-지금 코드가 선 자리를 읽으려면 다음 둘이 먼저다.
+지금 코드가 선 자리를 읽으려면 다음이 먼저다.
 
 | 문서 | 내용 |
 |---|---|
+| [STATE.md](STATE.md) | **지금의 상태** — 다음 할 일 · 진행 · 부채 (살아 있는 문서) |
 | [Design-System-Content-Separation.md](design/Design-System-Content-Separation.md) | 기반/컨텐츠 분리 — 이 저장소 구조의 근거 |
 | [Design-Concept.md](design/Design-Concept.md) | 세계의 문법 — 존재·상태·주체·법칙·시간 (로드맵 1층, 확정) |
 | [Design-Subject-Decision.md](design/Design-Subject-Decision.md) | 주체의 의사결정 — 지식·숙련·경험·선호·목적·가능성 (3층 재료) |
