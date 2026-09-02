@@ -174,7 +174,8 @@ Semantic 정보 부족   → 기획 원본 (design/) · Human
 | 문서 | 내용 |
 |---|---|
 | [Design-System-Content-Separation.md](design/Design-System-Content-Separation.md) | 기반/컨텐츠 분리 — 이 저장소 구조의 근거 |
-| [Design-Concept.md](design/Design-Concept.md) | 세계와 주체의 행동 구조 |
+| [Design-Concept.md](design/Design-Concept.md) | 세계의 문법 — 존재·상태·주체·법칙·시간 (로드맵 1층, 확정) |
+| [Design-Subject-Decision.md](design/Design-Subject-Decision.md) | 주체의 의사결정 — 지식·숙련·경험·선호·목적·가능성 (3층 재료) |
 
 기획을 들일 때는 [content/roadmap/README.md](content/roadmap/README.md)(주입 순서 · 열린 층) 와
 [content/roadmap/Game.md](content/roadmap/Game.md)(게임 방향) 가 먼저다.

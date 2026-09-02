@@ -16,7 +16,8 @@ Human 이 작성·개정한 **원본**이다. Agent 는 이 문서들을 바꾸�
 
 | 문서 | 내용 |
 |---|---|
-| `Design-Concept.md` | 세계와 주체의 행동 구조 — 무엇이 존재하고 어떤 변화가 가능한가 (Level 1) |
+| `Design-Concept.md` | MMORPG 세계 문법 — 존재·상태·주체·법칙·시간, 무엇이 존재하고 어떻게 변하는가 (Level 1 · 로드맵 1층) |
+| `Design-Subject-Decision.md` | 주체의 의사결정 — 지식·숙련·경험·선호·목적·가능성 그래프, 주체가 어느 행동을 고르는가 (로드맵 3층 재료) |
 | `Design-DesignAuthoringWorkflow.md` | **기획 위층 공정** — Game/System → Play Design(`play/`) → Cycle Breakdown → 00-cycle |
 | `Design-CycleExecutionWorkflow.md` | **Cycle 실행 공정 원본** — SPEC → SEMANTIC/RULE → IMPL → VERIFY |
 | `Plan-Skill-CycleExecutionWorkflow.md` | 공정의 스킬 분할 계획 (advprotoi-design·plan·build) |
