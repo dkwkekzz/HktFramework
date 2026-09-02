@@ -52,9 +52,11 @@ advprotoi-build   실현·검증  구현 ∥ GameView ∥ 검증 병렬 → 실�
 "다음에 무엇을 만들까"는 승인된 Play Design 의 Cycle Breakdown 이 답한다 —
 별도의 Master Graph 탐색 공정(advprotoi-master)은 두지 않는다.
 "다음에 무엇을 **주입**할까"는 [content/roadmap/README.md](content/roadmap/README.md)
-의 층 순서가 답한다 — 기반 층(게임 방향 → 세계의 문법 → 세계 → 몸 → 물건 → 대결 →
-능력 → 성장)을 위에서 아래로 하나씩 주입하고, 한 Play 는 열린 층 하나만 증명한다.
-로드맵과 그 결과물(`Game.md` · 층별 확정 문서 · `play/`)은 전부 `content/roadmap/` 에 있다.
+가 답한다 — 로드맵은 코드의 기반/컨텐츠 분리와 같은 두 층이다. **기반 층**(게임 방향 →
+세계의 문법 → 세계 → 몸 → 물건 → 대결 → 능력 → 성장)은 축을 위에서 아래로 하나씩
+주입하고, **컨텐츠 층**은 그 축 위에 미지(지역·생물·자원·구조) 하나씩을 행으로 놓는다.
+한 Play 는 행 하나만 증명한다. 로드맵과 그 결과물(`Game.md` · 층별 확정 문서 · 미지
+문서 · `play/`)은 전부 `content/roadmap/` 에 있다.
 
 Cycle Artifact 는 `cycles/<CycleId>/` (CycleId: `C###-이름`) — 파일만이 단계 간
 인터페이스다. 이전 공정의 산출물(`guides/` · `master/` · `BACKLOG.md` · `LANES.md`)과
@@ -73,7 +75,7 @@ engine/            기반 — world-kernel · physics(기본 세계 규칙 솔�
                    **Cycle 을 알지 못한다** — 공용 모듈이므로 Cycle 번호를 적지 않는다.
                    컨텐츠의 시스템은 physics 솔버를 조합해 만든다 — 직접 재구현하지 않는다
 content/           컨텐츠 = 이 세계 — world/ view/ protocol/ motions/
-content/roadmap/   이 세계의 주입 순서와 그 결과물 (문서만 — Game.md · 층별 확정 문서 · play/)
+content/roadmap/   이 세계의 주입 순서와 그 결과물 (문서만 — Game.md · 기반 층/컨텐츠 층 확정 문서 · play/)
 content/active*.ts 조립이 컨텐츠를 부르는 유일한 자리 (경계 규칙 3)
 app/ · server/     조립 — 클라이언트 루트와 세계 호스트. 컨텐츠의 속을 알지 못한다
 scripts/           실행 스크립트 — run*.{bat,sh} · scan-motions.{bat,sh}
