@@ -15,6 +15,8 @@ const HUD: Record<string, HudPresentation> = {
   'world.time': { label: '세계 시간', format: (v) => `${Math.floor(Number(v))}s` },
   // 함께 보고 있는 사람의 수 — 나를 포함한다.
   'observers.present': { label: '함께', icon: '👥', format: (v) => `${Number(v)}명` },
+  // 선 방의 깊이 (C001) — 값은 depth 태그(civil | outer)이고 문구는 code-text 가 정한다
+  'region.depth': { label: '깊이' },
 };
 
 export function hudPresentation(id: string): HudPresentation {

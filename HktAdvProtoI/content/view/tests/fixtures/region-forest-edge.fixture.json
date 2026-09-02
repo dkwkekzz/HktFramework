@@ -1,0 +1,66 @@
+{
+  "specId": "VIEW-STONE-MINING-001",
+  "scene": "FOREST_EDGE",
+  "region": {
+    "id": "FOREST_EDGE",
+    "hash": "<filled-by-test>"
+  },
+  "observer": {
+    "id": "observer-a",
+    "characterId": "player",
+    "acknowledgedMark": 0
+  },
+  "entities": [
+    {
+      "id": "player",
+      "role": "player-character",
+      "state": "idle",
+      "kind": "rabbit-swordsman",
+      "position": {
+        "x": 0,
+        "z": -18
+      }
+    },
+    {
+      "id": "FOREST_PATH",
+      "role": "region-exit",
+      "state": "open",
+      "kind": "road",
+      "position": {
+        "x": 0,
+        "z": -18
+      }
+    }
+  ],
+  "interactions": [
+    {
+      "id": "move",
+      "role": "move-to",
+      "available": true
+    },
+    {
+      "id": "transit",
+      "role": "transit-connector",
+      "targetEntityId": "FOREST_PATH",
+      "available": false,
+      "reason": "action-busy"
+    }
+  ],
+  "hud": [
+    {
+      "id": "inventory.stone",
+      "kind": "counter",
+      "value": 0
+    },
+    {
+      "id": "region.depth",
+      "kind": "label",
+      "value": "outer"
+    }
+  ],
+  "strikes": [],
+  "debug": {
+    "open": false
+  },
+  "commands": []
+}

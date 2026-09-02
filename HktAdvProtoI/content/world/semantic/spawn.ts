@@ -17,6 +17,7 @@ export interface ActorSpawn {
   name: string;
   characterKind: CharacterKind;
   control: ActorControl;
+  regionId: string; // 몸이 놓일 Region — 필수. 자리는 그 Region 의 Local Space 좌표다 (C001)
   position: WorldPosition;
   inventory?: Inventory;
   wanderPath?: WorldPosition[]; // control = autonomous 일 때만 의미가 있다
@@ -30,6 +31,7 @@ export function spawnActor(spawn: ActorSpawn): ActorState {
     name: spawn.name,
     characterKind: spawn.characterKind,
     control: spawn.control,
+    regionId: spawn.regionId,
     position: { x: spawn.position.x, z: spawn.position.z },
     bodyRadius: def.body.radius,
     bodyHeight: def.body.height,

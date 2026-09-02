@@ -19,6 +19,8 @@ const PALETTE: Record<string, string> = {
   d: '#55585f', // 바위 어두움
   D: '#3f4147', // 고갈 바위
   e: '#33343a',
+  S: '#e8dcbf', // 팻말 판 테두리
+  s: '#f6efdc', // 팻말 판 면
   '.': '',
 };
 
@@ -215,7 +217,29 @@ const WANDERER_HIT = [
   '................',
 ];
 
+// 방의 출구 표식 (C001) — 팻말 하나. 글자가 없다: 목적지 이름은 실리지 않는다.
+// 전이 종류별 색은 tint 로 곱해지므로 여기는 밝은 바탕으로 둔다 (S · W).
+const REGION_EXIT_OPEN = [
+  '................',
+  '....SSSSSSSSS...',
+  '...SSssssssssSS.',
+  '...SsssssssssssS',
+  '...SSssssssssSS.',
+  '....SSSSSSSSS...',
+  '.......WW.......',
+  '.......WW.......',
+  '.......WW.......',
+  '.......WW.......',
+  '.......WW.......',
+  '.......WW.......',
+  '.......WW.......',
+  '......hWWh......',
+  '.....dhhhhd.....',
+  '................',
+];
+
 const PIXEL_MAPS: Record<string, string[]> = {
+  'region-exit:open': REGION_EXIT_OPEN,
   'player-pickaxe:idle': PLAYER_IDLE,
   'player-pickaxe:move': PLAYER_MOVING,
   'player-pickaxe:moving': PLAYER_MOVING, // 예전 이름 — 계속 유효하다

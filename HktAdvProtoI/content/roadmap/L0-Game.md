@@ -6,7 +6,7 @@
 이 문서는 기능·콘텐츠·수치를 정의하지 않는다. 새 시스템·Play 가 "우리 게임이
 추구하는 경험과 맞는가"를 판단하는 상위 기준일 뿐이다
 ([Design-DesignAuthoringWorkflow.md](../../design/Design-DesignAuthoringWorkflow.md) §3).
-BW = [design/Design-World-Beira.md](../../design/Design-World-Beira.md).
+BW 절 인용은 출처 표기일 뿐이다 — 인용된 문장은 이 문서가 소유하며, `design/` 에 그 원본은 없다.
 
 ---
 
@@ -29,7 +29,8 @@ BW = [design/Design-World-Beira.md](../../design/Design-World-Beira.md).
 ```text
 하나의 요정     플레이어가 성장시키는 단 하나의 캐릭터. 고정된 역할·직업·진영·전투
                 방식이 없다 — 세계에서 무엇을 만났는가가 요정을 만든다 (BW §1).
-미지의 세계     베이라. 안전한 문명권 바깥, 세계가 자유롭게 변화하는 원초 생태권.
+미지의 세계     미지의 대륙 — 문명권 사람들은 바깥에 이름을 붙이지 않는다 (L2-World-Region.md §5.2).
+                안전한 문명권 바깥, 세계가 자유롭게 변화하는 원초 생태권.
                 플레이어는 자신이 이해하고 대응할 수 있는 세계의 범위를 넓힌다.
 위험과 재료     같은 원인에서 나온다. 위험한 곳에 보물이 있는 것이 아니라, 세계가
                 변화할 수 있기 때문에 위험하고 그래서 재료가 생긴다 (BW §6·§36).

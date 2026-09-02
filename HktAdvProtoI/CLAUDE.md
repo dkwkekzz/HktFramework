@@ -11,28 +11,16 @@ mmorpg에서 컨텐츠를 구성하기 위한 구조를 설계한다.
 
 ## 지금 어디에 서 있는가
 
-이 프로젝트는 HktAdvProtoH 를 복사해 **다시 세운 기준선**이다.
+**[STATE.md](STATE.md)** 가 소유한다 — 다음에 할 일 · Play 와 Cycle 진행 · 로드맵 주입 상태 ·
+코드에 있는 것과 없는 것 · 열린 부채. 이 문서(CLAUDE.md)에는 상태를 적지 않는다.
+
+이 프로젝트는 HktAdvProtoH 를 복사해 **다시 세운 기준선**이고, Cycle 은 여기서 처음부터 센다 —
+이전 트랙의 Cycle 번호는 코드·주석 어디에도 남기지 않았다.
 
 ```text
-기반 (engine/·app/·server/·tools/)   HktAdvProtoH 의 최신 상태 그대로
-컨텐츠 (content/)                     기능만 남기고 Cycle 이력은 지웠다
+기반 (engine/·app/·server/·tools/)   HktAdvProtoH 의 최신 상태에서 이어 자란다
+컨텐츠 (content/)                     이 프로젝트의 Cycle 들이 만든다
 ```
-
-**Cycle 은 이 프로젝트에서 처음부터 센다.** 이전 트랙의 Cycle 번호는 코드·주석 어디에도
-남기지 않았다 — 첫 Cycle 은 `C001` 이다. 지금 있는 기능은 이전 트랙이 만든 것이지만
-이 프로젝트의 Cycle 이 만든 것은 아직 하나도 없다. 기능은 그대로 두고 다음 Cycle 들이
-그것을 재사용한다.
-
-컨텐츠에 지금 있는 것 — 채광 · 캐릭터 행동과 모션 · 세계/클라이언트 분리 ·
-다중 관찰자 · 이어짐 계량 · 몸 충돌 · 기본 전투 정책 · 시점과 그림 방향 ·
-개발 명령 표면과 세계의 대답.
-
-컨텐츠에 **없는** 것 — 전투 공식 · 막기 · 피해 종류 · 관통 · 살펴봄 · 치명 · 지목 · 태도 ·
-선딜 · 소지품 · 자리 · 장비 · 스킬 형태 · 지형 법칙 · 성장. 전부 `design/` 에 기획으로만 있다.
-
-기반에는 그 뒤에 자란 능력(겹침 표면 · 칸 띠 · 터치 입력 · 이펙트 레이어 · 지면 구역 ·
-세계 영속)이 **그대로 남아 있다.** 컨텐츠가 아직 쓰지 않을 뿐이다 — 쓰기 시작하는 것이
-다음 작업들의 일이다.
 
 ## 작업 공정 (Workflow)
 
@@ -69,12 +57,14 @@ Cycle Artifact 는 `cycles/<CycleId>/` (CycleId: `C###-이름`) — 파일만이
 
 ```text
 engine/            기반 — world-kernel · physics(기본 세계 규칙 솔버) · view-kernel ·
-                   protocol-core. 게임 명사 없이 성립하는 재사용 기구만 갖는다. Cycle 의
+                   protocol-core · world-authoring(Region Description · Graph · 검사 — 세계 제작 도구의 첫 모듈). 게임 명사 없이 성립하는 재사용 기구만 갖는다. Cycle 의
                    기구 추출(advprotoi-build 의 분해 → Agent E, 별도 커밋)로 자라며,
                    기존 계약의 변경은 ENGINE GAP 으로 Human 승인을 거친다.
                    **Cycle 을 알지 못한다** — 공용 모듈이므로 Cycle 번호를 적지 않는다.
                    컨텐츠의 시스템은 physics 솔버를 조합해 만든다 — 직접 재구현하지 않는다
-content/           컨텐츠 = 이 세계 — world/ view/ protocol/ motions/
+content/           컨텐츠 = 이 세계 — world/ view/ protocol/ motions/ regions/
+content/regions/   이 세계의 Region 데이터 (RegionSpec + Description + Graph) — world 와 view 가 **함께 읽는다**.
+                   engine 만 import 한다 (경계 규칙 4)
 content/roadmap/   이 세계의 주입 순서와 그 결과물 (문서만 — L0-Game.md · 기반 층/컨텐츠 층 확정 문서 · play/)
 content/active*.ts 조립이 컨텐츠를 부르는 유일한 자리 (경계 규칙 3)
 app/ · server/     조립 — 클라이언트 루트와 세계 호스트. 컨텐츠의 속을 알지 못한다
@@ -83,7 +73,7 @@ design/            설계·기획 원본 (공정·기반 + 이 세계의 컨텐�
 ```
 
 경계는 `npm run boundary:check` 가 강제한다 (engine→content import 금지 ·
-content→조립 import 금지 · 컨텐츠를 부르는 것은 조립뿐).
+content→조립 import 금지 · 컨텐츠를 부르는 것은 조립뿐 · regions→world/view import 금지).
 다른 세계를 만든다 = `content/` 를 갈아 끼운다 — 기반은 그대로 둔다.
 
 ### 기반이 컨텐츠에게 요구하는 것
@@ -142,8 +132,9 @@ npm run surface:lab            겹침 표면 capability 눈검증 페이지
  7. 새 규칙·표현을 더할 때 REUSED / ADDED / CHANGED / AFFECTED 를 명시한다.
  8. 영향을 받는 기존 Rule 과 플레이 Scenario 도 함께 검증한다.
  9. 최종 완료 조건은 코드 작성이 아니라 실제로 플레이되는가다.
-10. 살아 있는 문서(README·상태 문서)에는 **현재 상태만** 둔다 —
-    완료·승인·날짜 경위를 본문에 쌓지 않는다. 경위는 git history 가 소유한다.
+10. 살아 있는 문서(STATE.md · README)에는 **현재 상태만** 둔다 —
+    완료·승인·날짜 경위를 본문에 쌓지 않는다. 경위는 git history 와 cycles/ 가 소유한다.
+    진행 상태는 CLAUDE.md 가 아니라 STATE.md 에 적는다.
 11. 코드 주석은 한국어로 쓴다.
 ```
 
@@ -169,13 +160,20 @@ Semantic 정보 부족   → 기획 원본 (design/) · Human
 ## 기준 문서 (Source of Truth)
 
 `design/` 의 목록과 갈래는 [design/README.md](design/README.md) 가 소유한다.
-지금 코드가 선 자리를 읽으려면 다음 둘이 먼저다.
+지금 코드가 선 자리를 읽으려면 다음이 먼저다.
 
 | 문서 | 내용 |
 |---|---|
+| [STATE.md](STATE.md) | **지금의 상태** — 다음 할 일 · 진행 · 부채 (살아 있는 문서) |
 | [Design-System-Content-Separation.md](design/Design-System-Content-Separation.md) | 기반/컨텐츠 분리 — 이 저장소 구조의 근거 |
 | [Design-Concept.md](design/Design-Concept.md) | 세계의 문법 — 존재·상태·주체·법칙·시간 (로드맵 1층, 확정) |
 | [Design-Subject-Decision.md](design/Design-Subject-Decision.md) | 주체의 의사결정 — 지식·숙련·경험·선호·목적·가능성 (3층 재료) |
 
 기획을 들일 때는 [content/roadmap/README.md](content/roadmap/README.md)(주입 순서 · 열린 층) 와
 [content/roadmap/L0-Game.md](content/roadmap/L0-Game.md)(게임 방향) 가 먼저다.
+세계가 무엇인가는 [content/roadmap/L2-World-Concept.md](content/roadmap/L2-World-Concept.md) 가 소유한다
+(위험 일곱 갈래 · 깊이 다섯 단계 · 위험과 보상의 동근원 · 지역은 하나의 현상 · 제작 일곱 단계).
+세계가 어떻게 짜이는가는 [content/roadmap/L2-World-Region.md](content/roadmap/L2-World-Region.md) 가 소유한다
+(Region = Local Space + Rule Set + World State · Region Graph 와 Connector · 중첩 · Rule Contract · 제작 12단계 ·
+Region Spec 양식 · 정식 이름 표). Region 하나를 들일 때는 그 §15 순서로 쓰고
+[content/roadmap/L2-World-Tool.md](content/roadmap/L2-World-Tool.md) §3 의 연결 계약으로 Description 에 옮긴다.

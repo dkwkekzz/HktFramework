@@ -9,6 +9,7 @@
 // Result         Decided(ActionKind) | Unchanged
 //
 // 이 Rule 은 세계 규칙이지 Client 요청이 아니다 — Tick 에서 실행된다.
+// C001 AFFECTED — 인지 후보는 같은 Region 의 몸뿐이다. 다른 방의 몸은 좌표가 겹쳐도 인지하지 않는다 (R5).
 
 import type { ActorState } from '../semantic/actor';
 import { faceToward } from '../semantic/collision';
@@ -29,6 +30,7 @@ export function perceivedTarget(state: WorldState, actor: ActorState): ActorStat
 
   for (const other of state.actors) {
     if (other.id === actor.id) continue;
+    if (other.regionId !== actor.regionId) continue; // 다른 방의 몸은 없는 것과 같다 (C001 R5)
     if (isDowned(other)) continue; // 쓰러진 존재는 인지 대상이 되지 않는다
     const d = distance(actor.position, other.position);
     if (d > actor.perceptionRange) continue;

@@ -7,10 +7,17 @@
 // sprite 는 "모션 데이터가 없을 때" 쓰는 절차 생성 그림의 키다.
 // 모션 데이터가 주입되어 있으면 (kind, state) 로 고른 모션이 우선한다 — resolve.ts 참조.
 
+import { TRANSITION_TINTS } from './region-presentation';
+
 export interface RolePresentation {
   sprite: string; // Asset Registry 의 sprite 키
   size: number; // 몸(body)이 없는 존재의 표시 크기 — 몸이 있으면 Body.Height 가 우선한다
   tint?: number; // 그림에 곱할 색 — 같은 모션을 쓰는 대상을 구분하기 위한 표현 결정
+  /**
+   * 종류(entity.kind)별로 곱할 색 — 같은 role 을 kind 로 가르는 표. 항목이 있으면 tint 보다 우선한다.
+   * 표를 참조하므로 종류가 늘어도 이 항목은 바뀌지 않는다.
+   */
+  tintByKind?: Readonly<Record<string, number>>;
   cameraFollow?: boolean;
   trail?: boolean;
   labelFormat?: (value: number | string) => string;
@@ -37,6 +44,9 @@ export const ROLE_PRESENTATIONS: Readonly<Record<string, RolePresentation>> = {
   // NPC 전용 시트가 들어오면 tint 를 지워도 된다.
   'npc-character': { sprite: 'wanderer', size: 2.8, tint: 0x9fb6ff },
   'resource-deposit': { sprite: 'stone-deposit', size: 3.4, labelFormat: (v) => `돌 ${v}` },
+  // 방의 출구 표식 (C001) — anchor 자리에 선 표식 하나. kind(= 전이 종류) 별 색은 region-presentation 의 표.
+  // 라벨이 없다 — 목적지 이름은 관찰 결과 어디에도 실리지 않는다 ("목적지는 건너야 안다").
+  'region-exit': { sprite: 'region-exit', size: 2.0, tintByKind: TRANSITION_TINTS },
 };
 
 // 미등록 role 의 기본 결정 — sprite 키는 role 그대로 (Asset placeholder 로 폴백)

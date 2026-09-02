@@ -491,12 +491,16 @@ export interface SceneState {
 // 지면 위에 범위 하나를 그린다. **의미가 없다** — 무엇의 구역인지 이 형도, 그리는 쪽도
 // 모른다. 팩이 색·이름·강조를 정해 넘기고 엔진은 지형을 따라가는 반투명 면으로 그린다.
 //
-// 모양은 원 하나다. 사각형도 폴리곤도 두지 않는다 — 요구가 실제로 생길 때 더한다.
+// 모양은 원과 폴리곤이다. 원이 먼저 있었고, 폴리곤은 C001 이 "바닥 하나를 통째로 그린다" 는
+// 요구를 실제로 가져와 더했다 — 그 요구가 온 뒤에야 더한 것이다. 사각형은 폴리곤이다.
 
 export interface SceneGroundZone {
   /** 같은 구역을 프레임 사이에 이어 보기 위한 이름 */
   id: string;
-  shape: { kind: 'circle'; center: { x: number; z: number }; radius: number };
+  shape:
+    | { kind: 'circle'; center: { x: number; z: number }; radius: number }
+    /** C001 — 닫힌 바닥. 3점 이상, 절대 좌표. 그리는 쪽이 지형에 맞춰 드리운다 */
+    | { kind: 'polygon'; points: { x: number; z: number }[] };
   /** 채움. 없으면 테두리만 그린다 */
   fill?: { color: number; opacity: number };
   /** 테두리. 없으면 채움만 그린다 */

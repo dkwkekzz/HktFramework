@@ -7,7 +7,7 @@
 // (INTENT-REQUEST-ATTRIBUTION-001). 요청 자체는 주체를 지정하지 않는다 —
 // 지정할 수단이 없다. 세계가 모르는 관찰자의 요청은 아무것도 바꾸지 못한다.
 //
-// 스킬 2종(attack · heavy-attack) · 이동 모드 · 속성 변경.
+// 스킬 2종(attack · heavy-attack) · 이동 모드 · 속성 변경 · 건너기(transit — C001).
 //   속성 변경만은 주체가 아니라 "지목한 존재" 를 대상으로 한다 (INTENT-ATTRIBUTE-MUTATE-001).
 //   그래도 요청의 귀속은 그대로다 — 세계가 모르는 관찰자는 아무것도 바꾸지 못한다.
 
@@ -18,6 +18,7 @@ import { ruleMine } from '../rules/mine';
 import { ruleMove } from '../rules/move';
 import { ruleMoveMode } from '../rules/move-mode';
 import { ruleSkillBegin } from '../rules/skill';
+import { ruleTransit } from '../rules/transit';
 import { actorOfObserver, type WorldState } from '../semantic/world-state';
 import type { ActorState } from '../semantic/actor';
 
@@ -65,6 +66,15 @@ export const INTERACTIONS: readonly InteractionHandler<WorldState>[] = [
     handle: withActor((_state, actor, action) => {
       if (!action.mode) return { status: 'failure', rule: DISPATCH, reason: 'missing-mode' };
       return ruleMoveMode(actor, action.mode);
+    }),
+  },
+  {
+    id: 'transit',
+    // 대상은 Connector 의 id — 관찰 결과의 region-exit 존재가 그 id 다 (C001).
+    handle: withActor((state, actor, action) => {
+      if (!action.targetEntityId)
+        return { status: 'failure', rule: DISPATCH, reason: 'missing-target' };
+      return ruleTransit(state, actor, action.targetEntityId);
     }),
   },
   {

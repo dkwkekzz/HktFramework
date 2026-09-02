@@ -7,6 +7,10 @@
 //
 // 의미만 투영한다 — role/state/값/사유 코드. 표현(sprite·모션 파일·크기·라벨 형식·문구)은
 // View 의 Presentation 결정 Layer 책임이며 여기 싣지 않는다.
+//
+// C001 CHANGED (02-world R6) — 관찰은 방으로 잘린다. scene = 관찰자의 몸이 선 Region 의 id 이고,
+// 존재는 같은 Region 의 몸·광맥 + 그 Region 의 anchor 마다 region-exit 하나다. 목적지 Region 의 이름 ·
+// Connector 의 방향 · 다른 방의 존재 · Graph 전체는 싣지 않는다 — "목적지는 건너야 안다".
 
 import type { EntityView, GameViewSnapshot, InteractionView } from '../../protocol/gameview';
 import { actionProgress, actionTargetId } from '../semantic/action';
@@ -16,9 +20,11 @@ import { evaluateMinePreconditions } from '../rules/mine';
 import { evaluateMoveAvailability } from '../rules/move';
 import { evaluateMoveModeRun } from '../rules/move-mode';
 import { evaluateSkillPreconditions } from '../rules/skill';
+import { evaluateTransitPreconditions } from '../rules/transit';
 import { actorModifiers, isDowned, skillDefinition } from '../semantic/combat';
 import { projectCommandCatalog } from '../semantic/command-catalog';
 import { hasMiningTool, itemCount } from '../semantic/inventory';
+import { anchorPosition, regionExitsOf, regionHash, regionSpecOf } from '../semantic/region';
 import {
   actorOfObserver,
   findObserver,
@@ -41,9 +47,12 @@ export function projectObserverView(
   const entities: EntityView[] = [];
   const interactions: InteractionView[] = [];
 
-  // entities.character — 세계의 모든 Actor 를 같은 계약으로 투영한다 (cardinality: many).
-  // role 만 보는 이에 따라 달라진다.
+  const region = regionSpecOf(self.regionId);
+
+  // entities.character — 같은 Region 의 모든 Actor 를 같은 계약으로 투영한다 (cardinality: many).
+  // role 만 보는 이에 따라 달라진다. 다른 방의 몸은 실리지 않는다 (C001 R6).
   for (const actor of state.actors) {
+    if (actor.regionId !== self.regionId) continue;
     const progress = actionProgress(actor.currentAction);
     const target = actionTargetId(actor.currentAction);
     const isSelf = actor.id === self.id;
@@ -165,8 +174,9 @@ export function projectObserverView(
     ...(attributeFailure ? { reason: attributeFailure } : {}),
   });
 
-  // entities.deposit + interactions.mine
+  // entities.deposit + interactions.mine — 같은 Region 의 광맥만 (C001 R6)
   for (const deposit of state.deposits) {
+    if (deposit.regionId !== self.regionId) continue;
     entities.push({
       id: deposit.id,
       role: 'resource-deposit',
@@ -186,12 +196,35 @@ export function projectObserverView(
     });
   }
 
+  // entities.region-exit + interactions.transit — 이 Region 의 anchor 마다 하나 (C001 R6).
+  // id 는 Connector 의 id, kind 는 transition. 건너간 뒤의 Region 은 어디에도 실리지 않는다.
+  // exitsOf 의 순서(connectors 배열 순서) 그대로 낸다 (결정론).
+  for (const exit of regionExitsOf(self.regionId)) {
+    const here = anchorPosition(exit.here.region, exit.here.anchor);
+    entities.push({
+      id: exit.connector.id,
+      role: 'region-exit',
+      state: 'open',
+      kind: exit.connector.transition,
+      position: { x: here.x, z: here.z },
+    });
+
+    const failure = evaluateTransitPreconditions(self, exit);
+    interactions.push({
+      id: 'transit',
+      role: 'transit-connector',
+      targetEntityId: exit.connector.id,
+      available: failure === null,
+      ...(failure ? { reason: failure } : {}),
+    });
+  }
+
   const selfProgress = actionProgress(self.currentAction);
   const selfModifiers = actorModifiers(self);
 
   return {
     specId: SPEC_ID,
-    scene: 'mining-field',
+    scene: self.regionId, // C001 — 관찰자의 몸이 선 Region
     // observer.self — 화면 속 여러 몸 중 어느 것이 내 것인지 알려면 이것이 필요하다.
     // acknowledgedMark — 세계가 나에게서 어디까지 받았는가.
     // 이것만이 세계가 이어짐에 대해 알려주는 값이다. 나머지 수치는 관찰자가 잰다.
@@ -233,7 +266,11 @@ export function projectObserverView(
       { id: 'self.modifier.cpConsume', kind: 'counter', value: selfModifiers.cpConsume },
       { id: 'self.modifier.moveSpeed', kind: 'counter', value: selfModifiers.moveSpeed },
       { id: 'self.modifier.actionSpeed', kind: 'counter', value: selfModifiers.actionSpeed },
+      // Region.depth — 깊이 태그만 준다. 문구(방 이름 · "문명의 경계를 넘었다")는 View 의 표가 정한다 (C001 R6).
+      { id: 'region.depth', kind: 'label', value: region.depth },
     ],
+    // 관찰자의 몸이 선 Region — hash 는 Description 에서 결정적으로 나온다 (C001 R6).
+    region: { id: self.regionId, hash: regionHash(self.regionId) },
     // World.StrikeEvents — 남의 타격 결과도 보인다. 세계가 판정을 마친 값이다.
     strikes: state.strikeEvents.map((event) => ({
       attackerId: event.attackerId,

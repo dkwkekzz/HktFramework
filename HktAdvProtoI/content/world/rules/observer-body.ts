@@ -4,11 +4,13 @@
 // observer-join 이 소유하고, 몸의 내용(종류·자리·소지품)은 이 팩이 정한다.
 // Actor.Id 는 세계가 순번으로 정한다. 관찰자가 밝힌 Id 를 몸의 이름에 섞지 않는다 —
 // 세계 밖에서 온 문자열이 세계 안 존재의 이름이 되어서는 안 된다.
+// C001 CHANGED — 새 몸은 START_REGION(백왕령)에 선다. 자리는 SPAWN_POINTS 그대로 (02-world R3).
 
 import type { CharacterKind } from '../semantic/actor';
 import { createInventory } from '../semantic/inventory';
 import type { ItemKind } from '../semantic/item';
 import type { WorldPosition } from '../semantic/position';
+import { START_REGION } from '../semantic/region';
 import { spawnActor } from '../semantic/spawn';
 import { SPAWN_POINTS, type WorldState } from '../semantic/world-state';
 
@@ -40,6 +42,7 @@ export function spawnObserverBody(
     name: `Player ${ordinal + 1}`,
     characterKind: defaults.characterKind,
     control: 'player',
+    regionId: START_REGION,
     position: { x: spawn.x, z: spawn.z },
     inventory: createInventory(defaults.items),
   });

@@ -7,7 +7,7 @@
 | 문서 버전 | D1 |
 | 상태 | **CYCLE READY — 별도 Master 선택 없이 즉시 Cycle 착수** |
 | 접두사 | 산출물·Fixture·검증 ID는 `VUX-SK-*`를 사용한다 |
-| 설계 근거 | [`Skill-System.md`](Skill/Skill-System.md), [`Skill-Execution-Form.md`](Skill/Skill-Execution-Form.md), [`Skill-Effect.md`](Skill/Skill-Effect.md), [`World-Spatial-Presence.md`](Skill/World-Spatial-Presence.md) |
+| 설계 근거 | [`Skill-System.md`](Skill/Skill-System.md), [`Skill-Execution-Form.md`](Skill/Skill-Execution-Form.md), [`Skill-Effect.md`](Skill/Skill-Effect.md), World Spatial Presence (문서 없음 — 6층에서 다시 세운다) |
 | 소유 영역 | Skill 관찰 계약의 View 표현, 조준 입력, 실행 피드백, 관찰 오버레이, 접근성, Cycle handoff |
 | 비소유 영역 | Activation·Anchor·Resolution·Effect·Presence의 World 의미와 판정 |
 

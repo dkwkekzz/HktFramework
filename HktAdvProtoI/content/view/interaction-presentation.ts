@@ -18,6 +18,10 @@ const INTERACTIONS: Record<string, InteractionPresentation> = {
   // 이동 모드는 값을 실어 보내야 하므로(walk | run) 조립 루트가 직접 다룬다.
   // 여기서는 안내에 쓸 키 표기만 정한다.
   'set-move-mode': { key: 'ShiftLeft', keyLabel: 'Shift', prompt: '달리기 전환' },
+  // 방 사이 건너기 (C001) — 대상은 region-exit 존재(Connector id). 조립 루트가 targetEntityId 와 함께 보낸다.
+  // Q — 이동(WASD)·시점(ZXRT)·관찰(CV)·명령(/)·다른 interaction(EFG·Shift)이 비워 둔 자리 가운데
+  // 걷던 왼손이 그대로 닿는 키다.
+  'transit-connector': { key: 'KeyQ', keyLabel: 'Q', prompt: '건너기' },
   // 속성 변경 — 이번 Cycle 은 경로만 연다. 조작 수단은 이후 Cycle 이 얹는다.
   'debug-set-attribute': {},
 };

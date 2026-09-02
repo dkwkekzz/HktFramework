@@ -83,9 +83,19 @@ export interface InteractionView extends CoreInteractionView {
   profile?: SkillProfileView;
 }
 
+// 관찰자의 몸이 선 Region — C001 (02-world Observable: snapshot.region.id · snapshot.region.hash).
+// scene 이 그 Region 의 id 이고, 이것은 같은 값에 hash 를 붙인 것이다.
+// hash 는 그 Region 의 Description 에서 결정적으로 나온다 — 클라이언트가 자기 데이터와 대조한다.
+// 목적지 Region · 다른 Region 의 존재 · Graph 전체는 싣지 않는다 — "목적지는 건너야 안다".
+export interface RegionView {
+  id: string;
+  hash: string;
+}
+
 // 이 팩의 관찰 결과 — 봉투에 타격 결과가 더해지고, 존재/interaction 이 팩 형으로 좁혀진다.
 export interface GameViewSnapshot extends CoreGameViewSnapshot {
   entities: EntityView[];
   interactions: InteractionView[];
   strikes: StrikeEventView[];
+  region: RegionView; // C001 — 봉투의 region? 을 이 팩은 필수로 좁힌다
 }

@@ -6,6 +6,8 @@
 //   1. engine/**  은 content/** · app/** · server/** 를 import 하지 않는다
 //   2. content/** 은 app/** · server/** (조립) 를 import 하지 않는다
 //   3. content/** 를 import 할 수 있는 것은 조립(app/·server/·content/active*.ts)뿐이다
+//   4. content/regions/** 은 content/world · content/view 를 import 하지 않는다 — engine 의 형만 쓰는
+//      데이터 폴더다 (world 와 view 가 함께 읽는다 — content/roadmap/L2-World-Tool.md §1 · Plan §3.6)
 //
 // 코드는 아무것도 바꾸지 않는다 — 읽기 전용 관찰 도구다.
 
@@ -20,7 +22,7 @@ const SCAN_DIRS = ['engine', 'content', 'app', 'server'] as const;
 
 type Layer =
   | { kind: 'engine' }
-  | { kind: 'content' }
+  | { kind: 'content'; regions: boolean } // regions: content/regions/** — world·view 가 함께 읽는 데이터
   | { kind: 'assembly' }; // app/ · server/ · content/active*.ts — 컨텐츠를 부르는 유일한 곳
 
 function layerOf(relPath: string): Layer | null {
@@ -31,7 +33,7 @@ function layerOf(relPath: string): Layer | null {
     // content/active*.ts 는 조립의 것이다 — 컨텐츠를 부르는 단 하나의 자리.
     if (parts.length === 2 && ['active.ts', 'active-view.ts', 'active-catalog.ts'].includes(parts[1] ?? ''))
       return { kind: 'assembly' };
-    return parts.length > 1 ? { kind: 'content' } : null;
+    return parts.length > 1 ? { kind: 'content', regions: parts[1] === 'regions' } : null;
   }
   if (top === 'app' || top === 'server') return { kind: 'assembly' };
   return null;
@@ -81,6 +83,8 @@ function judge(from: Layer, to: Layer): string | null {
     return '규칙 1 — engine 은 조립(app/server)을 import 하지 않는다';
   if (from.kind === 'content' && to.kind === 'assembly')
     return '규칙 2 — content 는 조립(app/server)을 import 하지 않는다';
+  if (from.kind === 'content' && from.regions && to.kind === 'content' && !to.regions)
+    return '규칙 4 — content/regions 는 content/world · content/view 를 import 하지 않는다 (데이터 폴더)';
   return null;
 }
 

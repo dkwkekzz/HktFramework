@@ -30,7 +30,7 @@
 
 소유하지 않는다
     Resolved Target에게 무엇이 일어나는가        → Skill-Effect.md
-    Actor가 아닌 존재가 세계에 어떻게 존재하는가   → World-Spatial-Presence.md
+    Actor가 아닌 존재가 세계에 어떻게 존재하는가   → World Spatial Presence (문서 없음 — 6층에서 다시 세운다)
     피해 공식 · Damage Type                      → 기존 전투 시스템
 ```
 
@@ -592,7 +592,7 @@ Trigger
 다음 Execution
 ```
 
-Presence의 상태·생명주기·Movement·Anchor는 [`World-Spatial-Presence.md`](World-Spatial-Presence.md)가 소유한다. 이 문서는 Skill이 Presence를 **만들고 그 Trigger를 받는 방법**만 정의한다.
+Presence의 상태·생명주기·Movement·Anchor는 World Spatial Presence (문서 없음 — 6층에서 다시 세운다)가 소유한다. 이 문서는 Skill이 Presence를 **만들고 그 Trigger를 받는 방법**만 정의한다.
 
 ## 8.5 Trigger
 
