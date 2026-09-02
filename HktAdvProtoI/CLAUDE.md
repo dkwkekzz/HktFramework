@@ -181,5 +181,7 @@ Semantic 정보 부족   → 기획 원본 (design/) · Human
 [content/roadmap/L0-Game.md](content/roadmap/L0-Game.md)(게임 방향) 가 먼저다.
 세계가 무엇인가는 [content/roadmap/L2-World-Concept.md](content/roadmap/L2-World-Concept.md) 가 소유한다
 (위험 일곱 갈래 · 깊이 다섯 단계 · 위험과 보상의 동근원 · 지역은 하나의 현상 · 제작 일곱 단계).
-지역 구성을 들일 때는 [content/roadmap/L2-World-Tool.md](content/roadmap/L2-World-Tool.md) §3 의
-연결 계약이 먼저다 — 주입물은 그 자리(layer · tag · op)로 번역되어 Region Description 이 된다.
+세계가 어떻게 짜이는가는 [content/roadmap/L2-World-Region.md](content/roadmap/L2-World-Region.md) 가 소유한다
+(Region = Local Space + Rule Set + World State · Region Graph 와 Connector · 중첩 · Rule Contract · 제작 12단계 ·
+Region Spec 양식 · 정식 이름 표). Region 하나를 들일 때는 그 §15 순서로 쓰고
+[content/roadmap/L2-World-Tool.md](content/roadmap/L2-World-Tool.md) §3 의 연결 계약으로 Description 에 옮긴다.

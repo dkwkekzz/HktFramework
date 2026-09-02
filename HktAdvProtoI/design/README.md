@@ -39,7 +39,7 @@ Human 승인의 공동 문서다 (Design-DesignAuthoringWorkflow.md §9). 한 Pl
 
 | 갈래 | 문서 | 약칭 |
 |---|---|---|
-| 세계 | 원본은 `design/` 이 아니라 로드맵에 있다 — `content/roadmap/L2-World-Concept.md` (세계관 컨셉, 확정) · `L2-World-Tool.md` (제작 도구). ② 세계 content 구성은 주입 대기 | WC |
+| 세계 | 원본은 `design/` 이 아니라 로드맵에 있다 — `content/roadmap/L2-World-Concept.md` (세계관 컨셉) · `L2-World-Region.md` (세계 content 구성 — Region Graph · Rule · Connector · 중첩) · `L2-World-Tool.md` (제작 도구) | WC · WR |
 | 성장 | `Design-Fairy-Growth-System.md` · `Design-Growth-Balance-R0.md` · `Design-Fairy-Class-Layer0-R0.md` | — · FC |
 | 전투 | `Design-Combat-OffenseDefense-R0.md` · `Design-Combat-DamageType-R0.md` · `Design-Combat-UpperLayer-R0.md` · `Design-Combat-Knowledge-Extension-R0.md` | R1 · DT · UL · CK |
 | 지목 | `Design-Targeting-R0.md` | TG |

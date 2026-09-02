@@ -65,7 +65,7 @@ Build → Observe → Evaluate → Modify                                  WE §
 | 2 | Agent API = 함수 호출 | Agent API = **Description 에 쌓이는 순서 있는 op 목록**. 컴파일은 op 재생. `move/rotate/scale/erase` 는 op 의 수정·삭제 | 이 공정의 AI 는 파일로 일한다. op 목록이면 diff·undo·재현이 공짜다 |
 | 3 | Corner Height 를 초기 편집 도구로 (WE §8 · §36 ②) | **짓지 않는다.** 공유 Height Field + Stamp + Curve modifier 를 첫날부터 | 이미 연속 `heightAt` 이 있다. WE 자신도 최종 모델이 아니라고 했다 — 되돌아갈 이유가 없다 |
 | 4 | Chunk 가 Collision · Navigation 도 가진다 | Chunk 는 **View 의 것**. World Data 는 chunk 없이 고정 해상도 격자 하나 (`TERRAIN_RESOLUTION` 시뮬 상수) | 세계 판정의 결정론이 view 설정(chunk 크기)에 묶이면 안 된다 |
-| 5 | World = Region Graph, Region 간 Connector 가 지형 경계가 된다 (WE §24) | **1단계는 Region 하나 = 세계 하나.** Graph 와 Region 간 Connector 는 Description 에 기록하되, 컴파일러는 경계 태그(`connection`)까지만 만든다 | 다중 Region 을 한 세계에 두는가는 관찰자 참여·투영·영속을 건드린다 — Human 질문 (§6-2) |
+| 5 | World = Region Graph, Region 간 Connector 가 **지형 경계**가 된다 (WE §24) | Region Graph 는 받되 **이어 붙이지 않는다.** Region = Local Space 하나, Connector = 두 Region 의 anchor 를 잇는 전이. Graph 는 `content/regions/graph.ts` 의 World Data | 2층 ② (L2-World-Region.md §9 · §14) — 좌표의 연속보다 관계의 일관성. 컴파일러가 seam 을 만들 일이 없어진다 |
 | 6 | Tree/Rock mesh kit · Cliff kit · LOD/Impostor | **billboard sprite instancing** 부터 (기존 sprite 장치). Cliff 는 kit 이 아니라 **경사 규칙**(급경사 → surface `cliff` 태그 + 통행 불가) | 지금 자산 파이프라인은 sprite 다. WE §20 도 장기적으로 Curve+Profile 을 권한다 — kit 은 짓지 않는다 |
 | 7 | Human UI (Brush · Spline · Drag) 를 Agent API 와 동급으로 | **후순위.** lab 페이지(top view + op 목록 + 다시 컴파일) 로 시작 | 이 프로젝트의 제작자는 AI 이고 Human 은 승인자다. Brush 는 Human 이 직접 지형을 만지는 도구인데 그것이 이 트랙이 피하려는 일이다 |
 | 8 | Navigation · Collision mesh | 1단계는 **Traversability 격자**만 (통행 가능/불가 + 사유 태그). 경로 탐색은 없다 | 지금 이동 규칙은 `inBounds` 하나다. 세계가 높이를 어떻게 다루는지는 2층 Play 가 정한다 |
@@ -76,8 +76,8 @@ Build → Observe → Evaluate → Modify                                  WE §
 WFC / Wang Tile (WE §33)          필요가 생길 때. 1단계 배치는 scatter 규칙만
 Asset 제작 파이프라인 (WE §34)     "자산 요구서" 를 파일로 남기는 규약만 둔다 — 제작은 이 트랙 밖
 Streaming (WE §29)                세계가 수십 m 인 동안 필요 없다. compiled *.generated.ts 캐시까지만
-WE §37 의 예시 이름               거대 악마의 숲 · 백왕령 · 얼음 협곡 · 붉은 황야 는 WE 의 **예시**이지 이 세계의 사실이
-                                  아니다. 첫 Region 의 이름과 사실은 2층 주입이 준다 — 도구는 그것을 기다리지 않는다
+WE §37 의 예시 Region 을 짓는 것    이름은 정식이 되었다 (L2-World-Region.md §5.1) — 그러나 그 내용은 각 Region 의
+                                  Play 가 쓴다. 도구는 그것을 기다리지 않는다
 ```
 
 ## 3. 제안 구조
@@ -103,8 +103,9 @@ engine/view-kernel/terrain/        createTerrain(compiledView, palette) — chun
 engine/view-kernel/scene/          SceneGroundZone.shape 에 polygon 추가
 engine/protocol-core/gameview.ts   봉투에 region: { id, hash } — 지형 본체는 싣지 않는다 (§3.5)
 
-content/regions/                   이 세계의 Region Description (데이터) — world 와 view 가 **함께 읽는** 유일한 content 하위 폴더
-  <region-id>.region.ts            identity + ops
+content/regions/                   이 세계의 Region (데이터) — world 와 view 가 **함께 읽는** 유일한 content 하위 폴더
+  <region-id>.ts                   Region Spec (L2-World-Region.md §16 양식) + space: RegionDescription (ops)
+  graph.ts                         Region Graph — Containment + Connector 목록
   <region-id>.compiled.generated.ts  npm run world:compile 산출 (커밋 — motion-atlas 선례)
 content/world/semantic/terrain.ts  WorldState.terrain: CompiledWorldTerrain · 규칙이 쓰는 heightAt / traversable / tagsAt
 content/world/rules/move.ts        inBounds → traversable (2층 Play 가 정하는 만큼만 — 지금은 범위 판정 대체)
@@ -139,8 +140,22 @@ export type RegionOp =
   | { id: string; kind: 'area'; layer: string; tag: string;
       shape: { kind: 'polygon'; points: XZ[] } | { kind: 'circle'; center: XZ; radius: number } }
   | { id: string; kind: 'point'; layer: string; tag: string; position: XZ; rotation?: number; scale?: number }
-  | { id: string; kind: 'connector'; tag: string; border: 'north' | 'south' | 'east' | 'west';
-      offset: number; width: number; to?: string };
+  ;
+// Connector 는 Description 의 op 가 아니다 — Region 사이의 것이므로 graph.ts 가 소유한다.
+// Description 은 Connector 가 가리킬 자리를 point(layer: 'anchor') 로만 둔다.
+export interface RegionGraph {
+  regions: string[];
+  containment: { parent: string; child: string }[];
+  connectors: {
+    id: string;
+    from: { region: string; anchor: string };
+    to: { region: string; anchor: string };
+    direction: 'bidirectional' | 'one-way';
+    transition: string;             // road · pass · door · rift · falling … — 뜻은 컨텐츠
+    // discovery · activation · persistence · fallback 은 세계 규칙의 것 — 형만 열어 둔다
+    rule?: Record<string, unknown>;
+  }[];
+}
 ```
 
 `layer` 는 컨텐츠가 짓는 이름의 공간이다 — 예컨대 `biome` · `semantic` · `surface` · `landmark` ·
@@ -159,7 +174,7 @@ export interface CompiledWorldTerrain {
   traversable: Uint8Array;                  // 0 = 통행 불가 (급경사 · blocker 태그)
   areas: { layer: string; tag: string; shape: AreaShape }[];   // tagsAt 이 이것을 읽는다
   points: { layer: string; tag: string; position: XZ; rotation: number; scale: number }[];
-  connectors: { tag: string; border: Border; position: XZ; width: number; to?: string }[];
+  anchors: { tag: string; position: XZ }[];   // graph.ts 의 Connector 가 가리키는 자리
 }
 
 // View 가 그리는 것 — chunk 로 나뉜다. chunkSize 는 runtime 인자.
@@ -183,7 +198,7 @@ export interface CompiledViewTerrain {
 | `createCurve()` · `createRoad()` · `createRiver()` · `createCliff()` | `curve` (layer=`feature`, tag=`road`/`river`/`cliff` …) | 무엇이 강인지는 tag — 강이 파고 젖게 하는 것은 컨텐츠의 curve 규칙 |
 | `paintSurface()` · `paintBiome()` · `createArea()` · `paintDangerArea()` · `paintResourceArea()` · `paintSpawnArea()` | `area` (layer · tag) | 함수 여섯이 op 하나다 — 차이는 layer/tag 뿐 |
 | `placeAsset()` · `placePOI()` · `placeLandmark()` | `point` (layer · tag) | 자산 카탈로그 조회는 tools 의 것 — op 는 tag 만 기록 |
-| `placeConnector()` | `connector` | 1단계는 경계 태그까지 (§2.2-5) |
+| `placeConnector()` | `point` (layer=`anchor`) + `graph.ts` 의 Connector | Description 은 자리만, 연결은 Graph 가 (§2.2-5) |
 | `move()` · `rotate()` · `scale()` | 같은 `id` 의 op 를 바꿔 쓴다 | |
 | `erase()` | 그 `id` 의 op 를 지운다 | |
 
@@ -240,7 +255,7 @@ TERRAIN_RESOLUTION       세계 격자의 해상도는 시뮬 상수(헤더 고�
 | ④ Surface 3종 | 규칙 표 3줄 (예: 평지 · 경사 · 급경사) — 이름은 컨텐츠 | top view 에서 세 색 |
 | ⑤ 자동 Cliff | 급경사 → surface 태그 + `traversable = 0` | traversability map |
 | ⑥ Tree / Rock Instancing | scatter → billboard instancing (sprite 2종) | instance 수 · shot |
-| ⑦ Connector | `connector` op → 경계 태그 (Region 간 이동은 없음) | semantic map 에 표시 |
+| ⑦ Connector | `anchor` point + `graph.ts` → 검사 ⑤~⑧ (anchor 존재 · 자식마다 Connector · 이탈 있음 · 고립 없음) | report · Region 전이 자체는 Cycle |
 | ⑧ Agent API | `content/regions/*.region.ts` + `world:edit` CLI | op 추가 → compile → hash 변화 |
 | ⑨ Observation | `world:observe` (Node PNG) + `world:shot` (playwright) | PNG 4종 + report |
 
@@ -280,8 +295,9 @@ A 가 하지 말아야 할 것 — 태그의 뜻을 정하는 것, 이름을 짓
 
 ```text
 1. content/regions/ 는 world·view 가 함께 읽는 데이터 폴더다. 경계 규칙 4 를 더한다 (§3.6).
-2. Region 하나 = 세계 하나. 다중 Region(Region Graph 가 실제 이동이 되는 것)은 이 도구의 것이
-   아니다 — 필요해지면 기반 층의 새 행으로 올린다 (관찰자 참여·투영·영속을 건드린다).
+2. 세계는 Region Graph 다 (2층 ② 가 정했다). Region = Local Space 하나 = Description 하나이고
+   Connector 는 전이다 — 도구는 Graph 형과 anchor 와 검사를 갖고, 전이 규칙(관찰자가 Region 을
+   옮기는 것 · 활성화 · 지속성)은 Cycle 이 세운다.
 3. A 는 traversable 격자와 tagsAt 조회까지만 준비한다. 높이·경사·구역이 몸에 무엇을 하는가는
    2층 Play 의 02-world 가 정한다.
 4. 자산은 billboard sprite instancing 으로 시작한다. mesh kit · cliff kit 은 없다.
@@ -298,7 +314,7 @@ A 가 하지 말아야 할 것 — 태그의 뜻을 정하는 것, 이름을 짓
 
 ```text
 세계의 사실을 정하는 것          이름 · 세계압 · 안전권 · 깊이 — 2층 주입
-WE §37 의 예시 Region 을 짓는 것  거대 악마의 숲은 WE 의 삽화다
+Region 의 내용을 정하는 것         거대 악마의 숲에 무엇이 있는가는 그 Region 의 Play 가 쓴다
 Corner Height 편집 도구           §2.2-3
 Mesh kit · Cliff kit · LOD        §2.2-6 — sprite 먼저
 경로 탐색 · Collision mesh        §2.2-8 — traversable 격자까지
