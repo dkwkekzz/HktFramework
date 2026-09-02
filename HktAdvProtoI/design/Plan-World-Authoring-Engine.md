@@ -2,7 +2,7 @@
 
 | 항목 | 내용 |
 |---|---|
-| **상태** | 제안 — Human 승인 대기 (§6 질문에 답과 함께) |
+| **상태** | **확정** — 2층 도구 절반의 결과물은 [content/roadmap/L2-World-Tool.md](../content/roadmap/L2-World-Tool.md) 다. 다음 주입(세계관 컨셉 · 세계 content 구성)이 닿는 자리는 그 문서 §3 |
 | **재료** | [Design-World-Editor-Terrain-Compiler.md](Design-World-Editor-Terrain-Compiler.md) (WE) |
 | **자리** | 로드맵 2층의 **도구 절반**. 세계 절반(세계압·안전권·깊이·지역 지도·이름 목록)은 이 문서가 답하지 않는다 — 2층 주입이 준다 |
 | **소유** | 이 문서가 제안하는 것은 전부 `engine/` · `tools/` 의 기구와 `content/` 의 **빈 자리**다. 자리에 무엇을 넣는가는 컨텐츠 주입의 것이다 |
@@ -34,7 +34,7 @@
 |---|---|---|---|
 | 높이 | `engine/view-kernel/terrain/terrain.ts` 의 `heightAt` — sine 하드코딩, **view 전용**. 세계 판정은 평면 (x,z) | 높이는 World Data (Height Query), View 는 그것을 샘플 (WE §28) | **바꾼다** — 높이의 출처를 view 에서 컴파일 결과로 옮긴다 |
 | 세계 범위·배치 | `WORLD_BOUNDS` 40×40 사각 · `SPAWN_POINTS` · `DEFAULT_NPCS` 상수 (`content/world/semantic/world-state.ts` · `index.ts`) | Region extent · Point 프리미티브 | **대체** — Region Description 이 범위와 자리를 준다 |
-| 지면 구역 | `SceneGroundZone` (circle 만) + 렌더러 `drawZones` (Design-Terrain-Visualization.md) | Area (polygon) | **확장** — polygon shape 추가. 이미 "의미 없는 프리미티브" 원칙이 같다 |
+| 지면 구역 | `SceneGroundZone` (circle 만, `engine/view-kernel/scene/scene-state.ts`) + 렌더러 `drawZones` | Area (polygon) | **확장** — polygon shape 추가. 이미 "의미 없는 프리미티브" 원칙이 같다 |
 | 관찰 계약 | `GameViewSnapshot` = entities · interactions · hud · commands. 지형은 `scene` 문자열뿐 | View 가 지형 데이터를 안다 | **작게 확장** — Region id + Description hash 만 봉투에. 지형 본체는 tick 마다 싣지 않는다 (§3.5) |
 | 결정론 | 시뮬 상수 헤더 고정 · 세계에 난수 State 없음 (L1 §3) | Seed 로 재현 (WE §16) | **맞는다** — Seed 는 컴파일 시간의 난수. 세계 State 가 아니다 |
 | 관찰 촬영 | `tools/fx-lab/test/terrain-shot.js` (playwright, PNG) | Observation API (WE §31) | **선례 있음** — 같은 방식으로 도구를 세운다 |
@@ -262,7 +262,8 @@ TERRAIN_RESOLUTION       세계 격자의 해상도는 시뮬 상수(헤더 고�
 ```text
 A. ENGINE 레인  engine/world-authoring · view terrain 교체 · tools/world-editor · 경계 규칙 4
                 게임 명사 없이 선다. 자체 검증(vitest · lab · observe PNG) 으로 닫는다.
-                Cycle 이 아니다 — Design-Terrain-Visualization.md 의 "ENGINE 레인" 선례.
+                Cycle 이 아니다 — Cycle 안에서는 engine/ 을 고치지 않는다는 규칙
+                (Design-System-Content-Separation.md)의 반대편, 기구만 세우는 레인이다.
                 별도 커밋 · Cycle 번호 없음.
 B. 2층 주입     Human 이 세계 사실을 준다 — 세계압은 자연 법칙인가 · 안전권과 깊이 단계 ·
                 지역 지도 · 이름 목록 → L2-*.md. A 의 문법(layer · tag · Region · Connector)
@@ -275,25 +276,22 @@ C. 2층 Play     B 의 첫 Region 을 A 의 Description 으로 쓴다 → Cycle 
 A 가 하지 말아야 할 것 — 태그의 뜻을 정하는 것, 이름을 짓는 것, 높이가 몸에 하는 일을
 정하는 것. 그 셋이 B · C 의 것이다. A 가 그것을 하면 기반이 컨텐츠를 안 것이 된다.
 
-## 6. Human 질문
-
-승인은 문서 통짜 1회이고 이 목록에 답이 함께 온다 (Design-DesignAuthoringWorkflow.md §8.5).
+## 6. 확정 사항
 
 ```text
-1. content/regions/ 를 world·view 가 함께 읽는 데이터 폴더로 두고 경계 규칙 4 를 더한다 — 승인?
-2. 1단계는 Region 하나 = 세계 하나다. 다중 Region(Region Graph 가 실제 이동이 되는 것)은 언제,
-   어느 층의 것인가 — 관찰자 참여·투영·영속을 건드리므로 기반 층의 새 행이 될 수 있다.
-3. 높이·경사가 세계 규칙에 닿는 첫 형태는 무엇인가 — traversable(급경사 통행 불가) 하나인가,
-   2층에서는 아무것도(시각만) 인가. A 는 격자만 준비하고 C 가 정한다 — 그래도 되는가.
-4. 자산은 billboard sprite instancing 으로 시작한다 (mesh kit 없음) — 승인?
-5. Human UI 는 lab 페이지(top view · op 목록 · 재컴파일) 로 시작하고 Brush/Spline 은 두지 않는다 — 승인?
-6. Design-Terrain-Visualization.md 의 "지형 Cycle" 항목(관찰 계약 · 세계 구현 · 표현 결정)은 이
-   구조에 흡수된다 — 그 문서(Human 소유)를 어떻게 정리할지.
-7. 폐기한 세 문서를 인용하는 Human 문서가 남아 있다 — Design-Resource-Catalog-R0 (BW 를 "기반"으로
-   지목) · Design-Skill-System · Design-Skill-Effect (Spatial-Presence 를 상위/하위 문서로) ·
-   Design-DesignAuthoringWorkflow §8.5 ("BW §33 여섯"). 어떻게 정리할지 — 전부 Human 소유다.
-8. Design-World-Spatial-Presence 가 맡던 "Actor 아닌 존재의 공간 존재"(투사체·장판·함정)는
-   6층(능력)이 여전히 요구한다. 6층에서 새 재료로 다시 세우는가.
+1. content/regions/ 는 world·view 가 함께 읽는 데이터 폴더다. 경계 규칙 4 를 더한다 (§3.6).
+2. Region 하나 = 세계 하나. 다중 Region(Region Graph 가 실제 이동이 되는 것)은 이 도구의 것이
+   아니다 — 필요해지면 기반 층의 새 행으로 올린다 (관찰자 참여·투영·영속을 건드린다).
+3. A 는 traversable 격자와 tagsAt 조회까지만 준비한다. 높이·경사·구역이 몸에 무엇을 하는가는
+   2층 Play 의 02-world 가 정한다.
+4. 자산은 billboard sprite instancing 으로 시작한다. mesh kit · cliff kit 은 없다.
+5. Human UI 는 lab 페이지(top view · op 목록 · 재컴파일) 다. Brush · Spline 은 두지 않는다.
+6. 지형 시각화(지면 구역 장치)의 소유는 이 문서 §3 이다 — SceneGroundZone 은 이 문법의 View 쪽
+   프리미티브이며 polygon 을 더한다. 별도 지형 시각화 문서는 두지 않는다.
+7. 폐기 문서를 인용하던 자리는 출처 표기로만 남는다. 세계 사실(이름·지형·자원)의 정본은 2층
+   세계 절반 주입이 다시 준다 — content/roadmap/L2-World-Tool.md §3.
+8. "Actor 아닌 존재의 공간 존재"(투사체·장판·함정)는 6층(능력) 주입 때 새 재료로 다시 세운다.
+   Skill 문서들이 가리키는 자리는 그대로 둔다.
 ```
 
 ## 7. 하지 않는 것

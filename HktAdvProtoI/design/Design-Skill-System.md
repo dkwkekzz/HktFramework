@@ -76,7 +76,7 @@ Skill System
 | 문서                                                         | 소유하는 의미                                                                                                        |
 | ---------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
 | `Skill-System.md` (이 문서)                                    | Skill이 무엇인가 · 전체 시스템 관계 · 각 문서의 책임 경계 · 새 Primitive 추가 기준 · 금지 구조 · 수용 기준                                       |
-| [`World-Spatial-Presence.md`](World-Spatial-Presence.md)   | Actor가 아닌 존재의 공간 존재 · Transform · Shape · Lifetime · Movement · Anchor · Observation Layer와의 경계                  |
+| World Spatial Presence (문서 없음 — 6층 능력 주입 때 새 재료로 세운다. 자리는 이 표가 지킨다) | Actor가 아닌 존재의 공간 존재 · Transform · Shape · Lifetime · Movement · Anchor · Observation Layer와의 경계                  |
 | [`Skill-Execution-Form.md`](Skill-Execution-Form.md)       | Activation · Target Anchor · Target Resolution · Spatial Query · Execution 방식(Contact / Direct / Spatial Query / Spatial Presence / Trigger / Composition) |
 | [`Skill-Effect.md`](Skill-Effect.md)                       | Resolved Target을 현재 구현된 World Capability에 연결하는 방법 · 미구현 Effect를 선점하지 않는 규칙                                      |
 
@@ -340,7 +340,7 @@ View
 
 Projectile을 화면에 그렸다는 사실이 충돌 여부를 결정하지 않는다. VFX가 넓게 퍼졌다는 사실이 Spatial Query의 반경을 넓히지 않는다.
 
-관찰 가능성(누가 그것을 볼 수 있는가) 역시 Skill의 책임이 아니라 Observation Rule의 책임이다 — [`World-Spatial-Presence.md`](World-Spatial-Presence.md) §10.
+관찰 가능성(누가 그것을 볼 수 있는가) 역시 Skill의 책임이 아니라 Observation Rule의 책임이다 — World Spatial Presence (문서 없음 — 6층에서 다시 세운다) §10.
 
 ---
 
@@ -419,7 +419,7 @@ Damage               IMPLEMENTED
 | §6 · §9                             | `DC-SKILL-COMBINE-BEFORE-NEW-FORM`    |
 | §3 · §7 · 핵심 원칙                    | `DC-SKILL-ANCHOR-IS-NOT-RESOLUTION`   |
 | 핵심 원칙 · [`Skill-Effect.md`](Skill-Effect.md) §1 · §5 | `DC-SKILL-EFFECT-MUST-ALREADY-EXIST` |
-| 핵심 원칙 · [`World-Spatial-Presence.md`](World-Spatial-Presence.md) §1 · §3 | `DC-SKILL-PRESENCE-IS-WORLD-NOT-SKILL` |
+| 핵심 원칙 · World Spatial Presence (문서 없음 — 6층에서 다시 세운다) §1 · §3 | `DC-SKILL-PRESENCE-IS-WORLD-NOT-SKILL` |
 
 스킬 전달 형태의 사다리(`MS-SKILL-FORM`)도 이 문서의 §4 · §5 를 자리 목록의 근거로 쓴다.
 

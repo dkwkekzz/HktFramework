@@ -31,7 +31,7 @@
     피해 공식 자체                → Design-Combat-OffenseDefense-R0 (기본 공식)
     Physical / Aura 의 의미        → Design-Combat-DamageType-R0
     누가 대상이 되는가             → Skill-Execution-Form.md
-    무엇이 세계에 존재하는가        → World-Spatial-Presence.md
+    무엇이 세계에 존재하는가        → World Spatial Presence (문서 없음 — 6층에서 다시 세운다)
 ```
 
 ---

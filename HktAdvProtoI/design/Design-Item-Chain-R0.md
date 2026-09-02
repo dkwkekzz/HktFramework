@@ -57,8 +57,8 @@ Master / Runtime / Cycle 경계   Resource §1 (소유 경계) · Instance §5 (
 붙인 것이고, 이 문서가 새로 정한 것은 없다.
 
 ```text
-WORLD PRINCIPLE                     Design-World-Beira.md
-        │                           Design-World-Beira-Terrain.md
+WORLD PRINCIPLE                     (2층 세계 절반 주입 — 세계관 컨셉 · 세계 content 구성,
+        │                            정본 대기: content/roadmap/L2-World-Tool.md §3)
         ▼
 TERRAIN / ECOLOGY                   Terrain §1 · §4 ~ §11
         │

@@ -179,3 +179,5 @@ Semantic 정보 부족   → 기획 원본 (design/) · Human
 
 기획을 들일 때는 [content/roadmap/README.md](content/roadmap/README.md)(주입 순서 · 열린 층) 와
 [content/roadmap/L0-Game.md](content/roadmap/L0-Game.md)(게임 방향) 가 먼저다.
+세계(세계관 컨셉 · 지역 구성)를 들일 때는 [content/roadmap/L2-World-Tool.md](content/roadmap/L2-World-Tool.md) §3 의
+연결 계약이 먼저다 — 주입물은 그 자리(layer · tag · op)로 번역되어 Region Description 이 된다.
