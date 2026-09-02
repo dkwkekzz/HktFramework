@@ -26,10 +26,12 @@ Game Direction → System Design → Play Design → Cycle Breakdown
 design/
   Design-*.md 등 기존   시스템 기획 = Level 1 (이 저장소는 systems/ 폴더 대신
                        기존 design/ 문서 체계를 System Design 층으로 그대로 쓴다)
-content/roadmap/       주입 순서(README.md)와 그 결과물 — 이 세계의 것이므로 content/ 에 둔다
+content/roadmap/       주입 순서(README.md)와 그 결과물 — 이 세계의 것이므로 content/ 에 둔다.
+                       로드맵은 두 층이다 — 기반 층(축의 순서) · 컨텐츠 층(미지의 목록)
   Game.md              게임 전체 경험 방향 1개 (Level 0)
-  L<N>-*.md            층별로 Human 이 확정한 문서
-  play/<PlayName>.md   실제 플레이 경험 1개당 1문서 (Level 2)
+  L<N>-*.md            기반 층 — 층별로 Human 이 확정한 문서
+  M<N>-*.md            컨텐츠 층 — 미지(지역·생물·자원·구조) 하나에 대해 Human 이 준 세계관 사실
+  play/<PlayName>.md   실제 플레이 경험 1개당 1문서 (Level 2) — 로드맵의 행 하나를 증명한다
 cycles/C###-이름/
   00-cycle.md          이번에 플레이 가능하게 만들 최소 단위 (Level 3)
   01-spec.md … 05-verification.md   기존 PLAN/BUILD 산출물 (변경 없음)
@@ -39,6 +41,7 @@ cycles/C###-이름/
 |---|---|
 | Game.md | 이 게임은 궁극적으로 어떤 경험인가? |
 | design/*.md (시스템) | 각 영역이 어떤 원리로 작동하는가? |
+| M<N>-*.md (미지) | 이 세계에 무엇이 존재하는가 — 지역·생물·자원·구조 하나 |
 | play/*.md | 그 시스템들이 실제 플레이 하나에서 어떻게 만나는가? |
 | 00-cycle.md | 지금 무엇을 작게 플레이 가능하게 만들 것인가? |
 | PLAN / BUILD / VERIFY | (기존 공정 그대로) |
@@ -125,7 +128,9 @@ Play 전체를 한 번에 구현하지 않는다. 각 Cycle 조건:
 
 ```text
 # <PlayName>
-## 1. References        (Game.md + 관련 시스템 문서)
+## 0. Row               (로드맵의 행 하나 — 기반 층 L<N> 또는 컨텐츠 층 M<N>;
+                         기반 층이면 이 Play 가 놓는 미지 M<N> 도 함께)
+## 1. References        (Game.md + 관련 시스템 문서 + 미지 문서)
 ## 2. Play Goal
 ## 3. Experience Intent  (Start / End)
 ## 4. Breath
@@ -198,9 +203,23 @@ World Capability 는 이후 Cycle 에서 그대로 재사용한다.
 점진적으로 두꺼워진다 (한 번에 Game → System 을 완성할 수 없다는 전제).
 큰 주입물이면 Play 를 여러 개로 나눠 제안하되, 승인은 여전히 문서당 1회다.
 
-주입의 **순서**는 [content/roadmap/README.md](../content/roadmap/README.md) 가 소유한다 —
-기반 층을 위에서 아래로 하나씩 주입하고, 한 Play 는 열린 층 하나만 증명한다.
-아래 층의 의미가 필요해지면 Required 가 아니라 Human 질문으로 남긴다.
+주입의 **순서**는 [content/roadmap/README.md](../content/roadmap/README.md) 가 소유한다.
+로드맵은 코드의 기반/컨텐츠 분리와 같은 두 층이고, 주입도 두 종류다.
+
+```text
+기반 층 주입    축 하나 — 방향 한 줄 · 기획서 · design/ 문서 지목.
+              위에서 아래로 하나씩, 열린 층만 받는다. 그 층의 증명 Play 는 축을
+              세우면서 미지를 하나 놓는다 (2층: 지역 · 3층: 생물 · 4층: 자원).
+컨텐츠 층 주입  미지 하나 — 지역 · 생물 · 자원 · 구조 (이름 + 종류 + 세계관 사실).
+              요구 축이 전부 확정이면 언제든 받는다 — 기반 층 전체를 기다리지 않는다.
+              Play 로 구체화하기 전에 로드맵 §4 의 열 질문(BW §33 여섯 + Game.md §4 넷)을
+              통과시킨다 — ①~③ 이 World Cause, ④~⑥ 이 Goal·Required, ⑦~⑩ 이 판정.
+              새 축을 요구하는 미지는 컨텐츠 행이 아니라 기반 층의 새 행이다.
+```
+
+한 Play 는 행 하나만 증명한다. 확정되지 않은 축의 의미가 필요해지면 Required 가
+아니라 Human 질문으로 남긴다. 확장성은 열거된 그래프가 아니라 `선 축들 × 미지들` 의
+조합에서 나온다 — 미지가 하나 늘 때마다 모든 축과 곱해진다.
 
 ## 9. Human / AI 역할
 
@@ -230,8 +249,8 @@ Human 은 게임이 무엇이어야 하는가를 결정하고, AI 는 그것을 
 ## 10. Artifact 생성 규칙
 
 ```text
-생성한다      Game.md (1개) · 시스템 문서 (영역별 1개) · play/*.md (플레이별 1개) ·
-             cycles/C###/00~05
+생성한다      Game.md (1개) · 시스템 문서 (영역별 1개) · L<N>-*.md (기반 층별 1개) ·
+             M<N>-*.md (미지별 1개) · play/*.md (플레이별 1개) · cycles/C###/00~05
 생성하지 않는다  Master Graph · Intent Graph · Possibility Graph · Capability Graph ·
              Experience Graph · Frontier 문서 · 별도 Breath/World Cause 문서
 ```
