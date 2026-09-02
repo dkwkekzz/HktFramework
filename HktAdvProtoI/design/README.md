@@ -9,14 +9,15 @@ Human 이 작성·개정한 **원본**이다. Agent 는 이 문서들을 바꾸�
 > 이 문서들 가운데 상당수는 **아직 코드에 들어오지 않은 것**을 적고 있다.
 > 지금 코드에 있는 것은 채광·행동·관찰·기본 전투·개발 명령 표면까지이며, 그 뒤의 전투·성장·아이템·지형은
 > 기획으로만 존재한다. 무엇을 어떤 순서로 들일지는 [`content/roadmap/README.md`](../content/roadmap/README.md)
-> 의 층 순서가 정한다 — 이 폴더는 **재료**이고, 순서대로 들여 확정한 **결과물**(`Game.md` ·
+> 의 층 순서가 정한다 — 이 폴더는 **재료**이고, 순서대로 들여 확정한 **결과물**(`L0-Game.md` ·
 > 층별 확정 문서 · `play/`)은 `content/roadmap/` 에 있다.
 
 ## 공정 · 기반
 
 | 문서 | 내용 |
 |---|---|
-| `Design-Concept.md` | 세계와 주체의 행동 구조 — 무엇이 존재하고 어떤 변화가 가능한가 (Level 1) |
+| `Design-Concept.md` | MMORPG 세계 문법 — 존재·상태·주체·법칙·시간, 무엇이 존재하고 어떻게 변하는가 (Level 1 · 로드맵 1층) |
+| `Design-Subject-Decision.md` | 주체의 의사결정 — 지식·숙련·경험·선호·목적·가능성 그래프, 주체가 어느 행동을 고르는가 (로드맵 3층 재료) |
 | `Design-DesignAuthoringWorkflow.md` | **기획 위층 공정** — Game/System → Play Design(`play/`) → Cycle Breakdown → 00-cycle |
 | `Design-CycleExecutionWorkflow.md` | **Cycle 실행 공정 원본** — SPEC → SEMANTIC/RULE → IMPL → VERIFY |
 | `Plan-Skill-CycleExecutionWorkflow.md` | 공정의 스킬 분할 계획 (advprotoi-design·plan·build) |
