@@ -1,10 +1,12 @@
 # Game — 게임 방향 (Level 0)
 
-상태: **확정** (Human 주입 원문). §1 이 원문이고, §2~§5 는 원문의 틀을 유지한 채
-기존 `design/` 문서에서 옮겨 보완한 것이다 — Human 이 언제든 고친다.
+상태: **확정** (Human 주입 원문). 로드맵 0층의 결과물이다 ([README.md](README.md)).
+§1 이 원문이고, §2~§5 는 원문의 틀을 유지한 채 `design/` 문서에서 옮겨 보완한
+것이다 — Human 이 언제든 고친다.
 이 문서는 기능·콘텐츠·수치를 정의하지 않는다. 새 시스템·Play 가 "우리 게임이
 추구하는 경험과 맞는가"를 판단하는 상위 기준일 뿐이다
-([Design-DesignAuthoringWorkflow.md](Design-DesignAuthoringWorkflow.md) §3).
+([Design-DesignAuthoringWorkflow.md](../../design/Design-DesignAuthoringWorkflow.md) §3).
+BW = [design/Design-World-Beira.md](../../design/Design-World-Beira.md).
 
 ---
 

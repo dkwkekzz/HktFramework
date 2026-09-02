@@ -45,8 +45,9 @@ content/                     컨텐츠 = 이 세계. 교체 단위다
   content/active-view.ts     view 조립 (app 이 읽는다 — world 와 분리: 클라이언트는 world 를 import 하지 않는다)
   content/active-catalog.ts  공정 도구 조립 (Node 도구용 — Vite glob 체인을 피한다)
 
-기획·Cycle 산출물은 컨텐츠 안이 아니라 저장소 위에 있다:
-  design/ · design/play/     설계·기획 원본과 Play Design
+기획·Cycle 산출물은 코드가 import 하지 않는 문서다:
+  design/                    설계·기획 원본 (재료)
+  content/roadmap/           이 세계의 주입 순서와 그 결과물 — Game.md · 층별 확정 문서 · play/ (Play Design)
   cycles/C###-이름/          Cycle Artifact (00-cycle … 05-verification)
   tools/content-root.ts      파일시스템 도구가 컨텐츠 자리를 읽는 유일한 경로
 ```

@@ -42,7 +42,7 @@ mmorpg에서 컨텐츠를 구성하기 위한 구조를 설계한다.
 스킬 분할 근거는 [design/Plan-Skill-CycleExecutionWorkflow.md](design/Plan-Skill-CycleExecutionWorkflow.md).
 
 ```text
-advprotoi-design  기획      방향/기획서 주입 → Play Design(design/play/*.md) 구체화
+advprotoi-design  기획      방향/기획서 주입 → Play Design(content/roadmap/play/*.md) 구체화
                            → Human 승인 1회 → 00-cycle.md 생성
 advprotoi-plan    의미 확정  00-cycle → CYCLE SPEC → WORLD SEMANTIC + RULE (01·02)
 advprotoi-build   실현·검증  구현 ∥ GameView ∥ 검증 병렬 → 실측 검증 (03·04·05)
@@ -51,9 +51,10 @@ advprotoi-build   실현·검증  구현 ∥ GameView ∥ 검증 병렬 → 실�
 
 "다음에 무엇을 만들까"는 승인된 Play Design 의 Cycle Breakdown 이 답한다 —
 별도의 Master Graph 탐색 공정(advprotoi-master)은 두지 않는다.
-"다음에 무엇을 **주입**할까"는 [design/Design-InjectionRoadmap.md](design/Design-InjectionRoadmap.md)
+"다음에 무엇을 **주입**할까"는 [content/roadmap/README.md](content/roadmap/README.md)
 의 층 순서가 답한다 — 기반 층(게임 방향 → 세계의 문법 → 세계 → 몸 → 물건 → 대결 →
 능력 → 성장)을 위에서 아래로 하나씩 주입하고, 한 Play 는 열린 층 하나만 증명한다.
+로드맵과 그 결과물(`Game.md` · 층별 확정 문서 · `play/`)은 전부 `content/roadmap/` 에 있다.
 
 Cycle Artifact 는 `cycles/<CycleId>/` (CycleId: `C###-이름`) — 파일만이 단계 간
 인터페이스다. 이전 공정의 산출물(`guides/` · `master/` · `BACKLOG.md` · `LANES.md`)과
@@ -72,10 +73,11 @@ engine/            기반 — world-kernel · physics(기본 세계 규칙 솔�
                    **Cycle 을 알지 못한다** — 공용 모듈이므로 Cycle 번호를 적지 않는다.
                    컨텐츠의 시스템은 physics 솔버를 조합해 만든다 — 직접 재구현하지 않는다
 content/           컨텐츠 = 이 세계 — world/ view/ protocol/ motions/
+content/roadmap/   이 세계의 주입 순서와 그 결과물 (문서만 — Game.md · 층별 확정 문서 · play/)
 content/active*.ts 조립이 컨텐츠를 부르는 유일한 자리 (경계 규칙 3)
 app/ · server/     조립 — 클라이언트 루트와 세계 호스트. 컨텐츠의 속을 알지 못한다
 scripts/           실행 스크립트 — run*.{bat,sh} · scan-motions.{bat,sh}
-design/            설계·기획 원본 (공정·기반 + 이 세계의 컨텐츠 기획) — Human 소유
+design/            설계·기획 원본 (공정·기반 + 이 세계의 컨텐츠 기획 재료) — Human 소유
 ```
 
 경계는 `npm run boundary:check` 가 강제한다 (engine→content import 금지 ·
@@ -172,5 +174,5 @@ Semantic 정보 부족   → 기획 원본 (design/) · Human
 | [Design-System-Content-Separation.md](design/Design-System-Content-Separation.md) | 기반/컨텐츠 분리 — 이 저장소 구조의 근거 |
 | [Design-Concept.md](design/Design-Concept.md) | 세계와 주체의 행동 구조 |
 
-기획을 들일 때는 [design/Game.md](design/Game.md)(게임 방향) 와
-[design/Design-InjectionRoadmap.md](design/Design-InjectionRoadmap.md)(주입 순서 · 열린 층) 가 먼저다.
+기획을 들일 때는 [content/roadmap/README.md](content/roadmap/README.md)(주입 순서 · 열린 층) 와
+[content/roadmap/Game.md](content/roadmap/Game.md)(게임 방향) 가 먼저다.

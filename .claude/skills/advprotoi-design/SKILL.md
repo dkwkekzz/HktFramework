@@ -1,6 +1,6 @@
 ---
 name: advprotoi-design
-description: HktAdvProtoI 의 기획(Design Authoring) 단계를 실행한다 — Human 이 방향 한 줄이나 기획서를 주입하면 그것을 Play Design(design/play/<name>.md)으로 구체화하고, 승인 1회 후 첫 Cycle 의 00-cycle.md 를 생성한다. 플레이 층(Breath·사건·World Cause)은 AI 가 제안하고, 게임 의미의 결정(수치·원리·세계관 사실)은 지어내지 않고 Human 질문 목록으로 모은다. 코드는 수정하지 않는다 — 이후는 advprotoi-plan 이 이어받는다. 사용자가 "AdvProtoI 기획 / 기획 주입 / 이 방향으로 만들어줘 / Play Design 작성 / 00-cycle 작성 / design 진행" 을 요청하면 사용.
+description: HktAdvProtoI 의 기획(Design Authoring) 단계를 실행한다 — Human 이 방향 한 줄이나 기획서를 주입하면 그것을 Play Design(content/roadmap/play/<name>.md)으로 구체화하고, 승인 1회 후 첫 Cycle 의 00-cycle.md 를 생성한다. 플레이 층(Breath·사건·World Cause)은 AI 가 제안하고, 게임 의미의 결정(수치·원리·세계관 사실)은 지어내지 않고 Human 질문 목록으로 모은다. 코드는 수정하지 않는다 — 이후는 advprotoi-plan 이 이어받는다. 사용자가 "AdvProtoI 기획 / 기획 주입 / 이 방향으로 만들어줘 / Play Design 작성 / 00-cycle 작성 / design 진행" 을 요청하면 사용.
 ---
 
 # HktAdvProtoI Design — 주입 → Play Design → 00-cycle
@@ -10,26 +10,27 @@ description: HktAdvProtoI 의 기획(Design Authoring) 단계를 실행한다 �
 (특히 §8.5 주입 경로) — 이 스킬과 어긋나면 원본이 이긴다.
 
 이 스킬의 사용법은 하나다: **Human 이 방향/기획을 주입하면 Cycle 이 나온다.**
-단계는 셋, Human 승인은 한 번이다. 코드·`content/`·`engine/`·`cycles/*/01~05` 를
-수정하지 않는다.
+단계는 셋, Human 승인은 한 번이다. 코드·`content/` 의 코드·`engine/`·`cycles/*/01~05` 를
+수정하지 않는다 — `content/roadmap/` 의 문서만 쓴다.
 
 ## ① 주입 받기
 
-- 먼저 [design/Design-InjectionRoadmap.md](../../../HktAdvProtoI/design/Design-InjectionRoadmap.md)
+- 먼저 [content/roadmap/README.md](../../../HktAdvProtoI/content/roadmap/README.md)
   의 층 표에서 **열린 층("다음")** 을 확인한다. 주입물은 그 층의 것이어야 하고, Play 는
   그 층 하나만 증명한다 — 층을 건너뛰는 Play 는 만들지 않는다. 주입물이 다른 층의
   것이면 그 사실을 보고하고 Human 판단을 받는다.
 - 입력은 어떤 형태든 좋다 — 채팅의 방향 한 줄, 기획서 전문, `design/` 문서 지목.
-- 채팅으로 온 주입물은 `design/` 에 파일로 보존한다 (그것이 Source 다). 0층(게임
-  방향)이면 `design/Game.md`, 그 밖의 층이면 그 층의 시스템 문서다.
-- 기존 `design/` 에서 직접 관련된 문서만 참조한다 — `Game.md` 와 로드맵의 그 층 행이
-  지목한 문서. **시스템 문서는 있으면 참조하고, 없어도 막지 않는다** — 주입물 자체가
+- 채팅으로 온 주입물은 `content/roadmap/` 에 그 층의 결과물로 보존한다 (그것이
+  Source 다). 0층(게임 방향)이면 `Game.md`, 그 밖의 층이면 `L<N>-<이름>.md`.
+  로드맵·결과물·Play 는 전부 이 폴더에 있다 — `design/` 은 재료다.
+- 기존 `design/` 에서 직접 관련된 문서만 참조한다 — `content/roadmap/Game.md` 와
+  로드맵의 그 층 행이 지목한 문서. **시스템 문서는 있으면 참조하고, 없어도 막지 않는다** — 주입물 자체가
   그 자리의 근거다. 전 문서 스캔·사전 정리 단계를 만들지 않는다.
 - 아래 층의 의미가 Play 에 필요해지면 Required 에 올리지 않고 Human 질문으로만 남긴다.
 - 층이 Play 없이 닫히는 경우(0·1층: 문서 확정만)는 ②·③ 없이 로드맵의 상태 열을
   갱신하고 끝낸다.
 
-## ② 구체화 → `design/play/<PlayName>.md` (승인 1회)
+## ② 구체화 → `content/roadmap/play/<PlayName>.md` (승인 1회)
 
 주입물을 Play Design 1문서로 **구체화**한다. 무엇을 AI 가 정하고 무엇을 Human 이
 정하는지의 경계는 하나다 (원본 §9):
@@ -82,7 +83,7 @@ Goal·Intent·Breath·Breakdown 개별 게이트를 두지 않는다. 답과 수
 
 ```text
 # C### — <이름>
-## Source            design/play/<PlayName>.md
+## Source            content/roadmap/play/<PlayName>.md
 ## Playable Goal
 ## Experience Intent
 ## World Change
