@@ -44,7 +44,7 @@
 
 ```text
 advprotoi-design   기획      주입(방향/기획서) → PLAY DESIGN 구체화 → CYCLE BREAKDOWN
-                           산출물: design/play/<name>.md · cycles/<CycleId>/00-cycle.md
+                           산출물: content/roadmap/play/<name>.md · cycles/<CycleId>/00-cycle.md
                            Human 승인은 Play 문서 통짜 1회 (위층 문서 §8.5)
 
 advprotoi-plan     의미 확정  00-cycle.md → CYCLE SPEC → WORLD SEMANTIC + RULE
@@ -209,7 +209,7 @@ plan 의 입력에 `00-cycle.md` 가 추가될 뿐이다 (원본 확장 규칙 6
 건드리지 않는다").
 
 ```text
-advprotoi-design   기획      Game.md/시스템 문서 → design/play/<name>.md
+advprotoi-design   기획      Game.md/시스템 문서 → content/roadmap/play/<name>.md
                             (Play Goal → Intent → Breath → Structure → World Cause
                              → Capability → Cycle Breakdown, Human 승인 게이트)
                             → cycles/<CycleId>/00-cycle.md
@@ -218,7 +218,7 @@ advprotoi-design   기획      Game.md/시스템 문서 → design/play/<name>.m
 연결 규칙:
 
 1. **00-cycle.md 가 plan 의 표준 입력이다.** 01-spec 의 PREV = 00-cycle.md,
-   SOURCE = `design/play/<name>.md`. 00-cycle 없이 Human 이 직접 Goal 을 지정하는
+   SOURCE = `content/roadmap/play/<name>.md`. 00-cycle 없이 Human 이 직접 Goal 을 지정하는
    예외 경로는 유지한다.
 2. **build 마감에 두 가지가 더해진다** — Experience Verification 관찰 항목을
    05-verification.md 에 기입(판정은 Human), 완료 시 play 문서의 Cycle Breakdown

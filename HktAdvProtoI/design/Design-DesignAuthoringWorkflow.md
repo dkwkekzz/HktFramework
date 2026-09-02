@@ -24,9 +24,11 @@ Game Direction → System Design → Play Design → Cycle Breakdown
 
 ```text
 design/
-  Game.md              게임 전체 경험 방향 1개 (Level 0)
   Design-*.md 등 기존   시스템 기획 = Level 1 (이 저장소는 systems/ 폴더 대신
                        기존 design/ 문서 체계를 System Design 층으로 그대로 쓴다)
+content/roadmap/       주입 순서(README.md)와 그 결과물 — 이 세계의 것이므로 content/ 에 둔다
+  Game.md              게임 전체 경험 방향 1개 (Level 0)
+  L<N>-*.md            층별로 Human 이 확정한 문서
   play/<PlayName>.md   실제 플레이 경험 1개당 1문서 (Level 2)
 cycles/C###-이름/
   00-cycle.md          이번에 플레이 가능하게 만들 최소 단위 (Level 3)
@@ -41,7 +43,7 @@ cycles/C###-이름/
 | 00-cycle.md | 지금 무엇을 작게 플레이 가능하게 만들 것인가? |
 | PLAN / BUILD / VERIFY | (기존 공정 그대로) |
 
-## 3. Level 0 — Game Direction (`design/Game.md`)
+## 3. Level 0 — Game Direction (`content/roadmap/Game.md`)
 
 게임 전체에서 변하지 않는 **경험 방향**만 정의한다. 기능·콘텐츠를 정의하지 않는다.
 Core Experience 한 단락 + **Core Breath**(게임 전체의 가장 큰 호흡, 예:
@@ -61,7 +63,7 @@ Core Experience 한 단락 + **Core Breath**(게임 전체의 가장 큰 호흡,
 
 세부 콘텐츠·구현 명세까지 작성하지 않는다.
 
-## 5. Level 2 — Play Design (`design/play/<PlayName>.md`)
+## 5. Level 2 — Play Design (`content/roadmap/play/<PlayName>.md`)
 
 **큰 기획과 Cycle 을 연결하는 핵심 단계.** System Design 들은 각각 독립적인 원리를
 정의하고, Play Design 은 그것들을 하나의 실제 플레이 상황에서 결합한다.
@@ -139,7 +141,7 @@ Cycle 하나를 선택하면 `00-cycle.md` 를 만든다. Play Design 전체를 
 
 ```text
 # C### — <이름>
-## Source            design/play/<PlayName>.md (+ 근거 시스템 문서)
+## Source            content/roadmap/play/<PlayName>.md (+ 근거 시스템 문서)
 ## Playable Goal     이번에 성립할 플레이 결과 한두 문장
 ## Experience Intent 이 Cycle 이 만드는 경험 전환
 ## World Change      세계에서 무엇이 어떻게 변하는가
@@ -179,7 +181,8 @@ World Capability 는 이후 Cycle 에서 그대로 재사용한다.
 
 ```text
 ① 주입    Human 이 방향 한 줄이든 기획서 전문이든 준다 (채팅 텍스트·파일 무관).
-          채팅으로 온 주입물은 design/ 에 파일로 보존한다 — 그것이 Source 가 된다.
+          채팅으로 온 주입물은 content/roadmap/ 에 그 층의 결과물로 보존한다 —
+          그것이 Source 가 된다.
 ② 구체화  AI 가 주입물을 Play Design 1문서(7단계)로 구체화한다 (§22 의 AI 수행
           영역 — Play Structure 구체화와 Experience → World Cause 변환). 즉
           **플레이 층은 AI 가 제안하고 승인으로 확정**한다. 다만 게임 의미의
@@ -194,6 +197,10 @@ World Capability 는 이후 Cycle 에서 그대로 재사용한다.
 주입물 자체가 그 자리의 근거다. 시스템 원리는 주입물이 쌓일수록 design/ 에
 점진적으로 두꺼워진다 (한 번에 Game → System 을 완성할 수 없다는 전제).
 큰 주입물이면 Play 를 여러 개로 나눠 제안하되, 승인은 여전히 문서당 1회다.
+
+주입의 **순서**는 [content/roadmap/README.md](../content/roadmap/README.md) 가 소유한다 —
+기반 층을 위에서 아래로 하나씩 주입하고, 한 Play 는 열린 층 하나만 증명한다.
+아래 층의 의미가 필요해지면 Required 가 아니라 Human 질문으로 남긴다.
 
 ## 9. Human / AI 역할
 

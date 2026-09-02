@@ -147,7 +147,7 @@ Human 에게 남긴다.
 7항 전부 + 시나리오 전부 PASS 여야 Cycle 완료다. 하나라도 미달이면 미완 항목과
 반환 대상(W/V/plan/Human)을 보고하고 완료 선언하지 않는다.
 
-**Play 문서 갱신**: Cycle 이 `design/play/<PlayName>.md` 의 Cycle Breakdown 에서
+**Play 문서 갱신**: Cycle 이 `content/roadmap/play/<PlayName>.md` 의 Cycle Breakdown 에서
 왔으면, 완료 시 그 항목의 체크박스만 `[x]` 로 갱신한다 — play 문서에서 Agent 가
 만질 수 있는 유일한 자리다. 해당 Play 의 모든 Cycle 이 닫혔으면 "Play Goal 실주행
 확인"을 Human 에게 제안한다.
