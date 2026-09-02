@@ -99,7 +99,7 @@ PREV   (직전 Artifact 파일명 — 이 파일만이 입력이다)
         ▼                ▼                   ▼
   Agent W            Agent V             Agent T
   World 구현         GameView 구현       검증 시나리오 작성
-  content/<pack>/    content/<pack>/     05-verification.md
+  content/    content/     05-verification.md
   world/ + protocol/ view/               의 Given/When/Then
         │                │                   │
         └────────────────┴───────────────────┘
@@ -141,7 +141,7 @@ PREV   (직전 Artifact 파일명 — 이 파일만이 입력이다)
 기구 → engine (Agent E)      의미 → content (Agent W·V)
 게임 명사 없이 성립하는       이 세계의 이름과 규칙을 아는 부분.
 그리기·배치·입력·판정 구조.   engine 기구에 명사·데이터를 공급해 조립한다
-이후 Cycle·다른 팩이 재사용
+이후 Cycle·다른 컨텐츠가 재사용
 ```
 
 정책 4개:

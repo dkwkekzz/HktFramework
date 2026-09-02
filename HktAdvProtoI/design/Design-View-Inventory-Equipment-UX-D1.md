@@ -15,7 +15,7 @@
 >
 > 이 문서는 새로운 상위 게임 의미를 제안하는 기획이 아니라, 이미 구현된 Inventory /
 > Equipment 의미를 플레이어가 보고 조작하게 만드는 **관찰 표면 설계**다. 따라서
-> `master/frontier.md`의 후보 등록·Human Select를 기다리지 않는다. 다음 Cycle Agent는
+> 별도의 후보 등록·Human Select를 기다리지 않는다. 다음 Cycle Agent는
 > §11의 `VUX-IE-01`부터 즉시 8 Stage Cycle을 시작한다. 다만 Cycle의 기존 8 Stage와
 > World → GameView → View 경계는 그대로 지킨다.
 
@@ -27,7 +27,7 @@
 | `[OBSERVATION]` | 이미 존재하는 World 의미를 보이고 조작 가능하게 한다 |
 | `[DIRECT-CYCLE]` | Master 후보화 없이 다음 Cycle로 직접 착수한다 |
 | `[CYCLE-READY]` | Goal·Scope·계약 요구·검증 기준이 Agent handoff 가능한 상태다 |
-| `[GAMEVIEW-GAP]` | View가 필요한 authoritative 관찰이 없으면 Stage 4로 반환한다 |
+| `[GAMEVIEW-GAP]` | View가 필요한 authoritative 관찰이 없으면 `04-gameview.md` 로 반환한다 |
 
 ---
 
@@ -277,7 +277,7 @@ selectionPreview: null | {
 실제 이름은 코드 구조에 맞춰 조정할 수 있으나 경계는 유지한다.
 
 ```text
-content/proto-adventure/view/
+content/view/
   inventory-presentation.ts     가방 Item → 표시 모델, 필터 문구, 빈 상태
   equipment-presentation.ts     Equipment Slot → 표시 모델, 비교 행
   item-action-presentation.ts   semantic role → 문구/키 힌트 (판정 없음)
@@ -297,7 +297,7 @@ world/                          View Stage에서 편집하지 않음
 # 11. Cycle 분할 — 다른 Agent가 순서대로 닫는 단위
 
 UI 전체를 한 번에 만들지 않는다. 아래 각 행은 독립적인 **플레이 가능한 Delta**다. 이 문서는
-관찰/View 표면의 직접 실행 요청이므로 `master/frontier.md` 등록이나 Human Select를 기다리지
+관찰/View 표면의 직접 실행 요청이므로 별도 등록이나 Human Select를 기다리지
 않고 바로 Cycle을 시작한다. 번호는 권장 실행 순서이며 실제 Cycle ID는 시작 Agent가 현재
 마지막 ID 다음으로 배정한다.
 
@@ -327,7 +327,7 @@ Playable Result   I로 작업 공간을 연다 → 칸을 선택한다 → 상�
 Observable Result 용량, 빈칸, 종류, 수량, 선택, 행동, 불가 사유, pending, 성공/거절이 구분된다.
 In Scope          Shell, 6열 Grid, 선택/Focus, 상세, 기존 use/discard action 연결, Fixture 테스트.
 Out of Scope      장착 패널, Preview, Drag & Drop, 정렬/검색/필터, Stack 분리, 모바일, 새 World 규칙.
-World Delta       NONE이 기본. Spec에 빈 Slot/display identity/action 결과가 없다면 Stage 4 GAP.
+World Delta       NONE이 기본. Spec에 빈 Slot/display identity/action 결과가 없다면 `04-gameview.md` GAP.
 View Delta        기존 가로 HUD 요약은 유지하고, I로 여는 관리 작업 공간을 추가한다.
 ```
 

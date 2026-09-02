@@ -1,4 +1,4 @@
-// Pointer Look (범용 엔진) — 끌어서 시점을 돌린다 (C008).
+// Pointer Look (범용 엔진) — 끌어서 시점을 돌린다.
 //
 // 세계에 아무것도 요청하지 않는다. 시점은 관찰자의 것이므로 (04 viewpoint.owner: observer)
 // 이 입력은 Action Request 가 되지 않는다 — 관찰자 자신의 방향만 바꾼다.

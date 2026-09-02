@@ -5,7 +5,7 @@
 | 항목        | 내용                                                                                                           |
 | --------- | ------------------------------------------------------------------------------------------------------------ |
 | **상태**    | Final Design Draft                                                                                           |
-| **기반**    | `C010 — Basic Attack / Defense Formula`, `Damage Type — Physical / Aura`                                      |
+| **기반**    | `기본 공격/방어 공식`, `Damage Type — Physical / Aura`                                                        |
 | **범위**    | Skill / Targeting / Spatial Presence / Execution / Effect                                                     |
 | **작성 목적** | 근접 공격, 단일 대상 공격, 범위 공격, 투사체, 장판, 광선, 함정, 소환 등 다양한 MMORPG 스킬을 기존 World Capability의 조합으로 확장할 수 있는 공통 구조를 정의한다. |
 
@@ -410,7 +410,7 @@ Damage               IMPLEMENTED
 
 # 10. Master Layer 와의 접합
 
-이 문서는 `master/` 의 Skill 영역 Constraint 가 인용하는 **근거 문서**다. 어떤 절이 어떤 원칙을 공급하는지는 다음과 같다.
+이 문서는 Skill 영역의 판단 기준이 인용하는 **근거 문서**다. 어떤 절이 어떤 원칙을 공급하는지는 다음과 같다.
 
 | 이 문서                                | Constraint                            |
 | ----------------------------------- | ------------------------------------- |
@@ -421,7 +421,7 @@ Damage               IMPLEMENTED
 | 핵심 원칙 · [`Skill-Effect.md`](Skill-Effect.md) §1 · §5 | `DC-SKILL-EFFECT-MUST-ALREADY-EXIST` |
 | 핵심 원칙 · [`World-Spatial-Presence.md`](World-Spatial-Presence.md) §1 · §3 | `DC-SKILL-PRESENCE-IS-WORLD-NOT-SKILL` |
 
-스킬 전달 형태의 사다리(`master/graph/systems.yaml` 의 `MS-SKILL-FORM`)도 이 문서의 §4 · §5 를 자리 목록의 근거로 쓴다.
+스킬 전달 형태의 사다리(`MS-SKILL-FORM`)도 이 문서의 §4 · §5 를 자리 목록의 근거로 쓴다.
 
 이 문서의 절을 재배치하거나 삭제할 때는 위 Constraint 의 인용이 함께 살아 있는지 확인한다. 근거가 사라진 Constraint 는 보류하지 않고 삭제하는 것이 이 프로젝트의 규칙이며, 그 판단은 Human 이 한다.
 

@@ -13,12 +13,12 @@
 import { join, sep } from 'node:path';
 import type { Plugin } from 'vite';
 import { motionsFingerprint } from './build-atlas';
-import { activePackDir } from '../active-pack';
+import { contentDir } from '../content-root';
 import { projectRoot, scanMotions } from './scan';
 
 export function motionAtlasPlugin(): Plugin {
   const root = projectRoot();
-  const motionsDir = join(activePackDir(root), 'motions');
+  const motionsDir = join(contentDir(root), 'motions');
   let lastFingerprint = '';
 
   const run = (log: (message: string) => void): void => {

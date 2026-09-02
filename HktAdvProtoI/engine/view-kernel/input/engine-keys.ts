@@ -6,7 +6,7 @@
 // (`view/interaction-presentation.ts` 의 RESERVED_KEY_CODES — 그 파일이 스스로
 // "사본인 동안에는 검사가 어긋남을 잡는다" 고 적어 둔 자리다).
 //
-// 사본은 원본이 늘 때 조용히 낡는다. C025 가 실제로 그렇게 걸렸다 — 표에도 있고
+// 사본은 원본이 늘 때 조용히 낡는다. 실제로 그렇게 걸린 적이 있다 — 표에도 있고
 // 안내에도 뜨는데 눌러도 아무 일이 없는 조작이 두 개 있었다.
 //
 // ── 여기 있는 것과 없는 것 ───────────────────────────────────────────
@@ -19,15 +19,15 @@
 import { MOVE_KEY_CODES, TURN_KEY_CODES } from './keyboard';
 
 export const ENGINE_KEYS = {
-  /** 명령 표면을 여는 자리 (C009) — 조립 루트가 interaction 보다 먼저 가로챈다 */
+  /** 명령 표면을 여는 자리 — 조립 루트가 interaction 보다 먼저 가로챈다 */
   command: { codes: ['Slash'] },
   /** 이동 — `keyboard.ts` 가 눌린 순간 삼킨다 (표면이 열려 있지 않은 동안) */
   move: { codes: MOVE_KEY_CODES },
-  /** 시점 (C008) — 이동과 같은 자리에서 삼켜진다 */
+  /** 시점 — 이동과 같은 자리에서 삼켜진다 */
   turn: { codes: TURN_KEY_CODES },
-  /** 충돌체 관찰 토글 (C006) — 세계에 아무것도 요청하지 않는 관찰자 쪽 결정 */
+  /** 충돌체 관찰 토글 — 세계에 아무것도 요청하지 않는 관찰자 쪽 결정 */
   colliderObserve: { codes: ['KeyC'] },
-  /** 속성 관찰 토글 (C007 R2) — 같은 성격의 자리 */
+  /** 속성 관찰 토글 — 같은 성격의 자리 */
   attributeInspect: { codes: ['KeyV'] },
 } as const satisfies Record<string, { codes: readonly string[] }>;
 

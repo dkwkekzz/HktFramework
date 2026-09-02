@@ -1,4 +1,4 @@
-// Link Telemetry 단독 테스트 (C005) — 소켓도 브라우저도 없이 검증한다.
+// Link Telemetry 단독 테스트 — 소켓도 브라우저도 없이 검증한다.
 // Implements INTENT-LINK-ROUNDTRIP-001 · INTENT-LINK-FLOW-001 · INTENT-LINK-EFFORT-001
 
 import { describe, expect, it } from 'vitest';

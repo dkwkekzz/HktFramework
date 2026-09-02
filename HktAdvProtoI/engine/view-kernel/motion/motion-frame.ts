@@ -1,4 +1,4 @@
-// Motion Frame 선택 — Render Plan 의 모션 지시에서 지금 그릴 프레임을 고른다 (C002).
+// Motion Frame 선택 — Render Plan 의 모션 지시에서 지금 그릴 프레임을 고른다.
 // 04-gameview.spec.yaml 의 motion.progress 계약:
 //   withDuration     진행도(0..1)에 맞추어 1회 재생
 //   withoutDuration  fps 로 반복 재생 — 다만 시트가 once 를 선언했으면 1회만 재생하고 멈춘다

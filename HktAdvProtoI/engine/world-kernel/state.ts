@@ -7,9 +7,9 @@
 import type { ObserverState } from './observer';
 
 export interface CoreWorldState {
-  /** World.Time — 세계가 시작된 뒤 흐른 시간 (C003) */
+  /** World.Time — 세계가 시작된 뒤 흐른 시간 */
   time: number;
-  /** World.Observers — 세계가 아는 관찰자들 (C004) */
+  /** World.Observers — 세계가 아는 관찰자들 */
   observers: ObserverState[];
 }
 

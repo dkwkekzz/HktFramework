@@ -1,4 +1,4 @@
-// Motion Library — 주입된 모션 데이터의 색인과 조회 (C002)
+// Motion Library — 주입된 모션 데이터의 색인과 조회
 //
 // 04-gameview.spec.yaml 의 motion 계약을 구현한다.
 //   selectedBy  (kind, state) 조합이 모션을 결정한다

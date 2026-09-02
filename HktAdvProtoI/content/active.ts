@@ -1,8 +1,8 @@
-// Active Pack — 어느 컨텐츠 팩을 띄우는가.
+// Active Content — 조립이 컨텐츠(content/world/)를 부르는 자리.
 //
-// 조립(app/·server/)이 소유하는 **유일한** 선택 지점이다 (boundary 규칙 4).
-// 팩을 바꾸려면 이 파일의 재수출 대상만 바꾼다 — engine/ 은 바뀌지 않는다.
-// Engine 은 이 파일을 모르고, 팩들은 서로를 모른다.
+// 조립(app/·server/)이 소유하는 **유일한** 컨텐츠 진입점이다 (경계 규칙 3).
+// 컨텐츠의 구성이 바뀌면 이 파일의 재수출 대상만 바꾼다 — engine/ 은 바뀌지 않는다.
+// Engine 은 이 파일을 모른다.
 
 export {
   createWorld,
@@ -10,8 +10,8 @@ export {
   type NpcSetup,
   type World,
   type WorldSetup,
-} from './proto-adventure/world/index';
+} from './world/index';
 export {
   TICK_INTERVAL,
   type WorldState,
-} from './proto-adventure/world/semantic/world-state';
+} from './world/semantic/world-state';

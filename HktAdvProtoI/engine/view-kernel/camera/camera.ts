@@ -1,4 +1,4 @@
-// Camera — View 의 책임. 몸을 두고 그 주위를 도는 시점 (C008).
+// Camera — View 의 책임. 몸을 두고 그 주위를 도는 시점.
 //
 // 방향은 관찰자의 것이며 세계로 나가지 않는다 (04 viewpoint.worldKnows: false).
 // 각 계산은 전부 orientation.ts 에 있고, 여기는 그 결과를 three 카메라에 얹을 뿐이다.

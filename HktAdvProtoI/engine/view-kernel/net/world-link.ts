@@ -1,4 +1,4 @@
-// World Link — 관찰자와 세계 사이의 이어짐 (C003 · C004).
+// World Link — 관찰자와 세계 사이의 이어짐.
 //
 // INTENT-OBSERVER-LINK-001 을 구현한다. 이것은 세계의 상태가 아니라 관찰자 쪽 상태다.
 //
@@ -6,7 +6,7 @@
 //   잇는 중   아직 잇지 못했거나 다시 잇는 중
 //   끊김      끊겼고 아직 잇지 못한 상태 — 마지막으로 받은 세계를 계속 보되 stale 로 표시
 //
-// C004 — 이어짐이 열리면 가장 먼저 자신을 밝힌다 (identity.declaredOn: link-established).
+// 이어짐이 열리면 가장 먼저 자신을 밝힌다 (identity.declaredOn: link-established).
 // 다시 이을 때도 같은 것을 밝히므로 같은 몸으로 돌아온다 (onReconnect.regains: same-character).
 //
 // 소켓 자체는 주입받는다 — 전송 수단 없이 검증할 수 있어야 하기 때문이다.
@@ -40,7 +40,7 @@ export type Scheduler = (fn: () => void, ms: number) => void;
 // 이어져 있다고 볼 수 없다 — 소켓이 close 를 알리지 못하고 조용히 죽는 경우가 있다.
 export const OBSERVATION_TIMEOUT_MS = 1500;
 
-// 표식을 스스로 붙여 보내는 간격 (C005) — 게임 요청이 없어도 왕복을 잴 수 있어야 한다
+// 표식을 스스로 붙여 보내는 간격 — 게임 요청이 없어도 왕복을 잴 수 있어야 한다
 // (INTENT-LINK-ROUNDTRIP-001).
 export const MARK_INTERVAL_MS = 500;
 
@@ -48,14 +48,14 @@ export interface WorldLink {
   /** 요청을 세계로 보낸다. 이어져 있지 않으면 보내지 못하고 false */
   send(action: ActionRequest): boolean;
   /**
-   * 요청을 보내고 그 요청에 붙인 표식을 돌려준다 (C009 — Request.Mark).
+   * 요청을 보내고 그 요청에 붙인 표식을 돌려준다 (Request.Mark).
    * 돌아온 대답이 어느 요청의 것인지 이 표식으로 짚는다
    * (04 requestOutcome.mark / INTENT-REPLY-CORRESPONDENCE-001).
    * 보내지 못했으면 null.
    */
   sendMarked(action: ActionRequest): number | null;
   /**
-   * 세계가 내 요청들에 내놓은 대답을 가져간다 (C009). 가져가면 비워진다 —
+   * 세계가 내 요청들에 내놓은 대답을 가져간다. 가져가면 비워진다 —
    * 기록은 관찰자가 쥔다 (04 commandSurface.history.owner: observer).
    */
   takeOutcomes(): RequestOutcomeView[];
@@ -66,9 +66,9 @@ export interface WorldLink {
   poll(nowMs: number): void;
   /** 보고 있는 세계가 현재가 아닐 수 있는가 */
   stale(): boolean;
-  /** 이어짐이 얼마나 잘 통하는가 (C005) — 전부 관찰자 쪽에서 잰 값이다 */
+  /** 이어짐이 얼마나 잘 통하는가 — 전부 관찰자 쪽에서 잰 값이다 */
   telemetry(nowMs: number): LinkTelemetry;
-  /** 붙어 있는 세계의 주소 (C005 binding) */
+  /** 붙어 있는 세계의 주소 (binding) */
   address(): string;
   close(): void;
 }
@@ -89,13 +89,13 @@ export function createWorldLink(
   let attempt = 0;
   let closed = false;
   let lastReceived = now();
-  // C009 — 세계에서 온 대답들. 가져갈 때까지만 여기 있다.
+  // 세계에서 온 대답들. 가져갈 때까지만 여기 있다.
   let outcomes: RequestOutcomeView[] = [];
-  // 요청에 붙이는 표식 — C005 의 이어짐 표식과 다른 자리다.
+  // 요청에 붙이는 표식 — 이어짐 표식과 다른 자리다.
   // 그쪽은 왕복을 재는 것이고 이쪽은 어느 요청의 대답인지 짚는 것이다.
   let nextRequestMark = 1;
 
-  // C005 — 표식은 관찰자가 매긴다. 뒤로 가지 않고, 다시 이어도 되돌리지 않는다
+  // 표식은 관찰자가 매긴다. 뒤로 가지 않고, 다시 이어도 되돌리지 않는다
   // (marking.value: monotonic · resetOn: never).
   const telemetry = createLinkTelemetry();
   let nextMark = 1;
@@ -115,7 +115,7 @@ export function createWorldLink(
     telemetry.recordSent();
   }
 
-  // 표식을 붙여 보낸다 (C005). 게임 요청이 아니다 — 세계는 받아들인 자리만 되돌린다.
+  // 표식을 붙여 보낸다. 게임 요청이 아니다 — 세계는 받아들인 자리만 되돌린다.
   // 요청을 보낸 직후에도, 조용할 때도 보낸다 (marking.sentWith).
   function sendMark(atMs: number): void {
     if (state !== 'connected' || !socket) return;
@@ -136,7 +136,7 @@ export function createWorldLink(
         state = 'connected';
         attempt = 0;
         lastReceived = now();
-        // 처음 붙는 것은 "다시 이은 것"이 아니다 (C005 telemetry.reconnectCount)
+        // 처음 붙는 것은 "다시 이은 것"이 아니다 (telemetry.reconnectCount)
         if (everConnected) telemetry.recordReconnect();
         everConnected = true;
         // 가장 먼저 자신을 밝힌다. 이것이 도착해야 세계가 나를 알고,
@@ -148,13 +148,13 @@ export function createWorldLink(
         if (!message) return;
         lastReceived = now();
         if (message.type === 'outcome') {
-          // C009 — 세계의 대답. 관찰 결과를 대체하지 않는다.
+          // 세계의 대답. 관찰 결과를 대체하지 않는다.
           outcomes.push(...message.outcomes);
           return;
         }
         latest = message.snapshot; // 늦게 온 것이 앞선 것을 대체한다
         state = 'connected';
-        // 세계가 받아들인 표식으로 왕복을 닫는다 (C005 INTENT-LINK-ROUNDTRIP-001)
+        // 세계가 받아들인 표식으로 왕복을 닫는다 (INTENT-LINK-ROUNDTRIP-001)
         telemetry.recordObservation(message.snapshot.observer.acknowledgedMark, lastReceived);
       },
       onClose() {
@@ -195,7 +195,7 @@ export function createWorldLink(
         dropSilentLink();
         return;
       }
-      // 조용해도 잴 수 있어야 한다 — 일정 간격으로 표식을 보낸다 (C005)
+      // 조용해도 잴 수 있어야 한다 — 일정 간격으로 표식을 보낸다
       if (nowMs - lastMarkAt >= MARK_INTERVAL_MS) sendMark(nowMs);
     },
     send: sendAction,
@@ -226,7 +226,7 @@ export function createWorldLink(
 }
 
 // 브라우저 WebSocket 어댑터 — 위 순수 로직에 실제 전송을 끼운다.
-// url 은 binding.worldAddress 로도 쓰인다 (C005).
+// url 은 binding.worldAddress 로도 쓰인다.
 export function browserSocketFactory(url: string): SocketFactory {
   return (handlers) => {
     const socket = new WebSocket(url);

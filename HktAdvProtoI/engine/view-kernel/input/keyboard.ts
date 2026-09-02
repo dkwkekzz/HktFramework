@@ -3,10 +3,10 @@
 // 상태를 바꾸지 않는다 — 조립 루트가 이를 Action Request 로 변환한다.
 
 export interface KeyboardState {
-  /** 현재 눌린 이동 방향 (정규화, 없으면 null) — 관찰자 기준이다 (C008) */
+  /** 현재 눌린 이동 방향 (정규화, 없으면 null) — 관찰자 기준이다 */
   direction(): { x: number; z: number } | null;
   /**
-   * 현재 눌린 시점 조작 (C008) — 도는 쪽과 기우는 쪽의 부호만 준다.
+   * 현재 눌린 시점 조작 — 도는 쪽과 기우는 쪽의 부호만 준다.
    * 얼마나 빨리 도는지는 이 값을 받는 쪽이 정한다. 없으면 null.
    */
   turn(): { turn: number; tilt: number } | null;
@@ -36,7 +36,7 @@ const MOVE_KEYS: Record<string, { x: number; z: number }> = {
   ArrowRight: { x: 1, z: 0 },
 };
 
-// 시점 조작 키 (C008) — 마우스가 없어도 시점을 돌릴 수 있어야 한다.
+// 시점 조작 키 — 마우스가 없어도 시점을 돌릴 수 있어야 한다.
 // 상호작용 키(E·F·G·Shift)와 관찰 토글(C·V)을 피해 배치한다.
 //   Z / X  왼쪽으로 · 오른쪽으로 돈다
 //   R / T  올려다본다 (지평선) · 내려다본다
@@ -49,7 +49,7 @@ const TURN_KEYS: Record<string, { turn: number; tilt: number }> = {
 
 // 이 키들은 이동을 몰고 있는 동안 눌린 순간 삼켜져 interaction 까지 오지 않는다.
 // 팩이 자기 키 배치가 여기와 겹치지 않는지 검사하려면 원본을 읽을 수 있어야 한다 —
-// 사본을 두면 원본이 늘어날 때 사본이 조용히 낡는다 (C025 · C026 이 실제로 겪었다).
+// 사본을 두면 원본이 늘어날 때 사본이 조용히 낡는다 (실제로 겪은 일이다).
 /** 이동 방향키 코드 원본 (KeyboardEvent.code) */
 export const MOVE_KEY_CODES: readonly string[] = Object.keys(MOVE_KEYS);
 /** 시점 조작키 코드 원본 (KeyboardEvent.code) */

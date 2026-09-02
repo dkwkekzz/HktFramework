@@ -26,11 +26,11 @@ export interface GameRenderer {
    * Tick 간격으로 튄다. 몸에 붙는 것은 몸이 있는 자리에서 투영해야 한다.
    */
   drawnPosition(entityId: string): { x: number; z: number } | null;
-  /** 시점을 지금 방향에서 그만큼 더 돌린다 (C008) */
+  /** 시점을 지금 방향에서 그만큼 더 돌린다 */
   turnView(dTurn: number, dTilt: number): void;
-  /** 지금 시점이 수평으로 돈 각 — 몸 방향을 좌우로 읽는 기준이 된다 (C008) */
+  /** 지금 시점이 수평으로 돈 각 — 몸 방향을 좌우로 읽는 기준이 된다 */
   viewTurn(): number;
-  /** 관찰자 기준 입력 방향 → 세계 방향 (C008) */
+  /** 관찰자 기준 입력 방향 → 세계 방향 */
   viewWorldDirection(local: PlaneDirection): PlaneDirection;
   domElement: HTMLCanvasElement;
 }
@@ -75,7 +75,7 @@ export function createRenderer(
   // 세계 캔버스를 먼저 붙였으므로 그 위에 오고, HUD 는 뒤에 붙으므로 이 위에 온다.
   const effectLayer: EffectLayer = createEffectLayer(container, options.effects ?? {});
   // 이미 켠 사건들 — 이펙트는 상태가 아니라 사건이라 한 번만 켠다.
-  // 관찰 결과는 같은 타격을 TTL 동안 계속 실어 보낸다 (C007 strikeEvents).
+  // 관찰 결과는 같은 타격을 TTL 동안 계속 실어 보낸다 (strikeEvents).
   const firedEffects = new Set<string>();
   // 디버그 창구 — 콘솔·눈검증 하니스가 이펙트 층을 찾는 유일한 길이다.
   // (HktSplatLife 의 window.__hktFire / __lifeReady 와 같은 규약. 게임 경로는 쓰지 않는다.)
@@ -119,7 +119,7 @@ export function createRenderer(
     );
   }
 
-  // 디버그 도형 capability (C006 / R1) — 캡슐/구체 부피와 화살표를 그릴 뿐,
+  // 디버그 도형 capability — 캡슐/구체 부피와 화살표를 그릴 뿐,
   // 그것이 무엇인지 모른다. 지시가 프레임마다 통째로 오므로 그룹을 비우고 다시 만든다.
   const debugGroup = new THREE.Group();
   scene.add(debugGroup);
@@ -318,7 +318,7 @@ export function createRenderer(
 
   let lastTime = performance.now();
 
-  // 관찰 결과는 세계의 Tick 주기로 띄엄띄엄 도착한다 (C003). 받은 위치로 곧장
+  // 관찰 결과는 세계의 Tick 주기로 띄엄띄엄 도착한다. 받은 위치로 곧장
   // 튀지 않고 부드럽게 따라간다 — 순수 표현 능력이며 세계 상태를 바꾸지 않는다.
   const SMOOTHING = 18;
   const drawn = new Map<string, { x: number; z: number }>();
@@ -405,7 +405,7 @@ export function createRenderer(
       clearZoneGroup();
       if (state.zones?.length) drawZones(state.zones, state.worldTime);
 
-      // 디버그 도형 — 지시가 있으면 그 프레임의 도형으로 갈아 끼운다 (C006)
+      // 디버그 도형 — 지시가 있으면 그 프레임의 도형으로 갈아 끼운다
       clearDebugGroup();
       if (state.colliderDebug) drawDebug(state.colliderDebug);
 

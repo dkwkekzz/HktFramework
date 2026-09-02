@@ -1,5 +1,5 @@
 // Link Presentation — 이어짐의 수치와 신원을 "어떻게 보여줄지" 결정한다
-// (결정 Layer 데이터, C005).
+// (결정 Layer 데이터).
 //
 // 04-gameview.spec.yaml 의 telemetry · binding 절(owner: observer)을 소비한다.
 // 이 값들은 World Snapshot 에서 오지 않는다 — 관찰자 쪽에서 잰 것이므로 따로 해석한다.

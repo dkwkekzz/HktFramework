@@ -6,7 +6,7 @@
 | --------- | ----------------------------------------------------------------------------------------- |
 | **상태**    | Final Design Draft                                                                        |
 | **상위 문서** | [`Skill-System.md`](Skill-System.md)                                                      |
-| **기반**    | `C010 — Basic Attack / Defense Formula`, `Damage Type — Physical / Aura`                  |
+| **기반**    | `기본 공격/방어 공식`, `Damage Type — Physical / Aura`                                    |
 | **범위**    | Resolved Target → 기존 World Capability 연결 / 새 Effect 도입 절차                                |
 | **작성 목적** | Skill이 대상에게 무엇을 하는지를, **현재 세계에 실제로 구현된 State Transition Capability만으로** 정의한다.           |
 
@@ -28,7 +28,7 @@
     미구현 Effect 를 선점하지 않는 규칙
 
 소유하지 않는다
-    피해 공식 자체                → Design-Combat-OffenseDefense-R0 (C010)
+    피해 공식 자체                → Design-Combat-OffenseDefense-R0 (기본 공식)
     Physical / Aura 의 의미        → Design-Combat-DamageType-R0
     누가 대상이 되는가             → Skill-Execution-Form.md
     무엇이 세계에 존재하는가        → World-Spatial-Presence.md

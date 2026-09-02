@@ -1,4 +1,4 @@
-// Observer Identity 단독 테스트 (C004) — 브라우저 없이 검증한다.
+// Observer Identity 단독 테스트 — 브라우저 없이 검증한다.
 // 04-gameview.spec.yaml 의 identity 절: owner: observer · persists-across-links ·
 // firstTime: observer-generates
 

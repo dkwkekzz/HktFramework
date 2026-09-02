@@ -61,7 +61,7 @@ node game-shot.js                       # 게임 전 경로: 세계 → 관찰 �
 엔진·UI)는 손대지 않는다. 게놈의 각 유전자가 무엇인지는 그 파일 상단 주석이 원본이다.
 
 게임에서 그 이펙트를 쓰려면 그 다음 한 걸음이 더 있다 — 어떤 사건이 그것을 켜는지를 팩이
-정한다: [content/proto-adventure/view/effect-presentation.ts](../../content/proto-adventure/view/effect-presentation.ts).
+정한다: [content/view/effect-presentation.ts](../../content/view/effect-presentation.ts).
 
 ## 게임과의 관계
 

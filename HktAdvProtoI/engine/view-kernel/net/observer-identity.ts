@@ -1,4 +1,4 @@
-// Observer Identity — 관찰자의 자기 식별 (C004).
+// Observer Identity — 관찰자의 자기 식별.
 //
 // 04-gameview.spec.yaml 의 identity 절(owner: observer)을 구현한다.
 //   stability: persists-across-links   같은 관찰자는 다시 이을 때 같은 것을 밝힌다

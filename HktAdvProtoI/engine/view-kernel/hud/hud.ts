@@ -16,7 +16,7 @@ export interface EntityLabel {
   text: string;
 }
 
-// 몸 위에 붙는 관찰 (C007 entityHud) — 화면 좌표는 조립 루트가 투영해 준다.
+// 몸 위에 붙는 관찰 (entityHud) — 화면 좌표는 조립 루트가 투영해 준다.
 export interface EntityPlate {
   /** 어느 몸의 것인가 — 프레임 사이에 같은 요소를 이어 쓰기 위한 키 */
   id: string;
@@ -27,20 +27,20 @@ export interface EntityPlate {
   healthMaximum: number;
   healthRatio: number;
   downed: boolean;
-  /** 속성 관찰이 켜졌을 때 함께 펼칠 줄들 (C007 R2) */
+  /** 속성 관찰이 켜졌을 때 함께 펼칠 줄들 */
   inspect?: string[];
 }
 
-// 타격 결과 표시 (C007) — age 는 0(방금) .. 1(사라질 때)
+// 타격 결과 표시 — age 는 0(방금) .. 1(사라질 때)
 export interface StrikeMark {
   x: number;
   y: number;
   text: string;
   emphasis: boolean;
   age: number;
-  /** 그 숫자가 나온 경위 (C010·C011) — 관찰 토글 또는 막기가 채운다 */
+  /** 그 숫자가 나온 경위 — 관찰 토글 또는 막기가 채운다 */
   detail?: string;
-  /** 막기가 한 일 (C011) — 무너짐은 막힘과 다르게 그린다 */
+  /** 막기가 한 일 — 무너짐은 막힘과 다르게 그린다 */
   guard?: 'blocked' | 'broken';
 }
 
@@ -175,7 +175,7 @@ export function createHud(container: HTMLElement): Hud {
     (body, label) => setText(body, label.text),
   );
 
-  // 존재 HUD (C007) — 이름과 생명은 그 몸 위에 늘 붙어 있다.
+  // 존재 HUD — 이름과 생명은 그 몸 위에 늘 붙어 있다.
   // 이 코드는 무엇이 hp 인지 모른다. 이름과 비율과 쓰러짐 여부를 그릴 뿐이다.
   //
   // 줄마다 따로 가운데를 맞춘다 (CSS 의 width:0) — 생명 숫자의 자릿수가 바뀌어도
@@ -213,13 +213,13 @@ export function createHud(container: HTMLElement): Hud {
 
   return {
     render(scene, labels, session, overlays) {
-      // 이어짐 상태 — 세계의 상태가 아니라 관찰자 쪽 상태다 (C003)
+      // 이어짐 상태 — 세계의 상태가 아니라 관찰자 쪽 상태다
       if (session) {
         link.textContent = session.state === 'connected' ? '' : session.text;
         link.dataset.state = session.state;
         container.dataset.stale = String(session.stale); // 화면 전체 표시용
 
-        // 이어짐 패널 — 정상일 때도 보인다 (C005 session.visibility: always).
+        // 이어짐 패널 — 정상일 때도 보인다 (session.visibility: always).
         // 여기 있는 줄은 전부 결정 Layer 가 만든 것이며, 이 코드는 의미를 모른다.
         const lines = [...session.binding, ...session.telemetry];
         linkPanel.innerHTML = lines
@@ -279,7 +279,7 @@ export function createHud(container: HTMLElement): Hud {
       renderLabels(labels);
       renderPlates(overlays?.plates ?? []);
 
-      // 타격 결과 (C007) — 맞은 자리에서 떠올랐다 옅어진다
+      // 타격 결과 — 맞은 자리에서 떠올랐다 옅어진다
       strikeLayer.innerHTML = (overlays?.strikes ?? [])
         .map(
           (s) =>
@@ -287,13 +287,13 @@ export function createHud(container: HTMLElement): Hud {
             (s.guard ? `data-guard="${s.guard}" ` : '') +
             `style="left:${s.x}px;top:${s.y - s.age * 34}px;opacity:${(1 - s.age).toFixed(2)}">` +
             `${s.text}` +
-            // C010 — 경위는 숫자 아래에 작게. 켜져 있을 때만 온다.
+            // 경위는 숫자 아래에 작게. 켜져 있을 때만 온다.
             (s.detail ? `<span class="hud-strike-detail">${s.detail}</span>` : '') +
             `</div>`,
         )
         .join('');
 
-      // 자기 정보 (C007) — 자원 막대와 능력치·배율. 늘 눈앞에 있는 자리다.
+      // 자기 정보 — 자원 막대와 능력치·배율. 늘 눈앞에 있는 자리다.
       if (scene.self) {
         const s = scene.self;
         selfPanel.dataset.downed = String(s.downed);
@@ -305,7 +305,7 @@ export function createHud(container: HTMLElement): Hud {
           `<span class="hud-self-bar" data-kind="cp"><i style="width:${Math.round(s.energyRatio * 100)}%"></i></span>` +
           `<em>${s.energy} / ${s.energyMaximum}</em></span>` +
           `<span class="hud-self-mode">${s.moveMode}</span>` +
-          // C011 — 막기는 스스로 끝나지 않는다. 들고 있다는 것이 늘 보여야 한다.
+          // 막기는 스스로 끝나지 않는다. 들고 있다는 것이 늘 보여야 한다.
           (s.guard.text
             ? `<span class="hud-self-stance" data-broken="${s.guard.broken}">${s.guard.text}</span>`
             : '') +

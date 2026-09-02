@@ -1,7 +1,7 @@
 # Design — 세계의 영속과 복구
 
 status: IMPLEMENTED — 검증은 `engine/world-kernel/tests/persistence.spec.ts`(커널 계약) ·
-`content/proto-adventure/world/tests/persistence.spec.ts`(팩 실측)가 상시 확인한다
+`content/world/tests/persistence.spec.ts`(컨텐츠 실측)가 상시 확인한다
 
 ## 목적
 
@@ -24,9 +24,9 @@ INTENT-OBSERVER-REJOIN-001 이 이미 소유하고, 영속은 그 의미가 성�
 
 ## 원칙 — 기존 설계에서 그대로 파생된다
 
-1. **Engine 은 팩 State 를 들여다보지 않는다** (분리 설계 반전 ③).
-   따라서 영속도 불투명하다: 스냅샷은 팩 State 전체를 **데이터 그대로** 담는다.
-   Engine 이 필드를 열거·해석하지 않으므로, 팩에 State 필드가 늘어도
+1. **Engine 은 컨텐츠 State 를 들여다보지 않는다** (분리 설계 반전 ③).
+   따라서 영속도 불투명하다: 스냅샷은 컨텐츠 State 전체를 **데이터 그대로** 담는다.
+   Engine 이 필드를 열거·해석하지 않으므로, 컨텐츠에 State 필드가 늘어도
    영속 코드는 열리지 않는다.
 2. **Tick 이 유일한 원자성 경계다** (RULE-WORLD-TICK-001).
    Tick 도중의 세계는 일관된 상태가 아니므로 스냅샷은 Tick 사이에서만 뜬다.
@@ -41,7 +41,7 @@ INTENT-OBSERVER-REJOIN-001 이 이미 소유하고, 영속은 그 의미가 성�
 
 | 항목 | 영속 | 이유 |
 |---|---|---|
-| 팩 State 전체 (actors 의 자리·소지품·**장비**, deposits, 이벤트 목록, chanceSeed/Cursor …) | O | 세계의 사실 — Engine 은 내용을 모른 채 통째 담는다 |
+| 컨텐츠 State 전체 (actors 의 자리·소지품·**장비**, deposits, 이벤트 목록, chanceSeed/Cursor …) | O | 세계의 사실 — Engine 은 내용을 모른 채 통째 담는다 |
 | CoreWorldState.time | O | 세계의 나이 — 관찰자가 없어도 흐른 시간이 사실이다 |
 | CoreWorldState.observers (Id → 몸의 귀속, acknowledgedMark) | O | "그 몸은 그 관찰자의 것" 이 영속의 핵심 사실이다 |
 | observers[].present | **복구 시 전부 false** | 기동 직후 아무도 보고 있지 않다 — 이어짐은 과정이다 |
@@ -51,10 +51,10 @@ INTENT-OBSERVER-REJOIN-001 이 이미 소유하고, 영속은 그 의미가 성�
 
 만료 수명을 가진 이벤트 목록(strikeEvents 등)도 특별 취급하지 않고 State 의 일부로
 그대로 담는다 — 복구 후 기존 만료 규칙이 알아서 정리한다. 특례를 만들면 Engine 이
-팩 State 를 해석하게 된다 (원칙 1 위반).
+컨텐츠 State 를 해석하게 된다 (원칙 1 위반).
 
 `present=false` 강제만이 복구 시 Engine 이 손대는 유일한 지점이며, 이는 Engine 이
-소유한 CoreWorldState 안이다 — 팩 영역은 건드리지 않는다.
+소유한 CoreWorldState 안이다 — 컨텐츠 영역은 건드리지 않는다.
 
 ## 복구 단위 — 세계 하나, 전체
 
@@ -67,18 +67,18 @@ INTENT-OBSERVER-REJOIN-001 이 이미 소유하고, 영속은 그 의미가 성�
 
 ```text
 engine/world-kernel/persistence.ts
-  WorldSnapshot = { version: string, state: <팩 State, plain JSON 데이터> }
+  WorldSnapshot = { version: string, state: <컨텐츠 State, plain JSON 데이터> }
   takeSnapshot(version, state)      복제해 담는다 — 이후의 세계 진행이 스냅샷을 못 건드린다
   restoreState(snapshot, version)   되살린다 — 버전 불일치면 null. 복구 시 Engine 이
                                     손대는 유일한 지점: 모든 observers[].present = false
 
 engine/world-kernel/kernel.ts
   World.snapshot(): WorldSnapshot   Tick 사이에 현재 State 를 데이터로 내놓는다.
-                                    버전은 WorldContent.stateVersion — 팩이 선언하고 올린다
+                                    버전은 WorldContent.stateVersion — 컨텐츠가 선언하고 올린다
 
-content/<pack>/world/index.ts
+content/world/index.ts
   createWorld(setup, restored?)     restored 가 있으면 초기 배치 대신 그 State 로 커널을
-                                    조립한다. 팩은 복구 State 를 해석하지 않는다
+                                    조립한다. 컨텐츠는 복구 State 를 해석하지 않는다
   restoreWorld(snapshot)            restoreState 를 자기 STATE_VERSION 으로 부른다
                                     (STATE_VERSION 은 semantic/world-state.ts 헤더 상수)
 
@@ -94,17 +94,17 @@ server/ (조립 — 세계를 띄우는 쪽)
   비정상 종료 시 최근 몇 초의 유실은 정직한 한계로 받아들인다
 ```
 
-전제이자 새 계약: **팩 State 는 plain JSON 데이터다** (함수·클래스·Map 금지).
+전제이자 새 계약: **컨텐츠 State 는 plain JSON 데이터다** (함수·클래스·Map 금지).
 현재 이미 사실이며(배열·객체·수·문자열뿐), 이 설계로 계약이 된다 —
 `boundary:check` 수준의 상시 검사로 승격할 후보다.
 
-## 버전 — 팩이 바뀌면 스냅샷은 버린다
+## 버전 — 컨텐츠가 바뀌면 스냅샷은 버린다
 
-스냅샷은 `version`(팩 id + 팩이 올리는 State 형태 버전)을 지닌다. 불일치하면
+스냅샷은 `version`(컨텐츠 이름 + 컨텐츠가 올리는 State 형태 버전)을 지닌다. 불일치하면
 복구하지 않고 새 세계로 시작하며 로그로 밝힌다. 마이그레이션은 만들지 않는다 —
 Cycle 마다 State 형태가 자라는 프로토타입에서 마이그레이션 비용은 얻는 것보다
 크고, "버렸다" 를 숨기지 않는 것이 정직하다. 형태를 바꾼 Cycle 이 버전을 올릴
-책임을 진다 (팩 소유).
+책임을 진다 (컨텐츠 소유).
 
 ## 저장소의 진화 — DB(MongoDB 등)가 들어오는 자리
 
@@ -129,33 +129,33 @@ Cycle 마다 State 형태가 자라는 프로토타입에서 마이그레이션 
 
 3단계  세밀한 영속         어댑터 교체가 아니라 **새 설계 결정** — 필요해질 때만.
        (필요 시점에        플레이어별 문서 · 변경분만 쓰기 · 이벤트 저널은 누군가
-        별도 설계)         팩 State 를 "관찰자 소유 사실 / 세계 공유 사실" 로 갈라야
+        별도 설계)         컨텐츠 State 를 "관찰자 소유 사실 / 세계 공유 사실" 로 갈라야
                           하는데, 그 해석을 Engine 이 하면 원칙 1 이 깨진다.
-                          따라서 팩이 영속 투영을 소유하는 계약이 새로 서야 하며,
+                          따라서 컨텐츠가 영속 투영을 소유하는 계약이 새로 서야 하며,
                           그때도 이 문서의 두 답(사실 전부 / 과정 전무 · Tick 경계)은
                           그 위에 그대로 유효하다
 ```
 
 경계 하나만 지키면 된다: **세계의 규칙·State 는 자신이 어디에 저장되는지 몰라야
-한다.** DB 클라이언트가 `engine/` 이나 `content/<pack>/world/` 로 들어오는 순간
+한다.** DB 클라이언트가 `engine/` 이나 `content/world/` 로 들어오는 순간
 이 설계가 깨진 것이다 — 저장소는 언제나 `server/` 조립 층의 `WorldStore` 뒤에 산다.
 
 ## 검증
 
 두 층의 테스트가 상시 확인한다 (`npm test`):
 
-1. 커널 계약 (`engine/world-kernel/tests/persistence.spec.ts` — 인라인 최소 팩, content
+1. 커널 계약 (`engine/world-kernel/tests/persistence.spec.ts` — 인라인 최소 컨텐츠, content/
    무의존): 스냅샷 격리 · present=false 와 재참여 시 몸 이어짐 · 결정론(끊김 없이
    2N Tick == N Tick → 스냅샷 → 복구 → N Tick) · 버전 불일치 거부
-2. 팩 실측 (`content/proto-adventure/world/tests/persistence.spec.ts`): 소지품·장비·
+2. 컨텐츠 실측 (`content/world/tests/persistence.spec.ts`): 소지품·장비·
    광맥 잔량이 스냅샷을 거쳐 그대로다 — "걸어 둔 것이 재접속 후 그대로" 의 실측 —
    그리고 자율 존재가 있는 기본 배치 세계의 결정론이 스냅샷을 거쳐도 이어진다
 
 ## 레인과 경계
 
 - 이 작업은 ENGINE 레인이다. 단, 조립 지점(`server/`)이 함께 열린다 —
-  works.md 의 ENGINE 쓰기 범위(`engine/`)에 조립 층(`server/`)이 어느 레인
+  기반 쓰기 범위(`engine/`)에 조립 층(`server/`)이 어느 쪽
   소유인지 공백이 있다. 이 작업 한정으로 engine+server 를 한 몸으로 보되,
   공백 자체는 PROCESS 레인에 보고한다.
-- `content/` 는 팩 채택 최소분만 열린다 — `createWorld` 의 restored 인자 ·
-  `restoreWorld` · `STATE_VERSION` 상수 (proto-adventure 와 blank 두 팩 모두).
+- `content/` 는 채택 최소분만 열린다 — `createWorld` 의 restored 인자 ·
+  `restoreWorld` · `STATE_VERSION` 상수.

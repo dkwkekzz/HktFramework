@@ -1,4 +1,4 @@
-// World Semantic — Observer (C004 ADDED)
+// World Semantic — Observer
 //
 // 세계가 아는 관찰자. 관찰자는 세계 밖의 구경꾼이 아니라 세계가 알고 있는 존재다
 // (INTENT-OBSERVER-JOIN-001).
@@ -9,7 +9,6 @@
 //   Present   지금 이 관찰자가 세계를 보고 있는가.
 //             거짓이어도 몸은 세계에 남는다 (INTENT-OBSERVER-LEAVE-001).
 //
-// C005 ADDED
 //   AcknowledgedMark  이 관찰자에게서 받아들인 마지막 표식 (INTENT-OBSERVER-MARK-001).
 //                     관찰자가 매기지만 무엇을 받아들였는지는 세계가 정한다.
 //                     게임 상태가 아니다 — 세계의 물건도 몸도 시간도 이것 때문에

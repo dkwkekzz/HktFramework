@@ -8,7 +8,7 @@ export interface ActionRequest {
   targetEntityId?: string; // entity 대상 interaction 용
   // 팩 고유 파라미터(이동 모드·속성 변경 등)는 각 팩의 protocol/actions.ts 가
   // 이 형을 확장해 더한다 (P2 CHANGED) — 봉투는 게임 의미를 모른다.
-  // C009 ADDED — Request.Mark. 이 요청에 관찰자가 붙인 표식.
+  // Request.Mark. 이 요청에 관찰자가 붙인 표식.
   // 세계는 이것을 해석하지도 저장하지도 않고 대답에 그대로 되돌린다
   // (INTENT-REPLY-CORRESPONDENCE-001). 연달아 건 요청의 대답을 짚는 수단이다.
   mark?: number;

@@ -36,7 +36,7 @@ World가 거리·상태·접촉 등 실제 성공 조건을 판정한다
 
 - `observe`, `mine`, 디버그 속성 변경은 대상 ID를 받는다.
 - 공격은 대상을 받지 않고 전방의 Swing Collider 접촉으로만 맞은 존재를 정한다.
-- 관찰 결과는 관찰자별로 투영되며, C014/C016에 의해 상대 정보가 공개·가림·통찰 공개로
+- 관찰 결과는 관찰자별로 투영되며, 살펴봄·통찰 층에 의해 상대 정보가 공개·가림·통찰 공개로
   나뉜다.
 
 따라서 없는 것은 새로운 공격 계산이 아니라 다음의 공통 연결점이다.
@@ -92,8 +92,8 @@ Acquaintance 살펴보기를 마쳐 전투 정보를 알게 된 존재
 Insight      살펴보지 않아도 일부 정보를 드러내는 Actor 성질
 ```
 
-처음 보는 적도 선택할 수 있고 공격할 수 있다. 다만 C014의 가려진 전투 정보는 그대로
-가려진다. `Observe`를 완료하거나 C016의 Insight 문턱을 만족해야 정보가 열린다.
+처음 보는 적도 선택할 수 있고 공격할 수 있다. 다만 살펴봄 층의 가려진 전투 정보는 그대로
+가려진다. `Observe`를 완료하거나 통찰 층의 Insight 문턱을 만족해야 정보가 열린다.
 
 # 3. 플레이 흐름
 
@@ -137,7 +137,7 @@ Snapshot의 **현재 투영값**을 보여 준다.
 
 조건부 표시
   CombatStats / DefenseShape / versusObserver
-  → C014 Acquaintance와 C016 Insight 규칙을 그대로 사용
+  → 살펴봄의 Acquaintance와 통찰의 Insight 규칙을 그대로 사용
 
 행동 문맥
   공격 가능 여부와 불가 사유
@@ -162,7 +162,7 @@ CurrentTarget 없음          → 실패: no-target-selected
 그 외                       → 기존 Observe 시작
 ```
 
-시간, 거리, 중단, Acquaintance 획득은 C014 규칙을 바꾸지 않는다. 타겟 시스템은 기존
+시간, 거리, 중단, Acquaintance 획득은 살펴봄 층의 규칙을 바꾸지 않는다. 타겟 시스템은 기존
 `targetEntityId`를 채워 주는 공통 선택 문맥만 제공한다.
 
 ## 3.4 공격
@@ -267,7 +267,7 @@ R0에서 다음을 만족하는 존재만 선택할 수 있다.
 
 # 5. Engine API와 Content 조립 설계
 
-타겟팅을 전부 `content/proto-adventure`에만 구현하면 현재 `view-kernel`의 클릭 경로와
+타겟팅을 전부 `content/`에만 구현하면 현재 `view-kernel`의 클릭 경로와
 충돌한다. 지금 Engine Input은 Entity 클릭을 곧바로 "그 Entity를 대상으로 하는 첫
 Interaction 실행"으로 해석한다. 타겟팅 이후의 클릭은 먼저 선택 요청이어야 하므로 Engine에
 **입력 해석 정책을 주입하는 자리**가 필요하다.
@@ -289,19 +289,19 @@ Engine이 추가로 제공
   ActionRequest           interactionId + targetEntityId 봉투 그대로 사용
   Interaction Registry    select-target / clear-target도 Content Handler로 등록
   State Generic           Content WorldState가 selections를 확장
-  projectObserver         관찰자별 선택 결과를 팩 GameView로 투영
+  projectObserver         관찰자별 선택 결과를 컨텐츠 GameView로 투영
 
 Content가 구현
   선택 상태와 선택 가능 조건
   select-target / clear-target Rule
   적대 관계, Tab 후보, 공격/관찰/채굴 가용성
-  팩 GameView의 target 의미
+  컨텐츠 GameView의 target 의미
   Target Frame 문구·색·행동 우선순위
 ```
 
 `engine/protocol-core/actions.ts`에는 이미 `targetEntityId`가 있으므로 새 필드를 추가하지 않는다.
 `CoreWorldState`와 코어 `GameViewSnapshot`에도 타겟 필드를 강제하지 않는다. 타겟 없는
-`content/blank`도 계속 성립해야 하며, 팩 고유 Snapshot 의미는 기존 규약대로 팩 Protocol이
+세계도 계속 성립해야 하며, 컨텐츠 고유 Snapshot 의미는 기존 규약대로 컨텐츠 Protocol이
 확장한다.
 
 ## 5.2 Engine View API — Pointer Intent Policy
@@ -334,18 +334,18 @@ export function attachInput(
 ): void;
 ```
 
-기본값은 기존 동작을 그대로 구현한다. 따라서 blank 팩과 기존 조립은 변경 없이 동작한다.
-proto-adventure만 자신의 정책을 주입한다.
+기본값은 기존 동작을 그대로 구현한다. 따라서 기존 조립은 변경 없이 동작하고,
+컨텐츠만 자신의 정책을 주입한다.
 
 ```ts
-// content/proto-adventure/view/pointer-intent.ts
+// content/view/pointer-intent.ts
 export const POINTER_INTENT: PointerIntentPolicy = {
   entity: (entityId) => ({
     interactionId: 'select-target',
     targetEntityId: entityId,
   }),
   ground: (position, scene) => {
-    // 빈 땅 클릭을 해제로 쓸지 이동으로 쓸지는 팩 결정이다.
+    // 빈 땅 클릭을 해제로 쓸지 이동으로 쓸지는 컨텐츠 결정이다.
     // R0 권장안은 이동을 보존하고 Esc만 clear-target으로 사용한다.
     const move = scene.interactions.find((entry) => entry.terrainTarget);
     return move ? { interactionId: move.id, position } : null;
@@ -394,7 +394,7 @@ export interface SceneState {
 - Content View가 관계색, Meter 내용, 문구를 확정한 뒤 범용 지시로 내보낸다.
 
 처음부터 범용 Panel 시스템 전체를 만들 필요는 없다. T1은 `selection`과 생명 Meter 하나가 있는
-작은 `focusPanel`만 구현하고, 두 번째 팩/패널이 실제로 요구될 때 일반화한다.
+작은 `focusPanel`만 구현하고, 두 번째 세계/패널이 실제로 요구될 때 일반화한다.
 
 ## 5.4 World 쪽은 Engine Kernel 변경 없이 조립한다
 
@@ -402,7 +402,7 @@ World Kernel은 이미 필요한 확장점을 제공한다. 선택도 몸이 세
 Interaction Registry를 그대로 사용한다.
 
 ```ts
-// content/proto-adventure/world/semantic/targeting.ts
+// content/world/semantic/targeting.ts
 export interface TargetSelectionState {
   observerId: string;
   targetEntityId: string;
@@ -415,15 +415,15 @@ export function selectedTarget(
 ```
 
 ```ts
-// content/proto-adventure/world/semantic/world-state.ts
+// content/world/semantic/world-state.ts
 export interface WorldState extends CoreWorldState {
-  // 기존 팩 상태...
+  // 기존 컨텐츠 상태...
   targetSelections: TargetSelectionState[];
 }
 ```
 
 ```ts
-// content/proto-adventure/world/rules/target-select.ts
+// content/world/rules/target-select.ts
 export function ruleTargetSelect(
   state: WorldState,
   observerId: string,
@@ -456,7 +456,7 @@ ClearTarget
 Interaction 등록은 기존 Registry에 두 항목만 더한다.
 
 ```ts
-// content/proto-adventure/world/actions/interactions.ts
+// content/world/actions/interactions.ts
 {
   id: 'select-target',
   handle: (state, observerId, action) =>
@@ -472,13 +472,13 @@ Interaction 등록은 기존 Registry에 두 항목만 더한다.
 
 `select-target`를 Engine Dispatch의 특별 분기로 만들지 않는다. Engine은 지금처럼
 unknown observer와 unknown interaction만 판정하고, 주소 지정 가능성이나 선택 가능 Role은
-팩 Rule이 판정한다.
+컨텐츠 Rule이 판정한다.
 
 ## 5.5 Content Protocol API
 
-팩 Protocol은 World가 확정한 현재 선택과 대상 문맥을 Snapshot에 추가한다.
+컨텐츠 Protocol은 World가 확정한 현재 선택과 대상 문맥을 Snapshot에 추가한다.
 
-제안 파일: `content/proto-adventure/protocol/gameview.ts`
+제안 파일: `content/protocol/gameview.ts`
 
 ```ts
 export interface TargetContextView {
@@ -496,7 +496,7 @@ export interface TargetContextView {
 }
 
 export interface GameViewSnapshot extends CoreGameViewSnapshot {
-  // 기존 팩 필드...
+  // 기존 컨텐츠 필드...
   target?: TargetContextView;
 }
 ```
@@ -530,10 +530,10 @@ evaluateObserveBegin / evaluateTargetedAttack / Interaction 평가
 TargetContextView 투영
 ```
 
-Content View는 팩의 의미를 Engine의 범용 Scene 지시로 결정한다.
+Content View는 컨텐츠의 의미를 Engine의 범용 Scene 지시로 결정한다.
 
 ```ts
-// content/proto-adventure/view/resolve-target.ts
+// content/view/resolve-target.ts
 export function resolveTarget(
   snapshot: GameViewSnapshot,
 ): Pick<SceneState, 'selection' | 'focusPanel'>;
@@ -544,7 +544,7 @@ relation=hostile  → 관계색 빨강 + "적대"
 relation=neutral  → 관계색 노랑 + "중립"
 relation=friendly → 관계색 초록 + "우호"
 concealed         → codeText를 거친 "관찰하지 않음"
-actions           → 팩 interaction-presentation의 키·프롬프트
+actions           → 컨텐츠 interaction-presentation의 키·프롬프트
 ```
 
 조립 경로는 다음 하나로 닫는다.
@@ -552,8 +552,8 @@ actions           → 팩 interaction-presentation의 키·프롬프트
 ```text
 World State.targetSelections
   → projectObserver
-  → proto-adventure GameView.target
-  → resolveTarget (팩 결정)
+  → 컨텐츠 GameView.target
+  → resolveTarget (컨텐츠 결정)
   → SceneState.selection / focusPanel
   → Engine Renderer / HUD
 ```
@@ -605,7 +605,7 @@ return ruleTargetedSkillBegin(state, context.actor, context.target, 'attack');
 
 ## 5.8 타겟 수명 시스템
 
-대상 제거 시 정리는 팩의 `systems` 배열에 명시적으로 등록한다.
+대상 제거 시 정리는 컨텐츠의 `systems` 배열에 명시적으로 등록한다.
 
 ```ts
 export const systems: readonly WorldSystem<WorldState>[] = [
@@ -616,19 +616,19 @@ export const systems: readonly WorldSystem<WorldState>[] = [
 ```
 
 정리 시스템은 "Entity가 존재하는가 / 이 관찰자에게 계속 주소 지정 가능한가"만 본다. 거리,
-화면 밖, Downed는 해제 조건이 아니므로 읽지 않는다. 정확한 시스템 순서는 Cycle Stage 3에서
+화면 밖, Downed는 해제 조건이 아니므로 읽지 않는다. 정확한 시스템 순서는 그 Cycle 의 `02-world.md` 에서
 기존 시스템 배열과 함께 확정한다.
 
 ## 5.9 무엇을 Engine으로 올리지 않는가
 
-프로젝트의 승격 규칙(rule of two)에 따라 다음은 proto-adventure Content에 먼저 둔다.
+프로젝트의 승격 규칙(rule of two)에 따라 다음은 `content/` 에 먼저 둔다.
 
 - `TargetSelectionState` 저장 구조와 선택 Rule
 - `requireCurrentTarget`, Tab 후보 정렬, 적대 관계 판정
 - TargetContextView와 Target Frame 내용
 - 대상 공격의 거리/Facing/Collider 연결
 
-두 번째 팩이 동일한 선택 장부와 수명 규칙을 실제로 요구할 때만
+두 번째 세계가 동일한 선택 장부와 수명 규칙을 실제로 요구할 때만
 `engine/world-kernel/selection.ts` 같은 순수 라이브러리 승격을 검토한다. 그때도 Engine은
 Entity 목록을 직접 알지 않고 Content가 `isAddressable(observerId, entityId)` 판정을 주입하는
 형태여야 한다.
@@ -671,7 +671,7 @@ View는 가장 가까운 적을 자체적으로 공격 대상으로 확정하거
 
 # 7. 관찰 계약 초안
 
-GameView에는 관찰자별로 다음 의미가 필요하다. 필드명은 Cycle Stage 4에서 확정한다.
+GameView에는 관찰자별로 다음 의미가 필요하다. 필드명은 그 Cycle 의 `04-gameview.md` 에서 확정한다.
 
 ```yaml
 target:
@@ -804,11 +804,11 @@ R0 전체가 닫혔다고 판단하려면 다음이 실제 플레이와 검증�
 
 1. 두 관찰자가 같은 세계에서 서로 다른 Current Target을 가질 수 있다.
 2. 선택한 대상 프레임이 대상의 현재 생명·행동·거리 변화에 맞춰 갱신된다.
-3. 관찰하지 않은 상대의 C014 정보는 타겟했다고 열리지 않는다.
+3. 관찰하지 않은 상대의 살펴봄 정보는 타겟했다고 열리지 않는다.
 4. Current Target으로 Observe를 완료하면 기존 Acquaintance/Insight 규칙대로 정보가 열린다.
 5. 타겟이 없거나, 사거리 밖이거나, 공격 불가능한 대상을 공격하면 정확한 사유로 실패한다.
 6. 유효한 타겟을 공격해도 Collider가 닿지 않으면 피해가 발생하지 않는다.
-7. 접촉하면 C010~C016의 피해·방어·관통·치명타 계산이 같은 값으로 실행된다.
+7. 접촉하면 전투 사다리(기본 공식 ~ Aura/Nen 층)의 피해·방어·관통·치명타 계산이 같은 값으로 실행된다.
 8. 광맥을 선택하고 Primary Interaction을 실행하면 기존 Mine 규칙이 동작한다.
 9. 멀어지거나 화면 밖으로 나간 것만으로 타겟이 풀리지 않으며 불가 사유가 갱신된다.
 10. 대상이 세계에서 제거되면 타겟과 대상 프레임이 함께 정리된다.

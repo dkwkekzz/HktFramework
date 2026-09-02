@@ -1,8 +1,10 @@
 # Design — 이펙트 (F1): 사건의 읽는 법
 
-status: IMPLEMENTED — 기반은 `engine/view-kernel/fx/`, 사상표는 팩의
-`view/effect-presentation.ts`, 게놈 실험실은 `tools/fx-lab/`.
-검증: `tools/fx-lab/test/{fx-shot,lab-smoke,overlay-shot}.js` · `view/tests/effect.spec.ts`.
+status: 기반만 있음 — 이펙트 레이어(`engine/view-kernel/fx/`)와 게놈 실험실
+(`tools/fx-lab/`)은 이 기준선에 그대로 있으나, **컨텐츠 쪽 사상표
+(`content/view/effect-presentation.ts`)와 그 검사(`content/view/tests/effect.spec.ts`)는 없다.**
+컨텐츠를 되돌리며 함께 빠졌다 — 이 문서를 Cycle 로 옮길 때 그 둘부터 세운다.
+검증(기반): `tools/fx-lab/test/{fx-shot,lab-smoke,overlay-shot}.js`.
 
 ## 목적
 
@@ -24,8 +26,8 @@ status: IMPLEMENTED — 기반은 `engine/view-kernel/fx/`, 사상표는 팩의
 ```text
 tools/fx-lab/                    게놈을 눈으로 맞추는 실험실 (게임과 무관하게 혼자 돈다)
 engine/view-kernel/fx/           그 게놈을 게임 화면 위에 켜는 능력 (게임 의미를 모른다)
-content/<pack>/view/
-    effect-presentation.ts       어떤 사건이 어떤 게놈을 얼마나 세게 켜는가 (팩의 결정)
+content/view/
+    effect-presentation.ts       어떤 사건이 어떤 게놈을 얼마나 세게 켜는가 (컨텐츠의 결정)
 ```
 
 런타임(`engine/view-kernel/fx/splat/*.js`)은 **사본이 하나다.** 랩과 게임이 같은 파일을
@@ -39,7 +41,7 @@ content/<pack>/view/
 
 1. **같은 규칙에 두 개의 진실이 생긴다.** 세계가 이펙트를 알면 판정의 진실(피해 12)과
    화면의 진실(무슨 이펙트)이 따로 자란다. 둘이 어긋나는 날 어느 쪽이 규칙인지 말할 수 없다.
-2. **관찰자마다 다를 수 있어야 한다.** 저사양·접근성·다른 팩은 같은 세계를 다른 그림으로
+2. **관찰자마다 다를 수 있어야 한다.** 저사양·접근성·다른 컨텐츠는 같은 세계를 다른 그림으로
    본다. 이펙트가 세계에 있으면 그때 세계를 고쳐야 한다 — View 는 독립적인 Client 다
    (CLAUDE.md 원칙 12·14).
 3. **이미 그렇게 하고 있다.** sprite·라벨 형식·문구·키가 전부 View 의 결정이다.
@@ -97,7 +99,7 @@ Master 로 올릴 것이 딱 하나 있다면 카탈로그가 아니라 이 한 
 ```
 
 이것은 표현 결정이 아니라 *세계가 무엇을 밝히는가*에 관한 제한이라 Constraint 의 자리다.
-C014(살펴봄)·C016(통찰)이 세운 "가림" 은, 가려진 것이 이펙트로 새어 나가는 순간 값어치를
+살펴봄·통찰이 세울 "가림" 은, 가려진 것이 이펙트로 새어 나가는 순간 값어치를
 잃는다 — 상대의 방어 형태를 살펴보지 않았는데 이펙트가 그것을 말해 주면, 살펴봄이 할 일이
 없어진다. 승격 여부는 Human 이 정한다 (CLAUDE.md 원칙 19). 여기서는 후보로만 남긴다.
 
@@ -107,7 +109,7 @@ C014(살펴봄)·C016(통찰)이 세운 "가림" 은, 가려진 것이 이펙트
 
 ```text
 사건이 정한다 (표)     세기 · 자리 · 축 · 각도 · 초기 반경
-                       → content/<pack>/view/effect-presentation.ts
+                       → content/view/effect-presentation.ts
 게놈이 정한다 (모양)   퍼짐 · 갈래 · 점멸 · 색 · 수명 · 강도 감도 …
                        → engine/view-kernel/fx/splat/fx.js FX_PRESETS (랩에서 맞춘다)
 ```
@@ -159,11 +161,11 @@ C014(살펴봄)·C016(통찰)이 세운 "가림" 은, 가려진 것이 이펙트
 
 | 사건 | 어디서 오는가 | 표 | 이펙트 |
 |---|---|---|---|
-| 막아 냈다 | C011 `guard.blocked` | `GUARD_EFFECTS` | 물결파 — 세기는 *덜 들어간 만큼* |
-| 방어가 무너졌다 | C011 `guard.broken` | `GUARD_EFFECTS` | 삼중 파문 — 피해량과 무관한 고정 세기 |
-| 관통이 방어를 걷었다 | C013 | — | 피해량이 커져 세기로 드러난다 |
-| 한 번 캤다 | C001 광맥 잔량 감소 | `WORLD_EVENT_EFFECTS` | 타격 (작게) |
-| 알게 되었다 | C014 · C016 `acquainted` 뒤집힘 | `WORLD_EVENT_EFFECTS` | 회복 오라 |
+| 막아 냈다 | `guard.blocked` | `GUARD_EFFECTS` | 물결파 — 세기는 *덜 들어간 만큼* |
+| 방어가 무너졌다 | `guard.broken` | `GUARD_EFFECTS` | 삼중 파문 — 피해량과 무관한 고정 세기 |
+| 관통이 방어를 걷었다 | 관통 층 | — | 피해량이 커져 세기로 드러난다 |
+| 한 번 캤다 | 광맥 잔량 감소 | `WORLD_EVENT_EFFECTS` | 타격 (작게) |
+| 알게 되었다 | `acquainted` 뒤집힘 | `WORLD_EVENT_EFFECTS` | 회복 오라 |
 
 막기는 치는 쪽이 아니라 **받는 쪽**의 사건이라 표가 따로다 — 어떤 스킬로 맞았든 막아 낸
 파문은 같은 규칙으로 읽혀야 한다.
@@ -171,7 +173,7 @@ C014(살펴봄)·C016(통찰)이 세운 "가림" 은, 가려진 것이 이펙트
 두 줄이 없다는 것도 기록해 둔다.
 
 - **채굴은 세계가 사건으로 내지 않는다.** 광맥 잔량이 줄어든 것이 그 사건이라, 두 관찰
-  결과의 *차이*로 읽는다 (C008 의 `facingSides` 와 같은 규칙 — 조립 루트가 기억한다).
+  결과의 *차이*로 읽는다 (`facingSides` 와 같은 규칙 — 조립 루트가 기억한다).
   세계가 "한 번 캤다" 를 사건으로 내게 되면 그때 이 우회는 지운다.
 - **살펴봄도 마찬가지다.** `acquainted` 가 뒤집히는 것으로만 드러난다.
 

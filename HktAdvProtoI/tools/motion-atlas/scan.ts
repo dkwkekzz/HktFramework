@@ -8,13 +8,13 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join, relative, resolve } from 'node:path';
-import { activePackDir } from '../active-pack';
+import { contentDir } from '../content-root';
 import { buildAtlas, type SheetReport } from './build-atlas';
 import { renderAtlasModule, sameGeneratedContent, writeIfChanged } from './emit';
 
-/** 생성물이 놓이는 자리 — 활성 팩의 view/ 다 (P4: 모션 데이터는 팩 소유) */
+/** 생성물이 놓이는 자리 — 컨텐츠의 view/ 다 (모션 데이터는 컨텐츠 소유) */
 export function atlasModulePath(root: string): string {
-  return join(activePackDir(root), 'view', 'motion-atlas.generated.ts');
+  return join(contentDir(root), 'view', 'motion-atlas.generated.ts');
 }
 
 export function projectRoot(): string {

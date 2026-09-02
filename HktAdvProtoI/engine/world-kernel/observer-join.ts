@@ -37,7 +37,7 @@ export function ruleObserverJoin<S extends CoreWorldState>(
     // 재참여 — 몸은 그대로다. 자리 · 가진 것 · 하던 행동이 이어진다.
     // 같은 Id 로 다른 이어짐이 보고 있었다면 그 이어짐은 떨어진다.
     // 몸 하나에 조종하는 이는 하나이며, 그 떼어냄은 이어짐을 쥔 쪽(server)이 수행한다.
-    // AcknowledgedMark 는 되돌리지 않는다 (C005) — 같은 관찰자가 이어 온 것이므로
+    // AcknowledgedMark 는 되돌리지 않는다 — 같은 관찰자가 이어 온 것이므로
     // 세계가 받아들인 자리도 이어진다.
     known.present = true;
     return { status: 'success', rule: RULE_OBSERVER_JOIN };
@@ -47,7 +47,7 @@ export function ruleObserverJoin<S extends CoreWorldState>(
   const ordinal = state.observers.length;
   const actorId = spawnBody(state, ordinal);
 
-  // AcknowledgedMark 는 0 에서 시작한다 (C005) — 아직 이 관찰자에게서 받은 표식이 없다.
+  // AcknowledgedMark 는 0 에서 시작한다 — 아직 이 관찰자에게서 받은 표식이 없다.
   state.observers.push({ id: observerId, actorId, present: true, acknowledgedMark: 0 });
 
   return { status: 'success', rule: RULE_OBSERVER_JOIN };

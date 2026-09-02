@@ -348,7 +348,7 @@ UI에는 모두 동일하게 **Response 버튼 하나**만 존재할 수 있다.
 
 ## 5. Response Window
 
-기존 C019의 시점 판정 기반 위에서 공격은 Response 가능한 시간을 가진다.
+지금 있는 시점 판정 기반 위에서 공격은 Response 가능한 시간을 가진다.
 
 ```text
 Attack Telegraph
