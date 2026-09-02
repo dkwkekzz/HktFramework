@@ -25,7 +25,9 @@ Human 이 작성·개정한 **원본**이다. Agent 는 이 문서들을 바꾸�
 | `Design-System-Content-Separation.md` | **기반(engine) / 컨텐츠(content) 분리** — 지금 코드가 선 자리 |
 | `Design-World-Persistence.md` | 세계 스냅샷과 복구 |
 | `Design-Effect-Presentation.md` | 이펙트 장치 |
-| `Design-Terrain-Visualization.md` | 지형 시각화 |
+| `Design-Terrain-Visualization.md` | 지형 시각화 (지면 구역 장치) |
+| `Design-World-Editor-Terrain-Compiler.md` | **세계 제작 도구** — AI World Editor + Terrain Compiler (Human 주입 원문, 약칭 WE · 로드맵 2층의 도구 재료) |
+| `Plan-World-Authoring-Engine.md` | WE 를 이 저장소의 engine/content 위에 세우는 제안 — 받는 것·바꾸는 것·1단계 범위·Human 질문 |
 
 ## Play Design
 
@@ -38,7 +40,7 @@ Human 승인의 공동 문서다 (Design-DesignAuthoringWorkflow.md §9). 한 Pl
 
 | 갈래 | 문서 | 약칭 |
 |---|---|---|
-| 세계 | `Design-World-Beira.md` · `Design-World-Beira-Terrain.md` · `Design-World-Spatial-Presence.md` | BW |
+| 세계 | — (2층 주입 대기. 도구는 위 공정·기반 표의 WE) | — |
 | 성장 | `Design-Fairy-Growth-System.md` · `Design-Growth-Balance-R0.md` · `Design-Fairy-Class-Layer0-R0.md` | — · FC |
 | 전투 | `Design-Combat-OffenseDefense-R0.md` · `Design-Combat-DamageType-R0.md` · `Design-Combat-UpperLayer-R0.md` · `Design-Combat-Knowledge-Extension-R0.md` | R1 · DT · UL · CK |
 | 지목 | `Design-Targeting-R0.md` | TG |

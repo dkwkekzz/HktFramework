@@ -6,7 +6,7 @@
 이 문서는 기능·콘텐츠·수치를 정의하지 않는다. 새 시스템·Play 가 "우리 게임이
 추구하는 경험과 맞는가"를 판단하는 상위 기준일 뿐이다
 ([Design-DesignAuthoringWorkflow.md](../../design/Design-DesignAuthoringWorkflow.md) §3).
-BW = [design/Design-World-Beira.md](../../design/Design-World-Beira.md).
+BW 절 인용은 출처 표기일 뿐이다 — 인용된 문장은 이 문서가 소유하며, `design/` 에 그 원본은 없다.
 
 ---
 
