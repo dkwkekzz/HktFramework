@@ -10,7 +10,7 @@ const player = (v: GameViewSnapshot) => v.entities.find((e) => e.id === PLAYER);
 const mine = (v: GameViewSnapshot) => v.interactions.find((i) => i.id === 'mine');
 
 describe('RULE-MOVE-001', () => {
-  it('Bounds 안 지점 → 이동 행동 진입, move 상태 관찰', () => {
+  it('그 몸이 선 Region 의 extent 안 지점 → 이동 행동 진입, move 상태 관찰 (C001 전제 1)', () => {
     const world = driveWorld(solo);
 
     const result = world.dispatch({ interactionId: 'move', position: { x: 8, z: -6 } });
@@ -19,7 +19,7 @@ describe('RULE-MOVE-001', () => {
     expect(player(world.observe())?.state).toBe('move');
   });
 
-  it('Bounds 밖 지점 → Failure(out-of-bounds), idle 유지', () => {
+  it('Region extent 밖 지점 → Failure(out-of-bounds), idle 유지', () => {
     const world = driveWorld(solo);
 
     const result = world.dispatch({ interactionId: 'move', position: { x: 999, z: 0 } });

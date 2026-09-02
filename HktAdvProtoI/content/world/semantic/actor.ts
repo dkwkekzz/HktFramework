@@ -13,6 +13,8 @@
 //   ADDED   Body.Radius · Body.Height · Body.Mass · Velocity · Facing
 //   Velocity 는 의도한 이동(move)과 별개로, 힘(밀어냄·충격량)만이 바꾸는 물리 속도다.
 //   Facing 은 몸이 향한 방향 (R1) — 이동이 갱신하고, 휘두름 충돌체가 나가는 쪽이다.
+// C001 변경: WorldPosition 은 regionId + (x, z) 다 — 몸은 어느 방에 서 있는지를 가진다.
+//   ADDED   RegionId — RULE-REGION-TRANSIT-001 만이 바꾼다. 좌표는 그 Region 의 Local Space 다.
 
 import type { CurrentAction } from './action';
 import type { MoveMode } from './combat';
@@ -31,6 +33,8 @@ export interface ActorState {
   name: string;
   characterKind: CharacterKind;
   control: ActorControl;
+  /** 몸이 선 Region — position 은 이 Region 의 Local Space 좌표다 (C001) */
+  regionId: string;
   position: WorldPosition;
   bodyRadius: number; // Body.Radius — 고정 상수
   bodyHeight: number; // Body.Height — 고정 상수 — 캡슐 부피 관찰용

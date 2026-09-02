@@ -13,6 +13,7 @@
 //
 // 휘두름은 이제 피해를 실어 나르고, 맞혀야 기력이 돈다.
 // 쓰러진 몸은 대상에서 빠진다 — 더 이상 타격의 대상이 아니다 (INTENT-DOWNED-001).
+// C001 AFFECTED — 다른 Region 의 몸은 대상이 아니다. 좌표가 겹쳐도 맞지 않는다 (02-world R5).
 
 import { actionCollider, CENTER_EPSILON, SWING_IMPULSE } from '../semantic/collision';
 import { isDowned, isSkillKind } from '../semantic/combat';
@@ -36,6 +37,7 @@ export function ruleSwingStrike(state: WorldState): number {
 
     for (const target of state.actors) {
       if (target.id === attacker.id) continue;
+      if (target.regionId !== attacker.regionId) continue; // 다른 방의 몸은 없는 것과 같다 (C001 R5)
       if (struck.includes(target.id)) continue;
       if (isDowned(target)) continue; // 쓰러진 몸은 대상이 아니다
 

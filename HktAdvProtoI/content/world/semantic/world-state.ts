@@ -3,12 +3,15 @@
 //
 // P1 CHANGED — 시간·관찰자는 Engine 의 CoreWorldState 가 소유하고,
 // 이 팩의 세계에 무엇이 있는지(Actor·광맥·타격 결과·권한)는 여기가 확장해 정의한다.
+//
+// C001 CHANGED — World.bounds 제거. 이동의 경계는 그 몸이 선 Region 의 extent 다 (semantic/region.ts).
+// World.regions · World.graph 는 State 가 아니다 — 컨텐츠 데이터(content/regions)에서 다시 온다.
 
 import type { CoreWorldState } from '../../../engine/world-kernel/state';
 import type { ActorState } from './actor';
 import type { StrikeEvent } from './combat';
 import type { DepositState } from './deposit';
-import type { WorldBounds, WorldPosition } from './position';
+import type { WorldPosition } from './position';
 
 // 관찰자 장부를 읽는 도움들은 Engine 의 것이다 — 같은 이름으로 그대로 쓴다.
 export {
@@ -26,7 +29,6 @@ export interface DebugAuthority {
 }
 
 export interface WorldState extends CoreWorldState {
-  bounds: WorldBounds;
   actors: ActorState[]; // Actor 는 하나가 아니라 여럿이다
   deposits: DepositState[];
   strikeEvents: StrikeEvent[]; // World.StrikeEvents — 최근 타격 결과들
@@ -39,10 +41,7 @@ export const INTERACTION_RANGE = 2.0;
 // Actor.MoveSpeed · AttackRange · PerceptionRange 는 종류가 정하는 값이다 —
 // character-catalog.ts 가 단일 출처다 (구 MOVE_SPEED/NPC_MOVE_SPEED/ATTACK_RANGE/PERCEPTION_RANGE).
 
-// World.Bounds — RULE-MOVE-001 Precondition 의 도달 가능 영역
-export const WORLD_BOUNDS: WorldBounds = { minX: -20, maxX: 20, minZ: -20, maxZ: 20 };
-
-// World.SpawnPoints — 관찰자의 몸이 처음 놓이는 자리들.
+// World.SpawnPoints — 관찰자의 몸이 처음 놓이는 자리들 (START_REGION 의 Local Space 좌표 — C001).
 // 몇 번째 몸인지로 자리가 정해지므로 같은 순서로 들어오면 언제나 같은 배치가 된다.
 // 결정론 시뮬레이션 값이므로 헤더 상수로 고정한다.
 export const SPAWN_POINTS: WorldPosition[] = [
@@ -71,4 +70,5 @@ export const TICK_INTERVAL = 1 / 30;
 // 스냅샷에 찍히는 State 형태 버전 (design/Design-World-Persistence.md).
 // WorldState 나 그 하위 형태를 바꾸는 Cycle 이 숫자를 올린다 — 불일치 스냅샷은
 // 복구되지 않고 버려지므로, 올리지 않으면 옛 형태의 State 가 새 규칙 위에서 돈다.
-export const STATE_VERSION = 'hkt-adv-proto-i/1';
+// C001 — Actor.regionId · Deposit.regionId 가 실린다. World.bounds 는 사라졌다.
+export const STATE_VERSION = 'hkt-adv-proto-i/2';

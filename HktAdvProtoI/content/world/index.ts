@@ -14,12 +14,12 @@ import { DEFAULT_BODY, spawnObserverBody, type BodyDefaults } from './rules/obse
 import type { ActorState } from './semantic/actor';
 import type { ItemKind } from './semantic/item';
 import type { WorldPosition } from './semantic/position';
+import { START_REGION } from './semantic/region';
 import { spawnActor } from './semantic/spawn';
 import {
   SPAWN_POINTS,
   STATE_VERSION,
   TICK_INTERVAL,
-  WORLD_BOUNDS,
   type WorldState,
 } from './semantic/world-state';
 import { ruleActionProgress } from './simulation/action-progress';
@@ -54,7 +54,7 @@ export interface WorldSetup {
   debugAuthority?: boolean;
 }
 
-// 세계의 기본 배치 — 자율 캐릭터 둘이 각자의 순회 경로를 돈다.
+// 세계의 기본 배치 — 자율 캐릭터 둘이 각자의 순회 경로를 돈다. 자리는 START_REGION 의 Local Space 좌표다 (C001 R4).
 // characterKind 를 바꾸면 그 캐릭터가 쓰는 모션 집합이 바뀐다 (motions/<종류>/ 폴더).
 const DEFAULT_NPCS: NpcSetup[] = [
   {
@@ -118,6 +118,7 @@ export function createWorld(setup: WorldSetup = {}, restored?: WorldState): Worl
       name: npc.name ?? `Wanderer ${ordinal + 1}`,
       characterKind: npc.characterKind ?? 'wanderer',
       control: 'autonomous',
+      regionId: START_REGION, // 02-world R4 — 기본 자율 존재는 백왕령에 있다
       position: npc.position,
       wanderPath: npc.wanderPath,
       ...(npc.perceptionRange === undefined ? {} : { perceptionRange: npc.perceptionRange }),
@@ -127,11 +128,11 @@ export function createWorld(setup: WorldSetup = {}, restored?: WorldState): Worl
   // 복구된 State 가 있으면 초기 배치는 일어나지 않는다 — 세계는 스냅샷의 그 순간부터
   // 이어진다 (design/Design-World-Persistence.md). setup 은 새 세계에만 뜻이 있다.
   const state: WorldState = restored ?? {
-    bounds: WORLD_BOUNDS,
     actors: npcs,
     deposits: [
       {
         id: 'deposit-1',
+        regionId: START_REGION, // 02-world R4
         position: setup.depositPosition ?? { x: 8, z: -6 },
         resourceKind: 'stone',
         resourceAmount: setup.depositAmount ?? 5,

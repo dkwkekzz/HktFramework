@@ -72,6 +72,8 @@ R5  RULE-BODY-PUSH-001 · RULE-SWING-STRIKE-001 · RULE-NPC-DECIDE-001          
     IF   두 몸의 regionId 가 다르다
     THEN 서로 후보에 들지 않는다 — 밀지 않고 · 맞지 않고 · 인지하지 않는다
     (같은 Region 이면 기존 판정 그대로)
+    RULE-BODY-MOMENTUM-001 도 AFFECTED — 밀린 몸이 멈추는 경계가 World.bounds 에서 그 몸의 Region.extent 로
+    (World.bounds 제거의 기술적 귀결 — build 의 IMPLEMENTATION GAP 으로 해소, 의미 변화 없음)
 
 R6  관찰 투영 (projectObserver)                                               CHANGED
     THEN scene = self.regionId ·
@@ -96,7 +98,7 @@ ADDED    World.regions · World.graph · Actor.regionId · Deposit.regionId · R
          사유 코드 unknown-connector · wrong-region · role region-exit · interaction transit · hud region.depth ·
          봉투 region { id, hash }
 CHANGED  RULE-MOVE-001 전제 1 · RULE-OBSERVER-JOIN-001 몸 부분 · 초기 배치 · 투영 · STATE_VERSION · World.bounds 제거
-AFFECTED RULE-BODY-PUSH-001 · RULE-SWING-STRIKE-001 · RULE-NPC-DECIDE-001 (같은 Region 안에서만)
+AFFECTED RULE-BODY-PUSH-001 · RULE-SWING-STRIKE-001 · RULE-NPC-DECIDE-001 (같은 Region 안에서만) · RULE-BODY-MOMENTUM-001 (경계 = Region.extent)
 ```
 
 ## Observable
