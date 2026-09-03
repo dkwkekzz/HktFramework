@@ -354,15 +354,17 @@ describe('S-007 (SPEC-004) — 아직 짓지 않은 곳은 경계(frontier)로 �
   });
 });
 
-describe('S-008 (SPEC-005) — ANCIENT_GATE 하나만 닫혀 있고 닫힘은 세계 State 에 없다', () => {
-  it('locked 인 출구는 FOREST_DEEP 의 ANCIENT_GATE 하나뿐 · 나머지 아홉은 open', () => {
+// C004 가 데이터로 열었다 — CLOSED_CONNECTORS 가 비면서 이 기대가 뒤집혔다.
+// 닫힌 문이라는 갈래도 그 규칙도 그대로다: c004-polish-is-data.spec.ts 의 변형이 계속 검증한다.
+describe('S-008 (SPEC-005) — 닫힌 Connector 가 하나도 없고 닫힘은 세계 State 에 없다', () => {
+  it('locked 인 출구가 하나도 없다 — 고대 문까지 열 곳이 전부 open', () => {
     const locked: string[] = [];
     const open: string[] = [];
     for (const region of BUILT_REGIONS) {
       for (const e of exits(rooms()[region]!)) (e.state === 'locked' ? locked : open).push(e.id);
     }
-    expect([...new Set(locked)]).toEqual([ANCIENT_GATE]);
-    expect(locked.length).toBe(1);
+    expect([...new Set(locked)]).toEqual([]);
+    expect(locked.length).toBe(0);
     expect([...new Set(open)].sort()).toEqual(
       [
         FOREST_PATH,
@@ -372,6 +374,7 @@ describe('S-008 (SPEC-005) — ANCIENT_GATE 하나만 닫혀 있고 닫힘은 �
         ORE_TRAIL,
         TREE_APPROACH,
         ORE_TREE_TRAIL,
+        ANCIENT_GATE,
         RED_WASTE_PASS,
         ICE_CANYON_PASS,
       ].sort(),
@@ -419,7 +422,9 @@ describe('S-011 (SPEC-006 ③) — 멀면 out-of-range · 닫힘·경계보다 �
     });
   });
 
-  it('멀리서 ANCIENT_GATE 를 요청해도 connector-inactive 가 아니라 out-of-range', () => {
+  // C004 가 데이터로 열었다 — 멀리서 오던 사유가 connector-inactive 를 가리던 것이 이제 경계를 가린다.
+  // 거리가 그 둘보다 앞이라는 규칙은 그대로다
+  it('멀리서 ANCIENT_GATE 를 요청해도 region-not-built 가 아니라 out-of-range', () => {
     const w = driveWorld(solo);
     toForestDeep(w); // FOREST_DEEP 의 DEEP_TRAIL anchor (0, −18) — 고대 문까지 멀다
     expect(askTransit(w, ANCIENT_GATE)).toMatchObject({
@@ -429,18 +434,20 @@ describe('S-011 (SPEC-006 ③) — 멀면 out-of-range · 닫힘·경계보다 �
   });
 });
 
-describe('S-012 (SPEC-006 ④) — 닫힌 문에 붙어 요청하면 connector-inactive', () => {
-  it('ANCIENT_GATE anchor(−13, 13) 위에서 요청하면 닫힘이 먼저다 (④ < ⑤)', () => {
+// C004 가 데이터로 열었다 — 전제 ④(열려 있다)가 이제 늘 참이므로 대답이 ⑤ 로 넘어간다.
+// 규칙의 순서(④ < ⑤)는 그대로다: 값이 달라져 다른 답이 나올 뿐이다
+describe('S-012 (SPEC-006 ⑤) — 열린 문에 붙어 요청하면 region-not-built', () => {
+  it('ANCIENT_GATE anchor(−13, 13) 위에서 요청하면 "아직 갈 수 없는 곳" 이다', () => {
     const w = driveWorld(solo);
     toForestDeep(w);
     walkTo(w, -13, 13);
     expect(transitTo(w.observe(), ANCIENT_GATE)).toMatchObject({
       available: false,
-      reason: 'connector-inactive',
+      reason: 'region-not-built',
     });
     expect(askTransit(w, ANCIENT_GATE)).toMatchObject({
       accepted: false,
-      reason: 'connector-inactive',
+      reason: 'region-not-built',
     });
   });
 });
@@ -484,20 +491,24 @@ describe('S-014 (SPEC-006 ⑥) — 대체 불가 행동은 action-busy · 다만
     expect(body(w).regionId).toBe(FOREST_DEEP);
   });
 
-  it('닫힌 문 위에서는 같은 행동 중이어도 connector-inactive (④ < ⑥)', () => {
+  // C004 가 데이터로 열었다 — 닫힘(④)이 사라져 이제 경계(⑤)가 행동(⑥)보다 앞선다는 것을 잰다
+  it('고대 문 위에서는 같은 행동 중이어도 region-not-built (⑤ < ⑥)', () => {
     const w = driveWorld(solo);
     toForestDeep(w);
     walkTo(w, -13, 13);
     expect(w.dispatch({ interactionId: 'attack' }).status).toBe('success');
     expect(askTransit(w, ANCIENT_GATE)).toMatchObject({
       accepted: false,
-      reason: 'connector-inactive',
+      reason: 'region-not-built',
     });
   });
 });
 
-describe('S-015 (SPEC-006) — 여섯 사유가 모두 관측된다', () => {
-  it('unknown-connector · wrong-region · out-of-range · connector-inactive · region-not-built · action-busy', () => {
+// C004 가 데이터로 열었다 — connector-inactive 를 낼 문이 이 세계에 하나도 없어졌다.
+// 사유 코드도 규칙의 전제 여섯도 그대로다 (spec REUSED): 닫힌 문의 대답은
+// c004-polish-is-data.spec.ts 의 변형이 계속 검증한다
+describe('S-015 (SPEC-006) — 다섯 사유가 이 세계의 데이터에서 관측된다', () => {
+  it('unknown-connector · wrong-region · out-of-range · region-not-built · action-busy', () => {
     const reasons = new Set<string>();
 
     const a = driveWorld({ ...solo, actorPosition: { x: 0, z: 0 } });
@@ -512,6 +523,7 @@ describe('S-015 (SPEC-006) — 여섯 사유가 모두 관측된다', () => {
     const c = driveWorld(solo);
     toForestDeep(c);
     walkTo(c, -13, 13);
+    // C002 에서는 connector-inactive 였다 — 문이 열린 지금은 그 너머가 아직 없다는 대답이다
     reasons.add(askTransit(c, ANCIENT_GATE)!.reason!);
     walkTo(c, 0, -18);
     c.dispatch({ interactionId: 'attack' });
@@ -522,11 +534,11 @@ describe('S-015 (SPEC-006) — 여섯 사유가 모두 관측된다', () => {
         'unknown-connector',
         'wrong-region',
         'out-of-range',
-        'connector-inactive',
         'region-not-built',
         'action-busy',
       ].sort(),
     );
+    expect([...reasons]).not.toContain('connector-inactive');
   });
 });
 
@@ -537,9 +549,10 @@ describe('S-016 (SPEC-006 경계) — 거절은 세계 State 를 하나도 바�
     walkTo(w, -13, 13);
     const before = JSON.parse(JSON.stringify(body(w)));
 
+    // C004 가 데이터로 열었다 — 거절의 사유만 바뀐다. 거절이 State 를 바꾸지 않는다는 규칙은 그대로다
     expect(askTransit(w, ANCIENT_GATE)).toMatchObject({
       accepted: false,
-      reason: 'connector-inactive',
+      reason: 'region-not-built',
     });
     const after = body(w);
     expect(after.regionId).toBe(before.regionId);
@@ -588,8 +601,9 @@ describe('S-018 (SPEC-007 경계) — 경계를 가리키는 출구도 state = o
   });
 });
 
-describe('S-019 (SPEC-008) — 숲 안쪽은 출구가 다섯이고 그 중 하나만 잠겨 있다', () => {
-  it('exits 다섯 · ANCIENT_GATE 만 locked/door · transit 다섯 · depth wild · 목적지 이름 없음', () => {
+// C004 가 데이터로 열었다 — 숲 안쪽의 잠긴 표식 하나가 열린 표식이 됐다 (출구 수도 갈래도 그대로다)
+describe('S-019 (SPEC-008) — 숲 안쪽은 출구가 다섯이고 이제 다섯이 전부 열려 있다', () => {
+  it('exits 다섯 · ANCIENT_GATE 도 open/door · transit 다섯 · depth wild · 목적지 이름 없음', () => {
     const w = driveWorld(solo);
     toForestDeep(w);
     const v = w.observe();
@@ -597,9 +611,9 @@ describe('S-019 (SPEC-008) — 숲 안쪽은 출구가 다섯이고 그 중 하�
     expect(v.scene).toBe(FOREST_DEEP);
     expect(v.region.id).toBe(FOREST_DEEP);
     expect(exits(v).length).toBe(5);
-    expect(exits(v).filter((e) => e.state === 'locked').map((e) => e.id)).toEqual([ANCIENT_GATE]);
-    expect(exitOf(v, ANCIENT_GATE)?.kind).toBe('door');
-    for (const id of [DEEP_TRAIL, NEST_TRAIL, ORE_TRAIL, TREE_APPROACH]) {
+    expect(exits(v).filter((e) => e.state === 'locked').map((e) => e.id)).toEqual([]);
+    expect(exitOf(v, ANCIENT_GATE)?.kind).toBe('door'); // 갈래는 그대로 door 다
+    for (const id of [DEEP_TRAIL, NEST_TRAIL, ORE_TRAIL, TREE_APPROACH, ANCIENT_GATE]) {
       expect(exitOf(v, id)?.state).toBe('open');
     }
     expect(transits(v).length).toBe(5);
@@ -729,7 +743,8 @@ describe('S-023 (SPEC-010) — STATE_VERSION 이 올라가지 않고 방·Graph 
     const v = revived.latestObservation(OBSERVER) as GameViewSnapshot;
     expect(v.scene).toBe(FOREST_DEEP);
     expect(exits(v).length).toBe(5);
-    expect(exits(v).filter((e) => e.state === 'locked').map((e) => e.id)).toEqual([ANCIENT_GATE]);
+    // C004 가 데이터로 열었다 — 되살린 세계에서도 잠긴 표식이 없다 (닫힘은 저장되지 않는다)
+    expect(exits(v).filter((e) => e.state === 'locked').map((e) => e.id)).toEqual([]);
     // 방과 Graph 는 컨텐츠 데이터에서 다시 온다 — C003 이 뒤에 더했으므로 개수 대신 존재로 본다
     for (const id of BUILT_REGIONS) expect(REGION_SPECS.map((r) => r.id)).toContain(id);
     for (const id of [FOREST_PATH, ANCIENT_GATE, ORE_TREE_TRAIL]) {

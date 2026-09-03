@@ -633,12 +633,13 @@ describe('SPEC-008 — 물길은 다른 자리로 낸다', () => {
     expect(body(w).position).not.toEqual({ x: 0, z: 18 });
   });
 
-  it('S-033 그 방의 출구 다섯이 다시 실리고 ANCIENT_GATE 하나만 locked 다 (C002 그대로)', () => {
+  // C004 가 데이터로 열었다 — 닫힌 목록이 비면서 이 기대가 뒤집혔다 (규칙은 한 글자도 안 바뀌었다).
+  it('S-033 그 방의 출구 다섯이 다시 실리고 이제 다섯이 전부 open 이다 (고대 문도 열렸다)', () => {
     const v = throughRiver().observe();
     expect(exits(v).length).toBe(5);
-    expect(exits(v).filter((e) => e.state === 'locked').map((e) => e.id)).toEqual([ANCIENT_GATE]);
-    expect(exitOf(v, ANCIENT_GATE)?.kind).toBe('door');
-    for (const id of [DEEP_TRAIL, NEST_TRAIL, ORE_TRAIL, TREE_APPROACH]) {
+    expect(exits(v).filter((e) => e.state === 'locked').map((e) => e.id)).toEqual([]);
+    expect(exitOf(v, ANCIENT_GATE)?.kind).toBe('door'); // 갈래는 그대로 door 다
+    for (const id of [DEEP_TRAIL, NEST_TRAIL, ORE_TRAIL, TREE_APPROACH, ANCIENT_GATE]) {
       expect(exitOf(v, id)?.state).toBe('open');
     }
     expect(hud(v, 'region.depth')).toBe('wild');
@@ -817,7 +818,9 @@ describe('SPEC-010 — 관찰 계약과 영속은 형이 그대로다', () => {
 // ── 회귀 — C001 · C002 의 REUSED / AFFECTED 행동이 그대로인가 ──
 
 describe('회귀', () => {
-  it('R-001 (C002 SPEC-006) 건너기의 사유 여섯이 그대로다', () => {
+  // C004 가 데이터로 열었다 — connector-inactive 를 낼 문이 이 세계에 없어졌다.
+  // 사유 코드도 규칙의 전제도 그대로다: 닫힌 문 자체는 c004-polish-is-data.spec.ts 의 변형이 계속 검증한다.
+  it('R-001 (C002 SPEC-006) 건너기의 사유 다섯이 이 세계의 데이터에서 관측된다', () => {
     const reasons = new Set<string>();
 
     const a = driveWorld({ ...solo, actorPosition: { x: 0, z: 0 } });
@@ -832,6 +835,7 @@ describe('회귀', () => {
     const c = driveWorld(solo);
     toForestDeep(c);
     walkTo(c, -13, 13);
+    // C002 에서는 connector-inactive 였다 — 문이 열린 지금은 그 너머가 아직 없다는 대답이 온다
     reasons.add(askTransit(c, ANCIENT_GATE)!.reason!);
     walkTo(c, 0, -18);
     c.dispatch({ interactionId: 'attack' });
@@ -842,20 +846,21 @@ describe('회귀', () => {
         'unknown-connector',
         'wrong-region',
         'out-of-range',
-        'connector-inactive',
         'region-not-built',
         'action-busy',
       ].sort(),
     );
+    expect([...reasons]).not.toContain('connector-inactive');
   });
 
-  it('R-002 (C002 SPEC-008) 숲 안쪽의 출구는 다섯이고 그 중 하나가 닫힌 문이다', () => {
+  // C004 가 데이터로 열었다 — 숲 안쪽의 닫힌 문 하나가 열린 문이 됐다.
+  it('R-002 (C002 SPEC-008) 숲 안쪽의 출구는 다섯이고 이제 다섯이 전부 열려 있다', () => {
     const w = driveWorld(solo);
     toForestDeep(w);
     const v = w.observe();
     expect(exits(v).length).toBe(5);
     expect(transits(v).length).toBe(5);
-    expect(exits(v).filter((e) => e.state === 'locked').map((e) => e.id)).toEqual([ANCIENT_GATE]);
+    expect(exits(v).filter((e) => e.state === 'locked').map((e) => e.id)).toEqual([]);
     expect(hud(v, 'region.depth')).toBe('wild');
   });
 

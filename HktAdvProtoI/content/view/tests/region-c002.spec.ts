@@ -100,7 +100,11 @@ describe('④ 야생 — depth 태그가 셋이 된다', () => {
   });
 });
 
-describe('⑤ 닫힌 표식 — 출구는 열림과 닫힘으로 갈린다', () => {
+// C004 가 데이터로 고대 문을 열었다 — 이 세계의 데이터에서는 이제 locked 도 connector-inactive 도
+// 나오지 않는다. 다만 여기는 World 미기동이고 값을 손으로 지어 넣어 **표**를 재는 자리이므로
+// 기대가 뒤집히지 않는다: 표의 갈래는 그대로 남아 있어야 하고(닫힌 문이 다시 생기면 그대로 쓴다),
+// 세계에서 그 값이 실제로 오는가는 content/world/tests/c004-polish-is-data.spec.ts 의 변형이 잰다.
+describe('⑤ 닫힌 표식 — 출구는 열림과 닫힘으로 갈린다 (표의 갈래 · 이 세계의 값이 아니다)', () => {
   it('state=locked 면 spriteId 가 region-exit:locked 다 — 세계의 state 가 그대로 그림을 고른다', () => {
     const plan = resolvePresentation(
       snapshot('FOREST_DEEP', 'wild', [exit('ANCIENT_GATE', 'door', 'locked')]),
@@ -168,6 +172,7 @@ describe('②⑥ 거절 — 세계가 보낸 사유 코드가 문구가 된다',
     expect(t?.unavailableText).toBe('아직 갈 수 없는 곳이다');
   });
 
+  // 같은 이유로 뒤집지 않는다 — 사유 코드가 지워지지 않았음을 재는 자리다 (C004 spec REUSED)
   it('connector-inactive → 잠겨 있다 (목적지는 밝히지 않는다)', () => {
     const plan = resolvePresentation(
       snapshot('FOREST_DEEP', 'wild', [exit('ANCIENT_GATE', 'door', 'locked')], [
