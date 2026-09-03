@@ -81,6 +81,7 @@ npm run cycle:shot <cycles/C###/shots.json>   마감 촬영 → cycles/C###/shot
  8. 영향을 받는 기존 Rule 과 플레이 Scenario 도 함께 검증한다.
  9. 완료 조건은 코드가 아니라 실제로 플레이되는가다.
 10. 살아 있는 문서(STATE.md · README)에는 현재 상태만 — 진행 상태는 CLAUDE.md 가 아니라 STATE.md 에.
+11. 코드 주석은 한국어로 쓴다.
 ```
 
 ## 막혔을 때
