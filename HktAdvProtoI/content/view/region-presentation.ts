@@ -93,27 +93,6 @@ export const TRANSITION_TINTS: Readonly<Record<string, number>> = {
 /** 바닥 테두리의 두께 (세계 단위 — renderer 가 띠로 옮긴다) */
 const REGION_EDGE_WIDTH = 2;
 
-// 시점 거리의 기준 두 수 — 한 변 40 인 방을 거리 15 에서 본다.
-// 40 은 지금까지의 모든 방의 한 변이고 15 는 지금 기반의 기본 시점 거리(VIEW_DISTANCE)다.
-// 그래서 이 비례는 기존 방들의 그림을 하나도 바꾸지 않고, 한 변이 두 배인 방에서만 거리가 두 배가 된다.
-const REFERENCE_REGION_SPAN = 40;
-const REFERENCE_VIEW_DISTANCE = 15;
-
-/** 관찰자가 선 방의 크기가 정하는 시점 거리 — 큰 방은 넓게 (Play V4) */
-export function regionViewDistance(
-  region: { id: string; hash: string } | undefined,
-): number | undefined {
-  if (!region) return undefined;
-  const spec = regionSpec(region.id);
-  if (!spec) return undefined;
-
-  // 방의 한 변 — 바닥을 그릴 때와 같은 자리(자기 Description 의 extent)에서 읽는다.
-  // 세계는 방의 크기를 보내지 않는다 (원칙 2 — 시점은 관찰자의 것이다)
-  const { minX, maxX, minZ, maxZ } = spec.space.extent;
-  const span = Math.max(maxX - minX, maxZ - minZ);
-  return (span / REFERENCE_REGION_SPAN) * REFERENCE_VIEW_DISTANCE;
-}
-
 /**
  * 관찰자가 선 방의 바닥 — SceneGroundZone polygon 하나.
  * Spec 을 모르는 id 면 빈 배열이다 — 바닥 없이도 게임은 돈다 (폴백 규칙).

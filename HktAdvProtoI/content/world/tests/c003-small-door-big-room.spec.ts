@@ -762,11 +762,9 @@ describe('SPEC-010 — 관찰 계약과 영속은 형이 그대로다', () => {
       'closedConnectors',
       'bounds',
       'extent',
-      'viewDistance',
     ]) {
       expect(saved.state).not.toHaveProperty(key);
     }
-    expect(JSON.stringify(saved.state)).not.toContain('viewDistance');
     expect(JSON.stringify(saved.state)).not.toContain('containment');
 
     const restored = restoreWorld(saved);

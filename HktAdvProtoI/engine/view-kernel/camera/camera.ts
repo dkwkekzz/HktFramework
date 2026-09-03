@@ -26,11 +26,6 @@ export interface ViewCamera {
   /** 관찰자 기준 입력 → 세계 방향 */
   worldDirection(local: PlaneDirection): PlaneDirection;
   /**
-   * 시점이 몸에서 떨어져 있을 거리를 바꾼다. 없는 값(undefined)을 주면 기본값으로 돌아간다.
-   * 왜 그 거리인지는 이 층이 알지 못한다 — 받은 만큼 물러난다. 즉시 반영이며 보간이 없다.
-   */
-  setDistance(distance: number | undefined): void;
-  /**
    * 몸을 따라간다. groundHeight 는 그 자리의 지면 높이,
    * terrainHeight 는 임의 지점의 지면 높이를 되돌려 주는 함수다 —
    * 시점이 지형 아래로 내려가지 않게 하는 데 쓴다.
@@ -45,9 +40,6 @@ export interface ViewCamera {
 export function createViewCamera(aspect: number): ViewCamera {
   const camera = new THREE.PerspectiveCamera(55, aspect, 0.1, 300);
   let orientation: ViewOrientation = { ...DEFAULT_ORIENTATION };
-  // 없으면 viewOffset 의 기본 거리다 — 여기에 기본값을 다시 적지 않는다
-  let distance: number | undefined;
-
   const view: ViewCamera = {
     camera,
     turn(dTurn, dTilt) {
@@ -59,11 +51,8 @@ export function createViewCamera(aspect: number): ViewCamera {
     worldDirection(local) {
       return worldDirection(orientation.turn, local);
     },
-    setDistance(next) {
-      distance = next;
-    },
     follow(player, groundHeight, terrainHeight) {
-      const offset = viewOffset(orientation, distance);
+      const offset = viewOffset(orientation);
       const x = player.x + offset.x;
       const z = player.z + offset.z;
       // 어느 각으로 돌려도 땅속에서 세계를 보지 않는다 — 지면 위로 밀어 올린다.

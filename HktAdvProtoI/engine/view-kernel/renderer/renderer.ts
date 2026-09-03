@@ -451,10 +451,6 @@ export function createRenderer(
       const dt = frameDt ?? (now - lastTime) / 1000;
       lastTime = now;
 
-      // 시점이 몸에서 떨어질 거리 — 지시에 없으면 기본값으로 돌아간다.
-      // 왜 그 거리인지는 여기가 알지 못한다 (설계 반전 ⑤).
-      view.setDistance(state.viewDistance);
-
       const seen = new Set<string>();
       for (const entity of state.entities) {
         seen.add(entity.id);

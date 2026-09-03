@@ -155,40 +155,11 @@ describe('①⑤ 새 전이 색 — falling · river 가 종류로 갈린다', (
   });
 });
 
-describe('③ 몸이 작아진다 — 방 크기가 시점 거리를 정한다', () => {
-  const distanceOf = (regionId: string, depth: string) =>
-    resolvePresentation(snapshot(regionId, depth)).viewDistance;
-
-  it('한 변 80 인 방의 시점 거리가 한 변 40 인 방보다 크다', () => {
-    const big = distanceOf('TREE_INNER_WORLD', 'deep');
-    const small = distanceOf('RED_EYE_TREE', 'wild');
-    expect(big).toBeDefined();
-    expect(small).toBeDefined();
-    expect(big!).toBeGreaterThan(small!);
-  });
-
-  it('한 변이 두 배면 거리도 두 배다 — 비례 하나로 정해진다', () => {
-    const big = distanceOf('TREE_INNER_WORLD', 'deep')!;
-    const small = distanceOf('RED_EYE_TREE', 'wild')!;
-    expect(big).toBeCloseTo(small * 2);
-  });
-
-  it('기존 여덟 방의 그림은 하나도 바뀌지 않는다 — 한 변 40 인 방은 전부 같은 거리다', () => {
-    const small = distanceOf('WHITE_KING_DOMAIN', 'civil')!;
-    for (const [id, depth] of [
-      ['FOREST_EDGE', 'outer'],
-      ['FOREST_DEEP', 'wild'],
-      ['EXPLORER_RUIN', 'wild'],
-      ['PREDATOR_NEST', 'wild'],
-      ['BIO_ORE_FIELD', 'wild'],
-      ['RED_EYE_TREE', 'wild'],
-      ['HEART_LAKE', 'deep'],
-    ] as const) {
-      expect(distanceOf(id, depth)).toBe(small);
-    }
-  });
-
-  it('fixture 로 그린 큰 방에서도 시점이 물러난다 — 바닥 테두리가 한 변 80 이다', () => {
+describe('③ 큰 방은 바닥이 넓을 뿐 — 시점은 방 크기를 따라가지 않는다', () => {
+  // V4 CHANGED — "방을 한 화면에 맞춘다" 는 규칙을 두지 않는다 (RegionGraphRooms 불변 조건
+  // "방은 공간일 뿐이다"). 시점은 몸을 따르고 extent 는 바닥의 경계일 뿐이다 —
+  // Region 이 대륙급이 되어도 시점 거리는 그대로여야 하기 때문이다.
+  it('한 변 80 인 방의 바닥은 그만큼 넓다 — 넓어지는 것은 바닥이지 시점이 아니다', () => {
     const plan = resolvePresentation(inner);
     const zone = plan.zones[0]!;
     if (zone.shape.kind !== 'polygon') throw new Error('polygon 이어야 한다');
@@ -198,13 +169,16 @@ describe('③ 몸이 작아진다 — 방 크기가 시점 거리를 정한다',
       { x: 40, z: 40 },
       { x: -40, z: 40 },
     ]);
-    expect(plan.viewDistance!).toBeGreaterThan(resolvePresentation(lake).viewDistance!);
   });
 
-  it('모르는 region id 면 거리를 정하지 않는다 — 그리는 쪽의 기본값이 남는다', () => {
-    const plan = resolvePresentation(snapshot('UNCHARTED', 'abyss'));
-    expect(plan.zones).toHaveLength(0);
-    expect(plan.viewDistance).toBeUndefined();
+  it('장면 지시에 시점 거리가 실리지 않는다 — 방 크기는 카메라로 새지 않는다', () => {
+    for (const plan of [resolvePresentation(inner), resolvePresentation(lake)]) {
+      expect(plan).not.toHaveProperty('viewDistance');
+    }
+  });
+
+  it('모르는 region id 면 바닥이 없다 — 바닥 없이도 게임은 돈다 (폴백)', () => {
+    expect(resolvePresentation(snapshot('UNCHARTED', 'abyss')).zones).toHaveLength(0);
   });
 });
 
