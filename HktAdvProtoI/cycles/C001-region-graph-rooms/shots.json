@@ -1,0 +1,93 @@
+{
+  "out": "shots",
+  "viewport": [
+    560,
+    420
+  ],
+  "runs": [
+    {
+      "spawn": "-15,-15",
+      "steps": [
+        {
+          "press": "KeyT",
+          "times": 4
+        },
+        {
+          "sleep": 1500
+        },
+        {
+          "expect": "문명권",
+          "note": "X-⑤ 깊이 문구 (백왕령)"
+        },
+        {
+          "shot": "X-01-white-king-domain",
+          "note": "X-①②⑤ 방 바닥 · 방 이름 · 깊이 = 문명권 (관찰자는 남서쪽 구석 — 자율 존재의 인지 밖)"
+        },
+        {
+          "press": "KeyQ"
+        },
+        {
+          "sleep": 1500
+        },
+        {
+          "expect": "너무 멀다",
+          "note": "X-⑥ 멀리서 건너기 요청 → out-of-range 문구"
+        },
+        {
+          "shot": "X-06-transit-rejected-far",
+          "note": "X-⑥ 표식에서 멀리 선 채 Q — 거절 문구 · 몸은 그대로"
+        }
+      ]
+    },
+    {
+      "spawn": "0,17",
+      "steps": [
+        {
+          "_": "자율 존재 없이 — 표식 옆에서 맞으면 건너기가 action-busy 로 거절된다. 세계 규칙은 그대로다"
+        },
+        {
+          "press": "KeyT",
+          "times": 3
+        },
+        {
+          "sleep": 1500
+        },
+        {
+          "shot": "X-03-exit-marker",
+          "note": "X-③ 북쪽 변 anchor (0, 18) 의 출구 표식 — 목적지 이름 없음"
+        },
+        {
+          "press": "KeyQ"
+        },
+        {
+          "wait": "문명의 경계",
+          "tries": 20,
+          "note": "X-④⑤ 건넌 뒤 깊이 문구가 바뀐다"
+        },
+        {
+          "sleep": 1500
+        },
+        {
+          "shot": "X-04-forest-edge",
+          "note": "X-④ 숲 가장자리 — 다른 바닥 색 · 다른 이름 · 몸은 남쪽 변 표식 자리"
+        },
+        {
+          "press": "KeyQ"
+        },
+        {
+          "wait": "문명권",
+          "tries": 20,
+          "note": "X-⑦ 되돌아오면 처음 문구"
+        },
+        {
+          "sleep": 1500
+        },
+        {
+          "shot": "X-07-back-to-white-king-domain",
+          "note": "X-⑦ 백왕령 북쪽 표식 자리로 돌아옴"
+        }
+      ],
+      "npcs": "none"
+    }
+  ]
+}

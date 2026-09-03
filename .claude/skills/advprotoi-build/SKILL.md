@@ -167,13 +167,39 @@ Verification   Human 이 추가 추론 없이 판단 가능 (시나리오 테스
 ## 다음 Cycle 로        spec 이 침묵해 테스트가 피해 간 자리 · 이월한 관측 (T 의 보고에서)
 ```
 
+**관찰 촬영** — Observable Result 를 실제로 띄운 게임에서 찍어 **Human 에게 보여준다**.
+`cycles/<CycleId>/shots.json` 에 시나리오(run 마다 spawn + 걸음 — 형식은
+`tools/cycle-shot/shot.cjs` 머리 주석)를 쓰고 `npm run cycle:shot cycles/<CycleId>/shots.json`
+을 돌린다 → `cycles/<CycleId>/shots/*.png`. 파일명은 TODO.md 의 Human 판정 항목 번호(X-##)에
+맞추고, TODO.md 의 각 항목이 자기 그림을 가리키게 한다. 찍은 그림은 마감 보고에서 바로
+보여준다(SendUserFile) — Human 판정은 그림에서 시작한다. 도구는 판정하지 않는다 — expect 는
+기록이다. 소프트웨어 GPU 라 걷는 조작이 이어지지 않으므로 먼 자리는 시나리오의 `spawn`
+(HKT_SPAWN)으로 시작하고, 자율 존재가 방해하면 `npcs: "none"`(HKT_NPCS) 인 run 을 따로 둔다
+— 둘 다 `vite.config.ts` 의 검증용 손잡이이고 세계 규칙은 바뀌지 않는다. 그림에 안 보이는
+결과(State 값)는 시나리오 테스트가 증거다 — 억지로 찍지 않는다.
+
 **Play 문서 갱신**: Cycle 이 `content/roadmap/play/<PlayName>.md` 의 Cycle Breakdown 에서
 왔으면, 완료 시 그 항목의 체크박스만 `[x]` 로 갱신한다 — play 문서에서 Agent 가
 만질 수 있는 유일한 자리다. 해당 Play 의 모든 Cycle 이 닫혔으면 "Play Goal 실주행
 확인"을 Human 에게 제안한다.
 
-**STATE.md 갱신**: §1 다음 할 일 · §2 진행 표 · §4 코드에 있는 것 · §5 부채(TODO.md 를
-가리킨다). 현재 상태만 — 완료 경위를 쌓지 않는다 (CLAUDE.md 원칙 10).
+**STATE.md 갱신**: §2 진행 표 · §4 코드에 있는 것 · §5 부채(TODO.md 를 가리킨다). §1 의
+레인 표는 design 이 소유한다 — 닫힌 Cycle 을 지우고 "기다리는 것"이 풀린 레인만 표시한다.
+현재 상태만 — 완료 경위를 쌓지 않는다 (CLAUDE.md 원칙 10). 병렬 중이면 이 갱신은 main 에
+합친 직후에 한다 (아래).
 
-Cycle 간 병렬 규칙은 아직 두지 않는다 — 한 번에 한 Cycle 이 기본이다. 실제로
-동시 진행 필요가 생기면 그때 규칙을 세운다 (선행 추상화 금지를 공정 자신에게도 적용).
+## 5. Cycle 간 병렬 (Plan-Skill §4 항목 4)
+
+한 Cycle = 브랜치 `cycle/C###` = 세션 하나. 어느 레인이 지금 돌 수 있는지는 STATE.md §1 이
+답한다 — build 는 그 표의 "기다리는 것"이 비어 있는 Cycle 만 시작한다. 브랜치 안에서 지킬 것:
+
+```text
+① 공용 표 파일(regions/graph.ts · regions/index.ts · view/code-text.ts · view/*-presentation.ts ·
+   world/semantic/world-state.ts · protocol/*)은 항목 추가만 — 기존 항목 변경은 spec 의 CHANGED 뿐
+② STATE.md · Play 체크박스는 main 에 합친 직후에만 — 브랜치 안에서는 자기 cycles/C###/ 만
+③ 시나리오 테스트는 전체 개수를 단언하지 않는다
+④ engine 커밋은 분리해 먼저 합친다 · 기존 engine 계약 변경(ENGINE GAP)은 병렬 중 금지
+```
+
+PR 은 Cycle 번호 순으로 합친다. 합친 뒤 ② 를 하고, 그 Cycle 을 기다리던 레인이 있으면 STATE §1
+의 "기다리는 것"을 비운다.

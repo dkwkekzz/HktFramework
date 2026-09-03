@@ -139,5 +139,21 @@ CYCLE / SOURCE / SELECTED_FROM   Trace 블록 (SOURCE = content/roadmap/play/<Pl
 
 종료 보고: "plan 가능". 이어서 `advprotoi-plan` 이 이 앞부분을 입력으로 SPEC ~
 UNRESOLVED 를 덧붙이고 파일을 동결한다. 이후 Cycle 부터는 주입 없이 이 스킬을 다시
-부르면 ③ 만 수행한다 (Play 의 다음 미완료 항목). Cycle 완료 체크박스 갱신은 build 의
+부르면 ③·④ 만 수행한다 (Play 의 다음 미완료 항목). Cycle 완료 체크박스 갱신은 build 의
 마감 작업이다.
+
+## ④ 레인 정리 → `STATE.md` §1
+
+Play 승인 직후와 ③ 뒤마다 "다음에 할 일"을 **병렬 레인 표**로 STATE.md §1 에 적는다 —
+design 이 만지는 유일한 STATE 절이다. 병렬 규칙은 Plan-Skill §4 항목 4 가 소유한다.
+
+```text
+레인 판정   같은 Play 의 Cycle 은 한 레인(순차). 다른 Play 의 Cycle 은 spec 의 Reuse/Existing 이
+           요구하는 Capability 가 main 에 있을 때 build 가능 — plan(문서)은 그 전에도 가능.
+           ENGINE 레인(게임 명사 없는 기구)은 언제나 병행.
+표 한 장    레인 · 지금 할 수 있는 것 · 기다리는 것(무엇이 합쳐지면 풀리는가) · 다음
+Human 결정  승인된 Play 순서를 깨는 병렬은 제안하지 않는다 — "Human 결정" 줄에 올린다
+```
+
+표는 핵심만 — 한 레인에 한 줄, 닫힌 것은 지운다. 한 Cycle = 브랜치 `cycle/C###` = 세션 하나라는
+기제와 "말할 것" 한 줄을 §1 머리에 둔다 — 새 세션이 그것만 보고 시작한다.

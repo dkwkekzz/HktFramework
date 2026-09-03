@@ -25,7 +25,7 @@ mmorpg에서 컨텐츠를 구성하기 위한 구조를 설계한다.
 ## 작업 공정 (Workflow)
 
 공정 원본은 [design/Design-CycleExecutionWorkflow.md](design/Design-CycleExecutionWorkflow.md),
-기획 위층(사람의 아이디어 → Play Design → 00-cycle)은
+기획 위층(사람의 아이디어 → Play Design → Cycle spec)은
 [design/Design-DesignAuthoringWorkflow.md](design/Design-DesignAuthoringWorkflow.md),
 스킬 분할 근거는 [design/Plan-Skill-CycleExecutionWorkflow.md](design/Plan-Skill-CycleExecutionWorkflow.md).
 
@@ -46,11 +46,15 @@ advprotoi-build   실현·검증  구현 ∥ GameView ∥ 시나리오 테스트
 한 Play 는 행 하나만 증명한다. 로드맵과 그 결과물(`L0-Game.md` · 층별 확정 문서 · 미지
 문서 · `play/`)은 전부 `content/roadmap/` 에 있다.
 
-Cycle 디렉터리 `cycles/<CycleId>/` (CycleId: `C###-이름`) 에는 파일 둘만 둔다 —
-`spec.md`(코드 전 — design 의 범위 + plan 의 SPEC·State·Rule·Observable, 동결) 와
-`TODO.md`(코드 뒤 — Human 판정 대기 · 부채, 비면 삭제). 구현 노트 · GameView 표 ·
+Cycle 디렉터리 `cycles/<CycleId>/` (CycleId: `C###-이름`) 에 두는 것은 셋뿐이다 —
+`spec.md`(코드 전 — design 의 범위 + plan 의 SPEC·State·Rule·Observable, 동결) ·
+`TODO.md`(코드 뒤 — Human 판정 대기 · 부채, 비면 삭제) · `shots.json` + `shots/`(마감 촬영 —
+관찰 가능한 결과를 실제 게임에서 찍은 PNG, `npm run cycle:shot`). 구현 노트 · GameView 표 ·
 검증 산문은 만들지 않는다 — 코드 주석의 `RULE-*` id · `content/view` 의 표 · 시나리오
 테스트 · 커밋 메시지가 원본이다. 파일만이 단계 간 인터페이스다.
+Cycle 여럿을 동시에 돌리는 규칙(브랜치 `cycle/C###` = 세션 하나 · 공용 표 파일은 항목 추가만 ·
+STATE 는 main 에서만 · 개수 단언 금지 · engine 먼저 합침)은 Plan-Skill §4 항목 4 가 소유하고,
+지금 돌 수 있는 레인은 STATE.md §1 이 답한다.
 이전 공정의 산출물(`guides/` · `master/` · `BACKLOG.md` · `LANES.md`)과
 그 도구(master-graph · lanes · cycle-lint · feedback-gate)는 이 기준선에서 걷어냈다.
 
@@ -121,6 +125,7 @@ npm run build                  tsc --noEmit + vite build
 npm run boundary:check         engine/content 경계
 npm run motions:scan           모션 시트 재분석 → view/motion-atlas.generated.ts
 npm run surface:lab            겹침 표면 capability 눈검증 페이지
+npm run cycle:shot <cycles/C###/shots.json>   Cycle 마감 촬영 → cycles/C###/shots/*.png (HKT_SPAWN · HKT_NPCS 손잡이)
 ```
 
 ## 핵심 원칙

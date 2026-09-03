@@ -27,13 +27,18 @@ const externalWorld = process.env.HKT_WORLD_URL;
  * 이어지지 않는다** — 그래서 먼 자리를 찍으려면 거기서 시작해야 한다
  * (tools/fx-lab/test/terrain-shot.js).
  */
-function spawnFromEnv(): { actorPosition?: { x: number; z: number } } {
+function spawnFromEnv(): { actorPosition?: { x: number; z: number }; npcs?: [] } {
+  const setup: { actorPosition?: { x: number; z: number }; npcs?: [] } = {};
+  // HKT_NPCS="none" — 자율 존재 없이 띄운다. 촬영에서 관찰자가 맞아 쓰러지면 건너기 같은
+  // 조작이 이어지지 않는다 (tools/cycle-shot). 같은 검증용 손잡이 — 초기 배치만 비운다.
+  if (process.env.HKT_NPCS === 'none') setup.npcs = [];
   const raw = process.env.HKT_SPAWN;
-  if (!raw) return {};
+  if (!raw) return setup;
   const [x, z] = raw.split(',').map(Number);
-  if (x === undefined || z === undefined) return {};
-  if (!Number.isFinite(x) || !Number.isFinite(z)) return {};
-  return { actorPosition: { x, z } };
+  if (x === undefined || z === undefined) return setup;
+  if (!Number.isFinite(x) || !Number.isFinite(z)) return setup;
+  setup.actorPosition = { x, z };
+  return setup;
 }
 
 function worldServerPlugin(): Plugin {

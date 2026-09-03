@@ -136,8 +136,23 @@ spec.md 동결 (Observable 절 = 관찰 계약)
    본체가 최소 범위로 구현해 해소한다 — Human 반환 불필요. `DESIGN GAP`(spec 으로
    의미를 결정할 수 없음)만 `GAP` 블록으로 남겨 plan 또는 Human 으로 반환한다.
    기술 결손마다 Human 에게 돌아오는 공정을 막는다.
-4. **Cycle 간 병렬 규칙은 아직 두지 않는다** — 한 번에 한 Cycle 이 기본. 실제 필요가
-   생기면 그때 세운다 (선행 추상화 금지 §10 을 공정 자신에게도 적용).
+4. **Cycle 간 병렬 — 의미 의존성이 병목이고, 파일 충돌은 규칙으로 푼다.**
+   한 Cycle = 브랜치 하나(`cycle/C###`) = 세션 하나. plan → build 를 그 안에서 돌리고,
+   PR 은 Cycle 번호 순으로 합친다. 같은 Play 의 Cycle 은 순차다 (같은 파일을 잇달아 바꾼다).
+   다른 Play 의 Cycle 은 spec 의 Reuse/Existing 이 요구하는 Capability 가 main 에 있을 때
+   build 를 시작할 수 있다 — plan(문서)은 그 전에도 된다. ENGINE 레인(게임 명사 없는 기구)은
+   Cycle 이 아니며 언제나 병행한다. 병렬을 안전하게 하는 규칙 넷:
+   ① 공용 표 파일(`regions/graph.ts` · `regions/index.ts` · `view/code-text.ts` ·
+      `view/*-presentation.ts` · `world/semantic/world-state.ts` · `protocol/*`)은 Cycle 작업에서
+      **항목 추가만** 한다 — 기존 항목을 바꾸는 것은 spec 에 CHANGED 로 적힌 것뿐. 합칠 때
+      충돌이 기계적으로 풀린다.
+   ② STATE.md 와 Play 의 체크박스는 main 에 합친 직후에만 갱신한다 — 브랜치 안에서는 자기
+      `cycles/C###/` 만 만진다.
+   ③ 시나리오 테스트는 전체 개수를 단언하지 않는다 — 이 Cycle 이 더한 것의 존재와 행동만.
+   ④ engine 변경은 분리 커밋으로 먼저 합친다 — 두 Cycle 이 같은 기구를 따로 뽑지 않게.
+      기존 engine 계약 변경(ENGINE GAP)은 병렬 중에는 하지 않는다 — Human 승인 뒤 main 에서.
+   레인 판정과 STATE.md §1 의 레인 표는 design 이 소유한다 (advprotoi-design ④). 승인된
+   Play 순서를 깨는 병렬은 제안이 아니라 Human 결정 항목으로 올린다.
 5. GameView 가 불필요한 Cycle 이면 V 를 생략한다 — 병렬 구조를 형식적으로 채우지 않는다.
 
 ## 4.5 기반/확장 — 기구 추출과 engine/content 정책
