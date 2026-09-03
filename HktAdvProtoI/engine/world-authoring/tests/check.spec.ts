@@ -154,6 +154,64 @@ describe('checkGraph — 닿음(unreachable)', () => {
   });
 });
 
+describe('checkGraph — 중첩(containment-unlinked)', () => {
+  const built = [region('A', ['p']), region('B', ['p'])];
+
+  it('containment 가 비면 아무 일도 없다', () => {
+    expect(checkGraph(built, goodGraph, LAYER)).toEqual([]);
+  });
+
+  it('parent 와 child 를 잇는 Connector 가 있으면 통과한다', () => {
+    const nested: RegionGraph = { ...goodGraph, containment: [{ parent: 'A', child: 'B' }] };
+    expect(checkGraph(built, nested, LAYER)).toEqual([]);
+  });
+
+  it('방향은 묻지 않는다 — one-way 이어도, 반대로 놓여 있어도 이음이다', () => {
+    const oneWay: RegionGraph = {
+      regions: ['A', 'B'],
+      containment: [{ parent: 'A', child: 'B' }],
+      connectors: [
+        { id: 'c1', from: { region: 'B', anchor: 'p' }, to: { region: 'A', anchor: 'p' }, direction: 'one-way', transition: 't' },
+      ],
+    };
+    // B 는 나갈 곳이 있고 A 는 없다 — 중첩 검사는 그와 무관하게 통과한다
+    expect(checkGraph(built, oneWay, LAYER).map((i) => i.code)).toEqual(['no-exit']);
+  });
+
+  it('containment-unlinked — 둘을 잇는 Connector 가 하나도 없다', () => {
+    const far: RegionGraph = {
+      regions: ['A', 'B', 'C'],
+      containment: [{ parent: 'A', child: 'C' }],
+      connectors: [
+        { id: 'c1', from: { region: 'A', anchor: 'p' }, to: { region: 'B', anchor: 'p' }, direction: 'bidirectional', transition: 't' },
+        { id: 'c2', from: { region: 'B', anchor: 'p' }, to: { region: 'C', anchor: 'p' }, direction: 'bidirectional', transition: 't' },
+      ],
+    };
+    const issues = checkGraph([...built, region('C', ['p'])], far, LAYER);
+    expect(issues).toEqual([{ code: 'containment-unlinked', region: 'C', detail: expect.any(String) }]);
+  });
+
+  it('containment 배열 순서를 지키고, 기존 검사들 뒤에 붙는다', () => {
+    const messy: RegionGraph = {
+      regions: ['A', 'B'],
+      containment: [
+        { parent: 'A', child: 'X' },
+        { parent: 'A', child: 'Y' },
+      ],
+      frontiers: ['FRONTIER_Y'],
+      connectors: [
+        { id: 'c1', from: { region: 'A', anchor: 'p' }, to: { region: 'B', anchor: 'p' }, direction: 'bidirectional', transition: 't' },
+      ],
+    };
+    const issues = checkGraph(built, messy, LAYER, 'A');
+    expect(issues.map((i) => [i.code, i.region])).toEqual([
+      ['unused-frontier', 'FRONTIER_Y'],
+      ['containment-unlinked', 'X'],
+      ['containment-unlinked', 'Y'],
+    ]);
+  });
+});
+
 describe('checkGraph — 읽기 전용', () => {
   it('인자를 변형하지 않는다', () => {
     const descriptions = [region('A', ['p'])];

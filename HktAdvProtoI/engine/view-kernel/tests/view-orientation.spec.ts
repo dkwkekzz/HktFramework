@@ -9,6 +9,7 @@ import {
   clampTilt,
   screenSideValue,
   turned,
+  VIEW_DISTANCE,
   viewForward,
   viewOffset,
   viewRight,
@@ -65,6 +66,29 @@ describe('시점 방향 (viewpoint.orientation)', () => {
   it('wrapTurn 은 (-π, π] 안으로 접는다', () => {
     near(wrapTurn(Math.PI * 2 + 0.5), 0.5);
     near(wrapTurn(-Math.PI * 2 - 0.5), -0.5);
+  });
+
+  it('거리를 주지 않으면 지금까지와 같다 (회귀) — 기본 거리다', () => {
+    const o = { turn: 0.7, tilt: 0.4 };
+    expect(viewOffset(o, VIEW_DISTANCE)).toEqual(viewOffset(o));
+    expect(viewOffset(o, undefined)).toEqual(viewOffset(o));
+  });
+
+  it('거리를 주면 그만큼 멀어진다 — 방향은 그대로이고 길이만 배가 된다', () => {
+    const o = { turn: 0.7, tilt: 0.4 };
+    const near1 = viewOffset(o, VIEW_DISTANCE);
+    const far = viewOffset(o, VIEW_DISTANCE * 2);
+    near(Math.hypot(far.x, far.y, far.z), Math.hypot(near1.x, near1.y, near1.z) * 2);
+    near(far.x, near1.x * 2);
+    near(far.y, near1.y * 2);
+    near(far.z, near1.z * 2);
+  });
+
+  it('거리는 몸에서 떨어진 길이 그대로다 — 어느 각에서 재도 같다', () => {
+    for (const o of [{ turn: 0, tilt: 0.2 }, { turn: -1.4, tilt: 0.9 }, { turn: 2.5, tilt: 1.2 }]) {
+      const offset = viewOffset(o, 30);
+      near(Math.hypot(offset.x, offset.y, offset.z), 30);
+    }
   });
 
   it('시점은 몸을 두고 그 주위를 돈다 — 거리는 그대로고 자리만 바뀐다 (follows)', () => {

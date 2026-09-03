@@ -92,13 +92,19 @@ export function screenSideValue(turn: number, facing: PlaneDirection): number {
 /**
  * 시점이 놓이는 자리 — 몸을 두고 그 주위를 돈다 (04 viewpoint.follows).
  * 높이는 지면 기준 상대값이다. 지형을 뚫지 않게 하는 것은 이 자리를 받는 쪽의 몫이다.
+ *
+ * distance 는 몸에서 떨어져 있을 거리다 — 주지 않으면 VIEW_DISTANCE 다.
+ * 왜 그 거리인지는 이 함수가 알지 못한다. 거리는 그냥 거리다.
  */
-export function viewOffset(orientation: ViewOrientation): { x: number; y: number; z: number } {
+export function viewOffset(
+  orientation: ViewOrientation,
+  distance: number = VIEW_DISTANCE,
+): { x: number; y: number; z: number } {
   const forward = viewForward(orientation.turn);
-  const horizontal = VIEW_DISTANCE * Math.cos(orientation.tilt);
+  const horizontal = distance * Math.cos(orientation.tilt);
   return {
     x: -forward.x * horizontal,
-    y: VIEW_DISTANCE * Math.sin(orientation.tilt),
+    y: distance * Math.sin(orientation.tilt),
     z: -forward.z * horizontal,
   };
 }
