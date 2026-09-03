@@ -38,7 +38,7 @@ ENGINE GAP       (실현)   기존 engine 계약 변경 필요 → 승인 요청
 입력은 승인된 Play 문서(`content/roadmap/play/<PlayName>.md`)의 Cycle Breakdown 한 항목과
 그 Play 의 §5 Play Structure · §6 Required Capability · 확정 사항, 그리고 그것들이 지목한
 `content/roadmap/*.md` · `design/` 문서다. Play 를 재해석하지 않는다 — 이번 것만 잘라 검증
-가능한 문장으로 **폐쇄**한다. 코드는 보지 않는다 (Existing 판정은 CLAUDE.md "코드에 있는 것" +
+가능한 문장으로 **폐쇄**한다. 코드는 보지 않는다 (Existing 판정은 STATE.md §4 "코드에 있는 것" +
 기존 `cycles/*/spec.md` 의 ADDED 로).
 
 ```text
