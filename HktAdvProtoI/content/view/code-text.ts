@@ -42,6 +42,8 @@ const CODE_TEXT: Record<string, string> = {
   outer: '문명의 경계를 넘었다',
   // 문명권 → 경계 → 그 다음 한 걸음. 여기서부터는 아무도 돌보지 않는다 (C002)
   wild: '아무도 돌보지 않는 야생',
+  // 야생 다음 한 걸음 — 기존 생물학·자연법칙으로 설명하기 어려워지는 곳 (§3.2 · C003)
+  deep: '법칙이 낯설어지는 심부',
   // 불가 사유 — 건너기 (RULE-REGION-TRANSIT-001)
   'unknown-connector': '그런 길이 없다',
   'wrong-region': '여기서 갈 수 있는 길이 아니다',

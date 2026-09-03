@@ -24,6 +24,9 @@ export const REGION_NAMES: Readonly<Record<string, string>> = {
   EXPLORER_RUIN: '탐험대 폐허',
   PREDATOR_NEST: '포식수 둥지',
   BIO_ORE_FIELD: '생체 광석 지대',
+  RED_EYE_TREE: '붉은 눈의 거목',
+  TREE_INNER_WORLD: '거목 내부 세계',
+  HEART_LAKE: '심장 호수',
 };
 
 export function regionName(id: string): string {
@@ -46,6 +49,9 @@ export const DEPTH_PRESENTATIONS: Readonly<Record<string, DepthPresentation>> = 
   // 야생 — 초록이 빠지고 푸른 그늘만 남는다. outer 보다 더 어둡고 더 차갑다:
   // "들어가도 되나" 다음 한 걸음, 아무도 돌보지 않는 땅의 색
   wild: { fill: 0x1c4a5a, fillOpacity: 0.34, edge: 0x0e2a36, edgeOpacity: 0.85 },
+  // 심부 — 초록 계열을 아예 벗어나 차가운 보라·남색이 되고 wild 보다 더 어둡다:
+  // "기존 생물학·자연법칙으로 설명하기 어려운 장소"(§3.2) 이므로 자연의 색에서 떨어져 나온다
+  deep: { fill: 0x3b2d6e, fillOpacity: 0.36, edge: 0x17103a, edgeOpacity: 0.85 },
 };
 
 // 미등록 depth 의 기본 결정 — 무채색. 태그가 늘어도 게임은 멈추지 않고 색만 없다
@@ -78,10 +84,35 @@ export const TRANSITION_TINTS: Readonly<Record<string, number>> = {
   pass: 0x9fd0e8,
   // 들어감 — 걸어 나가는 것이 아니라 무엇의 안으로 드는 것. 자연에 없는 보라로 성질 자체를 가른다
   interaction: 0xc79bea,
+  // 추락 — 걸어 나가는 곳이 아니라 아래로 뚫린 자리. 거의 검은 값 하나만 여기 두어 구멍으로 읽힌다
+  falling: 0x2b2430,
+  // 물길 — 물. 고개의 옅은 하늘빛보다 훨씬 진한 청록으로 옮겨 "넘어가는 곳" 과 갈린다
+  river: 0x2f9a8f,
 };
 
 /** 바닥 테두리의 두께 (세계 단위 — renderer 가 띠로 옮긴다) */
 const REGION_EDGE_WIDTH = 2;
+
+// 시점 거리의 기준 두 수 — 한 변 40 인 방을 거리 15 에서 본다.
+// 40 은 지금까지의 모든 방의 한 변이고 15 는 지금 기반의 기본 시점 거리(VIEW_DISTANCE)다.
+// 그래서 이 비례는 기존 방들의 그림을 하나도 바꾸지 않고, 한 변이 두 배인 방에서만 거리가 두 배가 된다.
+const REFERENCE_REGION_SPAN = 40;
+const REFERENCE_VIEW_DISTANCE = 15;
+
+/** 관찰자가 선 방의 크기가 정하는 시점 거리 — 큰 방은 넓게 (Play V4) */
+export function regionViewDistance(
+  region: { id: string; hash: string } | undefined,
+): number | undefined {
+  if (!region) return undefined;
+  const spec = regionSpec(region.id);
+  if (!spec) return undefined;
+
+  // 방의 한 변 — 바닥을 그릴 때와 같은 자리(자기 Description 의 extent)에서 읽는다.
+  // 세계는 방의 크기를 보내지 않는다 (원칙 2 — 시점은 관찰자의 것이다)
+  const { minX, maxX, minZ, maxZ } = spec.space.extent;
+  const span = Math.max(maxX - minX, maxZ - minZ);
+  return (span / REFERENCE_REGION_SPAN) * REFERENCE_VIEW_DISTANCE;
+}
 
 /**
  * 관찰자가 선 방의 바닥 — SceneGroundZone polygon 하나.

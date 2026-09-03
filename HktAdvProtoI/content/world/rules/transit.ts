@@ -17,7 +17,12 @@
 // 요청 전과 같다 (01-spec SPEC-006 경계).
 //
 // 두 Local Space 는 이어져 있지 않다 — 건너는 순간 관성은 없고, 진행 중이던 이동 목표는 뜻이 없다
-// (01-spec UNRESOLVED 판정). 위치 이동은 이 Rule 만이 방을 바꾼다.
+// (01-spec UNRESOLVED 판정).
+//
+// C003 CHANGED — 전이(regionId · position · velocity · currentAction)를 applyRegionTransition 하나로
+// 빼서 RULE-REGION-FALL-001 과 나눠 쓴다 (01-spec R2). 전제·사유 여섯·관찰 가능한 행동은 그대로다 —
+// 두 규칙이 **같은 전이**를 하되 묻는 것이 다를 뿐임을 코드가 말한다.
+// 방을 바꾸는 자리는 이제 그 함수 하나다.
 
 import type { ActionResult } from '../../protocol/actions';
 import { RULE_REGION_TRANSIT } from '../../protocol/semantic-id';
@@ -68,6 +73,21 @@ function exitFor(actor: ActorState, connectorId: string): ConnectorExit | 'unkno
   return 'wrong-region';
 }
 
+/**
+ * 방을 건너는 전이 — RULE-REGION-TRANSIT-001 과 RULE-REGION-FALL-001 이 함께 쓰는 자리 (C003 ADDED · R2).
+ * 무엇을 묻는가는 두 규칙이 각자 정하고, **일어나는 일은 하나**다:
+ * 몸은 반대쪽 anchor 에 서고 관성과 진행 중이던 행동은 남지 않는다.
+ * 두 Local Space 는 이어져 있지 않기 때문이다.
+ * 세계 State 를 바꾸는 것은 Rule 의 Transition 뿐이다 (원칙 4) — 이 함수는 그 Transition 의 몸통이다.
+ */
+export function applyRegionTransition(actor: ActorState, exit: ConnectorExit): void {
+  const there = anchorPosition(exit.there.region, exit.there.anchor);
+  actor.regionId = exit.there.region;
+  actor.position = { x: there.x, z: there.z };
+  actor.velocity = { x: 0, z: 0 };
+  actor.currentAction = idleAction();
+}
+
 export function ruleTransit(_state: WorldState, actor: ActorState, connectorId: string): ActionResult {
   const exit = exitFor(actor, connectorId);
   if (typeof exit === 'string') return { status: 'failure', rule: RULE_REGION_TRANSIT, reason: exit };
@@ -75,10 +95,6 @@ export function ruleTransit(_state: WorldState, actor: ActorState, connectorId: 
   const failure = evaluateTransitPreconditions(actor, exit);
   if (failure) return { status: 'failure', rule: RULE_REGION_TRANSIT, reason: failure };
 
-  const there = anchorPosition(exit.there.region, exit.there.anchor);
-  actor.regionId = exit.there.region;
-  actor.position = { x: there.x, z: there.z };
-  actor.velocity = { x: 0, z: 0 };
-  actor.currentAction = idleAction();
+  applyRegionTransition(actor, exit);
   return { status: 'success', rule: RULE_REGION_TRANSIT };
 }

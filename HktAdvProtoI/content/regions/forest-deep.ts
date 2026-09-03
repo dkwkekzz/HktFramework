@@ -4,6 +4,11 @@
 // 붉은눈 거목으로 다가서는 TREE_APPROACH 는 북쪽 변이다.
 // ANCIENT_GATE 만 변이 아닌 안쪽 모서리 자리다 — 길이 아니라 문이기 때문이다 (01-spec UNRESOLVED 판정).
 // 방 사이의 좌표는 서로 무관하다 — 같은 tag 가 다른 방에서 다른 자리다 (C001 SPEC-001).
+//
+// C003 CHANGED — anchor 가 여섯이 된다. 물길이 나오는 RIVER_MOUTH 는 네 변이 이미 찼으므로 안쪽 자리이고,
+// 거목으로 나가는 TREE_APPROACH(0, 18) 와 가장 먼 쪽이다 — "들어갔던 자리가 아니다" 가 걸음으로 읽힌다.
+// 이 방에서 나가는 끝은 그래도 다섯 그대로다 — RIVER_MOUTH 로 나가는 Connector 가 없기 때문이다
+// (물길은 들어오기만 하는 one-way 다 · 01-spec SPEC-002 경계).
 
 import type { RegionSpec } from './spec';
 import { ANCHOR_LAYER } from './spec';
@@ -52,6 +57,13 @@ export const FOREST_DEEP_SPEC: RegionSpec = {
         layer: ANCHOR_LAYER,
         tag: 'ANCIENT_GATE',
         position: { x: -13, z: 13 },
+      },
+      {
+        id: 'anchor-river-mouth',
+        kind: 'point',
+        layer: ANCHOR_LAYER,
+        tag: 'RIVER_MOUTH',
+        position: { x: 14, z: -8 },
       },
     ],
   },
