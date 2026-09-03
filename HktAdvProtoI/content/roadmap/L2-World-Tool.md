@@ -25,7 +25,7 @@
 | **WorldPosition** | `regionId + local (x, z)`. 관찰 결과의 `scene` 이 regionId 다 | Region §9 · §3 |
 | **네 프리미티브** | Point · Curve · Area · Field(Stamp). AI 도 사람도 이 넷만 편집한다 — vertex 는 만지지 않는다 | WE §6 · Plan §2.1 |
 | **layer · tag** | 프리미티브에 붙는 이름의 공간. 기반은 뜻을 모르고 조회만 준다. 뜻은 컨텐츠 데이터가 정한다 | Plan §2.2-1 · §3.1 |
-| **Height Field** | 공유 vertex grid 하나가 높이의 단일 출처. World 는 고정 해상도 격자(`TERRAIN_RESOLUTION`), View 는 chunk 로 샘플 | Plan §3.2 |
+| **Height Field** | 공유 vertex grid 하나가 높이의 단일 출처. World 는 고정 해상도 격자(`TERRAIN_RESOLUTION`), View 는 chunk 로 샘플. 해상도는 격자 칸의 크기이지 Region 크기의 상한이 아니다 — 격자는 chunk 로 나뉠 수 있고 Region 의 extent 에 상한을 두지 않는다 (Rooms 불변 조건 "방은 공간일 뿐이다" · Land E9) | Plan §3.2 |
 | **Compiler** | `(description, rules) → { world, view, hash }`. 순수 · 결정론 · Seed 는 컴파일의 것이지 세계 State 가 아니다 | Plan §3.5 |
 | **World Data** | height · surface · traversable · areas(tagsAt) · points · connectors. 규칙이 읽는다 | Plan §3.2 |
 | **View Data** | chunk mesh · surface 색 · scatter instance(billboard sprite). 그리기만 한다 | Plan §3.2 · §2.2-6 |
