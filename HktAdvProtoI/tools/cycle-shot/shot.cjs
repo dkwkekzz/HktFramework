@@ -12,10 +12,13 @@
 //     "viewport": [560, 420],               (선택) 작게 — 소프트웨어 GPU 는 화면이 크면 한 프레임이 수 초다
 //     "runs": [                             run 마다 세계를 새로 띄운다 (HKT_SPAWN 이 다를 수 있으므로)
 //       { "spawn": "0,17",                  (선택) 관찰자의 몸이 처음 놓일 자리 — vite.config.ts 의 검증용 손잡이
+//         "region": "FOREST_DEEP",           (선택) 어느 방에서 — 방이 여럿일 때 (같은 손잡이)
 //         "npcs": "none",                    (선택) 자율 존재 없이 — 맞아 쓰러지면 조작이 이어지지 않을 때
 //         "steps": [
 //           { "wait": "세계 시간", "tries": 60 },   HUD 글자가 정규식에 맞을 때까지 초 단위로 되묻는다
 //           { "press": "KeyT", "times": 4 },        키를 누른다 (한 번 누르는 키 — 느린 프레임에서도 이어진다)
+//           { "pressUntil": "KeyQ", "wait": "잠겨", "tries": 10,      기대한 글자가 뜰 때까지 다시 누른다
+//             "blockedBy": "끊김" },                                   (선택) 이 글자가 사라진 뒤에 누른다
 //           { "hold": "KeyW", "ms": 1500 },         키를 누르고 있는다 (걷기 — 소프트웨어 GPU 에서는 짧게만)
 //           { "sleep": 1000 },
 //           { "expect": "문명권", "note": "X-⑤" },   HUD 글자에 있는가를 기록한다
@@ -41,10 +44,13 @@ const outDir = path.resolve(baseDir, scenario.out ?? 'shots');
 fs.mkdirSync(outDir, { recursive: true });
 const [vw, vh] = scenario.viewport ?? [560, 420];
 
-function startVite(spawnAt, npcs) {
+function startVite(spawnAt, npcs, region) {
   const env = { ...process.env };
   if (spawnAt) env.HKT_SPAWN = spawnAt;
   else delete env.HKT_SPAWN;
+  // 어느 방에서 시작할 것인가 — 방이 여럿이면 자리만으로는 고를 수 없다 (vite.config.ts)
+  if (region) env.HKT_SPAWN_REGION = region;
+  else delete env.HKT_SPAWN_REGION;
   if (npcs === 'none') env.HKT_NPCS = 'none';
   else delete env.HKT_NPCS;
   const child = spawn(
@@ -87,7 +93,7 @@ async function until(page, ok, tries) {
 }
 
 async function runOne(run, index, report) {
-  const vite = await startVite(run.spawn, run.npcs);
+  const vite = await startVite(run.spawn, run.npcs, run.region);
   const browser = await launch();
   const page = await browser.newPage({ viewport: { width: vw, height: vh } });
   const errors = collectErrors(page);
@@ -95,16 +101,35 @@ async function runOne(run, index, report) {
   try {
     await page.goto(`http://localhost:${PORT}/`);
     await until(page, (t) => /세계 시간/.test(t), 60);
-    // 화면에 초점을 주고 겹쳐 뜬 표면을 닫는다 — 열려 있으면 방향키가 삼켜진다 (terrain-shot.js 선례)
-    const canvas = await page.$('#game canvas');
-    const box = await canvas.boundingBox();
-    await page.mouse.click(box.x + box.width / 2, box.y + box.height * 0.75);
+    // 겹쳐 뜬 표면을 닫는다 — 열려 있으면 방향키가 삼켜진다 (terrain-shot.js 선례).
+    //
+    // **캔버스를 클릭하지 않는다.** 클릭은 "그 자리로 가라" 는 이동 요청이라 spawn 으로
+    // 세워 둔 몸이 옮겨진다 — 표식 앞에 세워 놓고 찍으려던 것이 어긋난다. 자판은
+    // window 가 듣는다 (engine/view-kernel/input/keyboard.ts) 므로 초점 클릭도 필요 없다.
     for (let i = 0; i < 3; i++) {
       await page.keyboard.press('Escape');
-      await sleep(200);
+      await sleep(300);
     }
     for (const step of run.steps ?? []) {
-      if (step.wait !== undefined) {
+      if (step.pressUntil) {
+        // 기대한 글자가 뜰 때까지 다시 누른다 — 소프트웨어 GPU 에서는 프레임이 밀려
+        // 이어짐이 끊겼다 붙었다 하고, 죽은 창에 떨어진 키는 세계에 닿지 않는다.
+        // blockedBy 가 있으면 그 글자가 화면에서 사라진 뒤에 누른다.
+        const re = new RegExp(step.wait);
+        const blocked = step.blockedBy ? new RegExp(step.blockedBy) : null;
+        let text = await hudText(page);
+        for (let i = 0; i < (step.tries ?? 10) && !re.test(text); i++) {
+          if (blocked) {
+            for (let w = 0; w < (step.settle ?? 20) && blocked.test(await hudText(page)); w++) {
+              await sleep(1000);
+            }
+          }
+          await page.keyboard.press(step.pressUntil);
+          await sleep(step.gap ?? 1200);
+          text = await hudText(page);
+        }
+        report.push({ run: index, kind: 'pressUntil', what: `${step.pressUntil} → ${step.wait}`, ok: re.test(text), note: step.note, hud: text });
+      } else if (step.wait !== undefined) {
         const re = new RegExp(step.wait);
         const text = await until(page, (t) => re.test(t), step.tries ?? 30);
         report.push({ run: index, kind: 'wait', what: step.wait, ok: re.test(text), note: step.note });

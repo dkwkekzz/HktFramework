@@ -24,7 +24,13 @@ import { evaluateTransitPreconditions } from '../rules/transit';
 import { actorModifiers, isDowned, skillDefinition } from '../semantic/combat';
 import { projectCommandCatalog } from '../semantic/command-catalog';
 import { hasMiningTool, itemCount } from '../semantic/inventory';
-import { anchorPosition, regionExitsOf, regionHash, regionSpecOf } from '../semantic/region';
+import {
+  anchorPosition,
+  isConnectorOpen,
+  regionExitsOf,
+  regionHash,
+  regionSpecOf,
+} from '../semantic/region';
 import {
   actorOfObserver,
   findObserver,
@@ -199,12 +205,17 @@ export function projectObserverView(
   // entities.region-exit + interactions.transit — 이 Region 의 anchor 마다 하나 (C001 R6).
   // id 는 Connector 의 id, kind 는 transition. 건너간 뒤의 Region 은 어디에도 실리지 않는다.
   // exitsOf 의 순서(connectors 배열 순서) 그대로 낸다 (결정론).
+  //
+  // C002 CHANGED (02-world R2) — state 가 열림과 닫힘으로 갈린다. 여기까지가 표식이다.
+  // 싣지 않는 것: 경계(frontier) 목록 · 닫힌 Connector 목록 · 건너간 뒤 Region 의 id/이름 ·
+  // Connector 의 방향. "아직 없는 곳" 은 표식이 아니라 요청의 대답(reason)으로만 드러난다 —
+  // 경계를 가리키는 출구도 state 는 open 이다 (01-spec SPEC-007 경계).
   for (const exit of regionExitsOf(self.regionId)) {
     const here = anchorPosition(exit.here.region, exit.here.anchor);
     entities.push({
       id: exit.connector.id,
       role: 'region-exit',
-      state: 'open',
+      state: isConnectorOpen(exit.connector.id) ? 'open' : 'locked',
       kind: exit.connector.transition,
       position: { x: here.x, z: here.z },
     });

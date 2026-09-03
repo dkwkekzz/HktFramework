@@ -38,8 +38,9 @@ const crossForest = (world: WorldDriver, observerId = OBSERVER) =>
   world.dispatch({ interactionId: 'transit', targetEntityId: FOREST_PATH }, observerId);
 
 describe('SPEC-001 — Region 이 있다', () => {
-  it('세계는 Region 둘을 안다 — WHITE_KING_DOMAIN(civil) · FOREST_EDGE(outer), 각각 extent −20..20', () => {
-    expect(REGION_SPECS.map((r) => r.id)).toEqual([WHITE_KING_DOMAIN, FOREST_EDGE]);
+  it('세계는 이 둘을 안다 — WHITE_KING_DOMAIN(civil) · FOREST_EDGE(outer), 각각 extent −20..20', () => {
+    // C002 가 방을 넷 더했다. C001 이 세운 둘은 여전히 맨 앞이고 뜻이 그대로다
+    expect(REGION_SPECS.map((r) => r.id).slice(0, 2)).toEqual([WHITE_KING_DOMAIN, FOREST_EDGE]);
     expect(regionSpec(WHITE_KING_DOMAIN)?.depth).toBe('civil');
     expect(regionSpec(FOREST_EDGE)?.depth).toBe('outer');
     for (const spec of REGION_SPECS) {
@@ -67,15 +68,14 @@ describe('SPEC-001 — Region 이 있다', () => {
 
 describe('SPEC-002 — Graph 가 있다', () => {
   it('Connector FOREST_PATH 하나 — 백왕령.FOREST_PATH ↔ 숲가장자리.FOREST_PATH · bidirectional · road', () => {
-    expect(REGION_GRAPH.connectors).toEqual([
-      {
-        id: FOREST_PATH,
-        from: { region: WHITE_KING_DOMAIN, anchor: FOREST_PATH },
-        to: { region: FOREST_EDGE, anchor: FOREST_PATH },
-        direction: 'bidirectional',
-        transition: 'road',
-      },
-    ]);
+    // C002 가 Connector 를 아홉 더했다. FOREST_PATH 는 그대로 첫째이고 내용이 그대로다
+    expect(REGION_GRAPH.connectors[0]).toEqual({
+      id: FOREST_PATH,
+      from: { region: WHITE_KING_DOMAIN, anchor: FOREST_PATH },
+      to: { region: FOREST_EDGE, anchor: FOREST_PATH },
+      direction: 'bidirectional',
+      transition: 'road',
+    });
   });
 
   it('anchor 는 각 Region 의 한 자리다 — Graph 검사에 문제가 없다', () => {
@@ -221,12 +221,17 @@ describe('SPEC-007 — 관찰은 방으로 잘린다', () => {
     const v = world.observe();
 
     expect(v.scene).toBe(WHITE_KING_DOMAIN);
-    expect(v.entities.map((e) => e.id).sort()).toEqual(
-      [PLAYER, 'npc-1', 'npc-2', 'deposit-1', FOREST_PATH].sort(),
-    );
-    expect(exits(v)).toEqual([
-      { id: FOREST_PATH, role: 'region-exit', state: 'open', kind: 'road', position: { x: 0, z: 18 } },
-    ]);
+    // 몸과 광맥은 백왕령의 것이 전부다 (출구는 C002 가 고개 둘을 더했다 — 여기서 세지 않는다)
+    expect(
+      v.entities.filter((e) => e.role !== 'region-exit').map((e) => e.id).sort(),
+    ).toEqual([PLAYER, 'npc-1', 'npc-2', 'deposit-1'].sort());
+    expect(exits(v)).toContainEqual({
+      id: FOREST_PATH,
+      role: 'region-exit',
+      state: 'open',
+      kind: 'road',
+      position: { x: 0, z: 18 },
+    });
     expect(v.region).toEqual({ id: WHITE_KING_DOMAIN, hash: descriptionHash(regionSpec(WHITE_KING_DOMAIN)!.space) });
     // 목적지 Region 의 이름은 어디에도 실리지 않는다
     expect(JSON.stringify(v)).not.toContain(FOREST_EDGE);
@@ -238,10 +243,15 @@ describe('SPEC-007 — 관찰은 방으로 잘린다', () => {
     const v = world.observe();
 
     expect(v.scene).toBe(FOREST_EDGE);
-    expect(v.entities.map((e) => e.id)).toEqual([PLAYER, FOREST_PATH]);
-    expect(exits(v)).toEqual([
-      { id: FOREST_PATH, role: 'region-exit', state: 'open', kind: 'road', position: { x: 0, z: -18 } },
-    ]);
+    // 관찰자 자신 말고는 몸도 광맥도 없다 (출구는 C002 가 둘 더했다)
+    expect(v.entities.filter((e) => e.role !== 'region-exit').map((e) => e.id)).toEqual([PLAYER]);
+    expect(exits(v)).toContainEqual({
+      id: FOREST_PATH,
+      role: 'region-exit',
+      state: 'open',
+      kind: 'road',
+      position: { x: 0, z: -18 },
+    });
     expect(v.interactions.filter((i) => i.id === 'mine')).toEqual([]); // 다른 방의 광맥은 가용성도 없다
     expect(v.region.id).toBe(FOREST_EDGE);
     expect(JSON.stringify(v)).not.toContain(WHITE_KING_DOMAIN);

@@ -27,11 +27,18 @@ const externalWorld = process.env.HKT_WORLD_URL;
  * 이어지지 않는다** — 그래서 먼 자리를 찍으려면 거기서 시작해야 한다
  * (tools/fx-lab/test/terrain-shot.js).
  */
-function spawnFromEnv(): { actorPosition?: { x: number; z: number }; npcs?: [] } {
-  const setup: { actorPosition?: { x: number; z: number }; npcs?: [] } = {};
+function spawnFromEnv(): {
+  actorPosition?: { x: number; z: number };
+  actorRegion?: string;
+  npcs?: [];
+} {
+  const setup: { actorPosition?: { x: number; z: number }; actorRegion?: string; npcs?: [] } = {};
   // HKT_NPCS="none" — 자율 존재 없이 띄운다. 촬영에서 관찰자가 맞아 쓰러지면 건너기 같은
   // 조작이 이어지지 않는다 (tools/cycle-shot). 같은 검증용 손잡이 — 초기 배치만 비운다.
   if (process.env.HKT_NPCS === 'none') setup.npcs = [];
+  // HKT_SPAWN_REGION — 어느 **방**에서 시작할 것인가. 방이 여럿이 되면서 자리만으로는
+  // 모자란다 (C002): 걷기가 이어지지 않는 촬영에서 백왕령 밖의 방을 보려면 거기서 시작해야 한다.
+  if (process.env.HKT_SPAWN_REGION) setup.actorRegion = process.env.HKT_SPAWN_REGION;
   const raw = process.env.HKT_SPAWN;
   if (!raw) return setup;
   const [x, z] = raw.split(',').map(Number);

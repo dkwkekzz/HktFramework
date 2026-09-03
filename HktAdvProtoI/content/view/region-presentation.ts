@@ -9,7 +9,7 @@
 // 이름 뒤에 그 사실을 한 줄 붙인다. 판정은 만들지 않는다: 그리기만 계속한다.
 //
 // 색의 기준 — L2-World-Concept §16 "저기 가보고 싶다 → 근데 들어가도 되나". depth 가 깊어질수록
-// 색이 어두워지고 차가워진다 (§3.2: civil = 문명권, outer = 익숙한 자연).
+// 색이 어두워지고 차가워진다 (§3.2: civil = 문명권, outer = 익숙한 자연, wild = 아무도 돌보지 않는 야생).
 
 import type { SceneGroundZone } from '../../engine/view-kernel/scene/scene-state';
 import { descriptionHash, extentPolygon } from '../../engine/world-authoring/description';
@@ -20,6 +20,10 @@ import { codeText } from './code-text';
 export const REGION_NAMES: Readonly<Record<string, string>> = {
   WHITE_KING_DOMAIN: '백왕령',
   FOREST_EDGE: '숲 가장자리',
+  FOREST_DEEP: '숲 안쪽',
+  EXPLORER_RUIN: '탐험대 폐허',
+  PREDATOR_NEST: '포식수 둥지',
+  BIO_ORE_FIELD: '생체 광석 지대',
 };
 
 export function regionName(id: string): string {
@@ -39,6 +43,9 @@ export const DEPTH_PRESENTATIONS: Readonly<Record<string, DepthPresentation>> = 
   civil: { fill: 0xf0c878, fillOpacity: 0.3, edge: 0xb8863a, edgeOpacity: 0.85 },
   // 문명의 경계 밖 — 초록이고 어둡다. "들어가도 되나" 가 시작되는 색
   outer: { fill: 0x2e7a48, fillOpacity: 0.32, edge: 0x1a4a2c, edgeOpacity: 0.85 },
+  // 야생 — 초록이 빠지고 푸른 그늘만 남는다. outer 보다 더 어둡고 더 차갑다:
+  // "들어가도 되나" 다음 한 걸음, 아무도 돌보지 않는 땅의 색
+  wild: { fill: 0x1c4a5a, fillOpacity: 0.34, edge: 0x0e2a36, edgeOpacity: 0.85 },
 };
 
 // 미등록 depth 의 기본 결정 — 무채색. 태그가 늘어도 게임은 멈추지 않고 색만 없다
@@ -55,10 +62,22 @@ export function depthPresentation(depth: string): DepthPresentation {
 
 /**
  * 전이 종류(Connector.transition = region-exit 존재의 kind) → 출구 표식에 곱할 색.
- * 지금은 road 하나다. 종류가 늘면 여기 한 줄이 는다 — 목적지 이름은 어디에도 없다.
+ * 종류가 늘면 여기 한 줄이 는다 — 목적지 이름은 어디에도 없다.
+ *
+ * 색은 종류마다 색상(hue)이 갈리게 골랐다 — 이 Cycle 의 핵심 관찰이 "출구는 **종류**만 보인다" 이므로
+ * 표식 다섯이 한 화면(숲 안쪽)에 섰을 때 밝기가 아니라 색으로 즉시 갈려야 한다.
  */
 export const TRANSITION_TINTS: Readonly<Record<string, number>> = {
+  // 길 — 사람이 닦아 밟아 다진 흙. 문명 쪽으로 이어지는 유일한 따뜻한 색
   road: 0xe0c48a,
+  // 오솔길 — 길이 되다 만 풀. 흙색에서 초록으로 한 칸 옮겨 "닦이지 않은 길" 을 뜻한다
+  trail: 0x8fae6a,
+  // 문 — 자연이 아니라 누군가 세운 것. 붉은 인공색 하나만 이 계열에 둔다 (닫혀 있을 수 있다는 경고)
+  door: 0xb05a5a,
+  // 고개 — 능선을 넘는 찬 하늘빛. 길·오솔길의 따뜻한 계열과 정반대에 두어 "넘어가는 곳" 으로 읽힌다
+  pass: 0x9fd0e8,
+  // 들어감 — 걸어 나가는 것이 아니라 무엇의 안으로 드는 것. 자연에 없는 보라로 성질 자체를 가른다
+  interaction: 0xc79bea,
 };
 
 /** 바닥 테두리의 두께 (세계 단위 — renderer 가 띠로 옮긴다) */

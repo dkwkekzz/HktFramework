@@ -1,12 +1,20 @@
-// RULE-REGION-TRANSIT-001 — 방 사이의 건너기 (C001 ADDED · 02-world R1)
+// RULE-REGION-TRANSIT-001 — 방 사이의 건너기 (C001 ADDED · C002 CHANGED · 02-world R1)
 // Input          Actor, ConnectorId
 // Preconditions  1. Connector 가 Graph 에 있다
 //                2. Connector 의 한쪽 끝(from 또는 to — 양방향이므로 둘 다)이 Actor 의 Region 에 있다
 //                3. 그 끝의 anchor 와 Actor 의 거리 ≤ INTERACTION_RANGE (RULE-MINE-001 과 같은 상수)
-//                4. 현재 행동이 대체 가능하다 (RULE-ACTION-BEGIN-001)
+//                4. Connector 가 열려 있다 — id 가 CLOSED_CONNECTORS 에 없다        (C002 ADDED)
+//                5. 건너간 뒤의 region 이 지어져 있다 — Description 이 있다           (C002 ADDED)
+//                6. 현재 행동이 대체 가능하다 (RULE-ACTION-BEGIN-001)
 // Transition     Actor.RegionId = 반대쪽 끝의 region · Position = 반대쪽 anchor 의 자리 ·
 //                Velocity = (0, 0) · CurrentAction = idle
-// Result         Success | Failure(unknown-connector | wrong-region | out-of-range | action-busy)
+// Result         Success | Failure(unknown-connector | wrong-region | out-of-range |
+//                connector-inactive | region-not-built | action-busy)
+//
+// 거절 사유는 위 순서로 첫 번째로 걸리는 하나다 (01-spec SPEC-006). 거리가 닫힘·경계보다 앞인 것은
+// 뜻이 있다 — 멀리서도 사유가 보이면 걸어가 볼 이유가 사라진다. 목적지는 붙어서 물어봐야 안다.
+// 거절은 세계 State 를 하나도 바꾸지 않는다 — 몸의 regionId · position · velocity · currentAction 이
+// 요청 전과 같다 (01-spec SPEC-006 경계).
 //
 // 두 Local Space 는 이어져 있지 않다 — 건너는 순간 관성은 없고, 진행 중이던 이동 목표는 뜻이 없다
 // (01-spec UNRESOLVED 판정). 위치 이동은 이 Rule 만이 방을 바꾼다.
@@ -19,7 +27,7 @@ import { REGION_GRAPH } from '../../regions';
 import { idleAction } from '../semantic/action';
 import type { ActorState } from '../semantic/actor';
 import { distance } from '../semantic/position';
-import { anchorPosition } from '../semantic/region';
+import { anchorPosition, isConnectorOpen, isRegionBuilt } from '../semantic/region';
 import { INTERACTION_RANGE, type WorldState } from '../semantic/world-state';
 import { evaluateActionBegin } from './action-begin';
 
@@ -28,7 +36,9 @@ export type TransitFailureReason =
   | 'out-of-range'
   | 'action-busy'
   | 'unknown-connector'
-  | 'wrong-region';
+  | 'wrong-region'
+  | 'connector-inactive'
+  | 'region-not-built';
 
 // Precondition 평가 — Observable(interactions[transit].available / reason)과 Rule 이 같은 판정을 공유한다.
 // exit 는 이미 Actor 의 Region 에 있는 끝이다 (here.region === actor.regionId).
@@ -39,6 +49,9 @@ export function evaluateTransitPreconditions(
   if (exit.here.region !== actor.regionId) return 'wrong-region';
   const here = anchorPosition(exit.here.region, exit.here.anchor);
   if (distance(actor.position, here) > INTERACTION_RANGE) return 'out-of-range';
+  // C002 ADDED — 닫힌 문이 먼저다. 열려 있어도 건너간 뒤가 아직 지어지지 않았으면 갈 수 없다.
+  if (!isConnectorOpen(exit.connector.id)) return 'connector-inactive';
+  if (!isRegionBuilt(exit.there.region)) return 'region-not-built';
   return evaluateActionBegin(actor);
 }
 

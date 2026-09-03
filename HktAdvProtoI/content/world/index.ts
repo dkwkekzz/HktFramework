@@ -45,6 +45,8 @@ export interface NpcSetup {
 export interface WorldSetup {
   /** 첫 번째 관찰자의 몸이 놓일 자리 — 검증용 초기 배치 (SPAWN_POINTS[0] 를 대신한다) */
   actorPosition?: { x: number; z: number };
+  /** 첫 번째 관찰자의 몸이 설 Region — 검증·촬영용. 밝히지 않으면 START_REGION 이다 */
+  actorRegion?: string;
   actorItems?: Partial<Record<ItemKind, number>>;
   actorCharacterKind?: string;
   depositPosition?: { x: number; z: number };
@@ -153,6 +155,7 @@ export function createWorld(setup: WorldSetup = {}, restored?: WorldState): Worl
     spawnPoints: setup.actorPosition
       ? [{ x: setup.actorPosition.x, z: setup.actorPosition.z }, ...SPAWN_POINTS.slice(1)]
       : SPAWN_POINTS,
+    ...(setup.actorRegion ? { spawnRegion: setup.actorRegion } : {}),
   };
 
   const content: WorldContent<WorldState> = {
