@@ -12,9 +12,9 @@
 | 레인 | 지금 할 수 있는 것 | 기다리는 것 | 다음 |
 |---|---|---|---|
 | Rooms — [RegionGraphRooms](content/roadmap/play/RegionGraphRooms.md) | **C002** 출구는 여럿, 목적지는 모른다 — 숲 안쪽 · POI 방 셋 · 닫힌 고대 문 · 붉은 황야/얼음 협곡 Connector | — | C003 → C004 (순차) |
-| Rule — [RuleBoundRoom](content/roadmap/play/RuleBoundRoom.md) | C005 **plan 까지** (spec 동결) | build 는 C002 합침 뒤 — LOCKED Connector 의미(W7) 위에 activation(W12)이 선다 · 미로 입구인 고대 문은 C004 가 연다 | C006 → C007 |
+| Rule — [RuleBoundRoom](content/roadmap/play/RuleBoundRoom.md) | design ③ — C005~C007 범위 절 뽑기 · 이어 C005 **명세까지** (spec 동결) | 실현은 C002 합침 뒤 — LOCKED Connector 의미(W7) 위에 activation(W12)이 선다 · 미로 입구인 고대 문은 C004 가 연다 | C006 → C007 |
 | ENGINE A — [Plan-World-Authoring-Engine §5](design/Plan-World-Authoring-Engine.md) | 지형 컴파일러 E6~E8 (Cycle 아님 · 게임 명사 없음 · 분리 커밋) | — | C008 이 쓴다 |
-| Land — [RoomBecomesLand](content/roadmap/play/RoomBecomesLand.md) | 대기 | ENGINE A + Rule 닫힘 (승인된 순서: Rooms → Rule → Land) | C008 → C010 |
+| Land — [RoomBecomesLand](content/roadmap/play/RoomBecomesLand.md) | design ③ — C008~C010 범위 절 뽑기 | 실현은 ENGINE A + Rule 닫힘 (승인된 순서: Rooms → Rule → Land) | C008 → C010 |
 
 Human 결정 (승인된 순서에 닿는 것 — 정하면 표를 고친다):
 ① C005 build 를 C002 와 겹칠지 — 입구 없이 하네스·개발 명령으로만 미로에 들어가는 상태를 허용하는가
@@ -26,9 +26,9 @@ Human 결정 (승인된 순서에 닿는 것 — 정하면 표를 고친다):
 
 | Play | 증명 | Cycle | 상태 |
 |---|---|---|---|
-| RegionGraphRooms | 세계는 방들의 그래프다 | C001~C004 | C001 닫힘 · **C002 다음** |
-| RuleBoundRoom | 방은 규칙을 품는다 (환상의 미로) | C005~C007 | plan 가능 |
-| RoomBecomesLand | 방이 땅이 된다 (백왕령) | C008~C010 | 대기 |
+| RegionGraphRooms | 세계는 방들의 그래프다 | C001~C004 | C001 닫힘 · C002~C004 범위 절 있음 · **C002 다음** |
+| RuleBoundRoom | 방은 규칙을 품는다 (환상의 미로) | C005~C007 | 범위 절 없음 (design ③) |
+| RoomBecomesLand | 방이 땅이 된다 (백왕령) | C008~C010 | 범위 절 없음 (design ③) |
 
 **Human 판정 대기** — C001 X-①~⑧: [cycles/C001-region-graph-rooms/TODO.md](cycles/C001-region-graph-rooms/TODO.md)
 (그림은 같은 폴더 `shots/`). 직접 보려면 `npm run dev` → 북쪽 표식까지 걸어가 `Q`.

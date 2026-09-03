@@ -8,7 +8,7 @@ SELECTED_FROM  Play Cycle Breakdown — "C001 — 방 둘과 길 하나"
 ```
 
 이 Play 가 증명하는 축은 L2(세계 자체)이고, 이 Cycle 은 그 축의 **최소 형태**를 세운다.
-범위(Playable Goal ~ Out of Scope)와 명세(SPEC ~ UNRESOLVED)를 한 파일에 둔다. UNRESOLVED 없음 → 동결.
+범위(Playable Goal ~ Out of Scope)는 design 이 Play 에서 잘라 쓴다. 명세(SPEC ~ UNRESOLVED)는 cycle 이 덧붙여 동결한다.
 
 ## Playable Goal
 

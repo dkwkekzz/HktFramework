@@ -3,8 +3,8 @@
 상태: 승인 (Human 원문 제공)
 원본 관계: [Design-CycleExecutionWorkflow.md](Design-CycleExecutionWorkflow.md) 의 **위층 확장**이다.
 Cycle 이후(PLAN → BUILD → VERIFY)는 그 문서가 그대로 소유한다 — 이 문서는
-사람의 아이디어에서 승인된 Play 와 레인 표까지의 기획 공정만 정의한다. Cycle 범위(§6)는
-그 Play 의 Cycle Breakdown 한 항목을 Cycle 공정이 잘라 spec.md 의 첫 절들로 쓴다.
+사람의 아이디어에서 승인된 Play · 그 Play 의 모든 Cycle 범위(§6, spec.md 의 첫 절들) · 레인 표까지의
+기획 공정을 정의한다. 명세 이후는 Cycle 공정의 것이다.
 
 ## 1. 목적
 
@@ -34,7 +34,7 @@ content/roadmap/       주입 순서(README.md)와 그 결과물 — 이 세계�
   M<N>-*.md            컨텐츠 층 — 미지(지역·생물·자원·구조) 하나에 대해 Human 이 준 세계관 사실
   play/<PlayName>.md   실제 플레이 경험 1개당 1문서 (Level 2) — 로드맵의 행 하나를 증명한다
 cycles/C###-이름/
-  spec.md              이번에 플레이 가능하게 만들 최소 단위(Level 3 = 범위 절) + 명세 — Cycle 공정이 한 번에 쓴다
+  spec.md              범위 절(Level 3 — 이 공정이 Play 승인 직후 모든 Cycle 에 대해 쓴다) + 명세 절(Cycle 공정이 덧붙인다)
   TODO.md · shots/     코드 뒤에 남는 것 — Human 판정 대기 · 부채 · 마감 촬영
 ```
 
@@ -44,7 +44,7 @@ cycles/C###-이름/
 | design/*.md (시스템) | 각 영역이 어떤 원리로 작동하는가? |
 | M<N>-*.md (미지) | 이 세계에 무엇이 존재하는가 — 지역·생물·자원·구조 하나 |
 | play/*.md | 그 시스템들이 실제 플레이 하나에서 어떻게 만나는가? |
-| spec.md 범위 절 | 지금 무엇을 작게 플레이 가능하게 만들 것인가? (Cycle 공정의 첫 일) |
+| spec.md 범위 절 | 지금 무엇을 작게 플레이 가능하게 만들 것인가? (이 공정 — Play 의 모든 Cycle 에 대해) |
 | 명세 / 실현 / 마감 | (기존 Cycle 공정 그대로 — advprotoi-cycle) |
 
 ## 3. Level 0 — Game Direction (`content/roadmap/L0-Game.md`)
@@ -142,10 +142,10 @@ Play 전체를 한 번에 구현하지 않는다. 각 Cycle 조건:
 
 ## 6. Level 3 — Cycle 범위 (`cycles/<CycleId>/spec.md` 의 첫 절들)
 
-Cycle 하나를 선택하면 그 범위를 `spec.md` 의 첫 절들로 쓴다. 이것은 Design 공정의 일이 아니라
-**Cycle 공정의 첫 일**이다 — Play 승인 뒤에는 Human 게이트가 없고, 같은 AI 가 같은 파일에
-명세를 이어 쓰기 때문이다. Play Design 전체를 다시 설명하지 않는다 — **이번 구현에 필요한 것만**
-가져온다.
+Play 가 승인되면 그 Cycle Breakdown 의 **모든 항목**을 각각 `spec.md` 의 첫 절들(범위)로 쓴다.
+범위는 승인된 Human 의도의 절단이므로 Design 공정의 것이다 — Cycle 공정이 Play 를 되읽어 재해석할
+여지를 없앤다. Cycle 마다 하지 않고 승인 직후 한 번에 한다. Play Design 전체를 다시 설명하지
+않는다 — **그 Cycle 에 필요한 것만** 가져온다.
 
 ```text
 # C### — <이름>
@@ -159,8 +159,9 @@ CYCLE / SOURCE / SELECTED_FROM   Trace 블록 — SOURCE 는 content/roadmap/pla
 (이어서 SPEC · State · Rule · Observable · UNRESOLVED — 기존 Cycle 공정)
 ```
 
-Design 공정은 승인된 Play 와 레인 표에서 끝난다. Cycle 공정은 Experience Intent 를 다시
-해석하지 않고, 이미 결정된 플레이 기획을 범위와 명세로 폐쇄하고 동결한다. 코드 뒤에는
+Design 공정은 범위 절과 레인 표(§8.5 ③)에서 끝난다. Cycle 공정은 Experience Intent 를 다시
+해석하지 않고, 범위 절 아래에 명세를 덧붙여 폐쇄하고 동결한다 — 고치는 것은 Reuse(지금 코드로
+재확인)뿐이다. 코드 뒤에는
 `TODO.md`(Human 판정 대기 · 부채)와 `shots/`(마감 촬영)만 남는다.
 
 ## 7. Verification 의 두 층
@@ -200,8 +201,8 @@ World Capability 는 이후 Cycle 에서 그대로 재사용한다.
           아니다 — 지어내지 않고 문서 끝 "Human 질문" 목록에 모은다.
           → Human 승인 1회 (Play 문서 통짜 — Goal·Intent·Breath·Breakdown 개별
           게이트를 두지 않는다. 질문 목록이 있으면 답과 함께 승인된다)
-③ 레인    승인 즉시 STATE.md §1 에 "다음에 할 일"을 병렬 레인 표로 적는다 → "C### 진행" 이
-          advprotoi-cycle 을 부른다 (범위 절부터 spec.md 를 쓴다).
+③ 범위·레인  승인 즉시 그 Play 의 모든 Cycle 범위를 cycles/C###/spec.md 의 첫 절들로 뽑고, 그 Reuse 로
+          STATE.md §1 에 "다음에 할 일"을 병렬 레인 표로 적는다 → "C### 진행" 이 advprotoi-cycle 을 부른다.
 ```
 
 전제 조건 완화 — **L0-Game.md 와 시스템 문서는 있으면 참조하고, 없어도 막지 않는다.**
@@ -275,5 +276,5 @@ Play Design 이 하나도 없으면 첫 Play 를 기획하는 것(advprotoi-desi
 4. 모든 중요한 감정 변화에는 게임 안의 원인(World Cause)이 있어야 한다.
 5. Cycle 은 기능 단위가 아니라 **최소 Playable Experience 단위**다
    ("ThreatDetection 구현"이 아니라 "주변 생물의 행동으로 보이지 않는 위험을 알아차릴 수 있다").
-6. 구현 Workflow 는 건드리지 않는다 — 이 공정은 승인된 Play 와 레인 표까지만 담당하고,
+6. 구현 Workflow 는 건드리지 않는다 — 이 공정은 승인된 Play · Cycle 범위 절 · 레인 표까지만 담당하고,
    이후는 기존 Cycle 공정(spec.md 명세 → 실현 → 마감)을 그대로 사용한다.

@@ -1,18 +1,19 @@
 ---
 name: advprotoi-design
-description: HktAdvProtoI 의 기획(Design Authoring) 단계를 실행한다 — Human 이 방향 한 줄·기획서(기반 층의 축) 또는 미지 하나(컨텐츠 층의 행 — 지역·생물·자원·구조)를 주입하면 그것을 Play Design(content/roadmap/play/<name>.md)으로 구체화하고, 승인 1회 후 STATE.md §1 에 병렬 레인 표(다음에 할 일)를 정리한다. 플레이 층(Breath·사건·World Cause)은 AI 가 제안하고, 게임 의미의 결정(수치·원리·세계관 사실)은 지어내지 않고 Human 질문 목록으로 모은다. 코드·cycles/ 는 만지지 않는다 — Cycle 은 advprotoi-cycle 이 돌린다. 사용자가 "AdvProtoI 기획 / 기획 주입 / 이 방향으로 만들어줘 / Play Design 작성 / 레인 정리 / design 진행" 을 요청하면 사용.
+description: HktAdvProtoI 의 기획(Design Authoring) 단계를 실행한다 — Human 이 방향 한 줄·기획서(기반 층의 축) 또는 미지 하나(컨텐츠 층의 행 — 지역·생물·자원·구조)를 주입하면 그것을 Play Design(content/roadmap/play/<name>.md)으로 구체화하고, 승인 1회 후 그 Play 의 모든 Cycle 범위(cycles/C###/spec.md 의 범위 절 — Playable Goal · Intent · World Change · Observable Result · Reuse · Out of Scope)를 뽑고, Reuse 로부터 STATE.md §1 의 병렬 레인 표를 정리한다. 플레이 층(Breath·사건·World Cause)은 AI 가 제안하고, 게임 의미의 결정(수치·원리·세계관 사실)은 지어내지 않고 Human 질문 목록으로 모은다. 코드는 만지지 않는다 — 명세·실현은 advprotoi-cycle 이 잇는다. 사용자가 "AdvProtoI 기획 / 기획 주입 / 이 방향으로 만들어줘 / Play Design 작성 / Cycle 범위 뽑기 / 레인 정리 / design 진행" 을 요청하면 사용.
 ---
 
-# HktAdvProtoI Design — 주입 → Play Design → 레인
+# HktAdvProtoI Design — 주입 → Play Design → Cycle 범위 → 레인
 
 **작업 디렉토리: `HktAdvProtoI/`**. 공정 원본은
 [design/Design-DesignAuthoringWorkflow.md](../../../HktAdvProtoI/design/Design-DesignAuthoringWorkflow.md)
 (특히 §8.5 주입 경로) — 이 스킬과 어긋나면 원본이 이긴다.
 
-이 스킬의 사용법은 하나다: **Human 이 방향/기획을 주입하면 승인된 Play 와 레인 표가 나온다.**
-단계는 셋(주입 → 구체화 → 레인), Human 승인은 한 번이다. 코드·`content/` 의 코드·`engine/`·
-`cycles/` 를 만지지 않는다 — `content/roadmap/` 의 문서와 STATE.md §1 만 쓴다. Cycle 자체(명세 →
-실현 → 마감)는 `advprotoi-cycle` 이 돌린다 — Play 의 Cycle Breakdown 한 항목이 그 입력이다.
+이 스킬의 사용법은 하나다: **Human 이 방향/기획을 주입하면 승인된 Play · 그 Play 의 모든 Cycle 범위 ·
+레인 표가 나온다.** 단계는 넷(주입 → 구체화 → 범위 → 레인), Human 승인은 한 번(Play 통짜)이다.
+Human 의도에서 나오는 것은 전부 design 의 것이다 — Play 도, 그 Play 를 잘라 만든 Cycle 범위도.
+코드·`content/` 의 코드·`engine/`·`cycles/*/spec.md` 의 명세 절(SPEC 이하)·`TODO.md` 를 만지지
+않는다. cycle 은 design 이 쓴 범위 절 아래에 명세를 덧붙여 실현한다 — Play 를 다시 읽지 않는다.
 
 ## ① 주입 받기
 
@@ -120,14 +121,39 @@ Goal·Intent·Breath·Breakdown 개별 게이트를 두지 않는다. 답과 수
 승인되면 README 의 해당 행(§2 또는 §3)에 Play 를 적고 ③ 으로. 기반 층 Play 가 놓는
 미지는 이때 §3 에 행으로 올린다.
 
-## ③ 레인 정리 → `STATE.md` §1
+## ③ 범위 → `cycles/<CycleId>/spec.md` 의 범위 절 (Play 의 모든 Cycle, 한 번에)
 
-Play 승인 직후(그리고 Cycle 이 main 에 합쳐질 때마다) "다음에 할 일"을 **병렬 레인 표**로 STATE.md §1 에 적는다 —
-design 이 만지는 유일한 STATE 절이다. 병렬 규칙은 Plan-Skill §4 항목 4 가 소유한다.
+승인 직후 그 Play 의 Cycle Breakdown **전 항목**을 각각 `cycles/C###-이름/spec.md` 의 범위 절로
+잘라 쓴다 — Cycle 마다 design 을 다시 부르지 않는다. Play 를 재설명하지 않고 **그 Cycle 에 필요한
+것만** 가져온다 (Play §5 Play Structure 의 해당 사건 · §6 Capability 의 해당 항목 · 확정 사항).
 
 ```text
-레인 판정   같은 Play 의 Cycle 은 한 레인(순차). 다른 Play 의 Cycle 은 spec 의 Reuse/Existing 이
-           요구하는 Capability 가 main 에 있을 때 실현 가능 — 명세(spec.md)는 그 전에도 가능.
+# C### — <이름>
+CYCLE / SOURCE / SELECTED_FROM   Trace 블록 하나 (SOURCE = Play 문서의 절 번호 + 근거 문서 · SELECTED_FROM = Breakdown 항목)
+## Playable Goal        이번에 성립할 플레이 결과 한두 문장 — 완료를 직접 확인 가능
+## Experience Intent    Start / End — Play 의 Breath 중 이 Cycle 이 만드는 구간
+## World Change         세계에서 무엇이 어떻게 변하는가 (번호 목록 — 존재 · 상태 · 규칙 · 데이터)
+## Observable Result    화면/상태에서 무엇을 직접 확인하는가 (번호 목록)
+## Reuse                Existing(그대로 쓴다) / Added(이 Cycle 이 세운다 — World · Data · View · Engine)
+## Out of Scope         이번에 하지 않는 것과 그것을 받을 Cycle
+```
+
+- 범위는 **승인된 의도의 절단**이다 — Play 에 없는 게임 의미(수치 · 이름 · 세계관 사실)를 지어내지
+  않는다. Play 가 "명세가 고른다"고 남긴 자리는 그렇게 적고 넘긴다.
+- Reuse 의 Existing 판정은 지금 시점의 코드(CLAUDE.md "코드에 있는 것" · STATE §4 · 기존 `cycles/*/spec.md`
+  의 Added)로 한다. 뒤쪽 Cycle 은 앞 Cycle 의 Added 를 Existing 으로 가정해 적는다 — cycle 의 명세
+  단계가 그때의 코드로 다시 확인해 Reuse 만 고친다 (Goal · Intent · Out of Scope 는 고치지 않는다).
+- 범위 절만 쓴다. SPEC 이하는 cycle 의 것이다.
+
+## ④ 레인 정리 → `STATE.md` §1
+
+③ 의 Reuse(무엇을 Existing 으로 요구하는가)로 의존성을 읽어 "다음에 할 일"을 **병렬 레인 표**로
+STATE.md §1 에 적는다 — design 이 만지는 유일한 STATE 절이다. 병렬 규칙은 Plan-Skill §4 항목 4
+가 소유한다. Cycle 이 main 에 합쳐질 때마다 이 표를 다시 고친다(그 Cycle 을 지우고 기다리던 레인을 푼다).
+
+```text
+레인 판정   같은 Play 의 Cycle 은 한 레인(순차). 다른 Play 의 Cycle 은 범위의 Existing 이 요구하는 것이
+           main 에 있을 때 실현 가능 — 명세(spec.md)는 그 전에도 가능.
            ENGINE 레인(게임 명사 없는 기구)은 언제나 병행.
 표 한 장    레인 · 지금 할 수 있는 것 · 기다리는 것(무엇이 합쳐지면 풀리는가) · 다음
 Human 결정  승인된 Play 순서를 깨는 병렬은 제안하지 않는다 — "Human 결정" 줄에 올린다
@@ -135,4 +161,4 @@ Human 결정  승인된 Play 순서를 깨는 병렬은 제안하지 않는다 �
 
 표는 핵심만 — 한 레인에 한 줄, 닫힌 것은 지운다. 한 Cycle = 브랜치 `cycle/C###` = 세션 하나라는
 기제와 "말할 것" 한 줄("C### 진행" → `advprotoi-cycle`)을 §1 머리에 둔다 — 새 세션이 그것만 보고
-시작한다. 종료 보고: 레인 표 + Human 결정 줄. Cycle 을 이어 시작하지 않는다.
+시작한다. 종료 보고: 뽑은 범위 목록 + 레인 표 + Human 결정 줄. Cycle 을 이어 시작하지 않는다.

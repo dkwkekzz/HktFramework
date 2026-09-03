@@ -1,6 +1,6 @@
 ---
 name: advprotoi-cycle
-description: HktAdvProtoI 의 Cycle 하나를 끝까지 돌린다 — 명세(cycles/<CycleId>/spec.md 한 파일에 범위 · SPEC · State/Rule · Observable 을 한 번에 쓰고 동결. Design 에 없는 게임 의미는 UNRESOLVED 로 정지·Human 반환) → 실현(관찰 계약 확정 + 기구/의미 분해 → E(engine) ∥ W(World) ∥ V(GameView) ∥ T(시나리오 테스트) 병렬 fan-out → npm test → 완료 조건 7항) → 마감(촬영 shots/ · TODO.md · 마감 커밋 · 그림 보고). 정지는 UNRESOLVED 와 DESIGN/ENGINE GAP 뿐. 시작 전 STATE.md §1 레인 표와 브랜치 cycle/C### 을 확인한다. 사용자가 "C### 진행 / 다음 Cycle 진행 / Cycle 돌려 / AdvProtoI 진행 / build 진행" 을 요청하면 사용.
+description: HktAdvProtoI 의 Cycle 하나를 끝까지 돌린다 — 명세(design 이 뽑아 둔 cycles/<CycleId>/spec.md 의 범위 절 아래에 SPEC · State/Rule · Observable 을 덧붙여 동결. Design 에 없는 게임 의미는 UNRESOLVED 로 정지·Human 반환) → 실현(관찰 계약 확정 + 기구/의미 분해 → E(engine) ∥ W(World) ∥ V(GameView) ∥ T(시나리오 테스트) 병렬 fan-out → npm test → 완료 조건 7항) → 마감(촬영 shots/ · TODO.md · 마감 커밋 · 그림 보고). 정지는 UNRESOLVED 와 DESIGN/ENGINE GAP 뿐. 시작 전 STATE.md §1 레인 표와 브랜치 cycle/C### 을 확인한다. 사용자가 "C### 진행 / 다음 Cycle 진행 / Cycle 돌려 / AdvProtoI 진행 / build 진행" 을 요청하면 사용.
 ---
 
 # HktAdvProtoI Cycle — 명세 → 실현 → 마감
@@ -30,27 +30,26 @@ ENGINE GAP       (실현)   기존 engine 계약 변경 필요 → 승인 요청
    Human 이 정한 뒤에만). CycleId 는 Play 의 Cycle Breakdown 이 정한 번호 그대로 (`C###-이름`).
 2. **브랜치** — `cycle/C###` (없으면 main 에서 만든다). 브랜치 안에서 만지는 것은 자기
    `cycles/C###/` 와 코드뿐 — STATE.md · Play 체크박스는 main 에 합친 직후에만 (§4).
-3. **재개** — `spec.md` 가 동결돼 있으면 1 을 건너뛰고 2 부터. `TODO.md` 와 마감 커밋이 있으면
+3. **범위 절** — `cycles/<CycleId>/spec.md` 에 design 이 쓴 범위 절(Playable Goal ~ Out of Scope)이
+   있어야 시작한다. 없으면 쓰지 않고 `advprotoi-design` ③ 으로 돌려보낸다 — 범위는 Human 의도의
+   절단이라 design 의 것이다. Human 이 직접 Goal 을 지정하는 예외 경로에서만 여기서 범위 절을 쓴다.
+4. **재개** — `spec.md` 가 동결돼 있으면 1 을 건너뛰고 2 부터. `TODO.md` 와 마감 커밋이 있으면
    "닫힘 — 합침 대기" 보고로 끝난다. 판정은 파일이 말한다.
 
-## 1. 명세 → `spec.md` (한 번에 쓰고 동결)
+## 1. 명세 → `spec.md` 의 범위 절 아래에 덧붙여 동결
 
-입력은 승인된 Play 문서(`content/roadmap/play/<PlayName>.md`)의 Cycle Breakdown 한 항목과
-그 Play 의 §5 Play Structure · §6 Required Capability · 확정 사항, 그리고 그것들이 지목한
-`content/roadmap/*.md` · `design/` 문서다. Play 를 재해석하지 않는다 — 이번 것만 잘라 검증
-가능한 문장으로 **폐쇄**한다. 코드는 보지 않는다 (Existing 판정은 CLAUDE.md "코드에 있는 것" +
-기존 `cycles/*/spec.md` 의 ADDED 로).
+입력은 `spec.md` 의 **범위 절**(design 이 Play 에서 잘라 둔 것)이다. Play 문서는 범위 절의 SOURCE 가
+지목한 절만 근거 확인 용도로 연다 — Play 를 되읽어 재해석하지 않는다. 범위 절의 Goal · Intent ·
+World Change · Observable Result · Out of Scope 는 **고치지 않는다**. 고치는 것은 Reuse 뿐이다 —
+design 이 앞 Cycle 의 Added 를 Existing 으로 가정해 적었으므로, 지금 코드(CLAUDE.md "코드에 있는 것" ·
+STATE §4 · 기존 `cycles/*/spec.md` 의 ADDED)로 다시 확인해 맞춘다. 범위 절을 참·거짓을 가릴
+문장으로 **폐쇄**하는 것이 이 단계다.
 
 ```text
-# C### — <이름>
-CYCLE / SOURCE / SELECTED_FROM   Trace 블록 하나 (SOURCE = Play 문서 + 근거 문서 · SELECTED_FROM = Breakdown 항목 또는 "Human")
+(범위 절 — design 이 썼다 · 여기서는 Reuse 만 고친다)
+CYCLE / SOURCE / SELECTED_FROM · Playable Goal · Experience Intent · World Change · Observable Result · Reuse · Out of Scope
 
-## Playable Goal        이번에 성립할 플레이 결과 한두 문장 — 완료를 직접 확인 가능
-## Experience Intent    Start / End — Play 의 Breath 중 이 Cycle 이 만드는 구간
-## World Change         세계에서 무엇이 어떻게 변하는가 (번호 목록)
-## Observable Result    화면/상태에서 무엇을 직접 확인하는가 (번호 목록)
-## Reuse                Existing(그대로 쓴다) / Added(이 Cycle 이 세운다 — World · Protocol · Data · View · Engine)
-## Out of Scope         이번에 하지 않는 것과 그것을 받을 Cycle
+(명세 절 — 여기서 덧붙인다)
 ## SPEC                 SPEC-001 … — World Change·Observable Result 를 참·거짓을 가릴 문장으로 폐쇄.
                         각 항은 조건 하나 + 기대 하나, 경계(성립하지 않는 경우)도 최소 한 항
 ## State                존재와 상태를 점 경로로 (Wolf.knowledge.fireDanger 식) + 이 Cycle 의 데이터 값 표

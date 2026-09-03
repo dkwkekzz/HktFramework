@@ -43,10 +43,11 @@
 Cycle 1개다.
 
 ```text
-advprotoi-design   기획      주입(방향/기획서/미지) → PLAY DESIGN 구체화 → Human 승인 1회 → STATE §1 레인 표
-                           산출물: content/roadmap/play/<name>.md · STATE.md §1
-advprotoi-cycle    Cycle     명세: cycles/<CycleId>/spec.md 한 파일 — 범위 · SPEC · State/Rule · Observable · UNRESOLVED 를
-                           한 번에 쓰고 동결 (UNRESOLVED > 0 이면 정지 → Human)
+advprotoi-design   기획      주입(방향/기획서/미지) → PLAY DESIGN 구체화 → Human 승인 1회
+                           → 그 Play 의 모든 Cycle 범위(cycles/C###/spec.md 범위 절) → Reuse 로 STATE §1 레인 표
+                           산출물: content/roadmap/play/<name>.md · cycles/C###/spec.md 범위 절 · STATE.md §1
+advprotoi-cycle    Cycle     명세: 범위 절 아래에 SPEC · State/Rule · Observable · UNRESOLVED 를 덧붙여 동결
+                           (Reuse 만 지금 코드로 재확인 · UNRESOLVED > 0 이면 정지 → Human)
                            실현: 관찰 계약 · 기구/의미 분해 → E ∥ W ∥ V ∥ T fan-out → npm test → 7항
                            마감: 촬영 shots/ · TODO.md · 마감 커밋 · 그림 보고 → PR
                            산출물: spec.md · 코드·시나리오 테스트 커밋 · TODO.md · shots/
@@ -54,9 +55,10 @@ advprotoi-cycle    Cycle     명세: cycles/<CycleId>/spec.md 한 파일 — 범
 
 이렇게 나누는 이유:
 
-- **design 은 Human 대화형이다.** Play 문서 통짜 승인이 유일한 게이트고, 그 뒤 "다음에 무엇을"은
-  레인 표가 답한다. Cycle 범위를 잘라내는 일(옛 00-cycle)은 게이트가 아니므로 design 에 두지
-  않는다 — 같은 AI 가 같은 파일에 이어 쓰는 일이라 cycle 의 명세 단계에 속한다.
+- **design 은 Human 의도에서 나오는 것 전부를 소유한다.** Play 도, Play 를 잘라 만든 Cycle 범위(옛
+  00-cycle)도 design 의 것이다 — cycle 이 Play 를 되읽어 재해석할 여지를 없앤다. 범위는 승인 직후
+  그 Play 의 모든 Cycle 에 대해 한 번에 뽑으므로 Cycle 마다 design 을 부르지 않는다. 레인 표는 그
+  범위들의 Reuse(무엇을 Existing 으로 요구하는가)에서 나온다 — 범위 없이는 근거가 없다.
 - **cycle 안의 명세/실현 경계는 스킬이 아니라 spec.md 동결이다.** 명세는 순차·Human 반환형
   (UNRESOLVED), 실현은 자율·병렬(§4)이다. 한 세션에서 이어 도는 것이 전제이므로 호출은 하나면
   된다 — 게이트는 단계 경계로 남는다.
@@ -76,7 +78,7 @@ advprotoi-cycle    Cycle     명세: cycles/<CycleId>/spec.md 한 파일 — 범
 
 | 파일 | 쓰는 이 | 내용 |
 |---|---|---|
-| `spec.md` | cycle 의 명세 단계가 한 번에 쓴다. 실현 단계는 읽기만 | **범위** (위층 문서 §6): Playable Goal · Experience Intent · World Change · Observable Result · Reuse · Out of Scope. **명세** (CYCLE SPEC + WORLD SEMANTIC/RULE, §4–8): `SPEC-###` 목록 · State(점 경로 · 데이터 값) · Rule(`IF … THEN …` · CHANGED/AFFECTED) · REUSED/ADDED · Observable(점 경로 — 관찰 계약의 원본) · UNRESOLVED(+ 기본형으로 둔 것). UNRESOLVED 가 없으면 **동결** |
+| `spec.md` | design ③ 이 범위 절을, cycle 의 명세 단계가 명세 절을 쓴다(Reuse 만 재확인). 실현 단계는 읽기만 | **범위** (design — 위층 문서 §6): Playable Goal · Experience Intent · World Change · Observable Result · Reuse · Out of Scope. **명세** (cycle — CYCLE SPEC + WORLD SEMANTIC/RULE, §4–8): `SPEC-###` 목록 · State(점 경로 · 데이터 값) · Rule(`IF … THEN …` · CHANGED/AFFECTED) · REUSED/ADDED · Observable(점 경로 — 관찰 계약의 원본) · UNRESOLVED(+ 기본형으로 둔 것). UNRESOLVED 가 없으면 **동결** |
 | `TODO.md` | cycle 의 마감이 쓰고, Human·다음 Cycle 이 지운다 | Human 판정 대기(Experience Verification 관찰 항목 — 하기/보기/판정) · 알려진 부채 · 다음 Cycle 로 넘긴 것. 항목이 다 지워지면 파일을 지운다 — `spec.md` 만 남은 디렉터리가 깨끗이 닫힌 Cycle 이다. 남길 것이 없으면 만들지 않는다 |
 
 만들지 않는 것과 그 내용이 사는 자리:
@@ -148,7 +150,7 @@ spec.md 동결 (Observable 절 = 관찰 계약)
    ③ 시나리오 테스트는 전체 개수를 단언하지 않는다 — 이 Cycle 이 더한 것의 존재와 행동만.
    ④ engine 변경은 분리 커밋으로 먼저 합친다 — 두 Cycle 이 같은 기구를 따로 뽑지 않게.
       기존 engine 계약 변경(ENGINE GAP)은 병렬 중에는 하지 않는다 — Human 승인 뒤 main 에서.
-   레인 판정과 STATE.md §1 의 레인 표는 design 이 소유한다 (advprotoi-design ③). 승인된
+   레인 판정과 STATE.md §1 의 레인 표는 design 이 소유한다 (advprotoi-design ④). 승인된
    Play 순서를 깨는 병렬은 제안이 아니라 Human 결정 항목으로 올린다.
 5. GameView 가 불필요한 Cycle 이면 V 를 생략한다 — 병렬 구조를 형식적으로 채우지 않는다.
 
@@ -191,8 +193,7 @@ spec.md 동결 (Observable 절 = 관찰 계약)
 ### advprotoi-cycle
 
 1. 시작 조건: STATE §1 레인 표에서 "기다리는 것"이 빈 Cycle · 브랜치 `cycle/C###` · 재개 판정(파일이 말한다)
-2. 명세 → spec.md 한 번에: 범위(Playable Goal · Intent · World Change · Observable Result · Reuse · Out of Scope)
-   + SPEC-### + State/Rule(코드 클래스 금지 · REUSED/ADDED/CHANGED/AFFECTED §18) + Observable(관찰 계약) + UNRESOLVED
+2. 명세 → design 이 쓴 범위 절(없으면 design 으로 반환) 아래에 SPEC-### + State/Rule(코드 클래스 금지 · REUSED/ADDED/CHANGED/AFFECTED §18) + Observable(관찰 계약) + UNRESOLVED
    + 범위 게이트(Goal 한두 문장 · SPEC 10항 이내) + Design 침묵의 판정
 3. **정지 규칙**: Design 에 없는 의미 → `UNRESOLVED` 기록 후 Human 반환. 수치·시간·확률은 전부 여기 (§5 의
    PerfectGuardWindow 예 그대로) → 없으면 동결
@@ -205,7 +206,7 @@ spec.md 동결 (Observable 절 = 관찰 계약)
 ### advprotoi-design
 
 목차는 §7 의 연결 규칙과 스킬 본문이 소유한다 — Play Design 7단계 + Human 승인
-게이트 + STATE §1 레인 표.
+게이트 + Play 의 모든 Cycle 범위 절 + STATE §1 레인 표.
 
 ## 6. 작성 순서
 
@@ -228,14 +229,14 @@ cycle 의 명세 단계 입력이 승인된 Play 의 Cycle Breakdown 한 항목�
 advprotoi-design   기획      L0-Game.md/시스템 문서 → content/roadmap/play/<name>.md
                             (Play Goal → Intent → Breath → Structure → World Cause
                              → Capability → Cycle Breakdown, Human 승인 게이트)
-                            → STATE.md §1 레인 표 (다음에 할 Cycle)
+                            → cycles/C###/spec.md 범위 절 (Play 의 모든 Cycle) → STATE.md §1 레인 표
 ```
 
 연결 규칙:
 
-1. **Play 의 Cycle Breakdown 한 항목이 cycle 명세 단계의 표준 입력이다.** spec.md 의 범위 절(옛
-   00-cycle)은 그 항목을 잘라 cycle 이 쓴다 — design 은 쓰지 않는다. SOURCE = `content/roadmap/play/<name>.md`.
-   Human 이 직접 Goal 을 지정하는 예외 경로는 유지한다.
+1. **design 이 쓴 spec.md 범위 절(옛 00-cycle)이 cycle 명세 단계의 표준 입력이다.** 승인 직후 Play 의
+   모든 Cycle 에 대해 뽑는다. SOURCE = `content/roadmap/play/<name>.md`. cycle 은 Reuse 만 재확인하고
+   Goal · Intent · Out of Scope 는 고치지 않는다. Human 이 직접 Goal 을 지정하는 예외 경로는 유지한다.
 2. **cycle 마감에 두 가지가 더해진다** — Experience Verification 관찰 항목을
    TODO.md 에 기입(판정은 Human — 판정 후 지운다), 완료 시 play 문서의 Cycle Breakdown
    체크박스 갱신 (play 문서에서 Agent 가 만질 수 있는 유일한 자리).

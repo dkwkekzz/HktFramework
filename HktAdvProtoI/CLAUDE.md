@@ -31,9 +31,9 @@ mmorpg에서 컨텐츠를 구성하기 위한 구조를 설계한다.
 
 ```text
 advprotoi-design  기획    방향/기획서/미지 주입 → Play Design(content/roadmap/play/*.md) 구체화 → Human 승인 1회
-                         → STATE.md §1 레인 표 (다음에 할 Cycle · 병렬)
-advprotoi-cycle   Cycle   "C### 진행" — 명세: cycles/<CycleId>/spec.md 한 파일(범위 · SPEC · State/Rule · Observable ·
-                         UNRESOLVED → 정지) 동결 → 실현: 관찰 계약 · 기구/의미 분해 → E ∥ W ∥ V ∥ T → npm test → 7항
+                         → 그 Play 의 모든 Cycle 범위(cycles/C###/spec.md 범위 절) → Reuse 로 STATE.md §1 레인 표
+advprotoi-cycle   Cycle   "C### 진행" — 명세: 범위 절 아래에 SPEC · State/Rule · Observable · UNRESOLVED(→ 정지) 덧붙여 동결
+                         → 실현: 관찰 계약 · 기구/의미 분해 → E ∥ W ∥ V ∥ T → npm test → 7항
                          → 마감: 촬영 shots/ · TODO.md · 마감 커밋 · 그림 보고 → PR (번호 순 합침)
 ```
 
@@ -47,7 +47,7 @@ advprotoi-cycle   Cycle   "C### 진행" — 명세: cycles/<CycleId>/spec.md 한
 문서 · `play/`)은 전부 `content/roadmap/` 에 있다.
 
 Cycle 디렉터리 `cycles/<CycleId>/` (CycleId: `C###-이름`) 에 두는 것은 셋뿐이다 —
-`spec.md`(코드 전 — 범위 + SPEC·State·Rule·Observable, cycle 의 명세 단계가 한 번에 쓰고 동결) ·
+`spec.md`(코드 전 — design 의 범위 절 + cycle 의 명세 절(SPEC·State·Rule·Observable), 동결) ·
 `TODO.md`(코드 뒤 — Human 판정 대기 · 부채, 비면 삭제) · `shots.json` + `shots/`(마감 촬영 —
 관찰 가능한 결과를 실제 게임에서 찍은 PNG, `npm run cycle:shot`). 구현 노트 · GameView 표 ·
 검증 산문은 만들지 않는다 — 코드 주석의 `RULE-*` id · `content/view` 의 표 · 시나리오
