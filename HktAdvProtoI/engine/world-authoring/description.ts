@@ -4,8 +4,8 @@
 // (design/Plan-World-Authoring-Engine.md §3.1). 여기에는 게임 명사가 없다 — layer 와 tag 는
 // 컨텐츠가 짓는 불투명 문자열이고, 기반은 뜻을 모른 채 **조회만** 제공한다.
 //
-// 이 Cycle 은 op 가운데 point 만 쓴다. stamp · curve · area 는 그 요구가 실제로 오는
-// 다음 사용처의 Cycle 이 더한다 — 여기서 미리 형을 열어 두지 않는다.
+// op 는 요구가 실제로 온 것만 있다 — 지금은 point 와 stamp 둘. curve · area 는 그 요구가
+// 오는 다음 사용처가 더한다 — 여기서 미리 형을 열어 두지 않는다.
 
 export interface XZ {
   x: number;
@@ -29,7 +29,27 @@ export interface PointOp {
   position: XZ;
 }
 
-export type RegionOp = PointOp;
+/**
+ * 지면을 들어 올리거나 내리는 편집 하나 — `center` 에서 `radius` 안쪽에만 닿는다.
+ *
+ * 세 종류의 차이는 **높이의 부호와 감쇠 모양뿐**이다 (기반은 그 이상을 뜻하지 않는다).
+ *   hill    둥근 봉우리 — 중심에서 기울기가 0 인 돔
+ *   ridge   뾰족한 마루 — 중심에서 꺾이는 원뿔
+ *   basin   hill 을 뒤집은 것 — 양의 `height` 가 아래로 판다
+ *
+ * `falloff` 는 감쇠 지수다 (없으면 1). 클수록 가장자리가 빨리 0 으로 떨어진다.
+ */
+export interface StampOp {
+  id: string;
+  kind: 'stamp';
+  stamp: 'hill' | 'ridge' | 'basin';
+  center: XZ;
+  radius: number;
+  height: number;
+  falloff?: number;
+}
+
+export type RegionOp = PointOp | StampOp;
 
 /** 하나의 Local Space — identity(id · extent · seed) + 순서 있는 편집 목록 */
 export interface RegionDescription {
