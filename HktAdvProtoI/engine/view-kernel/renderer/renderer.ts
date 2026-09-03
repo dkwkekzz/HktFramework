@@ -8,10 +8,21 @@ import { createEffectLayer, type EffectLayer, type EffectLayerOptions } from '..
 import type { PlaneDirection } from '../camera/orientation';
 import type { SceneGroundZone, SceneState } from '../scene/scene-state';
 import { createBillboard, type Billboard } from '../sprites/billboard';
-import { createTerrain, heightAt } from '../terrain/terrain';
+import { createTerrain, terrainHeightSampler, type TerrainPalette } from '../terrain/terrain';
+import type { CompiledViewTerrain, CompiledWorldTerrain } from '../../world-authoring/compiled';
 
 export interface GameRenderer {
   render(state: SceneState, dt?: number): void;
+  /**
+   * 그릴 지형을 갈아 끼운다 — 그리는 격자(view)와 높이를 재는 격자(world)는 같은 컴파일 결과다.
+   * 태그를 색으로 옮기는 palette 는 컨텐츠의 결정이므로 밖에서 온다 (설계 반전 ⑤).
+   *
+   * 아직 한 번도 주지 않았으면 지형 없이 — 높이 0 인 평면으로 — 돈다.
+   */
+  setTerrain(
+    terrain: { world: CompiledWorldTerrain; view: CompiledViewTerrain },
+    palette: TerrainPalette,
+  ): void;
   /** 화면 좌표 → 지형 위 지점 (없으면 null) */
   pickGround(clientX: number, clientY: number): { x: number; z: number } | null;
   /** 화면 좌표에 있는 entity id (없으면 null) */
@@ -59,9 +70,25 @@ export function createRenderer(
   sun.position.set(10, 20, 5);
   scene.add(sun);
 
-  // 지형 capability — 현재 제공: 'field' (미지원 지시도 field 로 그려 게임을 멈추지 않는다)
-  const ground = createTerrain();
-  scene.add(ground);
+  // 지형 capability — 지형은 밖에서 컴파일되어 들어온다 (setTerrain).
+  // 아직 받지 못했으면 그리지 않고, 높이는 어디서나 0 이다 — 화면은 그대로 돈다.
+  let ground: THREE.Object3D | null = null;
+  let heightAt: (x: number, z: number) => number = () => 0;
+  // 지형이 없을 때 화면 좌표를 받아 줄 지면 — 높이 0 인 무한 평면 (크기 상수를 두지 않는다)
+  const flatGround = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+
+  function disposeGround(): void {
+    if (!ground) return;
+    scene.remove(ground);
+    ground.traverse((child) => {
+      const mesh = child as THREE.Mesh;
+      mesh.geometry?.dispose?.();
+      const material = mesh.material as THREE.Material | THREE.Material[] | undefined;
+      if (Array.isArray(material)) for (const m of material) m.dispose();
+      else material?.dispose?.();
+    });
+    ground = null;
+  }
 
   const view = createViewCamera(container.clientWidth / container.clientHeight);
   const camera = view.camera;
@@ -436,6 +463,13 @@ export function createRenderer(
   return {
     domElement: renderer.domElement,
 
+    setTerrain(terrain, palette) {
+      disposeGround();
+      ground = createTerrain(terrain.view, palette);
+      scene.add(ground);
+      heightAt = terrainHeightSampler(terrain.world);
+    },
+
     turnView(dTurn, dTilt) {
       view.turn(dTurn, dTilt);
     },
@@ -554,8 +588,12 @@ export function createRenderer(
 
     pickGround(clientX, clientY) {
       raycaster.setFromCamera(toNdc(clientX, clientY), camera);
-      const hit = raycaster.intersectObject(ground, false)[0];
-      return hit ? { x: hit.point.x, z: hit.point.z } : null;
+      if (ground) {
+        const hit = raycaster.intersectObject(ground, true)[0];
+        return hit ? { x: hit.point.x, z: hit.point.z } : null;
+      }
+      const at = raycaster.ray.intersectPlane(flatGround, new THREE.Vector3());
+      return at ? { x: at.x, z: at.z } : null;
     },
 
     pickEntity(clientX, clientY) {
