@@ -1,7 +1,7 @@
 // World Authoring — Graph 단독 테스트 (C001 ADDED).
 
 import { describe, expect, it } from 'vitest';
-import { exitsOf, findConnector, type RegionGraph } from '../graph';
+import { exitsOf, findConnector, isFrontier, reachableRegions, type RegionGraph } from '../graph';
 
 const graph: RegionGraph = {
   regions: ['A', 'B', 'C'],
@@ -45,5 +45,56 @@ describe('findConnector', () => {
   it('id 로 찾는다', () => {
     expect(findConnector(graph, 'c2')?.from.region).toBe('B');
     expect(findConnector(graph, 'none')).toBeUndefined();
+  });
+});
+
+describe('isFrontier — 밝힌 경계인가', () => {
+  it('frontiers 가 없으면 아무 이름도 경계가 아니다', () => {
+    expect(isFrontier(graph, 'A')).toBe(false);
+    expect(isFrontier(graph, 'FRONTIER_X')).toBe(false);
+  });
+
+  it('frontiers 에 있는 이름만 경계다', () => {
+    const withFrontiers: RegionGraph = { ...graph, frontiers: ['FRONTIER_X', 'FRONTIER_Y'] };
+    expect(isFrontier(withFrontiers, 'FRONTIER_X')).toBe(true);
+    expect(isFrontier(withFrontiers, 'FRONTIER_Y')).toBe(true);
+    expect(isFrontier(withFrontiers, 'A')).toBe(false);
+    expect(isFrontier(withFrontiers, 'FRONTIER_Z')).toBe(false);
+  });
+});
+
+describe('reachableRegions — Connector 를 따라 닿는 곳', () => {
+  it('시작 Region 자신을 포함하고 방향을 지킨다', () => {
+    // A --c1(양방향)-- B --c2(A→B 아님, B→C 단방향)--> C · A --c3--> C
+    expect(reachableRegions(graph, 'A')).toEqual(['A', 'B', 'C']);
+    expect(reachableRegions(graph, 'B')).toEqual(['B', 'A', 'C']);
+    expect(reachableRegions(graph, 'C')).toEqual(['C']);
+  });
+
+  it('connectors 배열 순서를 지키는 너비 우선 — 결정론', () => {
+    const reordered: RegionGraph = { ...graph, connectors: [...graph.connectors].reverse() };
+    // c3(A→C) 가 먼저이므로 C 를 B 보다 먼저 센다
+    expect(reachableRegions(reordered, 'A')).toEqual(['A', 'C', 'B']);
+  });
+
+  it('regions 에 없는 이름은 세지 않는다 — 경계도 세지 않는다', () => {
+    const toFrontier: RegionGraph = {
+      regions: ['A'],
+      containment: [],
+      frontiers: ['FRONTIER_X'],
+      connectors: [
+        { id: 'c1', from: { region: 'A', anchor: 'p' }, to: { region: 'FRONTIER_X', anchor: 'q' }, direction: 'bidirectional', transition: 't' },
+      ],
+    };
+    expect(reachableRegions(toFrontier, 'A')).toEqual(['A']);
+  });
+
+  it('모르는 Region 에서 시작하면 빈 배열', () => {
+    expect(reachableRegions(graph, 'Z')).toEqual([]);
+  });
+
+  it('닿지 않는 Region 은 빠진다', () => {
+    const split: RegionGraph = { ...graph, regions: ['A', 'B', 'C', 'D'] };
+    expect(reachableRegions(split, 'A')).toEqual(['A', 'B', 'C']);
   });
 });

@@ -7,11 +7,24 @@
 //   missing-anchor   Connector 의 from/to anchor 가 그 Region 의 Description 에
 //                    (layer = anchorLayer, tag = anchor) point 로 없다             (검사 ⑤)
 //   no-exit          graph.regions 의 어느 Region 에 exitsOf 가 하나도 없다          (검사 ⑦)
+//   frontier-built   graph.frontiers 로 밝힌 이름에 Description 이 있다 —
+//                    지어진 곳은 경계 목록에서 빠져야 한다
+//   unused-frontier  graph.frontiers 의 이름을 아무 Connector 도 가리키지 않는다
+//   unreachable      startRegion 을 주었을 때, 거기서 Connector 를 따라 닿지 않는
+//                    graph.regions 의 Region 이 있다                                (검사 ⑧)
+//
+// 경계(frontier)로 밝힌 이름은 Description 이 없어도 정상이다 — 그 끝의 anchor 도 보지 않는다.
 
 import { findPoint, type RegionDescription } from './description';
-import { exitsOf, type ConnectorEnd, type RegionGraph } from './graph';
+import { exitsOf, isFrontier, reachableRegions, type ConnectorEnd, type RegionGraph } from './graph';
 
-export type GraphIssueCode = 'unknown-region' | 'missing-anchor' | 'no-exit';
+export type GraphIssueCode =
+  | 'unknown-region'
+  | 'missing-anchor'
+  | 'no-exit'
+  | 'frontier-built'
+  | 'unused-frontier'
+  | 'unreachable';
 
 export interface GraphIssue {
   code: GraphIssueCode;
@@ -23,6 +36,8 @@ export function checkGraph(
   descriptions: readonly RegionDescription[],
   graph: RegionGraph,
   anchorLayer: string,
+  /** 주면 검사 ⑧(unreachable)까지 본다 — 없으면 그 검사를 건너뛴다 */
+  startRegion?: string,
 ): GraphIssue[] {
   const issues: GraphIssue[] = [];
   const byId = new Map<string, RegionDescription>();
@@ -32,6 +47,8 @@ export function checkGraph(
   const checkEnd = (connectorId: string, side: 'from' | 'to', end: ConnectorEnd): void => {
     const description = byId.get(end.region);
     if (!description) {
+      // 아직 짓지 않은 곳을 가리키는 것은 정합 오류가 아니다 — anchor 도 보지 않는다
+      if (isFrontier(graph, end.region)) return;
       issues.push({
         code: 'unknown-region',
         region: end.region,
@@ -56,6 +73,48 @@ export function checkGraph(
   for (const regionId of graph.regions) {
     if (exitsOf(graph, regionId).length === 0) {
       issues.push({ code: 'no-exit', region: regionId, detail: `region ${regionId} has no exit` });
+    }
+  }
+
+  // 경계 목록 — frontiers 배열 순서, 한 이름당 검사마다 한 번
+  const frontiers = graph.frontiers ?? [];
+  for (const name of frontiers) {
+    if (byId.has(name)) {
+      issues.push({
+        code: 'frontier-built',
+        region: name,
+        detail: `frontier ${name} has a description — a built region must leave the frontier list`,
+      });
+    }
+  }
+  for (const name of frontiers) {
+    let pointed = false;
+    for (const connector of graph.connectors) {
+      if (connector.from.region === name || connector.to.region === name) {
+        pointed = true;
+        break;
+      }
+    }
+    if (!pointed) {
+      issues.push({
+        code: 'unused-frontier',
+        region: name,
+        detail: `frontier ${name} is pointed at by no connector`,
+      });
+    }
+  }
+
+  // 닿지 않는 Region — startRegion 을 준 때만, graph.regions 순서
+  if (startRegion !== undefined) {
+    const reached = new Set(reachableRegions(graph, startRegion));
+    for (const regionId of graph.regions) {
+      if (!reached.has(regionId)) {
+        issues.push({
+          code: 'unreachable',
+          region: regionId,
+          detail: `region ${regionId} is not reachable from ${startRegion}`,
+        });
+      }
     }
   }
 
