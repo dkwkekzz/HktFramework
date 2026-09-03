@@ -27,13 +27,30 @@ const externalWorld = process.env.HKT_WORLD_URL;
  * 이어지지 않는다** — 그래서 먼 자리를 찍으려면 거기서 시작해야 한다
  * (tools/fx-lab/test/terrain-shot.js).
  */
-function spawnFromEnv(): { actorPosition?: { x: number; z: number } } {
+function spawnFromEnv(): {
+  actorPosition?: { x: number; z: number };
+  actorRegion?: string;
+  npcs?: [];
+} {
+  const setup: { actorPosition?: { x: number; z: number }; actorRegion?: string; npcs?: [] } = {};
+
   const raw = process.env.HKT_SPAWN;
-  if (!raw) return {};
-  const [x, z] = raw.split(',').map(Number);
-  if (x === undefined || z === undefined) return {};
-  if (!Number.isFinite(x) || !Number.isFinite(z)) return {};
-  return { actorPosition: { x, z } };
+  if (raw) {
+    const [x, z] = raw.split(',').map(Number);
+    if (x !== undefined && z !== undefined && Number.isFinite(x) && Number.isFinite(z)) {
+      setup.actorPosition = { x, z };
+    }
+  }
+
+  // 어느 **방**에서 시작할 것인가 (C002). 방이 여럿이 되면서 자리만으로는 모자란다 —
+  // 걷는 조작이 이어지지 않는 촬영 하네스에서 백왕령 밖의 방을 보려면 거기서 시작해야 한다.
+  if (process.env.HKT_SPAWN_REGION) setup.actorRegion = process.env.HKT_SPAWN_REGION;
+
+  // 자율 존재 없이 띄운다 — 촬영은 조작 없이 여러 세계 초를 서 있으므로, 그대로 두면
+  // 다가온 존재에게 맞아 쓰러진 그림만 남는다. 세계의 규칙이 아니라 **초기 배치**만 바꾼다.
+  if (process.env.HKT_NO_NPC) setup.npcs = [];
+
+  return setup;
 }
 
 function worldServerPlugin(): Plugin {

@@ -19,6 +19,8 @@ export interface BodyDefaults {
   characterKind: CharacterKind;
   items: Partial<Record<ItemKind, number>>;
   spawnPoints: WorldPosition[];
+  /** 새 몸이 설 Region — 밝히지 않으면 START_REGION(백왕령)이다 (C002 관측용) */
+  spawnRegion?: string;
 }
 
 export const DEFAULT_BODY: BodyDefaults = {
@@ -42,7 +44,7 @@ export function spawnObserverBody(
     name: `Player ${ordinal + 1}`,
     characterKind: defaults.characterKind,
     control: 'player',
-    regionId: START_REGION,
+    regionId: defaults.spawnRegion ?? START_REGION,
     position: { x: spawn.x, z: spawn.z },
     inventory: createInventory(defaults.items),
   });
