@@ -28,6 +28,7 @@ import {
 } from '../engine/view-kernel/presentation/command-presentation';
 import { sessionPresentation } from '../engine/view-kernel/presentation/session-presentation';
 import { createRenderer } from '../engine/view-kernel/renderer/renderer';
+import { chooseByKey } from '../engine/view-kernel/scene/interaction-choice';
 import type { SceneCommandHistoryLine, SceneState } from '../engine/view-kernel/scene/scene-state';
 import {
   KEY_BINDINGS,
@@ -142,6 +143,9 @@ let inspect = false;
 // 관찰자가 쥐는 상태다. 세계는 이것을 알지 못한다 —
 // 열려 있는지도, 무엇을 쓰고 있는지도, 무엇을 주고받았는지도.
 const COMMAND_OPEN_KEY = 'Slash'; // 여는 키. 표면 자체가 무엇을 할 수 있는지 알려 준다
+// 세계에 닿지 못한 요청의 대답 — 명령 표면과 키가 같은 말을 쓴다
+const LINK_LOST_ANSWER = '세계에 이어져 있지 않다';
+
 const COMMAND_HISTORY_LIMIT = 40;
 let commandOpen = false;
 let commandText = '';
@@ -188,27 +192,34 @@ function submitCommand(): void {
     const mark = action ? link.sendMarked(action) : null;
     // 대답이 올 때까지 기다리는 줄로 남는다 — 세계가 판정해야 answer 가 채워진다.
     const line = pushHistory({ text });
-    if (mark === null) line.answer = '세계에 이어져 있지 않다';
+    if (mark === null) line.answer = LINK_LOST_ANSWER;
     else awaitingOutcome.set(mark, line);
   }
 
   commandText = '';
 }
 
-// 세계의 대답을 기록에 붙인다 (04 requestOutcome).
-// 표식이 없는 대답도 버리지 않는다 — 마지막 줄에 붙인다.
+// 세계의 대답을 받는다 (04 requestOutcome). 갈 곳이 둘이다.
+//
+// 명령 표면이 보낸 것은 그 기록 줄로 돌아간다 (표식이 잇는다). **키로 보낸 것**은
+// 기다리는 줄이 없다 — 여태 그것을 기록판 마지막 줄에 붙였는데, 그 줄은 아무 상관
+// 없는 명령의 줄이었고 기록판을 열지 않으면 아무 데도 뜨지 않았다. 세계가 거절해도
+// 겪는 사람은 아무 일도 없는 줄 알았다. 이제 화면에 띄운다.
+//
+// 받아들여진 것은 띄우지 않는다 — 세계가 바뀌는 것으로 이미 말했다.
 function drainOutcomes(): void {
   for (const outcome of link.takeOutcomes()) {
-    const line =
-      outcome.mark !== undefined
-        ? awaitingOutcome.get(outcome.mark)
-        : commandHistory[commandHistory.length - 1];
+    const line = outcome.mark !== undefined ? awaitingOutcome.get(outcome.mark) : undefined;
     if (outcome.mark !== undefined) awaitingOutcome.delete(outcome.mark);
-    if (!line) continue;
-    line.accepted = outcome.accepted;
-    line.answer = outcome.accepted
+    const answer = outcome.accepted
       ? '받아들여졌다'
       : codeText(outcome.reason ?? 'unknown-interaction');
+    if (line) {
+      line.accepted = outcome.accepted;
+      line.answer = answer;
+    } else if (!outcome.accepted) {
+      hud.notice(answer);
+    }
   }
 }
 
@@ -315,13 +326,17 @@ function frame(now: number): void {
     if (dispatchKey(KEY_BINDINGS, code, latestScene, (action) => link.sendMarked(action))) {
       continue;
     }
-    const keyed = latestScene.interactions.filter((i) => i.key === code);
-    const interaction = keyed.find((i) => i.available) ?? keyed[0];
+    // 이 키가 지금 뜻하는 하나 — 가용한 것이 먼저, 그 다음은 눈앞의 것 (interaction-choice).
+    // 목록 맨 앞을 고르면 출구 여럿인 방에서 **선 자리와 다른 것**에 요청이 간다.
+    const interaction = chooseByKey(latestScene, code);
     if (interaction) {
-      link.send({
+      const sent = link.send({
         interactionId: interaction.id,
         ...(interaction.targetEntityId ? { targetEntityId: interaction.targetEntityId } : {}),
       });
+      // 보내지 못한 요청이 아무 말 없이 사라지지 않는다 — 명령 표면이 이미 하던 말을
+      // 키에도 준다. 이어짐이 끊긴 동안 누른 키는 세계에 닿은 적이 없다.
+      if (!sent) hud.notice(LINK_LOST_ANSWER);
     }
   }
 
