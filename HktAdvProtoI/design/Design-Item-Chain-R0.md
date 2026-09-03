@@ -109,7 +109,7 @@ PLAYER PROGRESSION                  Lifecycle §2 (여섯 축) · §16 (지형�
 슬롯 구성 · 소지품 화면      Design-Inventory-Equipment-D1.md · Design-View-Inventory-Equipment-UX-D1.md
 성장 비용 · 보상 균형        Design-Growth-Balance-R0.md
 어떤 생물이 그 기관을 지니나  Design-Creature-Behavior-R0.md
-모든 수치 · 공식             각 Cycle 의 02-world.md
+모든 수치 · 공식             각 Cycle 의 spec.md
 ```
 
 ---
@@ -170,7 +170,7 @@ PLAYER PROGRESSION
 | Item System → Instance | `instance_policy.requires_instance_when` | 그 조건이 참이 되는 순간 개체가 태어난다 (Instance §1) |
 | Instance → Lifecycle | 현재 상태 + 그 상태를 바꾸는 Event | 상태 전이와 성장·파손·재제작 (Lifecycle §20) |
 | Lifecycle → Resource | Residue · Dismantle 산출 · Overdrive 잔해 | 다시 재료가 되어 사슬이 순환한다 (Resource §2) |
-| 어느 층이든 → Cycle | 그 층이 정한 **의미** | 수치·시간·확률로 옮긴다 (`02-world.md`) |
+| 어느 층이든 → Cycle | 그 층이 정한 **의미** | 수치·시간·확률로 옮긴다 (`spec.md`) |
 
 마지막 두 줄이 이 사슬이 **직선이 아니라 순환**인 이유이고, 동시에 어떤 문서도 수치를 갖지
 않는 이유다.
@@ -190,7 +190,7 @@ PLAYER PROGRESSION
                      → 개체가 필요한지 Instance §1 → 변해 가는지 Lifecycle §1
 
 Cycle 을 여는 사람     Lifecycle §21 (구현 순서 5~12) → 해당 층 문서의 완료 기준
-                     → 수치는 그 Cycle 의 02-world.md 에서 정한다
+                     → 수치는 그 Cycle 의 spec.md 에서 정한다
 
 Master 작업자         Resource §19 (grants) · §20 (설계 원칙) · §23 (미결 이음매)
                      → 그래프에 옮길 것과 아직 옮기면 안 되는 것을 가른다
@@ -219,7 +219,7 @@ Critical 성질 장비 — 원천이 없어 세우지 않았다        Resource 
 
 ```text
 층 안의 규칙        각 문서가 소유한다 — 여기에 옮겨 적지 않는다 (옮기면 두 벌이 된다)
-수치 · 공식         Cycle 의 02-world.md
+수치 · 공식         Cycle 의 spec.md
 개별 자원 · 아이템   Resource §12 ~ §16 · Item System §12
 구현                world/ · view/ — 문서는 의미까지만 답한다
 ```

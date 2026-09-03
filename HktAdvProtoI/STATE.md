@@ -4,7 +4,7 @@
 (지금의 상태) 둘을 읽고 시작한다.
 
 **현재 상태만 둔다** — 완료·승인·날짜 경위를 본문에 쌓지 않는다 (CLAUDE.md 핵심 원칙 10). 닫힌 것은
-지우고 다음 것으로 갈아 끼운다. 경위는 git history 와 `cycles/C###-*/` 산출물이 이미 소유한다.
+지우고 다음 것으로 갈아 끼운다. 경위는 git history 가 이미 소유한다 (`cycles/C###-*/` 에는 spec 과 TODO 만 있다).
 
 ## 1. 다음에 할 일
 
@@ -34,7 +34,7 @@
 세 Play 가 닫히면 로드맵 2층이 닫힌다. 덮임 지도는 [play/README.md](content/roadmap/play/README.md).
 
 **Human 판정 대기** — C001 의 실주행 관찰 X-①~⑧
-([cycles/C001-region-graph-rooms/05-verification.md](cycles/C001-region-graph-rooms/05-verification.md) §3).
+([cycles/C001-region-graph-rooms/TODO.md](cycles/C001-region-graph-rooms/TODO.md)).
 `npm run dev` 로 띄워 북쪽 표식까지 걸어가 `Q` 를 누르면 된다. 자동 시나리오 33 은 전부 PASS 다.
 
 ## 3. 로드맵 — 무엇이 주입되었나
@@ -72,7 +72,7 @@
 
 ## 5. 열린 부채
 
-Cycle 이 남긴 것 — 각 Cycle 의 `03-impl.md` "알려진 부채" 절이 원본이다.
+Cycle 이 남긴 것 — 각 Cycle 의 `TODO.md` 가 원본이다.
 
 ```text
 wrong-region 사유의 플레이 실측     C001 은 Connector 하나뿐이라 하네스로만 확인했다 → C002

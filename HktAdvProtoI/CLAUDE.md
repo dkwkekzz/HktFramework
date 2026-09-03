@@ -31,10 +31,10 @@ mmorpg에서 컨텐츠를 구성하기 위한 구조를 설계한다.
 
 ```text
 advprotoi-design  기획      방향/기획서 주입 → Play Design(content/roadmap/play/*.md) 구체화
-                           → Human 승인 1회 → 00-cycle.md 생성
-advprotoi-plan    의미 확정  00-cycle → CYCLE SPEC → WORLD SEMANTIC + RULE (01·02)
-advprotoi-build   실현·검증  구현 ∥ GameView ∥ 검증 병렬 → 실측 검증 (03·04·05)
-                           완료 시 play 문서의 Cycle 체크박스 갱신
+                           → Human 승인 1회 → cycles/<CycleId>/spec.md 앞부분(범위) 생성
+advprotoi-plan    의미 확정  spec.md 앞부분 → CYCLE SPEC → WORLD SEMANTIC + RULE 을 같은 파일에 덧붙여 동결
+advprotoi-build   실현·검증  구현 ∥ GameView ∥ 시나리오 테스트 병렬 → npm test → 7항 판정(마감 커밋 메시지)
+                           → TODO.md(Human 판정 대기·부채) · play 문서의 Cycle 체크박스 · STATE.md 갱신
 ```
 
 "다음에 무엇을 만들까"는 승인된 Play Design 의 Cycle Breakdown 이 답한다 —
@@ -46,8 +46,12 @@ advprotoi-build   실현·검증  구현 ∥ GameView ∥ 검증 병렬 → 실�
 한 Play 는 행 하나만 증명한다. 로드맵과 그 결과물(`L0-Game.md` · 층별 확정 문서 · 미지
 문서 · `play/`)은 전부 `content/roadmap/` 에 있다.
 
-Cycle Artifact 는 `cycles/<CycleId>/` (CycleId: `C###-이름`) — 파일만이 단계 간
-인터페이스다. 이전 공정의 산출물(`guides/` · `master/` · `BACKLOG.md` · `LANES.md`)과
+Cycle 디렉터리 `cycles/<CycleId>/` (CycleId: `C###-이름`) 에는 파일 둘만 둔다 —
+`spec.md`(코드 전 — design 의 범위 + plan 의 SPEC·State·Rule·Observable, 동결) 와
+`TODO.md`(코드 뒤 — Human 판정 대기 · 부채, 비면 삭제). 구현 노트 · GameView 표 ·
+검증 산문은 만들지 않는다 — 코드 주석의 `RULE-*` id · `content/view` 의 표 · 시나리오
+테스트 · 커밋 메시지가 원본이다. 파일만이 단계 간 인터페이스다.
+이전 공정의 산출물(`guides/` · `master/` · `BACKLOG.md` · `LANES.md`)과
 그 도구(master-graph · lanes · cycle-lint · feedback-gate)는 이 기준선에서 걷어냈다.
 
 ## 기반 / 컨텐츠 경로 규약
@@ -133,7 +137,8 @@ npm run surface:lab            겹침 표면 capability 눈검증 페이지
  8. 영향을 받는 기존 Rule 과 플레이 Scenario 도 함께 검증한다.
  9. 최종 완료 조건은 코드 작성이 아니라 실제로 플레이되는가다.
 10. 살아 있는 문서(STATE.md · README)에는 **현재 상태만** 둔다 —
-    완료·승인·날짜 경위를 본문에 쌓지 않는다. 경위는 git history 와 cycles/ 가 소유한다.
+    완료·승인·날짜 경위를 본문에 쌓지 않는다. 경위는 git history 가 소유한다
+    (cycles/ 에는 spec 과 TODO 만 — 완료 기록을 두지 않는다).
     진행 상태는 CLAUDE.md 가 아니라 STATE.md 에 적는다.
 11. 코드 주석은 한국어로 쓴다.
 ```

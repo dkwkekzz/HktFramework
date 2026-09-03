@@ -1,16 +1,16 @@
 ---
 name: advprotoi-design
-description: HktAdvProtoI 의 기획(Design Authoring) 단계를 실행한다 — Human 이 방향 한 줄·기획서(기반 층의 축) 또는 미지 하나(컨텐츠 층의 행 — 지역·생물·자원·구조)를 주입하면 그것을 Play Design(content/roadmap/play/<name>.md)으로 구체화하고, 승인 1회 후 첫 Cycle 의 00-cycle.md 를 생성한다. 플레이 층(Breath·사건·World Cause)은 AI 가 제안하고, 게임 의미의 결정(수치·원리·세계관 사실)은 지어내지 않고 Human 질문 목록으로 모은다. 코드는 수정하지 않는다 — 이후는 advprotoi-plan 이 이어받는다. 사용자가 "AdvProtoI 기획 / 기획 주입 / 이 방향으로 만들어줘 / Play Design 작성 / 00-cycle 작성 / design 진행" 을 요청하면 사용.
+description: HktAdvProtoI 의 기획(Design Authoring) 단계를 실행한다 — Human 이 방향 한 줄·기획서(기반 층의 축) 또는 미지 하나(컨텐츠 층의 행 — 지역·생물·자원·구조)를 주입하면 그것을 Play Design(content/roadmap/play/<name>.md)으로 구체화하고, 승인 1회 후 첫 Cycle 의 cycles/<CycleId>/spec.md 앞부분(범위)을 생성한다. 플레이 층(Breath·사건·World Cause)은 AI 가 제안하고, 게임 의미의 결정(수치·원리·세계관 사실)은 지어내지 않고 Human 질문 목록으로 모은다. 코드는 수정하지 않는다 — 이후는 advprotoi-plan 이 이어받는다. 사용자가 "AdvProtoI 기획 / 기획 주입 / 이 방향으로 만들어줘 / Play Design 작성 / Cycle spec 작성 / design 진행" 을 요청하면 사용.
 ---
 
-# HktAdvProtoI Design — 주입 → Play Design → 00-cycle
+# HktAdvProtoI Design — 주입 → Play Design → Cycle spec
 
 **작업 디렉토리: `HktAdvProtoI/`**. 공정 원본은
 [design/Design-DesignAuthoringWorkflow.md](../../../HktAdvProtoI/design/Design-DesignAuthoringWorkflow.md)
 (특히 §8.5 주입 경로) — 이 스킬과 어긋나면 원본이 이긴다.
 
 이 스킬의 사용법은 하나다: **Human 이 방향/기획을 주입하면 Cycle 이 나온다.**
-단계는 셋, Human 승인은 한 번이다. 코드·`content/` 의 코드·`engine/`·`cycles/*/01~05` 를
+단계는 셋, Human 승인은 한 번이다. 코드·`content/` 의 코드·`engine/`·`cycles/*/spec.md` 의 plan 절(SPEC 이하)·`TODO.md` 를
 수정하지 않는다 — `content/roadmap/` 의 문서만 쓴다.
 
 ## ① 주입 받기
@@ -110,7 +110,7 @@ Human 이 정한다    게임 의미 — 수치·확률·시간·범위, 시스�
 - Cycle Breakdown 각 항목은 6조건(작다/플레이 가능/World 변화 분명/관찰 가능/
   검증 가능/재사용 가능), 순서는 의존성 + Breath 점진 완성. CycleId 는 전
   이름공간(cycles/ + 코드 주석) 최대 번호 +1. Existing 판정은 CLAUDE.md 의
-  "지금 있는 것" + 기존 `cycles/*/02-world.md` 의 ADDED.
+  "지금 있는 것" + 기존 `cycles/*/spec.md` 의 ADDED.
 - 주입물이 커서 Play 하나에 안 담기면 여러 Play 로 나눠 제안한다 — 승인은
   여전히 문서당 1회다.
 
@@ -119,14 +119,16 @@ Goal·Intent·Breath·Breakdown 개별 게이트를 두지 않는다. 답과 수
 승인되면 README 의 해당 행(§2 또는 §3)에 Play 를 적고 ③ 으로. 기반 층 Play 가 놓는
 미지는 이때 §3 에 행으로 올린다.
 
-## ③ 생성 → `cycles/<CycleId>/00-cycle.md`
+## ③ 생성 → `cycles/<CycleId>/spec.md` 앞부분
 
-승인 즉시 첫 미완료 Cycle(또는 Human 지정)의 00-cycle 을 만든다. Play 를
-재설명하지 않는다 — 이번 것만:
+승인 즉시 첫 미완료 Cycle(또는 Human 지정)의 `spec.md` 를 만든다 — Cycle 디렉터리에
+코드 전에 쓰이는 문서는 이 하나뿐이고, design 은 그 **앞부분**(범위)을 쓴다. 뒷부분
+(SPEC 이하)은 `advprotoi-plan` 이 같은 파일에 덧붙인다. Play 를 재설명하지 않는다 —
+이번 것만:
 
 ```text
 # C### — <이름>
-## Source            content/roadmap/play/<PlayName>.md
+CYCLE / SOURCE / SELECTED_FROM   Trace 블록 (SOURCE = content/roadmap/play/<PlayName>.md + 근거 문서)
 ## Playable Goal
 ## Experience Intent
 ## World Change
@@ -135,6 +137,7 @@ Goal·Intent·Breath·Breakdown 개별 게이트를 두지 않는다. 답과 수
 ## Out of Scope
 ```
 
-종료 보고: "plan 가능". 이어서 `advprotoi-plan` 이 00-cycle 을 입력으로 01-spec 을
-쓴다. 이후 Cycle 부터는 주입 없이 이 스킬을 다시 부르면 ③ 만 수행한다 (Play 의
-다음 미완료 항목). Cycle 완료 체크박스 갱신은 build 의 마감 작업이다.
+종료 보고: "plan 가능". 이어서 `advprotoi-plan` 이 이 앞부분을 입력으로 SPEC ~
+UNRESOLVED 를 덧붙이고 파일을 동결한다. 이후 Cycle 부터는 주입 없이 이 스킬을 다시
+부르면 ③ 만 수행한다 (Play 의 다음 미완료 항목). Cycle 완료 체크박스 갱신은 build 의
+마감 작업이다.
