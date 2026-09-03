@@ -451,13 +451,60 @@ describe('SPEC-006 — 추락은 요청 없이 일어난다', () => {
     expect(body(w).position.z).toBeCloseTo(38 - INTERACTION_RANGE - 1);
   });
 
-  it('S-022 (경계 ①) 진행 중인 행동이 있어도 떨어진다 — 대체 가능성을 묻지 않는다', () => {
-    // Given 대체 불가 행동(attack)을 시작한다. 그 Tick 의 끝에서 세계가 떨어질 사람을 본다
-    const w = inInnerWorld({ x: 0, z: 38 - INTERACTION_RANGE + 0.5 });
-    expect(w.dispatch({ interactionId: 'attack' })).toMatchObject({ status: 'success' });
-    // Then 행동을 이유로 거절되지 않고 (사유 코드가 없다) 떨어졌으며 행동은 idle 로 돌아간다
+  it('S-022 (경계 ①) 진행 중인 행동이 있어도 떨어진다 — 추락은 대체 가능성을 묻지 않는다', () => {
+    // 판정 방식 메모: 몸이 FALL 범위에 **드는** 그 Tick 의 끝에서 추락이 일어나므로,
+    // "범위 안 + 진행 중인 행동" 을 미리 만들어 둘 수 없다. 그래서 범위에 드는 Tick 직전의
+    // currentAction 을 읽어 "행동이 진행 중이었는가" 를 본다 (spec 이 침묵한 자리 · 보고 ①).
+    const w = inInnerWorld({ x: 0, z: 30 });
+    expect(w.dispatch({ interactionId: 'move', position: { x: 0, z: 38 } }).status).toBe('success');
+
+    let actionBefore = 'idle';
+    const steps = Math.ceil(120 / TICK_INTERVAL);
+    for (let i = 0; i < steps; i++) {
+      actionBefore = body(w).currentAction.kind;
+      w.tick(TICK_INTERVAL);
+      if (body(w).regionId !== TREE_INNER_WORLD) break;
+    }
+    // Then 행동이 진행 중이었는데도 떨어졌고, 떨어진 뒤의 행동은 idle 이다
+    expect(actionBefore).not.toBe('idle');
     expect(body(w).regionId).toBe(HEART_LAKE);
     expect(body(w).currentAction.kind).toBe('idle');
+    expect(body(w).velocity).toEqual({ x: 0, z: 0 });
+  });
+
+  it('S-022b (경계 ①) 같은 상황에서 **요청**은 대체 가능성을 묻는다 — 그 차이가 추락의 뜻이다', () => {
+    // Given 문 anchor 위에서 대체 불가 행동(attack)을 시작한다
+    const w = driveWorld({ ...solo, actorRegion: TREE_INNER_WORLD, actorPosition: { x: 0, z: -38 } });
+    expect(w.dispatch({ interactionId: 'attack' })).toMatchObject({ status: 'success' });
+    // Then 건너기 요청은 action-busy 로 거절된다 (RULE-REGION-TRANSIT-001 은 묻는다)
+    expect(askTransit(w, TREE_INNER_DOOR)).toMatchObject({
+      accepted: false,
+      reason: 'action-busy',
+    });
+    expect(body(w).regionId).toBe(TREE_INNER_WORLD);
+  });
+
+  it('S-022c (경계 ①) 대체 불가 행동이 받아들여진 그 Tick 에도 떨어진다 — 행동을 묻지 않는다', () => {
+    // Given 몸이 FALL 범위 안에 서는 그 Tick 에 대체 불가 행동을 요청한다.
+    //       driveWorld 는 join 뒤에 Tick 을 하나 돌므로 이 자리만 createWorld 로 직접 짠다.
+    const world = createWorld({
+      npcs: [],
+      actorRegion: TREE_INNER_WORLD,
+      actorPosition: { x: 0, z: 38 - INTERACTION_RANGE + 0.5 },
+    });
+    world.join(OBSERVER);
+    world.request(OBSERVER, { interactionId: 'attack' });
+
+    // When 그 Tick 을 돈다
+    const { outcomes } = world.tick(0);
+
+    // Then 행동은 받아들여졌고(거절이 아니다) 그럼에도 떨어졌다
+    expect(outcomes.get(OBSERVER)).toMatchObject([{ accepted: true }]);
+    const actor = (world.snapshot().state as WorldState).actors.find((a) => a.id === PLAYER)!;
+    expect(actor.regionId).toBe(HEART_LAKE);
+    expect(actor.position).toEqual({ x: 0, z: 0 });
+    expect(actor.currentAction.kind).toBe('idle'); // 추락이 하던 일을 끝낸다
+    expect(actor.velocity).toEqual({ x: 0, z: 0 });
   });
 
   it('S-023 (경계 ①) 걷는 중에도 떨어진다 — 반대편 끝으로 걸어가면 scene 이 바뀐다', () => {

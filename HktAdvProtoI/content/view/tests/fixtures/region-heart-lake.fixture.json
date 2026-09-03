@@ -1,0 +1,66 @@
+{
+  "specId": "VIEW-STONE-MINING-001",
+  "scene": "HEART_LAKE",
+  "region": {
+    "id": "HEART_LAKE",
+    "hash": "<filled-by-test>"
+  },
+  "observer": {
+    "id": "observer-a",
+    "characterId": "player",
+    "acknowledgedMark": 0
+  },
+  "entities": [
+    {
+      "id": "player",
+      "role": "player-character",
+      "state": "idle",
+      "kind": "rabbit-swordsman",
+      "position": {
+        "x": 0,
+        "z": 0
+      }
+    },
+    {
+      "id": "HEART_RIVER",
+      "role": "region-exit",
+      "state": "open",
+      "kind": "river",
+      "position": {
+        "x": 0,
+        "z": -18
+      }
+    }
+  ],
+  "interactions": [
+    {
+      "id": "move",
+      "role": "move-to",
+      "available": true
+    },
+    {
+      "id": "transit",
+      "role": "transit-connector",
+      "targetEntityId": "HEART_RIVER",
+      "available": false,
+      "reason": "out-of-range"
+    }
+  ],
+  "hud": [
+    {
+      "id": "inventory.stone",
+      "kind": "counter",
+      "value": 0
+    },
+    {
+      "id": "region.depth",
+      "kind": "label",
+      "value": "deep"
+    }
+  ],
+  "strikes": [],
+  "debug": {
+    "open": false
+  },
+  "commands": []
+}

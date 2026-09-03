@@ -27,7 +27,10 @@ const BUILT_REGIONS = [
   PREDATOR_NEST,
   BIO_ORE_FIELD,
 ];
-const FRONTIERS = ['FANTASY_MAZE', 'ICE_CANYON', 'RED_EYE_TREE', 'RED_WASTE']; // 정렬된 형태
+// C003 이 RED_EYE_TREE 를 지어 경계 목록에서 뺐다 — 남은 경계 셋 (정렬된 형태)
+const FRONTIERS = ['FANTASY_MAZE', 'ICE_CANYON', 'RED_WASTE'];
+/** 관찰 결과에 이름이 실려서는 안 되는 다른 방들 — 경계 셋 + C003 이 지은 셋 */
+const OTHER_ROOM_NAMES = [...FRONTIERS, 'RED_EYE_TREE', 'TREE_INNER_WORLD', 'HEART_LAKE'];
 
 const FOREST_PATH = 'FOREST_PATH';
 const RUIN_TRAIL = 'RUIN_TRAIL';
@@ -174,9 +177,11 @@ const graphFrontiers = (REGION_GRAPH as unknown as { frontiers?: string[] }).fro
 
 // ─────────────────────────────────────────────────────────────
 
-describe('S-001 (SPEC-001) — 방이 여섯이다 · 새 방 넷은 wild · extent 40×40', () => {
-  it('Region 여섯 · depth 분포 civil 1 · outer 1 · wild 4', () => {
-    expect([...REGION_SPECS.map((r) => r.id)].sort()).toEqual([...BUILT_REGIONS].sort());
+describe('S-001 (SPEC-001) — C002 의 여섯 방이 있고 새 방 넷은 wild · extent 40×40', () => {
+  it('C002 의 여섯 방이 그대로 있고 depth 가 그대로다 (civil 1 · outer 1 · wild 4)', () => {
+    // C003 이 방을 셋 더했다 — 총 개수 대신 "C002 의 여섯이 그대로 있는가" 로 느슨하게 본다
+    const ids = REGION_SPECS.map((r) => r.id);
+    for (const id of BUILT_REGIONS) expect(ids).toContain(id);
 
     const depthOf = (id: string) => REGION_SPECS.find((r) => r.id === id)?.depth;
     expect(depthOf(WHITE_KING_DOMAIN)).toBe('civil');
@@ -184,12 +189,19 @@ describe('S-001 (SPEC-001) — 방이 여섯이다 · 새 방 넷은 wild · ext
     for (const id of [FOREST_DEEP, EXPLORER_RUIN, PREDATOR_NEST, BIO_ORE_FIELD]) {
       expect(depthOf(id)).toBe('wild');
     }
-    expect(REGION_SPECS.filter((r) => r.depth === 'wild').length).toBe(4);
+    expect(BUILT_REGIONS.filter((id) => depthOf(id) === 'wild').length).toBe(4);
   });
 
-  it('여섯 방 모두 extent −20..20 × −20..20 (새 방 넷도 자기 Local Space 를 가진다)', () => {
-    for (const spec of REGION_SPECS) {
-      expect(spec.space.extent).toEqual({ minX: -20, maxX: 20, minZ: -20, maxZ: 20 });
+  it('그 여섯 방 모두 extent −20..20 × −20..20 (새 방 넷도 자기 Local Space 를 가진다)', () => {
+    // C003 이 방마다 크기가 다를 수 있음을 처음 썼다 (TREE_INNER_WORLD 만 한 변 80) —
+    // C002 가 검증하던 여섯 방의 크기가 그대로인지만 본다
+    for (const id of BUILT_REGIONS) {
+      expect(REGION_SPECS.find((r) => r.id === id)?.space.extent).toEqual({
+        minX: -20,
+        maxX: 20,
+        minZ: -20,
+        maxZ: 20,
+      });
     }
   });
 });
@@ -236,9 +248,10 @@ describe('S-003 · S-004 (SPEC-002) — anchor 가 방마다 여럿이고, 방 �
   });
 });
 
-describe('S-005 (SPEC-003) — Connector 가 열이고 그 순서다', () => {
-  it('World.graph.connectors = SPEC-003 의 표 그대로 (exitsOf 의 결정론이 이 순서를 따른다)', () => {
-    expect(REGION_GRAPH.connectors).toEqual([
+describe('S-005 (SPEC-003) — C002 의 Connector 열이 이 순서로 앞에 있다', () => {
+  it('World.graph.connectors 의 앞 열이 SPEC-003 의 표 그대로 (exitsOf 의 결정론이 이 순서를 따른다)', () => {
+    // C003 이 뒤에 셋을 이었다 — 배열 전체 일치 대신 "이 열이 이 순서로 앞에 있다" 로 느슨하게 본다
+    expect(REGION_GRAPH.connectors.slice(0, 10)).toEqual([
       {
         id: FOREST_PATH,
         from: { region: WHITE_KING_DOMAIN, anchor: FOREST_PATH },
@@ -325,8 +338,9 @@ describe('S-006 (SPEC-003) — 방마다 나갈 곳의 수가 3 · 3 · 5 · 1 �
 });
 
 describe('S-007 (SPEC-004) — 아직 짓지 않은 곳은 경계(frontier)로 밝혀져 있다', () => {
-  it('frontiers = RED_EYE_TREE · FANTASY_MAZE · RED_WASTE · ICE_CANYON 넷', () => {
-    expect([...graphFrontiers].sort()).toEqual(FRONTIERS);
+  it('frontiers 에 FANTASY_MAZE · RED_WASTE · ICE_CANYON 이 있다 (C003 이 RED_EYE_TREE 를 지어 뺐다)', () => {
+    for (const name of FRONTIERS) expect(graphFrontiers).toContain(name);
+    expect(graphFrontiers).not.toContain('RED_EYE_TREE');
   });
 
   it('Description 없는 끝은 전부 frontier 안에 있고, frontier 중 지어진 방은 없다', () => {
@@ -449,16 +463,15 @@ describe('S-013 (SPEC-006 ⑤) — 아직 없는 곳으로 건너려 하면 regi
     }
   });
 
-  it('광석 지대의 거목 쪽 오솔길 — ORE_TREE_TRAIL', () => {
+  it('광석 지대의 거목 쪽 오솔길 — ORE_TREE_TRAIL 은 C003 이 그 방을 지어 이제 건너진다', () => {
+    // C002 에서는 region-not-built 였다. Connector 는 손대지 않았고 방이 지어졌을 뿐이다 —
+    // 사유 자체는 위 고개 둘이 그대로 검증한다 (이 사유를 잃지 않는다)
     const w = driveWorld(solo);
     toForestDeep(w);
     crossFrom(w, FOREST_DEEP, ORE_TRAIL);
     walkTo(w, 0, 18);
-    expect(askTransit(w, ORE_TREE_TRAIL)).toMatchObject({
-      accepted: false,
-      reason: 'region-not-built',
-    });
-    expect(body(w).regionId).toBe(BIO_ORE_FIELD);
+    expect(askTransit(w, ORE_TREE_TRAIL)).toMatchObject({ accepted: true });
+    expect(body(w).regionId).toBe('RED_EYE_TREE');
   });
 });
 
@@ -569,7 +582,8 @@ describe('S-018 (SPEC-007 경계) — 경계를 가리키는 출구도 state = o
     // C001 SPEC-007 대로 실리는 것이고, 금지된 것은 frontier 로 밝힌 **방 이름**이다
     for (const region of BUILT_REGIONS) {
       const text = JSON.stringify(rooms()[region]);
-      for (const name of FRONTIERS) expect(text).not.toContain(`"${name}"`);
+      // 경계 셋에 더해 C003 이 지은 방 셋의 이름도 실리면 안 된다 (목적지는 여전히 밝히지 않는다)
+      for (const name of OTHER_ROOM_NAMES) expect(text).not.toContain(`"${name}"`);
     }
   });
 });
@@ -603,7 +617,7 @@ describe('S-019 (SPEC-008) — 숲 안쪽은 출구가 다섯이고 그 중 하�
       EXPLORER_RUIN,
       PREDATOR_NEST,
       BIO_ORE_FIELD,
-      ...FRONTIERS,
+      ...OTHER_ROOM_NAMES,
     ]) {
       expect(text).not.toContain(`"${name}"`);
     }
@@ -654,7 +668,8 @@ describe('S-021 (SPEC-009) — 이 Cycle 의 데이터로 검사를 돌리면 �
     expect(first).toEqual([]);
     const second = checkGraph(descriptions(), REGION_GRAPH, ANCHOR_LAYER, WHITE_KING_DOMAIN);
     expect(second).toEqual(first);
-    expect(REGION_SPECS.length).toBe(6); // 검사가 데이터를 건드리지 않았다
+    // 검사가 데이터를 건드리지 않았다 — 개수 대신 C002 의 여섯이 그대로 있는지로 본다
+    for (const id of BUILT_REGIONS) expect(REGION_SPECS.map((r) => r.id)).toContain(id);
   });
 });
 
@@ -715,9 +730,11 @@ describe('S-023 (SPEC-010) — STATE_VERSION 이 올라가지 않고 방·Graph 
     expect(v.scene).toBe(FOREST_DEEP);
     expect(exits(v).length).toBe(5);
     expect(exits(v).filter((e) => e.state === 'locked').map((e) => e.id)).toEqual([ANCIENT_GATE]);
-    // 방과 Graph 는 컨텐츠 데이터에서 다시 온다
-    expect(REGION_SPECS.length).toBe(6);
-    expect(REGION_GRAPH.connectors.length).toBe(10);
+    // 방과 Graph 는 컨텐츠 데이터에서 다시 온다 — C003 이 뒤에 더했으므로 개수 대신 존재로 본다
+    for (const id of BUILT_REGIONS) expect(REGION_SPECS.map((r) => r.id)).toContain(id);
+    for (const id of [FOREST_PATH, ANCIENT_GATE, ORE_TREE_TRAIL]) {
+      expect(REGION_GRAPH.connectors.map((c) => c.id)).toContain(id);
+    }
   });
 });
 

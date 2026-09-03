@@ -43,8 +43,10 @@ describe('SPEC-001 — Region 이 있다', () => {
     expect(REGION_SPECS.map((r) => r.id).slice(0, 2)).toEqual([WHITE_KING_DOMAIN, FOREST_EDGE]);
     expect(regionSpec(WHITE_KING_DOMAIN)?.depth).toBe('civil');
     expect(regionSpec(FOREST_EDGE)?.depth).toBe('outer');
-    for (const spec of REGION_SPECS) {
-      expect(spec.space.extent).toEqual({ minX: -20, maxX: 20, minZ: -20, maxZ: 20 });
+    // C003 이 방마다 크기가 다를 수 있음을 처음 썼다 (TREE_INNER_WORLD 만 한 변 80) —
+    // 그래서 모든 Region 을 도는 대신 C001 이 세운 이 둘의 크기가 그대로인지만 본다
+    for (const id of [WHITE_KING_DOMAIN, FOREST_EDGE]) {
+      expect(regionSpec(id)?.space.extent).toEqual({ minX: -20, maxX: 20, minZ: -20, maxZ: 20 });
     }
   });
 
