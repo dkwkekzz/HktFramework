@@ -5,16 +5,15 @@
 
 ## 1. 다음에 할 일 — 레인
 
-한 Cycle = 브랜치 `cycle/C###` = 세션 하나. **말할 것: "C003 진행"** — `advprotoi-cycle` 이 명세(spec.md) → 실현 → 마감을
+한 Cycle = 브랜치 `cycle/C###` = 세션 하나. **말할 것: "C006 진행"** — `advprotoi-cycle` 이 명세(spec.md) → 실현 → 마감을
 이어 돌리고 UNRESOLVED · GAP 에서만 멈춘다. PR 은 번호 순으로 합친다. 병렬 규칙은
 [Plan-Skill §4 항목 4](design/Plan-Skill-CycleExecutionWorkflow.md). 승인 게이트 없음 — Play 셋은 승인돼 있다.
 
 | 레인 | 지금 할 수 있는 것 | 기다리는 것 | 다음 |
 |---|---|---|---|
-| Rooms — [RegionGraphRooms](content/roadmap/play/RegionGraphRooms.md) | **C003** 작은 문, 큰 방, 돌아올 수 없는 길 — 거목 → 내부 세계(중첩 · 80×80) → 추락 → 심장 호수 → 물길. 거목 쪽 Connector 둘은 C002 가 놓았다: RegionSpec 하나를 더하고 경계 목록에서 이름 하나를 빼면 열린다 | — | C004 (순차) |
-| ENGINE A — [Plan-World-Authoring-Engine §5](design/Plan-World-Authoring-Engine.md) | 지형 컴파일러 E6~E8 (Cycle 아님 · 게임 명사 없음 · 분리 커밋) | — | C005 가 쓴다 |
-| Land — [RoomBecomesLand](content/roadmap/play/RoomBecomesLand.md) | C005 (ENGINE A 가 서면) | ENGINE A | C006 → C007 |
-| Rule — [RuleBoundRoom](content/roadmap/play/RuleBoundRoom.md) | 대기 | Rooms C004(고대 문) + Land 닫힘 (순서: Rooms → Land → Rule — 규칙이 바꿀 area · traversable 을 Land 가 먼저 세운다) | C008 → C010 |
+| Land — [RoomBecomesLand](content/roadmap/play/RoomBecomesLand.md) | **C006** 땅이 막고 흐른다 — traversable(45°) + 이동 거절 + curve(강 · carve · wet) + 다리 point + 조건 area 와 safe-by 사유. 여기서 **세계가 처음 땅을 읽는다** — 규칙 표를 world 와 view 가 함께 읽을 자리를 그때 정한다 (지금은 content/view) | — | C007 (순차) |
+| ENGINE A — [Plan-World-Authoring-Engine §5](design/Plan-World-Authoring-Engine.md) | C006·C007 이 쓸 나머지 — curve op · traversable 격자 · scatter/random · observe 래스터 (Cycle 아님 · 게임 명사 없음 · 분리 커밋) | — | C006 · C007 이 쓴다 |
+| Rule — [RuleBoundRoom](content/roadmap/play/RuleBoundRoom.md) | 대기 | Land 닫힘 (순서: Rooms → Land → Rule — 규칙이 바꿀 area · traversable 을 Land 가 먼저 세운다) | C008 → C010 |
 
 ## 2. 진행
 
@@ -22,13 +21,15 @@
 
 | Play | 증명 | Cycle | 상태 |
 |---|---|---|---|
-| RegionGraphRooms | 세계는 방들의 그래프다 | C001~C004 | C001 · C002 닫힘 · **C003 다음** |
-| RoomBecomesLand | 방이 땅이 된다 (백왕령) | C005~C007 | ENGINE A 뒤 C005 |
+| RegionGraphRooms | 세계는 방들의 그래프다 | C001~C004 | **넷 다 닫힘** — Play Goal 실주행 확인이 남았다 (C004 TODO X-⑥) |
+| RoomBecomesLand | 방이 땅이 된다 (백왕령) | C005~C007 | C005 닫힘 · **C006 다음** |
 | RuleBoundRoom | 방은 규칙을 품는다 (환상의 미로 = Region 하나) | C008~C010 | 대기 |
 
-**Human 판정 대기** — C001 X-①~⑧ · C002 X-①~⑧: 각 Cycle 의 `TODO.md`
-([C001](cycles/C001-region-graph-rooms/TODO.md) · [C002](cycles/C002-many-exits/TODO.md), 그림은 같은 폴더 `shots/`).
-직접 보려면 `npm run dev` → 출구 표식까지 걸어가 `Q`.
+**Human 판정 대기** — 각 Cycle 의 `TODO.md` (그림은 같은 폴더 `shots/`). `npm run dev` 로 직접 본다.
+[C001](cycles/C001-region-graph-rooms/TODO.md) 8 · [C002](cycles/C002-many-exits/TODO.md) 8 ·
+[C003](cycles/C003-small-door-big-room/TODO.md) 6 · [C004](cycles/C004-polish-is-data/TODO.md) 6 ·
+[C005](cycles/C005-land-rises/TODO.md) 7.
+RegionGraphRooms 가 닫혔으므로 **Play 전체 실주행**(백왕령 → 거목 → 추락 → 물길 → 귀환)이 그 위에 하나 더 있다.
 
 ## 3. 로드맵
 
@@ -47,21 +48,25 @@
 ```text
 컨텐츠   채광 · 캐릭터 행동과 모션 · 세계/클라이언트 분리 · 다중 관찰자 · 이어짐 계량 · 몸 충돌 · 기본 전투 정책 ·
         시점과 그림 방향 · 개발 명령 표면 · 세계의 대답이 화면에 뜸(거절 문구) ·
-        Region — 방 여섯(백왕령 civil · 숲 가장자리 outer · 숲 안쪽과 POI 셋 wild)과 Connector 열 ·
-        WorldPosition = regionId + (x, z) · 건너기 Rule(거절 여섯) · 방으로 잘리는 투영 ·
-        연결의 종류 다섯(길 · 오솔길 · 문 · 고개 · 들어감) · 닫힌 문 · 아직 짓지 않은 곳(경계) · content/regions/ 데이터
-기반    world-kernel · physics · view-kernel(키가 눈앞의 것을 고름 · 세계의 대답을 띄움) · protocol-core ·
-        world-authoring(Description · Graph · 경계 · 닿음 · 검사 여섯 — 컴파일러는 아직 없다)
-없음    전투 공식 · 막기 · 피해 종류 · 살펴봄 · 지목 · 태도 · 소지품 · 장비 · 스킬 형태 · 지형(높이·표면·경사) · 성장 — design/ 에만
+        Region — 방 아홉(백왕령 civil · 숲 가장자리 outer · 숲 안쪽과 POI 셋과 거목 wild · 거목 내부와 심장 호수 deep)과
+        Connector 열셋 · 중첩 둘 · WorldPosition = regionId + (x, z) · 건너기 Rule(거절 다섯) · 방으로 잘리는 투영 ·
+        연결의 종류 일곱(길 · 오솔길 · 문 · 고개 · 들어감 · 추락 · 물길) · 요청 없이 일어나는 전이(추락) ·
+        아직 짓지 않은 곳(경계 셋) · 백왕령의 능선(stamp 하나 → 높이·표면 색) · content/regions/ 데이터
+기반    world-kernel · physics · view-kernel(키가 눈앞의 것을 고름 · 세계의 대답을 띄움 · 컴파일된 땅을 그림) · protocol-core ·
+        world-authoring(Description · Graph · 중첩 · 경계 · 닿음 · 검사 일곱 · 지형 컴파일러 — height-field · surface · compile · hash)
+도구    world:observe --graph (방 · Connector · 중첩 · 경계 · 검사 보고 — 읽기 전용)
+없음    전투 공식 · 막기 · 피해 종류 · 살펴봄 · 지목 · 태도 · 소지품 · 장비 · 스킬 형태 · 성장 — design/ 에만 ·
+        지형이 몸에 하는 일(traversable) · 강 · 조건 area — C006 이 세운다
 미사용   기반에 있으나 컨텐츠가 아직 안 쓰는 것 — 겹침 표면 · 칸 띠 · 터치 입력 · 이펙트 레이어 · 지면 구역 · 세계 영속
 ```
 
 ## 5. 열린 부채
 
 원본은 각 Cycle 의 `TODO.md`. 지금:
-C001 — 방 바닥이 지형 굴곡에 묻힘(→ C005 Land).
-C002 — 카메라가 방 크기에 안 맞음(40×40 도 한 화면에 안 들어온다 → C003) ·
-`pass` 색 표식이 지금은 전부 경계를 가리킨다(방이 지어지면 저절로 풀린다).
+C003 — 촬영 하네스에서 자판 걸음이 몸을 옮기지 못한다(원인 미확정 — 실주행에서도 그런지 확인 필요).
+C005 — 80×80 방의 바닥 채움 눈금이 삼각형 상한에 걸려 조금 굵다(뜬 거리 0.020) ·
+컴파일을 켤 때마다 한다(굽는 도구 world:compile 은 C007).
+Human 감사 — C005 의 표면 임계 15°(평지/비탈)는 문서 근거가 없는 기본형이다.
 
 ## 6. 실행
 
