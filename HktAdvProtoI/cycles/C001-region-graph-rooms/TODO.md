@@ -1,0 +1,82 @@
+# C001 — TODO
+
+살아 있는 문서다. 항목이 닫히면 지운다 — 다 지워지면 이 파일도 지운다 (`spec.md` 만 남은 디렉터리가 닫힌 Cycle 이다).
+
+## Human 판정 대기 — Experience Verification
+
+`npm run dev` (또는 `scripts/run.*`) 로 세계 + 클라이언트를 띄우고 순서대로 한다. 자동 시나리오(`content/world/tests/region.spec.ts` 27 ·
+`content/view/tests/region.spec.ts` 13 · `engine/world-authoring/tests/*` 18)는 전부 PASS 다 — 여기 남은 것은 Human 의 눈만이 판정한다.
+그림은 `shots/` (시나리오 `shots.json` · `npm run cycle:shot`). 항목마다 자기 그림을 가리킨다 — 그림에 없는 것(몸의 좌표)은 테스트가 증거다.
+
+```text
+Start   여기가 세계의 전부처럼 보인다. 방 하나, 출구 하나.
+End     세계는 방 하나가 아니다. 나는 문명의 경계를 넘었고, 그것이 색으로 보이며, 돌아올 수 있다.
+```
+
+```text
+X-①  방의 바닥이 그려진다
+     하기   접속 직후 카메라를 움직여 화면 전체를 본다
+     보기   Region extent 만큼의 면(40×40)이 바닥으로 그려져 있고, 그 밖은 바닥이 아니다. 바닥 색은 한 가지 — "문명권" 색이다
+     그림   shots/X-01-white-king-domain.png (남서쪽 구석에서 — 방의 모서리와 밖의 땅)
+     판정   [ ]
+
+X-②  방 이름이 보인다
+     하기   접속 직후 화면을 본다
+     보기   "백왕령" 이 방 이름으로 보인다 (봉투에는 WHITE_KING_DOMAIN 만 있고 문구는 View 의 표가 낸다)
+     그림   shots/X-01-white-king-domain.png · X-07-back-to-white-king-domain.png
+     판정   [ ]
+
+X-③  출구 표식이 보인다 · 목적지 이름은 없다
+     하기   북쪽 변(z = 18 근처)까지 걸어간다
+     보기   anchor 자리(0, 18)에 표식 하나가 있다. 표식 어디에도 "숲 가장자리" 라는 이름이 없다. npc 둘과 광맥 하나가 같은 화면 안에 있다
+     그림   shots/X-03-exit-marker.png (자율 존재 없이 찍었다 — npc 둘은 X-01 에서)
+     판정   [ ]
+
+X-⑥  멀리서 건너기를 요청하면 거절이 온다
+     하기   표식에서 멀리(방 가운데) 선 채로 건너기 키(Q)를 누른다
+     보기   화면에 거절 문구가 온다 (out-of-range 사유 코드 → 문구) · 몸은 그 자리 그대로 · 바닥 색과 방 이름 그대로
+     그림   shots/X-06-transit-rejected-far.png — 거절 문구는 HUD 글자에 잡히지 않았다 (촬영 보고 "너무 멀다 없음"). 어디에 뜨는지 눈으로 볼 것
+     판정   [ ]
+
+X-④  건너면 화면이 바뀐다
+     하기   표식 바로 옆(2.0 이내)까지 걸어가 건너기 키를 누른다
+     보기   한 번에 (a) 바닥 색이 다른 색으로 (b) 방 이름이 "숲 가장자리" 로 (c) 몸이 남쪽 변의 표식 자리(0, −18)에 서 있다
+           (d) 방 안에 나와 출구 표식뿐 — npc · 광맥이 없다
+     그림   shots/X-04-forest-edge.png
+     판정   [ ]
+
+X-⑤  HUD 에 깊이가 읽힌다
+     하기   건너기 전과 후의 HUD 를 비교한다
+     보기   백왕령에서 "문명권", 숲 가장자리에서 "문명의 경계를 넘었다" (civil / outer 태그 → View 의 문구)
+     그림   shots/X-03-exit-marker.png (전) · X-04-forest-edge.png (후)
+     판정   [ ]
+
+X-⑦  돌아올 수 있다 (Intent End · Playable Goal)
+     하기   숲 가장자리에서 (지금 서 있는) 표식 자리에서 건너기 키를 다시 누른다
+     보기   백왕령의 북쪽 표식 자리(0, 18)에 서 있다 · 바닥 색 · 방 이름 · HUD 문구가 처음 것으로 돌아온다 · npc 둘과 광맥이 다시 보인다
+     그림   shots/X-07-back-to-white-king-domain.png (자율 존재 없이 — npc 는 안 보인다)
+     판정   [ ]
+
+X-⑧  Intent — Start → End
+     하기   위 X-① ~ X-⑦ 을 이어서 한 번에 한다
+     보기   Start(방 하나가 전부처럼 보임)에서 End(경계를 넘었고 색으로 보이며 돌아올 수 있음)로 체험이 이어진다
+     그림   X-01 → X-03 → X-04 → X-07 순서로 본다. 이어지는 체험은 `npm run dev` 로 직접
+     판정   [ ]
+```
+
+## 알려진 부채
+
+```text
+wrong-region 사유의 플레이 실측     Connector 가 하나(FOREST_PATH)라 플레이로는 도달 불가 — 하네스로만 확인했다 → C002 (Connector 둘 이상)
+방 바닥이 지형 굴곡에 묻힐 수 있다   폴리곤 꼭짓점 넷만 지형에 드리운다. 테두리 띠는 1단위 분할로 지형을 따른다
+                                   → 방이 평평해지는 C008 (heightAt 이 컴파일 결과를 읽을 때)
+카메라가 방 크기에 맞지 않는다      Play §6 V4 — 80×80 방이 나오는 C003 에서 필요해진다
+바닥 색은 클라이언트 데이터가 정한다  hud 가 아니라 regionSpec.depth 에서 — 어긋남은 region.hash 대조가 드러낸다 (Plan §3.5 방식). 부채가 아니라 방식의 기록
+```
+
+## 다음 Cycle 로
+
+```text
+extent 경계값의 포함 여부   "−20..20 안" 이 20 을 포함하는지 spec 이 말하지 않는다 — 시나리오는 ±19.5 / ±25 로 경계를 피했다.
+                          C002 의 spec 에서 닫는다
+```

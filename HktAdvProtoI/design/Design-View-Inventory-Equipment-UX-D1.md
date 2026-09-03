@@ -27,7 +27,7 @@
 | `[OBSERVATION]` | 이미 존재하는 World 의미를 보이고 조작 가능하게 한다 |
 | `[DIRECT-CYCLE]` | Master 후보화 없이 다음 Cycle로 직접 착수한다 |
 | `[CYCLE-READY]` | Goal·Scope·계약 요구·검증 기준이 Agent handoff 가능한 상태다 |
-| `[GAMEVIEW-GAP]` | View가 필요한 authoritative 관찰이 없으면 `04-gameview.md` 로 반환한다 |
+| `[GAMEVIEW-GAP]` | View가 필요한 authoritative 관찰이 없으면 `spec.md` 의 Observable 절(plan)로 반환한다 |
 
 ---
 
@@ -327,7 +327,7 @@ Playable Result   I로 작업 공간을 연다 → 칸을 선택한다 → 상�
 Observable Result 용량, 빈칸, 종류, 수량, 선택, 행동, 불가 사유, pending, 성공/거절이 구분된다.
 In Scope          Shell, 6열 Grid, 선택/Focus, 상세, 기존 use/discard action 연결, Fixture 테스트.
 Out of Scope      장착 패널, Preview, Drag & Drop, 정렬/검색/필터, Stack 분리, 모바일, 새 World 규칙.
-World Delta       NONE이 기본. Spec에 빈 Slot/display identity/action 결과가 없다면 `04-gameview.md` GAP.
+World Delta       NONE이 기본. Spec에 빈 Slot/display identity/action 결과가 없다면 spec.md Observable 절의 GAP.
 View Delta        기존 가로 HUD 요약은 유지하고, I로 여는 관리 작업 공간을 추가한다.
 ```
 

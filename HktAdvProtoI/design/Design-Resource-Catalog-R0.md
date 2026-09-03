@@ -966,7 +966,7 @@ Resource를 통해
 
 ```text
 수치            회복량 · 지속 시간 · 쿨다운 · 능력치 증분 · 사용 시간
-                → Cycle 의 02-world.md 소유 (정책 §7.2)
+                → Cycle 의 spec.md 소유 (정책 §7.2)
 획득 경로       **병합으로 범위 안에 들어왔다** — §5 Harvest · §6 Extraction Consequence 가
                 그 층이다 (BW §33 의 다섯째 질문). 다만 종류마다의 채집 방법 선언과 그 결과는
                 여전히 각 층의 설계 문서와 IS §6 Cycle 4 의 몫이다

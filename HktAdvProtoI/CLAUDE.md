@@ -25,16 +25,16 @@ mmorpg에서 컨텐츠를 구성하기 위한 구조를 설계한다.
 ## 작업 공정 (Workflow)
 
 공정 원본은 [design/Design-CycleExecutionWorkflow.md](design/Design-CycleExecutionWorkflow.md),
-기획 위층(사람의 아이디어 → Play Design → 00-cycle)은
+기획 위층(사람의 아이디어 → Play Design → Cycle spec)은
 [design/Design-DesignAuthoringWorkflow.md](design/Design-DesignAuthoringWorkflow.md),
 스킬 분할 근거는 [design/Plan-Skill-CycleExecutionWorkflow.md](design/Plan-Skill-CycleExecutionWorkflow.md).
 
 ```text
-advprotoi-design  기획      방향/기획서 주입 → Play Design(content/roadmap/play/*.md) 구체화
-                           → Human 승인 1회 → 00-cycle.md 생성
-advprotoi-plan    의미 확정  00-cycle → CYCLE SPEC → WORLD SEMANTIC + RULE (01·02)
-advprotoi-build   실현·검증  구현 ∥ GameView ∥ 검증 병렬 → 실측 검증 (03·04·05)
-                           완료 시 play 문서의 Cycle 체크박스 갱신
+advprotoi-design  기획    방향/기획서/미지 주입 → Play Design(content/roadmap/play/*.md) 구체화 → Human 승인 1회
+                         → STATE.md §1 레인 표 (다음에 할 Cycle · 병렬)
+advprotoi-cycle   Cycle   "C### 진행" — 명세: cycles/<CycleId>/spec.md 한 파일(범위 · SPEC · State/Rule · Observable ·
+                         UNRESOLVED → 정지) 동결 → 실현: 관찰 계약 · 기구/의미 분해 → E ∥ W ∥ V ∥ T → npm test → 7항
+                         → 마감: 촬영 shots/ · TODO.md · 마감 커밋 · 그림 보고 → PR (번호 순 합침)
 ```
 
 "다음에 무엇을 만들까"는 승인된 Play Design 의 Cycle Breakdown 이 답한다 —
@@ -46,8 +46,16 @@ advprotoi-build   실현·검증  구현 ∥ GameView ∥ 검증 병렬 → 실�
 한 Play 는 행 하나만 증명한다. 로드맵과 그 결과물(`L0-Game.md` · 층별 확정 문서 · 미지
 문서 · `play/`)은 전부 `content/roadmap/` 에 있다.
 
-Cycle Artifact 는 `cycles/<CycleId>/` (CycleId: `C###-이름`) — 파일만이 단계 간
-인터페이스다. 이전 공정의 산출물(`guides/` · `master/` · `BACKLOG.md` · `LANES.md`)과
+Cycle 디렉터리 `cycles/<CycleId>/` (CycleId: `C###-이름`) 에 두는 것은 셋뿐이다 —
+`spec.md`(코드 전 — 범위 + SPEC·State·Rule·Observable, cycle 의 명세 단계가 한 번에 쓰고 동결) ·
+`TODO.md`(코드 뒤 — Human 판정 대기 · 부채, 비면 삭제) · `shots.json` + `shots/`(마감 촬영 —
+관찰 가능한 결과를 실제 게임에서 찍은 PNG, `npm run cycle:shot`). 구현 노트 · GameView 표 ·
+검증 산문은 만들지 않는다 — 코드 주석의 `RULE-*` id · `content/view` 의 표 · 시나리오
+테스트 · 커밋 메시지가 원본이다. 파일만이 단계 간 인터페이스다.
+Cycle 여럿을 동시에 돌리는 규칙(브랜치 `cycle/C###` = 세션 하나 · 공용 표 파일은 항목 추가만 ·
+STATE 는 main 에서만 · 개수 단언 금지 · engine 먼저 합침)은 Plan-Skill §4 항목 4 가 소유하고,
+지금 돌 수 있는 레인은 STATE.md §1 이 답한다.
+이전 공정의 산출물(`guides/` · `master/` · `BACKLOG.md` · `LANES.md`)과
 그 도구(master-graph · lanes · cycle-lint · feedback-gate)는 이 기준선에서 걷어냈다.
 
 ## 기반 / 컨텐츠 경로 규약
@@ -58,7 +66,7 @@ Cycle Artifact 는 `cycles/<CycleId>/` (CycleId: `C###-이름`) — 파일만이
 ```text
 engine/            기반 — world-kernel · physics(기본 세계 규칙 솔버) · view-kernel ·
                    protocol-core · world-authoring(Region Description · Graph · 검사 — 세계 제작 도구의 첫 모듈). 게임 명사 없이 성립하는 재사용 기구만 갖는다. Cycle 의
-                   기구 추출(advprotoi-build 의 분해 → Agent E, 별도 커밋)로 자라며,
+                   기구 추출(advprotoi-cycle 의 분해 → Agent E, 별도 커밋)로 자라며,
                    기존 계약의 변경은 ENGINE GAP 으로 Human 승인을 거친다.
                    **Cycle 을 알지 못한다** — 공용 모듈이므로 Cycle 번호를 적지 않는다.
                    컨텐츠의 시스템은 physics 솔버를 조합해 만든다 — 직접 재구현하지 않는다
@@ -117,6 +125,7 @@ npm run build                  tsc --noEmit + vite build
 npm run boundary:check         engine/content 경계
 npm run motions:scan           모션 시트 재분석 → view/motion-atlas.generated.ts
 npm run surface:lab            겹침 표면 capability 눈검증 페이지
+npm run cycle:shot <cycles/C###/shots.json>   Cycle 마감 촬영 → cycles/C###/shots/*.png (HKT_SPAWN · HKT_NPCS 손잡이)
 ```
 
 ## 핵심 원칙
@@ -133,7 +142,8 @@ npm run surface:lab            겹침 표면 capability 눈검증 페이지
  8. 영향을 받는 기존 Rule 과 플레이 Scenario 도 함께 검증한다.
  9. 최종 완료 조건은 코드 작성이 아니라 실제로 플레이되는가다.
 10. 살아 있는 문서(STATE.md · README)에는 **현재 상태만** 둔다 —
-    완료·승인·날짜 경위를 본문에 쌓지 않는다. 경위는 git history 와 cycles/ 가 소유한다.
+    완료·승인·날짜 경위를 본문에 쌓지 않는다. 경위는 git history 가 소유한다
+    (cycles/ 에는 spec 과 TODO 만 — 완료 기록을 두지 않는다).
     진행 상태는 CLAUDE.md 가 아니라 STATE.md 에 적는다.
 11. 코드 주석은 한국어로 쓴다.
 ```

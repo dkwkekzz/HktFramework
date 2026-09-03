@@ -13,7 +13,7 @@
 3. 능동 방어(막기·되받아침)는 한때 구현됐다가 이 개정의 층 순서(기본 공식이 먼저,
    능동 방어는 그 위)와 어긋나 롤백됐다. 지금 코드에 없으며 §14 의
    Defense Action → Active Defense 순서로 재구축한다.
-4. §3·§4·§5·§11 의 수치·공식은 이 문서가 원본이다 — 해당 Cycle 의 `02-world.md` 가
+4. §3·§4·§5·§11 의 수치·공식은 이 문서가 원본이다 — 해당 Cycle 의 `spec.md` 가
    그것을 옮겨 받아 소유한다.
 5. 옛 Master Layer 산출물(`master/graph` · `overlay` · `frontier` · `constraints`)은 이
    기준선에서 걷어냈다. 이 문서의 Goal/Possibility/Capability 의미를 받는 자리는 이제
