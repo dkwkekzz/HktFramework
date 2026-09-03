@@ -11,7 +11,14 @@ import {
   type Extent,
 } from '../../../engine/world-authoring/description';
 import { exitsOf, type ConnectorExit } from '../../../engine/world-authoring/graph';
-import { ANCHOR_LAYER, REGION_GRAPH, WHITE_KING_DOMAIN, regionSpec, type RegionSpec } from '../../regions';
+import {
+  ANCHOR_LAYER,
+  CLOSED_CONNECTORS,
+  REGION_GRAPH,
+  WHITE_KING_DOMAIN,
+  regionSpec,
+  type RegionSpec,
+} from '../../regions';
 import type { WorldPosition } from './position';
 
 // 관찰자의 새 몸 · 기본 자율 존재 · 광맥이 놓이는 Region (02-world R3 · R4)
@@ -21,6 +28,24 @@ export function regionSpecOf(id: string): RegionSpec {
   const spec = regionSpec(id);
   if (!spec) throw new Error(`세계가 모르는 Region 이다 — ${id}`);
   return spec;
+}
+
+/**
+ * 그 Region 이 지어져 있는가 — Description 이 있는가 (C002 ADDED · 02-world Connector.isBuilt).
+ * 판정이지 사고가 아니다 — 경계(frontier)의 이름을 물어도 throw 하지 않고 거짓을 준다.
+ * 건너기의 region-not-built 거절이 이것으로 판정한다 (01-spec SPEC-006).
+ */
+export function isRegionBuilt(id: string): boolean {
+  return regionSpec(id) !== undefined;
+}
+
+/**
+ * 그 Connector 가 열려 있는가 (C002 ADDED · 02-world Connector.isOpen).
+ * 닫힘은 컨텐츠 데이터의 목록에서 온다 — 세계 State 에 들어가지 않는다.
+ * 이 Cycle 에는 여는 규칙도 닫는 규칙도 없다 (01-spec SPEC-005).
+ */
+export function isConnectorOpen(connectorId: string): boolean {
+  return !CLOSED_CONNECTORS.includes(connectorId);
 }
 
 /** 그 Region 의 Local Space — RULE-MOVE-001 전제 1 · 관성 경계가 이것으로 판정한다 */
