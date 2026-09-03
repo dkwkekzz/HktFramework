@@ -14,9 +14,11 @@
 승인 게이트 없음 — Play 셋은 승인되어 있다. Human 질문이 새로 생기면 그때만 멈춘다
 ```
 
-**다음 Cycle — C002 "출구는 여럿, 목적지는 모른다"**: 숲 안쪽 · POI 방 셋 · 닫힌 고대 문 ·
-붉은 황야/얼음 협곡 쪽 Connector. 출구는 종류만 보이고 닫힌 문은 거절한다
+**다음 Cycle — C003 "작은 문, 큰 방, 돌아올 수 없는 길"**: 붉은 눈의 거목 → 내부 세계(중첩 · 80×80) →
+추락 → 심장 호수 → 물길로 숲 안쪽의 **다른** 자리로
 ([content/roadmap/play/RegionGraphRooms.md](content/roadmap/play/RegionGraphRooms.md) Cycle Breakdown).
+거목으로 가는 Connector 둘은 C002 가 이미 놓았다 — C003 은 RegionSpec 하나를 더하고 경계 목록에서
+이름 하나를 빼면 그 문이 열린다.
 
 병행 가능 — ENGINE 레인 A (지형 컴파일러 본체). 게임 명사가 없어 Cycle 을 막지 않는다
 ([design/Plan-World-Authoring-Engine.md](design/Plan-World-Authoring-Engine.md) §5). C008~C010 이 그것을 쓴다.
@@ -27,15 +29,18 @@
 
 | Play | 증명하는 것 | Cycle | 상태 |
 |---|---|---|---|
-| [RegionGraphRooms](content/roadmap/play/RegionGraphRooms.md) | 세계는 방들의 그래프다 | C001 ~ C004 | C001 닫힘 · **C002 다음** |
+| [RegionGraphRooms](content/roadmap/play/RegionGraphRooms.md) | 세계는 방들의 그래프다 | C001 ~ C004 | C001 · C002 닫힘 · **C003 다음** |
 | [RuleBoundRoom](content/roadmap/play/RuleBoundRoom.md) | 방은 규칙을 품는다 (환상의 미로) | C005 ~ C007 | 대기 |
 | [RoomBecomesLand](content/roadmap/play/RoomBecomesLand.md) | 방이 땅이 된다 (백왕령) | C008 ~ C010 | 대기 |
 
 세 Play 가 닫히면 로드맵 2층이 닫힌다. 덮임 지도는 [play/README.md](content/roadmap/play/README.md).
 
 **Human 판정 대기** — C001 의 실주행 관찰 X-①~⑧
-([cycles/C001-region-graph-rooms/05-verification.md](cycles/C001-region-graph-rooms/05-verification.md) §3).
-`npm run dev` 로 띄워 북쪽 표식까지 걸어가 `Q` 를 누르면 된다. 자동 시나리오 33 은 전부 PASS 다.
+([cycles/C001-region-graph-rooms/05-verification.md](cycles/C001-region-graph-rooms/05-verification.md) §3)
+와 C002 의 X-①~⑨
+([cycles/C002-many-exits/05-verification.md](cycles/C002-many-exits/05-verification.md) §3).
+`npm run dev` 로 띄워 출구 표식까지 걸어가 `Q` 를 누르면 된다 — C002 는 백왕령의 고개 → 숲 가장자리 →
+숲 안쪽의 닫힌 문 → 막다른 방 셋 한 바퀴다. 자동 시나리오는 C001 33 · C002 30 전부 PASS 다.
 
 ## 3. 로드맵 — 무엇이 주입되었나
 
@@ -58,10 +63,13 @@
 ```text
 컨텐츠   채광 · 캐릭터 행동과 모션 · 세계/클라이언트 분리 · 다중 관찰자 · 이어짐 계량 · 몸 충돌 ·
         기본 전투 정책 · 시점과 그림 방향 · 개발 명령 표면과 세계의 대답 ·
-        Region — 방 둘(백왕령 civil · 숲 가장자리 outer)과 길 하나. WorldPosition = regionId + (x, z) ·
-        건너기 Rule · 방으로 잘리는 투영 · content/regions/ 데이터
+        Region — 방 여섯(백왕령 civil · 숲 가장자리 outer · 숲 안쪽과 POI 셋 wild)과 Connector 열.
+        WorldPosition = regionId + (x, z) · 건너기 Rule(거절 여섯) · 방으로 잘리는 투영 ·
+        연결의 종류 다섯(길 · 오솔길 · 문 · 고개 · 들어감) · 닫힌 문 · 아직 짓지 않은 곳(경계) ·
+        content/regions/ 데이터
 기반    world-kernel · physics · view-kernel · protocol-core ·
-        world-authoring — Region Description · Graph · 검사 (세계 제작 도구의 첫 모듈. 컴파일러는 아직 없다)
+        world-authoring — Region Description · Graph · 경계 · 닿음 · 검사 여섯
+        (세계 제작 도구의 첫 모듈. 컴파일러는 아직 없다)
 ```
 
 컨텐츠에 **없는** 것 — 전투 공식 · 막기 · 피해 종류 · 관통 · 살펴봄 · 치명 · 지목 · 태도 · 선딜 ·
@@ -75,9 +83,9 @@
 Cycle 이 남긴 것 — 각 Cycle 의 `03-impl.md` "알려진 부채" 절이 원본이다.
 
 ```text
-wrong-region 사유의 플레이 실측     C001 은 Connector 하나뿐이라 하네스로만 확인했다 → C002
 방 바닥이 지형 굴곡에 묻힐 수 있다   폴리곤 꼭짓점 넷만 지형에 드리운다 → 방이 평평해지는 C008
 카메라가 방 크기에 맞지 않는다      80×80 방이 나오는 C003 에서 필요해진다
+pass 색 표식이 전부 경계를 가리킨다  "고개 = 아직 없는 곳" 으로 읽힐 여지. 방이 지어지면 저절로 풀린다
 ```
 
 ## 6. 실행
