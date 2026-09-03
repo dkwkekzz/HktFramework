@@ -8,7 +8,7 @@ SELECTED_FROM  Play Cycle Breakdown — "C001 — 방 둘과 길 하나"
 ```
 
 이 Play 가 증명하는 축은 L2(세계 자체)이고, 이 Cycle 은 그 축의 **최소 형태**를 세운다.
-앞부분(Playable Goal ~ Out of Scope)은 design 이, 뒷부분(SPEC ~ UNRESOLVED)은 plan 이 썼다. plan 이 닫은 뒤 동결.
+범위(Playable Goal ~ Out of Scope)와 명세(SPEC ~ UNRESOLVED)를 한 파일에 둔다. UNRESOLVED 없음 → 동결.
 
 ## Playable Goal
 
@@ -151,7 +151,7 @@ SPEC-010  영속
                 스냅샷은 복구되지 않는다 (기존 규칙 — 버려지고 새 세계)
 ```
 
-전부 컨텐츠(팩)의 의미다. 기반은 여기 나오는 명사(방 · 백왕령 · 깊이 · 길)를 모른다 — 기구 추출은 build 의 몫.
+전부 컨텐츠(팩)의 의미다. 기반은 여기 나오는 명사(방 · 백왕령 · 깊이 · 길)를 모른다 — 기구 추출은 실현 단계의 몫.
 
 ## State
 
@@ -217,7 +217,7 @@ R5  RULE-BODY-PUSH-001 · RULE-SWING-STRIKE-001 · RULE-NPC-DECIDE-001          
     THEN 서로 후보에 들지 않는다 — 밀지 않고 · 맞지 않고 · 인지하지 않는다
     (같은 Region 이면 기존 판정 그대로)
     RULE-BODY-MOMENTUM-001 도 AFFECTED — 밀린 몸이 멈추는 경계가 World.bounds 에서 그 몸의 Region.extent 로
-    (World.bounds 제거의 기술적 귀결 — build 의 IMPLEMENTATION GAP 으로 해소, 의미 변화 없음)
+    (World.bounds 제거의 기술적 귀결 — 실현 단계의 IMPLEMENTATION GAP 으로 해소, 의미 변화 없음)
 
 R6  관찰 투영 (projectObserver)                                               CHANGED
     THEN scene = self.regionId ·
@@ -247,7 +247,7 @@ AFFECTED RULE-BODY-PUSH-001 · RULE-SWING-STRIKE-001 · RULE-NPC-DECIDE-001 (같
 
 ## Observable (관찰 계약)
 
-build 가 그대로 protocol/ 로 옮긴다.
+실현 단계가 그대로 protocol/ 로 옮긴다.
 
 ```text
 snapshot.scene                        = self.regionId                               (봉투의 기존 필드 — 값의 뜻이 바뀐다)
@@ -267,12 +267,12 @@ hud[id=region.depth]                  kind = label · value = Region.depth
 
 없음.
 
-Design 이 침묵한 것 중 **답 없이도 성립하는** 것은 기본형으로 두었다 (원본 §20 · plan 의 "Design 침묵의 판정"):
+Design 이 침묵한 것 중 **답 없이도 성립하는** 것은 기본형으로 두었다 (원본 §20 · 명세 단계의 "Design 침묵의 판정"):
 
 ```text
 anchor 의 정확한 자리      데이터다 (SPAWN_POINTS 선례). 방향만 Design 이 준다 — WE §32 "South → 백왕령" 이므로
                           숲 가장자리의 남쪽 변, 백왕령의 북쪽 변. 좌표는 State 절의 표가 적는다
 건너는 순간의 행동         idle 로 되돌린다 — 새 방에서 진행 중이던 이동 목표는 뜻이 없다 (좌표계가 다르다)
 건너는 순간의 물리 속도     0 — 방 사이에 관성은 없다. 세계 문법상 두 Local Space 는 이어져 있지 않다 (R3)
-hash 의 산법              기구의 것 — build 가 정한다. 의미는 "같은 Description → 같은 값" 뿐이다
+hash 의 산법              기구의 것 — 실현 단계가 정한다. 의미는 "같은 Description → 같은 값" 뿐이다
 ```

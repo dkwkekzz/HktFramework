@@ -3,7 +3,8 @@
 상태: 승인 (Human 원문 제공)
 원본 관계: [Design-CycleExecutionWorkflow.md](Design-CycleExecutionWorkflow.md) 의 **위층 확장**이다.
 Cycle 이후(PLAN → BUILD → VERIFY)는 그 문서가 그대로 소유한다 — 이 문서는
-사람의 아이디어에서 `spec.md` 앞부분(Cycle 범위)까지의 기획 공정만 정의한다.
+사람의 아이디어에서 승인된 Play 와 레인 표까지의 기획 공정만 정의한다. Cycle 범위(§6)는
+그 Play 의 Cycle Breakdown 한 항목을 Cycle 공정이 잘라 spec.md 의 첫 절들로 쓴다.
 
 ## 1. 목적
 
@@ -15,7 +16,7 @@ Cycle 단위로 분할하여 기존 구현 Workflow 로 전달한다.
 
 ```text
 Game Direction → System Design → Play Design → Cycle Breakdown
-→ Cycle(spec.md 앞부분) → PLAN → BUILD → VERIFY → 다음 Cycle
+→ Cycle(spec.md: 범위 + 명세 → 실현 → 마감) → 다음 Cycle
 ```
 
 별도의 Master Graph · Intent Graph · Capability Graph 는 사용하지 않는다.
@@ -33,8 +34,8 @@ content/roadmap/       주입 순서(README.md)와 그 결과물 — 이 세계�
   M<N>-*.md            컨텐츠 층 — 미지(지역·생물·자원·구조) 하나에 대해 Human 이 준 세계관 사실
   play/<PlayName>.md   실제 플레이 경험 1개당 1문서 (Level 2) — 로드맵의 행 하나를 증명한다
 cycles/C###-이름/
-  spec.md 앞부분          이번에 플레이 가능하게 만들 최소 단위 (Level 3)
-  spec.md 뒷부분 · TODO.md   기존 PLAN/BUILD 산출물 — plan 은 같은 파일에 이어 쓰고, 코드 뒤에는 TODO 만 남는다
+  spec.md              이번에 플레이 가능하게 만들 최소 단위(Level 3 = 범위 절) + 명세 — Cycle 공정이 한 번에 쓴다
+  TODO.md · shots/     코드 뒤에 남는 것 — Human 판정 대기 · 부채 · 마감 촬영
 ```
 
 | 계층 | 질문 |
@@ -43,8 +44,8 @@ cycles/C###-이름/
 | design/*.md (시스템) | 각 영역이 어떤 원리로 작동하는가? |
 | M<N>-*.md (미지) | 이 세계에 무엇이 존재하는가 — 지역·생물·자원·구조 하나 |
 | play/*.md | 그 시스템들이 실제 플레이 하나에서 어떻게 만나는가? |
-| spec.md 앞부분 | 지금 무엇을 작게 플레이 가능하게 만들 것인가? |
-| PLAN / BUILD / VERIFY | (기존 공정 그대로) |
+| spec.md 범위 절 | 지금 무엇을 작게 플레이 가능하게 만들 것인가? (Cycle 공정의 첫 일) |
+| 명세 / 실현 / 마감 | (기존 Cycle 공정 그대로 — advprotoi-cycle) |
 
 ## 3. Level 0 — Game Direction (`content/roadmap/L0-Game.md`)
 
@@ -139,11 +140,12 @@ Play 전체를 한 번에 구현하지 않는다. 각 Cycle 조건:
 ## 7. Cycle Breakdown    (체크박스 목록)
 ```
 
-## 6. Level 3 — Cycle 생성 (`cycles/<CycleId>/spec.md` 앞부분)
+## 6. Level 3 — Cycle 범위 (`cycles/<CycleId>/spec.md` 의 첫 절들)
 
-Cycle 하나를 선택하면 `spec.md` 를 만든다. Cycle 디렉터리에 코드 전에 쓰이는 문서는
-이 하나뿐이고, Design 공정은 그 **앞부분**(범위)을 쓴다. Play Design 전체를 다시
-설명하지 않는다 — **이번 구현에 필요한 것만** 가져온다.
+Cycle 하나를 선택하면 그 범위를 `spec.md` 의 첫 절들로 쓴다. 이것은 Design 공정의 일이 아니라
+**Cycle 공정의 첫 일**이다 — Play 승인 뒤에는 Human 게이트가 없고, 같은 AI 가 같은 파일에
+명세를 이어 쓰기 때문이다. Play Design 전체를 다시 설명하지 않는다 — **이번 구현에 필요한 것만**
+가져온다.
 
 ```text
 # C### — <이름>
@@ -154,13 +156,12 @@ CYCLE / SOURCE / SELECTED_FROM   Trace 블록 — SOURCE 는 content/roadmap/pla
 ## Observable Result 화면/상태에서 무엇을 직접 확인하는가
 ## Reuse             Existing / Added
 ## Out of Scope      이번에 하지 않는 것
+(이어서 SPEC · State · Rule · Observable · UNRESOLVED — 기존 Cycle 공정)
 ```
 
-여기까지가 Design 공정이다. 앞부분이 승인되면 기존 PLAN Workflow
-(`advprotoi-plan`)가 시작된다 — PLAN 은 Experience Intent 를 다시 해석하지 않고,
-이미 결정된 플레이 기획을 같은 파일의 뒷부분(SPEC · State · Rule · Observable)으로
-폐쇄하고 동결한다. 코드 뒤에는 `TODO.md`(Human 판정 대기 · 부채)만 남는다 — 구현·
-검증의 원본은 코드·테스트·커밋이다.
+Design 공정은 승인된 Play 와 레인 표에서 끝난다. Cycle 공정은 Experience Intent 를 다시
+해석하지 않고, 이미 결정된 플레이 기획을 범위와 명세로 폐쇄하고 동결한다. 코드 뒤에는
+`TODO.md`(Human 판정 대기 · 부채)와 `shots/`(마감 촬영)만 남는다.
 
 ## 7. Verification 의 두 층
 
@@ -169,7 +170,7 @@ CYCLE / SOURCE / SELECTED_FROM   Trace 블록 — SOURCE 는 content/roadmap/pla
 - **Functional Verification** — 자동 검증 가능한 World State 변화 (기존 그대로).
 - **Experience Verification** — 실제 플레이에서 spec.md 의 Experience Intent 가
   성립하는지 관찰한다. 감정을 숫자로 검증하는 것이 아니라 **의도한 인지·행동 변화가
-  실제로 발생하는지** 본다. 판단은 Human 의 몫이다 — build 가 관찰 항목을 그 Cycle 의
+  실제로 발생하는지** 본다. 판단은 Human 의 몫이다 — Cycle 마감이 관찰 항목을 그 Cycle 의
   `TODO.md` 에 남기고, Human 이 판정한 뒤 지운다.
 
 ## 8. Cycle 완료 후 처리
@@ -199,8 +200,8 @@ World Capability 는 이후 Cycle 에서 그대로 재사용한다.
           아니다 — 지어내지 않고 문서 끝 "Human 질문" 목록에 모은다.
           → Human 승인 1회 (Play 문서 통짜 — Goal·Intent·Breath·Breakdown 개별
           게이트를 두지 않는다. 질문 목록이 있으면 답과 함께 승인된다)
-③ 생성    승인 즉시 첫 미완료 Cycle 의 spec.md 앞부분(범위)을 만든다 → plan 이 같은 파일에
-          SPEC 이하를 덧붙여 동결한다.
+③ 레인    승인 즉시 STATE.md §1 에 "다음에 할 일"을 병렬 레인 표로 적는다 → "C### 진행" 이
+          advprotoi-cycle 을 부른다 (범위 절부터 spec.md 를 쓴다).
 ```
 
 전제 조건 완화 — **L0-Game.md 와 시스템 문서는 있으면 참조하고, 없어도 막지 않는다.**
@@ -256,7 +257,7 @@ Human 은 게임이 무엇이어야 하는가를 결정하고, AI 는 그것을 
 ```text
 생성한다      시스템 문서 (영역별 1개) · L<N>-*.md (기반 층별 1개 — 0층이 `L0-Game.md`) ·
              M<N>-*.md (미지별 1개) · play/*.md (플레이별 1개) · cycles/C###/spec.md
-             (build 가 남기는 TODO.md 는 살아 있는 문서 — 비면 지운다)
+             (Cycle 마감이 남기는 TODO.md · shots/ — TODO 는 살아 있는 문서, 비면 지운다)
 생성하지 않는다  Master Graph · Intent Graph · Possibility Graph · Capability Graph ·
              Experience Graph · Frontier 문서 · 별도 Breath/World Cause 문서
 ```
@@ -274,5 +275,5 @@ Play Design 이 하나도 없으면 첫 Play 를 기획하는 것(advprotoi-desi
 4. 모든 중요한 감정 변화에는 게임 안의 원인(World Cause)이 있어야 한다.
 5. Cycle 은 기능 단위가 아니라 **최소 Playable Experience 단위**다
    ("ThreatDetection 구현"이 아니라 "주변 생물의 행동으로 보이지 않는 위험을 알아차릴 수 있다").
-6. 구현 Workflow 는 건드리지 않는다 — 이 공정은 `spec.md` 앞부분까지만 담당하고,
-   이후는 기존 PLAN(spec 뒷부분) / BUILD(코드·테스트·TODO)를 그대로 사용한다.
+6. 구현 Workflow 는 건드리지 않는다 — 이 공정은 승인된 Play 와 레인 표까지만 담당하고,
+   이후는 기존 Cycle 공정(spec.md 명세 → 실현 → 마감)을 그대로 사용한다.

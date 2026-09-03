@@ -30,12 +30,11 @@ mmorpg에서 컨텐츠를 구성하기 위한 구조를 설계한다.
 스킬 분할 근거는 [design/Plan-Skill-CycleExecutionWorkflow.md](design/Plan-Skill-CycleExecutionWorkflow.md).
 
 ```text
-advprotoi-design  기획      방향/기획서 주입 → Play Design(content/roadmap/play/*.md) 구체화
-                           → Human 승인 1회 → cycles/<CycleId>/spec.md 앞부분(범위) 생성
-advprotoi-plan    의미 확정  spec.md 앞부분 → CYCLE SPEC → WORLD SEMANTIC + RULE 을 같은 파일에 덧붙여 동결
-advprotoi-build   실현·검증  구현 ∥ GameView ∥ 시나리오 테스트 병렬 → npm test → 7항 판정(마감 커밋 메시지)
-                           → TODO.md(Human 판정 대기·부채) · 촬영(shots/) · play 문서의 Cycle 체크박스 · STATE.md 갱신
-advprotoi-cycle   러너      "C### 진행" 한 마디 — spec.md 상태를 보고 위 셋을 이어 부른다. 정지는 UNRESOLVED · GAP 뿐
+advprotoi-design  기획    방향/기획서/미지 주입 → Play Design(content/roadmap/play/*.md) 구체화 → Human 승인 1회
+                         → STATE.md §1 레인 표 (다음에 할 Cycle · 병렬)
+advprotoi-cycle   Cycle   "C### 진행" — 명세: cycles/<CycleId>/spec.md 한 파일(범위 · SPEC · State/Rule · Observable ·
+                         UNRESOLVED → 정지) 동결 → 실현: 관찰 계약 · 기구/의미 분해 → E ∥ W ∥ V ∥ T → npm test → 7항
+                         → 마감: 촬영 shots/ · TODO.md · 마감 커밋 · 그림 보고 → PR (번호 순 합침)
 ```
 
 "다음에 무엇을 만들까"는 승인된 Play Design 의 Cycle Breakdown 이 답한다 —
@@ -48,7 +47,7 @@ advprotoi-cycle   러너      "C### 진행" 한 마디 — spec.md 상태를 보
 문서 · `play/`)은 전부 `content/roadmap/` 에 있다.
 
 Cycle 디렉터리 `cycles/<CycleId>/` (CycleId: `C###-이름`) 에 두는 것은 셋뿐이다 —
-`spec.md`(코드 전 — design 의 범위 + plan 의 SPEC·State·Rule·Observable, 동결) ·
+`spec.md`(코드 전 — 범위 + SPEC·State·Rule·Observable, cycle 의 명세 단계가 한 번에 쓰고 동결) ·
 `TODO.md`(코드 뒤 — Human 판정 대기 · 부채, 비면 삭제) · `shots.json` + `shots/`(마감 촬영 —
 관찰 가능한 결과를 실제 게임에서 찍은 PNG, `npm run cycle:shot`). 구현 노트 · GameView 표 ·
 검증 산문은 만들지 않는다 — 코드 주석의 `RULE-*` id · `content/view` 의 표 · 시나리오
@@ -67,7 +66,7 @@ STATE 는 main 에서만 · 개수 단언 금지 · engine 먼저 합침)은 Pla
 ```text
 engine/            기반 — world-kernel · physics(기본 세계 규칙 솔버) · view-kernel ·
                    protocol-core · world-authoring(Region Description · Graph · 검사 — 세계 제작 도구의 첫 모듈). 게임 명사 없이 성립하는 재사용 기구만 갖는다. Cycle 의
-                   기구 추출(advprotoi-build 의 분해 → Agent E, 별도 커밋)로 자라며,
+                   기구 추출(advprotoi-cycle 의 분해 → Agent E, 별도 커밋)로 자라며,
                    기존 계약의 변경은 ENGINE GAP 으로 Human 승인을 거친다.
                    **Cycle 을 알지 못한다** — 공용 모듈이므로 Cycle 번호를 적지 않는다.
                    컨텐츠의 시스템은 physics 솔버를 조합해 만든다 — 직접 재구현하지 않는다
