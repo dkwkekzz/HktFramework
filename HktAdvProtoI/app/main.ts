@@ -33,8 +33,10 @@ import type { SceneCommandHistoryLine, SceneState } from '../engine/view-kernel/
 import {
   KEY_BINDINGS,
   SPRITE_SHEET,
+  TERRAIN_PALETTE,
   codeText,
   commandActionRequest,
+  regionTerrain,
   resolvePresentation,
 } from '../content/active-view';
 
@@ -227,6 +229,24 @@ function drainOutcomes(): void {
 // 세계가 보내 주는 동안 그리고, 나이에 따라 옅어질 뿐이다.
 const STRIKE_FADE_SECONDS = 1.2;
 
+// ── 땅 (C005) ────────────────────────────────────────────────
+//
+// 세계가 보내는 것은 "어느 방에 서 있는가"(region.id) 뿐이다 — 격자도 높이도 봉투에 없다.
+// 그 방의 땅은 관찰자가 자기 컨텐츠 데이터를 컴파일해 만든다 (content/active-view).
+//
+// 방이 바뀔 때 한 번만 갈아 끼운다. 컴파일은 컨텐츠가 방마다 한 번만 하고 다시 주므로
+// 이 자리는 "언제 갈아 끼우는가" 만 정한다 — 매 프레임 컴파일하지 않는다.
+// Description 을 모르는 방이면 아무것도 넘기지 않는다 — 땅 없이도 게임은 돈다.
+let terrainRegionId: string | null = null;
+
+function syncTerrain(regionId: string | undefined): void {
+  if (!regionId || regionId === terrainRegionId) return;
+  const terrain = regionTerrain(regionId);
+  if (!terrain) return;
+  renderer.setTerrain(terrain, TERRAIN_PALETTE);
+  terrainRegionId = regionId;
+}
+
 let last = performance.now();
 function frame(now: number): void {
   const dt = Math.min((now - last) / 1000, 0.1);
@@ -247,6 +267,8 @@ function frame(now: number): void {
 
   // 화면은 마지막으로 받은 관찰 결과다 (04-gameview.spec.yaml delivery: pushed)
   const snapshot = link.latest();
+  // 선 방이 바뀌었으면 그 방의 땅으로 갈아 끼운다 (C005) — 그리기 전에.
+  syncTerrain(snapshot?.region?.id);
   // 아직 세계에서 아무것도 오지 않았어도 명령 표면은 열린다 — 다만 목록은 비어 있다.
   // 세계가 밝히지 않은 명령을 View 가 지어내지 않기 때문이다.
   EMPTY_SCENE.commandSurface.open = commandOpen;
