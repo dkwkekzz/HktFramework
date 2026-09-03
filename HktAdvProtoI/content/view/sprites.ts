@@ -21,6 +21,7 @@ const PALETTE: Record<string, string> = {
   e: '#33343a',
   S: '#e8dcbf', // 팻말 판 테두리
   s: '#f6efdc', // 팻말 판 면
+  K: '#4a4f58', // 빗장·자물쇠 고리의 쇠 (어두움)
   '.': '',
 };
 
@@ -238,8 +239,31 @@ const REGION_EXIT_OPEN = [
   '................',
 ];
 
+// 닫힌 출구 표식 (C002) — 같은 팻말에 **빗장이 가로지르고 자물쇠가 걸려 있다**.
+// 열린 표식과 실루엣부터 다르다: 판을 관통하는 가로 쇠막대 하나 + 자루에 걸린 자물쇠.
+// 여기에도 글자는 없다 — 잠겼다는 것만 보이고 그 너머가 어디인지는 여전히 실리지 않는다.
+const REGION_EXIT_LOCKED = [
+  '................',
+  '....SSSSSSSSS...',
+  '...SSssssssssSS.',
+  'KKKKKKKKKKKKKKKK',
+  '...SSssssssssSS.',
+  '....SSSSSSSSS...',
+  '.......WW.......',
+  '......KKKK......',
+  '.....KKWWKK.....',
+  '....MMMMMMMM....',
+  '....MMMKKMMM....',
+  '....MMMMKMMM....',
+  '....MMMMMMMM....',
+  '......hWWh......',
+  '.....dhhhhd.....',
+  '................',
+];
+
 const PIXEL_MAPS: Record<string, string[]> = {
   'region-exit:open': REGION_EXIT_OPEN,
+  'region-exit:locked': REGION_EXIT_LOCKED,
   'player-pickaxe:idle': PLAYER_IDLE,
   'player-pickaxe:move': PLAYER_MOVING,
   'player-pickaxe:moving': PLAYER_MOVING, // 예전 이름 — 계속 유효하다

@@ -40,9 +40,15 @@ const CODE_TEXT: Record<string, string> = {
   // 깊이 태그 (C001 — hud region.depth 의 값. L2-World-Concept §3.2)
   civil: '문명권',
   outer: '문명의 경계를 넘었다',
+  // 문명권 → 경계 → 그 다음 한 걸음. 여기서부터는 아무도 돌보지 않는다 (C002)
+  wild: '아무도 돌보지 않는 야생',
   // 불가 사유 — 건너기 (RULE-REGION-TRANSIT-001)
   'unknown-connector': '그런 길이 없다',
   'wrong-region': '여기서 갈 수 있는 길이 아니다',
+  // 닫힌 Connector (C002). 여는 법은 이 세계에 아직 없다 — 그래서 무엇이 잠갔는지도 말하지 않는다
+  'connector-inactive': '잠겨 있다',
+  // 아직 짓지 않은 곳(frontier). 세계의 끝이 아니라 "아직" 이다 — 목적지는 여전히 밝히지 않는다
+  'region-not-built': '아직 갈 수 없는 곳이다',
   // 내 데이터와 세계의 방이 다르다 (region.hash 대조)
   'region.hash-mismatch': '세계와 다른 땅을 보고 있다',
   // 명령이 무엇을 하는가 (Command.Effect)
