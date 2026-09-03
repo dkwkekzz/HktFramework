@@ -119,7 +119,9 @@ E6   engine/world-authoring 의 나머지 — height-field(base + stamp + curve 
 E7   engine/view-kernel/terrain — createTerrain(compiledView, palette): chunk mesh · vertex color · heightAt 이
      컴파일 결과를 샘플 (sine 함수 제거) · instanced billboard (거목 하나부터)
 E8   tools/world-editor — world:compile · world:observe · world:shot
-E9   결정론 — 같은 (description, rules) → 같은 hash. TERRAIN_RESOLUTION 헤더 상수. 스냅샷에 region hash
+E9   결정론 — 같은 (description, rules) → 같은 hash. TERRAIN_RESOLUTION 헤더 상수. 스냅샷에 region hash.
+     Region 하나 = 격자 하나를 전제하지 않는다 — World 의 높이·통행 데이터도 View 처럼 chunk 단위로 들 수 있어야 하고
+     Region 의 extent 에 상한을 두지 않는다 (Rooms 불변 조건 "방은 공간일 뿐이다"). 백왕령·숲 가장자리는 chunk 하나로 충분하다
 ```
 
 ### Required — 세계 · 표현 (content)
@@ -157,7 +159,8 @@ V8   biome-rules — surface 규칙 표 (slope 임계 둘 · curve 거리 → we
    결정론 시뮬 상수로 고정한다.
 2. 백왕령의 지형 — 산맥은 북쪽 · 강은 동서로 가로지름 · 백색 거목은 도시 곁. 정식 세계 사실이다.
 3. 강을 건너는 자리(다리)는 하나.
-4. TERRAIN_RESOLUTION = 1m. 결정론 상수로 헤더 고정.
+4. TERRAIN_RESOLUTION = 1m. 결정론 상수로 헤더 고정. 해상도는 격자 칸의 크기이지 Region 크기의 상한이 아니다 —
+   큰 Region 은 chunk 로 나뉜다 (E9).
 5. 표면 넷으로 시작 — 평지 · 경사 · 급경사 · 젖음.
 6. 순서는 RegionGraphRooms → RuleBoundRoom → RoomBecomesLand. 셋의 Cycle 번호는 C001~C010 으로 고정한다.
 ```
