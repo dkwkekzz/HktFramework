@@ -110,8 +110,8 @@ Human 이 정한다    게임 의미 — 수치·확률·시간·범위, 시스�
   모은다 — 단계마다 정지하지 않는다. 플레이 층은 제안으로 채워 문서를 완성한다.
 - Cycle Breakdown 각 항목은 6조건(작다/플레이 가능/World 변화 분명/관찰 가능/
   검증 가능/재사용 가능), 순서는 의존성 + Breath 점진 완성. CycleId 는 전
-  이름공간(cycles/ + 코드 주석) 최대 번호 +1. Existing 판정은 CLAUDE.md 의
-  "지금 있는 것" + 기존 `cycles/*/spec.md` 의 ADDED.
+  이름공간(cycles/ + 코드 주석) 최대 번호 +1. Existing 판정은 STATE.md §4 의
+  "코드에 있는 것" + 기존 `cycles/*/spec.md` 의 ADDED.
 - 주입물이 커서 Play 하나에 안 담기면 여러 Play 로 나눠 제안한다 — 승인은
   여전히 문서당 1회다.
 
