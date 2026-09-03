@@ -6,6 +6,7 @@
 // (design/Design-System-Content-Separation.md 반전 ⑤ 문구).
 
 import type { SessionPresentation } from '../presentation/session-presentation';
+import { choosePrompt } from '../scene/interaction-choice';
 import type { SceneHudItem, SceneState } from '../scene/scene-state';
 
 export interface EntityLabel {
@@ -44,6 +45,9 @@ export interface StrikeMark {
   guard?: 'blocked' | 'broken';
 }
 
+/** 세계의 대답이 화면에 머무는 시간 — 읽고 지나갈 만큼만 (획득 토스트보다 조금 길다) */
+const NOTICE_MS = 2200;
+
 export interface HudOverlays {
   plates: EntityPlate[];
   strikes: StrikeMark[];
@@ -56,6 +60,13 @@ export interface Hud {
     session?: SessionPresentation,
     overlays?: HudOverlays,
   ): void;
+  /**
+   * 세계의 대답을 화면에 잠깐 띄운다 — 조립이 받은 대답을 문구로 만들어 넘긴다.
+   *
+   * 이 층은 무슨 말인지 모른다 (말은 팩의 것이다). 여태 키로 보낸 요청의 대답은
+   * 화면 어디에도 자리가 없어, 세계가 거절해도 겪는 사람은 아무 일도 없는 줄 알았다.
+   */
+  notice(text: string): void;
 }
 
 /**
@@ -148,6 +159,7 @@ export function createHud(container: HTMLElement): Hud {
     <div id="hud-strikes"></div>
     <div class="hud-self" id="hud-self"></div>
     <div class="hud-toast" id="hud-toast"></div>
+    <div class="hud-notice" id="hud-notice"></div>
     <div class="hud-hint" id="hud-mine-hint"></div>
     <div class="hud-link" id="hud-link"></div>
     <div class="hud-linkpanel" id="hud-linkpanel"></div>
@@ -161,12 +173,14 @@ export function createHud(container: HTMLElement): Hud {
   const strikeLayer = root.querySelector('#hud-strikes') as HTMLElement;
   const selfPanel = root.querySelector('#hud-self') as HTMLElement;
   const toast = root.querySelector('#hud-toast') as HTMLElement;
+  const notice = root.querySelector('#hud-notice') as HTMLElement;
   const hint = root.querySelector('#hud-mine-hint') as HTMLElement;
   const link = root.querySelector('#hud-link') as HTMLElement;
   const linkPanel = root.querySelector('#hud-linkpanel') as HTMLElement;
 
   const lastCounters = new Map<string, number>();
   let toastUntil = 0;
+  let noticeUntil = 0;
 
   // entity 라벨 — 몸 위에 붙는 한 줄 (예: "돌 4")
   const renderLabels = pinnedLayer<EntityLabel>(
@@ -260,6 +274,7 @@ export function createHud(container: HTMLElement): Hud {
       }
       items.innerHTML = parts.join('');
       toast.style.opacity = performance.now() < toastUntil ? '1' : '0';
+      notice.style.opacity = performance.now() < noticeUntil ? '1' : '0';
 
       // 조작 안내 — 실려 온 줄 + 키 지시가 있는 interaction.
       // 같은 키·프롬프트가 대상 수만큼 오더라도 안내는 한 줄이다.
@@ -314,9 +329,9 @@ export function createHud(container: HTMLElement): Hud {
         selfPanel.innerHTML = '';
       }
 
-      // 프롬프트 — 키 지시 interaction 중: 가용한 것 우선, 아니면 불가 문구
-      const keyed = scene.interactions.filter((i) => i.key);
-      const active = keyed.find((i) => i.available) ?? keyed.find((i) => i.unavailableText);
+      // 프롬프트 — 지금 그 키가 뜻하는 하나 (scene/interaction-choice).
+      // 조립이 키로 **보내는** 것과 같은 규칙으로 골라야 화면이 가리킨 것과 키가 한 일이 같다.
+      const active = choosePrompt(scene);
       if (active?.available) {
         hint.textContent = `[${active.keyLabel ?? active.key}] ${active.prompt ?? ''}`.trim();
         hint.dataset.state = 'available';
@@ -326,6 +341,12 @@ export function createHud(container: HTMLElement): Hud {
       } else {
         hint.textContent = '';
       }
+    },
+
+    notice(text) {
+      notice.textContent = text;
+      noticeUntil = performance.now() + NOTICE_MS;
+      notice.style.opacity = '1';
     },
   };
 }

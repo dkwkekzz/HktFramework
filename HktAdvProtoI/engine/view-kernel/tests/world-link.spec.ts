@@ -306,8 +306,12 @@ describe('조용히 죽은 이어짐', () => {
     link.poll(clock);
     expect(link.state()).toBe('connected'); // 아직은 정상
 
-    clock += OBSERVATION_TIMEOUT_MS;
-    link.poll(clock);
+    // 그리기 고리가 정상으로 도는 동안 세계만 조용하다 — 이것이 "죽은 이어짐" 이다.
+    // 한 번에 건너뛰지 않는다: 그것은 이 창이 굶은 것과 구분되지 않는다 (POLL_STALL_MS).
+    for (let i = 0; i < 40 && link.state() === 'connected'; i++) {
+      clock += 50;
+      link.poll(clock);
+    }
 
     expect(link.state()).toBe('disconnected');
     expect(link.stale()).toBe(true);
@@ -319,5 +323,46 @@ describe('조용히 죽은 이어짐', () => {
     w.push(60);
     expect(link.state()).toBe('connected');
     expect(link.stale()).toBe(false);
+  });
+
+  it('굶은 프레임은 침묵이 아니다 — 오래 걸린 한 프레임이 이어짐을 끊지 않는다', () => {
+    const w = fakeWorld();
+    let clock = 1000;
+    const link = createWorldLink(w.factory, OBSERVER, w.schedule, () => clock);
+    w.open();
+    w.push(5);
+    link.poll(clock);
+
+    // 한 프레임이 통째로 밀렸다 (소프트웨어 GPU 에서 실제로 겪는 일). 그동안 도착해
+    // 있던 관찰 결과도 함께 밀렸을 뿐, 세계가 조용했던 것이 아니다.
+    clock += OBSERVATION_TIMEOUT_MS * 3;
+    link.poll(clock);
+    expect(link.state()).toBe('connected');
+
+    // 밀린 프레임이 끝나고 실제로 관찰 결과가 온다 — 그대로 이어진다
+    w.push(6);
+    clock += 50;
+    link.poll(clock);
+    expect(link.state()).toBe('connected');
+  });
+
+  it('프레임이 정상으로 돌아온 뒤에도 조용하면 그때는 끊는다', () => {
+    const w = fakeWorld();
+    let clock = 1000;
+    const link = createWorldLink(w.factory, OBSERVER, w.schedule, () => clock);
+    w.open();
+    w.push(5);
+    link.poll(clock);
+
+    clock += OBSERVATION_TIMEOUT_MS * 3; // 굶은 프레임 — 봐 준다
+    link.poll(clock);
+    expect(link.state()).toBe('connected');
+
+    // 그 뒤로는 정상 간격인데 관찰 결과가 오지 않는다 — 이것은 침묵이다
+    for (let i = 0; i < 60 && link.state() === 'connected'; i++) {
+      clock += 50;
+      link.poll(clock);
+    }
+    expect(link.state()).toBe('disconnected');
   });
 });

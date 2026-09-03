@@ -40,6 +40,17 @@ export type Scheduler = (fn: () => void, ms: number) => void;
 // 이어져 있다고 볼 수 없다 — 소켓이 close 를 알리지 못하고 조용히 죽는 경우가 있다.
 export const OBSERVATION_TIMEOUT_MS = 1500;
 
+/**
+ * 한 번의 poll 사이에 이만큼 넘게 흘렀다면 **이 창이 굶은 것**으로 본다.
+ *
+ * poll 은 그리기 고리에서 불린다. 한 프레임이 오래 걸리면 그동안 도착해 있던 관찰
+ * 결과도 함께 밀려 처리되지 못하는데, 그 시간을 세계의 침묵으로 세면 무거운 한
+ * 프레임이 멀쩡한 이어짐을 끊는다 (겪은 일이다 — 느린 기계에서 키 한 번에 끊겼다).
+ * 굶은 만큼은 침묵에서 뺀다. 진짜로 조용한 이어짐은 프레임이 정상으로 돌아온 뒤
+ * 여전히 걸린다 — 판정을 없애는 것이 아니라 **무엇을 재는지**를 바로잡는 것이다.
+ */
+export const POLL_STALL_MS = 100;
+
 // 표식을 스스로 붙여 보내는 간격 — 게임 요청이 없어도 왕복을 잴 수 있어야 한다
 // (INTENT-LINK-ROUNDTRIP-001).
 export const MARK_INTERVAL_MS = 500;
@@ -100,6 +111,8 @@ export function createWorldLink(
   const telemetry = createLinkTelemetry();
   let nextMark = 1;
   let lastMarkAt = 0;
+  // 지난번 poll 시각 — 프레임이 얼마나 밀렸는지 재는 기준
+  let lastPolled: number | null = null;
   let everConnected = false;
 
   // 자신을 밝히는 일. 소켓이 아직 손에 없으면(열림이 동기로 오는 경우) 잡히는 즉시 보낸다.
@@ -191,6 +204,12 @@ export function createWorldLink(
   return {
     poll(nowMs) {
       if (closed || state !== 'connected') return;
+      // 굶은 프레임 시간은 침묵이 아니다 (POLL_STALL_MS)
+      const gap = lastPolled === null ? 0 : nowMs - lastPolled;
+      lastPolled = nowMs;
+      if (gap > POLL_STALL_MS) {
+        lastReceived = Math.min(nowMs, lastReceived + (gap - POLL_STALL_MS));
+      }
       if (nowMs - lastReceived > OBSERVATION_TIMEOUT_MS) {
         dropSilentLink();
         return;
