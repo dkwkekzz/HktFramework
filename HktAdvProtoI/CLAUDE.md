@@ -34,7 +34,8 @@ advprotoi-design  기획      방향/기획서 주입 → Play Design(content/ro
                            → Human 승인 1회 → cycles/<CycleId>/spec.md 앞부분(범위) 생성
 advprotoi-plan    의미 확정  spec.md 앞부분 → CYCLE SPEC → WORLD SEMANTIC + RULE 을 같은 파일에 덧붙여 동결
 advprotoi-build   실현·검증  구현 ∥ GameView ∥ 시나리오 테스트 병렬 → npm test → 7항 판정(마감 커밋 메시지)
-                           → TODO.md(Human 판정 대기·부채) · play 문서의 Cycle 체크박스 · STATE.md 갱신
+                           → TODO.md(Human 판정 대기·부채) · 촬영(shots/) · play 문서의 Cycle 체크박스 · STATE.md 갱신
+advprotoi-cycle   러너      "C### 진행" 한 마디 — spec.md 상태를 보고 위 셋을 이어 부른다. 정지는 UNRESOLVED · GAP 뿐
 ```
 
 "다음에 무엇을 만들까"는 승인된 Play Design 의 Cycle Breakdown 이 답한다 —

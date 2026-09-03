@@ -5,9 +5,9 @@
 
 ## 1. 다음에 할 일 — 레인
 
-한 Cycle = 브랜치 `cycle/C###` = 세션 하나. 그 안에서 `advprotoi-design ③` → `plan` → `build`. PR 은 번호 순으로
-합친다. 병렬 규칙은 [Plan-Skill §4 항목 4](design/Plan-Skill-CycleExecutionWorkflow.md). 승인 게이트 없음 — Play 셋은
-승인돼 있다. 말할 것: **"C002 진행"**.
+한 Cycle = 브랜치 `cycle/C###` = 세션 하나. **말할 것: "C002 진행"** — `advprotoi-cycle` 러너가 design ③ → plan → build 를
+이어 돌리고 UNRESOLVED · GAP 에서만 멈춘다. PR 은 번호 순으로 합친다. 병렬 규칙은
+[Plan-Skill §4 항목 4](design/Plan-Skill-CycleExecutionWorkflow.md). 승인 게이트 없음 — Play 셋은 승인돼 있다.
 
 | 레인 | 지금 할 수 있는 것 | 기다리는 것 | 다음 |
 |---|---|---|---|

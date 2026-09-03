@@ -62,6 +62,10 @@ advprotoi-build    실현·검증  IMPLEMENTATION ∥ GAMEVIEW ∥ 검증 시나
   문서 로드가 한 번으로 끝난다 (토큰 효율).
 - **build 는 자율·병렬이다.** spec.md 가 동결되면 World 구현·View 구현·검증
   시나리오는 서로 다른 파일을 만지므로 동시에 진행할 수 있다 (§4).
+- **러너 하나가 셋을 잇는다** (`advprotoi-cycle`). 한 Cycle 은 세션 하나에서 돌므로 호출도 하나면
+  된다 — 러너는 spec.md 의 상태(없음 / 앞부분만 / 동결 / TODO)로 다음 스킬을 부를 뿐 규칙을 새로
+  두지 않고, plan 의 UNRESOLVED 와 build 의 GAP 에서만 멈춘다. plan 과 build 를 한 스킬로 합치지
+  않는 이유는 위와 같다 — 경계는 문서 수가 아니라 게이트(spec 동결)다.
 - **탐색 스킬은 두지 않는다.** "다음에 무엇을 만들까"는 승인된 Play Design 의
   Cycle Breakdown 이 답한다 (§7) — 별도 Master Graph 탐색이 필요 없다.
   Spec 의 Source 는 `design/` 문서면 충분하다.
