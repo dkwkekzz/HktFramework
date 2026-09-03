@@ -1,0 +1,181 @@
+{
+  "out": "shots",
+  "viewport": [
+    560,
+    420
+  ],
+  "runs": [
+    {
+      "_": "방 여섯을 자리로 고를 수 없다 — region 이 어느 방인지 정한다. 자율 존재는 전부 없이: 조작 없이 서 있으면 맞아 쓰러진다",
+      "region": "WHITE_KING_DOMAIN",
+      "spawn": "0,13",
+      "npcs": "none",
+      "steps": [
+        {
+          "press": "KeyT",
+          "times": 4,
+          "gap": 350
+        },
+        {
+          "sleep": 2500
+        },
+        {
+          "expect": "문명권",
+          "note": "X-① 깊이 = 문명권"
+        },
+        {
+          "shot": "X-01-white-king-domain",
+          "note": "X-① 백왕령 civil 바닥 · 길(road) 표식 — 목적지 이름 없음"
+        }
+      ]
+    },
+    {
+      "region": "WHITE_KING_DOMAIN",
+      "spawn": "16.5,0",
+      "npcs": "none",
+      "steps": [
+        {
+          "press": "KeyT",
+          "times": 4,
+          "gap": 350
+        },
+        {
+          "sleep": 2500
+        },
+        {
+          "shot": "X-02-red-waste-pass",
+          "note": "X-② 붉은 황야 쪽 고개(pass) 표식 — 길과 다른 색"
+        },
+        {
+          "pressUntil": "KeyQ",
+          "wait": "아직 갈 수 없는",
+          "tries": 10,
+          "gap": 1500,
+          "note": "X-② 아직 짓지 않은 곳 → region-not-built 문구",
+          "blockedBy": "끊김",
+          "settle": 25
+        },
+        {
+          "shot": "X-02b-region-not-built",
+          "note": "X-② 고개에 붙어 Q — 세계의 대답이 화면에 뜬다"
+        }
+      ]
+    },
+    {
+      "region": "FOREST_EDGE",
+      "spawn": "0,13",
+      "npcs": "none",
+      "steps": [
+        {
+          "press": "KeyT",
+          "times": 4,
+          "gap": 350
+        },
+        {
+          "sleep": 2500
+        },
+        {
+          "expect": "문명의 경계",
+          "note": "X-③ 깊이 = 문명의 경계를 넘었다"
+        },
+        {
+          "shot": "X-03-forest-edge",
+          "note": "X-③ 숲 가장자리 outer 바닥 · 오솔길(trail) 표식"
+        }
+      ]
+    },
+    {
+      "region": "FOREST_DEEP",
+      "spawn": "0,13",
+      "npcs": "none",
+      "steps": [
+        {
+          "press": "KeyT",
+          "times": 4,
+          "gap": 350
+        },
+        {
+          "sleep": 2500
+        },
+        {
+          "expect": "야생",
+          "note": "X-④ 깊이 = 아무도 돌보지 않는 야생"
+        },
+        {
+          "shot": "X-04-forest-deep",
+          "note": "X-④ 숲 안쪽 wild 바닥 · 거목 쪽(interaction) 표식 — 또 다른 색"
+        }
+      ]
+    },
+    {
+      "region": "FOREST_DEEP",
+      "spawn": "-12,12",
+      "npcs": "none",
+      "steps": [
+        {
+          "press": "KeyT",
+          "times": 4,
+          "gap": 350
+        },
+        {
+          "sleep": 2500
+        },
+        {
+          "shot": "X-05-ancient-gate",
+          "note": "X-⑤ 닫힌 고대 문 — 열린 표식과 실루엣이 다르다 (빗장)"
+        },
+        {
+          "pressUntil": "KeyQ",
+          "wait": "잠겨",
+          "tries": 10,
+          "gap": 1500,
+          "note": "X-⑥ 닫힌 문 → connector-inactive 문구",
+          "blockedBy": "끊김",
+          "settle": 25
+        },
+        {
+          "shot": "X-06-connector-inactive",
+          "note": "X-⑥ 문에 붙어 Q — 몸은 그대로, 대답만 온다"
+        }
+      ]
+    },
+    {
+      "region": "BIO_ORE_FIELD",
+      "spawn": "0,13",
+      "npcs": "none",
+      "steps": [
+        {
+          "press": "KeyT",
+          "times": 4,
+          "gap": 350
+        },
+        {
+          "sleep": 2500
+        },
+        {
+          "shot": "X-07-bio-ore-field",
+          "note": "X-⑦ 생체 광석 지대 — 이름만 있고 비어 있다. 거목 쪽 오솔길 표식"
+        }
+      ]
+    },
+    {
+      "region": "PREDATOR_NEST",
+      "spawn": "13,0",
+      "npcs": "none",
+      "steps": [
+        {
+          "press": "KeyT",
+          "times": 4,
+          "gap": 350
+        },
+        {
+          "sleep": 2500
+        },
+        {
+          "shot": "X-08-predator-nest",
+          "note": "X-⑦ 포식수 둥지 — 막다른 방, 돌아가는 출구 하나뿐"
+        }
+      ]
+    }
+  ]
+}
