@@ -616,7 +616,7 @@ export const systems: readonly WorldSystem<WorldState>[] = [
 ```
 
 정리 시스템은 "Entity가 존재하는가 / 이 관찰자에게 계속 주소 지정 가능한가"만 본다. 거리,
-화면 밖, Downed는 해제 조건이 아니므로 읽지 않는다. 정확한 시스템 순서는 그 Cycle 의 `02-world.md` 에서
+화면 밖, Downed는 해제 조건이 아니므로 읽지 않는다. 정확한 시스템 순서는 그 Cycle 의 `spec.md` 에서
 기존 시스템 배열과 함께 확정한다.
 
 ## 5.9 무엇을 Engine으로 올리지 않는가
@@ -671,7 +671,7 @@ View는 가장 가까운 적을 자체적으로 공격 대상으로 확정하거
 
 # 7. 관찰 계약 초안
 
-GameView에는 관찰자별로 다음 의미가 필요하다. 필드명은 그 Cycle 의 `04-gameview.md` 에서 확정한다.
+GameView에는 관찰자별로 다음 의미가 필요하다. 필드명은 그 Cycle 의 `spec.md` Observable 절에서 확정한다.
 
 ```yaml
 target:

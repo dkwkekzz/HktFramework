@@ -27,7 +27,7 @@
 | `[OBSERVATION]` | World가 관찰자에게 공개한 Skill 의미만 표현한다 |
 | `[DIRECT-CYCLE]` | Master 후보화 없이 다음 Cycle로 직접 착수한다 |
 | `[CYCLE-READY]` | Goal·Scope·계약 요구·검증 기준이 Agent handoff 가능한 상태다 |
-| `[GAMEVIEW-GAP]` | authoritative 관찰이나 Action이 없으면 `04-gameview.md` 로 반환한다 |
+| `[GAMEVIEW-GAP]` | authoritative 관찰이나 Action이 없으면 `spec.md` 의 Observable 절(plan)로 반환한다 |
 | `[CAPABILITY-GAP]` | Renderer가 필요한 표현·입력 능력을 제공하지 않으면 기반 트랙으로 반환한다 |
 
 ---
@@ -295,7 +295,7 @@ Toast는 보조 수단이다. 실패 이유는 슬롯/조준 상세에도 남고
 
 # 10. GameView 계약 요구사항 `[GAMEVIEW-GAP]`
 
-View는 World 내부 타입을 import하거나 Query를 재실행하지 않는다. `04-gameview.md` 는 최소 다음
+View는 World 내부 타입을 import하거나 Query를 재실행하지 않는다. `spec.md` 의 Observable 절은 최소 다음
 의미를 Observer-specific projection으로 제공한다.
 
 ```yaml
@@ -451,7 +451,7 @@ Observable Result Skill/Binding, availability/reason, Anchor 요구, phase, pend
 In Scope          Skill Bar, Self·Unit 입력, 상태/사유, pending, 결과 요약, Fixture 테스트.
 Out of Scope      Direction/GroundPoint Geometry, 복합 Activation, Presence, Observer panel,
                   새 Skill·Effect·Cooldown·Targeting 규칙, 모바일.
-World Delta       NONE이 기본. 필요한 projection/action/event가 없으면 `04-gameview.md` GAP.
+World Delta       NONE이 기본. 필요한 projection/action/event가 없으면 spec.md Observable 절의 GAP.
 View Delta        기존 전투 화면에 Skill Bar와 최근 결과 요약을 추가한다.
 Master Trace      DIRECT OBSERVATION — VUX-SK-D1
 ```
