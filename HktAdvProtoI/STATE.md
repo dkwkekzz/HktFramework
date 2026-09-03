@@ -12,13 +12,9 @@
 | 레인 | 지금 할 수 있는 것 | 기다리는 것 | 다음 |
 |---|---|---|---|
 | Rooms — [RegionGraphRooms](content/roadmap/play/RegionGraphRooms.md) | **C003** 작은 문, 큰 방, 돌아올 수 없는 길 — 거목 → 내부 세계(중첩 · 80×80) → 추락 → 심장 호수 → 물길. 거목 쪽 Connector 둘은 C002 가 놓았다: RegionSpec 하나를 더하고 경계 목록에서 이름 하나를 빼면 열린다 | — | C004 (순차) |
-| Rule — [RuleBoundRoom](content/roadmap/play/RuleBoundRoom.md) | C005 (LOCKED Connector 의미(W7)가 섰다 — 그 위에 activation(W12)을 얹는다) | — (미로 입구인 고대 문을 여는 것은 C004) | C006 → C007 |
-| ENGINE A — [Plan-World-Authoring-Engine §5](design/Plan-World-Authoring-Engine.md) | 지형 컴파일러 E6~E8 (Cycle 아님 · 게임 명사 없음 · 분리 커밋) | — | C008 이 쓴다 |
-| Land — [RoomBecomesLand](content/roadmap/play/RoomBecomesLand.md) | 대기 | ENGINE A + Rule 닫힘 (승인된 순서: Rooms → Rule → Land) | C008 → C010 |
-
-Human 결정 (승인된 순서에 닿는 것 — 정하면 표를 고친다):
-① C005 build 를 C002 와 겹칠지 — 입구 없이 하네스·개발 명령으로만 미로에 들어가는 상태를 허용하는가
-② C008 을 Rule 앞으로 당길지
+| ENGINE A — [Plan-World-Authoring-Engine §5](design/Plan-World-Authoring-Engine.md) | 지형 컴파일러 E6~E8 (Cycle 아님 · 게임 명사 없음 · 분리 커밋) | — | C005 가 쓴다 |
+| Land — [RoomBecomesLand](content/roadmap/play/RoomBecomesLand.md) | C005 (ENGINE A 가 서면) | ENGINE A | C006 → C007 |
+| Rule — [RuleBoundRoom](content/roadmap/play/RuleBoundRoom.md) | 대기 | Rooms C004(고대 문) + Land 닫힘 (순서: Rooms → Land → Rule — 규칙이 바꿀 area · traversable 을 Land 가 먼저 세운다) | C008 → C010 |
 
 ## 2. 진행
 
@@ -27,8 +23,8 @@ Human 결정 (승인된 순서에 닿는 것 — 정하면 표를 고친다):
 | Play | 증명 | Cycle | 상태 |
 |---|---|---|---|
 | RegionGraphRooms | 세계는 방들의 그래프다 | C001~C004 | C001 · C002 닫힘 · **C003 다음** |
-| RuleBoundRoom | 방은 규칙을 품는다 (환상의 미로) | C005~C007 | C005 가능 |
-| RoomBecomesLand | 방이 땅이 된다 (백왕령) | C008~C010 | 대기 |
+| RoomBecomesLand | 방이 땅이 된다 (백왕령) | C005~C007 | ENGINE A 뒤 C005 |
+| RuleBoundRoom | 방은 규칙을 품는다 (환상의 미로 = Region 하나) | C008~C010 | 대기 |
 
 **Human 판정 대기** — C001 X-①~⑧ · C002 X-①~⑧: 각 Cycle 의 `TODO.md`
 ([C001](cycles/C001-region-graph-rooms/TODO.md) · [C002](cycles/C002-many-exits/TODO.md), 그림은 같은 폴더 `shots/`).
@@ -63,7 +59,7 @@ Human 결정 (승인된 순서에 닿는 것 — 정하면 표를 고친다):
 ## 5. 열린 부채
 
 원본은 각 Cycle 의 `TODO.md`. 지금:
-C001 — 방 바닥이 지형 굴곡에 묻힘(→ C008).
+C001 — 방 바닥이 지형 굴곡에 묻힘(→ C005 Land).
 C002 — 카메라가 방 크기에 안 맞음(40×40 도 한 화면에 안 들어온다 → C003) ·
 `pass` 색 표식이 지금은 전부 경계를 가리킨다(방이 지어지면 저절로 풀린다).
 
