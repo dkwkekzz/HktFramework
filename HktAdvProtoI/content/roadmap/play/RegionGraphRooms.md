@@ -16,10 +16,17 @@
 > 유지하여 각 방의 연결만 그럴듯하게 복잡한 세계를 표현하여 미지의 느낌을 보여주는 region graph 를
 > 형성하고 플레이어는 이를 느낄 수 있어야 함. 이후 코드 변경 없이 폴리싱 가능한 구조로 개선할 수 있어야 함.
 
-세 문장이 세 불변 조건이다.
+> 하나의 커다란 평원이 될 수도 있고 엄청나게 큰 월드와 같은 개념이 될 수 있는, 말 그대로 공간일 뿐이고
+> 현재 서비스중인 오픈월드 MMORPG 수준의 구현이 충분히 가능하고 열려있어야 한다.
+
+첫 줄의 세 문장과 둘째 줄이 네 불변 조건이다.
 
 ```text
 방은 단순하다        Region = 평평한 방 하나. 바닥 · 이름 · 깊이 색 · 출구 표식뿐. 지형·자연물은 없다
+방은 공간일 뿐이다    "방"은 이 Play 가 고른 Region 의 최소 표현이지 크기가 아니다. Region 의 크기는 extent 데이터
+                    하나이고 상한이 없다 — 한 칸의 방도, 대평원도, 대륙급 오픈월드도 같은 Region 이다 (Region R2 · §7).
+                    이 Play 의 어떤 규칙도 "Region 이 한 화면에 들어온다" 나 "Region 안의 것은 전부 보인다" 를
+                    전제하지 않는다 — 방 크기에서 그 둘이 참인 것은 결과이지 규칙이 아니다
 연결이 세계다        미지감은 방 안이 아니라 방 사이에서 난다 — 출구가 여럿 · 목적지는 건너야 안다 ·
                     작은 문이 큰 방으로 · 일방향 · 닫힌 문 · 돌아오는 길이 다른 곳으로
 폴리싱은 데이터로     방·그래프·표현은 전부 content/regions 와 content/view 의 데이터다.
@@ -193,7 +200,9 @@ W2  Region Graph 를 World Data 로 읽는다 — content/regions/graph.ts + 각
 W3  방 안 이동 — 몸은 자기 Region 의 extent 안에서만 움직인다 (WORLD_BOUNDS 대체)
 W4  건너기 — anchor 에 닿은 몸이 요청하면 상대 Region 의 anchor 로 옮긴다. transition = falling 은 요청 없이.
     direction = one-way 면 역방향 anchor 가 없다. 활성 상태가 LOCKED 면 거절(사유 코드)                 (R6 · R9)
-W5  투영 — 관찰 결과에는 같은 Region 의 존재만 실린다. scene = regionId. 출구는 interaction 으로
+W5  투영 — 관찰 결과에는 같은 Region 안에서 관찰자에게 **닿는 범위**의 존재만 실린다. 같은 Region 은 필요조건이고
+    범위는 유도 사실(InRange — L1 저장/유도)이다. 방 크기의 Region 에서는 Region 전체가 범위라서 regionId 일치만으로
+    충분하다 — Region 이 커지면 범위 판정 하나가 더해질 뿐 관찰 계약은 그대로다. scene = regionId. 출구는 interaction 으로
     (id · transition 종류 · available · reason). 목적지 이름은 싣지 않는다
 W6  HUD — 방 이름 · depth 사유 코드 (문구는 view)
 W7  Connector 활성 상태는 Region Spec 의 초기 state 에서 온다 — 바꾸는 규칙은 이 Play 에 없다 (LOCKED 고정)
@@ -206,7 +215,8 @@ W8  STATE_VERSION 올림 · 스냅샷에 regionId
 V1  방 — extent 를 바닥으로 그린다 (SceneGroundZone polygon 하나). 색은 depth 태그 → 표 (terrain-presentation)
 V2  출구 — anchor 자리에 표식. transition 종류 → 표식/색 표. 닫힘은 다른 표식. 이름 라벨 없음
 V3  방 이름 라벨 · depth 문구 (code-text)
-V4  카메라 — 방 extent 에 맞춘다 (큰 방은 넓게)
+V4  카메라 — 몸을 따른다. extent 는 카메라의 틀이 아니라 바닥의 경계다 — 작은 방은 결과적으로 한 화면에 들어오고,
+    큰 방에서는 몸 둘레만 보인다. "방을 한 화면에 맞춘다" 는 규칙은 두지 않는다 (C002 부채 "카메라가 방 크기에 안 맞음" 의 답)
 ```
 
 ### Required — 기구 (engine, ENGINE 레인 — 별도 커밋)
@@ -271,7 +281,8 @@ E4  tools/world-editor: world:observe --graph (방·Connector 표 + 검사 보�
 4. 방 크기 — 기본 40×40 (지금 WORLD_BOUNDS 와 같다). 거목 내부 세계는 80×80.
 5. 붉은 황야 · 얼음 협곡 — Connector 만 두고 방은 짓지 않는다. 건너기 요청은 사유 코드로 거절한다
    (region-not-built — "아직 없는 곳"). 이것이 세계의 끝이 아니라 아직 만들지 않은 곳이라는 표시다.
-6. 다른 관찰자는 같은 방에 있을 때만 보인다 (W5) — 세계 규칙으로 확정.
+6. 다른 관찰자는 같은 Region 안에서 닿는 범위에 있을 때 보인다 (W5) — 세계 규칙으로 확정. 방 크기에서는
+   같은 방이 곧 닿는 범위다.
 7. 도구 1단계의 순서를 그래프 → 방 → 지형으로 바꾼다 (E4). 높이·표면·scatter 는 RoomBecomesLand 로 미룬다.
 8. **방과 Connector 의 총 수에 상한이 없다** — 수십~수백 규모를 전제한다. 이 Play 의 아홉과 열셋은
    한 화면에서 증명하기에 알맞은 수이지 세계의 상한이 아니다 (L2-World-Region R13 · §2.1).

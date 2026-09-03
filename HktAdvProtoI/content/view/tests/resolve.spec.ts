@@ -79,6 +79,40 @@ describe('resolvePresentation (Semantic → Render Plan)', () => {
     expect(struck?.spriteId).toBe('wanderer:hit');
   });
 
+  it('되돌아오지 않는다고 선언한 시트는 1회 재생이다 — 쓰러진 몸이 다시 일어서지 않는다', () => {
+    // 쓰러짐(downed)에는 소요 시간이 없다 (world/semantic/action.ts: duration null).
+    // 그래서 진행도가 이끌지 못하고, 시트가 스스로 밝힌 once 만이 반복을 막는다.
+    const motions = createMotionLibrary({
+      '/motions/wanderer/idle.3x3.9f.png': '/wanderer-idle.png',
+      '/motions/wanderer/downed.3x3.9f.8fps.once.png': '/wanderer-downed.png',
+    });
+
+    const snapshot: GameViewSnapshot = {
+      specId: 'VIEW-WORLD-SERVER-001',
+      scene: 'mining-field',
+      region: { id: 'mining-field', hash: '00000000' },
+      entities: [
+        { id: 'npc-1', role: 'npc-character', state: 'downed', kind: 'wanderer', position: { x: 1, z: 1 } },
+        { id: 'npc-2', role: 'npc-character', state: 'idle', kind: 'wanderer', position: { x: 2, z: 2 } },
+      ],
+      interactions: [],
+      observer: { id: 'observer-a', characterId: 'npc-2', acknowledgedMark: 0 },
+      hud: [],
+      strikes: [],
+      debug: { open: false },
+      commands: [],
+    };
+
+    const plan = resolvePresentation(snapshot, motions);
+
+    const downed = plan.entities.find((e) => e.id === 'npc-1');
+    expect(downed?.motion).toMatchObject({ url: '/wanderer-downed.png', mode: 'once' });
+
+    // 같은 시트 규약을 쓰는 다른 행동은 그대로 반복한다 — once 는 시트가 밝힌 것만이다.
+    const alive = plan.entities.find((e) => e.id === 'npc-2');
+    expect(alive?.motion).toMatchObject({ url: '/wanderer-idle.png', mode: 'loop' });
+  });
+
   it('모션 데이터가 하나도 없어도 모든 entity 가 그려진다 (placeholder 폴백)', () => {
     const plan = resolvePresentation(characterAction as GameViewSnapshot, createMotionLibrary({}));
 
