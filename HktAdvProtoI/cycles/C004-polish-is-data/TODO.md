@@ -87,14 +87,6 @@ X-⑥  Play Goal — RegionGraphRooms 전체 실주행
 ## 다음 Cycle 로
 
 ```text
-고대 문과 확정 3 (Human 감사)
-    RegionGraphRooms 확정 3 은 "고대 문은 이 Play 동안 닫혀 있다" 이고 RuleBoundRoom 확정 4 는
-    "고대 문은 RegionGraphRooms 의 C004 가 데이터로 연다" 다. 둘 다 Human 승인이라 어긋난다.
-    **뒤의 것을 따랐다** — C004 를 이름으로 지목했고 STATE §1 도 그렇게 적혀 있으며, 확정 3 은
-    Play 의 체험 구간(C001~C003)을 지키는 말로 읽었다. 아니라면 되돌릴 것은
-    content/regions/graph.ts 의 CLOSED_CONNECTORS 한 줄이다.
-    C005 가 이 문 뒤에 미로를 짓기 전에 확인해 주기 바란다
-
 닫힌 문 갈래는 쓰이지 않은 채 남는다
     connector-inactive 사유도 locked 표식도 문구도 전부 살아 있지만 이 세계의 데이터에서는
     이제 나오지 않는다. C004 의 변형 시나리오가 그 갈래를 계속 검증한다 —

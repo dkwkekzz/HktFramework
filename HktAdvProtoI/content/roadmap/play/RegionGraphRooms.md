@@ -264,8 +264,10 @@ E4  tools/world-editor: world:observe --graph (방·Connector 표 + 검사 보�
 1. 거대 악마의 숲은 방 여럿이다 — FOREST_EDGE(숲 가장자리) · FOREST_DEEP(숲 안쪽) 두 방을 새로 짓고
    WE §3 의 POI 셋과 Landmark 를 각각 방으로 둔다 (§5.8). 두 이름은 정식이다.
 2. depth 배정 — civil 1 · outer 1 · wild 5 · deep 2 (§5.8).
-3. 세계 사실 셋 — 거목 내부의 추락은 심장 호수로 · 호수의 물길은 숲 안쪽의 다른 자리로 ·
-   고대 문은 이 Play 동안 닫혀 있다.
+3. 세계 사실 둘 — 거목 내부의 추락은 심장 호수로 · 호수의 물길은 숲 안쪽의 다른 자리로.
+   (고대 문의 여닫힘은 이 Play 가 정하지 않는다 — [RuleBoundRoom](RuleBoundRoom.md) 확정 4 가
+   소유한다: C004 가 데이터로 연다. C001~C003 동안 닫혀 있던 것은 그 데이터의 당시 값이었지
+   이 Play 의 확정이 아니다.)
 4. 방 크기 — 기본 40×40 (지금 WORLD_BOUNDS 와 같다). 거목 내부 세계는 80×80.
 5. 붉은 황야 · 얼음 협곡 — Connector 만 두고 방은 짓지 않는다. 건너기 요청은 사유 코드로 거절한다
    (region-not-built — "아직 없는 곳"). 이것이 세계의 끝이 아니라 아직 만들지 않은 곳이라는 표시다.
@@ -296,12 +298,4 @@ E4  tools/world-editor: world:observe --graph (방·Connector 표 + 검사 보�
 
 ## Human 질문
 
-```text
-① (이월) 고대 문과 확정 3
-   확정 3 은 "고대 문은 이 Play 동안 닫혀 있다" 이고, RuleBoundRoom 확정 4 는
-   "고대 문은 RegionGraphRooms 의 C004 가 데이터로 연다" 다. C004 는 이 Play 안에 있으므로
-   두 문장이 정면으로 부딪친다. 둘 다 Human 승인이다.
-   C004 는 뒤의 것을 따라 열었고, 확정 3 을 "체험 구간(C001~C003)을 지키는 말" 로 읽었다.
-   그 읽기가 맞는가 — 아니라면 되돌릴 것은 content/regions/graph.ts 의 CLOSED_CONNECTORS 한 줄이다.
-   C005 가 이 문 뒤에 미로를 짓기 전에 정해야 한다
-```
+없음.
