@@ -56,9 +56,24 @@ export const FRONTIER_REGIONS: readonly string[] = [
 /**
  * 닫힌 Connector 의 id 들 (C002 ADDED · 01-spec SPEC-005).
  * 정적 컨텐츠 데이터다 — 세계 State 에 들어가지 않고 저장되지도 않는다.
- * 이 Cycle 에는 여는 규칙도 닫는 규칙도 없다 (Play W7).
+ * 여는 규칙도 닫는 규칙도 세계에 없다 (Play W7) — 이 목록이 처음부터 그렇다고 적을 뿐이다.
+ *
+ * C004 CHANGED — 비었다. 고대 문(ANCIENT_GATE)이 열렸다.
+ * **규칙은 한 글자도 바뀌지 않았다** — 이 한 줄이 세계의 대답을 "잠겨 있다" 에서
+ * "아직 갈 수 없는 곳이다" 로 옮겼다 (그 너머는 아직 경계다). 그것이 C004 의 증명이고,
+ * 미로의 입구가 이렇게 선다 (RuleBoundRoom 확정 4 — 방들은 C005 가 짓는다).
+ * 닫힌 문이라는 갈래는 그대로다: 여기에 id 하나를 도로 넣으면 그 문은 다시 잠긴다.
  */
-export const CLOSED_CONNECTORS: readonly string[] = [ANCIENT_GATE];
+export const CLOSED_CONNECTORS: readonly string[] = [];
+
+/**
+ * 세계가 시작하는 방 — 관찰자의 새 몸 · 기본 자율 존재 · 광맥이 놓이는 자리 (C004 ADDED).
+ *
+ * C003 까지는 content/world 가 이 이름을 알고 있었다. 그것이 규칙 코드가 이름으로 아는
+ * **마지막 한 곳**이었으므로 데이터로 옮겼다 — 이제 규칙은 어떤 방도 어떤 연결도 이름으로 알지 못하고,
+ * 시작 방을 옮기는 것도 다른 폴리싱과 똑같이 이 파일 한 줄이다 (01-spec SPEC-003 · SPEC-004).
+ */
+export const START_REGION_ID = WHITE_KING_DOMAIN;
 
 export const REGION_GRAPH: RegionGraph = {
   regions: [

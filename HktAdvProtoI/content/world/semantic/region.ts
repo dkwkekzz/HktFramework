@@ -15,14 +15,18 @@ import {
   ANCHOR_LAYER,
   CLOSED_CONNECTORS,
   REGION_GRAPH,
-  WHITE_KING_DOMAIN,
+  START_REGION_ID,
   regionSpec,
   type RegionSpec,
 } from '../../regions';
 import type { WorldPosition } from './position';
 
-// 관찰자의 새 몸 · 기본 자율 존재 · 광맥이 놓이는 Region (02-world R3 · R4)
-export const START_REGION: string = WHITE_KING_DOMAIN;
+// 관찰자의 새 몸 · 기본 자율 존재 · 광맥이 놓이는 Region (02-world R3 · R4).
+//
+// C004 CHANGED — 어느 방인지는 이제 컨텐츠 데이터가 말한다 (content/regions 의 START_REGION_ID).
+// 규칙은 시작 방이 있다는 것만 알고 그것이 백왕령인 줄은 모른다 — 이 파일이 방 이름을 적던
+// 마지막 자리였다 (01-spec SPEC-003 · SPEC-004).
+export const START_REGION: string = START_REGION_ID;
 
 export function regionSpecOf(id: string): RegionSpec {
   const spec = regionSpec(id);

@@ -1,0 +1,39 @@
+{
+  "out": "shots",
+  "viewport": [560, 420],
+  "runs": [
+    {
+      "_": "X-①② 고대 문 — C002 의 shots/X-05-ancient-gate.png · X-06-connector-inactive.png 와 나란히 놓고 본다. 데이터 한 줄이 바꾼 것이다",
+      "region": "FOREST_DEEP",
+      "spawn": "-13,14.5",
+      "npcs": "none",
+      "steps": [
+        { "press": "KeyT", "times": 4, "gap": 350 },
+        { "sleep": 2500 },
+        { "expect": "아무도 돌보지 않는", "note": "X-① 숲 안쪽 — 방도 깊이도 C002 그대로다" },
+        { "shot": "X-01-ancient-gate-open", "note": "X-① 북서쪽(−13, 13) 표식 — 붉은 빗장이 사라지고 열린 팻말이다. C002 의 X-05 와 견준다" },
+        {
+          "pressUntil": "KeyQ",
+          "wait": "아직 갈 수 없는",
+          "tries": 10,
+          "gap": 1500,
+          "blockedBy": "끊김",
+          "settle": 25,
+          "note": "X-② 문에 붙어 Q — 세계의 대답이 바뀌었다"
+        },
+        { "shot": "X-02-region-not-built", "note": "X-② \"잠겨 있다\" 가 아니라 \"아직 갈 수 없는 곳이다\" — 문은 열렸고 그 너머가 아직 지어지지 않았을 뿐이다. C002 의 X-06 과 견준다" }
+      ]
+    },
+    {
+      "_": "X-③ 숲 안쪽의 출구 다섯이 전부 열린 표식이다",
+      "region": "FOREST_DEEP",
+      "spawn": "0,0",
+      "npcs": "none",
+      "steps": [
+        { "press": "KeyT", "times": 6, "gap": 350 },
+        { "sleep": 2500 },
+        { "shot": "X-03-five-open-exits", "note": "X-③ 방 한가운데에서 — 닫힌 표식이 이 세계에 하나도 남지 않았다 (시점을 돌려 다섯을 다 센다)" }
+      ]
+    }
+  ]
+}
