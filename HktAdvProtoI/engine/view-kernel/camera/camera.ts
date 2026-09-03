@@ -40,7 +40,6 @@ export interface ViewCamera {
 export function createViewCamera(aspect: number): ViewCamera {
   const camera = new THREE.PerspectiveCamera(55, aspect, 0.1, 300);
   let orientation: ViewOrientation = { ...DEFAULT_ORIENTATION };
-
   const view: ViewCamera = {
     camera,
     turn(dTurn, dTilt) {

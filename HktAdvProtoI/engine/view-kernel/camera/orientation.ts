@@ -92,6 +92,9 @@ export function screenSideValue(turn: number, facing: PlaneDirection): number {
 /**
  * 시점이 놓이는 자리 — 몸을 두고 그 주위를 돈다 (04 viewpoint.follows).
  * 높이는 지면 기준 상대값이다. 지형을 뚫지 않게 하는 것은 이 자리를 받는 쪽의 몫이다.
+ *
+ * 거리는 상수 하나다 — Region 의 크기를 따라가지 않는다. 시점은 몸을 따르고,
+ * extent 는 카메라의 틀이 아니라 바닥의 경계다 (RegionGraphRooms V4).
  */
 export function viewOffset(orientation: ViewOrientation): { x: number; y: number; z: number } {
   const forward = viewForward(orientation.turn);

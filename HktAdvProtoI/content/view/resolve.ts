@@ -139,6 +139,7 @@ export function resolvePresentation(
     slotBars: [],
     // 선 방의 바닥 (C001) — 모르는 방이면 비어 있고, 비어 있으면 그려지지 않는다
     zones: regionZones(snapshot.region),
+    // 선 방의 크기가 정하는 시점 거리 (C003) — 모르는 방이면 없고, 없으면 기본 거리다
     // 충돌체 디버그 관찰 — 켜졌을 때만 지시를 담는다
     ...(options.debugObserve ? { colliderDebug: collisionDebug(snapshot) } : {}),
     entities: snapshot.entities.map((e) => {

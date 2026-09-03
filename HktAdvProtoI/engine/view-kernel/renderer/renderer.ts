@@ -8,10 +8,22 @@ import { createEffectLayer, type EffectLayer, type EffectLayerOptions } from '..
 import type { PlaneDirection } from '../camera/orientation';
 import type { SceneGroundZone, SceneState } from '../scene/scene-state';
 import { createBillboard, type Billboard } from '../sprites/billboard';
-import { createTerrain, heightAt } from '../terrain/terrain';
+import { createGroundFill, type GroundFillShape } from '../terrain/ground-fill';
+import { createTerrain, terrainHeightSampler, type TerrainPalette } from '../terrain/terrain';
+import type { CompiledViewTerrain, CompiledWorldTerrain } from '../../world-authoring/compiled';
 
 export interface GameRenderer {
   render(state: SceneState, dt?: number): void;
+  /**
+   * 그릴 지형을 갈아 끼운다 — 그리는 격자(view)와 높이를 재는 격자(world)는 같은 컴파일 결과다.
+   * 태그를 색으로 옮기는 palette 는 컨텐츠의 결정이므로 밖에서 온다 (설계 반전 ⑤).
+   *
+   * 아직 한 번도 주지 않았으면 지형 없이 — 높이 0 인 평면으로 — 돈다.
+   */
+  setTerrain(
+    terrain: { world: CompiledWorldTerrain; view: CompiledViewTerrain },
+    palette: TerrainPalette,
+  ): void;
   /** 화면 좌표 → 지형 위 지점 (없으면 null) */
   pickGround(clientX: number, clientY: number): { x: number; z: number } | null;
   /** 화면 좌표에 있는 entity id (없으면 null) */
@@ -59,9 +71,25 @@ export function createRenderer(
   sun.position.set(10, 20, 5);
   scene.add(sun);
 
-  // 지형 capability — 현재 제공: 'field' (미지원 지시도 field 로 그려 게임을 멈추지 않는다)
-  const ground = createTerrain();
-  scene.add(ground);
+  // 지형 capability — 지형은 밖에서 컴파일되어 들어온다 (setTerrain).
+  // 아직 받지 못했으면 그리지 않고, 높이는 어디서나 0 이다 — 화면은 그대로 돈다.
+  let ground: THREE.Object3D | null = null;
+  let heightAt: (x: number, z: number) => number = () => 0;
+  // 지형이 없을 때 화면 좌표를 받아 줄 지면 — 높이 0 인 무한 평면 (크기 상수를 두지 않는다)
+  const flatGround = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+
+  function disposeGround(): void {
+    if (!ground) return;
+    scene.remove(ground);
+    ground.traverse((child) => {
+      const mesh = child as THREE.Mesh;
+      mesh.geometry?.dispose?.();
+      const material = mesh.material as THREE.Material | THREE.Material[] | undefined;
+      if (Array.isArray(material)) for (const m of material) m.dispose();
+      else material?.dispose?.();
+    });
+    ground = null;
+  }
 
   const view = createViewCamera(container.clientWidth / container.clientHeight);
   const camera = view.camera;
@@ -154,10 +182,45 @@ export function createRenderer(
   const ZONE_SEGMENTS = 64;
   const ZONE_EDGE_STEP = 1; // 폴리곤 변을 지형에 드리울 때의 분할 간격 (세계 단위)
 
+  // 채움 기하는 모양과 지형이 그대로면 다시 만들지 않는다 — 지면을 따라가도록 잘게 나눈 면을
+  // 프레임마다 새로 접으면 비싸다 (방 하나 4천 vertex 기준 수 ms). 맥동은 재질만 바꾸므로
+  // 기하를 다시 만들 이유가 없다.
+  interface ZoneFill {
+    signature: string;
+    geometry: THREE.BufferGeometry;
+  }
+  const zoneFills = new Map<string, ZoneFill>();
+  let terrainVersion = 0; // 지형이 바뀌면 채움도 다시 접어야 한다
+
+  function zoneFillGeometry(zoneId: string, shape: GroundFillShape): THREE.BufferGeometry {
+    const signature = `${terrainVersion}|${JSON.stringify(shape)}`;
+    const found = zoneFills.get(zoneId);
+    if (found && found.signature === signature) return found.geometry;
+    found?.geometry.dispose();
+    const geometry = createGroundFill(shape, {
+      step: ZONE_EDGE_STEP,
+      lift: ZONE_LIFT,
+      heightAt,
+    });
+    geometry.userData.zoneFill = true; // 프레임 끝의 정리에서 살려 둔다
+    zoneFills.set(zoneId, { signature, geometry });
+    return geometry;
+  }
+
+  /** 이 프레임에 오지 않은 구역의 채움은 버린다 */
+  function dropUnseenZoneFills(seen: ReadonlySet<string>): void {
+    for (const [id, fill] of zoneFills) {
+      if (seen.has(id)) continue;
+      fill.geometry.dispose();
+      zoneFills.delete(id);
+    }
+  }
+
   function clearZoneGroup(): void {
     for (const child of zoneGroup.children) {
       const mesh = child as THREE.Mesh | THREE.Sprite;
-      mesh.geometry?.dispose?.();
+      // 다시 쓰는 채움 기하는 버리지 않는다
+      if (!mesh.geometry?.userData?.zoneFill) mesh.geometry?.dispose?.();
       const material = mesh.material as THREE.Material & { map?: THREE.Texture };
       material.map?.dispose();
       material.dispose();
@@ -165,7 +228,12 @@ export function createRenderer(
     zoneGroup.clear();
   }
 
-  /** 지형을 따라가도록 각 꼭짓점의 높이를 지면에서 읽어 올린다 */
+  /**
+   * 지형을 따라가도록 각 꼭짓점의 높이를 지면에서 읽어 올린다.
+   * **이미 있는 vertex 만 올린다** — 그 사이가 평평한 판으로 남지 않으려면 면이
+   * 미리 잘게 나뉘어 있어야 한다 (테두리는 ZONE_EDGE_STEP 으로 나눈다. 채움은
+   * terrain/ground-fill 이 같은 눈금으로 나눈 것을 받아 온다).
+   */
   function drapeOnTerrain(geometry: THREE.BufferGeometry, cx: number, cz: number): void {
     const pos = geometry.attributes.position as THREE.BufferAttribute;
     for (let i = 0; i < pos.count; i++) {
@@ -212,7 +280,9 @@ export function createRenderer(
   }
 
   function drawZones(zones: readonly SceneGroundZone[], worldTime: number): void {
+    const seen = new Set<string>();
     for (const zone of zones) {
+      seen.add(zone.id);
       // 맥동 — 세계 시각으로 위상을 잡으므로 같은 세계는 언제나 같게 보인다.
       // intensity 가 없으면 맥동하지 않는다 (배율 1).
       const pulse =
@@ -222,6 +292,7 @@ export function createRenderer(
       if (zone.shape.kind === 'polygon') drawPolygonZone(zone, zone.shape.points, pulse);
       else drawCircleZone(zone, zone.shape.center, zone.shape.radius, pulse);
     }
+    dropUnseenZoneFills(seen);
   }
 
   /**
@@ -236,11 +307,8 @@ export function createRenderer(
     if (points.length < 3) return;
 
     if (zone.fill) {
-      // Shape 는 XY 평면에 놓이고 rotateX(-π/2) 가 y → -z 로 보내므로 z 를 뒤집어 넣는다.
-      const shape = new THREE.Shape(points.map((p) => new THREE.Vector2(p.x, -p.z)));
-      const geometry = new THREE.ShapeGeometry(shape);
-      geometry.rotateX(-Math.PI / 2);
-      drapeOnTerrain(geometry, 0, 0); // 점이 이미 절대 좌표다
+      // 채움은 테두리와 같은 눈금으로 나뉘어 지면에 붙는다 — 점이 이미 절대 좌표다.
+      const geometry = zoneFillGeometry(zone.id, { kind: 'polygon', points });
       const mesh = new THREE.Mesh(geometry, zoneMaterial(zone.fill.color, zone.fill.opacity * pulse));
       mesh.renderOrder = 1;
       zoneGroup.add(mesh);
@@ -307,9 +375,8 @@ export function createRenderer(
   ): void {
     {
       if (zone.fill) {
-        const disc = new THREE.CircleGeometry(radius, ZONE_SEGMENTS);
-        disc.rotateX(-Math.PI / 2);
-        drapeOnTerrain(disc, center.x, center.z);
+        // 폴리곤과 같은 길로 — 원판도 안쪽까지 나뉘어야 지면에 붙는다 (세계 좌표 기하다)
+        const disc = zoneFillGeometry(zone.id, { kind: 'circle', center, radius });
         const mesh = new THREE.Mesh(
           disc,
           new THREE.MeshBasicMaterial({
@@ -320,7 +387,6 @@ export function createRenderer(
             side: THREE.DoubleSide,
           }),
         );
-        mesh.position.set(center.x, 0, center.z);
         mesh.renderOrder = 1;
         zoneGroup.add(mesh);
       }
@@ -435,6 +501,14 @@ export function createRenderer(
 
   return {
     domElement: renderer.domElement,
+
+    setTerrain(terrain, palette) {
+      disposeGround();
+      terrainVersion++; // 이미 접어 둔 채움은 다른 지면의 것이다
+      ground = createTerrain(terrain.view, palette);
+      scene.add(ground);
+      heightAt = terrainHeightSampler(terrain.world);
+    },
 
     turnView(dTurn, dTilt) {
       view.turn(dTurn, dTilt);
@@ -554,8 +628,12 @@ export function createRenderer(
 
     pickGround(clientX, clientY) {
       raycaster.setFromCamera(toNdc(clientX, clientY), camera);
-      const hit = raycaster.intersectObject(ground, false)[0];
-      return hit ? { x: hit.point.x, z: hit.point.z } : null;
+      if (ground) {
+        const hit = raycaster.intersectObject(ground, true)[0];
+        return hit ? { x: hit.point.x, z: hit.point.z } : null;
+      }
+      const at = raycaster.ray.intersectPlane(flatGround, new THREE.Vector3());
+      return at ? { x: at.x, z: at.z } : null;
     },
 
     pickEntity(clientX, clientY) {

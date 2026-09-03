@@ -28,6 +28,7 @@ import { ruleBodyPush } from './simulation/body-push';
 import { ruleCpRunDrain } from './simulation/cp-run-drain';
 import { ruleMoveProgress } from './simulation/move-progress';
 import { ruleNpcDecideAll } from './simulation/npc-decide';
+import { ruleRegionFall } from './simulation/region-fall';
 import { ruleStrikeEventExpire } from './simulation/strike-event-expire';
 import { ruleSwingStrike } from './simulation/swing-strike';
 
@@ -93,6 +94,8 @@ const SYSTEMS: WorldContent<WorldState>['systems'] = [
   (state, dt) => ruleBodyPush(state, dt), // RULE-BODY-PUSH-001
   (state, dt) => ruleBodyMomentum(state, dt), // RULE-BODY-MOMENTUM-001
   (state, dt) => ruleCpRunDrain(state, dt), // RULE-CP-RUN-DRAIN-001
+  // 이 Tick 의 자리가 다 정해진 뒤에 세계가 떨어질 사람을 본다 — 그래서 맨 끝이다 (C003 R1).
+  (state) => ruleRegionFall(state), // RULE-REGION-FALL-001
 ];
 
 // 만료가 시간 진행 뒤에 오는 이유: 방금 일어난 결과가 최소 한 번은 관찰되어야 한다.

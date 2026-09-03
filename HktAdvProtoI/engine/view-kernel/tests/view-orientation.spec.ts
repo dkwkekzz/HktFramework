@@ -9,6 +9,7 @@ import {
   clampTilt,
   screenSideValue,
   turned,
+  VIEW_DISTANCE,
   viewForward,
   viewOffset,
   viewRight,
@@ -65,6 +66,15 @@ describe('시점 방향 (viewpoint.orientation)', () => {
   it('wrapTurn 은 (-π, π] 안으로 접는다', () => {
     near(wrapTurn(Math.PI * 2 + 0.5), 0.5);
     near(wrapTurn(-Math.PI * 2 - 0.5), -0.5);
+  });
+
+  // 시점 거리는 상수 하나다 — 무엇으로도 바꾸지 않는다.
+  // Region 이 대륙급이 되어도 몸에서 떨어진 길이가 같아야 몸이 far plane 밖으로 나가지 않는다.
+  it('거리는 몸에서 떨어진 길이 그대로다 — 어느 각에서 재도 VIEW_DISTANCE 다', () => {
+    for (const o of [{ turn: 0, tilt: 0.2 }, { turn: -1.4, tilt: 0.9 }, { turn: 2.5, tilt: 1.2 }]) {
+      const offset = viewOffset(o);
+      near(Math.hypot(offset.x, offset.y, offset.z), VIEW_DISTANCE);
+    }
   });
 
   it('시점은 몸을 두고 그 주위를 돈다 — 거리는 그대로고 자리만 바뀐다 (follows)', () => {

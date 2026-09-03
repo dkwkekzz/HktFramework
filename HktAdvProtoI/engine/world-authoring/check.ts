@@ -12,6 +12,9 @@
 //   unused-frontier  graph.frontiers 의 이름을 아무 Connector 도 가리키지 않는다
 //   unreachable      startRegion 을 주었을 때, 거기서 Connector 를 따라 닿지 않는
 //                    graph.regions 의 Region 이 있다                                (검사 ⑧)
+//   containment-unlinked
+//                    graph.containment 의 child 와 그 parent 를 잇는 Connector 가
+//                    하나도 없다 — 방향은 묻지 않는다                                (검사 ⑥)
 //
 // 경계(frontier)로 밝힌 이름은 Description 이 없어도 정상이다 — 그 끝의 anchor 도 보지 않는다.
 
@@ -24,7 +27,8 @@ export type GraphIssueCode =
   | 'no-exit'
   | 'frontier-built'
   | 'unused-frontier'
-  | 'unreachable';
+  | 'unreachable'
+  | 'containment-unlinked';
 
 export interface GraphIssue {
   code: GraphIssueCode;
@@ -115,6 +119,27 @@ export function checkGraph(
           detail: `region ${regionId} is not reachable from ${startRegion}`,
         });
       }
+    }
+  }
+
+  // 중첩 — containment 배열 순서. parent 와 child 를 잇는 Connector 가 하나라도 있어야 한다.
+  // 방향은 묻지 않는다 — 한쪽으로만 가는 이음도 이음이다.
+  for (const { parent, child } of graph.containment) {
+    let linked = false;
+    for (const connector of graph.connectors) {
+      const a = connector.from.region;
+      const b = connector.to.region;
+      if ((a === parent && b === child) || (a === child && b === parent)) {
+        linked = true;
+        break;
+      }
+    }
+    if (!linked) {
+      issues.push({
+        code: 'containment-unlinked',
+        region: child,
+        detail: `containment child ${child} is linked to its parent ${parent} by no connector`,
+      });
     }
   }
 

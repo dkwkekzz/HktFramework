@@ -12,3 +12,5 @@ export { codeText } from './view/code-text';
 export { commandActionRequest } from './view/command-request';
 export { KEY_BINDINGS } from './view/bindings';
 export { SPRITE_SHEET } from './view/sprites';
+// 땅 — 관찰자가 자기 Description 을 컴파일해 그린다 (C005). 봉투로 오지 않는다.
+export { TERRAIN_PALETTE, regionTerrain } from './view/terrain-presentation';

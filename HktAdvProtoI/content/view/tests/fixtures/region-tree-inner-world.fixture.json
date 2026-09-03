@@ -1,0 +1,82 @@
+{
+  "specId": "VIEW-STONE-MINING-001",
+  "scene": "TREE_INNER_WORLD",
+  "region": {
+    "id": "TREE_INNER_WORLD",
+    "hash": "<filled-by-test>"
+  },
+  "observer": {
+    "id": "observer-a",
+    "characterId": "player",
+    "acknowledgedMark": 0
+  },
+  "entities": [
+    {
+      "id": "player",
+      "role": "player-character",
+      "state": "idle",
+      "kind": "rabbit-swordsman",
+      "position": {
+        "x": 0,
+        "z": -38
+      }
+    },
+    {
+      "id": "TREE_INNER_DOOR",
+      "role": "region-exit",
+      "state": "open",
+      "kind": "door",
+      "position": {
+        "x": 0,
+        "z": -38
+      }
+    },
+    {
+      "id": "TREE_FALL",
+      "role": "region-exit",
+      "state": "open",
+      "kind": "falling",
+      "position": {
+        "x": 0,
+        "z": 38
+      }
+    }
+  ],
+  "interactions": [
+    {
+      "id": "move",
+      "role": "move-to",
+      "available": true
+    },
+    {
+      "id": "transit",
+      "role": "transit-connector",
+      "targetEntityId": "TREE_INNER_DOOR",
+      "available": true
+    },
+    {
+      "id": "transit",
+      "role": "transit-connector",
+      "targetEntityId": "TREE_FALL",
+      "available": false,
+      "reason": "out-of-range"
+    }
+  ],
+  "hud": [
+    {
+      "id": "inventory.stone",
+      "kind": "counter",
+      "value": 0
+    },
+    {
+      "id": "region.depth",
+      "kind": "label",
+      "value": "deep"
+    }
+  ],
+  "strikes": [],
+  "debug": {
+    "open": false
+  },
+  "commands": []
+}
