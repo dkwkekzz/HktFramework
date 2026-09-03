@@ -85,7 +85,11 @@ function resolveMotion(
     rows: asset.rows,
     frames: asset.frames,
     fps: asset.fps,
-    mode: progress === undefined ? 'loop' : 'progress',
+    // 재생 방식은 셋이다. 소요 시간이 있으면 진행도가 이끌고(progress), 없으면 시트가
+    // 선언한 대로다 — 되돌아오지 않는다고 밝힌 시트(once)는 한 바퀴만 돌고 마지막 자세에
+    // 머문다. 여기서 시트의 선언을 읽지 않고 늘 loop 로 두었기 때문에 쓰러진 몸이
+    // 계속 일어섰다 다시 쓰러졌다 (motion-format.ts MotionPlay 의 존재 이유).
+    mode: progress !== undefined ? 'progress' : asset.play === 'once' ? 'once' : 'loop',
     ...(progress === undefined ? {} : { progress }),
     ...(geometry ? { geometry } : {}),
   };

@@ -343,10 +343,21 @@ function frame(now: number): void {
   renderer.render(latestScene, dt);
   commandConsole.render(latestScene.commandSurface);
 
+  // 몸에 붙는 표시는 **몸이 그려진 자리**에서 투영한다.
+  //
+  // 관찰 결과는 세계의 Tick 주기로 띄엄띄엄 도착하고, 몸은 그 사이를 부드럽게 채우며
+  // 흐른다(renderer 의 SMOOTHING). 카메라도 그 흐르는 자리를 따라간다. 그래서 관찰
+  // 결과의 위치로 표시를 투영하면 몸은 매끄럽게 나아가는데 표시만 Tick 마다 제자리에
+  // 붙들렸다 따라붙기를 되풀이한다 — 몸 위에서 흔들리던 것이 이것이다.
+  // 아직 한 번도 그려지지 않은 몸만 관찰 결과의 자리를 쓴다.
+  const drawnAt = (entity: { id: string; position: { x: number; z: number } }) =>
+    renderer.drawnPosition(entity.id) ?? entity.position;
+
   const labels: EntityLabel[] = [];
   for (const entity of latestScene.entities) {
     if (entity.label === undefined) continue;
-    const screen = renderer.worldToScreen(entity.position.x, entity.position.z, 4.2);
+    const at = drawnAt(entity);
+    const screen = renderer.worldToScreen(at.x, at.z, 4.2);
     if (screen) labels.push({ id: entity.id, x: screen.x, y: screen.y, text: entity.label });
   }
 
@@ -355,11 +366,8 @@ function frame(now: number): void {
   const plates: EntityPlate[] = [];
   for (const entity of latestScene.entities) {
     if (!entity.nameplate) continue;
-    const screen = renderer.worldToScreen(
-      entity.position.x,
-      entity.position.z,
-      entity.nameplate.anchorHeight,
-    );
+    const at = drawnAt(entity);
+    const screen = renderer.worldToScreen(at.x, at.z, entity.nameplate.anchorHeight);
     if (!screen) continue;
     plates.push({
       id: entity.id,
