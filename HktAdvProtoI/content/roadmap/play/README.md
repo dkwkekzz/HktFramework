@@ -9,10 +9,11 @@ Play 하나는 로드맵의 **행 하나**를 증명한다 ([../README.md](../RE
 | Play | 증명하는 것 | 놓는 미지 | Cycle |
 |---|---|---|---|
 | [RegionGraphRooms.md](RegionGraphRooms.md) | 세계는 방들의 그래프다 — 전이 · 깊이 · 중첩 · 일방향 · 닫힘 · 아직 안 간 곳 | M1 거대 악마의 숲 | C001~C004 |
-| [RuleBoundRoom.md](RuleBoundRoom.md) | 방은 규칙을 품는다 — Region Rule 이 Connector Graph 를 World State 로 바꾸고, 그 State 는 관찰자 모두에게 하나다 | M2 환상의 미로 | C005~C007 |
-| [RoomBecomesLand.md](RoomBecomesLand.md) | 방이 땅이 된다 — 같은 Region Spec 의 space 를 채우면 코드 없이 지형이 선다. 안전은 조건이 만든다 | — (백왕령은 미지가 아니다) | C008~C010 |
+| [RoomBecomesLand.md](RoomBecomesLand.md) | 방이 땅이 된다 — 같은 Region Spec 의 space 를 채우면 코드 없이 지형이 선다. 안전은 조건이 만든다 | — (백왕령은 미지가 아니다) | C005~C007 |
+| [RuleBoundRoom.md](RuleBoundRoom.md) | 방은 규칙을 품는다 — Region Rule 이 방 안의 통로와 방 밖의 Connector 를 World State 로 바꾸고, 그 State 는 관찰자 모두에게 하나다 | M2 환상의 미로 | C008~C010 |
 
-순서는 의존성이다 — 그래프가 있어야 규칙이 그것을 바꿀 수 있고, 방이 있어야 땅으로 채울 수 있다.
+순서는 의존성이다 — 그래프가 있어야 방이 있고, 방이 있어야 땅으로 채울 수 있고, 방 안에 구조(area · traversable)가
+있어야 규칙이 바꿀 것이 있다. 미로는 Region 하나이고 그 안의 길은 Connector 가 아니라 공간의 통로다.
 Cycle 번호는 C001~C010 으로 고정되었다 (승인). 진행은 각 Play 의 Cycle Breakdown 체크박스가 소유한다.
 
 ## 세 기획의 덮임 지도

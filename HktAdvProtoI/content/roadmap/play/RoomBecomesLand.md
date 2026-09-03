@@ -1,7 +1,8 @@
 # RoomBecomesLand — 방이 땅이 된다, 백왕령
 
 상태: **승인됨** (Human 승인 1회 — 질문 여섯 전부 승인).
-선행: [RegionGraphRooms.md](RegionGraphRooms.md) — 방이 있어야 땅으로 채운다. RuleBoundRoom 과는 독립이다.
+선행: [RegionGraphRooms.md](RegionGraphRooms.md) — 방이 있어야 땅으로 채운다. RuleBoundRoom 이 이 Play 뒤에 선다 —
+규칙이 바꿀 구조(area · traversable)를 이 Play 가 먼저 세운다.
 
 ## 0. Row
 
@@ -144,11 +145,11 @@ V8   biome-rules — surface 규칙 표 (slope 임계 둘 · curve 거리 → we
 ## 7. Cycle Breakdown
 
 ```text
-[ ] C008 — 땅이 솟는다: height-field + stamp + compile + view terrain 교체 + 결정론(hash). 백왕령 북쪽 능선.
+[ ] C005 — 땅이 솟는다: height-field + stamp + compile + view terrain 교체 + 결정론(hash). 백왕령 북쪽 능선.
            급경사는 표면 색만 (아직 안 막힘) — 도구 1단계 ①③④
-[ ] C009 — 땅이 막고 흐른다: traversable + 이동 거절 + curve(강 · carve · wet) + 다리 point + 거목 billboard +
+[ ] C006 — 땅이 막고 흐른다: traversable + 이동 거절 + curve(강 · carve · wet) + 다리 point + 거목 billboard +
            조건 area 와 HUD 사유 코드 — 도구 1단계 ⑤⑥, W2
-[ ] C010 — 보고 다시 만든다: world:observe 넷 + 보고(검사 ①~⑨) + world:shot. 숲 가장자리에 basin 을 데이터로
+[ ] C007 — 보고 다시 만든다: world:observe 넷 + 보고(검사 ①~⑨) + world:shot. 숲 가장자리에 basin 을 데이터로
            더해 코드 diff 0 실측 — 도구 1단계 ⑧⑨, Plan §4 완료 조건 1~3
 ```
 
@@ -162,5 +163,6 @@ V8   biome-rules — surface 규칙 표 (slope 임계 둘 · curve 거리 → we
 4. TERRAIN_RESOLUTION = 1m. 결정론 상수로 헤더 고정. 해상도는 격자 칸의 크기이지 Region 크기의 상한이 아니다 —
    큰 Region 은 chunk 로 나뉜다 (E9).
 5. 표면 넷으로 시작 — 평지 · 경사 · 급경사 · 젖음.
-6. 순서는 RegionGraphRooms → RuleBoundRoom → RoomBecomesLand. 셋의 Cycle 번호는 C001~C010 으로 고정한다.
+6. 순서는 RegionGraphRooms → RoomBecomesLand → RuleBoundRoom. 셋의 Cycle 번호는 C001~C010 으로 고정한다 —
+   이 Play 는 C005~C007, RuleBoundRoom 은 C008~C010.
 ```
