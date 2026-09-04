@@ -11,7 +11,12 @@ import { resolvePresentation } from '../resolve';
 import { descriptionHash } from '../../../engine/world-authoring/description';
 import { regionSpec } from '../../regions/index';
 import { REGISTERED_SPRITE_IDS } from '../sprites';
-import { DEPTH_PRESENTATIONS, TRANSITION_TINTS, regionName } from '../region-presentation';
+import {
+  DEPTH_PRESENTATIONS,
+  TRANSITION_TINTS,
+  regionEntryTitle,
+  regionName,
+} from '../region-presentation';
 
 /** 출구 표식 하나 — 관찰 계약이 싣는 것만 (id · role · state · kind · position) */
 function exit(id: string, kind: string, state: 'open' | 'locked' = 'open'): EntityView {
@@ -76,15 +81,18 @@ describe('④ 야생 — depth 태그가 셋이 된다', () => {
     expect(blue(civil.fill)).toBeLessThan(red(civil.fill));
   });
 
-  it('숲 안쪽에 서면 바닥이 wild 색으로 칠해지고 이름이 붙는다', () => {
-    const plan = resolvePresentation(snapshot('FOREST_DEEP', 'wild', []));
+  // C026 CHANGED (SPEC-008) — 지면의 이름표를 걷었다. 색과 경계는 그대로이고 글자만 없다
+  it('숲 안쪽에 서면 바닥이 wild 색으로 칠해지고, 이름은 진입 제목이 말한다', () => {
+    const observed = snapshot('FOREST_DEEP', 'wild', []);
+    const plan = resolvePresentation(observed);
 
     expect(plan.zones).toHaveLength(1);
     const zone = plan.zones[0]!;
     expect(zone.id).toBe('region:FOREST_DEEP');
     expect(zone.fill?.color).toBe(DEPTH_PRESENTATIONS.wild!.fill);
     expect(zone.edge?.color).toBe(DEPTH_PRESENTATIONS.wild!.edge);
-    expect(zone.label).toBe('숲 안쪽');
+    expect(zone.label).toBeUndefined();
+    expect(regionEntryTitle(observed, 'FOREST_EDGE')).toContain('숲 안쪽');
   });
 
   it('HUD 깊이가 야생을 읽는다 — 문명권 · 경계 다음 한 마디', () => {

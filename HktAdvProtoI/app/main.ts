@@ -14,8 +14,10 @@ import { TRANSPORT_PATH } from '../engine/protocol-core/transport';
 import { registerSprites } from '../engine/view-kernel/assets/registry';
 import { createCommandConsole } from '../engine/view-kernel/hud/command-console';
 import { createHud, type EntityLabel, type EntityPlate, type StrikeMark } from '../engine/view-kernel/hud/hud';
+import { createTargetFrame } from '../engine/view-kernel/hud/target-frame';
 import { dispatchKey } from '../engine/view-kernel/input/bindings';
 import { attachInput } from '../engine/view-kernel/input/input';
+import type { PointerPick } from '../engine/view-kernel/input/pointer-intent';
 import { attachKeyboard } from '../engine/view-kernel/input/keyboard';
 import { attachPointerLook } from '../engine/view-kernel/input/pointer';
 import type { ScreenSide } from '../engine/view-kernel/presentation/facing-presentation';
@@ -39,6 +41,11 @@ import {
   regionNotice,
   regionTerrain,
   resolvePresentation,
+  // 지목 (C026) — 클릭이 무엇을 뜻하는지도, 방에 들어선 순간 무슨 이름이 뜨는지도
+  // 컨텐츠가 정한다. 조립은 그 답을 쥐고 배선할 뿐이다.
+  pointerRules,
+  regionEntryTitle,
+  type Designation,
 } from '../content/active-view';
 
 const container = document.getElementById('game');
@@ -63,6 +70,8 @@ registerSprites(SPRITE_SHEET);
 
 const renderer = createRenderer(container);
 const hud = createHud(container);
+// 늘 떠 있는 판 (C026 E3) — 대상이 있는 동안만 선다. 자판을 잡지 않는다.
+const targetFrame = createTargetFrame(container);
 // 명령 표면 — 타이핑을 받는 동안 이동·시점·행동 입력이 몸에 닿지 않는다
 // (04 commandSurface.inputCapture).
 const commandConsole = createCommandConsole(container, {
@@ -101,12 +110,29 @@ const EMPTY_SCENE: SceneState = {
 };
 
 let latestScene: SceneState = EMPTY_SCENE;
+
+// ── 지목 (C026 RULE-DESIGNATE-001) ────────────────────────────
+//
+// **관찰자가 쥔다.** 세계는 이것을 알지 못하고, 지목은 세계로 아무것도 보내지 않는다
+// (SPEC-006). 새로 지목하면 바뀌고, Escape 와 방 이동이면 풀린다.
+let designation: Designation | undefined;
+
+// 클릭의 뜻 (C026 RULE-POINTER-INTENT-001) — 기구는 집기까지만 하고, 집힌 것을 무엇으로
+// 옮길지는 컨텐츠의 정책이 답한다. 요청이면 보내고, 지목이면 여기서 끝난다.
 // 명령을 쓰는 동안에는 화면을 눌러도 몸이 움직이지 않는다
 // (04 commandSurface.inputCapture.suspends: interactions.move · skill).
 attachInput(
   renderer,
   (action) => (commandConsole.capturing() ? false : link.send(action)),
-  () => latestScene,
+  (pick: PointerPick) => {
+    if (commandConsole.capturing()) return null;
+    const rule = pointerRules(pick, latestScene);
+    if (!rule) return null;
+    if (rule.kind === 'request') return rule.action;
+    // 지목과 풀기는 관찰자 쪽에서 끝난다 — 세계로 나가지 않는다
+    designation = rule.kind === 'designate' ? rule.target : undefined;
+    return null;
+  },
 );
 
 // 시점 조작 — 세계로 나가지 않는다. 관찰자가 자기 방향을 바꿀 뿐이다.
@@ -251,6 +277,8 @@ function syncTerrain(regionId: string | undefined): void {
 // 방이 마지막으로 말한 한 마디 — 같은 말을 두 번 띄우지 않기 위한 값이다 (C008).
 // 관찰자가 쥐는 값이고 세계는 알지 못한다 (facingSides 와 같은 규약).
 let lastRegionNotice: string | undefined;
+// 마지막으로 들어선 방 — 이름을 한 번만 띄우고 지목을 풀기 위한 값이다 (C026).
+let enteredRegionId: string | undefined;
 
 let last = performance.now();
 function frame(now: number): void {
@@ -280,6 +308,15 @@ function frame(now: number): void {
   const notice = snapshot ? regionNotice(snapshot) : undefined;
   if (notice !== undefined && notice !== lastRegionNotice) hud.notice(notice);
   lastRegionNotice = notice;
+  // 방이 바뀌면 지목이 풀리고(확정 8) 그 방의 이름이 **한 번** 지나간다 (C026 SPEC-010).
+  // 매 프레임이 아니라 바뀐 프레임에만 부른다 — 계속 띄우면 그 사이의 다른 말이 덮인다.
+  const regionId = snapshot?.region?.id;
+  if (regionId !== enteredRegionId) {
+    const entryTitle = snapshot ? regionEntryTitle(snapshot, enteredRegionId) : undefined;
+    enteredRegionId = regionId;
+    designation = undefined;
+    if (entryTitle !== undefined) hud.notice(entryTitle);
+  }
   // 아직 세계에서 아무것도 오지 않았어도 명령 표면은 열린다 — 다만 목록은 비어 있다.
   // 세계가 밝히지 않은 명령을 View 가 지어내지 않기 때문이다.
   EMPTY_SCENE.commandSurface.open = commandOpen;
@@ -291,6 +328,8 @@ function frame(now: number): void {
         viewTurn: renderer.viewTurn(),
         facingSides,
         command: { open: commandOpen, text: commandText, history: commandHistory },
+        // 지금 무엇을 지목했는가 — 봉투에 실리지 않는 관찰자의 값이다 (C026)
+        designation,
       })
     : EMPTY_SCENE;
 
@@ -346,6 +385,12 @@ function frame(now: number): void {
       continue;
     }
     if (capturing) continue;
+    // 판을 푼다 (C026 SPEC-009) — 명령 표면이 잡고 있지 않을 때만이다.
+    // 판이 없을 때의 Escape 는 지금까지와 같다: 여기서 가로채지 않고 흘려보낸다.
+    if (code === 'Escape' && designation !== undefined) {
+      designation = undefined;
+      continue;
+    }
     if (code === DEBUG_OBSERVE_KEY) {
       debugObserve = !debugObserve;
       continue;
@@ -375,6 +420,8 @@ function frame(now: number): void {
 
   renderer.render(latestScene, dt);
   commandConsole.render(latestScene.commandSurface);
+  // 늘 떠 있는 판 — 대상이 없으면 지시가 없고, 지시가 없으면 판도 없다 (C026)
+  targetFrame.render(latestScene.targetFrame);
 
   // 몸에 붙는 표시는 **몸이 그려진 자리**에서 투영한다.
   //

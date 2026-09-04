@@ -7,6 +7,7 @@
 import { describe, expect, it } from 'vitest';
 import type { GameViewSnapshot } from '../../protocol/gameview';
 import { resolvePresentation } from '../resolve';
+import { regionEntryTitle } from '../region-presentation';
 import { descriptionHash } from '../../../engine/world-authoring/description';
 import { regionSpec } from '../../regions/index';
 import { REGISTERED_SPRITE_IDS } from '../sprites';
@@ -59,18 +60,29 @@ describe('① 방의 바닥 — Region extent 만큼의 면', () => {
     expect(civilZone.edge?.color).not.toBe(outerZone.edge?.color);
   });
 
-  it('세계가 보낸 hash 가 내 데이터와 다르면 이름 뒤에 그 사실이 붙는다 — 그리기는 계속된다', () => {
-    const plan = resolvePresentation(withHash(whiteKingDomain as GameViewSnapshot, 'deadbeef'));
+  // C026 CHANGED — 어긋남은 **늘 떠 있던 이름 뒤**가 아니라 들어선 순간의 제목에서 말한다
+  // (R4 · SPEC-008 이 지면의 이름표를 걷었다). 사실도 문구도 그대로이고 자리만 옮겼다.
+  it('세계가 보낸 hash 가 내 데이터와 다르면 진입 제목이 그 사실을 말한다 — 그리기는 계속된다', () => {
+    const mismatched = withHash(whiteKingDomain as GameViewSnapshot, 'deadbeef');
+    const plan = resolvePresentation(mismatched);
 
     expect(plan.zones.length).toBeGreaterThanOrEqual(1);
-    expect(plan.zones[0]?.label).toBe('백왕령 — 세계와 다른 땅을 보고 있다');
+    expect(plan.zones[0]?.label).toBeUndefined();
+    expect(regionEntryTitle(mismatched, undefined)).toContain('세계와 다른 땅을 보고 있다');
+    expect(regionEntryTitle(mismatched, undefined)).toContain('백왕령');
   });
 });
 
 describe('② 방 이름 — id → 이름 표', () => {
-  it('바닥의 label 이 방 이름이다', () => {
-    expect(resolvePresentation(civil).zones[0]?.label).toBe('백왕령');
-    expect(resolvePresentation(outer).zones[0]?.label).toBe('숲 가장자리');
+  // C026 CHANGED (SPEC-008) — 지면 구역에는 이름표가 없다. 같은 표(REGION_NAMES)가
+  // 이제 **들어선 프레임의 제목**을 짓는다 (SPEC-010: 한 번 지나가고 사라진다).
+  it('지면에는 이름표가 없고, 방에 들어선 순간의 제목이 방 이름이다', () => {
+    expect(resolvePresentation(civil).zones[0]?.label).toBeUndefined();
+    expect(resolvePresentation(outer).zones[0]?.label).toBeUndefined();
+    expect(regionEntryTitle(civil, undefined)).toContain('백왕령');
+    expect(regionEntryTitle(outer, 'WHITE_KING_DOMAIN')).toContain('숲 가장자리');
+    // 같은 방에 머무는 동안은 다시 뜨지 않는다
+    expect(regionEntryTitle(outer, 'FOREST_EDGE')).toBeUndefined();
   });
 
   it('모르는 region id 면 zones 가 비고 예외가 없다 — 바닥 없이도 게임은 돈다', () => {
@@ -157,7 +169,8 @@ describe('④ 건너면 화면이 바뀐다 — 두 관찰 결과의 차이가 �
     expect(before.terrain).toBe('WHITE_KING_DOMAIN');
     expect(after.terrain).toBe('FOREST_EDGE');
     expect(before.zones[0]?.fill?.color).not.toBe(after.zones[0]?.fill?.color);
-    expect(before.zones[0]?.label).not.toBe(after.zones[0]?.label);
+    // 이름은 지면이 아니라 진입 제목이 말한다 (C026 R4)
+    expect(regionEntryTitle(civil, undefined)).not.toBe(regionEntryTitle(outer, 'WHITE_KING_DOMAIN'));
     expect(after.entities.find((e) => e.cameraFollow)?.position).toEqual({ x: 0, z: -18 });
     // 숲 가장자리에는 내 몸과 출구뿐이다 (SPEC-007 경계)
     expect(after.entities.map((e) => e.id)).toEqual(['player', 'FOREST_PATH']);

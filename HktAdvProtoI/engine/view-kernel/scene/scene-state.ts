@@ -484,6 +484,62 @@ export interface SceneState {
    * 엔진은 줄을 **그대로 세운다.** 무슨 키인지도, 왜 그 순서인지도 묻지 않는다.
    */
   keyHints?: readonly string[];
+  /**
+   * 지금 고른 것 하나를 **다르게 그리라**는 지시 — 없으면 아무것도 그리지 않는다.
+   * 무엇을 골랐는지 이 층은 알지 못한다 (SceneGroundZone 과 같은 규약).
+   */
+  highlight?: SceneHighlight;
+  /**
+   * 화면 중앙 상단에 **늘 떠 있는 판** — 없으면 판 자체가 없다.
+   * 자판을 잡지 않는다 (SceneSlotBar 의 형제이고 SceneSurface 가 아니다).
+   */
+  targetFrame?: SceneTargetFrame;
+}
+
+// ── 지목 강조 (범용 capability) ───────────────────────────────────────
+//
+// 고른 것 하나를 다르게 그린다. **무엇을 골랐는지 모른다** — 몸인지 자리인지,
+// 왜 골랐는지, 그것이 대상인지 목적지인지 이 형도 그리는 쪽도 알지 못한다.
+// 지면 구역(SceneGroundZone)과 같은 층의 원소이고, 그리는 관용구도 같다.
+
+export interface SceneHighlight {
+  /** 그 몸이 **지금 그려지고 있는** 자리에 (drawnPosition). 없으면 ground 를 쓴다 */
+  entityId?: string;
+  /** 또는 지면의 그 자리에 */
+  ground?: { x: number; z: number };
+  color: number;
+  opacity: number;
+  /** 표식의 크기 — **세계 단위**다 (화면 픽셀이 아니다) */
+  radius: number;
+}
+
+// ── 늘 떠 있는 판 (범용 capability) ───────────────────────────────────
+//
+// 화면 중앙 상단에 서는 판 하나. **자판을 잡지 않는다** — 겹쳐 뜨는 표면(SceneSurface)과
+// 다른 원소이며, 그 이유는 SceneSlotBar 와 같다: 늘 열려 있는 표면은 자판을 영영 붙잡고,
+// 그러면 몸이 움직이지 않는다.
+//
+// 무엇의 판인지 알지 못한다. 제목도 줄도 **전부 형식화가 끝난 글자**로 실려 온다 —
+// 이 층은 사람이 읽을 말을 짓지 않고 문구 표를 부르지도 않는다.
+
+/** 판의 한 줄 — 이름과 값, 그리고 값에 딸린 막대 */
+export interface SceneFrameRow {
+  id: string;
+  /** 줄의 이름 (형식화 완료) */
+  label: string;
+  /** 줄의 값 (형식화 완료). **빈 문자열이면 값이 없는 줄**이다 — 없는 줄과 다르다 */
+  value: string;
+  /** 0..1 — 있으면 값 옆에 막대가 선다 */
+  progress?: number;
+  /** 참이면 옅게 — "지금 알 수 없다" 같은 줄 */
+  muted?: boolean;
+}
+
+export interface SceneTargetFrame {
+  /** 무엇에 대한 판인가 (형식화 완료) */
+  title: string;
+  subtitle?: string;
+  rows: SceneFrameRow[];
 }
 
 // ── 지면 구역 (범용 capability) ───────────────────────────────────────

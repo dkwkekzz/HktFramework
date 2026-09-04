@@ -5,16 +5,29 @@
 
 ## 1. 다음에 할 일 — 레인
 
-한 Cycle = 브랜치 `cycle/C###` = 세션 하나. **말할 것: "C011 진행"** — `advprotoi-cycle` 이 명세(spec.md) → 실현 → 마감을
+한 Cycle = 브랜치 `cycle/C###` = 세션 하나. **말할 것: "C011 진행"**(Material) 또는 **"C027 진행"**(Observe) —
+둘은 병행한다. `advprotoi-cycle` 이 명세(spec.md) → 실현 → 마감을
 이어 돌리고 UNRESOLVED · GAP 에서만 멈춘다. PR 은 번호 순으로 합친다. 병렬 규칙은
-[Plan-Skill §4 항목 4](design/Plan-Skill-CycleExecutionWorkflow.md). 승인 게이트 없음 — Play 여섯(2층 다섯 + 컨텐츠 M5)은 승인돼 있고, 일곱째(Life)는 주입된 그대로다.
+[Plan-Skill §4 항목 4](design/Plan-Skill-CycleExecutionWorkflow.md). 승인 게이트 없음 — Play 여덟 중 일곱이 승인돼 있다
+(2층 여섯 + 컨텐츠 M5). Life 는 주입된 그대로다.
 
-**design 은 닫혀 있다** — 2층 세계 절반의 기획(컨셉 · Region · 재료 · 시간 · 생명)은 더 쌓지 않는다.
+**design 은 여기까지** — 2층 **세계 절반**의 기획은 닫혔다 (컨셉 · Region · 재료 · 시간 · 생명). 더 쌓지 않는다.
 남은 일은 **Cycle 실주행**이다. 실주행 관찰(Material 원문 §7 단계 11)이 다음 기획(3층)의 입력이다.
+
+**design 이 한 번 다시 열렸다 닫혔다 (아래 ①)** — C006·C008 실주행이 화면 결손을 돌려보냈다: 세계의 사실이
+세계 위 글자와 상시 HUD 로 늘 선불되고(백왕령 한 화면에 글자 다섯 · 같은 조건이 두 자리에 중복), 못 지나간 사유는
+2.2초 뒤 사라져 추적할 수 없다. 검토는 [design/Plan-Place-Observation-Surface.md](design/Plan-Place-Observation-Surface.md),
+회수는 Play [RoomAnswersWhenAsked](content/roadmap/play/RoomAnswersWhenAsked.md) (승인 · C026~C028).
+새 축도 새 미지도 아니다 — 이미 선 축들이 관찰되는지를 증명한다. **Observe 레인**으로 병행한다.
+
+**도구 절반 2단계 — [Region 작성기](content/roadmap/L2-World-Tool-Scale.md) (확정 · 이 저장소 안에서 새로 짓는다).** "지역을 더할 때마다
+2층 공정을 다시 타는가" 의 답: 아니다 — 새 지역은 세 등급(A 데이터만 · B 규칙 하나 · C 새 축)으로 가르고 대부분은 A 라서 도구가 쓴다.
+순서 T1~T6 은 roadmap README §2.1. ENGINE 레인이라 Cycle 실주행과 **병행**한다 — 말할 것: **"T1 진행"** (브랜치 `engine/T1`).
 design 이 다시 열리는 때는 둘 — ① 2층 Play 실주행에서 DESIGN GAP 이 돌아올 때 ② T6 이 서서 HundredRooms 를 쓸 때 · 2층이 닫혀 3층을 주입할 때.
 
 | 레인 | 지금 할 수 있는 것 | 기다리는 것 | 다음 |
 |---|---|---|---|
+| Observe — [RoomAnswersWhenAsked](content/roadmap/play/RoomAnswersWhenAsked.md) | **C027** 존재도 같은 자리에 선다 — 존재 지목(선택 유지·해제) + 프레임이 존재의 상태를 진다 + 그 대상이 주는 행동과 불가 사유가 그 자리에서 읽힌다 + 상시 HUD 를 내 몸으로 좁힌다. C026 은 닫혔다 | — | C028 (순차) |
 | Material — [RoomBearsMaterial](content/roadmap/play/RoomBearsMaterial.md) | **C011** 방이 재료를 낳는다 — 이름·성질·상수는 Play 의 위임된 결정 D1~D4 에 있다. Region State 와 세계 과정이 섰으므로(C008~C010) 재료가 생애를 가질 수 있다 | — | C012 → C014 |
 | Time — [RoomNeverSame](content/roadmap/play/RoomNeverSame.md) | 대기 (상수 · 철 · 덧씌움 전부 확정 사항에 있다) | Material 닫힘 (철이 바꿀 원천과 흔적이 먼저) | C015 → C018 |
 | Frost — [RoomOfAnotherKind](content/roadmap/play/RoomOfAnotherKind.md) (컨텐츠 M5) | 대기 | Time 닫힘 (재료 생태와 철을 다른 갈래에 두 번째로 쓴다) | C019 → C021 |
@@ -27,20 +40,22 @@ design 이 다시 열리는 때는 둘 — ① 2층 Play 실주행에서 DESIGN 
 
 | Play | 증명 | Cycle | 상태 |
 |---|---|---|---|
-| RegionGraphRooms | 세계는 방들의 그래프다 | C001~C004 | **넷 다 닫힘** — Play Goal 실주행 확인이 남았다 |
+| RegionGraphRooms | 세계는 방들의 그래프다 | C001~C004 | **넷 다 닫힘** — Play Goal 실주행 확인이 남았다 (C004 TODO X-⑥) |
 | RoomBecomesLand | 방이 땅이 된다 (백왕령) | C005~C007 | **셋 다 닫힘** — Play Goal 실주행 확인이 남았다 |
 | RuleBoundRoom | 방은 규칙을 품는다 (환상의 미로 = Region 하나) | C008~C010 | **셋 다 닫힘** — Play Goal 실주행 확인이 남았다 |
 | RoomBearsMaterial | 방이 재료를 낳는다 (거대 악마의 숲 = M3 재료 계통) | C011~C014 | **C011 다음** |
 | RoomNeverSame | 같은 방은 두 번 없다 (시계 · 네 철 · 소란 · 경로 = M4) | C015~C018 | 대기 |
 | RoomOfAnotherKind | 다른 갈래의 방 (M5 빙결 협곡 · 컨텐츠) | C019~C021 | 대기 |
-| RoomBearsLife | 방이 생명을 낳는다 (허물의 주인 = M6 붉은 알집) | C022~C025 | 대기 |
+| RoomBearsLife | 방이 생명을 낳는다 (허물의 주인 = M6 붉은 알집 · 숲이 값으로 한 바퀴 돈다) | C022~C025 | 대기 |
+| RoomAnswersWhenAsked | 물으면 답한다 (지목 · 대상 프레임 · 세계 위 글자 0) | C026~C028 | C026 닫힘 · **C027 다음** — 순서 밖 · 병행 |
 
-**Human 판정 대기 73** — 각 Cycle 의 `TODO.md` (그림은 같은 폴더 `shots/`). `npm run dev` 로 직접 본다.
+**Human 판정 대기 80** — 각 Cycle 의 `TODO.md` (그림은 같은 폴더 `shots/`). `npm run dev` 로 직접 본다.
 [C001](cycles/C001-region-graph-rooms/TODO.md) 8 · [C002](cycles/C002-many-exits/TODO.md) 8 ·
 [C003](cycles/C003-small-door-big-room/TODO.md) 6 · [C004](cycles/C004-polish-is-data/TODO.md) 6 ·
 [C005](cycles/C005-land-rises/TODO.md) 7 · [C006](cycles/C006-land-blocks-and-flows/TODO.md) 9 ·
 [C007](cycles/C007-observe-and-remake/TODO.md) 5 · [C008](cycles/C008-a-room-with-a-rule/TODO.md) 8 ·
-[C009](cycles/C009-reach-by-the-rule/TODO.md) 9 · [C010](cycles/C010-one-world/TODO.md) 7.
+[C009](cycles/C009-reach-by-the-rule/TODO.md) 9 · [C010](cycles/C010-one-world/TODO.md) 7 ·
+[C026](cycles/C026-a-place-answers/TODO.md) 7.
 
 Play 셋이 닫혔으므로 **Play 전체 실주행**이 그 위에 셋 더 있다 —
 RegionGraphRooms(백왕령 → 거목 → 추락 → 물길 → 귀환) · RoomBecomesLand(능선에 막히고 강에 막히고 다리로 건넌다) ·
@@ -51,7 +66,7 @@ RuleBoundRoom(규칙을 관찰해 심장에 닿고, 두 번째 관찰자가 같�
 ```text
 0 게임 방향   확정   L0-Game.md
 1 세계의 문법  확정   L1-World-Grammar.md
-2 세계 자체   열림   L2-World-Tool · Concept · Region · Material · Time · Life — 세계 절반 기획 닫힘 → Play 일곱 중 셋 닫힘 (§2)
+2 세계 자체   열림   L2-World-Tool · Concept · Region · Material · Time · Life — 세계 절반 기획 닫힘 → Play 여덟 중 셋 닫힘 (§2)
               도구 절반 2단계 L2-World-Tool-Scale(Region 작성기) 확정 — T1~T6 (README §2.1) · T1 다음
 3 주체와 몸   미주입  ← 2층이 닫히면 다음.   4~7 (물건 · 대결 · 능력 · 성장) 미주입
 ```
@@ -72,15 +87,18 @@ RuleBoundRoom(규칙을 관찰해 심장에 닿고, 두 번째 관찰자가 같�
         걸음이 압력이 되고 넘치면 통로가 재배열된다 · 닫힌 통로가 몸을 막는다 · 구역 넷과 식물 이름표 ·
         **방의 State 가 문을 연다**(C009): Connector 활성 조건 · 미로의 심장(중첩 자식) · 비상 자리로 돌아가기 ·
         **그리고 그 전부가 세계에 하나다** — 관찰자가 둘이어도 같은 값이고, 떠나도 남는다 (C010 이 쟀다) ·
+        **물으면 답한다**(C026): 자리를 지목하면 그 자리의 사실이 늘 떠 있는 판에 선다 —
+        걸어가 거절당하기 전에 못 지나는 이유를 안다 · 세계 위에 늘 떠 있던 글자는 없다 ·
         content/regions/ 데이터
 기반    world-kernel · physics · view-kernel(키가 눈앞의 것을 고름 · 세계의 대답을 띄움 · 컴파일된 땅을 그림 ·
-        landmark billboard) · protocol-core ·
+        landmark billboard · 입력 해석 정책 · 지목 강조 · 늘 떠 있는 판 — C026 의 셋) · protocol-core ·
         world-authoring(Description · Graph · 중첩 · 경계 · 닿음 · 검사 일곱 · 지형 컴파일러 — height-field ·
         curve/carve · surface · traversable 격자 · areas/points 산출 · tagsAt · compile · hash · observe 래스터)
 도구    world:observe (--graph · 방 하나의 높이·표면·통행·의미 PNG 다섯 + 보고 · 읽기 전용) · world:compile · world:shot ·
         cycle:shot (마감 촬영 · 창 둘로 관찰자 둘) ·
         검증용 손잡이 HKT_SPAWN · HKT_SPAWN_REGION · HKT_NPCS · HKT_REGION_PATTERN · HKT_NPC_REGION
-없음    전투 공식 · 막기 · 피해 종류 · 살펴봄 · 지목 · 태도 · 소지품 · 장비 · 스킬 형태 · 성장 — design/ 에만 ·
+없음    전투 공식 · 막기 · 피해 종류 · 살펴봄 · 태도 · 소지품 · 장비 · 스킬 형태 · 성장 — design/ 에만 ·
+        존재 지목과 그 대상이 주는 행동 — C027 (자리 지목은 C026 이 세웠다) ·
         재료의 생애 · 세계의 철 · 생명의 탄생 — Play 넷이 아직 남았다
 미사용   기반에 있으나 컨텐츠가 아직 안 쓰는 것 — 겹침 표면 · 칸 띠 · 터치 입력 · 이펙트 레이어 · 지면 구역 · 세계 영속
 ```
@@ -93,7 +111,9 @@ RuleBoundRoom(규칙을 관찰해 심장에 닿고, 두 번째 관찰자가 같�
 컴파일을 켤 때마다 두 번 한다 (세계 한 번 · 관찰자 한 번)      C005 → C006 ④ → C007 ③
 이동 **진행**은 traversable 을 보지 않는다 (막는 것은 요청 판정뿐)  C006 ③
 잠깐 뜨는 문구를 촬영이 잡지 못한다 (토스트는 HUD 훑기에 안 걸린다)  C006 ① → C008 ① → C009 ③④
-몸 뒤의 정체 모를 반투명 판 — 원인 미확정, 추측으로 손대지 않았다   C008 ⑦ → C009 ⑤ (화면을 만지는 레인이 먼저 집을 자리)
+몸 뒤의 정체 모를 반투명 판 — 원인 미확정, 추측으로 손대지 않았다   C008 ⑦ → C009 ⑤ (Observe 레인이 먼저 집을 자리)
+촬영 하네스에서 자판 걸음이 몸을 옮기지 못한다 (원인 미확정 — 실주행에서도 그런지 확인 필요)  C003
+80×80 방의 바닥 채움 눈금이 삼각형 상한에 걸려 조금 굵다 (뜬 거리 0.020)  C005
 재배열이 길을 **끊지 않는다** (바꾸는 것은 "갈 수 있는가" 가 아니라 "어느 길로 가는가")  C008 ② — X-⑥ 판정이 정한다
 심장은 P2 가 아니면 나올 수 없고 "돌아가기" 가 꺼내 주지 않는다     C009 ①② — **C010 에서 관찰자가 둘이 되면 실제로 겪힌다**
 검사 ①②④ 는 아직 빈 검사다 (resource · hazard · phenomenon layer 가 없다)  C007 ④ — 컨텐츠 층 주입이 채운다
@@ -101,6 +121,9 @@ observers.present 가 방 단위가 아니라 **세계 전체**의 수다 — �
 촬영이 사람의 걸음과 떠남을 밀지 못한다 — 캔버스 둘이면 이어짐의 왕복이 수십 초로 밀린다  C010 ①②
 Human 감사 — C005 의 표면 임계 15°(평지/비탈)는 문서 근거가 없는 기본형이다
 ```
+
+**부채가 아니라 할 일이 된 것** — 세계의 사실이 세계 위 글자·상시 HUD 로 늘 선불되던 것은
+**Observe 레인이 회수한다** (§1 · C026~C028). C026 이 자리를 세웠고 존재는 C027, 기록은 C028 이다.
 
 ## 6. 실행
 

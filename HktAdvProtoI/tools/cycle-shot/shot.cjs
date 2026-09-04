@@ -25,7 +25,8 @@
 //           { "pressUntil": "KeyQ", "wait": "잠겨", "tries": 10,      기대한 글자가 뜰 때까지 다시 누른다
 //             "blockedBy": "끊김" },                                   (선택) 이 글자가 사라진 뒤에 누른다
 //           { "hold": "KeyW", "ms": 1500 },         키를 누르고 있는다 (걷기 — 소프트웨어 GPU 에서는 짧게만)
-//           { "hold": "KeyW", "ms": 9000, "on": "companion" },   두 번째 관찰자가 걷는다 (press/hold/shot 에 붙는다)
+//           { "click": [0.5, 0.62], "alt": true },  화면의 그 자리를 누른다 (비율 0..1 · 보조키 선택)
+//           { "hold": "KeyW", "ms": 9000, "on": "companion" },   두 번째 관찰자가 걷는다 (press/hold/click/shot 에 붙는다)
 //           { "leave": "companion" },               두 번째 관찰자가 떠난다 (창을 닫는다 — 몸은 세계에 남는다)
 //           { "sleep": 1000 },
 //           { "expect": "문명권", "note": "X-⑤" },   HUD 글자에 있는가를 기록한다
@@ -173,6 +174,17 @@ async function runOne(run, index, report) {
         await target.keyboard.down(step.hold);
         await sleep(step.ms ?? 1000);
         await target.keyboard.up(step.hold);
+      } else if (step.click) {
+        // 화면 비율(0..1)로 누른다 — 화면 크기가 달라져도 같은 자리를 가리킨다.
+        // 보조키는 밝힌 것만 누른 채로 둔다 (지목처럼 보조키가 뜻을 가르는 경우).
+        // 대상 창은 다른 걸음과 같다 — "on": "companion" 이면 두 번째 관찰자가 누른다.
+        const size = target.viewportSize() ?? { width: 560, height: 420 };
+        const [rx, rz] = step.click;
+        const mods = ['alt', 'shift', 'control', 'meta'].filter((m) => step[m === 'control' ? 'ctrl' : m]);
+        for (const m of mods) await target.keyboard.down(m === 'control' ? 'Control' : m[0].toUpperCase() + m.slice(1));
+        await target.mouse.click(Math.round(size.width * rx), Math.round(size.height * rz));
+        for (const m of mods) await target.keyboard.up(m === 'control' ? 'Control' : m[0].toUpperCase() + m.slice(1));
+        await sleep(step.gap ?? 400);
       } else if (step.sleep !== undefined) {
         await sleep(step.sleep);
       } else if (step.expect !== undefined) {

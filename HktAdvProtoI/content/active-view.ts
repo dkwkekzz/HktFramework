@@ -18,3 +18,9 @@ export { TERRAIN_PALETTE, regionTerrain } from './view/terrain-presentation';
 // 조립이 기반의 notice 로 띄운다. **무엇을 언제 말할지는 여기(컨텐츠)가 정한다** — 조립은
 // 값이 있으면 띄우고 없으면 아무 일도 하지 않는다 (조립은 컨텐츠의 속을 알지 못한다).
 export { regionNotice } from './view/region-presentation';
+// 방에 들어선 순간 한 번 지나가는 제목 (C026 R4) — 지면에서 걷어낸 이름표가 간 자리다.
+// regionNotice 와 같은 어법이다: 무엇을 언제 말할지는 컨텐츠가 정하고 조립은 띄우기만 한다.
+export { regionEntryTitle } from './view/region-presentation';
+// 클릭 하나가 무슨 뜻인가 (C026 R3) — 기반은 집기(pick)까지만 하고 스스로 요청을 만들지 않는다.
+// 조립이 이 정책을 기반에 주입한다 (SPEC-007 경계).
+export { pointerRules, type Designation, type PointerOutcome } from './view/pointer-rules';

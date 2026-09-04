@@ -49,6 +49,18 @@ export function blockedReasonAt(world: CompiledWorldTerrain, x: number, z: numbe
 }
 
 /**
+ * 그 자리의 표면 태그 — 없으면 null (격자 밖이거나 표가 비었다).
+ *
+ * 통행·사유와 같은 vertexIndex 를 쓴다: 자리로 묻는 답들이 서로 다른 자리를 가리키면
+ * "지날 수 없는 젖은 땅" 이 한 점에서 갈린다. 태그의 뜻은 컨텐츠의 것이고 기반은 옮기기만 한다.
+ */
+export function surfaceAt(world: CompiledWorldTerrain, x: number, z: number): string | null {
+  const i = vertexIndex(world, x, z);
+  if (i < 0) return null;
+  return world.surfaceTags[world.surface[i] ?? 0] ?? null;
+}
+
+/**
  * 그 자리를 품는 area 들의 tag — layer 로 거른다. areas 순서(= ops 순서)를 유지하고,
  * 겹치면 걸린 것을 **전부** 낸다 — 하나로 줄이는 것은 기반의 결정이 아니다.
  */

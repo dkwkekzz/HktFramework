@@ -1,0 +1,138 @@
+{
+  "out": "shots",
+  "viewport": [
+    560,
+    420
+  ],
+  "runs": [
+    {
+      "spawn": "0,17",
+      "npcs": "none",
+      "steps": [
+        {
+          "wait": "세계 시간",
+          "tries": 60
+        },
+        {
+          "expect": "문명권",
+          "note": "X-① 백왕령에 들어와 있다"
+        },
+        {
+          "sleep": 600
+        },
+        {
+          "shot": "X-01-quiet-ground",
+          "note": "X-① 세계 위에 이름표가 하나도 없다 (C006 X-05 와 견준다)"
+        },
+        {
+          "click": [
+            0.5,
+            0.72
+          ],
+          "alt": true
+        },
+        {
+          "sleep": 500
+        },
+        {
+          "shot": "X-02-designate-a-place",
+          "note": "X-② 발밑 앞을 지목했다 — 판이 서고 표식이 그 자리에 앉는다"
+        },
+        {
+          "click": [
+            0.22,
+            0.86
+          ],
+          "alt": true
+        },
+        {
+          "sleep": 500
+        },
+        {
+          "shot": "X-03-another-place",
+          "note": "X-③ 다른 자리를 지목하면 답이 바뀐다"
+        }
+      ]
+    },
+    {
+      "spawn": "0,13",
+      "npcs": "none",
+      "steps": [
+        {
+          "wait": "세계 시간",
+          "tries": 60
+        },
+        {
+          "sleep": 600
+        },
+        {
+          "click": [
+            0.3,
+            0.46
+          ],
+          "alt": true
+        },
+        {
+          "sleep": 500
+        },
+        {
+          "shot": "X-04-blocked-before-walking",
+          "note": "X-④ 강 쪽을 지목한다 — 걸어가기 전에 못 지나가는 사유가 읽히는가"
+        },
+        {
+          "click": [
+            0.7,
+            0.4
+          ],
+          "alt": true
+        },
+        {
+          "sleep": 500
+        },
+        {
+          "shot": "X-04b-another-blocked",
+          "note": "X-④ 두 번째 겨냥 (둘 중 하나가 물·급경사에 닿는다)"
+        }
+      ]
+    },
+    {
+      "region": "FANTASY_MAZE",
+      "spawn": "-30,30",
+      "npcs": "none",
+      "steps": [
+        {
+          "wait": "세계 시간",
+          "tries": 60
+        },
+        {
+          "expect": "심부",
+          "note": "X-⑤ 환상의 미로 안이다"
+        },
+        {
+          "sleep": 600
+        },
+        {
+          "shot": "X-05-maze-quiet",
+          "note": "X-⑤ 구역과 통로가 색으로만 갈린다 — 글자가 없다"
+        },
+        {
+          "sleep": 500
+        },
+        {
+          "click": [
+            0.26,
+            0.74
+          ],
+          "alt": true
+        },
+        {
+          "sleep": 500
+        },
+        {
+          "shot": "X-06-maze-place",
+          "note": "X-⑥ 미로의 한 자리 — 구역·통로와 규칙 State(패턴·압력)가 함께 실리는가"
+        }
+      ]
+    }
+  ]
+}
