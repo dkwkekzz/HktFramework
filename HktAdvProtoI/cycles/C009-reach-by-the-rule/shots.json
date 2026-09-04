@@ -1,0 +1,282 @@
+{
+  "out": "shots",
+  "viewport": [
+    560,
+    420
+  ],
+  "_": "표식을 읽는 그림(X-①③)과 문에 묻는 그림(X-②④)을 나눠 찍는다 — 표식은 넷 떨어져야 크게 읽히고, 건너기 요청은 anchor 에 붙어야 닿는다 (INTERACTION_RANGE 2.0). 패턴 손잡이(HKT_REGION_PATTERN)는 P2 를 걸어서 부르는 대신 그 State 에서 시작하기 위한 것이다 — 압력이 그 패턴을 부른다는 것은 시나리오 테스트가 증명한다 (S-005).",
+  "runs": [
+    {
+      "_": "X-① DEFAULT — 심장 쪽 문은 채워진 자물쇠다",
+      "region": "FANTASY_MAZE",
+      "spawn": "26,30",
+      "npcs": "none",
+      "steps": [
+        {
+          "wait": "세계 시간",
+          "tries": 60
+        },
+        {
+          "sleep": 6000,
+          "note": "첫 run 은 vite 가 데워지지 않아 프레임이 느리다"
+        },
+        {
+          "hold": "KeyR",
+          "ms": 3000
+        },
+        {
+          "sleep": 1500
+        },
+        {
+          "hold": "KeyT",
+          "ms": 2000
+        },
+        {
+          "sleep": 1500
+        },
+        {
+          "expect": "압력",
+          "note": "미로다 — 규칙을 품은 방에는 압력 줄이 있다"
+        },
+        {
+          "shot": "X-01-heart-gate-locked",
+          "note": "X-① 몸 오른쪽 넷 앞의 심장 쪽 문 — 채워진 자물쇠"
+        }
+      ]
+    },
+    {
+      "_": "X-② 잠긴 문에 붙어서 묻는다",
+      "region": "FANTASY_MAZE",
+      "spawn": "30,30",
+      "npcs": "none",
+      "steps": [
+        {
+          "wait": "세계 시간",
+          "tries": 60
+        },
+        {
+          "sleep": 5000
+        },
+        {
+          "hold": "KeyR",
+          "ms": 2000
+        },
+        {
+          "sleep": 1500
+        },
+        {
+          "pressUntil": "KeyQ",
+          "wait": "잠겨",
+          "tries": 10
+        },
+        {
+          "sleep": 800
+        },
+        {
+          "expect": "잠겨",
+          "note": "X-② connector-inactive — C002 부터 쓰던 그 문구 그대로다"
+        },
+        {
+          "shot": "X-02-locked-answer",
+          "note": "X-② 잠긴 문의 대답. 몸은 그 자리 그대로다"
+        }
+      ]
+    },
+    {
+      "_": "X-③ P2 — 같은 자리 같은 몸인데 자물쇠가 사라진다",
+      "region": "FANTASY_MAZE",
+      "spawn": "26,30",
+      "npcs": "none",
+      "pattern": "FANTASY_MAZE:P2",
+      "steps": [
+        {
+          "wait": "세계 시간",
+          "tries": 60
+        },
+        {
+          "sleep": 5000
+        },
+        {
+          "hold": "KeyR",
+          "ms": 3000
+        },
+        {
+          "sleep": 1500
+        },
+        {
+          "hold": "KeyT",
+          "ms": 2000
+        },
+        {
+          "sleep": 1500
+        },
+        {
+          "expect": "압력",
+          "note": "아직 미로다 — X-① 과 같은 자리 같은 몸이다"
+        },
+        {
+          "shot": "X-03-heart-gate-open",
+          "note": "X-③ X-① 과 나란히 놓고 본다. 바뀐 것은 방의 패턴뿐이다 (P2)"
+        }
+      ]
+    },
+    {
+      "_": "X-④ 열린 문을 건너면 심장이다",
+      "region": "FANTASY_MAZE",
+      "spawn": "30,30",
+      "npcs": "none",
+      "pattern": "FANTASY_MAZE:P2",
+      "steps": [
+        {
+          "wait": "세계 시간",
+          "tries": 60
+        },
+        {
+          "sleep": 5000
+        },
+        {
+          "hold": "KeyR",
+          "ms": 2000
+        },
+        {
+          "sleep": 1500
+        },
+        {
+          "pressUntil": "KeyQ",
+          "wait": "^(?=[\\s\\S]*세계 시간)(?![\\s\\S]*압력)",
+          "tries": 12,
+          "note": "건너면 압력 줄이 사라진다 — 그것이 멈춤 신호다. HUD 에는 방 이름이 없다"
+        },
+        {
+          "sleep": 2000
+        },
+        {
+          "hold": "KeyR",
+          "ms": 1500
+        },
+        {
+          "sleep": 1500
+        },
+        {
+          "expect": "심부",
+          "note": "심장도 깊이는 심부다"
+        },
+        {
+          "shot": "X-04-the-heart",
+          "note": "X-④ 미로의 심장. 압력 줄이 사라진 것이 건넜다는 표다"
+        }
+      ]
+    },
+    {
+      "_": "X-⑤ 심장에는 규칙이 없다 · 정원 쪽 문은 아직 갈 수 없는 곳이다",
+      "region": "MAZE_HEART",
+      "spawn": "0,16",
+      "npcs": "none",
+      "steps": [
+        {
+          "wait": "세계 시간",
+          "tries": 60
+        },
+        {
+          "sleep": 5000
+        },
+        {
+          "hold": "KeyR",
+          "ms": 2000
+        },
+        {
+          "sleep": 1500
+        },
+        {
+          "shot": "X-05-heart-has-no-rule",
+          "note": "X-⑤ 압력 줄이 아예 없다 — 심장은 규칙을 품지 않은 방이다"
+        },
+        {
+          "pressUntil": "KeyQ",
+          "wait": "아직 갈 수 없는",
+          "tries": 10
+        },
+        {
+          "sleep": 800
+        },
+        {
+          "expect": "아직 갈 수 없는",
+          "note": "X-⑤ 뒤집힌 정원 — 문만 서 있고 방은 이 Play 밖이다"
+        },
+        {
+          "shot": "X-06-garden-door",
+          "note": "X-⑤ 정원 쪽 문의 대답. C002 가 세운 사유 그대로다"
+        }
+      ]
+    },
+    {
+      "_": "X-⑥ 미로의 명령 표면에 돌아가기가 있다",
+      "region": "FANTASY_MAZE",
+      "spawn": "30,30",
+      "npcs": "none",
+      "steps": [
+        {
+          "wait": "세계 시간",
+          "tries": 60
+        },
+        {
+          "sleep": 5000
+        },
+        {
+          "press": "Slash"
+        },
+        {
+          "sleep": 1500
+        },
+        {
+          "press": "KeyE",
+          "times": 1,
+          "note": "한 글자로 걸러 emergency-return 을 고른다"
+        },
+        {
+          "sleep": 1500
+        },
+        {
+          "shot": "X-07-command-return",
+          "note": "X-⑥ 명령 표면 — 미로에서는 걸 수 있다. expect 는 HUD 만 읽어 이 글자를 못 본다(그림이 증거)"
+        }
+      ]
+    },
+    {
+      "_": "X-⑦ 비상 자리가 없는 방에서는 걸 수 없다 (회귀) — 백왕령",
+      "region": "WHITE_KING_DOMAIN",
+      "spawn": "0,-2",
+      "npcs": "none",
+      "steps": [
+        {
+          "wait": "세계 시간",
+          "tries": 60
+        },
+        {
+          "sleep": 4000
+        },
+        {
+          "expect": "문명권",
+          "note": "백왕령은 그대로다"
+        },
+        {
+          "press": "Slash"
+        },
+        {
+          "sleep": 1500
+        },
+        {
+          "press": "KeyE",
+          "times": 1
+        },
+        {
+          "sleep": 1500
+        },
+        {
+          "shot": "X-08-no-emergency-exit",
+          "note": "X-⑦ 같은 명령을 미로 밖에서 본 것 — 방의 성질이라 걸 수 없다"
+        }
+      ]
+    }
+  ]
+}

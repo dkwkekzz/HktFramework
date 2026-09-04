@@ -14,6 +14,7 @@
 //       { "spawn": "0,17",                  (선택) 관찰자의 몸이 처음 놓일 자리 — vite.config.ts 의 검증용 손잡이
 //         "region": "FOREST_DEEP",           (선택) 어느 방에서 — 방이 여럿일 때 (같은 손잡이)
 //         "npcs": "none",                    (선택) 자율 존재 없이 — 맞아 쓰러지면 조작이 이어지지 않을 때
+//         "pattern": "FANTASY_MAZE:P2",      (선택) 규칙을 품은 방이 어느 패턴으로 서는가 (같은 손잡이)
 //         "steps": [
 //           { "wait": "세계 시간", "tries": 60 },   HUD 글자가 정규식에 맞을 때까지 초 단위로 되묻는다
 //           { "press": "KeyT", "times": 4 },        키를 누른다 (한 번 누르는 키 — 느린 프레임에서도 이어진다)
@@ -44,7 +45,7 @@ const outDir = path.resolve(baseDir, scenario.out ?? 'shots');
 fs.mkdirSync(outDir, { recursive: true });
 const [vw, vh] = scenario.viewport ?? [560, 420];
 
-function startVite(spawnAt, npcs, region) {
+function startVite(spawnAt, npcs, region, regionPattern) {
   const env = { ...process.env };
   if (spawnAt) env.HKT_SPAWN = spawnAt;
   else delete env.HKT_SPAWN;
@@ -53,6 +54,9 @@ function startVite(spawnAt, npcs, region) {
   else delete env.HKT_SPAWN_REGION;
   if (npcs === 'none') env.HKT_NPCS = 'none';
   else delete env.HKT_NPCS;
+  // 규칙을 품은 방이 어느 패턴으로 서는가 — "REGION:PATTERN" (C009 · vite.config.ts 의 같은 손잡이)
+  if (regionPattern) env.HKT_REGION_PATTERN = regionPattern;
+  else delete env.HKT_REGION_PATTERN;
   const child = spawn(
     process.platform === 'win32' ? 'npx.cmd' : 'npx',
     ['vite', '--port', String(PORT), '--strictPort'],
@@ -93,7 +97,7 @@ async function until(page, ok, tries) {
 }
 
 async function runOne(run, index, report) {
-  const vite = await startVite(run.spawn, run.npcs, run.region);
+  const vite = await startVite(run.spawn, run.npcs, run.region, run.pattern);
   const browser = await launch();
   const page = await browser.newPage({ viewport: { width: vw, height: vh } });
   const errors = collectErrors(page);

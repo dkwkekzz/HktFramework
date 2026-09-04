@@ -15,7 +15,7 @@ import type { ActorState } from './semantic/actor';
 import type { ItemKind } from './semantic/item';
 import type { WorldPosition } from './semantic/position';
 import { START_REGION } from './semantic/region';
-import { createRegionStates } from './semantic/region-state';
+import { applyPatternSetup, createRegionStates } from './semantic/region-state';
 import { spawnActor } from './semantic/spawn';
 import {
   SPAWN_POINTS,
@@ -57,6 +57,21 @@ export interface WorldSetup {
   npcs?: NpcSetup[];
   /** 속성 변경을 허용할 것인가 (World.DebugAuthority). 요청으로는 바꿀 수 없다 */
   debugAuthority?: boolean;
+  /**
+   * 규칙을 품은 방이 **어느 패턴으로 서는가** — 검증·촬영용 초기 배치 (C009 ADDED).
+   *
+   * actorPosition · actorRegion 과 같은 갈래의 손잡이다: 걸어서 닿을 수 있는 State 를
+   * 걸어가지 않고 시작하기 위한 것이며 **세계의 규칙을 하나도 바꾸지 않는다.**
+   * 여기서 세운 패턴도 그 다음부터는 압력이 굴린다 (RULE-MAZE-CONNECTION-001 그대로).
+   *
+   * 왜 필요한가 — 심장 쪽 문이 열리는 P2 는 임계를 **두 번** 넘겨야 온다. 소프트웨어 GPU 로
+   * 도는 촬영 하네스에서 그것은 몇 분의 걷기이고, 넘겨서 세 번째가 오면 문이 다시 잠긴다.
+   * 규칙이 그 문을 여는 것(압력 → 패턴 → 문)은 시나리오 테스트가 증명하고,
+   * 그림은 **그 State 에서 무엇이 보이는가**를 보인다.
+   *
+   * 모르는 방 이름 · 그 방에 없는 패턴 이름은 조용히 무시한다 — 손잡이가 세계를 깨뜨리지 않는다.
+   */
+  regionPatterns?: Record<string, string>;
 }
 
 // 세계의 기본 배치 — 자율 캐릭터 둘이 각자의 순회 경로를 돈다. 자리는 START_REGION 의 Local Space 좌표다 (C001 R4).
@@ -159,7 +174,7 @@ export function createWorld(setup: WorldSetup = {}, restored?: WorldState): Worl
     strikeEvents: [],
     // 규칙을 품은 방마다 첫 패턴 · 압력 0 으로 선다 (C008). 되살린 세계는 이 자리에 오지 않는다 —
     // Region State 는 저장되는 State 이므로 스냅샷의 그 순간 값이 그대로 이어진다.
-    regionStates: createRegionStates(),
+    regionStates: applyPatternSetup(createRegionStates(), setup.regionPatterns),
     // 속성 변경 권한은 세계 밖(세계를 띄우는 쪽)이 정한다.
     // 기본은 열려 있다: 이 프로토타입은 관찰과 시험이 목적이며, 닫으려면 세계를 그렇게 띄운다.
     debugAuthority: { open: setup.debugAuthority ?? true },
