@@ -14,7 +14,12 @@ import { resolvePresentation } from '../resolve';
 import { descriptionHash } from '../../../engine/world-authoring/description';
 import { regionSpec } from '../../regions/index';
 import { REGISTERED_SPRITE_IDS } from '../sprites';
-import { DEPTH_PRESENTATIONS, TRANSITION_TINTS, regionName } from '../region-presentation';
+import {
+  DEPTH_PRESENTATIONS,
+  TRANSITION_TINTS,
+  regionEntryTitle,
+  regionName,
+} from '../region-presentation';
 import treeInnerWorld from './fixtures/region-tree-inner-world.fixture.json';
 import heartLake from './fixtures/region-heart-lake.fixture.json';
 
@@ -84,14 +89,16 @@ describe('② 심부 — depth 태그가 넷이 된다', () => {
     expect(luma(deep!.fill)).not.toBe(luma(wild!.fill));
   });
 
-  it('큰 방에 서면 바닥이 deep 색으로 칠해지고 이름이 붙는다', () => {
+  // C026 CHANGED (SPEC-008) — 지면의 이름표를 걷었다. 이름은 들어선 순간의 제목이 말한다
+  it('큰 방에 서면 바닥이 deep 색으로 칠해지고, 이름은 진입 제목이 말한다', () => {
     const plan = resolvePresentation(inner);
 
     expect(plan.zones).toHaveLength(1);
     const zone = plan.zones[0]!;
     expect(zone.id).toBe('region:TREE_INNER_WORLD');
     expect(zone.fill?.color).toBe((DEPTH_PRESENTATIONS as Record<string, { fill: number }>).deep!.fill);
-    expect(zone.label).toBe('거목 내부 세계');
+    expect(zone.label).toBeUndefined();
+    expect(regionEntryTitle(inner, 'RED_EYE_TREE')).toContain('거목 내부 세계');
   });
 
   it('HUD 깊이가 심부를 읽는다 — 야생 다음 한 마디', () => {
@@ -198,7 +205,7 @@ describe('⑥ 물길로 나온 자리 — 아까 그 방인데 선 자리가 다
         ],
       ),
     );
-    expect(plan.zones[0]?.label).toBe('숲 안쪽');
+    expect(plan.zones[0]?.label).toBeUndefined(); // C026 SPEC-008 — 지면에 글자가 없다
     expect(plan.zones[0]?.fill?.color).toBe(
       (DEPTH_PRESENTATIONS as Record<string, { fill: number }>).wild!.fill,
     );

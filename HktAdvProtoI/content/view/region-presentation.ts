@@ -6,7 +6,13 @@
 //
 // 바닥의 모양은 클라이언트가 자기 Description(content/regions)을 읽어 그린다 (Plan §3.5).
 // 세계가 보낸 hash 와 그 Description 의 hash 가 다르면 — 세계와 다른 땅을 보고 있는 것이므로 —
-// 이름 뒤에 그 사실을 한 줄 붙인다. 판정은 만들지 않는다: 그리기만 계속한다.
+// 그 사실을 말한다. 판정은 만들지 않는다: 그리기만 계속한다.
+//
+// C026 CHANGED — **지면 구역의 이름표를 전부 걷었다** (R4 · SPEC-008). 방 바닥도, 조건 셋도,
+// 도시도, 구역도, 통로도 색과 경계로만 갈린다. 이름은 두 자리로 옮겨 갔다:
+//   ① 들어선 순간 한 번 지나가는 제목        regionEntryTitle (확정 4)
+//   ② 물었을 때 판이 답하는 줄               target-frame-presentation / place-reading
+// hash 어긋남도 함께 옮겼다 — 늘 떠 있던 이름 뒤가 아니라 ①의 제목과 ②의 판에서 말한다.
 //
 // 색의 기준 — L2-World-Concept §16 "저기 가보고 싶다 → 근데 들어가도 되나". depth 가 깊어질수록
 // 색이 어두워지고 차가워진다 (§3.2: civil = 문명권, outer = 익숙한 자연, wild = 아무도 돌보지 않는 야생).
@@ -199,7 +205,7 @@ export function settlementZonePresentation(tag: string): SettlementZonePresentat
 // WHITE_GIANT_TREE 와 같은 이유다 — 표현 표는 세계의 코드를 키로 받아 적는다.
 // 통로 layer 만은 적지 않는다: 그것은 **규칙이 스스로 밝히는 값**이므로(rule.passageLayer)
 // 데이터가 다른 이름을 쓰면 화면도 함께 따라가야 한다.
-const CELL_LAYER = 'cell';
+export const CELL_LAYER = 'cell';
 
 /**
  * 구역 태그 → 바닥 색. 넷은 색상만 다르고 밝기·채도의 자리는 같다 —
@@ -283,7 +289,7 @@ export const REARRANGE_PULSE_SECONDS = 4;
  * 이름을 모르는 패턴이면 null 이다 — 빈 집합(= 전부 닫힘)으로 읽지 않는다. 그것은 세계가
  * 하지 않은 말이고, 모름과 닫힘은 다른 것이다.
  */
-function openPassageTags(
+export function openPassageTags(
   spec: { rule?: { patterns: readonly { name: string; open: readonly string[] }[] } },
   pattern: string | undefined,
 ): ReadonlySet<string> | null {
@@ -309,6 +315,41 @@ export function regionNotice(observed: CoreGameViewSnapshot): string | undefined
   return codeText('maze-rearranged');
 }
 
+/** 방 이름과 깊이(그리고 어긋남)를 잇는 말 — 목록 구분자다(문장을 짓지 않는다) */
+const ENTRY_TITLE_SEPARATOR = ' — ';
+
+/** 깊이 태그가 실린 HUD 줄 */
+const DEPTH_HUD_ID = 'region.depth';
+
+/**
+ * RULE-QUIET-GROUND-001 — **방에 들어선 프레임에만** 그 방의 이름이 한 번 지나간다 (C026 R4).
+ *
+ * 지면에서 걷어낸 글자가 갈 자리다 (SPEC-008 · SPEC-010). 조립이 직전 프레임의 방 id 를
+ * 쥐고 있다가 넘기고, 같은 방이면 여기서 침묵한다 — 같은 방에 머무는 동안 다시 뜨지 않고,
+ * 방을 옮기면 다시 한 번 뜬다. 화면이 이 값을 기억하지 않는 것은 regionNotice 와 같은 규율이다.
+ *
+ * hash 어긋남을 여기 붙이는 이유: 그것은 **자리의 사실이 아니라 방 전체의 사실**이므로,
+ * 지목하지 않은 사람도 알아야 한다. 늘 떠 있던 이름 뒤(C001)에서 이리로 옮긴 것이며,
+ * 지목했을 때는 판이 같은 사실을 한 번 더 적는다 (SPEC-005).
+ */
+export function regionEntryTitle(
+  observed: CoreGameViewSnapshot,
+  previousRegionId: string | undefined,
+): string | undefined {
+  const snapshot = observed as GameViewSnapshot;
+  const region = snapshot.region;
+  if (!region || region.id === previousRegionId) return undefined;
+  const parts = [regionName(region.id)];
+  const depth = snapshot.hud.find((h) => h.id === DEPTH_HUD_ID)?.value;
+  if (typeof depth === 'string') parts.push(codeText(depth));
+  const spec = regionSpec(region.id);
+  // 모르는 방은 어긋남을 말하지 않는다 — 대조할 내 데이터가 없는 것과 다른 땅을 보는 것은 다르다
+  if (spec && descriptionHash(spec.space) !== region.hash) {
+    parts.push(codeText('region.hash-mismatch'));
+  }
+  return parts.join(ENTRY_TITLE_SEPARATOR);
+}
+
 /** 봉투가 싣고 온 세계 시각 — HUD 한 줄이 그 값이다 (resolve 가 읽는 자리와 같다) */
 function worldTimeOf(snapshot: GameViewSnapshot): number {
   return Number(snapshot.hud.find((h) => h.id === 'world.time')?.value ?? 0);
@@ -332,12 +373,6 @@ export function regionZones(
   if (!spec) return [];
 
   const depth = depthPresentation(spec.depth);
-  const name = regionName(spec.id);
-  // 세계가 보낸 hash 와 내 데이터의 hash 가 다르다 — 그 사실을 이름 뒤에 붙인다 (최소 구현)
-  const label =
-    descriptionHash(spec.space) === region.hash
-      ? name
-      : `${name} — ${codeText('region.hash-mismatch')}`;
 
   return [
     {
@@ -345,7 +380,8 @@ export function regionZones(
       shape: { kind: 'polygon', points: extentPolygon(spec.space.extent) },
       fill: { color: depth.fill, opacity: depth.fillOpacity },
       edge: { color: depth.edge, opacity: depth.edgeOpacity, width: REGION_EDGE_WIDTH },
-      label,
+      // 이름표를 붙이지 않는다 (C026 R4 — RULE-QUIET-GROUND-001). 방 이름은 들어선
+      // 순간 regionEntryTitle 이 한 번 지나가게 하고, 그 뒤 지면에는 글자가 없다
     },
     // 조건 셋과 도시 (C006) — area op 의 모양(polygon · circle)이 그대로 zone 의 모양이다.
     // area 가 없는 방에서는 이 목록이 비고, 그러면 방 바닥 하나만 그려진다 (C005 그대로).
@@ -357,8 +393,8 @@ export function regionZones(
         shape: area.shape,
         fill: { color: p.fill, opacity: p.fillOpacity },
         edge: { color: p.edge, opacity: p.edgeOpacity, width: p.edgeWidth },
-        // 이름표는 세계가 준 태그를 문구로 옮긴 것이다 — 모르는 태그는 코드 그대로 뜬다
-        label: codeText(area.tag),
+        // 이름표를 걷었다 (C026 R4). 조건 셋과 도시는 색과 경계로만 갈리고, 그 자리가
+        // 무엇인지는 **물었을 때** 판이 답한다 (place-reading 의 'place.settlement' 줄)
       };
     }),
     // 구역 넷 (C008) — 통로보다 **먼저** 놓는다. 통로는 구역이 맞닿는 자리에 겹쳐 놓이므로
