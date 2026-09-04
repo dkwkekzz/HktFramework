@@ -1,0 +1,81 @@
+{
+  "out": "shots",
+  "viewport": [560, 420],
+  "runs": [
+    {
+      "_": "X-①② 미로에 들어선 자리 — 입구 anchor(−30, 30) 는 구역 A 안이다. 식물과 구역 색을 본다",
+      "region": "FANTASY_MAZE",
+      "spawn": "-30,30",
+      "npcs": "none",
+      "steps": [
+        { "wait": "세계 시간", "tries": 60 },
+        { "sleep": 6000, "note": "첫 run 은 vite 가 데워지지 않아 프레임이 느리다" },
+        { "hold": "KeyR", "ms": 2000 },
+        { "sleep": 1500 },
+        { "expect": "법칙이 낯설어지는 심부", "note": "미로는 depth deep 이다" },
+        { "expect": "압력", "note": "X-⑤ 규칙을 품은 방에는 압력 줄이 있다" },
+        { "shot": "X-01-enter-the-maze", "note": "X-①② 구역 A 에 섰다. 구역 색과 그 안의 식물, 그리고 HUD 의 압력" }
+      ]
+    },
+    {
+      "_": "X-③ 구역 A 의 한가운데(−20, 20) 에서 식물을 가까이 본다",
+      "region": "FANTASY_MAZE",
+      "spawn": "-20,24",
+      "npcs": "none",
+      "steps": [
+        { "wait": "세계 시간", "tries": 60 },
+        { "sleep": 5000 },
+        { "hold": "KeyR", "ms": 1500 },
+        { "sleep": 1500 },
+        { "shot": "X-02-clue-plant", "note": "X-③ 구역 A 의 식물 — 구역마다 다른 빛깔의 고사리가 이름표다" }
+      ]
+    },
+    {
+      "_": "X-④ 네거리 — DEFAULT 에서는 대각선(네거리)이 닫혀 있다. 한가운데로 들어서려 해 본다",
+      "region": "FANTASY_MAZE",
+      "spawn": "0,12",
+      "npcs": "none",
+      "steps": [
+        { "wait": "세계 시간", "tries": 60 },
+        { "sleep": 5000 },
+        { "hold": "KeyR", "ms": 2000 },
+        { "sleep": 1000 },
+        { "hold": "KeyS", "ms": 6000, "note": "남으로 — 닫힌 네거리로 들어서려 한다" },
+        { "sleep": 1500 },
+        { "shot": "X-03-closed-passage", "note": "X-④ 닫힌 통로 앞. 채워진 어두운 막대가 벽이고, 들어서려 하면 세계가 거절한다" }
+      ]
+    },
+    {
+      "_": "X-⑤⑥ 걸어서 압력을 채운다 — 열린 복도 AB(폭 8, z 8~40) 를 오래 걷는다. 임계 120 이고 속도 6/s 이므로 20초 남짓 걸어야 넘친다",
+      "region": "FANTASY_MAZE",
+      "spawn": "0,36",
+      "npcs": "none",
+      "steps": [
+        { "wait": "세계 시간", "tries": 60 },
+        { "sleep": 5000 },
+        { "hold": "KeyR", "ms": 2000 },
+        { "sleep": 1000 },
+        { "hold": "KeyS", "ms": 9000, "note": "복도를 남으로" },
+        { "shot": "X-04-pressure-rising", "note": "X-⑤ 걸을수록 압력이 오른다 — 얼마나 찼는지가 HUD 에 있다" },
+        { "hold": "KeyW", "ms": 9000, "note": "되돌아 북으로" },
+        { "hold": "KeyS", "ms": 9000, "note": "다시 남으로 — 넘길 때까지" },
+        { "hold": "KeyW", "ms": 9000 },
+        { "sleep": 2000 },
+        { "expect": "길이 바뀌었다", "note": "X-⑥ 넘치는 순간의 세계의 대답" },
+        { "shot": "X-05-rearranged", "note": "X-⑥ 압력이 넘쳐 길이 바뀌었다 — 통로의 열림/닫힘이 뒤집히고 그 자리가 맥동한다" }
+      ]
+    },
+    {
+      "_": "X-⑦ 규칙이 없는 방에는 압력도 통로도 없다 (회귀) — 백왕령",
+      "region": "WHITE_KING_DOMAIN",
+      "spawn": "0,-2",
+      "npcs": "none",
+      "steps": [
+        { "wait": "세계 시간", "tries": 60 },
+        { "sleep": 4000 },
+        { "expect": "문명권", "note": "백왕령은 그대로다" },
+        { "shot": "X-06-room-without-rule", "note": "X-⑦ 규칙 없는 방 — 압력 줄이 아예 없고 화면은 C007 과 같다" }
+      ]
+    }
+  ]
+}
