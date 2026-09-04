@@ -138,15 +138,18 @@ describe('④ 건너기 — transit interaction 에 키와 프롬프트가 붙�
   });
 });
 
-describe('⑤ 깊이 문구 — hud region.depth 의 태그가 문구로 바뀐다', () => {
+// C027 CHANGED — 깊이는 상시 HUD 를 떠나 판의 줄이 되었다 (SPEC-006). 문구를 옮기는
+// 규칙 자체는 그대로이므로, 재는 자리만 옮긴다.
+const depthRow = (v: GameViewSnapshot) =>
+  resolvePresentation(v).targetFrame?.rows.find((r) => r.id === 'place.depth');
+
+describe('⑤ 깊이 문구 — region.depth 의 태그가 판의 줄에서 문구로 바뀐다', () => {
   it('civil → 문명권', () => {
-    const depth = resolvePresentation(civil).hud.find((h) => h.id === 'region.depth');
-    expect(depth).toMatchObject({ widget: 'label', label: '깊이', value: '문명권' });
+    expect(depthRow(civil)).toMatchObject({ label: '깊이', value: '문명권' });
   });
 
   it('outer → 문명의 경계를 넘었다', () => {
-    const depth = resolvePresentation(outer).hud.find((h) => h.id === 'region.depth');
-    expect(depth).toMatchObject({ widget: 'label', label: '깊이', value: '문명의 경계를 넘었다' });
+    expect(depthRow(outer)).toMatchObject({ label: '깊이', value: '문명의 경계를 넘었다' });
   });
 
   it('건너기 거절 사유(unknown-connector · wrong-region)도 문구가 있다', () => {

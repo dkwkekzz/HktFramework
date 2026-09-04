@@ -250,22 +250,28 @@ describe('SPEC-001 지목하면 판이 선다', () => {
     }
   });
 
-  it('S-002 (경계) 지목하지 않았으면 판이 없다', () => {
+  // C027 CHANGED — 이 둘이 재던 "판이 없다" 는 C027 SPEC-005 가 갈아엎었다: 지목이 없으면
+  // 판은 **내가 선 자리**를 진다. 남는 주장은 "지목한 것의 판이 아니다" 와 "표식이 없다" 이고,
+  // 그것이 이 Cycle 의 경계였다 — 세계 위에 아무도 지목하지 않은 자국이 남지 않는 것.
+  it('S-002 (경계) 지목하지 않았으면 지목의 표식이 없다', () => {
     // Given 같은 화면 / When 아무것도 지목하지 않는다
     const scene = look(civil);
-    // Then 판 자체가 없다 — 빈 판을 세우지 않는다
-    expect(scene.targetFrame).toBeUndefined();
+    // Then 세계 위에 표식이 없다 — 아무도 지목하지 않은 자리를 표시하면 그것이 거짓말이다
+    expect(scene.highlight).toBeUndefined();
+    // 그리고 판이 서더라도 그것은 **지목한 자리**의 판이 아니다 (C027 SPEC-005)
+    expect(scene.targetFrame?.title).not.toBe(designate(civil, FLAT.x, FLAT.z).targetFrame?.title);
   });
 
-  it('S-003 (경계) 지목을 풀면 판이 사라진다', () => {
+  it('S-003 (경계) 지목을 풀면 지목한 것의 판과 표식이 사라진다', () => {
     // Given 지목해 판이 선 상태 / When 지목을 놓고 같은 봉투를 다시 읽는다
-    expect(designate(civil, FLAT.x, FLAT.z).targetFrame).toBeDefined();
+    const designated = designate(civil, FLAT.x, FLAT.z);
+    expect(designated.targetFrame).toBeDefined();
     const cleared = resolvePresentation(civil, undefined, {} as Parameters<
       typeof resolvePresentation
     >[2]) as Scene;
-    // Then 판이 없다
-    expect(cleared.targetFrame).toBeUndefined();
+    // Then 표식이 없고, 판은 지목했을 때의 그 판이 아니다
     expect(cleared.highlight).toBeUndefined();
+    expect(cleared.targetFrame?.subtitle).not.toBe(designated.targetFrame?.subtitle);
   });
 
   it('S-004 내가 누른 자리가 세계 안에서 강조된다 — 누른 것과 판이 말하는 것이 같은 자리다', () => {
@@ -524,7 +530,8 @@ describe('SPEC-006 지목은 세계에 아무것도 보내지 않는다', () => 
     const otherAfter = look(snapshot);
     // Then 지목하지 않은 쪽의 화면은 한 자리도 다르지 않다 (지목은 관찰자가 쥔다 — 확정 7)
     expect(otherAfter).toEqual(otherBefore);
-    expect(otherAfter.targetFrame).toBeUndefined();
+    // C027 CHANGED — 그쪽에도 판은 선다(자기 발밑). 남는 주장은 **표식이 없다** 는 것이다
+    expect(otherAfter.highlight).toBeUndefined();
   });
 
   it.todo(

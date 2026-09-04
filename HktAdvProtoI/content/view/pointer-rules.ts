@@ -40,8 +40,11 @@ export type PointerOutcome =
  * Ctrl·Meta 는 브라우저·창 관리자가 먼저 가져가는 조합이다. 남는 하나가 Alt 다.
  *
  * TODO 감사 항목 — 이것은 표현·입력의 결정이지 세계 의미가 아니다.
+ *
+ * C027 CHANGED — **원본인 채로** 밖으로 나간다. 조작 안내가 "지목하는 법" 을 적으려면
+ * 이 값을 읽어야 하고(R6), 사본을 두면 키를 바꿨을 때 화면이 없는 키를 안내하게 된다.
  */
-const DESIGNATE_MODIFIER = 'alt' as const;
+export const DESIGNATE_MODIFIER = 'alt' as const;
 
 /**
  * RULE-POINTER-INTENT-001 — 집은 것을 요청 또는 지목으로 옮긴다 (spec R3).

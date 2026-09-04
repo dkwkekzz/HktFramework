@@ -95,11 +95,12 @@ describe('④ 야생 — depth 태그가 셋이 된다', () => {
     expect(regionEntryTitle(observed, 'FOREST_EDGE')).toContain('숲 안쪽');
   });
 
-  it('HUD 깊이가 야생을 읽는다 — 문명권 · 경계 다음 한 마디', () => {
-    const depth = resolvePresentation(snapshot('FOREST_DEEP', 'wild', [])).hud.find(
-      (h) => h.id === 'region.depth',
+  // C027 CHANGED — 깊이를 재는 자리가 상시 HUD 에서 판의 줄로 옮겨 갔다 (SPEC-006)
+  it('판의 깊이 줄이 야생을 읽는다 — 문명권 · 경계 다음 한 마디', () => {
+    const depth = resolvePresentation(snapshot('FOREST_DEEP', 'wild', [])).targetFrame?.rows.find(
+      (r) => r.id === 'place.depth',
     );
-    expect(depth).toMatchObject({ widget: 'label', label: '깊이', value: '아무도 돌보지 않는 야생' });
+    expect(depth).toMatchObject({ label: '깊이', value: '아무도 돌보지 않는 야생' });
   });
 
   it('막다른 방 셋의 이름도 표에 있다 — 방을 더하는 것은 표 한 줄이다', () => {
@@ -220,7 +221,8 @@ describe('폴백 — 미등록 값이 와도 화면은 멈추지 않는다 (Play
 
     // 바닥은 spec 의 depth(wild)로 칠해진다 — hud 의 값은 문구만 정한다
     expect(plan.zones).toHaveLength(1);
-    expect(plan.hud.find((h) => h.id === 'region.depth')?.value).toBe('abyss'); // 미등록 코드는 코드 그대로
+    // 미등록 코드는 코드 그대로 (C027 — 깊이는 판의 줄이다)
+    expect(plan.targetFrame?.rows.find((r) => r.id === 'place.depth')?.value).toBe('abyss');
     expect(plan.interactions[0]?.unavailableText).toBe('some-new-reason');
   });
 
