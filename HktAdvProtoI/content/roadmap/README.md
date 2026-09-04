@@ -56,7 +56,7 @@ content/  그 위에 놓이는 이 세계          컨텐츠 층  미지를 놓�
 |---|---|---|---|---|---|---|
 | 0 | 게임 방향 | 핵심 경험 한 단락 + Core Breath + 핵심 문장 | `L0-Game.md` 가 원문을 소유한다 | 없음 — 판단 기준일 뿐 | `L0-Game.md` | **확정** |
 | 1 | 세계의 문법 | 무엇이 존재하고 무엇이 변하는가 — 존재·상태·주체·법칙·시간 (주체가 행동을 **고르는** 과정은 3층) | `Design-Concept.md` | 없음 — 코드가 이미 이 문법 위에 있음 | `L1-World-Grammar.md` | **확정** |
-| 2 | 세계 자체 | **도구 절반** — 세계를 쓰는 문법과 컴파일러 (engine) · **세계 절반** — ① 세계관 컨셉 ② 세계 content 구성(Region Graph · Region Rule · Connector · 중첩) ②-부속 재료 생태와 공급 계약(원천 · 흔적 · 생애 · 공급 · 흐름) · ②-부속 둘째 세계의 시간과 위상(낮밤 · 철 · Region 위상 · 소란 · 압도적 존재의 경로) | 도구: `Design-World-Editor-Terrain-Compiler.md` (WE) · `Plan-World-Authoring-Engine.md` · 도구 2단계(작성기): `L2-World-Tool-Scale.md`(제안) · 세계: 주입 원문은 결과물 안에 |안전권을 나서 깊이가 달라지는 것을 본다 — 백왕령(civil) ⇄ 거대 악마의 숲(outer) | `L2-World-Tool.md` · `L2-World-Concept.md` · `L2-World-Region.md` · `L2-World-Material.md` · `L2-World-Time.md` · `play/` 의 Play 다섯 | **다음** — C001~C005 닫힘 |
+| 2 | 세계 자체 | **도구 절반** — 세계를 쓰는 문법과 컴파일러 (engine) · **세계 절반** — ① 세계관 컨셉 ② 세계 content 구성(Region Graph · Region Rule · Connector · 중첩) ②-부속 재료 생태와 공급 계약(원천 · 흔적 · 생애 · 공급 · 흐름) · ②-부속 둘째 세계의 시간과 위상(낮밤 · 철 · Region 위상 · 소란 · 압도적 존재의 경로) | 도구: `Design-World-Editor-Terrain-Compiler.md` (WE) · `Plan-World-Authoring-Engine.md` · 도구 2단계(작성기): `L2-World-Tool-Scale.md` · 세계: 주입 원문은 결과물 안에 |안전권을 나서 깊이가 달라지는 것을 본다 — 백왕령(civil) ⇄ 거대 악마의 숲(outer) | `L2-World-Tool.md` · `L2-World-Concept.md` · `L2-World-Region.md` · `L2-World-Material.md` · `L2-World-Time.md` · `play/` 의 Play 다섯 | **다음** — C001~C005 닫힘 |
 | 3 | 주체와 몸 | 요정의 몸은 무엇을 가지는가(깎이고 회복되는 값) · 생물은 무엇을 알고 어떻게 행동하는가 | `Design-Subject-Decision.md` · `Design-Autonomous-Behavior-Knowledge-R0.md` · `Design-Creature-Behavior-R0.md` | 세계가 몸을 깎고, 생물이 그것에 반응하는 것을 본다 | `L3-*.md` · `play/` | 미주입 |
 | 4 | 자원과 물건 | 소지·장비·가공 사슬 · 조합과 쓰임 ("무엇이 어디서 나는가" 는 2층 ②-부속이 닫았다 — 이 층은 그 Material Seed 를 받는다) | `Design-Resource-Catalog-R0.md` · `Design-Item-*.md` · `Design-Inventory-Equipment-D1.md` | 캐서 지니면 갈 수 있는 곳이 늘어난다 | `L4-*.md` · `play/` | 미주입 |
 | 5 | 대결 | 공격·방어·피해 종류·지목 | `Design-Combat-*.md` · `Design-Targeting-R0.md` | 처음으로 맞서 이긴다 | `L5-*.md` · `play/` | 미주입 |
@@ -76,6 +76,20 @@ Region Graph · Region Rule · Connector · 중첩 · 제작 12단계 · Region 
 2층에 ②-부속이 하나 더 있다 — **세계의 시간과 위상**(`L2-World-Time.md` · 확정): 공간 · 규칙 · 재료 넷에 공통으로
 없던 축 *시간*. 낮밤과 네 철(고요 · 스밈 · 긴 밤 · 뒤척임) · Region 위상 · 여럿의 누적으로만 넘는 전이 · 압도적 존재의 경로.
 ② 의 둘째 확장 계약이다.
+
+### 2.1 도구 절반 2단계 — Region 작성기 (ENGINE 레인 B · 순서 고정)
+
+지역을 더할 때마다 2층 공정을 다시 타지 않는다 — 대부분의 지역은 데이터(등급 A)이고 **도구가 쓴다.** 도구는 이 저장소 안에서
+새로 짓는다. 순서는 [L2-World-Tool-Scale.md](L2-World-Tool-Scale.md) §3 이 소유하고, 여기는 요약이다.
+
+| # | 단계 | 완료 조건 | 기다리는 것 | 상태 |
+|---|---|---|---|---|
+| T1 | 검사기 독립 — `world:check` (JSON) | `npm test` 에 붙는다 · 일부러 만든 실패가 잡힌다 | — | **다음** |
+| T2 | 일곱 답의 형 — RegionBrief schema | 지금 방 아홉을 손으로 역기술해 전부 통과 | — | 미착수 |
+| T3 | 뼈대 생성기 — `world:author` (결정론) | brief 하나 → 방 하나 T1 통과 · 걸어진다 · 코드 diff 0 | phases 는 C016 뒤 | 미착수 |
+| T4 | 등급 판정기 — A / B / C + GAP | 가스 마을 · 유령 도시 · 마법도시가 A · B · C 로 갈린다 | T2 | 미착수 |
+| T5 | 초안기 — `world:draft` (`@anthropic-ai/sdk` · 구조화 출력 · 검사 되먹임) | 미지 한 줄 → 방 하나 사람 손 없이 통과 | T3 · T4 | 미착수 |
+| T6 | 판정 표면 + 대량 — lab 승인/반려 · `--batch` | Play **HundredRooms** | T5 · Frost 닫힘 | 미착수 |
 
 2층의 Play 는 다섯이다 (`play/README.md`) — **전부 승인됐다**. 2층은 이제 기획으로는 닫혔고 Play 로 증명 중이다 —
 더 쌓을 기획은 없다. 다음 기획 주입은 **3층**이다 (2층 Play 가 실제로 플레이되어 닫힌 뒤). 넷째(`play/RoomBearsMaterial.md`)의
@@ -128,7 +142,7 @@ Region Graph · Region Rule · Connector · 중첩 · 제작 12단계 · Region 
 ③ 완성 판정   A 는 검사 ①~㉖ 통과 + 걸어 본 것으로, B 는 그 Cycle 이 플레이되면 행이 닫힌다.
 ```
 
-수십~수백 규모는 사람이 아니라 **Region 작성기**가 쓴다 — 도구 절반 2단계 [L2-World-Tool-Scale.md](L2-World-Tool-Scale.md) (제안).
+수십~수백 규모는 사람이 아니라 **Region 작성기**가 쓴다 — 도구 절반 2단계 [L2-World-Tool-Scale.md](L2-World-Tool-Scale.md) · 순서는 §2.1.
 
 ```text
 세계 인과 (자원을 설계할 때 반드시 묻는 여섯 질문 — 이 문서가 소유한다)
