@@ -286,47 +286,72 @@ function scale(color: RGB, ratio: number): RGB {
 //      왼쪽 아래가 (minX, minZ) 다 — 한 번 정하면 다섯 장이 전부 같다.
 const FLIP_Z = true;
 
+/**
+ * 눈금 — 격자 칸 하나를 픽셀 몇으로 그릴 것인가 (기본 1 = 격자와 1:1).
+ *
+ * 격자와 1:1 인 그림은 41×41 이라 **사람이 들여다볼 수가 없다**. 그런데 이 도구의 목적은
+ * "내가 걸은 땅을 한 장으로 본다" 이므로, 볼 수 없는 그림은 목적을 절반만 채운다.
+ * 그래서 정수 배로 늘려 찍을 수 있게 둔다 — 칸 하나가 정확히 n×n 픽셀이 되는
+ * 최근접 확대라서 값이 섞이지 않고, 격자와 픽셀의 1:1 대응도 그대로다.
+ */
+const DEFAULT_SCALE = 1;
+const MAX_SCALE = 32;
+
 /** RasterMap 을 색으로 펴서 PNG 한 장으로 — 위아래 뒤집기는 여기 한 자리에서만 일어난다 */
-function paint(map: RasterMap, colorOf: (value: number, index: number) => RGB): Buffer {
+function paint(
+  map: RasterMap,
+  colorOf: (value: number, index: number) => RGB,
+  zoom: number = DEFAULT_SCALE,
+): Buffer {
   const { width, height, values } = map;
-  const rgb = new Uint8Array(width * height * 3);
+  const out = { w: width * zoom, h: height * zoom };
+  const rgb = new Uint8Array(out.w * out.h * 3);
   for (let row = 0; row < height; row++) {
     const destRow = FLIP_Z ? height - 1 - row : row;
     for (let col = 0; col < width; col++) {
       const index = row * width + col;
       const color = colorOf(values[index] ?? 0, index);
-      const at = (destRow * width + col) * 3;
-      rgb[at] = color[0];
-      rgb[at + 1] = color[1];
-      rgb[at + 2] = color[2];
+      // 칸 하나를 zoom×zoom 픽셀로 — 최근접이라 값이 섞이지 않는다
+      for (let dy = 0; dy < zoom; dy++) {
+        for (let dx = 0; dx < zoom; dx++) {
+          const at = ((destRow * zoom + dy) * out.w + (col * zoom + dx)) * 3;
+          rgb[at] = color[0];
+          rgb[at + 1] = color[1];
+          rgb[at + 2] = color[2];
+        }
+      }
     }
   }
-  return encodePng(width, height, rgb);
+  return encodePng(out.w, out.h, rgb);
 }
 
 // ── 그림 다섯 ────────────────────────────────────────────────────────
 
-function paintHeight(world: CompiledWorldTerrain): Buffer {
+function paintHeight(world: CompiledWorldTerrain, zoom: number): Buffer {
   // 회색 눈금 — 값이 곧 밝기다
-  return paint(rasterHeight(world), (value) => [value, value, value]);
+  return paint(rasterHeight(world), (value) => [value, value, value], zoom);
 }
 
-function paintSurface(world: CompiledWorldTerrain): Buffer {
+function paintSurface(world: CompiledWorldTerrain, zoom: number): Buffer {
   // 표면 태그 색인 → 색. 색인 0 도 태그이므로 EMPTY_COLOR 를 쓰지 않는다
-  return paint(rasterSurface(world), (value) => tagColor(value));
+  return paint(rasterSurface(world), (value) => tagColor(value), zoom);
 }
 
-function paintTraversable(world: CompiledWorldTerrain): Buffer {
+function paintTraversable(world: CompiledWorldTerrain, zoom: number): Buffer {
   // 0 = 통행(밝다) · 그 밖 = 막힘 사유 색인(어둡다)
-  return paint(rasterTraversable(world), (value) =>
-    value === 0 ? PASSABLE_COLOR : scale(tagColor(value - 1), 0.45),
+  return paint(
+    rasterTraversable(world),
+    (value) => (value === 0 ? PASSABLE_COLOR : scale(tagColor(value - 1), 0.45)),
+    zoom,
   );
 }
 
-function paintSemantic(world: CompiledWorldTerrain, layer: string): Buffer {
+function paintSemantic(world: CompiledWorldTerrain, layer: string, zoom: number): Buffer {
   // 0 = 아무 area 도 없음 · 그 밖 = 그 layer 의 태그 색인
-  return paint(rasterSemantic(world, layer), (value) =>
-    value === 0 ? EMPTY_COLOR : tagColor(value - 1),
+  return paint(
+    rasterSemantic(world, layer),
+    (value) => (value === 0 ? EMPTY_COLOR : tagColor(value - 1)),
+    zoom,
   );
 }
 
@@ -341,7 +366,7 @@ function paintSemantic(world: CompiledWorldTerrain, layer: string): Buffer {
  * 표식은 3×3 이다 — 격자 한 칸 = 한 픽셀이라 점 하나는 표면색에 묻힌다. 테두리 검정에
  * 가운데 흰색이므로 밝은 밑바닥에서도 어두운 밑바닥에서도 한쪽이 살아난다.
  */
-function paintTopView(world: CompiledWorldTerrain): Buffer {
+function paintTopView(world: CompiledWorldTerrain, zoom: number): Buffer {
   const surface = rasterSurface(world);
   const { width, height } = surface;
   const rgb = new Uint8Array(width * height * 3);
@@ -395,7 +420,25 @@ function paintTopView(world: CompiledWorldTerrain): Buffer {
     }
   }
 
-  return encodePng(width, height, rgb);
+  // 눈금 — 다 그린 뒤 마지막에 정수 배로 늘린다. 경계선과 표식이 칸 단위 그대로 커지므로
+  // 1:1 그림을 그대로 확대한 것과 같다 (값이 섞이지 않는다)
+  if (zoom <= 1) return encodePng(width, height, rgb);
+  const out = { w: width * zoom, h: height * zoom };
+  const big = new Uint8Array(out.w * out.h * 3);
+  for (let row = 0; row < height; row++) {
+    for (let col = 0; col < width; col++) {
+      const from = (row * width + col) * 3;
+      for (let dy = 0; dy < zoom; dy++) {
+        for (let dx = 0; dx < zoom; dx++) {
+          const at = ((row * zoom + dy) * out.w + (col * zoom + dx)) * 3;
+          big[at] = rgb[from] ?? 0;
+          big[at + 1] = rgb[from + 1] ?? 0;
+          big[at + 2] = rgb[from + 2] ?? 0;
+        }
+      }
+    }
+  }
+  return encodePng(out.w, out.h, big);
 }
 
 // ── 검사 아홉 ────────────────────────────────────────────────────────
@@ -670,6 +713,8 @@ export interface ObserveOptions {
   semanticLayer: string;
   report: boolean;
   outDir: string;
+  /** 칸 하나를 픽셀 몇으로 그릴 것인가 (기본 1 = 격자와 1:1) */
+  scale: number;
 }
 
 export interface ObservePicture {
@@ -692,14 +737,14 @@ export function observeRegion(
     if (!options.pictures.includes(kind)) continue;
     const png =
       kind === 'height'
-        ? paintHeight(world)
+        ? paintHeight(world, options.scale)
         : kind === 'surface'
-          ? paintSurface(world)
+          ? paintSurface(world, options.scale)
           : kind === 'traversable'
-            ? paintTraversable(world)
+            ? paintTraversable(world, options.scale)
             : kind === 'semantic'
-              ? paintSemantic(world, options.semanticLayer)
-              : paintTopView(world);
+              ? paintSemantic(world, options.semanticLayer, options.scale)
+              : paintTopView(world, options.scale);
     pictures.push({ kind, file: `${spec.id}.${kind}.png`, png });
   }
   const text = options.report ? renderRegionReport(spec, region, options.semanticLayer) : '';
@@ -726,6 +771,7 @@ export function parseArgs(args: readonly string[]): Parsed {
   let report = false;
   let graph = false;
   let outDir = DEFAULT_OUT_DIR;
+  let pictureScale = DEFAULT_SCALE;
 
   for (let i = 0; i < args.length; i++) {
     const arg = args[i]!;
@@ -740,7 +786,18 @@ export function parseArgs(args: readonly string[]): Parsed {
       if (semanticLayer === '') unknown.push(arg);
     } else if (arg === '--top-view') pictures.push('top');
     else if (arg === '--report') report = true;
-    else if (arg === '--out') {
+    else if (arg.startsWith('--scale=')) {
+      const value = Number(arg.slice('--scale='.length));
+      if (!Number.isInteger(value) || value < 1 || value > MAX_SCALE) unknown.push(arg);
+      else pictureScale = value;
+    } else if (arg === '--scale') {
+      const value = Number(args[i + 1]);
+      if (!Number.isInteger(value) || value < 1 || value > MAX_SCALE) unknown.push(arg);
+      else {
+        pictureScale = value;
+        i++;
+      }
+    } else if (arg === '--out') {
       const value = args[i + 1];
       if (value === undefined || value.startsWith('--')) unknown.push(arg);
       else {
@@ -767,7 +824,7 @@ export function parseArgs(args: readonly string[]): Parsed {
   return {
     kind: 'region',
     spec,
-    options: { pictures, semanticLayer, report: wantReport, outDir },
+    options: { pictures, semanticLayer, report: wantReport, outDir, scale: pictureScale },
   };
 }
 
@@ -783,6 +840,7 @@ export function renderUsage(unknown: readonly string[]): string {
     `        --semantic=<layer>        의미 그림의 layer (기본 ${SETTLEMENT_LAYER})`,
     '        --report                  수와 검사 아홉을 글자로 읊는다',
     `        --out <dir>               그림을 둘 폴더 (기본 ${DEFAULT_OUT_DIR})`,
+    `        --scale <n>               칸 하나를 n×n 픽셀로 (기본 ${DEFAULT_SCALE} · 최대 ${MAX_SCALE})`,
     `  아는 방: ${REGION_SPECS.map((spec) => spec.id).join(' · ')}`,
     '  아무것도 하지 않았다. 세계도 파일도 그대로다.',
     '',

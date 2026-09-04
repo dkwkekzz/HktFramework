@@ -75,7 +75,6 @@ const outDir = (name: string) => {
 };
 
 afterAll(() => {
-  console.log('AFTERALL>>>', OUT, process.pid);
   rmSync(join(ROOT, OUT), { recursive: true, force: true });
 });
 
