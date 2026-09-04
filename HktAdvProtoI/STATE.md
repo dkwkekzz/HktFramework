@@ -7,9 +7,9 @@
 
 한 Cycle = 브랜치 `cycle/C###` = 세션 하나. **말할 것: "C006 진행"** — `advprotoi-cycle` 이 명세(spec.md) → 실현 → 마감을
 이어 돌리고 UNRESOLVED · GAP 에서만 멈춘다. PR 은 번호 순으로 합친다. 병렬 규칙은
-[Plan-Skill §4 항목 4](design/Plan-Skill-CycleExecutionWorkflow.md). 승인 게이트 없음 — Play 여섯(2층 다섯 + 컨텐츠 M5)은 전부 승인돼 있다.
+[Plan-Skill §4 항목 4](design/Plan-Skill-CycleExecutionWorkflow.md). 승인 게이트 없음 — Play 여섯(2층 다섯 + 컨텐츠 M5)은 승인돼 있고, 일곱째(Life)는 주입된 그대로다.
 
-**다음 세션 인계 (design 은 여기까지)** — 2층 **세계 절반**의 기획은 닫혔다 (컨셉 · Region · 재료 · 시간). 더 쌓지 않는다.
+**다음 세션 인계 (design 은 여기까지)** — 2층 **세계 절반**의 기획은 닫혔다 (컨셉 · Region · 재료 · 시간 · 생명). 더 쌓지 않는다.
 남은 일은 **Cycle 실주행**이다: "C006 진행" 부터 순서대로. 실주행 관찰(Material 원문 §7 단계 11)이 다음 기획(3층)의 입력이다.
 
 **도구 절반 2단계 — [Region 작성기](content/roadmap/L2-World-Tool-Scale.md) (확정 · 이 저장소 안에서 새로 짓는다).** "지역을 더할 때마다
@@ -25,7 +25,8 @@ design 이 다시 열리는 때는 둘 — ① 2층 Play 실주행에서 DESIGN 
 | Material — [RoomBearsMaterial](content/roadmap/play/RoomBearsMaterial.md) | 대기 (명세는 지금도 쓸 수 있다 — 이름·성질·상수는 Play 의 위임된 결정 D1~D4 에 있다) | Rule 닫힘 (Region State 와 세계 과정이 서야 재료가 생애를 가진다) | C011 → C014 |
 | Time — [RoomNeverSame](content/roadmap/play/RoomNeverSame.md) | 대기 (상수 · 철 · 덧씌움 전부 확정 사항에 있다) | Material 닫힘 (철이 바꿀 원천과 흔적이 먼저) | C015 → C018 |
 | Frost — [RoomOfAnotherKind](content/roadmap/play/RoomOfAnotherKind.md) (컨텐츠 M5) | 대기 | Time 닫힘 (재료 생태와 철을 다른 갈래에 두 번째로 쓴다 — 두 계약이 먼저 서야 한다) | C019 → C021 |
-| ENGINE B — [Region 작성기](content/roadmap/L2-World-Tool-Scale.md) (도구 2단계) | **T1** 검사기 독립(`world:check` · JSON · npm test) → T2 RegionBrief 형(방 아홉 역기술) → T3 뼈대 생성기 절반. 게임 명사 없음 · 분리 커밋 · Cycle 과 병행 | T3 의 phases 는 C016 · T6 은 Frost(C021) 닫힘 | T4 → T5 → T6 → Play HundredRooms |
+| Life — [RoomBearsLife](content/roadmap/play/RoomBearsLife.md) | 대기 (계약 · 확정 사항 · 상수는 [L2-World-Life.md](content/roadmap/L2-World-Life.md) 와 Play 에 있다) | Frost 닫힘 (탄생이 소비할 재료 · 탈 주기 · 대조할 갈래가 먼저 서야 한다) | C022 → C025 |
+| ENGINE B — [Region 작성기](content/roadmap/L2-World-Tool-Scale.md) (도구 2단계) | **T1** 검사기 독립(`world:check` · JSON · npm test) → T2 RegionBrief 형(여덟 답 · 방 아홉 역기술) → T3 뼈대 생성기 절반. 게임 명사 없음 · 분리 커밋 · Cycle 과 병행 | T3 의 phases 는 C016 · ecology 는 C022 · T6 은 Life(C025) 닫힘 | T4 → T5 → T6 → Play HundredRooms |
 
 ## 2. 진행
 
@@ -39,6 +40,7 @@ design 이 다시 열리는 때는 둘 — ① 2층 Play 실주행에서 DESIGN 
 | RoomBearsMaterial | 방이 재료를 낳는다 (거대 악마의 숲 = M3 재료 계통) | C011~C014 | 대기 |
 | RoomNeverSame | 같은 방은 두 번 없다 (시계 · 네 철 · 소란 · 경로 = M4) | C015~C018 | 대기 |
 | RoomOfAnotherKind | 다른 갈래의 방 (M5 빙결 협곡 · 컨텐츠) | C019~C021 | 대기 |
+| RoomBearsLife | 방이 생명을 낳는다 (허물의 주인 = M6 붉은 알집 · 숲이 값으로 한 바퀴 돈다) | C022~C025 | 대기 |
 
 **Human 판정 대기** — 각 Cycle 의 `TODO.md` (그림은 같은 폴더 `shots/`). `npm run dev` 로 직접 본다.
 [C001](cycles/C001-region-graph-rooms/TODO.md) 8 · [C002](cycles/C002-many-exits/TODO.md) 8 ·
@@ -51,12 +53,12 @@ RegionGraphRooms 가 닫혔으므로 **Play 전체 실주행**(백왕령 → 거
 ```text
 0 게임 방향   확정   L0-Game.md
 1 세계의 문법  확정   L1-World-Grammar.md
-2 세계 자체   열림   L2-World-Tool · Concept · Region · Material · Time — 세계 절반 기획 닫힘 → Play 다섯으로 증명 중 (§2)
+2 세계 자체   열림   L2-World-Tool · Concept · Region · Material · Time · Life — 세계 절반 기획 닫힘 → Play 여섯으로 증명 중 (§2)
               도구 절반 2단계 L2-World-Tool-Scale(Region 작성기) 확정 — T1~T6 (README §2.1) · T1 다음
 3 주체와 몸   미주입  ← 2층이 닫히면 다음.   4~7 (물건 · 대결 · 능력 · 성장) 미주입
 ```
 
-컨텐츠 층의 미지 — M1 거대 악마의 숲 · M2 환상의 미로 · M3 숲의 재료 계통(생체 광석 · 광식충 허물 · 거목균) · M4 천공고래의 길 · M5 빙결 협곡. 정식 이름 표는 [L2-World-Region §5.1](content/roadmap/L2-World-Region.md).
+컨텐츠 층의 미지 — M1 거대 악마의 숲 · M2 환상의 미로 · M3 숲의 재료 계통(생체 광석 · 광식충 허물 · 거목균) · M4 천공고래의 길 · M5 빙결 협곡 · M6 붉은 알집. 정식 이름 표는 [L2-World-Region §5.1](content/roadmap/L2-World-Region.md).
 주입 순서는 [content/roadmap/README.md](content/roadmap/README.md).
 
 ## 4. 코드에 있는 것
