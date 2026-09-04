@@ -958,7 +958,10 @@ describe('SPEC-010 — 땅은 여전히 저장되지 않는다', () => {
     // 다리는 여전히 건네준다
     expect(ask(bridge()).status).toBe('success');
     // 그리고 hash 도 같은 값이다 — 되살림은 같은 Description 을 다시 읽을 뿐이다
-    expect(revived.latestObservation(OBSERVER)!.region.hash).toBe(descriptionHash(domain()));
+    // 봉투 형에서 팩 형으로 좁힌다 (drive.ts 의 observe 와 같은 방식)
+    const observed = revived.latestObservation(OBSERVER) as GameViewSnapshot | null;
+    expect(observed).not.toBeNull();
+    expect(observed!.region.hash).toBe(descriptionHash(domain()));
   });
 
   it('S-037 (경계) 백왕령의 hash 는 C005 때와 다르다 — 형이 아니라 데이터가 바뀌었다', () => {

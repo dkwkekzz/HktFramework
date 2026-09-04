@@ -91,6 +91,7 @@ describe('resolvePresentation (Semantic → Render Plan)', () => {
       specId: 'VIEW-WORLD-SERVER-001',
       scene: 'mining-field',
       region: { id: 'mining-field', hash: '00000000' },
+      standingConditions: [], // C006 ADDED
       entities: [
         { id: 'npc-1', role: 'npc-character', state: 'downed', kind: 'wanderer', position: { x: 1, z: 1 } },
         { id: 'npc-2', role: 'npc-character', state: 'idle', kind: 'wanderer', position: { x: 2, z: 2 } },
@@ -194,6 +195,7 @@ describe('결정 Layer 의 유연 대응 — 미등록 항목도 기본 결정�
       specId: 'VIEW-FUTURE-999',
       scene: 'cavern',
       region: { id: 'cavern', hash: '00000000' },
+      standingConditions: [], // C006 ADDED
       entities: [
         { id: 'npc-1', role: 'wandering-merchant', state: 'idle', position: { x: 1, z: 1 } },
       ],

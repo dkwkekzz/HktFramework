@@ -293,5 +293,6 @@
   "debug": {
     "open": true
   },
-  "commands": []
+  "commands": [],
+  "standingConditions": []
 }

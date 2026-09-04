@@ -493,6 +493,7 @@ describe('SPEC-007 — 색과 표식은 표다', () => {
       specId: 'VIEW-STONE-MINING-001',
       scene: regionId,
       region: { id: regionId, hash: spec ? descriptionHash(spec.space) : '00000000' },
+      standingConditions: [], // C006 ADDED — 조건 area 밖에 선 관찰자는 빈 목록이다
       observer: { id: 'observer-a', characterId: 'player', acknowledgedMark: 0 },
       entities: [
         {
