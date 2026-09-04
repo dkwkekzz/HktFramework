@@ -59,25 +59,31 @@ export interface WorldSetup {
 
 // 세계의 기본 배치 — 자율 캐릭터 둘이 각자의 순회 경로를 돈다. 자리는 START_REGION 의 Local Space 좌표다 (C001 R4).
 // characterKind 를 바꾸면 그 캐릭터가 쓰는 모션 집합이 바뀐다 (motions/<종류>/ 폴더).
+//
+// C006 CHANGED — 두 사람의 순회 경로가 강을 비켜 간다. 자리는 그대로 배치 데이터이지만
+// (규칙은 하나도 늘지 않는다), C005 까지의 경로는 이제 강 한복판을 지난다 — 이동 진행은
+// traversable 을 보지 않으므로(spec R1 은 요청만 판정한다) 그대로 두면 사람이 물 위를 걷는다.
+//   npc-1 강 남쪽 — 도시와 그 남쪽 들을 돈다 (실측: 네 꼭짓점 다 중심선에서 6.8 이상)
+//   npc-2 강 북쪽 — 건너편에 사는 사람. 다리를 건너기 전에는 만날 수 없다
 const DEFAULT_NPCS: NpcSetup[] = [
   {
     id: 'npc-1',
     characterKind: 'wanderer',
-    position: { x: -8, z: 4 },
+    position: { x: -8, z: 0 },
     wanderPath: [
-      { x: -8, z: 4 },
+      { x: -8, z: 0 },
       { x: -8, z: -6 },
       { x: 2, z: -6 },
-      { x: 2, z: 4 },
+      { x: 2, z: 0 },
     ],
   },
   {
     id: 'npc-2',
     characterKind: 'wanderer',
-    position: { x: 12, z: 8 },
+    position: { x: 12, z: 14 },
     wanderPath: [
-      { x: 12, z: 8 },
-      { x: 4, z: 12 },
+      { x: 12, z: 14 },
+      { x: 4, z: 16 },
     ],
   },
 ];

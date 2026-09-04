@@ -98,4 +98,13 @@ export interface GameViewSnapshot extends CoreGameViewSnapshot {
   interactions: InteractionView[];
   strikes: StrikeEventView[];
   region: RegionView; // C001 — 봉투의 region? 을 이 팩은 필수로 좁힌다
+  /**
+   * 관찰자의 몸이 선 자리에 걸린 settlement/condition 태그들 (없으면 빈 배열) — C006 R4.
+   *
+   * "왜 여기가 안전한가" 의 **코드**다. 겹치면 걸린 것이 전부 실리고(하나로 줄이지 않는다),
+   * 순서는 그 방 데이터의 area 순서 그대로다. 문구는 View 의 표가 옮긴다.
+   * 땅 자체(height · surface · traversable · areas)는 실리지 않는다 — 관찰자가 자기
+   * content/regions 를 같은 규칙으로 컴파일해 스스로 만든다.
+   */
+  standingConditions: string[];
 }

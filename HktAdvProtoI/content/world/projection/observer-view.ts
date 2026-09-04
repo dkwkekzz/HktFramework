@@ -31,6 +31,7 @@ import {
   regionHash,
   regionSpecOf,
 } from '../semantic/region';
+import { conditionTagsAt } from '../semantic/terrain';
 import {
   actorOfObserver,
   findObserver,
@@ -282,6 +283,10 @@ export function projectObserverView(
     ],
     // 관찰자의 몸이 선 Region — hash 는 Description 에서 결정적으로 나온다 (C001 R6).
     region: { id: self.regionId, hash: regionHash(self.regionId) },
+    // RULE-SAFEBY-001 (C006 R4) — 몸이 선 자리에 걸린 안전의 조건들.
+    // 매 관찰마다 그 방의 땅에서 유도된다 — 세계 State 에는 없다. 아무 area 에도 들지 않았으면
+    // 빈 배열이고, 겹쳐 있으면 걸린 것이 전부 실린다. 이것은 hud 가 아니라 봉투의 새 자리다.
+    standingConditions: conditionTagsAt(self.regionId, self.position),
     // World.StrikeEvents — 남의 타격 결과도 보인다. 세계가 판정을 마친 값이다.
     strikes: state.strikeEvents.map((event) => ({
       attackerId: event.attackerId,

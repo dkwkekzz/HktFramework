@@ -22,6 +22,10 @@ const PALETTE: Record<string, string> = {
   S: '#e8dcbf', // 팻말 판 테두리
   s: '#f6efdc', // 팻말 판 면
   K: '#4a4f58', // 빗장·자물쇠 고리의 쇠 (어두움)
+  T: '#f4f1e8', // 백색 거목의 흰 줄기 (볕 쪽)
+  t: '#cdc6b6', // 백색 거목의 흰 줄기 (그늘 쪽)
+  L: '#9fb98c', // 거목의 잎
+  l: '#7e9a6d', // 거목의 잎 가장자리
   '.': '',
 };
 
@@ -261,6 +265,36 @@ const REGION_EXIT_LOCKED = [
   '................',
 ];
 
+// 백색 거목 (C006) — L2-World-Concept §3 의 정식 이름. **흰 줄기**가 이 그림의 전부다:
+// 팻말(S·s)이나 바위(R·r)와 실루엣이 아니라 **색**부터 갈려야 한다 — 방 어디서 보아도
+// "저것이 그 나무" 로 읽히는 것이 이 표식의 일이다 (Concept §3: 백색 거목 → 포식자가 접근하지 않음).
+//
+// 줄기를 화면 왼쪽이 볕(T) · 오른쪽이 그늘(t)로 갈라 원기둥으로 서게 하고, 밑동에서 두 칸씩
+// 벌려 뿌리가 땅을 붙든 것으로 읽히게 했다 — 표식이 지면에 *꽂힌* 것이 아니라 *자란* 것으로
+// 보여야 한다. 잎은 은녹색이다: 지면의 평지 색(0x4e7a3e)보다 밝고 채도가 낮아 위에서 내려다볼 때
+// 땅에 묻히지 않으면서, 흰 줄기의 주인공 자리를 뺏지 않는다.
+//
+// 줄기·잎이 16px 폭의 절반 남짓만 쓰는 것은 뜻이 있다 — terrain-presentation 이 이 그림을
+// 정사각 worldHeight(17)로 세우므로, 폭까지 꽉 채우면 도시와 조건 area 를 그림이 덮는다.
+const WHITE_GIANT_TREE = [
+  '......lLLl......',
+  '....llLLLLll....',
+  '...lLLLLLLLLl...',
+  '..lLLLLLLLLLLl..',
+  '..lLLLLLLLLLLl..',
+  '..lLLLLLLLLLLl..',
+  '...lLLLLLLLLl...',
+  '....llLLLLll....',
+  '......TTtt......',
+  '......TTtt......',
+  '......TTtt......',
+  '......TTtt......',
+  '......TTtt......',
+  '.....TTTttt.....',
+  '....TTTTtttt....',
+  '..TTTTTTtttttt..',
+];
+
 const PIXEL_MAPS: Record<string, string[]> = {
   'region-exit:open': REGION_EXIT_OPEN,
   'region-exit:locked': REGION_EXIT_LOCKED,
@@ -274,6 +308,8 @@ const PIXEL_MAPS: Record<string, string[]> = {
   'wanderer:move': WANDERER_MOVE,
   'wanderer:attack': WANDERER_ATTACK,
   'wanderer:hit': WANDERER_HIT,
+  // 땅에 서는 표식 — 존재가 아니라 지형 instance 다 (역할:상태 가 아니라 layer:이름 으로 부른다)
+  'landmark:white-giant-tree': WHITE_GIANT_TREE,
   'stone-deposit:available': DEPOSIT_AVAILABLE,
   'stone-deposit:depleted': DEPOSIT_DEPLETED,
 };

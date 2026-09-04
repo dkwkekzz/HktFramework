@@ -14,6 +14,7 @@ import type { MotionLibrary } from '../../engine/view-kernel/motion/motion-libra
 import type {
   SceneCommandHistoryLine,
   SceneCommandSurface,
+  SceneHudItem,
   SceneMotion,
   SceneState,
 } from '../../engine/view-kernel/scene/scene-state';
@@ -54,6 +55,35 @@ export interface PresentationOptions {
    * 열려 있는가, 무엇을 쓰고 있는가, 무엇을 주고받았는가. 세계는 이것을 알지 못한다.
    */
   command?: CommandSurfaceInput;
+}
+
+/**
+ * 지금 선 자리가 왜 안전한가 (C006 R4 — RULE-SAFEBY-001).
+ *
+ * 세계는 몸이 걸린 settlement/condition 태그를 **코드 목록으로** 싣는다
+ * (snapshot.standingConditions). 그것을 문구로 옮겨 HUD 한 줄로 세우는 것이 View 의 몫이다 —
+ * 어떤 조건이 걸렸는지 판정하는 것은 세계의 일이고, 화면은 그 답을 만들어 내지 않는다.
+ *
+ * **겹치면 전부 잇는다 — 하나로 줄이지 않는다** (SPEC-007 경계). 산과 강과 거목이 함께
+ * 걸린 자리가 도시 자리이므로, 우선순위를 지어내 하나만 뜨게 하면 "조건이 모여서 도시가
+ * 된다" 는 것 자체가 화면에서 사라진다. 아무것도 걸리지 않으면 줄 자체가 서지 않는다.
+ */
+const SAFE_BY_HUD_ID = 'region.safe-by';
+
+/** 조건이 여럿일 때 잇는 말 — 목록 구분자다(문장을 짓지 않는다) */
+const SAFE_BY_SEPARATOR = ' · ';
+
+function safeByHud(snapshot: GameViewSnapshot): SceneHudItem[] {
+  const conditions = snapshot.standingConditions ?? [];
+  if (conditions.length === 0) return [];
+  return [
+    {
+      id: SAFE_BY_HUD_ID,
+      widget: 'label',
+      label: hudPresentation(SAFE_BY_HUD_ID).label,
+      value: conditions.map((code) => codeText(code)).join(SAFE_BY_SEPARATOR),
+    },
+  ];
 }
 
 /** 관찰자가 쥐고 있는 명령 표면 상태 — 조립 루트가 소유한다 (04 history.owner: observer) */
@@ -213,22 +243,28 @@ export function resolvePresentation(
       ),
     ),
     worldTime: Number(snapshot.hud.find((h) => h.id === 'world.time')?.value ?? 0),
-    hud: snapshot.hud.filter((h) => !isSelfHudId(h.id)).map((h) => {
-      const p = hudPresentation(h.id);
-      return {
-        id: h.id,
-        widget: h.kind,
-        label: p.label,
-        ...(p.icon ? { icon: p.icon } : {}),
-        // 의미 코드 값(label 위젯)은 문구 결정을, 형식 지시가 있으면 그 형식을 거친다
-        value: p.format
-          ? p.format(h.value)
-          : h.kind === 'label'
-            ? codeText(String(h.value))
-            : h.value,
-        ...(h.progress === undefined ? {} : { progress: h.progress }),
-        ...(p.celebrateGain ? { celebrateGain: true } : {}),
-      };
-    }),
+    hud: [
+      ...snapshot.hud.filter((h) => !isSelfHudId(h.id)).map((h) => {
+        const p = hudPresentation(h.id);
+        return {
+          id: h.id,
+          widget: h.kind,
+          label: p.label,
+          ...(p.icon ? { icon: p.icon } : {}),
+          // 의미 코드 값(label 위젯)은 문구 결정을, 형식 지시가 있으면 그 형식을 거친다
+          value: p.format
+            ? p.format(h.value)
+            : h.kind === 'label'
+              ? codeText(String(h.value))
+              : h.value,
+          ...(h.progress === undefined ? {} : { progress: h.progress }),
+          ...(p.celebrateGain ? { celebrateGain: true } : {}),
+        };
+      }),
+      // 안전한 이유 (C006) — 세계의 hud 목록이 아니라 관찰 결과의 조건 코드에서 온다.
+      // 맨 뒤에 세운다: 늘 있는 줄이 아니라 조건 area 안에 섰을 때만 생기는 줄이므로,
+      // 앞의 줄들이 자리를 옮기지 않아야 화면이 깜박이지 않는다.
+      ...safeByHud(snapshot),
+    ],
   };
 }

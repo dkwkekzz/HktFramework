@@ -18,6 +18,9 @@ import { WHITE_KING_DOMAIN_SPEC } from './white-king-domain';
 
 export type { RegionSpec } from './spec';
 export { ANCHOR_LAYER } from './spec';
+// 지면의 표면·통행 규칙 표 — world 와 view 가 함께 읽는다 (C006 ADDED).
+// 값의 원본은 terrain-rules.ts 이고, 이 문(門)을 통해 나간다.
+export * from './terrain-rules';
 export {
   REGION_GRAPH,
   FRONTIER_REGIONS,
@@ -40,7 +43,7 @@ export {
   RED_WASTE,
   ICE_CANYON,
 } from './graph';
-export { WHITE_KING_DOMAIN } from './white-king-domain';
+export { WHITE_KING_DOMAIN, WHITE_GIANT_TREE } from './white-king-domain';
 export { FOREST_EDGE } from './forest-edge';
 export { FOREST_DEEP } from './forest-deep';
 export { EXPLORER_RUIN } from './explorer-ruin';

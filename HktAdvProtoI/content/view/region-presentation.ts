@@ -12,8 +12,15 @@
 // 색이 어두워지고 차가워진다 (§3.2: civil = 문명권, outer = 익숙한 자연, wild = 아무도 돌보지 않는 야생).
 
 import type { SceneGroundZone } from '../../engine/view-kernel/scene/scene-state';
-import { descriptionHash, extentPolygon } from '../../engine/world-authoring/description';
+import { areasOf, descriptionHash, extentPolygon } from '../../engine/world-authoring/description';
 import { regionSpec } from '../regions/index';
+import {
+  CITY_TAG,
+  CONDITION_RIDGE,
+  CONDITION_RIVER,
+  CONDITION_TREE,
+  SETTLEMENT_LAYER,
+} from './biome-rules';
 import { codeText } from './code-text';
 
 /** Region id → 방 이름. 미등록 id 는 id 그대로 (폴백) */
@@ -93,9 +100,89 @@ export const TRANSITION_TINTS: Readonly<Record<string, number>> = {
 /** 바닥 테두리의 두께 (세계 단위 — renderer 가 띠로 옮긴다) */
 const REGION_EDGE_WIDTH = 2;
 
+// ── 사람이 사는 자리 (C006 ADDED) ─────────────────────────────────────
+//
+// 백왕령의 Description 에는 settlement layer 의 area 가 넷 있다 — 조건 셋과 도시 하나.
+// **세계는 이것들을 봉투로 보내지 않는다.** 관찰자가 자기 Description 을 읽어 그린다 —
+// 방 바닥 polygon 하나를 그리던 것과 같은 자리, 같은 방식이다 (Plan §3.5).
+//
+// 색의 기준 — **조건 zone 의 색은 그 조건을 만드는 것의 색이다.** 산 조건은 급경사의
+// 무채색, 강 조건은 젖음의 청록, 거목 조건은 흰 줄기의 흰색이다 (terrain-presentation 의
+// SURFACE_COLORS · sprites 의 팔레트와 같은 값 계열). 그래서 zone 을 보고 눈을 들면
+// 그 색을 낸 것이 그 자리에 실제로 서 있다 — 문구를 읽기 전에 이미 이어진다.
+//
+// 도시만 이 규칙 밖이다. 도시는 조건이 아니라 **결과**이므로 자연의 색 셋과 계열이 갈리는
+// 따뜻한 인공색(문명권 바닥과 같은 계열)을 쓰고, 채움을 가장 옅게 두는 대신 테두리를
+// 가장 굵고 밝게 세운다 — 조건 셋 위에 겹쳐 놓이는 자리이므로 아래의 색을 덮으면
+// "조건이 모여서 도시가 된다" 가 화면에서 사라진다 (Observable Result ⑥).
+
+export interface SettlementZonePresentation {
+  fill: number;
+  fillOpacity: number;
+  edge: number;
+  edgeOpacity: number;
+  edgeWidth: number;
+}
+
+export const SETTLEMENT_ZONE_PRESENTATIONS: Readonly<
+  Record<string, SettlementZonePresentation>
+> = {
+  // 산맥이 막는다 — 급경사의 맨 바위 색 (SURFACE_STEEP = 0xa8a49c)
+  [CONDITION_RIDGE]: {
+    fill: 0xa8a49c,
+    fillOpacity: 0.22,
+    edge: 0x6e6a63,
+    edgeOpacity: 0.8,
+    edgeWidth: 0.6,
+  },
+  // 강이 먹인다 — 젖은 땅의 청록 (SURFACE_WET = 0x39707a)
+  [CONDITION_RIVER]: {
+    fill: 0x39707a,
+    fillOpacity: 0.22,
+    edge: 0x1d454c,
+    edgeOpacity: 0.8,
+    edgeWidth: 0.6,
+  },
+  // 거목이 포식자를 물린다 — 흰 줄기 색 (sprites 의 T = #f4f1e8)
+  [CONDITION_TREE]: {
+    fill: 0xf4f1e8,
+    fillOpacity: 0.22,
+    edge: 0x9fb98c,
+    edgeOpacity: 0.85,
+    edgeWidth: 0.6,
+  },
+  // 그래서 사람이 산다 — 문명권 바닥과 같은 따뜻한 계열. 채움은 가장 옅고 테두리는 가장 굵다
+  [CITY_TAG]: {
+    fill: 0xf0c878,
+    fillOpacity: 0.1,
+    edge: 0xffb03a,
+    edgeOpacity: 0.95,
+    edgeWidth: 1.4,
+  },
+};
+
+// 표에 없는 settlement 태그의 기본 결정 — 무채색 (DEFAULT_DEPTH_PRESENTATION 과 같은 뜻).
+// 자리는 그려지고 색만 없다: 데이터가 늘어도 화면이 그것을 감추지 않는다.
+export const DEFAULT_SETTLEMENT_ZONE: SettlementZonePresentation = {
+  fill: 0x9a9a9a,
+  fillOpacity: 0.2,
+  edge: 0x606060,
+  edgeOpacity: 0.8,
+  edgeWidth: 0.6,
+};
+
+export function settlementZonePresentation(tag: string): SettlementZonePresentation {
+  return SETTLEMENT_ZONE_PRESENTATIONS[tag] ?? DEFAULT_SETTLEMENT_ZONE;
+}
+
 /**
- * 관찰자가 선 방의 바닥 — SceneGroundZone polygon 하나.
+ * 관찰자가 선 방의 바닥과 그 안의 settlement 자리들 — SceneGroundZone 목록.
  * Spec 을 모르는 id 면 빈 배열이다 — 바닥 없이도 게임은 돈다 (폴백 규칙).
+ *
+ * 순서가 곧 겹치는 차례다: 방 바닥이 맨 아래이고, 그 위에 Description 의 ops 순서 그대로
+ * settlement area 가 놓인다. **ops 순서를 다시 정렬하지 않는다** — 무엇이 무엇 위에
+ * 겹치는지는 데이터가 정하는 것이고, 화면이 그 차례를 바꾸면 데이터를 고쳐도 그림이
+ * 따라오지 않는다.
  */
 export function regionZones(region: { id: string; hash: string } | undefined): SceneGroundZone[] {
   if (!region) return [];
@@ -118,5 +205,19 @@ export function regionZones(region: { id: string; hash: string } | undefined): S
       edge: { color: depth.edge, opacity: depth.edgeOpacity, width: REGION_EDGE_WIDTH },
       label,
     },
+    // 조건 셋과 도시 (C006) — area op 의 모양(polygon · circle)이 그대로 zone 의 모양이다.
+    // area 가 없는 방에서는 이 목록이 비고, 그러면 방 바닥 하나만 그려진다 (C005 그대로).
+    ...areasOf(spec.space, SETTLEMENT_LAYER).map((area): SceneGroundZone => {
+      const p = settlementZonePresentation(area.tag);
+      return {
+        // op id 는 Description 안에서 유일하다 — 프레임 사이에 같은 구역으로 이어진다
+        id: `settlement:${spec.id}:${area.id}`,
+        shape: area.shape,
+        fill: { color: p.fill, opacity: p.fillOpacity },
+        edge: { color: p.edge, opacity: p.edgeOpacity, width: p.edgeWidth },
+        // 이름표는 세계가 준 태그를 문구로 옮긴 것이다 — 모르는 태그는 코드 그대로 뜬다
+        label: codeText(area.tag),
+      };
+    }),
   ];
 }
