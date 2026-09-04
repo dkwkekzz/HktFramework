@@ -32,12 +32,14 @@ function spawnFromEnv(): {
   actorRegion?: string;
   npcs?: [];
   regionPatterns?: Record<string, string>;
+  npcRegion?: string;
 } {
   const setup: {
     actorPosition?: { x: number; z: number };
     actorRegion?: string;
     npcs?: [];
     regionPatterns?: Record<string, string>;
+    npcRegion?: string;
   } = {};
   // HKT_REGION_PATTERN="REGION:PATTERN" — 규칙을 품은 방이 어느 패턴으로 서는가 (C009).
   // 같은 갈래의 검증용 손잡이다 — 걸어서 닿을 수 있는 State 를 걸어가지 않고 시작한다.
@@ -52,6 +54,12 @@ function spawnFromEnv(): {
   // HKT_NPCS="none" — 자율 존재 없이 띄운다. 촬영에서 관찰자가 맞아 쓰러지면 건너기 같은
   // 조작이 이어지지 않는다 (tools/cycle-shot). 같은 검증용 손잡이 — 초기 배치만 비운다.
   if (process.env.HKT_NPCS === 'none') setup.npcs = [];
+  // HKT_NPC_REGION — 자율 존재를 **어느 방에** 놓을 것인가 (C010).
+  // 기본 자율 존재의 자리와 순회 경로는 그대로 두고 방만 옮긴다 — 여기서 게임 값을 짓지 않는다.
+  // "세계는 플레이어 없이도 돈다"(Concept W9)를 그 방 안에서 보려면 그 방에 몸이 하나 있어야 한다.
+  // npcs: "none" 과 함께 주면 none 이 이긴다 (아무도 놓지 않는다).
+  const npcRegion = process.env.HKT_NPC_REGION;
+  if (npcRegion && setup.npcs === undefined) setup.npcRegion = npcRegion;
   // HKT_SPAWN_REGION — 어느 **방**에서 시작할 것인가. 방이 여럿이 되면서 자리만으로는
   // 모자란다 (C002): 걷기가 이어지지 않는 촬영에서 백왕령 밖의 방을 보려면 거기서 시작해야 한다.
   if (process.env.HKT_SPAWN_REGION) setup.actorRegion = process.env.HKT_SPAWN_REGION;

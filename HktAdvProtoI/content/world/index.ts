@@ -58,6 +58,18 @@ export interface WorldSetup {
   /** 속성 변경을 허용할 것인가 (World.DebugAuthority). 요청으로는 바꿀 수 없다 */
   debugAuthority?: boolean;
   /**
+   * 밝힌 방을 갖지 않은 자율 존재를 **모두 이 방에** 놓는다 — 검증·촬영용 초기 배치 (C010 ADDED).
+   *
+   * 자리도 순회 경로도 그대로 두고 **방만** 옮긴다. actorRegion · regionPatterns 와 같은 갈래의
+   * 배치 손잡이이고 **세계 규칙이 아니다** — 놓인 뒤로는 기존 순회(RULE-NPC-DECIDE-001)와
+   * 기존 규칙이 그대로 굴린다.
+   *
+   * 왜 필요한가 — "세계는 플레이어 없이도 돈다"(Concept W9 · RuleBoundRoom 확정 6)를 그 방 안에서
+   * 보려면 그 방에 몸 하나가 있어야 한다. C008 은 그 자리를 스냅샷을 고쳐 되살리는 길로 에둘렀다
+   * (C008 TODO ③ 이 하네스 결손으로 적어 두었다).
+   */
+  npcRegion?: string;
+  /**
    * 규칙을 품은 방이 **어느 패턴으로 서는가** — 검증·촬영용 초기 배치 (C009 ADDED).
    *
    * actorPosition · actorRegion 과 같은 갈래의 손잡이다: 걸어서 닿을 수 있는 State 를
@@ -149,7 +161,8 @@ export function createWorld(setup: WorldSetup = {}, restored?: WorldState): Worl
       name: npc.name ?? `Wanderer ${ordinal + 1}`,
       characterKind: npc.characterKind ?? 'wanderer',
       control: 'autonomous',
-      regionId: START_REGION, // 02-world R4 — 기본 자율 존재는 백왕령에 있다
+      // 밝힌 방이 있으면 거기, 없으면 시작 방 (02-world R4 — 기본 자율 존재는 백왕령에 있다)
+      regionId: setup.npcRegion ?? START_REGION,
       position: npc.position,
       wanderPath: npc.wanderPath,
       ...(npc.perceptionRange === undefined ? {} : { perceptionRange: npc.perceptionRange }),
