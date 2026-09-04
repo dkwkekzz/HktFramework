@@ -1174,21 +1174,22 @@ Core Breath 의 어느 전이인가   관찰 → 이해 → 시도 구간. "이�
 
 ---
 
-## 6. 위임된 결정 · UNRESOLVED
+## 6. 위임된 결정
 
-원문 §10.5 가 "없으면 임의로 채우지 않고 UNRESOLVED 로 남긴다"고 정했다. 이 문서가 지어내지 않고
-남긴 것들이다 — 첫 Region 의 계약을 쓰는 Play 가 Human 질문으로 올린다.
+원문 §10.5 는 "없으면 임의로 채우지 않고 UNRESOLVED 로 남긴다"고 정했고, 이 문서는 처음에 다섯을 남겼다.
+Human 이 그중 넷을 **"컨셉에 맞게 알아서"** 로 위임했다 — [L2-World-Region.md](L2-World-Region.md) §5 와
+같은 방식이다. 첫 계약을 쓰는 Play 가 내렸고 Human 이 언제든 뒤집는다.
 
 ```text
-① 재료의 이름과 정체        Concept §4 의 사슬은 관계만 주고 이름을 주지 않았다 —
-                          "특정 광물" · 곤충 · 조류 · 포식자 · "특수 균류" 전부 이름이 없다
-② 관찰 가능한 성질          그 광물이 무엇을 흡수·방출·축적하는가 (§6.1 observableProperties)
-③ 회복의 시간 규모          축적·생장·퇴적이 얼마 만에 한 바퀴 도는가 — 수치
-④ 어느 Source 가 유한한가    FINITE_WORLD_STATE 배정. S7 이 기본 공급에는 금지했을 뿐 어디에 쓸지는 세계 사실
-⑤ 채취 단위                Source 하나에서 몇 번 캐지는가 — 수치
+① 재료의 이름              → RoomBearsMaterial D1 — 생체 광석 · 광식충 허물 · 거목균
+② 관찰 가능한 성질          → RoomBearsMaterial D2 — 사슬이 이미 말하는 것만 옮겼다
+③ 회복의 시간 규모          → RoomBearsMaterial D3 — 세계 초 · 비율 1:1.5:2:3:4
+④ 채취 단위                → RoomBearsMaterial D4
+⑤ 어느 Source 가 유한한가    → 첫 Region 은 쓰지 않는다 (S7). 뒤의 Region 이 정한다
 ```
 
-이 다섯은 **게임 의미**이므로 AI 가 정하지 않는다 (Design-DesignAuthoringWorkflow §9).
+위임의 규칙은 Region §5.5 그대로다 — 준 이름은 정식이고, 나머지는 세계를 짓는 쪽이 **그것이 무엇인지에서**
+짓는다. 세계는 정식과 지어진 것을 구분하지 않는다. 남는 UNRESOLVED 는 하나 — 살아 있는 운반체의 이동(3층).
 
 ---
 
@@ -1196,9 +1197,7 @@ Core Breath 의 어느 전이인가   관찰 → 이해 → 시도 구간. "이�
 
 ```text
 첫 계약    [play/RoomBearsMaterial.md](play/RoomBearsMaterial.md) — 미지 M1 거대 악마의 숲에 이 계약을
-          처음 쓰는 2층 넷째 Play (승인됨 · C011~C014)
+          처음 쓰는 2층 넷째 Play (승인됨 · C011~C014). 그 Play 가 M3 숲의 재료 계통을 놓았다
 선행       RoomBecomesLand(C005~C007)가 area·traversable·compile 을,
           RuleBoundRoom(C008~C010)이 Region State 와 세계 과정을 먼저 세운다
-남은 것    §6 의 UNRESOLVED 다섯 중 넷(이름 · 성질 · 시간 규모 · 채취 단위)은 답이 오지 않았다 —
-          그것을 필요로 하는 Cycle 이 UNRESOLVED 로 멈추고 Human 에 반환한다 (Play 의 확정 사항 11)
 ```

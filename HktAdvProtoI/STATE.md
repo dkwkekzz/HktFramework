@@ -14,7 +14,7 @@
 | Land — [RoomBecomesLand](content/roadmap/play/RoomBecomesLand.md) | **C006** 땅이 막고 흐른다 — traversable(45°) + 이동 거절 + curve(강 · carve · wet) + 다리 point + 조건 area 와 safe-by 사유. 여기서 **세계가 처음 땅을 읽는다** — 규칙 표를 world 와 view 가 함께 읽을 자리를 그때 정한다 (지금은 content/view) | — | C007 (순차) |
 | ENGINE A — [Plan-World-Authoring-Engine §5](design/Plan-World-Authoring-Engine.md) | C006·C007 이 쓸 나머지 — curve op · traversable 격자 · scatter/random · observe 래스터 (Cycle 아님 · 게임 명사 없음 · 분리 커밋) | — | C006 · C007 이 쓴다 |
 | Rule — [RuleBoundRoom](content/roadmap/play/RuleBoundRoom.md) | 대기 | Land 닫힘 (순서: Rooms → Land → Rule — 규칙이 바꿀 area · traversable 을 Land 가 먼저 세운다) | C008 → C010 |
-| Material — [RoomBearsMaterial](content/roadmap/play/RoomBearsMaterial.md) | 대기 — 다만 **Human 답 넷이 먼저다**: 재료의 이름 · 관찰 가능한 성질(U1·U2 → C011) · 회복의 시간 규모(U3 → C013) · 채취 단위(U4 → C012). 답이 없으면 C011 은 명세에서 멈춘다 | Rule 닫힘 (Region State 와 세계 과정이 서야 재료가 생애를 가진다) + U1·U2 | C011 → C014 |
+| Material — [RoomBearsMaterial](content/roadmap/play/RoomBearsMaterial.md) | 대기 (명세는 지금도 쓸 수 있다 — 이름·성질·상수는 Play 의 위임된 결정 D1~D4 에 있다) | Rule 닫힘 (Region State 와 세계 과정이 서야 재료가 생애를 가진다) | C011 → C014 |
 
 ## 2. 진행
 
@@ -25,7 +25,7 @@
 | RegionGraphRooms | 세계는 방들의 그래프다 | C001~C004 | **넷 다 닫힘** — Play Goal 실주행 확인이 남았다 (C004 TODO X-⑥) |
 | RoomBecomesLand | 방이 땅이 된다 (백왕령) | C005~C007 | C005 닫힘 · **C006 다음** |
 | RuleBoundRoom | 방은 규칙을 품는다 (환상의 미로 = Region 하나) | C008~C010 | 대기 |
-| RoomBearsMaterial | 방이 재료를 낳는다 (거대 악마의 숲의 재료 생태) | C011~C014 | 대기 · UNRESOLVED 넷 |
+| RoomBearsMaterial | 방이 재료를 낳는다 (거대 악마의 숲 = M3 재료 계통) | C011~C014 | 대기 |
 
 **Human 판정 대기** — 각 Cycle 의 `TODO.md` (그림은 같은 폴더 `shots/`). `npm run dev` 로 직접 본다.
 [C001](cycles/C001-region-graph-rooms/TODO.md) 8 · [C002](cycles/C002-many-exits/TODO.md) 8 ·
@@ -42,7 +42,7 @@ RegionGraphRooms 가 닫혔으므로 **Play 전체 실주행**(백왕령 → 거
 3 주체와 몸   미주입  ← 2층이 닫히면 다음.   4~7 (물건 · 대결 · 능력 · 성장) 미주입
 ```
 
-컨텐츠 층의 미지 — M1 거대 악마의 숲 · M2 환상의 미로. 정식 이름 표는 [L2-World-Region §5.1](content/roadmap/L2-World-Region.md).
+컨텐츠 층의 미지 — M1 거대 악마의 숲 · M2 환상의 미로 · M3 숲의 재료 계통(생체 광석 · 광식충 허물 · 거목균). 정식 이름 표는 [L2-World-Region §5.1](content/roadmap/L2-World-Region.md).
 주입 순서는 [content/roadmap/README.md](content/roadmap/README.md).
 
 ## 4. 코드에 있는 것

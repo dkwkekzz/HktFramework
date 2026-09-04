@@ -14,7 +14,7 @@ Play 하나는 로드맵의 **행 하나**를 증명한다 ([../README.md](../RE
 | [RegionGraphRooms.md](RegionGraphRooms.md) | 세계는 방들의 그래프다 — 전이 · 깊이 · 중첩 · 일방향 · 닫힘 · 아직 안 간 곳 | M1 거대 악마의 숲 | C001~C004 |
 | [RoomBecomesLand.md](RoomBecomesLand.md) | 방이 땅이 된다 — 같은 Region Spec 의 space 를 채우면 코드 없이 지형이 선다. 안전은 조건이 만든다 | — (백왕령은 미지가 아니다) | C005~C007 |
 | [RuleBoundRoom.md](RuleBoundRoom.md) | 방은 규칙을 품는다 — Region Rule 이 방 안의 통로와 방 밖의 Connector 를 World State 로 바꾸고, 그 State 는 관찰자 모두에게 하나다 | M2 환상의 미로 | C008~C010 |
-| [RoomBearsMaterial.md](RoomBearsMaterial.md) | 방이 재료를 낳는다 — 하나의 Cause 가 여러 원천을 만들고, 흔적이 먼저 오고, 캐면 자국이 남고, 세계의 과정이 다른 자리에 되돌린다 | M1 을 깊게 한다 (재료 계통의 이름은 Human 질문) | C011~C014 |
+| [RoomBearsMaterial.md](RoomBearsMaterial.md) | 방이 재료를 낳는다 — 하나의 Cause 가 여러 원천을 만들고, 흔적이 먼저 오고, 캐면 자국이 남고, 세계의 과정이 다른 자리에 되돌린다 | M3 숲의 재료 계통 (M1 을 깊게 한다) | C011~C014 |
 
 순서는 의존성이다 — 그래프가 있어야 방이 있고, 방이 있어야 땅으로 채울 수 있고, 방 안에 구조(area · traversable)가
 있어야 규칙이 바꿀 것이 있고, Region State 와 세계 과정이 있어야 재료가 생애를 가진다. 미로는 Region 하나이고 그
@@ -22,8 +22,8 @@ Play 하나는 로드맵의 **행 하나**를 증명한다 ([../README.md](../RE
 
 넷째는 [L2-World-Material.md](../L2-World-Material.md) 주입이 열었다 — 2층의 기획이 셋에서 넷이 되었다
 (도구 · 세계관 컨셉 · 세계 content 구성 · **재료 생태와 공급 계약**). 그 문서와 이 Play 는 한 번에 승인됐다.
-넷째만 **UNRESOLVED 넷**(재료의 이름 · 관찰 가능한 성질 · 회복의 시간 규모 · 채취 단위)을 안고 선다 —
-그것을 필요로 하는 Cycle 이 명세에서 멈추고 Human 에 반환한다 (RoomBearsMaterial 의 U1~U4).
+넷째의 빈칸 넷(재료의 이름 · 성질 · 시간 규모 · 채취 단위)은 Human 이 위임해 그 Play 가 내렸다
+(RoomBearsMaterial 의 위임된 결정 D1~D4 — Human 이 언제든 뒤집는다).
 
 ## 네 기획의 덮임 지도
 

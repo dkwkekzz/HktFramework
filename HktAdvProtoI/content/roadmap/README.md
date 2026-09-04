@@ -73,8 +73,8 @@ Region Graph · Region Rule · Connector · 중첩 · 제작 12단계 · Region 
 어느 자리(layer · tag · op)에 닿는지는 `L2-World-Tool.md` §3 이 정한다. 각 Region 의 내용(Spec 의 1~8)은
 그 Region 의 Play 가 ①②②-부속 에 있는 것만으로 쓴다 — 없는 것은 지어내지 않고 Human 질문으로 남긴다.
 
-2층의 Play 는 넷이다 (`play/README.md`) — **전부 승인됐다**. 넷째(`play/RoomBearsMaterial.md`)만
-UNRESOLVED 넷(재료의 이름 · 관찰 가능한 성질 · 회복의 시간 규모 · 채취 단위)을 안고 선다.
+2층의 Play 는 넷이다 (`play/README.md`) — **전부 승인됐다**. 넷째(`play/RoomBearsMaterial.md`)의
+빈칸 넷(재료의 이름 · 성질 · 시간 규모 · 채취 단위)은 Human 이 위임해 그 Play 가 내렸다 (위임된 결정 D1~D4).
 
 "증명 Play" 열은 방향 제안이다 — 실제 Play 는 그 층을 주입할 때 `play/` 문서로
 구체화하고 승인한다. 지금 코드에 있는 것(채광·이동·관찰·기본 전투·몸)은 1층 위에
@@ -90,6 +90,7 @@ UNRESOLVED 넷(재료의 이름 · 관찰 가능한 성질 · 회복의 시간 �
 |---|---|---|---|---|---|---|
 | **M1 거대 악마의 숲** | 지역 | 이름 · 방 구성 · 깊이 · 무엇으로 이어지는가 — `L2-World-Region.md` §5.1·§5.4 와 `play/RegionGraphRooms.md` §5.8 | 2 | `play/RegionGraphRooms.md` | 그 Play 가 소유 | **다음** — C001 닫힘 (숲 가장자리까지) |
 | **M2 환상의 미로** | 지역 | 이름 · Region Spec 통째 — `L2-World-Region.md` §16 | 2 | `play/RuleBoundRoom.md` | 그 Play 가 소유 | **다음** |
+| **M3 숲의 재료 계통** | 자원 | 생체 광석 · 광식충 허물 · 거목균 — Concept §4 의 사슬에서 나온 Material Seed 셋. 이름·성질은 위임된 결정 (`play/RoomBearsMaterial.md` D1·D2) | 2 (②-부속) | `play/RoomBearsMaterial.md` | 그 Play 가 소유 | **다음** — Rule 닫힘 뒤 |
 | (이후) | 지역 · 생물 · 자원 · 구조 | 그 미지가 무엇이고 어디에 있으며 왜 그런가 | 2 · 3 · … | 그 미지 하나를 만나는 Play | `M<N>-*.md` · `play/` | — |
 
 ## 4. 한 행을 주입하는 방식
