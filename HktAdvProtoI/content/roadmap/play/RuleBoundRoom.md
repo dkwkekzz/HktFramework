@@ -206,9 +206,9 @@ E5   없음이 목표다. Region Rule 은 content/world/simulation 의 시스템
 ## 7. Cycle Breakdown
 
 ```text
-[ ] C008 — 규칙이 하나 있는 방: 미로 Region 하나(구역 넷 · 통로 여섯) + Region State(pressure · pattern) + RULE_MAZE_CONNECTION.
+[x] C008 — 규칙이 하나 있는 방: 미로 Region 하나(구역 넷 · 통로 여섯) + Region State(pressure · pattern) + RULE_MAZE_CONNECTION.
            걸으면 압력이 오르고 넘치면 열린 통로가 바뀐다. 닫힌 통로는 거절한다. 식물 표식으로 구역을 안다
-[ ] C009 — 규칙을 이용해 닿는다: 패턴 조건 activation(heartAccess) + 심장 Region + 돌아가기 명령.
+[x] C009 — 규칙을 이용해 닿는다: 패턴 조건 activation(heartAccess) + 심장 Region + 돌아가기 명령.
            원하는 패턴을 불러 심장에 닿는다
 [ ] C010 — 세계는 하나다: 두 관찰자가 같은 미로 State 를 본다. 한쪽의 걸음이 다른 쪽의 압력이다.
            떠난 뒤에도 State 가 남는다 (영속 스냅샷에 Region State)

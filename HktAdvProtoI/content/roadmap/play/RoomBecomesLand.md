@@ -147,9 +147,9 @@ V8   biome-rules — surface 규칙 표 (slope 임계 둘 · curve 거리 → we
 ```text
 [x] C005 — 땅이 솟는다: height-field + stamp + compile + view terrain 교체 + 결정론(hash). 백왕령 북쪽 능선.
            급경사는 표면 색만 (아직 안 막힘) — 도구 1단계 ①③④
-[ ] C006 — 땅이 막고 흐른다: traversable + 이동 거절 + curve(강 · carve · wet) + 다리 point + 거목 billboard +
+[x] C006 — 땅이 막고 흐른다: traversable + 이동 거절 + curve(강 · carve · wet) + 다리 point + 거목 billboard +
            조건 area 와 HUD 사유 코드 — 도구 1단계 ⑤⑥, W2
-[ ] C007 — 보고 다시 만든다: world:observe 넷 + 보고(검사 ①~⑨) + world:shot. 숲 가장자리에 basin 을 데이터로
+[x] C007 — 보고 다시 만든다: world:observe 넷 + 보고(검사 ①~⑨) + world:shot. 숲 가장자리에 basin 을 데이터로
            더해 코드 diff 0 실측 — 도구 1단계 ⑧⑨, Plan §4 완료 조건 1~3
 ```
 
