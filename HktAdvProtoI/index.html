@@ -32,13 +32,14 @@
          오른쪽 위는 조작 안내의 자리이므로 그 앞에서 멈춘다.
 
          C027 SPEC-008 — **판(#targetframe)이 서는 자리 앞에서도 멈춘다.** 판은 화면 위
-         가운데에 서고 가장 넓을 때 380px 이므로 그 왼쪽 끝은 `50% - 190px` 이다. 그 앞
-         10px 에서 띠를 끊으면 둘이 겹칠 수 없다. 띠는 감싸므로(flex-wrap) 좁아진 만큼
-         아래로 자라고, 잘려 사라지지 않는다.
+         가운데에 서고 가장 넓을 때 380px 이므로 그 왼쪽 끝은 `50% - 190px` 이다.
+         띠의 왼쪽 여백 14px 과 사이 10px 을 함께 빼면 `50% - 214px` — 그 앞에서 끊으면
+         둘이 겹칠 수 없다 (너비는 테두리 기준이다 · box-sizing: border-box).
+         띠는 감싸므로(flex-wrap) 좁아진 만큼 아래로 자라고, 잘려 사라지지 않는다.
          화면이 아주 좁으면 그 값이 0 에 가까워지므로 하한을 둔다 — 그때는 띠가 세로로
          길어질 뿐이다. */
       display: flex; align-items: center; gap: 8px 14px;
-      flex-wrap: wrap; max-width: max(180px, min(calc(100% - 230px), calc(50% - 200px)));
+      flex-wrap: wrap; max-width: max(180px, min(calc(100% - 230px), calc(50% - 214px)));
       background: rgba(28, 34, 46, 0.82); color: #f2f4f8;
       padding: 9px 16px; border-radius: 10px;
       font-size: 17px; font-weight: 700; letter-spacing: 0.2px;
@@ -527,7 +528,7 @@
         left: calc(10px + env(safe-area-inset-left));
         /* C027 SPEC-008 — 오른쪽 위는 이제 판(#targetframe)의 자리다 (바로 아래).
            둘이 화면을 반씩 나눠 쓰므로 겹칠 수 없다. 띠는 감싸며 아래로 자란다. */
-        right: auto; max-width: calc(55% - 24px);
+        right: auto; max-width: calc(52% - 24px);
         flex-wrap: wrap; gap: 8px 12px;
         font-size: 14px; padding: 7px 12px;
       }
@@ -540,7 +541,11 @@
         right: calc(10px + env(safe-area-inset-right));
         align-items: flex-end;
       }
-      .tf-panel { min-width: 0; max-width: min(380px, calc(45% - 16px)); }
+      /* 상한만 좁히고 **하한은 남긴다** — min-width 를 0 으로 두면 자리가 남아 있는데도
+         판이 글자 하나 너비로 접혀 "내/가/선/자/리" 처럼 세로로 쏟아진다. */
+      .tf-panel { min-width: min(240px, 42vw); max-width: min(380px, 45vw); }
+
+
       .hud-link { top: calc(64px + env(safe-area-inset-top)); left: calc(10px + env(safe-area-inset-left)); }
       .hud-self {
         left: calc(10px + env(safe-area-inset-left));
@@ -591,6 +596,24 @@
       .cc-history { max-height: 12vh; }
       /* 16px 미만이면 iOS 가 입력 순간 화면을 확대해 버린다 */
       .cc-input { font-size: 16px; padding: 7px 8px; }
+
+      /* 더 좁으면 나란히 설 자리가 없다 — 그때는 판이 띠 **아래**로 내려간다 (C027 SPEC-008).
+         나란히 두면 둘 다 글자가 접혀 어느 쪽도 읽히지 않는다: 실측으로 420px 에서 33px 이
+         겹쳤다. 왼쪽 위의 이어짐 표시들 옆으로 비켜 서도록 너비를 그만큼 남긴다. */
+      @media (max-width: 560px) {
+        .hud-panel { max-width: calc(100% - 20px); }
+        /* 양끝을 다 못박아 판에 **확실한 너비**를 준다 — 한쪽만 잡으면 판이 자기 내용에
+           맞춰 줄어들다가 글자 하나 너비로 접힌다 (실측: 560px 에서 26px). */
+        #targetframe {
+          top: calc(100px + env(safe-area-inset-top));
+          left: calc(10px + env(safe-area-inset-left));
+          right: calc(10px + env(safe-area-inset-right));
+          align-items: stretch;
+        }
+        .tf-panel { min-width: 0; max-width: none; }
+        /* 이어짐 수치는 판 아래로 — 판이 그 자리를 가져갔다 */
+        .hud-linkpanel { top: calc(268px + env(safe-area-inset-top)); }
+      }
     }
   </style>
 </head>

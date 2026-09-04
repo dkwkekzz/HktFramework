@@ -1,0 +1,159 @@
+{
+  "out": "shots",
+  "viewport": [
+    900,
+    620
+  ],
+  "runs": [
+    {
+      "spawn": "0,17",
+      "npcs": "none",
+      "steps": [
+        {
+          "wait": "세계 시간",
+          "tries": 60
+        },
+        {
+          "sleep": 700
+        },
+        {
+          "shot": "X-01-standing-place",
+          "note": "X-①⑤⑥⑦ 아무것도 지목하지 않았다 — 판이 내가 선 자리를 지고, 좌상단 HUD 에 깊이·안전한 이유가 없고, 둘이 겹치지 않는다. 안내에 지목하는 법이 있다"
+        },
+        {
+          "sleep": 600
+        },
+        {
+          "sleep": 600
+        }
+      ]
+    },
+    {
+      "spawn": "3,17",
+      "npcs": "none",
+      "steps": [
+        {
+          "wait": "세계 시간",
+          "tries": 60
+        },
+        {
+          "sleep": 700
+        },
+        {
+          "click": [
+            0.31,
+            0.55
+          ],
+          "alt": true
+        },
+        {
+          "sleep": 600
+        },
+        {
+          "shot": "X-02-designate-a-being",
+          "note": "X-①③ 북쪽 출구 표식(0,18)을 지목했다 — 제목이 사람이 읽을 말인가(원시 id 가 아닌가) · 건너기가 줄로 서는가"
+        },
+        {
+          "click": [
+            0.31,
+            0.48
+          ],
+          "alt": true
+        },
+        {
+          "sleep": 600
+        },
+        {
+          "shot": "X-02b-another-aim",
+          "note": "X-①③ 두 번째 겨냥 (둘 중 하나가 표식에 닿는다)"
+        }
+      ]
+    },
+    {
+      "spawn": "8,-2",
+      "npcs": "none",
+      "steps": [
+        {
+          "wait": "세계 시간",
+          "tries": 60
+        },
+        {
+          "sleep": 700
+        },
+        {
+          "click": [
+            0.5,
+            0.38
+          ],
+          "alt": true
+        },
+        {
+          "sleep": 600
+        },
+        {
+          "shot": "X-03-designate-a-deposit",
+          "note": "X-③ 광맥(8,-6)을 지목했다 — 그 대상이 주는 행동과, 지금 못 한다면 그 사유가 함께 읽히는가"
+        },
+        {
+          "click": [
+            0.5,
+            0.31
+          ],
+          "alt": true
+        },
+        {
+          "sleep": 600
+        },
+        {
+          "shot": "X-03b-another-aim",
+          "note": "X-③ 두 번째 겨냥 (둘 중 하나가 광맥에 닿는다)"
+        }
+      ]
+    },
+    {
+      "spawn": "0,0",
+      "npcs": "none",
+      "steps": [
+        {
+          "wait": "세계 시간",
+          "tries": 60
+        },
+        {
+          "sleep": 700
+        },
+        {
+          "click": [
+            0.5,
+            0.5
+          ],
+          "alt": true
+        },
+        {
+          "sleep": 600
+        },
+        {
+          "shot": "X-04-designate-myself",
+          "note": "X-②④ 내 몸을 지목했다 — 이름 · 생명(지금/최대) · 지금 하는 일이 읽히는가"
+        }
+      ]
+    },
+    {
+      "region": "FANTASY_MAZE",
+      "spawn": "-30,30",
+      "npcs": "none",
+      "steps": [
+        {
+          "wait": "세계 시간",
+          "tries": 60
+        },
+        {
+          "sleep": 700
+        },
+        {
+          "shot": "X-05-maze-standing",
+          "note": "X-⑤⑥ 미로에서 지목 없이 — 내가 선 자리 판이 구역·지금 길·압력을 지고, 좌상단 HUD 에 압력이 없다"
+        }
+      ]
+    }
+  ]
+}
