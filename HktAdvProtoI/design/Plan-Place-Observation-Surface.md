@@ -257,8 +257,14 @@ TG 를 통째로 먼저 짓지 않는다. TG 의 절반(적대 · Tab 순환 · 
 
 ### 5.3 무엇을 새로 짓지 않는가
 
+> **Q1 의 답이 이 절을 하나 고친다.** Human 이 고른 것은 MMORPG 의 대상 프레임 — **늘 떠 있고
+> 자판을 잡지 않는 자리**다. SceneSurface 는 열리면 자판을 잡으므로 그 자리가 아니다
+> (`hud/surface.ts`). 늘 떠 있는 판 하나가 기구로 늘어난다 —
+> [play/RoomAnswersWhenAsked.md](../content/roadmap/play/RoomAnswersWhenAsked.md) §5.5 · E3.
+> 표면은 나중에 더 큰 관찰이 올 때의 것으로 남는다.
+
 ```text
-표면 기구        SceneSurface + surface.ts (있다 · 미사용)
+표면 기구        SceneSurface + surface.ts (있다 · 미사용 — 위 주석대로 이 Play 의 자리는 아니다)
 초점·곁말        surface-focus.ts · surface-tip.ts (있다)
 지목 집기        renderer.pickEntity · pickGround (있다)
 키가 뜻을 고름   interaction-choice.ts (있다 — 자리 지목에도 같은 규칙이 쓰인다)
