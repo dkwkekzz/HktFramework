@@ -56,7 +56,7 @@ content/  그 위에 놓이는 이 세계          컨텐츠 층  미지를 놓�
 |---|---|---|---|---|---|---|
 | 0 | 게임 방향 | 핵심 경험 한 단락 + Core Breath + 핵심 문장 | `L0-Game.md` 가 원문을 소유한다 | 없음 — 판단 기준일 뿐 | `L0-Game.md` | **확정** |
 | 1 | 세계의 문법 | 무엇이 존재하고 무엇이 변하는가 — 존재·상태·주체·법칙·시간 (주체가 행동을 **고르는** 과정은 3층) | `Design-Concept.md` | 없음 — 코드가 이미 이 문법 위에 있음 | `L1-World-Grammar.md` | **확정** |
-| 2 | 세계 자체 | **도구 절반** — 세계를 쓰는 문법과 컴파일러 (engine) · **세계 절반** — ① 세계관 컨셉 ② 세계 content 구성(Region Graph · Region Rule · Connector · 중첩) ②-부속 재료 생태와 공급 계약(원천 · 흔적 · 생애 · 공급 · 흐름) · ②-부속 둘째 세계의 시간과 위상(낮밤 · 철 · Region 위상 · 소란 · 압도적 존재의 경로 — 제안) | 도구: `Design-World-Editor-Terrain-Compiler.md` (WE) · `Plan-World-Authoring-Engine.md` · 세계: 주입 원문은 결과물 안에 |안전권을 나서 깊이가 달라지는 것을 본다 — 백왕령(civil) ⇄ 거대 악마의 숲(outer) | `L2-World-Tool.md` · `L2-World-Concept.md` · `L2-World-Region.md` · `L2-World-Material.md` · `L2-World-Time.md`(제안) · `play/` 의 Play 다섯 | **다음** — C001~C005 닫힘 |
+| 2 | 세계 자체 | **도구 절반** — 세계를 쓰는 문법과 컴파일러 (engine) · **세계 절반** — ① 세계관 컨셉 ② 세계 content 구성(Region Graph · Region Rule · Connector · 중첩) ②-부속 재료 생태와 공급 계약(원천 · 흔적 · 생애 · 공급 · 흐름) · ②-부속 둘째 세계의 시간과 위상(낮밤 · 철 · Region 위상 · 소란 · 압도적 존재의 경로) | 도구: `Design-World-Editor-Terrain-Compiler.md` (WE) · `Plan-World-Authoring-Engine.md` · 세계: 주입 원문은 결과물 안에 |안전권을 나서 깊이가 달라지는 것을 본다 — 백왕령(civil) ⇄ 거대 악마의 숲(outer) | `L2-World-Tool.md` · `L2-World-Concept.md` · `L2-World-Region.md` · `L2-World-Material.md` · `L2-World-Time.md` · `play/` 의 Play 다섯 | **다음** — C001~C005 닫힘 |
 | 3 | 주체와 몸 | 요정의 몸은 무엇을 가지는가(깎이고 회복되는 값) · 생물은 무엇을 알고 어떻게 행동하는가 | `Design-Subject-Decision.md` · `Design-Autonomous-Behavior-Knowledge-R0.md` · `Design-Creature-Behavior-R0.md` | 세계가 몸을 깎고, 생물이 그것에 반응하는 것을 본다 | `L3-*.md` · `play/` | 미주입 |
 | 4 | 자원과 물건 | 소지·장비·가공 사슬 · 조합과 쓰임 ("무엇이 어디서 나는가" 는 2층 ②-부속이 닫았다 — 이 층은 그 Material Seed 를 받는다) | `Design-Resource-Catalog-R0.md` · `Design-Item-*.md` · `Design-Inventory-Equipment-D1.md` | 캐서 지니면 갈 수 있는 곳이 늘어난다 | `L4-*.md` · `play/` | 미주입 |
 | 5 | 대결 | 공격·방어·피해 종류·지목 | `Design-Combat-*.md` · `Design-Targeting-R0.md` | 처음으로 맞서 이긴다 | `L5-*.md` · `play/` | 미주입 |
@@ -73,11 +73,12 @@ Region Graph · Region Rule · Connector · 중첩 · 제작 12단계 · Region 
 어느 자리(layer · tag · op)에 닿는지는 `L2-World-Tool.md` §3 이 정한다. 각 Region 의 내용(Spec 의 1~8)은
 그 Region 의 Play 가 ①②②-부속 에 있는 것만으로 쓴다 — 없는 것은 지어내지 않고 Human 질문으로 남긴다.
 
-2층에 ②-부속이 하나 더 있다 — **세계의 시간과 위상**(`L2-World-Time.md` · 제안): 공간 · 규칙 · 재료 넷에 공통으로
+2층에 ②-부속이 하나 더 있다 — **세계의 시간과 위상**(`L2-World-Time.md` · 확정): 공간 · 규칙 · 재료 넷에 공통으로
 없던 축 *시간*. 낮밤과 네 철(고요 · 스밈 · 긴 밤 · 뒤척임) · Region 위상 · 여럿의 누적으로만 넘는 전이 · 압도적 존재의 경로.
-승인되면 ② 의 둘째 확장 계약이 된다.
+② 의 둘째 확장 계약이다.
 
-2층의 Play 는 다섯이다 (`play/README.md`) — 넷은 승인됐고 다섯째(`play/RoomNeverSame.md`)는 ②-부속 둘째와 함께 **승인 대기**다. 넷째(`play/RoomBearsMaterial.md`)의
+2층의 Play 는 다섯이다 (`play/README.md`) — **전부 승인됐다**. 2층은 이제 기획으로는 닫혔고 Play 로 증명 중이다 —
+더 쌓을 기획은 없다. 다음 기획 주입은 **3층**이다 (2층 Play 가 실제로 플레이되어 닫힌 뒤). 넷째(`play/RoomBearsMaterial.md`)의
 빈칸 넷(재료의 이름 · 성질 · 시간 규모 · 채취 단위)은 Human 이 위임해 그 Play 가 내렸다 (위임된 결정 D1~D4).
 
 "증명 Play" 열은 방향 제안이다 — 실제 Play 는 그 층을 주입할 때 `play/` 문서로
@@ -95,7 +96,8 @@ Region Graph · Region Rule · Connector · 중첩 · 제작 12단계 · Region 
 | **M1 거대 악마의 숲** | 지역 | 이름 · 방 구성 · 깊이 · 무엇으로 이어지는가 — `L2-World-Region.md` §5.1·§5.4 와 `play/RegionGraphRooms.md` §5.8 | 2 | `play/RegionGraphRooms.md` | 그 Play 가 소유 | **다음** — C001 닫힘 (숲 가장자리까지) |
 | **M2 환상의 미로** | 지역 | 이름 · Region Spec 통째 — `L2-World-Region.md` §16 | 2 | `play/RuleBoundRoom.md` | 그 Play 가 소유 | **다음** |
 | **M3 숲의 재료 계통** | 자원 | 생체 광석 · 광식충 허물 · 거목균 — Concept §4 의 사슬에서 나온 Material Seed 셋. 이름·성질은 위임된 결정 (`play/RoomBearsMaterial.md` D1·D2) | 2 (②-부속) | `play/RoomBearsMaterial.md` | 그 Play 가 소유 | **다음** — Rule 닫힘 뒤 |
-| **M4 천공고래의 길** *(승인 대기)* | 현상 (생물은 3층) | 낮에 하늘을 지나는 경로 · 그림자 · 떨어진 비늘(고래 비늘) — Concept §9 그대로. `play/RoomNeverSame.md` 확정 후보 9 | 2 (②-부속 둘째) | `play/RoomNeverSame.md` | 그 Play 가 소유 | 승인 대기 |
+| **M4 천공고래의 길** | 현상 (생물은 3층) | 낮에 하늘을 지나는 경로 · 그림자 · 떨어진 비늘(고래 비늘) — Concept §9 그대로. `play/RoomNeverSame.md` 확정 9 | 2 (②-부속 둘째) | `play/RoomNeverSame.md` | 그 Play 가 소유 | **다음** — Material 닫힘 뒤 |
+| **M5 빙결 협곡** *(승인 대기)* | 지역 | 숲과 갈래가 다른 Region — 극저온 · 눈보라 · 절벽 · 체온 감지 포식자 · 빙정석 (Concept §6). `M5-FrostCanyon.md` | 2 (①② · ②-부속 둘) | `play/RoomOfAnotherKind.md` | 그 Play 가 소유 | 승인 대기 |
 | (이후) | 지역 · 생물 · 자원 · 구조 | 그 미지가 무엇이고 어디에 있으며 왜 그런가 | 2 · 3 · … | 그 미지 하나를 만나는 Play | `M<N>-*.md` · `play/` | — |
 
 ## 4. 한 행을 주입하는 방식
