@@ -4,8 +4,8 @@
 // (design/Plan-World-Authoring-Engine.md §3.1). 여기에는 게임 명사가 없다 — layer 와 tag 는
 // 컨텐츠가 짓는 불투명 문자열이고, 기반은 뜻을 모른 채 **조회만** 제공한다.
 //
-// op 는 요구가 실제로 온 것만 있다 — 지금은 point 와 stamp 둘. curve · area 는 그 요구가
-// 오는 다음 사용처가 더한다 — 여기서 미리 형을 열어 두지 않는다.
+// op 는 요구가 실제로 온 것만 있다 — point · stamp · curve · area 넷. 그 밖의 것(규칙이 놓는
+// 장식 · seed 를 쓰는 흩뿌리기)은 그 요구가 오는 다음 사용처가 더한다 — 미리 열어 두지 않는다.
 
 export interface XZ {
   x: number;
@@ -49,7 +49,37 @@ export interface StampOp {
   falloff?: number;
 }
 
-export type RegionOp = PointOp | StampOp;
+/**
+ * 중심선 하나를 따라 흐르는 편집 — `points` 의 polyline 에서 `width / 2` 안쪽에만 닿는다.
+ *
+ * `profile` 이 없으면 높이를 건드리지 않는 **표시선**이다 (자리에 이름만 붙인다).
+ *   carve   중심선을 따라 `depth` 만큼 판다 (양수 = 아래로)
+ * 다른 profile 은 그 요구가 오는 사용처가 더한다.
+ */
+export interface CurveOp {
+  id: string;
+  kind: 'curve';
+  layer: string;
+  tag: string;
+  /** 중심선 polyline — 2점 이상이어야 뜻이 있다 */
+  points: XZ[];
+  /** 전체 폭 (중심선에서 좌우 width / 2) */
+  width: number;
+  profile?: 'carve';
+  /** carve 가 파는 깊이 (양수 = 아래로) */
+  depth?: number;
+}
+
+/** 자리의 **범위**에 이름을 붙이는 편집 — 높이를 건드리지 않는다. 조회로만 쓰인다 */
+export interface AreaOp {
+  id: string;
+  kind: 'area';
+  layer: string;
+  tag: string;
+  shape: { kind: 'polygon'; points: XZ[] } | { kind: 'circle'; center: XZ; radius: number };
+}
+
+export type RegionOp = PointOp | StampOp | CurveOp | AreaOp;
 
 /** 하나의 Local Space — identity(id · extent · seed) + 순서 있는 편집 목록 */
 export interface RegionDescription {
@@ -90,6 +120,62 @@ export function pointsOf(d: RegionDescription, layer: string): PointOp[] {
     if (op.kind === 'point' && op.layer === layer) out.push(op);
   }
   return out;
+}
+
+/** 그 layer 의 area 들 — ops 순서 그대로 */
+export function areasOf(d: RegionDescription, layer: string): AreaOp[] {
+  const out: AreaOp[] = [];
+  for (const op of d.ops) {
+    if (op.kind === 'area' && op.layer === layer) out.push(op);
+  }
+  return out;
+}
+
+/** 그 (layer, tag) 의 curve 들 — ops 순서 그대로 */
+export function curvesOf(d: RegionDescription, layer: string, tag: string): CurveOp[] {
+  const out: CurveOp[] = [];
+  for (const op of d.ops) {
+    if (op.kind === 'curve' && op.layer === layer && op.tag === tag) out.push(op);
+  }
+  return out;
+}
+
+/**
+ * 중심선까지의 최단 거리 — 점이 아니라 **선분**까지의 거리다 (꺾인 곳에서도 값이 이어진다).
+ * points 가 2점 미만이면 잴 선분이 없으므로 Infinity — "닿지 않는다" 로 읽힌다.
+ */
+export function distanceToPolyline(points: readonly XZ[], x: number, z: number): number {
+  if (points.length < 2) return Infinity;
+  let best = Infinity;
+  for (let i = 0; i + 1 < points.length; i++) {
+    const a = points[i];
+    const b = points[i + 1];
+    if (!a || !b) continue;
+    const d = distanceToSegment(a, b, x, z);
+    if (d < best) best = d;
+  }
+  return best;
+}
+
+/** curve 여럿 가운데 가장 가까운 중심선까지의 거리 — 하나도 없으면 Infinity */
+export function nearestCurveDistance(curves: readonly CurveOp[], x: number, z: number): number {
+  let best = Infinity;
+  for (const curve of curves) {
+    const d = distanceToPolyline(curve.points, x, z);
+    if (d < best) best = d;
+  }
+  return best;
+}
+
+/** 선분 ab 위로 자리를 투영해 [0, 1] 로 자른다 — 길이가 0 이면 점까지의 거리다 */
+function distanceToSegment(a: XZ, b: XZ, x: number, z: number): number {
+  const dx = b.x - a.x;
+  const dz = b.z - a.z;
+  const lengthSquared = dx * dx + dz * dz;
+  if (lengthSquared <= 0) return Math.hypot(x - a.x, z - a.z);
+  let t = ((x - a.x) * dx + (z - a.z) * dz) / lengthSquared;
+  t = t < 0 ? 0 : t > 1 ? 1 : t;
+  return Math.hypot(x - (a.x + dx * t), z - (a.z + dz * t));
 }
 
 /** (layer, tag) 의 첫 point — 없으면 undefined */

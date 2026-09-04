@@ -22,6 +22,9 @@ function grid3(): CompiledWorldTerrain {
     height,
     surface: new Uint8Array(9),
     surfaceTags: ['a'],
+    traversable: new Uint8Array(9).fill(1),
+    blocked: new Uint8Array(9),
+    blockedTags: [''],
     areas: [],
     points: [],
   };
@@ -88,6 +91,7 @@ function oneChunkView(): CompiledViewTerrain {
       },
     ],
     surfaceTags: ['low', 'high'],
+    instances: [],
   };
 }
 
@@ -162,7 +166,7 @@ describe('createTerrain — chunk 마다 mesh 하나', () => {
 
   it('빈 chunk 목록이면 아무것도 그리지 않는다 — 화면은 그대로 돈다', () => {
     const object = createTerrain(
-      { chunkSize: 1, chunks: [], surfaceTags: [] },
+      { chunkSize: 1, chunks: [], surfaceTags: [], instances: [] },
       palette({}),
     );
     expect(object.children).toHaveLength(0);
@@ -193,6 +197,7 @@ describe('그리는 격자와 재는 격자는 같은 높이다', () => {
       chunkSize: 1,
       chunks: [chunkAt(0, 0), chunkAt(1, 0), chunkAt(0, 1), chunkAt(1, 1)],
       surfaceTags: ['a'],
+      instances: [],
     };
 
     const object = createTerrain(view, palette({ a: 0x445533 }));
@@ -259,6 +264,7 @@ describe('법선 — 자리를 나눠 갖는 vertex 는 법선도 나눠 갖는�
     chunkSize: 2,
     chunks: [left, right],
     surfaceTags: [],
+    instances: [],
   };
 
   it('경계 vertex 의 법선이 양쪽 chunk 에서 같다', () => {

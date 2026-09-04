@@ -5,8 +5,14 @@
 //
 // 이 파일은 어떤 태그 이름도 알지 못한다 — 규칙은 인자로 들어오고, 태그의 뜻은 컨텐츠의 것이다.
 
+import {
+  curvesOf,
+  nearestCurveDistance,
+  type CurveOp,
+  type RegionDescription,
+} from './description';
 import type { HeightField, SurfaceRule } from './compiled';
-import { slopeAtVertex } from './height-field';
+import { slopeAtVertex, vertexX, vertexZ } from './height-field';
 
 /**
  * 규칙이 하나도 없을 때 격자 전체가 갖는 태그.
@@ -22,10 +28,15 @@ export const DEFAULT_SURFACE_TAG = 'default';
  * surfaceTags 는 규칙에 나온 순서대로의 태그 목록이다 (같은 태그를 여러 규칙이 쓰면 한 번만
  * 담는다). 아무 규칙도 맞지 않으면 **마지막 규칙**의 태그를 붙인다 — 표의 마지막 줄이 남은
  * 전부를 받는 자리다.
+ *
+ * 한 규칙 안의 조건들(maxSlope · nearCurve)은 AND 다. `description` 은 nearCurve 를 재기
+ * 위한 curve 의 출처이고, 주지 않으면 curve 를 묻는 규칙은 아무 자리에서도 맞지 않는다 —
+ * 인자가 없던 때(경사만 묻던 표)의 결과는 한 톨도 달라지지 않는다.
  */
 export function evaluateSurface(
   field: HeightField,
   rules: readonly SurfaceRule[],
+  description?: RegionDescription,
 ): { surface: Uint8Array; surfaceTags: string[] } {
   const surfaceTags: string[] = [];
   const tagIndexOfRule: number[] = [];
@@ -45,18 +56,29 @@ export function evaluateSurface(
     return { surface, surfaceTags };
   }
 
+  // 규칙마다 볼 curve 를 한 번만 골라 둔다 — vertex 마다 ops 를 다시 훑지 않는다.
+  const curvesOfRule: (readonly CurveOp[] | null)[] = rules.map((rule) =>
+    rule.nearCurve && description ? curvesOf(description, rule.nearCurve.layer, rule.nearCurve.tag) : null,
+  );
+
   const fallback = tagIndexOfRule[tagIndexOfRule.length - 1] ?? 0;
   for (let iz = 0; iz < field.rows; iz++) {
+    const z = vertexZ(field, iz);
     for (let ix = 0; ix < field.cols; ix++) {
+      const x = vertexX(field, ix);
       const slope = slopeAtVertex(field, ix, iz);
       let chosen = fallback;
       for (let r = 0; r < rules.length; r++) {
         const rule = rules[r];
         if (!rule) continue;
-        if (rule.maxSlope === undefined || slope < rule.maxSlope) {
-          chosen = tagIndexOfRule[r] ?? 0;
-          break;
+        if (rule.maxSlope !== undefined && !(slope < rule.maxSlope)) continue;
+        if (rule.nearCurve !== undefined) {
+          const curves = curvesOfRule[r];
+          if (!curves) continue; // curve 의 출처가 없다 — 이 규칙은 어디서도 맞지 않는다
+          if (!(nearestCurveDistance(curves, x, z) <= rule.nearCurve.maxDistance)) continue;
         }
+        chosen = tagIndexOfRule[r] ?? 0;
+        break;
       }
       surface[iz * field.cols + ix] = chosen;
     }

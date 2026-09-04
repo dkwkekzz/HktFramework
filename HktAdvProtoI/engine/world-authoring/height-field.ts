@@ -4,10 +4,10 @@
 // 두 쪽이 어긋날 자리가 없다 (design/Plan-World-Authoring-Engine.md §3.2).
 //
 // 순수하다 — Math.random · Date 를 쓰지 않고, 같은 (description, resolution) 은 언제나 같은
-// Float32Array 를 준다. 기본 높이는 0 이고 그 위에 stamp op 를 **ops 순서대로** 더한다.
-// Description 의 ops 는 순서 있는 편집이므로 순서가 다르면 다른 땅이다.
+// Float32Array 를 준다. 기본 높이는 0 이고 그 위에 높이를 건드리는 op(stamp · curve)를
+// **ops 순서대로** 더한다. Description 의 ops 는 순서 있는 편집이므로 순서가 다르면 다른 땅이다.
 
-import type { RegionDescription, StampOp } from './description';
+import { distanceToPolyline, type CurveOp, type RegionDescription, type StampOp } from './description';
 import type { HeightField } from './compiled';
 
 /**
@@ -28,6 +28,7 @@ export function buildHeightField(description: RegionDescription, resolution: num
   const field: HeightField = { extent, resolution, cols, rows, height };
   for (const op of description.ops) {
     if (op.kind === 'stamp') applyStamp(field, op);
+    else if (op.kind === 'curve') applyCurve(field, op);
   }
   return field;
 }
@@ -134,6 +135,58 @@ function applyStamp(field: HeightField, op: StampOp): void {
       if (weight === 0) continue;
       const i = iz * field.cols + ix;
       field.height[i] = (field.height[i] ?? 0) + op.height * weight;
+    }
+  }
+}
+
+/**
+ * curve 하나를 더한다 — 지금 있는 profile 은 carve 뿐이다 (표시선은 높이를 건드리지 않는다).
+ *
+ * 중심선에서 `width / 2` 안쪽만 파고, 정규화 거리 t = 거리 / (width / 2) 하나로 단면을 말한다:
+ *
+ *   w(t) = (1 - t²)²        t ∈ [0, 1), 그 밖은 0
+ *
+ * 이 곡선을 고른 근거는 **양 끝의 기울기가 둘 다 0** 이라는 것 하나다.
+ * w'(t) = -4t(1 - t²) 이므로 w'(0) = 0 (바닥이 평평하다) 이고 w'(1) = 0 (가장자리에서
+ * 0 으로 매끄럽게 잦아든다 — 폭의 경계에 절벽이 서지 않는다). 삼각형 단면 (1 - t) 이나
+ * 반원은 경계에서 기울기가 남아 그 줄만 급경사로 잡히고, 그러면 파는 것이 곧 막는 것이 된다.
+ * 모양의 족(族)도 stamp 의 basin(falloff = 2)과 같아서 두 편집이 섞여도 결이 어긋나지 않는다.
+ *
+ * 반경 밖은 한 톨도 건드리지 않으므로 중심선의 bounding box 만 훑는다.
+ */
+function applyCurve(field: HeightField, op: CurveOp): void {
+  if (op.profile !== 'carve') return;
+  if (op.points.length < 2) return;
+  if (!(op.width > 0) || !Number.isFinite(op.width)) return;
+  const depth = op.depth ?? 0;
+  if (!Number.isFinite(depth) || depth === 0) return;
+
+  const half = op.width / 2;
+  let minX = Infinity;
+  let maxX = -Infinity;
+  let minZ = Infinity;
+  let maxZ = -Infinity;
+  for (const p of op.points) {
+    if (p.x < minX) minX = p.x;
+    if (p.x > maxX) maxX = p.x;
+    if (p.z < minZ) minZ = p.z;
+    if (p.z > maxZ) maxZ = p.z;
+  }
+  if (!Number.isFinite(minX) || !Number.isFinite(minZ)) return;
+
+  const { resolution } = field;
+  const ix0 = clampInt(Math.floor((minX - half - field.extent.minX) / resolution), 0, field.cols - 1);
+  const ix1 = clampInt(Math.ceil((maxX + half - field.extent.minX) / resolution), 0, field.cols - 1);
+  const iz0 = clampInt(Math.floor((minZ - half - field.extent.minZ) / resolution), 0, field.rows - 1);
+  const iz1 = clampInt(Math.ceil((maxZ + half - field.extent.minZ) / resolution), 0, field.rows - 1);
+  for (let iz = iz0; iz <= iz1; iz++) {
+    const z = vertexZ(field, iz);
+    for (let ix = ix0; ix <= ix1; ix++) {
+      const t = distanceToPolyline(op.points, vertexX(field, ix), z) / half;
+      if (t >= 1) continue;
+      const weight = 1 - t * t;
+      const i = iz * field.cols + ix;
+      field.height[i] = (field.height[i] ?? 0) - depth * weight * weight;
     }
   }
 }

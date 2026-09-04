@@ -88,3 +88,94 @@ describe('규칙 표 평가', () => {
     expect(one.surfaceTags).toEqual(two.surfaceTags);
   });
 });
+
+// ── nearCurve ────────────────────────────────────────────────────────
+
+import type { CurveOp } from '../description';
+
+const line: CurveOp = {
+  id: 'c',
+  kind: 'curve',
+  layer: 'F',
+  tag: 'R',
+  points: [
+    { x: -8, z: 0 },
+    { x: 8, z: 0 },
+  ],
+  width: 2, // 표시선이다 — 높이를 건드리지 않으므로 경사는 그대로 0
+};
+
+const withLine: RegionDescription = { id: 'r', extent, seed: 1, ops: [line] };
+/** 자리(x, z) 의 태그 — 격자 칸이 1 이고 extent 가 -8 부터다 */
+const tagAt = (
+  result: { surface: Uint8Array; surfaceTags: string[] },
+  x: number,
+  z: number,
+): string | undefined => result.surfaceTags[result.surface[(z + 8) * 17 + (x + 8)] ?? 0];
+
+describe('nearCurve — 중심선까지의 거리로 고른다', () => {
+  const rules: SurfaceRule[] = [
+    { tag: 'near', nearCurve: { layer: 'F', tag: 'R', maxDistance: 2 } },
+    { tag: 'far' },
+  ];
+
+  it('maxDistance 이하는 붙고 그보다 멀면 붙지 않는다 — 경계는 안이다', () => {
+    const result = evaluateSurface(buildHeightField(withLine, 1), rules, withLine);
+    expect(result.surfaceTags).toEqual(['near', 'far']);
+    expect(tagAt(result, 0, 0)).toBe('near');
+    expect(tagAt(result, 5, 1)).toBe('near');
+    expect(tagAt(result, 0, 2)).toBe('near'); // 거리 2 = maxDistance
+    expect(tagAt(result, 0, 3)).toBe('far');
+    expect(tagAt(result, 0, -3)).toBe('far');
+  });
+
+  it('다른 (layer, tag) 의 curve 는 세지 않는다', () => {
+    const other: SurfaceRule[] = [
+      { tag: 'near', nearCurve: { layer: 'F', tag: '다른것', maxDistance: 2 } },
+      { tag: 'far' },
+    ];
+    const result = evaluateSurface(buildHeightField(withLine, 1), other, withLine);
+    expect(tagAt(result, 0, 0)).toBe('far');
+  });
+
+  it('Description 을 주지 않으면 curve 를 묻는 규칙은 아무 데서도 맞지 않는다', () => {
+    // 인자가 늘기 전의 계약 — 경사만 묻던 표는 값이 한 톨도 달라지지 않는다
+    const result = evaluateSurface(buildHeightField(withLine, 1), rules);
+    expect(tagAt(result, 0, 0)).toBe('far');
+    const slopeOnly: SurfaceRule[] = [{ tag: 'A', maxSlope: 0.3 }, { tag: 'B' }];
+    const before = evaluateSurface(field([slope]), slopeOnly);
+    const after = evaluateSurface(field([slope]), slopeOnly, { id: 'r', extent, seed: 1, ops: [slope] });
+    expect(Array.from(after.surface)).toEqual(Array.from(before.surface));
+  });
+
+  it('한 규칙 안의 조건은 AND 다 — 경사도 맞고 거리도 맞아야 한다', () => {
+    const hill: RegionDescription = { id: 'r', extent, seed: 1, ops: [slope, line] };
+    const both: SurfaceRule[] = [
+      { tag: 'wet-flat', maxSlope: 0.1, nearCurve: { layer: 'F', tag: 'R', maxDistance: 2 } },
+      { tag: 'rest' },
+    ];
+    const result = evaluateSurface(buildHeightField(hill, 1), both, hill);
+    // 중심선 위지만 언덕 비탈이라 경사 조건이 걸린다
+    expect(tagAt(result, 4, 0)).toBe('rest');
+    // 중심선 위이면서 평평한 자리 (언덕 반경 6 밖)
+    expect(tagAt(result, 8, 0)).toBe('wet-flat');
+  });
+
+  it('배열 순서로 첫 승리 — 앞선 규칙이 이긴다', () => {
+    const ordered: SurfaceRule[] = [
+      { tag: 'first', nearCurve: { layer: 'F', tag: 'R', maxDistance: 2 } },
+      { tag: 'second', nearCurve: { layer: 'F', tag: 'R', maxDistance: 4 } },
+      { tag: 'rest' },
+    ];
+    const result = evaluateSurface(buildHeightField(withLine, 1), ordered, withLine);
+    expect(tagAt(result, 0, 0)).toBe('first');
+    expect(tagAt(result, 0, 3)).toBe('second');
+    expect(tagAt(result, 0, 5)).toBe('rest');
+  });
+
+  it('같은 입력 두 번 → 같은 Uint8Array', () => {
+    const one = evaluateSurface(buildHeightField(withLine, 1), rules, withLine);
+    const two = evaluateSurface(buildHeightField(withLine, 1), rules, withLine);
+    expect(Array.from(one.surface)).toEqual(Array.from(two.surface));
+  });
+});

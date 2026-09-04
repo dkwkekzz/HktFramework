@@ -194,3 +194,87 @@ describe('결정론', () => {
     for (let i = 0; i < ab.height.length; i++) expect(ab.height[i]).toBeCloseTo(ba.height[i] ?? 0, 5);
   });
 });
+
+// ── curve(carve) ─────────────────────────────────────────────────────
+//
+// curve 도 stamp 와 같은 자리에서 같은 격자를 건드리는 편집이다 — 여기서도 이름의 뜻은 묻지 않는다.
+
+import type { CurveOp } from '../description';
+
+function carve(op: Partial<CurveOp> & Pick<CurveOp, 'id'>): CurveOp {
+  return {
+    kind: 'curve',
+    layer: 'L',
+    tag: 'C',
+    points: [
+      { x: -6, z: 0 },
+      { x: 6, z: 0 },
+    ],
+    width: 4,
+    profile: 'carve',
+    depth: 3,
+    ...op,
+  } as CurveOp;
+}
+
+/** 자리(x, z) 의 vertex 값 — 격자 칸이 1 이고 extent 가 -8 부터라 색인이 그대로 나온다 */
+function at(field: ReturnType<typeof buildHeightField>, x: number, z: number): number {
+  return heightAtVertex(field, x - extent.minX, z - extent.minZ);
+}
+
+describe('curve — carve 는 폭 안쪽만 판다', () => {
+  it('중심선에서 depth 만큼 파이고, 멀어질수록 얕아진다', () => {
+    const field = buildHeightField(description([carve({ id: 'c' })]), 1);
+    expect(at(field, 0, 0)).toBeCloseTo(-3, 5); // 중심 = 깊이 그대로
+    // w(t) = (1 - t²)² · t = 거리 / (폭 / 2)
+    expect(at(field, 0, 1)).toBeCloseTo(-3 * (1 - 0.25) ** 2, 5);
+    expect(at(field, 0, 1)).toBeGreaterThan(at(field, 0, 0));
+  });
+
+  it('폭 밖은 한 톨도 건드리지 않는다 — 경계(t = 1)도 0 이다', () => {
+    const field = buildHeightField(description([carve({ id: 'c' })]), 1);
+    expect(at(field, 0, 2)).toBe(0); // 폭 4 → 중심에서 2 가 경계
+    expect(at(field, 0, 3)).toBe(0);
+    expect(at(field, 8, 0)).toBe(0); // 중심선의 끝(x = 6) 너머
+    expect(at(field, -8, -8)).toBe(0);
+  });
+
+  it('가장자리에서 매끄럽게 잦아든다 — 경계의 기울기가 한가운데보다 완만하다', () => {
+    // 절벽이 서지 않는다는 것을 값으로 본다: 같은 폭(0.25)을 걸을 때의 높이 차를 견준다
+    const field = buildHeightField(description([carve({ id: 'c' })]), 0.25);
+    const depthAt = (d: number) => sampleHeight(field, 0, d);
+    const edge = Math.abs(depthAt(2) - depthAt(1.75));
+    const middle = Math.abs(depthAt(1.25) - depthAt(1));
+    expect(edge).toBeLessThan(middle);
+    expect(depthAt(2)).toBe(0);
+  });
+
+  it('profile 이 없으면 표시선이다 — 높이를 건드리지 않는다', () => {
+    const field = buildHeightField(description([carve({ id: 'c', profile: undefined })]), 1);
+    expect(Array.from(field.height).every((h) => h === 0)).toBe(true);
+  });
+
+  it('점이 2개 미만이거나 폭이 0 이하면 아무것도 하지 않는다', () => {
+    const flat = (op: CurveOp) => Array.from(buildHeightField(description([op]), 1).height);
+    expect(flat(carve({ id: 'a', points: [] })).every((h) => h === 0)).toBe(true);
+    expect(flat(carve({ id: 'b', points: [{ x: 0, z: 0 }] })).every((h) => h === 0)).toBe(true);
+    expect(flat(carve({ id: 'c', width: 0 })).every((h) => h === 0)).toBe(true);
+    expect(flat(carve({ id: 'd', width: -4 })).every((h) => h === 0)).toBe(true);
+    expect(flat(carve({ id: 'e', depth: undefined })).every((h) => h === 0)).toBe(true);
+  });
+
+  it('stamp 와 함께 ops 순서대로 쌓인다', () => {
+    const hill = stamp({ id: 'h', stamp: 'hill', center: { x: 0, z: 0 }, radius: 4, height: 6 });
+    const both = buildHeightField(description([hill, carve({ id: 'c' })]), 1);
+    const onlyHill = buildHeightField(description([hill]), 1);
+    expect(at(both, 0, 0)).toBeCloseTo(at(onlyHill, 0, 0) - 3, 5);
+    expect(at(both, 0, 3)).toBeCloseTo(at(onlyHill, 0, 3), 5); // 폭 밖은 stamp 만 남는다
+  });
+
+  it('같은 입력 두 번 → 같은 Float32Array', () => {
+    const ops = [carve({ id: 'c' })];
+    const one = buildHeightField(description(ops), 1);
+    const two = buildHeightField(description(ops), 1);
+    expect(Array.from(one.height)).toEqual(Array.from(two.height));
+  });
+});
