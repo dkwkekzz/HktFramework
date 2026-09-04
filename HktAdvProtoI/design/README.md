@@ -27,6 +27,7 @@ Human 이 작성·개정한 **원본**이다. Agent 는 이 문서들을 바꾸�
 | `Design-Effect-Presentation.md` | 이펙트 장치 |
 | `Design-World-Editor-Terrain-Compiler.md` | **세계 제작 도구** — AI World Editor + Terrain Compiler (Human 주입 원문, 약칭 WE · 로드맵 2층의 도구 재료) |
 | `Plan-World-Authoring-Engine.md` | WE 를 이 저장소의 engine/content 위에 세우는 설계 (확정) — 받는 것·바꾸는 것·구조·1단계 범위. 결과물은 `content/roadmap/L2-World-Tool.md` |
+| `Plan-Place-Observation-Surface.md` | **자리를 관찰하는 표면** 제안 (승인 대기) — 세계에 뿌리는 글자를 어디에 둘 것인가 · 관찰 상호작용 · 기존 지목(TG) 기반과의 겹침 판정 |
 
 ## Play Design
 
