@@ -10,7 +10,7 @@ content/roadmap/
   README.md            이 문서 — 기반 층의 순서 · 컨텐츠 층의 행 · 각각의 현재 상태
   L0-Game.md           0층 결과물 — 게임 방향
   L1-World-Grammar.md  1층 결과물 — 세계의 문법 (확정 범위 · 경계 · 코드 대응)
-  L<N>-<이름>.md        기반 층의 결과물 — 그 층에서 Human 이 확정한 문서
+  L<N>-<이름>.md        기반 층의 결과물 — 그 층에서 Human 이 확정한 문서 (한 층에 여럿일 수 있다)
   M<N>-<이름>.md        컨텐츠 층의 결과물 — 그 미지에 대해 Human 이 준 세계관 사실
   play/<PlayName>.md   증명 Play (Level 2, AI 초안 + Human 승인 1회)
 ```
@@ -56,7 +56,7 @@ content/  그 위에 놓이는 이 세계          컨텐츠 층  미지를 놓�
 |---|---|---|---|---|---|---|
 | 0 | 게임 방향 | 핵심 경험 한 단락 + Core Breath + 핵심 문장 | `L0-Game.md` 가 원문을 소유한다 | 없음 — 판단 기준일 뿐 | `L0-Game.md` | **확정** |
 | 1 | 세계의 문법 | 무엇이 존재하고 무엇이 변하는가 — 존재·상태·주체·법칙·시간 (주체가 행동을 **고르는** 과정은 3층) | `Design-Concept.md` | 없음 — 코드가 이미 이 문법 위에 있음 | `L1-World-Grammar.md` | **확정** |
-| 2 | 세계 자체 | **도구 절반** — 세계를 쓰는 문법과 컴파일러 (engine) · **세계 절반** — ① 세계관 컨셉 ② 세계 content 구성(Region Graph · Region Rule · Connector · 중첩) — 셋 다 확정 | 도구: `Design-World-Editor-Terrain-Compiler.md` (WE) · `Plan-World-Authoring-Engine.md` · 세계: 주입 원문은 결과물 안에 |안전권을 나서 깊이가 달라지는 것을 본다 — 백왕령(civil) ⇄ 거대 악마의 숲(outer) | `L2-World-Tool.md` · `L2-World-Concept.md` · `L2-World-Region.md` · `play/RegionGraphRooms.md` · `play/RuleBoundRoom.md` · `play/RoomBecomesLand.md` | **다음** — C001 닫힘, C002 부터 |
+| 2 | 세계 자체 | **도구 절반** — 세계를 쓰는 문법과 컴파일러 (engine) · **세계 절반** — ① 세계관 컨셉 ② 세계 content 구성(Region Graph · Region Rule · Connector · 중첩) ②-부속 재료 생태와 공급 계약(원천 · 흔적 · 생애 · 공급 · 흐름) | 도구: `Design-World-Editor-Terrain-Compiler.md` (WE) · `Plan-World-Authoring-Engine.md` · 세계: 주입 원문은 결과물 안에 |안전권을 나서 깊이가 달라지는 것을 본다 — 백왕령(civil) ⇄ 거대 악마의 숲(outer) | `L2-World-Tool.md` · `L2-World-Concept.md` · `L2-World-Region.md` · `L2-World-Material.md`(제안) · `play/` 의 Play 넷 | **다음** — C001~C005 닫힘 |
 | 3 | 주체와 몸 | 요정의 몸은 무엇을 가지는가(깎이고 회복되는 값) · 생물은 무엇을 알고 어떻게 행동하는가 | `Design-Subject-Decision.md` · `Design-Autonomous-Behavior-Knowledge-R0.md` · `Design-Creature-Behavior-R0.md` | 세계가 몸을 깎고, 생물이 그것에 반응하는 것을 본다 | `L3-*.md` · `play/` | 미주입 |
 | 4 | 자원과 물건 | 무엇이 어디서 나는가(2 의 지역과 연결) · 소지·장비·가공 사슬 | `Design-Resource-Catalog-R0.md` · `Design-Item-*.md` · `Design-Inventory-Equipment-D1.md` | 캐서 지니면 갈 수 있는 곳이 늘어난다 | `L4-*.md` · `play/` | 미주입 |
 | 5 | 대결 | 공격·방어·피해 종류·지목 | `Design-Combat-*.md` · `Design-Targeting-R0.md` | 처음으로 맞서 이긴다 | `L5-*.md` · `play/` | 미주입 |
@@ -67,10 +67,14 @@ content/  그 위에 놓이는 이 세계          컨텐츠 층  미지를 놓�
 2층은 절반이 둘이다 — **도구가 먼저, 세계가 다음**. 도구 절반(`L2-World-Tool.md`)은 게임 명사를
 모르므로 ENGINE 레인으로 선다. 세계 절반은 ① 세계관 컨셉(`L2-World-Concept.md` — 위험 일곱 갈래 ·
 깊이 다섯 단계 · 위험과 보상의 동근원 · 제작 일곱 단계)과 ② 세계 content 구성(`L2-World-Region.md` —
-Region Graph · Region Rule · Connector · 중첩 · 제작 12단계 · Region Spec 양식)이다. 주입이 도구의
-어느 자리(layer · tag · op)에 닿는지는 `L2-World-Tool.md` §3 이 정한다. 남은 것은 2층 Play 다 —
-첫 Region 둘(`L2-World-Region.md` §5.4)로 Play Design 을 쓴다. 각 Region 의 내용(Spec 의 1~8)은
-그 Region 의 Play 가 ①② 에 있는 것만으로 쓴다.
+Region Graph · Region Rule · Connector · 중첩 · 제작 12단계 · Region Spec 양식), 그리고 **②-부속**
+재료 생태와 공급 계약(`L2-World-Material.md` — 재료가 왜 생기고 무엇이 암시하며 캐면 무엇이 달라지고
+어떤 세계 과정으로 돌아오는가. 새 층이 아니라 ② 의 확장 계약이다)이다. 주입이 도구의
+어느 자리(layer · tag · op)에 닿는지는 `L2-World-Tool.md` §3 이 정한다. 각 Region 의 내용(Spec 의 1~8)은
+그 Region 의 Play 가 ①②②-부속 에 있는 것만으로 쓴다 — 없는 것은 지어내지 않고 Human 질문으로 남긴다.
+
+2층의 Play 는 넷이다 (`play/README.md`) — 셋은 승인됐고 넷째(`play/RoomBearsMaterial.md`)는
+②-부속 주입과 함께 **승인 대기**다.
 
 "증명 Play" 열은 방향 제안이다 — 실제 Play 는 그 층을 주입할 때 `play/` 문서로
 구체화하고 승인한다. 지금 코드에 있는 것(채광·이동·관찰·기본 전투·몸)은 1층 위에
