@@ -2,7 +2,7 @@
 
 | 항목 | 내용 |
 |---|---|
-| **상태** | **승인 · Play 로 넘어갔다** — 회수는 [play/RoomAnswersWhenAsked.md](../content/roadmap/play/RoomAnswersWhenAsked.md) (C022~C024). 이 문서는 그 Play 의 재료(측정과 판정)로 남는다 |
+| **상태** | **승인 · Play 로 넘어갔다** — 회수는 [play/RoomAnswersWhenAsked.md](../content/roadmap/play/RoomAnswersWhenAsked.md) (C026~C028). 이 문서는 그 Play 의 재료(측정과 판정)로 남는다. **§5.4 의 "세계에게 묻는다" 는 뒤집혔다 — 아래 주석** |
 | **재료** | C006·C008 의 실제 화면(`cycles/C00*/shots/`) · [Design-Targeting-R0.md](Design-Targeting-R0.md) (TG) · [L2-World-Region §17 규칙 가독성](../content/roadmap/L2-World-Region.md) · [Design-System-Content-Separation.md](Design-System-Content-Separation.md) |
 | **자리** | **화면(View) 레인**. 세계의 규칙·State·투영 의미는 이 문서가 바꾸지 않는다 — 다만 §5.4 의 관찰 요청 하나는 세계에 새 계약을 요구한다 |
 | **소유** | 이 문서가 제안하는 것은 `engine/` 의 기구 셋과 `content/view` 의 결정 표다. 무엇이 어떤 말로 뜨는가(문구·수치·세계 사실)는 컨텐츠와 Human 의 것이다 |
@@ -242,6 +242,13 @@ TG 를 통째로 먼저 짓지 않는다. TG 의 절반(적대 · Tab 순환 · 
 이 규약만 지켜도 §1.2 의 글자 다섯은 **0 개**가 되고, 같은 사실은 지목했을 때 ② 에서 읽힌다.
 
 ### 5.2 무엇이 표면에 실리는가 (자리를 지목했을 때)
+
+> **정정 (Human 판단 · Play 확정 12).** 이 절은 "세계가 답하고 그 답을 보내는 길이 없다" 고 적었지만,
+> **관찰자가 이미 그 답을 전부 가지고 있다**: `content/view/terrain-presentation.ts` 가 이미 같은 땅을
+> `compileRegion` 하고 `tagsAt` 으로 자리를 묻는다(:180 · :138). 세계도 같은 함수를 같은 데이터로
+> 부른다(`content/world/semantic/terrain.ts`). 세계만 아는 것(방 · 깊이 · 규칙 방의 State)은 이미 봉투에
+> 매 tick 실려 온다. 그래서 요청도 패킷도 늘리지 않고 왕복 기다림도 없다 — §5.4 의 ENGINE GAP 은
+> 3층(대가 · 가림)이 실제로 올 때의 것이 되었다.
 
 ```text
 어디인가        방 이름 · 깊이 · 그 자리의 좌표

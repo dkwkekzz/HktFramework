@@ -692,6 +692,8 @@ Human 주입: **"문(각 방에서 다른 곳으로 가는 입구) = Connector �
 content/regions/<id>.ts           RegionSpec = { id · name · depth · coreProposition · worldCause ·
                                   rules(id 만) · state(초기) · entry · exit · exploration ·
                                   growthOutcome · topology · space: RegionDescription }
+                                  += resourceEcology (L2-World-Material §3.2) · ecology.lifeFormation (L2-World-Life §3.2)
+                                  — ②-부속 둘이 더한 자리. 컴파일러는 여전히 space 만 읽는다
 content/regions/graph.ts          RegionGraph = { regions: id[] · containment · connectors: Connector[] }
                                   — Connector 의 from/to.anchor 는 각 Region space 의 point(layer:'anchor')
 content/regions/<id>.compiled.generated.ts   컴파일 산출 (Region 단위)
