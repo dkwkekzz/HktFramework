@@ -35,6 +35,19 @@ export interface RegionSpec {
   space: RegionDescription;
   /** 이 방이 품은 규칙 (C008 ADDED). 있는 방에만 Region State 가 선다 */
   rule?: RegionRuleSpec;
+  /**
+   * 그 방이 밝힌 **비상 자리**의 anchor 태그 (C009 ADDED · L2-World-Region §16 exit.emergency).
+   *
+   * **없으면 그 방에는 비상 자리가 없다** — "돌아가기" 명령이 가용하지 않고 걸어도 거절된다
+   * (01-spec SPEC-007). 없는 곳에 지어내지 않는다: 지금 이것을 밝힌 방은 미로 하나다.
+   *
+   * 컨텐츠 데이터이지 State 가 아니다 — 저장되지 않고 세계가 굴러도 달라지지 않는다.
+   * 규칙 코드는 이 값이 어느 방의 어느 자리인지 알지 못한다 — 아는 것은
+   * "비상 자리를 밝힌 방" 뿐이다 (C004 가 세운 규율).
+   *
+   * 같은 방 안의 anchor 다 — 이 자리로 옮겨지는 것은 **방을 건너는 것이 아니다** (01-spec R3).
+   */
+  emergencyAnchor?: string;
 }
 
 /** "드나드는 곳" 을 적는 layer 이름 — Connector 의 anchor 는 이 layer 의 point 다 */

@@ -51,6 +51,10 @@ const CODE_TEXT: Record<string, string> = {
   'connector-inactive': '잠겨 있다',
   // 아직 짓지 않은 곳(frontier). 세계의 끝이 아니라 "아직" 이다 — 목적지는 여전히 밝히지 않는다
   'region-not-built': '아직 갈 수 없는 곳이다',
+  // 불가 사유 — 돌아갈 자리가 없는 방 (C009 RULE-EMERGENCY-RETURN-001 의 ELSE).
+  // 명령이 고장난 것이 아니라 **이 방에 그 자리가 없다**는 것이 읽혀야 한다 — 그래야
+  // 다른 방에서는 걸린다는 것이 같은 문구에서 나온다 (비상 자리는 방의 성질이다)
+  'no-emergency-exit': '이 방에는 돌아갈 자리가 없다',
   // 내 데이터와 세계의 방이 다르다 (region.hash 대조)
   'region.hash-mismatch': '세계와 다른 땅을 보고 있다',
   // 불가 사유 — 땅이 막는다 (C006 RULE-MOVE-001 의 traversable 전제).
@@ -77,6 +81,11 @@ const CODE_TEXT: Record<string, string> = {
   city: '사람이 사는 자리',
   // 명령이 무엇을 하는가 (Command.Effect)
   'set-attribute': '존재의 속성 값을 바꾼다',
+  // 돌아가기 (C009 RULE-EMERGENCY-RETURN-001). **방을 건너지 않는다** — 같은 방 안의
+  // 비상 자리로 몸만 옮기는 것이므로 "나간다" 가 아니라 "돌아간다" 여야 한다.
+  // 어느 자리인지는 방마다 다른 데이터이므로 말하지 않는다 (미로의 것은 입구지만,
+  // 그 사실을 문구가 미리 알려 주면 세계가 하지 않은 말이 된다)
+  'emergency-return': '이 방의 비상 자리로 돌아간다',
   'collider-observe': '몸과 휘두름의 충돌체를 보인다',
   'attribute-inspect': '존재의 모든 속성을 그 몸 위에 펼친다',
   // 명령이 받는 자리 (Parameter.Id)

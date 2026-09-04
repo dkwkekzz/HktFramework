@@ -38,6 +38,9 @@ export const REGION_NAMES: Readonly<Record<string, string>> = {
   HEART_LAKE: '심장 호수',
   // C008 — 고대 문 너머. 여태 경계 이름이던 것이 지어진 방이 되었다
   FANTASY_MAZE: '환상의 미로',
+  // C009 — 미로의 중첩 자식. 미로가 감싸고 있던 자리라는 것이 이름 하나로 읽혀야 하므로
+  // 방의 이름에 '미로' 를 그대로 둔다 (Play §5.4 "미로의 심장")
+  MAZE_HEART: '미로의 심장',
 };
 
 export function regionName(id: string): string {

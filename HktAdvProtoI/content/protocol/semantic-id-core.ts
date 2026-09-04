@@ -79,3 +79,7 @@ export const INTENT_STRIKE_OBSERVE = 'INTENT-STRIKE-OBSERVE-001';
 
 // C001 — Region 사이의 건너기 (02-world R1)
 export const RULE_REGION_TRANSIT = 'RULE-REGION-TRANSIT-001';
+
+// C009 — 방의 State 가 문을 연다 · 세계 밖의 비상 자리 (01-spec R1 · R3)
+export const RULE_CONNECTOR_ACTIVATION = 'RULE-CONNECTOR-ACTIVATION-001';
+export const RULE_EMERGENCY_RETURN = 'RULE-EMERGENCY-RETURN-001';

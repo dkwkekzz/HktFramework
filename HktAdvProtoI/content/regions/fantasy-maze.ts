@@ -59,6 +59,19 @@ const DA = 'DA';
 const AC = 'AC';
 const BD = 'BD';
 
+// 패턴 셋의 이름 (C009 ADDED — **값은 한 글자도 바뀌지 않았다**).
+// C008 까지는 아래 rule.patterns 안의 인라인 문자열이었다. 이제 이 방 밖의 데이터가
+// 같은 글자를 가리켜야 하므로(Connector 활성 조건 표 — graph.ts) 상수로 끌어올린다:
+// 표와 패턴 표가 두 곳에 따로 적히면 반드시 어긋나고, 어긋난 이름은 **영영 열리지 않는 문**이 된다.
+// 이름은 이 방의 것이므로 이 파일이 소유한다 (구역·통로·식물 태그와 같은 규약).
+// 세계 규칙은 이 글자들을 알지 못한다 — 데이터끼리만 맞춘다.
+/** 고리 — 네 복도가 다 열려 있다. 세계가 설 때의 패턴 */
+export const MAZE_PATTERN_DEFAULT = 'DEFAULT';
+/** 고리가 끊긴다 — AB · CD 가 닫히고 네거리가 열린다 */
+export const MAZE_PATTERN_P1 = 'P1';
+/** 또 다르게 끊긴다 — AB · BC 가 닫힌다. **심장 쪽 문이 열리는 패턴이다** (C009) */
+export const MAZE_PATTERN_P2 = 'P2';
+
 /**
  * 구역마다 다른 안정된 식물 넷 — **구역의 이름표**다 (Play §5.3 · §5.5 가 이름 짓기를 위임했다).
  *
@@ -359,13 +372,25 @@ export const FANTASY_MAZE_SPEC: RegionSpec = {
    */
   rule: {
     patterns: [
-      { name: 'DEFAULT', open: [AB, BC, CD, DA] },
-      { name: 'P1', open: [AC, BC, BD, DA] },
-      { name: 'P2', open: [DA, CD, AC, BD] },
+      { name: MAZE_PATTERN_DEFAULT, open: [AB, BC, CD, DA] },
+      { name: MAZE_PATTERN_P1, open: [AC, BC, BD, DA] },
+      { name: MAZE_PATTERN_P2, open: [DA, CD, AC, BD] },
     ],
     // 확정 1 — 결정론 시뮬 상수가 아니라 이 방의 데이터다. 임계를 바꾸는 것도 코드가 아니다.
     pressureLimit: 120,
     pressurePerDistance: 1,
     passageLayer: PASSAGE_LAYER,
   },
+  /**
+   * 비상 자리 — 입구 anchor 다 (C009 ADDED · Play §5.6 탈출 "A 의 입구 anchor").
+   *
+   * 고대 문으로 들어선 그 자리이고 구역 A 안이다. 다른 자리를 고를 이유가 없다:
+   * 그 자리는 어느 패턴에서도 통로 밖이고(벽 속에 놓이지 않는다) 거기서 구역 넷 전부에 닿는다
+   * (위 anchor-ancient-gate 주석의 실측 셋). **길을 잃은 몸이 서기에 가장 안전한 한 자리다.**
+   *
+   * 이 방이 밝혔으므로 이 방에서만 "돌아가기" 가 가용하다 — 미로가 사람을 가두지 않는다는 것
+   * 하나를 위한 자리다. 나가는 문(MAZE_GATE_RETURN)도 이 anchor 에 있으므로,
+   * 돌아온 자리는 곧 나갈 수 있는 자리이기도 하다.
+   */
+  emergencyAnchor: 'ANCIENT_GATE',
 };
