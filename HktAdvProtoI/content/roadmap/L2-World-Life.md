@@ -15,9 +15,11 @@ Human 이 언제든 뒤집는다.
 ```text
 이 문서가 소유한다      생명의 최소 정의 · 네 탄생 방식 · Region 마다 다른 탄생 원인과 조건 ·
                       탄생이 소비하는 것과 바꾸는 World State · 탄생 전후의 관찰 가능한 흔적 ·
-                      반복 출현을 "생산 조건의 회복" 으로 읽는 방식 · 표현 깊이 셋
-이 문서가 바꾼다        Material §2.2 의 2층/3층 분할선 — "생물은 아직 없다" 를 "생물의 **탄생**은 2층,
-                      태어난 개체의 몸과 행동은 3층" 으로 옮긴다. Material 이 남긴 UNRESOLVED 하나의 절반이 닫힌다
+                      반복 출현을 "생산 조건의 회복" 으로 읽는 방식 · 표현 깊이 셋 ·
+                      개체군 사이의 관계(먹는다 · 부른다 · 남긴다 — 값 사이의 관계) · 멸종은 결정일 때만
+이 문서가 바꾼다        Material §2.2 의 2층/3층 분할선 — "생물은 아직 없다" 를 "생물의 **탄생과 개체군**은 2층,
+                      태어난 개체의 몸과 행동은 3층" 으로 옮긴다. Material 이 남긴 UNRESOLVED 하나의 절반이 닫힌다.
+                      L2-World-Tool-Scale 의 고정 공식 · 등급 A 조건 · T2 여덟째 답 · T3 산출에 생명을 더한다 (§3.5)
 이 문서가 소유하지 않는다  몸의 구조 · 감각 · 성장 단계 · 개체 능력치 · 욕구와 행동 AI · 전투 (3층 이후) ·
                       성별과 구체적 번식 방식 · 유전과 변이 (3층 이후) · 요정의 원리 결속 (7층) ·
                       최초의 생명이 왜 존재하는가 (**확정하지 않는다** — F12)
@@ -508,7 +510,9 @@ Material 의 S · Time 의 T 와 같은 자리의 이름공간이다.
 | **F10** | **2층은 탄생까지다.** 탄생의 원인 · 조건 · 소비 · 흔적 · 생태 역할과 그것이 만드는 개체군 값까지가 2층이고, 태어난 개체의 몸 · 감각 · 지식 · 행동 · 죽음은 3층이다 (§2.1 — Material §2.2 의 분할선을 이 문서가 옮긴다) | §7 |
 | **F11** | **요정은 이 넷이 아니다.** 일반 생명은 세계의 조건이 몸과 자기유지 순환을 얻은 것이고, 요정은 세계의 **원리가 자아와 선택 능력**을 얻은 것이다. 요정의 원리 결속은 별도의 특수 탄생으로 남기고 7층이 받는다 | §1-3 |
 | **F12** | **최초의 생명은 확정하지 않는다.** 지금 확정하는 최소 진실은 하나뿐이다 — *이 세계는 특정 재료와 조건이 갖춰지면 생명이 성립할 수 있는 세계다. 왜 그런 성질을 가졌는지는 아직 알 수 없다* | §1-1 |
-| **F13** | **데이터 계약은 `RegionSpec.ecology.lifeFormation` 하나다.** 새 layer 도, 새 Rule 문법도, 별도 Life System 도 만들지 않는다 — 작동은 기존 Rule Contract 여덟 항목(Scope · Trigger · Condition · Effect · Feedback · Exploit · Persistence · Priority)으로 쓴다 | §4 |
+| **F13** | **데이터 계약은 `RegionSpec.ecology` 하나다** (lifeFormation · populations · links — §3.2). 새 layer 도, 새 Rule 문법도, 별도 Life System 도 만들지 않는다 — 작동은 기존 Rule Contract 여덟 항목(Scope · Trigger · Condition · Effect · Feedback · Exploit · Persistence · Priority)으로 쓴다 | §4 |
+| **F14** | **개체군 사이의 관계는 2층의 값이다.** 한 개체군이 다른 개체군을 **먹는다**(줄인다) · **부른다**(늘리거나 이웃 Region 에서 끌어온다) · **남긴다**(사체 · 잔여물 = Material 의 RESIDUE Source 를 만든다). 개체가 아니라 값 사이의 관계이므로 3층을 침범하지 않는다 — Resource Flow 가 Source 사이의 관계였듯 Population Link 는 개체군 사이의 관계다. 이것이 있어야 W9(플레이어 없이 돈다)가 생태에서 성립한다 | §5 · §6 |
+| **F15** | **멸종은 결정일 때만이다.** 기본 공급의 생명은 개체군이 0 이 되어도 탄생 조건이 돌아오면 다시 난다 — 백 명이 조건을 끊어도 사라지지 않는다. 멸종(`Extinct`)은 Material S7 의 `FINITE_WORLD_STATE` 처럼 그 Region 이 **명시적으로** 정할 때만 있고, 그때는 World Event 다 (F9 셋째 깊이) | §6 |
 
 원문 §5(거대 악마의 숲 예시)는 확정이 아니라 **첫 적용**이다 — [play/RoomBearsLife.md](play/RoomBearsLife.md) 가 그것을
 이 세계의 사실로 놓는다.
@@ -521,7 +525,7 @@ Material 의 S · Time 의 T 와 같은 자리의 이름공간이다.
 ```text
 2층이 세운다   생물이 태어나는 **원인과 자리** — 무엇이 재료인가 · 어떤 Region Rule 이 결속시키는가 ·
               어떤 조건에서 전이하는가 · 무엇을 소비하는가 · 전후에 어떤 흔적이 남는가 ·
-              태어난 것이 Region 순환에서 맡는 역할과 **개체군 값**(F9 의 첫 깊이).
+              태어난 것이 Region 순환에서 맡는 역할과 **개체군 값**(F9 의 첫 깊이) · 개체군 **사이의 관계**(F14).
               그리고 Material 이 "남긴 것" 으로만 세운 Source 들이 이제 **주인을 가진다**
 3층이 받는다   태어난 개체가 걸어 다니고 먹고 옮기고 죽는 것 · 몸 · 감각 · 성장 단계 · 능력치 ·
               욕구와 행동 AI · 성별과 구체적 번식 · 유전과 변이 · 플레이어가 탄생에 개입하는 구체적 Action
@@ -540,7 +544,7 @@ Material 이 남긴 UNRESOLVED("살아 있는 운반체의 이동 — 3층")의 
 
 | 무엇 | 왜 | 어디 |
 |---|---|---|
-| 곤충 → 조류 → 포식자의 **이동** (원문 §5 뒷부분) | 2층은 개체군 값까지다. 값이 오르면 소란(Time 2.5)과 경로(Time 2.6)가 움직이는 것으로 관찰된다 — 걸어서 오는 것은 3층 | 3층 |
+| 곤충 → 조류 → 포식자가 **걸어서 오는 것** (원문 §5 뒷부분) | 값이 오르고 내리는 것(F14 — 곤충이 조류를 부르고 조류가 곤충을 먹는다)은 2층이다. 그 값이 소란(Time 2.5)과 presence 로 관찰된다. 개체가 실제로 이동하는 것은 3층 | 값은 2층 · 걸음은 3층 |
 | 생명의 죽음과 사체의 발생 | Material 이 잔여물(RESIDUE)로 이미 세웠다. 죽는 **과정**은 3층 | Material · 3층 |
 | 분화형 `SEPARATION` 의 첫 사례 | 거대 수목·걷는 숲이 스스로 생명인지가 먼저다 (Human 질문 1) | 그 Region 의 Play |
 | 요정의 원리 결속 | F11 | 7층 |
@@ -570,17 +574,49 @@ anchor     point        탄생지가 Region 을 넘겨 영향을 줄 때의 연�
 컴파일러는 여전히 `space` 만 읽는다.
 
 ```text
-content/regions/<id>.ts        RegionSpec += ecology { lifeFormation: LifeFormation[] }  (원문 §4)
+content/regions/<id>.ts        RegionSpec += ecology { lifeFormation · populations · links }  (원문 §4 + F14)
 content/regions/lives.ts       LifeSeed 목록 — Region 을 넘어 공유되는 세계 사실이므로 Region 파일 밖
                                (Material 의 materials.ts 와 같은 자리 · 구현이 정한다)
 ```
 
+의미 계약은 아래다 — 타입과 파일 배치는 구현이 정한다 (Time §3 과 같은 방식).
+
+```yaml
+RegionSpec.ecology:
+  lifeFormation:                 # 원문 §4 그대로 + population 한 줄
+    - id: LIFE_FORMATION_ID
+      mode: INHERITED | ENVIRONMENTAL_BINDING | TRANSFORMATION | SEPARATION
+      source: [MATERIAL_OR_WORLD_STATE]        # INHERITED 면 부모 개체군 id 가 여기 온다
+      condition: { regionRule: RULE_ID, requiredState: [WORLD_STATE] }
+      transition: { from: DORMANT, to: BORN }
+      consumes: [RESOURCE_OR_STATE]
+      traces: { before: [TRACE_ID], after: [TRACE_ID] }
+      ecologicalRole: [ROLE_DESCRIPTION]
+      population: POPULATION_ID                # 탄생이 올리는 개체군 (F9 첫 깊이)
+  populations:                   # Region State 의 값 — 개체는 없다
+    - id: POPULATION_ID
+      scale: 정수 상한 (헤더 상수)
+      declineCause: [CONDITION_LOST | EATEN_BY:POPULATION_ID]   # 값이 내리는 세계 안의 원인
+      presence: PRESENCE_AREA_ID               # 값이 만드는 자리 (Time 2.6 과 같은 layer)
+  links:                         # F14 — 값 사이의 관계
+    - from: POPULATION_ID
+      to: POPULATION_ID | RESOURCE_SOURCE_ID
+      kind: EATS | CALLS | LEAVES              # 먹는다(to 를 줄인다) · 부른다(to 를 늘리거나 이웃에서 끌어온다) · 남긴다(to 인 RESIDUE Source 를 만든다)
+      via: CONNECTOR_ID (선택)                  # Region 을 넘는 CALLS — Resource Flow 와 같은 자리(anchor)
+
+RegionState += populations[id]: { value · trend }
+RegionState += lifeSites[id]:   { phase · progress }   # DORMANT → BINDING → BORN → SPENT
+```
+
+`links` 가 있어야 원문 §5 의 사슬(곤충 ↑ → 조류가 온다 → 포식자가 온다 → 사체 → 균류)이 **개체 없이** 2층에서
+한 바퀴 돈다. 걷는 개체가 아니라 값이 돌고, 3층은 그 값에 몸을 붙인다.
+
 규칙 코드는 **어떤 생명도 어떤 탄생지도 이름으로 알지 못한다** — R13 이 방과 Connector 에, Material 이 재료에
 대해 말한 것이 생명에도 그대로 성립한다. 생명을 더하는 것은 값이 느는 일이지 규칙이 느는 일이 아니다.
 
-### 3.3 도구가 새로 검사하는 것 — ㉗~㉛
+### 3.3 도구가 새로 검사하는 것 — ㉗~㉝
 
-Concept ①~④ · Region ⑤~⑨ · Material ⑩~㉒ · Time ㉓~㉖ 에 다섯이 이어진다. 성질은 Material 과 같이 둘로 갈린다.
+Concept ①~④ · Region ⑤~⑨ · Material ⑩~㉒ · Time ㉓~㉖ 에 일곱이 이어진다. 성질은 Material 과 같이 둘로 갈린다.
 
 ```text
 참조 무결성 (통과/실패)
@@ -589,8 +625,10 @@ Concept ①~④ · Region ⑤~⑨ · Material ⑩~㉒ · Time ㉓~㉖ 에 다섯
   ㉙ 모든 lifeFormation 이 traces.before 를 하나 이상, consumes 를 하나 이상 가지는가 (F4 · F5)
   ㉛ 어떤 Source 의 회복 원인이 살아 있는 것을 전제하는데 그 생명의 lifeFormation 이 없는가
      — 지금 `MOLT_LITTER`(탈피 주기)가 여기 걸린다. 이 검사가 그 구멍을 앞으로 못 만들게 한다
+  ㉜ links 의 from/to 가 실제 개체군·Source 이고, via 가 실제 Connector 인가. LEAVES 의 to 는 RESIDUE Source 인가 (F14)
 분포 요약 (판정 없음)
   ㉚ Region 별 탄생 방식 분포 — 네 mode 중 무엇이 몇인가 · 한 mode 로 쏠렸는가. 적정한지는 Human 이 본다
+  ㉝ 관계가 하나도 없는 개체군(고립) · 먹히기만 하고 부르지도 남기지도 않는 개체군 — 편중을 보이게만 한다
 ```
 
 ### 3.4 도구 밖으로 가는 것
@@ -600,7 +638,23 @@ Concept ①~④ · Region ⑤~⑨ · Material ⑩~㉒ · Time ㉓~㉖ 에 다섯
 | `transition` 의 실제 전이 | 세계 과정 하나 = 규칙 하나 | 컨텐츠 world/simulation — Cycle 이 세운다 |
 | `ecologicalRole` 의 문장 | 사람이 읽는 의미 | 컨텐츠 데이터 — 도구는 있는지만 본다 |
 | 태어난 개체의 몸·행동 | F10 | 3층 |
+| `links` 의 실제 평가(값이 언제 얼마나 오르내리는가) | 세계 과정 하나 = 규칙 하나. 상수는 헤더 | 컨텐츠 world/simulation — Cycle 이 세운다 |
 | Exploit — 조건을 이해한 플레이어의 개입 Action | 원문 §7 이 이후 층으로 넘겼다. 2층의 개입은 **재료를 캐서 조건을 늦추는 것**뿐(Material S8) | 3층 이후 |
+
+### 3.5 도구 절반 2단계에 주는 변화 — Region 작성기가 생명을 안다
+
+[L2-World-Tool-Scale.md](L2-World-Tool-Scale.md) 는 "지역 하나를 쓰는 공식은 고정됐다" 를 전제로 작성기를 세웠다. 이 문서가
+그 공식에 한 항을 더하므로 작성기도 같이 넓어진다 — 그러지 않으면 **도구가 짓는 방 백 개에 생명이 없다.**
+
+```text
+§1 고정 공식     재료 계약 표 다섯 · 철 덧씌움 넷 · **생명 계약(탄생지 · 개체군 · 관계)** · 검사 ①~㉝
+§2 등급 A 조건   공통 계약에 **생명**이 든다 — 데이터만으로 성립하는 지역도 "무엇이 태어나는가" 를 적어야 한다 (F2)
+T2 여덟째 답     Concept §17 일곱 질문에 **여덟째 — 무엇이 태어나는가**(어떤 재료에서 · 무엇을 소비하며 · 무엇을 남기는가)
+T3 산출          RegionSpec 에 ecology(lifeFormation · populations · links) 가 함께 나온다. 템플릿에 탄생 방식별 기본형
+T6 편중 요약     ⑲ ⑳ ㉒ ㉕ ㉖ 에 ㉚ ㉝ 이 더해진다
+```
+
+Tool-Scale 의 해당 줄은 이 문서와 함께 고쳤다.
 
 ---
 
@@ -613,8 +667,8 @@ Concept ①~④ · Region ⑤~⑨ · Material ⑩~㉒ · Time ㉓~㉖ 에 다섯
 | §2 생명 성립 법칙 · §3 네 탄생 방식 · §5 Cause 예시 | Play Design (`play/*.md` — advprotoi-design) |
 | §4 Rule Contract 여덟 항목 · `transition` | `cycles/<CycleId>/spec.md` 의 State/Rule 절 (advprotoi-cycle) |
 | §4 `ecology.lifeFormation` · §2 흔적 배치 | RegionSpec + resource/trace/presence layer → `world:compile` |
-| §6 개체군과 회복 | Region State — Cycle 이 Region 마다 정의 |
-| §2 관찰 가능한 흔적 | Cycle 의 완료 조건 + `world:observe --report` (㉗~㉛) |
+| §6 개체군과 회복 · F14 개체군 관계 | Region State + links — Cycle 이 Region 마다 정의 |
+| §2 관찰 가능한 흔적 | Cycle 의 완료 조건 + `world:observe --report` (㉗~㉝) |
 
 ---
 
@@ -623,8 +677,8 @@ Concept ①~④ · Region ⑤~⑨ · Material ⑩~㉒ · Time ㉓~㉖ 에 다섯
 [L0-Game.md](L0-Game.md) §4 의 네 질문.
 
 ```text
-어떤 위험을 주는가            탄생은 위험의 원인이다 — 알집이 부화하면 그 방의 개체군이 오르고 소란이 오르고
-                            경로가 휜다. 그리고 그 위험을 만든 조건이 곧 재료다 (Concept §6 · S1)
+어떤 위험을 주는가            탄생은 위험의 원인이다 — 알집이 부화하면 그 방의 개체군이 오르고, 그것이 조류를
+                            부르고 조류가 포식수를 부른다 (F14). 그 위험을 만든 조건이 곧 재료다 (Concept §6 · S1)
 극복할 재료를 어디에 두는가    탄생의 **재료와 잔여물**에. 알집을 이루는 것도, 부화가 남긴 껍질도 재료다 —
                             탄생 사슬의 어느 마디를 끊느냐가 곧 무엇을 얻느냐다
 요정이 무엇으로 자라는가       이 층은 정하지 않는다 (F10 · S10). 넘기는 것은 **때와 조건을 아는 것**이 성장의
@@ -642,7 +696,8 @@ Core Breath 의 어느 전이인가   미지 → 호기심 → 접촉 → 위험
                              처음 **한 사슬**로 묶인다. 필요조건이고, 충분조건은 뒤 층
 ③ 성장 선택의 애착과 고민       이 문서는 닿지 않는다. 3층 · 7층
 ④ 발견 뒤에도 살아 움직이는가   **여기가 이 문서의 중심이다.** 발견된 방에서도 생명이 계속 태어나되,
-                             스폰이 아니라 조건의 회복으로 태어난다 (F8). 관찰자가 조건을 바꾸면 그 회복도 바뀐다
+                             스폰이 아니라 조건의 회복으로 태어난다 (F8). 관찰자가 조건을 바꾸면 그 회복도 바뀐다.
+                             그리고 개체군이 서로를 먹고 부르고 남기므로(F14) 숲은 관찰자 없이도 한 바퀴 돈다 (W9)
 ```
 
 ## 7. 위임된 결정과 남는 UNRESOLVED
@@ -652,9 +707,10 @@ Material §6 과 같은 위임 규칙을 따른다 — 준 이름은 정식이�
 짓는다. 첫 계약을 쓰는 Play 가 내렸고 Human 이 언제든 뒤집는다.
 
 ```text
-① 숲의 탄생지 이름과 형태     → RoomBearsLife 확정 1·2 (붉은 알집 · 거목의 뿌리)
+① 숲의 탄생지 이름과 형태     → RoomBearsLife 확정 1·2 (붉은 알집 · 거목의 뿌리 · 최초는 결속 이후는 계승)
 ② 탄생 조건의 시간 규모        → RoomBearsLife 확정 5 (세계 초 — Material D3 과 같은 규칙)
-③ 개체군 값의 눈금            → RoomBearsLife 확정 6
+③ 개체군 값의 눈금과 관계 상수  → RoomBearsLife 확정 6·9
+④ 멸종 없음                  → 확정 (F15) — 첫 Region 은 FINITE 생명을 쓰지 않는다
 남는 UNRESOLVED
   · 분화형 SEPARATION 의 첫 사례 — 거대 수목·걷는 숲이 스스로 생명인가 (Human 질문 1)
   · 요정의 결속 조건 — 7층 (F11)
@@ -665,7 +721,7 @@ Material §6 과 같은 위임 규칙을 따른다 — 준 이름은 정식이�
 
 ```text
 첫 계약    [play/RoomBearsLife.md](play/RoomBearsLife.md) — 거대 악마의 숲에 이 계약을 처음 쓰는 2층 여섯째 Play
-          (C022~C024). 그 Play 가 미지 M6 붉은 알집을 놓는다
+          (C022~C025). 그 Play 가 미지 M6 붉은 알집을 놓고, Concept §4 의 사슬을 값으로 한 바퀴 돌린다
 선행       RoomBearsMaterial(C011~C014)이 원천과 흔적을, RoomNeverSame(C015~C018)이 철을,
           RoomOfAnotherKind(C019~C021)가 두 번째 갈래를 먼저 세운다 — 탄생이 소비할 것과 탈 주기가 먼저 있어야 한다
 자리       Frost 뒤다. 탄생이 **소비할 것**(재료)과 **탈 주기**(철)와 **대조할 갈래**(협곡)가 다 선 뒤라야

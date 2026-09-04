@@ -56,7 +56,7 @@ content/  그 위에 놓이는 이 세계          컨텐츠 층  미지를 놓�
 |---|---|---|---|---|---|---|
 | 0 | 게임 방향 | 핵심 경험 한 단락 + Core Breath + 핵심 문장 | `L0-Game.md` 가 원문을 소유한다 | 없음 — 판단 기준일 뿐 | `L0-Game.md` | **확정** |
 | 1 | 세계의 문법 | 무엇이 존재하고 무엇이 변하는가 — 존재·상태·주체·법칙·시간 (주체가 행동을 **고르는** 과정은 3층) | `Design-Concept.md` | 없음 — 코드가 이미 이 문법 위에 있음 | `L1-World-Grammar.md` | **확정** |
-| 2 | 세계 자체 | **도구 절반** — 세계를 쓰는 문법과 컴파일러 (engine) · **세계 절반** — ① 세계관 컨셉 ② 세계 content 구성(Region Graph · Region Rule · Connector · 중첩) ②-부속 재료 생태와 공급 계약(원천 · 흔적 · 생애 · 공급 · 흐름) · ②-부속 둘째 세계의 시간과 위상(낮밤 · 철 · Region 위상 · 소란 · 압도적 존재의 경로) · ②-부속 셋째 생명의 성립과 탄생(생명의 정의 · 네 탄생 방식 · 탄생의 소비와 흔적 · 스폰이 아닌 회복) | 도구: `Design-World-Editor-Terrain-Compiler.md` (WE) · `Plan-World-Authoring-Engine.md` · 도구 2단계(작성기): `L2-World-Tool-Scale.md` · 세계: 주입 원문은 결과물 안에 |안전권을 나서 깊이가 달라지는 것을 본다 — 백왕령(civil) ⇄ 거대 악마의 숲(outer) | `L2-World-Tool.md` · `L2-World-Concept.md` · `L2-World-Region.md` · `L2-World-Material.md` · `L2-World-Time.md` · `L2-World-Life.md` · `play/` 의 Play 여섯 | **다음** — C001~C005 닫힘 |
+| 2 | 세계 자체 | **도구 절반** — 세계를 쓰는 문법과 컴파일러 (engine) · **세계 절반** — ① 세계관 컨셉 ② 세계 content 구성(Region Graph · Region Rule · Connector · 중첩) ②-부속 재료 생태와 공급 계약(원천 · 흔적 · 생애 · 공급 · 흐름) · ②-부속 둘째 세계의 시간과 위상(낮밤 · 철 · Region 위상 · 소란 · 압도적 존재의 경로) · ②-부속 셋째 생명의 성립과 탄생(생명의 정의 · 네 탄생 방식 · 탄생의 소비와 흔적 · 개체군과 그 사이의 관계 · 스폰이 아닌 회복) | 도구: `Design-World-Editor-Terrain-Compiler.md` (WE) · `Plan-World-Authoring-Engine.md` · 도구 2단계(작성기): `L2-World-Tool-Scale.md` · 세계: 주입 원문은 결과물 안에 |안전권을 나서 깊이가 달라지는 것을 본다 — 백왕령(civil) ⇄ 거대 악마의 숲(outer) | `L2-World-Tool.md` · `L2-World-Concept.md` · `L2-World-Region.md` · `L2-World-Material.md` · `L2-World-Time.md` · `L2-World-Life.md` · `play/` 의 Play 여섯 | **다음** — C001~C005 닫힘 |
 | 3 | 주체와 몸 | 요정의 몸은 무엇을 가지는가(깎이고 회복되는 값) · 생물은 무엇을 알고 어떻게 행동하는가 | `Design-Subject-Decision.md` · `Design-Autonomous-Behavior-Knowledge-R0.md` · `Design-Creature-Behavior-R0.md` | 세계가 몸을 깎고, 생물이 그것에 반응하는 것을 본다 | `L3-*.md` · `play/` | 미주입 |
 | 4 | 자원과 물건 | 소지·장비·가공 사슬 · 조합과 쓰임 ("무엇이 어디서 나는가" 는 2층 ②-부속이 닫았다 — 이 층은 그 Material Seed 를 받는다) | `Design-Resource-Catalog-R0.md` · `Design-Item-*.md` · `Design-Inventory-Equipment-D1.md` | 캐서 지니면 갈 수 있는 곳이 늘어난다 | `L4-*.md` · `play/` | 미주입 |
 | 5 | 대결 | 공격·방어·피해 종류·지목 | `Design-Combat-*.md` · `Design-Targeting-R0.md` | 처음으로 맞서 이긴다 | `L5-*.md` · `play/` | 미주입 |
@@ -80,8 +80,9 @@ Region Graph · Region Rule · Connector · 중첩 · 제작 12단계 · Region 
 2층에 ②-부속이 하나 더 있다 — **생명의 성립과 탄생**(`L2-World-Life.md` · 확정): 재료 계약이 "생물이 남긴 것" 까지
 세우고 살아 있는 쪽을 3층에 넘겼는데, 그때 이미 확정된 광식충 허물에는 **벗은 것이 없었다**. 이 문서가 그 구멍을
 메운다 — 생명의 최소 정의(경계 + 자기유지 순환) · 네 탄생 방식(계승 · 환경 결속 · 변성 · 분화) · 탄생이 소비하는
-것과 전후의 흔적 · 반복 출현을 "생산 조건의 회복" 으로 읽는 방식. 새 축도 새 layer 도 만들지 않고 `RegionSpec.ecology.lifeFormation`
-하나를 더한다. ② 의 셋째 확장 계약이고, **2층은 탄생까지 · 태어난 개체의 몸과 행동은 3층**이라는 분할선을
+것과 전후의 흔적 · 개체군 사이의 관계(먹는다 · 부른다 · 남긴다 — 값 사이의 관계라 3층을 침범하지 않는다) · 반복 출현을
+"생산 조건의 회복" 으로 읽는 방식. 새 축도 새 layer 도 만들지 않고 `RegionSpec.ecology` 하나를 더한다. Region 작성기(§2.1)의
+여덟째 답이 여기서 나온다. ② 의 셋째 확장 계약이고, **2층은 탄생까지 · 태어난 개체의 몸과 행동은 3층**이라는 분할선을
 Material §2.2 에서 옮겨 다시 긋는다.
 
 ### 2.1 도구 절반 2단계 — Region 작성기 (ENGINE 레인 B · 순서 고정)
@@ -92,7 +93,7 @@ Material §2.2 에서 옮겨 다시 긋는다.
 | # | 단계 | 완료 조건 | 기다리는 것 | 상태 |
 |---|---|---|---|---|
 | T1 | 검사기 독립 — `world:check` (JSON) | `npm test` 에 붙는다 · 일부러 만든 실패가 잡힌다 | — | **다음** |
-| T2 | 일곱 답의 형 — RegionBrief schema | 지금 방 아홉을 손으로 역기술해 전부 통과 | — | 미착수 |
+| T2 | 여덟 답의 형 — RegionBrief schema (여덟째 = 무엇이 태어나는가) | 지금 방 아홉을 손으로 역기술해 전부 통과 | — | 미착수 |
 | T3 | 뼈대 생성기 — `world:author` (결정론) | brief 하나 → 방 하나 T1 통과 · 걸어진다 · 코드 diff 0 | phases 는 C016 뒤 | 미착수 |
 | T4 | 등급 판정기 — A / B / C + GAP | 가스 마을 · 유령 도시 · 마법도시가 A · B · C 로 갈린다 | T2 | 미착수 |
 | T5 | 초안기 — `world:draft` (`@anthropic-ai/sdk` · 구조화 출력 · 검사 되먹임) | 미지 한 줄 → 방 하나 사람 손 없이 통과 | T3 · T4 | 미착수 |
@@ -119,7 +120,7 @@ Material §2.2 에서 옮겨 다시 긋는다.
 | **M3 숲의 재료 계통** | 자원 | 생체 광석 · 광식충 허물 · 거목균 — Concept §4 의 사슬에서 나온 Material Seed 셋. 이름·성질은 위임된 결정 (`play/RoomBearsMaterial.md` D1·D2) | 2 (②-부속) | `play/RoomBearsMaterial.md` | 그 Play 가 소유 | **다음** — Rule 닫힘 뒤 |
 | **M4 천공고래의 길** | 현상 (생물은 3층) | 낮에 하늘을 지나는 경로 · 그림자 · 떨어진 비늘(고래 비늘) — Concept §9 그대로. `play/RoomNeverSame.md` 확정 9 | 2 (②-부속 둘째) | `play/RoomNeverSame.md` | 그 Play 가 소유 | **다음** — Material 닫힘 뒤 |
 | **M5 빙결 협곡** | 지역 | 숲과 갈래가 다른 Region — 극저온 · 눈보라 · 절벽 · 체온 감지 포식자 · 빙정석 (Concept §6). `M5-FrostCanyon.md` | 2 (①② · ②-부속 둘) | `play/RoomOfAnotherKind.md` | 그 Play 가 소유 | **다음** — Time 닫힘 뒤 |
-| **M6 붉은 알집** | 구조 | 거목의 뿌리에 균사가 광물과 양분을 둘러싸 맺는 탄생지 — 광식충은 부모 없이 여기서 난다. `L2-World-Life.md` §5 의 원문 예시를 세계 사실로 놓은 것 (`play/RoomBearsLife.md` 확정 1·2) | 2 (②-부속 셋째) | `play/RoomBearsLife.md` | 그 Play 가 소유 | **다음** — Frost 닫힘 뒤 |
+| **M6 붉은 알집** | 구조 | 거목의 뿌리에 균사가 광물과 양분을 둘러싸 맺는 탄생지 — 광식충의 첫 개체군이 여기서 나고, 그 뒤로는 뿌리의 알에서 스스로 잇는다. `L2-World-Life.md` §5 의 원문 예시를 세계 사실로 놓은 것 (`play/RoomBearsLife.md` 확정 1·2) | 2 (②-부속 셋째) | `play/RoomBearsLife.md` | 그 Play 가 소유 | **다음** — Frost 닫힘 뒤 |
 | (이후) | 지역 · 생물 · 자원 · 구조 | 그 미지가 무엇이고 어디에 있으며 왜 그런가 | 2 · 3 · … | 그 미지 하나를 만나는 Play | `M<N>-*.md` · `play/` | — |
 
 ## 4. 한 행을 주입하는 방식
@@ -147,7 +148,7 @@ Material §2.2 에서 옮겨 다시 긋는다.
 ② 열 질문     advprotoi-design 이 아래 열 질문에 통과시켜 (A 면 Spec 을, B 면 Play 를) 구체화한다 (승인 1회).
              답이 주입물·design/ 에 없으면 지어내지 않고 Human 질문으로 남긴다 — 이름과 "그것이 무엇인지에서
              나오는 것" 은 위임됐다 (Region §5.5).
-③ 완성 판정   A 는 검사 ①~㉖ 통과 + 걸어 본 것으로, B 는 그 Cycle 이 플레이되면 행이 닫힌다.
+③ 완성 판정   A 는 검사 ①~㉝ 통과 + 걸어 본 것으로, B 는 그 Cycle 이 플레이되면 행이 닫힌다.
 ```
 
 수십~수백 규모는 사람이 아니라 **Region 작성기**가 쓴다 — 도구 절반 2단계 [L2-World-Tool-Scale.md](L2-World-Tool-Scale.md) · 순서는 §2.1.

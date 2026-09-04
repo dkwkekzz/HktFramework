@@ -24,16 +24,17 @@
 | "수백 개를 사람이 쓰는 것은 데이터가 아니라 노동이다. **여기서부터 도구가 그 자리를 받는다**" | Region §2.1 ② |
 | 이름 짓기는 위임됐다 — 짓는 **방식**(사람 · 생성기)은 그 규모를 실제로 다루는 Play 가 정한다 | Region §5.5 |
 | 폴리싱은 데이터로 — 방을 더하고 문을 열고 색을 바꾸는 것이 코드 diff 0 (실측) | RegionGraphRooms C004 |
-| 지역 하나를 쓰는 공식은 고정돼 있다 — Concept §17 일곱 질문 · Region §15 12단계 · 재료 계약 표 다섯 · 철 덧씌움 넷 · 검사 ①~㉖ | ① ② ②-부속 둘 |
+| 지역 하나를 쓰는 공식은 고정돼 있다 — Concept §17 일곱 질문 · Region §15 12단계 · 재료 계약 표 다섯 · 철 덧씌움 넷 · 생명 계약(탄생지 · 개체군 · 관계) · 검사 ①~㉝ | ① ② ②-부속 셋 |
 
-공식이 고정됐다는 것은 **생성기가 돌릴 수 있다**는 뜻이다. 기획 다섯이 무거웠던 이유는 그것이 지역이 아니라 **문법**이었기
-때문이고, 문법은 이제 닫혔다.
+공식이 고정됐다는 것은 **생성기가 돌릴 수 있다**는 뜻이다. 기획 여섯이 무거웠던 이유는 그것이 지역이 아니라 **문법**이었기
+때문이고, 문법은 이제 닫혔다. 생명 계약([L2-World-Life.md](L2-World-Life.md) §3.5)이 이 공식에 마지막으로 든 항이다 —
+그것이 없으면 도구가 짓는 방 백 개에 생명이 없다.
 
 ## 2. 새 지역의 세 등급 — 미지가 오면 먼저 가른다
 
 | 등급 | 조건 | 공정 | 예 |
 |---|---|---|---|
-| **A. 데이터만** | Global Rule + 공통 계약(재료 · 철 · 위험 태그 · 안전 조건)으로 성립한다 | Play 없음 · Cycle 없음. RegionSpec 하나(space + resourceEcology + phases) + graph 한 줄 + view 표 한 줄. 검사 ①~㉖ 통과 · Human 판정 | 가스로 가득 찬 마을 — hazard/climate(독성) + settlement(왜 사는가) + 재료 생태(가스 → 무엇이 살고 무엇이 남는가) |
+| **A. 데이터만** | Global Rule + 공통 계약(재료 · 철 · 생명 · 위험 태그 · 안전 조건)으로 성립한다 | Play 없음 · Cycle 없음. RegionSpec 하나(space + resourceEcology + phases + ecology) + graph 한 줄 + view 표 한 줄. 검사 ①~㉝ 통과 · Human 판정 | 가스로 가득 찬 마을 — hazard/climate(독성) + settlement(왜 사는가) + 재료 생태(가스 → 무엇이 남는가) + 생명(가스에서 무엇이 태어나고 무엇을 먹고 무엇을 남기는가 — 원인 없는 생물 금지 · Life F2) |
 | **B. 규칙 하나** | 그 지역만의 Region Rule 이 필요하다 | **Cycle 하나**(시스템 하나). Play 아님. 둘째 규칙부터 Rule Primitive 를 뽑아(RuleBoundRoom E5) 그다음은 조합 | 유령이 돌아다니는 도시 — "죽은 생물이 기억을 남긴다"(Concept §13 정식) 규칙 하나. 유령의 행동은 3층, "남은 기억이 자리에 있다"는 2층 |
 | **C. 새 축** | 지금 없는 층의 의미를 요구한다 | 컨텐츠 행이 아니다 — 기반 층의 그 행을 기다린다 (README §1) | 마법도시 — 마법은 6층(능력), 도시의 사람들은 3층(주체). 축이 서면 A 로 온다 |
 
@@ -48,12 +49,12 @@ Region 사이 덧씌움)였기 때문이다. 그 셋이 서면 다음 협곡류�
 
 | # | 무엇을 | 어떻게 | 완료 조건 | 기다리는 것 |
 |---|---|---|---|---|
-| **T1** | **검사기를 독립 명령으로** — `world:check` | 지금 `world:observe --report` 안의 ①~⑨ 를 뽑아 하나의 명령으로. 결과는 **기계가 읽는 JSON**(통과/실패 · 항목 · 참조). C014 의 ⑩~㉒, C018 의 ㉓~㉖ 은 생기는 대로 같은 명령에 붙는다 | `npm run world:check` 가 JSON 을 내고 `npm test` 에 붙는다. 실패 항목 하나를 일부러 만들어 잡히는 것을 본다 | 없음 — 지금 시작 |
-| **T2** | **일곱 답의 형(RegionBrief)** | Concept §17 일곱 질문의 답 + 이름 · 갈래(hazard 태그) · 이웃(어느 Region 에 어떤 Connector 로 잇는가) · 요구(필요한 규칙/축이 있으면 적는다)를 **JSON schema(zod)** 로. 필드명은 일반명(특별함 · 원인 · 거주 · 위험 · 귀함 · 발견 · 열림)이라 engine 에 둔다 | 지금 있는 방 아홉을 이 형으로 **손으로 역기술**해 전부 검증을 통과한다 — 형이 현실을 담는지의 증명 | 없음 |
-| **T3** | **뼈대 생성기** — `world:author <brief.json>` | brief → RegionSpec(space op · resourceEcology · phases) + `graph.ts` 한 줄 + view 표 한 줄. **결정론**(seed = brief 의 hash). 템플릿(갈래별 op 묶음 · Source 역할별 기본형 · 철 덧씌움 기본형)은 `content/authoring/templates/` — 게임 명사가 있으므로 content 다 | 손으로 쓴 brief 하나 → 방 하나가 T1 을 통과하고 **관찰자가 걸어 흔적 → 원천을 본다**. 코드 diff 0 (등급 A 실측) | phases 형은 **C016** 뒤. 그 전엔 space + graph + resourceEcology 까지 |
+| **T1** | **검사기를 독립 명령으로** — `world:check` | 지금 `world:observe --report` 안의 ①~⑨ 를 뽑아 하나의 명령으로. 결과는 **기계가 읽는 JSON**(통과/실패 · 항목 · 참조). C014 의 ⑩~㉒, C018 의 ㉓~㉖, C022·C025 의 ㉗~㉝ 은 생기는 대로 같은 명령에 붙는다 | `npm run world:check` 가 JSON 을 내고 `npm test` 에 붙는다. 실패 항목 하나를 일부러 만들어 잡히는 것을 본다 | 없음 — 지금 시작 |
+| **T2** | **여덟 답의 형(RegionBrief)** | Concept §17 일곱 질문의 답 + **여덟째 — 무엇이 태어나는가**(어떤 재료에서 · 무엇을 소비하며 · 무엇을 남기고 · 무엇을 부르는가 — Life §3.5) + 이름 · 갈래(hazard 태그) · 이웃(어느 Region 에 어떤 Connector 로 잇는가) · 요구(필요한 규칙/축이 있으면 적는다)를 **JSON schema(zod)** 로. 필드명은 일반명(특별함 · 원인 · 거주 · 위험 · 귀함 · 발견 · 열림 · 탄생)이라 engine 에 둔다 | 지금 있는 방 아홉을 이 형으로 **손으로 역기술**해 전부 검증을 통과한다 — 형이 현실을 담는지의 증명 | 없음 |
+| **T3** | **뼈대 생성기** — `world:author <brief.json>` | brief → RegionSpec(space op · resourceEcology · phases · ecology) + `graph.ts` 한 줄 + view 표 한 줄. **결정론**(seed = brief 의 hash). 템플릿(갈래별 op 묶음 · Source 역할별 기본형 · 철 덧씌움 기본형 · 탄생 방식별 기본형)은 `content/authoring/templates/` — 게임 명사가 있으므로 content 다 | 손으로 쓴 brief 하나 → 방 하나가 T1 을 통과하고 **관찰자가 걸어 흔적 → 원천을 본다**. 코드 diff 0 (등급 A 실측) | phases 형은 **C016** 뒤 · ecology 형은 **C022** 뒤. 그 전엔 space + graph + resourceEcology 까지 |
 | **T4** | **등급 판정기** | brief 의 "요구" 와 세계 사실을 계약 목록(layer · tag · 규칙 · 축)과 대조 → **A / B / C** + 빠진 것을 GAP 형식(Required · Missing · Reason · Return To)으로 | brief 셋 — 가스 마을 · 유령 도시 · 마법도시 — 가 **A · B · C** 로 갈리고 B/C 의 빠진 것이 정확히 적힌다 | T2 |
 | **T5** | **초안기(LLM)** — `world:draft "<미지 한 줄>"` | `@anthropic-ai/sdk` · 모델 `claude-opus-5` · **구조화 출력**(`output_config.format` = T2 의 schema — 자유 문장이 아니라 brief 가 나온다). 컨텍스트 = L0 · L2 문서 다섯 + 현재 Region Graph + T1 결과. 나온 brief 를 T3 → T1 에 넣고 **실패 보고를 되먹여** 재시도(상한 N). 결과는 **파일로 굳혀 커밋** — 초안은 비결정이어도 굳은 파일이 원본이고 세계는 결정론이다. 키는 `ANTHROPIC_API_KEY` 또는 `ant auth login` 프로필 · 세계 실행에는 필요 없다(도구만 부른다) | 미지 한 줄 → brief → 방 하나가 **사람 손 없이** T1 을 통과한다. 지어낸 세계 사실이 있으면 T4 가 잡아 UNRESOLVED 로 돌려보낸다 | T3 · T4 |
-| **T6** | **판정 표면과 대량** | lab 페이지에 후보 방을 나란히 — top view · 일곱 답 · 편중 요약(⑲ ⑳ ㉒ ㉕ ㉖) — 승인/반려. 승인만 `content/regions/` 에 들어간다. `world:draft --batch <미지 목록>` 으로 백 줄 | **Play HundredRooms** (§5) | T5 · Frost(C021)가 데이터로 선 것을 본 뒤 |
+| **T6** | **판정 표면과 대량** | lab 페이지에 후보 방을 나란히 — top view · 여덟 답 · 편중 요약(⑲ ⑳ ㉒ ㉕ ㉖ ㉚ ㉝) — 승인/반려. 승인만 `content/regions/` 에 들어간다. `world:draft --batch <미지 목록>` 으로 백 줄 | **Play HundredRooms** (§5) | T5 · Life(C025)까지 데이터로 선 것을 본 뒤 — 여덟째 답과 ㉚ ㉝ 이 그때 생긴다 |
 
 ```text
 T1 ── T2 ── T3 ─┬─ T5 ── T6 ── HundredRooms
@@ -64,7 +65,7 @@ T1 · T2 는 지금, T3 의 절반은 지금 — ENGINE 레인이라 Cycle 실�
 ### 3.1 자리
 
 ```text
-engine/world-authoring/check.ts        검사 ①~㉖ (게임 명사 없음 — 참조와 계약만 본다)
+engine/world-authoring/check.ts        검사 ①~㉝ (게임 명사 없음 — 참조와 계약만 본다)
 engine/world-authoring/brief.ts        RegionBrief schema (zod) — T2
 engine/world-authoring/author.ts       brief + templates → RegionSpec · graph · view 행 — T3 (템플릿은 주입받는다)
 engine/world-authoring/grade.ts        등급 판정 — T4 (계약 목록도 주입받는다)
@@ -90,11 +91,11 @@ tools/world-editor/                    world:check · world:author · world:draf
 
 ```text
 Play    HundredRooms — 이름 있는 미지 백 줄(대부분 A · 몇은 B/C 로 판정되어 돌아온다)을 넣어 방 백 개가
-        검사 ①~㉖ 을 통과하고, 관찰자가 그중 임의의 열 곳을 걸어 각각 흔적 → 원천 → 철 덧씌움을 본다.
+        검사 ①~㉝ 을 통과하고, 관찰자가 그중 임의의 열 곳을 걸어 각각 흔적 → 원천 → 철 덧씌움 → 탄생지를 본다.
         코드 diff 0 (B 판정 것은 제외 · 그것은 Cycle 로).
 증명    "세계가 커지는 것은 값이 느는 일이지 규칙이 느는 일이 아니다" (R13) 를 백 배 규모에서 실측한다.
         Region §2.1 의 벽 셋(한 방의 출구 수 · 손으로 짓는 것 · 사람이 읽는 보고) 중 둘째와 셋째가 여기서 닫힌다
-Cycle   번호는 승인 때 — 앞 레인(Frost C021) 뒤
+Cycle   번호는 승인 때 — 앞 레인(Life C025) 뒤
 ```
 
 ## 6. 언제 — 레인과 순서
