@@ -1,8 +1,7 @@
 # L2 — 세계 재료 생태와 공급 계약 (기반 층 2 · 세계 절반 ② 부속)
 
-상태: **제안 — Human 승인 대기** (주입 원문 보존). 승인되면
-[L2-World-Region.md](L2-World-Region.md) 의 **확장 계약**이 된다 — 새로운 설계 층도, 별도 Gameplay
-시스템도 만들지 않는다.
+상태: **확정** (Human 승인 원문 보존). [L2-World-Region.md](L2-World-Region.md) 의 **확장 계약**이다 —
+새로운 설계 층도, 별도 Gameplay 시스템도 만들지 않는다.
 
 ① [L2-World-Concept.md](L2-World-Concept.md) 가 "위험과 보상은 같은 근원에서 나온다"를 주었고,
 ② [L2-World-Region.md](L2-World-Region.md) 가 "Region 은 그 근원 하나에서 위험·단서·재료·보상을
@@ -1196,10 +1195,10 @@ Core Breath 의 어느 전이인가   관찰 → 이해 → 시도 구간. "이�
 ## 7. 다음
 
 ```text
-승인            이 문서가 Human 승인을 받으면 L2-World-Region.md 의 확장 계약이 되고,
-               play/README.md 의 덮임 지도가 §2.1 대로 고쳐진다
-첫 계약         [play/RoomBearsMaterial.md](play/RoomBearsMaterial.md) — 미지 M1 거대 악마의 숲에
-               이 계약을 처음 쓰는 2층 넷째 Play (승인 대기)
-선행            RoomBecomesLand(C005~C007)가 area·traversable·compile 을,
-               RuleBoundRoom(C008~C010)이 Region State 와 세계 과정을 먼저 세운다
+첫 계약    [play/RoomBearsMaterial.md](play/RoomBearsMaterial.md) — 미지 M1 거대 악마의 숲에 이 계약을
+          처음 쓰는 2층 넷째 Play (승인됨 · C011~C014)
+선행       RoomBecomesLand(C005~C007)가 area·traversable·compile 을,
+          RuleBoundRoom(C008~C010)이 Region State 와 세계 과정을 먼저 세운다
+남은 것    §6 의 UNRESOLVED 다섯 중 넷(이름 · 성질 · 시간 규모 · 채취 단위)은 답이 오지 않았다 —
+          그것을 필요로 하는 Cycle 이 UNRESOLVED 로 멈추고 Human 에 반환한다 (Play 의 확정 사항 11)
 ```

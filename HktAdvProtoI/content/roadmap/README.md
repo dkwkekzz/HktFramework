@@ -56,9 +56,9 @@ content/  그 위에 놓이는 이 세계          컨텐츠 층  미지를 놓�
 |---|---|---|---|---|---|---|
 | 0 | 게임 방향 | 핵심 경험 한 단락 + Core Breath + 핵심 문장 | `L0-Game.md` 가 원문을 소유한다 | 없음 — 판단 기준일 뿐 | `L0-Game.md` | **확정** |
 | 1 | 세계의 문법 | 무엇이 존재하고 무엇이 변하는가 — 존재·상태·주체·법칙·시간 (주체가 행동을 **고르는** 과정은 3층) | `Design-Concept.md` | 없음 — 코드가 이미 이 문법 위에 있음 | `L1-World-Grammar.md` | **확정** |
-| 2 | 세계 자체 | **도구 절반** — 세계를 쓰는 문법과 컴파일러 (engine) · **세계 절반** — ① 세계관 컨셉 ② 세계 content 구성(Region Graph · Region Rule · Connector · 중첩) ②-부속 재료 생태와 공급 계약(원천 · 흔적 · 생애 · 공급 · 흐름) | 도구: `Design-World-Editor-Terrain-Compiler.md` (WE) · `Plan-World-Authoring-Engine.md` · 세계: 주입 원문은 결과물 안에 |안전권을 나서 깊이가 달라지는 것을 본다 — 백왕령(civil) ⇄ 거대 악마의 숲(outer) | `L2-World-Tool.md` · `L2-World-Concept.md` · `L2-World-Region.md` · `L2-World-Material.md`(제안) · `play/` 의 Play 넷 | **다음** — C001~C005 닫힘 |
+| 2 | 세계 자체 | **도구 절반** — 세계를 쓰는 문법과 컴파일러 (engine) · **세계 절반** — ① 세계관 컨셉 ② 세계 content 구성(Region Graph · Region Rule · Connector · 중첩) ②-부속 재료 생태와 공급 계약(원천 · 흔적 · 생애 · 공급 · 흐름) | 도구: `Design-World-Editor-Terrain-Compiler.md` (WE) · `Plan-World-Authoring-Engine.md` · 세계: 주입 원문은 결과물 안에 |안전권을 나서 깊이가 달라지는 것을 본다 — 백왕령(civil) ⇄ 거대 악마의 숲(outer) | `L2-World-Tool.md` · `L2-World-Concept.md` · `L2-World-Region.md` · `L2-World-Material.md` · `play/` 의 Play 넷 | **다음** — C001~C005 닫힘 |
 | 3 | 주체와 몸 | 요정의 몸은 무엇을 가지는가(깎이고 회복되는 값) · 생물은 무엇을 알고 어떻게 행동하는가 | `Design-Subject-Decision.md` · `Design-Autonomous-Behavior-Knowledge-R0.md` · `Design-Creature-Behavior-R0.md` | 세계가 몸을 깎고, 생물이 그것에 반응하는 것을 본다 | `L3-*.md` · `play/` | 미주입 |
-| 4 | 자원과 물건 | 무엇이 어디서 나는가(2 의 지역과 연결) · 소지·장비·가공 사슬 | `Design-Resource-Catalog-R0.md` · `Design-Item-*.md` · `Design-Inventory-Equipment-D1.md` | 캐서 지니면 갈 수 있는 곳이 늘어난다 | `L4-*.md` · `play/` | 미주입 |
+| 4 | 자원과 물건 | 소지·장비·가공 사슬 · 조합과 쓰임 ("무엇이 어디서 나는가" 는 2층 ②-부속이 닫았다 — 이 층은 그 Material Seed 를 받는다) | `Design-Resource-Catalog-R0.md` · `Design-Item-*.md` · `Design-Inventory-Equipment-D1.md` | 캐서 지니면 갈 수 있는 곳이 늘어난다 | `L4-*.md` · `play/` | 미주입 |
 | 5 | 대결 | 공격·방어·피해 종류·지목 | `Design-Combat-*.md` · `Design-Targeting-R0.md` | 처음으로 맞서 이긴다 | `L5-*.md` · `play/` | 미주입 |
 | 6 | 능력 | 스킬 체계·실행 형태·효과 | `Design-Skill-*.md` | 능력 표현이 세계에 닿는다 | `L6-*.md` · `play/` | 미주입 |
 | 7 | 성장 | 요정 성장·밸런스·클래스 — 세 성장 축(클래스·아이템·지식)의 조합 (L0-Game.md §1) | `Design-Fairy-*.md` · `Design-Growth-Balance-R0.md` · `Design-Subject-Decision.md` §20·§23 | 자원 관계에서 성장이 나온다 | `L7-*.md` · `play/` | 미주입 |
@@ -73,8 +73,8 @@ Region Graph · Region Rule · Connector · 중첩 · 제작 12단계 · Region 
 어느 자리(layer · tag · op)에 닿는지는 `L2-World-Tool.md` §3 이 정한다. 각 Region 의 내용(Spec 의 1~8)은
 그 Region 의 Play 가 ①②②-부속 에 있는 것만으로 쓴다 — 없는 것은 지어내지 않고 Human 질문으로 남긴다.
 
-2층의 Play 는 넷이다 (`play/README.md`) — 셋은 승인됐고 넷째(`play/RoomBearsMaterial.md`)는
-②-부속 주입과 함께 **승인 대기**다.
+2층의 Play 는 넷이다 (`play/README.md`) — **전부 승인됐다**. 넷째(`play/RoomBearsMaterial.md`)만
+UNRESOLVED 넷(재료의 이름 · 관찰 가능한 성질 · 회복의 시간 규모 · 채취 단위)을 안고 선다.
 
 "증명 Play" 열은 방향 제안이다 — 실제 Play 는 그 층을 주입할 때 `play/` 문서로
 구체화하고 승인한다. 지금 코드에 있는 것(채광·이동·관찰·기본 전투·몸)은 1층 위에

@@ -7,17 +7,14 @@
 
 한 Cycle = 브랜치 `cycle/C###` = 세션 하나. **말할 것: "C006 진행"** — `advprotoi-cycle` 이 명세(spec.md) → 실현 → 마감을
 이어 돌리고 UNRESOLVED · GAP 에서만 멈춘다. PR 은 번호 순으로 합친다. 병렬 규칙은
-[Plan-Skill §4 항목 4](design/Plan-Skill-CycleExecutionWorkflow.md). 아래 레인에 승인 게이트 없음 — 그 Play 셋은 승인돼 있다.
-
-**Human 승인 대기 하나** — 2층 넷째 기획([L2-World-Material.md](content/roadmap/L2-World-Material.md) 재료 생태와 공급 계약)과
-그 Play([RoomBearsMaterial.md](content/roadmap/play/RoomBearsMaterial.md) · 질문 열). 승인되면 레인 하나(C011~C014)가 여기 는다 —
-RuleBoundRoom 뒤에 선다.
+[Plan-Skill §4 항목 4](design/Plan-Skill-CycleExecutionWorkflow.md). 승인 게이트 없음 — Play 넷은 전부 승인돼 있다.
 
 | 레인 | 지금 할 수 있는 것 | 기다리는 것 | 다음 |
 |---|---|---|---|
 | Land — [RoomBecomesLand](content/roadmap/play/RoomBecomesLand.md) | **C006** 땅이 막고 흐른다 — traversable(45°) + 이동 거절 + curve(강 · carve · wet) + 다리 point + 조건 area 와 safe-by 사유. 여기서 **세계가 처음 땅을 읽는다** — 규칙 표를 world 와 view 가 함께 읽을 자리를 그때 정한다 (지금은 content/view) | — | C007 (순차) |
 | ENGINE A — [Plan-World-Authoring-Engine §5](design/Plan-World-Authoring-Engine.md) | C006·C007 이 쓸 나머지 — curve op · traversable 격자 · scatter/random · observe 래스터 (Cycle 아님 · 게임 명사 없음 · 분리 커밋) | — | C006 · C007 이 쓴다 |
 | Rule — [RuleBoundRoom](content/roadmap/play/RuleBoundRoom.md) | 대기 | Land 닫힘 (순서: Rooms → Land → Rule — 규칙이 바꿀 area · traversable 을 Land 가 먼저 세운다) | C008 → C010 |
+| Material — [RoomBearsMaterial](content/roadmap/play/RoomBearsMaterial.md) | 대기 — 다만 **Human 답 넷이 먼저다**: 재료의 이름 · 관찰 가능한 성질(U1·U2 → C011) · 회복의 시간 규모(U3 → C013) · 채취 단위(U4 → C012). 답이 없으면 C011 은 명세에서 멈춘다 | Rule 닫힘 (Region State 와 세계 과정이 서야 재료가 생애를 가진다) + U1·U2 | C011 → C014 |
 
 ## 2. 진행
 
@@ -28,6 +25,7 @@ RuleBoundRoom 뒤에 선다.
 | RegionGraphRooms | 세계는 방들의 그래프다 | C001~C004 | **넷 다 닫힘** — Play Goal 실주행 확인이 남았다 (C004 TODO X-⑥) |
 | RoomBecomesLand | 방이 땅이 된다 (백왕령) | C005~C007 | C005 닫힘 · **C006 다음** |
 | RuleBoundRoom | 방은 규칙을 품는다 (환상의 미로 = Region 하나) | C008~C010 | 대기 |
+| RoomBearsMaterial | 방이 재료를 낳는다 (거대 악마의 숲의 재료 생태) | C011~C014 | 대기 · UNRESOLVED 넷 |
 
 **Human 판정 대기** — 각 Cycle 의 `TODO.md` (그림은 같은 폴더 `shots/`). `npm run dev` 로 직접 본다.
 [C001](cycles/C001-region-graph-rooms/TODO.md) 8 · [C002](cycles/C002-many-exits/TODO.md) 8 ·
@@ -40,7 +38,7 @@ RegionGraphRooms 가 닫혔으므로 **Play 전체 실주행**(백왕령 → 거
 ```text
 0 게임 방향   확정   L0-Game.md
 1 세계의 문법  확정   L1-World-Grammar.md
-2 세계 자체   열림   L2-World-Tool · L2-World-Concept · L2-World-Region → Play 셋으로 증명 중 (§2)
+2 세계 자체   열림   L2-World-Tool · L2-World-Concept · L2-World-Region · L2-World-Material → Play 넷으로 증명 중 (§2)
 3 주체와 몸   미주입  ← 2층이 닫히면 다음.   4~7 (물건 · 대결 · 능력 · 성장) 미주입
 ```
 
