@@ -217,8 +217,10 @@ describe('SPEC-004 — 표면이 경사로 갈린다 (컨텐츠의 규칙 표)',
     }
   });
 
-  it('V-007 (경계) stamp 도 curve 도 없는 여덟 방은 같은 표로도 평지 태그 하나뿐이다', () => {
-    for (const spec of REGION_SPECS.filter((s) => s.id !== START_REGION_ID)) {
+  // C007 SPEC-009 가 이 주장을 **좁혔다** — 숲 가장자리에 stamp(basin) 하나가 늘면서 그 방의
+  // 표면이 경사를 따라 갈린다. 표(RULES)는 한 글자도 바뀌지 않았고 데이터가 늘었을 뿐이다.
+  it('V-007 (경계) stamp 도 curve 도 없는 일곱 방은 같은 표로도 평지 태그 하나뿐이다 (C007 SPEC-009 로 좁혀졌다)', () => {
+    for (const spec of REGION_SPECS.filter((s) => s.id !== START_REGION_ID && s.id !== 'FOREST_EDGE')) {
       const region = compileRegion(spec.space, RULES);
       const used = [...new Set(region.world.surface)].map((i) => region.world.surfaceTags[i]);
       expect({ region: spec.id, used }).toEqual({ region: spec.id, used: [slopeTag(0)] });

@@ -6,3 +6,6 @@ dist/
 
 # Surface Lab — npx tsx tools/surface-lab/build.ts 가 만드는 생성물
 tools/surface-lab/out/
+
+# 도구가 낸 그림 — 언제든 다시 만들 수 있다 (world:observe · world:shot)
+tools/world-editor/out/

@@ -853,8 +853,12 @@ describe('SPEC-008 — 거목이 땅에 선다', () => {
 });
 
 describe('SPEC-009 — 데이터가 없는 방은 아무것도 막지 않는다', () => {
-  it('S-033 stamp 도 curve 도 없는 여덟 방은 traversable 이 전부 1 이다', () => {
-    for (const spec of otherRooms()) {
+  // C007 SPEC-009 가 이 주장을 **좁혔다** — 숲 가장자리에 stamp(basin) 하나가 늘면서 그 방에도
+  // 막히는 칸이 생긴다. 규칙은 한 글자도 바뀌지 않았고 데이터가 늘었을 뿐이다 (C007 spec R2 · SPEC-010).
+  const stillEmptyRooms = () => otherRooms().filter((s) => s.id !== FOREST_EDGE);
+
+  it('S-033 stamp 도 curve 도 없는 일곱 방은 traversable 이 전부 1 이다 (C007 SPEC-009 로 좁혀졌다)', () => {
+    for (const spec of stillEmptyRooms()) {
       const world = compiled(spec.space).world;
       expect({ region: spec.id, blockedCells: [...world.traversable].filter((v) => v !== 1).length }).toEqual({
         region: spec.id,

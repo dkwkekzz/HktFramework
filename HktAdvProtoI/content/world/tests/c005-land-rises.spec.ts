@@ -200,8 +200,17 @@ const minBy = <T>(items: readonly T[], score: (item: T) => number): T =>
 
 /** 백왕령 — 이 Cycle 이 땅을 세우는 그 방 */
 const domain = () => spaceOf(START_REGION_ID);
-/** stamp 가 없는 나머지 여덟 방 */
+/** 백왕령 말고의 여덟 방 */
 const flatRooms = () => REGION_SPECS.filter((s) => s.id !== START_REGION_ID);
+/**
+ * 아직 **평평한** 방들 (C007 SPEC-009 로 좁혀졌다).
+ *
+ * C005 때는 백왕령 말고 여덟 방이 다 평평했다. C007 이 숲 가장자리의 space 에 stamp(basin)
+ * 하나를 더하면서 그 방이 이 무리에서 빠진다 — 규칙은 한 글자도 바뀌지 않았고 데이터가 늘었을 뿐이다
+ * (C007 spec SPEC-009 · SPEC-010 경계 "나머지 일곱 방은 여전히 평평하다").
+ * 이 주장은 지워진 것이 아니라 **좁아진** 것이다.
+ */
+const stillFlatRooms = () => flatRooms().filter((s) => s.id !== 'FOREST_EDGE');
 
 // ─────────────────────────────────────────────────────────────
 describe('SPEC-001 — 백왕령에 능선이 선다', () => {
@@ -236,8 +245,8 @@ describe('SPEC-001 — 백왕령에 능선이 선다', () => {
     expect(south.filter((v) => v.y !== 0)).toEqual([]);
   });
 
-  it('S-004 (경계) 나머지 여덟 방의 ops 에는 stamp 가 없다', () => {
-    for (const spec of flatRooms()) {
+  it('S-004 (경계) 아직 평평한 일곱 방의 ops 에는 stamp 가 없다 (C007 SPEC-009 로 좁혀졌다)', () => {
+    for (const spec of stillFlatRooms()) {
       expect({ region: spec.id, stamps: stampsOf(spec.space).length }).toEqual({
         region: spec.id,
         stamps: 0,
@@ -554,8 +563,8 @@ describe('SPEC-006 — 급경사를 판정하는 규칙은 여전히 하나다',
 });
 
 describe('SPEC-007 — 데이터가 없는 방은 평평하다', () => {
-  it('S-025 stamp 가 없는 여덟 방은 height 격자가 전부 0 이다', () => {
-    for (const spec of flatRooms()) {
+  it('S-025 stamp 가 없는 일곱 방은 height 격자가 전부 0 이다 (C007 SPEC-009 로 좁혀졌다)', () => {
+    for (const spec of stillFlatRooms()) {
       const compiled = compile(spec.space);
       expect({ region: spec.id, nonZero: [...compiled.world.height].filter((h) => h !== 0) }).toEqual({
         region: spec.id,
@@ -565,7 +574,7 @@ describe('SPEC-007 — 데이터가 없는 방은 평평하다', () => {
   });
 
   it('S-026 그 방들의 surface 는 한 종류뿐이다 — 첫째(평지) 태그다', () => {
-    for (const spec of flatRooms()) {
+    for (const spec of stillFlatRooms()) {
       const compiled = compile(spec.space);
       expect({ region: spec.id, used: [...new Set(compiled.world.surface)] }).toEqual({
         region: spec.id,
@@ -577,7 +586,7 @@ describe('SPEC-007 — 데이터가 없는 방은 평평하다', () => {
   });
 
   it('S-027 그래도 땅은 그려진다 — 평면 chunk 가 나온다', () => {
-    for (const spec of flatRooms()) {
+    for (const spec of stillFlatRooms()) {
       const compiled = compile(spec.space);
       expect(compiled.view.chunks.length).toBeGreaterThan(0);
       for (const chunk of compiled.view.chunks) {
