@@ -6,7 +6,7 @@ import * as THREE from 'three';
 import { createViewCamera } from '../camera/camera';
 import { createEffectLayer, type EffectLayer, type EffectLayerOptions } from '../fx/effect-layer';
 import type { PlaneDirection } from '../camera/orientation';
-import type { SceneGroundZone, SceneState } from '../scene/scene-state';
+import type { SceneGroundZone, SceneHighlight, SceneState } from '../scene/scene-state';
 import { createBillboard, type Billboard } from '../sprites/billboard';
 import { createGroundFill, type GroundFillShape } from '../terrain/ground-fill';
 import { createTerrain, terrainHeightSampler, type TerrainPalette } from '../terrain/terrain';
@@ -45,6 +45,22 @@ export interface GameRenderer {
   /** 관찰자 기준 입력 방향 → 세계 방향 */
   viewWorldDirection(local: PlaneDirection): PlaneDirection;
   domElement: HTMLCanvasElement;
+}
+
+/**
+ * 지목 표식을 **어디에** 그릴 것인가 — 그리기와 떼어 둔 순수 함수다 (검사할 수 있게).
+ *
+ * 몸에 걸린 표식은 그 몸이 **지금 그려지고 있는** 자리를 따른다 (drawnPosition 과 같은
+ * 이유 — 관찰 결과의 자리로 그리면 몸은 흐르는데 표식만 Tick 마다 튄다).
+ * 아직 한 번도 그려진 적 없는 몸이면 그릴 자리가 없다 — 아무것도 그리지 않는다.
+ */
+export function highlightCenter(
+  highlight: SceneHighlight | undefined,
+  drawnPositionOf: (entityId: string) => { x: number; z: number } | null,
+): { x: number; z: number } | null {
+  if (!highlight) return null;
+  if (highlight.entityId !== undefined) return drawnPositionOf(highlight.entityId);
+  return highlight.ground ?? null;
 }
 
 export interface RendererOptions {
@@ -492,6 +508,34 @@ export function createRenderer(
     }
   }
 
+  /**
+   * 지목 표식 — 고른 것 하나를 다르게 그린다 (지면을 따라가는 고리 하나).
+   *
+   * **무엇을 골랐는지 모른다.** 지면 구역과 같은 관용구를 쓴다 — 같은 ZONE_LIFT 로 띄우고,
+   * 같은 방식으로 지형 높이를 따라가며, 같은 자리(zoneGroup)에 들어가 프레임 끝에 정리된다.
+   */
+  const HIGHLIGHT_THICKNESS = 0.18; // 고리의 두께 (세계 단위)
+
+  function drawHighlight(highlight: SceneHighlight): void {
+    const at = highlightCenter(highlight, (id) => {
+      const drawnAt = drawn.get(id);
+      return drawnAt ? { x: drawnAt.x, z: drawnAt.z } : null;
+    });
+    if (!at) return;
+    const outer = Math.max(0.05, highlight.radius);
+    const ring = new THREE.RingGeometry(
+      Math.max(0.01, outer - HIGHLIGHT_THICKNESS),
+      outer,
+      ZONE_SEGMENTS,
+    );
+    ring.rotateX(-Math.PI / 2);
+    drapeOnTerrain(ring, at.x, at.z);
+    const mesh = new THREE.Mesh(ring, zoneMaterial(highlight.color, highlight.opacity));
+    mesh.position.set(at.x, 0, at.z);
+    mesh.renderOrder = 3; // 구역 채움·테두리 위에 온다 — 고른 것이 가려지면 고른 뜻이 없다
+    zoneGroup.add(mesh);
+  }
+
   function drawDebug(debug: NonNullable<SceneState['colliderDebug']>): void {
     for (const capsule of debug.capsules) {
       // CapsuleGeometry 의 length 는 원통 구간 — 전체 높이 = length + 2×radius
@@ -642,6 +686,9 @@ export function createRenderer(
       // 지면 구역 — 지시가 오는 그대로 갈아 끼운다. 비면 아무것도 그리지 않는다.
       clearZoneGroup();
       if (state.zones?.length) drawZones(state.zones, state.worldTime);
+      // 지목 표식 — 지시가 없으면 아무것도 그리지 않는다. 구역과 같은 자리에 들어가므로
+      // 정리도 함께 된다 (clearZoneGroup).
+      if (state.highlight) drawHighlight(state.highlight);
 
       // 디버그 도형 — 지시가 있으면 그 프레임의 도형으로 갈아 끼운다
       clearDebugGroup();
