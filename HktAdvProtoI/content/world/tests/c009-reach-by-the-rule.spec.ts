@@ -731,10 +731,15 @@ describe('SPEC-008 다른 문들은 그대로다', () => {
       });
     }
 
-    // 그리고 미로 자신의 다른 문 둘은 패턴이 무엇이든 열려 있다
+    // 그리고 미로 자신의 다른 문들(나가는 문 등)은 패턴이 무엇이든 열려 있다 —
+    // 그 방의 나가는 끝은 데이터가 정한다 (이름을 손으로 적지 않는다)
+    const others = exitsOf(REGION_GRAPH, FANTASY_MAZE)
+      .map((e) => e.connector.id)
+      .filter((id) => id !== MAZE_HEART_GATE);
+    expect(others).toContain(MAZE_GATE_RETURN);
     for (const pattern of patternNames()) {
       const v = mazeAtPattern(pattern, entryAt()).observe();
-      for (const other of [MAZE_GATE_RETURN, ANCIENT_GATE]) {
+      for (const other of others) {
         expect({ pattern, id: other, state: exitOf(v, other)?.state }).toEqual({
           pattern,
           id: other,
@@ -819,7 +824,10 @@ describe('SPEC-009 세계를 되살려도 문은 패턴대로다', () => {
     const saved = throughFile(w.world.snapshot());
     expect(saved.version).toBe(STATE_VERSION);
     const stored = (saved.state as WorldState).regionStates[FANTASY_MAZE]!;
-    expect(Object.keys(stored).sort()).toEqual(['pattern', 'pressure']);
+    // 저장된 자리는 C008 의 셋 안에서만 온다 — 이 Cycle 이 한 자리도 더하지 않았다
+    expect(Object.keys(stored).filter((k) => !['pattern', 'pressure', 'rearrangedAt'].includes(k))).toEqual([]);
+    expect(Object.keys(stored)).toContain('pattern');
+    expect(Object.keys(stored)).toContain('pressure');
 
     // 문이 열렸는가는 어디에도 저장되지 않는다 — 패턴에서 유도된다
     const text = JSON.stringify(saved);
