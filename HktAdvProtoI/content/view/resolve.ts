@@ -33,6 +33,8 @@ import { codeText } from './code-text';
 import { rolePresentation } from './role-presentation';
 import { kindPresentation } from './kind-presentation';
 import { regionZones } from './region-presentation';
+import type { Designation } from './pointer-rules';
+import { designationHighlight, targetFrame } from './target-frame-presentation';
 
 // 관찰자 쪽 표시 선택 — 충돌체 디버그 관찰을 켤지. World 에 아무것도 요청하지 않는다.
 export interface PresentationOptions {
@@ -55,6 +57,13 @@ export interface PresentationOptions {
    * 열려 있는가, 무엇을 쓰고 있는가, 무엇을 주고받았는가. 세계는 이것을 알지 못한다.
    */
   command?: CommandSurfaceInput;
+  /**
+   * 지금 무엇을 지목했는가 (C026 R1 — RULE-DESIGNATE-001). **관찰자가 쥐는 값이다** —
+   * 스냅샷에 실리지 않고 조립(app)이 소유한다. 세계는 누가 무엇을 지목했는지 모른다.
+   *
+   * 없으면 판도 표식도 **둘 다 없다** (SPEC-001 경계).
+   */
+  designation?: Designation;
 }
 
 /**
@@ -205,6 +214,14 @@ export function resolvePresentation(
     // 선 방의 바닥 (C001) — 모르는 방이면 비어 있고, 비어 있으면 그려지지 않는다.
     // C008 부터 구역·통로도 여기서 선다 — 재배열이 얼마 전인지를 재려고 세계 시각을 함께 넘긴다
     zones: regionZones(snapshot.region, worldTime),
+    // 지목한 것이 서는 판과 그 자리의 표식 (C026) — 지목이 없으면 둘 다 없고,
+    // 없으면 그려지지 않는다. 세계로 나가는 요청은 0 이다 (SPEC-006)
+    ...(options.designation
+      ? {
+          targetFrame: targetFrame(snapshot, options.designation),
+          highlight: designationHighlight(options.designation),
+        }
+      : {}),
     // 선 방의 크기가 정하는 시점 거리 (C003) — 모르는 방이면 없고, 없으면 기본 거리다
     // 충돌체 디버그 관찰 — 켜졌을 때만 지시를 담는다
     ...(options.debugObserve ? { colliderDebug: collisionDebug(snapshot) } : {}),
