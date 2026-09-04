@@ -692,7 +692,10 @@ describe('SPEC-009 — 검사가 중첩을 알고, 경계가 하나 줄었다', 
 
   it('S-038 ② RED_EYE_TREE 는 경계 목록에서 빠졌고 남은 셋은 전부 가리켜져 있다', () => {
     expect(graphFrontiers).not.toContain(RED_EYE_TREE);
-    expect([...graphFrontiers].sort()).toEqual(['FANTASY_MAZE', 'ICE_CANYON', 'RED_WASTE']);
+    // C008 이 환상의 미로를 지어 그 이름도 이 목록에서 뺐다 — 남은 경계는 둘이다.
+    // C003 의 주장(지어진 방은 경계 목록에 남지 않는다)은 그대로이고 목록만 줄었다.
+    expect([...graphFrontiers].sort()).toEqual(['ICE_CANYON', 'RED_WASTE']);
+    expect(graphFrontiers).not.toContain('FANTASY_MAZE');
 
     const pointed = new Set<string>();
     for (const c of REGION_GRAPH.connectors) for (const end of [c.from, c.to]) pointed.add(end.region);
@@ -726,9 +729,11 @@ describe('SPEC-009 — 검사가 중첩을 알고, 경계가 하나 줄었다', 
 });
 
 describe('SPEC-010 — 관찰 계약과 영속은 형이 그대로다', () => {
-  it('S-042 STATE_VERSION 이 올라가지 않았다 — hkt-adv-proto-i/2', () => {
-    expect(STATE_VERSION).toBe('hkt-adv-proto-i/2');
-    expect(driveWorld(solo).world.snapshot().version).toBe('hkt-adv-proto-i/2');
+  it('S-042 이 Cycle 은 저장되는 State 의 형을 늘리지 않았다', () => {
+    // C003 은 이 값을 'hkt-adv-proto-i/2' 로 못박아 "올리지 않았다" 를 말했다.
+    // C008 이 Region State 를 저장하면서 그 값을 올렸으므로(spec R5) 글자를 재는 것은
+    // 더 이상 C003 의 주장이 아니다 — 남은 것은 "세계가 찍는 판이 팩의 판과 같다" 다.
+    expect(driveWorld(solo).world.snapshot().version).toBe(STATE_VERSION);
   });
 
   it('S-043 저장/복구가 새 방에서도 돈다 — 되살린 몸이 심장 호수에 그대로 서 있다', () => {
@@ -830,11 +835,18 @@ describe('회귀', () => {
     walkTo(b, 18, 0);
     reasons.add(askTransit(b, RED_WASTE_PASS)!.reason!);
 
+    // C002 에서는 connector-inactive 였고 C004 에서는 region-not-built 였다.
+    // C008 이 그 너머를 지었으므로 이제 받아들여진다 — 규칙은 한 글자도 바뀌지 않았고
+    // 데이터가 바뀌었을 뿐이다 (C008 SPEC-002 경계). region-not-built 는 위의 고개가 낸다.
+    const gate = driveWorld(solo);
+    toForestDeep(gate);
+    walkTo(gate, -13, 13);
+    expect(transits(gate.observe()).find((i) => i.targetEntityId === ANCIENT_GATE)).toMatchObject({
+      available: true,
+    });
+
     const c = driveWorld(solo);
     toForestDeep(c);
-    walkTo(c, -13, 13);
-    // C002 에서는 connector-inactive 였다 — 문이 열린 지금은 그 너머가 아직 없다는 대답이 온다
-    reasons.add(askTransit(c, ANCIENT_GATE)!.reason!);
     walkTo(c, 0, -18);
     c.dispatch({ interactionId: 'attack' });
     reasons.add(askTransit(c, DEEP_TRAIL)!.reason!);

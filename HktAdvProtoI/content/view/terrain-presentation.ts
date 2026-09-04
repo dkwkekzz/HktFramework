@@ -20,9 +20,11 @@
 // landmark 태그의 뜻을 모른 채 이 함수만 부른다.
 
 import type { TerrainPalette } from '../../engine/view-kernel/terrain/terrain';
-import type { CompiledRegion } from '../../engine/world-authoring/compiled';
+import type { CompiledRegion, CompileRules } from '../../engine/world-authoring/compiled';
 import { compileRegion } from '../../engine/world-authoring/compile';
-import { regionSpec } from '../regions/index';
+import { pointsOf } from '../../engine/world-authoring/description';
+import { tagsAt } from '../../engine/world-authoring/query';
+import { REGION_SPECS, regionSpec } from '../regions/index';
 import { COMPILE_RULES, SURFACE_FLAT, SURFACE_SLOPE, SURFACE_STEEP, SURFACE_WET } from './biome-rules';
 
 /** surface 태그 → 지면에 곱할 색. 태그가 늘면 여기 한 줄이 는다 */
@@ -81,10 +83,84 @@ export function landmarkInstance(tag: string): { spriteId: string; worldHeight: 
   return LANDMARK_INSTANCES[tag] ?? null;
 }
 
+// ── 미로의 식물 (C008 ADDED) ──────────────────────────────────────────
+//
+// 재배열이 건드리지 않는 유일한 것이고(spec R3) 그래서 **관찰의 기준점**이다 —
+// "지도는 못 그려도 이름표는 읽는다"(Play §5.3). 그림 넷은 sprites.ts 가 그렸고,
+// 여기는 **어느 자리에 어느 그림을 세울지**를 정한다.
+//
+// layer 이름을 데이터 쪽에서 import 하지 않고 여기 적는 것은 위의 WHITE_GIANT_TREE 와
+// 같은 이유다 — 표현 표는 세계의 코드를 키로 받아 적지, 그 코드를 선언하는 쪽에 매이지 않는다.
+const CELL_LAYER = 'cell';
+const CLUE_LAYER = 'clue';
+
+/**
+ * **구역 태그 → 그 구역의 식물.** clue 태그가 아니라 cell 태그가 키인 것이 핵심이다.
+ *
+ * 식물 넷의 **이름은 아직 데이터의 것**이다 (spec UNRESOLVED "식물 넷의 이름" — 이름 짓기는
+ * Human 에게 위임되어 있다). 그 이름을 여기에 미리 적어 두면 이름이 정해지는 순간 표가
+ * 어긋나고 식물이 사라진다. 그래서 이름을 묻지 않고 **그 식물이 선 구역**을 묻는다 —
+ * 자리는 데이터에 이미 있고(clue point 가 어느 cell area 안인가), 구역 태그 A~D 는
+ * spec 이 못 박은 값이다.
+ *
+ * 그래서 "구역마다 다른 식물" 이 이름과 무관하게 **구성으로** 참이 된다. 이름이 확정되면
+ * 이 표를 clue 태그로 옮겨 적을 수 있고, 그때도 그림과 색은 한 값도 바뀌지 않는다.
+ *
+ * 높이 6 의 근거 — 관찰자의 몸이 3.4 이므로 **몸의 1.75배**다. 사람보다 크게 서야 40×40
+ * 구역의 반대편에서도 눈에 들고, 거목(17)의 1/3 아래로 두어야 "표식" 과 "거목" 의 계급이
+ * 갈린다 — 식물은 이름표이지 방을 가리는 것이 아니다.
+ */
+const CLUE_PLANTS: Readonly<Record<string, { spriteId: string; worldHeight: number }>> = {
+  A: { spriteId: 'clue:coil-fern', worldHeight: 6 },
+  B: { spriteId: 'clue:cap-bloom', worldHeight: 6 },
+  C: { spriteId: 'clue:spine-stalk', worldHeight: 6 },
+  D: { spriteId: 'clue:bell-vine', worldHeight: 6 },
+};
+
+// clue 태그 → 식물. 방 데이터를 한 번 훑어 만든다 (아래 clueInstance 가 처음 물을 때).
+const CLUE_BY_TAG = new Map<string, { spriteId: string; worldHeight: number }>();
+let clueMapBuilt = false;
+
+/**
+ * clue point 마다 "그 자리를 품은 cell area" 를 물어 식물을 정한다.
+ * 판정은 기반의 tagsAt 그대로다 — 자리로 묻는 기구는 이미 있고 새로 만들지 않는다.
+ *
+ * clue point 가 없는 방은 컴파일하지도 않는다 — 아홉 방을 다 컴파일할 이유가 없다.
+ */
+function buildClueMap(): void {
+  clueMapBuilt = true;
+  for (const spec of REGION_SPECS) {
+    const clues = pointsOf(spec.space, CLUE_LAYER);
+    if (clues.length === 0) continue;
+    const compiled = regionTerrain(spec.id);
+    if (!compiled) continue;
+    for (const clue of clues) {
+      const cell = tagsAt(compiled.world, clue.position.x, clue.position.z, CELL_LAYER)[0];
+      const plant = cell === undefined ? undefined : CLUE_PLANTS[cell];
+      if (plant) CLUE_BY_TAG.set(clue.tag, plant);
+    }
+  }
+}
+
+/** 그 clue 태그의 식물 — 구역 밖에 놓인 clue 는 null 이다 (모르는 것은 그리지 않는다) */
+export function clueInstance(tag: string): { spriteId: string; worldHeight: number } | null {
+  if (!clueMapBuilt) buildClueMap();
+  return CLUE_BY_TAG.get(tag) ?? null;
+}
+
+/**
+ * 땅에 서는 것 전부 — 표식(landmark)과 식물(clue). 어느 쪽도 아니면 그리지 않는다.
+ * 기반은 layer 를 알지 못하고 태그 하나만 묻는다 (TerrainPalette.instanceOf).
+ */
+export function terrainInstance(tag: string): { spriteId: string; worldHeight: number } | null {
+  return landmarkInstance(tag) ?? clueInstance(tag);
+}
+
+
 /** 기반에 넘기는 표현 표 — 기반은 태그의 뜻을 모른 채 이 함수들만 부른다 (설계 반전 ⑤) */
 export const TERRAIN_PALETTE: TerrainPalette = {
   colorOf: surfaceColor,
-  instanceOf: landmarkInstance,
+  instanceOf: terrainInstance,
 };
 
 /**

@@ -211,6 +211,14 @@ const flatRooms = () => REGION_SPECS.filter((s) => s.id !== START_REGION_ID);
  * 이 주장은 지워진 것이 아니라 **좁아진** 것이다.
  */
 const stillFlatRooms = () => flatRooms().filter((s) => s.id !== 'FOREST_EDGE');
+/**
+ * 이 Cycle 이 손대지 않은 방들 (C008 SPEC-001 로 좁혀졌다).
+ *
+ * C005 때는 백왕령 말고 여덟 방이 전부 point 와 stamp 뿐이었다. C008 이 환상의 미로를 지으면서
+ * 그 방에 area(구역·통로)와 clue point 가 선다 — 규칙이 아니라 데이터가 늘었을 뿐이다.
+ * 이 주장은 지워진 것이 아니라 **좁아진** 것이다 (C007 이 숲 가장자리에 한 그대로).
+ */
+const roomsUntouchedSinceC005 = () => flatRooms().filter((s) => s.id !== 'FANTASY_MAZE');
 
 // ─────────────────────────────────────────────────────────────
 describe('SPEC-001 — 백왕령에 능선이 선다', () => {
@@ -254,10 +262,12 @@ describe('SPEC-001 — 백왕령에 능선이 선다', () => {
     }
   });
 
-  it('S-005 (경계) anchor point 는 아홉 방 모두 C004 의 표 그대로다', () => {
-    // Given 방 아홉의 anchor layer 를 읽는다
+  it('S-005 (경계) C004 의 아홉 방 anchor 는 그 표 그대로다', () => {
+    // Given C004 때 있던 방들의 anchor layer 를 읽는다.
+    // C008 이 방 하나(환상의 미로)를 더했다 — 표에 없는 방은 이 주장의 대상이 아니다.
+    // 재는 것은 언제나 "C004 의 표가 한 줄이라도 달라졌는가" 다 (C008 SPEC-001 로 좁혀졌다).
     const now: Record<string, Record<string, [number, number]>> = {};
-    for (const spec of REGION_SPECS) {
+    for (const spec of REGION_SPECS.filter((s) => s.id in ANCHORS_AT_C004)) {
       now[spec.id] = Object.fromEntries(
         pointsOf(spec.space, ANCHOR_LAYER).map((p) => [p.tag, [p.position.x, p.position.z]]),
       );
@@ -448,7 +458,7 @@ describe('SPEC-004 — 표면이 경사로 갈린다', () => {
     // C005 때는 세계의 **어떤** 방에도 표면을 젖게 할 것(curve)이 없었다. C006 이 백왕령에
     // curve 와 area 를 놓았으므로 그 주장은 그 방에서만 바뀐다 (C006 spec SPEC-004 경계).
     // 손대지 않은 여덟 방은 여전히 point 와 stamp 둘뿐이다.
-    for (const spec of flatRooms()) {
+    for (const spec of roomsUntouchedSinceC005()) {
       const kinds = [...new Set(spec.space.ops.map((op) => op.kind))].sort();
       expect({ region: spec.id, kinds }).toEqual({
         region: spec.id,
@@ -615,9 +625,12 @@ describe('SPEC-008 — 세계는 땅을 싣지 않는다', () => {
     expect(Object.keys(v.region).sort()).toEqual(['hash', 'id']);
   });
 
-  it('S-030 STATE_VERSION 이 올라가지 않았다 — hkt-adv-proto-i/2', () => {
-    expect(STATE_VERSION).toBe('hkt-adv-proto-i/2');
-    expect(driveWorld(solo).world.snapshot().version).toBe('hkt-adv-proto-i/2');
+  it('S-030 이 Cycle 은 저장되는 State 를 늘리지 않았다 — 땅은 스냅샷에 실리지 않는다', () => {
+    // C005 는 이 값을 'hkt-adv-proto-i/2' 로 못박아 "올리지 않았다" 를 말했다.
+    // C008 이 Region State 를 저장하면서 그 값을 올렸으므로(spec R5) 글자를 재는 것은
+    // 더 이상 C005 의 주장이 아니다 — 남은 주장은 "세계가 찍는 판이 팩의 판과 같다" 와
+    // "땅은 실리지 않는다"(S-031) 다. 뒤의 것이 이 Cycle 이 실제로 재던 것이다.
+    expect(driveWorld(solo).world.snapshot().version).toBe(STATE_VERSION);
   });
 
   it('S-031 스냅샷에도 관찰 결과에도 height · surface · chunk 가 없다', () => {
@@ -826,10 +839,17 @@ describe('회귀', () => {
     walkTo(b, 18, 0);
     reasons.add(askTransit(b, RED_WASTE_PASS)!.reason!);
 
+    // C008 이 고대 문 너머를 지었다 — 여기서 오던 region-not-built 는 이제 성공이다
+    // (규칙은 한 글자도 바뀌지 않았다 · C008 SPEC-002 경계). 그 사유는 위의 붉은 황야 고개가 낸다.
+    const gate = driveWorld(solo);
+    toForestDeep(gate);
+    walkTo(gate, -13, 13);
+    expect(transits(gate.observe()).find((i) => i.targetEntityId === ANCIENT_GATE)).toMatchObject({
+      available: true,
+    });
+
     const c = driveWorld(solo);
     toForestDeep(c);
-    walkTo(c, -13, 13);
-    reasons.add(askTransit(c, ANCIENT_GATE)!.reason!);
     walkTo(c, 0, -18);
     c.dispatch({ interactionId: 'attack' });
     reasons.add(askTransit(c, DEEP_TRAIL)!.reason!);

@@ -11,6 +11,7 @@ import type { CoreWorldState } from '../../../engine/world-kernel/state';
 import type { ActorState } from './actor';
 import type { StrikeEvent } from './combat';
 import type { DepositState } from './deposit';
+import type { RegionRuleState } from './region-state';
 import type { WorldPosition } from './position';
 
 // 관찰자 장부를 읽는 도움들은 Engine 의 것이다 — 같은 이름으로 그대로 쓴다.
@@ -33,6 +34,13 @@ export interface WorldState extends CoreWorldState {
   deposits: DepositState[];
   strikeEvents: StrikeEvent[]; // World.StrikeEvents — 최근 타격 결과들
   debugAuthority: DebugAuthority;
+  /**
+   * World.RegionStates — 규칙을 품은 방이 기억하는 것 (C008 ADDED · semantic/region-state.ts).
+   *
+   * **저장된다.** 컴파일 결과(terrain)와 달리 Description 에서 유도되지 않는다 —
+   * 세계가 겪은 일의 결과이므로 스냅샷에 실린다. 규칙 없는 방에는 자리 자체가 없다.
+   */
+  regionStates: Record<string, RegionRuleState>;
 }
 
 // InteractionRange — RULE-MINE-001 Precondition 2 의 거리 한계
@@ -71,4 +79,5 @@ export const TICK_INTERVAL = 1 / 30;
 // WorldState 나 그 하위 형태를 바꾸는 Cycle 이 숫자를 올린다 — 불일치 스냅샷은
 // 복구되지 않고 버려지므로, 올리지 않으면 옛 형태의 State 가 새 규칙 위에서 돈다.
 // C001 — Actor.regionId · Deposit.regionId 가 실린다. World.bounds 는 사라졌다.
-export const STATE_VERSION = 'hkt-adv-proto-i/2';
+// C008 — World.regionStates 와 Actor.movedThisTick 이 실린다. 옛 스냅샷은 복구되지 않는다 (spec R5).
+export const STATE_VERSION = 'hkt-adv-proto-i/3';

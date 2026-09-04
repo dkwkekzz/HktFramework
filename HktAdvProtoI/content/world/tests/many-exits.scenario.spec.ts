@@ -27,10 +27,16 @@ const BUILT_REGIONS = [
   PREDATOR_NEST,
   BIO_ORE_FIELD,
 ];
-// C003 이 RED_EYE_TREE 를 지어 경계 목록에서 뺐다 — 남은 경계 셋 (정렬된 형태)
-const FRONTIERS = ['FANTASY_MAZE', 'ICE_CANYON', 'RED_WASTE'];
-/** 관찰 결과에 이름이 실려서는 안 되는 다른 방들 — 경계 셋 + C003 이 지은 셋 */
-const OTHER_ROOM_NAMES = [...FRONTIERS, 'RED_EYE_TREE', 'TREE_INNER_WORLD', 'HEART_LAKE'];
+// C003 이 RED_EYE_TREE 를, C008 이 FANTASY_MAZE 를 지어 경계 목록에서 뺐다 — 남은 경계 둘
+const FRONTIERS = ['ICE_CANYON', 'RED_WASTE'];
+/** 관찰 결과에 이름이 실려서는 안 되는 다른 방들 — 경계 둘 + 그 뒤로 지어진 방들 */
+const OTHER_ROOM_NAMES = [
+  ...FRONTIERS,
+  'RED_EYE_TREE',
+  'TREE_INNER_WORLD',
+  'HEART_LAKE',
+  'FANTASY_MAZE',
+];
 
 const FOREST_PATH = 'FOREST_PATH';
 const RUIN_TRAIL = 'RUIN_TRAIL';
@@ -338,9 +344,11 @@ describe('S-006 (SPEC-003) — 방마다 나갈 곳의 수가 3 · 3 · 5 · 1 �
 });
 
 describe('S-007 (SPEC-004) — 아직 짓지 않은 곳은 경계(frontier)로 밝혀져 있다', () => {
-  it('frontiers 에 FANTASY_MAZE · RED_WASTE · ICE_CANYON 이 있다 (C003 이 RED_EYE_TREE 를 지어 뺐다)', () => {
+  it('frontiers 에 RED_WASTE · ICE_CANYON 이 있다 (지어진 방은 이 목록에서 빠진다)', () => {
     for (const name of FRONTIERS) expect(graphFrontiers).toContain(name);
+    // 지어진 방은 경계가 아니다 — C003 이 거목을, C008 이 환상의 미로를 그렇게 뺐다
     expect(graphFrontiers).not.toContain('RED_EYE_TREE');
+    expect(graphFrontiers).not.toContain('FANTASY_MAZE');
   });
 
   it('Description 없는 끝은 전부 frontier 안에 있고, frontier 중 지어진 방은 없다', () => {
@@ -436,19 +444,16 @@ describe('S-011 (SPEC-006 ③) — 멀면 out-of-range · 닫힘·경계보다 �
 
 // C004 가 데이터로 열었다 — 전제 ④(열려 있다)가 이제 늘 참이므로 대답이 ⑤ 로 넘어간다.
 // 규칙의 순서(④ < ⑤)는 그대로다: 값이 달라져 다른 답이 나올 뿐이다
-describe('S-012 (SPEC-006 ⑤) — 열린 문에 붙어 요청하면 region-not-built', () => {
-  it('ANCIENT_GATE anchor(−13, 13) 위에서 요청하면 "아직 갈 수 없는 곳" 이다', () => {
+// C008 이 고대 문 너머를 지었다 — 이 자리의 대답이 region-not-built 에서 성공으로 넘어갔다.
+// 규칙도 사유 코드도 그대로다: 아직 경계인 문(백왕령의 고개 둘)에서는 S-013 이 같은 사유를 계속 잰다
+describe('S-012 (SPEC-006 ⑤) — 고대 문 너머가 지어져 이제 건널 수 있다', () => {
+  it('ANCIENT_GATE anchor(−13, 13) 위에서 요청하면 받아들여진다 (C008 이 방을 지었다)', () => {
     const w = driveWorld(solo);
     toForestDeep(w);
     walkTo(w, -13, 13);
-    expect(transitTo(w.observe(), ANCIENT_GATE)).toMatchObject({
-      available: false,
-      reason: 'region-not-built',
-    });
-    expect(askTransit(w, ANCIENT_GATE)).toMatchObject({
-      accepted: false,
-      reason: 'region-not-built',
-    });
+    expect(transitTo(w.observe(), ANCIENT_GATE)).toMatchObject({ available: true });
+    expect(askTransit(w, ANCIENT_GATE)).toMatchObject({ accepted: true });
+    expect(body(w).regionId).toBe('FANTASY_MAZE');
   });
 });
 
@@ -491,13 +496,14 @@ describe('S-014 (SPEC-006 ⑥) — 대체 불가 행동은 action-busy · 다만
     expect(body(w).regionId).toBe(FOREST_DEEP);
   });
 
-  // C004 가 데이터로 열었다 — 닫힘(④)이 사라져 이제 경계(⑤)가 행동(⑥)보다 앞선다는 것을 잰다
-  it('고대 문 위에서는 같은 행동 중이어도 region-not-built (⑤ < ⑥)', () => {
+  // C004 가 데이터로 열었다 — 닫힘(④)이 사라져 이제 경계(⑤)가 행동(⑥)보다 앞선다는 것을 잰다.
+  // C008 이 고대 문 너머를 지었으므로 그 순서는 아직 경계인 문(백왕령의 고개)에서 잰다
+  it('아직 경계인 문 위에서는 같은 행동 중이어도 region-not-built (⑤ < ⑥)', () => {
     const w = driveWorld(solo);
-    toForestDeep(w);
-    walkTo(w, -13, 13);
+    const at = EXIT_POSITIONS[WHITE_KING_DOMAIN]![RED_WASTE_PASS]!;
+    walkTo(w, at.x, at.z);
     expect(w.dispatch({ interactionId: 'attack' }).status).toBe('success');
-    expect(askTransit(w, ANCIENT_GATE)).toMatchObject({
+    expect(askTransit(w, RED_WASTE_PASS)).toMatchObject({
       accepted: false,
       reason: 'region-not-built',
     });
@@ -520,11 +526,15 @@ describe('S-015 (SPEC-006) — 다섯 사유가 이 세계의 데이터에서 �
     walkTo(b, 18, 0);
     reasons.add(askTransit(b, RED_WASTE_PASS)!.reason!);
 
+    // C002 에서는 connector-inactive 였고 C004 에서는 region-not-built 였다 —
+    // C008 이 그 너머를 지어 이제 받아들여진다. region-not-built 는 위의 고개가 계속 낸다
+    const gate = driveWorld(solo);
+    toForestDeep(gate);
+    walkTo(gate, -13, 13);
+    expect(transitTo(gate.observe(), ANCIENT_GATE)).toMatchObject({ available: true });
+
     const c = driveWorld(solo);
     toForestDeep(c);
-    walkTo(c, -13, 13);
-    // C002 에서는 connector-inactive 였다 — 문이 열린 지금은 그 너머가 아직 없다는 대답이다
-    reasons.add(askTransit(c, ANCIENT_GATE)!.reason!);
     walkTo(c, 0, -18);
     c.dispatch({ interactionId: 'attack' });
     reasons.add(askTransit(c, DEEP_TRAIL)!.reason!);
@@ -544,13 +554,14 @@ describe('S-015 (SPEC-006) — 다섯 사유가 이 세계의 데이터에서 �
 
 describe('S-016 (SPEC-006 경계) — 거절은 세계 State 를 하나도 바꾸지 않는다', () => {
   it('regionId · position · velocity · currentAction 이 요청 전과 같다', () => {
+    // C004 가 데이터로 열었고 C008 이 고대 문 너머를 지었다 — 거절이 State 를 바꾸지 않는다는
+    // 규칙은 그대로이므로, 아직 거절이 오는 문(백왕령의 고개)에서 같은 것을 잰다
     const w = driveWorld(solo);
-    toForestDeep(w);
-    walkTo(w, -13, 13);
+    const at = EXIT_POSITIONS[WHITE_KING_DOMAIN]![RED_WASTE_PASS]!;
+    walkTo(w, at.x, at.z);
     const before = JSON.parse(JSON.stringify(body(w)));
 
-    // C004 가 데이터로 열었다 — 거절의 사유만 바뀐다. 거절이 State 를 바꾸지 않는다는 규칙은 그대로다
-    expect(askTransit(w, ANCIENT_GATE)).toMatchObject({
+    expect(askTransit(w, RED_WASTE_PASS)).toMatchObject({
       accepted: false,
       reason: 'region-not-built',
     });
@@ -559,7 +570,7 @@ describe('S-016 (SPEC-006 경계) — 거절은 세계 State 를 하나도 바�
     expect(after.position).toEqual(before.position);
     expect(after.velocity).toEqual(before.velocity);
     expect(after.currentAction).toEqual(before.currentAction);
-    expect(w.observe().scene).toBe(FOREST_DEEP);
+    expect(w.observe().scene).toBe(WHITE_KING_DOMAIN);
   });
 });
 
@@ -723,12 +734,12 @@ describe('S-022 (SPEC-009 ②③④) — frontier-built · unused-frontier · un
 
 describe('S-023 (SPEC-010) — STATE_VERSION 이 올라가지 않고 방·Graph 는 저장되지 않는다', () => {
   it('스냅샷 왕복 — 되살린 몸이 FOREST_DEEP 에 그대로 서 있다', () => {
-    expect(STATE_VERSION).toBe('hkt-adv-proto-i/2');
-
+    // C008 이 Region State 를 저장하면서 판을 올렸다 (spec R5) — 못박힌 글자 대신
+    // "세계가 찍는 판이 팩의 판과 같다" 를 잰다. 방·Graph 가 실리지 않는다는 주장은 그대로다
     const w = driveWorld(solo);
     toForestDeep(w);
     const saved = JSON.parse(JSON.stringify(w.world.snapshot()));
-    expect(saved.version).toBe('hkt-adv-proto-i/2');
+    expect(saved.version).toBe(STATE_VERSION);
     for (const key of ['regions', 'graph', 'frontiers', 'closedConnectors', 'bounds']) {
       expect(saved.state).not.toHaveProperty(key);
     }

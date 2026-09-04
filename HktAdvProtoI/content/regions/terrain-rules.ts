@@ -55,6 +55,15 @@ export const FEATURE_LAYER = 'feature';
 export const RIVER_TAG = 'river';
 export const BRIDGE_TAG = 'bridge';
 export const LANDMARK_LAYER = 'landmark';
+
+/**
+ * 미로의 식물이 서는 layer (C008).
+ *
+ * 이름의 소유는 그 방(fantasy-maze.ts)이지만, **그리는 쪽으로 내보낼 layer 목록**은 규칙 표의
+ * 것이다. 표가 방 파일을 import 하면 규칙 표가 특정 방을 알게 되므로 글자로만 든다 —
+ * 두 자리가 어긋나면 식물이 안 서는 것으로 바로 드러난다 (WHITE_GIANT_TREE 와 같은 어법).
+ */
+export const CLUE_LAYER = 'clue';
 export const SETTLEMENT_LAYER = 'settlement';
 /** Concept §3.5 의 `condition` 을 셋으로 가른 접두사 — 관찰이 이 접두사로 조건을 고른다 */
 export const CONDITION_PREFIX = 'condition:';
@@ -156,7 +165,11 @@ export const COMPILE_RULES: CompileRules = {
   surface: SURFACE_RULES,
   blocked: BLOCK_RULES,
   passages: PASS_RULES,
-  // 그리는 쪽으로 내보낼 point layer — 거목이 땅에 서는 자리다 (SPEC-008).
+  // 그리는 쪽으로 내보낼 point layer — 거목이 땅에 서는 자리(C006 SPEC-008)와
+  // 미로의 식물(C008). 둘 다 "땅에 서서 그 자리를 말하는 것" 이다.
   // anchor·feature 는 내보내지 않는다: 출구는 이미 존재로 관찰되고, 다리는 땅의 모양이 말한다.
-  instanceLayers: [LANDMARK_LAYER],
+  //
+  // 표는 하나다 — C006 이 "세계와 관찰자가 같은 표를 읽는다" 를 이 파일의 존재 이유로 삼았으므로
+  // 그리는 쪽만 아는 항목이라 해도 표를 둘로 쪼개지 않는다.
+  instanceLayers: [LANDMARK_LAYER, CLUE_LAYER],
 };

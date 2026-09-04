@@ -11,8 +11,10 @@
 // 색의 기준 — L2-World-Concept §16 "저기 가보고 싶다 → 근데 들어가도 되나". depth 가 깊어질수록
 // 색이 어두워지고 차가워진다 (§3.2: civil = 문명권, outer = 익숙한 자연, wild = 아무도 돌보지 않는 야생).
 
+import type { GameViewSnapshot as CoreGameViewSnapshot } from '../../engine/protocol-core/gameview';
 import type { SceneGroundZone } from '../../engine/view-kernel/scene/scene-state';
 import { areasOf, descriptionHash, extentPolygon } from '../../engine/world-authoring/description';
+import type { GameViewSnapshot, RegionView } from '../protocol/gameview';
 import { regionSpec } from '../regions/index';
 import {
   CITY_TAG,
@@ -34,6 +36,8 @@ export const REGION_NAMES: Readonly<Record<string, string>> = {
   RED_EYE_TREE: '붉은 눈의 거목',
   TREE_INNER_WORLD: '거목 내부 세계',
   HEART_LAKE: '심장 호수',
+  // C008 — 고대 문 너머. 여태 경계 이름이던 것이 지어진 방이 되었다
+  FANTASY_MAZE: '환상의 미로',
 };
 
 export function regionName(id: string): string {
@@ -175,6 +179,141 @@ export function settlementZonePresentation(tag: string): SettlementZonePresentat
   return SETTLEMENT_ZONE_PRESENTATIONS[tag] ?? DEFAULT_SETTLEMENT_ZONE;
 }
 
+// ── 규칙을 품은 방 — 구역과 통로 (C008 ADDED) ─────────────────────────
+//
+// 미로의 Description 에는 구역 area 넷(cell/A~D)과 통로 area 여섯(passage/…)이 있다.
+// settlement area 와 똑같이 **세계가 보내 주지 않는다** — 관찰자가 자기 Description 을 읽어
+// 그린다. 다른 것은 하나뿐이다: 통로는 **지금 열려 있는가**에 따라 색이 갈리고, 그 답은
+// 봉투의 region.state.pattern 과 이 방 데이터의 패턴 표에서 관찰자가 스스로 맞춘다
+// (세계는 패턴 표를 싣지 않는다 — spec Observable "투영하지 않는 것").
+//
+// **두 축을 갈라 두었다.** 한 화면에 열 개의 zone 이 겹쳐 놓이므로 구역과 통로가 같은 축을
+// 쓰면 서로를 잡아먹는다.
+//   구역  색상(hue)으로 갈린다 — 넷이 서로 다른 것만 뜻하고, 어느 것이 나은 자리라는 뜻은 없다
+//   통로  밝기(value)로 갈린다 — 열림은 밝고 닫힘은 거의 검다. 색맹이어도 갈리고, 멀리서도 갈린다
+//
+// 구역 바닥에 A·B·C·D 를 **적지 않는다.** 적는 순간 식물이 할 일이 없어지고, 이 Play 의
+// 관찰 기준점(§5.3 "지도는 못 그려도 이름표는 읽는다")이 화면에서 사라진다.
+
+// layer 이름을 데이터에서 import 하지 않고 여기 적는 것은 terrain-presentation 의
+// WHITE_GIANT_TREE 와 같은 이유다 — 표현 표는 세계의 코드를 키로 받아 적는다.
+// 통로 layer 만은 적지 않는다: 그것은 **규칙이 스스로 밝히는 값**이므로(rule.passageLayer)
+// 데이터가 다른 이름을 쓰면 화면도 함께 따라가야 한다.
+const CELL_LAYER = 'cell';
+
+/**
+ * 구역 태그 → 바닥 색. 넷은 색상만 다르고 밝기·채도의 자리는 같다 —
+ * 하나가 더 눈에 띄면 화면이 "저기가 중요하다" 는 없는 말을 하게 된다.
+ *
+ * 색 넷을 고른 기준은 **미로에서 이미 쓰이는 색을 피하는 것**이다. 지면은 어두운 초록
+ * (SURFACE_FLAT = 0x4e7a3e)이고 방 바닥은 어두운 보라(deep = 0x3b2d6e)이므로 그 둘을 비우면
+ * 청록 · 자홍 · 호박이 남고, 넷째 자리는 색상 자체를 버린 밝은 상아다 (급경사가 무채색으로
+ * 나간 것과 같은 어법). 같은 넷이 그 구역 식물의 색이기도 하다 (sprites 의 a·n·o·y) —
+ * 바닥과 이름표가 같은 색이면 둘이 서로를 가르치고, 하나만 보아도 답이 나온다.
+ *
+ * 채움을 0.16 으로 옅게 둔 것은 넷이 방 전체를 덮기 때문이다. 진하면 방의 depth 색(심부)과
+ * 그 위에 선 것들이 전부 묻힌다 — 구역은 배경이지 주인공이 아니다.
+ */
+export const CELL_ZONE_PRESENTATIONS: Readonly<Record<string, SettlementZonePresentation>> = {
+  A: { fill: 0x3fb9b0, fillOpacity: 0.16, edge: 0x1c6b66, edgeOpacity: 0.7, edgeWidth: 0.8 },
+  B: { fill: 0xd2569c, fillOpacity: 0.16, edge: 0x7a2a58, edgeOpacity: 0.7, edgeWidth: 0.8 },
+  C: { fill: 0xdb9138, fillOpacity: 0.16, edge: 0x87551c, edgeOpacity: 0.7, edgeWidth: 0.8 },
+  D: { fill: 0xe7dcc0, fillOpacity: 0.16, edge: 0x8f8467, edgeOpacity: 0.7, edgeWidth: 0.8 },
+};
+
+export function cellZonePresentation(tag: string): SettlementZonePresentation {
+  return CELL_ZONE_PRESENTATIONS[tag] ?? DEFAULT_SETTLEMENT_ZONE;
+}
+
+/**
+ * 통로의 세 결정 — 열림 · 닫힘 · 모름.
+ *
+ * 열림은 **채우지 않고 밝은 테두리만** 둔다. 닫힘은 거의 검은 띠로 **채운다**. 그래서 갈리는
+ * 것이 색이 아니라 **막대가 거기 있는가**다 — 방을 위에서 훑을 때 검은 띠 둘이 즉시 보이고,
+ * 나머지 넷은 뚫린 자리로 남는다 ("한눈에" 의 뜻).
+ *
+ * 닫힘의 테두리만 붉은 것은 그것이 **세계가 거절하는 자리**이기 때문이다 — 출구 표식의
+ * 문 색(TRANSITION_TINTS.door = 0xb05a5a)과 같은 계열이다. 거기 들어서면 "길이 닫혀 있다"
+ * 가 뜬다는 것을 색이 미리 말한다.
+ *
+ * 모름은 무채색이다 — 규칙을 품은 방인데 봉투에 state 가 없는 경우다. 그런 일이 없어야
+ * 맞지만, 없다고 화면이 열림/닫힘을 **지어내면** 세계가 하지 않은 말을 하게 된다.
+ */
+export const PASSAGE_OPEN_ZONE: SettlementZonePresentation = {
+  fill: 0xeae2f8,
+  fillOpacity: 0,
+  edge: 0xfff0c8,
+  edgeOpacity: 0.95,
+  edgeWidth: 1.4,
+};
+
+export const PASSAGE_CLOSED_ZONE: SettlementZonePresentation = {
+  fill: 0x120c1c,
+  fillOpacity: 0.62,
+  edge: 0xb05a5a,
+  edgeOpacity: 0.95,
+  edgeWidth: 1.4,
+};
+
+export const PASSAGE_UNKNOWN_ZONE: SettlementZonePresentation = {
+  fill: 0x9a9a9a,
+  fillOpacity: 0.2,
+  edge: 0x606060,
+  edgeOpacity: 0.8,
+  edgeWidth: 0.8,
+};
+
+/**
+ * 재배열의 순간이 화면에 남아 있는 시간 (초).
+ *
+ * 4 초다. 맥동은 세계 시각으로 위상을 잡고 각속도가 3 rad/s 이므로(renderer 의 drawZones)
+ * 한 번 부풀었다 꺼지는 데 2π/3 ≒ 2.1 초가 든다. **한 번만 뛰면 눈은 그것을 깜박임으로 읽고,
+ * 두 번 뛰어야 "뛰고 있다" 로 읽는다** — 그래서 한 주기가 아니라 두 주기다.
+ *
+ * 더 길게 두지 않는 이유도 같다. 압력이 다시 차는 데 걸리는 걸음에 비해 이 창이 길면
+ * "방금 바뀌었다" 가 늘 켜져 있는 배경이 되어 순간이기를 그만둔다.
+ */
+export const REARRANGE_PULSE_SECONDS = 4;
+
+/**
+ * 지금 열려 있는 통로 태그들 — **패턴 표는 데이터의 것이고 봉투에는 없다.**
+ * 세계는 "지금 패턴의 이름" 하나만 말하고, 그 이름이 어느 통로를 여는지는 관찰자가 자기
+ * content/regions 의 같은 표에서 읽는다 (땅을 컴파일해 그리는 C005~C007 의 방식 그대로).
+ *
+ * 이름을 모르는 패턴이면 null 이다 — 빈 집합(= 전부 닫힘)으로 읽지 않는다. 그것은 세계가
+ * 하지 않은 말이고, 모름과 닫힘은 다른 것이다.
+ */
+function openPassageTags(
+  spec: { rule?: { patterns: readonly { name: string; open: readonly string[] }[] } },
+  pattern: string | undefined,
+): ReadonlySet<string> | null {
+  if (!spec.rule || pattern === undefined) return null;
+  const found = spec.rule.patterns.find((p) => p.name === pattern);
+  return found ? new Set(found.open) : null;
+}
+
+/**
+ * 방이 지금 말하는 한 마디 — 없으면 없다 (C008).
+ *
+ * 길이 바뀐 **순간**은 봉투에 사건으로 오지 않는다. 세계는 "마지막으로 바뀐 시각" 하나만
+ * 말하고(region.state.rearrangedAt), 그것이 얼마 전인지는 관찰자가 잰다 — 타격 결과의
+ * 나이를 strikes.since 로 재는 것과 같은 방식이다. 그래서 새로 들어온 관찰자도, 되살린
+ * 세계도 같은 답을 얻는다 (사건 큐도, 화면이 기억하는 값도 필요 없다).
+ */
+export function regionNotice(observed: CoreGameViewSnapshot): string | undefined {
+  const snapshot = observed as GameViewSnapshot;
+  const at = snapshot.region?.state?.rearrangedAt;
+  if (at === undefined) return undefined;
+  const elapsed = worldTimeOf(snapshot) - at;
+  if (elapsed < 0 || elapsed > REARRANGE_PULSE_SECONDS) return undefined;
+  return codeText('maze-rearranged');
+}
+
+/** 봉투가 싣고 온 세계 시각 — HUD 한 줄이 그 값이다 (resolve 가 읽는 자리와 같다) */
+function worldTimeOf(snapshot: GameViewSnapshot): number {
+  return Number(snapshot.hud.find((h) => h.id === 'world.time')?.value ?? 0);
+}
+
 /**
  * 관찰자가 선 방의 바닥과 그 안의 settlement 자리들 — SceneGroundZone 목록.
  * Spec 을 모르는 id 면 빈 배열이다 — 바닥 없이도 게임은 돈다 (폴백 규칙).
@@ -184,7 +323,10 @@ export function settlementZonePresentation(tag: string): SettlementZonePresentat
  * 겹치는지는 데이터가 정하는 것이고, 화면이 그 차례를 바꾸면 데이터를 고쳐도 그림이
  * 따라오지 않는다.
  */
-export function regionZones(region: { id: string; hash: string } | undefined): SceneGroundZone[] {
+export function regionZones(
+  region: RegionView | undefined,
+  worldTime = 0,
+): SceneGroundZone[] {
   if (!region) return [];
   const spec = regionSpec(region.id);
   if (!spec) return [];
@@ -219,5 +361,51 @@ export function regionZones(region: { id: string; hash: string } | undefined): S
         label: codeText(area.tag),
       };
     }),
+    // 구역 넷 (C008) — 통로보다 **먼저** 놓는다. 통로는 구역이 맞닿는 자리에 겹쳐 놓이므로
+    // 뒤에 와야 위에 그려진다. layer 안의 차례는 데이터(ops)의 것이고, layer 사이의 차례는
+    // 무엇이 무엇 위에 겹치는가의 문제이므로 표현의 결정이다.
+    ...areasOf(spec.space, CELL_LAYER).map((area): SceneGroundZone => {
+      const p = cellZonePresentation(area.tag);
+      return {
+        id: `cell:${spec.id}:${area.id}`,
+        shape: area.shape,
+        fill: { color: p.fill, opacity: p.fillOpacity },
+        edge: { color: p.edge, opacity: p.edgeOpacity, width: p.edgeWidth },
+        // 이름표를 붙이지 않는다 — 구역의 이름은 식물이 말한다 (Play §5.3)
+      };
+    }),
+    // 통로 여섯 (C008) — 열림/닫힘으로 색이 갈리고, 재배열 직후에는 맥동한다.
+    // 규칙을 품지 않은 방에는 통로 layer 의 이름 자체가 없으므로 이 목록이 비고,
+    // 그러면 C006 까지와 한 픽셀도 다르지 않은 화면이 남는다.
+    ...(spec.rule ? areasOf(spec.space, spec.rule.passageLayer) : []).map(
+      (area): SceneGroundZone => {
+        const open = openPassageTags(spec, region.state?.pattern);
+        const p =
+          open === null
+            ? PASSAGE_UNKNOWN_ZONE
+            : open.has(area.tag)
+              ? PASSAGE_OPEN_ZONE
+              : PASSAGE_CLOSED_ZONE;
+        return {
+          id: `passage:${spec.id}:${area.id}`,
+          shape: area.shape,
+          // 열린 통로는 채우지 않는다 (fillOpacity 0) — 뚫린 자리는 비어 있어야 뚫려 보인다
+          ...(p.fillOpacity > 0 ? { fill: { color: p.fill, opacity: p.fillOpacity } } : {}),
+          edge: { color: p.edge, opacity: p.edgeOpacity, width: p.edgeWidth },
+          // 바뀐 것은 통로의 열림/닫힘뿐이므로 맥동도 통로에만 준다 (spec R3 —
+          // 구역도 식물도 재배열이 건드리지 않는다). 세기는 시간과 함께 잦아든다:
+          // 순간이 지나가는 것 자체가 보여야 "방금" 이 언제까지인지 읽힌다.
+          ...pulseOf(region.state?.rearrangedAt, worldTime),
+        };
+      },
+    ),
   ];
+}
+
+/** 재배열이 방금이면 맥동 세기를, 아니면 아무것도 주지 않는다 (없으면 맥동하지 않는다) */
+function pulseOf(rearrangedAt: number | undefined, worldTime: number): { intensity?: number } {
+  if (rearrangedAt === undefined) return {};
+  const elapsed = worldTime - rearrangedAt;
+  if (elapsed < 0 || elapsed > REARRANGE_PULSE_SECONDS) return {};
+  return { intensity: 1 - elapsed / REARRANGE_PULSE_SECONDS };
 }

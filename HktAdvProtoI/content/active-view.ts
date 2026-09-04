@@ -14,3 +14,7 @@ export { KEY_BINDINGS } from './view/bindings';
 export { SPRITE_SHEET } from './view/sprites';
 // 땅 — 관찰자가 자기 Description 을 컴파일해 그린다 (C005). 봉투로 오지 않는다.
 export { TERRAIN_PALETTE, regionTerrain } from './view/terrain-presentation';
+// 방이 지금 말하는 한 마디 (C008) — 장면(SceneState)에는 잠깐 뜨는 문구를 담을 자리가 없어
+// 조립이 기반의 notice 로 띄운다. **무엇을 언제 말할지는 여기(컨텐츠)가 정한다** — 조립은
+// 값이 있으면 띄우고 없으면 아무 일도 하지 않는다 (조립은 컨텐츠의 속을 알지 못한다).
+export { regionNotice } from './view/region-presentation';

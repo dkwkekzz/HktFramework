@@ -55,6 +55,14 @@ export interface ActorState {
   perceptionRange: number; // 고정 상수 — control = autonomous 일 때만 의미가 있다
   wanderPath: WorldPosition[]; // 고정 — control = autonomous 일 때만 의미가 있다
   wanderIndex: number;
+  /**
+   * 이번 tick 에 이 몸이 실제로 움직인 거리 (C008 ADDED — 움직이지 않았으면 0).
+   *
+   * RULE-MOVE-PROGRESS-001 이 매 tick 기록한다. 게임 명사가 없는 사실이므로 전역이어도
+   * 되고(어느 규칙이든 "이 몸이 얼마나 움직였는가" 를 물을 수 있다), 지금 이것을 읽는 것은
+   * RULE-MAZE-CONNECTION-001 하나뿐이다 — 통로 규칙을 아는 것은 그 규칙뿐이다.
+   */
+  movedThisTick: number;
   inventory: Inventory;
   currentAction: CurrentAction;
 }

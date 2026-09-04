@@ -22,6 +22,13 @@ const HUD: Record<string, HudPresentation> = {
   // "안전" 이 아니라 "안전한 이유" 인 것이 W2 의 전부다 — 안전지대를 칠하는 것이 아니라
   // 안전할 수 있는 조건을 읽는 것이므로, 이름표가 이유를 묻는 말이어야 한다.
   'region.safe-by': { label: '안전한 이유' },
+  // 그 방에 쌓인 압력 (C008) — 규칙을 품은 방에서만 뜬다. 값은 세계의 hud 목록이 아니라
+  // 관찰 결과의 region.state 에서 온다 (region.safe-by 와 같은 자리·같은 방식).
+  //
+  // **얼마나 찼는지가 보여야 한다**: 숫자만으로는 120 이 임계라는 것을 알 길이 없고,
+  // 알 수 없으면 "넘치면 바뀐다" 를 관찰할 수 없다 (Play §5.2 Feedback). 그래서 값은
+  // "지금 / 임계" 두 값을 함께 적고 그 뒤에 진행 막대가 선다.
+  'region.pressure': { label: '압력' },
 };
 
 export function hudPresentation(id: string): HudPresentation {

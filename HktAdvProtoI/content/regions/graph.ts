@@ -11,10 +11,16 @@
 // C003 CHANGED — Connector 가 열에서 열셋으로, 중첩(containment)에 값이 처음 들고, 경계가 하나 줄었다
 // (RED_EYE_TREE 가 지어졌다). C002 가 놓은 열은 한 글자도 바뀌지 않는다 — 방 하나가 지어졌을 뿐이다
 // (01-spec SPEC-003 경계). 새 열 셋은 배열 끝에 이어 붙었다: exitsOf 의 결정론이 이 순서를 따른다.
+//
+// C008 CHANGED — 방이 열, Connector 가 열넷, 경계가 둘이 된다. 환상의 미로가 지어져 경계 목록에서
+// 빠지고(이름은 이제 fantasy-maze.ts 가 소유한다 · RED_EYE_TREE 의 선례) 거기서 나가는 문
+// MAZE_GATE_RETURN 하나가 배열 끝에 이어 붙는다. 앞의 열셋은 한 글자도 바뀌지 않는다 —
+// 고대 문(ANCIENT_GATE)조차 그대로다: 그 너머가 지어졌다는 것은 데이터가 말할 뿐이다 (C004 의 증명).
 
 import type { RegionGraph } from '../../engine/world-authoring/graph';
 import { BIO_ORE_FIELD } from './bio-ore-field';
 import { EXPLORER_RUIN } from './explorer-ruin';
+import { FANTASY_MAZE } from './fantasy-maze';
 import { FOREST_DEEP } from './forest-deep';
 import { FOREST_EDGE } from './forest-edge';
 import { HEART_LAKE } from './heart-lake';
@@ -37,18 +43,20 @@ export const ICE_CANYON_PASS = 'ICE_CANYON_PASS';
 export const TREE_INNER_DOOR = 'TREE_INNER_DOOR';
 export const TREE_FALL = 'TREE_FALL';
 export const HEART_RIVER = 'HEART_RIVER';
+// C008 ADDED — 미로에서 나가는 문. 들어온 자리로 나온다 (TREE_INNER_DOOR 와 같은 규약)
+export const MAZE_GATE_RETURN = 'MAZE_GATE_RETURN';
 
 // 아직 짓지 않은 방들 — Connector 가 가리키되 Description 이 없다 (01-spec SPEC-004).
 // 이름만 있고 방은 없다. 지어지면 그 이름은 이 목록에서 빠지고 REGION_SPECS 로 옮겨 간다.
 // C003 CHANGED — RED_EYE_TREE 가 그렇게 되었다: 이름은 이제 red-eye-tree.ts 가 소유하고
-// 이 목록에는 없다 (01-spec SPEC-009 ②). 남은 경계는 셋이다.
-export const FANTASY_MAZE = 'FANTASY_MAZE';
+// 이 목록에는 없다 (01-spec SPEC-009 ②).
+// C008 CHANGED — FANTASY_MAZE 도 그렇게 되었다 (이름은 fantasy-maze.ts 가 소유한다).
+// 남은 경계는 둘이다.
 export const RED_WASTE = 'RED_WASTE';
 export const ICE_CANYON = 'ICE_CANYON';
 
 /** 이 Graph 가 경계로 밝힌 이름들 — Description 이 없어도 정합 오류가 아니다 (01-spec SPEC-004) */
 export const FRONTIER_REGIONS: readonly string[] = [
-  FANTASY_MAZE,
   RED_WASTE,
   ICE_CANYON,
 ];
@@ -86,6 +94,7 @@ export const REGION_GRAPH: RegionGraph = {
     RED_EYE_TREE,
     TREE_INNER_WORLD,
     HEART_LAKE,
+    FANTASY_MAZE,
   ],
   // 어떤 방을 통해 발견되며 세계관상 어디에 속하는가 (L2-World-Region §7 의 사슬).
   // Connectivity(Connector)와도 Spatial Embedding 과도 다른 관계다 — 자식이 부모보다 넓어도 오류가 아니다.
@@ -193,6 +202,17 @@ export const REGION_GRAPH: RegionGraph = {
       to: { region: FOREST_DEEP, anchor: 'RIVER_MOUTH' },
       direction: 'one-way',
       transition: 'river',
+    },
+    // C008 ADDED — 미로에서 나가는 문 하나. 들어간 자리(미로의 ANCIENT_GATE anchor)에서
+    // 들어온 자리(숲 안쪽의 ANCIENT_GATE anchor)로 나온다 — 고대 문의 이쪽과 저쪽이다.
+    // 고대 문이 one-way 이므로 돌아오는 끝을 따로 세운다: 방향이 둘이라 문도 둘이다.
+    // 이 문이 없으면 미로에 나갈 곳이 없어 검사 ⑦(no-exit)이 걸린다 — C001 부터의 불변이다.
+    {
+      id: MAZE_GATE_RETURN,
+      from: { region: FANTASY_MAZE, anchor: 'ANCIENT_GATE' },
+      to: { region: FOREST_DEEP, anchor: 'ANCIENT_GATE' },
+      direction: 'one-way',
+      transition: 'door',
     },
   ],
   frontiers: FRONTIER_REGIONS,

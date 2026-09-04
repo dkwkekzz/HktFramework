@@ -15,6 +15,7 @@ import type { ActorState } from './semantic/actor';
 import type { ItemKind } from './semantic/item';
 import type { WorldPosition } from './semantic/position';
 import { START_REGION } from './semantic/region';
+import { createRegionStates } from './semantic/region-state';
 import { spawnActor } from './semantic/spawn';
 import {
   SPAWN_POINTS,
@@ -26,6 +27,7 @@ import { ruleActionProgress } from './simulation/action-progress';
 import { ruleBodyMomentum } from './simulation/body-momentum';
 import { ruleBodyPush } from './simulation/body-push';
 import { ruleCpRunDrain } from './simulation/cp-run-drain';
+import { ruleMazeConnection } from './simulation/maze-connection';
 import { ruleMoveProgress } from './simulation/move-progress';
 import { ruleNpcDecideAll } from './simulation/npc-decide';
 import { ruleRegionFall } from './simulation/region-fall';
@@ -95,6 +97,9 @@ const DEFAULT_NPCS: NpcSetup[] = [
 const SYSTEMS: WorldContent<WorldState>['systems'] = [
   (state) => ruleNpcDecideAll(state), // RULE-NPC-DECIDE-001
   (state, dt) => ruleMoveProgress(state, dt), // RULE-MOVE-PROGRESS-001
+  // 걸음이 그 방의 압력이 된다 — move-progress 가 적은 movedThisTick 을 바로 뒤에서 읽는다.
+  // 다른 무엇이 자리를 건드리기 전이고, 관찰(투영)보다는 당연히 앞이다 (C008 spec R1 Priority).
+  (state) => ruleMazeConnection(state), // RULE-MAZE-CONNECTION-001
   (state, dt) => ruleActionProgress(state, dt), // RULE-ACTION-PROGRESS-001
   (state) => ruleSwingStrike(state), // RULE-SWING-STRIKE-001 (STRIKE-DAMAGE → SKILL-BUDGET → DOWNED 를 함께 부른다)
   (state, dt) => ruleBodyPush(state, dt), // RULE-BODY-PUSH-001
@@ -152,6 +157,9 @@ export function createWorld(setup: WorldSetup = {}, restored?: WorldState): Worl
     time: 0,
     observers: [],
     strikeEvents: [],
+    // 규칙을 품은 방마다 첫 패턴 · 압력 0 으로 선다 (C008). 되살린 세계는 이 자리에 오지 않는다 —
+    // Region State 는 저장되는 State 이므로 스냅샷의 그 순간 값이 그대로 이어진다.
+    regionStates: createRegionStates(),
     // 속성 변경 권한은 세계 밖(세계를 띄우는 쪽)이 정한다.
     // 기본은 열려 있다: 이 프로토타입은 관찰과 시험이 목적이며, 닫으려면 세계를 그렇게 띄운다.
     debugAuthority: { open: setup.debugAuthority ?? true },

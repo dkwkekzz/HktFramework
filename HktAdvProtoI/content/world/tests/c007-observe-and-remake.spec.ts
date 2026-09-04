@@ -41,7 +41,7 @@ import {
   SURFACE_STEEP,
 } from '../../regions/terrain-rules';
 import type { ActionResult } from '../../protocol/actions';
-import { TICK_INTERVAL, type WorldState } from '../semantic/world-state';
+import { STATE_VERSION, TICK_INTERVAL, type WorldState } from '../semantic/world-state';
 import { driveWorld, PLAYER, type WorldDriver } from './drive';
 
 const DEG = Math.PI / 180;
@@ -317,10 +317,14 @@ describe('SPEC-009 — 데이터 하나가 새 땅을 만든다', () => {
   });
 
   it('S-009 (경계) 코드가 한 줄도 바뀌지 않았다 — 변한 것은 content/regions 하나다', () => {
-    // Given 이 Cycle 이 시작한 자리 (C007 명세를 동결한 커밋의 부모 = C006 마감)
+    // Given 이 Cycle 의 창(窓) — C007 명세를 동결한 커밋의 부모(= C006 마감)부터
+    //       **다음 Cycle 이 시작한 자리**(C008 명세 동결)까지.
+    //       C008 로 좁혀졌다: 이 주장은 "C007 이 무엇을 바꿨는가" 이지 "그 뒤로 아무도
+    //       바꾸지 않았는가" 가 아니다. 창을 닫지 않으면 다음 Cycle 이 이 주장을 뒤집는다.
     const base = cycleBase();
-    // When 그 뒤로 engine · content/world · content/view 에서 무엇이 달라졌는지 본다
-    const changed = changesSince(base, ['engine', 'content/world', 'content/view']);
+    const end = nextCycleBase() ?? 'HEAD';
+    // When 그 창 안에서 engine · content/world · content/view 에서 무엇이 달라졌는지 본다
+    const changed = changesSince(base, ['engine', 'content/world', 'content/view'], end);
 
     // 시나리오 테스트는 이 Cycle 이 쓰고 좁힌다 — 재는 자가 재는 자를 세지 않는다.
     // 세계·화면의 **코드**만 남긴다 (세는 자리는 아래 주석의 판정 방식 그대로다)
@@ -335,7 +339,7 @@ describe('SPEC-009 — 데이터 하나가 새 땅을 만든다', () => {
       code.map((c) => c.path).filter((p) => p !== 'engine/world-authoring/observe.ts'),
     ).toEqual([]);
     // 그리고 데이터로 바뀐 방은 숲 가장자리 하나다
-    const data = changesSince(base, ['content/regions']).map((c) => c.path);
+    const data = changesSince(base, ['content/regions'], end).map((c) => c.path);
     expect(data).toEqual(['content/regions/forest-edge.ts']);
 
     // 코드에서 빼 둔 것이 무엇인지 여기서 밝힌다 — 조용히 빼면 그 사실이 사라진다.
@@ -523,9 +527,13 @@ describe('회귀', () => {
 
   it('R-005 관찰 계약이 그대로다 — 봉투의 region 은 { id, hash } 둘뿐이고 STATE_VERSION 도 그대로다', () => {
     const w = driveWorld(solo);
+    // 백왕령은 규칙을 품지 않은 방이라 region.state 가 실리지 않는다 (C008 SPEC-007 경계) —
+    // C007 이 못박은 두 항목은 그대로다
     expect(Object.keys(w.observe().region).sort()).toEqual(['hash', 'id']);
-    // 이 Cycle 은 봉투도 STATE_VERSION 도 손대지 않는다 (spec Observable 절)
-    expect(w.world.snapshot().version).toBe('hkt-adv-proto-i/2');
+    // C007 은 STATE_VERSION 을 손대지 않았다. C008 이 Region State 를 저장하며 올렸으므로
+    // (spec R5) 글자를 재는 것은 더 이상 C007 의 주장이 아니다 —
+    // 남은 것은 "세계가 찍는 판이 팩의 판과 같다" 다
+    expect(w.world.snapshot().version).toBe(STATE_VERSION);
   });
 });
 
@@ -572,22 +580,45 @@ interface Change {
   path: string;
 }
 
-/** base 이후로 그 자리들에서 달라진 것 — 커밋된 것과 아직 커밋되지 않은 것을 함께 본다 */
-function changesSince(base: string, paths: readonly string[]): Change[] {
+/**
+ * base 부터 end 까지 그 자리들에서 달라진 것.
+ *
+ * end 가 HEAD 면(= 아직 다음 Cycle 이 시작되지 않았으면) 아직 커밋되지 않은 것까지 함께 본다 —
+ * 이 Cycle 이 도는 동안에도 주장이 살아 있어야 하기 때문이다. 다음 Cycle 이 시작된 뒤에는
+ * 창이 그 커밋에서 닫히므로 작업 트리를 보지 않는다 (C008 로 좁혀졌다).
+ */
+function changesSince(base: string, paths: readonly string[], end = 'HEAD'): Change[] {
   const at = prefix();
   const strip = (p: string) => (p.startsWith(at) ? p.slice(at.length) : p);
   const out: Change[] = [];
-  const tracked = git(['diff', '--name-status', base, '--', ...paths]).trim();
+  const tracked = git(['diff', '--name-status', base, end, '--', ...paths]).trim();
   for (const line of tracked ? tracked.split('\n') : []) {
     const [status, ...rest] = line.split('\t');
     out.push({ status: (status ?? '').trim()[0] ?? '?', path: strip(rest[rest.length - 1] ?? '') });
   }
-  const untracked = git(['status', '--porcelain', '-uall', '--', ...paths]).trim();
-  for (const line of untracked ? untracked.split('\n') : []) {
-    if (!line.startsWith('??')) continue;
-    out.push({ status: '??', path: strip(line.slice(3).trim()) });
+  if (end === 'HEAD') {
+    const untracked = git(['status', '--porcelain', '-uall', '--', ...paths]).trim();
+    for (const line of untracked ? untracked.split('\n') : []) {
+      if (!line.startsWith('??')) continue;
+      out.push({ status: '??', path: strip(line.slice(3).trim()) });
+    }
   }
   return out.filter((c) => c.path).sort((a, b) => (a.path < b.path ? -1 : 1));
+}
+
+/** 다음 Cycle 이 시작한 커밋 — C008 명세를 처음 더한 커밋. 아직 없으면 null */
+function nextCycleBase(): string | null {
+  const added = git([
+    'log',
+    '--format=%H',
+    '--diff-filter=A',
+    '--',
+    'cycles/C008-a-room-with-a-rule/spec.md',
+  ])
+    .trim()
+    .split('\n')
+    .filter(Boolean);
+  return added[added.length - 1] ?? null;
 }
 
 // ── 걷기 하네스 (c006 의 선례 그대로) ─────────────────────────

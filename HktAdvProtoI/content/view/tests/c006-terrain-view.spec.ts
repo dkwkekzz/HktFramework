@@ -160,13 +160,21 @@ describe('SPEC-008 (view) — 거목이 그려진다', () => {
     }
   });
 
-  it('V-008 (경계) landmark 가 없는 방에는 sprite 가 하나도 붙지 않는다', () => {
+  // C008 이 이 주장을 **좁혔다** — 미로의 식물이 서면서 "sprite 가 하나도 없다" 는 더는 참이 아니다.
+  // 재려던 것은 **그릴 것이 없으면 그리지 않는가** 이므로, 컴파일 결과가 내보낸 instance 수와
+  // 실제로 붙은 sprite 수가 같은가로 좁힌다 (그릴 것이 없는 방은 그대로 0 이다).
+  it('V-008 (경계) 그릴 것이 없는 방에는 sprite 가 붙지 않는다 — 있는 만큼만 붙는다', () => {
     const restore = stubDocument();
     try {
       for (const spec of REGION_SPECS.filter((s) => s.id !== START_REGION_ID)) {
-        const object = createTerrain(compileRegion(spec.space, COMPILE_RULES).view, PALETTE);
+        const compiled = compileRegion(spec.space, COMPILE_RULES).view;
+        const drawable = compiled.instances.filter((instance) => PALETTE.instanceOf?.(instance.tag));
+        const object = createTerrain(compiled, PALETTE);
         const sprites = object.children.filter((child) => child instanceof THREE.Sprite);
-        expect({ region: spec.id, sprites: sprites.length }).toEqual({ region: spec.id, sprites: 0 });
+        expect({ region: spec.id, sprites: sprites.length }).toEqual({
+          region: spec.id,
+          sprites: drawable.length,
+        });
       }
     } finally {
       restore();

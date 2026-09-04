@@ -380,9 +380,11 @@ describe('SPEC-001 — 백왕령에 강과 거목과 조건이 놓인다', () =>
     }
   });
 
-  it('S-006 (경계) anchor point 는 아홉 방 모두 C004 의 표 그대로다', () => {
+  it('S-006 (경계) C004 의 아홉 방 anchor 는 그 표 그대로다', () => {
+    // C008 이 방 하나(환상의 미로)를 더했다 — 표에 없는 방은 이 주장의 대상이 아니다.
+    // 재는 것은 "C004 의 표가 한 줄이라도 달라졌는가" 다 (C008 SPEC-001 로 좁혀졌다).
     const now: Record<string, Record<string, [number, number]>> = {};
-    for (const spec of REGION_SPECS) {
+    for (const spec of REGION_SPECS.filter((s) => s.id in ANCHORS_AT_C004)) {
       now[spec.id] = Object.fromEntries(
         pointsOf(spec.space, ANCHOR_LAYER).map((p) => [p.tag, [p.position.x, p.position.z]]),
       );
@@ -842,12 +844,17 @@ describe('SPEC-008 — 거목이 땅에 선다', () => {
     expect(Math.hypot(mark.position.x - c.x, mark.position.z - c.z)).toBeLessThanOrEqual(spanOf(city) * 2);
   });
 
-  it('S-032 (경계) landmark 가 없는 방에는 instance 가 없다 — 없는 것을 지어내지 않는다', () => {
+  // C008 이 이 주장을 **좁혔다** — 미로의 식물(clue)이 두 번째 instance layer 로 서면서
+  // "instance 가 하나도 없다" 는 더는 참이 아니다. 이 항이 재려던 것은 그것이 아니라
+  // **없는 landmark 를 지어내지 않는가** 이므로, 그 자리로 좁힌다 (C008 spec Added · V6).
+  it('S-032 (경계) landmark 가 없는 방에는 landmark instance 가 없다 — 없는 것을 지어내지 않는다', () => {
     for (const spec of otherRooms()) {
-      expect({ region: spec.id, instances: compiled(spec.space).view.instances }).toEqual({
-        region: spec.id,
-        instances: [],
-      });
+      const landmarks = compiled(spec.space)
+        .world.points.filter((point) => point.layer === LANDMARK_LAYER)
+        .map((point) => point.tag);
+      const drawn = compiled(spec.space)
+        .view.instances.filter((instance) => landmarks.includes(instance.tag));
+      expect({ region: spec.id, instances: drawn }).toEqual({ region: spec.id, instances: [] });
     }
   });
 });
@@ -869,7 +876,10 @@ describe('SPEC-009 — 데이터가 없는 방은 아무것도 막지 않는다'
   });
 
   it('S-034 그 방들의 이동은 C005 까지와 같이 extent 만으로 판정된다', () => {
-    for (const spec of otherRooms()) {
+    // C008 로 좁혀졌다 — **규칙을 품은 방**(RegionSpec.rule)은 extent 말고 하나를 더 본다:
+    // 지금 패턴에서 닫힌 통로 자리를 거절한다 (C008 R2). 땅(traversable)은 여전히 아무것도
+    // 막지 않으므로 이 주장이 틀린 것이 아니라 그 방이 이 무리에서 빠진 것이다.
+    for (const spec of otherRooms().filter((s) => !s.rule)) {
       const start = pointsOf(spec.space, ANCHOR_LAYER)[0]!.position;
       const w = standing(spec.id, start);
       const { minX, maxX, minZ, maxZ } = spec.space.extent;

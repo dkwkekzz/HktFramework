@@ -36,6 +36,7 @@ import {
   TERRAIN_PALETTE,
   codeText,
   commandActionRequest,
+  regionNotice,
   regionTerrain,
   resolvePresentation,
 } from '../content/active-view';
@@ -247,6 +248,10 @@ function syncTerrain(regionId: string | undefined): void {
   terrainRegionId = regionId;
 }
 
+// 방이 마지막으로 말한 한 마디 — 같은 말을 두 번 띄우지 않기 위한 값이다 (C008).
+// 관찰자가 쥐는 값이고 세계는 알지 못한다 (facingSides 와 같은 규약).
+let lastRegionNotice: string | undefined;
+
 let last = performance.now();
 function frame(now: number): void {
   const dt = Math.min((now - last) / 1000, 0.1);
@@ -269,6 +274,12 @@ function frame(now: number): void {
   const snapshot = link.latest();
   // 선 방이 바뀌었으면 그 방의 땅으로 갈아 끼운다 (C005) — 그리기 전에.
   syncTerrain(snapshot?.region?.id);
+  // 방이 지금 말하는 한 마디 (C008) — 컨텐츠가 관찰 결과에서 정한다. 이 자리가 아는 것은
+  // "값이 있으면 띄운다" 뿐이다. **바뀐 프레임에만** 부른다: 말이 떠 있는 동안 매 프레임
+  // 다시 띄우면 그 사이에 온 세계의 대답(거절 사유)이 덮여 사라진다.
+  const notice = snapshot ? regionNotice(snapshot) : undefined;
+  if (notice !== undefined && notice !== lastRegionNotice) hud.notice(notice);
+  lastRegionNotice = notice;
   // 아직 세계에서 아무것도 오지 않았어도 명령 표면은 열린다 — 다만 목록은 비어 있다.
   // 세계가 밝히지 않은 명령을 View 가 지어내지 않기 때문이다.
   EMPTY_SCENE.commandSurface.open = commandOpen;
