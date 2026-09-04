@@ -7,14 +7,11 @@
 
 한 Cycle = 브랜치 `cycle/C###` = 세션 하나. **말할 것: "C006 진행"** — `advprotoi-cycle` 이 명세(spec.md) → 실현 → 마감을
 이어 돌리고 UNRESOLVED · GAP 에서만 멈춘다. PR 은 번호 순으로 합친다. 병렬 규칙은
-[Plan-Skill §4 항목 4](design/Plan-Skill-CycleExecutionWorkflow.md). 아래 레인에 승인 게이트 없음 — 2층 Play 다섯은 전부 승인돼 있다.
-
-**Human 승인 대기 하나** — 컨텐츠 행 [M5 빙결 협곡](content/roadmap/M5-FrostCanyon.md) 과 그 Play
-[RoomOfAnotherKind](content/roadmap/play/RoomOfAnotherKind.md) (확정 후보 9 · 질문 없음). 승인되면 Frost 레인(C019~C021)이 Time 뒤에 는다.
+[Plan-Skill §4 항목 4](design/Plan-Skill-CycleExecutionWorkflow.md). 승인 게이트 없음 — Play 여섯(2층 다섯 + 컨텐츠 M5)은 전부 승인돼 있다.
 
 **다음 세션 인계 (design 은 여기까지)** — 2층 기획은 닫혔다 (도구 · 컨셉 · Region · 재료 · 시간). 더 쌓지 않는다.
 남은 일은 **Cycle 실주행**이다: "C006 진행" 부터 순서대로. 실주행 관찰(Material 원문 §7 단계 11)이 다음 기획(3층)의 입력이다.
-design 이 다시 열리는 때는 셋 — ① M5 승인/수정 ② 2층 Play 실주행에서 DESIGN GAP 이 돌아올 때 ③ 2층이 닫혀 3층을 주입할 때.
+design 이 다시 열리는 때는 둘 — ① 2층 Play 실주행에서 DESIGN GAP 이 돌아올 때 ② 2층이 닫혀 3층을 주입할 때.
 
 | 레인 | 지금 할 수 있는 것 | 기다리는 것 | 다음 |
 |---|---|---|---|
@@ -23,6 +20,7 @@ design 이 다시 열리는 때는 셋 — ① M5 승인/수정 ② 2층 Play �
 | Rule — [RuleBoundRoom](content/roadmap/play/RuleBoundRoom.md) | 대기 | Land 닫힘 (순서: Rooms → Land → Rule — 규칙이 바꿀 area · traversable 을 Land 가 먼저 세운다) | C008 → C010 |
 | Material — [RoomBearsMaterial](content/roadmap/play/RoomBearsMaterial.md) | 대기 (명세는 지금도 쓸 수 있다 — 이름·성질·상수는 Play 의 위임된 결정 D1~D4 에 있다) | Rule 닫힘 (Region State 와 세계 과정이 서야 재료가 생애를 가진다) | C011 → C014 |
 | Time — [RoomNeverSame](content/roadmap/play/RoomNeverSame.md) | 대기 (상수 · 철 · 덧씌움 전부 확정 사항에 있다) | Material 닫힘 (철이 바꿀 원천과 흔적이 먼저) | C015 → C018 |
+| Frost — [RoomOfAnotherKind](content/roadmap/play/RoomOfAnotherKind.md) (컨텐츠 M5) | 대기 | Time 닫힘 (재료 생태와 철을 다른 갈래에 두 번째로 쓴다 — 두 계약이 먼저 서야 한다) | C019 → C021 |
 
 ## 2. 진행
 
@@ -35,7 +33,7 @@ design 이 다시 열리는 때는 셋 — ① M5 승인/수정 ② 2층 Play �
 | RuleBoundRoom | 방은 규칙을 품는다 (환상의 미로 = Region 하나) | C008~C010 | 대기 |
 | RoomBearsMaterial | 방이 재료를 낳는다 (거대 악마의 숲 = M3 재료 계통) | C011~C014 | 대기 |
 | RoomNeverSame | 같은 방은 두 번 없다 (시계 · 네 철 · 소란 · 경로 = M4) | C015~C018 | 대기 |
-| RoomOfAnotherKind | 다른 갈래의 방 (M5 빙결 협곡 · 컨텐츠) | C019~C021 | **승인 대기** |
+| RoomOfAnotherKind | 다른 갈래의 방 (M5 빙결 협곡 · 컨텐츠) | C019~C021 | 대기 |
 
 **Human 판정 대기** — 각 Cycle 의 `TODO.md` (그림은 같은 폴더 `shots/`). `npm run dev` 로 직접 본다.
 [C001](cycles/C001-region-graph-rooms/TODO.md) 8 · [C002](cycles/C002-many-exits/TODO.md) 8 ·
@@ -52,7 +50,7 @@ RegionGraphRooms 가 닫혔으므로 **Play 전체 실주행**(백왕령 → 거
 3 주체와 몸   미주입  ← 2층이 닫히면 다음.   4~7 (물건 · 대결 · 능력 · 성장) 미주입
 ```
 
-컨텐츠 층의 미지 — M1 거대 악마의 숲 · M2 환상의 미로 · M3 숲의 재료 계통(생체 광석 · 광식충 허물 · 거목균) · M4 천공고래의 길 · M5 빙결 협곡(승인 대기). 정식 이름 표는 [L2-World-Region §5.1](content/roadmap/L2-World-Region.md).
+컨텐츠 층의 미지 — M1 거대 악마의 숲 · M2 환상의 미로 · M3 숲의 재료 계통(생체 광석 · 광식충 허물 · 거목균) · M4 천공고래의 길 · M5 빙결 협곡. 정식 이름 표는 [L2-World-Region §5.1](content/roadmap/L2-World-Region.md).
 주입 순서는 [content/roadmap/README.md](content/roadmap/README.md).
 
 ## 4. 코드에 있는 것

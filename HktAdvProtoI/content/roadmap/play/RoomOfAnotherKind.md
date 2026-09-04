@@ -1,6 +1,7 @@
 # RoomOfAnotherKind — 다른 갈래의 방, 빙결 협곡
 
-상태: **승인 대기** (확정 후보 9 · Human 질문 없음 — 전부 후보값으로 간다). 미지는 [M5-FrostCanyon.md](../M5-FrostCanyon.md).
+상태: **승인됨** (Human 승인 1회 — 확정 후보 9 가 확정 사항이 되었다). Cycle Breakdown 의 체크박스만 앞으로 갱신된다.
+미지는 [M5-FrostCanyon.md](../M5-FrostCanyon.md).
 선행: [RoomBearsMaterial.md](RoomBearsMaterial.md)(재료 생태 계약) · [RoomNeverSame.md](RoomNeverSame.md)(철) — 이 Play 는
 그 둘을 **다른 갈래**에 두 번째로 쓴다. 새 축을 요구하지 않는다.
 
@@ -140,7 +141,7 @@ Required — 기구
 
 ---
 
-## 확정 후보 (승인 게이트에서 확정 — 전부 제안값 · Human 이 언제든 뒤집는다)
+## 확정 사항 (Human 승인 — 전부 제안값이었고 Human 이 언제든 뒤집는다)
 
 ```text
 1. 두 이름의 관계 — 합치지 않는다. 얼음 협곡(ICE_CANYON · outer)은 고개 너머 첫 방이고, 빙결 협곡(FROST_CANYON · wild)은
@@ -162,4 +163,4 @@ Required — 기구
 
 ## Human 질문
 
-없음 — 컨셉에서 유도할 수 없는 것이 없었다. 확정 후보 2(추위의 원인)와 4(열 결정의 원천)가 가장 큰 결정이다.
+없음 — 컨셉에서 유도할 수 없는 것이 없었다. 확정 2(추위의 원인)와 4(열 결정의 원천)가 가장 큰 결정이었다.

@@ -97,7 +97,7 @@ Region Graph · Region Rule · Connector · 중첩 · 제작 12단계 · Region 
 | **M2 환상의 미로** | 지역 | 이름 · Region Spec 통째 — `L2-World-Region.md` §16 | 2 | `play/RuleBoundRoom.md` | 그 Play 가 소유 | **다음** |
 | **M3 숲의 재료 계통** | 자원 | 생체 광석 · 광식충 허물 · 거목균 — Concept §4 의 사슬에서 나온 Material Seed 셋. 이름·성질은 위임된 결정 (`play/RoomBearsMaterial.md` D1·D2) | 2 (②-부속) | `play/RoomBearsMaterial.md` | 그 Play 가 소유 | **다음** — Rule 닫힘 뒤 |
 | **M4 천공고래의 길** | 현상 (생물은 3층) | 낮에 하늘을 지나는 경로 · 그림자 · 떨어진 비늘(고래 비늘) — Concept §9 그대로. `play/RoomNeverSame.md` 확정 9 | 2 (②-부속 둘째) | `play/RoomNeverSame.md` | 그 Play 가 소유 | **다음** — Material 닫힘 뒤 |
-| **M5 빙결 협곡** *(승인 대기)* | 지역 | 숲과 갈래가 다른 Region — 극저온 · 눈보라 · 절벽 · 체온 감지 포식자 · 빙정석 (Concept §6). `M5-FrostCanyon.md` | 2 (①② · ②-부속 둘) | `play/RoomOfAnotherKind.md` | 그 Play 가 소유 | 승인 대기 |
+| **M5 빙결 협곡** | 지역 | 숲과 갈래가 다른 Region — 극저온 · 눈보라 · 절벽 · 체온 감지 포식자 · 빙정석 (Concept §6). `M5-FrostCanyon.md` | 2 (①② · ②-부속 둘) | `play/RoomOfAnotherKind.md` | 그 Play 가 소유 | **다음** — Time 닫힘 뒤 |
 | (이후) | 지역 · 생물 · 자원 · 구조 | 그 미지가 무엇이고 어디에 있으며 왜 그런가 | 2 · 3 · … | 그 미지 하나를 만나는 Play | `M<N>-*.md` · `play/` | — |
 
 ## 4. 한 행을 주입하는 방식
