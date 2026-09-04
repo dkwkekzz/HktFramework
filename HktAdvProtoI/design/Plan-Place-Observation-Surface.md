@@ -2,7 +2,7 @@
 
 | 항목 | 내용 |
 |---|---|
-| **상태** | **제안 · 승인 대기** — 코드는 아직 한 줄도 바뀌지 않았다 |
+| **상태** | **승인 · Play 로 넘어갔다** — 회수는 [play/RoomAnswersWhenAsked.md](../content/roadmap/play/RoomAnswersWhenAsked.md) (C022~C024). 이 문서는 그 Play 의 재료(측정과 판정)로 남는다 |
 | **재료** | C006·C008 의 실제 화면(`cycles/C00*/shots/`) · [Design-Targeting-R0.md](Design-Targeting-R0.md) (TG) · [L2-World-Region §17 규칙 가독성](../content/roadmap/L2-World-Region.md) · [Design-System-Content-Separation.md](Design-System-Content-Separation.md) |
 | **자리** | **화면(View) 레인**. 세계의 규칙·State·투영 의미는 이 문서가 바꾸지 않는다 — 다만 §5.4 의 관찰 요청 하나는 세계에 새 계약을 요구한다 |
 | **소유** | 이 문서가 제안하는 것은 `engine/` 의 기구 셋과 `content/view` 의 결정 표다. 무엇이 어떤 말로 뜨는가(문구·수치·세계 사실)는 컨텐츠와 Human 의 것이다 |
@@ -337,7 +337,7 @@ Rule 레인(C009·C010)보다 이 Cycle 이 먼저 서는 편이 낫다. C009 �
 
 ---
 
-## 7. 열린 질문 (Human 판정)
+## 7. 열린 질문 (Human 판정 — **전부 답을 받았다**. 답은 Play 의 확정 사항 열하나)
 
 ```text
 Q1  지목의 수명 — 자리 관찰은 한 번의 질문인가, 골라 둔 채 유지되는가 (TG 의 하드 타겟과 같은 규칙인가)
