@@ -7,7 +7,11 @@
 
 한 Cycle = 브랜치 `cycle/C###` = 세션 하나. **말할 것: "C006 진행"** — `advprotoi-cycle` 이 명세(spec.md) → 실현 → 마감을
 이어 돌리고 UNRESOLVED · GAP 에서만 멈춘다. PR 은 번호 순으로 합친다. 병렬 규칙은
-[Plan-Skill §4 항목 4](design/Plan-Skill-CycleExecutionWorkflow.md). 승인 게이트 없음 — Play 넷은 전부 승인돼 있다.
+[Plan-Skill §4 항목 4](design/Plan-Skill-CycleExecutionWorkflow.md). 아래 레인에 승인 게이트 없음 — 그 Play 넷은 승인돼 있다.
+
+**Human 승인 대기 하나** — 2층 ②-부속 둘째([L2-World-Time.md](content/roadmap/L2-World-Time.md) 세계의 시간과 위상)와
+그 Play([RoomNeverSame.md](content/roadmap/play/RoomNeverSame.md) · 확정 후보 13 · 질문 셋). 승인되면 레인 하나(C015~C018)가
+Material 뒤에 는다.
 
 | 레인 | 지금 할 수 있는 것 | 기다리는 것 | 다음 |
 |---|---|---|---|
