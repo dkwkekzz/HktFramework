@@ -1,0 +1,113 @@
+{
+  "out": "shots",
+  "viewport": [560, 420],
+  "runs": [
+    {
+      "_": "X-①② 강을 남쪽에서 본다. 기본 시점은 남쪽을 보므로 KeyR 로 지평선을 세우고 KeyZ 로 반 바퀴 돌아 북쪽을 본다 (C005 선례 — 소프트웨어 GPU 는 도는 양이 시계가 아니라 프레임 수를 따른다)",
+      "region": "WHITE_KING_DOMAIN",
+      "spawn": "0,-2",
+      "npcs": "none",
+      "steps": [
+        { "wait": "세계 시간", "tries": 60 },
+        { "sleep": 6000, "note": "첫 run 은 vite 가 데워지지 않아 프레임이 느리다" },
+        { "hold": "KeyR", "ms": 2500 },
+        { "hold": "KeyZ", "ms": 12000 },
+        { "sleep": 2000 },
+        { "expect": "문명권", "note": "백왕령은 여전히 civil 이다 — 땅이 몸에 닿아도 깊이는 그대로다" },
+        { "shot": "X-01-river-crosses", "note": "X-①② 강이 방을 동서로 가로지른다. 파인 물길과 젖은 띠(청록)가 평지(초록)에서 갈리고, 그 너머로 북쪽 능선이 선다" }
+      ]
+    },
+    {
+      "_": "X-③ 물이 막는다 — 남쪽 물가에서 북으로 걸어 들어간다. 물은 x=0 에서 z 3.8 부터",
+      "region": "WHITE_KING_DOMAIN",
+      "spawn": "0,2",
+      "npcs": "none",
+      "steps": [
+        { "wait": "세계 시간", "tries": 60 },
+        { "sleep": 5000 },
+        { "hold": "KeyR", "ms": 2500 },
+        { "hold": "KeyZ", "ms": 12000 },
+        { "sleep": 1500 },
+        { "hold": "KeyW", "ms": 5000, "note": "북으로 — 강에 들어서려 한다" },
+        { "sleep": 1500 },
+        { "expect": "물이 너무 깊다", "note": "X-③ 세계의 대답. 몸의 자리는 바뀌지 않는다" },
+        { "shot": "X-02-water-blocks", "note": "X-③ 물 앞에서 섰다. 발밑은 젖은 띠이고 그 앞이 파인 물길이다" }
+      ]
+    },
+    {
+      "_": "X-④ 급경사가 막는다 — 능선 남쪽 기슭에서 위로 걸어 올라간다. 45° 이상은 z 14.5 언저리부터",
+      "region": "WHITE_KING_DOMAIN",
+      "spawn": "-7,12",
+      "npcs": "none",
+      "steps": [
+        { "wait": "세계 시간", "tries": 60 },
+        { "sleep": 5000 },
+        { "hold": "KeyR", "ms": 2500 },
+        { "hold": "KeyZ", "ms": 12000 },
+        { "sleep": 1500 },
+        { "hold": "KeyW", "ms": 5000, "note": "능선 쪽으로 — 오를 수 있는 데까지 오른다" },
+        { "sleep": 1500 },
+        { "expect": "너무 가파르다", "note": "X-④ C005 에서는 색일 뿐이던 급경사가 이제 몸을 세운다" },
+        { "shot": "X-03-steep-blocks", "note": "X-④ 비탈(갈색)까지는 올랐고 급경사(회색) 앞에서 섰다" }
+      ]
+    },
+    {
+      "_": "X-⑤ 다리 — 강 남쪽에서 다리(8, 7) 를 지나 북으로 건넌다. 통과 반경 5 가 양쪽 물가를 덮는다",
+      "region": "WHITE_KING_DOMAIN",
+      "spawn": "8,3",
+      "npcs": "none",
+      "steps": [
+        { "wait": "세계 시간", "tries": 60 },
+        { "sleep": 5000 },
+        { "hold": "KeyR", "ms": 2500 },
+        { "hold": "KeyZ", "ms": 12000 },
+        { "sleep": 1500 },
+        { "hold": "KeyW", "ms": 6000, "note": "북으로 — 여기서는 같은 강이 열려 있다" },
+        { "sleep": 1500 },
+        { "shot": "X-04-bridge-crossing", "note": "X-⑤ 같은 강인데 이 자리에서는 건너진다. 거절 문구가 뜨지 않는다" }
+      ]
+    },
+    {
+      "_": "X-⑥ 조건 area 셋이 겹치는 자리 — (−11, 2) 는 산기슭 원과 강가 띠와 도시 원이 함께 걸린다",
+      "region": "WHITE_KING_DOMAIN",
+      "spawn": "-11,2",
+      "npcs": "none",
+      "steps": [
+        { "wait": "세계 시간", "tries": 60 },
+        { "sleep": 5000 },
+        { "expect": "산맥이 막는다", "note": "X-⑥ 안전한 이유 — 겹치면 전부 뜬다" },
+        { "expect": "강이 먹인다", "note": "X-⑥ 두 번째 조건" },
+        { "hold": "KeyR", "ms": 2000 },
+        { "sleep": 1500 },
+        { "shot": "X-05-safe-by", "note": "X-⑥ HUD 가 왜 여기가 안전한지를 말한다. 발밑에는 조건 구역의 테두리가 겹쳐 있다" }
+      ]
+    },
+    {
+      "_": "X-⑦ 백색 거목 — (−5, 0) 에 선다. 기본 시점이 남쪽을 보므로 거목의 북쪽에 서서 그대로 내려다본다",
+      "region": "WHITE_KING_DOMAIN",
+      "spawn": "-5,6",
+      "npcs": "none",
+      "steps": [
+        { "wait": "세계 시간", "tries": 60 },
+        { "sleep": 5000 },
+        { "hold": "KeyR", "ms": 2000 },
+        { "sleep": 1500 },
+        { "shot": "X-06-white-giant-tree", "note": "X-⑦ 도시 곁에 백색 거목이 땅에 밑동을 붙이고 서 있다 — 몸보다 다섯 배 크다" }
+      ]
+    },
+    {
+      "_": "X-⑧ 데이터가 없는 방 — 막는 것도 흐르는 것도 없다 (회귀)",
+      "region": "FOREST_EDGE",
+      "spawn": "0,0",
+      "npcs": "none",
+      "steps": [
+        { "wait": "세계 시간", "tries": 60 },
+        { "sleep": 4000 },
+        { "hold": "KeyR", "ms": 2500 },
+        { "hold": "KeyW", "ms": 3000, "note": "어디로든 걸린다 — 거절이 없다" },
+        { "sleep": 1500 },
+        { "shot": "X-07-flat-room", "note": "X-⑧ 숲 가장자리는 평평하고 색도 하나다. 같은 코드가 데이터 없는 방에서 아무것도 막지 않는다" }
+      ]
+    }
+  ]
+}
