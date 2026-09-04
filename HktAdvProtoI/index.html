@@ -29,9 +29,16 @@
     .hud-panel {
       position: absolute; top: 14px; left: 14px;
       /* 띠는 가로로만 자란다 — 감싸지 않으면 늘어난 칸이 화면 밖으로 잘려 조용히 사라진다.
-         오른쪽 위는 조작 안내의 자리이므로 그 앞에서 멈춘다. */
+         오른쪽 위는 조작 안내의 자리이므로 그 앞에서 멈춘다.
+
+         C027 SPEC-008 — **판(#targetframe)이 서는 자리 앞에서도 멈춘다.** 판은 화면 위
+         가운데에 서고 가장 넓을 때 380px 이므로 그 왼쪽 끝은 `50% - 190px` 이다. 그 앞
+         10px 에서 띠를 끊으면 둘이 겹칠 수 없다. 띠는 감싸므로(flex-wrap) 좁아진 만큼
+         아래로 자라고, 잘려 사라지지 않는다.
+         화면이 아주 좁으면 그 값이 0 에 가까워지므로 하한을 둔다 — 그때는 띠가 세로로
+         길어질 뿐이다. */
       display: flex; align-items: center; gap: 8px 14px;
-      flex-wrap: wrap; max-width: calc(100% - 230px);
+      flex-wrap: wrap; max-width: max(180px, min(calc(100% - 230px), calc(50% - 200px)));
       background: rgba(28, 34, 46, 0.82); color: #f2f4f8;
       padding: 9px 16px; border-radius: 10px;
       font-size: 17px; font-weight: 700; letter-spacing: 0.2px;
@@ -59,6 +66,8 @@
       pointer-events: none; z-index: 40;
     }
     #targetframe[hidden] { display: none; }
+    /* 판의 너비 상한 — 길어져도 가로로 번지지 않는다 (C027 SPEC-008 경계).
+       이 380px 이 .hud-panel 의 상한이 기대는 값이다: 둘 중 하나를 바꾸면 다른 하나도 봐야 한다. */
     .tf-panel {
       min-width: 240px; max-width: 380px; padding: 8px 12px 9px;
       background: rgba(20, 26, 38, 0.92); border: 1px solid #2c3648; border-radius: 8px;
@@ -516,10 +525,22 @@
       .hud-panel {
         top: calc(10px + env(safe-area-inset-top));
         left: calc(10px + env(safe-area-inset-left));
-        right: auto; max-width: calc(100% - 150px);
+        /* C027 SPEC-008 — 오른쪽 위는 이제 판(#targetframe)의 자리다 (바로 아래).
+           둘이 화면을 반씩 나눠 쓰므로 겹칠 수 없다. 띠는 감싸며 아래로 자란다. */
+        right: auto; max-width: calc(55% - 24px);
         flex-wrap: wrap; gap: 8px 12px;
         font-size: 14px; padding: 7px 12px;
       }
+      /* 판 — 좁은 화면에는 **가운데가 없다.** 왼쪽 위는 상시 HUD 의 자리이고, 오른쪽 위는
+         자판이 없어 사라진 키 안내(.hud-keys)의 자리가 비어 있다. 그리로 옮긴다.
+         손가락 기기에는 보조키가 없어 지목이 안 되지만, 지목이 없을 때 판이 지는
+         **내가 선 자리**(C027 SPEC-005)는 거기서도 늘 서 있다. */
+      #targetframe {
+        left: auto; transform: none;
+        right: calc(10px + env(safe-area-inset-right));
+        align-items: flex-end;
+      }
+      .tf-panel { min-width: 0; max-width: min(380px, calc(45% - 16px)); }
       .hud-link { top: calc(64px + env(safe-area-inset-top)); left: calc(10px + env(safe-area-inset-left)); }
       .hud-self {
         left: calc(10px + env(safe-area-inset-left));

@@ -111,10 +111,16 @@ const EMPTY_SCENE: SceneState = {
 
 let latestScene: SceneState = EMPTY_SCENE;
 
-// ── 지목 (C026 RULE-DESIGNATE-001) ────────────────────────────
+// ── 지목 (C026 RULE-DESIGNATE-001 · C027 CHANGED) ────────────
 //
 // **관찰자가 쥔다.** 세계는 이것을 알지 못하고, 지목은 세계로 아무것도 보내지 않는다
 // (SPEC-006). 새로 지목하면 바뀌고, Escape 와 방 이동이면 풀린다.
+//
+// C027 이 수명을 하나 넓혔다 — 지목한 **몸이 세계에서 사라지면** 풀린다. 다만 쓰러진 몸은
+// 사라진 것이 아니므로 풀지 않는다 (확정 8 · C027 SPEC-004): 쓰러진 채로 계속 읽힌다.
+//
+// 풀린 자리는 비어 있지 않다 — 지목이 없으면 판은 **내가 선 자리**를 진다 (C027 SPEC-005).
+// 그 결정은 View 의 것이므로 여기는 undefined 를 넘기기만 한다.
 let designation: Designation | undefined;
 
 // 클릭의 뜻 (C026 RULE-POINTER-INTENT-001) — 기구는 집기까지만 하고, 집힌 것을 무엇으로
@@ -316,6 +322,13 @@ function frame(now: number): void {
     enteredRegionId = regionId;
     designation = undefined;
     if (entryTitle !== undefined) hud.notice(entryTitle);
+  }
+  // RULE-DESIGNATE-001 (C027 CHANGED) — 지목한 몸이 세계에서 사라지면 지목을 푼다.
+  // **쓰러진 몸은 사라진 것이 아니다** (확정 8): 쓰러져도 관찰 결과에 그대로 실려 오므로
+  // 아래 판정에 걸리지 않고, 쓰러진 채로 계속 읽힌다.
+  if (snapshot && designation && 'entityId' in designation) {
+    const designatedId = designation.entityId;
+    if (!snapshot.entities.some((e) => e.id === designatedId)) designation = undefined;
   }
   // 아직 세계에서 아무것도 오지 않았어도 명령 표면은 열린다 — 다만 목록은 비어 있다.
   // 세계가 밝히지 않은 명령을 View 가 지어내지 않기 때문이다.
