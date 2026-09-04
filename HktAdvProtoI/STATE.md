@@ -9,9 +9,13 @@
 이어 돌리고 UNRESOLVED · GAP 에서만 멈춘다. PR 은 번호 순으로 합친다. 병렬 규칙은
 [Plan-Skill §4 항목 4](design/Plan-Skill-CycleExecutionWorkflow.md). 승인 게이트 없음 — Play 여섯(2층 다섯 + 컨텐츠 M5)은 전부 승인돼 있다.
 
-**다음 세션 인계 (design 은 여기까지)** — 2층 기획은 닫혔다 (도구 · 컨셉 · Region · 재료 · 시간). 더 쌓지 않는다.
+**다음 세션 인계 (design 은 여기까지)** — 2층 **세계 절반**의 기획은 닫혔다 (컨셉 · Region · 재료 · 시간). 더 쌓지 않는다.
 남은 일은 **Cycle 실주행**이다: "C006 진행" 부터 순서대로. 실주행 관찰(Material 원문 §7 단계 11)이 다음 기획(3층)의 입력이다.
-design 이 다시 열리는 때는 둘 — ① 2층 Play 실주행에서 DESIGN GAP 이 돌아올 때 ② 2층이 닫혀 3층을 주입할 때.
+
+**Human 승인 대기 하나 — 도구 절반 2단계 [Region 작성기](content/roadmap/L2-World-Tool-Scale.md).** "지역을 더할 때마다 2층 공정을
+다시 타는가" 의 답이다: 아니다 — 새 지역은 세 등급(A 데이터만 · B 규칙 하나 · C 새 축)으로 가르고, 대부분은 A 라서 도구가 쓴다.
+승인되면 ENGINE B 레인이 "제안" 에서 "대기" 가 되고 컨텐츠 Play HundredRooms 를 쓴다 (advprotoi-design).
+design 이 다시 열리는 때는 셋 — ① 작성기 승인 ② 2층 Play 실주행에서 DESIGN GAP 이 돌아올 때 ③ 2층이 닫혀 3층을 주입할 때.
 
 | 레인 | 지금 할 수 있는 것 | 기다리는 것 | 다음 |
 |---|---|---|---|
@@ -21,6 +25,7 @@ design 이 다시 열리는 때는 둘 — ① 2층 Play 실주행에서 DESIGN 
 | Material — [RoomBearsMaterial](content/roadmap/play/RoomBearsMaterial.md) | 대기 (명세는 지금도 쓸 수 있다 — 이름·성질·상수는 Play 의 위임된 결정 D1~D4 에 있다) | Rule 닫힘 (Region State 와 세계 과정이 서야 재료가 생애를 가진다) | C011 → C014 |
 | Time — [RoomNeverSame](content/roadmap/play/RoomNeverSame.md) | 대기 (상수 · 철 · 덧씌움 전부 확정 사항에 있다) | Material 닫힘 (철이 바꿀 원천과 흔적이 먼저) | C015 → C018 |
 | Frost — [RoomOfAnotherKind](content/roadmap/play/RoomOfAnotherKind.md) (컨텐츠 M5) | 대기 | Time 닫힘 (재료 생태와 철을 다른 갈래에 두 번째로 쓴다 — 두 계약이 먼저 서야 한다) | C019 → C021 |
+| ENGINE B — [Region 작성기](content/roadmap/L2-World-Tool-Scale.md) (도구 2단계 · **제안**) | 승인 대기. 승인되면 결정론 뼈대(템플릿 · 검사 · world:author)는 게임 명사 없이 병행 가능 | Human 승인 · 템플릿이 맞는지는 Frost 가 데이터로 서는 것을 본 뒤 | 컨텐츠 Play HundredRooms (번호는 승인 때) |
 
 ## 2. 진행
 
@@ -46,7 +51,8 @@ RegionGraphRooms 가 닫혔으므로 **Play 전체 실주행**(백왕령 → 거
 ```text
 0 게임 방향   확정   L0-Game.md
 1 세계의 문법  확정   L1-World-Grammar.md
-2 세계 자체   열림   L2-World-Tool · Concept · Region · Material · Time — 기획 닫힘 → Play 다섯으로 증명 중 (§2)
+2 세계 자체   열림   L2-World-Tool · Concept · Region · Material · Time — 세계 절반 기획 닫힘 → Play 다섯으로 증명 중 (§2)
+              도구 절반 2단계 L2-World-Tool-Scale(Region 작성기) 은 제안 — 승인 대기
 3 주체와 몸   미주입  ← 2층이 닫히면 다음.   4~7 (물건 · 대결 · 능력 · 성장) 미주입
 ```
 
