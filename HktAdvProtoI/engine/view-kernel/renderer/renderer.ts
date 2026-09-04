@@ -245,26 +245,58 @@ export function createRenderer(
   }
 
   /** 구역 이름표 — 글자를 캔버스에 그려 지면 위에 띄운다. 엔진은 이 글자의 뜻을 모른다 */
+  /** 이름표 글자의 크기 (캔버스 픽셀) · 획 두께 · 좌우 여백 */
+  const LABEL_FONT = 56;
+  const LABEL_STROKE = 10;
+  const LABEL_PAD = 24;
+  /** 글자 높이가 세계에서 차지하는 크기 — 캔버스가 넓어져도 이 값은 그대로다 */
+  const LABEL_WORLD_HEIGHT = 1.5;
+  /** 캔버스 최소 너비 — 짧은 이름표가 지나치게 좁아지지 않게 */
+  const LABEL_MIN_WIDTH = 256;
+
+  /**
+   * 지면 구역의 이름표 하나.
+   *
+   * **캔버스를 글자에 맞춘다.** 예전에는 512×128 로 고정해 두고 가운데에 그렸는데, 한글은
+   * 글자 하나가 거의 글자 크기만큼 넓어서 아홉 자만 넘어도 캔버스를 넘쳤다 — 넘친 부분은
+   * 잘려 나갔고, 그래서 "거목이 포식자를 물린다" 가 화면에서는 "포식자를 물린다" 로 읽혔다.
+   * 글자가 잘리는 것은 보기 나쁜 정도가 아니라 **세계가 한 말이 다른 말로 바뀌는 것**이다.
+   *
+   * 이제 재서(measureText) 그만큼 넓은 캔버스를 잡고, 스프라이트의 가로 크기를 캔버스 비율로
+   * 맞춘다 — 글자의 세계 높이는 언제나 같고 긴 이름표는 잘리는 대신 넓어진다.
+   */
   function zoneLabelSprite(text: string, color: number): THREE.Sprite {
     const canvas = document.createElement('canvas');
-    canvas.width = 512;
-    canvas.height = 128;
+    const font = `bold ${LABEL_FONT}px sans-serif`;
+    // 재기 위해 한 번 만들어 본다 — 크기를 정하려면 재야 하고, 재려면 ctx 가 있어야 한다
+    canvas.width = LABEL_MIN_WIDTH;
+    canvas.height = LABEL_FONT * 2;
+    const measuring = canvas.getContext('2d');
+    let width = LABEL_MIN_WIDTH;
+    if (measuring) {
+      measuring.font = font;
+      width = Math.max(LABEL_MIN_WIDTH, Math.ceil(measuring.measureText(text).width) + LABEL_PAD * 2);
+    }
+    // 캔버스 크기를 바꾸면 내용도 설정도 지워지므로 여기서 다시 잡는다
+    canvas.width = width;
+    canvas.height = LABEL_FONT * 2;
     const ctx = canvas.getContext('2d');
     if (ctx) {
-      ctx.font = 'bold 56px sans-serif';
+      ctx.font = font;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.lineWidth = 10;
+      ctx.lineWidth = LABEL_STROKE;
       ctx.strokeStyle = 'rgba(0,0,0,0.75)';
-      ctx.strokeText(text, 256, 64);
+      ctx.strokeText(text, canvas.width / 2, canvas.height / 2);
       ctx.fillStyle = `#${color.toString(16).padStart(6, '0')}`;
-      ctx.fillText(text, 256, 64);
+      ctx.fillText(text, canvas.width / 2, canvas.height / 2);
     }
     const texture = new THREE.CanvasTexture(canvas);
     const sprite = new THREE.Sprite(
       new THREE.SpriteMaterial({ map: texture, transparent: true, depthTest: false }),
     );
-    sprite.scale.set(6, 1.5, 1);
+    // 세로는 고정, 가로는 캔버스 비율 — 글자가 늘어나거나 눌리지 않는다
+    sprite.scale.set((LABEL_WORLD_HEIGHT * canvas.width) / canvas.height, LABEL_WORLD_HEIGHT, 1);
     return sprite;
   }
 
@@ -279,8 +311,39 @@ export function createRenderer(
     });
   }
 
+  /**
+   * 이름표가 겹치지 않게 쌓는 자리 — 한 프레임 동안만 산다.
+   *
+   * 구역은 겹칠 수 있고(겹치는 것이 뜻인 경우도 있다) 그러면 이름표도 같은 자리에 겹쳐
+   * 서로를 못 읽게 만든다. 가까운 자리에 이미 이름표가 있으면 그 위로 한 칸 올린다 —
+   * 순서는 zones 배열 그대로이므로 같은 세계는 언제나 같게 쌓인다.
+   */
+  const placedLabels: { x: number; z: number; y: number }[] = [];
+  /** 이보다 가까우면 겹친 것으로 친다 (세계 단위 · 평면 거리) */
+  const LABEL_MIN_GAP = 6;
+  /** 겹쳤을 때 올리는 높이 — 글자 높이보다 조금 크게 잡아 획이 닿지 않게 */
+  const LABEL_STACK_STEP = 1.8;
+
+  /** 그 자리에 이름표를 놓을 높이 — 이미 가까이 있는 것들 위로 비켜 준다 */
+  function labelHeightAt(x: number, z: number, ground: number): number {
+    let y = ground;
+    // 이미 놓인 것 중 가까운 것이 없을 때까지 올린다 (놓인 수만큼만 도므로 끝난다)
+    for (let guard = 0; guard <= placedLabels.length; guard++) {
+      const collides = placedLabels.some(
+        (placed) =>
+          Math.hypot(placed.x - x, placed.z - z) < LABEL_MIN_GAP &&
+          Math.abs(placed.y - y) < LABEL_STACK_STEP,
+      );
+      if (!collides) break;
+      y += LABEL_STACK_STEP;
+    }
+    placedLabels.push({ x, z, y });
+    return y;
+  }
+
   function drawZones(zones: readonly SceneGroundZone[], worldTime: number): void {
     const seen = new Set<string>();
+    placedLabels.length = 0; // 이름표 자리는 프레임마다 새로 잡는다
     for (const zone of zones) {
       seen.add(zone.id);
       // 맥동 — 세계 시각으로 위상을 잡으므로 같은 세계는 언제나 같게 보인다.
@@ -361,7 +424,7 @@ export function createRenderer(
       const cx = sx / points.length;
       const cz = sz / points.length;
       const sprite = zoneLabelSprite(zone.label, zone.edge?.color ?? zone.fill?.color ?? 0xffffff);
-      sprite.position.set(cx, heightAt(cx, cz) + 1.2, cz);
+      sprite.position.set(cx, labelHeightAt(cx, cz, heightAt(cx, cz) + 1.2), cz);
       sprite.renderOrder = 3;
       zoneGroup.add(sprite);
     }
@@ -418,7 +481,11 @@ export function createRenderer(
 
       if (zone.label) {
         const sprite = zoneLabelSprite(zone.label, zone.edge?.color ?? zone.fill?.color ?? 0xffffff);
-        sprite.position.set(center.x, heightAt(center.x, center.z) + 1.2, center.z);
+        sprite.position.set(
+          center.x,
+          labelHeightAt(center.x, center.z, heightAt(center.x, center.z) + 1.2),
+          center.z,
+        );
         sprite.renderOrder = 3;
         zoneGroup.add(sprite);
       }

@@ -62,6 +62,8 @@ const ORE_TRAIL = 'ORE_TRAIL';
 const TREE_APPROACH = 'TREE_APPROACH';
 /** 고대 문의 anchor 자리 — C002 의 표 그대로 (숲 안쪽 북서쪽 모서리) */
 const ANCIENT_GATE_AT = { x: -13, z: 13 };
+/** C008 이 미로를 지은 뒤에도 **아직 경계인** 문 하나 — 이 Cycle 의 주장을 잇는 예시 */
+const RED_WASTE_PASS = 'RED_WASTE_PASS';
 
 // ── 하네스 (many-exits · c003 의 선례 그대로) ──────────────────
 const solo = { npcs: [] };
@@ -75,6 +77,8 @@ const descriptions = () => REGION_SPECS.map((r) => r.space);
 
 const askTransit = (w: WorldDriver, connector: string) =>
   w.dispatchForOutcome({ interactionId: 'transit', targetEntityId: connector })[0];
+const anchorAt = (region: string, tag: string) =>
+  pointsOf(regionSpec(region)!.space, ANCHOR_LAYER).find((p) => p.tag === tag)!.position;
 
 /** 그 방 그 자리에 바로 세운 세계 — 걷지 않고 표식·대답만 보려는 자리 */
 const standing = (region: string, at: { x: number; z: number }) =>
@@ -101,9 +105,15 @@ describe('SPEC-001 — 고대 문이 열려 있다', () => {
     });
   });
 
-  it('S-003 (경계) 그 너머는 아직 경계다 — FANTASY_MAZE 는 지어지지 않았고 경계 목록에 있다', () => {
-    expect([...FRONTIER_REGIONS]).toContain(FANTASY_MAZE);
-    expect(regionSpec(FANTASY_MAZE)).toBeUndefined();
+  it('S-003 (경계) 문을 여는 것과 그 너머를 짓는 것은 따로다 — 아직 안 지은 곳이 남아 있다', () => {
+    // C004 는 "고대 문은 열렸지만 그 너머(FANTASY_MAZE)는 아직 경계다" 로 이것을 말했다.
+    // C008 이 그 방을 지었으므로 예시가 바뀐다 — 주장은 그대로다: 열린 Connector 가
+    // 가리키는 곳이 늘 지어져 있는 것은 아니다 (백왕령의 고개 둘이 지금 그렇다).
+    expect([...FRONTIER_REGIONS].length).toBeGreaterThan(0);
+    for (const name of FRONTIER_REGIONS) expect(regionSpec(name)).toBeUndefined();
+    // 그리고 미로는 이제 경계가 아니라 지어진 방이다 (C008 SPEC-001)
+    expect([...FRONTIER_REGIONS]).not.toContain(FANTASY_MAZE);
+    expect(regionSpec(FANTASY_MAZE)).toBeDefined();
   });
 
   it('S-004 (경계) 열림·닫힘은 세계 State 에 들어가지 않고 저장되지도 않는다', () => {
@@ -128,22 +138,27 @@ describe('SPEC-002 — 열린 문의 표식과 대답', () => {
     expect(transits(v).length).toBe(5);
   });
 
-  it('S-006 그 Connector 로 붙어서 건너기를 요청하면 사유는 region-not-built 다', () => {
-    // Given 몸이 고대 문의 anchor(−13, 13) 위에 있다
-    const w = standing(FOREST_DEEP, ANCIENT_GATE_AT);
-    // Then 관찰에 실리는 대답도, 요청의 대답도 "아직 갈 수 없는 곳" 이다
-    expect(transits(w.observe()).find((i) => i.targetEntityId === ANCIENT_GATE)).toMatchObject({
+  it('S-006 아직 짓지 않은 곳을 가리키는 열린 문에 붙어 요청하면 사유는 region-not-built 다', () => {
+    // C004 는 고대 문으로 이것을 말했다 — C008 이 그 너머를 지어 이제 받아들여지므로
+    // 같은 주장을 아직 경계인 문(백왕령의 고개)으로 잰다. 규칙도 사유 코드도 그대로다.
+    const w = standing(START_REGION_ID, anchorAt(START_REGION_ID, RED_WASTE_PASS));
+    expect(transits(w.observe()).find((i) => i.targetEntityId === RED_WASTE_PASS)).toMatchObject({
       available: false,
       reason: 'region-not-built',
     });
-    expect(askTransit(w, ANCIENT_GATE)).toMatchObject({
+    expect(askTransit(w, RED_WASTE_PASS)).toMatchObject({
       accepted: false,
       rule: 'RULE-REGION-TRANSIT-001',
       reason: 'region-not-built',
     });
     // 몸은 그 자리 그대로다 (Observable Result ②)
-    expect(body(w).regionId).toBe(FOREST_DEEP);
-    expect(body(w).position).toEqual(ANCIENT_GATE_AT);
+    expect(body(w).regionId).toBe(START_REGION_ID);
+
+    // 그리고 고대 문에서는 이제 받아들여진다 — 규칙이 아니라 데이터가 바뀐 결과다 (C008 SPEC-002)
+    const gate = standing(FOREST_DEEP, ANCIENT_GATE_AT);
+    expect(transits(gate.observe()).find((i) => i.targetEntityId === ANCIENT_GATE)).toMatchObject({
+      available: true,
+    });
   });
 
   it('S-007 (경계) 이 세계의 어떤 방에서도 locked 표식이 나오지 않는다', () => {
@@ -464,9 +479,10 @@ describe('SPEC-006 — 방을 넓히는 것도 · 문을 여닫는 것도 데이
 
   it('S-023 (경계) 같은 규칙이 두 답을 낸다 — 규칙을 고쳐서 되는 것이 아니다', () => {
     // Given 지금 데이터의 세계 (닫힌 목록이 비었다)
-    const w = standing(FOREST_DEEP, ANCIENT_GATE_AT);
-    // Then 같은 규칙 id 가 이번에는 region-not-built 를 낸다 — S-022 와 규칙이 같다
-    expect(askTransit(w, ANCIENT_GATE)).toMatchObject({
+    // Then 같은 규칙 id 가 이번에는 region-not-built 를 낸다 — S-022 와 규칙이 같다.
+    // C008 이 미로를 지어 고대 문은 성공이 되었으므로, 아직 경계인 문으로 같은 것을 잰다.
+    const w = standing(START_REGION_ID, anchorAt(START_REGION_ID, RED_WASTE_PASS));
+    expect(askTransit(w, RED_WASTE_PASS)).toMatchObject({
       rule: 'RULE-REGION-TRANSIT-001',
       reason: 'region-not-built',
     });
@@ -493,6 +509,7 @@ describe('SPEC-007 — 색과 표식은 표다', () => {
       specId: 'VIEW-STONE-MINING-001',
       scene: regionId,
       region: { id: regionId, hash: spec ? descriptionHash(spec.space) : '00000000' },
+      standingConditions: [], // C006 ADDED — 조건 area 밖에 선 관찰자는 빈 목록이다
       observer: { id: 'observer-a', characterId: 'player', acknowledgedMark: 0 },
       entities: [
         {
@@ -586,9 +603,11 @@ describe('SPEC-007 — 색과 표식은 표다', () => {
 });
 
 describe('SPEC-010 — 앞의 세 Cycle 이 그대로다', () => {
-  it('S-028 STATE_VERSION 이 올라가지 않았다 — hkt-adv-proto-i/2', () => {
-    expect(STATE_VERSION).toBe('hkt-adv-proto-i/2');
-    expect(driveWorld(solo).world.snapshot().version).toBe('hkt-adv-proto-i/2');
+  it('S-028 이 Cycle 은 저장되는 State 를 늘리지 않았다', () => {
+    // C004 는 이 값을 'hkt-adv-proto-i/2' 로 못박아 "올리지 않았다" 를 말했다.
+    // C008 이 Region State 를 저장하면서 올렸으므로(spec R5) 글자를 재는 것은 더 이상
+    // C004 의 주장이 아니다 — 남은 것은 "세계가 찍는 판이 팩의 판과 같다" 다.
+    expect(driveWorld(solo).world.snapshot().version).toBe(STATE_VERSION);
   });
 
   it('S-029 관찰 계약의 갈래가 그대로다 — region-exit 의 state 는 여전히 open | locked 다', () => {

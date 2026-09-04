@@ -14,6 +14,7 @@ import type { MotionLibrary } from '../../engine/view-kernel/motion/motion-libra
 import type {
   SceneCommandHistoryLine,
   SceneCommandSurface,
+  SceneHudItem,
   SceneMotion,
   SceneState,
 } from '../../engine/view-kernel/scene/scene-state';
@@ -54,6 +55,67 @@ export interface PresentationOptions {
    * 열려 있는가, 무엇을 쓰고 있는가, 무엇을 주고받았는가. 세계는 이것을 알지 못한다.
    */
   command?: CommandSurfaceInput;
+}
+
+/**
+ * 지금 선 자리가 왜 안전한가 (C006 R4 — RULE-SAFEBY-001).
+ *
+ * 세계는 몸이 걸린 settlement/condition 태그를 **코드 목록으로** 싣는다
+ * (snapshot.standingConditions). 그것을 문구로 옮겨 HUD 한 줄로 세우는 것이 View 의 몫이다 —
+ * 어떤 조건이 걸렸는지 판정하는 것은 세계의 일이고, 화면은 그 답을 만들어 내지 않는다.
+ *
+ * **겹치면 전부 잇는다 — 하나로 줄이지 않는다** (SPEC-007 경계). 산과 강과 거목이 함께
+ * 걸린 자리가 도시 자리이므로, 우선순위를 지어내 하나만 뜨게 하면 "조건이 모여서 도시가
+ * 된다" 는 것 자체가 화면에서 사라진다. 아무것도 걸리지 않으면 줄 자체가 서지 않는다.
+ */
+const SAFE_BY_HUD_ID = 'region.safe-by';
+
+/** 조건이 여럿일 때 잇는 말 — 목록 구분자다(문장을 짓지 않는다) */
+const SAFE_BY_SEPARATOR = ' · ';
+
+function safeByHud(snapshot: GameViewSnapshot): SceneHudItem[] {
+  const conditions = snapshot.standingConditions ?? [];
+  if (conditions.length === 0) return [];
+  return [
+    {
+      id: SAFE_BY_HUD_ID,
+      widget: 'label',
+      label: hudPresentation(SAFE_BY_HUD_ID).label,
+      value: conditions.map((code) => codeText(code)).join(SAFE_BY_SEPARATOR),
+    },
+  ];
+}
+
+/**
+ * 그 방에 쌓인 압력 (C008 — spec Observable region.state.pressure · pressureLimit).
+ *
+ * safeByHud 와 같은 자리·같은 방식이다 — 세계의 hud 목록이 아니라 관찰 결과의 값에서
+ * View 가 한 줄을 세운다. **규칙 없는 방에서는 이 줄 자체가 없다**: 봉투에 region.state 가
+ * 없기 때문이고, 없는 것을 0 으로 지어내면 압력이 없는 방에서도 압력이 있는 것처럼 보인다
+ * (SPEC-007 경계).
+ *
+ * counter 가 아니라 **label + progress** 로 세운다. Play §5.2 는 "counter, progress = pressure/P"
+ * 라고 적었지만 기반의 counter 위젯은 값만 그리고 막대를 그리지 않는다 (hud.ts) — 얼마나
+ * 찼는지가 보여야 한다는 요구를 지키는 위젯은 label 쪽이다. 숫자도 함께 남긴다: 막대만으로는
+ * 임계가 120 이라는 것을 알 수 없고, 알 수 없으면 "얼마나 걸으면 바뀌는가" 를 셀 수 없다.
+ */
+const PRESSURE_HUD_ID = 'region.pressure';
+
+function pressureHud(snapshot: GameViewSnapshot): SceneHudItem[] {
+  const state = snapshot.region?.state;
+  if (!state) return [];
+  const limit = state.pressureLimit;
+  // 임계가 0 이면 비율을 잴 수 없다 — 막대를 지어내지 않고 숫자만 남긴다
+  const ratio = limit > 0 ? Math.min(1, Math.max(0, state.pressure / limit)) : undefined;
+  return [
+    {
+      id: PRESSURE_HUD_ID,
+      widget: 'label',
+      label: hudPresentation(PRESSURE_HUD_ID).label,
+      value: `${Math.floor(state.pressure)} / ${limit}`,
+      ...(ratio === undefined ? {} : { progress: ratio }),
+    },
+  ];
 }
 
 /** 관찰자가 쥐고 있는 명령 표면 상태 — 조립 루트가 소유한다 (04 history.owner: observer) */
@@ -128,6 +190,9 @@ export function resolvePresentation(
   // 이 세계의 관찰 결과는 팩 계약(04 spec — Snapshot.specId)의 형태다.
   // 봉투 형으로 도착한 것을 팩 형으로 좁히는 자리는 결정 Layer 의 진입점 하나뿐이다 (P2).
   const snapshot = observed as GameViewSnapshot;
+  // 세계 시각 — 타격 결과의 나이도, 재배열이 얼마 전인지도 이 값 하나로 잰다.
+  // zones 가 그것을 쓰므로 장면을 세우기 전에 먼저 읽는다.
+  const worldTime = Number(snapshot.hud.find((h) => h.id === 'world.time')?.value ?? 0);
   return {
     specId: snapshot.specId,
     terrain: snapshot.scene,
@@ -137,8 +202,9 @@ export function resolvePresentation(
     effects: [],
     surfaces: [],
     slotBars: [],
-    // 선 방의 바닥 (C001) — 모르는 방이면 비어 있고, 비어 있으면 그려지지 않는다
-    zones: regionZones(snapshot.region),
+    // 선 방의 바닥 (C001) — 모르는 방이면 비어 있고, 비어 있으면 그려지지 않는다.
+    // C008 부터 구역·통로도 여기서 선다 — 재배열이 얼마 전인지를 재려고 세계 시각을 함께 넘긴다
+    zones: regionZones(snapshot.region, worldTime),
     // 선 방의 크기가 정하는 시점 거리 (C003) — 모르는 방이면 없고, 없으면 기본 거리다
     // 충돌체 디버그 관찰 — 켜졌을 때만 지시를 담는다
     ...(options.debugObserve ? { colliderDebug: collisionDebug(snapshot) } : {}),
@@ -212,23 +278,32 @@ export function resolvePresentation(
         rolePresentation(snapshot.entities.find((e) => e.id === event.targetId)?.role ?? '').size,
       ),
     ),
-    worldTime: Number(snapshot.hud.find((h) => h.id === 'world.time')?.value ?? 0),
-    hud: snapshot.hud.filter((h) => !isSelfHudId(h.id)).map((h) => {
-      const p = hudPresentation(h.id);
-      return {
-        id: h.id,
-        widget: h.kind,
-        label: p.label,
-        ...(p.icon ? { icon: p.icon } : {}),
-        // 의미 코드 값(label 위젯)은 문구 결정을, 형식 지시가 있으면 그 형식을 거친다
-        value: p.format
-          ? p.format(h.value)
-          : h.kind === 'label'
-            ? codeText(String(h.value))
-            : h.value,
-        ...(h.progress === undefined ? {} : { progress: h.progress }),
-        ...(p.celebrateGain ? { celebrateGain: true } : {}),
-      };
-    }),
+    worldTime,
+    hud: [
+      ...snapshot.hud.filter((h) => !isSelfHudId(h.id)).map((h) => {
+        const p = hudPresentation(h.id);
+        return {
+          id: h.id,
+          widget: h.kind,
+          label: p.label,
+          ...(p.icon ? { icon: p.icon } : {}),
+          // 의미 코드 값(label 위젯)은 문구 결정을, 형식 지시가 있으면 그 형식을 거친다
+          value: p.format
+            ? p.format(h.value)
+            : h.kind === 'label'
+              ? codeText(String(h.value))
+              : h.value,
+          ...(h.progress === undefined ? {} : { progress: h.progress }),
+          ...(p.celebrateGain ? { celebrateGain: true } : {}),
+        };
+      }),
+      // 안전한 이유 (C006) — 세계의 hud 목록이 아니라 관찰 결과의 조건 코드에서 온다.
+      // 맨 뒤에 세운다: 늘 있는 줄이 아니라 조건 area 안에 섰을 때만 생기는 줄이므로,
+      // 앞의 줄들이 자리를 옮기지 않아야 화면이 깜박이지 않는다.
+      ...safeByHud(snapshot),
+      // 그 방에 쌓인 압력 (C008) — 같은 이유로 맨 뒤다. 규칙을 품은 방에서만 생기는 줄이므로
+      // 문을 넘나들 때 앞의 줄들이 자리를 옮기면 안 된다
+      ...pressureHud(snapshot),
+    ],
   };
 }

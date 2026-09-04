@@ -50,6 +50,7 @@ export function spawnActor(spawn: ActorSpawn): ActorState {
     perceptionRange: spawn.perceptionRange ?? def.perceptionRange,
     wanderPath: (spawn.wanderPath ?? []).map((p) => ({ x: p.x, z: p.z })),
     wanderIndex: 0,
+    movedThisTick: 0, // 아직 아무 tick 도 지나지 않았다 (C008)
     inventory: spawn.inventory ?? createInventory(),
     currentAction: idleAction(),
   };

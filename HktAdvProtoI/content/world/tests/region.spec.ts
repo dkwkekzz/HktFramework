@@ -349,8 +349,12 @@ describe('SPEC-009 — 다른 방의 몸은 서로 없는 것과 같다 (R5)', (
 });
 
 describe('SPEC-010 — 영속', () => {
-  it('STATE_VERSION 이 올라갔다 — hkt-adv-proto-i/2', () => {
-    expect(STATE_VERSION).toBe('hkt-adv-proto-i/2');
+  it('STATE_VERSION 이 C001 에서 올라갔고, 그 뒤로도 형이 늘 때마다 오른다', () => {
+    // C001 이 'hkt-adv-proto-i/2' 로 올렸고 C008 이 Region State 를 저장하며 다시 올렸다.
+    // 이 검사가 지키는 것은 글자가 아니라 "형이 늘면 판이 오른다" 는 규율이므로,
+    // 옛 판이 복구되지 않는다는 아래 검사와 짝으로 본다 (C008 SPEC-009 경계).
+    expect(STATE_VERSION).not.toBe('hkt-adv-proto-i/1');
+    expect(driveWorld(solo).world.snapshot().version).toBe(STATE_VERSION);
   });
 
   it('되살린 State 의 모든 몸·광맥이 regionId 를 가진다 — 건너간 몸은 그 방에 그대로다', () => {

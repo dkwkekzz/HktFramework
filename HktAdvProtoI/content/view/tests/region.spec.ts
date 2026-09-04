@@ -27,10 +27,13 @@ const civil = withHash(whiteKingDomain as GameViewSnapshot);
 const outer = withHash(forestEdge as GameViewSnapshot);
 
 describe('① 방의 바닥 — Region extent 만큼의 면', () => {
-  it('백왕령에 서면 zones 에 폴리곤 하나 — 내 Description 의 extent 네 꼭짓점', () => {
+  it('백왕령에 서면 zones 의 첫째가 방 바닥 — 내 Description 의 extent 네 꼭짓점', () => {
     const plan = resolvePresentation(civil);
 
-    expect(plan.zones).toHaveLength(1);
+    // C006 CHANGED — 방 바닥 말고도 settlement area 의 테두리가 함께 그려진다
+    // (C006 Observable Result ⑥ "도시 area 의 테두리가 보인다"). 그래서 개수를 박지 않고
+    // **방 바닥이 여전히 첫째 zone 인가**를 지킨다.
+    expect(plan.zones.length).toBeGreaterThanOrEqual(1);
     const zone = plan.zones[0]!;
     expect(zone.id).toBe('region:WHITE_KING_DOMAIN');
     expect(zone.shape.kind).toBe('polygon');
@@ -59,7 +62,7 @@ describe('① 방의 바닥 — Region extent 만큼의 면', () => {
   it('세계가 보낸 hash 가 내 데이터와 다르면 이름 뒤에 그 사실이 붙는다 — 그리기는 계속된다', () => {
     const plan = resolvePresentation(withHash(whiteKingDomain as GameViewSnapshot, 'deadbeef'));
 
-    expect(plan.zones).toHaveLength(1);
+    expect(plan.zones.length).toBeGreaterThanOrEqual(1);
     expect(plan.zones[0]?.label).toBe('백왕령 — 세계와 다른 땅을 보고 있다');
   });
 });

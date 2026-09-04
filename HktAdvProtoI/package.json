@@ -14,6 +14,8 @@
     "surface:lab": "tsx tools/surface-lab/build.ts",
     "boundary:check": "tsx tools/boundary/check.ts",
     "world:observe": "tsx tools/world-editor/observe.ts",
+    "world:compile": "tsx tools/world-editor/compile.ts",
+    "world:shot": "tsx tools/world-editor/shot.ts",
     "fx:lab": "node tools/fx-lab/test/lab-smoke.js",
     "fx:shot": "node tools/fx-lab/test/fx-shot.js",
     "fx:overlay": "node tools/fx-lab/test/overlay-shot.js",

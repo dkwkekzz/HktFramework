@@ -83,6 +83,22 @@ export interface InteractionView extends CoreInteractionView {
   profile?: SkillProfileView;
 }
 
+// 규칙을 품은 방이 기억하는 것 — C008 (spec Observable: region.state.*).
+//
+// 세계는 "지금 패턴이 무엇인가" 만 말한다. **패턴 표(어느 패턴에 어느 통로가 열리는가)는
+// 싣지 않는다** — 관찰자가 자기 content/regions 의 같은 표를 읽어 열림/닫힘을 스스로 그린다
+// (땅을 컴파일해 그리는 C005~C007 의 방식 그대로). 다음에 무엇이 오는지도 말하지 않는다.
+export interface RegionStateView {
+  /** 지금 열려 있는 통로 집합의 이름 */
+  pattern: string;
+  /** 그 방에 쌓인 압력 */
+  pressure: number;
+  /** 넘치는 값 — 얼마나 찼는지는 View 가 이 둘로 잰다 */
+  pressureLimit: number;
+  /** 마지막으로 패턴이 바뀐 세계 시각 (없으면 없다). "얼마 전인가" 는 View 가 잰다 (strikes.since 선례) */
+  rearrangedAt?: number;
+}
+
 // 관찰자의 몸이 선 Region — C001 (02-world Observable: snapshot.region.id · snapshot.region.hash).
 // scene 이 그 Region 의 id 이고, 이것은 같은 값에 hash 를 붙인 것이다.
 // hash 는 그 Region 의 Description 에서 결정적으로 나온다 — 클라이언트가 자기 데이터와 대조한다.
@@ -90,6 +106,12 @@ export interface InteractionView extends CoreInteractionView {
 export interface RegionView {
   id: string;
   hash: string;
+  /**
+   * 그 방이 규칙을 품고 있으면 그 방의 State (C008 ADDED).
+   *
+   * **규칙 없는 방에는 이 자리가 없다** — 없는 것을 0 으로 지어내지 않는다 (SPEC-007 경계).
+   */
+  state?: RegionStateView;
 }
 
 // 이 팩의 관찰 결과 — 봉투에 타격 결과가 더해지고, 존재/interaction 이 팩 형으로 좁혀진다.
@@ -98,4 +120,13 @@ export interface GameViewSnapshot extends CoreGameViewSnapshot {
   interactions: InteractionView[];
   strikes: StrikeEventView[];
   region: RegionView; // C001 — 봉투의 region? 을 이 팩은 필수로 좁힌다
+  /**
+   * 관찰자의 몸이 선 자리에 걸린 settlement/condition 태그들 (없으면 빈 배열) — C006 R4.
+   *
+   * "왜 여기가 안전한가" 의 **코드**다. 겹치면 걸린 것이 전부 실리고(하나로 줄이지 않는다),
+   * 순서는 그 방 데이터의 area 순서 그대로다. 문구는 View 의 표가 옮긴다.
+   * 땅 자체(height · surface · traversable · areas)는 실리지 않는다 — 관찰자가 자기
+   * content/regions 를 같은 규칙으로 컴파일해 스스로 만든다.
+   */
+  standingConditions: string[];
 }

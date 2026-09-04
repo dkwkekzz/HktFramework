@@ -12,7 +12,12 @@
 // 존재는 같은 Region 의 몸·광맥 + 그 Region 의 anchor 마다 region-exit 하나다. 목적지 Region 의 이름 ·
 // Connector 의 방향 · 다른 방의 존재 · Graph 전체는 싣지 않는다 — "목적지는 건너야 안다".
 
-import type { EntityView, GameViewSnapshot, InteractionView } from '../../protocol/gameview';
+import type {
+  EntityView,
+  GameViewSnapshot,
+  InteractionView,
+  RegionStateView,
+} from '../../protocol/gameview';
 import { actionProgress, actionTargetId } from '../semantic/action';
 import { actionCollider } from '../semantic/collision';
 import { evaluateAttributeSetAvailability } from '../rules/attribute-set';
@@ -31,6 +36,8 @@ import {
   regionHash,
   regionSpecOf,
 } from '../semantic/region';
+import { regionRuleOf } from '../semantic/region-state';
+import { conditionTagsAt } from '../semantic/terrain';
 import {
   actorOfObserver,
   findObserver,
@@ -233,6 +240,24 @@ export function projectObserverView(
   const selfProgress = actionProgress(self.currentAction);
   const selfModifiers = actorModifiers(self);
 
+  // 그 방이 규칙을 품고 있으면 그 방의 State 를 싣는다 (C008 R1 Feedback · SPEC-007).
+  // 규칙 없는 방에서는 자리 자체가 없다 — 0 으로 지어내지 않는다 (SPEC-007 경계).
+  // 임계값(pressureLimit)을 함께 싣는 것은 "얼마나 찼는가" 를 View 가 재기 위해서다.
+  // 패턴 표는 싣지 않는다 — 관찰자가 자기 content/regions 에서 읽는다.
+  const regionRule = regionRuleOf(self.regionId);
+  const regionRuleState = state.regionStates[self.regionId];
+  const regionStateView: RegionStateView | undefined =
+    regionRule && regionRuleState
+      ? {
+          pattern: regionRuleState.pattern,
+          pressure: regionRuleState.pressure,
+          pressureLimit: regionRule.pressureLimit,
+          ...(regionRuleState.rearrangedAt === undefined
+            ? {}
+            : { rearrangedAt: regionRuleState.rearrangedAt }),
+        }
+      : undefined;
+
   return {
     specId: SPEC_ID,
     scene: self.regionId, // C001 — 관찰자의 몸이 선 Region
@@ -281,7 +306,15 @@ export function projectObserverView(
       { id: 'region.depth', kind: 'label', value: region.depth },
     ],
     // 관찰자의 몸이 선 Region — hash 는 Description 에서 결정적으로 나온다 (C001 R6).
-    region: { id: self.regionId, hash: regionHash(self.regionId) },
+    region: {
+      id: self.regionId,
+      hash: regionHash(self.regionId),
+      ...(regionStateView ? { state: regionStateView } : {}),
+    },
+    // RULE-SAFEBY-001 (C006 R4) — 몸이 선 자리에 걸린 안전의 조건들.
+    // 매 관찰마다 그 방의 땅에서 유도된다 — 세계 State 에는 없다. 아무 area 에도 들지 않았으면
+    // 빈 배열이고, 겹쳐 있으면 걸린 것이 전부 실린다. 이것은 hud 가 아니라 봉투의 새 자리다.
+    standingConditions: conditionTagsAt(self.regionId, self.position),
     // World.StrikeEvents — 남의 타격 결과도 보인다. 세계가 판정을 마친 값이다.
     strikes: state.strikeEvents.map((event) => ({
       attackerId: event.attackerId,

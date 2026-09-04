@@ -9,6 +9,7 @@
 
 import * as THREE from 'three';
 import type { CompiledViewTerrain, CompiledWorldTerrain } from '../../world-authoring/compiled';
+import { spriteCanvas } from '../assets/registry';
 
 /**
  * 법선을 잇기 위해 세계 좌표를 키로 만들 때의 눈금 (세계 단위).
@@ -30,6 +31,13 @@ function weldKey(x: number, z: number): string {
 /** surface 태그 → 색. 모르는 태그에는 기본색을 돌려주면 된다 — 기반은 태그의 뜻을 모른다 */
 export interface TerrainPalette {
   colorOf(surfaceTag: string): number;
+  /**
+   * instance 태그 → 그림. 없거나 null 이면 그 태그는 그리지 않는다.
+   *
+   * 이 자리가 비어 있으면 지형은 chunk mesh 만으로 이루어진다 — instance 를 모르던 때와
+   * 한 톨도 다르지 않다.
+   */
+  instanceOf?(tag: string): { spriteId: string; worldHeight: number } | null;
 }
 
 /**
@@ -97,7 +105,46 @@ export function createTerrain(view: CompiledViewTerrain, palette: TerrainPalette
   }
 
   weldSharedNormals(group);
+  // instance 는 법선을 잇고 난 뒤에 붙인다 — 잇기는 mesh 만 훑는다
+  if (palette.instanceOf) addInstances(group, view.instances ?? [], palette.instanceOf);
   return group;
+}
+
+/**
+ * 땅에 붙는 표식 — instance 마다 카메라를 향하는 sprite 하나.
+ *
+ * 자리는 (x, y + worldHeight / 2, z) 다: y 는 컴파일이 재어 준 지면 높이이고, sprite 는
+ * 자기 중심을 기준으로 놓이므로 반만큼 띄워야 밑동이 땅에 닿는다. 크기는 정사각 worldHeight.
+ * 이름의 번호는 **instances 배열의 색인**이다 — palette 가 어떤 태그를 걸러도 같은 자리가
+ * 같은 이름을 갖는다.
+ *
+ * 그림을 만들지 못해도(document 가 없는 자리 등) 지형은 그대로 그려진다 — 표식 하나 때문에
+ * 땅이 사라지는 편이 훨씬 나쁘다.
+ */
+function addInstances(
+  group: THREE.Object3D,
+  instances: CompiledViewTerrain['instances'],
+  instanceOf: NonNullable<TerrainPalette['instanceOf']>,
+): void {
+  for (let i = 0; i < instances.length; i++) {
+    const instance = instances[i];
+    if (!instance) continue;
+    const spec = instanceOf(instance.tag);
+    if (!spec) continue;
+    let sprite: THREE.Sprite;
+    try {
+      const texture = new THREE.CanvasTexture(spriteCanvas(spec.spriteId));
+      texture.magFilter = THREE.NearestFilter;
+      texture.minFilter = THREE.NearestFilter;
+      sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture, transparent: true }));
+    } catch {
+      continue; // 그림을 만들 수 없는 자리 — 표식만 빠지고 땅은 그대로다
+    }
+    sprite.name = `terrain-instance-${i}`;
+    sprite.scale.set(spec.worldHeight, spec.worldHeight, 1);
+    sprite.position.set(instance.position.x, instance.y + spec.worldHeight / 2, instance.position.z);
+    group.add(sprite);
+  }
 }
 
 /**

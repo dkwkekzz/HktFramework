@@ -111,6 +111,15 @@ function findPalette(): TerrainPalette {
 const RULES = findCompileRules();
 const PALETTE = findPalette();
 
+// C006 CHANGED — 표에 줄이 하나 는다. 확정 5 의 넷째(젖음)는 경사가 아니라 **강까지의 거리**를
+// 묻는 줄이고, 강 곁은 경사보다 먼저 젖으므로 표의 맨 앞에 온다. 그래서 이 파일이 C005 에서
+// "첫째 태그" 라 부르던 자리가 밀린다 — 아래부터는 색인 대신 **경사를 묻는 줄들** 안에서 센다.
+/** 경사만 묻는 줄들 — C005 가 세운 셋 (평지 · 비탈 · 급경사) */
+const SLOPE_RULES = RULES.surface.filter((rule) => rule.nearCurve === undefined);
+/** 강까지의 거리를 묻는 줄 — C006 이 더한 젖음 */
+const CURVE_RULES = RULES.surface.filter((rule) => rule.nearCurve !== undefined);
+const slopeTag = (i: number) => SLOPE_RULES[i]!.tag;
+
 const domain = (): RegionDescription => regionSpec(START_REGION_ID)!.space;
 const compiled = () => compileRegion(domain(), RULES);
 /** 유한 임계들 — 작은 것부터 (이름이 아니라 값으로 가리킨다) */
@@ -122,9 +131,9 @@ const thresholds = () =>
 
 // ─────────────────────────────────────────────────────────────
 describe('SPEC-004 — 표면이 경사로 갈린다 (컨텐츠의 규칙 표)', () => {
-  it('V-001 표가 규칙 셋이고 태그 이름이 서로 다르다', () => {
-    expect(RULES.surface.length).toBe(3); // spec 이 못박은 수 — 평지 · 비탈 · 급경사
-    expect(new Set(RULES.surface.map((r) => r.tag)).size).toBe(3);
+  it('V-001 경사를 묻는 줄이 셋이고 태그 이름이 서로 다르다', () => {
+    expect(SLOPE_RULES.length).toBe(3); // C005 spec 이 못박은 수 — 평지 · 비탈 · 급경사
+    expect(new Set(RULES.surface.map((r) => r.tag)).size).toBe(RULES.surface.length);
     for (const rule of RULES.surface) expect(rule.tag.length).toBeGreaterThan(0);
   });
 
@@ -136,7 +145,7 @@ describe('SPEC-004 — 표면이 경사로 갈린다 (컨텐츠의 규칙 표)',
   });
 
   it('V-003 배열 순서가 곧 우선순위다 — 임계가 오름차순이고 마지막 줄만 위가 열려 있다', () => {
-    const slopes = RULES.surface.map((r) => r.maxSlope);
+    const slopes = SLOPE_RULES.map((r) => r.maxSlope);
     // 마지막 줄이 남은 전부를 받는다 (evaluateSurface 의 규율)
     expect(slopes[slopes.length - 1]).toBeUndefined();
     // 그 앞은 오름차순이다 — 배열 순서로 첫 번째가 이기므로 이 순서가 아니면 뜻이 뒤집힌다
@@ -157,13 +166,17 @@ describe('SPEC-004 — 표면이 경사로 갈린다 (컨텐츠의 규칙 표)',
     const [walk, steep] = thresholds() as [number, number];
 
     const tagAt = (ix: number, iz: number) => tags[region.world.surface[iz * region.world.cols + ix] ?? 0];
+    // C006 CHANGED — 강 곁은 경사보다 먼저 젖는다. 그 자리는 경사가 정하지 않으므로 여기서 뺀다
+    // (젖음이 어디에 붙는가는 content/world/tests/c006-land-blocks-and-flows.spec.ts SPEC-004 가 잰다).
+    const curveTags = new Set(CURVE_RULES.map((rule) => rule.tag));
+    const bySlope = (ix: number, iz: number) => !curveTags.has(tagAt(ix, iz) ?? '');
 
-    // Then 남쪽 변(minZ)은 전부 첫째 태그다
+    // Then 남쪽 변(minZ)은 전부 첫째 경사 태그다 (강에서 멀다)
     for (let ix = 0; ix < region.world.cols; ix++) {
       expect({ ix, z: vertexZ(field, 0), tag: tagAt(ix, 0) }).toEqual({
         ix,
         z: domain().extent.minZ,
-        tag: tags[0],
+        tag: slopeTag(0),
       });
     }
 
@@ -172,12 +185,13 @@ describe('SPEC-004 — 표면이 경사로 갈린다 (컨텐츠의 규칙 표)',
     let steepCount = 0;
     for (let iz = 0; iz < region.world.rows; iz++) {
       for (let ix = 0; ix < region.world.cols; ix++) {
+        if (!bySlope(ix, iz)) continue;
         const slope = slopeAtVertex(field, ix, iz);
         if (slope >= walk && slope < steep) {
-          expect(tagAt(ix, iz)).toBe(tags[1]);
+          expect(tagAt(ix, iz)).toBe(slopeTag(1));
           waist++;
         } else if (slope >= steep) {
-          expect(tagAt(ix, iz)).toBe(tags[2]);
+          expect(tagAt(ix, iz)).toBe(slopeTag(2));
           steepCount++;
         }
       }
@@ -187,22 +201,29 @@ describe('SPEC-004 — 표면이 경사로 갈린다 (컨텐츠의 규칙 표)',
     expect(steepCount).toBeGreaterThan(0);
   });
 
-  it('V-006 (경계) 젖음(wet)은 아직 없다 — 표는 경사만 본다', () => {
-    // 확정 5 의 넷 중 셋만 쓴다: 규칙 줄이 셋이고 어느 줄도 경사 말고 다른 것을 묻지 않는다
-    for (const rule of RULES.surface) {
+  it('V-006 (경계 · C006 CHANGED) 경사 말고 다른 것을 묻는 줄은 젖음 하나뿐이고 맨 앞이다', () => {
+    // C005 때는 확정 5 의 넷 중 셋만 썼다 — 어느 줄도 경사 말고 다른 것을 묻지 않았다.
+    // C006 이 넷째(젖음)를 세운다: 강까지의 거리를 묻는 줄이 **하나** 늘고, 강 곁은 경사보다
+    // 먼저 젖으므로 그것이 맨 앞이다 (C006 spec SPEC-004).
+    expect(CURVE_RULES.length).toBe(1);
+    expect(RULES.surface[0]).toBe(CURVE_RULES[0]);
+    expect(Object.keys(CURVE_RULES[0]!).sort()).toEqual(['nearCurve', 'tag']);
+    expect(CURVE_RULES[0]!.nearCurve!.maxDistance).toBeGreaterThan(0);
+    // 나머지 셋은 여전히 경사만 묻는다
+    for (const rule of SLOPE_RULES) {
       expect(Object.keys(rule).sort()).toEqual(
         rule.maxSlope === undefined ? ['tag'] : ['maxSlope', 'tag'],
       );
     }
   });
 
-  it('V-007 (경계) stamp 가 없는 여덟 방은 같은 표로도 첫째 태그 하나뿐이다', () => {
-    for (const spec of REGION_SPECS.filter((s) => s.id !== START_REGION_ID)) {
+  // C007 SPEC-009 가 이 주장을 **좁혔다** — 숲 가장자리에 stamp(basin) 하나가 늘면서 그 방의
+  // 표면이 경사를 따라 갈린다. 표(RULES)는 한 글자도 바뀌지 않았고 데이터가 늘었을 뿐이다.
+  it('V-007 (경계) stamp 도 curve 도 없는 일곱 방은 같은 표로도 평지 태그 하나뿐이다 (C007 SPEC-009 로 좁혀졌다)', () => {
+    for (const spec of REGION_SPECS.filter((s) => s.id !== START_REGION_ID && s.id !== 'FOREST_EDGE')) {
       const region = compileRegion(spec.space, RULES);
-      expect({ region: spec.id, used: [...new Set(region.world.surface)] }).toEqual({
-        region: spec.id,
-        used: [0],
-      });
+      const used = [...new Set(region.world.surface)].map((i) => region.world.surfaceTags[i]);
+      expect({ region: spec.id, used }).toEqual({ region: spec.id, used: [slopeTag(0)] });
     }
   });
 });

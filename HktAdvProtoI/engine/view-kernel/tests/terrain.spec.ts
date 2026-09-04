@@ -22,6 +22,9 @@ function grid3(): CompiledWorldTerrain {
     height,
     surface: new Uint8Array(9),
     surfaceTags: ['a'],
+    traversable: new Uint8Array(9).fill(1),
+    blocked: new Uint8Array(9),
+    blockedTags: [''],
     areas: [],
     points: [],
   };
@@ -88,6 +91,7 @@ function oneChunkView(): CompiledViewTerrain {
       },
     ],
     surfaceTags: ['low', 'high'],
+    instances: [],
   };
 }
 
@@ -162,7 +166,7 @@ describe('createTerrain — chunk 마다 mesh 하나', () => {
 
   it('빈 chunk 목록이면 아무것도 그리지 않는다 — 화면은 그대로 돈다', () => {
     const object = createTerrain(
-      { chunkSize: 1, chunks: [], surfaceTags: [] },
+      { chunkSize: 1, chunks: [], surfaceTags: [], instances: [] },
       palette({}),
     );
     expect(object.children).toHaveLength(0);
@@ -193,6 +197,7 @@ describe('그리는 격자와 재는 격자는 같은 높이다', () => {
       chunkSize: 1,
       chunks: [chunkAt(0, 0), chunkAt(1, 0), chunkAt(0, 1), chunkAt(1, 1)],
       surfaceTags: ['a'],
+      instances: [],
     };
 
     const object = createTerrain(view, palette({ a: 0x445533 }));
@@ -259,6 +264,7 @@ describe('법선 — 자리를 나눠 갖는 vertex 는 법선도 나눠 갖는�
     chunkSize: 2,
     chunks: [left, right],
     surfaceTags: [],
+    instances: [],
   };
 
   it('경계 vertex 의 법선이 양쪽 chunk 에서 같다', () => {
@@ -333,6 +339,117 @@ describe('법선 — 자리를 나눠 갖는 vertex 는 법선도 나눠 갖는�
       expect(a.getX(i)).toBe(b.getX(i));
       expect(a.getY(i)).toBe(b.getY(i));
       expect(a.getZ(i)).toBe(b.getZ(i));
+    }
+  });
+});
+
+// ── instance ─────────────────────────────────────────────────────────
+//
+// 땅에 붙는 표식. 여기서도 태그의 뜻은 모른다 — 무엇을 그릴지는 palette 가 정한다.
+
+/** spriteCanvas 가 쓰는 document 를 흉내 낸다 — 이 층은 실제 화면 없이도 돌아야 한다 */
+function stubDocument(): () => void {
+  const before = (globalThis as { document?: unknown }).document;
+  (globalThis as { document?: unknown }).document = {
+    createElement: () => ({
+      width: 0,
+      height: 0,
+      getContext: () => ({ fillStyle: '', fillRect: () => {} }),
+    }),
+  };
+  return () => {
+    (globalThis as { document?: unknown }).document = before;
+  };
+}
+
+function viewWithInstances(): CompiledViewTerrain {
+  return {
+    ...oneChunkView(),
+    instances: [
+      { tag: '표식', position: { x: 3, z: -4 }, y: 2 },
+      { tag: '다른것', position: { x: 0, z: 0 }, y: 0 },
+    ],
+  };
+}
+
+describe('createTerrain — instance', () => {
+  it('instanceOf 가 없으면 instance 를 모르던 때와 똑같이 돈다', () => {
+    const object = createTerrain(viewWithInstances(), palette({ low: 0x111111, high: 0x222222 }));
+    expect(object.children.map((c) => c.name)).toEqual(['terrain-chunk-0-0']);
+  });
+
+  it('instance 마다 sprite 하나 — 자리는 지면 높이 위, 크기는 정사각 worldHeight', () => {
+    const restore = stubDocument();
+    try {
+      const asked: string[] = [];
+      const object = createTerrain(viewWithInstances(), {
+        colorOf: () => 0x000000,
+        instanceOf: (tag) => {
+          asked.push(tag);
+          return tag === '표식' ? { spriteId: 'i-mark', worldHeight: 6 } : null;
+        },
+      });
+      expect(asked).toEqual(['표식', '다른것']); // null 인 태그는 그리지 않는다
+      const sprite = object.children.find((c) => c.name === 'terrain-instance-0');
+      expect(sprite).toBeDefined();
+      expect(object.children).toHaveLength(2); // mesh 하나 + sprite 하나
+      expect(sprite!.position.x).toBeCloseTo(3);
+      expect(sprite!.position.z).toBeCloseTo(-4);
+      expect(sprite!.position.y).toBeCloseTo(2 + 6 / 2); // 밑동이 땅에 닿는다
+      expect(sprite!.scale.x).toBeCloseTo(6);
+      expect(sprite!.scale.y).toBeCloseTo(6);
+    } finally {
+      restore();
+    }
+  });
+
+  it('instance 가 없으면 sprite 도 없다 — 없는 것을 지어내지 않는다', () => {
+    const restore = stubDocument();
+    try {
+      const object = createTerrain(oneChunkView(), {
+        colorOf: () => 0x000000,
+        instanceOf: () => ({ spriteId: 'i-none', worldHeight: 1 }),
+      });
+      expect(object.children.map((c) => c.name)).toEqual(['terrain-chunk-0-0']);
+    } finally {
+      restore();
+    }
+  });
+
+  it('그림을 만들지 못해도 지형은 그려진다', () => {
+    // document 가 없는 자리 — sprite 만 빠지고 mesh 는 그대로 남는다
+    const object = createTerrain(
+      { ...viewWithInstances(), instances: [{ tag: '표식', position: { x: 1, z: 1 }, y: 0 }] },
+      { colorOf: () => 0x000000, instanceOf: () => ({ spriteId: 'i-broken', worldHeight: 2 }) },
+    );
+    expect(object.children.map((c) => c.name)).toEqual(['terrain-chunk-0-0']);
+    expect((object.children[0] as THREE.Mesh).geometry.getAttribute('position').count).toBe(4);
+  });
+
+  it('법선 잇기는 sprite 를 건드리지 않는다 — mesh 의 값이 그대로다', () => {
+    const restore = stubDocument();
+    try {
+      const view: CompiledViewTerrain = {
+        chunkSize: 2,
+        chunks: [chunkFrom(0, 0, 0, 0, 3, 3, kinked), chunkFrom(1, 0, 2, 0, 3, 3, kinked)],
+        surfaceTags: [],
+        instances: [{ tag: '표식', position: { x: 1, z: 1 }, y: 0 }],
+      };
+      const withInstance = createTerrain(view, {
+        colorOf: () => 0x000000,
+        instanceOf: () => ({ spriteId: 'i-weld', worldHeight: 2 }),
+      });
+      const without = createTerrain({ ...view, instances: [] }, plain);
+      const a = normalsOf(withInstance, 0);
+      const b = normalsOf(without, 0);
+      for (let i = 0; i < a.count; i++) {
+        expect(a.getX(i)).toBe(b.getX(i));
+        expect(a.getY(i)).toBe(b.getY(i));
+        expect(a.getZ(i)).toBe(b.getZ(i));
+      }
+      expect(withInstance.children.at(-1)?.name).toBe('terrain-instance-0');
+    } finally {
+      restore();
     }
   });
 });

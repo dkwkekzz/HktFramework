@@ -200,8 +200,25 @@ const minBy = <T>(items: readonly T[], score: (item: T) => number): T =>
 
 /** 백왕령 — 이 Cycle 이 땅을 세우는 그 방 */
 const domain = () => spaceOf(START_REGION_ID);
-/** stamp 가 없는 나머지 여덟 방 */
+/** 백왕령 말고의 여덟 방 */
 const flatRooms = () => REGION_SPECS.filter((s) => s.id !== START_REGION_ID);
+/**
+ * 아직 **평평한** 방들 (C007 SPEC-009 로 좁혀졌다).
+ *
+ * C005 때는 백왕령 말고 여덟 방이 다 평평했다. C007 이 숲 가장자리의 space 에 stamp(basin)
+ * 하나를 더하면서 그 방이 이 무리에서 빠진다 — 규칙은 한 글자도 바뀌지 않았고 데이터가 늘었을 뿐이다
+ * (C007 spec SPEC-009 · SPEC-010 경계 "나머지 일곱 방은 여전히 평평하다").
+ * 이 주장은 지워진 것이 아니라 **좁아진** 것이다.
+ */
+const stillFlatRooms = () => flatRooms().filter((s) => s.id !== 'FOREST_EDGE');
+/**
+ * 이 Cycle 이 손대지 않은 방들 (C008 SPEC-001 로 좁혀졌다).
+ *
+ * C005 때는 백왕령 말고 여덟 방이 전부 point 와 stamp 뿐이었다. C008 이 환상의 미로를 지으면서
+ * 그 방에 area(구역·통로)와 clue point 가 선다 — 규칙이 아니라 데이터가 늘었을 뿐이다.
+ * 이 주장은 지워진 것이 아니라 **좁아진** 것이다 (C007 이 숲 가장자리에 한 그대로).
+ */
+const roomsUntouchedSinceC005 = () => flatRooms().filter((s) => s.id !== 'FANTASY_MAZE');
 
 // ─────────────────────────────────────────────────────────────
 describe('SPEC-001 — 백왕령에 능선이 선다', () => {
@@ -236,8 +253,8 @@ describe('SPEC-001 — 백왕령에 능선이 선다', () => {
     expect(south.filter((v) => v.y !== 0)).toEqual([]);
   });
 
-  it('S-004 (경계) 나머지 여덟 방의 ops 에는 stamp 가 없다', () => {
-    for (const spec of flatRooms()) {
+  it('S-004 (경계) 아직 평평한 일곱 방의 ops 에는 stamp 가 없다 (C007 SPEC-009 로 좁혀졌다)', () => {
+    for (const spec of stillFlatRooms()) {
       expect({ region: spec.id, stamps: stampsOf(spec.space).length }).toEqual({
         region: spec.id,
         stamps: 0,
@@ -245,10 +262,12 @@ describe('SPEC-001 — 백왕령에 능선이 선다', () => {
     }
   });
 
-  it('S-005 (경계) anchor point 는 아홉 방 모두 C004 의 표 그대로다', () => {
-    // Given 방 아홉의 anchor layer 를 읽는다
+  it('S-005 (경계) C004 의 아홉 방 anchor 는 그 표 그대로다', () => {
+    // Given C004 때 있던 방들의 anchor layer 를 읽는다.
+    // C008 이 방 하나(환상의 미로)를 더했다 — 표에 없는 방은 이 주장의 대상이 아니다.
+    // 재는 것은 언제나 "C004 의 표가 한 줄이라도 달라졌는가" 다 (C008 SPEC-001 로 좁혀졌다).
     const now: Record<string, Record<string, [number, number]>> = {};
-    for (const spec of REGION_SPECS) {
+    for (const spec of REGION_SPECS.filter((s) => s.id in ANCHORS_AT_C004)) {
       now[spec.id] = Object.fromEntries(
         pointsOf(spec.space, ANCHOR_LAYER).map((p) => [p.tag, [p.position.x, p.position.z]]),
       );
@@ -435,9 +454,11 @@ describe('SPEC-004 — 표면이 경사로 갈린다', () => {
     expect(regionHash(domain(), reversed)).not.toBe(regionHash(domain(), RULES));
   });
 
-  it('S-018 (경계) 젖음(wet)은 아직 없다 — 세계의 어떤 방에도 강을 낼 op 가 없다', () => {
-    // 표면을 젖게 할 것(curve · area)이 Description 에 하나도 없다. 지금 op 는 point 와 stamp 둘뿐이다
-    for (const spec of REGION_SPECS) {
+  it('S-018 (경계 · C006 CHANGED) 젖음을 낼 op 는 백왕령에만 있다 — 나머지 여덟 방은 그대로다', () => {
+    // C005 때는 세계의 **어떤** 방에도 표면을 젖게 할 것(curve)이 없었다. C006 이 백왕령에
+    // curve 와 area 를 놓았으므로 그 주장은 그 방에서만 바뀐다 (C006 spec SPEC-004 경계).
+    // 손대지 않은 여덟 방은 여전히 point 와 stamp 둘뿐이다.
+    for (const spec of roomsUntouchedSinceC005()) {
       const kinds = [...new Set(spec.space.ops.map((op) => op.kind))].sort();
       expect({ region: spec.id, kinds }).toEqual({
         region: spec.id,
@@ -469,7 +490,12 @@ describe('SPEC-005 — 색은 표가 정한다', () => {
   );
 });
 
-describe('SPEC-006 — 급경사는 아직 막지 않는다', () => {
+// C006 CHANGED — 이 절의 제목은 C005 의 주장이었다. C006 이 traversable 을 이동 규칙의
+// 전제로 세우면서 "아직 막지 않는다" 가 뒤집힌다 (C006 spec SPEC-002 · R1). 지우지 않고 좁힌다 —
+// 살아남는 C005 의 주장은 둘이다: **판정하는 규칙은 여전히 RULE-MOVE-001 하나**이고,
+// **높이 자체는 아무것도 가르지 않는다**(가르는 것은 경사와 물이다).
+// 무엇이 어떤 사유로 막히는가는 content/world/tests/c006-land-blocks-and-flows.spec.ts 가 잰다.
+describe('SPEC-006 — 급경사를 판정하는 규칙은 여전히 하나다', () => {
   /** 능선에서 가장 가파른 자리 — 데이터에서 고른다 (좌표를 손으로 적지 않는다) */
   const steepest = () => maxBy(verticesOf(domain()), (v) => v.slope);
 
@@ -479,30 +505,35 @@ describe('SPEC-006 — 급경사는 아직 막지 않는다', () => {
     expect(v.z).toBeGreaterThan(0); // 북쪽 능선의 자리다
   });
 
-  it('S-021 그 급경사 자리로 이동을 요청하면 받아들여진다', () => {
+  it('S-021 (C006 CHANGED) 그 급경사 자리로 가는 요청도 같은 규칙이 판정한다 — 이제 거절이다', () => {
     // Given 백왕령에 선 몸
     const w = driveWorld(solo);
     const v = steepest();
     // When 능선의 급경사 자리로 간다고 한다
     const result = w.dispatch({ interactionId: 'move', position: { x: v.x, z: v.z } });
-    // Then 받아들여진다 — 높이는 판정에 끼어들지 않는다
-    expect(result).toMatchObject({ status: 'success', rule: 'RULE-MOVE-001' });
-    // 그리고 실제로 걸어가 그 자리에 선다 (아직 아무것도 막지 않는다)
-    walkTo(w, v.x, v.z);
+    // Then C005 때는 받아들여졌다. C006 이 traversable 을 전제에 더해 거절이 되었지만
+    // **판정하는 규칙은 늘지 않았다** — 여전히 RULE-MOVE-001 하나이고 사유 코드가 실린다
+    expect(result).toMatchObject({ status: 'failure', rule: 'RULE-MOVE-001' });
+    expect(typeof (result as { reason?: string }).reason).toBe('string');
+    // 그리고 몸은 그 자리에 그대로 있다
     expect(body(w).regionId).toBe(START_REGION_ID);
   });
 
-  it('S-022 능선 위 어느 자리로 가도 마찬가지다 — extent 안이면 전부 받아들여진다', () => {
+  it('S-022 (C006 CHANGED) 능선 위 어느 자리로 가도 마찬가지다 — 한 자리만 특별하지 않다', () => {
     // Given 경사가 급한 자리 여럿 (데이터에서 고른다)
     const steep = verticesOf(domain())
       .filter((v) => v.slope >= STEEP_SLOPE)
       .slice(0, 8);
     expect(steep.length).toBeGreaterThan(0);
+    // Then 전부 같은 규칙이 같은 대답을 준다 — C005 때는 전부 success 였고 지금은 전부 failure 다.
+    // 어느 쪽이든 규칙은 하나이고 자리마다 다른 대답이 나오지 않는다
     for (const v of steep) {
       const w = driveWorld(solo);
-      expect({ at: [v.x, v.z], status: w.dispatch({ interactionId: 'move', position: { x: v.x, z: v.z } }).status }).toEqual({
+      const result = w.dispatch({ interactionId: 'move', position: { x: v.x, z: v.z } });
+      expect({ at: [v.x, v.z], rule: result.rule, status: result.status }).toEqual({
         at: [v.x, v.z],
-        status: 'success',
+        rule: 'RULE-MOVE-001',
+        status: 'failure',
       });
     }
   });
@@ -522,19 +553,28 @@ describe('SPEC-006 — 급경사는 아직 막지 않는다', () => {
     });
   });
 
-  it('S-024 (경계) 높이가 판정에 끼어들지 않는다 — 급경사 자리와 평지 자리의 대답이 같다', () => {
-    const vs = verticesOf(domain());
-    const flat = minBy(vs, (v) => v.slope);
-    const steep = maxBy(vs, (v) => v.slope);
-    const answer = (v: Vertex) =>
-      driveWorld(solo).dispatch({ interactionId: 'move', position: { x: v.x, z: v.z } });
-    expect(answer(steep)).toEqual(answer(flat));
+  it('S-024 (경계) 높이는 여전히 판정에 끼어들지 않는다 — 높이로는 선을 그을 수 없다', () => {
+    // C005 는 "급경사 자리와 평지 자리의 대답이 같다" 로 이것을 쟀다. C006 이 경사와 물을
+    // 전제에 더했으므로 그 둘의 대답은 갈린다. 그러나 **높이** 는 여전히 아무것도 가르지 않는다 —
+    // 받아들여진 자리 중에 거절된 자리보다 높은 곳이 있고, 그 반대도 있다.
+    const vs = verticesOf(domain()).filter((_, i) => i % 7 === 0);
+    const w = driveWorld(solo); // 거절은 몸을 움직이지 않고, 이동 요청은 서로를 대체한다
+    const answers = vs.map((v) => ({
+      y: v.y,
+      ok: w.dispatch({ interactionId: 'move', position: { x: v.x, z: v.z } }).status === 'success',
+    }));
+    const accepted = answers.filter((a) => a.ok);
+    const rejected = answers.filter((a) => !a.ok);
+    expect(accepted.length).toBeGreaterThan(0);
+    expect(rejected.length).toBeGreaterThan(0);
+    expect(Math.max(...accepted.map((a) => a.y))).toBeGreaterThan(Math.min(...rejected.map((a) => a.y)));
+    expect(Math.max(...rejected.map((a) => a.y))).toBeGreaterThan(Math.min(...accepted.map((a) => a.y)));
   });
 });
 
 describe('SPEC-007 — 데이터가 없는 방은 평평하다', () => {
-  it('S-025 stamp 가 없는 여덟 방은 height 격자가 전부 0 이다', () => {
-    for (const spec of flatRooms()) {
+  it('S-025 stamp 가 없는 일곱 방은 height 격자가 전부 0 이다 (C007 SPEC-009 로 좁혀졌다)', () => {
+    for (const spec of stillFlatRooms()) {
       const compiled = compile(spec.space);
       expect({ region: spec.id, nonZero: [...compiled.world.height].filter((h) => h !== 0) }).toEqual({
         region: spec.id,
@@ -544,7 +584,7 @@ describe('SPEC-007 — 데이터가 없는 방은 평평하다', () => {
   });
 
   it('S-026 그 방들의 surface 는 한 종류뿐이다 — 첫째(평지) 태그다', () => {
-    for (const spec of flatRooms()) {
+    for (const spec of stillFlatRooms()) {
       const compiled = compile(spec.space);
       expect({ region: spec.id, used: [...new Set(compiled.world.surface)] }).toEqual({
         region: spec.id,
@@ -556,7 +596,7 @@ describe('SPEC-007 — 데이터가 없는 방은 평평하다', () => {
   });
 
   it('S-027 그래도 땅은 그려진다 — 평면 chunk 가 나온다', () => {
-    for (const spec of flatRooms()) {
+    for (const spec of stillFlatRooms()) {
       const compiled = compile(spec.space);
       expect(compiled.view.chunks.length).toBeGreaterThan(0);
       for (const chunk of compiled.view.chunks) {
@@ -579,19 +619,23 @@ describe('SPEC-008 — 세계는 땅을 싣지 않는다', () => {
   it('S-029 봉투의 키 집합이 그대로다 · region 은 { id, hash } 둘뿐이다', () => {
     const v = driveWorld(solo).observe();
     expect(Object.keys(v).sort()).toEqual(
-      ['specId', 'scene', 'region', 'observer', 'entities', 'interactions', 'hud', 'strikes', 'debug', 'commands'].sort(),
+      // C006 ADDED — standingConditions 하나가 는다 (C006 관찰 계약). 그 밖은 한 글자도 그대로다
+      ['specId', 'scene', 'region', 'observer', 'entities', 'interactions', 'hud', 'strikes', 'debug', 'commands', 'standingConditions'].sort(),
     );
     expect(Object.keys(v.region).sort()).toEqual(['hash', 'id']);
   });
 
-  it('S-030 STATE_VERSION 이 올라가지 않았다 — hkt-adv-proto-i/2', () => {
-    expect(STATE_VERSION).toBe('hkt-adv-proto-i/2');
-    expect(driveWorld(solo).world.snapshot().version).toBe('hkt-adv-proto-i/2');
+  it('S-030 이 Cycle 은 저장되는 State 를 늘리지 않았다 — 땅은 스냅샷에 실리지 않는다', () => {
+    // C005 는 이 값을 'hkt-adv-proto-i/2' 로 못박아 "올리지 않았다" 를 말했다.
+    // C008 이 Region State 를 저장하면서 그 값을 올렸으므로(spec R5) 글자를 재는 것은
+    // 더 이상 C005 의 주장이 아니다 — 남은 주장은 "세계가 찍는 판이 팩의 판과 같다" 와
+    // "땅은 실리지 않는다"(S-031) 다. 뒤의 것이 이 Cycle 이 실제로 재던 것이다.
+    expect(driveWorld(solo).world.snapshot().version).toBe(STATE_VERSION);
   });
 
   it('S-031 스냅샷에도 관찰 결과에도 height · surface · chunk 가 없다', () => {
     const w = driveWorld(solo);
-    walkTo(w, 0, 10); // 능선 쪽으로 걸어 본 뒤에도 그대로다
+    walkTo(w, 0, 2); // 능선 쪽으로 걸어 본 뒤에도 그대로다 (C006 CHANGED — 강 앞까지만 간다)
     const saved = JSON.parse(JSON.stringify(w.world.snapshot()));
     for (const key of ['height', 'surface', 'terrain', 'chunks', 'heightField', 'surfaceTags']) {
       expect(saved.state).not.toHaveProperty(key);
@@ -642,9 +686,13 @@ describe('SPEC-008 — 세계는 땅을 싣지 않는다', () => {
     const space = spaceOf(START_REGION_ID);
     // Then 값이 달라졌다
     expect(descriptionHash(space)).not.toBe(WHITE_KING_HASH_AT_C004);
-    // 그리고 달라진 이유가 **stamp 하나**다 — 그것만 빼면 C004 의 값으로 돌아온다
-    const withoutStamp: RegionDescription = { ...space, ops: space.ops.filter((op) => op.kind !== 'stamp') };
-    expect(descriptionHash(withoutStamp)).toBe(WHITE_KING_HASH_AT_C004);
+    // 그리고 달라진 이유가 **놓인 op** 다 — C005 의 stamp 와 C006 의 일곱을 빼면 C004 의 값으로
+    // 돌아온다 (C006 CHANGED — C005 때는 뺄 것이 stamp 하나뿐이었다)
+    const anchorsOnly: RegionDescription = {
+      ...space,
+      ops: space.ops.filter((op) => op.kind === 'point' && op.layer === ANCHOR_LAYER),
+    };
+    expect(descriptionHash(anchorsOnly)).toBe(WHITE_KING_HASH_AT_C004);
     // 나머지 여덟 방의 hash 는 손대지 않았다 — 관찰 결과의 값이 Description 그대로다
     for (const spec of flatRooms()) {
       expect({ region: spec.id, hash: descriptionHash(spec.space) }).toEqual({
@@ -791,10 +839,17 @@ describe('회귀', () => {
     walkTo(b, 18, 0);
     reasons.add(askTransit(b, RED_WASTE_PASS)!.reason!);
 
+    // C008 이 고대 문 너머를 지었다 — 여기서 오던 region-not-built 는 이제 성공이다
+    // (규칙은 한 글자도 바뀌지 않았다 · C008 SPEC-002 경계). 그 사유는 위의 붉은 황야 고개가 낸다.
+    const gate = driveWorld(solo);
+    toForestDeep(gate);
+    walkTo(gate, -13, 13);
+    expect(transits(gate.observe()).find((i) => i.targetEntityId === ANCIENT_GATE)).toMatchObject({
+      available: true,
+    });
+
     const c = driveWorld(solo);
     toForestDeep(c);
-    walkTo(c, -13, 13);
-    reasons.add(askTransit(c, ANCIENT_GATE)!.reason!);
     walkTo(c, 0, -18);
     c.dispatch({ interactionId: 'attack' });
     reasons.add(askTransit(c, DEEP_TRAIL)!.reason!);
@@ -917,18 +972,45 @@ describe('회귀', () => {
     expect(nameHits(ENGINE).join('\n')).toBe('');
   });
 
-  it('R-009 (C005 R4) 이 Cycle 이 세계의 규칙을 하나도 더하지 않았다 — 규칙 파일에 경사·높이가 없다', () => {
-    // 이 Cycle 의 주장 그대로다: 땅은 데이터로 생겼고 판정은 한 글자도 늘지 않았다
-    const forbidden = ['slopeAtVertex', 'sampleSlope', 'sampleHeight', 'buildHeightField', 'compileRegion', 'terrainHeightSampler'];
-    for (const file of sourceFiles(CONTENT_WORLD)) {
+  it('R-009 (C005 R4 · C006 CHANGED) 세계가 땅을 읽는 자리는 spec 이 정한 곳뿐이다', () => {
+    // C005 의 주장은 "content/world 의 **어느** 파일도 땅을 읽지 않는다" 였다. C006 spec 이
+    // 그 주장을 명시적으로 바꾼다 — "여기서 세계가 처음 땅을 읽는다"(World Change ② · ③).
+    // 지우지 않고 **좁힌다**: 땅을 읽는 것은 spec 이 정한 자리에만 있고, 나머지 world 코드는
+    // 여전히 땅을 모른다. 그리고 그 자리조차 격자 기하를 **다시 재지 않는다** —
+    // 컴파일 결과를 자리로 물을 뿐이다 (C006 spec Reuse · 기구 API).
+    const LAND_WORDS = ['compileRegion', 'isTraversableAt', 'blockedReasonAt', 'tagsAt', 'areasOf'];
+    /** 세계는 격자를 스스로 재지 않는다 — 이 낱말들은 어디에도 없어야 한다 */
+    const GEOMETRY_WORDS = [
+      'slopeAtVertex',
+      'sampleSlope',
+      'sampleHeight',
+      'buildHeightField',
+      'terrainHeightSampler',
+      'vertexX',
+      'vertexZ',
+    ];
+
+    const files = sourceFiles(CONTENT_WORLD);
+    expect(files.length).toBeGreaterThan(0);
+
+    const readsLand: string[] = [];
+    const compiles: string[] = [];
+    for (const file of files) {
       const text = readFileSync(file, 'utf8');
-      for (const word of forbidden) {
-        expect({ file: relative(ROOT, file), word, found: text.includes(word) }).toEqual({
-          file: relative(ROOT, file),
-          word,
-          found: false,
-        });
+      const name = relative(ROOT, file);
+      // ① 격자 기하는 세계의 어느 파일에도 없다 (C005 의 주장이 이 부분은 그대로 산다)
+      for (const word of GEOMETRY_WORDS) {
+        expect({ file: name, word, found: text.includes(word) }).toEqual({ file: name, word, found: false });
       }
+      if (LAND_WORDS.some((word) => text.includes(word))) readsLand.push(name);
+      if (text.includes('compileRegion')) compiles.push(name);
     }
+
+    // ② 땅을 읽는 파일이 실제로 있다 — C006 이 그것을 세웠다 (검사가 헛돌지 않는다)
+    expect(readsLand.length).toBeGreaterThan(0);
+    // ③ 그러나 spec 이 정한 자리뿐이다: 세계가 땅을 드는 파일과 이동 규칙 — 둘을 넘지 않는다
+    expect(readsLand.length).toBeLessThanOrEqual(2);
+    // ④ 컴파일하는 자리는 하나다 — 땅을 드는 파일 하나가 아홉 방을 든다 (R2)
+    expect(compiles.length).toBe(1);
   });
 });

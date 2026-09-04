@@ -35,8 +35,30 @@ export interface HeightField {
  */
 export interface SurfaceRule {
   tag: string;
-  /** 이 값 미만의 경사에만 붙는다 (라디안). 없으면 위가 열려 있다 */
+  /** 이 값 미만의 경사에만 붙는다 (라디안). 없으면 경사를 묻지 않는다 */
   maxSlope?: number;
+  /** 이 (layer, tag) curve 의 중심선에서 maxDistance **이하**일 때만 붙는다 */
+  nearCurve?: { layer: string; tag: string; maxDistance: number };
+}
+
+/**
+ * 막는 규칙 하나 — 맞으면 그 vertex 는 traversable = 0 이고 reason 태그가 붙는다.
+ * 한 규칙 안의 조건들은 AND 이고, 배열 순서로 첫 번째로 맞는 것이 이긴다.
+ */
+export interface BlockRule {
+  /** 이 값 **이상**의 경사면 막는다 (라디안) */
+  minSlope?: number;
+  /** 이 (layer, tag) curve 의 중심선에서 maxDistance **이하**면 막는다 */
+  nearCurve?: { layer: string; tag: string; maxDistance: number };
+  /** 막힘의 사유 — 컨텐츠의 코드. 기반은 뜻을 모른다 */
+  reason: string;
+}
+
+/** 막힘을 덮는 자리 — 이 (layer, tag) point 둘레 radius 안은 언제나 통행 가능하다 */
+export interface PassRule {
+  layer: string;
+  tag: string;
+  radius: number;
 }
 
 /** 세계 규칙이 읽는 것 — 고정 해상도 격자. chunk 없음 */
@@ -49,6 +71,12 @@ export interface CompiledWorldTerrain {
   /** surfaceTags 의 색인 — vertex 마다 하나 */
   surface: Uint8Array;
   surfaceTags: string[];
+  /** vertex 마다 1 = 통행 · 0 = 막힘 */
+  traversable: Uint8Array;
+  /** blockedTags 의 색인 — 0 은 "막히지 않음" */
+  blocked: Uint8Array;
+  /** 색인 0 은 언제나 '' (막힘 없음). 그 뒤는 규칙에 나온 순서대로의 reason 태그 */
+  blockedTags: string[];
   areas: { layer: string; tag: string; shape: AreaShape }[];
   points: { layer: string; tag: string; position: XZ }[];
 }
@@ -63,6 +91,8 @@ export interface CompiledViewTerrain {
   /** positions 는 (x, y, z) 셋씩 — chunk 안의 vertex 격자 */
   chunks: { ix: number; iz: number; cols: number; rows: number; positions: Float32Array; surface: Uint8Array }[];
   surfaceTags: string[];
+  /** instanceLayers 의 point 들 — y 는 컴파일 시점의 지면 높이다 */
+  instances: { tag: string; position: XZ; y: number }[];
 }
 
 /** 컴파일이 받는 규칙 — 이름도 뜻도 컨텐츠가 준다 */
@@ -70,6 +100,12 @@ export interface CompileRules {
   resolution: number;
   /** 위에서부터 첫 번째로 맞는 것이 이긴다 */
   surface: readonly SurfaceRule[];
+  /** 없으면 아무것도 막지 않는다 — 격자 전체가 traversable = 1 이다 */
+  blocked?: readonly BlockRule[];
+  /** 막힘을 덮는 것. blocked 뒤에 적용된다 */
+  passages?: readonly PassRule[];
+  /** 그리는 쪽 instance 로 내보낼 point layer 들. 없으면 instance 는 빈 배열 */
+  instanceLayers?: readonly string[];
 }
 
 export interface CompiledRegion {

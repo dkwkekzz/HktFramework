@@ -89,5 +89,6 @@
   "debug": {
     "open": false
   },
-  "commands": []
+  "commands": [],
+  "standingConditions": []
 }

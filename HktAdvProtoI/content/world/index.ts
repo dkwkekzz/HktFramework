@@ -15,6 +15,7 @@ import type { ActorState } from './semantic/actor';
 import type { ItemKind } from './semantic/item';
 import type { WorldPosition } from './semantic/position';
 import { START_REGION } from './semantic/region';
+import { createRegionStates } from './semantic/region-state';
 import { spawnActor } from './semantic/spawn';
 import {
   SPAWN_POINTS,
@@ -26,6 +27,7 @@ import { ruleActionProgress } from './simulation/action-progress';
 import { ruleBodyMomentum } from './simulation/body-momentum';
 import { ruleBodyPush } from './simulation/body-push';
 import { ruleCpRunDrain } from './simulation/cp-run-drain';
+import { ruleMazeConnection } from './simulation/maze-connection';
 import { ruleMoveProgress } from './simulation/move-progress';
 import { ruleNpcDecideAll } from './simulation/npc-decide';
 import { ruleRegionFall } from './simulation/region-fall';
@@ -59,25 +61,31 @@ export interface WorldSetup {
 
 // 세계의 기본 배치 — 자율 캐릭터 둘이 각자의 순회 경로를 돈다. 자리는 START_REGION 의 Local Space 좌표다 (C001 R4).
 // characterKind 를 바꾸면 그 캐릭터가 쓰는 모션 집합이 바뀐다 (motions/<종류>/ 폴더).
+//
+// C006 CHANGED — 두 사람의 순회 경로가 강을 비켜 간다. 자리는 그대로 배치 데이터이지만
+// (규칙은 하나도 늘지 않는다), C005 까지의 경로는 이제 강 한복판을 지난다 — 이동 진행은
+// traversable 을 보지 않으므로(spec R1 은 요청만 판정한다) 그대로 두면 사람이 물 위를 걷는다.
+//   npc-1 강 남쪽 — 도시와 그 남쪽 들을 돈다 (실측: 네 꼭짓점 다 중심선에서 6.8 이상)
+//   npc-2 강 북쪽 — 건너편에 사는 사람. 다리를 건너기 전에는 만날 수 없다
 const DEFAULT_NPCS: NpcSetup[] = [
   {
     id: 'npc-1',
     characterKind: 'wanderer',
-    position: { x: -8, z: 4 },
+    position: { x: -8, z: 0 },
     wanderPath: [
-      { x: -8, z: 4 },
+      { x: -8, z: 0 },
       { x: -8, z: -6 },
       { x: 2, z: -6 },
-      { x: 2, z: 4 },
+      { x: 2, z: 0 },
     ],
   },
   {
     id: 'npc-2',
     characterKind: 'wanderer',
-    position: { x: 12, z: 8 },
+    position: { x: 12, z: 14 },
     wanderPath: [
-      { x: 12, z: 8 },
-      { x: 4, z: 12 },
+      { x: 12, z: 14 },
+      { x: 4, z: 16 },
     ],
   },
 ];
@@ -89,6 +97,9 @@ const DEFAULT_NPCS: NpcSetup[] = [
 const SYSTEMS: WorldContent<WorldState>['systems'] = [
   (state) => ruleNpcDecideAll(state), // RULE-NPC-DECIDE-001
   (state, dt) => ruleMoveProgress(state, dt), // RULE-MOVE-PROGRESS-001
+  // 걸음이 그 방의 압력이 된다 — move-progress 가 적은 movedThisTick 을 바로 뒤에서 읽는다.
+  // 다른 무엇이 자리를 건드리기 전이고, 관찰(투영)보다는 당연히 앞이다 (C008 spec R1 Priority).
+  (state) => ruleMazeConnection(state), // RULE-MAZE-CONNECTION-001
   (state, dt) => ruleActionProgress(state, dt), // RULE-ACTION-PROGRESS-001
   (state) => ruleSwingStrike(state), // RULE-SWING-STRIKE-001 (STRIKE-DAMAGE → SKILL-BUDGET → DOWNED 를 함께 부른다)
   (state, dt) => ruleBodyPush(state, dt), // RULE-BODY-PUSH-001
@@ -146,6 +157,9 @@ export function createWorld(setup: WorldSetup = {}, restored?: WorldState): Worl
     time: 0,
     observers: [],
     strikeEvents: [],
+    // 규칙을 품은 방마다 첫 패턴 · 압력 0 으로 선다 (C008). 되살린 세계는 이 자리에 오지 않는다 —
+    // Region State 는 저장되는 State 이므로 스냅샷의 그 순간 값이 그대로 이어진다.
+    regionStates: createRegionStates(),
     // 속성 변경 권한은 세계 밖(세계를 띄우는 쪽)이 정한다.
     // 기본은 열려 있다: 이 프로토타입은 관찰과 시험이 목적이며, 닫으려면 세계를 그렇게 띄운다.
     debugAuthority: { open: setup.debugAuthority ?? true },
