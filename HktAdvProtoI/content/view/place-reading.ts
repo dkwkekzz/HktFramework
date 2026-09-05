@@ -14,7 +14,7 @@
 import { descriptionHash } from '../../engine/world-authoring/description';
 import { blockedReasonAt, isTraversableAt, surfaceAt, tagsAt } from '../../engine/world-authoring/query';
 import type { GameViewSnapshot } from '../protocol/gameview';
-import { regionSpec } from '../regions/index';
+import { TRACE_LAYER, regionSpec } from '../regions/index';
 import { SETTLEMENT_LAYER } from './biome-rules';
 import { CELL_LAYER, openPassageTags } from './region-presentation';
 import { regionTerrain } from './terrain-presentation';
@@ -113,7 +113,10 @@ export function readPlace(
   const world = compiled.world;
 
   const areas: PlaceAreas[] = [];
-  for (const layer of [SETTLEMENT_LAYER, CELL_LAYER]) {
+  // TRACE_LAYER 가 셋째다 (C011) — 물으면 그 자리의 흙도 답한다. 지면에는 글자가 없으므로
+  // (C026 R4) 흔적이 무슨 단계인지는 **물었을 때만** 말이 된다. 겹치면 전부 담긴다 —
+  // 여기서 가장 짙은 것 하나로 줄이지 않는다: 줄을 만드는 것은 이 파일의 일이 아니다
+  for (const layer of [SETTLEMENT_LAYER, CELL_LAYER, TRACE_LAYER]) {
     const tags = tagsAt(world, point.x, point.z, layer);
     if (tags.length > 0) areas.push({ layer, tags });
   }

@@ -25,6 +25,7 @@ import { agoText } from './answer-log';
 import { readBeing, type BeingOffer, type BeingReading } from './being-reading';
 import { codeText } from './code-text';
 import { SETTLEMENT_LAYER } from './biome-rules';
+import { TRACE_LAYER } from '../regions/index';
 import { interactionPresentation } from './interaction-presentation';
 import { CELL_LAYER, regionName } from './region-presentation';
 import type { Designation } from './pointer-rules';
@@ -53,6 +54,9 @@ export const PLACE_ROW_LABELS: Readonly<Record<string, string>> = {
   // 무엇이 걸렸나
   'place.settlement': '걸린 것',
   'place.cell': '구역',
+  // 흙의 변색 (C011) — 지면에는 글자가 없으므로 이 자리가 흔적이 말이 되는 유일한 곳이다.
+  // 이름표는 **무엇을 본 것인지**만 말하고, 짙기는 값(code-text 의 soil-stain:n)이 말한다
+  'place.trace': '흙',
   'place.passage': '통로',
   // 규칙이 있나
   'place.pattern': '지금 길',
@@ -88,6 +92,7 @@ const ROW_LABELS: Readonly<Record<string, string>> = {
 const AREA_LAYER_ROWS: Readonly<Record<string, string>> = {
   [SETTLEMENT_LAYER]: 'place.settlement',
   [CELL_LAYER]: 'place.cell',
+  [TRACE_LAYER]: 'place.trace',
 };
 
 /**

@@ -1,12 +1,28 @@
 // 의미 코드 → 플레이어 표시 문구 (결정 Layer 데이터).
 // World 는 코드만 보낸다 — 불가 사유 코드, 행동 코드 등. 문구는 여기서 정한다.
 // 미등록 코드는 코드 그대로 표시된다 — 표현 누락이 게임을 멈추지 않는다.
+//
+// 재료 계통의 코드들만은 **키를 직접 적지 않고 데이터의 이름을 그대로 받아 쓴다** (C011).
+// 그 이름의 원본은 content/regions 하나이고(soilStainTag 의 주석: "데이터도 표현도 이
+// 함수 하나로 이름을 짓는다"), 여기 사본을 두면 데이터가 태그를 옮겼을 때 화면이 말을
+// 잃는 것이 아니라 **옛 말을 계속 한다** — 그쪽이 훨씬 나쁘다.
+
+import {
+  BIO_ORE,
+  FORM_MOLT_LITTER,
+  FORM_OUTCROP,
+  FORM_ROOT_NODULE,
+  FORM_SPOIL_PILE,
+  ORE_EATER_MOLT,
+  soilStainTag,
+} from '../regions/index';
 
 const CODE_TEXT: Record<string, string> = {
   // 불가 사유
   'no-mining-tool': '곡괭이가 없다',
   'out-of-range': '너무 멀다 — 가까이 이동하자',
-  'deposit-depleted': '광맥이 고갈되었다',
+  // 세계가 그 원천을 알지 못한다 (C011 R1 · R2 의 거절)
+  'unknown-source': '그런 원천이 없다',
   // 불가 사유
   'action-busy': '지금 하는 행동이 끝나야 한다',
   'no-target': '대상이 없다',
@@ -99,17 +115,26 @@ const CODE_TEXT: Record<string, string> = {
   interaction: '들어감',
   falling: '추락',
   river: '물길',
-  // 광맥의 종류 (deposit.resourceKind) — 무엇이 나는 광맥인가
-  stone: '돌 광맥',
+  // 재료의 자연 형태 (entity.kind — C011). 같은 계통이 자리마다 다른 형태로 난다.
+  // 판의 제목이 이 말이다 — 지목하면 그것이 **무엇으로 보이는가**가 먼저 온다.
+  // 쓰임은 한 글자도 없다 (spec SPEC-002 경계 · S10): 관찰된 것만 적는다
+  [FORM_OUTCROP]: '광맥의 노두',
+  [FORM_ROOT_NODULE]: '거목의 부푼 뿌리혹',
+  [FORM_MOLT_LITTER]: '나무 밑동에 흩어진 껍질 조각',
+  [FORM_SPOIL_PILE]: '헐린 선광 더미',
+  // 재료의 이름 (Material Seed 코드 — C011). 소지품 줄의 이름표가 이 말이다.
+  // **무엇에 쓰는지는 여기에도 어디에도 없다**
+  [BIO_ORE]: '생체 광석',
+  [ORE_EATER_MOLT]: '광식충 허물',
   // 사람·짐승의 종류 (CharacterKind) — kind-presentation · character-catalog 와 같은 이름들
   wanderer: '방랑자',
   'rabbit-swordsman': '토끼 검사',
   // 이름 없는 것의 이름 ② 역할(entity.role) — 종류마저 모를 때 마지막으로 남는 표
-  'resource-deposit': '광맥',
+  'resource-source': '재료의 원천',
   'region-exit': '출구 표식',
   // 존재가 지금 하는 일 — 사람의 행동 코드(idle · move · mine …)는 위에 이미 있고,
   // 여기 넷은 사람이 아닌 것들의 상태다. 세계가 보내던 코드에 말을 줄 뿐이다
-  available: '남아 있다', // 광맥에 아직 캘 것이 있다
+  available: '남아 있다', // 원천이 아직 그 자리에 있다
   depleted: '바닥났다',
   open: '열려 있다', // 출구 표식 — 건널 수 있는 길이다
   locked: '잠겨 있다',
@@ -143,6 +168,20 @@ const CODE_TEXT: Record<string, string> = {
   'condition:tree': '거목이 포식자를 물린다', // 백색 거목 둘레에는 포식자가 오지 않는다 (Concept §3 · §3.2)
   // 조건 셋이 모인 자리 — 그래서 사람이 산다. 조건(왜)과 결과(그래서)를 다른 말로 둔다
   city: '사람이 사는 자리',
+  // 흙의 변색 다섯 (C011 — trace layer 의 soil-stain 태그. 물었을 때 판의 "흙" 줄이 이 말이다).
+  //
+  // **짙기의 사다리 한 벌이다** — 다섯 마디가 한 줄로 세워졌을 때 어느 쪽이 더 짙은지가
+  // 말만 읽고도 갈려야 한다 (Playable Goal: 짙어지는 쪽을 따라간다). 그래서 다섯이 같은
+  // 축 하나(흙이 얼마나 물들었는가)만 말하고 다른 사실을 섞지 않는다.
+  //
+  // **수를 적지 않는다.** 단계는 데이터의 것이고, 관찰자가 보는 것은 흙뿐이다 —
+  // "3단계" 라고 적는 순간 세계에 없는 눈금이 생기고 따라갈 것이 색이 아니라 숫자가 된다.
+  // 무엇이 그렇게 만들었는지도 말하지 않는다 (그것을 잇는 것이 이 Play 다).
+  [soilStainTag(1)]: '흙 색이 조금 다르다',
+  [soilStainTag(2)]: '흙에 붉은 기가 돈다',
+  [soilStainTag(3)]: '흙이 붉게 물들었다',
+  [soilStainTag(4)]: '붉은 흙이 검게 짙어졌다',
+  [soilStainTag(5)]: '흙이 검붉게 절었다',
   // 명령이 무엇을 하는가 (Command.Effect)
   'set-attribute': '존재의 속성 값을 바꾼다',
   // 돌아가기 (C009 RULE-EMERGENCY-RETURN-001). **방을 건너지 않는다** — 같은 방 안의

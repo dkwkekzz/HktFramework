@@ -40,6 +40,17 @@ const PALETTE: Record<string, string> = {
   y: '#f2e8cf', // D 구역의 식물 — 상아 (볕)
   Y: '#8b8064', // 상아 (그늘)
   v: '#2b2438', // 식물 넷의 공통 밑동 — 어디에 서든 지면에 닿는 그늘 한 줄
+  // 재료 원천 넷의 색 (C011) — **두 계통을 색으로 먼저 가른다**: 생체 광석은 붉고(C·c·G),
+  // 광식충 허물은 옅은 껍질색이다(m·k). 허물에 붉은 결 한 점(x)만 남겨 둔 것은 같은
+  // 계통이라는 것이 색에서도 한 번 읽히게 하려는 것이다 (Play §4 의 추측).
+  C: '#f2684a', // 생체 광석의 결정면 (볕) — 이 세계에서 가장 붉다
+  c: '#a83526', // 생체 광석의 결정 (그늘)
+  G: '#5b2118', // 광석의 가장 깊은 결 — 땅에 닿는 밑동
+  m: '#dcc6a6', // 광식충 허물의 껍질 (볕) — 광석보다 옅다
+  k: '#a89076', // 허물의 껍질 (그늘)
+  x: '#c07a5c', // 허물에 남은 옅은 붉은 결
+  u: '#7b5a39', // 나무 밑동·뿌리 (볕)
+  U: '#523c26', // 나무 밑동·뿌리 (그늘)
   '.': '',
 };
 
@@ -81,41 +92,99 @@ const PLAYER_MOVING = [
   '................',
 ];
 
-const DEPOSIT_AVAILABLE = [
+// ── 재료의 원천 넷 (C011) ────────────────────────────────────────────
+//
+// 광맥 하나(stone-deposit)가 서 있던 자리를 대신한다. 넷은 같은 role('resource-source')
+// 이므로 **그림이 유일한 구분**이다 — 세계 위에 이름표가 없고(C026 R4 · spec SPEC-008)
+// 색으로만 갈라 두면 두 계통이 두 덩어리로 뭉쳐 보인다.
+//
+// 그래서 넷을 **실루엣부터** 갈랐다 (미로의 식물 넷이 두 축으로 갈린 것과 같은 어법).
+//   흩어진 조각들(낮고 넓다) · 프레임을 두른 더미(인공물이 꽂혀 있다) ·
+//   뾰족한 결정 무리(높고 각지다) · 굵은 뿌리에 달린 혹(둥근 덩이 하나)
+// 짙기도 갈린다 — 노두가 가장 붉고, 허물이 가장 옅다 (D2 "광석보다 옅다").
+//
+// 남은 양을 그림이 말하지 않는다. 이 Cycle 의 원천은 캐도 줄지 않고, state 도 'available'
+// 하나뿐이므로 그림도 하나다.
+
+// 나무 밑동에 흩어진 껍질 조각 — 서 있는 것이 아니라 **깔려 있다**. 넷 가운데 가장 낮고 넓다
+const SOURCE_MOLT_LITTER = [
   '................',
   '................',
-  '................',
-  '......RRr.......',
-  '.....RRRrr......',
-  '....RRrRrrr.....',
-  '....RrrrrrdRR...',
-  '...RRrRrrrdRRr..',
-  '...RrrrrdrrRrr..',
-  '..RRrrRrrrrrrd..',
-  '..Rrrrrrdrrrrd..',
-  '..rrrdrrrrdrrd..',
-  '.rrrrrrrrrrrrdd.',
-  '.dddddddddddddd.',
-  '................',
+  '...uuuuuu.......',
+  '..uUuuuuUu......',
+  '..uUuuuuUu...m..',
+  '..uUuuuuUu..mkx.',
+  '..uUuuuuUu..mmk.',
+  '..uuuuuuuu...kk.',
+  '.uUUuuuuUUu.....',
+  '...mkx..........',
+  '..mmk.....mkx...',
+  '..mkk....mmkk...',
+  '.......mkx......',
+  '..mk..mmkk......',
+  '..kk...mkk..mk..',
   '................',
 ];
 
-const DEPOSIT_DEPLETED = [
+// 헐린 선광 더미 — 돌무더기에 **사람이 두고 간 것**이 섞였다: 부러진 삽 하나가 꽂혀 있고
+// 나무틀이 더미를 두르고 있다. 자연 형태 넷 가운데 유일하게 직선(틀)을 가진 실루엣이다
+const SOURCE_SPOIL_PILE = [
   '................',
+  '.........W......',
+  '........W.......',
+  '.......W........',
+  '......MM........',
+  '.....MMM..R.....',
+  '....RrMd.Rrr....',
+  '...RrrrdrrrrR...',
+  '..RrrdrrrxrrrR..',
+  '..RrrrrdrrrrrR..',
+  '.RrrdrrrrrdrrrR.',
+  '.WWWWWWWWWWWWWW.',
+  '.W.rrrdrrrrrr.W.',
+  '.W.dddddddddd.W.',
+  '.WWWWWWWWWWWWWW.',
   '................',
+];
+
+// 광맥의 노두 — 땅을 뚫고 솟은 결정 무리. 넷 가운데 가장 높고 가장 각지고 **가장 붉다**
+const SOURCE_OUTCROP = [
   '................',
+  '.......C........',
+  '......CCc.......',
+  '..C...CCc.......',
+  '.CCc..CCCc...C..',
+  '.CCc.CCCCc..CCc.',
+  '.CCc.CCcCc..CCc.',
+  'cCCc.CCcCcc.CCcc',
+  'cCCccCCcCcc.CCcc',
+  'cCCcCCCcCCccCCcc',
+  'cGCcCGCcCGccGCcc',
+  '.cGGcGGcGGccGGc.',
+  '..cGGGGGGGGGGc..',
+  '...cGGGGGGGGc...',
+  '....GGGGGGGG....',
   '................',
+];
+
+// 거목의 부푼 뿌리혹 — 굵은 뿌리 하나가 비스듬히 내려와 **둥근 덩이 하나**로 부풀었다.
+// 각진 노두와 정반대의 실루엣이고, 붉은 것이 광석이 아니라 살아 있는 것에 붙어 있다
+const SOURCE_ROOT_NODULE = [
   '................',
-  '......DD........',
-  '.....DDDe.......',
-  '....DDeDDD......',
-  '...DDDDeDDe.....',
-  '...DeDDDDDDe....',
-  '..DDDDeDDDeDD...',
-  '..DeDDDDeDDDe...',
-  '.DDDDeDDDDDeDD..',
-  '.eeeeeeeeeeeee..',
-  '................',
+  '..u.............',
+  '..uU............',
+  '..uU............',
+  '..uUu...........',
+  '..uuUu..........',
+  '...uuUuu........',
+  '....uuUCCc......',
+  '.....uCCCCCc....',
+  '....CCCCCCCCc...',
+  '...CCCCCcCCCCc..',
+  '...CCCcCCCcCCc..',
+  '...cCCCCCCCcCc..',
+  '....cCCCCCCcuUu.',
+  '.....ccCCccuuUUu',
   '................',
 ];
 
@@ -425,8 +494,12 @@ const PIXEL_MAPS: Record<string, string[]> = {
   'clue:cap-bloom': CLUE_CAP_BLOOM,
   'clue:spine-stalk': CLUE_SPINE_STALK,
   'clue:bell-vine': CLUE_BELL_VINE,
-  'stone-deposit:available': DEPOSIT_AVAILABLE,
-  'stone-deposit:depleted': DEPOSIT_DEPLETED,
+  // 재료의 원천 넷 (C011) — 키는 `<sprite>:<state>` 이고 state 는 'available' 하나뿐이다.
+  // 어느 그림을 세울지는 role-presentation 의 spriteByKind 가 kind 로 고른다
+  'source:molt-litter:available': SOURCE_MOLT_LITTER,
+  'source:spoil-pile:available': SOURCE_SPOIL_PILE,
+  'source:outcrop:available': SOURCE_OUTCROP,
+  'source:root-nodule:available': SOURCE_ROOT_NODULE,
 };
 
 /** 이 팩의 스프라이트 표 — 조립 루트가 engine 의 registerSprites 에 넘긴다 */

@@ -229,6 +229,9 @@ export function resolvePresentation(
       const unattended = e.attended === false;
       // 종류별 색 표가 있으면 그것이 role 의 기본 색보다 우선한다
       const baseTint = (e.kind !== undefined ? p.tintByKind?.[e.kind] : undefined) ?? p.tint;
+      // 종류별 그림 표가 있으면 그것이 role 의 기본 그림보다 우선한다 —
+      // 바로 위 색의 규율(tintByKind > tint)과 **같은 차례**다 (C011)
+      const sprite = (e.kind !== undefined ? p.spriteByKind?.[e.kind] : undefined) ?? p.sprite;
       const tint = unattended && p.unattendedTint !== undefined ? p.unattendedTint : baseTint;
       const label =
         unattended && p.unattendedLabel !== undefined
@@ -254,7 +257,7 @@ export function resolvePresentation(
         : undefined;
       return {
         id: e.id,
-        spriteId: `${p.sprite}:${e.state}`,
+        spriteId: `${sprite}:${e.state}`,
         ...(motion ? { motion } : {}),
         // 몸이 있는 존재의 그림 크기는 몸 높이에서 유도한다 —
         // 충돌체와 이미지가 어긋나지 않고, 새 종류를 추가해도 자동으로 일치한다.
