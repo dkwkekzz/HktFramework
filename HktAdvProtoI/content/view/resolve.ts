@@ -17,6 +17,7 @@ import type {
   SceneMotion,
   SceneState,
 } from '../../engine/view-kernel/scene/scene-state';
+import { answerLogLines, type KeptAnswer } from './answer-log';
 import { collisionDebug } from '../../engine/view-kernel/presentation/collision-presentation';
 import { commandEntries, composeCommand } from '../../engine/view-kernel/presentation/command-presentation';
 import {
@@ -65,6 +66,14 @@ export interface PresentationOptions {
    * 표시하면 그것이 거짓말이다.
    */
   designation?: Designation;
+  /**
+   * 세계가 나에게 한 말들 — 거절 사유와 알림 (C028 R4 · SPEC-006). **관찰자가 쥐는 값이다**:
+   * 스냅샷에 실리지 않고 조립(app)이 모아 두며 다른 관찰자에게 가지 않는다 (SPEC-009 경계).
+   *
+   * **오래된 것부터** 온다 — 새 것을 위에 세우는 것은 표현의 결정이므로 answerLogLines 가
+   * 뒤집는다. 없거나 비면 판에 기록 자리가 아예 서지 않는다 (SPEC-006 경계).
+   */
+  answers?: readonly KeptAnswer[];
 }
 
 /**
@@ -173,13 +182,24 @@ export function resolvePresentation(
   const snapshot = observed as GameViewSnapshot;
   // 세계 시각 — 타격 결과의 나이도, 재배열이 얼마 전인지도 이 값 하나로 잰다.
   // zones 가 그것을 쓰므로 장면을 세우기 전에 먼저 읽는다.
-  const worldTime = Number(snapshot.hud.find((h) => h.id === 'world.time')?.value ?? 0);
+  const worldTimeValue = snapshot.hud.find((h) => h.id === 'world.time')?.value;
+  const worldTime = Number(worldTimeValue ?? 0);
+  // 세계 시각을 **모르는 것**과 0 인 것은 다르다 (C028 SPEC-003 경계). 봉투가 아직 그 줄을
+  // 싣지 않았으면 나이를 재지 않는다 — 아래 두 자리(기록 줄 · 재배열)가 이 값을 받는다.
+  // zones 는 지금까지대로 0 을 받는다 (C008 의 맥동은 창 밖이면 어차피 서지 않는다)
+  const knownWorldTime =
+    worldTimeValue !== undefined && Number.isFinite(worldTime) ? worldTime : undefined;
   // 판은 지목이 없어도 선다 (C027 R3) — 지목을 넘기고, 없으면 내가 선 자리가 답한다.
   // 표식은 지목이 있고 그 대상이 아직 세계에 있을 때만 선다
-  const frame = targetFrame(snapshot, options.designation);
+  const frame = targetFrame(snapshot, options.designation, knownWorldTime);
   const highlight = options.designation
     ? designationHighlight(snapshot, options.designation)
     : undefined;
+  // 관찰자가 모아 둔 말 → 판의 기록 줄 (C028 R4). **판이 무엇을 지고 있든 같은 자리다** —
+  // 지목한 자리든 존재든 내가 선 자리든, 기록은 대상의 것이 아니라 관찰자의 것이므로
+  // 대상이 바뀌어도 그대로 남는다 (SPEC-006). 비면 붙이지 않는다 — 빈 기록판은 없다
+  const log = answerLogLines(options.answers ?? [], knownWorldTime);
+  const framed = frame && log.length > 0 ? { ...frame, log } : frame;
   return {
     specId: snapshot.specId,
     terrain: snapshot.scene,
@@ -195,7 +215,7 @@ export function resolvePresentation(
     // 판 하나 (C026 · C027 CHANGED) — 지목한 것이 서고, 지목이 없으면 **내가 선 자리**가
     // 선다. 판이 아예 없는 경우는 내 몸을 모를 때뿐이다. 표식은 지목이 있을 때만 선다.
     // 세계로 나가는 요청은 어느 쪽이든 0 이다 (SPEC-009)
-    ...(frame ? { targetFrame: frame } : {}),
+    ...(framed ? { targetFrame: framed } : {}),
     ...(highlight ? { highlight } : {}),
     // 조작 안내에 팩이 보태는 줄 (C027 R6)
     keyHints: designateHint(),

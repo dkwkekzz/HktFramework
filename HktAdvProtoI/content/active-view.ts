@@ -24,3 +24,6 @@ export { regionEntryTitle } from './view/region-presentation';
 // 클릭 하나가 무슨 뜻인가 (C026 R3) — 기반은 집기(pick)까지만 하고 스스로 요청을 만들지 않는다.
 // 조립이 이 정책을 기반에 주입한다 (SPEC-007 경계).
 export { pointerRules, type Designation, type PointerOutcome } from './view/pointer-rules';
+// 세계가 나에게 한 말을 모아 두는 그릇 (C028) — **모으는 것은 조립**이고, 몇 줄까지
+// 남기는지도 무슨 말을 남기는지도 컨텐츠가 정한다. 판에 어떻게 서는지는 resolve 가 읽는다.
+export { ANSWER_LOG_LIMIT, type KeptAnswer } from './view/answer-log';

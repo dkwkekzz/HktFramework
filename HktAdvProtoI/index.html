@@ -80,6 +80,13 @@
     .tf-rows { margin-top: 6px; border-top: 1px solid #1b2230; padding-top: 5px; }
     .tf-row { display: flex; align-items: center; gap: 8px; line-height: 1.5; }
     .tf-row[data-muted="true"] { opacity: 0.55; }
+    /* 기록 (C028) — 줄들과 같은 계열이되 한 칸 물러선 색이다: 지금의 사실이 아니라
+       **지나간 일**이므로 눈이 먼저 가면 안 된다. 비면 이 자리가 아예 없다 (판이 세우지 않는다). */
+    .tf-log { margin-top: 6px; border-top: 1px solid #1b2230; padding-top: 5px; }
+    .tf-log-line { display: flex; align-items: baseline; gap: 8px; line-height: 1.45; }
+    .tf-log-text { flex: 1 1 auto; color: #b6c0d4; word-break: keep-all; }
+    /* 때는 오른쪽 끝에 — 말이 먼저 읽히고 언제인지는 곁들이는 것이다 */
+    .tf-log-when { flex: 0 0 auto; color: #6d7789; font-size: 11.5px; }
     .tf-label { flex: 0 0 auto; color: #7f8aa0; }
     .tf-value { flex: 1 1 auto; color: #d6dcea; word-break: keep-all; }
     .tf-bar {

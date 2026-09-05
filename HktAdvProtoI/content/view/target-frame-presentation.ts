@@ -21,6 +21,7 @@ import type {
   SceneTargetFrame,
 } from '../../engine/view-kernel/scene/scene-state';
 import type { GameViewPosition, GameViewSnapshot } from '../protocol/gameview';
+import { agoText } from './answer-log';
 import { readBeing, type BeingOffer, type BeingReading } from './being-reading';
 import { codeText } from './code-text';
 import { SETTLEMENT_LAYER } from './biome-rules';
@@ -129,25 +130,33 @@ export function designationHighlight(
  * 지목이 없으면 대상은 내 몸이 선 자리다 (R3 · SPEC-005). 지목한 몸이 세계에서 사라졌을
  * 때도 같은 자리로 돌아간다 — 없는 몸을 판에 세우지 않는다 (SPEC-004 경계).
  * 판 자체가 없는 경우는 하나뿐이다: **내 몸이 어디 있는지도 모를 때**.
+ *
+ * C028 CHANGED — 지금 세계 시각을 함께 받는다 (spec R5). 자리의 규칙 줄이 마지막 재배열이
+ * 얼마 전인지를 그 값으로 재기 때문이다. 모르면(넘기지 않으면) 때를 지어내지 않는다.
  */
 export function targetFrame(
   snapshot: GameViewSnapshot,
   designation: Designation | undefined,
+  worldTime?: number,
 ): SceneTargetFrame | undefined {
   if (designation && 'entityId' in designation) {
     const being = readBeing(snapshot, designation.entityId);
-    return being ? beingFrame(being) : standingFrame(snapshot);
+    return being ? beingFrame(being) : standingFrame(snapshot, worldTime);
   }
-  if (designation) return placeFrame(snapshot, designation.ground);
-  return standingFrame(snapshot);
+  if (designation) return placeFrame(snapshot, designation.ground, worldTime);
+  return standingFrame(snapshot, worldTime);
 }
 
 /** 지목한 자리의 판 (C026 그대로) — 자리에는 이름이 없으므로 좌표가 그 이름이다 */
-function placeFrame(snapshot: GameViewSnapshot, point: GameViewPosition): SceneTargetFrame {
+function placeFrame(
+  snapshot: GameViewSnapshot,
+  point: GameViewPosition,
+  worldTime: number | undefined,
+): SceneTargetFrame {
   return {
     title: codeText('target.place'),
     subtitle: coordText(point),
-    rows: placeRows(readPlace(snapshot, point)),
+    rows: placeRows(readPlace(snapshot, point), worldTime),
   };
 }
 
@@ -158,7 +167,10 @@ function placeFrame(snapshot: GameViewSnapshot, point: GameViewPosition): SceneT
  * 같고, 내가 움직이면 따라 바뀐다. 다만 "걸린 것" 은 땅에서 유도하지 않고 **세계가 준
  * standingConditions** 로 세운다 (SPEC-005 경계 · C006 의 규율: 안전한 이유는 세계가 판정한다).
  */
-function standingFrame(snapshot: GameViewSnapshot): SceneTargetFrame | undefined {
+function standingFrame(
+  snapshot: GameViewSnapshot,
+  worldTime: number | undefined,
+): SceneTargetFrame | undefined {
   const self = snapshot.entities.find((e) => e.id === snapshot.observer.characterId);
   // 내 몸이 관찰 결과에 없다 — 어디에 서 있는지 모르므로 판이 없다 (지어내지 않는다)
   if (!self) return undefined;
@@ -167,7 +179,7 @@ function standingFrame(snapshot: GameViewSnapshot): SceneTargetFrame | undefined
     // 제목이 "지목한 자리" 가 아니어야 한다 — 아무도 지목하지 않았고, 이것은 내 발밑이다
     title: codeText('target.standing'),
     subtitle: coordText(self.position),
-    rows: placeRows(standingReading(snapshot, reading)),
+    rows: placeRows(standingReading(snapshot, reading), worldTime),
   };
 }
 
@@ -273,10 +285,16 @@ function coordText(point: GameViewPosition): string {
 }
 
 /**
- * 자리의 사실 → 판의 줄들. **차례가 곧 이 함수의 차례다** (Play §5.4).
- * 값이 의미 코드면 codeText 로 옮기고, 모르는 코드는 코드 그대로 남는다 (지어내지 않는다).
+ * RULE-PLACE-READING-001 — 자리의 사실 → 판의 줄들 (C026 R2 · C028 R5 CHANGED).
+ *
+ * **차례가 곧 이 함수의 차례다** (Play §5.4). 값이 의미 코드면 codeText 로 옮기고,
+ * 모르는 코드는 코드 그대로 남는다 (지어내지 않는다).
+ *
+ * C028 CHANGED — 규칙을 품은 방의 줄에 **마지막 재배열이 얼마 전인지**가 함께 실린다
+ * (spec R5 · SPEC-007). 세계 시각을 모르거나 재배열이 한 번도 없었던 방에서는 그 값이
+ * 서지 않는다 — 0 으로도 "방금" 으로도 지어내지 않는다 (SPEC-007 경계).
  */
-export function placeRows(reading: PlaceReading): SceneFrameRow[] {
+export function placeRows(reading: PlaceReading, worldTime?: number): SceneFrameRow[] {
   const rows: SceneFrameRow[] = [];
   // ① 어디인가 — 봉투의 것이다. 어긋남과 무관하게 언제나 선다
   rows.push(row('place.region', regionName(reading.regionId)));
@@ -321,7 +339,18 @@ export function placeRows(reading: PlaceReading): SceneFrameRow[] {
   // ④ 규칙이 있나 — 품지 않은 방에는 이 둘이 아예 없다 (SPEC-004 경계)
   const rule = reading.rule;
   if (rule) {
-    rows.push(row('place.pattern', codeText(rule.pattern)));
+    // 지금 길과 **그 길이 언제부터인지**. 재배열의 나이는 기록 줄과 같은 함수(agoText)가
+    // 적는다 — 같은 값이 두 자리에서 다르게 적히면 둘 중 하나를 믿을 수 없다 (압력 줄이
+    // HUD 와 같은 형식인 것과 같은 이유). 잰 값이 없으면 길 이름만 선다
+    const rearranged = agoText(rule.rearrangedAt, worldTime);
+    rows.push(
+      row(
+        'place.pattern',
+        rearranged === undefined
+          ? codeText(rule.pattern)
+          : `${codeText(rule.pattern)}${VALUE_SEPARATOR}${rearranged}`,
+      ),
+    );
     const ratio =
       rule.pressureLimit > 0
         ? Math.min(1, Math.max(0, rule.pressure / rule.pressureLimit))
