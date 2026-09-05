@@ -105,11 +105,11 @@ describe('INTENT-OBSERVER-MARK-001 — 세계가 받아들인 자리', () => {
 });
 
 describe('표식은 게임을 바꾸지 않는다', () => {
-  it('몸 · 광맥 · 세계 시간 중 어느 것도 표식 때문에 달라지지 않는다', () => {
-    const w = joined({ ...solo, actorPosition: { x: 8, z: -5 } }, A);
+  it('몸 · 원천 · 세계 시간 중 어느 것도 표식 때문에 달라지지 않는다', () => {
+    const w = joined({ ...solo, actorRegion: 'FOREST_EDGE', actorPosition: { x: -8, z: 5 } }, A);
     const before = see(w, A);
     const bodyBefore = before.entities.find((e) => e.id === before.observer.characterId);
-    const depositBefore = before.entities.find((e) => e.id === 'deposit-1');
+    const sourceBefore = before.entities.find((e) => e.id === 'MOLT_LITTER');
     const timeBefore = before.hud.find((h) => h.id === 'world.time')?.value;
 
     for (let i = 1; i <= 20; i++) {
@@ -121,9 +121,11 @@ describe('표식은 게임을 바꾸지 않는다', () => {
     const bodyAfter = after.entities.find((e) => e.id === after.observer.characterId);
     expect(bodyAfter?.position).toEqual(bodyBefore?.position);
     expect(bodyAfter?.state).toBe(bodyBefore?.state);
-    expect(after.entities.find((e) => e.id === 'deposit-1')?.labelValue).toBe(
-      depositBefore?.labelValue,
+    // C011 CHANGED — 원천에는 라벨이 없다 (세계 위에 글자가 없다). 자리와 상태로 잰다
+    expect(after.entities.find((e) => e.id === 'MOLT_LITTER')?.position).toEqual(
+      sourceBefore?.position,
     );
+    expect(after.entities.find((e) => e.id === 'MOLT_LITTER')?.state).toBe(sourceBefore?.state);
     expect(after.hud.find((h) => h.id === 'world.time')?.value).toBe(timeBefore);
     expect(after.observer.acknowledgedMark).toBe(20);
   });
@@ -159,10 +161,10 @@ describe('표식은 관찰자마다의 일이다 (INTENT-PER-OBSERVER-PROJECTION
 
 describe('표식과 요청이 같은 Tick 에 왔을 때 (인과의 왕복)', () => {
   it('요청을 보낸 뒤 붙인 표식은 그 요청의 결과와 같은 관찰 결과로 돌아온다', () => {
-    const w = joined({ ...solo, actorPosition: { x: 8, z: -5 } }, A);
+    const w = joined({ ...solo, actorRegion: 'FOREST_EDGE', actorPosition: { x: -8, z: 5 } }, A);
 
     // 관찰자는 언제나 요청을 보낸 뒤에 표식을 붙인다
-    w.request(A, { interactionId: 'mine', targetEntityId: 'deposit-1' });
+    w.request(A, { interactionId: 'mine', targetEntityId: 'MOLT_LITTER' });
     w.mark(A, 5);
 
     const snapshot = w.tick(0).observations.get(A)!;

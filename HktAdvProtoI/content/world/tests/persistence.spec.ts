@@ -56,7 +56,8 @@ describe('저장된 세계가 파일을 지나 되살아난다', () => {
   });
 
   it('지니고 있던 것이 저장을 건너도 남는다 — 소지품이 비어 오지 않는다', () => {
-    const world = createWorld({ npcs: [], actorItems: { pickaxe: 1, stone: 3 } });
+    // C011 CHANGED — 지니는 것이 돌에서 재료가 되었다 (Item.Kind 가 Material Seed 다)
+    const world = createWorld({ npcs: [], actorItems: { pickaxe: 1, ORE_EATER_MOLT: 3 } });
     world.join(OBSERVER);
     world.tick(0);
 
@@ -66,7 +67,7 @@ describe('저장된 세계가 파일을 지나 되살아난다', () => {
 
     const state = revived.snapshot().state as WorldState;
     const body = state.actors.find((a) => a.id === 'player-1')!;
-    expect(body.inventory.items).toEqual({ pickaxe: 1, stone: 3 });
+    expect(body.inventory.items).toEqual({ pickaxe: 1, ORE_EATER_MOLT: 3 });
     // 곡괭이가 살아남았으므로 캘 수 있다는 판정도 그대로다
     const mine = revived.latestObservation(OBSERVER)!.interactions.find((i) => i.id === 'mine');
     expect(mine?.reason).not.toBe('no-mining-tool');

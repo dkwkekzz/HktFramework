@@ -52,6 +52,7 @@ import {
 import { resolvePresentation } from '../../view/resolve';
 import { STATE_VERSION, type WorldState } from '../semantic/world-state';
 import { driveWorld, PLAYER, type WorldDriver } from './drive';
+import { sourcesInRegion } from '../semantic/resource';
 
 // ── spec 의 이름들 (SPEC-001 · SPEC-002 의 표에서만 왔다) ───────
 const FOREST_DEEP = 'FOREST_DEEP';
@@ -290,8 +291,8 @@ describe('SPEC-004 — 세계가 시작하는 방은 데이터다', () => {
     expect(REGION_SPECS.map((r) => r.id)).toContain(START_REGION_ID);
   });
 
-  it('S-014 관찰자의 몸 · 기본 자율 존재 둘 · 광맥 하나가 그 방에 선다 (행동은 하나도 바뀌지 않는다)', () => {
-    // Given 기본 배치의 세계 (npc 둘 · 광맥 하나)
+  it('S-014 관찰자의 몸과 기본 자율 존재 둘이 그 방에 선다 (행동은 하나도 바뀌지 않는다)', () => {
+    // Given 기본 배치의 세계 (npc 둘)
     const w = driveWorld();
     const s = state(w);
     // Then 셋 다 시작 방이다
@@ -299,8 +300,9 @@ describe('SPEC-004 — 세계가 시작하는 방은 데이터다', () => {
     const autonomous = s.actors.filter((a) => a.control === 'autonomous');
     expect(autonomous.length).toBe(2); // spec 이 못박은 수
     for (const npc of autonomous) expect(npc.regionId).toBe(START_REGION_ID);
-    for (const deposit of s.deposits) expect(deposit.regionId).toBe(START_REGION_ID);
-    expect(s.deposits.length).toBe(1); // spec 이 못박은 수
+    // C011 CHANGED — 시작 방의 광맥은 없어졌다. 숲의 재료 계통은 백왕령에 유입되지 않는다
+    // (RoomBearsMaterial 확정 5 — 산맥과 강이 막는 것이 백왕령이 안전한 이유와 같은 조건이다).
+    expect(sourcesInRegion(START_REGION_ID).length).toBe(0);
   });
 });
 

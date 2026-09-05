@@ -98,14 +98,12 @@ describe('SPEC-003 — 몸은 자리를 가진다', () => {
     expect(body.position).toEqual({ x: 0, z: 0 });
   });
 
-  it('기본 자율 존재 둘과 광맥 하나도 WHITE_KING_DOMAIN 에 있다 · FOREST_EDGE 는 비어 있다', () => {
+  it('기본 자율 존재 둘도 WHITE_KING_DOMAIN 에 있다 · FOREST_EDGE 에는 몸이 없다', () => {
     const world = driveWorld();
     const s = state(world);
     expect(s.actors.map((a) => a.id)).toEqual(['npc-1', 'npc-2', PLAYER]);
     for (const actor of s.actors) expect(actor.regionId).toBe(WHITE_KING_DOMAIN);
-    expect(s.deposits.map((d) => d.regionId)).toEqual([WHITE_KING_DOMAIN]);
     expect(s.actors.some((a) => a.regionId === FOREST_EDGE)).toBe(false);
-    expect(s.deposits.some((d) => d.regionId === FOREST_EDGE)).toBe(false);
   });
 });
 
@@ -218,15 +216,17 @@ describe('SPEC-006 — 건너기의 전이 (RULE-REGION-TRANSIT-001)', () => {
 });
 
 describe('SPEC-007 — 관찰은 방으로 잘린다', () => {
-  it('① scene = R.id ② 같은 방의 몸·광맥만 ③ anchor 마다 region-exit ④ 봉투 region { id, hash }', () => {
-    const world = driveWorld(nearAnchor); // 기본 배치 — npc 둘 · deposit-1 이 백왕령에 있다
+  it('① scene = R.id ② 같은 방의 몸만 ③ anchor 마다 region-exit ④ 봉투 region { id, hash }', () => {
+    const world = driveWorld(nearAnchor); // 기본 배치 — npc 둘이 백왕령에 있다
     const v = world.observe();
 
     expect(v.scene).toBe(WHITE_KING_DOMAIN);
-    // 몸과 광맥은 백왕령의 것이 전부다 (출구는 C002 가 고개 둘을 더했다 — 여기서 세지 않는다)
+    // 몸은 백왕령의 것이 전부다 (출구는 C002 가 고개 둘을 더했다 — 여기서 세지 않는다).
+    // C011 CHANGED — 백왕령에는 캘 것이 없다: 숲의 재료 계통이 유입되지 않는 방이다
     expect(
       v.entities.filter((e) => e.role !== 'region-exit').map((e) => e.id).sort(),
-    ).toEqual([PLAYER, 'npc-1', 'npc-2', 'deposit-1'].sort());
+    ).toEqual([PLAYER, 'npc-1', 'npc-2'].sort());
+    expect(v.interactions.filter((i) => i.id === 'mine')).toEqual([]);
     expect(exits(v)).toContainEqual({
       id: FOREST_PATH,
       role: 'region-exit',
@@ -239,14 +239,17 @@ describe('SPEC-007 — 관찰은 방으로 잘린다', () => {
     expect(JSON.stringify(v)).not.toContain(FOREST_EDGE);
   });
 
-  it('경계 — FOREST_EDGE 에서는 entities 가 관찰자 자신 + region-exit 하나뿐이다', () => {
+  it('경계 — FOREST_EDGE 에서는 entities 가 관찰자 자신 + 그 방의 원천 + region-exit 뿐이다', () => {
     const world = driveWorld(nearAnchor);
     crossForest(world);
     const v = world.observe();
 
     expect(v.scene).toBe(FOREST_EDGE);
-    // 관찰자 자신 말고는 몸도 광맥도 없다 (출구는 C002 가 둘 더했다)
-    expect(v.entities.filter((e) => e.role !== 'region-exit').map((e) => e.id)).toEqual([PLAYER]);
+    // 관찰자 자신 말고 다른 몸은 없다. 캘 것은 **이 방이 낳는 것** 하나뿐이고
+    // 백왕령의 것은 따라오지 않는다 (C011 — 방으로 잘리는 투영은 그대로다)
+    expect(v.entities.filter((e) => e.role !== 'region-exit').map((e) => e.id).sort()).toEqual(
+      [PLAYER, 'MOLT_LITTER'].sort(),
+    );
     expect(exits(v)).toContainEqual({
       id: FOREST_PATH,
       role: 'region-exit',
@@ -254,7 +257,10 @@ describe('SPEC-007 — 관찰은 방으로 잘린다', () => {
       kind: 'road',
       position: { x: 0, z: -18 },
     });
-    expect(v.interactions.filter((i) => i.id === 'mine')).toEqual([]); // 다른 방의 광맥은 가용성도 없다
+    // 이 방의 원천 하나만 가용성을 가진다 — 다른 방의 것은 실리지 않는다
+    expect(v.interactions.filter((i) => i.id === 'mine').map((i) => i.targetEntityId)).toEqual([
+      'MOLT_LITTER',
+    ]);
     expect(v.region.id).toBe(FOREST_EDGE);
     expect(JSON.stringify(v)).not.toContain(WHITE_KING_DOMAIN);
   });
@@ -357,16 +363,14 @@ describe('SPEC-010 — 영속', () => {
     expect(driveWorld(solo).world.snapshot().version).toBe(STATE_VERSION);
   });
 
-  it('되살린 State 의 모든 몸·광맥이 regionId 를 가진다 — 건너간 몸은 그 방에 그대로다', () => {
+  it('되살린 State 의 모든 몸이 regionId 를 가진다 — 건너간 몸은 그 방에 그대로다', () => {
     const world = driveWorld(nearAnchor);
     crossForest(world);
     const saved = JSON.parse(JSON.stringify(world.world.snapshot()));
     const restored = restoreWorld(saved);
     expect(restored).not.toBeNull();
     for (const actor of restored!.actors) expect(typeof actor.regionId).toBe('string');
-    for (const deposit of restored!.deposits) expect(typeof deposit.regionId).toBe('string');
     expect(restored!.actors.find((a) => a.id === PLAYER)?.regionId).toBe(FOREST_EDGE);
-    expect(restored!.deposits[0]?.regionId).toBe(WHITE_KING_DOMAIN);
     // World.regions · World.graph 는 실리지 않는다
     expect(saved.state).not.toHaveProperty('regions');
     expect(saved.state).not.toHaveProperty('graph');

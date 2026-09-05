@@ -91,15 +91,15 @@
       }
     },
     {
-      "id": "deposit-1",
-      "role": "resource-deposit",
+      "id": "MOLT_LITTER",
+      "role": "resource-source",
       "state": "available",
-      "kind": "stone",
+      "kind": "molt-litter",
+      "material": "ORE_EATER_MOLT",
       "position": {
         "x": 8,
         "z": -6
-      },
-      "labelValue": 3
+      }
     }
   ],
   "interactions": [

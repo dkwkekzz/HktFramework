@@ -48,11 +48,6 @@
   ],
   "hud": [
     {
-      "id": "inventory.stone",
-      "kind": "counter",
-      "value": 0
-    },
-    {
       "id": "region.depth",
       "kind": "label",
       "value": "deep"

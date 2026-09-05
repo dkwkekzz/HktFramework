@@ -56,15 +56,15 @@
       "progress": 0.4
     },
     {
-      "id": "deposit-1",
-      "role": "resource-deposit",
+      "id": "MOLT_LITTER",
+      "role": "resource-source",
       "state": "available",
-      "kind": "stone",
+      "kind": "molt-litter",
+      "material": "ORE_EATER_MOLT",
       "position": {
         "x": 8,
         "z": -6
-      },
-      "labelValue": 3
+      }
     }
   ],
   "interactions": [
@@ -82,15 +82,15 @@
     },
     {
       "id": "mine",
-      "role": "mine-deposit",
-      "targetEntityId": "deposit-1",
+      "role": "harvest-source",
+      "targetEntityId": "MOLT_LITTER",
       "available": false,
       "reason": "action-busy"
     }
   ],
   "hud": [
     {
-      "id": "inventory.stone",
+      "id": "inventory.ORE_EATER_MOLT",
       "kind": "counter",
       "value": 2
     },

@@ -22,17 +22,6 @@
       }
     },
     {
-      "id": "deposit-1",
-      "role": "resource-deposit",
-      "state": "available",
-      "kind": "stone",
-      "position": {
-        "x": 8,
-        "z": -6
-      },
-      "labelValue": 5
-    },
-    {
       "id": "FOREST_PATH",
       "role": "region-exit",
       "state": "open",
@@ -50,13 +39,6 @@
       "available": true
     },
     {
-      "id": "mine",
-      "role": "mine-deposit",
-      "targetEntityId": "deposit-1",
-      "available": false,
-      "reason": "out-of-range"
-    },
-    {
       "id": "transit",
       "role": "transit-connector",
       "targetEntityId": "FOREST_PATH",
@@ -64,11 +46,6 @@
     }
   ],
   "hud": [
-    {
-      "id": "inventory.stone",
-      "kind": "counter",
-      "value": 0
-    },
     {
       "id": "region.depth",
       "kind": "label",

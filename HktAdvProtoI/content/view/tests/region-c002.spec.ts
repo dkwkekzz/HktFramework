@@ -86,9 +86,14 @@ describe('④ 야생 — depth 태그가 셋이 된다', () => {
     const observed = snapshot('FOREST_DEEP', 'wild', []);
     const plan = resolvePresentation(observed);
 
-    expect(plan.zones).toHaveLength(1);
+    // C011 CHANGED — 이 방에는 흔적(흙의 변색)이 깔렸다. 방 바닥은 여전히 **맨 아래 하나**이고
+    // 그 위에 흔적 구역들이 얹힌다 — 이 검사가 묻는 것은 바닥의 색과 글자 없음이다
     const zone = plan.zones[0]!;
     expect(zone.id).toBe('region:FOREST_DEEP');
+    for (const trace of plan.zones.slice(1)) {
+      expect(trace.id.startsWith('trace:FOREST_DEEP:')).toBe(true);
+      expect(trace.label).toBeUndefined();
+    }
     expect(zone.fill?.color).toBe(DEPTH_PRESENTATIONS.wild!.fill);
     expect(zone.edge?.color).toBe(DEPTH_PRESENTATIONS.wild!.edge);
     expect(zone.label).toBeUndefined();
@@ -220,7 +225,7 @@ describe('폴백 — 미등록 값이 와도 화면은 멈추지 않는다 (Play
     const plan = resolvePresentation(unknownDepth);
 
     // 바닥은 spec 의 depth(wild)로 칠해진다 — hud 의 값은 문구만 정한다
-    expect(plan.zones).toHaveLength(1);
+    expect(plan.zones[0]?.id).toBe('region:FOREST_DEEP');
     // 미등록 코드는 코드 그대로 (C027 — 깊이는 판의 줄이다)
     expect(plan.targetFrame?.rows.find((r) => r.id === 'place.depth')?.value).toBe('abyss');
     expect(plan.interactions[0]?.unavailableText).toBe('some-new-reason');

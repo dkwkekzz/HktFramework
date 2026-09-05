@@ -539,8 +539,32 @@ describe('SPEC-006 지목은 세계에 아무것도 보내지 않는다', () => 
   );
 });
 
+/**
+ * C011 — 백왕령에는 캘 것이 없다 (숲의 재료 계통이 유입되지 않는 방이다). 그래서 "원천을
+ * 집으면 채취 요청이 된다" 를 재려면 그 존재를 손으로 얹는다 — 재는 것은 클릭의 뜻이지
+ * 백왕령의 데이터가 아니다 (mazeSnapshot 을 손으로 짓는 것과 같은 어법).
+ */
+const withSource = (snapshot: GameViewSnapshot): GameViewSnapshot => ({
+  ...snapshot,
+  entities: [
+    ...snapshot.entities,
+    {
+      id: 'MOLT_LITTER',
+      role: 'resource-source',
+      state: 'available',
+      kind: 'molt-litter',
+      material: 'ORE_EATER_MOLT',
+      position: { x: 8, z: -6 },
+    },
+  ],
+  interactions: [
+    ...snapshot.interactions,
+    { id: 'mine', role: 'harvest-source', targetEntityId: 'MOLT_LITTER', available: true },
+  ],
+});
+
 describe('SPEC-007 클릭의 뜻은 정책이 정한다', () => {
-  const scene = look(civil);
+  const scene = look(withSource(civil));
 
   /** 보조키 없이 그냥 누른 것 — C008 까지의 클릭 그대로다 */
   const pick = (over: Record<string, unknown>) =>
@@ -559,11 +583,11 @@ describe('SPEC-007 클릭의 뜻은 정책이 정한다', () => {
     expect(JSON.stringify(result)).toContain('"x"');
   });
 
-  it('S-026 광맥을 클릭하면 채굴 요청이 된다 — C008 까지와 같다', () => {
-    const result = pointerRules(pick({ entityId: 'deposit-1' }), scene);
+  it('S-026 원천을 클릭하면 채취 요청이 된다 — C008 까지와 같다', () => {
+    const result = pointerRules(pick({ entityId: 'MOLT_LITTER' }), scene);
     expect(result?.kind).toBe('request');
     expect(JSON.stringify(result)).toContain('"interactionId":"mine"');
-    expect(JSON.stringify(result)).toContain('"targetEntityId":"deposit-1"');
+    expect(JSON.stringify(result)).toContain('"targetEntityId":"MOLT_LITTER"');
   });
 
   it('S-027 출구 표식을 클릭하면 건너기 요청이 된다 — C008 까지와 같다', () => {
@@ -632,9 +656,9 @@ describe('SPEC-010 방 이름은 지나간다', () => {
 });
 
 describe('회귀', () => {
-  it('R-001 클릭 셋(빈 땅 이동 · 광맥 채굴 · 출구 건너기)이 옛 규칙과 같은 요청을 만든다', () => {
+  it('R-001 클릭 셋(빈 땅 이동 · 원천 채취 · 출구 건너기)이 옛 규칙과 같은 요청을 만든다', () => {
     // Given C008 까지의 규칙 — 집은 존재의 첫 interaction, 없으면 terrainTarget 인 interaction
-    const scene = look(civil);
+    const scene = look(withSource(civil));
     const legacy = (entityId: string | null, ground: { x: number; z: number } | null) => {
       if (entityId) {
         const interaction = scene.interactions.find((i) => i.targetEntityId === entityId);
@@ -649,7 +673,7 @@ describe('회귀', () => {
 
     const cases: { entityId: string | null; ground: { x: number; z: number } | null }[] = [
       { entityId: null, ground: { x: FLAT.x, z: FLAT.z } },
-      { entityId: 'deposit-1', ground: null },
+      { entityId: 'MOLT_LITTER', ground: null },
       { entityId: 'FOREST_PATH', ground: null },
     ];
 

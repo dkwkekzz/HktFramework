@@ -840,9 +840,10 @@ describe('SPEC-007 저장하고 되살려도 하나다', () => {
     expect(cross(w, MAZE_HEART_GATE, OBSERVER_2)).toMatchObject({ status: 'success' });
   });
 
-  it('S-014 (경계) STATE_VERSION 이 C008 · C009 와 같다 — 저장되는 State 가 하나도 늘지 않았다', () => {
-    // Given C008 이 세우고 C009 가 그대로 둔 판 이름
-    expect(STATE_VERSION).toBe('hkt-adv-proto-i/3');
+  it('S-014 (경계) 저장되는 방의 State 가 하나도 늘지 않았다', () => {
+    // C011 CHANGED — `STATE_VERSION === 'hkt-adv-proto-i/3'` 을 걷었다 (C009 S-020 과 같은 이유).
+    // 판 이름은 C011 이 광맥을 없애며 올렸고, 이 경계가 묻던 것은 그 이름이 아니라
+    // **관찰자가 둘이어도 방의 State 가 늘지 않는가** 다.
 
     // When 관찰자 둘이 있는 세계를 저장한다
     const lived = livedTwo();

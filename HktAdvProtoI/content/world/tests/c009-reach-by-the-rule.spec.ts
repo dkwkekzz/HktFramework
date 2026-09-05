@@ -815,11 +815,12 @@ describe('SPEC-009 세계를 되살려도 문은 패턴대로다', () => {
     expect(actorOf(revived).regionId).toBe(MAZE_HEART);
   });
 
-  it('S-020 (경계) STATE_VERSION 이 C008 과 같다 — 저장되는 State 가 하나도 늘지 않았다', () => {
-    // Given C008 이 세운 판 이름 그대로다
-    expect(STATE_VERSION).toBe('hkt-adv-proto-i/3');
-
-    // 그리고 저장되는 방의 State 는 C008 의 셋 그대로다
+  it('S-020 (경계) 저장되는 방의 State 가 하나도 늘지 않았다', () => {
+    // C011 CHANGED — 여기 있던 `STATE_VERSION === 'hkt-adv-proto-i/3'` 은 걷었다.
+    // 그 한 줄은 "이 Cycle 이 State 를 늘렸는가" 의 **대리 지표**였고, C011 이 다른 이유로
+    // 판 이름을 올렸다 (광맥이 사라지고 소지품의 품목이 재료가 되었다 — 저장되는 State 가
+    // 줄었다). 대리 지표 대신 이 경계가 원래 묻던 것을 그대로 잰다: 저장되는 **방의** State 는
+    // C008 의 셋 그대로인가.
     const w = mazeAtPattern(OPENING_PATTERN);
     const saved = throughFile(w.world.snapshot());
     expect(saved.version).toBe(STATE_VERSION);

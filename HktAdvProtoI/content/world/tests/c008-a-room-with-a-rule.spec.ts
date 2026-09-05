@@ -951,9 +951,10 @@ describe('회귀', () => {
     expect(actorOf(w).regionId).toBe('HEART_LAKE');
   });
 
-  it('R-003 채광이 산다 — 곡괭이를 들고 광맥 곁에 서면 캘 수 있다', () => {
-    const w = driveWorld({ ...solo, actorPosition: { x: 8, z: -5 } });
-    expect(w.dispatch({ interactionId: 'mine', targetEntityId: 'deposit-1' })).toEqual({
+  // C011 CHANGED — 광맥이 방의 원천이 되었다. 재는 것은 그대로다
+  it('R-003 채취가 산다 — 곡괭이를 들고 원천 곁에 서면 캘 수 있다', () => {
+    const w = driveWorld({ ...solo, actorRegion: 'FOREST_EDGE', actorPosition: { x: -8, z: 5 } });
+    expect(w.dispatch({ interactionId: 'mine', targetEntityId: 'MOLT_LITTER' })).toEqual({
       status: 'success',
       rule: 'RULE-MINE-001',
     });

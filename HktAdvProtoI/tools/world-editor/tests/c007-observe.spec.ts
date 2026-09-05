@@ -214,9 +214,16 @@ const KINDS = ['height', 'surface', 'traversable', 'semantic', 'top'] as const;
 const ALL_PICTURES = ['--height', '--surface', '--traversable', '--semantic', '--top-view'];
 
 /** 막힌 칸이 하나도 없는 방 하나 — 데이터에서 고른다 (이름을 적지 않는다) */
+// C011 CHANGED — "아무것도 없는 방" 의 조건에 **area 도 없을 것**을 더했다. 이 Cycle 이
+// 방 다섯에 흔적(trace area)을 깔았으므로 "막힌 칸이 없다" 만으로는 더 이상 빈 방이 아니다.
+// 경계가 묻는 것은 그대로다 — 셀 것이 하나도 없는 방의 보고도 나오는가.
 const openRoom = () => {
-  const found = REGION_SPECS.find((s) => [...compiled(s.id).world.traversable].every((v) => v === 1));
-  if (!found) throw new Error('막힌 칸이 없는 방이 하나도 없다 — SPEC-002 경계를 놓을 자리가 없다');
+  const found = REGION_SPECS.find(
+    (s) =>
+      [...compiled(s.id).world.traversable].every((v) => v === 1) &&
+      compiled(s.id).world.areas.length === 0,
+  );
+  if (!found) throw new Error('막힌 칸도 area 도 없는 방이 하나도 없다 — SPEC-002 경계를 놓을 자리가 없다');
   return found.id;
 };
 
