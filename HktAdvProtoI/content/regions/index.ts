@@ -1,5 +1,6 @@
 // content/regions — 이 팩의 Region 데이터 (C001 ADDED · C002 에서 방 여섯 · Connector 열 ·
-// C003 에서 방 아홉 · Connector 열셋 · 중첩 둘 · C008 에서 방 열 · Connector 열넷 · 경계 둘).
+// C003 에서 방 아홉 · Connector 열셋 · 중첩 둘 · C008 에서 방 열 · Connector 열넷 · 경계 둘 ·
+// C009 에서 방 열하나 · Connector 열여섯 · 중첩 셋 · 경계 셋).
 //
 // world 와 view 가 함께 읽는 정적 사실이다. 세계 State 에 들어가지 않고 저장되지도 않는다 —
 // 컨텐츠 데이터에서 다시 온다 (C001 02-world R7 · character-catalog 와 같은 성격).
@@ -12,6 +13,7 @@ import { FANTASY_MAZE_SPEC } from './fantasy-maze';
 import { FOREST_DEEP_SPEC } from './forest-deep';
 import { FOREST_EDGE_SPEC } from './forest-edge';
 import { HEART_LAKE_SPEC } from './heart-lake';
+import { MAZE_HEART_SPEC } from './maze-heart';
 import { PREDATOR_NEST_SPEC } from './predator-nest';
 import { RED_EYE_TREE_SPEC } from './red-eye-tree';
 import { TREE_INNER_WORLD_SPEC } from './tree-inner-world';
@@ -41,9 +43,14 @@ export {
   TREE_FALL,
   HEART_RIVER,
   MAZE_GATE_RETURN,
+  MAZE_HEART_GATE,
+  INVERTED_GARDEN_DOOR,
   RED_WASTE,
   ICE_CANYON,
+  INVERTED_GARDEN,
+  CONNECTOR_ACTIVATIONS,
 } from './graph';
+export type { ConnectorActivation } from './graph';
 export { WHITE_KING_DOMAIN, WHITE_GIANT_TREE } from './white-king-domain';
 export { FOREST_EDGE } from './forest-edge';
 export { FOREST_DEEP } from './forest-deep';
@@ -60,6 +67,9 @@ export { HEART_LAKE } from './heart-lake';
 // 세계는 통로 layer 를, 화면은 구역·통로·식물을 이 이름으로 읽는다.
 export {
   FANTASY_MAZE,
+  MAZE_PATTERN_DEFAULT,
+  MAZE_PATTERN_P1,
+  MAZE_PATTERN_P2,
   CELL_LAYER,
   PASSAGE_LAYER,
   CLUE_LAYER,
@@ -68,6 +78,8 @@ export {
   CRIMSON_FERN,
   INDIGO_FERN,
 } from './fantasy-maze';
+// MAZE_HEART 는 C008 까지 이름조차 없던 곳이다 — C009 가 지었다 (01-spec SPEC-001).
+export { MAZE_HEART } from './maze-heart';
 
 /** 세계가 아는 Region 들 — graph.regions 와 같은 순서 */
 export const REGION_SPECS: readonly RegionSpec[] = [
@@ -81,6 +93,7 @@ export const REGION_SPECS: readonly RegionSpec[] = [
   TREE_INNER_WORLD_SPEC,
   HEART_LAKE_SPEC,
   FANTASY_MAZE_SPEC,
+  MAZE_HEART_SPEC,
 ];
 
 export function regionSpec(id: string): RegionSpec | undefined {

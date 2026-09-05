@@ -10,10 +10,13 @@
 // 스킬 2종(attack · heavy-attack) · 이동 모드 · 속성 변경 · 건너기(transit — C001).
 //   속성 변경만은 주체가 아니라 "지목한 존재" 를 대상으로 한다 (INTENT-ATTRIBUTE-MUTATE-001).
 //   그래도 요청의 귀속은 그대로다 — 세계가 모르는 관찰자는 아무것도 바꾸지 못한다.
+//
+// C009 ADDED — 돌아가기(emergency-return). 배열에 항목이 하나 늘 뿐이다 (설계 반전 ①).
 
 import type { ActionRequest, ActionResult } from '../../protocol/actions';
 import type { InteractionHandler } from '../../../engine/world-kernel/content';
 import { ruleAttributeSet } from '../rules/attribute-set';
+import { ruleEmergencyReturn } from '../rules/emergency-return';
 import { ruleMine } from '../rules/mine';
 import { ruleMove } from '../rules/move';
 import { ruleMoveMode } from '../rules/move-mode';
@@ -86,5 +89,10 @@ export const INTERACTIONS: readonly InteractionHandler<WorldState>[] = [
         return { status: 'failure', rule: DISPATCH, reason: 'missing-attribute' };
       return ruleAttributeSet(state, targetId, action.attribute.id, action.attribute.value);
     }),
+  },
+  {
+    id: 'emergency-return',
+    // 받는 자리가 없다 — 어디로 가는지는 그 방이 밝힌 비상 자리 하나뿐이다 (C009 · R3).
+    handle: withActor((_state, actor) => ruleEmergencyReturn(actor)),
   },
 ];

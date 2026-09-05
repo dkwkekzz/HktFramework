@@ -99,3 +99,28 @@ export function isClosedPassageAt(
   const open = openPassageTags(rule, regionState.pattern);
   return !here.some((tag) => open.includes(tag));
 }
+
+/**
+ * 세계가 설 때의 패턴을 밝힌 대로 세운다 — 검증·촬영용 초기 배치 (C009 ADDED · WorldSetup.regionPatterns).
+ *
+ * 규칙을 하나도 바꾸지 않는다: 여기서 세운 패턴도 그 다음부터는 압력이 굴린다.
+ * 밝히지 않은 방은 첫 패턴 그대로다.
+ *
+ * 손잡이가 세계를 깨뜨리지 않게 **모르는 것은 조용히 무시한다** — 규칙 없는 방의 이름도,
+ * 그 방의 패턴 표에 없는 이름도 그냥 지나간다 (없는 패턴을 세우면 열린 통로가 하나도 없는
+ * 방이 되어 몸이 갇힌다).
+ */
+export function applyPatternSetup(
+  states: Record<string, RegionRuleState>,
+  patterns: Record<string, string> | undefined,
+): Record<string, RegionRuleState> {
+  if (!patterns) return states;
+  for (const [regionId, name] of Object.entries(patterns)) {
+    const state = states[regionId];
+    const rule = regionRuleOf(regionId);
+    if (!state || !rule) continue;
+    if (!rule.patterns.some((entry) => entry.name === name)) continue;
+    state.pattern = name;
+  }
+  return states;
+}

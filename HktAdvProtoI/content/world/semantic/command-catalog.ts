@@ -75,6 +75,16 @@ export const COMMAND_CATALOG: readonly CommandDefinition[] = [
       },
     ],
   },
+  {
+    // C009 ADDED — 돌아가기 (RULE-EMERGENCY-RETURN-001 · 01-spec R3).
+    // **받는 자리가 없다** — 어디로 갈지 고를 것이 없기 때문이다: 그 방이 밝힌 비상 자리
+    // 하나뿐이고, 어느 자리인지는 세계가 말하지 않는다. 그래서 parameters 가 빈 배열이다.
+    // 항목이 하나 더해질 뿐 Command / Parameter 구조도 소비처도 바뀌지 않는다
+    // (INTENT-COMMAND-CATALOG-001 이 요구한 그대로).
+    id: 'emergency-return',
+    effect: 'emergency-return', // 몸을 그 방의 비상 자리로 옮긴다
+    parameters: [],
+  },
 ];
 
 /**

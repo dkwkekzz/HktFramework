@@ -35,6 +35,7 @@ import type { EntityView, GameViewSnapshot, InteractionView } from '../../protoc
 import {
   ANCHOR_LAYER,
   CLOSED_CONNECTORS,
+  CONNECTOR_ACTIVATIONS,
   FRONTIER_REGIONS,
   REGION_GRAPH,
   REGION_SPECS,
@@ -161,14 +162,23 @@ describe('SPEC-002 — 열린 문의 표식과 대답', () => {
     });
   });
 
-  it('S-007 (경계) 이 세계의 어떤 방에서도 locked 표식이 나오지 않는다', () => {
+  it('S-007 (경계) 이 세계에 **정적으로** 잠긴 문은 하나도 없다', () => {
+    // C004 의 주장은 "고대 문이 열렸다 — 닫힌 문 목록이 비었다" 였고 그것은 그대로다.
+    // C009 가 그 목록에 아무것도 도로 넣지 않았음을 먼저 못박는다.
+    expect(CLOSED_CONNECTORS).toEqual([]);
+
     // Given 지어진 방마다 그 방에 서서 관찰한다 (방 목록은 데이터에서 온다)
     for (const spec of REGION_SPECS) {
       const anchor = pointsOf(spec.space, ANCHOR_LAYER)[0];
       if (!anchor) continue;
       const v = standing(spec.id, { x: anchor.position.x, z: anchor.position.z }).observe();
-      // Then 닫힌 표식이 하나도 없다
-      expect({ region: spec.id, locked: exits(v).filter((e) => e.state === 'locked') }).toEqual({
+      // Then 잠긴 표식이 있다면 그것은 **그 방의 State 가 닫은 문**뿐이다 (C009 ADDED).
+      // C009 까지 이 목록은 언제나 비어 있었다 — 이제 미로에서 심장 쪽 문 하나가 여기 든다.
+      // 정적으로 잠긴 문이 하나도 없다는 C004 의 주장은 위 한 줄이 그대로 지킨다.
+      const lockedFromData = exits(v)
+        .filter((e) => e.state === 'locked')
+        .filter((e) => CONNECTOR_ACTIVATIONS[e.id] === undefined);
+      expect({ region: spec.id, locked: lockedFromData }).toEqual({
         region: spec.id,
         locked: [],
       });

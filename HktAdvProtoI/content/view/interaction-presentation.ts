@@ -24,6 +24,12 @@ const INTERACTIONS: Record<string, InteractionPresentation> = {
   'transit-connector': { key: 'KeyQ', keyLabel: 'Q', prompt: '건너기' },
   // 속성 변경 — 이번 Cycle 은 경로만 연다. 조작 수단은 이후 Cycle 이 얹는다.
   'debug-set-attribute': {},
+  // 돌아가기 (C009) — 명령 표면(/)에서 거는 것이므로 키를 주지 않는다 (Play §5.6 "개발 명령
+  // 표면 재사용" · 위 debug-set-attribute 의 선례). 안내 문구도 두지 않는다: 프롬프트는
+  // 키가 있을 때만 화면에 뜨므로(hud.ts · touch-pad.ts 가 key && prompt 를 함께 본다)
+  // 키 없는 자리의 문구는 어디에도 그려지지 않는 죽은 값이다. 명령 표면의 말은
+  // code-text 의 'emergency-return' 이 소유한다.
+  'emergency-return': {},
 };
 
 export function interactionPresentation(role: string): InteractionPresentation {
