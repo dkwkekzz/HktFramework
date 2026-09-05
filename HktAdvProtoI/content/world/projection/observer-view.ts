@@ -21,6 +21,7 @@ import type {
 import { actionProgress, actionTargetId } from '../semantic/action';
 import { actionCollider } from '../semantic/collision';
 import { evaluateAttributeSetAvailability } from '../rules/attribute-set';
+import { evaluateEmergencyReturnAvailability } from '../rules/emergency-return';
 import { evaluateMinePreconditions } from '../rules/mine';
 import { evaluateMoveAvailability } from '../rules/move';
 import { evaluateMoveModeRun } from '../rules/move-mode';
@@ -187,6 +188,17 @@ export function projectObserverView(
     ...(attributeFailure ? { reason: attributeFailure } : {}),
   });
 
+  // interactions.emergencyReturn — 그 방이 비상 자리를 밝혀 두었는가 (C009 ADDED · 01-spec R3).
+  // 같은 판정이 commands 자리에도 실린다 (아래 projectCommandCatalog) — set-attribute 의 선례 그대로.
+  // 어느 자리로 가는지는 싣지 않는다: 세계는 "걸 수 있는가" 만 말한다.
+  const emergencyFailure = evaluateEmergencyReturnAvailability(self);
+  interactions.push({
+    id: 'emergency-return',
+    role: 'emergency-return',
+    available: emergencyFailure === null,
+    ...(emergencyFailure ? { reason: emergencyFailure } : {}),
+  });
+
   // entities.deposit + interactions.mine — 같은 Region 의 광맥만 (C001 R6)
   for (const deposit of state.deposits) {
     if (deposit.regionId !== self.regionId) continue;
@@ -214,6 +226,11 @@ export function projectObserverView(
   // exitsOf 의 순서(connectors 배열 순서) 그대로 낸다 (결정론).
   //
   // C002 CHANGED (02-world R2) — state 가 열림과 닫힘으로 갈린다. 여기까지가 표식이다.
+  //
+  // C009 CHANGED — 그 표식이 이제 **그 방의 지금 패턴 따라 바뀐다** (01-spec R1 · Observable).
+  // 몸이 아무것도 하지 않아도 바뀌는 값이다 — 활성은 몸이 아니라 방의 State 가 정한다.
+  // 어느 패턴이 그 문을 여는가는 여전히 싣지 않는다: 세계는 "지금 열렸는가" 만 말하고
+  // "무엇이 그것을 열었는가" 는 말하지 않는다 (01-spec Observable · Region §17).
   // 싣지 않는 것: 경계(frontier) 목록 · 닫힌 Connector 목록 · 건너간 뒤 Region 의 id/이름 ·
   // Connector 의 방향. "아직 없는 곳" 은 표식이 아니라 요청의 대답(reason)으로만 드러난다 —
   // 경계를 가리키는 출구도 state 는 open 이다 (01-spec SPEC-007 경계).
@@ -222,12 +239,12 @@ export function projectObserverView(
     entities.push({
       id: exit.connector.id,
       role: 'region-exit',
-      state: isConnectorOpen(exit.connector.id) ? 'open' : 'locked',
+      state: isConnectorOpen(state.regionStates, exit.connector.id) ? 'open' : 'locked',
       kind: exit.connector.transition,
       position: { x: here.x, z: here.z },
     });
 
-    const failure = evaluateTransitPreconditions(self, exit);
+    const failure = evaluateTransitPreconditions(state, self, exit);
     interactions.push({
       id: 'transit',
       role: 'transit-connector',
@@ -333,8 +350,14 @@ export function projectObserverView(
     // available 이 거짓이어도 무엇을 할 수 있는 세계인지는 알 수 있어야 한다.
     // 무엇을 어디까지 바꿀 수 있는지(구 mutableAttributes)는 set-attribute 가 받는
     // 값의 Domain 으로 이 안에 들어 있다 — View 가 목록을 만들지 않는다는 규율은 그대로다.
-    commands: projectCommandCatalog((commandId) =>
-      commandId === 'set-attribute' ? evaluateAttributeSetAvailability(state) : null,
-    ),
+    // C009 CHANGED — 명령이 둘이 되었고 가용성 판정도 둘이다. 판정 자체는 각 Rule 이 소유하고
+    // (evaluateAttributeSetAvailability · evaluateEmergencyReturnAvailability) 여기는 잇기만 한다 —
+    // 그래서 "가용하다고 밝혀 놓고 걸면 거절하는" 일이 생기지 않는다.
+    // 목록은 둘 다 늘 실린다: available 이 거짓이어도 무엇을 걸 수 있는 세계인지는 밝혀져 있다.
+    commands: projectCommandCatalog((commandId) => {
+      if (commandId === 'set-attribute') return evaluateAttributeSetAvailability(state);
+      if (commandId === 'emergency-return') return evaluateEmergencyReturnAvailability(self);
+      return null;
+    }),
   };
 }

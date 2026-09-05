@@ -2,7 +2,8 @@
 // Input          모든 Actor
 // Preconditions  1. 그 몸이 선 Region 에서 나가는 끝 E 의 transition 이 falling 이다
 //                2. 그 끝의 anchor 와 몸의 거리 ≤ INTERACTION_RANGE (건너기와 같은 상수)
-//                3. Connector 가 열려 있다 (CLOSED_CONNECTORS 에 없다)
+//                3. Connector 가 열려 있다 (RULE-CONNECTOR-ACTIVATION-001 —
+//                   C009 CHANGED: 정적 목록에 더해 그 문의 활성 조건까지 본다. 판정은 하나다)
 //                4. 건너간 뒤의 region 이 지어져 있다 (Description 이 있다)
 // Transition     RULE-REGION-TRANSIT-001 과 **같은 전이** (applyRegionTransition) —
 //                RegionId = 반대쪽 끝의 region · Position = 반대쪽 anchor 의 자리 ·
@@ -40,7 +41,7 @@ export function ruleRegionFall(state: WorldState): void {
 
       const here = anchorPosition(exit.here.region, exit.here.anchor);
       if (distance(actor.position, here) > INTERACTION_RANGE) continue;
-      if (!isConnectorOpen(exit.connector.id)) continue;
+      if (!isConnectorOpen(state.regionStates, exit.connector.id)) continue;
       if (!isRegionBuilt(exit.there.region)) continue;
 
       applyRegionTransition(actor, exit);
