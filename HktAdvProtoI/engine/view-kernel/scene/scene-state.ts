@@ -535,11 +535,29 @@ export interface SceneFrameRow {
   muted?: boolean;
 }
 
+/**
+ * 판의 **기록** 한 줄 — 무슨 일이 있었나, 그리고 (알면) 언제 있었나.
+ *
+ * 줄들 사이의 차례를 이 형도 그리는 쪽도 정하지 않는다 — 실려 온 그대로 선다.
+ * 무엇이 적히는지도 알지 못한다: `text` 도 `when` 도 **형식화가 끝나** 온다.
+ */
+export interface SceneFrameLogLine {
+  /** 무슨 일이 있었나 (형식화 완료 — 이 층은 문구 표를 부르지 않는다) */
+  text: string;
+  /** 언제 있었나 (형식화 완료 · 없으면 때를 적지 않는다) */
+  when?: string;
+}
+
 export interface SceneTargetFrame {
   /** 무엇에 대한 판인가 (형식화 완료) */
   title: string;
   subtitle?: string;
   rows: SceneFrameRow[];
+  /**
+   * 판에 남는 기록 — 실려 온 차례 그대로 그린다 (새 것이 위인지는 결정 Layer 가 정했다).
+   * **비면 그 자리가 아예 없다** — 빈 기록판을 세우지 않는다 (rows 와 같은 규율).
+   */
+  log?: readonly SceneFrameLogLine[];
 }
 
 // ── 지면 구역 (범용 capability) ───────────────────────────────────────

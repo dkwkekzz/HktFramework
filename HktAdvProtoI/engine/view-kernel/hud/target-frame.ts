@@ -12,9 +12,11 @@
 //   · 이름과 값을 **각각 다른 자리**에 두는 일
 //   · 값에 딸린 막대를 그리는 일 (막대는 곁들이는 표시이고, 같은 값이 언제나 글자로도 선다)
 //   · 값이 없는 줄을 **자리를 차지한 채** 남기는 일 — 없는 줄과 다르다
+//   · 기록 줄들을 실려 온 차례 그대로 세우는 일과, 때를 모르는 줄을 때 칸 없이 두는 일
 //
 // 이 능력이 소유하지 않는 것:
-//   · 무엇을 어떤 순서로 적는가 (결정 Layer 가 정한 순서 그대로 그린다)
+//   · 무엇을 어떤 순서로 적는가 (결정 Layer 가 정한 순서 그대로 그린다 — 기록의 차례도 그렇다)
+//   · 기록에 무엇이 남는가 · 언제 일이었는지를 어떻게 세는가 (전부 형식화가 끝나 실려 온다)
 //   · 왜 그 줄이 옅은가 (muted 로 실려 온다)
 //   · **사람이 읽을 말** — 제목도 이름도 값도 전부 형식화가 끝나 실려 온다.
 //     문구 표를 부르지 않는다 (문구 반전 ⑤)
@@ -65,11 +67,26 @@ export function targetFrameMarkup(frame: SceneTargetFrame): string {
     })
     .join('');
 
+  // 기록 — 실려 온 차례 그대로 세운다. 새 것이 위인지는 결정 Layer 가 이미 정했고
+  // 이 층은 줄을 다시 늘어놓지 않는다 (rows 와 같은 규약).
+  const log = (frame.log ?? [])
+    .map(
+      (line) =>
+        `<div class="tf-log-line">` +
+        `<span class="tf-log-text">${escape(line.text)}</span>` +
+        // 때를 모르는 줄은 때 칸 **없이** 선다 — 없는 것을 빈 칸으로 만들지 않는다
+        (line.when === undefined ? '' : `<span class="tf-log-when">${escape(line.when)}</span>`) +
+        `</div>`,
+    )
+    .join('');
+
   return (
     `<div class="tf-panel" role="group" aria-label="${escape(frame.title)}">` +
     `<div class="tf-title">${escape(frame.title)}</div>` +
     (frame.subtitle ? `<div class="tf-subtitle">${escape(frame.subtitle)}</div>` : '') +
     (rows ? `<div class="tf-rows">${rows}</div>` : '') +
+    // 비면 절 자체가 없다 — 빈 기록판을 세우지 않는다 (`.tf-rows` 와 같은 관용구)
+    (log ? `<div class="tf-log">${log}</div>` : '') +
     `</div>`
   );
 }
