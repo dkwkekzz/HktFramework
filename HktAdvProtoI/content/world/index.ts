@@ -52,8 +52,6 @@ export interface WorldSetup {
   actorRegion?: string;
   actorItems?: Partial<Record<ItemKind, number>>;
   actorCharacterKind?: string;
-  depositPosition?: { x: number; z: number };
-  depositAmount?: number;
   npcs?: NpcSetup[];
   /** 속성 변경을 허용할 것인가 (World.DebugAuthority). 요청으로는 바꿀 수 없다 */
   debugAuthority?: boolean;
@@ -173,15 +171,8 @@ export function createWorld(setup: WorldSetup = {}, restored?: WorldState): Worl
   // 이어진다 (design/Design-World-Persistence.md). setup 은 새 세계에만 뜻이 있다.
   const state: WorldState = restored ?? {
     actors: npcs,
-    deposits: [
-      {
-        id: 'deposit-1',
-        regionId: START_REGION, // 02-world R4
-        position: setup.depositPosition ?? { x: 8, z: -6 },
-        resourceKind: 'stone',
-        resourceAmount: setup.depositAmount ?? 5,
-      },
-    ],
+    // C011 CHANGED — 광맥이 사라졌다. 캘 것은 이제 방이 낳는 **원천**이고, 그것은 초기 배치가
+    // 아니라 content/regions 의 데이터다 (semantic/resource.ts) — 배치 손잡이가 필요 없다.
     time: 0,
     observers: [],
     strikeEvents: [],

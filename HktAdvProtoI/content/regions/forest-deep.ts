@@ -12,6 +12,7 @@
 
 import type { RegionSpec } from './spec';
 import { ANCHOR_LAYER } from './spec';
+import { TRACE_LAYER, soilStainTag } from './resource-ecology';
 
 export const FOREST_DEEP = 'FOREST_DEEP';
 
@@ -64,6 +65,43 @@ export const FOREST_DEEP_SPEC: RegionSpec = {
         layer: ANCHOR_LAYER,
         tag: 'RIVER_MOUTH',
         position: { x: 14, z: -8 },
+      },
+      // ── C011 ADDED — 흔적만 있고 원천은 없다 ───────────────────────────────
+      //
+      // A.3 의 **중간부**다: "원천은 없고 방향이 있다". 방 전체가 경계부보다 한 단계 짙고,
+      // 안쪽으로 가는 출구 둘 둘레가 다시 한 단계 짙다 —
+      //   동쪽 ORE_TRAIL (18, 0)     → 생체 광석 지대
+      //   북쪽 TREE_APPROACH (0, 18) → 붉은 눈의 거목
+      // 서쪽 NEST_TRAIL (-18, 0) 둘레는 짙어지지 않는다. 둥지의 균류는 이 계통의 **끝**이고
+      // 그 원천은 C014 의 것이다 — 없는 방향을 미리 가리키지 않는다.
+      {
+        id: 'trace-deep-base',
+        kind: 'area',
+        layer: TRACE_LAYER,
+        tag: soilStainTag(2),
+        shape: {
+          kind: 'polygon',
+          points: [
+            { x: -20, z: -20 },
+            { x: 20, z: -20 },
+            { x: 20, z: 20 },
+            { x: -20, z: 20 },
+          ],
+        },
+      },
+      {
+        id: 'trace-deep-toward-ore',
+        kind: 'area',
+        layer: TRACE_LAYER,
+        tag: soilStainTag(3),
+        shape: { kind: 'circle', center: { x: 18, z: 0 }, radius: 8 },
+      },
+      {
+        id: 'trace-deep-toward-tree',
+        kind: 'area',
+        layer: TRACE_LAYER,
+        tag: soilStainTag(3),
+        shape: { kind: 'circle', center: { x: 0, z: 18 }, radius: 8 },
       },
     ],
   },

@@ -16,7 +16,7 @@ export function evaluateActionBegin(actor: ActorState): ActionBusyReason | null 
   return actionDefinition(actor.currentAction.kind).replaceable ? null : 'action-busy';
 }
 
-type ActionTarget = Pick<CurrentAction, 'targetPosition' | 'targetActorId' | 'targetDepositId'>;
+type ActionTarget = Pick<CurrentAction, 'targetPosition' | 'targetActorId' | 'targetSourceId'>;
 
 // duration 을 넘기면 그 길이로 시작한다 — 스킬 행동의 길이는 ActionDefinition 의
 // 고정값이 아니라 시작하는 순간의 공격 속도가 정하기 때문이다 (INTENT-TEMPO-ACTION-001).
@@ -40,7 +40,7 @@ export function beginAction(
 export function isSameAction(action: CurrentAction, kind: ActionKind, target: ActionTarget): boolean {
   if (action.kind !== kind) return false;
   if (action.targetActorId !== target.targetActorId) return false;
-  if (action.targetDepositId !== target.targetDepositId) return false;
+  if (action.targetSourceId !== target.targetSourceId) return false;
   const a = action.targetPosition;
   const b = target.targetPosition;
   if (!a || !b) return a === b;

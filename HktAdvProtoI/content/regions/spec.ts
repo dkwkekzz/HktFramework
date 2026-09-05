@@ -7,6 +7,7 @@
 // 경계 규칙 4 — content/regions 는 engine 만 import 한다. world 와 view 가 함께 읽는 데이터 폴더다.
 
 import type { RegionDescription } from '../../engine/world-authoring/description';
+import type { RegionResourceEcology } from './resource-ecology';
 
 /**
  * 그 방이 품은 규칙의 데이터 — **방이 규칙을 품는다** (C008 ADDED · RuleBoundRoom §5.2).
@@ -48,6 +49,17 @@ export interface RegionSpec {
    * 같은 방 안의 anchor 다 — 이 자리로 옮겨지는 것은 **방을 건너는 것이 아니다** (01-spec R3).
    */
   emergencyAnchor?: string;
+  /**
+   * 그 방이 낳는 재료 — **방이 재료를 낳는다** (C011 ADDED · RoomBearsMaterial §6 W17).
+   *
+   * 없으면 이 계통이 닿지 않는 방이다 — 백왕령이 그렇고, 그것은 결핍이 아니라
+   * 백왕령이 안전한 이유와 **같은 조건**이다 (Play 확정 5 · Concept W2).
+   *
+   * 원천의 **자리**는 여기 없다. 자리는 그 방 Description 의 resource layer point 가 소유하고,
+   * 원천의 id 와 point 의 tag 가 같은 이름으로 이어진다 (spec R3). 데이터가 둘로 나뉜 이유는
+   * 하나다 — 자리는 땅의 일이라 Description 이 소유해야 컴파일·관찰·검사가 다 같은 것을 본다.
+   */
+  resourceEcology?: RegionResourceEcology;
 }
 
 /** "드나드는 곳" 을 적는 layer 이름 — Connector 의 anchor 는 이 layer 의 point 다 */

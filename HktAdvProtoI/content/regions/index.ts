@@ -24,6 +24,9 @@ export { ANCHOR_LAYER } from './spec';
 // 지면의 표면·통행 규칙 표 — world 와 view 가 함께 읽는다 (C006 ADDED).
 // 값의 원본은 terrain-rules.ts 이고, 이 문(門)을 통해 나간다.
 export * from './terrain-rules';
+// 이 숲의 재료 계통 — Material Seed 표 · 원천의 성질 · 흔적의 layer 와 태그 (C011 ADDED).
+// terrain-rules 와 같은 갈래의 "world 와 view 가 함께 읽는 데이터" 다.
+export * from './resource-ecology';
 export {
   REGION_GRAPH,
   FRONTIER_REGIONS,
