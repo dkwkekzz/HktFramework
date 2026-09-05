@@ -46,6 +46,9 @@ import {
   pointerRules,
   regionEntryTitle,
   type Designation,
+  // 세계가 한 말을 모아 두는 그릇 (C028) — 상한도 그 값의 형도 컨텐츠의 것이다.
+  ANSWER_LOG_LIMIT,
+  type KeptAnswer,
 } from '../content/active-view';
 
 const container = document.getElementById('game');
@@ -111,10 +114,16 @@ const EMPTY_SCENE: SceneState = {
 
 let latestScene: SceneState = EMPTY_SCENE;
 
-// ── 지목 (C026 RULE-DESIGNATE-001) ────────────────────────────
+// ── 지목 (C026 RULE-DESIGNATE-001 · C027 CHANGED) ────────────
 //
 // **관찰자가 쥔다.** 세계는 이것을 알지 못하고, 지목은 세계로 아무것도 보내지 않는다
 // (SPEC-006). 새로 지목하면 바뀌고, Escape 와 방 이동이면 풀린다.
+//
+// C027 이 수명을 하나 넓혔다 — 지목한 **몸이 세계에서 사라지면** 풀린다. 다만 쓰러진 몸은
+// 사라진 것이 아니므로 풀지 않는다 (확정 8 · C027 SPEC-004): 쓰러진 채로 계속 읽힌다.
+//
+// 풀린 자리는 비어 있지 않다 — 지목이 없으면 판은 **내가 선 자리**를 진다 (C027 SPEC-005).
+// 그 결정은 View 의 것이므로 여기는 undefined 를 넘기기만 한다.
 let designation: Designation | undefined;
 
 // 클릭의 뜻 (C026 RULE-POINTER-INTENT-001) — 기구는 집기까지만 하고, 집힌 것을 무엇으로
@@ -174,6 +183,30 @@ let inspect = false;
 const COMMAND_OPEN_KEY = 'Slash'; // 여는 키. 표면 자체가 무엇을 할 수 있는지 알려 준다
 // 세계에 닿지 못한 요청의 대답 — 명령 표면과 키가 같은 말을 쓴다
 const LINK_LOST_ANSWER = '세계에 이어져 있지 않다';
+
+// ── 관찰자의 기록 (C028 R1·R2·R3) ────────────────────────
+//
+// **세계 밖이다.** 세계는 자기가 한 말을 쌓아 두지 않는다 — Request.Outcome 은 Tick 의
+// 산출물이지 World State 가 아니므로, 관찰자가 놓치면 그것으로 끝이다. 그래서 여기서 붙잡는다.
+// 스냅샷에 실리지 않고 다른 관찰자에게 가지 않는다 (C028 SPEC-009 경계).
+const answers: KeptAnswer[] = [];
+
+/**
+ * RULE-ANSWER-BOUND-001 — 세계가 한 말 하나를 기록에 쌓는다 (C028 R3).
+ *
+ * **뜨는 것과 남는 것은 한 사건의 두 표현이다** (SPEC-008 경계) — 그래서 이 함수 하나가
+ * 둘 다 한다. 부르는 자리를 나누면 어느 한쪽만 부른 자리가 생기고, 그러면 떴는데 안 남거나
+ * 남았는데 안 뜨는 말이 조용히 생긴다.
+ *
+ * 오래된 것부터 쌓아 둔다 — 새 것을 위로 세우는 것은 표현의 결정이라 View 가 뒤집는다.
+ * 상한을 넘으면 가장 오래된 줄이 밀려난다 (SPEC-005).
+ */
+function announce(text: string): void {
+  hud.notice(text);
+  // 나이를 재는 기준은 이 파일이 이미 쓰는 그 값이다 (타격 결과의 나이와 같은 자리)
+  answers.push({ text, at: latestScene.worldTime });
+  if (answers.length > ANSWER_LOG_LIMIT) answers.shift();
+}
 
 const COMMAND_HISTORY_LIMIT = 40;
 let commandOpen = false;
@@ -247,7 +280,10 @@ function drainOutcomes(): void {
       line.accepted = outcome.accepted;
       line.answer = answer;
     } else if (!outcome.accepted) {
-      hud.notice(answer);
+      // RULE-ANSWER-KEEP-001 — 거절 사유는 뜨고 **남는다** (C028 R1).
+      // 받아들여진 대답은 여기 오지 않는다 — 걸을 때마다 기록이 늘면 사유가 묻힌다
+      // (SPEC-001 경계). 세계가 바뀌는 것으로 이미 말했다는 위 머리말 그대로다.
+      announce(answer);
     }
   }
 }
@@ -306,7 +342,10 @@ function frame(now: number): void {
   // "값이 있으면 띄운다" 뿐이다. **바뀐 프레임에만** 부른다: 말이 떠 있는 동안 매 프레임
   // 다시 띄우면 그 사이에 온 세계의 대답(거절 사유)이 덮여 사라진다.
   const notice = snapshot ? regionNotice(snapshot) : undefined;
-  if (notice !== undefined && notice !== lastRegionNotice) hud.notice(notice);
+  // RULE-NOTICE-KEEP-001 — 세계의 알림도 같은 기록에 남는다 (C028 R2).
+  // **한 번 일어난 일은 한 줄이다** — 바뀐 프레임에만 부르는 위 규율이 그것을 보장한다
+  // (매 프레임 부르면 같은 재배열이 기록에 수십 줄로 쌓인다 · SPEC-002 경계).
+  if (notice !== undefined && notice !== lastRegionNotice) announce(notice);
   lastRegionNotice = notice;
   // 방이 바뀌면 지목이 풀리고(확정 8) 그 방의 이름이 **한 번** 지나간다 (C026 SPEC-010).
   // 매 프레임이 아니라 바뀐 프레임에만 부른다 — 계속 띄우면 그 사이의 다른 말이 덮인다.
@@ -315,7 +354,16 @@ function frame(now: number): void {
     const entryTitle = snapshot ? regionEntryTitle(snapshot, enteredRegionId) : undefined;
     enteredRegionId = regionId;
     designation = undefined;
-    if (entryTitle !== undefined) hud.notice(entryTitle);
+    // RULE-NOTICE-KEEP-001 — 방에 들어선 제목도 기록에 남는다 (C028 R2).
+    // 방을 옮겨도 기록은 남는다 — 기록은 방의 것이 아니라 관찰자의 것이다 (SPEC-006)
+    if (entryTitle !== undefined) announce(entryTitle);
+  }
+  // RULE-DESIGNATE-001 (C027 CHANGED) — 지목한 몸이 세계에서 사라지면 지목을 푼다.
+  // **쓰러진 몸은 사라진 것이 아니다** (확정 8): 쓰러져도 관찰 결과에 그대로 실려 오므로
+  // 아래 판정에 걸리지 않고, 쓰러진 채로 계속 읽힌다.
+  if (snapshot && designation && 'entityId' in designation) {
+    const designatedId = designation.entityId;
+    if (!snapshot.entities.some((e) => e.id === designatedId)) designation = undefined;
   }
   // 아직 세계에서 아무것도 오지 않았어도 명령 표면은 열린다 — 다만 목록은 비어 있다.
   // 세계가 밝히지 않은 명령을 View 가 지어내지 않기 때문이다.
@@ -330,6 +378,9 @@ function frame(now: number): void {
         command: { open: commandOpen, text: commandText, history: commandHistory },
         // 지금 무엇을 지목했는가 — 봉투에 실리지 않는 관찰자의 값이다 (C026)
         designation,
+        // 세계가 나에게 한 말들 (C028) — 같은 자리, 같은 성질의 값이다.
+        // 판이 무엇을 지고 있든 기록은 함께 선다 (SPEC-006)
+        answers,
       })
     : EMPTY_SCENE;
 
@@ -414,7 +465,8 @@ function frame(now: number): void {
       });
       // 보내지 못한 요청이 아무 말 없이 사라지지 않는다 — 명령 표면이 이미 하던 말을
       // 키에도 준다. 이어짐이 끊긴 동안 누른 키는 세계에 닿은 적이 없다.
-      if (!sent) hud.notice(LINK_LOST_ANSWER);
+      // RULE-NOTICE-KEEP-001 — 이어짐이 끊겨 보내지 못한 것도 남는다 (C028 R2)
+      if (!sent) announce(LINK_LOST_ANSWER);
     }
   }
 

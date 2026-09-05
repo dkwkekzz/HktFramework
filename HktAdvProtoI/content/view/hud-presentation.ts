@@ -1,5 +1,9 @@
 // HUD Presentation — HUD 항목 id 의 표시(라벨·아이콘·토스트)를 결정한다
 // (결정 Layer 데이터). id 당 단일 항목 — 미등록 id 는 id 그대로 표시된다.
+//
+// C027 CHANGED — 여기 남은 것은 **내 몸의 상태뿐이다** (spec R5 · SPEC-006).
+// 세계의 사실(깊이 · 안전한 이유 · 압력)은 판이 진다 — 같은 사실이 두 자리에 적히지 않는다.
+// 그 셋의 이름표는 판의 표(target-frame-presentation 의 PLACE_ROW_LABELS)가 이미 갖고 있다.
 
 export interface HudPresentation {
   label: string;
@@ -15,20 +19,6 @@ const HUD: Record<string, HudPresentation> = {
   'world.time': { label: '세계 시간', format: (v) => `${Math.floor(Number(v))}s` },
   // 함께 보고 있는 사람의 수 — 나를 포함한다.
   'observers.present': { label: '함께', icon: '👥', format: (v) => `${Number(v)}명` },
-  // 선 방의 깊이 (C001) — 값은 depth 태그(civil | outer)이고 문구는 code-text 가 정한다
-  'region.depth': { label: '깊이' },
-  // 지금 선 자리가 왜 안전한가 (C006 R4) — 값은 세계가 준 조건 코드들을 code-text 로 옮겨
-  // 이어 붙인 한 줄이다. 조건 area 밖에 서면 이 줄 자체가 뜨지 않는다 (SPEC-007 경계).
-  // "안전" 이 아니라 "안전한 이유" 인 것이 W2 의 전부다 — 안전지대를 칠하는 것이 아니라
-  // 안전할 수 있는 조건을 읽는 것이므로, 이름표가 이유를 묻는 말이어야 한다.
-  'region.safe-by': { label: '안전한 이유' },
-  // 그 방에 쌓인 압력 (C008) — 규칙을 품은 방에서만 뜬다. 값은 세계의 hud 목록이 아니라
-  // 관찰 결과의 region.state 에서 온다 (region.safe-by 와 같은 자리·같은 방식).
-  //
-  // **얼마나 찼는지가 보여야 한다**: 숫자만으로는 120 이 임계라는 것을 알 길이 없고,
-  // 알 수 없으면 "넘치면 바뀐다" 를 관찰할 수 없다 (Play §5.2 Feedback). 그래서 값은
-  // "지금 / 임계" 두 값을 함께 적고 그 뒤에 진행 막대가 선다.
-  'region.pressure': { label: '압력' },
 };
 
 export function hudPresentation(id: string): HudPresentation {

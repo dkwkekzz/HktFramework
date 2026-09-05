@@ -97,3 +97,49 @@ describe('늘 떠 있는 판 — 지시를 글자로 옮긴다', () => {
     expect(html).toContain('>blocked-by-slope<');
   });
 });
+
+describe('늘 떠 있는 판 — 기록 자리', () => {
+  const logged = (log: SceneTargetFrame['log']): string =>
+    targetFrameMarkup({ title: '제목', rows: [], log });
+
+  it('실려 온 차례가 그대로 그려진다 — 판이 순서를 만들지 않는다', () => {
+    const html = logged([{ text: '나중' }, { text: '먼저' }]);
+    expect(html.indexOf('>나중<')).toBeLessThan(html.indexOf('>먼저<'));
+  });
+
+  it('줄마다 말과 때가 각각 다른 자리에 실린다', () => {
+    const html = logged([{ text: '무슨 일', when: '3초 전' }]);
+    expect(html).toContain('class="tf-log-text">무슨 일<');
+    expect(html).toContain('class="tf-log-when">3초 전<');
+  });
+
+  it('때가 없는 줄도 선다 — 없는 것을 빈 칸으로 만들지 않는다', () => {
+    const html = logged([{ text: '무슨 일' }]);
+    expect(html).toContain('class="tf-log-text">무슨 일<');
+    expect(html).not.toContain('tf-log-when');
+  });
+
+  it('기록이 비면 그 자리가 아예 없다', () => {
+    expect(logged([])).not.toContain('tf-log');
+    expect(logged(undefined)).not.toContain('tf-log');
+  });
+
+  it('기록이 있어도 줄 자리는 따로다 — 서로를 만들지 않는다', () => {
+    const html = logged([{ text: '무슨 일' }]);
+    expect(html).toContain('class="tf-log"');
+    expect(html).not.toContain('tf-rows');
+  });
+
+  it('말을 짓지 않는다 — 실려 온 글자만 나온다', () => {
+    const html = logged([{ text: 'blocked-by-slope', when: 'ago:3' }]);
+    expect(html).toContain('>blocked-by-slope<');
+    expect(html).toContain('>ago:3<');
+  });
+
+  it('글자에 들어온 표시는 그대로 뜻이 되지 않는다 — 새어 나가지 않게 바꾼다', () => {
+    const html = logged([{ text: '<b>&"', when: '<i>' }]);
+    expect(html).toContain('&lt;b&gt;&amp;&quot;');
+    expect(html).not.toContain('<b>');
+    expect(html).not.toContain('<i>');
+  });
+});

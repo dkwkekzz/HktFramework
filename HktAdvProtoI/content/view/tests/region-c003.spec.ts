@@ -101,13 +101,12 @@ describe('② 심부 — depth 태그가 넷이 된다', () => {
     expect(regionEntryTitle(inner, 'RED_EYE_TREE')).toContain('거목 내부 세계');
   });
 
-  it('HUD 깊이가 심부를 읽는다 — 야생 다음 한 마디', () => {
+  // C027 CHANGED — 깊이를 재는 자리가 상시 HUD 에서 판의 줄로 옮겨 갔다 (SPEC-006)
+  it('판의 깊이 줄이 심부를 읽는다 — 야생 다음 한 마디', () => {
     for (const v of [inner, lake]) {
-      expect(resolvePresentation(v).hud.find((h) => h.id === 'region.depth')).toMatchObject({
-        widget: 'label',
-        label: '깊이',
-        value: '법칙이 낯설어지는 심부',
-      });
+      expect(
+        resolvePresentation(v).targetFrame?.rows.find((r) => r.id === 'place.depth'),
+      ).toMatchObject({ label: '깊이', value: '법칙이 낯설어지는 심부' });
     }
   });
 
@@ -240,7 +239,7 @@ describe('⑥ 물길로 나온 자리 — 아까 그 방인데 선 자리가 다
 describe('폴백 — 값이 늘어도 화면은 멈추지 않는다 (봉투 형이 그대로이므로)', () => {
   it('모르는 depth 는 문구가 코드 그대로이고 바닥은 내 데이터의 depth 로 칠해진다', () => {
     const plan = resolvePresentation(snapshot('TREE_INNER_WORLD', 'abyss'));
-    expect(plan.hud.find((h) => h.id === 'region.depth')?.value).toBe('abyss');
+    expect(plan.targetFrame?.rows.find((r) => r.id === 'place.depth')?.value).toBe('abyss');
     expect(plan.zones[0]?.fill?.color).toBe(
       (DEPTH_PRESENTATIONS as Record<string, { fill: number }>).deep!.fill,
     );

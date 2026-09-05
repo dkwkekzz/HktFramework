@@ -14,10 +14,10 @@ import type { MotionLibrary } from '../../engine/view-kernel/motion/motion-libra
 import type {
   SceneCommandHistoryLine,
   SceneCommandSurface,
-  SceneHudItem,
   SceneMotion,
   SceneState,
 } from '../../engine/view-kernel/scene/scene-state';
+import { answerLogLines, type KeptAnswer } from './answer-log';
 import { collisionDebug } from '../../engine/view-kernel/presentation/collision-presentation';
 import { commandEntries, composeCommand } from '../../engine/view-kernel/presentation/command-presentation';
 import {
@@ -33,7 +33,7 @@ import { codeText } from './code-text';
 import { rolePresentation } from './role-presentation';
 import { kindPresentation } from './kind-presentation';
 import { regionZones } from './region-presentation';
-import type { Designation } from './pointer-rules';
+import { DESIGNATE_MODIFIER, type Designation } from './pointer-rules';
 import { designationHighlight, targetFrame } from './target-frame-presentation';
 
 // 관찰자 쪽 표시 선택 — 충돌체 디버그 관찰을 켤지. World 에 아무것도 요청하지 않는다.
@@ -61,70 +61,51 @@ export interface PresentationOptions {
    * 지금 무엇을 지목했는가 (C026 R1 — RULE-DESIGNATE-001). **관찰자가 쥐는 값이다** —
    * 스냅샷에 실리지 않고 조립(app)이 소유한다. 세계는 누가 무엇을 지목했는지 모른다.
    *
-   * 없으면 판도 표식도 **둘 다 없다** (SPEC-001 경계).
+   * C027 CHANGED — 없어도 **판은 선다**: 그때의 대상은 내 몸이 선 자리다 (C027 R3).
+   * 표식은 지금까지대로 지목이 있을 때만 선다 — 아무도 지목하지 않은 자리를 세계 위에
+   * 표시하면 그것이 거짓말이다.
    */
   designation?: Designation;
+  /**
+   * 세계가 나에게 한 말들 — 거절 사유와 알림 (C028 R4 · SPEC-006). **관찰자가 쥐는 값이다**:
+   * 스냅샷에 실리지 않고 조립(app)이 모아 두며 다른 관찰자에게 가지 않는다 (SPEC-009 경계).
+   *
+   * **오래된 것부터** 온다 — 새 것을 위에 세우는 것은 표현의 결정이므로 answerLogLines 가
+   * 뒤집는다. 없거나 비면 판에 기록 자리가 아예 서지 않는다 (SPEC-006 경계).
+   */
+  answers?: readonly KeptAnswer[];
 }
 
 /**
- * 지금 선 자리가 왜 안전한가 (C006 R4 — RULE-SAFEBY-001).
+ * RULE-SELF-HUD-001 — 상시 HUD 는 **내 몸의 상태만** 진다 (C027 R5 · SPEC-006).
  *
- * 세계는 몸이 걸린 settlement/condition 태그를 **코드 목록으로** 싣는다
- * (snapshot.standingConditions). 그것을 문구로 옮겨 HUD 한 줄로 세우는 것이 View 의 몫이다 —
- * 어떤 조건이 걸렸는지 판정하는 것은 세계의 일이고, 화면은 그 답을 만들어 내지 않는다.
+ * 세계의 사실 셋은 이제 판이 진다.
+ *   region.depth      봉투의 hud 로 오던 줄 — 여기서 걷어 낸다. 판의 "깊이" 줄이 같은 값을 진다
+ *   region.safe-by    C006 이 standingConditions 로 세우던 줄 — 판의 "걸린 것" 줄이 진다
+ *   region.pressure   C008 이 region.state 로 세우던 줄 — 판의 "압력" 줄이 진다
  *
- * **겹치면 전부 잇는다 — 하나로 줄이지 않는다** (SPEC-007 경계). 산과 강과 거목이 함께
- * 걸린 자리가 도시 자리이므로, 우선순위를 지어내 하나만 뜨게 하면 "조건이 모여서 도시가
- * 된다" 는 것 자체가 화면에서 사라진다. 아무것도 걸리지 않으면 줄 자체가 서지 않는다.
+ * 뒤의 둘은 애초에 봉투의 hud 목록이 아니라 View 가 세우던 줄이므로 **세우기를 그만두면
+ * 사라진다** (그 자리는 target-frame-presentation 이다). 앞의 하나만 세계가 실어 오므로
+ * 여기서 걸러야 한다 — 같은 사실이 두 자리에 적히면 둘 중 하나를 믿을 수 없게 된다.
  */
-const SAFE_BY_HUD_ID = 'region.safe-by';
+const FRAME_OWNED_HUD_IDS: ReadonlySet<string> = new Set(['region.depth']);
 
-/** 조건이 여럿일 때 잇는 말 — 목록 구분자다(문장을 짓지 않는다) */
-const SAFE_BY_SEPARATOR = ' · ';
-
-function safeByHud(snapshot: GameViewSnapshot): SceneHudItem[] {
-  const conditions = snapshot.standingConditions ?? [];
-  if (conditions.length === 0) return [];
-  return [
-    {
-      id: SAFE_BY_HUD_ID,
-      widget: 'label',
-      label: hudPresentation(SAFE_BY_HUD_ID).label,
-      value: conditions.map((code) => codeText(code)).join(SAFE_BY_SEPARATOR),
-    },
-  ];
+function isFrameOwnedHudId(id: string): boolean {
+  return FRAME_OWNED_HUD_IDS.has(id);
 }
 
 /**
- * 그 방에 쌓인 압력 (C008 — spec Observable region.state.pressure · pressureLimit).
+ * RULE-DESIGNATE-HINT-001 — 조작 안내에 **지목하는 법** 한 줄 (C027 R6 · SPEC-007).
  *
- * safeByHud 와 같은 자리·같은 방식이다 — 세계의 hud 목록이 아니라 관찰 결과의 값에서
- * View 가 한 줄을 세운다. **규칙 없는 방에서는 이 줄 자체가 없다**: 봉투에 region.state 가
- * 없기 때문이고, 없는 것을 0 으로 지어내면 압력이 없는 방에서도 압력이 있는 것처럼 보인다
- * (SPEC-007 경계).
- *
- * counter 가 아니라 **label + progress** 로 세운다. Play §5.2 는 "counter, progress = pressure/P"
- * 라고 적었지만 기반의 counter 위젯은 값만 그리고 막대를 그리지 않는다 (hud.ts) — 얼마나
- * 찼는지가 보여야 한다는 요구를 지키는 위젯은 label 쪽이다. 숫자도 함께 남긴다: 막대만으로는
- * 임계가 120 이라는 것을 알 수 없고, 알 수 없으면 "얼마나 걸으면 바뀌는가" 를 셀 수 없다.
+ * 보조키가 무엇인지의 원본은 pointer-rules 의 DESIGNATE_MODIFIER 하나뿐이다 — 사본을 두면
+ * 키를 옮겼을 때 화면이 없는 키를 안내한다. 여기서는 그 값을 키 표기로만 올려 끼운다.
+ * 기존 안내 줄들은 그대로다 — 줄이 하나 늘 뿐이다 (SPEC-007 경계).
  */
-const PRESSURE_HUD_ID = 'region.pressure';
+const DESIGNATE_KEY_LABEL =
+  DESIGNATE_MODIFIER.charAt(0).toUpperCase() + DESIGNATE_MODIFIER.slice(1);
 
-function pressureHud(snapshot: GameViewSnapshot): SceneHudItem[] {
-  const state = snapshot.region?.state;
-  if (!state) return [];
-  const limit = state.pressureLimit;
-  // 임계가 0 이면 비율을 잴 수 없다 — 막대를 지어내지 않고 숫자만 남긴다
-  const ratio = limit > 0 ? Math.min(1, Math.max(0, state.pressure / limit)) : undefined;
-  return [
-    {
-      id: PRESSURE_HUD_ID,
-      widget: 'label',
-      label: hudPresentation(PRESSURE_HUD_ID).label,
-      value: `${Math.floor(state.pressure)} / ${limit}`,
-      ...(ratio === undefined ? {} : { progress: ratio }),
-    },
-  ];
+function designateHint(): readonly string[] {
+  return [codeText('hint.designate', DESIGNATE_KEY_LABEL)];
 }
 
 /** 관찰자가 쥐고 있는 명령 표면 상태 — 조립 루트가 소유한다 (04 history.owner: observer) */
@@ -201,7 +182,24 @@ export function resolvePresentation(
   const snapshot = observed as GameViewSnapshot;
   // 세계 시각 — 타격 결과의 나이도, 재배열이 얼마 전인지도 이 값 하나로 잰다.
   // zones 가 그것을 쓰므로 장면을 세우기 전에 먼저 읽는다.
-  const worldTime = Number(snapshot.hud.find((h) => h.id === 'world.time')?.value ?? 0);
+  const worldTimeValue = snapshot.hud.find((h) => h.id === 'world.time')?.value;
+  const worldTime = Number(worldTimeValue ?? 0);
+  // 세계 시각을 **모르는 것**과 0 인 것은 다르다 (C028 SPEC-003 경계). 봉투가 아직 그 줄을
+  // 싣지 않았으면 나이를 재지 않는다 — 아래 두 자리(기록 줄 · 재배열)가 이 값을 받는다.
+  // zones 는 지금까지대로 0 을 받는다 (C008 의 맥동은 창 밖이면 어차피 서지 않는다)
+  const knownWorldTime =
+    worldTimeValue !== undefined && Number.isFinite(worldTime) ? worldTime : undefined;
+  // 판은 지목이 없어도 선다 (C027 R3) — 지목을 넘기고, 없으면 내가 선 자리가 답한다.
+  // 표식은 지목이 있고 그 대상이 아직 세계에 있을 때만 선다
+  const frame = targetFrame(snapshot, options.designation, knownWorldTime);
+  const highlight = options.designation
+    ? designationHighlight(snapshot, options.designation)
+    : undefined;
+  // 관찰자가 모아 둔 말 → 판의 기록 줄 (C028 R4). **판이 무엇을 지고 있든 같은 자리다** —
+  // 지목한 자리든 존재든 내가 선 자리든, 기록은 대상의 것이 아니라 관찰자의 것이므로
+  // 대상이 바뀌어도 그대로 남는다 (SPEC-006). 비면 붙이지 않는다 — 빈 기록판은 없다
+  const log = answerLogLines(options.answers ?? [], knownWorldTime);
+  const framed = frame && log.length > 0 ? { ...frame, log } : frame;
   return {
     specId: snapshot.specId,
     terrain: snapshot.scene,
@@ -214,14 +212,13 @@ export function resolvePresentation(
     // 선 방의 바닥 (C001) — 모르는 방이면 비어 있고, 비어 있으면 그려지지 않는다.
     // C008 부터 구역·통로도 여기서 선다 — 재배열이 얼마 전인지를 재려고 세계 시각을 함께 넘긴다
     zones: regionZones(snapshot.region, worldTime),
-    // 지목한 것이 서는 판과 그 자리의 표식 (C026) — 지목이 없으면 둘 다 없고,
-    // 없으면 그려지지 않는다. 세계로 나가는 요청은 0 이다 (SPEC-006)
-    ...(options.designation
-      ? {
-          targetFrame: targetFrame(snapshot, options.designation),
-          highlight: designationHighlight(options.designation),
-        }
-      : {}),
+    // 판 하나 (C026 · C027 CHANGED) — 지목한 것이 서고, 지목이 없으면 **내가 선 자리**가
+    // 선다. 판이 아예 없는 경우는 내 몸을 모를 때뿐이다. 표식은 지목이 있을 때만 선다.
+    // 세계로 나가는 요청은 어느 쪽이든 0 이다 (SPEC-009)
+    ...(framed ? { targetFrame: framed } : {}),
+    ...(highlight ? { highlight } : {}),
+    // 조작 안내에 팩이 보태는 줄 (C027 R6)
+    keyHints: designateHint(),
     // 선 방의 크기가 정하는 시점 거리 (C003) — 모르는 방이면 없고, 없으면 기본 거리다
     // 충돌체 디버그 관찰 — 켜졌을 때만 지시를 담는다
     ...(options.debugObserve ? { colliderDebug: collisionDebug(snapshot) } : {}),
@@ -296,31 +293,27 @@ export function resolvePresentation(
       ),
     ),
     worldTime,
+    // 상시 HUD — **내 몸의 상태만** 남는다 (C027 R5). 세계의 사실은 판이 진다
     hud: [
-      ...snapshot.hud.filter((h) => !isSelfHudId(h.id)).map((h) => {
-        const p = hudPresentation(h.id);
-        return {
-          id: h.id,
-          widget: h.kind,
-          label: p.label,
-          ...(p.icon ? { icon: p.icon } : {}),
-          // 의미 코드 값(label 위젯)은 문구 결정을, 형식 지시가 있으면 그 형식을 거친다
-          value: p.format
-            ? p.format(h.value)
-            : h.kind === 'label'
-              ? codeText(String(h.value))
-              : h.value,
-          ...(h.progress === undefined ? {} : { progress: h.progress }),
-          ...(p.celebrateGain ? { celebrateGain: true } : {}),
-        };
-      }),
-      // 안전한 이유 (C006) — 세계의 hud 목록이 아니라 관찰 결과의 조건 코드에서 온다.
-      // 맨 뒤에 세운다: 늘 있는 줄이 아니라 조건 area 안에 섰을 때만 생기는 줄이므로,
-      // 앞의 줄들이 자리를 옮기지 않아야 화면이 깜박이지 않는다.
-      ...safeByHud(snapshot),
-      // 그 방에 쌓인 압력 (C008) — 같은 이유로 맨 뒤다. 규칙을 품은 방에서만 생기는 줄이므로
-      // 문을 넘나들 때 앞의 줄들이 자리를 옮기면 안 된다
-      ...pressureHud(snapshot),
+      ...snapshot.hud
+        .filter((h) => !isSelfHudId(h.id) && !isFrameOwnedHudId(h.id))
+        .map((h) => {
+          const p = hudPresentation(h.id);
+          return {
+            id: h.id,
+            widget: h.kind,
+            label: p.label,
+            ...(p.icon ? { icon: p.icon } : {}),
+            // 의미 코드 값(label 위젯)은 문구 결정을, 형식 지시가 있으면 그 형식을 거친다
+            value: p.format
+              ? p.format(h.value)
+              : h.kind === 'label'
+                ? codeText(String(h.value))
+                : h.value,
+            ...(h.progress === undefined ? {} : { progress: h.progress }),
+            ...(p.celebrateGain ? { celebrateGain: true } : {}),
+          };
+        }),
     ],
   };
 }

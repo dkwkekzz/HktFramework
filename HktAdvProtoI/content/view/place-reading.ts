@@ -53,8 +53,20 @@ export interface PlaceReading {
   mismatched: boolean;
   /** 땅이 어떤가 · 무엇이 걸렸나 — 어긋났거나 모르는 방이면 없다 */
   ground?: PlaceGround;
-  /** 규칙을 품은 방의 지금 State — **품지 않은 방에는 없다** (SPEC-004 경계) */
-  rule?: { pattern: string; pressure: number; pressureLimit: number };
+  /**
+   * 규칙을 품은 방의 지금 State — **품지 않은 방에는 없다** (C026 SPEC-004 경계).
+   *
+   * C028 CHANGED — 마지막 재배열의 세계 시각이 함께 실린다 (spec R5). 봉투가 C008 부터
+   * 이미 싣고 있던 값이고 여태 2.2초 맥동만 읽고 있었다. **한 번도 재배열되지 않은 방에는
+   * 그 값이 없다** — 0 으로 지어내지 않는다 (SPEC-007 경계). 얼마 전인지는 표현이 잰다
+   * (압력의 비율을 표현이 재는 것과 같은 규율).
+   */
+  rule?: {
+    pattern: string;
+    pressure: number;
+    pressureLimit: number;
+    rearrangedAt?: number;
+  };
 }
 
 const DEPTH_HUD_ID = 'region.depth';
@@ -83,6 +95,8 @@ export function readPlace(
             pattern: state.pattern,
             pressure: state.pressure,
             pressureLimit: state.pressureLimit,
+            // 재배열이 한 번도 없었으면 봉투에도 없다 — 없는 채로 둔다 (SPEC-007 경계)
+            ...(state.rearrangedAt === undefined ? {} : { rearrangedAt: state.rearrangedAt }),
           },
         }
       : {}),

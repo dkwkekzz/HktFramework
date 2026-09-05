@@ -547,9 +547,10 @@ describe('SPEC-007 — 색과 표식은 표다', () => {
     expect(DEPTH_PRESENTATIONS[UNKNOWN_DEPTH]).toBeUndefined();
     // Then 기본값이 온다 (판정이 아니라 폴백이다)
     expect(depthPresentation(UNKNOWN_DEPTH)).toEqual(DEFAULT_DEPTH_PRESENTATION);
-    // 그리고 화면 결정이 오류 없이 끝난다 — HUD 에는 코드가 그대로 실린다
+    // 그리고 화면 결정이 오류 없이 끝난다 — 코드가 그대로 실린다
+    // (C027 CHANGED — 깊이는 상시 HUD 를 떠나 판의 줄이 되었다 · SPEC-006)
     const plan = resolvePresentation(snapshot(START_REGION_ID, UNKNOWN_DEPTH));
-    expect(plan.hud.find((h) => h.id === 'region.depth')?.value).toBe(UNKNOWN_DEPTH);
+    expect(plan.targetFrame?.rows.find((r) => r.id === 'place.depth')?.value).toBe(UNKNOWN_DEPTH);
   });
 
   it('S-025 표에 없는 transition 종류로 그려도 멈추지 않는다 — 색 없이 열린 표식이다', () => {
