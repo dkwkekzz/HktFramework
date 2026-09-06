@@ -10,6 +10,7 @@ import {
   extentPolygon,
   findPoint,
   pointsOf,
+  polylineStrip,
   type RegionDescription,
 } from '../description';
 
@@ -91,5 +92,90 @@ describe('descriptionHash — 결정론', () => {
     expect(descriptionHash(description([opA]))).not.toBe(
       descriptionHash(description([{ ...opA, position: { x: 0, z: 17 } }])),
     );
+  });
+});
+
+describe('polylineStrip — 중심선을 폭만큼 부풀린 다각형', () => {
+  it('곧은 두 점 → 폭 × 길이의 사각형 네 꼭짓점', () => {
+    const strip = polylineStrip(
+      [
+        { x: 0, z: 0 },
+        { x: 10, z: 0 },
+      ],
+      4,
+    );
+    expect(strip).toHaveLength(4);
+    expect(strip).toEqual([
+      { x: 0, z: 2 },
+      { x: 10, z: 2 },
+      { x: 10, z: -2 },
+      { x: 0, z: -2 },
+    ]);
+  });
+
+  it('꺾인 세 점 → 정점 여섯이고 전부 유한하다', () => {
+    const strip = polylineStrip(
+      [
+        { x: 0, z: 0 },
+        { x: 10, z: 0 },
+        { x: 10, z: 10 },
+      ],
+      3,
+    );
+    expect(strip).toHaveLength(6);
+    for (const p of strip) {
+      expect(Number.isFinite(p.x)).toBe(true);
+      expect(Number.isFinite(p.z)).toBe(true);
+    }
+  });
+
+  it('부풀릴 것이 없으면 빈 배열', () => {
+    expect(polylineStrip([], 4)).toEqual([]);
+    expect(polylineStrip([{ x: 1, z: 1 }], 4)).toEqual([]);
+    expect(
+      polylineStrip(
+        [
+          { x: 0, z: 0 },
+          { x: 10, z: 0 },
+        ],
+        0,
+      ),
+    ).toEqual([]);
+    expect(
+      polylineStrip(
+        [
+          { x: 0, z: 0 },
+          { x: 10, z: 0 },
+        ],
+        -2,
+      ),
+    ).toEqual([]);
+  });
+
+  it('길이 0 인 선분이 섞여도 NaN 이 나오지 않는다', () => {
+    const strip = polylineStrip(
+      [
+        { x: 0, z: 0 },
+        { x: 0, z: 0 },
+        { x: 10, z: 0 },
+        { x: 10, z: 0 },
+      ],
+      2,
+    );
+    expect(strip).toHaveLength(4);
+    for (const p of strip) {
+      expect(Number.isNaN(p.x)).toBe(false);
+      expect(Number.isNaN(p.z)).toBe(false);
+    }
+    // 같은 점만 이어진 것은 잴 선분이 없다
+    expect(
+      polylineStrip(
+        [
+          { x: 3, z: 3 },
+          { x: 3, z: 3 },
+        ],
+        2,
+      ),
+    ).toEqual([]);
   });
 });
