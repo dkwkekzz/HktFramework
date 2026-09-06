@@ -14,9 +14,10 @@
 import { descriptionHash } from '../../engine/world-authoring/description';
 import { blockedReasonAt, isTraversableAt, surfaceAt, tagsAt } from '../../engine/world-authoring/query';
 import type { GameViewSnapshot } from '../protocol/gameview';
-import { TRACE_LAYER, regionSpec } from '../regions/index';
+import { BLOCK_COLLAPSED, TRACE_LAYER, regionSpec, soilStainTag } from '../regions/index';
 import { SETTLEMENT_LAYER } from './biome-rules';
 import { CELL_LAYER, openPassageTags } from './region-presentation';
+import { isCollapsedAt, sourcePhases, traceLevelAt } from './resource-reading';
 import { regionTerrain } from './terrain-presentation';
 
 /** 그 점에 걸린 area — layer 마다 한 묶음이고, 겹치면 **전부** 담는다 (SPEC-003) */
@@ -81,6 +82,10 @@ export function readPlace(
   point: { x: number; z: number },
 ): PlaceReading {
   const regionId = snapshot.region.id;
+  // 원천의 phase 는 **봉투의 것**이다 (C012). 흔적이 옅어졌는지도 그 자리가 무너졌는지도
+  // 여기서 유도되므로, 이 함수가 읽는 사실의 출처는 여전히 봉투와 내 Description 둘뿐이다 —
+  // 시그니처가 늘지 않는 것이 그 규율을 그대로 지킨다 (세계에 묻는 것은 여전히 0 이다)
+  const phases = sourcePhases(snapshot);
   const depth = snapshot.hud.find((h) => h.id === DEPTH_HUD_ID)?.value;
   const state = snapshot.region.state;
   const base: PlaceReading = {
@@ -113,13 +118,28 @@ export function readPlace(
   const world = compiled.world;
 
   const areas: PlaceAreas[] = [];
-  // TRACE_LAYER 가 셋째다 (C011) — 물으면 그 자리의 흙도 답한다. 지면에는 글자가 없으므로
-  // (C026 R4) 흔적이 무슨 단계인지는 **물었을 때만** 말이 된다. 겹치면 전부 담긴다 —
-  // 여기서 가장 짙은 것 하나로 줄이지 않는다: 줄을 만드는 것은 이 파일의 일이 아니다
-  for (const layer of [SETTLEMENT_LAYER, CELL_LAYER, TRACE_LAYER]) {
+  for (const layer of [SETTLEMENT_LAYER, CELL_LAYER]) {
     const tags = tagsAt(world, point.x, point.z, layer);
     if (tags.length > 0) areas.push({ layer, tags });
   }
+  // TRACE_LAYER 가 셋째다 (C011) — 물으면 그 자리의 흙도 답한다. 지면에는 글자가 없으므로
+  // (C026 R4) 흔적이 무슨 단계인지는 **물었을 때만** 말이 된다.
+  //
+  // C012 CHANGED — 여기 서는 것은 **지금의 단계 하나**다 (R5). 고갈된 원천 둘레는 한 단계
+  // 옅고, 그래서 바닥에 그려진 색과 판이 말하는 말이 같은 값에서 나온다.
+  //
+  // 겹친 태그를 그대로 늘어놓지 않고 **가장 짙은 하나**로 답하는 것은 줄을 짧게 하려는
+  // 것이 아니라 그것이 흔적의 규칙이기 때문이다 — 겹침은 짙기이지 양이 아니고(C011 R4),
+  // 옅어진 뒤에는 겹친 둘이 같은 단계가 되어 같은 말이 두 번 서게 된다.
+  // 단계가 0 이면 흔적이 없어진 것이므로 그 줄도 서지 않는다 (바닥에 그리지 않는 것과 같다).
+  const trace = traceLevelAt(regionId, point, phases);
+  if (trace > 0) areas.push({ layer: TRACE_LAYER, tags: [soilStainTag(trace)] });
+
+  // RULE-SOURCE-COLLAPSE-001 (C012 R3) — 컴파일 결과 **위에** 덧씌운다. 땅은 한 값도
+  // 바뀌지 않고(높이 · 표면 · traversable 격자 그대로), 세계가 하는 것과 같은 판정이
+  // 그 위에 "무너졌다" 만 얹는다. 땅이 이미 막고 있으면 그 사유가 그대로다 —
+  // 세계의 이동 규칙도 땅을 먼저 묻고 덧씌움을 그 뒤에 묻는다 (move 의 차례).
+  const collapsed = isCollapsedAt(regionId, point, phases);
 
   // 통로의 열림 판정은 **region-presentation 의 표 읽기 그대로다** — 두 벌로 만들면
   // 판이 말하는 것과 바닥에 그려진 것이 갈린다 (spec: 같은 규칙이어야 한다)
@@ -129,12 +149,12 @@ export function readPlace(
   ).map((tag) => ({ tag, open: open === null ? null : open.has(tag) }));
 
   const surface = surfaceAt(world, point.x, point.z);
-  const reason = blockedReasonAt(world, point.x, point.z);
+  const reason = blockedReasonAt(world, point.x, point.z) ?? (collapsed ? BLOCK_COLLAPSED : null);
   return {
     ...base,
     ground: {
       ...(surface === null ? {} : { surface }),
-      traversable: isTraversableAt(world, point.x, point.z),
+      traversable: isTraversableAt(world, point.x, point.z) && !collapsed,
       ...(reason === null ? {} : { blockedReason: reason }),
       areas,
       passages,
