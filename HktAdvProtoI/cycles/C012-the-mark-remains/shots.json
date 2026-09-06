@@ -1,0 +1,230 @@
+{
+  "out": "shots",
+  "viewport": [
+    900,
+    660
+  ],
+  "runs": [
+    {
+      "region": "BIO_ORE_FIELD",
+      "spawn": "2,-6",
+      "npcs": "none",
+      "steps": [
+        {
+          "wait": "세계 시간",
+          "tries": 60
+        },
+        {
+          "sleep": 1500
+        },
+        {
+          "shot": "X-01-before",
+          "note": "X-① 캐기 전 — 노두가 서 있고 그 둘레 흙이 방 바닥보다 짙다"
+        },
+        {
+          "click": [
+            0.783,
+            0.515
+          ],
+          "alt": true
+        },
+        {
+          "sleep": 2000
+        },
+        {
+          "shot": "X-02-ask-before",
+          "note": "X-① 지목하면 남아 있다고 답한다"
+        }
+      ]
+    },
+    {
+      "region": "BIO_ORE_FIELD",
+      "spawn": "2,-6",
+      "npcs": "none",
+      "sourcePhase": "ORE_OUTCROP:depleted",
+      "steps": [
+        {
+          "wait": "세계 시간",
+          "tries": 60
+        },
+        {
+          "sleep": 1500
+        },
+        {
+          "shot": "X-03-after",
+          "note": "X-② 캔 뒤 — 그림이 무너진 구덩이가 되고 둘레 흙이 방 바닥과 같아졌다 (같은 자리 · X-01 과 견준다)"
+        },
+        {
+          "click": [
+            0.783,
+            0.515
+          ],
+          "alt": true
+        },
+        {
+          "sleep": 2000
+        },
+        {
+          "shot": "X-04-ask-after",
+          "note": "X-③ 지목하면 바닥났다 · 채취 불가 사유가 그 자리에서 읽힌다"
+        }
+      ]
+    },
+    {
+      "region": "BIO_ORE_FIELD",
+      "spawn": "2,-6",
+      "npcs": "none",
+      "sourcePhase": "ORE_OUTCROP:depleted",
+      "steps": [
+        {
+          "wait": "세계 시간",
+          "tries": 60
+        },
+        {
+          "sleep": 1500
+        },
+        {
+          "click": [
+            0.794,
+            0.665
+          ],
+          "alt": true
+        },
+        {
+          "sleep": 2000
+        },
+        {
+          "shot": "X-05-ask-the-pit",
+          "note": "X-④ 무너진 자리를 지목한다 — 걸어가기 전에 지날 수 없는 사유를 안다"
+        }
+      ]
+    },
+    {
+      "region": "RED_EYE_TREE",
+      "spawn": "-2,2",
+      "npcs": "none",
+      "sourcePhase": "ROOT_NODULE:depleted",
+      "steps": [
+        {
+          "wait": "세계 시간",
+          "tries": 60
+        },
+        {
+          "sleep": 1500
+        },
+        {
+          "shot": "X-06-burst-nodule",
+          "note": "X-⑤ 터진 뿌리혹 — 빈 껍질만 남고 이 세계에서 가장 짙던 흙이 한 단계 옅어졌다"
+        }
+      ]
+    },
+    {
+      "region": "BIO_ORE_FIELD",
+      "spawn": "2,-6",
+      "npcs": "none",
+      "sourcePhase": "ROOT_NODULE:depleted",
+      "steps": [
+        {
+          "wait": "세계 시간",
+          "tries": 60
+        },
+        {
+          "sleep": 1500
+        },
+        {
+          "click": [
+            0.783,
+            0.515
+          ],
+          "alt": true
+        },
+        {
+          "sleep": 2000
+        },
+        {
+          "shot": "X-07-stalled",
+          "note": "X-⑥ 다른 방의 뿌리혹을 캤더니 노두에 '되돌아옴이 멎었다' 가 걸렸다 — 캘 수는 여전히 있다"
+        }
+      ]
+    },
+    {
+      "region": "FOREST_EDGE",
+      "spawn": "-6.4,6",
+      "npcs": "none",
+      "steps": [
+        {
+          "wait": "세계 시간",
+          "tries": 60
+        },
+        {
+          "sleep": 1500
+        },
+        {
+          "press": "KeyE"
+        },
+        {
+          "wait": "광식충 허물: 1",
+          "tries": 90
+        },
+        {
+          "press": "KeyE"
+        },
+        {
+          "wait": "광식충 허물: 2",
+          "tries": 90
+        },
+        {
+          "press": "KeyE"
+        },
+        {
+          "wait": "광식충 허물: 3",
+          "tries": 90
+        },
+        {
+          "sleep": 1500
+        },
+        {
+          "shot": "X-08-harvested-by-hand",
+          "note": "X-⑦ 손으로 세 번 캐서 고갈시킨 자리 — 무더기가 흩어지고 둘레 흙이 방 바닥과 같아졌다"
+        },
+        {
+          "click": [
+            0.3,
+            0.52
+          ],
+          "alt": true
+        },
+        {
+          "sleep": 2000
+        },
+        {
+          "shot": "X-09-ask-the-emptied",
+          "note": "X-⑦ 지목하면 바닥났다 · 남은 것이 없다"
+        }
+      ]
+    },
+    {
+      "region": "WHITE_KING_DOMAIN",
+      "spawn": "0,0",
+      "npcs": "none",
+      "sourcePhase": "ORE_OUTCROP:depleted",
+      "steps": [
+        {
+          "wait": "세계 시간",
+          "tries": 60
+        },
+        {
+          "expect": "문명권",
+          "note": "X-⑧ 백왕령이다"
+        },
+        {
+          "sleep": 1000
+        },
+        {
+          "shot": "X-10-untouched",
+          "note": "X-⑧ 숲에서 캐도 백왕령은 한 값도 달라지지 않는다"
+        }
+      ]
+    }
+  ]
+}
