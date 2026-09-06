@@ -5,9 +5,11 @@
 //                   땅이 없는 방은 이 전제가 없는 것과 같다 (C006 SPEC-009)
 //                3. TargetPosition 이 그 방의 **닫힌 통로 area** 안이 아니다 (C008 ADDED).
 //                   규칙 State 가 없는 방은 이 전제가 없는 것과 같다
-//                4. 현재 행동이 대체 가능하다 (RULE-ACTION-BEGIN-001)
+//                4. TargetPosition 이 **무너진 원천의 자리**가 아니다 (C012 ADDED).
+//                   고갈되지 않았거나 무너지지 않는 원천은 이 전제가 없는 것과 같다
+//                5. 현재 행동이 대체 가능하다 (RULE-ACTION-BEGIN-001)
 // Transition     CurrentAction = move(TargetPosition)
-// Result         Success | Failure(out-of-bounds | too-steep | deep-water | passage-closed | action-busy)
+// Result         Success | Failure(out-of-bounds | too-steep | deep-water | passage-closed | collapsed | action-busy)
 //
 // MoveTarget 설정이 아니라 "이동 행동에 진입" 이다.
 //
@@ -19,15 +21,21 @@
 // 컴파일 결과(traversable)를 고치는 것이 아니라 State 가 그 위에 덧씌워지는 것이므로
 // 순서상 맨 뒤여야 한다. 판정은 **목표 자리만** 본다 — 그래서 재배열로 발밑이 닫혀도
 // 열린 자리로 걸어 나갈 수 있다. 갇히지 않는다 (SPEC-005 경계).
+//
+// C012 CHANGED — 네 번째로 붕괴가 온다 (spec R4). 앞의 셋은 한 글자도 바뀌지 않았다:
+// 무너진 노두도 컴파일 결과를 고치지 않고 그 위에 덧씌워지는 State 이므로, 닫힌 통로와
+// 같은 자리(땅 판정 뒤)에 선다. 여기도 **목표 자리만** 본다 — 무너진 자리 위에 서 있게
+// 되어도 걸어 나갈 수 있다.
 
 import type { ActionResult } from '../../protocol/actions';
-import { BLOCK_STEEP, BLOCK_WATER } from '../../regions';
+import { BLOCK_COLLAPSED, BLOCK_STEEP, BLOCK_WATER } from '../../regions';
 import { RULE_MOVE } from '../../protocol/semantic-id';
 import type { ActorState } from '../semantic/actor';
 import { extentContains } from '../../../engine/world-authoring/description';
 import type { WorldPosition } from '../semantic/position';
 import { regionExtent } from '../semantic/region';
 import { isClosedPassageAt, PASSAGE_CLOSED } from '../semantic/region-state';
+import { isCollapsedAt } from '../semantic/resource';
 import { blockedReason } from '../semantic/terrain';
 import type { WorldState } from '../semantic/world-state';
 import { beginAction, evaluateActionBegin } from './action-begin';
@@ -40,7 +48,8 @@ export type MoveFailureReason =
   | 'action-busy'
   | typeof BLOCK_STEEP
   | typeof BLOCK_WATER
-  | typeof PASSAGE_CLOSED;
+  | typeof PASSAGE_CLOSED
+  | typeof BLOCK_COLLAPSED;
 
 // Precondition 평가 — Observable(Move.Availability / Move.FailureReason)과 공유한다.
 // 목적지는 요청 시점에만 알 수 있으므로 Availability 는 행동 대체 가능성만 판정한다.
@@ -63,6 +72,12 @@ export function ruleMove(
   // 지금 패턴이 열지 않은 통로인가 — 땅은 그대로이고 열림/닫힘만 State 가 정한다 (C008 R2).
   if (isClosedPassageAt(state.regionStates, actor.regionId, target)) {
     return { status: 'failure', rule: RULE_MOVE, reason: PASSAGE_CLOSED };
+  }
+
+  // 무너진 원천의 자리인가 — 땅은 그대로이고 고갈이 그 위에 덧씌워질 뿐이다
+  // (RULE-SOURCE-COLLAPSE-001 · C012 R4).
+  if (isCollapsedAt(state.regionStates, actor.regionId, target)) {
+    return { status: 'failure', rule: RULE_MOVE, reason: BLOCK_COLLAPSED };
   }
 
   const busy = evaluateActionBegin(actor);

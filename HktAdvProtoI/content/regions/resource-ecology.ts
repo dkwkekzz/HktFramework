@@ -45,11 +45,45 @@ export interface ResourceSourceSpec {
   carrier: CarrierKind;
   opportunity: OpportunityRole;
   /**
-   * 무엇이 이것을 되돌리는가. **C011 의 규칙은 이 값을 읽지 않는다** —
+   * 무엇이 이것을 되돌리는가. **C011~C012 의 규칙은 이 값을 읽지 않는다** —
    * 밝혀만 두고 회복 세계 과정(C013)이 읽는다. 세계 사실이지 기구가 아니다.
    */
   supply: SupplyMode;
+  /**
+   * 한 원천에서 **몇 번 캘 수 있는가** (C012 ADDED · 위임된 결정 D4).
+   * 그만큼 캐면 phase 가 depleted 가 된다.
+   */
+  harvests: number;
+  /**
+   * 캐고 나면 **무너져 그 자리를 막는가** (C012 ADDED · A.2 채취 결과).
+   *
+   * 참인 원천은 자기 자리에 resource layer **area** 를 하나 가진다 (태그가 자기 id 다) —
+   * 고갈된 뒤 그 area 안이 지날 수 없는 자리가 된다. 지금 참인 것은 노두 하나다:
+   * 광맥의 머리가 무너져 구덩이가 되는 것이고, 허물·더미·뿌리혹은 흩어지거나 터질 뿐이다.
+   */
+  collapses?: boolean;
+  /**
+   * 이것이 **매달린** 원천 (C012 ADDED · Play §5.5 사슬 · A.2 회복 원인).
+   *
+   * 그 원천이 고갈되면 이것에 `recovery-stalled` 가 걸린다 — 되돌아오는 일이 멎었다는 표시다.
+   * 사슬은 셋을 잇지만(균류 → 뿌리혹 → 노두) 지금 서 있는 것은 뒤의 둘뿐이다.
+   * 뿌리혹이 매달린 분해된 흙(NEST_FUNGUS)은 그 원천이 서는 C014 가 잇는다.
+   */
+  dependsOn?: string;
+  /**
+   * 그 원천 **둘레의 흔적** op id (C012 ADDED · §5.4 ②).
+   *
+   * 고갈되면 이 op 의 단계를 한 단계 낮춰 친다 — 다음 사람이 "이미 훑은 자리" 로 읽는다.
+   * 방 바닥에 깔린 흔적은 여기 적지 않는다: 옅어지는 것은 원천 둘레뿐이다.
+   */
+  traceOp?: string;
 }
+
+/** 조건 코드 — 되돌아오는 일이 멎었다 (Play §5.5 의 코드 그대로) */
+export const RECOVERY_STALLED = 'recovery-stalled';
+
+/** 거절 사유 코드 — 무너진 자리라 지날 수 없다 (Play §5.4 의 코드 그대로) */
+export const BLOCK_COLLAPSED = 'collapsed';
 
 /** 그 방이 낳는 것 — 없으면 이 계통이 닿지 않는 방이다 (백왕령이 그렇다 · 확정 5) */
 export interface RegionResourceEcology {

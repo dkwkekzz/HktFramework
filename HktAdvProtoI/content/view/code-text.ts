@@ -9,11 +9,13 @@
 
 import {
   BIO_ORE,
+  BLOCK_COLLAPSED,
   FORM_MOLT_LITTER,
   FORM_OUTCROP,
   FORM_ROOT_NODULE,
   FORM_SPOIL_PILE,
   ORE_EATER_MOLT,
+  RECOVERY_STALLED,
   soilStainTag,
 } from '../regions/index';
 
@@ -23,6 +25,9 @@ const CODE_TEXT: Record<string, string> = {
   'out-of-range': '너무 멀다 — 가까이 이동하자',
   // 세계가 그 원천을 알지 못한다 (C011 R1 · R2 의 거절)
   'unknown-source': '그런 원천이 없다',
+  // 다 캐 간 원천이다 (C012 R1 의 거절). **몇 번 캘 수 있었는지도 언제 돌아오는지도 말하지
+  // 않는다** — 실려 오지 않는 것이고(spec Observable), 관찰된 사실은 "지금 여기 없다" 하나다
+  'source-depleted': '남은 것이 없다',
   // 불가 사유
   'action-busy': '지금 하는 행동이 끝나야 한다',
   'no-target': '대상이 없다',
@@ -78,6 +83,11 @@ const CODE_TEXT: Record<string, string> = {
   // "갈 수 없다" 가 아니라 "가파르다 · 깊다" 여야 다음에 어디로 걸을지가 화면에서 읽힌다.
   'too-steep': '너무 가파르다', // Play §4 막힘이 준 말 그대로
   'deep-water': '물이 너무 깊다', // 같은 어법 — 땅(물)의 성질 하나로 끝나는 한 줄
+  // 무너져 내린 자리 (C012 R3 · R4 — 이동의 거절이자 그 자리의 막는 것).
+  // 위의 둘과 같은 어법이되 **땅의 성질이 아니라 겪은 일**이다: 가파른 곳은 언제나
+  // 가팔랐지만 여기는 그렇게 된 것이다. 무엇이 무너뜨렸는지는 말하지 않는다 —
+  // 그 옆에 선 원천의 그림이 이미 그것을 말하고 있고, 잇는 것은 관찰자의 일이다
+  [BLOCK_COLLAPSED]: '무너져 내려앉았다',
   // ── 지목한 자리가 답하는 말 (C026) ────────────────────────────
   //
   // 판에 서는 값은 전부 **이미 있는 코드**를 옮긴 것이다 — 새 의미를 만들지 않는다.
@@ -136,6 +146,10 @@ const CODE_TEXT: Record<string, string> = {
   // 여기 넷은 사람이 아닌 것들의 상태다. 세계가 보내던 코드에 말을 줄 뿐이다
   available: '남아 있다', // 원천이 아직 그 자리에 있다
   depleted: '바닥났다',
+  // 그 원천에 지금 걸린 것 (C012 R6 — entity.conditions 의 코드. 판의 '걸린 것' 줄이 이 말이다).
+  // **무엇에 매달렸는지도 언제 풀리는지도 적지 않는다** — 세계가 싣는 것은 코드 하나이고,
+  // 무엇이 이것을 멎게 했는지는 같은 방에서 관찰자가 잇는다 (흔적을 잇게 한 것과 같은 규율)
+  [RECOVERY_STALLED]: '되돌아옴이 멎었다',
   open: '열려 있다', // 출구 표식 — 건널 수 있는 길이다
   locked: '잠겨 있다',
   // ── 판에 남는 기록이 쓰는 말 (C028) ──────────────────────────

@@ -76,6 +76,9 @@ export const EXPLORER_RUIN_SPEC: RegionSpec = {
         carrier: 'residue',
         opportunity: 'baseline',
         supply: 'baseline-renewable',
+        // 더미는 남이 캐다 버린 것이다 — 많지 않다 (D4)
+        harvests: 2,
+        traceOp: 'trace-ruin-spoil',
       },
     ],
   },

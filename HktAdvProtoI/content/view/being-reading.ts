@@ -47,6 +47,14 @@ export interface BeingReading {
   progress?: number;
   /** 생명 — **가진 것에만 있다** (SPEC-002 경계) */
   vitality?: BeingVitality;
+  /**
+   * 그 존재에 **지금 걸린 조건 코드들** (C012 ADDED — 봉투의 entity.conditions 그대로).
+   *
+   * 걸린 것이 하나도 없으면 **자리 자체가 없다** — 빈 배열로 지어내지 않는다 (생명 없는
+   * 것에 0 을 만들지 않는 것과 같은 규율). 무엇이 무엇에 매달렸는지도, 언제 풀리는지도
+   * 실려 오지 않으므로 화면도 말하지 않는다: 세계가 말한 것은 "지금 멎었다" 하나다.
+   */
+  conditions?: string[];
   /** 그 존재를 겨냥한 행동들 — 하나도 없으면 빈 배열이다 (SPEC-003 경계) */
   offers: BeingOffer[];
 }
@@ -72,6 +80,10 @@ export function readBeing(
     role: entity.role,
     state: entity.state,
     ...(entity.progress === undefined ? {} : { progress: entity.progress }),
+    // 걸린 것이 없으면 봉투에 자리가 없고, 없는 채로 둔다 (C012)
+    ...(entity.conditions === undefined || entity.conditions.length === 0
+      ? {}
+      : { conditions: [...entity.conditions] }),
     ...(vitality
       ? {
           vitality: {

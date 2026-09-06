@@ -21,12 +21,13 @@ import type { GameViewSnapshot as CoreGameViewSnapshot } from '../../engine/prot
 import type { SceneGroundZone } from '../../engine/view-kernel/scene/scene-state';
 import { areasOf, descriptionHash, extentPolygon } from '../../engine/world-authoring/description';
 import type { GameViewSnapshot, RegionView } from '../protocol/gameview';
+import { SOIL_STAIN_MAX, TRACE_LAYER, regionSpec } from '../regions/index';
 import {
-  SOIL_STAIN_MAX,
-  TRACE_LAYER,
-  regionSpec,
-  soilStainLevel,
-} from '../regions/index';
+  NO_SOURCE_PHASES,
+  collapsedAreas,
+  traceLevelOfArea,
+  type SourcePhases,
+} from './resource-reading';
 import {
   CITY_TAG,
   CONDITION_RIDGE,
@@ -324,6 +325,30 @@ export function traceZonePresentation(
   return opacity === undefined ? undefined : { color: TRACE_SOIL_COLOR, opacity };
 }
 
+// ── 무너진 자리 (C012 ADDED) ─────────────────────────────────────────
+//
+// 고갈되고 무너지는 원천의 **붕괴 자리 area** 다. 흔적 · 조건 · 구역과 똑같이 세계가
+// 보내 주지 않는다 — 관찰자가 자기 Description 과 실려 온 phase 로 스스로 얻는다
+// (resource-reading 의 collapsedAreas). **고갈 전에는 목록이 비어 있고 아무것도 그려지지
+// 않는다** — 캐기 전의 화면은 C011 과 한 픽셀도 다르지 않다.
+//
+// 구덩이로 보여야 한다. 그래서 이 세계의 지면 색 어느 것보다 **어둡게 채우고**(빛이
+// 닿지 않는 구멍), 테두리만 부서진 맨 바위 색으로 둘러 무너진 가장자리를 만든다 —
+// 추락 표식이 거의 검은 값 하나로 구멍이 된 것(TRANSITION_TINTS.falling)과 같은 어법이다.
+//
+// **이름표를 붙이지 않는다** (C026 R4 — RULE-QUIET-GROUND-001). 무엇이 무너졌는지는
+// 그 옆에 선 원천의 그림이 말하고, 지날 수 없다는 것은 물었을 때 판이 답한다.
+
+export const COLLAPSE_ZONE: SettlementZonePresentation = {
+  // 파인 자리 — 흙도 풀도 남지 않은 그늘. 지면 넷(초록 · 갈색 · 무채색 · 청록) 어느 것보다 어둡다
+  fill: 0x14100e,
+  fillOpacity: 0.78,
+  // 무너진 가장자리 — 부서진 맨 바위 (sprites 의 r = #6f737d 와 같은 계열)
+  edge: 0x6f737d,
+  edgeOpacity: 0.92,
+  edgeWidth: 1.2,
+};
+
 /**
  * 재배열의 순간이 화면에 남아 있는 시간 (초).
  *
@@ -424,6 +449,7 @@ function worldTimeOf(snapshot: GameViewSnapshot): number {
 export function regionZones(
   region: RegionView | undefined,
   worldTime = 0,
+  phases: SourcePhases = NO_SOURCE_PHASES,
 ): SceneGroundZone[] {
   if (!region) return [];
   const spec = regionSpec(region.id);
@@ -449,7 +475,11 @@ export function regionZones(
     // 방 바닥 area(가장 옅은 단계)가 먼저 오고 원천 둘레(더 짙은 단계)가 그 위에 겹치므로,
     // 겹친 자리는 더 짙게 보인다 (R4 의 "가장 짙은 것이 이긴다" 가 눈에서도 그대로다).
     ...areasOf(spec.space, TRACE_LAYER).flatMap((area): SceneGroundZone[] => {
-      const p = traceZonePresentation(soilStainLevel(area.tag));
+      // C012 CHANGED — 고갈된 원천의 traceOp 구역은 **한 단계 낮은 색**이다 (R5 · SPEC-005).
+      // 단계가 0 이 되면 traceZonePresentation 이 undefined 를 주고 그 구역은 그려지지
+      // 않는다 — 옅어짐의 끝은 색이 옅어지는 것이 아니라 흔적이 없어지는 것이다.
+      // 나머지 구역(방 바닥에 깔린 흔적 · 캐지 않은 원천 둘레)은 한 값도 바뀌지 않는다.
+      const p = traceZonePresentation(traceLevelOfArea(spec.id, area, phases));
       // 모르는 단계는 **그리지 않는다** — 없는 짙기를 지어내지 않는다 (C001 부터의 폴백 규칙)
       if (!p) return [];
       return [
@@ -462,6 +492,20 @@ export function regionZones(
         },
       ];
     }),
+    // 무너진 자리 (C012) — **흔적 바로 위**다. 구덩이는 흙에 파인 것이므로 그 흙(흔적)을
+    // 덮어야 하고, 사람이 그은 것들(조건 · 도시 · 구역 · 통로)보다는 아래에 둔다.
+    // 고갈되기 전에는 이 목록이 비어 있다 (spec SPEC-006 경계 ①).
+    ...collapsedAreas(spec.id, phases).map((area): SceneGroundZone => ({
+      id: `collapse:${spec.id}:${area.id}`,
+      shape: area.shape,
+      fill: { color: COLLAPSE_ZONE.fill, opacity: COLLAPSE_ZONE.fillOpacity },
+      edge: {
+        color: COLLAPSE_ZONE.edge,
+        opacity: COLLAPSE_ZONE.edgeOpacity,
+        width: COLLAPSE_ZONE.edgeWidth,
+      },
+      // 이름표가 없다 (C026 R4). 지날 수 없다는 것은 물었을 때 판이 답한다
+    })),
     // 조건 셋과 도시 (C006) — area op 의 모양(polygon · circle)이 그대로 zone 의 모양이다.
     // area 가 없는 방에서는 이 목록이 비고, 그러면 방 바닥 하나만 그려진다 (C005 그대로).
     ...areasOf(spec.space, SETTLEMENT_LAYER).map((area): SceneGroundZone => {

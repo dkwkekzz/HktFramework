@@ -531,12 +531,18 @@ describe('SPEC-005 — 보고가 검사 아홉을 읊는다', () => {
       block: expect.stringContaining('놓인 것이 없다'),
     });
 
-    // ① 자원과 위험 — C011 이 resource 를 point 로 놓았고 hazard 는 아직 없다.
-    // 한쪽만 놓였으면 "같은 근원인가" 를 잴 수 없다: 통과로도 실패로도 적지 않고
-    // **어느 쪽이 없어서 못 쟀는지**를 적는다 (T1)
-    expect(placedOf('resource').length).toBeGreaterThan(0);
+    // ① 자원과 위험 — 이 검사는 C007 때 빈 검사였다 (STATE §5 부채). C011 이 원천을 point 로,
+    // C012 가 노두의 붕괴 자리를 area 로 놓으면서 **① 이 실제로 놓인 것을 보기 시작했다.**
+    // 다만 hazard 는 아직 없다 — 한쪽만 놓였으면 "같은 근원인가" 를 잴 수 없으므로 통과로도
+    // 실패로도 적지 않고 **어느 쪽이 없어서 못 쟀는지**를 적는다 (T1)
+    const resourceAreas = REGION_SPECS.flatMap((s) =>
+      s.space.ops.filter((op) => op.kind === 'area' && op.layer === 'resource'),
+    );
+    expect(resourceAreas.length).toBeGreaterThan(0);
+    expect(placedOf('resource').length).toBeGreaterThan(resourceAreas.length);
     expect(placedOf('hazard')).toEqual([]);
     const first = block('①');
+    expect(first).not.toContain('놓인 것이 없다');
     expect(first).toContain('짝이 없다');
     expect(first).toContain('hazard');
     expect(first).toMatch(word(placedOf('resource').length));

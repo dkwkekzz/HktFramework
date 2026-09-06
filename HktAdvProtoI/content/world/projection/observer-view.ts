@@ -31,7 +31,7 @@ import { actorModifiers, isDowned, skillDefinition } from '../semantic/combat';
 import { projectCommandCatalog } from '../semantic/command-catalog';
 import { hasMiningTool, itemCount } from '../semantic/inventory';
 import type { ItemKind } from '../semantic/item';
-import { sourcesInRegion } from '../semantic/resource';
+import { sourceConditions, sourceStateOf, sourcesInRegion } from '../semantic/resource';
 import {
   anchorPosition,
   isConnectorOpen,
@@ -209,20 +209,28 @@ export function projectObserverView(
   // 잘려 나온다 (sourcesInRegion). 원천은 State 가 아니라 데이터에서 유도된 사실이므로
   // 매 관찰마다 같은 목록이 같은 순서로 나온다 (결정론).
   for (const source of sourcesInRegion(self.regionId)) {
+    // 그 원천에 지금 걸린 조건들 (C012 ADDED · RULE-SOURCE-CONDITION-001).
+    // 걸린 것이 없으면 **자리 자체가 없다** — 빈 배열로 지어내지 않는다.
+    const conditions = sourceConditions(state.regionStates, source);
+
     entities.push({
       id: source.id,
       role: 'resource-source',
-      // 남은 양이 없다 — 이 Cycle 의 원천은 캐도 줄지 않는다 (spec Out of Scope).
-      state: 'available',
+      // C012 CHANGED — 캐고 난 자국이 여기 실린다. taken 도 harvests 도 싣지 않는다:
+      // 세계는 "지금 캘 수 있는가" 만 말하고 몇 번 남았는지는 말하지 않는다 (spec Observable).
+      state: sourceStateOf(state.regionStates, self.regionId, source.id).phase,
       // kind 는 자연 형태(무엇처럼 생겼는가), material 은 그것이 무엇인가다 (SPEC-002).
       kind: source.form,
       material: source.materialId,
       position: { x: source.position.x, z: source.position.z },
+      ...(conditions.length > 0 ? { conditions } : {}),
       // labelValue 를 싣지 않는다 — 세계 위에 글자가 없다 (C026 R4 RULE-QUIET-GROUND-001).
-      // 종류도 이름도 판이 물었을 때 답한다 (SPEC-008 · SPEC-009).
+      // 고갈된 자리에도 글자는 없다 (C012 R8) — "이미 캐 간 자리" 는 그림과 흙이 말한다.
+      // 무엇이 무엇에 매달렸는지 · 붕괴 자리의 모양 · 흔적의 세기도 싣지 않는다: 관찰자가
+      // 자기 content/regions 와 실려 온 phase 로 스스로 얻는다 (spec Observable).
     });
 
-    const failure = evaluateMinePreconditions(self, source);
+    const failure = evaluateMinePreconditions(state, self, source);
     interactions.push({
       id: 'mine',
       role: 'harvest-source',
@@ -273,7 +281,8 @@ export function projectObserverView(
   // 임계값(pressureLimit)을 함께 싣는 것은 "얼마나 찼는가" 를 View 가 재기 위해서다.
   // 패턴 표는 싣지 않는다 — 관찰자가 자기 content/regions 에서 읽는다.
   const regionRule = regionRuleOf(self.regionId);
-  const regionRuleState = state.regionStates[self.regionId];
+  // C012 CHANGED — 방의 State 가 규칙과 원천을 함께 든다. 여기가 싣는 것은 규칙 쪽뿐이다.
+  const regionRuleState = state.regionStates[self.regionId]?.rule;
   const regionStateView: RegionStateView | undefined =
     regionRule && regionRuleState
       ? {

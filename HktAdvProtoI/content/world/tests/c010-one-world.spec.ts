@@ -165,7 +165,7 @@ function passageSpots(allowed: readonly string[]): XZ[] {
 const cellOf = (at: XZ): string => tagsAt(mazeTerrain(), at.x, at.z, CELL_LAYER)[0]!;
 const passagesAt = (at: XZ): string[] => tagsAt(mazeTerrain(), at.x, at.z, PASSAGE_LAYER);
 
-const regionStateOf = (w: WorldDriver, id: string) => state(w).regionStates[id];
+const regionStateOf = (w: WorldDriver, id: string) => state(w).regionStates[id]?.rule;
 const mazeState = (w: WorldDriver) => {
   const s = regionStateOf(w, FANTASY_MAZE);
   if (!s) throw new Error('미로에 Region State 가 없다');
@@ -330,7 +330,7 @@ function twoInMaze(
   return worldFrom(base, (s) => {
     place(s, PLAYER, FANTASY_MAZE, atA);
     place(s, PLAYER_2, FANTASY_MAZE, atB);
-    s.regionStates[FANTASY_MAZE]!.pressure = 0;
+    s.regionStates[FANTASY_MAZE]!.rule!.pressure = 0;
     edit?.(s);
   });
 }
@@ -346,7 +346,7 @@ function acrossRooms(): { w: WorldDriver; atA: XZ; atB: XZ } {
   const w = worldFrom(base, (s) => {
     place(s, PLAYER, FANTASY_MAZE, atA);
     place(s, PLAYER_2, START_REGION_ID, atB);
-    s.regionStates[FANTASY_MAZE]!.pressure = 0;
+    s.regionStates[FANTASY_MAZE]!.rule!.pressure = 0;
   });
   return { w, atA, atB };
 }
@@ -512,7 +512,7 @@ describe('SPEC-003 남이 내 길을 바꾼다', () => {
     // Given 관찰자 둘, 압력은 임계 바로 아래다 (넘기는 것은 A 의 몇 걸음이다)
     const first = patternNames()[0]!;
     const w = twoInMaze(entryAt(), standSpot(), (s) => {
-      s.regionStates[FANTASY_MAZE]!.pressure = mazeRule().pressureLimit - 0.5;
+      s.regionStates[FANTASY_MAZE]!.rule!.pressure = mazeRule().pressureLimit - 0.5;
     });
     expect(mazeState(w).pattern).toBe(first);
 
@@ -559,7 +559,7 @@ describe('SPEC-003 남이 내 길을 바꾼다', () => {
     expect(inside.length).toBeGreaterThan(0);
     const bAt = inside[0]!;
     const w = twoInMaze(entryAt(), bAt, (s) => {
-      s.regionStates[FANTASY_MAZE]!.pressure = mazeRule().pressureLimit - 0.5;
+      s.regionStates[FANTASY_MAZE]!.rule!.pressure = mazeRule().pressureLimit - 0.5;
     });
     expect(passagesAt(here(w, PLAYER_2))).toContain(willClose);
 
@@ -587,8 +587,8 @@ describe('SPEC-004 남이 내 문을 닫는다', () => {
   /** 패턴이 P2 이고 B 가 심장 쪽 문 곁에 선 세계 — 압력은 임계 바로 아래다 */
   function gateWorld(): WorldDriver {
     const w = twoInMaze(entryAt(), gateAt(), (s) => {
-      s.regionStates[FANTASY_MAZE]!.pattern = OPENING_PATTERN;
-      s.regionStates[FANTASY_MAZE]!.pressure = mazeRule().pressureLimit - 0.5;
+      s.regionStates[FANTASY_MAZE]!.rule!.pattern = OPENING_PATTERN;
+      s.regionStates[FANTASY_MAZE]!.rule!.pressure = mazeRule().pressureLimit - 0.5;
     });
     expect(mazeState(w).pattern).toBe(OPENING_PATTERN);
     return w;
@@ -660,7 +660,7 @@ describe('SPEC-005 떠나도 남는다', () => {
   /** A 가 압력을 쌓고 패턴을 한 번 넘긴 뒤 걸음을 멈춘 세계 */
   function livedWorld(): WorldDriver {
     const w = twoInMaze(entryAt(), standSpot(), (s) => {
-      s.regionStates[FANTASY_MAZE]!.pressure = mazeRule().pressureLimit - 0.5;
+      s.regionStates[FANTASY_MAZE]!.rule!.pressure = mazeRule().pressureLimit - 0.5;
     });
     flipByA(w);
     settle(w, OBSERVER); // 하던 걸음을 끝내고 선다 — 떠난 뒤에도 이어지지 않도록
@@ -727,7 +727,7 @@ describe('SPEC-006 다시 들어와도 같은 미로다', () => {
   /** A 가 압력을 쌓고 패턴을 넘긴 뒤 떠난 세계 (B 는 남아 있다) */
   function afterLeaving(): WorldDriver {
     const w = twoInMaze(entryAt(), standSpot(), (s) => {
-      s.regionStates[FANTASY_MAZE]!.pressure = mazeRule().pressureLimit - 0.5;
+      s.regionStates[FANTASY_MAZE]!.rule!.pressure = mazeRule().pressureLimit - 0.5;
     });
     flipByA(w);
     settle(w, OBSERVER);
@@ -795,8 +795,8 @@ describe('SPEC-007 저장하고 되살려도 하나다', () => {
   /** 관찰자 둘이 있는 세계에서 압력을 쌓고 패턴을 P2 까지 넘긴다 */
   function livedTwo(): WorldDriver {
     const w = twoInMaze(entryAt(), gateAt(), (s) => {
-      s.regionStates[FANTASY_MAZE]!.pattern = nextOf(nextOf(OPENING_PATTERN));
-      s.regionStates[FANTASY_MAZE]!.pressure = mazeRule().pressureLimit - 0.5;
+      s.regionStates[FANTASY_MAZE]!.rule!.pattern = nextOf(nextOf(OPENING_PATTERN));
+      s.regionStates[FANTASY_MAZE]!.rule!.pressure = mazeRule().pressureLimit - 0.5;
     });
     flipByA(w); // 걸어서 P2 로 넘긴다
     settle(w, OBSERVER);
@@ -850,8 +850,9 @@ describe('SPEC-007 저장하고 되살려도 하나다', () => {
     const saved = throughFile(lived.world.snapshot());
     expect(saved.version).toBe(STATE_VERSION);
 
-    // Then 저장된 방의 State 는 C008 의 셋 그대로다 — 이 Cycle 이 한 자리도 더하지 않았다
-    const stored = (saved.state as WorldState).regionStates[FANTASY_MAZE]!;
+    // C012 CHANGED — 방의 State 가 규칙과 원천을 함께 들면서 규칙의 것이 `.rule` 아래로 내려갔다.
+    // 이 경계가 묻는 것은 그대로다: **규칙 State 의 자리**가 C008 의 셋에서 더 늘지 않았는가.
+    const stored = (saved.state as WorldState).regionStates[FANTASY_MAZE]!.rule!;
     expect(
       Object.keys(stored).filter((k) => !['pattern', 'pressure', 'rearrangedAt'].includes(k)),
     ).toEqual([]);
@@ -896,7 +897,7 @@ describe('SPEC-008 세계는 플레이어 없이도 돈다', () => {
       npc.wanderIndex = 0;
       npc.perceptionRange = 0;
       npc.currentAction = idleAction();
-      s.regionStates[FANTASY_MAZE]!.pressure = pressure;
+      s.regionStates[FANTASY_MAZE]!.rule!.pressure = pressure;
     });
     return { w, path };
   }
@@ -949,7 +950,7 @@ describe('SPEC-008 세계는 플레이어 없이도 돈다', () => {
     const w = worldFrom(base, (s) => {
       place(s, PLAYER, FANTASY_MAZE, entryAt());
       place(s, PLAYER_2, FANTASY_MAZE, standSpot());
-      s.regionStates[FANTASY_MAZE]!.pressure = 0;
+      s.regionStates[FANTASY_MAZE]!.rule!.pressure = 0;
     });
     const wanderers = state(w).actors.filter((a) => a.control === 'autonomous');
     expect(wanderers.length).toBeGreaterThan(0);
@@ -1049,7 +1050,7 @@ describe('회귀', () => {
     // Given 패턴마다 세운 세계, 관찰자 둘 다 미로 안에 있다
     for (const pattern of patternNames()) {
       const w = twoInMaze(gateAt(), standSpot(), (s) => {
-        s.regionStates[FANTASY_MAZE]!.pattern = pattern;
+        s.regionStates[FANTASY_MAZE]!.rule!.pattern = pattern;
       });
       const mark = pattern === OPENING_PATTERN ? 'open' : 'locked';
       // Then 표식이 둘 모두에게 같다 — 조건이 읽는 것은 사람이 아니라 방의 State 다
@@ -1080,8 +1081,15 @@ describe('회귀', () => {
         state: undefined,
       });
     }
-    // 그리고 State 를 가진 방은 rule 을 품은 방들과 정확히 같은 집합이다 (관찰자 수와 무관하다)
-    expect(Object.keys(state(w).regionStates).sort()).toEqual(
+    // C012 CHANGED — 방의 State 가 규칙과 원천을 **함께** 든다. 그래서 State 를 가진 방은
+    // 늘었지만(원천을 낳는 방 넷이 더해졌다) **규칙 State(.rule)를 가진 방**은 그대로 미로 하나다.
+    // 이 경계가 묻던 것은 후자다 — 규칙이 미로 밖으로 새지 않았는가.
+    expect(
+      Object.entries(state(w).regionStates)
+        .filter(([, held]) => held.rule)
+        .map(([id]) => id)
+        .sort(),
+    ).toEqual(
       REGION_SPECS.filter((s) => s.rule)
         .map((s) => s.id)
         .sort(),

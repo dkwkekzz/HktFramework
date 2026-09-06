@@ -21,7 +21,7 @@ import {
   type RegionSpec,
 } from '../../regions';
 import type { WorldPosition } from './position';
-import type { RegionRuleState } from './region-state';
+import type { RegionState } from './region-state';
 
 // 관찰자의 새 몸 · 기본 자율 존재 · 광맥이 놓이는 Region (02-world R3 · R4).
 //
@@ -67,13 +67,14 @@ export function isRegionBuilt(id: string): boolean {
  * 만족했다고 말할 근거가 없다. 지어내지 않고 닫아 둔다.
  */
 export function isConnectorOpen(
-  regionStates: Record<string, RegionRuleState>,
+  regionStates: Record<string, RegionState>,
   connectorId: string,
 ): boolean {
   if (CLOSED_CONNECTORS.includes(connectorId)) return false;
   const activation = CONNECTOR_ACTIVATIONS[connectorId];
   if (!activation) return true;
-  const regionState = regionStates[activation.region];
+  // C012 CHANGED — 방의 State 가 규칙과 원천을 함께 들게 되었다. 여기가 읽는 것은 규칙뿐이다.
+  const regionState = regionStates[activation.region]?.rule;
   if (!regionState) return false;
   return activation.patterns.includes(regionState.pattern);
 }

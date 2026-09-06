@@ -13,7 +13,7 @@
 import type { CoreWorldState } from '../../../engine/world-kernel/state';
 import type { ActorState } from './actor';
 import type { StrikeEvent } from './combat';
-import type { RegionRuleState } from './region-state';
+import type { RegionState } from './region-state';
 import type { WorldPosition } from './position';
 
 // 관찰자 장부를 읽는 도움들은 Engine 의 것이다 — 같은 이름으로 그대로 쓴다.
@@ -36,12 +36,15 @@ export interface WorldState extends CoreWorldState {
   strikeEvents: StrikeEvent[]; // World.StrikeEvents — 최근 타격 결과들
   debugAuthority: DebugAuthority;
   /**
-   * World.RegionStates — 규칙을 품은 방이 기억하는 것 (C008 ADDED · semantic/region-state.ts).
+   * World.RegionStates — 방 하나가 기억하는 것 (C008 ADDED · C012 CHANGED · semantic/region-state.ts).
    *
    * **저장된다.** 컴파일 결과(terrain)와 달리 Description 에서 유도되지 않는다 —
-   * 세계가 겪은 일의 결과이므로 스냅샷에 실린다. 규칙 없는 방에는 자리 자체가 없다.
+   * 세계가 겪은 일의 결과이므로 스냅샷에 실린다.
+   *
+   * C012 — 규칙과 원천을 **함께** 든다 (rule · sources). 규칙 없는 방에 rule 은, 원천 없는 방에
+   * sources 는 자리 자체가 없고, 둘 다 없는 방은 State 자체가 없다.
    */
-  regionStates: Record<string, RegionRuleState>;
+  regionStates: Record<string, RegionState>;
 }
 
 // InteractionRange — RULE-MINE-001 Precondition 2 의 거리 한계
@@ -82,4 +85,6 @@ export const TICK_INTERVAL = 1 / 30;
 // C001 — Actor.regionId · Deposit.regionId 가 실린다. World.bounds 는 사라졌다.
 // C008 — World.regionStates 와 Actor.movedThisTick 이 실린다. 옛 스냅샷은 복구되지 않는다 (spec R5).
 // C011 — deposits 가 사라지고 소지품의 품목이 재료가 된다. 옛 스냅샷은 복구되지 않는다.
-export const STATE_VERSION = 'hkt-adv-proto-i/4';
+// C012 — 방의 State 가 규칙과 원천을 함께 든다 (RegionState.rule · .sources). 형태가 바뀌므로
+//        옛 스냅샷은 복구되지 않는다 (spec SPEC-009 경계).
+export const STATE_VERSION = 'hkt-adv-proto-i/5';
