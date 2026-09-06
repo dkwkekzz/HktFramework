@@ -49,7 +49,7 @@ Region 사이 덧씌움)였기 때문이다. 그 셋이 서면 다음 협곡류�
 
 | # | 무엇을 | 어떻게 | 완료 조건 | 기다리는 것 |
 |---|---|---|---|---|
-| **T1** | **검사기를 독립 명령으로** — `world:check` | 지금 `world:observe --report` 안의 ①~⑨ 를 뽑아 하나의 명령으로. 결과는 **기계가 읽는 JSON**(통과/실패 · 항목 · 참조). C014 의 ⑩~㉒, C018 의 ㉓~㉖, C022·C025 의 ㉗~㉝ 은 생기는 대로 같은 명령에 붙는다 | `npm run world:check` 가 JSON 을 내고 `npm test` 에 붙는다. 실패 항목 하나를 일부러 만들어 잡히는 것을 본다 | 없음 — 지금 시작 |
+| **T1** | **검사기를 독립 명령으로** — `world:check` | 지금 `world:observe --report` 안의 ①~⑨ 를 뽑아 하나의 명령으로. 결과는 **기계가 읽는 JSON**(통과/실패 · 항목 · 참조). C014 의 ⑩~㉒, C018 의 ㉓~㉖, C022·C025 의 ㉗~㉝ 은 생기는 대로 같은 명령에 붙는다 | `npm run world:check` 가 JSON 을 내고 `npm test` 에 붙는다. 실패 항목 하나를 일부러 만들어 잡히는 것을 본다 | — |
 | **T2** | **여덟 답의 형(RegionBrief)** | Concept §17 일곱 질문의 답 + **여덟째 — 무엇이 태어나는가**(어떤 재료에서 · 무엇을 소비하며 · 무엇을 남기고 · 무엇을 부르는가 — Life §3.5) + 이름 · 갈래(hazard 태그) · 이웃(어느 Region 에 어떤 Connector 로 잇는가) · 요구(필요한 규칙/축이 있으면 적는다)를 **JSON schema(zod)** 로. 필드명은 일반명(특별함 · 원인 · 거주 · 위험 · 귀함 · 발견 · 열림 · 탄생)이라 engine 에 둔다 | 지금 있는 방 아홉을 이 형으로 **손으로 역기술**해 전부 검증을 통과한다 — 형이 현실을 담는지의 증명 | 없음 |
 | **T3** | **뼈대 생성기** — `world:author <brief.json>` | brief → RegionSpec(space op · resourceEcology · phases · ecology) + `graph.ts` 한 줄 + view 표 한 줄. **결정론**(seed = brief 의 hash). 템플릿(갈래별 op 묶음 · Source 역할별 기본형 · 철 덧씌움 기본형 · 탄생 방식별 기본형)은 `content/authoring/templates/` — 게임 명사가 있으므로 content 다 | 손으로 쓴 brief 하나 → 방 하나가 T1 을 통과하고 **관찰자가 걸어 흔적 → 원천을 본다**. 코드 diff 0 (등급 A 실측) | phases 형은 **C016** 뒤 · ecology 형은 **C022** 뒤. 그 전엔 space + graph + resourceEcology 까지 |
 | **T4** | **등급 판정기** | brief 의 "요구" 와 세계 사실을 계약 목록(layer · tag · 규칙 · 축)과 대조 → **A / B / C** + 빠진 것을 GAP 형식(Required · Missing · Reason · Return To)으로 | brief 셋 — 가스 마을 · 유령 도시 · 마법도시 — 가 **A · B · C** 로 갈리고 B/C 의 빠진 것이 정확히 적힌다 | T2 |
@@ -59,7 +59,7 @@ Region 사이 덧씌움)였기 때문이다. 그 셋이 서면 다음 협곡류�
 ```text
 T1 ── T2 ── T3 ─┬─ T5 ── T6 ── HundredRooms
                 └─ T4 ─┘
-T1 · T2 는 지금, T3 의 절반은 지금 — ENGINE 레인이라 Cycle 실주행과 병행한다.
+T2 는 지금, T3 의 절반도 지금 — ENGINE 레인이라 Cycle 실주행과 병행한다.
 ```
 
 ### 3.1 자리
@@ -101,7 +101,7 @@ Cycle   번호는 승인 때 — 앞 레인(Life C025) 뒤
 ## 6. 언제 — 레인과 순서
 
 ```text
-ENGINE 레인 B   T1 · T2 는 지금. T3 는 절반(space · graph · resourceEcology)을 지금, 나머지(phases)는 C016 뒤.
+ENGINE 레인 B   T2 는 지금. T3 는 절반(space · graph · resourceEcology)을 지금, 나머지(phases)는 C016 뒤.
                T4 는 T2 뒤. T5 는 T3 · T4 뒤. T6 은 T5 뒤이고 Frost(C021)가 데이터로 선 것을 본 뒤 —
                두 갈래가 정말 같은 계약 위에 있는지 실주행으로 확인돼야 템플릿이 맞다
 컨텐츠 Play     HundredRooms — T6 뒤. Cycle 번호는 그때 (앞 레인 뒤)
@@ -111,6 +111,6 @@ ENGINE 레인 B   T1 · T2 는 지금. T3 는 절반(space · graph · resourceE
 ## 7. 다음
 
 ```text
-T1 검사기       착수 가능. STATE §1 의 ENGINE B 레인이 "지금 할 수 있는 것" 으로 든다
+T2 여덟 답의 형  착수 가능. STATE §1 의 ENGINE B 레인이 "지금 할 수 있는 것" 으로 든다
 HundredRooms   T6 이 서면 advprotoi-design 이 Play 로 쓴다 (승인 1회)
 ```
