@@ -151,7 +151,7 @@ function cellSpots(cell?: string): XZ[] {
 }
 const cellOf = (at: XZ): string => tagsAt(mazeTerrain(), at.x, at.z, CELL_LAYER)[0]!;
 
-const regionStateOf = (w: WorldDriver, id: string) => state(w).regionStates[id];
+const regionStateOf = (w: WorldDriver, id: string) => state(w).regionStates[id]?.rule;
 const mazeState = (w: WorldDriver) => {
   const s = regionStateOf(w, FANTASY_MAZE);
   if (!s) throw new Error('미로에 Region State 가 없다');
@@ -262,16 +262,16 @@ const inMaze = (at: XZ = entryAt()) => standing(FANTASY_MAZE, at);
 /** 미로의 패턴이 name 인 세계, 몸은 at 에 선다 (압력은 0) */
 function mazeAtPattern(name: string, at: XZ = gateAt()): WorldDriver {
   return worldFrom(inMaze(at), (s) => {
-    s.regionStates[FANTASY_MAZE]!.pattern = name;
-    s.regionStates[FANTASY_MAZE]!.pressure = 0;
+    s.regionStates[FANTASY_MAZE]!.rule!.pattern = name;
+    s.regionStates[FANTASY_MAZE]!.rule!.pressure = 0;
   });
 }
 
 /** 심장 안에 선 세계 — 미로의 패턴은 밝힌 대로다 */
 function inHeart(pattern = OPENING_PATTERN, at: XZ = anchorAt(MAZE_HEART, MAZE_SIDE)): WorldDriver {
   return worldFrom(standing(MAZE_HEART, at), (s) => {
-    s.regionStates[FANTASY_MAZE]!.pattern = pattern;
-    s.regionStates[FANTASY_MAZE]!.pressure = 0;
+    s.regionStates[FANTASY_MAZE]!.rule!.pattern = pattern;
+    s.regionStates[FANTASY_MAZE]!.rule!.pressure = 0;
   });
 }
 
@@ -462,7 +462,7 @@ describe('SPEC-004 열린 문으로 건너면 심장이다', () => {
   it('S-007 건너기가 받아들여지고 심장 쪽 anchor 에 선다 — 관성도 진행 중이던 행동도 남지 않는다', () => {
     // Given 패턴이 P2 이고 심장 쪽 문 곁에 선 몸, 그 몸에는 관성이 실려 있다
     const w = worldFrom(inMaze(gateAt()), (s) => {
-      s.regionStates[FANTASY_MAZE]!.pattern = OPENING_PATTERN;
+      s.regionStates[FANTASY_MAZE]!.rule!.pattern = OPENING_PATTERN;
       const a = s.actors.find((x) => x.id === PLAYER)!;
       a.velocity = { x: 3, z: -2 };
     });
@@ -631,7 +631,7 @@ describe('SPEC-006 돌아가기는 몸만 옮긴다', () => {
     const far = maxBy(cellSpots(), (s) => distanceBetween(s, entryAt()));
     const rule = mazeRule();
     const w = worldFrom(inMaze(far), (s) => {
-      s.regionStates[FANTASY_MAZE]!.pressure = rule.pressureLimit - 0.5;
+      s.regionStates[FANTASY_MAZE]!.rule!.pressure = rule.pressureLimit - 0.5;
     });
     const span = distanceBetween(far, entryAt());
     expect(span * rule.pressurePerDistance).toBeGreaterThan(0.5);
@@ -824,8 +824,9 @@ describe('SPEC-009 세계를 되살려도 문은 패턴대로다', () => {
     const w = mazeAtPattern(OPENING_PATTERN);
     const saved = throughFile(w.world.snapshot());
     expect(saved.version).toBe(STATE_VERSION);
-    const stored = (saved.state as WorldState).regionStates[FANTASY_MAZE]!;
-    // 저장된 자리는 C008 의 셋 안에서만 온다 — 이 Cycle 이 한 자리도 더하지 않았다
+    // C012 CHANGED — 방의 State 가 규칙과 원천을 함께 들면서 규칙의 것이 `.rule` 아래로 내려갔다.
+    // 이 경계가 묻는 것은 그대로다: **규칙 State 의 자리**가 C008 의 셋에서 더 늘지 않았는가.
+    const stored = (saved.state as WorldState).regionStates[FANTASY_MAZE]!.rule!;
     expect(Object.keys(stored).filter((k) => !['pattern', 'pressure', 'rearrangedAt'].includes(k))).toEqual([]);
     expect(Object.keys(stored)).toContain('pattern');
     expect(Object.keys(stored)).toContain('pressure');
@@ -895,11 +896,14 @@ describe('회귀', () => {
   it('R-004 (C008 SPEC-007 경계) 규칙 없는 방에는 region.state 가 없다 — 심장도 그런 방이다', () => {
     const w = driveWorld(solo);
     expect(w.observe().region.state).toBeUndefined();
-    // State 를 가진 방은 rule 을 품은 방들과 정확히 같은 집합이다 (심장은 그 안에 없다)
-    expect(Object.keys(state(w).regionStates).sort()).toEqual(
-      REGION_SPECS.filter((s) => s.rule).map((s) => s.id).sort(),
-    );
-    expect(Object.keys(state(w).regionStates)).not.toContain(MAZE_HEART);
+    // C012 CHANGED — 방의 State 가 규칙과 원천을 **함께** 든다. 그래서 State 를 가진 방은
+    // 늘었지만(원천을 낳는 방 넷이 더해졌다) **규칙 State(.rule)를 가진 방**은 그대로 미로 하나다.
+    // 이 경계가 묻던 것은 후자다 — 규칙이 미로 밖으로 새지 않았는가.
+    const ruled = Object.entries(state(w).regionStates)
+      .filter(([, held]) => held.rule)
+      .map(([id]) => id);
+    expect(ruled.sort()).toEqual(REGION_SPECS.filter((s) => s.rule).map((s) => s.id).sort());
+    expect(ruled).not.toContain(MAZE_HEART);
   });
 
   it('R-005 (C006 · C008) 땅은 여전히 저장되지 않고 팩 State 는 plain JSON 이다', () => {

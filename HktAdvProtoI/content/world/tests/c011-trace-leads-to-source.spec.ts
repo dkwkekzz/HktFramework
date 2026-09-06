@@ -116,11 +116,11 @@ function gridSpots(id: string): XZ[] {
  * (spec SPEC-003 조건 "원천에서 먼 자리(방 바닥)" 를 좌표 없이 집는 방법)
  */
 const floorTrace = (id: string): number =>
-  gridSpots(id).reduce((low, at) => Math.min(low, traceStrengthAt(id, at)), Infinity);
+  gridSpots(id).reduce((low, at) => Math.min(low, traceAt(id, at)), Infinity);
 
 /** 그 방에서 가장 짙은 자리의 세기 */
 const peakTrace = (id: string): number =>
-  gridSpots(id).reduce((high, at) => Math.max(high, traceStrengthAt(id, at)), 0);
+  gridSpots(id).reduce((high, at) => Math.max(high, traceAt(id, at)), 0);
 
 /** anchor 의 자리 — 출구 둘레를 좌표 없이 집는다 */
 const anchorAt = (region: string, tag: string): XZ =>
@@ -200,6 +200,13 @@ const held = (v: GameViewSnapshot, material: string): number | boolean | string 
   v.hud.find((h) => h.id === `inventory.${material}`)?.value;
 
 // ─────────────────────────────────────────────────────────────────────
+
+// C012 CHANGED — 흔적의 세기가 원천의 phase 를 함께 본다 (고갈되면 그 둘레가 한 단계 옅어진다).
+// 이 Cycle 이 재는 것은 **아무것도 캐지 않은 세계**의 사다리이므로 빈 State 로 묻는다 —
+// State 가 없는 원천은 available 로 친다 (없는 것을 고갈로 읽지 않는다).
+const UNTOUCHED = {};
+const traceAt = (regionId: string, at: { x: number; z: number }) =>
+  traceStrengthAt(UNTOUCHED, regionId, at);
 
 describe('SPEC-001 네 원천이 자기 방에 선다', () => {
   it('S-011 네 방마다 원천이 정확히 하나 서고, 그 자리는 그 방 Description 의 resource point 자리다', () => {
@@ -289,7 +296,7 @@ describe('SPEC-003 흔적이 방을 건너 짙어진다', () => {
 
   it('S-032 (경계) 백왕령은 어느 자리에서도 0 이다', () => {
     for (const at of gridSpots(WHITE_KING_DOMAIN)) {
-      const strength = traceStrengthAt(WHITE_KING_DOMAIN, at);
+      const strength = traceAt(WHITE_KING_DOMAIN, at);
       if (strength !== 0) {
         throw new Error(`백왕령 (${at.x}, ${at.z}) 에 흔적이 있다 — ${strength}`);
       }
@@ -300,9 +307,9 @@ describe('SPEC-003 흔적이 방을 건너 짙어진다', () => {
 
 describe('SPEC-004 흔적이 방 안에서도 방향을 준다', () => {
   it('S-041 ① 숲 깊은 곳 — 광석 지대 쪽과 거목 쪽 출구 둘레가 둥지 쪽보다 짙다', () => {
-    const ore = traceStrengthAt(FOREST_DEEP, anchorAt(FOREST_DEEP, ORE_TRAIL));
-    const tree = traceStrengthAt(FOREST_DEEP, anchorAt(FOREST_DEEP, TREE_APPROACH));
-    const nest = traceStrengthAt(FOREST_DEEP, anchorAt(FOREST_DEEP, NEST_TRAIL));
+    const ore = traceAt(FOREST_DEEP, anchorAt(FOREST_DEEP, ORE_TRAIL));
+    const tree = traceAt(FOREST_DEEP, anchorAt(FOREST_DEEP, TREE_APPROACH));
+    const nest = traceAt(FOREST_DEEP, anchorAt(FOREST_DEEP, NEST_TRAIL));
     expect(ore).toBeGreaterThan(nest);
     expect(tree).toBeGreaterThan(nest);
     // And 둥지 쪽은 짙어지지 않는다 — 그 방 바닥 그대로다
@@ -312,7 +319,7 @@ describe('SPEC-004 흔적이 방 안에서도 방향을 준다', () => {
   it('S-042 ② 원천 넷은 저마다 자기 방 바닥보다 짙은 자리 위에 서 있다', () => {
     for (const one of FOUR) {
       const source = sourceOf(one.id);
-      const here = traceStrengthAt(one.region, source.position);
+      const here = traceAt(one.region, source.position);
       expect({ id: one.id, deeper: here > floorTrace(one.region) }).toEqual({
         id: one.id,
         deeper: true,
@@ -321,7 +328,7 @@ describe('SPEC-004 흔적이 방 안에서도 방향을 준다', () => {
   });
 
   it('S-043 ③ 뿌리혹의 자리가 이 세계에서 가장 짙다', () => {
-    const nodule = traceStrengthAt(RED_EYE_TREE, sourceOf(ROOT_NODULE).position);
+    const nodule = traceAt(RED_EYE_TREE, sourceOf(ROOT_NODULE).position);
     for (const spec of REGION_SPECS) {
       const peak = peakTrace(spec.id);
       if (spec.id === RED_EYE_TREE) {
@@ -341,7 +348,7 @@ describe('SPEC-004 흔적이 방 안에서도 방향을 준다', () => {
       const strongest = Math.max(...levels);
       const summed = levels.reduce((sum, level) => sum + level, 0);
       // Then 그 자리의 세기는 가장 큰 것이지 합이 아니다
-      expect({ id: one.id, at: traceStrengthAt(one.region, source.position) }).toEqual({
+      expect({ id: one.id, at: traceAt(one.region, source.position) }).toEqual({
         id: one.id,
         at: strongest,
       });
@@ -577,16 +584,17 @@ describe('회귀', () => {
     expect(mineOn(view, ORE_OUTCROP)?.role).toBe('harvest-source');
   });
 
-  it('R-005 원천은 캐도 줄지 않는다 (이 Cycle 의 확정 — 고갈은 C012 가 세운다)', () => {
+  // C012 CHANGED — 이 Cycle 이 "원천은 캐도 줄지 않는다" 를 확정으로 두었고 C012 가 그것을
+  // 뒤집었다 (고갈이 섰다 — C011 TODO 가 부채로 적어 둔 그대로). 이 회귀가 지키는 것은
+  // 뒤집힌 절반이 아니라 **뒤집히지 않은 절반**이다: 세 번 캐면 재료 셋이 손에 들어온다.
+  // 고갈 자체는 C012 의 시나리오가 잰다.
+  it('R-005 세 번 캐면 재료가 셋 들어온다 (채취가 세는 것은 그대로다)', () => {
     const world = beside(sourceOf(ORE_OUTCROP), { actorItems: { pickaxe: 1 } });
     for (let i = 0; i < 3; i++) {
       expect(mine(world, ORE_OUTCROP).status).toBe('success');
       tickFor(world, MINE_SECONDS);
     }
-    const view = world.observe();
-    expect(held(view, BIO_ORE)).toBe(3);
-    expect(sourceEntity(view, ORE_OUTCROP)?.state).toBe('available');
-    expect(mineOn(view, ORE_OUTCROP)?.available).toBe(true);
+    expect(held(world.observe(), BIO_ORE)).toBe(3);
   });
 
   it('R-006 세계를 두 번 세워도 원천의 자리와 흔적이 같다 (데이터에서 온다 — 결정론)', () => {
@@ -595,8 +603,8 @@ describe('회귀', () => {
     expect(twice).toEqual(once);
     const world = createWorld({ ...solo, actorRegion: RED_EYE_TREE });
     void world;
-    expect(traceStrengthAt(RED_EYE_TREE, sourceOf(ROOT_NODULE).position)).toBe(
-      traceStrengthAt(RED_EYE_TREE, sourceOf(ROOT_NODULE).position),
+    expect(traceAt(RED_EYE_TREE, sourceOf(ROOT_NODULE).position)).toBe(
+      traceAt(RED_EYE_TREE, sourceOf(ROOT_NODULE).position),
     );
   });
 });

@@ -516,12 +516,9 @@ describe('SPEC-005 — 보고가 검사 아홉을 읊는다', () => {
   });
 
   it('S-026 (경계) 놓인 것이 없는 검사는 "놓인 것이 없다" 로 적고 ③ 은 실제로 답을 낸다 · ⑨ 는 0 이다', () => {
-    // ① 자원과 위험 · ④ phenomenon — 이 세계에 그 layer 가 아직 없다.
+    // ④ phenomenon — 이 세계에 그 layer 가 아직 없다.
     // "위반 0" 이 아니라 "놓인 것이 없다" 로 적는다 (없는 것을 통과로 적으면 검사가 거짓말을 한다)
-    for (const [mark, layer] of [
-      ['①', 'resource'],
-      ['④', 'phenomenon'],
-    ] as const) {
+    for (const [mark, layer] of [['④', 'phenomenon']] as const) {
       // 그 layer 가 정말로 이 세계에 없다 (검사가 헛돌지 않는다)
       const placed = REGION_SPECS.flatMap((s) =>
         s.space.ops.filter((op) => op.kind === 'area' && op.layer === layer),
@@ -532,6 +529,16 @@ describe('SPEC-005 — 보고가 검사 아홉을 읊는다', () => {
         block: expect.stringContaining('놓인 것이 없다'),
       });
     }
+
+    // ① 자원과 위험 — C012 CHANGED. 이 검사는 C007 때 빈 검사였다 (STATE §5 부채:
+    // "검사 ①②④ 는 아직 빈 검사다 — 컨텐츠 층 주입이 채운다"). C012 가 노두의 붕괴 자리를
+    // resource layer 의 area 로 놓으면서 **① 이 실제로 답을 내기 시작했다.**
+    expect(
+      REGION_SPECS.flatMap((s) =>
+        s.space.ops.filter((op) => op.kind === 'area' && op.layer === 'resource'),
+      ).length,
+    ).toBeGreaterThan(0);
+    expect(block('①')).not.toContain('놓인 것이 없다');
 
     // ③ 조건 없이 선 settlement — 이 세계에는 settlement 가 놓여 있으므로 실제로 답을 낸다
     const areasOfRegion = (id: string) =>
