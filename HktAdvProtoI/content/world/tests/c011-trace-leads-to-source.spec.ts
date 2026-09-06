@@ -264,11 +264,24 @@ describe('SPEC-002 원천은 자기가 무엇을 내는지 밝힌다', () => {
     expect(litter?.kind).not.toBe(spoil?.kind);
   });
 
-  it('S-023 (경계) 쓰임도 남은 양도 관찰 결과에 없다 — 실리는 자리가 계약의 여섯뿐이다', () => {
+  it('S-023 (경계 · C013 CHANGED) 쓰임도 남은 양도 관찰 결과에 없다 — 실리는 자리가 계약이 적은 것뿐이다', () => {
     // 판정 방식 — spec 은 "쓰임이 없다" 를 코드로 말하지 않았다. 그래서 Observable 이
     // 싣는다고 적은 자리(id · role · kind · material · state · position)만 실렸는가로 잰다:
     // 남은 양(labelValue)도 그 밖의 무엇도 이 존재에는 붙지 않는다.
-    const allowed = ['id', 'role', 'kind', 'material', 'state', 'position'];
+    //
+    // C013 CHANGED — 계약이 자리 둘을 더 적었다 (siteIndex · collapsedSites). 자리를 옮기는
+    // 원천에만 실리므로 마디 하나뿐인 셋은 여전히 여섯 그대로이고, 이 경계가 원래 묻던 것
+    // (쓰임과 남은 양이 실리는가)은 한 값도 느슨해지지 않는다 — 둘 다 그것이 아니다.
+    const allowed = [
+      'id',
+      'role',
+      'kind',
+      'material',
+      'state',
+      'position',
+      'siteIndex',
+      'collapsedSites',
+    ];
     for (const one of FOUR) {
       const entity = sourceEntity(standingIn(one.region).observe(), one.id)!;
       const extra = Object.keys(entity).filter((key) => !allowed.includes(key));
