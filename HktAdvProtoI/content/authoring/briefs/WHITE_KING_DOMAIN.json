@@ -1,0 +1,46 @@
+{
+  "id": "WHITE_KING_DOMAIN",
+  "name": "백왕령",
+  "depth": "civil",
+  "kinds": [],
+  "answers": {
+    "distinction": "관찰자의 몸이 처음 놓이는 방이고, 재료 계통이 닿지 않는 유일한 방이다.",
+    "cause": "북쪽이 능선으로 솟고 강이 방을 남북으로 가른다. 건너는 자리는 다리 하나뿐이고, 그 지형이 곧 이 자리가 지킬 만한 자리인 까닭이다.",
+    "dwelling": "도시가 선다 — 이 세계에서 settlement 가 놓인 유일한 방이고, 곁에 안전의 조건 셋이 함께 적혀 있다.",
+    "danger": {
+      "unanswered": "이 방에는 위험이 놓이지 않았다. 그것이 결핍이 아니라 이 방이 안전한 이유다 — 다만 '무엇이 없어서 안전한가' 는 이 세계에 hazard layer 가 아직 놓이지 않았다 — 위험의 갈래는 Concept §3.1 이 어휘를 주었으나 컨텐츠 층 주입이 남았다"
+    },
+    "worth": {
+      "said": "이 방은 재료를 낳지 않는다. 재료 계통이 닿지 않는 것과 이 방이 안전한 것은 같은 조건이다 (Play RoomBearsMaterial 확정 5).",
+      "sources": []
+    },
+    "discovery": "강과 능선이 어디를 막는지, 다리가 어디에 놓였는지. 그리고 아직 갈 수 없는 고개 둘이 동·서에 있다는 것.",
+    "opening": "북쪽 길 하나가 숲을 연다. 고개 둘은 이름만 있고 아직 짓지 않은 곳이다.",
+    "birth": {
+      "said": {
+        "unanswered": "생명 계약(탄생지 · 개체군 · 관계)이 아직 데이터로 서지 않았다 — Play RoomBearsLife(C022~C025)의 것이다"
+      },
+      "born": []
+    }
+  },
+  "neighbours": [
+    {
+      "region": "FOREST_EDGE",
+      "transition": "road",
+      "direction": "bidirectional"
+    },
+    {
+      "region": "RED_WASTE",
+      "transition": "pass",
+      "direction": "one-way",
+      "frontier": true
+    },
+    {
+      "region": "ICE_CANYON",
+      "transition": "pass",
+      "direction": "one-way",
+      "frontier": true
+    }
+  ],
+  "requires": []
+}

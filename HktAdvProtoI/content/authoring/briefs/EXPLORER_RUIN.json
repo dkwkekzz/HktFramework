@@ -1,0 +1,42 @@
+{
+  "id": "EXPLORER_RUIN",
+  "name": "탐험대 폐허",
+  "depth": "wild",
+  "kinds": [],
+  "answers": {
+    "distinction": "먼저 온 사람들이 남긴 자리다. 이 방의 재료는 땅이 낳은 것이 아니라 **버려진 것**이다.",
+    "cause": "선광 더미가 남아 있다 — 누군가 여기서 골라내고 버렸다는 뜻이고, 그래서 원천이 둘밖에 못 준다.",
+    "dwelling": {
+      "unanswered": "사람이 남긴 자리인데 지금 무엇이 사는지는 적히지 않았다 — 3층(주체)이 서야 적힌다"
+    },
+    "danger": {
+      "unanswered": "이 세계에 hazard layer 가 아직 놓이지 않았다 — 위험의 갈래는 Concept §3.1 이 어휘를 주었으나 컨텐츠 층 주입이 남았다"
+    },
+    "worth": {
+      "said": "버려진 선광 더미에서 광식충 허물이 나온다 — 같은 재료가 다른 자연 형태로 온다.",
+      "sources": [
+        {
+          "id": "RUIN_SPOIL",
+          "material": "ORE_EATER_MOLT",
+          "heldBy": "residue"
+        }
+      ]
+    },
+    "discovery": "같은 재료가 두 자연 형태로 온다는 것. 그리고 이 세계에 먼저 온 사람들이 있었다는 것.",
+    "opening": "숲 가장자리로 돌아가는 길 하나가 전부다 — 막다른 방이다.",
+    "birth": {
+      "said": {
+        "unanswered": "생명 계약(탄생지 · 개체군 · 관계)이 아직 데이터로 서지 않았다 — Play RoomBearsLife(C022~C025)의 것이다"
+      },
+      "born": []
+    }
+  },
+  "neighbours": [
+    {
+      "region": "FOREST_EDGE",
+      "transition": "trail",
+      "direction": "bidirectional"
+    }
+  ],
+  "requires": []
+}
