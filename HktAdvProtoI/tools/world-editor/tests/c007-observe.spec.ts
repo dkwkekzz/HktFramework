@@ -515,23 +515,31 @@ describe('SPEC-005 — 보고가 검사 아홉을 읊는다', () => {
     for (const issue of issues) expect(checks).toContain(issue.region);
   });
 
-  it('S-026 (경계) 놓인 것이 없는 검사는 "놓인 것이 없다" 로 적고 ③ 은 실제로 답을 낸다 · ⑨ 는 0 이다', () => {
-    // ① 자원과 위험 · ④ phenomenon — 이 세계에 그 layer 가 아직 없다.
+  it('S-026 (경계) 잴 것이 없는 검사는 통과로 적지 않고 ③ 은 실제로 답을 낸다 · ⑨ 는 규칙을 센다', () => {
+    // ④ phenomenon — 이 세계에 그 layer 가 아직 없다.
     // "위반 0" 이 아니라 "놓인 것이 없다" 로 적는다 (없는 것을 통과로 적으면 검사가 거짓말을 한다)
-    for (const [mark, layer] of [
-      ['①', 'resource'],
-      ['④', 'phenomenon'],
-    ] as const) {
-      // 그 layer 가 정말로 이 세계에 없다 (검사가 헛돌지 않는다)
-      const placed = REGION_SPECS.flatMap((s) =>
-        s.space.ops.filter((op) => op.kind === 'area' && op.layer === layer),
+    const placedOf = (layer: string) =>
+      REGION_SPECS.flatMap((s) =>
+        s.space.ops.filter((op) => (op.kind === 'area' || op.kind === 'point') && op.layer === layer),
       );
-      expect({ layer, placed: placed.length }).toEqual({ layer, placed: 0 });
-      expect({ mark, block: block(mark) }).toMatchObject({
-        mark,
-        block: expect.stringContaining('놓인 것이 없다'),
-      });
-    }
+    expect({ layer: 'phenomenon', placed: placedOf('phenomenon').length }).toEqual({
+      layer: 'phenomenon',
+      placed: 0,
+    });
+    expect({ mark: '④', block: block('④') }).toMatchObject({
+      mark: '④',
+      block: expect.stringContaining('놓인 것이 없다'),
+    });
+
+    // ① 자원과 위험 — C011 이 resource 를 point 로 놓았고 hazard 는 아직 없다.
+    // 한쪽만 놓였으면 "같은 근원인가" 를 잴 수 없다: 통과로도 실패로도 적지 않고
+    // **어느 쪽이 없어서 못 쟀는지**를 적는다 (T1)
+    expect(placedOf('resource').length).toBeGreaterThan(0);
+    expect(placedOf('hazard')).toEqual([]);
+    const first = block('①');
+    expect(first).toContain('짝이 없다');
+    expect(first).toContain('hazard');
+    expect(first).toMatch(word(placedOf('resource').length));
 
     // ③ 조건 없이 선 settlement — 이 세계에는 settlement 가 놓여 있으므로 실제로 답을 낸다
     const areasOfRegion = (id: string) =>
@@ -557,8 +565,13 @@ describe('SPEC-005 — 보고가 검사 아홉을 읊는다', () => {
     expect(without).toEqual([]);
     expect(block('②')).toMatch(word(without.length));
 
-    // ⑨ core rule 수 — 이 세계에는 아직 Region 별 rule 이 없다. 0 을 적는다
-    expect(block('⑨')).toMatch(word(0));
+    // ⑨ core rule 수 — C008 이 미로에 규칙을 주었으므로 0 이 아니다. 데이터에서 센 값 그대로다
+    // (T1 이전에는 "0 — 아직 Region 별 rule 이 없다" 가 글자로 박혀 있었다)
+    const ruled = REGION_SPECS.filter((s) => s.rule);
+    expect(ruled.length).toBeGreaterThan(0);
+    const ninth = block('⑨');
+    expect(ninth).toMatch(word(ruled.length));
+    for (const spec of ruled) expect(ninth).toContain(spec.id);
   });
 });
 

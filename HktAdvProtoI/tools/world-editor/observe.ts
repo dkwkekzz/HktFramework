@@ -19,10 +19,8 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import {
   ANCHOR_LAYER,
-  CITY_TAG,
   CLOSED_CONNECTORS,
   COMPILE_RULES,
-  CONDITION_PREFIX,
   REGION_GRAPH,
   REGION_SPECS,
   SETTLEMENT_LAYER,
@@ -30,8 +28,8 @@ import {
   regionSpec,
   type RegionSpec,
 } from '../../content/regions';
-import { areasOf, pointsOf, type Extent } from '../../engine/world-authoring/description';
-import { checkGraph, type GraphIssue } from '../../engine/world-authoring/check';
+import { pointsOf, type Extent } from '../../engine/world-authoring/description';
+import { checkGraph } from '../../engine/world-authoring/check';
 import { compileRegion } from '../../engine/world-authoring/compile';
 import type { CompiledRegion, CompiledWorldTerrain } from '../../engine/world-authoring/compiled';
 import {
@@ -44,6 +42,7 @@ import {
   type TerrainSummary,
 } from '../../engine/world-authoring/observe';
 import { encodePng } from './png';
+import { runWorldCheck } from './check';
 
 // ── 표 그리기 ────────────────────────────────────────────────────────
 //
@@ -443,26 +442,9 @@ function paintTopView(world: CompiledWorldTerrain, zoom: number): Buffer {
 
 // ── 검사 아홉 ────────────────────────────────────────────────────────
 //
-// 게임 명사(layer · tag)는 content/regions 의 상수에서 가져온다.
-// 다만 resource · hazard · phenomenon 은 **이 세계에 아직 없어** 상수도 없다 (컨텐츠 층 주입의 것,
-// spec Out of Scope). 그래서 그 세 이름만 이 도구가 글자로 들고 있는다 — 검사가 무엇을 찾는지를
-// 적어 두기 위해서다. 찾아서 하나도 없으면 **"위반 0" 이 아니라 "놓인 것이 없다"** 로 적는다:
-// 없는 것을 통과로 적으면 검사가 거짓말을 한다 (spec SPEC-005 경계).
-const RESOURCE_LAYER = 'resource';
-const HAZARD_LAYER = 'hazard';
-const PHENOMENON_LAYER = 'phenomenon';
-/** ③ 이 사람이 사는 자리로 치는 태그 — city 만 상수가 있고 나머지 둘은 아직 이 세계에 없다 */
-const SETTLEMENT_TAGS = [CITY_TAG, 'village', 'refuge'] as const;
-
-/** checkGraph 의 코드 → 검사 번호와 우리말 이름. 순서가 곧 ⑤⑥⑦⑧ 이다 */
-const GRAPH_CHECKS = [
-  { mark: '⑤', code: 'missing-anchor', name: 'Connector anchor 가 없는 방' },
-  { mark: '⑥', code: 'containment-unlinked', name: '이어지지 않은 중첩' },
-  { mark: '⑦', code: 'no-exit', name: '나갈 곳 없는 방' },
-  { mark: '⑧', code: 'unreachable', name: '시작 방에서 닿지 않는 방' },
-] as const;
-/** 번호가 붙지 않은 나머지 코드 — 숨기지 않고 한 줄로 함께 적는다 */
-const OTHER_GRAPH_CODES = ['unknown-region', 'frontier-built', 'unused-frontier'] as const;
+// 판정도 셈도 이 도구의 것이 아니다 — 기반의 `checkRegions` 가 낸 것을 사람이 읽을 줄로 옮길 뿐이다
+// (T1 이 아홉을 여기서 engine/world-authoring/check.ts 로 옮겼다). 게임 명사를 건네는 계약은
+// 같은 폴더의 `check.ts`(world:check) 가 소유한다 — 보고와 명령이 **같은 하나**를 읊게 하기 위해서다.
 
 /** 검사 한 줄 — 번호 · 이름 · 답. 판정하지 않는다 (좋다/나쁘다를 말하지 않는다) */
 interface CheckLine {
@@ -473,158 +455,13 @@ interface CheckLine {
   detail?: string[];
 }
 
-/** ① 자원과 위험이 같은 근원인가 — 두 layer 의 area 가 겹치거나 닿는가 (W4) */
-function checkResourceHazard(): CheckLine {
-  const detail: string[] = [];
-  let placed = 0;
-  for (const spec of REGION_SPECS) {
-    const resources = areasOf(spec.space, RESOURCE_LAYER);
-    const hazards = areasOf(spec.space, HAZARD_LAYER);
-    placed += resources.length + hazards.length;
-    if (resources.length === 0 || hazards.length === 0) continue;
-    // 둘 다 놓인 방에서만 격자로 재 본다 — 겹침도 닿음도 의미 래스터에서 나온다
-    const world = compileRegion(spec.space, COMPILE_RULES).world;
-    const resourceMap = rasterSemantic(world, RESOURCE_LAYER);
-    const hazardMap = rasterSemantic(world, HAZARD_LAYER);
-    let overlap = 0;
-    let touch = 0;
-    const { width, height } = resourceMap;
-    for (let row = 0; row < height; row++) {
-      for (let col = 0; col < width; col++) {
-        const i = row * width + col;
-        if ((resourceMap.values[i] ?? 0) === 0) continue;
-        if ((hazardMap.values[i] ?? 0) !== 0) {
-          overlap++;
-          continue;
-        }
-        const near =
-          (col > 0 && (hazardMap.values[i - 1] ?? 0) !== 0) ||
-          (col + 1 < width && (hazardMap.values[i + 1] ?? 0) !== 0) ||
-          (row > 0 && (hazardMap.values[i - width] ?? 0) !== 0) ||
-          (row + 1 < height && (hazardMap.values[i + width] ?? 0) !== 0);
-        if (near) touch++;
-      }
-    }
-    detail.push(`${spec.id}  겹친 칸 ${overlap} · 닿은 칸 ${touch}`);
-  }
-  if (placed === 0) {
-    return {
-      mark: '①',
-      name: '자원과 위험이 같은 근원인가',
-      answer: `놓인 것이 없다 — ${RESOURCE_LAYER} area 0 · ${HAZARD_LAYER} area 0 (이 세계에 아직 없는 layer 다)`,
-    };
-  }
-  return { mark: '①', name: '자원과 위험이 같은 근원인가', answer: `방 ${detail.length}`, detail };
-}
-
-/** ② 깊이 없는 자리 — depth 를 갖지 않은 Region (이 세계의 depth 는 Region 이 갖는다) */
-function checkDepth(): CheckLine {
-  const missing = REGION_SPECS.filter((spec) => spec.depth.trim() === '').map((spec) => spec.id);
-  return {
-    mark: '②',
-    name: '깊이 없는 자리',
-    answer: `depth 없는 Region ${missing.length} / ${REGION_SPECS.length}`,
-    detail: missing,
-  };
-}
-
-/** ③ 조건 없이 선 settlement — 사람이 사는 자리가 있는데 condition 이 하나도 없는 Region (W2) */
-function checkSettlementCondition(): CheckLine {
-  const detail: string[] = [];
-  let withSettlement = 0;
-  let conditionTotal = 0;
-  let bare = 0;
-  for (const spec of REGION_SPECS) {
-    const areas = areasOf(spec.space, SETTLEMENT_LAYER);
-    const settlements = areas.filter((area) =>
-      (SETTLEMENT_TAGS as readonly string[]).includes(area.tag),
-    );
-    if (settlements.length === 0) continue;
-    withSettlement++;
-    const conditions = areas.filter((area) => area.tag.startsWith(CONDITION_PREFIX));
-    conditionTotal += conditions.length;
-    // settlement 를 가진 방을 **전부** 적는다 — 이 검사는 "조건이 몇인가" 를 묻지 "위반인가" 를
-    // 묻지 않는다 (도구는 판정하지 않는다). condition 0 인 방이 곧 W2 가 가리키는 자리이고,
-    // 그것은 줄에 적힌 수로 드러난다
-    detail.push(
-      `${spec.id}  settlement ${settlements.map((a) => a.tag).join(' · ')} · condition ${conditions.length}` +
-        (conditions.length > 0 ? ` (${conditions.map((a) => a.tag).join(' · ')})` : ''),
-    );
-    if (conditions.length === 0) bare++;
-  }
-  return {
-    mark: '③',
-    name: '조건 없이 선 settlement',
-    answer:
-      withSettlement === 0
-        ? `놓인 것이 없다 — ${SETTLEMENT_LAYER} 의 ${SETTLEMENT_TAGS.join(' · ')} area 0`
-        : `settlement 를 가진 Region ${withSettlement} · condition 합 ${conditionTotal} · 그 가운데 condition 0 인 곳 ${bare}`,
-    detail,
-  };
-}
-
-/** ④ Region 의 phenomenon 수 — phenomenon layer 의 area 가 Region 마다 몇인가 (W5) */
-function checkPhenomenon(): CheckLine {
-  const detail: string[] = [];
-  let total = 0;
-  for (const spec of REGION_SPECS) {
-    const count = areasOf(spec.space, PHENOMENON_LAYER).length;
-    total += count;
-    if (count > 0) detail.push(`${spec.id}  ${count}`);
-  }
-  if (total === 0) {
-    return {
-      mark: '④',
-      name: 'Region 의 phenomenon 수',
-      answer: `놓인 것이 없다 — ${PHENOMENON_LAYER} area 0 (이 세계에 아직 없는 layer 다)`,
-    };
-  }
-  return { mark: '④', name: 'Region 의 phenomenon 수', answer: `합 ${total}`, detail };
-}
-
-/** ⑤⑥⑦⑧ — checkGraph 의 결과를 그대로 옮긴다 (C004 의 그 호출 그대로) */
-function graphCheckLines(issues: readonly GraphIssue[]): CheckLine[] {
-  const lines: CheckLine[] = [];
-  for (const check of GRAPH_CHECKS) {
-    const hit = issues.filter((issue) => issue.code === check.code);
-    lines.push({
-      mark: check.mark,
-      name: check.name,
-      answer: `${check.code} ${hit.length}`,
-      detail: hit.map((issue) => `${issue.region}  ${issue.detail}`),
-    });
-  }
-  const others = OTHER_GRAPH_CODES.map(
-    (code) => `${code} ${issues.filter((issue) => issue.code === code).length}`,
-  );
-  lines.push({ mark: '·', name: '번호 밖의 checkGraph 코드', answer: others.join(' · ') });
-  return lines;
-}
-
-/** ⑨ core rule 수 — 이 세계에는 아직 Region 별 rule 이 없다 */
-function checkCoreRules(): CheckLine {
-  return {
-    mark: '⑨',
-    name: 'core rule 수',
-    answer: '0 — 이 세계에는 아직 Region 별 rule 이 없다 (RegionSpec 에 그 자리가 없다)',
-  };
-}
-
 function checkLines(): CheckLine[] {
-  const issues = checkGraph(
-    REGION_SPECS.map((spec) => spec.space),
-    REGION_GRAPH,
-    ANCHOR_LAYER,
-    START_REGION_ID,
-  );
-  return [
-    checkResourceHazard(),
-    checkDepth(),
-    checkSettlementCondition(),
-    checkPhenomenon(),
-    ...graphCheckLines(issues),
-    checkCoreRules(),
-  ];
+  return runWorldCheck().items.map((item) => ({
+    mark: item.mark,
+    name: item.name,
+    answer: item.answer,
+    detail: item.refs.map((ref) => `${ref.where}  ${ref.detail}`),
+  }));
 }
 
 // ── 보고 ─────────────────────────────────────────────────────────────
