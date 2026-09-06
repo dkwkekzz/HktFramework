@@ -5,7 +5,7 @@
 
 ## 1. 다음에 할 일 — 레인
 
-한 Cycle = 브랜치 `cycle/C###` = 세션 하나. **말할 것: "C012 진행"**(Material).
+한 Cycle = 브랜치 `cycle/C###` = 세션 하나. **말할 것: "C013 진행"**(Material).
 `advprotoi-cycle` 이 명세(spec.md) → 실현 → 마감을
 이어 돌리고 UNRESOLVED · GAP 에서만 멈춘다. PR 은 번호 순으로 합친다. 병렬 규칙은
 [Plan-Skill §4 항목 4](design/Plan-Skill-CycleExecutionWorkflow.md). 승인 게이트 없음 — Play 여덟 중 일곱이 승인돼 있다
@@ -26,7 +26,7 @@ design 이 다시 열리는 때는 둘 — ① 2층 Play 실주행에서 DESIGN 
 
 | 레인 | 지금 할 수 있는 것 | 기다리는 것 | 다음 |
 |---|---|---|---|
-| Material — [RoomBearsMaterial](content/roadmap/play/RoomBearsMaterial.md) | **C012** 캐면 세계가 달라진다 — Source phase(Region State) + 채취 결과 넷(외형 · 흔적 옅어짐 · 통행 막힘 · 의존) + 두 관찰자가 같은 자국을 보고 세계를 껐다 켜도 남는다. 채취 단위는 위임된 결정 D4 에 있다. C011 이 원천 넷과 흔적의 사다리를 세웠다 | — | C013 → C014 |
+| Material — [RoomBearsMaterial](content/roadmap/play/RoomBearsMaterial.md) | **C013** 세계가 되돌린다 — 회복 세계 과정 + Supply Mode 넷 + 회복 흔적 + MIGRATORY 의 자리 이동(뿌리 곡선의 다음 마디). 시간 규모는 위임된 결정 D3 에 있다. C012 가 고갈과 `recovery-stalled` 를 세웠으므로 **무엇이 늦어지는가**가 이제 보일 수 있다 | — | C014 |
 | Time — [RoomNeverSame](content/roadmap/play/RoomNeverSame.md) | 대기 (상수 · 철 · 덧씌움 전부 확정 사항에 있다) | Material 닫힘 (철이 바꿀 원천과 흔적이 먼저) | C015 → C018 |
 | Frost — [RoomOfAnotherKind](content/roadmap/play/RoomOfAnotherKind.md) (컨텐츠 M5) | 대기 | Time 닫힘 (재료 생태와 철을 다른 갈래에 두 번째로 쓴다) | C019 → C021 |
 | Life — [RoomBearsLife](content/roadmap/play/RoomBearsLife.md) | 대기 (계약 · 확정 사항 · 상수는 [L2-World-Life.md](content/roadmap/L2-World-Life.md) 와 Play 에 있다) | Frost 닫힘 (탄생이 소비할 재료 · 탈 주기 · 대조할 갈래가 먼저) | C022 → C025 |
@@ -41,19 +41,20 @@ design 이 다시 열리는 때는 둘 — ① 2층 Play 실주행에서 DESIGN 
 | RegionGraphRooms | 세계는 방들의 그래프다 | C001~C004 | **넷 다 닫힘** — Play Goal 실주행 확인이 남았다 (C004 TODO X-⑥) |
 | RoomBecomesLand | 방이 땅이 된다 (백왕령) | C005~C007 | **셋 다 닫힘** — Play Goal 실주행 확인이 남았다 |
 | RuleBoundRoom | 방은 규칙을 품는다 (환상의 미로 = Region 하나) | C008~C010 | **셋 다 닫힘** — Play Goal 실주행 확인이 남았다 |
-| RoomBearsMaterial | 방이 재료를 낳는다 (거대 악마의 숲 = M3 재료 계통) | C011~C014 | C011 닫힘 · **C012 다음** |
+| RoomBearsMaterial | 방이 재료를 낳는다 (거대 악마의 숲 = M3 재료 계통) | C011~C014 | C011 · C012 닫힘 · **C013 다음** |
 | RoomNeverSame | 같은 방은 두 번 없다 (시계 · 네 철 · 소란 · 경로 = M4) | C015~C018 | 대기 |
 | RoomOfAnotherKind | 다른 갈래의 방 (M5 빙결 협곡 · 컨텐츠) | C019~C021 | 대기 |
 | RoomBearsLife | 방이 생명을 낳는다 (허물의 주인 = M6 붉은 알집 · 숲이 값으로 한 바퀴 돈다) | C022~C025 | 대기 |
 | RoomAnswersWhenAsked | 물으면 답한다 (지목 · 대상 프레임 · 기록 · 세계 위 글자 0) | C026~C028 | **셋 다 닫힘** — Play Goal 실주행 확인이 남았다 |
 
-**Human 판정 대기 104** — 각 Cycle 의 `TODO.md` (그림은 같은 폴더 `shots/`). `npm run dev` 로 직접 본다.
+**Human 판정 대기 114** — 각 Cycle 의 `TODO.md` (그림은 같은 폴더 `shots/`). `npm run dev` 로 직접 본다.
 [C001](cycles/C001-region-graph-rooms/TODO.md) 8 · [C002](cycles/C002-many-exits/TODO.md) 8 ·
 [C003](cycles/C003-small-door-big-room/TODO.md) 6 · [C004](cycles/C004-polish-is-data/TODO.md) 6 ·
 [C005](cycles/C005-land-rises/TODO.md) 7 · [C006](cycles/C006-land-blocks-and-flows/TODO.md) 9 ·
 [C007](cycles/C007-observe-and-remake/TODO.md) 5 · [C008](cycles/C008-a-room-with-a-rule/TODO.md) 8 ·
 [C009](cycles/C009-reach-by-the-rule/TODO.md) 9 · [C010](cycles/C010-one-world/TODO.md) 7 ·
-[C011](cycles/C011-trace-leads-to-source/TODO.md) 10 · [C026](cycles/C026-a-place-answers/TODO.md) 7 ·
+[C011](cycles/C011-trace-leads-to-source/TODO.md) 10 · [C012](cycles/C012-the-mark-remains/TODO.md) 10 ·
+[C026](cycles/C026-a-place-answers/TODO.md) 7 ·
 [C027](cycles/C027-a-being-stands-too/TODO.md) 7 · [C028](cycles/C028-the-answer-remains/TODO.md) 7.
 
 Play 넷이 닫혔으므로 **Play 전체 실주행**이 그 위에 넷 더 있다 —
@@ -94,6 +95,9 @@ RoomAnswersWhenAsked(세계 위 글자 없이, 물어서 자리와 존재를 읽
         원천 넷에 난다 — 경계부 둘(나무 밑동의 허물 · 폐허의 선광 더미) · 핵심부 둘(광맥의 노두 · 거목의 뿌리혹) ·
         흙의 변색이 방을 건너 단조롭게 짙어져 방향이 된다(백왕령 0 → 경계부 1 → 중간부 2 → 핵심부 3 → 원천 둘레 4·5) ·
         채취의 대상이 원천이고 얻는 것은 그 원천의 재료다 · 재료 아이콘도 미니맵도 없다 ·
+        **캐면 세계가 달라진다**(C012): 원천마다 캘 횟수가 있고 다 캐면 고갈된다(저장된다) —
+        그 자국이 넷을 한다: 외형이 바뀌고 · 둘레 흙이 한 단계 옅어지고 · 무너진 노두는 지날 수 없고
+        (컴파일 결과 위의 State 덧씌움) · 매달린 다음 것에 "되돌아옴이 멎었다" 가 걸린다 ·
         content/regions/ 데이터
 기반    world-kernel · physics · view-kernel(키가 눈앞의 것을 고름 · 세계의 대답을 띄움 · 컴파일된 땅을 그림 ·
         landmark billboard · 입력 해석 정책 · 지목 강조 · 늘 떠 있는 판 — C026 의 셋) · protocol-core ·
@@ -103,7 +107,7 @@ RoomAnswersWhenAsked(세계 위 글자 없이, 물어서 자리와 존재를 읽
         cycle:shot (마감 촬영 · 창 둘로 관찰자 둘) ·
         검증용 손잡이 HKT_SPAWN · HKT_SPAWN_REGION · HKT_NPCS · HKT_REGION_PATTERN · HKT_NPC_REGION
 없음    전투 공식 · 막기 · 피해 종류 · 살펴봄 · 태도 · 장비 · 스킬 형태 · 성장 · 재료의 쓰임 — design/ 에만 ·
-        재료의 **생애**(phase · 고갈 · 캔 자국 · 회복 · 자리 이동) — C012~C013 ·
+        재료의 **되돌아옴**(회복 세계 과정 · Supply Mode · 자리 이동) — C013 ·
         조건부 기회 · 부산물 · Resource Flow · 재료 검사 ⑩~㉒ — C014 ·
         세계의 철 · 생명의 탄생 — Play 셋이 아직 남았다
 미사용   기반에 있으나 컨텐츠가 아직 안 쓰는 것 — 겹침 표면 · 칸 띠 · 터치 입력 · 이펙트 레이어 · 지면 구역 · 세계 영속
@@ -121,13 +125,15 @@ RoomAnswersWhenAsked(세계 위 글자 없이, 물어서 자리와 존재를 읽
 판이 자기 크기를 계약에 밝히지 않는다 — 판과 상시 HUD · 판과 세계의 겹침을 저장소가 스스로 못 잰다  C027 ① → C028 ②
 촬영이 존재를 겨냥으로만 집는다 (존재 id 로 겨냥할 수 없어 엉뚱한 것이 집힌다)  C026 ④ → C027 ②
 기록판의 상한 다섯이 드문 알림을 잦은 거절로 밀어낸다              C028 ①
-원천은 캐도 줄지 않는다 — phase 도 고갈도 없다                     C011 (C012 가 세운다)
 지목한 판이 재료의 **이름**을 말하지 않는다 — 자연 형태만 말한다. 세계는 이미 싣고 있다(entities[].material)  C011
+고갈이 되돌아오지 않는다 — 고갈은 영구이고 `recovery-stalled` 도 표시일 뿐 아무것도 늦추지 않는다  C012 (C013 이 세운다)
+고갈 뒤 둘레 흙이 방 바닥과 같아지는 방이 셋 — 흔적 사다리의 (바닥, 둘레) 배치 때문이다 (값은 데이터)  C012
+무너진 노두가 길을 실제로 끊는지 아무도 재지 않는다 — 우회 판정에 길찾기가 필요하다  C006 → C012
 촬영 하네스에서 자판 걸음이 몸을 옮기지 못한다 (원인 미확정 — 실주행에서도 그런지 확인 필요)  C003
 80×80 방의 바닥 채움 눈금이 삼각형 상한에 걸려 조금 굵다 (뜬 거리 0.020)  C005
 재배열이 길을 **끊지 않는다** (바꾸는 것은 "갈 수 있는가" 가 아니라 "어느 길로 가는가")  C008 ② — X-⑥ 판정이 정한다
 심장은 P2 가 아니면 나올 수 없고 "돌아가기" 가 꺼내 주지 않는다     C009 ①② — **C010 에서 관찰자가 둘이 되면 실제로 겪힌다**
-검사 ①②④ 는 아직 빈 검사다 (resource · hazard · phenomenon layer 가 없다)  C007 ④ — 컨텐츠 층 주입이 채운다
+검사 ②④ 는 아직 빈 검사다 · ① 은 답을 내기 시작했으나 hazard layer 가 없어 반쪽이다  C007 ④ → C012 (보고는 C014)
 observers.present 가 방 단위가 아니라 **세계 전체**의 수다 — 다른 방의 둘도 서로를 2 로 센다  C010 ③ (Human 이 정할 자리)
 촬영이 사람의 걸음과 떠남을 밀지 못한다 — 캔버스 둘이면 이어짐의 왕복이 수십 초로 밀린다  C010 ①②
 Human 감사 — C005 의 표면 임계 15°(평지/비탈)는 문서 근거가 없는 기본형이다
