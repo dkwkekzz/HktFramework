@@ -1,0 +1,47 @@
+{
+  "id": "MAZE_HEART",
+  "name": "미로의 심장",
+  "depth": "deep",
+  "parent": "FANTASY_MAZE",
+  "kinds": [],
+  "answers": {
+    "distinction": "규칙을 품은 방의 자식이면서 스스로는 규칙이 없는 방이다. 여기서 걸어도 미로의 압력은 오르지 않는다.",
+    "cause": {
+      "unanswered": "심장이 무엇이며 왜 미로 안에 있는지는 적히지 않았다 — Design 이 준 것은 방과 뒤집힌 정원 쪽 문까지다"
+    },
+    "dwelling": {
+      "unanswered": "이 방에는 anchor 말고 아무 것도 놓이지 않았다 — Design 이 준 것이 거기까지이고 없는 의미를 지어내지 않는다"
+    },
+    "danger": {
+      "unanswered": "들어오는 문이 특정 패턴일 때만 서므로 나가지 못할 수 있다는 것까지가 데이터다. 이 세계에 hazard layer 가 아직 놓이지 않았다 — 위험의 갈래는 Concept §3.1 이 어휘를 주었으나 컨텐츠 층 주입이 남았다"
+    },
+    "worth": {
+      "said": {
+        "unanswered": "재료도 생물도 규칙도 두지 않았다 — 없는 의미를 지어내지 않는다"
+      },
+      "sources": []
+    },
+    "discovery": "걸어도 길이 바뀌던 곳에서 한눈에 다 보이는 곳으로 왔다는 것. 그리고 그 너머에 아직 짓지 않은 곳이 있다는 것.",
+    "opening": "뒤집힌 정원 쪽 문이 서 있다 — 다만 그 너머는 아직 짓지 않은 곳이고, 그 걸음 자체가 이 방이 주는 물음이다.",
+    "birth": {
+      "said": {
+        "unanswered": "생명 계약(탄생지 · 개체군 · 관계)이 아직 데이터로 서지 않았다 — Play RoomBearsLife(C022~C025)의 것이다"
+      },
+      "born": []
+    }
+  },
+  "neighbours": [
+    {
+      "region": "FANTASY_MAZE",
+      "transition": "door",
+      "direction": "bidirectional"
+    },
+    {
+      "region": "INVERTED_GARDEN",
+      "transition": "door",
+      "direction": "one-way",
+      "frontier": true
+    }
+  ],
+  "requires": []
+}
