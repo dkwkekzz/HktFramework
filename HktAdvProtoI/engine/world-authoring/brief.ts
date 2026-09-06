@@ -47,6 +47,17 @@ export const WorthSchema = z.strictObject({
         material: z.string().trim().min(1),
         /** 무엇이 그것을 붙잡아 두는가 — 땅 · 식물 · 남은 것 … */
         heldBy: z.string().trim().min(1),
+        /**
+         * 어떤 자연 형태로 있는가 — 같은 것이 여러 모습으로 온다 (T3 ADDED).
+         * 붙잡아 두는 것만으로는 갈리지 않는다: 남은 것 하나가 두 형태로 온다
+         */
+        form: z.string().trim().min(1),
+        /**
+         * 이 자리의 성격 — 거저 주는가 · 위험을 끼는가 · 조건이 붙는가 · 곁딸리는가 (T3 ADDED).
+         * 생성기가 원천의 기본형(얼마나 주는가 · 다시 나는가 · 무너지는가)을 고르는 열쇠다.
+         * 깊이로도 붙잡는 것으로도 갈리지 않는다 — 답하는 사람이 아는 것이다
+         */
+        role: z.enum(['baseline', 'risk', 'conditional', 'by-product']),
       }),
     )
     .default([]),

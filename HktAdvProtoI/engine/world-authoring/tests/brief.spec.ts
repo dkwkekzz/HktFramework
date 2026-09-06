@@ -26,7 +26,10 @@ function sound(): unknown {
       cause: '이래서 이렇게 되었다',
       dwelling: '이런 것이 산다',
       danger: '이것이 위험하다',
-      worth: { said: '이것이 귀하다', sources: [{ id: 'S', material: 'M', heldBy: '땅' }] },
+      worth: {
+        said: '이것이 귀하다',
+        sources: [{ id: 'S', material: 'M', heldBy: '땅', form: '드러난 것', role: 'baseline' }],
+      },
       discovery: '이것을 알게 된다',
       opening: '이것이 열린다',
       birth: { said: '이것이 태어난다', born: [{ id: 'L', from: 'M' }] },
