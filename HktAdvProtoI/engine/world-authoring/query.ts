@@ -61,6 +61,20 @@ export function surfaceAt(world: CompiledWorldTerrain, x: number, z: number): st
 }
 
 /**
+ * 그 area 가 이 자리를 덮는가 — 모양 하나에 대고 묻는다.
+ *
+ * `tagsAt` 은 **태그만** 돌려주므로 어느 op 가 걸렸는지를 잃는다. 컨텐츠가 op 를 이름으로
+ * 가려야 할 때(어느 편집이 지금 다른 뜻을 갖는가) 그 물음을 놓을 자리가 없어, 두 곳이
+ * 저마다 같은 기하를 다시 적게 된다 — 그러면 화면이 덮였다고 하는 자리와 세계가 덮였다고
+ * 하는 자리가 갈릴 수 있다. 그 반복이 실제로 드러나 여기 한 벌만 남긴다 (C012).
+ *
+ * 판정은 `tagsAt` 이 쓰는 것과 **한 함수**다 — 변 위는 안으로 치고, 원은 반경 이하다.
+ */
+export function areaCoversPoint(shape: AreaShape, x: number, z: number): boolean {
+  return shapeContains(shape, x, z);
+}
+
+/**
  * 그 자리를 품는 area 들의 tag — layer 로 거른다. areas 순서(= ops 순서)를 유지하고,
  * 겹치면 걸린 것을 **전부** 낸다 — 하나로 줄이는 것은 기반의 결정이 아니다.
  */
