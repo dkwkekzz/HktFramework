@@ -18,7 +18,9 @@
         {
           "id": "MOLT_LITTER",
           "material": "ORE_EATER_MOLT",
-          "heldBy": "residue"
+          "heldBy": "residue",
+          "form": "molt-litter",
+          "role": "baseline"
         }
       ]
     },

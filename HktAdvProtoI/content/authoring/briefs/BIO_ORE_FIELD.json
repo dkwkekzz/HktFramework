@@ -18,7 +18,9 @@
         {
           "id": "ORE_OUTCROP",
           "material": "BIO_ORE",
-          "heldBy": "terrain"
+          "heldBy": "terrain",
+          "form": "outcrop",
+          "role": "risk"
         }
       ]
     },

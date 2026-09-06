@@ -18,7 +18,9 @@
         {
           "id": "RUIN_SPOIL",
           "material": "ORE_EATER_MOLT",
-          "heldBy": "residue"
+          "heldBy": "residue",
+          "form": "spoil-pile",
+          "role": "baseline"
         }
       ]
     },

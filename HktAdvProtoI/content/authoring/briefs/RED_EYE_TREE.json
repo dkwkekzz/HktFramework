@@ -18,7 +18,9 @@
         {
           "id": "ROOT_NODULE",
           "material": "BIO_ORE",
-          "heldBy": "plant"
+          "heldBy": "plant",
+          "form": "root-nodule",
+          "role": "risk"
         }
       ]
     },
