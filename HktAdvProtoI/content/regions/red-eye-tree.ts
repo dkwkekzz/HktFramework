@@ -96,6 +96,10 @@ export const RED_EYE_TREE_SPEC: RegionSpec = {
         carrier: 'plant',
         opportunity: 'risk',
         supply: 'conditional-renewable',
+        // 뿌리혹 하나 = 한 번. 캐면 터진다 (D4) — §5.5 의 장면은 이 1 에서 나온다
+        harvests: 1,
+        // 분해된 흙(NEST_FUNGUS)에 매달려 있으나 그 원천은 C014 가 세운다 — 지금은 잇지 않는다
+        traceOp: 'trace-tree-nodule',
       },
     ],
   },

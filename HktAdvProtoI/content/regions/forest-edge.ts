@@ -143,6 +143,9 @@ export const FOREST_EDGE_SPEC: RegionSpec = {
         carrier: 'residue',
         opportunity: 'baseline',
         supply: 'baseline-renewable',
+        // 넉넉하다 — 가장 얕은 자리의 Baseline (D4). 다녀와도 남이 캘 몫이 있다
+        harvests: 3,
+        traceOp: 'trace-edge-molt',
       },
     ],
   },

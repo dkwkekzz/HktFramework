@@ -33,6 +33,7 @@ function spawnFromEnv(): {
   npcs?: [];
   regionPatterns?: Record<string, string>;
   npcRegion?: string;
+  sourcePhases?: Record<string, string>;
 } {
   const setup: {
     actorPosition?: { x: number; z: number };
@@ -40,6 +41,7 @@ function spawnFromEnv(): {
     npcs?: [];
     regionPatterns?: Record<string, string>;
     npcRegion?: string;
+    sourcePhases?: Record<string, string>;
   } = {};
   // HKT_REGION_PATTERN="REGION:PATTERN" — 규칙을 품은 방이 어느 패턴으로 서는가 (C009).
   // 같은 갈래의 검증용 손잡이다 — 걸어서 닿을 수 있는 State 를 걸어가지 않고 시작한다.
@@ -60,6 +62,16 @@ function spawnFromEnv(): {
   // npcs: "none" 과 함께 주면 none 이 이긴다 (아무도 놓지 않는다).
   const npcRegion = process.env.HKT_NPC_REGION;
   if (npcRegion && setup.npcs === undefined) setup.npcRegion = npcRegion;
+  // HKT_SOURCE_PHASE="SOURCE:PHASE" — 원천이 어느 phase 로 서는가 (C012).
+  // HKT_REGION_PATTERN 과 같은 갈래의 검증용 손잡이다 — 캐서 닿을 수 있는 State 를 캐지 않고
+  // 시작한다. 노두는 세 번 캐야 고갈되고 촬영 하네스의 요청 왕복은 10초를 넘는다.
+  // 규칙이 그것을 고갈시킨다는 것은 시나리오 테스트가 증명하고, 그림은 그 State 에서
+  // 무엇이 보이는가를 보인다. 모르는 원천 · 모르는 phase 는 세계가 조용히 무시한다.
+  const sourcePhase = process.env.HKT_SOURCE_PHASE;
+  if (sourcePhase) {
+    const [sourceId, phase] = sourcePhase.split(':');
+    if (sourceId && phase) setup.sourcePhases = { [sourceId]: phase };
+  }
   // HKT_SPAWN_REGION — 어느 **방**에서 시작할 것인가. 방이 여럿이 되면서 자리만으로는
   // 모자란다 (C002): 걷기가 이어지지 않는 촬영에서 백왕령 밖의 방을 보려면 거기서 시작해야 한다.
   if (process.env.HKT_SPAWN_REGION) setup.actorRegion = process.env.HKT_SPAWN_REGION;

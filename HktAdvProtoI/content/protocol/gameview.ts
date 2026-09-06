@@ -86,6 +86,13 @@ export interface EntityView extends CoreEntityView {
    * **쓰임은 실리지 않는다** — 손에 든 것이 무엇에 쓰이는지 이 층은 말하지 않는다 (S10).
    */
   material?: string;
+  /**
+   * 그 원천에 **지금 걸린 조건 코드들** — resource-source 에만 실린다 (C012 ADDED).
+   *
+   * 걸린 것이 하나도 없으면 **자리 자체가 없다** (빈 배열로 지어내지 않는다).
+   * 무엇이 무엇에 매달렸는지는 실리지 않는다 — 세계는 "지금 멎었다" 만 말한다.
+   */
+  conditions?: string[];
 }
 
 export interface InteractionView extends CoreInteractionView {
