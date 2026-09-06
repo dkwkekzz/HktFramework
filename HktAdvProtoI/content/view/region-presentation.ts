@@ -19,9 +19,21 @@
 
 import type { GameViewSnapshot as CoreGameViewSnapshot } from '../../engine/protocol-core/gameview';
 import type { SceneGroundZone } from '../../engine/view-kernel/scene/scene-state';
-import { areasOf, descriptionHash, extentPolygon } from '../../engine/world-authoring/description';
+import {
+  areasOf,
+  curvesOf,
+  descriptionHash,
+  extentPolygon,
+  polylineStrip,
+} from '../../engine/world-authoring/description';
 import type { GameViewSnapshot, RegionView } from '../protocol/gameview';
-import { SOIL_STAIN_MAX, TRACE_LAYER, regionSpec } from '../regions/index';
+import {
+  PRESENCE_LAYER,
+  ROOT_CURVE_TAG,
+  SOIL_STAIN_MAX,
+  TRACE_LAYER,
+  regionSpec,
+} from '../regions/index';
 import {
   NO_SOURCE_PHASES,
   collapsedAreas,
@@ -325,6 +337,34 @@ export function traceZonePresentation(
   return opacity === undefined ? undefined : { color: TRACE_SOIL_COLOR, opacity };
 }
 
+// ── 땅 위의 뿌리 선 (C013 ADDED · V12) ───────────────────────────────
+//
+// presence layer 의 곡선(거목의 뿌리)을 폭만큼 부풀려 지면에 그린다. 세계는 이 선을
+// 싣지 않는다 — 관찰자가 자기 Description 에서 곡선을 읽어 스스로 그린다 (땅 · 흔적 ·
+// 붕괴와 같은 규율).
+//
+// **마디마다의 표식(원 · 점 · 번호)을 그리지 않는다.** 다음 마디가 어디인지는 흔적이
+// 말하고 이 선은 거들 뿐이다 (Play §5.6 예보) — 선이 자리를 짚어 주면 흙을 읽을 일이
+// 없어진다. 이름표도 없다 (C026 R4 — RULE-QUIET-GROUND-001).
+//
+// 색은 이 세계의 나무빛 계열이다 (sprites 의 U = #523c26 과 같은 값) — 흙 위에 드러난
+// 뿌리이지 사람이 그은 선이 아니므로, 조건 · 도시 · 구역처럼 테두리를 두르지 않고
+// 채움만으로 흙보다 조금 어둡게 눕는다.
+
+export const ROOT_LINE_ZONE = {
+  fill: 0x523c26,
+  fillOpacity: 0.5,
+};
+
+/**
+ * 곡선이 폭을 밝히지 않았을 때 지면에 눕히는 띠의 폭.
+ *
+ * 데이터의 width 가 세계의 사실이고(그 폭만큼 뿌리가 지난다), 그것이 없을 때 **얼마나
+ * 두껍게 그릴지**는 표현의 결정이다 (핵심 원칙 2). 0.6 은 방(40×40)에서 실처럼 보이지
+ * 않으면서 그 위에 선 것을 덮지 않는 값이다.
+ */
+export const ROOT_LINE_WIDTH = 0.6;
+
 // ── 무너진 자리 (C012 ADDED) ─────────────────────────────────────────
 //
 // 고갈되고 무너지는 원천의 **붕괴 자리 area** 다. 흔적 · 조건 · 구역과 똑같이 세계가
@@ -440,7 +480,8 @@ function worldTimeOf(snapshot: GameViewSnapshot): number {
  * Spec 을 모르는 id 면 빈 배열이다 — 바닥 없이도 게임은 돈다 (폴백 규칙).
  *
  * 순서가 곧 겹치는 차례다 (아래에서 위로):
- *   방 바닥 → 흔적(C011) → settlement(C006) → 구역(C008) → 통로(C008)
+ *   방 바닥 → 흔적(C011) → 뿌리 선(C013) → 무너진 자리(C012) → settlement(C006) →
+ *   구역(C008) → 통로(C008)
  * 흔적이 방 바닥 바로 위인 것은 그것이 **흙 자체의 색**이기 때문이다 — 사람이 그은 것들은
  * 전부 그 위에 겹친다. layer 안에서는 Description 의 ops 순서 그대로이며 **다시 정렬하지
  * 않는다** — 무엇이 무엇 위에 겹치는지는 데이터가 정하는 것이고, 화면이 그 차례를 바꾸면
@@ -449,7 +490,7 @@ function worldTimeOf(snapshot: GameViewSnapshot): number {
 export function regionZones(
   region: RegionView | undefined,
   worldTime = 0,
-  phases: SourcePhases = NO_SOURCE_PHASES,
+  sources: SourcePhases = NO_SOURCE_PHASES,
 ): SceneGroundZone[] {
   if (!region) return [];
   const spec = regionSpec(region.id);
@@ -475,11 +516,12 @@ export function regionZones(
     // 방 바닥 area(가장 옅은 단계)가 먼저 오고 원천 둘레(더 짙은 단계)가 그 위에 겹치므로,
     // 겹친 자리는 더 짙게 보인다 (R4 의 "가장 짙은 것이 이긴다" 가 눈에서도 그대로다).
     ...areasOf(spec.space, TRACE_LAYER).flatMap((area): SceneGroundZone[] => {
-      // C012 CHANGED — 고갈된 원천의 traceOp 구역은 **한 단계 낮은 색**이다 (R5 · SPEC-005).
-      // 단계가 0 이 되면 traceZonePresentation 이 undefined 를 주고 그 구역은 그려지지
-      // 않는다 — 옅어짐의 끝은 색이 옅어지는 것이 아니라 흔적이 없어지는 것이다.
-      // 나머지 구역(방 바닥에 깔린 흔적 · 캐지 않은 원천 둘레)은 한 값도 바뀌지 않는다.
-      const p = traceZonePresentation(traceLevelOfArea(spec.id, area, phases));
+      // C013 CHANGED — 원천 둘레는 **지금 선 마디**의 것만 세고(다른 마디의 둘레는 0),
+      // 그 마디가 고갈이면 **한 단계 낮은 색**이다 (R7 · SPEC-004). 단계가 0 이 되면
+      // traceZonePresentation 이 undefined 를 주고 그 구역은 그려지지 않는다 — 옅어짐의
+      // 끝은 색이 옅어지는 것이 아니라 흔적이 없어지는 것이다. 나머지 구역(방 바닥에
+      // 깔린 흔적 · 캐지 않은 원천 둘레)은 한 값도 바뀌지 않는다.
+      const p = traceZonePresentation(traceLevelOfArea(spec.id, area, sources));
       // 모르는 단계는 **그리지 않는다** — 없는 짙기를 지어내지 않는다 (C001 부터의 폴백 규칙)
       if (!p) return [];
       return [
@@ -492,10 +534,34 @@ export function regionZones(
         },
       ];
     }),
-    // 무너진 자리 (C012) — **흔적 바로 위**다. 구덩이는 흙에 파인 것이므로 그 흙(흔적)을
-    // 덮어야 하고, 사람이 그은 것들(조건 · 도시 · 구역 · 통로)보다는 아래에 둔다.
-    // 고갈되기 전에는 이 목록이 비어 있다 (spec SPEC-006 경계 ①).
-    ...collapsedAreas(spec.id, phases).map((area): SceneGroundZone => ({
+    // 땅 위의 뿌리 선 (C013) — **흔적 바로 위 · 무너진 자리 아래**다. 뿌리는 흙 위에
+    // 드러난 것이므로 흙(흔적)을 덮고, 구덩이는 그 뿌리째 판 것이므로 이것을 덮는다.
+    // presence 곡선이 없는 방에서는 이 목록이 비고, 그러면 화면은 C012 와 한 픽셀도
+    // 다르지 않다 (규칙 없는 방에 통로가 서지 않는 것과 같은 형).
+    ...curvesOf(spec.space, PRESENCE_LAYER, ROOT_CURVE_TAG).flatMap(
+      (curve): SceneGroundZone[] => {
+        const points = polylineStrip(
+          curve.points,
+          curve.width > 0 ? curve.width : ROOT_LINE_WIDTH,
+        );
+        // 부풀릴 것이 없는 곡선(점 하나)은 **그리지 않는다** — 없는 선을 지어내지 않는다
+        if (points.length < 3) return [];
+        return [
+          {
+            id: `root:${spec.id}:${curve.id}`,
+            shape: { kind: 'polygon', points },
+            fill: { color: ROOT_LINE_ZONE.fill, opacity: ROOT_LINE_ZONE.fillOpacity },
+            // 테두리도 이름표도 없다. 마디 표식도 없다 — 자리를 짚어 주면 흔적을 읽을
+            // 일이 없어진다 (Play §5.6 · RULE-QUIET-GROUND-001)
+          },
+        ];
+      },
+    ),
+    // 무너진 자리 (C012 · C013 CHANGED) — **뿌리 선 바로 위**다. 구덩이는 흙과 그 위에
+    // 드러난 뿌리를 함께 판 것이므로 둘을 덮고, 사람이 그은 것들(조건 · 도시 · 구역 ·
+    // 통로)보다는 아래에 둔다. 무너지기 전에는 이 목록이 비어 있고, 원천이 다음 마디로
+    // 옮겨 간 뒤에도 옛 자리는 그대로 남는다 (spec SPEC-007).
+    ...collapsedAreas(spec.id, sources).map((area): SceneGroundZone => ({
       id: `collapse:${spec.id}:${area.id}`,
       shape: area.shape,
       fill: { color: COLLAPSE_ZONE.fill, opacity: COLLAPSE_ZONE.fillOpacity },

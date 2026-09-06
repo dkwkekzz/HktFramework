@@ -54,6 +54,11 @@ const PALETTE: Record<string, string> = {
   // 고갈된 원천의 두 색 (C012) — 있던 것이 없어진 자리의 색이다
   q: '#1b1a1f', // 파인 자리의 바닥 — 빛이 닿지 않는 구덩이 속 (이 표에서 가장 어둡다)
   g: '#8f8577', // 마른 빈 껍질의 속 — 터진 뿌리혹에 남은 것. 붉은 기가 빠진 값이다
+  // 되돌아오는 중인 원천의 두 색 (C013) — **붉은 것이 일부만 돌아온** 값이다.
+  // 남아 있는 것(C·c)보다 옅고 바닥난 것(붉은 기가 없다)보다 짙다 — 색 하나만 보아도
+  // "다 온 것은 아니다" 가 읽힌다 (spec §5.6 예보 · SPEC-003).
+  i: '#c05a44', // 다시 도는 결정·살 (볕)
+  I: '#7e3a2c', // 다시 도는 결정·살 (그늘)
   '.': '',
 };
 
@@ -279,6 +284,103 @@ const SOURCE_SPOIL_PILE_DEPLETED = [
   '.WWWWWWWWWWWWWW.',
   '.W..rd...drr..W.',
   '.W.rrrdd.ddrr.W.',
+  '.W.dddddddddd.W.',
+  '.WWWWWWWWWWWWWW.',
+  '..d..r......d...',
+  '................',
+];
+
+// ── 되돌아오는 중인 원천 넷 (C013 ADDED) ────────────────────────────
+//
+// **available · depleted 와 실루엣부터 갈린다** (spec SPEC-003 — 형태마다 그림이 셋이고
+// 그 셋이 눈으로 갈린다). 넷을 잇는 규칙 하나는 "없던 것이 다시 오는 중이다" 다 —
+// 무너진 자리에 작은 결정이 돋고, 터진 껍질에서 혹이 다시 부풀고, 흩어진 조각이 다시
+// 모이고, 헐린 더미가 다시 드러난다. 자국(구덩이 · 터진 껍질 · 나무틀)은 **그대로 남아**
+// 그 위에 새것이 얹히므로, 이것이 되돌아온 것이 아니라 되돌아오는 **중**임이 읽힌다.
+//
+// 색은 붉은 것(C·c)이 일부만 돌아온 값(i·I)이다 — available 보다 옅고 depleted 보다 짙다.
+//
+// **얼마나 남았는지 말하지 않는다.** 진행도 남은 시간도 실려 오지 않으므로(spec Observable),
+// 그림도 "지금 되돌아오는 중이다" 까지만 말한다.
+
+// 구덩이에 작은 결정이 돋는다 — 파인 자리(테두리 · 팬 바닥)는 그대로인데 그 안에서
+// 결정 둘이 솟아 아직 테두리 높이를 넘지 못했다. 솟은 무리(available)도 빈 구멍(depleted)도 아니다
+const SOURCE_OUTCROP_RECOVERING = [
+  '................',
+  '................',
+  '..cc......c.....',
+  '.ddddddddddddd..',
+  'dDDeeeeeeeeeDDd.',
+  'dDeeqiqqqqqeeDd.',
+  'dDeqqiIqqqqqeDd.',
+  'dDeqqiIqqqqqeDd.',
+  'dDeqqiIqqiIqeDd.',
+  'dDeqiiIqqiIIeDd.',
+  'dDeeiiIqqiIeeDd.',
+  '.dDDeeeeeeeDDd..',
+  '..dddDDDDDddd...',
+  '....c...cc......',
+  '................',
+  '................',
+];
+
+// 터진 껍질 안에서 혹이 다시 부푼다 — 갈라진 껍질(c·G·g)은 그대로 남고 그 속의 빈 자리
+// 대신 작은 덩이가 차 오른다. available 의 꽉 찬 큰 덩이보다 작고, depleted 의 빈 속과 다르다
+const SOURCE_ROOT_NODULE_RECOVERING = [
+  '................',
+  '..u.............',
+  '..uU............',
+  '..uU............',
+  '..uUu...........',
+  '..uuUu..........',
+  '...uuUuu........',
+  '....uuUc...c....',
+  '.....cGg...gGc..',
+  '....cGgq.i.qgGc.',
+  '...cGgqqiIiqqgG.',
+  '...cGgqiIIiqgGc.',
+  '....cGgiIIigGc..',
+  '.....cGgggGcuUu.',
+  '......ccccc.uUUu',
+  '................',
+];
+
+// 흩어진 조각이 다시 모인다 — 낱낱으로 벌어져 있던 것(depleted)이 둘씩 셋씩 붙기 시작하고
+// 붉은 결(x)이 한 점 돌아왔다. 아직 available 의 두꺼운 무더기는 아니다
+const SOURCE_MOLT_LITTER_RECOVERING = [
+  '................',
+  '................',
+  '...uuuuuu.......',
+  '..uUuuuuUu......',
+  '..uUuuuuUu......',
+  '..uUuuuuUu...k..',
+  '..uUuuuuUu..mk..',
+  '..uuuuuuuu...k..',
+  '.uUUuuuuUUu.....',
+  '...mk...........',
+  '..mkx.....mk....',
+  '...kk....mkk....',
+  '.......mk.......',
+  '..mk...mkk......',
+  '...k....kk..mk..',
+  '................',
+];
+
+// 헐린 더미가 다시 드러난다 — 나무틀(W)은 그대로인데 가로대 위로 돌무더기가 다시 쌓여
+// 올라왔다. 꽂힌 삽(available 의 그 직선)은 아직 없고, 틀만 남은 것(depleted)도 아니다
+const SOURCE_SPOIL_PILE_RECOVERING = [
+  '................',
+  '................',
+  '................',
+  '................',
+  '................',
+  '.W....Rr......W.',
+  '.W...RrrdR....W.',
+  '.W..RrrdrrrR..W.',
+  '.W.RrrdrrxrrR.W.',
+  '.WWWWWWWWWWWWWW.',
+  '.W.rrrdrrrdrr.W.',
+  '.W.rrdrrrrrdr.W.',
   '.W.dddddddddd.W.',
   '.WWWWWWWWWWWWWW.',
   '..d..r......d...',
@@ -603,6 +705,12 @@ const PIXEL_MAPS: Record<string, string[]> = {
   'source:spoil-pile:depleted': SOURCE_SPOIL_PILE_DEPLETED,
   'source:outcrop:depleted': SOURCE_OUTCROP_DEPLETED,
   'source:root-nodule:depleted': SOURCE_ROOT_NODULE_DEPLETED,
+  // 되돌아오는 중의 넷 (C013) — 다시 같은 키에 state 만 바뀐다. 세계가 싣는 state 가
+  // 셋이 되었을 뿐이고(available · depleted · recovering), 고르는 규칙은 그대로다
+  'source:molt-litter:recovering': SOURCE_MOLT_LITTER_RECOVERING,
+  'source:spoil-pile:recovering': SOURCE_SPOIL_PILE_RECOVERING,
+  'source:outcrop:recovering': SOURCE_OUTCROP_RECOVERING,
+  'source:root-nodule:recovering': SOURCE_ROOT_NODULE_RECOVERING,
 };
 
 /** 이 팩의 스프라이트 표 — 조립 루트가 engine 의 registerSprites 에 넘긴다 */
