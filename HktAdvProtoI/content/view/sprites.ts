@@ -40,6 +40,20 @@ const PALETTE: Record<string, string> = {
   y: '#f2e8cf', // D 구역의 식물 — 상아 (볕)
   Y: '#8b8064', // 상아 (그늘)
   v: '#2b2438', // 식물 넷의 공통 밑동 — 어디에 서든 지면에 닿는 그늘 한 줄
+  // 재료 원천 넷의 색 (C011) — **두 계통을 색으로 먼저 가른다**: 생체 광석은 붉고(C·c·G),
+  // 광식충 허물은 옅은 껍질색이다(m·k). 허물에 붉은 결 한 점(x)만 남겨 둔 것은 같은
+  // 계통이라는 것이 색에서도 한 번 읽히게 하려는 것이다 (Play §4 의 추측).
+  C: '#f2684a', // 생체 광석의 결정면 (볕) — 이 세계에서 가장 붉다
+  c: '#a83526', // 생체 광석의 결정 (그늘)
+  G: '#5b2118', // 광석의 가장 깊은 결 — 땅에 닿는 밑동
+  m: '#dcc6a6', // 광식충 허물의 껍질 (볕) — 광석보다 옅다
+  k: '#a89076', // 허물의 껍질 (그늘)
+  x: '#c07a5c', // 허물에 남은 옅은 붉은 결
+  u: '#7b5a39', // 나무 밑동·뿌리 (볕)
+  U: '#523c26', // 나무 밑동·뿌리 (그늘)
+  // 고갈된 원천의 두 색 (C012) — 있던 것이 없어진 자리의 색이다
+  q: '#1b1a1f', // 파인 자리의 바닥 — 빛이 닿지 않는 구덩이 속 (이 표에서 가장 어둡다)
+  g: '#8f8577', // 마른 빈 껍질의 속 — 터진 뿌리혹에 남은 것. 붉은 기가 빠진 값이다
   '.': '',
 };
 
@@ -81,41 +95,193 @@ const PLAYER_MOVING = [
   '................',
 ];
 
-const DEPOSIT_AVAILABLE = [
+// ── 재료의 원천 넷 (C011) ────────────────────────────────────────────
+//
+// 광맥 하나(stone-deposit)가 서 있던 자리를 대신한다. 넷은 같은 role('resource-source')
+// 이므로 **그림이 유일한 구분**이다 — 세계 위에 이름표가 없고(C026 R4 · spec SPEC-008)
+// 색으로만 갈라 두면 두 계통이 두 덩어리로 뭉쳐 보인다.
+//
+// 그래서 넷을 **실루엣부터** 갈랐다 (미로의 식물 넷이 두 축으로 갈린 것과 같은 어법).
+//   흩어진 조각들(낮고 넓다) · 프레임을 두른 더미(인공물이 꽂혀 있다) ·
+//   뾰족한 결정 무리(높고 각지다) · 굵은 뿌리에 달린 혹(둥근 덩이 하나)
+// 짙기도 갈린다 — 노두가 가장 붉고, 허물이 가장 옅다 (D2 "광석보다 옅다").
+//
+// 남은 양을 그림이 말하지 않는다 — 몇 번 남았는지는 실려 오지 않는다. C012 부터 state 가
+// 둘이 되므로(available · depleted) 형태마다 그림이 둘이고, 그 둘의 차이가 곧 자국이다.
+
+// 나무 밑동에 흩어진 껍질 조각 — 서 있는 것이 아니라 **깔려 있다**. 넷 가운데 가장 낮고 넓다
+const SOURCE_MOLT_LITTER = [
   '................',
   '................',
+  '...uuuuuu.......',
+  '..uUuuuuUu......',
+  '..uUuuuuUu...m..',
+  '..uUuuuuUu..mkx.',
+  '..uUuuuuUu..mmk.',
+  '..uuuuuuuu...kk.',
+  '.uUUuuuuUUu.....',
+  '...mkx..........',
+  '..mmk.....mkx...',
+  '..mkk....mmkk...',
+  '.......mkx......',
+  '..mk..mmkk......',
+  '..kk...mkk..mk..',
   '................',
-  '......RRr.......',
-  '.....RRRrr......',
-  '....RRrRrrr.....',
-  '....RrrrrrdRR...',
-  '...RRrRrrrdRRr..',
-  '...RrrrrdrrRrr..',
-  '..RRrrRrrrrrrd..',
-  '..Rrrrrrdrrrrd..',
-  '..rrrdrrrrdrrd..',
-  '.rrrrrrrrrrrrdd.',
-  '.dddddddddddddd.',
+];
+
+// 헐린 선광 더미 — 돌무더기에 **사람이 두고 간 것**이 섞였다: 부러진 삽 하나가 꽂혀 있고
+// 나무틀이 더미를 두르고 있다. 자연 형태 넷 가운데 유일하게 직선(틀)을 가진 실루엣이다
+const SOURCE_SPOIL_PILE = [
+  '................',
+  '.........W......',
+  '........W.......',
+  '.......W........',
+  '......MM........',
+  '.....MMM..R.....',
+  '....RrMd.Rrr....',
+  '...RrrrdrrrrR...',
+  '..RrrdrrrxrrrR..',
+  '..RrrrrdrrrrrR..',
+  '.RrrdrrrrrdrrrR.',
+  '.WWWWWWWWWWWWWW.',
+  '.W.rrrdrrrrrr.W.',
+  '.W.dddddddddd.W.',
+  '.WWWWWWWWWWWWWW.',
+  '................',
+];
+
+// 광맥의 노두 — 땅을 뚫고 솟은 결정 무리. 넷 가운데 가장 높고 가장 각지고 **가장 붉다**
+const SOURCE_OUTCROP = [
+  '................',
+  '.......C........',
+  '......CCc.......',
+  '..C...CCc.......',
+  '.CCc..CCCc...C..',
+  '.CCc.CCCCc..CCc.',
+  '.CCc.CCcCc..CCc.',
+  'cCCc.CCcCcc.CCcc',
+  'cCCccCCcCcc.CCcc',
+  'cCCcCCCcCCccCCcc',
+  'cGCcCGCcCGccGCcc',
+  '.cGGcGGcGGccGGc.',
+  '..cGGGGGGGGGGc..',
+  '...cGGGGGGGGc...',
+  '....GGGGGGGG....',
+  '................',
+];
+
+// 거목의 부푼 뿌리혹 — 굵은 뿌리 하나가 비스듬히 내려와 **둥근 덩이 하나**로 부풀었다.
+// 각진 노두와 정반대의 실루엣이고, 붉은 것이 광석이 아니라 살아 있는 것에 붙어 있다
+const SOURCE_ROOT_NODULE = [
+  '................',
+  '..u.............',
+  '..uU............',
+  '..uU............',
+  '..uUu...........',
+  '..uuUu..........',
+  '...uuUuu........',
+  '....uuUCCc......',
+  '.....uCCCCCc....',
+  '....CCCCCCCCc...',
+  '...CCCCCcCCCCc..',
+  '...CCCcCCCcCCc..',
+  '...cCCCCCCCcCc..',
+  '....cCCCCCCcuUu.',
+  '.....ccCCccuuUUu',
+  '................',
+];
+
+// ── 고갈된 원천 넷 (C012 ADDED) ──────────────────────────────────────
+//
+// 같은 자리에 선 것이 **바뀌었다**는 것이 한눈에 갈려야 한다 (spec SPEC-004 — Play A.2).
+// 그래서 넷 다 available 과 **실루엣부터** 다르다. 넷을 잇는 규칙 하나는
+// "있던 것이 없어졌다" 다 — 솟은 것이 내려앉고, 부푼 것이 갈라지고, 뭉친 것이 흩어지고,
+// 쌓인 것이 낮아진다. 색은 붉은 것(C·c)이 빠지고 그늘(q·G·k·d)이 남는 쪽으로 움직인다.
+//
+// **남은 양을 말하지 않는다.** 몇 번 캤는지도 언제 돌아오는지도 실려 오지 않으므로,
+// 그림도 "지금 여기에 없다" 까지만 말한다 (spec Observable "싣지 않는다").
+
+// 노두가 무너져 구덩이가 되었다 — 솟은 결정이 사라지고 부서진 조각과 팬 자국만 남는다.
+// 가장 높고 각지던 것이 가장 낮고 오목한 것이 된다 (available 과 정확히 반대의 실루엣)
+const SOURCE_OUTCROP_DEPLETED = [
+  '................',
+  '................',
+  '..cc......c.....',
+  '.ddddddddddddd..',
+  'dDDeeeeeeeeeDDd.',
+  'dDeeqqqqqqqeeDd.',
+  'dDeqqqqqqqqqeDd.',
+  'dDeqqqcqqqqqeDd.',
+  'dDeqqqqqqqcqeDd.',
+  'dDeqqqqqqqqqeDd.',
+  'dDeeqqqqqqqeeDd.',
+  '.dDDeeeeeeeDDd..',
+  '..dddDDDDDddd...',
+  '....c...cc......',
   '................',
   '................',
 ];
 
-const DEPOSIT_DEPLETED = [
+// 뿌리혹이 터진 자국 — 뿌리는 그대로 내려오는데 둥근 덩이가 가운데서 갈라지고
+// 빈 껍질(g)만 남았다. 붉은 알맹이(C)가 하나도 없고 갈라진 틈으로 속이 비어 보인다
+const SOURCE_ROOT_NODULE_DEPLETED = [
+  '................',
+  '..u.............',
+  '..uU............',
+  '..uU............',
+  '..uUu...........',
+  '..uuUu..........',
+  '...uuUuu........',
+  '....uuUc...c....',
+  '.....cGg...gGc..',
+  '....cGgq...qgGc.',
+  '...cGgqq...qqgG.',
+  '...cGgqqqqqqgGc.',
+  '....cGgqqqqgGc..',
+  '.....cGgggGcuUu.',
+  '......ccccc.uUUu',
+  '................',
+];
+
+// 무더기가 흩어졌다 — 나무 밑동은 그대로인데 조각이 성기게 흩어지고 붉은 결(x)이 없다.
+// 뭉쳐 있던 덩어리가 낱낱으로 벌어진 것이 available 과 갈리는 자리다
+const SOURCE_MOLT_LITTER_DEPLETED = [
+  '................',
+  '................',
+  '...uuuuuu.......',
+  '..uUuuuuUu......',
+  '..uUuuuuUu......',
+  '..uUuuuuUu...k..',
+  '..uUuuuuUu......',
+  '..uuuuuuuu..k...',
+  '.uUUuuuuUUu.....',
+  '...mk...........',
+  '..k.......mk....',
+  '.........k......',
+  '......mk........',
+  '..k.........mk..',
+  '.....k....k.....',
+  '................',
+];
+
+// 더미가 헐렸다 — 무너져 낮아지고 나무틀(W)이 드러났다. 솟아 있던 돌무더기와 꽂힌 삽이
+// 사라지고 틀의 기둥·가로대만 남는다: 넷 가운데 유일한 직선이 이제 실루엣의 전부다
+const SOURCE_SPOIL_PILE_DEPLETED = [
   '................',
   '................',
   '................',
   '................',
   '................',
-  '......DD........',
-  '.....DDDe.......',
-  '....DDeDDD......',
-  '...DDDDeDDe.....',
-  '...DeDDDDDDe....',
-  '..DDDDeDDDeDD...',
-  '..DeDDDDeDDDe...',
-  '.DDDDeDDDDDeDD..',
-  '.eeeeeeeeeeeee..',
-  '................',
+  '.W............W.',
+  '.W............W.',
+  '.W...rd.......W.',
+  '.W..RrrdR.....W.',
+  '.WWWWWWWWWWWWWW.',
+  '.W..rd...drr..W.',
+  '.W.rrrdd.ddrr.W.',
+  '.W.dddddddddd.W.',
+  '.WWWWWWWWWWWWWW.',
+  '..d..r......d...',
   '................',
 ];
 
@@ -425,8 +591,18 @@ const PIXEL_MAPS: Record<string, string[]> = {
   'clue:cap-bloom': CLUE_CAP_BLOOM,
   'clue:spine-stalk': CLUE_SPINE_STALK,
   'clue:bell-vine': CLUE_BELL_VINE,
-  'stone-deposit:available': DEPOSIT_AVAILABLE,
-  'stone-deposit:depleted': DEPOSIT_DEPLETED,
+  // 재료의 원천 넷 (C011) — 키는 `<sprite>:<state>` 이고 state 는 'available' 하나뿐이다.
+  // 어느 그림을 세울지는 role-presentation 의 spriteByKind 가 kind 로 고른다
+  'source:molt-litter:available': SOURCE_MOLT_LITTER,
+  'source:spoil-pile:available': SOURCE_SPOIL_PILE,
+  'source:outcrop:available': SOURCE_OUTCROP,
+  'source:root-nodule:available': SOURCE_ROOT_NODULE,
+  // 고갈된 뒤의 넷 (C012) — 같은 키에 state 만 바뀐다. 자국은 세계의 phase 에서 오고,
+  // 어느 그림을 세울지는 지금까지대로 kind 가 고른다 (resolve 의 `${sprite}:${state}`)
+  'source:molt-litter:depleted': SOURCE_MOLT_LITTER_DEPLETED,
+  'source:spoil-pile:depleted': SOURCE_SPOIL_PILE_DEPLETED,
+  'source:outcrop:depleted': SOURCE_OUTCROP_DEPLETED,
+  'source:root-nodule:depleted': SOURCE_ROOT_NODULE_DEPLETED,
 };
 
 /** 이 팩의 스프라이트 표 — 조립 루트가 engine 의 registerSprites 에 넘긴다 */

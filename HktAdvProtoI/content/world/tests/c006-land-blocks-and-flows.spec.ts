@@ -1063,11 +1063,13 @@ describe('회귀', () => {
     expect(body(w).position).toEqual({ x: 14, z: -8 });
   });
 
-  it('R-006 (C001) 채광이 그대로다 — 걸어서 광맥에 닿으면 Mine 이 가용해진다', () => {
-    const w = driveWorld({ ...solo, actorPosition: { x: 0, z: 0 } });
+  // C011 CHANGED — 캘 것이 광맥에서 방의 원천이 되었으므로 원천이 선 방에서 잰다.
+  // 재는 것은 그대로다: 멀면 안 되고 걸어가 닿으면 된다.
+  it('R-006 (C001) 채취가 그대로다 — 걸어서 원천에 닿으면 Mine 이 가용해진다', () => {
+    const w = driveWorld({ ...solo, actorRegion: 'FOREST_EDGE', actorPosition: { x: 0, z: 0 } });
     const mine = () => w.observe().interactions.find((i) => i.id === 'mine');
     expect(mine()?.reason).toBe('out-of-range');
-    walkTo(w, 8, -6);
+    walkTo(w, -8, 6);
     w.tick(TICK_INTERVAL); // 걸음이 끝난 다음 Tick 부터 다음 행동을 받는다
     expect(mine()?.available).toBe(true);
     expect(

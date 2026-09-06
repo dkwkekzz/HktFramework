@@ -135,22 +135,23 @@ describe('INTENT-PER-OBSERVER-PROJECTION-001 — 관찰 결과는 관찰자마�
   });
 
   it('나만의 것은 내 몸의 것이다 — 남의 소지품은 실리지 않는다', () => {
-    const w = world({ ...solo, actorPosition: { x: 8, z: -5 } });
+    const w = world({ ...solo, actorRegion: 'FOREST_EDGE', actorPosition: { x: -8, z: 5 } });
     w.join(A);
     w.join(B);
     w.tick(0);
 
     // A 만 채굴한다 (B 는 다른 자리에 있다)
-    w.request(A, { interactionId: 'mine', targetEntityId: 'deposit-1' });
+    w.request(A, { interactionId: 'mine', targetEntityId: 'MOLT_LITTER' });
     for (let i = 0; i < 60; i++) w.tick(1 / 30);
 
-    expect(hud(see(w, A), 'inventory.stone')).toBe(1);
-    expect(hud(see(w, B), 'inventory.stone')).toBe(0);
+    expect(hud(see(w, A), 'inventory.ORE_EATER_MOLT')).toBe(1);
+    // C011 CHANGED — 지니지 않은 재료는 HUD 에 자리 자체가 없다 (0 으로 지어내지 않는다)
+    expect(hud(see(w, B), 'inventory.ORE_EATER_MOLT')).toBeUndefined();
   });
 
   it('가용성도 내 몸 기준이다', () => {
-    const w = world({ ...solo, actorPosition: { x: 8, z: -5 } });
-    w.join(A); // 광맥 옆
+    const w = world({ ...solo, actorRegion: 'FOREST_EDGE', actorPosition: { x: -8, z: 5 } });
+    w.join(A); // 원천 옆
     w.join(B); // 멀리
     w.tick(0);
 
@@ -201,11 +202,11 @@ describe('INTENT-REQUEST-ATTRIBUTION-001 — 요청은 보낸 이의 몸에만 �
   });
 
   it('세계가 모르는 관찰자의 요청은 아무것도 바꾸지 못한다', () => {
-    const w = world({ ...solo, actorPosition: { x: 8, z: -5 } });
+    const w = world({ ...solo, actorRegion: 'FOREST_EDGE', actorPosition: { x: -8, z: 5 } });
     w.join(A);
     w.tick(0);
 
-    w.request('낯선 사람', { interactionId: 'mine', targetEntityId: 'deposit-1' });
+    w.request('낯선 사람', { interactionId: 'mine', targetEntityId: 'MOLT_LITTER' });
     const { results } = w.tick(0);
 
     expect(results[0]).toEqual({
@@ -257,21 +258,25 @@ describe('INTENT-OBSERVER-LEAVE-001 — 떠나도 몸은 세계에 남는다', (
   });
 
   it('하던 행동은 세계의 시간대로 끝까지 진행된다', () => {
-    const w = world({ ...solo, actorPosition: { x: 8, z: -5 } });
+    const w = world({ ...solo, actorRegion: 'FOREST_EDGE', actorPosition: { x: -8, z: 5 } });
     w.join(A);
     w.join(B);
     w.tick(0);
 
-    w.request(A, { interactionId: 'mine', targetEntityId: 'deposit-1' });
+    w.request(A, { interactionId: 'mine', targetEntityId: 'MOLT_LITTER' });
     w.tick(0);
     expect(entity(see(w, B), 'player-1')?.state).toBe('mine');
 
     w.leave(A); // 채굴 도중에 떠난다
     for (let i = 0; i < 60; i++) w.tick(1 / 30);
 
-    // 채굴은 끝났다 — 몸은 대기로 돌아가 있고 광맥은 줄었다
+    // 채취는 끝났다 — 몸은 대기로 돌아가 있고, 떠난 사람의 몸에 재료가 들어왔다.
+    // 떠난 이의 관찰 결과는 더 이상 갱신되지 않으므로(그것이 이 Intent 다) 세계에 직접 묻는다.
+    // 원천 자체는 C011 에 줄지 않는다 — 고갈은 C012 의 것이다.
     expect(entity(see(w, B), 'player-1')?.state).toBe('idle');
-    expect(entity(see(w, B), 'deposit-1')?.labelValue).toBe(4);
+    const left = (w.snapshot().state as { actors: { id: string; inventory: { items: Record<string, number> } }[] })
+      .actors.find((actor) => actor.id === 'player-1');
+    expect(left?.inventory.items.ORE_EATER_MOLT).toBe(1);
   });
 
   it('보는 이가 없는 몸은 스스로 새 행동을 시작하지 않는다', () => {
@@ -311,14 +316,14 @@ describe('INTENT-OBSERVER-LEAVE-001 — 떠나도 몸은 세계에 남는다', (
 
 describe('INTENT-OBSERVER-REJOIN-001 — 다시 이어져도 나는 나다', () => {
   it('같은 밝힘으로 돌아오면 같은 몸을 되찾는다', () => {
-    const w = world({ ...solo, actorPosition: { x: 8, z: -5 } });
+    const w = world({ ...solo, actorRegion: 'FOREST_EDGE', actorPosition: { x: -8, z: 5 } });
     w.join(A);
     w.tick(0);
 
     // 자리와 소지품을 만든다
-    w.request(A, { interactionId: 'mine', targetEntityId: 'deposit-1' });
+    w.request(A, { interactionId: 'mine', targetEntityId: 'MOLT_LITTER' });
     for (let i = 0; i < 60; i++) w.tick(1 / 30);
-    const stone = hud(see(w, A), 'inventory.stone');
+    const molt = hud(see(w, A), 'inventory.ORE_EATER_MOLT');
 
     w.leave(A);
     w.tick(1.0);
@@ -327,8 +332,8 @@ describe('INTENT-OBSERVER-REJOIN-001 — 다시 이어져도 나는 나다', () 
 
     const v = see(w, A);
     expect(v.observer.characterId).toBe('player-1'); // 새 몸이 아니다
-    expect(hud(v, 'inventory.stone')).toBe(stone); // 가진 것이 이어진다
-    expect(entity(v, 'player-1')?.position).toEqual({ x: 8, z: -5 }); // 자리도 이어진다
+    expect(hud(v, 'inventory.ORE_EATER_MOLT')).toBe(molt); // 가진 것이 이어진다
+    expect(entity(v, 'player-1')?.position).toEqual({ x: -8, z: 5 }); // 자리도 이어진다
   });
 
   it('다시 들어와도 몸이 늘지 않는다', () => {

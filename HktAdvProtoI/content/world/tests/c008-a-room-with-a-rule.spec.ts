@@ -159,7 +159,7 @@ const maxBy = <T>(items: readonly T[], score: (item: T) => number): T =>
 const distanceBetween = (a: XZ, b: XZ) => Math.hypot(a.x - b.x, a.z - b.z);
 
 // ── 이 방의 State 를 읽는 자리 ────────────────────────────────
-const regionStateOf = (w: WorldDriver, id = FANTASY_MAZE) => state(w).regionStates[id];
+const regionStateOf = (w: WorldDriver, id = FANTASY_MAZE) => state(w).regionStates[id]?.rule;
 const mazeState = (w: WorldDriver) => {
   const s = regionStateOf(w);
   if (!s) throw new Error('미로에 Region State 가 없다');
@@ -273,7 +273,7 @@ const inMaze = (at: XZ = entryAt()) => standing(FANTASY_MAZE, at);
 /** 압력이 이미 `pressure` 만큼 쌓인 미로 */
 function primedMaze(at: XZ, pressure: number): WorldDriver {
   return worldFrom(inMaze(at), (s) => {
-    s.regionStates[FANTASY_MAZE]!.pressure = pressure;
+    s.regionStates[FANTASY_MAZE]!.rule!.pressure = pressure;
   });
 }
 
@@ -542,7 +542,7 @@ describe('SPEC-004 넘치면 길이 바뀐다', () => {
         a.position = { x: start.x, z: start.z };
         b.regionId = FANTASY_MAZE;
         b.position = { x: other.x, z: other.z };
-        s.regionStates[FANTASY_MAZE]!.pressure = primed;
+        s.regionStates[FANTASY_MAZE]!.rule!.pressure = primed;
       },
       [OBSERVER, OBSERVER_2],
     );
@@ -775,7 +775,7 @@ describe('SPEC-008 자율 존재의 걸음도 압력이다', () => {
       npc.wanderIndex = 0;
       npc.perceptionRange = 0;
       npc.currentAction = idleAction();
-      s.regionStates[FANTASY_MAZE]!.pressure = 0;
+      s.regionStates[FANTASY_MAZE]!.rule!.pressure = 0;
     });
     return { w, observerAt };
   }
@@ -912,10 +912,14 @@ describe('SPEC-010 미로 밖은 그대로다', () => {
     expect(move(w, { x: maxX + 0.5, z: 0 })).toMatchObject({ reason: 'out-of-bounds' });
   });
 
-  it('S-028 (경계) 미로 밖 방들에는 압력도 통로도 없다 — State 를 가진 방은 규칙을 품은 방뿐이다', () => {
+  it('S-028 (경계) 미로 밖 방들에는 압력도 통로도 없다 — 규칙 State 를 가진 방은 규칙을 품은 방뿐이다', () => {
     const w = driveWorld(solo);
-    const held = Object.keys(state(w).regionStates);
-    // Then State 를 가진 방은 rule 을 품은 방들과 정확히 같은 집합이다
+    const held = Object.entries(state(w).regionStates)
+      .filter(([, held]) => held.rule)
+      .map(([id]) => id);
+    // C012 CHANGED — 방의 State 가 규칙과 원천을 **함께** 든다. 그래서 State 를 가진 방은
+    // 늘었지만(원천을 낳는 방 넷이 더해졌다) **규칙 State(.rule)를 가진 방**은 그대로 미로 하나다.
+    // 이 경계가 묻던 것은 후자다 — 규칙이 미로 밖으로 새지 않았는가.
     expect(held.sort()).toEqual(
       REGION_SPECS.filter((s) => s.rule).map((s) => s.id).sort(),
     );
@@ -951,9 +955,10 @@ describe('회귀', () => {
     expect(actorOf(w).regionId).toBe('HEART_LAKE');
   });
 
-  it('R-003 채광이 산다 — 곡괭이를 들고 광맥 곁에 서면 캘 수 있다', () => {
-    const w = driveWorld({ ...solo, actorPosition: { x: 8, z: -5 } });
-    expect(w.dispatch({ interactionId: 'mine', targetEntityId: 'deposit-1' })).toEqual({
+  // C011 CHANGED — 광맥이 방의 원천이 되었다. 재는 것은 그대로다
+  it('R-003 채취가 산다 — 곡괭이를 들고 원천 곁에 서면 캘 수 있다', () => {
+    const w = driveWorld({ ...solo, actorRegion: 'FOREST_EDGE', actorPosition: { x: -8, z: 5 } });
+    expect(w.dispatch({ interactionId: 'mine', targetEntityId: 'MOLT_LITTER' })).toEqual({
       status: 'success',
       rule: 'RULE-MINE-001',
     });

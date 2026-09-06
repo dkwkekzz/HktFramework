@@ -13,7 +13,7 @@ const A = 'observer-a';
 const B = 'observer-b';
 const worldTime = (v: GameViewSnapshot) => v.hud.find((h) => h.id === 'world.time')?.value as number;
 const stone = (v: GameViewSnapshot) =>
-  v.hud.find((h) => h.id === 'inventory.stone')?.value as number;
+  v.hud.find((h) => h.id === 'inventory.ORE_EATER_MOLT')?.value as number;
 
 describe('WorldHost — 관찰자 붙었다 떨어지기', () => {
   it('붙은 뒤 첫 Tick 에 자기 몸이 있는 세계를 받는다', () => {
@@ -79,7 +79,7 @@ describe('WorldHost — 관찰자 붙었다 떨어지기', () => {
   });
 
   it('관찰자가 보낸 요청은 다음 Tick 에 판정된다', () => {
-    const host = createWorldHost({ npcs: [], actorPosition: { x: 8, z: -5 } });
+    const host = createWorldHost({ npcs: [], actorRegion: 'FOREST_EDGE', actorPosition: { x: -8, z: 5 } });
     const seen: GameViewSnapshot[] = [];
     host.attach(A, (s) => seen.push(s));
     host.advance(0);
@@ -89,7 +89,7 @@ describe('WorldHost — 관찰자 붙었다 떨어지기', () => {
       return last.entities.find((e) => e.id === last.observer.characterId);
     };
 
-    host.receive(A, { interactionId: 'mine', targetEntityId: 'deposit-1' });
+    host.receive(A, { interactionId: 'mine', targetEntityId: 'MOLT_LITTER' });
     expect(body()?.state).toBe('idle');
 
     host.advance(0);
@@ -99,12 +99,12 @@ describe('WorldHost — 관찰자 붙었다 떨어지기', () => {
 
 describe('WorldHost — 같은 관찰자로 다시 들어오기 (INTENT-OBSERVER-REJOIN-001)', () => {
   it('끊겼다 같은 밝힘으로 돌아오면 같은 몸과 가진 것이 이어진다', () => {
-    const host = createWorldHost({ npcs: [], actorPosition: { x: 8, z: -5 } });
+    const host = createWorldHost({ npcs: [], actorRegion: 'FOREST_EDGE', actorPosition: { x: -8, z: 5 } });
     const first: GameViewSnapshot[] = [];
     const detach = host.attach(A, (s) => first.push(s));
     host.advance(0);
 
-    host.receive(A, { interactionId: 'mine', targetEntityId: 'deposit-1' });
+    host.receive(A, { interactionId: 'mine', targetEntityId: 'MOLT_LITTER' });
     for (let i = 0; i < 60; i++) host.advance(1 / 30);
     const before = first[first.length - 1]!;
     expect(stone(before)).toBe(1);
@@ -323,7 +323,7 @@ describe('transport — 오가는 것의 형태', () => {
   it('요청 봉투를 주고받을 수 있다 — 주체를 적는 자리가 없다', () => {
     const wire = JSON.stringify({
       type: 'action',
-      action: { interactionId: 'mine', targetEntityId: 'deposit-1' },
+      action: { interactionId: 'mine', targetEntityId: 'MOLT_LITTER' },
     });
     const message = parseClientMessage(wire);
     expect(message?.type === 'action' && message.action.interactionId).toBe('mine');

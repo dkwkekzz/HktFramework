@@ -8,28 +8,31 @@ import { resolvePresentation } from '../resolve';
 import { createMotionLibrary } from '../../../engine/view-kernel/motion/motion-library';
 import available from './fixtures/mining-available.fixture.json';
 import characterAction from './fixtures/character-action.fixture.json';
-import depleted from './fixtures/deposit-depleted.fixture.json';
 import outOfRange from './fixtures/out-of-range.fixture.json';
 import twoObservers from './fixtures/two-observers.fixture.json';
 
 describe('resolvePresentation (Semantic → Render Plan)', () => {
-  it('mining-available fixture → role 결정대로 sprite·크기·라벨·프롬프트 구성', () => {
+  it('mining-available fixture → role 결정대로 sprite·크기·프롬프트 구성', () => {
     const plan = resolvePresentation(available as GameViewSnapshot);
 
+    // C011 CHANGED — 자연 형태(kind)가 그림을 고른다 (spriteByKind)
     expect(plan.entities.map((e) => e.spriteId)).toEqual([
       'player-pickaxe:idle',
-      'stone-deposit:available',
+      'source:molt-litter:available',
     ]);
-    const deposit = plan.entities.find((e) => e.id === 'deposit-1');
-    expect(deposit?.label).toBe('돌 5'); // labelValue 5 → labelFormat 결정
-    expect(deposit?.size).toBe(3.4);
+    const source = plan.entities.find((e) => e.id === 'MOLT_LITTER');
+    // 라벨이 없다 — 세계 위에 글자가 없다 (C026 RULE-QUIET-GROUND-001)
+    expect(source?.label).toBeUndefined();
+    expect(source?.size).toBe(3.4);
     const mine = plan.interactions.find((i) => i.id === 'mine');
     expect(mine?.available).toBe(true);
-    expect(mine?.key).toBe('KeyE'); // mine-deposit role 의 입력 결정
-    expect(mine?.prompt).toBe('채굴');
-    const stone = plan.hud.find((h) => h.id === 'inventory.stone');
-    expect(stone?.label).toBe('Stone');
-    expect(stone?.icon).toBe('⛏');
+    expect(mine?.key).toBe('KeyE'); // harvest-source role 의 입력 결정
+    expect(mine?.prompt).toBe('채취');
+    // HUD 는 재료의 **이름**을 말한다. 아이콘은 주지 않는다 —
+    // 이 Play 는 재료 표식을 만들지 않는다 (Play 확정 8)
+    const molt = plan.hud.find((h) => h.id === 'inventory.ORE_EATER_MOLT');
+    expect(molt?.label).toBe('광식충 허물');
+    expect(molt?.icon).toBeUndefined();
   });
 
   it('character-action fixture → 종류·행동으로 모션을 고르고, 진행 행동은 1회 재생한다', () => {
@@ -57,9 +60,9 @@ describe('resolvePresentation (Semantic → Render Plan)', () => {
     expect(npc1?.motion).toMatchObject({ url: '/wanderer-move.png', mode: 'loop' });
 
     // 데이터가 전혀 없는 (kind, action) → 절차 생성 그림으로 그린다
-    const deposit = plan.entities.find((e) => e.id === 'deposit-1');
-    expect(deposit?.motion).toBeUndefined();
-    expect(deposit?.spriteId).toBe('stone-deposit:available');
+    const source = plan.entities.find((e) => e.id === 'MOLT_LITTER');
+    expect(source?.motion).toBeUndefined();
+    expect(source?.spriteId).toBe('source:molt-litter:available');
 
     // 행동 상태 HUD — 코드가 문구로, 진행도가 함께 전달된다
     const action = plan.hud.find((h) => h.id === 'player.action');
@@ -123,7 +126,7 @@ describe('resolvePresentation (Semantic → Render Plan)', () => {
       'wanderer:move',
       'wanderer:attack',
       'wanderer:hit',
-      'stone-deposit:available',
+      'source:molt-litter:available',
     ]);
   });
 
@@ -136,16 +139,8 @@ describe('resolvePresentation (Semantic → Render Plan)', () => {
     expect(mine?.unavailableText).toContain('멀다');
   });
 
-  it('deposit-depleted fixture → depleted 스프라이트 + 라벨·HUD 결정', () => {
-    const plan = resolvePresentation(depleted as GameViewSnapshot);
-
-    const deposit = plan.entities.find((e) => e.id === 'deposit-1');
-    expect(deposit?.spriteId).toBe('stone-deposit:depleted');
-    expect(deposit?.label).toBe('돌 0');
-    expect(plan.hud.find((h) => h.id === 'inventory.stone')?.value).toBe(5);
-    const mine = plan.interactions.find((i) => i.id === 'mine');
-    expect(mine?.unavailableText).toContain('고갈');
-  });
+  // C011 — 고갈된 원천의 fixture 는 걷었다. 이 Cycle 의 원천은 캐도 줄지 않고 phase 가 없다
+  // (spec Out of Scope). 고갈의 외형과 문구는 C012 가 phase 와 함께 세운다.
 });
 
 describe('다중 관찰자 — 내 몸과 남의 몸을 화면에서 가른다', () => {
@@ -184,8 +179,8 @@ describe('다중 관찰자 — 내 몸과 남의 몸을 화면에서 가른다',
   it('나만의 것은 내 몸의 것으로 표시된다 — 남의 소지품은 애초에 오지 않는다', () => {
     const plan = resolvePresentation(twoObservers as GameViewSnapshot);
 
-    expect(plan.hud.find((h) => h.id === 'inventory.stone')?.value).toBe(0);
-    expect(plan.hud.filter((h) => h.id === 'inventory.stone')).toHaveLength(1);
+    expect(plan.hud.find((h) => h.id === 'inventory.ORE_EATER_MOLT')?.value).toBe(2);
+    expect(plan.hud.filter((h) => h.id === 'inventory.ORE_EATER_MOLT')).toHaveLength(1);
   });
 });
 
@@ -230,8 +225,10 @@ describe('결정 Layer 의 유연 대응 — 미등록 항목도 기본 결정�
       'wanderer:attack',
       'wanderer:hit',
       'player-pickaxe:hit',
-      'stone-deposit:available',
-      'stone-deposit:depleted',
+      'source:outcrop:available',
+      'source:root-nodule:available',
+      'source:molt-litter:available',
+      'source:spoil-pile:available',
     ]) {
       expect(REGISTERED_SPRITE_IDS).toContain(id);
     }

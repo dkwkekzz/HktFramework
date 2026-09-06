@@ -258,13 +258,16 @@ describe('RULE-HIT-001 — 맞으면 하던 일이 끊긴다', () => {
   });
 
   it('대체 불가능한 행동 중이어도 피격은 그 행동을 끊는다', () => {
-    // 플레이어가 채굴하는 동안 NPC 가 곁에서 휘두른다
+    // 플레이어가 채취하는 동안 NPC 가 곁에서 휘두른다
+    // C011 CHANGED — 캘 것이 방의 원천이 되었으므로 둘 다 그 원천이 선 방에 놓는다
     const world = driveWorld({
-      actorPosition: { x: 8, z: -5 },
-      npcs: [{ id: 'npc-1', position: { x: 8, z: -4 }, wanderPath: [] }],
+      actorRegion: 'FOREST_EDGE',
+      actorPosition: { x: -8, z: 5 },
+      npcRegion: 'FOREST_EDGE',
+      npcs: [{ id: 'npc-1', position: { x: -8, z: 4 }, wanderPath: [] }],
     });
 
-    expect(world.dispatch({ interactionId: 'mine', targetEntityId: 'deposit-1' }).status).toBe(
+    expect(world.dispatch({ interactionId: 'mine', targetEntityId: 'MOLT_LITTER' }).status).toBe(
       'success',
     );
 
@@ -272,7 +275,7 @@ describe('RULE-HIT-001 — 맞으면 하던 일이 끊긴다', () => {
     tickFor(world, AFTER_SWING_OPEN + TICK_INTERVAL);
     const view = world.observe();
     expect(actor(view, 'npc-1')?.state).toBe('attack'); // 휘두름은 계속 진행 중이다
-    expect(actor(view, PLAYER)?.state).toBe('hit'); // 채굴이 끊겼다
+    expect(actor(view, PLAYER)?.state).toBe('hit'); // 채취가 끊겼다
   });
 
   it('피격 중에는 요청이 거부된다 (hit 은 Replaceable 이 아니다)', () => {

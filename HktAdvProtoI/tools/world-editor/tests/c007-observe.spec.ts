@@ -214,9 +214,16 @@ const KINDS = ['height', 'surface', 'traversable', 'semantic', 'top'] as const;
 const ALL_PICTURES = ['--height', '--surface', '--traversable', '--semantic', '--top-view'];
 
 /** 막힌 칸이 하나도 없는 방 하나 — 데이터에서 고른다 (이름을 적지 않는다) */
+// C011 CHANGED — "아무것도 없는 방" 의 조건에 **area 도 없을 것**을 더했다. 이 Cycle 이
+// 방 다섯에 흔적(trace area)을 깔았으므로 "막힌 칸이 없다" 만으로는 더 이상 빈 방이 아니다.
+// 경계가 묻는 것은 그대로다 — 셀 것이 하나도 없는 방의 보고도 나오는가.
 const openRoom = () => {
-  const found = REGION_SPECS.find((s) => [...compiled(s.id).world.traversable].every((v) => v === 1));
-  if (!found) throw new Error('막힌 칸이 없는 방이 하나도 없다 — SPEC-002 경계를 놓을 자리가 없다');
+  const found = REGION_SPECS.find(
+    (s) =>
+      [...compiled(s.id).world.traversable].every((v) => v === 1) &&
+      compiled(s.id).world.areas.length === 0,
+  );
+  if (!found) throw new Error('막힌 칸도 area 도 없는 방이 하나도 없다 — SPEC-002 경계를 놓을 자리가 없다');
   return found.id;
 };
 
@@ -508,23 +515,37 @@ describe('SPEC-005 — 보고가 검사 아홉을 읊는다', () => {
     for (const issue of issues) expect(checks).toContain(issue.region);
   });
 
-  it('S-026 (경계) 놓인 것이 없는 검사는 "놓인 것이 없다" 로 적고 ③ 은 실제로 답을 낸다 · ⑨ 는 0 이다', () => {
-    // ① 자원과 위험 · ④ phenomenon — 이 세계에 그 layer 가 아직 없다.
+  it('S-026 (경계) 잴 것이 없는 검사는 통과로 적지 않고 ③ 은 실제로 답을 낸다 · ⑨ 는 규칙을 센다', () => {
+    // ④ phenomenon — 이 세계에 그 layer 가 아직 없다.
     // "위반 0" 이 아니라 "놓인 것이 없다" 로 적는다 (없는 것을 통과로 적으면 검사가 거짓말을 한다)
-    for (const [mark, layer] of [
-      ['①', 'resource'],
-      ['④', 'phenomenon'],
-    ] as const) {
-      // 그 layer 가 정말로 이 세계에 없다 (검사가 헛돌지 않는다)
-      const placed = REGION_SPECS.flatMap((s) =>
-        s.space.ops.filter((op) => op.kind === 'area' && op.layer === layer),
+    const placedOf = (layer: string) =>
+      REGION_SPECS.flatMap((s) =>
+        s.space.ops.filter((op) => (op.kind === 'area' || op.kind === 'point') && op.layer === layer),
       );
-      expect({ layer, placed: placed.length }).toEqual({ layer, placed: 0 });
-      expect({ mark, block: block(mark) }).toMatchObject({
-        mark,
-        block: expect.stringContaining('놓인 것이 없다'),
-      });
-    }
+    expect({ layer: 'phenomenon', placed: placedOf('phenomenon').length }).toEqual({
+      layer: 'phenomenon',
+      placed: 0,
+    });
+    expect({ mark: '④', block: block('④') }).toMatchObject({
+      mark: '④',
+      block: expect.stringContaining('놓인 것이 없다'),
+    });
+
+    // ① 자원과 위험 — 이 검사는 C007 때 빈 검사였다 (STATE §5 부채). C011 이 원천을 point 로,
+    // C012 가 노두의 붕괴 자리를 area 로 놓으면서 **① 이 실제로 놓인 것을 보기 시작했다.**
+    // 다만 hazard 는 아직 없다 — 한쪽만 놓였으면 "같은 근원인가" 를 잴 수 없으므로 통과로도
+    // 실패로도 적지 않고 **어느 쪽이 없어서 못 쟀는지**를 적는다 (T1)
+    const resourceAreas = REGION_SPECS.flatMap((s) =>
+      s.space.ops.filter((op) => op.kind === 'area' && op.layer === 'resource'),
+    );
+    expect(resourceAreas.length).toBeGreaterThan(0);
+    expect(placedOf('resource').length).toBeGreaterThan(resourceAreas.length);
+    expect(placedOf('hazard')).toEqual([]);
+    const first = block('①');
+    expect(first).not.toContain('놓인 것이 없다');
+    expect(first).toContain('짝이 없다');
+    expect(first).toContain('hazard');
+    expect(first).toMatch(word(placedOf('resource').length));
 
     // ③ 조건 없이 선 settlement — 이 세계에는 settlement 가 놓여 있으므로 실제로 답을 낸다
     const areasOfRegion = (id: string) =>
@@ -550,8 +571,13 @@ describe('SPEC-005 — 보고가 검사 아홉을 읊는다', () => {
     expect(without).toEqual([]);
     expect(block('②')).toMatch(word(without.length));
 
-    // ⑨ core rule 수 — 이 세계에는 아직 Region 별 rule 이 없다. 0 을 적는다
-    expect(block('⑨')).toMatch(word(0));
+    // ⑨ core rule 수 — C008 이 미로에 규칙을 주었으므로 0 이 아니다. 데이터에서 센 값 그대로다
+    // (T1 이전에는 "0 — 아직 Region 별 rule 이 없다" 가 글자로 박혀 있었다)
+    const ruled = REGION_SPECS.filter((s) => s.rule);
+    expect(ruled.length).toBeGreaterThan(0);
+    const ninth = block('⑨');
+    expect(ninth).toMatch(word(ruled.length));
+    for (const spec of ruled) expect(ninth).toContain(spec.id);
   });
 });
 

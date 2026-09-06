@@ -13,7 +13,7 @@ export interface CurrentAction {
   kind: ActionKind;
   targetPosition?: { x: number; z: number }; // kind = move
   targetActorId?: string; // kind = attack
-  targetDepositId?: string; // kind = mine
+  targetSourceId?: string; // kind = mine — 대상 Resource Source 의 id (C011 CHANGED)
   struckActorIds?: string[]; // kind = attack | heavy-attack — 이 휘두름이 이미 타격한 몸들.
   // 같은 몸은 휘두름당 한 번만 맞는다 (INTENT-SWING-IMPACT-001). 행동과 함께 사라진다.
   budgetSettled?: boolean; // 스킬 — 이 휘두름이 기력 수지를 이미 냈는가.
@@ -58,5 +58,5 @@ export function actionProgress(action: CurrentAction): number | null {
 
 // Actor.ActionTargetId (Observable) — 현재 행동의 대상 (없을 수 있음)
 export function actionTargetId(action: CurrentAction): string | undefined {
-  return action.targetActorId ?? action.targetDepositId;
+  return action.targetActorId ?? action.targetSourceId;
 }

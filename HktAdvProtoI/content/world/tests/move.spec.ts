@@ -45,11 +45,12 @@ describe('RULE-MOVE-PROGRESS-001', () => {
     expect(p?.state).toBe('idle');
   });
 
-  it('이동으로 광맥에 접근하면 Mine 이 가용해진다 (out-of-range → available)', () => {
-    const world = driveWorld({ ...solo, actorPosition: { x: 0, z: 0 } });
+  // C011 CHANGED — 대상이 방이 낳는 원천이 되었다 (숲 가장자리의 허물)
+  it('이동으로 원천에 접근하면 Mine 이 가용해진다 (out-of-range → available)', () => {
+    const world = driveWorld({ ...solo, actorRegion: 'FOREST_EDGE', actorPosition: { x: 0, z: 0 } });
     expect(mine(world.observe())?.reason).toBe('out-of-range');
 
-    world.dispatch({ interactionId: 'move', position: { x: 8, z: -6 } });
+    world.dispatch({ interactionId: 'move', position: { x: -8, z: 6 } });
     for (let i = 0; i < 60; i++) world.tick(1 / 30); // 2초 진행 — 거리 10 도달 충분
 
     expect(mine(world.observe())?.available).toBe(true);

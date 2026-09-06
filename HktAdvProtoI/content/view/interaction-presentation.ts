@@ -10,7 +10,9 @@ export interface InteractionPresentation {
 
 const INTERACTIONS: Record<string, InteractionPresentation> = {
   'move-to': { terrainTarget: true },
-  'mine-deposit': { key: 'KeyE', keyLabel: 'E', prompt: '채굴' },
+  // 원천에서 캐기 (C011) — 대상이 광맥에서 재료의 원천으로 바뀌었다. **행위는 하나 그대로다**
+  // (Play 확정 3): 키도 자리도 그대로이고, 말만 대상에 맞춰 '채취' 가 되었다
+  'harvest-source': { key: 'KeyE', keyLabel: 'E', prompt: '채취' },
   'attack-swing': { key: 'KeyF', keyLabel: 'F', prompt: '공격' }, // 예전 role 이름 — 남겨 둔다
   // 휘두름이 스킬 둘로 갈렸다. 기본은 기존 자리(F)를 그대로 쓴다.
   'skill-basic': { key: 'KeyF', keyLabel: 'F', prompt: '기본 스킬' },

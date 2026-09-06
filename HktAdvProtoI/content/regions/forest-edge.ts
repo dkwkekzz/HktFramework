@@ -10,6 +10,13 @@
 
 import type { RegionSpec } from './spec';
 import { ANCHOR_LAYER } from './spec';
+import {
+  FORM_MOLT_LITTER,
+  ORE_EATER_MOLT,
+  RESOURCE_LAYER,
+  TRACE_LAYER,
+  soilStainTag,
+} from './resource-ecology';
 
 export const FOREST_EDGE = 'FOREST_EDGE';
 
@@ -85,6 +92,60 @@ export const FOREST_EDGE_SPEC: RegionSpec = {
         radius: 10,
         height: 9,
         falloff: 2,
+      },
+      // ── C011 ADDED — 흔적과 원천 ──────────────────────────────────────────
+      //
+      // 이 방은 계통의 **가장 얕은 자리**다 (A.3 경계부). 흙 색이 방 전체에 옅게 깔리고,
+      // 서쪽 나무 밑동 그늘에 허물이 모인 자리 둘레만 한 단계 짙다 — 그 한 단계가 방향이다.
+      // 광식충이 뿌리 곁에서 먹기 때문에 그늘에 모인다 (D2 광식충 허물 ③).
+      //
+      // 자리 (-8, 6) 의 근거 — 동쪽 절반은 C007 의 분지다(중심 (10, 0) · 반경 10). 그 급경사
+      // 고리 안은 걸어 들어갈 수 없으므로 원천을 거기 두면 닿지 못한다. 서쪽 평지에 두되
+      // 출구 셋(0,-18 · 0,18 · -18,0)과 몸이 놓이는 (0, 0) 어느 쪽에서도 걸어 닿는 자리다.
+      {
+        id: 'trace-edge-base',
+        kind: 'area',
+        layer: TRACE_LAYER,
+        tag: soilStainTag(1),
+        shape: {
+          kind: 'polygon',
+          points: [
+            { x: -20, z: -20 },
+            { x: 20, z: -20 },
+            { x: 20, z: 20 },
+            { x: -20, z: 20 },
+          ],
+        },
+      },
+      {
+        id: 'trace-edge-molt',
+        kind: 'area',
+        layer: TRACE_LAYER,
+        tag: soilStainTag(2),
+        shape: { kind: 'circle', center: { x: -8, z: 6 }, radius: 7 },
+      },
+      {
+        id: 'source-molt-litter',
+        kind: 'point',
+        layer: RESOURCE_LAYER,
+        tag: 'MOLT_LITTER',
+        position: { x: -8, z: 6 },
+      },
+    ],
+  },
+  // 경계부의 Baseline — 먼저 온 사람이 다 가져갈 수 없는 자리를 가장 얕은 곳에 둔다 (Play §5.1 · M7)
+  resourceEcology: {
+    sources: [
+      {
+        id: 'MOLT_LITTER',
+        materialId: ORE_EATER_MOLT,
+        form: FORM_MOLT_LITTER,
+        carrier: 'residue',
+        opportunity: 'baseline',
+        supply: 'baseline-renewable',
+        // 넉넉하다 — 가장 얕은 자리의 Baseline (D4). 다녀와도 남이 캘 몫이 있다
+        harvests: 3,
+        traceOp: 'trace-edge-molt',
       },
     ],
   },

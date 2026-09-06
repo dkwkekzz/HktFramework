@@ -195,7 +195,7 @@ describe('INTENT-REQUEST-REPLY-001 — 세계가 요청에 대답한다', () => 
 
     const outcomes = world.dispatchForOutcome({
       interactionId: 'mine',
-      targetEntityId: 'deposit-1',
+      targetEntityId: 'MOLT_LITTER',
     });
 
     expect(outcomes).toHaveLength(1);

@@ -77,6 +77,22 @@ export interface SkillProfileView {
 export interface EntityView extends CoreEntityView {
   vitality?: VitalityView; // character 에만 실린다
   attributes?: AttributesView; // character 에만 실린다
+  /**
+   * 그 원천이 내는 Material Seed 의 **코드** — resource-source 에만 실린다 (C011 ADDED).
+   *
+   * `kind` 가 자연 형태(무엇처럼 생겼는가)이고 이것이 무엇인가다. 같은 Seed 가 자리마다
+   * 다른 형태로 나므로 둘이 따로 실린다 (Play A.1 "같은 것의 세 순도").
+   *
+   * **쓰임은 실리지 않는다** — 손에 든 것이 무엇에 쓰이는지 이 층은 말하지 않는다 (S10).
+   */
+  material?: string;
+  /**
+   * 그 원천에 **지금 걸린 조건 코드들** — resource-source 에만 실린다 (C012 ADDED).
+   *
+   * 걸린 것이 하나도 없으면 **자리 자체가 없다** (빈 배열로 지어내지 않는다).
+   * 무엇이 무엇에 매달렸는지는 실리지 않는다 — 세계는 "지금 멎었다" 만 말한다.
+   */
+  conditions?: string[];
 }
 
 export interface InteractionView extends CoreInteractionView {

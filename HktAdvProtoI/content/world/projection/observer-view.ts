@@ -9,7 +9,7 @@
 // View 의 Presentation 결정 Layer 책임이며 여기 싣지 않는다.
 //
 // C001 CHANGED (02-world R6) — 관찰은 방으로 잘린다. scene = 관찰자의 몸이 선 Region 의 id 이고,
-// 존재는 같은 Region 의 몸·광맥 + 그 Region 의 anchor 마다 region-exit 하나다. 목적지 Region 의 이름 ·
+// 존재는 같은 Region 의 몸·원천(C011) + 그 Region 의 anchor 마다 region-exit 하나다. 목적지 Region 의 이름 ·
 // Connector 의 방향 · 다른 방의 존재 · Graph 전체는 싣지 않는다 — "목적지는 건너야 안다".
 
 import type {
@@ -30,6 +30,8 @@ import { evaluateTransitPreconditions } from '../rules/transit';
 import { actorModifiers, isDowned, skillDefinition } from '../semantic/combat';
 import { projectCommandCatalog } from '../semantic/command-catalog';
 import { hasMiningTool, itemCount } from '../semantic/inventory';
+import type { ItemKind } from '../semantic/item';
+import { sourceConditions, sourceStateOf, sourcesInRegion } from '../semantic/resource';
 import {
   anchorPosition,
   isConnectorOpen,
@@ -38,6 +40,8 @@ import {
   regionSpecOf,
 } from '../semantic/region';
 import { regionRuleOf } from '../semantic/region-state';
+// 재료 표는 content/regions 의 것이다 — HUD 의 자리 순서를 그 표가 정한다 (C011).
+import { MATERIAL_SEEDS } from '../../regions';
 import { conditionTagsAt } from '../semantic/terrain';
 import {
   actorOfObserver,
@@ -199,23 +203,38 @@ export function projectObserverView(
     ...(emergencyFailure ? { reason: emergencyFailure } : {}),
   });
 
-  // entities.deposit + interactions.mine — 같은 Region 의 광맥만 (C001 R6)
-  for (const deposit of state.deposits) {
-    if (deposit.regionId !== self.regionId) continue;
+  // entities.resource-source + interactions.mine — 그 방이 낳는 원천만 (C011 CHANGED · R5).
+  //
+  // 광맥이 있던 자리에 원천이 온다. 다른 방의 원천은 실리지 않는다 — 목록 자체가 방으로
+  // 잘려 나온다 (sourcesInRegion). 원천은 State 가 아니라 데이터에서 유도된 사실이므로
+  // 매 관찰마다 같은 목록이 같은 순서로 나온다 (결정론).
+  for (const source of sourcesInRegion(self.regionId)) {
+    // 그 원천에 지금 걸린 조건들 (C012 ADDED · RULE-SOURCE-CONDITION-001).
+    // 걸린 것이 없으면 **자리 자체가 없다** — 빈 배열로 지어내지 않는다.
+    const conditions = sourceConditions(state.regionStates, source);
+
     entities.push({
-      id: deposit.id,
-      role: 'resource-deposit',
-      state: deposit.resourceAmount > 0 ? 'available' : 'depleted',
-      kind: deposit.resourceKind,
-      position: { x: deposit.position.x, z: deposit.position.z },
-      labelValue: deposit.resourceAmount,
+      id: source.id,
+      role: 'resource-source',
+      // C012 CHANGED — 캐고 난 자국이 여기 실린다. taken 도 harvests 도 싣지 않는다:
+      // 세계는 "지금 캘 수 있는가" 만 말하고 몇 번 남았는지는 말하지 않는다 (spec Observable).
+      state: sourceStateOf(state.regionStates, self.regionId, source.id).phase,
+      // kind 는 자연 형태(무엇처럼 생겼는가), material 은 그것이 무엇인가다 (SPEC-002).
+      kind: source.form,
+      material: source.materialId,
+      position: { x: source.position.x, z: source.position.z },
+      ...(conditions.length > 0 ? { conditions } : {}),
+      // labelValue 를 싣지 않는다 — 세계 위에 글자가 없다 (C026 R4 RULE-QUIET-GROUND-001).
+      // 고갈된 자리에도 글자는 없다 (C012 R8) — "이미 캐 간 자리" 는 그림과 흙이 말한다.
+      // 무엇이 무엇에 매달렸는지 · 붕괴 자리의 모양 · 흔적의 세기도 싣지 않는다: 관찰자가
+      // 자기 content/regions 와 실려 온 phase 로 스스로 얻는다 (spec Observable).
     });
 
-    const failure = evaluateMinePreconditions(self, deposit);
+    const failure = evaluateMinePreconditions(state, self, source);
     interactions.push({
       id: 'mine',
-      role: 'mine-deposit',
-      targetEntityId: deposit.id,
+      role: 'harvest-source',
+      targetEntityId: source.id,
       available: failure === null,
       ...(failure ? { reason: failure } : {}),
     });
@@ -262,7 +281,8 @@ export function projectObserverView(
   // 임계값(pressureLimit)을 함께 싣는 것은 "얼마나 찼는가" 를 View 가 재기 위해서다.
   // 패턴 표는 싣지 않는다 — 관찰자가 자기 content/regions 에서 읽는다.
   const regionRule = regionRuleOf(self.regionId);
-  const regionRuleState = state.regionStates[self.regionId];
+  // C012 CHANGED — 방의 State 가 규칙과 원천을 함께 든다. 여기가 싣는 것은 규칙 쪽뿐이다.
+  const regionRuleState = state.regionStates[self.regionId]?.rule;
   const regionStateView: RegionStateView | undefined =
     regionRule && regionRuleState
       ? {
@@ -291,7 +311,15 @@ export function projectObserverView(
     hud: [
       // 내 몸의 것만 실린다. 다른 관찰자의 소지품과 가용성은 실리지 않는다
       // (INTENT-PER-OBSERVER-PROJECTION-001).
-      { id: 'inventory.stone', kind: 'counter', value: itemCount(self.inventory, 'stone') },
+      // 지닌 재료마다 자리 하나 (C011 CHANGED · SPEC-010). **0 인 재료의 자리는 없다** —
+      // 0 으로 지어내면 "세지 않은 것" 과 "없는 것" 을 화면이 가르지 못한다.
+      // 순서는 MATERIAL_SEEDS 의 순서 그대로다 (결정론).
+      ...MATERIAL_SEEDS.flatMap((seed) => {
+        const count = itemCount(self.inventory, seed.id as ItemKind);
+        return count > 0
+          ? [{ id: `inventory.${seed.id}`, kind: 'counter' as const, value: count }]
+          : [];
+      }),
       { id: 'tool.hasMiningTool', kind: 'flag', value: hasMiningTool(self.inventory) },
       {
         id: 'player.action',

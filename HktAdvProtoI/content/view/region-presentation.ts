@@ -21,7 +21,13 @@ import type { GameViewSnapshot as CoreGameViewSnapshot } from '../../engine/prot
 import type { SceneGroundZone } from '../../engine/view-kernel/scene/scene-state';
 import { areasOf, descriptionHash, extentPolygon } from '../../engine/world-authoring/description';
 import type { GameViewSnapshot, RegionView } from '../protocol/gameview';
-import { regionSpec } from '../regions/index';
+import { SOIL_STAIN_MAX, TRACE_LAYER, regionSpec } from '../regions/index';
+import {
+  NO_SOURCE_PHASES,
+  collapsedAreas,
+  traceLevelOfArea,
+  type SourcePhases,
+} from './resource-reading';
 import {
   CITY_TAG,
   CONDITION_RIDGE,
@@ -272,6 +278,77 @@ export const PASSAGE_UNKNOWN_ZONE: SettlementZonePresentation = {
   edgeWidth: 0.8,
 };
 
+// ── 흙의 변색 — 흔적 (C011 ADDED) ────────────────────────────────────
+//
+// 방 다섯의 Description 에 trace layer 의 area 가 깔려 있다. settlement · cell 과 똑같이
+// **세계가 보내 주지 않는다** — 관찰자가 자기 Description 을 읽어 그린다 (spec Observable:
+// "흔적은 땅과 같은 규율로 관찰자가 스스로 얻는다"). 세계 State 가 아니므로 투영할 것도 없다.
+//
+// **한 색에 불투명도만 단조 증가시킨다.** 이 Cycle 의 관찰 하나가 "짙어지는 쪽을 따라간다"
+// 이므로(Playable Goal · SPEC-003 · SPEC-004), 단계마다 색상을 바꾸면 다섯이 서로 다른 다섯
+// 가지가 되고 **어느 쪽이 짙은지**가 눈에서 사라진다. 색이 하나이고 짙기만 갈리면 방을
+// 건널 때도 한 방 안에서도 같은 축 하나로 읽힌다.
+//
+// 색은 붉은 흙이다 — 이 계통이 내는 것이 붉고(sprites 의 C · c), 그것이 땅에 밴 자국이므로
+// 광석의 붉은색을 흙 쪽으로 어둡게 내린 값 하나를 쓴다.
+//
+// **테두리를 주지 않는다.** 변색은 경계가 뚜렷한 것이 아니다 — 선을 그으면 흙이 아니라
+// 누군가 그려 둔 구역이 된다 (조건 area 와 갈리는 자리이기도 하다).
+
+/** 흔적의 흙 색 — 다섯 단계가 이 한 값을 함께 쓴다 */
+export const TRACE_SOIL_COLOR = 0x6b3524;
+
+/**
+ * 단계 → 불투명도. **단조 증가**이고 이것이 이 표의 전부다 (1 부터 SOIL_STAIN_MAX 까지).
+ *
+ * 0.10 에서 시작해 0.08 씩 오른다. 가장 옅은 것도 방 바닥 색과 갈릴 만큼은 되고,
+ * 가장 짙은 것도 그 위에 선 것(원천 · 몸)을 덮지 않는 값이다.
+ */
+export const TRACE_ZONE_OPACITIES: Readonly<Record<number, number>> = {
+  1: 0.1,
+  2: 0.18,
+  3: 0.26,
+  4: 0.34,
+  5: 0.42,
+};
+
+/**
+ * 그 단계의 흔적 결정 — **모르는 단계는 없다**(undefined). 그리지 않는다.
+ * 표 밖의 값을 아무 색으로 그리면 화면이 세계에 없는 짙기를 지어내는 것이 된다
+ * (C001 부터의 폴백 규칙: 모르는 것은 자리째 없다).
+ */
+export function traceZonePresentation(
+  level: number,
+): { color: number; opacity: number } | undefined {
+  if (level < 1 || level > SOIL_STAIN_MAX) return undefined;
+  const opacity = TRACE_ZONE_OPACITIES[level];
+  return opacity === undefined ? undefined : { color: TRACE_SOIL_COLOR, opacity };
+}
+
+// ── 무너진 자리 (C012 ADDED) ─────────────────────────────────────────
+//
+// 고갈되고 무너지는 원천의 **붕괴 자리 area** 다. 흔적 · 조건 · 구역과 똑같이 세계가
+// 보내 주지 않는다 — 관찰자가 자기 Description 과 실려 온 phase 로 스스로 얻는다
+// (resource-reading 의 collapsedAreas). **고갈 전에는 목록이 비어 있고 아무것도 그려지지
+// 않는다** — 캐기 전의 화면은 C011 과 한 픽셀도 다르지 않다.
+//
+// 구덩이로 보여야 한다. 그래서 이 세계의 지면 색 어느 것보다 **어둡게 채우고**(빛이
+// 닿지 않는 구멍), 테두리만 부서진 맨 바위 색으로 둘러 무너진 가장자리를 만든다 —
+// 추락 표식이 거의 검은 값 하나로 구멍이 된 것(TRANSITION_TINTS.falling)과 같은 어법이다.
+//
+// **이름표를 붙이지 않는다** (C026 R4 — RULE-QUIET-GROUND-001). 무엇이 무너졌는지는
+// 그 옆에 선 원천의 그림이 말하고, 지날 수 없다는 것은 물었을 때 판이 답한다.
+
+export const COLLAPSE_ZONE: SettlementZonePresentation = {
+  // 파인 자리 — 흙도 풀도 남지 않은 그늘. 지면 넷(초록 · 갈색 · 무채색 · 청록) 어느 것보다 어둡다
+  fill: 0x14100e,
+  fillOpacity: 0.78,
+  // 무너진 가장자리 — 부서진 맨 바위 (sprites 의 r = #6f737d 와 같은 계열)
+  edge: 0x6f737d,
+  edgeOpacity: 0.92,
+  edgeWidth: 1.2,
+};
+
 /**
  * 재배열의 순간이 화면에 남아 있는 시간 (초).
  *
@@ -359,17 +436,20 @@ function worldTimeOf(snapshot: GameViewSnapshot): number {
 }
 
 /**
- * 관찰자가 선 방의 바닥과 그 안의 settlement 자리들 — SceneGroundZone 목록.
+ * 관찰자가 선 방의 바닥과 그 안의 area 들 — SceneGroundZone 목록.
  * Spec 을 모르는 id 면 빈 배열이다 — 바닥 없이도 게임은 돈다 (폴백 규칙).
  *
- * 순서가 곧 겹치는 차례다: 방 바닥이 맨 아래이고, 그 위에 Description 의 ops 순서 그대로
- * settlement area 가 놓인다. **ops 순서를 다시 정렬하지 않는다** — 무엇이 무엇 위에
- * 겹치는지는 데이터가 정하는 것이고, 화면이 그 차례를 바꾸면 데이터를 고쳐도 그림이
- * 따라오지 않는다.
+ * 순서가 곧 겹치는 차례다 (아래에서 위로):
+ *   방 바닥 → 흔적(C011) → settlement(C006) → 구역(C008) → 통로(C008)
+ * 흔적이 방 바닥 바로 위인 것은 그것이 **흙 자체의 색**이기 때문이다 — 사람이 그은 것들은
+ * 전부 그 위에 겹친다. layer 안에서는 Description 의 ops 순서 그대로이며 **다시 정렬하지
+ * 않는다** — 무엇이 무엇 위에 겹치는지는 데이터가 정하는 것이고, 화면이 그 차례를 바꾸면
+ * 데이터를 고쳐도 그림이 따라오지 않는다.
  */
 export function regionZones(
   region: RegionView | undefined,
   worldTime = 0,
+  phases: SourcePhases = NO_SOURCE_PHASES,
 ): SceneGroundZone[] {
   if (!region) return [];
   const spec = regionSpec(region.id);
@@ -386,6 +466,46 @@ export function regionZones(
       // 이름표를 붙이지 않는다 (C026 R4 — RULE-QUIET-GROUND-001). 방 이름은 들어선
       // 순간 regionEntryTitle 이 한 번 지나가게 하고, 그 뒤 지면에는 글자가 없다
     },
+    // 흔적 (C011) — **방 바닥 바로 위**다. 흔적은 흙 자체의 색이므로 땅에 가장 가까이
+    // 놓이고, 사람이 그은 것들(조건 · 도시 · 구역 · 통로)은 전부 그 위에 겹친다.
+    // 순서를 뒤집으면 짙은 흔적이 도시 테두리와 통로의 검은 띠를 덮어, 이 세계에서
+    // 가장 먼저 읽혀야 할 두 가지(여기가 사람 사는 자리다 · 이 길은 닫혀 있다)가 묻힌다.
+    //
+    // ops 순서를 다시 정렬하지 않는 것은 아래 셋과 같다 — 겹치는 차례는 데이터의 것이다.
+    // 방 바닥 area(가장 옅은 단계)가 먼저 오고 원천 둘레(더 짙은 단계)가 그 위에 겹치므로,
+    // 겹친 자리는 더 짙게 보인다 (R4 의 "가장 짙은 것이 이긴다" 가 눈에서도 그대로다).
+    ...areasOf(spec.space, TRACE_LAYER).flatMap((area): SceneGroundZone[] => {
+      // C012 CHANGED — 고갈된 원천의 traceOp 구역은 **한 단계 낮은 색**이다 (R5 · SPEC-005).
+      // 단계가 0 이 되면 traceZonePresentation 이 undefined 를 주고 그 구역은 그려지지
+      // 않는다 — 옅어짐의 끝은 색이 옅어지는 것이 아니라 흔적이 없어지는 것이다.
+      // 나머지 구역(방 바닥에 깔린 흔적 · 캐지 않은 원천 둘레)은 한 값도 바뀌지 않는다.
+      const p = traceZonePresentation(traceLevelOfArea(spec.id, area, phases));
+      // 모르는 단계는 **그리지 않는다** — 없는 짙기를 지어내지 않는다 (C001 부터의 폴백 규칙)
+      if (!p) return [];
+      return [
+        {
+          id: `trace:${spec.id}:${area.id}`,
+          shape: area.shape,
+          fill: { color: p.color, opacity: p.opacity },
+          // 테두리도 이름표도 없다 — 변색은 경계가 뚜렷하지 않고(위 표의 주석),
+          // 지면에는 글자가 없다 (C026 R4 · spec SPEC-008)
+        },
+      ];
+    }),
+    // 무너진 자리 (C012) — **흔적 바로 위**다. 구덩이는 흙에 파인 것이므로 그 흙(흔적)을
+    // 덮어야 하고, 사람이 그은 것들(조건 · 도시 · 구역 · 통로)보다는 아래에 둔다.
+    // 고갈되기 전에는 이 목록이 비어 있다 (spec SPEC-006 경계 ①).
+    ...collapsedAreas(spec.id, phases).map((area): SceneGroundZone => ({
+      id: `collapse:${spec.id}:${area.id}`,
+      shape: area.shape,
+      fill: { color: COLLAPSE_ZONE.fill, opacity: COLLAPSE_ZONE.fillOpacity },
+      edge: {
+        color: COLLAPSE_ZONE.edge,
+        opacity: COLLAPSE_ZONE.edgeOpacity,
+        width: COLLAPSE_ZONE.edgeWidth,
+      },
+      // 이름표가 없다 (C026 R4). 지날 수 없다는 것은 물었을 때 판이 답한다
+    })),
     // 조건 셋과 도시 (C006) — area op 의 모양(polygon · circle)이 그대로 zone 의 모양이다.
     // area 가 없는 방에서는 이 목록이 비고, 그러면 방 바닥 하나만 그려진다 (C005 그대로).
     ...areasOf(spec.space, SETTLEMENT_LAYER).map((area): SceneGroundZone => {

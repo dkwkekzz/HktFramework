@@ -136,7 +136,7 @@ describe('hud.self — 자기 자원·능력치·배율은 늘 눈앞에 있다'
   });
 
   it('self 값은 일반 HUD 줄로 중복되지 않는다', () => {
-    expect(plan().hud.map((h) => h.id)).toEqual(['inventory.stone', 'world.time']);
+    expect(plan().hud.map((h) => h.id)).toEqual(['inventory.ORE_EATER_MOLT', 'world.time']);
   });
 });
 

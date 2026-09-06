@@ -1,0 +1,235 @@
+{
+  "out": "shots",
+  "viewport": [
+    900,
+    660
+  ],
+  "runs": [
+    {
+      "region": "WHITE_KING_DOMAIN",
+      "spawn": "0,0",
+      "npcs": "none",
+      "steps": [
+        {
+          "wait": "세계 시간",
+          "tries": 60
+        },
+        {
+          "expect": "문명권",
+          "note": "X-① 백왕령이다"
+        },
+        {
+          "sleep": 800
+        },
+        {
+          "shot": "X-01-no-lineage-here",
+          "note": "X-① 백왕령에는 캘 것도 흙 변색도 없다 — 산과 강이 막는다"
+        }
+      ]
+    },
+    {
+      "region": "FOREST_EDGE",
+      "spawn": "-0.5,6",
+      "npcs": "none",
+      "steps": [
+        {
+          "wait": "세계 시간",
+          "tries": 60
+        },
+        {
+          "expect": "문명의 경계",
+          "note": "X-② 숲 가장자리다"
+        },
+        {
+          "sleep": 1500
+        },
+        {
+          "shot": "X-02-stain-and-litter",
+          "note": "X-② 왼쪽 흙 색이 다르고 그 한가운데 허물이 모여 있다 — 재료 아이콘은 없다"
+        },
+        {
+          "click": [
+            0.15,
+            0.515
+          ],
+          "alt": true
+        },
+        {
+          "sleep": 2000
+        },
+        {
+          "shot": "X-03-ask-before-walking",
+          "note": "X-③ 걸어가기 전에 지목한다 — 판이 종류와 줄 수 있는 행동(채취)과 불가 사유를 답한다"
+        }
+      ]
+    },
+    {
+      "region": "FOREST_EDGE",
+      "spawn": "-6.4,6",
+      "npcs": "none",
+      "steps": [
+        {
+          "wait": "세계 시간",
+          "tries": 60
+        },
+        {
+          "sleep": 1500
+        },
+        {
+          "press": "KeyE"
+        },
+        {
+          "wait": "광식충 허물",
+          "tries": 60
+        },
+        {
+          "shot": "X-04-in-hand",
+          "note": "X-④ 캔 것이 재료의 이름으로 손에 들어왔다 — 무엇에 쓰는지는 아무 데도 없다"
+        }
+      ]
+    },
+    {
+      "region": "EXPLORER_RUIN",
+      "spawn": "-2.4,4",
+      "npcs": "none",
+      "steps": [
+        {
+          "wait": "세계 시간",
+          "tries": 60
+        },
+        {
+          "sleep": 1500
+        },
+        {
+          "shot": "X-05-ruin-spoil",
+          "note": "X-⑤ 폐허의 헐린 선광 더미 — 앞서 온 탐험대가 캐다 버리고 간 것이다"
+        }
+      ]
+    },
+    {
+      "region": "EXPLORER_RUIN",
+      "spawn": "-5.8,4",
+      "npcs": "none",
+      "steps": [
+        {
+          "wait": "세계 시간",
+          "tries": 60
+        },
+        {
+          "sleep": 1500
+        },
+        {
+          "press": "KeyE"
+        },
+        {
+          "wait": "광식충 허물",
+          "tries": 60
+        },
+        {
+          "shot": "X-06-same-material",
+          "note": "X-⑤ 다른 모습인데 숲 가장자리와 **같은 재료**가 들어온다 — 이 숲에 계통이 하나 있다"
+        }
+      ]
+    },
+    {
+      "region": "FOREST_DEEP",
+      "spawn": "10,0",
+      "npcs": "none",
+      "steps": [
+        {
+          "wait": "세계 시간",
+          "tries": 60
+        },
+        {
+          "sleep": 1500
+        },
+        {
+          "shot": "X-07-direction-east",
+          "note": "X-⑥ 숲 깊은 곳의 동쪽(광석 지대 쪽) — 흙이 한 단계 더 짙다. 원천은 없고 방향이 있다"
+        }
+      ]
+    },
+    {
+      "region": "FOREST_DEEP",
+      "spawn": "-10,0",
+      "npcs": "none",
+      "steps": [
+        {
+          "wait": "세계 시간",
+          "tries": 60
+        },
+        {
+          "sleep": 1500
+        },
+        {
+          "shot": "X-08-direction-west",
+          "note": "X-⑥ 같은 방의 서쪽(둥지 쪽) — 짙어지지 않는다. 짙어지는 쪽이 곧 방향이다"
+        }
+      ]
+    },
+    {
+      "region": "BIO_ORE_FIELD",
+      "spawn": "2,-6",
+      "npcs": "none",
+      "steps": [
+        {
+          "wait": "세계 시간",
+          "tries": 60
+        },
+        {
+          "sleep": 1500
+        },
+        {
+          "shot": "X-09-outcrop",
+          "note": "X-⑦ 광맥의 노두 — 방 바닥보다 더 짙은 변색 한가운데 서 있다"
+        },
+        {
+          "click": [
+            0.783,
+            0.515
+          ],
+          "alt": true
+        },
+        {
+          "sleep": 2000
+        },
+        {
+          "shot": "X-10-ask-the-outcrop",
+          "note": "X-⑦ 지목하면 그것이 광맥의 노두임을 답한다 — 어느 재료인지는 판이 아직 말하지 않는다"
+        }
+      ]
+    },
+    {
+      "region": "RED_EYE_TREE",
+      "spawn": "-2,2",
+      "npcs": "none",
+      "steps": [
+        {
+          "wait": "세계 시간",
+          "tries": 60
+        },
+        {
+          "sleep": 1500
+        },
+        {
+          "shot": "X-11-root-nodule",
+          "note": "X-⑧ 거목의 뿌리혹 — 이 세계에서 가장 짙은 흙 위다"
+        },
+        {
+          "click": [
+            0.217,
+            0.515
+          ],
+          "alt": true
+        },
+        {
+          "sleep": 2000
+        },
+        {
+          "shot": "X-12-ask-the-nodule",
+          "note": "X-⑧ 지목하면 거목의 부푼 뿌리혹이라 답한다 — 노두와 같은 재료라는 것은 화면이 아직 말하지 않는다"
+        }
+      ]
+    }
+  ]
+}

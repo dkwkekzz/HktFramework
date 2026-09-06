@@ -16,6 +16,7 @@ import { ANCHOR_LAYER, REGION_GRAPH, REGION_SPECS, regionSpec } from '../../regi
 import { createWorld, restoreWorld } from '../index';
 import { INTERACTION_RANGE, STATE_VERSION, TICK_INTERVAL, type WorldState } from '../semantic/world-state';
 import { driveWorld, OBSERVER, OBSERVER_2, PLAYER, PLAYER_2, type WorldDriver } from './drive';
+import { sourcesInRegion } from '../semantic/resource';
 
 // ── spec 의 이름들 (표에서만 왔다) ─────────────────────────────
 const WHITE_KING_DOMAIN = 'WHITE_KING_DOMAIN';
@@ -198,14 +199,22 @@ describe('SPEC-001 — 방이 늘고 깊이가 넷이 된다', () => {
     }
   });
 
-  it('S-004 (경계) 새 방 셋에는 anchor 말고 아무 것도 없다 — 몸도 광맥도 놓이지 않는다', () => {
+  it('S-004 (경계) 새 방 셋에는 초기 배치가 놓이지 않는다 — 몸이 하나도 없다', () => {
     // Given 기본 배치의 세계
     const s = state(driveWorld());
-    // Then 새 방 셋에는 Actor · Deposit 이 하나도 없다
+    // Then 새 방 셋에는 Actor 가 하나도 없다
     for (const id of C003_REGIONS) {
       expect(s.actors.some((a) => a.regionId === id)).toBe(false);
-      expect(s.deposits.some((d) => d.regionId === id)).toBe(false);
     }
+  });
+
+  // C011 CHANGED — "아무 것도 없다" 의 절반이 뒤집혔다. 광맥(초기 배치 State)은 사라졌고
+  // 캘 것은 방이 **낳는** 원천(content/regions 의 데이터)이 되었다. 그래서 붉은 눈의 거목에는
+  // 이제 뿌리혹이 서 있다 — 놓인 것이 아니라 그 방이 낳는 것이다 (RoomBearsMaterial §5.3).
+  it('S-004b 캘 것은 초기 배치가 아니라 방의 데이터에서 온다', () => {
+    expect(sourcesInRegion(RED_EYE_TREE).map((source) => source.id)).toEqual(['ROOT_NODULE']);
+    expect(sourcesInRegion(TREE_INNER_WORLD).length).toBe(0);
+    expect(sourcesInRegion(HEART_LAKE).length).toBe(0);
   });
 });
 

@@ -20,7 +20,8 @@ export function ruleMazeConnection(state: WorldState): void {
   // 이 tick 에 각 방에 쌓인 걸음 — 몸을 한 번만 훑는다 (배열 순서 = 결정론).
   // 몸이 선 방에 State 가 없으면 그 걸음은 아무 데도 쌓이지 않는다 (미로 밖은 그대로다 · SPEC-010).
   for (const actor of state.actors) {
-    const regionState = state.regionStates[actor.regionId];
+    // C012 CHANGED — 방의 State 에서 규칙 쪽만 읽는다. 원천 State 는 이 규칙과 무관하다.
+    const regionState = state.regionStates[actor.regionId]?.rule;
     if (!regionState) continue;
     const rule = regionRuleOf(actor.regionId);
     if (!rule) continue;
@@ -30,9 +31,10 @@ export function ruleMazeConnection(state: WorldState): void {
 
   // 넘친 방은 패턴이 **한 칸** 넘어간다 — 크게 넘겨도 한 tick 에 여러 칸 가지 않는다
   // (SPEC-004 경계. 여러 칸을 넘기면 관찰자가 인과를 볼 수 없다).
-  for (const [regionId, regionState] of Object.entries(state.regionStates)) {
+  for (const [regionId, entry] of Object.entries(state.regionStates)) {
+    const regionState = entry.rule;
     const rule = regionRuleOf(regionId);
-    if (!rule) continue;
+    if (!regionState || !rule) continue;
     if (regionState.pressure < rule.pressureLimit) continue;
     regionState.pattern = nextPatternName(rule, regionState.pattern);
     regionState.pressure = 0;

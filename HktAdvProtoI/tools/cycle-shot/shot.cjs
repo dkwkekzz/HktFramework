@@ -16,6 +16,7 @@
 //         "npcs": "none",                    (선택) 자율 존재 없이 — 맞아 쓰러지면 조작이 이어지지 않을 때
 //         "pattern": "FANTASY_MAZE:P2",      (선택) 규칙을 품은 방이 어느 패턴으로 서는가 (같은 손잡이)
 //         "npcRegion": "FANTASY_MAZE",       (선택) 자율 존재를 그 방에 놓는다 (같은 손잡이)
+//         "sourcePhase": "ORE_OUTCROP:depleted",  (선택) 원천이 어느 phase 로 서는가 (C012 · 같은 손잡이)
 //         "companion": true,                 (선택) **두 번째 관찰자**를 함께 들여보낸다 (창을 하나 더 연다).
 //                                            세계가 하나임을 찍으려면 사람이 둘이어야 한다 (C010).
 //                                            그 몸은 SPAWN_POINTS[1] 에 선다 — region 은 첫 관찰자와 같다
@@ -52,7 +53,7 @@ const outDir = path.resolve(baseDir, scenario.out ?? 'shots');
 fs.mkdirSync(outDir, { recursive: true });
 const [vw, vh] = scenario.viewport ?? [560, 420];
 
-function startVite(spawnAt, npcs, region, regionPattern, npcRegion) {
+function startVite(spawnAt, npcs, region, regionPattern, npcRegion, sourcePhase) {
   const env = { ...process.env };
   if (spawnAt) env.HKT_SPAWN = spawnAt;
   else delete env.HKT_SPAWN;
@@ -65,6 +66,9 @@ function startVite(spawnAt, npcs, region, regionPattern, npcRegion) {
   if (regionPattern) env.HKT_REGION_PATTERN = regionPattern;
   else delete env.HKT_REGION_PATTERN;
   // 자율 존재를 어느 방에 놓을 것인가 (C010 · vite.config.ts 의 같은 손잡이)
+  // 원천이 어느 phase 로 서는가 — "SOURCE:PHASE" (C012 · vite.config.ts 의 같은 손잡이)
+  if (sourcePhase) env.HKT_SOURCE_PHASE = sourcePhase;
+  else delete env.HKT_SOURCE_PHASE;
   if (npcRegion) env.HKT_NPC_REGION = npcRegion;
   else delete env.HKT_NPC_REGION;
   const child = spawn(
@@ -107,7 +111,14 @@ async function until(page, ok, tries) {
 }
 
 async function runOne(run, index, report) {
-  const vite = await startVite(run.spawn, run.npcs, run.region, run.pattern, run.npcRegion);
+  const vite = await startVite(
+    run.spawn,
+    run.npcs,
+    run.region,
+    run.pattern,
+    run.npcRegion,
+    run.sourcePhase,
+  );
   const browser = await launch();
   const page = await browser.newPage({ viewport: { width: vw, height: vh } });
   const errors = collectErrors(page);

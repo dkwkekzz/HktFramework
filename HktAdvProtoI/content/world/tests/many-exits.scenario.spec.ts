@@ -11,6 +11,7 @@ import { ANCHOR_LAYER, REGION_GRAPH, REGION_SPECS } from '../../regions';
 import { createWorld, restoreWorld } from '../index';
 import { INTERACTION_RANGE, STATE_VERSION, TICK_INTERVAL, type WorldState } from '../semantic/world-state';
 import { driveWorld, OBSERVER, OBSERVER_2, PLAYER, PLAYER_2, type WorldDriver } from './drive';
+import { sourcesInRegion } from '../semantic/resource';
 
 // ── 01-spec 의 이름들 (표에서만 왔다) ───────────────────────────
 const WHITE_KING_DOMAIN = 'WHITE_KING_DOMAIN';
@@ -212,15 +213,24 @@ describe('S-001 (SPEC-001) — C002 의 여섯 방이 있고 새 방 넷은 wild
   });
 });
 
-describe('S-002 (SPEC-001 경계) — 새 방 넷에는 anchor 말고 아무 것도 없다', () => {
-  it('모든 Actor · Deposit 이 WHITE_KING_DOMAIN 에 있다', () => {
+describe('S-002 (SPEC-001 경계) — 새 방 넷에 초기 배치가 놓이지 않는다', () => {
+  it('모든 Actor 가 WHITE_KING_DOMAIN 에 있다', () => {
     const s = state(driveWorld());
     expect([...new Set(s.actors.map((a) => a.regionId))]).toEqual([WHITE_KING_DOMAIN]);
-    expect([...new Set(s.deposits.map((d) => d.regionId))]).toEqual([WHITE_KING_DOMAIN]);
     for (const id of [FOREST_DEEP, EXPLORER_RUIN, PREDATOR_NEST, BIO_ORE_FIELD]) {
       expect(s.actors.some((a) => a.regionId === id)).toBe(false);
-      expect(s.deposits.some((d) => d.regionId === id)).toBe(false);
     }
+  });
+
+  // C011 CHANGED — 광맥은 더 이상 초기 배치가 아니다. 캘 것은 방이 **낳는** 것이고
+  // (content/regions 의 resourceEcology) 그래서 이 넷 가운데 둘에는 이제 원천이 서 있다.
+  // 이 Cycle 이 뒤집은 것은 "무엇이 놓였는가" 가 아니라 **누가 놓는가** 다.
+  it('캘 것은 State 가 아니라 방의 데이터에서 온다 — 백왕령에는 하나도 없다', () => {
+    expect(sourcesInRegion(WHITE_KING_DOMAIN).length).toBe(0);
+    expect(sourcesInRegion(EXPLORER_RUIN).length).toBe(1);
+    expect(sourcesInRegion(BIO_ORE_FIELD).length).toBe(1);
+    expect(sourcesInRegion(FOREST_DEEP).length).toBe(0);
+    expect(sourcesInRegion(PREDATOR_NEST).length).toBe(0);
   });
 });
 
@@ -649,20 +659,23 @@ describe('S-019 (SPEC-008) — 숲 안쪽은 출구가 다섯이고 이제 다�
   });
 });
 
-describe('S-020 (SPEC-008 경계) — 막다른 방 셋은 돌아가는 출구뿐이고 비어 있다', () => {
-  it('폐허 · 둥지는 관찰자 자신 + region-exit 하나뿐 · 광석 지대는 둘', () => {
-    for (const [region, exitCount] of [
-      [EXPLORER_RUIN, 1],
-      [PREDATOR_NEST, 1],
-      [BIO_ORE_FIELD, 2],
+describe('S-020 (SPEC-008 경계) — 막다른 방 셋에는 남의 몸이 없다', () => {
+  // C011 CHANGED — 폐허와 광석 지대는 더 이상 "비어" 있지 않다. 그 둘이 낳는 원천이
+  // 하나씩 서 있기 때문이다 (RoomBearsMaterial A.3 — 경계부 하나 · 핵심부 하나).
+  // 이 경계가 원래 묻던 것은 **다른 방의 것이 새어 오지 않는가** 이고 그것은 그대로다.
+  it('셋 다 관찰자 자신 + 출구 + 그 방이 낳는 원천뿐이다', () => {
+    for (const [region, exitCount, sourceCount] of [
+      [EXPLORER_RUIN, 1, 1],
+      [PREDATOR_NEST, 1, 0],
+      [BIO_ORE_FIELD, 2, 1],
     ] as const) {
       const v = rooms()[region]!;
       expect(v.scene).toBe(region);
       expect(rolesOf(v, 'player-character').map((e) => e.id)).toEqual([PLAYER]);
       expect(exits(v).length).toBe(exitCount);
-      expect(v.entities.length).toBe(1 + exitCount);
+      expect(rolesOf(v, 'resource-source').length).toBe(sourceCount);
+      expect(v.entities.length).toBe(1 + exitCount + sourceCount);
       expect(rolesOf(v, 'npc-character').length).toBe(0);
-      expect(rolesOf(v, 'resource-deposit').length).toBe(0);
       expect(rolesOf(v, 'other-player-character').length).toBe(0);
       expect(hud(v, 'region.depth')).toBe('wild');
     }
@@ -776,7 +789,6 @@ describe('S-024 (SPEC-010) — C001 에서 저장된 스냅샷도 그대로 되�
     for (const npc of restored!.actors.filter((a) => a.id !== PLAYER)) {
       expect(npc.regionId).toBe(WHITE_KING_DOMAIN);
     }
-    expect(restored!.deposits[0]?.regionId).toBe(WHITE_KING_DOMAIN);
 
     const revived = createWorld({}, restored!);
     revived.join(OBSERVER);

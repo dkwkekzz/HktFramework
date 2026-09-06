@@ -285,10 +285,10 @@ Flow 를 하나 더 놓는다 · 재료를 하나 더 만든다
 ## 7. Cycle Breakdown
 
 ```text
-[ ] C011 — 흔적이 원천으로 데려간다: Material Seed · Resource Source 데이터 계약 + RegionSpec.resourceEcology +
+[x] C011 — 흔적이 원천으로 데려간다: Material Seed · Resource Source 데이터 계약 + RegionSpec.resourceEcology +
            resource/trace layer 배치 + 흔적의 방향(유도 세기) + 채광의 대상이 Source 가 된다.
            경계부 둘(허물 · 폐허 더미)과 핵심부 둘(노두 · 뿌리혹). 아이콘 없이 흔적만으로 닿는다
-[ ] C012 — 캐면 세계가 달라진다: Source phase(Region State) + 채취 결과 넷(외형 · 흔적 · 통행 · 의존) +
+[x] C012 — 캐면 세계가 달라진다: Source phase(Region State) + 채취 결과 넷(외형 · 흔적 · 통행 · 의존) +
            두 관찰자가 같은 자국을 보고 세계를 껐다 켜도 남는다
 [ ] C013 — 세계가 되돌린다: 회복 세계 과정 + Supply Mode 넷 + 회복 흔적 + MIGRATORY 의 자리 이동
            (뿌리 곡선의 다음 마디). 균류를 캔 것이 거목 쪽 회복을 늦추는 고리를 화면에서 읽는다

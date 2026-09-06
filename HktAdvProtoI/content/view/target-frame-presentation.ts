@@ -9,7 +9,7 @@
 //   어디인가(방 · 깊이) → 땅이 어떤가(표면 · 통행 · 사유) → 무엇이 걸렸나(area · 통로) →
 //   규칙이 있나(패턴 · 압력)
 // 존재의 차례는 같은 어법의 것이다 (C027 UNRESOLVED "존재 줄의 차례"):
-//   무엇인가(종류) → 어떤 상태인가(하는 일 · 생명 · 쓰러짐) → 무엇을 주는가(행동과 사유)
+//   무엇인가(종류) → 어떤 상태인가(하는 일 · 생명 · 쓰러짐 · 걸린 것) → 무엇을 주는가(행동과 사유)
 // **없는 것은 줄 자체가 없다.** 규칙 없는 방의 압력도, 생명 없는 것의 생명도 0 으로
 // 지어내지 않는다 (SPEC-004 · C027 SPEC-002 경계).
 //
@@ -25,6 +25,7 @@ import { agoText } from './answer-log';
 import { readBeing, type BeingOffer, type BeingReading } from './being-reading';
 import { codeText } from './code-text';
 import { SETTLEMENT_LAYER } from './biome-rules';
+import { TRACE_LAYER } from '../regions/index';
 import { interactionPresentation } from './interaction-presentation';
 import { CELL_LAYER, regionName } from './region-presentation';
 import type { Designation } from './pointer-rules';
@@ -53,6 +54,9 @@ export const PLACE_ROW_LABELS: Readonly<Record<string, string>> = {
   // 무엇이 걸렸나
   'place.settlement': '걸린 것',
   'place.cell': '구역',
+  // 흙의 변색 (C011) — 지면에는 글자가 없으므로 이 자리가 흔적이 말이 되는 유일한 곳이다.
+  // 이름표는 **무엇을 본 것인지**만 말하고, 짙기는 값(code-text 의 soil-stain:n)이 말한다
+  'place.trace': '흙',
   'place.passage': '통로',
   // 규칙이 있나
   'place.pattern': '지금 길',
@@ -74,6 +78,10 @@ export const BEING_ROW_LABELS: Readonly<Record<string, string>> = {
   'being.state': '하는 일',
   'being.vitality': '생명',
   'being.downed': '쓰러짐',
+  // 그 존재에 지금 걸린 것 (C012) — 자리의 '걸린 것'(place.settlement)과 **같은 말**이다.
+  // 걸린 것이 자리에 걸리든 존재에 걸리든 관찰자에게는 같은 종류의 사실이므로 다른 말을
+  // 짓지 않는다 (쓰러짐 줄이 기존 문구를 그대로 쓴 것과 같은 규율)
+  'being.condition': '걸린 것',
   // 무엇을 주는가
   'being.offer': '할 수 있는 것',
 };
@@ -88,6 +96,7 @@ const ROW_LABELS: Readonly<Record<string, string>> = {
 const AREA_LAYER_ROWS: Readonly<Record<string, string>> = {
   [SETTLEMENT_LAYER]: 'place.settlement',
   [CELL_LAYER]: 'place.cell',
+  [TRACE_LAYER]: 'place.trace',
 };
 
 /**
@@ -252,6 +261,14 @@ export function beingRows(reading: BeingReading): SceneFrameRow[] {
     });
     // 쓰러진 몸은 쓰러졌다는 것이 읽힌다 — 지목은 풀리지 않고 이 줄이 선다 (SPEC-004)
     if (vitality.downed) rows.push(row('being.downed', ''));
+  }
+
+  // 지금 걸린 것 (C012 R6 · SPEC-007) — **걸린 것이 없으면 줄이 아예 없다.** 겹치면 전부
+  // 잇는다: 자리의 '걸린 것' 이 겹친 조건을 하나로 줄이지 않는 것과 같은 어법이다
+  // (하나로 줄이면 무엇이 걸렸는지가 화면에서 사라진다)
+  const conditions = reading.conditions;
+  if (conditions && conditions.length > 0) {
+    rows.push(row('being.condition', conditions.map((c) => codeText(c)).join(VALUE_SEPARATOR)));
   }
 
   // ③ 무엇을 주는가 — 그 대상을 겨냥한 것만, 봉투의 차례 그대로 (SPEC-003)

@@ -191,7 +191,7 @@
   ],
   "hud": [
     {
-      "id": "inventory.stone",
+      "id": "inventory.ORE_EATER_MOLT",
       "kind": "counter",
       "value": 2
     },

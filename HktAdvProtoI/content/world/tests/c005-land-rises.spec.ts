@@ -454,16 +454,16 @@ describe('SPEC-004 — 표면이 경사로 갈린다', () => {
     expect(regionHash(domain(), reversed)).not.toBe(regionHash(domain(), RULES));
   });
 
-  it('S-018 (경계 · C006 CHANGED) 젖음을 낼 op 는 백왕령에만 있다 — 나머지 여덟 방은 그대로다', () => {
+  it('S-018 (경계 · C006 · C011 CHANGED) 젖음을 낼 op 는 백왕령에만 있다', () => {
     // C005 때는 세계의 **어떤** 방에도 표면을 젖게 할 것(curve)이 없었다. C006 이 백왕령에
-    // curve 와 area 를 놓았으므로 그 주장은 그 방에서만 바뀐다 (C006 spec SPEC-004 경계).
-    // 손대지 않은 여덟 방은 여전히 point 와 stamp 둘뿐이다.
+    // curve 를 놓았으므로 그 주장은 그 방에서만 바뀐다 (C006 spec SPEC-004 경계).
+    //
+    // C011 CHANGED — 재는 자리를 좁혔다. 이 Cycle 이 방 다섯에 흔적(area)을 깔았고
+    // area 는 높이에도 표면에도 닿지 않으므로(engine 의 AreaOp — "높이를 건드리지 않는다")
+    // **젖음의 유일한 원인인 curve** 만 세는 것이 이 경계가 원래 묻던 것이다.
     for (const spec of roomsUntouchedSinceC005()) {
-      const kinds = [...new Set(spec.space.ops.map((op) => op.kind))].sort();
-      expect({ region: spec.id, kinds }).toEqual({
-        region: spec.id,
-        kinds: kinds.filter((k) => k === 'point' || k === 'stamp'),
-      });
+      const curves = spec.space.ops.filter((op) => op.kind === 'curve');
+      expect({ region: spec.id, curves: curves.length }).toEqual({ region: spec.id, curves: 0 });
     }
   });
 });
@@ -1008,8 +1008,10 @@ describe('회귀', () => {
 
     // ② 땅을 읽는 파일이 실제로 있다 — C006 이 그것을 세웠다 (검사가 헛돌지 않는다)
     expect(readsLand.length).toBeGreaterThan(0);
-    // ③ 그러나 spec 이 정한 자리뿐이다: 세계가 땅을 드는 파일과 이동 규칙 — 둘을 넘지 않는다
-    expect(readsLand.length).toBeLessThanOrEqual(2);
+    // ③ 그러나 spec 이 정한 자리뿐이다: 세계가 땅을 드는 파일과 이동 규칙, 그리고 C011 이
+    //    더한 원천·흔적의 자리 — 셋을 넘지 않는다. 셋 다 컴파일 결과에 **자리로 묻기만** 하고
+    //    격자를 스스로 만들지 않는다 (①이 그것을 지킨다)
+    expect(readsLand.length).toBeLessThanOrEqual(3);
     // ④ 컴파일하는 자리는 하나다 — 땅을 드는 파일 하나가 아홉 방을 든다 (R2)
     expect(compiles.length).toBe(1);
   });
