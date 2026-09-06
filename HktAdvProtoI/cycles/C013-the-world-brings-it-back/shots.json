@@ -1,0 +1,216 @@
+{
+  "out": "shots",
+  "viewport": [
+    900,
+    660
+  ],
+  "runs": [
+    {
+      "region": "BIO_ORE_FIELD",
+      "spawn": "0,-12",
+      "npcs": "none",
+      "sourcePhase": "ORE_OUTCROP:recovering",
+      "steps": [
+        {
+          "wait": "세계 시간",
+          "tries": 60
+        },
+        {
+          "sleep": 1500
+        },
+        {
+          "shot": "X-01-recovering-at-next-site",
+          "note": "X-① 노두가 캔 자리가 아니라 뿌리 곡선의 다음 마디에 서 있다 — 되돌아오는 중의 그림이고 그 둘레 흙이 짙다"
+        },
+        {
+          "click": [
+            0.217,
+            0.515
+          ],
+          "alt": true
+        },
+        {
+          "sleep": 2000
+        },
+        {
+          "shot": "X-02-ask-recovering",
+          "note": "X-② 지목하면 되돌아오는 중이다 · 아직 캘 수 없는 사유가 그 자리에서 읽힌다"
+        }
+      ]
+    },
+    {
+      "region": "BIO_ORE_FIELD",
+      "spawn": "0,-12",
+      "npcs": "none",
+      "sourcePhase": "ORE_OUTCROP:depleted",
+      "steps": [
+        {
+          "wait": "세계 시간",
+          "tries": 60
+        },
+        {
+          "sleep": 1500
+        },
+        {
+          "shot": "X-03-next-site-before",
+          "note": "X-① 대조 — 되돌아옴이 아직 보이지 않을 때 그 마디에는 아무것도 없고 흙도 방 바닥이다 (X-01 과 견준다)"
+        }
+      ]
+    },
+    {
+      "region": "BIO_ORE_FIELD",
+      "spawn": "2,-6",
+      "npcs": "none",
+      "sourcePhase": "ORE_OUTCROP:recovering",
+      "steps": [
+        {
+          "wait": "세계 시간",
+          "tries": 60
+        },
+        {
+          "sleep": 1500
+        },
+        {
+          "shot": "X-04-old-site-remains",
+          "note": "X-③ 옛 자리 — 원천은 떠났는데 구덩이는 무너진 채 그대로다"
+        },
+        {
+          "click": [
+            0.794,
+            0.665
+          ],
+          "alt": true
+        },
+        {
+          "sleep": 2000
+        },
+        {
+          "shot": "X-05-ask-the-pit",
+          "note": "X-③ 지목하면 여전히 지날 수 없다고 답한다 — 원천이 거기 없는데도"
+        }
+      ]
+    },
+    {
+      "region": "BIO_ORE_FIELD",
+      "spawn": "2,-6",
+      "npcs": "none",
+      "sourcePhase": "ROOT_NODULE:depleted,ORE_OUTCROP:depleted",
+      "steps": [
+        {
+          "wait": "세계 시간",
+          "tries": 60
+        },
+        {
+          "sleep": 1500
+        },
+        {
+          "click": [
+            0.783,
+            0.515
+          ],
+          "alt": true
+        },
+        {
+          "sleep": 2000
+        },
+        {
+          "shot": "X-06-stalled",
+          "note": "X-④ 다른 방의 뿌리혹을 캐 놓으면 노두에 되돌아옴이 멎었다 가 걸린다 — C012 는 표시였고 이제 진행이 실제로 0 이다"
+        }
+      ]
+    },
+    {
+      "region": "FOREST_EDGE",
+      "spawn": "-6.4,6",
+      "npcs": "none",
+      "sourcePhase": "MOLT_LITTER:recovering",
+      "steps": [
+        {
+          "wait": "세계 시간",
+          "tries": 60
+        },
+        {
+          "sleep": 1500
+        },
+        {
+          "shot": "X-07-molt-recovering",
+          "note": "X-⑤ 허물이 되돌아오는 중 — 흩어졌던 조각이 다시 모이고 붉은 결이 한 점 돌아왔다"
+        },
+        {
+          "click": [
+            0.3,
+            0.52
+          ],
+          "alt": true
+        },
+        {
+          "sleep": 2000
+        },
+        {
+          "shot": "X-08-ask-molt",
+          "note": "X-⑤ 지목하면 되돌아오는 중이다"
+        }
+      ]
+    },
+    {
+      "region": "RED_EYE_TREE",
+      "spawn": "-2,2",
+      "npcs": "none",
+      "sourcePhase": "ROOT_NODULE:recovering",
+      "steps": [
+        {
+          "wait": "세계 시간",
+          "tries": 60
+        },
+        {
+          "sleep": 1500
+        },
+        {
+          "shot": "X-09-nodule-recovering",
+          "note": "X-⑥ 뿌리혹이 되돌아오는 중 — 갈라진 껍질 속이 다시 차 오른다. 뿌리 선이 땅 위를 지난다"
+        }
+      ]
+    },
+    {
+      "region": "RED_EYE_TREE",
+      "spawn": "0,7",
+      "npcs": "none",
+      "steps": [
+        {
+          "wait": "세계 시간",
+          "tries": 60
+        },
+        {
+          "sleep": 1500
+        },
+        {
+          "shot": "X-11-root-line",
+          "note": "X-⑦ 땅 위의 뿌리 선 — 거목의 뿌리가 방을 가로질러 광석 지대 쪽으로 뻗는다. 이름표도 마디 표식도 없다"
+        }
+      ]
+    },
+    {
+      "region": "WHITE_KING_DOMAIN",
+      "spawn": "0,0",
+      "npcs": "none",
+      "sourcePhase": "ORE_OUTCROP:recovering",
+      "steps": [
+        {
+          "wait": "세계 시간",
+          "tries": 60
+        },
+        {
+          "expect": "문명권",
+          "note": "X-⑦ 백왕령이다"
+        },
+        {
+          "sleep": 1000
+        },
+        {
+          "shot": "X-10-untouched",
+          "note": "X-⑦ 숲에서 되돌아옴이 도는 동안에도 백왕령은 한 값도 달라지지 않는다"
+        }
+      ]
+    }
+  ]
+}
