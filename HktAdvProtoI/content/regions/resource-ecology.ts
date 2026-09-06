@@ -71,12 +71,35 @@ export interface ResourceSourceSpec {
    */
   dependsOn?: string;
   /**
-   * 그 원천 **둘레의 흔적** op id (C012 ADDED · §5.4 ②).
+   * 되돌아오는 데 걸리는 **세계 초** (C013 ADDED · 위임된 결정 D3).
    *
-   * 고갈되면 이 op 의 단계를 한 단계 낮춰 친다 — 다음 사람이 "이미 훑은 자리" 로 읽는다.
-   * 방 바닥에 깔린 흔적은 여기 적지 않는다: 옅어지는 것은 원천 둘레뿐이다.
+   * 고갈된 뒤 이만큼의 세계 시간이 흐르면 다시 캘 수 있다. 얕은 자리는 빨리, 깊은 자리는
+   * 느리게 — 값은 원천마다 다르고 **여기가 유일한 출처**다 (회복 임계를 바꾸는 것은
+   * 코드가 아니라 이 자리다 · Play 불변 조건).
    */
-  traceOp?: string;
+  recoverySeconds: number;
+  /**
+   * 그 원천이 설 수 있는 **마디**마다의 둘레 흔적 op id — 마디 순서 그대로 (C013 CHANGED).
+   *
+   * C012 의 `traceOp` 하나를 목록으로 넓힌 것이다 — 마디 하나뿐인 원천은 원소 하나다.
+   * 그 원천의 **지금 마디**의 op 만 phase 를 따라 옅어지고, 다른 마디의 둘레는 0 으로 친다
+   * (spec R7). 방 바닥에 깔린 흔적은 여기 적지 않는다: 옅어지는 것은 원천 둘레뿐이다.
+   */
+  traceOps?: readonly string[];
+  /**
+   * 마디마다의 **붕괴** area op id — `collapses` 가 참인 원천만 (C013 ADDED).
+   *
+   * `traceOps` 와 **같은 순서**다. 그 마디에서 고갈되면 그 번호가 collapsedSites 에 쌓이고,
+   * 원천이 다음 마디로 옮겨 가도 그 자리는 무너진 채 남는다 (spec R5).
+   */
+  collapseOps?: readonly string[];
+  /**
+   * 그 원천이 마디를 얻는 **presence layer 곡선의 tag** (C013 ADDED).
+   *
+   * 밝히면 그 곡선의 points 가 곧 마디 목록이고(순서 그대로), 밝히지 않으면 C011 그대로
+   * resource layer point 하나가 유일한 마디다 (spec R4).
+   */
+  siteCurve?: string;
 }
 
 /** 조건 코드 — 되돌아오는 일이 멎었다 (Play §5.5 의 코드 그대로) */
@@ -123,6 +146,21 @@ export const RESOURCE_LAYER = 'resource';
 
 /** 흔적(흙의 변색)을 적는 layer — area 의 tag 가 `soil-stain:<단계>` 다 */
 export const TRACE_LAYER = 'trace';
+
+/**
+ * 땅 위에 **무엇이 지나간다**를 적는 layer (C013 ADDED) — 높이를 건드리지 않는 표시선이다.
+ * 지금 여기 서는 것은 거목의 뿌리 곡선 하나뿐이다 (tag 는 ROOT_CURVE_TAG).
+ */
+export const PRESENCE_LAYER = 'presence';
+
+/**
+ * 뿌리 곡선의 tag (C013 ADDED) — 그 방을 지나는 거목의 뿌리다.
+ *
+ * 자리를 옮기는 원천은 이 곡선의 points 를 **마디 목록**으로 삼는다 (siteCurve). 곡선이
+ * 있다고 원천이 옮겨 다니는 것은 아니다 — 뿌리가 그 방을 지난다는 세계 사실일 뿐이고,
+ * 그것을 마디로 쓰는지는 원천이 밝힌다 (Play §5.3).
+ */
+export const ROOT_CURVE_TAG = 'root';
 
 /** 흔적 태그의 접두사. 뒤에 1..5 의 단계가 붙는다 */
 export const SOIL_STAIN_PREFIX = 'soil-stain:';

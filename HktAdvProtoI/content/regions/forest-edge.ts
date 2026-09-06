@@ -145,7 +145,10 @@ export const FOREST_EDGE_SPEC: RegionSpec = {
         supply: 'baseline-renewable',
         // 넉넉하다 — 가장 얕은 자리의 Baseline (D4). 다녀와도 남이 캘 몫이 있다
         harvests: 3,
-        traceOp: 'trace-edge-molt',
+        // 가장 얕은 자리 — 가장 빨리 되돌아온다 (C013 ADDED · D3)
+        recoverySeconds: 60,
+        // 마디 하나뿐인 원천 — 목록의 원소도 하나다 (C013 CHANGED · 옛 traceOp)
+        traceOps: ['trace-edge-molt'],
       },
     ],
   },

@@ -78,7 +78,10 @@ export const EXPLORER_RUIN_SPEC: RegionSpec = {
         supply: 'baseline-renewable',
         // 더미는 남이 캐다 버린 것이다 — 많지 않다 (D4)
         harvests: 2,
-        traceOp: 'trace-ruin-spoil',
+        // 허물보다 조금 느리다 — 남이 캐다 버린 더미가 다시 쌓이는 시간 (C013 ADDED · D3)
+        recoverySeconds: 90,
+        // 마디 하나뿐인 원천 — 목록의 원소도 하나다 (C013 CHANGED · 옛 traceOp)
+        traceOps: ['trace-ruin-spoil'],
       },
     ],
   },

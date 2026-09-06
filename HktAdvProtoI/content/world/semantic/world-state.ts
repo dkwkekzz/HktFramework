@@ -50,6 +50,21 @@ export interface WorldState extends CoreWorldState {
 // InteractionRange — RULE-MINE-001 Precondition 2 의 거리 한계
 export const INTERACTION_RANGE = 2.0;
 
+/**
+ * 되돌아옴이 **눈에 보이기 시작하는** 지점 — recoverySeconds 에 대한 비율 (C013 ADDED).
+ *
+ * 이 비율을 넘으면 phase 가 depleted 에서 recovering 으로 넘어간다: 그림이 갈리고 둘레 흙이
+ * 다시 짙어지며, 자리를 옮기는 원천은 그때 다음 마디로 옮겨 선다 (RULE-SOURCE-RECOVERY-001).
+ *
+ * 0.5 로 둔다 — Design 은 phase 셋만 말하고 언제 보이기 시작하는지는 말하지 않는다
+ * (spec 기본형 ①). 절반은 흔적이 **예보**일 만큼 이르고(미리 가서 기다릴 수 있다),
+ * 캐자마자 자리가 옮겨지지 않을 만큼 늦다.
+ *
+ * 결정론에 영향을 주는 시뮬레이션 상수이므로 CVar 가 아니라 헤더 상수로 고정한다 (원칙 6).
+ * **회복의 길이**는 여기 없다 — 그것은 원천마다 다른 세계 데이터다 (content/regions · D3).
+ */
+export const RECOVERY_VISIBLE_FRACTION = 0.5;
+
 // Actor.MoveSpeed · AttackRange · PerceptionRange 는 종류가 정하는 값이다 —
 // character-catalog.ts 가 단일 출처다 (구 MOVE_SPEED/NPC_MOVE_SPEED/ATTACK_RANGE/PERCEPTION_RANGE).
 
@@ -87,4 +102,4 @@ export const TICK_INTERVAL = 1 / 30;
 // C011 — deposits 가 사라지고 소지품의 품목이 재료가 된다. 옛 스냅샷은 복구되지 않는다.
 // C012 — 방의 State 가 규칙과 원천을 함께 든다 (RegionState.rule · .sources). 형태가 바뀌므로
 //        옛 스냅샷은 복구되지 않는다 (spec SPEC-009 경계).
-export const STATE_VERSION = 'hkt-adv-proto-i/5';
+export const STATE_VERSION = 'hkt-adv-proto-i/6';
