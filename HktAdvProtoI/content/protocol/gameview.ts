@@ -93,6 +93,21 @@ export interface EntityView extends CoreEntityView {
    * 무엇이 무엇에 매달렸는지는 실리지 않는다 — 세계는 "지금 멎었다" 만 말한다.
    */
   conditions?: string[];
+  /**
+   * 그 원천이 **지금 선 마디**의 번호 — 마디를 여럿 가진 원천에만 실린다 (C013 ADDED).
+   *
+   * 마디의 좌표는 실리지 않는다. 관찰자가 자기 content/regions 의 presence 곡선에서
+   * 이 번호로 자리를 얻는다 (땅 · 흔적 · 붕괴를 스스로 얻는 C005~C007 · C011 · C012 의
+   * 규율 그대로). 지금 서 있는 자리 자체는 이미 `position` 이 말한다.
+   */
+  siteIndex?: number;
+  /**
+   * **무너진 채 남은 마디**들의 번호 — 무너진 것이 있는 원천에만 실린다 (C013 ADDED).
+   *
+   * 원천이 자리를 옮겨도 옛 자리는 무너진 채 남으므로(§5.6), 무너짐은 원천의 phase 가
+   * 아니라 **자리**가 기억한다. 하나도 없으면 자리 자체가 없다 (빈 배열로 지어내지 않는다).
+   */
+  collapsedSites?: number[];
 }
 
 export interface InteractionView extends CoreInteractionView {
