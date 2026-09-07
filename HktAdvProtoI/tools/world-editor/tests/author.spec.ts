@@ -152,7 +152,7 @@ describe('T3 — 관찰자가 걸어 흔적 → 원천에 닿는다', () => {
     expect(soilStainLevel(traces[0]!.tag)).toBe(base);
     expect(soilStainLevel(traces[1]!.tag)).toBe(base + 1);
     // 짙은 쪽이 곧 원천의 자리다 — 흔적을 따라가면 원천에 닿는다
-    expect(traces[1]!.id).toBe(authored.spec.resourceEcology!.sources[0]!.traceOp);
+    expect(traces[1]!.id).toBe(authored.spec.resourceEcology!.sources[0]!.traceOps[0]);
   });
 });
 
@@ -188,6 +188,35 @@ describe('T3 — 두 번 내면 같다 · 굳힌 것은 데이터다', () => {
     // 값 하나와 이름 하나뿐 — 함수도 클래스도 조건도 없다
     expect(module).not.toMatch(/\bfunction\b|\bclass\b|\bif\s*\(|=>/);
     expect(module.match(/^export /gm)?.length).toBe(2);
+  });
+
+  it('굳힌 파일이 **컴파일된다** — 값이 맞아도 형이 다르면 그 방은 서지 못한다', () => {
+    // fixtures/gas-village.generated.ts 는 이 글자를 굳혀 둔 것이고, tsc 가 그 리터럴을 잰다.
+    // 여기서는 생성기가 여전히 같은 글자를 내는지만 본다 — 둘이 갈리면 굳힌 것이 낡은 것이다.
+    const frozen = readFileSync(
+      fileURLToPath(new URL('./fixtures/gas-village.generated.ts', import.meta.url)),
+      'utf8',
+    );
+    const fresh = renderRegionModule(authored).replace(
+      /from '\.\//g,
+      "from '../../../../content/regions/",
+    );
+    expect(frozen.endsWith(fresh)).toBe(true);
+    // 형이 요구하는 것을 다 낸다 — 하나라도 빠지면 굳힌 파일이 tsc 에서 멎는다
+    const source = authored.spec.resourceEcology!.sources[0]!;
+    expect(Object.keys(source)).toEqual([
+      'id',
+      'materialId',
+      'worldCause',
+      'form',
+      'carrier',
+      'opportunity',
+      'supply',
+      'recoveryCause',
+      'harvests',
+      'recoverySeconds',
+      'traceOps',
+    ]);
   });
 
   it('아직 답하지 못한 질문이 굳힌 파일에 적힌다 — 뼈대가 비어 있다는 것을 숨기지 않는다', () => {

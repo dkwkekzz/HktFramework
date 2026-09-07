@@ -28,7 +28,17 @@ function sound(): unknown {
       danger: '이것이 위험하다',
       worth: {
         said: '이것이 귀하다',
-        sources: [{ id: 'S', material: 'M', heldBy: '땅', form: '드러난 것', role: 'baseline' }],
+        sources: [
+          {
+            id: 'S',
+            material: 'M',
+            heldBy: '땅',
+            worldCause: '이것이 낳는다',
+            recoveryCause: '이것이 되돌린다',
+            form: '드러난 것',
+            role: 'baseline',
+          },
+        ],
       },
       discovery: '이것을 알게 된다',
       opening: '이것이 열린다',
@@ -121,7 +131,17 @@ describe('RegionBrief — 형이 물리치는 것', () => {
       const a = b.answers as Record<string, unknown>;
       a.worth = {
         said: '이것이 귀하다',
-        sources: [{ id: 'S', material: 'M', heldBy: '구름', form: '덩이', role: '아무도 안 쓰는 자리' }],
+        sources: [
+          {
+            id: 'S',
+            material: 'M',
+            heldBy: '구름',
+            worldCause: '아무도 안 쓰는 과정',
+            recoveryCause: '아무도 안 쓰는 원인',
+            form: '덩이',
+            role: '아무도 안 쓰는 자리',
+          },
+        ],
       };
     });
     expect(result.ok).toBe(true);

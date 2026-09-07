@@ -20,6 +20,8 @@
           "id": "LAKE_SILT_BED",
           "material": "BIO_ORE",
           "heldBy": "water",
+          "worldCause": "FOREST_CHAIN",
+          "recoveryCause": "lake-settling",
           "form": "silt-bed",
           "role": "risk"
         }

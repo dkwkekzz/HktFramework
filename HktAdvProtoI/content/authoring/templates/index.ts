@@ -56,11 +56,13 @@ const BY_DEPTH = {
  *   conditional  조건이 맞아야 다시 맺힌다. 한 번에 하나 (거목의 뿌리혹)
  *   by-product   곁딸려 나오는 것. 아직 이 세계에 선 예가 없어 baseline 을 따르되 덜 준다
  */
+// recoverySeconds 는 지금 선 방들이 쓰는 값에서 왔다 — 역할마다 하나씩 (지어낸 수가 아니다):
+//   baseline 60(허물) · 90(폐허) → 60 · conditional 30(물길) · by-product 120(사체) · risk 180(광맥 · 뿌리혹 · 호수)
 const SOURCE_BY_ROLE = {
-  baseline: { supply: 'baseline-renewable', harvests: 3 },
-  risk: { supply: 'migratory', harvests: 3, collapses: true },
-  conditional: { supply: 'conditional-renewable', harvests: 1 },
-  'by-product': { supply: 'baseline-renewable', harvests: 1 },
+  baseline: { supply: 'baseline-renewable', harvests: 3, recoverySeconds: 60 },
+  risk: { supply: 'migratory', harvests: 3, collapses: true, recoverySeconds: 180 },
+  conditional: { supply: 'conditional-renewable', harvests: 1, recoverySeconds: 30 },
+  'by-product': { supply: 'baseline-renewable', harvests: 1, recoverySeconds: 120 },
 } as const;
 
 export const WORLD_AUTHOR_TEMPLATES: AuthorTemplates = {

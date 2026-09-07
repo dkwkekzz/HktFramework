@@ -19,6 +19,8 @@
           "id": "ROOT_NODULE",
           "material": "BIO_ORE",
           "heldBy": "plant",
+          "worldCause": "FOREST_CHAIN",
+          "recoveryCause": "tree-uptake",
           "form": "root-nodule",
           "role": "risk"
         }
