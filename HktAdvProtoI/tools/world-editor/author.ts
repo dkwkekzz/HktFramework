@@ -111,13 +111,30 @@ export function checkAuthored(authored: AuthoredRegion): CheckReport {
       coreRules: 0,
     },
   ];
+  return checkBeside(regions, {
+    ...REGION_GRAPH,
+    regions: [...REGION_GRAPH.regions, authored.spec.id],
+    connectors: [...REGION_GRAPH.connectors, ...authored.connectors],
+  });
+}
+
+/**
+ * 후보 **없이** 같은 검사를 돌린다 — 편중 요약이 견줄 바탕이다 (T6).
+ *
+ * `checkAuthored` 와 **같은 잣대**여야 한다. 한쪽만 재료 계통 검사를 걸면 견준 차이가
+ * 후보 때문인지 잣대 때문인지 갈리지 않는다. 그래서 둘 다 같은 자리(`checkBeside`)를 지난다.
+ */
+export function checkBaseline(): CheckReport {
+  return checkBeside(WORLD_CHECK_REGIONS, REGION_GRAPH);
+}
+
+function checkBeside(
+  regions: readonly CheckRegion[],
+  graph: typeof REGION_GRAPH,
+): CheckReport {
   return checkRegions({
     regions,
-    graph: {
-      ...REGION_GRAPH,
-      regions: [...REGION_GRAPH.regions, authored.spec.id],
-      connectors: [...REGION_GRAPH.connectors, ...authored.connectors],
-    },
+    graph,
     contract: WORLD_CHECK_CONTRACT,
     compile: (region) => compileRegion(region.space, COMPILE_RULES).world,
   });
@@ -203,6 +220,21 @@ export function renderSeams(authored: AuthoredRegion): string {
   return lines.join('\n');
 }
 
+/**
+ * 뼈대 하나를 이 저장소의 자리에 굳힌다 — 어느 폴더에 무슨 이름인지는 저장소의 사정이므로
+ * 도구가 안다 (기반은 값만 낸다). 굳힌 자리를 돌려준다.
+ *
+ * 승인 표면(T6 의 world:admit)도 같은 자리를 지난다 — 세계에 방이 들어오는 길은 하나여야 한다.
+ */
+export function writeRegionModule(authored: AuthoredRegion, dir = 'content/regions'): string {
+  const slug = authored.spec.id.toLowerCase().replace(/_/g, '-');
+  const path = `${dir}/${slug}.ts`;
+  const out = resolve(ROOT, path);
+  mkdirSync(dirname(out), { recursive: true });
+  writeFileSync(out, renderRegionModule(authored), 'utf8');
+  return path;
+}
+
 function main(argv: readonly string[]): number {
   const files = argv.filter((a) => !a.startsWith('-'));
   const flags = argv.filter((a) => a.startsWith('-'));
@@ -228,12 +260,9 @@ function main(argv: readonly string[]): number {
   const authored = authorFromFile(path);
   const module = renderRegionModule(authored);
   if (flags.includes('--write')) {
-    const slug = authored.spec.id.toLowerCase().replace(/_/g, '-');
-    const out = resolve(ROOT, 'content/regions', `${slug}.ts`);
-    mkdirSync(dirname(out), { recursive: true });
-    writeFileSync(out, module, 'utf8');
+    const written = writeRegionModule(authored);
     process.stdout.write(
-      `${renderGrade(grade)}\n\n  굳혔다: content/regions/${slug}.ts\n\n${renderSeams(authored)}\n`,
+      `${renderGrade(grade)}\n\n  굳혔다: ${written}\n\n${renderSeams(authored)}\n`,
     );
     return 0;
   }

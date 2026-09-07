@@ -2,12 +2,17 @@
 //
 //   npm run world:draft -- "<미지 한 줄>"            낼 것을 글자로 보인다 (파일을 쓰지 않는다)
 //   npm run world:draft -- "<미지 한 줄>" --write    content/authoring/briefs/<ID>.json 을 굳힌다
+//   npm run world:draft -- --batch <목록파일>        여러 줄을 돌려 **후보**로 남긴다 (T6)
 //   쓸 수 있는 것: --attempts <N> (되먹임 상한 · 기본 3) · --model <이름> (기본 opus)
 //                  --answer <파일> (모델을 부르지 않고 그 파일을 답으로 — 재현 · 시험용)
+//                  --out <디렉터리> (후보가 머무는 자리 · 기본 tools/world-editor/out/candidates)
 //
 // 고리는 기반이 돈다 (engine/world-authoring/draft.ts). 이 도구가 하는 일은 넷이다:
 // **모델을 부르는 것** · 시스템 글을 짓도록 문서를 열어 주는 것 · 낸 것을 이 세계에 넣어 재는 것
 // (T4 → T3 → T1) · 통과한 것을 파일로 굳히는 것.
+//
+// 목록(`--batch`)으로 돌리면 굳히는 자리가 다르다 — 세계도 briefs/ 도 아니라 **후보가 머무는
+// 자리**다 (candidates.ts). 백 줄을 돌린 뒤 무엇을 세계에 들일지는 판정 표면이 정한다 (world:lab).
 //
 // ── 모델을 어떻게 부르는가
 //
@@ -50,6 +55,13 @@ import {
 } from '../../engine/world-authoring/draft';
 import { gradeRegion, type GradeResult } from '../../engine/world-authoring/grade';
 import { authorBrief, checkAuthored, renderGrade } from './author';
+import {
+  CANDIDATES_DIR,
+  judge,
+  topViewOf,
+  writeCandidate,
+  type Candidate,
+} from './candidates';
 import { runWorldCheck } from './check';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -204,20 +216,93 @@ export function claudePort(options: ClaudeOptions): DraftPort {
   };
 }
 
+/**
+ * 시스템 글은 한 번만 짓는다. 확정 문서를 다 읽고 검사를 한 바퀴 돌리는 일이라,
+ * 백 줄을 돌리는 동안 백 번 다시 지으면 그것만으로 시간이 간다. 한 번 도는 사이에
+ * 세계가 바뀌지 않으므로 같은 글이다 (`draftSystem` 자체는 그대로 순수하다).
+ */
+let cachedSystem: string | undefined;
+
 /** 미지 한 줄 하나를 돌린다 — 부르는 쪽(시험 · CLI)이 port 를 정한다 */
 export function runDraft(
   unknown: string,
   ask: DraftPort,
   attempts: number,
 ): Promise<DraftResult> {
+  cachedSystem ??= draftSystem();
   return draftRegion({
     unknown,
-    system: draftSystem(),
+    system: cachedSystem,
     schema: draftSchema(),
     ask,
     trial: trialBrief,
     attempts,
   });
+}
+
+/**
+ * 미지 목록 하나 → 후보 여럿 (T6 ADDED). 한 줄에 미지 하나이고, 빈 줄과 `#` 로 시작하는 줄은
+ * 건너뛴다 — 목록에 사람이 이유를 적을 자리를 남기기 위해서다.
+ *
+ * **서지 못한 줄도 후보로 남긴다.** 왜 못 섰는지가 판정 표면에서 읽혀야 하고, 그것이 다음
+ * 미지 한 줄을 어떻게 적을지를 사람에게 알려 준다. 세계는 어느 쪽으로도 만지지 않는다.
+ */
+export function readUnknownList(text: string): string[] {
+  return text
+    .split('\n')
+    .map((line) => line.trim())
+    .filter((line) => line !== '' && !line.startsWith('#'));
+}
+
+export interface BatchOptions {
+  attempts: number;
+  dir: string;
+  /** 한 줄이 끝날 때마다 부른다 — 백 줄이 도는 동안 사람이 진행을 볼 수 있어야 한다 */
+  onDone?: (candidate: Candidate, index: number, total: number) => void;
+}
+
+/** 목록 하나를 다 돌린다. 한 줄이 던져도 나머지는 계속 돈다 — 백 줄이 하나 때문에 멎지 않는다 */
+export async function runBatch(
+  unknowns: readonly string[],
+  ask: DraftPort,
+  options: BatchOptions,
+): Promise<Candidate[]> {
+  const candidates: Candidate[] = [];
+  for (const [index, unknown] of unknowns.entries()) {
+    let candidate: Candidate;
+    try {
+      const result = await runDraft(unknown, ask, options.attempts);
+      const judgement = judge(unknown, result);
+      candidate = {
+        // 형도 못 갖춘 답에는 이름이 없다 — 줄 번호로 부른다
+        key: result.brief?.id ?? `LINE-${String(index + 1).padStart(3, '0')}`,
+        ...(result.brief ? { brief: result.brief } : {}),
+        judgement,
+        ...(result.outcome === 'passed' && result.brief
+          ? { topPng: topViewOf(result.brief) }
+          : {}),
+      };
+    } catch (error) {
+      // 부르다 만 것도 남긴다 — 조용히 사라지면 백 줄 가운데 무엇이 빠졌는지 알 수 없다
+      candidate = {
+        key: `LINE-${String(index + 1).padStart(3, '0')}`,
+        judgement: {
+          unknown,
+          outcome: 'exhausted',
+          blocking: [],
+          pending: [],
+          shifts: [],
+          rounds: [
+            { round: 0, stage: 'shape', problems: [`묻다가 멎었다: ${(error as Error).message}`] },
+          ],
+        },
+      };
+    }
+    writeCandidate(options.dir, candidate);
+    candidates.push(candidate);
+    options.onDone?.(candidate, index + 1, unknowns.length);
+  }
+  return candidates;
 }
 
 /** 굳힌 brief 가 놓일 자리 */
@@ -248,6 +333,25 @@ export function renderDraft(result: DraftResult, grade?: GradeResult): string {
   return lines.join('\n');
 }
 
+/** 목록 하나를 돌린 뒤의 보고 — 몇이 섰고 몇이 돌아왔는가, 그리고 다음에 무엇을 하는가 */
+export function renderBatch(candidates: readonly Candidate[], dir: string): string {
+  const count = (outcome: string) =>
+    candidates.filter((c) => c.judgement.outcome === outcome).length;
+  const gradeCount = (grade: string) =>
+    candidates.filter((c) => c.judgement.grade === grade).length;
+  return [
+    '',
+    `  ${candidates.length} 줄을 돌렸다 — 선 것 ${count('passed')} (A ${gradeCount('A')}) ·` +
+      ` 돌아온 것 ${count('returned')} (B ${gradeCount('B')} · C ${gradeCount('C')}) ·` +
+      ` 못 선 것 ${count('exhausted')}`,
+    `  후보가 머무는 자리: ${dir}`,
+    '',
+    '  나란히 놓고 보려면:',
+    '    npm run world:lab',
+    '',
+  ].join('\n');
+}
+
 async function main(argv: readonly string[]): Promise<number> {
   const words = argv.filter((arg) => !arg.startsWith('--'));
   const valueOf = (name: string): string | undefined => {
@@ -255,20 +359,28 @@ async function main(argv: readonly string[]): Promise<number> {
     return at >= 0 ? argv[at + 1] : undefined;
   };
   const flags = argv.filter((arg) => arg.startsWith('--'));
-  const known = ['--write', '--attempts', '--model', '--answer'];
+  const known = ['--write', '--attempts', '--model', '--answer', '--batch', '--out'];
   const unknownFlags = flags.filter((flag) => !known.includes(flag));
   // 값을 가진 인자의 값은 낱말로 세지 않는다
-  const values = ['attempts', 'model', 'answer'].map(valueOf).filter((v) => v !== undefined);
+  const values = ['attempts', 'model', 'answer', 'batch', 'out']
+    .map(valueOf)
+    .filter((v) => v !== undefined);
   const line = words.filter((word) => !values.includes(word));
+  const batchFile = valueOf('batch');
+  // 목록을 돌릴 때는 미지 한 줄을 인자로 받지 않는다 — 목록이 그 자리다
+  const wantsLine = batchFile === undefined;
 
-  if (line.length !== 1 || unknownFlags.length > 0) {
+  if ((wantsLine ? line.length !== 1 : line.length !== 0) || unknownFlags.length > 0) {
     process.stderr.write(
       [
-        '  world:draft — 미지 한 줄에서 brief 하나를 낸다',
+        '  world:draft — 미지 한 줄(또는 목록 하나)에서 방을 낸다',
         unknownFlags.length > 0
           ? `    모르는 인자: ${unknownFlags.join(' ')}`
-          : '    미지 한 줄을 따옴표로 묶어 하나만 밝힌다',
+          : wantsLine
+            ? '    미지 한 줄을 따옴표로 묶어 하나만 밝힌다'
+            : '    --batch 를 쓰면 미지는 목록 파일이 든다 — 인자로 또 밝히지 않는다',
         '    사용: npm run world:draft -- "<미지 한 줄>" [--write] [--attempts N] [--model 이름] [--answer 파일]',
+        '          npm run world:draft -- --batch <목록파일> [--out 디렉터리] [--attempts N] [--model 이름]',
         '',
       ].join('\n'),
     );
@@ -284,6 +396,31 @@ async function main(argv: readonly string[]): Promise<number> {
   const ask: DraftPort = answerFile
     ? async () => JSON.parse(readFileSync(resolve(ROOT, answerFile), 'utf8'))
     : claudePort({ model: valueOf('model') ?? 'opus', timeout: 10 * 60 * 1000 });
+
+  if (batchFile !== undefined) {
+    const unknowns = readUnknownList(readFileSync(resolve(ROOT, batchFile), 'utf8'));
+    if (unknowns.length === 0) {
+      process.stderr.write(`  목록에 미지가 한 줄도 없다: ${batchFile}\n`);
+      return 2;
+    }
+    const dir = valueOf('out') ?? CANDIDATES_DIR;
+    const candidates = await runBatch(unknowns, ask, {
+      attempts,
+      dir,
+      onDone: (candidate, index, total) =>
+        process.stdout.write(
+          `  ${String(index).padStart(String(total).length)}/${total}  ${
+            candidate.judgement.outcome === 'passed'
+              ? `등급 ${candidate.judgement.grade}`
+              : candidate.judgement.outcome === 'returned'
+                ? '돌아옴 '
+                : '못 섬  '
+          }  ${candidate.key}\n`,
+        ),
+    });
+    process.stdout.write(renderBatch(candidates, dir));
+    return 0;
+  }
 
   const result = await runDraft(line[0]!, ask, attempts);
   const grade = result.brief ? gradeRegion(result.brief, WORLD_CONTRACTS) : undefined;
