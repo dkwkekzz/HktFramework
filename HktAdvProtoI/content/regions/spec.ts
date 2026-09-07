@@ -7,6 +7,7 @@
 // 경계 규칙 4 — content/regions 는 engine 만 import 한다. world 와 view 가 함께 읽는 데이터 폴더다.
 
 import type { RegionDescription } from '../../engine/world-authoring/description';
+import type { RegionPhases } from './phases';
 import type { RegionResourceEcology } from './resource-ecology';
 
 /**
@@ -60,6 +61,20 @@ export interface RegionSpec {
    * 하나다 — 자리는 땅의 일이라 Description 이 소유해야 컴파일·관찰·검사가 다 같은 것을 본다.
    */
   resourceEcology?: RegionResourceEcology;
+  /**
+   * 철마다 이 방이 달라지는 것 — **방이 시계를 읽는다** (C016 ADDED · L2-World-Time §2.4 · §3).
+   *
+   * 없으면 철이 몇 번을 돌아도 한 값도 달라지지 않는 방이다 — 백왕령과 미로가 그렇고,
+   * 그것은 결핍이 아니라 "달라지는 것은 데이터가 밝힌 것뿐" 이라는 규율이다 (원칙 T3).
+   * rule?(C008) · resourceEcology?(C011) 가 없는 방이 그 계통 밖인 것과 같은 어법이다.
+   *
+   * **덧씌움이지 재컴파일이 아니다** (T4 · T6) — 높이도 표면도 통행 격자도 hash 도 한 값
+   * 바뀌지 않고, 컴파일된 땅 위에 State 가 얹힐 뿐이다.
+   *
+   * 규칙 코드는 철의 이름을 알지 못한다 — 아는 것은 "위상을 밝힌 방" 뿐이고, 어느 철에
+   * 무엇이 달라지는지는 여기에만 있다 (rule? 의 선례 그대로 · C004 가 세운 규율).
+   */
+  phases?: RegionPhases;
 }
 
 /** "드나드는 곳" 을 적는 layer 이름 — Connector 의 anchor 는 이 layer 의 point 다 */

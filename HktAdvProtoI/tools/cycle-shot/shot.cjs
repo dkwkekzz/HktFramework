@@ -17,6 +17,8 @@
 //         "pattern": "FANTASY_MAZE:P2",      (선택) 규칙을 품은 방이 어느 패턴으로 서는가 (같은 손잡이)
 //         "npcRegion": "FANTASY_MAZE",       (선택) 자율 존재를 그 방에 놓는다 (같은 손잡이)
 //         "sourcePhase": "ORE_OUTCROP:depleted",  (선택) 원천이 어느 phase 로 서는가 (C012 · 같은 손잡이)
+//         "clock": "LONG_NIGHT",                 (선택) 세계가 **어느 때에서 서는가** — 철 또는 "철:낮밤"
+//                                            (C015 · 같은 손잡이). 한 바퀴가 37 분이라 기다릴 수 없다
 //         "companion": true,                 (선택) **두 번째 관찰자**를 함께 들여보낸다 (창을 하나 더 연다).
 //                                            세계가 하나임을 찍으려면 사람이 둘이어야 한다 (C010).
 //                                            그 몸은 SPAWN_POINTS[1] 에 선다 — region 은 첫 관찰자와 같다
@@ -53,7 +55,7 @@ const outDir = path.resolve(baseDir, scenario.out ?? 'shots');
 fs.mkdirSync(outDir, { recursive: true });
 const [vw, vh] = scenario.viewport ?? [560, 420];
 
-function startVite(spawnAt, npcs, region, regionPattern, npcRegion, sourcePhase) {
+function startVite(spawnAt, npcs, region, regionPattern, npcRegion, sourcePhase, clock) {
   const env = { ...process.env };
   if (spawnAt) env.HKT_SPAWN = spawnAt;
   else delete env.HKT_SPAWN;
@@ -69,6 +71,10 @@ function startVite(spawnAt, npcs, region, regionPattern, npcRegion, sourcePhase)
   // 원천이 어느 phase 로 서는가 — "SOURCE:PHASE" (C012 · vite.config.ts 의 같은 손잡이)
   if (sourcePhase) env.HKT_SOURCE_PHASE = sourcePhase;
   else delete env.HKT_SOURCE_PHASE;
+  // 세계가 어느 때에서 서는가 — "LONG_NIGHT" · "SEEP:NIGHT" (C015 · vite.config.ts 의 같은 손잡이).
+  // 한 바퀴가 2220 세계 초(37 분)라 촬영이 긴 밤도 뒤척임도 기다릴 수 없다
+  if (clock) env.HKT_CLOCK = clock;
+  else delete env.HKT_CLOCK;
   if (npcRegion) env.HKT_NPC_REGION = npcRegion;
   else delete env.HKT_NPC_REGION;
   const child = spawn(
@@ -118,6 +124,7 @@ async function runOne(run, index, report) {
     run.pattern,
     run.npcRegion,
     run.sourcePhase,
+    run.clock,
   );
   const browser = await launch();
   const page = await browser.newPage({ viewport: { width: vw, height: vh } });

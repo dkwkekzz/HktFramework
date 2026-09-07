@@ -41,7 +41,9 @@ export function ruleRegionFall(state: WorldState): void {
 
       const here = anchorPosition(exit.here.region, exit.here.anchor);
       if (distance(actor.position, here) > INTERACTION_RANGE) continue;
-      if (!isConnectorOpen(state.regionStates, exit.connector.id)) continue;
+      // C016 CHANGED — 열림 판정이 세계 시각도 함께 본다 (spec R4). 묻는 것도 자리도 그대로다:
+      // 철 때문에 닫힌 길로도 떨어지지 않는다 (사유를 물을 자리가 없으므로 갈래도 없다).
+      if (!isConnectorOpen(state.regionStates, exit.connector.id, state.time)) continue;
       if (!isRegionBuilt(exit.there.region)) continue;
 
       applyRegionTransition(actor, exit);

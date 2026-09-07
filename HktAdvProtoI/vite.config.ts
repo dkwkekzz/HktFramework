@@ -34,6 +34,7 @@ function spawnFromEnv(): {
   regionPatterns?: Record<string, string>;
   npcRegion?: string;
   sourcePhases?: Record<string, string>;
+  clock?: string;
 } {
   const setup: {
     actorPosition?: { x: number; z: number };
@@ -42,6 +43,7 @@ function spawnFromEnv(): {
     regionPatterns?: Record<string, string>;
     npcRegion?: string;
     sourcePhases?: Record<string, string>;
+    clock?: string;
   } = {};
   // HKT_REGION_PATTERN="REGION:PATTERN" — 규칙을 품은 방이 어느 패턴으로 서는가 (C009).
   // 같은 갈래의 검증용 손잡이다 — 걸어서 닿을 수 있는 State 를 걸어가지 않고 시작한다.
@@ -83,6 +85,12 @@ function spawnFromEnv(): {
     }
     if (Object.keys(phases).length > 0) setup.sourcePhases = phases;
   }
+  // HKT_CLOCK="LONG_NIGHT" 또는 "SEEP:NIGHT" — 세계가 **어느 때에서 시작하는가** (C015).
+  // HKT_SOURCE_PHASE 와 같은 갈래의 검증용 손잡이다 — 기다려서 닿을 수 있는 때를 기다리지 않고
+  // 시작한다. 한 바퀴가 2220 초(37 분)라 긴 밤도 뒤척임도 촬영 하네스가 기다릴 수 없다.
+  // 세우는 것은 그냥 흐른 세계 시각뿐이고 세계의 규칙은 하나도 바뀌지 않는다 —
+  // 모르는 철 · 그 철에 오지 않는 낮밤은 세계가 조용히 무시한다.
+  if (process.env.HKT_CLOCK) setup.clock = process.env.HKT_CLOCK;
   // HKT_SPAWN_REGION — 어느 **방**에서 시작할 것인가. 방이 여럿이 되면서 자리만으로는
   // 모자란다 (C002): 걷기가 이어지지 않는 촬영에서 백왕령 밖의 방을 보려면 거기서 시작해야 한다.
   if (process.env.HKT_SPAWN_REGION) setup.actorRegion = process.env.HKT_SPAWN_REGION;

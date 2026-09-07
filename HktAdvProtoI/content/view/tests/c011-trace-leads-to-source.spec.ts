@@ -184,6 +184,8 @@ function made(options: Made = {}): GameViewSnapshot {
     scene: region,
     region: { id: region, hash: hashOf(region) },
     standingConditions: [],
+    // C015 — 봉투에 때가 실린다. 이 시나리오가 보는 것은 때가 아니므로 고요의 낮 하나로 둔다
+    clock: { dayPhase: 'DAY', season: 'STILL', dayIndex: 0, seasonCycle: 0 },
     observer: { id: 'observer-a', characterId: ME.id, acknowledgedMark: 0 },
     entities: options.entities ?? [ME, NODULE],
     interactions: options.interactions ?? [MOVE, HARVEST_FAR],

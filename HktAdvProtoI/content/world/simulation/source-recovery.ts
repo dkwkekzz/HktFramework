@@ -3,7 +3,8 @@
 // Trigger        세계의 Tick (dt)
 // Condition      그 원천에 **진행을 멎게 하는 조건**이 걸려 있지 않다 —
 //                매달린 원천이 available 이 아니거나(recovery-stalled) ·
-//                유입 흐름이 지금 실어 오지 않는다(condition-unmet)면 멎는다
+//                유입 흐름이 지금 실어 오지 않거나(condition-unmet) ·
+//                지금이 그 원천의 철이 아니면(not-this-season · C016) 멎는다
 // Transition     progress += dt.
 //                progress ≥ recoverySeconds × RECOVERY_VISIBLE_FRACTION 이고 depleted 면
 //                    phase = recovering · 자리를 옮기는 원천이면 siteIndex = 무너지지 않은 다음 마디
@@ -21,11 +22,17 @@
 // 답하는 그것을 그대로 읽는다. 그래서 관찰 결과에 실리는 `recovery-stalled` · `condition-unmet` 과
 // 실제로 멎는 것이 **같은 판정**이다 (spec R2 — 표시가 아니라 원인이다).
 //
+// C016 CHANGED (spec R7) — **철도 그 판정에 든다.** 이 규칙은 어느 원천이 철을 타는지 묻지
+// 않는다: 조건 코드가 이미 그것을 말하므로 여기서 아는 것은 "멎게 하는 코드가 걸렸는가"
+// 하나뿐이고, 어느 철에 무엇이 나는지는 데이터와 세계 시각의 것이다. **한 줄도 바뀌지 않은
+// 것** — 되돌아옴의 문턱도 자리 옮김도 그대로다 (spec R9).
+//
 // C014 CHANGED — 흐름의 주기도 그 판정에 든다. 이 규칙은 **어느 원천이 흐름을 가졌는지 묻지
 // 않는다**: 조건 코드가 이미 그것을 말하므로 여기서 아는 것은 "멎게 하는 코드가 걸렸는가"
 // 하나뿐이고, 주기도 흐름의 출발도 데이터와 세계 시각의 것이다.
 
 import { CONDITION_UNMET, RECOVERY_STALLED } from '../../regions';
+import { NOT_THIS_SEASON } from '../semantic/region-phase';
 import { nextStandableSite, sourceConditions, sourcesInRegion } from '../semantic/resource';
 import { RECOVERY_VISIBLE_FRACTION, type WorldState } from '../semantic/world-state';
 
@@ -41,11 +48,18 @@ export function ruleSourceRecovery(state: WorldState, dt: number): void {
       // 되돌아올 것이 없는 원천은 지나간다 — 되돌아옴은 **고갈된 것의 일**이다 (SPEC-010 경계).
       if (sourceState.phase === 'available') continue;
       // 걸린 조건 가운데 **진행을 멎게 하는 것**이 있으면 오르지 않는다 (C013 spec R1 ELSE · R2 ·
-      // C014 spec R2). 코드 셋 중 둘이 그것이다 — 매달린 것이 available 이 아니거나
-      // (recovery-stalled) 유입 흐름이 지금 실어 오지 않으면(condition-unmet) 멎는다.
+      // C014 spec R2 · C016 spec R7). 코드 넷 중 셋이 그것이다 — 매달린 것이 available 이
+      // 아니거나(recovery-stalled) · 유입 흐름이 지금 실어 오지 않거나(condition-unmet) ·
+      // 지금이 그 원천의 철이 아니면(not-this-season) 멎는다.
       // 남은 하나 flow-arrived 는 **실려 오는 중**이라는 뜻이므로 진행을 허락한다.
       const conditions = sourceConditions(state.regionStates, source, state.time);
-      if (conditions.includes(RECOVERY_STALLED) || conditions.includes(CONDITION_UNMET)) continue;
+      if (
+        conditions.includes(RECOVERY_STALLED) ||
+        conditions.includes(CONDITION_UNMET) ||
+        conditions.includes(NOT_THIS_SEASON)
+      ) {
+        continue;
+      }
 
       sourceState.progress += dt;
 

@@ -532,19 +532,21 @@ describe('SPEC-005 — 보고가 검사 아홉을 읊는다', () => {
     });
 
     // ① 자원과 위험 — 이 검사는 C007 때 빈 검사였다 (STATE §5 부채). C011 이 원천을 point 로,
-    // C012 가 노두의 붕괴 자리를 area 로 놓으면서 **① 이 실제로 놓인 것을 보기 시작했다.**
-    // 다만 hazard 는 아직 없다 — 한쪽만 놓였으면 "같은 근원인가" 를 잴 수 없으므로 통과로도
-    // 실패로도 적지 않고 **어느 쪽이 없어서 못 쟀는지**를 적는다 (T1)
+    // C012 가 노두의 붕괴 자리를 area 로 놓으면서 **① 이 실제로 놓인 것을 보기 시작했고**,
+    // C016 이 hazard 를 한 방에 놓으면서 **답을 내기 시작했다.**
+    // 판정은 **방 단위**다 — 원천은 있는데 위험이 아직 놓이지 않은 방은 끊긴 것이 아니라
+    // 아직 안 놓인 것이므로, 잰 방과 못 잰 방을 함께 적는다 (C016 · Human 결정)
     const resourceAreas = REGION_SPECS.flatMap((s) =>
       s.space.ops.filter((op) => op.kind === 'area' && op.layer === 'resource'),
     );
     expect(resourceAreas.length).toBeGreaterThan(0);
     expect(placedOf('resource').length).toBeGreaterThan(resourceAreas.length);
-    expect(placedOf('hazard')).toEqual([]);
+    // hazard 가 놓인 방이 있다 — 그래서 이 검사가 답을 낸다
+    expect(placedOf('hazard').length).toBeGreaterThan(0);
     const first = block('①');
     expect(first).not.toContain('놓인 것이 없다');
-    expect(first).toContain('짝이 없다');
-    expect(first).toContain('hazard');
+    expect(first).toContain('잰 방');
+    expect(first).toContain('아직 놓이지 않은 방');
     expect(first).toMatch(word(placedOf('resource').length));
 
     // ③ 조건 없이 선 settlement — 이 세계에는 settlement 가 놓여 있으므로 실제로 답을 낸다

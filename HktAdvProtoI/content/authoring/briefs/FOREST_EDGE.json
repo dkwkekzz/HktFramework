@@ -9,11 +9,9 @@
     "dwelling": {
       "unanswered": "이 방에는 anchor 말고 아무 것도 놓이지 않았다 — Design 이 준 것이 거기까지이고 없는 의미를 지어내지 않는다 — 무엇이 사는지는 3층(주체)이 서야 적힌다"
     },
-    "danger": {
-      "unanswered": "이 세계에 hazard layer 가 아직 놓이지 않았다 — 위험의 갈래는 Concept §3.1 이 어휘를 주었으나 컨텐츠 층 주입이 남았다. 이 방의 원천은 baseline 으로 적혀 있어 위험을 끼고 있지 않다"
-    },
+    "danger": "숲 안쪽으로 난 자락이 스밈에 한 단계 깊어지고, 그때 짐승이 거기를 제 자리로 삼는다. 그 자락에서 나는 것과 같은 자리다 — 위험과 보상이 같은 근원에서 온다.",
     "worth": {
-      "said": "광식충 허물이 나무 밑동에 남는다 — 위험을 끼지 않은 첫 재료다.",
+      "said": "광식충 허물이 나무 밑동에 남는다 — 위험을 끼지 않은 첫 재료다. 그리고 스밈에는 숲 안쪽으로 난 자락에 붉은 것이 배어 나와 굳는다 — 그때만이다.",
       "sources": [
         {
           "id": "MOLT_LITTER",
@@ -21,6 +19,13 @@
           "heldBy": "residue",
           "form": "molt-litter",
           "role": "baseline"
+        },
+        {
+          "id": "SEEP_CRUST",
+          "material": "BIO_ORE",
+          "heldBy": "terrain",
+          "form": "seep-crust",
+          "role": "conditional"
         }
       ]
     },

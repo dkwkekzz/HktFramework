@@ -614,6 +614,86 @@ const SOURCE_SILT_BED_RECOVERING = [
   '.....dddddd.....',
 ];
 
+// ── 스밈에만 나는 원천의 그림 셋 (C016 ADDED) ────────────────────────
+//
+// 일곱이 여덟이 된다. 갈랐던 규율을 그대로 잇는다 — 세계 위에 이름표가 없으므로
+// (RULE-QUIET-GROUND-001) 그림이 유일한 구분이고, 여덟째도 **실루엣부터** 갈린다:
+// 솟지도(노두) 뭉치지도(뿌리혹) 흩어지지도(허물 조각) 않고, 물에 잠기지도 않은
+// **땅에 넓게 눌어붙어 금이 간 한 장**이다. 일곱 가운데 갈라진 판은 없었다.
+//
+// **색을 새로 만들지 않는다.** 이것은 노두·뿌리혹과 같은 생체 광석이고 순도만 다르므로
+// (resource-ecology 의 forms 다섯) 그 계통의 색을 그대로 쓴다 — 마른 딱지는 탁한 붉은(X),
+// 금 사이로 배어 나온 것은 결정의 색(C·c), 땅에 닿는 밑동은 가장 깊은 결(G)이다.
+// 붉기의 사다리(노두 > 침전 > 알갱이)에서 이것은 **볕에 말라 검붉게 굳은 쪽**이다.
+//
+// 세 state 의 규율도 그대로다 — available 은 이어진 한 장, depleted 는 "있던 것이
+// 없어졌다"(딱지가 뜯겨 나가고 맨 바닥만 남는다), recovering 은 "없던 것이 다시 오는
+// 중이다"(맨 바닥은 자국으로 남고 그 위에 얇은 조각이 군데군데 다시 앉는다).
+// **언제 나는 것인지도 언제 다시 오는지도 말하지 않는다** (spec Observable "싣지 않는다").
+
+// 땅에 배어 나와 굳은 껍질 — 지표에 넓게 눌어붙은 딱지 한 장에 금이 갔고, 그 금마다
+// 아직 마르지 않은 붉은 것이 배어 있다. 낮고 넓되 낱낱으로 흩어지지 않은 **한 장**이다
+const SOURCE_SEEP_CRUST = [
+  '................',
+  '................',
+  '................',
+  '................',
+  '...XXXX..XXXXX..',
+  '.XXXXXXXXXXXXXXX',
+  'XXXXcXXXXXXcXXXX',
+  'XXXXcXXXXXXcXXXX',
+  'XcccCcccXXXcXXXX',
+  'XXXXXXXXcccCcccX',
+  'XXXXcXXXXXXXXXXX',
+  'XXXXcXXXXXXXcXXX',
+  '.XXXXXXXXXXXcXX.',
+  '..XXXXX..XXXXXX.',
+  '...GGG....GGGG..',
+  '................',
+];
+
+// 딱지가 뜯겨 나갔다 — 이어져 있던 한 장이 없고 마른 맨 바닥(d·D·e)만 드러났으며
+// 가장자리에 부스러기 몇 점만 남는다. 넓던 것이 좁아지는 것이 available 과 갈리는 자리다
+const SOURCE_SEEP_CRUST_DEPLETED = [
+  '................',
+  '................',
+  '................',
+  '................',
+  '................',
+  '................',
+  '....X.......X...',
+  '..ddddddddddddd.',
+  '.dDeeeeeeeeeeDd.',
+  '.DeeeeeeeeeeeeD.',
+  '.dDeeeeeeeeeeDd.',
+  '..ddddddddddddd.',
+  '...X.......X....',
+  '.X...........X..',
+  '................',
+  '................',
+];
+
+// 다시 배어 나오는 중이다 — 맨 바닥(depleted 의 그것 그대로)은 자국으로 남고 그 위에
+// 얇은 조각 둘만 앉았다. 이어진 한 장도, 한 점도 없는 것도 아니다
+const SOURCE_SEEP_CRUST_RECOVERING = [
+  '................',
+  '................',
+  '................',
+  '................',
+  '................',
+  '................',
+  '....X.......X...',
+  '..ddddddddddddd.',
+  '.dDIiIeeeIiIeDd.',
+  '.DeIIIeeeeIIIeD.',
+  '.dDeeeeeeeeeeDd.',
+  '..ddddddddddddd.',
+  '...X.......X....',
+  '.X...........X..',
+  '................',
+  '................',
+];
+
 // 곡괭이를 치켜든 자세 — 공격·채굴처럼 "휘두르는" 행동의 절차 그림
 const PLAYER_SWING = [
   '.........M......',
@@ -948,6 +1028,10 @@ const PIXEL_MAPS: Record<string, string[]> = {
   'source:silt-bed:available': SOURCE_SILT_BED,
   'source:silt-bed:depleted': SOURCE_SILT_BED_DEPLETED,
   'source:silt-bed:recovering': SOURCE_SILT_BED_RECOVERING,
+  // 여덟째의 셋 (C016) — 일곱이 여덟이 될 뿐, 키의 어법도 고르는 규칙도 그대로다
+  'source:seep-crust:available': SOURCE_SEEP_CRUST,
+  'source:seep-crust:depleted': SOURCE_SEEP_CRUST_DEPLETED,
+  'source:seep-crust:recovering': SOURCE_SEEP_CRUST_RECOVERING,
 };
 
 /** 이 팩의 스프라이트 표 — 조립 루트가 engine 의 registerSprites 에 넘긴다 */

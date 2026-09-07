@@ -294,5 +294,11 @@
     "open": true
   },
   "commands": [],
-  "standingConditions": []
+  "standingConditions": [],
+  "clock": {
+    "dayPhase": "DAY",
+    "season": "STILL",
+    "dayIndex": 0,
+    "seasonCycle": 0
+  }
 }

@@ -10,6 +10,8 @@
 // 재료를 하나 더 만드는 것 · 원천을 더하는 것 · 흔적을 옮기는 것은 전부 데이터 편집이다
 // (Play 불변 조건 — 코드 변경 없이 폴리싱).
 
+import type { SeasonId } from './phases';
+
 /** 그 원천을 무엇이 지고 있는가 (A.2 Carrier). 살아 있는 것(CREATURE)은 3층의 몫이다 (확정 2) */
 export type CarrierKind = 'residue' | 'terrain' | 'plant' | 'fungus' | 'water';
 
@@ -123,6 +125,17 @@ export interface ResourceSourceSpec {
    * resource layer point 하나가 유일한 마디다 (spec R4).
    */
   siteCurve?: string;
+  /**
+   * 그 철에만 선다 — 밝히지 않으면 언제나 선다 (C016 ADDED · Time §2.4 ③ 출현).
+   *
+   * 다른 철에는 그 자리에 원천이 **없다**. 바닥난 것도 되돌아오는 중인 것도 아니라
+   * 아직 그 철이 아닌 것이고, 그래서 조건 코드가 갈린다 (spec R6 · R7).
+   * 그 자리의 흔적(흙)은 그대로다 — 원천이 없다고 땅이 달라지지 않는다.
+   *
+   * 활성(Connector)의 철 조건이 graph 의 활성 표에 있는 것과 같은 규율이다: 판정하는
+   * 쪽이 하나여야 하므로 조건은 그 대상 곁에 산다.
+   */
+  occurrence?: { seasons: readonly SeasonId[] };
 }
 
 /** 조건 코드 — 되돌아오는 일이 멎었다 (Play §5.5 의 코드 그대로) */
@@ -177,6 +190,11 @@ export const FORM_SPOIL_PILE = 'spoil-pile';
 export const FORM_RIVER_GRAIN = 'river-grain';
 /** 호수 바닥의 침전 — 거목 속에서 계속 가라앉는 것 (C014 ADDED · A.2) */
 export const FORM_SILT_BED = 'silt-bed';
+/**
+ * 배어 나와 굳은 껍질 — 축적이 지표까지 밀려 올라와 마른 것 (C016 ADDED).
+ * 노두·뿌리혹과 **같은 Seed** 이고 순도만 다르다 (A.1 "같은 것의 여러 순도" · D2 ③).
+ */
+export const FORM_SEEP_CRUST = 'seep-crust';
 /** 사체 위 흰 균사 (C014 ADDED · A.1 거목균의 자연 형태) */
 export const FORM_NEST_MYCELIUM = 'nest-mycelium';
 
@@ -187,7 +205,15 @@ export const MATERIAL_SEEDS: readonly MaterialSeed[] = [
   {
     id: BIO_ORE,
     worldCause: FOREST_CHAIN,
-    forms: [FORM_OUTCROP, FORM_ROOT_NODULE, FORM_SILT_BED, FORM_RIVER_GRAIN],
+    // C016 CHANGED — 형태가 다섯이다. 지표로 배어 나와 굳은 껍질도 **같은 Seed** 다
+    // (순도를 늘린 것이지 종류를 늘린 것이 아니다 — C014 가 알갱이에 쓴 길 그대로)
+    forms: [
+      FORM_OUTCROP,
+      FORM_ROOT_NODULE,
+      FORM_SILT_BED,
+      FORM_RIVER_GRAIN,
+      FORM_SEEP_CRUST,
+    ],
   },
   // 광식충 허물 — 생체 광석을 먹는 벌레가 벗은 것. 폐허의 선광 더미에 섞인 것도 이것이다
   // (Play §4 Breath 의 추측 — "버려진 더미에도 같은 것이 섞여 있다")

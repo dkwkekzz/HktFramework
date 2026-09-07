@@ -68,6 +68,8 @@ export const ROLE_PRESENTATIONS: Readonly<Record<string, RolePresentation>> = {
       'nest-mycelium': 'source:nest-mycelium',
       'river-grain': 'source:river-grain',
       'silt-bed': 'source:silt-bed',
+      // 여덟째 (C016) — 표에 한 줄이 늘 뿐이다. 일곱이 여덟이 되어도 이 항목의 어법은 그대로다
+      'seep-crust': 'source:seep-crust',
     },
   },
   // 방의 출구 표식 (C001) — anchor 자리에 선 표식 하나. kind(= 전이 종류) 별 색은 region-presentation 의 표.

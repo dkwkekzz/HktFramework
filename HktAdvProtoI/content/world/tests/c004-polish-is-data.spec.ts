@@ -127,17 +127,18 @@ describe('SPEC-001 — 고대 문이 열려 있다', () => {
 });
 
 describe('SPEC-002 — 열린 문의 표식과 대답', () => {
-  it('S-005 숲 안쪽의 출구 다섯이 전부 state = open 이고 ANCIENT_GATE 의 kind 는 door 그대로다', () => {
+  // C016 CHANGED — 그 방의 출구가 여섯이 되었다 (긴 밤에만 열리는 문 하나). C004 가 데이터
+  // 한 줄로 연 다섯은 한 값도 다르지 않다 — 여기가 재는 것은 그 다섯이고, 세는 수만 옮긴다.
+  it('S-005 숲 안쪽에서 C004 가 연 다섯이 전부 state = open 이고 ANCIENT_GATE 의 kind 는 door 그대로다', () => {
     // Given 관찰자의 몸이 FOREST_DEEP 에 있다
     const v = standing(FOREST_DEEP, { x: 0, z: -18 }).observe();
-    // Then 다섯이 전부 열려 있다 (spec 이 못박은 한 방의 출구 수)
-    expect(exits(v).length).toBe(5);
-    expect(exits(v).filter((e) => e.state === 'locked')).toEqual([]);
+    // Then 그 다섯이 전부 열려 있다
+    expect(exits(v).length).toBe(6);
     for (const id of [ANCIENT_GATE, DEEP_TRAIL, NEST_TRAIL, ORE_TRAIL, TREE_APPROACH]) {
       expect(exitOf(v, id)?.state).toBe('open');
     }
     expect(exitOf(v, ANCIENT_GATE)?.kind).toBe('door');
-    expect(transits(v).length).toBe(5);
+    expect(transits(v).length).toBe(6);
   });
 
   it('S-006 아직 짓지 않은 곳을 가리키는 열린 문에 붙어 요청하면 사유는 region-not-built 다', () => {
@@ -538,6 +539,8 @@ describe('SPEC-007 — 색과 표식은 표다', () => {
       strikes: [],
       debug: { open: false },
       commands: [],
+      // C015 ADDED — 봉투가 세계의 때를 든다. 이 판은 표현의 폴백만 재므로 첫 낮으로 둔다
+      clock: { dayPhase: 'DAY', season: 'STILL', dayIndex: 0, seasonCycle: 0 },
     } as GameViewSnapshot;
   }
 

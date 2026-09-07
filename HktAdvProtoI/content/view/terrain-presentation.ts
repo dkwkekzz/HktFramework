@@ -18,8 +18,14 @@
 // C006 ADDED — 땅 위에 서는 것(instance). 색이 지면의 결이라면 이것은 지면에 꽂힌 표식이다.
 // 무엇을 그릴지도(sprite) 얼마나 크게 세울지도(worldHeight) 여기 표가 정한다 — 기반은
 // landmark 태그의 뜻을 모른 채 이 함수만 부른다.
+//
+// C015 ADDED — **때의 분위기**(하늘 색 · 주변광 · 해). 위의 색들이 "무엇이 있는가" 라면
+// 이것은 "지금이 어느 때인가" 이고, 땅의 값을 한 줄도 바꾸지 않은 채 그 위의 빛만 갈아
+// 끼운다. 같은 파일에 두는 것은 하늘과 지면이 한 화면에서 함께 읽히기 때문이다.
 
+import type { SceneAmbience } from '../../engine/view-kernel/scene/scene-state';
 import type { TerrainPalette } from '../../engine/view-kernel/terrain/terrain';
+import type { WorldClockView } from '../protocol/gameview';
 import type { CompiledRegion, CompileRules } from '../../engine/world-authoring/compiled';
 import { compileRegion } from '../../engine/world-authoring/compile';
 import { pointsOf } from '../../engine/world-authoring/description';
@@ -156,6 +162,97 @@ export function terrainInstance(tag: string): { spriteId: string; worldHeight: n
   return landmarkInstance(tag) ?? clueInstance(tag);
 }
 
+// ── 때의 분위기 (C015 ADDED · SPEC-008) ──────────────────────────────
+//
+// 세계는 `clock` 으로 **코드 둘**(낮밤 · 철)만 싣는다. 그 여덟 가지가 각각 어떤 하늘과
+// 어떤 빛인지는 한 줄도 실려 오지 않는다 — 표현 데이터이므로 여기 표 하나에 모은다
+// (spec 기본형 ⑤). 색을 고르는 자리가 여럿이 되면 하늘과 빛이 서로 다른 때를 말한다.
+//
+// **땅의 값은 한 줄도 바뀌지 않는다** (SPEC-008 경계 ①). 지면 색(SURFACE_COLORS)도
+// 높이도 통행도 그대로이고, 때가 바꾸는 것은 그 위에 걸리는 **빛**뿐이다 — 그래서 같은
+// 방의 같은 땅이 밤에 어두워질 뿐 다른 땅이 되지 않는다.
+//
+// 값이 지키는 것 셋.
+//   ① 어느 철에서든 밤이 낮보다 어둡다 — 밝기(ambient · sun 세기)가 함께 내려간다.
+//   ② 긴 밤이 가장 어둡다 — 그 철은 **낮도** 다른 철의 밤보다 어둡다. 해가 뜨지 않는
+//      하루이므로(World Change 4) 낮밤이 갈려도 둘 다 다른 때보다 아래에 있어야 한다.
+//   ③ 고요의 낮은 지금까지의 화면 그대로다 (DEFAULT_AMBIENCE 와 같은 값) — 앞 Cycle 의
+//      그림들과 이어지려면 익숙한 때가 익숙한 색이어야 한다.
+//
+// 색상(hue)은 철을 가른다 — 고요는 맑은 하늘색, 스밈은 붉게 죽은 색, 긴 밤은 색이
+// 거의 남지 않은 검푸름, 뒤척임은 새벽의 장밋빛이다 (Observable Result 3).
+
+/** 봉투의 때 코드 둘을 한 열쇠로 — 표는 철 넷 × 낮밤 여덟 줄이다 */
+type AmbienceKey = `${WorldClockView['season']}:${WorldClockView['dayPhase']}`;
+
+export const CLOCK_AMBIENCES: Readonly<Record<AmbienceKey, SceneAmbience>> = {
+  // 고요 낮 — **지금까지의 화면**이다. 기반의 기본값(DEFAULT_AMBIENCE)과 같은 값이고,
+  // 그래서 이 Cycle 이 앞 Cycle 의 그림들을 한 픽셀도 바꾸지 않는다
+  'STILL:DAY': {
+    background: 0x9fc4e0,
+    ambient: { color: 0xffffff, intensity: 0.95 },
+    sun: { color: 0xfff4d6, intensity: 1.1 },
+  },
+  // 고요 밤 — 맑은 하늘이 그대로 깊어진 색. 빛은 차갑고(달빛) 세기만 크게 내려간다
+  'STILL:NIGHT': {
+    background: 0x1e2c48,
+    ambient: { color: 0x9fb4d8, intensity: 0.34 },
+    sun: { color: 0xc8d8f8, intensity: 0.3 },
+  },
+  // 스밈 낮 — 하늘이 붉게 죽는다. 미지가 스며든 때이므로 하늘색 계열을 벗어나고
+  // 밝기도 고요의 낮보다 내려간다 (Play §4 어긋남)
+  'SEEP:DAY': {
+    background: 0xb0705c,
+    ambient: { color: 0xe8c0b0, intensity: 0.66 },
+    sun: { color: 0xe89a70, intensity: 0.74 },
+  },
+  // 스밈 밤 — 같은 붉은 기가 어둠에 남는다. 고요의 밤보다 어둡다
+  'SEEP:NIGHT': {
+    background: 0x2e1a24,
+    ambient: { color: 0xb08898, intensity: 0.26 },
+    sun: { color: 0xc07a6a, intensity: 0.22 },
+  },
+  // 긴 밤 낮 — 세계가 이 값을 낼 일은 없다(그 하루는 전부 밤이다). 그래도 표는 온전해야
+  // 한다: 여덟 가운데 하나가 비면 그때 화면이 기본값으로 튀어 **가장 어두운 철이 가장
+  // 밝아진다**. 값은 "해가 뜨지 않는다" 그대로 — 다른 철의 밤보다도 어둡다
+  'LONG_NIGHT:DAY': {
+    background: 0x141a2a,
+    ambient: { color: 0x8090b8, intensity: 0.2 },
+    sun: { color: 0x9aa8c8, intensity: 0.16 },
+  },
+  // 긴 밤 — **여덟 가운데 가장 어둡다** (Observable Result 3 · 4). 색이 거의 남지 않는다
+  'LONG_NIGHT:NIGHT': {
+    background: 0x0b0e18,
+    ambient: { color: 0x7080a8, intensity: 0.13 },
+    sun: { color: 0x8a98c0, intensity: 0.09 },
+  },
+  // 뒤척임 — **새벽**이다 (긴 밤 다음의 60 초 · 낮). 가장 어두운 때 바로 뒤에 오므로
+  // 장밋빛으로 밝아 오되 고요의 한낮에는 못 미친다 — 아직 다 밝지 않은 하늘이다
+  'TURN:DAY': {
+    background: 0xc99a86,
+    ambient: { color: 0xf0d8c8, intensity: 0.72 },
+    sun: { color: 0xffc890, intensity: 0.86 },
+  },
+  // 뒤척임 밤 — 위 'LONG_NIGHT:DAY' 와 같은 이유로 둔 자리다 (뒤척임은 언제나 낮이다).
+  // 새벽이 오기 직전의 색이고, 고요의 밤보다는 어둡다
+  'TURN:NIGHT': {
+    background: 0x2a2438,
+    ambient: { color: 0xa8a0c0, intensity: 0.3 },
+    sun: { color: 0xc0a8b0, intensity: 0.26 },
+  },
+};
+
+/**
+ * 그 때의 분위기 — **때를 모르면 없다**(undefined). 없으면 그리는 쪽의 기본값 그대로다
+ * (SPEC-008 경계 ②: 때를 모르는 옛 장면도 그려진다).
+ *
+ * 표에 없는 코드도 undefined 다 — 모르는 때를 아무 색으로 그리면 화면이 세계에 없는
+ * 때를 지어내는 것이 된다 (C001 부터의 폴백 규칙).
+ */
+export function clockAmbience(clock: WorldClockView | undefined): SceneAmbience | undefined {
+  if (!clock) return undefined;
+  return CLOCK_AMBIENCES[`${clock.season}:${clock.dayPhase}` as AmbienceKey];
+}
 
 /** 기반에 넘기는 표현 표 — 기반은 태그의 뜻을 모른 채 이 함수들만 부른다 (설계 반전 ⑤) */
 export const TERRAIN_PALETTE: TerrainPalette = {
