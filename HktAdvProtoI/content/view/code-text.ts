@@ -14,7 +14,9 @@ import {
   FLOW_ARRIVED,
   FORM_MOLT_LITTER,
   FORM_NEST_MYCELIUM,
+  FORM_FALLEN_SCALE,
   FORM_OUTCROP,
+  FORM_PREY_REMAINS,
   FORM_RIVER_GRAIN,
   FORM_ROOT_NODULE,
   FORM_SEEP_CRUST,
@@ -160,6 +162,11 @@ const CODE_TEXT: Record<string, string> = {
   // 것은 그것이 여기서 **무엇으로 보이는가** 뿐이다. 언제 나는 것인지는 적지 않는다 —
   // 어느 철에 무엇이 나는지를 세계가 말하지 않으므로(spec Observable) 화면도 말하지 않는다
   [FORM_SEEP_CRUST]: '땅에 배어 나와 굳은 껍질',
+  // 아홉째·열째 형태 (C018) — **지나간 것이 남긴 것** 둘. 어법도 규율도 그대로다:
+  // 지목한 것이 여기서 무엇으로 보이는가만 적는다. 무엇이 두고 갔는지도, 언제 다시 오는지도
+  // 적지 않는다 — 그것은 관찰자가 여러 번 보고 배우는 것이다 (T8)
+  [FORM_FALLEN_SCALE]: '땅에 비스듬히 꽂힌 흰 판',
+  [FORM_PREY_REMAINS]: '길게 끌린 껍질 조각들',
   // 재료의 이름 (Material Seed 코드 — C011). 소지품 줄의 이름표가 이 말이다.
   // **무엇에 쓰는지는 여기에도 어디에도 없다**
   [BIO_ORE]: '생체 광석',
