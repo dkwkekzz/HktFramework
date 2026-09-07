@@ -1,7 +1,9 @@
-// RULE-SOURCE-RECOVERY-001 — Implements C013 spec R1 (ADDED · 세계 과정)
+// RULE-SOURCE-RECOVERY-001 — Implements C013 spec R1 (ADDED · 세계 과정) · C014 spec R2 (CHANGED)
 // Scope          모든 방의, phase 가 available 이 아닌 원천 전부
 // Trigger        세계의 Tick (dt)
-// Condition      그 원천에 걸린 조건이 없다 (매달린 원천이 available 이거나 매달린 것이 없다)
+// Condition      그 원천에 **진행을 멎게 하는 조건**이 걸려 있지 않다 —
+//                매달린 원천이 available 이 아니거나(recovery-stalled) ·
+//                유입 흐름이 지금 실어 오지 않는다(condition-unmet)면 멎는다
 // Transition     progress += dt.
 //                progress ≥ recoverySeconds × RECOVERY_VISIBLE_FRACTION 이고 depleted 면
 //                    phase = recovering · 자리를 옮기는 원천이면 siteIndex = 무너지지 않은 다음 마디
@@ -16,9 +18,14 @@
 // 매달렸는지는 전부 데이터(content/regions)와 세계 사실(semantic/resource.ts)에서 온다.
 //
 // 걸린 조건은 여기서 다시 판정하지 않는다 — RULE-SOURCE-CONDITION-001(sourceConditions)이
-// 답하는 그것을 그대로 읽는다. 그래서 관찰 결과에 실리는 `recovery-stalled` 와 실제로 멎는
-// 것이 **같은 판정**이다 (spec R2 — 표시가 아니라 원인이다).
+// 답하는 그것을 그대로 읽는다. 그래서 관찰 결과에 실리는 `recovery-stalled` · `condition-unmet` 과
+// 실제로 멎는 것이 **같은 판정**이다 (spec R2 — 표시가 아니라 원인이다).
+//
+// C014 CHANGED — 흐름의 주기도 그 판정에 든다. 이 규칙은 **어느 원천이 흐름을 가졌는지 묻지
+// 않는다**: 조건 코드가 이미 그것을 말하므로 여기서 아는 것은 "멎게 하는 코드가 걸렸는가"
+// 하나뿐이고, 주기도 흐름의 출발도 데이터와 세계 시각의 것이다.
 
+import { CONDITION_UNMET, RECOVERY_STALLED } from '../../regions';
 import { nextStandableSite, sourceConditions, sourcesInRegion } from '../semantic/resource';
 import { RECOVERY_VISIBLE_FRACTION, type WorldState } from '../semantic/world-state';
 
@@ -33,8 +40,12 @@ export function ruleSourceRecovery(state: WorldState, dt: number): void {
       if (!sourceState) continue;
       // 되돌아올 것이 없는 원천은 지나간다 — 되돌아옴은 **고갈된 것의 일**이다 (SPEC-010 경계).
       if (sourceState.phase === 'available') continue;
-      // 매달린 것이 available 이 아니면 진행이 오르지 않는다 (spec R1 ELSE · R2).
-      if (sourceConditions(state.regionStates, source).length > 0) continue;
+      // 걸린 조건 가운데 **진행을 멎게 하는 것**이 있으면 오르지 않는다 (C013 spec R1 ELSE · R2 ·
+      // C014 spec R2). 코드 셋 중 둘이 그것이다 — 매달린 것이 available 이 아니거나
+      // (recovery-stalled) 유입 흐름이 지금 실어 오지 않으면(condition-unmet) 멎는다.
+      // 남은 하나 flow-arrived 는 **실려 오는 중**이라는 뜻이므로 진행을 허락한다.
+      const conditions = sourceConditions(state.regionStates, source, state.time);
+      if (conditions.includes(RECOVERY_STALLED) || conditions.includes(CONDITION_UNMET)) continue;
 
       sourceState.progress += dt;
 

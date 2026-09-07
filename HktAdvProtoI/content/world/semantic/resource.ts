@@ -28,8 +28,11 @@
 import { areasOf, curvesOf, findPoint } from '../../../engine/world-authoring/description';
 import { areaCoversPoint } from '../../../engine/world-authoring/query';
 import {
+  CONDITION_UNMET,
+  FLOW_ARRIVED,
   PRESENCE_LAYER,
   RECOVERY_STALLED,
+  RESOURCE_FLOWS,
   RESOURCE_LAYER,
   REGION_SPECS,
   TRACE_LAYER,
@@ -37,6 +40,7 @@ import {
   soilStainLevel,
   type CarrierKind,
   type OpportunityRole,
+  type ResourceFlowSpec,
   type SupplyMode,
 } from '../../regions';
 import type { WorldPosition } from './position';
@@ -314,6 +318,33 @@ export function isCollapsedAt(
 }
 
 /**
+ * RULE-RESOURCE-FLOW-001 (C014 ADDED · spec R1) — 그 흐름이 **지금 실어 오는 중인가**.
+ *
+ * 세계 시각을 주기로 나눈 나머지가 활성 구간보다 작으면 활성이다. **세계 State 가 아니다** —
+ * 시각에서 유도되므로 저장할 것이 없고, 되살린 세계도 같은 시각에서 같은 답을 낸다
+ * (semantic/terrain.ts 의 컴파일과 같은 갈래의 유도된 사실).
+ *
+ * **관찰자와 무관하다** (spec R1 경계 ②) — 그 방에 몸이 없어도 물길은 불어났다 빠진다.
+ * 주기가 0 이하인 흐름은 언제나 거짓이다: 나눌 수 없는 것을 나누어 없는 답을 짓지 않는다.
+ * 세계 시각은 0 에서 시작해 오르기만 하지만, 음수가 들어와도 주기 안으로 접어 답한다.
+ */
+export function isFlowActive(flow: ResourceFlowSpec, time: number): boolean {
+  if (flow.periodSeconds <= 0) return false;
+  const phase = ((time % flow.periodSeconds) + flow.periodSeconds) % flow.periodSeconds;
+  return phase < flow.activeSeconds;
+}
+
+/**
+ * 그 원천으로 **들어오는** 흐름 (C014 ADDED) — 없으면 undefined 다.
+ *
+ * 데이터가 소유하는 정적 사실이다 (content/regions 의 RESOURCE_FLOWS). 한 원천에 들어오는
+ * 흐름은 지금 하나뿐이므로 처음 것을 준다 — 여럿을 미리 다루지 않는다 (선행 추상화 금지).
+ */
+export function inflowOf(sourceId: string): ResourceFlowSpec | undefined {
+  return RESOURCE_FLOWS.find((flow) => flow.to.sourceId === sourceId);
+}
+
+/**
  * RULE-SOURCE-CONDITION-001 (C013 CHANGED) — 그 원천에 **지금 걸린 조건 코드들**.
  *
  * 매달린 원천이 **available 이 아니면** `recovery-stalled` 하나. 걸린 것이 없으면 빈 배열이다 —
@@ -326,17 +357,42 @@ export function isCollapsedAt(
  *
  * 매달린 원천은 **다른 방에 있을 수 있다** (뿌리혹은 붉은눈 거목, 노두는 생체 광석 지대다) —
  * 그래서 그 원천의 방을 찾아 묻는다. 걸린다고 해서 캘 수 없는 것은 아니다 (spec R2 경계).
+ *
+ * C014 CHANGED (spec R3) — **흐름의 조건도 코드가 된다.** 유입 흐름을 가진 원천은 아직 없는
+ * 동안(available 이 아닌 동안) 그 흐름이 활성이면 `flow-arrived`, 아니면 `condition-unmet` 을
+ * 진다 — "지금 실려 오는 중이다" 와 "아직 그때가 아니다" 다. 그리고 그 흐름의 **출발 원천**이
+ * C013 의 매달림과 같은 자리에 선다: 출발이 available 이 아니면 같은 `recovery-stalled` 다.
+ *
+ * **규칙은 어느 원천이 흐름을 가졌는지 이름으로 알지 못한다** — 아는 것은 "유입 흐름을 가진
+ * 원천" 이라는 형뿐이고, 어느 방의 무엇이 어디로 실려 오는지는 데이터에만 있다 (R13).
+ *
+ * 여기 실리는 코드가 곧 **되돌아옴을 멎게 하는 원인**이다 (simulation/source-recovery.ts) —
+ * 표시와 원인이 같은 판정이라는 C013 의 규율 그대로다. 셋 중 `flow-arrived` 만이 진행을
+ * 허락한다: 실려 오는 중인 것은 되돌아오는 중인 것이기 때문이다.
  */
 export function sourceConditions(
   states: Record<string, RegionState>,
   source: ResourceSource,
+  time: number,
 ): string[] {
-  if (!source.dependsOn) return [];
-  const upstream = findResourceSource(source.dependsOn);
-  if (!upstream) return [];
-  return sourceStateOf(states, upstream.regionId, upstream.id).phase !== 'available'
-    ? [RECOVERY_STALLED]
-    : [];
+  const codes: string[] = [];
+  const inflow = inflowOf(source.id);
+
+  // ① 매달림 — C013 그대로다. 흐름을 가진 원천에게는 그 흐름의 **출발 원천**이 곧 그 매달림이다
+  // (spec R3 — 호수 바닥을 캐 놓으면 물길이 불어도 어귀에 오는 것이 없다).
+  const dependsOn = source.dependsOn ?? inflow?.from.sourceId;
+  const upstream = dependsOn ? findResourceSource(dependsOn) : undefined;
+  if (upstream && sourceStateOf(states, upstream.regionId, upstream.id).phase !== 'available') {
+    codes.push(RECOVERY_STALLED);
+  }
+
+  // ② 흐름의 때 — 아직 없는 원천에만 묻는다 (spec R3 경계). 거기 있는 것을 두고
+  // "실려 오는 중" 도 "아직 그때가 아니다" 도 말할 것이 없기 때문이다.
+  if (inflow && sourceStateOf(states, source.regionId, source.id).phase !== 'available') {
+    codes.push(isFlowActive(inflow, time) ? FLOW_ARRIVED : CONDITION_UNMET);
+  }
+
+  return codes;
 }
 
 // ── 안쪽 ─────────────────────────────────────────────────────────────

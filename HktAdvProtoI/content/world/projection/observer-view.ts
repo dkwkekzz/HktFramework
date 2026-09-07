@@ -220,7 +220,12 @@ export function projectObserverView(
   for (const source of sourcesInRegion(self.regionId)) {
     // 그 원천에 지금 걸린 조건들 (C012 ADDED · RULE-SOURCE-CONDITION-001).
     // 걸린 것이 없으면 **자리 자체가 없다** — 빈 배열로 지어내지 않는다.
-    const conditions = sourceConditions(state.regionStates, source);
+    //
+    // C014 CHANGED — 코드가 둘 는다(flow-arrived · condition-unmet). 그래서 세계 시각을
+    // 함께 묻는다: 흐름이 지금 실어 오는 중인지는 시각에서 유도되기 때문이다 (spec R1).
+    // 실리는 것은 여전히 **코드뿐**이다 — 주기도, 다음 활성까지 남은 시간도, 그 흐름이
+    // 어느 방의 무엇에서 오는지도 싣지 않는다 (spec Observable).
+    const conditions = sourceConditions(state.regionStates, source, state.time);
     const sourceState = sourceStateOf(state.regionStates, self.regionId, source.id);
     // C013 ADDED — 지금 선 자리. 원천이 마디를 옮겨 다니므로 데이터의 마디 0 이 아니다.
     const here = sourcePositionOf(state.regionStates, source);

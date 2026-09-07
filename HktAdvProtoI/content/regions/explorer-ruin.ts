@@ -5,8 +5,10 @@
 import type { RegionSpec } from './spec';
 import { ANCHOR_LAYER } from './spec';
 import {
+  FOREST_CHAIN,
   FORM_SPOIL_PILE,
   ORE_EATER_MOLT,
+  RECOVERY_PILE_EROSION,
   RESOURCE_LAYER,
   TRACE_LAYER,
   soilStainTag,
@@ -72,10 +74,14 @@ export const EXPLORER_RUIN_SPEC: RegionSpec = {
       {
         id: 'RUIN_SPOIL',
         materialId: ORE_EATER_MOLT,
+        // 이 숲의 사슬 하나에서 난다 (C014 ADDED · §5.0)
+        worldCause: FOREST_CHAIN,
         form: FORM_SPOIL_PILE,
         carrier: 'residue',
         opportunity: 'baseline',
         supply: 'baseline-renewable',
+        // 비와 바람이 더미를 씻어 새 조각이 드러난다 (C014 ADDED · A.2 회복 원인)
+        recoveryCause: RECOVERY_PILE_EROSION,
         // 더미는 남이 캐다 버린 것이다 — 많지 않다 (D4)
         harvests: 2,
         // 허물보다 조금 느리다 — 남이 캐다 버린 더미가 다시 쌓이는 시간 (C013 ADDED · D3)

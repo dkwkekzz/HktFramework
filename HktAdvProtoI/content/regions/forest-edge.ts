@@ -11,8 +11,10 @@
 import type { RegionSpec } from './spec';
 import { ANCHOR_LAYER } from './spec';
 import {
+  FOREST_CHAIN,
   FORM_MOLT_LITTER,
   ORE_EATER_MOLT,
+  RECOVERY_MOLT_CYCLE,
   RESOURCE_LAYER,
   TRACE_LAYER,
   soilStainTag,
@@ -139,10 +141,14 @@ export const FOREST_EDGE_SPEC: RegionSpec = {
       {
         id: 'MOLT_LITTER',
         materialId: ORE_EATER_MOLT,
+        // 이 숲의 사슬 하나에서 난다 — 원천 일곱이 전부 그렇다 (C014 ADDED · §5.0)
+        worldCause: FOREST_CHAIN,
         form: FORM_MOLT_LITTER,
         carrier: 'residue',
         opportunity: 'baseline',
         supply: 'baseline-renewable',
+        // 탈피 주기 — 가장 안정된 공급 (C014 ADDED · A.2 회복 원인)
+        recoveryCause: RECOVERY_MOLT_CYCLE,
         // 넉넉하다 — 가장 얕은 자리의 Baseline (D4). 다녀와도 남이 캘 몫이 있다
         harvests: 3,
         // 가장 얕은 자리 — 가장 빨리 되돌아온다 (C013 ADDED · D3)

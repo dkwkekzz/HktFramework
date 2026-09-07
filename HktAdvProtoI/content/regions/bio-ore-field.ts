@@ -7,8 +7,10 @@ import type { RegionSpec } from './spec';
 import { ANCHOR_LAYER } from './spec';
 import {
   BIO_ORE,
+  FOREST_CHAIN,
   FORM_OUTCROP,
   PRESENCE_LAYER,
+  RECOVERY_TREE_UPTAKE,
   RESOURCE_LAYER,
   ROOT_CURVE_TAG,
   TRACE_LAYER,
@@ -165,10 +167,15 @@ export const BIO_ORE_FIELD_SPEC: RegionSpec = {
       {
         id: 'ORE_OUTCROP',
         materialId: BIO_ORE,
+        // 이 숲의 사슬 하나에서 난다 (C014 ADDED · §5.0)
+        worldCause: FOREST_CHAIN,
         form: FORM_OUTCROP,
         carrier: 'terrain',
         opportunity: 'risk',
         supply: 'migratory',
+        // 거목이 삭은 흙에서 다시 빨아올린다 — 그 축적이 뿌리를 타고 여기까지 온다
+        // (C014 ADDED · A.2 회복 원인)
+        recoveryCause: RECOVERY_TREE_UPTAKE,
         // Risk — 한 번 닿으면 값어치가 있어야 한다 (D4)
         harvests: 3,
         // 광맥의 머리가 무너져 구덩이가 된다 — 그 자리는 지날 수 없다 (A.2 · C012 §5.4 ③)
