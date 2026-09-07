@@ -15,13 +15,19 @@
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { COMPILE_RULES } from '../../content/regions';
-import { WORLD_AUTHOR_TEMPLATES } from '../../content/authoring/templates';
-import { WORLD_CONTRACTS } from '../../content/authoring/contracts';
+import { COMPILE_RULES, REGION_GRAPH } from '../../content/regions';
+import { WORLD_AUTHOR_TEMPLATES, WORLD_CONTRACTS } from '../../content/authoring';
 import { authorRegion, type AuthoredRegion } from '../../engine/world-authoring/author';
 import { parseRegionBrief, type RegionBrief } from '../../engine/world-authoring/brief';
+import {
+  checkRegions,
+  type CheckRegion,
+  type CheckReport,
+} from '../../engine/world-authoring/check';
+import type { RegionOp } from '../../engine/world-authoring/description';
 import { gradeRegion, type GradeResult } from '../../engine/world-authoring/grade';
 import { compileRegion } from '../../engine/world-authoring/compile';
+import { WORLD_CHECK_CONTRACT, WORLD_CHECK_REGIONS } from './check';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
 
@@ -59,13 +65,61 @@ export function renderGrade(grade: GradeResult): string {
   return lines.join('\n');
 }
 
-/** brief 파일 하나 → 뼈대 하나 */
-export function authorFromFile(path: string): AuthoredRegion {
-  const parsed = { ok: true as const, brief: readBrief(path) };
+/** brief 하나 → 뼈대 하나. 이 세계의 템플릿과 컴파일 규칙을 건네는 자리다 */
+export function authorBrief(brief: RegionBrief): AuthoredRegion {
   return authorRegion({
-    brief: parsed.brief,
+    brief,
     templates: WORLD_AUTHOR_TEMPLATES,
     compile: (space) => compileRegion(space, COMPILE_RULES).world,
+  });
+}
+
+/** brief 파일 하나 → 뼈대 하나 */
+export function authorFromFile(path: string): AuthoredRegion {
+  return authorBrief(readBrief(path));
+}
+
+/**
+ * 생성한 방을 **지금 세계 곁에 세워** 검사한다 (T3 의 산출 → T1). 저장소는 건드리지 않는다 —
+ * 어느 방을 세계에 들이는가는 컨텐츠 층의 결정이고 도구가 정할 일이 아니다 (Tool-Scale §4).
+ *
+ * 생성기는 이웃 쪽 anchor 의 **이름만** 댄다 (그 방의 땅을 모르므로). 여기서는 그것을 실제로
+ * 놓아 준다 — 그러지 않으면 새 방은 언제나 ⑤ 에 걸리고, 그 걸림은 brief 를 고쳐서는 풀리지 않는다.
+ * 곧 이 검사가 답하는 것은 "**들이고 나면** 이 방이 서는가" 다.
+ *
+ * 재료 계통 검사(⑩~㉒)는 걸지 않는다 — 그 검사들이 요구하는 값(원천의 원인 · 되돌아옴)을
+ * T3 의 뼈대가 아직 낼 수 없다. T3 의 나머지가 서면(C016 · C022) 여기 붙는다.
+ */
+export function checkAuthored(authored: AuthoredRegion): CheckReport {
+  const anchorOps: RegionOp[] = authored.neighbourAnchors.map((a) => ({
+    id: `anchor-${a.anchor.toLowerCase().replace(/_/g, '-')}`,
+    kind: 'point',
+    layer: WORLD_CHECK_CONTRACT.anchorLayer,
+    tag: a.anchor,
+    position: { x: 0, z: 0 },
+  }));
+  const regions: CheckRegion[] = [
+    ...WORLD_CHECK_REGIONS.map((region) =>
+      authored.neighbourAnchors.some((a) => a.region === region.id)
+        ? { ...region, space: { ...region.space, ops: [...region.space.ops, ...anchorOps] } }
+        : region,
+    ),
+    {
+      id: authored.spec.id,
+      depth: authored.spec.depth,
+      space: authored.spec.space,
+      coreRules: 0,
+    },
+  ];
+  return checkRegions({
+    regions,
+    graph: {
+      ...REGION_GRAPH,
+      regions: [...REGION_GRAPH.regions, authored.spec.id],
+      connectors: [...REGION_GRAPH.connectors, ...authored.connectors],
+    },
+    contract: WORLD_CHECK_CONTRACT,
+    compile: (region) => compileRegion(region.space, COMPILE_RULES).world,
   });
 }
 

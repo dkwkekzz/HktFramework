@@ -92,12 +92,12 @@ Material §2.2 에서 옮겨 다시 긋는다.
 
 | # | 단계 | 완료 조건 | 기다리는 것 | 상태 |
 |---|---|---|---|---|
-| T1 | 검사기 독립 — `world:check` (JSON) | `npm test` 에 붙는다 · 일부러 만든 실패가 잡힌다 | — | **다음** |
-| T2 | 여덟 답의 형 — RegionBrief schema (여덟째 = 무엇이 태어나는가) | 지금 방 아홉을 손으로 역기술해 전부 통과 | — | 미착수 |
-| T3 | 뼈대 생성기 — `world:author` (결정론) | brief 하나 → 방 하나 T1 통과 · 걸어진다 · 코드 diff 0 | phases 는 C016 뒤 | 미착수 |
-| T4 | 등급 판정기 — A / B / C + GAP | 가스 마을 · 유령 도시 · 마법도시가 A · B · C 로 갈린다 | T2 | 미착수 |
-| T5 | 초안기 — `world:draft` (`claude -p --json-schema` · 구독 로그인 · 구조화 출력 · 검사 되먹임) | 미지 한 줄 → 방 하나 사람 손 없이 통과 | T3 · T4 | 미착수 |
-| T6 | 판정 표면 + 대량 — lab 승인/반려 · `--batch` | Play **HundredRooms** | T5 · Frost 닫힘 | 미착수 |
+| T1 | 검사기 독립 — `world:check` (JSON) | `npm test` 에 붙는다 · 일부러 만든 실패가 잡힌다 | — | 섰다 |
+| T2 | 여덟 답의 형 — RegionBrief schema (여덟째 = 무엇이 태어나는가) | 지금 방 아홉을 손으로 역기술해 전부 통과 | — | 섰다 |
+| T3 | 뼈대 생성기 — `world:author` (결정론) | brief 하나 → 방 하나 T1 통과 · 걸어진다 · 코드 diff 0 | phases 는 C016 뒤 | 절반이 섰다 (space · graph · resourceEcology) |
+| T4 | 등급 판정기 — A / B / C + GAP | 가스 마을 · 유령 도시 · 마법도시가 A · B · C 로 갈린다 | T2 | 섰다 |
+| T5 | 초안기 — `world:draft` (`claude -p --json-schema` · 구독 로그인 · 구조화 출력 · 검사 되먹임) | 미지 한 줄 → 방 하나 사람 손 없이 통과 | T3 · T4 | 섰다 |
+| T6 | 판정 표면 + 대량 — lab 승인/반려 · `--batch` | Play **HundredRooms** | Frost 닫힘 | **다음** |
 
 2층의 Play 는 일곱이다 (`play/README.md`). 그 가운데 `play/RoomAnswersWhenAsked.md` 만은 기획을 덮지 않는다 —
 앞선 Play 의 실주행에서 돌아온 DESIGN GAP 의 회수이고, 화면(8층)은 여전히 "별도 주입 없음" 이며,
