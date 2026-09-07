@@ -17,6 +17,7 @@ import {
   FORM_OUTCROP,
   FORM_RIVER_GRAIN,
   FORM_ROOT_NODULE,
+  FORM_SEEP_CRUST,
   FORM_SILT_BED,
   FORM_SPOIL_PILE,
   GIANT_TREE_FUNGUS,
@@ -80,6 +81,12 @@ const CODE_TEXT: Record<string, string> = {
   'wrong-region': '여기서 갈 수 있는 길이 아니다',
   // 닫힌 Connector (C002). 여는 법은 이 세계에 아직 없다 — 그래서 무엇이 잠갔는지도 말하지 않는다
   'connector-inactive': '잠겨 있다',
+  // 철 때문에 닫혀 있다 (C016 R5 · R7). **잠긴 것과 갈려야 한다** — 위의 것은 "닫혀 있다" 이고
+  // 이것은 "지금이 그때가 아니다" 다: 하나는 여는 법을 찾을 일이고 하나는 기다릴 일이다.
+  // **어느 철이면 열리는지 말하지 않는다** — 세계가 싣지 않는다 (spec Observable "싣지 않는다").
+  // 이 한 줄이 건너기의 거절 사유이자 원천에 걸린 조건이다 — 같은 사실이므로 말도 하나다
+  // (흐름의 조건이 '아직 그때가 아니다' 하나로 두 자리에 서는 것과 같은 규율)
+  'not-this-season': '이 철이 아니다',
   // 아직 짓지 않은 곳(frontier). 세계의 끝이 아니라 "아직" 이다 — 목적지는 여전히 밝히지 않는다
   'region-not-built': '아직 갈 수 없는 곳이다',
   // 불가 사유 — 돌아갈 자리가 없는 방 (C009 RULE-EMERGENCY-RETURN-001 의 ELSE).
@@ -148,6 +155,11 @@ const CODE_TEXT: Record<string, string> = {
   [FORM_NEST_MYCELIUM]: '사체 위 흰 균사',
   [FORM_RIVER_GRAIN]: '어귀에 깔린 알갱이',
   [FORM_SILT_BED]: '호수 바닥의 침전',
+  // 여덟째 형태 (C016) — 어법도 규율도 그대로다. **재료의 이름은 새로 나지 않는다**:
+  // 이것도 노두·뿌리혹과 같은 생체 광석이고(resource-ecology 의 forms 다섯), 새로 필요한
+  // 것은 그것이 여기서 **무엇으로 보이는가** 뿐이다. 언제 나는 것인지는 적지 않는다 —
+  // 어느 철에 무엇이 나는지를 세계가 말하지 않으므로(spec Observable) 화면도 말하지 않는다
+  [FORM_SEEP_CRUST]: '땅에 배어 나와 굳은 껍질',
   // 재료의 이름 (Material Seed 코드 — C011). 소지품 줄의 이름표가 이 말이다.
   // **무엇에 쓰는지는 여기에도 어디에도 없다**
   [BIO_ORE]: '생체 광석',
@@ -209,6 +221,12 @@ const CODE_TEXT: Record<string, string> = {
   'condition:tree': '거목이 포식자를 물린다', // 백색 거목 둘레에는 포식자가 오지 않는다 (Concept §3 · §3.2)
   // 조건 셋이 모인 자리 — 그래서 사람이 산다. 조건(왜)과 결과(그래서)를 다른 말로 둔다
   city: '사람이 사는 자리',
+  // 위험한 이유 (C016 R3 — hazard 태그. 어휘 일곱은 content/authoring/contracts.ts 의 것이고
+  // 데이터가 쓰는 갈래만 여기 말이 된다). **위의 안전한 이유 셋과 같은 자리에 나란히 실리므로**
+  // (standingConditions) 같은 어법이어야 한다: <무엇>이 <어찌한다> 한 마디이고, 몸에 무엇을
+  // 하는지도 얼마나 센지도 적지 않는다 — 관찰된 것은 "여기가 무엇인가" 하나다.
+  // 안전과 위험은 그 한 물음의 두 얼굴이고, 그래서 말투를 가르지 않는다
+  'hazard/creature': '짐승이 여기를 제 자리로 삼는다',
   // 흙의 변색 다섯 (C011 — trace layer 의 soil-stain 태그. 물었을 때 판의 "흙" 줄이 이 말이다).
   //
   // **짙기의 사다리 한 벌이다** — 다섯 마디가 한 줄로 세워졌을 때 어느 쪽이 더 짙은지가

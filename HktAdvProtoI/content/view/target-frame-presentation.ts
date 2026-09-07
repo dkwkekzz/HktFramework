@@ -174,7 +174,12 @@ function placeFrame(
  *
  * C026 의 자리 읽기를 **그대로** 쓴다 (두 벌로 만들지 않는다) — 그래서 줄들도 지목했을 때와
  * 같고, 내가 움직이면 따라 바뀐다. 다만 "걸린 것" 은 땅에서 유도하지 않고 **세계가 준
- * standingConditions** 로 세운다 (SPEC-005 경계 · C006 의 규율: 안전한 이유는 세계가 판정한다).
+ * standingConditions** 로 세운다 (SPEC-005 경계 · C006 의 규율: 걸린 것은 세계가 판정한다).
+ *
+ * C016 — 그 자리에 **위험의 코드도 함께** 실린다 (R3). 이름표는 그대로 '걸린 것' 이다:
+ * 안전한 이유와 위험한 이유는 "여기는 무엇인가" 한 물음의 두 얼굴이고, 자리를 가르면
+ * 판이 같은 물음에 두 번 답한다. 화면은 여기서 갈래를 묻지 않는다 — 실려 온 코드를
+ * 그대로 늘어놓을 뿐이고, 무엇이 안전이고 무엇이 위험인지는 그 말들이 스스로 말한다.
  */
 function standingFrame(
   snapshot: GameViewSnapshot,
@@ -197,6 +202,10 @@ function standingFrame(
  *
  * 땅에서 유도한 settlement 태그(도시 같은 결과까지 들어 있다) 대신 세계가 실어 온
  * standingConditions 를 쓴다. 자리의 차례는 건드리지 않는다 — 걸린 것은 여전히 그 자리다.
+ *
+ * 코드가 어느 갈래인지 여기서 가리지 않는다 (C016) — 안전의 것도 위험의 것도 같은 목록에
+ * 실려 오고, 늘어놓는 차례는 세계가 실은 차례 그대로다. 걸러 내거나 다시 정렬하면 화면이
+ * 세계가 하지 않은 판단을 하는 것이 된다.
  */
 function standingReading(snapshot: GameViewSnapshot, reading: PlaceReading): PlaceReading {
   const ground = reading.ground;
