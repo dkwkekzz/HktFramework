@@ -5,7 +5,7 @@
 
 ## 1. 다음에 할 일 — 레인
 
-한 Cycle = 브랜치 `cycle/C###` = 세션 하나. **말할 것: "C016 진행"**(Time).
+한 Cycle = 브랜치 `cycle/C###` = 세션 하나. **말할 것: "C017 진행"**(Time).
 `advprotoi-cycle` 이 명세(spec.md) → 실현 → 마감을
 이어 돌리고 UNRESOLVED · GAP 에서만 멈춘다. PR 은 번호 순으로 합친다. 병렬 규칙은
 [Plan-Skill §4 항목 4](design/Plan-Skill-CycleExecutionWorkflow.md). 승인 게이트 없음 — Play 여덟 중 일곱이 승인돼 있다
@@ -26,10 +26,10 @@ design 이 다시 열리는 때는 둘 — ① 2층 Play 실주행에서 DESIGN 
 
 | 레인 | 지금 할 수 있는 것 | 기다리는 것 | 다음 |
 |---|---|---|---|
-| Time — [RoomNeverSame](content/roadmap/play/RoomNeverSame.md) | **C016** 철이 방을 바꾼다 — RegionSpec.phases 덧씌움 넷(스밈의 depth/hazard · 긴 밤에만 열리는 문 · 철 조건 Source 출현 · 뒤척임의 자국 묻기와 원천 이동). 같은 방에 세 철에 세 번 온다. C015 가 시계를 세웠으므로 **덧씌울 때**가 이제 있다 | — | C017 → C018 |
+| Time — [RoomNeverSame](content/roadmap/play/RoomNeverSame.md) | **C017** 여럿의 누적과 남의 자취 — 소란(미로 압력의 일반화) + 임계 전이(숲이 깨어난다) + track. 관찰자 하나로는 못 넘고 셋이면 넘는다 · 내가 없던 사이의 발자국. 상수는 확정 5 · 11 에 있다 | — | C018 |
 | Frost — [RoomOfAnotherKind](content/roadmap/play/RoomOfAnotherKind.md) (컨텐츠 M5) | 대기 | Time 닫힘 (재료 생태와 철을 다른 갈래에 두 번째로 쓴다) | C019 → C021 |
 | Life — [RoomBearsLife](content/roadmap/play/RoomBearsLife.md) | 대기 (계약 · 확정 사항 · 상수는 [L2-World-Life.md](content/roadmap/L2-World-Life.md) 와 Play 에 있다) | Frost 닫힘 (탄생이 소비할 재료 · 탈 주기 · 대조할 갈래가 먼저) | C022 → C025 |
-| ENGINE B — [Region 작성기](content/roadmap/L2-World-Tool-Scale.md) (도구 2단계) | **T5** 초안기(LLM) — 미지 한 줄 → 구조화 출력으로 brief → T3 → T1 에 넣고 **실패 보고를 되먹여** 재시도. 굳힌 파일만 세계에 들어간다(초안이 비결정이어도 세계는 결정론이다). 분리 커밋 · Cycle 과 **병행**한다 — 말할 것: **"T5 진행"** (브랜치 `engine/T5`). T1 검사기 · T2 brief 형 · T3 뼈대 생성기 절반 · T4 등급 판정기는 섰다 | T3 의 나머지 — phases 는 C016 · ecology 는 C022 · T6 은 Frost(C021) · Life(C025) | T6 → Play HundredRooms |
+| ENGINE B — [Region 작성기](content/roadmap/L2-World-Tool-Scale.md) (도구 2단계) | **T5** 초안기(LLM) — 미지 한 줄 → 구조화 출력으로 brief → T3 → T1 에 넣고 **실패 보고를 되먹여** 재시도. 굳힌 파일만 세계에 들어간다(초안이 비결정이어도 세계는 결정론이다). 분리 커밋 · Cycle 과 **병행**한다 — 말할 것: **"T5 진행"** (브랜치 `engine/T5`). T1 검사기 · T2 brief 형 · T3 뼈대 생성기 절반 · T4 등급 판정기는 섰다 | T3 의 나머지 — ecology 는 C022 (phases 는 C016 이 세웠다) · T6 은 Frost(C021) · Life(C025) | T6 → Play HundredRooms |
 
 ## 2. 진행
 
@@ -41,12 +41,12 @@ design 이 다시 열리는 때는 둘 — ① 2층 Play 실주행에서 DESIGN 
 | RoomBecomesLand | 방이 땅이 된다 (백왕령) | C005~C007 | **셋 다 닫힘** — Play Goal 실주행 확인이 남았다 |
 | RuleBoundRoom | 방은 규칙을 품는다 (환상의 미로 = Region 하나) | C008~C010 | **셋 다 닫힘** — Play Goal 실주행 확인이 남았다 |
 | RoomBearsMaterial | 방이 재료를 낳는다 (거대 악마의 숲 = M3 재료 계통) | C011~C014 | **넷 다 닫힘** — Play Goal 실주행 확인이 남았다 |
-| RoomNeverSame | 같은 방은 두 번 없다 (시계 · 네 철 · 소란 · 경로 = M4) | C015~C018 | C015 닫힘 · **C016 다음** |
+| RoomNeverSame | 같은 방은 두 번 없다 (시계 · 네 철 · 소란 · 경로 = M4) | C015~C018 | C015 · C016 닫힘 · **C017 다음** |
 | RoomOfAnotherKind | 다른 갈래의 방 (M5 빙결 협곡 · 컨텐츠) | C019~C021 | 대기 |
 | RoomBearsLife | 방이 생명을 낳는다 (허물의 주인 = M6 붉은 알집 · 숲이 값으로 한 바퀴 돈다) | C022~C025 | 대기 |
 | RoomAnswersWhenAsked | 물으면 답한다 (지목 · 대상 프레임 · 기록 · 세계 위 글자 0) | C026~C028 | **셋 다 닫힘** — Play Goal 실주행 확인이 남았다 |
 
-**Human 판정 대기 141** — 각 Cycle 의 `TODO.md` (그림은 같은 폴더 `shots/`). `npm run dev` 로 직접 본다.
+**Human 판정 대기 151** — 각 Cycle 의 `TODO.md` (그림은 같은 폴더 `shots/`). `npm run dev` 로 직접 본다.
 [C001](cycles/C001-region-graph-rooms/TODO.md) 8 · [C002](cycles/C002-many-exits/TODO.md) 8 ·
 [C003](cycles/C003-small-door-big-room/TODO.md) 6 · [C004](cycles/C004-polish-is-data/TODO.md) 6 ·
 [C005](cycles/C005-land-rises/TODO.md) 7 · [C006](cycles/C006-land-blocks-and-flows/TODO.md) 9 ·
@@ -54,7 +54,8 @@ design 이 다시 열리는 때는 둘 — ① 2층 Play 실주행에서 DESIGN 
 [C009](cycles/C009-reach-by-the-rule/TODO.md) 9 · [C010](cycles/C010-one-world/TODO.md) 7 ·
 [C011](cycles/C011-trace-leads-to-source/TODO.md) 10 · [C012](cycles/C012-the-mark-remains/TODO.md) 10 ·
 [C013](cycles/C013-the-world-brings-it-back/TODO.md) 10 · [C014](cycles/C014-condition-and-flow/TODO.md) 9 ·
-[C015](cycles/C015-the-world-has-a-clock/TODO.md) 8 · [C026](cycles/C026-a-place-answers/TODO.md) 7 ·
+[C015](cycles/C015-the-world-has-a-clock/TODO.md) 8 · [C016](cycles/C016-a-season-changes-the-room/TODO.md) 10 ·
+[C026](cycles/C026-a-place-answers/TODO.md) 7 ·
 [C027](cycles/C027-a-being-stands-too/TODO.md) 7 · [C028](cycles/C028-the-answer-remains/TODO.md) 7.
 
 Play 다섯이 닫혔으므로 **Play 전체 실주행**이 그 위에 다섯 더 있다 —
@@ -112,7 +113,14 @@ RoomAnswersWhenAsked(세계 위 글자 없이, 물어서 자리와 존재를 읽
         (저장하지 않는다 — 하루 360 초 · 고요 3일 → 스밈 2일 → 긴 밤 1일(전부 밤) → 뒤척임 60 초 ·
         한 바퀴 2220 초) · 밤에는 방 안이 한 번 더 잘린다(관찰자에게서 20 보다 먼 몸과 원천은
         실리지 않는다 — 낮은 그대로) · 하늘과 바닥이 때마다 다르고 밤에는 붉은 흙만 또렷하다 ·
-        HUD 의 「때」와 「철」 · 때는 아직 방을 바꾸지 않는다(덧씌움은 C016) ·
+        HUD 의 「때」와 「철」 ·
+        **철이 방을 바꾼다**(C016): 방이 시계를 읽어 위상을 얻는다 — 규칙 코드에 철의 이름이 없다 ·
+        스밈에 숲 가장자리의 한 자락이 한 단계 깊어지고(깊이는 이제 **선 자리**의 것이다) 같은 자락이
+        위험으로 읽힌다(hazard 자리가 세계에 처음 섰다 — 안전한 이유와 함께 답해진다) ·
+        긴 밤에만 열리는 문 하나(걷는 숲으로 · 너머는 아직 짓지 않은 곳) — 철 때문에 닫힌 문의 사유는
+        "이 철이 아니다" 이고 잠긴 것과 갈린다 · 스밈에만 나는 원천 하나(생체 광석의 다른 형태) ·
+        **뒤척임**이 자국을 묻고(처음 상태로) 노두를 다음 마디로 옮긴다 — 캐지 않았어도 옮기고,
+        같은 뒤척임이 두 번 세지지 않으며 큰 걸음으로 건너뛰어도 빠뜨리지 않는다 ·
         content/regions/ 데이터 · content/authoring/briefs/ 방 열하나의 여덟 답(손으로 역기술 · T3 의 입력) ·
         content/authoring/templates/ 갈래별 땅 · 깊이별 크기와 흔적 · 역할별 원천 기본형(생성기가 받는 게임 명사) ·
         content/authoring/contracts.ts 어휘 일곱·다섯·일곱 · 방 · 경계 · 규칙(판정기가 대조하는 계약 목록)
@@ -123,14 +131,13 @@ RoomAnswersWhenAsked(세계 위 글자 없이, 물어서 자리와 존재를 읽
         등급 판정기(A · B · C + 빠진 것을 GAP 형식으로 · 계약 목록은 주입받는다) ·
         지형 컴파일러 — height-field ·
         curve/carve · surface · traversable 격자 · areas/points 산출 · tagsAt · compile · hash · observe 래스터)
-도구    world:check (검사 스물둘(땅 아홉 + 재료 계통 열셋) → JSON · 종료 코드가 판정 · npm test 에 붙었다 · 읽기 전용) ·
+도구    world:check (검사 스물둘(땅 아홉 + 재료 계통 열셋) → JSON · ① 은 방 단위로 판정한다 · 종료 코드가 판정 · npm test 에 붙었다 · 읽기 전용) ·
         world:author (brief 하나 → 방 하나의 뼈대 + 등급과 GAP · --write 로 굳힌다 · 등급 C 는 굳히지 않는다) ·
         world:observe (--graph · 방 하나의 높이·표면·통행·의미 PNG 다섯 + 보고 · 읽기 전용) · world:compile · world:shot ·
         cycle:shot (마감 촬영 · 창 둘로 관찰자 둘) ·
         검증용 손잡이 HKT_SPAWN · HKT_SPAWN_REGION · HKT_NPCS · HKT_REGION_PATTERN · HKT_NPC_REGION ·
         HKT_SOURCE_PHASE · HKT_CLOCK
 없음    전투 공식 · 막기 · 피해 종류 · 살펴봄 · 태도 · 장비 · 스킬 형태 · 성장 · 재료의 쓰임 — design/ 에만 ·
-        철이 방을 바꾸는 것(태그 · 활성 · 출현 · 자국) — C016 ·
         소란 · 남의 자취 · 압도적 존재의 경로 — C017 · C018 ·
         다른 갈래의 방 · 생명의 탄생 — Play 둘이 아직 남았다
 미사용   기반에 있으나 컨텐츠가 아직 안 쓰는 것 — 겹침 표면 · 칸 띠 · 터치 입력 · 이펙트 레이어 · 지면 구역 · 세계 영속
@@ -167,6 +174,8 @@ observers.present 가 방 단위가 아니라 **세계 전체**의 수다 — �
 어귀의 원천에 코드가 **둘 함께** 걸릴 수 있다 (되돌아옴이 멎었다 · 아직 그때가 아니다)  C014
 구역 채움(방 바닥 · settlement)은 빛을 받지 않는다 — 밤에 땅은 어두워지는데 그 위의 채움은 그대로다  C015
 밤의 범위가 관찰만 자르고, 상호작용의 거리(2.0)는 따로 판정한다 — 둘이 같은 자리에서 나오지 않는다  C015
+검사 ① 이 여섯 방을 아직 못 잰다 — 위험이 놓인 방이 숲 가장자리 하나뿐이다 (Human 이 방 단위 판정을 골랐다)  C016
+뒤척임이 철의 **시작보다 한 Tick 뒤**에 적용된다 — 세계 과정은 시각이 오르기 전에 돈다  C016
 Human 감사 — C005 의 표면 임계 15°(평지/비탈)는 문서 근거가 없는 기본형이다
 ```
 
