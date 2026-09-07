@@ -17,19 +17,51 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { COMPILE_RULES } from '../../content/regions';
 import { WORLD_AUTHOR_TEMPLATES } from '../../content/authoring/templates';
+import { WORLD_CONTRACTS } from '../../content/authoring/contracts';
 import { authorRegion, type AuthoredRegion } from '../../engine/world-authoring/author';
-import { parseRegionBrief } from '../../engine/world-authoring/brief';
+import { parseRegionBrief, type RegionBrief } from '../../engine/world-authoring/brief';
+import { gradeRegion, type GradeResult } from '../../engine/world-authoring/grade';
 import { compileRegion } from '../../engine/world-authoring/compile';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
 
-/** brief 파일 하나 → 뼈대 하나. 형을 통과하지 못하면 걸린 자리를 대고 멈춘다 */
-export function authorFromFile(path: string): AuthoredRegion {
+/** brief 파일 하나 → 형을 통과한 brief. 통과하지 못하면 걸린 자리를 대고 멈춘다 */
+export function readBrief(path: string): RegionBrief {
   const parsed = parseRegionBrief(JSON.parse(readFileSync(path, 'utf8')));
   if (!parsed.ok) {
     const lines = parsed.problems.map((p) => `    ${p.path || '(뿌리)'}  ${p.message}`);
     throw new Error(['brief 가 형을 통과하지 못했다:', ...lines].join('\n'));
   }
+  return parsed.brief;
+}
+
+/** 이 세계의 계약 목록과 대조한 등급 (T4) */
+export function gradeFromFile(path: string): GradeResult {
+  return gradeRegion(readBrief(path), WORLD_CONTRACTS);
+}
+
+/** 빠진 것들을 GAP 형식으로 — CLAUDE.md 의 네 줄 그대로 */
+export function renderGrade(grade: GradeResult): string {
+  const lines = [`  등급 ${grade.grade} — ${grade.because}`];
+  const block = (title: string, gaps: GradeResult['blocking']) => {
+    if (gaps.length === 0) return;
+    lines.push('', `  ${title}`);
+    for (const gap of gaps) {
+      lines.push('    GAP');
+      lines.push(`      Required   ${gap.required}`);
+      lines.push(`      Missing    ${gap.missing}`);
+      if (gap.reason) lines.push(`      Reason     ${gap.reason}`);
+      lines.push(`      Return To  ${gap.returnTo}`);
+    }
+  };
+  block('등급을 가른 것', grade.blocking);
+  block('등급을 가르지는 않으나 채워야 할 것 (여덟 답)', grade.pending);
+  return lines.join('\n');
+}
+
+/** brief 파일 하나 → 뼈대 하나 */
+export function authorFromFile(path: string): AuthoredRegion {
+  const parsed = { ok: true as const, brief: readBrief(path) };
   return authorRegion({
     brief: parsed.brief,
     templates: WORLD_AUTHOR_TEMPLATES,
@@ -132,17 +164,26 @@ function main(argv: readonly string[]): number {
     );
     return 2;
   }
-  const authored = authorFromFile(resolve(ROOT, files[0]!));
+  const path = resolve(ROOT, files[0]!);
+  const grade = gradeFromFile(path);
+  // 등급 C 의 방은 굳히지 않는다 — 지금 없는 의미를 요구하므로 뼈대가 서도 세계에 붙지 못한다
+  if (grade.grade === 'C' && flags.includes('--write')) {
+    process.stderr.write(`${renderGrade(grade)}\n\n  등급 C 는 굳히지 않는다 — 기반 층의 그 행이 먼저다.\n`);
+    return 1;
+  }
+  const authored = authorFromFile(path);
   const module = renderRegionModule(authored);
   if (flags.includes('--write')) {
     const slug = authored.spec.id.toLowerCase().replace(/_/g, '-');
     const out = resolve(ROOT, 'content/regions', `${slug}.ts`);
     mkdirSync(dirname(out), { recursive: true });
     writeFileSync(out, module, 'utf8');
-    process.stdout.write(`  굳혔다: content/regions/${slug}.ts\n\n${renderSeams(authored)}\n`);
+    process.stdout.write(
+      `${renderGrade(grade)}\n\n  굳혔다: content/regions/${slug}.ts\n\n${renderSeams(authored)}\n`,
+    );
     return 0;
   }
-  process.stdout.write(`${module}\n${renderSeams(authored)}\n`);
+  process.stdout.write(`${module}\n${renderSeams(authored)}\n\n${renderGrade(grade)}\n`);
   return 0;
 }
 

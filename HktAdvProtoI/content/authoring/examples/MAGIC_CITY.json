@@ -1,0 +1,57 @@
+{
+  "id": "MAGIC_CITY",
+  "name": "마법도시",
+  "depth": "civil",
+  "kinds": [],
+  "answers": {
+    "distinction": {
+      "unanswered": "마법이 무엇인지가 이 세계에 아직 없다 — 그것이 서야 이 도시가 무엇이 특별한지 적을 수 있다"
+    },
+    "cause": {
+      "unanswered": "마법이 왜 여기 모였는지는 마법 자체가 서기 전에는 적을 수 없다"
+    },
+    "dwelling": {
+      "unanswered": "도시의 사람들은 3층(주체)의 것이다 — 그 축이 아직 서지 않았다 (Tool-Scale §2 C 행)"
+    },
+    "danger": {
+      "unanswered": "마법이 무엇을 할 수 있는지가 정해져야 무엇이 위험한지가 나온다"
+    },
+    "worth": {
+      "said": {
+        "unanswered": "마법을 쓰는 데 드는 것이 무엇인지가 6층(능력)의 것이다"
+      },
+      "sources": []
+    },
+    "discovery": {
+      "unanswered": "발견할 것이 마법의 원리인데 그 원리가 아직 없다"
+    },
+    "opening": {
+      "unanswered": "열리는 것이 새 능력인데 능력 축이 아직 서지 않았다"
+    },
+    "birth": {
+      "said": {
+        "unanswered": "생명 계약(탄생지 · 개체군 · 관계)이 아직 데이터로 서지 않았다 — Play RoomBearsLife(C022~C025)의 것이다"
+      },
+      "born": []
+    }
+  },
+  "neighbours": [
+    {
+      "region": "WHITE_KING_DOMAIN",
+      "transition": "road",
+      "direction": "bidirectional"
+    }
+  ],
+  "requires": [
+    {
+      "kind": "axis",
+      "what": "마법 — 6층(능력)",
+      "why": "이 도시의 특별함이 곧 마법이다. 능력 축이 서지 않으면 무엇이 특별한지조차 적을 수 없다 (Tool-Scale §2 C 행)"
+    },
+    {
+      "kind": "axis",
+      "what": "주체와 몸 — 3층",
+      "why": "도시의 사람들이 무엇을 하는지가 이 도시의 절반이다. 3층이 서면 이 방은 등급 A 로 온다"
+    }
+  ]
+}
