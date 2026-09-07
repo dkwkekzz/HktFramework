@@ -1,0 +1,107 @@
+{
+  "out": "shots",
+  "viewport": [900, 660],
+  "runs": [
+    {
+      "region": "PREDATOR_NEST",
+      "spawn": "0,4",
+      "npcs": "none",
+      "steps": [
+        { "wait": "세계 시간", "tries": 60 },
+        { "sleep": 1500 },
+        { "shot": "X-01-nest-mycelium", "note": "X-① 사체 위 흰 균사 — 셋째 재료의 원천이고 일곱 가운데 유일하게 붉지 않다. 그 둘레 흙은 붉게 되돌아와 있다" },
+        { "click": [0.217, 0.515], "alt": true },
+        { "sleep": 2000 },
+        { "shot": "X-02-ask-mycelium", "note": "X-① 지목하면 거목균을 낸다고 답한다 — 무엇에 쓰는지는 세계가 말하지 않는다" }
+      ]
+    },
+    {
+      "region": "RED_EYE_TREE",
+      "spawn": "-2,2",
+      "npcs": "none",
+      "sourcePhase": "NEST_FUNGUS:depleted,ROOT_NODULE:depleted",
+      "steps": [
+        { "wait": "세계 시간", "tries": 60 },
+        { "sleep": 1500 },
+        { "click": [0.217, 0.515], "alt": true },
+        { "sleep": 2000 },
+        { "shot": "X-03-nodule-stalled", "note": "X-② 둥지의 균사를 캐 놓으면 거목의 뿌리혹에 '되돌아옴이 멎었다' 가 선다 — 한 방 건너" }
+      ]
+    },
+    {
+      "region": "BIO_ORE_FIELD",
+      "spawn": "2,-6",
+      "npcs": "none",
+      "sourcePhase": "NEST_FUNGUS:depleted,ROOT_NODULE:depleted,ORE_OUTCROP:depleted",
+      "steps": [
+        { "wait": "세계 시간", "tries": 60 },
+        { "sleep": 1500 },
+        { "click": [0.783, 0.515], "alt": true },
+        { "sleep": 2000 },
+        { "shot": "X-04-outcrop-stalled", "note": "X-② 그 뿌리혹이 멎으면 광맥의 노두도 멎는다 — 두 방 건너. 사슬이 셋이다" }
+      ]
+    },
+    {
+      "region": "FOREST_DEEP",
+      "spawn": "17,-11",
+      "npcs": "none",
+      "steps": [
+        { "wait": "세계 시간", "tries": 60 },
+        { "sleep": 1500 },
+        { "click": [0.217, 0.515], "alt": true },
+        { "sleep": 2000 },
+        { "shot": "X-05-flow-arriving", "note": "X-③ 어귀 — 세계가 설 때는 아직 없다. 물길이 불어 있는 동안 지목하면 '지금 실려 오는 중이다'" },
+        { "wait": "세계 시간 3[2-9]s", "tries": 60 },
+        { "sleep": 1500 },
+        { "shot": "X-06-flow-arrived", "note": "X-③ 한 구간이 다 차면 퇴적이 선다 — 물에 갈려 붉은빛을 잃은 알갱이다. 노두와 같은 재료이고 그림이 다르다" }
+      ]
+    },
+    {
+      "region": "FOREST_DEEP",
+      "spawn": "17,-11",
+      "npcs": "none",
+      "sourcePhase": "LAKE_SILT_BED:depleted",
+      "steps": [
+        { "wait": "세계 시간 3[2-9]s", "tries": 90 },
+        { "sleep": 1500 },
+        { "click": [0.217, 0.515], "alt": true },
+        { "sleep": 2000 },
+        { "shot": "X-07-source-spent", "note": "X-④ 두 방 건너 호수 바닥을 캐 놓으면 물길이 불어도 어귀에 아무것도 오지 않는다 — 되돌아옴이 멎었다" }
+      ]
+    },
+    {
+      "region": "HEART_LAKE",
+      "spawn": "-2,-6",
+      "npcs": "none",
+      "steps": [
+        { "wait": "세계 시간", "tries": 60 },
+        { "sleep": 1500 },
+        { "shot": "X-08-lake-silt-bed", "note": "X-⑤ 흐름의 출발 — 거목 안에서 계속 가라앉는 침전. 물빛이 탁하고, 알갱이보다 짙되 노두만큼 붉지는 않다" },
+        { "click": [0.217, 0.515], "alt": true },
+        { "sleep": 2000 },
+        { "shot": "X-09-ask-silt-bed", "note": "X-⑤ 지목하면 생체 광석을 낸다고 답한다 — 어귀의 알갱이와 같은 재료다" }
+      ]
+    },
+    {
+      "region": "FOREST_DEEP",
+      "spawn": "-12,0",
+      "npcs": "none",
+      "steps": [
+        { "wait": "세계 시간", "tries": 60 },
+        { "sleep": 1500 },
+        { "shot": "X-10-third-direction", "note": "X-⑥ 둥지 쪽 출구 둘레의 흙도 이제 짙다 — 그 방향에도 원천이 섰으므로. 안쪽 셋이 다 방향을 가리킨다" }
+      ]
+    },
+    {
+      "region": "WHITE_KING_DOMAIN",
+      "spawn": "0,0",
+      "npcs": "none",
+      "steps": [
+        { "wait": "세계 시간", "tries": 60 },
+        { "expect": "문명권", "note": "X-⑦ 백왕령이다" },
+        { "sleep": 1000 },
+        { "shot": "X-11-untouched", "note": "X-⑦ 백왕령에는 원천도 흙 변색도 없다 — 그리고 왜 없는지가 그 방의 데이터에 적혀 있다" }
+      ]
+    }
+  ]
+}
