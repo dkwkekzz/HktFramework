@@ -36,6 +36,7 @@ import { ruleMazeConnection } from './simulation/maze-connection';
 import { ruleMoveProgress } from './simulation/move-progress';
 import { ruleNpcDecideAll } from './simulation/npc-decide';
 import { ruleRegionFall } from './simulation/region-fall';
+import { ruleSeasonTurn } from './simulation/season-turn';
 import { ruleSourceRecovery } from './simulation/source-recovery';
 import { ruleStrikeEventExpire } from './simulation/strike-event-expire';
 import { ruleSwingStrike } from './simulation/swing-strike';
@@ -169,7 +170,10 @@ const SYSTEMS: WorldContent<WorldState>['systems'] = [
   // 걸음이 그 방의 압력이 된다 — move-progress 가 적은 movedThisTick 을 바로 뒤에서 읽는다.
   // 다른 무엇이 자리를 건드리기 전이고, 관찰(투영)보다는 당연히 앞이다 (C008 spec R1 Priority).
   (state) => ruleMazeConnection(state), // RULE-MAZE-CONNECTION-001
-  // 세계 과정끼리 나란히 선다 (C013 spec R10) — 되돌아옴은 관찰자와 무관하게 돈다.
+  // 세계 과정끼리 나란히 선다 (C013 spec R10 · C016 spec R10) — 뒤척임도 되돌아옴도
+  // 관찰자와 무관하게 돈다. 뒤척임이 되돌아옴보다 **앞**인 이유: 뒤척인 뒤의 진행은
+  // 그 Tick 부터 새로 오른다 (되돌아옴이 먼저 오르면 곧바로 0 으로 지워져 한 Tick 이 헛돈다).
+  (state) => ruleSeasonTurn(state), // RULE-SEASON-TURN-001
   // 채취의 완료(action-progress)보다 **앞**이다: 같은 Tick 에 캔 것이 곧바로 되돌아오지 않는다.
   (state, dt) => ruleSourceRecovery(state, dt), // RULE-SOURCE-RECOVERY-001
   (state, dt) => ruleActionProgress(state, dt), // RULE-ACTION-PROGRESS-001
@@ -232,6 +236,11 @@ export function createWorld(setup: WorldSetup = {}, restored?: WorldState): Worl
       applyPatternSetup(createRegionStates(), setup.regionPatterns),
       setup.sourcePhases,
     ),
+    // 아직 한 번도 뒤척이지 않았다 (C016 ADDED · spec R8). 되살린 세계는 이 자리에 오지
+    // 않는다 — 적용한 수는 저장되는 State 이므로 스냅샷의 그 값이 그대로 이어진다.
+    // 검증용 손잡이가 다른 때를 밝혔어도 0 이다: 그 세계는 그 시각에 **선** 것이고
+    // 그때까지의 뒤척임은 일어난 적이 없다.
+    turnsApplied: 0,
     // 속성 변경 권한은 세계 밖(세계를 띄우는 쪽)이 정한다.
     // 기본은 열려 있다: 이 프로토타입은 관찰과 시험이 목적이며, 닫으려면 세계를 그렇게 띄운다.
     debugAuthority: { open: setup.debugAuthority ?? true },

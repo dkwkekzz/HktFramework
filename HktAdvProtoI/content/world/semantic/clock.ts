@@ -121,6 +121,25 @@ export function worldClockAt(time: number): WorldClockView {
 }
 
 /**
+ * RULE-SEASON-TURN-001 (C016 ADDED · spec R8) — 세계가 선 뒤 지금까지 **시작된** 뒤척임의 수.
+ *
+ * 한 바퀴에 뒤척임은 한 번이고 바퀴의 **끝**에 온다. 그래서 지나온 바퀴의 수에, 지금이
+ * 뒤척임이면 하나를 더한다 — 지금 도는 그 뒤척임도 **시작되었기** 때문이다.
+ *
+ * 세계 시각에서 유도된다 — 저장되지 않는다. 저장되는 것은 "그 가운데 몇 번을 적용했는가"
+ * 하나뿐이고(World.turnsApplied), 뒤척임이 **사건**이라 그것만은 세계가 기억해야 한다
+ * (spec 기본형 ⑤). 시각만으로 두면 큰 걸음이 사건을 건너뛰고, "언제 마지막으로" 로 두면
+ * 되살린 세계가 다시 뒤척인다.
+ *
+ * 철 이름을 아는 자리는 이 파일 하나다 (T4) — 세계 과정도 위상도 이름을 알지 못하고,
+ * 여기가 낸 **수**만 읽는다.
+ */
+export function turnsStartedAt(time: number): number {
+  const { season, seasonCycle } = worldClockAt(time);
+  return seasonCycle + (season === 'TURN' ? 1 : 0);
+}
+
+/**
  * 검증용 손잡이 — 그 철(·낮밤)이 **시작하는** 세계 시각 (C015 ADDED).
  *
  * WorldSetup.clock 이 받는 `"LONG_NIGHT"` · `"SEEP:NIGHT"` 같은 값을 시각으로 옮긴다.

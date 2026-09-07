@@ -5,12 +5,13 @@
 //                3. 그 끝의 anchor 와 Actor 의 거리 ≤ INTERACTION_RANGE (RULE-MINE-001 과 같은 상수)
 //                4. Connector 가 열려 있다 — RULE-CONNECTOR-ACTIVATION-001         (C002 ADDED)
 //                   (C009 CHANGED — 정적 목록에 없고 **그리고** 그 문의 활성 조건을 통과한다)
+//                   (C016 CHANGED — 활성 조건이 패턴과 **철**을 함께 본다)
 //                5. 건너간 뒤의 region 이 지어져 있다 — Description 이 있다           (C002 ADDED)
 //                6. 현재 행동이 대체 가능하다 (RULE-ACTION-BEGIN-001)
 // Transition     Actor.RegionId = 반대쪽 끝의 region · Position = 반대쪽 anchor 의 자리 ·
 //                Velocity = (0, 0) · CurrentAction = idle
 // Result         Success | Failure(unknown-connector | wrong-region | out-of-range |
-//                connector-inactive | region-not-built | action-busy)
+//                connector-inactive | not-this-season | region-not-built | action-busy)
 //
 // 거절 사유는 위 순서로 첫 번째로 걸리는 하나다 (01-spec SPEC-006). 거리가 닫힘·경계보다 앞인 것은
 // 뜻이 있다 — 멀리서도 사유가 보이면 걸어가 볼 이유가 사라진다. 목적지는 붙어서 물어봐야 안다.
@@ -27,6 +28,13 @@
 // 멀리서는 여전히 거리가 먼저 걸린다 — 문이 왜 잠겼는지는 붙어서 물어야 안다.
 // 그래서 이 함수가 WorldState 를 받는다: 판정이 세계를 읽어야 하기 때문이고, 세계를 바꾸지는 않는다.
 //
+// C016 CHANGED — 전제 4 가 세계 State 에 더해 **세계 시각**을 함께 읽고(spec R4), 닫힘의 사유가
+// 둘로 갈린다 (spec R5). **철 때문에** 닫힌 문만 not-this-season 이고 그 밖의 닫힘은 여전히
+// connector-inactive 다 — 잠긴 것(C009 의 미로 심장 문)과 지금이 그때가 아닌 것은 다른 말이다.
+// **전제의 순서는 한 자리도 바뀌지 않는다** — 거리가 여전히 닫힘보다 앞이다 (위 15~16 줄이
+// 적어 둔 뜻 그대로: 멀리서 사유가 보이면 걸어가 볼 이유가 사라진다).
+// 어느 사유인가는 여기서 다시 판정하지 않는다 — connectorClosedReason 하나가 낸 답을 옮길 뿐이다.
+//
 // C003 CHANGED — 전이(regionId · position · velocity · currentAction)를 applyRegionTransition 하나로
 // 빼서 RULE-REGION-FALL-001 과 나눠 쓴다 (01-spec R2). 전제·사유 여섯·관찰 가능한 행동은 그대로다 —
 // 두 규칙이 **같은 전이**를 하되 묻는 것이 다를 뿐임을 코드가 말한다.
@@ -40,7 +48,7 @@ import { REGION_GRAPH } from '../../regions';
 import { idleAction } from '../semantic/action';
 import type { ActorState } from '../semantic/actor';
 import { distance } from '../semantic/position';
-import { anchorPosition, isConnectorOpen, isRegionBuilt } from '../semantic/region';
+import { anchorPosition, connectorClosedReason, isRegionBuilt } from '../semantic/region';
 import { INTERACTION_RANGE, type WorldState } from '../semantic/world-state';
 import { evaluateActionBegin } from './action-begin';
 
@@ -51,6 +59,8 @@ export type TransitFailureReason =
   | 'unknown-connector'
   | 'wrong-region'
   | 'connector-inactive'
+  // C016 ADDED (spec R5) — **철 때문에** 닫힌 문의 사유. 잠긴 것과 갈린다
+  | 'not-this-season'
   | 'region-not-built';
 
 // Precondition 평가 — Observable(interactions[transit].available / reason)과 Rule 이 같은 판정을 공유한다.
@@ -65,7 +75,9 @@ export function evaluateTransitPreconditions(
   if (distance(actor.position, here) > INTERACTION_RANGE) return 'out-of-range';
   // C002 ADDED — 닫힌 문이 먼저다. 열려 있어도 건너간 뒤가 아직 지어지지 않았으면 갈 수 없다.
   // C009 CHANGED — 그 열림을 세계 State 가 함께 정한다. 자리도 사유도 그대로다.
-  if (!isConnectorOpen(state.regionStates, exit.connector.id)) return 'connector-inactive';
+  // C016 CHANGED — 세계 시각도 함께 본다. **자리는 그대로**이고 사유만 둘로 갈린다 (spec R5).
+  const closed = connectorClosedReason(state.regionStates, exit.connector.id, state.time);
+  if (closed) return closed === 'season' ? 'not-this-season' : 'connector-inactive';
   if (!isRegionBuilt(exit.there.region)) return 'region-not-built';
   return evaluateActionBegin(actor);
 }

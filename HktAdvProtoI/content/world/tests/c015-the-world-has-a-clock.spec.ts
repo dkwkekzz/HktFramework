@@ -59,6 +59,7 @@ import {
 import {
   isCollapsedAt,
   isFlowActive,
+  isSourcePresentAt,
   inflowOf,
   sourcePositionOf,
   sourceStateOf,
@@ -105,8 +106,14 @@ const SEEP = 'SEEP';
 const LONG_NIGHT = 'LONG_NIGHT';
 const TURN = 'TURN';
 
-/** spec 이 적은 State 형 버전 — 이 Cycle 은 이것을 올리지 않는다 (SPEC-006 경계) */
-const FROZEN_STATE_VERSION = 'hkt-adv-proto-i/6';
+/**
+ * C015 가 State 를 하나도 더하지 않았을 때의 값 (SPEC-006 경계).
+ *
+ * C016 CHANGED — 그 뒤 C016 이 뒤척임의 수(turnsApplied)를 더하며 이 값을 올렸다. C015 의
+ * 주장은 지워지지 않는다: **시계는 여전히 저장되지 않는다** — 아래 S-062 가 재는 것은
+ * "스냅샷 어디에도 때가 적혀 있지 않은가" 이고, 버전이 올랐다는 것은 시계와 무관하다.
+ */
+const STATE_VERSION_AT_C015 = 'hkt-adv-proto-i/6';
 
 /** 채취의 소요 시간 — 행동표가 소유한다. 여기서는 "넉넉히 지난다" 로만 쓴다 (C011~C014 어법) */
 const MINE_SECONDS = 1.2;
@@ -866,13 +873,14 @@ describe('SPEC-006 때는 껐다 켜도 이어진다', () => {
     expect(clockOf(revive(night)).dayPhase).toBe(NIGHT);
   });
 
-  it('S-062 (경계) STATE_VERSION 은 오르지 않았다 — 옛 스냅샷이 그대로 되살아난다', () => {
-    // Then spec 이 적은 그 값 그대로다 — 시계는 저장되는 것이 아니다
-    expect(STATE_VERSION).toBe(FROZEN_STATE_VERSION);
+  it('S-062 (경계) 시계는 저장되지 않는다 — 스냅샷 어디에도 때가 적혀 있지 않다', () => {
+    // C016 CHANGED — 버전은 그 뒤 C016 이 올렸다 (뒤척임의 수 하나). 시계가 올린 것이
+    // 아니므로 C015 의 주장은 그대로다: 아래 셋이 그 주장의 몸통이다.
+    expect(STATE_VERSION).not.toBe(STATE_VERSION_AT_C015);
     const world = driveWorld(solo);
     runTo(world, MIDNIGHT);
     const snapshot = throughFile(world.world.snapshot());
-    expect(snapshot.version).toBe(FROZEN_STATE_VERSION);
+    expect(snapshot.version).toBe(STATE_VERSION);
     // And 그 버전으로 찍힌 스냅샷은 버려지지 않는다
     expect(restoreWorld(snapshot)).not.toBeNull();
     // And 스냅샷 어디에도 때는 적혀 있지 않다 — 세계 시각에서 나오기 때문이다
@@ -967,10 +975,20 @@ describe('SPEC-009 밤에는 흔적이 또렷해진다', () => {
     runTo(world, MIDDAY, 1);
     expect(clockOf(world).dayPhase).toBe(DAY);
     const day = tracesNow();
-    for (const target of [MIDNIGHT, LONG_NIGHT_AT + 100, TURN_AT + 10]) {
+    for (const target of [MIDNIGHT, LONG_NIGHT_AT + 100]) {
       runTo(world, target, 1);
       expect({ target, traces: tracesNow() }).toEqual({ target, traces: day });
     }
+    // C016 CHANGED — 뒤척임에는 **세계가 뒤척여** 자국이 묻히고 원천이 자리를 옮긴다
+    // (C016 spec R8). 그것은 낮밤이 하는 일이 아니므로 고요의 낮과 견줄 수 없다.
+    // 이 검사가 재는 것(흔적의 세기가 낮과 밤에 같은가)은 지워지지 않고 **뒤척임을 지난
+    // 뒤의 낮과 밤**으로 옮겨 잰다 — 그 사이에는 뒤척임이 다시 오지 않는다.
+    runTo(world, TURN_AT + 10, 1);
+    expect(clockOf(world).dayPhase).toBe(DAY);
+    const afterTurn = tracesNow();
+    runTo(world, CYCLE_LENGTH + MIDNIGHT, 1);
+    expect(clockOf(world).dayPhase).toBe(NIGHT);
+    expect(tracesNow()).toEqual(afterTurn);
   });
 
   it('S-092 (경계 ②) 흔적이 없는 방은 밤에도 아무것도 서지 않는다', () => {
@@ -1003,9 +1021,16 @@ const FOUR_SEASONS = [
   { season: TURN, at: 2160 },
 ] as const;
 
-/** 그 순간 세계가 쥐고 있는 방의 사실 — 원천 · 통행 · 규칙 · 흔적 세기 */
-function roomFacts(w: WorldDriver) {
+/**
+ * 그 순간 세계가 쥐고 있는 방의 사실 — 원천 · 통행 · 규칙 · 흔적 세기.
+ *
+ * C016 CHANGED — 어느 방을 재는지 고를 수 있다. 철이 방을 바꾸게 된 뒤로도 **밝히지 않은
+ * 방은 한 값도 달라지지 않는다**(C016 spec SPEC-007)는 것이 C015 주장의 살아 있는 몫이고,
+ * 그것을 재려면 밝힌 방을 골라 낼 자리가 필요하다.
+ */
+function roomFacts(w: WorldDriver, regions: readonly string[] = SOURCE_REGIONS) {
   const states = statesOf(w);
+  const SOURCE_REGIONS = regions;
   return {
     sources: SOURCE_REGIONS.map((region) =>
       sourcesInRegion(region).map((source) => {
@@ -1027,9 +1052,17 @@ function roomFacts(w: WorldDriver) {
   };
 }
 
-describe('SPEC-010 때는 아직 방을 바꾸지 않는다', () => {
-  it('S-0101 철 넷에서 원천 · 통행 · 규칙 · 흔적 세기가 한 값도 다르지 않다', () => {
+/** 위상을 밝히지 않은 방들 — 철이 몇 번을 돌아도 한 값도 달라지지 않는다 (C016 SPEC-007) */
+const UNDECLARED_SOURCE_REGIONS = SOURCE_REGIONS.filter((id) => regionSpec(id)?.phases === undefined);
+
+// C016 CHANGED — 이 Cycle 이 "아직" 이라고 적어 둔 그 자리를 C016 이 채웠다: 이제 **밝힌 방**은
+// 철을 탄다. C015 의 주장은 지워지지 않고 **좁아진다** — 밝히지 않은 방은 여전히 어느 철에도
+// 한 값 다르지 않고(C016 spec SPEC-007), 미로의 압력과 패턴은 뒤척임에도 그대로 돈다
+// (C016 spec R8 경계 ④). 밝힌 방이 무엇을 하는지는 C016 의 시나리오가 소유한다.
+describe('SPEC-010 때는 밝히지 않은 방을 바꾸지 않는다', () => {
+  it('S-0101 철 넷에서 밝히지 않은 방의 원천 · 통행 · 규칙 · 흔적 세기가 한 값도 다르지 않다', () => {
     // Given 아무도 아무것도 하지 않는 세계 (몸은 시작 방에 가만히 서 있다)
+    expect(UNDECLARED_SOURCE_REGIONS.length).toBeGreaterThan(0);
     const world = driveWorld(solo);
     let expected: ReturnType<typeof roomFacts> | null = null;
     for (const { season, at } of FOUR_SEASONS) {
@@ -1037,13 +1070,17 @@ describe('SPEC-010 때는 아직 방을 바꾸지 않는다', () => {
       runTo(world, at, 1);
       expect({ at, season: clockOf(world).season }).toEqual({ at, season });
       // Then 네 철에서 한 값도 다르지 않다
-      const facts = roomFacts(world);
+      const facts = roomFacts(world, UNDECLARED_SOURCE_REGIONS);
       if (expected === null) expected = facts;
       else expect({ season, ...facts }).toEqual({ season, ...expected });
     }
   });
 
-  it('S-0102 (경계 ①) 뒤척임이 와도 무너진 자리 · 원천의 자리 · 미로의 패턴은 그대로다', () => {
+  // C016 CHANGED — 뒤척임은 이제 **밝힌 방**의 자국을 묻고 원천을 옮긴다 (C016 spec R8).
+  // 그러니 이 검사가 재는 것을 그 규칙이 건드리지 않는다고 적어 둔 것으로 좁힌다:
+  // 밝히지 않은 방의 자국과 자리 · 그리고 **미로의 압력과 패턴**(R8 경계 ④)이다.
+  // 밝힌 방(생체 광석 지대)이 뒤척임에 무엇을 하는지는 C016 의 시나리오가 소유한다.
+  it('S-0102 (경계 ①) 뒤척임이 와도 밝히지 않은 방의 무너진 자리 · 원천의 자리 · 미로의 패턴은 그대로다', () => {
     // Given 한 번 캐고 되돌아와 자리를 옮긴 원천 — 옛 자리는 무너진 채 남아 있다 (C013)
     const at = pointOf(BIO_ORE_FIELD, NIGHT_SOURCE);
     let world = standingIn(BIO_ORE_FIELD, besideSpot(at), { actorItems: { pickaxe: 1 } });
@@ -1053,12 +1090,14 @@ describe('SPEC-010 때는 아직 방을 바꾸지 않는다', () => {
     wait(world, recoveryOf(BIO_ORE_FIELD, NIGHT_SOURCE));
     const moved = shapeOf(world)[BIO_ORE_FIELD]?.sources?.[NIGHT_SOURCE];
     expect(moved).toMatchObject({ phase: 'available', siteIndex: 1, collapsedSites: [0] });
-    const before = roomFacts(world);
+    const before = roomFacts(world, UNDECLARED_SOURCE_REGIONS);
+    const mazeBefore = shapeOf(world)[FANTASY_MAZE]?.rule;
     // When 뒤척임까지 굴린다 (그 사이에 밤도 긴 밤도 지난다)
     runTo(world, TURN_AT + 10, 1);
     expect(clockOf(world).season).toBe(TURN);
-    // Then 무너진 자리도 원천의 자리도 미로의 패턴도 그대로다
-    expect(roomFacts(world)).toEqual(before);
+    // Then 밝히지 않은 방의 무너진 자리도 원천의 자리도, 미로의 압력과 패턴도 그대로다
+    expect(roomFacts(world, UNDECLARED_SOURCE_REGIONS)).toEqual(before);
+    expect(shapeOf(world)[FANTASY_MAZE]?.rule).toEqual(mazeBefore);
   });
 
   it('S-0103 (경계 ②) 되돌아옴은 때와 무관하게 세계 시각으로 돈다 — 밤을 지나 돌아온다', () => {
@@ -1254,8 +1293,12 @@ describe('회귀', () => {
           id: source.id,
           phase: NIGHT,
         });
+        // C016 CHANGED — 철 조건을 밝힌 원천은 **그 철에만** 실린다 (C016 spec R6). 이 검사가
+        // 재는 것은 "밤이 원천을 지우는가" 이므로, 무엇이 실려야 하는지를 세계와 같은
+        // 판정(isSourcePresentAt)에서 얻어 견준다 — 기대를 낮추지 않고 자리를 옮긴다.
+        const present = isSourcePresentAt(source, timeOf(world));
         expect({ region, id: source.id, seen: entityOf(world.observe(), source.id) !== undefined }).toEqual(
-          { region, id: source.id, seen: true },
+          { region, id: source.id, seen: present },
         );
       }
     }

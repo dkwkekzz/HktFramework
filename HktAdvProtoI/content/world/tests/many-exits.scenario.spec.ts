@@ -7,7 +7,13 @@
 import { describe, expect, it } from 'vitest';
 import { checkGraph } from '../../../engine/world-authoring/check';
 import type { GameViewSnapshot } from '../../protocol/gameview';
-import { ANCHOR_LAYER, REGION_GRAPH, REGION_SPECS, regionSpec } from '../../regions';
+import {
+  ANCHOR_LAYER,
+  CLOSED_CONNECTORS,
+  REGION_GRAPH,
+  REGION_SPECS,
+  regionSpec,
+} from '../../regions';
 import { createWorld, restoreWorld } from '../index';
 import { INTERACTION_RANGE, STATE_VERSION, TICK_INTERVAL, type WorldState } from '../semantic/world-state';
 import { driveWorld, OBSERVER, OBSERVER_2, PLAYER, PLAYER_2, type WorldDriver } from './drive';
@@ -49,6 +55,9 @@ const ORE_TREE_TRAIL = 'ORE_TREE_TRAIL';
 const ANCIENT_GATE = 'ANCIENT_GATE';
 const RED_WASTE_PASS = 'RED_WASTE_PASS';
 const ICE_CANYON_PASS = 'ICE_CANYON_PASS';
+// C016 ADDED — 숲 안쪽에 문이 하나 늘었다. **긴 밤에만 열린다** (C016 spec SPEC-003) —
+// 이 시나리오는 t = 0(고요)에서 관찰하므로 여기서는 언제나 잠긴 표식이다.
+const WALKING_FOREST_DOOR = 'WALKING_FOREST_DOOR';
 
 /** 01-spec SPEC-002 의 anchor 표 — 각 방에서 관찰되는 출구 표식의 자리 */
 const EXIT_POSITIONS: Record<string, Record<string, { x: number; z: number }>> = {
@@ -68,6 +77,8 @@ const EXIT_POSITIONS: Record<string, Record<string, { x: number; z: number }>> =
     [ORE_TRAIL]: { x: 18, z: 0 },
     [TREE_APPROACH]: { x: 0, z: 18 },
     [ANCIENT_GATE]: { x: -13, z: 13 },
+    // C016 ADDED — 긴 밤에만 열리는 문 하나 (자리는 그 방 anchor 데이터의 것이다)
+    [WALKING_FOREST_DOOR]: { x: 13, z: 13 },
   },
   [EXPLORER_RUIN]: { [RUIN_TRAIL]: { x: 18, z: 0 } },
   [PREDATOR_NEST]: { [NEST_TRAIL]: { x: 18, z: 0 } },
@@ -87,6 +98,7 @@ const EXIT_KINDS: Record<string, string> = {
   [TREE_APPROACH]: 'interaction',
   [ORE_TREE_TRAIL]: 'trail',
   [ANCIENT_GATE]: 'door',
+  [WALKING_FOREST_DOOR]: 'door', // C016 ADDED
   [RED_WASTE_PASS]: 'pass',
   [ICE_CANYON_PASS]: 'pass',
 };
@@ -347,11 +359,14 @@ describe('S-005 (SPEC-003) — C002 의 Connector 열이 이 순서로 앞에 �
   });
 });
 
-describe('S-006 (SPEC-003) — 방마다 나갈 곳의 수가 3 · 3 · 5 · 1 · 1 · 2 다', () => {
-  it('exits 의 수가 §5.8 그대로다', () => {
+// C016 CHANGED — 숲 안쪽의 출구가 다섯에서 **여섯**이 되었다 (긴 밤에만 열리는 문 하나가
+// 늘었다 · C016 spec SPEC-003). 세계의 값을 낮추지 않고 이 시나리오가 세는 수를 옮긴다 —
+// 다른 다섯 방의 수도, 자리도, 갈래도 한 값 그대로다.
+describe('S-006 (SPEC-003) — 방마다 나갈 곳의 수가 3 · 3 · 6 · 1 · 1 · 2 다', () => {
+  it('exits 의 수가 §5.8 그대로다 (숲 안쪽만 C016 이 하나 늘렸다)', () => {
     expect(exits(rooms()[WHITE_KING_DOMAIN]!).length).toBe(3);
     expect(exits(rooms()[FOREST_EDGE]!).length).toBe(3);
-    expect(exits(rooms()[FOREST_DEEP]!).length).toBe(5);
+    expect(exits(rooms()[FOREST_DEEP]!).length).toBe(6);
     expect(exits(rooms()[EXPLORER_RUIN]!).length).toBe(1);
     expect(exits(rooms()[PREDATOR_NEST]!).length).toBe(1);
     expect(exits(rooms()[BIO_ORE_FIELD]!).length).toBe(2);
@@ -386,8 +401,12 @@ describe('S-008 (SPEC-005) — 닫힌 Connector 가 하나도 없고 닫힘은 �
     for (const region of BUILT_REGIONS) {
       for (const e of exits(rooms()[region]!)) (e.state === 'locked' ? locked : open).push(e.id);
     }
-    expect([...new Set(locked)]).toEqual([]);
-    expect(locked.length).toBe(0);
+    // C016 CHANGED — **정적으로** 닫힌 Connector 는 여전히 하나도 없다 (CLOSED_CONNECTORS 가
+    // 비어 있다). 다만 철 조건을 밝힌 문 하나가 고요에는 잠긴 표식으로 선다 — 잠긴 것이
+    // 아니라 지금이 그때가 아닌 것이고, 그 갈림은 표식이 아니라 요청의 대답이 말한다
+    // (C016 spec SPEC-003 경계 ④). 주장은 지워지지 않고 **좁아진다**.
+    expect([...new Set(locked)]).toEqual([WALKING_FOREST_DOOR]);
+    expect(CLOSED_CONNECTORS).toEqual([]);
     expect([...new Set(open)].sort()).toEqual(
       [
         FOREST_PATH,
@@ -627,27 +646,33 @@ describe('S-018 (SPEC-007 경계) — 경계를 가리키는 출구도 state = o
   });
 });
 
-// C004 가 데이터로 열었다 — 숲 안쪽의 잠긴 표식 하나가 열린 표식이 됐다 (출구 수도 갈래도 그대로다)
-describe('S-019 (SPEC-008) — 숲 안쪽은 출구가 다섯이고 이제 다섯이 전부 열려 있다', () => {
-  it('exits 다섯 · ANCIENT_GATE 도 open/door · transit 다섯 · depth wild · 목적지 이름 없음', () => {
+// C004 가 데이터로 열었다 — 숲 안쪽의 잠긴 표식 하나가 열린 표식이 됐다.
+// C016 CHANGED — 그 방에 긴 밤에만 열리는 문 하나가 늘어 출구가 여섯이 되었고, 고요에 서는
+// 이 시나리오에서는 그 하나만 잠긴 표식이다. C004 가 연 다섯은 한 값도 다르지 않다.
+describe('S-019 (SPEC-008) — 숲 안쪽은 출구가 여섯이고 C004 가 연 다섯은 전부 열려 있다', () => {
+  it('exits 여섯 · ANCIENT_GATE 도 open/door · transit 여섯 · depth wild · 목적지 이름 없음', () => {
     const w = driveWorld(solo);
     toForestDeep(w);
     const v = w.observe();
 
     expect(v.scene).toBe(FOREST_DEEP);
     expect(v.region.id).toBe(FOREST_DEEP);
-    expect(exits(v).length).toBe(5);
-    expect(exits(v).filter((e) => e.state === 'locked').map((e) => e.id)).toEqual([]);
+    expect(exits(v).length).toBe(6);
+    expect(exits(v).filter((e) => e.state === 'locked').map((e) => e.id)).toEqual([
+      WALKING_FOREST_DOOR,
+    ]);
     expect(exitOf(v, ANCIENT_GATE)?.kind).toBe('door'); // 갈래는 그대로 door 다
     for (const id of [DEEP_TRAIL, NEST_TRAIL, ORE_TRAIL, TREE_APPROACH, ANCIENT_GATE]) {
       expect(exitOf(v, id)?.state).toBe('open');
     }
-    expect(transits(v).length).toBe(5);
+    expect(transits(v).length).toBe(6);
     expect(
       transits(v)
         .map((i) => i.targetEntityId)
         .sort(),
-    ).toEqual([ANCIENT_GATE, DEEP_TRAIL, NEST_TRAIL, ORE_TRAIL, TREE_APPROACH].sort());
+    ).toEqual(
+      [ANCIENT_GATE, DEEP_TRAIL, NEST_TRAIL, ORE_TRAIL, TREE_APPROACH, WALKING_FOREST_DOOR].sort(),
+    );
     expect(hud(v, 'region.depth')).toBe('wild');
 
     const text = JSON.stringify(v);
@@ -772,9 +797,13 @@ describe('S-023 (SPEC-010) — STATE_VERSION 이 올라가지 않고 방·Graph 
     revived.tick(0);
     const v = revived.latestObservation(OBSERVER) as GameViewSnapshot;
     expect(v.scene).toBe(FOREST_DEEP);
-    expect(exits(v).length).toBe(5);
-    // C004 가 데이터로 열었다 — 되살린 세계에서도 잠긴 표식이 없다 (닫힘은 저장되지 않는다)
-    expect(exits(v).filter((e) => e.state === 'locked').map((e) => e.id)).toEqual([]);
+    expect(exits(v).length).toBe(6); // C016 CHANGED — 그 방의 출구가 하나 늘었다
+    // C004 가 데이터로 열었다 — 되살린 세계에서도 그 다섯에는 잠긴 표식이 없다 (닫힘은
+    // 저장되지 않는다). C016 CHANGED — 철 조건 문 하나만 잠긴 표식이고, 그것도 저장된 것이
+    // 아니라 되살린 세계의 **시각**에서 다시 유도된 값이다.
+    expect(exits(v).filter((e) => e.state === 'locked').map((e) => e.id)).toEqual([
+      WALKING_FOREST_DOOR,
+    ]);
     // 방과 Graph 는 컨텐츠 데이터에서 다시 온다 — C003 이 뒤에 더했으므로 개수 대신 존재로 본다
     for (const id of BUILT_REGIONS) expect(REGION_SPECS.map((r) => r.id)).toContain(id);
     for (const id of [FOREST_PATH, ANCIENT_GATE, ORE_TREE_TRAIL]) {
