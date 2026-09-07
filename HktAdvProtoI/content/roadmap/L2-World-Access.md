@@ -1246,7 +1246,7 @@ Silence        묻지 않는 방이면 한 줄 — 왜
 |---|---|---|---|---|---|---|
 | 미로의 심장 문 `MAZE_HEART_GATE` | hard | state: 미로 패턴 P2 | — | 위치를 유지하는 식물 · 문양 (RuleBoundRoom) | `CONNECTOR_ACTIVATIONS` (C009) | Lock 하나 — 형만 바뀐다 (빈칸 1) |
 | 긴 밤에만 열리는 문 (숲) | hard | time: LONG_NIGHT | — | 하늘 · 흙 · 발자국이 철을 말한다 (Time T8) | `phases.LONG_NIGHT.connectorActivation` (RoomNeverSame W26) | Lock 하나 — 같다 |
-| 빙결 심층의 문 (`FROST_DEPTH` 경계) | hard + soft | time: LONG_NIGHT **그리고** property: `heat:hides` | **중요** | `[ ] 빈칸 2` — 원문 §7 의 "김이 푸르게 빛난다" 는 후보이지 확정 사실이 아니다. 지금 확정된 흔적은 사유 코드("체열이 감지된다") 뿐 | RoomOfAnotherKind §5.3 · W33 | **첫 property Lock.** ㉟ 과 ㊶ 이 여기서 GAP 을 보고한다 |
+| 빙결 심층의 문 (`FROST_DEPTH` 경계) | hard + soft | time: LONG_NIGHT **그리고** property: `heat:hides` | **중요** | 원문 §7 의 앞 둘 — "문 가까이 가자 몸에서 피어오르는 김이 푸르게 빛난다" · "차가운 물체는 반응하지 않는다" (D4 · 첫 Play 가 trace 로 놓는다). 지금 데이터에는 사유 코드("체열이 감지된다") 뿐 | RoomOfAnotherKind §5.3 · W33 | **첫 property Lock.** ㉟ 과 ㊶ 이 여기서 GAP 을 보고한다 — 첫 Play 가 둘 다 통과로 바꾼다 |
 | 미로 입구 `MAZE_GATE` | hard | knowledge: `ANCIENT_GATE_PATTERN` | — | — | Region §16 양식 예시 — 데이터에 없다 (C004 는 문을 그냥 열었다) | 자리만 (K2 · K12) — 3층이 온 뒤 |
 
 Lock 이 아닌 것 — 원문 §14.1 그대로: 눈보라 · 절벽 · 결정면 · 추락 · 물길 · 미구현 Region 경계(`region-not-built`) · 안전 조건(백왕령 산맥 — Silence Reason).
@@ -1269,7 +1269,7 @@ Lock 이 아닌 것 — 원문 §14.1 그대로: 눈보라 · 절벽 · 결정�
 ```text
 ㉞ 통과 (어휘 표가 서면)
 ㉟ GAP 1 — FROST_DEPTH: heat:hides 를 요구하는데 SUPPORTS 인 heat:stores 의 Seed(HEAT_CRYSTAL)에 원천이 아직 없다 (D2 가 숲 계통으로 정했고 자리는 첫 Play)
-㊶ GAP 1 — FROST_DEPTH: 요구를 알아낼 흔적이 사유 코드 하나뿐이다 (빈칸 2)
+㊶ GAP 1 — FROST_DEPTH: 요구를 알아낼 흔적이 데이터에 아직 없다 (D4 가 둘을 정했고 첫 Play Cycle ① 이 놓는다)
 ㊴ FROST_DEPTH / heat:hides — Material 1(원천 미배치) · Life 0 · Environment 0 · Actor 0 · Knowledge 0 · Combination unknown → **답이 한 종류**
 ㊵ 1 — 중요 Lock 인데 종류가 하나다 (D3 이 둘째 종류를 둔다)
 ㊷ FROST_DEPTH 뒤 — 빙결 심층(deep) · 그 너머는 경계. 원천 · 생명은 아직 없다 — "문 하나로 끝나는 구조" 에 가깝다 (빈칸 6)
@@ -1284,7 +1284,7 @@ GAP 둘과 고아 셋과 단일 종류 하나 — 전부 **이미 문서에 있�
 
 ## 10. 위임된 결정과 빈칸
 
-Human 이 "권장대로" 로 위임한 둘은 이 문서가 내렸다 (D1 · D2). D3 은 검토 ② 에서 새로 생긴 것이다. Human 이 언제든 뒤집는다.
+Human 이 "권장대로" · "알아서" 로 위임한 셋은 이 문서가 내렸다 (D1 · D2 · D4). D3 은 검토 ② 에서 새로 생긴 것이다. Human 이 언제든 뒤집는다.
 
 ```text
 D1  어휘 — 축 다섯(heat · light · vibration · space · flesh) · 관계 일곱(absorbs · stores · emits · senses · hides · grows-on · fixes) 을 **이대로 확정**한다.
@@ -1296,14 +1296,17 @@ D3  둘째 종류의 답(원문 §19 Cycle 3) — 새 세계 사실을 짓지 �
     절반으로) 가 **감지도** 약하게 한다 (Lock.relaxedBy: 눈보라 area). Environment 가능성이고, "보는 쪽의 범위가 좁아지면 감지하는 쪽도 좁아진다" 는
     확정 6 의 대칭 읽기다. 생물(체열을 먹는 것)은 3층 뒤로 미룬다 — 원문 §19 의 첫 예는 그때 Life 가능성으로 온다.
     Human 이 다른 둘째 종류를 주면 이것을 뒤집는다
+D4  FROST_DEPTH 의 흔적(traces) — Human 이 "알아서" 로 위임했다. 원문 §7 의 네 관찰 가운데 **앞 둘**을 세계의 흔적으로 놓는다:
+    "문 가까이 가자 몸에서 피어오르는 김이 푸르게 빛난다" (trace · 몸이 문 앞 area 에 들면 보인다 — 빙정석의 푸른 빛과 같은 어휘 light:emits) ·
+    "차가운 물체는 반응하지 않는다" (trace · 문 앞에 언 사체 곁의 결정(FROZEN_REMAINS · 이미 있는 원천)이 있고 그것에는 김이 없다).
+    뒤의 둘("체열을 감지한다" · "체열을 감출 수 있다면")은 관찰이 아니라 **이해**라 3층의 것이다 (원문 §7 · K10).
+    둘 다 기존 사실(빙정석의 빛 · 언 사체의 원천)에서 나왔고 새 존재를 두지 않는다. 자리와 op 는 첫 Play Cycle ① 이 정한다
 ```
 
 남는 빈칸
 
 ```text
 [ ] 1  CONNECTOR_ACTIVATIONS · phases.connectorActivation 을 Lock 형으로 옮길 것인가, 셋을 검사만 함께 읽을 것인가 — 첫 Cycle 의 spec
-[ ] 2  FROST_DEPTH 의 흔적(traces) — 원문 §7 의 네 관찰("김이 푸르게 빛난다" · "차가운 물체는 반응하지 않는다" · …)은 후보다. 확정 문서에는 사유 코드뿐이다.
-       세계 사실(무엇이 어떻게 보이는가)이므로 Human 이 주거나 "알아서" 로 위임한다 — 위임되면 첫 Play 가 원문 §7 의 넷 가운데 앞 둘을 놓는다
 [ ] 3  결정면(접촉 결정화)이 flesh 를 요구하는 soft Lock 인가 — 원문은 아니라고 두었고 그대로 따른다. 뒤집으려면 Human
 [ ] 4  공간 왜곡 결정의 원천과 그것이 답하는 Lock · 고래 비늘의 성질 — 남겨도 된다 (고아로 보고될 뿐)
 [ ] 5  L0 §3 Core Breath 에 "가능성 탐색" 마디를 넣을 것인가 — 원문 §1 · §16 이 넣었다. L0 는 Human 소유
@@ -1332,7 +1335,7 @@ D3  둘째 종류의 답(원문 §19 Cycle 3) — 새 세계 사실을 짓지 �
   놓는 미지  M7 열을 저장하는 결정의 원천 (자원 · 숲 계통 — D2)
   자리   Frost(C021) 뒤 · Life 와 병행 가능. Cycle 번호는 승인 때
   Cycle 셋 (원문 §19 그대로 · 검토 ② 반영)
-    ① Requirement — PropertyVocabulary · FROST_DEPTH Lock(requires heat:hides · traces 빈칸 2) · 지목하면 현상 · 검사 ㉞~㊷ · ㉟ ㊶ 이 GAP 을 보고한다
+    ① Requirement — PropertyVocabulary · FROST_DEPTH Lock(requires heat:hides · traces 둘 = D4) · 지목하면 현상 · 검사 ㉞~㊷ · ㊶ 통과 · ㉟ 은 GAP 을 보고한다
     ② 첫 Possibility — HEAT_CRYSTAL(heat:stores) 의 원천 하나를 숲 계통에 (D2) · 재료의 판이 성질을 말한다 · ㉟ 통과 · ㊴ = 1
     ③ 다른 종류의 Possibility — 눈보라 area 가 요구를 완화한다 (D3 · relaxedBy) · ㊴ ≥ 2 · ㊵ ≥ 2 · 열쇠 × 자물쇠 표 · T4 계약 목록 등록
   이후 Play  중요 Requirement 하나에 서로 다른 세 계통(Material · Life 또는 Environment · Actor/Knowledge)의 답이 실제 플레이에서 성립하는지 — 3층 뒤
