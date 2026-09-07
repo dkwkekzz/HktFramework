@@ -223,6 +223,18 @@ const CODE_TEXT: Record<string, string> = {
   [soilStainTag(3)]: '흙이 붉게 물들었다',
   [soilStainTag(4)]: '붉은 흙이 검게 짙어졌다',
   [soilStainTag(5)]: '흙이 검붉게 절었다',
+  // ── 세계의 때가 쓰는 말 (C015 — snapshot.clock 의 코드 둘) ──────
+  //
+  // 세계는 코드만 싣는다 (DAY · NIGHT · STILL · SEEP · LONG_NIGHT · TURN). 여기서 처음
+  // 사람이 읽는 말이 되고, 그 말은 **지금이 언제인가 하나뿐**이다 — 얼마나 남았는지도
+  // 다음이 무엇인지도 며칠째인지도 적지 않는다 (spec SPEC-007 경계 ① · Time T8).
+  // 철 넷의 이름은 Play 확정 1 의 것 그대로다.
+  'clock.day': '낮',
+  'clock.night': '밤',
+  'clock.season.still': '고요',
+  'clock.season.seep': '스밈',
+  'clock.season.long-night': '긴 밤',
+  'clock.season.turn': '뒤척임',
   // 명령이 무엇을 하는가 (Command.Effect)
   'set-attribute': '존재의 속성 값을 바꾼다',
   // 돌아가기 (C009 RULE-EMERGENCY-RETURN-001). **방을 건너지 않는다** — 같은 방 안의

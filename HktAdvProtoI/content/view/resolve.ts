@@ -27,12 +27,13 @@ import {
   selfPanel,
   strikeMark,
 } from './combat-presentation';
-import { hudPresentation } from './hud-presentation';
+import { clockHudEntries, hudPresentation } from './hud-presentation';
 import { interactionPresentation } from './interaction-presentation';
 import { codeText } from './code-text';
 import { rolePresentation } from './role-presentation';
 import { kindPresentation } from './kind-presentation';
 import { regionZones } from './region-presentation';
+import { clockAmbience } from './terrain-presentation';
 import { sourcePhases } from './resource-reading';
 import { DESIGNATE_MODIFIER, type Designation } from './pointer-rules';
 import { designationHighlight, targetFrame } from './target-frame-presentation';
@@ -194,6 +195,12 @@ export function resolvePresentation(
   // **세계가 싣는 것은 state 와 지금 선 마디뿐**이고, 나머지는 관찰자가 자기
   // content/regions 와 이 표로 스스로 얻는다 (C005~C007 의 규율 그대로)
   const sources = sourcePhases(snapshot);
+  // 세계의 때 (C015) — 봉투 최상위의 한 자리다. **때를 모르는 봉투도 있다**: 앞 Cycle 의
+  // 관찰 결과에는 이 자리가 없고, 그러면 화면은 지금까지 그대로다 (분위기 없음 · HUD 두
+  // 줄 없음 · 낮의 흔적). 여기서 한 번 읽어 네 자리(하늘 · 흔적 · HUD)가 함께 쓴다
+  const clock = snapshot.clock;
+  const night = clock?.dayPhase === 'NIGHT';
+  const ambience = clockAmbience(clock);
   // 판은 지목이 없어도 선다 (C027 R3) — 지목을 넘기고, 없으면 내가 선 자리가 답한다.
   // 표식은 지목이 있고 그 대상이 아직 세계에 있을 때만 선다
   const frame = targetFrame(snapshot, options.designation, knownWorldTime);
@@ -216,7 +223,8 @@ export function resolvePresentation(
     slotBars: [],
     // 선 방의 바닥 (C001) — 모르는 방이면 비어 있고, 비어 있으면 그려지지 않는다.
     // C008 부터 구역·통로도 여기서 선다 — 재배열이 얼마 전인지를 재려고 세계 시각을 함께 넘긴다
-    zones: regionZones(snapshot.region, worldTime, sources),
+    // C015 CHANGED — 밤이면 흔적만 또렷해진다 (SPEC-009). 다른 구역은 한 값도 다르지 않다
+    zones: regionZones(snapshot.region, worldTime, sources, night),
     // 판 하나 (C026 · C027 CHANGED) — 지목한 것이 서고, 지목이 없으면 **내가 선 자리**가
     // 선다. 판이 아예 없는 경우는 내 몸을 모를 때뿐이다. 표식은 지목이 있을 때만 선다.
     // 세계로 나가는 요청은 어느 쪽이든 0 이다 (SPEC-009)
@@ -224,6 +232,9 @@ export function resolvePresentation(
     ...(highlight ? { highlight } : {}),
     // 조작 안내에 팩이 보태는 줄 (C027 R6)
     keyHints: designateHint(),
+    // 때의 하늘과 빛 (C015 SPEC-008) — 때를 모르면 자리 자체가 없고, 그러면 그리는 쪽의
+    // 기본값 그대로다. **땅은 한 값도 바뀌지 않는다** — 실려 나가는 것은 빛뿐이다
+    ...(ambience ? { ambience } : {}),
     // 선 방의 크기가 정하는 시점 거리 (C003) — 모르는 방이면 없고, 없으면 기본 거리다
     // 충돌체 디버그 관찰 — 켜졌을 때만 지시를 담는다
     ...(options.debugObserve ? { colliderDebug: collisionDebug(snapshot) } : {}),
@@ -322,6 +333,20 @@ export function resolvePresentation(
             ...(p.celebrateGain ? { celebrateGain: true } : {}),
           };
         }),
+      // 세계의 때 두 줄 (C015 SPEC-007) — **세계가 싣지 않는 줄이다.** 봉투의 clock 은
+      // 코드 둘이고, 그것을 사람이 읽는 말로 세우는 것은 View 의 일이다 (원칙 2 ·
+      // spec Observable "세계가 짓지 않는 것"). 위의 줄들과 같은 관용구를 쓴다 —
+      // 이름표는 표(hudPresentation)의 것이고 값은 codeText 가 옮긴 말이다.
+      //
+      // 판으로 옮기지 않는 것은 때가 **대상 없는 전역 사실**이기 때문이다 (world.time ·
+      // observers.present 와 같은 자리 — FRAME_OWNED_HUD_IDS 의 규율은 지목한 대상의
+      // 사실에 대한 것이다). 남은 시간 · 다음 철 · 며칠째 · 몇 바퀴째는 적지 않는다
+      ...clockHudEntries(clock).map((entry) => ({
+        id: entry.id,
+        widget: 'label' as const,
+        label: hudPresentation(entry.id).label,
+        value: codeText(entry.code),
+      })),
     ],
   };
 }

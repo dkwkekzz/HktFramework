@@ -47,6 +47,8 @@ function snapshot(
     scene: regionId,
     region: { id: regionId, hash: spec ? descriptionHash(spec.space) : '00000000' },
     standingConditions: [], // C006 ADDED — 조건 area 밖에 선 관찰자는 빈 목록이다
+    // C015 — 봉투에 때가 실린다. 이 시나리오가 보는 것은 때가 아니므로 고요의 낮 하나로 둔다
+    clock: { dayPhase: 'DAY', season: 'STILL', dayIndex: 0, seasonCycle: 0 },
     observer: { id: 'observer-a', characterId: 'player', acknowledgedMark: 0 },
     entities: [
       { id: 'player', role: 'player-character', state: 'idle', kind: 'rabbit-swordsman', position: { x: 0, z: 0 } },

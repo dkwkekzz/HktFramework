@@ -324,17 +324,49 @@ export const TRACE_ZONE_OPACITIES: Readonly<Record<number, number>> = {
   5: 0.42,
 };
 
+// 밤의 흔적 (C015 ADDED · SPEC-009) — **밤은 흔적을 감추는 것이 아니라 종류를 바꾼다.**
+//
+// 어둠에서 다른 것들이 다 죽을 때 붉은 흙만 살아난다 (Play §3 End · Observable Result 5).
+// 그래서 밤에는 같은 사다리를 **한 벌 위로** 올린다 — 색은 밝은 쪽으로, 짙기는 배율로.
+//
+// 값이 지키는 것 셋.
+//   ① 세계가 싣는 흔적의 **세기는 한 값도 바뀌지 않는다** (SPEC-009 경계 ①) — 바뀌는
+//      것은 이 표가 정하는 그림뿐이고, 단계를 세는 자리(traceLevelOfArea)는 밤을 모른다.
+//   ② 사다리의 차례가 그대로다 — 배율 하나를 곱하므로 다섯 마디의 단조 증가가 유지되고,
+//      낮에 짙던 자리가 밤에도 짙다 (C011 이 세운 것 불변).
+//   ③ 흔적이 없는 방에는 밤에도 아무것도 서지 않는다 (경계 ②) — 아래 함수가 없는 단계에
+//      undefined 를 주는 것이 낮과 같다. 밤이 흔적을 **만들지는** 않는다.
+
+/** 밤의 흔적 색 — 같은 붉은 흙을 어둠에서 읽히도록 밝은 쪽으로 한 칸 올린 값 하나 */
+export const NIGHT_TRACE_SOIL_COLOR = 0x9c4a2e;
+
+/**
+ * 밤의 짙기 배율과 그 천장. 낮의 사다리(0.10 ~ 0.42)에 곱하면 0.16 ~ 0.67 이 되어
+ * 어느 단계에서도 낮보다 또렷하되, 가장 짙은 마디도 그 위에 선 것(원천 · 몸)을 덮지 않는다.
+ */
+export const NIGHT_TRACE_OPACITY_SCALE = 1.6;
+export const NIGHT_TRACE_OPACITY_MAX = 0.72;
+
 /**
  * 그 단계의 흔적 결정 — **모르는 단계는 없다**(undefined). 그리지 않는다.
  * 표 밖의 값을 아무 색으로 그리면 화면이 세계에 없는 짙기를 지어내는 것이 된다
  * (C001 부터의 폴백 규칙: 모르는 것은 자리째 없다).
+ *
+ * `night` 는 관찰자가 **때에서** 얻는 값이다 (C015) — 세계가 흔적에 실어 보내는 것이
+ * 아니다. 때를 모르면 낮의 그림이다 (옛 장면도 지금 그대로 그려진다).
  */
 export function traceZonePresentation(
   level: number,
+  night = false,
 ): { color: number; opacity: number } | undefined {
   if (level < 1 || level > SOIL_STAIN_MAX) return undefined;
   const opacity = TRACE_ZONE_OPACITIES[level];
-  return opacity === undefined ? undefined : { color: TRACE_SOIL_COLOR, opacity };
+  if (opacity === undefined) return undefined;
+  if (!night) return { color: TRACE_SOIL_COLOR, opacity };
+  return {
+    color: NIGHT_TRACE_SOIL_COLOR,
+    opacity: Math.min(opacity * NIGHT_TRACE_OPACITY_SCALE, NIGHT_TRACE_OPACITY_MAX),
+  };
 }
 
 // ── 땅 위의 뿌리 선 (C013 ADDED · V12) ───────────────────────────────
@@ -482,6 +514,9 @@ function worldTimeOf(snapshot: GameViewSnapshot): number {
  * 순서가 곧 겹치는 차례다 (아래에서 위로):
  *   방 바닥 → 흔적(C011) → 뿌리 선(C013) → 무너진 자리(C012) → settlement(C006) →
  *   구역(C008) → 통로(C008)
+ * `night` 는 흔적의 그림 하나만 가른다 (C015 SPEC-009) — 겹치는 차례도, 다른 구역들도,
+ * 세계가 싣는 어느 값도 밤이라고 달라지지 않는다.
+ *
  * 흔적이 방 바닥 바로 위인 것은 그것이 **흙 자체의 색**이기 때문이다 — 사람이 그은 것들은
  * 전부 그 위에 겹친다. layer 안에서는 Description 의 ops 순서 그대로이며 **다시 정렬하지
  * 않는다** — 무엇이 무엇 위에 겹치는지는 데이터가 정하는 것이고, 화면이 그 차례를 바꾸면
@@ -491,6 +526,7 @@ export function regionZones(
   region: RegionView | undefined,
   worldTime = 0,
   sources: SourcePhases = NO_SOURCE_PHASES,
+  night = false,
 ): SceneGroundZone[] {
   if (!region) return [];
   const spec = regionSpec(region.id);
@@ -521,7 +557,10 @@ export function regionZones(
       // traceZonePresentation 이 undefined 를 주고 그 구역은 그려지지 않는다 — 옅어짐의
       // 끝은 색이 옅어지는 것이 아니라 흔적이 없어지는 것이다. 나머지 구역(방 바닥에
       // 깔린 흔적 · 캐지 않은 원천 둘레)은 한 값도 바뀌지 않는다.
-      const p = traceZonePresentation(traceLevelOfArea(spec.id, area, sources));
+      // C015 CHANGED — 밤이면 같은 단계가 더 또렷하게 선다 (SPEC-009). **단계를 세는
+      // 것은 밤을 모른다** — traceLevelOfArea 에는 때가 넘어가지 않고, 밤이 고르는 것은
+      // 그 단계의 그림뿐이다 (세계가 싣는 세기는 한 값도 바뀌지 않는다)
+      const p = traceZonePresentation(traceLevelOfArea(spec.id, area, sources), night);
       // 모르는 단계는 **그리지 않는다** — 없는 짙기를 지어내지 않는다 (C001 부터의 폴백 규칙)
       if (!p) return [];
       return [
