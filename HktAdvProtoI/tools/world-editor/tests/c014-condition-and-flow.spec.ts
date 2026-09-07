@@ -78,7 +78,8 @@ function run(args: readonly string[]) {
 
 describe('SPEC-007 검사가 끊긴 참조를 잡는다 (⑩ ⑪ ⑫ ⑬ ⑭ ⑮ ⑯ ⑰ ⑱ ㉑ ㉒)', () => {
   it('S-071 열셋이 검사 아홉 뒤에 **번호 순으로** 이어 붙는다', () => {
-    expect(numbered(REPORT).map((i) => i.mark)).toEqual([...MARKS]);
+    // 뒤에 더 붙은 번호(C018 의 ㉓~㉖)는 이 시험의 것이 아니다 — 제 스물둘의 차례만 본다
+    expect(numbered(REPORT).map((i) => i.mark).slice(0, MARKS.length)).toEqual([...MARKS]);
   });
 
   it('S-072 이 세계에서 fail 이 하나도 없다 — 끊긴 참조가 없다', () => {
@@ -113,7 +114,7 @@ describe('SPEC-007 검사가 끊긴 참조를 잡는다 (⑩ ⑪ ⑫ ⑬ ⑭ ⑮
     const plain = run([]);
     const parsed = JSON.parse(plain.out) as CheckReport;
     expect(parsed).toEqual(JSON.parse(JSON.stringify(REPORT)));
-    expect(numbered(parsed).map((i) => i.mark)).toEqual([...MARKS]);
+    expect(numbered(parsed).map((i) => i.mark).slice(0, MARKS.length)).toEqual([...MARKS]);
     expect(plain.status).toBe(0);
   });
 });
