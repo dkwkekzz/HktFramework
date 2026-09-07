@@ -44,8 +44,13 @@ const MARKS = [
 const ADDED_MARKS = MARKS.slice(9);
 /** 판정하지 않는 둘 (R9) */
 const REPORT_MARKS = ['⑲', '⑳'];
-/** 잴 것이 놓이지 않은 것들 — ⑮ 유한 원천 · ① 자원과 위험 · ④ phenomenon (Out of Scope) */
-const ABSENT_MARKS = ['①', '④', '⑮'];
+/**
+ * 잴 것이 놓이지 않은 것들 — ⑮ 유한 원천 · ④ phenomenon (Out of Scope).
+ *
+ * ① 은 C016 이 hazard 를 놓으면서 여기서 빠졌다 — 이제 **방 단위로** 답을 낸다
+ * (위험이 놓인 방은 판정하고, 아직 안 놓인 방은 그 사실만 적는다).
+ */
+const ABSENT_MARKS = ['④', '⑮'];
 
 const REPORT: CheckReport = runWorldCheck();
 
