@@ -59,6 +59,21 @@ const PALETTE: Record<string, string> = {
   // "다 온 것은 아니다" 가 읽힌다 (spec §5.6 예보 · SPEC-003).
   i: '#c05a44', // 다시 도는 결정·살 (볕)
   I: '#7e3a2c', // 다시 도는 결정·살 (그늘)
+  // 원천 셋의 색 (C014) — **붉기의 사다리에 두 마디가 끼어든다**: 노두(C·c)가 여전히 가장
+  // 붉고, 호수의 침전(E·X)이 그 다음이며, 물에 갈린 어귀의 알갱이(Q·p)가 가장 무디다
+  // (D2 생체 광석 ③ "물에 갈리면 붉은빛을 잃는다"). 같은 재료의 세 순도가 색 하나로 읽힌다.
+  // 거목균만은 이 사다리 밖이다 — 흰 균사이고, 붉어지는 것은 그것이 삭인 흙이다 (D2 거목균 ②).
+  w: '#eef1e8', // 사체 위 흰 균사 (볕) — 백색 거목의 흰 줄기(T) 계열이되 살짝 눅눅하다
+  z: '#b6bcaa', // 흰 균사 (그늘)
+  j: '#3f342c', // 사체의 삭은 가죽 — 나무 밑동(U)보다 어둡고 붉은 기가 없다
+  J: '#a89a84', // 사체에 드러난 뼈 — 마른 빈 껍질(g)의 밝은 쪽
+  V: '#5f8f99', // 물빛 (얕은 쪽 · 볕) — 셔츠의 파랑(B)과 갈리도록 청록으로 눕혔다
+  Z: '#31555f', // 물빛 (깊은 쪽 · 그늘)
+  E: '#a35b46', // 호수 바닥의 침전 (볕) — 노두(C)만큼 붉지 않고 탁하다
+  X: '#6b3527', // 침전 (그늘) — 결정의 그늘(c)과 가장 깊은 결(G) 사이
+  Q: '#cba792', // 물에 갈린 알갱이 (볕) — 허물 껍질(m)보다 붉은 기가 조금 남았을 뿐이다
+  p: '#96745f', // 갈린 알갱이 (그늘)
+  f: '#6f6152', // 어귀의 젖은 퇴적선 — 물이 물러난 자리의 축축한 바닥
   '.': '',
 };
 
@@ -387,6 +402,218 @@ const SOURCE_SPOIL_PILE_RECOVERING = [
   '................',
 ];
 
+// ── 원천 셋의 그림 아홉 (C014 ADDED) ─────────────────────────────────
+//
+// 넷이 일곱이 된다. 넷을 갈랐던 규율을 그대로 잇는다 — 세계 위에 이름표가 없으므로
+// (RULE-QUIET-GROUND-001) 그림이 유일한 구분이고, 셋도 **실루엣부터** 갈린다:
+//   낮고 넓은 사체 위에 퍼진 흰 실 · 물이 물러난 어귀의 퇴적선과 잔알갱이 ·
+//   물에 잠긴 웅덩이 하나에 가라앉은 탁한 층
+// 앞의 넷 가운데 물에 잠긴 것도, 흰 것도 없었다 — 그 둘이 셋을 넷과 먼저 가른다.
+//
+// 세 state 의 규율도 그대로다. depleted 는 "있던 것이 없어졌다"(실이 걷히고 · 퇴적선이
+// 지워지고 · 침전이 걷힌다), recovering 은 "없던 것이 다시 오는 중이다" 이고 자국은
+// 그대로 남은 채 그 위에 새것이 얹힌다.
+//
+// 색의 양도 available > recovering > depleted 로 간다. 다만 그 색이 셋마다 제 것이다 —
+// 균사는 이 표에서 **유일하게 붉지 않고**(w·z), 어귀의 알갱이는 물에 갈려 붉은빛을
+// 잃었으며(Q·p), 호수의 침전만 탁한 붉은(E·X)을 지닌다.
+//
+// **얼마나 남았는지도 언제 오는지도 말하지 않는다** — 흐름의 주기도 남은 시간도
+// 실려 오지 않는다 (spec Observable "싣지 않는다").
+
+// 사체 위 흰 균사 — 삭은 가죽 덩이(j) 위로 갈비뼈(J)가 드러나고 그 위를 흰 실(w·z)이
+// 넓게 덮었다. 넷 가운데 가장 낮고 넓던 허물 조각보다도 낮게 눕고, 흩어진 조각이 아니라
+// **하나의 덩이**를 덮은 그물이다
+const SOURCE_NEST_MYCELIUM = [
+  '................',
+  '.......w........',
+  '....w..w...w....',
+  '..w.wzw.w.wzw...',
+  '.wzwwzwwwwwzww..',
+  '.wwzjjwjjwjjzww.',
+  'wwzjJjjJjjJjjzww',
+  '.wjJjjJjjJjjJjw.',
+  '..jjJjjJjjJjjj..',
+  '..jjjjjjjjjjjj..',
+  '...jjjjjjjjjj...',
+  '..w..jjjjjj..w..',
+  '.wzw........wzw.',
+  '..w..........w..',
+  '................',
+  '................',
+];
+
+// 균사가 걷혔다 — 흰 실이 한 올도 없고 사체만 내려앉았다. 덮여 있던 것이 벗겨지면서
+// 실루엣이 낮고 좁아진다 (덮개가 사라진 자리가 곧 자국이다)
+const SOURCE_NEST_MYCELIUM_DEPLETED = [
+  '................',
+  '................',
+  '................',
+  '................',
+  '................',
+  '....jjjjjjjj....',
+  '..jjJjjJjjJjjj..',
+  '.jJjjJjjJjjJjjj.',
+  '.jjJjjJjjJjjJjj.',
+  '..jjjjjjjjjjjj..',
+  '...jjjjjjjjjj...',
+  '....jjjjjjjj....',
+  '................',
+  '................',
+  '................',
+  '................',
+];
+
+// 실이 다시 뻗는다 — 내려앉은 사체(depleted 의 그것 그대로)는 자국으로 남고 그 위로
+// 흰 실 몇 올만 돋았다. available 의 덮은 그물도, 한 올도 없는 것도 아니다
+const SOURCE_NEST_MYCELIUM_RECOVERING = [
+  '................',
+  '................',
+  '................',
+  '.......w........',
+  '....w..z...w....',
+  '....jjjjjjjj....',
+  '..jjJjjJjjJjjj..',
+  '.jJjjJjjJjjJjjj.',
+  '.jjJjjJjjJjjJjj.',
+  '..jjjjjjjjjjjj..',
+  '...jjjjjjjjjj...',
+  '....jjjjjjjj....',
+  '.....w....z.....',
+  '................',
+  '................',
+  '................',
+];
+
+// 어귀의 알갱이 — 위쪽에서 물(V·Z)이 비스듬히 들어오고, 물이 물러난 자리에 젖은
+// 퇴적선(f)이 한 줄 그어지고, 그 아래로 잔알갱이가 낮게 깔렸다. 노두처럼 솟지 않고
+// 뿌리혹처럼 뭉치지 않는다 — **가로 한 줄**이 이 그림의 실루엣이다
+const SOURCE_RIVER_GRAIN = [
+  '..ZZVZZVZZVZZ...',
+  '.ZVZZVZZVZZVZZV.',
+  'ZVZZVZZVZZVZZVZZ',
+  '.VZZVZZVZZVZZVZ.',
+  '..ZVZZVZZVZZVZ..',
+  '.ffffffffffffff.',
+  '..QpQ..Qp..QpQ..',
+  '.pQQpQ.pQQ.pQQp.',
+  '.QpQQpQQpQQpQQp.',
+  'QpQQpQQpQQpQQpQQ',
+  '.pQQpQQpQQpQQpQ.',
+  '..QppQ..QppQ....',
+  '...Qp....pQ..Qp.',
+  '.....Q......p...',
+  '................',
+  '................',
+];
+
+// 퇴적선이 지워졌다 — 물이 한 뼘 더 내려와 그 자리를 덮고, 그어져 있던 줄이 성긴
+// 젖은 자국 몇 점으로만 남는다. 가로 한 줄이 사라진 것이 available 과 갈리는 자리다
+const SOURCE_RIVER_GRAIN_DEPLETED = [
+  '..ZZVZZVZZVZZ...',
+  '.ZVZZVZZVZZVZZV.',
+  'ZVZZVZZVZZVZZVZZ',
+  '.VZZVZZVZZVZZVZ.',
+  '..ZVZZVZZVZZVZ..',
+  '.VZV.VZ.VZV.ZV..',
+  '..f..ff...f..f..',
+  '....f....f......',
+  '.f.....f.....f..',
+  '....f.......f...',
+  '..f......f......',
+  '.......f........',
+  '................',
+  '................',
+  '................',
+  '................',
+];
+
+// 퇴적선이 다시 그어진다 — 줄이 아직 군데군데 끊겼고 알갱이도 성기다. 물의 자리는
+// 그대로이고 그 아래만 채워지는 중이다 (available 의 두꺼운 층은 아직 아니다)
+const SOURCE_RIVER_GRAIN_RECOVERING = [
+  '..ZZVZZVZZVZZ...',
+  '.ZVZZVZZVZZVZZV.',
+  'ZVZZVZZVZZVZZVZZ',
+  '.VZZVZZVZZVZZVZ.',
+  '..ZVZZVZZVZZVZ..',
+  '.ff.fff.ffff.ff.',
+  '..Qp....Qp......',
+  '.pQ...Qp...pQ...',
+  '..QpQ..QQ..QpQ..',
+  '.Qp..Qp..Qp..Qp.',
+  '...Q...p...Q....',
+  '......Qp........',
+  '................',
+  '................',
+  '................',
+  '................',
+];
+
+// 호수 바닥의 침전 — 물에 잠긴 웅덩이 하나(둥근 실루엣)의 아래 두 몫이 탁한 붉은
+// 층으로 찼다. 일곱 가운데 **물속에 있는 유일한 것**이고, 그 색은 노두보다 무디되
+// 어귀의 알갱이보다는 짙다 — 같은 재료의 세 순도가 여기서 가운데다
+const SOURCE_SILT_BED = [
+  '................',
+  '....ZZVZZVZZ....',
+  '..ZZVZZVZZVZZV..',
+  '.ZVZZVZZVZZVZZV.',
+  '.VZZVZZVZZVZZVZ.',
+  'ZZVZZEEZZVZZVZZV',
+  'ZVZEEEEEEZZVZZVZ',
+  'ZZEEXEEEEEEZZVZZ',
+  'ZEEEXEEEXEEEEZZV',
+  'ZEEEXEEEXEEEXEEZ',
+  '.EEXEEEXEEEXEEE.',
+  '.EXEEXEEEXEEEXE.',
+  '..XEEXEEEXEEXE..',
+  '..XXEXXEEXXEXX..',
+  '...XXXXXXXXXX...',
+  '.....XXXXXX.....',
+];
+
+// 침전이 걷혔다 — 같은 웅덩이인데 탁한 층이 한 점도 없고 맨 바닥(d·D·e)이 드러났다.
+// 물빛이 위에서 아래까지 닿는다: 잠겨 있던 것이 사라진 자리를 물이 대신 채운다
+const SOURCE_SILT_BED_DEPLETED = [
+  '................',
+  '....ZZVZZVZZ....',
+  '..ZZVZZVZZVZZV..',
+  '.ZVZZVZZVZZVZZV.',
+  '.VZZVZZVZZVZZVZ.',
+  'ZZVZZVZZVZZVZZVZ',
+  'ZVZZVZZVZZVZZVZZ',
+  'VZZVZZVZZVZZVZZV',
+  'ZZVZZVZZVZZVZZVZ',
+  'ZVZZVZZVZZVZZVZZ',
+  '.ddDdddDddDdddd.',
+  '.DeeDeeeDeeeDeD.',
+  '..eeeeeeeeeeee..',
+  '..eDeeeeDeeeDe..',
+  '...dDdDddDdDd...',
+  '.....dddddd.....',
+];
+
+// 다시 가라앉는 중이다 — 헐벗은 바닥(depleted 의 그것 그대로)은 자국으로 남고 그 위에
+// 얇은 층이 한 줄 앉았으며, 물속에는 아직 내려오는 알갱이가 떠 있다. 두툼한 층도,
+// 한 점도 없는 것도 아니다
+const SOURCE_SILT_BED_RECOVERING = [
+  '................',
+  '....ZZVZZVZZ....',
+  '..ZZVZZVZZVZZV..',
+  '.ZVZZVEZVZZVZZV.',
+  '.VZZVZZVZZEZZVZ.',
+  'ZZVZZVZZVZZVZEVZ',
+  'ZVZZEZZVZZVZZVZZ',
+  'VZZVZZVZEVZZVZZV',
+  'ZZVZEVZZVZZVZZVZ',
+  'ZEEXEEEXEEEXEEEZ',
+  '.ddDdddDddDdddd.',
+  '.DeeDeeeDeeeDeD.',
+  '..eeeeeeeeeeee..',
+  '..eDeeeeDeeeDe..',
+  '...dDdDddDdDd...',
+  '.....dddddd.....',
+];
+
 // 곡괭이를 치켜든 자세 — 공격·채굴처럼 "휘두르는" 행동의 절차 그림
 const PLAYER_SWING = [
   '.........M......',
@@ -711,6 +938,16 @@ const PIXEL_MAPS: Record<string, string[]> = {
   'source:spoil-pile:recovering': SOURCE_SPOIL_PILE_RECOVERING,
   'source:outcrop:recovering': SOURCE_OUTCROP_RECOVERING,
   'source:root-nodule:recovering': SOURCE_ROOT_NODULE_RECOVERING,
+  // 원천 셋의 아홉 (C014) — 표가 넷에서 일곱이 될 뿐, 키의 어법도 고르는 규칙도 그대로다
+  'source:nest-mycelium:available': SOURCE_NEST_MYCELIUM,
+  'source:nest-mycelium:depleted': SOURCE_NEST_MYCELIUM_DEPLETED,
+  'source:nest-mycelium:recovering': SOURCE_NEST_MYCELIUM_RECOVERING,
+  'source:river-grain:available': SOURCE_RIVER_GRAIN,
+  'source:river-grain:depleted': SOURCE_RIVER_GRAIN_DEPLETED,
+  'source:river-grain:recovering': SOURCE_RIVER_GRAIN_RECOVERING,
+  'source:silt-bed:available': SOURCE_SILT_BED,
+  'source:silt-bed:depleted': SOURCE_SILT_BED_DEPLETED,
+  'source:silt-bed:recovering': SOURCE_SILT_BED_RECOVERING,
 };
 
 /** 이 팩의 스프라이트 표 — 조립 루트가 engine 의 registerSprites 에 넘긴다 */

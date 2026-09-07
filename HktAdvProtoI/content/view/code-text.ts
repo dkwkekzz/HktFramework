@@ -10,10 +10,16 @@
 import {
   BIO_ORE,
   BLOCK_COLLAPSED,
+  CONDITION_UNMET,
+  FLOW_ARRIVED,
   FORM_MOLT_LITTER,
+  FORM_NEST_MYCELIUM,
   FORM_OUTCROP,
+  FORM_RIVER_GRAIN,
   FORM_ROOT_NODULE,
+  FORM_SILT_BED,
   FORM_SPOIL_PILE,
+  GIANT_TREE_FUNGUS,
   ORE_EATER_MOLT,
   RECOVERY_STALLED,
   soilStainTag,
@@ -136,10 +142,18 @@ const CODE_TEXT: Record<string, string> = {
   [FORM_ROOT_NODULE]: '거목의 부푼 뿌리혹',
   [FORM_MOLT_LITTER]: '나무 밑동에 흩어진 껍질 조각',
   [FORM_SPOIL_PILE]: '헐린 선광 더미',
+  // 형태 셋 (C014) — 같은 표에 세 줄이 늘 뿐이다. 여기서도 쓰임은 한 글자도 없고,
+  // 어귀의 알갱이와 광맥의 노두가 **같은 재료**라는 것도 적지 않는다 — 지목한 것이
+  // 무엇으로 보이는가만 적는다. 그 둘을 잇는 것은 관찰자의 일이다
+  [FORM_NEST_MYCELIUM]: '사체 위 흰 균사',
+  [FORM_RIVER_GRAIN]: '어귀에 깔린 알갱이',
+  [FORM_SILT_BED]: '호수 바닥의 침전',
   // 재료의 이름 (Material Seed 코드 — C011). 소지품 줄의 이름표가 이 말이다.
   // **무엇에 쓰는지는 여기에도 어디에도 없다**
   [BIO_ORE]: '생체 광석',
   [ORE_EATER_MOLT]: '광식충 허물',
+  // 세 번째 재료 (C014) — 앞의 둘과 같은 어법이다. 어디서 나는지도 무엇에 쓰는지도 없다
+  [GIANT_TREE_FUNGUS]: '거목균',
   // 사람·짐승의 종류 (CharacterKind) — kind-presentation · character-catalog 와 같은 이름들
   wanderer: '방랑자',
   'rabbit-swordsman': '토끼 검사',
@@ -157,6 +171,12 @@ const CODE_TEXT: Record<string, string> = {
   // **무엇에 매달렸는지도 언제 풀리는지도 적지 않는다** — 세계가 싣는 것은 코드 하나이고,
   // 무엇이 이것을 멎게 했는지는 같은 방에서 관찰자가 잇는다 (흔적을 잇게 한 것과 같은 규율)
   [RECOVERY_STALLED]: '되돌아옴이 멎었다',
+  // 흐름의 조건 둘 (C014 — 같은 conditions 자리의 코드다. 새 자리가 없다).
+  // **얼마나 남았는지도 무엇이 그것을 실어 오는지도 적지 않는다** — 흐름의 주기도 다음
+  // 활성까지의 시간도, 그 출발이 어느 방의 무엇인지도 실려 오지 않는다 (spec Observable).
+  // 관찰된 사실은 지금이 어느 때인가 하나뿐이고, 언제 물길이 부는지는 어귀에 가서 안다
+  [FLOW_ARRIVED]: '지금 실려 오는 중이다',
+  [CONDITION_UNMET]: '아직 그때가 아니다',
   open: '열려 있다', // 출구 표식 — 건널 수 있는 길이다
   locked: '잠겨 있다',
   // ── 판에 남는 기록이 쓰는 말 (C028) ──────────────────────────
