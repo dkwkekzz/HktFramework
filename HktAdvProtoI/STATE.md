@@ -21,7 +21,7 @@ Play [RoomAnswersWhenAsked](content/roadmap/play/RoomAnswersWhenAsked.md) 가 C0
 
 **도구 절반 2단계 — [Region 작성기](content/roadmap/L2-World-Tool-Scale.md) (확정 · 이 저장소 안에서 새로 짓는다).** "지역을 더할 때마다
 2층 공정을 다시 타는가" 의 답: 아니다 — 새 지역은 세 등급(A 데이터만 · B 규칙 하나 · C 새 축)으로 가르고 대부분은 A 라서 도구가 쓴다.
-순서 T1~T6 은 roadmap README §2.1. ENGINE 레인이라 Cycle 실주행과 **병행**한다 — 말할 것: **"T5 진행"** (브랜치 `engine/T5`).
+순서 T1~T6 은 roadmap README §2.1. **T1~T6 이 다 섰다** — 남은 것은 값이 늘어야 서는 것들뿐이라 이 레인은 지금 부를 단계가 없다.
 design 이 다시 열리는 때는 둘 — ① 2층 Play 실주행에서 DESIGN GAP 이 돌아올 때 ② T6 이 서서 HundredRooms 를 쓸 때 · 2층이 닫혀 3층을 주입할 때.
 
 | 레인 | 지금 할 수 있는 것 | 기다리는 것 | 다음 |
@@ -30,7 +30,7 @@ design 이 다시 열리는 때는 둘 — ① 2층 Play 실주행에서 DESIGN 
 | Time — [RoomNeverSame](content/roadmap/play/RoomNeverSame.md) | 대기 (상수 · 철 · 덧씌움 전부 확정 사항에 있다) | Material 닫힘 (철이 바꿀 원천과 흔적이 먼저) | C015 → C018 |
 | Frost — [RoomOfAnotherKind](content/roadmap/play/RoomOfAnotherKind.md) (컨텐츠 M5) | 대기 | Time 닫힘 (재료 생태와 철을 다른 갈래에 두 번째로 쓴다) | C019 → C021 |
 | Life — [RoomBearsLife](content/roadmap/play/RoomBearsLife.md) | 대기 (계약 · 확정 사항 · 상수는 [L2-World-Life.md](content/roadmap/L2-World-Life.md) 와 Play 에 있다) | Frost 닫힘 (탄생이 소비할 재료 · 탈 주기 · 대조할 갈래가 먼저) | C022 → C025 |
-| ENGINE B — [Region 작성기](content/roadmap/L2-World-Tool-Scale.md) (도구 2단계) | **T5** 초안기(LLM) — 미지 한 줄 → 구조화 출력으로 brief → T3 → T1 에 넣고 **실패 보고를 되먹여** 재시도. 굳힌 파일만 세계에 들어간다(초안이 비결정이어도 세계는 결정론이다). 분리 커밋 · Cycle 과 **병행**한다 — 말할 것: **"T5 진행"** (브랜치 `engine/T5`). T1 검사기 · T2 brief 형 · T3 뼈대 생성기 절반 · T4 등급 판정기는 섰다 | T3 의 나머지 — phases 는 C016 · ecology 는 C022 · T6 은 Frost(C021) · Life(C025) | T6 → Play HundredRooms |
+| ENGINE B — [Region 작성기](content/roadmap/L2-World-Tool-Scale.md) (도구 2단계) | 부를 단계가 없다 — T1~T6 이 다 섰다 (검사기 · brief 형 · 뼈대 생성기 절반 · 등급 판정기 · 초안기 · 판정 표면). 미지 한 줄이 방이 되고, 목록 하나가 후보 여럿이 되고, 나란히 놓아 승인/반려한다 | T3 의 나머지 — phases 는 C016 · ecology 는 C022. **판정 표면의 편중 요약이 그 ecology 를 기다린다** (§5) · 템플릿은 Frost(C021) | Play HundredRooms — 그 둘이 선 뒤 |
 
 ## 2. 진행
 
@@ -110,6 +110,8 @@ RoomAnswersWhenAsked(세계 위 글자 없이, 물어서 자리와 존재를 읽
         curve/carve · surface · traversable 격자 · areas/points 산출 · tagsAt · compile · hash · observe 래스터)
 도구    world:check (검사 아홉 → JSON · 종료 코드가 판정 · npm test 에 붙었다 · 읽기 전용) ·
         world:author (brief 하나 → 방 하나의 뼈대 + 등급과 GAP · --write 로 굳힌다 · 등급 C 는 굳히지 않는다) ·
+        world:draft (미지 한 줄 → brief · 구독 로그인의 claude -p · 검사 되먹임 · --batch 로 목록 하나 → 후보 여럿) ·
+        world:lab (후보를 한 장에 나란히 — 그림 · 여덟 답 · 등급 · 편중) · world:admit (승인/반려 — 세계에 방이 들어오는 유일한 길) ·
         world:observe (--graph · 방 하나의 높이·표면·통행·의미 PNG 다섯 + 보고 · 읽기 전용) · world:compile · world:shot ·
         cycle:shot (마감 촬영 · 창 둘로 관찰자 둘) ·
         검증용 손잡이 HKT_SPAWN · HKT_SPAWN_REGION · HKT_NPCS · HKT_REGION_PATTERN · HKT_NPC_REGION
@@ -145,6 +147,15 @@ RoomAnswersWhenAsked(세계 위 글자 없이, 물어서 자리와 존재를 읽
 observers.present 가 방 단위가 아니라 **세계 전체**의 수다 — 다른 방의 둘도 서로를 2 로 센다  C010 ③ (Human 이 정할 자리)
 촬영이 사람의 걸음과 떠남을 밀지 못한다 — 캔버스 둘이면 이어짐의 왕복이 수십 초로 밀린다  C010 ①②
 Human 감사 — C005 의 표면 임계 15°(평지/비탈)는 문서 근거가 없는 기본형이다
+판정 표면의 **편중 요약이 비어 있다** — 문서가 든 검사 일곱(⑲ ⑳ ㉒ ㉕ ㉖ ㉚ ㉝) 중 실리는 것이 0 이고,
+        지금 실리는 셋(① ② ⑨)은 "방이 하나 늘었다" 를 달리 말한 것이다. ⑲ ⑳ ㉒ 는 후보를 잴 때
+        `absent — 재료 계통이 주어지지 않았다` 로 나온다(뼈대가 원천마다 원인·되돌아옴을 못 낸다) ·
+        ㉕ ㉖ ㉚ ㉝ 은 검사 자체가 없다  T6 → C018 · C022 · C025
+        확인: C022 를 닫은 뒤 `npm run world:draft -- --batch <목록>` → `npm run world:lab`.
+              카드의 "이 방이 세계를 미는 자리" 에 ⑲ ⑳ ㉒ 가 뜨면 풀린 것이다 (같은 카드의 회색 주석도 그때 지운다)
+갈래가 같으면 **땅이 같다** — 미지 셋이 다 등급 A 로 섰는데 위에서 본 그림도 원천 자리도 같았다
+        (같은 hazard 태그면 같은 땅 묶음을 받는다 — content/authoring/templates/)  T6 실주행 → Frost(C021) 뒤에 손볼 자리
+        확인: world:lab 한 장에 갈래가 다른 방 둘 이상을 놓고 그림이 갈리는지 본다
 ```
 
 **회수된 것** — 세계의 사실이 세계 위 글자·상시 HUD 로 늘 선불되던 것은 **Observe 레인이 회수했다**
