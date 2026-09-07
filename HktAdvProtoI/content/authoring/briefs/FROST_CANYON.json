@@ -1,0 +1,42 @@
+{
+  "id": "FROST_CANYON",
+  "name": "빙결 협곡",
+  "depth": "wild",
+  "kinds": [
+    "hazard/climate",
+    "hazard/terrain",
+    "hazard/matter"
+  ],
+  "answers": {
+    "distinction": "위험 갈래 셋이 한 방에 함께 서는 자리다 — 눈보라가 시야를, 절벽이 통행을, 결정면이 닿음을 가져간다. 그 셋을 건 것은 철도 소란도 지나가는 것도 아니고 방 자체다.",
+    "cause": "얼음 협곡보다 깊은 골이라 벽이 더 높고, 찬 공기가 그 골에 갇혀 눈보라가 그치지 않는다. 결정이 땅을 뚫고 자라 골 바닥의 한 자락을 덮는다.",
+    "dwelling": {
+      "unanswered": "이 방에는 몸이 하나도 놓이지 않았다 — 체온을 감지하는 포식자는 Concept §6 이 말하지만 생명 계약이 아직 데이터로 서지 않았다 (Play RoomBearsLife · C022~C025)"
+    },
+    "danger": "눈보라가 여기를 깎고(hazard/climate — 낮에도 보이는 범위가 좁다), 절벽이 길을 끊고(hazard/terrain), 결정면이 땅을 뚫고 올라온다(hazard/matter — 그 위에 선 동안 닿아 있다는 사실이 함께 답해진다). 몸이 어떻게 깎이는지는 3층의 것이다.",
+    "worth": {
+      "said": {
+        "unanswered": "이 협곡의 재료(빙정석)는 아직 데이터로 서지 않았다 — 원천 넷과 그 Carrier · 흔적 · 회복은 C020 이 놓는다 (Play RoomOfAnotherKind §5.2)"
+      },
+      "sources": []
+    },
+    "discovery": "낮인데도 앞이 보이지 않는다는 것, 그리고 그것이 방 전체가 아니라 한 자락의 일이라는 것. 자락 밖으로 한 걸음 나오면 멀리 있던 것이 다시 실린다.",
+    "opening": {
+      "unanswered": "더 깊은 곳(빙결 심층)으로 드는 문과 그것이 요구하는 것은 C021 이 놓는다 — 지금 이 방에서 나가는 끝은 들어온 오솔길 하나다 (Play RoomOfAnotherKind §5.3)"
+    },
+    "birth": {
+      "said": {
+        "unanswered": "생명 계약(탄생지 · 개체군 · 관계)이 아직 데이터로 서지 않았다 — Play RoomBearsLife(C022~C025)의 것이다"
+      },
+      "born": []
+    }
+  },
+  "neighbours": [
+    {
+      "region": "ICE_CANYON",
+      "transition": "trail",
+      "direction": "bidirectional"
+    }
+  ],
+  "requires": []
+}

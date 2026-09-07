@@ -1,0 +1,110 @@
+{
+  "out": "shots",
+  "viewport": [900, 660],
+  "_": "촬영 하네스에서 자판 걸음이 몸을 옮기지 못하므로(C003 부터의 부채) '들어서면 좁아진다' 를 한 run 안의 걸음으로 찍지 않고 **자리를 달리한 두 run** 으로 나란히 놓는다. 고개를 실제로 건너는 것은 시나리오 S-011~014 가 증명하고, 실주행 항목이 받는다.",
+  "runs": [
+    {
+      "_": "X-① 얼음 협곡의 골 — 서리 바닥과 양옆 얼음 절벽",
+      "region": "ICE_CANYON",
+      "spawn": "0,-16",
+      "npcs": "none",
+      "clock": "STILL:DAY",
+      "steps": [
+        { "wait": "세계 시간", "tries": 60 },
+        { "sleep": 8000, "note": "첫 run 은 vite 가 데워지지 않아 프레임이 느리다" },
+        { "shot": "X-01-ice-canyon-floor", "note": "X-① 고개 너머 첫 방 — 골 바닥이 서리로 깔리고 양옆이 급경사 벽이다. 숲·백왕령 어느 바닥과도 색이 다르다" }
+      ]
+    },
+    {
+      "_": "X-② 절벽 앞 — 걸어 설 수 있는 마지막 줄에서 벽을 본다",
+      "region": "ICE_CANYON",
+      "spawn": "-8,0",
+      "npcs": "none",
+      "clock": "STILL:DAY",
+      "steps": [
+        { "wait": "세계 시간", "tries": 60 },
+        { "sleep": 2500 },
+        { "expect": "절벽이 길을 끊는다", "note": "X-②" },
+        { "shot": "X-02-cliff-edge", "note": "X-② 절벽 앞 — 발밑을 말하는 판에 「절벽이 길을 끊는다」가 선다. 그 너머는 통행 격자가 0 이다" }
+      ]
+    },
+    {
+      "_": "X-③ 빙결 협곡 들머리 — 눈보라 자락 **밖**. 먼 몸이 실린다",
+      "region": "FROST_CANYON",
+      "spawn": "0,-18",
+      "npcRegion": "FROST_CANYON",
+      "clock": "STILL:DAY",
+      "steps": [
+        { "wait": "세계 시간", "tries": 60 },
+        { "sleep": 3500 },
+        { "shot": "X-03-outside-blizzard", "note": "X-③ 자락 밖 (낮) — 걸린 것이 없고 방 저편의 몸까지 실린다. X-04 와 나란히 본다" }
+      ]
+    },
+    {
+      "_": "X-④ 세 걸음 안쪽 — 눈보라 자락 **안**. 같은 낮인데 먼 몸이 사라진다",
+      "region": "FROST_CANYON",
+      "spawn": "0,-10",
+      "npcRegion": "FROST_CANYON",
+      "clock": "STILL:DAY",
+      "steps": [
+        { "wait": "세계 시간", "tries": 60 },
+        { "sleep": 3500 },
+        { "expect": "눈보라가 여기를 깎는다", "note": "X-④" },
+        { "shot": "X-04-inside-blizzard-day", "note": "X-④ 자락 안 (낮) — 판에 「눈보라가 여기를 깎는다」가 서고, X-03 에서 보이던 먼 몸이 실리지 않는다. 가까운 몸은 그대로다" }
+      ]
+    },
+    {
+      "_": "X-⑤ 같은 자리의 밤 — 절반의 절반",
+      "region": "FROST_CANYON",
+      "spawn": "0,-10",
+      "npcRegion": "FROST_CANYON",
+      "clock": "LONG_NIGHT",
+      "steps": [
+        { "wait": "세계 시간", "tries": 60 },
+        { "sleep": 3500 },
+        { "expect": "눈보라가 여기를 깎는다", "note": "X-⑤" },
+        { "shot": "X-05-inside-blizzard-night", "note": "X-⑤ 자락 안 (긴 밤) — X-04 에서 보이던 가까운 몸까지 사라진다. 낮 20 · 밤 10" }
+      ]
+    },
+    {
+      "_": "X-⑥ 결정면 위 — 자리의 사실과 닿음의 사실이 함께 선다",
+      "region": "FROST_CANYON",
+      "spawn": "0,10",
+      "npcs": "none",
+      "clock": "STILL:DAY",
+      "steps": [
+        { "wait": "세계 시간", "tries": 60 },
+        { "sleep": 3000 },
+        { "expect": "결정면이 땅을 뚫고 올라온다", "note": "X-⑥" },
+        { "expect": "결정면에 닿아 있다", "note": "X-⑥" },
+        { "shot": "X-06-crystal-face", "note": "X-⑥ 결정면 위 — 판에 「눈보라가 여기를 깎는다」·「결정면이 땅을 뚫고 올라온다」·「결정면에 닿아 있다」 셋이 함께 선다. 몸의 값은 한 톨도 달라지지 않는다" }
+      ]
+    },
+    {
+      "_": "X-⑦ 결정면 밖 다섯 걸음 — 닿음의 줄만 사라진다",
+      "region": "FROST_CANYON",
+      "spawn": "0,5",
+      "npcs": "none",
+      "clock": "STILL:DAY",
+      "steps": [
+        { "wait": "세계 시간", "tries": 60 },
+        { "sleep": 3000 },
+        { "expect": "눈보라가 여기를 깎는다", "note": "X-⑦" },
+        { "expect": "결정면에 닿아 있다", "note": "X-⑦ — 없어야 한다" },
+        { "shot": "X-07-off-crystal-face", "note": "X-⑦ 결정면 자락 밖 — 눈보라의 줄은 남고 결정면의 두 줄만 사라진다. X-06 과 나란히 본다" }
+      ]
+    },
+    {
+      "_": "X-⑧ 백왕령은 그대로다 (회귀)",
+      "region": "WHITE_KING_DOMAIN",
+      "spawn": "0,0",
+      "npcs": "none",
+      "clock": "STILL:DAY",
+      "steps": [
+        { "wait": "세계 시간", "tries": 60 },
+        { "sleep": 2500 },
+        { "shot": "X-08-white-king-unchanged", "note": "X-⑧ 회귀 — 강·능선·다리·조건 셋이 이 Cycle 전 그대로다. 서리 규칙 한 줄이 늘었어도 이 방의 바닥은 한 값도 달라지지 않는다" }
+      ]
+    }
+  ]
+}

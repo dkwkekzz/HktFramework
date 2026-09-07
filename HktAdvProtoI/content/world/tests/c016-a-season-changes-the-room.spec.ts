@@ -271,7 +271,12 @@ function hazardOverlayOf(region: string, season: SeasonId) {
   return regionSpec(region)?.phases?.seasons?.[season]?.hazardExtend?.[0];
 }
 /** 덧씌움을 밝힌 방들 (데이터가 말한다) */
-const PHASE_ROOMS = REGION_SPECS.filter((s) => s.phases).map((s) => s.id);
+// C019 로 좁혀졌다 — 위상을 밝힌 방이 곧 **철을 타는** 방이 아니게 되었다. 협곡 둘은
+// phases.standing 만 밝히고 그것은 철도 소란도 아닌 자리다 (C019 spec R1). 이 목록이 재는
+// 것은 "철에 매인 위상을 밝힌 방" 이므로 seasons · onTurn 을 밝힌 방만 여기 든다.
+const PHASE_ROOMS = REGION_SPECS.filter((s) => s.phases?.seasons ?? s.phases?.onTurn).map(
+  (s) => s.id,
+);
 /** 그 가운데 철별 덧씌움을 밝힌 방 · 뒤척임을 밝힌 방 */
 const SEASON_ROOMS = REGION_SPECS.filter((s) => s.phases?.seasons).map((s) => s.id);
 const TURN_ROOMS = REGION_SPECS.filter((s) => s.phases?.onTurn).map((s) => s.id);
@@ -643,8 +648,15 @@ describe('SPEC-002 스밈에 그 자락이 위험으로 읽힌다', () => {
         route.nodes.flatMap((node) => node.map((choice) => choice.region)),
       ),
     );
+    // C019 CHANGED — **늘 서 있는 위상**을 밝힌 방도 뺀다. 그 위험은 철이 거는 것이 아니라
+    // 방 자체가 원인 없이 늘 걸고 있는 것이고(C019 spec R1), 이 항이 재는 것은 여전히
+    // "철이 밝히지 않은 방을 흔들지 않는다" 이다. 상시의 위험은 C019 가 잰다.
     for (const spec of REGION_SPECS.filter(
-      (s) => !SEASON_ROOMS.includes(s.id) && s.id !== WHITE_KING_DOMAIN && !ON_A_ROUTE.has(s.id),
+      (s) =>
+        !SEASON_ROOMS.includes(s.id) &&
+        s.id !== WHITE_KING_DOMAIN &&
+        !ON_A_ROUTE.has(s.id) &&
+        s.phases?.standing === undefined,
     )) {
       for (const season of SEASONS) {
         const w = inSeason(season, spec.id);

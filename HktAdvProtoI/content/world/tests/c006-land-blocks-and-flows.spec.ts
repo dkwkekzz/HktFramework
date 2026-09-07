@@ -875,9 +875,14 @@ describe('SPEC-008 — 거목이 땅에 선다', () => {
 describe('SPEC-009 — 데이터가 없는 방은 아무것도 막지 않는다', () => {
   // C007 SPEC-009 가 이 주장을 **좁혔다** — 숲 가장자리에 stamp(basin) 하나가 늘면서 그 방에도
   // 막히는 칸이 생긴다. 규칙은 한 글자도 바뀌지 않았고 데이터가 늘었을 뿐이다 (C007 spec R2 · SPEC-010).
-  const stillEmptyRooms = () => otherRooms().filter((s) => s.id !== FOREST_EDGE);
+  // C019 가 한 번 더 좁힌다 — 고개 너머 협곡 둘이 얼음 절벽(ridge stamp 여섯)을 품고 서므로
+  // 그 둘에도 막히는 칸이 생긴다. 여기서도 규칙은 한 글자도 바뀌지 않았다 (C019 spec SPEC-004).
+  const stillEmptyRooms = () =>
+    otherRooms().filter(
+      (s) => s.id !== FOREST_EDGE && s.id !== 'ICE_CANYON' && s.id !== 'FROST_CANYON',
+    );
 
-  it('S-033 stamp 도 curve 도 없는 일곱 방은 traversable 이 전부 1 이다 (C007 SPEC-009 로 좁혀졌다)', () => {
+  it('S-033 stamp 도 curve 도 없는 방들은 traversable 이 전부 1 이다 (C007 · C019 로 좁혀졌다)', () => {
     for (const spec of stillEmptyRooms()) {
       const world = compiled(spec.space).world;
       expect({ region: spec.id, blockedCells: [...world.traversable].filter((v) => v !== 1).length }).toEqual({
@@ -892,7 +897,9 @@ describe('SPEC-009 — 데이터가 없는 방은 아무것도 막지 않는다'
     // C008 로 좁혀졌다 — **규칙을 품은 방**(RegionSpec.rule)은 extent 말고 하나를 더 본다:
     // 지금 패턴에서 닫힌 통로 자리를 거절한다 (C008 R2). 땅(traversable)은 여전히 아무것도
     // 막지 않으므로 이 주장이 틀린 것이 아니라 그 방이 이 무리에서 빠진 것이다.
-    for (const spec of otherRooms().filter((s) => !s.rule)) {
+    // C019 로 한 번 더 좁혀졌다 — 협곡 둘은 절벽이 막으므로 방 안의 귀퉁이가 통행 가능하지
+    // 않다. 땅이 막는 방을 이 무리에서 빼는 것은 위 stillEmptyRooms 와 같은 이유다.
+    for (const spec of stillEmptyRooms().filter((s) => !s.rule)) {
       const start = pointsOf(spec.space, ANCHOR_LAYER)[0]!.position;
       const w = standing(spec.id, start);
       const { minX, maxX, minZ, maxZ } = spec.space.extent;
