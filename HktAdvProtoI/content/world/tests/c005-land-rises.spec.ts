@@ -633,8 +633,9 @@ describe('SPEC-008 — 세계는 땅을 싣지 않는다', () => {
       // C006 ADDED — standingConditions 하나가 는다 (C006 관찰 계약).
       // C015 ADDED — clock 하나가 는다 (세계의 때 · C015 관찰 계약).
       // C017 ADDED — tracks 하나가 는다 (그 방에 남은 자국 · C017 관찰 계약).
+      // C018 ADDED — presences 하나가 는다 (그 방을 지나는 것들 · C018 관찰 계약).
       // 그 밖은 한 글자도 그대로다
-      ['specId', 'scene', 'region', 'observer', 'entities', 'interactions', 'hud', 'strikes', 'debug', 'commands', 'standingConditions', 'clock', 'tracks'].sort(),
+      ['specId', 'scene', 'region', 'observer', 'entities', 'interactions', 'hud', 'strikes', 'debug', 'commands', 'standingConditions', 'clock', 'tracks', 'presences'].sort(),
     );
     // C017 CHANGED — 소란이 모든 방에 실리므로 disturbance 하나가 는다. 이 항이 지키는 것은
     // 그대로다: **땅은 한 조각도 실리지 않는다** (height · surface · traversable · areas 없음).

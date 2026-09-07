@@ -16,6 +16,7 @@ import {
 } from '../../regions';
 import { createWorld, restoreWorld } from '../index';
 import { INTERACTION_RANGE, STATE_VERSION, TICK_INTERVAL, type WorldState } from '../semantic/world-state';
+import { sourcesInRegion } from '../semantic/resource';
 import { driveWorld, OBSERVER, OBSERVER_2, PLAYER, PLAYER_2, type WorldDriver } from './drive';
 
 const solo = { npcs: [] };
@@ -246,11 +247,19 @@ describe('SPEC-007 — 관찰은 방으로 잘린다', () => {
     const v = world.observe();
 
     expect(v.scene).toBe(FOREST_EDGE);
-    // 관찰자 자신 말고 다른 몸은 없다. 캘 것은 **이 방이 낳는 것** 하나뿐이고
-    // 백왕령의 것은 따라오지 않는다 (C011 — 방으로 잘리는 투영은 그대로다)
-    expect(v.entities.filter((e) => e.role !== 'region-exit').map((e) => e.id).sort()).toEqual(
-      [PLAYER, 'MOLT_LITTER'].sort(),
-    );
+    // 관찰자 자신 말고 다른 몸은 없다. 캘 것은 **이 방이 낳는 것**뿐이고
+    // 백왕령의 것은 따라오지 않는다 (C011 — 방으로 잘리는 투영은 그대로다).
+    // C018 CHANGED — 이 방에 지나가는 것이 남기는 원천 둘이 늘었다. 재는 것은 그대로다:
+    // 다른 방의 것이 하나도 없고, 몸은 관찰자 자신뿐이다
+    const seen = v.entities.filter((e) => e.role !== 'region-exit').map((e) => e.id);
+    expect(seen).toContain(PLAYER);
+    expect(seen).toContain('MOLT_LITTER');
+    // 실린 것은 전부 **이 방이 밝힌 원천**이다 (그 철에 서지 않는 것은 빠질 수 있다)
+    const declared = new Set(sourcesInRegion(FOREST_EDGE).map((source) => source.id));
+    for (const id of seen) {
+      if (id === PLAYER) continue;
+      expect({ id, declaredHere: declared.has(id) }).toEqual({ id, declaredHere: true });
+    }
     expect(exits(v)).toContainEqual({
       id: FOREST_PATH,
       role: 'region-exit',
@@ -258,10 +267,13 @@ describe('SPEC-007 — 관찰은 방으로 잘린다', () => {
       kind: 'road',
       position: { x: 0, z: -18 },
     });
-    // 이 방의 원천 하나만 가용성을 가진다 — 다른 방의 것은 실리지 않는다
-    expect(v.interactions.filter((i) => i.id === 'mine').map((i) => i.targetEntityId)).toEqual([
-      'MOLT_LITTER',
-    ]);
+    // 이 방의 원천만 가용성을 가진다 — 다른 방의 것은 실리지 않는다
+    // (C018 CHANGED — 이 방의 원천이 늘었다. 재는 것은 "이 방의 것뿐" 이다)
+    const mineTargets = v.interactions.filter((i) => i.id === 'mine').map((i) => i.targetEntityId);
+    expect(mineTargets).toContain('MOLT_LITTER');
+    for (const id of mineTargets) {
+      expect({ id, declaredHere: declared.has(id!) }).toEqual({ id, declaredHere: true });
+    }
     expect(v.region.id).toBe(FOREST_EDGE);
     expect(JSON.stringify(v)).not.toContain(WHITE_KING_DOMAIN);
   });

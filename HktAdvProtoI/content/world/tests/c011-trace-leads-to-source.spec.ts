@@ -223,14 +223,17 @@ describe('SPEC-001 네 원천이 자기 방에 선다', () => {
       const world = standingIn(one.region);
       // When 그 방을 본다
       const found = sourcesIn(world.observe());
-      // Then 그 방의 원천은 그것 하나다
-      expect({ region: one.region, ids: found.map((e) => e.id) }).toEqual({
+      // Then 그 방에 그 원천이 선다
+      // C016 · C018 CHANGED — 이 방에 원천이 늘었다 (철 조건 하나 · 지나가는 것이 남기는 둘).
+      // 이 항이 지키는 것은 그대로다: **C011 이 놓은 그 원천이 그 방에 그 자리로 선다**
+      expect({ region: one.region, has: found.some((e) => e.id === one.id) }).toEqual({
         region: one.region,
-        ids: [one.id],
+        has: true,
       });
       // And 자리는 데이터가 정한 그 자리다 — 지어낸 자리가 아니다 (R3)
       const point = resourcePointAt(one.region, one.id);
-      expect({ region: one.region, x: found[0]!.position.x, z: found[0]!.position.z }).toEqual({
+      const mine = found.find((e) => e.id === one.id)!;
+      expect({ region: one.region, x: mine.position.x, z: mine.position.z }).toEqual({
         region: one.region,
         x: point.x,
         z: point.z,
@@ -585,7 +588,9 @@ describe('회귀', () => {
       actorItems: { pickaxe: 1 },
     });
     const before = world.observe();
-    expect(sourcesIn(before).map((e) => e.id)).toEqual([MOLT_LITTER]);
+    // C018 CHANGED — 이 방에 지나가는 것이 남기는 원천 둘이 늘었다. 이 항이 재는 것은
+    // "건너온 방의 것이 따라오지 않는다" 이므로 이 방의 것이 실린다는 것만 짚는다
+    expect(sourcesIn(before).map((e) => e.id)).toContain(MOLT_LITTER);
     // When 폐허로 건넌다
     expect(world.dispatch({ interactionId: 'transit', targetEntityId: RUIN_TRAIL }).status).toBe(
       'success',

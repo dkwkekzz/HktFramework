@@ -13,6 +13,7 @@
 // 않는다: 깨어남도 컴파일 결과 **위**의 덧씌움이다 (T4 · T6).
 
 import { DEPTH_LAYER, HAZARD_LAYER } from './phases';
+import { HUNTER_CURVE_TAG } from './presence-routes';
 import type { RegionSpec } from './spec';
 import { ANCHOR_LAYER } from './spec';
 import {
@@ -195,6 +196,41 @@ export const BIO_ORE_FIELD_SPEC: RegionSpec = {
         layer: HAZARD_LAYER,
         tag: 'ORE_OUTCROP',
         shape: { kind: 'circle', center: { x: 8, z: -6 }, radius: 7 },
+      },
+      // ── C018 ADDED — 눈 없는 것의 선과 그 자락 ─────────────────────────────
+      //
+      // 이 방은 그것의 **둘째 마디의 후보**다 — 숲 가장자리와 이 방 가운데 **소란이 높은
+      // 쪽**으로 내려온다 (spec R3). 여기서 캐 놓으면 그것이 이쪽으로 오고, 그러면 숲
+      // 가장자리에는 오지 않는다. 어느 쪽으로 휘는지는 경로 데이터와 소란만이 안다.
+      //
+      // **높이를 건드리지 않는 표시선**이다 (profile 없음 · 뿌리 곡선이 세운 그 형) —
+      // 땅도 컴파일 결과도 hash 도 한 값 바뀌지 않는다 (T6). 이 방은 평지이고, 점 셋은
+      // 컴파일 결과에서 셋 다 통행 가능함을 실측했다 (반경 2 의 둘레까지). 서쪽 문
+      // ORE_TRAIL(-18, 0) 에서 1.6m 걸음 · 16방위 BFS 로 8 · 9 · 12 걸음에 닿는다.
+      // 뿌리 곡선의 마디 넷 어느 것과도 겹치지 않는다 — 가장 가까운 마디 2(-8, 8) 까지
+      // 2.83 이고 그 마디의 붕괴 자리(반지름 2) 밖이다.
+      {
+        id: 'hunter-curve',
+        kind: 'curve',
+        layer: PRESENCE_LAYER,
+        tag: HUNTER_CURVE_TAG,
+        points: [
+          { x: -10, z: 10 },
+          { x: -4, z: 4 },
+          { x: 2, z: -2 },
+        ],
+        width: 3,
+      },
+      // 그 선의 **자락** — 지나는 동안에만 위험으로 읽힌다 (spec R4). 중심은 가운데 마디이고
+      // 반지름 9 는 양 끝을 다 품는다 (끝까지 8.49 · 8.49). 깨어남의 자락(중심 (8, -6) ·
+      // 반지름 7)과는 중심 거리 15.6 이라 서로 닿지 않는다 — 소란이 거는 것과 지나가는 것이
+      // 거는 것이 **다른 자리**이고, 둘 다 걸리면 걸린 것이 전부 실린다 (spec R4 경계 ②).
+      {
+        id: 'hazard-ore-hunter-path',
+        kind: 'area',
+        layer: HAZARD_LAYER,
+        tag: HUNTER_CURVE_TAG,
+        shape: { kind: 'circle', center: { x: -4, z: 4 }, radius: 9 },
       },
     ],
   },

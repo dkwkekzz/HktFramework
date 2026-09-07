@@ -15,6 +15,7 @@
 // Command / Parameter 구조도, 이것을 소비하는 쪽도 바뀌지 않는다.
 // 그것이 INTENT-COMMAND-CATALOG-001 이 요구한 "항목이 하나 더해질 뿐" 이다.
 
+import { PRESENCE_ROUTES } from '../../regions';
 import type {
   CommandDomainView,
   CommandParameterView,
@@ -46,6 +47,20 @@ function attributeDomain(): CommandDomainView {
             ...(attribute.max === undefined ? {} : { maximum: attribute.max }),
           },
     })),
+  };
+}
+
+/**
+ * summon-presence 의 presence 자리 — 선택지 목록은 **데이터가 소유한다** (C018 ADDED).
+ *
+ * attributeDomain 이 MUTABLE_ATTRIBUTES 를 단일 출처로 삼는 것과 같은 규율이다: 여기서
+ * 목록을 다시 적지 않는다 — 두 곳에 적히면 반드시 어긋나고, 무엇보다 **규칙 코드에 경로의
+ * 이름이 살게 된다** (T1 · T4). 경로를 더하거나 지우는 것은 코드가 아니라 데이터의 일이다.
+ */
+function presenceDomain(): CommandDomainView {
+  return {
+    kind: 'choice',
+    options: PRESENCE_ROUTES.map((route) => ({ name: route.id })),
   };
 }
 
@@ -84,6 +99,21 @@ export const COMMAND_CATALOG: readonly CommandDefinition[] = [
     id: 'emergency-return',
     effect: 'emergency-return', // 몸을 그 방의 비상 자리로 옮긴다
     parameters: [],
+  },
+  {
+    // C018 ADDED — 부르기 (RULE-PRESENCE-SUMMON-001 · spec R8).
+    // **받는 자리가 하나다** — 무엇을 부를지 골라야 하기 때문이다 (돌아가기가 자리를 갖지
+    // 않는 것과 갈린다: 그쪽은 갈 곳이 하나뿐이었다). 항목이 하나 더해질 뿐 Command /
+    // Parameter 구조도 소비처도 바뀌지 않는다 (INTENT-COMMAND-CATALOG-001 이 요구한 그대로).
+    id: 'summon-presence',
+    effect: 'summon-presence', // 지나가는 것을 지금부터 지나가게 한다
+    parameters: [
+      {
+        id: 'presence',
+        required: true,
+        domain: presenceDomain(),
+      },
+    ],
   },
 ];
 

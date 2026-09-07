@@ -30,6 +30,11 @@
 // C014 CHANGED — 흐름의 주기도 그 판정에 든다. 이 규칙은 **어느 원천이 흐름을 가졌는지 묻지
 // 않는다**: 조건 코드가 이미 그것을 말하므로 여기서 아는 것은 "멎게 하는 코드가 걸렸는가"
 // 하나뿐이고, 주기도 흐름의 출발도 데이터와 세계 시각의 것이다.
+//
+// C018 CHANGED (C018 spec R7) — **지나가는 것도 그 판정에 든다.** 누군가 남기는 원천은 그것이
+// 지나고 있지 않은 동안 `condition-unmet` 을 지므로 여기서 저절로 멎는다 — 이 파일은 **한
+// 줄도 바뀌지 않았다**: 조건 코드가 이미 그것을 말하고, 무엇이 무엇을 남기는지는 여전히
+// 데이터의 것이다. 넘기는 값 하나(지나감들의 지금)가 늘었을 뿐이다.
 
 import { CONDITION_UNMET, RECOVERY_STALLED } from '../../regions';
 import { NOT_THIS_SEASON } from '../semantic/region-phase';
@@ -52,7 +57,12 @@ export function ruleSourceRecovery(state: WorldState, dt: number): void {
       // 아니거나(recovery-stalled) · 유입 흐름이 지금 실어 오지 않거나(condition-unmet) ·
       // 지금이 그 원천의 철이 아니면(not-this-season) 멎는다.
       // 남은 하나 flow-arrived 는 **실려 오는 중**이라는 뜻이므로 진행을 허락한다.
-      const conditions = sourceConditions(state.regionStates, source, state.time);
+      const conditions = sourceConditions(
+        state.regionStates,
+        source,
+        state.time,
+        state.presences,
+      );
       if (
         conditions.includes(RECOVERY_STALLED) ||
         conditions.includes(CONDITION_UNMET) ||

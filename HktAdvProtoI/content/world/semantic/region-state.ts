@@ -24,6 +24,7 @@
 
 import { tagsAt } from '../../../engine/world-authoring/query';
 import { REGION_SPECS, regionSpec, type RegionSpec } from '../../regions';
+import { leavingRouteOf } from './presence';
 import type { WorldPosition } from './position';
 import { DISTURBANCE_THRESHOLD, RECOVERY_VISIBLE_FRACTION } from './world-state';
 import {
@@ -199,9 +200,17 @@ export function regionRuleOf(regionId: string): RegionRuleSpec | undefined {
  * 뒤척일 때(RULE-SEASON-TURN-001 의 자국 묻기)가 같은 "처음 상태" 를 물으므로 한 자리에서
  * 답한다 — 두 벌로 만들면 갈린다. 묻는다는 것이 "다 채워 준다" 가 아니라 "없던 일로 한다"
  * 라는 뜻인 것이 여기서 나온다 (spec 기본형 ⑦): 처음이 고갈인 원천은 고갈로 돌아간다.
+ *
+ * C018 CHANGED (spec R6 · 기본형 ⑧) — **지나가야만 서는 원천도 처음이 고갈이다.** 실려 와야
+ * 생기는 것과 **같은 사실**이기 때문이다: 세계가 설 때 아직 아무것도 지나가지 않았으므로
+ * 거기 없고, 관찰자에게 "아직 지나가지 않았다" 와 "다 캐 갔다" 는 같은 것 — 거기 지금 없다.
+ * phase 를 넷으로 늘리지 않고 C013 의 셋으로 같은 것을 말한다.
+ *
+ * **어느 원천인지 이름으로 알지 못한다** — 아는 것은 "유입 흐름을 가진 원천" 과 "누군가
+ * 지나가며 남기는 원천" 이라는 형 둘뿐이고, 흐름의 표도 경로의 표도 데이터의 것이다.
  */
 export function initialSourceState(source: ResourceSource): ResourceSourceState {
-  return inflowOf(source.id)
+  return inflowOf(source.id) || leavingRouteOf(source.id)
     ? { phase: 'depleted', taken: source.harvests, progress: 0, siteIndex: 0 }
     : { phase: 'available', taken: 0, progress: 0, siteIndex: 0 };
 }

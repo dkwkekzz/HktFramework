@@ -107,9 +107,11 @@ const MINE_SECONDS = 1.2;
 const AFTER_SWING_OPEN = SWING_BEGIN * SKILL_DEFINITIONS.attack.baseDuration + 2 * TICK_INTERVAL;
 
 /** spec 이 적은 State 형 버전 — 이 Cycle 이 여기까지 올린다 (SPEC-010 경계) */
-const RAISED_STATE_VERSION = 'hkt-adv-proto-i/8';
+// C018 CHANGED — 지나감의 지금이 실리며 다시 올랐다. 이 항이 재는 것은 글자가 아니라
+// "세계가 찍는 판이 팩의 판과 같다" 이므로 값만 따라 올린다
+const RAISED_STATE_VERSION = 'hkt-adv-proto-i/9';
 /** 그 앞의 버전(C016) — 옛 스냅샷은 되살아나지 않는다 */
-const OLD_STATE_VERSION = 'hkt-adv-proto-i/7';
+const OLD_STATE_VERSION = 'hkt-adv-proto-i/8';
 
 const solo: WorldSetup = { npcs: [] };
 
@@ -246,13 +248,32 @@ function straightRun(region: string): { from: XZ; to: XZ; length: number } {
 }
 
 // ── 세계를 세우고 굴리는 자리 ────────────────────────────────────────
-const standingIn = (region: string, at?: XZ, extra: WorldSetup = {}): WorldDriver =>
-  driveWorld({
+//
+// C018 CHANGED — 세계에 **지나가는 것**이 생겼고, 그 중 하나는 세계가 서는 그 시각(고요의 낮 ·
+// 첫 바퀴)에 시간표가 맞아 첫 Tick 부터 방들 위를 지나며 소란을 올린다. 이 시나리오가 재는
+// 것은 지나가는 것이 아니라 **몸이 한 일**이므로, 세우자마자 지나가던 것을 멈추고 그 방들의
+// 소란을 0 으로 되돌린 뒤에 잰다 — 세계의 규칙을 하나도 바꾸지 않고 Given 만 조용하게 하는
+// 것이고, 지나가는 것이 소란을 올린다는 사실 자체는 C018 의 시나리오가 잰다.
+const standingIn = (region: string, at?: XZ, extra: WorldSetup = {}): WorldDriver => {
+  const base = driveWorld({
     ...solo,
     actorRegion: region,
     ...(at ? { actorPosition: { x: at.x, z: at.z } } : {}),
     ...extra,
   });
+  return hushed(base);
+};
+
+/** 지나가던 것을 멈추고 모든 방의 소란을 0 으로 되돌린 세계 (C018 ADDED · 위 주석) */
+function hushed(base: WorldDriver): WorldDriver {
+  return worldFrom(base, (s) => {
+    for (const pass of Object.values(s.presences)) delete pass.startedAt;
+    for (const regionState of Object.values(s.regionStates)) {
+      regionState.disturbance.value = 0;
+      regionState.disturbance.phase = 'dormant';
+    }
+  });
+}
 /** 그 철에서 시작하는 세계 — C015 가 세운 손잡이 (WorldSetup.clock) */
 const inSeason = (season: SeasonId, region: string, at?: XZ, extra: WorldSetup = {}): WorldDriver =>
   standingIn(region, at, { ...extra, clock: season });
@@ -576,6 +597,13 @@ function staged(
   return worldFrom(
     base,
     (s) => {
+      // C018 CHANGED — 지나가던 것을 먼저 멈춘다 (standingIn 의 hushed 와 같은 이유).
+      // 세우는 소란은 이 시나리오가 밝힌 값이어야 하므로 지나가는 것이 얹기 전에 세운다.
+      for (const pass of Object.values(s.presences)) delete pass.startedAt;
+      for (const regionState of Object.values(s.regionStates)) {
+        regionState.disturbance.value = 0;
+        regionState.disturbance.phase = 'dormant';
+      }
       for (const one of bodies) place(s, one.body, one.region, one.at);
       for (const [region, value] of Object.entries(charged)) charge(s, region, value);
     },

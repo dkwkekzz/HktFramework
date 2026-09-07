@@ -13,6 +13,7 @@
 import type { CoreWorldState } from '../../../engine/world-kernel/state';
 import type { ActorState } from './actor';
 import type { StrikeEvent } from './combat';
+import type { PresencePassState } from './presence';
 import type { RegionState } from './region-state';
 import type { WorldPosition } from './position';
 
@@ -57,6 +58,18 @@ export interface WorldState extends CoreWorldState {
    * 세계에 하나다 (철이 세계에 하나이므로 · Time 원칙 T1).
    */
   turnsApplied: number;
+  /**
+   * World.presences — 지나가는 것 하나의 **지금** (C018 ADDED · spec State · semantic/presence.ts).
+   *
+   * **저장된다.** 시간표도 마디도 데이터에서 다시 오지만(content/regions), "지금 지나고
+   * 있는가 · 이번 바퀴에 이미 왔는가 · 몇 번 지나갔는가 · 이번에 어디로 휘었는가" 는
+   * 세계가 겪은 일이라 스냅샷에 실린다 — 그러지 않으면 껐다 켤 때마다 다시 처음부터
+   * 지나가고, 남긴 것도 다시 처음이 된다 (spec SPEC-008).
+   *
+   * **밝힌 경로 전부에 자리가 있다** (spec State) — 지나고 있지 않은 경로도 "아직 지나가지
+   * 않았다" 를 들어야 하기 때문이다. 소란이 모든 방에 서는 것과 같은 어법이다 (C017 기본형 ⑩).
+   */
+  presences: Record<string, PresencePassState>;
 }
 
 // InteractionRange — RULE-MINE-001 Precondition 2 의 거리 한계
@@ -90,6 +103,19 @@ export const OBSERVE_RANGE_NIGHT = 20;
  * **회복의 길이**는 여기 없다 — 그것은 원천마다 다른 세계 데이터다 (content/regions · D3).
  */
 export const RECOVERY_VISIBLE_FRACTION = 0.5;
+
+/**
+ * 지나가는 것이 **마디 하나에 머무는 세계 초** (C018 ADDED · spec 데이터 값 · 기본형 ②).
+ *
+ * 45 인 이유 — 마디 넷을 가진 경로는 180 초이고 낮이 240 초이므로 **하루 안에 시작하고
+ * 끝난다**. 마디 둘을 가진 경로는 90 초이고 긴 밤이 360 초다. 지나가는 것이 철을 넘겨
+ * 이어지면 "지나갔다" 가 아니라 "머문다" 가 되고, 그러면 때를 맞출 것이 없어진다.
+ *
+ * 세계에 하나인 값이다 — 마디의 길이는 경로마다의 사정이 아니라 "지나간다" 라는 것의
+ * 걸음걸이다. 결정론에 영향을 주는 시뮬레이션 상수이므로 CVar 가 아니라 헤더 상수로
+ * 고정한다 (원칙 6). **몇 마디인가**는 여기 없다 — 그것은 경로마다 다른 세계 데이터다.
+ */
+export const PRESENCE_SECONDS_PER_NODE = 45;
 
 /**
  * 소란의 상수들 (C017 ADDED · spec 데이터 값 절 · 확정 5 · 11).
@@ -172,4 +198,7 @@ export const TICK_INTERVAL = 1 / 30;
 // C017 — 방의 State 에 소란(모든 방)과 자국이, 몸에 마지막 자국 뒤로 걸은 거리가 실린다.
 //        지금까지 State 자체가 없던 방에도 State 가 생기므로 형태가 바뀐다 —
 //        옛 스냅샷은 복구되지 않는다 (spec SPEC-010 경계).
-export const STATE_VERSION = 'hkt-adv-proto-i/8';
+// C018 — World.presences 가 실린다 (지나가는 것의 지금 — 시작한 시각 · 시작한 바퀴 ·
+//        지나간 수 · 이번에 고른 방들). 형태가 바뀌므로 옛 스냅샷은 복구되지 않는다
+//        (spec SPEC-008 경계).
+export const STATE_VERSION = 'hkt-adv-proto-i/9';
