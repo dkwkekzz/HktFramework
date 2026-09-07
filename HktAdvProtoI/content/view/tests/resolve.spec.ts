@@ -95,6 +95,8 @@ describe('resolvePresentation (Semantic → Render Plan)', () => {
       scene: 'mining-field',
       region: { id: 'mining-field', hash: '00000000' },
       standingConditions: [], // C006 ADDED
+      // C015 — 봉투에 때가 실린다. 이 시나리오가 보는 것은 때가 아니므로 고요의 낮 하나로 둔다
+      clock: { dayPhase: 'DAY', season: 'STILL', dayIndex: 0, seasonCycle: 0 },
       entities: [
         { id: 'npc-1', role: 'npc-character', state: 'downed', kind: 'wanderer', position: { x: 1, z: 1 } },
         { id: 'npc-2', role: 'npc-character', state: 'idle', kind: 'wanderer', position: { x: 2, z: 2 } },
@@ -191,6 +193,8 @@ describe('결정 Layer 의 유연 대응 — 미등록 항목도 기본 결정�
       scene: 'cavern',
       region: { id: 'cavern', hash: '00000000' },
       standingConditions: [], // C006 ADDED
+      // C015 — 봉투에 때가 실린다. 이 시나리오가 보는 것은 때가 아니므로 고요의 낮 하나로 둔다
+      clock: { dayPhase: 'DAY', season: 'STILL', dayIndex: 0, seasonCycle: 0 },
       entities: [
         { id: 'npc-1', role: 'wandering-merchant', state: 'idle', position: { x: 1, z: 1 } },
       ],

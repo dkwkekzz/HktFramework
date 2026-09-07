@@ -386,10 +386,16 @@ describe('SPEC-001 — 백왕령에 강과 거목과 조건이 놓인다', () =>
   it('S-006 (경계) C004 의 아홉 방 anchor 는 그 표 그대로다', () => {
     // C008 이 방 하나(환상의 미로)를 더했다 — 표에 없는 방은 이 주장의 대상이 아니다.
     // 재는 것은 "C004 의 표가 한 줄이라도 달라졌는가" 다 (C008 SPEC-001 로 좁혀졌다).
+    // C016 CHANGED — 숲 안쪽에 anchor 하나가 늘었다 (긴 밤의 문이 나가는 자리). 주장은
+    // 지워지지 않고 **좁아진다**: 표에 적힌 줄은 한 줄도 달라지지 않았고, 뒤 Cycle 이
+    // 더한 자리는 이 주장의 대상이 아니다 (표에 없는 방을 빼는 그 어법 그대로).
     const now: Record<string, Record<string, [number, number]>> = {};
     for (const spec of REGION_SPECS.filter((s) => s.id in ANCHORS_AT_C004)) {
+      const table = ANCHORS_AT_C004[spec.id]!;
       now[spec.id] = Object.fromEntries(
-        pointsOf(spec.space, ANCHOR_LAYER).map((p) => [p.tag, [p.position.x, p.position.z]]),
+        pointsOf(spec.space, ANCHOR_LAYER)
+          .filter((p) => p.tag in table)
+          .map((p) => [p.tag, [p.position.x, p.position.z]]),
       );
     }
     expect(now).toEqual(ANCHORS_AT_C004);
@@ -1011,8 +1017,12 @@ describe('회귀', () => {
     toForestDeep(w);
     expect(body(w).regionId).toBe(FOREST_DEEP);
     const v = w.observe();
-    expect(exits(v).length).toBe(5);
-    expect(exits(v).filter((e) => e.state === 'locked')).toEqual([]);
+    // C016 CHANGED — 그 방의 출구가 여섯이 되었고 그 하나(긴 밤의 문)는 고요에 잠긴 표식이다.
+    // 건너기가 그대로라는 이 주장은 그대로다 — 몸은 여전히 걸어서 숲 안쪽에 섰다.
+    expect(exits(v).length).toBe(6);
+    expect(exits(v).filter((e) => e.state === 'locked').map((e) => e.id)).toEqual([
+      'WALKING_FOREST_DOOR',
+    ]);
   });
 
   it('R-002 (C003 R-003) 백왕령의 출구는 셋이고 그 자리로 걸어갈 수 있다 — 땅이 막아도 문은 열려 있다', () => {

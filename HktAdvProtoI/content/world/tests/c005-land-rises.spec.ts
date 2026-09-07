@@ -266,10 +266,16 @@ describe('SPEC-001 — 백왕령에 능선이 선다', () => {
     // Given C004 때 있던 방들의 anchor layer 를 읽는다.
     // C008 이 방 하나(환상의 미로)를 더했다 — 표에 없는 방은 이 주장의 대상이 아니다.
     // 재는 것은 언제나 "C004 의 표가 한 줄이라도 달라졌는가" 다 (C008 SPEC-001 로 좁혀졌다).
+    // C016 CHANGED — 숲 안쪽에 anchor 하나가 늘었다 (긴 밤의 문이 나가는 자리). 주장은
+    // 지워지지 않고 **좁아진다**: 표에 적힌 줄은 한 줄도 달라지지 않았고, 뒤 Cycle 이
+    // 더한 자리는 이 주장의 대상이 아니다 (표에 없는 방을 빼는 그 어법 그대로).
     const now: Record<string, Record<string, [number, number]>> = {};
     for (const spec of REGION_SPECS.filter((s) => s.id in ANCHORS_AT_C004)) {
+      const table = ANCHORS_AT_C004[spec.id]!;
       now[spec.id] = Object.fromEntries(
-        pointsOf(spec.space, ANCHOR_LAYER).map((p) => [p.tag, [p.position.x, p.position.z]]),
+        pointsOf(spec.space, ANCHOR_LAYER)
+          .filter((p) => p.tag in table)
+          .map((p) => [p.tag, [p.position.x, p.position.z]]),
       );
     }
     // Then 한 줄도 달라지지 않았다 — 이 Cycle 이 더한 것은 stamp 하나뿐이다
@@ -624,8 +630,9 @@ describe('SPEC-008 — 세계는 땅을 싣지 않는다', () => {
   it('S-029 봉투의 키 집합이 그대로다 · region 은 { id, hash } 둘뿐이다', () => {
     const v = driveWorld(solo).observe();
     expect(Object.keys(v).sort()).toEqual(
-      // C006 ADDED — standingConditions 하나가 는다 (C006 관찰 계약). 그 밖은 한 글자도 그대로다
-      ['specId', 'scene', 'region', 'observer', 'entities', 'interactions', 'hud', 'strikes', 'debug', 'commands', 'standingConditions'].sort(),
+      // C006 ADDED — standingConditions 하나가 는다 (C006 관찰 계약).
+      // C015 ADDED — clock 하나가 는다 (세계의 때 · C015 관찰 계약). 그 밖은 한 글자도 그대로다
+      ['specId', 'scene', 'region', 'observer', 'entities', 'interactions', 'hud', 'strikes', 'debug', 'commands', 'standingConditions', 'clock'].sort(),
     );
     expect(Object.keys(v.region).sort()).toEqual(['hash', 'id']);
   });
@@ -866,13 +873,16 @@ describe('회귀', () => {
     expect([...reasons]).not.toContain('too-steep');
   });
 
-  it('R-002 (C003 R-002) 숲 안쪽의 출구는 다섯이고 다섯이 전부 열려 있다', () => {
+  // C016 CHANGED — 그 방의 출구가 여섯이 되었고 그 하나(긴 밤의 문)는 고요에 잠긴 표식이다.
+  it('R-002 (C003 R-002) 숲 안쪽의 출구는 여섯이고 C004 가 연 다섯은 전부 열려 있다', () => {
     const w = driveWorld(solo);
     toForestDeep(w);
     const v = w.observe();
-    expect(exits(v).length).toBe(5);
-    expect(transits(v).length).toBe(5);
-    expect(exits(v).filter((e) => e.state === 'locked')).toEqual([]);
+    expect(exits(v).length).toBe(6);
+    expect(transits(v).length).toBe(6);
+    expect(exits(v).filter((e) => e.state === 'locked').map((e) => e.id)).toEqual([
+      'WALKING_FOREST_DOOR',
+    ]);
   });
 
   it('R-003 (C003 R-003) 백왕령의 출구는 셋이고 고개 둘이 그대로 남는다 — 능선이 서도 그대로다', () => {
@@ -1013,10 +1023,12 @@ describe('회귀', () => {
 
     // ② 땅을 읽는 파일이 실제로 있다 — C006 이 그것을 세웠다 (검사가 헛돌지 않는다)
     expect(readsLand.length).toBeGreaterThan(0);
-    // ③ 그러나 spec 이 정한 자리뿐이다: 세계가 땅을 드는 파일과 이동 규칙, 그리고 C011 이
-    //    더한 원천·흔적의 자리 — 셋을 넘지 않는다. 셋 다 컴파일 결과에 **자리로 묻기만** 하고
-    //    격자를 스스로 만들지 않는다 (①이 그것을 지킨다)
-    expect(readsLand.length).toBeLessThanOrEqual(3);
+    // ③ 그러나 spec 이 정한 자리뿐이다: 세계가 땅을 드는 파일과 이동 규칙, C011 이 더한
+    //    원천·흔적의 자리, 그리고 C016 이 더한 **철의 덧씌움**의 자리 — 넷을 넘지 않는다.
+    //    넷 다 컴파일 결과(또는 Description)에 **자리로 묻기만** 하고 격자를 스스로 만들지
+    //    않는다 (①이 그것을 지킨다). C016 이 하나 늘린 이유는 덧씌움이 area 를 op id 로
+    //    짚어야 하기 때문이고, 그것은 C011 의 흔적이 같은 이유로 그렇게 한 자리와 같다.
+    expect(readsLand.length).toBeLessThanOrEqual(4);
     // ④ 컴파일하는 자리는 하나다 — 땅을 드는 파일 하나가 아홉 방을 든다 (R2)
     expect(compiles.length).toBe(1);
   });

@@ -494,6 +494,8 @@ export interface SceneState {
    * 자판을 잡지 않는다 (SceneSlotBar 의 형제이고 SceneSurface 가 아니다).
    */
   targetFrame?: SceneTargetFrame;
+  /** 장면의 분위기 — 없으면 그리는 쪽의 기본값 그대로다 */
+  ambience?: SceneAmbience;
 }
 
 // ── 지목 강조 (범용 capability) ───────────────────────────────────────
@@ -618,4 +620,19 @@ export interface SceneSlotCell {
 export interface SceneSlotBar {
   id: string;
   cells: SceneSlotCell[];
+}
+
+// ── 장면의 분위기 (범용 capability) ───────────────────────────────────
+//
+// 하늘 색과 빛. **값만 있고 무엇이 그 값을 정하는지는 알지 못한다** — 때인지 날씨인지
+// 그 방의 성질인지 이 형도 그리는 쪽도 모른다 (SceneGroundZone 과 같은 규약).
+// 없으면 그리는 쪽의 기본값 그대로다 — 분위기를 실어 보내지 않는 장면도 그려진다.
+
+export interface SceneAmbience {
+  /** 하늘(배경) 색 */
+  background: number;
+  /** 주변광 */
+  ambient: { color: number; intensity: number };
+  /** 방향광(해) */
+  sun: { color: number; intensity: number };
 }

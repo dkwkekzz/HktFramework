@@ -1,0 +1,207 @@
+{
+  "out": "shots",
+  "viewport": [
+    900,
+    660
+  ],
+  "runs": [
+    {
+      "region": "FOREST_EDGE",
+      "spawn": "0,0",
+      "npcs": "none",
+      "clock": "STILL:DAY",
+      "steps": [
+        {
+          "wait": "세계 시간",
+          "tries": 60
+        },
+        {
+          "sleep": 1500
+        },
+        {
+          "expect": "낮",
+          "note": "X-① HUD 의 때"
+        },
+        {
+          "expect": "고요",
+          "note": "X-① HUD 의 철"
+        },
+        {
+          "shot": "X-01-still-day",
+          "note": "X-① 고요의 낮 — 지금까지의 화면 그대로다 (밤·다른 철의 대조 기준)"
+        }
+      ]
+    },
+    {
+      "region": "FOREST_EDGE",
+      "spawn": "0,0",
+      "npcs": "none",
+      "clock": "STILL:NIGHT",
+      "steps": [
+        {
+          "wait": "세계 시간",
+          "tries": 60
+        },
+        {
+          "sleep": 1500
+        },
+        {
+          "expect": "밤",
+          "note": "X-① HUD 의 때가 밤이다"
+        },
+        {
+          "shot": "X-02-still-night",
+          "note": "X-① 같은 방 같은 자리의 밤 — 하늘과 바닥이 어두워졌고 붉은 흙만 또렷하다 (X-01 과 견준다)"
+        }
+      ]
+    },
+    {
+      "region": "FOREST_EDGE",
+      "spawn": "0,0",
+      "npcs": "none",
+      "clock": "SEEP:DAY",
+      "steps": [
+        {
+          "wait": "세계 시간",
+          "tries": 60
+        },
+        {
+          "sleep": 1500
+        },
+        {
+          "expect": "스밈",
+          "note": "X-② 철이 스밈이다"
+        },
+        {
+          "shot": "X-03-seep-day",
+          "note": "X-② 스밈의 낮 — 하늘이 붉게 죽는다. 미지가 스며든 때다"
+        }
+      ]
+    },
+    {
+      "region": "FOREST_EDGE",
+      "spawn": "0,0",
+      "npcs": "none",
+      "clock": "LONG_NIGHT",
+      "steps": [
+        {
+          "wait": "세계 시간",
+          "tries": 60
+        },
+        {
+          "sleep": 1500
+        },
+        {
+          "expect": "긴 밤",
+          "note": "X-② · X-③ 철이 긴 밤이다"
+        },
+        {
+          "shot": "X-04-long-night",
+          "note": "X-② · X-③ 긴 밤 — 여덟 가운데 가장 어둡다. 해가 뜨지 않는 하루다"
+        },
+        {
+          "sleep": 12000
+        },
+        {
+          "expect": "긴 밤",
+          "note": "X-③ 한참 뒤에도 여전히 긴 밤이고 밤이다"
+        },
+        {
+          "shot": "X-05-long-night-still-dark",
+          "note": "X-③ 기다려도 밝아지지 않는다 — 낮이 오지 않는 하루 (X-04 와 같은 어둠)"
+        }
+      ]
+    },
+    {
+      "region": "FOREST_EDGE",
+      "spawn": "0,0",
+      "npcs": "none",
+      "clock": "TURN",
+      "steps": [
+        {
+          "wait": "세계 시간",
+          "tries": 60
+        },
+        {
+          "sleep": 1500
+        },
+        {
+          "expect": "뒤척임",
+          "note": "X-② 철이 뒤척임이다"
+        },
+        {
+          "shot": "X-06-turn-dawn",
+          "note": "X-② 뒤척임 — 가장 어두운 때 바로 뒤의 새벽이다. 아직 고요의 한낮에는 못 미친다"
+        }
+      ]
+    },
+    {
+      "region": "BIO_ORE_FIELD",
+      "spawn": "0,-12",
+      "npcs": "none",
+      "clock": "STILL:DAY",
+      "steps": [
+        {
+          "wait": "세계 시간",
+          "tries": 60
+        },
+        {
+          "sleep": 1500
+        },
+        {
+          "shot": "X-07-ore-field-by-day",
+          "note": "X-④ 생체 광석 지대의 낮 — 밤의 대조 기준"
+        }
+      ]
+    },
+    {
+      "region": "BIO_ORE_FIELD",
+      "spawn": "0,-12",
+      "npcs": "none",
+      "clock": "STILL:NIGHT",
+      "steps": [
+        {
+          "wait": "세계 시간",
+          "tries": 60
+        },
+        {
+          "sleep": 1500
+        },
+        {
+          "shot": "X-08-ore-field-at-night",
+          "note": "X-④ 같은 자리의 밤 — 흙의 붉은 기만 살아남고 나머지는 어둠에 든다"
+        },
+        {
+          "hold": "KeyW",
+          "ms": 4000
+        },
+        {
+          "sleep": 1500
+        },
+        {
+          "shot": "X-09-walking-at-night",
+          "note": "X-④ 밤에 걷는다 — 다가가는 만큼만 세계가 실린다. 지워진 것과 아직 닿지 않은 것은 한 장에 담기지 않는다 (시나리오가 값으로 잰다)"
+        }
+      ]
+    },
+    {
+      "region": "WHITE_KING_DOMAIN",
+      "spawn": "0,17",
+      "npcs": "none",
+      "clock": "STILL:NIGHT",
+      "steps": [
+        {
+          "wait": "세계 시간",
+          "tries": 60
+        },
+        {
+          "sleep": 1500
+        },
+        {
+          "shot": "X-10-untouched-at-night",
+          "note": "X-⑤ 백왕령의 밤 — 능선 · 강 · 다리 · 도시가 그대로다. 때가 바꾼 것은 빛뿐이다"
+        }
+      ]
+    }
+  ]
+}

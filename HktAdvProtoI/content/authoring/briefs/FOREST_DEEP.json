@@ -70,6 +70,12 @@
       "region": "HEART_LAKE",
       "transition": "river",
       "direction": "one-way"
+    },
+    {
+      "region": "WALKING_FOREST",
+      "transition": "door",
+      "direction": "one-way",
+      "frontier": true
     }
   ],
   "requires": []

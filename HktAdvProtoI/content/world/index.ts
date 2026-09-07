@@ -20,6 +20,7 @@ import {
   applySourcePhaseSetup,
   createRegionStates,
 } from './semantic/region-state';
+import { clockSetupTime } from './semantic/clock';
 import { spawnActor } from './semantic/spawn';
 import {
   SPAWN_POINTS,
@@ -35,6 +36,7 @@ import { ruleMazeConnection } from './simulation/maze-connection';
 import { ruleMoveProgress } from './simulation/move-progress';
 import { ruleNpcDecideAll } from './simulation/npc-decide';
 import { ruleRegionFall } from './simulation/region-fall';
+import { ruleSeasonTurn } from './simulation/season-turn';
 import { ruleSourceRecovery } from './simulation/source-recovery';
 import { ruleStrikeEventExpire } from './simulation/strike-event-expire';
 import { ruleSwingStrike } from './simulation/swing-strike';
@@ -108,6 +110,23 @@ export interface WorldSetup {
    * 모르는 원천 id · 모르는 phase 이름은 조용히 무시한다 — 손잡이가 세계를 깨뜨리지 않는다.
    */
   sourcePhases?: Record<string, string>;
+  /**
+   * 세계가 **어느 때에서 시작하는가** — 검증·촬영용 초기 시각 (C015 ADDED).
+   * 예: `'LONG_NIGHT'` · `'SEEP:NIGHT'` (철 · 낮밤).
+   *
+   * sourcePhases · regionPatterns 와 **같은 갈래**의 손잡이다: 기다려서 닿을 수 있는 때를
+   * 기다리지 않고 시작하기 위한 것이며 **세계의 규칙을 하나도 바꾸지 않는다.** 세우는 것은
+   * 그냥 흐른 세계 시각이고(그 철이 시작하는 자리), 그 위에서 시계도 되돌아옴도 물길도
+   * 여느 때처럼 그대로 굴러간다.
+   *
+   * 왜 필요한가 — 한 바퀴가 2220 초(37 분)라 긴 밤이나 뒤척임은 촬영 하네스가 기다릴 수 없다.
+   * 철이 순서대로 돈다는 것은 시나리오 테스트가 증명하고, 그림은 **그 때에 무엇이 보이는가**를
+   * 보인다 (regionPatterns 와 같은 논리).
+   *
+   * 모르는 철 이름 · 그 철에 오지 않는 낮밤(긴 밤의 낮 · 뒤척임의 밤)은 조용히 무시한다 —
+   * 손잡이가 세계에 없는 때를 지어내지 않는다 (semantic/clock.ts 의 clockSetupTime).
+   */
+  clock?: string;
 }
 
 // 세계의 기본 배치 — 자율 캐릭터 둘이 각자의 순회 경로를 돈다. 자리는 START_REGION 의 Local Space 좌표다 (C001 R4).
@@ -151,7 +170,10 @@ const SYSTEMS: WorldContent<WorldState>['systems'] = [
   // 걸음이 그 방의 압력이 된다 — move-progress 가 적은 movedThisTick 을 바로 뒤에서 읽는다.
   // 다른 무엇이 자리를 건드리기 전이고, 관찰(투영)보다는 당연히 앞이다 (C008 spec R1 Priority).
   (state) => ruleMazeConnection(state), // RULE-MAZE-CONNECTION-001
-  // 세계 과정끼리 나란히 선다 (C013 spec R10) — 되돌아옴은 관찰자와 무관하게 돈다.
+  // 세계 과정끼리 나란히 선다 (C013 spec R10 · C016 spec R10) — 뒤척임도 되돌아옴도
+  // 관찰자와 무관하게 돈다. 뒤척임이 되돌아옴보다 **앞**인 이유: 뒤척인 뒤의 진행은
+  // 그 Tick 부터 새로 오른다 (되돌아옴이 먼저 오르면 곧바로 0 으로 지워져 한 Tick 이 헛돈다).
+  (state) => ruleSeasonTurn(state), // RULE-SEASON-TURN-001
   // 채취의 완료(action-progress)보다 **앞**이다: 같은 Tick 에 캔 것이 곧바로 되돌아오지 않는다.
   (state, dt) => ruleSourceRecovery(state, dt), // RULE-SOURCE-RECOVERY-001
   (state, dt) => ruleActionProgress(state, dt), // RULE-ACTION-PROGRESS-001
@@ -202,7 +224,9 @@ export function createWorld(setup: WorldSetup = {}, restored?: WorldState): Worl
     actors: npcs,
     // C011 CHANGED — 광맥이 사라졌다. 캘 것은 이제 방이 낳는 **원천**이고, 그것은 초기 배치가
     // 아니라 content/regions 의 데이터다 (semantic/resource.ts) — 배치 손잡이가 필요 없다.
-    time: 0,
+    // 세계는 t = 0 · 고요의 첫 낮에서 선다 (C015 spec 기본형 ④).
+    // 검증용 손잡이가 다른 때를 밝혔으면 그 철이 시작하는 시각에서 선다 — 규칙은 그대로다.
+    time: clockSetupTime(setup.clock) ?? 0,
     observers: [],
     strikeEvents: [],
     // 규칙을 품은 방마다 첫 패턴 · 압력 0 으로, 원천을 가진 방마다 원천이 available 로 선다
@@ -212,6 +236,11 @@ export function createWorld(setup: WorldSetup = {}, restored?: WorldState): Worl
       applyPatternSetup(createRegionStates(), setup.regionPatterns),
       setup.sourcePhases,
     ),
+    // 아직 한 번도 뒤척이지 않았다 (C016 ADDED · spec R8). 되살린 세계는 이 자리에 오지
+    // 않는다 — 적용한 수는 저장되는 State 이므로 스냅샷의 그 값이 그대로 이어진다.
+    // 검증용 손잡이가 다른 때를 밝혔어도 0 이다: 그 세계는 그 시각에 **선** 것이고
+    // 그때까지의 뒤척임은 일어난 적이 없다.
+    turnsApplied: 0,
     // 속성 변경 권한은 세계 밖(세계를 띄우는 쪽)이 정한다.
     // 기본은 열려 있다: 이 프로토타입은 관찰과 시험이 목적이며, 닫으려면 세계를 그렇게 띄운다.
     debugAuthority: { open: setup.debugAuthority ?? true },

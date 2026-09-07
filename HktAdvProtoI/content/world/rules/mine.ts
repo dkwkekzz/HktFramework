@@ -1,11 +1,12 @@
-// RULE-MINE-001 — Implements INTENT-MINING-001 · INTENT-ACTION-STATE-001 (C013 CHANGED — 되돌아오는 중에도 캘 수 없다)
+// RULE-MINE-001 — Implements INTENT-MINING-001 · INTENT-ACTION-STATE-001 (C016 CHANGED — 그 철이 아니면 그 자리에 없다)
 // Input          Actor, Resource Source
-// Preconditions  1. 대상 원천의 phase 가 available (C012 ADDED · C013 CHANGED — recovering 도 거절이다)
+// Preconditions  0. 지금 철에 그 원천이 선다 (C016 ADDED)
+//                1. 대상 원천의 phase 가 available (C012 ADDED · C013 CHANGED — recovering 도 거절이다)
 //                2. Mining Capability Item 보유  3. 같은 방의 InteractionRange 이내 (지금 마디로 잰다)
 //                4. 현재 행동이 대체 가능하다
 // Transition     CurrentAction = mine(Source)           ← 즉시 획득이 아니다
-// Result         Success | Failure(source-depleted | source-recovering | no-mining-tool |
-//                                  out-of-range | action-busy | unknown-source)
+// Result         Success | Failure(not-this-season | source-depleted | source-recovering |
+//                                  no-mining-tool | out-of-range | action-busy | unknown-source)
 //
 // RULE-MINE-COMPLETE-001 — Implements INTENT-MINING-001 · INTENT-ACTION-PROGRESS-001 (C013 CHANGED)
 // Input          채굴 행동이 Duration 을 채운 Actor
@@ -29,6 +30,7 @@ import type { ItemKind } from '../semantic/item';
 import { distance } from '../semantic/position';
 import {
   findResourceSource,
+  isSourcePresentAt,
   sourcePositionOf,
   sourceStateOf,
   type ResourceSource,
@@ -38,6 +40,9 @@ import { beginAction, evaluateActionBegin } from './action-begin';
 
 // 실패 사유 코드 — Rule 이 소유하며 protocol 로는 문자열 코드로 흐른다
 export type MineFailureReason =
+  // C016 ADDED — 그 철이 아니다. 고갈·되돌아옴과 다른 코드다: 저 둘은 **있던 것이 지금 없는**
+  // 것이고 이것은 **그 철에만 있는** 것이다. 기다릴 대상이 다르므로 말도 달라야 한다
+  | 'not-this-season'
   | 'source-depleted'
   // C013 ADDED — 되돌아오는 중이다. 고갈과 다른 코드다: 하나는 "이미 캐 갔다" 이고
   // 이것은 "곧 다시 난다" 이므로, 관찰자가 기다릴지 떠날지를 가를 수 있어야 한다
@@ -49,7 +54,11 @@ export type MineFailureReason =
 /**
  * Precondition 평가 — Observable(Mine.Availability / Mine.FailureReason)과 Rule 이 같은 판정을 공유한다.
  *
- * 고갈을 **가장 먼저** 본다 (C012 ADDED · spec R1). 나머지 셋은 그 몸의 사정(연장 · 거리 ·
+ * 철을 **맨 앞에서** 본다 (C016 ADDED · spec SPEC-004 경계 ①): 그 철이 아니면 그 원천은
+ * 아예 그 자리에 없고(관찰 결과에도 실리지 않는다), 없는 것에 대고 고갈이나 거리를 답하면
+ * 세계가 두 말을 하는 것이 된다.
+ *
+ * 그 다음 고갈을 본다 (C012 ADDED · spec R1). 나머지 셋은 그 몸의 사정(연장 · 거리 ·
  * 하던 일)이고 고갈은 **세계의 사실**이다 — 이미 없는 것을 두고 "멀다" 고 답하면 관찰자는
  * 가까이 가 보고서야 없다는 것을 안다. 판이 멀리서도 "이미 캐 간 자리" 를 말해야 한다
  * (SPEC-003 경계 — 같은 사유가 요청 전에도 읽힌다).
@@ -63,6 +72,10 @@ export function evaluateMinePreconditions(
   actor: ActorState,
   source: ResourceSource,
 ): MineFailureReason | null {
+  // C016 ADDED — 그 철이 아니면 그 자리에 없다 (spec R6 · SPEC-004 경계 ①).
+  // 세지 않으면 관찰에 실리지 않는 원천을 요청 하나로 캐 갈 수 있다 — 세계가 판정하는
+  // 자리는 여기이지 화면이 아니다 (원칙 1).
+  if (!isSourcePresentAt(source, state.time)) return 'not-this-season';
   const phase = sourceStateOf(state.regionStates, source.regionId, source.id).phase;
   if (phase === 'depleted') return 'source-depleted';
   // C013 ADDED — 되돌아오는 중이면 아직 캘 수 없다 (spec R3). 고갈과 나란히 **가장 먼저** 본다.

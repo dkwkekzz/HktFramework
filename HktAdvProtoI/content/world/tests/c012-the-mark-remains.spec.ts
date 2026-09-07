@@ -769,7 +769,9 @@ describe('SPEC-009 자국은 세계를 껐다 켜도 남는다', () => {
   it('S-093 (경계) STATE_VERSION 이 올랐다 — C011 의 스냅샷은 복구되지 않는다', () => {
     // C013 CHANGED — 원천 State 에 되돌아옴의 셋(progress · siteIndex · collapsedSites)이
     // 더해져 한 번 더 올랐다 (C013 spec State 절 · SPEC-009 경계).
-    expect(STATE_VERSION).toBe('hkt-adv-proto-i/6');
+    // C016 CHANGED — 그 뒤로도 올랐다 (뒤척임의 수). 이 검사가 재는 것은 값 자체가 아니라
+    // **C011 의 스냅샷이 복구되지 않는가** 이므로, 못 박는 것을 그 주장으로 옮긴다.
+    expect(STATE_VERSION).not.toBe('hkt-adv-proto-i/4');
     const saved = throughFile(standingIn(BIO_ORE_FIELD).world.snapshot());
     expect(saved.version).toBe(STATE_VERSION);
     expect(restoreWorld(saved)).not.toBeNull();

@@ -25,6 +25,11 @@
 // (siteIndex) 하나뿐이다. 무너진 자리도 원천이 아니라 **자리**가 기억한다 (collapsedSites) —
 // 원천이 떠나도 옛 자리는 무너진 채 남기 때문이다 (spec R5).
 
+// C016 CHANGED — 원천이 **철을 탄다**. 그래도 자리도 성질도 여전히 데이터의 것이다: 밝힌 원천은
+// "지금 철이 그 목록에 드는가" 만 더 물어지고(isSourcePresentAt · sourceConditions), 밝히지 않은
+// 원천은 어느 철에도 지금 그대로다. 방마다의 캐시는 **정적 사실의 것**이고 철은 정적이 아니므로,
+// 거르는 자리는 캐시 밖에 따로 둔다 (spec R6).
+
 import { areasOf, curvesOf, findPoint } from '../../../engine/world-authoring/description';
 import { areaCoversPoint } from '../../../engine/world-authoring/query';
 import {
@@ -41,9 +46,11 @@ import {
   type CarrierKind,
   type OpportunityRole,
   type ResourceFlowSpec,
+  type SeasonId,
   type SupplyMode,
 } from '../../regions';
 import type { WorldPosition } from './position';
+import { NOT_THIS_SEASON, isSeasonListed } from './region-phase';
 import type { RegionState, ResourceSourceState } from './region-state';
 
 /**
@@ -83,6 +90,13 @@ export interface ResourceSource {
   traceOps?: readonly string[];
   /** 마디마다의 붕괴 area op id (C013 ADDED) — traceOps 와 같은 순서. 무너지는 원천만 */
   collapseOps?: readonly string[];
+  /**
+   * 그 원천이 **서는 철들** (C016 ADDED · spec R6) — 데이터의 occurrence 를 그대로 옮긴 것이다.
+   *
+   * 밝히지 않은 원천은 어느 철에도 선다 (지금까지의 세계 그대로). 정적 사실이므로 캐시에
+   * 함께 담기고, **지금 서는가**는 시각과 함께 물어야 하므로 캐시 밖에서 판정된다.
+   */
+  occurrenceSeasons?: readonly SeasonId[];
 }
 
 // 방 하나당 엮기 한 번. 원천이 없는 방(백왕령)도 빈 배열로 담는다 — 그것도 답이다.
@@ -142,11 +156,30 @@ export function sourcesInRegion(regionId: string): readonly ResourceSource[] {
       ...(source.dependsOn === undefined ? {} : { dependsOn: source.dependsOn }),
       ...(source.traceOps === undefined ? {} : { traceOps: source.traceOps }),
       ...(source.collapseOps === undefined ? {} : { collapseOps: source.collapseOps }),
+      // C016 ADDED — 출현 철 목록. 밝히지 않은 원천은 자리 자체가 없다 (철을 타지 않는다).
+      ...(source.occurrence === undefined ? {} : { occurrenceSeasons: source.occurrence.seasons }),
     });
   }
 
   SOURCES_BY_REGION.set(regionId, sources);
   return sources;
+}
+
+/**
+ * RULE-RESOURCE-PLACEMENT-001 (C016 CHANGED · spec R6) — 그 원천이 **지금 철에 서는가**.
+ *
+ * 출현 철 목록을 밝힌 원천은 지금 철이 그 목록에 없으면 서지 않는다 — 관찰 결과에 실리지
+ * 않고, 그 자리에는 아무것도 없다. 밝히지 않은 원천은 언제나 선다 (spec R6 경계 ②).
+ *
+ * **거르는 자리가 sourcesInRegion 밖인 이유** — 그 함수는 방마다 한 번만 엮어 캐시에 담는다.
+ * 캐시는 자리 · 성질 · 마디 같은 **정적 사실**의 것이고 철은 정적이 아니다. 캐시 안에서
+ * 거르면 처음 물은 철의 목록이 그대로 굳어 다음 철에 그 방이 영영 달라지지 않는다.
+ *
+ * **그 자리의 흔적(흙)은 이것과 무관하다** (spec R6 경계 ①) — 원천이 없다고 땅이 달라지지
+ * 않는다. 흔적은 여전히 Description 의 trace area 에서 오고, 이 판정을 읽지 않는다.
+ */
+export function isSourcePresentAt(source: ResourceSource, time: number): boolean {
+  return isSeasonListed(source.occurrenceSeasons, time);
 }
 
 /**
@@ -366,6 +399,10 @@ export function inflowOf(sourceId: string): ResourceFlowSpec | undefined {
  * **규칙은 어느 원천이 흐름을 가졌는지 이름으로 알지 못한다** — 아는 것은 "유입 흐름을 가진
  * 원천" 이라는 형뿐이고, 어느 방의 무엇이 어디로 실려 오는지는 데이터에만 있다 (R13).
  *
+ * C016 CHANGED (spec R7) — **철도 조건이다.** 출현 철을 밝힌 원천이 그 철이 아니면
+ * `not-this-season` 이 걸린다 — 바닥남(다 캤다)과도 되돌아오는 중과도 갈리는 말이고,
+ * 걸린 동안에는 되돌아옴의 진행이 오르지 않는다 (그 철이 아니면 되돌아올 자리도 없다).
+ *
  * 여기 실리는 코드가 곧 **되돌아옴을 멎게 하는 원인**이다 (simulation/source-recovery.ts) —
  * 표시와 원인이 같은 판정이라는 C013 의 규율 그대로다. 셋 중 `flow-arrived` 만이 진행을
  * 허락한다: 실려 오는 중인 것은 되돌아오는 중인 것이기 때문이다.
@@ -377,6 +414,12 @@ export function sourceConditions(
 ): string[] {
   const codes: string[] = [];
   const inflow = inflowOf(source.id);
+
+  // ⓪ 철 (C016 ADDED · spec R7) — 출현 철을 밝힌 원천이 지금 그 철이 아니면 `not-this-season`.
+  // 먼저 묻는 이유는 뜻이다: 거기 **지금 없다**는 것이 다른 무엇보다 앞선 사실이다.
+  // 그리고 이 코드도 원인이다 — 되돌아옴의 세계 과정이 이것을 보고 진행을 멈춘다
+  // (simulation/source-recovery.ts). 그 철이 아니면 되돌아오는 일도 일어나지 않는다.
+  if (!isSourcePresentAt(source, time)) codes.push(NOT_THIS_SEASON);
 
   // ① 매달림 — C013 그대로다. 흐름을 가진 원천에게는 그 흐름의 **출발 원천**이 곧 그 매달림이다
   // (spec R3 — 호수 바닥을 캐 놓으면 물길이 불어도 어귀에 오는 것이 없다).

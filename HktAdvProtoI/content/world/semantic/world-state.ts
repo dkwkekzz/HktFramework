@@ -45,10 +45,36 @@ export interface WorldState extends CoreWorldState {
    * sources 는 자리 자체가 없고, 둘 다 없는 방은 State 자체가 없다.
    */
   regionStates: Record<string, RegionState>;
+  /**
+   * World.turnsApplied — 지금까지 **적용한** 뒤척임의 수 (C016 ADDED · spec State · R8).
+   *
+   * **저장된다.** 때는 세계 시각에서 유도되지만(semantic/clock.ts) **뒤척임은 사건**이라
+   * 일어났다는 것을 세계가 기억해야 한다 — 그러지 않으면 껐다 켤 때마다 다시 일어난다
+   * (spec 기본형 ⑤ · SPEC-009).
+   *
+   * 수로 두는 이유 — 시각만으로는 큰 걸음이 사건을 건너뛸 수 있고, "언제 마지막으로" 로
+   * 두면 되살린 세계가 다시 뒤척인다. 수로 두면 두 번 세지도 빠뜨리지도 않는다.
+   * 세계에 하나다 (철이 세계에 하나이므로 · Time 원칙 T1).
+   */
+  turnsApplied: number;
 }
 
 // InteractionRange — RULE-MINE-001 Precondition 2 의 거리 한계
 export const INTERACTION_RANGE = 2.0;
+
+/**
+ * 밤에 몸과 원천이 관찰에 실리는 거리 (C015 ADDED · RULE-OBSERVE-PROJECTION · spec R2).
+ *
+ * 때가 밤이면 관찰자 자신의 몸에서 이보다 먼 몸과 원천은 실리지 않는다. **낮에는 없다** —
+ * 낮의 관찰은 지금 그대로 방으로만 잘린다 (spec 기본형 ②: 낮에 범위를 새로 세우면
+ * C001~C014 의 모든 관찰이 함께 바뀌고, 그것은 이 Cycle 이 증명할 것이 아니다).
+ *
+ * 20 인 이유 — 기본 방(40×40)의 **반폭**이다. 한가운데에 서면 벽까지(20) 닿고
+ * 구석(28.3)에는 닿지 않는다: 밤은 방을 지우는 것이 아니라 방 저편을 지운다.
+ *
+ * 결정론에 영향을 주는 시뮬레이션 상수이므로 CVar 가 아니라 헤더 상수로 고정한다 (원칙 6).
+ */
+export const OBSERVE_RANGE_NIGHT = 20;
 
 /**
  * 되돌아옴이 **눈에 보이기 시작하는** 지점 — recoverySeconds 에 대한 비율 (C013 ADDED).
@@ -102,4 +128,6 @@ export const TICK_INTERVAL = 1 / 30;
 // C011 — deposits 가 사라지고 소지품의 품목이 재료가 된다. 옛 스냅샷은 복구되지 않는다.
 // C012 — 방의 State 가 규칙과 원천을 함께 든다 (RegionState.rule · .sources). 형태가 바뀌므로
 //        옛 스냅샷은 복구되지 않는다 (spec SPEC-009 경계).
-export const STATE_VERSION = 'hkt-adv-proto-i/6';
+// C016 — World.turnsApplied 가 실린다 (뒤척임은 사건이므로 세계가 기억한다). 형태가 바뀌므로
+//        옛 스냅샷은 복구되지 않는다 (spec SPEC-009 경계).
+export const STATE_VERSION = 'hkt-adv-proto-i/7';

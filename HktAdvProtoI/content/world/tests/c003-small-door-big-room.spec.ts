@@ -49,6 +49,8 @@ const RUIN_TRAIL = 'RUIN_TRAIL';
 const TREE_APPROACH = 'TREE_APPROACH';
 const ORE_TREE_TRAIL = 'ORE_TREE_TRAIL';
 const ANCIENT_GATE = 'ANCIENT_GATE';
+// C016 ADDED — 숲 안쪽에 늘어난 문 하나. 긴 밤에만 열린다 (여기서는 언제나 고요다)
+const WALKING_FOREST_DOOR = 'WALKING_FOREST_DOOR';
 const RED_WASTE_PASS = 'RED_WASTE_PASS';
 const ICE_CANYON_PASS = 'ICE_CANYON_PASS';
 const TREE_INNER_DOOR = 'TREE_INNER_DOOR';
@@ -259,14 +261,17 @@ describe('SPEC-002 — 새 anchor 는 표의 자리다', () => {
     }
   });
 
-  it('S-008 (경계) 숲 안쪽에 RIVER_MOUTH 가 생겼지만 그 방에서 나가는 끝은 다섯 그대로다', () => {
+  // C016 CHANGED — 그 방에 문이 하나 늘어 출구가 여섯이 되었다 (긴 밤에만 열리는 문 ·
+  // C016 spec SPEC-003). 이 검사가 재는 것은 그대로다 — **anchor 가 늘어도 출구가 되지는
+  // 않는다**(RIVER_MOUTH). 세는 수만 옮긴다.
+  it('S-008 (경계) 숲 안쪽에 RIVER_MOUTH 가 생겼지만 그것은 나가는 끝이 아니다', () => {
     // Given 숲 안쪽에 선다
     const w = driveWorld(solo);
     toForestDeep(w);
     const v = w.observe();
-    // Then anchor 는 하나 늘었는데 출구 표식은 다섯이고 RIVER_MOUTH 는 그 안에 없다
+    // Then anchor 는 늘었는데 출구 표식은 여섯이고 RIVER_MOUTH 는 그 안에 없다
     expect(anchorAt(FOREST_DEEP, 'RIVER_MOUTH')).toEqual({ x: 14, z: -8 });
-    expect(exits(v).length).toBe(5);
+    expect(exits(v).length).toBe(6);
     expect(exits(v).map((e) => e.id)).not.toContain('RIVER_MOUTH');
     expect(exits(v).some((e) => e.position.x === 14 && e.position.z === -8)).toBe(false);
   });
@@ -652,10 +657,14 @@ describe('SPEC-008 — 물길은 다른 자리로 낸다', () => {
   });
 
   // C004 가 데이터로 열었다 — 닫힌 목록이 비면서 이 기대가 뒤집혔다 (규칙은 한 글자도 안 바뀌었다).
-  it('S-033 그 방의 출구 다섯이 다시 실리고 이제 다섯이 전부 open 이다 (고대 문도 열렸다)', () => {
+  // C016 CHANGED — 출구가 여섯이 되었고 그 하나(긴 밤의 문)는 고요에 잠긴 표식이다.
+  // C004 가 연 다섯은 한 값도 다르지 않다.
+  it('S-033 그 방의 출구가 다시 실리고 C004 가 연 다섯은 전부 open 이다 (고대 문도 열렸다)', () => {
     const v = throughRiver().observe();
-    expect(exits(v).length).toBe(5);
-    expect(exits(v).filter((e) => e.state === 'locked').map((e) => e.id)).toEqual([]);
+    expect(exits(v).length).toBe(6);
+    expect(exits(v).filter((e) => e.state === 'locked').map((e) => e.id)).toEqual([
+      WALKING_FOREST_DOOR,
+    ]);
     expect(exitOf(v, ANCIENT_GATE)?.kind).toBe('door'); // 갈래는 그대로 door 다
     for (const id of [DEEP_TRAIL, NEST_TRAIL, ORE_TRAIL, TREE_APPROACH, ANCIENT_GATE]) {
       expect(exitOf(v, id)?.state).toBe('open');
@@ -714,7 +723,13 @@ describe('SPEC-009 — 검사가 중첩을 알고, 경계가 하나 줄었다', 
     // C009 가 심장에서 나가는 문으로 뒤집힌 정원을 가리켜 새 이름 하나를 더했다 — 경계는 셋이다.
     // C003 의 주장(지어진 방은 경계 목록에 남지 않는다 · 밝힌 경계는 전부 가리켜져 있다)은
     // 한 글자도 바뀌지 않았고 목록만 오갔다.
-    expect([...graphFrontiers].sort()).toEqual(['ICE_CANYON', 'INVERTED_GARDEN', 'RED_WASTE']);
+    // C016 이 긴 밤의 문으로 걷는 숲을 가리켜 이름 하나를 더했다 — 경계는 넷이다.
+    expect([...graphFrontiers].sort()).toEqual([
+      'ICE_CANYON',
+      'INVERTED_GARDEN',
+      'RED_WASTE',
+      'WALKING_FOREST',
+    ]);
     expect(graphFrontiers).not.toContain('FANTASY_MAZE');
 
     const pointed = new Set<string>();
@@ -814,7 +829,7 @@ describe('SPEC-010 — 관찰 계약과 영속은 형이 그대로다', () => {
     revived.tick(0);
     const v = revived.latestObservation(OBSERVER) as GameViewSnapshot;
     expect(v.scene).toBe(FOREST_DEEP);
-    expect(exits(v).length).toBe(5); // C003 이 숲 안쪽의 나갈 곳을 늘리지 않았다
+    expect(exits(v).length).toBe(6); // C003 은 늘리지 않았고 C016 이 하나 늘렸다
   });
 
   it('S-046 봉투의 형이 그대로다 — kind 에 falling · river 가 값으로 더해질 뿐이다', () => {
@@ -884,13 +899,16 @@ describe('회귀', () => {
   });
 
   // C004 가 데이터로 열었다 — 숲 안쪽의 닫힌 문 하나가 열린 문이 됐다.
-  it('R-002 (C002 SPEC-008) 숲 안쪽의 출구는 다섯이고 이제 다섯이 전부 열려 있다', () => {
+  // C016 CHANGED — 출구가 여섯이고, 잠긴 표식은 철 조건을 밝힌 그 하나뿐이다.
+  it('R-002 (C002 SPEC-008) 숲 안쪽의 출구는 여섯이고 C004 가 연 다섯은 전부 열려 있다', () => {
     const w = driveWorld(solo);
     toForestDeep(w);
     const v = w.observe();
-    expect(exits(v).length).toBe(5);
-    expect(transits(v).length).toBe(5);
-    expect(exits(v).filter((e) => e.state === 'locked').map((e) => e.id)).toEqual([]);
+    expect(exits(v).length).toBe(6);
+    expect(transits(v).length).toBe(6);
+    expect(exits(v).filter((e) => e.state === 'locked').map((e) => e.id)).toEqual([
+      WALKING_FOREST_DOOR,
+    ]);
     expect(hud(v, 'region.depth')).toBe('wild');
   });
 

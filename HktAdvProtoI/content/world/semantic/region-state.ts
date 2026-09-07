@@ -21,7 +21,12 @@ import { tagsAt } from '../../../engine/world-authoring/query';
 import { REGION_SPECS, regionSpec, type RegionSpec } from '../../regions';
 import type { WorldPosition } from './position';
 import { RECOVERY_VISIBLE_FRACTION } from './world-state';
-import { inflowOf, nextStandableSite, sourcesInRegion } from './resource';
+import {
+  inflowOf,
+  nextStandableSite,
+  sourcesInRegion,
+  type ResourceSource,
+} from './resource';
 import { regionTerrain } from './terrain';
 
 /** 그 방이 품은 규칙의 데이터 — content/regions 가 소유하는 형을 그대로 든다 */
@@ -89,6 +94,32 @@ export function regionRuleOf(regionId: string): RegionRuleSpec | undefined {
 }
 
 /**
+ * **아직 아무 일도 겪지 않은 원천의 State** (C012 ADDED · C013 · C014 CHANGED · C016 CHANGED).
+ *
+ * 캘 수 있고 · 한 번도 캐지 않았고 · 되돌아올 것이 없고(progress 0) · 첫 마디에 선다.
+ * 무너진 마디는 하나도 없으므로 collapsedSites 는 자리 자체가 없다 (빈 배열로 지어내지 않는다).
+ *
+ * 다만 **유입 흐름을 가진 원천은 처음이 고갈이다** (C014 · spec R4). 실려 와야 생기는 것이므로
+ * 세계가 설 때는 아직 거기 없고, 관찰자에게 "아직 실려 오지 않았다" 와 "다 캐 갔다" 는 같은
+ * 사실이다 — 거기 지금 없다는 것. phase 를 넷으로 늘리지 않고 C013 의 셋으로 같은 것을 말한다.
+ * 규칙이 스스로 도달할 수 있는 State 만 세운다: 다 캔 것과 한 값도 다르지 않다
+ * (taken = harvests · progress 0).
+ *
+ * **어느 원천인지 이름으로 알지 못한다** — 아는 것은 "유입 흐름을 가진 원천" 이라는 형뿐이고,
+ * 흐름의 표는 데이터의 것이다 (C014 R13).
+ *
+ * C016 CHANGED — 이 자리가 **둘에게 쓰인다.** 세계가 설 때(createRegionStates)와 세계가
+ * 뒤척일 때(RULE-SEASON-TURN-001 의 자국 묻기)가 같은 "처음 상태" 를 물으므로 한 자리에서
+ * 답한다 — 두 벌로 만들면 갈린다. 묻는다는 것이 "다 채워 준다" 가 아니라 "없던 일로 한다"
+ * 라는 뜻인 것이 여기서 나온다 (spec 기본형 ⑦): 처음이 고갈인 원천은 고갈로 돌아간다.
+ */
+export function initialSourceState(source: ResourceSource): ResourceSourceState {
+  return inflowOf(source.id)
+    ? { phase: 'depleted', taken: source.harvests, progress: 0, siteIndex: 0 }
+    : { phase: 'available', taken: 0, progress: 0, siteIndex: 0 };
+}
+
+/**
  * 세계가 설 때의 Region State 들 — `rule` 을 가진 방은 첫 패턴 · 압력 0 으로,
  * 원천을 가진 방은 원천마다 available · taken 0 으로 선다 (C012 CHANGED).
  * 다만 **유입 흐름을 가진 원천은 고갈로 선다** (C014 CHANGED · spec R4).
@@ -111,23 +142,9 @@ export function createRegionStates(): Record<string, RegionState> {
     const sources = sourcesInRegion(spec.id);
     if (sources.length > 0) {
       const sourceStates: Record<string, ResourceSourceState> = {};
-      // C013 CHANGED — 아직 아무 일도 겪지 않은 원천: 캘 수 있고 · 한 번도 캐지 않았고 ·
-      // 되돌아올 것이 없고(progress 0) · 첫 마디에 선다. 무너진 마디는 하나도 없으므로
-      // collapsedSites 는 자리 자체가 없다 (빈 배열로 지어내지 않는다).
-      //
-      // C014 CHANGED (spec R4) — **유입 흐름을 가진 원천만 고갈로 선다.** 실려 와야 생기는
-      // 것이므로 세계가 설 때는 아직 거기 없고, 관찰자에게 "아직 실려 오지 않았다" 와
-      // "다 캐 갔다" 는 같은 사실이다 — 거기 지금 없다는 것 (spec 기본형 ④). phase 를 넷으로
-      // 늘리지 않고 C013 의 셋으로 같은 것을 말한다. 규칙이 스스로 도달할 수 있는 State 만
-      // 세운다: 다 캔 것과 한 값도 다르지 않다 (taken = harvests · progress 0).
-      //
-      // **어느 원천인지 이름으로 알지 못한다** — 아는 것은 "유입 흐름을 가진 원천" 이라는
-      // 형뿐이고, 흐름의 표는 데이터의 것이다 (R13).
-      for (const source of sources) {
-        sourceStates[source.id] = inflowOf(source.id)
-          ? { phase: 'depleted', taken: source.harvests, progress: 0, siteIndex: 0 }
-          : { phase: 'available', taken: 0, progress: 0, siteIndex: 0 };
-      }
+      // 처음 상태를 짓는 자리는 하나다 (위 initialSourceState) — 세계가 설 때와 세계가
+      // 뒤척일 때가 같은 것을 묻기 때문이다 (C016 spec R8).
+      for (const source of sources) sourceStates[source.id] = initialSourceState(source);
       state.sources = sourceStates;
     }
 

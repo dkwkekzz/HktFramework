@@ -136,7 +136,14 @@ describe('hud.self — 자기 자원·능력치·배율은 늘 눈앞에 있다'
   });
 
   it('self 값은 일반 HUD 줄로 중복되지 않는다', () => {
-    expect(plan().hud.map((h) => h.id)).toEqual(['inventory.ORE_EATER_MOLT', 'world.time']);
+    // C015 — 때 두 줄이 뒤에 선다. 세계가 실어 온 줄이 아니라 View 가 clock 에서 세운
+    // 것이고(원칙 2), 여기서 검사하는 것은 여전히 **self 의 값이 겹쳐 서지 않는가**다
+    expect(plan().hud.map((h) => h.id)).toEqual([
+      'inventory.ORE_EATER_MOLT',
+      'world.time',
+      'world.dayPhase',
+      'world.season',
+    ]);
   });
 });
 

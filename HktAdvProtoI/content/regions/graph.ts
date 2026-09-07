@@ -23,7 +23,13 @@
 // 그리고 이 파일이 **Connector 활성 조건 표** 하나를 새로 소유한다 (아래 CONNECTOR_ACTIVATIONS):
 // 어느 문이 어느 방의 어느 패턴에서 열리는가는 규칙이 아니라 데이터가 아는 일이다.
 
+// C016 CHANGED — Connector 가 열일곱, 경계가 넷이 된다. 숲 안쪽에서 걷는 숲으로 나가는 문
+// 하나가 배열 끝에 이어 붙고(exitsOf 의 결정론이 이 순서를 따른다) 그 너머 이름 하나가
+// 경계 목록에 는다. 그리고 활성 조건 표가 **철**을 함께 진다 — 그 문은 긴 밤에만 열린다.
+// 앞의 열여섯은 한 글자도 바뀌지 않고, 미로 심장 문의 조건도 한 값 그대로다.
+
 import type { RegionGraph } from '../../engine/world-authoring/graph';
+import type { SeasonId } from './phases';
 import { BIO_ORE_FIELD } from './bio-ore-field';
 import { EXPLORER_RUIN } from './explorer-ruin';
 import { FANTASY_MAZE, MAZE_PATTERN_P2 } from './fantasy-maze';
@@ -55,6 +61,8 @@ export const MAZE_GATE_RETURN = 'MAZE_GATE_RETURN';
 // C009 ADDED — 심장으로 드는 문과 그 너머로 나가는 문
 export const MAZE_HEART_GATE = 'MAZE_HEART_GATE';
 export const INVERTED_GARDEN_DOOR = 'INVERTED_GARDEN_DOOR';
+// C016 ADDED — 걷는 숲으로 나가는 문. 긴 밤에만 열린다 (아래 CONNECTOR_ACTIVATIONS)
+export const WALKING_FOREST_DOOR = 'WALKING_FOREST_DOOR';
 
 // 아직 짓지 않은 방들 — Connector 가 가리키되 Description 이 없다 (01-spec SPEC-004).
 // 이름만 있고 방은 없다. 지어지면 그 이름은 이 목록에서 빠지고 REGION_SPECS 로 옮겨 간다.
@@ -67,12 +75,17 @@ export const INVERTED_GARDEN_DOOR = 'INVERTED_GARDEN_DOOR';
 export const RED_WASTE = 'RED_WASTE';
 export const ICE_CANYON = 'ICE_CANYON';
 export const INVERTED_GARDEN = 'INVERTED_GARDEN';
+// C016 ADDED — 걷는 숲. 정식 이름 표에 있되 **그래프 자리가 미정**인 이름이다
+// (L2-World-Region §5.1). 긴 밤에만 열리는 문이 그것을 가리키되 그 방은 이 Cycle 밖이고,
+// 그 방을 짓는 Play 가 이름을 가져간다 — RED_EYE_TREE · FANTASY_MAZE 가 그랬듯.
+export const WALKING_FOREST = 'WALKING_FOREST';
 
 /** 이 Graph 가 경계로 밝힌 이름들 — Description 이 없어도 정합 오류가 아니다 (01-spec SPEC-004) */
 export const FRONTIER_REGIONS: readonly string[] = [
   RED_WASTE,
   ICE_CANYON,
   INVERTED_GARDEN,
+  WALKING_FOREST,
 ];
 
 /**
@@ -255,20 +268,41 @@ export const REGION_GRAPH: RegionGraph = {
       direction: 'one-way',
       transition: 'door',
     },
+    // C016 ADDED — 걷는 숲으로 나가는 문. **긴 밤에만 활성**이고(아래 활성 표) 그 너머는
+    // 아직 짓지 않은 곳이다 — 건너기 요청은 region-not-built 로 거절된다 (C002 가 세운 대답).
+    // one-way 인 것은 저쪽에서 이쪽으로 오는 길을 이 Cycle 이 정하지 않았기 때문이다:
+    // 그 방을 짓는 Play 가 돌아오는 끝까지 함께 정한다 (고대 문 · 뒤집힌 정원 문 그대로).
+    // 배열 **끝**에 붙는다 — exitsOf 의 결정론이 이 순서를 따르므로 중간에 끼우지 않는다.
+    {
+      id: WALKING_FOREST_DOOR,
+      from: { region: FOREST_DEEP, anchor: WALKING_FOREST_DOOR },
+      to: { region: WALKING_FOREST, anchor: 'FOREST_DEEP_SIDE' },
+      direction: 'one-way',
+      transition: 'door',
+    },
   ],
   frontiers: FRONTIER_REGIONS,
 };
 
 /**
- * Connector 활성 조건 하나 — "그 방의 지금 패턴이 이 목록에 있을 때만 이 문이 활성이다".
+ * Connector 활성 조건 하나 — 밝힌 것이 **전부 맞을 때만** 이 문이 활성이다.
+ *
+ * C009 는 조건이 하나뿐이었다(그 방의 지금 패턴). C016 이 **철**을 하나 더한다 —
+ * 그래서 셋 다 선택이고, 밝히지 않은 갈래는 묻지 않는다. 아무것도 밝히지 않은 줄은
+ * 조건이 없는 것과 같다 (표에 없는 문이 언제나 활성인 것과 같은 뜻).
+ *
+ * **판정은 여전히 한 함수(`isConnectorOpen`)에서만 난다** — 갈래가 늘어도 판정하는 자리는
+ * 하나다. 두 벌로 만들면 그 문이 두 말을 한다 (01-spec R1 · C016 spec R4).
  *
  * region 은 조건을 **가진** 방이지 이 문이 잇는 방이 아니다 (둘이 같을 이유가 없다).
  */
 export interface ConnectorActivation {
-  /** 어느 방의 State 를 읽는가 */
-  region: string;
-  /** 그 방의 패턴 이름들 — 지금 패턴이 이 중 하나면 활성이다 */
-  patterns: readonly string[];
+  /** 어느 방의 State 를 읽는가 — patterns 와 짝이다 */
+  region?: string;
+  /** 그 방의 패턴 이름들 — 지금 패턴이 이 중 하나면 이 갈래는 맞는다 */
+  patterns?: readonly string[];
+  /** 철 이름들 — 지금 철이 이 중 하나면 이 갈래는 맞는다 (C016 ADDED) */
+  seasons?: readonly SeasonId[];
 }
 
 /**
@@ -293,4 +327,8 @@ export const CONNECTOR_ACTIVATIONS: Readonly<Record<string, ConnectorActivation>
   // 심장 쪽 문은 미로의 패턴이 P2 일 때만 열린다 (Play §5.6 "P2 에서만 heartAccess = OPEN" · 확정 2).
   // 되돌아올 때도 같은 조건을 읽는다 — 문이 하나이므로 조건도 하나다.
   [MAZE_HEART_GATE]: { region: FANTASY_MAZE, patterns: [MAZE_PATTERN_P2] },
+  // C016 ADDED — 걷는 숲으로 나가는 문은 **긴 밤에만** 열린다 (Play §5.2 · 확정 6).
+  // 방의 State 를 읽지 않는다: 이 문을 여는 것은 어느 방의 사정도 아니고 세계의 시각이다.
+  // 그래서 "잠긴 문" 과 다른 말이 나온다 — 저쪽은 connector-inactive, 이쪽은 not-this-season.
+  [WALKING_FOREST_DOOR]: { seasons: ['LONG_NIGHT'] },
 };

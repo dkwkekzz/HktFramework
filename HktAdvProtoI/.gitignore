@@ -12,3 +12,6 @@ tools/world-editor/out/
 
 # 도구 시험이 돌면서 내는 그림 — 시험이 스스로 지우지만, 중간에 끊기면 남는다
 tools/world-editor/tests/out-c007-*/
+
+# 그때그때 세계를 캐 보는 잔 스크립트 — 저장소에 남을 것이 아니다 (원본은 시나리오 테스트다)
+.scratch/

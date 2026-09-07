@@ -1,6 +1,7 @@
 // content/regions — 이 팩의 Region 데이터 (C001 ADDED · C002 에서 방 여섯 · Connector 열 ·
 // C003 에서 방 아홉 · Connector 열셋 · 중첩 둘 · C008 에서 방 열 · Connector 열넷 · 경계 둘 ·
-// C009 에서 방 열하나 · Connector 열여섯 · 중첩 셋 · 경계 셋).
+// C009 에서 방 열하나 · Connector 열여섯 · 중첩 셋 · 경계 셋 ·
+// C016 에서 Connector 열일곱 · 경계 넷).
 //
 // world 와 view 가 함께 읽는 정적 사실이다. 세계 State 에 들어가지 않고 저장되지도 않는다 —
 // 컨텐츠 데이터에서 다시 온다 (C001 02-world R7 · character-catalog 와 같은 성격).
@@ -27,6 +28,9 @@ export * from './terrain-rules';
 // 이 숲의 재료 계통 — Material Seed 표 · 원천의 성질 · 흔적의 layer 와 태그 (C011 ADDED).
 // terrain-rules 와 같은 갈래의 "world 와 view 가 함께 읽는 데이터" 다.
 export * from './resource-ecology';
+// 철이 방을 바꾸는 형 — 철 이름 · 덧씌움 layer 둘 · RegionSpec.phases 의 형들 (C016 ADDED).
+// 같은 갈래다: 세계도 화면도 이 문(門)을 통해 읽는다.
+export * from './phases';
 export {
   REGION_GRAPH,
   FRONTIER_REGIONS,
@@ -48,9 +52,11 @@ export {
   MAZE_GATE_RETURN,
   MAZE_HEART_GATE,
   INVERTED_GARDEN_DOOR,
+  WALKING_FOREST_DOOR,
   RED_WASTE,
   ICE_CANYON,
   INVERTED_GARDEN,
+  WALKING_FOREST,
   CONNECTOR_ACTIVATIONS,
 } from './graph';
 export type { ConnectorActivation } from './graph';

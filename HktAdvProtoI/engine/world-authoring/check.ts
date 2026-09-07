@@ -344,10 +344,22 @@ function checkResourceHazard(input: CheckRegionsInput): CheckItem {
       refs: [],
     };
   }
+  // **판정은 방 단위다.** 위쪽의 "한쪽만 놓였으면 잴 수 없다" 를 세계가 아니라 방마다 읽는다 —
+  // 원천은 있는데 위험이 아직 놓이지 않은 방은 **끊긴 것이 아니라 아직 안 놓인 것**이고,
+  // 없는 쪽을 놓는 것은 여전히 컨텐츠 층의 일이다. 도구는 그 자리가 비었다는 사실만 적는다.
+  // (세계 전체로 읽으면 한 방에 위험을 놓는 순간 나머지 방이 전부 실패로 돌아선다 — 위험을
+  //  한 번에 다 놓지 않는 한 이 검사를 켤 수가 없다.)
   const refs: CheckRef[] = [];
+  let judged = 0;
+  let unplaced = 0;
   for (const region of regions) {
     const mine = placedCount(region.space, contract.resourceLayer);
     if (mine === 0) continue;
+    if (placedCount(region.space, contract.hazardLayer) === 0) {
+      unplaced++;
+      continue;
+    }
+    judged++;
     const { overlap, touch } = measureAdjacency(
       compile(region),
       contract.resourceLayer,
@@ -360,10 +372,22 @@ function checkResourceHazard(input: CheckRegionsInput): CheckItem {
       });
     }
   }
+  // 잰 방이 하나도 없으면 여전히 잴 수 없다 — 위쪽의 absent 와 같은 뜻이다
+  if (judged === 0) {
+    return {
+      ...item,
+      status: 'absent',
+      answer: `짝이 놓인 방이 없다 — 원천을 가진 방 ${unplaced} 에 ${contract.hazardLayer} 이 놓이지 않았다`,
+      refs: [],
+    };
+  }
   return {
     ...item,
     status: refs.length === 0 ? 'pass' : 'fail',
-    answer: `근원이 끊긴 방 ${refs.length} (${contract.resourceLayer} ${resources} · ${contract.hazardLayer} ${hazards})`,
+    answer:
+      `근원이 끊긴 방 ${refs.length} · 잰 방 ${judged}` +
+      (unplaced > 0 ? ` · ${contract.hazardLayer} 이 아직 놓이지 않은 방 ${unplaced}` : '') +
+      ` (${contract.resourceLayer} ${resources} · ${contract.hazardLayer} ${hazards})`,
     refs,
   };
 }
