@@ -65,6 +65,10 @@ export const REGION_NAMES: Readonly<Record<string, string>> = {
   // C009 — 미로의 중첩 자식. 미로가 감싸고 있던 자리라는 것이 이름 하나로 읽혀야 하므로
   // 방의 이름에 '미로' 를 그대로 둔다 (Play §5.4 "미로의 심장")
   MAZE_HEART: '미로의 심장',
+  // C019 — 고개 너머. 얼음 협곡도 여태 경계 이름이던 것이 지어진 방이 되었다 (FANTASY_MAZE 의 선례)
+  ICE_CANYON: '얼음 협곡',
+  // C019 — 그 안쪽. 두 이름이 나란히 서므로 세계관의 이름 표를 그대로 옮긴다 (L2-World-Region §5.1)
+  FROST_CANYON: '빙결 협곡',
 };
 
 export function regionName(id: string): string {
