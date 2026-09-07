@@ -48,10 +48,11 @@ design 이 다시 열리는 때는 둘 — ① 2층 Play 실주행에서 DESIGN 
 | RoomAnswersWhenAsked | 물으면 답한다 (지목 · 대상 프레임 · 기록 · 세계 위 글자 0) | C026~C028 | **셋 다 닫힘** — Play 실주행 판정 대기 (아래 표) |
 | RoomAsksForPossibilities | 방이 가능성을 묻는다 (Lock · 성질 어휘 · 여러 종류의 답 · 흔적 = M7 열을 저장하는 결정의 원천) | C029~C031 | 대기 |
 
-**Play 실주행 판정 대기 다섯** — Human 판정은 Cycle 이 아니라 **Play 단위**다 (회수 규칙
-[Plan-Skill §3](design/Plan-Skill-CycleExecutionWorkflow.md)). `npm run dev` 로 Play Goal 을 한 번 플레이하며
-그 Play Cycle 들의 `TODO.md` Human 판정 항목을 훑는다 (그림은 같은 폴더 `shots/`). 통과는 지우고, 실패는
-DESIGN GAP 으로 `advprotoi-design` 에 준다. 판정 절이 전부 비면 그 Play 의 로드맵 행이 닫힌다. 순서는 Play 순서.
+**Play 실주행 판정 대기 다섯** — Human 판정은 Cycle 이 아니라 **Play 단위**이고, Human 은 항목 전부가 아니라
+**AI 예심이 압축한 질문(Play 당 대여섯)** 만 답한다 (회수 규칙 [Plan-Skill §3](design/Plan-Skill-CycleExecutionWorkflow.md)).
+그림·테스트가 이미 단언하는 항목은 예심이 근거를 달아 닫는다. `npm run dev` 로 Play Goal 을 한 번 플레이하며 답한다
+(그림은 같은 폴더 `shots/`). 통과는 지우고, 실패는 DESIGN GAP 으로 `advprotoi-design` 에 준다. 판정 절이 전부 비면
+그 Play 의 로드맵 행이 닫힌다. 순서는 Play 순서. 예심 결과 — 항목 151 중 그림·테스트로 닫힘 97 · 사람 눈 43 · Human 결정 11.
 
 | Play | Play Goal 실주행 | Cycle TODO (판정 항목) |
 |---|---|---|

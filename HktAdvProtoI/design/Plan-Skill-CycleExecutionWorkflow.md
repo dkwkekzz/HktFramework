@@ -85,7 +85,7 @@ advprotoi-cycle    Cycle     명세: cycles/<CycleId>/spec.md 한 파일 — 범
 | 절 | 소비자 | 시점 | 처리 |
 |---|---|---|---|
 | 알려진 부채 · 다음 Cycle 로 | **같은 Play 의 다음 Cycle** 명세 단계 | 그 Cycle 의 spec.md 를 쓸 때 — 앞 Cycle 들의 TODO 두 절이 명세 입력이다 | 이번에 받는 것은 SPEC/Reuse 로, 받지 않는 것은 Out of Scope 에 받을 Cycle 을 적는다. 받은 항목은 그 Cycle 을 main 에 합친 직후 원 TODO 에서 지운다 |
-| Human 판정 대기 | **Human** | **Play 단위** — 그 Play 의 마지막 Cycle 이 합쳐진 직후의 Play 실주행 판정 (위층 문서 §8). Cycle 마다 판정하지 않는다 | Play Goal 을 한 번 플레이하면서 그 Play Cycle 들의 항목을 훑는다. 통과한 항목은 지운다. 실패한 항목은 DESIGN GAP 으로 advprotoi-design 의 주입물이 된다 (위층 문서 §8.5 셋째 주입) |
+| Human 판정 대기 | **Human** — 단, AI 예심 뒤 | **Play 단위** — 그 Play 의 마지막 Cycle 이 합쳐진 직후의 Play 실주행 판정 (위층 문서 §8). Cycle 마다 판정하지 않는다 | **AI 예심이 먼저다**: 항목을 셋으로 가른다 — A 그림(`shots/`)·테스트가 이미 단언하는 것은 근거를 달아 닫는다(Human 은 표본만 본다) · B 사람 눈이 필요한 것(느낌 · 이해되는가 · 타이밍) · C Human 이 값·규칙을 정할 것. B·C 를 **Play 당 질문 대여섯**으로 압축해(비슷한 항목은 하나로, 각 질문에 확인 방법 한 줄) Human 에게 준다. Human 은 그 질문만 답한다 — 항목 전부를 읽지 않는다. 통과한 항목은 지운다. 실패한 항목은 DESIGN GAP 으로 advprotoi-design 의 주입물이 된다 (위층 문서 §8.5 셋째 주입) |
 | Play 가 닫힌 뒤 남은 부채 (받을 Cycle 없음) | Human · ENGINE 레인 | Play 실주행 판정이 끝날 때 | STATE.md §5 로 옮기고 TODO 에서 지운다 — 옮긴 뒤 원본은 STATE 다 |
 
 - 항목은 **처음 난 Cycle 의 TODO 에만** 산다. 뒤 Cycle 이 같은 부채를 만나도 다시 적지 않는다 —

@@ -184,8 +184,9 @@ World Capability 는 이후 Cycle 에서 그대로 재사용한다. 다음 Cycle
 
 모든 핵심 Cycle 이 완료되면 원래 Play Goal 을 실제로 수행할 수 있어야 하고, Breath
 가 실제 플레이에서 어느 정도 성립하는지 확인한다 — 그때 그 Play 가 완료된 것이다.
-이것이 **Play 실주행 판정**이다: Human 이 `npm run dev` 로 Play Goal 을 한 번 플레이하면서
-그 Play 의 Cycle 들이 `TODO.md` 에 남긴 Human 판정 항목을 함께 훑는다. 통과한 항목은 지우고,
+이것이 **Play 실주행 판정**이다: AI 가 먼저 예심한다 — 그림·테스트가 이미 단언하는 항목은 닫고, 사람
+눈과 Human 결정이 필요한 것만 Play 당 질문 대여섯으로 압축한다 (Plan-Skill §3). Human 은 `npm run dev` 로
+Play Goal 을 한 번 플레이하면서 그 질문에 답한다. 통과한 항목은 지우고,
 실패한 항목은 DESIGN GAP 으로 §8.5 의 셋째 주입이 된다. 그 Play 의 판정 절이 전부 비면
 로드맵의 행이 닫힌다. 완료된 Capability 는 다음 Play 에서 다시 사용하며, 이 반복으로
 게임 전체가 점진 확장된다.
