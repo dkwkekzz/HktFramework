@@ -1,0 +1,151 @@
+{
+  "out": "shots",
+  "viewport": [
+    900,
+    660
+  ],
+  "runs": [
+    {
+      "region": "WHITE_KING_DOMAIN",
+      "spawn": "16,-2",
+      "npcs": "none",
+      "clock": "STILL:DAY",
+      "presence": "SKY_WHALE_ROUTE",
+      "steps": [
+        {
+          "wait": "세계 시간",
+          "tries": 60
+        },
+        {
+          "sleep": 2500
+        },
+        {
+          "shot": "X-01-whale-overhead",
+          "note": "X-① 천공고래가 이 방을 지난다 — 판의 「지나는 것」에 그것이 서고 화면이 그늘로 덮이며 그것이 지나는 선이 땅에 보인다. 「소란」이 오르는 중이다"
+        }
+      ]
+    },
+    {
+      "region": "EXPLORER_RUIN",
+      "spawn": "0,0",
+      "npcs": "none",
+      "clock": "STILL:DAY",
+      "presence": "SKY_WHALE_ROUTE",
+      "steps": [
+        {
+          "wait": "세계 시간",
+          "tries": 60
+        },
+        {
+          "sleep": 2500
+        },
+        {
+          "shot": "X-02-not-here",
+          "note": "X-① 같은 시각 경로 밖의 방 — 「지나는 것」 줄이 없고 그늘도 선도 없다. 관찰은 방으로 잘린다 (X-01 과 견준다)"
+        }
+      ]
+    },
+    {
+      "region": "FOREST_EDGE",
+      "spawn": "-12,10",
+      "npcs": "none",
+      "clock": "LONG_NIGHT",
+      "presence": "BLIND_HUNTER_ROUTE",
+      "steps": [
+        {
+          "wait": "세계 시간",
+          "tries": 60
+        },
+        {
+          "sleep": 52000
+        },
+        {
+          "shot": "X-03-hunter-came-down",
+          "note": "X-② 긴 밤 — 눈 없는 것의 경로가 숲 가장자리(outer)까지 내려왔다. 그 자락에 서면 「걸린 것」에 짐승의 위험이 답해지고 「지나는 것」에 그것이 선다"
+        }
+      ]
+    },
+    {
+      "region": "BIO_ORE_FIELD",
+      "spawn": "-4,4",
+      "npcs": "none",
+      "clock": "LONG_NIGHT",
+      "presence": "BLIND_HUNTER_ROUTE",
+      "disturbance": "BIO_ORE_FIELD:200",
+      "steps": [
+        {
+          "wait": "세계 시간",
+          "tries": 60
+        },
+        {
+          "sleep": 52000
+        },
+        {
+          "shot": "X-04-bent-to-the-noise",
+          "note": "X-③ 같은 긴 밤, 광석 지대의 소란을 올려 두었다 — 눈 없는 것이 **그쪽으로** 휘어 내려왔다. 내가 낸 소란이 그것을 불렀다"
+        }
+      ]
+    },
+    {
+      "region": "FOREST_EDGE",
+      "spawn": "-12,10",
+      "npcs": "none",
+      "clock": "LONG_NIGHT",
+      "presence": "BLIND_HUNTER_ROUTE",
+      "disturbance": "BIO_ORE_FIELD:200",
+      "steps": [
+        {
+          "wait": "세계 시간",
+          "tries": 60
+        },
+        {
+          "sleep": 52000
+        },
+        {
+          "shot": "X-05-bent-away",
+          "note": "X-③ 그때 숲 가장자리에는 오지 않는다 — 「지나는 것」 줄도 위험도 없다 (X-03 · X-04 와 견준다)"
+        }
+      ]
+    },
+    {
+      "region": "FOREST_EDGE",
+      "spawn": "-12,17",
+      "npcs": "none",
+      "clock": "LONG_NIGHT",
+      "presence": "BLIND_HUNTER_ROUTE",
+      "steps": [
+        {
+          "wait": "세계 시간",
+          "tries": 60
+        },
+        {
+          "sleep": 118000
+        },
+        {
+          "shot": "X-06-what-it-left",
+          "note": "X-④ 눈 없는 것이 지나간 뒤 — 경로 선도 위험도 없고, 그 자리에 먹이 잔해가 서 있다. 지나가기 전에는 그 자리에 없었다"
+        }
+      ]
+    },
+    {
+      "region": "FOREST_EDGE",
+      "spawn": "-10,6",
+      "npcs": "none",
+      "clock": "STILL:DAY",
+      "presence": "SKY_WHALE_ROUTE",
+      "steps": [
+        {
+          "wait": "세계 시간",
+          "tries": 60
+        },
+        {
+          "sleep": 225000
+        },
+        {
+          "shot": "X-07-the-scale-fell",
+          "note": "X-④ 천공고래가 지나간 뒤 — 떨어진 비늘이 경로 선의 한 마디에 서 있다. 되돌리는 것은 시간이 아니라 다시 지나가는 것이다"
+        }
+      ]
+    }
+  ]
+}

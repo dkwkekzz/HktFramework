@@ -13,6 +13,7 @@
 import type { CoreWorldState } from '../../../engine/world-kernel/state';
 import type { ActorState } from './actor';
 import type { StrikeEvent } from './combat';
+import type { PresencePassState } from './presence';
 import type { RegionState } from './region-state';
 import type { WorldPosition } from './position';
 
@@ -57,6 +58,18 @@ export interface WorldState extends CoreWorldState {
    * 세계에 하나다 (철이 세계에 하나이므로 · Time 원칙 T1).
    */
   turnsApplied: number;
+  /**
+   * World.presences — 지나가는 것 하나의 **지금** (C018 ADDED · spec State · semantic/presence.ts).
+   *
+   * **저장된다.** 시간표도 마디도 데이터에서 다시 오지만(content/regions), "지금 지나고
+   * 있는가 · 이번 바퀴에 이미 왔는가 · 몇 번 지나갔는가 · 이번에 어디로 휘었는가" 는
+   * 세계가 겪은 일이라 스냅샷에 실린다 — 그러지 않으면 껐다 켤 때마다 다시 처음부터
+   * 지나가고, 남긴 것도 다시 처음이 된다 (spec SPEC-008).
+   *
+   * **밝힌 경로 전부에 자리가 있다** (spec State) — 지나고 있지 않은 경로도 "아직 지나가지
+   * 않았다" 를 들어야 하기 때문이다. 소란이 모든 방에 서는 것과 같은 어법이다 (C017 기본형 ⑩).
+   */
+  presences: Record<string, PresencePassState>;
 }
 
 // InteractionRange — RULE-MINE-001 Precondition 2 의 거리 한계
@@ -90,6 +103,58 @@ export const OBSERVE_RANGE_NIGHT = 20;
  * **회복의 길이**는 여기 없다 — 그것은 원천마다 다른 세계 데이터다 (content/regions · D3).
  */
 export const RECOVERY_VISIBLE_FRACTION = 0.5;
+
+/**
+ * 지나가는 것이 **마디 하나에 머무는 세계 초** (C018 ADDED · spec 데이터 값 · 기본형 ②).
+ *
+ * 45 인 이유 — 마디 넷을 가진 경로는 180 초이고 낮이 240 초이므로 **하루 안에 시작하고
+ * 끝난다**. 마디 둘을 가진 경로는 90 초이고 긴 밤이 360 초다. 지나가는 것이 철을 넘겨
+ * 이어지면 "지나갔다" 가 아니라 "머문다" 가 되고, 그러면 때를 맞출 것이 없어진다.
+ *
+ * 세계에 하나인 값이다 — 마디의 길이는 경로마다의 사정이 아니라 "지나간다" 라는 것의
+ * 걸음걸이다. 결정론에 영향을 주는 시뮬레이션 상수이므로 CVar 가 아니라 헤더 상수로
+ * 고정한다 (원칙 6). **몇 마디인가**는 여기 없다 — 그것은 경로마다 다른 세계 데이터다.
+ */
+export const PRESENCE_SECONDS_PER_NODE = 45;
+
+/**
+ * 소란의 상수들 (C017 ADDED · spec 데이터 값 절 · 확정 5 · 11).
+ *
+ * **소란은 모든 방에 있는 값이다** (Time §2.5) — 미로의 압력처럼 방 하나에만 있는 특수한
+ * 값이 아니다. 그래서 임계도 오름폭도 방 데이터가 아니라 여기 헤더 상수다: 어느 방에서도
+ * 같은 일이 같은 값을 올린다 (미로의 압력 상수 P · k 가 그 방 데이터에 있는 것과 갈린다).
+ *
+ * 결정론에 영향을 주는 시뮬레이션 상수이므로 CVar 가 아니라 헤더 상수로 고정한다 (원칙 6).
+ *
+ *   임계 300 은 **한 몸이 한 철에 채울 수 없는 값**이다 — 셋이 함께라야 닿는다 (SPEC-004).
+ *   값의 상한은 임계와 같다 (spec 기본형 ①): 임계(300)를 가라앉는 속도(0.5/s)로 비우는 데
+ *   600 초이고 고요 한 철은 1080 초라, **넘친 만큼을 쌓아 두지 않아야** "깨어난 뒤 고요
+ *   한 철을 비우면 잠든다" 가 참이 된다.
+ */
+export const DISTURBANCE_THRESHOLD = 300;
+/** 채취 한 번이 올리는 값 — 캐는 것이 가장 크게 흔든다 */
+export const DISTURBANCE_PER_HARVEST = 10;
+/** **닿은** 타격 한 번 (빗나간 휘두름은 아무것도 올리지 않는다) */
+export const DISTURBANCE_PER_STRIKE = 5;
+/** 건너기 한 번 — 오르는 것은 **떠난 방**이다 (spec 기본형 ⑦) */
+export const DISTURBANCE_PER_TRANSIT = 3;
+/** 초당 가라앉는 값 — **고요에만** 준다 (spec R2). 0 에서 멈춘다 */
+export const DISTURBANCE_DECAY_PER_SECOND = 0.5;
+
+/**
+ * 자국의 상수들 (C017 ADDED · spec 데이터 값 절 · 기본형 ④ ⑤).
+ *
+ *   나이 상한 60 초 — 자국은 나이로 사라진다 (spec R6)
+ *   표본 간격 4.0 — 상호작용 거리(2.0)의 두 배다: 자국끼리 겹치지 않을 만큼 성글고,
+ *                  기본 방(40×40)을 가로지르면 열 개 남짓이 남아 **방향**이 읽힌다
+ *   한 방의 상한 48 — 저장되는 값이므로 상한이 없으면 스냅샷이 끝없이 커진다.
+ *                  관찰자 셋이 저마다 열여섯 걸음(64 거리)씩 남긴 최근 자취다
+ *
+ * 결정론에 영향을 주는 시뮬레이션 상수이므로 CVar 가 아니라 헤더 상수로 고정한다 (원칙 6).
+ */
+export const TRACK_LIFETIME_SECONDS = 60;
+export const TRACK_STEP_DISTANCE = 4.0;
+export const TRACK_LIMIT_PER_REGION = 48;
 
 // Actor.MoveSpeed · AttackRange · PerceptionRange 는 종류가 정하는 값이다 —
 // character-catalog.ts 가 단일 출처다 (구 MOVE_SPEED/NPC_MOVE_SPEED/ATTACK_RANGE/PERCEPTION_RANGE).
@@ -130,4 +195,10 @@ export const TICK_INTERVAL = 1 / 30;
 //        옛 스냅샷은 복구되지 않는다 (spec SPEC-009 경계).
 // C016 — World.turnsApplied 가 실린다 (뒤척임은 사건이므로 세계가 기억한다). 형태가 바뀌므로
 //        옛 스냅샷은 복구되지 않는다 (spec SPEC-009 경계).
-export const STATE_VERSION = 'hkt-adv-proto-i/7';
+// C017 — 방의 State 에 소란(모든 방)과 자국이, 몸에 마지막 자국 뒤로 걸은 거리가 실린다.
+//        지금까지 State 자체가 없던 방에도 State 가 생기므로 형태가 바뀐다 —
+//        옛 스냅샷은 복구되지 않는다 (spec SPEC-010 경계).
+// C018 — World.presences 가 실린다 (지나가는 것의 지금 — 시작한 시각 · 시작한 바퀴 ·
+//        지나간 수 · 이번에 고른 방들). 형태가 바뀌므로 옛 스냅샷은 복구되지 않는다
+//        (spec SPEC-008 경계).
+export const STATE_VERSION = 'hkt-adv-proto-i/9';

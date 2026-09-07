@@ -257,9 +257,14 @@ function made(options: Made = {}): GameViewSnapshot {
     region: {
       id: region,
       hash: hashOf(region),
+      disturbance: { value: 0, threshold: 300, phase: 'dormant' as const },
       ...(options.state ? { state: options.state } : {}),
     },
     standingConditions: options.standing ?? [],
+    // C017 — 봉투에 그 방의 자국이 실린다. 이 시나리오가 보는 것이 아니므로 빈 목록이다
+    tracks: [],
+    // C018 — 봉투에 그 방을 지나는 것들이 실린다. 이 시나리오가 보는 것이 아니므로 빈 목록이다
+    presences: [],
     // C015 — 봉투에 때가 실린다. 이 시나리오가 보는 것은 때가 아니므로 고요의 낮 하나로 둔다
     clock: { dayPhase: 'DAY', season: 'STILL', dayIndex: 0, seasonCycle: 0 },
     observer: { id: 'observer-a', characterId: ME.id, acknowledgedMark: 0 },

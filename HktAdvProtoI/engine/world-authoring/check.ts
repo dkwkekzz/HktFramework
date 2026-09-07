@@ -19,7 +19,7 @@
 // 경계(frontier)로 밝힌 이름은 Description 이 없어도 정상이다 — 그 끝의 anchor 도 보지 않는다.
 
 import type { CompiledWorldTerrain } from './compiled';
-import { areasOf, findPoint, pointsOf, type RegionDescription } from './description';
+import { areasOf, curvesOf, findPoint, pointsOf, type RegionDescription } from './description';
 import { exitsOf, isFrontier, reachableRegions, type ConnectorEnd, type RegionGraph } from './graph';
 import { rasterSemantic } from './observe';
 import { tagsAt } from './query';
@@ -176,7 +176,7 @@ export interface CheckRef {
 }
 
 export interface CheckItem {
-  /** 번호 — '①'…'㉒'. 번호 밖의 것은 '·' */
+  /** 번호 — '①'…'㉖'. 번호 밖의 것은 '·' */
   mark: string;
   /** 기계가 잡는 이름 — JSON 의 열쇠이므로 번호가 바뀌어도 이것은 그대로다 */
   id: string;
@@ -237,6 +237,8 @@ export interface CheckRegionsInput {
   compile?: RegionCompiler;
   /** ⑩~㉒ 가 볼 재료 계통 — 주지 않으면 그 열셋이 전부 absent 다 */
   ecology?: CheckEcology;
+  /** ㉓~㉖ 이 볼 시간 쪽 계약 — 주지 않으면 그 넷이 전부 absent 다 (ecology 의 선례 그대로) */
+  time?: CheckTime;
 }
 
 /** checkGraph 의 코드 → ⑤⑥⑦⑧. 순서가 곧 번호다 */
@@ -525,9 +527,9 @@ function checkCoreRules(input: CheckRegionsInput): CheckItem {
 }
 
 /**
- * 검사 스물둘을 한 번에 돌린다 — 결과는 기계가 읽는다 (T1 의 아홉 + C014 의 열셋).
+ * 검사 스물여섯을 한 번에 돌린다 — 결과는 기계가 읽는다 (T1 의 아홉 + C014 의 열셋 + C018 의 넷).
  *
- * 순서는 언제나 ①~⑨ 다음에 ⑩~㉒ 이고, 각 항목의 refs 는 준 배열 순서다 — 두 번 돌리면 같다.
+ * 순서는 언제나 ①~⑨ · ⑩~㉒ · ㉓~㉖ 이고, 각 항목의 refs 는 준 배열 순서다 — 두 번 돌리면 같다.
  * 세계를 바꾸지 않는 읽기 전용 관찰이다.
  */
 export function checkRegions(input: CheckRegionsInput): CheckReport {
@@ -546,6 +548,7 @@ export function checkRegions(input: CheckRegionsInput): CheckReport {
     ...graphItems(issues),
     checkCoreRules(input),
     ...ecologyItems(input),
+    ...timeItems(input),
   ];
   const counts: Record<CheckStatus, number> = { pass: 0, fail: 0, absent: 0, report: 0 };
   for (const item of items) counts[item.status]++;
@@ -1062,5 +1065,333 @@ function ecologyItems(input: CheckRegionsInput): CheckItem[] {
     checkCarrier(cx),
     checkOrphan(cx),
     checkIsolation(cx),
+  ];
+}
+
+// ── 검사 넷 — 시간이 세계에 거는 것 (C018 ADDED) ─────────────────────
+//
+// 검사 아홉(T1)이 방과 그래프를, 열셋(C014)이 그 위에 얹힌 재료 계통을 재었다면, 이 넷은
+// **시각이 그 둘에 거는 것**을 잰다 — 철마다 방이 무엇으로 읽히고 · 무엇이 열리고 · 무엇이
+// 서는가, 그리고 지나가는 것이 어느 방의 어느 선을 밟는가.
+//
+// 여기에도 **게임 명사가 없다.** 철의 이름도 낮밤의 이름도 경로 선이 사는 layer 도 기반은
+// 알지 못한다 — `CheckTime` 이 어휘째로 준다 (L2-World-Time 원칙 T1 · T4 가 세운 규율).
+// 그래서 이 넷은 철이 넷인 세계에도 열둘인 세계에도 그대로 선다.
+//
+// 시간 쪽 계약을 주지 않으면 넷이 전부 `absent` 다 — 잴 것이 없으면 통과로 적지 않는다.
+
+/** 그 철에 이 방이 밝힌 덧씌움이 가리키는 op id 들 (㉓) */
+export interface CheckTimePhase {
+  region: string;
+  season: string;
+  depthAreaIds: readonly string[];
+  hazardAreaIds: readonly string[];
+}
+
+/** 경로 하나 (㉔) — 마디마다 후보가 여럿일 수 있다 */
+export interface CheckTimeRoute {
+  id: string;
+  presence: string;
+  /** 마디 차례. 마디 하나는 후보 { 방 · 그 방에서 지나는 선의 tag } 들 */
+  nodes: readonly (readonly { region: string; curve: string }[])[];
+  /** 시간표의 철 목록. 빈 배열이면 철을 가리지 않는다 */
+  seasons: readonly string[];
+  /** 낮밤. 없으면 가리지 않는다 */
+  dayPhase?: string;
+  /** 몇 바퀴에 한 번인가 (1 이상) */
+  everyNCycles: number;
+  /** 지나는 동안 거는 덧씌움이 가리키는 area op id 들 — { 방 · op id } */
+  effectAreas: readonly { region: string; areaId: string }[];
+  /** 지나간 뒤 남기는 원천 id 들 */
+  leaves: readonly string[];
+}
+
+/** 철 조건을 밝힌 문 (㉖) */
+export interface CheckTimeConnector {
+  id: string;
+  from: string;
+  to: string;
+  seasons: readonly string[];
+}
+
+/** 철 조건을 밝힌 원천 (㉓ · ㉕) */
+export interface CheckTimeSource {
+  id: string;
+  region: string;
+  seasons: readonly string[];
+}
+
+/** ㉓~㉖ 이 볼 시간 쪽 계약 — 주지 않으면 넷 다 absent 다 */
+export interface CheckTime {
+  /** 이 세계의 철 어휘 (순서 그대로) */
+  seasons: readonly string[];
+  /** 이 세계의 낮밤 어휘 */
+  dayPhases: readonly string[];
+  /** 경로 선이 사는 layer 이름 */
+  presenceLayer: string;
+  phases: readonly CheckTimePhase[];
+  routes: readonly CheckTimeRoute[];
+  seasonalConnectors: readonly CheckTimeConnector[];
+  seasonalSources: readonly CheckTimeSource[];
+  /** 세계에 있는 원천 id 전부 (㉔ 의 leaves 참조 확인용) */
+  sourceIds: readonly string[];
+}
+
+/** 넷의 번호·이름 — 이 차례가 곧 보고에 실리는 차례다 (계약이 없을 때의 absent 도 이것을 쓴다) */
+const TIME_ITEMS = {
+  phaseRefs: { mark: '㉓', id: 'time-phase-refs', name: '위상이 가리키는 area 와 원천' },
+  routeRefs: { mark: '㉔', id: 'time-route-refs', name: '경로가 가리키는 방과 선' },
+  seasonSummary: { mark: '㉕', id: 'time-season-summary', name: '철별 요약' },
+  reachable: { mark: '㉖', id: 'time-reachable', name: '어느 철에도 갈 곳이 있는가' },
+} as const;
+
+/**
+ * 그 방의 Description 에 이 id 의 op 가 있는가 (㉓ ㉔).
+ *
+ * ⑰ 의 `hasLayeredOp` 와 달리 layer 를 묻지 않는다 — 덧씌움이 가리키는 것은 깊이 area 와
+ * 위험 area 둘인데 기반이 계약으로 받은 layer 이름은 위험 쪽 하나뿐이다. 한쪽만 layer 까지
+ * 재면 같은 검사가 두 잣대를 쓰게 되므로, 여기서는 **가리킨 것이 그 방에 있는가**만 묻는다.
+ */
+function hasOp(space: RegionDescription, opId: string): boolean {
+  for (const op of space.ops) {
+    if (op.id === opId) return true;
+  }
+  return false;
+}
+
+/** 넷이 함께 보는 것 — 한 번만 세어 나눠 쓴다 */
+interface TimeContext {
+  input: CheckRegionsInput;
+  time: CheckTime;
+  /** 검사가 아는 방 — Description 을 함께 들고 있어야 op 와 곡선을 볼 수 있다 */
+  regionById: ReadonlyMap<string, CheckRegion>;
+  seasonIds: ReadonlySet<string>;
+  dayPhaseIds: ReadonlySet<string>;
+  sourceIds: ReadonlySet<string>;
+}
+
+/** ㉓ 위상이 가리키는 area 와 원천이 실제로 있는가 */
+function checkTimePhaseRefs(cx: TimeContext): CheckItem {
+  const head = TIME_ITEMS.phaseRefs;
+  const { phases, seasonalSources } = cx.time;
+  if (phases.length === 0 && seasonalSources.length === 0) {
+    return absentItem(head, '철을 타는 방도 철 조건 원천도 없다');
+  }
+  const refs: CheckRef[] = [];
+  let overlays = 0;
+  for (const phase of phases) {
+    const where = `${phase.region}/${phase.season}`;
+    if (!cx.seasonIds.has(phase.season)) {
+      refs.push({ where, detail: `${phase.season} 은 철 어휘에 없다` });
+    }
+    const region = cx.regionById.get(phase.region);
+    if (!region) {
+      refs.push({ where, detail: `${phase.region} 은 아는 방이 아니다` });
+      continue;
+    }
+    for (const areaId of [...phase.depthAreaIds, ...phase.hazardAreaIds]) {
+      overlays++;
+      if (!hasOp(region.space, areaId)) {
+        refs.push({ where, detail: `${areaId} 이 ${phase.region} 의 op 로 없다` });
+      }
+    }
+  }
+  for (const source of seasonalSources) {
+    if (!cx.regionById.has(source.region)) {
+      refs.push({ where: source.id, detail: `${source.region} 은 아는 방이 아니다` });
+    }
+    for (const season of source.seasons) {
+      if (!cx.seasonIds.has(season)) {
+        refs.push({ where: source.id, detail: `${season} 은 철 어휘에 없다` });
+      }
+    }
+  }
+  return {
+    ...head,
+    status: refs.length === 0 ? 'pass' : 'fail',
+    answer: `위상 ${phases.length} · 덧씌움 ${overlays} · 철 조건 원천 ${seasonalSources.length} · 끊긴 참조 ${refs.length}`,
+    refs,
+  };
+}
+
+/** ㉔ 경로의 마디가 실제 방과 그 방의 경로 선을 지나며 시간표가 유효한가 */
+function checkTimeRouteRefs(cx: TimeContext): CheckItem {
+  const head = TIME_ITEMS.routeRefs;
+  const { routes, presenceLayer } = cx.time;
+  if (routes.length === 0) return absentItem(head, '경로가 없다');
+  const refs: CheckRef[] = [];
+  let nodes = 0;
+  let candidates = 0;
+  for (const route of routes) {
+    // 마디 차례 — 마디 번호를 detail 에 적는다. 후보가 여럿이면 어느 후보인지도 함께
+    for (let index = 0; index < route.nodes.length; index++) {
+      nodes++;
+      for (const candidate of route.nodes[index]!) {
+        candidates++;
+        const where = `${route.id}[${index}]`;
+        const region = cx.regionById.get(candidate.region);
+        if (!region) {
+          refs.push({ where, detail: `${candidate.region} 은 아는 방이 아니다` });
+          continue;
+        }
+        if (curvesOf(region.space, presenceLayer, candidate.curve).length === 0) {
+          refs.push({
+            where,
+            detail: `${candidate.curve} 이 ${candidate.region} 의 ${presenceLayer} 곡선으로 없다`,
+          });
+        }
+      }
+    }
+    for (const season of route.seasons) {
+      if (!cx.seasonIds.has(season)) {
+        refs.push({ where: route.id, detail: `${season} 은 철 어휘에 없다` });
+      }
+    }
+    if (route.dayPhase !== undefined && !cx.dayPhaseIds.has(route.dayPhase)) {
+      refs.push({ where: route.id, detail: `${route.dayPhase} 은 낮밤 어휘에 없다` });
+    }
+    // 바퀴 조건은 "몇 바퀴에 한 번" 이므로 1 이상의 정수다 — 0 이면 아무 바퀴에도 맞지 않고,
+    // 소수면 바퀴를 셀 수가 없다
+    if (!Number.isInteger(route.everyNCycles) || route.everyNCycles < 1) {
+      refs.push({ where: route.id, detail: `바퀴 조건 ${route.everyNCycles} 은 1 이상의 정수가 아니다` });
+    }
+    for (const effect of route.effectAreas) {
+      const region = cx.regionById.get(effect.region);
+      if (!region) {
+        refs.push({ where: route.id, detail: `덧씌움의 ${effect.region} 은 아는 방이 아니다` });
+        continue;
+      }
+      if (!hasOp(region.space, effect.areaId)) {
+        refs.push({
+          where: route.id,
+          detail: `덧씌움의 ${effect.areaId} 이 ${effect.region} 의 op 로 없다`,
+        });
+      }
+    }
+    for (const leaf of route.leaves) {
+      if (!cx.sourceIds.has(leaf)) {
+        refs.push({ where: route.id, detail: `남기는 ${leaf} 은 아는 원천이 아니다` });
+      }
+    }
+  }
+  return {
+    ...head,
+    status: refs.length === 0 ? 'pass' : 'fail',
+    answer: `경로 ${routes.length} · 마디 ${nodes} · 후보 ${candidates} · 끊긴 참조 ${refs.length}`,
+    refs,
+  };
+}
+
+/** 이름 목록 한 토막 — 없으면 수만 적는다 (㉕ 의 한 줄이 길어지지 않도록) */
+function namedGroup(label: string, names: readonly string[]): string {
+  return names.length === 0 ? `${label} 0` : `${label} ${names.length} (${names.join(' · ')})`;
+}
+
+/** ㉕ 철별 요약 — 판정하지 않는다 (무엇이 열리고 서는지는 사람이 본다) */
+function checkTimeSeasonSummary(cx: TimeContext): CheckItem {
+  const head = TIME_ITEMS.seasonSummary;
+  const { seasons, phases, seasonalConnectors, seasonalSources, routes } = cx.time;
+  const phaseRegions = new Set(phases.map((phase) => phase.region));
+  // 철 어휘 순서 그대로 한 줄씩 — 두 번 돌리면 같다
+  const refs: CheckRef[] = seasons.map((season) => {
+    const rooms = phases.filter((phase) => phase.season === season).map((phase) => phase.region);
+    const doors = seasonalConnectors
+      .filter((connector) => connector.seasons.includes(season))
+      .map((connector) => `${connector.id} ${connector.from}→${connector.to}`);
+    const springs = seasonalSources
+      .filter((source) => source.seasons.includes(season))
+      .map((source) => `${source.id}@${source.region}`);
+    // 철을 가리지 않는 경로(seasons 가 빈 것)는 어느 철에도 돈다
+    const passing = routes
+      .filter((route) => route.seasons.length === 0 || route.seasons.includes(season))
+      .map((route) => route.id);
+    return {
+      where: season,
+      detail: [
+        namedGroup('방', rooms),
+        namedGroup('문', doors),
+        namedGroup('원천', springs),
+        namedGroup('경로', passing),
+      ].join(' · '),
+    };
+  });
+  return {
+    ...head,
+    status: 'report',
+    answer:
+      `철 ${seasons.length} · 철을 타는 방 ${phaseRegions.size} · 철 조건 문 ${seasonalConnectors.length}` +
+      ` · 철 조건 원천 ${seasonalSources.length} · 경로 ${routes.length}`,
+    refs,
+  };
+}
+
+/** ㉖ 철마다 시작 방에서 닿는 방이 하나보다 많은가 */
+function checkTimeReachable(cx: TimeContext): CheckItem {
+  const head = TIME_ITEMS.reachable;
+  const start = cx.input.contract.startRegion;
+  if (start === undefined) return absentItem(head, '시작 방이 주어지지 않았다');
+  const { seasons, seasonalConnectors } = cx.time;
+  if (seasons.length === 0) return absentItem(head, '철 어휘가 없다');
+  const graph = cx.input.graph;
+  // 철에 닫히는 문이 하나도 없으면 어느 철에도 지금 세계와 같다 — 잴 것이 없는 것이 아니라
+  // **어느 철에도 같다는 것이 답**이므로 absent 가 아니라 pass 다
+  if (seasonalConnectors.length === 0) {
+    return {
+      ...head,
+      status: 'pass',
+      answer: `철 ${seasons.length} · 철 조건 문 0 — 어느 철에도 ${start} 에서 닿는 방 ${reachableRegions(graph, start).length}`,
+      refs: [],
+    };
+  }
+  const refs: CheckRef[] = [];
+  let fewest = Number.POSITIVE_INFINITY;
+  let fewestSeason = '';
+  for (const season of seasons) {
+    // 그 철에 닫히는 문을 뺀 그래프 — 조건을 밝히지 않은 문은 어느 철에도 열려 있다
+    const shut = seasonalConnectors
+      .filter((connector) => !connector.seasons.includes(season))
+      .map((connector) => connector.id);
+    const open = { ...graph, connectors: graph.connectors.filter((c) => !shut.includes(c.id)) };
+    const reached = reachableRegions(open, start).length;
+    if (reached < fewest) {
+      fewest = reached;
+      fewestSeason = season;
+    }
+    if (reached <= 1) {
+      refs.push({
+        where: season,
+        detail: `${start} 에서 닿는 방이 ${reached} 뿐이다 (닫힌 문 ${shut.length}${shut.length > 0 ? ` — ${shut.join(' · ')}` : ''})`,
+      });
+    }
+  }
+  return {
+    ...head,
+    status: refs.length === 0 ? 'pass' : 'fail',
+    answer: `철 ${seasons.length} · 철 조건 문 ${seasonalConnectors.length} · 가장 적게 닿는 철 ${fewestSeason} ${fewest} · 갈 곳 없는 철 ${refs.length}`,
+    refs,
+  };
+}
+
+/** ㉓~㉖ — 시간 쪽 계약을 주지 않으면 넷이 전부 absent 다 (통과가 아니다) */
+function timeItems(input: CheckRegionsInput): CheckItem[] {
+  const time = input.time;
+  if (!time) {
+    return Object.values(TIME_ITEMS).map((head) => absentItem(head, '시간 쪽 계약이 주어지지 않았다'));
+  }
+  const regionById = new Map<string, CheckRegion>();
+  for (const region of input.regions) regionById.set(region.id, region);
+  const cx: TimeContext = {
+    input,
+    time,
+    regionById,
+    seasonIds: new Set(time.seasons),
+    dayPhaseIds: new Set(time.dayPhases),
+    sourceIds: new Set(time.sourceIds),
+  };
+  return [
+    checkTimePhaseRefs(cx),
+    checkTimeRouteRefs(cx),
+    checkTimeSeasonSummary(cx),
+    checkTimeReachable(cx),
   ];
 }

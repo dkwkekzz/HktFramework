@@ -303,8 +303,11 @@ function stepAlongZ(w: WorldDriver, x: number, toZ: number): { rejected?: Action
 describe('SPEC-001 — 백왕령에 강과 거목과 조건이 놓인다', () => {
   it('S-001 curve 가 하나 있고 그것이 feature/river 다 — 파는 profile 이고 동서로 가로지른다', () => {
     // Given 세계가 만들어진다 (컨텐츠 데이터가 그대로 온다)
-    const curves = curvesOf(domain());
-    // Then curve 는 하나뿐이다 (spec 이 못박은 수)
+    // C018 CHANGED — 이 방에 **하늘을 지나는 것의 선**이 하나 더 놓였다 (presence layer ·
+    // 높이를 건드리지 않는 표시선). 이 항이 재는 것은 땅을 파는 curve 이므로 그 layer 로 좁힌다 —
+    // "땅의 curve 는 하나뿐" 이라는 주장은 그대로다
+    const curves = curvesOf(domain()).filter((c) => c.layer === FEATURE_LAYER);
+    // Then 땅의 curve 는 하나뿐이다 (spec 이 못박은 수)
     expect(curves.length).toBe(1);
     const op = curves[0]!;
     expect({ layer: op.layer, tag: op.tag, profile: op.profile }).toEqual({
@@ -681,13 +684,14 @@ describe('SPEC-005 — 강은 땅을 판다', () => {
 describe('SPEC-006 — 세계와 관찰자가 같은 땅을 읽는다', () => {
   it('S-023 봉투의 region.hash 가 관찰자가 자기 Description 에서 잰 값과 같다', () => {
     const w = driveWorld(solo);
-    expect(w.observe().region).toEqual({
+    // C017 CHANGED — region 에 소란이 함께 실리므로 이 항이 재는 두 값만 짚는다
+    expect(w.observe().region).toMatchObject({
       id: START_REGION_ID,
       hash: descriptionHash(domain()),
     });
     // 방을 옮겨도 그대로다
     toForestDeep(w);
-    expect(w.observe().region).toEqual({ id: FOREST_DEEP, hash: descriptionHash(spaceOf(FOREST_DEEP)) });
+    expect(w.observe().region).toMatchObject({ id: FOREST_DEEP, hash: descriptionHash(spaceOf(FOREST_DEEP)) });
   });
 
   it('S-024 세계가 막는 자리와 관찰자가 그리는 자리가 같은 격자 칸이다', () => {
@@ -997,7 +1001,8 @@ describe('SPEC-010 — 땅은 여전히 저장되지 않는다', () => {
         (op) => op.kind === 'stamp' || (op.kind === 'point' && op.layer === ANCHOR_LAYER),
       ),
     };
-    expect(space.ops.length - asC005.ops.length).toBe(7); // curve 하나 · point 둘 · area 넷
+    // C018 CHANGED — 하늘을 지나는 것의 선 하나가 더 놓였다 (여덟째)
+    expect(space.ops.length - asC005.ops.length).toBe(8); // curve 둘 · point 둘 · area 넷
     expect(descriptionHash(asC005)).toBe(WHITE_KING_HASH_AT_C005);
     // 나머지 여덟 방의 hash 는 손대지 않았다
     for (const spec of otherRooms()) {

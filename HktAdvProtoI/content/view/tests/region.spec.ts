@@ -20,7 +20,7 @@ function withHash(fixture: GameViewSnapshot, hash?: string): GameViewSnapshot {
   if (!spec) throw new Error(`fixture 의 region '${fixture.region.id}' 가 content/regions 에 없다`);
   return {
     ...fixture,
-    region: { id: fixture.region.id, hash: hash ?? descriptionHash(spec.space) },
+    region: { ...fixture.region, hash: hash ?? descriptionHash(spec.space) },
   };
 }
 
@@ -89,7 +89,7 @@ describe('② 방 이름 — id → 이름 표', () => {
     const unknown: GameViewSnapshot = {
       ...civil,
       scene: 'UNCHARTED',
-      region: { id: 'UNCHARTED', hash: '00000000' },
+      region: { id: 'UNCHARTED', hash: '00000000', disturbance: { value: 0, threshold: 300, phase: 'dormant' as const } },
     };
 
     const plan = resolvePresentation(unknown);

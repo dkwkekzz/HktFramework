@@ -621,20 +621,25 @@ describe('SPEC-007 — 데이터가 없는 방은 평평하다', () => {
     const frontier = (REGION_GRAPH as unknown as { frontiers?: string[] }).frontiers?.[0] ?? 'NO_SUCH_REGION';
     expect(regionSpec(frontier)).toBeUndefined();
     // Then 그릴 근거가 없다 — 바닥 polygon 도 나오지 않는다 (C001 부터의 폴백 규칙)
-    expect(regionZones({ id: frontier, hash: '00000000' })).toEqual([]);
+    expect(regionZones({ id: frontier, hash: '00000000', disturbance: { value: 0, threshold: 300, phase: 'dormant' as const } })).toEqual([]);
     expect(regionZones(undefined)).toEqual([]);
   });
 });
 
 describe('SPEC-008 — 세계는 땅을 싣지 않는다', () => {
-  it('S-029 봉투의 키 집합이 그대로다 · region 은 { id, hash } 둘뿐이다', () => {
+  it('S-029 봉투의 키 집합이 그대로다 · region 에 땅이 실리지 않는다', () => {
     const v = driveWorld(solo).observe();
     expect(Object.keys(v).sort()).toEqual(
       // C006 ADDED — standingConditions 하나가 는다 (C006 관찰 계약).
-      // C015 ADDED — clock 하나가 는다 (세계의 때 · C015 관찰 계약). 그 밖은 한 글자도 그대로다
-      ['specId', 'scene', 'region', 'observer', 'entities', 'interactions', 'hud', 'strikes', 'debug', 'commands', 'standingConditions', 'clock'].sort(),
+      // C015 ADDED — clock 하나가 는다 (세계의 때 · C015 관찰 계약).
+      // C017 ADDED — tracks 하나가 는다 (그 방에 남은 자국 · C017 관찰 계약).
+      // C018 ADDED — presences 하나가 는다 (그 방을 지나는 것들 · C018 관찰 계약).
+      // 그 밖은 한 글자도 그대로다
+      ['specId', 'scene', 'region', 'observer', 'entities', 'interactions', 'hud', 'strikes', 'debug', 'commands', 'standingConditions', 'clock', 'tracks', 'presences'].sort(),
     );
-    expect(Object.keys(v.region).sort()).toEqual(['hash', 'id']);
+    // C017 CHANGED — 소란이 모든 방에 실리므로 disturbance 하나가 는다. 이 항이 지키는 것은
+    // 그대로다: **땅은 한 조각도 실리지 않는다** (height · surface · traversable · areas 없음).
+    expect(Object.keys(v.region).sort()).toEqual(['disturbance', 'hash', 'id']);
   });
 
   it('S-030 이 Cycle 은 저장되는 State 를 늘리지 않았다 — 땅은 스냅샷에 실리지 않는다', () => {
@@ -685,13 +690,14 @@ describe('SPEC-008 — 세계는 땅을 싣지 않는다', () => {
 
   it('S-032 region.hash 는 여전히 Description 에서 나온 그 값이다', () => {
     const w = driveWorld(solo);
-    expect(w.observe().region).toEqual({
+    // C017 CHANGED — region 에 소란이 함께 실리므로 이 항이 재는 두 값만 짚는다
+    expect(w.observe().region).toMatchObject({
       id: START_REGION_ID,
       hash: descriptionHash(spaceOf(START_REGION_ID)),
     });
     // 방을 옮겨도 마찬가지다
     toForestDeep(w);
-    expect(w.observe().region).toEqual({ id: FOREST_DEEP, hash: descriptionHash(spaceOf(FOREST_DEEP)) });
+    expect(w.observe().region).toMatchObject({ id: FOREST_DEEP, hash: descriptionHash(spaceOf(FOREST_DEEP)) });
   });
 
   it('S-033 (경계) 백왕령의 hash 는 C004 때와 다르다 — 형이 아니라 데이터가 바뀌었다', () => {

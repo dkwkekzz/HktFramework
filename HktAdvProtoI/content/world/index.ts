@@ -17,10 +17,12 @@ import type { WorldPosition } from './semantic/position';
 import { START_REGION } from './semantic/region';
 import {
   applyPatternSetup,
+  applyDisturbanceSetup,
   applySourcePhaseSetup,
   createRegionStates,
 } from './semantic/region-state';
 import { clockSetupTime } from './semantic/clock';
+import { createPresenceStates } from './semantic/presence';
 import { spawnActor } from './semantic/spawn';
 import {
   SPAWN_POINTS,
@@ -32,14 +34,17 @@ import { ruleActionProgress } from './simulation/action-progress';
 import { ruleBodyMomentum } from './simulation/body-momentum';
 import { ruleBodyPush } from './simulation/body-push';
 import { ruleCpRunDrain } from './simulation/cp-run-drain';
+import { ruleDisturbanceDecay } from './simulation/disturbance';
 import { ruleMazeConnection } from './simulation/maze-connection';
 import { ruleMoveProgress } from './simulation/move-progress';
 import { ruleNpcDecideAll } from './simulation/npc-decide';
+import { applyPresenceSetup, rulePresence } from './simulation/presence';
 import { ruleRegionFall } from './simulation/region-fall';
 import { ruleSeasonTurn } from './simulation/season-turn';
 import { ruleSourceRecovery } from './simulation/source-recovery';
 import { ruleStrikeEventExpire } from './simulation/strike-event-expire';
 import { ruleSwingStrike } from './simulation/swing-strike';
+import { ruleTrackFade, ruleTrackLay } from './simulation/track';
 
 export type { World } from '../../engine/world-kernel/kernel';
 
@@ -111,6 +116,15 @@ export interface WorldSetup {
    */
   sourcePhases?: Record<string, string>;
   /**
+   * 방의 **소란이 얼마나 쌓여 있는가** — 검증·촬영용 초기 배치 (C017 ADDED).
+   * 예: `{ [어느 방의 id]: 300 }`
+   *
+   * sourcePhases 와 **같은 갈래**의 손잡이다: 서른 번을 캐야 닿는 값을 캐지 않고 시작한다.
+   * 세우는 것은 값뿐이고 **위상은 세계 자신의 규칙이 정한다** — 그래서 여기서 세운 값
+   * 위에서도 깨어남과 잠듦이 그대로 굴러간다.
+   */
+  disturbances?: Record<string, number>;
+  /**
    * 세계가 **어느 때에서 시작하는가** — 검증·촬영용 초기 시각 (C015 ADDED).
    * 예: `'LONG_NIGHT'` · `'SEEP:NIGHT'` (철 · 낮밤).
    *
@@ -127,6 +141,22 @@ export interface WorldSetup {
    * 손잡이가 세계에 없는 때를 지어내지 않는다 (semantic/clock.ts 의 clockSetupTime).
    */
   clock?: string;
+  /**
+   * 어떤 것이 **지금부터 지나가고 있는가** — 검증·촬영용 초기 배치 (C018 ADDED).
+   * 예: `['SKY_WHALE_ROUTE']`
+   *
+   * clock · disturbances 와 **같은 갈래**의 손잡이다: 기다려서 닿을 수 있는 때를 기다리지
+   * 않고 시작하기 위한 것이며 **세계의 규칙을 하나도 바꾸지 않는다.** 시작시키는 일은
+   * 세계 과정이 시간표로 시작할 때와 같은 한 자리로 가고(simulation/presence.ts 의
+   * beginPass), 그 뒤로는 마디를 옮기는 것도 끝나고 남기는 것도 세계의 규칙 그대로다.
+   *
+   * 왜 필요한가 — 낮에 철 바퀴 셋에 한 번 오는 것은 한 바퀴가 2220 초(37 분)라 촬영
+   * 하네스가 기다릴 수 없다. 시간표가 그것을 부른다는 것은 시나리오 테스트가 증명하고,
+   * 그림은 **그때 무엇이 보이는가**를 보인다 (clock 과 같은 논리).
+   *
+   * 모르는 경로 이름은 조용히 무시한다 — 손잡이가 세계에 없는 것을 지어내지 않는다.
+   */
+  presences?: string[];
 }
 
 // 세계의 기본 배치 — 자율 캐릭터 둘이 각자의 순회 경로를 돈다. 자리는 START_REGION 의 Local Space 좌표다 (C001 R4).
@@ -170,10 +200,25 @@ const SYSTEMS: WorldContent<WorldState>['systems'] = [
   // 걸음이 그 방의 압력이 된다 — move-progress 가 적은 movedThisTick 을 바로 뒤에서 읽는다.
   // 다른 무엇이 자리를 건드리기 전이고, 관찰(투영)보다는 당연히 앞이다 (C008 spec R1 Priority).
   (state) => ruleMazeConnection(state), // RULE-MAZE-CONNECTION-001
+  // 자국도 걸음 바로 뒤다 — 미로의 압력 곁이다 (C017 spec R10). 같은 tick 의 movedThisTick 을
+  // 읽어야 하고, 다른 무엇이 자리를 건드리기 전이어야 자국이 **지나온 자리**에 난다.
+  // 압력과 나란히 서지만 둘은 서로를 모른다: 걸음은 압력만 올리고 소란은 올리지 않는다
+  // (C017 spec R9 · RuleBoundRoom 확정 1 — 미로의 압력은 한 줄도 바뀌지 않는다).
+  (state) => ruleTrackLay(state), // RULE-TRACK-001
   // 세계 과정끼리 나란히 선다 (C013 spec R10 · C016 spec R10) — 뒤척임도 되돌아옴도
   // 관찰자와 무관하게 돈다. 뒤척임이 되돌아옴보다 **앞**인 이유: 뒤척인 뒤의 진행은
   // 그 Tick 부터 새로 오른다 (되돌아옴이 먼저 오르면 곧바로 0 으로 지워져 한 Tick 이 헛돈다).
   (state) => ruleSeasonTurn(state), // RULE-SEASON-TURN-001
+  // 지나가는 것은 **소란보다 앞**이다 (C018 spec R10) — 이 Tick 에 지나는 것이 올린 소란이
+  // 그 Tick 에 판정되어야 "지나가는 동안 방이 깨어난다" 가 한 Tick 도 밀리지 않는다.
+  // 뒤척임 **뒤**인 이유는 되돌아옴이 그랬던 것과 같다: 뒤척인 뒤의 세계에서 시작하고
+  // 남긴다 (뒤척임이 묻은 원천을 그 Tick 에 도로 세우지 않는다).
+  (state, dt) => rulePresence(state, dt), // RULE-PRESENCE-SCHEDULE-001 + -PASS-001 + -DISTURBANCE-001 (+ -BEND-001)
+  // 소란의 가라앉음과 위상, 그리고 자국의 옅어짐은 **뒤척임 뒤**다 (C017 spec R10) —
+  // 뒤척인 뒤의 값은 그 Tick 부터 새로 굴러가고, 뒤척임이 묻은 방에는 볼 자국이 이미 없다.
+  // 가라앉음이 위상 판정을 함께 부르는 이유: 그 Tick 에 0 에 닿은 방이 그 Tick 에 잠들어야 한다.
+  (state, dt) => ruleDisturbanceDecay(state, dt), // RULE-DISTURBANCE-DECAY-001 + -PHASE-001
+  (state) => ruleTrackFade(state), // RULE-TRACK-FADE-001
   // 채취의 완료(action-progress)보다 **앞**이다: 같은 Tick 에 캔 것이 곧바로 되돌아오지 않는다.
   (state, dt) => ruleSourceRecovery(state, dt), // RULE-SOURCE-RECOVERY-001
   (state, dt) => ruleActionProgress(state, dt), // RULE-ACTION-PROGRESS-001
@@ -232,19 +277,31 @@ export function createWorld(setup: WorldSetup = {}, restored?: WorldState): Worl
     // 규칙을 품은 방마다 첫 패턴 · 압력 0 으로, 원천을 가진 방마다 원천이 available 로 선다
     // (C008 · C012). 되살린 세계는 이 자리에 오지 않는다 — Region State 는 저장되는 State 이므로
     // 스냅샷의 그 순간 값이 그대로 이어진다.
-    regionStates: applySourcePhaseSetup(
-      applyPatternSetup(createRegionStates(), setup.regionPatterns),
-      setup.sourcePhases,
+    regionStates: applyDisturbanceSetup(
+      applySourcePhaseSetup(
+        applyPatternSetup(createRegionStates(), setup.regionPatterns),
+        setup.sourcePhases,
+      ),
+      setup.disturbances,
     ),
     // 아직 한 번도 뒤척이지 않았다 (C016 ADDED · spec R8). 되살린 세계는 이 자리에 오지
     // 않는다 — 적용한 수는 저장되는 State 이므로 스냅샷의 그 값이 그대로 이어진다.
     // 검증용 손잡이가 다른 때를 밝혔어도 0 이다: 그 세계는 그 시각에 **선** 것이고
     // 그때까지의 뒤척임은 일어난 적이 없다.
     turnsApplied: 0,
+    // 아직 아무것도 지나가지 않았다 (C018 ADDED · spec State). 밝힌 경로 전부에 자리가
+    // 서고 마친 수는 0 이다. 되살린 세계는 이 자리에 오지 않는다 — 지나감의 지금은
+    // 저장되는 State 이므로 스냅샷의 그 값이 그대로 이어진다 (SPEC-008).
+    presences: createPresenceStates(),
     // 속성 변경 권한은 세계 밖(세계를 띄우는 쪽)이 정한다.
     // 기본은 열려 있다: 이 프로토타입은 관찰과 시험이 목적이며, 닫으려면 세계를 그렇게 띄운다.
     debugAuthority: { open: setup.debugAuthority ?? true },
   };
+
+  // 검증·촬영용 손잡이 — 밝힌 경로를 지금부터 지나가게 한다 (C018 ADDED).
+  // 되살린 세계에는 걸지 않는다: setup 은 새 세계에만 뜻이 있고(위 restored 의 규율),
+  // 되살린 세계는 지나가던 것을 스냅샷 그대로 이어 간다.
+  if (!restored) applyPresenceSetup(state, setup.presences);
 
   // 관찰자의 몸이 처음 만들어질 때 쓰는 기본값 — 세계의 초기 설정이다.
   const bodyDefaults: BodyDefaults = {

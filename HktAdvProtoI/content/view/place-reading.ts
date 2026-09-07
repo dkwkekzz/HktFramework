@@ -13,7 +13,7 @@
 
 import { descriptionHash } from '../../engine/world-authoring/description';
 import { blockedReasonAt, isTraversableAt, surfaceAt, tagsAt } from '../../engine/world-authoring/query';
-import type { GameViewSnapshot } from '../protocol/gameview';
+import type { GameViewSnapshot, PresenceView } from '../protocol/gameview';
 import { BLOCK_COLLAPSED, TRACE_LAYER, regionSpec, soilStainTag } from '../regions/index';
 import { SETTLEMENT_LAYER } from './biome-rules';
 import { CELL_LAYER, openPassageTags } from './region-presentation';
@@ -68,6 +68,38 @@ export interface PlaceReading {
     pressureLimit: number;
     rearrangedAt?: number;
   };
+  /**
+   * 그 방의 **소란** — C017 ADDED (spec Observable · Time §2.5).
+   *
+   * 위의 `rule?` 과 갈리는 자리다: 규칙은 품은 방에만 있지만 **소란은 어느 방에나 있다**
+   * (기본형 ⑩). 그래서 여기 물음표가 붙은 이유도 하나뿐이다 — 앞 Cycle 의 봉투에는 이
+   * 자리가 없기 때문이지(폴백 규칙: 모르는 것은 자리째 없다), 세계가 어떤 방에서 이 값을
+   * 빼기 때문이 아니다.
+   *
+   * 임계가 함께 오는 것은 "얼마나 찼는가" 를 표현이 재기 위해서다 (pressureLimit 의 선례).
+   * **무엇이 이 값을 올렸는지도, 무엇이 방을 깨웠는지도 없다** — 세계가 싣지 않는다.
+   */
+  disturbance?: {
+    value: number;
+    threshold: number;
+    phase: 'dormant' | 'awake';
+  };
+  /**
+   * 그 방을 **지금 지나고 있는 것들** — C018 ADDED (spec Observable · Time §2.6).
+   *
+   * 바로 위 `disturbance?` 가 C017 에서 선 그 자리 · 그 규율이다: 봉투에서 그대로 읽고,
+   * 물음표가 붙은 이유는 **앞 Cycle 의 봉투에 이 자리가 없기 때문**이지(폴백 규칙: 모르는
+   * 것은 자리째 없다) 세계가 어느 방에서 이 값을 빼기 때문이 아니다.
+   *
+   * 소란과 갈리는 것이 하나 있다 — **하나도 지나지 않으면 자리 자체가 없다.** 소란은
+   * 어느 방에나 있는 값이라 0 도 사실이지만, 지나는 것이 없다는 것은 잴 값이 없는 것이다
+   * (원천에 걸린 조건이 없으면 자리째 없는 것과 같은 어법 · EntityView.conditions).
+   *
+   * **시간표도 남은 시간도 다음 방도 몇 번째 지나감인지도 없다** — 세계가 싣지 않는다
+   * (spec Observable "싣지 않는다"). 여기 있는 것은 무엇이 지나는가와 그것이 이 방에서
+   * 지나는 선의 이름뿐이다.
+   */
+  presences?: PresenceView[];
 }
 
 const DEPTH_HUD_ID = 'region.depth';
@@ -88,6 +120,12 @@ export function readPlace(
   const sources = sourcePhases(snapshot);
   const depth = snapshot.hud.find((h) => h.id === DEPTH_HUD_ID)?.value;
   const state = snapshot.region.state;
+  // C017 — 늘 실리는 값이지만 **앞 Cycle 의 봉투에는 없다**. 없으면 없는 채로 둔다
+  const disturbance = snapshot.region.disturbance;
+  // C018 — 지나는 것들. 앞 Cycle 의 봉투에는 이 자리가 없고, 지나가고 있지 않으면 빈
+  // 배열이다. 둘 다 **자리 없음**으로 읽는다 — 빈 목록을 들고 다니면 "지나는 것이 없다"
+  // 라는 줄을 세울 유혹이 생기는데, 없는 것에는 줄이 없다 (아래 base 의 마지막 자리)
+  const presences = snapshot.presences;
   const base: PlaceReading = {
     regionId,
     ...(typeof depth === 'string' ? { depth } : {}),
@@ -104,6 +142,14 @@ export function readPlace(
             ...(state.rearrangedAt === undefined ? {} : { rearrangedAt: state.rearrangedAt }),
           },
         }
+      : {}),
+    // 소란도 **봉투의 것**이므로 규칙 State 와 같은 자리에 선다 — hash 가 어긋나도
+    // 그대로다 (어긋난 것은 내 땅이지 세계가 말한 값이 아니다)
+    ...(disturbance ? { disturbance: { ...disturbance } } : {}),
+    // 지나는 것도 **봉투의 것**이다 — 소란과 같은 자리에 서고, 실려 온 차례 그대로다
+    // (다시 정렬하지 않는다: 세계가 데이터 순서로 싣고 있고 그것이 결정론이다)
+    ...(presences && presences.length > 0
+      ? { presences: presences.map((p) => ({ ...p })) }
       : {}),
   };
 

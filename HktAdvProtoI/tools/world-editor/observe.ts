@@ -5,8 +5,13 @@
 //   npm run world:observe --graph    같은 것 (인자를 주지 않으면 --graph 로 본다 —
 //                                    C004 에서 이 도구가 아는 것이 그것 하나뿐이었기 때문이다)
 //   npm run world:observe -- <방> [--height --surface --traversable --semantic --top-view]
-//                            [--semantic=<layer>] [--report] [--out <dir>]
+//                            [--semantic=<layer>] [--report] [--out <dir>] [--at <철>]
 //                                    그 방 하나를 본다 (C007). 그림을 하나도 밝히지 않으면 --report 로 본다
+//   npm run world:observe -- <방> --at <철>
+//                                    그 방을 **그 철의 위상으로** 읽는다 (C018). 보고에 그 시각의
+//                                    덧씌움 · 그때 열리는 문 · 그때 서는 원천이 는다. 밝히지 않으면
+//                                    지금까지의 보고와 한 글자도 다르지 않고, **그림은 한 값도
+//                                    달라지지 않는다** — 컴파일러는 시각을 모른다 (spec 기본형 ⑪)
 //
 // 세계를 바꾸지 않는 **읽기 전용** 관찰이다 — 파일을 하나도 쓰지 않는다 (SPEC-009).
 // 두 번 돌리면 글자까지 같아야 하므로 시각·난수·Map 순회 순서에 기대지 않는다:
@@ -21,12 +26,14 @@ import {
   ANCHOR_LAYER,
   CLOSED_CONNECTORS,
   COMPILE_RULES,
+  CONNECTOR_ACTIVATIONS,
   REGION_GRAPH,
   REGION_SPECS,
   SETTLEMENT_LAYER,
   START_REGION_ID,
   regionSpec,
   type RegionSpec,
+  type SeasonId,
 } from '../../content/regions';
 import { pointsOf, type Extent } from '../../engine/world-authoring/description';
 import { checkGraph } from '../../engine/world-authoring/check';
@@ -42,7 +49,7 @@ import {
   type TerrainSummary,
 } from '../../engine/world-authoring/observe';
 import { encodePng } from './png';
-import { runWorldCheck } from './check';
+import { runWorldCheck, SEASON_IDS } from './check';
 
 // ── 표 그리기 ────────────────────────────────────────────────────────
 //
@@ -464,6 +471,89 @@ function checkLines(): CheckLine[] {
   }));
 }
 
+// ── 그 시각의 위상 (C018 ADDED · SPEC-010) ───────────────────────────
+//
+// `--at <철>` 을 밝히면 보고에 이 묶음 하나가 는다. **컴파일 결과는 여기에 한 값도 달라지지
+// 않는다** — 덧씌움은 컴파일된 땅 *위에* 얹히는 State 이고 컴파일러는 시각을 모른다
+// (C016 phases.ts 의 그 규율 · spec 기본형 ⑪). 그래서 그림 다섯도 `--at` 에 달라지지 않는다.
+//
+// 도구는 여기서도 **판정하지 않는다** — 데이터가 밝힌 것을 그 철로 걸러 적을 뿐이다.
+
+/** 그 철에 이 문이 어떠한가 — 활성 표를 읽는다 (판정이 아니라 옮겨 적기다) */
+function doorAtSeason(connectorId: string, season: SeasonId): string {
+  if (isClosed(connectorId)) return '닫힘 (언제나)';
+  const activation = CONNECTOR_ACTIVATIONS[connectorId];
+  if (!activation) return '열림';
+  const parts: string[] = [];
+  if (activation.seasons) {
+    parts.push(activation.seasons.includes(season) ? '열림' : `닫힘 (${activation.seasons.join(' · ')} 에만)`);
+  }
+  // 패턴 조건은 방의 지금 State 가 정한다 — 시각으로는 알 수 없으므로 조건만 적는다
+  if (activation.patterns) {
+    parts.push(`패턴 조건 (${activation.region ?? '?'} ${activation.patterns.join(' · ')})`);
+  }
+  return parts.length === 0 ? '열림' : parts.join(' · ');
+}
+
+/** 그 방을 이 철로 읽은 줄들 — 덧씌움 둘 · 문 · 원천 */
+function phaseLines(spec: RegionSpec, season: SeasonId): string[] {
+  const lines: string[] = [];
+  lines.push(rule());
+  lines.push(`  위상 — ${season} (그 철의 덧씌움과 조건. 땅과 그림은 이 값에 달라지지 않는다)`);
+
+  const phase = spec.phases?.seasons?.[season];
+  const depth = phase?.depthOverlay ?? [];
+  const hazard = phase?.hazardExtend ?? [];
+  lines.push(`    깊이 덧씌움 ${depth.length} (그 자락만 다르게 읽힌다 · 방은 ${spec.depth} 그대로다)`);
+  if (depth.length > 0) {
+    lines.push(...table(['area', 'depth'], depth.map((o) => [o.areaId, o.depth]), '      '));
+  }
+  lines.push(`    위험 덧씌움 ${hazard.length}`);
+  if (hazard.length > 0) {
+    lines.push(...table(['area', 'hazard'], hazard.map((o) => [o.areaId, o.hazard]), '      '));
+  }
+
+  // 이 방에 닿는 문 — connectors 배열 순서 (양 끝 어느 쪽이든 이 방이면 싣는다)
+  const doors = REGION_GRAPH.connectors.filter(
+    (connector) => connector.from.region === spec.id || connector.to.region === spec.id,
+  );
+  lines.push(`    문 ${doors.length} (connectors 순서 · 이 방에 닿는 것만)`);
+  if (doors.length > 0) {
+    lines.push(
+      ...table(
+        ['id', 'from → to', '그 철'],
+        doors.map((connector) => [
+          connector.id,
+          `${connector.from.region} → ${connector.to.region}`,
+          doorAtSeason(connector.id, season),
+        ]),
+        '      ',
+      ),
+    );
+  }
+
+  // 이 방의 원천 — 출현 조건을 밝힌 것만 철을 탄다 (밝히지 않으면 언제나 선다)
+  const sources = spec.resourceEcology?.sources ?? [];
+  lines.push(`    원천 ${sources.length} (sources 순서)`);
+  if (sources.length > 0) {
+    lines.push(
+      ...table(
+        ['id', '그 철'],
+        sources.map((source) => [
+          source.id,
+          source.occurrence
+            ? source.occurrence.seasons.includes(season)
+              ? '선다'
+              : `서지 않는다 (${source.occurrence.seasons.join(' · ')} 에만)`
+            : '선다 (철을 가리지 않는다)',
+        ]),
+        '      ',
+      ),
+    );
+  }
+  return lines;
+}
+
 // ── 보고 ─────────────────────────────────────────────────────────────
 
 function formatHeight(value: number): string {
@@ -480,6 +570,8 @@ export function renderRegionReport(
   spec: RegionSpec,
   region: CompiledRegion,
   semanticLayer: string,
+  /** 밝히면 그 철의 위상 묶음이 하나 는다 (C018). 밝히지 않으면 C014 까지의 보고와 한 글자도 같다 */
+  season?: SeasonId,
 ): string {
   const s: TerrainSummary = summarize(region);
   const lines: string[] = [];
@@ -524,6 +616,9 @@ export function renderRegionReport(
   }
   lines.push(`    chunk ${s.chunks} (chunkSize ${s.chunkSize}) · instance ${s.instances}`);
 
+  // 위상 — 밝힌 때만 (SPEC-010 경계 ①)
+  if (season !== undefined) lines.push(...phaseLines(spec, season));
+
   // 검사
   lines.push(rule());
   lines.push('  검사 아홉 (판정하지 않는다 — 수와 목록만 적는다)');
@@ -552,6 +647,8 @@ export interface ObserveOptions {
   outDir: string;
   /** 칸 하나를 픽셀 몇으로 그릴 것인가 (기본 1 = 격자와 1:1) */
   scale: number;
+  /** `--at <철>` — 밝히면 보고에 그 철의 위상이 는다. **그림은 달라지지 않는다** (C018) */
+  season?: SeasonId;
 }
 
 export interface ObservePicture {
@@ -584,7 +681,10 @@ export function observeRegion(
               : paintTopView(world, options.scale);
     pictures.push({ kind, file: `${spec.id}.${kind}.png`, png });
   }
-  const text = options.report ? renderRegionReport(spec, region, options.semanticLayer) : '';
+  // 그림은 `options.season` 을 읽지 않는다 — 컴파일 결과가 시각을 모르므로 얹을 것이 없다
+  const text = options.report
+    ? renderRegionReport(spec, region, options.semanticLayer, options.season)
+    : '';
   return { text, pictures };
 }
 
@@ -609,6 +709,7 @@ export function parseArgs(args: readonly string[]): Parsed {
   let graph = false;
   let outDir = DEFAULT_OUT_DIR;
   let pictureScale = DEFAULT_SCALE;
+  let season: SeasonId | undefined;
 
   for (let i = 0; i < args.length; i++) {
     const arg = args[i]!;
@@ -641,6 +742,18 @@ export function parseArgs(args: readonly string[]): Parsed {
         outDir = value;
         i++;
       }
+    } else if (arg === '--at') {
+      // 모르는 철은 조용히 지금으로 읽지 않는다 — 무엇이 없는지 밝히고 멈춘다 (SPEC-010 경계 ②).
+      // 철의 어휘는 world:check 이 소유한다 (SEASON_IDS) — 도구 둘이 따로 들지 않는다
+      const value = args[i + 1];
+      if (value === undefined || value.startsWith('--')) unknown.push(arg);
+      else if (!SEASON_IDS.includes(value as SeasonId)) {
+        unknown.push(`--at ${value}`);
+        i++;
+      } else {
+        season = value as SeasonId;
+        i++;
+      }
     } else if (arg.startsWith('-')) unknown.push(arg);
     else positional.push(arg);
   }
@@ -661,7 +774,7 @@ export function parseArgs(args: readonly string[]): Parsed {
   return {
     kind: 'region',
     spec,
-    options: { pictures, semanticLayer, report: wantReport, outDir, scale: pictureScale },
+    options: { pictures, semanticLayer, report: wantReport, outDir, scale: pictureScale, season },
   };
 }
 
@@ -678,7 +791,9 @@ export function renderUsage(unknown: readonly string[]): string {
     '        --report                  수와 검사 아홉을 글자로 읊는다',
     `        --out <dir>               그림을 둘 폴더 (기본 ${DEFAULT_OUT_DIR})`,
     `        --scale <n>               칸 하나를 n×n 픽셀로 (기본 ${DEFAULT_SCALE} · 최대 ${MAX_SCALE})`,
+    '        --at <철>                 그 철의 위상으로 보고를 읽는다 (그림은 달라지지 않는다)',
     `  아는 방: ${REGION_SPECS.map((spec) => spec.id).join(' · ')}`,
+    `  아는 철: ${SEASON_IDS.join(' · ')}`,
     '  아무것도 하지 않았다. 세계도 파일도 그대로다.',
     '',
   ].join('\n');
@@ -690,7 +805,10 @@ if (process.argv[1] && import.meta.url === `file://${resolve(process.argv[1])}`)
   if (parsed.kind === 'graph') {
     console.log(renderGraph());
   } else if (parsed.kind === 'usage') {
+    // 아무것도 하지 않았으므로 성공으로 끝내지 않는다 — world:check 의 어법 그대로 2 다
+    // (SPEC-010 경계 ② "모르는 철 이름은 조용히 지금으로 읽지 않는다")
     console.log(renderUsage(parsed.unknown));
+    process.exitCode = 2;
   } else {
     const { text, pictures } = observeRegion(parsed.spec, parsed.options);
     // 밝힌 그림 말고는 아무것도 쓰지 않는다 (SPEC-007)

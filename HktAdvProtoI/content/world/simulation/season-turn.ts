@@ -1,9 +1,11 @@
 // RULE-SEASON-TURN-001 — Implements C016 spec R8 (ADDED · 세계 과정)
+//                        · C017 spec R7 (CHANGED — 뒤척임이 **자국도** 묻는다)
 // Scope          onTurn 을 밝힌 방
 // Trigger        세계의 Tick
 // Condition      지금까지 **시작된** 뒤척임의 수가 **적용한** 수보다 많다
 // Transition     밝힌 방마다 onTurn 을 적용한다 —
 //                  burySigns 면 그 방 원천의 phase · taken · progress · collapsedSites 를 **처음 상태**로
+//                  그리고 그 방에 남은 **자국(tracks)도 한꺼번에** 없다 (C017 ADDED)
 //                  migrateSources 의 원천은 **다음 마디**로 (C013 의 nextStandableSite 그대로)
 //                그리고 World.turnsApplied 를 지금까지 시작된 수로 맞춘다
 // Result         (없음 — 세계가 뒤척일 뿐이다. 무엇이 달라졌는지는 관찰 결과가 말한다)
@@ -52,8 +54,11 @@ function applyOneTurn(state: WorldState): void {
   for (const spec of REGION_SPECS) {
     const onTurn = spec.phases?.onTurn;
     if (!onTurn) continue;
-    const sources = state.regionStates[spec.id]?.sources;
-    if (!sources) continue;
+    // C017 CHANGED — **원천이 없어도 묻을 것이 있다** (spec R7). 자국만 남은 방도 묻어야 하므로
+    // 여기서 sources 를 보고 돌아서지 않는다: 방의 State 만 있으면 된다 (소란이 모든 방에
+    // 서므로 State 는 언제나 있다 — 되살린 옛 세계나 데이터에 없는 방만 없다).
+    const regionState = state.regionStates[spec.id];
+    if (!regionState) continue;
 
     // ① 자국을 묻는다 — **없던 일로 한다**는 뜻이지 "다 채워 준다" 가 아니다 (spec 기본형 ⑦).
     // 처음 상태를 짓는 자리는 하나다 (semantic/region-state.ts 의 initialSourceState) — 흐름에
@@ -61,22 +66,34 @@ function applyOneTurn(state: WorldState): void {
     // **자리(siteIndex)는 여기서 건드리지 않는다** — 옮기는 것은 아래 ② 의 일이고, 자국을
     // 묻는다고 서 있던 자리가 달라지지는 않는다.
     if (onTurn.burySigns) {
-      for (const source of sourcesInRegion(spec.id)) {
-        const sourceState = sources[source.id];
-        if (!sourceState) continue;
-        const fresh = initialSourceState(source);
-        sourceState.phase = fresh.phase;
-        sourceState.taken = fresh.taken;
-        sourceState.progress = fresh.progress;
-        // 무너진 마디는 하나도 남지 않는다 — 처음 상태에는 자리 자체가 없다.
-        delete sourceState.collapsedSites;
+      const sources = regionState.sources;
+      if (sources) {
+        for (const source of sourcesInRegion(spec.id)) {
+          const sourceState = sources[source.id];
+          if (!sourceState) continue;
+          const fresh = initialSourceState(source);
+          sourceState.phase = fresh.phase;
+          sourceState.taken = fresh.taken;
+          sourceState.progress = fresh.progress;
+          // 무너진 마디는 하나도 남지 않는다 — 처음 상태에는 자리 자체가 없다.
+          delete sourceState.collapsedSites;
+        }
       }
+
+      // C017 ADDED (spec R7 · RULE-TRACK-001 의 자국) — **발자국도 한꺼번에 없다.**
+      // 확정 8 이 묻을 것으로 든 셋(캔 자국 · 무너진 자리 · 지나간 자국)이 이로써 다 찬다.
+      // 아직 나이가 안 된 자국도 함께 묻힌다 (spec SPEC-008 경계 ②) — 뒤척임은 나이를 묻지
+      // 않는다. 밝히지 않은 방의 자국은 나이로만 사라진다 (경계 ① · RULE-TRACK-FADE-001).
+      // 빈 배열을 남기지 않고 자리 자체를 지운다 — 없는 것은 자리가 없다.
+      delete regionState.tracks;
     }
 
     // ② 자리를 옮기는 원천을 **다음 마디**로 — 캐지 않았어도 옮긴다 (SPEC-006).
     // 마디가 하나뿐인 원천도 · 무너지지 않은 마디가 하나도 없는 원천도 옮기지 않는다
     // (C013 의 nextStandableSite 그대로 — 지날 수 없는 자리에 세우지 않는다).
     // 모르는 원천 id 는 조용히 지나간다: 데이터가 없는 것을 세우지 않는다.
+    const sources = regionState.sources;
+    if (!sources) continue;
     for (const sourceId of onTurn.migrateSources ?? []) {
       const source = sourcesInRegion(spec.id).find((entry) => entry.id === sourceId);
       const sourceState = source ? sources[source.id] : undefined;

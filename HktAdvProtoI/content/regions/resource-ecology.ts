@@ -12,11 +12,22 @@
 
 import type { SeasonId } from './phases';
 
-/** 그 원천을 무엇이 지고 있는가 (A.2 Carrier). 살아 있는 것(CREATURE)은 3층의 몫이다 (확정 2) */
-export type CarrierKind = 'residue' | 'terrain' | 'plant' | 'fungus' | 'water';
+/**
+ * 그 원천을 무엇이 지고 있는가 (A.2 Carrier). 살아 있는 것(CREATURE)은 3층의 몫이다 (확정 2).
+ *
+ * C018 ADDED — `phenomenon`. 몸도 생명도 아닌 것이 지나가며 두고 간 것을 지는 갈래다
+ * (Material §6.3 이 이미 이름해 둔 칸이고, 이 Cycle 이 그것을 처음 쓴다 — 어휘를 새로
+ * 짓는 것이 아니라 비어 있던 칸을 채우는 것이다 · 기본형 ⑨).
+ */
+export type CarrierKind = 'residue' | 'terrain' | 'plant' | 'fungus' | 'water' | 'phenomenon';
 
-/** 그 원천이 기회의 지형에서 맡은 자리 (A.3) */
-export type OpportunityRole = 'baseline' | 'risk' | 'conditional' | 'by-product';
+/**
+ * 그 원천이 기회의 지형에서 맡은 자리 (A.3).
+ *
+ * C018 ADDED — `world-event`. 때를 맞춰야만 얻는 자리다: 캘 수 있는가가 몸의 사정도
+ * 방의 사정도 아니라 **세계에 무슨 일이 있었는가**로 갈린다 (Material §6.2 의 칸).
+ */
+export type OpportunityRole = 'baseline' | 'risk' | 'conditional' | 'by-product' | 'world-event';
 
 /** 무엇이 그것을 되돌리는가 (§5.6 Supply Mode). 실제 회복은 C013 이 굴린다 */
 export type SupplyMode =
@@ -174,10 +185,20 @@ export interface RegionResourceEcology {
 
 export const FOREST_CHAIN = 'FOREST_CHAIN';
 
+// ── 이 세계의 세계 원인 하나 더 (C018 ADDED) ─────────────────────────
+//
+// **하늘을 지나가는 것** (Play §5.6 · Concept §9). 숲의 사슬과 갈리는 원인이다 — 사슬은
+// 이 숲 안에서 먹고 삭고 빨아올리며 도는 것이고, 이것은 **바깥에서 지나가며 두고 가는 것**
+// 이다. 그래서 되돌아옴도 시간이 아니라 그것이 **다시 지나는가**에 매달린다.
+
+export const SKY_PASSAGE = 'SKY_PASSAGE';
+
 // ── 이 숲의 재료 셋 (D1 · D2) ────────────────────────────────────────
 
 export const BIO_ORE = 'BIO_ORE';
 export const ORE_EATER_MOLT = 'ORE_EATER_MOLT';
+/** 고래 비늘 — 하늘을 지나가는 것이 흘리고 간 것 (C018 ADDED · 확정 9) */
+export const WHALE_SCALE = 'WHALE_SCALE';
 /** 거목균 — 포식수의 사체에서 자라 거목을 키우는 균류 (C014 ADDED · D1 · A.1) */
 export const GIANT_TREE_FUNGUS = 'GIANT_TREE_FUNGUS';
 
@@ -197,6 +218,13 @@ export const FORM_SILT_BED = 'silt-bed';
 export const FORM_SEEP_CRUST = 'seep-crust';
 /** 사체 위 흰 균사 (C014 ADDED · A.1 거목균의 자연 형태) */
 export const FORM_NEST_MYCELIUM = 'nest-mycelium';
+/** 떨어진 비늘 — 지나간 것이 흘리고 간 것 (C018 ADDED) */
+export const FORM_FALLEN_SCALE = 'fallen-scale';
+/**
+ * 먹이 잔해 — 지나간 것이 먹다 남긴 것 (C018 ADDED).
+ * **새 Seed 가 아니다** — 광식충 허물의 다른 형태다 (확정 13 · A.1 "같은 것의 여러 순도").
+ */
+export const FORM_PREY_REMAINS = 'prey-remains';
 
 export const MATERIAL_SEEDS: readonly MaterialSeed[] = [
   // 생체 광석 — 거대 수목이 뿌리로 빨아올리는 그 광물. 살아 있는 것을 따라 옮겨 다니며 쌓인다.
@@ -217,10 +245,12 @@ export const MATERIAL_SEEDS: readonly MaterialSeed[] = [
   },
   // 광식충 허물 — 생체 광석을 먹는 벌레가 벗은 것. 폐허의 선광 더미에 섞인 것도 이것이다
   // (Play §4 Breath 의 추측 — "버려진 더미에도 같은 것이 섞여 있다")
+  // C018 CHANGED — 형태가 셋이다. 지나간 것이 먹다 남긴 잔해도 **같은 Seed** 다
+  // (확정 13 — "맹목의 사냥꾼은 행을 놓지 않는다: 경로만 있고 남기는 것은 M3 계통이다").
   {
     id: ORE_EATER_MOLT,
     worldCause: FOREST_CHAIN,
-    forms: [FORM_MOLT_LITTER, FORM_SPOIL_PILE],
+    forms: [FORM_MOLT_LITTER, FORM_SPOIL_PILE, FORM_PREY_REMAINS],
   },
   // 거목균 — 포식수의 사체에서만 자라 사체를 삭이고 흙을 붉게 되돌린다 (C014 ADDED · D2).
   // 사슬의 **끝이자 시작**이다: 이것이 멎으면 거목의 축적이 멎고, 그러면 노두도 멎는다
@@ -228,6 +258,14 @@ export const MATERIAL_SEEDS: readonly MaterialSeed[] = [
     id: GIANT_TREE_FUNGUS,
     worldCause: FOREST_CHAIN,
     forms: [FORM_NEST_MYCELIUM],
+  },
+  // 고래 비늘 — 이 숲이 낳지 않는 유일한 재료다 (C018 ADDED · 확정 9).
+  // 사슬 밖에서 온다: 하늘을 지나가는 것이 흘리고 간 것이고, 그래서 세계 원인이 다르다.
+  // **쓰임은 적지 않는다** (S10) — 무엇으로 만드는지는 4층 이후가 정한다.
+  {
+    id: WHALE_SCALE,
+    worldCause: SKY_PASSAGE,
+    forms: [FORM_FALLEN_SCALE],
   },
 ];
 
@@ -253,6 +291,13 @@ export const RECOVERY_TREE_UPTAKE = 'tree-uptake';
 export const RECOVERY_FLOW_ARRIVAL = 'flow-arrival';
 /** 거목 내부에서 계속 가라앉는다 (LAKE_SILT_BED) */
 export const RECOVERY_LAKE_SETTLING = 'lake-settling';
+/**
+ * 고래가 **다시 지난다** (FALLEN_SCALE · C018 ADDED).
+ * 되돌리는 것이 시간이 아니라 **사건**인 첫 원인이다 — 기다린다고 오지 않는다.
+ */
+export const RECOVERY_WHALE_PASSAGE = 'whale-passage';
+/** 그것이 **다시 지난다** (PREY_REMAINS · C018 ADDED) — 같은 갈래의 원인이다 */
+export const RECOVERY_HUNTER_PASSAGE = 'hunter-passage';
 
 // ── 흐름 (C014 ADDED · §6.3 · A.4) ────────────────────────────────────
 

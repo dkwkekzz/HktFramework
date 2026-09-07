@@ -12,6 +12,10 @@
 //   그래도 요청의 귀속은 그대로다 — 세계가 모르는 관찰자는 아무것도 바꾸지 못한다.
 //
 // C009 ADDED — 돌아가기(emergency-return). 배열에 항목이 하나 늘 뿐이다 (설계 반전 ①).
+//
+// C018 ADDED — 부르기(summon-presence). 마찬가지로 항목 하나다. 대상은 **경로의 id** 이고
+// 봉투의 targetEntityId 자리를 그대로 쓴다 — 봉투에 새 자리를 내지 않는다 (요청 형태는
+// 명령마다 다르고, 무엇을 어디에 싣는지는 이 표와 View 의 짝이 정한다).
 
 import type { ActionRequest, ActionResult } from '../../protocol/actions';
 import type { InteractionHandler } from '../../../engine/world-kernel/content';
@@ -21,6 +25,7 @@ import { ruleMine } from '../rules/mine';
 import { ruleMove } from '../rules/move';
 import { ruleMoveMode } from '../rules/move-mode';
 import { ruleSkillBegin } from '../rules/skill';
+import { ruleSummonPresence } from '../rules/summon-presence';
 import { ruleTransit } from '../rules/transit';
 import { actorOfObserver, type WorldState } from '../semantic/world-state';
 import type { ActorState } from '../semantic/actor';
@@ -94,5 +99,15 @@ export const INTERACTIONS: readonly InteractionHandler<WorldState>[] = [
     id: 'emergency-return',
     // 받는 자리가 없다 — 어디로 가는지는 그 방이 밝힌 비상 자리 하나뿐이다 (C009 · R3).
     handle: withActor((_state, actor) => ruleEmergencyReturn(actor)),
+  },
+  {
+    id: 'summon-presence',
+    // 대상은 **경로의 id** — 명령 목록의 presence 자리가 그 값을 고른다 (C018 · R8).
+    // 몸을 쓰지 않지만 요청의 귀속은 그대로다: 세계가 모르는 관찰자는 아무것도 바꾸지 못한다.
+    handle: withActor((state, _actor, action) => {
+      if (!action.targetEntityId)
+        return { status: 'failure', rule: DISPATCH, reason: 'missing-target' };
+      return ruleSummonPresence(state, action.targetEntityId);
+    }),
   },
 ];

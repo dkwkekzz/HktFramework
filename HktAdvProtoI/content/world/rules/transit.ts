@@ -9,7 +9,8 @@
 //                5. 건너간 뒤의 region 이 지어져 있다 — Description 이 있다           (C002 ADDED)
 //                6. 현재 행동이 대체 가능하다 (RULE-ACTION-BEGIN-001)
 // Transition     Actor.RegionId = 반대쪽 끝의 region · Position = 반대쪽 anchor 의 자리 ·
-//                Velocity = (0, 0) · CurrentAction = idle
+//                Velocity = (0, 0) · CurrentAction = idle ·
+//                **떠난 방**의 소란 += DISTURBANCE_PER_TRANSIT (C017 ADDED · RULE-DISTURBANCE-001)
 // Result         Success | Failure(unknown-connector | wrong-region | out-of-range |
 //                connector-inactive | not-this-season | region-not-built | action-busy)
 //
@@ -49,7 +50,12 @@ import { idleAction } from '../semantic/action';
 import type { ActorState } from '../semantic/actor';
 import { distance } from '../semantic/position';
 import { anchorPosition, connectorClosedReason, isRegionBuilt } from '../semantic/region';
-import { INTERACTION_RANGE, type WorldState } from '../semantic/world-state';
+import { addDisturbance } from '../semantic/region-state';
+import {
+  DISTURBANCE_PER_TRANSIT,
+  INTERACTION_RANGE,
+  type WorldState,
+} from '../semantic/world-state';
 import { evaluateActionBegin } from './action-begin';
 
 // 실패 사유 코드 — Rule 이 소유하며 protocol 로는 문자열 코드로 흐른다
@@ -117,6 +123,19 @@ export function ruleTransit(state: WorldState, actor: ActorState, connectorId: s
   const failure = evaluateTransitPreconditions(state, actor, exit);
   if (failure) return { status: 'failure', rule: RULE_REGION_TRANSIT, reason: failure };
 
+  // RULE-DISTURBANCE-001 (C017 ADDED · spec R1 · R11) — **건넌 것이 소란이 된다.**
+  // 오르는 것은 **떠난 방**이다 (spec 기본형 ⑦ · SPEC-001 경계 ③) — 소란은 그 방 안의 몸들이
+  // 한 일이 쌓이는 값이고, 건너기를 건 몸은 떠나는 방에 있었다. 그래서 전이 **앞에서** 읽는다:
+  // 전이가 끝나면 그 몸은 이미 저쪽 방에 서 있다.
+  // 거절은 한 값도 올리지 않는다 (위에서 이미 돌아갔다) — 일어나지 않은 일은 방을 흔들지 않는다.
+  const departed = actor.regionId;
+
   applyRegionTransition(actor, exit);
+
+  // 요청 없이 일어나는 전이(RULE-REGION-FALL-001)는 여기 오지 않는다 — 추락은 이동의 한 갈래라
+  // 한 값도 올리지 않는다 (spec R1 경계 ② · SPEC-001 경계 ④). 그래서 이 한 줄은 두 규칙이
+  // 나눠 쓰는 applyRegionTransition 이 아니라 **이 규칙**에 있다.
+  addDisturbance(state.regionStates, departed, DISTURBANCE_PER_TRANSIT);
+
   return { status: 'success', rule: RULE_REGION_TRANSIT };
 }

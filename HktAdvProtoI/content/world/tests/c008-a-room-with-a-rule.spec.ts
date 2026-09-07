@@ -750,8 +750,10 @@ describe('SPEC-007 세계가 미로의 상태를 말한다', () => {
     const region = w.observe().region;
     // Then 그 자리가 비어 있다 — 없는 것을 0 으로 지어내지 않는다
     expect(viewState(region)).toBeUndefined();
-    // 그리고 세계의 State 에도 그 방의 자리가 없다
-    expect(state(w).regionStates[START_REGION_ID]).toBeUndefined();
+    // 그리고 세계의 State 에도 그 방의 **규칙 자리**가 없다.
+    // C017 CHANGED — 소란이 모든 방에 서면서 방의 State 자체는 생겼다 (C017 spec 기본형 ⑩).
+    // 이 항이 지키는 것은 그대로다: 규칙 없는 방에 규칙을 지어내지 않는다
+    expect(state(w).regionStates[START_REGION_ID]?.rule).toBeUndefined();
   });
 });
 

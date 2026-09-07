@@ -816,8 +816,9 @@ describe('SPEC-010 건드리지 않은 것은 그대로다', () => {
     });
     const view = world.observe();
     expect(view.region.id).toBe(FOREST_EDGE);
-    // Then 이 방의 원천만 실린다 — 다른 방의 고갈은 여기에 없다
-    expect(sourcesIn(view).map((e) => e.id)).toEqual([MOLT_LITTER]);
+    // Then 이 방의 원천만 실린다 — 다른 방의 고갈은 여기에 없다.
+    // C016 · C018 CHANGED — 이 방의 원천이 늘었으므로 "그 방의 것이 실린다" 로 짚는다
+    expect(sourcesIn(view).map((e) => e.id)).toContain(MOLT_LITTER);
     expect(sourceEntity(view, ORE_OUTCROP)).toBeUndefined();
     // And 이 방의 것은 캐지 않았으므로 그대로다
     expect(sourceEntity(view, MOLT_LITTER)?.state).toBe(AVAILABLE);
@@ -913,9 +914,11 @@ describe('회귀', () => {
       const point = pointsOf(spaceOf(one.region), RESOURCE_LAYER).find((p) => p.tag === one.id)!;
       const view = standingIn(one.region).observe();
       const entity = sourceEntity(view, one.id);
-      expect({ id: one.id, ids: sourcesIn(view).map((e) => e.id) }).toEqual({
+      // C016 · C018 CHANGED — 방에 따라 원천이 늘었다. 이 항이 지키는 것은
+      // "C011 이 놓은 그 원천이 그 방에 available 로 선다" 이다
+      expect({ id: one.id, has: sourcesIn(view).some((e) => e.id === one.id) }).toEqual({
         id: one.id,
-        ids: [one.id],
+        has: true,
       });
       expect({
         id: one.id,
