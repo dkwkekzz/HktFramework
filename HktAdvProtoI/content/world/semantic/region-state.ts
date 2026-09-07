@@ -317,6 +317,37 @@ export function applyPatternSetup(
 }
 
 /**
+ * 세계가 설 때 방의 **소란이 얼마나 쌓여 있는가**를 밝힌 대로 세운다 —
+ * 검증·촬영용 초기 배치 (C017 ADDED · WorldSetup.disturbances).
+ *
+ * regionPatterns · sourcePhases 와 **같은 갈래**의 손잡이다: 해서 닿을 수 있는 값을 하지 않고
+ * 시작하기 위한 것이며 **세계의 규칙을 하나도 바꾸지 않는다.** 임계(300)에 닿으려면 한 방에서
+ * 서른 번을 캐야 하고 그 사이 원천이 고갈과 되돌아옴을 여러 바퀴 도는데, 촬영 하네스의 요청
+ * 왕복은 그 시간을 기다릴 수 없다. 규칙이 그 값으로 데려간다는 것은 시나리오 테스트가 증명하고,
+ * 그림은 **그 값에서 무엇이 보이는가**를 보인다.
+ *
+ * **위상은 여기서 세우지 않는다** — 값만 두면 다음 Tick 에 세계 자신의 규칙
+ * (RULE-DISTURBANCE-PHASE-001)이 깨우거나 재운다. 손잡이가 위상을 직접 쓰면 값과 위상이
+ * 어긋난 State 가 생기고, 그것은 규칙이 스스로 도달할 수 없는 자리다.
+ *
+ * 손잡이가 세계를 깨뜨리지 않게 **모르는 것은 조용히 무시한다** — 이 세계에 없는 방 이름도,
+ * 수가 아닌 값도 그냥 지나간다. 값은 0 과 임계 사이로 잘린다 (기본형 ①).
+ */
+export function applyDisturbanceSetup(
+  states: Record<string, RegionState>,
+  values: Record<string, number> | undefined,
+): Record<string, RegionState> {
+  if (!values) return states;
+  for (const [regionId, value] of Object.entries(values)) {
+    const state = states[regionId];
+    if (!state) continue;
+    if (!Number.isFinite(value)) continue;
+    state.disturbance.value = Math.min(DISTURBANCE_THRESHOLD, Math.max(0, value));
+  }
+  return states;
+}
+
+/**
  * 세계가 설 때 원천이 **어느 phase 로 서는가**를 밝힌 대로 세운다 —
  * 검증·촬영용 초기 배치 (C012 ADDED · WorldSetup.sourcePhases).
  *

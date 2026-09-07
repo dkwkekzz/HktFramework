@@ -234,7 +234,8 @@ describe('SPEC-007 — 관찰은 방으로 잘린다', () => {
       kind: 'road',
       position: { x: 0, z: 18 },
     });
-    expect(v.region).toEqual({ id: WHITE_KING_DOMAIN, hash: descriptionHash(regionSpec(WHITE_KING_DOMAIN)!.space) });
+    // C017 CHANGED — region 에 소란이 함께 실리므로 이 항이 재는 두 값만 짚는다
+    expect(v.region).toMatchObject({ id: WHITE_KING_DOMAIN, hash: descriptionHash(regionSpec(WHITE_KING_DOMAIN)!.space) });
     // 목적지 Region 의 이름은 어디에도 실리지 않는다
     expect(JSON.stringify(v)).not.toContain(FOREST_EDGE);
   });

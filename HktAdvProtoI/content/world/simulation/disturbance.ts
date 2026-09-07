@@ -42,10 +42,14 @@ import {
  * 0 에서 멈춘다 (SPEC-002 경계 ①). 뒤척임은 소란을 건드리지 않는다 (경계 ③) — 뒤척임이
  * 가라앉는 철 목록에 없다는 것이 그 말이고, 그것도 데이터가 정한다.
  *
- * 그리고 **위상을 이어서 본다** — 가라앉아 0 에 닿은 방이 그 Tick 에 잠들어야 하기 때문이다
- * (판정 자체는 아래 한 함수의 것이다).
+ * 그리고 **위상을 먼저 본다** — 세계가 이 Tick 에 판정하는 값은 Tick 이 시작할 때의 값이고,
+ * 잊는 것은 그 판정 **뒤**의 일이기 때문이다. 순서를 뒤집으면 가라앉는 철에서는 임계에 닿은
+ * 값이 판정 전에 이미 조금 줄어 **어느 방도 깨어나지 못한다** — 여럿이 함께 넘긴 임계가
+ * 고요라는 이유만으로 없던 일이 된다. 잠드는 쪽도 같은 한 Tick 을 기다린다 (대칭이다).
  */
 export function ruleDisturbanceDecay(state: WorldState, dt: number): void {
+  ruleDisturbancePhase(state);
+
   if (isSeasonListedForDecay(state.time)) {
     const step = DISTURBANCE_DECAY_PER_SECOND * dt;
     // 방 순회 순서는 regionStates 의 삽입 순서(REGION_SPECS 순서)다 — 결정론.
@@ -55,8 +59,6 @@ export function ruleDisturbanceDecay(state: WorldState, dt: number): void {
       disturbance.value = Math.max(0, disturbance.value - step);
     }
   }
-
-  ruleDisturbancePhase(state);
 }
 
 /**

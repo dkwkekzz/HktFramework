@@ -17,6 +17,7 @@ import type { WorldPosition } from './semantic/position';
 import { START_REGION } from './semantic/region';
 import {
   applyPatternSetup,
+  applyDisturbanceSetup,
   applySourcePhaseSetup,
   createRegionStates,
 } from './semantic/region-state';
@@ -112,6 +113,15 @@ export interface WorldSetup {
    * 모르는 원천 id · 모르는 phase 이름은 조용히 무시한다 — 손잡이가 세계를 깨뜨리지 않는다.
    */
   sourcePhases?: Record<string, string>;
+  /**
+   * 방의 **소란이 얼마나 쌓여 있는가** — 검증·촬영용 초기 배치 (C017 ADDED).
+   * 예: `{ [어느 방의 id]: 300 }`
+   *
+   * sourcePhases 와 **같은 갈래**의 손잡이다: 서른 번을 캐야 닿는 값을 캐지 않고 시작한다.
+   * 세우는 것은 값뿐이고 **위상은 세계 자신의 규칙이 정한다** — 그래서 여기서 세운 값
+   * 위에서도 깨어남과 잠듦이 그대로 굴러간다.
+   */
+  disturbances?: Record<string, number>;
   /**
    * 세계가 **어느 때에서 시작하는가** — 검증·촬영용 초기 시각 (C015 ADDED).
    * 예: `'LONG_NIGHT'` · `'SEEP:NIGHT'` (철 · 낮밤).
@@ -244,9 +254,12 @@ export function createWorld(setup: WorldSetup = {}, restored?: WorldState): Worl
     // 규칙을 품은 방마다 첫 패턴 · 압력 0 으로, 원천을 가진 방마다 원천이 available 로 선다
     // (C008 · C012). 되살린 세계는 이 자리에 오지 않는다 — Region State 는 저장되는 State 이므로
     // 스냅샷의 그 순간 값이 그대로 이어진다.
-    regionStates: applySourcePhaseSetup(
-      applyPatternSetup(createRegionStates(), setup.regionPatterns),
-      setup.sourcePhases,
+    regionStates: applyDisturbanceSetup(
+      applySourcePhaseSetup(
+        applyPatternSetup(createRegionStates(), setup.regionPatterns),
+        setup.sourcePhases,
+      ),
+      setup.disturbances,
     ),
     // 아직 한 번도 뒤척이지 않았다 (C016 ADDED · spec R8). 되살린 세계는 이 자리에 오지
     // 않는다 — 적용한 수는 저장되는 State 이므로 스냅샷의 그 값이 그대로 이어진다.

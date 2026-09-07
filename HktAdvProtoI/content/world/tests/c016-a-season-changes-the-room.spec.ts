@@ -124,7 +124,9 @@ const DEPTHS = ['civil', 'outer', 'wild', 'deep', 'abyss'] as const;
 const MINE_SECONDS = 1.2;
 
 /** spec 이 적은 State 형 버전 — 이 Cycle 이 여기까지 올린다 (SPEC-009 경계) */
-const RAISED_STATE_VERSION = 'hkt-adv-proto-i/7';
+// C017 CHANGED — 소란과 자국이 실리며 다시 올랐다. 이 항이 재는 것은 글자가 아니라
+// "세계가 찍는 판이 팩의 판과 같다" 이므로 값만 따라 올린다
+const RAISED_STATE_VERSION = 'hkt-adv-proto-i/8';
 /** 그 앞의 버전 — 옛 스냅샷은 되살아나지 않는다 */
 const OLD_STATE_VERSION = 'hkt-adv-proto-i/6';
 

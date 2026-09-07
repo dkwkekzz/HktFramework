@@ -93,8 +93,10 @@ describe('resolvePresentation (Semantic → Render Plan)', () => {
     const snapshot: GameViewSnapshot = {
       specId: 'VIEW-WORLD-SERVER-001',
       scene: 'mining-field',
-      region: { id: 'mining-field', hash: '00000000' },
+      region: { id: 'mining-field', hash: '00000000', disturbance: { value: 0, threshold: 300, phase: 'dormant' as const } },
       standingConditions: [], // C006 ADDED
+    // C017 — 봉투에 그 방의 자국이 실린다. 이 시나리오가 보는 것이 아니므로 빈 목록이다
+    tracks: [],
       // C015 — 봉투에 때가 실린다. 이 시나리오가 보는 것은 때가 아니므로 고요의 낮 하나로 둔다
       clock: { dayPhase: 'DAY', season: 'STILL', dayIndex: 0, seasonCycle: 0 },
       entities: [
@@ -191,8 +193,10 @@ describe('결정 Layer 의 유연 대응 — 미등록 항목도 기본 결정�
     const snapshot: GameViewSnapshot = {
       specId: 'VIEW-FUTURE-999',
       scene: 'cavern',
-      region: { id: 'cavern', hash: '00000000' },
+      region: { id: 'cavern', hash: '00000000', disturbance: { value: 0, threshold: 300, phase: 'dormant' as const } },
       standingConditions: [], // C006 ADDED
+    // C017 — 봉투에 그 방의 자국이 실린다. 이 시나리오가 보는 것이 아니므로 빈 목록이다
+    tracks: [],
       // C015 — 봉투에 때가 실린다. 이 시나리오가 보는 것은 때가 아니므로 고요의 낮 하나로 둔다
       clock: { dayPhase: 'DAY', season: 'STILL', dayIndex: 0, seasonCycle: 0 },
       entities: [

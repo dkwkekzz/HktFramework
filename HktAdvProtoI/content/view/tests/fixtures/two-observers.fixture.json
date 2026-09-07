@@ -3,7 +3,12 @@
   "scene": "mining-field",
   "region": {
     "id": "mining-field",
-    "hash": "00000000"
+    "hash": "00000000",
+    "disturbance": {
+      "value": 0,
+      "threshold": 300,
+      "phase": "dormant"
+    }
   },
   "observer": {
     "id": "observer-a",
@@ -122,5 +127,6 @@
     "season": "STILL",
     "dayIndex": 0,
     "seasonCycle": 0
-  }
+  },
+  "tracks": []
 }

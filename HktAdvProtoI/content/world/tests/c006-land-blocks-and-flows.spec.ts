@@ -681,13 +681,14 @@ describe('SPEC-005 — 강은 땅을 판다', () => {
 describe('SPEC-006 — 세계와 관찰자가 같은 땅을 읽는다', () => {
   it('S-023 봉투의 region.hash 가 관찰자가 자기 Description 에서 잰 값과 같다', () => {
     const w = driveWorld(solo);
-    expect(w.observe().region).toEqual({
+    // C017 CHANGED — region 에 소란이 함께 실리므로 이 항이 재는 두 값만 짚는다
+    expect(w.observe().region).toMatchObject({
       id: START_REGION_ID,
       hash: descriptionHash(domain()),
     });
     // 방을 옮겨도 그대로다
     toForestDeep(w);
-    expect(w.observe().region).toEqual({ id: FOREST_DEEP, hash: descriptionHash(spaceOf(FOREST_DEEP)) });
+    expect(w.observe().region).toMatchObject({ id: FOREST_DEEP, hash: descriptionHash(spaceOf(FOREST_DEEP)) });
   });
 
   it('S-024 세계가 막는 자리와 관찰자가 그리는 자리가 같은 격자 칸이다', () => {

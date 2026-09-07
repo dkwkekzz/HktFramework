@@ -34,6 +34,7 @@ function spawnFromEnv(): {
   regionPatterns?: Record<string, string>;
   npcRegion?: string;
   sourcePhases?: Record<string, string>;
+  disturbances?: Record<string, number>;
   clock?: string;
 } {
   const setup: {
@@ -43,6 +44,7 @@ function spawnFromEnv(): {
     regionPatterns?: Record<string, string>;
     npcRegion?: string;
     sourcePhases?: Record<string, string>;
+    disturbances?: Record<string, number>;
     clock?: string;
   } = {};
   // HKT_REGION_PATTERN="REGION:PATTERN" — 규칙을 품은 방이 어느 패턴으로 서는가 (C009).
@@ -84,6 +86,24 @@ function spawnFromEnv(): {
       if (sourceId && phase) phases[sourceId] = phase;
     }
     if (Object.keys(phases).length > 0) setup.sourcePhases = phases;
+  }
+  // HKT_DISTURBANCE="REGION:VALUE" 또는 "A:300,B:150" — 방에 소란이 **얼마나 쌓여 있는가** (C017).
+  //
+  // HKT_SOURCE_PHASE 와 같은 갈래의 검증용 손잡이다 — 해서 닿을 수 있는 값을 하지 않고 시작한다.
+  // 임계(300)에 캐서 닿으려면 한 방에서 서른 번을 캐야 하고 그 사이 원천이 고갈과 되돌아옴을
+  // 여러 바퀴 도는데, 촬영 하네스의 요청 왕복은 그 시간을 기다릴 수 없다.
+  //
+  // 세우는 것은 **값뿐이고 위상은 세계가 정한다** — 다음 Tick 에 세계 자신의 규칙이 깨우거나
+  // 재운다. 모르는 방 이름 · 수가 아닌 값은 세계가 조용히 무시한다.
+  const disturbance = process.env.HKT_DISTURBANCE;
+  if (disturbance) {
+    const values: Record<string, number> = {};
+    for (const entry of disturbance.split(',')) {
+      const [regionId, raw] = entry.trim().split(':');
+      const value = Number(raw);
+      if (regionId && raw !== undefined && Number.isFinite(value)) values[regionId] = value;
+    }
+    if (Object.keys(values).length > 0) setup.disturbances = values;
   }
   // HKT_CLOCK="LONG_NIGHT" 또는 "SEEP:NIGHT" — 세계가 **어느 때에서 시작하는가** (C015).
   // HKT_SOURCE_PHASE 와 같은 갈래의 검증용 손잡이다 — 기다려서 닿을 수 있는 때를 기다리지 않고
