@@ -19,6 +19,8 @@
           "id": "RUIN_SPOIL",
           "material": "ORE_EATER_MOLT",
           "heldBy": "residue",
+          "worldCause": "FOREST_CHAIN",
+          "recoveryCause": "pile-erosion",
           "form": "spoil-pile",
           "role": "baseline"
         }

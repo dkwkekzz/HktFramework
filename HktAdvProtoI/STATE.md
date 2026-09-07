@@ -21,7 +21,7 @@ Play [RoomAnswersWhenAsked](content/roadmap/play/RoomAnswersWhenAsked.md) 가 C0
 
 **도구 절반 2단계 — [Region 작성기](content/roadmap/L2-World-Tool-Scale.md) (확정 · 이 저장소 안에서 새로 짓는다).** "지역을 더할 때마다
 2층 공정을 다시 타는가" 의 답: 아니다 — 새 지역은 세 등급(A 데이터만 · B 규칙 하나 · C 새 축)으로 가르고 대부분은 A 라서 도구가 쓴다.
-순서 T1~T6 은 roadmap README §2.1. ENGINE 레인이라 Cycle 실주행과 **병행**한다 — 말할 것: **"T5 진행"** (브랜치 `engine/T5`).
+순서 T1~T6 은 roadmap README §2.1. **T1~T6 이 다 섰다** — 남은 것은 값이 늘어야 서는 것들뿐이라 이 레인은 지금 부를 단계가 없다.
 design 이 다시 열리는 때는 둘 — ① 2층 Play 실주행에서 DESIGN GAP 이 돌아올 때 ② T6 이 서서 HundredRooms 를 쓸 때 · 2층이 닫혀 3층을 주입할 때.
 
 | 레인 | 지금 할 수 있는 것 | 기다리는 것 | 다음 |
@@ -29,7 +29,7 @@ design 이 다시 열리는 때는 둘 — ① 2층 Play 실주행에서 DESIGN 
 | Frost — [RoomOfAnotherKind](content/roadmap/play/RoomOfAnotherKind.md) (컨텐츠 M5) | **C019** 빙결 협곡 — 재료 생태와 철을 다른 갈래에 두 번째로 쓴다 | — | C020 → C021 |
 | Life — [RoomBearsLife](content/roadmap/play/RoomBearsLife.md) | 대기 (계약 · 확정 사항 · 상수는 [L2-World-Life.md](content/roadmap/L2-World-Life.md) 와 Play 에 있다) | Frost 닫힘 (탄생이 소비할 재료 · 탈 주기 · 대조할 갈래가 먼저) | C022 → C025 |
 | Access — [RoomAsksForPossibilities](content/roadmap/play/RoomAsksForPossibilities.md) | 대기 (계약 · 어휘 · 검사 ㉞~㊷ · 위임된 결정 D1~D5 는 [L2-World-Access.md](content/roadmap/L2-World-Access.md) 와 Play 에 있다) | Frost 닫힘 (첫 property Lock 과 눈보라가 협곡에 있다). Life 와 **병행** | C029 → C031 |
-| ENGINE B — [Region 작성기](content/roadmap/L2-World-Tool-Scale.md) (도구 2단계) | **T5** 초안기(LLM) — 미지 한 줄 → 구조화 출력으로 brief → T3 → T1 에 넣고 **실패 보고를 되먹여** 재시도. 굳힌 파일만 세계에 들어간다(초안이 비결정이어도 세계는 결정론이다). 분리 커밋 · Cycle 과 **병행**한다 — 말할 것: **"T5 진행"** (브랜치 `engine/T5`). T1 검사기 · T2 brief 형 · T3 뼈대 생성기 절반 · T4 등급 판정기는 섰다 | T3 의 나머지 — ecology 는 C022 (phases 는 C016 이 세웠다) · T6 은 Frost(C021) · Life(C025) | T6 → Play HundredRooms |
+| ENGINE B — [Region 작성기](content/roadmap/L2-World-Tool-Scale.md) (도구 2단계) | 부를 단계가 없다 — T1~T6 이 다 섰다 (검사기 · brief 형 · 뼈대 생성기 절반 · 등급 판정기 · 초안기 · 판정 표면). 미지 한 줄이 방이 되고, 목록 하나가 후보 여럿이 되고, 나란히 놓아 승인/반려한다 | T3 의 나머지 — phases 는 이제 붙일 수 있다 (C016 이 섰다) · 생명 ecology 는 C022 · 템플릿은 Frost(C021) | Play HundredRooms — 그 둘이 선 뒤 |
 
 ## 2. 진행
 
@@ -74,7 +74,7 @@ RoomNeverSame(고요에 왔다 스밈에 다시 와 깊어진 자락을 보고, 
 0 게임 방향   확정   L0-Game.md
 1 세계의 문법  확정   L1-World-Grammar.md
 2 세계 자체   열림   L2-World-Tool · Concept · Region · Material · Time · Life · Access — 세계 절반 기획 닫힘 → Play 아홉 중 다섯 닫힘 (§2)
-              도구 절반 2단계 L2-World-Tool-Scale(Region 작성기) 확정 — T1~T6 (README §2.1) · T5 다음
+              도구 절반 2단계 L2-World-Tool-Scale(Region 작성기) 확정 — T1~T6 다 섰다 (진행표는 README §2.1)
 3 주체와 몸   미주입  ← 2층이 닫히면 다음.   4~7 (물건 · 대결 · 능력 · 성장) 미주입
 ```
 
@@ -154,6 +154,8 @@ RoomNeverSame(고요에 왔다 스밈에 다시 와 깊어진 자락을 보고, 
         curve/carve · surface · traversable 격자 · areas/points 산출 · tagsAt · compile · hash · observe 래스터)
 도구    world:check (검사 스물여섯(땅 아홉 + 재료 계통 열셋 + 시간 넷) → JSON · ① 은 방 단위로 판정한다 · 종료 코드가 판정 · npm test 에 붙었다 · 읽기 전용) ·
         world:author (brief 하나 → 방 하나의 뼈대 + 등급과 GAP · --write 로 굳힌다 · 등급 C 는 굳히지 않는다) ·
+        world:draft (미지 한 줄 → brief · 구독 로그인의 claude -p · 검사 되먹임 · --batch 로 목록 하나 → 후보 여럿) ·
+        world:lab (후보를 한 장에 나란히 — 그림 · 여덟 답 · 등급 · 편중) · world:admit (승인/반려 — 세계에 방이 들어오는 유일한 길) ·
         world:observe (--graph · 방 하나의 높이·표면·통행·의미 PNG 다섯 + 보고 · --at <철> 로 그 시각의 위상 · 읽기 전용) · world:compile · world:shot ·
         cycle:shot (마감 촬영 · 창 둘로 관찰자 둘) ·
         검증용 손잡이 HKT_SPAWN · HKT_SPAWN_REGION · HKT_NPCS · HKT_REGION_PATTERN · HKT_NPC_REGION ·
@@ -194,7 +196,8 @@ observers.present 가 방 단위가 아니라 **세계 전체**의 수다 — �
 어귀의 원천에 코드가 **둘 함께** 걸릴 수 있다 (되돌아옴이 멎었다 · 아직 그때가 아니다)  C014
 구역 채움(방 바닥 · settlement)은 빛을 받지 않는다 — 밤에 땅은 어두워지는데 그 위의 채움은 그대로다  C015
 밤의 범위가 관찰만 자르고, 상호작용의 거리(2.0)는 따로 판정한다 — 둘이 같은 자리에서 나오지 않는다  C015
-검사 ① 이 다섯 방을 아직 못 잰다 — 위험이 놓인 방이 둘뿐이다 (숲 가장자리 · 생체 광석 지대. C017 이 하나를 더했다)  C016 → C017
+검사 ① 이 네 방을 아직 못 잰다 — 위험이 놓인 방이 셋이다 (숲 가장자리 · 생체 광석 지대 · 숲 안쪽.
+        C017 이 깨어남으로 하나 · C018 이 경로로 하나를 더했다)  C016 → C018
 뒤척임이 철의 **시작보다 한 Tick 뒤**에 적용된다 — 세계 과정은 시각이 오르기 전에 돈다  C016
 세계가 서는 그 순간이 **고래의 시간표 안**이다 — 기본 세계는 첫 Tick 부터 무언가 머리 위를
         지나고 그 방들의 소란이 몸 없이도 오른다. 규칙은 옳게 돌지만 지나가는 것이 사건이
@@ -205,6 +208,11 @@ observers.present 가 방 단위가 아니라 **세계 전체**의 수다 — �
 자국이 짙은 흙 위에서 잘 보이지 않는다 — 오래된 것(0.22)은 붉은 흙 방에서 거의 묻힌다  C017
 깨어남이 **출현**을 바꾸지 않고 **방을 건너지도** 못한다 — 둘 다 PresenceRoute 위에 선다  C017 → C018
 Human 감사 — C005 의 표면 임계 15°(평지/비탈)는 문서 근거가 없는 기본형이다
+갈래가 **땅을 거의 정하지 않는다** — 땅 묶음이 있는 갈래는 일곱 중 둘뿐이고(hazard/terrain · hazard/climate),
+        나머지 다섯은 평평한 채로 선다. 같은 갈래면 땅도 같다.
+        미지 셋이 다 등급 A 로 섰는데 그림도 원천 자리도 같았고, hazard/matter 로 낸 둘은 아예 평지였다
+        (content/authoring/templates/)  T6 실주행 → Frost(C021) 뒤에 손볼 자리
+        확인: world:lab 한 장에 갈래가 다른 방 둘 이상을 놓고 그림이 갈리는지 본다
 ```
 
 **회수된 것** — 세계의 사실이 세계 위 글자·상시 HUD 로 늘 선불되던 것은 **Observe 레인이 회수했다**

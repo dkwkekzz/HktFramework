@@ -19,6 +19,8 @@
           "id": "ORE_OUTCROP",
           "material": "BIO_ORE",
           "heldBy": "terrain",
+          "worldCause": "FOREST_CHAIN",
+          "recoveryCause": "tree-uptake",
           "form": "outcrop",
           "role": "risk"
         }

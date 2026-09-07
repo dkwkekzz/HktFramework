@@ -17,6 +17,8 @@
           "id": "MOLT_LITTER",
           "material": "ORE_EATER_MOLT",
           "heldBy": "residue",
+          "worldCause": "FOREST_CHAIN",
+          "recoveryCause": "molt-cycle",
           "form": "molt-litter",
           "role": "baseline"
         },
@@ -24,6 +26,8 @@
           "id": "SEEP_CRUST",
           "material": "BIO_ORE",
           "heldBy": "terrain",
+          "worldCause": "FOREST_CHAIN",
+          "recoveryCause": "tree-uptake",
           "form": "seep-crust",
           "role": "conditional"
         },
@@ -31,6 +35,8 @@
           "id": "FALLEN_SCALE",
           "material": "WHALE_SCALE",
           "heldBy": "phenomenon",
+          "worldCause": "SKY_PASSAGE",
+          "recoveryCause": "whale-passage",
           "form": "fallen-scale",
           "role": "world-event"
         },
@@ -38,6 +44,8 @@
           "id": "PREY_REMAINS",
           "material": "ORE_EATER_MOLT",
           "heldBy": "residue",
+          "worldCause": "FOREST_CHAIN",
+          "recoveryCause": "hunter-passage",
           "form": "prey-remains",
           "role": "by-product"
         }
