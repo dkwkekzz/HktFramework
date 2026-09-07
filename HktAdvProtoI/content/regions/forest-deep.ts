@@ -10,6 +10,10 @@
 // 이 방에서 나가는 끝은 그래도 다섯 그대로다 — RIVER_MOUTH 로 나가는 Connector 가 없기 때문이다
 // (물길은 들어오기만 하는 one-way 다 · 01-spec SPEC-002 경계).
 
+// C016 CHANGED — anchor 가 일곱이 된다. 걷는 숲으로 나가는 문의 이쪽 자리 하나가 늘고,
+// 그 문은 **긴 밤에만 열린다** (조건은 graph.ts 의 활성 표가 진다 — 판정하는 함수가 하나여야
+// 하기 때문이다). 이 방에서 나가는 끝은 다섯에서 여섯이 된다.
+
 import type { RegionSpec } from './spec';
 import { ANCHOR_LAYER } from './spec';
 import {
@@ -73,6 +77,22 @@ export const FOREST_DEEP_SPEC: RegionSpec = {
         layer: ANCHOR_LAYER,
         tag: 'RIVER_MOUTH',
         position: { x: 14, z: -8 },
+      },
+      // C016 ADDED — 걷는 숲으로 나가는 문의 이쪽 자리.
+      //
+      // 네 변은 이미 찼으므로 안쪽 자리다 (RIVER_MOUTH 가 그랬던 그대로). (13, 13) 은
+      // 고대 문(-13, 13)의 맞은편 모서리 안쪽이다 — 길이 아니라 문이므로 변에 두지 않는다는
+      // 규율을 이 방이 이미 세워 두었다 (C002 UNRESOLVED 판정).
+      //
+      // 기존 여섯 어느 것과도 겹치지 않고(가장 가까운 TREE_APPROACH(0, 18)까지 13.93),
+      // 안쪽 출구 둘레의 흔적 원(반지름 8) 밖이라 그 짙기도 한 값 달라지지 않는다.
+      // 이 방은 anchor 와 흔적뿐이라 어디나 평지다 — 걸어 닿는다.
+      {
+        id: 'anchor-walking-forest-door',
+        kind: 'point',
+        layer: ANCHOR_LAYER,
+        tag: 'WALKING_FOREST_DOOR',
+        position: { x: 13, z: 13 },
       },
       // ── C011 ADDED — 흔적만 있고 원천은 없다 ───────────────────────────────
       //
