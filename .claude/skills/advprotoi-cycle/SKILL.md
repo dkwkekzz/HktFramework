@@ -37,9 +37,14 @@ ENGINE GAP       (실현)   기존 engine 계약 변경 필요 → 승인 요청
 
 입력은 승인된 Play 문서(`content/roadmap/play/<PlayName>.md`)의 Cycle Breakdown 한 항목과
 그 Play 의 §5 Play Structure · §6 Required Capability · 확정 사항, 그리고 그것들이 지목한
-`content/roadmap/*.md` · `design/` 문서다. Play 를 재해석하지 않는다 — 이번 것만 잘라 검증
-가능한 문장으로 **폐쇄**한다. 코드는 보지 않는다 (Existing 판정은 STATE.md §4 "코드에 있는 것" +
-기존 `cycles/*/spec.md` 의 ADDED 로).
+`content/roadmap/*.md` · `design/` 문서, 그리고 **같은 Play 앞 Cycle 들의 `TODO.md` 두 절**
+(「알려진 부채」 · 「다음 Cycle 로」 — Human 판정 절은 읽지 않는다, 그것은 Play 단위 Human 몫이다).
+Play 를 재해석하지 않는다 — 이번 것만 잘라 검증 가능한 문장으로 **폐쇄**한다. 코드는 보지 않는다
+(Existing 판정은 STATE.md §4 "코드에 있는 것" + 기존 `cycles/*/spec.md` 의 ADDED 로).
+
+앞 Cycle TODO 의 항목은 하나씩 판정한다 — 이번 Cycle 이 받는 것은 SPEC/Reuse 로 들어오고,
+받지 않는 것은 Out of Scope 에 받을 Cycle 을 적는다 (받을 Cycle 이 없으면 "Play 닫힘 시 STATE §5").
+회수 규칙의 원본은 Plan-Skill §3.
 
 ```text
 # C### — <이름>
@@ -195,14 +200,23 @@ Verification                             시나리오 테스트 전부 PASS + TO
 ## 다음 Cycle 로        spec 이 침묵해 테스트가 피해 간 자리 · 이월한 관측 (T 의 보고에서)
 ```
 
+회수 규칙 (Plan-Skill §3) — 항목은 **처음 난 Cycle 의 TODO 에만** 산다. 앞 Cycle 의 부채를 이 Cycle 이
+다시 만났어도 여기 다시 적지 않는다 (`C006 → C009 → C016` 식 사슬 금지 — 원칙 10). 부채 · 다음 Cycle 로는
+같은 Play 의 다음 Cycle 명세가 읽고, Human 판정 절은 Play 실주행 판정(Play 단위)이 읽는다.
+
 **마감 보고** — Human 이 보는 유일한 결과다. 그림(`shots/*.png` 를 SendUserFile 로) · 판정 한 줄 ·
 TODO 항목 수 · "PR 을 올려 번호 순으로 합친다". 공정 설명을 반복하지 않고, 다음 Cycle 을 이어
 시작하지 않는다 — 합침이 먼저다.
 
 **합친 직후 (main 에서)** — Play 문서의 Cycle Breakdown 체크박스만 `[x]` (Play 문서에서 Agent 가
-만지는 유일한 자리 · Play 의 모든 Cycle 이 닫혔으면 "Play Goal 실주행 확인"을 Human 에게 제안) ·
-STATE.md §2 진행 · §4 코드에 있는 것 · §5 부채(TODO.md 를 가리킨다) · §1 레인 표에서 이 Cycle 을
+만지는 유일한 자리) · 이 Cycle 의 spec 이 받은 앞 Cycle TODO 항목을 그 원 TODO 에서 지운다 (비면 파일 삭제) ·
+STATE.md §2 진행 · §4 코드에 있는 것 · §5 부채(TODO.md 의 난 자리 하나를 가리킨다) · §1 레인 표에서 이 Cycle 을
 지우고 이것을 기다리던 레인의 "기다리는 것"을 비운다. 현재 상태만 — 경위를 쌓지 않는다 (원칙 10).
+
+**Play 의 마지막 Cycle 이면** — STATE.md §2 에 그 Play 를 "실주행 판정 대기" 로 올리고 Human 에게 판정을
+청한다: `npm run dev` 로 Play Goal 을 한 번 플레이하며 그 Play Cycle 들의 TODO Human 판정 항목을 훑는다.
+통과는 지우고, 실패는 DESIGN GAP 으로 `advprotoi-design` 에 준다. 받을 Cycle 이 없는 부채는 STATE §5 로 옮기고
+TODO 에서 지운다. 판정 절이 전부 비면 로드맵의 행이 닫힌다 — Agent 는 판정하지 않는다.
 
 ## 4. Cycle 간 병렬 (Plan-Skill §4 항목 4)
 

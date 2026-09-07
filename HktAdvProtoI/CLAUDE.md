@@ -29,6 +29,8 @@ advprotoi-cycle   Cycle  "C### 진행" — spec.md 동결 → E ∥ W ∥ V ∥ 
   [content/roadmap/README.md](content/roadmap/README.md) 가 답한다.
 - `cycles/<CycleId>/` 에는 `spec.md` · `TODO.md`(비면 삭제) · `shots.json` + `shots/` 만 둔다.
   구현 노트·검증 산문은 만들지 않는다 — 코드 주석의 `RULE-*` id · 시나리오 테스트 · 커밋 메시지가 원본이다.
+- `TODO.md` 는 따로 부르지 않아도 공정이 회수한다 — 부채·다음 Cycle 로는 같은 Play 의 다음 Cycle 명세가,
+  Human 판정은 Play 의 마지막 Cycle 뒤 **Play 실주행 판정**이 읽는다 (Plan-Skill §3 회수 규칙).
 - 병렬 Cycle 규칙(브랜치 `cycle/C###` = 세션 하나 · STATE 는 main 에서만 · engine 먼저 합침)은
   Plan-Skill §4 항목 4 가 소유한다.
 

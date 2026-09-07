@@ -38,33 +38,31 @@ design 이 다시 열리는 때는 둘 — ① 2층 Play 실주행에서 DESIGN 
 
 | Play | 증명 | Cycle | 상태 |
 |---|---|---|---|
-| RegionGraphRooms | 세계는 방들의 그래프다 | C001~C004 | **넷 다 닫힘** — Play Goal 실주행 확인이 남았다 (C004 TODO X-⑥) |
-| RoomBecomesLand | 방이 땅이 된다 (백왕령) | C005~C007 | **셋 다 닫힘** — Play Goal 실주행 확인이 남았다 |
-| RuleBoundRoom | 방은 규칙을 품는다 (환상의 미로 = Region 하나) | C008~C010 | **셋 다 닫힘** — Play Goal 실주행 확인이 남았다 |
-| RoomBearsMaterial | 방이 재료를 낳는다 (거대 악마의 숲 = M3 재료 계통) | C011~C014 | **넷 다 닫힘** — Play Goal 실주행 확인이 남았다 |
+| RegionGraphRooms | 세계는 방들의 그래프다 | C001~C004 | **넷 다 닫힘** — Play 실주행 판정 대기 (아래 표) |
+| RoomBecomesLand | 방이 땅이 된다 (백왕령) | C005~C007 | **셋 다 닫힘** — Play 실주행 판정 대기 (아래 표) |
+| RuleBoundRoom | 방은 규칙을 품는다 (환상의 미로 = Region 하나) | C008~C010 | **셋 다 닫힘** — Play 실주행 판정 대기 (아래 표) |
+| RoomBearsMaterial | 방이 재료를 낳는다 (거대 악마의 숲 = M3 재료 계통) | C011~C014 | **넷 다 닫힘** — Play 실주행 판정 대기 (아래 표) |
 | RoomNeverSame | 같은 방은 두 번 없다 (시계 · 네 철 · 소란 · 경로 = M4) | C015~C018 | C015 · C016 닫힘 · **C017 다음** |
 | RoomOfAnotherKind | 다른 갈래의 방 (M5 빙결 협곡 · 컨텐츠) | C019~C021 | 대기 |
 | RoomBearsLife | 방이 생명을 낳는다 (허물의 주인 = M6 붉은 알집 · 숲이 값으로 한 바퀴 돈다) | C022~C025 | 대기 |
-| RoomAnswersWhenAsked | 물으면 답한다 (지목 · 대상 프레임 · 기록 · 세계 위 글자 0) | C026~C028 | **셋 다 닫힘** — Play Goal 실주행 확인이 남았다 |
+| RoomAnswersWhenAsked | 물으면 답한다 (지목 · 대상 프레임 · 기록 · 세계 위 글자 0) | C026~C028 | **셋 다 닫힘** — Play 실주행 판정 대기 (아래 표) |
 | RoomAsksForPossibilities | 방이 가능성을 묻는다 (Lock · 성질 어휘 · 여러 종류의 답 · 흔적 = M7 열을 저장하는 결정의 원천) | C029~C031 | 대기 |
 
-**Human 판정 대기 151** — 각 Cycle 의 `TODO.md` (그림은 같은 폴더 `shots/`). `npm run dev` 로 직접 본다.
-[C001](cycles/C001-region-graph-rooms/TODO.md) 8 · [C002](cycles/C002-many-exits/TODO.md) 8 ·
-[C003](cycles/C003-small-door-big-room/TODO.md) 6 · [C004](cycles/C004-polish-is-data/TODO.md) 6 ·
-[C005](cycles/C005-land-rises/TODO.md) 7 · [C006](cycles/C006-land-blocks-and-flows/TODO.md) 9 ·
-[C007](cycles/C007-observe-and-remake/TODO.md) 5 · [C008](cycles/C008-a-room-with-a-rule/TODO.md) 8 ·
-[C009](cycles/C009-reach-by-the-rule/TODO.md) 9 · [C010](cycles/C010-one-world/TODO.md) 7 ·
-[C011](cycles/C011-trace-leads-to-source/TODO.md) 10 · [C012](cycles/C012-the-mark-remains/TODO.md) 10 ·
-[C013](cycles/C013-the-world-brings-it-back/TODO.md) 10 · [C014](cycles/C014-condition-and-flow/TODO.md) 9 ·
-[C015](cycles/C015-the-world-has-a-clock/TODO.md) 8 · [C016](cycles/C016-a-season-changes-the-room/TODO.md) 10 ·
-[C026](cycles/C026-a-place-answers/TODO.md) 7 ·
-[C027](cycles/C027-a-being-stands-too/TODO.md) 7 · [C028](cycles/C028-the-answer-remains/TODO.md) 7.
+**Play 실주행 판정 대기 다섯** — Human 판정은 Cycle 이 아니라 **Play 단위**다 (회수 규칙
+[Plan-Skill §3](design/Plan-Skill-CycleExecutionWorkflow.md)). `npm run dev` 로 Play Goal 을 한 번 플레이하며
+그 Play Cycle 들의 `TODO.md` Human 판정 항목을 훑는다 (그림은 같은 폴더 `shots/`). 통과는 지우고, 실패는
+DESIGN GAP 으로 `advprotoi-design` 에 준다. 판정 절이 전부 비면 그 Play 의 로드맵 행이 닫힌다. 순서는 Play 순서.
 
-Play 다섯이 닫혔으므로 **Play 전체 실주행**이 그 위에 다섯 더 있다 —
-RegionGraphRooms(백왕령 → 거목 → 추락 → 물길 → 귀환) · RoomBecomesLand(능선에 막히고 강에 막히고 다리로 건넌다) ·
-RuleBoundRoom(규칙을 관찰해 심장에 닿고, 두 번째 관찰자가 같은 미로를 본다) ·
-RoomBearsMaterial(흔적에서 원천으로, 캔 자국이 남고, 균류를 캔 것이 거목 쪽 회복을 늦추며, 되돌아온 원천은 다음 마디에 선다) ·
-RoomAnswersWhenAsked(세계 위 글자 없이, 물어서 자리와 존재를 읽고 그 답이 남는다).
+| Play | Play Goal 실주행 | Cycle TODO (판정 항목) |
+|---|---|---|
+| RegionGraphRooms | 백왕령 → 거목 → 추락 → 물길 → 귀환 | [C001](cycles/C001-region-graph-rooms/TODO.md) 8 · [C002](cycles/C002-many-exits/TODO.md) 8 · [C003](cycles/C003-small-door-big-room/TODO.md) 6 · [C004](cycles/C004-polish-is-data/TODO.md) 6 |
+| RoomBecomesLand | 능선에 막히고 강에 막히고 다리로 건넌다 | [C005](cycles/C005-land-rises/TODO.md) 7 · [C006](cycles/C006-land-blocks-and-flows/TODO.md) 9 · [C007](cycles/C007-observe-and-remake/TODO.md) 5 |
+| RuleBoundRoom | 규칙을 관찰해 심장에 닿고, 두 번째 관찰자가 같은 미로를 본다 | [C008](cycles/C008-a-room-with-a-rule/TODO.md) 8 · [C009](cycles/C009-reach-by-the-rule/TODO.md) 9 · [C010](cycles/C010-one-world/TODO.md) 7 |
+| RoomBearsMaterial | 흔적에서 원천으로, 캔 자국이 남고, 균류를 캔 것이 거목 쪽 회복을 늦추며, 되돌아온 원천은 다음 마디에 선다 | [C011](cycles/C011-trace-leads-to-source/TODO.md) 10 · [C012](cycles/C012-the-mark-remains/TODO.md) 10 · [C013](cycles/C013-the-world-brings-it-back/TODO.md) 10 · [C014](cycles/C014-condition-and-flow/TODO.md) 9 |
+| RoomAnswersWhenAsked | 세계 위 글자 없이, 물어서 자리와 존재를 읽고 그 답이 남는다 | [C026](cycles/C026-a-place-answers/TODO.md) 7 · [C027](cycles/C027-a-being-stands-too/TODO.md) 7 · [C028](cycles/C028-the-answer-remains/TODO.md) 7 |
+
+RoomNeverSame 의 [C015](cycles/C015-the-world-has-a-clock/TODO.md) 8 · [C016](cycles/C016-a-season-changes-the-room/TODO.md) 10 은
+C018 이 닫힌 뒤 같은 방식으로. 그 전까지 두 TODO 의 「알려진 부채」 · 「다음 Cycle 로」 는 C017 명세의 입력이다.
 
 ## 3. 로드맵
 
@@ -149,27 +147,28 @@ RoomAnswersWhenAsked(세계 위 글자 없이, 물어서 자리와 존재를 읽
 
 ## 5. 열린 부채
 
-원본은 각 Cycle 의 `TODO.md` — 여기는 **여러 Cycle 을 건너 살아 있는 것**만 가리킨다.
+원본은 각 Cycle 의 `TODO.md` — 여기는 **여러 Cycle 을 건너 살아 있는 것**만, 그것이 **처음 난 자리 하나**로
+가리킨다 (사슬을 적지 않는다). Play 가 닫힐 때 받을 Cycle 이 없는 부채는 TODO 에서 여기로 옮겨 오고, 그때부터
+원본은 여기다 (회수 규칙 Plan-Skill §3).
 
 ```text
-컴파일을 켤 때마다 두 번 한다 (세계 한 번 · 관찰자 한 번)      C005 → C006 ④ → C007 ③
+컴파일을 켤 때마다 두 번 한다 (세계 한 번 · 관찰자 한 번)      C005
 이동 **진행**은 traversable 을 보지 않는다 (막는 것은 요청 판정뿐)  C006 ③
-잠깐 뜨는 문구를 촬영이 잡지 못한다 (토스트는 HUD 훑기에 안 걸린다)  C006 ① → C008 ① → C009 ③④
-몸 뒤의 정체 모를 반투명 판 — 원인 미확정, 추측으로 손대지 않았다   C008 ⑦ → C009 ⑤ → C011 X-① 그림에도 남아 있다
-판이 자기 크기를 계약에 밝히지 않는다 — 판과 상시 HUD · 판과 세계의 겹침을 저장소가 스스로 못 잰다  C027 ① → C028 ②
-촬영이 존재를 겨냥으로만 집는다 (존재 id 로 겨냥할 수 없어 엉뚱한 것이 집힌다)  C026 ④ → C027 ②
+잠깐 뜨는 문구를 촬영이 잡지 못한다 (토스트는 HUD 훑기에 안 걸린다)  C006 ①
+몸 뒤의 정체 모를 반투명 판 — 원인 미확정, 추측으로 손대지 않았다   C008 ⑦
+판이 자기 크기를 계약에 밝히지 않는다 — 판과 상시 HUD · 판과 세계의 겹침을 저장소가 스스로 못 잰다  C027 ①
+촬영이 존재를 겨냥으로만 집는다 (존재 id 로 겨냥할 수 없어 엉뚱한 것이 집힌다)  C026 ④
 기록판의 상한 다섯이 드문 알림을 잦은 거절로 밀어낸다              C028 ①
 지목한 판이 재료의 **이름**을 말하지 않는다 — 자연 형태만 말한다. 세계는 이미 싣고 있다(entities[].material)  C011
 고갈 뒤 둘레 흙이 방 바닥과 같아지는 방이 셋 — 흔적 사다리의 (바닥, 둘레) 배치 때문이다 (값은 데이터)  C012
-무너진 자리가 길을 실제로 끊는지 아무도 재지 않는다 — 우회 판정에 길찾기가 필요하다 (C013 이 마디를
-        여럿으로 만들면서 끊길 수 있는 자리도 여럿이 되었다)  C006 → C012 → C013
+무너진 자리가 길을 실제로 끊는지 아무도 재지 않는다 — 우회 판정에 길찾기가 필요하다 (마디가
+        여럿이라 끊길 수 있는 자리도 여럿이다)  C006
 촬영 하네스에서 자판 걸음이 몸을 옮기지 못한다 (원인 미확정 — 실주행에서도 그런지 확인 필요)  C003
 80×80 방의 바닥 채움 눈금이 삼각형 상한에 걸려 조금 굵다 (뜬 거리 0.020)  C005
 재배열이 길을 **끊지 않는다** (바꾸는 것은 "갈 수 있는가" 가 아니라 "어느 길로 가는가")  C008 ② — X-⑥ 판정이 정한다
 심장은 P2 가 아니면 나올 수 없고 "돌아가기" 가 꺼내 주지 않는다     C009 ①② — **C010 에서 관찰자가 둘이 되면 실제로 겪힌다**
 검사 ④ 는 아직 빈 검사다 (phenomenon layer 가 없다) · ① 은 답을 내기 시작했으나 hazard 가 없어 반쪽이다
-        (C011 이 원천을 point 로 · C012 가 붕괴 자리를 area 로 놓았고, T1 이 그 둘을 함께 센다.
-        C014 의 검사 열셋이 붙은 뒤에도 이 둘은 여전히 absent 다)  C007 ④ → C012 → C014
+        (원천은 point · 붕괴 자리는 area 로 있고 T1 이 그 둘을 함께 센다 — 그래도 둘은 여전히 absent 다)  C007 ④
 observers.present 가 방 단위가 아니라 **세계 전체**의 수다 — 다른 방의 둘도 서로를 2 로 센다  C010 ③ (Human 이 정할 자리)
 촬영이 사람의 걸음과 떠남을 밀지 못한다 — 캔버스 둘이면 이어짐의 왕복이 수십 초로 밀린다  C010 ①②
 마디가 **다 무너지면** 원천이 자리를 옮기지 못하고 지날 수 없는 자리에 선다 (마디 넷 · 채취 셋이면

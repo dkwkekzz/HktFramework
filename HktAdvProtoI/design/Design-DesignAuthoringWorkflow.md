@@ -171,18 +171,24 @@ Design 공정은 승인된 Play 와 레인 표에서 끝난다. Cycle 공정은 
 - **Experience Verification** — 실제 플레이에서 spec.md 의 Experience Intent 가
   성립하는지 관찰한다. 감정을 숫자로 검증하는 것이 아니라 **의도한 인지·행동 변화가
   실제로 발생하는지** 본다. 판단은 Human 의 몫이다 — Cycle 마감이 관찰 항목을 그 Cycle 의
-  `TODO.md` 에 남기고, Human 이 판정한 뒤 지운다.
+  `TODO.md` 에 남기고, Human 이 **Play 단위**로 판정한 뒤 지운다 (§8 의 Play 실주행 판정 —
+  Cycle 마다 판정하지 않는다).
 
 ## 8. Cycle 완료 후 처리
 
 Cycle 이 완료되면 Play Design 문서의 Cycle Breakdown **체크박스만** 갱신한다
 (`[x]`). Graph 를 갱신하거나 새로운 관리 artifact 를 만들지 않는다. 완료된 Cycle 의
-World Capability 는 이후 Cycle 에서 그대로 재사용한다.
+World Capability 는 이후 Cycle 에서 그대로 재사용한다. 다음 Cycle 의 명세는 앞 Cycle 들의
+`TODO.md`(알려진 부채 · 다음 Cycle 로)를 입력으로 받는다 — 회수 규칙은
+[Plan-Skill §3](Plan-Skill-CycleExecutionWorkflow.md).
 
 모든 핵심 Cycle 이 완료되면 원래 Play Goal 을 실제로 수행할 수 있어야 하고, Breath
 가 실제 플레이에서 어느 정도 성립하는지 확인한다 — 그때 그 Play 가 완료된 것이다.
-완료된 Capability 는 다음 Play 에서 다시 사용하며, 이 반복으로 게임 전체가 점진
-확장된다.
+이것이 **Play 실주행 판정**이다: Human 이 `npm run dev` 로 Play Goal 을 한 번 플레이하면서
+그 Play 의 Cycle 들이 `TODO.md` 에 남긴 Human 판정 항목을 함께 훑는다. 통과한 항목은 지우고,
+실패한 항목은 DESIGN GAP 으로 §8.5 의 셋째 주입이 된다. 그 Play 의 판정 절이 전부 비면
+로드맵의 행이 닫힌다. 완료된 Capability 는 다음 Play 에서 다시 사용하며, 이 반복으로
+게임 전체가 점진 확장된다.
 
 ## 8.5 주입 경로 — 방향/기획서 → Cycle (기본 진입점)
 
@@ -221,6 +227,10 @@ World Capability 는 이후 Cycle 에서 그대로 재사용한다.
               Play 로 구체화하기 전에 로드맵 §4 의 열 질문(세계 인과 여섯 + L0-Game.md §4 넷)을
               통과시킨다 — ①~③ 이 World Cause, ④~⑥ 이 Goal·Required, ⑦~⑩ 이 판정.
               새 축을 요구하는 미지는 컨텐츠 행이 아니라 기반 층의 새 행이다.
+실주행 GAP 주입  Play 실주행 판정(§8)에서 실패한 Human 판정 항목 — Human 이 그 항목을 DESIGN GAP 으로
+              준다. 새 축도 새 미지도 아니다 — 이미 선 축이 관찰되지 않거나 다르게 겪힌 것이다.
+              기존 Play 에 Cycle 을 더하거나, 여럿에 걸치면 관찰 가능성 Play 하나로 묶는다
+              (선례: RoomAnswersWhenAsked). 로드맵의 행은 새로 올리지 않는다.
 ```
 
 한 Play 는 행 하나만 증명한다. 확정되지 않은 축의 의미가 필요해지면 Required 가

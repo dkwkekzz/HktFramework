@@ -77,7 +77,21 @@ advprotoi-cycle    Cycle     명세: cycles/<CycleId>/spec.md 한 파일 — 범
 | 파일 | 쓰는 이 | 내용 |
 |---|---|---|
 | `spec.md` | cycle 의 명세 단계가 한 번에 쓴다. 실현 단계는 읽기만 | **범위** (위층 문서 §6): Playable Goal · Experience Intent · World Change · Observable Result · Reuse · Out of Scope. **명세** (CYCLE SPEC + WORLD SEMANTIC/RULE, §4–8): `SPEC-###` 목록 · State(점 경로 · 데이터 값) · Rule(`IF … THEN …` · CHANGED/AFFECTED) · REUSED/ADDED · Observable(점 경로 — 관찰 계약의 원본) · UNRESOLVED(+ 기본형으로 둔 것). UNRESOLVED 가 없으면 **동결** |
-| `TODO.md` | cycle 의 마감이 쓰고, Human·다음 Cycle 이 지운다 | Human 판정 대기(Experience Verification 관찰 항목 — 하기/보기/판정) · 알려진 부채 · 다음 Cycle 로 넘긴 것. 항목이 다 지워지면 파일을 지운다 — `spec.md` 만 남은 디렉터리가 깨끗이 닫힌 Cycle 이다. 남길 것이 없으면 만들지 않는다 |
+| `TODO.md` | cycle 의 마감이 쓰고, 아래 회수 규칙의 소비자가 지운다 | Human 판정 대기(Experience Verification 관찰 항목 — 하기/보기/판정) · 알려진 부채 · 다음 Cycle 로 넘긴 것. 항목이 다 지워지면 파일을 지운다 — `spec.md` 만 남은 디렉터리가 깨끗이 닫힌 Cycle 이다. 남길 것이 없으면 만들지 않는다 |
+
+**TODO 회수 규칙** — 절마다 소비자와 시점이 하나씩 고정돼 있다. 어느 공정도 "TODO 를 봐 달라" 고
+따로 말하지 않는다 — 그 시점이 오면 그 공정이 읽는다.
+
+| 절 | 소비자 | 시점 | 처리 |
+|---|---|---|---|
+| 알려진 부채 · 다음 Cycle 로 | **같은 Play 의 다음 Cycle** 명세 단계 | 그 Cycle 의 spec.md 를 쓸 때 — 앞 Cycle 들의 TODO 두 절이 명세 입력이다 | 이번에 받는 것은 SPEC/Reuse 로, 받지 않는 것은 Out of Scope 에 받을 Cycle 을 적는다. 받은 항목은 그 Cycle 을 main 에 합친 직후 원 TODO 에서 지운다 |
+| Human 판정 대기 | **Human** | **Play 단위** — 그 Play 의 마지막 Cycle 이 합쳐진 직후의 Play 실주행 판정 (위층 문서 §8). Cycle 마다 판정하지 않는다 | Play Goal 을 한 번 플레이하면서 그 Play Cycle 들의 항목을 훑는다. 통과한 항목은 지운다. 실패한 항목은 DESIGN GAP 으로 advprotoi-design 의 주입물이 된다 (위층 문서 §8.5 셋째 주입) |
+| Play 가 닫힌 뒤 남은 부채 (받을 Cycle 없음) | Human · ENGINE 레인 | Play 실주행 판정이 끝날 때 | STATE.md §5 로 옮기고 TODO 에서 지운다 — 옮긴 뒤 원본은 STATE 다 |
+
+- 항목은 **처음 난 Cycle 의 TODO 에만** 산다. 뒤 Cycle 이 같은 부채를 만나도 다시 적지 않는다 —
+  `C006 → C009 → C016` 식 사슬은 경위이므로 금지 (CLAUDE.md 원칙 10). STATE §5 는 난 자리 하나만 가리킨다.
+- 로드맵의 "실제로 플레이되면 행이 닫힌다" 는 곧 그 Play Cycle 들의 Human 판정 절이 전부 비는 것이다
+  ([content/roadmap/README.md](../content/roadmap/README.md) §4 ③).
 
 만들지 않는 것과 그 내용이 사는 자리:
 
@@ -237,8 +251,9 @@ advprotoi-design   기획      L0-Game.md/시스템 문서 → content/roadmap/p
    00-cycle)은 그 항목을 잘라 cycle 이 쓴다 — design 은 쓰지 않는다. SOURCE = `content/roadmap/play/<name>.md`.
    Human 이 직접 Goal 을 지정하는 예외 경로는 유지한다.
 2. **cycle 마감에 두 가지가 더해진다** — Experience Verification 관찰 항목을
-   TODO.md 에 기입(판정은 Human — 판정 후 지운다), 완료 시 play 문서의 Cycle Breakdown
-   체크박스 갱신 (play 문서에서 Agent 가 만질 수 있는 유일한 자리).
+   TODO.md 에 기입(판정은 Human — Play 단위로 판정하고 지운다, §3 회수 규칙), 완료 시 play 문서의
+   Cycle Breakdown 체크박스 갱신 (play 문서에서 Agent 가 만질 수 있는 유일한 자리).
+   cycle 명세 단계는 같은 Play 앞 Cycle 들의 TODO(부채 · 다음 Cycle 로)를 입력으로 받는다.
 3. **master 는 제거된다** — 다음 Cycle 은 승인된 Play 의 Cycle Breakdown 이 답한다.
    Play Design 이 하나도 없으면 첫 Play 를 기획하는 것(advprotoi-design)이 곧 탐색이다.
 4. Graph 류 관리 artifact 는 만들지 않는다 — Breath·Capability·Cycle 후보는 전부
