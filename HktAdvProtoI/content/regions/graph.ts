@@ -27,6 +27,13 @@
 // 하나가 배열 끝에 이어 붙고(exitsOf 의 결정론이 이 순서를 따른다) 그 너머 이름 하나가
 // 경계 목록에 는다. 그리고 활성 조건 표가 **철**을 함께 진다 — 그 문은 긴 밤에만 열린다.
 // 앞의 열여섯은 한 글자도 바뀌지 않고, 미로 심장 문의 조건도 한 값 그대로다.
+//
+// C019 CHANGED — 방이 열셋, Connector 가 열여덟, 경계가 셋이 된다. 얼음 협곡이 지어져
+// 경계 목록에서 빠지고(이름은 이제 ice-canyon.ts 가 소유한다 · RED_EYE_TREE · FANTASY_MAZE 의
+// 선례) 그 안쪽 빙결 협곡이 함께 선다. 백왕령 서쪽의 고개 ICE_CANYON_PASS 는 **자리를 그대로
+// 둔 채 방향만** one-way → bidirectional 로 바뀌고(고개는 넘어갔다 돌아오는 것이다), 협곡 안으로
+// 드는 오솔길 FROST_CANYON_TRAIL 하나가 배열 끝에 이어 붙는다. 앞의 열일곱은 한 글자도 바뀌지
+// 않는다 — exitsOf 의 결정론이 이 순서를 따르므로 고개도 옮기지 않았다.
 
 import type { RegionGraph } from '../../engine/world-authoring/graph';
 import type { SeasonId } from './phases';
@@ -35,7 +42,9 @@ import { EXPLORER_RUIN } from './explorer-ruin';
 import { FANTASY_MAZE, MAZE_PATTERN_P2 } from './fantasy-maze';
 import { FOREST_DEEP } from './forest-deep';
 import { FOREST_EDGE } from './forest-edge';
+import { FROST_CANYON } from './frost-canyon';
 import { HEART_LAKE } from './heart-lake';
+import { ICE_CANYON } from './ice-canyon';
 import { MAZE_HEART } from './maze-heart';
 import { PREDATOR_NEST } from './predator-nest';
 import { RED_EYE_TREE } from './red-eye-tree';
@@ -63,6 +72,8 @@ export const MAZE_HEART_GATE = 'MAZE_HEART_GATE';
 export const INVERTED_GARDEN_DOOR = 'INVERTED_GARDEN_DOOR';
 // C016 ADDED — 걷는 숲으로 나가는 문. 긴 밤에만 열린다 (아래 CONNECTOR_ACTIVATIONS)
 export const WALKING_FOREST_DOOR = 'WALKING_FOREST_DOOR';
+// C019 ADDED — 협곡 안쪽으로 드는 오솔길
+export const FROST_CANYON_TRAIL = 'FROST_CANYON_TRAIL';
 
 // 아직 짓지 않은 방들 — Connector 가 가리키되 Description 이 없다 (01-spec SPEC-004).
 // 이름만 있고 방은 없다. 지어지면 그 이름은 이 목록에서 빠지고 REGION_SPECS 로 옮겨 간다.
@@ -72,8 +83,10 @@ export const WALKING_FOREST_DOOR = 'WALKING_FOREST_DOOR';
 // C009 CHANGED — 이름 하나가 더 늘었다: 뒤집힌 정원(INVERTED_GARDEN). 심장에서 나가는 문이
 // 그것을 가리키되 그 방은 이 Play 밖이다 (01-spec 확정 5). 그 방을 짓는 Play 가 이름을 가져간다 —
 // RED_EYE_TREE · FANTASY_MAZE 가 그랬듯. 경계는 셋이 된다.
+// C019 CHANGED — ICE_CANYON 도 그렇게 되었다: 이름은 이제 ice-canyon.ts 가 소유하고 이
+// 목록에는 없다. 그 너머 FROST_CANYON 은 frost-canyon.ts 가 소유한다 — 처음부터 지어진 방이라
+// 경계였던 적이 없다. 경계는 셋이 된다 (RED_WASTE · INVERTED_GARDEN · WALKING_FOREST).
 export const RED_WASTE = 'RED_WASTE';
-export const ICE_CANYON = 'ICE_CANYON';
 export const INVERTED_GARDEN = 'INVERTED_GARDEN';
 // C016 ADDED — 걷는 숲. 정식 이름 표에 있되 **그래프 자리가 미정**인 이름이다
 // (L2-World-Region §5.1). 긴 밤에만 열리는 문이 그것을 가리키되 그 방은 이 Cycle 밖이고,
@@ -83,7 +96,6 @@ export const WALKING_FOREST = 'WALKING_FOREST';
 /** 이 Graph 가 경계로 밝힌 이름들 — Description 이 없어도 정합 오류가 아니다 (01-spec SPEC-004) */
 export const FRONTIER_REGIONS: readonly string[] = [
   RED_WASTE,
-  ICE_CANYON,
   INVERTED_GARDEN,
   WALKING_FOREST,
 ];
@@ -123,6 +135,10 @@ export const REGION_GRAPH: RegionGraph = {
     HEART_LAKE,
     FANTASY_MAZE,
     MAZE_HEART,
+    // C019 ADDED — 고개 너머 둘. **배열 끝**에 붙는다 (C003 부터의 어법) — 앞의 열하나의
+    // 자리가 한 칸도 밀리지 않는다.
+    ICE_CANYON,
+    FROST_CANYON,
   ],
   // 어떤 방을 통해 발견되며 세계관상 어디에 속하는가 (L2-World-Region §7 의 사슬).
   // Connectivity(Connector)와도 Spatial Embedding 과도 다른 관계다 — 자식이 부모보다 넓어도 오류가 아니다.
@@ -202,11 +218,18 @@ export const REGION_GRAPH: RegionGraph = {
       direction: 'one-way',
       transition: 'pass',
     },
+    // C019 CHANGED — 고개가 **양방향**이 된다 (spec SPEC-001 · 기본형 ⑥).
+    // Design 은 "고개가 열린다" 만 말하고 돌아오는 길을 따로 적지 않았다. 고개는 넘어갔다
+    // 돌아오는 것이므로 문 둘(C008 의 MAZE_GATE_RETURN 선례)을 세우지 않고 하나를 양방향으로
+    // 두었다 — 문을 둘로 세우면 이 방에 없는 "돌아오는 다른 길" 이 생기고, 백왕령의 출구
+    // 차례에도 한 자리가 더 난다. **배열 자리는 그대로다** — exitsOf 의 결정론이 순서를
+    // 따르므로 옮기지 않았고, 그래서 백왕령의 출구 차례는 한 자리도 바뀌지 않는다
+    // (spec SPEC-001 경계 ②). 바뀐 것은 direction 한 글자뿐이다.
     {
       id: ICE_CANYON_PASS,
       from: { region: WHITE_KING_DOMAIN, anchor: ICE_CANYON_PASS },
       to: { region: ICE_CANYON, anchor: 'WHITE_KING_SIDE' },
-      direction: 'one-way',
+      direction: 'bidirectional',
       transition: 'pass',
     },
     // C003 ADDED — 작은 문 하나와 돌아올 수 없는 길 둘 (01-spec SPEC-003).
@@ -279,6 +302,20 @@ export const REGION_GRAPH: RegionGraph = {
       to: { region: WALKING_FOREST, anchor: 'FOREST_DEEP_SIDE' },
       direction: 'one-way',
       transition: 'door',
+    },
+    // C019 ADDED — 협곡 안쪽으로 드는 오솔길 하나. 얼음 협곡의 북쪽 끝과 빙결 협곡의 남쪽
+    // 끝을 잇는다. **양방향**이다 — 들어간 자리로 나온다 (TREE_INNER_DOOR · MAZE_HEART_GATE 의
+    // 선례). 빙결 협곡에서 나가는 끝은 이 하나뿐이므로(spec SPEC-002 경계 ①) 이것이 없으면
+    // 검사 ⑦(no-exit)이 걸린다.
+    // 종류가 **오솔길(trail)** 인 이유 — Design 에 없다 (spec 기본형 ⑦). 협곡 안으로 난 좁은
+    // 길이므로 일곱 중 그것이 가장 가깝고, 고개(pass)는 넘는 것이라 안쪽으로 드는 데 쓰지
+    // 않았다. 배열 **끝**에 붙는다 — exitsOf 의 결정론이 이 순서를 따른다.
+    {
+      id: FROST_CANYON_TRAIL,
+      from: { region: ICE_CANYON, anchor: FROST_CANYON_TRAIL },
+      to: { region: FROST_CANYON, anchor: 'ICE_CANYON_SIDE' },
+      direction: 'bidirectional',
+      transition: 'trail',
     },
   ],
   frontiers: FRONTIER_REGIONS,

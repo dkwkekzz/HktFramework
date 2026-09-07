@@ -48,12 +48,28 @@ export const SURFACE_SLOPE = 'slope';
 export const SURFACE_STEEP = 'steep';
 /** C006 ADDED — 강 곁의 젖은 땅. 확정 5 의 넷째가 여기서 선다 */
 export const SURFACE_WET = 'wet';
+/**
+ * C019 ADDED — 협곡 골 바닥의 서리 (Play §5.1 · V17 · spec SPEC-003).
+ *
+ * 흙도 젖음도 아닌 넷째 바닥이다 — 고개 너머가 **다른 문법**이라는 것을 바닥 색 하나로
+ * 말한다. 젖음이 강의 선에 매달리듯 이것은 서리의 선에 매달린다 (아래 FROST_TAG).
+ */
+export const SURFACE_FROST = 'frost';
 
 // 편집(op)의 layer · tag 이름 — Description 을 적는 쪽(content/regions/*.ts)과 그것을 읽는
 // 쪽(world 의 판정 · view 의 그림)이 같은 글자를 쓰도록 상수로 둔다. 기반에게는 불투명 문자열이다.
 export const FEATURE_LAYER = 'feature';
 export const RIVER_TAG = 'river';
 export const BRIDGE_TAG = 'bridge';
+/**
+ * C019 ADDED — 서리가 매달리는 선의 tag (강 RIVER_TAG 의 선례 그대로).
+ *
+ * 같은 FEATURE_LAYER 를 쓰되 tag 가 다르므로 강의 선과 섞이지 않는다 — 강을 가진 방에는
+ * 서리 선이 없고, 서리 선을 가진 방에는 강이 없다. **높이를 건드리지 않는 표시선**이다
+ * (profile 을 두지 않는다 · C018 whale-curve 의 선례) — 서리는 땅의 모양이 아니라 그 위에
+ * 앉은 것이므로 파지도 솟지도 않는다.
+ */
+export const FROST_TAG = 'frost';
 export const LANDMARK_LAYER = 'landmark';
 
 /**
@@ -100,6 +116,22 @@ export const RIVER_WATER_DISTANCE = 4;
 export const RIVER_WET_DISTANCE = 6;
 
 /**
+ * 서리 선에서 **서리**로 깔리는 거리 (세계 단위 · 중심선에서 한쪽) — C019 ADDED.
+ *
+ * 8 로 둔다. Design 은 서리의 폭을 어디에도 적지 않았다 (spec 기본형 ③) — 강가 젖음
+ * (RIVER_WET_DISTANCE)의 선례로 **골 바닥과 그 비탈까지 덮고 절벽은 덮지 않는** 값을 골랐다.
+ * 서리는 바닥에 앉고 벽은 맨 얼음바위다.
+ *
+ * 협곡 두 방에서 컴파일해 실측한 값이 근거다 (선은 x = 0 을 따르므로 선까지의 거리는 |x| 다).
+ *   얼음 협곡  급경사가 서는 가장 안쪽 vertex 는 |x| = 9 (골 쪽 마지막 비탈이 |x| = 8)
+ *   빙결 협곡  같은 자리다 — 벽이 더 높아도(20 → 24) 급경사는 |x| = 9 에서 시작한다
+ * 그래서 8 이면 서리가 **급경사 vertex 를 한 칸도 덮지 않고** 골 바닥(|x| ≤ 4)과 비탈
+ * 전부를 덮는다. 9 로 두면 벽의 첫 줄이 서리로 그려져 "화면이 급경사로 그린 자리가 곧
+ * 세계가 막는 자리" (C006 SPEC-006)가 눈으로 어긋난다.
+ */
+export const FROST_SURFACE_DISTANCE = 8;
+
+/**
  * 다리 point 둘레의 통과 반경.
  *
  * 5 로 둔다 — 물의 반폭(4)보다 커야 강을 **가로지르는** 칸줄이 끊기지 않는다. 4 로 두면
@@ -113,15 +145,30 @@ export const BRIDGE_PASS_RADIUS = 5;
 /**
  * 표면 규칙 표 — **배열 순서로 첫 번째로 맞는 것이 이긴다** (evaluateSurface).
  *
- * 젖음이 맨 앞이다 — 강 곁은 경사보다 먼저 젖는다. 그 뒤 셋은 maxSlope 가 "이 값 미만" 이므로
- * 오름차순으로 적고, 마지막 줄만 위를 열어 둔다 — 열린 줄이 앞에 오면 그 뒤는 아무것도 맞지 않는다.
+ * 서리가 맨 앞이고 젖음이 그 다음이다 — 강 곁은 경사보다 먼저 젖고, 협곡 골은 그보다도 먼저
+ * 언다. 그 뒤 셋은 maxSlope 가 "이 값 미만" 이므로 오름차순으로 적고, 마지막 줄만 위를 열어
+ * 둔다 — 열린 줄이 앞에 오면 그 뒤는 아무것도 맞지 않는다.
  *
+ * **서리와 젖음은 한 방에 함께 서지 않는다** (C019) — 서리 선을 가진 방에는 강이 없고 강을
+ * 가진 방에는 서리 선이 없으므로 둘의 앞뒤는 지금 어느 방에서도 답을 바꾸지 않는다. 그래도
+ * 순서를 정해 두는 이유는 하나다: 언젠가 한 방에 둘이 서면 **언 것이 젖은 것을 이겨야** 한다
+ * (서리는 물이 언 것이지 젖은 것이 아니다).
+ *
+ * **서리 선을 가지지 않은 방은 이 줄로 한 값도 달라지지 않는다** (spec SPEC-003 경계) —
+ * nearCurve 가 그 (layer, tag) 곡선을 하나도 찾지 못하면 이 줄은 어느 vertex 에도 맞지
+ * 않고, 백왕령 · 숲 · 미로의 표면 태그는 첫 줄이 없던 때와 글자 하나 다르지 않다.
+ *
+ *   frost   서리    서리 선 중심에서 FROST_SURFACE_DISTANCE 안. 협곡의 골 바닥과 그 비탈
  *   wet     젖음    강 중심에서 RIVER_WET_DISTANCE 안. 물과 그 물가
  *   flat    평지    걸어 다니는 땅. 방의 남쪽과 능선의 기슭이 여기다
  *   slope   비탈    오를 수는 있으나 평평하지 않은 땅. 능선의 허리
  *   steep   급경사  꼭대기 언저리. 여기서부터 몸이 선다 (BLOCK_RULES 의 첫 줄과 같은 임계다)
  */
 export const SURFACE_RULES: readonly SurfaceRule[] = [
+  {
+    tag: SURFACE_FROST,
+    nearCurve: { layer: FEATURE_LAYER, tag: FROST_TAG, maxDistance: FROST_SURFACE_DISTANCE },
+  },
   {
     tag: SURFACE_WET,
     nearCurve: { layer: FEATURE_LAYER, tag: RIVER_TAG, maxDistance: RIVER_WET_DISTANCE },

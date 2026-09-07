@@ -23,6 +23,13 @@
 // 지나는지도 그것이 어느 선을 타는지도 이름으로 알지 못하고, 받은 덧씌움을 철·깨어남의
 // 것과 나란히 놓을 뿐이다 (C017 이 소란에 한 그대로 · 원인이 하나 는 것뿐이다).
 //
+// C019 CHANGED — **원인 없이 걸리는 자리가 하나 났다** (C019 spec R1). 방이 phases.standing 을
+// 밝히면 그 덧씌움은 철도 소란도 지나가는 것도 아니면서 **늘** 걸린다 — 원인이 넷째로 는 것이
+// 아니라 원인을 묻지 않는 자리다. 차례는 **맨 앞**이고(상시 → 철 → 깨어남 → 지나가는 것),
+// 밝히지 않은 방의 답은 이 Cycle 전과 한 글자도 다르지 않다. 그리고 자락이 **관찰자에게 하는
+// 일**을 밝힐 수 있게 되었다 (hazardEffectsAt) — 관찰 범위와 접촉 코드다. 여기는 여전히 그것이
+// 눈보라인지 결정면인지 이름으로 알지 못하고, 자락이 밝힌 수와 글자를 옮길 뿐이다.
+//
 // C017 CHANGED — **방을 바꾸는 원인이 둘이 되었다** (spec R4). 철에 더해 그 방의 **소란**이
 // 위상을 바꾸고, 깨어난 방은 자기가 밝힌 덧씌움(phases.awake)을 철의 것과 **함께** 건다.
 // 형은 C016 의 RegionPhase 그대로다 — 원인이 둘이 되었을 뿐 달라지는 것은 여전히 넷 안이다 (T3).
@@ -35,6 +42,7 @@ import {
   DEPTH_LAYER,
   HAZARD_LAYER,
   regionSpec,
+  type HazardOverlay,
   type RegionPhase,
   type SeasonId,
 } from '../../regions';
@@ -81,13 +89,18 @@ export function regionPhaseAt(regionId: string, time: number): RegionPhase | und
  * RULE-REGION-PHASE-001 (C017 CHANGED · C018 CHANGED · C017 spec R4 · C018 spec R4) —
  * **지금 이 방에 걸린 덧씌움들**.
  *
- * 철의 것 · 깨어남의 것 · **지나는 것의 것**을 함께 낸다. 어느 하나가 다른 것을 지우지
- * 않는다 (R4 경계 ① ②) — 겹침을 어떻게 다루는가는 부르는 쪽이 정한다(깊이는 나중 것이
- * 이기고 위험은 전부 실린다).
+ * **늘 서 있는 것** · 철의 것 · 깨어남의 것 · **지나는 것의 것**을 함께 낸다. 어느 하나가
+ * 다른 것을 지우지 않는다 (R4 경계 ① ②) — 겹침을 어떻게 다루는가는 부르는 쪽이 정한다
+ * (깊이는 나중 것이 이기고 위험은 전부 실린다).
  *
- * 순서는 **철 → 깨어남 → 지나는 것**이다: 나중일수록 깊이의 열쇠가 이긴다.
- * 소란이 없거나(되살린 옛 세계) 잠든 방은 그 자리가 비고, 아무것도 지나지 않으면
- * 셋째 자리가 빈다 — 그때의 답은 C017 · C016 과 한 값도 다르지 않다.
+ * 순서는 **상시 → 철 → 깨어남 → 지나는 것**이다: 나중일수록 깊이의 열쇠가 이긴다.
+ * 상시가 맨 앞인 이유는 그것이 **원인 없이 늘 서 있는 바닥**이기 때문이다 — 철이 오고
+ * 방이 깨어나고 무엇이 지나가는 것은 그 위에 얹히는 일이므로, 겹치면 나중에 온 것이 이긴다
+ * (C019 spec R1).
+ *
+ * 위상을 밝히지 않은 방 · 소란이 없거나(되살린 옛 세계) 잠든 방은 그 자리가 비고,
+ * 아무것도 지나지 않으면 마지막 자리가 빈다 — 그때의 답은 C018 · C017 · C016 과
+ * 한 값도 다르지 않다.
  *
  * 규칙은 무엇이 방을 깨웠는지도 깨어난 방이 무엇을 덧씌우는지도 이름으로 알지 못한다
  * (spec SPEC-005 경계 ④) — 위상이라는 값 하나로 데이터를 한 번 더 짚을 뿐이다.
@@ -101,6 +114,9 @@ function activePhasesAt(
   const phases = regionSpec(regionId)?.phases;
   const active: RegionPhase[] = [];
   if (phases) {
+    // C019 CHANGED (spec R1) — 늘 걸리는 것이 맨 앞이다. 밝히지 않은 방에서는 이 줄이
+    // 아무것도 담지 않으므로 아래 셋의 답이 이 Cycle 전과 한 글자도 다르지 않다.
+    if (phases.standing) active.push(phases.standing);
     const season = phases.seasons?.[seasonAt(time)];
     if (season) active.push(season);
     const awake = disturbance?.phase === 'awake' ? phases.awake : undefined;
@@ -207,6 +223,76 @@ export function hazardOverlayTagsAt(
     if (areaCoversPoint(area.shape, position.x, position.z)) tags.push(...hazards);
   }
   return tags;
+}
+
+/**
+ * RULE-OBSERVE-RANGE-001 · RULE-STANDING-CONTACT-001 (C019 ADDED · C019 spec R2 · R3) —
+ * **선 자리를 덮은 위험 자락들이 밝힌 것**.
+ *
+ * 자락은 지금까지 "여기는 무엇인가" 라는 코드 하나만 밝혔다. 이제 그 자락이 관찰자에게
+ * **하는 일**도 밝힐 수 있다 — 관찰 범위를 좁히는 것(observeRange)과 닿아 있다는 말을
+ * 얹는 것(contact)이다. 둘 다 밝히지 않은 자락은 지금까지와 한 값도 다르지 않다.
+ *
+ * **한 번 훑어 둘을 함께 낸다** — 같은 자락 목록을 두 번 훑으면 한 관찰 안에서 두 물음의
+ * 답이 갈릴 수 있다 (투영이 passingOverlays 를 한 번만 얻는 그 어법 그대로).
+ * 훑는 방식은 hazardOverlayTagsAt 과 **같다**: 컴파일 결과의 area 는 op id 를 잃으므로
+ * 그 방 Description 의 HAZARD_LAYER area 를 op id 로 짚는다.
+ *
+ * 겹침을 다루는 규율이 둘로 갈린다.
+ *   범위    **가장 좁은 것이 이긴다** (R2) — 값 하나만 실리는 자리이므로 전부 낼 수 없고,
+ *           "덜 보이게 하는 쪽" 이 이겨야 자락을 겹쳐 놓는 것이 늘 더 좁아진다.
+ *   접촉    **걸린 것이 전부 실린다** (R3) — 목록이므로 하나로 줄이지 않는다. 순서는
+ *           Description 의 ops 차례다 (결정론 · 위험의 코드가 실리는 그 순서 그대로).
+ *
+ * 낮과 밤 중 어느 수를 읽을지는 **부르는 쪽이 준다** (night). 여기는 시계를 읽지 않는다 —
+ * 때를 아는 자리는 clock.ts 하나이고, 이 함수는 자락이 밝힌 두 수 중 하나를 고를 뿐이다.
+ * 그 값과 때가 주는 범위(밤 20 · C015) 중 어느 쪽이 이기는지는 투영이 정한다 (R2).
+ *
+ * 규칙은 그것이 눈보라인지 결정면인지 알지 못한다 — 자락이 밝힌 수와 글자를 옮길 뿐이다.
+ */
+export function hazardEffectsAt(
+  regionId: string,
+  position: WorldPosition,
+  time: number,
+  disturbance: RegionDisturbanceState | undefined,
+  passing: readonly RegionPhase[],
+  night: boolean,
+): { observeRange?: number; contacts: string[] } {
+  const overlay = activePhasesAt(regionId, time, disturbance, passing).flatMap(
+    (phase) => phase.hazardExtend ?? [],
+  );
+  if (overlay.length === 0) return { contacts: [] };
+  const spec = regionSpec(regionId);
+  if (!spec) return { contacts: [] };
+
+  // op id → 그 area 가 밝힌 것들. 같은 area 를 여럿이 함께 밝히면 **전부** 모인다
+  // (위험의 코드가 그런 것과 같은 규율) — 줄이는 것은 아래에서 규율대로 한다.
+  const byOp = new Map<string, HazardOverlay[]>();
+  for (const entry of overlay) {
+    const list = byOp.get(entry.areaId);
+    if (list) list.push(entry);
+    else byOp.set(entry.areaId, [entry]);
+  }
+
+  let observeRange: number | undefined;
+  const contacts: string[] = [];
+  for (const area of areasOf(spec.space, HAZARD_LAYER)) {
+    const entries = byOp.get(area.id);
+    if (entries === undefined) continue;
+    if (!areaCoversPoint(area.shape, position.x, position.z)) continue;
+    for (const entry of entries) {
+      const range = entry.observeRange;
+      if (range !== undefined) {
+        const value = night ? range.night : range.day;
+        // 가장 좁은 것이 이긴다 (R2) — 밝히지 않은 자락은 여기에 들어오지 않으므로
+        // 아무것도 좁히지 않는다.
+        if (observeRange === undefined || value < observeRange) observeRange = value;
+      }
+      // 걸린 것이 전부 실린다 (R3). 밝히지 않은 자락은 한 글자도 늘리지 않는다.
+      if (entry.contact !== undefined) contacts.push(entry.contact);
+    }
+  }
+  return observeRange === undefined ? { contacts } : { observeRange, contacts };
 }
 
 /**
