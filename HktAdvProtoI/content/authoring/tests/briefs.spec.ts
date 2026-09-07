@@ -136,7 +136,9 @@ describe('T2 — 모르는 것은 미답으로 남아 있다 (지어내지 않�
     expect(domain.answers.worth.sources).toEqual([]);
     expect(isUnanswered(domain.answers.worth.said)).toBe(false);
 
-    const silent = briefs.get('PREDATOR_NEST')!;
+    // C014 CHANGED — 견줄 상대가 바뀌었다. 포식수 둥지는 이 Cycle 이 원천을 세우면서
+    // 답한 방이 되었으므로, 아직 **모르는** 쪽의 보기는 재료 계통이 닿지 않은 채로 남은 방이다.
+    const silent = briefs.get('TREE_INNER_WORLD')!;
     expect(silent.answers.worth.sources).toEqual([]);
     expect(isUnanswered(silent.answers.worth.said)).toBe(true);
   });

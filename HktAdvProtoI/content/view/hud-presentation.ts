@@ -5,7 +5,7 @@
 // 세계의 사실(깊이 · 안전한 이유 · 압력)은 판이 진다 — 같은 사실이 두 자리에 적히지 않는다.
 // 그 셋의 이름표는 판의 표(target-frame-presentation 의 PLACE_ROW_LABELS)가 이미 갖고 있다.
 
-import { BIO_ORE, ORE_EATER_MOLT } from '../regions/index';
+import { BIO_ORE, GIANT_TREE_FUNGUS, ORE_EATER_MOLT } from '../regions/index';
 import { codeText } from './code-text';
 
 export interface HudPresentation {
@@ -25,6 +25,9 @@ const HUD: Record<string, HudPresentation> = {
   // 손에 무엇이 들어왔는지가 그 순간에 읽혀야 한다 (Observable Result ⑦).
   [`inventory.${BIO_ORE}`]: { label: codeText(BIO_ORE), celebrateGain: true },
   [`inventory.${ORE_EATER_MOLT}`]: { label: codeText(ORE_EATER_MOLT), celebrateGain: true },
+  // C014 ADDED — 세 번째 재료. 앞의 둘과 한 줄도 다르지 않다: 이름은 code-text 의 것이고
+  // 아이콘은 없으며, 캤을 때 그 순간에 읽힌다
+  [`inventory.${GIANT_TREE_FUNGUS}`]: { label: codeText(GIANT_TREE_FUNGUS), celebrateGain: true },
   'tool.hasMiningTool': { label: '곡괭이' },
   'player.action': { label: '행동' },
   'world.time': { label: '세계 시간', format: (v) => `${Math.floor(Number(v))}s` },

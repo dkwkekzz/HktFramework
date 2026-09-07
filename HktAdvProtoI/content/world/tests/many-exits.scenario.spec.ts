@@ -7,7 +7,7 @@
 import { describe, expect, it } from 'vitest';
 import { checkGraph } from '../../../engine/world-authoring/check';
 import type { GameViewSnapshot } from '../../protocol/gameview';
-import { ANCHOR_LAYER, REGION_GRAPH, REGION_SPECS } from '../../regions';
+import { ANCHOR_LAYER, REGION_GRAPH, REGION_SPECS, regionSpec } from '../../regions';
 import { createWorld, restoreWorld } from '../index';
 import { INTERACTION_RANGE, STATE_VERSION, TICK_INTERVAL, type WorldState } from '../semantic/world-state';
 import { driveWorld, OBSERVER, OBSERVER_2, PLAYER, PLAYER_2, type WorldDriver } from './drive';
@@ -225,12 +225,17 @@ describe('S-002 (SPEC-001 경계) — 새 방 넷에 초기 배치가 놓이지 
   // C011 CHANGED — 광맥은 더 이상 초기 배치가 아니다. 캘 것은 방이 **낳는** 것이고
   // (content/regions 의 resourceEcology) 그래서 이 넷 가운데 둘에는 이제 원천이 서 있다.
   // 이 Cycle 이 뒤집은 것은 "무엇이 놓였는가" 가 아니라 **누가 놓는가** 다.
+  // C014 CHANGED — 이제 넷 다 원천을 낳는다 (숲 깊은 곳의 어귀 · 둥지의 균사가 섰다).
+  // 백왕령만은 여전히 하나도 없고, 그것이 이 경계가 묻는 것이다.
   it('캘 것은 State 가 아니라 방의 데이터에서 온다 — 백왕령에는 하나도 없다', () => {
     expect(sourcesInRegion(WHITE_KING_DOMAIN).length).toBe(0);
-    expect(sourcesInRegion(EXPLORER_RUIN).length).toBe(1);
-    expect(sourcesInRegion(BIO_ORE_FIELD).length).toBe(1);
-    expect(sourcesInRegion(FOREST_DEEP).length).toBe(0);
-    expect(sourcesInRegion(PREDATOR_NEST).length).toBe(0);
+    for (const id of [EXPLORER_RUIN, BIO_ORE_FIELD, FOREST_DEEP, PREDATOR_NEST]) {
+      const declared = (regionSpec(id)?.resourceEcology?.sources ?? []).map((one) => one.id);
+      expect({ id, stood: sourcesInRegion(id).map((one) => one.id) }).toEqual({
+        id,
+        stood: declared,
+      });
+    }
   });
 });
 
@@ -665,8 +670,9 @@ describe('S-020 (SPEC-008 경계) — 막다른 방 셋에는 남의 몸이 없�
   // 이 경계가 원래 묻던 것은 **다른 방의 것이 새어 오지 않는가** 이고 그것은 그대로다.
   it('셋 다 관찰자 자신 + 출구 + 그 방이 낳는 원천뿐이다', () => {
     for (const [region, exitCount, sourceCount] of [
+      // C014 CHANGED — 둥지도 이제 자기 원천 하나를 낳는다 (사슬의 부산물)
       [EXPLORER_RUIN, 1, 1],
-      [PREDATOR_NEST, 1, 0],
+      [PREDATOR_NEST, 1, 1],
       [BIO_ORE_FIELD, 2, 1],
     ] as const) {
       const v = rooms()[region]!;

@@ -778,8 +778,10 @@ describe('SPEC-005 매달린 것이 available 이 아니면 진행이 멎는다'
     );
   });
 
-  it('S-052 (경계 ①) 뿌리혹은 매달린 것이 없으므로 제 길이대로 돌아온다', () => {
-    expect(dependsOn(ROOT_NODULE)).toBeUndefined();
+  it('S-052 (경계 ① · C014 CHANGED) 매달린 것이 available 이면 뿌리혹은 제 길이대로 돌아온다', () => {
+    // C013 에서 뿌리혹은 매달린 것이 없었다 — 그 자리를 C014 가 채웠다(균사 → 뿌리혹 → 노두).
+    // 이 경계가 원래 묻던 것은 "멎지 않은 원천은 제 길이대로 오는가" 이고, bothSpent 는
+    // 뿌리혹과 노두만 고갈시키므로 균사는 available 이다 — 그래서 뿌리혹은 여전히 멎지 않는다.
     const world = bothSpent();
     wait(world, recoveryOf(ROOT_NODULE));
     expect(phaseOf(world, ROOT_NODULE).phase).toBe(AVAILABLE);
@@ -1156,7 +1158,10 @@ describe('SPEC-010 건드리지 않은 것은 그대로다', () => {
     mineUntilDepleted(world, MOLT_LITTER);
     wait(world, visibleAt(MOLT_LITTER));
     // Then 백왕령에는 이 계통이 한 자락도 없다
-    expect(regionSpec(WHITE_KING_DOMAIN)?.resourceEcology).toBeUndefined();
+    // C014 CHANGED — 백왕령은 이제 **원천 없는** resourceEcology 하나를 든다. 왜 이 계통이
+    // 들어오지 않는지를 그 방이 스스로 밝히기 위해서다 (C014 확정 5 · 검사 ㉒).
+    // 이 경계가 묻던 것은 "이 계통이 한 자락도 없는가" 이므로 원천이 0 인가로 잰다.
+    expect(regionSpec(WHITE_KING_DOMAIN)?.resourceEcology?.sources ?? []).toEqual([]);
     expect(areasOf(spaceOf(WHITE_KING_DOMAIN), TRACE_LAYER)).toEqual([]);
     expect(pointsOf(spaceOf(WHITE_KING_DOMAIN), RESOURCE_LAYER)).toEqual([]);
     expect(curvesOf(spaceOf(WHITE_KING_DOMAIN), PRESENCE_LAYER, 'root')).toEqual([]);

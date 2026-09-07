@@ -32,6 +32,7 @@ import {
   CONDITION_RIDGE,
   CONDITION_RIVER,
   CONDITION_TREE,
+  DEEP_TRAIL,
   EXPLORER_RUIN,
   FEATURE_LAYER,
   FOREST_DEEP,
@@ -78,8 +79,15 @@ const FOUR = [
   { id: ROOT_NODULE, region: RED_EYE_TREE, material: BIO_ORE, form: FORM_ROOT_NODULE },
 ] as const;
 
-/** 이 계통이 닿지 않는 방들 (SPEC-001 · SPEC-003 경계) */
-const BARREN = [WHITE_KING_DOMAIN, FOREST_DEEP, PREDATOR_NEST, HEART_LAKE] as const;
+/**
+ * 이 계통이 닿지 않는 방 (SPEC-001 · SPEC-003 경계).
+ *
+ * C014 CHANGED — C011 때는 넷이었다. 그 뒤 셋(숲 깊은 곳의 어귀 · 둥지의 균사 ·
+ * 호수 바닥의 침전)에 원천이 섰고, 이제 이 계통이 닿지 않는 방은 **백왕령 하나**다 —
+ * 그리고 그것은 결핍이 아니라 백왕령이 안전한 이유와 같은 조건이다 (Play 확정 5).
+ * 이 경계가 원래 묻던 것("원천 없는 방에 원천이 실리지 않는가")은 그대로 남는다.
+ */
+const BARREN = [WHITE_KING_DOMAIN] as const;
 
 /** 채취의 소요 시간 — 행동표가 소유한다. 여기서는 "넉넉히 지난다" 로만 쓴다 */
 const MINE_SECONDS = 1.2;
@@ -319,14 +327,18 @@ describe('SPEC-003 흔적이 방을 건너 짙어진다', () => {
 });
 
 describe('SPEC-004 흔적이 방 안에서도 방향을 준다', () => {
-  it('S-041 ① 숲 깊은 곳 — 광석 지대 쪽과 거목 쪽 출구 둘레가 둥지 쪽보다 짙다', () => {
-    const ore = traceAt(FOREST_DEEP, anchorAt(FOREST_DEEP, ORE_TRAIL));
-    const tree = traceAt(FOREST_DEEP, anchorAt(FOREST_DEEP, TREE_APPROACH));
-    const nest = traceAt(FOREST_DEEP, anchorAt(FOREST_DEEP, NEST_TRAIL));
-    expect(ore).toBeGreaterThan(nest);
-    expect(tree).toBeGreaterThan(nest);
-    // And 둥지 쪽은 짙어지지 않는다 — 그 방 바닥 그대로다
-    expect(nest).toBe(floorTrace(FOREST_DEEP));
+  it('S-041 ① (C014 CHANGED) 숲 깊은 곳 — 안쪽 출구 셋 둘레가 그 방 바닥보다 짙다', () => {
+    // C011 때 둥지 쪽은 짙어지지 않았다 — 그 방향의 원천(둥지의 균사)이 아직 없었기 때문이고,
+    // 없는 방향을 미리 가리키지 않는 것이 그때의 판단이었다. C014 가 그 원천을 세웠으므로
+    // 세 방향 다 원천을 가리킨다. 이 경계가 묻던 것("흔적이 방 안에서도 방향을 주는가")은
+    // 그대로다 — 바깥쪽(숲 가장자리로 돌아가는 길)은 여전히 방 바닥 그대로여야 한다.
+    const floor = floorTrace(FOREST_DEEP);
+    for (const tag of [ORE_TRAIL, TREE_APPROACH, NEST_TRAIL]) {
+      const here = traceAt(FOREST_DEEP, anchorAt(FOREST_DEEP, tag));
+      expect({ tag, deeper: here > floor }).toEqual({ tag, deeper: true });
+    }
+    // And 바깥쪽 출구는 짙어지지 않는다 — 그 방 바닥 그대로다
+    expect(traceAt(FOREST_DEEP, anchorAt(FOREST_DEEP, DEEP_TRAIL))).toBe(floor);
   });
 
   it('S-042 ② 원천 넷은 저마다 자기 방 바닥보다 짙은 자리 위에 서 있다', () => {
