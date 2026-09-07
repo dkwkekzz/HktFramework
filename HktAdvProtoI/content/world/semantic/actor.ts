@@ -15,6 +15,8 @@
 //   Facing 은 몸이 향한 방향 (R1) — 이동이 갱신하고, 휘두름 충돌체가 나가는 쪽이다.
 // C001 변경: WorldPosition 은 regionId + (x, z) 다 — 몸은 어느 방에 서 있는지를 가진다.
 //   ADDED   RegionId — RULE-REGION-TRANSIT-001 만이 바꾼다. 좌표는 그 Region 의 Local Space 다.
+// C017 변경: 몸이 지나가면 땅에 자국이 남는다 (RULE-TRACK-001).
+//   ADDED   DistanceSinceTrack — 마지막 자국 뒤로 걸은 거리. 표본 간격에 닿으면 자국 하나가 난다.
 
 import type { CurrentAction } from './action';
 import type { MoveMode } from './combat';
@@ -63,6 +65,16 @@ export interface ActorState {
    * RULE-MAZE-CONNECTION-001 하나뿐이다 — 통로 규칙을 아는 것은 그 규칙뿐이다.
    */
   movedThisTick: number;
+  /**
+   * 마지막 자국 뒤로 걸은 거리 (C017 ADDED · spec State · RULE-TRACK-001).
+   *
+   * **저장된다.** movedThisTick 이 이번 tick 하나의 사실이라 저장되지 않는 것과 갈린다 —
+   * 이 값은 여러 tick 에 걸쳐 쌓이므로 껐다 켠 세계가 이어서 세야 한다.
+   *
+   * 표본 간격(TRACK_STEP_DISTANCE)에 닿으면 자국 하나가 나고 0 으로 돌아간다.
+   * **방을 건너도 이어진다** (spec R5 경계 ②) — 걸은 거리는 몸의 것이고, 자국은 선 방에 난다.
+   */
+  distanceSinceTrack: number;
   inventory: Inventory;
   currentAction: CurrentAction;
 }

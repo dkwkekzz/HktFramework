@@ -18,6 +18,13 @@
 // 원천은 그 철에만 실린다. **어느 철에 무엇이 달라지는지는 싣지 않는다** — 관찰자는 같은 방에
 // 여러 철에 와 보고 그것을 배운다 (spec Observable · T8).
 //
+// C017 CHANGED (RULE-OBSERVE-PROJECTION · spec R8) — **여럿이 있었다는 것이 실린다.** 그 방의
+// 소란(값 · 임계 · 위상)이 **늘** 실리고(규칙 있는 방에만 실리는 region.state 와 갈린다), 그 방에
+// 남은 자국이 목록으로 실린다. 무엇이 소란을 올렸는지 · 무엇이 방을 깨웠는지 · 누가 자국을
+// 남겼는지는 어디에도 없다 (spec R8 경계 ②) — 관찰자는 값과 자국을 보고 그것을 읽는다.
+// 자국은 **밤에도 잘리지 않는다** (기본형 ⑥) — 밤이 자르는 것은 몸과 원천이고, 자국은 땅에
+// 난 것이라 흙의 흔적과 같은 갈래다.
+//
 // C015 CHANGED (RULE-OBSERVE-PROJECTION · spec R2) — 때가 밤이면 그 방 안을 한 번 더 자른다.
 // 관찰자의 몸에서 OBSERVE_RANGE_NIGHT 보다 먼 **몸과 원천**은 실리지 않고 그것에 걸린
 // 상호작용도 함께 빠진다. 낮에는 C014 까지와 한 줄도 다르지 않고, 밤에도 출구 · 방의 사실 ·
@@ -27,7 +34,9 @@ import type {
   EntityView,
   GameViewSnapshot,
   InteractionView,
+  RegionDisturbanceView,
   RegionStateView,
+  TrackView,
 } from '../../protocol/gameview';
 import { actionProgress, actionTargetId } from '../semantic/action';
 import { worldClockAt } from '../semantic/clock';
@@ -65,6 +74,7 @@ import { conditionTagsAt } from '../semantic/terrain';
 import { distance } from '../semantic/position';
 import {
   actorOfObserver,
+  DISTURBANCE_THRESHOLD,
   findObserver,
   isAttended,
   OBSERVE_RANGE_NIGHT,
@@ -356,6 +366,27 @@ export function projectObserverView(
   // 규칙 없는 방에서는 자리 자체가 없다 — 0 으로 지어내지 않는다 (SPEC-007 경계).
   // 임계값(pressureLimit)을 함께 싣는 것은 "얼마나 찼는가" 를 View 가 재기 위해서다.
   // 패턴 표는 싣지 않는다 — 관찰자가 자기 content/regions 에서 읽는다.
+  // C017 ADDED — 그 방의 소란. **모든 방에 있다** (spec 기본형 ⑩) — 되살린 옛 세계에만 없을 수
+  // 있으므로 물음표로 읽고, 없으면 아무 일도 겪지 않은 것과 같이 낸다 (없는 값을 지어내는 것이
+  // 아니라 State 가 없다는 것이 곧 값 0 · 잠듦이다).
+  const disturbance = state.regionStates[self.regionId]?.disturbance;
+  const disturbanceView: RegionDisturbanceView = {
+    value: disturbance?.value ?? 0,
+    // 임계를 함께 싣는 것은 "얼마나 찼는가" 를 View 가 재기 위해서다 (pressureLimit 의 선례).
+    threshold: DISTURBANCE_THRESHOLD,
+    phase: disturbance?.phase ?? 'dormant',
+  };
+
+  // C017 ADDED — 그 방의 자국들 (RULE-TRACK-001 · spec R8). 관찰은 방으로 잘리므로 목록 자체가
+  // 그 방의 것이고, 하나도 없으면 빈 배열이다. **밤에 잘리지 않는다** (기본형 ⑥) —
+  // withinNightRange 를 여기서 묻지 않는 것이 그 말이다. 순서는 난 순서 그대로다 (결정론).
+  // 누가 남겼는지도 나이도 싣지 않는다 — 난 시각만 싣고 "얼마나 됐는가" 는 관찰자가 잰다.
+  const tracks: TrackView[] = (state.regionStates[self.regionId]?.tracks ?? []).map((track) => ({
+    at: { x: track.position.x, z: track.position.z },
+    heading: { x: track.heading.x, z: track.heading.z },
+    since: track.at,
+  }));
+
   const regionRule = regionRuleOf(self.regionId);
   // C012 CHANGED — 방의 State 가 규칙과 원천을 함께 든다. 여기가 싣는 것은 규칙 쪽뿐이다.
   const regionRuleState = state.regionStates[self.regionId]?.rule;
@@ -433,7 +464,9 @@ export function projectObserverView(
       {
         id: 'region.depth',
         kind: 'label',
-        value: depthOverlayAt(self.regionId, self.position, state.time) ?? region.depth,
+        // C017 CHANGED — 철의 덧씌움과 **깨어남의 덧씌움**을 함께 본다 (spec R4).
+        value:
+          depthOverlayAt(self.regionId, self.position, state.time, disturbance) ?? region.depth,
       },
     ],
     // 관찰자의 몸이 선 Region — hash 는 Description 에서 결정적으로 나온다 (C001 R6).
@@ -441,6 +474,10 @@ export function projectObserverView(
       id: self.regionId,
       hash: regionHash(self.regionId),
       ...(regionStateView ? { state: regionStateView } : {}),
+      // 그 방의 소란 — **늘 실린다** (C017 ADDED · spec 기본형 ⑩). state? 와 갈리는 유일한
+      // 자리이고, 갈리는 이유는 하나다: 소란은 그 방이 무엇을 품었는지와 무관하게 어느 방에나
+      // 있는 값이다. 무엇이 그것을 올렸는지도 무엇이 방을 깨웠는지도 싣지 않는다.
+      disturbance: disturbanceView,
     },
     // RULE-SAFEBY-001 (C006 R4) — 몸이 선 자리에 걸린 안전의 조건들.
     // 매 관찰마다 그 방의 땅에서 유도된다 — 세계 State 에는 없다. 아무 area 에도 들지 않았으면
@@ -453,8 +490,11 @@ export function projectObserverView(
     // 겹치면 걸린 것이 전부 실린다 (C006 의 경계 그대로).
     standingConditions: [
       ...conditionTagsAt(self.regionId, self.position),
-      ...hazardOverlayTagsAt(self.regionId, self.position, state.time),
+      // C017 CHANGED — 깨어남의 위험 코드가 철의 것과 **함께** 실린다 (spec R4 경계 ②).
+      ...hazardOverlayTagsAt(self.regionId, self.position, state.time, disturbance),
     ],
+    // 그 방에 남은 자국들 (C017 ADDED · RULE-TRACK-001 · spec R8).
+    tracks,
     // World.Clock — 세계의 때 (C015 ADDED · RULE-WORLD-CLOCK-001 · spec Observable).
     // 세계에 하나이고 관찰자마다 같다. 세계 시각 자체도, 철이 언제 시작하고 끝나는지도,
     // 남은 시간도 다음 철도 여기 없다 — 「때」와 「철」 두 줄의 **문구**를 만드는 것도

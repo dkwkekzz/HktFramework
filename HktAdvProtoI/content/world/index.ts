@@ -32,6 +32,7 @@ import { ruleActionProgress } from './simulation/action-progress';
 import { ruleBodyMomentum } from './simulation/body-momentum';
 import { ruleBodyPush } from './simulation/body-push';
 import { ruleCpRunDrain } from './simulation/cp-run-drain';
+import { ruleDisturbanceDecay } from './simulation/disturbance';
 import { ruleMazeConnection } from './simulation/maze-connection';
 import { ruleMoveProgress } from './simulation/move-progress';
 import { ruleNpcDecideAll } from './simulation/npc-decide';
@@ -40,6 +41,7 @@ import { ruleSeasonTurn } from './simulation/season-turn';
 import { ruleSourceRecovery } from './simulation/source-recovery';
 import { ruleStrikeEventExpire } from './simulation/strike-event-expire';
 import { ruleSwingStrike } from './simulation/swing-strike';
+import { ruleTrackFade, ruleTrackLay } from './simulation/track';
 
 export type { World } from '../../engine/world-kernel/kernel';
 
@@ -170,10 +172,20 @@ const SYSTEMS: WorldContent<WorldState>['systems'] = [
   // 걸음이 그 방의 압력이 된다 — move-progress 가 적은 movedThisTick 을 바로 뒤에서 읽는다.
   // 다른 무엇이 자리를 건드리기 전이고, 관찰(투영)보다는 당연히 앞이다 (C008 spec R1 Priority).
   (state) => ruleMazeConnection(state), // RULE-MAZE-CONNECTION-001
+  // 자국도 걸음 바로 뒤다 — 미로의 압력 곁이다 (C017 spec R10). 같은 tick 의 movedThisTick 을
+  // 읽어야 하고, 다른 무엇이 자리를 건드리기 전이어야 자국이 **지나온 자리**에 난다.
+  // 압력과 나란히 서지만 둘은 서로를 모른다: 걸음은 압력만 올리고 소란은 올리지 않는다
+  // (C017 spec R9 · RuleBoundRoom 확정 1 — 미로의 압력은 한 줄도 바뀌지 않는다).
+  (state) => ruleTrackLay(state), // RULE-TRACK-001
   // 세계 과정끼리 나란히 선다 (C013 spec R10 · C016 spec R10) — 뒤척임도 되돌아옴도
   // 관찰자와 무관하게 돈다. 뒤척임이 되돌아옴보다 **앞**인 이유: 뒤척인 뒤의 진행은
   // 그 Tick 부터 새로 오른다 (되돌아옴이 먼저 오르면 곧바로 0 으로 지워져 한 Tick 이 헛돈다).
   (state) => ruleSeasonTurn(state), // RULE-SEASON-TURN-001
+  // 소란의 가라앉음과 위상, 그리고 자국의 옅어짐은 **뒤척임 뒤**다 (C017 spec R10) —
+  // 뒤척인 뒤의 값은 그 Tick 부터 새로 굴러가고, 뒤척임이 묻은 방에는 볼 자국이 이미 없다.
+  // 가라앉음이 위상 판정을 함께 부르는 이유: 그 Tick 에 0 에 닿은 방이 그 Tick 에 잠들어야 한다.
+  (state, dt) => ruleDisturbanceDecay(state, dt), // RULE-DISTURBANCE-DECAY-001 + -PHASE-001
+  (state) => ruleTrackFade(state), // RULE-TRACK-FADE-001
   // 채취의 완료(action-progress)보다 **앞**이다: 같은 Tick 에 캔 것이 곧바로 되돌아오지 않는다.
   (state, dt) => ruleSourceRecovery(state, dt), // RULE-SOURCE-RECOVERY-001
   (state, dt) => ruleActionProgress(state, dt), // RULE-ACTION-PROGRESS-001

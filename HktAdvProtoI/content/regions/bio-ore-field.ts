@@ -7,6 +7,12 @@
 // 자국이 묻히고 노두가 뿌리의 다음 마디로 옮겨 선다. 땅은 한 값도 달라지지 않는다 —
 // 옮겨 서는 것은 원천이고 마디는 C013 이 놓은 그 곡선 그대로다 (T6).
 
+// C017 ADDED — 이 방이 **깨어난다** (phases.awake). 여럿이 함께 캐서 소란이 임계에 닿으면
+// 노두가 선 그 자락이 한 단계 깊게 읽히고 위험이 함께 답해진다 — 캐는 자리가 곧 깨우는
+// 자리이고 깨어난 자리가 곧 위험해지는 자리다 (Concept §6). 땅은 여전히 한 값도 달라지지
+// 않는다: 깨어남도 컴파일 결과 **위**의 덧씌움이다 (T4 · T6).
+
+import { DEPTH_LAYER, HAZARD_LAYER } from './phases';
 import type { RegionSpec } from './spec';
 import { ANCHOR_LAYER } from './spec';
 import {
@@ -161,6 +167,35 @@ export const BIO_ORE_FIELD_SPEC: RegionSpec = {
         tag: 'ORE_OUTCROP',
         shape: { kind: 'circle', center: { x: 12, z: 10 }, radius: 2 },
       },
+      // ── C017 ADDED — 깨어남에 달라지는 자락 ────────────────────────────────
+      //
+      // 자락은 **노두가 선 뿌리 쪽**, 곧 마디 0 (8, -6) 둘레다. 반지름 7 은 C011 이 그 자리의
+      // 흔적 원에 쓴 값 그대로다 — 캐러 서는 자리가 곧 그 자락 안이다.
+      //
+      // **깊이와 위험이 같은 자락이다** (Concept §6 · 이 방에서는 §5.5) — 캐는 자리가 곧
+      // 깨우는 자리이고, 깨어난 자리가 곧 위험해지는 자리다. 자리를 나누면 "깊어졌다" 와
+      // "위험하다" 가 두 곳에서 오는 두 사실이 되어 버린다 (C016 이 숲 경계부에 세운 그 어법).
+      //
+      // 이 두 area 는 **캐기 전의 붕괴 자리(C012) · 철의 덧씌움(C016)과 같은 성격**이다:
+      // 컴파일 결과를 한 값도 바꾸지 않고(높이도 표면도 통행도 그대로 — 표면·막힘·통과 규칙은
+      // feature layer 만 읽고 이 둘은 profile 이 없다) 소란이 그 위에 State 를 덧씌울 뿐이다.
+      // 어느 위상에 무엇으로 읽히는가는 아래 phases.awake 만이 안다.
+      //
+      // 태그는 둘러싼 것의 이름이다 — 붕괴 area 가 원천 이름을 다는 어법 그대로 (C012 · C016).
+      {
+        id: 'depth-ore-outcrop',
+        kind: 'area',
+        layer: DEPTH_LAYER,
+        tag: 'ORE_OUTCROP',
+        shape: { kind: 'circle', center: { x: 8, z: -6 }, radius: 7 },
+      },
+      {
+        id: 'hazard-ore-outcrop',
+        kind: 'area',
+        layer: HAZARD_LAYER,
+        tag: 'ORE_OUTCROP',
+        shape: { kind: 'circle', center: { x: 8, z: -6 }, radius: 7 },
+      },
     ],
   },
   // 핵심부의 Risk — 깊은 자리일수록 위험이 함께 온다 (Concept §6 위험과 보상의 동근원).
@@ -219,6 +254,23 @@ export const BIO_ORE_FIELD_SPEC: RegionSpec = {
    * 캐지 않았어도 옮긴다 — 뒤척임은 관찰자와 무관한 세계의 일이다.
    */
   phases: {
+    /**
+     * **깨어난 이 방**이 달라지는 것 (C017 ADDED · spec SPEC-005 · 기본형 ⑨).
+     *
+     * 셋이 함께 캐야 넘는 임계다 — 넘으면 노두가 선 그 자락이 한 단계 깊게 읽히고 그 자리의
+     * 위험이 답해진다. 방은 wild 이므로 한 단계 깊은 값은 어휘 다섯의 다음 칸인 deep 이다
+     * (civil · outer · wild · **deep** · abyss · Concept §3.2).
+     *
+     * 갈래는 어휘 일곱 안의 하나다 (content/authoring/contracts.ts 의 HAZARD_KINDS). 캐는
+     * 소리에 살아 있는 것이 모여드는 자리다 — 깊어지는 것과 같은 근원이다 (Concept §6).
+     * 이 폴더는 그 파일을 읽지 않으므로(경계 규칙 4) 글자로 적는다 — 흔적 태그와 같은 어법.
+     *
+     * 철별 덧씌움(seasons)은 여전히 밝히지 않는다 — 이 방은 철이 아니라 **소란**에 달라진다.
+     */
+    awake: {
+      depthOverlay: [{ areaId: 'depth-ore-outcrop', depth: 'deep' }],
+      hazardExtend: [{ areaId: 'hazard-ore-outcrop', hazard: 'hazard/creature' }],
+    },
     onTurn: {
       // 이 방에 남은 자국 — 캔 횟수 · 되돌아옴의 진행 · 무너진 마디
       burySigns: true,

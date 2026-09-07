@@ -12,6 +12,11 @@
 // 컴파일 결과는 이 State 가 바뀌어도 한 값도 바뀌지 않는다 (spec R3 · SPEC-006 경계) —
 // 열림/닫힘은 컴파일된 area 위에 State 가 덧씌워진 것이지 땅이 다시 만들어지는 것이 아니다.
 //
+// C017 CHANGED — 방 하나의 State 에 **소란**과 **자국**이 함께 선다. 소란은 rule? · sources? 와
+// 갈려 **모든 방에 자리를 가진다** (물음표가 없다 · spec 기본형 ⑩) — 그 방이 무엇을 품었는지와
+// 무관하게 어느 방에나 있는 값이기 때문이다 (Time §2.5). 그래서 지금까지 State 자체가 없던
+// 방(백왕령)에도 State 가 생긴다. 자국은 있을 때만 자리를 가진다 (하나도 없으면 자리가 없다).
+//
 // C012 CHANGED — 방 하나의 State 가 규칙과 원천을 **함께** 든다 (RegionState). 규칙은 통로의
 // 열림/닫힘을 들고, 원천은 "몇 번 캤고 고갈되었는가" 를 든다. 둘 다 세계가 겪은 일의 결과이므로
 // 저장되고, 둘 다 **없는 방에는 자리 자체가 없다** — 규칙 없는 방에 rule 을, 원천 없는 방에
@@ -20,7 +25,7 @@
 import { tagsAt } from '../../../engine/world-authoring/query';
 import { REGION_SPECS, regionSpec, type RegionSpec } from '../../regions';
 import type { WorldPosition } from './position';
-import { RECOVERY_VISIBLE_FRACTION } from './world-state';
+import { DISTURBANCE_THRESHOLD, RECOVERY_VISIBLE_FRACTION } from './world-state';
 import {
   inflowOf,
   nextStandableSite,
@@ -73,16 +78,98 @@ export interface ResourceSourceState {
 }
 
 /**
- * 방 하나가 기억하는 것 (C012 CHANGED) — 규칙과 원천을 함께 든다.
+ * 그 방의 **소란** (C017 ADDED · spec State · RULE-DISTURBANCE-001).
  *
- * 둘 다 있을 수도, 하나만 있을 수도, 둘 다 없을 수도 있다. 없는 것은 자리가 없다 —
- * 규칙 없는 방의 rule 도 원천 없는 방의 sources 도 지어내지 않는다.
+ * 그 방 안의 몸들이 한 일이 쌓이는 값이다 — 누가 했는지는 묻지 않는다 (미로의 압력의 선례).
+ * 값은 0 이상 임계 이하이고(spec 기본형 ①), 위상은 그 값이 임계에 닿거나 0 에 닿을 때만
+ * 갈린다 (RULE-DISTURBANCE-PHASE-001 이 유일한 판정 자리다).
+ *
+ * **위상은 값에서 유도되지 않는다** — 임계에서 깨어난 방은 값이 임계 아래로 내려가도
+ * 0 에 닿기 전까지 깨어남 그대로다 (spec 기본형 ②). 그래서 함께 저장한다.
+ */
+export interface RegionDisturbanceState {
+  /** 쌓인 소란 — 0 이상 DISTURBANCE_THRESHOLD 이하 */
+  value: number;
+  /** 그 방의 지금 위상 */
+  phase: 'dormant' | 'awake';
+}
+
+/**
+ * 땅에 남은 **자국** 하나 (C017 ADDED · spec State · RULE-TRACK-001).
+ *
+ * **누구인지는 없다** (Play 확정 11) — 관찰자의 이름도 자율 존재의 이름도 여기 없고,
+ * 몇 사람이 지나갔는지도 없다. 아는 것은 자리와 가던 방향과 언제 났는가 뿐이다.
+ *
+ * 나이를 들지 않고 시각을 드는 것은 StrikeEvent 의 선례 그대로다 — **나이는 관찰자가 잰다.**
+ */
+export interface Track {
+  /** 자국이 난 자리 (그 방의 Local Space 좌표) */
+  position: WorldPosition;
+  /** 그 몸이 그 자리에서 가던 방향 (단위 벡터 — Actor.facing 과 같은 형) */
+  heading: WorldPosition;
+  /** 난 세계 시각 */
+  at: number;
+}
+
+/**
+ * 방 하나가 기억하는 것 (C012 CHANGED · C017 CHANGED) — 규칙 · 원천 · 소란 · 자국을 함께 든다.
+ *
+ * 규칙과 원천과 자국은 있을 때만 자리를 가진다 — 규칙 없는 방의 rule 도 원천 없는 방의
+ * sources 도 자국 없는 방의 tracks 도 지어내지 않는다.
+ *
+ * **소란만이 갈린다** (C017 · spec 기본형 ⑩) — 물음표가 없고 모든 방에 선다. 갈리는 이유는
+ * 하나다: 소란은 그 방이 무엇을 품었는지와 무관하게 어느 방에나 있는 값이다 (Time §2.5).
  */
 export interface RegionState {
   /** 그 방이 품은 규칙의 지금 — 규칙 없는 방에는 없다 */
   rule?: RegionRuleState;
   /** 그 방이 낳는 원천들의 지금 (원천 id → State) — 원천 없는 방에는 없다 */
   sources?: Record<string, ResourceSourceState>;
+  /** 그 방의 소란 — **모든 방에 있다** */
+  disturbance: RegionDisturbanceState;
+  /** 그 방에 남은 자국들 (난 순서) — 하나도 없으면 자리가 없다 */
+  tracks?: Track[];
+}
+
+/** 아직 아무 일도 겪지 않은 방의 소란 — 값 0 · 잠듦 (C017 ADDED) */
+export function initialDisturbanceState(): RegionDisturbanceState {
+  return { value: 0, phase: 'dormant' };
+}
+
+/**
+ * 그 방의 State — 없으면 **여기서 세운다** (C017 ADDED).
+ *
+ * 소란이 모든 방에 서므로 "State 가 없는 방" 은 이제 되살린 옛 세계나 데이터에 없는 방뿐이다.
+ * 그런 자리에서도 규칙이 소란을 올리거나 자국을 남길 수 있어야 하므로, State 를 짓는 자리를
+ * 하나로 둔다 — 두 벌로 만들면 소란이 없는 State 가 생겨 형이 거짓말을 한다.
+ */
+export function regionStateOf(
+  regionStates: Record<string, RegionState>,
+  regionId: string,
+): RegionState {
+  return (regionStates[regionId] ??= { disturbance: initialDisturbanceState() });
+}
+
+/**
+ * RULE-DISTURBANCE-001 (C017 ADDED · spec R1) — **한 일이 그 방의 소란이 된다**.
+ *
+ * 올리는 자리는 셋(채취의 완료 · 닿은 타격 · 건넌 뒤)이지만 **올리는 일은 여기 하나**가 한다 —
+ * 세 자리에서 각자 계산하면 상한이 세 벌이 되어 방이 두 말을 한다.
+ *
+ * **임계에서 멈춘다** (spec 기본형 ①) — 넘친 만큼을 쌓아 두면 여럿이 오래 머문 방은 몇 철을
+ * 비워도 잠들지 않는다. 위상은 여기서 건드리지 않는다: 판정은 한 자리에서만 난다
+ * (RULE-DISTURBANCE-PHASE-001 · spec R3 경계 ②).
+ *
+ * 규칙은 방의 이름도, 무엇이 이 값을 올렸는지도 묻지 않는다 — 아는 것은 "그 일이 일어난 방"
+ * 하나뿐이다 (spec R1 경계 ③).
+ */
+export function addDisturbance(
+  regionStates: Record<string, RegionState>,
+  regionId: string,
+  amount: number,
+): void {
+  const disturbance = regionStateOf(regionStates, regionId).disturbance;
+  disturbance.value = Math.min(DISTURBANCE_THRESHOLD, disturbance.value + amount);
 }
 
 /** 거절 사유 코드 — 지금 패턴이 열지 않은 통로다. 문구는 View 의 표가 옮긴다 */
@@ -124,8 +211,12 @@ export function initialSourceState(source: ResourceSource): ResourceSourceState 
  * 원천을 가진 방은 원천마다 available · taken 0 으로 선다 (C012 CHANGED).
  * 다만 **유입 흐름을 가진 원천은 고갈로 선다** (C014 CHANGED · spec R4).
  *
- * 규칙 없는 방에 rule 은, 원천 없는 방에 sources 는 자리 자체가 없다 — 없는 것을 지어내지
- * 않는다 (SPEC-007 경계). 둘 다 없는 방은 State 자체가 없다 (백왕령이 그렇다).
+ * C017 CHANGED — **모든 방이 State 를 가진다.** 소란이 어느 방에나 있는 값이기 때문이다
+ * (spec 기본형 ⑩ · Time §2.5). 그래서 규칙도 원천도 없던 방(백왕령)에도 자리가 생기고,
+ * 그 자리에 있는 것은 소란 하나뿐이다.
+ *
+ * 규칙 없는 방에 rule 은, 원천 없는 방에 sources 는, 자국 없는 방에 tracks 는 자리 자체가
+ * 없다 — 없는 것을 지어내지 않는다 (SPEC-007 경계). 그 규율은 한 값도 바뀌지 않았다.
  * 되살린 세계는 이것을 부르지 않는다: State 는 스냅샷에서 그대로 온다 (SPEC-009).
  *
  * 원천의 자리는 여기서 짓지 않는다 — **서 있는 원천**(RULE-RESOURCE-PLACEMENT-001 이 세운 것)
@@ -134,7 +225,8 @@ export function initialSourceState(source: ResourceSource): ResourceSourceState 
 export function createRegionStates(): Record<string, RegionState> {
   const states: Record<string, RegionState> = {};
   for (const spec of REGION_SPECS) {
-    const state: RegionState = {};
+    // 소란은 모든 방에 선다 — 값 0 · 잠듦 (C017 CHANGED).
+    const state: RegionState = { disturbance: initialDisturbanceState() };
 
     const first = spec.rule?.patterns[0];
     if (first) state.rule = { pattern: first.name, pressure: 0 };
@@ -148,7 +240,7 @@ export function createRegionStates(): Record<string, RegionState> {
       state.sources = sourceStates;
     }
 
-    if (state.rule || state.sources) states[spec.id] = state;
+    states[spec.id] = state;
   }
   return states;
 }

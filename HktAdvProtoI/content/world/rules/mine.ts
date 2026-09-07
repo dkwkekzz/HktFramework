@@ -8,12 +8,14 @@
 // Result         Success | Failure(not-this-season | source-depleted | source-recovering |
 //                                  no-mining-tool | out-of-range | action-busy | unknown-source)
 //
-// RULE-MINE-COMPLETE-001 — Implements INTENT-MINING-001 · INTENT-ACTION-PROGRESS-001 (C013 CHANGED)
+// RULE-MINE-COMPLETE-001 — Implements INTENT-MINING-001 · INTENT-ACTION-PROGRESS-001
+//                           (C013 CHANGED · C017 CHANGED — 캔 것이 그 방의 소란이 된다)
 // Input          채굴 행동이 Duration 을 채운 Actor
 // Preconditions  대상 원천을 세계가 알고 그 phase 가 available
 // Transition     Inventory.Items[그 원천의 materialId] += 1 · sources[id].taken += 1 ·
 //                taken 이 harvests 에 이르면 phase = depleted ·
-//                그 원천이 무너지는 것이면 collapsedSites 에 **지금 마디**를 더한다 (C013 ADDED)
+//                그 원천이 무너지는 것이면 collapsedSites 에 **지금 마디**를 더한다 (C013 ADDED) ·
+//                그 방의 소란 += DISTURBANCE_PER_HARVEST (C017 ADDED · RULE-DISTURBANCE-001)
 // Result         Success | Failure(unknown-source | source-depleted)
 //
 // **캐는 것은 세계를 바꾸는 것이다** (C012). 원천마다 캘 수 있는 횟수가 있고(D4), 다 캐면
@@ -35,7 +37,12 @@ import {
   sourceStateOf,
   type ResourceSource,
 } from '../semantic/resource';
-import { INTERACTION_RANGE, type WorldState } from '../semantic/world-state';
+import { addDisturbance, regionStateOf } from '../semantic/region-state';
+import {
+  DISTURBANCE_PER_HARVEST,
+  INTERACTION_RANGE,
+  type WorldState,
+} from '../semantic/world-state';
 import { beginAction, evaluateActionBegin } from './action-begin';
 
 // 실패 사유 코드 — Rule 이 소유하며 protocol 로는 문자열 코드로 흐른다
@@ -115,7 +122,9 @@ export function ruleMineComplete(state: WorldState, actor: ActorState): ActionRe
   if (!source) return { status: 'failure', rule: RULE_MINE_COMPLETE, reason: 'unknown-source' };
 
   // 그 방의 원천 State — 없으면 여기서 세운다 (available · 아직 한 번도 캐지 않았다).
-  const regionState = (state.regionStates[source.regionId] ??= {});
+  // C017 CHANGED — 방의 State 를 짓는 자리는 하나다 (semantic/region-state.ts 의 regionStateOf) —
+  // 소란이 모든 방에 서므로 소란 없는 State 를 여기서 지어내면 형이 거짓말을 한다.
+  const regionState = regionStateOf(state.regionStates, source.regionId);
   const sources = (regionState.sources ??= {});
   const sourceState = (sources[source.id] ??= {
     phase: 'available',
@@ -144,6 +153,12 @@ export function ruleMineComplete(state: WorldState, actor: ActorState): ActionRe
       if (!collapsed.includes(sourceState.siteIndex)) collapsed.push(sourceState.siteIndex);
     }
   }
+
+  // RULE-DISTURBANCE-001 (C017 ADDED · spec R1 · R11) — **캔 것이 그 방의 소란이 된다.**
+  // 위 판정과 결과는 한 값도 바뀌지 않았다: 이 한 줄이 더해졌을 뿐이다.
+  // 오르는 것은 **그 일이 일어난 방**이고(spec SPEC-001 경계 ②), 얼마나 오르는지도
+  // 임계에서 멈추는 것도 그 규칙 하나가 안다 (semantic/region-state.ts 의 addDisturbance).
+  addDisturbance(state.regionStates, source.regionId, DISTURBANCE_PER_HARVEST);
 
   return { status: 'success', rule: RULE_MINE_COMPLETE };
 }
