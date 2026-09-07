@@ -30,7 +30,7 @@ design 이 다시 열리는 때는 둘 — ① 2층 Play 실주행에서 DESIGN 
 | Frost — [RoomOfAnotherKind](content/roadmap/play/RoomOfAnotherKind.md) (컨텐츠 M5) | 대기 | Time 닫힘 (재료 생태와 철을 다른 갈래에 두 번째로 쓴다) | C019 → C021 |
 | Life — [RoomBearsLife](content/roadmap/play/RoomBearsLife.md) | 대기 (계약 · 확정 사항 · 상수는 [L2-World-Life.md](content/roadmap/L2-World-Life.md) 와 Play 에 있다) | Frost 닫힘 (탄생이 소비할 재료 · 탈 주기 · 대조할 갈래가 먼저) | C022 → C025 |
 | Access — [RoomAsksForPossibilities](content/roadmap/play/RoomAsksForPossibilities.md) | 대기 (계약 · 어휘 · 검사 ㉞~㊷ · 위임된 결정 D1~D5 는 [L2-World-Access.md](content/roadmap/L2-World-Access.md) 와 Play 에 있다) | Frost 닫힘 (첫 property Lock 과 눈보라가 협곡에 있다). Life 와 **병행** | C029 → C031 |
-| ENGINE B — [Region 작성기](content/roadmap/L2-World-Tool-Scale.md) (도구 2단계) | 부를 단계가 없다 — T1~T6 이 다 섰다 (검사기 · brief 형 · 뼈대 생성기 절반 · 등급 판정기 · 초안기 · 판정 표면). 미지 한 줄이 방이 되고, 목록 하나가 후보 여럿이 되고, 나란히 놓아 승인/반려한다 | T3 의 나머지 — phases 는 이제 붙일 수 있다 (C016 이 섰다) · 생명 ecology 는 C022. **판정 표면의 편중 요약이 그 ecology 를 기다린다** (§5) · 템플릿은 Frost(C021) | Play HundredRooms — 그 둘이 선 뒤 |
+| ENGINE B — [Region 작성기](content/roadmap/L2-World-Tool-Scale.md) (도구 2단계) | 부를 단계가 없다 — T1~T6 이 다 섰다 (검사기 · brief 형 · 뼈대 생성기 절반 · 등급 판정기 · 초안기 · 판정 표면). 미지 한 줄이 방이 되고, 목록 하나가 후보 여럿이 되고, 나란히 놓아 승인/반려한다 | T3 의 나머지 — phases 는 이제 붙일 수 있다 (C016 이 섰다) · 생명 ecology 는 C022 · 템플릿은 Frost(C021) | Play HundredRooms — 그 둘이 선 뒤 |
 
 ## 2. 진행
 
@@ -181,14 +181,10 @@ observers.present 가 방 단위가 아니라 **세계 전체**의 수다 — �
 검사 ① 이 여섯 방을 아직 못 잰다 — 위험이 놓인 방이 숲 가장자리 하나뿐이다 (Human 이 방 단위 판정을 골랐다)  C016
 뒤척임이 철의 **시작보다 한 Tick 뒤**에 적용된다 — 세계 과정은 시각이 오르기 전에 돈다  C016
 Human 감사 — C005 의 표면 임계 15°(평지/비탈)는 문서 근거가 없는 기본형이다
-판정 표면의 **편중 요약이 비어 있다** — 문서가 든 검사 일곱(⑲ ⑳ ㉒ ㉕ ㉖ ㉚ ㉝) 중 실리는 것이 0 이고,
-        지금 실리는 셋(① ② ⑨)은 "방이 하나 늘었다" 를 달리 말한 것이다. ⑲ ⑳ ㉒ 는 후보를 잴 때
-        `absent — 재료 계통이 주어지지 않았다` 로 나온다(뼈대가 원천마다 원인·되돌아옴을 못 낸다) ·
-        ㉕ ㉖ ㉚ ㉝ 은 검사 자체가 없다  T6 → C018 · C022 · C025
-        확인: C022 를 닫은 뒤 `npm run world:draft -- --batch <목록>` → `npm run world:lab`.
-              카드의 "이 방이 세계를 미는 자리" 에 ⑲ ⑳ ㉒ 가 뜨면 풀린 것이다 (같은 카드의 회색 주석도 그때 지운다)
-갈래가 같으면 **땅이 같다** — 미지 셋이 다 등급 A 로 섰는데 위에서 본 그림도 원천 자리도 같았다
-        (같은 hazard 태그면 같은 땅 묶음을 받는다 — content/authoring/templates/)  T6 실주행 → Frost(C021) 뒤에 손볼 자리
+갈래가 **땅을 거의 정하지 않는다** — 땅 묶음이 있는 갈래는 일곱 중 둘뿐이고(hazard/terrain · hazard/climate),
+        나머지 다섯은 평평한 채로 선다. 같은 갈래면 땅도 같다.
+        미지 셋이 다 등급 A 로 섰는데 그림도 원천 자리도 같았고, hazard/matter 로 낸 둘은 아예 평지였다
+        (content/authoring/templates/)  T6 실주행 → Frost(C021) 뒤에 손볼 자리
         확인: world:lab 한 장에 갈래가 다른 방 둘 이상을 놓고 그림이 갈리는지 본다
 ```
 

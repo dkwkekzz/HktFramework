@@ -106,8 +106,11 @@ describe('T6 — 편중은 후보를 넣기 전과 뒤를 견주어 나온다', 
     expect(shifts.length).toBeGreaterThan(0);
     // 방이 하나 는 것이 수에 그대로 보인다
     const depth = shifts.find((s) => s.id === 'region-depth')!;
-    expect(depth.before).toContain('/ 11');
-    expect(depth.after).toContain('/ 12');
+    expect(Number(/\/ (\d+)/.exec(depth.after!)![1]) - Number(/\/ (\d+)/.exec(depth.before!)![1])).toBe(1);
+    // **편중이 실린다** — 기회 자리의 분포가 이 방 때문에 움직인다 (T6 의 까닭)
+    const opportunity = shifts.find((s) => s.id === 'ecology-opportunity')!;
+    expect(opportunity.before).not.toBe(opportunity.after);
+    expect(opportunity.after).toContain('baseline');
     // 무너뜨린 검사가 없다 — 무너뜨렸다면 애초에 서지 못했을 것이다
     expect(shifts.filter((s) => s.broke)).toEqual([]);
   });
@@ -152,8 +155,9 @@ describe('T6 — 판정 표면은 판정하지 않고 모은다', () => {
     const { renderLab } = await import('../lab');
     const html = renderLab([candidates[0]!]);
     expect(html).toContain('아직 재지 못하는 편중');
-    expect(html).toContain('⑲');
+    // 없는 검사만 남는다 — 재료 계통의 편중(⑲ ⑳ ㉒)은 이제 위의 표에 실린다
     expect(html).toContain('㉝');
+    expect(html).not.toContain('아직 재지 못하는 편중 — 기회 자리');
   });
 
   it('후보가 없으면 무엇을 하라고 적는다 — 빈 화면이 말없이 서 있지 않는다', async () => {
@@ -183,6 +187,9 @@ describe('T6 — 세계에 방이 들어오는 길은 승인 하나다', () => {
     expect(JSON.parse(readFileSync(written.brief, 'utf8'))).toEqual(candidates[0]!.brief);
     // 손으로 옮길 줄을 함께 낸다 (T3 의 규약 그대로)
     expect(written.seams).toContain('content/regions/graph.ts');
+    // 그 방이 **새로 낳는 재료**의 자리도 댄다 — 없으면 승인 뒤 검사 ⑪ ㉑ 이 걸린다
+    expect(written.seams).toContain('MATERIAL_SEEDS 에 아래를 더한다');
+    expect(written.seams).toContain("id: 'GAS_RESIDUE'");
   });
 
   it('반려는 머무는 자리에서 지우는 일일 뿐이다 — 세계는 처음부터 만진 적이 없다', () => {

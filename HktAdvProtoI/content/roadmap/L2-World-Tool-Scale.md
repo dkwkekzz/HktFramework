@@ -54,7 +54,7 @@ Region 사이 덧씌움)였기 때문이다. 그 셋이 서면 다음 협곡류�
 | **T3** | **뼈대 생성기** — `world:author <brief.json>` | brief → RegionSpec(space op · resourceEcology · phases · ecology) + `graph.ts` 한 줄 + view 표 한 줄. **결정론**(seed = brief 의 hash). 템플릿(갈래별 op 묶음 · Source 역할별 기본형 · 철 덧씌움 기본형 · 탄생 방식별 기본형)은 `content/authoring/templates/` — 게임 명사가 있으므로 content 다 | 손으로 쓴 brief 하나 → 방 하나가 T1 을 통과하고 **관찰자가 걸어 흔적 → 원천을 본다**. **굳힌 파일이 컴파일된다** (생성물 하나를 시험에 굳혀 두고 tsc 가 잰다 — 값이 맞아도 형이 다르면 방은 서지 못한다). 코드 diff 0 (등급 A 실측) | phases 형은 이제 붙일 수 있다 (**C016** 이 섰다) · 생명 ecology 형은 **C022** 뒤. 지금은 space + graph + resourceEcology 까지 |
 | **T4** | **등급 판정기** | brief 의 "요구" 와 세계 사실을 계약 목록(layer · tag · 규칙 · 축 · 성질 어휘)과 대조 → **A / B / C** + 빠진 것을 GAP 형식(Required · Missing · Reason · Return To)으로. 요구가 어휘에 없는 축을 부르면 C · 어휘에 있으나 답할 Seed 가 세계에 없으면 등급과 별개로 GAP · 중요 Lock 에 답이 한 종류뿐이면 경고(Access §5.4) | brief 셋 — 가스 마을 · 유령 도시 · 마법도시 — 가 **A · B · C** 로 갈리고 B/C 의 빠진 것이 정확히 적힌다 | T2 |
 | **T5** | **초안기(LLM)** — `world:draft "<미지 한 줄>"` | **`claude -p` 를 자식 프로세스로 부른다** — Claude Code 의 비대화 모드라 **구독(Pro/Max) 로그인**(`claude login`)을 그대로 쓴다 · Console API 키가 없다. 모델 `--model opus` · **구조화 출력** `--output-format json --json-schema <T2 schema>` (답의 `structured_output` 필드 = brief — 자유 문장이 아니다 · schema 는 `z.toJSONSchema(RegionBriefSchema, { target: 'draft-7' })`) · `--system-prompt-file` (content/authoring/prompts 가 이은 글 — 문서를 줄이지 않으므로 인자 하나의 상한을 넘는다) · `--tools "" --setting-sources "" --strict-mcp-config --no-session-persistence` (도구 · 훅 · MCP · 세션 저장 없이 답 한 번만 받는다 — `--bare` 는 쓰지 않는다 · 구독 로그인을 읽지 않는다). 컨텍스트 = L0 · L2 문서 다섯 + 현재 Region Graph + T1 결과. 나온 brief 를 T3 → T1 에 넣고 **실패 보고를 되먹여** 재시도(상한 N). 결과는 **파일로 굳혀 커밋** — 초안은 비결정이어도 굳은 파일이 원본이고 세계는 결정론이다. 세계 실행에는 필요 없다(도구만 부른다). 같은 로그인으로 같은 `structured_output` 을 주는 대안은 `@anthropic-ai/claude-agent-sdk` 의 `query({ options: { outputFormat } })` (바이너리 동봉 · 의존성 하나 는다) · 브라우저 없는 자리(CI)는 `claude setup-token` → `CLAUDE_CODE_OAUTH_TOKEN`. `@anthropic-ai/sdk` 는 쓰지 않는다 — 구독은 Console API 를 열지 않는다 | 미지 한 줄 → brief → 방 하나가 **사람 손 없이** T1 을 통과한다. 지어낸 세계 사실이 있으면 T4 가 잡아 UNRESOLVED 로 돌려보낸다 | T3 · T4 |
-| **T6** | **판정 표면과 대량** | `world:draft --batch <미지 목록>` 이 줄마다 고리를 돌려 **후보**로 남기고(머무는 자리는 `tools/world-editor/out/candidates` — 세계가 아니다), `world:lab` 이 그것들을 한 장에 나란히 놓는다 — top view · 열두 답 · 등급과 GAP · **편중 요약**. 편중은 새로 세지 않는다: 후보를 넣기 전과 넣은 뒤의 검사 보고를 견주어 **움직인 줄만** 싣는다 (그래서 검사가 늘면 요약도 저절로 는다). 승인/반려는 `world:admit <후보> [--reject]` — 페이지는 아무것도 쓰지 못하고 명령을 적어 둘 뿐이다. **승인만 `content/regions/` 에 들어간다** | **Play HundredRooms** (§5) | 편중 요약의 나머지 — 재료 계통의 분포(⑲ ⑳ ㉒)는 뼈대가 원천마다 원인·되돌아옴을 내야 하고(C022), 철 · 생명 · 접근의 편중(㉕ ㉖ ㉚ ㉝ ㊱~㊵ ㊷)은 검사 자체가 C018 · C022 · C025 · Access 의 것이다 |
+| **T6** | **판정 표면과 대량** | `world:draft --batch <미지 목록>` 이 줄마다 고리를 돌려 **후보**로 남기고(머무는 자리는 `tools/world-editor/out/candidates` — 세계가 아니다), `world:lab` 이 그것들을 한 장에 나란히 놓는다 — top view · 열두 답 · 등급과 GAP · **편중 요약**. 편중은 새로 세지 않는다: 후보를 넣기 전과 넣은 뒤의 검사 보고를 견주어 **움직인 줄만** 싣는다 (그래서 검사가 늘면 요약도 저절로 는다). 승인/반려는 `world:admit <후보> [--reject]` — 페이지는 아무것도 쓰지 못하고 명령을 적어 둘 뿐이다. **승인만 `content/regions/` 에 들어간다** | **Play HundredRooms** (§5) | 편중 요약의 나머지 — 철 · 생명 · 접근의 편중(㉕ ㉖ ㉚ ㉝ ㊱~㊵ ㊷)은 검사 자체가 C018 · C022 · C025 · Access 의 것이다. 재료 계통의 분포(⑲ ⑳ ㉒)는 실린다 |
 
 ```text
 T1 ── T2 ── T3 ─┬─ T5 ── T6 ── HundredRooms
@@ -109,7 +109,6 @@ Cycle   번호는 승인 때 — 앞 레인(Life C025) 뒤
 ```text
 ENGINE 레인 B   T1~T6 이 다 섰다 — 남은 것은 값이 늘어야 서는 것들뿐이다.
                T3 의 나머지(phases)는 C016 뒤 · ecology 는 C022 뒤.
-               T6 의 편중 요약은 그 ecology 와 함께 온다 (지금은 구조의 수만 움직인다).
                템플릿은 Frost(C021)가 데이터로 선 것을 본 뒤 —
                두 갈래가 정말 같은 계약 위에 있는지 실주행으로 확인돼야 맞는다
 컨텐츠 Play     HundredRooms — T6 뒤. Cycle 번호는 그때 (앞 레인 뒤)
@@ -123,8 +122,6 @@ ENGINE 레인 B   T1~T6 이 다 섰다 — 남은 것은 값이 늘어야 서는
                말은 셋 다 다른데 땅은 하나였다 (같은 hazard 태그면 같은 땅 묶음을 받는다 — T3 의 templates).
                고칠 자리는 content/authoring/templates/ 이고, 고칠 때는 Frost(C021) 뒤다 —
                두 번째 갈래가 데이터로 서야 무엇을 갈라야 하는지가 실측으로 보인다
-편중 요약      지금은 구조의 수만 움직인다. 재료 계통의 분포(⑲ ⑳ ㉒)는 뼈대가 원천마다
-               원인과 되돌아옴을 내야 실린다 — C022 의 것이다
 HundredRooms   advprotoi-design 이 Play 로 쓴다 (승인 1회). 백 줄을 돌릴 기구는 섰고,
                남은 것은 그 백 개가 서로 다른가를 볼 수 있느냐다 — 위의 두 줄이 그 조건이다
 ```
