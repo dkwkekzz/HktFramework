@@ -68,7 +68,7 @@ RoomAnswersWhenAsked(세계 위 글자 없이, 물어서 자리와 존재를 읽
 0 게임 방향   확정   L0-Game.md
 1 세계의 문법  확정   L1-World-Grammar.md
 2 세계 자체   열림   L2-World-Tool · Concept · Region · Material · Time · Life — 세계 절반 기획 닫힘 → Play 여덟 중 셋 닫힘 (§2)
-              도구 절반 2단계 L2-World-Tool-Scale(Region 작성기) 확정 — T1~T6 (README §2.1) · T1 다음
+              도구 절반 2단계 L2-World-Tool-Scale(Region 작성기) 확정 — T1~T6 다 섰다 (진행표는 README §2.1)
 3 주체와 몸   미주입  ← 2층이 닫히면 다음.   4~7 (물건 · 대결 · 능력 · 성장) 미주입
 ```
 
