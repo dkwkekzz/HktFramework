@@ -68,6 +68,22 @@ export interface PlaceReading {
     pressureLimit: number;
     rearrangedAt?: number;
   };
+  /**
+   * 그 방의 **소란** — C017 ADDED (spec Observable · Time §2.5).
+   *
+   * 위의 `rule?` 과 갈리는 자리다: 규칙은 품은 방에만 있지만 **소란은 어느 방에나 있다**
+   * (기본형 ⑩). 그래서 여기 물음표가 붙은 이유도 하나뿐이다 — 앞 Cycle 의 봉투에는 이
+   * 자리가 없기 때문이지(폴백 규칙: 모르는 것은 자리째 없다), 세계가 어떤 방에서 이 값을
+   * 빼기 때문이 아니다.
+   *
+   * 임계가 함께 오는 것은 "얼마나 찼는가" 를 표현이 재기 위해서다 (pressureLimit 의 선례).
+   * **무엇이 이 값을 올렸는지도, 무엇이 방을 깨웠는지도 없다** — 세계가 싣지 않는다.
+   */
+  disturbance?: {
+    value: number;
+    threshold: number;
+    phase: 'dormant' | 'awake';
+  };
 }
 
 const DEPTH_HUD_ID = 'region.depth';
@@ -88,6 +104,8 @@ export function readPlace(
   const sources = sourcePhases(snapshot);
   const depth = snapshot.hud.find((h) => h.id === DEPTH_HUD_ID)?.value;
   const state = snapshot.region.state;
+  // C017 — 늘 실리는 값이지만 **앞 Cycle 의 봉투에는 없다**. 없으면 없는 채로 둔다
+  const disturbance = snapshot.region.disturbance;
   const base: PlaceReading = {
     regionId,
     ...(typeof depth === 'string' ? { depth } : {}),
@@ -105,6 +123,9 @@ export function readPlace(
           },
         }
       : {}),
+    // 소란도 **봉투의 것**이므로 규칙 State 와 같은 자리에 선다 — hash 가 어긋나도
+    // 그대로다 (어긋난 것은 내 땅이지 세계가 말한 값이 아니다)
+    ...(disturbance ? { disturbance: { ...disturbance } } : {}),
   };
 
   const spec = regionSpec(regionId);

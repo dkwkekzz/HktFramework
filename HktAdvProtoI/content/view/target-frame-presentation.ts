@@ -7,7 +7,9 @@
 //
 // 자리의 차례는 Play §5.4 의 것 그대로다:
 //   어디인가(방 · 깊이) → 땅이 어떤가(표면 · 통행 · 사유) → 무엇이 걸렸나(area · 통로) →
-//   규칙이 있나(패턴 · 압력)
+//   규칙이 있나(패턴 · 압력) → 방이 지금 어떤가(소란 · 위상)
+// 마지막 하나가 C017 이 더한 것이다 — 앞의 넷이 "여기가 무엇인가" 라면 그것은 "이 방이
+// 지금 어떤가" 이고, 그래서 방의 값들 가장 뒤에 선다.
 // 존재의 차례는 같은 어법의 것이다 (C027 UNRESOLVED "존재 줄의 차례"):
 //   무엇인가(종류) → 어떤 상태인가(하는 일 · 생명 · 쓰러짐 · 걸린 것) → 무엇을 주는가(행동과 사유)
 // **없는 것은 줄 자체가 없다.** 규칙 없는 방의 압력도, 생명 없는 것의 생명도 0 으로
@@ -61,6 +63,12 @@ export const PLACE_ROW_LABELS: Readonly<Record<string, string>> = {
   // 규칙이 있나
   'place.pattern': '지금 길',
   'place.pressure': '압력',
+  // 방이 지금 어떤가 (C017) — 압력이 규칙을 품은 방만의 값인 것과 달리 **어느 방에나 있다**.
+  // 이름표가 '압력' 과 갈리는 것은 두 값이 나란히 선 두 값이기 때문이다 (spec R9):
+  // 걸음이 올리는 것은 압력이고 캐고 때리고 건너는 것이 올리는 것은 소란이다
+  'place.disturbance': '소란',
+  // 그 방의 지금 위상 — 값이 없는 줄이 아니라 잠듦/깨어남 한 마디가 값이다
+  'place.phase': '지금',
 };
 
 /**
@@ -319,6 +327,9 @@ function coordText(point: GameViewPosition): string {
  * C028 CHANGED — 규칙을 품은 방의 줄에 **마지막 재배열이 얼마 전인지**가 함께 실린다
  * (spec R5 · SPEC-007). 세계 시각을 모르거나 재배열이 한 번도 없었던 방에서는 그 값이
  * 서지 않는다 — 0 으로도 "방금" 으로도 지어내지 않는다 (SPEC-007 경계).
+ *
+ * C017 CHANGED — 마지막에 **소란과 그 방의 지금 위상** 두 줄이 선다 (spec Observable).
+ * 압력 줄과 달리 방을 가리지 않는다 — 세계가 어느 방에나 싣는 값이기 때문이다.
  */
 export function placeRows(reading: PlaceReading, worldTime?: number): SceneFrameRow[] {
   const rows: SceneFrameRow[] = [];
@@ -387,6 +398,33 @@ export function placeRows(reading: PlaceReading, worldTime?: number): SceneFrame
       ...row('place.pressure', `${Math.floor(rule.pressure)} / ${rule.pressureLimit}`),
       ...(ratio === undefined ? {} : { progress: ratio }),
     });
+  }
+
+  // ⑤ 방이 지금 어떤가 (C017 ADDED — spec Observable Result ① · ③).
+  //
+  // **압력 줄과 같은 형식이다** (값 / 임계 + 막대). 소란은 미로의 압력을 일반형으로 세운
+  // 값이므로(spec R9 — 나란히 선 두 값), 같은 사실을 다른 형식으로 적으면 둘이 서로 다른
+  // 종류의 값으로 읽힌다. 다른 것은 서는 자리뿐이다: 압력은 규칙을 품은 방에만 서지만
+  // **소란은 모든 방에 선다** (기본형 ⑩ — 세계가 어느 방에나 싣는다).
+  //
+  // 위상은 그 아래 한 줄로 따로 선다. 값 뒤에 붙이지 않는 것은 그것이 같은 축의 값이
+  // 아니기 때문이다 — 임계를 **넘은 것**과 **비운 것**이 다르므로(R3 · 기본형 ②) 얼마나
+  // 찼는가만 보고는 지금 잠들었는지 깨어났는지 알 수 없다.
+  //
+  // **무엇이 이 방을 깨웠는지도, 임계까지 얼마 남았는지도 적지 않는다** — 세계가 싣지
+  // 않는다 (spec Observable "싣지 않는다"). 여럿이 있었다는 것은 값으로 읽는 세계 사실이다.
+  const disturbance = reading.disturbance;
+  if (disturbance) {
+    const ratio =
+      disturbance.threshold > 0
+        ? Math.min(1, Math.max(0, disturbance.value / disturbance.threshold))
+        : undefined;
+    rows.push({
+      ...row('place.disturbance', `${Math.floor(disturbance.value)} / ${disturbance.threshold}`),
+      ...(ratio === undefined ? {} : { progress: ratio }),
+    });
+    // 위상의 값 자체가 그 코드다 (기본형 ⑧) — 모르는 값은 코드 그대로 뜬다
+    rows.push(row('place.phase', codeText(disturbance.phase)));
   }
   return rows;
 }

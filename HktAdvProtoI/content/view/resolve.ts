@@ -37,6 +37,7 @@ import { clockAmbience } from './terrain-presentation';
 import { sourcePhases } from './resource-reading';
 import { DESIGNATE_MODIFIER, type Designation } from './pointer-rules';
 import { designationHighlight, targetFrame } from './target-frame-presentation';
+import { trackZones } from './track-presentation';
 
 // 관찰자 쪽 표시 선택 — 충돌체 디버그 관찰을 켤지. World 에 아무것도 요청하지 않는다.
 export interface PresentationOptions {
@@ -224,7 +225,16 @@ export function resolvePresentation(
     // 선 방의 바닥 (C001) — 모르는 방이면 비어 있고, 비어 있으면 그려지지 않는다.
     // C008 부터 구역·통로도 여기서 선다 — 재배열이 얼마 전인지를 재려고 세계 시각을 함께 넘긴다
     // C015 CHANGED — 밤이면 흔적만 또렷해진다 (SPEC-009). 다른 구역은 한 값도 다르지 않다
-    zones: regionZones(snapshot.region, worldTime, sources, night),
+    zones: [
+      ...regionZones(snapshot.region, worldTime, sources, night),
+      // 땅에 남은 자국 (C017 R8) — **방의 구역들 위에** 선다. 흔적(흙의 변색)이 방 바닥
+      // 바로 위인 것과 갈리는데, 이유는 하나다: 흔적은 넓은 면이고 자국은 한 칸 남짓한
+      // 표식이라 그 아래 묻히면 방향도 짙기도 읽히지 않는다. 겹치는 차례는 표현의
+      // 결정이다 (regionZones 주석의 그 규율 그대로).
+      // 나이를 재는 값은 **모를 수도 있는 쪽**(knownWorldTime)이다 — 때를 모르면 두
+      // 단계를 가르지 않는다 (track-presentation 의 trackStage)
+      ...trackZones(snapshot.tracks, knownWorldTime),
+    ],
     // 판 하나 (C026 · C027 CHANGED) — 지목한 것이 서고, 지목이 없으면 **내가 선 자리**가
     // 선다. 판이 아예 없는 경우는 내 몸을 모를 때뿐이다. 표식은 지목이 있을 때만 선다.
     // 세계로 나가는 요청은 어느 쪽이든 0 이다 (SPEC-009)
