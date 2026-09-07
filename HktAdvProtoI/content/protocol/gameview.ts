@@ -168,6 +168,23 @@ export interface TrackView {
   since: number;
 }
 
+/**
+ * 그 방을 **지금 지나고 있는 것** 하나 — C018 ADDED (Time §2.6 · spec Observable).
+ *
+ * 압도적인 존재는 2층에서 **현상**이다 (T7) — 몸도 생명도 아니고, 지나는 동안 그 방에
+ * 무엇을 하고 지나간 뒤에 무엇을 남길 뿐이다.
+ *
+ * **시간표도 남은 시간도 다음 방도 실리지 않는다** — 언제 다시 오는지, 어디로 갈지는
+ * 관찰자가 여러 번 보고 배우는 것이다 (T8). 그것이 무엇인지의 설명도 없다: 코드 하나뿐이고
+ * 문구도 그림도 View 의 표가 정한다 (원칙 2).
+ */
+export interface PresenceView {
+  /** 무엇이 지나는가 — 의미 코드 (문구는 View 의 표가 옮긴다) */
+  presence: string;
+  /** 그것이 이 방에서 지나는 **선**의 이름 — 관찰자가 자기 Description 에서 그 선을 얻는다 */
+  curve: string;
+}
+
 // 관찰자의 몸이 선 Region — C001 (02-world Observable: snapshot.region.id · snapshot.region.hash).
 // scene 이 그 Region 의 id 이고, 이것은 같은 값에 hash 를 붙인 것이다.
 // hash 는 그 Region 의 Description 에서 결정적으로 나온다 — 클라이언트가 자기 데이터와 대조한다.
@@ -215,6 +232,13 @@ export interface GameViewSnapshot extends CoreGameViewSnapshot {
    * 순서는 난 순서 그대로다 (결정론). 누가 남겼는지는 어디에도 없다.
    */
   tracks: TrackView[];
+  /**
+   * 그 방을 **지금 지나고 있는 것들** (C018 ADDED · RULE-OBSERVE-PROJECTION · spec R9).
+   *
+   * 관찰은 방으로 잘린다 — 다른 방을 지나는 것은 실리지 않고, 지나가기 전과 지나간 뒤에는
+   * 빈 배열이다. 순서는 데이터 순서 그대로다 (결정론).
+   */
+  presences: PresenceView[];
   /**
    * 세계의 **때** (C015 ADDED) — 낮밤 · 철 · 며칠째 · 몇 바퀴째.
    *
