@@ -197,5 +197,6 @@
     "dayIndex": 0,
     "seasonCycle": 0
   },
-  "tracks": []
+  "tracks": [],
+  "presences": []
 }

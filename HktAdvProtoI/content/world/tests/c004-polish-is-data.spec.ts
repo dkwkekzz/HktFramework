@@ -525,6 +525,8 @@ describe('SPEC-007 — 색과 표식은 표다', () => {
       standingConditions: [], // C006 ADDED — 조건 area 밖에 선 관찰자는 빈 목록이다
       // C017 — 봉투에 그 방의 자국이 실린다. 이 시나리오가 보는 것이 아니므로 빈 목록이다
       tracks: [],
+      // C018 — 봉투에 그 방을 지나는 것들이 실린다. 이 시나리오가 보는 것이 아니므로 빈 목록이다
+      presences: [],
       observer: { id: 'observer-a', characterId: 'player', acknowledgedMark: 0 },
       entities: [
         {
