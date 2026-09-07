@@ -190,10 +190,10 @@ export function resolvePresentation(
   // zones 는 지금까지대로 0 을 받는다 (C008 의 맥동은 창 밖이면 어차피 서지 않는다)
   const knownWorldTime =
     worldTimeValue !== undefined && Number.isFinite(worldTime) ? worldTime : undefined;
-  // 원천들의 지금(phase) — 옅어진 흔적도 무너진 자리도 여기서 유도된다 (C012).
-  // **세계가 싣는 것은 state 하나뿐**이고, 나머지는 관찰자가 자기 content/regions 와
-  // 이 표로 스스로 얻는다 (땅을 스스로 컴파일해 그리는 C005~C007 의 규율 그대로)
-  const phases = sourcePhases(snapshot);
+  // 원천들의 지금 — 옅어진 흔적도 무너진 자리도 여기서 유도된다 (C012 · C013 CHANGED).
+  // **세계가 싣는 것은 state 와 지금 선 마디뿐**이고, 나머지는 관찰자가 자기
+  // content/regions 와 이 표로 스스로 얻는다 (C005~C007 의 규율 그대로)
+  const sources = sourcePhases(snapshot);
   // 판은 지목이 없어도 선다 (C027 R3) — 지목을 넘기고, 없으면 내가 선 자리가 답한다.
   // 표식은 지목이 있고 그 대상이 아직 세계에 있을 때만 선다
   const frame = targetFrame(snapshot, options.designation, knownWorldTime);
@@ -216,7 +216,7 @@ export function resolvePresentation(
     slotBars: [],
     // 선 방의 바닥 (C001) — 모르는 방이면 비어 있고, 비어 있으면 그려지지 않는다.
     // C008 부터 구역·통로도 여기서 선다 — 재배열이 얼마 전인지를 재려고 세계 시각을 함께 넘긴다
-    zones: regionZones(snapshot.region, worldTime, phases),
+    zones: regionZones(snapshot.region, worldTime, sources),
     // 판 하나 (C026 · C027 CHANGED) — 지목한 것이 서고, 지목이 없으면 **내가 선 자리**가
     // 선다. 판이 아예 없는 경우는 내 몸을 모를 때뿐이다. 표식은 지목이 있을 때만 선다.
     // 세계로 나가는 요청은 어느 쪽이든 0 이다 (SPEC-009)

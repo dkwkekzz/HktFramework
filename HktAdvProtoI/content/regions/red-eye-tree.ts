@@ -10,8 +10,12 @@ import type { RegionSpec } from './spec';
 import { ANCHOR_LAYER } from './spec';
 import {
   BIO_ORE,
+  FOREST_CHAIN,
   FORM_ROOT_NODULE,
+  PRESENCE_LAYER,
+  RECOVERY_TREE_UPTAKE,
   RESOURCE_LAYER,
+  ROOT_CURVE_TAG,
   TRACE_LAYER,
   soilStainTag,
 } from './resource-ecology';
@@ -81,6 +85,29 @@ export const RED_EYE_TREE_SPEC: RegionSpec = {
         tag: 'ROOT_NODULE',
         position: { x: -8, z: 2 },
       },
+      // ── C013 ADDED — 뿌리 곡선 ────────────────────────────────────────────
+      //
+      // 거목의 뿌리가 밑동에서 나와 광석 지대 쪽(동쪽 변의 ORE_SIDE · (18, 0))으로 뻗는다.
+      // 뿌리혹 (-8, 2) 를 지나는 것이 이 선의 뜻이다 — 뿌리혹은 이 뿌리가 부푼 자리다 (§5.3).
+      //
+      // **뿌리혹은 자리를 옮기지 않는다** — 이 곡선은 siteCurve 로 쓰이지 않는다 (마디 목록이
+      // 아니다). 그 뿌리가 이 방을 지나 광석 지대로 이어진다는 **세계 사실**일 뿐이고,
+      // 광석 지대 쪽 노두가 그 뿌리를 따라 옮겨 다니는 이유를 땅 위에서 읽히게 한다.
+      // profile 이 없으므로 높이를 건드리지 않고, 폭 1.5 는 광석 지대의 뿌리 곡선과 같다.
+      {
+        id: 'root-curve',
+        kind: 'curve',
+        layer: PRESENCE_LAYER,
+        tag: ROOT_CURVE_TAG,
+        points: [
+          { x: -15, z: 5 },
+          { x: -8, z: 2 },
+          { x: 0, z: 3 },
+          { x: 9, z: 1 },
+          { x: 17, z: -1 },
+        ],
+        width: 1.5,
+      },
     ],
   },
   // 핵심부의 Risk 둘째 — 같은 Material Seed 가 다른 순도로 난다 (A.1 "같은 것의 세 순도").
@@ -92,14 +119,25 @@ export const RED_EYE_TREE_SPEC: RegionSpec = {
       {
         id: 'ROOT_NODULE',
         materialId: BIO_ORE,
+        // 이 숲의 사슬 하나에서 난다 (C014 ADDED · §5.0)
+        worldCause: FOREST_CHAIN,
         form: FORM_ROOT_NODULE,
         carrier: 'plant',
         opportunity: 'risk',
         supply: 'conditional-renewable',
+        // 균류가 분해한 흙에서 다시 빨아올린다 (C014 ADDED · A.2 회복 원인)
+        recoveryCause: RECOVERY_TREE_UPTAKE,
         // 뿌리혹 하나 = 한 번. 캐면 터진다 (D4) — §5.5 의 장면은 이 1 에서 나온다
         harvests: 1,
-        // 분해된 흙(NEST_FUNGUS)에 매달려 있으나 그 원천은 C014 가 세운다 — 지금은 잇지 않는다
-        traceOp: 'trace-tree-nodule',
+        // C014 ADDED — 분해된 흙에 매달린다. C012 가 비워 둔 자리를 그 원천(둥지의 균사)이
+        // 선 지금 잇는다: 균사를 캐 놓으면 이 뿌리혹의 되돌아옴이 멎고(recovery-stalled),
+        // 그러면 이것에 매달린 노두도 멎는다 — 사슬이 두 마디가 된다 (spec R5 · SPEC-002)
+        dependsOn: 'NEST_FUNGUS',
+        // 핵심부의 깊은 자리 — 거목이 다시 축적하는 데 오래 걸린다 (C013 ADDED · D3)
+        recoverySeconds: 180,
+        // **자리를 옮기지 않는다** — siteCurve 를 주지 않으므로 마디는 뿌리혹이 선 자리 하나다
+        // (아래 뿌리 곡선은 그 뿌리가 이 방을 지난다는 세계 사실일 뿐이다 · Play §5.3)
+        traceOps: ['trace-tree-nodule'],
       },
     ],
   },

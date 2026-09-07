@@ -370,11 +370,14 @@ describe('SPEC-001 — 백왕령에 강과 거목과 조건이 놓인다', () =>
     expect(highest.z).toBeGreaterThan(0);
   });
 
-  it('S-005 (경계) 나머지 여덟 방의 ops 에는 curve 도 settlement area 도 없다', () => {
+  it('S-005 (경계 · C013 CHANGED) 나머지 여덟 방의 ops 에는 땅을 파는 curve 도 settlement area 도 없다', () => {
+    // C013 이 방 둘에 뿌리 곡선을 놓았다. 그것은 **profile 이 없는 표시선**이라 높이에도
+    // 표면에도 통행에도 닿지 않는다 (engine 의 CurveOp — "표시선은 높이를 건드리지 않는다").
+    // 이 경계가 원래 묻던 것은 "백왕령 말고 땅이 깎인 방이 있는가" 이므로 그것만 센다.
     for (const spec of otherRooms()) {
       expect({
         region: spec.id,
-        curves: curvesOf(spec.space).length,
+        curves: curvesOf(spec.space).filter((op) => op.profile !== undefined).length,
         areas: areasOf(spec.space, SETTLEMENT_LAYER).length,
       }).toEqual({ region: spec.id, curves: 0, areas: 0 });
     }

@@ -35,6 +35,7 @@ import { ruleMazeConnection } from './simulation/maze-connection';
 import { ruleMoveProgress } from './simulation/move-progress';
 import { ruleNpcDecideAll } from './simulation/npc-decide';
 import { ruleRegionFall } from './simulation/region-fall';
+import { ruleSourceRecovery } from './simulation/source-recovery';
 import { ruleStrikeEventExpire } from './simulation/strike-event-expire';
 import { ruleSwingStrike } from './simulation/swing-strike';
 
@@ -99,7 +100,11 @@ export interface WorldSetup {
    * (캘 수 있는 횟수 → phase → 외형 · 흔적 · 통행)은 시나리오 테스트가 증명하고,
    * 그림은 **그 State 에서 무엇이 보이는가**를 보인다 (regionPatterns 와 같은 논리).
    *
-   * depleted 로 세운 원천은 taken 도 harvests 에 맞춰 선다 — 어긋난 State 를 만들지 않는다.
+   * C013 CHANGED — `recovering` 도 받는다. 되돌아오는 중인 원천은 캐서 고갈시킨 뒤 절반의
+   * 세계 시간을 **기다려야** 닿는 State 이고, 촬영 하네스에서 그 기다림은 몇 분이다.
+   *
+   * 세운 State 는 언제나 **규칙이 스스로 도달할 수 있는 것**이다 (region-state.ts 가 taken ·
+   * progress · siteIndex · collapsedSites 를 그 phase 에 맞춰 함께 세운다).
    * 모르는 원천 id · 모르는 phase 이름은 조용히 무시한다 — 손잡이가 세계를 깨뜨리지 않는다.
    */
   sourcePhases?: Record<string, string>;
@@ -146,6 +151,9 @@ const SYSTEMS: WorldContent<WorldState>['systems'] = [
   // 걸음이 그 방의 압력이 된다 — move-progress 가 적은 movedThisTick 을 바로 뒤에서 읽는다.
   // 다른 무엇이 자리를 건드리기 전이고, 관찰(투영)보다는 당연히 앞이다 (C008 spec R1 Priority).
   (state) => ruleMazeConnection(state), // RULE-MAZE-CONNECTION-001
+  // 세계 과정끼리 나란히 선다 (C013 spec R10) — 되돌아옴은 관찰자와 무관하게 돈다.
+  // 채취의 완료(action-progress)보다 **앞**이다: 같은 Tick 에 캔 것이 곧바로 되돌아오지 않는다.
+  (state, dt) => ruleSourceRecovery(state, dt), // RULE-SOURCE-RECOVERY-001
   (state, dt) => ruleActionProgress(state, dt), // RULE-ACTION-PROGRESS-001
   (state) => ruleSwingStrike(state), // RULE-SWING-STRIKE-001 (STRIKE-DAMAGE → SKILL-BUDGET → DOWNED 를 함께 부른다)
   (state, dt) => ruleBodyPush(state, dt), // RULE-BODY-PUSH-001

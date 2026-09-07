@@ -1,16 +1,18 @@
-// RULE-MINE-001 — Implements INTENT-MINING-001 · INTENT-ACTION-STATE-001 (C012 CHANGED — 고갈된 원천은 캘 수 없다)
+// RULE-MINE-001 — Implements INTENT-MINING-001 · INTENT-ACTION-STATE-001 (C013 CHANGED — 되돌아오는 중에도 캘 수 없다)
 // Input          Actor, Resource Source
-// Preconditions  1. 대상 원천의 phase 가 available (C012 ADDED)
-//                2. Mining Capability Item 보유  3. 같은 방의 InteractionRange 이내
+// Preconditions  1. 대상 원천의 phase 가 available (C012 ADDED · C013 CHANGED — recovering 도 거절이다)
+//                2. Mining Capability Item 보유  3. 같은 방의 InteractionRange 이내 (지금 마디로 잰다)
 //                4. 현재 행동이 대체 가능하다
 // Transition     CurrentAction = mine(Source)           ← 즉시 획득이 아니다
-// Result         Success | Failure(source-depleted | no-mining-tool | out-of-range | action-busy | unknown-source)
+// Result         Success | Failure(source-depleted | source-recovering | no-mining-tool |
+//                                  out-of-range | action-busy | unknown-source)
 //
-// RULE-MINE-COMPLETE-001 — Implements INTENT-MINING-001 · INTENT-ACTION-PROGRESS-001 (C012 CHANGED)
+// RULE-MINE-COMPLETE-001 — Implements INTENT-MINING-001 · INTENT-ACTION-PROGRESS-001 (C013 CHANGED)
 // Input          채굴 행동이 Duration 을 채운 Actor
 // Preconditions  대상 원천을 세계가 알고 그 phase 가 available
 // Transition     Inventory.Items[그 원천의 materialId] += 1 · sources[id].taken += 1 ·
-//                taken 이 harvests 에 이르면 phase = depleted
+//                taken 이 harvests 에 이르면 phase = depleted ·
+//                그 원천이 무너지는 것이면 collapsedSites 에 **지금 마디**를 더한다 (C013 ADDED)
 // Result         Success | Failure(unknown-source | source-depleted)
 //
 // **캐는 것은 세계를 바꾸는 것이다** (C012). 원천마다 캘 수 있는 횟수가 있고(D4), 다 캐면
@@ -25,13 +27,21 @@ import type { ActorState } from '../semantic/actor';
 import { hasMiningTool, itemCount, setItemCount } from '../semantic/inventory';
 import type { ItemKind } from '../semantic/item';
 import { distance } from '../semantic/position';
-import { findResourceSource, sourceStateOf, type ResourceSource } from '../semantic/resource';
+import {
+  findResourceSource,
+  sourcePositionOf,
+  sourceStateOf,
+  type ResourceSource,
+} from '../semantic/resource';
 import { INTERACTION_RANGE, type WorldState } from '../semantic/world-state';
 import { beginAction, evaluateActionBegin } from './action-begin';
 
 // 실패 사유 코드 — Rule 이 소유하며 protocol 로는 문자열 코드로 흐른다
 export type MineFailureReason =
   | 'source-depleted'
+  // C013 ADDED — 되돌아오는 중이다. 고갈과 다른 코드다: 하나는 "이미 캐 갔다" 이고
+  // 이것은 "곧 다시 난다" 이므로, 관찰자가 기다릴지 떠날지를 가를 수 있어야 한다
+  | 'source-recovering'
   | 'no-mining-tool'
   | 'out-of-range'
   | 'action-busy';
@@ -53,12 +63,17 @@ export function evaluateMinePreconditions(
   actor: ActorState,
   source: ResourceSource,
 ): MineFailureReason | null {
-  if (sourceStateOf(state.regionStates, source.regionId, source.id).phase === 'depleted') {
-    return 'source-depleted';
-  }
+  const phase = sourceStateOf(state.regionStates, source.regionId, source.id).phase;
+  if (phase === 'depleted') return 'source-depleted';
+  // C013 ADDED — 되돌아오는 중이면 아직 캘 수 없다 (spec R3). 고갈과 나란히 **가장 먼저** 본다.
+  if (phase === 'recovering') return 'source-recovering';
   if (!hasMiningTool(actor.inventory)) return 'no-mining-tool';
   if (actor.regionId !== source.regionId) return 'out-of-range';
-  if (distance(actor.position, source.position) > INTERACTION_RANGE) return 'out-of-range';
+  // C013 CHANGED — 거리는 **지금 마디**로 잰다. 원천이 자리를 옮기므로 데이터의 마디 0
+  // (source.position)으로 재면 아무도 없는 옛 자리까지의 거리가 된다.
+  if (distance(actor.position, sourcePositionOf(state.regionStates, source)) > INTERACTION_RANGE) {
+    return 'out-of-range';
+  }
   return evaluateActionBegin(actor);
 }
 
@@ -89,7 +104,12 @@ export function ruleMineComplete(state: WorldState, actor: ActorState): ActionRe
   // 그 방의 원천 State — 없으면 여기서 세운다 (available · 아직 한 번도 캐지 않았다).
   const regionState = (state.regionStates[source.regionId] ??= {});
   const sources = (regionState.sources ??= {});
-  const sourceState = (sources[source.id] ??= { phase: 'available', taken: 0 });
+  const sourceState = (sources[source.id] ??= {
+    phase: 'available',
+    taken: 0,
+    progress: 0,
+    siteIndex: 0,
+  });
 
   if (sourceState.phase === 'depleted') {
     return { status: 'failure', rule: RULE_MINE_COMPLETE, reason: 'source-depleted' };
@@ -101,7 +121,16 @@ export function ruleMineComplete(state: WorldState, actor: ActorState): ActionRe
 
   // 캔 자국 — 마지막 한 번까지는 available 이다 (SPEC-001 경계: 미리 고갈되지 않는다).
   sourceState.taken += 1;
-  if (sourceState.taken >= source.harvests) sourceState.phase = 'depleted';
+  if (sourceState.taken >= source.harvests) {
+    sourceState.phase = 'depleted';
+    // C013 ADDED — 고갈되는 순간 **그 마디**가 무너진다 (spec R6). 원천이 나중에 다음 마디로
+    // 옮겨 가도 이 자리는 무너진 채 남는다 — 무너짐은 원천이 아니라 자리가 기억한다.
+    // 이미 있는 마디를 두 번 더하지 않는다 (경계).
+    if (source.collapses) {
+      const collapsed = (sourceState.collapsedSites ??= []);
+      if (!collapsed.includes(sourceState.siteIndex)) collapsed.push(sourceState.siteIndex);
+    }
+  }
 
   return { status: 'success', rule: RULE_MINE_COMPLETE };
 }

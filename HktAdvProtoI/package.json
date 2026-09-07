@@ -14,6 +14,7 @@
     "surface:lab": "tsx tools/surface-lab/build.ts",
     "boundary:check": "tsx tools/boundary/check.ts",
     "world:check": "tsx tools/world-editor/check.ts",
+    "world:author": "tsx tools/world-editor/author.ts",
     "world:observe": "tsx tools/world-editor/observe.ts",
     "world:compile": "tsx tools/world-editor/compile.ts",
     "world:shot": "tsx tools/world-editor/shot.ts",
@@ -38,6 +39,7 @@
     "typescript": "^5.5.4",
     "vite": "^5.4.8",
     "vitest": "^2.1.1",
-    "yaml": "^2.9.0"
+    "yaml": "^2.9.0",
+    "zod": "^4.5.4"
   }
 }

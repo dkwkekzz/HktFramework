@@ -1,6 +1,6 @@
 // World Check — 검사 아홉을 독립 명령으로, 결과는 **기계가 읽는 JSON** (T1 ADDED).
 //
-//   npm run world:check              검사 아홉을 돌리고 JSON 한 덩이를 낸다. fail 이 하나라도 있으면 종료 코드 1
+//   npm run world:check              검사 스물둘을 돌리고 JSON 한 덩이를 낸다. fail 이 하나라도 있으면 종료 코드 1
 //   npm run world:check -- --pretty  들여쓴 JSON (사람이 눈으로 볼 때)
 //
 // `world:observe --report` 안에만 있던 아홉을 뽑아 왔다. 뽑아 온 이유는 셋이다 —
@@ -18,15 +18,20 @@ import {
   CITY_TAG,
   COMPILE_RULES,
   CONDITION_PREFIX,
+  MATERIAL_SEEDS,
   REGION_GRAPH,
   REGION_SPECS,
+  RESOURCE_FLOWS,
   RESOURCE_LAYER,
   SETTLEMENT_LAYER,
   START_REGION_ID,
+  TRACE_LAYER,
 } from '../../content/regions';
 import {
   checkRegions,
   type CheckContract,
+  type CheckEcology,
+  type CheckEcologySource,
   type CheckRegion,
   type CheckReport,
 } from '../../engine/world-authoring/check';
@@ -49,7 +54,59 @@ export const WORLD_CHECK_CONTRACT: CheckContract = {
   settlementLayer: SETTLEMENT_LAYER,
   settlementTags: SETTLEMENT_TAGS,
   conditionPrefix: CONDITION_PREFIX,
+  traceLayer: TRACE_LAYER,
   startRegion: START_REGION_ID,
+};
+
+/**
+ * 이 세계의 **재료 계통**을 기반에 건네는 자리 (C014 ADDED — 검사 ⑩~㉒ 가 이것을 읽는다).
+ *
+ * 여기서 세는 것이 없다 — content/regions 의 데이터를 형만 바꿔 옮긴다. 판정은 전부 기반의
+ * 것이고, 이 도구는 "이 세계에서 무엇이 재료이고 무엇이 원천인가" 를 말할 뿐이다.
+ *
+ * 두 값이 이 세계의 답으로 고정된다 (Play 확정 1):
+ *   renewable  **참** — 이 세계의 원천은 전부 되돌아온다. 되돌아오지 않는 원천이 없으므로
+ *              검사 ⑭ 는 일곱 전부에 원인을 묻는다
+ *   finite     **거짓** · depletionConsequence 는 빈 글자 — 이 Play 는 유한 원천
+ *              (FINITE_WORLD_STATE)을 쓰지 않는다. 그래서 검사 ⑮ 는 잴 것이 없어 absent 이고,
+ *              그것을 통과로 적지 않는 것이 옳다 (spec SPEC-007 경계 ②)
+ *
+ * 흔적은 그 원천의 **마디마다의 둘레 op** 다 (C013 의 traceOps) — 방 바닥에 깔린 흔적은
+ * 어느 원천의 것도 아니므로 여기 실리지 않는다.
+ */
+export const WORLD_CHECK_ECOLOGY: CheckEcology = {
+  materials: MATERIAL_SEEDS.map((seed) => ({ id: seed.id, worldCause: seed.worldCause })),
+  sources: REGION_SPECS.flatMap((spec) =>
+    (spec.resourceEcology?.sources ?? []).map(
+      (source): CheckEcologySource => ({
+        id: source.id,
+        region: spec.id,
+        materialId: source.materialId,
+        worldCause: source.worldCause,
+        supply: source.supply,
+        renewable: true,
+        recoveryCause: source.recoveryCause,
+        finite: false,
+        depletionConsequence: '',
+        traces: source.traceOps ?? [],
+        opportunity: source.opportunity,
+        carrier: source.carrier,
+      }),
+    ),
+  ),
+  flows: RESOURCE_FLOWS.map((flow) => ({
+    id: flow.id,
+    materialId: flow.materialId,
+    from: { region: flow.from.regionId, source: flow.from.sourceId },
+    to: { region: flow.to.regionId, source: flow.to.sourceId },
+    connector: flow.connectorId,
+  })),
+  // 이 계통이 **다룬다고 밝힌** 방 — resourceEcology 를 적은 방이다 (기본형 ⑥).
+  // 원천 없이 밝힌 방(백왕령)만 이유를 지고, 원천이 있는 방은 스스로 낳으므로 빈 글자다.
+  regions: REGION_SPECS.filter((spec) => spec.resourceEcology).map((spec) => ({
+    id: spec.id,
+    isolationReason: spec.resourceEcology?.isolationReason ?? '',
+  })),
 };
 
 /**
@@ -63,13 +120,14 @@ export const WORLD_CHECK_REGIONS: readonly CheckRegion[] = REGION_SPECS.map((spe
   coreRules: spec.rule ? 1 : 0,
 }));
 
-/** 이 세계의 검사 아홉을 돌린다 — 읽기 전용 */
+/** 이 세계의 검사 스물둘을 돌린다 — 읽기 전용 (C014 CHANGED — 계통 열셋이 이어 붙는다) */
 export function runWorldCheck(): CheckReport {
   return checkRegions({
     regions: WORLD_CHECK_REGIONS,
     graph: REGION_GRAPH,
     contract: WORLD_CHECK_CONTRACT,
     compile: (region) => compileRegion(region.space, COMPILE_RULES).world,
+    ecology: WORLD_CHECK_ECOLOGY,
   });
 }
 
@@ -82,7 +140,7 @@ function main(argv: readonly string[]): number {
   if (unknown.length > 0) {
     process.stderr.write(
       [
-        '  world:check — 검사 아홉을 돌리고 JSON 을 낸다',
+        '  world:check — 검사 스물둘을 돌리고 JSON 을 낸다',
         `    모르는 인자: ${unknown.join(' ')}`,
         '    쓸 수 있는 것: --pretty',
         '',
