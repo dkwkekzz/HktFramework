@@ -11,6 +11,11 @@
 // C001 CHANGED (02-world R6) — 관찰은 방으로 잘린다. scene = 관찰자의 몸이 선 Region 의 id 이고,
 // 존재는 같은 Region 의 몸·원천(C011) + 그 Region 의 anchor 마다 region-exit 하나다. 목적지 Region 의 이름 ·
 // Connector 의 방향 · 다른 방의 존재 · Graph 전체는 싣지 않는다 — "목적지는 건너야 안다".
+//
+// C015 CHANGED (RULE-OBSERVE-PROJECTION · spec R2) — 때가 밤이면 그 방 안을 한 번 더 자른다.
+// 관찰자의 몸에서 OBSERVE_RANGE_NIGHT 보다 먼 **몸과 원천**은 실리지 않고 그것에 걸린
+// 상호작용도 함께 빠진다. 낮에는 C014 까지와 한 줄도 다르지 않고, 밤에도 출구 · 방의 사실 ·
+// standingConditions · HUD 는 자르지 않는다 — 관찰 결과의 **형**은 낮과 밤이 같다.
 
 import type {
   EntityView,
@@ -19,6 +24,7 @@ import type {
   RegionStateView,
 } from '../../protocol/gameview';
 import { actionProgress, actionTargetId } from '../semantic/action';
+import { worldClockAt } from '../semantic/clock';
 import { actionCollider } from '../semantic/collision';
 import { evaluateAttributeSetAvailability } from '../rules/attribute-set';
 import { evaluateEmergencyReturnAvailability } from '../rules/emergency-return';
@@ -48,10 +54,12 @@ import { regionRuleOf } from '../semantic/region-state';
 // 재료 표는 content/regions 의 것이다 — HUD 의 자리 순서를 그 표가 정한다 (C011).
 import { MATERIAL_SEEDS } from '../../regions';
 import { conditionTagsAt } from '../semantic/terrain';
+import { distance } from '../semantic/position';
 import {
   actorOfObserver,
   findObserver,
   isAttended,
+  OBSERVE_RANGE_NIGHT,
   presentObserverCount,
   type WorldState,
 } from '../semantic/world-state';
@@ -72,13 +80,30 @@ export function projectObserverView(
 
   const region = regionSpecOf(self.regionId);
 
+  // RULE-WORLD-CLOCK-001 (C015 ADDED) — 세계의 때. 세계 시각에서 유도되므로 관찰마다 다시 얻는다.
+  const clock = worldClockAt(state.time);
+
+  /**
+   * RULE-OBSERVE-PROJECTION (C015 CHANGED · spec R2) — 밤에는 그 방 안을 한 번 더 자른다.
+   *
+   * 때가 밤이면 관찰자의 몸에서 OBSERVE_RANGE_NIGHT 보다 먼 것은 실리지 않는다.
+   * 낮에는 언제나 참이다 — 방 전체가 실린다 (C014 까지 그대로).
+   * 거리는 같은 방 안의 (x, z) 평면 거리다 (RULE-MINE-001 이 재는 그 거리).
+   */
+  const withinNightRange = (position: { x: number; z: number }): boolean =>
+    clock.dayPhase === 'DAY' || distance(self.position, position) <= OBSERVE_RANGE_NIGHT;
+
   // entities.character — 같은 Region 의 모든 Actor 를 같은 계약으로 투영한다 (cardinality: many).
   // role 만 보는 이에 따라 달라진다. 다른 방의 몸은 실리지 않는다 (C001 R6).
   for (const actor of state.actors) {
     if (actor.regionId !== self.regionId) continue;
+    const isSelfBody = actor.id === self.id;
+    // 밤이면 먼 몸은 실리지 않는다 (C015 CHANGED · spec R2).
+    // **관찰자 자신의 몸은 밤에도 언제나 실린다** (spec R2 경계 ①) — 내 몸이 사라지면 볼 자리가 없다.
+    if (!isSelfBody && !withinNightRange(actor.position)) continue;
     const progress = actionProgress(actor.currentAction);
     const target = actionTargetId(actor.currentAction);
-    const isSelf = actor.id === self.id;
+    const isSelf = isSelfBody;
     const isOtherPlayer = !isSelf && actor.control === 'player';
     // Collision.ActionColliders — attack 진행 중에만 존재하는 파생 상태
     const swing = actionCollider(actor);
@@ -229,6 +254,9 @@ export function projectObserverView(
     const sourceState = sourceStateOf(state.regionStates, self.regionId, source.id);
     // C013 ADDED — 지금 선 자리. 원천이 마디를 옮겨 다니므로 데이터의 마디 0 이 아니다.
     const here = sourcePositionOf(state.regionStates, source);
+    // 밤이면 먼 원천은 실리지 않는다 — 그것에 걸린 mine 도 아래에서 함께 빠진다
+    // (C015 CHANGED · spec R2). 거리는 **지금 마디**로 잰다 (RULE-MINE-001 과 같은 자리).
+    if (!withinNightRange(here)) continue;
     const collapsedSites = sourceState.collapsedSites;
 
     entities.push({
@@ -389,6 +417,11 @@ export function projectObserverView(
     // 매 관찰마다 그 방의 땅에서 유도된다 — 세계 State 에는 없다. 아무 area 에도 들지 않았으면
     // 빈 배열이고, 겹쳐 있으면 걸린 것이 전부 실린다. 이것은 hud 가 아니라 봉투의 새 자리다.
     standingConditions: conditionTagsAt(self.regionId, self.position),
+    // World.Clock — 세계의 때 (C015 ADDED · RULE-WORLD-CLOCK-001 · spec Observable).
+    // 세계에 하나이고 관찰자마다 같다. 세계 시각 자체도, 철이 언제 시작하고 끝나는지도,
+    // 남은 시간도 다음 철도 여기 없다 — 「때」와 「철」 두 줄의 **문구**를 만드는 것도
+    // 세계가 아니라 View 다 (원칙 2). HUD 는 한 줄도 늘지 않는다.
+    clock,
     // World.StrikeEvents — 남의 타격 결과도 보인다. 세계가 판정을 마친 값이다.
     strikes: state.strikeEvents.map((event) => ({
       attackerId: event.attackerId,

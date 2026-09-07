@@ -538,6 +538,8 @@ describe('SPEC-007 — 색과 표식은 표다', () => {
       strikes: [],
       debug: { open: false },
       commands: [],
+      // C015 ADDED — 봉투가 세계의 때를 든다. 이 판은 표현의 폴백만 재므로 첫 낮으로 둔다
+      clock: { dayPhase: 'DAY', season: 'STILL', dayIndex: 0, seasonCycle: 0 },
     } as GameViewSnapshot;
   }
 

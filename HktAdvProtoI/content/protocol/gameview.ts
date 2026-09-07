@@ -160,4 +160,25 @@ export interface GameViewSnapshot extends CoreGameViewSnapshot {
    * content/regions 를 같은 규칙으로 컴파일해 스스로 만든다.
    */
   standingConditions: string[];
+  /**
+   * 세계의 **때** (C015 ADDED) — 낮밤 · 철 · 며칠째 · 몇 바퀴째.
+   *
+   * 세계에 하나이고 관찰자마다 같다 (Time 원칙 T1). 세계 시각에서 유도되므로 저장되는 State 가
+   * 아니고, 같은 시각은 언제나 같은 때다 — 되살린 세계도 마찬가지다.
+   *
+   * **언제 바뀌는지는 싣지 않는다** — 철의 시작·끝, 남은 시간, 다음 철, 하루와 철의 길이는
+   * 어느 것도 여기 없다. "언제" 는 관찰자가 하늘과 흙과 이 값의 변화를 보고 배우는 것이다 (T8).
+   * 문구도 색도 여기 없다 — 코드를 말로 옮기는 것은 View 의 표다 (원칙 2).
+   */
+  clock: WorldClockView;
+}
+
+/** 세계의 때 — C015 ADDED. 뒤척임(TURN)은 철과 철 사이의 60 초다 (Play 확정 1 · 3) */
+export interface WorldClockView {
+  dayPhase: 'DAY' | 'NIGHT';
+  season: 'STILL' | 'SEEP' | 'LONG_NIGHT' | 'TURN';
+  /** 세계가 선 뒤 시작된 하루의 수 (0 부터) */
+  dayIndex: number;
+  /** 몇 바퀴째인가 (0 부터) */
+  seasonCycle: number;
 }

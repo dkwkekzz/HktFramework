@@ -51,6 +51,20 @@ export interface WorldState extends CoreWorldState {
 export const INTERACTION_RANGE = 2.0;
 
 /**
+ * 밤에 몸과 원천이 관찰에 실리는 거리 (C015 ADDED · RULE-OBSERVE-PROJECTION · spec R2).
+ *
+ * 때가 밤이면 관찰자 자신의 몸에서 이보다 먼 몸과 원천은 실리지 않는다. **낮에는 없다** —
+ * 낮의 관찰은 지금 그대로 방으로만 잘린다 (spec 기본형 ②: 낮에 범위를 새로 세우면
+ * C001~C014 의 모든 관찰이 함께 바뀌고, 그것은 이 Cycle 이 증명할 것이 아니다).
+ *
+ * 20 인 이유 — 기본 방(40×40)의 **반폭**이다. 한가운데에 서면 벽까지(20) 닿고
+ * 구석(28.3)에는 닿지 않는다: 밤은 방을 지우는 것이 아니라 방 저편을 지운다.
+ *
+ * 결정론에 영향을 주는 시뮬레이션 상수이므로 CVar 가 아니라 헤더 상수로 고정한다 (원칙 6).
+ */
+export const OBSERVE_RANGE_NIGHT = 20;
+
+/**
  * 되돌아옴이 **눈에 보이기 시작하는** 지점 — recoverySeconds 에 대한 비율 (C013 ADDED).
  *
  * 이 비율을 넘으면 phase 가 depleted 에서 recovering 으로 넘어간다: 그림이 갈리고 둘레 흙이

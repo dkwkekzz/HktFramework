@@ -624,8 +624,9 @@ describe('SPEC-008 — 세계는 땅을 싣지 않는다', () => {
   it('S-029 봉투의 키 집합이 그대로다 · region 은 { id, hash } 둘뿐이다', () => {
     const v = driveWorld(solo).observe();
     expect(Object.keys(v).sort()).toEqual(
-      // C006 ADDED — standingConditions 하나가 는다 (C006 관찰 계약). 그 밖은 한 글자도 그대로다
-      ['specId', 'scene', 'region', 'observer', 'entities', 'interactions', 'hud', 'strikes', 'debug', 'commands', 'standingConditions'].sort(),
+      // C006 ADDED — standingConditions 하나가 는다 (C006 관찰 계약).
+      // C015 ADDED — clock 하나가 는다 (세계의 때 · C015 관찰 계약). 그 밖은 한 글자도 그대로다
+      ['specId', 'scene', 'region', 'observer', 'entities', 'interactions', 'hud', 'strikes', 'debug', 'commands', 'standingConditions', 'clock'].sort(),
     );
     expect(Object.keys(v.region).sort()).toEqual(['hash', 'id']);
   });
