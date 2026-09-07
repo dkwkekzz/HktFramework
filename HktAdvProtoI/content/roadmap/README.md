@@ -94,7 +94,7 @@ Material §2.2 에서 옮겨 다시 긋는다.
 |---|---|---|---|---|
 | T1 | 검사기 독립 — `world:check` (JSON) | `npm test` 에 붙는다 · 일부러 만든 실패가 잡힌다 | — | 섰다 |
 | T2 | 여덟 답의 형 — RegionBrief schema (여덟째 = 무엇이 태어나는가) | 지금 방 아홉을 손으로 역기술해 전부 통과 | — | 섰다 |
-| T3 | 뼈대 생성기 — `world:author` (결정론) | brief 하나 → 방 하나 T1 통과 · 걸어진다 · 코드 diff 0 | phases 는 C016 뒤 | 절반이 섰다 (space · graph · resourceEcology) |
+| T3 | 뼈대 생성기 — `world:author` (결정론) | brief 하나 → 방 하나 T1 통과 · 걸어진다 · **굳힌 파일이 컴파일된다** · 코드 diff 0 | phases 는 C016 뒤 · 생명 ecology 는 C022 뒤 | 절반이 섰다 (space · graph · resourceEcology) |
 | T4 | 등급 판정기 — A / B / C + GAP | 가스 마을 · 유령 도시 · 마법도시가 A · B · C 로 갈린다 | T2 | 섰다 |
 | T5 | 초안기 — `world:draft` (`claude -p --json-schema` · 구독 로그인 · 구조화 출력 · 검사 되먹임) | 미지 한 줄 → 방 하나 사람 손 없이 통과 | T3 · T4 | 섰다 |
 | T6 | 판정 표면 + 대량 — `world:lab` 승인/반려 · `--batch` | Play **HundredRooms** | 편중 요약의 나머지는 C022 · 템플릿은 Frost 닫힘 | 섰다 (편중 요약은 구조의 수까지) |

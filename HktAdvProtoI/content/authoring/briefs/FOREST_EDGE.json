@@ -19,6 +19,8 @@
           "id": "MOLT_LITTER",
           "material": "ORE_EATER_MOLT",
           "heldBy": "residue",
+          "worldCause": "FOREST_CHAIN",
+          "recoveryCause": "molt-cycle",
           "form": "molt-litter",
           "role": "baseline"
         }

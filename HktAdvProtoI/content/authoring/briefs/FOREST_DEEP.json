@@ -19,6 +19,8 @@
           "id": "RIVER_SILT",
           "material": "BIO_ORE",
           "heldBy": "water",
+          "worldCause": "FOREST_CHAIN",
+          "recoveryCause": "flow-arrival",
           "form": "river-grain",
           "role": "conditional"
         }

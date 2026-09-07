@@ -1,5 +1,8 @@
 // World Authoring — 뼈대 생성기 (T3 ADDED · 절반: space · graph · resourceEcology).
 //
+// **굳힌 파일이 컴파일되는 것까지가 이 생성기의 일이다.** 값이 맞아도 형이 다르면 방은 서지 못한다 —
+// 그래서 AuthoredSource 는 컨텐츠의 원천 표와 같은 형이고, 시험이 굳힌 파일을 실제로 컴파일한다.
+//
 // RegionBrief(T2) 하나에서 방 하나의 **뼈대**를 낸다 — Description 의 op 들, 그 방이 들이는
 // Connector 들, 그리고 방 이름 한 줄. `world:author` 가 이것을 파일로 굳힌다.
 //
@@ -36,11 +39,16 @@ export interface TerrainRecipe {
   falloff?: number;
 }
 
-/** 역할별 원천 기본형 — 얼마나 주는가 · 어떻게 다시 나는가 · 무너지는가 */
+/** 역할별 원천 기본형 — 얼마나 주는가 · 어떻게 다시 나는가 · 무너지는가 · 얼마 만에 */
 export interface SourceDefaults {
   supply: string;
   harvests: number;
   collapses?: boolean;
+  /**
+   * 되돌아오기까지의 시간 규모 (초). **brief 가 답하지 않는다** — 시간 규모는 지어낼 값이
+   * 아니라 이 세계가 정한 상수라, 역할마다의 기본형으로 온다 (supply · harvests 와 같은 자리).
+   */
+  recoverySeconds: number;
 }
 
 /** 깊이별 방의 크기와 흔적의 바탕 세기 */
@@ -68,17 +76,29 @@ export interface AuthorTemplates {
 }
 
 /** 생성기가 내는 원천 하나 — 컨텐츠의 원천 표와 같은 이름들이다 */
+/**
+ * 생성기가 내는 원천 하나 — 컨텐츠의 원천 표와 **같은 이름 · 같은 형**이다.
+ *
+ * 같아야 하는 이유는 하나다: 이 값이 그대로 글자가 되어 `content/regions/<방>.ts` 에 굳고,
+ * 그 파일은 컴파일되어야 한다. 이름 하나만 달라도(traceOp/traceOps) 굳힌 방이 서지 못한다.
+ */
 export interface AuthoredSource {
   id: string;
   materialId: string;
+  /** 무엇이 그것을 낳았는가 — brief 가 답한다 */
+  worldCause: string;
   form: string;
   carrier: string;
   opportunity: string;
   supply: string;
+  /** 무엇이 그것을 되돌리는가 — brief 가 답한다 */
+  recoveryCause: string;
   harvests: number;
   collapses?: boolean;
-  /** 이 원천 둘레의 흔적 op — 고갈이 한 단계 낮출 자리 */
-  traceOp: string;
+  /** 얼마 만에 되돌아오는가 — 역할별 기본형이 정한다 */
+  recoverySeconds: number;
+  /** 이 원천 둘레의 흔적 op 들 — 고갈이 한 단계 낮출 자리 */
+  traceOps: string[];
 }
 
 export interface AuthoredConnector {
@@ -315,16 +335,20 @@ export function authorRegion(input: AuthorInput): AuthoredRegion {
 
   const authored: AuthoredSource[] = sources.map((source, index) => {
     const role = templates.sourceByRole[source.role];
+    // 키 차례가 컨텐츠의 원천 표와 같다 — 굳힌 글자가 손으로 쓴 방들과 같은 모양이어야 한다
     return {
       id: source.id,
       materialId: source.material,
+      worldCause: source.worldCause,
       form: source.form,
       carrier: source.heldBy,
       opportunity: source.role,
       supply: role?.supply ?? source.role,
+      recoveryCause: source.recoveryCause,
       harvests: role?.harvests ?? 1,
       ...(role?.collapses ? { collapses: true } : {}),
-      traceOp: traceOps[index + 1]!.id,
+      recoverySeconds: role?.recoverySeconds ?? 60,
+      traceOps: [traceOps[index + 1]!.id],
     };
   });
 

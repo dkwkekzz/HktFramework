@@ -81,7 +81,7 @@ describe('등급 A — 데이터만으로 선다', () => {
           ...brief().answers,
           worth: {
             said: said('새것이 난다'),
-            sources: [{ id: 'S', material: '아무도 모르던 것', heldBy: 'ground', form: '덩이', role: 'free' }],
+            sources: [{ id: 'S', material: '아무도 모르던 것', heldBy: 'ground', worldCause: 'CHAIN', recoveryCause: 'molt-cycle', form: '덩이', role: 'free' }],
           },
         },
       }).grade,
@@ -152,7 +152,7 @@ describe('등급 C — 지금 없는 의미를 요구한다', () => {
         ...brief().answers,
         worth: {
           said: said('난다'),
-          sources: [{ id: 'S', material: 'M', heldBy: '구름', form: '덩이', role: '공짜' }],
+          sources: [{ id: 'S', material: 'M', heldBy: '구름', worldCause: 'CHAIN', recoveryCause: 'molt-cycle', form: '덩이', role: '공짜' }],
         },
       },
     });

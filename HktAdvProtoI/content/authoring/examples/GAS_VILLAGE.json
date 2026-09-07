@@ -17,6 +17,8 @@
           "id": "GAS_RESIDUE",
           "material": "GAS_RESIDUE",
           "heldBy": "residue",
+          "worldCause": "GAS_POOLING",
+          "recoveryCause": "gas-settling",
           "form": "settled-film",
           "role": "baseline"
         }

@@ -21,6 +21,8 @@
           "id": "NEST_FUNGUS",
           "material": "GIANT_TREE_FUNGUS",
           "heldBy": "fungus",
+          "worldCause": "FOREST_CHAIN",
+          "recoveryCause": "carcass-decay",
           "form": "nest-mycelium",
           "role": "by-product"
         }
