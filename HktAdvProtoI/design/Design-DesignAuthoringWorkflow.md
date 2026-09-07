@@ -35,7 +35,8 @@ content/roadmap/       주입 순서(README.md)와 그 결과물 — 이 세계�
   play/<PlayName>.md   실제 플레이 경험 1개당 1문서 (Level 2) — 로드맵의 행 하나를 증명한다
 cycles/C###-이름/
   spec.md              이번에 플레이 가능하게 만들 최소 단위(Level 3 = 범위 절) + 명세 — Cycle 공정이 한 번에 쓴다
-  TODO.md · shots/     코드 뒤에 남는 것 — Human 판정 대기 · 부채 · 마감 촬영
+  shots/               마감 촬영
+TODO.md                코드 뒤에 남는 것 — 저장소 루트에 하나 (Human 질문 · Human 결정 · 뒤 층으로 · 다음 Cycle 로 · 공학 부채)
 ```
 
 | 계층 | 질문 |
@@ -161,7 +162,7 @@ CYCLE / SOURCE / SELECTED_FROM   Trace 블록 — SOURCE 는 content/roadmap/pla
 
 Design 공정은 승인된 Play 와 레인 표에서 끝난다. Cycle 공정은 Experience Intent 를 다시
 해석하지 않고, 이미 결정된 플레이 기획을 범위와 명세로 폐쇄하고 동결한다. 코드 뒤에는
-`TODO.md`(Human 판정 대기 · 부채)와 `shots/`(마감 촬영)만 남는다.
+`shots/`(마감 촬영)와 루트 `TODO.md` 의 항목(Human 판정 대기 · 부채)만 남는다.
 
 ## 7. Verification 의 두 층
 
@@ -170,16 +171,16 @@ Design 공정은 승인된 Play 와 레인 표에서 끝난다. Cycle 공정은 
 - **Functional Verification** — 자동 검증 가능한 World State 변화 (기존 그대로).
 - **Experience Verification** — 실제 플레이에서 spec.md 의 Experience Intent 가
   성립하는지 관찰한다. 감정을 숫자로 검증하는 것이 아니라 **의도한 인지·행동 변화가
-  실제로 발생하는지** 본다. 판단은 Human 의 몫이다 — Cycle 마감이 관찰 항목을 그 Cycle 의
-  `TODO.md` 에 남기고, Human 이 **Play 단위**로 판정한 뒤 지운다 (§8 의 Play 실주행 판정 —
+  실제로 발생하는지** 본다. 판단은 Human 의 몫이다 — Cycle 마감이 관찰 항목을 루트
+  `TODO.md` §1 의 그 Play 소절에 남기고, Human 이 **Play 단위**로 판정한 뒤 지운다 (§8 의 Play 실주행 판정 —
   Cycle 마다 판정하지 않는다).
 
 ## 8. Cycle 완료 후 처리
 
 Cycle 이 완료되면 Play Design 문서의 Cycle Breakdown **체크박스만** 갱신한다
 (`[x]`). Graph 를 갱신하거나 새로운 관리 artifact 를 만들지 않는다. 완료된 Cycle 의
-World Capability 는 이후 Cycle 에서 그대로 재사용한다. 다음 Cycle 의 명세는 앞 Cycle 들의
-`TODO.md`(알려진 부채 · 다음 Cycle 로)를 입력으로 받는다 — 회수 규칙은
+World Capability 는 이후 Cycle 에서 그대로 재사용한다. 다음 Cycle 의 명세는 루트
+`TODO.md` §4(다음 Cycle 로)를 입력으로 받는다 — 회수 규칙은
 [Plan-Skill §3](Plan-Skill-CycleExecutionWorkflow.md).
 
 모든 핵심 Cycle 이 완료되면 원래 Play Goal 을 실제로 수행할 수 있어야 하고, Breath
@@ -268,7 +269,7 @@ Human 은 게임이 무엇이어야 하는가를 결정하고, AI 는 그것을 
 ```text
 생성한다      시스템 문서 (영역별 1개) · L<N>-*.md (기반 층별 1개 — 0층이 `L0-Game.md`) ·
              M<N>-*.md (미지별 1개) · play/*.md (플레이별 1개) · cycles/C###/spec.md
-             (Cycle 마감이 남기는 TODO.md · shots/ — TODO 는 살아 있는 문서, 비면 지운다)
+             (Cycle 마감이 남기는 shots/ 와 루트 TODO.md 의 항목 — TODO 는 저장소에 하나뿐인 살아 있는 문서, 절이 비면 절을 지운다)
 생성하지 않는다  Master Graph · Intent Graph · Possibility Graph · Capability Graph ·
              Experience Graph · Frontier 문서 · 별도 Breath/World Cause 문서
 ```

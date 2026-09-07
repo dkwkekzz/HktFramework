@@ -19,7 +19,7 @@ HktAdvProtoI — 목적 트리 기반 오픈월드 어드벤처 프로토타입 
 
 ```text
 advprotoi-design  기획   방향/기획서/미지 주입 → Play Design(content/roadmap/play/*.md) → Human 승인 1회 → STATE.md §1 레인 표
-advprotoi-cycle   Cycle  "C### 진행" — spec.md 동결 → E ∥ W ∥ V ∥ T → npm test → 마감(촬영 · TODO.md · 커밋 · PR)
+advprotoi-cycle   Cycle  "C### 진행" — spec.md 동결 → E ∥ W ∥ V ∥ T → npm test → 마감(촬영 · 루트 TODO.md 기입 · 커밋 · PR)
 ```
 
 - 공정 원본: [Design-CycleExecutionWorkflow.md](design/Design-CycleExecutionWorkflow.md) ·
@@ -27,10 +27,12 @@ advprotoi-cycle   Cycle  "C### 진행" — spec.md 동결 → E ∥ W ∥ V ∥ 
   [Plan-Skill-CycleExecutionWorkflow.md](design/Plan-Skill-CycleExecutionWorkflow.md)
 - 다음에 **만들** 것은 승인된 Play 의 Cycle Breakdown 이, 다음에 **주입할** 것은
   [content/roadmap/README.md](content/roadmap/README.md) 가 답한다.
-- `cycles/<CycleId>/` 에는 `spec.md` · `TODO.md`(비면 삭제) · `shots.json` + `shots/` 만 둔다.
-  구현 노트·검증 산문은 만들지 않는다 — 코드 주석의 `RULE-*` id · 시나리오 테스트 · 커밋 메시지가 원본이다.
-- `TODO.md` 는 따로 부르지 않아도 공정이 회수한다 — 부채·다음 Cycle 로는 같은 Play 의 다음 Cycle 명세가,
-  Human 판정은 Play 의 마지막 Cycle 뒤 **Play 실주행 판정**이 읽는다 (Plan-Skill §3 회수 규칙).
+- `cycles/<CycleId>/` 에는 `spec.md` · `shots.json` + `shots/` 만 둔다. 코드 뒤에 남는 것은 전부 루트 [TODO.md](TODO.md)
+  하나에 쓴다 (Cycle 별 TODO 없음). 구현 노트·검증 산문은 만들지 않는다 — 코드 주석의 `RULE-*` id · 시나리오 테스트 ·
+  커밋 메시지가 원본이다.
+- `TODO.md` 는 따로 부르지 않아도 공정이 회수한다 — §4 다음 Cycle 로는 같은 Play 의 다음 Cycle 명세가, §1 Human 질문은
+  Play 의 마지막 Cycle 뒤 **AI 예심 → Play 실주행 판정**이, §3 은 기획이, §5 는 그 자리를 만지는 Cycle 이 읽는다
+  (Plan-Skill §3 회수 규칙). Human 이 읽는 것은 §1 · §2 뿐이다.
 - 병렬 Cycle 규칙(브랜치 `cycle/C###` = 세션 하나 · STATE 는 main 에서만 · engine 먼저 합침)은
   Plan-Skill §4 항목 4 가 소유한다.
 

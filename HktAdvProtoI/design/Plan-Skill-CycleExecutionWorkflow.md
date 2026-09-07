@@ -28,7 +28,7 @@
 | 10 | 추상화는 실제 Cycle 반복에서 중복이 발견됐을 때만 (§10, §11) | 구현 단계 + 확장 Cycle 규칙 |
 | 11 | GameView 는 World State 를 표현만 한다 — 새 의미 생성 금지 (§12) | GameView 단계 Do/Don't |
 | 12 | Verification 기준은 코드 구조가 아니라 플레이 결과·World State (§13) | 검증 단계 — 시나리오 테스트의 Given/When/Then |
-| 13 | Human 이 추가 추론 없이 성공/실패를 판단할 수 있어야 한다 (§13, §19) | TODO.md 의 Human 판정 항목 형식(하기/보기/판정) |
+| 13 | Human 이 추가 추론 없이 성공/실패를 판단할 수 있어야 한다 (§13, §19) | TODO.md §1 의 질문 형식(굵은 한 줄 + 무엇을 묻나 + 확인 방법) — 예심 전 원 항목은 하기/보기/판정 |
 | 14 | Design→Spec→Semantic/Rule→Impl→검증의 Trace 유지 (§14) | spec.md 머리의 Trace 블록 + 코드의 RULE id + 시나리오 테스트의 SPEC id |
 | 15 | Master Graph 는 탐색 도구 — Cycle 공정의 필수 단계가 아니다, Human 이 직접 지정하면 생략 (§15) | Design Authoring 공정이 탐색 자체를 대체 — master 스킬 없음 (§7) |
 | 16 | 별도 Intent 단계 없음 — 정보를 추가하지 않는 단계는 제거 (§16) | 단계 구성 자체 (AdvProtoH 의 8 Stage 를 답습하지 않는다) |
@@ -48,8 +48,8 @@ advprotoi-design   기획      주입(방향/기획서/미지) → PLAY DESIGN �
 advprotoi-cycle    Cycle     명세: cycles/<CycleId>/spec.md 한 파일 — 범위 · SPEC · State/Rule · Observable · UNRESOLVED 를
                            한 번에 쓰고 동결 (UNRESOLVED > 0 이면 정지 → Human)
                            실현: 관찰 계약 · 기구/의미 분해 → E ∥ W ∥ V ∥ T fan-out → npm test → 7항
-                           마감: 촬영 shots/ · TODO.md · 마감 커밋 · 그림 보고 → PR
-                           산출물: spec.md · 코드·시나리오 테스트 커밋 · TODO.md · shots/
+                           마감: 촬영 shots/ · 루트 TODO.md 에 분류해 기입 · 마감 커밋 · 그림 보고 → PR
+                           산출물: spec.md · 코드·시나리오 테스트 커밋 · shots/ · 루트 TODO.md 의 항목
 ```
 
 이렇게 나누는 이유:
@@ -69,7 +69,7 @@ advprotoi-cycle    Cycle     명세: cycles/<CycleId>/spec.md 한 파일 — 범
 대화 History 는 Source of Truth 가 아니다 — 파일만이 단계 간 인터페이스다.
 (이것이 병렬·재개 가능한 Agent 처리의 전제다.)
 
-파일은 둘뿐이다 — **코드 전에 쓰이는 것**(spec)과 **코드 뒤에 남는 것**(TODO).
+파일은 둘뿐이다 — **코드 전에 쓰이는 것**(Cycle 폴더의 spec)과 **코드 뒤에 남는 것**(루트의 TODO 하나 — 모든 Cycle 이 공유한다).
 코드가 나온 뒤에 코드를 다시 산문으로 옮기는 문서(구현 노트 · GameView 매핑 표 ·
 검증 산문)는 만들지 않는다 — 그 내용의 원본은 코드·테스트·커밋이 이미 소유하고,
 어느 Agent 의 입력도 아니다. 병렬 Agent 가 실제로 읽는 파일은 spec 하나다.
@@ -77,20 +77,24 @@ advprotoi-cycle    Cycle     명세: cycles/<CycleId>/spec.md 한 파일 — 범
 | 파일 | 쓰는 이 | 내용 |
 |---|---|---|
 | `spec.md` | cycle 의 명세 단계가 한 번에 쓴다. 실현 단계는 읽기만 | **범위** (위층 문서 §6): Playable Goal · Experience Intent · World Change · Observable Result · Reuse · Out of Scope. **명세** (CYCLE SPEC + WORLD SEMANTIC/RULE, §4–8): `SPEC-###` 목록 · State(점 경로 · 데이터 값) · Rule(`IF … THEN …` · CHANGED/AFFECTED) · REUSED/ADDED · Observable(점 경로 — 관찰 계약의 원본) · UNRESOLVED(+ 기본형으로 둔 것). UNRESOLVED 가 없으면 **동결** |
-| `TODO.md` | cycle 의 마감이 쓰고, 아래 회수 규칙의 소비자가 지운다 | Human 판정 대기(Experience Verification 관찰 항목 — 하기/보기/판정) · 알려진 부채 · 다음 Cycle 로 넘긴 것. 항목이 다 지워지면 파일을 지운다 — `spec.md` 만 남은 디렉터리가 깨끗이 닫힌 Cycle 이다. 남길 것이 없으면 만들지 않는다 |
+| `TODO.md` — **저장소 루트에 하나** (`HktAdvProtoI/TODO.md`), Cycle 폴더가 아니다 | cycle 의 마감이 쓰고, 아래 회수 규칙의 소비자가 지운다 | §1 Human 에게(Play 단위 질문) · §2 Human 이 정할 것 · §3 뒤 층·뒤 Play 로 · §4 다음 Cycle 로 · §5 공학 부채. 절이 비면 절을 지운다. Cycle 마감은 이 다섯 절에 **바로 분류해** 적는다 — Cycle 별 파일을 만들지 않는다 |
 
 **TODO 회수 규칙** — 절마다 소비자와 시점이 하나씩 고정돼 있다. 어느 공정도 "TODO 를 봐 달라" 고
 따로 말하지 않는다 — 그 시점이 오면 그 공정이 읽는다.
 
 | 절 | 소비자 | 시점 | 처리 |
 |---|---|---|---|
-| 알려진 부채 · 다음 Cycle 로 | **같은 Play 의 다음 Cycle** 명세 단계 | 그 Cycle 의 spec.md 를 쓸 때 — 앞 Cycle 들의 TODO 두 절이 명세 입력이다 | 이번에 받는 것은 SPEC/Reuse 로, 받지 않는 것은 Out of Scope 에 받을 Cycle 을 적는다. 받은 항목은 그 Cycle 을 main 에 합친 직후 원 TODO 에서 지운다 |
-| Human 판정 대기 | **Human** — 단, AI 예심 뒤 | **Play 단위** — 그 Play 의 마지막 Cycle 이 합쳐진 직후의 Play 실주행 판정 (위층 문서 §8). Cycle 마다 판정하지 않는다 | **AI 예심이 먼저다**: 항목을 셋으로 가른다 — A 그림(`shots/`)·테스트가 이미 단언하는 것은 근거를 달아 닫는다(Human 은 표본만 본다) · B 사람 눈이 필요한 것(느낌 · 이해되는가 · 타이밍) · C Human 이 값·규칙을 정할 것. B·C 를 **Play 당 질문 대여섯**으로 압축해(비슷한 항목은 하나로, 각 질문에 확인 방법 한 줄) Human 에게 준다. Human 은 그 질문만 답한다 — 항목 전부를 읽지 않는다. 통과한 항목은 지운다. 실패한 항목은 DESIGN GAP 으로 advprotoi-design 의 주입물이 된다 (위층 문서 §8.5 셋째 주입) |
-| Play 가 닫힌 뒤 남은 부채 (받을 Cycle 없음) | Human · ENGINE 레인 | Play 실주행 판정이 끝날 때 | STATE.md §5 로 옮기고 TODO 에서 지운다 — 옮긴 뒤 원본은 STATE 다 |
+| §1 Human 에게 | **Human** — 단, AI 예심 뒤 | **Play 단위** — 그 Play 의 마지막 Cycle 이 합쳐진 직후의 Play 실주행 판정 (위층 문서 §8). Cycle 마다 판정하지 않는다 | Cycle 마감은 Experience Verification 관찰 항목(하기/보기/판정)을 그 Play 절에 쌓는다. Play 의 마지막 Cycle 마감이 **AI 예심**을 한다: 항목을 셋으로 가른다 — A 그림(`shots/`)·테스트가 이미 단언하는 것은 근거를 달아 닫는다(Human 은 표본만 본다) · B 사람 눈이 필요한 것(느낌 · 이해되는가 · 타이밍) · C Human 이 값·규칙을 정할 것. B·C 를 **Play 당 질문 대여섯**으로 압축해 그 절을 바꿔 쓴다. 질문 형식: **굵은 한 줄**(게임 용어 없이 답할 수 있게) + 무엇을 묻나 + 확인 방법 + 원 항목 번호. Human 은 그 질문만 답한다. 통과한 질문은 지운다. 실패한 질문은 DESIGN GAP 으로 advprotoi-design 의 주입물이 된다 (위층 문서 §8.5 셋째 주입) |
+| §2 Human 이 정할 것 | **Human** | 언제든 — Play 실주행 판정 때 함께 보는 것이 싸다 | 값·규칙·방향의 결정 한 줄씩. §1 의 질문과 겹치지 않는 것만. 정하면 지우고, 결정은 그 값이 사는 자리(데이터 · spec · Play 문서)로 간다 |
+| §3 뒤 층 · 뒤 Play 로 | **advprotoi-design** | 그 층·Play 를 기획할 때 입력 | 지금 Cycle 이 받을 수 없는 것(다른 층의 의미 · 다른 Region 의 Play). 기획이 받으면 지운다 |
+| §4 다음 Cycle 로 | **같은 Play 의 다음 Cycle** 명세 단계 | 그 Cycle 의 spec.md 를 쓸 때 — 이 절이 명세 입력이다 | 이번에 받는 것은 SPEC/Reuse 로, 받지 않는 것은 Out of Scope 에 받을 Cycle 을 적는다. 받은 항목은 그 Cycle 을 main 에 합친 직후 지운다 |
+| §5 공학 부채 | **AI** — 다음 Cycle · ENGINE 레인 · 화면 레인 | 그 자리를 만지는 Cycle 이 갚는다 | 처음 난 자리(C###)를 하나만 적는다. 갚으면 지운다 |
 
-- 항목은 **처음 난 Cycle 의 TODO 에만** 산다. 뒤 Cycle 이 같은 부채를 만나도 다시 적지 않는다 —
-  `C006 → C009 → C016` 식 사슬은 경위이므로 금지 (CLAUDE.md 원칙 10). STATE §5 는 난 자리 하나만 가리킨다.
-- 로드맵의 "실제로 플레이되면 행이 닫힌다" 는 곧 그 Play Cycle 들의 Human 판정 절이 전부 비는 것이다
+- 항목은 **한 번만** 적힌다 — 처음 난 Cycle 표기 하나로. 뒤 Cycle 이 같은 부채를 만나도 다시 적지 않는다 —
+  `C006 → C009 → C016` 식 사슬은 경위이므로 금지 (CLAUDE.md 원칙 10). STATE.md 는 부채를 복제하지 않고 TODO.md 를 가리킨다.
+- spec 이 침묵해 **테스트가 판정 방식을 스스로 정한 자리**는 TODO 에 적지 않는다 — 그 시나리오의 단언과 마감 커밋이
+  이미 그 선택을 적고 있다. 실제 결정이 걸린 것만 §2 로 올린다.
+- 로드맵의 "실제로 플레이되면 행이 닫힌다" 는 곧 그 Play 의 §1 절이 비는 것이다
   ([content/roadmap/README.md](../content/roadmap/README.md) §4 ③).
 
 만들지 않는 것과 그 내용이 사는 자리:
@@ -100,7 +104,7 @@ advprotoi-cycle    Cycle     명세: cycles/<CycleId>/spec.md 한 파일 — 범
 | 구현 노트 (변경 파일 · Rule↔코드 매핑 표 · Architecture 변화) | Rule 을 실현하는 함수 머리의 `RULE-*` id 주석 (grep 이 곧 매핑 표) · 커밋(변경 파일) · 기구 추출은 engine 의 분리 커밋 메시지 |
 | GameView 매핑 표 | `spec.md` 의 Observable 절 + `content/view` 의 표 자체 |
 | 검증 산문 (Given/When/Then · 실측값 · 완료 조건 7항 체크) | 시나리오 테스트 `content/*/tests/<주제>.scenario.spec.ts` (`describe('SPEC-###')` · `it('S-###')`) · 7항 판정과 테스트 수는 마감 커밋 메시지 한 줄 |
-| Human 판정 항목 | `TODO.md` |
+| Human 판정 항목 · 부채 | 루트 `TODO.md` 의 해당 절 |
 
 `spec.md` 머리에 Trace 블록 하나를 둔다 (절마다 두지 않는다 — 절의 순서가 곧 입력 관계다):
 
@@ -127,7 +131,7 @@ spec.md 동결 (Observable 절 = 관찰 계약)
         └────────────────┴───────────────────┘
                          ▼
                   통합: cycle 본체가 npm test · boundary:check →
-                  7항 판정은 마감 커밋 메시지 한 줄 · Human 판정 항목은 TODO.md
+                  7항 판정은 마감 커밋 메시지 한 줄 · Human 판정 항목은 루트 TODO.md §1
 ```
 
 병렬이 안전한 근거와 규칙:
@@ -213,7 +217,7 @@ spec.md 동결 (Observable 절 = 관찰 계약)
 4. 실현: 관찰 계약 확정(protocol/) + 기구/의미 분해(§4.5) → §4 의 fan-out(Agent tool, 단일 메시지 동시 발사 —
    담당 파일 경계 · spec.md · 금지 규칙 · GAP 삼분법) → 통합: npm test → 7항 판정(§19)은 마감 커밋 메시지 한 줄
 5. Trace: 모든 R# 에 `RULE-*` id 주석이 달린 함수가 있는지 grep (§9)
-6. 마감: 촬영(cycle:shot → shots/) · TODO.md(Human 판정 대기 · 부채) · 그림 보고 → PR. 확장 Cycle 은 기존 관찰
+6. 마감: 촬영(cycle:shot → shots/) · 루트 TODO.md 의 다섯 절에 분류해 기입 · 그림 보고 → PR. 확장 Cycle 은 기존 관찰
    가능 행동 회귀 검증 포함 (§18, CLAUDE.md 원칙 8). 합친 직후 Play 체크박스 · STATE 갱신
 
 ### advprotoi-design
@@ -251,9 +255,9 @@ advprotoi-design   기획      L0-Game.md/시스템 문서 → content/roadmap/p
    00-cycle)은 그 항목을 잘라 cycle 이 쓴다 — design 은 쓰지 않는다. SOURCE = `content/roadmap/play/<name>.md`.
    Human 이 직접 Goal 을 지정하는 예외 경로는 유지한다.
 2. **cycle 마감에 두 가지가 더해진다** — Experience Verification 관찰 항목을
-   TODO.md 에 기입(판정은 Human — Play 단위로 판정하고 지운다, §3 회수 규칙), 완료 시 play 문서의
+   루트 TODO.md §1 에 기입(판정은 Human — Play 단위로 예심 뒤 판정하고 지운다, §3 회수 규칙), 완료 시 play 문서의
    Cycle Breakdown 체크박스 갱신 (play 문서에서 Agent 가 만질 수 있는 유일한 자리).
-   cycle 명세 단계는 같은 Play 앞 Cycle 들의 TODO(부채 · 다음 Cycle 로)를 입력으로 받는다.
+   cycle 명세 단계는 루트 TODO.md §4(다음 Cycle 로)를 입력으로 받는다.
 3. **master 는 제거된다** — 다음 Cycle 은 승인된 Play 의 Cycle Breakdown 이 답한다.
    Play Design 이 하나도 없으면 첫 Play 를 기획하는 것(advprotoi-design)이 곧 탐색이다.
 4. Graph 류 관리 artifact 는 만들지 않는다 — Breath·Capability·Cycle 후보는 전부

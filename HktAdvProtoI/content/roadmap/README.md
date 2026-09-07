@@ -49,7 +49,7 @@ content/  그 위에 놓이는 이 세계          컨텐츠 층  미지를 놓�
 - 아직 확정되지 않은 축의 의미가 Play 에 필요해지면 Required 에 올리지 않고 Human
   질문으로만 남긴다.
 - 그 행의 Play 가 실제로 플레이되면 행이 닫힌다 — "실제로 플레이됨" 은 그 Play 의 Cycle 들이
-  `cycles/C###/TODO.md` 에 남긴 Human 판정 항목이 Play 실주행 판정으로 전부 비는 것이다
+  루트 `TODO.md` §1 에 남긴 Human 질문이 Play 실주행 판정으로 전부 비는 것이다
   (회수 규칙은 [design/Plan-Skill-CycleExecutionWorkflow.md](../../design/Plan-Skill-CycleExecutionWorkflow.md) §3).
 
 ## 2. 기반 층 — 축의 순서
@@ -146,7 +146,7 @@ Lock(자리가 요구하는 세계 조건 · property · time · state · knowle
 ② 방향 한 줄  "이 층으로 이런 것을 보게 하라" → advprotoi-design 이 그 층만의 Play 를
              play/ 에 구체화한다 (승인 1회). 이 Play 가 놓는 미지 하나를 §3 에 행으로 올린다.
 ③ 완성 판정   그 Play 의 마지막 Cycle 이 합쳐진 뒤 Human 이 Play 실주행 판정을 한다 — Play Goal 을
-             한 번 플레이하며 Cycle 들의 TODO.md Human 판정 항목을 훑는다. 전부 비면 층이 닫힌다 →
+             한 번 플레이하며 루트 TODO.md §1 의 그 Play 질문(AI 예심이 압축한 대여섯)에 답한다. 전부 비면 층이 닫힌다 →
              상태를 갱신하고 다음 층을 주입한다. 실패한 항목은 DESIGN GAP 으로 advprotoi-design 에 준다.
 ```
 
@@ -162,7 +162,7 @@ Lock(자리가 요구하는 세계 조건 · property · time · state · knowle
 ② 열 질문     advprotoi-design 이 아래 열 질문에 통과시켜 (A 면 Spec 을, B 면 Play 를) 구체화한다 (승인 1회).
              답이 주입물·design/ 에 없으면 지어내지 않고 Human 질문으로 남긴다 — 이름과 "그것이 무엇인지에서
              나오는 것" 은 위임됐다 (Region §5.5).
-③ 완성 판정   A 는 검사 ①~㉝ 통과 + 걸어 본 것으로, B 는 그 Cycle 의 TODO.md Human 판정 항목이
+③ 완성 판정   A 는 검사 ①~㉝ 통과 + 걸어 본 것으로, B 는 루트 TODO.md §1 의 그 질문이
              실주행 판정으로 비면 행이 닫힌다 (기반 층 ③ 과 같은 방식).
 ```
 
