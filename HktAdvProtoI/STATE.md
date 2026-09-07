@@ -8,10 +8,10 @@
 한 Cycle = 브랜치 `cycle/C###` = 세션 하나. **말할 것: "C017 진행"**(Time).
 `advprotoi-cycle` 이 명세(spec.md) → 실현 → 마감을
 이어 돌리고 UNRESOLVED · GAP 에서만 멈춘다. PR 은 번호 순으로 합친다. 병렬 규칙은
-[Plan-Skill §4 항목 4](design/Plan-Skill-CycleExecutionWorkflow.md). 승인 게이트 없음 — Play 여덟 중 일곱이 승인돼 있다
-(2층 여섯 + 컨텐츠 M5). Life 는 주입된 그대로다.
+[Plan-Skill §4 항목 4](design/Plan-Skill-CycleExecutionWorkflow.md). 승인 게이트 없음 — Play 아홉 중 여덟이 승인돼 있다
+(2층 일곱 + 컨텐츠 M5). Life 는 주입된 그대로다.
 
-**design 은 여기까지** — 2층 **세계 절반**의 기획은 닫혔다 (컨셉 · Region · 재료 · 시간 · 생명). 더 쌓지 않는다.
+**design 은 여기까지** — 2층 **세계 절반**의 기획은 닫혔다 (컨셉 · Region · 재료 · 시간 · 생명 · 접근). 더 쌓지 않는다.
 남은 일은 **Cycle 실주행**이다. 실주행 관찰(Material 원문 §7 단계 11)이 다음 기획(3층)의 입력이다.
 
 **design 이 한 번 다시 열렸다 닫혔다** — C006·C008 실주행이 화면 결손을 돌려보냈고
@@ -29,6 +29,7 @@ design 이 다시 열리는 때는 둘 — ① 2층 Play 실주행에서 DESIGN 
 | Time — [RoomNeverSame](content/roadmap/play/RoomNeverSame.md) | **C017** 여럿의 누적과 남의 자취 — 소란(미로 압력의 일반화) + 임계 전이(숲이 깨어난다) + track. 관찰자 하나로는 못 넘고 셋이면 넘는다 · 내가 없던 사이의 발자국. 상수는 확정 5 · 11 에 있다 | — | C018 |
 | Frost — [RoomOfAnotherKind](content/roadmap/play/RoomOfAnotherKind.md) (컨텐츠 M5) | 대기 | Time 닫힘 (재료 생태와 철을 다른 갈래에 두 번째로 쓴다) | C019 → C021 |
 | Life — [RoomBearsLife](content/roadmap/play/RoomBearsLife.md) | 대기 (계약 · 확정 사항 · 상수는 [L2-World-Life.md](content/roadmap/L2-World-Life.md) 와 Play 에 있다) | Frost 닫힘 (탄생이 소비할 재료 · 탈 주기 · 대조할 갈래가 먼저) | C022 → C025 |
+| Access — [RoomAsksForPossibilities](content/roadmap/play/RoomAsksForPossibilities.md) | 대기 (계약 · 어휘 · 검사 ㉞~㊷ · 위임된 결정 D1~D5 는 [L2-World-Access.md](content/roadmap/L2-World-Access.md) 와 Play 에 있다) | Frost 닫힘 (첫 property Lock 과 눈보라가 협곡에 있다). Life 와 **병행** | C029 → C031 |
 | ENGINE B — [Region 작성기](content/roadmap/L2-World-Tool-Scale.md) (도구 2단계) | **T5** 초안기(LLM) — 미지 한 줄 → 구조화 출력으로 brief → T3 → T1 에 넣고 **실패 보고를 되먹여** 재시도. 굳힌 파일만 세계에 들어간다(초안이 비결정이어도 세계는 결정론이다). 분리 커밋 · Cycle 과 **병행**한다 — 말할 것: **"T5 진행"** (브랜치 `engine/T5`). T1 검사기 · T2 brief 형 · T3 뼈대 생성기 절반 · T4 등급 판정기는 섰다 | T3 의 나머지 — ecology 는 C022 (phases 는 C016 이 세웠다) · T6 은 Frost(C021) · Life(C025) | T6 → Play HundredRooms |
 
 ## 2. 진행
@@ -45,6 +46,7 @@ design 이 다시 열리는 때는 둘 — ① 2층 Play 실주행에서 DESIGN 
 | RoomOfAnotherKind | 다른 갈래의 방 (M5 빙결 협곡 · 컨텐츠) | C019~C021 | 대기 |
 | RoomBearsLife | 방이 생명을 낳는다 (허물의 주인 = M6 붉은 알집 · 숲이 값으로 한 바퀴 돈다) | C022~C025 | 대기 |
 | RoomAnswersWhenAsked | 물으면 답한다 (지목 · 대상 프레임 · 기록 · 세계 위 글자 0) | C026~C028 | **셋 다 닫힘** — Play Goal 실주행 확인이 남았다 |
+| RoomAsksForPossibilities | 방이 가능성을 묻는다 (Lock · 성질 어휘 · 여러 종류의 답 · 흔적 = M7 열을 저장하는 결정의 원천) | C029~C031 | 대기 |
 
 **Human 판정 대기 151** — 각 Cycle 의 `TODO.md` (그림은 같은 폴더 `shots/`). `npm run dev` 로 직접 본다.
 [C001](cycles/C001-region-graph-rooms/TODO.md) 8 · [C002](cycles/C002-many-exits/TODO.md) 8 ·
@@ -61,7 +63,7 @@ design 이 다시 열리는 때는 둘 — ① 2층 Play 실주행에서 DESIGN 
 Play 다섯이 닫혔으므로 **Play 전체 실주행**이 그 위에 다섯 더 있다 —
 RegionGraphRooms(백왕령 → 거목 → 추락 → 물길 → 귀환) · RoomBecomesLand(능선에 막히고 강에 막히고 다리로 건넌다) ·
 RuleBoundRoom(규칙을 관찰해 심장에 닿고, 두 번째 관찰자가 같은 미로를 본다) ·
-RoomBearsMaterial(흔적을 따라 원천에 닿아 캐고, 세계가 되돌리고 옮기는 것을 보고, 사슬이 두 방 건너 멎는 것을 겪는다) ·
+RoomBearsMaterial(흔적에서 원천으로, 캔 자국이 남고, 균류를 캔 것이 거목 쪽 회복을 늦추며, 되돌아온 원천은 다음 마디에 선다) ·
 RoomAnswersWhenAsked(세계 위 글자 없이, 물어서 자리와 존재를 읽고 그 답이 남는다).
 
 ## 3. 로드맵
@@ -69,12 +71,12 @@ RoomAnswersWhenAsked(세계 위 글자 없이, 물어서 자리와 존재를 읽
 ```text
 0 게임 방향   확정   L0-Game.md
 1 세계의 문법  확정   L1-World-Grammar.md
-2 세계 자체   열림   L2-World-Tool · Concept · Region · Material · Time · Life — 세계 절반 기획 닫힘 → Play 여덟 중 다섯 닫힘 (§2)
+2 세계 자체   열림   L2-World-Tool · Concept · Region · Material · Time · Life · Access — 세계 절반 기획 닫힘 → Play 아홉 중 다섯 닫힘 (§2)
               도구 절반 2단계 L2-World-Tool-Scale(Region 작성기) 확정 — T1~T6 (README §2.1) · T5 다음
 3 주체와 몸   미주입  ← 2층이 닫히면 다음.   4~7 (물건 · 대결 · 능력 · 성장) 미주입
 ```
 
-컨텐츠 층의 미지 — M1 거대 악마의 숲 · M2 환상의 미로 · M3 숲의 재료 계통(생체 광석 · 광식충 허물 · 거목균) · M4 천공고래의 길 · M5 빙결 협곡 · M6 붉은 알집. 정식 이름 표는 [L2-World-Region §5.1](content/roadmap/L2-World-Region.md).
+컨텐츠 층의 미지 — M1 거대 악마의 숲 · M2 환상의 미로 · M3 숲의 재료 계통(생체 광석 · 광식충 허물 · 거목균) · M4 천공고래의 길 · M5 빙결 협곡 · M6 붉은 알집 · M7 열을 저장하는 결정의 원천. 정식 이름 표는 [L2-World-Region §5.1](content/roadmap/L2-World-Region.md).
 주입 순서는 [content/roadmap/README.md](content/roadmap/README.md).
 
 ## 4. 코드에 있는 것
@@ -139,7 +141,7 @@ RoomAnswersWhenAsked(세계 위 글자 없이, 물어서 자리와 존재를 읽
         HKT_SOURCE_PHASE · HKT_CLOCK
 없음    전투 공식 · 막기 · 피해 종류 · 살펴봄 · 태도 · 장비 · 스킬 형태 · 성장 · 재료의 쓰임 — design/ 에만 ·
         소란 · 남의 자취 · 압도적 존재의 경로 — C017 · C018 ·
-        다른 갈래의 방 · 생명의 탄생 — Play 둘이 아직 남았다
+        다른 갈래의 방 · 생명의 탄생 · 세계의 요구와 가능성(Lock · 성질 어휘 · 검사 ㉞~㊷) — Play 셋이 아직 남았다
 미사용   기반에 있으나 컨텐츠가 아직 안 쓰는 것 — 겹침 표면 · 칸 띠 · 터치 입력 · 이펙트 레이어 · 지면 구역 · 세계 영속
 ```
 
