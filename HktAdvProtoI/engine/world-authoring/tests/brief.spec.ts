@@ -26,7 +26,10 @@ function sound(): unknown {
       cause: '이래서 이렇게 되었다',
       dwelling: '이런 것이 산다',
       danger: '이것이 위험하다',
-      worth: { said: '이것이 귀하다', sources: [{ id: 'S', material: 'M', heldBy: '땅' }] },
+      worth: {
+        said: '이것이 귀하다',
+        sources: [{ id: 'S', material: 'M', heldBy: '땅', form: '드러난 것', role: 'baseline' }],
+      },
       discovery: '이것을 알게 된다',
       opening: '이것이 열린다',
       birth: { said: '이것이 태어난다', born: [{ id: 'L', from: 'M' }] },
@@ -109,6 +112,19 @@ describe('RegionBrief — 형이 물리치는 것', () => {
     expect(result.ok).toBe(false);
     if (result.ok) return;
     expect(result.problems.map((p) => p.path)).toContain('mood');
+  });
+
+  it('어휘는 형이 쥐지 않는다 — 모르는 맡은 자리도 형은 받는다 (거르는 것은 T4 다)', () => {
+    // 형이 어휘를 박으면 기반이 게임 명사를 쥐고, 같은 목록이 두 자리에 있게 된다.
+    // 어느 이름이 성립하는지는 세계의 계약 목록이 알고 등급 판정기가 대조한다
+    const result = parsed((b) => {
+      const a = b.answers as Record<string, unknown>;
+      a.worth = {
+        said: '이것이 귀하다',
+        sources: [{ id: 'S', material: 'M', heldBy: '구름', form: '덩이', role: '아무도 안 쓰는 자리' }],
+      };
+    });
+    expect(result.ok).toBe(true);
   });
 
   it('이웃의 방향은 둘 중 하나다', () => {

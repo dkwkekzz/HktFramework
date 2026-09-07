@@ -82,10 +82,10 @@ describe('T2 — 형이 진 값이 세계가 아는 것과 같다', () => {
     const brief = briefs.get(id)!;
     const spec = REGION_SPECS.find((s) => s.id === id)!;
     const written = brief.answers.worth.sources
-      .map((s) => `${s.id}|${s.material}|${s.heldBy}`)
+      .map((s) => `${s.id}|${s.material}|${s.heldBy}|${s.form}|${s.role}`)
       .sort();
     const world = (spec.resourceEcology?.sources ?? [])
-      .map((s) => `${s.id}|${s.materialId}|${s.carrier}`)
+      .map((s) => `${s.id}|${s.materialId}|${s.carrier}|${s.form}|${s.opportunity}`)
       .sort();
     expect(written).toEqual(world);
   });

@@ -21,7 +21,7 @@ Play [RoomAnswersWhenAsked](content/roadmap/play/RoomAnswersWhenAsked.md) 가 C0
 
 **도구 절반 2단계 — [Region 작성기](content/roadmap/L2-World-Tool-Scale.md) (확정 · 이 저장소 안에서 새로 짓는다).** "지역을 더할 때마다
 2층 공정을 다시 타는가" 의 답: 아니다 — 새 지역은 세 등급(A 데이터만 · B 규칙 하나 · C 새 축)으로 가르고 대부분은 A 라서 도구가 쓴다.
-순서 T1~T6 은 roadmap README §2.1. ENGINE 레인이라 Cycle 실주행과 **병행**한다 — 말할 것: **"T3 진행"** (브랜치 `engine/T3`).
+순서 T1~T6 은 roadmap README §2.1. ENGINE 레인이라 Cycle 실주행과 **병행**한다 — 말할 것: **"T5 진행"** (브랜치 `engine/T5`).
 design 이 다시 열리는 때는 둘 — ① 2층 Play 실주행에서 DESIGN GAP 이 돌아올 때 ② T6 이 서서 HundredRooms 를 쓸 때 · 2층이 닫혀 3층을 주입할 때.
 
 | 레인 | 지금 할 수 있는 것 | 기다리는 것 | 다음 |
@@ -30,7 +30,7 @@ design 이 다시 열리는 때는 둘 — ① 2층 Play 실주행에서 DESIGN 
 | Time — [RoomNeverSame](content/roadmap/play/RoomNeverSame.md) | 대기 (상수 · 철 · 덧씌움 전부 확정 사항에 있다) | Material 닫힘 (철이 바꿀 원천과 흔적이 먼저) | C015 → C018 |
 | Frost — [RoomOfAnotherKind](content/roadmap/play/RoomOfAnotherKind.md) (컨텐츠 M5) | 대기 | Time 닫힘 (재료 생태와 철을 다른 갈래에 두 번째로 쓴다) | C019 → C021 |
 | Life — [RoomBearsLife](content/roadmap/play/RoomBearsLife.md) | 대기 (계약 · 확정 사항 · 상수는 [L2-World-Life.md](content/roadmap/L2-World-Life.md) 와 Play 에 있다) | Frost 닫힘 (탄생이 소비할 재료 · 탈 주기 · 대조할 갈래가 먼저) | C022 → C025 |
-| ENGINE B — [Region 작성기](content/roadmap/L2-World-Tool-Scale.md) (도구 2단계) | **T3** 뼈대 생성기 절반(brief → space op · graph 한 줄 · resourceEcology · 결정론) · **T4** 등급 판정기(A/B/C + 빠진 것을 GAP 으로)도 함께 열렸다. 게임 명사 없음 · 분리 커밋 · Cycle 과 **병행**한다 — 말할 것: **"T3 진행"** (브랜치 `engine/T3`). T1 검사기 · T2 brief 형은 섰다 | T3 의 phases 는 C016 · ecology 는 C022 · T6 은 Life(C025) 닫힘 | T5 → T6 → Play HundredRooms |
+| ENGINE B — [Region 작성기](content/roadmap/L2-World-Tool-Scale.md) (도구 2단계) | **T5** 초안기(LLM) — 미지 한 줄 → 구조화 출력으로 brief → T3 → T1 에 넣고 **실패 보고를 되먹여** 재시도. 굳힌 파일만 세계에 들어간다(초안이 비결정이어도 세계는 결정론이다). 분리 커밋 · Cycle 과 **병행**한다 — 말할 것: **"T5 진행"** (브랜치 `engine/T5`). T1 검사기 · T2 brief 형 · T3 뼈대 생성기 절반 · T4 등급 판정기는 섰다 | T3 의 나머지 — phases 는 C016 · ecology 는 C022 · T6 은 Frost(C021) · Life(C025) | T6 → Play HundredRooms |
 
 ## 2. 진행
 
@@ -98,14 +98,18 @@ RoomAnswersWhenAsked(세계 위 글자 없이, 물어서 자리와 존재를 읽
         **캐면 세계가 달라진다**(C012): 원천마다 캘 횟수가 있고 다 캐면 고갈된다(저장된다) —
         그 자국이 넷을 한다: 외형이 바뀌고 · 둘레 흙이 한 단계 옅어지고 · 무너진 노두는 지날 수 없고
         (컴파일 결과 위의 State 덧씌움) · 매달린 다음 것에 "되돌아옴이 멎었다" 가 걸린다 ·
-        content/regions/ 데이터 · content/authoring/briefs/ 방 열하나의 여덟 답(손으로 역기술 · T3 의 입력)
+        content/regions/ 데이터 · content/authoring/briefs/ 방 열하나의 여덟 답(손으로 역기술 · T3 의 입력) ·
+        content/authoring/templates/ 갈래별 땅 · 깊이별 크기와 흔적 · 역할별 원천 기본형(생성기가 받는 게임 명사) ·
+        content/authoring/contracts.ts 어휘 일곱·다섯·일곱 · 방 · 경계 · 규칙(판정기가 대조하는 계약 목록)
 기반    world-kernel · physics · view-kernel(키가 눈앞의 것을 고름 · 세계의 대답을 띄움 · 컴파일된 땅을 그림 ·
         landmark billboard · 입력 해석 정책 · 지목 강조 · 늘 떠 있는 판 — C026 의 셋) · protocol-core ·
         world-authoring(Description · Graph · 중첩 · 경계 · 닿음 · 검사 아홉(기계가 읽는 보고 · 게임 명사는 계약으로 받는다) ·
-        RegionBrief 형(여덟 답 · zod · 미답을 답으로 세지 않는다) ·
+        RegionBrief 형(여덟 답 · zod · 미답을 답으로 세지 않는다) · 뼈대 생성기(brief → space op · Connector · 이름 · 결정론) ·
+        등급 판정기(A · B · C + 빠진 것을 GAP 형식으로 · 계약 목록은 주입받는다) ·
         지형 컴파일러 — height-field ·
         curve/carve · surface · traversable 격자 · areas/points 산출 · tagsAt · compile · hash · observe 래스터)
 도구    world:check (검사 아홉 → JSON · 종료 코드가 판정 · npm test 에 붙었다 · 읽기 전용) ·
+        world:author (brief 하나 → 방 하나의 뼈대 + 등급과 GAP · --write 로 굳힌다 · 등급 C 는 굳히지 않는다) ·
         world:observe (--graph · 방 하나의 높이·표면·통행·의미 PNG 다섯 + 보고 · 읽기 전용) · world:compile · world:shot ·
         cycle:shot (마감 촬영 · 창 둘로 관찰자 둘) ·
         검증용 손잡이 HKT_SPAWN · HKT_SPAWN_REGION · HKT_NPCS · HKT_REGION_PATTERN · HKT_NPC_REGION
@@ -152,5 +156,6 @@ Human 감사 — C005 의 표면 임계 15°(평지/비탈)는 문서 근거가 
 npm run dev · npm test · npm run build · npm run boundary:check
 npm run cycle:shot cycles/C###/shots.json     마감 촬영 (CHROMIUM_PATH 로 브라우저 지정 가능)
 npm run world:check [-- --pretty]             검사 아홉을 JSON 으로 (fail 이 있으면 종료 코드 1)
+npm run world:author -- <brief.json> [--write] brief 하나에서 방 하나의 뼈대를 낸다
 npm run world:observe -- <방> --report        방 하나의 땅을 읽는다 (읽기 전용)
 ```
