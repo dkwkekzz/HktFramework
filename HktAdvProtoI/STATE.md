@@ -153,6 +153,12 @@ Human 감사 — C005 의 표면 임계 15°(평지/비탈)는 문서 근거가 
         ㉕ ㉖ ㉚ ㉝ 은 검사 자체가 없다  T6 → C018 · C022 · C025
         확인: C022 를 닫은 뒤 `npm run world:draft -- --batch <목록>` → `npm run world:lab`.
               카드의 "이 방이 세계를 미는 자리" 에 ⑲ ⑳ ㉒ 가 뜨면 풀린 것이다 (같은 카드의 회색 주석도 그때 지운다)
+world:author --write 가 낸 방 파일이 **컴파일되지 않는다** — 원천이 `traceOp`(단수)로 나가는데 형은
+        `traceOps`(배열)이고, `worldCause` · `recoveryCause` · `recoverySeconds` 셋이 아예 빠진다.
+        뒤의 셋은 뼈대가 지어낼 수 없는 값이라(brief 가 묻지 않는다) 이름만 고쳐도 여전히 안 선다.
+        지금껏 안 걸린 까닭 — 생성한 방을 파일로 굳혀 tsc 를 태운 적이 없다 (시험은 글자와 값만 본다).
+        world:admit 이 실제로 굳히므로 이제 실제 문제다  T3 절반 → C022
+        확인: `npm run world:author -- <brief> --write` 뒤 `npx tsc --noEmit` (지금은 traceOp 한 줄에서 멈춘다)
 갈래가 같으면 **땅이 같다** — 미지 셋이 다 등급 A 로 섰는데 위에서 본 그림도 원천 자리도 같았다
         (같은 hazard 태그면 같은 땅 묶음을 받는다 — content/authoring/templates/)  T6 실주행 → Frost(C021) 뒤에 손볼 자리
         확인: world:lab 한 장에 갈래가 다른 방 둘 이상을 놓고 그림이 갈리는지 본다
