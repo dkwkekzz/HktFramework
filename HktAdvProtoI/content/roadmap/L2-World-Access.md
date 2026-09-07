@@ -1,6 +1,6 @@
 # L2 — 세계의 요구와 가능성: Access 계약 (기반 층 2 · 세계 절반 ② 부속 넷째)
 
-상태: **주입됨** (Human 원문 + 검토 반영 · 승인 대기). [L2-World-Region.md](L2-World-Region.md) 의 넷째 확장 계약이다 —
+상태: **확정** (Human 원문 + 검토 반영 — "승인"). [L2-World-Region.md](L2-World-Region.md) 의 넷째 확장 계약이다 —
 새로운 설계 층도, 별도 Gameplay 시스템도 만들지 않는다. [L2-World-Material.md](L2-World-Material.md) ·
 [L2-World-Time.md](L2-World-Time.md) · [L2-World-Life.md](L2-World-Life.md) 와 같은 자리다.
 
@@ -1321,24 +1321,11 @@ D4  FROST_DEPTH 의 흔적(traces) — Human 이 "알아서" 로 위임했다. �
 ## 11. 다음
 
 ```text
-승인 시 고칠 자리 (이 문서 밖 — 승인 전에는 건드리지 않는다)
-  · README.md §2 2층 행 — "②-부속 넷째 세계의 요구와 가능성(Lock · 성질 어휘 · 답의 종류 · 흔적 · 충분성)" 과 결과물 L2-World-Access.md · Play 하나
-  · play/README.md 덮임 지도 — 행 하나: K1~K15 → 그 Play · 2층 밖: 판정(3 · 4층) · 조합(4층) · 클래스와 지식(3 · 7층) · 공유(뒤 층)
-  · L2-World-Tool-Scale.md §1 고정 공식 · §2 등급(GAP 추가) · T2 질문 넷 · T4 · T6 — §5.4 그대로
-  · L2-World-Material.md §3.4 "observableProperties 의 값은 Human 이 준다" 곁에 "태그는 이 문서" 한 줄 · L2-World-Life.md §3.2 에 LifeSeed.properties 한 줄
-  · STATE.md §1 레인 표 — 레인 하나 (Frost 뒤)
-  · L0-Game.md §3 — 빈칸 5 의 답에 따라
-첫 계약 (Play — advprotoi-design 이 쓴다 · 승인 1회)
-  이름   RoomAsksForPossibilities — 방이 가능성을 묻는다 (원문 §19)
-  방향   "관찰자가 빙결 심층의 문 앞에서 무언가가 체열에 반응하는 것을 흔적으로 보고, 세계 어딘가에서 그에 답할 성질을 발견하며,
-         그것이 정답 아이템이 아니라 여러 가능한 답 중 하나임을 세계 데이터가 증명한다 — 문은 아직 열리지 않는다 (몸이 없다)"
-  놓는 미지  M7 열을 저장하는 결정의 원천 (자원 · 숲 계통 — D2)
-  자리   Frost(C021) 뒤 · Life 와 병행 가능. Cycle 번호는 승인 때
-  Cycle 셋 (원문 §19 그대로 · 검토 ② 반영)
-    ① Requirement — PropertyVocabulary · FROST_DEPTH Lock(requires heat:hides · traces 둘 = D4) · 지목하면 현상 · 검사 ㉞~㊷ · ㊶ 통과 · ㉟ 은 GAP 을 보고한다
-    ② 첫 Possibility — HEAT_CRYSTAL(heat:stores) 의 원천 하나를 숲 계통에 (D2) · 재료의 판이 성질을 말한다 · ㉟ 통과 · ㊴ = 1
-    ③ 다른 종류의 Possibility — 눈보라 area 가 요구를 완화한다 (D3 · relaxedBy) · ㊴ ≥ 2 · ㊵ ≥ 2 · 열쇠 × 자물쇠 표 · T4 계약 목록 등록
-  이후 Play  중요 Requirement 하나에 서로 다른 세 계통(Material · Life 또는 Environment · Actor/Knowledge)의 답이 실제 플레이에서 성립하는지 — 3층 뒤
-선행   RoomBearsMaterial(원천 · 흔적 · 성질 문장) · RoomOfAnotherKind(첫 property Lock · 눈보라) · RoomAnswersWhenAsked(지목과 판)
-뒤에 오는 것  3층 주입 — 이 어휘로 몸(추위 · 체열 · Actor 가능성)을 적는다. 4층 — 이 어휘로 물건의 재료 층과 조합을 적는다
+첫 계약    [play/RoomAsksForPossibilities.md](play/RoomAsksForPossibilities.md) — 빙결 심층의 문에 이 계약을 처음 쓰는 2층 일곱째 Play
+          (원문 §19 · C029~C031). 그 Play 가 미지 M7(열을 저장하는 결정의 원천)을 놓는다
+선행       RoomBearsMaterial(원천 · 흔적 · 성질 문장) · RoomOfAnotherKind(첫 property Lock · 눈보라) · RoomAnswersWhenAsked(지목과 판)
+자리       Frost(C021) 뒤 · Life 와 병행 가능 (Life 는 Frost 만 기다린다)
+이후 Play   중요 Requirement 하나에 서로 다른 세 계통(Material · Life 또는 Environment · Actor/Knowledge)의 답이 실제 플레이에서 성립하는지 — 3층 뒤
+뒤에 오는 것  3층 주입 — 이 어휘로 몸(추위 · 체열 · Actor 가능성)을 적는다. 4층 — 이 어휘로 물건의 재료 층과 조합을 적는다.
+          L0 §3 의 사슬에 "가능성 탐색" 마디를 넣을지는 빈칸 5 — L0 는 Human 소유
 ```

@@ -1142,7 +1142,7 @@ Concept §3.6 의 ① ("resource area 가 hazard area 와 겹치거나 인접하
 
 | 원문 | 무엇인가 | 어디 |
 |---|---|---|
-| §6.1 `observableProperties` | 재료의 세계 사실 — 무엇을 흡수·방출하는가 | 컨텐츠 데이터. 그 값이 **무엇인지는 Human 이 준다** (지어내지 않는다) |
+| §6.1 `observableProperties` | 재료의 세계 사실 — 무엇을 흡수·방출하는가 | 컨텐츠 데이터. 그 값이 **무엇인지는 Human 이 준다** (지어내지 않는다). 그 문장 곁의 성질 태그(`properties`)는 [L2-World-Access.md](L2-World-Access.md) §4.2 |
 | §6.2 `lifecycle` · `supply.recoveryCause` | 세계 과정 하나 = 규칙 하나 | 컨텐츠 world/simulation — Cycle 이 세운다 |
 | §6.3 `carrier.type: CREATURE` 의 살아 있는 쪽 | 생물의 행동 | 3층 (§2.2) |
 | §4 M8 "주변 생물의 행동" | 같은 것 | 3층 |
