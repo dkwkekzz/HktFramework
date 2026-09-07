@@ -38,6 +38,7 @@ import { sourcePhases } from './resource-reading';
 import { DESIGNATE_MODIFIER, type Designation } from './pointer-rules';
 import { designationHighlight, targetFrame } from './target-frame-presentation';
 import { trackZones } from './track-presentation';
+import { presenceLineZones, shadedAmbience } from './presence-presentation';
 
 // 관찰자 쪽 표시 선택 — 충돌체 디버그 관찰을 켤지. World 에 아무것도 요청하지 않는다.
 export interface PresentationOptions {
@@ -201,7 +202,10 @@ export function resolvePresentation(
   // 줄 없음 · 낮의 흔적). 여기서 한 번 읽어 네 자리(하늘 · 흔적 · HUD)가 함께 쓴다
   const clock = snapshot.clock;
   const night = clock?.dayPhase === 'NIGHT';
-  const ambience = clockAmbience(clock);
+  // 때의 빛 위에 **지나는 것의 그늘**이 걸린다 (C018 R4 의 어법 — 원인이 하나 는 것뿐이다).
+  // 어둡게 하는 자리가 **한 자리**여야 밤과 그늘이 겹쳐도 얼마나 어두운지가 한 값에서 나온다.
+  // 때를 모르는 봉투에서는 둘 다 없다 — 없는 빛에서 빛을 덜어낼 수 없다
+  const ambience = shadedAmbience(clockAmbience(clock), snapshot.presences);
   // 판은 지목이 없어도 선다 (C027 R3) — 지목을 넘기고, 없으면 내가 선 자리가 답한다.
   // 표식은 지목이 있고 그 대상이 아직 세계에 있을 때만 선다
   const frame = targetFrame(snapshot, options.designation, knownWorldTime);
@@ -233,6 +237,13 @@ export function resolvePresentation(
       // 결정이다 (regionZones 주석의 그 규율 그대로).
       // 나이를 재는 값은 **모를 수도 있는 쪽**(knownWorldTime)이다 — 때를 모르면 두
       // 단계를 가르지 않는다 (track-presentation 의 trackStage)
+      // 지나는 것의 **경로 선** (C018) — 자국보다 **아래**다. 자국은 한 칸 남짓한 표식이고
+      // 이것은 방을 가로지르는 넓은 띠이므로, 띠가 위에 오면 그 아래 자국의 방향도 짙기도
+      // 읽히지 않는다 (자국이 흔적 위에 서는 것과 **같은 이유**다).
+      // 뿌리 선(regionZones 안)보다 위인 것도 같은 규율이다 — 뿌리는 땅에 박혀 있고
+      // 이것은 그 위를 스쳐 지나는 것이다. 지나가고 있지 않으면 목록이 비고, 그러면
+      // 화면은 C017 과 한 픽셀도 다르지 않다
+      ...presenceLineZones(snapshot.region.id, snapshot.presences),
       ...trackZones(snapshot.tracks, knownWorldTime),
     ],
     // 판 하나 (C026 · C027 CHANGED) — 지목한 것이 서고, 지목이 없으면 **내가 선 자리**가

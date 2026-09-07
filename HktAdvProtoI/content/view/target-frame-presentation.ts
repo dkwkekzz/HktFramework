@@ -69,6 +69,12 @@ export const PLACE_ROW_LABELS: Readonly<Record<string, string>> = {
   'place.disturbance': '소란',
   // 그 방의 지금 위상 — 값이 없는 줄이 아니라 잠듦/깨어남 한 마디가 값이다
   'place.phase': '지금',
+  // 무엇이 지나는가 (C018) — 위의 둘과 갈리는 자리다. 소란도 위상도 **어느 방에나 늘**
+  // 있는 값이라 줄이 늘 서지만, 이 줄은 지나가고 있을 때만 선다 (지나는 것이 없으면
+  // 줄 자체가 없다 — 없는 것을 지어내지 않는다).
+  // 이름표가 무엇이 지나는지도 어디로 가는지도 묻지 않는 것은 세계가 그것을 싣지 않기
+  // 때문이다 (Time T8) — 관찰된 사실은 "지금 여기를 이것이 지난다" 하나뿐이다
+  'place.presence': '지나는 것',
 };
 
 /**
@@ -425,6 +431,28 @@ export function placeRows(reading: PlaceReading, worldTime?: number): SceneFrame
     });
     // 위상의 값 자체가 그 코드다 (기본형 ⑧) — 모르는 값은 코드 그대로 뜬다
     rows.push(row('place.phase', codeText(disturbance.phase)));
+  }
+
+  // ⑥ 무엇이 지나는가 (C018 ADDED — spec Observable Result ①).
+  //
+  // **가장 뒤에 선다.** 앞의 것들은 그 방이 늘 지니고 있는 값(어디인가 · 땅 · 걸린 것 ·
+  // 규칙 · 소란)이고 이것만이 **지금 이 순간에만 있는 사실**이다 — 지나가면 이 줄이
+  // 사라지고 판은 방금 전과 한 줄도 다르지 않게 된다.
+  //
+  // 여럿이 지나면 **여럿 다 선다** — 한 줄에 이어 붙이지 않는다. 걸린 조건 여럿이 한
+  // 줄에 잇는 것과 갈리는 이유는 그쪽이 "이 자리가 무엇인가" 한 사실의 여러 얼굴인 반면
+  // 이쪽은 서로 무관한 **사건 여럿**이기 때문이다 (존재의 '할 수 있는 것' 이 행동마다
+  // 한 줄인 것과 같은 어법). id 도 그 어법 그대로 지나는 것의 것이다 — 하나가 지나가면
+  // 그 줄만 사라진다.
+  //
+  // **어느 선을 지나는지는 적지 않는다** (봉투에 함께 오는 curve). 그것은 땅에 그려지는
+  // 것이지 판이 읽어 줄 말이 아니다 — 뿌리 선의 자리를 판이 짚어 주지 않는 것과 같다.
+  // 언제 다시 오는지도 어디로 가는지도 몇 번째인지도 없다 (세계가 싣지 않는다).
+  for (const presence of reading.presences ?? []) {
+    rows.push({
+      ...row('place.presence', codeText(presence.presence)),
+      id: `place.presence:${presence.presence}`,
+    });
   }
   return rows;
 }
