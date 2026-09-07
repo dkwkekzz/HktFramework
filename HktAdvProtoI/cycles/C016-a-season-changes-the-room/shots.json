@@ -1,0 +1,237 @@
+{
+  "out": "shots",
+  "viewport": [
+    900,
+    660
+  ],
+  "runs": [
+    {
+      "region": "FOREST_EDGE",
+      "spawn": "0,14",
+      "npcs": "none",
+      "clock": "STILL:DAY",
+      "steps": [
+        {
+          "wait": "세계 시간",
+          "tries": 60
+        },
+        {
+          "sleep": 1500
+        },
+        {
+          "expect": "고요",
+          "note": "X-① 고요다"
+        },
+        {
+          "shot": "X-01-edge-still",
+          "note": "X-① 고요의 그 자락 — 숲 안쪽 출구 둘레. 깊이는 방의 것 그대로이고 위험도 없다 (스밈의 대조 기준)"
+        }
+      ]
+    },
+    {
+      "region": "FOREST_EDGE",
+      "spawn": "0,14",
+      "npcs": "none",
+      "clock": "SEEP:DAY",
+      "steps": [
+        {
+          "wait": "세계 시간",
+          "tries": 60
+        },
+        {
+          "sleep": 1500
+        },
+        {
+          "expect": "스밈",
+          "note": "X-① 스밈이다"
+        },
+        {
+          "shot": "X-02-edge-seep-deeper",
+          "note": "X-① 같은 자리의 스밈 — 깊이가 한 단계 깊고 위험이 걸렸다. 그리고 그때만 나는 원천이 서 있다 (X-01 과 견준다)"
+        }
+      ]
+    },
+    {
+      "region": "FOREST_EDGE",
+      "spawn": "4,10",
+      "npcs": "none",
+      "clock": "SEEP:DAY",
+      "steps": [
+        {
+          "wait": "세계 시간",
+          "tries": 60
+        },
+        {
+          "sleep": 1500
+        },
+        {
+          "click": [
+            0.5,
+            0.5
+          ],
+          "alt": true
+        },
+        {
+          "sleep": 2000
+        },
+        {
+          "shot": "X-04-ask-the-seep-source",
+          "note": "X-③ 스밈에만 나는 원천을 지목한다 — 생체 광석의 다른 형태다"
+        }
+      ]
+    },
+    {
+      "region": "FOREST_EDGE",
+      "spawn": "4,10",
+      "npcs": "none",
+      "clock": "STILL:DAY",
+      "steps": [
+        {
+          "wait": "세계 시간",
+          "tries": 60
+        },
+        {
+          "sleep": 1500
+        },
+        {
+          "shot": "X-05-source-gone-in-still",
+          "note": "X-③ 고요의 같은 자리 — 아무것도 없다 (X-04 와 견준다)"
+        }
+      ]
+    },
+    {
+      "region": "FOREST_DEEP",
+      "spawn": "12,12",
+      "npcs": "none",
+      "clock": "LONG_NIGHT",
+      "steps": [
+        {
+          "wait": "세계 시간",
+          "tries": 60
+        },
+        {
+          "sleep": 1500
+        },
+        {
+          "expect": "긴 밤",
+          "note": "X-④ 긴 밤이다"
+        },
+        {
+          "shot": "X-06-door-open-in-long-night",
+          "note": "X-④ 긴 밤 — 걷는 숲으로 나가는 문이 열려 있다"
+        },
+        {
+          "click": [
+            0.552,
+            0.6
+          ],
+          "alt": true
+        },
+        {
+          "sleep": 2000
+        },
+        {
+          "shot": "X-03-ask-the-door-open",
+          "note": "X-④ 긴 밤에 그 문을 지목한다 — 열려 있고 건널 수 있다"
+        }
+      ]
+    },
+    {
+      "region": "FOREST_DEEP",
+      "spawn": "12,12",
+      "npcs": "none",
+      "clock": "STILL:DAY",
+      "steps": [
+        {
+          "wait": "세계 시간",
+          "tries": 60
+        },
+        {
+          "sleep": 1500
+        },
+        {
+          "shot": "X-07-door-locked-in-still",
+          "note": "X-④ 고요의 같은 문 — 잠겨 있다 (X-06 과 견준다)"
+        },
+        {
+          "sleep": 1500
+        },
+        {
+          "click": [
+            0.552,
+            0.6
+          ],
+          "alt": true
+        },
+        {
+          "sleep": 2000
+        },
+        {
+          "shot": "X-08-ask-the-door-not-this-season",
+          "note": "X-④ 고요의 같은 문을 지목한다 — '이 철이 아니다' 가 그 자리에서 읽힌다. 잠긴 것과 다른 말이다 (X-03 과 견준다)"
+        }
+      ]
+    },
+    {
+      "region": "BIO_ORE_FIELD",
+      "spawn": "0,-12",
+      "npcs": "none",
+      "clock": "LONG_NIGHT",
+      "steps": [
+        {
+          "wait": "세계 시간",
+          "tries": 60
+        },
+        {
+          "sleep": 1500
+        },
+        {
+          "shot": "X-09-before-the-turn",
+          "note": "X-⑤ 뒤척임 전 — 노두가 지금 마디에 서 있다 (뒤척임 뒤와 견준다)"
+        }
+      ]
+    },
+    {
+      "region": "BIO_ORE_FIELD",
+      "spawn": "0,-12",
+      "npcs": "none",
+      "clock": "TURN",
+      "steps": [
+        {
+          "wait": "세계 시간",
+          "tries": 60
+        },
+        {
+          "sleep": 4000
+        },
+        {
+          "expect": "뒤척임",
+          "note": "X-⑤ 뒤척임이다"
+        },
+        {
+          "shot": "X-10-after-the-turn",
+          "note": "X-⑤ 뒤척임 — 노두가 다음 마디로 옮겨 섰다. 캐지 않았어도 옮긴다 (X-09 와 견준다)"
+        }
+      ]
+    },
+    {
+      "region": "WHITE_KING_DOMAIN",
+      "spawn": "0,17",
+      "npcs": "none",
+      "clock": "SEEP:DAY",
+      "steps": [
+        {
+          "wait": "세계 시간",
+          "tries": 60
+        },
+        {
+          "sleep": 1500
+        },
+        {
+          "shot": "X-11-untouched-in-seep",
+          "note": "X-⑥ 스밈의 백왕령 — 밝힌 것이 없는 방은 철을 타지 않는다. 능선 · 강 · 다리 · 도시가 그대로다"
+        }
+      ]
+    }
+  ]
+}
