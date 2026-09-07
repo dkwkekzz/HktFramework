@@ -6,7 +6,12 @@ import * as THREE from 'three';
 import { createViewCamera } from '../camera/camera';
 import { createEffectLayer, type EffectLayer, type EffectLayerOptions } from '../fx/effect-layer';
 import type { PlaneDirection } from '../camera/orientation';
-import type { SceneGroundZone, SceneHighlight, SceneState } from '../scene/scene-state';
+import type {
+  SceneAmbience,
+  SceneGroundZone,
+  SceneHighlight,
+  SceneState,
+} from '../scene/scene-state';
 import { createBillboard, type Billboard } from '../sprites/billboard';
 import { createGroundFill, type GroundFillShape } from '../terrain/ground-fill';
 import { createTerrain, terrainHeightSampler, type TerrainPalette } from '../terrain/terrain';
@@ -63,6 +68,35 @@ export function highlightCenter(
   return highlight.ground ?? null;
 }
 
+/**
+ * 분위기를 실어 보내지 않는 장면의 하늘과 빛 — **초기화와 되돌림이 같은 값을 쓴다.**
+ * 한 자리에 두지 않으면 처음 세운 장면과 지시가 사라진 뒤의 장면이 달라진다.
+ */
+export const DEFAULT_AMBIENCE: SceneAmbience = {
+  background: 0x9fc4e0,
+  ambient: { color: 0xffffff, intensity: 0.95 },
+  sun: { color: 0xfff4d6, intensity: 1.1 },
+};
+
+/** 이 장면에 실제로 걸리는 분위기 — 지시가 없으면 기본값이다 */
+export function sceneAmbience(ambience: SceneAmbience | undefined): SceneAmbience {
+  return ambience ?? DEFAULT_AMBIENCE;
+}
+
+/**
+ * 두 분위기가 같은가 — 같으면 그리는 쪽이 아무것도 건드리지 않는다.
+ * 매 프레임 오는 지시의 대부분은 앞 프레임과 같은 값이다.
+ */
+export function sameAmbience(a: SceneAmbience, b: SceneAmbience): boolean {
+  return (
+    a.background === b.background &&
+    a.ambient.color === b.ambient.color &&
+    a.ambient.intensity === b.ambient.intensity &&
+    a.sun.color === b.sun.color &&
+    a.sun.intensity === b.sun.intensity
+  );
+}
+
 export interface RendererOptions {
   /**
    * 이펙트 층 (F1). 없으면 이펙트 없이 그린다 — 세계는 그대로 돈다.
@@ -81,11 +115,40 @@ export function createRenderer(
   container.appendChild(renderer.domElement);
 
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x9fc4e0);
-  scene.add(new THREE.AmbientLight(0xffffff, 0.95));
-  const sun = new THREE.DirectionalLight(0xfff4d6, 1.1);
+  // 하늘과 빛 — 장면이 분위기를 실어 보내면 매 프레임 이 객체들의 값만 갈아 끼운다
+  // (다시 만들지 않는다). 해의 자리는 분위기가 정하지 않는다.
+  const sky = new THREE.Color(DEFAULT_AMBIENCE.background);
+  scene.background = sky;
+  const ambientLight = new THREE.AmbientLight(
+    DEFAULT_AMBIENCE.ambient.color,
+    DEFAULT_AMBIENCE.ambient.intensity,
+  );
+  scene.add(ambientLight);
+  const sun = new THREE.DirectionalLight(
+    DEFAULT_AMBIENCE.sun.color,
+    DEFAULT_AMBIENCE.sun.intensity,
+  );
   sun.position.set(10, 20, 5);
   scene.add(sun);
+
+  // 지금 걸려 있는 분위기 — 값이 그대로면 THREE 객체를 건드리지 않는다.
+  // 받은 지시를 그대로 쥐지 않고 값만 베껴 둔다 (밖에서 같은 객체를 고쳐 쓰면
+  // 바뀐 것을 알아채지 못하기 때문이다).
+  let ambience: SceneAmbience = DEFAULT_AMBIENCE;
+
+  function applyAmbience(next: SceneAmbience): void {
+    if (sameAmbience(ambience, next)) return;
+    sky.set(next.background);
+    ambientLight.color.set(next.ambient.color);
+    ambientLight.intensity = next.ambient.intensity;
+    sun.color.set(next.sun.color);
+    sun.intensity = next.sun.intensity;
+    ambience = {
+      background: next.background,
+      ambient: { ...next.ambient },
+      sun: { ...next.sun },
+    };
+  }
 
   // 지형 capability — 지형은 밖에서 컴파일되어 들어온다 (setTerrain).
   // 아직 받지 못했으면 그리지 않고, 높이는 어디서나 0 이다 — 화면은 그대로 돈다.
@@ -635,6 +698,9 @@ export function createRenderer(
       const now = performance.now();
       const dt = frameDt ?? (now - lastTime) / 1000;
       lastTime = now;
+
+      // 하늘과 빛 — 지시가 없으면 기본값으로 되돌아간다
+      applyAmbience(sceneAmbience(state.ambience));
 
       const seen = new Set<string>();
       for (const entity of state.entities) {
