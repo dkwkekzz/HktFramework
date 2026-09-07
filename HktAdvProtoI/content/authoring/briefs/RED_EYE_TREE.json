@@ -1,0 +1,54 @@
+{
+  "id": "RED_EYE_TREE",
+  "name": "붉은 눈의 거목",
+  "depth": "wild",
+  "kinds": [],
+  "answers": {
+    "distinction": "재료 계통의 끝이자 안이 밖보다 큰 곳으로 드는 문이 있는 방이다. 흔적이 가장 짙어지는 두 자리 중 하나다.",
+    "cause": "거목의 뿌리에 혹이 맺힌다. 조건이 맞을 때만 다시 맺히므로 한 번에 하나밖에 주지 않는다.",
+    "dwelling": {
+      "unanswered": "이 방에는 anchor 말고 아무 것도 놓이지 않았다 — Design 이 준 것이 거기까지이고 없는 의미를 지어내지 않는다 — 무엇이 사는지는 3층(주체)이 서야 적힌다"
+    },
+    "danger": {
+      "unanswered": "원천이 risk 로 적혀 있다는 것까지가 데이터다. 무엇이 위험한가는 이 세계에 hazard layer 가 아직 놓이지 않았다 — 위험의 갈래는 Concept §3.1 이 어휘를 주었으나 컨텐츠 층 주입이 남았다"
+    },
+    "worth": {
+      "said": "거목의 뿌리혹에서 생체 광석이 나온다 — 한 번에 하나이고, 조건이 맞아야 다시 맺힌다.",
+      "sources": [
+        {
+          "id": "ROOT_NODULE",
+          "material": "BIO_ORE",
+          "heldBy": "plant",
+          "form": "root-nodule",
+          "role": "risk"
+        }
+      ]
+    },
+    "discovery": "같은 재료가 땅에서도 나고 식물에서도 난다는 것. 그리고 나무 밑동에 작은 문이 있다는 것.",
+    "opening": "거목 내부 세계가 열린다 — 문 하나가 방보다 큰 방으로 든다.",
+    "birth": {
+      "said": {
+        "unanswered": "생명 계약(탄생지 · 개체군 · 관계)이 아직 데이터로 서지 않았다 — Play RoomBearsLife(C022~C025)의 것이다 — 붉은 알집(M6)이 이 갈래에 설 자리로 이름만 놓여 있다"
+      },
+      "born": []
+    }
+  },
+  "neighbours": [
+    {
+      "region": "FOREST_DEEP",
+      "transition": "interaction",
+      "direction": "bidirectional"
+    },
+    {
+      "region": "BIO_ORE_FIELD",
+      "transition": "trail",
+      "direction": "bidirectional"
+    },
+    {
+      "region": "TREE_INNER_WORLD",
+      "transition": "door",
+      "direction": "bidirectional"
+    }
+  ],
+  "requires": []
+}

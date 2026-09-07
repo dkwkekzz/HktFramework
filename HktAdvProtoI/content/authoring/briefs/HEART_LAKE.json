@@ -1,0 +1,50 @@
+{
+  "id": "HEART_LAKE",
+  "name": "심장 호수",
+  "depth": "deep",
+  "parent": "TREE_INNER_WORLD",
+  "kinds": [],
+  "answers": {
+    "distinction": "떨어져서만 닿는 방이다. 되돌아 올라가는 이음이 하나도 없고 나가는 길은 물길 하나뿐이다.",
+    "cause": "거목 안에서 계속 가라앉는 것이 이 바닥에 쌓인다. 그 일부가 물길을 타고 숲 깊은 곳의 어귀로 내려간다.",
+    "dwelling": {
+      "unanswered": "이 방에는 anchor 말고 아무 것도 놓이지 않았다 — Design 이 준 것이 거기까지이고 없는 의미를 지어내지 않는다"
+    },
+    "danger": {
+      "unanswered": "이 세계에 hazard layer 가 아직 놓이지 않았다 — 위험의 갈래는 Concept §3.1 이 어휘를 주었으나 컨텐츠 층 주입이 남았다"
+    },
+    "worth": {
+      "said": "호수 바닥의 침전이 원천이고, 이 방은 **흐름의 출발**이다 — 여기를 캐 놓으면 두 방 건너 어귀에 아무것도 오지 않는다.",
+      "sources": [
+        {
+          "id": "LAKE_SILT_BED",
+          "material": "BIO_ORE",
+          "heldBy": "water",
+          "form": "silt-bed",
+          "role": "risk"
+        }
+      ]
+    },
+    "discovery": "떨어진 자리가 한복판이라 사방 어디로도 올라갈 길이 없다는 것. 그리고 이 막다른 방이 두 방 건너의 기회를 쥐고 있다는 것.",
+    "opening": "물길이 숲 안쪽으로 되돌린다 — 한 바퀴가 닫힌다.",
+    "birth": {
+      "said": {
+        "unanswered": "생명 계약(탄생지 · 개체군 · 관계)이 아직 데이터로 서지 않았다 — Play RoomBearsLife(C022~C025)의 것이다"
+      },
+      "born": []
+    }
+  },
+  "neighbours": [
+    {
+      "region": "TREE_INNER_WORLD",
+      "transition": "falling",
+      "direction": "one-way"
+    },
+    {
+      "region": "FOREST_DEEP",
+      "transition": "river",
+      "direction": "one-way"
+    }
+  ],
+  "requires": []
+}

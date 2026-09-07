@@ -168,7 +168,11 @@ function source(
   form: string,
   material: string,
   at: { x: number; z: number },
-  options: { state?: string; conditions?: readonly string[] } = {},
+  options: {
+    state?: string;
+    conditions?: readonly string[];
+    collapsedSites?: readonly number[];
+  } = {},
 ): SourceView {
   return {
     id,
@@ -178,11 +182,17 @@ function source(
     material,
     position: { x: at.x, z: at.z },
     ...(options.conditions ? { conditions: options.conditions } : {}),
+    ...(options.collapsedSites ? { collapsedSites: [...options.collapsedSites] } : {}),
   } as SourceView;
 }
 
-const outcrop = (options: { state?: string; conditions?: readonly string[] } = {}): SourceView =>
-  source(ORE_OUTCROP, FORM_OUTCROP, BIO_ORE, OUTCROP_AT, options);
+const outcrop = (
+  options: {
+    state?: string;
+    conditions?: readonly string[];
+    collapsedSites?: readonly number[];
+  } = {},
+): SourceView => source(ORE_OUTCROP, FORM_OUTCROP, BIO_ORE, OUTCROP_AT, options);
 
 const MOVE: InteractionView = { id: 'move', role: 'move-to', available: true };
 const HARVEST_READY: InteractionView = {
@@ -231,9 +241,15 @@ function made(options: Made = {}): GameViewSnapshot {
 }
 
 /** 노두 하나가 선 방 — 고갈 여부만 갈아 끼운다 */
+// C013 CHANGED — 무너짐은 원천의 phase 가 아니라 **자리**가 기억한다 (C013 spec R5).
+// 캐고 난 봉투는 그래서 무너진 마디(첫 마디 0)를 함께 싣는다 — C012 가 재던 것
+// ("고갈되면 그 자리가 구덩이가 되고 걸어가기 전에 읽힌다")은 한 값도 달라지지 않는다.
 const roomWith = (spent: boolean): GameViewSnapshot =>
   made({
-    entities: [ME, outcrop({ state: spent ? DEPLETED : AVAILABLE })],
+    entities: [
+      ME,
+      outcrop(spent ? { state: DEPLETED, collapsedSites: [0] } : { state: AVAILABLE }),
+    ],
     interactions: [MOVE, spent ? HARVEST_SPENT : HARVEST_READY],
   });
 

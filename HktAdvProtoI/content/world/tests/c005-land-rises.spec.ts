@@ -461,8 +461,13 @@ describe('SPEC-004 — 표면이 경사로 갈린다', () => {
     // C011 CHANGED — 재는 자리를 좁혔다. 이 Cycle 이 방 다섯에 흔적(area)을 깔았고
     // area 는 높이에도 표면에도 닿지 않으므로(engine 의 AreaOp — "높이를 건드리지 않는다")
     // **젖음의 유일한 원인인 curve** 만 세는 것이 이 경계가 원래 묻던 것이다.
+    //
+    // C013 CHANGED — 같은 이유로 한 번 더 좁힌다. 이 Cycle 이 방 둘에 뿌리 곡선을 놓았으나
+    // 그것은 **profile 이 없는 표시선**이고, engine 의 CurveOp 가 "표시선은 높이를 건드리지
+    // 않는다" 고 밝힌 그대로 컴파일 결과에 한 값도 닿지 않는다 (C013 spec Reuse · 실측).
+    // 그래서 세는 것은 땅을 실제로 파는 curve(profile 을 밝힌 것)뿐이다.
     for (const spec of roomsUntouchedSinceC005()) {
-      const curves = spec.space.ops.filter((op) => op.kind === 'curve');
+      const curves = spec.space.ops.filter((op) => op.kind === 'curve' && op.profile !== undefined);
       expect({ region: spec.id, curves: curves.length }).toEqual({ region: spec.id, curves: 0 });
     }
   });

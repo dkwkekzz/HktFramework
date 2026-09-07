@@ -1,0 +1,42 @@
+{
+  "id": "GAS_VILLAGE",
+  "name": "가스로 가득 찬 마을",
+  "depth": "outer",
+  "kinds": [
+    "hazard/climate"
+  ],
+  "answers": {
+    "distinction": "숨 쉴 수 없는 공기가 낮게 깔린 자리에 사람이 산다 — 떠나지 않는 까닭이 이 방의 전부다.",
+    "cause": "땅이 낮게 꺼져 있어 무거운 가스가 고인다. 바람이 지나가지 않아 걷히지 않는다.",
+    "dwelling": "떠나지 않은 사람들이 산다 — 가스가 걷히는 높은 자리에 붙어 있다.",
+    "danger": "공기 자체가 위험이다 (hazard/climate). 낮은 데로 내려갈수록 짙어진다.",
+    "worth": {
+      "said": "가스가 지나간 자리에 앙금이 남는다 — 위험을 만든 것이 그대로 재료를 만든다 (W4).",
+      "sources": [
+        {
+          "id": "GAS_RESIDUE",
+          "material": "GAS_RESIDUE",
+          "heldBy": "residue",
+          "form": "settled-film",
+          "role": "baseline"
+        }
+      ]
+    },
+    "discovery": "높이가 곧 안전이라는 것. 그리고 앙금이 짙은 쪽이 가스가 고이는 쪽이라는 것.",
+    "opening": "가스를 견디는 법을 알면 낮은 자리가 열린다 — 거기 앙금이 가장 두껍다.",
+    "birth": {
+      "said": {
+        "unanswered": "생명 계약(탄생지 · 개체군 · 관계)이 아직 데이터로 서지 않았다 — Play RoomBearsLife(C022~C025)의 것이다 — 가스에서 무엇이 태어나는가가 이 방의 여덟째 답이다 (Tool-Scale §2 가 등급 A 의 조건으로 든 바로 그 항이다)"
+      },
+      "born": []
+    }
+  },
+  "neighbours": [
+    {
+      "region": "WHITE_KING_DOMAIN",
+      "transition": "road",
+      "direction": "bidirectional"
+    }
+  ],
+  "requires": []
+}

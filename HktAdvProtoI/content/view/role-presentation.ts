@@ -64,6 +64,10 @@ export const ROLE_PRESENTATIONS: Readonly<Record<string, RolePresentation>> = {
       'root-nodule': 'source:root-nodule',
       'molt-litter': 'source:molt-litter',
       'spoil-pile': 'source:spoil-pile',
+      // 원천 셋 (C014) — 표에 세 줄이 늘 뿐이다. 넷이 일곱이 되어도 이 항목의 어법은 그대로다
+      'nest-mycelium': 'source:nest-mycelium',
+      'river-grain': 'source:river-grain',
+      'silt-bed': 'source:silt-bed',
     },
   },
   // 방의 출구 표식 (C001) — anchor 자리에 선 표식 하나. kind(= 전이 종류) 별 색은 region-presentation 의 표.

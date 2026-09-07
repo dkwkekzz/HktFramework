@@ -1,0 +1,54 @@
+{
+  "id": "FOREST_EDGE",
+  "name": "숲 가장자리",
+  "depth": "outer",
+  "kinds": [],
+  "answers": {
+    "distinction": "숲이 시작되는 자리다. 재료 계통의 첫 마디이자 흙의 변색이 처음 옅게 나타나는 방이다.",
+    "cause": "동쪽이 분지로 꺼져 있다. 광식충이 허물을 벗고 가는 자리가 나무 밑동에 남는다.",
+    "dwelling": {
+      "unanswered": "이 방에는 anchor 말고 아무 것도 놓이지 않았다 — Design 이 준 것이 거기까지이고 없는 의미를 지어내지 않는다 — 무엇이 사는지는 3층(주체)이 서야 적힌다"
+    },
+    "danger": {
+      "unanswered": "이 세계에 hazard layer 가 아직 놓이지 않았다 — 위험의 갈래는 Concept §3.1 이 어휘를 주었으나 컨텐츠 층 주입이 남았다. 이 방의 원천은 baseline 으로 적혀 있어 위험을 끼고 있지 않다"
+    },
+    "worth": {
+      "said": "광식충 허물이 나무 밑동에 남는다 — 위험을 끼지 않은 첫 재료다.",
+      "sources": [
+        {
+          "id": "MOLT_LITTER",
+          "material": "ORE_EATER_MOLT",
+          "heldBy": "residue",
+          "form": "molt-litter",
+          "role": "baseline"
+        }
+      ]
+    },
+    "discovery": "흙의 변색이 어느 쪽으로 짙어지는지. 그 방향이 곧 원천으로 가는 길이다.",
+    "opening": "숲 안쪽과 탐험대 폐허가 열린다. 그리고 흔적을 따라간다는 방법 자체가 열린다.",
+    "birth": {
+      "said": {
+        "unanswered": "생명 계약(탄생지 · 개체군 · 관계)이 아직 데이터로 서지 않았다 — Play RoomBearsLife(C022~C025)의 것이다 — 허물을 남긴 광식충이 어디서 태어나는지가 이 방의 여덟째 답이 된다"
+      },
+      "born": []
+    }
+  },
+  "neighbours": [
+    {
+      "region": "WHITE_KING_DOMAIN",
+      "transition": "road",
+      "direction": "bidirectional"
+    },
+    {
+      "region": "EXPLORER_RUIN",
+      "transition": "trail",
+      "direction": "bidirectional"
+    },
+    {
+      "region": "FOREST_DEEP",
+      "transition": "trail",
+      "direction": "bidirectional"
+    }
+  ],
+  "requires": []
+}

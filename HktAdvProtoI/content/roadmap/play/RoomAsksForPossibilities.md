@@ -1,6 +1,6 @@
 # RoomAsksForPossibilities — 방이 가능성을 묻는다, 빙결 심층의 문
 
-상태: **승인 대기** (AI 초안 — Human 질문 하나 · 위임된 결정 D5 하나). 계약은 [L2-World-Access.md](../L2-World-Access.md) (확정).
+상태: **승인됨** (Human 승인 1회 — "Play 승인". 확정 후보 9 가 확정 사항이 되었다 · 위임된 결정 D5 하나). Cycle Breakdown 의 체크박스만 앞으로 갱신된다. 계약은 [L2-World-Access.md](../L2-World-Access.md) (확정).
 선행: [RoomBearsMaterial.md](RoomBearsMaterial.md)(원천 · 흔적 · 성질 문장) · [RoomOfAnotherKind.md](RoomOfAnotherKind.md)(첫 property Lock 과
 눈보라) · [RoomAnswersWhenAsked.md](RoomAnswersWhenAsked.md)(지목과 판) — 이 Play 는 그 셋 위에 **요구와 가능성**을 얹는다. 새 축을 요구하지 않는다.
 
@@ -215,7 +215,7 @@ property Lock 이 실제로 열리게 한다 (몸 · 소지의 판정)
 
 ---
 
-## 확정 후보 (Human 승인으로 확정된다 — 위임된 결정은 Human 이 언제든 뒤집는다)
+## 확정 사항 (Human 승인 — 위임된 결정 D5 는 Human 이 언제든 뒤집는다)
 
 ```text
 1. 첫 property Lock 은 빙결 심층의 문 하나다. 이 Play 는 새 Lock 을 두지 않는다 — 기존 셋을 형으로 옮기고 MAZE_GATE 의 knowledge 자리만 비워 둔다
@@ -235,5 +235,6 @@ property Lock 이 실제로 열리게 한다 (몸 · 소지의 판정)
 
 ```text
 1. L0-Game.md §3 Core Breath 에 "가능성 탐색" 마디를 넣을 것인가 — Access 원문 §1 · §16 이 "이해 → 가능성 탐색 → 시도" 로 적었다.
-   L0 는 Human 소유라 이 Play 는 고치지 않았다 (Access 빈칸 5). 넣으면 L0 §3 한 줄과 Concept §2.1 대응표 한 줄이 바뀐다
+   L0 는 Human 소유라 이 Play 는 고치지 않았다 (Access 빈칸 5). 넣으면 L0 §3 한 줄과 Concept §2.1 대응표 한 줄이 바뀐다.
+   **미답** — 승인과 별개로 열려 있다. Cycle 은 이것으로 멈추지 않는다
 ```

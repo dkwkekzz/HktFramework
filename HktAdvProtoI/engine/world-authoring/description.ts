@@ -157,6 +157,46 @@ export function distanceToPolyline(points: readonly XZ[], x: number, z: number):
   return best;
 }
 
+/**
+ * 중심선 polyline 을 폭만큼 부풀린 **닫힌 다각형 하나** (C013 ADDED).
+ *
+ * 각 선분의 법선으로 좌우 `width / 2` 만큼 밀어 낸 점들을 만들고, 왼쪽 가장자리를 앞으로,
+ * 오른쪽 가장자리를 뒤로 이어 하나의 고리로 돌려준다 — 곧은 두 점이면 정확히 사각형이다.
+ *
+ * 꼭짓점은 선분마다 좌우 점을 그대로 이어 붙인 것이다 (miter 조인 같은 것을 만들지 않는다).
+ * 각이 급한 모서리에서 살짝 겹치는 것은 지면에 띠를 그리는 쓰임에서 문제가 되지 않는다.
+ *
+ * 점이 둘 미만이거나 `width <= 0` 이면 빈 배열 — 부풀릴 것이 없다 (지어내지 않는다).
+ * 길이 0 인 선분(같은 점이 이어진 것)은 건너뛴다 — 0 으로 나누지 않는다.
+ */
+export function polylineStrip(points: readonly XZ[], width: number): XZ[] {
+  if (points.length < 2 || !(width > 0)) return [];
+  const half = width / 2;
+  const left: XZ[] = [];
+  const right: XZ[] = [];
+  for (let i = 0; i + 1 < points.length; i++) {
+    const a = points[i];
+    const b = points[i + 1];
+    if (!a || !b) continue;
+    const dx = b.x - a.x;
+    const dz = b.z - a.z;
+    const length = Math.hypot(dx, dz);
+    if (length <= 0) continue;
+    // 진행 방향에 수직인 단위 법선 — 왼쪽이 +, 오른쪽이 -
+    const nx = (-dz / length) * half;
+    const nz = (dx / length) * half;
+    // 첫 유효 선분에서만 시작점을 넣는다 — 이어지는 선분은 끝점만 더해 고리가 2N 점이 된다
+    if (left.length === 0) {
+      left.push({ x: a.x + nx, z: a.z + nz });
+      right.push({ x: a.x - nx, z: a.z - nz });
+    }
+    left.push({ x: b.x + nx, z: b.z + nz });
+    right.push({ x: b.x - nx, z: b.z - nz });
+  }
+  if (left.length < 2) return [];
+  return [...left, ...right.reverse()];
+}
+
 /** curve 여럿 가운데 가장 가까운 중심선까지의 거리 — 하나도 없으면 Infinity */
 export function nearestCurveDistance(curves: readonly CurveOp[], x: number, z: number): number {
   let best = Infinity;

@@ -1,0 +1,44 @@
+{
+  "id": "GHOST_CITY",
+  "name": "유령이 돌아다니는 도시",
+  "depth": "wild",
+  "kinds": [
+    "hazard/knowledge"
+  ],
+  "answers": {
+    "distinction": "죽은 것이 자리를 떠나지 않는다 — 사람이 살던 도시에 그 기억이 남아 돌아다닌다.",
+    "cause": "죽은 생물이 기억을 남긴다 (Concept §13 정식). 사람이 많이 죽은 자리일수록 남은 것이 짙다.",
+    "dwelling": {
+      "unanswered": "남은 기억이 자리에 있다는 것까지가 2층이다. 유령이 어떻게 행동하는지는 3층(주체)의 것이므로 여기서 짓지 않는다 (Tool-Scale §2 B 행)"
+    },
+    "danger": "행동 원리를 모르면 지날 수 없다 — 남은 기억이 무엇에 반응하는지를 알아야 한다.",
+    "worth": {
+      "said": {
+        "unanswered": "무엇이 귀해지는지는 남은 기억이 자리에 어떻게 적히는지가 정해진 뒤에 온다"
+      },
+      "sources": []
+    },
+    "discovery": "죽음이 자리에 무엇을 남기는가. 그리고 그 남은 것이 규칙을 가진다는 것.",
+    "opening": "남은 기억을 읽는 법을 알면 사람이 살던 자리들이 열린다.",
+    "birth": {
+      "said": {
+        "unanswered": "생명 계약(탄생지 · 개체군 · 관계)이 아직 데이터로 서지 않았다 — Play RoomBearsLife(C022~C025)의 것이다"
+      },
+      "born": []
+    }
+  },
+  "neighbours": [
+    {
+      "region": "WHITE_KING_DOMAIN",
+      "transition": "road",
+      "direction": "bidirectional"
+    }
+  ],
+  "requires": [
+    {
+      "kind": "rule",
+      "what": "죽은 생물이 자리에 기억을 남긴다",
+      "why": "이 도시는 데이터만으로 서지 않는다 — 방이 State 를 가지고 그 State 가 남은 기억의 자리와 세기를 져야 성립한다 (Concept §13 정식 · Tool-Scale §2 B 행)"
+    }
+  ]
+}

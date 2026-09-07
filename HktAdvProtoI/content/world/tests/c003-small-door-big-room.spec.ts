@@ -212,9 +212,18 @@ describe('SPEC-001 — 방이 늘고 깊이가 넷이 된다', () => {
   // 캘 것은 방이 **낳는** 원천(content/regions 의 데이터)이 되었다. 그래서 붉은 눈의 거목에는
   // 이제 뿌리혹이 서 있다 — 놓인 것이 아니라 그 방이 낳는 것이다 (RoomBearsMaterial §5.3).
   it('S-004b 캘 것은 초기 배치가 아니라 방의 데이터에서 온다', () => {
+    // C014 CHANGED — 심장 호수도 이제 원천 하나를 낳는다 (흐름의 출발). 이 경계가 묻던 것은
+    // "캘 것이 초기 배치가 아니라 방의 데이터에서 오는가" 이므로, 그 방이 밝힌 것과 세계가
+    // 세운 것이 같은가로 잰다 — 좌표도 이름도 손으로 적지 않는다.
+    for (const id of [RED_EYE_TREE, TREE_INNER_WORLD, HEART_LAKE]) {
+      const declared = (regionSpec(id)?.resourceEcology?.sources ?? []).map((s) => s.id);
+      expect({ id, stood: sourcesInRegion(id).map((source) => source.id) }).toEqual({
+        id,
+        stood: declared,
+      });
+    }
+    // 그리고 거목은 여전히 뿌리혹 하나다 (C011 이 세운 그대로)
     expect(sourcesInRegion(RED_EYE_TREE).map((source) => source.id)).toEqual(['ROOT_NODULE']);
-    expect(sourcesInRegion(TREE_INNER_WORLD).length).toBe(0);
-    expect(sourcesInRegion(HEART_LAKE).length).toBe(0);
   });
 });
 
@@ -932,10 +941,17 @@ describe('회귀', () => {
     w.tick(TICK_INTERVAL);
     expect(body(w).regionId).toBe(HEART_LAKE);
     const v = w.observe();
-    expect(v.entities.filter((e) => e.role !== 'region-exit').map((e) => e.id)).toEqual([PLAYER]);
+    // C014 CHANGED — 이 방도 이제 자기 원천 하나를 낳는다 (흐름의 출발). 이 경계가 묻던 것은
+    // **다른 방의 것**이 보이지 않는가이므로, 보이는 것이 내 몸과 이 방이 낳는 것뿐인지로 잰다.
+    const mine = sourcesInRegion(HEART_LAKE).map((source) => source.id);
+    expect(v.entities.filter((e) => e.role !== 'region-exit').map((e) => e.id)).toEqual([
+      PLAYER,
+      ...mine,
+    ]);
     expect(v.entities.filter((e) => e.role === 'npc-character')).toEqual([]);
     expect(v.entities.filter((e) => e.role === 'resource-deposit')).toEqual([]);
-    expect(v.interactions.filter((i) => i.id === 'mine')).toEqual([]);
+    // 채취는 이 방의 원천에만 걸린다 — 다른 방의 것은 한 줄도 실리지 않는다
+    expect(v.interactions.filter((i) => i.id === 'mine').map((i) => i.targetEntityId)).toEqual(mine);
   });
 
   it('R-006 (C002 SPEC-008 경계) 막다른 방 셋은 돌아가는 출구뿐이다 — 방이 늘어도 그대로다', () => {

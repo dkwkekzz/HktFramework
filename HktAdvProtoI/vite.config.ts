@@ -62,15 +62,26 @@ function spawnFromEnv(): {
   // npcs: "none" 과 함께 주면 none 이 이긴다 (아무도 놓지 않는다).
   const npcRegion = process.env.HKT_NPC_REGION;
   if (npcRegion && setup.npcs === undefined) setup.npcRegion = npcRegion;
-  // HKT_SOURCE_PHASE="SOURCE:PHASE" — 원천이 어느 phase 로 서는가 (C012).
-  // HKT_REGION_PATTERN 과 같은 갈래의 검증용 손잡이다 — 캐서 닿을 수 있는 State 를 캐지 않고
-  // 시작한다. 노두는 세 번 캐야 고갈되고 촬영 하네스의 요청 왕복은 10초를 넘는다.
-  // 규칙이 그것을 고갈시킨다는 것은 시나리오 테스트가 증명하고, 그림은 그 State 에서
-  // 무엇이 보이는가를 보인다. 모르는 원천 · 모르는 phase 는 세계가 조용히 무시한다.
+  // HKT_SOURCE_PHASE="SOURCE:PHASE" 또는 "A:phase,B:phase" — 원천들이 어느 phase 로 서는가
+  // (C012 · C013 CHANGED — 쉼표로 여럿을 한 번에 세운다).
+  //
+  // HKT_REGION_PATTERN 과 같은 갈래의 검증용 손잡이다 — 캐서·기다려서 닿을 수 있는 State 를
+  // 캐지도 기다리지도 않고 시작한다. 노두는 세 번 캐야 고갈되고 촬영 하네스의 요청 왕복은
+  // 10초를 넘으며, 되돌아오는 중(recovering)은 거기서 다시 90초의 세계 시간을 기다려야 온다.
+  // 규칙이 그 State 로 데려간다는 것은 시나리오 테스트가 증명하고, 그림은 그 State 에서
+  // 무엇이 보이는가를 보인다.
+  //
+  // 여럿을 받는 이유 — 사슬이 멎는 장면(뿌리혹이 고갈된 채 노두가 멎어 있다)은 원천 **둘**을
+  // 함께 세워야 서는 그림이다 (C013 SPEC-005). 세계가 받는 값은 그대로 phase 문자열이고,
+  // 모르는 원천 · 모르는 phase 는 세계가 조용히 무시한다.
   const sourcePhase = process.env.HKT_SOURCE_PHASE;
   if (sourcePhase) {
-    const [sourceId, phase] = sourcePhase.split(':');
-    if (sourceId && phase) setup.sourcePhases = { [sourceId]: phase };
+    const phases: Record<string, string> = {};
+    for (const entry of sourcePhase.split(',')) {
+      const [sourceId, phase] = entry.trim().split(':');
+      if (sourceId && phase) phases[sourceId] = phase;
+    }
+    if (Object.keys(phases).length > 0) setup.sourcePhases = phases;
   }
   // HKT_SPAWN_REGION — 어느 **방**에서 시작할 것인가. 방이 여럿이 되면서 자리만으로는
   // 모자란다 (C002): 걷기가 이어지지 않는 촬영에서 백왕령 밖의 방을 보려면 거기서 시작해야 한다.

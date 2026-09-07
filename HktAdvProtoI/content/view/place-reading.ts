@@ -82,10 +82,10 @@ export function readPlace(
   point: { x: number; z: number },
 ): PlaceReading {
   const regionId = snapshot.region.id;
-  // 원천의 phase 는 **봉투의 것**이다 (C012). 흔적이 옅어졌는지도 그 자리가 무너졌는지도
+  // 원천의 지금은 **봉투의 것**이다 (C012 · C013). 흔적이 옅어졌는지도 그 자리가 무너졌는지도
   // 여기서 유도되므로, 이 함수가 읽는 사실의 출처는 여전히 봉투와 내 Description 둘뿐이다 —
   // 시그니처가 늘지 않는 것이 그 규율을 그대로 지킨다 (세계에 묻는 것은 여전히 0 이다)
-  const phases = sourcePhases(snapshot);
+  const sources = sourcePhases(snapshot);
   const depth = snapshot.hud.find((h) => h.id === DEPTH_HUD_ID)?.value;
   const state = snapshot.region.state;
   const base: PlaceReading = {
@@ -132,14 +132,14 @@ export function readPlace(
   // 것이 아니라 그것이 흔적의 규칙이기 때문이다 — 겹침은 짙기이지 양이 아니고(C011 R4),
   // 옅어진 뒤에는 겹친 둘이 같은 단계가 되어 같은 말이 두 번 서게 된다.
   // 단계가 0 이면 흔적이 없어진 것이므로 그 줄도 서지 않는다 (바닥에 그리지 않는 것과 같다).
-  const trace = traceLevelAt(regionId, point, phases);
+  const trace = traceLevelAt(regionId, point, sources);
   if (trace > 0) areas.push({ layer: TRACE_LAYER, tags: [soilStainTag(trace)] });
 
   // RULE-SOURCE-COLLAPSE-001 (C012 R3) — 컴파일 결과 **위에** 덧씌운다. 땅은 한 값도
   // 바뀌지 않고(높이 · 표면 · traversable 격자 그대로), 세계가 하는 것과 같은 판정이
   // 그 위에 "무너졌다" 만 얹는다. 땅이 이미 막고 있으면 그 사유가 그대로다 —
   // 세계의 이동 규칙도 땅을 먼저 묻고 덧씌움을 그 뒤에 묻는다 (move 의 차례).
-  const collapsed = isCollapsedAt(regionId, point, phases);
+  const collapsed = isCollapsedAt(regionId, point, sources);
 
   // 통로의 열림 판정은 **region-presentation 의 표 읽기 그대로다** — 두 벌로 만들면
   // 판이 말하는 것과 바닥에 그려진 것이 갈린다 (spec: 같은 규칙이어야 한다)

@@ -1,4 +1,4 @@
-# play/ — 증명 Play 와 여섯 기획의 덮임
+# play/ — 증명 Play 와 일곱 기획의 덮임
 
 이 폴더의 **"방"은 Region 의 최소 표현**이다. Region 은 크기를 갖지 않는 공간이고 크기는 extent 데이터다 — 한 칸의 방도,
 대평원도, 대륙급 오픈월드도 같은 Region 이며 그 사이를 Connector 가 잇는다 (RegionGraphRooms 불변 조건 넷째).
@@ -40,7 +40,7 @@ Frost 뒤에 오는 이유는 탄생이 **소비할 것**(재료)과 **탈 주�
 검사할 수 없었던 구멍(요구와 가능성이 다른 말로 적혀 있다)을 메우는 ②-부속 넷째다. Frost 뒤에 오는 이유는 첫 property Lock(빙결 심층의 문)과
 둘째 종류의 답(눈보라)이 협곡에 있기 때문이다.
 Play 일곱 중 다섯(RegionGraphRooms · RoomBecomesLand · RuleBoundRoom · RoomBearsMaterial · RoomNeverSame)과 컨텐츠
-하나(RoomOfAnotherKind)는 **승인됐고**, 여섯째(Life)는 주입된 그대로이며, 일곱째(Access)는 승인 대기다.
+하나(RoomOfAnotherKind)와 일곱째(RoomAsksForPossibilities)는 **승인됐고**, 여섯째(Life)는 주입된 그대로다.
 
 ## 일곱 기획의 덮임 지도
 

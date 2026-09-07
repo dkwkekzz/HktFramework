@@ -19,11 +19,20 @@
 // 고갈이 세계에 하는 셋(흔적 · 통행 · 조건)은 전부 phase **하나에서 유도된다** — State 를
 // 세 벌로 만들지 않는다 (spec R2 경계). 땅도 컴파일 결과도 한 값 바뀌지 않고, 그 위에
 // State 가 덧씌워질 뿐이다 (C008 의 isClosedPassageAt 이 통로에 한 그대로).
+//
+// C013 CHANGED — 원천이 **자리를 옮긴다**. 그래도 자리는 여전히 State 가 아니다: 마디 목록은
+// 데이터(presence layer 의 뿌리 곡선)가 소유하고, State 가 드는 것은 "몇 번째 마디인가"
+// (siteIndex) 하나뿐이다. 무너진 자리도 원천이 아니라 **자리**가 기억한다 (collapsedSites) —
+// 원천이 떠나도 옛 자리는 무너진 채 남기 때문이다 (spec R5).
 
-import { areasOf, findPoint } from '../../../engine/world-authoring/description';
-import { areaCoversPoint, tagsAt } from '../../../engine/world-authoring/query';
+import { areasOf, curvesOf, findPoint } from '../../../engine/world-authoring/description';
+import { areaCoversPoint } from '../../../engine/world-authoring/query';
 import {
+  CONDITION_UNMET,
+  FLOW_ARRIVED,
+  PRESENCE_LAYER,
   RECOVERY_STALLED,
+  RESOURCE_FLOWS,
   RESOURCE_LAYER,
   REGION_SPECS,
   TRACE_LAYER,
@@ -31,11 +40,11 @@ import {
   soilStainLevel,
   type CarrierKind,
   type OpportunityRole,
+  type ResourceFlowSpec,
   type SupplyMode,
 } from '../../regions';
 import type { WorldPosition } from './position';
 import type { RegionState, ResourceSourceState } from './region-state';
-import { regionTerrain } from './terrain';
 
 /**
  * 세계가 아는 원천 하나 — 성질(resourceEcology)과 자리(Description 의 resource point)를 엮은 것.
@@ -52,16 +61,28 @@ export interface ResourceSource {
   carrier: CarrierKind;
   opportunity: OpportunityRole;
   supply: SupplyMode;
-  /** 그 방 Local Space 의 자리 — resource layer point 가 소유한다 */
+  /** 그 방 Local Space 의 자리 — **마디 0** 이다 (C011 · C012 가 보던 그 자리 그대로) */
   position: WorldPosition;
+  /**
+   * 그 원천이 설 수 있는 **마디들** (C013 ADDED · spec R4) — 데이터가 소유한다.
+   *
+   * siteCurve 를 밝힌 원천은 그 presence 곡선의 points 가 그대로 마디 목록이고,
+   * 밝히지 않은 원천은 resource point 하나가 유일한 마디다. 언제나 하나 이상이며
+   * `sites[0]` 은 `position` 과 같다.
+   */
+  sites: readonly WorldPosition[];
+  /** 되돌아오는 데 걸리는 세계 초 (C013 ADDED · D3) — 회복 세계 과정이 읽는다 */
+  recoverySeconds: number;
   /** 몇 번 캘 수 있는가 (C012 ADDED · D4) — 그만큼 캐면 phase 가 depleted 다 */
   harvests: number;
   /** 고갈되면 무너져 그 자리를 막는가 (C012 ADDED) — 참인 원천만 붕괴 area 를 가진다 */
   collapses?: boolean;
   /** 이것이 매달린 원천의 id (C012 ADDED) — 그것이 고갈되면 이것에 조건이 걸린다 */
   dependsOn?: string;
-  /** 그 원천 둘레의 흔적 op id (C012 ADDED) — 고갈되면 그 op 를 한 단계 낮춰 친다 */
-  traceOp?: string;
+  /** 마디마다의 둘레 흔적 op id (C013 CHANGED · 옛 traceOp) — 마디 순서 그대로 */
+  traceOps?: readonly string[];
+  /** 마디마다의 붕괴 area op id (C013 ADDED) — traceOps 와 같은 순서. 무너지는 원천만 */
+  collapseOps?: readonly string[];
 }
 
 // 방 하나당 엮기 한 번. 원천이 없는 방(백왕령)도 빈 배열로 담는다 — 그것도 답이다.
@@ -71,11 +92,19 @@ const SOURCES_BY_REGION = new Map<string, readonly ResourceSource[]>();
 let SOURCE_INDEX: Map<string, ResourceSource> | null = null;
 
 /**
- * RULE-RESOURCE-PLACEMENT-001 — 원천의 자리는 데이터가 정한다.
+ * RULE-RESOURCE-PLACEMENT-001 (C013 CHANGED) — 원천의 자리는 **마디 목록 + State** 다.
  *
  * 그 방 resourceEcology 의 원천마다, **같은 id 를 tag 로 가진** resource layer point 를 찾아
  * 그 자리에 세운다. 그런 point 가 없는 원천은 **서지 않는다** — 자리를 지어내지 않는다
- * (spec R3 경계). 순서는 resourceEcology.sources 의 순서 그대로다 (결정론).
+ * (spec R4 경계). 순서는 resourceEcology.sources 의 순서 그대로다 (결정론).
+ *
+ * C013 이 더하는 것 하나 — `siteCurve` 를 밝힌 원천은 그 presence 곡선의 points 가 곧
+ * **마디 목록**이다 (points 순서 그대로). 밝히지 않은 원천은 그 point 하나가 유일한 마디이고,
+ * 그때 마디 목록은 C011 과 한 값도 다르지 않다. 어느 쪽이든 `position` 은 **마디 0** 이다 —
+ * 지금 어느 마디에 서 있는가는 State 가 들고(siteIndex), 여기 있는 것은 데이터뿐이다.
+ *
+ * 곡선을 밝혔는데 그 곡선이 없거나 점이 하나도 없으면 point 하나로 되돌린다 — 밝힌 것을
+ * 못 찾았다고 원천을 지우지 않는다 (자리는 이미 point 가 준다).
  */
 export function sourcesInRegion(regionId: string): readonly ResourceSource[] {
   const cached = SOURCES_BY_REGION.get(regionId);
@@ -87,6 +116,16 @@ export function sourcesInRegion(regionId: string): readonly ResourceSource[] {
     // 자리는 Description 의 것이다 — 여기서 좌표를 짓지 않는다.
     const point = spec ? findPoint(spec.space, RESOURCE_LAYER, source.id) : undefined;
     if (!point) continue;
+    const position: WorldPosition = { x: point.position.x, z: point.position.z };
+    // 마디 목록도 Description 의 것이다 — 곡선의 points 를 그대로 옮긴다.
+    const curve =
+      spec && source.siteCurve
+        ? curvesOf(spec.space, PRESENCE_LAYER, source.siteCurve)[0]
+        : undefined;
+    const sites: WorldPosition[] =
+      curve && curve.points.length > 0
+        ? curve.points.map((p) => ({ x: p.x, z: p.z }))
+        : [position];
     sources.push({
       id: source.id,
       regionId,
@@ -95,11 +134,14 @@ export function sourcesInRegion(regionId: string): readonly ResourceSource[] {
       carrier: source.carrier,
       opportunity: source.opportunity,
       supply: source.supply,
-      position: { x: point.position.x, z: point.position.z },
+      position,
+      sites,
+      recoverySeconds: source.recoverySeconds,
       harvests: source.harvests,
       ...(source.collapses === undefined ? {} : { collapses: source.collapses }),
       ...(source.dependsOn === undefined ? {} : { dependsOn: source.dependsOn }),
-      ...(source.traceOp === undefined ? {} : { traceOp: source.traceOp }),
+      ...(source.traceOps === undefined ? {} : { traceOps: source.traceOps }),
+      ...(source.collapseOps === undefined ? {} : { collapseOps: source.collapseOps }),
     });
   }
 
@@ -131,27 +173,73 @@ export function sourceStateOf(
   regionId: string,
   sourceId: string,
 ): ResourceSourceState {
-  return states[regionId]?.sources?.[sourceId] ?? { phase: 'available', taken: 0 };
+  return (
+    states[regionId]?.sources?.[sourceId] ?? {
+      phase: 'available',
+      taken: 0,
+      progress: 0,
+      siteIndex: 0,
+    }
+  );
 }
 
 /**
- * RULE-TRACE-STRENGTH-001 (C012 CHANGED) — 그 자리의 흔적 세기.
+ * RULE-RESOURCE-PLACEMENT-001 (C013 CHANGED) — 그 원천이 **지금 서 있는 자리**.
+ *
+ * 마디 목록은 데이터의 것이고 "몇 번째인가" 는 State 의 것이다 — 둘을 잇는 자리가 여기다.
+ * 목록 밖을 가리키는 번호(데이터가 바뀐 뒤 되살린 세계)면 마디 0 으로 되돌린다:
+ * 없는 자리를 지어내지 않는다.
+ */
+export function sourcePositionOf(
+  states: Record<string, RegionState>,
+  source: ResourceSource,
+): WorldPosition {
+  const state = sourceStateOf(states, source.regionId, source.id);
+  return source.sites[state.siteIndex] ?? source.position;
+}
+
+/**
+ * RULE-SOURCE-RECOVERY-001 이 쓰는 **무너지지 않은 다음 마디** (C013 ADDED · spec R1 경계 ③).
+ *
+ * 지금 마디의 다음부터 한 바퀴 돌며 처음 만나는, 무너지지 않은 마디를 준다. 마디가 하나뿐인
+ * 원천도 · 무너지지 않은 마디가 하나도 없는 원천도 **null** 이다 — 그때는 자리를 옮기지 않는다
+ * (지날 수 없는 자리에 세우지 않는다).
+ */
+export function nextStandableSite(
+  source: ResourceSource,
+  from: number,
+  collapsed: readonly number[] | undefined,
+): number | null {
+  const count = source.sites.length;
+  for (let step = 1; step < count; step++) {
+    const index = (from + step) % count;
+    if (collapsed?.includes(index)) continue;
+    return index;
+  }
+  return null;
+}
+
+/**
+ * RULE-TRACE-STRENGTH-001 (C013 CHANGED) — 그 자리의 흔적 세기.
  *
  * trace layer area 들의 `soil-stain:<n>` 가운데 **가장 큰 n**. 하나도 없으면 0 이고,
  * 땅을 모르는 방(Description 이 없는 id)도 0 이다.
  *
- * **합하지 않는다** — 겹침은 짙기이지 양이 아니다 (spec R5 경계 · C011 R4 그대로). 방 바닥 위에
+ * **합하지 않는다** — 겹침은 짙기이지 양이 아니다 (spec R7 경계 ① · C011 R4 그대로). 방 바닥 위에
  * 원천 둘레가 겹쳐 있으므로, 합하면 "둘레가 두 배로 짙다" 는 없는 답이 나온다.
  *
- * C012 가 더하는 것 하나 — **고갈된 원천의 traceOp 는 한 단계 낮춰 친다** (spec R5).
- * 데이터도 컴파일 결과도 한 값 바뀌지 않는다: 세기를 셀 때 그 area 만 한 단계 내려 볼 뿐이다.
- * 0 아래로는 내려가지 않는다 — 옅어짐이지 없어짐이 아니다. 낮춘 뒤에도 가장 큰 쪽이 이기므로,
- * 옅어진 둘레가 방 바닥보다 옅어지면 바닥의 값이 그대로 답이 된다.
+ * 원천 둘레는 **지금 마디의 것만** 센다 (spec R7). 어떤 원천의 traceOps 에 든 area 는
+ *   ① 그 원천의 지금 마디의 op 가 아니면 **0** — 원천이 떠난 마디의 둘레는 흙을 짙게 하지 않는다
+ *   ② 지금 마디이면 phase 가 depleted 일 때만 한 단계 아래, recovering · available 이면 데이터 그대로
+ *      (되돌아오는 중이면 흙이 다시 짙어진다 — SPEC-004 의 예보다)
+ * 어느 원천의 둘레도 아닌 area(방 바닥)는 한 값도 바뀌지 않는다 (spec R7 경계 ②).
+ * 마디가 하나뿐인 원천은 지금 마디가 언제나 0 이므로 C012 와 한 값도 다르지 않다 (경계 ③).
+ * 0 아래로는 내려가지 않는다 — 옅어짐이지 없어짐이 아니다.
  *
- * 어느 area 가 어느 원천의 둘레인지는 **op id** 로만 알 수 있다 (traceOp). 컴파일 결과의
+ * 어느 area 가 어느 원천의 둘레인지는 **op id** 로만 알 수 있다 (traceOps). 컴파일 결과의
  * area 는 layer · tag · shape 만 들고 op id 를 잃으므로, 여기서는 그 방 Description 의 trace
  * area 를 직접 훑는다 — Description 의 area 와 컴파일 결과의 area 는 순서도 모양도 같다
- * (engine 의 collectAreas 가 ops 순서 그대로 옮긴다). 그래서 답은 C011 과 한 값도 다르지 않다.
+ * (engine 의 collectAreas 가 ops 순서 그대로 옮긴다).
  */
 export function traceStrengthAt(
   states: Record<string, RegionState>,
@@ -161,70 +249,150 @@ export function traceStrengthAt(
   const spec = regionSpec(regionId);
   if (!spec) return 0;
 
-  // 고갈된 원천들이 옅게 만든 op 들 — 한 방에 여럿일 수 있다.
-  const dimmed = new Set<string>();
+  // 원천 둘레인 op 들 — 지금 마디의 것인가와 phase 를 함께 든다. 한 방에 여럿일 수 있다.
+  const rimmed = new Map<string, { here: boolean; depleted: boolean }>();
   for (const source of sourcesInRegion(regionId)) {
-    if (!source.traceOp) continue;
-    if (sourceStateOf(states, regionId, source.id).phase !== 'depleted') continue;
-    dimmed.add(source.traceOp);
+    if (!source.traceOps) continue;
+    const state = sourceStateOf(states, regionId, source.id);
+    source.traceOps.forEach((op, index) => {
+      rimmed.set(op, { here: index === state.siteIndex, depleted: state.phase === 'depleted' });
+    });
   }
 
   let strongest = 0;
   for (const area of areasOf(spec.space, TRACE_LAYER)) {
     if (!areaCoversPoint(area.shape, position.x, position.z)) continue;
     const level = soilStainLevel(area.tag);
-    const here = dimmed.has(area.id) ? Math.max(0, level - 1) : level;
+    const rim = rimmed.get(area.id);
+    const here = rim
+      ? rim.here
+        ? Math.max(0, level - (rim.depleted ? 1 : 0))
+        : 0
+      : level;
     if (here > strongest) strongest = here;
   }
   return strongest;
 }
 
 /**
- * RULE-SOURCE-COLLAPSE-001 — 그 자리가 **무너진 자리**인가 (C012 ADDED).
+ * RULE-SOURCE-COLLAPSE-001 (C013 CHANGED) — 그 자리가 **무너진 자리**인가.
  *
- * 자리 판정은 컴파일 결과에 그대로 묻는다 (`tagsAt`) — 붕괴 자리는 컴파일된 resource area 이고,
- * 그 태그가 곧 원천의 id 다. State 는 그 위에 "지날 수 없음" 만 덧씌운다:
- * 높이도 표면도 traversable 격자도 한 값 바뀌지 않는다 (spec R3 경계 · C008 의 통로와 같은 형).
+ * 무너짐은 이제 원천이 아니라 **자리**가 기억한다 (spec R5): 그 자리를 덮은 붕괴 area 의
+ * 마디 번호가 그 원천의 `collapsedSites` 에 들어 있으면 참이다. 원천이 다음 마디로 옮겨
+ * 가도 옛 자리는 그대로 구덩이다 — C012 처럼 "그 원천이 지금 depleted 인가" 로 묻지 않는다.
  *
- * 무너지는 것으로 밝혀지지 않은 원천(허물 · 더미 · 뿌리혹)은 고갈돼도 통행을 막지 않는다.
- * 땅이 없는 방 · 그런 area 밖의 자리는 언제나 거짓이다 — 이 전제가 없는 것과 같다.
+ * 어느 area 가 몇 번째 마디의 붕괴 자리인지는 **op id** 로만 알 수 있다 (collapseOps) —
+ * 컴파일 결과의 area 는 op id 를 잃으므로 traceStrengthAt 과 같은 이유로 그 방 Description 의
+ * resource area 를 직접 훑는다. 컴파일 결과는 한 값도 바뀌지 않는다: 높이도 표면도
+ * traversable 격자도 그대로이고 그 위에 State 가 덧씌워질 뿐이다 (spec R5 경계).
+ *
+ * 무너지는 것으로 밝혀지지 않은 원천(허물 · 더미 · 뿌리혹)은 붕괴 area 도 collapsedSites 도
+ * 없으므로 몇 번을 돌아도 통행을 막지 않는다. 땅을 모르는 방 · 그런 area 밖의 자리는 언제나 거짓이다.
  */
 export function isCollapsedAt(
   states: Record<string, RegionState>,
   regionId: string,
   position: WorldPosition,
 ): boolean {
-  const terrain = regionTerrain(regionId);
-  if (!terrain) return false;
-  for (const tag of tagsAt(terrain, position.x, position.z, RESOURCE_LAYER)) {
-    // 태그가 원천의 id 다 — 세계가 모르는 태그는 그냥 지나간다 (지어내지 않는다).
-    const source = findResourceSource(tag);
-    if (!source || source.regionId !== regionId || !source.collapses) continue;
-    if (sourceStateOf(states, regionId, source.id).phase === 'depleted') return true;
+  const spec = regionSpec(regionId);
+  if (!spec) return false;
+
+  // 무너진 채 남은 마디의 붕괴 op 들 — 원천이 지금 어디 서 있는지는 묻지 않는다.
+  const collapsed = new Set<string>();
+  for (const source of sourcesInRegion(regionId)) {
+    if (!source.collapseOps || !source.collapses) continue;
+    const sites = sourceStateOf(states, regionId, source.id).collapsedSites;
+    if (!sites || sites.length === 0) continue;
+    for (const index of sites) {
+      const op = source.collapseOps[index];
+      if (op) collapsed.add(op);
+    }
+  }
+  if (collapsed.size === 0) return false;
+
+  for (const area of areasOf(spec.space, RESOURCE_LAYER)) {
+    if (!collapsed.has(area.id)) continue;
+    if (areaCoversPoint(area.shape, position.x, position.z)) return true;
   }
   return false;
 }
 
 /**
- * RULE-SOURCE-CONDITION-001 — 그 원천에 **지금 걸린 조건 코드들** (C012 ADDED).
+ * RULE-RESOURCE-FLOW-001 (C014 ADDED · spec R1) — 그 흐름이 **지금 실어 오는 중인가**.
  *
- * 매달린 원천이 고갈되었으면 `recovery-stalled` 하나. 걸린 것이 없으면 빈 배열이다 —
+ * 세계 시각을 주기로 나눈 나머지가 활성 구간보다 작으면 활성이다. **세계 State 가 아니다** —
+ * 시각에서 유도되므로 저장할 것이 없고, 되살린 세계도 같은 시각에서 같은 답을 낸다
+ * (semantic/terrain.ts 의 컴파일과 같은 갈래의 유도된 사실).
+ *
+ * **관찰자와 무관하다** (spec R1 경계 ②) — 그 방에 몸이 없어도 물길은 불어났다 빠진다.
+ * 주기가 0 이하인 흐름은 언제나 거짓이다: 나눌 수 없는 것을 나누어 없는 답을 짓지 않는다.
+ * 세계 시각은 0 에서 시작해 오르기만 하지만, 음수가 들어와도 주기 안으로 접어 답한다.
+ */
+export function isFlowActive(flow: ResourceFlowSpec, time: number): boolean {
+  if (flow.periodSeconds <= 0) return false;
+  const phase = ((time % flow.periodSeconds) + flow.periodSeconds) % flow.periodSeconds;
+  return phase < flow.activeSeconds;
+}
+
+/**
+ * 그 원천으로 **들어오는** 흐름 (C014 ADDED) — 없으면 undefined 다.
+ *
+ * 데이터가 소유하는 정적 사실이다 (content/regions 의 RESOURCE_FLOWS). 한 원천에 들어오는
+ * 흐름은 지금 하나뿐이므로 처음 것을 준다 — 여럿을 미리 다루지 않는다 (선행 추상화 금지).
+ */
+export function inflowOf(sourceId: string): ResourceFlowSpec | undefined {
+  return RESOURCE_FLOWS.find((flow) => flow.to.sourceId === sourceId);
+}
+
+/**
+ * RULE-SOURCE-CONDITION-001 (C013 CHANGED) — 그 원천에 **지금 걸린 조건 코드들**.
+ *
+ * 매달린 원천이 **available 이 아니면** `recovery-stalled` 하나. 걸린 것이 없으면 빈 배열이다 —
  * 관찰에 실을지 말지는 투영이 정한다 (없으면 자리 자체를 싣지 않는다).
  *
+ * C012 는 매달린 것이 depleted 일 때만 걸었고 아무것도 늦추지 않았다. 이제 이 코드는
+ * **원인이다** — 되돌아옴의 세계 과정이 이것을 보고 진행을 멈춘다 (spec R1 · R2 ·
+ * simulation/source-recovery.ts). 매달린 것이 되돌아오는 중(recovering)이어도 여전히 멎어 있다:
+ * 아래가 다시 available 이 되어야 위가 진행한다.
+ *
  * 매달린 원천은 **다른 방에 있을 수 있다** (뿌리혹은 붉은눈 거목, 노두는 생체 광석 지대다) —
- * 그래서 그 원천의 방을 찾아 묻는다. 걸린다고 해서 캘 수 없는 것은 아니다 (spec R6 경계):
- * 이 코드는 **멎었다는 표시**일 뿐 아무것도 늦추지 않는다 (되돌아옴은 C013 의 것이다).
+ * 그래서 그 원천의 방을 찾아 묻는다. 걸린다고 해서 캘 수 없는 것은 아니다 (spec R2 경계).
+ *
+ * C014 CHANGED (spec R3) — **흐름의 조건도 코드가 된다.** 유입 흐름을 가진 원천은 아직 없는
+ * 동안(available 이 아닌 동안) 그 흐름이 활성이면 `flow-arrived`, 아니면 `condition-unmet` 을
+ * 진다 — "지금 실려 오는 중이다" 와 "아직 그때가 아니다" 다. 그리고 그 흐름의 **출발 원천**이
+ * C013 의 매달림과 같은 자리에 선다: 출발이 available 이 아니면 같은 `recovery-stalled` 다.
+ *
+ * **규칙은 어느 원천이 흐름을 가졌는지 이름으로 알지 못한다** — 아는 것은 "유입 흐름을 가진
+ * 원천" 이라는 형뿐이고, 어느 방의 무엇이 어디로 실려 오는지는 데이터에만 있다 (R13).
+ *
+ * 여기 실리는 코드가 곧 **되돌아옴을 멎게 하는 원인**이다 (simulation/source-recovery.ts) —
+ * 표시와 원인이 같은 판정이라는 C013 의 규율 그대로다. 셋 중 `flow-arrived` 만이 진행을
+ * 허락한다: 실려 오는 중인 것은 되돌아오는 중인 것이기 때문이다.
  */
 export function sourceConditions(
   states: Record<string, RegionState>,
   source: ResourceSource,
+  time: number,
 ): string[] {
-  if (!source.dependsOn) return [];
-  const upstream = findResourceSource(source.dependsOn);
-  if (!upstream) return [];
-  return sourceStateOf(states, upstream.regionId, upstream.id).phase === 'depleted'
-    ? [RECOVERY_STALLED]
-    : [];
+  const codes: string[] = [];
+  const inflow = inflowOf(source.id);
+
+  // ① 매달림 — C013 그대로다. 흐름을 가진 원천에게는 그 흐름의 **출발 원천**이 곧 그 매달림이다
+  // (spec R3 — 호수 바닥을 캐 놓으면 물길이 불어도 어귀에 오는 것이 없다).
+  const dependsOn = source.dependsOn ?? inflow?.from.sourceId;
+  const upstream = dependsOn ? findResourceSource(dependsOn) : undefined;
+  if (upstream && sourceStateOf(states, upstream.regionId, upstream.id).phase !== 'available') {
+    codes.push(RECOVERY_STALLED);
+  }
+
+  // ② 흐름의 때 — 아직 없는 원천에만 묻는다 (spec R3 경계). 거기 있는 것을 두고
+  // "실려 오는 중" 도 "아직 그때가 아니다" 도 말할 것이 없기 때문이다.
+  if (inflow && sourceStateOf(states, source.regionId, source.id).phase !== 'available') {
+    codes.push(isFlowActive(inflow, time) ? FLOW_ARRIVED : CONDITION_UNMET);
+  }
+
+  return codes;
 }
 
 // ── 안쪽 ─────────────────────────────────────────────────────────────

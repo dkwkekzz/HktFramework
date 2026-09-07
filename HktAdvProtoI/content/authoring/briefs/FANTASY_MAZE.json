@@ -1,0 +1,53 @@
+{
+  "id": "FANTASY_MAZE",
+  "name": "환상의 미로",
+  "depth": "deep",
+  "kinds": [
+    "hazard/phenomenon",
+    "hazard/knowledge"
+  ],
+  "answers": {
+    "distinction": "규칙을 품은 방이다. 걸음이 압력이 되고 압력이 넘치면 통로가 재배열된다 — 길을 외우는 대신 변화의 규칙을 이해해야 한다.",
+    "cause": "공간 결정층이 안에서 일어난 움직임과 접촉을 압력으로 쌓고, 압력 차를 푸는 과정에서 통로 연결을 다시 놓는다.",
+    "dwelling": "자리를 지키는 식물이 구역마다 이름표로 서 있다 — 무엇이 바뀌고 무엇이 바뀌지 않는지를 그것이 말한다.",
+    "danger": "재배열이 위험이다 — 닫힌 통로가 몸을 막는다. 이 방의 땅은 아무 데도 막지 않으므로 벽은 오직 닫힌 통로다.",
+    "worth": {
+      "said": {
+        "unanswered": "공간 왜곡 결정이 이 방의 보상으로 원문에 적혀 있으나 아직 데이터로 놓이지 않았다 — 재료 계통은 숲 갈래에만 서 있다"
+      },
+      "sources": []
+    },
+    "discovery": "압력이 어디까지 차면 바뀌는지, 그리고 무엇이 바뀌지 않는지. 실패가 정보가 되는 첫 방이다.",
+    "opening": "미로의 심장이 열린다 — 다만 특정 패턴일 때만 그 문이 선다. 그리고 비상 자리로 돌아가는 길이 있다.",
+    "birth": {
+      "said": {
+        "unanswered": "생명 계약(탄생지 · 개체군 · 관계)이 아직 데이터로 서지 않았다 — Play RoomBearsLife(C022~C025)의 것이다"
+      },
+      "born": []
+    }
+  },
+  "neighbours": [
+    {
+      "region": "FOREST_DEEP",
+      "transition": "door",
+      "direction": "one-way"
+    },
+    {
+      "region": "FOREST_DEEP",
+      "transition": "door",
+      "direction": "one-way"
+    },
+    {
+      "region": "MAZE_HEART",
+      "transition": "door",
+      "direction": "bidirectional"
+    }
+  ],
+  "requires": [
+    {
+      "kind": "rule",
+      "what": "걸음이 압력이 되고 넘치면 통로가 재배열되는 규칙 (Region State — 패턴 · 압력 · 재배열 시각)",
+      "why": "이 방은 데이터만으로 서지 않는다. 방이 State 를 가지고 그 State 가 통로의 열림/닫힘과 문의 활성을 정해야 성립한다"
+    }
+  ]
+}

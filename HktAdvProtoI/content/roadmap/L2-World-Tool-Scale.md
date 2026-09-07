@@ -59,7 +59,7 @@ Region 사이 덧씌움)였기 때문이다. 그 셋이 서면 다음 협곡류�
 ```text
 T1 ── T2 ── T3 ─┬─ T5 ── T6 ── HundredRooms
                 └─ T4 ─┘
-T2 는 지금, T3 의 절반도 지금 — ENGINE 레인이라 Cycle 실주행과 병행한다.
+T5 는 지금 — ENGINE 레인이라 Cycle 실주행과 병행한다.
 ```
 
 ### 3.1 자리
@@ -67,6 +67,9 @@ T2 는 지금, T3 의 절반도 지금 — ENGINE 레인이라 Cycle 실주행�
 ```text
 engine/world-authoring/check.ts        검사 ①~㉝ (게임 명사 없음 — 참조와 계약만 본다)
 engine/world-authoring/brief.ts        RegionBrief schema (zod) — T2
+content/authoring/briefs/              방마다 brief 하나 (`<REGION_ID>.json`) — 사람이 적고 T3 가 읽는다 (게임 명사)
+content/authoring/examples/            세계에 들이지 않은 본보기 brief 셋 — 등급 A · B · C 의 예 (T3 · T4 의 시험이 쓴다)
+content/authoring/contracts.ts         이 세계가 이미 가진 것들 (어휘 · 방 · 경계 · 규칙) — T4 가 대조한다 (게임 명사)
 engine/world-authoring/author.ts       brief + templates → RegionSpec · graph · view 행 — T3 (템플릿은 주입받는다)
 engine/world-authoring/grade.ts        등급 판정 — T4 (계약 목록도 주입받는다)
 content/authoring/templates/           갈래별 op 묶음 · Source 역할별 기본형 · 철 덧씌움 기본형 — T3 (게임 명사)
@@ -101,7 +104,7 @@ Cycle   번호는 승인 때 — 앞 레인(Life C025) 뒤
 ## 6. 언제 — 레인과 순서
 
 ```text
-ENGINE 레인 B   T2 는 지금. T3 는 절반(space · graph · resourceEcology)을 지금, 나머지(phases)는 C016 뒤.
+ENGINE 레인 B   T5 는 지금. T3 의 나머지(phases)는 C016 뒤 · ecology 는 C022 뒤.
                T4 는 T2 뒤. T5 는 T3 · T4 뒤. T6 은 T5 뒤이고 Frost(C021)가 데이터로 선 것을 본 뒤 —
                두 갈래가 정말 같은 계약 위에 있는지 실주행으로 확인돼야 템플릿이 맞다
 컨텐츠 Play     HundredRooms — T6 뒤. Cycle 번호는 그때 (앞 레인 뒤)
@@ -111,6 +114,8 @@ ENGINE 레인 B   T2 는 지금. T3 는 절반(space · graph · resourceEcology
 ## 7. 다음
 
 ```text
-T2 여덟 답의 형  착수 가능. STATE §1 의 ENGINE B 레인이 "지금 할 수 있는 것" 으로 든다
+T5 초안기(LLM)  착수 가능 — T3 · T4 가 섰다. 미지 한 줄 → 구조화 출력으로 brief →
+               T3 → T1 에 넣고 실패 보고를 되먹인다. 굳힌 파일만 세계에 들어간다.
+               STATE §1 의 ENGINE B 레인이 "지금 할 수 있는 것" 으로 든다
 HundredRooms   T6 이 서면 advprotoi-design 이 Play 로 쓴다 (승인 1회)
 ```

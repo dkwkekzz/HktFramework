@@ -31,7 +31,12 @@ import { actorModifiers, isDowned, skillDefinition } from '../semantic/combat';
 import { projectCommandCatalog } from '../semantic/command-catalog';
 import { hasMiningTool, itemCount } from '../semantic/inventory';
 import type { ItemKind } from '../semantic/item';
-import { sourceConditions, sourceStateOf, sourcesInRegion } from '../semantic/resource';
+import {
+  sourceConditions,
+  sourcePositionOf,
+  sourceStateOf,
+  sourcesInRegion,
+} from '../semantic/resource';
 import {
   anchorPosition,
   isConnectorOpen,
@@ -205,27 +210,51 @@ export function projectObserverView(
 
   // entities.resource-source + interactions.mine — 그 방이 낳는 원천만 (C011 CHANGED · R5).
   //
+  // RULE-OBSERVE-PROJECTION (C013 AFFECTED · spec R8) — state 가 셋이 되고(available ·
+  // depleted · recovering), 자리는 **지금 마디**이며, 마디를 여럿 가진 원천에는 siteIndex 가,
+  // 무너진 것이 있는 원천에는 collapsedSites 가 함께 실린다. 관찰은 여전히 방으로 잘린다.
+  //
   // 광맥이 있던 자리에 원천이 온다. 다른 방의 원천은 실리지 않는다 — 목록 자체가 방으로
   // 잘려 나온다 (sourcesInRegion). 원천은 State 가 아니라 데이터에서 유도된 사실이므로
   // 매 관찰마다 같은 목록이 같은 순서로 나온다 (결정론).
   for (const source of sourcesInRegion(self.regionId)) {
     // 그 원천에 지금 걸린 조건들 (C012 ADDED · RULE-SOURCE-CONDITION-001).
     // 걸린 것이 없으면 **자리 자체가 없다** — 빈 배열로 지어내지 않는다.
-    const conditions = sourceConditions(state.regionStates, source);
+    //
+    // C014 CHANGED — 코드가 둘 는다(flow-arrived · condition-unmet). 그래서 세계 시각을
+    // 함께 묻는다: 흐름이 지금 실어 오는 중인지는 시각에서 유도되기 때문이다 (spec R1).
+    // 실리는 것은 여전히 **코드뿐**이다 — 주기도, 다음 활성까지 남은 시간도, 그 흐름이
+    // 어느 방의 무엇에서 오는지도 싣지 않는다 (spec Observable).
+    const conditions = sourceConditions(state.regionStates, source, state.time);
+    const sourceState = sourceStateOf(state.regionStates, self.regionId, source.id);
+    // C013 ADDED — 지금 선 자리. 원천이 마디를 옮겨 다니므로 데이터의 마디 0 이 아니다.
+    const here = sourcePositionOf(state.regionStates, source);
+    const collapsedSites = sourceState.collapsedSites;
 
     entities.push({
       id: source.id,
       role: 'resource-source',
-      // C012 CHANGED — 캐고 난 자국이 여기 실린다. taken 도 harvests 도 싣지 않는다:
-      // 세계는 "지금 캘 수 있는가" 만 말하고 몇 번 남았는지는 말하지 않는다 (spec Observable).
-      state: sourceStateOf(state.regionStates, self.regionId, source.id).phase,
+      // C012 CHANGED · C013 CHANGED — 캐고 난 자국과 되돌아옴이 여기 실린다. 셋 중 하나다
+      // (available · depleted · recovering). taken 도 harvests 도 progress 도
+      // recoverySeconds 도 싣지 않는다: 세계는 "지금 캘 수 있는가" 만 말하고 몇 번 남았는지도
+      // **언제 돌아오는지도** 말하지 않는다 (spec Observable — 예보는 흙과 그림이 말한다).
+      state: sourceState.phase,
       // kind 는 자연 형태(무엇처럼 생겼는가), material 은 그것이 무엇인가다 (SPEC-002).
       kind: source.form,
       material: source.materialId,
-      position: { x: source.position.x, z: source.position.z },
+      position: { x: here.x, z: here.z },
       ...(conditions.length > 0 ? { conditions } : {}),
+      // C013 ADDED — 마디를 여럿 가진 원천에만 지금 마디 번호를, 무너진 것이 있는 원천에만
+      // 무너진 마디들을 싣는다. 없으면 **자리 자체가 없다** (0 이나 빈 배열로 지어내지 않는다).
+      // 마디 목록도 그 좌표도 싣지 않는다 — 관찰자가 자기 content/regions 의 뿌리 곡선에서
+      // 번호로 얻는다 (땅 · 흔적 · 붕괴를 스스로 얻는 C005~C007 · C011 · C012 의 규율 그대로).
+      ...(source.sites.length > 1 ? { siteIndex: sourceState.siteIndex } : {}),
+      ...(collapsedSites && collapsedSites.length > 0
+        ? { collapsedSites: [...collapsedSites] }
+        : {}),
       // labelValue 를 싣지 않는다 — 세계 위에 글자가 없다 (C026 R4 RULE-QUIET-GROUND-001).
-      // 고갈된 자리에도 글자는 없다 (C012 R8) — "이미 캐 간 자리" 는 그림과 흙이 말한다.
+      // 되돌아오는 중인 자리에도 글자는 없다 (C013 R9) — 예보는 흙과 그림이 말하고,
+      // 이름과 사유는 물었을 때 판이 답한다.
       // 무엇이 무엇에 매달렸는지 · 붕괴 자리의 모양 · 흔적의 세기도 싣지 않는다: 관찰자가
       // 자기 content/regions 와 실려 온 phase 로 스스로 얻는다 (spec Observable).
     });
