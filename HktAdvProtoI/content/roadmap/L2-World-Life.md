@@ -575,7 +575,8 @@ anchor     point        탄생지가 Region 을 넘겨 영향을 줄 때의 연�
 
 ```text
 content/regions/<id>.ts        RegionSpec += ecology { lifeFormation · populations · links }  (원문 §4 + F14)
-content/regions/lives.ts       LifeSeed 목록 — Region 을 넘어 공유되는 세계 사실이므로 Region 파일 밖
+content/regions/lives.ts       LifeSeed 목록 — Region 을 넘어 공유되는 세계 사실이므로 Region 파일 밖.
+                               += properties (성질 태그 — L2-World-Access §4.2 · 개체군 값이 있는 생명이 요구에 답할 성질)
                                (Material 의 materials.ts 와 같은 자리 · 구현이 정한다)
 ```
 
