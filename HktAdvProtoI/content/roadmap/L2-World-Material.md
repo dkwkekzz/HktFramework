@@ -1039,6 +1039,7 @@ J. UNRESOLVED 목록
 | **S10** | Material Seed 는 **세계 기원과 관찰 가능한 성질**만 넘긴다. Recipe · 조합 결과 · Item 수치 · Class 요구는 이 층이 쓰지 않는다 | M10 |
 | **S11** | **Resource Ecology Contract 열한 항목**(§5)이 세계적으로 중요한 특수 Region 의 필수 산출물이다 | §5 |
 | **S12** | 데이터 계약 넷 — `WorldMaterialSeed` · `ResourceSource` · `ResourceFlow` · `RegionSpec.resourceEcology`. 필드의 **의미**가 계약이고 타입·파일 배치는 구현이 정한다 | §6 |
+| **S13** | **흩어진 것** — 한 방의 중심 원천 곁에 같은 Seed 의 옅은 순도가 **작은 것 여럿**으로 흩어져 선다 (걸어 다니며 줍는 것). Resource Web(S1)의 아래쪽 끝이고, Trace(S4)를 대신하지 않는다 — 방향은 여전히 흔적이 준다. `ResourceSource.occurrence.timeOrCycle` 의 **낮밤** 이 실제로 쓰인다(밤에만 서는 원천 — 구현은 `dayPhases`). RoomBearsMaterial 실주행 판정이 세웠다 (그 Play 확정 12 · 13) | 실주행 |
 
 그리고 **12단계 확장**(§7) · **검증 기준 일곱 묶음**(§8) · **도구 보고 ⑩~㉒**(§9) · **Region Spec 작성 양식**(§10)이
 확정 대상이다.

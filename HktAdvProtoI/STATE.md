@@ -51,18 +51,19 @@ design 이 다시 열리는 때는 둘 — ① 2층 Play 실주행에서 DESIGN 
 | RoomAnswersWhenAsked | 물으면 답한다 (지목 · 대상 프레임 · 기록 · 세계 위 글자 0) | C026~C028 | **셋 다 닫힘** — Play 실주행 판정 대기 (아래 표) |
 | RoomAsksForPossibilities | 방이 가능성을 묻는다 (Lock · 성질 어휘 · 여러 종류의 답 · 흔적 = M7 열을 저장하는 결정의 원천) | C029~C031 | 대기 |
 
-**Play 실주행 판정 대기 여섯** — Human 판정은 Cycle 이 아니라 **Play 단위**이고, Human 은 항목 전부가 아니라
+**Play 실주행 판정 — 다섯은 답이 Play 확정 사항과 코드에 반영되었고(Cycle 없이 · L2 Material S13 · Region R14 · Time T8),
+하나(RoomOfAnotherKind)가 대기한다** — Human 판정은 Cycle 이 아니라 **Play 단위**이고, Human 은 항목 전부가 아니라
 **AI 예심이 압축한 질문** 만 답한다 — [TODO.md](TODO.md) §1 (회수 규칙 [Plan-Skill §3](design/Plan-Skill-CycleExecutionWorkflow.md)).
 `npm run dev` 로 Play Goal 을 한 번 플레이하며 답한다. 통과는 지우고, 실패는 DESIGN GAP 으로 `advprotoi-design` 에 준다.
 그 Play 의 질문이 전부 비면 로드맵 행이 닫힌다. 순서는 Play 순서.
 
 | Play | Play Goal 실주행 | 질문 |
 |---|---|---|
-| RoomBecomesLand | 능선에 막히고 강에 막히고 다리로 건넌다 | Q6~Q10 |
-| RuleBoundRoom | 규칙을 관찰해 심장에 닿고, 두 번째 관찰자가 같은 미로를 본다 | Q11~Q14 |
-| RoomBearsMaterial | 흔적에서 원천으로, 캔 자국이 남고, 균류를 캔 것이 거목 쪽 회복을 늦추며, 되돌아온 원천은 다음 마디에 선다 | Q15~Q20 |
-| RoomAnswersWhenAsked | 세계 위 글자 없이, 물어서 자리와 존재를 읽고 그 답이 남는다 | Q21~Q24 |
-| RoomNeverSame | 고요에 왔다 스밈에 다시 와 깊어진 자락을 보고, 긴 밤의 문을 지나 눈 없는 것을 피하고, 뒤척임 뒤에 옮겨 간 원천과 남의 발자국을 보며, 셋이 함께 올린 소란이 방을 깨우고 그것이 경로를 휘게 한다 | Q25~Q38 |
+| RoomBecomesLand | 능선에 막히고 강에 막히고 다리로 건넌다 — **판정 반영됨** (막힘이 말을 한다 · 거목의 줄기 — Play 확정 7~9) | — |
+| RuleBoundRoom | 규칙을 관찰해 심장에 닿고, 두 번째 관찰자가 같은 미로를 본다 — **판정 반영됨** (규칙의 힌트 · 임박 · 닫힌 길의 이름 — Play 확정 8~11) | — |
+| RoomBearsMaterial | 흔적에서 원천으로, 캔 자국이 남고, 균류를 캔 것이 거목 쪽 회복을 늦추며, 되돌아온 원천은 다음 마디에 선다 — **판정 반영됨** (흩어진 것 셋 · 밤에만 서는 것 — Play 확정 12~14) | — |
+| RoomAnswersWhenAsked | 세계 위 글자 없이, 물어서 자리와 존재를 읽고 그 답이 남는다 — **판정 반영됨** (시점 상하 25°~45° — Play 확정 13~14) | — |
+| RoomNeverSame | 고요에 왔다 스밈에 다시 와 깊어진 자락을 보고, 긴 밤의 문을 지나 눈 없는 것을 피하고, 뒤척임 뒤에 옮겨 간 원천과 남의 발자국을 보며, 셋이 함께 올린 소란이 방을 깨우고 그것이 경로를 휘게 한다 — **판정 반영됨** (철의 자락이 땅에 선다 · 철을 타는 방 일곱 · 때가 바뀐 한 마디 — Play 확정 14~17) | — |
 | RoomOfAnotherKind | 고개를 넘어 다른 갈래의 위험을 겪고, 그 위험이 만든 재료를 캐고, 여기 없는 것을 요구받고, 돌아와 제 집 문턱의 조건이 옅어진 것을 본다 | Q39~Q44 |
 
 
@@ -166,6 +167,13 @@ design 이 다시 열리는 때는 둘 — ① 2층 Play 실주행에서 DESIGN 
         막는다」 — 사라지지도 위험이 되지도 않는다. 안전은 자리가 아니라 조건이고 조건은 철을 탄다) ·
         긴 밤에만 빙결 심층의 문이 열린다(철 조건을 가진 문이 둘) · 옆 면에 다시 선 원천이
         그것을 말한다 ·
+        **실주행 판정 반영**(다섯 Play): 표식의 줄기가 땅을 막는다(BLOCK_LANDMARK · 기반 BlockRule.nearPoint) ·
+        나아가지 못하는 몸이 왜 서 있는지 관찰자가 알아채 말한다(movement-reading — 몸 · 발밑 · 방의 끝) ·
+        달리는 몸은 더 앞을 요청한다(keyLookahead) · 규칙을 품은 방이 자기 규칙을 말한다(들어설 때 · 판의 「규칙」 ·
+        「발밑이 울린다」 · 「닫힌 길: …」 · 잠긴 문의 「힌트」 · 통로 이름) · 원천이 낮밤을 탄다(dayPhases · not-this-hour) ·
+        흩어진 것 셋(자갈 · 줄기의 껍질 조각 · 밤의 빛 갓)이 숲 여섯 방에 열아홉 · 철을 타는 방이 일곱(폐허 · 둥지 · 거목 ·
+        숲 안쪽이 늘었다 · 광석 지대는 긴 밤과 깨어남이 같은 자락) · 지금 걸린 위상의 자락이 땅에 선다(phase-presentation) ·
+        때가 바뀐 순간 한 마디(clockChangeNotice) · 시점 상하 25°~45° ·
         content/regions/ 데이터 · content/authoring/briefs/ 방 열하나의 여덟 답(손으로 역기술 · T3 의 입력) ·
         content/authoring/templates/ 갈래별 땅 · 깊이별 크기와 흔적 · 역할별 원천 기본형(생성기가 받는 게임 명사) ·
         content/authoring/contracts.ts 어휘 일곱·다섯·일곱 · 방 · 경계 · 규칙(판정기가 대조하는 계약 목록)

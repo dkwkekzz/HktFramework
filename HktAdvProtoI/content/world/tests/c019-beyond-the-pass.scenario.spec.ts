@@ -138,6 +138,8 @@ interface RoomBaseline {
   traversable: number;
 }
 
+  // RoomBecomesLand · RoomBearsMaterial · RoomNeverSame 실주행 판정 CHANGED — 거목의 줄기가 백왕령의 땅을 막고(통행 자리 1337 → 1328),
+  // 흩어진 것들과 철의 자락이 숲의 방들에 늘었다 (hash · 존재 목록 · 흔적 태그). 앞의 세계의 **형**은 그대로다.
 const BASELINE: Readonly<Record<string, RoomBaseline>> = {
   [WHITE_KING_DOMAIN]: {
     depth: 'civil',
@@ -150,17 +152,19 @@ const BASELINE: Readonly<Record<string, RoomBaseline>> = {
       'ICE_CANYON_PASS/region-exit',
     ],
     surface: { flat: 1022, wet: 497, slope: 95, steep: 67 },
-    traversable: 1337,
+    traversable: 1328,
   },
   [FOREST_EDGE]: {
     depth: 'outer',
-    hash: '30563ef4',
+    hash: 'da66b8e9',
     exits: ['FOREST_PATH', 'RUIN_TRAIL', 'DEEP_TRAIL'],
     entities: [
       'player-1/player-character',
       'MOLT_LITTER/resource-source',
       'FALLEN_SCALE/resource-source',
       'PREY_REMAINS/resource-source',
+      'ORE_PEBBLE_EDGE/resource-source',
+      'HUSK_SHARD_EDGE/resource-source',
       'FOREST_PATH/region-exit',
       'RUIN_TRAIL/region-exit',
       'DEEP_TRAIL/region-exit',
@@ -170,11 +174,14 @@ const BASELINE: Readonly<Record<string, RoomBaseline>> = {
   },
   [FOREST_DEEP]: {
     depth: 'wild',
-    hash: '4dbb88ee',
+    hash: '2b6a4c96',
     exits: ['DEEP_TRAIL', 'NEST_TRAIL', 'ORE_TRAIL', 'TREE_APPROACH', 'ANCIENT_GATE', 'WALKING_FOREST_DOOR'],
     entities: [
       'player-1/player-character',
       'RIVER_SILT/resource-source',
+      'ORE_PEBBLE_DEEP_1/resource-source',
+      'ORE_PEBBLE_DEEP_2/resource-source',
+      'HUSK_SHARD_DEEP/resource-source',
       'DEEP_TRAIL/region-exit',
       'NEST_TRAIL/region-exit',
       'ORE_TRAIL/region-exit',
@@ -187,11 +194,15 @@ const BASELINE: Readonly<Record<string, RoomBaseline>> = {
   },
   [BIO_ORE_FIELD]: {
     depth: 'wild',
-    hash: '9c50bd1e',
+    hash: 'f111570c',
     exits: ['ORE_TRAIL', 'ORE_TREE_TRAIL'],
     entities: [
       'player-1/player-character',
       'ORE_OUTCROP/resource-source',
+      'ORE_PEBBLE_ORE_1/resource-source',
+      'ORE_PEBBLE_ORE_2/resource-source',
+      'ORE_PEBBLE_ORE_3/resource-source',
+      'HUSK_SHARD_ORE/resource-source',
       'ORE_TRAIL/region-exit',
       'ORE_TREE_TRAIL/region-exit',
     ],

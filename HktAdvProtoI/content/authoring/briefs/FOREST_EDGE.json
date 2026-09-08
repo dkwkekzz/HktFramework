@@ -11,7 +11,7 @@
     },
     "danger": "숲 안쪽으로 난 자락이 스밈에 한 단계 깊어지고, 그때 짐승이 거기를 제 자리로 삼는다. 그 자락에서 나는 것과 같은 자리다 — 위험과 보상이 같은 근원에서 온다.",
     "worth": {
-      "said": "광식충 허물이 나무 밑동에 남는다 — 위험을 끼지 않은 첫 재료다. 그리고 스밈에는 숲 안쪽으로 난 자락에 붉은 것이 배어 나와 굳는다 — 그때만이다. 그 위로 무엇이 지나가고 나면 지나간 자리에만 나는 것이 둘 더 있다 — 하늘의 것이 흘린 비늘과 눈 없는 것이 남긴 잔해다.",
+      "said": "광식충 허물이 나무 밑동에 남는다 — 위험을 끼지 않은 첫 재료다. 그리고 스밈에는 숲 안쪽으로 난 자락에 붉은 것이 배어 나와 굳는다 — 그때만이다. 그 위로 무엇이 지나가고 나면 지나간 자리에만 나는 것이 둘 더 있다 — 하늘의 것이 흘린 비늘과 눈 없는 것이 남긴 잔해다. 그 곁에 흩어진 것 셋 — 흙 위의 붉은 자갈 · 풀줄기에 걸린 껍질 조각 · 밤에만 희게 빛나는 갓.",
       "sources": [
         {
           "id": "MOLT_LITTER",
@@ -47,6 +47,33 @@
           "worldCause": "FOREST_CHAIN",
           "recoveryCause": "hunter-passage",
           "form": "prey-remains",
+          "role": "by-product"
+        },
+        {
+          "id": "ORE_PEBBLE_EDGE",
+          "material": "BIO_ORE",
+          "heldBy": "terrain",
+          "worldCause": "FOREST_CHAIN",
+          "recoveryCause": "pebble-wash",
+          "form": "ore-pebble",
+          "role": "baseline"
+        },
+        {
+          "id": "HUSK_SHARD_EDGE",
+          "material": "ORE_EATER_MOLT",
+          "heldBy": "plant",
+          "worldCause": "FOREST_CHAIN",
+          "recoveryCause": "husk-shed",
+          "form": "husk-shard",
+          "role": "baseline"
+        },
+        {
+          "id": "GLOW_CAP_EDGE",
+          "material": "GIANT_TREE_FUNGUS",
+          "heldBy": "fungus",
+          "worldCause": "FOREST_CHAIN",
+          "recoveryCause": "night-bloom",
+          "form": "glow-cap",
           "role": "by-product"
         }
       ]

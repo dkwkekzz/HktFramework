@@ -47,7 +47,7 @@
 
 import { CONDITION_UNMET, RECOVERY_STALLED } from '../../regions';
 import { seasonAt } from '../semantic/clock';
-import { NOT_THIS_SEASON } from '../semantic/region-phase';
+import { NOT_THIS_HOUR, NOT_THIS_SEASON } from '../semantic/region-phase';
 import { nextStandableSite, sourceConditions, sourcesInRegion } from '../semantic/resource';
 import { RECOVERY_VISIBLE_FRACTION, type WorldState } from '../semantic/world-state';
 
@@ -76,7 +76,9 @@ export function ruleSourceRecovery(state: WorldState, dt: number): void {
       if (
         conditions.includes(RECOVERY_STALLED) ||
         conditions.includes(CONDITION_UNMET) ||
-        conditions.includes(NOT_THIS_SEASON)
+        conditions.includes(NOT_THIS_SEASON) ||
+        // 낮밤을 타는 원천도 그 때가 아니면 멎는다 (RoomBearsMaterial 실주행 판정 — 철과 같은 규율)
+        conditions.includes(NOT_THIS_HOUR)
       ) {
         continue;
       }

@@ -16,17 +16,27 @@
 
 import type { RegionSpec } from './spec';
 import { ANCHOR_LAYER } from './spec';
-import { HAZARD_LAYER } from './phases';
+import { DEPTH_LAYER, HAZARD_LAYER } from './phases';
 import { HUNTER_CURVE_TAG, WHALE_CURVE_TAG } from './presence-routes';
 import {
   BIO_ORE,
   FOREST_CHAIN,
+  FORM_GLOW_CAP,
+  FORM_HUSK_SHARD,
+  FORM_ORE_PEBBLE,
   FORM_RIVER_GRAIN,
+  FORM_SEEP_CRUST,
+  GIANT_TREE_FUNGUS,
+  ORE_EATER_MOLT,
   PRESENCE_LAYER,
   RECOVERY_FLOW_ARRIVAL,
+  RECOVERY_HUSK_SHED,
+  RECOVERY_NIGHT_BLOOM,
+  RECOVERY_PEBBLE_WASH,
+  RECOVERY_TREE_UPTAKE,
   RESOURCE_LAYER,
-  TRACE_LAYER,
   soilStainTag,
+  TRACE_LAYER,
 } from './resource-ecology';
 
 export const FOREST_DEEP = 'FOREST_DEEP';
@@ -226,6 +236,110 @@ export const FOREST_DEEP_SPEC: RegionSpec = {
         tag: HUNTER_CURVE_TAG,
         shape: { kind: 'circle', center: { x: 9, z: -2 }, radius: 10 },
       },
+      // ── RoomBearsMaterial 실주행 판정 ADDED — 흩어진 것들 ──────────────────────
+      //
+      // Human 의 답: "재료가 너무 적고 채집하는 재미가 부족하다." 방의 중심이던 원천 곁에
+      // **작은 것 여럿**이 흩어져 선다 — 걸어 다니며 줍는 것이다. 자리는 이미 선 것들(원천 · 출구 ·
+      // 선의 마디 · 막힌 땅)과 겹치지 않는 평지에서 골랐고, 둘레 흔적은 방 바닥보다 한 단계 짙되
+      // 반지름 4 로 작다 (중심 원천의 7 과 갈려 "작은 것" 으로 읽힌다). 규칙은 하나도 늘지 않는다.
+      {
+        id: 'trace-ore-pebble-deep-1',
+        kind: 'area',
+        layer: TRACE_LAYER,
+        tag: soilStainTag(3),
+        shape: { kind: 'circle', center: { x: -8, z: -8 }, radius: 4 },
+      },
+      {
+        id: 'source-ore-pebble-deep-1',
+        kind: 'point',
+        layer: RESOURCE_LAYER,
+        tag: 'ORE_PEBBLE_DEEP_1',
+        position: { x: -8, z: -8 },
+      },
+      {
+        id: 'trace-ore-pebble-deep-2',
+        kind: 'area',
+        layer: TRACE_LAYER,
+        tag: soilStainTag(3),
+        shape: { kind: 'circle', center: { x: 6, z: 10 }, radius: 4 },
+      },
+      {
+        id: 'source-ore-pebble-deep-2',
+        kind: 'point',
+        layer: RESOURCE_LAYER,
+        tag: 'ORE_PEBBLE_DEEP_2',
+        position: { x: 6, z: 10 },
+      },
+      {
+        id: 'trace-husk-shard-deep',
+        kind: 'area',
+        layer: TRACE_LAYER,
+        tag: soilStainTag(3),
+        shape: { kind: 'circle', center: { x: -10, z: 6 }, radius: 4 },
+      },
+      {
+        id: 'source-husk-shard-deep',
+        kind: 'point',
+        layer: RESOURCE_LAYER,
+        tag: 'HUSK_SHARD_DEEP',
+        position: { x: -10, z: 6 },
+      },
+      {
+        id: 'trace-glow-cap-deep',
+        kind: 'area',
+        layer: TRACE_LAYER,
+        tag: soilStainTag(3),
+        shape: { kind: 'circle', center: { x: -14, z: -8 }, radius: 4 },
+      },
+      {
+        id: 'source-glow-cap-deep',
+        kind: 'point',
+        layer: RESOURCE_LAYER,
+        tag: 'GLOW_CAP_DEEP',
+        position: { x: -14, z: -8 },
+      },
+      // ── RoomNeverSame 실주행 판정 ADDED — 철이 이 방을 바꾸는 자락 ────────────────
+      //
+      // Human 의 답: "밤낮은 보였는데 다른 변화는 모르겠다 — 확인할 단서 자체가 없다." 철을 타는 방이
+      // 숲 가장자리 하나뿐이었다. 이 자락들은 컴파일 결과를 한 값도 바꾸지 않고(높이 · 표면 · 통행 그대로)
+      // 철이 그 위에 State 를 덧씌울 뿐이다 (C016 의 형 그대로). 어느 철에 무엇으로 읽히는가는 아래 phases 만이 안다.
+      {
+        id: 'depth-deep-toward-ore',
+        kind: 'area',
+        layer: DEPTH_LAYER,
+        tag: 'ORE_TRAIL',
+        shape: { kind: 'circle', center: { x: 18, z: 0 }, radius: 8 },
+      },
+      {
+        id: 'hazard-deep-toward-ore',
+        kind: 'area',
+        layer: HAZARD_LAYER,
+        tag: 'ORE_TRAIL',
+        shape: { kind: 'circle', center: { x: 18, z: 0 }, radius: 8 },
+      },
+      {
+        id: 'hazard-deep-ancient-gate',
+        kind: 'area',
+        layer: HAZARD_LAYER,
+        tag: 'ANCIENT_GATE',
+        shape: { kind: 'circle', center: { x: -13, z: 13 }, radius: 6 },
+      },
+      // 스밈에만 서는 원천 — 숲 가장자리의 껍질과 같은 것이 이 방의 광석 지대 쪽 자락에도 배어 나온다.
+      // 자리 (12, 4) 는 그 자락 안(출구 ORE_TRAIL 까지 7.2)이고 어귀의 퇴적 · 눈 없는 것의 마디와 겹치지 않는다
+      {
+        id: 'trace-deep-seep-crust',
+        kind: 'area',
+        layer: TRACE_LAYER,
+        tag: soilStainTag(3),
+        shape: { kind: 'circle', center: { x: 12, z: 4 }, radius: 4 },
+      },
+      {
+        id: 'source-seep-crust-deep',
+        kind: 'point',
+        layer: RESOURCE_LAYER,
+        tag: 'SEEP_CRUST_DEEP',
+        position: { x: 12, z: 4 },
+      },
     ],
   },
   // 조건부 기회 하나 — 이 세계에서 **세계 시각이 여는** 유일한 자리다 (A.3 "조건부 상태").
@@ -254,6 +368,99 @@ export const FOREST_DEEP_SPEC: RegionSpec = {
         // 마디 하나뿐인 원천 — 자리를 옮기지 않는다 (siteCurve 없음)
         traceOps: ['trace-deep-river-silt'],
       },
+      // ── RoomBearsMaterial 실주행 판정 ADDED — 흩어진 것들 (자리는 위의 point 가 소유한다) ──
+      // 흙 위에 흩어진 붉은 자갈 — 뿌리가 밀어 올린 조각이 비에 씻겨 드러난다. 한 알이 한 번이고 곧 되돌아온다
+      {
+        id: 'ORE_PEBBLE_DEEP_1',
+        materialId: BIO_ORE,
+        worldCause: FOREST_CHAIN,
+        form: FORM_ORE_PEBBLE,
+        carrier: 'terrain',
+        opportunity: 'baseline',
+        supply: 'baseline-renewable',
+        recoveryCause: RECOVERY_PEBBLE_WASH,
+        harvests: 1,
+        recoverySeconds: 45,
+        traceOps: ['trace-ore-pebble-deep-1'],
+      },
+      // 흙 위에 흩어진 붉은 자갈 — 뿌리가 밀어 올린 조각이 비에 씻겨 드러난다. 한 알이 한 번이고 곧 되돌아온다
+      {
+        id: 'ORE_PEBBLE_DEEP_2',
+        materialId: BIO_ORE,
+        worldCause: FOREST_CHAIN,
+        form: FORM_ORE_PEBBLE,
+        carrier: 'terrain',
+        opportunity: 'baseline',
+        supply: 'baseline-renewable',
+        recoveryCause: RECOVERY_PEBBLE_WASH,
+        harvests: 1,
+        recoverySeconds: 45,
+        traceOps: ['trace-ore-pebble-deep-2'],
+      },
+      // 풀줄기에 걸린 껍질 조각 — 광식충이 줄기를 타고 오르며 벗은 것. 밑동의 허물과 같은 재료의 다른 형태다
+      {
+        id: 'HUSK_SHARD_DEEP',
+        materialId: ORE_EATER_MOLT,
+        worldCause: FOREST_CHAIN,
+        form: FORM_HUSK_SHARD,
+        carrier: 'plant',
+        opportunity: 'baseline',
+        supply: 'baseline-renewable',
+        recoveryCause: RECOVERY_HUSK_SHED,
+        harvests: 2,
+        recoverySeconds: 75,
+        traceOps: ['trace-husk-shard-deep'],
+      },
+      // 어둠에서 희게 빛나는 갓 — 거목균의 밤 형태. **밤에만 선다** (dayPhases): 낮에는 흙 속으로 오므라들어 거기 없다. 밤이 감추는 것이 아니라 종류를 바꾼다 (RoomNeverSame Q25)
+      {
+        id: 'GLOW_CAP_DEEP',
+        materialId: GIANT_TREE_FUNGUS,
+        worldCause: FOREST_CHAIN,
+        form: FORM_GLOW_CAP,
+        carrier: 'fungus',
+        opportunity: 'by-product',
+        supply: 'conditional-renewable',
+        recoveryCause: RECOVERY_NIGHT_BLOOM,
+        harvests: 1,
+        recoverySeconds: 90,
+        traceOps: ['trace-glow-cap-deep'],
+        // 낮밤을 탄다 — 밤에만 선다
+        dayPhases: ['NIGHT'],
+      },
+      // 스밈에만 서는 것 (RoomNeverSame 실주행 판정) — 숲 가장자리의 껍질(SEEP_CRUST)과 같은 형태 · 같은 값이다
+      {
+        id: 'SEEP_CRUST_DEEP',
+        materialId: BIO_ORE,
+        worldCause: FOREST_CHAIN,
+        form: FORM_SEEP_CRUST,
+        carrier: 'terrain',
+        opportunity: 'conditional',
+        supply: 'conditional-renewable',
+        recoveryCause: RECOVERY_TREE_UPTAKE,
+        harvests: 3,
+        recoverySeconds: 60,
+        traceOps: ['trace-deep-seep-crust'],
+        occurrence: { seasons: ['SEEP'] },
+      },
     ],
+  },
+  /**
+   * 이 방이 철을 타는 방식 (RoomNeverSame 실주행 판정 ADDED).
+   *
+   * 스밈에 광석 지대 쪽 출구 둘레가 한 단계 깊어지고(wild → deep) 같은 자락이 위험으로 읽힌다 —
+   * 숲 가장자리가 안쪽 출구에 한 그것을 한 방 더 안쪽에서 되풀이한다 (깊이가 스미는 방향이 곧 깊은 쪽 ·
+   * Concept §13). 긴 밤에는 고대 문 언저리에서 무언가가 일어난다 — 그 문 너머(미로)가 이 세계에서
+   * 규칙을 품은 유일한 방이라는 것이 긴 밤에 문 앞에서 읽히는 자리다.
+   */
+  phases: {
+    seasons: {
+      SEEP: {
+        depthOverlay: [{ areaId: 'depth-deep-toward-ore', depth: 'deep' }],
+        hazardExtend: [{ areaId: 'hazard-deep-toward-ore', hazard: 'hazard/creature' }],
+      },
+      LONG_NIGHT: {
+        hazardExtend: [{ areaId: 'hazard-deep-ancient-gate', hazard: 'hazard/phenomenon' }],
+      },
+    },
   },
 };

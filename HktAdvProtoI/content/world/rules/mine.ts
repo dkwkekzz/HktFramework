@@ -39,6 +39,7 @@ import {
   type ResourceSource,
 } from '../semantic/resource';
 import { addDisturbance, regionStateOf } from '../semantic/region-state';
+import { NOT_THIS_HOUR, isSeasonListed } from '../semantic/region-phase';
 import {
   DISTURBANCE_PER_HARVEST,
   INTERACTION_RANGE,
@@ -48,6 +49,8 @@ import { beginAction, evaluateActionBegin } from './action-begin';
 
 // 실패 사유 코드 — Rule 이 소유하며 protocol 로는 문자열 코드로 흐른다
 export type MineFailureReason =
+  // 낮밤을 타는 원천이 그 때가 아니다 (RoomBearsMaterial 실주행 판정 — 철의 것과 같은 갈래)
+  | typeof NOT_THIS_HOUR
   // C016 ADDED — 그 철이 아니다. 고갈·되돌아옴과 다른 코드다: 저 둘은 **있던 것이 지금 없는**
   // 것이고 이것은 **그 철에만 있는** 것이다. 기다릴 대상이 다르므로 말도 달라야 한다
   | 'not-this-season'
@@ -83,7 +86,11 @@ export function evaluateMinePreconditions(
   // C016 ADDED — 그 철이 아니면 그 자리에 없다 (spec R6 · SPEC-004 경계 ①).
   // 세지 않으면 관찰에 실리지 않는 원천을 요청 하나로 캐 갈 수 있다 — 세계가 판정하는
   // 자리는 여기이지 화면이 아니다 (원칙 1).
-  if (!isSourcePresentAt(source, state.time)) return 'not-this-season';
+  // 철이 아니면 '이 철이 아니다', 철은 맞되 낮밤이 아니면 '지금은 때가 아니다'
+  // (RoomBearsMaterial 실주행 판정 — sourceConditions 가 싣는 그 차례 그대로)
+  if (!isSourcePresentAt(source, state.time)) {
+    return isSeasonListed(source.occurrenceSeasons, state.time) ? NOT_THIS_HOUR : 'not-this-season';
+  }
   const phase = sourceStateOf(state.regionStates, source.regionId, source.id).phase;
   if (phase === 'depleted') return 'source-depleted';
   // C013 ADDED — 되돌아오는 중이면 아직 캘 수 없다 (spec R3). 고갈과 나란히 **가장 먼저** 본다.

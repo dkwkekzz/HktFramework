@@ -687,7 +687,12 @@ describe('SPEC-004 밤에는 보이는 범위가 좁다', () => {
     // Then 그 원천이 실리지 않고, 그것에 걸려 있던 상호작용도 함께 사라진다
     expect(clockOf(world).dayPhase).toBe(NIGHT);
     expect(entityOf(world.observe(), NIGHT_SOURCE)).toBeUndefined();
-    expect(sourcesIn(world.observe())).toEqual([]);
+    // 남은 원천은 전부 범위 안의 것이다 (흩어진 것들이 늘었다 — RoomBearsMaterial 실주행 판정)
+    const night = world.observe();
+    const me = night.entities.find((e) => e.id === night.observer.characterId)!.position;
+    for (const source of sourcesIn(night)) {
+      expect(distanceBetween(source.position, me)).toBeLessThanOrEqual(OBSERVE_RANGE_NIGHT);
+    }
     expect(onTarget(world.observe(), NIGHT_SOURCE)).toEqual([]);
   });
 

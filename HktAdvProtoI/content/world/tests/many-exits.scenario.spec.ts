@@ -717,9 +717,11 @@ describe('S-020 (SPEC-008 경계) — 막다른 방 셋에는 남의 몸이 없�
   it('셋 다 관찰자 자신 + 출구 + 그 방이 낳는 원천뿐이다', () => {
     for (const [region, exitCount, sourceCount] of [
       // C014 CHANGED — 둥지도 이제 자기 원천 하나를 낳는다 (사슬의 부산물)
-      [EXPLORER_RUIN, 1, 1],
-      [PREDATOR_NEST, 1, 1],
-      [BIO_ORE_FIELD, 2, 1],
+      // RoomBearsMaterial 실주행 판정 CHANGED — 흩어진 것들이 늘었다. 둥지의 빛 갓 둘은 밤에만 서므로
+      // 세계가 서는 낮에는 넷 중 둘만 실린다
+      [EXPLORER_RUIN, 1, 4],
+      [PREDATOR_NEST, 1, 2],
+      [BIO_ORE_FIELD, 2, 5],
     ] as const) {
       const v = rooms()[region]!;
       expect(v.scene).toBe(region);

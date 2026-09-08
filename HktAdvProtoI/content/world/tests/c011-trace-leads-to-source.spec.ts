@@ -599,8 +599,11 @@ describe('회귀', () => {
     // Then 이 방의 원천만 실린다 — 건너온 방의 것은 따라오지 않는다
     const after = world.observe();
     expect(after.region.id).toBe(EXPLORER_RUIN);
-    expect(sourcesIn(after).map((e) => e.id)).toEqual([RUIN_SPOIL]);
-    expect(mineInteractions(after).map((i) => i.targetEntityId)).toEqual([RUIN_SPOIL]);
+    // (흩어진 것 셋이 더미 곁에 늘었다 — RoomBearsMaterial 실주행 판정. 건너온 방의 것은 여전히 없다)
+    const ruinSources = sourcesIn(after).map((e) => e.id);
+    expect(ruinSources).toContain(RUIN_SPOIL);
+    expect(ruinSources).not.toContain(MOLT_LITTER);
+    expect(new Set(mineInteractions(after).map((i) => i.targetEntityId))).toEqual(new Set(ruinSources));
   });
 
   it('R-004 광맥과 stone 은 이 세계에서 사라졌다 — 그 자리에 원천이 왔다', () => {

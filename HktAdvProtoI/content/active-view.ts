@@ -27,3 +27,13 @@ export { pointerRules, type Designation, type PointerOutcome } from './view/poin
 // 세계가 나에게 한 말을 모아 두는 그릇 (C028) — **모으는 것은 조립**이고, 몇 줄까지
 // 남기는지도 무슨 말을 남기는지도 컨텐츠가 정한다. 판에 어떻게 서는지는 resolve 가 읽는다.
 export { ANSWER_LOG_LIMIT, type KeptAnswer } from './view/answer-log';
+// 나아가지 못하는 몸이 왜 서 있는가 (RoomBecomesLand Q6) — 재는 것은 조립이 프레임마다 부르고,
+// 언제 무슨 말을 할지는 컨텐츠가 정한다 (regionNotice 와 같은 어법).
+export { createStallWatch, watchStall, type StallWatch } from './view/movement-reading';
+// 걸음이 요청하는 앞 지점의 거리 — 빠르기에 따라 컨텐츠가 정한다 (관찰 결과가 늦게 오는 만큼
+// 앞을 보아야 달리는 몸이 제 뒤를 향해 걷지 않는다).
+export { keyLookahead } from './view/movement-reading';
+// 방에 들어선 순간 그 방의 규칙을 한 줄로 (RuleBoundRoom 실주행 판정) — 제목 다음에 한 번 지나간다.
+export { regionRuleHint } from './view/region-presentation';
+// 때가 바뀐 순간의 한 마디 (RoomNeverSame 실주행 판정) — 직전 봉투는 조립이 쥐고 말은 컨텐츠가 정한다.
+export { clockChangeNotice } from './view/phase-presentation';

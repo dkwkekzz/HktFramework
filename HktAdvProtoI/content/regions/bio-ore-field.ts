@@ -19,13 +19,18 @@ import { ANCHOR_LAYER } from './spec';
 import {
   BIO_ORE,
   FOREST_CHAIN,
+  FORM_HUSK_SHARD,
+  FORM_ORE_PEBBLE,
   FORM_OUTCROP,
+  ORE_EATER_MOLT,
   PRESENCE_LAYER,
+  RECOVERY_HUSK_SHED,
+  RECOVERY_PEBBLE_WASH,
   RECOVERY_TREE_UPTAKE,
   RESOURCE_LAYER,
   ROOT_CURVE_TAG,
-  TRACE_LAYER,
   soilStainTag,
+  TRACE_LAYER,
 } from './resource-ecology';
 
 export const BIO_ORE_FIELD = 'BIO_ORE_FIELD';
@@ -232,6 +237,68 @@ export const BIO_ORE_FIELD_SPEC: RegionSpec = {
         tag: HUNTER_CURVE_TAG,
         shape: { kind: 'circle', center: { x: -4, z: 4 }, radius: 9 },
       },
+      // ── RoomBearsMaterial 실주행 판정 ADDED — 흩어진 것들 ──────────────────────
+      //
+      // Human 의 답: "재료가 너무 적고 채집하는 재미가 부족하다." 방의 중심이던 원천 곁에
+      // **작은 것 여럿**이 흩어져 선다 — 걸어 다니며 줍는 것이다. 자리는 이미 선 것들(원천 · 출구 ·
+      // 선의 마디 · 막힌 땅)과 겹치지 않는 평지에서 골랐고, 둘레 흔적은 방 바닥보다 한 단계 짙되
+      // 반지름 4 로 작다 (중심 원천의 7 과 갈려 "작은 것" 으로 읽힌다). 규칙은 하나도 늘지 않는다.
+      {
+        id: 'trace-ore-pebble-ore-1',
+        kind: 'area',
+        layer: TRACE_LAYER,
+        tag: soilStainTag(4),
+        shape: { kind: 'circle', center: { x: -14, z: -14 }, radius: 4 },
+      },
+      {
+        id: 'source-ore-pebble-ore-1',
+        kind: 'point',
+        layer: RESOURCE_LAYER,
+        tag: 'ORE_PEBBLE_ORE_1',
+        position: { x: -14, z: -14 },
+      },
+      {
+        id: 'trace-ore-pebble-ore-2',
+        kind: 'area',
+        layer: TRACE_LAYER,
+        tag: soilStainTag(4),
+        shape: { kind: 'circle', center: { x: 14, z: -14 }, radius: 4 },
+      },
+      {
+        id: 'source-ore-pebble-ore-2',
+        kind: 'point',
+        layer: RESOURCE_LAYER,
+        tag: 'ORE_PEBBLE_ORE_2',
+        position: { x: 14, z: -14 },
+      },
+      {
+        id: 'trace-ore-pebble-ore-3',
+        kind: 'area',
+        layer: TRACE_LAYER,
+        tag: soilStainTag(4),
+        shape: { kind: 'circle', center: { x: -12, z: 14 }, radius: 4 },
+      },
+      {
+        id: 'source-ore-pebble-ore-3',
+        kind: 'point',
+        layer: RESOURCE_LAYER,
+        tag: 'ORE_PEBBLE_ORE_3',
+        position: { x: -12, z: 14 },
+      },
+      {
+        id: 'trace-husk-shard-ore',
+        kind: 'area',
+        layer: TRACE_LAYER,
+        tag: soilStainTag(4),
+        shape: { kind: 'circle', center: { x: 2, z: 14 }, radius: 4 },
+      },
+      {
+        id: 'source-husk-shard-ore',
+        kind: 'point',
+        layer: RESOURCE_LAYER,
+        tag: 'HUSK_SHARD_ORE',
+        position: { x: 2, z: 14 },
+      },
     ],
   },
   // 핵심부의 Risk — 깊은 자리일수록 위험이 함께 온다 (Concept §6 위험과 보상의 동근원).
@@ -275,6 +342,63 @@ export const BIO_ORE_FIELD_SPEC: RegionSpec = {
           'collapse-ore-site-3',
         ],
       },
+      // ── RoomBearsMaterial 실주행 판정 ADDED — 흩어진 것들 (자리는 위의 point 가 소유한다) ──
+      // 흙 위에 흩어진 붉은 자갈 — 뿌리가 밀어 올린 조각이 비에 씻겨 드러난다. 한 알이 한 번이고 곧 되돌아온다
+      {
+        id: 'ORE_PEBBLE_ORE_1',
+        materialId: BIO_ORE,
+        worldCause: FOREST_CHAIN,
+        form: FORM_ORE_PEBBLE,
+        carrier: 'terrain',
+        opportunity: 'baseline',
+        supply: 'baseline-renewable',
+        recoveryCause: RECOVERY_PEBBLE_WASH,
+        harvests: 1,
+        recoverySeconds: 45,
+        traceOps: ['trace-ore-pebble-ore-1'],
+      },
+      // 흙 위에 흩어진 붉은 자갈 — 뿌리가 밀어 올린 조각이 비에 씻겨 드러난다. 한 알이 한 번이고 곧 되돌아온다
+      {
+        id: 'ORE_PEBBLE_ORE_2',
+        materialId: BIO_ORE,
+        worldCause: FOREST_CHAIN,
+        form: FORM_ORE_PEBBLE,
+        carrier: 'terrain',
+        opportunity: 'baseline',
+        supply: 'baseline-renewable',
+        recoveryCause: RECOVERY_PEBBLE_WASH,
+        harvests: 1,
+        recoverySeconds: 45,
+        traceOps: ['trace-ore-pebble-ore-2'],
+      },
+      // 흙 위에 흩어진 붉은 자갈 — 뿌리가 밀어 올린 조각이 비에 씻겨 드러난다. 한 알이 한 번이고 곧 되돌아온다
+      {
+        id: 'ORE_PEBBLE_ORE_3',
+        materialId: BIO_ORE,
+        worldCause: FOREST_CHAIN,
+        form: FORM_ORE_PEBBLE,
+        carrier: 'terrain',
+        opportunity: 'baseline',
+        supply: 'baseline-renewable',
+        recoveryCause: RECOVERY_PEBBLE_WASH,
+        harvests: 1,
+        recoverySeconds: 45,
+        traceOps: ['trace-ore-pebble-ore-3'],
+      },
+      // 풀줄기에 걸린 껍질 조각 — 광식충이 줄기를 타고 오르며 벗은 것. 밑동의 허물과 같은 재료의 다른 형태다
+      {
+        id: 'HUSK_SHARD_ORE',
+        materialId: ORE_EATER_MOLT,
+        worldCause: FOREST_CHAIN,
+        form: FORM_HUSK_SHARD,
+        carrier: 'plant',
+        opportunity: 'baseline',
+        supply: 'baseline-renewable',
+        recoveryCause: RECOVERY_HUSK_SHED,
+        harvests: 2,
+        recoverySeconds: 75,
+        traceOps: ['trace-husk-shard-ore'],
+      },
     ],
   },
   /**
@@ -290,6 +414,16 @@ export const BIO_ORE_FIELD_SPEC: RegionSpec = {
    * 캐지 않았어도 옮긴다 — 뒤척임은 관찰자와 무관한 세계의 일이다.
    */
   phases: {
+    /**
+     * 긴 밤에 노두 자락이 위험으로 읽힌다 (RoomNeverSame 실주행 판정 ADDED) — 깨어남이 거는 그
+     * 자락과 **같은 자락**이다. 철과 깨어남이 한 자락에 함께 걸리는 첫 자리이고(TODO §5 의 부채 —
+     * "함께 밝힌 방이 없어 참인지 못 봤다"), 겹치면 걸린 것이 전부 실린다 (C017 spec R4 경계).
+     */
+    seasons: {
+      LONG_NIGHT: {
+        hazardExtend: [{ areaId: 'hazard-ore-outcrop', hazard: 'hazard/creature' }],
+      },
+    },
     /**
      * **깨어난 이 방**이 달라지는 것 (C017 ADDED · spec SPEC-005 · 기본형 ⑨).
      *

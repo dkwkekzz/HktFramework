@@ -117,6 +117,21 @@ export function weakenedConditionTag(conditionTag: string): string {
 // 막힘의 사유 코드 — 세계의 것이다. 문구("너무 가파르다")는 View 의 표가 옮긴다 (C001 부터의 규약).
 export const BLOCK_STEEP = 'too-steep';
 export const BLOCK_WATER = 'deep-water';
+/**
+ * 땅에 **서 있는 것**의 줄기가 막는다 (RoomBecomesLand 실주행 판정 Q7 — 거목이 몸을 세우지 않았다).
+ * 표식(landmark)은 그림이 아니라 그 자리에 선 것이므로 몸이 그것을 뚫고 지나지 않는다.
+ */
+export const BLOCK_LANDMARK = 'landmark-trunk';
+
+/**
+ * 표식 point 둘레에서 **줄기**가 되는 거리 (세계 단위).
+ *
+ * 1.6 으로 둔다 — 클라이언트의 한 걸음(1.6m)과 같다. 거목의 그림(높이 17 · 실제 폭 8 남짓)에서
+ * 땅에 닿는 줄기의 반폭이 이 언저리이고, 이보다 넓으면 몸이 그림에 닿기 전에 막혀 보이지 않는
+ * 벽에 부딪히고, 좁으면 줄기 속으로 한 걸음 들어선다. 몸이 놓이는 자리 (0, 0) 에서 거목(−5, 0)
+ * 까지 5 이므로 시작 자리는 막히지 않는다.
+ */
+export const LANDMARK_TRUNK_RADIUS = 1.6;
 
 /**
  * 강 중심선에서 **물**이 되는 거리 (세계 단위 · 중심선에서 한쪽).
@@ -221,6 +236,9 @@ export const BLOCK_RULES: readonly BlockRule[] = [
     nearCurve: { layer: FEATURE_LAYER, tag: RIVER_TAG, maxDistance: RIVER_WATER_DISTANCE },
     reason: BLOCK_WATER,
   },
+  // 표식의 줄기 — landmark layer 의 point 전부다 (tag 를 밝히지 않는다: 땅에 서는 것은 무엇이든
+  // 줄기를 가진다). 표식이 없는 방에서는 이 줄이 아무것도 막지 않는다.
+  { nearPoint: { layer: LANDMARK_LAYER, radius: LANDMARK_TRUNK_RADIUS }, reason: BLOCK_LANDMARK },
   { minSlope: SLOPE_DEGREES.steep * DEGREE, reason: BLOCK_STEEP },
 ];
 

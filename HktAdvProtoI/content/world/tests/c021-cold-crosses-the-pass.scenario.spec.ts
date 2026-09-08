@@ -138,16 +138,18 @@ interface RoomBaseline {
  * 앞의 세계 — 백왕령 · 숲 넷 · 미로 둘 (C020 시나리오의 BASELINE 표에서 그대로 왔다).
  * 협곡 둘의 hash 는 C020 이 적지 않았으므로 여기서 처음 적는다.
  */
+  // RoomBecomesLand · RoomBearsMaterial · RoomNeverSame 실주행 판정 CHANGED — 거목의 줄기가 백왕령의 땅을 막고(통행 자리 1337 → 1328),
+  // 흩어진 것들과 철의 자락이 숲의 방들에 늘었다 (hash · 존재 목록 · 흔적 태그). 앞의 세계의 **형**은 그대로다.
 const BASELINE: Readonly<Record<string, RoomBaseline>> = {
   [WHITE_KING_DOMAIN]: {
     hash: '1c57fb5f',
     surface: { flat: 1022, wet: 497, slope: 95, steep: 67 },
-    traversable: 1337,
+    traversable: 1328,
   },
-  [FOREST_EDGE]: { hash: '30563ef4', surface: { flat: 1386, slope: 127, steep: 168 }, traversable: 1513 },
-  [FOREST_DEEP]: { hash: '4dbb88ee', surface: { flat: 1681 }, traversable: 1681 },
-  [BIO_ORE_FIELD]: { hash: '9c50bd1e', surface: { flat: 1681 }, traversable: 1681 },
-  [PREDATOR_NEST]: { hash: '7b0e444e', surface: { flat: 1681 }, traversable: 1681 },
+  [FOREST_EDGE]: { hash: 'da66b8e9', surface: { flat: 1386, slope: 127, steep: 168 }, traversable: 1513 },
+  [FOREST_DEEP]: { hash: '2b6a4c96', surface: { flat: 1681 }, traversable: 1681 },
+  [BIO_ORE_FIELD]: { hash: 'f111570c', surface: { flat: 1681 }, traversable: 1681 },
+  [PREDATOR_NEST]: { hash: '7e437aff', surface: { flat: 1681 }, traversable: 1681 },
   [FANTASY_MAZE]: { hash: '53ca6a70', surface: { flat: 6561 }, traversable: 6561 },
   [MAZE_HEART]: { hash: 'b9b77a14', surface: { flat: 1681 }, traversable: 1681 },
   [ICE_CANYON]: {

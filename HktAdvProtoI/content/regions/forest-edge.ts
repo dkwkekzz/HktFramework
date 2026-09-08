@@ -20,20 +20,27 @@ import {
   BIO_ORE,
   FOREST_CHAIN,
   FORM_FALLEN_SCALE,
+  FORM_GLOW_CAP,
+  FORM_HUSK_SHARD,
   FORM_MOLT_LITTER,
+  FORM_ORE_PEBBLE,
   FORM_PREY_REMAINS,
   FORM_SEEP_CRUST,
+  GIANT_TREE_FUNGUS,
   ORE_EATER_MOLT,
   PRESENCE_LAYER,
   RECOVERY_HUNTER_PASSAGE,
+  RECOVERY_HUSK_SHED,
   RECOVERY_MOLT_CYCLE,
+  RECOVERY_NIGHT_BLOOM,
+  RECOVERY_PEBBLE_WASH,
   RECOVERY_TREE_UPTAKE,
   RECOVERY_WHALE_PASSAGE,
   RESOURCE_LAYER,
   SKY_PASSAGE,
+  soilStainTag,
   TRACE_LAYER,
   WHALE_SCALE,
-  soilStainTag,
 } from './resource-ecology';
 
 export const FOREST_EDGE = 'FOREST_EDGE';
@@ -337,6 +344,54 @@ export const FOREST_EDGE_SPEC: RegionSpec = {
         tag: 'PREY_REMAINS',
         position: { x: -5, z: 15 },
       },
+      // ── RoomBearsMaterial 실주행 판정 ADDED — 흩어진 것들 ──────────────────────
+      //
+      // Human 의 답: "재료가 너무 적고 채집하는 재미가 부족하다." 방의 중심이던 원천 곁에
+      // **작은 것 여럿**이 흩어져 선다 — 걸어 다니며 줍는 것이다. 자리는 이미 선 것들(원천 · 출구 ·
+      // 선의 마디 · 막힌 땅)과 겹치지 않는 평지에서 골랐고, 둘레 흔적은 방 바닥보다 한 단계 짙되
+      // 반지름 4 로 작다 (중심 원천의 7 과 갈려 "작은 것" 으로 읽힌다). 규칙은 하나도 늘지 않는다.
+      {
+        id: 'trace-ore-pebble-edge',
+        kind: 'area',
+        layer: TRACE_LAYER,
+        tag: soilStainTag(2),
+        shape: { kind: 'circle', center: { x: 4, z: -9 }, radius: 4 },
+      },
+      {
+        id: 'source-ore-pebble-edge',
+        kind: 'point',
+        layer: RESOURCE_LAYER,
+        tag: 'ORE_PEBBLE_EDGE',
+        position: { x: 4, z: -9 },
+      },
+      {
+        id: 'trace-husk-shard-edge',
+        kind: 'area',
+        layer: TRACE_LAYER,
+        tag: soilStainTag(2),
+        shape: { kind: 'circle', center: { x: -15, z: -6 }, radius: 4 },
+      },
+      {
+        id: 'source-husk-shard-edge',
+        kind: 'point',
+        layer: RESOURCE_LAYER,
+        tag: 'HUSK_SHARD_EDGE',
+        position: { x: -15, z: -6 },
+      },
+      {
+        id: 'trace-glow-cap-edge',
+        kind: 'area',
+        layer: TRACE_LAYER,
+        tag: soilStainTag(2),
+        shape: { kind: 'circle', center: { x: -3, z: -13 }, radius: 4 },
+      },
+      {
+        id: 'source-glow-cap-edge',
+        kind: 'point',
+        layer: RESOURCE_LAYER,
+        tag: 'GLOW_CAP_EDGE',
+        position: { x: -3, z: -13 },
+      },
     ],
   },
   // 경계부의 Baseline — 먼저 온 사람이 다 가져갈 수 없는 자리를 가장 얕은 곳에 둔다 (Play §5.1 · M7)
@@ -448,6 +503,51 @@ export const FOREST_EDGE_SPEC: RegionSpec = {
         // 마디는 눈 없는 것의 선이 준다
         siteCurve: HUNTER_CURVE_TAG,
         traceOps: ['trace-edge-remains-0', 'trace-edge-remains-1', 'trace-edge-remains-2'],
+      },
+      // ── RoomBearsMaterial 실주행 판정 ADDED — 흩어진 것들 (자리는 위의 point 가 소유한다) ──
+      // 흙 위에 흩어진 붉은 자갈 — 뿌리가 밀어 올린 조각이 비에 씻겨 드러난다. 한 알이 한 번이고 곧 되돌아온다
+      {
+        id: 'ORE_PEBBLE_EDGE',
+        materialId: BIO_ORE,
+        worldCause: FOREST_CHAIN,
+        form: FORM_ORE_PEBBLE,
+        carrier: 'terrain',
+        opportunity: 'baseline',
+        supply: 'baseline-renewable',
+        recoveryCause: RECOVERY_PEBBLE_WASH,
+        harvests: 1,
+        recoverySeconds: 45,
+        traceOps: ['trace-ore-pebble-edge'],
+      },
+      // 풀줄기에 걸린 껍질 조각 — 광식충이 줄기를 타고 오르며 벗은 것. 밑동의 허물과 같은 재료의 다른 형태다
+      {
+        id: 'HUSK_SHARD_EDGE',
+        materialId: ORE_EATER_MOLT,
+        worldCause: FOREST_CHAIN,
+        form: FORM_HUSK_SHARD,
+        carrier: 'plant',
+        opportunity: 'baseline',
+        supply: 'baseline-renewable',
+        recoveryCause: RECOVERY_HUSK_SHED,
+        harvests: 2,
+        recoverySeconds: 75,
+        traceOps: ['trace-husk-shard-edge'],
+      },
+      // 어둠에서 희게 빛나는 갓 — 거목균의 밤 형태. **밤에만 선다** (dayPhases): 낮에는 흙 속으로 오므라들어 거기 없다. 밤이 감추는 것이 아니라 종류를 바꾼다 (RoomNeverSame Q25)
+      {
+        id: 'GLOW_CAP_EDGE',
+        materialId: GIANT_TREE_FUNGUS,
+        worldCause: FOREST_CHAIN,
+        form: FORM_GLOW_CAP,
+        carrier: 'fungus',
+        opportunity: 'by-product',
+        supply: 'conditional-renewable',
+        recoveryCause: RECOVERY_NIGHT_BLOOM,
+        harvests: 1,
+        recoverySeconds: 90,
+        traceOps: ['trace-glow-cap-edge'],
+        // 낮밤을 탄다 — 밤에만 선다
+        dayPhases: ['NIGHT'],
       },
     ],
   },

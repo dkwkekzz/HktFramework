@@ -13,7 +13,7 @@
       "unanswered": "원천이 risk 로 적혀 있다는 것까지가 데이터다. 무엇이 위험한가는 이 세계에 hazard layer 가 아직 놓이지 않았다 — 위험의 갈래는 Concept §3.1 이 어휘를 주었으나 컨텐츠 층 주입이 남았다"
     },
     "worth": {
-      "said": "거목의 뿌리혹에서 생체 광석이 나온다 — 한 번에 하나이고, 조건이 맞아야 다시 맺힌다.",
+      "said": "거목의 뿌리혹에서 생체 광석이 나온다 — 한 번에 하나이고, 조건이 맞아야 다시 맺힌다. 밑동 곁에 밤에만 빛나는 갓 하나와 붉은 자갈 하나.",
       "sources": [
         {
           "id": "ROOT_NODULE",
@@ -23,6 +23,24 @@
           "recoveryCause": "tree-uptake",
           "form": "root-nodule",
           "role": "risk"
+        },
+        {
+          "id": "GLOW_CAP_TREE",
+          "material": "GIANT_TREE_FUNGUS",
+          "heldBy": "fungus",
+          "worldCause": "FOREST_CHAIN",
+          "recoveryCause": "night-bloom",
+          "form": "glow-cap",
+          "role": "by-product"
+        },
+        {
+          "id": "ORE_PEBBLE_TREE",
+          "material": "BIO_ORE",
+          "heldBy": "terrain",
+          "worldCause": "FOREST_CHAIN",
+          "recoveryCause": "pebble-wash",
+          "form": "ore-pebble",
+          "role": "baseline"
         }
       ]
     },
