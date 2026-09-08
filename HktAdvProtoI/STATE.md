@@ -5,14 +5,17 @@
 
 ## 1. 다음에 할 일 — 레인
 
-한 Cycle = 브랜치 `cycle/C###` = 세션 하나. **말할 것: "C022 진행"**(Life) 또는 **"C029 진행"**(Access) — 둘은 병행할 수 있다.
+한 Cycle = 브랜치 `cycle/C###` = 세션 하나. **말할 것: "C022 진행"**(Life) · **"C029 진행"**(Access) · **"C034 진행"**(Foundation) — 셋은 병행할 수 있다.
 `advprotoi-cycle` 이 명세(spec.md) → 실현 → 마감을
 이어 돌리고 UNRESOLVED · GAP 에서만 멈춘다. PR 은 번호 순으로 합친다. 병렬 규칙은
-[Plan-Skill §4 항목 4](design/Plan-Skill-CycleExecutionWorkflow.md). 승인 게이트 없음 — Play 아홉 중 여덟이 승인돼 있다
-(2층 일곱 + 컨텐츠 M5). Life 는 주입된 그대로다.
+[Plan-Skill §4 항목 4](design/Plan-Skill-CycleExecutionWorkflow.md). 승인 게이트 없음 — Play 열 중 아홉이 승인돼 있다
+(2층 여덟 + 컨텐츠 M5). Life 는 주입된 그대로다.
 
-**design 은 여기까지** — 2층 **세계 절반**의 기획은 닫혔다 (컨셉 · Region · 재료 · 시간 · 생명 · 접근). 더 쌓지 않는다.
-남은 일은 **Cycle 실주행**이다. 실주행 관찰(Material 원문 §7 단계 11)이 다음 기획(3층)의 입력이다.
+**design 이 한 번 더 열렸다 닫혔다 — Human 주입.** 2층 세계 절반의 기획(컨셉 · Region · 재료 · 시간 · 생명 · 접근)은 닫혀 있었는데 Human 이
+**Region Foundation**(②-부속 다섯째 · [L2-World-Foundation.md](content/roadmap/L2-World-Foundation.md) · 확정)을 주입했고 Play
+[RoomRemembersAndOffers](content/roadmap/play/RoomRemembersAndOffers.md) 로 승인됐다 — 축이 아니라 **무대의 문법**이다: 앞선 계약 전부가 서는 여덟 자리를
+이름 짓고(§3.1 대응표 — 새로 세우는 것 없음), 어느 계약도 소유하지 않던 셋(조건의 한 형 · 기억 — 방이 자기에게 일어난 일을 센 것 · 기회=Event 데이터 층)을
+더한다. 2층 기획은 그것으로 **다시 닫혔다** — 더 쌓지 않는다. 남은 일은 **Cycle 실주행**이다. 실주행 관찰(Material 원문 §7 단계 11)이 다음 기획(3층)의 입력이다.
 
 **design 이 한 번 다시 열렸다 닫혔다** — C006·C008 실주행이 화면 결손을 돌려보냈고
 Play [RoomAnswersWhenAsked](content/roadmap/play/RoomAnswersWhenAsked.md) 가 C026~C028 로 그것을 회수했다.
@@ -33,6 +36,7 @@ design 이 다시 열리는 때는 둘 — ① 2층 Play 실주행에서 DESIGN 
 |---|---|---|---|
 | Life — [RoomBearsLife](content/roadmap/play/RoomBearsLife.md) | 대기 (계약 · 확정 사항 · 상수는 [L2-World-Life.md](content/roadmap/L2-World-Life.md) 와 Play 에 있다) | — (Frost 가 닫혔다 — 탄생이 소비할 재료 · 탈 주기 · 대조할 갈래가 다 섰다) | C022 → C025 |
 | Access — [RoomAsksForPossibilities](content/roadmap/play/RoomAsksForPossibilities.md) | 대기 (계약 · 어휘 · 검사 ㉞~㊷ · 위임된 결정 D1~D5 는 [L2-World-Access.md](content/roadmap/L2-World-Access.md) 와 Play 에 있다) | — (Frost 가 닫혔다 — 첫 property Lock 의 요구가 협곡에 표시까지 서 있다). Life 와 **병행** | C029 → C031 |
+| Foundation — [RoomRemembersAndOffers](content/roadmap/play/RoomRemembersAndOffers.md) | 대기 (계약 · 확정 사항 1~11 · 기억의 항목 · 조건 형 · 기회 형은 [L2-World-Foundation.md](content/roadmap/L2-World-Foundation.md) 와 Play 에 있다) | — (RoomNeverSame · Material · Observe 가 닫혔다). Life · Access 와 **병행** — 세계 State 에 history 하나가 늘어 STATE_VERSION 이 오르므로 PR 은 번호 순으로 합친다 | C034 → C036 |
 | ENGINE B — [Region 작성기](content/roadmap/L2-World-Tool-Scale.md) (도구 2단계) | 부를 단계가 없다 — T1~T6 이 다 섰다 (검사기 · brief 형 · 뼈대 생성기 절반 · 등급 판정기 · 초안기 · 판정 표면). 미지 한 줄이 방이 되고, 목록 하나가 후보 여럿이 되고, 나란히 놓아 승인/반려한다 | T3 의 나머지 — 생명 ecology 는 C022 (phases 도 템플릿도 이제 붙일 수 있다) | Play HundredRooms — 그것이 선 뒤 |
 
 ## 2. 진행
@@ -50,6 +54,7 @@ design 이 다시 열리는 때는 둘 — ① 2층 Play 실주행에서 DESIGN 
 | RoomBearsLife | 방이 생명을 낳는다 (허물의 주인 = M6 붉은 알집 · 숲이 값으로 한 바퀴 돈다) | C022~C025 | 대기 |
 | RoomAnswersWhenAsked | 물으면 답한다 (지목 · 대상 프레임 · 기록 · 세계 위 글자 0) | C026~C028 | **셋 다 닫힘** — Play 실주행 판정 대기 (아래 표) |
 | RoomAsksForPossibilities | 방이 가능성을 묻는다 (Lock · 성질 어휘 · 여러 종류의 답 · 흔적 = M7 열을 저장하는 결정의 원천) | C029~C031 | 대기 |
+| RoomRemembersAndOffers | 방은 기억하고 때가 되면 내민다 (기억 — 뒤척임도 못 묻는 셈 · 조건의 한 형 · 기회=Event — M4 를 깊게) | C034~C036 | 대기 |
 
 **Play 실주행 판정 — 다섯은 답이 Play 확정 사항과 코드에 반영되었고(Cycle 없이 · L2 Material S13 · Region R14 · Time T8),
 하나(RoomOfAnotherKind)가 대기한다** — Human 판정은 Cycle 이 아니라 **Play 단위**이고, Human 은 항목 전부가 아니라
@@ -72,7 +77,8 @@ design 이 다시 열리는 때는 둘 — ① 2층 Play 실주행에서 DESIGN 
 ```text
 0 게임 방향   확정   L0-Game.md
 1 세계의 문법  확정   L1-World-Grammar.md
-2 세계 자체   열림   L2-World-Tool · Concept · Region · Material · Time · Life · Access — 세계 절반 기획 닫힘 → Play 아홉 중 일곱 닫힘 (§2)
+2 세계 자체   열림   L2-World-Tool · Concept · Region · Material · Time · Life · Access — 세계 절반 기획 닫힘 → Play 열 중 일곱 닫힘 (§2)
+              + L2-World-Foundation(②-부속 다섯째 · 무대의 문법 · 확정) — Play RoomRemembersAndOffers 대기
               도구 절반 2단계 L2-World-Tool-Scale(Region 작성기) 확정 — T1~T6 다 섰다 (진행표는 README §2.1)
 3 주체와 몸   미주입  ← 2층이 닫히면 다음.   4~7 (물건 · 대결 · 능력 · 성장) 미주입
 ```
@@ -194,7 +200,7 @@ design 이 다시 열리는 때는 둘 — ① 2층 Play 실주행에서 DESIGN 
         검증용 손잡이 HKT_SPAWN · HKT_SPAWN_REGION · HKT_NPCS · HKT_REGION_PATTERN · HKT_NPC_REGION ·
         HKT_SOURCE_PHASE · HKT_CLOCK · HKT_DISTURBANCE · HKT_PRESENCE
 없음    전투 공식 · 막기 · 피해 종류 · 살펴봄 · 태도 · 장비 · 스킬 형태 · 성장 · 재료의 쓰임 — design/ 에만 ·
-        생명의 탄생 · 세계의 요구와 가능성(Lock · 성질 어휘 · 검사 ㉞~㊷) — Play 둘 반이 아직 남았다
+        생명의 탄생 · 세계의 요구와 가능성(Lock · 성질 어휘 · 검사 ㉞~㊷) · 기억과 기회(history · 조건의 한 형 · Opportunity · 검사 ㊸~㊼) — Play 셋 반이 아직 남았다
 미사용   기반에 있으나 컨텐츠가 아직 안 쓰는 것 — 겹침 표면 · 칸 띠 · 터치 입력 · 이펙트 레이어 · 지면 구역 · 세계 영속
 ```
 
