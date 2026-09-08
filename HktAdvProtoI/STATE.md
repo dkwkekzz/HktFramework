@@ -24,16 +24,16 @@ Play [RoomAnswersWhenAsked](content/roadmap/play/RoomAnswersWhenAsked.md) 가 C0
 순서 T1~T6 은 roadmap README §2.1. **T1~T6 이 다 섰다** — 남은 것은 값이 늘어야 서는 것들뿐이라 이 레인은 지금 부를 단계가 없다.
 design 이 다시 열리는 때는 둘 — ① 2층 Play 실주행에서 DESIGN GAP 이 돌아올 때 (**돌아왔다** — RegionGraphRooms 의 GAP 둘, TODO.md §3) ② T6 이 서서 HundredRooms 를 쓸 때 · 2층이 닫혀 3층을 주입할 때.
 
-**Human 결정 — 승인 대기 둘.** ① RegionGraphRooms 실주행 GAP 둘의 회수 Play [TrailBehindClueAhead](content/roadmap/play/TrailBehindClueAhead.md)
+**Human 결정 — 승인 대기 하나.** RegionGraphRooms 실주행 GAP 둘의 회수 Play [TrailBehindClueAhead](content/roadmap/play/TrailBehindClueAhead.md)
 (온 길 · 갈 길의 단서 · C032 · C033) 초안이 서 있다 — 문서 끝 Human 질문 여섯에 답하고 승인하면 다음 세션이
 "AdvProtoI 기획 — TrailBehindClueAhead 승인 반영" 으로 play/README 표 · 아래 레인 표(Observe 재개 · Time 과 병행) · TODO §3 GAP 삭제를 하고,
 그 뒤 "C032 진행" 이다. 승인 전에는 시작하지 않는다.
-② **7층 주입물이 먼저 왔다** — [L7-Fairy-Growth-Combination.md](content/roadmap/L7-Fairy-Growth-Combination.md) (요정 성장·조합 모델:
-요정 컬렉션 · 무대의 한 명 · 교체 · Class Change = Fairy + Gem + 조건 · 물건은 행동을 바꾸는 장치 · 지식은 관계의 해금 · 정해진 Phase 없음).
-층은 앞당기지 않는다 — 원문을 보존하고 절들을 3~7층에 배분했으며(L7 §3 · README §2 의 3~7 행), 기존 성장 문서와 어긋나는 자리에서는 원문이
-이긴다(L7 §2.2). L0 의 "하나의 요정" · "세 성장 축" 이 둘째 원문으로 고쳐졌다(L0 §1). 문서 끝 Human 질문 열셋에 답하면 "AdvProtoI 기획 —
-L7 승인 반영" 으로 상태를 확정으로 올린다. Play 는 없다 — 3층이 열릴 때(2층 Play 실주행이 다 닫힌 뒤) 3층 주입과 함께 "한 명만 무대에 선다"
-Play 를 쓴다 (L7 §4). Cycle 에는 영향이 없다 — Life · Access 는 그대로 진행한다.
+**7층 주입물이 먼저 와서 확정됐다** — [L7-Fairy-Growth-Combination.md](content/roadmap/L7-Fairy-Growth-Combination.md) (요정 성장·조합 모델:
+요정 컬렉션 · 무대의 한 명 · 교체 · Class Change = Fairy + Gem + 조건 · 물건은 행동을 바꾸는 장치 · 지식은 관찰자의 것 · 정해진 Phase 없음 ·
+기존 수치 축은 유지). 층은 앞당기지 않는다 — 원문의 절들은 3~7층에 배분됐고(L7 §3 · README §2 의 3~7 행) 각 층이 열릴 때 그 배분을 받는다.
+L0 의 "하나의 요정" · "세 성장 축" 은 둘째 원문으로 고쳐졌다(L0 §1). 위임된 결정 D1~D5(요정 획득 방식 · 빙정석=빙결정 · 지식 슬롯 모델 ·
+능력치 아이템의 범위 · Off-field 시간 규모)는 그 자리의 Play · 주입이 낸다. Play 는 없다 — 3층이 열릴 때(2층 Play 실주행이 다 닫힌 뒤)
+3층 주입과 함께 "한 명만 무대에 선다" Play 를 쓴다 (L7 §4). Cycle 에는 영향이 없다 — Life · Access 는 그대로 진행한다.
 
 | 레인 | 지금 할 수 있는 것 | 기다리는 것 | 다음 |
 |---|---|---|---|
@@ -81,7 +81,7 @@ Play 를 쓴다 (L7 §4). Cycle 에는 영향이 없다 — Life · Access 는 �
 2 세계 자체   열림   L2-World-Tool · Concept · Region · Material · Time · Life · Access — 세계 절반 기획 닫힘 → Play 아홉 중 일곱 닫힘 (§2)
               도구 절반 2단계 L2-World-Tool-Scale(Region 작성기) 확정 — T1~T6 다 섰다 (진행표는 README §2.1)
 3 주체와 몸   미주입  ← 2층이 닫히면 다음 — 3층 주입은 L7 §3 의 배분(편성 · 무대의 한 명 · 교체)을 받는다
-4~7 (물건 · 대결 · 능력 · 성장) 미주입 — 7층 원문은 섰다 (L7-Fairy-Growth-Combination.md · 승인 대기) · 3~6층이 그 배분을 받는다
+4~7 (물건 · 대결 · 능력 · 성장) 미주입 — 7층 원문은 확정됐다 (L7-Fairy-Growth-Combination.md) · 3~6층이 그 배분을 받는다
 ```
 
 컨텐츠 층의 미지 — M1 거대 악마의 숲 · M2 환상의 미로 · M3 숲의 재료 계통(생체 광석 · 광식충 허물 · 거목균) · M4 천공고래의 길 · M5 빙결 협곡 · M6 붉은 알집 · M7 열을 저장하는 결정의 원천. 정식 이름 표는 [L2-World-Region §5.1](content/roadmap/L2-World-Region.md).

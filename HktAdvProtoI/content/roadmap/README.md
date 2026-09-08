@@ -63,7 +63,7 @@ content/  그 위에 놓이는 이 세계          컨텐츠 층  미지를 놓�
 | 4 | 자원과 물건 | 소지·장비·가공 사슬 · 조합과 쓰임 ("무엇이 어디서 나는가" 는 2층 ②-부속이 닫았다 — 이 층은 그 Material Seed 를 받는다) · **보석은 경험치 대체재가 아니라 세계의 특성이 응축된 성장 재료(Material Seed 하나) · 물건은 행동을 바꾸는 장치이지 스탯 부착물이 아니다** (L7 §8 · §17 · §24) | `Design-Resource-Catalog-R0.md` · `Design-Item-*.md` · `Design-Inventory-Equipment-D1.md` · **`L7-Fairy-Growth-Combination.md` §8 · §17** | 캐서 지니면 갈 수 있는 곳이 늘어난다 — 보석 하나를 지니고, 물건 하나가 같은 행동을 다른 행동으로 바꾼다 | `L4-*.md` · `play/` | 미주입 |
 | 5 | 대결 | 공격·방어·피해 종류·지목 · **정해진 전투 Phase 없음 — 대상의 World State(Burning · Wet · Frozen · Marked · …)를 생성·제거·변화·전달·소비·증폭하는 것이 전투의 문법 · 하나의 문제에 여러 답** (L7 §13 · §14 · §16) | `Design-Combat-*.md` · `Design-Targeting-R0.md` · **`L7-Fairy-Growth-Combination.md` §13 · §14** | 처음으로 맞서 이긴다 — 같은 적을 두 가지 상태 순서로 | `L5-*.md` · `play/` | 미주입 |
 | 6 | 능력 | 스킬 체계·실행 형태·효과 · **Class 는 Core 를 쓰는 방법 — 한 Core 가 Class 마다 다른 Law 로 나간다 · Active/Entry/Leave/Off-field 의 내용 · Leave 가 남긴 것이 다음 요정의 능력과 반응한다** (L7 §5 · §6 · §11 · §19) | `Design-Skill-*.md` · **`L7-Fairy-Growth-Combination.md` §6 · §11** | 능력 표현이 세계에 닿는다 — 한 Core 가 두 Class 로 갈리고, 장판이 반응한다 | `L6-*.md` · `play/` | 미주입 |
-| 7 | 성장 | 요정 성장·밸런스·클래스 — **성장 = 유효한 조합과 세계 개입 가능성의 확장** (L0-Game.md §1 둘째 원문): 요정 컬렉션 · Class Change(Fairy + Gem + 조건 — 강화가 아니라 조합 위치의 변경) · Knowledge = 숨겨진 관계의 해금 · Fairy Build 와 편성 · 고정 역할 없음 · "원하는 Class → 필요한 Gem → 그 Region" | **`L7-Fairy-Growth-Combination.md`** (원문 — 충돌하는 자리에서 `Design-Fairy-*.md` 를 이긴다, L7 §2.2) · `Design-Growth-Balance-R0.md` · `Design-Subject-Decision.md` §20·§23 | 자원 관계에서 성장이 나온다 — 보석 하나로 Class 가 바뀌어 못 풀던 자리를 새 방법으로 푼다 · 미증명 ③ 의 직접 증명 | `L7-Fairy-Growth-Combination.md` (원문 보존 · 배분 확정 대기) · `L7-*.md` · `play/` | 미주입 — 원문은 섰다 |
+| 7 | 성장 | 요정 성장·밸런스·클래스 — **성장 = 유효한 조합과 세계 개입 가능성의 확장** (L0-Game.md §1 둘째 원문): 요정 컬렉션 · Class Change(Fairy + Gem + 조건 — 강화가 아니라 조합 위치의 변경) · Knowledge = 숨겨진 관계의 해금 · Fairy Build 와 편성 · 고정 역할 없음 · "원하는 Class → 필요한 Gem → 그 Region" | **`L7-Fairy-Growth-Combination.md`** (원문 — 충돌하는 자리에서 `Design-Fairy-*.md` 를 이긴다, L7 §2.2) · `Design-Growth-Balance-R0.md` · `Design-Subject-Decision.md` §20·§23 | 자원 관계에서 성장이 나온다 — 보석 하나로 Class 가 바뀌어 못 풀던 자리를 새 방법으로 푼다 · 미증명 ③ 의 직접 증명 | `L7-Fairy-Growth-Combination.md` (원문 · 배분 **확정**) · `L7-*.md` · `play/` | 미주입 — 원문은 확정됐다 |
 | 8 | 화면 | UX | `Design-View-*.md` | 별도 주입 없음 — 각 행의 Play 의 Required 로 들어온다 | — | — |
 
 2층은 절반이 둘이다 — **도구가 먼저, 세계가 다음**. 도구 절반(`L2-World-Tool.md`)은 게임 명사를
@@ -99,9 +99,9 @@ Lock(자리가 요구하는 세계 조건 · property · time · state · knowle
 층을 앞당기지 않는다 — 한 번에 하나만 열린다는 원칙은 그대로다. 대신 원문을 그 자리에 보존하고, 원문의 절들이 3 · 4 · 5 · 6 · 7층 가운데
 어디로 가는지를 그 문서 §3 이 배분했다. **각 층이 열릴 때 그 층의 주입은 이 배분을 받는다** — 위 표의 3~7 행에 굵게 적힌 것이 그것이다.
 원문은 기존 `design/` 성장 문서와 어긋나는 자리(완성된 캐릭터 판타지 · 선형 Class Line · 수치 성장 중심 · 요정 계열 여덟)에서 **이긴다**
-(L7 §2.2) — 재료의 기구는 살리고 모델은 원문의 것이다. L0 원문의 두 문장("하나의 요정" · "세 성장 축")이 그에 따라 고쳐졌고 (L0 §1 둘째 원문),
-전부 Human 승인 1회(L7 문서 끝 질문 열셋)를 기다린다. 이 원문은 미지를 놓지 않는다 — 예시 이름(요정 계열 여섯 · 보석 여덟 · 클래스)은
-L7 §6 에 후보로만 있고, Human 이 확정하면 §3 에 행으로 오른다.
+(L7 §2.2) — 재료의 기구는 살리고 모델은 원문의 것이며, 어긋나지 않는 것(기존 수치 축 · 요정별 소지)은 병존한다. L0 원문의 두 문장("하나의 요정" ·
+"세 성장 축")이 그에 따라 고쳐졌고 (L0 §1 둘째 원문), **Human 이 승인했다** (L7 확정 사항 열셋 · 위임된 결정 D1~D5). 이 원문은 미지를 놓지 않는다 —
+요정 계열 여섯은 정식이고, 보석 여덟과 클래스 이름은 L7 §6 에 후보로만 있어 Human 이 확정하면 §3 에 행으로 오른다.
 
 ### 2.1 도구 절반 2단계 — Region 작성기 (ENGINE 레인 B · 순서 고정)
 

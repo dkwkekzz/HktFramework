@@ -3,8 +3,7 @@
 상태: **확정** (Human 주입 원문). 로드맵 0층의 결과물이다 ([README.md](README.md)).
 §1 이 원문이고, §2~§5 는 원문의 틀을 유지한 채 `design/` 문서에서 옮겨 보완한
 것이다 — Human 이 언제든 고친다. §1 의 둘째 원문(요정 성장·조합 모델 — 전문은
-[L7-Fairy-Growth-Combination.md](L7-Fairy-Growth-Combination.md))이 첫 원문의 두 문장을 고쳤다 — 그 반영은 **승인 대기**다
-(L7 문서 끝 Human 질문 1).
+[L7-Fairy-Growth-Combination.md](L7-Fairy-Growth-Combination.md))이 첫 원문의 두 문장을 고쳤다 — Human 이 승인했다 (L7 확정 1).
 이 문서는 기능·콘텐츠·수치를 정의하지 않는다. 새 시스템·Play 가 "우리 게임이
 추구하는 경험과 맞는가"를 판단하는 상위 기준일 뿐이다
 ([Design-DesignAuthoringWorkflow.md](../../design/Design-DesignAuthoringWorkflow.md) §3).
@@ -57,7 +56,7 @@ BW 절 인용은 출처 표기일 뿐이다 — 인용된 문장은 이 문서�
                 아이템(행동을 바꾸는 장치 · 증폭·부가) · 지식(숨겨진 관계를 드러내 축들을
                 잇는다). 넷의 State 가 하나의 법칙 안에서 만나 결과를 낸다 (세계 문법에서의
                 자리: Design-Concept.md §10 — 요정 Core 는 넷째 자리, L7 §3). 핵심 재미는
-                유효한 조합의 확장이다 — 확률은 그 조합이 결과를 내는 방식이다 (L7 Human 질문 1).
+                유효한 조합의 확장이다 — 확률은 그 조합이 결과를 내는 방식으로 보조로 남는다 (L7 확정 1).
 ```
 
 ---
