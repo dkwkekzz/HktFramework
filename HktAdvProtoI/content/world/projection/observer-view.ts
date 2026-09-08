@@ -90,6 +90,14 @@ import {
   sourceStateOf,
   sourcesInRegion,
 } from '../semantic/resource';
+import {
+  NOT_A_SOURCE,
+  lifeSiteStateOf,
+  lifeSitesInRegion,
+  lifeStandingCodesAt,
+  lifeUnmetCodes,
+  swarmAreasIn,
+} from '../semantic/life';
 import { passingIn, passingOverlaysIn } from '../semantic/presence';
 import {
   depthOverlayAt,
@@ -422,6 +430,52 @@ export function projectObserverView(
     });
   }
 
+  // entities.life-site + interactions.mine — 그 방이 품은 **탄생지**들 (C022 ADDED ·
+  // RULE-OBSERVE-PROJECTION · spec R5 · SPEC-002).
+  //
+  // **봉투에 새 자리는 나지 않는다** — 원천이 쓰는 그 자리들(role · state · kind · position ·
+  // conditions)을 role 하나 다르게 쓸 뿐이다. 관찰은 여전히 방으로 잘리고, 목록 자체가
+  // 데이터에서 유도되므로 매 관찰마다 같은 순서로 나온다 (결정론).
+  //
+  // 싣지 않는 것 — 결속과 머묾의 진행 · 그 길이 · 지금 비가 오는가 · 개체군의 값과 상한 ·
+  // 요구의 목록 · 무엇이 태어나려 하는가 · 언제 태어나는가 · 무엇을 먹었는가 · 그 뒤에
+  // 무엇이 남는가 · 계승과 결속 중 어느 쪽인가. 관찰자는 그림과 자락과 조건 코드로만
+  // 그것을 읽는다 (spec Observable · Material · Time 의 규율 그대로).
+  for (const site of lifeSitesInRegion(self.regionId)) {
+    // 밤이면 먼 탄생지는 실리지 않는다 — 원천과 같은 잣대다 (C015 spec R2).
+    if (!withinNightRange(site.position)) continue;
+    // 지금 **모자란** 것들의 코드 (RULE-LIFE-CONDITION-001). 차 있는 것은 실리지 않고,
+    // 하나도 모자라지 않으면 **자리 자체가 없다** — 원천의 조건 코드가 그런 그대로다.
+    // 비가 시각에서 유도되므로 세계 시각을 함께 묻는다.
+    const unmet = lifeUnmetCodes(state.regionStates, site, state.time);
+    entities.push({
+      id: site.id,
+      role: 'life-site',
+      // 지금 phase — 원천의 phase 가 실리는 그 자리이고 어휘만 다르다.
+      // C023 CHANGED — 넷을 다 쓴다 (dormant | binding | born | spent). 진행도 길이도 싣지
+      // 않는다: 세계는 "맺히는 중인가 · 터졌는가" 까지만 말하고, 결속인지 계승인지도
+      // 말하지 않는다 — 그것은 kind(자연 형태)와 조건 코드로만 갈린다 (spec Observable).
+      state: lifeSiteStateOf(state.regionStates, self.regionId, site.id).phase.toLowerCase(),
+      // kind 는 자연 형태(무엇처럼 생겼는가) — 그림표가 이것을 읽는다
+      kind: site.form,
+      position: { x: site.position.x, z: site.position.z },
+      ...(unmet.length > 0 ? { conditions: unmet } : {}),
+      // labelValue 를 싣지 않는다 — 세계 위에 글자가 없다 (C026 R4 RULE-QUIET-GROUND-001).
+      // 알집을 가리키는 아이콘도 타이머도 좌표도 어디에도 없다 (spec SPEC-003 경계 ③).
+    });
+
+    // RULE-MINE-001 (C022 AFFECTED · spec R6) — **알집은 원천이 아니다.** 캐기는 걸리지
+    // 않고, 지목했을 때 대상 프레임이 그 사유를 답할 수 있어야 한다 (SPEC-002 경계 ①).
+    // 판정할 것이 없으므로 사유는 언제나 같다 — 몸의 사정도 방의 사정도 묻지 않는다.
+    interactions.push({
+      id: 'mine',
+      role: 'harvest-source',
+      targetEntityId: site.id,
+      available: false,
+      reason: NOT_A_SOURCE,
+    });
+  }
+
   // entities.region-exit + interactions.transit — 이 Region 의 anchor 마다 하나 (C001 R6).
   // id 는 Connector 의 id, kind 는 transition. 건너간 뒤의 Region 은 어디에도 실리지 않는다.
   // exitsOf 의 순서(connectors 배열 순서) 그대로 낸다 (결정론).
@@ -500,9 +554,22 @@ export function projectObserverView(
   // 그 방의 것이고, 하나도 없으면 빈 배열이다. 순서는 데이터 순서 그대로다 (결정론).
   // **밤에 잘리지 않는다** — 자국과 같은 이유다: 잘리는 것은 몸과 원천이고, 방을 덮고
   // 지나가는 것은 방 전체의 사실이다.
-  const presences: PresenceView[] = passingIn(state.presences, self.regionId, state.time).map(
-    (here) => ({ presence: here.presence, curve: here.curve }),
-  );
+  //
+  // C023 CHANGED (spec R5 · R6 · SPEC-006) — **서 있는 떼가 같은 자리에 실린다.** 봉투에
+  // 새 자리는 나지 않는다: 지나는 것은 선(curve)으로, 서 있는 떼는 자락(area)으로 실릴 뿐이다.
+  // 지나는 것이 먼저이고 그 뒤가 떼다 — 둘 다 데이터 순서 그대로이므로 매 관찰마다 같은
+  // 목록이 같은 순서로 나온다 (결정론). **개체군의 값도 상한도 실리지 않는다** — 값이
+  // 오를수록 뒤의 자락이 더 실릴 뿐이고, 그것을 읽는 것은 관찰자의 몫이다 (spec Observable).
+  const presences: PresenceView[] = [
+    ...passingIn(state.presences, self.regionId, state.time).map((here) => ({
+      presence: here.presence,
+      curve: here.curve,
+    })),
+    ...swarmAreasIn(state.regionStates, self.regionId).map((swarm) => ({
+      presence: swarm.presence,
+      area: swarm.area,
+    })),
+  ];
 
   const regionRule = regionRuleOf(self.regionId);
   // C012 CHANGED — 방의 State 가 규칙과 원천을 함께 든다. 여기가 싣는 것은 규칙 쪽뿐이다.
@@ -642,6 +709,12 @@ export function projectObserverView(
       // 라는 한 물음의 얼굴이라 판이 두 번 말하지 않는다. 밝힌 자락이 없으면 한 글자도 늘지
       // 않고, **몸의 값은 한 톨도 달라지지 않는다** — 2층이 하는 것은 말하는 것까지다.
       ...hazardEffects.contacts,
+      // RULE-LIFE-SITE-PHASE-001 (C022 ADDED · spec R4 · SPEC-003 ④) — **결속하는 탄생지의
+      // 자락 위에 선 동안** 그 자락이 밝힌 코드가 접촉의 코드 **뒤**에 이어 붙는다.
+      // 봉투에 새 자리를 내지 않았다: C019 의 접촉 코드와 같은 자리이고 같은 말이다
+      // ("지금 내가 그것에 닿아 있다"). 위험 태그를 만들지 않으므로 **몸의 값은 한 톨도
+      // 달라지지 않는다** — 2층이 하는 것은 말하는 것까지다 (spec 기본형 ⑧).
+      ...lifeStandingCodesAt(state.regionStates, self.regionId, self.position),
     ],
     // 그 방에 남은 자국들 (C017 ADDED · RULE-TRACK-001 · spec R8).
     tracks,

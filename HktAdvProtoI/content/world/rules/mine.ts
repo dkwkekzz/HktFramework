@@ -6,7 +6,8 @@
 //                4. 현재 행동이 대체 가능하다
 // Transition     CurrentAction = mine(Source)           ← 즉시 획득이 아니다
 // Result         Success | Failure(not-this-season | source-depleted | source-recovering |
-//                                  no-mining-tool | out-of-range | action-busy | unknown-source)
+//                                  no-mining-tool | out-of-range | action-busy | unknown-source |
+//                                  not-a-source — C022 ADDED: 지목한 것이 탄생지다)
 //
 // RULE-MINE-COMPLETE-001 — Implements INTENT-MINING-001 · INTENT-ACTION-PROGRESS-001
 //                           (C013 CHANGED · C017 CHANGED — 캔 것이 그 방의 소란이 된다)
@@ -33,12 +34,12 @@ import { distance } from '../semantic/position';
 import {
   findResourceSource,
   isSourcePresentAt,
-  remembersBrokenSites,
   sourcePositionOf,
   sourceStateOf,
   type ResourceSource,
 } from '../semantic/resource';
-import { addDisturbance, regionStateOf } from '../semantic/region-state';
+import { NOT_A_SOURCE, findLifeSite } from '../semantic/life';
+import { addDisturbance, depleteSourceState, regionStateOf } from '../semantic/region-state';
 import { NOT_THIS_HOUR, isSeasonListed } from '../semantic/region-phase';
 import {
   DISTURBANCE_PER_HARVEST,
@@ -109,7 +110,18 @@ export function ruleMine(state: WorldState, actor: ActorState, sourceId: string)
   // 원천의 자리와 성질은 State 가 아니다 — 세계 데이터에서 온다 (semantic/resource.ts).
   // 그 위의 "몇 번 캤는가" 만이 방의 State 다.
   const source = findResourceSource(sourceId);
-  if (!source) return { status: 'failure', rule: RULE_MINE, reason: 'unknown-source' };
+  if (!source) {
+    // C022 CHANGED (spec R6 · SPEC-002 경계 ①) — 세계가 아는 것 가운데 **원천이 아닌 것**을
+    // 지목했으면 그렇게 말한다. "그런 것이 없다"(unknown-source)와 갈리는 말이다: 알집은
+    // 거기 서 있고 보이지만 캘 것이 아니다 — 기다릴 대상도 없다.
+    //
+    // 판이 미리 답하는 사유와 **같은 판정**이다 (투영이 같은 코드를 싣는다) — 가용하지 않다고
+    // 밝혀 놓고 다른 말로 거절하지 않는다.
+    //
+    // 규칙은 그것이 알집인지 이름으로 알지 못한다 — "세계가 아는 탄생지" 라는 형뿐이다.
+    const reason = findLifeSite(sourceId) ? NOT_A_SOURCE : 'unknown-source';
+    return { status: 'failure', rule: RULE_MINE, reason };
+  }
 
   const failure = evaluateMinePreconditions(state, actor, source);
   if (failure) return { status: 'failure', rule: RULE_MINE, reason: failure };
@@ -152,19 +164,17 @@ export function ruleMineComplete(state: WorldState, actor: ActorState): ActionRe
   // 캔 자국 — 마지막 한 번까지는 available 이다 (SPEC-001 경계: 미리 고갈되지 않는다).
   sourceState.taken += 1;
   if (sourceState.taken >= source.harvests) {
-    sourceState.phase = 'depleted';
     // C013 ADDED — 고갈되는 순간 **그 마디**가 무너진다 (spec R6). 원천이 나중에 다음 마디로
     // 옮겨 가도 이 자리는 무너진 채 남는다 — 무너짐은 원천이 아니라 자리가 기억한다.
-    // 이미 있는 마디를 두 번 더하지 않는다 (경계).
     //
     // C020 CHANGED — **기억하는 이유가 둘이 되었다** (C020 spec R4). 무너지는 원천에 더해
-    // 깨진 마디가 자락을 거는 원천도 그 번호를 기억한다 — 기억하는 자리는 여전히 하나이고
-    // (collapsedSites) 판정은 remembersBrokenSites 하나가 낸다. 둘 다 밝히지 않은 원천의
-    // State 는 한 값도 달라지지 않는다.
-    if (remembersBrokenSites(source)) {
-      const collapsed = (sourceState.collapsedSites ??= []);
-      if (!collapsed.includes(sourceState.siteIndex)) collapsed.push(sourceState.siteIndex);
-    }
+    // 깨진 마디가 자락을 거는 원천도 그 번호를 기억한다 — 기억하는 자리는 여전히 하나다.
+    //
+    // C023 CHANGED — **그 전이를 내는 자리가 하나가 되었다** (semantic/region-state.ts 의
+    // depleteSourceState). 태어남도 원천을 먹어 고갈시키는데(RULE-LIFE-BIRTH-001 ②),
+    // 캔 것과 먹힌 것의 State 가 **글자 하나 다르지 않아야** 하기 때문이다 — 여기서 하던
+    // 일(캔 횟수 · phase · 되돌아옴 진행 · 무너진 마디)이 한 값도 달라지지 않고 그리로 갔다.
+    depleteSourceState(source, sourceState);
   }
 
   // RULE-DISTURBANCE-001 (C017 ADDED · spec R1 · R11) — **캔 것이 그 방의 소란이 된다.**

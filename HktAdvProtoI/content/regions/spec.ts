@@ -7,6 +7,7 @@
 // 경계 규칙 4 — content/regions 는 engine 만 import 한다. world 와 view 가 함께 읽는 데이터 폴더다.
 
 import type { RegionDescription } from '../../engine/world-authoring/description';
+import type { RegionEcology } from './ecology';
 import type { RegionPhases } from './phases';
 import type { RegionResourceEcology } from './resource-ecology';
 
@@ -75,6 +76,20 @@ export interface RegionSpec {
    * 무엇이 달라지는지는 여기에만 있다 (rule? 의 선례 그대로 · C004 가 세운 규율).
    */
   phases?: RegionPhases;
+  /**
+   * 그 방이 품은 **생명 계통** — 무엇이 태어나고 무엇이 사는가 (C022 ADDED · Life §3.1 · §3.2).
+   *
+   * 없으면 이 계통이 닿지 않는 방이다 — 지금 이것을 밝힌 방은 거목의 방 하나뿐이고, 밝히지
+   * 않은 방은 한 값도 달라지지 않는다 (spec SPEC-001 경계 ①). rule?(C008) · resourceEcology?(C011) ·
+   * phases?(C016) 를 밝히지 않은 방이 그 계통 밖인 것과 같은 규율이다.
+   *
+   * **새 layer 도 새 Rule 문법도 별도 Life System 도 나지 않는다** (F13) — 방이 밝히는 자리가
+   * 하나 더 서고, 그 위에서 도는 것은 여느 세계 과정과 같은 하나다 (simulation/life-binding.ts).
+   *
+   * 규칙 코드는 어떤 생명도 어떤 탄생지도 이름으로 알지 못한다 — 아는 것은 "탄생지를 밝힌
+   * 방" 뿐이고, 무엇이 무엇인지는 여기에만 있다 (C004 가 세운 규율).
+   */
+  ecology?: RegionEcology;
 }
 
 /** "드나드는 곳" 을 적는 layer 이름 — Connector 의 anchor 는 이 layer 의 point 다 */

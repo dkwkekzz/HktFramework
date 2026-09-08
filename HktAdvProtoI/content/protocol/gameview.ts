@@ -184,10 +184,23 @@ export interface TrackView {
  * 문구도 그림도 View 의 표가 정한다 (원칙 2).
  */
 export interface PresenceView {
-  /** 무엇이 지나는가 — 의미 코드 (문구는 View 의 표가 옮긴다) */
+  /** 무엇이 지나는가 · 무엇이 서 있는가 — 의미 코드 (문구는 View 의 표가 옮긴다) */
   presence: string;
-  /** 그것이 이 방에서 지나는 **선**의 이름 — 관찰자가 자기 Description 에서 그 선을 얻는다 */
-  curve: string;
+  /**
+   * 그것이 이 방에서 지나는 **선**의 이름 — 관찰자가 자기 Description 에서 그 선을 얻는다.
+   *
+   * C023 CHANGED — 물음표가 붙는다. 이 자리에 실리는 것이 둘이 되었기 때문이다:
+   * **지나는 것**은 선으로, **서 있는 떼**는 자락으로 실린다 (아래 `area`). 기존 소비자는
+   * 선이 없는 줄을 그냥 지나가면 된다 — 지나가는 것의 줄은 한 값도 달라지지 않았다.
+   */
+  curve?: string;
+  /**
+   * 그것이 이 방에서 **서 있는 자락**의 이름 — C023 ADDED (spec R5 · Observable).
+   *
+   * 개체군의 떼에만 실린다. 값이 오를수록 넓은 자락이 서지만 **값 자체는 실리지 않는다** —
+   * 관찰자가 읽는 것은 어느 자락이 섰는가 하나뿐이다 (spec SPEC-005 경계 ①).
+   */
+  area?: string;
 }
 
 // 관찰자의 몸이 선 Region — C001 (02-world Observable: snapshot.region.id · snapshot.region.hash).

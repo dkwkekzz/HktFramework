@@ -37,6 +37,8 @@ function spawnFromEnv(): {
   disturbances?: Record<string, number>;
   clock?: string;
   presences?: string[];
+  lifeSitePhases?: Record<string, string>;
+  populations?: Record<string, number>;
 } {
   const setup: {
     actorPosition?: { x: number; z: number };
@@ -48,6 +50,8 @@ function spawnFromEnv(): {
     disturbances?: Record<string, number>;
     clock?: string;
     presences?: string[];
+    lifeSitePhases?: Record<string, string>;
+    populations?: Record<string, number>;
   } = {};
   // HKT_REGION_PATTERN="REGION:PATTERN" — 규칙을 품은 방이 어느 패턴으로 서는가 (C009).
   // 같은 갈래의 검증용 손잡이다 — 걸어서 닿을 수 있는 State 를 걸어가지 않고 시작한다.
@@ -127,6 +131,41 @@ function spawnFromEnv(): {
       .map((entry) => entry.trim())
       .filter((entry) => entry.length > 0);
     if (routes.length > 0) setup.presences = routes;
+  }
+  // HKT_LIFE_PHASE="SITE:phase" 또는 "A:binding,B:dormant" — 탄생지가 **어느 phase 로 서는가** (C022).
+  //
+  // HKT_SOURCE_PHASE 와 같은 갈래의 검증용 손잡이다 — 기다려서 닿을 수 있는 State 를 기다리지
+  // 않고 시작한다. 맺히는 알집을 보려면 요구 넷이 다 차는 때(비가 오는 구간)를 기다려야 하고,
+  // 하루가 360 세계 초라 촬영 하네스가 그것을 기다릴 수 없다. 규칙이 그 State 로 데려간다는
+  // 것은 시나리오 테스트가 증명하고, 그림은 그 State 에서 무엇이 보이는가를 보인다.
+  // 세우는 것은 phase 뿐이고 진행은 0 이다 — 모르는 탄생지 · 모르는 phase 는 세계가 조용히 무시한다.
+  // C023 CHANGED — phase 넷을 다 받는다 (dormant · binding · born · spent). 터진 자리와 그
+  // 곁의 빈 껍질은 결속 60 초를 기다려야 오는 그림이므로 여기서 세우고 시작한다.
+  const lifePhase = process.env.HKT_LIFE_PHASE;
+  if (lifePhase) {
+    const phases: Record<string, string> = {};
+    for (const entry of lifePhase.split(',')) {
+      const [siteId, phase] = entry.trim().split(':');
+      if (siteId && phase) phases[siteId] = phase;
+    }
+    if (Object.keys(phases).length > 0) setup.lifeSitePhases = phases;
+  }
+  // HKT_POPULATION="POP:VALUE" 또는 "A:1,B:2" — 개체군의 **값이 얼마인가** (C022).
+  //
+  // HKT_DISTURBANCE 와 같은 갈래의 검증용 손잡이다. C023 이 그 값을 올리는 규칙을 세웠으나
+  // 값이 오르려면 결속 60 초를 기다려야 하므로, "값이 0 이 아니면 결속이 서지 않는다" ·
+  // "값만큼 떼의 자락이 넓어진다" 를 그림으로 보려면 그 값을 세우고 시작해야 한다.
+  // 세우는 것은 값뿐이고 세계의 규칙은 그대로다 —
+  // 값은 0 과 상한 사이로 잘리고, 모르는 개체군 · 수가 아닌 값은 세계가 조용히 무시한다.
+  const population = process.env.HKT_POPULATION;
+  if (population) {
+    const values: Record<string, number> = {};
+    for (const entry of population.split(',')) {
+      const [populationId, raw] = entry.trim().split(':');
+      const value = Number(raw);
+      if (populationId && raw !== undefined && Number.isFinite(value)) values[populationId] = value;
+    }
+    if (Object.keys(values).length > 0) setup.populations = values;
   }
   // HKT_SPAWN_REGION — 어느 **방**에서 시작할 것인가. 방이 여럿이 되면서 자리만으로는
   // 모자란다 (C002): 걷기가 이어지지 않는 촬영에서 백왕령 밖의 방을 보려면 거기서 시작해야 한다.

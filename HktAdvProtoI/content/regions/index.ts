@@ -38,6 +38,11 @@ export * from './phases';
 // 이 세계를 지나가는 것들의 경로 — 시간표 · 마디 · 지나는 동안 하는 일 · 남기는 것 (C018 ADDED).
 // 같은 갈래다: 세계는 시간표와 마디를, 화면은 경로 선의 이름을 이 문(門)을 통해 읽는다.
 export * from './presence-routes';
+// 이 세계의 생명 — 탄생 방식 넷의 어휘 · Life Seed 표 · 개체군의 id (C022 ADDED).
+// 재료 계통(resource-ecology)과 같은 갈래의 "world 와 view 가 함께 읽는 데이터" 다.
+export * from './lives';
+// 방이 품은 생명 계통의 데이터 계약 — 탄생지 · 개체군 · 요구의 형과 조건 코드들 (C022 ADDED).
+export * from './ecology';
 export {
   REGION_GRAPH,
   FRONTIER_REGIONS,

@@ -22,6 +22,7 @@ import {
   traceLevel,
   type ResourceSourceSpec,
 } from '../regions/index';
+import { NO_LIFE_SITES, lifeTraceLevelOfArea, type LifeSitePhases } from './life-reading';
 import { regionTerrain } from './terrain-presentation';
 
 /** 원천의 Semantic Role — 봉투에서 원천을 가려내는 유일한 값이다 (role-presentation 의 키와 같다) */
@@ -99,11 +100,19 @@ export function sourcePhases(snapshot: GameViewSnapshot): SourcePhases {
  * (원천이 거기 없으므로 흙도 그것을 말하지 않는다). 지금 마디이면 C012 그대로: 고갈이면
  * 한 단계 낮고(0 아래로는 내려가지 않는다), 되돌아오는 중과 남아 있는 것은 데이터 그대로다.
  * 방 바닥에 깔린 흔적은 어느 원천의 둘레도 아니므로 한 값도 바뀌지 않는다.
+ *
+ * C022 CHANGED — **자락을 거는 것이 둘이 되었다** (spec R4 — 위상을 거는 원인이 여섯째가
+ * 되었다). 원천 쪽 판정은 한 줄도 바뀌지 않고, 어느 원천의 둘레도 아닌 자락을 **탄생지에게
+ * 한 번 더 묻는다**: 탄생지가 아무 말도 하지 않는 자락은 데이터 그대로이므로, 탄생지를
+ * 밝히지 않은 방들(숲의 다른 방 · 협곡)에서 읽히는 단계는 한 값도 달라지지 않는다.
+ * 그 잣대는 세계 쪽(world/semantic/resource.ts 의 traceStrengthAt)과 **같은 것**이어야
+ * 하므로 life-reading 한 자리에 있다 (무너진 자리가 한 함수에서 나오는 것과 같은 규율).
  */
 export function traceLevelOfArea(
   regionId: string,
   area: { id: string; tag: string },
   sources: SourcePhases,
+  lives: LifeSitePhases = NO_LIFE_SITES,
 ): number {
   const level = traceLevel(area.tag);
   if (level <= 0) return 0;
@@ -115,7 +124,8 @@ export function traceLevelOfArea(
     if (site !== observed.siteIndex) return 0;
     return observed.phase === PHASE_DEPLETED ? Math.max(0, level - 1) : level;
   }
-  return level;
+  // 어느 원천의 둘레도 아니면 탄생지의 자락일 수 있다 — 아니면 받은 값 그대로 돌아온다
+  return lifeTraceLevelOfArea(regionId, area.id, level, lives);
 }
 
 /**
@@ -132,6 +142,7 @@ export function traceTagAt(
   regionId: string,
   point: { x: number; z: number },
   sources: SourcePhases,
+  lives: LifeSitePhases = NO_LIFE_SITES,
 ): string | undefined {
   const spec = regionSpec(regionId);
   const compiled = regionTerrain(regionId);
@@ -140,7 +151,9 @@ export function traceTagAt(
   let strongestTag: string | undefined;
   for (const area of areasOf(spec.space, TRACE_LAYER)) {
     if (!areaCoversPoint(area.shape, point.x, point.z)) continue;
-    const level = traceLevelOfArea(regionId, area, sources);
+    // 판이 말하는 단계는 **바닥에 그려진 것과 같은 함수**에서 나온다 — 탄생지가 옅게 한
+    // 흙을 판이 짙게 말하면 둘 중 하나를 믿을 수 없다 (C022 도 그 규율을 그대로 잇는다)
+    const level = traceLevelOfArea(regionId, area, sources, lives);
     if (level > strongest) {
       strongest = level;
       strongestTag = area.tag;

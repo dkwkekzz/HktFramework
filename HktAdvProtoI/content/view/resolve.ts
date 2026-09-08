@@ -32,13 +32,14 @@ import { interactionPresentation } from './interaction-presentation';
 import { codeText } from './code-text';
 import { rolePresentation } from './role-presentation';
 import { kindPresentation } from './kind-presentation';
+import { lifeSitePhases } from './life-reading';
 import { regionZones } from './region-presentation';
 import { clockAmbience } from './terrain-presentation';
 import { sourcePhases } from './resource-reading';
 import { DESIGNATE_MODIFIER, type Designation } from './pointer-rules';
 import { designationHighlight, targetFrame } from './target-frame-presentation';
 import { trackZones } from './track-presentation';
-import { presenceLineZones, shadedAmbience } from './presence-presentation';
+import { presenceAreaZones, presenceLineZones, shadedAmbience } from './presence-presentation';
 import { phaseZones } from './phase-presentation';
 
 // 관찰자 쪽 표시 선택 — 충돌체 디버그 관찰을 켤지. World 에 아무것도 요청하지 않는다.
@@ -198,6 +199,10 @@ export function resolvePresentation(
   // **세계가 싣는 것은 state 와 지금 선 마디뿐**이고, 나머지는 관찰자가 자기
   // content/regions 와 이 표로 스스로 얻는다 (C005~C007 의 규율 그대로)
   const sources = sourcePhases(snapshot);
+  // 탄생지들의 지금 (C022) — 서지 않는 자락도 옅어진 흙도 여기서 유도된다. **세계가 싣는
+  // 것은 phase 와 지금 모자란 조건 코드뿐**이고, 나머지는 관찰자가 자기 content/regions 와
+  // 이 표로 스스로 얻는다 (원천의 지금을 읽는 바로 윗줄과 같은 규율)
+  const lives = lifeSitePhases(snapshot);
   // 세계의 때 (C015) — 봉투 최상위의 한 자리다. **때를 모르는 봉투도 있다**: 앞 Cycle 의
   // 관찰 결과에는 이 자리가 없고, 그러면 화면은 지금까지 그대로다 (분위기 없음 · HUD 두
   // 줄 없음 · 낮의 흔적). 여기서 한 번 읽어 네 자리(하늘 · 흔적 · HUD)가 함께 쓴다
@@ -231,7 +236,7 @@ export function resolvePresentation(
     // C008 부터 구역·통로도 여기서 선다 — 재배열이 얼마 전인지를 재려고 세계 시각을 함께 넘긴다
     // C015 CHANGED — 밤이면 흔적만 또렷해진다 (SPEC-009). 다른 구역은 한 값도 다르지 않다
     zones: [
-      ...regionZones(snapshot.region, worldTime, sources, night),
+      ...regionZones(snapshot.region, worldTime, sources, night, lives),
       // 지금 걸린 위상의 자락 (RoomNeverSame 실주행 판정) — 방의 구역들 **위**, 자국과 경로 선
       // **아래**다. 자락은 넓은 면이고 자국 · 선은 그 위를 지나는 것이다. 걸린 것이 없으면
       // 목록이 비고 화면은 지금까지와 한 픽셀도 다르지 않다
@@ -248,6 +253,12 @@ export function resolvePresentation(
       // 뿌리 선(regionZones 안)보다 위인 것도 같은 규율이다 — 뿌리는 땅에 박혀 있고
       // 이것은 그 위를 스쳐 지나는 것이다. 지나가고 있지 않으면 목록이 비고, 그러면
       // 화면은 C017 과 한 픽셀도 다르지 않다
+      // 서 있는 떼의 자락 (C023) — **경로 선 바로 아래**다. 자락은 방 바닥에 넓게 깔린
+      // 면이고 선은 그 위를 가로질러 지나는 띠이므로, 순서를 뒤집으면 지나가는 것의
+      // 선이 자락에 묻혀 어디를 지나는지가 읽히지 않는다 (흔적 위에 자국이 서는 것과
+      // 같은 이유). 서 있는 것이 없으면 목록이 비고, 그러면 화면은 C022 와 한 픽셀도
+      // 다르지 않다
+      ...presenceAreaZones(snapshot.region.id, snapshot.presences),
       ...presenceLineZones(snapshot.region.id, snapshot.presences),
       ...trackZones(snapshot.tracks, knownWorldTime),
     ],
