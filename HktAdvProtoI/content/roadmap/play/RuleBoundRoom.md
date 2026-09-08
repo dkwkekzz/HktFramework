@@ -85,8 +85,12 @@ Trigger      몸이 미로 안에서 이동한다 (move-progress 가 위치를 �
 Condition    항상 — 미로 안에 있으면
 Effect       Region State.pressure += 이동 거리 × k. pressure ≥ P 이면 connectorPattern 을 다음 패턴으로,
              pressure = 0. 패턴이 바뀌면 열린 통로의 집합이 바뀐다 (패턴 표) — 통로 area 의 상태가 곧 바뀐 땅이다
-Feedback     HUD 에 pressure(counter, progress = pressure/P). 재배열 순간 통로 바닥 색이 바뀌고 맥동한다
+Feedback     판에 pressure(값 / P + 막대). 재배열 순간 통로 바닥 색이 바뀌고 맥동한다
              (SceneGroundZone.intensity 재사용) · 사유 코드 maze-rearranged
+             **규칙이 자기를 말한다** (확정 8) — 들어서면 "이 방은 걸음을 센다 …" 한 줄이 지나가고 판의 「규칙」 줄에
+             선다 · 압력이 P 의 3/4 을 넘으면 "발밑이 울린다 — 길이 곧 바뀐다" · 재배열에는 **어느 길이 닫혔는지**
+             ("길이 바뀌었다 — 닫힌 길: 북쪽 복도 · 남쪽 복도") · 닫힌 통로의 거절에 "걸어서 압력을 채우면 배열이
+             바뀐다" · 통로에 이름이 있다(북쪽·동쪽·남쪽·서쪽 복도 · 네거리 빗길 둘 — 구역의 이름은 여전히 식물이 말한다)
 Exploit      압력을 일부러 채워 원하는 패턴을 부른다. 식물로 자기 구역을 안다
 Persistence  Region State — 세계에 하나. 관찰자가 나가도 남는다 (W9)
 Priority     move-progress 뒤 · 투영 앞 (SYSTEMS 배열 순서 — L1 적용 순서)
@@ -117,7 +121,9 @@ Exploit      "어느 구역에 있는가"를 식물로 안다. 지도는 못 그
 ```text
 존재   심장 Region. 미로의 HEART_GATE anchor 에서 door Connector 하나로 들어간다 (Containment: parent = FANTASY_MAZE)
 상태   heartAccess: LOCKED → 특정 패턴에서 OPEN (Connector.activation = Region State 조건 — Region §10)
-관찰   그 패턴이 왔을 때만 심장 쪽 문의 표식이 "열림"으로 바뀐다. HEART_GATE 는 구역 B 안에 있다 — 그 패턴에서 B 에 닿을 수 있어야 한다
+관찰   그 패턴이 왔을 때만 심장 쪽 문의 표식이 "열림"으로 바뀐다. HEART_GATE 는 구역 B 안에 있다 — 그 패턴에서 B 에 닿을 수 있어야 한다.
+       잠긴 채 지목하면 판에 「힌트」 줄이 선다 — "이 문은 미로의 길 배열이 연다 — 걸어서 압력을 넘기면 배열이 바뀐다"
+       (확정 9). **어느 패턴인지는 여전히 말하지 않는다** — 세계는 "지금 열렸는가" 만 싣고(Region §17) 힌트는 표현의 표다
 추론   "심장은 패턴 X 에서 구역 B 의 문이다"
 반응   건너면 심장. 출구 하나: 뒤집힌 정원 쪽 문 — 이 Play 는 건너지 않는다 (topology.children 만 그래프에)
 ```
@@ -184,6 +190,9 @@ W15' 투영 — HUD 에 pressure · 패턴 전이 순간의 사유 코드 (maze-
 ```text
 V5   clue point 표식 — layer: clue 의 tag → sprite/색 표 (구역마다 다른 식물)
 V6   통로 — passage area 를 SceneGroundZone 으로, 열림/닫힘 → 색 표. 재배열 순간 맥동 (intensity) · HUD 문구
+V6′  규칙의 힌트 (실주행 판정) — 방마다의 규칙 한 줄(REGION_RULE_HINTS) · 통로 이름(PASSAGE_NAMES) · 잠긴 문의
+     힌트(EXIT_HINTS) · 임박 비율(3/4) · 재배열 문구에 닫힌 통로의 이름. 전부 content/view 의 표다 —
+     세계는 한 자리도 늘지 않고, 힌트는 규칙의 **형**까지이지 답(어느 패턴 · 어느 철)이 아니다
 ```
 
 ### Required — 기구 (ENGINE 레인)
@@ -199,6 +208,7 @@ E5   없음이 목표다. Region Rule 은 content/world/simulation 의 시스템
 ```text
 패턴을 더한다 · 구역을 더한다 · 통로를 더한다 · 임계값을 바꾼다 · 식물 표식을 바꾼다
     → Region Spec 의 space(area · point) · 패턴 표 · Region Spec 의 state · view 표
+규칙의 힌트를 바꾼다 · 통로 이름을 바꾼다 · 문의 힌트를 더한다 · 임박 비율을 바꾼다 → view 표 한 줄
 미로를 넓힌다 · 구역 모양을 바꾼다 · 높이를 준다 → space 의 op 만 (Land 와 같은 방법)
 규칙을 하나 더 넣는다 → 시스템 하나 (코드) — 이것은 폴리싱이 아니라 새 Cycle 이다
 ```
@@ -228,4 +238,15 @@ E5   없음이 목표다. Region Rule 은 content/world/simulation 의 시스템
 6. 자율 존재의 걸음도 압력이 된다 (W9 — 세계는 플레이어 없이도 돈다). 미로 안의 모든 몸이 Scope 다.
 7. 순서는 RegionGraphRooms → RoomBecomesLand → RuleBoundRoom. 규칙이 바꿀 구조(area · traversable)를 Land 가 먼저 세운다.
    이 Play 의 Cycle 은 C008~C010 이다.
+
+실주행 판정 (Human 답 · Cycle 없이 반영) — "규칙이 있는지 느껴지지 않았다. 진짜 게임처럼 만들지는 않아도 규칙을
+만들 기반이 있다는 것을 보여 주고, 무엇을 해야 하는지 힌트는 있어야 한다. 플레이가 가능해야 한다."
+8. **규칙을 품은 방은 자기 규칙을 말한다.** 들어설 때 한 줄 · 판의 「규칙」 줄 · 임박(3/4) · 재배열에 닫힌 길의 이름 ·
+   거절에 무엇을 하면 되는지 (§5.2 Feedback). 규칙의 형은 말하고 답은 말하지 않는다 — Region §17 "무엇이 열었는지는
+   싣지 않는다" 는 세계의 규율이고, 힌트는 표현의 표다.
+9. **잠긴 문은 어느 갈래의 규칙이 쥐고 있는지까지 말한다** — 심장 문은 "길의 배열", 철 조건 문은 "철". 어느 패턴 ·
+   어느 철인지는 말하지 않는다 (§5.4).
+10. 통로에 이름을 적는다 (TODO §2 의 결정). 구역의 이름은 여전히 식물이 말한다.
+11. Q11~Q14 의 답 — 재배열이 길을 끊지 않고 돌리기만 하는 지금 배열 그대로 둔다 · 두 관찰자의 압력 공유 그대로 ·
+    세계의 말 없는 대답(자물쇠 · 이름표 없는 압력 · 돌아가기 거절) 그대로 · C010 의 배치 손잡이는 하네스로 인정한다.
 ```
