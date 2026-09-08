@@ -33,6 +33,7 @@ import { blockedReasonAt, isTraversableAt } from '../../../engine/world-authorin
 import { rasterHeight, rasterSurface, rasterTraversable } from '../../../engine/world-authoring/observe';
 import { ANCHOR_LAYER, REGION_SPECS, START_REGION_ID, regionSpec } from '../../regions';
 import {
+  BLOCK_LANDMARK,
   BLOCK_STEEP,
   BLOCK_WATER,
   COMPILE_RULES,
@@ -193,7 +194,7 @@ describe('SPEC-003 — 막힌 자리가 걸어서 막힌 그 자리다', () => {
     expect(mismatched).toEqual([]);
   });
 
-  it('S-003 (경계) 두 갈래가 다 있다 — 막힘 사유 둘(급경사 · 물)이 그림에도 세계에도 나온다', () => {
+  it('S-003 (경계) 세 갈래가 다 있다 — 막힘 사유 셋(급경사 · 물 · 표식의 줄기)이 그림에도 세계에도 나온다', () => {
     const world = compiled(START_REGION_ID).world;
     const raster = rasterTraversable(world);
     const answers = sweep(START_REGION_ID);
@@ -204,9 +205,10 @@ describe('SPEC-003 — 막힌 자리가 걸어서 막힌 그 자리다', () => {
     expect(open.length).toBeGreaterThan(0);
     // Then 통행 칸으로는 전부 받아들여진다
     expect(open.filter((a) => !a.accepted)).toEqual([]);
-    // 그리고 사유는 C006 의 둘뿐이다 — 이 Cycle 은 사유를 하나도 더하지 않았다
+    // 그리고 사유는 C006 의 둘에 표식의 줄기 하나가 더해진 셋이다 (RoomBecomesLand 실주행 판정 Q7 —
+    // 거목이 몸을 세운다). 그 밖의 사유는 하나도 없다
     const reasons = new Set(blocked.map((a) => a.reason));
-    expect([...reasons].sort()).toEqual([BLOCK_STEEP, BLOCK_WATER].sort());
+    expect([...reasons].sort()).toEqual([BLOCK_STEEP, BLOCK_WATER, BLOCK_LANDMARK].sort());
   });
 
   it('S-004 (경계) 높이·표면 래스터도 같은 격자다 — 픽셀과 vertex 가 1:1 이다', () => {

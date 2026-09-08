@@ -152,17 +152,53 @@ const BASELINE: Readonly<Record<string, RoomBaseline>> = {
   [WHITE_KING_DOMAIN]: {
     hash: '1c57fb5f',
     surface: { flat: 1022, wet: 497, slope: 95, steep: 67 },
-    traversable: 1337,
+    traversable: 1328,
   },
-  [FOREST_EDGE]: { hash: '30563ef4', surface: { flat: 1386, slope: 127, steep: 168 }, traversable: 1513 },
-  [FOREST_DEEP]: { hash: '4dbb88ee', surface: { flat: 1681 }, traversable: 1681 },
-  [EXPLORER_RUIN]: { hash: 'f3d4fdef', surface: { flat: 1681 }, traversable: 1681 },
-  [PREDATOR_NEST]: { hash: '7b0e444e', surface: { flat: 1681 }, traversable: 1681 },
-  [BIO_ORE_FIELD]: { hash: '9c50bd1e', surface: { flat: 1681 }, traversable: 1681 },
-  [TREE_INNER_WORLD]: { hash: '24bc11c0', surface: { flat: 6561 }, traversable: 6561 },
-  [HEART_LAKE]: { hash: 'dfb3a6cf', surface: { flat: 1681 }, traversable: 1681 },
-  [FANTASY_MAZE]: { hash: '53ca6a70', surface: { flat: 6561 }, traversable: 6561 },
-  [MAZE_HEART]: { hash: 'b9b77a14', surface: { flat: 1681 }, traversable: 1681 },
+  [FOREST_EDGE]: {
+    hash: 'da66b8e9',
+    surface: { flat: 1386, slope: 127, steep: 168 },
+    traversable: 1513,
+  },
+  [FOREST_DEEP]: {
+    hash: '2b6a4c96',
+    surface: { flat: 1681 },
+    traversable: 1681,
+  },
+  [EXPLORER_RUIN]: {
+    hash: 'a1cfb66b',
+    surface: { flat: 1681 },
+    traversable: 1681,
+  },
+  [PREDATOR_NEST]: {
+    hash: '7e437aff',
+    surface: { flat: 1681 },
+    traversable: 1681,
+  },
+  [BIO_ORE_FIELD]: {
+    hash: 'f111570c',
+    surface: { flat: 1681 },
+    traversable: 1681,
+  },
+  [TREE_INNER_WORLD]: {
+    hash: '24bc11c0',
+    surface: { flat: 6561 },
+    traversable: 6561,
+  },
+  [HEART_LAKE]: {
+    hash: 'dfb3a6cf',
+    surface: { flat: 1681 },
+    traversable: 1681,
+  },
+  [FANTASY_MAZE]: {
+    hash: '53ca6a70',
+    surface: { flat: 6561 },
+    traversable: 6561,
+  },
+  [MAZE_HEART]: {
+    hash: 'b9b77a14',
+    surface: { flat: 1681 },
+    traversable: 1681,
+  },
   [ICE_CANYON]: {
     hash: '5928ed79',
     surface: { steep: 810, slope: 164, frost: 697, flat: 10 },
@@ -178,7 +214,7 @@ const BASELINE: Readonly<Record<string, RoomBaseline>> = {
 /**
  * **거목의 방**은 이 Cycle 이 데이터를 더하는 방이다 — 알집의 point 와 전조의 자락이 그 방
  * Description 에 난다 (SPEC-002 "resource layer 의 point 로 서고"). 그래서 hash 는 이 Cycle
- * 이전의 값(`c535b16f`)과 달라도 되고, **땅과 통행은 달라지면 안 된다**: 흔적도 알집도 높이와
+ * 이전의 값(`d6561e16`)과 달라도 되고, **땅과 통행은 달라지면 안 된다**: 흔적도 알집도 높이와
  * 표면을 건드리지 않는다 (C011 이 원천을 세울 때 세운 그 규율). hash 는 대신 **한 세계 안에서**
  * 철 · phase · 진행에 흔들리지 않는다는 것으로 잰다 (SPEC-003 경계 ② "덧씌움이지 재컴파일이 아니다").
  */
@@ -222,23 +258,140 @@ const PHASES_BASELINE: Readonly<Record<string, unknown>> = {
   [FOREST_EDGE]: {
     seasons: {
       SEEP: {
-        depthOverlay: [{ areaId: 'depth-edge-deep-trail', depth: 'wild' }],
-        hazardExtend: [{ areaId: 'hazard-edge-deep-trail', hazard: 'hazard/creature' }],
+        depthOverlay: [
+          {
+            areaId: 'depth-edge-deep-trail',
+            depth: 'wild',
+          },
+        ],
+        hazardExtend: [
+          {
+            areaId: 'hazard-edge-deep-trail',
+            hazard: 'hazard/creature',
+          },
+        ],
+      },
+    },
+  },
+  [FOREST_DEEP]: {
+    seasons: {
+      SEEP: {
+        depthOverlay: [
+          {
+            areaId: 'depth-deep-toward-ore',
+            depth: 'deep',
+          },
+        ],
+        hazardExtend: [
+          {
+            areaId: 'hazard-deep-toward-ore',
+            hazard: 'hazard/creature',
+          },
+        ],
+      },
+      LONG_NIGHT: {
+        hazardExtend: [
+          {
+            areaId: 'hazard-deep-ancient-gate',
+            hazard: 'hazard/phenomenon',
+          },
+        ],
+      },
+    },
+  },
+  [EXPLORER_RUIN]: {
+    seasons: {
+      SEEP: {
+        hazardExtend: [
+          {
+            areaId: 'hazard-ruin-rot',
+            hazard: 'hazard/ecology',
+          },
+        ],
+      },
+    },
+  },
+  [PREDATOR_NEST]: {
+    seasons: {
+      LONG_NIGHT: {
+        depthOverlay: [
+          {
+            areaId: 'depth-nest-den',
+            depth: 'deep',
+          },
+        ],
+        hazardExtend: [
+          {
+            areaId: 'hazard-nest-den',
+            hazard: 'hazard/creature',
+          },
+        ],
       },
     },
   },
   [BIO_ORE_FIELD]: {
-    awake: {
-      depthOverlay: [{ areaId: 'depth-ore-outcrop', depth: 'deep' }],
-      hazardExtend: [{ areaId: 'hazard-ore-outcrop', hazard: 'hazard/creature' }],
+    seasons: {
+      LONG_NIGHT: {
+        hazardExtend: [
+          {
+            areaId: 'hazard-ore-outcrop',
+            hazard: 'hazard/creature',
+          },
+        ],
+      },
     },
-    onTurn: { burySigns: true, migrateSources: ['ORE_OUTCROP'] },
+    awake: {
+      depthOverlay: [
+        {
+          areaId: 'depth-ore-outcrop',
+          depth: 'deep',
+        },
+      ],
+      hazardExtend: [
+        {
+          areaId: 'hazard-ore-outcrop',
+          hazard: 'hazard/creature',
+        },
+      ],
+    },
+    onTurn: {
+      burySigns: true,
+      migrateSources: [
+        'ORE_OUTCROP',
+      ],
+    },
+  },
+  [RED_EYE_TREE]: {
+    seasons: {
+      SEEP: {
+        depthOverlay: [
+          {
+            areaId: 'depth-tree-nodule',
+            depth: 'deep',
+          },
+        ],
+      },
+      LONG_NIGHT: {
+        hazardExtend: [
+          {
+            areaId: 'hazard-tree-nodule',
+            hazard: 'hazard/creature',
+          },
+        ],
+      },
+    },
   },
   [ICE_CANYON]: {
     standing: {
       hazardExtend: [
-        { areaId: 'hazard-ice-cliff-west', hazard: 'hazard/terrain' },
-        { areaId: 'hazard-ice-cliff-east', hazard: 'hazard/terrain' },
+        {
+          areaId: 'hazard-ice-cliff-west',
+          hazard: 'hazard/terrain',
+        },
+        {
+          areaId: 'hazard-ice-cliff-east',
+          hazard: 'hazard/terrain',
+        },
       ],
     },
   },
@@ -247,7 +400,7 @@ const PHASES_BASELINE: Readonly<Record<string, unknown>> = {
       SEEP: {
         outflow: [
           {
-            region: WHITE_KING_DOMAIN,
+            region: 'WHITE_KING_DOMAIN',
             areaId: 'condition-ridge-foot',
             throughConnector: 'ICE_CANYON_PASS',
             carrier: 'wind',
@@ -257,7 +410,7 @@ const PHASES_BASELINE: Readonly<Record<string, unknown>> = {
       LONG_NIGHT: {
         outflow: [
           {
-            region: WHITE_KING_DOMAIN,
+            region: 'WHITE_KING_DOMAIN',
             areaId: 'condition-ridge-foot',
             throughConnector: 'ICE_CANYON_PASS',
             carrier: 'wind',
@@ -270,11 +423,24 @@ const PHASES_BASELINE: Readonly<Record<string, unknown>> = {
         {
           areaId: 'hazard-blizzard',
           hazard: 'hazard/climate',
-          observeRange: { day: 20, night: 10 },
+          observeRange: {
+            day: 20,
+            night: 10,
+          },
         },
-        { areaId: 'hazard-crystal-face', hazard: 'hazard/matter', contact: 'crystallizing' },
-        { areaId: 'hazard-ice-cliff-west', hazard: 'hazard/terrain' },
-        { areaId: 'hazard-ice-cliff-east', hazard: 'hazard/terrain' },
+        {
+          areaId: 'hazard-crystal-face',
+          hazard: 'hazard/matter',
+          contact: 'crystallizing',
+        },
+        {
+          areaId: 'hazard-ice-cliff-west',
+          hazard: 'hazard/terrain',
+        },
+        {
+          areaId: 'hazard-ice-cliff-east',
+          hazard: 'hazard/terrain',
+        },
       ],
     },
   },

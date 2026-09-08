@@ -78,6 +78,10 @@ export const ROLE_PRESENTATIONS: Readonly<Record<string, RolePresentation>> = {
       'frost-vein': 'source:frost-vein',
       'drift-dust': 'source:drift-dust',
       'corpse-rime': 'source:corpse-rime',
+      // 흩어진 것 셋 (RoomBearsMaterial 실주행 판정) — 표에 세 줄이 늘 뿐이다
+      'ore-pebble': 'source:ore-pebble',
+      'husk-shard': 'source:husk-shard',
+      'glow-cap': 'source:glow-cap',
     },
   },
   // 탄생지 (C022) — 원천과 **같은 자리에 서는 다른 것**이다. 표의 어법이 그대로인 것은

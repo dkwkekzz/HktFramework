@@ -40,6 +40,7 @@ import { DESIGNATE_MODIFIER, type Designation } from './pointer-rules';
 import { designationHighlight, targetFrame } from './target-frame-presentation';
 import { trackZones } from './track-presentation';
 import { presenceLineZones, shadedAmbience } from './presence-presentation';
+import { phaseZones } from './phase-presentation';
 
 // 관찰자 쪽 표시 선택 — 충돌체 디버그 관찰을 켤지. World 에 아무것도 요청하지 않는다.
 export interface PresentationOptions {
@@ -236,6 +237,10 @@ export function resolvePresentation(
     // C015 CHANGED — 밤이면 흔적만 또렷해진다 (SPEC-009). 다른 구역은 한 값도 다르지 않다
     zones: [
       ...regionZones(snapshot.region, worldTime, sources, night, lives),
+      // 지금 걸린 위상의 자락 (RoomNeverSame 실주행 판정) — 방의 구역들 **위**, 자국과 경로 선
+      // **아래**다. 자락은 넓은 면이고 자국 · 선은 그 위를 지나는 것이다. 걸린 것이 없으면
+      // 목록이 비고 화면은 지금까지와 한 픽셀도 다르지 않다
+      ...phaseZones(snapshot),
       // 땅에 남은 자국 (C017 R8) — **방의 구역들 위에** 선다. 흔적(흙의 변색)이 방 바닥
       // 바로 위인 것과 갈리는데, 이유는 하나다: 흔적은 넓은 면이고 자국은 한 칸 남짓한
       // 표식이라 그 아래 묻히면 방향도 짙기도 읽히지 않는다. 겹치는 차례는 표현의

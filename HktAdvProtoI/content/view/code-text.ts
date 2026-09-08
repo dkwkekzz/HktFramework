@@ -16,7 +16,10 @@ import {
   FORM_CORPSE_RIME,
   FORM_DRIFT_DUST,
   FORM_FROST_VEIN,
+  FORM_GLOW_CAP,
+  FORM_HUSK_SHARD,
   FORM_MOLT_LITTER,
+  FORM_ORE_PEBBLE,
   FORM_NEST_MYCELIUM,
   FORM_FALLEN_SCALE,
   FORM_OUTCROP,
@@ -60,7 +63,9 @@ const CODE_TEXT: Record<string, string> = {
   // 불가 사유
   'action-busy': '지금 하는 행동이 끝나야 한다',
   'no-target': '대상이 없다',
-  'out-of-bounds': '더 갈 수 없는 곳이다',
+  // 방의 끝이다 (RoomBecomesLand Q6 · 실주행 보고 "왜인지 말하지 않는다") — 막는 것이 무엇인지를
+  // 말한다: 땅이 아니라 **방의 경계**이고, 나가는 길은 출구 표식뿐이다
+  'out-of-bounds': '방의 끝이다 — 더 갈 수 없다. 나가는 길은 출구 표식이다',
   // 행동 코드
   idle: '대기',
   move: '이동',
@@ -105,6 +110,8 @@ const CODE_TEXT: Record<string, string> = {
   // 이 한 줄이 건너기의 거절 사유이자 원천에 걸린 조건이다 — 같은 사실이므로 말도 하나다
   // (흐름의 조건이 '아직 그때가 아니다' 하나로 두 자리에 서는 것과 같은 규율)
   'not-this-season': '이 철이 아니다',
+  // 낮밤을 타는 원천 (RoomBearsMaterial 실주행 판정) — 철의 것과 갈리는 말이다: 기다릴 것이 해다
+  'not-this-hour': '지금은 때가 아니다 — 해가 지거나 뜨면 다시 온다',
   // 아직 짓지 않은 곳(frontier). 세계의 끝이 아니라 "아직" 이다 — 목적지는 여전히 밝히지 않는다
   'region-not-built': '아직 갈 수 없는 곳이다',
   // 불가 사유 — 돌아갈 자리가 없는 방 (C009 RULE-EMERGENCY-RETURN-001 의 ELSE).
@@ -117,6 +124,13 @@ const CODE_TEXT: Record<string, string> = {
   // 둘 다 세계의 대답이며 몸의 자리는 바뀌지 않는다. 왜 막혔는지를 **땅의 성질**로 말한다 —
   // "갈 수 없다" 가 아니라 "가파르다 · 깊다" 여야 다음에 어디로 걸을지가 화면에서 읽힌다.
   'too-steep': '너무 가파르다', // Play §4 막힘이 준 말 그대로
+  // 표식의 줄기가 막는다 (RoomBecomesLand Q7) — 땅의 성질이 아니라 **거기 선 것**이 막는 첫 사유다
+  'landmark-trunk': '줄기가 막는다 — 돌아가자',
+  // 나아가지 못하는 몸이 듣는 말 (RoomBecomesLand Q6 · movement-reading) — 거절이 아니라
+  // **진행이 멎은** 경우다. 막는 몸의 이름 · 발밑의 사유 · 그것도 모르면 막혀 있다는 것까지만
+  'move.blocked-by-body': '{}이(가) 길을 막고 있다 — 비켜 가자',
+  'move.stalled-on': '발밑이 막힌 땅이다 — {}. 옆으로 빠져나가자',
+  'move.stalled': '나아가지 못한다 — 무언가에 막혀 있다',
   'deep-water': '물이 너무 깊다', // 같은 어법 — 땅(물)의 성질 하나로 끝나는 한 줄
   // 무너져 내린 자리 (C012 R3 · R4 — 이동의 거절이자 그 자리의 막는 것).
   // 위의 둘과 같은 어법이되 **땅의 성질이 아니라 겪은 일**이다: 가파른 곳은 언제나
@@ -193,6 +207,11 @@ const CODE_TEXT: Record<string, string> = {
   [FORM_FROST_VEIN]: '절벽을 가르고 나온 푸른 결정면',
   [FORM_DRIFT_DUST]: '눈에 섞여 반짝이는 푸른 가루',
   [FORM_CORPSE_RIME]: '언 사체에 돋은 푸른 결정',
+  // 흩어진 것 셋 (RoomBearsMaterial 실주행 판정) — 방마다 여럿이 서는 작은 것들. 어법은 그대로다:
+  // 지목한 것이 **무엇으로 보이는가**만 적고, 무엇과 같은 재료인지도 언제 나는지도 적지 않는다
+  [FORM_ORE_PEBBLE]: '흙 위에 흩어진 붉은 자갈',
+  [FORM_HUSK_SHARD]: '풀줄기에 걸린 껍질 조각',
+  [FORM_GLOW_CAP]: '어둠에서 희게 빛나는 갓',
   // 재료의 이름 (Material Seed 코드 — C011). 소지품 줄의 이름표가 이 말이다.
   // **무엇에 쓰는지는 여기에도 어디에도 없다**
   [BIO_ORE]: '생체 광석',
@@ -307,10 +326,19 @@ const CODE_TEXT: Record<string, string> = {
   // 위의 둘과 같은 어법이되 **땅의 성질이 아니라 지금의 상태**다: 가파른 곳은 언제나 가파르지만
   // 이 길은 지금 닫혀 있을 뿐이다. "갈 수 없다" 가 아니라 "닫혀 있다" 여야 다시 열릴 수 있다는
   // 것이 문구에서 읽히고, 그것이 이 Play 가 관찰시키려는 것이다.
-  'passage-closed': '길이 닫혀 있다',
+  // 거절에 **무엇을 하면 되는지**를 함께 싣는다 (RuleBoundRoom 실주행 판정 — 힌트가 있어야 플레이가 된다)
+  'passage-closed': '길이 닫혀 있다 — 걸어서 압력을 채우면 길의 배열이 바뀐다',
   // 길이 바뀐 순간 (C008). 무엇이 왜 바뀌었는지는 말하지 않는다 — 압력이 원인이라는 것은
   // HUD 의 압력 줄과 함께 보고 관찰자가 잇는 것이고, 세계가 답을 먼저 주면 이 Play 가 없다
   'maze-rearranged': '길이 바뀌었다',
+  // 어느 길이 닫혔는지까지 (RuleBoundRoom 실주행 판정) — 이름은 region-presentation 의 통로 표가 준다
+  'maze-rearranged.closed': '길이 바뀌었다 — 닫힌 길: {}',
+  // 재배열이 임박했다 — 압력이 임계의 3/4 을 넘겼다
+  'maze-pressure-high': '발밑이 울린다 — 길이 곧 바뀐다',
+  // 때가 바뀌는 순간의 한 마디 (RoomNeverSame 실주행 판정 · phase-presentation)
+  'clock.turned.season': '철이 바뀌었다 — {}',
+  'clock.turned.night': '밤이 왔다 — 먼 것이 지워지고 다른 것이 깨어난다',
+  'clock.turned.day': '날이 밝았다',
   // 안전한 이유 (C006 R4 — settlement/condition 태그). Play §4 이해:
   // "산맥이 막고 · 강이 먹이고 · 거목이 물린다". 셋은 **왜 여기에 사람이 사는가** 의 답이며
   // (Concept W2: 안전한 구역을 칠하는 것이 아니라 안전할 수 있는 조건을 적는다),
@@ -358,6 +386,10 @@ const CODE_TEXT: Record<string, string> = {
   // 이 줄은 내가 서지 않아도 참인 사실이다). 땅을 뚫고 올라온다는 것만으로 그 면이 무엇을
   // 하는 것인지는 아래의 닿음 줄과 함께 관찰자가 잇는다
   'hazard/matter': '결정면이 땅을 뚫고 올라온다',
+  // 갈래 둘이 더 쓰인다 (RoomNeverSame 실주행 판정 — 철을 타는 방이 늘었다). 어법은 위와 같다:
+  // 무엇이 어떻게 되는지 말하지 않고 여기 무엇이 있는가만 말한다
+  'hazard/ecology': '붉은 곰팡이가 번져 있다',
+  'hazard/phenomenon': '문 언저리에서 무언가가 일어난다',
   // 닿아 있다는 사실 (C019 R3 — 위험의 코드와 **같은 자리**에 함께 실리는 접촉 코드).
   //
   // 위의 셋과 다른 물음의 답이다 — 셋이 "이 자리가 무엇인가"(내가 서지 않아도 참)라면

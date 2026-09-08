@@ -8,6 +8,7 @@
 
 import type { RegionSpec } from './spec';
 import { ANCHOR_LAYER } from './spec';
+import { DEPTH_LAYER, HAZARD_LAYER } from './phases';
 import { WHALE_CURVE_TAG } from './presence-routes';
 import {
   GROUND_TREMOR,
@@ -24,14 +25,18 @@ import { FORM_ROOT_CLUTCH, ORE_EATER } from './lives';
 import {
   BIO_ORE,
   FOREST_CHAIN,
+  FORM_GLOW_CAP,
+  FORM_ORE_PEBBLE,
   FORM_ROOT_NODULE,
   GIANT_TREE_FUNGUS,
   PRESENCE_LAYER,
+  RECOVERY_NIGHT_BLOOM,
+  RECOVERY_PEBBLE_WASH,
   RECOVERY_TREE_UPTAKE,
   RESOURCE_LAYER,
   ROOT_CURVE_TAG,
-  TRACE_LAYER,
   soilStainTag,
+  TRACE_LAYER,
 } from './resource-ecology';
 
 export const RED_EYE_TREE = 'RED_EYE_TREE';
@@ -198,6 +203,59 @@ export const RED_EYE_TREE_SPEC: RegionSpec = {
         tag: soilStainTag(4),
         shape: { kind: 'circle', center: { x: 9, z: 1 }, radius: 6 },
       },
+      // ── RoomBearsMaterial 실주행 판정 ADDED — 흩어진 것들 ──────────────────────
+      //
+      // Human 의 답: "재료가 너무 적고 채집하는 재미가 부족하다." 방의 중심이던 원천 곁에
+      // **작은 것 여럿**이 흩어져 선다 — 걸어 다니며 줍는 것이다. 자리는 이미 선 것들(원천 · 출구 ·
+      // 선의 마디 · 막힌 땅)과 겹치지 않는 평지에서 골랐고, 둘레 흔적은 방 바닥보다 한 단계 짙되
+      // 반지름 4 로 작다 (중심 원천의 7 과 갈려 "작은 것" 으로 읽힌다). 규칙은 하나도 늘지 않는다.
+      {
+        id: 'trace-glow-cap-tree',
+        kind: 'area',
+        layer: TRACE_LAYER,
+        tag: soilStainTag(4),
+        shape: { kind: 'circle', center: { x: 8, z: -10 }, radius: 4 },
+      },
+      {
+        id: 'source-glow-cap-tree',
+        kind: 'point',
+        layer: RESOURCE_LAYER,
+        tag: 'GLOW_CAP_TREE',
+        position: { x: 8, z: -10 },
+      },
+      {
+        id: 'trace-ore-pebble-tree',
+        kind: 'area',
+        layer: TRACE_LAYER,
+        tag: soilStainTag(4),
+        shape: { kind: 'circle', center: { x: 12, z: 12 }, radius: 4 },
+      },
+      {
+        id: 'source-ore-pebble-tree',
+        kind: 'point',
+        layer: RESOURCE_LAYER,
+        tag: 'ORE_PEBBLE_TREE',
+        position: { x: 12, z: 12 },
+      },
+      // ── RoomNeverSame 실주행 판정 ADDED — 철이 이 방을 바꾸는 자락 ────────────────
+      //
+      // Human 의 답: "밤낮은 보였는데 다른 변화는 모르겠다 — 확인할 단서 자체가 없다." 철을 타는 방이
+      // 숲 가장자리 하나뿐이었다. 이 자락들은 컴파일 결과를 한 값도 바꾸지 않고(높이 · 표면 · 통행 그대로)
+      // 철이 그 위에 State 를 덧씌울 뿐이다 (C016 의 형 그대로). 어느 철에 무엇으로 읽히는가는 아래 phases 만이 안다.
+      {
+        id: 'depth-tree-nodule',
+        kind: 'area',
+        layer: DEPTH_LAYER,
+        tag: 'ROOT_NODULE',
+        shape: { kind: 'circle', center: { x: -8, z: 2 }, radius: 8 },
+      },
+      {
+        id: 'hazard-tree-nodule',
+        kind: 'area',
+        layer: HAZARD_LAYER,
+        tag: 'ROOT_NODULE',
+        shape: { kind: 'circle', center: { x: -8, z: 2 }, radius: 8 },
+      },
     ],
   },
   // 핵심부의 Risk 둘째 — 같은 Material Seed 가 다른 순도로 난다 (A.1 "같은 것의 세 순도").
@@ -228,6 +286,37 @@ export const RED_EYE_TREE_SPEC: RegionSpec = {
         // **자리를 옮기지 않는다** — siteCurve 를 주지 않으므로 마디는 뿌리혹이 선 자리 하나다
         // (아래 뿌리 곡선은 그 뿌리가 이 방을 지난다는 세계 사실일 뿐이다 · Play §5.3)
         traceOps: ['trace-tree-nodule'],
+      },
+      // ── RoomBearsMaterial 실주행 판정 ADDED — 흩어진 것들 (자리는 위의 point 가 소유한다) ──
+      // 어둠에서 희게 빛나는 갓 — 거목균의 밤 형태. **밤에만 선다** (dayPhases): 낮에는 흙 속으로 오므라들어 거기 없다. 밤이 감추는 것이 아니라 종류를 바꾼다 (RoomNeverSame Q25)
+      {
+        id: 'GLOW_CAP_TREE',
+        materialId: GIANT_TREE_FUNGUS,
+        worldCause: FOREST_CHAIN,
+        form: FORM_GLOW_CAP,
+        carrier: 'fungus',
+        opportunity: 'by-product',
+        supply: 'conditional-renewable',
+        recoveryCause: RECOVERY_NIGHT_BLOOM,
+        harvests: 1,
+        recoverySeconds: 90,
+        traceOps: ['trace-glow-cap-tree'],
+        // 낮밤을 탄다 — 밤에만 선다
+        dayPhases: ['NIGHT'],
+      },
+      // 흙 위에 흩어진 붉은 자갈 — 뿌리가 밀어 올린 조각이 비에 씻겨 드러난다. 한 알이 한 번이고 곧 되돌아온다
+      {
+        id: 'ORE_PEBBLE_TREE',
+        materialId: BIO_ORE,
+        worldCause: FOREST_CHAIN,
+        form: FORM_ORE_PEBBLE,
+        carrier: 'terrain',
+        opportunity: 'baseline',
+        supply: 'baseline-renewable',
+        recoveryCause: RECOVERY_PEBBLE_WASH,
+        harvests: 1,
+        recoverySeconds: 45,
+        traceOps: ['trace-ore-pebble-tree'],
       },
     ],
   },
@@ -306,5 +395,21 @@ export const RED_EYE_TREE_SPEC: RegionSpec = {
         declineCause: POPULATION_DECLINE_CONDITION_LOST,
       },
     ],
+  },
+  /**
+   * 이 방이 철을 타는 방식 (RoomNeverSame 실주행 판정 ADDED).
+   *
+   * 스밈에 뿌리혹 둘레가 한 단계 깊어진다(wild → deep) — 거목이 가장 많이 빨아올리는 철이다.
+   * 긴 밤에는 같은 자락이 위험으로 읽힌다 — 붉은 눈이 뜨는 때다 (2층은 말하는 것까지다).
+   */
+  phases: {
+    seasons: {
+      SEEP: {
+        depthOverlay: [{ areaId: 'depth-tree-nodule', depth: 'deep' }],
+      },
+      LONG_NIGHT: {
+        hazardExtend: [{ areaId: 'hazard-tree-nodule', hazard: 'hazard/creature' }],
+      },
+    },
   },
 };

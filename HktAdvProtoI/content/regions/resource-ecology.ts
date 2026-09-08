@@ -12,6 +12,9 @@
 
 import type { HazardOverlay, SeasonId } from './phases';
 
+/** 낮밤 둘 — 관찰 계약(WorldClockView.dayPhase)과 같은 글자다 (SeasonId 와 같은 이유로 여기 한 벌) */
+export type DayPhaseId = 'DAY' | 'NIGHT';
+
 /**
  * 그 원천을 무엇이 지고 있는가 (A.2 Carrier). 살아 있는 것(CREATURE)은 3층의 몫이다 (확정 2).
  *
@@ -174,6 +177,16 @@ export interface ResourceSourceSpec {
    */
   occurrence?: { seasons: readonly SeasonId[] };
   /**
+   * 그 **낮밤에만** 선다 — 밝히지 않으면 낮에도 밤에도 선다 (RoomBearsMaterial 실주행 판정 ADDED).
+   *
+   * occurrence(철)와 **같은 어법의 다른 축**이다: 저것은 한 바퀴 안의 철을, 이것은 하루 안의
+   * 낮밤을 탄다. 둘을 한 자리에 섞지 않은 이유는 철 조건을 읽는 자리(검사 ㉓ · 관찰 도구)가
+   * 그 형을 그대로 읽기 때문이다 — 낮밤은 그 곁에 서는 새 축이다. 다른 때에는 그 자리에
+   * 원천이 **없다** (바닥난 것도 되돌아오는 중인 것도 아니다 · 조건 코드 not-this-hour).
+   * 밤이 "감추는 것" 이 아니라 "종류를 바꾸는 것" 이 되는 자리다 (RoomNeverSame Q25).
+   */
+  dayPhases?: readonly DayPhaseId[];
+  /**
    * 마디마다의 **깨진 자리 자락** — `traceOps` 와 **같은 순서** (C020 ADDED · spec R4 · SPEC-005).
    *
    * 그 마디가 깨진 마디 목록(collapsedSites)에 들어 있는 동안에만 걸린다 —
@@ -327,6 +340,19 @@ export const FORM_FALLEN_SCALE = 'fallen-scale';
  */
 export const FORM_PREY_REMAINS = 'prey-remains';
 
+// ── RoomBearsMaterial 실주행 판정 ADDED — 형태 셋이 는다 ────────────────
+//
+// Human 의 답: "재료가 너무 적고 채집하는 재미가 부족하다 — 다양하고 더 동적이고 여러 채집물을
+// 보여 주는 기반을." 재료(Seed)를 늘리지 않고 **같은 세 재료의 다른 순도**를 늘린다 (A.1 —
+// 종류를 늘린 것이 아니라 기회를 늘린 것이다). 셋은 방마다 여럿이 흩어져 서는 **작은 것**들이다:
+// 원천 하나가 한 방의 중심이던 것에서, 걸어 다니며 줍는 것이 생긴다.
+/** 뿌리가 밀어 올린 광석 조각 — 흙 위에 흩어진 붉은 자갈. 생체 광석의 가장 옅은 순도 */
+export const FORM_ORE_PEBBLE = 'ore-pebble';
+/** 줄기에 걸린 허물 조각 — 광식충이 풀줄기를 타고 오르며 벗은 것. 허물의 다른 형태 */
+export const FORM_HUSK_SHARD = 'husk-shard';
+/** 밤에만 피는 빛 갓 — 거목균의 밤 형태. 낮에는 흙 속으로 오므라들어 거기 없다 */
+export const FORM_GLOW_CAP = 'glow-cap';
+
 // 빙정석의 자연 형태 넷 (C020 ADDED · spec SPEC-001 · 기본형 ⑦).
 //
 // Design 은 사람이 읽을 이름만 준다 (서리 결정 · 결정면 · 결정 가루 · 언 사체 곁의 결정) —
@@ -357,6 +383,8 @@ export const MATERIAL_SEEDS: readonly MaterialSeed[] = [
       FORM_SILT_BED,
       FORM_RIVER_GRAIN,
       FORM_SEEP_CRUST,
+      // 여섯째 순도 — 흩어진 자갈 (RoomBearsMaterial 실주행 판정)
+      FORM_ORE_PEBBLE,
     ],
   },
   // 광식충 허물 — 생체 광석을 먹는 벌레가 벗은 것. 폐허의 선광 더미에 섞인 것도 이것이다
@@ -366,14 +394,16 @@ export const MATERIAL_SEEDS: readonly MaterialSeed[] = [
   {
     id: ORE_EATER_MOLT,
     worldCause: FOREST_CHAIN,
-    forms: [FORM_MOLT_LITTER, FORM_SPOIL_PILE, FORM_PREY_REMAINS],
+    // 넷째 형태 — 줄기에 걸린 조각 (RoomBearsMaterial 실주행 판정)
+    forms: [FORM_MOLT_LITTER, FORM_SPOIL_PILE, FORM_PREY_REMAINS, FORM_HUSK_SHARD],
   },
   // 거목균 — 포식수의 사체에서만 자라 사체를 삭이고 흙을 붉게 되돌린다 (C014 ADDED · D2).
   // 사슬의 **끝이자 시작**이다: 이것이 멎으면 거목의 축적이 멎고, 그러면 노두도 멎는다
   {
     id: GIANT_TREE_FUNGUS,
     worldCause: FOREST_CHAIN,
-    forms: [FORM_NEST_MYCELIUM],
+    // 둘째 형태 — 밤에만 피는 갓 (RoomBearsMaterial 실주행 판정 · 낮밤을 탄다)
+    forms: [FORM_NEST_MYCELIUM, FORM_GLOW_CAP],
   },
   // 고래 비늘 — 이 숲이 낳지 않는 유일한 재료다 (C018 ADDED · 확정 9).
   // 사슬 밖에서 온다: 하늘을 지나가는 것이 흘리고 간 것이고, 그래서 세계 원인이 다르다.
@@ -422,6 +452,14 @@ export const RECOVERY_LAKE_SETTLING = 'lake-settling';
 export const RECOVERY_WHALE_PASSAGE = 'whale-passage';
 /** 그것이 **다시 지난다** (PREY_REMAINS · C018 ADDED) — 같은 갈래의 원인이다 */
 export const RECOVERY_HUNTER_PASSAGE = 'hunter-passage';
+
+// 흩어진 것 셋의 되돌아옴 원인 (RoomBearsMaterial 실주행 판정 ADDED) — 같은 갈래의 **코드**다.
+/** 뿌리가 다시 밀어 올리고 비가 흙을 씻어 조각이 드러난다 (ORE_PEBBLE_*) */
+export const RECOVERY_PEBBLE_WASH = 'pebble-wash';
+/** 벌레가 줄기를 타고 올라 다시 벗는다 (HUSK_SHARD_*) */
+export const RECOVERY_HUSK_SHED = 'husk-shed';
+/** 다음 밤에 다시 핀다 (GLOW_CAP_*) — 낮에는 흙 속으로 오므라든다 */
+export const RECOVERY_NIGHT_BLOOM = 'night-bloom';
 
 // 협곡의 되돌아옴 원인 넷 (C020 ADDED · A.2 회복 원인 · spec 데이터 값 표).
 //
