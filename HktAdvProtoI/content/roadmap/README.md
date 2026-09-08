@@ -58,7 +58,7 @@ content/  그 위에 놓이는 이 세계          컨텐츠 층  미지를 놓�
 |---|---|---|---|---|---|---|
 | 0 | 게임 방향 | 핵심 경험 한 단락 + Core Breath + 핵심 문장 | `L0-Game.md` 가 원문을 소유한다 | 없음 — 판단 기준일 뿐 | `L0-Game.md` | **확정** |
 | 1 | 세계의 문법 | 무엇이 존재하고 무엇이 변하는가 — 존재·상태·주체·법칙·시간 (주체가 행동을 **고르는** 과정은 3층) | `Design-Concept.md` | 없음 — 코드가 이미 이 문법 위에 있음 | `L1-World-Grammar.md` | **확정** |
-| 2 | 세계 자체 | **도구 절반** — 세계를 쓰는 문법과 컴파일러 (engine) · **세계 절반** — ① 세계관 컨셉 ② 세계 content 구성(Region Graph · Region Rule · Connector · 중첩) ②-부속 재료 생태와 공급 계약(원천 · 흔적 · 생애 · 공급 · 흐름) · ②-부속 둘째 세계의 시간과 위상(낮밤 · 철 · Region 위상 · 소란 · 압도적 존재의 경로) · ②-부속 셋째 생명의 성립과 탄생(생명의 정의 · 네 탄생 방식 · 탄생의 소비와 흔적 · 개체군과 그 사이의 관계 · 스폰이 아닌 회복) · ②-부속 넷째 세계의 요구와 가능성(Lock · 성질 어휘 · 답의 종류 · 흔적 · 충분성) · ②-부속 다섯째 Region Foundation(여덟 자리 · 조건의 한 형 · Mutation op · 기회=Event 데이터 층 · 수명과 History · 최소 완성 기준 25 — **승인 대기**) | 도구: `Design-World-Editor-Terrain-Compiler.md` (WE) · `Plan-World-Authoring-Engine.md` · 도구 2단계(작성기): `L2-World-Tool-Scale.md` · 세계: 주입 원문은 결과물 안에 |안전권을 나서 깊이가 달라지는 것을 본다 — 백왕령(civil) ⇄ 거대 악마의 숲(outer) | `L2-World-Tool.md` · `L2-World-Concept.md` · `L2-World-Region.md` · `L2-World-Material.md` · `L2-World-Time.md` · `L2-World-Life.md` · `L2-World-Access.md` · `L2-World-Foundation.md`(초안) · `play/` 의 Play 아홉 | **다음** — C001~C008 닫힘 |
+| 2 | 세계 자체 | **도구 절반** — 세계를 쓰는 문법과 컴파일러 (engine) · **세계 절반** — ① 세계관 컨셉 ② 세계 content 구성(Region Graph · Region Rule · Connector · 중첩) ②-부속 재료 생태와 공급 계약(원천 · 흔적 · 생애 · 공급 · 흐름) · ②-부속 둘째 세계의 시간과 위상(낮밤 · 철 · Region 위상 · 소란 · 압도적 존재의 경로) · ②-부속 셋째 생명의 성립과 탄생(생명의 정의 · 네 탄생 방식 · 탄생의 소비와 흔적 · 개체군과 그 사이의 관계 · 스폰이 아닌 회복) · ②-부속 넷째 세계의 요구와 가능성(Lock · 성질 어휘 · 답의 종류 · 흔적 · 충분성) · ②-부속 다섯째 Region Foundation(여덟 자리 · 조건의 한 형 · Mutation op · 기회=Event 데이터 층 · 수명과 기억 · 최소 완성 기준 25) | 도구: `Design-World-Editor-Terrain-Compiler.md` (WE) · `Plan-World-Authoring-Engine.md` · 도구 2단계(작성기): `L2-World-Tool-Scale.md` · 세계: 주입 원문은 결과물 안에 |안전권을 나서 깊이가 달라지는 것을 본다 — 백왕령(civil) ⇄ 거대 악마의 숲(outer) | `L2-World-Tool.md` · `L2-World-Concept.md` · `L2-World-Region.md` · `L2-World-Material.md` · `L2-World-Time.md` · `L2-World-Life.md` · `L2-World-Access.md` · `L2-World-Foundation.md` · `play/` 의 Play 아홉 | **다음** — C001~C008 닫힘 |
 | 3 | 주체와 몸 | 요정의 몸은 무엇을 가지는가(깎이고 회복되는 값) · 생물은 무엇을 알고 어떻게 행동하는가 | `Design-Subject-Decision.md` · `Design-Autonomous-Behavior-Knowledge-R0.md` · `Design-Creature-Behavior-R0.md` | 세계가 몸을 깎고, 생물이 그것에 반응하는 것을 본다 | `L3-*.md` · `play/` | 미주입 |
 | 4 | 자원과 물건 | 소지·장비·가공 사슬 · 조합과 쓰임 ("무엇이 어디서 나는가" 는 2층 ②-부속이 닫았다 — 이 층은 그 Material Seed 를 받는다) | `Design-Resource-Catalog-R0.md` · `Design-Item-*.md` · `Design-Inventory-Equipment-D1.md` | 캐서 지니면 갈 수 있는 곳이 늘어난다 | `L4-*.md` · `play/` | 미주입 |
 | 5 | 대결 | 공격·방어·피해 종류·지목 | `Design-Combat-*.md` · `Design-Targeting-R0.md` | 처음으로 맞서 이긴다 | `L5-*.md` · `play/` | 미주입 |
@@ -95,10 +95,10 @@ Lock(자리가 요구하는 세계 조건 · property · time · state · knowle
 더한다. Region 작성기의 아홉째~열두째 답이 여기서 나온다. ② 의 넷째 확장 계약이고, **2층은 요구와 가능성을 세우고 · 실제로 여는 것은
 3 · 4층**이라는 분할선을 긋는다.
 
-2층에 ②-부속이 하나 더 있다 — **Region Foundation**(`L2-World-Foundation.md` · **초안 — Play 와 한 번에 승인 대기**): 앞선 넷이 각각 축 하나를
+2층에 ②-부속이 하나 더 있다 — **Region Foundation**(`L2-World-Foundation.md` · 확정): 앞선 넷이 각각 축 하나를
 더했다면 이것은 축을 더하지 않는다. ② 와 부속 넷이 **어느 자리에 서 있는가**를 여덟 자리(Space · Contents · State · Rules · Processes · Observation ·
 Relations · Persistence)로 이름 짓고, 어느 계약도 소유하지 않던 셋을 더한다 — 조건의 한 형(흩어진 조건 자리 넷이 한 형으로 읽힌다) · 기억(State 필드마다
-수명 · 지워지지 않는 History) · 기회(Opportunity = 데이터 · Event = 시간 있는 기회). 새 플레이가 올 때 기반이 늘지 않게 하는 경계(원문 §14)가 Region
+무엇이 그것을 지우는가 · 지워지지 않는 셈) · 기회(Opportunity = 데이터 · Event = 시간 있는 기회). 새 플레이가 올 때 기반이 늘지 않게 하는 경계(원문 §14)가 Region
 작성기 T4 의 결정 나무가 되고, 최소 완성 기준 25 가 사람이 보는 표가 된다. Region 작성기의 열셋째 답이 여기서 나온다. ② 의 다섯째 확장 계약이다.
 
 ### 2.1 도구 절반 2단계 — Region 작성기 (ENGINE 레인 B · 순서 고정)
@@ -109,15 +109,15 @@ Relations · Persistence)로 이름 짓고, 어느 계약도 소유하지 않던
 | # | 단계 | 완료 조건 | 기다리는 것 | 상태 |
 |---|---|---|---|---|
 | T1 | 검사기 독립 — `world:check` (JSON) | `npm test` 에 붙는다 · 일부러 만든 실패가 잡힌다 | — | 섰다 |
-| T2 | 열두 답의 형 — RegionBrief schema (여덟째 = 무엇이 태어나는가 · 아홉째~열두째 = 무엇을 묻고 무엇이 답하며 다른 답의 여지와 흔적이 있는가 · 열셋째 = 무엇을 할 수 있고 무엇을 기억하는가 — Foundation 승인 뒤) | 지금 방 아홉을 손으로 역기술해 전부 통과 | — | 여덟 답까지 섰다 (아홉째~열두째는 Access 가 더했다) |
+| T2 | 열두 답의 형 — RegionBrief schema (여덟째 = 무엇이 태어나는가 · 아홉째~열두째 = 무엇을 묻고 무엇이 답하며 다른 답의 여지와 흔적이 있는가 · 열셋째 = 무엇을 할 수 있고 무엇을 기억하는가) | 지금 방 아홉을 손으로 역기술해 전부 통과 | — | 여덟 답까지 섰다 (아홉째~열두째는 Access 가 · 열셋째는 Foundation 이 더했다) |
 | T3 | 뼈대 생성기 — `world:author` (결정론) | brief 하나 → 방 하나 T1 통과 · 걸어진다 · **굳힌 파일이 컴파일된다** · 코드 diff 0 | phases 는 이제 붙일 수 있다 (C016 이 섰다) · 생명 ecology 는 C022 뒤 | 절반이 섰다 (space · graph · resourceEcology) |
 | T4 | 등급 판정기 — A / B / C + GAP | 가스 마을 · 유령 도시 · 마법도시가 A · B · C 로 갈린다 | T2 | 섰다 (성질 어휘 대조 · Lock 경고는 Access 뒤) |
 | T5 | 초안기 — `world:draft` (`claude -p --json-schema` · 구독 로그인 · 구조화 출력 · 검사 되먹임) | 미지 한 줄 → 방 하나 사람 손 없이 통과 | T3 · T4 | 섰다 |
 | T6 | 판정 표면 + 대량 — `world:lab` 승인/반려 · `--batch` | Play **HundredRooms** | 철 · 생명 · 접근의 편중은 그 검사가 설 때 (C018 · C022 · C025 · Access) · 템플릿은 Frost 닫힘 | 섰다 |
 
-2층의 Play 는 여덟이고 초안이 둘 더 있다 (`play/README.md` — Foundation 의 `play/RoomRemembersAndOffers.md` · GAP 회수 `play/TrailBehindClueAhead.md`). 그 가운데 `play/RoomAnswersWhenAsked.md` 만은 기획을 덮지 않는다 —
+2층의 Play 는 아홉이고 초안이 하나 더 있다 (`play/README.md` — GAP 회수 `play/TrailBehindClueAhead.md`). 그 가운데 `play/RoomAnswersWhenAsked.md` 만은 기획을 덮지 않는다 —
 앞선 Play 의 실주행에서 돌아온 DESIGN GAP 의 회수이고, 화면(8층)은 여전히 "별도 주입 없음" 이며,
-이 Play 는 이미 선 축들이 **관찰되는지**를 증명한다 (미지를 놓지 않는다). 2층은 기획으로 닫혔다가 Human 이 Region Foundation(②-부속 다섯째)을 주입해 **한 번 더 열렸다** — 승인되면 그것으로 닫는다. 다음 기획 주입은 **3층**이다 (2층 Play 가 실제로 플레이되어 닫힌 뒤). 넷째(`play/RoomBearsMaterial.md`)의
+이 Play 는 이미 선 축들이 **관찰되는지**를 증명한다 (미지를 놓지 않는다). 2층은 기획으로 닫혔다가 Human 이 Region Foundation(②-부속 다섯째)을 주입해 한 번 더 열렸고, 그것이 승인되어 **다시 닫혔다** — 더 쌓을 기획은 없다. 다음 기획 주입은 **3층**이다 (2층 Play 가 실제로 플레이되어 닫힌 뒤). 넷째(`play/RoomBearsMaterial.md`)의
 빈칸 넷(재료의 이름 · 성질 · 시간 규모 · 채취 단위)은 Human 이 위임해 그 Play 가 내렸다 (위임된 결정 D1~D4).
 
 "증명 Play" 열은 방향 제안이다 — 실제 Play 는 그 층을 주입할 때 `play/` 문서로

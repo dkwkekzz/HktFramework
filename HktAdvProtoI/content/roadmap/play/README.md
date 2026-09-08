@@ -1,14 +1,14 @@
-# play/ — 증명 Play 와 일곱 기획의 덮임
+# play/ — 증명 Play 와 여덟 기획의 덮임
 
 이 폴더의 **"방"은 Region 의 최소 표현**이다. Region 은 크기를 갖지 않는 공간이고 크기는 extent 데이터다 — 한 칸의 방도,
 대평원도, 대륙급 오픈월드도 같은 Region 이며 그 사이를 Connector 가 잇는다 (RegionGraphRooms 불변 조건 넷째).
 
 Play 하나는 로드맵의 **행 하나**를 증명한다 ([../README.md](../README.md) §1). 문서를 덮는 것이 아니다.
-그래서 2층의 일곱 기획(도구 · 세계관 컨셉 · 세계 content 구성 · 재료 생태와 공급 계약 · 세계의 시간과 위상 ·
-생명의 성립과 탄생 · 세계의 요구와 가능성)은 Play 하나로 닫히지 않는다 — 2층에서 증명할 수 있는 것은 Play 일곱으로 나뉘고,
+그래서 2층의 여덟 기획(도구 · 세계관 컨셉 · 세계 content 구성 · 재료 생태와 공급 계약 · 세계의 시간과 위상 ·
+생명의 성립과 탄생 · 세계의 요구와 가능성 · Region Foundation)은 Play 하나로 닫히지 않는다 — 2층에서 증명할 수 있는 것은 Play 여덟으로 나뉘고,
 나머지는 그 축이 서는 층에서 증명한다.
 
-## 2층 Play 여덟(기획 증명 일곱 + 관찰 가능성 하나) + 컨텐츠 Play 하나 (순서대로) + 초안 둘(기획 증명 여덟째 · GAP 회수 둘째)
+## 2층 Play 아홉(기획 증명 여덟 + 관찰 가능성 하나) + 컨텐츠 Play 하나 (순서대로) + 초안 하나(GAP 회수 둘째)
 
 | Play | 증명하는 것 | 놓는 미지 | Cycle |
 |---|---|---|---|
@@ -21,7 +21,7 @@ Play 하나는 로드맵의 **행 하나**를 증명한다 ([../README.md](../RE
 | [RoomBearsLife.md](RoomBearsLife.md) | 방이 생명을 낳는다 — 재료에는 주인이 있다. 탄생은 세계의 무언가를 먹고, 흔적을 먼저 남기고, 반복 출현은 스폰이 아니라 조건의 회복이다. 태어난 것은 부르고 먹히고 남겨 숲이 관찰자 없이 한 바퀴 돈다 | M6 붉은 알집 (M1·M3 을 깊게 한다) | C022~C025 |
 | [RoomAnswersWhenAsked.md](RoomAnswersWhenAsked.md) | 물으면 답하는 방 — 지목한 것(존재 · 자리)의 사실이 한 자리에 머문다. 새 축도 새 미지도 아니고 **이미 선 축들의 관찰 가능성** (실주행 DESIGN GAP 회수) | — (미지를 놓지 않는다) | C026~C028 |
 | [RoomAsksForPossibilities.md](RoomAsksForPossibilities.md) | 방이 가능성을 묻는다 — 자리는 아이템이 아니라 세계 조건을 요구하고, 세계 어딘가의 것이 같은 어휘의 성질로 답하며, 하나의 요구에 여러 종류의 답이 올 자리가 열려 있다. 요구는 흔적으로 알아내고, 문은 아직 열리지 않는다 | M7 열을 저장하는 결정의 원천 (자원) | C029~C031 |
-| [RoomRemembersAndOffers.md](RoomRemembersAndOffers.md) *(초안 — 승인 대기)* | 방은 기억하고 때가 되면 내민다 — 방이 자기에게 일어난 일을 세고(History · 수명), 세계의 조건이 한 형으로 적히며 그 형이 기억을 읽고, 방이 내미는 것(기회)이 데이터이고 때가 있는 기회가 Event 다. 첫 Event 는 채집이다 | — (M4 천공고래의 길을 깊게 한다 — Human 질문) | C034~C036 |
+| [RoomRemembersAndOffers.md](RoomRemembersAndOffers.md) | 방은 기억하고 때가 되면 내민다 — 방이 자기에게 일어난 일을 세고(기억 — 뒤척임도 못 묻는 셈), 세계의 조건이 한 형으로 적히며 그 형이 기억을 읽고, 방이 내미는 것(기회)이 데이터이고 때가 있는 기회가 Event 다. 첫 Event 는 채집이다 | — (M4 천공고래의 길을 깊게 한다) | C034~C036 |
 
 **RoomAnswersWhenAsked 는 순서 밖이다** — 앞의 셋(Rooms · Land · Rule)이 실제로 플레이되면서 돌아온 DESIGN GAP 이고,
 기획을 하나도 덮지 않는다(그래서 아래 덮임 지도에 열이 없다). Material·Time·Frost·Life 와 **병행**한다.
@@ -44,9 +44,9 @@ Play 일곱 중 다섯(RegionGraphRooms · RoomBecomesLand · RuleBoundRoom · R
 하나(RoomOfAnotherKind)와 일곱째(RoomAsksForPossibilities)는 **승인됐고**, 여섯째(Life)는 주입된 그대로다.
 여덟째는 [L2-World-Foundation.md](../L2-World-Foundation.md) — 축이 아니라 **무대의 문법**(②-부속 다섯째)이다: 앞선 계약 전부가 서는 여덟 자리를
 이름 짓고, 어느 계약도 소유하지 않던 셋(조건의 한 형 · 기억 · 기회=Event)을 더한다. 그 문서와 Play [RoomRemembersAndOffers.md](RoomRemembersAndOffers.md)
-는 **초안**이고 한 번에 승인한다. [TrailBehindClueAhead.md](TrailBehindClueAhead.md) 는 RoomAnswersWhenAsked 와 같은 종류(GAP 회수)의 초안이다.
+는 한 번에 승인됐다. [TrailBehindClueAhead.md](TrailBehindClueAhead.md) 는 RoomAnswersWhenAsked 와 같은 종류(GAP 회수)의 초안이다.
 
-## 일곱 기획의 덮임 지도
+## 여덟 기획의 덮임 지도
 
 | 기획 | 2층 Play 가 덮는 것 | 2층 밖 — 어느 층 |
 |---|---|---|
@@ -56,8 +56,8 @@ Play 일곱 중 다섯(RegionGraphRooms · RoomBecomesLand · RuleBoundRoom · R
 | **재료 생태와 공급 계약** (L2-World-Material) | S1~S12 전부 → **Material** (원천 · 흔적 · 구배 · 생애 · 공급 · 채취 결과 · 흐름 · 도구 보고 ⑩~㉒) | S10 이 미룬 것 — Recipe · 조합 · Item 효과 · 수치 · Class 요구 → 4층 이후. Carrier 중 살아 있는 CREATURE · 채취가 생물 행동에 미치는 것 → 3층 |
 | **세계의 시간과 위상** (L2-World-Time) | T1~T8 전부 → **Time** (시계 · 네 철 · 위상 덧씌움 · 소란 · 발자국 · 압도적 존재의 경로 · 검사 ㉓~㉖) | 시간이 몸에 하는 일 · 생물의 철 따른 행동 → 3층. 압도적 존재와의 접촉 → 3·5층. 날씨 → 두지 않는다(컨텐츠 행). 걷는 숲의 나무 이동 → 그 Region 의 Play |
 | **생명의 성립과 탄생** (L2-World-Life) | F1~F15 전부 → **Life** (생명의 정의 · 네 탄생 방식 · 탄생의 조건과 소비 · 전후의 흔적 · 개체군 값과 관계 · 멸종 없음 · 스폰이 아닌 회복 · 검사 ㉗~㉝) | 태어난 개체의 몸 · 감각 · 지식 · 행동 · 죽음 · 성장 단계 · 능력치 → 3층. 성별과 구체적 번식 · 유전과 변이 → 3층 이후. 플레이어가 탄생에 개입하는 구체적 Action → 3층 이후 (2층의 개입은 채취뿐). 요정의 원리 결속 → 7층. 최초의 생명 → **확정하지 않는다** (F12) |
-| **Region Foundation** (L2-World-Foundation · 초안) | G1~G13 → **Remembers** (History · 수명 표 · Condition 한 형 · Opportunity=Event 데이터 · Mutation op 표 · 검사 ㊸~㊼ · 기회 표 · T2 열셋째 답 · T4 결정 나무). 여덟 자리 자체는 앞선 Play 여덟이 이미 세웠다 (§3.1 대응표) | Player Knowledge · 발견 상태 다섯 → 3층. Actor · NPC · participants → 3층. 전투 Opportunity · killed → 5층. 제작 · crafted · Recipe → 4층. Character Growth · Yield 의 열 열 → 4 · 7층. 경제 · 세력 · 협동 · 구조 · 미니게임 · 서사 → 뒤 층 · 컨텐츠 행. Object · Structure 의 State → 컨텐츠 행. 확률 → 5층 이후. Region 자체 성장의 첫 사례 → Life 뒤 |
+| **Region Foundation** (L2-World-Foundation) | G1~G13 → **Remembers** (기억 · 무엇이 무엇을 지우는가의 표 · Condition 한 형 · Opportunity=Event 데이터 · Mutation op 표 · 검사 ㊸~㊼ · 기회 표 · T2 열셋째 답 · T4 결정 나무). 여덟 자리 자체는 앞선 Play 여덟이 이미 세웠다 (§3.1 대응표) | Player Knowledge · 발견 상태 다섯 → 3층. Actor · NPC · participants → 3층. 전투 Opportunity · killed → 5층. 제작 · crafted · Recipe → 4층. Character Growth · Yield 의 열 열 → 4 · 7층. 경제 · 세력 · 협동 · 구조 · 미니게임 · 서사 → 뒤 층 · 컨텐츠 행. Object · Structure 의 State → 컨텐츠 행. 확률 → 5층 이후. Region 자체 성장의 첫 사례 → Life 뒤 |
 | **세계의 요구와 가능성** (L2-World-Access) | K1~K15 전부 → **Access** (Lock 넷 · 성질 어휘 · Seed 의 성질 · 하나의 요구에 여러 종류의 답 · 요구를 알아낼 흔적 · 실패가 정보가 되는 관계의 자리 · 충분성과 밀도의 검사 ㉞~㊷ · time · state Lock 의 판정) | property · knowledge Lock 의 실제 판정 · Actor 가능성 · 관찰자가 요구를 어디까지 이해하는가 → 3층. 가능성을 지니는 것(소지 · 장비 · 섭취 · 동행) · 성질의 수치 · 조합과 상쇄 → 4층. 클래스 · 요정 자체가 가능성이 되는 성장 → 7층. 플레이어 사이의 가능성 공유 → 뒤 층 |
 
-일곱 Play 와 Foundation 의 Play 가 닫히면 2층이 닫힌다. 그 뒤 컨텐츠 층의 행(M1 · M2 와 §5.1 의 이름들)은 요구 축이 서는
+여덟 Play 가 닫히면 2층이 닫힌다. 그 뒤 컨텐츠 층의 행(M1 · M2 와 §5.1 의 이름들)은 요구 축이 서는
 대로 각자의 Play 를 받는다.

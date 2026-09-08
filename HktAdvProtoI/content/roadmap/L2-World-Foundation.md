@@ -1,12 +1,12 @@
 # L2 — Region Foundation: 세계 무대의 문법 (기반 층 2 · 세계 절반 ② 부속 다섯째)
 
-상태: **초안 — Human 승인 대기** (§1 은 Human 주입 원문 · §2 이후는 번역. Play [play/RoomRemembersAndOffers.md](play/RoomRemembersAndOffers.md)
-와 한 번에 승인한다 — Time · Access 의 선례). [L2-World-Region.md](L2-World-Region.md) 의 **다섯째 확장 계약**이다 —
+상태: **확정** (Human 승인 1회 — "Human 질문 열 전부 제안대로 승인". §1 은 Human 주입 원문 · §2 이후는 번역. Play [play/RoomRemembersAndOffers.md](play/RoomRemembersAndOffers.md)
+와 한 번에 승인됐다 — Time · Access 의 선례). [L2-World-Region.md](L2-World-Region.md) 의 **다섯째 확장 계약**이다 —
 새로운 설계 층도, 별도 Gameplay 시스템도 만들지 않는다.
 
 앞선 부속 넷은 각각 **축 하나**를 더했다 — 재료 · 시간 · 생명 · 접근. 이 문서는 축을 더하지 않는다. 그 넷과 ② 자체가
 **어느 자리에 서 있는가**를 여덟 자리로 이름 짓고(§3.1), 어느 계약도 소유하지 않던 셋을 더한다 — **조건의 한 형** ·
-**기억(수명과 History)** · **기회(Opportunity = Event)의 데이터 층**. L1 이 세계의 문법(존재 · 상태 · 주체 · 법칙 · 시간)이었듯
+**기억**(방이 자기에게 일어난 일을 센 것 — 무엇이 그것을 지우는가까지) · **기회**(방이 내미는 것 = 데이터 · 때가 있는 기회 = Event). L1 이 세계의 문법(존재 · 상태 · 주체 · 법칙 · 시간)이었듯
 이것은 **무대의 문법**이다 — 2층이 세운 것을 한 표에 놓고, 새 플레이가 올 때 기반이 늘지 않게 하는 경계(§14)를 준다.
 
 ```text
@@ -16,7 +16,7 @@
                       최소 완성 기준 25 의 대조
 이 문서가 바꾼다        Tool-Scale §2 의 등급 판정에 **결정 나무**(§14)가 생긴다 · T2 의 열두 답에 열셋째("무엇을 할 수 있고 무엇을
                       기억하는가")가 는다 · 흩어진 조건 자리 넷(CONNECTOR_ACTIVATIONS · phases.connectorActivation · Lock.requires ·
-                      occurrence.seasons/dayPhases)이 **한 형으로 읽힌다** · "캔 횟수" 가 되돌아오면 0 이 되던 것이 History 로 남는다
+                      occurrence.seasons/dayPhases)이 **한 형으로 읽힌다** · "캔 횟수" 가 되돌아오면 0 으로 지워지던 것이 방의 **기억**으로 남는다
 이 문서가 소유하지 않는다  Player Knowledge 와 발견 상태 다섯(3층) · Actor 의 행동과 NPC(3층) · 전투(5층) · 제작 · 경제 · 세력 · 협동 ·
                       구조 · 미니게임 · 서사(4층 이후 · 컨텐츠 행) · 확률(L1 §3 — 5층 이후의 첫 숙제) · 원문 §2.3 의 Property 이름들
                       (예시 어휘 — 이 세계의 사실이 아니다 · §2 ③)
@@ -1756,11 +1756,11 @@ Region ②(그래프 · 규칙 · 중첩) · Material(원천 · 흔적 · 생애
 
 ---
 
-## 3. 이 계약이 확정한 것 (후보 — 승인 시 확정)
+## 3. 이 계약이 확정한 것
 
 확정 항목은 **G**(Ground — 무대의 바닥). Concept 의 W · Region 의 R · Material 의 S · Time 의 T · Life 의 F · Access 의 K 와 같은 자리의 이름공간이다.
 
-| # | 확정 후보 | 원문 |
+| # | 확정 | 원문 |
 |---|---|---|
 | **G1** | **Region 은 여덟 자리를 가진 Local World Context 다** — Space · Contents · State · Rules · Processes · Observation · Relations · Persistence. 새 정의가 아니라 R2 와 Region §3 열둘의 재배열이고, 앞선 계약 넷(재료 · 시간 · 생명 · 접근)은 전부 이 여덟 자리 안에 있다 (§3.1) | §0 · §1 · §13 |
 | **G2** | **기반은 여덟에서 늘지 않는다.** 새 플레이(낚시 · 사냥 · 보물찾기 · 경주 · 퍼즐 · Boss · 호위 …)는 기존 요소의 조합 = **Opportunity** 다. 무엇이 기반이고 무엇이 조합인지는 §14 의 일곱 질문이 가르고, 그 일곱이 Tool-Scale §2 등급 판정(A · B · C)의 **결정 나무**가 된다 (§5.4) | §1 · §14 |
@@ -1768,8 +1768,8 @@ Region ②(그래프 · 규칙 · 중첩) · Material(원천 · 흔적 · 생애
 | **G4** | **Event = 시간과 진행 상태를 가진 Opportunity.** 별도 Event 시스템은 없다 — Event 는 availability 에 시간 조건이, progress 에 상태가 있는 기회다. 지나가는 것(T7)과 WORLD_EVENT 원천(S3)이 이미 그 첫 사례이고, 이 계약은 그것을 기회 데이터로 적는다 | §10 |
 | **G5** | **Condition 은 하나의 형이다** — Target + Query + Operator + Value + Qualifier(시간 · 변화). 종류를 늘리지 않는다. 지금 흩어진 조건 자리 넷(`CONNECTOR_ACTIVATIONS` · `phases.connectorActivation` · `Lock.requires` · `occurrence.seasons/dayPhases`)은 이 형으로 **읽힌다** — 옮기는가 어댑터인가는 Cycle spec 이 정한다 (Access 빈칸 1 과 같은 자리 · §10 빈칸 2) | §4 |
 | **G6** | **Mutation 은 소수의 World Operation 이다** — 컨텐츠 종류별 Effect 를 만들지 않는다. 2층에서 서는 것: Property SET/ADD/CLAMP · Entity CHANGE_STATE · Relation CONNECT/DISCONNECT · Process START/STOP/ADVANCE/RESET · Opportunity OPEN/CLOSE/COMPLETE · Ownership GRANT(Material). 나머지는 표에 자리만 (§4.2). 기존 Transition 을 옮기지 않는다 — 이름을 붙이고 검사가 대조한다 | §5 |
-| **G7** | **Persistence 는 "무엇이 그것을 지우는가" 다.** 다섯 수명은 저장 기구 다섯이 아니라 지우는 손 다섯이다 — TRANSIENT(과정) · SESSION(관찰자) · TEMPORARY(뒤척임) · WORLD(아무것도 — 스냅샷에 실린다) · PERSISTENT(결정만 — FINITE_WORLD_STATE · 멸종 · 무너진 마디). State 필드마다 수명이 **적혀 있어야** 하고(§4.4) 지우는 손이 없는 값은 검사가 보인다 (㊼) | §2.8 |
-| **G8** | **Region 은 History 를 가진다** — 지워지지 않는 계수와 시각. 되돌아옴이 taken 을 0 으로 되돌려도 누계는 남고, 뒤척임이 자국을 묻어도 시각은 남는다. History 는 Condition 의 **Target** 이다 — 과거의 플레이가 미래의 조건이 된다. 항목은 §10 D4 · 상한 없음 (정수) | §2.8 |
+| **G7** | **남는 것의 종류는 "무엇이 그것을 지우는가" 로 가른다.** 원문의 다섯 수명은 저장 기구 다섯이 아니라 지우는 손 다섯이다 — **스치는 것**(시간이 지운다 · TRANSIENT) · **관찰자만 쥐는 것**(SESSION) · **뒤척임이 묻는 것**(TEMPORARY) · **세계에 남는 것**(아무것도 지우지 않는다 — 스냅샷에 실린다 · WORLD) · **지워지지 않는 것**(그 Region 이 결정으로만 지운다 — FINITE_WORLD_STATE · 멸종 · 무너진 마디 · PERSISTENT). State 필드마다 이 다섯 중 하나가 **적혀 있어야** 하고(§4.4) 지우는 손이 없는 값은 검사가 보인다 (㊼) | §2.8 |
+| **G8** | **방은 기억한다** — 자기에게 일어난 일을 센 것(몇 번 캐였는가 · 마지막 고갈은 언제였는가 · 뒤척임이 몇 번 지났는가 · 고래가 몇 번 지났는가)이 지워지지 않는 계수와 시각으로 남는다. 되돌아옴이 캔 횟수를 0 으로 되돌려도 누계는 남고, **뒤척임**(긴 밤이 걷히며 세계가 다시 짜이는 순간 — 자국과 발자국을 묻는다)이 지나도 셈은 남는다 (Human 확정 — 자국은 뒤척임이 묻는 것, 셈은 지워지지 않는 것). 기억은 Condition 의 **Target** 이다 — 과거의 플레이가 미래의 조건이 된다. 항목은 §10 D4 · 상한 없음 (정수) · 누가 했는지는 세지 않는다 | §2.8 |
 | **G9** | **Relations 는 이미 다섯 갈래로 서 있다** — 공간(Graph · Connector R6) · 환경(Flow S9) · 생태(Population Link `via` F14) · 사건(위상이 방을 넘는다 C021 · Presence 경로 T7) · 사회(없음 — 뒤 층). 새 구조 없음 — 이름을 주고, **Propagate 는 Relation 을 따라 Mutation 이 건너는 것**이다. 검사는 관계를 한 목록으로 보고한다 (㊻ 곁) | §2.7 · §3.4 |
 | **G10** | **Observation 의 2층 몫은 World Truth → Observable Signal 까지다** (T8 · S4 · K10 · R14). Player Observation 은 판(C026~C028)이고, Player Knowledge 와 발견 상태 다섯은 3층이다 | §2.6 |
 | **G11** | **Yield 는 하나의 표다.** 2층에서 실제로 나는 것: Material · Access(활성) · Discovery(기록 — 관찰자가 쥔다) · World Influence(캐면 달라진다 · 소란). 나머지 열(Item · Currency · Knowledge · Recipe · Skill · Capability · Class Progress · Mastery · Relationship · Reputation)은 **열은 있고 값이 0** 인 채로 선다 — ㊴ 의 Actor · Knowledge 열과 같은 약속 | §9 |
@@ -1789,7 +1789,7 @@ Region ②(그래프 · 규칙 · 중첩) · Material(원천 · 흔적 · 생애
 | **Processes** | 환경 · 생태 · 자원 · NPC · 사회 · 위험 · Region 자체 성장 | 시계 · 철(T1~T3) · 되돌아옴(S6 · S7 · 원천마다 길이) · 소란의 가라앉음 · 뒤척임(onTurn) · 경로 시간표(T7) · (Life) 결속 → 전이 · 개체군의 오르내림(F14) | NPC · 사회 → 3층 이후 · **Region 자체 성장** → G12 · 빈칸 3 |
 | **Observation** | World Truth → Signal → Observation → Knowledge · 수단 열 · 발견 상태 다섯 | T8(하늘 · 흙 · 흔적이 시각을 말한다) · S4(흔적이 먼저) · K10(요구를 알아낼 흔적) · R14(규칙의 형) · 판(C026~C028 — 지목 · 대상 프레임 · 기록) · 밤의 범위 · 눈보라 · movement-reading | Player Knowledge · 발견 상태 다섯 → 3층(G10) · 도구 · 아이템 · 요정 능력 → 4 · 6층 · 지도 → 두지 않는다(Concept §19-08 · Trail 초안 Q1) |
 | **Relations** | 공간 · 환경 · 생태 · 사회 · 사건 | Graph · Connector(R6 열 항목) · Flow(S9 — 호수 바닥 → 물길 → 어귀) · Population Link `via`(F14) · 위상이 방을 넘는다(C021) · Presence 경로가 방들을 지난다(T7) | 사회(tradeRoute · territory) → 뒤 층 · 관계를 **한 목록**으로 보는 보고 없음 → 검사 ㊻ 곁 |
-| **Persistence** | 수명 다섯 · History | 스냅샷(`engine/world-kernel/persistence` · `STATE_VERSION` · 파일 store) · 과정이 지우는 것(track 60 초 · 소란 0.5/s) · 뒤척임이 묻는 것(onTurn.burySigns · 덧씌움) · 관찰자가 쥐는 것(기록 · Observe 확정 7 · 12) · FINITE_WORLD_STATE(S7) · 멸종(F15) · collapsedSites | **History 없음** (taken 은 되돌아오면 0 · rearrangedAt 하나뿐) → 이 Play · 수명이 데이터에 적혀 있지 않다 → 이 Play(§4.4) |
+| **Persistence** | 수명 다섯 · History | 스냅샷(`engine/world-kernel/persistence` · `STATE_VERSION` · 파일 store) · 과정이 지우는 것(track 60 초 · 소란 0.5/s) · 뒤척임이 묻는 것(onTurn.burySigns · 덧씌움) · 관찰자가 쥐는 것(기록 · Observe 확정 7 · 12) · FINITE_WORLD_STATE(S7) · 멸종(F15) · collapsedSites | **기억 없음** (캔 횟수는 되돌아오면 0 · 남는 시각은 미로의 rearrangedAt 하나뿐) → 이 Play · 무엇이 무엇을 지우는지가 데이터에 적혀 있지 않다 → 이 Play(§4.4) |
 | **Opportunity** | 17 활동군 · 공통 구조 여덟 · Event | Resource Opportunity(Material §3.3 — 역할 넷) · Interaction(observe · gather · cross · move — `InteractionView` available/reason) · WORLD_EVENT 원천(비늘 · 먹이 잔해) · 판의 「할 수 있는 것」 줄(C027) · Lock(K1 — 요구) | **Opportunity 데이터 없음** — availability · discovery · target · progress · outcomes 를 한 자리에 적는 형 → 이 Play · 17 중 2층 밖은 §7 |
 | **Runtime** | Read → Evaluate → Mutate → Propagate → Persist | L1 tick · `SYSTEMS` 배열 하나가 순서를 고정 · Natural Law · Transition · 스냅샷 | 이름만 받는다 — 시스템이 아니다(§2 ⑧) |
 
@@ -1845,10 +1845,10 @@ Lock.requires (Access §4.3)           time · state 항은 위와 같다 · pro
 
 옮기지 않는다 — 기존 Transition 은 그대로 두고 **이름을 붙인다**. 검사 ㊺ 가 Opportunity.outcomes 의 op 가 이 표 안인지만 본다.
 
-### 4.3 History (G8)
+### 4.3 기억 — history (G8)
 
 ```yaml
-RegionState += history:             # 저장된다 — 스냅샷에 실린다 · 뒤척임이 묻지 않는다(빈칸 · Human 질문) · 상한 없음
+RegionState += history:             # 기억 — 저장된다 · 스냅샷에 실린다 · 뒤척임이 묻지 않는다(Human 확정) · 상한 없음
   sources[id]:  { takenTotal: 정수, depletedTimes: 정수, lastDepletedAt: 세계 초 | null }
   turns:        정수                                     # 뒤척임 횟수
   awakenings:   { times: 정수, lastAt: 세계 초 | null }    # 소란이 임계를 넘은 횟수
@@ -1856,20 +1856,20 @@ RegionState += history:             # 저장된다 — 스냅샷에 실린다 ·
   (Life 뒤) births[formationId]: { times, lastAt }
 ```
 
-History 는 **일어난 일의 계수와 시각**만이다 — 누가 했는가는 없다 (T2.7 "관찰자의 이름은 실리지 않는다" 와 같은 규율). 관찰에 실리는 것은 지목했을 때의
+기억은 **일어난 일의 계수와 시각**만이다 — 누가 했는가는 없다 (T2.7 "관찰자의 이름은 실리지 않는다" 와 같은 규율). 관찰에 실리는 것은 지목했을 때의
 「기억」 줄뿐이다(§6 11).
 
-### 4.4 Persistence — 수명은 필드에 적힌다 (G7)
+### 4.4 남는 것의 종류 — 무엇이 그것을 지우는가 (G7)
 
-수명은 타입이 아니라 **표**다 — State 필드마다 지우는 손 하나. Cycle 이 State 를 더할 때 이 표에 한 줄을 더한다 (spec 의 State 절).
+수명은 타입이 아니라 **표**다 — State 필드마다 "무엇이 그것을 지우는가" 하나. Cycle 이 State 를 더할 때 이 표에 한 줄을 더한다 (spec 의 State 절).
 
-| 수명 | 지우는 손 | 지금 그것인 것 |
+| 남는 것의 종류 | 지우는 손 | 지금 그것인 것 |
 |---|---|---|
-| TRANSIENT | 세계 과정(시간) | track(60 초) · 소란 값(고요에 0.5/s) · 되돌아옴 progress |
-| SESSION | 관찰자 | 기록판 · 온 길(Trail 초안) · 지목 — 세계 State 가 아니다 |
-| TEMPORARY | 뒤척임 · 철 | 자국(burySigns) · 덧씌움(phases) · 옮겨 선 마디(siteIndex) |
-| WORLD | 아무것도 — 스냅샷에 실린다 | 원천 phase · taken · 미로 pattern · 소란 phase · populations |
-| PERSISTENT | 결정만(그 Region 이 명시) | FINITE_WORLD_STATE · 멸종(F15) · collapsedSites · **history** |
+| 스치는 것 (TRANSIENT) | 시간 — 세계 과정이 저절로 지운다 | 발자국(60 초) · 소란 값(고요에 0.5/s) · 되돌아옴 progress |
+| 관찰자만 쥐는 것 (SESSION) | 관찰자 — 세계 State 가 아니다 | 기록판 · 온 길(Trail 초안) · 지목 |
+| 뒤척임이 묻는 것 (TEMPORARY) | 뒤척임 · 철 | 캔 자국(burySigns) · 덧씌움(phases) · 옮겨 선 마디(siteIndex) |
+| 세계에 남는 것 (WORLD) | 아무것도 — 스냅샷에 실린다 | 원천 phase · 캔 횟수 · 미로 pattern · 소란 phase · populations |
+| 지워지지 않는 것 (PERSISTENT) | 그 Region 의 결정만 | FINITE_WORLD_STATE · 멸종(F15) · 무너진 마디 · **기억(history)** |
 
 ### 4.5 Opportunity (G3 · G4)
 
@@ -2049,7 +2049,7 @@ Core Breath 의 어느 전이인가   관찰 → 이해 → **시도** — "무�
 
 ## 10. 위임된 결정과 빈칸
 
-Human 은 "반영 · 연결 · 강화" 로 위임했다. 아래 넷은 이 문서가 내렸고 Human 이 언제든 뒤집는다.
+Human 은 "반영 · 연결 · 강화" 로 위임했고, 아래 다섯을 "제안대로" 로 승인했다. Human 이 언제든 뒤집는다.
 
 ```text
 D1  자리와 글자 — ②-부속 다섯째 · 확정 항목 G · 새 축 없음. "design 은 여기까지" 였던 STATE §1 을 이 주입이 다시 연다 (승인이 그것을 확정한다)
@@ -2057,8 +2057,10 @@ D2  2층에서 서는 부분집합 — Condition 의 Target 여덟 · Query 다�
     나머지는 자리만 — 그 층이 올 때 같은 형에 한 줄씩 는다
 D3  첫 기회는 **이미 있는 사실**이다 — 고래가 지나간 뒤 떨어진 비늘(FALLEN_SCALE · WORLD_EVENT 원천 · RoomNeverSame 확정 9). 새 세계 사실을 짓지 않는다.
     첫 Event 가 채집인 이유: 원문 §10 "Event 시스템은 전투 시스템이 아니다" 를 첫 사례에서 보인다
-D4  History 항목 — 원천별 캔 횟수 누계 · 고갈 횟수 · 마지막 고갈 시각 · 뒤척임 횟수 · 깨어남 횟수와 마지막 시각 · 경로별 지나간 횟수와 마지막 시각
+D4  기억의 항목 — 원천마다 캐인 횟수 누계 · 고갈된 횟수 · 마지막 고갈 시각 · 방마다 뒤척임 횟수 · 깨어난 횟수와 마지막 시각 · 지나간 것마다 횟수와 마지막 시각
     (Life 뒤 탄생 횟수). 원문 §2.8 의 예(lastBossDeath · totalDeaths · previousOwner)는 5층 · 뒤 층 — 자리는 같은 형이다
+D5  뒤척임은 기억을 묻지 않는다 — 자국 · 발자국은 "뒤척임이 묻는 것" 이고 셈은 "지워지지 않는 것" 이다. 세계가 뒤척여도 일어난 일은 일어난 일이다.
+    그래야 "과거의 플레이가 미래의 조건이 된다"(원문 §2.8) 가 성립한다
 ```
 
 남는 빈칸
@@ -2067,8 +2069,8 @@ D4  History 항목 — 원천별 캔 횟수 누계 · 고갈 횟수 · 마지막
 [ ] 1  확률 — 두지 않는다 (L1 §3). 5층 이후가 난수 State 와 함께 들인다. 형의 chance 자리는 그때
 [ ] 2  흩어진 조건 자리 넷을 Condition 형으로 **옮기는가 · 읽기만 하는가** — 첫 Cycle 의 spec (Access 빈칸 1 과 한 번에)
 [ ] 3  Region 자체 성장의 첫 사례 — 둥지 → 군락(Life 의 개체군이 방의 standing 을 바꾼다)이 먼저 올 후보. Life 뒤
-[ ] 4  뒤척임이 History 를 묻는가 — 이 문서는 "묻지 않는다" 로 두었다 (G8 · 그래야 과거가 조건이 된다). Human 질문
-[ ] 5  이 Play 가 놓는 미지 — 없음(M4 를 깊게 한다) 으로 두었다. 이름 있는 새 사실을 Human 이 주면 그것으로
+[x] 4  뒤척임이 기억을 묻는가 — **묻지 않는다** (D5 · Human 확정)
+[x] 5  이 Play 가 놓는 미지 — **없음** (M4 를 깊게 한다 · Human 확정). 이름 있는 새 사실을 Human 이 주면 그때 바꾼다
 [ ] 6  Object(레버 · 장치)와 Structure 의 State 가 처음 오는 자리 — 컨텐츠 행 (그 방의 퍼즐)
 ```
 
@@ -2077,7 +2079,7 @@ D4  History 항목 — 원천별 캔 횟수 누계 · 고갈 횟수 · 마지막
 ## 11. 다음
 
 ```text
-첫 계약    [play/RoomRemembersAndOffers.md](play/RoomRemembersAndOffers.md) — 숲 가장자리에서 기억 · 조건 · 기회를 처음 데이터로 세우는 2층 Play (C034~C036 · 승인 대기)
+첫 계약    [play/RoomRemembersAndOffers.md](play/RoomRemembersAndOffers.md) — 숲 가장자리에서 기억 · 조건 · 기회를 처음 데이터로 세우는 2층 Play (C034~C036 · 승인됨)
 선행       RoomNeverSame(시계 · 경로 · 비늘 · 뒤척임) · RoomBearsMaterial(원천 · taken) · RoomAnswersWhenAsked(판) — 셋은 닫혀 있다
 자리       Life · Access · Trail 과 **병행 가능** — 세계 State 에 history 하나가 늘고 STATE_VERSION 이 오르므로 PR 은 번호 순으로 합친다
 이후       Life 가 서면 births 가 history 에 · Access 가 서면 Lock.requires 가 Condition 형에 · 3층이 오면 target: actor 와 Knowledge 군이 같은 형에 든다.

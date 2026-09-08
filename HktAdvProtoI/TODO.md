@@ -102,9 +102,6 @@ Time
     규칙은 옳지만 지나가는 것이 사건이 아니라 배경이 되고 C017 의 임계 뜻이 흐려진다. 시간표 한 줄(데이터)을 바꿀 것인가   C018
   소란의 임계 300 이 이 세계에서 실제로 닿는 값인가 — 확정 5 의 근거는 세계 전체 채취 합이고 소란은 방마다다
     (한 방의 원천은 하나 · 세 번 캐면 180초 대기). 값을 두는가 낮추는가                                              C017
-  Observable ⑤("지나가기 전에는 그 자리에 없다")와 SPEC-006 경계 ①("지목하면 아직 그때가 아니다") 중 어느 쪽인가 —
-    구현은 뒤쪽(고갈로 서고 조건이 걸린다). play/RoomRemembersAndOffers.md 초안(Human 질문 5)이 "둘 다 — 다른 과거" 로 가른다.
-    승인되면 지운다                                                                                                 C018
 Frost
   문의 **요구**는 표시일 뿐 활성을 판정하지 않는다 — 빙결 심층의 문은 요구를 적어 두고도 긴 밤이면 열린다.
     2층은 표시까지라는 분할선을 그대로 두는가 (실제로 여는 것은 Access 의 Lock)                                  C020
@@ -143,8 +140,7 @@ RegionGraphRooms — 떨어지는 자리를 세계가 알리지 않는다. 추�
 요구를 실제로 **채우는** 것 — 성질 Lock · 어휘 · 검사 ㉞~㊷. 2층은 요구를 표시까지 세웠다        RoomAsksForPossibilities
 재료의 쓰임 — Recipe · 조합 · 효과 · 수치. 아무것도 정하지 않았다                                         4층 이후
 hazard · phenomenon layer 컨텐츠 주입 — 검사 ①④ 가 그때까지 absent 다                                    컨텐츠 층 주입
-World Event Opportunity — play/RoomRemembersAndOffers.md 초안이 받았다(비늘 = 첫 Event 기회 · 승인되면 이 말만 지운다) ·
-  둘째 흐름 · 유한 원천(FINITE_WORLD_STATE)                                                                  다음 Region 의 Play
+둘째 흐름 · 유한 원천(FINITE_WORLD_STATE)                                                                    다음 Region 의 Play
 거꾸로 된 정원의 문 저쪽 anchor 를 'MAZE_HEART_SIDE' 로 두었다 — 정원을 짓는 Play 가 가져간다               정원 Play
 ```
 
