@@ -15,6 +15,8 @@ const CONTRACTS: WorldContracts = {
   transitions: ['path', 'door'],
   carriers: ['ground', 'plant'],
   roles: ['free', 'risky'],
+  propertyAspects: ['a', 'b'],
+  propertyRelations: ['x', 'y'],
   regions: ['HOME'],
   frontiers: ['UNBUILT'],
   rules: ['이미 선 규칙'],

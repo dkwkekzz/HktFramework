@@ -38,6 +38,15 @@ export interface WorldContracts {
   carriers: readonly string[];
   /** 원천이 맡는 자리 */
   roles: readonly string[];
+  /**
+   * 성질의 축 어휘 (C031 ADDED).
+   *
+   * 판정하는 방식은 한 줄도 바뀌지 않는다 — 이 둘은 아직 **등록**될 뿐이다. brief 가 요구와 답을
+   * 성질로 적기 전에는 대조할 입력이 없기 때문이고, 그 자리가 서면 여기가 그 대조의 어휘가 된다.
+   */
+  propertyAspects: readonly string[];
+  /** 성질의 관계 어휘 — propertyAspects 와 같은 까닭으로 아직 대조에 쓰이지 않는다 */
+  propertyRelations: readonly string[];
   /** 이미 지어진 방들 */
   regions: readonly string[];
   /** 아직 짓지 않은 곳 — 이웃으로 가리켜도 된다 */
@@ -46,6 +55,7 @@ export interface WorldContracts {
   rules: readonly string[];
   /** 갈래마다 어디로 돌려보내는가 */
   returnTo: {
+    /** 어휘 밖의 값을 돌려보내는 곳 — 성질의 축·관계(propertyAspects · propertyRelations)도 여기다 */
     vocabulary: string;
     rule: string;
     axis: string;

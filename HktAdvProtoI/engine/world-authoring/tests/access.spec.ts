@@ -103,6 +103,7 @@ function access(): CheckAccess {
         important: true,
         requires: [{ property: 'a:x', kind: 'property' }],
         traces: ['trace-a'],
+        relaxations: [],
       },
       {
         id: 'L2',
@@ -111,6 +112,7 @@ function access(): CheckAccess {
         important: false,
         requires: [{ kind: 'time' }],
         traces: ['zone-a'],
+        relaxations: [],
       },
     ],
     seeds: [
@@ -470,5 +472,79 @@ describe('accessAnswerMap — Lock 마다의 답과 그 원천이 선 방 (C030 
 
   it('두 번 돌리면 글자까지 같다 — 세계를 바꾸지 않는 읽기 전용이다', () => {
     expect(JSON.stringify(mapOf(access()))).toBe(JSON.stringify(mapOf(access())));
+  });
+});
+
+// ── C031 — 답의 종류가 하나 더 생긴다 (CheckAccessLock.relaxations · R3) ───────────
+//
+// 답이 Seed 로만 오지 않는다 — 그 Lock 을 **무르게 하는 것**도 그 종류의 칸에 선다.
+// 여기서도 기반은 게임을 모른다 — 무르게 하는 것의 종류(`life`)도 이름(`soft-a`)도
+// 위의 가짜 세계가 지어 준 것뿐이고, 이 층은 그것이 무엇인지 알지 못한다.
+
+/** L1 이 `life` 종류의 완화 하나를 밝힌 세계 — L2 는 밝히지 않은 그대로다 */
+const withRelaxation = (): CheckAccess =>
+  bend((a) => ({
+    ...a,
+    locks: [{ ...a.locks[0]!, relaxations: [{ kind: 'life', ref: 'soft-a' }] }, a.locks[1]!],
+  }));
+
+describe('완화가 답으로 세어진다 (C031 ADDED)', () => {
+  const mapOf = (over?: CheckAccess) =>
+    accessAnswerMap({ regions: REGIONS, graph: GRAPH, contract: CONTRACT, access: over });
+
+  it('㊴ 완화가 그 종류의 칸에 선다 — Seed 를 세던 그 자리에서 함께 센다', () => {
+    const item = itemOf(withRelaxation(), 'access-answer-kinds');
+    expect(item.status).toBe('report');
+    expect(item.answer).toBe('중요 Lock 1 / 2 · 답의 종류 2 · 답 합 2');
+    expect(item.refs).toEqual([{ where: 'L1', detail: 'thing 1 · life 1' }]);
+  });
+
+  it('㊵ 0 이 아닌 열이 그만큼 는다 — 한 종류뿐인 Lock 이 사라진다', () => {
+    const item = itemOf(withRelaxation(), 'access-answer-variety');
+    expect(item.answer).toBe('중요 Lock 1 · 답이 없는 Lock 0 · 한 종류뿐인 Lock 0');
+    expect(item.refs).toEqual([{ where: 'L1', detail: '종류가 다른 답 2 / 2 (thing · life)' }]);
+  });
+
+  it('표의 그 칸에 선다 — 성질은 빈 글자이고 자리는 그 Lock 을 밝힌 방이다', () => {
+    const rows = mapOf(withRelaxation());
+    expect(rows[0]!.cells[1]!.answers).toEqual([{ id: 'soft-a', property: '', regions: ['A'] }]);
+    // 재료로 온 답은 그대로다 — 완화가 그것을 밀어내지 않는다
+    expect(rows[0]!.cells[0]!.answers).toEqual([{ id: 'S1', property: 'a:y', regions: ['B'] }]);
+  });
+
+  it('밝히지 않은 Lock 은 한 값도 달라지지 않는다 — 나머지 검사도 그대로다', () => {
+    const before = run(access());
+    const after = run(withRelaxation());
+    // 완화를 밝히지 않은 L2 의 행은 글자까지 같다
+    expect(JSON.stringify(mapOf(withRelaxation())[1])).toBe(JSON.stringify(mapOf(access())[1]));
+    // ㊴ ㊵ 말고는 아홉 가운데 어느 것도 달라지지 않는다
+    const others = (report: typeof before) =>
+      report.items.filter(
+        (item) => item.id !== 'access-answer-kinds' && item.id !== 'access-answer-variety',
+      );
+    expect(JSON.stringify(others(after))).toBe(JSON.stringify(others(before)));
+  });
+
+  it('㊴ 의 수와 표의 칸 수가 정의상 같다 — 세는 자리가 하나다', () => {
+    for (const over of [access(), withRelaxation()]) {
+      const cells = mapOf(over)
+        .filter((row) => row.important)
+        .reduce(
+          (sum, row) => sum + row.cells.reduce((n, cell) => n + cell.answers.length, 0),
+          0,
+        );
+      expect(itemOf(over, 'access-answer-kinds').answer).toContain(`답 합 ${cells}`);
+    }
+  });
+
+  it('어휘에 없는 종류로 밝히면 두 곳이 함께 세지 않는다', () => {
+    const over = bend((a) => ({
+      ...a,
+      locks: [{ ...a.locks[0]!, relaxations: [{ kind: 'no-such', ref: 'soft-a' }] }, a.locks[1]!],
+    }));
+    expect(itemOf(over, 'access-answer-kinds').refs).toEqual([
+      { where: 'L1', detail: 'thing 1 · life 0' },
+    ]);
+    expect(mapOf(over)[0]!.cells.map((cell) => cell.answers.length)).toEqual([1, 0]);
   });
 });

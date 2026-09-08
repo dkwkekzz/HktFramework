@@ -1859,6 +1859,16 @@ export interface CheckAccessLock {
   requires: readonly CheckAccessRequirement[];
   /** 이 요구를 알아낼 흔적의 op id 들 */
   traces: readonly string[];
+  /**
+   * 그 Lock 을 무르게 하는 것들 — kind 는 answerKinds 의 하나, ref 는 그것의 이름 (C031 ADDED).
+   *
+   * 답이 Seed 로만 오지 않는다 — 세계가 이미 가진 것도 그 Lock 의 답으로 세어진다. ㊴ ㊵ 와
+   * 열쇠 × 자물쇠 표가 **Seed 를 세던 그 자리에서 같은 규칙으로** 함께 센다 (새 셈법이 없다).
+   * 비어 있으면 이 자리의 답은 C030 까지와 한 값도 다르지 않다.
+   * **무르게 하는 것이 무엇인지 · 무엇을 얼마나 무르게 하는지는 이 층이 알지 못한다** —
+   * 종류의 이름도 그것의 이름도 계약과 컨텐츠가 준다.
+   */
+  relaxations: readonly { kind: string; ref: string }[];
 }
 
 export interface CheckAccessSeedProperty {
@@ -2316,18 +2326,30 @@ function checkAccessOrphan(cx: AccessContext): CheckItem {
   };
 }
 
-/** 그 Lock 의 답이 된 것 하나 — 어느 Seed 가 어느 성질로 답했고 그 원천이 어디 섰는가 */
+/**
+ * 그 Lock 의 답이 된 것 하나 — 어느 종류로 · 무엇이 · 어느 성질로 답했고 그것이 어디 섰는가.
+ *
+ * 답의 갈래가 둘이 되었어도(Seed · 완화) 이 형은 하나다 (C031 CHANGED) — 세는 자리가 하나여야
+ * ㊴ 의 수와 표의 칸 수가 정의상 같다.
+ */
 interface LockAnswer {
-  seed: CheckAccessSeed;
-  /** 그 Seed 가 이 Lock 에 내민 성질 — 처음 걸린 요구의 것이다 */
+  /** 답의 종류 — access.answerKinds 의 하나 */
+  kind: string;
+  /** 그 답의 이름 — Seed 면 그 id, 완화면 무르게 하는 것의 이름(ref) */
+  id: string;
+  /**
+   * 그 답이 이 Lock 에 내민 성질 — Seed 는 처음 걸린 요구의 것이고, **완화는 빈 글자다**.
+   * 완화는 성질로 답하는 것이 아니기 때문이다 — 요구를 채우는 것이 아니라 무르게 할 뿐이다.
+   */
   property: string;
-  /** 그 Seed 를 내는 원천이 선 자리들 — seedSources 차례 그대로 */
-  sources: readonly CheckAccessSeedSource[];
+  /** 그 답이 선 방들 — Seed 면 그 원천이 선 방들, 완화면 그 Lock 을 밝힌 방 하나 */
+  regions: readonly string[];
 }
 
 /**
  * 그 Lock 의 답이 된 것들 — 요구 차례 · seeds 차례이고 한 Seed 는 한 번만 선다.
- * 원천이 선 것만 답이다 (씨만 있고 자리를 얻지 못한 것은 아직 답이 아니다).
+ * 그 뒤에 **그 Lock 을 무르게 하는 것들**이 relaxations 차례로 선다 (C031 CHANGED).
+ * 원천이 선 Seed 만 답이다 (씨만 있고 자리를 얻지 못한 것은 아직 답이 아니다).
  *
  * ㊴ ㊵ 와 열쇠 × 자물쇠 표(R4)가 **이 하나를 부른다** — 답을 고르는 자리가 둘이면
  * 같은 답을 둘로 세고 보고가 갈린다.
@@ -2341,8 +2363,22 @@ function answersOfLock(cx: AccessContext, lock: CheckAccessLock): LockAnswer[] {
       const sources = sourcesOfSeed(cx, seed.id);
       if (sources.length === 0) continue;
       counted.add(seed.id);
-      out.push({ seed, property: answeringProperty(cx, seed, requirement) ?? '', sources });
+      out.push({
+        kind: seed.answerKind,
+        id: seed.id,
+        property: answeringProperty(cx, seed, requirement) ?? '',
+        regions: sourceRegions(sources),
+      });
     }
+  }
+  // 무르게 하는 것도 답이다 — 같은 것을 두 번 밝혀도 한 번만 선다 (Seed 의 규율 그대로).
+  // 그 자리는 **그 Lock 을 밝힌 방**이다 — 무르게 하는 것은 그 방이 이미 가진 것이기 때문이다.
+  const relaxed = new Set<string>();
+  for (const relaxation of lock.relaxations) {
+    const key = `${relaxation.kind}\u0000${relaxation.ref}`;
+    if (relaxed.has(key)) continue;
+    relaxed.add(key);
+    out.push({ kind: relaxation.kind, id: relaxation.ref, property: '', regions: [lock.region] });
   }
   return out;
 }
@@ -2351,7 +2387,7 @@ function answersOfLock(cx: AccessContext, lock: CheckAccessLock): LockAnswer[] {
 function answerKindCounts(cx: AccessContext, lock: CheckAccessLock): number[] {
   const counts = cx.access.answerKinds.map(() => 0);
   for (const answer of answersOfLock(cx, lock)) {
-    const column = cx.access.answerKinds.indexOf(answer.seed.answerKind);
+    const column = cx.access.answerKinds.indexOf(answer.kind);
     if (column >= 0) counts[column] = (counts[column] ?? 0) + 1;
   }
   return counts;
@@ -2538,7 +2574,10 @@ function accessItems(input: CheckRegionsInput): CheckItem[] {
 export interface AccessAnswerCell {
   /** 답의 종류 (CheckAccess.answerKinds 의 하나) */
   kind: string;
-  /** 그 종류로 답이 된 것들 — 지금은 Seed 다 */
+  /**
+   * 그 종류로 답이 된 것들 — Seed 이거나 그 Lock 을 무르게 하는 것이다 (C031 CHANGED).
+   * 완화의 property 는 빈 글자다 — 성질로 답하는 것이 아니기 때문이다.
+   */
   answers: readonly { id: string; property: string; regions: readonly string[] }[];
 }
 
@@ -2582,11 +2621,11 @@ export function accessAnswerMap(input: CheckRegionsInput): AccessAnswerRow[] {
       cells: access.answerKinds.map((kind) => ({
         kind,
         answers: answers
-          .filter((answer) => answer.seed.answerKind === kind)
+          .filter((answer) => answer.kind === kind)
           .map((answer) => ({
-            id: answer.seed.id,
+            id: answer.id,
             property: answer.property,
-            regions: sourceRegions(answer.sources),
+            regions: answer.regions,
           })),
       })),
     };
