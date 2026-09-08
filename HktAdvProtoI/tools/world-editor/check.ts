@@ -39,6 +39,7 @@ import {
   type CheckEcology,
   type CheckEcologySource,
   type CheckLife,
+  type CheckLifeAbsence,
   type CheckLifeFormation,
   type CheckLifePopulation,
   type CheckLifeRecovery,
@@ -328,6 +329,15 @@ export const WORLD_CHECK_LIFE: CheckLife = {
           ]
         : [],
     ),
+  ),
+  // 탄생지가 **하나도 없는 방**이 밝힌 사유 (C024 ADDED · Life F6 · spec SPEC-009).
+  // 방 차례로 편다 (결정론). 밝히지 않은 방은 여기 오지 않고, 그때의 ㉚ 은 C023 까지와
+  // 한 값도 다르지 않다 — **밝히지 않은 것을 결손으로 세지 않는다**.
+  // 판정하지 않는다: 기반은 이 글자를 읽지 않고 보고에 그대로 옮길 뿐이다 (경계 ③)
+  absences: REGION_SPECS.flatMap((spec): CheckLifeAbsence[] =>
+    spec.ecology?.absenceReason
+      ? [{ region: spec.id, reason: spec.ecology.absenceReason }]
+      : [],
   ),
   regionRules: REGION_RULE_IDS,
   // **잔류 원천** — 무언가가 남기고 간 것을 지는 원천들이다 (carrier 가 residue).

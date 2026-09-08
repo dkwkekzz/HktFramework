@@ -4,7 +4,8 @@
 // 새 layer 도 새 Rule 문법도 별도 Life System 도 만들지 않는다 (F13): 방이 규칙을 품고
 // (rule? · C008) 재료를 낳는(resourceEcology? · C011) 그 자리 곁에 하나가 더 서는 것뿐이다.
 //
-// **밝히지 않은 방은 한 값도 달라지지 않는다** — 지금 이것을 밝힌 방은 하나뿐이다 (SPEC-001 경계 ①).
+// **밝히지 않은 방은 한 값도 달라지지 않는다** — 지금 이것을 밝힌 방은 셋이다 (C024 CHANGED):
+// 거목의 방과 포식수 둥지가 탄생지를, 빙결 협곡이 **탄생지가 없는 사유**를 밝힌다 (SPEC-001 경계 ①).
 // rule? · resourceEcology? · phases? 를 밝히지 않은 방이 그 계통 밖인 것과 같은 규율이다.
 //
 // **규칙 코드는 어떤 탄생지도 이름으로 알지 못한다** — 아는 것은 "탄생지를 밝힌 방" ·
@@ -31,8 +32,18 @@ export type LifeSitePhase = 'DORMANT' | 'BINDING' | 'BORN' | 'SPENT';
 /** 숲의 뿌리에 알집이 맺히는 규칙 */
 export const RULE_FOREST_CLUTCH = 'RULE_FOREST_CLUTCH';
 
+/**
+ * 둥지의 사체가 균류로 **바뀌는** 규칙 (C024 ADDED · Play §5.7 · Life F3 변성형).
+ *
+ * 알집의 규칙(RULE_FOREST_CLUTCH)과 **같은 갈래의 코드**다 — 규칙 코드가 늘었다는 뜻이
+ * 아니다: 결속도 계승도 변성도 굴리는 것은 여전히 한 규칙(RULE-LIFE-BINDING-001)이고
+ * (W40 · spec R4), 이 이름은 그 탄생이 **세계에서 무엇이라 불리는가**일 뿐이다.
+ * 검사 ㉗ 이 그 이름이 세계에 실제로 있는지를 잰다.
+ */
+export const RULE_NEST_TRANSFORM = 'RULE_NEST_TRANSFORM';
+
 /** 세계가 아는 Region Rule id 들 — 검사 계약이 이것을 기반에 건넨다 */
-export const REGION_RULE_IDS: readonly string[] = [RULE_FOREST_CLUTCH];
+export const REGION_RULE_IDS: readonly string[] = [RULE_FOREST_CLUTCH, RULE_NEST_TRANSFORM];
 
 // ── 결속이 모자랄 때의 조건 코드 (C022 ADDED · spec R2 경계 ②) ───────
 //
@@ -57,6 +68,23 @@ export const LIFE_HAS_OWNER = 'life-has-owner';
  */
 export const LIFE_NEEDS_PARENT = 'life-needs-parent';
 
+/**
+ * **삭을 것이 없다** (C024 ADDED · Play §5.7) — 둥지의 사체가 available 이 아니다.
+ *
+ * `LIFE_NEEDS_MATERIAL` · `LIFE_NEEDS_DECAY` 와 같은 갈래다 (원천이 있는가) — 갈리는 것은
+ * 무엇이 모자란가의 글자뿐이고, 규칙은 셋을 갈라 보지 않는다.
+ */
+export const LIFE_NEEDS_CARCASS = 'life-needs-carcass';
+
+/**
+ * **이미 충분히 폈다** (C024 ADDED · spec 기본형 ⑥) — 거목균이 상한만큼 서 있다.
+ *
+ * `LIFE_HAS_OWNER` 와 **같은 갈래**의 말이다 (그 개체군이 이 값보다 많다) — 갈리는 것은
+ * 묻는 값뿐이다. 상한에서 태어남이 통째로 일어나지 않는 것(C023 경계)을 요구로도 밝혀
+ * 두면, 관찰자가 "왜 멎었는가" 를 지목 하나로 읽는다. 규칙은 그대로다.
+ */
+export const LIFE_FUNGUS_CROWDED = 'life-fungus-crowded';
+
 /** 걸린 것의 코드 — 땅이 떤다 (위험이 아니라 선 자리의 말이다 · spec 기본형 ⑧) */
 export const GROUND_TREMOR = 'ground-tremor';
 
@@ -71,6 +99,15 @@ export const POPULATION_DECLINE_CONDITION_LOST = 'CONDITION_LOST';
  * 코드일 뿐이고 규칙은 읽지 않는다 (원천의 recoveryCause 와 같은 갈래 · 기본형 ⑦).
  */
 export const LIFE_ROLE_MOLT_SUPPLY = 'molt-supply';
+
+/**
+ * 그 탄생이 생태에서 맡은 자리 — **삭임의 공급**이 된다 (C024 ADDED · Play §5.7).
+ *
+ * `LIFE_ROLE_MOLT_SUPPLY` 와 같은 갈래의 코드다: 태어난 것이 사체를 삭여 균사와 붉게
+ * 되돌아온 흙을 이 사슬에 돌려놓는다 (Concept §4 · D2 거목균 ②).
+ * 규칙은 읽지 않는다 — 밝혀만 두는 자리다 (원천의 recoveryCause 와 같은 어법).
+ */
+export const LIFE_ROLE_DECAY_SUPPLY = 'decay-supply';
 
 // ── 형 ────────────────────────────────────────────────────────────────
 
@@ -237,6 +274,23 @@ export interface PopulationSpec {
    * 임계에서 멈추는 것도 그 규칙이 안다. 밝히지 않으면 탄생이 소란을 올리지 않는다.
    */
   birthDisturbance?: number;
+  /**
+   * **이것들이 차 있어야 산다** (C024 ADDED · spec R3 · SPEC-003 · 확정 6).
+   *
+   * 결속의 요구와 **같은 어휘**를 쓴다 (LifeRequirement) — 새 형을 만들지 않는다: 묻는 것이
+   * "지금 이것이 차 있는가" 로 똑같기 때문이고, 갈리는 것은 **못 찼을 때 무슨 일이
+   * 일어나는가**뿐이다 (탄생지는 결속이 멎고, 개체군은 철이 바뀔 때 값이 준다).
+   *
+   * 판정은 **철 단위**다 — 그 철 동안 한 번이라도 다 차면 그 철에는 내리지 않고, 한 번도
+   * 차지 않은 채 철이 바뀌면 값이 1 준다 (0 미만은 없다). 태어남이 잠깐 먹어 비는 것으로
+   * 줄지 않게 하는 자리가 그 "한 번이라도" 다 (기본형 ②).
+   *
+   * **밝히지 않은 개체군은 내리지 않는다** (spec SPEC-003 경계 ④) — presence? ·
+   * birthDisturbance? 를 밝히지 않은 개체군이 그 계통 밖인 것과 같은 규율이다.
+   * 모자람 코드는 여기서 쓰이지 않지만 요구가 그것을 지고 다닌다 — 어휘를 갈라 두 벌로
+   * 만들지 않기 위해서다.
+   */
+  declineWhen?: readonly LifeRequirement[];
 }
 
 /**
@@ -248,4 +302,16 @@ export interface PopulationSpec {
 export interface RegionEcology {
   lifeFormation?: readonly LifeSiteSpec[];
   populations?: readonly PopulationSpec[];
+  /**
+   * 탄생지가 **하나도 없는 방**이 밝히는 사유 (C024 ADDED · Life F6 · spec SPEC-009).
+   *
+   * 재료의 고립 사유(`resourceEcology.isolationReason`)를 생명에 그대로 옮긴 것이다 —
+   * **없음이 침묵이 아니라 답이 된다**: 협곡에 탄생지가 없는 것은 결손이 아니라 열을 먹는
+   * 결정이 있어 결속에 쓸 열이 남지 않기 때문이고, 그것이 세계에 적혀 있어야 도구가
+   * "여기는 아직 안 만들었다" 와 "여기는 원래 없다" 를 갈라 읽는다.
+   *
+   * **규칙은 이 글자를 읽지 않는다** — 읽는 것은 검사 ㉚ 하나이고 그것도 판정하지 않는다
+   * (사유가 있든 없든 `report` 다 · SPEC-009 경계 ③). 밝히지 않은 방은 지금 그대로다.
+   */
+  absenceReason?: string;
 }

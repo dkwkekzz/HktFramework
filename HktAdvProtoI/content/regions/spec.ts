@@ -79,9 +79,13 @@ export interface RegionSpec {
   /**
    * 그 방이 품은 **생명 계통** — 무엇이 태어나고 무엇이 사는가 (C022 ADDED · Life §3.1 · §3.2).
    *
-   * 없으면 이 계통이 닿지 않는 방이다 — 지금 이것을 밝힌 방은 거목의 방 하나뿐이고, 밝히지
-   * 않은 방은 한 값도 달라지지 않는다 (spec SPEC-001 경계 ①). rule?(C008) · resourceEcology?(C011) ·
-   * phases?(C016) 를 밝히지 않은 방이 그 계통 밖인 것과 같은 규율이다.
+   * 없으면 이 계통이 닿지 않는 방이다 — 밝히지 않은 방은 한 값도 달라지지 않는다
+   * (spec SPEC-001 경계 ①). rule?(C008) · resourceEcology?(C011) · phases?(C016) 를 밝히지
+   * 않은 방이 그 계통 밖인 것과 같은 규율이다.
+   *
+   * C024 CHANGED — **탄생지 없이 사유만 밝히는 방도 있다** (ecology.absenceReason). 그 방은
+   * 여전히 이 계통 밖이고, 다만 왜 밖인지가 세계에 적혀 있다 (Life F6 · 재료의 고립 사유와
+   * 같은 어법).
    *
    * **새 layer 도 새 Rule 문법도 별도 Life System 도 나지 않는다** (F13) — 방이 밝히는 자리가
    * 하나 더 서고, 그 위에서 도는 것은 여느 세계 과정과 같은 하나다 (simulation/life-binding.ts).

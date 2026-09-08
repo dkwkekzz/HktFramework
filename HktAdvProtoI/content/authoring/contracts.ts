@@ -14,7 +14,13 @@
 // 방 하나를 더하는 일이 아니라 층의 일이고, 확정 문서가 먼저 움직여야 한다.
 
 import type { WorldContracts } from '../../engine/world-authoring/grade';
-import { LIFE_FORMATION_MODES, RECOVERY_MOLT_CYCLE, REGION_GRAPH, REGION_SPECS } from '../regions';
+import {
+  LIFE_FORMATION_MODES,
+  RECOVERY_CARCASS_DECAY,
+  RECOVERY_MOLT_CYCLE,
+  REGION_GRAPH,
+  REGION_SPECS,
+} from '../regions';
 
 /** Concept §3.1 — §5 의 일곱 갈래가 그대로 hazard layer 의 태그다 */
 const HAZARD_KINDS = [
@@ -73,11 +79,17 @@ export const LIFE_FORMATION_KINDS: readonly string[] = LIFE_FORMATION_MODES;
  * 그런지는 **이 계약이 고른다** — 기반은 그 어휘를 알지 못하고, 검사 ㉛ 은 여기 든 원인을
  * 밝힌 원천에게만 "무엇이 그것을 잇는가" 를 묻는다.
  *
- * 지금은 하나다 — 탈피 주기(`molt-cycle`). `carcass-decay` 는 아직 들지 않는다: 사체를
- * 남기는 것이 세계에 없어 무엇을 전제하는지 세계가 알지 못하고, **밝히지 않은 것을 결손으로
- * 세지 않는다** (spec 기본형 ⑦ · RegionBrief 의 "미답을 답으로 세지 않는다" 와 같은 규율).
+ * C024 CHANGED — **둘이다.** 탈피 주기(`molt-cycle`) 곁에 사체의 분해(`carcass-decay`)가 선다:
+ * 이 Cycle 이 둥지에 사체와 그것을 삭이는 거목균을 세웠으므로, 그 원인이 무엇을 전제하는지를
+ * 이제 세계가 안다 (C022 가 "사체를 남기는 것이 세계에 없어" 비워 둔 자리다).
+ *
+ * 사체 자신의 원인(`nest-kill`)은 아직 들지 않는다 — 그것을 두고 가는 포식수가 세계에 서지
+ * 않았고, **밝히지 않은 것을 결손으로 세지 않는다** (spec 기본형 ④ · 넣는 것은 C025 다).
  */
-export const LIFE_BOUND_RECOVERY_CAUSES: readonly string[] = [RECOVERY_MOLT_CYCLE];
+export const LIFE_BOUND_RECOVERY_CAUSES: readonly string[] = [
+  RECOVERY_MOLT_CYCLE,
+  RECOVERY_CARCASS_DECAY,
+];
 
 export const WORLD_CONTRACTS: WorldContracts = {
   hazardKinds: HAZARD_KINDS,

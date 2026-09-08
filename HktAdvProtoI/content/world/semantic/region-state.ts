@@ -149,11 +149,23 @@ export interface LifeSiteState {
  *
  * C023 CHANGED — **태어남이 이 값을 1 올린다** (RULE-LIFE-BIRTH-001 ④). 상한에서 멈추고,
  * 상한에 닿으면 태어남 자체가 일어나지 않는다 (반만 일어나는 자리를 만들지 않는다).
- * 값을 내리는 것은 아직 세계에 없다 (C024).
+ *
+ * C024 CHANGED — **값이 내린다** (RULE-POPULATION-DECLINE-001). 그래서 값 곁에 하나가 더
+ * 선다: 이 철에 요구가 한 번이라도 다 찼는가. 상한도 내리는 원인도 여전히 여기 없다.
  */
 export interface PopulationState {
   /** 0 과 그 개체군의 상한 사이 */
   value: number;
+  /**
+   * 이 철에 요구(declineWhen)가 **한 번이라도** 다 찼는가 (C024 ADDED · spec State · R3).
+   *
+   * **저장된다.** 철이 바뀌는 순간에만 읽히지만 그 순간까지 한 철 내내 쌓인 답이라,
+   * 껐다 켠 세계가 이것을 잃으면 못 찬 것으로 읽혀 값이 억울하게 내린다.
+   *
+   * 철이 바뀔 때마다 **거짓으로 되돌아간다** — 그 철의 답이지 세계의 답이 아니다.
+   * 요구를 밝히지 않은 개체군에서는 아무도 이 값을 건드리지 않는다 (경계 ④).
+   */
+  metThisSeason: boolean;
 }
 
 /**
@@ -360,7 +372,12 @@ export function createRegionStates(): Record<string, RegionState> {
     const populations = spec.ecology?.populations ?? [];
     if (populations.length > 0) {
       const populationStates: Record<string, PopulationState> = {};
-      for (const population of populations) populationStates[population.id] = { value: 0 };
+      // C024 CHANGED — 이 철에 요구가 찼는지도 함께 든다. 아직 아무 일도 겪지 않은 세계는
+      // **거짓**에서 선다 — 없는 것을 찬 것으로 읽지 않는다 (원천이 available 로 서는 것과
+      // 반대쪽이지만 같은 규율이다: 그 철이 시작된 뒤 실제로 차야 참이 된다).
+      for (const population of populations) {
+        populationStates[population.id] = { value: 0, metThisSeason: false };
+      }
       state.populations = populationStates;
     }
 

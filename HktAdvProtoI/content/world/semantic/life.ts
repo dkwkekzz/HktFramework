@@ -297,6 +297,27 @@ export function leavingLifeSiteOf(sourceId: string): LifeSite | undefined {
   return undefined;
 }
 
+/**
+ * RULE-POPULATION-DECLINE-001 (C024 ADDED · spec R3 · SPEC-003) —
+ * 그 개체군이 밝힌 요구(declineWhen)가 **지금 다 차 있는가**.
+ *
+ * 결속의 요구를 판정하는 그 한 자리를 그대로 부른다 (isRequirementMet) — 어휘가 같으므로
+ * 판정도 하나여야 한다: 두 벌로 만들면 "차 있다" 가 탄생지와 개체군에서 갈리는 날이 온다.
+ *
+ * 요구를 밝히지 않은 개체군은 **언제나 참**이다 (빈 목록의 every 다) — 그런 개체군을
+ * 이 규칙이 아예 건드리지 않는 것은 부르는 쪽이 안다 (spec SPEC-003 경계 ④).
+ * 세계가 모르는 원천 · 개체군을 가리킨 요구는 차지 않은 것으로 읽힌다 (C022 의 경계 ② 그대로).
+ */
+export function populationRequirementsMet(
+  states: Record<string, RegionState>,
+  population: Population,
+  time: number,
+): boolean {
+  return (population.declineWhen ?? []).every((requirement) =>
+    isRequirementMet(states, requirement, time),
+  );
+}
+
 /** 그 방의 개체군들 — 데이터 순서 그대로 (결정론). 밝히지 않은 방은 빈 배열이다 */
 export function populationsInRegion(regionId: string): readonly Population[] {
   const spec = regionSpec(regionId);

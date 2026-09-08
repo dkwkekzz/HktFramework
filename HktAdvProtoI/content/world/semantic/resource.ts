@@ -51,7 +51,7 @@ import {
   type SeasonId,
   type SupplyMode,
 } from '../../regions';
-import { leavingLifeSiteOf, lifeTraceOverlayIn } from './life';
+import { leavingLifeSiteOf, lifeTraceOverlayIn, populationValueOf } from './life';
 import type { WorldPosition } from './position';
 import { isPassingRegion, leavingRouteOf, type PresencePassState } from './presence';
 import { NOT_THIS_HOUR, NOT_THIS_SEASON, isDayPhaseListed, isSeasonListed } from './region-phase';
@@ -128,6 +128,25 @@ export interface ResourceSource {
    * occurrence · recoverySpeed 를 밝히지 않은 원천이 그 계통 밖인 것과 같은 규율이다.
    */
   regrownCode?: string;
+  /**
+   * 그 되돌아옴이 **전제하는 개체군** (C024 ADDED · spec R1 · SPEC-001) — 데이터의 recoveryLife 그대로다.
+   *
+   * C022 가 **참조만** 세워 둔 자리다. 아래 `recoveryByLife` 와 **짝으로만** 뜻을 가진다:
+   * 하나만 밝힌 원천은 한 값도 달라지지 않는다 (없는 것을 지어내지 않는다).
+   */
+  recoveryLife?: string;
+  /**
+   * 그 개체군의 **값마다의 되돌아옴 배속** (C024 ADDED) — 데이터의 recoveryByLife 그대로다.
+   *
+   * 되돌아옴의 세계 과정(RULE-RECOVERY-SPEED-001)과 조건 코드(RULE-SOURCE-CONDITION-001)가
+   * **같은 하나**를 읽는다 (recoveryLifeSpeed). 밝히지 않은 원천은 어느 값에도 배속 1 이다.
+   */
+  recoveryByLife?: readonly number[];
+  /**
+   * 그 배속이 0 이라 **멎어 있는 동안** 지는 조건 코드 (C024 ADDED) — 데이터의 noOwnerCode 그대로다.
+   * 밝히지 않은 원천은 멎어도 걸리는 것이 한 글자도 늘지 않는다.
+   */
+  noOwnerCode?: string;
 }
 
 // 방 하나당 엮기 한 번. 원천이 없는 방(백왕령)도 빈 배열로 담는다 — 그것도 답이다.
@@ -198,6 +217,12 @@ export function sourcesInRegion(regionId: string): readonly ResourceSource[] {
       // C021 ADDED — 다시 자란 자리의 조건 코드. 밝히지 않은 원천은 자리 자체가 없다
       // (빈 글자로 지어내지 않는다 · depletedHazards 의 선례 그대로).
       ...(source.regrownCode === undefined ? {} : { regrownCode: source.regrownCode }),
+      // C024 ADDED — 되돌아옴이 매인 개체군과 그 값마다의 배속, 그리고 멎었을 때의 코드.
+      // 셋 다 밝히지 않은 원천은 자리 자체가 없다 (recoverySpeed 의 선례 그대로 —
+      // 빈 목록이나 배속 1 로 지어내지 않는다).
+      ...(source.recoveryLife === undefined ? {} : { recoveryLife: source.recoveryLife }),
+      ...(source.recoveryByLife === undefined ? {} : { recoveryByLife: source.recoveryByLife }),
+      ...(source.noOwnerCode === undefined ? {} : { noOwnerCode: source.noOwnerCode }),
     });
   }
 
@@ -537,6 +562,38 @@ export function inflowOf(sourceId: string): ResourceFlowSpec | undefined {
 }
 
 /**
+ * RULE-RECOVERY-SPEED-001 (C024 ADDED · spec R1 · SPEC-001) —
+ * 그 원천의 되돌아옴에 **살아 있는 것이 곱하는 배속**.
+ *
+ * 값마다의 배속과 그 개체군을 **둘 다** 밝힌 원천만 1 이 아닌 답을 낸다 — 하나만 밝힌
+ * 원천도, 아무것도 밝히지 않은 원천도 1 이다 (spec SPEC-001 경계 ④: 밝히지 않은 원천은
+ * 한 값도 달라지지 않는다). 철의 배속(recoverySpeed)이 그런 그대로다.
+ *
+ *   값이 목록보다 크면 **목록의 마지막**이 답이다 (SPEC-001 ③)
+ *   세계가 모르는 개체군은 값이 0 으로 읽혀 **첫 자리**가 답이다 (경계 ⑤ — 끊긴 참조는
+ *   아무 일도 하지 않고, 데이터가 첫 자리를 0 으로 두었으면 거기서 멎는다)
+ *
+ * **이 답을 읽는 자리는 둘이고 그 둘이 같은 하나를 본다** — 진행을 싣는 세계 과정
+ * (simulation/source-recovery.ts)과 멎음의 코드를 거는 조건(아래 sourceConditions)이다.
+ * 그래서 관찰에 실리는 "벗을 것이 없다" 와 실제로 멎는 것이 **같은 판정**이다
+ * (C013 이 `recovery-stalled` 에 세운 그 규율 그대로 · spec R2 — 표시가 아니라 원인이다).
+ *
+ * **규칙은 어떤 생명도 이름으로 알지 못한다** (Life F13 · R13) — 아는 것은 "값마다의 배속을
+ * 밝힌 원천" 이라는 형과 그 개체군의 수 하나뿐이고, 그것이 광식충인지 거목균인지 · 어느
+ * 값에서 얼마나 빨라지는지는 전부 데이터(content/regions)에 있다.
+ */
+export function recoveryLifeSpeed(
+  states: Record<string, RegionState>,
+  source: ResourceSource,
+): number {
+  const speeds = source.recoveryByLife;
+  const populationId = source.recoveryLife;
+  if (!speeds || speeds.length === 0 || populationId === undefined) return 1;
+  const value = Math.max(0, Math.floor(populationValueOf(states, populationId)));
+  return speeds[Math.min(value, speeds.length - 1)] ?? 1;
+}
+
+/**
  * RULE-SOURCE-CONDITION-001 · RULE-SOURCE-REGROWN-001
  * (C013 CHANGED · C021 CHANGED) — 그 원천에 **지금 걸린 조건 코드들**.
  *
@@ -578,9 +635,16 @@ export function inflowOf(sourceId: string): ResourceFlowSpec | undefined {
  *
  * C021 CHANGED (RULE-SOURCE-REGROWN-001 · spec R3) — **자리도 조건이다.** 마디를 여럿 가진
  * 원천이 처음 마디가 아닌 자리에 서 있는 동안 그 원천이 밝힌 코드가 하나 실린다. 앞의
- * 넷과 갈리는 갈래다 — 저것들은 "지금 없다" 의 사유이고 이것은 **거기 있는 것에 대한 말**
+ * 것들과 갈리는 갈래다 — 저것들은 "지금 없다" 의 사유이고 이것은 **거기 있는 것에 대한 말**
  * 이라, 여기 실렸어도 되돌아옴의 진행을 멎게 하지 않는다 (표시와 원인이 같은 판정이라는
  * C013 의 규율에서 처음 갈라지는 자리이고, 그래서 아래에서 **맨 나중**에 붙는다).
+ *
+ * C024 CHANGED (spec R2 · SPEC-002) — **살아 있는 것도 조건이다.** 값마다의 되돌아옴 배속을
+ * 밝힌 원천이 아직 거기 없고 그 배속이 지금 0 이면, 그 원천이 밝힌 멎음 코드가 실린다
+ * (`no-molter` · `no-decomposer`). ① 의 매달림과 갈리는 말이다 — 저것은 "아래가 끊겼다" 이고
+ * 이것은 "벗을 것이 없다" 다. 이 코드도 **원인**이지만 되돌아옴의 세계 과정이 그것을 읽지는
+ * 않는다: 진행에 곱해지는 배속이 0 이라 저절로 멎기 때문이다 (recoveryLifeSpeed) — 판정이
+ * 하나이므로 표시와 원인이 갈릴 자리가 없고, 규칙이 데이터의 글자를 알 자리도 생기지 않는다.
  */
 export function sourceConditions(
   states: Record<string, RegionState>,
@@ -654,9 +718,30 @@ export function sourceConditions(
     codes.push(CONDITION_UNMET);
   }
 
-  // ⑤ 다시 자란 자리 (C021 ADDED · RULE-SOURCE-REGROWN-001 · spec R3 · SPEC-005) —
+  // ⑤ 살아 있는 것이 없다 (C024 ADDED · spec R2 · SPEC-002) — 값마다의 배속을 밝힌 원천이
+  // 아직 거기 없고 그 배속이 지금 0 이면, 그 원천이 밝힌 **멎음 코드**가 실린다.
+  //
+  // ① 의 매달림과 갈리는 말이다: 저것은 "아래가 끊겼다" 이고 이것은 **"벗을 것이 없다"** 다.
+  // 그래서 밑동의 허물이 돌아오지 않을 때 관찰자가 사슬이 아니라 **개체군**을 의심한다.
+  //
+  // **아직 없는 원천에만 묻는 것은 ② ③ ④ 그대로다** (SPEC-002 경계 ③) — 거기 서 있는 것을
+  // 두고 "벗을 것이 없다" 고 말할 것이 없다. 밝히지 않은 원천에는 한 글자도 늘지 않는다 (경계 ④).
+  //
+  // **되돌아옴의 세계 과정은 이 코드를 읽지 않는다** — 읽을 필요가 없다: 진행에 곱해지는
+  // 배속이 0 이므로 저절로 멎는다 (recoveryLifeSpeed). 판정이 하나이므로 표시와 원인이
+  // 갈릴 자리가 없고, 규칙이 데이터의 글자를 알아야 할 자리도 생기지 않는다 (R13).
+  const noOwner = source.noOwnerCode;
+  if (
+    noOwner !== undefined &&
+    sourceStateOf(states, source.regionId, source.id).phase !== 'available' &&
+    recoveryLifeSpeed(states, source) === 0
+  ) {
+    codes.push(noOwner);
+  }
+
+  // ⑥ 다시 자란 자리 (C021 ADDED · RULE-SOURCE-REGROWN-001 · spec R3 · SPEC-005) —
   // 마디를 여럿 가진 원천이 **처음 마디가 아닌 자리에 서 있는 동안** 그 원천이 밝힌 코드가
-  // 실린다. 앞의 넷과 갈리는 자리가 여기다: 저것들은 "지금 없다" 의 사유이고 이것은
+  // 실린다. 앞의 것들과 갈리는 자리가 여기다: 저것들은 "지금 없다" 의 사유이고 이것은
   // **거기 있는 것에 대한 말**이다 — 그래서 되돌아옴의 진행을 한 톨도 멎게 하지 않는다
   // (simulation/source-recovery.ts 는 앞의 코드들만 읽는다). 캘 수 있는가도 달라지지 않는다.
   //

@@ -28,6 +28,7 @@ import {
   FORM_PREY_REMAINS,
   FORM_SEEP_CRUST,
   GIANT_TREE_FUNGUS,
+  NO_MOLTER,
   ORE_EATER_MOLT,
   PRESENCE_LAYER,
   RECOVERY_HUNTER_PASSAGE,
@@ -411,8 +412,16 @@ export const FOREST_EDGE_SPEC: RegionSpec = {
         recoveryCause: RECOVERY_MOLT_CYCLE,
         // C022 ADDED — **무엇이 벗는가**가 이름으로 선다 (Play §5.4 · 검사 ㉛).
         // 그 원인은 살아 있는 것을 전제한다: 허물이 다시 쌓이려면 광식충이 있어야 한다.
-        // 지금 서는 것은 **참조뿐이고**, 그 값이 되돌아옴을 실제로 좌우하는 것은 C024 다.
+        // C024 CHANGED — **그 값이 이제 일을 한다** (참조만 서 있던 자리다).
         recoveryLife: ORE_EATER,
+        // 값마다의 되돌아옴 배속 (spec 데이터 값 표 · 확정 6) — 값 0 · 1 · 2 · 3 · 4 순.
+        // 0 에서 **정지**하고(벗을 것이 없으면 허물이 쌓이지 않는다) 상한 4 에서 두 배다.
+        // 사이는 고르게 폈다 — 확정 6 은 두 끝만 말하고, 곡선을 데이터에 두면 폴리싱이
+        // 코드 변경 없이 된다 (spec 기본형 ③)
+        recoveryByLife: [0, 0.5, 1, 1.5, 2],
+        // 배속이 0 이라 멎어 있는 동안 지는 코드 — "벗을 것이 없다".
+        // 바닥남 · 되돌아오는 중과 갈리는 여섯째 말이다 (spec Observable ①)
+        noOwnerCode: NO_MOLTER,
         // 넉넉하다 — 가장 얕은 자리의 Baseline (D4). 다녀와도 남이 캘 몫이 있다
         harvests: 3,
         // 가장 얕은 자리 — 가장 빨리 되돌아온다 (C013 ADDED · D3)

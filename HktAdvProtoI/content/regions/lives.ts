@@ -84,9 +84,37 @@ export const FORM_ROOT_EGGS = 'root-eggs';
  */
 export const PRESENCE_ORE_EATER_SWARM = 'ore-eater-swarm';
 
+// ── C024 ADDED — 둘째 생명 (Play §5.7 · Concept §4 의 사슬) ──────────────
+//
+// **새 이름을 지어내지 않았다** — 이 세계는 이미 거목균(GIANT_TREE_FUNGUS)이라는 재료를
+// 내고 있었고(C014), 그것을 내는 것이 무엇인가의 답이 이것이다. 광식충이 허물의 주인이었던
+// 그 자리와 같은 어법이다: 재료가 먼저 서고 주인이 뒤에 온다.
+
 /**
- * 이 세계가 아는 생명들 — 지금은 하나다.
+ * 거목균 — 사체를 삭여 흙을 붉게 되돌리는 균류 (Concept §4 · Play §5.7 · Life F3 변성형).
  *
- * 숲의 사슬 안에서 산다 (FOREST_CHAIN) — 거목이 빨아올린 것을 먹고 허물을 남기는 그 자리다.
+ * 이것이 **개체군으로 서는** 이유는 하나다 — 변성형 탄생(사체 → 균류)이 값을 올릴 곳을
+ * 가져야 성립하고, 둥지의 균사가 다시 피는 것도 그 값에 매이기 때문이다 (검사 ㉛ 의 둘째 대상).
+ * 광식충과 갈리는 것은 **돌지 않는다**는 것이다: 떼의 자락도 소란도 밝히지 않는다.
  */
-export const LIFE_SEEDS: readonly LifeSeed[] = [{ id: ORE_EATER, worldCause: FOREST_CHAIN }];
+export const TREE_FUNGUS = 'TREE_FUNGUS';
+
+/**
+ * 사체에서 피어난 것의 자연 형태 코드 (C024 ADDED · Play §5.7 · spec 데이터 값 표).
+ *
+ * 알집(FORM_ROOT_CLUTCH) · 알(FORM_ROOT_EGGS)과 **같은 갈래**다 — 탄생지의 자리에 난 것이
+ * 눈에 무엇으로 보이는가이고, 규칙은 셋을 갈라 보지 않는다 (W40 — mode 는 데이터의 글자다).
+ * 갈리는 자리는 이 코드와 그것을 읽는 View 의 표뿐이다.
+ */
+export const FORM_CARCASS_BLOOM = 'carcass-bloom';
+
+/**
+ * 이 세계가 아는 생명들 — C024 CHANGED: 둘이다.
+ *
+ * 둘 다 숲의 사슬 안에서 산다 (FOREST_CHAIN) — 거목이 빨아올린 것을 먹고 허물을 남기는
+ * 자리와, 그 거목이 빨아올릴 것을 사체에서 되돌리는 자리다 (Concept §4 · D2 거목균 ②).
+ */
+export const LIFE_SEEDS: readonly LifeSeed[] = [
+  { id: ORE_EATER, worldCause: FOREST_CHAIN },
+  { id: TREE_FUNGUS, worldCause: FOREST_CHAIN },
+];
