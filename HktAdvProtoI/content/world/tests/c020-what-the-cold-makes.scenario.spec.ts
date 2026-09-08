@@ -471,17 +471,28 @@ const BASELINE: Readonly<Record<string, RoomBaseline>> = {
   },
   [PREDATOR_NEST]: {
     depth: 'wild',
-    hash: '7e437aff',
+    hash: '010d1f16',
     exits: ['NEST_TRAIL'],
+    // C024 CHANGED — 둘이 늘었다: 둥지의 사체(원천)와 그 위의 변성지(탄생지).
     entities: [
       'player-1/player-character',
       'NEST_FUNGUS/resource-source',
       'HUSK_SHARD_NEST/resource-source',
+      'NEST_CARCASS/resource-source',
+      'CARCASS_TO_FUNGUS/life-site',
       'NEST_TRAIL/region-exit',
     ],
     surface: { flat: 1681 },
     traversable: 1681,
     floorTrace: 2,
+    // C024 CHANGED — 이 방에 자락 넷이 늘었다 (사체 · 삭는 모양 · 냄새 · 붉게 되돌아온 흙).
+    // **어휘도 사다리도 그대로다** — `soil-stain:N` 이 그대로 N 으로 읽히고, 늘어난 넷도
+    // 그 사다리의 눈금(3 · 4 · 3 · 5)일 뿐이다. 이 항이 재는 것(숲과 협곡의 두 어휘가
+    // 섞이지 않는가)은 한 톨도 깎이지 않는다.
+    //
+    // 그리고 **땅에서 읽히는 가장 짙은 자리는 4 그대로다** — 눈금 5 인 자락(붉게 되돌아온
+    // 흙)은 터진 뒤에만 서는 것이라 여느 때에는 단계 0 이기 때문이다 (C023 이 traces.after 에
+    // 세운 그 기제). 자락이 데이터에 있다는 것과 지금 서 있다는 것이 갈리는 자리가 여기다.
     peakTrace: 4,
     traceTags: [
       'soil-stain:2=2',
@@ -489,6 +500,10 @@ const BASELINE: Readonly<Record<string, RoomBaseline>> = {
       'soil-stain:3=3',
       'soil-stain:3=3',
       'soil-stain:3=3',
+      'soil-stain:3=3',
+      'soil-stain:4=4',
+      'soil-stain:3=3',
+      'soil-stain:5=5',
     ],
   },
   [FANTASY_MAZE]: {

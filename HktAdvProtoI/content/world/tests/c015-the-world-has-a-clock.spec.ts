@@ -38,6 +38,7 @@ import {
   regionSpec,
   type ResourceSourceSpec,
   ORE_EATER,
+  TREE_FUNGUS,
 } from '../../regions';
 // C008 이 세운 미로의 이름들 — 그 파일이 소유한다 (c008 ~ c014 시나리오의 선례 그대로).
 import { CELL_LAYER, FANTASY_MAZE, PASSAGE_LAYER } from '../../regions/fantasy-maze';
@@ -133,7 +134,14 @@ const MINE_SECONDS = 1.2;
  * (값을 올릴 수 없는 전이는 일어나지 않는다) 서지 않는다. 손잡이는 값을 상한으로 자르므로
  * 큰 수 하나면 된다. 재료 계통의 규칙은 한 줄도 달라지지 않는다.
  */
-const solo: WorldSetup = { npcs: [], populations: { [ORE_EATER]: 99 } };
+const solo: WorldSetup = {
+  npcs: [],
+  // C024 CHANGED — **거목균도 가득 채운다.** 둥지의 사체가 균류로 바뀌는 변성(C024 SPEC-006)은
+  // 낮밤이 아니라 세계 시각이 하는 일이고, 그것이 태어나고 머무는 동안 그 방의 자락이
+  // 한 단계씩 달라진다 (전조는 옅어지고 뒤의 것이 선다). 어귀의 퇴적 · 지나가는 것과
+  // 정확히 같은 갈래의 섞임이므로, 광식충과 같은 어법으로 상한에 세워 서지 않게 한다.
+  populations: { [ORE_EATER]: 99, [TREE_FUNGUS]: 99 },
+};
 
 // ── 하네스 (c010 · c013 · c014 의 선례 그대로) ───────────────────────
 
@@ -905,7 +913,11 @@ describe('SPEC-006 때는 껐다 켜도 이어진다', () => {
     expect(restoreWorld(snapshot)).not.toBeNull();
     // And 스냅샷 어디에도 때는 적혀 있지 않다 — 세계 시각에서 나오기 때문이다
     const written = JSON.stringify(snapshot.state);
-    for (const word of ['dayPhase', 'season', 'dayIndex', 'seasonCycle', LONG_NIGHT, TURN]) {
+    // C024 CHANGED — 'season' 이 아니라 **열쇠 `"season"`** 을 찾는다. 세계가 지금까지
+    // **적용한 철의 수**(seasonsApplied)를 들기 시작했기 때문이다 — C016 의 turnsApplied 와
+    // 같은 갈래의 사건 수이지 때가 아니다. 주장은 한 톨도 깎이지 않는다: 시계가 저장된다면
+    // 그것은 `"season"` 이라는 열쇠로 적힐 것이고, 아래는 그것이 없음을 그대로 잰다.
+    for (const word of ['dayPhase', '"season"', 'dayIndex', 'seasonCycle', LONG_NIGHT, TURN]) {
       expect({ word, written: written.includes(word) }).toEqual({ word, written: false });
     }
   });
