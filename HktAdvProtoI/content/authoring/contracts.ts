@@ -14,7 +14,7 @@
 // 방 하나를 더하는 일이 아니라 층의 일이고, 확정 문서가 먼저 움직여야 한다.
 
 import type { WorldContracts } from '../../engine/world-authoring/grade';
-import { REGION_GRAPH, REGION_SPECS } from '../regions';
+import { LIFE_FORMATION_MODES, RECOVERY_MOLT_CYCLE, REGION_GRAPH, REGION_SPECS } from '../regions';
 
 /** Concept §3.1 — §5 의 일곱 갈래가 그대로 hazard layer 의 태그다 */
 const HAZARD_KINDS = [
@@ -55,6 +55,29 @@ const ROLES = ['baseline', 'risk', 'conditional', 'by-product', 'world-event'] a
  * 규칙을 가진 방에서 읽으므로 방이 늘면 이 목록도 저절로 는다.
  */
 const STANDING_RULES = REGION_SPECS.filter((spec) => spec.rule).map((spec) => `${spec.id} 의 규칙`);
+
+/**
+ * **탄생 방식 넷** — 이 세계가 아는 어휘 (C022 ADDED · Life §3.2).
+ *
+ * 값의 원본은 `content/regions/lives.ts` 다 (데이터 폴더가 어휘를 소유한다). 여기 다시 서는
+ * 이유는 하나 — 어휘 목록이 사는 자리가 이 파일이기 때문이다 (HAZARD_KINDS · CARRIERS ·
+ * ROLES 의 선례). 등급 판정기(WorldContracts)는 아직 이것을 묻지 않는다: 물으려면 기반의
+ * 형이 늘어야 하고, 그것은 이 Cycle 의 일이 아니다 (선행 추상화 금지).
+ */
+export const LIFE_FORMATION_KINDS: readonly string[] = LIFE_FORMATION_MODES;
+
+/**
+ * **생명을 전제하는 회복 원인** 코드들 (C022 ADDED · Material A.2 회복 원인 열 · 검사 ㉛).
+ *
+ * 되돌아옴의 원인 가운데 "살아 있는 것이 있어야 다시 난다" 고 말하는 것들이다. 어느 코드가
+ * 그런지는 **이 계약이 고른다** — 기반은 그 어휘를 알지 못하고, 검사 ㉛ 은 여기 든 원인을
+ * 밝힌 원천에게만 "무엇이 그것을 잇는가" 를 묻는다.
+ *
+ * 지금은 하나다 — 탈피 주기(`molt-cycle`). `carcass-decay` 는 아직 들지 않는다: 사체를
+ * 남기는 것이 세계에 없어 무엇을 전제하는지 세계가 알지 못하고, **밝히지 않은 것을 결손으로
+ * 세지 않는다** (spec 기본형 ⑦ · RegionBrief 의 "미답을 답으로 세지 않는다" 와 같은 규율).
+ */
+export const LIFE_BOUND_RECOVERY_CAUSES: readonly string[] = [RECOVERY_MOLT_CYCLE];
 
 export const WORLD_CONTRACTS: WorldContracts = {
   hazardKinds: HAZARD_KINDS,

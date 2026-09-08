@@ -201,4 +201,4 @@ export const TICK_INTERVAL = 1 / 30;
 // C018 — World.presences 가 실린다 (지나가는 것의 지금 — 시작한 시각 · 시작한 바퀴 ·
 //        지나간 수 · 이번에 고른 방들). 형태가 바뀌므로 옛 스냅샷은 복구되지 않는다
 //        (spec SPEC-008 경계).
-export const STATE_VERSION = 'hkt-adv-proto-i/9';
+export const STATE_VERSION = 'hkt-adv-proto-i/10';

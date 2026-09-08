@@ -10,9 +10,22 @@ import type { RegionSpec } from './spec';
 import { ANCHOR_LAYER } from './spec';
 import { WHALE_CURVE_TAG } from './presence-routes';
 import {
+  GROUND_TREMOR,
+  LIFE_HAS_OWNER,
+  LIFE_NEEDS_DECAY,
+  LIFE_NEEDS_MATERIAL,
+  LIFE_NEEDS_RAIN,
+  LIFE_ROLE_MOLT_SUPPLY,
+  LIFE_SOURCE_RAIN,
+  POPULATION_DECLINE_CONDITION_LOST,
+  RULE_FOREST_CLUTCH,
+} from './ecology';
+import { FORM_ROOT_CLUTCH, ORE_EATER } from './lives';
+import {
   BIO_ORE,
   FOREST_CHAIN,
   FORM_ROOT_NODULE,
+  GIANT_TREE_FUNGUS,
   PRESENCE_LAYER,
   RECOVERY_TREE_UPTAKE,
   RESOURCE_LAYER,
@@ -132,6 +145,59 @@ export const RED_EYE_TREE_SPEC: RegionSpec = {
         ],
         width: 3,
       },
+      // ── C022 ADDED — 붉은 알집과 그 전조 자락 둘 ───────────────────────────
+      //
+      // 알집은 **뿌리 곡선 위의 마디 곁**에 맺힌다 (Play §5.2) — 위 root-curve 의 네 번째
+      // 점 (9, 1) 이다. 컴파일해 실측한 값:
+      //   그 자리와 둘레 반경 6 의 여덟 방위가 전부 통행 가능한 평지(surface=flat)다
+      //   뿌리혹 (-8, 2) 에서 17.03 · 안쪽 문 (0, 6) 에서 10.30 · ORE_SIDE (18, 0) 에서 9.06 ·
+      //   FOREST_DEEP_SIDE (0, -18) 에서 21.02 — 걸어 닿을 수 있고 이미 선 것들과 겹치지 않는다
+      //   (뿌리혹 둘레는 반경 7 이므로 17.03 > 7 + 6 · 두 원이 만나지 않는다)
+      //
+      // 자리를 여기 Description 이 소유하는 것은 원천과 **같은 규율**이다 (C011 R3) —
+      // 탄생지의 id 와 이 point 의 tag 가 같은 이름으로 이어진다.
+      {
+        id: 'site-root-clutch',
+        kind: 'point',
+        layer: RESOURCE_LAYER,
+        tag: 'ROOT_CLUTCH',
+        position: { x: 9, z: 1 },
+      },
+      // 부푼 균사 — 둥지 쪽 이음(FOREST_DEEP_SIDE · (0, -18))에서 알집까지 뻗은 얇은 띠다.
+      // 폭 2.17 의 곧은 사각형이고, 뿌리혹 둘레(중심 (-8, 2) · 반경 7)와는 15.79 떨어져
+      // 만나지 않는다 (실측). 흙보다 **옅다**(2) — 붉은 흙 위에 부푼 흰 균사이므로,
+      // 짙어지는 사다리가 아니라 색이 갈리는 자국이다.
+      //
+      // **NEST_FUNGUS 가 있음이 아닐 때는 서지 않는다** — 그 조건 코드가 걸려 있으면
+      // 단계 0 이다 (아래 lifeFormation 의 traces.before 가 그것을 밝힌다).
+      {
+        id: 'trace-clutch-fungus',
+        kind: 'area',
+        layer: TRACE_LAYER,
+        tag: soilStainTag(2),
+        shape: {
+          kind: 'polygon',
+          points: [
+            { x: 1.085, z: -18.514 },
+            { x: 10.085, z: 0.486 },
+            { x: 7.915, z: 1.514 },
+            { x: -1.085, z: -17.486 },
+          ],
+        },
+      },
+      // 옅어지는 흙 — 알집 둘레다. 이 방 바닥은 3 이므로 평소엔 **한 단계 짙고**(4),
+      // 결속하는 동안 한 단계 옅어져 바닥과 같아진다 (재료가 알집으로 간다).
+      // 뿌리혹 둘레(5)가 이 방의 정점이라는 C011 의 사실은 그대로다.
+      //
+      // 결속하는 동안 이 자락에 선 몸의 걸린 것에 **떨림**이 실린다 (위험 태그를 만들지
+      // 않는다 — 몸에 아무 일도 하지 않으므로 선 자리의 코드다 · spec 기본형 ⑧).
+      {
+        id: 'trace-clutch-drain',
+        kind: 'area',
+        layer: TRACE_LAYER,
+        tag: soilStainTag(4),
+        shape: { kind: 'circle', center: { x: 9, z: 1 }, radius: 6 },
+      },
     ],
   },
   // 핵심부의 Risk 둘째 — 같은 Material Seed 가 다른 순도로 난다 (A.1 "같은 것의 세 순도").
@@ -162,6 +228,82 @@ export const RED_EYE_TREE_SPEC: RegionSpec = {
         // **자리를 옮기지 않는다** — siteCurve 를 주지 않으므로 마디는 뿌리혹이 선 자리 하나다
         // (아래 뿌리 곡선은 그 뿌리가 이 방을 지난다는 세계 사실일 뿐이다 · Play §5.3)
         traceOps: ['trace-tree-nodule'],
+      },
+    ],
+  },
+  // ── C022 ADDED — 이 방이 품은 생명 계통 (Play §5.2 · 확정 1 · 2 · 3 · 5 · 6) ──
+  //
+  // 이 세계에서 **무엇이 태어나는지를 밝힌 첫 방**이다. 밝히지 않은 나머지 방은 한 값도
+  // 달라지지 않는다 (spec SPEC-001 경계 ①).
+  ecology: {
+    lifeFormation: [
+      {
+        // 붉은 알집 — 자리는 위 Description 의 resource point 가 소유한다 (같은 이름으로 잇는다)
+        id: 'ROOT_CLUTCH',
+        // 최초는 **결속**이다 — 환경의 조건들이 맺혀 태어난다 (확정 2).
+        // 이후의 대는 계승(INHERITED)이지만 그것은 이 세계에 아직 서지 않았다
+        mode: 'ENVIRONMENTAL_BINDING',
+        // 숲의 사슬 하나에 매달린다 — 이 방의 원천이 밝힌 것과 같은 원인이다 (㉘)
+        worldCause: FOREST_CHAIN,
+        form: FORM_ROOT_CLUTCH,
+        // 무엇으로 맺히는가 (확정 3) — 뿌리혹의 축적(생체 광석) · 둥지에서 뻗은 균사(거목균) ·
+        // 그리고 재료가 아닌 것 하나: 비
+        source: {
+          materials: [BIO_ORE, GIANT_TREE_FUNGUS],
+          states: [LIFE_SOURCE_RAIN],
+        },
+        condition: {
+          regionRule: RULE_FOREST_CLUTCH,
+          // 넷이 **다 차 있는 동안에만** 결속이 오른다 (SPEC-004).
+          // 요구마다 자기 모자람 코드를 밝힌다 — 규칙은 무엇이 모자란지 이름으로 알지 못한다
+          requires: [
+            // 뿌리혹의 축적 — 같은 방의 원천
+            { kind: 'source-available', sourceId: 'ROOT_NODULE', unmetCode: LIFE_NEEDS_MATERIAL },
+            // 둥지에서 뻗은 균사 — **다른 방의 원천**이다 (포식자 둥지)
+            { kind: 'source-available', sourceId: 'NEST_FUNGUS', unmetCode: LIFE_NEEDS_DECAY },
+            // 비 — 세계 시각과 철에서 유도된다 (저장되지 않는다)
+            { kind: 'rain', unmetCode: LIFE_NEEDS_RAIN },
+            // 광식충이 아직 하나도 없다 — 최초는 결속이고 이후는 계승이기 때문이다 (확정 2)
+            {
+              kind: 'population-at-most',
+              populationId: ORE_EATER,
+              value: 0,
+              unmetCode: LIFE_HAS_OWNER,
+            },
+          ],
+        },
+        // 밝혀만 둔다 — 이 Cycle 은 BINDING 까지만 간다 (BORN 은 C023)
+        transition: { from: 'DORMANT', to: 'BORN' },
+        // 태어날 때 먹는 것 — 뿌리혹의 축적과 균사의 분해 진행 (실제 소비는 C023)
+        consumes: ['ROOT_NODULE', 'NEST_FUNGUS'],
+        traces: {
+          before: [
+            // 부푼 균사 — 균사가 끊기면 그 자락이 서지 않는다 (SPEC-003 ①)
+            { op: 'trace-clutch-fungus', hiddenWhen: LIFE_NEEDS_DECAY },
+            // 옅어지는 흙과, 그 위에 선 동안의 떨림 (SPEC-003 ③ ④)
+            {
+              op: 'trace-clutch-drain',
+              fadesWhileBinding: true,
+              standingCodeWhileBinding: GROUND_TREMOR,
+            },
+          ],
+          // 태어난 뒤에 남는 것 — **밝혀만 둔다** (C023 이 그 자리를 세운다).
+          // 빈 껍질과 붉은 가루다 (Play §5.3) — 아직 이 방 Description 에 그 자락이 없다
+          after: ['clutch-husk', 'clutch-dust'],
+        },
+        ecologicalRole: LIFE_ROLE_MOLT_SUPPLY,
+        population: ORE_EATER,
+        // 결속의 길이 — 60 세계 초 (확정 5). 비 한 번(90 초) 안에 다 찰 수 있는 값이다
+        bindingSeconds: 60,
+      },
+    ],
+    populations: [
+      {
+        id: ORE_EATER,
+        // 이 방이 감당하는 수 (확정 6)
+        scale: 4,
+        // 값이 내리는 세계 안의 원인 — 조건 결핍. 실제로 내리는 규칙은 C024 다
+        declineCause: POPULATION_DECLINE_CONDITION_LOST,
       },
     ],
   },

@@ -1,6 +1,6 @@
 // World Check — 검사 아홉을 독립 명령으로, 결과는 **기계가 읽는 JSON** (T1 ADDED).
 //
-//   npm run world:check              검사 스물여섯을 돌리고 JSON 한 덩이를 낸다. fail 이 하나라도 있으면 종료 코드 1
+//   npm run world:check              검사 서른셋을 돌리고 JSON 한 덩이를 낸다. fail 이 하나라도 있으면 종료 코드 1
 //   npm run world:check -- --pretty  들여쓴 JSON (사람이 눈으로 볼 때)
 //
 // `world:observe --report` 안에만 있던 아홉을 뽑아 왔다. 뽑아 온 이유는 셋이다 —
@@ -23,6 +23,7 @@ import {
   MATERIAL_SEEDS,
   PRESENCE_LAYER,
   REGION_GRAPH,
+  REGION_RULE_IDS,
   REGION_SPECS,
   RESOURCE_FLOWS,
   RESOURCE_LAYER,
@@ -31,11 +32,16 @@ import {
   TRACE_LAYER,
   type SeasonId,
 } from '../../content/regions';
+import { LIFE_BOUND_RECOVERY_CAUSES } from '../../content/authoring/contracts';
 import {
   checkRegions,
   type CheckContract,
   type CheckEcology,
   type CheckEcologySource,
+  type CheckLife,
+  type CheckLifeFormation,
+  type CheckLifePopulation,
+  type CheckLifeRecovery,
   type CheckRegion,
   type CheckReport,
   type CheckTime,
@@ -244,6 +250,76 @@ export const WORLD_CHECK_TIME: CheckTime = {
   ),
 };
 
+// ── 생명 쪽 계약 (C022 ADDED — 검사 ㉗~㉝ 이 이것을 읽는다) ──────────
+//
+// 계통(WORLD_CHECK_ECOLOGY) · 시간(WORLD_CHECK_TIME)과 같은 어법이다 — 여기서 판정하는 것이
+// 하나도 없고 content/regions 의 데이터를 형만 바꿔 옮긴다. 게임 명사는 전부 여기서 간다:
+// 기반은 이 세계에 광식충이 있다는 것도, 어느 회복 원인이 살아 있는 것을 전제하는지도 알지
+// 못한다 (Life F13 · R13).
+
+/** 이 세계의 생명 계통 — 탄생지 · 개체군 · 관계 · 생명을 전제하는 회복 원인 */
+export const WORLD_CHECK_LIFE: CheckLife = {
+  // 방 차례 · 그 방 데이터 차례로 편다 (결정론)
+  formations: REGION_SPECS.flatMap((spec) =>
+    (spec.ecology?.lifeFormation ?? []).map(
+      (site): CheckLifeFormation => ({
+        id: site.id,
+        region: spec.id,
+        mode: site.mode,
+        worldCause: site.worldCause,
+        regionRule: site.condition.regionRule,
+        sourceMaterialIds: site.source.materials,
+        sourceStateCodes: site.source.states,
+        // 요구의 갈래 셋 가운데 **가리키는 것이 있는** 둘만 참조로 편다 —
+        // 비(rain)는 세계 상태이지 원천도 개체군도 아니므로 잴 것이 없다
+        requiredSourceIds: site.condition.requires.flatMap((requirement) =>
+          requirement.kind === 'source-available' ? [requirement.sourceId] : [],
+        ),
+        requiredPopulationIds: site.condition.requires.flatMap((requirement) =>
+          requirement.kind === 'population-at-most' ? [requirement.populationId] : [],
+        ),
+        consumesSourceIds: site.consumes,
+        // 전조 흔적의 op id 들 — 태어난 **뒤**의 것(traces.after)은 아직 그 방 Description 에
+        // 자락이 없으므로 여기 실리지 않는다 (C023 이 그 자리를 세운다)
+        traceOpIds: site.traces.before.map((trace) => trace.op),
+        population: site.population,
+      }),
+    ),
+  ),
+  populations: REGION_SPECS.flatMap((spec) =>
+    (spec.ecology?.populations ?? []).map(
+      (population): CheckLifePopulation => ({ id: population.id, region: spec.id }),
+    ),
+  ),
+  // 개체군 사이의 관계는 이 세계에 아직 하나도 없다 — ㉜ 는 잴 것이 없어 `absent` 이고,
+  // 그것을 통과로 적지 않는 것이 옳다 (spec SPEC-008 경계 ① · 검사 ⑮ 의 선례). C025 가 세운다
+  links: [],
+  // 회복 원인이 **살아 있는 것을 전제하는** 원천들 — 어느 코드가 그런지는 계약이 고른다
+  // (content/authoring/contracts.ts). 밝히지 않은 원천은 그 목록에 들지 않으므로 ㉛ 의
+  // 대상이 아니고, 밝힌 원천이 개체군을 비워 두면 그것이 결손이다 (SPEC-008 경계 ②)
+  lifeRecoveries: REGION_SPECS.flatMap((spec) =>
+    (spec.resourceEcology?.sources ?? []).flatMap((source): CheckLifeRecovery[] =>
+      LIFE_BOUND_RECOVERY_CAUSES.includes(source.recoveryCause)
+        ? [
+            {
+              sourceId: source.id,
+              recoveryCause: source.recoveryCause,
+              population: source.recoveryLife ?? '',
+            },
+          ]
+        : [],
+    ),
+  ),
+  regionRules: REGION_RULE_IDS,
+  // **잔류 원천** — 무언가가 남기고 간 것을 지는 원천들이다 (carrier 가 residue).
+  // LEAVES 의 끝이 이것이어야 한다는 것이 ㉜ 의 물음이고, 무엇이 잔류인지는 세계가 답한다
+  residueSourceIds: REGION_SPECS.flatMap((spec) =>
+    (spec.resourceEcology?.sources ?? []).flatMap((source) =>
+      source.carrier === 'residue' ? [source.id] : [],
+    ),
+  ),
+};
+
 /**
  * 컨텐츠의 RegionSpec → 검사가 보는 방. `coreRules` 는 이 세계의 세는 법이다 —
  * 지금 한 방은 규칙을 하나까지 품는다 (RegionSpec.rule 하나). 그 형이 늘면 이 줄이 늘어난다.
@@ -255,7 +331,7 @@ export const WORLD_CHECK_REGIONS: readonly CheckRegion[] = REGION_SPECS.map((spe
   coreRules: spec.rule ? 1 : 0,
 }));
 
-/** 이 세계의 검사 스물여섯을 돌린다 — 읽기 전용 (C018 CHANGED — 시간 넷이 이어 붙는다) */
+/** 이 세계의 검사 서른셋을 돌린다 — 읽기 전용 (C022 CHANGED — 생명 일곱이 이어 붙는다) */
 export function runWorldCheck(): CheckReport {
   return checkRegions({
     regions: WORLD_CHECK_REGIONS,
@@ -264,6 +340,7 @@ export function runWorldCheck(): CheckReport {
     compile: (region) => compileRegion(region.space, COMPILE_RULES).world,
     ecology: WORLD_CHECK_ECOLOGY,
     time: WORLD_CHECK_TIME,
+    life: WORLD_CHECK_LIFE,
   });
 }
 
@@ -276,7 +353,7 @@ function main(argv: readonly string[]): number {
   if (unknown.length > 0) {
     process.stderr.write(
       [
-        '  world:check — 검사 스물여섯을 돌리고 JSON 을 낸다',
+        '  world:check — 검사 서른셋을 돌리고 JSON 을 낸다',
         `    모르는 인자: ${unknown.join(' ')}`,
         '    쓸 수 있는 것: --pretty',
         '',

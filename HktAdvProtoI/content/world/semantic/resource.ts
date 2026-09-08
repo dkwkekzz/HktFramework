@@ -51,6 +51,7 @@ import {
   type SeasonId,
   type SupplyMode,
 } from '../../regions';
+import { lifeTraceOverlayIn } from './life';
 import type { WorldPosition } from './position';
 import { isPassingRegion, leavingRouteOf, type PresencePassState } from './presence';
 import { NOT_THIS_SEASON, isSeasonListed } from './region-phase';
@@ -318,11 +319,27 @@ export function nextStandableSite(
  * area 는 layer · tag · shape 만 들고 op id 를 잃으므로, 여기서는 그 방 Description 의 trace
  * area 를 직접 훑는다 — Description 의 area 와 컴파일 결과의 area 는 순서도 모양도 같다
  * (engine 의 collectAreas 가 ops 순서 그대로 옮긴다).
+ *
+ * C022 CHANGED (RULE-LIFE-SITE-PHASE-001 · C022 spec R4) — **탄생지도 자기 자락을 건다.**
+ * 위상을 거는 원인이 여섯째가 되었고(철 · 소란 · 지나가는 것 · 상시 · 고갈 · **탄생지**)
+ * 기제는 한 줄도 바뀌지 않았다: 그 방의 탄생지가 밝힌 자락은
+ *   ① 그 자락이 밝힌 조건 코드가 지금 걸려 있으면 **0** — 그 자락이 서지 않는다
+ *   ② 그 탄생지가 결속 중이면 데이터의 단계에서 **한 단계 아래** (재료가 그리로 간다)
+ * 이고, 어느 것도 아니면 데이터 그대로다. 판정은 여기서 하지 않는다 — semantic/life.ts 의
+ * `lifeTraceOverlayIn` 이 답하는 그것을 그대로 읽는다 (표시와 원인이 같은 판정이라는 규율).
+ *
+ * **원천 쪽 판정은 한 줄도 바뀌지 않는다** — 원천의 둘레도 아니고 탄생지의 자락도 아닌
+ * area(방 바닥)는 여전히 데이터 그대로다 (C011 R4 · C012 spec R7 경계 ②). 탄생지를 밝히지
+ * 않은 방은 이 Cycle 전과 한 값도 다르지 않다.
+ *
+ * `time` 은 탄생지의 **요구 판정**에만 쓰인다 (비가 시각에서 유도되기 때문이다). 밝히지
+ * 않으면 0 이다 — 원천 쪽 판정은 시각을 묻지 않으므로 그 답은 어느 시각에도 같다.
  */
 export function traceStrengthAt(
   states: Record<string, RegionState>,
   regionId: string,
   position: WorldPosition,
+  time = 0,
 ): number {
   const spec = regionSpec(regionId);
   if (!spec) return 0;
@@ -337,16 +354,24 @@ export function traceStrengthAt(
     });
   }
 
+  // 탄생지가 건 자락들 — 가려졌는가 · 옅어졌는가 (C022 ADDED). 탄생지 없는 방은 빈 표다.
+  const lifeOverlay = lifeTraceOverlayIn(states, regionId, time);
+
   let strongest = 0;
   for (const area of areasOf(spec.space, TRACE_LAYER)) {
     if (!areaCoversPoint(area.shape, position.x, position.z)) continue;
     const level = traceLevel(area.tag);
     const rim = rimmed.get(area.id);
+    const life = lifeOverlay.get(area.id);
     const here = rim
       ? rim.here
         ? Math.max(0, level - (rim.depleted ? 1 : 0))
         : 0
-      : level;
+      : life
+        ? life.hidden
+          ? 0
+          : Math.max(0, level - (life.faded ? 1 : 0))
+        : level;
     if (here > strongest) strongest = here;
   }
   return strongest;
