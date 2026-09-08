@@ -99,12 +99,13 @@ const itemOf = (world: World, id: string) =>
   run(world).items.find((item) => item.id === id)!;
 
 describe('checkRegions — 보고의 형', () => {
-  it('①~⑨ 다음에 ⑩~㉒ · ㉓~㉖ 가 번호 순으로 실리고, 번호 밖의 코드도 숨지 않는다', () => {
+  it('①~⑨ 다음에 ⑩~㉒ · ㉓~㉖ · ㉞~㊷ 이 번호 순으로 실리고, 번호 밖의 코드도 숨지 않는다', () => {
     const report = run(soundWorld());
     expect(report.items.map((item) => item.mark)).toEqual([
       '①', '②', '③', '④', '⑤', '⑥', '⑦', '⑧', '·', '⑨',
       '⑩', '⑪', '⑫', '⑬', '⑭', '⑮', '⑯', '⑰', '⑱', '⑲', '⑳', '㉑', '㉒',
       '㉓', '㉔', '㉕', '㉖',
+      '㉞', '㉟', '㊱', '㊲', '㊳', '㊴', '㊵', '㊶', '㊷',
     ]);
     // 기계가 잡는 열쇠는 번호가 아니라 id 다 — 번호가 바뀌어도 이것은 그대로다
     expect(new Set(report.items.map((item) => item.id)).size).toBe(report.items.length);
@@ -151,6 +152,16 @@ describe('checkRegions — 보고의 형', () => {
       'time-route-refs',
       'time-season-summary',
       'time-reachable',
+      // ㉞~㊷ — 접근 쪽 계약을 주지 않았으므로 아홉 전부 (C029)
+      'access-refs',
+      'access-answer',
+      'access-property-spread',
+      'access-answer-distance',
+      'access-orphan-property',
+      'access-answer-kinds',
+      'access-answer-variety',
+      'access-trace',
+      'access-behind-lock',
     ]);
   });
 });
@@ -665,7 +676,8 @@ function bend(edit: (time: CheckTime) => CheckTime): World {
 describe('checkRegions — ㉓~㉖ 은 계약으로 받는다 (C018)', () => {
   it('계약을 주지 않으면 넷 다 absent 다 — 통과가 아니다', () => {
     const bare = run(soundWorld());
-    const four = bare.items.slice(-4);
+    // 뒤에 ㉞~㊷ 아홉이 더 붙었으므로 넷은 끝에서 아홉을 뺀 자리다 (C029)
+    const four = bare.items.slice(-13, -9);
     expect(four.map((item) => item.id)).toEqual([
       'time-phase-refs',
       'time-route-refs',
