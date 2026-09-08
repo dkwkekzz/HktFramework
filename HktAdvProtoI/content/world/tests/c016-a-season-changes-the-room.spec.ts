@@ -55,6 +55,7 @@ import {
   regionSpec,
   type ResourceSourceSpec,
   type SeasonId,
+  ORE_EATER,
 } from '../../regions';
 // C008 이 세운 미로의 이름들 — 그 파일이 소유한다 (c008 ~ c015 시나리오의 선례 그대로).
 import { CELL_LAYER, FANTASY_MAZE, MAZE_PATTERN_P2, PASSAGE_LAYER } from '../../regions/fantasy-maze';
@@ -134,7 +135,18 @@ const RAISED_STATE_VERSION = 'hkt-adv-proto-i/10';
 /** 그 앞의 버전 — 옛 스냅샷은 되살아나지 않는다 */
 const OLD_STATE_VERSION = 'hkt-adv-proto-i/6';
 
-const solo: WorldSetup = { npcs: [] };
+/**
+ * 이 시나리오들이 재는 것은 **재료 계통**이다 — 그 위에 얹힌 생명(C022 · C023)은 여기 없다.
+ *
+ * C023 부터 기본 세계는 t=60 에 첫 탄생을 일으켜 뿌리혹과 균사를 먹는다 (세계가 나 없이도
+ * 도는 그것이다). 그러면 거기 매달린 노두의 되돌아옴이 멎어, 60 초 넘게 기다리는 이 시나리오들의
+ * 전제("캐지 않으면 원천은 그대로다")가 깨진다.
+ *
+ * 그래서 **광식충이 이미 가득한 숲**에서 잰다 — 상한이면 결속도(요구가 "값 0" 이다) 계승도
+ * (값을 올릴 수 없는 전이는 일어나지 않는다) 서지 않는다. 손잡이는 값을 상한으로 자르므로
+ * 큰 수 하나면 된다. 재료 계통의 규칙은 한 줄도 달라지지 않는다.
+ */
+const solo: WorldSetup = { npcs: [], populations: { [ORE_EATER]: 99 } };
 
 // ── 계약이 준 형 (spec State 절 그대로 적어 둔다) ────────────────────
 interface SourceStateShape {

@@ -15,21 +15,26 @@ import {
   LIFE_HAS_OWNER,
   LIFE_NEEDS_DECAY,
   LIFE_NEEDS_MATERIAL,
+  LIFE_NEEDS_PARENT,
   LIFE_NEEDS_RAIN,
   LIFE_ROLE_MOLT_SUPPLY,
   LIFE_SOURCE_RAIN,
   POPULATION_DECLINE_CONDITION_LOST,
   RULE_FOREST_CLUTCH,
 } from './ecology';
-import { FORM_ROOT_CLUTCH, ORE_EATER } from './lives';
+import { FORM_ROOT_CLUTCH, FORM_ROOT_EGGS, ORE_EATER, PRESENCE_ORE_EATER_SWARM } from './lives';
 import {
   BIO_ORE,
   FOREST_CHAIN,
+  FORM_CLUTCH_HUSK,
+  FORM_EGG_HUSK,
   FORM_GLOW_CAP,
   FORM_ORE_PEBBLE,
   FORM_ROOT_NODULE,
   GIANT_TREE_FUNGUS,
+  ORE_EATER_MOLT,
   PRESENCE_LAYER,
+  RECOVERY_NEXT_BIRTH,
   RECOVERY_NIGHT_BLOOM,
   RECOVERY_PEBBLE_WASH,
   RECOVERY_TREE_UPTAKE,
@@ -203,6 +208,124 @@ export const RED_EYE_TREE_SPEC: RegionSpec = {
         tag: soilStainTag(4),
         shape: { kind: 'circle', center: { x: 9, z: 1 }, radius: 6 },
       },
+      // ── C023 ADDED — 태어남이 남기는 것들과 떼가 도는 자락 ─────────────────
+      //
+      // **뿌리의 알**(계승형 탄생지 둘째) — 뿌리 곡선의 **다른 마디**다 (Play §5.4).
+      // 위 root-curve 의 **세 번째 점 (0, 3)** 이고, 알집이 선 네 번째 점 (9, 1) 과 갈린다.
+      // 컴파일해 실측한 값:
+      //   그 자리와 둘레 반경 2 · 4 의 여덟 방위가 전부 통행 가능한 평지(surface=flat)다
+      //   알집 (9,1) 에서 9.22 · 뿌리혹 (-8,2) 에서 8.06 (그 둘레 반경 7 **밖**이다) ·
+      //   안쪽 문 (0,6) 에서 3.00 · ORE_SIDE (18,0) 에서 18.25 · FOREST_DEEP_SIDE (0,-18) 에서 21.00
+      // 안쪽 문과 3.00 은 가깝지만 겹치지 않는다 — 그래서 아래 자락(작은 붉은 점)의 반경을
+      // **2** 로 두어 문을 덮지 않게 했다 (알집의 자락이 6 인 것과 갈린다: 큰 알집과 작은 점).
+      {
+        id: 'site-root-eggs',
+        kind: 'point',
+        layer: RESOURCE_LAYER,
+        tag: 'ROOT_EGGS',
+        position: { x: 0, z: 3 },
+      },
+      // 작은 붉은 점 — 뿌리 마디에 맺힌 것의 전조 자락이다 (Play §5.4 · 알의 traces.before).
+      // 이 방 바닥은 3 이므로 한 단계 짙다(4). 뿌리혹 둘레(중심 (-8,2) · 반경 7 · 단계 5)와
+      // 서쪽에서 살짝 겹치지만, 겹친 자리는 **짙은 쪽이 이기므로**(traceStrengthAt) 사다리가
+      // 서쪽으로 5 → 4 → 3 으로 단조롭게 내려간다 (실측: 알의 자리 자체는 나눌 것 없이 4 다).
+      {
+        id: 'trace-eggs-dots',
+        kind: 'area',
+        layer: TRACE_LAYER,
+        tag: soilStainTag(4),
+        shape: { kind: 'circle', center: { x: 0, z: 3 }, radius: 2 },
+      },
+      // **빈 껍질** — 알집이 터진 그 자리 곁이다 (Observable ② "터진 자리에 빈 껍질이 선다").
+      // (12, 2) 는 알집 (9,1) 에서 3.16 · ORE_SIDE (18,0) 에서 6.32 · 붉은 자갈 (12,12) 에서 10.00.
+      // 둘레 자락의 반경을 **2.5** 로 두어 알집 자리 (9,1) 를 덮지 않게 했다 (3.16 > 2.5) —
+      // 덮으면 결속하는 동안 한 단계 옅어진 알집 둘레를 이 자락이 도로 짙게 만든다.
+      {
+        id: 'source-clutch-husk',
+        kind: 'point',
+        layer: RESOURCE_LAYER,
+        tag: 'CLUTCH_HUSK',
+        position: { x: 12, z: 2 },
+      },
+      {
+        id: 'trace-clutch-husk',
+        kind: 'area',
+        layer: TRACE_LAYER,
+        tag: soilStainTag(4),
+        shape: { kind: 'circle', center: { x: 12, z: 2 }, radius: 2.5 },
+      },
+      // **작은 껍질** — 뿌리의 알이 남기는 것. 알 (0,3) 에서 3.16 · 안쪽 문 (0,6) 에서 3.61 이고,
+      // 자락의 반경 2.5 는 알의 자리도 문도 덮지 않는다 (같은 규율 · 실측).
+      {
+        id: 'source-egg-husk',
+        kind: 'point',
+        layer: RESOURCE_LAYER,
+        tag: 'EGG_HUSK',
+        position: { x: 3, z: 4 },
+      },
+      {
+        id: 'trace-eggs-husk',
+        kind: 'area',
+        layer: TRACE_LAYER,
+        tag: soilStainTag(4),
+        shape: { kind: 'circle', center: { x: 3, z: 4 }, radius: 2.5 },
+      },
+      // **붉은 가루** — 터진 뒤 알집 둘레에 앉는 자국이다 (알집의 traces.after · Play §5.3 ⑤).
+      // **SPENT 인 동안에만 선다** (RULE-LIFE-SITE-PHASE-001).
+      //
+      // 흙이 **한 단계 짙어진다**(4 → 5 · Observable ② "붉은 가루로 한 단계 달라진다") —
+      // 알집 둘레는 평소 4 이고 결속하는 동안 3 으로 옅어지므로, 이 자리의 사다리가 세 결로
+      // 갈린다: **3 맺히는 중 · 4 그냥 있음 · 5 터진 뒤**. 옅어짐과 같은 눈금의 반대쪽이라
+      // 관찰자가 같은 자리에서 "무엇이 지나갔는가" 를 읽는다.
+      // 반경은 알집 둘레(6)보다 좁은 5 다 — 재료가 빠져나간 자리가 아니라 터진 자리에 앉은
+      // 것이므로 같은 원을 두 벌로 두지 않았고, 그 사이 띠(5..6)는 4 로 남아 테두리가 된다.
+      // 뿌리혹 둘레도 5 이지만 그것은 **늘** 5 이고 이것은 120 초뿐이다 — C011 이 적은
+      // "뿌리혹 둘레가 이 방의 정점" 은 가만한 세계에서 여전히 참이다.
+      {
+        id: 'trace-clutch-dust',
+        kind: 'area',
+        layer: TRACE_LAYER,
+        tag: soilStainTag(5),
+        shape: { kind: 'circle', center: { x: 9, z: 1 }, radius: 5 },
+      },
+      // **떼가 도는 자락 넷** — 개체군의 값 1 · 2 · 3 · 4 마다 하나씩 넓어진다 (Play §5.3 ⑥ · V21).
+      //
+      // 뿌리 곡선 위, 두 탄생지 **사이**의 (4, 2) 를 중심으로 한 동심원이다 — 태어난 것들이
+      // 제 난 자리 둘레를 돈다는 뜻이고, 값이 오를수록 도는 자락이 넓어진다.
+      // 실측: 넷 다 방 안(extent ±20)이고 여덟 방위의 둘레가 전부 통행 가능한 평지다
+      //   r=4 x 0..8 z -2..6 · r=7 x -3..11 z -5..9 · r=10 x -6..14 z -8..12 · r=13 x -9..17 z -11..15
+      //
+      // **뿌리 곡선 · 고래의 선과 같은 layer** 에 산다 (PRESENCE_LAYER) — 땅 위에 무엇이
+      // 있다를 적는 표시일 뿐 높이도 표면도 통행도 한 값 건드리지 않는다. 흔적 layer 가
+      // 아닌 것도 그 때문이다: 흙이 짙어지는 것이 아니라 **떼가 거기 돈다**는 말이다.
+      {
+        id: 'presence-swarm-1',
+        kind: 'area',
+        layer: PRESENCE_LAYER,
+        tag: PRESENCE_ORE_EATER_SWARM,
+        shape: { kind: 'circle', center: { x: 4, z: 2 }, radius: 4 },
+      },
+      {
+        id: 'presence-swarm-2',
+        kind: 'area',
+        layer: PRESENCE_LAYER,
+        tag: PRESENCE_ORE_EATER_SWARM,
+        shape: { kind: 'circle', center: { x: 4, z: 2 }, radius: 7 },
+      },
+      {
+        id: 'presence-swarm-3',
+        kind: 'area',
+        layer: PRESENCE_LAYER,
+        tag: PRESENCE_ORE_EATER_SWARM,
+        shape: { kind: 'circle', center: { x: 4, z: 2 }, radius: 10 },
+      },
+      {
+        id: 'presence-swarm-4',
+        kind: 'area',
+        layer: PRESENCE_LAYER,
+        tag: PRESENCE_ORE_EATER_SWARM,
+        shape: { kind: 'circle', center: { x: 4, z: 2 }, radius: 13 },
+      },
       // ── RoomBearsMaterial 실주행 판정 ADDED — 흩어진 것들 ──────────────────────
       //
       // Human 의 답: "재료가 너무 적고 채집하는 재미가 부족하다." 방의 중심이던 원천 곁에
@@ -318,6 +441,49 @@ export const RED_EYE_TREE_SPEC: RegionSpec = {
         recoverySeconds: 45,
         traceOps: ['trace-ore-pebble-tree'],
       },
+      // ── C023 ADDED — 태어남이 **남기고 간** 원천 둘 (확정 7 · Material §6.2 By-product) ──
+      //
+      // 새 재료가 아니다 — 광식충 허물(ORE_EATER_MOLT)의 다른 형태다. 벗은 것이 아니라
+      // **터지고 남은 것**이라는 것만 다르고, 캐면 같은 재료가 손에 든다 (spec R7).
+      //
+      // **처음이 고갈이다** — 세계가 설 때 그 자리에 아무것도 없다 (SPEC-004 경계 ①).
+      // 물길이 아직 오지 않은 원천 · 아직 아무도 지나가지 않은 원천과 **같은 사실**이고
+      // (거기 지금 없다), 세우는 자리도 그 하나다 (semantic/region-state.ts 의 initialSourceState).
+      //
+      // **시간이 되돌리지 않는다** — 되돌리는 것은 **다음 탄생**이다 (RECOVERY_NEXT_BIRTH ·
+      // RULE-SOURCE-RECOVERY-001 CHANGED). recoverySeconds 는 그래서 아무 일도 하지 않지만,
+      // 되돌아오는 원천의 어법에 맞춰 사건이 되풀이되는 것들과 같은 값(240)을 둔다
+      // (FALLEN_SCALE 의 선례) — 값이 아니라 조건이 멎게 하는 자리다.
+      {
+        id: 'CLUTCH_HUSK',
+        materialId: ORE_EATER_MOLT,
+        worldCause: FOREST_CHAIN,
+        form: FORM_CLUTCH_HUSK,
+        // 무언가가 남기고 간 것을 지고 있다 (Material §6.2 의 칸)
+        carrier: 'residue',
+        // 세계가 낳고 남긴 곁가지 (A.3)
+        opportunity: 'by-product',
+        // 사건이 되풀이될 때만 온다 — 그 사건이 **탄생**이다 (§5.6 의 넷째)
+        supply: 'event-scarce',
+        recoveryCause: RECOVERY_NEXT_BIRTH,
+        // 한 번 터질 때 하나 (확정 7)
+        harvests: 1,
+        recoverySeconds: 240,
+        traceOps: ['trace-clutch-husk'],
+      },
+      {
+        id: 'EGG_HUSK',
+        materialId: ORE_EATER_MOLT,
+        worldCause: FOREST_CHAIN,
+        form: FORM_EGG_HUSK,
+        carrier: 'residue',
+        opportunity: 'by-product',
+        supply: 'event-scarce',
+        recoveryCause: RECOVERY_NEXT_BIRTH,
+        harvests: 1,
+        recoverySeconds: 240,
+        traceOps: ['trace-eggs-husk'],
+      },
     ],
   },
   // ── C022 ADDED — 이 방이 품은 생명 계통 (Play §5.2 · 확정 1 · 2 · 3 · 5 · 6) ──
@@ -361,10 +527,14 @@ export const RED_EYE_TREE_SPEC: RegionSpec = {
             },
           ],
         },
-        // 밝혀만 둔다 — 이 Cycle 은 BINDING 까지만 간다 (BORN 은 C023)
         transition: { from: 'DORMANT', to: 'BORN' },
-        // 태어날 때 먹는 것 — 뿌리혹의 축적과 균사의 분해 진행 (실제 소비는 C023)
+        // 태어날 때 먹는 것 — 뿌리혹의 축적과 균사의 분해 진행 (C023 CHANGED — 실제로 먹는다).
+        // 둘째는 **다른 방의 원천**이다 (둥지의 균사) — 같은 규칙으로 먹힌다 (SPEC-002 경계 ③)
         consumes: ['ROOT_NODULE', 'NEST_FUNGUS'],
+        // C023 ADDED — 터지면서 **세우는** 것: 빈 껍질 하나 (Play §5.3 ⑤ · 확정 7)
+        leaves: ['CLUTCH_HUSK'],
+        // C023 ADDED — 터진 채 머무는 길이 (확정 5). 이만큼 지나면 다시 맺힌 것으로 돌아온다
+        spentSeconds: 120,
         traces: {
           before: [
             // 부푼 균사 — 균사가 끊기면 그 자락이 서지 않는다 (SPEC-003 ①)
@@ -376,14 +546,72 @@ export const RED_EYE_TREE_SPEC: RegionSpec = {
               standingCodeWhileBinding: GROUND_TREMOR,
             },
           ],
-          // 태어난 뒤에 남는 것 — **밝혀만 둔다** (C023 이 그 자리를 세운다).
-          // 빈 껍질과 붉은 가루다 (Play §5.3) — 아직 이 방 Description 에 그 자락이 없다
-          after: ['clutch-husk', 'clutch-dust'],
+          // C023 CHANGED — 태어난 **뒤**에 서는 자락. 붉은 가루 하나뿐이다: 빈 껍질은
+          // 자락이 아니라 원천이므로 위 `leaves` 로 갔다 (C022 가 둘을 함께 적어 둔 자리를
+          // 이 뜻으로 고쳐 쓴다). **SPENT 인 동안에만 선다**
+          after: ['trace-clutch-dust'],
         },
         ecologicalRole: LIFE_ROLE_MOLT_SUPPLY,
         population: ORE_EATER,
         // 결속의 길이 — 60 세계 초 (확정 5). 비 한 번(90 초) 안에 다 찰 수 있는 값이다
         bindingSeconds: 60,
+      },
+      // ── C023 ADDED — 뿌리의 알 (탄생지 둘째 · 계승형 · Play §5.4 · 확정 2) ──────
+      //
+      // **최초는 결속이고 이후는 계승이다** (확정 2). 알집이 한 번 터져 광식충이 서고 나면,
+      // 다음 대는 알집 없이 뿌리 마디에 저희끼리 맺힌다 — 요구는 둘뿐이고(균사도 비도 묻지
+      // 않는다) 먹는 것도 하나뿐이며 남기는 것도 작다.
+      //
+      // **규칙은 둘을 같은 한 규칙으로 굴린다** (W40 · SPEC-008) — mode 마다 규칙을 따로
+      // 두지 않는다. 갈리는 것은 이 데이터(이름 · 형태 · 자리 · 요구 · 길이)뿐이다.
+      {
+        id: 'ROOT_EGGS',
+        // 이미 있는 것이 낳는다 (확정 2 — 이 세계가 계승을 처음 쓰는 자리다)
+        mode: 'INHERITED',
+        worldCause: FOREST_CHAIN,
+        form: FORM_ROOT_EGGS,
+        // 무엇으로 맺히는가 (Play §5.4) — 뿌리혹의 축적(생체 광석)과, 재료가 아닌 것 하나:
+        // **부모 개체군**. 검사 ㉗ 은 앞의 것만 재고 뒤의 것은 판정하지 않는다 (비와 같은 자리)
+        source: {
+          materials: [BIO_ORE],
+          states: [ORE_EATER],
+        },
+        condition: {
+          // 알집과 **같은 규칙**이 일으킨다 — 숲의 뿌리에 맺히는 그 하나다
+          regionRule: RULE_FOREST_CLUTCH,
+          // 둘뿐이다 (Play §5.4) — 균사도 비도 묻지 않는다 (SPEC-007 경계 ②)
+          requires: [
+            // 이을 것이 있다 — 광식충이 하나 이상. 알집의 "아직 아무도 없다" 와 정확히 반대다
+            {
+              kind: 'population-at-least',
+              populationId: ORE_EATER,
+              value: 1,
+              unmetCode: LIFE_NEEDS_PARENT,
+            },
+            // 뿌리에 쌓인 것이 있다 — 같은 방의 원천 (SPEC-007 경계 ③)
+            { kind: 'source-available', sourceId: 'ROOT_NODULE', unmetCode: LIFE_NEEDS_MATERIAL },
+          ],
+        },
+        transition: { from: 'DORMANT', to: 'BORN' },
+        // 먹는 것은 **뿌리혹 하나뿐**이다 — 결속은 둘을 먹는다 (Play §5.4 "결속보다 적게" ·
+        // spec 기본형 ③: 이 세계의 원천에는 "얼마나" 가 없고 캘 횟수 하나뿐이므로 수로 읽었다)
+        consumes: ['ROOT_NODULE'],
+        // 남기는 것은 **작은 껍질**이다 (Play §5.4 · 확정 7)
+        leaves: ['EGG_HUSK'],
+        // 알집과 **같은 길이**로 머문다 (spec 기본형 ②) — 밝히지 않으면 곧장 DORMANT 라
+        // 계승이 90 초마다 끝없이 돌아 상한까지 순식간에 찬다
+        spentSeconds: 120,
+        traces: {
+          // 전조는 하나 — 뿌리 마디의 작은 붉은 점 (Play §5.4). 가려짐도 옅어짐도 없다:
+          // 이 자락은 조건이 아니라 **거기 무언가 맺히고 있다**는 것만 말한다
+          before: [{ op: 'trace-eggs-dots' }],
+          // 계승은 흙에 가루를 남기지 않는다 — 작은 껍질 하나가 전부다 (leaves)
+          after: [],
+        },
+        ecologicalRole: LIFE_ROLE_MOLT_SUPPLY,
+        population: ORE_EATER,
+        // 계승의 길이 — 90 세계 초 (확정 5). 결속(60)보다 길다
+        bindingSeconds: 90,
       },
     ],
     populations: [
@@ -393,6 +621,14 @@ export const RED_EYE_TREE_SPEC: RegionSpec = {
         scale: 4,
         // 값이 내리는 세계 안의 원인 — 조건 결핍. 실제로 내리는 규칙은 C024 다
         declineCause: POPULATION_DECLINE_CONDITION_LOST,
+        // C023 ADDED — 떼가 이 방에 선다 (Play §5.3 ⑥ · V21). 관찰 결과에 실리는 것은
+        // 이 코드와 지금 선 자락의 이름뿐이고, 값도 상한도 실리지 않는다
+        presence: PRESENCE_ORE_EATER_SWARM,
+        // 값 1 · 2 · 3 · 4 마다 하나씩 — 값만큼이 앞에서부터 서므로 값이 오를수록 넓어진다
+        presenceOps: ['presence-swarm-1', 'presence-swarm-2', 'presence-swarm-3', 'presence-swarm-4'],
+        // 탄생 하나가 그 방에 올리는 소란 — 타격과 같은 눈금이고 채취(10)보다 작다 (기본형 ⑤).
+        // 임계 300 이므로 탄생만으로는 방이 깨어나지 않는다
+        birthDisturbance: 5,
       },
     ],
   },

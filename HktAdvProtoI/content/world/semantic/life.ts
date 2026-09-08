@@ -63,8 +63,16 @@ export interface LifeSite {
   traces: readonly LifeSiteTrace[];
   /** 결속에 걸리는 세계 초 */
   bindingSeconds: number;
-  /** 이 탄생이 값을 올리는 개체군 — 올리는 것은 C023 이다 (밝혀만 둔다) */
+  /** 이 탄생이 값을 올리는 개체군 (C023 CHANGED — 태어남이 그 값을 1 올린다) */
   population: string;
+  /** 태어날 때 **먹는** 원천 id 들 — 데이터 순서 그대로 (C023 ADDED · 결정론) */
+  consumes: readonly string[];
+  /** 태어남이 **세우는** 원천 id 들 — 데이터 순서 그대로 (C023 ADDED) */
+  leaves: readonly string[];
+  /** SPENT 인 동안 서는 자락 op id 들 (C023 ADDED · traces.after) */
+  afterOps: readonly string[];
+  /** 터진 뒤 머무는 세계 초 — 밝히지 않았으면 0 이고 곧장 DORMANT 다 (C023 ADDED) */
+  spentSeconds: number;
 }
 
 /** 세계가 아는 개체군 하나 — 성질만이다. 값은 State 가 든다 */
@@ -153,10 +161,11 @@ export function populationValueOf(
  * 빈 배열이면 넷이 다 차 있다는 뜻이다 — 차 있는 것은 실리지 않는다: 관찰에 말할 것을
  * 가진 쪽은 모자란 쪽이다 (spec Observable · 원천의 조건 코드가 그런 그대로).
  *
- * 요구의 갈래는 셋이다.
+ * 요구의 갈래는 넷이다 (C023 CHANGED — 계승의 요구 하나가 늘었다).
  *   ① 원천이 **있는가** — 그 원천의 phase 가 available 인가. 같은 방이든 다른 방이든 묻는다
  *   ② **비가 오는가** — 세계 시각과 철에서 유도된다 (RULE-RAIN-001 · 저장되지 않는다)
- *   ③ 개체군의 값이 **그 값 이하인가**
+ *   ③ 개체군의 값이 **그 값 이하인가** (결속 — 아직 아무도 없어야 선다)
+ *   ④ 개체군의 값이 **그 값 이상인가** (계승 — 이을 것이 있어야 선다 · C023 ADDED)
  *
  * 경계 ① 요구를 밝히지 않은 탄생지는 늘 차 있는 것으로 읽는다 (빈 배열이다).
  * 경계 ② **세계가 모르는 원천 · 개체군을 가리킨 요구는 차지 않은 것으로 읽는다** — 끊긴
@@ -191,6 +200,11 @@ export function lifeUnmetCodes(
  *   faded   그 탄생지가 **결속 중이다**(BINDING) → 한 단계 옅어진다 (재료가 그리로 간다)
  * 둘 다 아닌 자락은 데이터의 단계 그대로다.
  *
+ * C023 CHANGED — **뒤에 남는 자락(traces.after)도 여기서 함께 답한다.** 그것은 SPENT 인
+ * 동안에만 서고 그 밖의 phase 에서는 단계 0 이다 (spec SPEC-004 경계 ③) — 전조가 조건
+ * 코드로 가려지는 그 기제 그대로이고, 묻는 것이 조건이 아니라 phase 라는 것만 다르다.
+ * 그래서 자락을 세우고 지우는 자리는 여전히 이 함수 하나다.
+ *
  * **진행이 아니라 phase 를 묻는다** (통합 판정 · spec 기본형 ④ 가 든 "절반" 을 물리친 자리).
  * 까닭은 하나다 — 진행은 관찰 결과에 실리지 않으므로(spec Observable) 화면이 그것을 볼 수
  * 없고, 그러면 바닥에 그려진 색과 이 값이 같은 자리에서 나오지 않는다. 두 벌이 갈리면
@@ -210,7 +224,7 @@ export function lifeTraceOverlayIn(
 ): Map<string, { hidden: boolean; faded: boolean }> {
   const overlay = new Map<string, { hidden: boolean; faded: boolean }>();
   for (const site of lifeSitesInRegion(regionId)) {
-    if (site.traces.length === 0) continue;
+    if (site.traces.length === 0 && site.afterOps.length === 0) continue;
     const now = lifeSiteStateOf(states, regionId, site.id);
     const fading = now.phase === 'BINDING';
     // 가려짐을 물어야 하는 자락이 하나라도 있을 때만 요구를 판정한다 — 없으면 물을 것이 없다.
@@ -223,6 +237,8 @@ export function lifeTraceOverlayIn(
         faded: fading && trace.fadesWhileBinding === true,
       });
     }
+    // C023 ADDED — 터진 뒤의 자락은 **SPENT 인 동안에만** 선다 (옅어지는 일은 없다).
+    for (const op of site.afterOps) overlay.set(op, { hidden: now.phase !== 'SPENT', faded: false });
   }
   return overlay;
 }
@@ -260,6 +276,71 @@ export function lifeStandingCodesAt(
   return codes;
 }
 
+/**
+ * RULE-SOURCE-RECOVERY-001 (C023 ADDED · spec R4) — 그 원천을 **어느 탄생지가 세우는가**.
+ *
+ * 아무도 세우지 않는 원천은 undefined 다. 원천은 자기가 어디서 오는지 말하지 않는다 —
+ * 무엇이 무엇을 남기는지는 **탄생지 쪽 데이터**(leaves)가 안다: 흐름의 도착 원천을 흐름
+ * 표에서 찾는 것(inflowOf) · 남기는 경로를 경로 표에서 찾는 것(leavingRouteOf)과 같은 어법이다.
+ *
+ * 이것을 읽는 자리는 둘뿐이다 — 되돌아옴을 멎게 하는 조건(sourceConditions)과, 세계가 설 때
+ * 그 원천을 **고갈로 세우는** 자리(initialSourceState). 되돌리는 것은 시간이 아니라
+ * **다음 탄생**이고, 그것은 RULE-LIFE-BIRTH-001 이 한다.
+ *
+ * 세계가 아는 탄생지 전부를 훑는다 — 방을 가리지 않는다 (다른 방의 것도 세울 수 있다).
+ * 차례는 데이터의 차례이므로 여럿이 같은 원천을 세우면 앞선 것이 답이다 (결정론).
+ */
+export function leavingLifeSiteOf(sourceId: string): LifeSite | undefined {
+  for (const site of siteIndex().values()) {
+    if (site.leaves.includes(sourceId)) return site;
+  }
+  return undefined;
+}
+
+/** 그 방의 개체군들 — 데이터 순서 그대로 (결정론). 밝히지 않은 방은 빈 배열이다 */
+export function populationsInRegion(regionId: string): readonly Population[] {
+  const spec = regionSpec(regionId);
+  const populations: Population[] = [];
+  for (const population of spec?.ecology?.populations ?? []) {
+    populations.push({ ...population, regionId });
+  }
+  return populations;
+}
+
+/**
+ * RULE-POPULATION-PRESENCE-001 (C023 ADDED · spec R5 · SPEC-006) —
+ * 그 방에 지금 **서 있는 떼의 자락들**.
+ *
+ * 개체군이 자락 목록을 밝혔으면 지금 값만큼 **앞에서부터** 선다 — 값이 0 이면 하나도 서지
+ * 않고, 값이 목록보다 크면 목록만큼이 전부다. 값이 오를수록 뒤의 것이 더 서고, 그것이
+ * 넓어지는가는 자락의 데이터가 정한다 (자리는 Description 이 소유한다 · C011 R3).
+ *
+ * 경계 ① **땅도 통행 격자도 hash 도 한 값 바뀌지 않는다** — 이 답은 그 방 Description 의
+ *        presence layer area 를 op id 로 가리킬 뿐이다 (흔적의 덧씌움과 같은 어법).
+ * 경계 ② **값 자체는 실리지 않는다** — 나가는 것은 선 자락의 이름과 그 떼의 코드뿐이다.
+ * 경계 ③ 관찰은 방으로 잘린다 — 다른 방의 떼는 여기 나오지 않는다.
+ *
+ * 자락을 밝혔어도 떼의 코드를 밝히지 않은 개체군은 서지 않는다 — 실을 이름이 없는 것을
+ * 지어내지 않는다. 차례는 데이터의 차례다 (결정론).
+ */
+export function swarmAreasIn(
+  states: Record<string, RegionState>,
+  regionId: string,
+): { presence: string; area: string }[] {
+  const standing: { presence: string; area: string }[] = [];
+  for (const population of populationsInRegion(regionId)) {
+    const ops = population.presenceOps;
+    const presence = population.presence;
+    if (!ops || ops.length === 0 || presence === undefined) continue;
+    const value = states[regionId]?.populations?.[population.id]?.value ?? 0;
+    const standingCount = Math.min(Math.max(0, Math.floor(value)), ops.length);
+    for (let index = 0; index < standingCount; index++) {
+      standing.push({ presence, area: ops[index]! });
+    }
+  }
+  return standing;
+}
+
 // ── 안쪽 ─────────────────────────────────────────────────────────────
 //
 // 탄생지의 자리는 **원천과 같은 layer** 에 적힌다 (RESOURCE_LAYER · spec SPEC-002) —
@@ -277,6 +358,12 @@ function toLifeSite(spec: LifeSiteSpec, regionId: string, position: WorldPositio
     traces: spec.traces.before,
     bindingSeconds: spec.bindingSeconds,
     population: spec.population,
+    // C023 ADDED — 밝히지 않은 탄생지는 먹지도 세우지도 남기지도 않는다. 없는 것을 지어내지
+    // 않되 부르는 쪽이 매번 물음표를 묻지 않도록 여기서 한 번 빈 것으로 편다 (원천의 어법).
+    consumes: spec.consumes,
+    leaves: spec.leaves ?? [],
+    afterOps: spec.traces.after,
+    spentSeconds: spec.spentSeconds ?? 0,
   };
 }
 
@@ -289,6 +376,11 @@ function isRequirementMet(
   if (requirement.kind === 'rain') return isRainingAt(time);
   if (requirement.kind === 'population-at-most') {
     return populationValueOf(states, requirement.populationId) <= requirement.value;
+  }
+  // C023 ADDED — 이을 것이 있는가 (계승의 요구). 세계가 모르는 개체군은 값이 0 으로 읽히므로
+  // 이 갈래는 **차지 않는다** — 위의 "이하" 가 저절로 차는 것과 정확히 반대다 (경계 ②).
+  if (requirement.kind === 'population-at-least') {
+    return populationValueOf(states, requirement.populationId) >= requirement.value;
   }
   // ① 원천이 있는가 — 세계가 모르는 원천은 **차지 않은 것**이다 (경계 ②).
   const source = findResourceSource(requirement.sourceId);
@@ -320,7 +412,12 @@ function populationIndex(): Map<string, Population> {
   return index;
 }
 
-/** 그 phase 가 결속을 이어 갈 수 있는 자리인가 — 이 Cycle 이 오가는 것은 앞의 둘이다 */
+/**
+ * 그 phase 가 **결속을 이어 갈 수 있는 자리**인가 (RULE-LIFE-BINDING-001 C023 CHANGED).
+ *
+ * BORN · SPENT 이면 거짓이다 — 터진 자리에는 요구를 묻지 않고 진행도 오르지 않는다
+ * (spec R3 · SPEC-003 경계 ①). 그 둘을 굴리는 것은 머묾의 규칙이다 (RULE-LIFE-SPENT-001).
+ */
 export function isBindablePhase(phase: LifeSitePhase): boolean {
   return phase === 'DORMANT' || phase === 'BINDING';
 }

@@ -139,6 +139,8 @@ function spawnFromEnv(): {
   // 하루가 360 세계 초라 촬영 하네스가 그것을 기다릴 수 없다. 규칙이 그 State 로 데려간다는
   // 것은 시나리오 테스트가 증명하고, 그림은 그 State 에서 무엇이 보이는가를 보인다.
   // 세우는 것은 phase 뿐이고 진행은 0 이다 — 모르는 탄생지 · 모르는 phase 는 세계가 조용히 무시한다.
+  // C023 CHANGED — phase 넷을 다 받는다 (dormant · binding · born · spent). 터진 자리와 그
+  // 곁의 빈 껍질은 결속 60 초를 기다려야 오는 그림이므로 여기서 세우고 시작한다.
   const lifePhase = process.env.HKT_LIFE_PHASE;
   if (lifePhase) {
     const phases: Record<string, string> = {};
@@ -150,9 +152,10 @@ function spawnFromEnv(): {
   }
   // HKT_POPULATION="POP:VALUE" 또는 "A:1,B:2" — 개체군의 **값이 얼마인가** (C022).
   //
-  // HKT_DISTURBANCE 와 같은 갈래의 검증용 손잡이다. 이 Cycle 에는 그 값을 올리는 것이 세계에
-  // 하나도 없으므로(올리는 것은 C023 이다), "값이 0 이 아니면 결속이 서지 않는다" 를 그림으로
-  // 보려면 그 값을 세우고 시작해야 한다. 세우는 것은 값뿐이고 세계의 규칙은 그대로다 —
+  // HKT_DISTURBANCE 와 같은 갈래의 검증용 손잡이다. C023 이 그 값을 올리는 규칙을 세웠으나
+  // 값이 오르려면 결속 60 초를 기다려야 하므로, "값이 0 이 아니면 결속이 서지 않는다" ·
+  // "값만큼 떼의 자락이 넓어진다" 를 그림으로 보려면 그 값을 세우고 시작해야 한다.
+  // 세우는 것은 값뿐이고 세계의 규칙은 그대로다 —
   // 값은 0 과 상한 사이로 잘리고, 모르는 개체군 · 수가 아닌 값은 세계가 조용히 무시한다.
   const population = process.env.HKT_POPULATION;
   if (population) {

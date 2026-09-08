@@ -700,9 +700,11 @@ describe('SPEC-001 생명 계약이 세계에 선다', () => {
       const pops = Object.keys(here?.populations ?? {});
       if (spec.id === ROOM) {
         // Then 거목의 방은 탄생지 하나와 개체군 하나를 밝힌다
-        expect({ region: spec.id, sites, pops }).toEqual({
+        // C023 CHANGED — 이 방의 탄생지가 둘이 되었다 (알집 · 뿌리의 알). 이 Cycle 이 세운
+        // 것은 알집이므로 **그것이 있는가**만 잰다 (전체 개수를 단언하지 않는다).
+        expect({ region: spec.id, hasClutch: sites.includes(CLUTCH), pops }).toEqual({
           region: spec.id,
-          sites: [CLUTCH],
+          hasClutch: true,
           pops: [POPULATION],
         });
         continue;
@@ -937,18 +939,48 @@ describe('SPEC-003 전조 흔적 넷이 알집으로 이끈다', () => {
 // SPEC-004 — 결속 조건은 넷이고, 하나라도 모자라면 서지 않는다
 // ─────────────────────────────────────────────────────────────────────
 
+/**
+ * **비가 모자랄 때의 코드** (C023 CHANGED) — 글자를 손으로 적지 않고 세계에서 얻는다.
+ *
+ * 비가 아예 없는 철에서는 요구 넷 중 비 하나만 모자라므로, 그때 걸린 코드가 곧 그것이다.
+ * 이 Cycle 부터 비의 눈금을 phase 로 잴 수 없어(결속이 60 초에 다 차 태어난다) 코드로 잰다.
+ */
+let RAIN_CODE_MEMO: string | null = null;
+const rainCode = (): string => {
+  if (RAIN_CODE_MEMO !== null) return RAIN_CODE_MEMO;
+  const seen = missingCodes(inSeason(LONG_NIGHT, ROOM, clutchAt()));
+  expect({ only: seen.length }).toEqual({ only: 1 });
+  RAIN_CODE_MEMO = seen[0]!;
+  return RAIN_CODE_MEMO;
+};
+
+/** 긴 밤이 시작한 자리에서 다음 고요가 시작하기까지 — 긴 밤 360 + 뒤척임 60 (C015 의 시계) */
+const LONG_NIGHT_TO_STILL = 420;
+
+/**
+ * 그 관찰 결과 어딘가에 **값이 꼭 그것인** 자리가 있는가 (C023 CHANGED).
+ *
+ * 부분 문자열로 재면 다른 코드가 그 이름을 품기만 해도 거짓 양성이 난다
+ * (껍질의 재료 코드가 개체군 이름을 품는다). 값 하나하나를 견준다.
+ */
+function carriesExactly(value: unknown, needle: string): boolean {
+  if (typeof value === 'string') return value === needle;
+  if (Array.isArray(value)) return value.some((v) => carriesExactly(v, needle));
+  if (value !== null && typeof value === 'object') {
+    return Object.values(value as Record<string, unknown>).some((v) => carriesExactly(v, needle));
+  }
+  return false;
+}
+
 /** 요구 넷을 하나씩 깨뜨리는 네 가지 세움 — 무엇이 깨졌는지는 이름으로만 적는다 */
 const BREAKERS: readonly { name: string; build: () => WorldDriver }[] = [
   { name: '뿌리혹이 없다', build: () => atClutch({ sourcePhases: { [NODULE]: DEPLETED } }) },
   { name: '균사가 없다', build: () => atClutch({ sourcePhases: { [FUNGUS]: DEPLETED } }) },
   {
     name: '비가 오지 않는다',
-    build: () => {
-      const w = atClutch();
-      // 고요의 비는 하루 [0, 90) 뿐이다 — 그 밖으로 나간다 (spec 비 표)
-      wait(w, 95);
-      return w;
-    },
+    // C023 CHANGED — 고요의 비 밖으로 나가려면 90 초를 굴려야 하는데 결속은 60 초에 다 차
+    // **태어나 버린다**. 비가 아예 없는 철에서 잰다 — 요구 넷 중 비 하나만 모자란 세계다.
+    build: () => inSeason(LONG_NIGHT, ROOM, clutchAt()),
   },
   { name: '광식충이 0 이 아니다', build: () => atClutch({ populations: { [POPULATION]: 1 } }) },
 ];
@@ -1002,11 +1034,11 @@ describe('SPEC-004 결속 조건은 넷이고, 하나라도 모자라면 서지 
       all: codes,
     });
     // And 넷을 다 깨뜨리면 넷이 다 실린다 (차 있는 것의 코드는 실리지 않는다)
-    const all = atClutch({
+    // C023 CHANGED — 비를 굴려서 깨면 그 사이 태어나 버린다. 비가 없는 철에서 넷을 깨뜨린다
+    const all = inSeason(LONG_NIGHT, ROOM, clutchAt(), {
       sourcePhases: { [NODULE]: DEPLETED, [FUNGUS]: DEPLETED },
       populations: { [POPULATION]: 1 },
     });
-    wait(all, 95); // 비도 그친다
     expect({ missing: [...missingCodes(all)].sort() }).toEqual({
       missing: [...codes.map((c) => c.code)].sort(),
     });
@@ -1041,18 +1073,33 @@ describe('SPEC-005 결속은 세계 시간으로 오르고, 조건이 깨지면 
     // When 절반의 세계 시간이 흐른다
     wait(w, BINDING_SECONDS / 2);
     expect(progressOfSite(w)).toBeCloseTo(0.5, 2);
-    // Then 60 초에 다 찬다
-    wait(w, BINDING_SECONDS / 2);
-    expect(progressOfSite(w)).toBeCloseTo(1, 5);
+    // Then 60 초에 다 찬다 — C023 CHANGED: 다 차는 그 tick 에 결속이 **끝난다**
+    // (태어나는 것을 재는 것은 C023 이다). 그래서 "다 찼다" 는 BINDING 을 벗어나는 것으로 읽는다.
+    wait(w, BINDING_SECONDS / 2 - 2);
+    expect({ almost: progressOfSite(w) > 0.9, phase: phaseOfSite(w) }).toEqual({
+      almost: true,
+      phase: BINDING,
+    });
+    wait(w, 3);
+    expect({ done: phaseOfSite(w) !== BINDING }).toEqual({ done: true });
   });
 
   it('S-052 (경계 ①) 진행은 1 을 넘지 않는다', () => {
+    // C023 CHANGED — 다 차면 태어나므로 "1 에 머무는 자리" 가 없다. 결속하는 **동안 내내**
+    // 1 을 넘지 않는가를 훑어서 잰다 (그것이 이 경계가 말하려던 것이다).
     const w = atClutch();
-    // 고요의 비는 [0, 90) — 그 안에서 결속(60)이 다 차고도 남는다
-    wait(w, 85);
-    expect({ progress: progressOfSite(w) }).toEqual({ progress: 1 });
-    expect({ phase: phaseOfSite(w) }).toEqual({ phase: BINDING });
-  });
+    let highest = 0;
+    for (let i = 0; i < BINDING_SECONDS - 1; i++) {
+      wait(w, 1);
+      if (phaseOfSite(w) !== BINDING) break;
+      highest = Math.max(highest, progressOfSite(w));
+    }
+    expect({ phase: phaseOfSite(w), overflowed: highest > 1, near: highest > 0.9 }).toEqual({
+      phase: BINDING,
+      overflowed: false,
+      near: true,
+    });
+  }, 60_000);
 
   it('S-053 조건이 깨지면 **그 자리에 멎고 지워지지 않으며**, 다시 차면 이어서 오른다', () => {
     // Given 관찰자는 둥지의 방에 있고, 거목의 방에서 결속이 오르고 있다 (Observable Result 4)
@@ -1080,17 +1127,19 @@ describe('SPEC-005 결속은 세계 시간으로 오르고, 조건이 깨지면 
     expect({ phase: phaseOfSite(w) }).toEqual({ phase: BINDING });
     // Then **멎은 자리에서 이어서** 오른다 (처음부터 다시가 아니다)
     expect({ resumed: progressOfSite(w) > frozen }).toEqual({ resumed: true });
-    wait(w, BINDING_SECONDS);
-    expect(progressOfSite(w)).toBeCloseTo(1, 5);
+    // And 이어 올라 다 찬다 — 처음부터 다시라면 60 초가 더 걸려 이 안에 끝나지 않는다
+    // (C023 CHANGED: 다 차는 그 tick 에 결속이 끝나므로 "다 찼다" 는 BINDING 을 벗어남이다)
+    wait(w, BINDING_SECONDS - 5);
+    expect({ done: phaseOfSite(w) !== BINDING }).toEqual({ done: true });
   }, 60_000);
 
-  it('S-054 (경계 ②) 다 차도 아무것도 태어나지 않고 아무것도 소비되지 않는다', () => {
+  it('S-054 (경계 ②) **다 차기 전에는** 아무것도 태어나지 않고 아무것도 소비되지 않는다', () => {
     const w = atClutch();
     const noduleBefore = sourcePhaseOf(w, ROOM, NODULE);
     const fungusBefore = sourcePhaseOf(w, PREDATOR_NEST, FUNGUS);
-    // When 결속이 다 차고도 한참 더 굴린다
-    wait(w, 85);
-    expect({ progress: progressOfSite(w) }).toEqual({ progress: 1 });
+    // When 결속이 다 차기 직전까지 굴린다 (C023 CHANGED — 다 차면 태어난다)
+    wait(w, BINDING_SECONDS - 2);
+    expect({ rising: progressOfSite(w) > 0.9 }).toEqual({ rising: true });
     // Then phase 는 BINDING 그대로다 (BORN 으로 가는 것은 C023 이다)
     expect({ phase: phaseOfSite(w), state: seenSite(w).state }).toEqual({
       phase: BINDING,
@@ -1121,9 +1170,12 @@ describe('SPEC-005 결속은 세계 시간으로 오르고, 조건이 깨지면 
     expect({ phase: phaseOfSite(again), progress: progressOfSite(again) }).toEqual(before);
     // And 개체군 값도 함께 저장된다 (SPEC-007)
     expect({ population: populationValue(again) }).toEqual({ population: 0 });
-    // And 이어서 굴리면 이어서 오른다
-    wait(again, BINDING_SECONDS);
-    expect(progressOfSite(again)).toBeCloseTo(1, 5);
+    // And 이어서 굴리면 이어서 오른다 (C023 CHANGED — 다 차면 결속이 끝나므로 그 앞까지 잰다)
+    wait(again, 20);
+    expect({ rose: progressOfSite(again) > before.progress, phase: phaseOfSite(again) }).toEqual({
+      rose: true,
+      phase: BINDING,
+    });
   }, 60_000);
 });
 
@@ -1145,11 +1197,13 @@ describe('SPEC-006 비는 시각과 철에서 유도되고 저장되지 않는�
       for (const offset of samples) {
         wait(w, offset - now);
         now = offset;
-        // Then phase 는 그 시각에 비가 오는가 그대로다
-        expect({ season, offset, phase: phaseOfSite(w) }).toEqual({
+        // Then **비가 모자란가**가 그 시각에 비가 오는가 그대로다.
+        // C023 CHANGED — phase 로는 잴 수 없다: 결속이 60 초에 다 차 태어나 버리므로
+        // 90 초 뒤의 phase 는 SPENT 다. 비는 여전히 조건 코드가 말한다 (그것이 이 SPEC 의 주장이다).
+        expect({ season, offset, dry: missingCodes(w).includes(rainCode()) }).toEqual({
           season,
           offset,
-          phase: rainsAt(season, offset) ? BINDING : DORMANT,
+          dry: !rainsAt(season, offset),
         });
       }
     }
@@ -1179,10 +1233,13 @@ describe('SPEC-006 비는 시각과 철에서 유도되고 저장되지 않는�
   }, 60_000);
 
   it('S-064 (경계 ①) 저장되지 않는다 — 되살린 세계가 같은 시각에 같은 답을 낸다', () => {
-    // Given 비가 그친 뒤의 세계
-    const w = atClutch();
+    // Given 비가 없는 철의 세계 (C023 CHANGED — 비를 굴려서 그치게 하면 그 사이 태어난다)
+    const w = inSeason(LONG_NIGHT, ROOM, clutchAt());
     wait(w, 95);
-    expect({ phase: phaseOfSite(w) }).toEqual({ phase: DORMANT });
+    expect({ dry: missingCodes(w).includes(rainCode()), phase: phaseOfSite(w) }).toEqual({
+      dry: true,
+      phase: DORMANT,
+    });
     // Then 저장된 탄생지의 자리에는 phase 와 진행뿐이다 — 비도 조건의 충족도 없다
     const stored = throughFile(w.world.snapshot());
     const storedSite = (
@@ -1193,21 +1250,29 @@ describe('SPEC-006 비는 시각과 철에서 유도되고 저장되지 않는�
     expect({ keys: Object.keys(storedSite ?? {}).sort() }).toEqual({ keys: ['phase', 'progress'] });
     // And 되살린 세계는 같은 시각에 같은 답을 낸다
     const again = revive(w);
-    expect({ phase: phaseOfSite(again) }).toEqual({ phase: DORMANT });
-    // And 다음 비가 오면 다시 선다 — 유도된 사실이기 때문이다
-    wait(again, DAY_TOTAL - 95 + 5);
-    expect({ phase: phaseOfSite(again) }).toEqual({ phase: BINDING });
+    expect({ dry: missingCodes(again).includes(rainCode()) }).toEqual({ dry: true });
+    // And 비가 오는 철로 넘어가면 다시 선다 — 유도된 사실이기 때문이다
+    // (긴 밤 360 초 뒤는 뒤척임 60 초, 그 뒤가 다음 바퀴의 고요다)
+    wait(again, LONG_NIGHT_TO_STILL - 95 + 5);
+    expect({ dry: missingCodes(again).includes(rainCode()), phase: phaseOfSite(again) }).toEqual({
+      dry: false,
+      phase: BINDING,
+    });
   }, 60_000);
 
   it('S-065 (경계 ③) 비는 땅 · 표면 · 통행 · 관찰 범위를 한 값도 바꾸지 않는다', () => {
     // Given 비가 오는 때와 그치는 때
-    const raining = atClutch();
-    const dry = atClutch();
+    // C023 CHANGED — 비를 굴려서 그치게 하면 그 사이 **태어나** 세계가 달라진다. 그래서
+    // 두 세계 다 **광식충이 가득한 숲**으로 세운다: 결속이 서지 않으므로 아무것도 태어나지
+    // 않고, 그러면 달라지는 것은 비 하나뿐이다 (철도 낮밤도 같은 하루 안이다).
+    const noBirth = { populations: { [POPULATION]: 99 } };
+    const raining = atClutch(noBirth);
+    const dry = atClutch(noBirth);
     wait(dry, 95);
-    expect({ raining: phaseOfSite(raining), dry: phaseOfSite(dry) }).toEqual({
-      raining: BINDING,
-      dry: DORMANT,
-    });
+    expect({
+      raining: missingCodes(raining).includes(rainCode()),
+      dry: missingCodes(dry).includes(rainCode()),
+    }).toEqual({ raining: false, dry: true });
     // Then 방의 hash 도 통행의 대답도 같다
     expect({ hash: dry.observe().region.hash }).toEqual({ hash: raining.observe().region.hash });
     const sample = walkableSpots(ROOM).filter((_, i) => i % 307 === 0).slice(0, 5);
@@ -1232,21 +1297,25 @@ describe('SPEC-007 개체군 값이 서고, 0 이라는 사실이 조건이다',
   it('S-071 거목의 방이 개체군 하나를 밝히고 값이 0 으로 선다', () => {
     const w = atClutch();
     expect({ value: populationValue(w) }).toEqual({ value: 0 });
-    // And 관찰 봉투에는 그 값이 실리지 않는다 (Observable "투영하지 않는 것")
-    const carried = JSON.stringify(w.observe());
-    expect({ leaked: carried.includes(POPULATION) }).toEqual({ leaked: false });
+    // And 관찰 봉투에는 그 값이 실리지 않는다 (Observable "투영하지 않는 것").
+    // C023 CHANGED — 부분 문자열로 재면 껍질의 **재료 코드**(ORE_EATER_MOLT)가 개체군 이름을
+    // 품어 거짓 양성이 난다. 값이 **꼭 그것인** 자리만 훑는다.
+    expect({ leaked: carriesExactly(w.observe(), POPULATION) }).toEqual({ leaked: false });
   });
 
-  it('S-072 (경계 ①) 값을 올리거나 내리는 것이 하나도 없다 — 결속이 다 차도 0 이다', () => {
+  it('S-072 (경계 ①) **결속이 다 차기 전에는** 값을 올리거나 내리는 것이 하나도 없다', () => {
+    // C023 CHANGED — 다 차면 값이 오른다 (그것을 재는 것은 C023 이다). 여기서 남는 주장은
+    // "결속하는 동안에는 아무것도 값을 건드리지 않는다" 이고, 그것은 여전히 참이다.
     const w = atClutch();
-    wait(w, 85);
-    expect({ progress: progressOfSite(w), value: populationValue(w) }).toEqual({
-      progress: 1,
+    wait(w, BINDING_SECONDS - 2);
+    expect({ rising: progressOfSite(w) > 0.9, value: populationValue(w) }).toEqual({
+      rising: true,
       value: 0,
     });
-    // And 하루를 더 굴려도 0 이다
-    wait(w, DAY_TOTAL);
-    expect({ value: populationValue(w) }).toEqual({ value: 0 });
+    // And 비가 없는 철에서는 하루를 굴려도 0 이다 (결속이 서지 않으므로)
+    const dry = inSeason(LONG_NIGHT, ROOM, clutchAt());
+    wait(dry, 300);
+    expect({ value: populationValue(dry) }).toEqual({ value: 0 });
   }, 60_000);
 
   it('S-073 (경계 ②) 값이 0 이 아니면 결속이 서지 않는다', () => {

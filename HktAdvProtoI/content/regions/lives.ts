@@ -65,6 +65,26 @@ export const ORE_EATER = 'ORE_EATER';
 export const FORM_ROOT_CLUTCH = 'root-clutch';
 
 /**
+ * **뿌리의 알**의 자연 형태 코드 (C023 ADDED · Play §5.4 · spec SPEC-008).
+ *
+ * 결속(알집)과 계승(알)은 **눈으로 갈린다** — 큰 알집과 작은 붉은 점이다. 규칙은 둘을 같은
+ * 한 규칙으로 굴리므로(W40), 갈리는 자리는 이 형태 코드와 그것을 읽는 View 의 표뿐이다.
+ */
+export const FORM_ROOT_EGGS = 'root-eggs';
+
+/**
+ * **떼의 의미 코드** (C023 ADDED · Play §5.3 ⑥ · V21 · Time §2.6).
+ *
+ * 개체군이 값만큼의 자락으로 그 방에 선다 — 관찰 결과의 `presences[].presence` 가 이 값이고,
+ * 지나가는 것의 코드(sky-whale · blind-hunter)와 **같은 자리 · 같은 갈래**다.
+ *
+ * 개체군의 id(ORE_EATER)를 그대로 쓰지 않는 이유는 하나다 — 세계는 **개체군의 값도 그 이름도
+ * 투영하지 않는다** (spec Observable). 관찰자가 보는 것은 "여기 무엇이 돌고 있다" 는 코드
+ * 하나이고, 그것이 얼마나 되는지는 선 자락의 넓이로만 읽힌다.
+ */
+export const PRESENCE_ORE_EATER_SWARM = 'ore-eater-swarm';
+
+/**
  * 이 세계가 아는 생명들 — 지금은 하나다.
  *
  * 숲의 사슬 안에서 산다 (FOREST_CHAIN) — 거목이 빨아올린 것을 먹고 허물을 남기는 그 자리다.

@@ -13,12 +13,12 @@
 import type { LifeFormationMode } from './lives';
 
 /**
- * 탄생지의 phase 넷 (spec State 절) — 이 Cycle 이 오가는 것은 앞의 둘이다.
+ * 탄생지의 phase 넷 (spec State 절) — C023 CHANGED: **넷을 다 쓴다.**
  *
  *   DORMANT  맺히지 않았다 (요구가 다 차 있지 않다)
  *   BINDING  맺히는 중이다 (요구가 다 차 있다 · 진행이 오른다)
- *   BORN     태어났다 (C023)
- *   SPENT    비었다 (C023)
+ *   BORN     태어났다 — **한 tick** 이다. 다섯이 함께 움직이는 그 순간이다 (C023 · SPEC-001)
+ *   SPENT    비었다 — 터진 채 머문다. 다 머물면 DORMANT 로 돌아간다 (C023 · SPEC-003)
  */
 export type LifeSitePhase = 'DORMANT' | 'BINDING' | 'BORN' | 'SPENT';
 
@@ -48,6 +48,14 @@ export const LIFE_NEEDS_DECAY = 'life-needs-decay';
 export const LIFE_NEEDS_RAIN = 'life-needs-rain';
 /** 이미 주인이 있다 (그 개체군이 0 이 아니다 — 최초는 결속이고 이후는 계승이다 · 확정 2) */
 export const LIFE_HAS_OWNER = 'life-has-owner';
+/**
+ * **이을 것이 없다** (C023 ADDED · Play §5.4) — 그 개체군이 아직 하나도 없다.
+ *
+ * `LIFE_HAS_OWNER` 와 **정확히 반대**의 말이다: 결속은 주인이 있으면 서지 않고, 계승은
+ * 이을 것이 없으면 서지 않는다. 둘이 갈려 있어야 관찰자가 "지금은 어느 쪽의 때인가" 를
+ * 지목 하나로 읽는다 (spec SPEC-008 · 확정 2).
+ */
+export const LIFE_NEEDS_PARENT = 'life-needs-parent';
 
 /** 걸린 것의 코드 — 땅이 떤다 (위험이 아니라 선 자리의 말이다 · spec 기본형 ⑧) */
 export const GROUND_TREMOR = 'ground-tremor';
@@ -67,7 +75,7 @@ export const LIFE_ROLE_MOLT_SUPPLY = 'molt-supply';
 // ── 형 ────────────────────────────────────────────────────────────────
 
 /**
- * 결속의 **요구** 하나 (spec R2 · SPEC-004) — 갈래가 셋이다.
+ * 결속의 **요구** 하나 (spec R2 · SPEC-004) — 갈래가 넷이다 (C023 CHANGED — 하나가 늘었다).
  *
  * 요구마다 자기 **모자람 코드**를 밝힌다. 세계가 모르는 원천 · 개체군을 가리킨 요구는
  * **차지 않은 것**으로 읽힌다 (끊긴 참조는 아무 일도 하지 않는다) — 검사 ㉗ 이 그것을 잡는다.
@@ -78,7 +86,15 @@ export type LifeRequirement =
   /** 지금 **비가 오는가** (RULE-RAIN-001 이 시각과 철에서 유도한다) */
   | { kind: 'rain'; unmetCode: string }
   /** 그 개체군의 값이 **이 값 이하인가** */
-  | { kind: 'population-at-most'; populationId: string; value: number; unmetCode: string };
+  | { kind: 'population-at-most'; populationId: string; value: number; unmetCode: string }
+  /**
+   * 그 개체군의 값이 **이 값 이상인가** (C023 ADDED · Play §5.4 · spec SPEC-007).
+   *
+   * `population-at-most` 의 짝이다 — 최초는 아무도 없어야 서고(결속), 이후는 이을 것이
+   * 있어야 선다(계승). 둘이 같은 개체군을 반대로 물으므로 **둘은 겹치지 않는다**
+   * (SPEC-007 경계 ①). 세계가 모르는 개체군은 값이 0 으로 읽히므로 이 갈래는 차지 않는다.
+   */
+  | { kind: 'population-at-least'; populationId: string; value: number; unmetCode: string };
 
 /**
  * 탄생지가 밝히는 **전조 자락** 하나 (spec R4 · SPEC-003).
@@ -135,25 +151,48 @@ export interface LifeSiteSpec {
     requires: readonly LifeRequirement[];
   };
   /**
-   * 다 차면 어디로 가는가 — **밝혀만 둔다** (이 Cycle 의 규칙은 읽지 않는다).
-   * 이 Cycle 이 오가는 것은 DORMANT ↔ BINDING 이고, BORN 으로 가는 것은 C023 이다.
+   * 다 차면 어디로 가는가 — **밝혀만 둔다** (규칙은 읽지 않는다).
+   * 실제로 도는 차례는 규칙이 안다: DORMANT → BINDING → BORN → SPENT → DORMANT (C023).
    */
   transition: { from: LifeSitePhase; to: LifeSitePhase };
   /**
    * 태어날 때 **무엇을 먹는가** — 원천 id 들 (㉗ · ㉙).
-   * 실제 소비는 C023 이다 — 이 Cycle 의 알집은 아무것도 먹지 않는다 (spec R7).
+   *
+   * C023 CHANGED — **밝혀만 두던 자리가 일을 한다.** 태어나는 그 tick 에 이 원천들이
+   * 고갈된다: 캔 것과 **같은 State** 이고 원인만 다르다 (RULE-LIFE-BIRTH-001 ② · SPEC-002).
+   * 다른 방의 원천도 같은 규칙으로 먹힌다 — 균사는 둥지의 것이다.
    */
   consumes: readonly string[];
+  /**
+   * 태어남이 **세우는** 원천 id 들 (C023 ADDED · Play §5.3 ⑤ · §5.4 · Material §6.2 By-product).
+   *
+   * 그 원천들은 **처음이 고갈**이고 시간으로 돌아오지 않는다 — 되돌리는 것은 **다음 탄생**이다
+   * (RULE-SOURCE-RECOVERY-001 CHANGED · SPEC-004). 밝히지 않은 탄생지는 아무것도 남기지 않는다.
+   */
+  leaves?: readonly string[];
+  /**
+   * 태어난 뒤 그 자리가 **머무는 세계 초** (C023 ADDED · 확정 5 · SPEC-003).
+   *
+   * BORN 은 한 tick 이고 곧 SPENT 가 된다. SPENT 는 이만큼 머문 뒤 DORMANT 로 돌아간다 —
+   * **밝히지 않은 탄생지는 BORN 다음 tick 에 곧장 DORMANT 다** (spec R2 경계 ②).
+   */
+  spentSeconds?: number;
   /** 전조와 그 뒤에 남는 것 */
   traces: {
     /** 태어나기 **전**의 자락들 — 하나 이상이어야 한다 (㉙) */
     before: readonly LifeSiteTrace[];
-    /** 태어난 **뒤**에 남는 것들 — **밝혀만 둔다** (C023 이 쓴다 · 투영되지 않는다) */
+    /**
+     * 태어난 **뒤**에 서는 자락들의 op id (C023 CHANGED — 밝혀만 두던 자리가 일을 한다).
+     *
+     * **SPENT 인 동안에만 선다** — 그 밖의 phase 에서는 단계 0 이다 (전조의 `hiddenWhen` 이
+     * 하는 그 기제 그대로 · spec SPEC-004 경계 ③). 원천은 여기 오지 않는다: 태어남이
+     * **세우는** 것은 `leaves` 이고 여기 있는 것은 흙에 남는 자국뿐이다.
+     */
     after: readonly string[];
   };
   /** 그 탄생이 생태에서 맡은 자리 — 코드일 뿐이고 규칙은 읽지 않는다 */
   ecologicalRole: string;
-  /** 이 탄생이 값을 올리는 개체군의 id (㉗ · ㉛). 올리는 것은 C023 이다 */
+  /** 이 탄생이 값을 올리는 개체군의 id (㉗ · ㉛) — 태어남이 그 tick 에 1 올린다 (C023 CHANGED) */
   population: string;
   /** 결속에 걸리는 **세계 초** — 값의 유일한 출처가 여기다 (원천의 recoverySeconds 의 선례) */
   bindingSeconds: number;
@@ -163,7 +202,9 @@ export interface LifeSiteSpec {
  * 개체군 하나가 밝히는 것 (확정 6 · Life §3.2).
  *
  * 값은 여기 없다 — 값은 세계가 겪은 일이므로 Region State 가 든다 (populations[id].value).
- * **presence 는 밝히지 않는다** — 어디에 사는가는 태어난 것이 서고 나서의 일이다 (C023).
+ *
+ * C023 CHANGED — **어디에 사는가가 선다** (presence · presenceOps). C022 가 비워 둔 그 자리를
+ * 태어난 것이 서고 난 지금 잇는다 (Time §2.6 의 presence layer 와 같은 자리).
  */
 export interface PopulationSpec {
   /** 그 생명의 코드이자 개체군의 id (content/regions/lives.ts 의 LifeSeed) */
@@ -172,6 +213,30 @@ export interface PopulationSpec {
   scale: number;
   /** 값이 내리는 **세계 안의 원인** 코드 — 실제로 내리는 규칙은 C024 다 (밝혀만 둔다) */
   declineCause: string;
+  /**
+   * 그 떼의 **의미 코드** (C023 ADDED · Play §5.3 ⑥ · V21) — 관찰 결과의 `presences[].presence`.
+   *
+   * 개체군의 id 와 갈린다: 세계는 개체군의 값도 그 이름도 투영하지 않으므로(spec Observable),
+   * 관찰자에게 가는 것은 "여기 무엇이 돌고 있다" 는 코드 하나뿐이다.
+   * 밝히지 않은 개체군은 아무것도 서지 않는다 — 자락을 밝혔어도 실을 이름이 없다.
+   */
+  presence?: string;
+  /**
+   * 값 1..상한 마다의 **자락 op id** (C023 ADDED · spec R5 · SPEC-006).
+   *
+   * 지금 값만큼이 **앞에서부터** 선다 — 값이 0 이면 하나도 서지 않고, 값이 오를수록 뒤의
+   * 것이 더 선다 (넓어지는 것은 자락의 데이터가 정한다 · 자리는 그 방 Description 의
+   * presence layer area 가 소유한다 · C011 R3 의 규율 그대로).
+   * 밝히지 않은 개체군은 자락이 없다.
+   */
+  presenceOps?: readonly string[];
+  /**
+   * 탄생 하나가 그 방에 올리는 **소란** (C023 ADDED · 확정 6 · spec R1 ⑤).
+   *
+   * 올리는 일은 C017 의 그 한 자리가 한다 (RULE-DISTURBANCE-001) — 여기 있는 것은 값뿐이고
+   * 임계에서 멈추는 것도 그 규칙이 안다. 밝히지 않으면 탄생이 소란을 올리지 않는다.
+   */
+  birthDisturbance?: number;
 }
 
 /**

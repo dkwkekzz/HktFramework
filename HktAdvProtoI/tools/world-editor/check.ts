@@ -286,13 +286,21 @@ export const WORLD_CHECK_LIFE: CheckLife = {
         requiredSourceIds: site.condition.requires.flatMap((requirement) =>
           requirement.kind === 'source-available' ? [requirement.sourceId] : [],
         ),
+        // C023 CHANGED — 개체군을 가리키는 갈래가 **둘**이다 (결속의 "이하" · 계승의 "이상").
+        // 둘 다 실어야 ㉗ 이 끊긴 참조를 잡는다 — 갈래 하나를 빠뜨리면 세계에 없는 개체군을
+        // 가리킨 계승이 검사를 그냥 지나간다
         requiredPopulationIds: site.condition.requires.flatMap((requirement) =>
-          requirement.kind === 'population-at-most' ? [requirement.populationId] : [],
+          requirement.kind === 'population-at-most' || requirement.kind === 'population-at-least'
+            ? [requirement.populationId]
+            : [],
         ),
         consumesSourceIds: site.consumes,
-        // 전조 흔적의 op id 들 — 태어난 **뒤**의 것(traces.after)은 아직 그 방 Description 에
-        // 자락이 없으므로 여기 실리지 않는다 (C023 이 그 자리를 세운다)
-        traceOpIds: site.traces.before.map((trace) => trace.op),
+        // 흔적의 op id 들 — C023 CHANGED: 태어난 **뒤**의 것(traces.after)도 함께 편다.
+        // C022 가 비워 둔 이유(그 방 Description 에 아직 그 자락이 없다)가 사라졌기 때문이다:
+        // 이제 세계가 그것을 실제로 세우므로 ㉗ 이 "그 op 이 그 방에 있는가" 를 재야 한다.
+        // ㉙("전조 없는 탄생")은 이 목록이 비었는가를 보므로, 뒤의 것만 가진 탄생지는
+        // 그 검사를 지나가게 된다 — 지금 세계의 탄생지 둘은 다 전조를 가진다
+        traceOpIds: [...site.traces.before.map((trace) => trace.op), ...site.traces.after],
         population: site.population,
       }),
     ),

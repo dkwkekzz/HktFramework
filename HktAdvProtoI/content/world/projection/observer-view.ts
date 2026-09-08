@@ -96,6 +96,7 @@ import {
   lifeSitesInRegion,
   lifeStandingCodesAt,
   lifeUnmetCodes,
+  swarmAreasIn,
 } from '../semantic/life';
 import { passingIn, passingOverlaysIn } from '../semantic/presence';
 import {
@@ -436,9 +437,10 @@ export function projectObserverView(
   // conditions)을 role 하나 다르게 쓸 뿐이다. 관찰은 여전히 방으로 잘리고, 목록 자체가
   // 데이터에서 유도되므로 매 관찰마다 같은 순서로 나온다 (결정론).
   //
-  // 싣지 않는 것 — 결속의 진행 · 결속의 길이 · 지금 비가 오는가 · 개체군의 값 · 요구의 목록 ·
-  // 무엇이 태어나려 하는가 · 언제 태어나는가 · 그 뒤에 무엇이 남는가. 관찰자는 흔적과
-  // 조건 코드로만 그것을 읽는다 (spec Observable · Material · Time 의 규율 그대로).
+  // 싣지 않는 것 — 결속과 머묾의 진행 · 그 길이 · 지금 비가 오는가 · 개체군의 값과 상한 ·
+  // 요구의 목록 · 무엇이 태어나려 하는가 · 언제 태어나는가 · 무엇을 먹었는가 · 그 뒤에
+  // 무엇이 남는가 · 계승과 결속 중 어느 쪽인가. 관찰자는 그림과 자락과 조건 코드로만
+  // 그것을 읽는다 (spec Observable · Material · Time 의 규율 그대로).
   for (const site of lifeSitesInRegion(self.regionId)) {
     // 밤이면 먼 탄생지는 실리지 않는다 — 원천과 같은 잣대다 (C015 spec R2).
     if (!withinNightRange(site.position)) continue;
@@ -449,8 +451,10 @@ export function projectObserverView(
     entities.push({
       id: site.id,
       role: 'life-site',
-      // 지금 phase — 원천의 phase 가 실리는 그 자리이고 어휘만 다르다 (dormant | binding).
-      // 진행도 길이도 싣지 않는다: 세계는 "맺히는 중인가" 까지만 말한다.
+      // 지금 phase — 원천의 phase 가 실리는 그 자리이고 어휘만 다르다.
+      // C023 CHANGED — 넷을 다 쓴다 (dormant | binding | born | spent). 진행도 길이도 싣지
+      // 않는다: 세계는 "맺히는 중인가 · 터졌는가" 까지만 말하고, 결속인지 계승인지도
+      // 말하지 않는다 — 그것은 kind(자연 형태)와 조건 코드로만 갈린다 (spec Observable).
       state: lifeSiteStateOf(state.regionStates, self.regionId, site.id).phase.toLowerCase(),
       // kind 는 자연 형태(무엇처럼 생겼는가) — 그림표가 이것을 읽는다
       kind: site.form,
@@ -550,9 +554,22 @@ export function projectObserverView(
   // 그 방의 것이고, 하나도 없으면 빈 배열이다. 순서는 데이터 순서 그대로다 (결정론).
   // **밤에 잘리지 않는다** — 자국과 같은 이유다: 잘리는 것은 몸과 원천이고, 방을 덮고
   // 지나가는 것은 방 전체의 사실이다.
-  const presences: PresenceView[] = passingIn(state.presences, self.regionId, state.time).map(
-    (here) => ({ presence: here.presence, curve: here.curve }),
-  );
+  //
+  // C023 CHANGED (spec R5 · R6 · SPEC-006) — **서 있는 떼가 같은 자리에 실린다.** 봉투에
+  // 새 자리는 나지 않는다: 지나는 것은 선(curve)으로, 서 있는 떼는 자락(area)으로 실릴 뿐이다.
+  // 지나는 것이 먼저이고 그 뒤가 떼다 — 둘 다 데이터 순서 그대로이므로 매 관찰마다 같은
+  // 목록이 같은 순서로 나온다 (결정론). **개체군의 값도 상한도 실리지 않는다** — 값이
+  // 오를수록 뒤의 자락이 더 실릴 뿐이고, 그것을 읽는 것은 관찰자의 몫이다 (spec Observable).
+  const presences: PresenceView[] = [
+    ...passingIn(state.presences, self.regionId, state.time).map((here) => ({
+      presence: here.presence,
+      curve: here.curve,
+    })),
+    ...swarmAreasIn(state.regionStates, self.regionId).map((swarm) => ({
+      presence: swarm.presence,
+      area: swarm.area,
+    })),
+  ];
 
   const regionRule = regionRuleOf(self.regionId);
   // C012 CHANGED — 방의 State 가 규칙과 원천을 함께 든다. 여기가 싣는 것은 규칙 쪽뿐이다.

@@ -51,7 +51,7 @@ import {
   type SeasonId,
   type SupplyMode,
 } from '../../regions';
-import { lifeTraceOverlayIn } from './life';
+import { leavingLifeSiteOf, lifeTraceOverlayIn } from './life';
 import type { WorldPosition } from './position';
 import { isPassingRegion, leavingRouteOf, type PresencePassState } from './presence';
 import { NOT_THIS_HOUR, NOT_THIS_SEASON, isDayPhaseListed, isSeasonListed } from './region-phase';
@@ -637,9 +637,26 @@ export function sourceConditions(
     codes.push(CONDITION_UNMET);
   }
 
-  // ④ 다시 자란 자리 (C021 ADDED · RULE-SOURCE-REGROWN-001 · spec R3 · SPEC-005) —
+  // ④ 태어남이 세우는 자리 (C023 ADDED · spec R4 · SPEC-004) — 어느 탄생지가 `leaves` 로
+  // 밝힌 원천이 아직 거기 없으면 `condition-unmet`. ② ③ 과 **같은 코드**이고 같은 뜻이다:
+  // 아직 그때가 아니다 (물길이 오지 않은 것 · 아직 지나가지 않은 것과 **같은 사실**이다 —
+  // 거기 지금 없다는 것). 걸린 동안에는 되돌아옴의 진행이 오르지 않으므로, 시간이 아무리
+  // 흘러도 스스로 돌아오지 않는다 — 되돌리는 것은 **다음 탄생**이고 그것은 RULE-LIFE-BIRTH-001
+  // 이 한다 (C018 이 지나가는 것에 세운 그 어법 그대로 · 새 코드를 만들지 않는다).
+  //
+  // **아직 없는 원천에만 묻는 것도 ② ③ 그대로다** — 터진 뒤 서 있는 껍질은 캘 수 있고,
+  // 그때 이 코드는 걸리지 않는다. 규칙은 무엇이 그것을 세우는지 이름으로 알지 못한다:
+  // "어느 탄생지가 세우는 원천" 이라는 형뿐이고, 무엇이 무엇을 세우는지는 데이터에만 있다.
+  if (
+    leavingLifeSiteOf(source.id) &&
+    sourceStateOf(states, source.regionId, source.id).phase !== 'available'
+  ) {
+    codes.push(CONDITION_UNMET);
+  }
+
+  // ⑤ 다시 자란 자리 (C021 ADDED · RULE-SOURCE-REGROWN-001 · spec R3 · SPEC-005) —
   // 마디를 여럿 가진 원천이 **처음 마디가 아닌 자리에 서 있는 동안** 그 원천이 밝힌 코드가
-  // 실린다. 앞의 셋과 갈리는 자리가 여기다: 저것들은 "지금 없다" 의 사유이고 이것은
+  // 실린다. 앞의 넷과 갈리는 자리가 여기다: 저것들은 "지금 없다" 의 사유이고 이것은
   // **거기 있는 것에 대한 말**이다 — 그래서 되돌아옴의 진행을 한 톨도 멎게 하지 않는다
   // (simulation/source-recovery.ts 는 앞의 코드들만 읽는다). 캘 수 있는가도 달라지지 않는다.
   //

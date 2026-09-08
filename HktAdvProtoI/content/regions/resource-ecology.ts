@@ -353,6 +353,17 @@ export const FORM_HUSK_SHARD = 'husk-shard';
 /** 밤에만 피는 빛 갓 — 거목균의 밤 형태. 낮에는 흙 속으로 오므라들어 거기 없다 */
 export const FORM_GLOW_CAP = 'glow-cap';
 
+// ── C023 ADDED — 탄생이 **남기고 간** 형태 둘 (Play §5.3 ⑤ · §5.4 · 확정 7) ────────────
+//
+// **새 Seed 가 아니다** — 광식충 허물(ORE_EATER_MOLT)의 다른 형태다 (A.1 "같은 것의 여러
+// 순도" · 먹이 잔해가 그런 그대로). 벗은 것이 아니라 **터지고 남은 것**이라는 것만 다르다.
+// 코드 이름은 숲의 형태 코드와 같은 어법으로 지었다 (spec 기본형 ⑨ — Design 은 사람이 읽을
+// 이름만 준다: 빈 껍질 · 작은 껍질).
+/** 터진 알집이 남긴 큰 껍질 — 결속이 낳은 것의 자리에 선다 */
+export const FORM_CLUTCH_HUSK = 'clutch-husk';
+/** 뿌리 마디의 작은 껍질 — 계승이 낳은 것의 자리에 선다 */
+export const FORM_EGG_HUSK = 'egg-husk';
+
 // 빙정석의 자연 형태 넷 (C020 ADDED · spec SPEC-001 · 기본형 ⑦).
 //
 // Design 은 사람이 읽을 이름만 준다 (서리 결정 · 결정면 · 결정 가루 · 언 사체 곁의 결정) —
@@ -395,7 +406,16 @@ export const MATERIAL_SEEDS: readonly MaterialSeed[] = [
     id: ORE_EATER_MOLT,
     worldCause: FOREST_CHAIN,
     // 넷째 형태 — 줄기에 걸린 조각 (RoomBearsMaterial 실주행 판정)
-    forms: [FORM_MOLT_LITTER, FORM_SPOIL_PILE, FORM_PREY_REMAINS, FORM_HUSK_SHARD],
+    // C023 CHANGED — 여섯이다. 태어남이 남기고 간 껍질 둘도 **같은 Seed** 이고 순도만 다르다
+    // (A.1 · 종류를 늘린 것이 아니라 그 재료가 나는 자리를 늘린 것이다 · Material §6.2 By-product)
+    forms: [
+      FORM_MOLT_LITTER,
+      FORM_SPOIL_PILE,
+      FORM_PREY_REMAINS,
+      FORM_HUSK_SHARD,
+      FORM_CLUTCH_HUSK,
+      FORM_EGG_HUSK,
+    ],
   },
   // 거목균 — 포식수의 사체에서만 자라 사체를 삭이고 흙을 붉게 되돌린다 (C014 ADDED · D2).
   // 사슬의 **끝이자 시작**이다: 이것이 멎으면 거목의 축적이 멎고, 그러면 노두도 멎는다
@@ -460,6 +480,16 @@ export const RECOVERY_PEBBLE_WASH = 'pebble-wash';
 export const RECOVERY_HUSK_SHED = 'husk-shed';
 /** 다음 밤에 다시 핀다 (GLOW_CAP_*) — 낮에는 흙 속으로 오므라든다 */
 export const RECOVERY_NIGHT_BLOOM = 'night-bloom';
+
+/**
+ * **다음 탄생**이 그것을 세운다 (CLUTCH_HUSK · EGG_HUSK · C023 ADDED · Play §5.3 ⑤).
+ *
+ * 되돌리는 것이 시간이 아니라 **사건**인 셋째 원인이다 — 고래가 다시 지나는 것 ·
+ * 그것이 다시 지나는 것과 같은 갈래이고, 다른 것은 그 사건이 **세계 안의 생명**이라는 것뿐이다.
+ * 기다린다고 오지 않는다: 시간이 아무리 흘러도 스스로 돌아오지 않고(RULE-SOURCE-RECOVERY-001
+ * 이 멎게 한다), 그 자리를 다시 세우는 것은 그 탄생지가 한 번 더 터지는 일이다.
+ */
+export const RECOVERY_NEXT_BIRTH = 'next-birth';
 
 // 협곡의 되돌아옴 원인 넷 (C020 ADDED · A.2 회복 원인 · spec 데이터 값 표).
 //

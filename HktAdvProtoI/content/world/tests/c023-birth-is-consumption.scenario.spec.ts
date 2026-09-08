@@ -1019,9 +1019,9 @@ describe('SPEC-002 태어남은 세계의 것을 먹는다', () => {
     const justMined = sourceShot(w, hung.region, hung.id);
     expect({ id: hung.id, phase: justMined.phase }).toEqual({ id: hung.id, phase: DEPLETED });
     wait(w, 100);
-    expect({ id: hung.id, ...sourceShot(w, hung.region, hung.id) }).toEqual({
-      id: hung.id,
+    expect({ ...sourceShot(w, hung.region, hung.id), id: hung.id }).toEqual({
       ...justMined,
+      id: hung.id,
     });
 
     // And 대조 — 아무것도 태어나지 않는 세계에서는 같은 만큼 기다리면 진행이 오른다
@@ -1052,14 +1052,38 @@ describe('SPEC-002 태어남은 세계의 것을 먹는다', () => {
     const { at } = runToLeaveBinding(w, CLUTCH);
     const eaten = at.time;
     expect({ phase: sourceShot(w, ROOM, NODULE).phase }).toEqual({ phase: DEPLETED });
-    // Then 되돌아옴에 걸리는 세계 초가 그 원천 데이터의 값 그대로다
+    // Then 되돌아옴에 걸리는 세계 초가 **손으로 캤을 때와 한 값도 다르지 않다**.
+    //
+    // 데이터의 값(180)을 그대로 견주지 않는 이유는 하나다 — 탄생은 뿌리혹과 균사를 **같은
+    // tick 에** 먹는데, 뿌리혹은 균사에 매달려 있으므로(C014 의 사슬) 균사가 돌아올 때까지
+    // 뿌리혹의 되돌아옴이 멎는다. 그것은 C013·C014 가 이미 세운 규칙이고 탄생이 만든 것이
+    // 아니다. 이 경계가 말하려는 것은 "탄생이 그 값을 바꾸지 않는다" 이므로, 같은 둘을
+    // **손으로 캔** 세계와 견주는 것이 그 문장을 그대로 재는 길이다.
     runUntil(
       w,
       () => sourceShot(w, ROOM, NODULE).phase === AVAILABLE,
-      recovery * 4,
+      recovery * 6,
       '먹힌 뿌리혹이 되돌아오는 것',
     );
-    expect({ elapsed: worldTime(w) - eaten }).toEqual({ elapsed: recovery });
+    const bornElapsed = worldTime(w) - eaten;
+
+    // 대조 — 아무것도 태어나지 않는 세계에서 **같은 둘이 같은 순간에** 바닥나 있다
+    // (손잡이가 세우는 State 는 캐서 닿는 그것과 같다 — C012 가 세운 규율)
+    const hand = inSeason(STILL, ROOM, clutchAt(), {
+      ...capped,
+      sourcePhases: { [NODULE]: DEPLETED, [FUNGUS]: DEPLETED },
+    });
+    const handEaten = worldTime(hand);
+    expect({ phase: sourceShot(hand, ROOM, NODULE).phase }).toEqual({ phase: DEPLETED });
+    runUntil(
+      hand,
+      () => sourceShot(hand, ROOM, NODULE).phase === AVAILABLE,
+      recovery * 6,
+      '캐어 바닥난 뿌리혹이 되돌아오는 것',
+    );
+    expect({ elapsed: bornElapsed }).toEqual({ elapsed: worldTime(hand) - handEaten });
+    // And 그 길이는 데이터의 값보다 짧지 않다 (데이터가 여전히 그 값을 소유한다)
+    expect({ atLeast: bornElapsed >= recovery }).toEqual({ atLeast: true });
     // And 돌아온 자리는 캔 뒤 돌아온 자리와 같다
     expect({ after: sourceShot(w, ROOM, NODULE) }).toEqual({
       after: { id: NODULE, phase: AVAILABLE, taken: 0, progress: 0 },

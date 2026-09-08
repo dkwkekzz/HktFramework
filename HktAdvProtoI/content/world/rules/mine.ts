@@ -34,13 +34,12 @@ import { distance } from '../semantic/position';
 import {
   findResourceSource,
   isSourcePresentAt,
-  remembersBrokenSites,
   sourcePositionOf,
   sourceStateOf,
   type ResourceSource,
 } from '../semantic/resource';
 import { NOT_A_SOURCE, findLifeSite } from '../semantic/life';
-import { addDisturbance, regionStateOf } from '../semantic/region-state';
+import { addDisturbance, depleteSourceState, regionStateOf } from '../semantic/region-state';
 import { NOT_THIS_HOUR, isSeasonListed } from '../semantic/region-phase';
 import {
   DISTURBANCE_PER_HARVEST,
@@ -165,19 +164,17 @@ export function ruleMineComplete(state: WorldState, actor: ActorState): ActionRe
   // 캔 자국 — 마지막 한 번까지는 available 이다 (SPEC-001 경계: 미리 고갈되지 않는다).
   sourceState.taken += 1;
   if (sourceState.taken >= source.harvests) {
-    sourceState.phase = 'depleted';
     // C013 ADDED — 고갈되는 순간 **그 마디**가 무너진다 (spec R6). 원천이 나중에 다음 마디로
     // 옮겨 가도 이 자리는 무너진 채 남는다 — 무너짐은 원천이 아니라 자리가 기억한다.
-    // 이미 있는 마디를 두 번 더하지 않는다 (경계).
     //
     // C020 CHANGED — **기억하는 이유가 둘이 되었다** (C020 spec R4). 무너지는 원천에 더해
-    // 깨진 마디가 자락을 거는 원천도 그 번호를 기억한다 — 기억하는 자리는 여전히 하나이고
-    // (collapsedSites) 판정은 remembersBrokenSites 하나가 낸다. 둘 다 밝히지 않은 원천의
-    // State 는 한 값도 달라지지 않는다.
-    if (remembersBrokenSites(source)) {
-      const collapsed = (sourceState.collapsedSites ??= []);
-      if (!collapsed.includes(sourceState.siteIndex)) collapsed.push(sourceState.siteIndex);
-    }
+    // 깨진 마디가 자락을 거는 원천도 그 번호를 기억한다 — 기억하는 자리는 여전히 하나다.
+    //
+    // C023 CHANGED — **그 전이를 내는 자리가 하나가 되었다** (semantic/region-state.ts 의
+    // depleteSourceState). 태어남도 원천을 먹어 고갈시키는데(RULE-LIFE-BIRTH-001 ②),
+    // 캔 것과 먹힌 것의 State 가 **글자 하나 다르지 않아야** 하기 때문이다 — 여기서 하던
+    // 일(캔 횟수 · phase · 되돌아옴 진행 · 무너진 마디)이 한 값도 달라지지 않고 그리로 갔다.
+    depleteSourceState(source, sourceState);
   }
 
   // RULE-DISTURBANCE-001 (C017 ADDED · spec R1 · R11) — **캔 것이 그 방의 소란이 된다.**
