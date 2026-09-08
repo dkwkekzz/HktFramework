@@ -8,6 +8,7 @@
 ```text
 content/roadmap/
   README.md            이 문서 — 기반 층의 순서 · 컨텐츠 층의 행 · 각각의 현재 상태
+  PLAYS.md             Play 작성 로드맵 — 있는 Play 전부 · 쓸 Play 전부 · 기획 작업 큐 (기획 작업 관리 문서)
   L0-Game.md           0층 결과물 — 게임 방향
   L1-World-Grammar.md  1층 결과물 — 세계의 문법 (확정 범위 · 경계 · 코드 대응)
   L<N>-<이름>.md        기반 층의 결과물 — 그 층에서 Human 이 확정한 문서 (한 층에 여럿일 수 있다)

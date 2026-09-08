@@ -118,3 +118,4 @@ Return To  View 부족 → protocol/ · Spec 부족 → world/semantic/ · Seman
 | [STATE.md](STATE.md) | 지금의 상태 (살아 있는 문서) |
 | [design/README.md](design/README.md) | 설계 문서 목록과 갈래 |
 | [content/roadmap/README.md](content/roadmap/README.md) | 주입 순서 · 층별 확정 문서(L0~) · play/ |
+| [content/roadmap/PLAYS.md](content/roadmap/PLAYS.md) | Play 작성 로드맵 — 있는 Play · 쓸 Play · 기획 작업 큐 (살아 있는 문서) |
