@@ -8,6 +8,8 @@
 // 잃는 것이 아니라 **옛 말을 계속 한다** — 그쪽이 훨씬 나쁘다.
 
 import {
+  ASKS_WARMTH,
+  BREATH_GLOWS,
   BIO_ORE,
   BLOCK_COLLAPSED,
   CONDITION_RIDGE,
@@ -32,8 +34,17 @@ import {
   GIANT_TREE_FUNGUS,
   ORE_EATER_MOLT,
   RECOVERY_STALLED,
-  REQUIRES_STORED_HEAT,
+  WHALE_SCALE,
+  ASPECT_FLESH,
+  ASPECT_HEAT,
+  ASPECT_LIGHT,
+  RELATION_ABSORBS,
+  RELATION_EMITS,
+  RELATION_GROWS_ON,
+  RELATION_STORES,
   frostBreathTag,
+  propertyPhraseCode,
+  propertyTag,
   soilStainTag,
   weakenedConditionTag,
 } from '../regions/index';
@@ -193,11 +204,49 @@ const CODE_TEXT: Record<string, string> = {
   [ORE_EATER_MOLT]: '광식충 허물',
   // 세 번째 재료 (C014) — 앞의 둘과 같은 어법이다. 어디서 나는지도 무엇에 쓰는지도 없다
   [GIANT_TREE_FUNGUS]: '거목균',
+  // 네 번째 재료 (C029 ADDED — 이름이 이제야 서는 이유는 판에 '재료' 줄이 없었기 때문이다.
+  // C018 이 그 원천을 세울 때 사람이 읽을 자리가 없어 코드로만 있었고, 줄이 서는 지금
+  // 옮기지 않으면 판이 `WHALE_SCALE` 이라고 말한다).
+  // 이 세계의 **정식 이름**이다 (L2-World-Access §9.2 · L2-World-Time) — 새로 짓지 않는다.
+  // **성질은 없다** — 세계가 그 재료에 성질을 밝히지 않았으므로 판도 이름까지만 말한다
+  [WHALE_SCALE]: '고래 비늘',
   // 다섯째 재료 (C020) — 이 세계의 **정식 이름**이다 (L2-World-Region §5.1 이름 표).
   // 새로 짓지 않는다: 세계관이 이미 부르는 말이 있고, 화면이 다른 말을 하면 관찰자가 본 것과
   // 이 세계가 아는 것이 갈린다 (지나가는 것들의 이름에 쓴 그 규율 그대로).
   // 앞의 넷과 같은 어법이다 — 어디서 나는지도 무엇에 쓰는지도 없다
   [FROST_CRYSTAL]: '빙정석',
+  // ── 재료의 성질 문장 여덟 (C029 ADDED — 판의 '성질' 줄이 이 말들이다) ──────
+  //
+  // 키를 직접 적지 않고 데이터의 이름을 그대로 받아 쓴다 (이 파일 머리의 규율 그대로) —
+  // 색인은 `propertyPhraseCode(재료, 태그)` 하나이고 태그도 `propertyTag(축, 관계)` 로 짓는다.
+  // 두 함수의 원본은 content/regions 하나다 (그 파일의 주석: "데이터도 검사도 이 함수 하나로
+  // 이름을 짓는다"). 어휘가 축이나 관계의 이름을 옮기면 여기 말도 함께 따라간다.
+  //
+  // **문장은 지어낸 것이 아니라 기획 문서의 것 그대로다** (L2-World-Access §9.2 "문장
+  // (원본 · 그대로)" 열 · RoomBearsMaterial D2 · RoomOfAnotherKind 확정 3). 재료 이름의
+  // 선례와 같은 규율이다: 세계관이 이미 부르는 말이 있는데 화면이 다른 말을 하면 관찰자가
+  // 본 것과 이 세계가 아는 것이 갈린다.
+  //
+  // **같은 태그라도 재료마다 말이 다르다** — 태그(light:emits)는 문장의 색인일 뿐이고
+  // (spec R5 경계 ② · K7), 관찰되는 것은 붉게 물든 자리와 옅은 붉은 결과 푸른 빛이다.
+  // 태그 그 자체는 화면 어디에도 서지 않는다 (spec Observable "투영하지 않는다").
+  //
+  // **쓰임은 없다** (S10 · SPEC-005 경계 ③) — 무엇으로 만드는지 이 층은 말하지 않는다.
+  // 어느 축의 무슨 관계인지도 적지 않는다: 어휘는 데이터의 것이고 관찰되는 것은 문장뿐이다.
+  [propertyPhraseCode(BIO_ORE, propertyTag(ASPECT_FLESH, RELATION_STORES))]:
+    '살아 있는 것의 몸을 따라 옮겨 다니며 쌓인다',
+  [propertyPhraseCode(BIO_ORE, propertyTag(ASPECT_LIGHT, RELATION_EMITS))]:
+    '쌓인 자리를 붉게 물들인다',
+  [propertyPhraseCode(ORE_EATER_MOLT, propertyTag(ASPECT_LIGHT, RELATION_EMITS))]:
+    '붉은 결이 있되 옅다',
+  [propertyPhraseCode(GIANT_TREE_FUNGUS, propertyTag(ASPECT_FLESH, RELATION_ABSORBS))]:
+    '사체를 삭여 흙을 붉게 되돌린다',
+  [propertyPhraseCode(GIANT_TREE_FUNGUS, propertyTag(ASPECT_LIGHT, RELATION_ABSORBS))]:
+    '그늘에서만 산다',
+  [propertyPhraseCode(FROST_CRYSTAL, propertyTag(ASPECT_HEAT, RELATION_ABSORBS))]: '열을 먹는다',
+  [propertyPhraseCode(FROST_CRYSTAL, propertyTag(ASPECT_LIGHT, RELATION_EMITS))]: '푸르게 빛난다',
+  [propertyPhraseCode(FROST_CRYSTAL, propertyTag(ASPECT_HEAT, RELATION_GROWS_ON))]:
+    '열이 닿으면 자란다',
   // 사람·짐승의 종류 (CharacterKind) — kind-presentation · character-catalog 와 같은 이름들
   wanderer: '방랑자',
   'rabbit-swordsman': '토끼 검사',
@@ -226,12 +275,24 @@ const CODE_TEXT: Record<string, string> = {
   // (spec SPEC-005 경계 ③). 세계가 싣는 것은 "처음 자리가 아니다" 하나이고, 그 원천이 어느
   // 자리에서 여기로 옮겨 왔는지는 캐 본 관찰자가 잇는다 (흔적을 잇게 한 것과 같은 규율)
   [FROST_VEIN_REGROWN]: '여기서 다시 자랐다',
-  // 문이 밝힌 요구 (C020 R5 — **같은 conditions 자리의 코드다**. 새 자리가 없다).
-  // 위의 두 줄과 같은 어법으로 한 마디다: 무엇이 이 요구를 채우는지도, 그것이 어디서 나는지도
-  // 적지 않는다 — 세계가 싣지 않고(spec Observable "싣지 않는다" · R5 경계 ②) 확정 4 가
-  // 아예 정하지 않은 것이다. 그 모름이 이 Cycle 이 놓으려는 것이므로 화면이 메우면 안 된다.
-  // 요구가 걸렸다고 문이 잠기는 것도 아니다 — 이것은 **표시**이고, 열림/잠김은 아래 두 줄이 말한다
-  [REQUIRES_STORED_HEAT]: '저장된 열이 있어야 한다',
+  // 문 앞에서 일어나는 **현상** (C029 R3 CHANGED — **같은 conditions 자리의 코드다**. 새 자리가 없다).
+  //
+  // C020 의 `requires-stored-heat`("저장된 열이 있어야 한다")가 서던 자리이고, 그 줄은 여기서
+  // 지워졌다. 자리도 형도 그대로이고 바뀐 것은 **그 코드가 무엇을 말하는가** 하나다: 세계는
+  // 요구의 이름을 말하지 않고 지금 일어나는 일만 말한다 (spec R3 · K8 — "세계는 답을 알려
+  // 주지 않는다"). 그래서 이 말에는 무엇이 그것을 채우는지도, 무엇이 감지하는지도,
+  // 답이 어디 있는지도 없다 (spec SPEC-004 경계 ①).
+  //
+  // 문장은 기획의 것 그대로다 (Play §6 V25 · Region §4.2). 이 코드가 걸렸다고 문이 잠기는
+  // 것도 아니다 — 이것은 **표시**이고, 열림/잠김은 아래 두 줄이 말한다
+  [ASKS_WARMTH]: '체열이 감지된다',
+  // 문 앞의 자락에 든 **몸**에 실리는 조건 코드 (C029 R2 — 같은 conditions 자리다).
+  // 위의 줄이 문에 실리는 말이라면 이것은 내 몸에 실리는 말이고, 둘은 서로를 가리키지
+  // 않는다 (잇는 것은 관찰자다 — 흙과 원천을 잇게 한 C011 의 그 규율).
+  //
+  // **무엇이 그것을 빛나게 하는지도, 그것이 무엇을 뜻하는지도 적지 않는다** (spec
+  // Observable "투영하지 않는다"). 관찰된 사실은 "지금 내 몸에서 김이 푸르게 빛난다" 하나다
+  [BREATH_GLOWS]: '김이 푸르게 빛난다',
   open: '열려 있다', // 출구 표식 — 건널 수 있는 길이다
   locked: '잠겨 있다',
   // ── 판에 남는 기록이 쓰는 말 (C028) ──────────────────────────

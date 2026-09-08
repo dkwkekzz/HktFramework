@@ -2,7 +2,7 @@
 //
 // place-reading.ts 의 형제다. 세계에 아무것도 묻지 않는다 (SPEC-009 — 패킷도 왕복도 0):
 // 이 파일이 모으는 것은 전부 **이미 매 tick 봉투에 실려 온** 것이다.
-//   entities[]      이름 · 종류 · 역할 · 지금 하는 일과 그 진행 · 생명 · 쓰러짐
+//   entities[]      이름 · 종류 · 역할 · 지금 하는 일과 그 진행 · 생명 · 쓰러짐 · 재료
 //   interactions[]  그 존재를 targetEntityId 로 겨냥한 것들 — 걸 수 있는가 · 없으면 왜
 //
 // 이 파일은 **줄을 만들지 않는다** — 순서도 이름표도 문구도 target-frame-presentation 의
@@ -41,6 +41,17 @@ export interface BeingReading {
   kind?: string;
   /** 무엇의 역할인가 (의미 코드) — 종류도 모를 때의 마지막 표 */
   role: string;
+  /**
+   * 그것이 **무엇으로 되어 있는가** — Material Seed 의 코드 (C029 ADDED · 봉투의
+   * entity.material 그대로. 세계는 C011 부터 이미 이것을 실어 보내고 있었고, 판이
+   * 그 줄을 두지 않았을 뿐이다).
+   *
+   * 재료가 아닌 것(몸 · 출구 표식)에는 **자리 자체가 없다** — 빈 문자열로 지어내지
+   * 않는다 (생명 없는 것에 0 을 만들지 않는 것과 같은 규율). 성질도 쓰임도 여기 없다:
+   * 실려 오는 것은 코드 하나이고, 그 재료가 무엇이며 어떤 성질인지는 표현이 자기
+   * content/regions 로 얻는다 (C011 이 형태의 이름을 얻던 그 규율 그대로).
+   */
+  material?: string;
   /** 지금 하는 일 (의미 코드) */
   state: string;
   /** 그 일의 진행 0..1 — 진행 개념이 없는 상태에는 없다 */
@@ -78,6 +89,8 @@ export function readBeing(
     ...(entity.name === undefined ? {} : { name: entity.name }),
     ...(entity.kind === undefined ? {} : { kind: entity.kind }),
     role: entity.role,
+    // 재료를 밝히지 않은 것에는 자리가 없다 — 봉투에 없으면 없는 채로 둔다 (C029)
+    ...(entity.material === undefined ? {} : { material: entity.material }),
     state: entity.state,
     ...(entity.progress === undefined ? {} : { progress: entity.progress }),
     // 걸린 것이 없으면 봉투에 자리가 없고, 없는 채로 둔다 (C012)

@@ -11,6 +11,17 @@
 // (Play 불변 조건 — 코드 변경 없이 폴리싱).
 
 import type { HazardOverlay, SeasonId } from './phases';
+import type { StatementKind } from './properties';
+import {
+  ASPECT_FLESH,
+  ASPECT_HEAT,
+  ASPECT_LIGHT,
+  RELATION_ABSORBS,
+  RELATION_EMITS,
+  RELATION_GROWS_ON,
+  RELATION_STORES,
+  propertyTag,
+} from './properties';
 
 /**
  * 그 원천을 무엇이 지고 있는가 (A.2 Carrier). 살아 있는 것(CREATURE)은 3층의 몫이다 (확정 2).
@@ -49,6 +60,22 @@ export type SupplyMode =
   | 'event-scarce';
 
 /**
+ * 그 재료가 **가진 성질** 하나 (C029 ADDED · L2-World-Access §4.2 · K7).
+ *
+ * `tag` 는 성질 어휘의 축:관계이고(properties.ts), `from` 은 그것이 그 재료의 **어느 문장에서
+ * 나왔는가**다 (Material §6.1 의 다섯 항). 문장에 없는 성질을 태그가 말하지 않게 하는 자리이고,
+ * 검사 ㉞ 가 그 짝을 묻는다.
+ *
+ * 태그는 **문장의 색인이지 문장이 아니다** — 같은 `light:emits` 라도 생체 광석은 "쌓인 자리를
+ * 붉게 물들인다" 이고 빙정석은 "푸르게 빛난다" 다. 사람이 읽을 말은 View 의 표가 그 재료의
+ * 문장으로 옮긴다 (spec R5 경계 ② · propertyPhraseCode).
+ */
+export interface SeedProperty {
+  tag: string;
+  from: StatementKind;
+}
+
+/**
  * Material Seed — 이 세계가 내는 재료 하나 (A.1).
  *
  * **쓰임을 적지 않는다** (S10 · unresolvedUses). 무엇으로 만드는지는 4층 이후가 정하고,
@@ -66,6 +93,17 @@ export interface MaterialSeed {
   worldCause: string;
   /** 자연 형태 코드들 — 같은 것의 다른 순도다 (종류를 늘린 것이 아니다) */
   forms: readonly string[];
+  /**
+   * 그 재료가 **가진 성질**들 (C029 ADDED · Access §9.2).
+   *
+   * 밝히지 않으면 **성질이 없는 재료**다 — 고래 비늘이 그렇고(Access §9.2 "성질 미정" ·
+   * 빈칸 4) 그것은 결손이 아니라 아직 적히지 않은 자리다. 지목한 판은 그 재료의 이름까지만
+   * 말한다 (spec SPEC-005 경계 ①).
+   *
+   * **규칙 코드는 이 태그를 읽지 않는다** — 성질이 실제로 요구에 답하는가는 3 · 4층의 것이고
+   * (K12), 2층에서 이 값을 읽는 것은 도구의 검사와 지목한 판뿐이다.
+   */
+  properties?: readonly SeedProperty[];
 }
 
 /** 원천 하나가 밝히는 것 — 자리는 여기 없다. 자리는 Description 의 resource point 가 소유한다 */
@@ -344,6 +382,14 @@ export const MATERIAL_SEEDS: readonly MaterialSeed[] = [
       FORM_RIVER_GRAIN,
       FORM_SEEP_CRUST,
     ],
+    // C029 ADDED — 이 재료가 가진 성질 둘 (Access §9.2). **문장에 있는 것만 태그로 옮겼다.**
+    //   flesh:stores  "살아 있는 것의 몸을 따라 옮겨 다니며 쌓인다" (거동)
+    //   light:emits   "쌓인 자리를 붉게 물들인다" (보이는 것)
+    // "물에 갈리면 붉은빛을 잃는다" 는 성질이 아니라 그 성질이 옅어지는 자리라 태그가 없다.
+    properties: [
+      { tag: propertyTag(ASPECT_FLESH, RELATION_STORES), from: 'behavior' },
+      { tag: propertyTag(ASPECT_LIGHT, RELATION_EMITS), from: 'appearance' },
+    ],
   },
   // 광식충 허물 — 생체 광석을 먹는 벌레가 벗은 것. 폐허의 선광 더미에 섞인 것도 이것이다
   // (Play §4 Breath 의 추측 — "버려진 더미에도 같은 것이 섞여 있다")
@@ -353,6 +399,9 @@ export const MATERIAL_SEEDS: readonly MaterialSeed[] = [
     id: ORE_EATER_MOLT,
     worldCause: FOREST_CHAIN,
     forms: [FORM_MOLT_LITTER, FORM_SPOIL_PILE, FORM_PREY_REMAINS],
+    // C029 ADDED — 성질 하나 (Access §9.2). "붉은 결이 있되 옅다" — 먹은 것의 빛이 남아 있다.
+    // "마르면 부서진다" · "밑동 그늘에 모인다" 는 어휘 일곱 중 가리키는 관계가 없어 태그가 없다.
+    properties: [{ tag: propertyTag(ASPECT_LIGHT, RELATION_EMITS), from: 'appearance' }],
   },
   // 거목균 — 포식수의 사체에서만 자라 사체를 삭이고 흙을 붉게 되돌린다 (C014 ADDED · D2).
   // 사슬의 **끝이자 시작**이다: 이것이 멎으면 거목의 축적이 멎고, 그러면 노두도 멎는다
@@ -360,10 +409,20 @@ export const MATERIAL_SEEDS: readonly MaterialSeed[] = [
     id: GIANT_TREE_FUNGUS,
     worldCause: FOREST_CHAIN,
     forms: [FORM_NEST_MYCELIUM],
+    // C029 ADDED — 성질 둘 (Access §9.2).
+    //   flesh:absorbs   "사체에서만 자라 사체를 삭인다" (거동 — 몸을 먹는다)
+    //   light:absorbs   "그늘에서만 산다" (조건에 대한 응답 — 빛이 있으면 서지 못한다)
+    properties: [
+      { tag: propertyTag(ASPECT_FLESH, RELATION_ABSORBS), from: 'behavior' },
+      { tag: propertyTag(ASPECT_LIGHT, RELATION_ABSORBS), from: 'conditionResponse' },
+    ],
   },
   // 고래 비늘 — 이 숲이 낳지 않는 유일한 재료다 (C018 ADDED · 확정 9).
   // 사슬 밖에서 온다: 하늘을 지나가는 것이 흘리고 간 것이고, 그래서 세계 원인이 다르다.
   // **쓰임은 적지 않는다** (S10) — 무엇으로 만드는지는 4층 이후가 정한다.
+  // C029 — **성질도 밝히지 않는다** (Access §9.2 "성질 미정" · 빈칸 4). 이 재료가 무엇을
+  // 가졌는지는 아직 어느 문서도 말하지 않았고, 없는 것을 지어내지 않는다. 지목한 판은
+  // 이름까지만 말한다 (spec SPEC-005 경계 ①).
   {
     id: WHALE_SCALE,
     worldCause: SKY_PASSAGE,
@@ -376,6 +435,19 @@ export const MATERIAL_SEEDS: readonly MaterialSeed[] = [
     id: FROST_CRYSTAL,
     worldCause: CRYSTAL_GROWTH,
     forms: [FORM_RIME, FORM_FROST_VEIN, FORM_DRIFT_DUST, FORM_CORPSE_RIME],
+    // C029 ADDED — 성질 셋 (Access §9.2 · RoomOfAnotherKind 확정 3). 이 세계에서 성질을
+    // 가장 많이 진 재료이고, 셋 다 확정 3 의 문장 셋을 그대로 가리킨다.
+    //   heat:absorbs    "열을 먹는다 — 닿은 것을 식히고 숨이 언다" (거동)
+    //   light:emits     "푸르게 빛난다" (보이는 것)
+    //   heat:grows-on   "열이 닿으면 자란다" (조건에 대한 응답)
+    // **빙결 심층의 문이 묻는 `heat:hides` 에 이 셋 중 하나(heat:absorbs)가 SUPPORTS 로
+    // 답한다** (properties.ts 의 answers) — 그러나 2층은 그것을 판정하지 않고, 이 재료를
+    // 지녀도 그 문은 열리지 않는다 (K12).
+    properties: [
+      { tag: propertyTag(ASPECT_HEAT, RELATION_ABSORBS), from: 'behavior' },
+      { tag: propertyTag(ASPECT_LIGHT, RELATION_EMITS), from: 'appearance' },
+      { tag: propertyTag(ASPECT_HEAT, RELATION_GROWS_ON), from: 'conditionResponse' },
+    ],
   },
 ];
 

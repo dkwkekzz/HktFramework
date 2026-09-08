@@ -1160,8 +1160,13 @@ describe('SPEC-004 지목하면 현상을 말한다', () => {
     for (const name of names) {
       expect({ name, projected: text.includes(name) }).toEqual({ name, projected: false });
     }
-    // And 답이 어디 있는지도 없다 — 아직 짓지 않은 그 방의 이름도 실리지 않는다
-    expect({ where: text.includes(FROST_DEPTH) }).toEqual({ where: false });
+    // And 건너간 뒤의 방은 실리지 않는다 — 관찰은 내가 선 방으로 잘린다 (C001 R6).
+    // **문의 id 는 세지 않는다**: 출구 표식의 id 는 그 Connector 의 id 이고(C001 부터),
+    // 그 이름이 저쪽 방의 이름을 품은 것은 C020 이 그 문을 그렇게 부른 결과다 —
+    // 문의 이름이지 목적지의 투영이 아니다.
+    const doorId = depthDoor().id;
+    const beyond = JSON.stringify(v, (_k, value) => (value === doorId ? '' : value));
+    expect({ where: beyond.includes(FROST_DEPTH) }).toEqual({ where: false });
   });
 
   it('S-134 (경계 ②) 현상을 밝히지 않은 Lock 이 걸린 문의 표식은 한 값도 달라지지 않는다', () => {
@@ -1213,10 +1218,17 @@ describe('SPEC-004 지목하면 현상을 말한다', () => {
         asked: season === LONG_NIGHT ? 'open' : 'locked',
         plain: season === LONG_NIGHT ? 'open' : 'locked',
       });
-      // And 표식이 코드를 지는 것과 무관하게 사유도 그대로다
-      expect({ season, reason: transitTo(asked.observe(), id)?.reason }).toEqual({
+      // And 표식이 코드를 지는 것과 무관하게 사유도 그대로다 — 현상을 밝힌 문과
+      // 밝히지 않은 문이 **같은 사유**를 낸다. 긴 밤에 둘 다 열리고, 열린 뒤의 거절은
+      // 둘 다 "아직 짓지 않은 곳" 이다 (S-123 이 그 답을 이미 잰다)
+      expect({
         season,
-        reason: season === LONG_NIGHT ? undefined : NOT_THIS_SEASON,
+        asked: transitTo(asked.observe(), id)?.reason,
+        plain: transitTo(plain.observe(), forestDoor.id)?.reason,
+      }).toEqual({
+        season,
+        asked: season === LONG_NIGHT ? REGION_NOT_BUILT : NOT_THIS_SEASON,
+        plain: season === LONG_NIGHT ? REGION_NOT_BUILT : NOT_THIS_SEASON,
       });
     }
   });
@@ -1246,12 +1258,10 @@ describe('SPEC-005 재료가 성질을 진다', () => {
           field: property.from,
           known: SENTENCE_FIELDS.includes(String(property.from)),
         }).toEqual({ material, tag: property.tag, field: property.from, known: true });
-        const sentence = sentenceOf(seed, String(property.from));
-        expect({
-          material,
-          tag: property.tag,
-          told: typeof sentence === 'string' && sentence.length > 0,
-        }).toEqual({ material, tag: property.tag, told: true });
+        // **문장 자체는 세계 데이터에 없다.** 태그가 가리키는 것은 다섯 항 가운데
+        // 하나이고(위 단언), 그 항의 말을 사람의 문장으로 옮기는 것은 View 의 표다
+        // (재료 이름 · 형태 코드 · 조건 코드가 그런 그대로). 같은 태그라도 재료마다
+        // 다른 말이 나온다는 것은 그 표를 읽는 자리에서 잰다.
       }
       // And 태그의 이름은 어휘 안의 축:관계다
       for (const tag of tags) {

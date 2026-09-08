@@ -24,14 +24,22 @@ const ROOM = 'FOREST_EDGE';
 const SPEC = regionSpec(ROOM)!;
 const COMPILED = compileRegion(SPEC.space, COMPILE_RULES);
 
-/** ㉓~㉖ — 보고의 맨 뒤 넷이다 */
+/**
+ * ㉓~㉖ — 계통 열셋 뒤에 이어 붙은 넷이다.
+ *
+ * C029 CHANGED — 보고의 **맨 뒤**가 아니게 되었다 (요구와 가능성 아홉 ㉞~㊷ 이 그 뒤에 붙는다).
+ * 재는 것은 그대로다: 이 넷이 **이 차례로 이어 붙어** 있는가 — 자리를 뒤에서 세지 않고
+ * 열쇠로 찾아 그 차례를 본다.
+ */
 const TIME_IDS = ['time-phase-refs', 'time-route-refs', 'time-season-summary', 'time-reachable'];
 
 describe('SPEC-009 — 검사 넷이 스물둘 뒤에 선다', () => {
   const report = runWorldCheck();
 
   it('번호 ㉓~㉖ 이 이 차례로 이어 붙고 열쇠가 표 그대로다', () => {
-    const four = report.items.slice(-4);
+    const first = report.items.findIndex((item) => item.id === TIME_IDS[0]);
+    expect(first).toBeGreaterThanOrEqual(0);
+    const four = report.items.slice(first, first + 4);
     expect(four.map((item) => item.mark)).toEqual(['㉓', '㉔', '㉕', '㉖']);
     expect(four.map((item) => item.id)).toEqual(TIME_IDS);
   });

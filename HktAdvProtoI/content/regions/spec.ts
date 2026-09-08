@@ -7,6 +7,7 @@
 // 경계 규칙 4 — content/regions 는 engine 만 import 한다. world 와 view 가 함께 읽는 데이터 폴더다.
 
 import type { RegionDescription } from '../../engine/world-authoring/description';
+import type { RegionAccess } from './access';
 import type { RegionPhases } from './phases';
 import type { RegionResourceEcology } from './resource-ecology';
 
@@ -75,6 +76,22 @@ export interface RegionSpec {
    * 무엇이 달라지는지는 여기에만 있다 (rule? 의 선례 그대로 · C004 가 세운 규율).
    */
   phases?: RegionPhases;
+  /**
+   * 그 방이 **묻는 것** — 방이 요구를 진다 (C029 ADDED · L2-World-Access §4.4).
+   *
+   * 없으면 **묻지 않는 방**이다 — 그 방의 문은 전부 언제나 활성이고 표식에 실리는 요구도
+   * 없다. 지금 묻는 방은 셋(미로 · 숲 안쪽 · 빙결 협곡)이고 나머지 열은 묻지 않는다 —
+   * 그것은 결핍이 아니라 "묻는 것은 데이터가 밝힌 것뿐" 이라는
+   * 규율이다. rule?(C008) · resourceEcology?(C011) · phases?(C016) 가 없는 방이 그 계통 밖인
+   * 것과 같은 어법이다.
+   *
+   * **State 가 아니다** — 저장되지 않고 세계가 굴러도 달라지지 않는다. 열렸는가(time · state)는
+   * 세계의 시각과 그 방의 지금 pattern 에서 매 tick 유도된다 (C016 이 세운 그 갈래 그대로).
+   *
+   * 규칙 코드는 어느 문이 무엇을 요구하는지 이름으로 알지 못한다 — 아는 것은 "Lock 을 가진
+   * 문" 뿐이고, 요구도 흔적도 사유도 여기에만 있다 (rule? 의 선례 그대로 · C004 가 세운 규율).
+   */
+  access?: RegionAccess;
 }
 
 /** "드나드는 곳" 을 적는 layer 이름 — Connector 의 anchor 는 이 layer 의 point 다 */

@@ -51,6 +51,7 @@ import {
   HEART_LAKE,
   ICE_CANYON,
   FROST_CANYON,
+  LOCKS,
   PREDATOR_NEST,
   PRESENCE_LAYER,
   RED_EYE_TREE,
@@ -795,10 +796,23 @@ function connectorSpot(connectorId: string, region: string): XZ {
 /** 빙결 심층으로 드는 문 — 이름을 손으로 적지 않고 graph 가 고르게 한다 */
 const depthDoor = () => REGION_GRAPH.connectors.find((c) => c.to.region === FROST_DEPTH);
 
-/** 이 Cycle 이 처음 내는 데이터 문(門) — 없으면 그 항만 붉어진다 */
-const connectorRequirements = (): Record<string, readonly string[]> | undefined =>
-  (REGIONS as unknown as { CONNECTOR_REQUIREMENTS?: Record<string, readonly string[]> })
-    .CONNECTOR_REQUIREMENTS;
+/**
+ * 문마다 그 표식이 지는 코드들 — 밝힌 문만 든다 (C029 CHANGED).
+ *
+ * C020 은 이것을 `CONNECTOR_REQUIREMENTS` 표에서 읽었다. 그 표가 사라지고 같은 사실이 그 방의
+ * Lock 으로 옮겨 갔으므로 여기서도 Lock 을 읽는다 — **재는 사실은 한 값도 다르지 않다**:
+ * 그 문 하나만이 코드를 지고, 그 코드가 표식에 실리며, 열림/잠김을 건드리지 않는다.
+ * (그 코드가 무엇을 말하는가는 C029 에서 요구의 이름에서 현상으로 바뀌었고, 이 시나리오는
+ * 코드의 글자를 손으로 적지 않으므로 그 뜻에 매이지 않는다.)
+ */
+const connectorRequirements = (): Record<string, readonly string[]> | undefined => {
+  const table: Record<string, readonly string[]> = {};
+  for (const lock of LOCKS) {
+    if (lock.at.kind !== 'connector' || lock.reason === undefined) continue;
+    table[lock.at.ref] = [lock.reason];
+  }
+  return table;
+};
 
 // ─────────────────────────────────────────────────────────────────────
 // SPEC-001 — 빙정석 계통이 선다

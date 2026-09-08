@@ -5,7 +5,7 @@
 //   npm run world:observe --graph    같은 것 (인자를 주지 않으면 --graph 로 본다 —
 //                                    C004 에서 이 도구가 아는 것이 그것 하나뿐이었기 때문이다)
 //   npm run world:observe -- --report
-//                                    **세계의 보고** (C021 · SPEC-006) — 검사 스물여섯과
+//                                    **세계의 보고** (C021 · SPEC-006) — 검사 서른다섯과
 //                                    **방마다의 분포**(기회 자리 · 붙잡는 것 · 흐름과 고립)를
 //                                    방 차례로 편다. 두 Region 을 나란히 견주는 자리다
 //   npm run world:observe -- <방> [--height --surface --traversable --semantic --top-view]
@@ -30,11 +30,11 @@ import {
   ANCHOR_LAYER,
   CLOSED_CONNECTORS,
   COMPILE_RULES,
-  CONNECTOR_ACTIVATIONS,
   REGION_GRAPH,
   REGION_SPECS,
   SETTLEMENT_LAYER,
   START_REGION_ID,
+  lockOfConnector,
   regionSpec,
   type RegionSpec,
   type SeasonId,
@@ -503,18 +503,27 @@ function checkBody(checks: readonly CheckLine[]): string[] {
 //
 // 도구는 여기서도 **판정하지 않는다** — 데이터가 밝힌 것을 그 철로 걸러 적을 뿐이다.
 
-/** 그 철에 이 문이 어떠한가 — 활성 표를 읽는다 (판정이 아니라 옮겨 적기다) */
+/**
+ * 그 철에 이 문이 어떠한가 — 그 문에 걸린 Lock 을 읽는다 (판정이 아니라 옮겨 적기다).
+ *
+ * C029 CHANGED — 읽는 자리가 활성 표에서 Lock 으로 바뀌었다 (그 방의 access.locks).
+ * **보고의 글자는 한 자도 달라지지 않는다** — 같은 사실을 새 자리에서 읽을 뿐이다.
+ * 성질 · 아는 것의 요구는 여기에 적지 않는다: 그것은 열림을 판정하지 않으므로 "그 철에 이
+ * 문이 어떠한가" 의 답에 들어올 자리가 없다 (spec R1 경계 ①).
+ */
 function doorAtSeason(connectorId: string, season: SeasonId): string {
   if (isClosed(connectorId)) return '닫힘 (언제나)';
-  const activation = CONNECTOR_ACTIVATIONS[connectorId];
-  if (!activation) return '열림';
+  const lock = lockOfConnector(connectorId);
+  if (!lock) return '열림';
   const parts: string[] = [];
-  if (activation.seasons) {
-    parts.push(activation.seasons.includes(season) ? '열림' : `닫힘 (${activation.seasons.join(' · ')} 에만)`);
+  const seasons = lock.requires.find((one) => one.time)?.time?.seasons;
+  if (seasons) {
+    parts.push(seasons.includes(season) ? '열림' : `닫힘 (${seasons.join(' · ')} 에만)`);
   }
   // 패턴 조건은 방의 지금 State 가 정한다 — 시각으로는 알 수 없으므로 조건만 적는다
-  if (activation.patterns) {
-    parts.push(`패턴 조건 (${activation.region ?? '?'} ${activation.patterns.join(' · ')})`);
+  const state = lock.requires.find((one) => one.state)?.state;
+  if (state) {
+    parts.push(`패턴 조건 (${state.region} ${state.patterns.join(' · ')})`);
   }
   return parts.length === 0 ? '열림' : parts.join(' · ');
 }
@@ -740,7 +749,7 @@ function roomLines(items: readonly CheckItem[]): string[] {
 }
 
 /**
- * 세계의 보고 한 장 (C021 ADDED · SPEC-006) — 검사 스물여섯 · 방마다의 분포.
+ * 세계의 보고 한 장 (C021 ADDED · SPEC-006) — 검사 서른다섯 · 방마다의 분포.
  *
  * 방 하나의 보고(`renderRegionReport`)와 달리 땅을 컴파일하지 않는다 — 여기서 읽는 것은
  * 계통과 검사가 이미 낸 것뿐이다. **읽기 전용**이고 파일을 하나도 쓰지 않는다 (경계 ①).
@@ -884,7 +893,7 @@ export function parseArgs(args: readonly string[]): Parsed {
   if (positional.length === 0) {
     // 방을 주지 않았다 — 그림은 방이 있어야 한다 (그 자리는 C007 그대로다)
     if (pictures.length > 0) return { kind: 'usage', unknown: ['(방 이름이 없다)'] };
-    // `--report` 하나면 **세계의 보고**다 (C021 SPEC-006) — 검사 스물여섯과 방마다의 분포.
+    // `--report` 하나면 **세계의 보고**다 (C021 SPEC-006) — 검사 서른다섯과 방마다의 분포.
     // 방과 함께 쓰는 것들(--graph · --at)과는 섞이지 않는다: 무엇을 볼지가 갈리기 때문이다
     if (report) {
       if (graph) return { kind: 'usage', unknown: ['--report (--graph 와 함께 쓸 수 없다)'] };
