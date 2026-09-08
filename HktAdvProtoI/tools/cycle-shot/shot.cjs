@@ -20,6 +20,8 @@
 //         "clock": "LONG_NIGHT",                 (선택) 세계가 **어느 때에서 서는가** — 철 또는 "철:낮밤"
 //         "disturbance": "BIO_ORE_FIELD:300",    (선택) 방에 소란이 얼마나 쌓여 있는가 (C017 · 같은 손잡이)
 //         "presence": "SKY_WHALE_ROUTE",         (선택) 어떤 것이 지금부터 지나가고 있는가 (C018 · 같은 손잡이)
+//         "lifePhase": "ROOT_CLUTCH:binding",     (선택) 탄생지가 어느 phase 로 서는가 (C022 · 같은 손잡이)
+//         "population": "ORE_EATER:1",            (선택) 개체군 값이 얼마로 서는가 (C022 · 같은 손잡이)
 //                                            (C015 · 같은 손잡이). 한 바퀴가 37 분이라 기다릴 수 없다
 //         "companion": true,                 (선택) **두 번째 관찰자**를 함께 들여보낸다 (창을 하나 더 연다).
 //                                            세계가 하나임을 찍으려면 사람이 둘이어야 한다 (C010).
@@ -57,7 +59,19 @@ const outDir = path.resolve(baseDir, scenario.out ?? 'shots');
 fs.mkdirSync(outDir, { recursive: true });
 const [vw, vh] = scenario.viewport ?? [560, 420];
 
-function startVite(spawnAt, npcs, region, regionPattern, npcRegion, sourcePhase, clock, disturbance, presence) {
+function startVite(
+  spawnAt,
+  npcs,
+  region,
+  regionPattern,
+  npcRegion,
+  sourcePhase,
+  clock,
+  disturbance,
+  presence,
+  lifePhase,
+  population,
+) {
   const env = { ...process.env };
   if (spawnAt) env.HKT_SPAWN = spawnAt;
   else delete env.HKT_SPAWN;
@@ -85,6 +99,14 @@ function startVite(spawnAt, npcs, region, regionPattern, npcRegion, sourcePhase,
   // 시간표는 철 바퀴 셋에 한 번이라 촬영이 기다릴 수 없다
   if (presence) env.HKT_PRESENCE = presence;
   else delete env.HKT_PRESENCE;
+  // 탄생지가 어느 phase 로 서는가 — "SITE:phase" (C022 · vite.config.ts 의 같은 손잡이).
+  // 결속은 조건 넷이 함께 차 있어야 오르고 60 세계 초가 걸리므로 촬영이 그것을 기다릴 수 없다
+  if (lifePhase) env.HKT_LIFE_PHASE = lifePhase;
+  else delete env.HKT_LIFE_PHASE;
+  // 개체군 값이 얼마로 서는가 — "POPULATION:VALUE" (C022 · vite.config.ts 의 같은 손잡이).
+  // 이 Cycle 에는 값을 올리는 것이 세계에 하나도 없으므로 손잡이 말고는 0 이 아닌 값에 닿을 수 없다
+  if (population) env.HKT_POPULATION = population;
+  else delete env.HKT_POPULATION;
   if (npcRegion) env.HKT_NPC_REGION = npcRegion;
   else delete env.HKT_NPC_REGION;
   const child = spawn(
@@ -137,6 +159,8 @@ async function runOne(run, index, report) {
     run.clock,
     run.disturbance,
     run.presence,
+    run.lifePhase,
+    run.population,
   );
   const browser = await launch();
   const page = await browser.newPage({ viewport: { width: vw, height: vh } });

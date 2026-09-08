@@ -15,6 +15,7 @@
 // RULE-QUIET-GROUND-001 · spec R12: 그늘도 경로 선도 땅의 것이지 글자가 아니다).
 
 import {
+  areasOf,
   curvesOf,
   polylineStrip,
 } from '../../engine/world-authoring/description';
@@ -168,6 +169,10 @@ export function presenceLineZones(
   if (!spec) return [];
   const zones: SceneGroundZone[] = [];
   for (const presence of presences) {
+    // **선이 없는 줄은 조용히 지나간다** (C023 CHANGED) — 같은 자리에 서 있는 떼가 실리기
+    // 시작했고 그것은 선이 아니라 자락이다 (아래 presenceAreaZones 가 그 줄을 진다).
+    // 여기서 그 줄에 걸려 깨지면 지나는 것의 선까지 함께 사라진다
+    if (presence.curve === undefined) continue;
     for (const curve of curvesOf(spec.space, PRESENCE_LAYER, presence.curve)) {
       const points = polylineStrip(
         curve.points,
@@ -184,6 +189,76 @@ export function presenceLineZones(
         fill: { color: PRESENCE_LINE_COLOR, opacity: PRESENCE_LINE_OPACITY },
         // 테두리도 이름표도 없다 — 뿌리 선과 같다. 사람이 그은 선이 아니고,
         // 지면에는 글자가 없다 (C026 R4 · spec R12)
+      });
+    }
+  }
+  return zones;
+}
+
+// ── 서 있는 떼의 자락 (C023 ADDED · SPEC-006) ────────────────────────
+//
+// 지나는 것이 **선**으로 실리는 그 자리에 서 있는 떼가 **자락**으로 실린다 (봉투에 새
+// 자리가 나지 않고 PresenceView 에 항목 하나가 늘 뿐이다). 그리는 규율은 경로 선의 것
+// 그대로다 — 세계가 싣는 것은 자락의 **이름**뿐이고, 그것이 어디를 얼마나 덮는지는
+// 관찰자가 자기 Description 의 presence layer 에서 그 op 를 찾아 얻는다.
+//
+// **화면이 값을 세지 않는다.** 개체군이 몇인지는 어디에도 실리지 않으므로(spec SPEC-005
+// 경계 ①) 여기서 셈해 넓히거나 짙게 하는 일이 없다 — **실려 온 줄의 수만큼 그릴 뿐**이고,
+// 값이 오를수록 자락이 여럿 겹쳐 저절로 넓고 짙어 보인다. 그것이 관찰자가 "늘었다" 를
+// 읽는 유일한 길이다 (수도 상한도 다음 탄생도 화면에 없다).
+//
+// **경로 선과 갈려야 한다** — 같은 layer 에 눕는 두 그림이므로 갈리는 축 셋을 둔다.
+//   색    선은 차갑고 옅은 무채-청색(스쳐 지나는 것)이고, 이쪽은 이 세계의 붉은 계통이다 —
+//         살아 있는 것이 이 방에 눌러앉은 자락이므로 흙과 알집이 쓰는 그 색 계열로 눕힌다
+//   모양  선은 방을 가로지르는 좁고 긴 띠이고, 자락은 데이터가 준 넓은 면이다
+//   짙기  하나로는 아주 옅다(0.12) — **겹쳐야 짙어진다.** 한 자락이 이미 짙으면 하나와
+//         넷이 눈에서 갈리지 않고, 그러면 "넓어졌다" 를 읽을 수 없다
+//
+// 이름표도 테두리도 없다 (C026 R4 — RULE-QUIET-GROUND-001). 무엇이 여기 사는지는 물었을
+// 때 판이 답하고, 몇인지는 물어도 답하지 않는다 (세계가 싣지 않는다).
+
+/**
+ * 떼의 자락 색 — 붉은 흙(TRACE_SOIL_COLOR 0x6b3524)보다 밝고 알집의 결정(C 0xf2684a)보다
+ * 어둡다. 흔적 위에 겹쳐도 흔적의 사다리를 흉내 내지 않고, 그 위에 선 몸도 덮지 않는다.
+ */
+export const PRESENCE_AREA_COLOR = 0xb4553a;
+
+/**
+ * 하나의 자락이 지니는 짙기 — **겹치라고 옅다.** 넷이 다 겹친 자리도 0.45 를 넘지 않아
+ * 그 위에 선 것(원천 · 탄생지 · 몸)을 덮지 않는다.
+ */
+export const PRESENCE_AREA_OPACITY = 0.12;
+
+/**
+ * 지금 이 방에 **서 있는** 떼들의 자락 → 지면의 면 (spec SPEC-006).
+ *
+ * 아무것도 서 있지 않으면 하나도 그리지 않는다 — 목록이 비면 화면은 C022 와 한 픽셀도
+ * 다르지 않다. 내 Description 에 없는 이름도 마찬가지다 (없는 자락을 지어내지 않는다).
+ *
+ * **선을 실은 줄은 여기서 지나간다** — 그 줄은 presenceLineZones 의 것이고, 한 줄이
+ * 두 그림으로 서면 같은 사실이 두 자리에 그려진다.
+ */
+export function presenceAreaZones(
+  regionId: string,
+  presences: readonly PresenceView[] | undefined,
+): SceneGroundZone[] {
+  if (!presences || presences.length === 0) return [];
+  const spec = regionSpec(regionId);
+  // 모르는 방이면 자락도 없다 — 게임은 그대로 돌고 그 면만 서지 않는다
+  if (!spec) return [];
+  const zones: SceneGroundZone[] = [];
+  for (const presence of presences) {
+    const areaId = presence.area;
+    if (areaId === undefined) continue;
+    for (const area of areasOf(spec.space, PRESENCE_LAYER)) {
+      if (area.id !== areaId) continue;
+      zones.push({
+        // 무엇이 어느 자락에 서는가가 그 면의 이름이다 — 같은 것의 자락이 여럿이어도
+        // 자락마다 이름이 갈리므로 하나가 걷히면 그 면만 사라진다 (경로 선과 같은 어법)
+        id: `swarm:${regionId}:${presence.presence}:${area.id}`,
+        shape: area.shape,
+        fill: { color: PRESENCE_AREA_COLOR, opacity: PRESENCE_AREA_OPACITY },
+        // 테두리도 이름표도 없다 — 사람이 그은 구역이 아니라 무엇이 도는 자리다
       });
     }
   }

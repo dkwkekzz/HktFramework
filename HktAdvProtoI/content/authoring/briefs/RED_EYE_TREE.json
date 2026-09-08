@@ -13,7 +13,7 @@
       "unanswered": "원천이 risk 로 적혀 있다는 것까지가 데이터다. 무엇이 위험한가는 이 세계에 hazard layer 가 아직 놓이지 않았다 — 위험의 갈래는 Concept §3.1 이 어휘를 주었으나 컨텐츠 층 주입이 남았다"
     },
     "worth": {
-      "said": "거목의 뿌리혹에서 생체 광석이 나온다 — 한 번에 하나이고, 조건이 맞아야 다시 맺힌다. 밑동 곁에 밤에만 빛나는 갓 하나와 붉은 자갈 하나.",
+      "said": "거목의 뿌리혹에서 생체 광석이 나온다 — 한 번에 하나이고, 조건이 맞아야 다시 맺힌다. 밑동 곁에 밤에만 빛나는 갓 하나와 붉은 자갈 하나. 그리고 뿌리에서 무언가 태어나고 나면 그 자리에 빈 껍질과 작은 껍질이 남는다 — 세계가 설 때는 거기 없고, 되돌리는 것은 시간이 아니라 다음 탄생이다.",
       "sources": [
         {
           "id": "ROOT_NODULE",
@@ -41,6 +41,24 @@
           "recoveryCause": "pebble-wash",
           "form": "ore-pebble",
           "role": "baseline"
+        },
+        {
+          "id": "CLUTCH_HUSK",
+          "material": "ORE_EATER_MOLT",
+          "heldBy": "residue",
+          "worldCause": "FOREST_CHAIN",
+          "recoveryCause": "next-birth",
+          "form": "clutch-husk",
+          "role": "by-product"
+        },
+        {
+          "id": "EGG_HUSK",
+          "material": "ORE_EATER_MOLT",
+          "heldBy": "residue",
+          "worldCause": "FOREST_CHAIN",
+          "recoveryCause": "next-birth",
+          "form": "egg-husk",
+          "role": "by-product"
         }
       ]
     },

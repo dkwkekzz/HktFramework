@@ -96,8 +96,20 @@ const NODULE_AT = pointsOf(spaceOf(RED_EYE_TREE), RESOURCE_LAYER).find(
   (p) => p.tag === ROOT_NODULE,
 )!.position;
 
-/** 흔적 구역들 — 화면이 그려야 할 것의 원본 */
-const TRACE_AREAS = areasOf(spaceOf(RED_EYE_TREE), TRACE_LAYER);
+/**
+ * 흔적 구역들 — 화면이 그려야 할 것의 원본.
+ *
+ * C023 CHANGED — **탄생이 남기는 자락**(lifeFormation 의 traces.after)은 뺀다. 그것은 그 자리가
+ * 비었을(SPENT) 때에만 서는 것이라, 아무 일도 겪지 않은 세계에서 "늘 그려진다" 를 물을 수 없다
+ * (원천의 둘레가 고갈되면 옅어지는 것과 같은 갈래이되, 이쪽은 아예 서지 않는다).
+ * 그것이 실제로 서는가는 C023 의 시나리오가 잰다.
+ */
+const AFTER_TRACE_OPS = new Set(
+  (regionSpec(RED_EYE_TREE)?.ecology?.lifeFormation ?? []).flatMap((site) => site.traces.after),
+);
+const TRACE_AREAS = areasOf(spaceOf(RED_EYE_TREE), TRACE_LAYER).filter(
+  (area) => !AFTER_TRACE_OPS.has(area.id),
+);
 
 const TREE_WORLD = compiledWorld(RED_EYE_TREE);
 

@@ -1,8 +1,8 @@
 # OneStandsOnStage — 한 명만 무대에 선다
 
-상태: **초안 — Human 승인 대기.** 승인은 "C034 진행" 한 마디로 갈음한다 — 그 말이 곧 승인이고, 문서 끝 Human 질문의 **제안값이 확정 후보**로
+상태: **초안 — Human 승인 대기.** 승인은 "C037 진행" 한 마디로 갈음한다 — 그 말이 곧 승인이고, 문서 끝 Human 질문의 **제안값이 확정 후보**로
 첫 Cycle 의 spec 에 든다 (답을 주면 그 답이 든다). 선행: 2층 Play 여덟 가운데 Frost · Access 가 세운 것(협곡 · 문의 요구 · 성질 어휘)을 쓴다 —
-C029(Access 의 Lock 데이터 계약)가 main 에 있어야 C036 이 실현된다. C034 · C035 는 지금 실현할 수 있다.
+C029(Access 의 Lock 데이터 계약)가 main 에 있어야 C039 이 실현된다. C037 · C038 는 지금 실현할 수 있다.
 
 ## 0. Row
 
@@ -143,26 +143,26 @@ Existing   Rooms · Land · Rule · Material · Time · Frost(협곡 방 둘 · 
            perceptionRange · npc-decide · strike) · 기본 전투(hp · downed) · 관찰자의 몸(RULE-OBSERVER-JOIN-001 · observer-body) · CONNECTOR_ACTIVATIONS ·
            카탈로그 3원소 · HKT_SPAWN* · HKT_NPCS · HKT_CLOCK
 Required — 세계 (content/world · content/regions)
-  W53  Party — 관찰자마다 편성 하나 (FairyEntry[] · activeIndex · 저장). FairyEntry = lineage(Core 계열) · characterKind · 몸의 값(hp · cp · 온기) · 소지.
+  W59  Party — 관찰자마다 편성 하나 (FairyEntry[] · activeIndex · 저장). FairyEntry = lineage(Core 계열) · characterKind · 몸의 값(hp · cp · 온기) · 소지.
        관찰자가 참여하면 몸 하나가 아니라 편성이 생기고 activeIndex 의 몸만 actors 에 선다. 시작 편성 둘(Human 질문 1 · D1 후보)
-  W54  교체 — RULE-PARTY-SWITCH-001 (관찰자 요청 · 되접기 · 같은 자리에 세우기 · Leave/Entry 기록 · 진행 중 행동 취소 · 제약 없음). 둘째 관찰자에게 존재 교체로 보인다
-  W55  온기 — Actor State warmth · warmthMax(카탈로그) · RULE-CHILL-001(추위 자락 · tick) · RULE-COLD-DAMAGE-001(0 이면 hp) · RULE-WARMTH-RECOVER-001(자락 밖).
+  W60  교체 — RULE-PARTY-SWITCH-001 (관찰자 요청 · 되접기 · 같은 자리에 세우기 · Leave/Entry 기록 · 진행 중 행동 취소 · 제약 없음). 둘째 관찰자에게 존재 교체로 보인다
+  W61  온기 — Actor State warmth · warmthMax(카탈로그) · RULE-CHILL-001(추위 자락 · tick) · RULE-COLD-DAMAGE-001(0 이면 hp) · RULE-WARMTH-RECOVER-001(자락 밖).
        추위 자락 = hazard/climate area + phases.standing 에 "몸에 하는 일" chill 하나 (Frost 의 observeRangeScale · contact 와 같은 자리)
-  W56  Core 가 몸의 State 로 — 계열(lineage)이 카탈로그의 한 열이 되고, 몸의 성질 집합(Actor.properties)이 State 에서 **유도**된다(저장 안 함):
+  W62  Core 가 몸의 State 로 — 계열(lineage)이 카탈로그의 한 열이 되고, 몸의 성질 집합(Actor.properties)이 State 에서 **유도**된다(저장 안 함):
        화염계 → heat:emits (추위가 깎지 못한다) · 온기 < 문턱 → heat:hides. 어휘는 W46 의 것 — 새 어휘 없음
-  W57  property Lock 의 판정 — RULE-LOCK-PROPERTY-001: Lock.requires 의 property 를 Actor.properties 로 판정해 Connector 활성. time 판정 뒤에 선다.
+  W63  property Lock 의 판정 — RULE-LOCK-PROPERTY-001: Lock.requires 의 property 를 Actor.properties 로 판정해 Connector 활성. time 판정 뒤에 선다.
        "표시일 뿐" 이던 C020 · C029 의 분할선을 여기서 넘는다 (K12 의 3층 몫). Answer Map 의 Actor 열이 센다
-  W58  M8 열을 쫓는 것 — 카탈로그 한 항목 · 협곡 순회(철 조건: 긴 밤 · 스밈 — 2층의 "지나가는 것" 어법) · RULE-HEAT-SEEK-001(감지 문턱 · 다가감 · 지나침) ·
+  W64  M8 열을 쫓는 것 — 카탈로그 한 항목 · 협곡 순회(철 조건: 긴 밤 · 스밈 — 2층의 "지나가는 것" 어법) · RULE-HEAT-SEEK-001(감지 문턱 · 다가감 · 지나침) ·
        지난 자리에 FROZEN_REMAINS 가 선다(Material RESIDUE 의 기존 Source 를 이 생물이 만든다). 이름은 Human (질문 2)
-  W59  투영 — 편성(무대 · 대기) · 온기 · 몸의 성질 문장 · 열을 쫓는 것의 목적 문장 · Leave/Entry 기록. 봉투에 새 자리 셋 (편성 · 온기 · 성질)
+  W65  투영 — 편성(무대 · 대기) · 온기 · 몸의 성질 문장 · 열을 쫓는 것의 목적 문장 · Leave/Entry 기록. 봉투에 새 자리 셋 (편성 · 온기 · 성질)
 Required — 표현 (content/view)
-  V26  교체 입력 — 키 하나(bindings) · 판의 「무대」 줄(누가 서 있고 누가 대기인가) · 교체 순간 존재 바뀜(그림 · 이름 — 카탈로그 둘째 · 셋째 항목)
-  V27  온기 — 판의 「온기」 줄(압력 · 소란과 같은 형식) · 깎이는 몸의 숨이 어는 표식 짙기 · 0 에 닿으면 생명 줄 · 화염계는 표식 없음
-  V28  문구 — on-stage(무대) · waiting(대기) · left-here(떠났다) · entered-here(들어섰다) · chilled(식어 간다) · warm-body(열을 낸다) · hidden-heat(열이 감춰졌다) ·
+  V28  교체 입력 — 키 하나(bindings) · 판의 「무대」 줄(누가 서 있고 누가 대기인가) · 교체 순간 존재 바뀜(그림 · 이름 — 카탈로그 둘째 · 셋째 항목)
+  V29  온기 — 판의 「온기」 줄(압력 · 소란과 같은 형식) · 깎이는 몸의 숨이 어는 표식 짙기 · 0 에 닿으면 생명 줄 · 화염계는 표식 없음
+  V30  문구 — on-stage(무대) · waiting(대기) · left-here(떠났다) · entered-here(들어섰다) · chilled(식어 간다) · warm-body(열을 낸다) · hidden-heat(열이 감춰졌다) ·
        seeks-warmth(따뜻한 것을 원한다) · 문의 거절은 C029 의 asks-warmth 그대로
-  V29  M8 의 그림 — motions/<kind>/ 하나 (없으면 placeholder — 카탈로그 규칙 그대로)
+  V31  M8 의 그림 — motions/<kind>/ 하나 (없으면 placeholder — 카탈로그 규칙 그대로)
 Required — 기구 (ENGINE 레인)
-  E22  없음 — 관찰자 참여(observer-join)는 몸이 아니라 "컨텐츠가 만드는 것" 을 이미 팩에 맡긴다. 편성은 팩의 것이다. 봉투 확장은 protocol-core 의 기존 확장 자리
+  E26  없음 — 관찰자 참여(observer-join)는 몸이 아니라 "컨텐츠가 만드는 것" 을 이미 팩에 맡긴다. 편성은 팩의 것이다. 봉투 확장은 protocol-core 의 기존 확장 자리
 ```
 
 ### 불변 조건 — 코드 변경 없이 폴리싱
@@ -175,24 +175,24 @@ Leave/Entry 에 효과를 붙인다(장판 · 상태) → 6층. 교체에 제약
 
 ## 7. Cycle Breakdown
 
-번호는 C034 부터다 — C032 · C033 은 [TrailBehindClueAhead](TrailBehindClueAhead.md) 의 것이다.
+번호는 C037 부터다 — C032 · C033 은 [TrailBehindClueAhead](TrailBehindClueAhead.md)(초안), C034~C036 은 [RoomRemembersAndOffers](RoomRemembersAndOffers.md) 의 것이다. 기구 번호도 그 Play 의 W53~W58 · V26~V27 · E22~E25 뒤를 잇는다.
 
 ```text
-[ ] C034 — 무대의 한 명: Party(W53 · 시작 편성 둘) + 교체(W54) + 투영과 판의 「무대」(W59 일부 · V26 · V28 일부) + 둘째 관찰자가 본다(완료 확인 ① ⑤).
+[ ] C037 — 무대의 한 명: Party(W59 · 시작 편성 둘) + 교체(W60) + 투영과 판의 「무대」(W65 일부 · V28 · V30 일부) + 둘째 관찰자가 본다(완료 확인 ① ⑤).
            세계는 아직 몸을 가리지 않는다 — 백왕령 · 숲 · 협곡 어디서든 교체가 되고 아무것도 달라지지 않는다. Cycle 없이 값이 도는 것이 증명이다
-[ ] C035 — 추위가 몸을 깎는다: 온기(W55) + Core 가 몸의 State 로(W56 — heat:emits 만) + 판의 「온기」 · 숨 표식(V27) + 되접힌 값(편성에 남는다) — 완료 확인 ②.
+[ ] C038 — 추위가 몸을 깎는다: 온기(W61) + Core 가 몸의 State 로(W62 — heat:emits 만) + 판의 「온기」 · 숨 표식(V29) + 되접힌 값(편성에 남는다) — 완료 확인 ②.
            협곡 왕복: 백왕계로 들어가 깎이고 · 화염계로 바꿔 멎고 · 돌아와 돈다
-[ ] C036 — 문이 몸에게 묻는다: property Lock 판정(W57) + heat:hides 의 유도(W56 나머지) + Answer Map Actor 열 + 문 앞의 거절 · 열림(V28) — 완료 확인 ③.
+[ ] C039 — 문이 몸에게 묻는다: property Lock 판정(W63) + heat:hides 의 유도(W62 나머지) + Answer Map Actor 열 + 문 앞의 거절 · 열림(V30) — 완료 확인 ③.
            **C029 가 main 에 있어야 한다** (Lock 데이터 계약 W47). 그 전에는 명세(spec)까지만
-[ ] C037 — 열을 쫓는 것: M8(W58 · V29) + RULE-HEAT-SEEK-001 + 언 사체를 실제로 남긴다 + 「지나는 것」 · 목적 문장 — 완료 확인 ④ + Play Goal 실주행
+[ ] C040 — 열을 쫓는 것: M8(W64 · V31) + RULE-HEAT-SEEK-001 + 언 사체를 실제로 남긴다 + 「지나는 것」 · 목적 문장 — 완료 확인 ④ + Play Goal 실주행
            (백왕령 → 고개 → 협곡 · 긴 밤 · 쫓기고 · 식히고 · 문을 지나 · 돌아온다)
 ```
 
 각 항목은 작다 · 플레이 가능 · World 변화 분명 · 관찰 가능 · 검증 가능 · 재사용 가능. 순서는 의존성(편성이 있어야 되접을 값이 있고 · 값이 있어야
-성질이 유도되고 · 성질이 있어야 문이 묻고 · 문이 묻는 눈과 같은 눈으로 생물이 본다)이자 Breath 순서다. C034 · C035 는 Life · Access 와 병행할 수 있다
-(Reuse 가 겹치지 않는다 — 편성과 온기는 새 State 다). C036 은 C029 뒤, C037 은 C036 뒤.
+성질이 유도되고 · 성질이 있어야 문이 묻고 · 문이 묻는 눈과 같은 눈으로 생물이 본다)이자 Breath 순서다. C037 · C038 는 Life · Access 와 병행할 수 있다
+(Reuse 가 겹치지 않는다 — 편성과 온기는 새 State 다). C039 은 C029 뒤, C040 은 C039 뒤.
 
-## Human 질문 (제안값 포함 — "C034 진행" 이면 제안이 확정 후보로 spec 에 든다)
+## Human 질문 (제안값 포함 — "C037 진행" 이면 제안이 확정 후보로 spec 에 든다)
 
 ```text
 1. 시작 편성 둘 — 화염계 + 백왕계 (D1 의 이 Play 몫)

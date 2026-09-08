@@ -14,27 +14,28 @@
 
 ## 1. 지금 누가 무엇을 — 진입점
 
-한 Cycle = 브랜치 `cycle/C###` = 세션 하나. **말할 것: "C022 진행"**(Life) · **"C029 진행"**(Access) · **"C034 진행"**(Stage — 이 말이 곧 Play 승인이다) — 셋은 병행할 수 있다.
+한 Cycle = 브랜치 `cycle/C###` = 세션 하나. **말할 것: "C024 진행"**(Life — C022 · C023 닫힘) · **"C029 진행"**(Access) · **"C034 진행"**(Foundation) · **"C037 진행"**(Stage — 이 말이 곧 Play 승인이다) — 넷은 병행할 수 있다.
 `advprotoi-cycle` 이 명세(spec.md) → 실현 → 마감을 이어 돌리고 UNRESOLVED · GAP 에서만 멈춘다. PR 은 번호 순으로 합친다.
 병렬 규칙은 [Plan-Skill §4 항목 4](design/Plan-Skill-CycleExecutionWorkflow.md).
 
 | 주체 | 할 일 (한 줄) | 원본 — 여기서 한다 |
 |---|---|---|
-| **Human 승인** | OneStandsOnStage(3층 첫 Play) — "C034 진행" 또는 질문 여섯의 답 | [PLAYS §4-1](content/roadmap/PLAYS.md) · [play/OneStandsOnStage.md](content/roadmap/play/OneStandsOnStage.md) 끝 |
+| **Human 승인** | OneStandsOnStage(3층 첫 Play) — "C037 진행" 또는 질문 여섯의 답 | [PLAYS §4-1](content/roadmap/PLAYS.md) · [play/OneStandsOnStage.md](content/roadmap/play/OneStandsOnStage.md) 끝 |
 | **Human 승인** | TrailBehindClueAhead(Rooms GAP 회수) — 질문 여섯의 답 | [PLAYS §4-2](content/roadmap/PLAYS.md) · [play/TrailBehindClueAhead.md](content/roadmap/play/TrailBehindClueAhead.md) 끝 |
 | **Human 판정** | RoomOfAnotherKind 실주행 — Q39~Q44 | [TODO §1](TODO.md) |
 | **Human 결정** | 값 · 규칙 · 방향의 결정 목록 | [TODO §2](TODO.md) |
 | **Human 결정** | 4층 · 7층 Play 를 앞당기는가 · 어느 층에도 자리 없는 것(다중 플레이어의 충분조건 · 번식 · 절벽 낙하)의 층 | [PLAYS §4-5 · §4-10](content/roadmap/PLAYS.md) |
 | 기획 (design) | HundredRooms 초안(이름은 Human) · 승인 반영 · 실주행 GAP 회수 · 다음 층 Play | [PLAYS §3 · §4](content/roadmap/PLAYS.md) |
-| Cycle | Life C022→C025 · Access C029→C031 · Stage C034→C037 (C036 은 C029 뒤 · C037 은 C036 뒤) | 아래 레인 표 · 각 Play 의 Cycle Breakdown |
+| Cycle | Life C024→C025 (C022 · C023 닫힘) · Access C029→C031 · Foundation C034→C036 · Stage C037→C040 (C039 는 C029 뒤 · C040 은 C039 뒤) | 아래 레인 표 · 각 Play 의 Cycle Breakdown |
 | ENGINE | 부를 단계가 없다 — T1~T6 이 다 섰다. T3 의 ecology 는 C022 뒤 | [README §2.1](content/roadmap/README.md) |
 | 주입 (Human) | 3층 나머지 절반(몸의 값 전반 · 생물의 앎과 선택) — OneStandsOnStage 판정 뒤. 4~7층은 각 층이 열릴 때 | [README §2](content/roadmap/README.md) · [PLAYS §3](content/roadmap/PLAYS.md) |
 
 | 레인 | 지금 할 수 있는 것 | 기다리는 것 | 다음 |
 |---|---|---|---|
-| Life — [RoomBearsLife](content/roadmap/play/RoomBearsLife.md) | 대기 (계약 · 확정 사항 · 상수는 [L2-World-Life.md](content/roadmap/L2-World-Life.md) 와 Play 에 있다) | — (Frost 가 닫혔다 — 탄생이 소비할 재료 · 탈 주기 · 대조할 갈래가 다 섰다) | C022 → C025 |
+| Life — [RoomBearsLife](content/roadmap/play/RoomBearsLife.md) | C024 (C022 허물의 주인 · C023 태어남은 소비다 — 닫힘. TODO §4 에 C024 · C025 항목) | — | C024 → C025 |
 | Access — [RoomAsksForPossibilities](content/roadmap/play/RoomAsksForPossibilities.md) | 대기 (계약 · 어휘 · 검사 ㉞~㊷ · 위임된 결정 D1~D5 는 [L2-World-Access.md](content/roadmap/L2-World-Access.md) 와 Play 에 있다) | — (Frost 가 닫혔다 — 첫 property Lock 의 요구가 협곡에 표시까지 서 있다). Life 와 **병행** | C029 → C031 |
-| Stage — [OneStandsOnStage](content/roadmap/play/OneStandsOnStage.md) (**3층**) | C034(편성 · 교체) · C035(온기 · 추위 · Core) — 새 State 라 Life · Access 와 겹치지 않는다 | C036 은 C029(Lock 데이터 계약 W47) · C037 은 C036 | C034 → C037 |
+| Foundation — [RoomRemembersAndOffers](content/roadmap/play/RoomRemembersAndOffers.md) | 대기 (계약 · 확정 사항 1~11 · 기억의 항목 · 조건 형 · 기회 형은 [L2-World-Foundation.md](content/roadmap/L2-World-Foundation.md) 와 Play 에 있다) | — (RoomNeverSame · Material · Observe 가 닫혔다). Life · Access · Stage 와 **병행** — 세계 State 에 history 하나가 늘어 STATE_VERSION 이 오르므로 PR 은 번호 순으로 합친다 | C034 → C036 |
+| Stage — [OneStandsOnStage](content/roadmap/play/OneStandsOnStage.md) (**3층**) | C037(편성 · 교체) · C038(온기 · 추위 · Core) — 새 State 라 Life · Access 와 겹치지 않는다 | C039 은 C029(Lock 데이터 계약 W47) · C040 은 C039 | C037 → C040 |
 | ENGINE B — [Region 작성기](content/roadmap/L2-World-Tool-Scale.md) (도구 2단계) | 부를 단계가 없다 — T1~T6 이 다 섰다 (검사기 · brief 형 · 뼈대 생성기 절반 · 등급 판정기 · 초안기 · 판정 표면). 미지 한 줄이 방이 되고, 목록 하나가 후보 여럿이 되고, 나란히 놓아 승인/반려한다 | T3 의 나머지 — 생명 ecology 는 C022 (phases 도 템플릿도 이제 붙일 수 있다) | Play HundredRooms — 그것이 선 뒤 |
 
 ## 2. 코드에 있는 것
@@ -151,7 +152,7 @@
         검증용 손잡이 HKT_SPAWN · HKT_SPAWN_REGION · HKT_NPCS · HKT_REGION_PATTERN · HKT_NPC_REGION ·
         HKT_SOURCE_PHASE · HKT_CLOCK · HKT_DISTURBANCE · HKT_PRESENCE
 없음    전투 공식 · 막기 · 피해 종류 · 살펴봄 · 태도 · 장비 · 스킬 형태 · 성장 · 재료의 쓰임 — design/ 에만 ·
-        생명의 탄생 · 세계의 요구와 가능성(Lock · 성질 어휘 · 검사 ㉞~㊷) — Play 둘 반이 아직 남았다
+        생명의 탄생 · 세계의 요구와 가능성(Lock · 성질 어휘 · 검사 ㉞~㊷) · 기억과 기회(history · 조건의 한 형 · Opportunity · 검사 ㊸~㊼) — Play 셋 반이 아직 남았다
 미사용   기반에 있으나 컨텐츠가 아직 안 쓰는 것 — 겹침 표면 · 칸 띠 · 터치 입력 · 이펙트 레이어 · 지면 구역 · 세계 영속
 ```
 

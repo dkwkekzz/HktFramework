@@ -116,7 +116,9 @@ const AWAKE = 'awake';
 const AVAILABLE = 'available';
 
 /** spec 이 적은 State 형 버전 — 이 Cycle 이 여기까지 올린다 (SPEC-008 경계) */
-const RAISED_STATE_VERSION = 'hkt-adv-proto-i/9';
+// C022 CHANGED — 탄생지와 개체군이 실리며 다시 올랐다. 이 항이 재는 것은 글자가 아니라
+// "세계가 찍는 판이 팩의 판과 같다" 이므로 값만 따라 올린다 (C017 · C018 이 한 그대로)
+const RAISED_STATE_VERSION = 'hkt-adv-proto-i/10';
 /** 그 앞의 버전(C017) — 옛 스냅샷은 되살아나지 않는다 */
 const OLD_STATE_VERSION = 'hkt-adv-proto-i/8';
 
@@ -946,7 +948,7 @@ describe('SPEC-003 지나는 것이 관찰에 실린다', () => {
     expect(seenCodes(w)).toContain(SKY_WHALE);
     const seen = seenPresences(w).find((p) => p.presence === SKY_WHALE)!;
     // And 그것이 이 방에서 지나는 **선의 이름**이 함께 실린다 — 그 선은 내 데이터에 있다
-    expect(curvePoints(WHALE_ROOMS[0]!, seen.curve).length).toBeGreaterThan(1);
+    expect(curvePoints(WHALE_ROOMS[0]!, seen.curve!).length).toBeGreaterThan(1);
     // And 실린 자리는 무엇과 어느 선, 둘뿐이다 (spec Observable)
     expect(Object.keys(seen).sort()).toEqual(['curve', 'presence']);
   });
@@ -1058,7 +1060,7 @@ describe('SPEC-004 지나는 동안 그 방이 달라진다', () => {
     expect(routeRoomsOf(first, route)[0]).toBe(HUNTER_FIRST);
     const seen = seenPresences(first).find((p) => p.presence === BLIND_HUNTER);
     expect(seen, '첫 마디의 방에서 눈 없는 것이 보이지 않는다').toBeDefined();
-    const { world: w } = standingInCreature(first, HUNTER_FIRST, seen!.curve, bodyOf(first));
+    const { world: w } = standingInCreature(first, HUNTER_FIRST, seen!.curve!, bodyOf(first));
     expect(isPassing(w, route)).toBe(true);
 
     // Then "왜 여기가 위험한가" 가 답해진다
@@ -1075,7 +1077,7 @@ describe('SPEC-004 지나는 동안 그 방이 달라진다', () => {
     // Given 눈 없는 것이 지나는 방의 **자락 밖** 자리
     const first = hunterWorld(HUNTER_FIRST);
     const seen = seenPresences(first).find((p) => p.presence === BLIND_HUNTER)!;
-    const { spot: inside } = standingInCreature(first, HUNTER_FIRST, seen.curve, bodyOf(first));
+    const { spot: inside } = standingInCreature(first, HUNTER_FIRST, seen.curve!, bodyOf(first));
     const outside = spotOutsideHazard(HUNTER_FIRST, inside);
     const w = moveBody(first, HUNTER_FIRST, outside, bodyOf(first));
     // Then 지나고 있는데도 그 자리에는 위험이 걸리지 않는다
@@ -1136,7 +1138,7 @@ describe('SPEC-004 지나는 동안 그 방이 달라진다', () => {
     expect(depthSeen(atDepth)).toBe(depthAwake);
 
     // And 지나는 것이 건 위험도 함께 실린다 — 걸린 것이 전부다
-    const { world: w } = standingInCreature(staged, room, seen!.curve, bodyOf(staged), awakeTag);
+    const { world: w } = standingInCreature(staged, room, seen!.curve!, bodyOf(staged), awakeTag);
     expect(seenPhase(w)).toBe(AWAKE);
     expect(conditionsSeen(w)).toContain(HAZARD_CREATURE);
 

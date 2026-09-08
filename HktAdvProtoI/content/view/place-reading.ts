@@ -16,6 +16,7 @@ import { blockedReasonAt, isTraversableAt, surfaceAt, tagsAt } from '../../engin
 import type { GameViewSnapshot, PresenceView } from '../protocol/gameview';
 import { BLOCK_COLLAPSED, TRACE_LAYER, regionSpec } from '../regions/index';
 import { SETTLEMENT_LAYER } from './biome-rules';
+import { lifeSitePhases } from './life-reading';
 import { CELL_LAYER, openPassageTags } from './region-presentation';
 import { isCollapsedAt, sourcePhases, traceTagAt } from './resource-reading';
 import { regionTerrain } from './terrain-presentation';
@@ -118,6 +119,9 @@ export function readPlace(
   // 여기서 유도되므로, 이 함수가 읽는 사실의 출처는 여전히 봉투와 내 Description 둘뿐이다 —
   // 시그니처가 늘지 않는 것이 그 규율을 그대로 지킨다 (세계에 묻는 것은 여전히 0 이다)
   const sources = sourcePhases(snapshot);
+  // 탄생지의 지금도 **봉투의 것**이다 (C022) — 그 둘레의 흙이 옅어졌는지가 여기서 유도되고,
+  // 그래서 이 함수가 읽는 사실의 출처는 여전히 봉투와 내 Description 둘뿐이다
+  const lives = lifeSitePhases(snapshot);
   const depth = snapshot.hud.find((h) => h.id === DEPTH_HUD_ID)?.value;
   const state = snapshot.region.state;
   // C017 — 늘 실리는 값이지만 **앞 Cycle 의 봉투에는 없다**. 없으면 없는 채로 둔다
@@ -182,7 +186,10 @@ export function readPlace(
   // C020 CHANGED — **어느 어휘로 읽히는지를 여기서 고르지 않는다** (spec SPEC-002 경계 ②).
   // 여태 이 자리가 흙의 이름표를 되지었으므로 협곡에 서면 숲의 말이 떴다. 이제 되짓는 일이
   // 자락을 읽는 쪽(traceTagAt)에 있고, 답은 방 이름이 아니라 **그 자리에 놓인 글자**다.
-  const trace = traceTagAt(regionId, point, sources);
+  //
+  // C022 CHANGED — 탄생지의 지금도 함께 넘긴다 (spec R4). 결속하는 동안 알집 둘레의 흙이
+  // 한 단계 옅으므로, 그 자리를 물으면 **바닥에 그려진 색과 같은 단계**가 말이 된다.
+  const trace = traceTagAt(regionId, point, sources, lives);
   if (trace !== undefined) areas.push({ layer: TRACE_LAYER, tags: [trace] });
 
   // RULE-SOURCE-COLLAPSE-001 (C012 R3) — 컴파일 결과 **위에** 덧씌운다. 땅은 한 값도
