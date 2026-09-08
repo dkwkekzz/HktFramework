@@ -73,6 +73,11 @@ export const ROLE_PRESENTATIONS: Readonly<Record<string, RolePresentation>> = {
       // 아홉째·열째 (C018) — **지나간 것이 남긴 것** 둘. 표에 두 줄이 늘 뿐이다
       'fallen-scale': 'source:fallen-scale',
       'prey-remains': 'source:prey-remains',
+      // 추위가 만든 것 넷 (C020) — 표에 네 줄이 늘 뿐이다. 열이 열넷이 되어도 이 항목의 어법은 그대로다
+      rime: 'source:rime',
+      'frost-vein': 'source:frost-vein',
+      'drift-dust': 'source:drift-dust',
+      'corpse-rime': 'source:corpse-rime',
     },
   },
   // 방의 출구 표식 (C001) — anchor 자리에 선 표식 하나. kind(= 전이 종류) 별 색은 region-presentation 의 표.
