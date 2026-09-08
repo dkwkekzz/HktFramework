@@ -15,7 +15,8 @@
 //   표면   서리 697 · 비탈 164 · 급경사 810 · 평지 10
 //   막힘   810 칸 (전부 too-steep — 이 방에는 물이 없다)
 //   높이   0.00 ~ 20.00 · 골 바닥(|x| ≤ 4)은 vertex 하나까지 정확히 0
-//   hash   d1ff52bf (두 번 컴파일해도 같은 값이다)
+//   hash   c3aaed18 (두 번 컴파일해도 같은 값이다 · C020 에서 d1ff52bf 에서 바뀌었다 —
+//          op 가 셋 늘었기 때문이고, 높이 · 표면 · 통행 격자는 위의 넷이 그대로다)
 // 평지 10 은 **벽 꼭대기**다 — stamp 여섯의 중심 (±18, −14 · 0 · 14)과 두 원이 맞닿는
 // (±18, ±7). 원뿔의 꼭짓점이라 그 한 점만 기울기가 0 이고, 걸어 올라갈 수는 없다.
 //
@@ -24,11 +25,28 @@
 // **23 걸음**으로 이어진다 (spec SPEC-004 경계). 둘 다 골 바닥의 서리 위이고 통행 가능하다.
 // 반대로 벽은 닫힌다 — 걸어 닿는 가장 바깥이 |x| = 11.5(남북 변 언저리의 완만한 자락)이고
 // 방 한가운데 줄에서는 |x| = 8 이 마지막이다.
+//
+// C020 ADDED — 이 방이 **재료를 낳는 방**이 된다 (원천 하나 · 흔적 둘). 실측:
+//   원천     PASS_RIME (8, −16) — 통행 가능 · 표면 frost · 들어온 자리에서 **6 걸음**
+//   흔적     방 바닥 frost-breath:1 이 vertex 1681(격자 전부) · 원천 둘레 frost-breath:2 가 49
+//            (반지름 4) — 둘레가 방 바닥보다 정확히 한 단계 짙고 둘레끼리 겹칠 것이 없다
+//   자락     절벽 자락 둘은 한 값도 달라지지 않는다 (덮는 533 · 걸을 수 있는 128 · 걸어 닿는 79)
+// 표면 · 막힘 · 높이는 위의 값 그대로다 — 늘어난 op 셋(흔적 둘 · 원천 point 하나)은
+// feature layer 가 아니고 profile 도 없어 컴파일된 땅을 한 값도 건드리지 않는다.
 
 import type { RegionSpec } from './spec';
 import { ANCHOR_LAYER } from './spec';
 import { HAZARD_LAYER } from './phases';
 import { FEATURE_LAYER, FROST_TAG } from './terrain-rules';
+import {
+  CRYSTAL_GROWTH,
+  FORM_RIME,
+  FROST_CRYSTAL,
+  RECOVERY_NIGHT_RIME,
+  RESOURCE_LAYER,
+  TRACE_LAYER,
+  frostBreathTag,
+} from './resource-ecology';
 
 export const ICE_CANYON = 'ICE_CANYON';
 
@@ -112,6 +130,59 @@ export const ICE_CANYON_SPEC: RegionSpec = {
         ],
         width: 2,
       },
+      // ── C020 ADDED — 흔적과 원천 하나 (spec SPEC-001 · SPEC-002 · 기본형 ① ②) ──
+      //
+      // 협곡의 흔적은 흙이 아니라 **숨이 어는 정도**다 (frostBreathTag) — 숲의 흙 사다리와
+      // 같은 기제이고 태그만 다르다. 이 방에는 흙 사다리 area 가 **하나도 없다**:
+      // 두 어휘가 한 자리에서 섞이지 않는다 (spec SPEC-002 경계 ②).
+      //
+      // 고개 너머 첫 방이므로 바닥이 가장 옅다 (1) — 그 안쪽 빙결 협곡이 2 이고, 원천
+      // 둘레는 방 바닥보다 한 단계 짙다 (2). 방 바닥의 사각형은 extent 를 그대로 덮는다
+      // (생체 광석 지대의 trace-ore-base 가 그런 그대로).
+      {
+        id: 'trace-canyon-base',
+        kind: 'area',
+        layer: TRACE_LAYER,
+        tag: frostBreathTag(1),
+        shape: {
+          kind: 'polygon',
+          points: [
+            { x: -20, z: -20 },
+            { x: 20, z: -20 },
+            { x: 20, z: 20 },
+            { x: -20, z: 20 },
+          ],
+        },
+      },
+      // 고개의 서리 — 백왕령 쪽 anchor (0, −18) **곁**이면서 **절벽 자락 안**이다
+      // (Design 은 "anchor 곁" 까지만 말한다 · 기본형 ①).
+      //
+      // 처음에는 골 한가운데 (3, −14) 에 두었다가 벽 쪽으로 옮겼다. 이유는 하나다 —
+      // **위험을 만든 것이 곧 재료다** (Concept §6)가 이 방에서도 데이터로 참이어야 한다:
+      // 이 방의 위험은 얼음 절벽 하나뿐이고, 원천이 그 자락에 닿지 않으면 검사 ①
+      // (자원과 위험이 같은 근원인가)이 이 방에서 끊긴 것으로 읽는다. 서리는 골 한가운데
+      // 허공에 끼는 것이 아니라 벽에 앉는 것이므로 세계 사실로도 이쪽이 옳다.
+      //
+      // 자리 (8, −16) — anchor 에서 8.25 이고, 걸을 수 있는 마지막 줄(|x| = 8)이자 절벽
+      // 자락(|x| ≥ 8)의 변 위다 (변 위는 안으로 친다 · engine 의 areaCoversPoint). 들어온
+      // 자리에서 6 걸음이라 고개를 넘자마자 벽을 따라가면 만난다.
+      //
+      // 둘레 반지름 4 는 배치 데이터다 — 남쪽 변에서 4 밖에 안 떨어져 있으므로 그보다 크면
+      // 흔적 원이 extent(−20..20) 밖으로 나간다 (생체 광석 지대가 마디 넷에 건 그 조건).
+      {
+        id: 'trace-pass-rime',
+        kind: 'area',
+        layer: TRACE_LAYER,
+        tag: frostBreathTag(2),
+        shape: { kind: 'circle', center: { x: 8, z: -16 }, radius: 4 },
+      },
+      {
+        id: 'source-pass-rime',
+        kind: 'point',
+        layer: RESOURCE_LAYER,
+        tag: 'PASS_RIME',
+        position: { x: 8, z: -16 },
+      },
       // ── 절벽 자락 둘 — 늘 서 있는 위험 (아래 phases.standing) ──────────────
       //
       // 자락의 자리와 크기는 Design 에 없다 (spec 기본형 ②) — **실측한 급경사 띠**로 정했다.
@@ -157,6 +228,45 @@ export const ICE_CANYON_SPEC: RegionSpec = {
         },
       },
     ],
+  },
+  /**
+   * 이 방이 낳는 것 — 원천 하나 (C020 ADDED · spec SPEC-001 · SPEC-009).
+   *
+   * 고개의 서리 하나뿐이다. 고개 너머 첫 방이므로 가장 얕은 자리이고, 그래서 맡은 자리가
+   * **Baseline** 이다 — 먼저 온 사람이 다 가져갈 수 없는 자리를 가장 얕은 곳에 둔다
+   * (숲 가장자리의 허물이 세운 그 어법 · Play §5.1 · M7).
+   *
+   * 붙잡는 것이 **현상**인 이유 — 서리는 몸도 생명도 땅도 아니고 밤이 지나가며 두고 가는
+   * 것이다 (C018 이 떨어진 비늘에 쓴 그 칸). 그래서 되돌아옴의 원인도 시간이 아니라
+   * **밤마다 다시 낀다** 이고, 그 밤이 하루마다 오므로 되돌아옴이 하루(360 초)다.
+   */
+  resourceEcology: {
+    sources: [
+      {
+        id: 'PASS_RIME',
+        materialId: FROST_CRYSTAL,
+        // 숲의 사슬도 하늘의 지나감도 아닌 셋째 — 결정이 자라며 열을 먹는다 (확정 2)
+        worldCause: CRYSTAL_GROWTH,
+        form: FORM_RIME,
+        carrier: 'phenomenon',
+        opportunity: 'baseline',
+        supply: 'baseline-renewable',
+        // 밤마다 다시 낀다 (A.2 회복 원인)
+        recoveryCause: RECOVERY_NIGHT_RIME,
+        // Baseline — 넉넉하다. 다녀와도 남이 캘 몫이 있다 (D4 · 허물 셋의 선례)
+        harvests: 3,
+        // 하루 = 360 세계 초 (C015 의 시계 · spec 데이터 값 표) — 되돌리는 것이 밤이므로
+        // 길이도 하루다. 밤을 한 번 보내면 다시 낀다
+        recoverySeconds: 360,
+        // 마디 하나뿐인 원천 — 자리를 옮기지 않는다 (siteCurve 없음)
+        traceOps: ['trace-pass-rime'],
+      },
+    ],
+    // C020 ADDED (spec SPEC-009) — **밖에서 아무것도 받지 않는다.** 원천이 서 있어도
+    // 밝힌다: 검사 ㉒ 가 묻는 자리는 아니지만, "협곡이 요구하는 것이 협곡에 없다" 가
+    // 결손이 아니라 밝혀진 사실이려면 이 계통이 무엇으로 닫혀 있는지가 데이터에 있어야 한다.
+    isolationReason:
+      '얼음 절벽이 양옆을 막고 고개 하나로만 이어진다 — 이 방이 내는 것은 여기서 자란 것뿐이고 실려 오는 것이 없다',
   },
   /**
    * 이 방이 **늘** 서 있는 위상 (C019 ADDED · spec R1 · SPEC-005).

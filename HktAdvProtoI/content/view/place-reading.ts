@@ -14,10 +14,10 @@
 import { descriptionHash } from '../../engine/world-authoring/description';
 import { blockedReasonAt, isTraversableAt, surfaceAt, tagsAt } from '../../engine/world-authoring/query';
 import type { GameViewSnapshot, PresenceView } from '../protocol/gameview';
-import { BLOCK_COLLAPSED, TRACE_LAYER, regionSpec, soilStainTag } from '../regions/index';
+import { BLOCK_COLLAPSED, TRACE_LAYER, regionSpec } from '../regions/index';
 import { SETTLEMENT_LAYER } from './biome-rules';
 import { CELL_LAYER, openPassageTags } from './region-presentation';
-import { isCollapsedAt, sourcePhases, traceLevelAt } from './resource-reading';
+import { isCollapsedAt, sourcePhases, traceTagAt } from './resource-reading';
 import { regionTerrain } from './terrain-presentation';
 
 /** 그 점에 걸린 area — layer 마다 한 묶음이고, 겹치면 **전부** 담는다 (SPEC-003) */
@@ -178,8 +178,12 @@ export function readPlace(
   // 것이 아니라 그것이 흔적의 규칙이기 때문이다 — 겹침은 짙기이지 양이 아니고(C011 R4),
   // 옅어진 뒤에는 겹친 둘이 같은 단계가 되어 같은 말이 두 번 서게 된다.
   // 단계가 0 이면 흔적이 없어진 것이므로 그 줄도 서지 않는다 (바닥에 그리지 않는 것과 같다).
-  const trace = traceLevelAt(regionId, point, sources);
-  if (trace > 0) areas.push({ layer: TRACE_LAYER, tags: [soilStainTag(trace)] });
+  //
+  // C020 CHANGED — **어느 어휘로 읽히는지를 여기서 고르지 않는다** (spec SPEC-002 경계 ②).
+  // 여태 이 자리가 흙의 이름표를 되지었으므로 협곡에 서면 숲의 말이 떴다. 이제 되짓는 일이
+  // 자락을 읽는 쪽(traceTagAt)에 있고, 답은 방 이름이 아니라 **그 자리에 놓인 글자**다.
+  const trace = traceTagAt(regionId, point, sources);
+  if (trace !== undefined) areas.push({ layer: TRACE_LAYER, tags: [trace] });
 
   // RULE-SOURCE-COLLAPSE-001 (C012 R3) — 컴파일 결과 **위에** 덧씌운다. 땅은 한 값도
   // 바뀌지 않고(높이 · 표면 · traversable 격자 그대로), 세계가 하는 것과 같은 판정이

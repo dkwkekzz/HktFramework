@@ -1294,7 +1294,19 @@ describe('회귀', () => {
     // 그 앞 Cycle 들은 방 한가운데(기본 자리)에 서서 원천을 관찰했고, 되돌아옴(180)과
     // 물길(240)을 기다리는 동안 그 시각이 밤으로 넘어간다. **세계의 값이 아니라 그 시나리오가
     // 무엇을 보고 있었는가**를 옮긴다 — 그 자리에서 원천이 밤에도 실리는가.
-    for (const region of SOURCE_REGIONS) {
+    // C020 으로 좁혀졌다 — 원천을 가진 방이 협곡 둘로 늘었는데, 그 방에는 밤을 한 번 더
+    // 자르는 것(C019 의 눈보라 자락 · 밤 10)이 있다. 이 항이 재는 것은 **밤이 원천을
+    // 지우는가** 이고 눈보라가 자르는 것은 밤이 아니라 자락이므로, 자락이 관찰 범위를
+    // 밝힌 방은 이 무리에서 뺀다 — 그 방의 잘림은 C019 SPEC-006 이 잰다.
+    // 기대를 낮추는 것이 아니라 자리를 옮기는 것이다 (아래 C016 의 선례 그대로).
+    const narrowed = new Set(
+      REGION_SPECS.filter((spec) =>
+        (spec.phases?.standing?.hazardExtend ?? []).some(
+          (overlay) => (overlay as { observeRange?: unknown }).observeRange !== undefined,
+        ),
+      ).map((spec) => spec.id),
+    );
+    for (const region of SOURCE_REGIONS.filter((id) => !narrowed.has(id))) {
       for (const source of sourcesInRegion(region)) {
         const world = standingIn(region);
         runTo(world, MIDNIGHT, 1);

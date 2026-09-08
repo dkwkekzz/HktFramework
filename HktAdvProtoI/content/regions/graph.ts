@@ -34,6 +34,12 @@
 // 둔 채 방향만** one-way → bidirectional 로 바뀌고(고개는 넘어갔다 돌아오는 것이다), 협곡 안으로
 // 드는 오솔길 FROST_CANYON_TRAIL 하나가 배열 끝에 이어 붙는다. 앞의 열일곱은 한 글자도 바뀌지
 // 않는다 — exitsOf 의 결정론이 이 순서를 따르므로 고개도 옮기지 않았다.
+//
+// C020 CHANGED — Connector 가 열아홉, 경계가 넷이 된다. 빙결 협곡에서 **빙결 심층**으로 드는
+// 문 FROST_DEPTH_DOOR 하나가 배열 끝에 이어 붙고(exitsOf 의 결정론이 이 순서를 따른다) 그
+// 너머 이름 하나(FROST_DEPTH)가 경계 목록에 는다. 앞의 열여덟은 한 글자도 바뀌지 않는다.
+// 그리고 이 파일이 표 하나를 더 소유한다 (아래 CONNECTOR_REQUIREMENTS): 문이 **밝힌 요구**의
+// 코드들이다 — 활성 표와 같은 갈래의 정적 데이터이되 활성을 판정하지 않는다 (spec R5 경계 ①).
 
 import type { RegionGraph } from '../../engine/world-authoring/graph';
 import type { SeasonId } from './phases';
@@ -74,6 +80,8 @@ export const INVERTED_GARDEN_DOOR = 'INVERTED_GARDEN_DOOR';
 export const WALKING_FOREST_DOOR = 'WALKING_FOREST_DOOR';
 // C019 ADDED — 협곡 안쪽으로 드는 오솔길
 export const FROST_CANYON_TRAIL = 'FROST_CANYON_TRAIL';
+// C020 ADDED — 빙결 심층으로 드는 문. 그 표식에 **요구**가 적힌다 (아래 CONNECTOR_REQUIREMENTS)
+export const FROST_DEPTH_DOOR = 'FROST_DEPTH_DOOR';
 
 // 아직 짓지 않은 방들 — Connector 가 가리키되 Description 이 없다 (01-spec SPEC-004).
 // 이름만 있고 방은 없다. 지어지면 그 이름은 이 목록에서 빠지고 REGION_SPECS 로 옮겨 간다.
@@ -92,12 +100,18 @@ export const INVERTED_GARDEN = 'INVERTED_GARDEN';
 // (L2-World-Region §5.1). 긴 밤에만 열리는 문이 그것을 가리키되 그 방은 이 Cycle 밖이고,
 // 그 방을 짓는 Play 가 이름을 가져간다 — RED_EYE_TREE · FANTASY_MAZE 가 그랬듯.
 export const WALKING_FOREST = 'WALKING_FOREST';
+// C020 ADDED — 빙결 심층. 정식 이름 표에 있되 **아직 짓지 않은 곳**이다
+// (L2-World-Region §5.1). 빙결 협곡에서 드는 문이 그것을 가리키되 그 방은 이 Cycle 밖이고,
+// 그 방을 짓는 Play 가 이름을 가져간다 — RED_EYE_TREE · FANTASY_MAZE · ICE_CANYON 이 그랬듯.
+export const FROST_DEPTH = 'FROST_DEPTH';
 
 /** 이 Graph 가 경계로 밝힌 이름들 — Description 이 없어도 정합 오류가 아니다 (01-spec SPEC-004) */
 export const FRONTIER_REGIONS: readonly string[] = [
   RED_WASTE,
   INVERTED_GARDEN,
   WALKING_FOREST,
+  // C020 ADDED — 경계가 넷이 된다. **배열 끝**에 붙는다 (C003 부터의 어법)
+  FROST_DEPTH,
 ];
 
 /**
@@ -317,6 +331,20 @@ export const REGION_GRAPH: RegionGraph = {
       direction: 'bidirectional',
       transition: 'trail',
     },
+    // C020 ADDED — 빙결 심층으로 드는 문 하나. 그 너머는 **아직 짓지 않은 곳**이므로
+    // 건너기 요청은 region-not-built 로 거절된다 (C002 가 세운 대답 그대로).
+    // one-way 인 것은 저쪽에서 이쪽으로 오는 길을 이 Cycle 이 정하지 않았기 때문이다 —
+    // 그 방을 짓는 Play 가 돌아오는 끝까지 함께 정한다 (고대 문 · 뒤집힌 정원 문 · 걷는 숲
+    // 문이 그랬던 그대로). 종류가 **문(door)** 인 것은 Play §5.3 이 "문" 이라고 부르기
+    // 때문이다 (기본형 ⑧ — 일곱 중 그대로 골랐다).
+    // 배열 **끝**에 붙는다 — exitsOf 의 결정론이 이 순서를 따르므로 중간에 끼우지 않는다.
+    {
+      id: FROST_DEPTH_DOOR,
+      from: { region: FROST_CANYON, anchor: FROST_DEPTH_DOOR },
+      to: { region: FROST_DEPTH, anchor: 'FROST_CANYON_SIDE' },
+      direction: 'one-way',
+      transition: 'door',
+    },
   ],
   frontiers: FRONTIER_REGIONS,
 };
@@ -368,4 +396,35 @@ export const CONNECTOR_ACTIVATIONS: Readonly<Record<string, ConnectorActivation>
   // 방의 State 를 읽지 않는다: 이 문을 여는 것은 어느 방의 사정도 아니고 세계의 시각이다.
   // 그래서 "잠긴 문" 과 다른 말이 나온다 — 저쪽은 connector-inactive, 이쪽은 not-this-season.
   [WALKING_FOREST_DOOR]: { seasons: ['LONG_NIGHT'] },
+};
+
+/**
+ * 요구 코드 — **열을 저장하는 것이 있어야 한다** (C020 ADDED · Play §5.3 · 확정 4).
+ *
+ * 무엇이 그것을 채우는지도 · 어디서 나는지도 이 코드는 말하지 않는다 (spec R5 경계 ②).
+ * 확정 4 가 "열 결정이 어디서 나는가" 를 **정하지 않는다**고 못박았고, 그것이 답의 부재가
+ * 아니라 이 Cycle 이 놓으려는 미지감이다 — 관찰자는 협곡을 다 뒤져도 그것을 찾지 못한다.
+ * 사람이 읽을 문구는 View 의 표가 옮긴다 (재료 이름 · 형태 코드의 선례 그대로).
+ */
+export const REQUIRES_STORED_HEAT = 'requires-stored-heat';
+
+/**
+ * **문이 밝힌 요구의 코드들** (C020 ADDED · spec R5 · SPEC-009).
+ *
+ * 활성 표(CONNECTOR_ACTIVATIONS)와 **같은 갈래의 정적 데이터**다 — 세계 State 에 들어가지
+ * 않고 저장되지도 않는다. 다만 저 표는 "무엇을 읽어 열림을 정하는가" 이고 이것은
+ * **표식에 무엇이 적혀 있는가** 다: 요구는 활성을 판정하지 않는다 (spec R5 경계 ①).
+ * 그 문의 열림/잠김은 이 표가 있든 없든 한 값도 다르지 않고, 요구를 채워도 열리지 않는다 —
+ * 2층이 하는 것은 **표시**까지다. 채우는 것은 Play RoomAsksForPossibilities 의 일이다.
+ *
+ * 여기에 없는 문의 표식은 한 값도 달라지지 않는다 (spec R5 경계 ③ · ELSE) — 활성 표에 없는
+ * 문이 언제나 활성인 것과 같은 규율이다. 그래서 이 표가 비면 C019 의 세계와 한 글자도 다르지 않다.
+ *
+ * 세계 규칙은 이 표의 글자를 하나도 알지 못한다 (C004 가 세운 규율) — 아는 것은 "요구를
+ * 밝힌 문" 뿐이고, 어느 문이 무엇을 요구하는지는 여기에만 있다.
+ */
+export const CONNECTOR_REQUIREMENTS: Readonly<Record<string, readonly string[]>> = {
+  // 빙결 심층으로 드는 문 — 열을 저장하는 것이 있어야 한다 (Play §5.3 · 확정 4).
+  // 협곡 두 방 어디에도 그 요구를 채울 원천은 없다 (두 방의 isolationReason 이 그것을 밝힌다).
+  [FROST_DEPTH_DOOR]: [REQUIRES_STORED_HEAT],
 };

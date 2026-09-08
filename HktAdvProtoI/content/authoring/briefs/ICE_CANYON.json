@@ -13,12 +13,20 @@
     },
     "danger": "절벽이 길을 끊는다 — 골 양옆의 급경사가 몸을 세우고, 그 앞에 선 자리가 hazard/terrain 으로 답해진다. 숲의 hazard/creature 와 한 갈래도 겹치지 않는다.",
     "worth": {
-      "said": {
-        "unanswered": "이 협곡의 재료(빙정석)는 아직 데이터로 서지 않았다 — 원천 넷과 그 Carrier · 흔적 · 회복은 C020 이 놓는다 (Play RoomOfAnotherKind §5.2)"
-      },
-      "sources": []
+      "said": "고개를 넘자마자 벽에 앉은 서리가 곧 재료다 — 위험을 만든 그것이 보상이기도 하다. 밟아도 녹지 않고, 밤마다 다시 낀다.",
+      "sources": [
+        {
+          "id": "PASS_RIME",
+          "material": "FROST_CRYSTAL",
+          "heldBy": "phenomenon",
+          "worldCause": "CRYSTAL_GROWTH",
+          "recoveryCause": "night-rime",
+          "form": "rime",
+          "role": "baseline"
+        }
+      ]
     },
-    "discovery": "고개 너머가 다른 문법이라는 것. 바닥 색이 갈리고, 걸어온 길이 절벽에서 끊기며, 위험의 갈래가 숲의 것과 하나도 같지 않다는 것.",
+    "discovery": "고개 너머가 다른 문법이라는 것. 흔적이 흙 색이 아니라 **숨이 어는 정도**로 읽히고, 그 숨이 짙어지는 쪽에 재료가 있다는 것.",
     "opening": "고개로 백왕령에 돌아가고, 골을 따라 북으로 가면 더 깊은 협곡이 열린다.",
     "birth": {
       "said": {

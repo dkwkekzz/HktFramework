@@ -13,10 +13,13 @@ import { areasOf } from '../../engine/world-authoring/description';
 import { areaCoversPoint } from '../../engine/world-authoring/query';
 import type { GameViewSnapshot } from '../protocol/gameview';
 import {
+  FROST_BREATH_PREFIX,
   RESOURCE_LAYER,
   TRACE_LAYER,
+  frostBreathTag,
   regionSpec,
-  soilStainLevel,
+  soilStainTag,
+  traceLevel,
   type ResourceSourceSpec,
 } from '../regions/index';
 import { regionTerrain } from './terrain-presentation';
@@ -86,7 +89,11 @@ export function sourcePhases(snapshot: GameViewSnapshot): SourcePhases {
 }
 
 /**
- * RULE-TRACE-STRENGTH-001 (C013 R7 CHANGED) — 그 흔적 area 의 지금 단계.
+ * RULE-TRACE-STRENGTH-001 (C013 R7 CHANGED · C020 CHANGED) — 그 흔적 area 의 지금 단계.
+ *
+ * C020 — **어휘가 둘이 되었다** (흙의 사다리 · 숨이 어는 사다리). 기제는 한 줄도 바뀌지
+ * 않고, 단계를 읽는 자리 하나가 어휘 둘을 다 아는 함수(traceLevel)로 바뀌었을 뿐이다 —
+ * 여기서 흙의 어휘만 읽으면 협곡의 자락이 통째로 0 이 되어 그리지도 말하지도 않게 된다.
  *
  * 어떤 원천의 마디 둘레이면 **지금 선 마디의 것만** 센다 — 다른 마디의 둘레는 0 이다
  * (원천이 거기 없으므로 흙도 그것을 말하지 않는다). 지금 마디이면 C012 그대로: 고갈이면
@@ -98,7 +105,7 @@ export function traceLevelOfArea(
   area: { id: string; tag: string },
   sources: SourcePhases,
 ): number {
-  const level = soilStainLevel(area.tag);
+  const level = traceLevel(area.tag);
   if (level <= 0) return 0;
   for (const source of sourcesOf(regionId)) {
     const site = siteOfOp(source.traceOps, area.id);
@@ -112,24 +119,38 @@ export function traceLevelOfArea(
 }
 
 /**
- * 그 자리의 흔적 단계 — 겹치면 **가장 큰 쪽**이 이긴다 (C011 R4 그대로: 합하지 않는다).
- * 땅을 모르는 방은 0 이다.
+ * 그 자리의 흔적이 **지금 읽히는 태그** — 흔적이 없으면 없다(undefined).
+ * 겹치면 **가장 짙은 쪽**이 이긴다 (C011 R4 그대로: 합하지 않는다). 땅을 모르는 방도 없다.
+ *
+ * C020 CHANGED — C013 까지는 단계(수)만 돌려주고 부르는 쪽이 흙의 이름표를 되지었다.
+ * 어휘가 둘이 된 지금 그 방법은 협곡에서 **숲의 말**을 하게 한다 (spec SPEC-002 경계 ②).
+ * 어느 어휘인지는 화면이 추측하지 않는다 — **땅에 놓인 자락의 태그가 답이다.** 그래서 여기서
+ * 이긴 자락의 어휘로 되짓고, 되짓는 이유는 그대로다: 단계는 지금의 것이어야 한다 (고갈된
+ * 원천 둘레는 한 단계 옅고, 그래야 바닥에 그려진 색과 판이 말하는 말이 같은 값에서 나온다).
  */
-export function traceLevelAt(
+export function traceTagAt(
   regionId: string,
   point: { x: number; z: number },
   sources: SourcePhases,
-): number {
+): string | undefined {
   const spec = regionSpec(regionId);
   const compiled = regionTerrain(regionId);
-  if (!spec || !compiled) return 0;
+  if (!spec || !compiled) return undefined;
   let strongest = 0;
+  let strongestTag: string | undefined;
   for (const area of areasOf(spec.space, TRACE_LAYER)) {
     if (!areaCoversPoint(area.shape, point.x, point.z)) continue;
     const level = traceLevelOfArea(regionId, area, sources);
-    if (level > strongest) strongest = level;
+    if (level > strongest) {
+      strongest = level;
+      strongestTag = area.tag;
+    }
   }
-  return strongest;
+  // 단계가 0 이면 흔적이 없어진 것이다 — 바닥에 그리지 않는 것과 같이 말도 없다
+  if (strongest <= 0 || strongestTag === undefined) return undefined;
+  return strongestTag.startsWith(FROST_BREATH_PREFIX)
+    ? frostBreathTag(strongest)
+    : soilStainTag(strongest);
 }
 
 /**

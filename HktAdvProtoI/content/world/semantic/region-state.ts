@@ -30,6 +30,7 @@ import { DISTURBANCE_THRESHOLD, RECOVERY_VISIBLE_FRACTION } from './world-state'
 import {
   inflowOf,
   nextStandableSite,
+  remembersBrokenSites,
   sourcesInRegion,
   type ResourceSource,
 } from './resource';
@@ -393,8 +394,9 @@ export function applySourcePhaseSetup(
         sourceState.phase = 'depleted';
         sourceState.taken = source.harvests;
         sourceState.progress = 0;
-        // 지금 마디에서 고갈되었으므로 그 마디가 무너진다 (RULE-MINE-COMPLETE-001 이 하는 그대로)
-        if (source.collapses) sourceState.collapsedSites = [sourceState.siteIndex];
+        // 지금 마디에서 고갈되었으므로 그 마디가 깨진다 (RULE-MINE-COMPLETE-001 이 하는 그대로 ·
+        // C020 CHANGED — 기억하는 이유가 둘이다: 무너지거나 · 깨진 자리가 자락을 걸거나)
+        if (remembersBrokenSites(source)) sourceState.collapsedSites = [sourceState.siteIndex];
       } else if (phase === 'recovering') {
         sourceState.phase = 'recovering';
         sourceState.taken = source.harvests;
@@ -402,7 +404,7 @@ export function applySourcePhaseSetup(
         // 캐서 고갈된 마디는 무너진 채 남고, 자리를 옮기는 원천은 그 다음 마디로 옮겨 선다
         // (RULE-SOURCE-RECOVERY-001 이 임계를 넘을 때 하는 그대로 · 옛 마디를 먼저 무너뜨린다)
         const here = sourceState.siteIndex;
-        if (source.collapses) sourceState.collapsedSites = [here];
+        if (remembersBrokenSites(source)) sourceState.collapsedSites = [here];
         const next = nextStandableSite(source, here, sourceState.collapsedSites);
         if (next !== null) sourceState.siteIndex = next;
       }

@@ -15,15 +15,39 @@
     },
     "danger": "눈보라가 여기를 깎고(hazard/climate — 낮에도 보이는 범위가 좁다), 절벽이 길을 끊고(hazard/terrain), 결정면이 땅을 뚫고 올라온다(hazard/matter — 그 위에 선 동안 닿아 있다는 사실이 함께 답해진다). 몸이 어떻게 깎이는지는 3층의 것이다.",
     "worth": {
-      "said": {
-        "unanswered": "이 협곡의 재료(빙정석)는 아직 데이터로 서지 않았다 — 원천 넷과 그 Carrier · 흔적 · 회복은 C020 이 놓는다 (Play RoomOfAnotherKind §5.2)"
-      },
-      "sources": []
+      "said": "빙정석이 자라며 열을 먹는다 — 그 자람이 이 협곡의 추위이고, 그래서 위험을 만든 그것이 곧 재료다. 넷이 같은 것의 다른 순도로 나되 붙잡는 것이 넷 다 다르다.",
+      "sources": [
+        {
+          "id": "CLIFF_FROST_VEIN",
+          "material": "FROST_CRYSTAL",
+          "heldBy": "terrain",
+          "worldCause": "CRYSTAL_GROWTH",
+          "recoveryCause": "crystal-growth",
+          "form": "frost-vein",
+          "role": "risk"
+        },
+        {
+          "id": "SNOW_DRIFT_DUST",
+          "material": "FROST_CRYSTAL",
+          "heldBy": "atmosphere",
+          "worldCause": "CRYSTAL_GROWTH",
+          "recoveryCause": "next-blizzard",
+          "form": "drift-dust",
+          "role": "conditional"
+        },
+        {
+          "id": "FROZEN_REMAINS",
+          "material": "FROST_CRYSTAL",
+          "heldBy": "residue",
+          "worldCause": "CRYSTAL_GROWTH",
+          "recoveryCause": "predator-passage",
+          "form": "corpse-rime",
+          "role": "by-product"
+        }
+      ]
     },
-    "discovery": "낮인데도 앞이 보이지 않는다는 것, 그리고 그것이 방 전체가 아니라 한 자락의 일이라는 것. 자락 밖으로 한 걸음 나오면 멀리 있던 것이 다시 실린다.",
-    "opening": {
-      "unanswered": "더 깊은 곳(빙결 심층)으로 드는 문과 그것이 요구하는 것은 C021 이 놓는다 — 지금 이 방에서 나가는 끝은 들어온 오솔길 하나다 (Play RoomOfAnotherKind §5.3)"
-    },
+    "discovery": "낮인데도 앞이 보이지 않는다는 것, 그리고 그것이 방 전체가 아니라 한 자락의 일이라는 것. 그리고 절벽의 결정면을 깨면 그 자리가 결정화 위험으로 남고 결정은 **옆 면**에 다시 자란다는 것.",
+    "opening": "빙결 심층으로 드는 문 하나가 열려 있고 그 표식에 요구가 적혀 있다 — 저장된 열이 있어야 한다. 그것은 이 협곡에서 나지 않는다. 그 너머는 아직 짓지 않은 곳이다.",
     "birth": {
       "said": {
         "unanswered": "생명 계약(탄생지 · 개체군 · 관계)이 아직 데이터로 서지 않았다 — Play RoomBearsLife(C022~C025)의 것이다"
@@ -36,6 +60,12 @@
       "region": "ICE_CANYON",
       "transition": "trail",
       "direction": "bidirectional"
+    },
+    {
+      "region": "FROST_DEPTH",
+      "transition": "door",
+      "direction": "one-way",
+      "frontier": true
     }
   ],
   "requires": []

@@ -42,9 +42,11 @@ import {
   REGION_SPECS,
   TRACE_LAYER,
   regionSpec,
-  soilStainLevel,
+  traceLevel,
   type CarrierKind,
+  type HazardOverlay,
   type OpportunityRole,
+  type RegionPhase,
   type ResourceFlowSpec,
   type SeasonId,
   type SupplyMode,
@@ -53,6 +55,7 @@ import type { WorldPosition } from './position';
 import { isPassingRegion, leavingRouteOf, type PresencePassState } from './presence';
 import { NOT_THIS_SEASON, isSeasonListed } from './region-phase';
 import type { RegionState, ResourceSourceState } from './region-state';
+import type { WorldState } from './world-state';
 
 /**
  * 세계가 아는 원천 하나 — 성질(resourceEcology)과 자리(Description 의 resource point)를 엮은 것.
@@ -98,6 +101,20 @@ export interface ResourceSource {
    * 함께 담기고, **지금 서는가**는 시각과 함께 물어야 하므로 캐시 밖에서 판정된다.
    */
   occurrenceSeasons?: readonly SeasonId[];
+  /**
+   * 마디마다의 **깨진 자리 자락** (C020 ADDED · spec R4) — 데이터의 depletedHazards 그대로다.
+   *
+   * traceOps 와 같은 순서이고, 그 마디가 깨진 마디 목록에 든 동안에만 걸린다
+   * (depletedOverlaysIn). 밝히지 않은 원천은 몇 번을 캐도 걸리는 것이 한 글자도 늘지 않는다.
+   */
+  depletedHazards?: readonly HazardOverlay[];
+  /**
+   * 철마다의 되돌아옴 **배속** (C020 ADDED · spec R3) — 데이터의 recoverySpeed 그대로다.
+   *
+   * 되돌아옴의 세계 과정(RULE-RECOVERY-SPEED-001)만이 읽는다. 밝히지 않은 원천은
+   * 어느 철에도 배속 1 이다 — 지금까지의 세계 그대로다.
+   */
+  recoverySpeed?: Readonly<Partial<Record<SeasonId, number>>>;
 }
 
 // 방 하나당 엮기 한 번. 원천이 없는 방(백왕령)도 빈 배열로 담는다 — 그것도 답이다.
@@ -159,6 +176,10 @@ export function sourcesInRegion(regionId: string): readonly ResourceSource[] {
       ...(source.collapseOps === undefined ? {} : { collapseOps: source.collapseOps }),
       // C016 ADDED — 출현 철 목록. 밝히지 않은 원천은 자리 자체가 없다 (철을 타지 않는다).
       ...(source.occurrence === undefined ? {} : { occurrenceSeasons: source.occurrence.seasons }),
+      // C020 ADDED — 깨진 마디의 자락들과 철마다의 되돌아옴 배속. 둘 다 밝히지 않은 원천은
+      // 자리 자체가 없다 (빈 목록 · 배속 1 로 지어내지 않는다).
+      ...(source.depletedHazards === undefined ? {} : { depletedHazards: source.depletedHazards }),
+      ...(source.recoverySpeed === undefined ? {} : { recoverySpeed: source.recoverySpeed }),
     });
   }
 
@@ -233,11 +254,18 @@ export function sourcePositionOf(
 }
 
 /**
- * RULE-SOURCE-RECOVERY-001 이 쓰는 **무너지지 않은 다음 마디** (C013 ADDED · spec R1 경계 ③).
+ * RULE-SOURCE-RECOVERY-001 이 쓰는 **설 수 있는 다음 마디** (C013 ADDED · spec R1 경계 ③).
  *
- * 지금 마디의 다음부터 한 바퀴 돌며 처음 만나는, 무너지지 않은 마디를 준다. 마디가 하나뿐인
- * 원천도 · 무너지지 않은 마디가 하나도 없는 원천도 **null** 이다 — 그때는 자리를 옮기지 않는다
+ * 지금 마디의 다음부터 한 바퀴 돌며 처음 만나는, **설 수 있는** 마디를 준다. 마디가 하나뿐인
+ * 원천도 · 설 수 있는 마디가 하나도 없는 원천도 **null** 이다 — 그때는 자리를 옮기지 않는다
  * (지날 수 없는 자리에 세우지 않는다).
+ *
+ * C020 CHANGED — 건너뛰는 것은 **무너지는 원천의** 깨진 마디뿐이다. C013 까지는 깨진 마디를
+ * 가진 원천이 곧 무너지는 원천이었으므로 둘이 같은 물음이었는데, 이제 갈린다: 결정면은
+ * 마디가 깨져도 **그 자리를 지날 수 있으므로**(collapses 를 밝히지 않았다 · C020 spec R4
+ * 경계 ③) 그 마디에 다시 설 수 있어야 한다 — 마디를 한 바퀴 돌면 처음 마디로 돌아온다
+ * (C020 SPEC-004 경계 ②). 무너지는 원천(노두)의 답은 한 값도 달라지지 않는다: 깨진 마디가
+ * 곧 지날 수 없는 자리이므로 그때는 여전히 건너뛴다.
  */
 export function nextStandableSite(
   source: ResourceSource,
@@ -247,17 +275,23 @@ export function nextStandableSite(
   const count = source.sites.length;
   for (let step = 1; step < count; step++) {
     const index = (from + step) % count;
-    if (collapsed?.includes(index)) continue;
+    if (source.collapses && collapsed?.includes(index)) continue;
     return index;
   }
   return null;
 }
 
 /**
- * RULE-TRACE-STRENGTH-001 (C013 CHANGED) — 그 자리의 흔적 세기.
+ * RULE-TRACE-STRENGTH-001 (C013 CHANGED · C020 CHANGED) — 그 자리의 흔적 세기.
  *
- * trace layer area 들의 `soil-stain:<n>` 가운데 **가장 큰 n**. 하나도 없으면 0 이고,
+ * trace layer area 들이 밝힌 단계 가운데 **가장 큰 것**. 하나도 없으면 0 이고,
  * 땅을 모르는 방(Description 이 없는 id)도 0 이다.
+ *
+ * C020 CHANGED (spec R8) — **어휘가 둘이 되었다.** 숲의 흙 사다리(`soil-stain:<n>`)와
+ * 협곡의 숨 사다리(`frost-breath:<n>`)를 `traceLevel` 하나가 읽는다 — 기제는 한 줄도
+ * 바뀌지 않았고(아래 옅어짐 그대로) 어느 어휘인지를 여기가 묻지 않는다. 방마다 어느 어휘를
+ * 쓰는지는 그 방 Description 의 태그에만 있고, 그래서 숲의 방에서 읽히는 단계는 한 값도
+ * 달라지지 않는다 (spec R8 경계).
  *
  * **합하지 않는다** — 겹침은 짙기이지 양이 아니다 (spec R7 경계 ① · C011 R4 그대로). 방 바닥 위에
  * 원천 둘레가 겹쳐 있으므로, 합하면 "둘레가 두 배로 짙다" 는 없는 답이 나온다.
@@ -296,7 +330,7 @@ export function traceStrengthAt(
   let strongest = 0;
   for (const area of areasOf(spec.space, TRACE_LAYER)) {
     if (!areaCoversPoint(area.shape, position.x, position.z)) continue;
-    const level = soilStainLevel(area.tag);
+    const level = traceLevel(area.tag);
     const rim = rimmed.get(area.id);
     const here = rim
       ? rim.here
@@ -349,6 +383,61 @@ export function isCollapsedAt(
     if (areaCoversPoint(area.shape, position.x, position.z)) return true;
   }
   return false;
+}
+
+/**
+ * 그 원천이 **깨진 마디를 기억하는가** (C020 ADDED · spec R4).
+ *
+ * C013 까지는 물음이 하나였다 — "무너지는가"(collapses). 무너지는 원천만이 깨진 마디를
+ * 기억할 이유가 있었기 때문이다 (그 자리가 지날 수 없게 되므로). 이제 둘째 이유가 났다:
+ * **깨진 마디가 자락을 거는 원천**도 그 번호를 기억해야 한다 (depletedHazards). 그래서
+ * 기억하는 이유가 둘이 되었고, 기억하는 **자리**는 여전히 하나다 (collapsedSites).
+ *
+ * 채취의 전이(RULE-MINE-COMPLETE-001)와 초기 배치 손잡이가 이 한 물음을 읽는다 — 두 벌로
+ * 나누면 캐서 닿는 State 와 손잡이가 세우는 State 가 갈린다. 밝히지 않은 원천은 몇 번을
+ * 캐도 이 자리가 서지 않는다 (지금까지의 세계 그대로).
+ */
+export function remembersBrokenSites(source: ResourceSource): boolean {
+  return source.collapses === true || (source.depletedHazards?.length ?? 0) > 0;
+}
+
+/**
+ * RULE-DEPLETED-HAZARD-001 (C020 ADDED · spec R4 · SPEC-005) —
+ * 그 방에서 **깨진 마디**들이 거는 덧씌움들.
+ *
+ * 위상을 거는 **원인이 다섯째**가 되었다 (철 · 소란 · 지나가는 것 · 늘 서 있는 것 · **고갈**).
+ * 형은 C019 의 RegionPhase 그대로이고 거는 쪽이 하나 늘었을 뿐이다 — 그래서 이 답은
+ * 철 · 깨어남 · 지나가는 것 · 상시의 것과 **함께** 걸린다 (spec R4 경계 ②).
+ *
+ * 읽는 것은 C013 이 세운 그 State 하나다 (collapsedSites) — 그 마디가 깨진 마디 목록에
+ * 들어 있으면 그 번호의 자락이 걸린다. **원천이 옮겨 가도 옛 마디의 자락은 그대로 걸린다**
+ * (spec R4 경계 ①) — 지금 마디가 어디인지 묻지 않기 때문이다 (무너진 자리를 자리가
+ * 기억하는 그 어법 그대로 · isCollapsedAt 이 하는 그대로).
+ *
+ * **땅은 한 값도 바뀌지 않는다** (경계 ③) — 이 답은 hazard layer 의 자락을 가리킬 뿐이고,
+ * 통행 격자도 hash 도 건드리지 않는다. 무너짐(C012)과 갈리는 자리가 여기다.
+ *
+ * 차례는 그 방 원천의 차례(sourcesInRegion)이고 원천 안에서는 마디 번호 차례다 — State 의
+ * 배열 순서에 기대지 않는다 (결정론). 밝히지 않은 원천 · 깨진 마디가 없는 원천은 아무것도
+ * 내지 않고, 그때 답은 빈 배열이다 (spec R4 ELSE — 아무것도 늘지 않는다).
+ *
+ * **규칙은 그것이 결정면인지 알지 못한다** — 아는 것은 "마디마다의 자락을 밝힌 원천" 이라는
+ * 형뿐이고, 무엇이 무엇을 거는지는 데이터에만 있다 (R13 · C004 가 세운 규율).
+ */
+export function depletedOverlaysIn(state: WorldState, regionId: string): RegionPhase[] {
+  const phases: RegionPhase[] = [];
+  for (const source of sourcesInRegion(regionId)) {
+    const hazards = source.depletedHazards;
+    if (!hazards || hazards.length === 0) continue;
+    const broken = sourceStateOf(state.regionStates, regionId, source.id).collapsedSites;
+    if (!broken || broken.length === 0) continue;
+    const hazardExtend: HazardOverlay[] = [];
+    hazards.forEach((overlay, index) => {
+      if (broken.includes(index)) hazardExtend.push(overlay);
+    });
+    if (hazardExtend.length > 0) phases.push({ hazardExtend });
+  }
+  return phases;
 }
 
 /**

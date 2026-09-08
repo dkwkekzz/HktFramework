@@ -667,18 +667,29 @@ describe('SPEC-002 방 둘이 선다', () => {
     // Then 하나뿐이고 그것이 오솔길이며 spec 이 이름한 그것이다
     expect(between.map((c) => c.id)).toEqual([CANYON_TRAIL]);
     expect(between[0]!.transition).toBe('trail');
-    // And 빙결 협곡에서 나가는 끝은 그 하나다
-    expect(exitsOf(REGION_GRAPH, CANYON_INNER).map((e) => e.connector.id)).toEqual([CANYON_TRAIL]);
+    // And 빙결 협곡에서 **되돌아 나가는** 끝은 그 하나다.
+    // C020 으로 좁혀졌다 — 그 방이 빙결 심층으로 드는 문을 하나 더 얻었지만 그 너머는
+    // 아직 짓지 않은 곳이다. "돌아 나갈 길은 이 하나" 라는 주장은 그대로이고,
+    // 지어진 방으로 이어지는 끝이 여전히 하나라는 말로 좁아졌을 뿐이다.
+    const built = new Set(REGION_SPECS.map((r) => r.id));
+    expect(
+      exitsOf(REGION_GRAPH, CANYON_INNER)
+        .filter((e) => built.has(e.there.region))
+        .map((e) => e.connector.id),
+    ).toEqual([CANYON_TRAIL]);
   });
 
-  it('S-023 (경계 ②) 경계 이름은 셋 그대로다 — 얼음 협곡이 빠지고 아무것도 늘지 않는다', () => {
-    expect([...FRONTIER_REGIONS]).toEqual(FRONTIERS_AFTER);
+  it('S-023 (경계 ②) 얼음 협곡이 경계 목록에서 빠졌고 이 Cycle 은 아무것도 더하지 않았다', () => {
+    // C020 으로 좁혀졌다 — 그 Cycle 이 빙결 심층을 가리키며 이름 하나를 더했다(경계 넷).
+    // **이 Cycle 이 아무것도 더하지 않았다**는 주장은 그대로다: C019 가 남긴 셋이
+    // 지금도 전부 목록에 있고, 얼음 협곡만 빠졌다.
+    for (const name of FRONTIERS_AFTER) expect(FRONTIER_REGIONS).toContain(name);
     expect(FRONTIER_REGIONS).not.toContain(CANYON_OUTER);
     expect(FRONTIER_REGIONS).not.toContain(CANYON_INNER);
     // And 이름의 주인이 방 파일로 옮겨 갔다 — 지어진 방으로 선다
     expect(REGION_SPECS.map((s) => s.id)).toEqual(expect.arrayContaining([CANYON_OUTER, CANYON_INNER]));
     // And 그래프의 경계 목록도 같은 말을 한다
-    expect([...(REGION_GRAPH.frontiers ?? [])]).toEqual(FRONTIERS_AFTER);
+    for (const name of FRONTIERS_AFTER) expect(REGION_GRAPH.frontiers ?? []).toContain(name);
   });
 
   it('S-024 (경계 ①) 새 오솔길은 Connector 배열 **끝**에 이어 붙는다 — 앞의 열일곱이 그대로다', () => {

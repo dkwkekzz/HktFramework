@@ -12,19 +12,26 @@ import {
   BLOCK_COLLAPSED,
   CONDITION_UNMET,
   FLOW_ARRIVED,
+  FORM_CORPSE_RIME,
+  FORM_DRIFT_DUST,
+  FORM_FROST_VEIN,
   FORM_MOLT_LITTER,
   FORM_NEST_MYCELIUM,
   FORM_FALLEN_SCALE,
   FORM_OUTCROP,
   FORM_PREY_REMAINS,
+  FORM_RIME,
   FORM_RIVER_GRAIN,
   FORM_ROOT_NODULE,
   FORM_SEEP_CRUST,
   FORM_SILT_BED,
   FORM_SPOIL_PILE,
+  FROST_CRYSTAL,
   GIANT_TREE_FUNGUS,
   ORE_EATER_MOLT,
   RECOVERY_STALLED,
+  REQUIRES_STORED_HEAT,
+  frostBreathTag,
   soilStainTag,
 } from '../regions/index';
 
@@ -167,12 +174,27 @@ const CODE_TEXT: Record<string, string> = {
   // 적지 않는다 — 그것은 관찰자가 여러 번 보고 배우는 것이다 (T8)
   [FORM_FALLEN_SCALE]: '땅에 비스듬히 꽂힌 흰 판',
   [FORM_PREY_REMAINS]: '길게 끌린 껍질 조각들',
+  // 열한째~열넷째 형태 (C020) — 협곡의 넷. 어법도 규율도 그대로다: 지목한 것이 여기서
+  // **무엇으로 보이는가**만 적는다. 무엇에 쓰는지도, 무엇이 그것을 세웠는지도 없다.
+  //
+  // **넷이 같은 재료라는 것은 적지 않는다.** 네 줄에 같은 성질(푸르다 · 곁의 것을 얼린다)이
+  // 되풀이해 서는 것은 그것이 넷 다에서 **관찰되기 때문**이지 넷을 묶어 주려는 것이 아니다 —
+  // 묶는 것은 관찰자의 일이다 (어귀의 알갱이와 광맥의 노두를 잇게 한 C014 의 그 규율).
+  [FORM_RIME]: '밟아도 녹지 않는 푸른 서리',
+  [FORM_FROST_VEIN]: '절벽을 가르고 나온 푸른 결정면',
+  [FORM_DRIFT_DUST]: '눈에 섞여 반짝이는 푸른 가루',
+  [FORM_CORPSE_RIME]: '언 사체에 돋은 푸른 결정',
   // 재료의 이름 (Material Seed 코드 — C011). 소지품 줄의 이름표가 이 말이다.
   // **무엇에 쓰는지는 여기에도 어디에도 없다**
   [BIO_ORE]: '생체 광석',
   [ORE_EATER_MOLT]: '광식충 허물',
   // 세 번째 재료 (C014) — 앞의 둘과 같은 어법이다. 어디서 나는지도 무엇에 쓰는지도 없다
   [GIANT_TREE_FUNGUS]: '거목균',
+  // 다섯째 재료 (C020) — 이 세계의 **정식 이름**이다 (L2-World-Region §5.1 이름 표).
+  // 새로 짓지 않는다: 세계관이 이미 부르는 말이 있고, 화면이 다른 말을 하면 관찰자가 본 것과
+  // 이 세계가 아는 것이 갈린다 (지나가는 것들의 이름에 쓴 그 규율 그대로).
+  // 앞의 넷과 같은 어법이다 — 어디서 나는지도 무엇에 쓰는지도 없다
+  [FROST_CRYSTAL]: '빙정석',
   // 사람·짐승의 종류 (CharacterKind) — kind-presentation · character-catalog 와 같은 이름들
   wanderer: '방랑자',
   'rabbit-swordsman': '토끼 검사',
@@ -196,6 +218,12 @@ const CODE_TEXT: Record<string, string> = {
   // 관찰된 사실은 지금이 어느 때인가 하나뿐이고, 언제 물길이 부는지는 어귀에 가서 안다
   [FLOW_ARRIVED]: '지금 실려 오는 중이다',
   [CONDITION_UNMET]: '아직 그때가 아니다',
+  // 문이 밝힌 요구 (C020 R5 — **같은 conditions 자리의 코드다**. 새 자리가 없다).
+  // 위의 두 줄과 같은 어법으로 한 마디다: 무엇이 이 요구를 채우는지도, 그것이 어디서 나는지도
+  // 적지 않는다 — 세계가 싣지 않고(spec Observable "싣지 않는다" · R5 경계 ②) 확정 4 가
+  // 아예 정하지 않은 것이다. 그 모름이 이 Cycle 이 놓으려는 것이므로 화면이 메우면 안 된다.
+  // 요구가 걸렸다고 문이 잠기는 것도 아니다 — 이것은 **표시**이고, 열림/잠김은 아래 두 줄이 말한다
+  [REQUIRES_STORED_HEAT]: '저장된 열이 있어야 한다',
   open: '열려 있다', // 출구 표식 — 건널 수 있는 길이다
   locked: '잠겨 있다',
   // ── 판에 남는 기록이 쓰는 말 (C028) ──────────────────────────
@@ -281,6 +309,19 @@ const CODE_TEXT: Record<string, string> = {
   [soilStainTag(3)]: '흙이 붉게 물들었다',
   [soilStainTag(4)]: '붉은 흙이 검게 짙어졌다',
   [soilStainTag(5)]: '흙이 검붉게 절었다',
+  // 협곡의 흔적 셋 (C020 — 같은 자리의 **다른 어휘**다. trace layer 도 판의 줄도 그대로이고
+  // 갈리는 것은 말과 색뿐이다 · spec SPEC-002).
+  //
+  // **축이 색이 아니라 온도다** — 위의 다섯이 "흙이 얼마나 물들었는가" 한 축이라면 이 셋은
+  // "숨이 어디까지 어는가" 한 축이다 (Play §5.1: 흔적은 색이 아니라 숨이 어는 자리로 읽는다).
+  // 협곡에서 흙을 말하면 두 어휘가 한 자리에서 섞인다 (SPEC-002 경계 ②).
+  //
+  // 셋이 한 줄로 세워졌을 때 어느 쪽이 짙은지가 말만 읽고도 갈려야 하는 것은 위와 같다 —
+  // 하얗게 서고 · 얼어 머물고 · 알갱이가 되어 떨어진다. **수를 적지 않고**(단계는 데이터의
+  // 것이다) 무엇이 그렇게 만들었는지도 적지 않는다 (그것을 잇는 것이 이 Play 다).
+  [frostBreathTag(1)]: '숨이 하얗게 선다',
+  [frostBreathTag(2)]: '숨이 눈앞에서 얼어 머문다',
+  [frostBreathTag(3)]: '숨이 알갱이가 되어 떨어진다',
   // ── 방의 소란과 자국이 쓰는 말 (C017 — region.disturbance.phase · 자국의 두 단계) ──
   //
   // 위상 둘은 **세계가 싣는 값 그대로가 코드다** (spec 기본형 ⑧ — 규칙도 코드도 방의

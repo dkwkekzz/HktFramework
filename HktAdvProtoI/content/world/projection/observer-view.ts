@@ -49,6 +49,14 @@
 // 여기도 새 자리를 내지 않았다 (C016 이 위험의 코드를 안전의 코드 곁에 둔 그 판단의 연장).
 // **왜 좁아졌는지도 지금 범위가 얼마인지도 어느 자락이 그것을 걸었는지도 싣지 않는다** —
 // 관찰자는 앞이 안 보인다는 것과 발밑이 무엇인가만 알고, 그것을 잇는 것이 플레이다.
+//
+// C020 CHANGED (RULE-DEPLETED-HAZARD-001 · RULE-EXIT-REQUIREMENT-001 · C020 spec R4 · R5 · R6) —
+// **봉투에 새 자리가 하나도 나지 않는다.** 이미 있는 자리의 값이 달라지고 목록이 늘 뿐이다:
+// **깨진 마디**가 건 위험의 코드와 닿음의 코드가 철 · 소란 · 지나가는 것 · 늘 서 있는 것의
+// 것과 **함께** standingConditions 에 실리고(위상을 거는 원인이 다섯째다), 요구를 밝힌 문의
+// 출구 존재에 그 **요구의 코드**가 원천의 조건 코드가 실리는 그 자리로 실린다.
+// **무엇이 그 요구를 채우는지도 · 어디서 나는지도 · 마디가 몇인지도 · 되돌아옴이 왜
+// 빨라졌는지도 싣지 않는다** — 관찰자는 같은 자리에 여러 철에 와 보고 그것을 배운다.
 
 import type {
   EntityView,
@@ -75,6 +83,7 @@ import { projectCommandCatalog } from '../semantic/command-catalog';
 import { hasMiningTool, itemCount } from '../semantic/inventory';
 import type { ItemKind } from '../semantic/item';
 import {
+  depletedOverlaysIn,
   isSourcePresentAt,
   sourceConditions,
   sourcePositionOf,
@@ -85,6 +94,7 @@ import { passingIn, passingOverlaysIn } from '../semantic/presence';
 import { depthOverlayAt, hazardEffectsAt, hazardOverlayTagsAt } from '../semantic/region-phase';
 import {
   anchorPosition,
+  connectorRequirements,
   isConnectorOpen,
   regionExitsOf,
   regionHash,
@@ -148,6 +158,12 @@ export function projectObserverView(
   // 실리는 자리(region.disturbance)도 읽는 값도 한 톨도 달라지지 않는다.
   const disturbance = state.regionStates[self.regionId]?.disturbance;
 
+  // RULE-DEPLETED-HAZARD-001 (C020 ADDED · C020 spec R4) — 그 방에서 **깨진 마디**들이 건
+  // 덧씌움들. 위상을 거는 원인이 다섯째가 되었다 (철 · 소란 · 지나가는 것 · 늘 서 있는 것 ·
+  // 고갈). passingOverlays 와 **같은 어법**으로 한 번만 얻어 아래 물음들에 같은 것을
+  // 넘긴다 — 두 번 물으면 한 관찰 안에서 답이 갈릴 수 있다.
+  const depletedOverlays = depletedOverlaysIn(state, self.regionId);
+
   // RULE-OBSERVE-RANGE-001 · RULE-STANDING-CONTACT-001 (C019 ADDED · C019 spec R2 · R3) —
   // 관찰자가 **선 자리**를 덮은 위험 자락들이 밝힌 것. 한 번만 물어 두 물음(무엇이 실리는가 ·
   // 걸린 것이 무엇인가)에 같은 것을 넘긴다 — 두 번 물으면 한 관찰 안에서 답이 갈릴 수 있다
@@ -160,6 +176,8 @@ export function projectObserverView(
     disturbance,
     passingOverlays,
     clock.dayPhase !== 'DAY',
+    // C020 ADDED — 깨진 결정면이 건 **접촉의 코드**가 여기로 실린다 (C020 spec R4).
+    depletedOverlays,
   );
 
   /**
@@ -413,6 +431,7 @@ export function projectObserverView(
   // 경계를 가리키는 출구도 state 는 open 이다 (01-spec SPEC-007 경계).
   for (const exit of regionExitsOf(self.regionId)) {
     const here = anchorPosition(exit.here.region, exit.here.anchor);
+    const requirements = connectorRequirements(exit.connector.id);
     entities.push({
       id: exit.connector.id,
       role: 'region-exit',
@@ -425,6 +444,15 @@ export function projectObserverView(
         : 'locked',
       kind: exit.connector.transition,
       position: { x: here.x, z: here.z },
+      // RULE-EXIT-REQUIREMENT-001 (C020 ADDED · C020 spec R5 · SPEC-009) — 그 문이 **밝힌
+      // 요구**의 코드들. 원천의 조건 코드가 실리는 그 자리를 그대로 쓴다 — 봉투에 새 자리를
+      // 내지 않았다 (C020 기본형 ⑥). 밝히지 않은 문은 **자리 자체가 없다** (빈 배열로
+      // 지어내지 않는다 · 원천이 그런 그대로).
+      //
+      // **표시일 뿐이다** (spec R5 경계 ①) — 위의 state(open | locked)는 이 값을 한 값도
+      // 읽지 않는다. 요구를 채워 열리지도, 밝혔다고 잠기지도 않는다.
+      // 무엇이 그것을 채우는지도 어디서 나는지도 싣지 않는다 (경계 ②).
+      ...(requirements.length > 0 ? { conditions: [...requirements] } : {}),
     });
 
     const failure = evaluateTransitPreconditions(state, self, exit);
@@ -556,6 +584,9 @@ export function projectObserverView(
             state.time,
             disturbance,
             passingOverlays,
+            // C020 CHANGED — 깨진 마디의 덧씌움까지 함께 본다 (원인 다섯 · C020 spec R4).
+            // 지금 그것을 밝힌 자락은 깊이를 걸지 않으므로 이 값은 한 톨도 달라지지 않는다.
+            depletedOverlays,
           ) ?? region.depth,
       },
     ],
@@ -583,12 +614,15 @@ export function projectObserverView(
       // C017 CHANGED — 깨어남의 위험 코드가 철의 것과 **함께** 실린다 (spec R4 경계 ②).
       // C018 CHANGED — 거기에 **지나는 것이 건 위험 코드**가 더해진다. 걸린 것이 전부
       // 실린다는 어법은 그대로이고, 원인이 셋이 된 것뿐이다.
+      // C020 CHANGED — 거기에 **깨진 마디가 건 위험 코드**가 더해진다. 걸린 것이 전부
+      // 실린다는 어법은 그대로이고, 원인이 다섯이 된 것뿐이다 (C020 spec R4 경계 ②).
       ...hazardOverlayTagsAt(
         self.regionId,
         self.position,
         state.time,
         disturbance,
         passingOverlays,
+        depletedOverlays,
       ),
       // RULE-STANDING-CONTACT-001 (C019 ADDED · C019 spec R3) — 접촉 코드가 **안전의 코드 ·
       // 위험의 코드 뒤**에 이어 붙는다. 봉투에 새 자리를 내지 않았다: 위험의 코드가 "이 자리가

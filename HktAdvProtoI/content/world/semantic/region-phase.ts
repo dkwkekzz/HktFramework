@@ -30,6 +30,13 @@
 // 일**을 밝힐 수 있게 되었다 (hazardEffectsAt) — 관찰 범위와 접촉 코드다. 여기는 여전히 그것이
 // 눈보라인지 결정면인지 이름으로 알지 못하고, 자락이 밝힌 수와 글자를 옮길 뿐이다.
 //
+// C020 CHANGED — **위상을 거는 원인이 다섯째가 되었다** (C020 spec R4). 철 · 소란 ·
+// 지나가는 것 · 늘 서 있는 것에 더해 **고갈**이 위상을 건다 — 깨진 마디가 그 자락에 위험의
+// 코드와 접촉의 코드를 건다. 형은 여전히 C016 의 RegionPhase 그대로이고 거는 쪽이 하나
+// 늘었을 뿐이다. 차례는 **맨 나중**이다 (상시 → 철 → 깨어남 → 지나는 것 → 깨진 마디):
+// 겹치면 나중 것이 깊이의 열쇠를 이기고 위험은 걸린 것이 전부 실린다. 여기는 여전히 그것이
+// 결정면인지도 무엇이 깨졌는지도 이름으로 알지 못하고, 받은 덧씌움을 나란히 놓을 뿐이다.
+//
 // C017 CHANGED — **방을 바꾸는 원인이 둘이 되었다** (spec R4). 철에 더해 그 방의 **소란**이
 // 위상을 바꾸고, 깨어난 방은 자기가 밝힌 덧씌움(phases.awake)을 철의 것과 **함께** 건다.
 // 형은 C016 의 RegionPhase 그대로다 — 원인이 둘이 되었을 뿐 달라지는 것은 여전히 넷 안이다 (T3).
@@ -110,6 +117,9 @@ function activePhasesAt(
   time: number,
   disturbance: RegionDisturbanceState | undefined,
   passing: readonly RegionPhase[],
+  // C020 ADDED — 깨진 마디가 건 덧씌움들 (원인 다섯째). 밝히지 않으면 깨진 마디가 없다는
+  // 뜻이고, 그때의 답은 C019 까지와 한 값도 다르지 않다.
+  depleted: readonly RegionPhase[],
 ): RegionPhase[] {
   const phases = regionSpec(regionId)?.phases;
   const active: RegionPhase[] = [];
@@ -127,6 +137,11 @@ function activePhasesAt(
   // 것의 성질이기 때문이다 (그래서 위 phases 가 없어도 여기서 돌아서지 않는다).
   // 나중이므로 깊이가 겹치면 이쪽 열쇠가 이기고, 위험은 걸린 것이 전부 실린다.
   active.push(...passing);
+  // C020 CHANGED (C020 spec R4) — **깨진 마디가 건 덧씌움**이 맨 나중이다. 방이 위상을
+  // 밝히지 않았어도 · 아무것도 지나지 않아도 걸린다 — 그것은 방의 성질도 지나가는 것의
+  // 성질도 아니라 **그 자리에 일어난 일**이기 때문이다. 나중이므로 깊이가 겹치면 이쪽
+  // 열쇠가 이기고, 위험은 걸린 것이 전부 실린다 (지나는 것에 한 그대로).
+  active.push(...depleted);
   return active;
 }
 
@@ -155,8 +170,11 @@ export function depthOverlayAt(
   // C018 ADDED — 지나는 것이 건 덧씌움들. 밝히지 않으면 지나는 것이 없다는 뜻이다
   // (빈 배열이 기본이므로 C017 까지의 부름은 한 글자도 달라지지 않는다).
   passing: readonly RegionPhase[] = [],
+  // C020 ADDED — 깨진 마디가 건 덧씌움들 (passing 의 선례 그대로 · 빈 배열이 기본이므로
+  // C019 까지의 부름은 한 글자도 달라지지 않는다).
+  depleted: readonly RegionPhase[] = [],
 ): string | undefined {
-  const overlay = activePhasesAt(regionId, time, disturbance, passing).flatMap(
+  const overlay = activePhasesAt(regionId, time, disturbance, passing, depleted).flatMap(
     (phase) => phase.depthOverlay ?? [],
   );
   if (overlay.length === 0) return undefined;
@@ -179,9 +197,10 @@ export function depthOverlayAt(
 }
 
 /**
- * RULE-STANDING-CONDITIONS-001 (C016 CHANGED · C017 CHANGED · C018 CHANGED · spec R3 ·
- * C017 spec R4 · C018 spec R4) — **선 자리에 덧씌워진 위험의 코드들**. 철의 덧씌움 ·
- * **깨어남의 덧씌움** · **지나는 것의 덧씌움**을 함께 본다 (원인 셋).
+ * RULE-STANDING-CONDITIONS-001 · RULE-DEPLETED-HAZARD-001
+ * (C016 CHANGED · C017 CHANGED · C018 CHANGED · C020 CHANGED · spec R3 · C017 spec R4 ·
+ * C018 spec R4 · C020 spec R4) — **선 자리에 덧씌워진 위험의 코드들**. 늘 서 있는 것 ·
+ * 철 · 깨어남 · 지나는 것 · **깨진 마디**의 덧씌움을 함께 본다 (원인 다섯).
  *
  * 지금 철의 hazardExtend 가 그 자리를 덮으면 그 area 가 밝힌 위험 태그다. 덮은 것이 없으면
  * 빈 배열이고, 겹치면 **걸린 것이 전부** 나온다 — "왜 여기가 안전한가"(C006 의 conditionTagsAt)가
@@ -199,8 +218,10 @@ export function hazardOverlayTagsAt(
   disturbance: RegionDisturbanceState | undefined,
   // C018 ADDED — 지나는 것이 건 덧씌움들 (depthOverlayAt 의 선례 그대로).
   passing: readonly RegionPhase[] = [],
+  // C020 ADDED — 깨진 마디가 건 덧씌움들 (depthOverlayAt 의 선례 그대로).
+  depleted: readonly RegionPhase[] = [],
 ): string[] {
-  const overlay = activePhasesAt(regionId, time, disturbance, passing).flatMap(
+  const overlay = activePhasesAt(regionId, time, disturbance, passing, depleted).flatMap(
     (phase) => phase.hazardExtend ?? [],
   );
   if (overlay.length === 0) return [];
@@ -226,7 +247,8 @@ export function hazardOverlayTagsAt(
 }
 
 /**
- * RULE-OBSERVE-RANGE-001 · RULE-STANDING-CONTACT-001 (C019 ADDED · C019 spec R2 · R3) —
+ * RULE-OBSERVE-RANGE-001 · RULE-STANDING-CONTACT-001 · RULE-DEPLETED-HAZARD-001
+ * (C019 ADDED · C020 CHANGED · C019 spec R2 · R3 · C020 spec R4) —
  * **선 자리를 덮은 위험 자락들이 밝힌 것**.
  *
  * 자락은 지금까지 "여기는 무엇인가" 라는 코드 하나만 밝혔다. 이제 그 자락이 관찰자에게
@@ -257,8 +279,11 @@ export function hazardEffectsAt(
   disturbance: RegionDisturbanceState | undefined,
   passing: readonly RegionPhase[],
   night: boolean,
+  // C020 ADDED — 깨진 마디가 건 덧씌움들. 깨진 결정면의 **접촉 코드**가 여기로 실린다 —
+  // 그 자락은 위험의 코드와 닿음의 코드를 함께 밝히므로 두 물음에 함께 답해야 한다.
+  depleted: readonly RegionPhase[] = [],
 ): { observeRange?: number; contacts: string[] } {
-  const overlay = activePhasesAt(regionId, time, disturbance, passing).flatMap(
+  const overlay = activePhasesAt(regionId, time, disturbance, passing, depleted).flatMap(
     (phase) => phase.hazardExtend ?? [],
   );
   if (overlay.length === 0) return { contacts: [] };

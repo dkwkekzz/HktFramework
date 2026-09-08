@@ -30,9 +30,25 @@ const HAZARD_KINDS = [
 /** Concept §3.2 — 깊이 다섯. 순서가 곧 세계의 확장 순서다 (W1) */
 const DEPTHS = ['civil', 'outer', 'wild', 'deep', 'abyss'] as const;
 
-/** 붙잡는 것 · 맡은 자리 — resource-ecology 의 CarrierKind · OpportunityRole 과 같은 목록이다 */
-const CARRIERS = ['residue', 'terrain', 'plant', 'fungus', 'water'] as const;
-const ROLES = ['baseline', 'risk', 'conditional', 'by-product'] as const;
+/**
+ * 붙잡는 것 · 맡은 자리 — resource-ecology 의 CarrierKind · OpportunityRole 과 같은 목록이다.
+ *
+ * C020 CHANGED — 붙잡는 것에 둘을 더한다 (`phenomenon` · `atmosphere`). 세계는 이미 그
+ * 어휘를 쓰고 있었다: C018 이 현상을 세웠고 C020 이 대기를 세운다. 근거는 지어낸 것이
+ * 아니라 **Material §6.2 가 이미 이름해 둔 어휘 여덟**이고, 이 목록은 그 가운데 이 세계가
+ * 지금 쓰는 것들이다 — 세계가 쓰는 것과 여기 적힌 것이 갈리면 등급 판정기가 없는 어휘로
+ * 방을 재게 된다.
+ */
+const CARRIERS = [
+  'residue',
+  'terrain',
+  'plant',
+  'fungus',
+  'water',
+  'phenomenon',
+  'atmosphere',
+] as const;
+const ROLES = ['baseline', 'risk', 'conditional', 'by-product', 'world-event'] as const;
 
 /**
  * 세계가 이미 품은 규칙의 이름들. 지금은 하나다 — 환상의 미로의 통로 재배열(C008).

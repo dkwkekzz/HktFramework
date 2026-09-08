@@ -10,7 +10,7 @@
 // 재료를 하나 더 만드는 것 · 원천을 더하는 것 · 흔적을 옮기는 것은 전부 데이터 편집이다
 // (Play 불변 조건 — 코드 변경 없이 폴리싱).
 
-import type { SeasonId } from './phases';
+import type { HazardOverlay, SeasonId } from './phases';
 
 /**
  * 그 원천을 무엇이 지고 있는가 (A.2 Carrier). 살아 있는 것(CREATURE)은 3층의 몫이다 (확정 2).
@@ -18,8 +18,20 @@ import type { SeasonId } from './phases';
  * C018 ADDED — `phenomenon`. 몸도 생명도 아닌 것이 지나가며 두고 간 것을 지는 갈래다
  * (Material §6.3 이 이미 이름해 둔 칸이고, 이 Cycle 이 그것을 처음 쓴다 — 어휘를 새로
  * 짓는 것이 아니라 비어 있던 칸을 채우는 것이다 · 기본형 ⑨).
+ *
+ * C020 ADDED — `atmosphere`. 공기가 지고 있다가 내려놓는 것을 지는 갈래다 (눈보라가 쌓고
+ * 간 결정 가루). **어휘를 새로 짓는 것이 아니라** Material §6.2 가 이미 이름해 둔 여덟 중
+ * 비어 있던 칸을 채우는 것이다 — C018 이 `phenomenon` 에 한 그대로다 (spec SPEC-001 경계 ②).
+ * 밝히지 않으면 이 세계에 대기가 지는 원천이 없다는 뜻일 뿐이다.
  */
-export type CarrierKind = 'residue' | 'terrain' | 'plant' | 'fungus' | 'water' | 'phenomenon';
+export type CarrierKind =
+  | 'residue'
+  | 'terrain'
+  | 'plant'
+  | 'fungus'
+  | 'water'
+  | 'phenomenon'
+  | 'atmosphere';
 
 /**
  * 그 원천이 기회의 지형에서 맡은 자리 (A.3).
@@ -147,6 +159,32 @@ export interface ResourceSourceSpec {
    * 쪽이 하나여야 하므로 조건은 그 대상 곁에 산다.
    */
   occurrence?: { seasons: readonly SeasonId[] };
+  /**
+   * 마디마다의 **깨진 자리 자락** — `traceOps` 와 **같은 순서** (C020 ADDED · spec R4 · SPEC-005).
+   *
+   * 그 마디가 깨진 마디 목록(collapsedSites)에 들어 있는 동안에만 걸린다 —
+   * 캐기 전에는 이 자락이 아무것도 걸지 않는다 (spec SPEC-005 경계 ①).
+   * 형은 C019 의 `HazardOverlay` 그대로다: 위상을 거는 **원인이 다섯째**(고갈)가 되었을 뿐
+   * 걸리는 것도 걸리는 자리도 철 · 소란 · 지나가는 것 · 늘 서 있는 것의 것과 같다.
+   *
+   * `collapseOps` 와 갈리는 자리가 여기다 — 저것은 **길을 막고**(traversable 이 State 로
+   * 덮인다) 이것은 **말만 한다**. 그래서 이것을 밝힌 원천은 `collapses` 를 밝히지 않는다:
+   * 깨진 결정면은 지날 수 있고, 땅도 통행 격자도 hash 도 한 값 바뀌지 않는다 (spec R4 경계 ③).
+   *
+   * 밝히지 않은 원천은 몇 번을 캐도 걸리는 것이 한 글자도 늘지 않는다.
+   */
+  depletedHazards?: readonly HazardOverlay[];
+  /**
+   * 철마다의 되돌아옴 **배속** — 밝히지 않은 철은 1 이다 (C020 ADDED · spec R3 · SPEC-006).
+   *
+   * 되돌아옴의 **길이**(recoverySeconds)를 바꾸지 않는다 — 얼마나 남았는가가 그 배로 빨리
+   * 줄 뿐이다 (spec R3 경계). 그래서 "긴 밤에 180 이 90 이 된다" 가 아니라 "긴 밤에 흐르는
+   * 1 초가 2 초로 실린다" 이다.
+   *
+   * 밝히지 않은 원천 · 밝히지 않은 철은 한 값도 다르지 않다 (숲의 원천 열이 그렇다) —
+   * occurrence 를 밝히지 않은 원천이 어느 철에도 서는 것과 같은 규율이다.
+   */
+  recoverySpeed?: Readonly<Partial<Record<SeasonId, number>>>;
 }
 
 /** 조건 코드 — 되돌아오는 일이 멎었다 (Play §5.5 의 코드 그대로) */
@@ -168,8 +206,13 @@ export interface RegionResourceEcology {
    * 원천도 유입도 없는 방이 **왜 그러한가** (C014 ADDED · §6.4 · 확정 5).
    *
    * 백왕령이 그런 방이다 — 이유를 새로 짓지 않는다: 산맥과 강이 막기 때문이고 그것이
-   * 백왕령이 안전한 이유와 **같은 조건**이다 (Concept W2). 원천을 가진 방에는 이 자리가
-   * 없다 — 스스로 낳는 방은 고립을 밝힐 것이 없기 때문이다 (검사 ㉒ 가 그렇게 묻는다).
+   * 백왕령이 안전한 이유와 **같은 조건**이다 (Concept W2). 검사 ㉒ 는 원천도 유입도 없는
+   * 방에만 이 자리를 요구한다.
+   *
+   * C020 CHANGED — **스스로 낳는 방도 밝힐 수 있다** (spec SPEC-009). 협곡 둘이 그렇다:
+   * 원천은 넷이나 서 있지만 그 계통이 밖에서 아무것도 받지 않는다 — 얼음 절벽이 양옆을
+   * 막고 고개 하나로만 이어지므로 실려 오는 것이 없다. 검사가 묻지 않는 자리에 답을 적는
+   * 것이고, 그래서 **요구가 협곡에 없다**는 것이 결손이 아니라 밝혀진 사실이 된다.
    */
   isolationReason?: string;
 }
@@ -193,6 +236,19 @@ export const FOREST_CHAIN = 'FOREST_CHAIN';
 
 export const SKY_PASSAGE = 'SKY_PASSAGE';
 
+// ── 이 세계의 세계 원인 셋째 (C020 ADDED) ────────────────────────────
+//
+// **결정이 자라며 열을 먹는다** (Play 확정 2 · Concept §6 "위험을 만든 환경 자체가 보상을
+// 만든다" 를 원인으로 읽은 것). 숲의 사슬도 하늘의 지나감도 아닌 셋째다 — 사슬은 먹고 삭고
+// 빨아올리며 이 숲 안에서 돌고, 지나감은 바깥에서 와서 두고 가고, 이것은 **그 자리에서
+// 자란다**. 협곡이 추운 이유와 협곡이 내는 것이 같은 하나이고, 그래서 위험을 만든 그것이
+// 곧 여기의 보상이다.
+//
+// 관계(무엇의 열을 먹는가 · 얼마나 자라는가)는 적지 않는다 — 검사 열셋 중 아무도 읽지
+// 않고, 없는 형을 미리 세우지 않는다 (FOREST_CHAIN 이 그런 그대로 · 선행 추상화 금지).
+
+export const CRYSTAL_GROWTH = 'CRYSTAL_GROWTH';
+
 // ── 이 숲의 재료 셋 (D1 · D2) ────────────────────────────────────────
 
 export const BIO_ORE = 'BIO_ORE';
@@ -201,6 +257,14 @@ export const ORE_EATER_MOLT = 'ORE_EATER_MOLT';
 export const WHALE_SCALE = 'WHALE_SCALE';
 /** 거목균 — 포식수의 사체에서 자라 거목을 키우는 균류 (C014 ADDED · D1 · A.1) */
 export const GIANT_TREE_FUNGUS = 'GIANT_TREE_FUNGUS';
+/**
+ * 빙정석 — 협곡의 재료 하나 (C020 ADDED · spec SPEC-001).
+ *
+ * 이름은 L2-World-Region §5.1 의 **이름 표에 이미 있는 것**을 그대로 쓴다 — 지어낸 이름이
+ * 아니다. 숲의 사슬 밖이고 하늘의 지나감 밖이다: 결정이 자라며 열을 먹는 그 원인에서 난다.
+ * **쓰임은 적지 않는다** (S10) — 무엇으로 만드는지는 4층 이후가 정한다.
+ */
+export const FROST_CRYSTAL = 'FROST_CRYSTAL';
 
 /** 자연 형태 코드 — 같은 Seed 가 자리마다 다른 순도로 난다 (A.1 "같은 것의 세 순도") */
 export const FORM_OUTCROP = 'outcrop';
@@ -225,6 +289,21 @@ export const FORM_FALLEN_SCALE = 'fallen-scale';
  * **새 Seed 가 아니다** — 광식충 허물의 다른 형태다 (확정 13 · A.1 "같은 것의 여러 순도").
  */
 export const FORM_PREY_REMAINS = 'prey-remains';
+
+// 빙정석의 자연 형태 넷 (C020 ADDED · spec SPEC-001 · 기본형 ⑦).
+//
+// Design 은 사람이 읽을 이름만 준다 (서리 결정 · 결정면 · 결정 가루 · 언 사체 곁의 결정) —
+// 코드는 숲의 형태 코드와 **같은 어법**으로 지었다. 넷은 종류가 넷인 것이 아니라 **같은
+// 것의 네 순도**다 (A.1) : 밤마다 얇게 끼는 것 · 벽에서 두껍게 자란 것 · 바람이 쌓은 가루 ·
+// 언 것에 매달려 자란 것.
+/** 고개에 밤마다 끼는 얇은 서리 결정 */
+export const FORM_RIME = 'rime';
+/** 절벽 벽면을 따라 자란 결정면 — 가장 두껍다 */
+export const FORM_FROST_VEIN = 'frost-vein';
+/** 눈보라가 쌓고 간 결정 가루 — 가장 옅다 */
+export const FORM_DRIFT_DUST = 'drift-dust';
+/** 언 사체에 매달려 자란 결정 */
+export const FORM_CORPSE_RIME = 'corpse-rime';
 
 export const MATERIAL_SEEDS: readonly MaterialSeed[] = [
   // 생체 광석 — 거대 수목이 뿌리로 빨아올리는 그 광물. 살아 있는 것을 따라 옮겨 다니며 쌓인다.
@@ -267,6 +346,14 @@ export const MATERIAL_SEEDS: readonly MaterialSeed[] = [
     worldCause: SKY_PASSAGE,
     forms: [FORM_FALLEN_SCALE],
   },
+  // 빙정석 — 고개 너머가 낳는 것 (C020 ADDED · spec SPEC-001).
+  // 세계 원인이 셋째다: 사슬에서 나지도 지나가며 떨어지지도 않고 **자란다**.
+  // 형태 넷은 같은 것의 네 순도다 (A.1) — 종류를 넷으로 늘린 것이 아니다.
+  {
+    id: FROST_CRYSTAL,
+    worldCause: CRYSTAL_GROWTH,
+    forms: [FORM_RIME, FORM_FROST_VEIN, FORM_DRIFT_DUST, FORM_CORPSE_RIME],
+  },
 ];
 
 export function materialSeed(id: string): MaterialSeed | undefined {
@@ -298,6 +385,23 @@ export const RECOVERY_LAKE_SETTLING = 'lake-settling';
 export const RECOVERY_WHALE_PASSAGE = 'whale-passage';
 /** 그것이 **다시 지난다** (PREY_REMAINS · C018 ADDED) — 같은 갈래의 원인이다 */
 export const RECOVERY_HUNTER_PASSAGE = 'hunter-passage';
+
+// 협곡의 되돌아옴 원인 넷 (C020 ADDED · A.2 회복 원인 · spec 데이터 값 표).
+//
+// 숲의 원인들과 같은 갈래의 **코드**다 — 규칙은 이 값을 읽지 않고, 검사 ⑭ 가 있는가만 묻고,
+// 사람이 읽을 문구는 View 의 표가 옮긴다 (C014 가 세운 그 어법 그대로).
+/** 밤마다 다시 낀다 (PASS_RIME) — 가장 안정된 공급 */
+export const RECOVERY_NIGHT_RIME = 'night-rime';
+/** 열을 먹어 다시 자란다 (CLIFF_FROST_VEIN) — 열이 가장 귀한 철에 가장 빠르다 (확정 7) */
+export const RECOVERY_CRYSTAL_GROWTH = 'crystal-growth';
+/** 다음 눈보라 (SNOW_DRIFT_DUST) — 그 철이 다시 와야 쌓인다 */
+export const RECOVERY_NEXT_BLIZZARD = 'next-blizzard';
+/**
+ * 그것이 **다시 지난다** (FROZEN_REMAINS) — 고래 · 눈 없는 것의 원인과 같은 갈래다.
+ * 다만 그 경로가 아직 세계에 없다 (spec Out of Scope) — 그래서 되돌아옴이 가장 느리고,
+ * 원인은 **밝혀만 두었다** (기본형 ④ · C018 이 지나간 자리의 원천에 한 그대로).
+ */
+export const RECOVERY_PREDATOR_PASSAGE = 'predator-passage';
 
 // ── 흐름 (C014 ADDED · §6.3 · A.4) ────────────────────────────────────
 
@@ -367,6 +471,16 @@ export const PRESENCE_LAYER = 'presence';
  */
 export const ROOT_CURVE_TAG = 'root';
 
+/**
+ * 결정면 선의 tag (C020 ADDED) — 절벽 벽면을 따라 난 결정의 줄이다.
+ *
+ * 뿌리 곡선과 **같은 갈래**다: 높이를 건드리지 않는 표시선이고, 그 points 가 곧 자리를
+ * 옮기는 원천의 마디 목록이다 (siteCurve · C013 이 세운 그 형). 지나가는 것의 경로 선
+ * (presence-routes 의 것)과 같은 layer 에 살되 지나가는 것이 아니다 — 이 layer 가 지는 것은
+ * "땅 위에 무엇이 있다" 이지 "무엇이 움직인다" 가 아니다 (뿌리가 그런 그대로).
+ */
+export const FROST_VEIN_CURVE_TAG = 'frost-vein-line';
+
 /** 흔적 태그의 접두사. 뒤에 1..5 의 단계가 붙는다 */
 export const SOIL_STAIN_PREFIX = 'soil-stain:';
 
@@ -381,9 +495,57 @@ export function soilStainTag(level: number): string {
 /**
  * 흔적 태그가 말하는 단계 — 태그가 아니거나 수가 아니면 0 이다.
  * **모르는 것은 0** 이지 짙기가 아니다 (없는 흔적을 지어내지 않는다).
+ *
+ * C020 에서도 **한 글자도 바뀌지 않는다** — 숲의 어휘를 읽는 자리는 이 함수를 그대로 부르고
+ * 한 값도 달라지지 않는다 (spec SPEC-002 경계 ①). 어휘가 둘이 된 것은 이 위에 선
+ * `traceLevel` 이 안다.
  */
 export function soilStainLevel(tag: string): number {
   if (!tag.startsWith(SOIL_STAIN_PREFIX)) return 0;
   const level = Number(tag.slice(SOIL_STAIN_PREFIX.length));
+  return Number.isFinite(level) && level > 0 ? level : 0;
+}
+
+// ── 협곡의 흔적 어휘 (C020 ADDED · spec SPEC-002 · 기본형 ②) ──────────
+//
+// **같은 기제 · 다른 태그**다. 숲의 흙 사다리가 색이라면 협곡의 것은 **숨이 어는 정도**이고,
+// 기제는 한 줄도 다르지 않다 — 원천 둘레가 방 바닥보다 한 단계 짙고, 고갈되면 한 단계
+// 옅어지고, 되돌아오면 제 단계로 돌아온다 (C011 · C012 · C013 이 세운 그것 그대로).
+//
+// 단계를 셋까지만 두는 이유 — 협곡은 방이 둘뿐이라 숲의 다섯 단계를 놓을 자리가 없다
+// (얼음 협곡 바닥 1 · 빙결 협곡 바닥 2 · 원천 둘레가 각각 한 단계 짙게 = 2 와 3).
+//
+// **두 어휘가 한 자리에서 섞이지 않는다** (SPEC-002 경계 ②) — 협곡의 방에는 흙 사다리
+// area 가 하나도 없고, 숲의 방에는 숨의 사다리 area 가 하나도 없다. 그것은 규칙이 아니라
+// 데이터의 사실이고, 그래서 아래 `traceLevel` 은 둘 중 어느 것이든 읽을 수 있어도 된다.
+
+/** 협곡 흔적 태그의 접두사. 뒤에 1..3 의 단계가 붙는다 */
+export const FROST_BREATH_PREFIX = 'frost-breath:';
+
+/** 가장 짙은 단계 — 표현의 색 표와 검증이 함께 읽는다 (SOIL_STAIN_MAX 의 선례) */
+export const FROST_BREATH_MAX = 3;
+
+/** 그 단계의 협곡 흔적 태그 — 데이터도 표현도 이 함수 하나로 이름을 짓는다 */
+export function frostBreathTag(level: number): string {
+  return `${FROST_BREATH_PREFIX}${level}`;
+}
+
+/**
+ * RULE-TRACE-STRENGTH-001 (C020 CHANGED · spec R8) — 흔적 태그의 단계.
+ * 어휘 **둘 중 어느 것이든** 읽는다. 흔적이 아니면 0 이다.
+ *
+ * 세계가 흔적의 세기를 묻는 자리는 이제 이 한 함수를 부른다 — 두 벌로 나누면 방마다
+ * 어느 어휘를 쓰는지 세계가 알아야 하고, 그러면 규칙이 방을 이름으로 아는 자리가 생긴다
+ * (C004 가 세운 규율). 여기가 아는 것은 "이 세계가 아는 흔적 어휘" 둘뿐이고, 어느 방이
+ * 어느 것을 쓰는지는 그 방 Description 의 태그에만 있다.
+ *
+ * 흙의 사다리를 **먼저** 묻는다 — 순서가 답을 바꾸지는 않지만(접두사가 서로 다르므로 한
+ * 태그가 둘 다일 수 없다) 먼저 선 어휘가 앞이어야 읽는 사람이 무엇이 더해졌는지 안다.
+ */
+export function traceLevel(tag: string): number {
+  const soil = soilStainLevel(tag);
+  if (soil > 0) return soil;
+  if (!tag.startsWith(FROST_BREATH_PREFIX)) return 0;
+  const level = Number(tag.slice(FROST_BREATH_PREFIX.length));
   return Number.isFinite(level) && level > 0 ? level : 0;
 }

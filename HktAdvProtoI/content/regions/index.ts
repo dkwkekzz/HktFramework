@@ -2,7 +2,8 @@
 // C003 에서 방 아홉 · Connector 열셋 · 중첩 둘 · C008 에서 방 열 · Connector 열넷 · 경계 둘 ·
 // C009 에서 방 열하나 · Connector 열여섯 · 중첩 셋 · 경계 셋 ·
 // C016 에서 Connector 열일곱 · 경계 넷 ·
-// C019 에서 방 열셋 · Connector 열여덟 · 경계 셋).
+// C019 에서 방 열셋 · Connector 열여덟 · 경계 셋 ·
+// C020 에서 Connector 열아홉 · 경계 넷).
 //
 // world 와 view 가 함께 읽는 정적 사실이다. 세계 State 에 들어가지 않고 저장되지도 않는다 —
 // 컨텐츠 데이터에서 다시 온다 (C001 02-world R7 · character-catalog 와 같은 성격).
@@ -61,10 +62,15 @@ export {
   WALKING_FOREST_DOOR,
   // C019 ADDED — 협곡 안쪽으로 드는 오솔길
   FROST_CANYON_TRAIL,
+  // C020 ADDED — 빙결 심층으로 드는 문과 그 요구 표
+  FROST_DEPTH_DOOR,
   RED_WASTE,
   INVERTED_GARDEN,
   WALKING_FOREST,
+  FROST_DEPTH,
   CONNECTOR_ACTIVATIONS,
+  CONNECTOR_REQUIREMENTS,
+  REQUIRES_STORED_HEAT,
 } from './graph';
 export type { ConnectorActivation } from './graph';
 export { WHITE_KING_DOMAIN, WHITE_GIANT_TREE } from './white-king-domain';
