@@ -1,0 +1,231 @@
+{
+  "out": "shots",
+  "viewport": [
+    900,
+    660
+  ],
+  "runs": [
+    {
+      "region": "BIO_ORE_FIELD",
+      "spawn": "8,-6",
+      "npcs": "none",
+      "clock": "SEEP:DAY",
+      "steps": [
+        {
+          "wait": "세계 시간",
+          "tries": 60
+        },
+        {
+          "sleep": 2500
+        },
+        {
+          "shot": "X-01-dormant",
+          "note": "X-② 잠든 방 — 「소란」 0 / 300 · 「지금」 방이 잠들어 있다. 노두 자락의 깊이는 방의 것(야생) 그대로이고 걸린 위험이 없다 (X-02 의 대조 기준)"
+        }
+      ]
+    },
+    {
+      "region": "BIO_ORE_FIELD",
+      "spawn": "8,-6",
+      "npcs": "none",
+      "clock": "SEEP:DAY",
+      "disturbance": "BIO_ORE_FIELD:300",
+      "steps": [
+        {
+          "wait": "세계 시간",
+          "tries": 60
+        },
+        {
+          "sleep": 2500
+        },
+        {
+          "shot": "X-02-awake",
+          "note": "X-② 깨어난 방 — 「소란」이 임계에 닿고 「지금」이 깨어남이다. 같은 자리가 한 단계 깊게(심부) 읽히고 짐승의 위험이 걸렸다 (X-01 과 견준다)"
+        }
+      ]
+    },
+    {
+      "region": "BIO_ORE_FIELD",
+      "spawn": "-14,8",
+      "npcs": "none",
+      "clock": "SEEP:DAY",
+      "disturbance": "BIO_ORE_FIELD:300",
+      "steps": [
+        {
+          "wait": "세계 시간",
+          "tries": 60
+        },
+        {
+          "sleep": 2500
+        },
+        {
+          "shot": "X-03-awake-outside",
+          "note": "X-② 깨어난 같은 방의 자락 **밖** — 소란은 깨어남 그대로인데 깊이는 방의 것이고 위험도 없다. 깨어남은 방 전체가 아니라 그 자락의 일이다"
+        }
+      ]
+    },
+    {
+      "region": "FOREST_EDGE",
+      "spawn": "-6.4,6",
+      "npcs": "none",
+      "clock": "SEEP:DAY",
+      "steps": [
+        {
+          "wait": "세계 시간",
+          "tries": 60
+        },
+        {
+          "sleep": 2500
+        },
+        {
+          "shot": "X-04-before-mining",
+          "note": "X-① 캐기 전 — 「소란」 0 / 300 (X-05 의 대조 기준)"
+        },
+        {
+          "press": "KeyE"
+        },
+        {
+          "wait": "광식충 허물: 1",
+          "tries": 90
+        },
+        {
+          "sleep": 2000
+        },
+        {
+          "shot": "X-05-after-one-harvest",
+          "note": "X-① 한 번 캔 뒤 — 「소란」이 10 만큼 올랐다. 스밈이라 가라앉지 않는다"
+        }
+      ]
+    },
+    {
+      "region": "FOREST_EDGE",
+      "spawn": "-6.4,6",
+      "npcs": "none",
+      "clock": "STILL:DAY",
+      "steps": [
+        {
+          "wait": "세계 시간",
+          "tries": 60
+        },
+        {
+          "sleep": 2000
+        },
+        {
+          "press": "KeyE"
+        },
+        {
+          "wait": "광식충 허물: 1",
+          "tries": 90
+        },
+        {
+          "sleep": 8000
+        },
+        {
+          "shot": "X-06-decaying-in-still",
+          "note": "X-③ 고요에 한 번 캔 뒤 여덟 초 — 「소란」이 10 에서 내려와 있다. 세계가 잊는다 (X-05 와 견준다)"
+        }
+      ]
+    },
+    {
+      "region": "BIO_ORE_FIELD",
+      "spawn": "0,16",
+      "npcs": "none",
+      "clock": "SEEP:DAY",
+      "steps": [
+        {
+          "wait": "세계 시간",
+          "tries": 60
+        },
+        {
+          "sleep": 2000
+        },
+        {
+          "click": [
+            0.5,
+            0.56
+          ]
+        },
+        {
+          "sleep": 7000
+        },
+        {
+          "click": [
+            0.72,
+            0.6
+          ]
+        },
+        {
+          "sleep": 7000
+        },
+        {
+          "click": [
+            0.28,
+            0.6
+          ]
+        },
+        {
+          "sleep": 7000
+        },
+        {
+          "click": [
+            0.5,
+            0.58
+          ]
+        },
+        {
+          "sleep": 7000
+        },
+        {
+          "shot": "X-07-my-own-tracks",
+          "note": "X-④ 걸어온 자리에 자국이 남았다 — 저마다 가던 방향을 들고, 갓 난 것이 짙고 오래된 것이 옅다. 세계는 누가 남겼는지 말하지 않는다 (걷다가 방을 건넜다 — 자국은 걸은 그 방의 것이다)"
+        }
+      ]
+    },
+    {
+      "region": "FANTASY_MAZE",
+      "spawn": "0,12",
+      "npcs": "none",
+      "clock": "SEEP:DAY",
+      "steps": [
+        {
+          "wait": "세계 시간",
+          "tries": 60
+        },
+        {
+          "sleep": 2000
+        },
+        {
+          "click": [
+            0.5,
+            0.56
+          ]
+        },
+        {
+          "sleep": 7000
+        },
+        {
+          "click": [
+            0.28,
+            0.6
+          ]
+        },
+        {
+          "sleep": 7000
+        },
+        {
+          "click": [
+            0.72,
+            0.6
+          ]
+        },
+        {
+          "sleep": 7000
+        },
+        {
+          "shot": "X-08-maze-pressure-not-disturbance",
+          "note": "X-⑤ 미로를 걸어 다닌 뒤 — 「압력」은 올랐는데 「소란」은 0 그대로다. 걸음은 압력이지 소란이 아니다"
+        }
+      ]
+    }
+  ]
+}

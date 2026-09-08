@@ -31,6 +31,9 @@ export * from './resource-ecology';
 // 철이 방을 바꾸는 형 — 철 이름 · 덧씌움 layer 둘 · RegionSpec.phases 의 형들 (C016 ADDED).
 // 같은 갈래다: 세계도 화면도 이 문(門)을 통해 읽는다.
 export * from './phases';
+// 이 세계를 지나가는 것들의 경로 — 시간표 · 마디 · 지나는 동안 하는 일 · 남기는 것 (C018 ADDED).
+// 같은 갈래다: 세계는 시간표와 마디를, 화면은 경로 선의 이름을 이 문(門)을 통해 읽는다.
+export * from './presence-routes';
 export {
   REGION_GRAPH,
   FRONTIER_REGIONS,

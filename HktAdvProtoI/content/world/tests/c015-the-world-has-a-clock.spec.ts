@@ -49,6 +49,8 @@ import type {
 } from '../../protocol/gameview';
 import { createWorld, restoreWorld, type World, type WorldSetup } from '../index';
 import { idleAction } from '../semantic/action';
+// C018 — 지나가는 것이 남기는 원천인가 (그런 것은 처음이 고갈이다)
+import { leavingRouteOf } from '../semantic/presence';
 import type { ActorState } from '../semantic/actor';
 import {
   INTERACTION_RANGE,
@@ -972,10 +974,16 @@ describe('SPEC-009 밤에는 흔적이 또렷해진다', () => {
     // 낮의 한가운데를 기준으로 삼는다 — 세계가 서자마자의 첫 순간이 아니라. 어귀의 퇴적은
     // 세계가 설 때 고갈로 섰다가 첫 물길에 실려 오고(C014), 그 도착이 그 방 둘레의 흔적을
     // 한 단계 바꾼다. 그것은 때가 아니라 세계 시각이 하는 일이므로 여기 섞이면 안 된다.
-    runTo(world, MIDDAY, 1);
+    // C018 CHANGED — 첫 낮에는 **하늘을 지나는 것**이 방들 위를 지나고, 그것이 지나간 뒤
+    // 남긴 것이 그 자리의 둘레를 한 단계 짙게 한다. 어귀의 퇴적과 같은 갈래로 **세계 시각이
+    // 하는 일**이지 낮밤이 하는 일이 아니므로, 기준을 그것이 지나간 **뒤의 낮**으로 옮긴다.
+    runTo(world, DAY_SECONDS - 20, 1);
     expect(clockOf(world).dayPhase).toBe(DAY);
     const day = tracesNow();
-    for (const target of [MIDNIGHT, LONG_NIGHT_AT + 100]) {
+    // C018 CHANGED — 긴 밤에는 **눈 없는 것**이 지나고, 그것이 지나간 뒤 남긴 것이 그 자리의
+    // 둘레를 바꾼다. 그래서 긴 밤의 표본을 그것이 **아직 지나는 중**인 자리로 옮긴다 —
+    // 위의 낮 기준과 같은 이유다 (재는 것은 낮밤이지 세계 시각이 아니다)
+    for (const target of [MIDNIGHT, LONG_NIGHT_AT + 10]) {
       runTo(world, target, 1);
       expect({ target, traces: tracesNow() }).toEqual({ target, traces: day });
     }
@@ -1208,10 +1216,12 @@ describe('회귀', () => {
     for (const region of SOURCE_REGIONS) {
       for (const source of sourcesInRegion(region)) {
         const held = sourceStateOf(statesOf(w), region, source.id) as SourceStateShape;
-        // 어귀의 퇴적만 고갈로 서고(C014) 나머지는 available · taken 0 이다
+        // 어귀의 퇴적(C014)과 **지나가는 것이 남기는 것들**(C018)만 고갈로 서고
+        // 나머지는 available · taken 0 이다 — 셋 다 "실려 와야/지나가야 생긴다" 는 같은 어법이다
+        const broughtIn = source.id === 'RIVER_SILT' || leavingRouteOf(source.id) !== undefined;
         expect({
           id: source.id,
-          settled: source.id === 'RIVER_SILT' ? held.phase !== 'available' : held.phase === 'available',
+          settled: broughtIn ? held.phase !== 'available' : held.phase === 'available',
         }).toEqual({ id: source.id, settled: true });
       }
       // 그리고 원천은 저마다 자기 방 바닥보다 짙은 자리 위에 서 있다

@@ -45,6 +45,7 @@ import {
   HAZARD_LAYER,
   PRESENCE_LAYER,
   REGION_GRAPH,
+  PRESENCE_ROUTES,
   REGION_SPECS,
   RESOURCE_FLOWS,
   RESOURCE_LAYER,
@@ -124,7 +125,11 @@ const DEPTHS = ['civil', 'outer', 'wild', 'deep', 'abyss'] as const;
 const MINE_SECONDS = 1.2;
 
 /** spec 이 적은 State 형 버전 — 이 Cycle 이 여기까지 올린다 (SPEC-009 경계) */
-const RAISED_STATE_VERSION = 'hkt-adv-proto-i/7';
+// C017 CHANGED — 소란과 자국이 실리며 다시 올랐다. 이 항이 재는 것은 글자가 아니라
+// "세계가 찍는 판이 팩의 판과 같다" 이므로 값만 따라 올린다
+// C018 CHANGED — 지나감의 지금이 실리며 다시 올랐다 (재는 것은 글자가 아니라
+// "세계가 찍는 판이 팩의 판과 같다" 이므로 값만 따라 올린다)
+const RAISED_STATE_VERSION = 'hkt-adv-proto-i/9';
 /** 그 앞의 버전 — 옛 스냅샷은 되살아나지 않는다 */
 const OLD_STATE_VERSION = 'hkt-adv-proto-i/6';
 
@@ -628,8 +633,19 @@ describe('SPEC-002 스밈에 그 자락이 위험으로 읽힌다', () => {
       const w = inSeason(season, OVERLAY_ROOM, outsideOverlay());
       expect({ season, seen: conditionsSeen(w) }).toEqual({ season, seen: [] });
     }
-    // 그리고 위험을 밝히지 않은 방은 어디에도 없다
-    for (const spec of REGION_SPECS.filter((s) => !SEASON_ROOMS.includes(s.id) && s.id !== WHITE_KING_DOMAIN)) {
+    // 그리고 위험을 밝히지 않은 방은 어디에도 없다.
+    //
+    // C018 CHANGED — **지나가는 것**이 지나는 방은 뺀다. 그것이 거는 위험은 철이 거는 것이
+    // 아니라 지금 무엇이 그 방을 지나느냐가 거는 것이고(원인이 다르다), 이 항이 재는 것은
+    // "철이 밝히지 않은 방을 흔들지 않는다" 이다. 지나가는 것이 거는 위험은 C018 이 잰다.
+    const ON_A_ROUTE = new Set(
+      PRESENCE_ROUTES.flatMap((route) =>
+        route.nodes.flatMap((node) => node.map((choice) => choice.region)),
+      ),
+    );
+    for (const spec of REGION_SPECS.filter(
+      (s) => !SEASON_ROOMS.includes(s.id) && s.id !== WHITE_KING_DOMAIN && !ON_A_ROUTE.has(s.id),
+    )) {
       for (const season of SEASONS) {
         const w = inSeason(season, spec.id);
         expect({ region: spec.id, season, seen: conditionsSeen(w) }).toEqual({

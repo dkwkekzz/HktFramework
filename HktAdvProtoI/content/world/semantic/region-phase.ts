@@ -15,6 +15,19 @@
 // **덧씌움이지 재컴파일이 아니다** (spec R1 경계 ② · T4 · T6). 높이도 표면도 통행 격자도 hash 도
 // 한 값 바뀌지 않는다 — 컴파일된 땅 위에 State 가 얹힐 뿐이다 (C008 의 닫힌 통로 · C012 의
 // 무너진 자리가 세운 그 형 그대로).
+//
+// C018 CHANGED — **원인이 셋이 되었다** (C018 spec R4). 철 · 소란에 더해 **그 방을 지금
+// 지나는 것**이 자기가 밝힌 덧씌움을 건다. 형은 여전히 C016 의 RegionPhase 그대로이고
+// 겹침을 다루는 어법도 그대로다 — 깊이는 나중 것이 이기고 위험은 걸린 것이 전부 실린다.
+// 그래서 자리를 묻는 두 함수가 **지나는 것이 건 덧씌움들을 함께 받는다**: 여기는 무엇이
+// 지나는지도 그것이 어느 선을 타는지도 이름으로 알지 못하고, 받은 덧씌움을 철·깨어남의
+// 것과 나란히 놓을 뿐이다 (C017 이 소란에 한 그대로 · 원인이 하나 는 것뿐이다).
+//
+// C017 CHANGED — **방을 바꾸는 원인이 둘이 되었다** (spec R4). 철에 더해 그 방의 **소란**이
+// 위상을 바꾸고, 깨어난 방은 자기가 밝힌 덧씌움(phases.awake)을 철의 것과 **함께** 건다.
+// 형은 C016 의 RegionPhase 그대로다 — 원인이 둘이 되었을 뿐 달라지는 것은 여전히 넷 안이다 (T3).
+// 그래서 자리를 묻는 두 함수가 **소란 State 를 함께 받는다**: 무엇이 방을 깨웠는지도, 어느 방이
+// 무엇을 덧씌우는지도 여기는 여전히 이름으로 알지 못하고, 위상이라는 **값** 하나를 읽을 뿐이다.
 
 import { areasOf } from '../../../engine/world-authoring/description';
 import { areaCoversPoint } from '../../../engine/world-authoring/query';
@@ -28,6 +41,7 @@ import {
 import type { WorldClockView } from '../../protocol/gameview';
 import { seasonAt } from './clock';
 import type { WorldPosition } from './position';
+import type { RegionDisturbanceState } from './region-state';
 
 /**
  * 조건 · 거절 사유 코드 — **이 철이 아니다** (C016 ADDED).
@@ -64,7 +78,46 @@ export function regionPhaseAt(regionId: string, time: number): RegionPhase | und
 }
 
 /**
- * RULE-OBSERVE-PROJECTION (C016 CHANGED · spec R2) — **선 자리에 덧씌워진 깊이**.
+ * RULE-REGION-PHASE-001 (C017 CHANGED · C018 CHANGED · C017 spec R4 · C018 spec R4) —
+ * **지금 이 방에 걸린 덧씌움들**.
+ *
+ * 철의 것 · 깨어남의 것 · **지나는 것의 것**을 함께 낸다. 어느 하나가 다른 것을 지우지
+ * 않는다 (R4 경계 ① ②) — 겹침을 어떻게 다루는가는 부르는 쪽이 정한다(깊이는 나중 것이
+ * 이기고 위험은 전부 실린다).
+ *
+ * 순서는 **철 → 깨어남 → 지나는 것**이다: 나중일수록 깊이의 열쇠가 이긴다.
+ * 소란이 없거나(되살린 옛 세계) 잠든 방은 그 자리가 비고, 아무것도 지나지 않으면
+ * 셋째 자리가 빈다 — 그때의 답은 C017 · C016 과 한 값도 다르지 않다.
+ *
+ * 규칙은 무엇이 방을 깨웠는지도 깨어난 방이 무엇을 덧씌우는지도 이름으로 알지 못한다
+ * (spec SPEC-005 경계 ④) — 위상이라는 값 하나로 데이터를 한 번 더 짚을 뿐이다.
+ */
+function activePhasesAt(
+  regionId: string,
+  time: number,
+  disturbance: RegionDisturbanceState | undefined,
+  passing: readonly RegionPhase[],
+): RegionPhase[] {
+  const phases = regionSpec(regionId)?.phases;
+  const active: RegionPhase[] = [];
+  if (phases) {
+    const season = phases.seasons?.[seasonAt(time)];
+    if (season) active.push(season);
+    const awake = disturbance?.phase === 'awake' ? phases.awake : undefined;
+    if (awake) active.push(awake);
+  }
+  // C018 CHANGED (spec R4) — **지나는 것이 건 덧씌움**이 맨 나중이다. 방이 위상을 밝히지
+  // 않았어도 지나는 것은 자기 덧씌움을 걸 수 있다 — 그것은 방의 성질이 아니라 지나가는
+  // 것의 성질이기 때문이다 (그래서 위 phases 가 없어도 여기서 돌아서지 않는다).
+  // 나중이므로 깊이가 겹치면 이쪽 열쇠가 이기고, 위험은 걸린 것이 전부 실린다.
+  active.push(...passing);
+  return active;
+}
+
+/**
+ * RULE-OBSERVE-PROJECTION (C016 CHANGED · C017 CHANGED · C018 CHANGED · spec R2 ·
+ * C017 spec R4 · C018 spec R4) — **선 자리에 덧씌워진 깊이**. 철의 덧씌움 · **깨어남의
+ * 덧씌움** · **지나는 것의 덧씌움**을 함께 본다 (원인 셋).
  *
  * 지금 철의 depthOverlay 가 그 자리를 덮으면 그 area 가 밝힌 깊이이고, 덮지 않으면
  * undefined — **방의 깊이를 그대로 쓰라는 뜻**이다 (C001 부터 그대로 · spec R2 ELSE).
@@ -82,13 +135,21 @@ export function depthOverlayAt(
   regionId: string,
   position: WorldPosition,
   time: number,
+  disturbance: RegionDisturbanceState | undefined,
+  // C018 ADDED — 지나는 것이 건 덧씌움들. 밝히지 않으면 지나는 것이 없다는 뜻이다
+  // (빈 배열이 기본이므로 C017 까지의 부름은 한 글자도 달라지지 않는다).
+  passing: readonly RegionPhase[] = [],
 ): string | undefined {
-  const overlay = regionPhaseAt(regionId, time)?.depthOverlay;
-  if (!overlay || overlay.length === 0) return undefined;
+  const overlay = activePhasesAt(regionId, time, disturbance, passing).flatMap(
+    (phase) => phase.depthOverlay ?? [],
+  );
+  if (overlay.length === 0) return undefined;
   const spec = regionSpec(regionId);
   if (!spec) return undefined;
 
-  // op id → 그 철에 이 area 가 읽히는 깊이. 밝히지 않은 area 는 이 표에 없다.
+  // op id → 지금 이 area 가 읽히는 깊이. 밝히지 않은 area 는 이 표에 없다.
+  // 같은 area 를 여럿이 함께 밝히면 **나중 것**이 표에 남는다 (철 → 깨어남 → 지나는 것) — 값 하나만
+  // 실리는 자리이므로 둘을 다 낼 수 없고, 순서로 정하면 언제나 같은 답이다 (결정론).
   const byOp = new Map<string, string>();
   for (const entry of overlay) byOp.set(entry.areaId, entry.depth);
 
@@ -102,7 +163,9 @@ export function depthOverlayAt(
 }
 
 /**
- * RULE-STANDING-CONDITIONS-001 (C016 CHANGED · spec R3) — **선 자리에 덧씌워진 위험의 코드들**.
+ * RULE-STANDING-CONDITIONS-001 (C016 CHANGED · C017 CHANGED · C018 CHANGED · spec R3 ·
+ * C017 spec R4 · C018 spec R4) — **선 자리에 덧씌워진 위험의 코드들**. 철의 덧씌움 ·
+ * **깨어남의 덧씌움** · **지나는 것의 덧씌움**을 함께 본다 (원인 셋).
  *
  * 지금 철의 hazardExtend 가 그 자리를 덮으면 그 area 가 밝힌 위험 태그다. 덮은 것이 없으면
  * 빈 배열이고, 겹치면 **걸린 것이 전부** 나온다 — "왜 여기가 안전한가"(C006 의 conditionTagsAt)가
@@ -117,20 +180,31 @@ export function hazardOverlayTagsAt(
   regionId: string,
   position: WorldPosition,
   time: number,
+  disturbance: RegionDisturbanceState | undefined,
+  // C018 ADDED — 지나는 것이 건 덧씌움들 (depthOverlayAt 의 선례 그대로).
+  passing: readonly RegionPhase[] = [],
 ): string[] {
-  const overlay = regionPhaseAt(regionId, time)?.hazardExtend;
-  if (!overlay || overlay.length === 0) return [];
+  const overlay = activePhasesAt(regionId, time, disturbance, passing).flatMap(
+    (phase) => phase.hazardExtend ?? [],
+  );
+  if (overlay.length === 0) return [];
   const spec = regionSpec(regionId);
   if (!spec) return [];
 
-  const byOp = new Map<string, string>();
-  for (const entry of overlay) byOp.set(entry.areaId, entry.hazard);
+  // 같은 area 를 여럿이 함께 밝히면 **전부** 실린다 (spec R4 경계 ②) — 위험은 값 하나가
+  // 아니라 목록이므로 하나로 줄이지 않는다. 한 area 안의 순서는 철 → 깨어남 → 지나는 것이다.
+  const byOp = new Map<string, string[]>();
+  for (const entry of overlay) {
+    const hazards = byOp.get(entry.areaId);
+    if (hazards) hazards.push(entry.hazard);
+    else byOp.set(entry.areaId, [entry.hazard]);
+  }
 
   const tags: string[] = [];
   for (const area of areasOf(spec.space, HAZARD_LAYER)) {
-    const hazard = byOp.get(area.id);
-    if (hazard === undefined) continue;
-    if (areaCoversPoint(area.shape, position.x, position.z)) tags.push(hazard);
+    const hazards = byOp.get(area.id);
+    if (hazards === undefined) continue;
+    if (areaCoversPoint(area.shape, position.x, position.z)) tags.push(...hazards);
   }
   return tags;
 }

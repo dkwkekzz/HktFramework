@@ -17,6 +17,19 @@
 /** 철 넷 — 뒤척임(TURN)은 철과 철 사이의 60 초다 (Play 확정 1 · 3) */
 export type SeasonId = 'STILL' | 'SEEP' | 'LONG_NIGHT' | 'TURN';
 
+/**
+ * **소란이 가라앉는 철** (C017 ADDED · Time §2.5 · spec R2).
+ *
+ * 규칙 코드는 어느 철에 가라앉는지 이름으로 알지 못한다 (T4) — 데이터인 이 목록과 시계가 낸
+ * 지금 철을 맞춰 볼 뿐이고(RULE-DISTURBANCE-DECAY-001), 목록을 비우면 소란은 어느 철에도
+ * 가라앉지 않는다. 철별 덧씌움(RegionPhases.seasons)이 데이터인 것과 같은 규율이다.
+ *
+ * 방마다 두지 않고 여기 한 벌 두는 이유 — 소란은 **어느 방에나 있는 값**이고(기본형 ⑩),
+ * 가라앉음은 방이 아니라 **세계의 철**이 정한다 (시계가 세계에 하나인 것과 같다 · T1).
+ * 미지가 가까운 철에는 세계가 흔들린 것을 잊지 않는다.
+ */
+export const DISTURBANCE_DECAY_SEASONS: readonly SeasonId[] = ['STILL'];
+
 /** 덧씌움 area 가 사는 layer 둘 — 땅의 layer 와 섞이지 않는다 */
 export const DEPTH_LAYER = 'depth';
 export const HAZARD_LAYER = 'hazard';
@@ -78,5 +91,15 @@ export interface RegionTurn {
 export interface RegionPhases {
   /** 철별 덧씌움. 그 철의 열쇠가 없으면 그 철에는 달라지는 것이 없다 */
   seasons?: Readonly<Partial<Record<SeasonId, RegionPhase>>>;
+  /**
+   * **깨어난 방**의 덧씌움 (C017 ADDED · spec R4 · SPEC-005).
+   *
+   * 형은 철의 덧씌움과 **같은 것**을 그대로 쓴다 — 방을 바꾸는 **원인**이 둘(철 · 소란)이
+   * 되었을 뿐 달라지는 것은 여전히 그 넷 안이다 (T3). 밝히지 않은 방은 깨어나도 값과 위상만
+   * 오르고 깊이도 위험도 한 값 달라지지 않는다 (spec SPEC-005 경계 ②).
+   *
+   * 철의 덧씌움과 **함께** 걸린다 — 어느 한쪽이 다른 쪽을 지우지 않는다 (spec R4 경계 ① ②).
+   */
+  awake?: RegionPhase;
   onTurn?: RegionTurn;
 }

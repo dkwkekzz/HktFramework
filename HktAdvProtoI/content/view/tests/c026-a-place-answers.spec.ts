@@ -108,8 +108,13 @@ function mazeSnapshot(state?: RegionStateView, hash?: string): GameViewSnapshot 
   return {
     specId: 'VIEW-STONE-MINING-001',
     scene: MAZE,
-    region: { id: MAZE, hash: hash ?? hashOf(MAZE), ...(state ? { state } : {}) },
+    region: { id: MAZE, hash: hash ?? hashOf(MAZE), disturbance: { value: 0, threshold: 300, phase: 'dormant' as const }, ...(state ? { state } : {}) },
     standingConditions: [],
+    // C017 — 봉투에 그 방의 소란과 자국이 실린다. 이 시나리오가 보는 것은 그 둘이 아니므로
+    // 아무 일도 겪지 않은 방(잠듦 · 자국 없음)으로 둔다
+    tracks: [],
+    // C018 — 봉투에 그 방을 지나는 것들이 실린다. 이 시나리오가 보는 것이 아니므로 빈 목록이다
+    presences: [],
     // C015 — 봉투에 때가 실린다. 이 시나리오가 보는 것은 때가 아니므로 고요의 낮 하나로 둔다
     clock: { dayPhase: 'DAY', season: 'STILL', dayIndex: 0, seasonCycle: 0 },
     observer: { id: 'observer-a', characterId: 'player', acknowledgedMark: 0 },

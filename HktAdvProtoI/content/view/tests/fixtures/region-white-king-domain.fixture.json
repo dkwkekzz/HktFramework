@@ -3,7 +3,12 @@
   "scene": "WHITE_KING_DOMAIN",
   "region": {
     "id": "WHITE_KING_DOMAIN",
-    "hash": "<filled-by-test>"
+    "hash": "<filled-by-test>",
+    "disturbance": {
+      "value": 0,
+      "threshold": 300,
+      "phase": "dormant"
+    }
   },
   "observer": {
     "id": "observer-a",
@@ -63,5 +68,7 @@
     "season": "STILL",
     "dayIndex": 0,
     "seasonCycle": 0
-  }
+  },
+  "tracks": [],
+  "presences": []
 }

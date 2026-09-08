@@ -8,6 +8,7 @@
 
 import type { RegionSpec } from './spec';
 import { ANCHOR_LAYER } from './spec';
+import { WHALE_CURVE_TAG } from './presence-routes';
 import {
   BIO_ORE,
   FOREST_CHAIN,
@@ -107,6 +108,29 @@ export const RED_EYE_TREE_SPEC: RegionSpec = {
           { x: 17, z: -1 },
         ],
         width: 1.5,
+      },
+      // ── C018 ADDED — 하늘을 지나가는 것의 선 ────────────────────────────────
+      //
+      // 이 방이 고래의 **마지막 마디**다 — 숲 안쪽에서 들어와 거목 위를 지나 빠져나간다.
+      // 뿌리 곡선과 같은 layer 의 표시선이고(profile 없음) 폭만 두 배다: 땅의 것과 하늘의
+      // 것이 같은 자리에서 갈려 읽힌다. 땅도 컴파일 결과도 hash 도 한 값 바뀌지 않는다 (T6).
+      //
+      // 점 넷은 컴파일 결과에서 넷 다 통행 가능한 평지이고(반경 2 의 둘레까지), 남쪽 문
+      // FOREST_DEEP_SIDE(0, -18) 에서 1.6m 걸음 · 16방위 BFS 로 11 · 10 · 13 · 20 걸음에
+      // 닿는다. 뿌리혹(-8, 2) 에서 가장 가까운 점까지 6.32 · 안쪽 문(0, 6) 까지 5.66 이라
+      // 이미 선 것들과 겹치지 않는다. 뿌리 곡선과는 남쪽으로 비껴 지난다.
+      {
+        id: 'whale-curve',
+        kind: 'curve',
+        layer: PRESENCE_LAYER,
+        tag: WHALE_CURVE_TAG,
+        points: [
+          { x: -16, z: -10 },
+          { x: -6, z: -4 },
+          { x: 4, z: 2 },
+          { x: 14, z: 8 },
+        ],
+        width: 3,
       },
     ],
   },

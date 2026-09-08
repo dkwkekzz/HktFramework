@@ -50,6 +50,7 @@ import {
   type SupplyMode,
 } from '../../regions';
 import type { WorldPosition } from './position';
+import { isPassingRegion, leavingRouteOf, type PresencePassState } from './presence';
 import { NOT_THIS_SEASON, isSeasonListed } from './region-phase';
 import type { RegionState, ResourceSourceState } from './region-state';
 
@@ -406,11 +407,21 @@ export function inflowOf(sourceId: string): ResourceFlowSpec | undefined {
  * 여기 실리는 코드가 곧 **되돌아옴을 멎게 하는 원인**이다 (simulation/source-recovery.ts) —
  * 표시와 원인이 같은 판정이라는 C013 의 규율 그대로다. 셋 중 `flow-arrived` 만이 진행을
  * 허락한다: 실려 오는 중인 것은 되돌아오는 중인 것이기 때문이다.
+ *
+ * C018 CHANGED (spec R7 · 기본형 ⑧) — **지나가는 것도 조건이다.** 누군가 지나가며 남기는
+ * 원천은 그것이 지금 지나고 있지 않은 동안 `condition-unmet` 을 진다 — **새 코드를 만들지
+ * 않는다**: 물길이 아직 오지 않은 것과 관찰자가 보는 사실이 같기 때문이다(거기 지금 없다).
+ * 걸린 동안에는 되돌아옴의 진행이 오르지 않는다 — 되돌리는 것은 시간이 아니라 **다시
+ * 지나가는 것**이다 (SPEC-006 경계 ②).
+ *
+ * 그래서 **지나감들의 지금을 함께 받는다.** 밝히지 않으면 아무것도 지나고 있지 않은 것으로
+ * 친다 — 그것도 답이다 (남기는 원천에는 조건이 걸리고, 나머지 원천은 한 값도 달라지지 않는다).
  */
 export function sourceConditions(
   states: Record<string, RegionState>,
   source: ResourceSource,
   time: number,
+  presences: Record<string, PresencePassState> = {},
 ): string[] {
   const codes: string[] = [];
   const inflow = inflowOf(source.id);
@@ -433,6 +444,29 @@ export function sourceConditions(
   // "실려 오는 중" 도 "아직 그때가 아니다" 도 말할 것이 없기 때문이다.
   if (inflow && sourceStateOf(states, source.regionId, source.id).phase !== 'available') {
     codes.push(isFlowActive(inflow, time) ? FLOW_ARRIVED : CONDITION_UNMET);
+  }
+
+  // ③ 지나가는 때 (C018 ADDED · spec R7) — 누군가 남기는 원천이 아직 거기 없고 그것이 지금
+  // 지나가고 있지도 않으면 `condition-unmet`. 흐름의 ② 와 **같은 코드**이고 같은 뜻이다:
+  // 아직 그때가 아니다 (기본형 ⑧ — 흐름이 멎은 것과 **같은 사실**이다: 거기 없다는 것).
+  //
+  // **아직 없는 원천에만 묻는 것도 ② 그대로다** (C014 spec R3 경계) — 거기 서 있는 것을
+  // 두고 "아직 그때가 아니다" 라고 말할 것이 없기 때문이다. 지나간 뒤 서 있는 비늘은
+  // 캘 수 있고, 그때 이 코드는 걸리지 않는다.
+  //
+  // 묻는 것은 "지나고 있는가" 가 아니라 "**여기를** 지나고 있는가" 다 (SPEC-006 경계 ③) —
+  // 휘어 다른 방으로 간 지나감은 이 방에서 아무 일도 하지 않으므로, 그 동안에도 멎어 있어야
+  // "시간이 아니라 다시 지나가는 것이 되돌린다" 가 참이 된다 (경계 ②).
+  //
+  // 규칙은 무엇이 그것을 남기는지 이름으로 알지 못한다 — "누군가 남기는 원천" 이라는 형과
+  // "그것이 지금 지나는가" 라는 값 하나뿐이고, 무엇이 무엇을 남기는지는 데이터에만 있다.
+  const leaving = leavingRouteOf(source.id);
+  if (
+    leaving &&
+    sourceStateOf(states, source.regionId, source.id).phase !== 'available' &&
+    !isPassingRegion(presences, leaving.id, source.regionId, time)
+  ) {
+    codes.push(CONDITION_UNMET);
   }
 
   return codes;

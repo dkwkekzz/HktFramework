@@ -15,16 +15,24 @@
 import type { RegionSpec } from './spec';
 import { ANCHOR_LAYER } from './spec';
 import { DEPTH_LAYER, HAZARD_LAYER } from './phases';
+import { HUNTER_CURVE_TAG, WHALE_CURVE_TAG } from './presence-routes';
 import {
   BIO_ORE,
   FOREST_CHAIN,
+  FORM_FALLEN_SCALE,
   FORM_MOLT_LITTER,
+  FORM_PREY_REMAINS,
   FORM_SEEP_CRUST,
   ORE_EATER_MOLT,
+  PRESENCE_LAYER,
+  RECOVERY_HUNTER_PASSAGE,
   RECOVERY_MOLT_CYCLE,
   RECOVERY_TREE_UPTAKE,
+  RECOVERY_WHALE_PASSAGE,
   RESOURCE_LAYER,
+  SKY_PASSAGE,
   TRACE_LAYER,
+  WHALE_SCALE,
   soilStainTag,
 } from './resource-ecology';
 
@@ -193,6 +201,142 @@ export const FOREST_EDGE_SPEC: RegionSpec = {
         tag: 'SEEP_CRUST',
         position: { x: 4, z: 14 },
       },
+      // ── C018 ADDED — 지나가는 것들의 선 둘과 눈 없는 것의 자락 ─────────────
+      //
+      // 둘 다 **높이를 건드리지 않는 표시선**이다 (profile 없음 · 뿌리 곡선이 세운 그 형).
+      // 땅도 컴파일 결과도 hash 도 한 값 바뀌지 않는다 (T6).
+      //
+      // 하늘의 선 — 방을 남서에서 북동으로 훑는다. **이 선의 점 넷이 곧 떨어진 비늘이 설
+      // 마디 넷**이다 (siteCurve · C013 의 뿌리 곡선이 노두에 한 그대로 · 기본형 ①).
+      // 컴파일해 격자를 훑어 넷 다 통행 가능한 평지임을 확인했고(반경 2 의 둘레까지),
+      // 남쪽 문 FOREST_PATH(0, -18) 에서 1.6m 걸음 · 16방위 BFS 로 10 · 12 · 15 · 20 걸음에
+      // 닿는다. 넷 다 C007 의 분지(중심 (10, 0) · 반경 10) **밖**이다 — 중심까지 28.6 ·
+      // 20.1 · 13.4 · 12.2 로, 걸어 들어갈 수 없는 급경사 고리 안에 비늘이 서지 않는다.
+      // 이미 선 원천 둘의 자리와도 떨어져 있다: 허물(-8, 6) 까지 최소 6.00 · 껍질(4, 14) 까지 4.47.
+      {
+        id: 'whale-curve',
+        kind: 'curve',
+        layer: PRESENCE_LAYER,
+        tag: WHALE_CURVE_TAG,
+        points: [
+          { x: -16, z: -12 },
+          { x: -10, z: -2 },
+          { x: -2, z: 6 },
+          { x: 8, z: 12 },
+        ],
+        width: 3,
+      },
+      // 눈 없는 것의 선 — 숲 안쪽으로 난 문 DEEP_TRAIL(0, 18) 쪽에서 내려와 서남으로 빠진다.
+      // 안쪽에서 내려온다는 것이 이 방향의 뜻이다 (Play §5.2 "긴 밤의 경로가 숲 가장자리까지
+      // 내려온다"). **이 선의 점 셋이 먹이 잔해가 설 마디 셋**이다.
+      //
+      // 같은 실측: 셋 다 통행 가능한 평지이고(반경 2 의 둘레까지) 남쪽 문 FOREST_PATH(0, -18)
+      // 에서 각각 21 · 20 · 18 걸음에 닿으며, C007 의 분지(중심 (10, 0) · 반경 10) 밖이다
+      // (중심까지 21.21 · 24.17 · 28.28). 허물(-8, 6) 은 이 선에서 5.58 떨어져 있다 —
+      // 눈 없는 것의 길이 광식충의 자리를 **비껴 지난다**.
+      {
+        id: 'hunter-curve',
+        kind: 'curve',
+        layer: PRESENCE_LAYER,
+        tag: HUNTER_CURVE_TAG,
+        points: [
+          { x: -5, z: 15 },
+          { x: -12, z: 10 },
+          { x: -18, z: 4 },
+        ],
+        width: 3,
+      },
+      // 그 선의 **자락** — 지나는 동안에만 위험으로 읽힌다 (C018 ADDED · spec R4).
+      //
+      // 형은 철의 덧씌움(C016) · 깨어남의 덧씌움(C017)과 **같은 것**이다: 컴파일 결과를 한
+      // 값도 바꾸지 않고(높이도 표면도 통행도 그대로) 그 위에 State 가 덧씌워질 뿐이며,
+      // 무엇이 언제 그것을 거는지는 경로 데이터(presence-routes.ts)만이 안다.
+      //
+      // 중심은 그 선의 **가운데 마디**이고 반지름 9 는 양 끝을 다 품는다 (끝까지 8.60 · 8.49) —
+      // 잔해가 서는 세 마디 어디에 서도 "왜 여기가 위험한가" 가 답해진다. 반지름은 이 방의
+      // 다른 자락(hazard-edge-deep-trail · 반지름 8)과 같은 족의 값이다.
+      {
+        id: 'hazard-edge-hunter-path',
+        kind: 'area',
+        layer: HAZARD_LAYER,
+        tag: HUNTER_CURVE_TAG,
+        shape: { kind: 'circle', center: { x: -12, z: 10 }, radius: 9 },
+      },
+      // ── C018 ADDED — 지나간 뒤에만 서는 원천 둘과 그 마디마다의 둘레 ───────
+      //
+      // 자리는 각 선의 **마디 0** 이다 (sites[0] 은 언제나 position 과 같다 · C013 의 규약).
+      // 지나갈 때마다 마디가 옮겨지므로 이 point 는 "처음 자리" 일 뿐이고, 실제로 어디에
+      // 서는지는 몇 번째 지나감인가가 정한다 (spec R2 · SPEC-006 경계 ④).
+      //
+      // 마디마다 둘레 흔적 하나 — C013 이 노두의 마디 넷에 놓은 그 형 그대로다 (traceOps).
+      // 반지름 7 도 단계 2 도 이 방의 다른 원천 둘레와 같은 값이다 (이 방 바닥이 1 이고
+      // 원천 둘레가 한 단계 짙다 · C011 의 사다리). **지나가기 전에는 방이 지금 그대로
+      // 읽힌다** — 처음이 고갈이므로 지금 마디의 둘레도 한 단계 옅어져 바닥과 같은 1 이 되고,
+      // 지금 마디가 아닌 둘레는 0 으로 쳐진다 (RULE-TRACE-STRENGTH-001 · spec SPEC-007).
+      // 지나간 뒤 그 마디의 둘레만 2 로 짙어진다 — 흙이 "여기 무엇이 섰다" 를 말한다.
+      {
+        id: 'trace-edge-scale-0',
+        kind: 'area',
+        layer: TRACE_LAYER,
+        tag: soilStainTag(2),
+        shape: { kind: 'circle', center: { x: -16, z: -12 }, radius: 7 },
+      },
+      {
+        id: 'trace-edge-scale-1',
+        kind: 'area',
+        layer: TRACE_LAYER,
+        tag: soilStainTag(2),
+        shape: { kind: 'circle', center: { x: -10, z: -2 }, radius: 7 },
+      },
+      {
+        id: 'trace-edge-scale-2',
+        kind: 'area',
+        layer: TRACE_LAYER,
+        tag: soilStainTag(2),
+        shape: { kind: 'circle', center: { x: -2, z: 6 }, radius: 7 },
+      },
+      {
+        id: 'trace-edge-scale-3',
+        kind: 'area',
+        layer: TRACE_LAYER,
+        tag: soilStainTag(2),
+        shape: { kind: 'circle', center: { x: 8, z: 12 }, radius: 7 },
+      },
+      {
+        id: 'trace-edge-remains-0',
+        kind: 'area',
+        layer: TRACE_LAYER,
+        tag: soilStainTag(2),
+        shape: { kind: 'circle', center: { x: -5, z: 15 }, radius: 7 },
+      },
+      {
+        id: 'trace-edge-remains-1',
+        kind: 'area',
+        layer: TRACE_LAYER,
+        tag: soilStainTag(2),
+        shape: { kind: 'circle', center: { x: -12, z: 10 }, radius: 7 },
+      },
+      {
+        id: 'trace-edge-remains-2',
+        kind: 'area',
+        layer: TRACE_LAYER,
+        tag: soilStainTag(2),
+        shape: { kind: 'circle', center: { x: -18, z: 4 }, radius: 7 },
+      },
+      {
+        id: 'source-fallen-scale',
+        kind: 'point',
+        layer: RESOURCE_LAYER,
+        tag: 'FALLEN_SCALE',
+        position: { x: -16, z: -12 },
+      },
+      {
+        id: 'source-prey-remains',
+        kind: 'point',
+        layer: RESOURCE_LAYER,
+        tag: 'PREY_REMAINS',
+        position: { x: -5, z: 15 },
+      },
     ],
   },
   // 경계부의 Baseline — 먼저 온 사람이 다 가져갈 수 없는 자리를 가장 얕은 곳에 둔다 (Play §5.1 · M7)
@@ -247,6 +391,63 @@ export const FOREST_EDGE_SPEC: RegionSpec = {
         traceOps: ['trace-edge-seep-crust'],
         // **그 철에만 선다** — 다른 철에는 이 자리에 아무것도 없다 (C016 ADDED · spec R6)
         occurrence: { seasons: ['SEEP'] },
+      },
+      // ── C018 ADDED — 지나간 자리에만 나는 것 둘 (spec R6 · R7 · 기본형 ⑤ ⑩) ──
+      //
+      // 둘 다 **처음이 고갈**이다 — 세계가 설 때는 아직 아무것도 지나가지 않았으므로 거기
+      // 없다 (C014 의 흐름에 매달린 원천과 같은 어법). 그것을 밝히는 것은 이 자리가 아니라
+      // 경로 데이터의 leavesBehind 다: 원천은 자기가 무엇에 매달렸는지 말하지 않고,
+      // 무엇이 무엇을 남기는지는 지나가는 것 쪽이 안다 (규칙은 양쪽 다 이름으로 모른다).
+      //
+      // 되돌아옴의 **길이**는 한 번의 지나감보다 길게 둔다 — 되돌리는 것은 시간이 아니라
+      // 다시 지나가는 것이기 때문이다 (spec SPEC-006 경계 ②). 고래의 한 번은 180 세계 초
+      // (마디 넷 × 45) 이고 눈 없는 것의 한 번은 90 초이므로, 240 은 그 어느 것보다 길다.
+      {
+        id: 'FALLEN_SCALE',
+        materialId: WHALE_SCALE,
+        // 숲의 사슬이 아니다 — 바깥에서 지나가며 두고 간 것이다 (C018 ADDED · §5.0 밖)
+        worldCause: SKY_PASSAGE,
+        form: FORM_FALLEN_SCALE,
+        // 몸도 생명도 아닌 것이 지고 있다 (Material §6.3 의 칸 · 기본형 ⑨)
+        carrier: 'phenomenon',
+        // 때를 맞춰야만 얻는 자리 (Material §6.2 의 칸)
+        opportunity: 'world-event',
+        // 사건이 되풀이될 때만 온다 (§5.6 의 넷째 · M7)
+        supply: 'event-scarce',
+        // 고래가 다시 지난다 (A.2 회복 원인)
+        recoveryCause: RECOVERY_WHALE_PASSAGE,
+        // 한 번 지나갈 때 하나 (확정 9)
+        harvests: 1,
+        recoverySeconds: 240,
+        // 마디는 하늘의 선이 준다 — 그 선의 점 넷이 곧 마디 넷이다
+        siteCurve: WHALE_CURVE_TAG,
+        // 마디 순서 그대로의 둘레 흔적 (C013 의 어법)
+        traceOps: [
+          'trace-edge-scale-0',
+          'trace-edge-scale-1',
+          'trace-edge-scale-2',
+          'trace-edge-scale-3',
+        ],
+      },
+      {
+        id: 'PREY_REMAINS',
+        // **새 Seed 를 만들지 않는다** — 광식충 허물의 다른 형태다 (확정 13 · 기본형 ⑩)
+        materialId: ORE_EATER_MOLT,
+        // 재료는 이 숲의 사슬에서 난 것이다 — 그것을 여기 세운 것이 지나가는 것일 뿐이다
+        worldCause: FOREST_CHAIN,
+        form: FORM_PREY_REMAINS,
+        // 먹다 남긴 것 — 잔류다 (허물과 같은 갈래 · A.2 Carrier)
+        carrier: 'residue',
+        // 그것이 지나가며 떨어뜨린 부산물 (A.3)
+        opportunity: 'by-product',
+        supply: 'event-scarce',
+        // 그것이 다시 지난다 (A.2 회복 원인)
+        recoveryCause: RECOVERY_HUNTER_PASSAGE,
+        harvests: 1,
+        recoverySeconds: 240,
+        // 마디는 눈 없는 것의 선이 준다
+        siteCurve: HUNTER_CURVE_TAG,
+        traceOps: ['trace-edge-remains-0', 'trace-edge-remains-1', 'trace-edge-remains-2'],
       },
     ],
   },

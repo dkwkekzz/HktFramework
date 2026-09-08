@@ -34,7 +34,9 @@ function spawnFromEnv(): {
   regionPatterns?: Record<string, string>;
   npcRegion?: string;
   sourcePhases?: Record<string, string>;
+  disturbances?: Record<string, number>;
   clock?: string;
+  presences?: string[];
 } {
   const setup: {
     actorPosition?: { x: number; z: number };
@@ -43,7 +45,9 @@ function spawnFromEnv(): {
     regionPatterns?: Record<string, string>;
     npcRegion?: string;
     sourcePhases?: Record<string, string>;
+    disturbances?: Record<string, number>;
     clock?: string;
+    presences?: string[];
   } = {};
   // HKT_REGION_PATTERN="REGION:PATTERN" — 규칙을 품은 방이 어느 패턴으로 서는가 (C009).
   // 같은 갈래의 검증용 손잡이다 — 걸어서 닿을 수 있는 State 를 걸어가지 않고 시작한다.
@@ -85,12 +89,45 @@ function spawnFromEnv(): {
     }
     if (Object.keys(phases).length > 0) setup.sourcePhases = phases;
   }
+  // HKT_DISTURBANCE="REGION:VALUE" 또는 "A:300,B:150" — 방에 소란이 **얼마나 쌓여 있는가** (C017).
+  //
+  // HKT_SOURCE_PHASE 와 같은 갈래의 검증용 손잡이다 — 해서 닿을 수 있는 값을 하지 않고 시작한다.
+  // 임계(300)에 캐서 닿으려면 한 방에서 서른 번을 캐야 하고 그 사이 원천이 고갈과 되돌아옴을
+  // 여러 바퀴 도는데, 촬영 하네스의 요청 왕복은 그 시간을 기다릴 수 없다.
+  //
+  // 세우는 것은 **값뿐이고 위상은 세계가 정한다** — 다음 Tick 에 세계 자신의 규칙이 깨우거나
+  // 재운다. 모르는 방 이름 · 수가 아닌 값은 세계가 조용히 무시한다.
+  const disturbance = process.env.HKT_DISTURBANCE;
+  if (disturbance) {
+    const values: Record<string, number> = {};
+    for (const entry of disturbance.split(',')) {
+      const [regionId, raw] = entry.trim().split(':');
+      const value = Number(raw);
+      if (regionId && raw !== undefined && Number.isFinite(value)) values[regionId] = value;
+    }
+    if (Object.keys(values).length > 0) setup.disturbances = values;
+  }
   // HKT_CLOCK="LONG_NIGHT" 또는 "SEEP:NIGHT" — 세계가 **어느 때에서 시작하는가** (C015).
   // HKT_SOURCE_PHASE 와 같은 갈래의 검증용 손잡이다 — 기다려서 닿을 수 있는 때를 기다리지 않고
   // 시작한다. 한 바퀴가 2220 초(37 분)라 긴 밤도 뒤척임도 촬영 하네스가 기다릴 수 없다.
   // 세우는 것은 그냥 흐른 세계 시각뿐이고 세계의 규칙은 하나도 바뀌지 않는다 —
   // 모르는 철 · 그 철에 오지 않는 낮밤은 세계가 조용히 무시한다.
   if (process.env.HKT_CLOCK) setup.clock = process.env.HKT_CLOCK;
+  // HKT_PRESENCE="ROUTE" 또는 "A,B" — 어떤 것이 **지금부터 지나가고 있는가** (C018).
+  //
+  // HKT_CLOCK 과 같은 갈래의 검증용 손잡이다 — 기다려서 닿을 수 있는 때를 기다리지 않고
+  // 시작한다. 낮에 철 바퀴 셋에 한 번 오는 것은 한 바퀴가 2220 초(37 분)라 촬영 하네스가
+  // 기다릴 수 없다. 시작시키는 일은 세계 과정이 시간표로 시작할 때와 **같은 한 자리**로
+  // 가고, 그 뒤로는 마디를 옮기는 것도 끝나고 남기는 것도 세계의 규칙 그대로다.
+  // 모르는 경로 이름은 세계가 조용히 무시한다.
+  const presence = process.env.HKT_PRESENCE;
+  if (presence) {
+    const routes = presence
+      .split(',')
+      .map((entry) => entry.trim())
+      .filter((entry) => entry.length > 0);
+    if (routes.length > 0) setup.presences = routes;
+  }
   // HKT_SPAWN_REGION — 어느 **방**에서 시작할 것인가. 방이 여럿이 되면서 자리만으로는
   // 모자란다 (C002): 걷기가 이어지지 않는 촬영에서 백왕령 밖의 방을 보려면 거기서 시작해야 한다.
   if (process.env.HKT_SPAWN_REGION) setup.actorRegion = process.env.HKT_SPAWN_REGION;

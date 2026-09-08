@@ -16,10 +16,13 @@
 
 import type { RegionSpec } from './spec';
 import { ANCHOR_LAYER } from './spec';
+import { HAZARD_LAYER } from './phases';
+import { HUNTER_CURVE_TAG, WHALE_CURVE_TAG } from './presence-routes';
 import {
   BIO_ORE,
   FOREST_CHAIN,
   FORM_RIVER_GRAIN,
+  PRESENCE_LAYER,
   RECOVERY_FLOW_ARRIVAL,
   RESOURCE_LAYER,
   TRACE_LAYER,
@@ -168,6 +171,60 @@ export const FOREST_DEEP_SPEC: RegionSpec = {
         layer: RESOURCE_LAYER,
         tag: 'RIVER_SILT',
         position: { x: 11, z: -11 },
+      },
+      // ── C018 ADDED — 지나가는 것들의 선 둘과 눈 없는 것의 자락 ─────────────
+      //
+      // 둘 다 **높이를 건드리지 않는 표시선**이다 (profile 없음 · 뿌리 곡선이 세운 그 형) —
+      // 땅도 컴파일 결과도 hash 도 한 값 바뀌지 않는다 (T6). 이 방은 anchor 와 흔적뿐이라
+      // 어디나 평지이고, 아래 점 일곱은 전부 컴파일 결과에서 통행 가능함을 실측했다
+      // (반경 2 의 둘레까지). 남쪽 문 DEEP_TRAIL(0, -18) 에서 1.6m 걸음 · 16방위 BFS 로
+      // 하늘의 선은 6 · 9 · 15 · 23 걸음, 눈 없는 것의 선은 15 · 12 · 9 걸음에 닿는다.
+      //
+      // 하늘의 선 — 숲 가장자리 쪽(남)에서 들어와 거목 쪽 문 TREE_APPROACH(0, 18) 로 빠진다.
+      // 지나가는 차례가 그 방향이다. 어귀의 퇴적(11, -11) 에서 가장 가까운 마디까지 16.55 이라
+      // 그 원천의 자리와 겹치지 않는다.
+      {
+        id: 'whale-curve',
+        kind: 'curve',
+        layer: PRESENCE_LAYER,
+        tag: WHALE_CURVE_TAG,
+        points: [
+          { x: -10, z: -14 },
+          { x: -4, z: -4 },
+          { x: 2, z: 6 },
+          { x: 8, z: 16 },
+        ],
+        width: 3,
+      },
+      // 눈 없는 것의 선 — 이 방이 그것의 **첫 마디**다 (숲 안쪽에서 내려온다 · Play §5.2).
+      // 걷는 숲 쪽(북동)에서 물길이 나오는 어귀 쪽(남동)으로 비스듬히 지난다.
+      //
+      // **어귀를 스쳐 지나는 것이 이 방향의 뜻이다** — 위험과 보상은 같은 근원에서 온다
+      // (Concept §6). 이 방이 낳는 것(어귀의 퇴적 · (11, -11))은 그 자락 안에 들어, 긴 밤에
+      // 그것을 캐러 오는 것과 그때 여기를 지나는 것이 **같은 자리의 일**이 된다.
+      // 하늘의 선과는 방을 가로질러 반대쪽이라 한 점에서도 겹치지 않는다 — 둘은 다른 때에
+      // 오는 다른 것이다 (가장 가까운 마디끼리 8.06).
+      {
+        id: 'hunter-curve',
+        kind: 'curve',
+        layer: PRESENCE_LAYER,
+        tag: HUNTER_CURVE_TAG,
+        points: [
+          { x: 4, z: 6 },
+          { x: 9, z: -2 },
+          { x: 13, z: -10 },
+        ],
+        width: 3,
+      },
+      // 그 선의 **자락** — 지나는 동안에만 위험으로 읽힌다 (spec R4). 중심은 가운데 마디이고
+      // 반지름 10 은 양 끝(9.43 · 8.94)과 **어귀의 퇴적**(9.22)을 함께 품는다.
+      // 컴파일 결과를 한 값도 바꾸지 않는다 — 어느 때에 무엇으로 읽히는가는 경로 데이터만이 안다.
+      {
+        id: 'hazard-deep-hunter-path',
+        kind: 'area',
+        layer: HAZARD_LAYER,
+        tag: HUNTER_CURVE_TAG,
+        shape: { kind: 'circle', center: { x: 9, z: -2 }, radius: 10 },
       },
     ],
   },

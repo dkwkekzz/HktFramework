@@ -11,10 +11,11 @@ import {
   checkRegions,
   type CheckContract,
   type CheckEcology,
+  type CheckTime,
   type CheckRegion,
   type CheckStatus,
 } from '../check';
-import type { RegionDescription } from '../description';
+import type { CurveOp, RegionDescription } from '../description';
 import type { Connector } from '../graph';
 
 /** 이 시험이 쓰는 명사 — 기반은 이 이름들을 모른다. 계약으로 건넨다 */
@@ -55,6 +56,8 @@ interface World {
   };
   /** 주지 않으면 ⑩~㉒ 는 잴 것이 없다 */
   ecology?: CheckEcology;
+  /** 주지 않으면 ㉓~㉖ 은 잴 것이 없다 (C018) */
+  time?: CheckTime;
 }
 
 /** 두 방 A · B 가 문 하나로 이어진, 아무 데도 걸리지 않는 세계 */
@@ -88,6 +91,7 @@ const run = (world: World) =>
     graph: world.graph,
     contract: CONTRACT,
     ecology: world.ecology,
+    time: world.time,
   });
 
 /** 그 검사 하나 */
@@ -95,11 +99,12 @@ const itemOf = (world: World, id: string) =>
   run(world).items.find((item) => item.id === id)!;
 
 describe('checkRegions — 보고의 형', () => {
-  it('①~⑨ 다음에 ⑩~㉒ 가 번호 순으로 실리고, 번호 밖의 코드도 숨지 않는다', () => {
+  it('①~⑨ 다음에 ⑩~㉒ · ㉓~㉖ 가 번호 순으로 실리고, 번호 밖의 코드도 숨지 않는다', () => {
     const report = run(soundWorld());
     expect(report.items.map((item) => item.mark)).toEqual([
       '①', '②', '③', '④', '⑤', '⑥', '⑦', '⑧', '·', '⑨',
       '⑩', '⑪', '⑫', '⑬', '⑭', '⑮', '⑯', '⑰', '⑱', '⑲', '⑳', '㉑', '㉒',
+      '㉓', '㉔', '㉕', '㉖',
     ]);
     // 기계가 잡는 열쇠는 번호가 아니라 id 다 — 번호가 바뀌어도 이것은 그대로다
     expect(new Set(report.items.map((item) => item.id)).size).toBe(report.items.length);
@@ -141,6 +146,11 @@ describe('checkRegions — 보고의 형', () => {
       'ecology-carrier',
       'ecology-orphan',
       'ecology-isolation',
+      // ㉓~㉖ — 시간 쪽 계약을 주지 않았으므로 넷 전부 (C018)
+      'time-phase-refs',
+      'time-route-refs',
+      'time-season-summary',
+      'time-reachable',
     ]);
   });
 });
@@ -338,7 +348,8 @@ function tear(edit: (world: World, ecology: CheckEcology) => CheckEcology | void
 
 describe('checkRegions — ⑩~㉒ 온전한 계통', () => {
   it('열셋이 ①~⑨ 뒤에 번호 순으로 붙고 id 가 표 그대로다', () => {
-    const ids = run(ecologyWorld()).items.slice(10).map((item) => item.id);
+    // 뒤에 붙은 넷(㉓~㉖)은 이 시험의 것이 아니다 — 열셋의 차례만 본다
+    const ids = run(ecologyWorld()).items.slice(10, 23).map((item) => item.id);
     expect(ids).toEqual([
       'ecology-placement-source',
       'ecology-source-refs',
@@ -376,7 +387,7 @@ describe('checkRegions — ⑩~㉒ 온전한 계통', () => {
 
   it('계통을 주지 않으면 열셋이 전부 absent 이고 ok 는 그대로다', () => {
     const bare = run(soundWorld());
-    const thirteen = bare.items.slice(10);
+    const thirteen = bare.items.slice(10, 23);
     expect(thirteen).toHaveLength(13);
     expect(thirteen.every((item) => item.status === 'absent')).toBe(true);
     expect(bare.ok).toBe(true);
@@ -579,5 +590,205 @@ describe('checkRegions — ⑲ ⑳ 은 판정하지 않는다 (SPEC-008)', () =>
     expect(opportunity.answer).toContain('baseline 2');
     expect(report.ok).toBe(true);
     expect(report.counts.fail).toBe(0);
+  });
+});
+
+// ── 검사 넷 — 시간이 세계에 거는 것 (C018 ADDED) ─────────────────────
+//
+// 여기서도 기반은 **게임을 모른다** — 철의 이름도 낮밤의 이름도 경로 선의 layer 도 이 시험이
+// 지어 준다. 철이 'wet' · 'dry' 인 세계로 재는 이유가 그것이다: 이름이 매여 있으면 다른 세계를
+// 검사할 수 없다.
+
+/** 경로 선 하나 — 그 방의 presence layer 곡선 (points 가 배열이라 as const 를 쓰지 않는다) */
+const trail = (id: string, tag: string): CurveOp => ({
+  id,
+  kind: 'curve',
+  layer: 'trail',
+  tag,
+  points: [
+    { x: -5, z: 0 },
+    { x: 5, z: 0 },
+  ],
+  width: 2,
+});
+
+/** 덧씌움이 가리킬 area 하나 */
+const patch = (id: string, layer: string) =>
+  ({
+    id,
+    kind: 'area',
+    layer,
+    tag: id,
+    shape: { kind: 'circle', center: { x: 0, z: 0 }, radius: 3 },
+  }) as const;
+
+/** 철 둘 · 낮밤 둘 · 방 둘 — 넷이 다 잴 것을 가진 세계 */
+function timeWorld(): World {
+  const world = soundWorld();
+  world.regions[0] = withOps(world.regions[0]!, [
+    patch('deep-A', 'depth'),
+    patch('danger-A', 'danger'),
+    trail('trail-A', 'wanderer'),
+  ]);
+  world.regions[1] = withOps(world.regions[1]!, [trail('trail-B', 'wanderer')]);
+  world.time = {
+    seasons: ['wet', 'dry'],
+    dayPhases: ['sun', 'moon'],
+    presenceLayer: 'trail',
+    phases: [{ region: 'A', season: 'wet', depthAreaIds: ['deep-A'], hazardAreaIds: ['danger-A'] }],
+    routes: [
+      {
+        id: 'R1',
+        presence: 'wanderer',
+        nodes: [[{ region: 'A', curve: 'wanderer' }], [{ region: 'B', curve: 'wanderer' }]],
+        seasons: ['dry'],
+        dayPhase: 'moon',
+        everyNCycles: 2,
+        effectAreas: [{ region: 'A', areaId: 'danger-A' }],
+        leaves: ['S1'],
+      },
+    ],
+    seasonalConnectors: [{ id: 'AB', from: 'A', to: 'B', seasons: ['wet'] }],
+    seasonalSources: [{ id: 'S1', region: 'B', seasons: ['wet'] }],
+    sourceIds: ['S1'],
+  };
+  return world;
+}
+
+/** 시간 쪽 계약만 고쳐 쓴다 — 방과 그래프는 그대로 (tear 의 어법) */
+function bend(edit: (time: CheckTime) => CheckTime): World {
+  const world = timeWorld();
+  world.time = edit(world.time!);
+  return world;
+}
+
+describe('checkRegions — ㉓~㉖ 은 계약으로 받는다 (C018)', () => {
+  it('계약을 주지 않으면 넷 다 absent 다 — 통과가 아니다', () => {
+    const bare = run(soundWorld());
+    const four = bare.items.slice(-4);
+    expect(four.map((item) => item.id)).toEqual([
+      'time-phase-refs',
+      'time-route-refs',
+      'time-season-summary',
+      'time-reachable',
+    ]);
+    expect(four.map((item) => item.status)).toEqual(['absent', 'absent', 'absent', 'absent']);
+    // 잴 것이 없다고 세계가 실패하지는 않는다
+    expect(bare.ok).toBe(true);
+  });
+
+  it('밝힌 것이 다 있으면 ㉓ ㉔ ㉖ 은 pass · ㉕ 은 report 다', () => {
+    const report = run(timeWorld());
+    const status = (id: string) => report.items.find((item) => item.id === id)!.status;
+    expect({
+      phase: status('time-phase-refs'),
+      route: status('time-route-refs'),
+      summary: status('time-season-summary'),
+      reachable: status('time-reachable'),
+      ok: report.ok,
+    }).toEqual({ phase: 'pass', route: 'pass', summary: 'report', reachable: 'pass', ok: true });
+  });
+
+  it('㉓ 없는 area 를 가리킨 덧씌움과 모르는 철이 잡힌다', () => {
+    const item = itemOf(
+      bend((time) => ({
+        ...time,
+        phases: [
+          { region: 'A', season: 'fog', depthAreaIds: ['no-such'], hazardAreaIds: [] },
+          { region: 'Z', season: 'wet', depthAreaIds: [], hazardAreaIds: [] },
+        ],
+      })),
+      'time-phase-refs',
+    );
+    expect(item.status).toBe('fail');
+    expect(item.refs.map((ref) => ref.where)).toEqual(['A/fog', 'A/fog', 'Z/wet']);
+  });
+
+  it('㉓ 철 조건 원천의 방과 철도 본다', () => {
+    const item = itemOf(
+      bend((time) => ({ ...time, seasonalSources: [{ id: 'S1', region: 'Z', seasons: ['fog'] }] })),
+      'time-phase-refs',
+    );
+    expect(item.status).toBe('fail');
+    expect(item.refs.map((ref) => ref.detail)).toEqual([
+      'Z 은 아는 방이 아니다',
+      'fog 은 철 어휘에 없다',
+    ]);
+  });
+
+  it('㉔ 없는 방 · 없는 선 · 없는 철 · 없는 낮밤 · 0 바퀴 · 없는 원천이 다 잡힌다', () => {
+    const item = itemOf(
+      bend((time) => ({
+        ...time,
+        routes: [
+          {
+            ...time.routes[0]!,
+            nodes: [[{ region: 'Z', curve: 'wanderer' }], [{ region: 'B', curve: 'no-such' }]],
+            seasons: ['fog'],
+            dayPhase: 'dusk',
+            everyNCycles: 0,
+            effectAreas: [{ region: 'B', areaId: 'danger-A' }],
+            leaves: ['S9'],
+          },
+        ],
+      })),
+      'time-route-refs',
+    );
+    expect(item.status).toBe('fail');
+    expect(item.refs.map((ref) => ref.detail)).toEqual([
+      'Z 은 아는 방이 아니다',
+      'no-such 이 B 의 trail 곡선으로 없다',
+      'fog 은 철 어휘에 없다',
+      'dusk 은 낮밤 어휘에 없다',
+      '바퀴 조건 0 은 1 이상의 정수가 아니다',
+      '덧씌움의 danger-A 이 B 의 op 로 없다',
+      '남기는 S9 은 아는 원천이 아니다',
+    ]);
+  });
+
+  it('㉔ 경로가 없으면 absent 다 — 통과로 적지 않는다', () => {
+    expect(itemOf(bend((time) => ({ ...time, routes: [] })), 'time-route-refs').status).toBe(
+      'absent',
+    );
+  });
+
+  it('㉕ 는 판정하지 않는다 — 철마다 한 줄씩 적고 ok 를 거짓으로 만들지 않는다', () => {
+    const world = timeWorld();
+    const item = itemOf(world, 'time-season-summary');
+    expect(item.status).toBe('report');
+    expect(item.answer).toBe('철 2 · 철을 타는 방 1 · 철 조건 문 1 · 철 조건 원천 1 · 경로 1');
+    expect(item.refs).toEqual([
+      { where: 'wet', detail: '방 1 (A) · 문 1 (AB A→B) · 원천 1 (S1@B) · 경로 0' },
+      { where: 'dry', detail: '방 0 · 문 0 · 원천 0 · 경로 1 (R1)' },
+    ]);
+    expect(run(world).ok).toBe(true);
+  });
+
+  it('㉖ 그 철에 닫히는 문 때문에 갈 곳이 없어지면 잡힌다', () => {
+    // 두 문 다 마른 철에만 열린다 — 젖은 철에는 시작 방에 갇힌다
+    const item = itemOf(
+      bend((time) => ({
+        ...time,
+        seasonalConnectors: [
+          { id: 'AB', from: 'A', to: 'B', seasons: ['dry'] },
+          { id: 'BA', from: 'B', to: 'A', seasons: ['dry'] },
+        ],
+      })),
+      'time-reachable',
+    );
+    expect(item.status).toBe('fail');
+    expect(item.refs.map((ref) => ref.where)).toEqual(['wet']);
+    expect(item.refs[0]!.detail).toContain('닿는 방이 1 뿐이다');
+  });
+
+  it('㉖ 철에 닫히는 문이 하나도 없으면 absent 가 아니라 pass 다', () => {
+    const item = itemOf(bend((time) => ({ ...time, seasonalConnectors: [] })), 'time-reachable');
+    expect(item.status).toBe('pass');
+    expect(item.answer).toContain('철 조건 문 0');
+  });
+
+  it('넷도 두 번 돌리면 같다 — 읽기 전용 관찰이다', () => {
+    const world = timeWorld();
+    expect(JSON.stringify(run(world))).toBe(JSON.stringify(run(world)));
   });
 });

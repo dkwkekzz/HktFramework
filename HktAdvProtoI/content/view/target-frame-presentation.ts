@@ -7,7 +7,9 @@
 //
 // 자리의 차례는 Play §5.4 의 것 그대로다:
 //   어디인가(방 · 깊이) → 땅이 어떤가(표면 · 통행 · 사유) → 무엇이 걸렸나(area · 통로) →
-//   규칙이 있나(패턴 · 압력)
+//   규칙이 있나(패턴 · 압력) → 방이 지금 어떤가(소란 · 위상)
+// 마지막 하나가 C017 이 더한 것이다 — 앞의 넷이 "여기가 무엇인가" 라면 그것은 "이 방이
+// 지금 어떤가" 이고, 그래서 방의 값들 가장 뒤에 선다.
 // 존재의 차례는 같은 어법의 것이다 (C027 UNRESOLVED "존재 줄의 차례"):
 //   무엇인가(종류) → 어떤 상태인가(하는 일 · 생명 · 쓰러짐 · 걸린 것) → 무엇을 주는가(행동과 사유)
 // **없는 것은 줄 자체가 없다.** 규칙 없는 방의 압력도, 생명 없는 것의 생명도 0 으로
@@ -61,6 +63,18 @@ export const PLACE_ROW_LABELS: Readonly<Record<string, string>> = {
   // 규칙이 있나
   'place.pattern': '지금 길',
   'place.pressure': '압력',
+  // 방이 지금 어떤가 (C017) — 압력이 규칙을 품은 방만의 값인 것과 달리 **어느 방에나 있다**.
+  // 이름표가 '압력' 과 갈리는 것은 두 값이 나란히 선 두 값이기 때문이다 (spec R9):
+  // 걸음이 올리는 것은 압력이고 캐고 때리고 건너는 것이 올리는 것은 소란이다
+  'place.disturbance': '소란',
+  // 그 방의 지금 위상 — 값이 없는 줄이 아니라 잠듦/깨어남 한 마디가 값이다
+  'place.phase': '지금',
+  // 무엇이 지나는가 (C018) — 위의 둘과 갈리는 자리다. 소란도 위상도 **어느 방에나 늘**
+  // 있는 값이라 줄이 늘 서지만, 이 줄은 지나가고 있을 때만 선다 (지나는 것이 없으면
+  // 줄 자체가 없다 — 없는 것을 지어내지 않는다).
+  // 이름표가 무엇이 지나는지도 어디로 가는지도 묻지 않는 것은 세계가 그것을 싣지 않기
+  // 때문이다 (Time T8) — 관찰된 사실은 "지금 여기를 이것이 지난다" 하나뿐이다
+  'place.presence': '지나는 것',
 };
 
 /**
@@ -319,6 +333,9 @@ function coordText(point: GameViewPosition): string {
  * C028 CHANGED — 규칙을 품은 방의 줄에 **마지막 재배열이 얼마 전인지**가 함께 실린다
  * (spec R5 · SPEC-007). 세계 시각을 모르거나 재배열이 한 번도 없었던 방에서는 그 값이
  * 서지 않는다 — 0 으로도 "방금" 으로도 지어내지 않는다 (SPEC-007 경계).
+ *
+ * C017 CHANGED — 마지막에 **소란과 그 방의 지금 위상** 두 줄이 선다 (spec Observable).
+ * 압력 줄과 달리 방을 가리지 않는다 — 세계가 어느 방에나 싣는 값이기 때문이다.
  */
 export function placeRows(reading: PlaceReading, worldTime?: number): SceneFrameRow[] {
   const rows: SceneFrameRow[] = [];
@@ -386,6 +403,55 @@ export function placeRows(reading: PlaceReading, worldTime?: number): SceneFrame
       // 두 자리에서 다르게 적히면 둘 중 하나를 믿을 수 없게 된다
       ...row('place.pressure', `${Math.floor(rule.pressure)} / ${rule.pressureLimit}`),
       ...(ratio === undefined ? {} : { progress: ratio }),
+    });
+  }
+
+  // ⑤ 방이 지금 어떤가 (C017 ADDED — spec Observable Result ① · ③).
+  //
+  // **압력 줄과 같은 형식이다** (값 / 임계 + 막대). 소란은 미로의 압력을 일반형으로 세운
+  // 값이므로(spec R9 — 나란히 선 두 값), 같은 사실을 다른 형식으로 적으면 둘이 서로 다른
+  // 종류의 값으로 읽힌다. 다른 것은 서는 자리뿐이다: 압력은 규칙을 품은 방에만 서지만
+  // **소란은 모든 방에 선다** (기본형 ⑩ — 세계가 어느 방에나 싣는다).
+  //
+  // 위상은 그 아래 한 줄로 따로 선다. 값 뒤에 붙이지 않는 것은 그것이 같은 축의 값이
+  // 아니기 때문이다 — 임계를 **넘은 것**과 **비운 것**이 다르므로(R3 · 기본형 ②) 얼마나
+  // 찼는가만 보고는 지금 잠들었는지 깨어났는지 알 수 없다.
+  //
+  // **무엇이 이 방을 깨웠는지도, 임계까지 얼마 남았는지도 적지 않는다** — 세계가 싣지
+  // 않는다 (spec Observable "싣지 않는다"). 여럿이 있었다는 것은 값으로 읽는 세계 사실이다.
+  const disturbance = reading.disturbance;
+  if (disturbance) {
+    const ratio =
+      disturbance.threshold > 0
+        ? Math.min(1, Math.max(0, disturbance.value / disturbance.threshold))
+        : undefined;
+    rows.push({
+      ...row('place.disturbance', `${Math.floor(disturbance.value)} / ${disturbance.threshold}`),
+      ...(ratio === undefined ? {} : { progress: ratio }),
+    });
+    // 위상의 값 자체가 그 코드다 (기본형 ⑧) — 모르는 값은 코드 그대로 뜬다
+    rows.push(row('place.phase', codeText(disturbance.phase)));
+  }
+
+  // ⑥ 무엇이 지나는가 (C018 ADDED — spec Observable Result ①).
+  //
+  // **가장 뒤에 선다.** 앞의 것들은 그 방이 늘 지니고 있는 값(어디인가 · 땅 · 걸린 것 ·
+  // 규칙 · 소란)이고 이것만이 **지금 이 순간에만 있는 사실**이다 — 지나가면 이 줄이
+  // 사라지고 판은 방금 전과 한 줄도 다르지 않게 된다.
+  //
+  // 여럿이 지나면 **여럿 다 선다** — 한 줄에 이어 붙이지 않는다. 걸린 조건 여럿이 한
+  // 줄에 잇는 것과 갈리는 이유는 그쪽이 "이 자리가 무엇인가" 한 사실의 여러 얼굴인 반면
+  // 이쪽은 서로 무관한 **사건 여럿**이기 때문이다 (존재의 '할 수 있는 것' 이 행동마다
+  // 한 줄인 것과 같은 어법). id 도 그 어법 그대로 지나는 것의 것이다 — 하나가 지나가면
+  // 그 줄만 사라진다.
+  //
+  // **어느 선을 지나는지는 적지 않는다** (봉투에 함께 오는 curve). 그것은 땅에 그려지는
+  // 것이지 판이 읽어 줄 말이 아니다 — 뿌리 선의 자리를 판이 짚어 주지 않는 것과 같다.
+  // 언제 다시 오는지도 어디로 가는지도 몇 번째인지도 없다 (세계가 싣지 않는다).
+  for (const presence of reading.presences ?? []) {
+    rows.push({
+      ...row('place.presence', codeText(presence.presence)),
+      id: `place.presence:${presence.presence}`,
     });
   }
   return rows;

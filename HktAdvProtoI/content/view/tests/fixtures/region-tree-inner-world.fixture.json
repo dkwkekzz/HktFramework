@@ -3,7 +3,12 @@
   "scene": "TREE_INNER_WORLD",
   "region": {
     "id": "TREE_INNER_WORLD",
-    "hash": "<filled-by-test>"
+    "hash": "<filled-by-test>",
+    "disturbance": {
+      "value": 0,
+      "threshold": 300,
+      "phase": "dormant"
+    }
   },
   "observer": {
     "id": "observer-a",
@@ -80,5 +85,7 @@
     "season": "STILL",
     "dayIndex": 0,
     "seasonCycle": 0
-  }
+  },
+  "tracks": [],
+  "presences": []
 }

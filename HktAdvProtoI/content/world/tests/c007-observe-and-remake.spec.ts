@@ -310,7 +310,8 @@ describe('SPEC-009 — 데이터 하나가 새 땅을 만든다', () => {
     ]);
     // 세계가 관찰자에게 내보내는 값이 그 hash 다 — 서버와 클라이언트가 같은 방을 본다
     const at = pointsOf(space, ANCHOR_LAYER)[0]!.position;
-    expect(standing(FOREST_EDGE, at).observe().region).toEqual({
+    // C017 CHANGED — region 에 소란이 함께 실리므로 이 항이 재는 두 값만 짚는다
+    expect(standing(FOREST_EDGE, at).observe().region).toMatchObject({
       id: FOREST_EDGE,
       hash: descriptionHash(space),
     });
@@ -525,11 +526,12 @@ describe('회귀', () => {
     expect(longestArray).toBeLessThan(compiled(FOREST_EDGE).world.height.length);
   });
 
-  it('R-005 관찰 계약이 그대로다 — 봉투의 region 은 { id, hash } 둘뿐이고 STATE_VERSION 도 그대로다', () => {
+  it('R-005 관찰 계약이 그대로다 — 봉투의 region 에 땅이 없고 STATE_VERSION 도 팩의 판과 같다', () => {
     const w = driveWorld(solo);
-    // 백왕령은 규칙을 품지 않은 방이라 region.state 가 실리지 않는다 (C008 SPEC-007 경계) —
-    // C007 이 못박은 두 항목은 그대로다
-    expect(Object.keys(w.observe().region).sort()).toEqual(['hash', 'id']);
+    // 백왕령은 규칙을 품지 않은 방이라 region.state 가 실리지 않는다 (C008 SPEC-007 경계).
+    // C017 CHANGED — 소란은 그것과 갈려 **모든 방에** 실리므로 disturbance 하나가 는다
+    // (C017 spec 기본형 ⑩). C007 이 못박은 것은 그대로다: 여기에 땅은 한 조각도 없다
+    expect(Object.keys(w.observe().region).sort()).toEqual(['disturbance', 'hash', 'id']);
     // C007 은 STATE_VERSION 을 손대지 않았다. C008 이 Region State 를 저장하며 올렸으므로
     // (spec R5) 글자를 재는 것은 더 이상 C007 의 주장이 아니다 —
     // 남은 것은 "세계가 찍는 판이 팩의 판과 같다" 다

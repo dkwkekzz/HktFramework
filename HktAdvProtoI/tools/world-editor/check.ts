@@ -1,6 +1,6 @@
 // World Check — 검사 아홉을 독립 명령으로, 결과는 **기계가 읽는 JSON** (T1 ADDED).
 //
-//   npm run world:check              검사 스물둘을 돌리고 JSON 한 덩이를 낸다. fail 이 하나라도 있으면 종료 코드 1
+//   npm run world:check              검사 스물여섯을 돌리고 JSON 한 덩이를 낸다. fail 이 하나라도 있으면 종료 코드 1
 //   npm run world:check -- --pretty  들여쓴 JSON (사람이 눈으로 볼 때)
 //
 // `world:observe --report` 안에만 있던 아홉을 뽑아 왔다. 뽑아 온 이유는 셋이다 —
@@ -13,12 +13,15 @@
 // 세계를 바꾸지 않는 읽기 전용 관찰이다 — 파일을 하나도 쓰지 않는다.
 
 import { resolve } from 'node:path';
+import * as RegionsContent from '../../content/regions';
 import {
   ANCHOR_LAYER,
   CITY_TAG,
   COMPILE_RULES,
   CONDITION_PREFIX,
+  CONNECTOR_ACTIVATIONS,
   MATERIAL_SEEDS,
+  PRESENCE_LAYER,
   REGION_GRAPH,
   REGION_SPECS,
   RESOURCE_FLOWS,
@@ -26,6 +29,7 @@ import {
   SETTLEMENT_LAYER,
   START_REGION_ID,
   TRACE_LAYER,
+  type SeasonId,
 } from '../../content/regions';
 import {
   checkRegions,
@@ -34,6 +38,9 @@ import {
   type CheckEcologySource,
   type CheckRegion,
   type CheckReport,
+  type CheckTime,
+  type CheckTimePhase,
+  type CheckTimeRoute,
 } from '../../engine/world-authoring/check';
 import { compileRegion } from '../../engine/world-authoring/compile';
 
@@ -109,6 +116,134 @@ export const WORLD_CHECK_ECOLOGY: CheckEcology = {
   })),
 };
 
+// ── 시간 쪽 계약 (C018 ADDED — 검사 ㉓~㉖ 이 이것을 읽는다) ──────────
+//
+// 계통(WORLD_CHECK_ECOLOGY)과 같은 어법이다 — 여기서 판정하는 것이 하나도 없고
+// content/regions 의 데이터를 형만 바꿔 옮긴다. 다른 것은 하나다: **철과 낮밤의 어휘**를
+// 함께 건넨다. 기반은 이 세계에 철이 넷이라는 것도 그 이름도 알지 못하기 때문이다
+// (L2-World-Time 원칙 T1 · T4).
+
+/**
+ * 이 세계의 철 어휘 — `SeasonId` 의 값 목록.
+ *
+ * 손으로 적는 이유는 하나다: `phases.ts` 의 `SeasonId` 는 **형**이라 실행 때 목록이 없다.
+ * 그래서 여기가 그 유일한 실행 값이고, `SeasonId[]` 로 못 박아 두어 철이 하나 늘면 이 줄이
+ * 컴파일에서 걸린다 — 어휘가 두 곳으로 갈라지지 않게 하는 자리다.
+ *
+ * `observe --at` 도 이것을 읽는다 — 도구 둘이 철의 목록을 따로 들면 하나가 늦는 날이 온다.
+ */
+export const SEASON_IDS: readonly SeasonId[] = ['STILL', 'SEEP', 'LONG_NIGHT', 'TURN'];
+
+/**
+ * 이 세계의 낮밤 어휘 — 원본은 관찰 계약(content/protocol 의 WorldClockView.dayPhase)이다.
+ * 이 도구는 `content/regions` 만 읽으므로(그 폴더가 world·view 와 갈라져 있는 규율 그대로)
+ * 두 글자를 여기 적는다. hazard · phenomenon layer 이름을 이 파일이 들고 있는 것과 같은 어법.
+ */
+const DAY_PHASE_IDS = ['DAY', 'NIGHT'] as const;
+
+/**
+ * 컨텐츠가 밝힌 경로 하나의 형 — W 레인이 `content/regions` 에 두는 `PRESENCE_ROUTES` 의 원소.
+ *
+ * 이 도구가 그 형을 **되적는** 이유: 경로 데이터는 세계 쪽에서 서는 것이고, 이 도구는
+ * 그것이 아직 없어도 스물여섯을 다 돌려야 한다. 그래서 이름째로 골라 읽고(아래
+ * `presenceRoutes`) 읽은 것을 기반의 `CheckTimeRoute` 로 옮긴다.
+ *
+ * 골라 읽는 대가로 **형이 어긋나도 컴파일이 잡지 못한다** — 그때는 검사 ㉔ 가 끊긴 참조로
+ * 드러낸다 (마디의 방이 없다 · 그 선이 없다). 잡히지 않고 조용히 빠지는 자리는 없다.
+ */
+interface ContentPresenceRoute {
+  id: string;
+  presence: string;
+  /** 마디 차례 — 마디 하나는 후보 { 방 · 그 방에서 지나는 선의 tag } 들 */
+  nodes: readonly (readonly { region: string; curve: string }[])[];
+  schedule: { seasons?: readonly SeasonId[]; dayPhase?: string; everyNCycles: number };
+  effectWhilePassing?: {
+    hazardExtend?: readonly { areaId: string; hazard: string }[];
+    disturbancePerSecond?: number;
+  };
+  leavesBehind?: readonly string[];
+}
+
+/**
+ * 세계에 선 경로들 — 아직 없으면 빈 배열이다.
+ *
+ * `import { PRESENCE_ROUTES }` 로 적으면 그 이름이 서기 전까지 이 도구가 통째로 깨진다.
+ * 그래서 문(門)을 통째로 받아 이름 하나를 골라 읽는다 — 없으면 검사 ㉔ 가 `absent` 로 답하고,
+ * 그것은 통과가 아니다 (기반이 그렇게 적는다).
+ */
+const presenceRoutes: readonly ContentPresenceRoute[] =
+  (RegionsContent as { PRESENCE_ROUTES?: readonly ContentPresenceRoute[] }).PRESENCE_ROUTES ?? [];
+
+/**
+ * 지나는 동안 거는 덧씌움이 **어느 방의 것인가**.
+ *
+ * 컨텐츠의 `hazardExtend` 는 area op id 만 밝힌다 — 그 자락이 어느 방에 있는지는 경로가
+ * 지나는 방들 가운데 **그 op 를 실제로 가진 방**이다. 하나도 없으면 첫 마디의 첫 후보로
+ * 적는다: 그래야 끊긴 참조가 ㉔ 에서 방 이름과 함께 드러난다 (조용히 빠지지 않는다).
+ */
+function areaRegionOf(route: ContentPresenceRoute, areaId: string): string {
+  for (const node of route.nodes) {
+    for (const candidate of node) {
+      const spec = REGION_SPECS.find((it) => it.id === candidate.region);
+      if (spec?.space.ops.some((op) => op.id === areaId)) return candidate.region;
+    }
+  }
+  return route.nodes[0]?.[0]?.region ?? '';
+}
+
+/** 이 세계의 시간 쪽 계약 — 철별 덧씌움 · 경로 · 철 조건 문 · 철 조건 원천 */
+export const WORLD_CHECK_TIME: CheckTime = {
+  seasons: SEASON_IDS,
+  dayPhases: DAY_PHASE_IDS,
+  presenceLayer: PRESENCE_LAYER,
+  // 방 차례 · 철 어휘 차례로 편다 — Record 의 열쇠 순회에 기대지 않는다 (두 번 돌리면 같다)
+  phases: REGION_SPECS.flatMap((spec) =>
+    SEASON_IDS.flatMap((season): CheckTimePhase[] => {
+      const phase = spec.phases?.seasons?.[season];
+      if (!phase) return [];
+      return [
+        {
+          region: spec.id,
+          season,
+          depthAreaIds: (phase.depthOverlay ?? []).map((overlay) => overlay.areaId),
+          hazardAreaIds: (phase.hazardExtend ?? []).map((overlay) => overlay.areaId),
+        },
+      ];
+    }),
+  ),
+  routes: presenceRoutes.map(
+    (route): CheckTimeRoute => ({
+      id: route.id,
+      presence: route.presence,
+      nodes: route.nodes,
+      seasons: route.schedule.seasons ?? [],
+      dayPhase: route.schedule.dayPhase,
+      everyNCycles: route.schedule.everyNCycles,
+      effectAreas: (route.effectWhilePassing?.hazardExtend ?? []).map((overlay) => ({
+        region: areaRegionOf(route, overlay.areaId),
+        areaId: overlay.areaId,
+      })),
+      leaves: route.leavesBehind ?? [],
+    }),
+  ),
+  // 철 조건을 밝힌 문 — 활성 표에 seasons 가 있는 것만. 차례는 connectors 배열 순서다
+  seasonalConnectors: REGION_GRAPH.connectors.flatMap((connector) => {
+    const seasons = CONNECTOR_ACTIVATIONS[connector.id]?.seasons;
+    if (!seasons) return [];
+    return [{ id: connector.id, from: connector.from.region, to: connector.to.region, seasons }];
+  }),
+  // 철 조건을 밝힌 원천 — occurrence 를 적은 것만
+  seasonalSources: REGION_SPECS.flatMap((spec) =>
+    (spec.resourceEcology?.sources ?? []).flatMap((source) =>
+      source.occurrence ? [{ id: source.id, region: spec.id, seasons: source.occurrence.seasons }] : [],
+    ),
+  ),
+  // 세계에 있는 원천 전부 — ㉔ 가 "남기는 것" 이 아는 원천인지 여기서 본다
+  sourceIds: REGION_SPECS.flatMap((spec) =>
+    (spec.resourceEcology?.sources ?? []).map((source) => source.id),
+  ),
+};
+
 /**
  * 컨텐츠의 RegionSpec → 검사가 보는 방. `coreRules` 는 이 세계의 세는 법이다 —
  * 지금 한 방은 규칙을 하나까지 품는다 (RegionSpec.rule 하나). 그 형이 늘면 이 줄이 늘어난다.
@@ -120,7 +255,7 @@ export const WORLD_CHECK_REGIONS: readonly CheckRegion[] = REGION_SPECS.map((spe
   coreRules: spec.rule ? 1 : 0,
 }));
 
-/** 이 세계의 검사 스물둘을 돌린다 — 읽기 전용 (C014 CHANGED — 계통 열셋이 이어 붙는다) */
+/** 이 세계의 검사 스물여섯을 돌린다 — 읽기 전용 (C018 CHANGED — 시간 넷이 이어 붙는다) */
 export function runWorldCheck(): CheckReport {
   return checkRegions({
     regions: WORLD_CHECK_REGIONS,
@@ -128,6 +263,7 @@ export function runWorldCheck(): CheckReport {
     contract: WORLD_CHECK_CONTRACT,
     compile: (region) => compileRegion(region.space, COMPILE_RULES).world,
     ecology: WORLD_CHECK_ECOLOGY,
+    time: WORLD_CHECK_TIME,
   });
 }
 
@@ -140,7 +276,7 @@ function main(argv: readonly string[]): number {
   if (unknown.length > 0) {
     process.stderr.write(
       [
-        '  world:check — 검사 스물둘을 돌리고 JSON 을 낸다',
+        '  world:check — 검사 스물여섯을 돌리고 JSON 을 낸다',
         `    모르는 인자: ${unknown.join(' ')}`,
         '    쓸 수 있는 것: --pretty',
         '',

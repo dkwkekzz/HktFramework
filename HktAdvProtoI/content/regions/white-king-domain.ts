@@ -16,6 +16,8 @@
 
 import type { RegionSpec } from './spec';
 import { ANCHOR_LAYER } from './spec';
+import { WHALE_CURVE_TAG } from './presence-routes';
+import { PRESENCE_LAYER } from './resource-ecology';
 import {
   CITY_TAG,
   CONDITION_RIDGE,
@@ -200,6 +202,31 @@ export const WHITE_KING_DOMAIN_SPEC: RegionSpec = {
         layer: SETTLEMENT_LAYER,
         tag: CITY_TAG,
         shape: { kind: 'circle', center: { x: -9, z: 0 }, radius: 4 },
+      },
+      // ── C018 ADDED — 하늘을 지나가는 것의 선 ────────────────────────────────
+      //
+      // 그늘이 이 방을 남서에서 동으로 훑고 지나가는 자리다. **높이를 건드리지 않는
+      // 표시선**이다 (profile 없음 · 뿌리 곡선이 세운 그 형 그대로) — 땅도 컴파일 결과도
+      // hash 도 한 값 바뀌지 않는다 (T6). 폭 3 은 뿌리(1.5)의 두 배다: 하늘의 것은 굵게
+      // 읽히되 걸음(1.6m)이 그 위를 그대로 지난다.
+      //
+      // 점 넷의 근거 — 컴파일해 격자를 훑어 넷 다 통행 가능한 평지임을 확인했고(반경 2 의
+      // 둘레까지 전부 평지), 숲으로 가는 문 FOREST_PATH(0, 18) 에서 1.6m 걸음 · 16방위
+      // BFS 로 넷 다 걸어 닿는다 (27 · 19 · 14 · 16 걸음). 넷 다 **강 남쪽**이다 —
+      // 강(중심선 z 7~9 · 폭 8)도 능선(중심 (-13, 17))도 지나지 않으므로 지나가는 것이
+      // 물 위나 절벽 위에 그려지지 않는다.
+      {
+        id: 'whale-curve',
+        kind: 'curve',
+        layer: PRESENCE_LAYER,
+        tag: WHALE_CURVE_TAG,
+        points: [
+          { x: -16, z: -14 },
+          { x: -6, z: -8 },
+          { x: 4, z: -4 },
+          { x: 16, z: -2 },
+        ],
+        width: 3,
       },
     ],
   },
