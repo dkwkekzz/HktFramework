@@ -16,10 +16,18 @@
       "unanswered": "떨어지는 자리가 하나 있고 그것은 요청 없이 일어난다는 것까지가 데이터다. 이 세계에 hazard layer 가 아직 놓이지 않았다 — 위험의 갈래는 Concept §3.1 이 어휘를 주었으나 컨텐츠 층 주입이 남았다"
     },
     "worth": {
-      "said": {
-        "unanswered": "재료 계통이 닿지 않는 방이다. 그 대신 무엇이 있는지는 적히지 않았다"
-      },
-      "sources": []
+      "said": "거목의 속에서 열이 모여 굳은 벽의 잉걸이 열을 저장하는 결정을 낸다 — 사슬의 가장 위이고, 한 번 캐면 그 자리가 식는다.",
+      "sources": [
+        {
+          "id": "CORE_EMBER",
+          "material": "HEAT_CRYSTAL",
+          "heldBy": "plant",
+          "worldCause": "FOREST_CHAIN",
+          "recoveryCause": "tree-uptake",
+          "form": "wall-ember",
+          "role": "risk"
+        }
+      ]
     },
     "discovery": "들어온 문과 떨어지는 자리가 가장 먼 두 변이라는 것 — 그래서 안이 넓다는 것을 걸어서 알게 된다.",
     "opening": "심장 호수로 떨어진다 — 요청하지 않아도 일어나는 전이다.",

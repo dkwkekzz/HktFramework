@@ -35,11 +35,11 @@ import type { EntityView, GameViewSnapshot, InteractionView } from '../../protoc
 import {
   ANCHOR_LAYER,
   CLOSED_CONNECTORS,
-  CONNECTOR_ACTIVATIONS,
   FRONTIER_REGIONS,
   REGION_GRAPH,
   REGION_SPECS,
   START_REGION_ID,
+  lockOfConnector,
   regionSpec,
 } from '../../regions';
 import { codeText } from '../../view/code-text';
@@ -177,9 +177,11 @@ describe('SPEC-002 — 열린 문의 표식과 대답', () => {
       // Then 잠긴 표식이 있다면 그것은 **그 방의 State 가 닫은 문**뿐이다 (C009 ADDED).
       // C009 까지 이 목록은 언제나 비어 있었다 — 이제 미로에서 심장 쪽 문 하나가 여기 든다.
       // 정적으로 잠긴 문이 하나도 없다는 C004 의 주장은 위 한 줄이 그대로 지킨다.
+      // C029 CHANGED — 조건을 가진 문을 **Lock 으로** 고른다 (활성 표가 사라졌다). 재는 사실은
+      // 한 값도 다르지 않다: 잠긴 표식은 전부 조건을 가진 문의 것이다.
       const lockedFromData = exits(v)
         .filter((e) => e.state === 'locked')
-        .filter((e) => CONNECTOR_ACTIVATIONS[e.id] === undefined);
+        .filter((e) => lockOfConnector(e.id) === undefined);
       expect({ region: spec.id, locked: lockedFromData }).toEqual({
         region: spec.id,
         locked: [],

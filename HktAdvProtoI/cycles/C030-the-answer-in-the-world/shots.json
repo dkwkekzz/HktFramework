@@ -1,0 +1,101 @@
+{
+  "out": "shots",
+  "viewport": [900, 660],
+  "_": "온기의 사다리는 **같은 방에서 자리만 갈아** 견줘야 읽힌다 — 촬영 하네스의 자판 걸음이 몸을 옮기지 못하므로(C003 부터의 부채) 문에서 원천까지 걸어가지 않고 그 선 위의 세 자리에 나란히 세운다. 판의 글자는 expect 가 훑지 못하므로(C019 부채) 전부 그림으로 남긴다.",
+  "runs": [
+    {
+      "_": "X-① 들어온 문 곁 — 온기가 가장 옅다",
+      "region": "TREE_INNER_WORLD",
+      "spawn": "0,-36",
+      "npcs": "none",
+      "clock": "STILL:DAY",
+      "steps": [
+        { "wait": "세계 시간", "tries": 60 },
+        { "sleep": 8000, "note": "첫 run 은 vite 가 데워지지 않아 프레임이 느리다" },
+        { "shot": "X-01-warmth-near-door", "note": "X-① 거목 안, 들어온 문 곁(0,-36) — 바닥의 호박빛이 가장 옅다. X-02 · X-03 과 나란히 본다" }
+      ]
+    },
+    {
+      "_": "X-② 절반쯤 — 한 단계 짙다",
+      "region": "TREE_INNER_WORLD",
+      "spawn": "-20,4",
+      "npcs": "none",
+      "clock": "STILL:DAY",
+      "steps": [
+        { "wait": "세계 시간", "tries": 60 },
+        { "sleep": 3000 },
+        { "shot": "X-02-warmth-halfway", "note": "X-② 절반쯤(-20,4) — 같은 방인데 한 단계 짙다. 흔적이 방향이 되는 자리다" }
+      ]
+    },
+    {
+      "_": "X-③ 원천 둘레 — 가장 짙고 그 자리에 잉걸이 있다",
+      "region": "TREE_INNER_WORLD",
+      "spawn": "-31,19",
+      "npcs": "none",
+      "clock": "STILL:DAY",
+      "steps": [
+        { "wait": "세계 시간", "tries": 60 },
+        { "sleep": 3000 },
+        { "shot": "X-03-warmth-at-source", "note": "X-③ 서쪽 벽의 자리(-31,19) — 가장 짙고 벽에 잉걸이 서 있다. 재료 아이콘도 미니맵도 화살표도 없다 — 흔적만으로 닿았다" }
+      ]
+    },
+    {
+      "_": "X-④ 그것을 지목 — 판이 이름과 성질을 말한다",
+      "region": "TREE_INNER_WORLD",
+      "spawn": "-28,20",
+      "npcs": "none",
+      "clock": "STILL:DAY",
+      "steps": [
+        { "wait": "세계 시간", "tries": 60 },
+        { "sleep": 3000 },
+        { "click": [0.217, 0.515], "alt": true },
+        { "sleep": 1500 },
+        { "shot": "X-04-ember-properties", "note": "X-④ 잉걸을 지목 — 판에 「재료 열을 저장하는 결정」과 「성질 열을 담는다」가 선다. 쓰임(체온 유지)은 어디에도 없다" }
+      ]
+    },
+    {
+      "_": "X-⑤ 캔 뒤 — 자리가 식었다",
+      "region": "TREE_INNER_WORLD",
+      "spawn": "-28,20",
+      "npcs": "none",
+      "clock": "STILL:DAY",
+      "sourcePhase": "CORE_EMBER:depleted",
+      "steps": [
+        { "wait": "세계 시간", "tries": 60 },
+        { "sleep": 3000 },
+        { "click": [0.217, 0.515], "alt": true },
+        { "sleep": 1500 },
+        { "shot": "X-05-ember-cooled", "note": "X-⑤ 다 캔 뒤 — 그림이 파이고 둘레의 온기가 한 단계 옅어졌으며 판에 「자리가 식었다」가 선다" }
+      ]
+    },
+    {
+      "_": "X-⑥ 거목균이 고갈이면 되돌아옴이 멎는다 (사슬이 방 셋을 건넌다)",
+      "region": "TREE_INNER_WORLD",
+      "spawn": "-28,20",
+      "npcs": "none",
+      "clock": "STILL:DAY",
+      "sourcePhase": "CORE_EMBER:depleted,NEST_FUNGUS:depleted",
+      "steps": [
+        { "wait": "세계 시간", "tries": 60 },
+        { "sleep": 3000 },
+        { "click": [0.217, 0.515], "alt": true },
+        { "sleep": 1500 },
+        { "shot": "X-06-recovery-stalled", "note": "X-⑥ 포식수 둥지의 거목균을 먼저 캐 두면 이 자리의 되돌아옴이 멎는다 — 판에 「되돌아옴이 멎었다」가 함께 선다. 무엇에 매달렸는지는 세계가 말하지 않는다" }
+      ]
+    },
+    {
+      "_": "X-⑦ 결정을 들고 문 앞 — 문은 그대로다",
+      "region": "FROST_CANYON",
+      "spawn": "0,14",
+      "npcs": "none",
+      "clock": "LONG_NIGHT",
+      "steps": [
+        { "wait": "세계 시간", "tries": 60 },
+        { "sleep": 3000 },
+        { "click": [0.5, 0.71], "alt": true },
+        { "sleep": 1500 },
+        { "shot": "X-07-door-unchanged", "note": "X-⑦ 빙결 심층의 문 — 답이 세계에 선 뒤에도 판은 「체열이 감지된다」 그대로이고 문의 열림도 그대로다. 여는 것은 몸이고 그것은 다음 층이다" }
+      ]
+    }
+  ]
+}

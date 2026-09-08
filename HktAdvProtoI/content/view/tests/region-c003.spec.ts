@@ -99,11 +99,16 @@ describe('② 심부 — depth 태그가 넷이 된다', () => {
   it('큰 방에 서면 바닥이 deep 색으로 칠해지고, 이름은 진입 제목이 말한다', () => {
     const plan = resolvePresentation(inner);
 
-    expect(plan.zones).toHaveLength(1);
-    const zone = plan.zones[0]!;
-    expect(zone.id).toBe('region:TREE_INNER_WORLD');
-    expect(zone.fill?.color).toBe((DEPTH_PRESENTATIONS as Record<string, { fill: number }>).deep!.fill);
-    expect(zone.label).toBeUndefined();
+    // C030 CHANGED — 이 방에 흔적의 자락이 얹혔다 (SPEC-002). 자락은 바닥 **위에** 그려지는
+    // 것이므로 방의 바닥 zone 은 그대로 하나이고, 여기서 재는 것도 그 하나다 —
+    // "zone 이 하나뿐이다" 가 아니라 "방의 바닥이 deep 색이고 이름표가 없다" 가 이 줄의 뜻이다
+    const zone = plan.zones.find((z) => z.id === 'region:TREE_INNER_WORLD');
+    expect(zone).toBeDefined();
+    expect(plan.zones.filter((z) => z.id === 'region:TREE_INNER_WORLD')).toHaveLength(1);
+    expect(zone!.fill?.color).toBe(
+      (DEPTH_PRESENTATIONS as Record<string, { fill: number }>).deep!.fill,
+    );
+    expect(zone!.label).toBeUndefined();
     expect(regionEntryTitle(inner, 'RED_EYE_TREE')).toContain('거목 내부 세계');
   });
 

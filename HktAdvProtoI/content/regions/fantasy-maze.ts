@@ -393,4 +393,35 @@ export const FANTASY_MAZE_SPEC: RegionSpec = {
    * 돌아온 자리는 곧 나갈 수 있는 자리이기도 하다.
    */
   emergencyAnchor: 'ANCIENT_GATE',
+  /**
+   * 이 방이 **묻는 것** — 심장으로 드는 문 하나 (C029 ADDED · Access §9.1).
+   *
+   * **옮겨 온 것이고 한 값도 새로 정하지 않았다** — C009 가 활성 조건 표(graph.ts)에 적어 둔
+   * 그 조건이 형만 바뀌어 여기 온다. 문이 열리는 배열도 잠긴 사유도 그대로다: 이 방의 지금
+   * 패턴이 P2 일 때만 열린다 (Play §5.6 "P2 에서만 heartAccess = OPEN" · 확정 2).
+   *
+   * 문 이름을 **글자로** 적는다 — 이 파일이 graph.ts 를 부르면 graph 가 이 방을 부르고 있으므로
+   * 순환이 난다 (phases.outflow 의 이음 이름 · PRESENCE_ROUTES 가 세운 그 어법 그대로).
+   * 끊긴 참조는 오류가 아니라 아무 일도 하지 않는 것이므로, 그 글자가 실제 문인지는 검사 ㉞ 와
+   * 시나리오가 지킨다.
+   *
+   * 흔적은 **위치를 유지하는 식물 넷**이다 (Access §9.1) — 재배열이 건드리지 않는 유일한
+   * 기준점이고, 그것이 이 방의 요구(배열)를 알아낼 자리다. 넷 다 몸에 아무것도 걸지 않는다:
+   * 보이는 것은 자락이 아니라 그 자리에 선 식물 자체다 (showsOnBody 를 밝히지 않았다).
+   *
+   * 현상의 코드(reason)를 밝히지 않는다 — 이 문의 표식은 C009 · C020 때와 한 값도 달라지지
+   * 않는다 (spec R3 ELSE). 중요(important)도 밝히지 않는다: 그것을 세게 보는 것은 답의 종류를
+   * 세는 검사이고, 이 문이 묻는 것은 성질이 아니라 이 방 자신의 배열이다.
+   */
+  access: {
+    locks: [
+      {
+        id: 'MAZE_HEART_GATE',
+        at: { kind: 'connector', ref: 'MAZE_HEART_GATE' },
+        strength: 'hard',
+        requires: [{ state: { region: FANTASY_MAZE, patterns: [MAZE_PATTERN_P2] } }],
+        traces: [{ op: 'clue-a' }, { op: 'clue-b' }, { op: 'clue-c' }, { op: 'clue-d' }],
+      },
+    ],
+  },
 };

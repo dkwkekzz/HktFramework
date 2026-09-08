@@ -103,13 +103,14 @@ const itemOf = (world: World, id: string) =>
   run(world).items.find((item) => item.id === id)!;
 
 describe('checkRegions — 보고의 형', () => {
-  it('①~⑨ 다음에 ⑩~㉒ · ㉓~㉖ · ㉗~㉝ 가 번호 순으로 실리고, 번호 밖의 코드도 숨지 않는다', () => {
+  it('①~⑨ 다음에 ⑩~㉒ · ㉓~㉖ · ㉗~㉝ · ㉞~㊷ 이 번호 순으로 실리고, 번호 밖의 코드도 숨지 않는다', () => {
     const report = run(soundWorld());
     expect(report.items.map((item) => item.mark)).toEqual([
       '①', '②', '③', '④', '⑤', '⑥', '⑦', '⑧', '·', '⑨',
       '⑩', '⑪', '⑫', '⑬', '⑭', '⑮', '⑯', '⑰', '⑱', '⑲', '⑳', '㉑', '㉒',
       '㉓', '㉔', '㉕', '㉖',
       '㉗', '㉘', '㉙', '㉚', '㉛', '㉜', '㉝',
+      '㉞', '㉟', '㊱', '㊲', '㊳', '㊴', '㊵', '㊶', '㊷',
     ]);
     // 기계가 잡는 열쇠는 번호가 아니라 id 다 — 번호가 바뀌어도 이것은 그대로다
     expect(new Set(report.items.map((item) => item.id)).size).toBe(report.items.length);
@@ -164,6 +165,16 @@ describe('checkRegions — 보고의 형', () => {
       'life-recovery-owner',
       'life-link-refs',
       'life-link-spread',
+      // ㉞~㊷ — 접근 쪽 계약을 주지 않았으므로 아홉 전부 (C029)
+      'access-refs',
+      'access-answer',
+      'access-property-spread',
+      'access-answer-distance',
+      'access-orphan-property',
+      'access-answer-kinds',
+      'access-answer-variety',
+      'access-trace',
+      'access-behind-lock',
     ]);
   });
 });
@@ -697,8 +708,11 @@ function bend(edit: (time: CheckTime) => CheckTime): World {
 describe('checkRegions — ㉓~㉖ 은 계약으로 받는다 (C018)', () => {
   it('계약을 주지 않으면 넷 다 absent 다 — 통과가 아니다', () => {
     const bare = run(soundWorld());
-    // 뒤에 붙은 일곱(㉗~㉝)은 이 시험의 것이 아니다 — 넷의 자리만 본다
-    const four = bare.items.slice(23, 27);
+    // 뒤에 일곱(㉗~㉝)과 아홉(㉞~㊷)이 더 붙었다 — 이 시험이 재는 것은 "맨 뒤" 가 아니라
+    // **이 넷이 이 차례로 붙어 있는가** 이므로 자리를 번호가 아니라 id 로 찾는다
+    const from = bare.items.findIndex((item) => item.id === 'time-phase-refs');
+    expect(from).toBeGreaterThanOrEqual(0);
+    const four = bare.items.slice(from, from + 4);
     expect(four.map((item) => item.id)).toEqual([
       'time-phase-refs',
       'time-route-refs',
@@ -891,7 +905,11 @@ const formationOf = (over: Partial<CheckLife['formations'][number]>) =>
 describe('checkRegions — ㉗~㉝ 은 계약으로 받는다 (C022)', () => {
   it('계통을 주지 않으면 일곱이 전부 absent 다 — 통과가 아니다', () => {
     const bare = run(soundWorld());
-    const seven = bare.items.slice(27);
+    // 뒤에 아홉(㉞~㊷)이 더 붙었다 — "맨 뒤" 가 아니라 **이 일곱이 이 차례로 붙어 있는가** 를
+    // 재는 것이므로 자리를 번호가 아니라 id 로 찾는다 (검사가 늘 때마다 낡지 않게 하는 자리)
+    const from = bare.items.findIndex((item) => item.id === 'life-formation-refs');
+    expect(from).toBeGreaterThanOrEqual(0);
+    const seven = bare.items.slice(from, from + 7);
     expect(seven.map((item) => item.id)).toEqual([
       'life-formation-refs',
       'life-world-cause',

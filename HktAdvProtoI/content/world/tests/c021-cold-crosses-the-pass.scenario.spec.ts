@@ -50,8 +50,6 @@ import {
   CONDITION_RIDGE,
   CONDITION_RIVER,
   CONDITION_TREE,
-  CONNECTOR_ACTIVATIONS,
-  CONNECTOR_REQUIREMENTS,
   FOREST_DEEP,
   FOREST_EDGE,
   FROST_CANYON,
@@ -64,6 +62,7 @@ import {
   RESOURCE_LAYER,
   SETTLEMENT_LAYER,
   WHITE_KING_DOMAIN,
+  lockOfConnector,
   regionSpec,
   type ResourceSourceSpec,
   type SeasonId,
@@ -157,8 +156,12 @@ const BASELINE: Readonly<Record<string, RoomBaseline>> = {
     surface: { steep: 810, slope: 164, frost: 697, flat: 10 },
     traversable: 871,
   },
+  // C029 CHANGED — 이 방의 hash 하나가 바뀐다 (e5d9cd3d → ba0afb9e). 그 Cycle 이 **문 앞의
+  // 자락** op 하나를 이 방 Description 에 더했기 때문이고, 땅은 한 값도 달라지지 않는다 —
+  // 표면 넷도 걸을 수 있는 자리 수도 아래 그대로다 (trace layer 의 area 는 높이도 표면도
+  // 통행도 건드리지 않는다). 다른 방 여덟의 hash 는 한 글자도 바뀌지 않았다.
   [FROST_CANYON]: {
-    hash: 'e5d9cd3d',
+    hash: 'ba0afb9e',
     surface: { steep: 902, slope: 72, frost: 697, flat: 10 },
     traversable: 779,
   },
@@ -182,10 +185,16 @@ const CANYON_STANDING_BASELINE: Readonly<Record<string, unknown>> = {
   },
 };
 
-/** C016 · C008 이 세운 문의 활성 — 이 Cycle 은 여기에 **한 줄을 더할 뿐**이다 (SPEC-004 경계 ②) */
+/**
+ * C016 · C008 이 세운 문의 활성 — 이 Cycle 은 여기에 **한 줄을 더할 뿐**이다 (SPEC-004 경계 ②).
+ *
+ * C029 CHANGED — 활성 조건이 사는 자리가 표에서 **Lock** 으로 옮겨 갔으므로, 같은 사실을
+ * Lock 의 요구로 적는다. 재는 것은 그대로다: 두 문이 무엇을 읽어 열리는가가 한 값도 달라지지
+ * 않았다는 것.
+ */
 const ACTIVATIONS_BEFORE: Readonly<Record<string, unknown>> = {
-  MAZE_HEART_GATE: { region: FANTASY_MAZE, patterns: ['P2'] },
-  WALKING_FOREST_DOOR: { seasons: [LONG_NIGHT] },
+  MAZE_HEART_GATE: [{ state: { region: FANTASY_MAZE, patterns: ['P2'] } }],
+  WALKING_FOREST_DOOR: [{ time: { seasons: [LONG_NIGHT] } }],
 };
 
 // ── 하네스 (c006 · c013 · c016 · c019 · c020 의 선례 그대로) ──────────
@@ -833,7 +842,7 @@ describe('SPEC-004 긴 밤에만 빙결 심층의 문이 열린다', () => {
     const id = door().id;
     const room = door().from.region;
     // Given 데이터가 그 문의 철을 밝힌다 (spec 데이터 값 표 · 긴 밤)
-    const seasons = (CONNECTOR_ACTIVATIONS as Record<string, { seasons?: readonly string[] }>)[id]?.seasons;
+    const seasons = lockOfConnector(id)?.requires.find((one) => one.time)?.time?.seasons;
     expect({ id, seasons: seasons ? [...seasons] : undefined }).toEqual({ id, seasons: [LONG_NIGHT] });
     // When 긴 밤에 그 문 앞에 선다 / Then 열려 있다
     const night = inSeason(LONG_NIGHT, room, doorSpot());
@@ -875,17 +884,25 @@ describe('SPEC-004 긴 밤에만 빙결 심층의 문이 열린다', () => {
     }
   });
 
-  it('S-043 (경계 ①) 표식의 요구는 어느 철에도 그대로 실린다 — 요구는 활성을 판정하지 않는다', () => {
+  it('S-043 (경계 ①) 표식의 코드는 어느 철에도 그대로 실린다 — 그것은 활성을 판정하지 않는다', () => {
     const id = door().id;
     const room = door().from.region;
-    // Given C020 이 세운 그 문의 요구
-    const codes = (CONNECTOR_REQUIREMENTS as Record<string, readonly string[]>)[id];
+    // Given C020 이 세운 그 문의 표식 코드 (C029 에서 요구의 이름이 현상으로 바뀐 그 자리다 —
+    // 읽는 자리도 데이터도 Lock 으로 옮겨 갔고, 재는 사실은 그대로다)
+    //
+    // C031 AFFECTED — 그 문 앞의 자리는 눈보라 자락 **안**이라 밝힌 사유를 **대신하는** 완화된
+    // 코드가 실린다 (RULE-LOCK-RELAXED-001). 이 항이 재는 것은 그대로다: 그 코드는 **철을 타지
+    // 않는다** — 네 철 어디서도 같은 것 하나가 실리고, 그래서 표식의 코드는 활성을 판정하지
+    // 않는다. 갈리는 것은 몸이 선 자리이고 철이 아니다.
+    const lock = lockOfConnector(id);
+    const reason = lock?.reason === undefined ? undefined : (lock.relaxedReason ?? lock.reason);
+    const codes = reason === undefined ? undefined : [reason];
     expect({ id, declared: (codes?.length ?? 0) > 0 }).toEqual({ id, declared: true });
     for (const season of SEASONS) {
       const seen = exitOf(inSeason(season, room, doorSpot()).observe(), id);
       expect({ season, standing: seen !== undefined }).toEqual({ season, standing: true });
       for (const code of codes!) {
-        // Then 열려 있든 잠겼든 요구는 그 표식에 그대로 있다
+        // Then 열려 있든 잠겼든 그 코드는 표식에 그대로 있다
         expect({ season, code, carried: seen!.conditions?.includes(code) ?? false }).toEqual({
           season,
           code,
@@ -896,13 +913,12 @@ describe('SPEC-004 긴 밤에만 빙결 심층의 문이 열린다', () => {
   });
 
   it('S-044 (경계 ②) 다른 문들의 활성은 한 값도 달라지지 않는다', () => {
-    // Given 이 Cycle 앞의 활성 표는 그대로다 — 는 것은 빙결 심층의 문 한 줄뿐이다
-    const table = CONNECTOR_ACTIVATIONS as Record<string, unknown>;
+    // Given 이 Cycle 앞의 활성 조건은 그대로다 — 는 것은 빙결 심층의 문 하나뿐이다
     for (const [id, before] of Object.entries(ACTIVATIONS_BEFORE)) {
-      expect({ id, entry: table[id] }).toEqual({ id, entry: before });
+      expect({ id, entry: lockOfConnector(id)?.requires }).toEqual({ id, entry: before });
     }
-    // Then 철 조건이 없는 문들은 철 넷에 늘 열려 있다
-    const plain = REGION_GRAPH.connectors.filter((c) => table[c.id] === undefined);
+    // Then 조건이 없는 문들은 철 넷에 늘 열려 있다
+    const plain = REGION_GRAPH.connectors.filter((c) => lockOfConnector(c.id) === undefined);
     const sample = plain.filter((c) => regionSpec(c.from.region) !== undefined).slice(0, 4);
     expect(sample.length).toBeGreaterThan(0);
     for (const connector of sample) {

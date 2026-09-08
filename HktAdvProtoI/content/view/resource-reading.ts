@@ -13,9 +13,11 @@ import { areasOf } from '../../engine/world-authoring/description';
 import { areaCoversPoint } from '../../engine/world-authoring/query';
 import type { GameViewSnapshot } from '../protocol/gameview';
 import {
+  EMBER_WARMTH_PREFIX,
   FROST_BREATH_PREFIX,
   RESOURCE_LAYER,
   TRACE_LAYER,
+  emberWarmthTag,
   frostBreathTag,
   regionSpec,
   soilStainTag,
@@ -161,9 +163,12 @@ export function traceTagAt(
   }
   // 단계가 0 이면 흔적이 없어진 것이다 — 바닥에 그리지 않는 것과 같이 말도 없다
   if (strongest <= 0 || strongestTag === undefined) return undefined;
-  return strongestTag.startsWith(FROST_BREATH_PREFIX)
-    ? frostBreathTag(strongest)
-    : soilStainTag(strongest);
+  // C030 — 어휘가 셋이 되었다. 되짓는 자리가 하나인 것도, 답이 방 이름이 아니라 **그 자리에
+  // 놓인 글자**인 것도 그대로다 — 접두사가 하나 더 걸릴 뿐이고 앞의 둘의 답은 한 값도
+  // 달라지지 않는다 (spec SPEC-002 경계 ①). 모르는 어휘가 흙으로 되지어지는 것도 그대로다.
+  if (strongestTag.startsWith(FROST_BREATH_PREFIX)) return frostBreathTag(strongest);
+  if (strongestTag.startsWith(EMBER_WARMTH_PREFIX)) return emberWarmthTag(strongest);
+  return soilStainTag(strongest);
 }
 
 /**

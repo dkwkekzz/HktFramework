@@ -445,6 +445,36 @@ export const FOREST_DEEP_SPEC: RegionSpec = {
     ],
   },
   /**
+   * 이 방이 **묻는 것** — 걷는 숲으로 나가는 문 하나 (C029 ADDED · Access §9.1).
+   *
+   * **옮겨 온 것이고 한 값도 새로 정하지 않았다** — C016 이 활성 조건 표(graph.ts)에 적어 둔
+   * 그 조건이 형만 바뀌어 여기 온다. 그 문은 **긴 밤에만** 열리고(Play §5.2 · 확정 6) 다른
+   * 철에는 "이 철이 아니다" 로 잠긴다. 방의 State 를 읽지 않는다: 이 문을 여는 것은 어느 방의
+   * 사정도 아니고 세계의 시각이다.
+   *
+   * 문 이름을 **글자로** 적는다 — graph.ts 가 이 방을 부르고 있으므로 되부르면 순환이 난다
+   * (phases.outflow · PRESENCE_ROUTES 가 세운 어법 그대로).
+   *
+   * 흔적은 **숲 안쪽의 흙** 하나다 (Access §9.1 "하늘 · 흙 · 발자국이 철을 말한다" · spec
+   * 기본형 ⑥) — 셋 중 이 방에 op 로 놓인 것은 흙 하나이고, 하늘은 놓인 자리가 아니며 발자국은
+   * 그때그때 나는 것이다. 몸에 아무것도 걸지 않는다 (showsOnBody 를 밝히지 않았다) — 흙은
+   * 보는 것이지 몸에 서리는 것이 아니다.
+   *
+   * 현상의 코드(reason)를 밝히지 않는다 — 이 문의 표식은 C016 때와 한 값도 달라지지 않는다
+   * (spec R3 ELSE).
+   */
+  access: {
+    locks: [
+      {
+        id: 'WALKING_FOREST_DOOR',
+        at: { kind: 'connector', ref: 'WALKING_FOREST_DOOR' },
+        strength: 'hard',
+        requires: [{ time: { seasons: ['LONG_NIGHT'] } }],
+        traces: [{ op: 'trace-deep-base' }],
+      },
+    ],
+  },
+  /**
    * 이 방이 철을 타는 방식 (RoomNeverSame 실주행 판정 ADDED).
    *
    * 스밈에 광석 지대 쪽 출구 둘레가 한 단계 깊어지고(wild → deep) 같은 자락이 위험으로 읽힌다 —

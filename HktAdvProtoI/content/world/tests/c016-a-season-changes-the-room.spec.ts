@@ -38,7 +38,6 @@ import {
   BIO_ORE_FIELD,
   COMPILE_RULES,
   CONDITION_PREFIX,
-  CONNECTOR_ACTIVATIONS,
   DEPTH_LAYER,
   FOREST_DEEP,
   FOREST_EDGE,
@@ -48,6 +47,7 @@ import {
   PRESENCE_ROUTES,
   REGION_SPECS,
   RESOURCE_FLOWS,
+  lockOfConnector,
   RESOURCE_LAYER,
   SETTLEMENT_LAYER,
   START_REGION_ID,
@@ -296,14 +296,24 @@ const PHASE_ROOMS = REGION_SPECS.filter((s) => s.phases?.seasons ?? s.phases?.on
 /** 그 가운데 철별 덧씌움을 밝힌 방 · 뒤척임을 밝힌 방 */
 const SEASON_ROOMS = REGION_SPECS.filter((s) => s.phases?.seasons).map((s) => s.id);
 const TURN_ROOMS = REGION_SPECS.filter((s) => s.phases?.onTurn).map((s) => s.id);
-/** 철 조건을 가진 문들과 그 문이 나가는 방 (graph 의 활성 표가 말한다) */
+/**
+ * 그 문이 밝힌 철들 — 밝히지 않았으면 없다 (C029 CHANGED).
+ *
+ * 읽는 자리가 graph 의 활성 표에서 **그 문에 걸린 Lock** 으로 바뀌었다 (그 방의 access.locks).
+ * 재는 사실은 한 값도 다르지 않다: 어느 문이 어느 철에 열리는가는 여전히 데이터에만 있고
+ * 이 시나리오는 이름을 손으로 적지 않는다.
+ */
+const doorSeasonsOf = (connectorId: string): readonly SeasonId[] | undefined =>
+  lockOfConnector(connectorId)?.requires.find((one) => one.time)?.time?.seasons;
+
+/** 철 조건을 가진 문들과 그 문이 나가는 방 (그 방의 Lock 이 말한다) */
 const SEASONAL_CONNECTORS = REGION_GRAPH.connectors.filter(
-  (c) => CONNECTOR_ACTIVATIONS[c.id]?.seasons !== undefined,
+  (c) => doorSeasonsOf(c.id) !== undefined,
 );
 const SEASON_DOOR_ROOMS = [...new Set(SEASONAL_CONNECTORS.map((c) => c.from.region))];
 /** 철 조건이 없는 문들 — 어느 철에도 지금 그대로다 (SPEC-003 경계 ②) */
 const PLAIN_CONNECTORS = REGION_GRAPH.connectors.filter(
-  (c) => CONNECTOR_ACTIVATIONS[c.id]?.seasons === undefined,
+  (c) => doorSeasonsOf(c.id) === undefined,
 );
 
 /** 그 layer 의 area 태그가 걸린, 걸어 설 수 있는 자리 — 덧씌움 안이다 */
@@ -542,7 +552,7 @@ const MIGRATING = regionSpec(TURN_ROOM)!.phases!.onTurn!.migrateSources![0]!;
 /** 철 조건을 가진 문과 그 방 (지금 데이터로는 숲 깊은 곳의 걷는 숲 문 하나) */
 const SEASONAL_DOOR = SEASONAL_CONNECTORS[0]!;
 const DOOR_ROOM = SEASONAL_DOOR.from.region;
-const DOOR_SEASONS = CONNECTOR_ACTIVATIONS[SEASONAL_DOOR.id]!.seasons!;
+const DOOR_SEASONS = doorSeasonsOf(SEASONAL_DOOR.id)!;
 const doorSpot = (): XZ => anchorAt(DOOR_ROOM, SEASONAL_DOOR.from.anchor);
 
 /** 철 조건을 가진 원천 (지금 데이터로는 숲 가장자리의 스밈 껍질 하나) */
