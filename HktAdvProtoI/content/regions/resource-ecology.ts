@@ -23,6 +23,9 @@ import {
   propertyTag,
 } from './properties';
 
+/** 낮밤 둘 — 관찰 계약(WorldClockView.dayPhase)과 같은 글자다 (SeasonId 와 같은 이유로 여기 한 벌) */
+export type DayPhaseId = 'DAY' | 'NIGHT';
+
 /**
  * 그 원천을 무엇이 지고 있는가 (A.2 Carrier). 살아 있는 것(CREATURE)은 3층의 몫이다 (확정 2).
  *
@@ -136,6 +139,20 @@ export interface ResourceSourceSpec {
    */
   recoveryCause: string;
   /**
+   * 그 회복 원인이 **전제하는 개체군** (C022 ADDED · §6.2 · A.2 회복 원인 열 · 검사 ㉛).
+   *
+   * 되돌아옴의 원인 가운데는 **살아 있는 것을 전제하는 것**이 있다 — 허물이 다시 쌓이려면
+   * 무언가가 벗어야 한다 (`molt-cycle`). 그 무엇을 이름으로 밝히는 자리가 여기이고,
+   * 검사 ㉛ 이 "그 개체군이 세계에 있고 그것을 낳는 탄생지가 있는가" 를 잰다.
+   *
+   * **규칙은 이 값을 읽지 않는다** — 값이 회복 속도를 실제로 좌우하는 것은 C024 의 몫이고,
+   * 여기서 서는 것은 참조뿐이다 (recoveryCause 가 그런 그대로 · 기본형 ⑦).
+   *
+   * 밝히지 않은 원천은 ㉛ 의 대상이 아니다 — **밝히지 않은 것을 결손으로 세지 않는다**
+   * (`carcass-decay` 는 사체를 남기는 것이 세계에 서는 C024 가 밝힌다 · spec 기본형 ⑦).
+   */
+  recoveryLife?: string;
+  /**
    * 한 원천에서 **몇 번 캘 수 있는가** (C012 ADDED · 위임된 결정 D4).
    * 그만큼 캐면 phase 가 depleted 가 된다.
    */
@@ -197,6 +214,16 @@ export interface ResourceSourceSpec {
    * 쪽이 하나여야 하므로 조건은 그 대상 곁에 산다.
    */
   occurrence?: { seasons: readonly SeasonId[] };
+  /**
+   * 그 **낮밤에만** 선다 — 밝히지 않으면 낮에도 밤에도 선다 (RoomBearsMaterial 실주행 판정 ADDED).
+   *
+   * occurrence(철)와 **같은 어법의 다른 축**이다: 저것은 한 바퀴 안의 철을, 이것은 하루 안의
+   * 낮밤을 탄다. 둘을 한 자리에 섞지 않은 이유는 철 조건을 읽는 자리(검사 ㉓ · 관찰 도구)가
+   * 그 형을 그대로 읽기 때문이다 — 낮밤은 그 곁에 서는 새 축이다. 다른 때에는 그 자리에
+   * 원천이 **없다** (바닥난 것도 되돌아오는 중인 것도 아니다 · 조건 코드 not-this-hour).
+   * 밤이 "감추는 것" 이 아니라 "종류를 바꾸는 것" 이 되는 자리다 (RoomNeverSame Q25).
+   */
+  dayPhases?: readonly DayPhaseId[];
   /**
    * 마디마다의 **깨진 자리 자락** — `traceOps` 와 **같은 순서** (C020 ADDED · spec R4 · SPEC-005).
    *
@@ -389,6 +416,30 @@ export const FORM_FALLEN_SCALE = 'fallen-scale';
  */
 export const FORM_PREY_REMAINS = 'prey-remains';
 
+// ── RoomBearsMaterial 실주행 판정 ADDED — 형태 셋이 는다 ────────────────
+//
+// Human 의 답: "재료가 너무 적고 채집하는 재미가 부족하다 — 다양하고 더 동적이고 여러 채집물을
+// 보여 주는 기반을." 재료(Seed)를 늘리지 않고 **같은 세 재료의 다른 순도**를 늘린다 (A.1 —
+// 종류를 늘린 것이 아니라 기회를 늘린 것이다). 셋은 방마다 여럿이 흩어져 서는 **작은 것**들이다:
+// 원천 하나가 한 방의 중심이던 것에서, 걸어 다니며 줍는 것이 생긴다.
+/** 뿌리가 밀어 올린 광석 조각 — 흙 위에 흩어진 붉은 자갈. 생체 광석의 가장 옅은 순도 */
+export const FORM_ORE_PEBBLE = 'ore-pebble';
+/** 줄기에 걸린 허물 조각 — 광식충이 풀줄기를 타고 오르며 벗은 것. 허물의 다른 형태 */
+export const FORM_HUSK_SHARD = 'husk-shard';
+/** 밤에만 피는 빛 갓 — 거목균의 밤 형태. 낮에는 흙 속으로 오므라들어 거기 없다 */
+export const FORM_GLOW_CAP = 'glow-cap';
+
+// ── C023 ADDED — 탄생이 **남기고 간** 형태 둘 (Play §5.3 ⑤ · §5.4 · 확정 7) ────────────
+//
+// **새 Seed 가 아니다** — 광식충 허물(ORE_EATER_MOLT)의 다른 형태다 (A.1 "같은 것의 여러
+// 순도" · 먹이 잔해가 그런 그대로). 벗은 것이 아니라 **터지고 남은 것**이라는 것만 다르다.
+// 코드 이름은 숲의 형태 코드와 같은 어법으로 지었다 (spec 기본형 ⑨ — Design 은 사람이 읽을
+// 이름만 준다: 빈 껍질 · 작은 껍질).
+/** 터진 알집이 남긴 큰 껍질 — 결속이 낳은 것의 자리에 선다 */
+export const FORM_CLUTCH_HUSK = 'clutch-husk';
+/** 뿌리 마디의 작은 껍질 — 계승이 낳은 것의 자리에 선다 */
+export const FORM_EGG_HUSK = 'egg-husk';
+
 // 빙정석의 자연 형태 넷 (C020 ADDED · spec SPEC-001 · 기본형 ⑦).
 //
 // Design 은 사람이 읽을 이름만 준다 (서리 결정 · 결정면 · 결정 가루 · 언 사체 곁의 결정) —
@@ -427,6 +478,8 @@ export const MATERIAL_SEEDS: readonly MaterialSeed[] = [
       FORM_SILT_BED,
       FORM_RIVER_GRAIN,
       FORM_SEEP_CRUST,
+      // 여섯째 순도 — 흩어진 자갈 (RoomBearsMaterial 실주행 판정)
+      FORM_ORE_PEBBLE,
     ],
     // C029 ADDED — 이 재료가 가진 성질 둘 (Access §9.2). **문장에 있는 것만 태그로 옮겼다.**
     //   flesh:stores  "살아 있는 것의 몸을 따라 옮겨 다니며 쌓인다" (거동)
@@ -444,7 +497,17 @@ export const MATERIAL_SEEDS: readonly MaterialSeed[] = [
   {
     id: ORE_EATER_MOLT,
     worldCause: FOREST_CHAIN,
-    forms: [FORM_MOLT_LITTER, FORM_SPOIL_PILE, FORM_PREY_REMAINS],
+    // 넷째 형태 — 줄기에 걸린 조각 (RoomBearsMaterial 실주행 판정)
+    // C023 CHANGED — 여섯이다. 태어남이 남기고 간 껍질 둘도 **같은 Seed** 이고 순도만 다르다
+    // (A.1 · 종류를 늘린 것이 아니라 그 재료가 나는 자리를 늘린 것이다 · Material §6.2 By-product)
+    forms: [
+      FORM_MOLT_LITTER,
+      FORM_SPOIL_PILE,
+      FORM_PREY_REMAINS,
+      FORM_HUSK_SHARD,
+      FORM_CLUTCH_HUSK,
+      FORM_EGG_HUSK,
+    ],
     // C029 ADDED — 성질 하나 (Access §9.2). "붉은 결이 있되 옅다" — 먹은 것의 빛이 남아 있다.
     // "마르면 부서진다" · "밑동 그늘에 모인다" 는 어휘 일곱 중 가리키는 관계가 없어 태그가 없다.
     properties: [{ tag: propertyTag(ASPECT_LIGHT, RELATION_EMITS), from: 'appearance' }],
@@ -454,7 +517,8 @@ export const MATERIAL_SEEDS: readonly MaterialSeed[] = [
   {
     id: GIANT_TREE_FUNGUS,
     worldCause: FOREST_CHAIN,
-    forms: [FORM_NEST_MYCELIUM],
+    // 둘째 형태 — 밤에만 피는 갓 (RoomBearsMaterial 실주행 판정 · 낮밤을 탄다)
+    forms: [FORM_NEST_MYCELIUM, FORM_GLOW_CAP],
     // C029 ADDED — 성질 둘 (Access §9.2).
     //   flesh:absorbs   "사체에서만 자라 사체를 삭인다" (거동 — 몸을 먹는다)
     //   light:absorbs   "그늘에서만 산다" (조건에 대한 응답 — 빛이 있으면 서지 못한다)
@@ -543,6 +607,24 @@ export const RECOVERY_LAKE_SETTLING = 'lake-settling';
 export const RECOVERY_WHALE_PASSAGE = 'whale-passage';
 /** 그것이 **다시 지난다** (PREY_REMAINS · C018 ADDED) — 같은 갈래의 원인이다 */
 export const RECOVERY_HUNTER_PASSAGE = 'hunter-passage';
+
+// 흩어진 것 셋의 되돌아옴 원인 (RoomBearsMaterial 실주행 판정 ADDED) — 같은 갈래의 **코드**다.
+/** 뿌리가 다시 밀어 올리고 비가 흙을 씻어 조각이 드러난다 (ORE_PEBBLE_*) */
+export const RECOVERY_PEBBLE_WASH = 'pebble-wash';
+/** 벌레가 줄기를 타고 올라 다시 벗는다 (HUSK_SHARD_*) */
+export const RECOVERY_HUSK_SHED = 'husk-shed';
+/** 다음 밤에 다시 핀다 (GLOW_CAP_*) — 낮에는 흙 속으로 오므라든다 */
+export const RECOVERY_NIGHT_BLOOM = 'night-bloom';
+
+/**
+ * **다음 탄생**이 그것을 세운다 (CLUTCH_HUSK · EGG_HUSK · C023 ADDED · Play §5.3 ⑤).
+ *
+ * 되돌리는 것이 시간이 아니라 **사건**인 셋째 원인이다 — 고래가 다시 지나는 것 ·
+ * 그것이 다시 지나는 것과 같은 갈래이고, 다른 것은 그 사건이 **세계 안의 생명**이라는 것뿐이다.
+ * 기다린다고 오지 않는다: 시간이 아무리 흘러도 스스로 돌아오지 않고(RULE-SOURCE-RECOVERY-001
+ * 이 멎게 한다), 그 자리를 다시 세우는 것은 그 탄생지가 한 번 더 터지는 일이다.
+ */
+export const RECOVERY_NEXT_BIRTH = 'next-birth';
 
 // 협곡의 되돌아옴 원인 넷 (C020 ADDED · A.2 회복 원인 · spec 데이터 값 표).
 //

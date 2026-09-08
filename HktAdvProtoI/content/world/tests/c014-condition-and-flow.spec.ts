@@ -58,6 +58,7 @@ import {
   WHITE_KING_DOMAIN,
   regionSpec,
   type ResourceSourceSpec,
+  ORE_EATER,
 } from '../../regions';
 // C008 이 세운 미로의 이름들 — 그 파일이 소유한다 (c008 ~ c013 시나리오의 선례 그대로).
 import { CELL_LAYER, FANTASY_MAZE, PASSAGE_LAYER } from '../../regions/fantasy-maze';
@@ -130,7 +131,18 @@ const OUTSIDE_FLOW = SEVEN.filter((one) => one.id !== RIVER_SILT && one.id !== L
 /** 채취의 소요 시간 — 행동표가 소유한다. 여기서는 "넉넉히 지난다" 로만 쓴다 (C011~C013 어법) */
 const MINE_SECONDS = 1.2;
 
-const solo: WorldSetup = { npcs: [] };
+/**
+ * 이 시나리오들이 재는 것은 **재료 계통**이다 — 그 위에 얹힌 생명(C022 · C023)은 여기 없다.
+ *
+ * C023 부터 기본 세계는 t=60 에 첫 탄생을 일으켜 뿌리혹과 균사를 먹는다 (세계가 나 없이도
+ * 도는 그것이다). 그러면 거기 매달린 노두의 되돌아옴이 멎어, 60 초 넘게 기다리는 이 시나리오들의
+ * 전제("캐지 않으면 원천은 그대로다")가 깨진다.
+ *
+ * 그래서 **광식충이 이미 가득한 숲**에서 잰다 — 상한이면 결속도(요구가 "값 0" 이다) 계승도
+ * (값을 올릴 수 없는 전이는 일어나지 않는다) 서지 않는다. 손잡이는 값을 상한으로 자르므로
+ * 큰 수 하나면 된다. 재료 계통의 규칙은 한 줄도 달라지지 않는다.
+ */
+const solo: WorldSetup = { npcs: [], populations: { [ORE_EATER]: 99 } };
 
 // ── 계약이 준 형 (spec State 절 · Observable 절 그대로 적어 둔다) ─────
 
@@ -521,11 +533,9 @@ describe('SPEC-001 세 번째 재료가 부산물로 난다', () => {
   it('S-014 (경계) 둥지에는 이 원천 말고 아무 원천도 없다 — 다른 방의 것은 실리지 않는다', () => {
     // Given 둥지에 선다
     const world = standingIn(PREDATOR_NEST);
-    // Then 그 방의 원천은 균사 하나뿐이고
-    expect(regionSpec(PREDATOR_NEST)?.resourceEcology?.sources.map((s) => s.id)).toEqual([
-      NEST_FUNGUS,
-    ]);
-    expect(sourcesIn(world.observe()).map((e) => e.id)).toEqual([NEST_FUNGUS]);
+    // Then 그 방의 첫 원천은 균사이고 (흩어진 것 셋이 그 뒤에 늘었다 — RoomBearsMaterial 실주행 판정)
+    expect(regionSpec(PREDATOR_NEST)?.resourceEcology?.sources.map((s) => s.id)[0]).toBe(NEST_FUNGUS);
+    expect(sourcesIn(world.observe()).map((e) => e.id)).toContain(NEST_FUNGUS);
     // 다른 방의 원천은 관찰에 실리지 않는다
     for (const other of SEVEN.filter((s) => s.id !== NEST_FUNGUS)) {
       expect({ id: other.id, seen: sourceEntity(world.observe(), other.id) }).toEqual({

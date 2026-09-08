@@ -29,9 +29,14 @@ export const DEFAULT_ORIENTATION: Readonly<ViewOrientation> = { turn: 0, tilt: M
 export const VIEW_DISTANCE = 15;
 
 // tilt 한계 (04 viewpoint.orientation.tilt.bounded) — 세계가 뒤집혀 보이지 않도록 묶는다.
-// 아래쪽 한계는 지평선이 화면에 남는 각, 위쪽 한계는 완전한 수직 직전이다.
-export const TILT_MIN = 0.08;
-export const TILT_MAX = 1.25;
+//
+// 25° ~ 45° 로 묶는다 (Play RoomAnswersWhenAsked 실주행 판정 — "좌우는 움직이되 상하는
+// 25~45도로 고정해야 시야에 문제가 없다"). 아래쪽 한계(25°)는 지평선이 화면에 남으면서도
+// 시점이 몸 뒤 지형에 파묻히지 않는 각이고, 위쪽 한계(45°)는 방을 내려다보되 몸과 표식의
+// 그림이 납작해지지 않는 각이다. 기본 시점(30°)은 그 안에 있다.
+const DEGREE = Math.PI / 180;
+export const TILT_MIN = 25 * DEGREE;
+export const TILT_MAX = 45 * DEGREE;
 
 const TAU = Math.PI * 2;
 

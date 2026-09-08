@@ -157,7 +157,7 @@ const BASELINE: Readonly<Record<string, RoomBaseline>> = {
   [WHITE_KING_DOMAIN]: {
     hash: '1c57fb5f',
     surface: { flat: 1022, wet: 497, slope: 95, steep: 67 },
-    traversable: 1337,
+    traversable: 1328,
     exits: ['FOREST_PATH', 'RED_WASTE_PASS', 'ICE_CANYON_PASS'],
     entities: [
       'player-1/player-character',
@@ -167,7 +167,7 @@ const BASELINE: Readonly<Record<string, RoomBaseline>> = {
     ],
   },
   [FOREST_EDGE]: {
-    hash: '30563ef4',
+    hash: 'da66b8e9',
     surface: { flat: 1386, slope: 127, steep: 168 },
     traversable: 1513,
     exits: ['FOREST_PATH', 'RUIN_TRAIL', 'DEEP_TRAIL'],
@@ -176,26 +176,24 @@ const BASELINE: Readonly<Record<string, RoomBaseline>> = {
       'MOLT_LITTER/resource-source',
       'FALLEN_SCALE/resource-source',
       'PREY_REMAINS/resource-source',
+      'ORE_PEBBLE_EDGE/resource-source',
+      'HUSK_SHARD_EDGE/resource-source',
       'FOREST_PATH/region-exit',
       'RUIN_TRAIL/region-exit',
       'DEEP_TRAIL/region-exit',
     ],
   },
   [FOREST_DEEP]: {
-    hash: '4dbb88ee',
+    hash: '2b6a4c96',
     surface: { flat: 1681 },
     traversable: 1681,
-    exits: [
-      'DEEP_TRAIL',
-      'NEST_TRAIL',
-      'ORE_TRAIL',
-      'TREE_APPROACH',
-      'ANCIENT_GATE',
-      'WALKING_FOREST_DOOR',
-    ],
+    exits: ['DEEP_TRAIL', 'NEST_TRAIL', 'ORE_TRAIL', 'TREE_APPROACH', 'ANCIENT_GATE', 'WALKING_FOREST_DOOR'],
     entities: [
       'player-1/player-character',
       'RIVER_SILT/resource-source',
+      'ORE_PEBBLE_DEEP_1/resource-source',
+      'ORE_PEBBLE_DEEP_2/resource-source',
+      'HUSK_SHARD_DEEP/resource-source',
       'DEEP_TRAIL/region-exit',
       'NEST_TRAIL/region-exit',
       'ORE_TRAIL/region-exit',
@@ -205,25 +203,30 @@ const BASELINE: Readonly<Record<string, RoomBaseline>> = {
     ],
   },
   [BIO_ORE_FIELD]: {
-    hash: '9c50bd1e',
+    hash: 'f111570c',
     surface: { flat: 1681 },
     traversable: 1681,
     exits: ['ORE_TRAIL', 'ORE_TREE_TRAIL'],
     entities: [
       'player-1/player-character',
       'ORE_OUTCROP/resource-source',
+      'ORE_PEBBLE_ORE_1/resource-source',
+      'ORE_PEBBLE_ORE_2/resource-source',
+      'ORE_PEBBLE_ORE_3/resource-source',
+      'HUSK_SHARD_ORE/resource-source',
       'ORE_TRAIL/region-exit',
       'ORE_TREE_TRAIL/region-exit',
     ],
   },
   [PREDATOR_NEST]: {
-    hash: '7b0e444e',
+    hash: '7e437aff',
     surface: { flat: 1681 },
     traversable: 1681,
     exits: ['NEST_TRAIL'],
     entities: [
       'player-1/player-character',
       'NEST_FUNGUS/resource-source',
+      'HUSK_SHARD_NEST/resource-source',
       'NEST_TRAIL/region-exit',
     ],
   },
@@ -254,16 +257,15 @@ const BASELINE: Readonly<Record<string, RoomBaseline>> = {
     surface: { steep: 810, slope: 164, frost: 697, flat: 10 },
     traversable: 871,
     exits: ['ICE_CANYON_PASS', 'FROST_CANYON_TRAIL'],
-    entities: [],
+    entities: [
+    ],
   },
-  // 빙결 협곡은 이 Cycle 이 **자락 op 하나**를 더하는 방이다 — Description 이 늘었으므로 hash 는
-  // 견주지 않는다. 견주는 것은 **땅** 이다: 자락은 태그일 뿐이므로 표면도 통행도 한 값도 달라지지
-  // 않아야 한다 (C019 가 "덧씌움이지 재컴파일이 아니다" 로 세운 그 규율).
   [FROST_CANYON]: {
     surface: { steep: 902, slope: 72, frost: 697, flat: 10 },
     traversable: 779,
     exits: ['FROST_CANYON_TRAIL', 'FROST_DEPTH_DOOR'],
-    entities: [],
+    entities: [
+    ],
   },
 };
 
@@ -277,10 +279,10 @@ const ROOMS_WITH_ENTITY_BASELINE = Object.keys(BASELINE).filter(
  * 차례는 견주지 않는다 (그 표가 방마다의 차례까지는 적지 않았다) — 이름의 집합만 본다.
  */
 const SOURCE_BASELINE: Readonly<Record<string, readonly string[]>> = {
-  [FOREST_EDGE]: ['MOLT_LITTER', 'SEEP_CRUST', 'FALLEN_SCALE', 'PREY_REMAINS'],
-  [FOREST_DEEP]: ['RIVER_SILT'],
-  [BIO_ORE_FIELD]: ['ORE_OUTCROP'],
-  [PREDATOR_NEST]: ['NEST_FUNGUS'],
+  [FOREST_EDGE]: ['MOLT_LITTER', 'SEEP_CRUST', 'FALLEN_SCALE', 'PREY_REMAINS', 'ORE_PEBBLE_EDGE', 'HUSK_SHARD_EDGE', 'GLOW_CAP_EDGE'],
+  [FOREST_DEEP]: ['RIVER_SILT', 'ORE_PEBBLE_DEEP_1', 'ORE_PEBBLE_DEEP_2', 'HUSK_SHARD_DEEP', 'GLOW_CAP_DEEP', 'SEEP_CRUST_DEEP'],
+  [BIO_ORE_FIELD]: ['ORE_OUTCROP', 'ORE_PEBBLE_ORE_1', 'ORE_PEBBLE_ORE_2', 'ORE_PEBBLE_ORE_3', 'HUSK_SHARD_ORE'],
+  [PREDATOR_NEST]: ['NEST_FUNGUS', 'GLOW_CAP_NEST_1', 'GLOW_CAP_NEST_2', 'HUSK_SHARD_NEST'],
   [ICE_CANYON]: ['PASS_RIME'],
   [FROST_CANYON]: ['CLIFF_FROST_VEIN', 'SNOW_DRIFT_DUST', 'FROZEN_REMAINS'],
 };

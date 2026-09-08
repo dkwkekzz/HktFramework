@@ -45,10 +45,17 @@ import {
   // 컨텐츠가 정한다. 조립은 그 답을 쥐고 배선할 뿐이다.
   pointerRules,
   regionEntryTitle,
+  regionRuleHint,
+  clockChangeNotice,
   type Designation,
   // 세계가 한 말을 모아 두는 그릇 (C028) — 상한도 그 값의 형도 컨텐츠의 것이다.
   ANSWER_LOG_LIMIT,
   type KeptAnswer,
+  // 나아가지 못하는 몸이 왜 서 있는가 (RoomBecomesLand Q6) — 재는 값은 조립이 쥐고 말은 컨텐츠가 정한다.
+  createStallWatch,
+  watchStall,
+  // 자판 걸음이 얼마나 앞을 요청하는가 — 빠르기에 따라 컨텐츠가 정한다.
+  keyLookahead,
 } from '../content/active-view';
 
 const container = document.getElementById('game');
@@ -114,6 +121,9 @@ const EMPTY_SCENE: SceneState = {
 
 let latestScene: SceneState = EMPTY_SCENE;
 
+// 봉투의 때 — 조립은 그 형을 알지 못하므로 clockChangeNotice 가 받는 형 그대로 넘긴다
+type SceneClock = Parameters<typeof clockChangeNotice>[0];
+
 // ── 지목 (C026 RULE-DESIGNATE-001 · C027 CHANGED) ────────────
 //
 // **관찰자가 쥔다.** 세계는 이것을 알지 못하고, 지목은 세계로 아무것도 보내지 않는다
@@ -159,10 +169,14 @@ let facingSides: Record<string, ScreenSide> = {};
 
 // WASD 연속 이동 — 진행 방향의 조금 앞 지점을 요청한다. 판정은 세계가 한다.
 // 매 프레임이 아니라 일정 간격으로 보낸다 — 요청은 이제 선을 타고 간다.
-const KEY_LOOKAHEAD = 1.6;
+// 얼마나 앞인지는 컨텐츠가 빠르기로 정한다 (keyLookahead — 걷기 1.6 · 달리기 2.7).
 const MOVE_REQUEST_INTERVAL = 0.1;
 let moveRequestCooldown = 0;
 let wasKeyMoving = false;
+// 걸으려 하는데 나아가지 못하는 것을 재는 값 (RoomBecomesLand Q6) — 관찰자가 쥔다.
+// 세계는 이것을 알지 못한다. 막힌 이유를 말하는 것은 컨텐츠(watchStall)이고 여기는 프레임마다
+// "지금 걸으려 하는가" 와 시간을 넘길 뿐이다.
+const stallWatch = createStallWatch();
 
 // 충돌체 디버그 관찰 — 켜고 끄는 것은 관찰자의 선택이다. 기본 off.
 // World 에 아무것도 요청하지 않는다 — 이미 와 있는 관찰값을 보일지만 정한다.
@@ -315,6 +329,9 @@ function syncTerrain(regionId: string | undefined): void {
 let lastRegionNotice: string | undefined;
 // 마지막으로 들어선 방 — 이름을 한 번만 띄우고 지목을 풀기 위한 값이다 (C026).
 let enteredRegionId: string | undefined;
+// 직전 봉투의 때 — 철과 낮밤이 바뀐 순간을 알아채기 위한 값이다 (RoomNeverSame 실주행 판정).
+// 관찰자가 쥐는 값이고 세계는 알지 못한다 (enteredRegionId 와 같은 규약).
+let lastClock: SceneClock | undefined;
 
 let last = performance.now();
 function frame(now: number): void {
@@ -347,6 +364,12 @@ function frame(now: number): void {
   // (매 프레임 부르면 같은 재배열이 기록에 수십 줄로 쌓인다 · SPEC-002 경계).
   if (notice !== undefined && notice !== lastRegionNotice) announce(notice);
   lastRegionNotice = notice;
+  // 때가 바뀐 순간 한 마디 (RoomNeverSame 실주행 판정) — 바뀐 프레임에만 뜨고 기록에 남는다.
+  // 봉투의 clock 은 이 세계의 계약이지만 조립은 그 속을 모른다 — 견주어 말하는 것은 컨텐츠다
+  const clockNow = (snapshot as { clock?: SceneClock } | null)?.clock;
+  const turned = clockChangeNotice(lastClock, clockNow);
+  if (turned !== undefined) announce(turned);
+  lastClock = clockNow;
   // 방이 바뀌면 지목이 풀리고(확정 8) 그 방의 이름이 **한 번** 지나간다 (C026 SPEC-010).
   // 매 프레임이 아니라 바뀐 프레임에만 부른다 — 계속 띄우면 그 사이의 다른 말이 덮인다.
   const regionId = snapshot?.region?.id;
@@ -357,6 +380,10 @@ function frame(now: number): void {
     // RULE-NOTICE-KEEP-001 — 방에 들어선 제목도 기록에 남는다 (C028 R2).
     // 방을 옮겨도 기록은 남는다 — 기록은 방의 것이 아니라 관찰자의 것이다 (SPEC-006)
     if (entryTitle !== undefined) announce(entryTitle);
+    // 규칙을 품은 방이면 그 규칙도 한 번 지나간다 (RuleBoundRoom 실주행 판정) — 제목과 같은
+    // 규율로 방에 들어선 프레임에만 뜨고 기록에 남는다
+    const ruleHint = regionId !== undefined ? regionRuleHint(regionId) : undefined;
+    if (ruleHint !== undefined) announce(ruleHint);
   }
   // RULE-DESIGNATE-001 (C027 CHANGED) — 지목한 몸이 세계에서 사라지면 지목을 푼다.
   // **쓰러진 몸은 사라진 것이 아니다** (확정 8): 쓰러져도 관찰 결과에 그대로 실려 오므로
@@ -397,18 +424,23 @@ function frame(now: number): void {
 
   moveRequestCooldown -= dt;
   const dir = capturing ? null : keyboard.direction();
-  if (dir && terrain && self) {
+  // RULE-STALL-NOTICE-001 — 걸으려 하는데 몸이 제자리면 왜인지를 한 번 말한다 (C028 의 기록에도
+  // 남는다). 거절은 세계가 말하고, 진행이 멎는 것은 여기서 관찰자가 알아챈다.
+  const stallText = snapshot ? watchStall(stallWatch, snapshot, dir !== null && !!terrain, dt) : undefined;
+  if (stallText !== undefined) announce(stallText);
+  if (dir && terrain && self && snapshot) {
     wasKeyMoving = true;
     if (moveRequestCooldown <= 0) {
       moveRequestCooldown = MOVE_REQUEST_INTERVAL;
       // 앞은 세계의 축이 아니라 지금 보고 있는 쪽이다.
       // 세계 좌표로 환산해 보내므로 세계는 무엇을 기준으로 정했는지 알지 못한다.
       const heading = renderer.viewWorldDirection(dir);
+      const lookahead = keyLookahead(snapshot);
       link.send({
         interactionId: terrain.id,
         position: {
-          x: self.position.x + heading.x * KEY_LOOKAHEAD,
-          z: self.position.z + heading.z * KEY_LOOKAHEAD,
+          x: self.position.x + heading.x * lookahead,
+          z: self.position.z + heading.z * lookahead,
         },
       });
     }

@@ -68,6 +68,13 @@ End     북쪽은 산이라 못 넘고, 강이 마을을 지나고, 거목 아�
 반응   거절만. 세계 State 는 안 바뀐다
 ```
 
+**막힘은 말을 한다** (실주행 판정 Q6 · 확정 7). 요청의 거절은 세계가 사유 코드로 말하지만, 요청이 받아들여진 뒤
+**진행이 멎는** 것 — 다른 몸이 밀어붙이거나(몸 충돌) · 밀려서 막힌 땅 위에 서거나 · 방의 끝에 닿거나 — 은 세계가
+아무 말도 하지 않았다. 그것을 관찰자 쪽이 알아챈다: 걸으려는데 0.6초 동안 제자리면 막는 몸의 이름 · 발밑의 사유 ·
+"무언가에 막혀 있다" 를 한 번 띄우고 기록에 남긴다. 세계는 한 줄도 바뀌지 않는다 — 몸 · 자리 · 땅은 이미 봉투에
+있고(RoomAnswersWhenAsked 확정 12 의 어법), 그것을 잇는 것이 관찰자다. 방의 끝은 "방의 끝이다 — 나가는 길은 출구
+표식이다" 로 **무엇이** 막는지를 말한다.
+
 ### 5.2 흐름 — Curve
 
 ```text
@@ -82,7 +89,9 @@ End     북쪽은 산이라 못 넘고, 강이 마을을 지나고, 거목 아�
 ```text
 존재   point(layer: landmark, tag: WHITE_GIANT_TREE) · area(layer: settlement, tag: condition) 셋 —
        산맥 기슭 · 강가 · 거목 둘레. area(layer: settlement, tag: city) 그 가운데
-상태   전부 정적 — 이 Play 에서 조건은 표시다. 포식자가 실제로 못 오는 것은 3층 이후
+상태   조건은 표시다 — 포식자가 실제로 못 오는 것은 3층 이후. **표식은 몸에 닿는다** (확정 8): landmark point 둘레
+       줄기 반경(1.6) 안은 traversable 0 이고 사유 코드는 landmark-trunk 다. 땅의 성질이 아니라 **거기 선 것**이
+       막는 첫 사유이며, 표식이 없는 방은 한 값도 달라지지 않는다
 관찰   거목 sprite(billboard) · 조건 area 의 테두리(SceneGroundZone) · 그 안에 서면 HUD 사유 코드(safe-by: ridge / river / tree)
 추론   "안전한 곳이라 도시가 있는 게 아니라, 이 셋이 있어서 도시가 있다"  (W2)
 반응   없음
@@ -130,15 +139,24 @@ E9   결정론 — 같은 (description, rules) → 같은 hash. TERRAIN_RESOLUTI
 ```text
 W15  WorldState.regions[id].terrain: CompiledWorldTerrain · 이동 규칙이 traversable 을 읽는다
 W16  조건 area 안의 HUD 사유 코드 (safe-by:*)
+W17  표식의 줄기 — 막는 규칙 표에 point 둘레(landmark layer · 반경) 한 줄. 사유 코드 landmark-trunk (실주행 판정 Q7)
 V7   terrain-presentation — surface 태그 → 색 (평지 · 경사 · 급경사 · wet 넷) · landmark 태그 → sprite
 V8   biome-rules — surface 규칙 표 (slope 임계 둘 · curve 거리 → wet) — 데이터
+V8′  movement-reading — 걸으려는데 멎은 몸이 왜 서 있는지(막는 몸 · 발밑의 사유 · 막혀 있음)를 한 번 띄우고 기록에
+     남긴다 · 자판 걸음이 요청하는 앞 거리는 빠르기를 따른다 (걷기 1.6 · 달리기 2.7 — 관찰 결과가 늦게 와도 걸음이
+     끊기지 않는다). 둘 다 관찰자 쪽이고 세계에 아무것도 요구하지 않는다 (실주행 판정 Q6)
 ```
+
+기구가 하나 는다 — **E6′ BlockRule.nearPoint** (point 둘레를 막는 규칙 · PassRule 이 point 둘레를 여는 것의 반대형).
+게임 명사가 없고, 밝히지 않은 규칙 표는 예전과 같은 hash 를 낸다.
 
 ### 불변 조건 — 코드 변경 없이 폴리싱
 
 ```text
 산을 옮긴다 · 강을 굽힌다 · 거목을 옮긴다 · 숲 가장자리를 채운다 → content/regions/*.ts 의 space 만
 색을 바꾼다 · 표면 규칙을 바꾼다 → content/view 의 표만
+줄기의 반경을 바꾼다 · 표식을 하나 더 세운다 → 규칙 표 한 줄 · space 의 point 하나 (같은 사유가 선다)
+막힘의 문구를 바꾼다 · 멎음을 재는 시간을 바꾼다 → content/view 의 표와 상수
 방으로 되돌린다 → space 의 op 를 지운다 — 같은 Spec
 ```
 
@@ -165,4 +183,12 @@ V8   biome-rules — surface 규칙 표 (slope 임계 둘 · curve 거리 → we
 5. 표면 넷으로 시작 — 평지 · 경사 · 급경사 · 젖음.
 6. 순서는 RegionGraphRooms → RoomBecomesLand → RuleBoundRoom. 셋의 Cycle 번호는 C001~C010 으로 고정한다 —
    이 Play 는 C005~C007, RuleBoundRoom 은 C008~C010.
+
+실주행 판정 (Human 답 · Cycle 없이 반영)
+7. **막는 것은 보여야 한다.** 요청의 거절만이 아니라 진행이 멎는 것(몸 충돌 · 막힌 땅 위 · 방의 끝)도 말을 한다 —
+   말하는 자리는 관찰자 쪽이고 세계는 바뀌지 않는다 (§5.1). 시작 자리와 거목을 지나던 자율 존재의 순회는 비켰다.
+8. **거목은 몸에 닿는다.** 표식 point 둘레 반경 1.6 이 줄기이고 사유는 landmark-trunk 다 (§5.3). 그림(높이 17)은
+   뒤 컨텐츠 작업이 갈아 끼운다 — 이 Play 가 정한 것은 줄기가 있다는 사실이다.
+9. 값은 그대로다 — 평지/비탈 경계각 15° · 강 폭 8 · 깊이 1.5 · 다리 반경 5 · 젖은 땅 폭 6 · 조건 원 4 와 3.5 · 거목 높이 17.
+   검사 도구가 spec 의 침묵에서 스스로 고른 판정 방식 다섯(C007)도 그대로 둔다.
 ```

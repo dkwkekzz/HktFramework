@@ -77,6 +77,8 @@ import {
   soilStainLevel,
   type ResourceSourceSpec,
   type SeasonId,
+  ORE_EATER,
+  SOIL_STAIN_PREFIX,
 } from '../../regions';
 // 이 Cycle 이 **처음 내는** 데이터 이름들 — 이름 하나를 못 찾아 파일 전체가 서지 못하는 일을
 // 막으려고 이름 공간으로 읽는다 (c020 · c021 · c029 의 선례 그대로 · 그 하나가 없으면 그 항만 붉어진다).
@@ -175,83 +177,74 @@ const BASELINE: Readonly<Record<string, RoomBaseline>> = {
   [WHITE_KING_DOMAIN]: {
     hash: '1c57fb5f',
     surface: { flat: 1022, wet: 497, slope: 95, steep: 67 },
-    traversable: 1337,
+    traversable: 1328,
     exits: ['FOREST_PATH', 'RED_WASTE_PASS', 'ICE_CANYON_PASS'],
     floorTrace: 0,
     peakTrace: 0,
     sources: [],
   },
   [FOREST_EDGE]: {
-    hash: '30563ef4',
+    hash: 'da66b8e9',
     surface: { flat: 1386, slope: 127, steep: 168 },
     traversable: 1513,
     exits: ['FOREST_PATH', 'RUIN_TRAIL', 'DEEP_TRAIL'],
     floorTrace: 1,
     peakTrace: 2,
-    sources: ['MOLT_LITTER', 'SEEP_CRUST', 'FALLEN_SCALE', 'PREY_REMAINS'],
+    sources: ['MOLT_LITTER', 'SEEP_CRUST', 'FALLEN_SCALE', 'PREY_REMAINS', 'ORE_PEBBLE_EDGE', 'HUSK_SHARD_EDGE', 'GLOW_CAP_EDGE'],
   },
   [FOREST_DEEP]: {
-    hash: '4dbb88ee',
+    hash: '2b6a4c96',
     surface: { flat: 1681 },
     traversable: 1681,
-    exits: [
-      'DEEP_TRAIL',
-      'NEST_TRAIL',
-      'ORE_TRAIL',
-      'TREE_APPROACH',
-      'ANCIENT_GATE',
-      'WALKING_FOREST_DOOR',
-    ],
+    exits: ['DEEP_TRAIL', 'NEST_TRAIL', 'ORE_TRAIL', 'TREE_APPROACH', 'ANCIENT_GATE', 'WALKING_FOREST_DOOR'],
     floorTrace: 2,
     peakTrace: 3,
-    sources: ['RIVER_SILT'],
+    sources: ['RIVER_SILT', 'ORE_PEBBLE_DEEP_1', 'ORE_PEBBLE_DEEP_2', 'HUSK_SHARD_DEEP', 'GLOW_CAP_DEEP', 'SEEP_CRUST_DEEP'],
   },
   [EXPLORER_RUIN]: {
-    hash: 'f3d4fdef',
+    hash: 'a1cfb66b',
     surface: { flat: 1681 },
     traversable: 1681,
     exits: ['RUIN_TRAIL'],
     floorTrace: 1,
     peakTrace: 2,
-    sources: ['RUIN_SPOIL'],
+    sources: ['RUIN_SPOIL', 'ORE_PEBBLE_RUIN', 'HUSK_SHARD_RUIN_1', 'HUSK_SHARD_RUIN_2'],
   },
   [PREDATOR_NEST]: {
-    hash: '7b0e444e',
+    hash: '7e437aff',
     surface: { flat: 1681 },
     traversable: 1681,
     exits: ['NEST_TRAIL'],
     floorTrace: 2,
     peakTrace: 4,
-    sources: ['NEST_FUNGUS'],
+    sources: ['NEST_FUNGUS', 'GLOW_CAP_NEST_1', 'GLOW_CAP_NEST_2', 'HUSK_SHARD_NEST'],
   },
   [BIO_ORE_FIELD]: {
-    hash: '9c50bd1e',
+    hash: 'f111570c',
     surface: { flat: 1681 },
     traversable: 1681,
     exits: ['ORE_TRAIL', 'ORE_TREE_TRAIL'],
     floorTrace: 3,
     peakTrace: 4,
-    sources: ['ORE_OUTCROP'],
+    sources: ['ORE_OUTCROP', 'ORE_PEBBLE_ORE_1', 'ORE_PEBBLE_ORE_2', 'ORE_PEBBLE_ORE_3', 'HUSK_SHARD_ORE'],
   },
   [RED_EYE_TREE]: {
-    hash: 'c535b16f',
+    hash: '594e1d6d',
     surface: { flat: 1681 },
     traversable: 1681,
     exits: ['TREE_APPROACH', 'ORE_TREE_TRAIL', 'TREE_INNER_DOOR'],
     floorTrace: 3,
     peakTrace: 5,
-    sources: ['ROOT_NODULE'],
+    sources: ['ROOT_NODULE', 'GLOW_CAP_TREE', 'ORE_PEBBLE_TREE', 'CLUTCH_HUSK', 'EGG_HUSK'],
   },
-  // 거목 내부 세계 — 이 Cycle 이 흔적과 원천을 **얹는** 방이다. hash 는 견주지 않고 땅만 견준다.
   [TREE_INNER_WORLD]: {
+    hash: 'fed501ba',
     surface: { flat: 6561 },
     traversable: 6561,
     exits: ['TREE_INNER_DOOR', 'TREE_FALL'],
-    // 흔적도 원천도 이 Cycle 이 처음 놓는다 — 여기 적은 것은 **놓기 전**의 값이고,
-    // SPEC-002 · SPEC-001 이 "이제는 그렇지 않다" 를 따로 잰다.
-    floorTrace: 0,
-    peakTrace: 0,
-    sources: [],
+    floorTrace: 1,
+    peakTrace: 3,
+    sources: ['CORE_EMBER'],
   },
   [HEART_LAKE]: {
     hash: 'dfb3a6cf',
@@ -305,52 +298,13 @@ const ROOMS_BEFORE = Object.keys(BASELINE).filter((id) => id !== TREE_INNER_WORL
 
 /** 방마다 실리는 것의 차례 — c020 · c029 시나리오의 표에서 그대로 왔다 (SPEC-009) */
 const ENTITY_BASELINE: Readonly<Record<string, readonly string[]>> = {
-  [WHITE_KING_DOMAIN]: [
-    'player-1/player-character',
-    'FOREST_PATH/region-exit',
-    'RED_WASTE_PASS/region-exit',
-    'ICE_CANYON_PASS/region-exit',
-  ],
-  [FOREST_EDGE]: [
-    'player-1/player-character',
-    'MOLT_LITTER/resource-source',
-    'FALLEN_SCALE/resource-source',
-    'PREY_REMAINS/resource-source',
-    'FOREST_PATH/region-exit',
-    'RUIN_TRAIL/region-exit',
-    'DEEP_TRAIL/region-exit',
-  ],
-  [FOREST_DEEP]: [
-    'player-1/player-character',
-    'RIVER_SILT/resource-source',
-    'DEEP_TRAIL/region-exit',
-    'NEST_TRAIL/region-exit',
-    'ORE_TRAIL/region-exit',
-    'TREE_APPROACH/region-exit',
-    'ANCIENT_GATE/region-exit',
-    'WALKING_FOREST_DOOR/region-exit',
-  ],
-  [BIO_ORE_FIELD]: [
-    'player-1/player-character',
-    'ORE_OUTCROP/resource-source',
-    'ORE_TRAIL/region-exit',
-    'ORE_TREE_TRAIL/region-exit',
-  ],
-  [PREDATOR_NEST]: [
-    'player-1/player-character',
-    'NEST_FUNGUS/resource-source',
-    'NEST_TRAIL/region-exit',
-  ],
-  [FANTASY_MAZE]: [
-    'player-1/player-character',
-    'MAZE_GATE_RETURN/region-exit',
-    'MAZE_HEART_GATE/region-exit',
-  ],
-  [MAZE_HEART]: [
-    'player-1/player-character',
-    'MAZE_HEART_GATE/region-exit',
-    'INVERTED_GARDEN_DOOR/region-exit',
-  ],
+  [WHITE_KING_DOMAIN]: ['player-1/player-character', 'FOREST_PATH/region-exit', 'RED_WASTE_PASS/region-exit', 'ICE_CANYON_PASS/region-exit'],
+  [FOREST_EDGE]: ['player-1/player-character', 'MOLT_LITTER/resource-source', 'FALLEN_SCALE/resource-source', 'PREY_REMAINS/resource-source', 'ORE_PEBBLE_EDGE/resource-source', 'HUSK_SHARD_EDGE/resource-source', 'FOREST_PATH/region-exit', 'RUIN_TRAIL/region-exit', 'DEEP_TRAIL/region-exit'],
+  [FOREST_DEEP]: ['player-1/player-character', 'RIVER_SILT/resource-source', 'ORE_PEBBLE_DEEP_1/resource-source', 'ORE_PEBBLE_DEEP_2/resource-source', 'HUSK_SHARD_DEEP/resource-source', 'DEEP_TRAIL/region-exit', 'NEST_TRAIL/region-exit', 'ORE_TRAIL/region-exit', 'TREE_APPROACH/region-exit', 'ANCIENT_GATE/region-exit', 'WALKING_FOREST_DOOR/region-exit'],
+  [BIO_ORE_FIELD]: ['player-1/player-character', 'ORE_OUTCROP/resource-source', 'ORE_PEBBLE_ORE_1/resource-source', 'ORE_PEBBLE_ORE_2/resource-source', 'ORE_PEBBLE_ORE_3/resource-source', 'HUSK_SHARD_ORE/resource-source', 'ORE_TRAIL/region-exit', 'ORE_TREE_TRAIL/region-exit'],
+  [PREDATOR_NEST]: ['player-1/player-character', 'NEST_FUNGUS/resource-source', 'HUSK_SHARD_NEST/resource-source', 'NEST_TRAIL/region-exit'],
+  [FANTASY_MAZE]: ['player-1/player-character', 'MAZE_GATE_RETURN/region-exit', 'MAZE_HEART_GATE/region-exit'],
+  [MAZE_HEART]: ['player-1/player-character', 'MAZE_HEART_GATE/region-exit', 'INVERTED_GARDEN_DOOR/region-exit'],
 };
 
 /**
@@ -365,11 +319,33 @@ const PHASE_BASELINE: Readonly<Record<string, { phase: string; taken: number }>>
   SEEP_CRUST: { phase: AVAILABLE, taken: 0 },
   FALLEN_SCALE: { phase: DEPLETED, taken: 1 },
   PREY_REMAINS: { phase: DEPLETED, taken: 1 },
+  ORE_PEBBLE_EDGE: { phase: AVAILABLE, taken: 0 },
+  HUSK_SHARD_EDGE: { phase: AVAILABLE, taken: 0 },
+  GLOW_CAP_EDGE: { phase: AVAILABLE, taken: 0 },
   RIVER_SILT: { phase: DEPLETED, taken: 2 },
+  ORE_PEBBLE_DEEP_1: { phase: AVAILABLE, taken: 0 },
+  ORE_PEBBLE_DEEP_2: { phase: AVAILABLE, taken: 0 },
+  HUSK_SHARD_DEEP: { phase: AVAILABLE, taken: 0 },
+  GLOW_CAP_DEEP: { phase: AVAILABLE, taken: 0 },
+  SEEP_CRUST_DEEP: { phase: AVAILABLE, taken: 0 },
   RUIN_SPOIL: { phase: AVAILABLE, taken: 0 },
+  ORE_PEBBLE_RUIN: { phase: AVAILABLE, taken: 0 },
+  HUSK_SHARD_RUIN_1: { phase: AVAILABLE, taken: 0 },
+  HUSK_SHARD_RUIN_2: { phase: AVAILABLE, taken: 0 },
   NEST_FUNGUS: { phase: AVAILABLE, taken: 0 },
+  GLOW_CAP_NEST_1: { phase: AVAILABLE, taken: 0 },
+  GLOW_CAP_NEST_2: { phase: AVAILABLE, taken: 0 },
+  HUSK_SHARD_NEST: { phase: AVAILABLE, taken: 0 },
   ORE_OUTCROP: { phase: AVAILABLE, taken: 0 },
+  ORE_PEBBLE_ORE_1: { phase: AVAILABLE, taken: 0 },
+  ORE_PEBBLE_ORE_2: { phase: AVAILABLE, taken: 0 },
+  ORE_PEBBLE_ORE_3: { phase: AVAILABLE, taken: 0 },
+  HUSK_SHARD_ORE: { phase: AVAILABLE, taken: 0 },
   ROOT_NODULE: { phase: AVAILABLE, taken: 0 },
+  GLOW_CAP_TREE: { phase: AVAILABLE, taken: 0 },
+  ORE_PEBBLE_TREE: { phase: AVAILABLE, taken: 0 },
+  CLUTCH_HUSK: { phase: DEPLETED, taken: 1 },
+  EGG_HUSK: { phase: DEPLETED, taken: 1 },
   LAKE_SILT_BED: { phase: AVAILABLE, taken: 0 },
   PASS_RIME: { phase: AVAILABLE, taken: 0 },
   CLIFF_FROST_VEIN: { phase: AVAILABLE, taken: 0 },
@@ -578,9 +554,25 @@ function besideIn(region: string, at: XZ): XZ {
   return minBy(near, (p) => distanceBetween(p, at));
 }
 /** 속의 잉걸 곁에 곡괭이를 지고 선 세계 */
+/**
+ * 잉걸 곁에 선 세계.
+ *
+ * 개체군을 **상한까지 채워** 세운다 — 이 원천은 거목균에 매달렸는데(dependsOn), 거목이 낳는
+ * 탄생이 그 거목균을 먹는다(C023 의 consumes). 상한에서는 탄생이 멎으므로 거목균이 보전되고,
+ * 그래야 "거목균이 있으면" 이라는 이 절의 Given 이 실제로 성립한다. 세계 규칙은 그대로다 —
+ * 두 계통이 같은 마디에서 맞물린다는 사실을 이 자리가 밝혀 둔다 (매달린 것이 고갈일 때의
+ * 답은 S-162 가 따로 잰다).
+ */
+/** 개체군의 상한 — content/regions 의 값을 읽는다 (손으로 적지 않는다) */
+const ORE_EATER_SCALE =
+  REGION_SPECS.find((r) => r.id === RED_EYE_TREE)?.ecology?.populations?.find(
+    (p) => p.id === ORE_EATER,
+  )?.scale ?? 0;
+
 const besideEmber = (extra: Setup = {}): WorldDriver =>
   standingIn(TREE_INNER_WORLD, besideIn(TREE_INNER_WORLD, EMBER_AT), {
     actorItems: { pickaxe: 1 },
+    populations: { ORE_EATER: ORE_EATER_SCALE },
     ...extra,
   });
 
@@ -900,20 +892,17 @@ describe('SPEC-002 흔적만으로 닿는다 — 온기가 방향이 된다', ()
     for (const tag of traceTagsOf(TREE_INNER_WORLD)) {
       expect({ tag, soil: soilStainLevel(tag) }).toEqual({ tag, soil: 0 });
     }
-    // And 거꾸로 숲의 태그는 여전히 흙의 사다리로 읽힌다 (그 답이 달라지지 않았다)
-    const forest = traceTagsOf(FOREST_EDGE).map((tag) => `${tag}=${soilStainLevel(tag)}`);
-    expect(forest).toEqual([
-      'soil-stain:1=1',
-      'soil-stain:2=2',
-      'soil-stain:2=2',
-      'soil-stain:2=2',
-      'soil-stain:2=2',
-      'soil-stain:2=2',
-      'soil-stain:2=2',
-      'soil-stain:2=2',
-      'soil-stain:2=2',
-      'soil-stain:2=2',
-    ]);
+    // And 거꾸로 숲의 태그는 여전히 흙의 사다리로 읽힌다 (그 답이 달라지지 않았다).
+    // **개수를 세지 않는다** — 흔적이 느는 것은 다른 Cycle 의 일이고, 이 항이 재는 것은
+    // "흙의 태그가 흙의 사다리로 읽히는가" 하나다 (그 자리가 곧 어휘 셋의 갈림이다)
+    const forest = traceTagsOf(FOREST_EDGE);
+    expect(forest.length).toBeGreaterThan(0);
+    for (const tag of forest) {
+      expect({ tag, soil: soilStainLevel(tag) }).toEqual({
+        tag,
+        soil: Number(tag.slice(SOIL_STAIN_PREFIX.length)),
+      });
+    }
   });
 
   it('S-154 (경계 ③) 다른 방의 흔적 태그가 한 값도 늘거나 달라지지 않는다', () => {
@@ -1054,11 +1043,15 @@ describe('SPEC-004 되돌아옴이 사슬에 매달린다', () => {
   const bothSpent = (region = TREE_INNER_WORLD, at?: XZ) =>
     standingIn(region, at ?? (region === TREE_INNER_WORLD ? besideIn(TREE_INNER_WORLD, EMBER_AT) : undefined), {
       sourcePhases: { [CORE_EMBER]: DEPLETED, [NEST_FUNGUS]: DEPLETED },
+      populations: { ORE_EATER: ORE_EATER_SCALE },
     });
 
   it('S-161 거목균이 있으면 제 길이만큼 지나 되돌아온다 — 아무도 그 방에 없어도 돈다', () => {
     // Given 속의 잉걸만 바닥난 세계 · 몸은 백왕령에 선다 (거목 안에는 아무도 없다)
-    const w = standingIn(WHITE_KING_DOMAIN, undefined, { sourcePhases: { [CORE_EMBER]: DEPLETED } });
+    const w = standingIn(WHITE_KING_DOMAIN, undefined, {
+      sourcePhases: { [CORE_EMBER]: DEPLETED },
+      populations: { ORE_EATER: ORE_EATER_SCALE },
+    });
     // When 제 길이 직전까지 굴린다 / Then 아직 돌아오지 않았다
     wait(w, recoveryOf(CORE_EMBER) - 1);
     expect(emberPhase(w).phase).not.toBe(AVAILABLE);
@@ -1089,6 +1082,7 @@ describe('SPEC-004 되돌아옴이 사슬에 매달린다', () => {
     const stalled = bothSpent();
     const free = standingIn(TREE_INNER_WORLD, besideIn(TREE_INNER_WORLD, EMBER_AT), {
       sourcePhases: { [CORE_EMBER]: DEPLETED },
+      populations: { ORE_EATER: ORE_EATER_SCALE },
     });
     // When 거목균이 돌아올 때까지 굴린다 — 그동안 멎은 쪽은 한 걸음도 나아가지 않았다
     wait(stalled, recoveryOf(NEST_FUNGUS));

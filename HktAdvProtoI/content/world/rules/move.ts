@@ -28,7 +28,7 @@
 // 되어도 걸어 나갈 수 있다.
 
 import type { ActionResult } from '../../protocol/actions';
-import { BLOCK_COLLAPSED, BLOCK_STEEP, BLOCK_WATER } from '../../regions';
+import { BLOCK_COLLAPSED, BLOCK_LANDMARK, BLOCK_STEEP, BLOCK_WATER } from '../../regions';
 import { RULE_MOVE } from '../../protocol/semantic-id';
 import type { ActorState } from '../semantic/actor';
 import { extentContains } from '../../../engine/world-authoring/description';
@@ -48,6 +48,7 @@ export type MoveFailureReason =
   | 'action-busy'
   | typeof BLOCK_STEEP
   | typeof BLOCK_WATER
+  | typeof BLOCK_LANDMARK
   | typeof PASSAGE_CLOSED
   | typeof BLOCK_COLLAPSED;
 

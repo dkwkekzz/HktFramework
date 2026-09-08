@@ -18,6 +18,8 @@ import { START_REGION } from './semantic/region';
 import {
   applyPatternSetup,
   applyDisturbanceSetup,
+  applyLifeSitePhaseSetup,
+  applyPopulationSetup,
   applySourcePhaseSetup,
   createRegionStates,
 } from './semantic/region-state';
@@ -41,6 +43,7 @@ import { ruleNpcDecideAll } from './simulation/npc-decide';
 import { applyPresenceSetup, rulePresence } from './simulation/presence';
 import { ruleRegionFall } from './simulation/region-fall';
 import { ruleSeasonTurn } from './simulation/season-turn';
+import { ruleLifeBinding } from './simulation/life-binding';
 import { ruleSourceRecovery } from './simulation/source-recovery';
 import { ruleStrikeEventExpire } from './simulation/strike-event-expire';
 import { ruleSwingStrike } from './simulation/swing-strike';
@@ -157,6 +160,39 @@ export interface WorldSetup {
    * 모르는 경로 이름은 조용히 무시한다 — 손잡이가 세계에 없는 것을 지어내지 않는다.
    */
   presences?: string[];
+  /**
+   * 탄생지가 **어느 phase 로 서는가** — 검증·촬영용 초기 배치 (C022 ADDED · C023 CHANGED).
+   * 예: `{ ROOT_CLUTCH: 'spent', ROOT_EGGS: 'binding' }`
+   *
+   * sourcePhases · disturbances 와 **같은 갈래**의 손잡이다: 기다려서 닿을 수 있는 State 를
+   * 기다리지 않고 시작하기 위한 것이며 **세계의 규칙을 하나도 바꾸지 않는다.**
+   *
+   * 왜 필요한가 — 맺히는 알집(BINDING)을 보려면 요구 넷이 다 차 있는 때(비가 오는 구간)를
+   * 기다려야 하고, 하루가 360 세계 초라 촬영 하네스가 그것을 기다릴 수 없다. 규칙이 그
+   * State 로 데려간다는 것은 시나리오 테스트가 증명하고, 그림은 **그 State 에서 무엇이
+   * 보이는가**를 보인다 (sourcePhases 와 같은 논리).
+   *
+   * C023 CHANGED — **phase 넷을 다 받는다** (dormant · binding · born · spent). 촬영은 결속
+   * 60 초도 계승 90 초도 기다릴 수 없으므로, 터진 자리(spent)와 그 곁의 껍질이 그림의
+   * 전부다. 세운 State 는 언제나 **규칙이 스스로 도달할 수 있는 것**이다 — 진행은 0 이고,
+   * 조건이 차 있지 않으면 다음 Tick 에 세계 자신의 규칙이 DORMANT 로 되돌린다.
+   * **태어남을 여기서 일으키지 않는다**: born 으로 세워도 먹지도 세우지도 않고 값도 오르지
+   * 않는다 — 다섯이 함께 움직이는 자리는 규칙 하나뿐이다 (원칙 4).
+   * 모르는 탄생지 id · 모르는 phase 이름은 조용히 무시한다.
+   */
+  lifeSitePhases?: Record<string, string>;
+  /**
+   * 개체군의 **값이 얼마인가** — 검증·촬영용 초기 배치 (C022 ADDED).
+   * 예: `{ ORE_EATER: 1 }`
+   *
+   * 왜 필요한가 — C023 이 그 값을 올리는 규칙을 세웠지만(탄생 하나에 +1), 값이 오르려면
+   * 결속 60 초를 기다려야 한다. "값이 0 이 아니면 결속이 서지 않는다" · "값만큼 떼의 자락이
+   * 넓어진다" 를 그림으로 보려면 그 값을 세우고 시작해야 한다.
+   * 세우는 것은 값뿐이고 **세계의 규칙은 하나도 바뀌지 않는다** — 그 위에서 요구의 판정도
+   * 결속도 그대로 굴러간다. 값은 0 과 그 개체군의 상한 사이로 잘리고, 모르는 개체군 ·
+   * 수가 아닌 값은 조용히 무시한다.
+   */
+  populations?: Record<string, number>;
 }
 
 // 세계의 기본 배치 — 자율 캐릭터 둘이 각자의 순회 경로를 돈다. 자리는 START_REGION 의 Local Space 좌표다 (C001 R4).
@@ -167,16 +203,23 @@ export interface WorldSetup {
 // traversable 을 보지 않으므로(spec R1 은 요청만 판정한다) 그대로 두면 사람이 물 위를 걷는다.
 //   npc-1 강 남쪽 — 도시와 그 남쪽 들을 돈다 (실측: 네 꼭짓점 다 중심선에서 6.8 이상)
 //   npc-2 강 북쪽 — 건너편에 사는 사람. 다리를 건너기 전에는 만날 수 없다
+//
+// RoomBecomesLand 실주행 판정(Q6) CHANGED — npc-1 의 경로가 **몸이 놓이는 자리 (0, 0) 와
+// 거목 (−5, 0) 을 비켜 간다.** 예전 경로의 한 변((2, 0) → (−8, 0))은 그 둘을 정확히 지났다:
+// 세계에 막 들어선 몸을 자율 존재가 밀어붙였고(몸 충돌은 아무 말도 하지 않는다), 이제 거목의
+// 줄기가 땅을 막으므로(BLOCK_LANDMARK) 그 변은 걸을 수 없는 자리를 지난다. 남쪽으로 한 칸
+// 내려 도시의 남쪽 들만 돈다 — 규칙은 하나도 늘지 않고 배치 데이터만 달라진다.
+// (실측: 네 꼭짓점 다 거목에서 3.6 이상 · 시작 자리에서 3.6 이상 · 강 중심선에서 9 이상)
 const DEFAULT_NPCS: NpcSetup[] = [
   {
     id: 'npc-1',
     characterKind: 'wanderer',
-    position: { x: -8, z: 0 },
+    position: { x: -8, z: -4 },
     wanderPath: [
-      { x: -8, z: 0 },
-      { x: -8, z: -6 },
-      { x: 2, z: -6 },
-      { x: 2, z: 0 },
+      { x: -8, z: -4 },
+      { x: -8, z: -10 },
+      { x: 2, z: -10 },
+      { x: 2, z: -4 },
     ],
   },
   {
@@ -221,6 +264,11 @@ const SYSTEMS: WorldContent<WorldState>['systems'] = [
   (state) => ruleTrackFade(state), // RULE-TRACK-FADE-001
   // 채취의 완료(action-progress)보다 **앞**이다: 같은 Tick 에 캔 것이 곧바로 되돌아오지 않는다.
   (state, dt) => ruleSourceRecovery(state, dt), // RULE-SOURCE-RECOVERY-001
+  // 결속은 **되돌아옴 곁**이다 (C022 spec R3) — 세계 과정끼리 나란히 서고, 둘 다 관찰자와
+  // 무관하게 돈다. 되돌아옴보다 **뒤**인 이유: 이 Tick 에 되돌아온 원천이 그 Tick 의 요구
+  // 판정에 들어야 "조건이 되돌아오면 그 자리에서 이어 오른다" 가 한 Tick 도 밀리지 않는다
+  // (뒤척임이 되돌아옴보다 앞인 것과 같은 어법으로 고른 자리다).
+  (state, dt) => ruleLifeBinding(state, dt), // RULE-LIFE-BINDING-001 (+ RULE-LIFE-CONDITION-001)
   (state, dt) => ruleActionProgress(state, dt), // RULE-ACTION-PROGRESS-001
   (state) => ruleSwingStrike(state), // RULE-SWING-STRIKE-001 (STRIKE-DAMAGE → SKILL-BUDGET → DOWNED 를 함께 부른다)
   (state, dt) => ruleBodyPush(state, dt), // RULE-BODY-PUSH-001
@@ -277,12 +325,19 @@ export function createWorld(setup: WorldSetup = {}, restored?: WorldState): Worl
     // 규칙을 품은 방마다 첫 패턴 · 압력 0 으로, 원천을 가진 방마다 원천이 available 로 선다
     // (C008 · C012). 되살린 세계는 이 자리에 오지 않는다 — Region State 는 저장되는 State 이므로
     // 스냅샷의 그 순간 값이 그대로 이어진다.
-    regionStates: applyDisturbanceSetup(
-      applySourcePhaseSetup(
-        applyPatternSetup(createRegionStates(), setup.regionPatterns),
-        setup.sourcePhases,
+    // C022 CHANGED — 탄생지와 개체군의 손잡이가 그 바깥에 둘 더 선다 (같은 갈래 · 같은 규율).
+    regionStates: applyPopulationSetup(
+      applyLifeSitePhaseSetup(
+        applyDisturbanceSetup(
+          applySourcePhaseSetup(
+            applyPatternSetup(createRegionStates(), setup.regionPatterns),
+            setup.sourcePhases,
+          ),
+          setup.disturbances,
+        ),
+        setup.lifeSitePhases,
       ),
-      setup.disturbances,
+      setup.populations,
     ),
     // 아직 한 번도 뒤척이지 않았다 (C016 ADDED · spec R8). 되살린 세계는 이 자리에 오지
     // 않는다 — 적용한 수는 저장되는 State 이므로 스냅샷의 그 값이 그대로 이어진다.

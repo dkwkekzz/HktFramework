@@ -156,6 +156,19 @@ export const TRACK_LIFETIME_SECONDS = 60;
 export const TRACK_STEP_DISTANCE = 4.0;
 export const TRACK_LIMIT_PER_REGION = 48;
 
+/**
+ * **다 찼다** 를 판정하는 티끌 (C023 ADDED · spec SPEC-003 · SPEC-007).
+ *
+ * 0..1 의 진행에 `dt / 길이` 를 더해 가면 부동소수의 티끌이 남는다 — 1/90 을 아흔 번 더해도
+ * 1 에 닿지 않는다 (0.999…84). 그대로 두면 데이터가 말한 **90 세계 초가 91 초**가 되어
+ * 세계가 자기 데이터와 다른 말을 한다 (60 은 우연히 딱 떨어져 C022 에서 드러나지 않았다).
+ *
+ * 그래서 1 에 이만큼보다 가까우면 다 찬 것으로 친다. 세계 초 하나에 견주면 티끌보다 작으므로
+ * 어떤 길이의 탄생지도 이 값 때문에 한 tick 일찍 차지 않는다.
+ * 결정론에 영향을 주는 시뮬레이션 상수이므로 CVar 가 아니라 헤더 상수로 고정한다 (원칙 6).
+ */
+export const PROGRESS_EPSILON = 1e-9;
+
 // Actor.MoveSpeed · AttackRange · PerceptionRange 는 종류가 정하는 값이다 —
 // character-catalog.ts 가 단일 출처다 (구 MOVE_SPEED/NPC_MOVE_SPEED/ATTACK_RANGE/PERCEPTION_RANGE).
 
@@ -201,4 +214,4 @@ export const TICK_INTERVAL = 1 / 30;
 // C018 — World.presences 가 실린다 (지나가는 것의 지금 — 시작한 시각 · 시작한 바퀴 ·
 //        지나간 수 · 이번에 고른 방들). 형태가 바뀌므로 옛 스냅샷은 복구되지 않는다
 //        (spec SPEC-008 경계).
-export const STATE_VERSION = 'hkt-adv-proto-i/9';
+export const STATE_VERSION = 'hkt-adv-proto-i/10';

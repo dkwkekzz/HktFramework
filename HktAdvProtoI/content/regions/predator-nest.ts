@@ -9,14 +9,20 @@
 
 import type { RegionSpec } from './spec';
 import { ANCHOR_LAYER } from './spec';
+import { DEPTH_LAYER, HAZARD_LAYER } from './phases';
 import {
   FOREST_CHAIN,
+  FORM_GLOW_CAP,
+  FORM_HUSK_SHARD,
   FORM_NEST_MYCELIUM,
   GIANT_TREE_FUNGUS,
+  ORE_EATER_MOLT,
   RECOVERY_CARCASS_DECAY,
+  RECOVERY_HUSK_SHED,
+  RECOVERY_NIGHT_BLOOM,
   RESOURCE_LAYER,
-  TRACE_LAYER,
   soilStainTag,
+  TRACE_LAYER,
 } from './resource-ecology';
 
 export const PREDATOR_NEST = 'PREDATOR_NEST';
@@ -76,6 +82,73 @@ export const PREDATOR_NEST_SPEC: RegionSpec = {
         tag: 'NEST_FUNGUS',
         position: { x: -6, z: 4 },
       },
+      // ── RoomBearsMaterial 실주행 판정 ADDED — 흩어진 것들 ──────────────────────
+      //
+      // Human 의 답: "재료가 너무 적고 채집하는 재미가 부족하다." 방의 중심이던 원천 곁에
+      // **작은 것 여럿**이 흩어져 선다 — 걸어 다니며 줍는 것이다. 자리는 이미 선 것들(원천 · 출구 ·
+      // 선의 마디 · 막힌 땅)과 겹치지 않는 평지에서 골랐고, 둘레 흔적은 방 바닥보다 한 단계 짙되
+      // 반지름 4 로 작다 (중심 원천의 7 과 갈려 "작은 것" 으로 읽힌다). 규칙은 하나도 늘지 않는다.
+      {
+        id: 'trace-glow-cap-nest-1',
+        kind: 'area',
+        layer: TRACE_LAYER,
+        tag: soilStainTag(3),
+        shape: { kind: 'circle', center: { x: 6, z: -8 }, radius: 4 },
+      },
+      {
+        id: 'source-glow-cap-nest-1',
+        kind: 'point',
+        layer: RESOURCE_LAYER,
+        tag: 'GLOW_CAP_NEST_1',
+        position: { x: 6, z: -8 },
+      },
+      {
+        id: 'trace-glow-cap-nest-2',
+        kind: 'area',
+        layer: TRACE_LAYER,
+        tag: soilStainTag(3),
+        shape: { kind: 'circle', center: { x: -10, z: -12 }, radius: 4 },
+      },
+      {
+        id: 'source-glow-cap-nest-2',
+        kind: 'point',
+        layer: RESOURCE_LAYER,
+        tag: 'GLOW_CAP_NEST_2',
+        position: { x: -10, z: -12 },
+      },
+      {
+        id: 'trace-husk-shard-nest',
+        kind: 'area',
+        layer: TRACE_LAYER,
+        tag: soilStainTag(3),
+        shape: { kind: 'circle', center: { x: 8, z: 8 }, radius: 4 },
+      },
+      {
+        id: 'source-husk-shard-nest',
+        kind: 'point',
+        layer: RESOURCE_LAYER,
+        tag: 'HUSK_SHARD_NEST',
+        position: { x: 8, z: 8 },
+      },
+      // ── RoomNeverSame 실주행 판정 ADDED — 철이 이 방을 바꾸는 자락 ────────────────
+      //
+      // Human 의 답: "밤낮은 보였는데 다른 변화는 모르겠다 — 확인할 단서 자체가 없다." 철을 타는 방이
+      // 숲 가장자리 하나뿐이었다. 이 자락들은 컴파일 결과를 한 값도 바꾸지 않고(높이 · 표면 · 통행 그대로)
+      // 철이 그 위에 State 를 덧씌울 뿐이다 (C016 의 형 그대로). 어느 철에 무엇으로 읽히는가는 아래 phases 만이 안다.
+      {
+        id: 'depth-nest-den',
+        kind: 'area',
+        layer: DEPTH_LAYER,
+        tag: 'NEST_FUNGUS',
+        shape: { kind: 'circle', center: { x: -6, z: 4 }, radius: 9 },
+      },
+      {
+        id: 'hazard-nest-den',
+        kind: 'area',
+        layer: HAZARD_LAYER,
+        tag: 'NEST_FUNGUS',
+        shape: { kind: 'circle', center: { x: -6, z: 4 }, radius: 9 },
+      },
     ],
   },
   // 생태 **부산물** — 이 세계의 넷째 기회 자리다 (A.3). 사냥의 결과로 남은 것이지
@@ -101,6 +174,68 @@ export const PREDATOR_NEST_SPEC: RegionSpec = {
         // 마디 하나뿐인 원천 — 자리를 옮기지 않는다 (siteCurve 없음)
         traceOps: ['trace-nest-fungus'],
       },
+      // ── RoomBearsMaterial 실주행 판정 ADDED — 흩어진 것들 (자리는 위의 point 가 소유한다) ──
+      // 어둠에서 희게 빛나는 갓 — 거목균의 밤 형태. **밤에만 선다** (dayPhases): 낮에는 흙 속으로 오므라들어 거기 없다. 밤이 감추는 것이 아니라 종류를 바꾼다 (RoomNeverSame Q25)
+      {
+        id: 'GLOW_CAP_NEST_1',
+        materialId: GIANT_TREE_FUNGUS,
+        worldCause: FOREST_CHAIN,
+        form: FORM_GLOW_CAP,
+        carrier: 'fungus',
+        opportunity: 'by-product',
+        supply: 'conditional-renewable',
+        recoveryCause: RECOVERY_NIGHT_BLOOM,
+        harvests: 1,
+        recoverySeconds: 90,
+        traceOps: ['trace-glow-cap-nest-1'],
+        // 낮밤을 탄다 — 밤에만 선다
+        dayPhases: ['NIGHT'],
+      },
+      // 어둠에서 희게 빛나는 갓 — 거목균의 밤 형태. **밤에만 선다** (dayPhases): 낮에는 흙 속으로 오므라들어 거기 없다. 밤이 감추는 것이 아니라 종류를 바꾼다 (RoomNeverSame Q25)
+      {
+        id: 'GLOW_CAP_NEST_2',
+        materialId: GIANT_TREE_FUNGUS,
+        worldCause: FOREST_CHAIN,
+        form: FORM_GLOW_CAP,
+        carrier: 'fungus',
+        opportunity: 'by-product',
+        supply: 'conditional-renewable',
+        recoveryCause: RECOVERY_NIGHT_BLOOM,
+        harvests: 1,
+        recoverySeconds: 90,
+        traceOps: ['trace-glow-cap-nest-2'],
+        // 낮밤을 탄다 — 밤에만 선다
+        dayPhases: ['NIGHT'],
+      },
+      // 풀줄기에 걸린 껍질 조각 — 광식충이 줄기를 타고 오르며 벗은 것. 밑동의 허물과 같은 재료의 다른 형태다
+      {
+        id: 'HUSK_SHARD_NEST',
+        materialId: ORE_EATER_MOLT,
+        worldCause: FOREST_CHAIN,
+        form: FORM_HUSK_SHARD,
+        carrier: 'plant',
+        opportunity: 'baseline',
+        supply: 'baseline-renewable',
+        recoveryCause: RECOVERY_HUSK_SHED,
+        harvests: 2,
+        recoverySeconds: 75,
+        traceOps: ['trace-husk-shard-nest'],
+      },
     ],
+  },
+  /**
+   * 이 방이 철을 타는 방식 (RoomNeverSame 실주행 판정 ADDED).
+   *
+   * 긴 밤에 균사가 선 사체 둘레가 한 단계 깊어지고(wild → deep) 같은 자락이 위험으로 읽힌다 —
+   * 둥지의 주인이 돌아오는 때다 (살아 있는 포식은 3층의 몫이고, 2층은 그 자락이 위험하다고 말하는 것까지다).
+   * 깊이와 위험이 같은 자락이다 (Concept §6).
+   */
+  phases: {
+    seasons: {
+      LONG_NIGHT: {
+        depthOverlay: [{ areaId: 'depth-nest-den', depth: 'deep' }],
+        hazardExtend: [{ areaId: 'hazard-nest-den', hazard: 'hazard/creature' }],
+      },
+    },
   },
 };

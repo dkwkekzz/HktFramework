@@ -29,10 +29,11 @@ import type { GameViewPosition, GameViewSnapshot } from '../protocol/gameview';
 import { agoText } from './answer-log';
 import { readBeing, type BeingOffer, type BeingReading } from './being-reading';
 import { codeText } from './code-text';
+import { lifeSiteStateCode } from './life-reading';
 import { SETTLEMENT_LAYER } from './biome-rules';
 import { materialSeed, propertyPhraseCode, TRACE_LAYER } from '../regions/index';
 import { interactionPresentation } from './interaction-presentation';
-import { CELL_LAYER, regionName } from './region-presentation';
+import { CELL_LAYER, exitHint, passageName, regionName, regionRuleHint } from './region-presentation';
 import type { Designation } from './pointer-rules';
 import { readPlace, type PlaceAreas, type PlaceReading } from './place-reading';
 
@@ -69,7 +70,8 @@ export const PLACE_ROW_LABELS: Readonly<Record<string, string>> = {
   // 무엇으로 읽히는지는 값이 말한다 (그것이 이 표의 규율이다).
   'place.trace': '흔적',
   'place.passage': '통로',
-  // 규칙이 있나
+  // 규칙이 있나 — 어떤 규칙인지가 먼저 선다 (RuleBoundRoom 실주행 판정: 규칙이 느껴져야 한다)
+  'place.rule': '규칙',
   'place.pattern': '지금 길',
   'place.pressure': '압력',
   // 방이 지금 어떤가 (C017) — 압력이 규칙을 품은 방만의 값인 것과 달리 **어느 방에나 있다**.
@@ -84,6 +86,12 @@ export const PLACE_ROW_LABELS: Readonly<Record<string, string>> = {
   // 이름표가 무엇이 지나는지도 어디로 가는지도 묻지 않는 것은 세계가 그것을 싣지 않기
   // 때문이다 (Time T8) — 관찰된 사실은 "지금 여기를 이것이 지난다" 하나뿐이다
   'place.presence': '지나는 것',
+  // 무엇이 **서 있는가** (C023) — 바로 위 줄과 **같은 자리에서 온다**(presences). 세계가
+  // 그 둘을 가르는 것은 실린 것이 선(curve)인가 자락(area)인가 하나뿐이고, 그것이 곧
+  // "지나간다" 와 "여기 산다" 의 갈림이다. 이름표를 갈라 두는 것은 그래서다 — 도는 떼를
+  // '지나는 것' 이라 부르면 관찰자가 곧 지나갈 것으로 읽는다.
+  // **몇인지는 없다** (spec SPEC-005 경계 ① — 개체군의 값도 상한도 실리지 않는다)
+  'place.swarm': '서 있는 것',
 };
 
 /**
@@ -117,6 +125,8 @@ export const BEING_ROW_LABELS: Readonly<Record<string, string>> = {
   // 걸린 것이 자리에 걸리든 존재에 걸리든 관찰자에게는 같은 종류의 사실이므로 다른 말을
   // 짓지 않는다 (쓰러짐 줄이 기존 문구를 그대로 쓴 것과 같은 규율)
   'being.condition': '걸린 것',
+  // 잠긴 문이 **무엇에 열리는가**의 갈래 (RuleBoundRoom 실주행 판정 — 힌트가 있어야 플레이가 된다)
+  'being.hint': '힌트',
   // 무엇을 주는가
   'being.offer': '할 수 있는 것',
 };
@@ -300,8 +310,13 @@ export function beingRows(reading: BeingReading): SceneFrameRow[] {
   }
 
   // ② 어떤 상태인가 — 지금 하는 일, 진행이 있으면 함께
+  //
+  // C022 CHANGED — **어느 말을 할지 형태(kind)가 함께 고른다** (핵심 원칙 2). 세계가 싣는
+  // state 코드는 대상마다 같은 글자가 다른 것을 뜻할 수 있고(탄생지의 dormant 와 방의
+  // 위상 dormant), 그 갈림은 세계의 것이 아니라 화면의 결정이다. 표에 없는 형태는 실려 온
+  // 코드 그대로 지난다 — 사람도 원천도 출구 표식도 한 글자 달라지지 않는다
   rows.push({
-    ...row('being.state', codeText(reading.state)),
+    ...row('being.state', codeText(lifeSiteStateCode(reading.kind, reading.state))),
     ...(reading.progress === undefined ? {} : { progress: reading.progress }),
   });
 
@@ -328,6 +343,13 @@ export function beingRows(reading: BeingReading): SceneFrameRow[] {
   const conditions = reading.conditions;
   if (conditions && conditions.length > 0) {
     rows.push(row('being.condition', conditions.map((c) => codeText(c)).join(VALUE_SEPARATOR)));
+  }
+
+  // 잠긴 문의 힌트 (RuleBoundRoom 실주행 판정) — **잠겨 있을 때만** 선다. 열린 문에는 할 말이 없고,
+  // 표에 없는 문도 없다. 어느 갈래의 규칙이 이 문을 쥐고 있는지까지이지 답이 아니다
+  if (reading.state === 'locked') {
+    const hint = exitHint(reading.entityId);
+    if (hint !== undefined) rows.push(row('being.hint', hint));
   }
 
   // ③ 무엇을 주는가 — 그 대상을 겨냥한 것만, 봉투의 차례 그대로 (SPEC-003)
@@ -418,24 +440,28 @@ export function placeRows(reading: PlaceReading, worldTime?: number): SceneFrame
       if (id) rows.push(row(id, area.tags.map((t) => codeText(t)).join(VALUE_SEPARATOR)));
     }
     for (const passage of g.passages) {
+      // 통로의 이름과 열림을 함께 적는다 (TODO §2 의 결정 — 통로도 이름을 적는다)
       rows.push(
         row(
           'place.passage',
-          codeText(
+          `${passageName(passage.tag)}${VALUE_SEPARATOR}${codeText(
             passage.open === null
               ? 'place.passage.unknown'
               : passage.open
                 ? 'place.passage.open'
                 : 'place.passage.closed',
-          ),
+          )}`,
         ),
       );
     }
   }
 
-  // ④ 규칙이 있나 — 품지 않은 방에는 이 둘이 아예 없다 (SPEC-004 경계)
+  // ④ 규칙이 있나 — 품지 않은 방에는 이 셋이 아예 없다 (SPEC-004 경계)
   const rule = reading.rule;
   if (rule) {
+    // 어떤 규칙인지가 먼저다 (RuleBoundRoom 실주행 판정) — 표에 없는 방은 이 줄이 없다
+    const hint = regionRuleHint(reading.regionId);
+    if (hint !== undefined) rows.push(row('place.rule', hint));
     // 지금 길과 **그 길이 언제부터인지**. 재배열의 나이는 기록 줄과 같은 함수(agoText)가
     // 적는다 — 같은 값이 두 자리에서 다르게 적히면 둘 중 하나를 믿을 수 없다 (압력 줄이
     // HUD 와 같은 형식인 것과 같은 이유). 잰 값이 없으면 길 이름만 선다
@@ -503,9 +529,30 @@ export function placeRows(reading: PlaceReading, worldTime?: number): SceneFrame
   // 것이지 판이 읽어 줄 말이 아니다 — 뿌리 선의 자리를 판이 짚어 주지 않는 것과 같다.
   // 언제 다시 오는지도 어디로 가는지도 몇 번째인지도 없다 (세계가 싣지 않는다).
   for (const presence of reading.presences ?? []) {
+    // C023 CHANGED — **선을 실은 줄만** 이 자리에 선다. 같은 목록에 서 있는 떼가 실리기
+    // 시작했고(자락), 그것은 지나가는 것이 아니므로 아래의 제 줄이 진다
+    if (presence.curve === undefined) continue;
     rows.push({
       ...row('place.presence', codeText(presence.presence)),
       id: `place.presence:${presence.presence}`,
+    });
+  }
+
+  // ⑦ 무엇이 **서 있는가** (C023 ADDED — spec SPEC-006).
+  //
+  // **코드마다 한 줄이다.** 자락은 값만큼 여럿 실려 오지만(값이 오를수록 넓어진다) 여기서
+  // 그 수만큼 줄을 세우면 판이 **개체군의 값을 세어 보여 주는 것**이 된다 — 세계가 싣지
+  // 않기로 한 바로 그 값이다 (spec SPEC-005 경계 ① · "투영하지 않는 것"). 판이 답하는
+  // 것은 "여기 이것이 산다" 하나이고, 얼마나 되는지는 땅에 겹친 자락이 눈으로만 말한다.
+  //
+  // 위의 줄들과 같은 어법이다 — 무엇을 먹는지도, 어디서 왔는지도, 언제 는지도 없다.
+  const standing = new Set<string>();
+  for (const presence of reading.presences ?? []) {
+    if (presence.area === undefined || standing.has(presence.presence)) continue;
+    standing.add(presence.presence);
+    rows.push({
+      ...row('place.swarm', codeText(presence.presence)),
+      id: `place.swarm:${presence.presence}`,
     });
   }
   return rows;

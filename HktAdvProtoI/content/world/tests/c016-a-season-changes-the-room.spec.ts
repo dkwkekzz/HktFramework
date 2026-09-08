@@ -55,6 +55,7 @@ import {
   regionSpec,
   type ResourceSourceSpec,
   type SeasonId,
+  ORE_EATER,
 } from '../../regions';
 // C008 이 세운 미로의 이름들 — 그 파일이 소유한다 (c008 ~ c015 시나리오의 선례 그대로).
 import { CELL_LAYER, FANTASY_MAZE, MAZE_PATTERN_P2, PASSAGE_LAYER } from '../../regions/fantasy-maze';
@@ -129,11 +130,23 @@ const MINE_SECONDS = 1.2;
 // "세계가 찍는 판이 팩의 판과 같다" 이므로 값만 따라 올린다
 // C018 CHANGED — 지나감의 지금이 실리며 다시 올랐다 (재는 것은 글자가 아니라
 // "세계가 찍는 판이 팩의 판과 같다" 이므로 값만 따라 올린다)
-const RAISED_STATE_VERSION = 'hkt-adv-proto-i/9';
+// C022 CHANGED — 탄생지와 개체군이 실리며 다시 올랐다 (같은 이유로 값만 따라 올린다)
+const RAISED_STATE_VERSION = 'hkt-adv-proto-i/10';
 /** 그 앞의 버전 — 옛 스냅샷은 되살아나지 않는다 */
 const OLD_STATE_VERSION = 'hkt-adv-proto-i/6';
 
-const solo: WorldSetup = { npcs: [] };
+/**
+ * 이 시나리오들이 재는 것은 **재료 계통**이다 — 그 위에 얹힌 생명(C022 · C023)은 여기 없다.
+ *
+ * C023 부터 기본 세계는 t=60 에 첫 탄생을 일으켜 뿌리혹과 균사를 먹는다 (세계가 나 없이도
+ * 도는 그것이다). 그러면 거기 매달린 노두의 되돌아옴이 멎어, 60 초 넘게 기다리는 이 시나리오들의
+ * 전제("캐지 않으면 원천은 그대로다")가 깨진다.
+ *
+ * 그래서 **광식충이 이미 가득한 숲**에서 잰다 — 상한이면 결속도(요구가 "값 0" 이다) 계승도
+ * (값을 올릴 수 없는 전이는 일어나지 않는다) 서지 않는다. 손잡이는 값을 상한으로 자르므로
+ * 큰 수 하나면 된다. 재료 계통의 규칙은 한 줄도 달라지지 않는다.
+ */
+const solo: WorldSetup = { npcs: [], populations: { [ORE_EATER]: 99 } };
 
 // ── 계약이 준 형 (spec State 절 그대로 적어 둔다) ────────────────────
 interface SourceStateShape {
@@ -241,7 +254,10 @@ const ALL_SOURCES = SOURCE_REGIONS.flatMap((region) =>
 /** 철 조건을 밝힌 원천들 (C016 이 더한 것) — 데이터가 말한다 */
 const SEASONAL_SOURCES = ALL_SOURCES.filter((one) => ecologyOf(one.region, one.id).occurrence);
 /** 철 조건이 없는 원천들 — 어느 철에도 지금 그대로다 (SPEC-004 경계 ②) */
-const PLAIN_SOURCES = ALL_SOURCES.filter((one) => !ecologyOf(one.region, one.id).occurrence);
+const PLAIN_SOURCES = ALL_SOURCES.filter(
+  // 낮밤을 타는 원천도 뺀다 — 그것은 철이 아니라 해를 탄다 (RoomBearsMaterial 실주행 판정 · dayPhases)
+  (one) => !ecologyOf(one.region, one.id).occurrence && !ecologyOf(one.region, one.id).dayPhases,
+);
 /** 흐름의 두 끝이 사는 방들 — 그 원천과 흔적은 **세계 시각**으로 바뀐다 (C014) */
 const inflowRegions = new Set(
   RESOURCE_FLOWS.flatMap((flow) => [flow.from.regionId, flow.to.regionId]),
@@ -1184,8 +1200,17 @@ describe('SPEC-007 규칙은 철의 이름을 모른다', () => {
     // And 밝힌 방은 지어낸 것도 빠뜨린 것도 없다 — 데이터가 말하는 그대로다.
     // C021 로 넓어졌다 — 빙결 협곡이 철을 밝혀 넷이 되었다 (C021 SPEC-001). 이 항의 주장은
     // "철을 탄 방은 밝힌 방의 부분집합" 이고 그것은 그대로다: 목록이 자란 것뿐이다.
+    // RoomNeverSame 실주행 판정으로 다시 넓어졌다 — 폐허 · 둥지 · 거목이 철을 밝혀 일곱이 되었다
     expect([...declared].sort()).toEqual(
-      [BIO_ORE_FIELD, FOREST_DEEP, FOREST_EDGE, 'FROST_CANYON'].sort(),
+      [
+        BIO_ORE_FIELD,
+        FOREST_DEEP,
+        FOREST_EDGE,
+        'FROST_CANYON',
+        'EXPLORER_RUIN',
+        'PREDATOR_NEST',
+        'RED_EYE_TREE',
+      ].sort(),
     );
     // And 그 셋은 실제로 철을 탔다 (밝혔는데 아무 일도 없는 방이 없다)
     expect([...changed].sort()).toEqual([...declared].sort());
@@ -1484,8 +1509,19 @@ describe('회귀', () => {
     // 흐름에 매달린 두 끝(어귀 · 못)은 세계 시각으로 흔적이 바뀌고(C014), 자리를 옮기는 원천은
     // 뒤척임으로 그 둘레가 따라간다(C013). 그 둘은 **때가 하는 일이 아니므로** 여기서 뺀다 —
     // 남은 방들에서 사다리가 철에 흔들리지 않는가만 본다 (c015 S-091 이 세운 규율).
+    //
+    // C022 CHANGED — **탄생지를 품은 방**도 뺀다. 그 방의 알집 둘레는 결속하는 동안 한 단계
+    // 옅어지고(RULE-LIFE-SITE-PHASE-001) 결속은 비를 요구하며 비는 철을 탄다 — 그러니
+    // 그 자락은 철에 흔들리는 것이 맞다. 앞의 둘과 같은 갈래의 뺌이고, 빠지는 것은 방 하나다.
+    const lifeRooms = new Set(
+      REGION_SPECS.filter((s) => (s.ecology?.lifeFormation?.length ?? 0) > 0).map((s) => s.id),
+    );
     const quiet = SOURCE_REGIONS.filter(
-      (region) => region !== TURN_ROOM && region !== FOREST_DEEP && !inflowRegions.has(region),
+      (region) =>
+        region !== TURN_ROOM &&
+        region !== FOREST_DEEP &&
+        !inflowRegions.has(region) &&
+        !lifeRooms.has(region),
     );
     expect(quiet.length).toBeGreaterThan(0);
     let base: number[][] | null = null;

@@ -80,6 +80,31 @@ export const ROLE_PRESENTATIONS: Readonly<Record<string, RolePresentation>> = {
       'corpse-rime': 'source:corpse-rime',
       // 거목 속의 것 하나 (C030) — 표에 한 줄이 늘 뿐이다. 열넷이 열다섯이 되어도 어법은 그대로다
       'wall-ember': 'source:wall-ember',
+      // 흩어진 것 셋 (RoomBearsMaterial 실주행 판정) — 표에 세 줄이 늘 뿐이다
+      'ore-pebble': 'source:ore-pebble',
+      'husk-shard': 'source:husk-shard',
+      'glow-cap': 'source:glow-cap',
+      // 탄생이 남긴 것 둘 (C023) — 표에 두 줄이 늘 뿐이다. 둘은 **같은 재료의 다른 형태**이므로
+      // 그림도 껍질의 색으로 묶이고 크기로 갈린다 (그것을 정하는 것은 아래 그림표다)
+      'clutch-husk': 'source:clutch-husk',
+      'egg-husk': 'source:egg-husk',
+    },
+  },
+  // 탄생지 (C022) — 원천과 **같은 자리에 서는 다른 것**이다. 표의 어법이 그대로인 것은
+  // 그것이 이 세계에서 같은 종류의 것이기 때문이다: 땅에 서 있고, 지목할 수 있고,
+  // **이름표가 없다** (C026 R4 RULE-QUIET-GROUND-001) — 무엇이 맺히는지도 얼마나 찼는지도
+  // 세계 위에 뜨지 않고, 물었을 때 판이 답한다 (target-frame-presentation).
+  // 크기는 원천의 것 그대로(3.4)다 — 걸어가 지목하는 것이므로 사람의 몸과 같은 부피로 선다.
+  // 형태가 늘면 spriteByKind 에 한 줄이 늘 뿐이다 (원천이 넷에서 열넷이 된 그 어법).
+  'life-site': {
+    sprite: 'life',
+    size: 3.4,
+    spriteByKind: {
+      'root-clutch': 'life:root-clutch',
+      // 탄생지가 둘이 되었다 (C023 · SPEC-008) — 표에 한 줄이 늘 뿐이고 크기도 그대로다.
+      // 큰 알집과 작은 붉은 점은 **다른 그림**이어야 하는데, 그 갈림은 여기가 아니라
+      // 그림표가 진다 — 여기는 어느 그림을 부를지만 정한다 (원천이 넷에서 열여섯이 된 어법)
+      'root-eggs': 'life:root-eggs',
     },
   },
   // 방의 출구 표식 (C001) — anchor 자리에 선 표식 하나. kind(= 전이 종류) 별 색은 region-presentation 의 표.

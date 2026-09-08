@@ -47,7 +47,8 @@
 
 import { CONDITION_UNMET, RECOVERY_STALLED } from '../../regions';
 import { seasonAt } from '../semantic/clock';
-import { NOT_THIS_SEASON } from '../semantic/region-phase';
+import { NOT_THIS_HOUR, NOT_THIS_SEASON } from '../semantic/region-phase';
+import { standSourceState } from '../semantic/region-state';
 import { nextStandableSite, sourceConditions, sourcesInRegion } from '../semantic/resource';
 import { RECOVERY_VISIBLE_FRACTION, type WorldState } from '../semantic/world-state';
 
@@ -76,7 +77,9 @@ export function ruleSourceRecovery(state: WorldState, dt: number): void {
       if (
         conditions.includes(RECOVERY_STALLED) ||
         conditions.includes(CONDITION_UNMET) ||
-        conditions.includes(NOT_THIS_SEASON)
+        conditions.includes(NOT_THIS_SEASON) ||
+        // 낮밤을 타는 원천도 그 때가 아니면 멎는다 (RoomBearsMaterial 실주행 판정 — 철과 같은 규율)
+        conditions.includes(NOT_THIS_HOUR)
       ) {
         continue;
       }
@@ -103,10 +106,12 @@ export function ruleSourceRecovery(state: WorldState, dt: number): void {
       // 다 돌아온 문턱 — 다시 캘 수 있다. 캔 횟수가 0 으로 돌아가지 않으면 돌아온 것이
       // 아니다 (spec 기본형 ⑥). 한 Tick 에 두 문턱을 함께 넘어도 자리 이동은 위에서 한 번뿐이다
       // (경계 ②) — 두 if 가 같은 Tick 에 차례로 성립할 뿐이다.
+      // C023 CHANGED — **그 전이를 내는 자리가 하나가 되었다** (semantic/region-state.ts 의
+      // standSourceState). 태어남도 원천을 세우는데(RULE-LIFE-BIRTH-001 ③), 시간이 세운 것과
+      // 탄생이 세운 것의 State 가 같아야 하기 때문이다 — 여기서 하던 세 줄이 한 값도
+      // 달라지지 않고 그리로 갔다.
       if (sourceState.progress >= source.recoverySeconds) {
-        sourceState.phase = 'available';
-        sourceState.taken = 0;
-        sourceState.progress = 0;
+        standSourceState(sourceState);
       }
     }
   }

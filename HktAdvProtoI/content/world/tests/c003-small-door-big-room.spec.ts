@@ -224,8 +224,9 @@ describe('SPEC-001 — 방이 늘고 깊이가 넷이 된다', () => {
         stood: declared,
       });
     }
-    // 그리고 거목은 여전히 뿌리혹 하나다 (C011 이 세운 그대로)
-    expect(sourcesInRegion(RED_EYE_TREE).map((source) => source.id)).toEqual(['ROOT_NODULE']);
+    // 그리고 거목의 첫 원천은 여전히 뿌리혹이다 (C011 이 세운 그대로 · 흩어진 것 둘이 그 뒤에 선다 —
+    // RoomBearsMaterial 실주행 판정)
+    expect(sourcesInRegion(RED_EYE_TREE).map((source) => source.id)[0]).toBe('ROOT_NODULE');
   });
 });
 

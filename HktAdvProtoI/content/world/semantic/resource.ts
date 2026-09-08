@@ -51,9 +51,10 @@ import {
   type SeasonId,
   type SupplyMode,
 } from '../../regions';
+import { leavingLifeSiteOf, lifeTraceOverlayIn } from './life';
 import type { WorldPosition } from './position';
 import { isPassingRegion, leavingRouteOf, type PresencePassState } from './presence';
-import { NOT_THIS_SEASON, isSeasonListed } from './region-phase';
+import { NOT_THIS_HOUR, NOT_THIS_SEASON, isDayPhaseListed, isSeasonListed } from './region-phase';
 import type { RegionState, ResourceSourceState } from './region-state';
 import type { WorldState } from './world-state';
 
@@ -101,6 +102,11 @@ export interface ResourceSource {
    * 함께 담기고, **지금 서는가**는 시각과 함께 물어야 하므로 캐시 밖에서 판정된다.
    */
   occurrenceSeasons?: readonly SeasonId[];
+  /**
+   * 그 원천이 **서는 낮밤들** (RoomBearsMaterial 실주행 판정 ADDED) — 데이터의 dayPhases 그대로다.
+   * 밝히지 않은 원천은 낮에도 밤에도 선다. occurrenceSeasons 와 같은 어법의 다른 축이다.
+   */
+  occurrenceDayPhases?: readonly ('DAY' | 'NIGHT')[];
   /**
    * 마디마다의 **깨진 자리 자락** (C020 ADDED · spec R4) — 데이터의 depletedHazards 그대로다.
    *
@@ -191,6 +197,8 @@ export function sourcesInRegion(regionId: string): readonly ResourceSource[] {
       ...(source.collapseOps === undefined ? {} : { collapseOps: source.collapseOps }),
       // C016 ADDED — 출현 철 목록. 밝히지 않은 원천은 자리 자체가 없다 (철을 타지 않는다).
       ...(source.occurrence === undefined ? {} : { occurrenceSeasons: source.occurrence.seasons }),
+      // 낮밤을 타는 원천 (RoomBearsMaterial 실주행 판정) — 밝히지 않은 원천은 자리 자체가 없다
+      ...(source.dayPhases === undefined ? {} : { occurrenceDayPhases: source.dayPhases }),
       // C020 ADDED — 깨진 마디의 자락들과 철마다의 되돌아옴 배속. 둘 다 밝히지 않은 원천은
       // 자리 자체가 없다 (빈 목록 · 배속 1 로 지어내지 않는다).
       ...(source.depletedHazards === undefined ? {} : { depletedHazards: source.depletedHazards }),
@@ -222,7 +230,11 @@ export function sourcesInRegion(regionId: string): readonly ResourceSource[] {
  * 않는다. 흔적은 여전히 Description 의 trace area 에서 오고, 이 판정을 읽지 않는다.
  */
 export function isSourcePresentAt(source: ResourceSource, time: number): boolean {
-  return isSeasonListed(source.occurrenceSeasons, time);
+  // 철과 낮밤 둘 다 들어야 선다 — 어느 쪽이든 밝히지 않은 것은 언제나 참이다
+  return (
+    isSeasonListed(source.occurrenceSeasons, time) &&
+    isDayPhaseListed(source.occurrenceDayPhases, time)
+  );
 }
 
 /**
@@ -329,11 +341,27 @@ export function nextStandableSite(
  * area 는 layer · tag · shape 만 들고 op id 를 잃으므로, 여기서는 그 방 Description 의 trace
  * area 를 직접 훑는다 — Description 의 area 와 컴파일 결과의 area 는 순서도 모양도 같다
  * (engine 의 collectAreas 가 ops 순서 그대로 옮긴다).
+ *
+ * C022 CHANGED (RULE-LIFE-SITE-PHASE-001 · C022 spec R4) — **탄생지도 자기 자락을 건다.**
+ * 위상을 거는 원인이 여섯째가 되었고(철 · 소란 · 지나가는 것 · 상시 · 고갈 · **탄생지**)
+ * 기제는 한 줄도 바뀌지 않았다: 그 방의 탄생지가 밝힌 자락은
+ *   ① 그 자락이 밝힌 조건 코드가 지금 걸려 있으면 **0** — 그 자락이 서지 않는다
+ *   ② 그 탄생지가 결속 중이면 데이터의 단계에서 **한 단계 아래** (재료가 그리로 간다)
+ * 이고, 어느 것도 아니면 데이터 그대로다. 판정은 여기서 하지 않는다 — semantic/life.ts 의
+ * `lifeTraceOverlayIn` 이 답하는 그것을 그대로 읽는다 (표시와 원인이 같은 판정이라는 규율).
+ *
+ * **원천 쪽 판정은 한 줄도 바뀌지 않는다** — 원천의 둘레도 아니고 탄생지의 자락도 아닌
+ * area(방 바닥)는 여전히 데이터 그대로다 (C011 R4 · C012 spec R7 경계 ②). 탄생지를 밝히지
+ * 않은 방은 이 Cycle 전과 한 값도 다르지 않다.
+ *
+ * `time` 은 탄생지의 **요구 판정**에만 쓰인다 (비가 시각에서 유도되기 때문이다). 밝히지
+ * 않으면 0 이다 — 원천 쪽 판정은 시각을 묻지 않으므로 그 답은 어느 시각에도 같다.
  */
 export function traceStrengthAt(
   states: Record<string, RegionState>,
   regionId: string,
   position: WorldPosition,
+  time = 0,
 ): number {
   const spec = regionSpec(regionId);
   if (!spec) return 0;
@@ -348,19 +376,50 @@ export function traceStrengthAt(
     });
   }
 
+  // 탄생지가 건 자락들 — 가려졌는가 · 옅어졌는가 (C022 ADDED). 탄생지 없는 방은 빈 표다.
+  const lifeOverlay = lifeTraceOverlayIn(states, regionId, time);
+
   let strongest = 0;
   for (const area of areasOf(spec.space, TRACE_LAYER)) {
     if (!areaCoversPoint(area.shape, position.x, position.z)) continue;
     const level = traceLevel(area.tag);
     const rim = rimmed.get(area.id);
+    const life = lifeOverlay.get(area.id);
     const here = rim
       ? rim.here
         ? Math.max(0, level - (rim.depleted ? 1 : 0))
         : 0
-      : level;
+      : life
+        ? life.hidden
+          ? 0
+          : Math.max(0, level - (life.faded ? 1 : 0))
+        : level;
     if (here > strongest) strongest = here;
   }
   return strongest;
+}
+
+/**
+ * 그 방의 **흔적 area** 하나가 이 자리를 덮는가 — op id 로 짚는다 (C022 ADDED).
+ *
+ * 흔적 area 를 op id 로 짚는 자리는 이 파일 하나다 (위 traceStrengthAt 이 그렇게 하는 그
+ * 이유 그대로 — 컴파일 결과의 area 는 op id 를 잃는다). 그래서 자락 위에 선 것을 묻는
+ * 다른 자리(semantic/life.ts)도 여기로 와서 묻는다: 땅을 읽는 자리를 늘리지 않는다
+ * (C005 R-009 가 지키는 그 규율).
+ *
+ * **게임 명사를 알지 못한다** — 방과 op 이름과 자리 하나를 받을 뿐이다. 땅을 모르는 방 ·
+ * 그런 op 가 없는 방은 언제나 거짓이다.
+ */
+export function traceAreaCoversAt(
+  regionId: string,
+  opId: string,
+  position: WorldPosition,
+): boolean {
+  const spec = regionSpec(regionId);
+  if (!spec) return false;
+  const area = areasOf(spec.space, TRACE_LAYER).find((it) => it.id === opId);
+  if (!area) return false;
+  return areaCoversPoint(area.shape, position.x, position.z);
 }
 
 /**
@@ -555,7 +614,10 @@ export function sourceConditions(
   // 먼저 묻는 이유는 뜻이다: 거기 **지금 없다**는 것이 다른 무엇보다 앞선 사실이다.
   // 그리고 이 코드도 원인이다 — 되돌아옴의 세계 과정이 이것을 보고 진행을 멈춘다
   // (simulation/source-recovery.ts). 그 철이 아니면 되돌아오는 일도 일어나지 않는다.
-  if (!isSourcePresentAt(source, time)) codes.push(NOT_THIS_SEASON);
+  // 철이 먼저, 낮밤이 그 다음이다 — 철이 아니면 낮밤을 묻지 않는다 (한 원천에 두 "때가 아니다" 를
+  // 함께 싣지 않는다: 관찰자가 기다려야 할 것은 먼 쪽 하나다)
+  if (!isSeasonListed(source.occurrenceSeasons, time)) codes.push(NOT_THIS_SEASON);
+  else if (!isDayPhaseListed(source.occurrenceDayPhases, time)) codes.push(NOT_THIS_HOUR);
 
   // ① 매달림 — C013 그대로다. 흐름을 가진 원천에게는 그 흐름의 **출발 원천**이 곧 그 매달림이다
   // (spec R3 — 호수 바닥을 캐 놓으면 물길이 불어도 어귀에 오는 것이 없다).
@@ -594,9 +656,26 @@ export function sourceConditions(
     codes.push(CONDITION_UNMET);
   }
 
-  // ④ 다시 자란 자리 (C021 ADDED · RULE-SOURCE-REGROWN-001 · spec R3 · SPEC-005) —
+  // ④ 태어남이 세우는 자리 (C023 ADDED · spec R4 · SPEC-004) — 어느 탄생지가 `leaves` 로
+  // 밝힌 원천이 아직 거기 없으면 `condition-unmet`. ② ③ 과 **같은 코드**이고 같은 뜻이다:
+  // 아직 그때가 아니다 (물길이 오지 않은 것 · 아직 지나가지 않은 것과 **같은 사실**이다 —
+  // 거기 지금 없다는 것). 걸린 동안에는 되돌아옴의 진행이 오르지 않으므로, 시간이 아무리
+  // 흘러도 스스로 돌아오지 않는다 — 되돌리는 것은 **다음 탄생**이고 그것은 RULE-LIFE-BIRTH-001
+  // 이 한다 (C018 이 지나가는 것에 세운 그 어법 그대로 · 새 코드를 만들지 않는다).
+  //
+  // **아직 없는 원천에만 묻는 것도 ② ③ 그대로다** — 터진 뒤 서 있는 껍질은 캘 수 있고,
+  // 그때 이 코드는 걸리지 않는다. 규칙은 무엇이 그것을 세우는지 이름으로 알지 못한다:
+  // "어느 탄생지가 세우는 원천" 이라는 형뿐이고, 무엇이 무엇을 세우는지는 데이터에만 있다.
+  if (
+    leavingLifeSiteOf(source.id) &&
+    sourceStateOf(states, source.regionId, source.id).phase !== 'available'
+  ) {
+    codes.push(CONDITION_UNMET);
+  }
+
+  // ⑤ 다시 자란 자리 (C021 ADDED · RULE-SOURCE-REGROWN-001 · spec R3 · SPEC-005) —
   // 마디를 여럿 가진 원천이 **처음 마디가 아닌 자리에 서 있는 동안** 그 원천이 밝힌 코드가
-  // 실린다. 앞의 셋과 갈리는 자리가 여기다: 저것들은 "지금 없다" 의 사유이고 이것은
+  // 실린다. 앞의 넷과 갈리는 자리가 여기다: 저것들은 "지금 없다" 의 사유이고 이것은
   // **거기 있는 것에 대한 말**이다 — 그래서 되돌아옴의 진행을 한 톨도 멎게 하지 않는다
   // (simulation/source-recovery.ts 는 앞의 코드들만 읽는다). 캘 수 있는가도 달라지지 않는다.
   //
