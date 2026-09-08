@@ -176,7 +176,7 @@ export interface CheckRef {
 }
 
 export interface CheckItem {
-  /** 번호 — '①'…'㉖'. 번호 밖의 것은 '·' */
+  /** 번호 — '①'…'㉝'. 번호 밖의 것은 '·' */
   mark: string;
   /** 기계가 잡는 이름 — JSON 의 열쇠이므로 번호가 바뀌어도 이것은 그대로다 */
   id: string;
@@ -239,6 +239,8 @@ export interface CheckRegionsInput {
   ecology?: CheckEcology;
   /** ㉓~㉖ 이 볼 시간 쪽 계약 — 주지 않으면 그 넷이 전부 absent 다 (ecology 의 선례 그대로) */
   time?: CheckTime;
+  /** ㉗~㉝ 이 볼 생명 계통 — 주지 않으면 그 일곱이 전부 absent 다 (ecology 의 선례 그대로) */
+  life?: CheckLife;
 }
 
 /** checkGraph 의 코드 → ⑤⑥⑦⑧. 순서가 곧 번호다 */
@@ -527,9 +529,11 @@ function checkCoreRules(input: CheckRegionsInput): CheckItem {
 }
 
 /**
- * 검사 스물여섯을 한 번에 돌린다 — 결과는 기계가 읽는다 (T1 의 아홉 + C014 의 열셋 + C018 의 넷).
+ * 검사 서른셋을 한 번에 돌린다 — 결과는 기계가 읽는다
+ * (T1 의 아홉 + C014 의 열셋 + C018 의 넷 + C022 의 일곱).
  *
- * 순서는 언제나 ①~⑨ · ⑩~㉒ · ㉓~㉖ 이고, 각 항목의 refs 는 준 배열 순서다 — 두 번 돌리면 같다.
+ * 순서는 언제나 ①~⑨ · ⑩~㉒ · ㉓~㉖ · ㉗~㉝ 이고, 각 항목의 refs 는 준 배열 순서다 —
+ * 두 번 돌리면 같다.
  * 세계를 바꾸지 않는 읽기 전용 관찰이다.
  */
 export function checkRegions(input: CheckRegionsInput): CheckReport {
@@ -549,6 +553,7 @@ export function checkRegions(input: CheckRegionsInput): CheckReport {
     checkCoreRules(input),
     ...ecologyItems(input),
     ...timeItems(input),
+    ...lifeItems(input),
   ];
   const counts: Record<CheckStatus, number> = { pass: 0, fail: 0, absent: 0, report: 0 };
   for (const item of items) counts[item.status]++;
@@ -1393,5 +1398,383 @@ function timeItems(input: CheckRegionsInput): CheckItem[] {
     checkTimeRouteRefs(cx),
     checkTimeSeasonSummary(cx),
     checkTimeReachable(cx),
+  ];
+}
+
+// ── 검사 일곱 — 생명이 세계에 매달리는 자리 (C022 ADDED) ──────────────
+//
+// 아홉(T1)이 방과 그래프를, 열셋(C014)이 그 위의 재료 계통을, 넷(C018)이 시각이 거는 것을
+// 재었다면, 이 일곱은 **무엇이 어디서 어떤 원인으로 태어나는가**를 잰다 — 탄생지가 가리키는
+// 것들이 실제로 있는가 · 그 탄생이 세계 원인에 닿는가 · 전조와 소비를 가졌는가 ·
+// 살아 있는 것을 전제한 회복 원인에 주인이 있는가 · 관계의 양 끝이 실재하는가.
+// 분포 둘(㉚ ㉝)은 판정하지 않고 수만 적는다 — 많고 적음은 사람이 본다.
+//
+// 여기에도 **게임 명사가 없다.** 탄생 방식의 어휘도 개체군의 이름도 관계의 갈래도 기반은
+// 알지 못한다 — `CheckLife` 가 구조로만 준다. 그래서 이 일곱은 탄생 방식이 넷인 세계에도
+// 열둘인 세계에도 그대로 선다.
+//
+// 생명 계통을 주지 않으면 일곱이 전부 `absent` 다 — 잴 것이 없으면 통과로 적지 않는다.
+
+/** 탄생지 하나 — 게임 명사 없이 구조만 (㉗ ㉘ ㉙ ㉚) */
+export interface CheckLifeFormation {
+  id: string;
+  region: string;
+  /** 탄생 방식 코드 — 기반은 어휘를 모른다 (㉚ 이 세기만 한다) */
+  mode: string;
+  /** 이 탄생이 매달린 세계 원인 — 비면 ㉘ */
+  worldCause: string;
+  /** 이 탄생을 일으키는 Region Rule id — 비거나 regionRules 에 없으면 ㉗ */
+  regionRule: string;
+  /** 재료로 가리킨 것들 — ecology.materials 에 없으면 ㉗ */
+  sourceMaterialIds: readonly string[];
+  /** 재료가 아닌 세계 상태로 가리킨 것들 — 판정하지 않는다 (수만 answer 에 적는다) */
+  sourceStateCodes: readonly string[];
+  /** 요구가 가리킨 원천 id 들 — ecology.sources 에 없으면 ㉗ */
+  requiredSourceIds: readonly string[];
+  /** 요구가 가리킨 개체군 id 들 — populations 에 없으면 ㉗ */
+  requiredPopulationIds: readonly string[];
+  /** 소비가 가리킨 원천 id 들 — 비면 ㉙ · 세계에 없으면 ㉗ */
+  consumesSourceIds: readonly string[];
+  /** 전조 흔적 op id 들 — 비면 ㉙ · 그 방 Description 에 없으면 ㉗ */
+  traceOpIds: readonly string[];
+  /** 이 탄생이 올리는 개체군 id — 비거나 populations 에 없으면 ㉗ */
+  population: string;
+}
+
+/** 개체군 하나 — ㉛ ㉜ ㉝ 가 본다 */
+export interface CheckLifePopulation {
+  id: string;
+  region: string;
+}
+
+/** 개체군 사이의 관계 하나 — ㉜ ㉝ 가 본다 */
+export interface CheckLifeLink {
+  from: string;
+  to: string;
+  kind: string;
+  via?: string;
+}
+
+/** 회복 원인이 살아 있는 것을 전제하는 원천 하나 — ㉛ 이 본다. 어느 코드가 그런지는 계약이 고른다 */
+export interface CheckLifeRecovery {
+  sourceId: string;
+  recoveryCause: string;
+  /** 그 원천이 밝힌 개체군 id — 비었으면 무엇이 그것을 잇는지 세계가 말하지 않은 것이다 */
+  population: string;
+}
+
+/** 이 세계의 생명 계통 — 검사 ㉗~㉝ 가 보는 전부 */
+export interface CheckLife {
+  formations: readonly CheckLifeFormation[];
+  populations: readonly CheckLifePopulation[];
+  links: readonly CheckLifeLink[];
+  lifeRecoveries: readonly CheckLifeRecovery[];
+  /** 세계가 아는 Region Rule id 들 (㉗) */
+  regionRules: readonly string[];
+  /** 개체군이 아닌 관계의 끝은 이것이어야 한다 — 잔류 원천 id 들 (㉜) */
+  residueSourceIds: readonly string[];
+}
+
+/** 일곱의 번호·이름 — 이 차례가 곧 보고에 실리는 차례다 (계통이 없을 때의 absent 도 이것을 쓴다) */
+const LIFE_ITEMS = {
+  formationRefs: { mark: '㉗', id: 'life-formation-refs', name: '탄생지가 가리키는 것들' },
+  worldCause: { mark: '㉘', id: 'life-world-cause', name: '원인 없는 탄생' },
+  tracesConsumes: { mark: '㉙', id: 'life-traces-consumes', name: '전조와 소비 없는 탄생' },
+  modeSpread: { mark: '㉚', id: 'life-mode-spread', name: '방마다의 탄생 방식 분포' },
+  recoveryOwner: { mark: '㉛', id: 'life-recovery-owner', name: '주인 없는 회복 원인' },
+  linkRefs: { mark: '㉜', id: 'life-link-refs', name: '관계의 양 끝과 이음' },
+  linkSpread: { mark: '㉝', id: 'life-link-spread', name: '관계 없는 개체군' },
+} as const;
+
+/** 일곱이 함께 보는 것 — 한 번만 세어 나눠 쓴다 */
+interface LifeContext {
+  input: CheckRegionsInput;
+  life: CheckLife;
+  /** 검사가 아는 방 — Description 을 함께 들고 있어야 전조 op 를 볼 수 있다 */
+  regionById: ReadonlyMap<string, CheckRegion>;
+  populationIds: ReadonlySet<string>;
+  regionRuleIds: ReadonlySet<string>;
+  /** 재료 계통이 아는 원천·재료 — 계통을 주지 않으면 undefined 이고 그 갈래는 재지 않는다 */
+  sourceIds?: ReadonlySet<string>;
+  materialIds?: ReadonlySet<string>;
+  residueSourceIds: ReadonlySet<string>;
+  connectorIds: ReadonlySet<string>;
+}
+
+/** ㉗ 탄생지가 가리키는 것들이 다 세계에 있는가 — 방 · 규칙 · 재료 · 원천 · 개체군 · 전조 op */
+function checkLifeFormationRefs(cx: LifeContext): CheckItem {
+  const head = LIFE_ITEMS.formationRefs;
+  const { formations } = cx.life;
+  if (formations.length === 0) return absentItem(head, '탄생지가 없다');
+  const refs: CheckRef[] = [];
+  let stateCodes = 0;
+  for (const formation of formations) {
+    const where = formation.id;
+    const region = cx.regionById.get(formation.region);
+    if (!region) {
+      refs.push({ where, detail: `${formation.region} 은 아는 방이 아니다` });
+    }
+    if (formation.regionRule.trim() === '') {
+      refs.push({ where, detail: 'Region Rule 을 가리키지 않는다' });
+    } else if (!cx.regionRuleIds.has(formation.regionRule)) {
+      refs.push({ where, detail: `${formation.regionRule} 은 아는 Region Rule 이 아니다` });
+    }
+    // 재료·원천 갈래는 재료 계통을 준 때만 잰다 (주지 않았으면 answer 가 그 자리를 적는다)
+    if (cx.materialIds) {
+      for (const materialId of formation.sourceMaterialIds) {
+        if (!cx.materialIds.has(materialId)) {
+          refs.push({ where, detail: `${materialId} 은 아는 재료가 아니다` });
+        }
+      }
+    }
+    if (cx.sourceIds) {
+      for (const sourceId of formation.requiredSourceIds) {
+        if (!cx.sourceIds.has(sourceId)) {
+          refs.push({ where, detail: `요구가 가리킨 ${sourceId} 은 아는 원천이 아니다` });
+        }
+      }
+      for (const sourceId of formation.consumesSourceIds) {
+        if (!cx.sourceIds.has(sourceId)) {
+          refs.push({ where, detail: `소비가 가리킨 ${sourceId} 은 아는 원천이 아니다` });
+        }
+      }
+    }
+    for (const populationId of formation.requiredPopulationIds) {
+      if (!cx.populationIds.has(populationId)) {
+        refs.push({ where, detail: `요구가 가리킨 ${populationId} 은 아는 개체군이 아니다` });
+      }
+    }
+    // 전조 op 는 ㉓ 과 같은 잣대로 본다 — 그 방에 그 id 의 op 가 있는가 (layer 는 묻지 않는다)
+    for (const opId of formation.traceOpIds) {
+      if (!region) continue;
+      if (!hasOp(region.space, opId)) {
+        refs.push({ where, detail: `전조 ${opId} 이 ${formation.region} 의 op 로 없다` });
+      }
+    }
+    if (formation.population.trim() === '') {
+      refs.push({ where, detail: '올릴 개체군을 가리키지 않는다' });
+    } else if (!cx.populationIds.has(formation.population)) {
+      refs.push({ where, detail: `${formation.population} 은 아는 개체군이 아니다` });
+    }
+    stateCodes += formation.sourceStateCodes.length;
+  }
+  const unmeasured = cx.sourceIds ? '' : ' · 재료 계통이 없어 재료·원천 갈래는 재지 않았다';
+  return {
+    ...head,
+    status: refs.length === 0 ? 'pass' : 'fail',
+    answer:
+      `탄생지 ${formations.length} · 개체군 ${cx.life.populations.length}` +
+      ` · 세계 상태 요구 ${stateCodes} · 끊긴 참조 ${refs.length}${unmeasured}`,
+    refs,
+  };
+}
+
+/** ㉘ 모든 탄생이 그 방의 세계 원인에 닿는가 */
+function checkLifeWorldCause(cx: LifeContext): CheckItem {
+  const head = LIFE_ITEMS.worldCause;
+  const { formations } = cx.life;
+  if (formations.length === 0) return absentItem(head, '탄생지가 없다');
+  const refs: CheckRef[] = [];
+  for (const formation of formations) {
+    const where = formation.id;
+    if (formation.worldCause.trim() === '') {
+      refs.push({ where, detail: '세계 원인을 가리키지 않는다' });
+      continue;
+    }
+    // 그 방의 원천들이 밝힌 원인 어휘 — 하나도 없는 방이면 비지 않은 것으로 족하다
+    const causes = (cx.input.ecology?.sources ?? [])
+      .filter((source) => source.region === formation.region)
+      .map((source) => source.worldCause)
+      .filter((cause) => cause.trim() !== '');
+    if (causes.length === 0) continue;
+    if (!causes.includes(formation.worldCause)) {
+      refs.push({
+        where,
+        detail: `${formation.worldCause} 은 ${formation.region} 의 원천들이 밝힌 세계 원인이 아니다`,
+      });
+    }
+  }
+  return {
+    ...head,
+    status: refs.length === 0 ? 'pass' : 'fail',
+    answer: `탄생지 ${formations.length} · 원인이 닿지 않는 탄생 ${refs.length}`,
+    refs,
+  };
+}
+
+/** ㉙ 모든 탄생지가 전조와 소비를 하나 이상 가지는가 */
+function checkLifeTracesConsumes(cx: LifeContext): CheckItem {
+  const head = LIFE_ITEMS.tracesConsumes;
+  const { formations } = cx.life;
+  if (formations.length === 0) return absentItem(head, '탄생지가 없다');
+  const refs: CheckRef[] = [];
+  let traces = 0;
+  let consumes = 0;
+  for (const formation of formations) {
+    traces += formation.traceOpIds.length;
+    consumes += formation.consumesSourceIds.length;
+    if (formation.traceOpIds.length === 0) {
+      refs.push({ where: formation.id, detail: '전조 흔적을 하나도 가지지 않는다' });
+    }
+    if (formation.consumesSourceIds.length === 0) {
+      refs.push({ where: formation.id, detail: '소비하는 원천이 하나도 없다' });
+    }
+  }
+  return {
+    ...head,
+    status: refs.length === 0 ? 'pass' : 'fail',
+    answer: `탄생지 ${formations.length} · 전조 합 ${traces} · 소비 합 ${consumes} · 걸린 것 ${refs.length}`,
+    refs,
+  };
+}
+
+/** ㉚ 방마다의 탄생 방식 분포 — 판정하지 않는다 (편중은 사람이 본다) */
+function checkLifeModeSpread(cx: LifeContext): CheckItem {
+  const head = LIFE_ITEMS.modeSpread;
+  const { formations } = cx.life;
+  if (formations.length === 0) return absentItem(head, '탄생지가 없다');
+  // 탄생지가 선 방을 처음 나온 차례로 (결정론 — ⑳ 의 어법)
+  const rows: string[] = [];
+  const seen = new Set<string>();
+  for (const formation of formations) {
+    if (seen.has(formation.region)) continue;
+    seen.add(formation.region);
+    rows.push(formation.region);
+  }
+  const kinds = tally(formations.map((formation) => formation.mode));
+  const refs: CheckRef[] = rows.map((row) => {
+    const mine = formations.filter((formation) => formation.region === row);
+    return {
+      where: row,
+      detail: `탄생지 ${mine.length} · ${renderTally(tally(mine.map((formation) => formation.mode)))}`,
+    };
+  });
+  return {
+    ...head,
+    status: 'report',
+    answer: `방 ${rows.length} · 탄생지 합 ${formations.length} · 방식 ${kinds.size} — ${renderTally(kinds)}`,
+    refs,
+  };
+}
+
+/** ㉛ 살아 있는 것을 전제한 회복 원인에 주인이 있는가 */
+function checkLifeRecoveryOwner(cx: LifeContext): CheckItem {
+  const head = LIFE_ITEMS.recoveryOwner;
+  const rows = cx.life.lifeRecoveries;
+  if (rows.length === 0) return absentItem(head, '생명을 전제하는 회복 원인이 없다');
+  const refs: CheckRef[] = [];
+  for (const row of rows) {
+    const where = row.sourceId;
+    if (row.population.trim() === '') {
+      refs.push({ where, detail: `${row.recoveryCause} 이 무엇을 전제하는지 밝히지 않았다` });
+      continue;
+    }
+    if (!cx.populationIds.has(row.population)) {
+      refs.push({ where, detail: `${row.population} 은 아는 개체군이 아니다` });
+      continue;
+    }
+    const born = cx.life.formations.some((formation) => formation.population === row.population);
+    if (!born) {
+      refs.push({ where, detail: `${row.population} 을 세우는 탄생지가 없다` });
+    }
+  }
+  return {
+    ...head,
+    status: refs.length === 0 ? 'pass' : 'fail',
+    answer: `회복 원인 ${rows.length} · 주인 없는 것 ${refs.length}`,
+    refs,
+  };
+}
+
+/** ㉜ 관계의 양 끝과 이음이 실재하는가 */
+function checkLifeLinkRefs(cx: LifeContext): CheckItem {
+  const head = LIFE_ITEMS.linkRefs;
+  const { links } = cx.life;
+  if (links.length === 0) return absentItem(head, '관계가 없다');
+  const refs: CheckRef[] = [];
+  for (const link of links) {
+    const where = `${link.from}→${link.to}`;
+    if (!cx.populationIds.has(link.from)) {
+      refs.push({ where, detail: `${link.from} 은 아는 개체군이 아니다` });
+    }
+    if (!cx.populationIds.has(link.to)) {
+      // 개체군이 아닌 끝은 잔류 원천이어야 한다 — 관계의 갈래 이름은 기반이 알지 못한다
+      if (cx.sourceIds?.has(link.to) || cx.residueSourceIds.has(link.to)) {
+        if (!cx.residueSourceIds.has(link.to)) {
+          refs.push({ where, detail: `${link.to} 은 잔류 원천이 아니다` });
+        }
+      } else {
+        refs.push({ where, detail: `${link.to} 은 아는 개체군도 잔류 원천도 아니다` });
+      }
+    }
+    if (link.via !== undefined && !cx.connectorIds.has(link.via)) {
+      refs.push({ where, detail: `이음 ${link.via} 은 아는 Connector 가 아니다` });
+    }
+  }
+  return {
+    ...head,
+    status: refs.length === 0 ? 'pass' : 'fail',
+    answer: `관계 ${links.length} · 끊긴 끝 ${refs.length}`,
+    refs,
+  };
+}
+
+/** ㉝ 관계 없는 개체군 · 받기만 하는 개체군 — 판정하지 않는다 */
+function checkLifeLinkSpread(cx: LifeContext): CheckItem {
+  const head = LIFE_ITEMS.linkSpread;
+  const { populations, links } = cx.life;
+  if (populations.length === 0) return absentItem(head, '개체군이 없다');
+  let isolated = 0;
+  let sinkOnly = 0;
+  // 개체군 차례 그대로 한 줄씩 (결정론)
+  const refs: CheckRef[] = populations.map((population) => {
+    const out = links.filter((link) => link.from === population.id).length;
+    const into = links.filter((link) => link.to === population.id).length;
+    if (out === 0 && into === 0) isolated++;
+    else if (out === 0) sinkOnly++;
+    return {
+      where: population.id,
+      detail:
+        out === 0 && into === 0
+          ? `${population.region} · 관계 0`
+          : `${population.region} · 나가는 관계 ${out} · 들어오는 관계 ${into}`,
+    };
+  });
+  return {
+    ...head,
+    status: 'report',
+    answer: `개체군 ${populations.length} · 관계 ${links.length} · 관계 없는 개체군 ${isolated} · 받기만 하는 개체군 ${sinkOnly}`,
+    refs,
+  };
+}
+
+/** ㉗~㉝ — 생명 계통을 주지 않으면 일곱이 전부 absent 다 (통과가 아니다) */
+function lifeItems(input: CheckRegionsInput): CheckItem[] {
+  const life = input.life;
+  if (!life) {
+    return Object.values(LIFE_ITEMS).map((head) => absentItem(head, '생명 계통이 주어지지 않았다'));
+  }
+  const regionById = new Map<string, CheckRegion>();
+  for (const region of input.regions) regionById.set(region.id, region);
+  const ecology = input.ecology;
+  const cx: LifeContext = {
+    input,
+    life,
+    regionById,
+    populationIds: new Set(life.populations.map((population) => population.id)),
+    regionRuleIds: new Set(life.regionRules),
+    sourceIds: ecology ? new Set(ecology.sources.map((source) => source.id)) : undefined,
+    materialIds: ecology ? new Set(ecology.materials.map((material) => material.id)) : undefined,
+    residueSourceIds: new Set(life.residueSourceIds),
+    connectorIds: new Set(input.graph.connectors.map((connector) => connector.id)),
+  };
+  return [
+    checkLifeFormationRefs(cx),
+    checkLifeWorldCause(cx),
+    checkLifeTracesConsumes(cx),
+    checkLifeModeSpread(cx),
+    checkLifeRecoveryOwner(cx),
+    checkLifeLinkRefs(cx),
+    checkLifeLinkSpread(cx),
   ];
 }

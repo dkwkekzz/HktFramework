@@ -11,6 +11,7 @@ import {
   checkRegions,
   type CheckContract,
   type CheckEcology,
+  type CheckLife,
   type CheckTime,
   type CheckRegion,
   type CheckStatus,
@@ -58,6 +59,8 @@ interface World {
   ecology?: CheckEcology;
   /** 주지 않으면 ㉓~㉖ 은 잴 것이 없다 (C018) */
   time?: CheckTime;
+  /** 주지 않으면 ㉗~㉝ 은 잴 것이 없다 (C022) */
+  life?: CheckLife;
 }
 
 /** 두 방 A · B 가 문 하나로 이어진, 아무 데도 걸리지 않는 세계 */
@@ -92,6 +95,7 @@ const run = (world: World) =>
     contract: CONTRACT,
     ecology: world.ecology,
     time: world.time,
+    life: world.life,
   });
 
 /** 그 검사 하나 */
@@ -99,12 +103,13 @@ const itemOf = (world: World, id: string) =>
   run(world).items.find((item) => item.id === id)!;
 
 describe('checkRegions — 보고의 형', () => {
-  it('①~⑨ 다음에 ⑩~㉒ · ㉓~㉖ 가 번호 순으로 실리고, 번호 밖의 코드도 숨지 않는다', () => {
+  it('①~⑨ 다음에 ⑩~㉒ · ㉓~㉖ · ㉗~㉝ 가 번호 순으로 실리고, 번호 밖의 코드도 숨지 않는다', () => {
     const report = run(soundWorld());
     expect(report.items.map((item) => item.mark)).toEqual([
       '①', '②', '③', '④', '⑤', '⑥', '⑦', '⑧', '·', '⑨',
       '⑩', '⑪', '⑫', '⑬', '⑭', '⑮', '⑯', '⑰', '⑱', '⑲', '⑳', '㉑', '㉒',
       '㉓', '㉔', '㉕', '㉖',
+      '㉗', '㉘', '㉙', '㉚', '㉛', '㉜', '㉝',
     ]);
     // 기계가 잡는 열쇠는 번호가 아니라 id 다 — 번호가 바뀌어도 이것은 그대로다
     expect(new Set(report.items.map((item) => item.id)).size).toBe(report.items.length);
@@ -151,6 +156,14 @@ describe('checkRegions — 보고의 형', () => {
       'time-route-refs',
       'time-season-summary',
       'time-reachable',
+      // ㉗~㉝ — 생명 계통을 주지 않았으므로 일곱 전부 (C022)
+      'life-formation-refs',
+      'life-world-cause',
+      'life-traces-consumes',
+      'life-mode-spread',
+      'life-recovery-owner',
+      'life-link-refs',
+      'life-link-spread',
     ]);
   });
 });
@@ -665,7 +678,8 @@ function bend(edit: (time: CheckTime) => CheckTime): World {
 describe('checkRegions — ㉓~㉖ 은 계약으로 받는다 (C018)', () => {
   it('계약을 주지 않으면 넷 다 absent 다 — 통과가 아니다', () => {
     const bare = run(soundWorld());
-    const four = bare.items.slice(-4);
+    // 뒤에 붙은 일곱(㉗~㉝)은 이 시험의 것이 아니다 — 넷의 자리만 본다
+    const four = bare.items.slice(23, 27);
     expect(four.map((item) => item.id)).toEqual([
       'time-phase-refs',
       'time-route-refs',
@@ -790,5 +804,350 @@ describe('checkRegions — ㉓~㉖ 은 계약으로 받는다 (C018)', () => {
   it('넷도 두 번 돌리면 같다 — 읽기 전용 관찰이다', () => {
     const world = timeWorld();
     expect(JSON.stringify(run(world))).toBe(JSON.stringify(run(world)));
+  });
+});
+
+// ── 검사 일곱 — 생명이 세계에 매달리는 자리 (C022 ADDED) ──────────────
+//
+// 여기서도 기반은 **게임을 모른다** — 탄생 방식의 어휘도 개체군의 이름도 Region Rule 의 id 도
+// 이 시험이 지어 준다. 탄생 방식이 'binding' · 'inherited' 인 세계로 재는 이유가 그것이다.
+//
+// 완료 조건의 절반이 여기 있다 — **일곱이 잘못된 데이터를 실제로 집어내는가**를 본다:
+// 끊긴 참조 · 원인 없는 탄생 · 전조/소비 없는 탄생 · 주인 없는 회복 원인 · 관계의 끊긴 끝.
+
+/** 전조 흔적 하나 — 탄생지가 traceOpIds 로 가리키는 op */
+const omen = (id: string) =>
+  ({
+    id,
+    kind: 'point',
+    layer: 'hint',
+    tag: 'omen',
+    position: { x: 3, z: 3 },
+  }) as const;
+
+/**
+ * 재료 계통(ecologyWorld) 위에 탄생지 하나와 개체군 하나가 선 세계.
+ * 관계는 하나도 없다 — 그래서 ㉜ 는 absent 다 (C022 의 세계와 같은 모양).
+ */
+function lifeWorld(): World {
+  const world = ecologyWorld();
+  world.regions[0] = withOps(world.regions[0]!, [omen('omen-1'), omen('omen-2')]);
+  world.life = {
+    formations: [
+      {
+        id: 'L1',
+        region: 'A',
+        mode: 'binding',
+        worldCause: 'CAUSE',
+        regionRule: 'RULE_ONE',
+        sourceMaterialIds: ['M1'],
+        sourceStateCodes: ['wet'],
+        requiredSourceIds: ['S1', 'S2'],
+        requiredPopulationIds: ['P1'],
+        consumesSourceIds: ['S1'],
+        traceOpIds: ['omen-1', 'omen-2'],
+        population: 'P1',
+      },
+    ],
+    populations: [{ id: 'P1', region: 'A' }],
+    links: [],
+    lifeRecoveries: [{ sourceId: 'S2', recoveryCause: 'shed', population: 'P1' }],
+    regionRules: ['RULE_ONE'],
+    residueSourceIds: ['S2'],
+  };
+  return world;
+}
+
+/** 생명 계통만 고쳐 쓴다 — 방과 그래프와 재료 계통은 그대로 (tear · bend 의 어법) */
+function graft(edit: (life: CheckLife) => CheckLife): World {
+  const world = lifeWorld();
+  world.life = edit(world.life!);
+  return world;
+}
+
+/** 탄생지 하나만 고쳐 쓴다 */
+const formationOf = (over: Partial<CheckLife['formations'][number]>) =>
+  graft((life) => ({ ...life, formations: [{ ...life.formations[0]!, ...over }] }));
+
+describe('checkRegions — ㉗~㉝ 은 계약으로 받는다 (C022)', () => {
+  it('계통을 주지 않으면 일곱이 전부 absent 다 — 통과가 아니다', () => {
+    const bare = run(soundWorld());
+    const seven = bare.items.slice(27);
+    expect(seven.map((item) => item.id)).toEqual([
+      'life-formation-refs',
+      'life-world-cause',
+      'life-traces-consumes',
+      'life-mode-spread',
+      'life-recovery-owner',
+      'life-link-refs',
+      'life-link-spread',
+    ]);
+    expect(seven.map((item) => item.status)).toEqual(
+      ['absent', 'absent', 'absent', 'absent', 'absent', 'absent', 'absent'],
+    );
+    // 잴 것이 없다고 세계가 실패하지는 않는다
+    expect(bare.ok).toBe(true);
+  });
+
+  it('밝힌 것이 다 있으면 ㉗ ㉘ ㉙ ㉛ 은 pass · ㉚ ㉝ 은 report · ㉜ 는 absent 다', () => {
+    const report = run(lifeWorld());
+    const status = (id: string) => report.items.find((item) => item.id === id)!.status;
+    expect({
+      formation: status('life-formation-refs'),
+      cause: status('life-world-cause'),
+      traces: status('life-traces-consumes'),
+      mode: status('life-mode-spread'),
+      recovery: status('life-recovery-owner'),
+      link: status('life-link-refs'),
+      spread: status('life-link-spread'),
+      ok: report.ok,
+    }).toEqual({
+      formation: 'pass',
+      cause: 'pass',
+      traces: 'pass',
+      // 관계가 하나도 없다 — 통과로 적으면 검사가 거짓말을 한다
+      link: 'absent',
+      mode: 'report',
+      recovery: 'pass',
+      spread: 'report',
+      ok: true,
+    });
+  });
+
+  it('일곱도 두 번 돌리면 글자까지 같다 — 읽기 전용 관찰이다', () => {
+    const world = lifeWorld();
+    expect(JSON.stringify(run(world))).toBe(JSON.stringify(run(world)));
+  });
+});
+
+describe('checkRegions — ㉗~㉝ 이 잘못된 데이터를 집어낸다 (SPEC-008 경계 ②)', () => {
+  it('㉗ 없는 방 · 없는 규칙 · 없는 재료 · 없는 원천 · 없는 개체군 · 없는 전조가 다 잡힌다', () => {
+    const item = itemOf(
+      formationOf({
+        region: 'Z',
+        regionRule: 'RULE_NONE',
+        sourceMaterialIds: ['M9'],
+        requiredSourceIds: ['S9'],
+        requiredPopulationIds: ['P9'],
+        consumesSourceIds: ['S8'],
+        traceOpIds: ['no-such'],
+        population: 'P8',
+      }),
+      'life-formation-refs',
+    );
+    expect(item.status).toBe('fail');
+    expect(item.refs.map((ref) => ref.detail)).toEqual([
+      'Z 은 아는 방이 아니다',
+      'RULE_NONE 은 아는 Region Rule 이 아니다',
+      'M9 은 아는 재료가 아니다',
+      '요구가 가리킨 S9 은 아는 원천이 아니다',
+      '소비가 가리킨 S8 은 아는 원천이 아니다',
+      '요구가 가리킨 P9 은 아는 개체군이 아니다',
+      'P8 은 아는 개체군이 아니다',
+    ]);
+    // 방을 모르면 그 방의 op 는 볼 수 없다 — 없는 전조를 두 번 세지 않는다
+    expect(item.refs.every((ref) => ref.where === 'L1')).toBe(true);
+  });
+
+  it('㉗ 그 방에 없는 전조 op 를 가리키면 잡힌다', () => {
+    const item = itemOf(formationOf({ traceOpIds: ['omen-1', 'no-such'] }), 'life-formation-refs');
+    expect(item.status).toBe('fail');
+    expect(item.refs).toEqual([{ where: 'L1', detail: '전조 no-such 이 A 의 op 로 없다' }]);
+  });
+
+  it('㉗ Region Rule 과 개체군을 아예 가리키지 않아도 잡힌다', () => {
+    const item = itemOf(formationOf({ regionRule: ' ', population: '' }), 'life-formation-refs');
+    expect(item.status).toBe('fail');
+    expect(item.refs.map((ref) => ref.detail)).toEqual([
+      'Region Rule 을 가리키지 않는다',
+      '올릴 개체군을 가리키지 않는다',
+    ]);
+  });
+
+  it('㉗ 재료 계통을 주지 않으면 그 갈래는 재지 않고 answer 에 적는다', () => {
+    const world = lifeWorld();
+    world.ecology = undefined;
+    const item = itemOf(world, 'life-formation-refs');
+    // 없는 재료 M1 · 원천 S1 을 가리키고 있지만 잴 계통이 없다 — 없는 것을 결손으로 세지 않는다
+    expect(item.status).toBe('pass');
+    expect(item.answer).toContain('재료 계통이 없어 재료·원천 갈래는 재지 않았다');
+  });
+
+  it('㉘ 원인 없는 탄생 — 세계 원인을 가리키지 않으면 잡힌다', () => {
+    const item = itemOf(formationOf({ worldCause: ' ' }), 'life-world-cause');
+    expect(item.status).toBe('fail');
+    expect(item.refs).toEqual([{ where: 'L1', detail: '세계 원인을 가리키지 않는다' }]);
+  });
+
+  it('㉘ 그 방의 원천들이 밝힌 원인 어휘에 없는 원인도 잡힌다', () => {
+    const item = itemOf(formationOf({ worldCause: 'OTHER' }), 'life-world-cause');
+    expect(item.status).toBe('fail');
+    expect(item.refs).toEqual([
+      { where: 'L1', detail: 'OTHER 은 A 의 원천들이 밝힌 세계 원인이 아니다' },
+    ]);
+  });
+
+  it('㉘ 원천이 하나도 없는 방이면 비지 않은 것으로 족하다', () => {
+    // C 는 계통 밖의 방이다 — 잴 어휘가 없는데 실패로 적으면 거짓말이다
+    const world = graft((life) => ({
+      ...life,
+      formations: [{ ...life.formations[0]!, region: 'A', worldCause: 'OTHER' }],
+    }));
+    world.ecology = { ...world.ecology!, sources: [] };
+    expect(itemOf(world, 'life-world-cause').status).toBe('pass');
+  });
+
+  it('㉙ 전조 없는 탄생과 소비 없는 탄생이 함께 잡힌다', () => {
+    const item = itemOf(
+      formationOf({ traceOpIds: [], consumesSourceIds: [] }),
+      'life-traces-consumes',
+    );
+    expect(item.status).toBe('fail');
+    expect(item.refs).toEqual([
+      { where: 'L1', detail: '전조 흔적을 하나도 가지지 않는다' },
+      { where: 'L1', detail: '소비하는 원천이 하나도 없다' },
+    ]);
+    expect(item.answer).toBe('탄생지 1 · 전조 합 0 · 소비 합 0 · 걸린 것 2');
+  });
+
+  it('㉛ 주인 없는 회복 원인 — population 이 빈 줄이 fail 로 잡힌다', () => {
+    const item = itemOf(
+      graft((life) => ({
+        ...life,
+        lifeRecoveries: [{ sourceId: 'S2', recoveryCause: 'shed', population: '' }],
+      })),
+      'life-recovery-owner',
+    );
+    expect(item.status).toBe('fail');
+    expect(item.refs).toEqual([
+      { where: 'S2', detail: 'shed 이 무엇을 전제하는지 밝히지 않았다' },
+    ]);
+    expect(item.answer).toBe('회복 원인 1 · 주인 없는 것 1');
+  });
+
+  it('㉛ 아는 개체군이 아니거나 그 개체군을 세우는 탄생지가 없으면 잡힌다', () => {
+    const unknown = itemOf(
+      graft((life) => ({
+        ...life,
+        lifeRecoveries: [{ sourceId: 'S2', recoveryCause: 'shed', population: 'P9' }],
+      })),
+      'life-recovery-owner',
+    );
+    expect(unknown.refs).toEqual([{ where: 'S2', detail: 'P9 은 아는 개체군이 아니다' }]);
+    // 개체군은 있는데 그것을 세우는 탄생이 세계에 없다 — 무엇이 벗는지가 서지 않은 것이다
+    const unborn = itemOf(
+      graft((life) => ({
+        ...life,
+        populations: [...life.populations, { id: 'P2', region: 'A' }],
+        lifeRecoveries: [{ sourceId: 'S2', recoveryCause: 'shed', population: 'P2' }],
+      })),
+      'life-recovery-owner',
+    );
+    expect(unborn.status).toBe('fail');
+    expect(unborn.refs).toEqual([{ where: 'S2', detail: 'P2 을 세우는 탄생지가 없다' }]);
+  });
+
+  it('㉛ 생명을 전제하는 회복 원인이 하나도 없으면 absent 다', () => {
+    expect(itemOf(graft((life) => ({ ...life, lifeRecoveries: [] })), 'life-recovery-owner').status)
+      .toBe('absent');
+  });
+
+  it('㉜ 관계의 끊긴 끝과 없는 이음이 잡힌다', () => {
+    const item = itemOf(
+      graft((life) => ({
+        ...life,
+        links: [
+          { from: 'P9', to: 'P1', kind: 'eats' },
+          { from: 'P1', to: 'S1', kind: 'leaves' },
+          { from: 'P1', to: 'X9', kind: 'calls', via: 'NO_DOOR' },
+        ],
+      })),
+      'life-link-refs',
+    );
+    expect(item.status).toBe('fail');
+    expect(item.refs).toEqual([
+      { where: 'P9→P1', detail: 'P9 은 아는 개체군이 아니다' },
+      // S1 은 아는 원천이지만 잔류 원천이 아니다 — 개체군이 아닌 끝은 잔류 원천이어야 한다
+      { where: 'P1→S1', detail: 'S1 은 잔류 원천이 아니다' },
+      { where: 'P1→X9', detail: 'X9 은 아는 개체군도 잔류 원천도 아니다' },
+      { where: 'P1→X9', detail: '이음 NO_DOOR 은 아는 Connector 가 아니다' },
+    ]);
+    expect(item.answer).toBe('관계 3 · 끊긴 끝 4');
+  });
+
+  it('㉜ 개체군끼리 · 잔류 원천으로 · 실재하는 이음이면 pass 다', () => {
+    const item = itemOf(
+      graft((life) => ({
+        ...life,
+        populations: [...life.populations, { id: 'P2', region: 'B' }],
+        links: [
+          { from: 'P1', to: 'P2', kind: 'eats' },
+          { from: 'P1', to: 'S2', kind: 'leaves' },
+          { from: 'P2', to: 'P1', kind: 'calls', via: 'AB' },
+        ],
+      })),
+      'life-link-refs',
+    );
+    expect(item.status).toBe('pass');
+    expect(item.answer).toBe('관계 3 · 끊긴 끝 0');
+  });
+});
+
+describe('checkRegions — ㉚ ㉝ 은 판정하지 않는다 (SPEC-008)', () => {
+  it('㉚ 방마다 탄생 방식을 세고 ok 를 거짓으로 만들지 않는다', () => {
+    const world = graft((life) => ({
+      ...life,
+      formations: [
+        life.formations[0]!,
+        { ...life.formations[0]!, id: 'L2', mode: 'inherited' },
+        { ...life.formations[0]!, id: 'L3', region: 'B', mode: 'binding', traceOpIds: [] },
+      ],
+    }));
+    const item = itemOf(world, 'life-mode-spread');
+    expect(item.status).toBe('report');
+    expect(item.answer).toBe('방 2 · 탄생지 합 3 · 방식 2 — binding 2 · inherited 1');
+    expect(item.refs).toEqual([
+      { where: 'A', detail: '탄생지 2 · binding 1 · inherited 1' },
+      { where: 'B', detail: '탄생지 1 · binding 1' },
+    ]);
+    // 전조 없는 L3 을 판정하는 것은 ㉙ 이다 — ㉚ 은 수만 적는다
+    expect(run(world).items.filter((i) => i.status === 'fail').map((i) => i.id)).toEqual([
+      'life-traces-consumes',
+    ]);
+  });
+
+  it('㉝ 관계 없는 개체군과 받기만 하는 개체군을 세고 판정하지 않는다', () => {
+    const one = itemOf(lifeWorld(), 'life-link-spread');
+    expect(one.status).toBe('report');
+    expect(one.answer).toBe('개체군 1 · 관계 0 · 관계 없는 개체군 1 · 받기만 하는 개체군 0');
+    expect(one.refs).toEqual([{ where: 'P1', detail: 'A · 관계 0' }]);
+    expect(run(lifeWorld()).ok).toBe(true);
+
+    const three = itemOf(
+      graft((life) => ({
+        ...life,
+        populations: [
+          ...life.populations,
+          { id: 'P2', region: 'B' },
+          { id: 'P3', region: 'B' },
+        ],
+        links: [{ from: 'P1', to: 'P2', kind: 'eats' }],
+      })),
+      'life-link-spread',
+    );
+    expect(three.answer).toBe('개체군 3 · 관계 1 · 관계 없는 개체군 1 · 받기만 하는 개체군 1');
+    expect(three.refs).toEqual([
+      { where: 'P1', detail: 'A · 나가는 관계 1 · 들어오는 관계 0' },
+      { where: 'P2', detail: 'B · 나가는 관계 0 · 들어오는 관계 1' },
+      { where: 'P3', detail: 'B · 관계 0' },
+    ]);
+  });
+
+  it('㉚ ㉝ 도 잴 것이 없으면 absent 다 — 통과로도 report 로도 적지 않는다', () => {
+    const empty = graft((life) => ({ ...life, formations: [], populations: [] }));
+    const status = (id: string) => itemOf(empty, id).status;
+    expect(status('life-mode-spread')).toBe('absent');
+    expect(status('life-link-spread')).toBe('absent');
+    expect(status('life-formation-refs')).toBe('absent');
   });
 });
