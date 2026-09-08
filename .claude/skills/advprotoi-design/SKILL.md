@@ -16,15 +16,20 @@ description: HktAdvProtoI 의 기획(Design Authoring) 단계를 실행한다 �
 
 ## ① 주입 받기
 
-주입은 두 종류다 — 로드맵의 두 층에 대응한다
-([content/roadmap/README.md](../../../HktAdvProtoI/content/roadmap/README.md) §1).
-먼저 어느 층의 주입인지 판정한다.
+주입은 세 종류다 — 로드맵의 두 층에 대응하는 둘과, 실주행이 돌려보내는 하나
+([content/roadmap/README.md](../../../HktAdvProtoI/content/roadmap/README.md) §1 · 원본 §8.5).
+먼저 어느 종류의 주입인지 판정한다.
 
 ```text
 기반 층 주입    축 하나 — 방향 한 줄 · 기획서 · design/ 문서 지목
               → README §2 표에서 열린 층("다음") 하나만 받는다
 컨텐츠 층 주입  미지 하나 — 지역 · 생물 · 자원 · 구조 (이름 + 종류 + 세계관 사실)
               → README §3 표에 행을 올린다. 요구 축이 전부 확정이어야 받는다
+실주행 GAP 주입  Play 실주행 판정에서 실패한 루트 `TODO.md` §1 의 질문 — Human 이 DESIGN GAP 으로 준다.
+              새 축도 새 미지도 아니다 → 로드맵 행을 올리지 않는다.
+              기존 Play 에 Cycle 을 더하거나, 여럿에 걸치면 관찰 가능성 Play 하나로 묶는다
+              (선례: RoomAnswersWhenAsked). 승인되면 그 질문은 TODO 에서 지운다.
+              TODO §3「뒤 층 · 뒤 Play 로」 는 그 층·Play 를 기획할 때의 입력이다 — 받으면 지운다
 ```
 
 공통 규칙:
