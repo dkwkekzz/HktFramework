@@ -11,7 +11,7 @@
 [Plan-Skill §4 항목 4](design/Plan-Skill-CycleExecutionWorkflow.md). 승인 게이트 없음 — Play 아홉 중 여덟이 승인돼 있다
 (2층 일곱 + 컨텐츠 M5). Life 는 주입된 그대로다.
 
-**기획 작업의 전체 로드맵은 [content/roadmap/PLAYS.md](content/roadmap/PLAYS.md)** — 있는 Play 열둘 · 쓸 Play 여섯(HundredRooms · 3층 둘째 · 4~7층) · 지금부터의 기획 작업 큐.
+**기획 작업의 전체 로드맵은 [content/roadmap/PLAYS.md](content/roadmap/PLAYS.md)** — 원본 기획 열넷마다 덮은 Play 와 남은 것 · 있는 Play 열둘 · 쓸 Play 여섯(HundredRooms · 3층 둘째 · 4~7층) · 지금부터의 기획 작업 큐.
 
 **design 은 여기까지** — 2층 **세계 절반**의 기획은 닫혔다 (컨셉 · Region · 재료 · 시간 · 생명 · 접근). 더 쌓지 않는다.
 남은 일은 **Cycle 실주행**이다. 실주행 관찰(Material 원문 §7 단계 11)이 다음 기획(3층)의 입력이다.
