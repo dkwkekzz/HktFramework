@@ -22,7 +22,7 @@ Play [RoomAnswersWhenAsked](content/roadmap/play/RoomAnswersWhenAsked.md) 가 C0
 **도구 절반 2단계 — [Region 작성기](content/roadmap/L2-World-Tool-Scale.md) (확정 · 이 저장소 안에서 새로 짓는다).** "지역을 더할 때마다
 2층 공정을 다시 타는가" 의 답: 아니다 — 새 지역은 세 등급(A 데이터만 · B 규칙 하나 · C 새 축)으로 가르고 대부분은 A 라서 도구가 쓴다.
 순서 T1~T6 은 roadmap README §2.1. **T1~T6 이 다 섰다** — 남은 것은 값이 늘어야 서는 것들뿐이라 이 레인은 지금 부를 단계가 없다.
-design 이 다시 열리는 때는 둘 — ① 2층 Play 실주행에서 DESIGN GAP 이 돌아올 때 ② T6 이 서서 HundredRooms 를 쓸 때 · 2층이 닫혀 3층을 주입할 때.
+design 이 다시 열리는 때는 둘 — ① 2층 Play 실주행에서 DESIGN GAP 이 돌아올 때 (**돌아왔다** — RegionGraphRooms 의 GAP 둘, TODO.md §3) ② T6 이 서서 HundredRooms 를 쓸 때 · 2층이 닫혀 3층을 주입할 때.
 
 | 레인 | 지금 할 수 있는 것 | 기다리는 것 | 다음 |
 |---|---|---|---|
@@ -38,7 +38,7 @@ design 이 다시 열리는 때는 둘 — ① 2층 Play 실주행에서 DESIGN 
 
 | Play | 증명 | Cycle | 상태 |
 |---|---|---|---|
-| RegionGraphRooms | 세계는 방들의 그래프다 | C001~C004 | **넷 다 닫힘** — Play 실주행 판정 대기 (아래 표) |
+| RegionGraphRooms | 세계는 방들의 그래프다 | C001~C004 | **판정 끝** — 실주행 GAP 둘이 기획을 기다린다 (TODO.md §3) |
 | RoomBecomesLand | 방이 땅이 된다 (백왕령) | C005~C007 | **셋 다 닫힘** — Play 실주행 판정 대기 (아래 표) |
 | RuleBoundRoom | 방은 규칙을 품는다 (환상의 미로 = Region 하나) | C008~C010 | **셋 다 닫힘** — Play 실주행 판정 대기 (아래 표) |
 | RoomBearsMaterial | 방이 재료를 낳는다 (거대 악마의 숲 = M3 재료 계통) | C011~C014 | **넷 다 닫힘** — Play 실주행 판정 대기 (아래 표) |
@@ -48,14 +48,13 @@ design 이 다시 열리는 때는 둘 — ① 2층 Play 실주행에서 DESIGN 
 | RoomAnswersWhenAsked | 물으면 답한다 (지목 · 대상 프레임 · 기록 · 세계 위 글자 0) | C026~C028 | **셋 다 닫힘** — Play 실주행 판정 대기 (아래 표) |
 | RoomAsksForPossibilities | 방이 가능성을 묻는다 (Lock · 성질 어휘 · 여러 종류의 답 · 흔적 = M7 열을 저장하는 결정의 원천) | C029~C031 | 대기 |
 
-**Play 실주행 판정 대기 다섯** — Human 판정은 Cycle 이 아니라 **Play 단위**이고, Human 은 항목 전부가 아니라
+**Play 실주행 판정 대기 넷** — Human 판정은 Cycle 이 아니라 **Play 단위**이고, Human 은 항목 전부가 아니라
 **AI 예심이 압축한 질문** 만 답한다 — [TODO.md](TODO.md) §1 (회수 규칙 [Plan-Skill §3](design/Plan-Skill-CycleExecutionWorkflow.md)).
 `npm run dev` 로 Play Goal 을 한 번 플레이하며 답한다. 통과는 지우고, 실패는 DESIGN GAP 으로 `advprotoi-design` 에 준다.
 그 Play 의 질문이 전부 비면 로드맵 행이 닫힌다. 순서는 Play 순서.
 
 | Play | Play Goal 실주행 | 질문 |
 |---|---|---|
-| RegionGraphRooms | 백왕령 → 거목 → 추락 → 물길 → 귀환 | Q1~Q5 |
 | RoomBecomesLand | 능선에 막히고 강에 막히고 다리로 건넌다 | Q6~Q10 |
 | RuleBoundRoom | 규칙을 관찰해 심장에 닿고, 두 번째 관찰자가 같은 미로를 본다 | Q11~Q14 |
 | RoomBearsMaterial | 흔적에서 원천으로, 캔 자국이 남고, 균류를 캔 것이 거목 쪽 회복을 늦추며, 되돌아온 원천은 다음 마디에 선다 | Q15~Q20 |
