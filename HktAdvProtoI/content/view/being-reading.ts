@@ -11,7 +11,7 @@
 // 그리고 **없는 것은 자리째 없다.** 생명을 갖지 않는 것(광맥 · 출구 표식)에 0 을 지어내지
 // 않는다 (SPEC-002 경계 · place-reading 의 규칙 State 와 같은 규율).
 
-import type { GameViewSnapshot } from '../protocol/gameview';
+import type { GameViewSnapshot, SourceMemoryView } from '../protocol/gameview';
 
 /** 그 존재의 생명 — **가진 것에만 있다.** 비율은 표현이 잰다 (place-reading 의 압력과 같다) */
 export interface BeingVitality {
@@ -66,6 +66,21 @@ export interface BeingReading {
    * 실려 오지 않으므로 화면도 말하지 않는다: 세계가 말한 것은 "지금 멎었다" 하나다.
    */
   conditions?: string[];
+  /**
+   * 그 원천에 **일어난 일의 셈** (C034 ADDED — 봉투의 entity.memory 그대로).
+   *
+   * 한 번도 캔 적 없는 원천에는 **자리 자체가 없다** — 빈 값으로 지어내지 않는다
+   * (`conditions?` 와 같은 규율). 몸에도 출구 표식에도 이 자리는 없다.
+   *
+   * 위의 `state` 와 갈리는 자리다: 저것은 **지금** 그 원천이 어떤가이고 이것은 **거기
+   * 무슨 일이 있었나**다. 되돌아온 원천은 다시 `available` 이 되지만 셈은 되돌아오지
+   * 않는다 (지워지지 않는 것 · Foundation G7).
+   *
+   * **나이는 실려 오지 않는다** — 세계가 싣는 것은 마지막 고갈의 시각이고 "N초 전" 은
+   * 표현이 잰다 (판의 규칙 줄이 rearrangedAt 을 재는 그 규율 그대로). **누가 캤는지도
+   * 없다** — 세계가 세지 않는다.
+   */
+  memory?: SourceMemoryView;
   /** 그 존재를 겨냥한 행동들 — 하나도 없으면 빈 배열이다 (SPEC-003 경계) */
   offers: BeingOffer[];
 }
@@ -84,6 +99,7 @@ export function readBeing(
   if (!entity) return undefined;
 
   const vitality = entity.vitality;
+  const memory = entity.memory;
   return {
     entityId: entity.id,
     ...(entity.name === undefined ? {} : { name: entity.name }),
@@ -97,6 +113,19 @@ export function readBeing(
     ...(entity.conditions === undefined || entity.conditions.length === 0
       ? {}
       : { conditions: [...entity.conditions] }),
+    // 캔 적 없는 원천에는 봉투에 자리가 없고, 없는 채로 둔다 (C034 — 걸린 것과 같은 규율).
+    // 한 번도 고갈된 적 없으면 그 시각도 없다 — 0 으로 지어내지 않는다
+    ...(memory === undefined
+      ? {}
+      : {
+          memory: {
+            takenTotal: memory.takenTotal,
+            depletedTimes: memory.depletedTimes,
+            ...(memory.lastDepletedAt === undefined
+              ? {}
+              : { lastDepletedAt: memory.lastDepletedAt }),
+          },
+        }),
     ...(vitality
       ? {
           vitality: {
