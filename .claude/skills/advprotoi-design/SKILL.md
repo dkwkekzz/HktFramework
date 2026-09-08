@@ -115,7 +115,7 @@ Human 이 정한다    게임 의미 — 수치·확률·시간·범위, 시스�
   모은다 — 단계마다 정지하지 않는다. 플레이 층은 제안으로 채워 문서를 완성한다.
 - Cycle Breakdown 각 항목은 6조건(작다/플레이 가능/World 변화 분명/관찰 가능/
   검증 가능/재사용 가능), 순서는 의존성 + Breath 점진 완성. CycleId 는 전
-  이름공간(cycles/ + 코드 주석) 최대 번호 +1. Existing 판정은 STATE.md §4 의
+  이름공간(cycles/ + 코드 주석) 최대 번호 +1. Existing 판정은 STATE.md §2 의
   "코드에 있는 것" + 기존 `cycles/*/spec.md` 의 ADDED.
 - 주입물이 커서 Play 하나에 안 담기면 여러 Play 로 나눠 제안한다 — 승인은
   여전히 문서당 1회다.
@@ -125,9 +125,12 @@ Goal·Intent·Breath·Breakdown 개별 게이트를 두지 않는다. 답과 수
 승인되면 README 의 해당 행(§2 또는 §3)에 Play 를 적고 ③ 으로. 기반 층 Play 가 놓는
 미지는 이때 §3 에 행으로 올린다.
 
-## ③ 레인 정리 → `STATE.md` §1
+## ③ 레인 정리 → `STATE.md` §1 · `content/roadmap/PLAYS.md`
 
 Play 승인 직후(그리고 Cycle 이 main 에 합쳐질 때마다) "다음에 할 일"을 **병렬 레인 표**로 STATE.md §1 에 적는다 —
+함께 `content/roadmap/PLAYS.md`(기획 작업의 단일 출처 — §1 원본 덮임 · §2 Play 상태 · §3 쓸 Play · §4 큐)를 고치고, STATE §1 의
+주체별 표는 **링크만** 갱신한다 (내용을 복사하지 않는다 — 한 사실 한 집). TODO §3 의 줄을 받으면 PLAYS §1 로 옮기고 TODO 에서 지운다.
+
 design 이 만지는 유일한 STATE 절이다. 병렬 규칙은 Plan-Skill §4 항목 4 가 소유한다.
 
 ```text
