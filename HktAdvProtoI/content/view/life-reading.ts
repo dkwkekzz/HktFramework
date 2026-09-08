@@ -16,6 +16,7 @@
 
 import type { GameViewSnapshot } from '../protocol/gameview';
 import {
+  FORM_CARCASS_BLOOM,
   FORM_ROOT_CLUTCH,
   FORM_ROOT_EGGS,
   regionSpec,
@@ -172,13 +173,18 @@ export function lifeSiteStateCode(kind: string | undefined, state: string): stri
 }
 
 /**
- * 형태 × phase → 문구 코드 (C022 — 알집 하나뿐이었다. C023 CHANGED — 형태가 둘 · phase 가 넷).
+ * 형태 × phase → 문구 코드 (C022 — 알집 하나뿐이었다. C023 CHANGED — 형태가 둘 · phase 가 넷.
+ * C024 CHANGED — 형태가 셋).
  *
- * **탄생지가 둘이 되어도 표에 한 줄이 늘 뿐이다** (원천이 넷에서 열넷이 된 그 어법 그대로).
+ * **탄생지가 셋이 되어도 표에 한 줄이 늘 뿐이다** (원천이 넷에서 열일곱이 된 그 어법 그대로).
  * 형태마다 자기 말을 갖는 것은 SPEC-008 이 요구하는 것이다 — 큰 알집과 작은 붉은 점은
  * 다른 이름 · 다른 그림 · 다른 말이고, 같은 phase 라도 무엇이 맺히고 무엇이 터졌는지가
  * 갈려 읽혀야 한다. **어느 쪽이 결속이고 어느 쪽이 계승인지는 여기서도 말하지 않는다**
  * (spec Observable "투영하지 않는 것") — 갈리는 것은 생김새이지 방식의 이름이 아니다.
+ *
+ * 셋째(사체의 흰 것)도 **방식의 이름을 말하지 않는다.** 그 말이 '맺힌다' 가 아니라
+ * '덮어 간다' 인 것은 변성형이라고 적은 것이 아니라 **눈에 보이는 것이 그렇기 때문**이다 —
+ * 뿌리의 둘은 없던 것이 맺히고, 이것은 있던 것 위로 다른 것이 번진다.
  */
 const LIFE_SITE_STATE_CODES: Readonly<Record<string, Readonly<Record<string, string>>>> = {
   [FORM_ROOT_CLUTCH]: {
@@ -192,6 +198,12 @@ const LIFE_SITE_STATE_CODES: Readonly<Record<string, Readonly<Record<string, str
     [PHASE_BINDING]: 'eggs-binding',
     [PHASE_BORN]: 'eggs-born',
     [PHASE_SPENT]: 'eggs-spent',
+  },
+  [FORM_CARCASS_BLOOM]: {
+    [PHASE_DORMANT]: 'bloom-dormant',
+    [PHASE_BINDING]: 'bloom-binding',
+    [PHASE_BORN]: 'bloom-born',
+    [PHASE_SPENT]: 'bloom-spent',
   },
 };
 

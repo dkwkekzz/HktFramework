@@ -86,6 +86,10 @@ export const ROLE_PRESENTATIONS: Readonly<Record<string, RolePresentation>> = {
       // 그림도 껍질의 색으로 묶이고 크기로 갈린다 (그것을 정하는 것은 아래 그림표다)
       'clutch-husk': 'source:clutch-husk',
       'egg-husk': 'source:egg-husk',
+      // 둥지의 사체 (C024) — 표에 한 줄이 늘 뿐이다. 같은 방에 이미 사체 하나가 서 있으므로
+      // (nest-mycelium — 흰 실이 덮은 것) 그림이 그 둘을 갈라야 하는데, 그 갈림도 여기가
+      // 아니라 그림표가 진다 — 여기는 어느 그림을 부를지만 정한다
+      carcass: 'source:carcass',
     },
   },
   // 탄생지 (C022) — 원천과 **같은 자리에 서는 다른 것**이다. 표의 어법이 그대로인 것은
@@ -103,6 +107,10 @@ export const ROLE_PRESENTATIONS: Readonly<Record<string, RolePresentation>> = {
       // 큰 알집과 작은 붉은 점은 **다른 그림**이어야 하는데, 그 갈림은 여기가 아니라
       // 그림표가 진다 — 여기는 어느 그림을 부를지만 정한다 (원천이 넷에서 열여섯이 된 어법)
       'root-eggs': 'life:root-eggs',
+      // 탄생지가 셋이 되었다 (C024 · SPEC-006) — 표에 한 줄이 늘 뿐이고 크기도 그대로다.
+      // 뿌리의 붉은 것 둘과 사체의 흰 것 하나는 **다른 그림**이어야 하고, 그 갈림은
+      // 그림표가 진다 (원천이 넷에서 열일곱이 된 그 어법)
+      'carcass-bloom': 'life:carcass-bloom',
     },
   },
   // 방의 출구 표식 (C001) — anchor 자리에 선 표식 하나. kind(= 전이 종류) 별 색은 region-presentation 의 표.
