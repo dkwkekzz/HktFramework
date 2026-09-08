@@ -518,7 +518,13 @@ export function projectObserverView(
   // 경계를 가리키는 출구도 state 는 open 이다 (01-spec SPEC-007 경계).
   for (const exit of regionExitsOf(self.regionId)) {
     const here = anchorPosition(exit.here.region, exit.here.anchor);
-    const reasons = connectorReasonCodes(exit.connector.id);
+    // C031 CHANGED — **몸이 선 자리를 함께 넘긴다** (RULE-LOCK-RELAXED-001 · spec R2).
+    // 그 문의 Lock 이 완화를 밝혔고 자락 안이면 완화된 사유가 **대신** 실린다. 봉투에 새 자리를
+    // 내지 않았다 — 실리는 곳은 아래 conditions 하나 그대로이고, 갈리는 것은 그 코드 하나다.
+    const reasons = connectorReasonCodes(exit.connector.id, {
+      regionId: self.regionId,
+      position: self.position,
+    });
     entities.push({
       id: exit.connector.id,
       role: 'region-exit',
@@ -540,8 +546,15 @@ export function projectObserverView(
       // 한다")에서 현상("체열이 감지된다")으로. 자리도 형도 그대로다: 세계는 무엇을 가져오라
       // 말하지 않고 그 자리에서 일어나는 일만 말한다 (K8).
       //
+      // C031 CHANGED — 그 코드가 **몸이 선 자리에 따라 갈린다** (spec SPEC-002). 눈보라 자락
+      // 밖에서 지목하면 「체열이 감지된다」이고 자락 안이면 「눈보라 속에서 약하다」가 **대신**
+      // 실린다 (둘이 함께 서지 않는다). 세계의 값은 한 톨도 달라지지 않고 저장되지도 않는다 —
+      // 걸어 나오면 처음 말로 돌아온다. **무엇이 그것을 무르게 했는지는 싣지 않는다**:
+      // 자락의 이름도 정도도 수치도 없다 (Observable — 이것이 이 Play 의 미지감이다).
+      // 완화를 밝히지 않은 문은 어느 자리에서도 한 글자도 달라지지 않는다.
+      //
       // **표시일 뿐이다** (spec R3 경계 ①) — 위의 state(open | locked)는 이 값을 한 값도
-      // 읽지 않는다. 요구를 채워 열리지도, 밝혔다고 잠기지도 않는다.
+      // 읽지 않는다. 요구를 채워 열리지도, 밝혔다고 잠기지도 않으며, 무르게 되어도 그렇다.
       // 요구의 이름(축:관계)도 · 무엇이 그것을 채우는지도 · 어디서 나는지도 싣지 않는다 (경계 ②).
       ...(reasons.length > 0 ? { conditions: [...reasons] } : {}),
     });

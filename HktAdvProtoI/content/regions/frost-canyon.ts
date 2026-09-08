@@ -660,10 +660,25 @@ export const FROST_CANYON_SPEC: RegionSpec = {
    * 한다" · 요구의 이름)가 `asks-warmth`("체열이 감지된다" · 일어나는 일)로 바뀐다. 자리도
    * 형도 그대로이고 바뀐 것은 그 코드가 무엇을 말하는가 하나다 (spec R3 비고 · K8).
    *
-   * 코드와 문 이름을 **글자로** 적는다 — 이름의 출처는 access.ts(ASKS_WARMTH · BREATH_GLOWS)
-   * 하나이고, 이 파일이 그것을 부르면 access → specs → 이 파일의 순환이 난다. 방 파일이
-   * 이음 이름과 방 이름을 글자로 적는 그 어법 그대로이고(phases.outflow · PRESENCE_ROUTES),
-   * 글자가 어긋나면 시나리오가 그 자리에서 걸린다.
+   * 코드와 문 이름을 **글자로** 적는다 — 이름의 출처는 access.ts(ASKS_WARMTH · BREATH_GLOWS ·
+   * ASKS_WARMTH_WEAK) 하나이고, 이 파일이 그것을 부르면 access → specs → 이 파일의 순환이 난다.
+   * 방 파일이 이음 이름과 방 이름을 글자로 적는 그 어법 그대로이고(phases.outflow ·
+   * PRESENCE_ROUTES), 글자가 어긋나면 시나리오가 그 자리에서 걸린다.
+   *
+   * C031 ADDED — 이 문의 요구를 **무르게 하는 자락**이 하나 선다 (relaxedBy · relaxedReason).
+   *
+   * 그 자락은 이 방이 이미 가진 **눈보라**다 (`hazard-blizzard` · C019 가 놓았다). 새로 짓는
+   * 자락이 아니라 가리키기만 하는 것이고, 그 자락의 값은 한 값도 건드리지 않는다 — 관찰 범위
+   * { day 20 · night 10 } 도 상시 위상도 그대로다 (확정 6).
+   *
+   * **왜 눈보라인가** — 이 문이 묻는 것은 `heat:hides`("체열이 감지된다")이고, 눈보라는 확정 6
+   * 이 이미 관찰 범위를 절반으로 줄여 둔 자락이다. 보는 쪽의 범위를 줄이는 것과 보이는 쪽의
+   * 감지를 무르게 하는 것은 같은 사실을 양쪽에서 읽는 것이다 (Access §10 D3 — "눈보라는 감지도
+   * 약하게 한다"). 그래서 새 세계 사실 없이 이 방의 것 하나로 답한다.
+   *
+   * **무르게 되는 것은 읽히는 말 하나뿐이다** — 문의 열림도 잠긴 사유도 건너기의 거절도 한 값
+   * 달라지지 않는다 (K12 · 2층은 표시까지다). 들어온 자리 (0, −18) 은 자락 **밖**이고 거기서
+   * 자락 안까지 3 걸음이다 (위 실측) — 그 세 걸음이 이 완화가 관찰되는 자리다.
    */
   access: {
     locks: [
@@ -681,6 +696,8 @@ export const FROST_CANYON_SPEC: RegionSpec = {
           { op: 'trace-frozen-remains' },
         ],
         reason: 'asks-warmth',
+        relaxedBy: [{ area: 'hazard-blizzard' }],
+        relaxedReason: 'asks-warmth-weak',
       },
     ],
   },

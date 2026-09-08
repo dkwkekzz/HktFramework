@@ -108,6 +108,15 @@ const ANSWERING = 'heat:stores';
 /** 이 Cycle 의 코드 둘 (데이터 값 표 · 기본형 ④ · Play §6 V25) */
 const BREATH_GLOWS = 'breath-glows';
 const ASKS_WARMTH = 'asks-warmth';
+/**
+ * C031 AFFECTED — 그 사유를 **대신하는** 완화된 코드 (C031 데이터 값 표).
+ *
+ * 이 방의 문 앞은 눈보라 자락 **안에 통째로 들어 있다** (C031 이 잰 세계의 사실) — 그래서
+ * 문 앞에 선 몸은 밝힌 사유가 아니라 이것을 읽는다. 이 Cycle 이 재는 사실("표식이 그 문의
+ * 사유를 진다 · 열림을 판정하지 않는다")은 한 값도 무르지 않고, 어느 코드가 실리는가만
+ * 자리를 따라 갈린다 (RULE-LOCK-RELAXED-001 · 둘이 함께 서지 않는다).
+ */
+const ASKS_WARMTH_WEAK = 'asks-warmth-weak';
 /** C020 이 표식에 싣던 요구의 이름 — 이 Cycle 이 그것을 거둔다 (R3 비고) */
 const OLD_REQUIREMENT_CODE = 'requires-stored-heat';
 
@@ -986,14 +995,17 @@ describe('SPEC-002 요구가 한 형으로 적히고 문의 열림은 그대로�
       body: codesOn(myBody(d)),
     });
     const before = answer(w);
-    // Given 문 앞에 선 그 세계는 코드 둘을 다 말한다
-    expect({ exit: before.exit.includes(ASKS_WARMTH), body: before.body.includes(BREATH_GLOWS) }).toEqual(
-      { exit: true, body: true },
-    );
+    // Given 문 앞에 선 그 세계는 코드 둘을 다 말한다 (C031 AFFECTED — 이 자리는 눈보라 자락
+    // 안이라 문의 사유가 완화된 것으로 **대신** 실린다. 코드 둘이 다 선다는 이 항의 주장도 ·
+    // 그것이 저장되지 않는 유도된 사실이라는 주장도 그대로다)
+    expect({
+      exit: before.exit.includes(ASKS_WARMTH_WEAK),
+      body: before.body.includes(BREATH_GLOWS),
+    }).toEqual({ exit: true, body: true });
     // When 저장한다
     const stored = JSON.stringify(throughFile(w.world.snapshot()));
     // Then 저장된 것 어디에도 이 Cycle 의 코드도 요구의 이름도 없다 — 전부 유도된 사실이다
-    for (const word of [BREATH_GLOWS, ASKS_WARMTH, ASKED]) {
+    for (const word of [BREATH_GLOWS, ASKS_WARMTH, ASKS_WARMTH_WEAK, ASKED]) {
       expect({ word, stored: stored.includes(word) }).toEqual({ word, stored: false });
     }
     // And 되살린 세계가 한 값도 다르지 않은 답을 낸다
@@ -1136,10 +1148,17 @@ describe('SPEC-004 지목하면 현상을 말한다', () => {
     for (const season of SEASONS) {
       const seen = exitOf(inSeason(season, room, depthDoorSpot()).observe(), id);
       expect({ season, standing: seen !== undefined }).toEqual({ season, standing: true });
-      // Then 열려 있든 잠겼든 그 표식이 현상의 코드를 진다
-      expect({ season, carried: codesOn(seen).includes(ASKS_WARMTH) }).toEqual({
+      // Then 열려 있든 잠겼든 그 표식이 현상의 코드를 진다 (C031 AFFECTED — 문 앞의 이 자리는
+      // 눈보라 자락 안이라 밝힌 사유를 **대신하는** 완화된 코드가 실린다. 재는 사실은 그대로다:
+      // 어느 철에도 표식이 그 문의 사유를 지고, 그것이 열림을 한 값도 판정하지 않는다)
+      expect({ season, carried: codesOn(seen).includes(ASKS_WARMTH_WEAK) }).toEqual({
         season,
         carried: true,
+      });
+      // And 대신 선 것이므로 밝힌 사유가 곁에 함께 서지 않는다 (둘이 함께 서지 않는다)
+      expect({ season, both: codesOn(seen).includes(ASKS_WARMTH) }).toEqual({
+        season,
+        both: false,
       });
       // And C020 이 싣던 요구의 이름은 더 이상 실리지 않는다
       expect({ season, old: codesOn(seen).includes(OLD_REQUIREMENT_CODE) }).toEqual({

@@ -775,10 +775,17 @@ function roomLines(items: readonly CheckItem[]): string[] {
 // 차례는 전부 데이터의 배열 순서다 (locks · answerKinds · seeds · seedSources) —
 // 두 번 돌리면 글자까지 같다 (경계 ②). 세계를 바꾸지 않는 읽기 전용이다.
 
-/** 그 답 하나를 글자로 — `재료 (성질 @ 그 원천이 선 방들)` */
+/**
+ * 그 답 하나를 글자로 — `재료 (성질 @ 그 원천이 선 방들)`.
+ *
+ * C031 CHANGED — 성질이 **빈 글자**로 오는 답이 생겼다 (무르게 하는 것은 성질로 답하지 않는다 ·
+ * 기반의 LockAnswer.property 주석). 그때는 성질 자리를 지운다 — 빈 자리를 괄호 안에 남기면
+ * 표가 없는 것을 있는 척한다. 어느 답이 그런지는 이 도구가 알지 못한다: 온 글자를 볼 뿐이다.
+ */
 function answerText(answer: { id: string; property: string; regions: readonly string[] }): string {
   const where = answer.regions.length === 0 ? '원천 없음' : answer.regions.join(' · ');
-  return `${answer.id} (${answer.property} @ ${where})`;
+  const what = answer.property === '' ? '' : `${answer.property} `;
+  return `${answer.id} (${what}@ ${where})`;
 }
 
 /** 열쇠 × 자물쇠 표 — Lock 하나가 한 행, 답의 종류가 열, 칸은 그 종류의 답의 수다 */

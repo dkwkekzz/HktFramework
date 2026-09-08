@@ -18,6 +18,7 @@ import * as RegionsContent from '../../content/regions';
 import {
   ANCHOR_LAYER,
   ANSWER_KINDS,
+  ANSWER_KIND_ENVIRONMENT,
   ANSWER_SUPPORTS,
   CITY_TAG,
   COMPILE_RULES,
@@ -398,6 +399,19 @@ export const WORLD_CHECK_ACCESS: CheckAccess = {
       return out;
     }),
     traces: lock.traces.map((trace) => trace.op),
+    // 그 Lock 을 **무르게 하는 것들** (C031 ADDED) — 자락 하나가 한 줄이다. 밝히지 않은 Lock 은
+    // 빈 목록이고, 그 자리의 답은 C030 까지와 한 값도 다르지 않다.
+    //
+    // 종류는 **환경**이다 — 무르게 하는 것이 몸이 지고 오는 재료가 아니라 그 방이 이미 가진
+    // 자락이기 때문이고, 그 이름은 답의 종류 여섯(ANSWER_KINDS) 가운데 하나를 그대로 쓴다.
+    // `ref` 는 그 자락의 op id 다 (데이터가 가리킨 글자 그대로).
+    //
+    // **여기서 판정하는 것이 하나도 없다** — 무엇이 답이 되는가도 · 답이 몇 종류인가도 기반이
+    // 센다 (계통·시간 계약과 같은 어법 · 형만 옮긴다).
+    relaxations: (lock.relaxedBy ?? []).map((relaxation) => ({
+      kind: ANSWER_KIND_ENVIRONMENT,
+      ref: relaxation.area,
+    })),
   })),
   // 재료 Seed 와 그 성질 — 성질을 밝히지 않은 Seed 는 빈 목록이다 (고래 비늘이 그렇다).
   // 지금 답의 종류는 재료 하나뿐이다 (생명 · 환경 · 주체 · 지식은 뒤 층의 것 — ANSWER_KINDS 의 첫째)

@@ -15,6 +15,7 @@ import { exitsOf, type ConnectorExit } from '../../../engine/world-authoring/gra
 import {
   ANCHOR_LAYER,
   CLOSED_CONNECTORS,
+  LOCK_AT_CONNECTOR,
   REGION_GRAPH,
   START_REGION_ID,
   lockOfConnector,
@@ -132,26 +133,85 @@ export function isConnectorOpen(
 }
 
 /**
+ * RULE-LOCK-RELAXED-001 (C031 ADDED · spec R1) — **선 자리가 요구를 무르게 한다.**
+ *
+ * 그 문의 Lock 이 완화 자락(relaxedBy)과 완화된 사유(relaxedReason)를 밝혔고, 몸이 그 자락
+ * 안에 서 있으면 그 사유를 준다. 아니면 없다(undefined) — 그때는 밝힌 사유가 그대로 선다.
+ *
+ * **대신 선다** — 곁에 함께 서지 않는다 (C021 이 안전의 코드에 세운 그 어법: 같은 것에 판이
+ * 두 번 답하지 않는다). 그래서 이 함수는 코드를 **하나만** 주고, 고르는 자리는 아래 하나다.
+ *
+ * 지키는 것 넷.
+ *   ① 저장되지 않는 **유도된 사실**이다 — 같은 자리 · 같은 데이터면 언제나 같은 답이고,
+ *      자락 밖으로 나오면 처음 사유가 돌아온다 (RULE-LOCK-TRACE-BODY-001 과 같은 갈래).
+ *   ② 자락을 **여럿 밝히면 하나만 들어도** 무르게 된다 — 겹침은 개수를 늘리지 않는다
+ *      (대신 서는 코드는 어차피 하나다).
+ *   ③ 밝힌 op 이 그 방에 없거나 area 가 아니면 **조용히 아무 일도 하지 않는다** (끊긴 참조는
+ *      조용하다 · C002 · C021 R1 · C029 R2 가 세운 규율).
+ *   ④ **열림 · 잠김 · 건너기의 거절 사유를 한 값도 건드리지 않는다** (K12 · C029 R3 의 그
+ *      분할선). 판정은 여전히 connectorClosedReason 하나가 낸다.
+ *
+ * 자락은 **Lock 을 밝힌 방**의 Description 에 있다. 그래서 몸이 선 방에서 그 문의 Lock 을
+ * 찾는다 — 다른 방에 선 몸은 그 자락 안일 수 없고, 그것이 판정이 아니라 자리의 사실이다.
+ *
+ * **규칙은 눈보라도 문도 알지 못한다** — Lock 이 가리킨 자락을 묻고 코드를 옮길 뿐이고,
+ * 무엇이 무엇을 무르게 하는지도 왜 그런지도 여기에 없다 (C004 가 세운 규율).
+ */
+function relaxedReasonAt(
+  connectorId: string,
+  body: { regionId: string; position: WorldPosition } | undefined,
+): string | undefined {
+  if (!body) return undefined;
+  const lock = locksOfRegion(body.regionId).find(
+    (entry) => entry.at.kind === LOCK_AT_CONNECTOR && entry.at.ref === connectorId,
+  );
+  if (lock?.relaxedReason === undefined || lock.relaxedBy === undefined) return undefined;
+  const spec = regionSpec(body.regionId);
+  if (!spec) return undefined;
+  for (const op of spec.space.ops) {
+    if (op.kind !== 'area') continue;
+    if (!lock.relaxedBy.some((relaxation) => relaxation.area === op.id)) continue;
+    if (!areaCoversPoint(op.shape, body.position.x, body.position.z)) continue;
+    return lock.relaxedReason;
+  }
+  return undefined;
+}
+
+/**
  * RULE-LOCK-REASON-001 (C029 CHANGED — C020 의 RULE-EXIT-REQUIREMENT-001 이 서 있던 그 자리 ·
- * C029 spec R3) — 그 문에 걸린 Lock 이 밝힌 **현상**의 코드들. 밝히지 않았으면 빈 배열이다.
+ * C031 CHANGED · C031 spec R2) — 그 문에 걸린 Lock 이 밝힌 **현상**의 코드들. 밝히지 않았으면
+ * 빈 배열이다.
  *
  * **자리도 형도 그대로이고 바뀐 것은 그 코드가 무엇을 말하는가 하나다.** C020 은 요구의
  * 이름(`requires-stored-heat` — "저장된 열이 있어야 한다")을 실었고, 이제 그 자리에 현상의
  * 코드(`asks-warmth` — "체열이 감지된다")가 실린다. 세계는 답을 알려 주지 않는다 (K8).
  *
- * **활성을 판정하지 않는다** (spec R3 경계 ①). 열림/잠김은 여전히 connectorClosedReason
+ * C031 CHANGED — **사유가 이제 몸이 선 자리를 함께 본다.** 지금까지 사유는 정적 사실이라
+ * 자리를 묻지 않았다: 이제 그 Lock 이 완화를 밝혔고 몸이 그 자락 안에 서면 완화된 사유가
+ * **대신** 실린다 (RULE-LOCK-RELAXED-001 · 위의 하나가 고른다). 그래서 같은 문을 자락 안팎의
+ * 두 관찰자가 각자의 자리대로 읽고, **세계의 값은 하나다** — 저장되는 State 가 늘지 않았다.
+ *
+ * 자리를 주지 않으면(부르는 쪽이 몸을 모르면) 밝힌 사유가 그대로 선다. **완화를 밝히지 않은
+ * 문은 여전히 자리를 묻지 않는다** — 그 답이 C030 까지와 한 글자도 다르지 않다.
+ *
+ * **활성을 판정하지 않는다** (C029 spec R3 경계 ①). 열림/잠김은 여전히 connectorClosedReason
  * 하나가 내고, 이 값은 그 답을 한 값도 건드리지 않는다 — 밝혔다고 잠기지 않고 채워도 열리지
- * 않는다. 그래서 이 함수는 State 도 세계 시각도 묻지 않는다: 사유는 정적 사실이다.
+ * 않으며, 무르게 되어도 그렇다. 그래서 이 함수는 State 도 세계 시각도 묻지 않는다.
  *
  * **요구의 이름도 · 무엇이 그것을 채우는지도 · 어디서 나는지도 내지 않는다** (경계 ②) —
  * 코드 하나뿐이고, 사람이 읽을 문구는 View 의 표가 옮긴다 (거절 사유 코드의 선례 그대로).
+ * 무엇이 그것을 무르게 했는지도 싣지 않는다 (C031 Observable — 자락의 이름도 정도도 없다).
  *
  * 규칙은 어느 문이 무엇을 말하는지 이름으로 알지 못한다 — 아는 것은 "사유를 밝힌 Lock"
  * 뿐이고, 그 코드는 데이터(그 방의 access.locks)에만 있다 (C004 가 세운 규율).
  */
-export function connectorReasonCodes(connectorId: string): readonly string[] {
+export function connectorReasonCodes(
+  connectorId: string,
+  body?: { regionId: string; position: WorldPosition },
+): readonly string[] {
   const reason = lockOfConnector(connectorId)?.reason;
-  return reason === undefined ? [] : [reason];
+  if (reason === undefined) return [];
+  return [relaxedReasonAt(connectorId, body) ?? reason];
 }
 
 /**

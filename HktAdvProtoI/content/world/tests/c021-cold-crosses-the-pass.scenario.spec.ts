@@ -889,7 +889,13 @@ describe('SPEC-004 긴 밤에만 빙결 심층의 문이 열린다', () => {
     const room = door().from.region;
     // Given C020 이 세운 그 문의 표식 코드 (C029 에서 요구의 이름이 현상으로 바뀐 그 자리다 —
     // 읽는 자리도 데이터도 Lock 으로 옮겨 갔고, 재는 사실은 그대로다)
-    const reason = lockOfConnector(id)?.reason;
+    //
+    // C031 AFFECTED — 그 문 앞의 자리는 눈보라 자락 **안**이라 밝힌 사유를 **대신하는** 완화된
+    // 코드가 실린다 (RULE-LOCK-RELAXED-001). 이 항이 재는 것은 그대로다: 그 코드는 **철을 타지
+    // 않는다** — 네 철 어디서도 같은 것 하나가 실리고, 그래서 표식의 코드는 활성을 판정하지
+    // 않는다. 갈리는 것은 몸이 선 자리이고 철이 아니다.
+    const lock = lockOfConnector(id);
+    const reason = lock?.reason === undefined ? undefined : (lock.relaxedReason ?? lock.reason);
     const codes = reason === undefined ? undefined : [reason];
     expect({ id, declared: (codes?.length ?? 0) > 0 }).toEqual({ id, declared: true });
     for (const season of SEASONS) {
