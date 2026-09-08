@@ -8,6 +8,7 @@
 ```text
 content/roadmap/
   README.md            이 문서 — 기반 층의 순서 · 컨텐츠 층의 행 · 각각의 현재 상태
+  PLAYS.md             Play 작성 로드맵 — 있는 Play 전부 · 쓸 Play 전부 · 기획 작업 큐 (기획 작업 관리 문서)
   L0-Game.md           0층 결과물 — 게임 방향
   L1-World-Grammar.md  1층 결과물 — 세계의 문법 (확정 범위 · 경계 · 코드 대응)
   L<N>-<이름>.md        기반 층의 결과물 — 그 층에서 Human 이 확정한 문서 (한 층에 여럿일 수 있다)
@@ -17,6 +18,12 @@ content/roadmap/
 
 `design/` 은 재료(시스템 기획 원본)이고, 이 폴더는 그 재료를 순서대로 들여 확정한
 결과다. 코드(`content/world` 등)는 이 폴더를 import 하지 않는다 — 문서만 있다.
+
+```text
+목적    **주입 순서**의 단일 출처 — 어느 층 · 어느 행이 열려 있고 무엇을 주입해야 하는가.
+기능    §2 기반 층 표(층의 상태 — 확정 · 다음 · 미주입) · §2.1 도구 2단계 · §3 컨텐츠 행 표 · §4 주입 방식과 열 질문 · §5 상태 갱신 규칙.
+소유    층 · 행의 상태는 여기만. Play 의 상태 · 덮임 · 쓸 Play · 기획 큐는 PLAYS.md, "지금 누가 무엇을" 은 ../../STATE.md §1.
+```
 
 ## 1. 원칙 — 층은 둘이다
 
@@ -59,11 +66,11 @@ content/  그 위에 놓이는 이 세계          컨텐츠 층  미지를 놓�
 | 0 | 게임 방향 | 핵심 경험 한 단락 + Core Breath + 핵심 문장 | `L0-Game.md` 가 원문을 소유한다 | 없음 — 판단 기준일 뿐 | `L0-Game.md` | **확정** |
 | 1 | 세계의 문법 | 무엇이 존재하고 무엇이 변하는가 — 존재·상태·주체·법칙·시간 (주체가 행동을 **고르는** 과정은 3층) | `Design-Concept.md` | 없음 — 코드가 이미 이 문법 위에 있음 | `L1-World-Grammar.md` | **확정** |
 | 2 | 세계 자체 | **도구 절반** — 세계를 쓰는 문법과 컴파일러 (engine) · **세계 절반** — ① 세계관 컨셉 ② 세계 content 구성(Region Graph · Region Rule · Connector · 중첩) ②-부속 재료 생태와 공급 계약(원천 · 흔적 · 생애 · 공급 · 흐름) · ②-부속 둘째 세계의 시간과 위상(낮밤 · 철 · Region 위상 · 소란 · 압도적 존재의 경로) · ②-부속 셋째 생명의 성립과 탄생(생명의 정의 · 네 탄생 방식 · 탄생의 소비와 흔적 · 개체군과 그 사이의 관계 · 스폰이 아닌 회복) · ②-부속 넷째 세계의 요구와 가능성(Lock · 성질 어휘 · 답의 종류 · 흔적 · 충분성) · ②-부속 다섯째 Region Foundation(여덟 자리 · 조건의 한 형 · Mutation op · 기회=Event 데이터 층 · 수명과 기억 · 최소 완성 기준 25) | 도구: `Design-World-Editor-Terrain-Compiler.md` (WE) · `Plan-World-Authoring-Engine.md` · 도구 2단계(작성기): `L2-World-Tool-Scale.md` · 세계: 주입 원문은 결과물 안에 |안전권을 나서 깊이가 달라지는 것을 본다 — 백왕령(civil) ⇄ 거대 악마의 숲(outer) | `L2-World-Tool.md` · `L2-World-Concept.md` · `L2-World-Region.md` · `L2-World-Material.md` · `L2-World-Time.md` · `L2-World-Life.md` · `L2-World-Access.md` · `L2-World-Foundation.md` · `play/` 의 Play 아홉 | **다음** — C001~C008 닫힘 |
-| 3 | 주체와 몸 | 요정의 몸은 무엇을 가지는가(깎이고 회복되는 값) · 생물은 무엇을 알고 어떻게 행동하는가 | `Design-Subject-Decision.md` · `Design-Autonomous-Behavior-Knowledge-R0.md` · `Design-Creature-Behavior-R0.md` | 세계가 몸을 깎고, 생물이 그것에 반응하는 것을 본다 | `L3-*.md` · `play/` | 미주입 |
-| 4 | 자원과 물건 | 소지·장비·가공 사슬 · 조합과 쓰임 ("무엇이 어디서 나는가" 는 2층 ②-부속이 닫았다 — 이 층은 그 Material Seed 를 받는다) | `Design-Resource-Catalog-R0.md` · `Design-Item-*.md` · `Design-Inventory-Equipment-D1.md` | 캐서 지니면 갈 수 있는 곳이 늘어난다 | `L4-*.md` · `play/` | 미주입 |
-| 5 | 대결 | 공격·방어·피해 종류·지목 | `Design-Combat-*.md` · `Design-Targeting-R0.md` | 처음으로 맞서 이긴다 | `L5-*.md` · `play/` | 미주입 |
-| 6 | 능력 | 스킬 체계·실행 형태·효과 | `Design-Skill-*.md` | 능력 표현이 세계에 닿는다 | `L6-*.md` · `play/` | 미주입 |
-| 7 | 성장 | 요정 성장·밸런스·클래스 — 세 성장 축(클래스·아이템·지식)의 조합 (L0-Game.md §1) | `Design-Fairy-*.md` · `Design-Growth-Balance-R0.md` · `Design-Subject-Decision.md` §20·§23 | 자원 관계에서 성장이 나온다 | `L7-*.md` · `play/` | 미주입 |
+| 3 | 주체와 몸 | 요정의 몸은 무엇을 가지는가(깎이고 회복되는 값) · 생물은 무엇을 알고 어떻게 행동하는가 · **원정 편성과 무대의 한 명** — 관찰자 ↔ 편성(요정 여럿) ↔ 무대의 몸 하나 · 교체 = 세계에 개입하는 방법을 바꾸는 행동 · Entry/Leave/Off-field 의 자리 · 요정 Core 가 몸의 State 로 적혀 property Lock 에 답한다 (L7 §3 의 3층 몫) | `Design-Subject-Decision.md` · `Design-Autonomous-Behavior-Knowledge-R0.md` · `Design-Creature-Behavior-R0.md` · **`L7-Fairy-Growth-Combination.md` §9~§11 · §20 · §4** | **한 명만 무대에 선다** — 요정 둘을 편성해 협곡을 지난다: 추위가 무대의 몸을 깎고, 교체하면 다른 Core 의 몸이 서고, 문이 몸의 성질을 묻고(`heat:hides` — property Lock 의 첫 판정), 열을 쫓는 것이 따뜻한 몸만 본다. `play/OneStandsOnStage.md` | `L7-Fairy-Growth-Combination.md` §3 의 3층 몫 (별도 `L3-*.md` 는 3층의 나머지 절반 — 몸의 값 전반 · 생물의 지식과 행동 — 이 주입될 때) · `play/OneStandsOnStage.md` | **다음** — Human 결정으로 2층 실주행 판정과 **병행**해 연다 (L7 의 3층 몫만 · C037~C040) |
+| 4 | 자원과 물건 | 소지·장비·가공 사슬 · 조합과 쓰임 ("무엇이 어디서 나는가" 는 2층 ②-부속이 닫았다 — 이 층은 그 Material Seed 를 받는다) · **보석은 경험치 대체재가 아니라 세계의 특성이 응축된 성장 재료(Material Seed 하나) · 물건은 행동을 바꾸는 장치이지 스탯 부착물이 아니다** (L7 §8 · §17 · §24) | `Design-Resource-Catalog-R0.md` · `Design-Item-*.md` · `Design-Inventory-Equipment-D1.md` · **`L7-Fairy-Growth-Combination.md` §8 · §17** | 캐서 지니면 갈 수 있는 곳이 늘어난다 — 보석 하나를 지니고, 물건 하나가 같은 행동을 다른 행동으로 바꾼다 | `L4-*.md` · `play/` | 미주입 |
+| 5 | 대결 | 공격·방어·피해 종류·지목 · **정해진 전투 Phase 없음 — 대상의 World State(Burning · Wet · Frozen · Marked · …)를 생성·제거·변화·전달·소비·증폭하는 것이 전투의 문법 · 하나의 문제에 여러 답** (L7 §13 · §14 · §16) | `Design-Combat-*.md` · `Design-Targeting-R0.md` · **`L7-Fairy-Growth-Combination.md` §13 · §14** | 처음으로 맞서 이긴다 — 같은 적을 두 가지 상태 순서로 | `L5-*.md` · `play/` | 미주입 |
+| 6 | 능력 | 스킬 체계·실행 형태·효과 · **Class 는 Core 를 쓰는 방법 — 한 Core 가 Class 마다 다른 Law 로 나간다 · Active/Entry/Leave/Off-field 의 내용 · Leave 가 남긴 것이 다음 요정의 능력과 반응한다** (L7 §5 · §6 · §11 · §19) | `Design-Skill-*.md` · **`L7-Fairy-Growth-Combination.md` §6 · §11** | 능력 표현이 세계에 닿는다 — 한 Core 가 두 Class 로 갈리고, 장판이 반응한다 | `L6-*.md` · `play/` | 미주입 |
+| 7 | 성장 | 요정 성장·밸런스·클래스 — **성장 = 유효한 조합과 세계 개입 가능성의 확장** (L0-Game.md §1 둘째 원문): 요정 컬렉션 · Class Change(Fairy + Gem + 조건 — 강화가 아니라 조합 위치의 변경) · Knowledge = 숨겨진 관계의 해금 · Fairy Build 와 편성 · 고정 역할 없음 · "원하는 Class → 필요한 Gem → 그 Region" | **`L7-Fairy-Growth-Combination.md`** (원문 — 충돌하는 자리에서 `Design-Fairy-*.md` 를 이긴다, L7 §2.2) · `Design-Growth-Balance-R0.md` · `Design-Subject-Decision.md` §20·§23 | 자원 관계에서 성장이 나온다 — 보석 하나로 Class 가 바뀌어 못 풀던 자리를 새 방법으로 푼다 · 미증명 ③ 의 직접 증명 | `L7-Fairy-Growth-Combination.md` (원문 · 배분 **확정**) · `L7-*.md` · `play/` | 미주입 — 원문은 확정됐다 |
 | 8 | 화면 | UX | `Design-View-*.md` | 별도 주입 없음 — 각 행의 Play 의 Required 로 들어온다 | — | — |
 
 2층은 절반이 둘이다 — **도구가 먼저, 세계가 다음**. 도구 절반(`L2-World-Tool.md`)은 게임 명사를
@@ -100,6 +107,14 @@ Lock(자리가 요구하는 세계 조건 · property · time · state · knowle
 Relations · Persistence)로 이름 짓고, 어느 계약도 소유하지 않던 셋을 더한다 — 조건의 한 형(흩어진 조건 자리 넷이 한 형으로 읽힌다) · 기억(State 필드마다
 무엇이 그것을 지우는가 · 지워지지 않는 셈) · 기회(Opportunity = 데이터 · Event = 시간 있는 기회). 새 플레이가 올 때 기반이 늘지 않게 하는 경계(원문 §14)가 Region
 작성기 T4 의 결정 나무가 되고, 최소 완성 기준 25 가 사람이 보는 표가 된다. Region 작성기의 열셋째 답이 여기서 나온다. ② 의 다섯째 확장 계약이다.
+
+**7층의 주입물이 열린 층보다 먼저 왔다** — [L7-Fairy-Growth-Combination.md](L7-Fairy-Growth-Combination.md) (요정 성장·조합 모델).
+층을 앞당기지 않는다 — 한 번에 하나만 열린다는 원칙은 그대로다. 대신 원문을 그 자리에 보존하고, 원문의 절들이 3 · 4 · 5 · 6 · 7층 가운데
+어디로 가는지를 그 문서 §3 이 배분했다. **각 층이 열릴 때 그 층의 주입은 이 배분을 받는다** — 위 표의 3~7 행에 굵게 적힌 것이 그것이다.
+원문은 기존 `design/` 성장 문서와 어긋나는 자리(완성된 캐릭터 판타지 · 선형 Class Line · 수치 성장 중심 · 요정 계열 여덟)에서 **이긴다**
+(L7 §2.2) — 재료의 기구는 살리고 모델은 원문의 것이며, 어긋나지 않는 것(기존 수치 축 · 요정별 소지)은 병존한다. L0 원문의 두 문장("하나의 요정" ·
+"세 성장 축")이 그에 따라 고쳐졌고 (L0 §1 둘째 원문), **Human 이 승인했다** (L7 확정 사항 열셋 · 위임된 결정 D1~D5). 이 원문은 미지를 놓지 않는다 —
+요정 계열 여섯은 정식이고, 보석 여덟과 클래스 이름은 L7 §6 에 후보로만 있어 Human 이 확정하면 §3 에 행으로 오른다.
 
 ### 2.1 도구 절반 2단계 — Region 작성기 (ENGINE 레인 B · 순서 고정)
 
@@ -139,6 +154,7 @@ Relations · Persistence)로 이름 짓고, 어느 계약도 소유하지 않던
 | **M5 빙결 협곡** | 지역 | 숲과 갈래가 다른 Region — 극저온 · 눈보라 · 절벽 · 체온 감지 포식자 · 빙정석 (Concept §6). `M5-FrostCanyon.md` | 2 (①② · ②-부속 둘) | `play/RoomOfAnotherKind.md` | 그 Play 가 소유 | **다음** — Time 닫힘 뒤 |
 | **M6 붉은 알집** | 구조 | 거목의 뿌리에 균사가 광물과 양분을 둘러싸 맺는 탄생지 — 광식충의 첫 개체군이 여기서 나고, 그 뒤로는 뿌리의 알에서 스스로 잇는다. `L2-World-Life.md` §5 의 원문 예시를 세계 사실로 놓은 것 (`play/RoomBearsLife.md` 확정 1·2) | 2 (②-부속 셋째) | `play/RoomBearsLife.md` | 그 Play 가 소유 | **다음** — Frost 닫힘 뒤 |
 | **M7 열을 저장하는 결정의 원천** | 자원 | 열을 저장하는 결정(`HEAT_CRYSTAL` · Region §12 정식)이 세계 어디서 나는가 — 숲 계통, 살아 있는 것 안에 열이 쌓이는 자리 (`L2-World-Access.md` D2 · 자리는 `play/RoomAsksForPossibilities.md` 확정 후보) | 2 (②-부속 넷째) | `play/RoomAsksForPossibilities.md` | 그 Play 가 소유 | **다음** — Frost 닫힘 뒤 |
+| **M8 협곡의 열을 쫓는 것** | 생물 | 열이 귀한 협곡에서 체온을 쫓는 포식자 — 무엇을 원하는지 안다(열). Concept §6 · Frost Cause Network 의 마지막 마디 · 언 사체(FROZEN_REMAINS)를 남기는 것. 이름은 Human (Play Human 질문 2 — 코드 이름 후보 `HEAT_STALKER`) | 2 · 3 (편성 · 온기 — 같은 Play 가 세운다) | `play/OneStandsOnStage.md` | 그 Play 가 소유 | **다음** — C039 뒤 (C040) |
 | (이후) | 지역 · 생물 · 자원 · 구조 | 그 미지가 무엇이고 어디에 있으며 왜 그런가 | 2 · 3 · … | 그 미지 하나를 만나는 Play | `M<N>-*.md` · `play/` | — |
 
 ## 4. 한 행을 주입하는 방식

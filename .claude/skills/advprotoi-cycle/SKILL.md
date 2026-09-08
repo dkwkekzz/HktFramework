@@ -40,7 +40,7 @@ ENGINE GAP       (실현)   기존 engine 계약 변경 필요 → 승인 요청
 그 Play 의 §5 Play Structure · §6 Required Capability · 확정 사항, 그리고 그것들이 지목한
 `content/roadmap/*.md` · `design/` 문서, 그리고 **루트 `TODO.md` §4「다음 Cycle 로」** (§1 Human 질문은 읽지
 않는다 — 그것은 Play 단위 Human 몫이다). Play 를 재해석하지 않는다 — 이번 것만 잘라 검증 가능한 문장으로
-**폐쇄**한다. 코드는 보지 않는다 (Existing 판정은 STATE.md §4 "코드에 있는 것" + 기존 `cycles/*/spec.md` 의 ADDED 로).
+**폐쇄**한다. 코드는 보지 않는다 (Existing 판정은 STATE.md §2 "코드에 있는 것" + 기존 `cycles/*/spec.md` 의 ADDED 로).
 
 §4 의 항목은 하나씩 판정한다 — 이번 Cycle 이 받는 것은 SPEC/Reuse 로 들어오고, 받지 않는 것은 Out of Scope 에
 받을 Cycle 을 적는다 (받을 Cycle 이 없으면 §2 · §3 · §5 중 맞는 절로 옮긴다). 회수 규칙의 원본은 Plan-Skill §3.
@@ -208,8 +208,8 @@ TODO 항목 수 · "PR 을 올려 번호 순으로 합친다". 공정 설명을 
 시작하지 않는다 — 합침이 먼저다.
 
 **합친 직후 (main 에서)** — Play 문서의 Cycle Breakdown 체크박스만 `[x]` (Play 문서에서 Agent 가
-만지는 유일한 자리) · 이 Cycle 의 spec 이 받은 TODO §4 항목을 지운다 · STATE.md §2 진행 · §4 코드에 있는 것 ·
-§1 레인 표에서 이 Cycle 을 지우고 이것을 기다리던 레인의 "기다리는 것"을 비운다. 현재 상태만 — 경위를 쌓지 않는다 (원칙 10).
+만지는 유일한 자리) · 이 Cycle 의 spec 이 받은 TODO §4 항목을 지운다 · STATE.md §2 코드에 있는 것 ·
+§1 레인 표에서 이 Cycle 을 지우고 이것을 기다리던 레인의 "기다리는 것"을 비운다 · `content/roadmap/PLAYS.md` §2 의 그 Play 상태. 현재 상태만 — 경위를 쌓지 않는다 (원칙 10).
 
 **Play 의 마지막 Cycle 이면 — AI 예심** — Human 에게 항목 전부를 읽히지 않는다. TODO §1 그 Play 소절의 관찰 항목을
 셋으로 가른다: **A** 그 항목의 `cycles/C###/shots/X-##.png` 를 실제로 열어 보거나 지목된 시나리오 테스트가 단언해 이미
@@ -220,7 +220,8 @@ TODO 항목 수 · "PR 을 올려 번호 순으로 합친다". 공정 설명을 
 그것은 판정이 아니다 · 무엇을 묻나 (왜 사람이 봐야 하는지 두세 문장) · 확인 방법 (`npm run dev` 자리 · 손잡이 · 견줄
 그림 한 줄) · 원 항목 번호. Human 이 "알아서 확인해 봐" 로 위임한 질문은 Agent 가 지금 빌드를 실제로 띄워(촬영 하네스)
 보고 판정한다 — 옛 그림으로 답하지 않는다.
-받을 Cycle 이 없는 부채는 §2 · §3 · §5 로 옮긴다. STATE.md §2 에 그 Play 를 "실주행 판정 대기 — 질문 N" 으로 올리고
+받을 Cycle 이 없는 부채는 §2 · §3 · §5 로 옮긴다. `content/roadmap/PLAYS.md` §2 에 그 Play 를 "판정 대기 — 질문 N" 으로 올리고
+STATE.md §1 의 Human 판정 줄이 그것을 링크하게 하여
 Human 에게 청한다. 통과는 지우고, 실패는 DESIGN GAP 으로 `advprotoi-design` 에 준다. 그 소절이 비면 로드맵의 행이
 닫힌다 — Agent 는 A 만 닫고 B·C 는 판정하지 않는다.
 

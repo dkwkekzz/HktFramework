@@ -7,11 +7,12 @@ HktAdvProtoI — 목적 트리 기반 오픈월드 어드벤처 프로토타입 
 
 ## 게임의 목적 (Human 원문 — 모든 기획·Play·Cycle 의 상위 판단 기준)
 
-> 플레이어는 하나의 요정을 성장시키며 미지의 세계를 탐험해나간다. 미지의 세계는 플레이어에게 다양한 위험과
-> 그것을 극복할 재료를 제공함으로써 플레이어에게 경험을 제공한다.
+> 플레이어는 요정들을 모으고 성장시키며 미지의 세계를 탐험해나간다 — 무대에 서서 직접 조작되는 것은 언제나 한 명이다.
+> 미지의 세계는 플레이어에게 다양한 위험과 그것을 극복할 재료를 제공함으로써 플레이어에게 경험을 제공한다.
 > **"미지의 세계에서의 성장과 조합의 재미"가 핵심이다.** 이 경험을 느끼도록 세계가 재료를 충분히 제공해야 한다.
+> 성장 = 플레이어가 구성할 수 있는 유효한 조합과 세계에 개입할 수 있는 가능성의 확장 (Fairy × Class × Item × Knowledge).
 
-세부는 [content/roadmap/L0-Game.md](content/roadmap/L0-Game.md). 아직 증명되지 않은 것 넷 — 한 지역을 여러 번
+세부는 [content/roadmap/L0-Game.md](content/roadmap/L0-Game.md) (둘째 원문의 전문은 [content/roadmap/L7-Fairy-Growth-Combination.md](content/roadmap/L7-Fairy-Growth-Combination.md)). 아직 증명되지 않은 것 넷 — 한 지역을 여러 번
 방문해도 재미있는가 · 수많은 플레이어가 같은 세계에 존재해야만 하는 이유가 있는가 · 요정을 성장시키는 선택에
 애착과 고민이 생기는가 · 세계가 발견된 뒤에도 계속 살아 움직이는가. 새 기획과 Play 는 이 넷 중 무엇에 닿는지 말해야 한다.
 
@@ -31,8 +32,10 @@ advprotoi-cycle   Cycle  "C### 진행" — spec.md 동결 → E ∥ W ∥ V ∥ 
   하나에 쓴다 (Cycle 별 TODO 없음). 구현 노트·검증 산문은 만들지 않는다 — 코드 주석의 `RULE-*` id · 시나리오 테스트 ·
   커밋 메시지가 원본이다.
 - `TODO.md` 는 따로 부르지 않아도 공정이 회수한다 — §4 다음 Cycle 로는 같은 Play 의 다음 Cycle 명세가, §1 Human 질문은
-  Play 의 마지막 Cycle 뒤 **AI 예심 → Play 실주행 판정**이, §3 은 기획이, §5 는 그 자리를 만지는 Cycle 이 읽는다
-  (Plan-Skill §3 회수 규칙). Human 이 읽는 것은 §1 · §2 뿐이다.
+  Play 의 마지막 Cycle 뒤 **AI 예심 → Play 실주행 판정**이, §3 은 기획이(받는 즉시 `content/roadmap/PLAYS.md` §1 로 옮기고 지운다),
+  §5 는 그 자리를 만지는 Cycle 이 읽는다 (Plan-Skill §3 회수 규칙). Human 이 읽는 것은 §1 · §2 뿐이다.
+- **할 일은 한 사실 한 집** — 진입점은 `STATE.md` §1(주체별 할 일 + 링크). 층 · 행의 상태는 `content/roadmap/README.md`,
+  Play 의 상태 · 덮임 · 쓸 Play · 기획 큐는 `content/roadmap/PLAYS.md`, Cycle 이 남긴 것은 `TODO.md`. 요약 문서는 링크하고 복사하지 않는다.
 - 병렬 Cycle 규칙(브랜치 `cycle/C###` = 세션 하나 · STATE 는 main 에서만 · engine 먼저 합침)은
   Plan-Skill §4 항목 4 가 소유한다.
 
@@ -114,6 +117,8 @@ Return To  View 부족 → protocol/ · Spec 부족 → world/semantic/ · Seman
 
 | 문서 | 내용 |
 |---|---|
-| [STATE.md](STATE.md) | 지금의 상태 (살아 있는 문서) |
+| [STATE.md](STATE.md) | **진입점** — 지금 누가 무엇을 (주체별 할 일 + 링크) · Cycle 레인 · 코드에 있는 것 (살아 있는 문서) |
+| [TODO.md](TODO.md) | Cycle 이 남긴 것 — Human 질문 · 결정 · 뒤 층으로 · 다음 Cycle 로 · 공학 부채 (받은 편지함) |
 | [design/README.md](design/README.md) | 설계 문서 목록과 갈래 |
 | [content/roadmap/README.md](content/roadmap/README.md) | 주입 순서 · 층별 확정 문서(L0~) · play/ |
+| [content/roadmap/PLAYS.md](content/roadmap/PLAYS.md) | 기획 작업의 단일 출처 — 원본 기획 → Play 덮임과 남은 것 · Play 상태 · 쓸 Play · 기획 큐 |
