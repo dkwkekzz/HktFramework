@@ -11,7 +11,10 @@
 // 마지막 하나가 C017 이 더한 것이다 — 앞의 넷이 "여기가 무엇인가" 라면 그것은 "이 방이
 // 지금 어떤가" 이고, 그래서 방의 값들 가장 뒤에 선다.
 // 존재의 차례는 같은 어법의 것이다 (C027 UNRESOLVED "존재 줄의 차례"):
-//   무엇인가(종류) → 어떤 상태인가(하는 일 · 생명 · 쓰러짐 · 걸린 것) → 무엇을 주는가(행동과 사유)
+//   무엇인가(종류 · 재료 · 그 재료의 성질) → 어떤 상태인가(하는 일 · 생명 · 쓰러짐 · 걸린 것) →
+//   무엇을 주는가(행동과 사유)
+// 재료 둘이 **무엇인가 쪽**에 붙는 것은 그것이 "그 존재가 무엇인가" 의 답이기 때문이다
+// (C029 R5) — 지금 어떤가도 나에게 무엇을 주는가도 아니다.
 // **없는 것은 줄 자체가 없다.** 규칙 없는 방의 압력도, 생명 없는 것의 생명도 0 으로
 // 지어내지 않는다 (SPEC-004 · C027 SPEC-002 경계).
 //
@@ -28,7 +31,7 @@ import { readBeing, type BeingOffer, type BeingReading } from './being-reading';
 import { codeText } from './code-text';
 import { lifeSiteStateCode } from './life-reading';
 import { SETTLEMENT_LAYER } from './biome-rules';
-import { TRACE_LAYER } from '../regions/index';
+import { materialSeed, propertyPhraseCode, TRACE_LAYER } from '../regions/index';
 import { interactionPresentation } from './interaction-presentation';
 import { CELL_LAYER, exitHint, passageName, regionName, regionRuleHint } from './region-presentation';
 import type { Designation } from './pointer-rules';
@@ -102,6 +105,18 @@ export const PLACE_ROW_LABELS: Readonly<Record<string, string>> = {
 export const BEING_ROW_LABELS: Readonly<Record<string, string>> = {
   // 무엇인가
   'being.kind': '종류',
+  // 그것이 무엇으로 되어 있는가 (C029 ADDED — C011 이 남긴 부채를 갚는 자리다).
+  // 이름표 둘은 spec 이 부르는 말 그대로다("판이 재료의 이름과 성질을 말한다") — 새로
+  // 짓지 않는다. 종류(자연 형태)와 재료가 갈리는 것은 세계가 그 둘을 따로 싣기 때문이고
+  // (kind = 무엇처럼 생겼는가 · material = 무엇인가), 한 줄로 합치면 같은 Seed 가 자리마다
+  // 다른 형태로 난다는 사실이 화면에서 사라진다.
+  //
+  // **쓰임은 여기에도 어디에도 없다** (spec SPEC-005 경계 ③ · S10) — 무엇으로 만드는지
+  // 이 층은 말하지 않는다.
+  'being.material': '재료',
+  // 그 재료의 성질 문장들 — 태그가 아니라 **문장**이 선다 (spec Observable "투영하지
+  // 않는다": Seed 의 성질 태그 그 자체는 화면에 없다). 같은 태그라도 재료마다 말이 다르다
+  'being.property': '성질',
   // 어떤 상태인가
   'being.state': '하는 일',
   'being.vitality': '생명',
@@ -279,6 +294,21 @@ export function beingRows(reading: BeingReading): SceneFrameRow[] {
     rows.push(row('being.kind', codeText(reading.kind)));
   }
 
+  // 그것이 무엇으로 되어 있는가와 그 재료의 성질 (C029 R5 · SPEC-005).
+  // **재료가 아닌 것(몸 · 출구 표식)에는 두 줄이 아예 없다** — 세계가 material 을 싣지
+  // 않았으면 없는 채로 둔다 (없는 것을 빈 줄로 지어내지 않는 C027 의 어법 그대로).
+  // 성질을 밝히지 않은 재료(고래 비늘)는 이름 줄까지만 선다
+  const material = reading.material;
+  if (material !== undefined) {
+    rows.push(row('being.material', codeText(material)));
+    const phrases = materialPhrases(material);
+    if (phrases.length > 0) {
+      // 겹치면 전부 잇는다 — '걸린 것' 줄과 같은 어법이다 (하나로 줄이면 그 재료가 무엇을
+      // 하는 것인지가 화면에서 사라진다). 차례는 데이터가 적은 차례 그대로다
+      rows.push(row('being.property', phrases.join(VALUE_SEPARATOR)));
+    }
+  }
+
   // ② 어떤 상태인가 — 지금 하는 일, 진행이 있으면 함께
   //
   // C022 CHANGED — **어느 말을 할지 형태(kind)가 함께 고른다** (핵심 원칙 2). 세계가 싣는
@@ -325,6 +355,24 @@ export function beingRows(reading: BeingReading): SceneFrameRow[] {
   // ③ 무엇을 주는가 — 그 대상을 겨냥한 것만, 봉투의 차례 그대로 (SPEC-003)
   for (const offer of reading.offers) rows.push(offerRow(offer));
   return rows;
+}
+
+/**
+ * 그 재료의 성질 문장들 (C029 R5 경계 ② · SPEC-005).
+ *
+ * 세계가 실어 온 것은 재료의 **코드 하나**뿐이고, 그 재료가 어떤 성질을 지녔는지는 표현이
+ * 자기 content/regions 에서 얻는다 (C011 이 형태의 이름을 얻던 그 규율 그대로 — 세계는
+ * 같은 사실을 두 번 싣지 않는다).
+ *
+ * 성질의 말은 **재료마다 다르다** — 태그는 문장의 색인일 뿐이므로(spec R5 경계 ②) 태그가
+ * 아니라 `propertyPhraseCode(재료, 태그)` 가 가리키는 그 재료의 문장이 선다. 모르는 재료도
+ * 성질을 밝히지 않은 재료도 빈 목록이고, 등록되지 않은 문장은 코드 그대로 뜬다.
+ */
+function materialPhrases(materialId: string): string[] {
+  const seed = materialSeed(materialId);
+  return (seed?.properties ?? []).map((property) =>
+    codeText(propertyPhraseCode(materialId, property.tag)),
+  );
 }
 
 /**

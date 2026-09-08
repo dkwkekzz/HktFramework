@@ -20,12 +20,12 @@
 // C009 CHANGED — 방이 열하나, Connector 가 열여섯, 중첩이 셋, 경계가 셋이 된다. 미로의 심장이
 // 지어지고(MAZE_HEART) 거기로 드는 문 하나와 거기서 뒤집힌 정원으로 나가는 문 하나가 배열 끝에
 // 이어 붙는다. 앞의 열넷은 한 글자도 바뀌지 않는다 — exitsOf 의 결정론이 이 순서를 따르기 때문이다.
-// 그리고 이 파일이 **Connector 활성 조건 표** 하나를 새로 소유한다 (아래 CONNECTOR_ACTIVATIONS):
+// 그리고 이 파일이 **Connector 활성 조건 표** 하나를 새로 소유했다 (C029 에서 access.ts 로 옮겼다):
 // 어느 문이 어느 방의 어느 패턴에서 열리는가는 규칙이 아니라 데이터가 아는 일이다.
 
 // C016 CHANGED — Connector 가 열일곱, 경계가 넷이 된다. 숲 안쪽에서 걷는 숲으로 나가는 문
 // 하나가 배열 끝에 이어 붙고(exitsOf 의 결정론이 이 순서를 따른다) 그 너머 이름 하나가
-// 경계 목록에 는다. 그리고 활성 조건 표가 **철**을 함께 진다 — 그 문은 긴 밤에만 열린다.
+// 경계 목록에 는다. 그리고 활성 조건이 **철**을 함께 지게 된다 — 그 문은 긴 밤에만 열린다.
 // 앞의 열여섯은 한 글자도 바뀌지 않고, 미로 심장 문의 조건도 한 값 그대로다.
 //
 // C019 CHANGED — 방이 열셋, Connector 가 열여덟, 경계가 셋이 된다. 얼음 협곡이 지어져
@@ -38,14 +38,20 @@
 // C020 CHANGED — Connector 가 열아홉, 경계가 넷이 된다. 빙결 협곡에서 **빙결 심층**으로 드는
 // 문 FROST_DEPTH_DOOR 하나가 배열 끝에 이어 붙고(exitsOf 의 결정론이 이 순서를 따른다) 그
 // 너머 이름 하나(FROST_DEPTH)가 경계 목록에 는다. 앞의 열여덟은 한 글자도 바뀌지 않는다.
-// 그리고 이 파일이 표 하나를 더 소유한다 (아래 CONNECTOR_REQUIREMENTS): 문이 **밝힌 요구**의
-// 코드들이다 — 활성 표와 같은 갈래의 정적 데이터이되 활성을 판정하지 않는다 (spec R5 경계 ①).
+// 그리고 이 파일이 표 하나를 더 소유했다 (문이 **밝힌 요구**의 코드들 — C029 에서 access.ts 로
+// 옮겼다): 활성 표와 같은 갈래의 정적 데이터이되 활성을 판정하지 않는다 (spec R5 경계 ①).
+//
+// C029 CHANGED — **표 둘이 사라진다.** `CONNECTOR_ACTIVATIONS` 와 `CONNECTOR_REQUIREMENTS` 가
+// 지고 있던 것(무엇을 읽어 열림을 정하는가 · 표식에 무엇이 적혀 있는가)은 각 방의
+// `RegionSpec.access.locks` 하나로 옮겨 가 `access.ts` 가 형과 색인을 소유한다 (spec R1 · R3 ·
+// Access 빈칸 1 의 답). 이 파일에 남는 것은 **어디에서 어디로 이어지는가** 하나다 — 그 문이
+// 무엇을 묻는지는 이제 문을 가진 방이 적는다. Connector 도 경계도 중첩도 한 글자 바뀌지 않고,
+// 문의 열림도 잠긴 사유도 한 값 달라지지 않는다 (spec SPEC-002).
 
 import type { RegionGraph } from '../../engine/world-authoring/graph';
-import type { SeasonId } from './phases';
 import { BIO_ORE_FIELD } from './bio-ore-field';
 import { EXPLORER_RUIN } from './explorer-ruin';
-import { FANTASY_MAZE, MAZE_PATTERN_P2 } from './fantasy-maze';
+import { FANTASY_MAZE } from './fantasy-maze';
 import { FOREST_DEEP } from './forest-deep';
 import { FOREST_EDGE } from './forest-edge';
 import { FROST_CANYON } from './frost-canyon';
@@ -76,11 +82,11 @@ export const MAZE_GATE_RETURN = 'MAZE_GATE_RETURN';
 // C009 ADDED — 심장으로 드는 문과 그 너머로 나가는 문
 export const MAZE_HEART_GATE = 'MAZE_HEART_GATE';
 export const INVERTED_GARDEN_DOOR = 'INVERTED_GARDEN_DOOR';
-// C016 ADDED — 걷는 숲으로 나가는 문. 긴 밤에만 열린다 (아래 CONNECTOR_ACTIVATIONS)
+// C016 ADDED — 걷는 숲으로 나가는 문. 긴 밤에만 열린다 (숲 안쪽의 access.locks)
 export const WALKING_FOREST_DOOR = 'WALKING_FOREST_DOOR';
 // C019 ADDED — 협곡 안쪽으로 드는 오솔길
 export const FROST_CANYON_TRAIL = 'FROST_CANYON_TRAIL';
-// C020 ADDED — 빙결 심층으로 드는 문. 그 표식에 **요구**가 적힌다 (아래 CONNECTOR_REQUIREMENTS)
+// C020 ADDED — 빙결 심층으로 드는 문. 그 표식에 **현상**이 적힌다 (빙결 협곡의 access.locks)
 export const FROST_DEPTH_DOOR = 'FROST_DEPTH_DOOR';
 
 // 아직 짓지 않은 방들 — Connector 가 가리키되 Description 이 없다 (01-spec SPEC-004).
@@ -286,7 +292,7 @@ export const REGION_GRAPH: RegionGraph = {
     // 심장을 잇는다. **문은 하나이고 양방향이다** — 들어간 자리로 나온다 (TREE_INNER_DOOR 의 선례).
     // Play §5.4 가 "door Connector 하나로 들어간다" 라고만 적었으므로 되돌아오는 문을 따로
     // 세우지 않았다: 둘을 세우면 문이 둘이 되어 Design 의 "하나" 와 어긋난다.
-    // 이 문만이 활성 조건을 가진다 — 아래 CONNECTOR_ACTIVATIONS.
+    // 이 문만이 활성 조건을 가진다 — 미로의 access.locks (C029 까지는 이 파일의 활성 표).
     {
       id: MAZE_HEART_GATE,
       from: { region: FANTASY_MAZE, anchor: 'HEART_GATE' },
@@ -305,7 +311,7 @@ export const REGION_GRAPH: RegionGraph = {
       direction: 'one-way',
       transition: 'door',
     },
-    // C016 ADDED — 걷는 숲으로 나가는 문. **긴 밤에만 활성**이고(아래 활성 표) 그 너머는
+    // C016 ADDED — 걷는 숲으로 나가는 문. **긴 밤에만 활성**이고(그 방의 access.locks) 그 너머는
     // 아직 짓지 않은 곳이다 — 건너기 요청은 region-not-built 로 거절된다 (C002 가 세운 대답).
     // one-way 인 것은 저쪽에서 이쪽으로 오는 길을 이 Cycle 이 정하지 않았기 때문이다:
     // 그 방을 짓는 Play 가 돌아오는 끝까지 함께 정한다 (고대 문 · 뒤집힌 정원 문 그대로).
@@ -347,94 +353,4 @@ export const REGION_GRAPH: RegionGraph = {
     },
   ],
   frontiers: FRONTIER_REGIONS,
-};
-
-/**
- * Connector 활성 조건 하나 — 밝힌 것이 **전부 맞을 때만** 이 문이 활성이다.
- *
- * C009 는 조건이 하나뿐이었다(그 방의 지금 패턴). C016 이 **철**을 하나 더한다 —
- * 그래서 셋 다 선택이고, 밝히지 않은 갈래는 묻지 않는다. 아무것도 밝히지 않은 줄은
- * 조건이 없는 것과 같다 (표에 없는 문이 언제나 활성인 것과 같은 뜻).
- *
- * **판정은 여전히 한 함수(`isConnectorOpen`)에서만 난다** — 갈래가 늘어도 판정하는 자리는
- * 하나다. 두 벌로 만들면 그 문이 두 말을 한다 (01-spec R1 · C016 spec R4).
- *
- * region 은 조건을 **가진** 방이지 이 문이 잇는 방이 아니다 (둘이 같을 이유가 없다).
- */
-export interface ConnectorActivation {
-  /** 어느 방의 State 를 읽는가 — patterns 와 짝이다 */
-  region?: string;
-  /** 그 방의 패턴 이름들 — 지금 패턴이 이 중 하나면 이 갈래는 맞는다 */
-  patterns?: readonly string[];
-  /** 철 이름들 — 지금 철이 이 중 하나면 이 갈래는 맞는다 (C016 ADDED) */
-  seasons?: readonly SeasonId[];
-}
-
-/**
- * **Connector 활성 조건 표** (C009 ADDED · 01-spec R1 · L2-World-Region §10 activation).
- *
- * 정적 컨텐츠 데이터다 — CLOSED_CONNECTORS 와 같은 성격이다. 세계 State 에 들어가지 않고
- * 저장되지도 않는다. 다만 CLOSED_CONNECTORS 가 "언제나 닫힘" 이라는 **정적 사실**인 것과 달리
- * 이것은 "무엇을 읽어 정하는가" 라는 **조건**이다: 답은 그 방의 지금 pattern 에서 온다.
- *
- * 여기에 없는 문은 언제나 활성이다 — 지금까지의 세계 그대로다 (01-spec SPEC-008).
- * 그래서 이 표가 비면 C008 의 세계와 한 글자도 다르지 않다.
- *
- * 세계 규칙은 이 표의 글자를 하나도 알지 못한다 (01-spec R1 비고 · C004 가 세운 규율).
- * 규칙이 아는 것은 "조건을 가진 문" 뿐이고, 어느 문이 어느 패턴에서 열리는지는 여기에만 있다 —
- * 다른 문에 조건을 주는 것도, 여는 패턴을 바꾸는 것도 코드가 아니라 이 표 한 줄이다.
- *
- * **관찰자에게는 이 표를 알려주지 않는다** — 세계는 "지금 열렸는가" 만 투영하고
- * "무엇이 그것을 열었는가" 는 말하지 않는다. 압력을 채워 보고 표식이 바뀌는 것을 보는 것이
- * 이 Cycle 의 플레이다 (01-spec Observable · Region §17).
- */
-export const CONNECTOR_ACTIVATIONS: Readonly<Record<string, ConnectorActivation>> = {
-  // 심장 쪽 문은 미로의 패턴이 P2 일 때만 열린다 (Play §5.6 "P2 에서만 heartAccess = OPEN" · 확정 2).
-  // 되돌아올 때도 같은 조건을 읽는다 — 문이 하나이므로 조건도 하나다.
-  [MAZE_HEART_GATE]: { region: FANTASY_MAZE, patterns: [MAZE_PATTERN_P2] },
-  // C016 ADDED — 걷는 숲으로 나가는 문은 **긴 밤에만** 열린다 (Play §5.2 · 확정 6).
-  // 방의 State 를 읽지 않는다: 이 문을 여는 것은 어느 방의 사정도 아니고 세계의 시각이다.
-  // 그래서 "잠긴 문" 과 다른 말이 나온다 — 저쪽은 connector-inactive, 이쪽은 not-this-season.
-  [WALKING_FOREST_DOOR]: { seasons: ['LONG_NIGHT'] },
-  // C021 ADDED — 빙결 심층으로 드는 문도 **긴 밤에만** 열린다 (Play §5.3 · spec SPEC-004).
-  // 걷는 숲의 문과 **같은 모양**이다: 방의 State 를 읽지 않고 세계의 시각만 읽는다.
-  // 그래서 잠긴 사유도 같다 — connector-inactive 가 아니라 not-this-season 이다.
-  // **판정하는 함수는 한 줄도 바뀌지 않는다** (C016 R4 · C019 의 규율) — 철 조건을 가진
-  // 문이 하나에서 둘이 되었을 뿐이고, 늘어난 것은 이 표의 한 줄이다.
-  //
-  // 이 문이 밝힌 **요구**(CONNECTOR_REQUIREMENTS 의 REQUIRES_STORED_HEAT)는 그대로다 —
-  // 요구는 활성을 판정하지 않으므로(C020 spec R5 경계 ① · C021 spec SPEC-004 경계 ①)
-  // 표식의 그 줄은 어느 철에도 한 값도 달라지지 않는다.
-  [FROST_DEPTH_DOOR]: { seasons: ['LONG_NIGHT'] },
-};
-
-/**
- * 요구 코드 — **열을 저장하는 것이 있어야 한다** (C020 ADDED · Play §5.3 · 확정 4).
- *
- * 무엇이 그것을 채우는지도 · 어디서 나는지도 이 코드는 말하지 않는다 (spec R5 경계 ②).
- * 확정 4 가 "열 결정이 어디서 나는가" 를 **정하지 않는다**고 못박았고, 그것이 답의 부재가
- * 아니라 이 Cycle 이 놓으려는 미지감이다 — 관찰자는 협곡을 다 뒤져도 그것을 찾지 못한다.
- * 사람이 읽을 문구는 View 의 표가 옮긴다 (재료 이름 · 형태 코드의 선례 그대로).
- */
-export const REQUIRES_STORED_HEAT = 'requires-stored-heat';
-
-/**
- * **문이 밝힌 요구의 코드들** (C020 ADDED · spec R5 · SPEC-009).
- *
- * 활성 표(CONNECTOR_ACTIVATIONS)와 **같은 갈래의 정적 데이터**다 — 세계 State 에 들어가지
- * 않고 저장되지도 않는다. 다만 저 표는 "무엇을 읽어 열림을 정하는가" 이고 이것은
- * **표식에 무엇이 적혀 있는가** 다: 요구는 활성을 판정하지 않는다 (spec R5 경계 ①).
- * 그 문의 열림/잠김은 이 표가 있든 없든 한 값도 다르지 않고, 요구를 채워도 열리지 않는다 —
- * 2층이 하는 것은 **표시**까지다. 채우는 것은 Play RoomAsksForPossibilities 의 일이다.
- *
- * 여기에 없는 문의 표식은 한 값도 달라지지 않는다 (spec R5 경계 ③ · ELSE) — 활성 표에 없는
- * 문이 언제나 활성인 것과 같은 규율이다. 그래서 이 표가 비면 C019 의 세계와 한 글자도 다르지 않다.
- *
- * 세계 규칙은 이 표의 글자를 하나도 알지 못한다 (C004 가 세운 규율) — 아는 것은 "요구를
- * 밝힌 문" 뿐이고, 어느 문이 무엇을 요구하는지는 여기에만 있다.
- */
-export const CONNECTOR_REQUIREMENTS: Readonly<Record<string, readonly string[]>> = {
-  // 빙결 심층으로 드는 문 — 열을 저장하는 것이 있어야 한다 (Play §5.3 · 확정 4).
-  // 협곡 두 방 어디에도 그 요구를 채울 원천은 없다 (두 방의 isolationReason 이 그것을 밝힌다).
-  [FROST_DEPTH_DOOR]: [REQUIRES_STORED_HEAT],
 };

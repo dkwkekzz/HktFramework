@@ -1,11 +1,12 @@
 // World Check — 검사 아홉을 독립 명령으로, 결과는 **기계가 읽는 JSON** (T1 ADDED).
 //
+//   npm run world:check              검사 서른다섯을 돌리고 JSON 한 덩이를 낸다. fail 이 하나라도 있으면 종료 코드 1
 //   npm run world:check              검사 서른셋을 돌리고 JSON 한 덩이를 낸다. fail 이 하나라도 있으면 종료 코드 1
 //   npm run world:check -- --pretty  들여쓴 JSON (사람이 눈으로 볼 때)
 //
 // `world:observe --report` 안에만 있던 아홉을 뽑아 왔다. 뽑아 온 이유는 셋이다 —
 // 다른 도구가 되읽을 수 있고(T3 의 생성기가 자기 산출을 스스로 검사한다), `npm test` 에 걸 수 있고,
-// 컨텐츠 층이 검사를 더할 때(⑩~㉝) 붙을 자리가 하나로 정해진다.
+// 컨텐츠 층이 검사를 더할 때(⑩~㊷) 붙을 자리가 하나로 정해진다.
 //
 // 판정은 기반이 한다 (engine/world-authoring/check.ts). 이 도구가 하는 일은 둘뿐이다:
 // **게임 명사를 계약으로 건네는 것**과 **그 방을 어떻게 컴파일하는지 알려 주는 것**.
@@ -16,12 +17,21 @@ import { resolve } from 'node:path';
 import * as RegionsContent from '../../content/regions';
 import {
   ANCHOR_LAYER,
+  ANSWER_KINDS,
+  ANSWER_KIND_ENVIRONMENT,
+  ANSWER_SUPPORTS,
   CITY_TAG,
   COMPILE_RULES,
   CONDITION_PREFIX,
-  CONNECTOR_ACTIVATIONS,
+  LOCKS,
+  LOCK_AT_AREA,
+  LOCK_AT_CONNECTOR,
   MATERIAL_SEEDS,
   PRESENCE_LAYER,
+  PROPERTY_ANSWERS,
+  PROPERTY_ASPECTS,
+  PROPERTY_RELATIONS,
+  PROPERTY_TAG_SEPARATOR,
   REGION_GRAPH,
   REGION_RULE_IDS,
   REGION_SPECS,
@@ -29,12 +39,15 @@ import {
   RESOURCE_LAYER,
   SETTLEMENT_LAYER,
   START_REGION_ID,
+  STATEMENT_KINDS,
   TRACE_LAYER,
+  lockOfConnector,
   type SeasonId,
 } from '../../content/regions';
 import { LIFE_BOUND_RECOVERY_CAUSES } from '../../content/authoring/contracts';
 import {
   checkRegions,
+  type CheckAccess,
   type CheckContract,
   type CheckEcology,
   type CheckEcologySource,
@@ -44,6 +57,7 @@ import {
   type CheckLifePopulation,
   type CheckLifeRecovery,
   type CheckRegion,
+  type CheckRegionsInput,
   type CheckReport,
   type CheckTime,
   type CheckTimePhase,
@@ -163,7 +177,7 @@ const DAY_PHASE_IDS = ['DAY', 'NIGHT'] as const;
  * 컨텐츠가 밝힌 경로 하나의 형 — W 레인이 `content/regions` 에 두는 `PRESENCE_ROUTES` 의 원소.
  *
  * 이 도구가 그 형을 **되적는** 이유: 경로 데이터는 세계 쪽에서 서는 것이고, 이 도구는
- * 그것이 아직 없어도 스물여섯을 다 돌려야 한다. 그래서 이름째로 골라 읽고(아래
+ * 그것이 아직 없어도 서른다섯을 다 돌려야 한다. 그래서 이름째로 골라 읽고(아래
  * `presenceRoutes`) 읽은 것을 기반의 `CheckTimeRoute` 로 옮긴다.
  *
  * 골라 읽는 대가로 **형이 어긋나도 컴파일이 잡지 못한다** — 그때는 검사 ㉔ 가 끊긴 참조로
@@ -244,9 +258,10 @@ export const WORLD_CHECK_TIME: CheckTime = {
       leaves: route.leavesBehind ?? [],
     }),
   ),
-  // 철 조건을 밝힌 문 — 활성 표에 seasons 가 있는 것만. 차례는 connectors 배열 순서다
+  // 철 조건을 밝힌 문 — 그 문에 걸린 Lock 이 time 을 밝힌 것만 (C029 CHANGED — 읽는 자리가
+  // 활성 표에서 Lock 으로 바뀌었고 답은 그대로다). 차례는 connectors 배열 순서다
   seasonalConnectors: REGION_GRAPH.connectors.flatMap((connector) => {
-    const seasons = CONNECTOR_ACTIVATIONS[connector.id]?.seasons;
+    const seasons = lockOfConnector(connector.id)?.requires.find((one) => one.time)?.time?.seasons;
     if (!seasons) return [];
     return [{ id: connector.id, from: connector.from.region, to: connector.to.region, seasons }];
   }),
@@ -350,6 +365,86 @@ export const WORLD_CHECK_LIFE: CheckLife = {
 };
 
 /**
+ * 이 세계의 **요구와 가능성**을 기반에 건네는 자리 (C029 ADDED — 검사 ㉞~㊷ 가 이것을 읽는다).
+ *
+ * 계통(WORLD_CHECK_ECOLOGY) · 시간(WORLD_CHECK_TIME)과 **같은 어법**이다 — 여기서 판정하는
+ * 것이 하나도 없고 `content/regions` 의 데이터를 형만 바꿔 옮긴다. 기반은 heat 도 문도 재료도
+ * 알지 못하므로, 이 세계가 **어휘와 글자**를 함께 건넨다 (축 · 관계 · 잇는 글자 · 문장 다섯 항 ·
+ * 답의 종류 여섯 · SUPPORTS 라는 글자 · Lock 이 매달리는 자리의 갈래 둘).
+ *
+ * 요구의 `kind` 도 컨텐츠가 정하는 글자다 — 'property' | 'time' | 'state' | 'knowledge'.
+ * 한 요구가 갈래를 여럿 밝히면 밝힌 만큼 줄이 난다 (지금 데이터에는 그런 요구가 없다).
+ *
+ * 차례는 전부 데이터의 배열 순서다 (방 차례 · 그 방이 적은 Lock 차례 · Seed 표 차례) —
+ * 두 번 돌리면 글자까지 같다.
+ */
+export const WORLD_CHECK_ACCESS: CheckAccess = {
+  aspects: PROPERTY_ASPECTS.map((aspect) => aspect.id),
+  relations: PROPERTY_RELATIONS.map((relation) => relation.id),
+  tagSeparator: PROPERTY_TAG_SEPARATOR,
+  statementKinds: [...STATEMENT_KINDS],
+  answerKinds: [...ANSWER_KINDS],
+  supportKind: ANSWER_SUPPORTS,
+  connectorLockKind: LOCK_AT_CONNECTOR,
+  areaLockKind: LOCK_AT_AREA,
+  answers: PROPERTY_ANSWERS.map((answer) => ({
+    requirement: answer.requirement,
+    property: answer.property,
+    kind: answer.kind,
+  })),
+  locks: LOCKS.map((lock) => ({
+    id: lock.id,
+    region: lock.region,
+    at: { kind: lock.at.kind, ref: lock.at.ref },
+    important: lock.important ?? false,
+    // 밝힌 갈래마다 한 줄 — 성질을 밝힌 줄만 태그를 진다 (나머지는 갈래의 이름뿐이다)
+    requires: lock.requires.flatMap((requirement) => {
+      const out: { property?: string; kind: string }[] = [];
+      if (requirement.property !== undefined) {
+        out.push({ property: requirement.property, kind: 'property' });
+      }
+      if (requirement.time !== undefined) out.push({ kind: 'time' });
+      if (requirement.state !== undefined) out.push({ kind: 'state' });
+      if (requirement.knowledge !== undefined) out.push({ kind: 'knowledge' });
+      return out;
+    }),
+    traces: lock.traces.map((trace) => trace.op),
+    // 그 Lock 을 **무르게 하는 것들** (C031 ADDED) — 자락 하나가 한 줄이다. 밝히지 않은 Lock 은
+    // 빈 목록이고, 그 자리의 답은 C030 까지와 한 값도 다르지 않다.
+    //
+    // 종류는 **환경**이다 — 무르게 하는 것이 몸이 지고 오는 재료가 아니라 그 방이 이미 가진
+    // 자락이기 때문이고, 그 이름은 답의 종류 여섯(ANSWER_KINDS) 가운데 하나를 그대로 쓴다.
+    // `ref` 는 그 자락의 op id 다 (데이터가 가리킨 글자 그대로).
+    //
+    // **여기서 판정하는 것이 하나도 없다** — 무엇이 답이 되는가도 · 답이 몇 종류인가도 기반이
+    // 센다 (계통·시간 계약과 같은 어법 · 형만 옮긴다).
+    relaxations: (lock.relaxedBy ?? []).map((relaxation) => ({
+      kind: ANSWER_KIND_ENVIRONMENT,
+      ref: relaxation.area,
+    })),
+  })),
+  // 재료 Seed 와 그 성질 — 성질을 밝히지 않은 Seed 는 빈 목록이다 (고래 비늘이 그렇다).
+  // 지금 답의 종류는 재료 하나뿐이다 (생명 · 환경 · 주체 · 지식은 뒤 층의 것 — ANSWER_KINDS 의 첫째)
+  seeds: MATERIAL_SEEDS.map((seed) => ({
+    id: seed.id,
+    answerKind: ANSWER_KINDS[0] ?? '',
+    properties: (seed.properties ?? []).map((property) => ({
+      tag: property.tag,
+      from: property.from,
+    })),
+  })),
+  // 그 Seed 를 내는 원천이 어느 방에 서 있는가 — ㉟ 이 "그 Lock 을 지나지 않고 닿는가" 를
+  // 여기서 읽는다. 방 차례 · 그 방의 원천 차례다
+  seedSources: REGION_SPECS.flatMap((spec) =>
+    (spec.resourceEcology?.sources ?? []).map((source) => ({
+      seed: source.materialId,
+      region: spec.id,
+      source: source.id,
+    })),
+  ),
+};
+
+/**
  * 컨텐츠의 RegionSpec → 검사가 보는 방. `coreRules` 는 이 세계의 세는 법이다 —
  * 지금 한 방은 규칙을 하나까지 품는다 (RegionSpec.rule 하나). 그 형이 늘면 이 줄이 늘어난다.
  */
@@ -360,9 +455,15 @@ export const WORLD_CHECK_REGIONS: readonly CheckRegion[] = REGION_SPECS.map((spe
   coreRules: spec.rule ? 1 : 0,
 }));
 
-/** 이 세계의 검사 서른셋을 돌린다 — 읽기 전용 (C022 CHANGED — 생명 일곱이 이어 붙는다) */
-export function runWorldCheck(): CheckReport {
-  return checkRegions({
+/**
+ * 이 세계가 기반에 건네는 입력 한 덩이 (C030 ADDED).
+ *
+ * 위의 계약 넷을 한 값으로 묶은 것이고 **새로 정하는 것이 하나도 없다** — 검사와
+ * 열쇠 × 자물쇠 표(accessAnswerMap)가 **같은 입력**을 받아야 두 도구의 답이 갈리지 않기
+ * 때문이다 (spec R4 경계 ②). 부르는 쪽마다 따로 엮으면 하나가 늦는 날이 온다.
+ */
+export function worldCheckInput(): CheckRegionsInput {
+  return {
     regions: WORLD_CHECK_REGIONS,
     graph: REGION_GRAPH,
     contract: WORLD_CHECK_CONTRACT,
@@ -370,7 +471,16 @@ export function runWorldCheck(): CheckReport {
     ecology: WORLD_CHECK_ECOLOGY,
     time: WORLD_CHECK_TIME,
     life: WORLD_CHECK_LIFE,
-  });
+    access: WORLD_CHECK_ACCESS,
+  };
+}
+
+/**
+ * 이 세계의 검사 마흔둘을 돌린다 — 읽기 전용
+ * (C022 CHANGED — 생명 일곱 · C029 CHANGED — 요구와 가능성 아홉이 이어 붙는다).
+ */
+export function runWorldCheck(): CheckReport {
+  return checkRegions(worldCheckInput());
 }
 
 export function renderCheckJson(report: CheckReport, pretty: boolean): string {
@@ -382,6 +492,7 @@ function main(argv: readonly string[]): number {
   if (unknown.length > 0) {
     process.stderr.write(
       [
+        '  world:check — 검사 서른다섯을 돌리고 JSON 을 낸다',
         '  world:check — 검사 서른셋을 돌리고 JSON 을 낸다',
         `    모르는 인자: ${unknown.join(' ')}`,
         '    쓸 수 있는 것: --pretty',

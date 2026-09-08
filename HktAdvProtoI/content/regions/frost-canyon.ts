@@ -17,8 +17,10 @@
 //   표면   서리 697 · 비탈 72 · 급경사 902 · 평지 10
 //   막힘   902 칸 (전부 too-steep — 이 방에도 물이 없다)
 //   높이   0.00 ~ 24.00 · 골 바닥(|x| ≤ 4)은 vertex 하나까지 정확히 0
-//   hash   35a3d0ac (두 번 컴파일해도 같은 값이다 · C020 에서 b42d80db 에서 바뀌었다 —
-//          op 가 열넷 늘었기 때문이고, 높이 · 표면 · 통행 격자는 위의 넷이 그대로다)
+//   hash   668027bf (두 번 컴파일해도 같은 값이다 · C019 b42d80db → C020 35a3d0ac →
+//          C029 이 값 — op 가 하나(문 앞의 자락) 늘었기 때문이고, 높이 · 표면 · 통행
+//          격자는 위의 넷이 한 값도 그대로다. 관찰 결과에 실리는 Description hash 는
+//          e5d9cd3d → ba0afb9e 로 같은 이유에 바뀐다)
 // 얼음 협곡과 다른 것은 벽의 높이 하나(20 → 24)이고, 그 차이가 비탈 164 → 72 로 나타난다 —
 // **골이 더 깊고 벽이 더 가파르다.** 급경사가 서는 자리는 두 방이 같다 (|x| = 9) — 서리가
 // 깔리는 폭(8)이 두 방에서 똑같이 골 바닥과 비탈만 덮는 이유다.
@@ -41,11 +43,20 @@
 // 표면 · 막힘 · 높이는 위의 값 그대로다 — 늘어난 op 열넷(흔적 일곱 · 원천 point 셋 ·
 // 곡선 하나 · hazard area 넷 · anchor 하나) 가운데 feature layer 도 profile 도 가진 것이
 // 하나도 없어 컴파일된 땅을 한 값도 건드리지 않는다 (spec R4 경계 ③).
+//
+// C029 ADDED — 이 방이 **묻는 방**이 된다 (아래 access). 빙결 심층의 문에 걸린 Lock 하나와
+// 그 요구를 알아낼 흔적 둘이 서고, 그 가운데 **문 앞의 자락** op 하나가 ops 끝에 붙는다.
+// 실측: 그 자락이 덮는 43 vertex 가 전부 걸을 수 있고(문 앞에 서는 것이 곧 드는 것이다)
+// 표면 넷도 막힘도 높이도 위의 값 그대로다 — trace layer 의 area 는 땅을 건드리지 않는다.
+// Description 이 바뀌었으므로 hash 하나만 달라진다 (위).
 
 import type { RegionSpec } from './spec';
 import { ANCHOR_LAYER } from './spec';
 import { CARRIER_WIND, HAZARD_LAYER } from './phases';
 import { FEATURE_LAYER, FROST_TAG } from './terrain-rules';
+// C029 ADDED — 이 문이 묻는 성질의 태그를 짓는 어휘 (properties.ts 는 아무것도 부르지 않는
+// 잎이라 방 파일이 불러도 순환이 나지 않는다).
+import { ASPECT_HEAT, RELATION_HIDES, propertyTag } from './properties';
 import {
   CRYSTAL_GROWTH,
   FORM_CORPSE_RIME,
@@ -382,6 +393,37 @@ export const FROST_CANYON_SPEC: RegionSpec = {
         tag: 'FROZEN_REMAINS',
         position: { x: -3, z: -10 },
       },
+      // ── C029 ADDED — 문 앞의 자락 하나 (spec 기본형 ③ · D4 의 첫째 흔적) ────
+      //
+      // 이 자락에 든 **몸**에 김의 코드가 실린다 (아래 access.locks 의 showsOnBody ·
+      // RULE-LOCK-TRACE-BODY-001). 자락 자체는 땅에 아무것도 하지 않는다 — 높이도 표면도
+      // 통행도 건드리지 않고, 태그가 숨의 사다리(frost-breath:n)가 **아니므로** 흔적의
+      // 세기도 판의 "흙" 줄도 한 값 달라지지 않는다 (traceLevel 이 0 을 준다). 걸리는 것은
+      // 몸의 투영 하나뿐이다.
+      //
+      // 자리 — 문 anchor 그 자리(0, 18)를 중심으로 잡았다. 문 앞에 서는 것이 곧 자락에 드는
+      // 것이어야 하므로 다른 중심을 고를 이유가 없다.
+      // 크기 — 반지름 4 다. 골 바닥(|x| ≤ 4)의 폭이 그것이고, 더 넓히면 자락이 급경사 벽
+      // (|x| = 9 부터)까지 나가 설 수 없는 자리를 덮는다.
+      //   실측 (해상도 1 · 41×41 vertex):
+      //     이 자락이 덮는 vertex 43 개가 **전부 걸을 수 있다** — 골 바닥의 평지이고 급경사가
+      //     한 칸도 들지 않는다. 남북으로 z = 14 ~ 20 · 동서로 x = −4 ~ 4 다.
+      //     남쪽 변(z = 14)에서 문 자리(0, 18)까지 4 = **1.6m 걸음 두세 개** — 들고 나는 것이
+      //     몸으로 읽히는 크기다 (C019 가 결정면 자락에 쓴 그 규율).
+      //   겹침 — 원천 둘레 여섯(반지름 4.5) 어느 것과도 한 vertex 도 겹치지 않는다 (실측 0 ·
+      //     가장 가까운 (−6, 6) 까지 중심 거리 13.4 이고 필요한 것은 8.5). 겹치는 것은 방
+      //     바닥(trace-canyon-base) 하나뿐이고 그것은 격자 전부를 덮는 자락이다.
+      //
+      // **ops 배열 끝**에 붙는다 — hazardOverlayTagsAt 도 areasOf 도 이 차례로 읽으므로
+      // 중간에 끼우면 C019 · C020 이 세운 걸린 것의 차례가 밀린다.
+      {
+        id: 'trace-frost-depth-door',
+        kind: 'area',
+        layer: TRACE_LAYER,
+        // 숨의 사다리가 아니다 — 이 자락은 짙기를 말하지 않고 **몸에 걸릴 것**을 말한다
+        tag: 'DOOR_BREATH',
+        shape: { kind: 'circle', center: { x: 0, z: 18 }, radius: 4 },
+      },
     ],
   },
   /**
@@ -607,5 +649,74 @@ export const FROST_CANYON_SPEC: RegionSpec = {
   ecology: {
     absenceReason:
       '열을 먹는 결정이 있어 결속에 쓸 열이 남지 않는다 — 여기서는 맺히는 대신 자란다',
+  },
+  /**
+   * 이 방이 **묻는 것** — 빙결 심층으로 드는 문 하나 (C029 ADDED · Access §9.1 · 확정 2).
+   *
+   * 이 세계의 **첫 property Lock** 이고 하나뿐인 **중요한** Lock 이다 (important). 중요하다는
+   * 것은 검사 ㊴ ㊵ 가 "답이 한 종류뿐인가" 를 여기서 세게 본다는 뜻이고, 지금 그 답은
+   * 하나도 서 있지 않다 — 열을 저장하는 것의 원천이 아직 세계 어디에도 없다 (C030 의 것).
+   * 그것이 결손이 아니라 이 Play 가 놓으려는 미지다.
+   *
+   * 요구가 둘이고 **전부 참이어야** 연다 (K2). 그러나 2층이 판정하는 것은 철 하나뿐이다:
+   *   time     긴 밤에만 열린다 — C021 이 활성 표에 적어 둔 그 조건이 형만 바뀌어 여기 온다.
+   *            열림/잠김의 답도 잠긴 사유("이 철이 아니다")도 한 값 달라지지 않는다.
+   *   property `heat:hides` — **열림을 판정하지 않는다** (K12 · spec R1 경계 ①). 밝혀도 잠기지
+   *            않고 채워도 열리지 않는다: 2층이 하는 것은 표시까지다. 이것을 실제로 판정하는
+   *            것은 몸과 소지가 서는 3층의 일이다.
+   * 강도는 `hard` 하나다 (spec 기본형 ②) — 강도는 Lock 하나에 하나이고, 2층이 판정하는
+   * 요구(time)가 hard 다.
+   *
+   * 흔적 둘이 **대조**를 이룬다 (D4 · 확정 3).
+   *   문 앞의 자락   몸이 들면 김이 서고 푸르게 빛난다 (showsOnBody) — 이 세계에서 흔적이
+   *                 몸에 걸리는 첫 자리다
+   *   언 사체의 자리 그것에는 김이 없다 — **몸에 아무것도 걸지 않는다** (showsOnBody 를 밝히지
+   *                 않았다). "살아 있는 것이 아니라 따뜻한 것을 본다" 는 이 둘을 본 사람이
+   *                 읽는 것이고, 세계는 그 말을 어디에서도 하지 않는다
+   *
+   * 사유(reason)는 **현상**의 코드다 — C020 의 `requires-stored-heat`("저장된 열이 있어야
+   * 한다" · 요구의 이름)가 `asks-warmth`("체열이 감지된다" · 일어나는 일)로 바뀐다. 자리도
+   * 형도 그대로이고 바뀐 것은 그 코드가 무엇을 말하는가 하나다 (spec R3 비고 · K8).
+   *
+   * 코드와 문 이름을 **글자로** 적는다 — 이름의 출처는 access.ts(ASKS_WARMTH · BREATH_GLOWS ·
+   * ASKS_WARMTH_WEAK) 하나이고, 이 파일이 그것을 부르면 access → specs → 이 파일의 순환이 난다.
+   * 방 파일이 이음 이름과 방 이름을 글자로 적는 그 어법 그대로이고(phases.outflow ·
+   * PRESENCE_ROUTES), 글자가 어긋나면 시나리오가 그 자리에서 걸린다.
+   *
+   * C031 ADDED — 이 문의 요구를 **무르게 하는 자락**이 하나 선다 (relaxedBy · relaxedReason).
+   *
+   * 그 자락은 이 방이 이미 가진 **눈보라**다 (`hazard-blizzard` · C019 가 놓았다). 새로 짓는
+   * 자락이 아니라 가리키기만 하는 것이고, 그 자락의 값은 한 값도 건드리지 않는다 — 관찰 범위
+   * { day 20 · night 10 } 도 상시 위상도 그대로다 (확정 6).
+   *
+   * **왜 눈보라인가** — 이 문이 묻는 것은 `heat:hides`("체열이 감지된다")이고, 눈보라는 확정 6
+   * 이 이미 관찰 범위를 절반으로 줄여 둔 자락이다. 보는 쪽의 범위를 줄이는 것과 보이는 쪽의
+   * 감지를 무르게 하는 것은 같은 사실을 양쪽에서 읽는 것이다 (Access §10 D3 — "눈보라는 감지도
+   * 약하게 한다"). 그래서 새 세계 사실 없이 이 방의 것 하나로 답한다.
+   *
+   * **무르게 되는 것은 읽히는 말 하나뿐이다** — 문의 열림도 잠긴 사유도 건너기의 거절도 한 값
+   * 달라지지 않는다 (K12 · 2층은 표시까지다). 들어온 자리 (0, −18) 은 자락 **밖**이고 거기서
+   * 자락 안까지 3 걸음이다 (위 실측) — 그 세 걸음이 이 완화가 관찰되는 자리다.
+   */
+  access: {
+    locks: [
+      {
+        id: 'FROST_DEPTH_DOOR',
+        at: { kind: 'connector', ref: 'FROST_DEPTH_DOOR' },
+        strength: 'hard',
+        important: true,
+        requires: [
+          { time: { seasons: ['LONG_NIGHT'] } },
+          { property: propertyTag(ASPECT_HEAT, RELATION_HIDES) },
+        ],
+        traces: [
+          { op: 'trace-frost-depth-door', showsOnBody: 'breath-glows' },
+          { op: 'trace-frozen-remains' },
+        ],
+        reason: 'asks-warmth',
+        relaxedBy: [{ area: 'hazard-blizzard' }],
+        relaxedReason: 'asks-warmth-weak',
+      },
+    ],
   },
 };

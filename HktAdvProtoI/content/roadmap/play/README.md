@@ -1,4 +1,9 @@
-# play/ — 증명 Play 와 여덟 기획의 덮임
+# play/ — 증명 Play 의 목록
+
+```text
+목적    Play 문서들의 목록과 순서 — 어느 Play 가 무엇을 증명하고 어느 미지를 놓으며 왜 그 순서인가.
+기능    Play 표(증명 · 미지 · Cycle) · 순서의 이유. 상태와 덮임은 두지 않는다 — ../PLAYS.md 가 소유한다.
+```
 
 이 폴더의 **"방"은 Region 의 최소 표현**이다. Region 은 크기를 갖지 않는 공간이고 크기는 extent 데이터다 — 한 칸의 방도,
 대평원도, 대륙급 오픈월드도 같은 Region 이며 그 사이를 Connector 가 잇는다 (RegionGraphRooms 불변 조건 넷째).
@@ -8,7 +13,7 @@ Play 하나는 로드맵의 **행 하나**를 증명한다 ([../README.md](../RE
 생명의 성립과 탄생 · 세계의 요구와 가능성 · Region Foundation)은 Play 하나로 닫히지 않는다 — 2층에서 증명할 수 있는 것은 Play 여덟으로 나뉘고,
 나머지는 그 축이 서는 층에서 증명한다.
 
-## 2층 Play 아홉(기획 증명 여덟 + 관찰 가능성 하나) + 컨텐츠 Play 하나 (순서대로) + 초안 하나(GAP 회수 둘째)
+## 2층 Play 아홉(기획 증명 여덟 + 관찰 가능성 하나) + 컨텐츠 Play 하나 + 회수 초안 하나 + 3층 Play 하나 (순서대로)
 
 | Play | 증명하는 것 | 놓는 미지 | Cycle |
 |---|---|---|---|
@@ -22,9 +27,15 @@ Play 하나는 로드맵의 **행 하나**를 증명한다 ([../README.md](../RE
 | [RoomAnswersWhenAsked.md](RoomAnswersWhenAsked.md) | 물으면 답하는 방 — 지목한 것(존재 · 자리)의 사실이 한 자리에 머문다. 새 축도 새 미지도 아니고 **이미 선 축들의 관찰 가능성** (실주행 DESIGN GAP 회수) | — (미지를 놓지 않는다) | C026~C028 |
 | [RoomAsksForPossibilities.md](RoomAsksForPossibilities.md) | 방이 가능성을 묻는다 — 자리는 아이템이 아니라 세계 조건을 요구하고, 세계 어딘가의 것이 같은 어휘의 성질로 답하며, 하나의 요구에 여러 종류의 답이 올 자리가 열려 있다. 요구는 흔적으로 알아내고, 문은 아직 열리지 않는다 | M7 열을 저장하는 결정의 원천 (자원) | C029~C031 |
 | [RoomRemembersAndOffers.md](RoomRemembersAndOffers.md) | 방은 기억하고 때가 되면 내민다 — 방이 자기에게 일어난 일을 세고(기억 — 뒤척임도 못 묻는 셈), 세계의 조건이 한 형으로 적히며 그 형이 기억을 읽고, 방이 내미는 것(기회)이 데이터이고 때가 있는 기회가 Event 다. 첫 Event 는 채집이다 | — (M4 천공고래의 길을 깊게 한다) | C034~C036 |
+| [TrailBehindClueAhead.md](TrailBehindClueAhead.md) *(초안 · 승인 대기)* | 온 길은 남고, 갈 길에는 단서가 있다 — RegionGraphRooms 실주행 GAP 둘의 회수. 새 축도 새 미지도 아니다 | — | C032~C033 |
+| [OneStandsOnStage.md](OneStandsOnStage.md) *(**3층** · 초안 · "C037 진행" 이 승인)* | 한 명만 무대에 선다 — 관찰자는 몸이 아니라 편성을 가지고, 무대에 서는 몸은 하나이며, 어느 몸이 서는가가 세계에 개입하는 방법을 바꾼다. 추위가 몸의 온기를 깎고, 문이 몸의 성질을 묻고(property Lock 의 첫 판정), 열을 쫓는 것이 따뜻한 몸만 본다 | M8 협곡의 열을 쫓는 것 (생물 — 열을 원한다) | C037~C040 |
 
 **RoomAnswersWhenAsked 는 순서 밖이다** — 앞의 셋(Rooms · Land · Rule)이 실제로 플레이되면서 돌아온 DESIGN GAP 이고,
 기획을 하나도 덮지 않는다(그래서 아래 덮임 지도에 열이 없다). Material·Time·Frost·Life 와 **병행**한다.
+
+**OneStandsOnStage 는 2층이 아니라 3층의 첫 Play 다** — 7층 주입물([L7-Fairy-Growth-Combination.md](../L7-Fairy-Growth-Combination.md))의 3층 몫(편성 · 무대의 한 명 ·
+교체 · Core 가 몸의 State 로)을 Human 결정으로 2층 실주행 판정과 병행해 연다. 2층이 세운 협곡 · 문의 요구(`heat:hides`) · 성질 어휘를 그대로 쓰고,
+Access 가 "3층이 받는다" 고 넘긴 property Lock 의 판정을 처음 세운다. C039 만 C029 뒤다.
 
 순서는 의존성이다 — 그래프가 있어야 방이 있고, 방이 있어야 땅으로 채울 수 있고, 방 안에 구조(area · traversable)가
 있어야 규칙이 바꿀 것이 있고, Region State 와 세계 과정이 있어야 재료가 생애를 가진다. 미로는 Region 하나이고 그
@@ -46,18 +57,7 @@ Play 일곱 중 다섯(RegionGraphRooms · RoomBecomesLand · RuleBoundRoom · R
 이름 짓고, 어느 계약도 소유하지 않던 셋(조건의 한 형 · 기억 · 기회=Event)을 더한다. 그 문서와 Play [RoomRemembersAndOffers.md](RoomRemembersAndOffers.md)
 는 한 번에 승인됐다. [TrailBehindClueAhead.md](TrailBehindClueAhead.md) 는 RoomAnswersWhenAsked 와 같은 종류(GAP 회수)의 초안이다.
 
-## 여덟 기획의 덮임 지도
+## 기획의 덮임 · Play 의 상태
 
-| 기획 | 2층 Play 가 덮는 것 | 2층 밖 — 어느 층 |
-|---|---|---|
-| **도구** (WE · Plan · L2-World-Tool) | Region Description · anchor/graph · 관찰(observe) · 검사 ⑤~⑨ → **Rooms**. Height Field · Stamp · Curve · Surface 규칙 · traversable · 컴파일 캐시 · Build→Observe 루프 → **Land** | Tree/Rock Kit · scatter 밀도 · 자산 카탈로그 (WE §17~§26) → Land 이후의 폴리싱 (데이터). Streaming → 방 크기의 Region 에는 없다. Region 크기에 상한이 없으므로(Rooms 불변 조건 "방은 공간일 뿐이다") 큰 Region 이 실제로 올 때 Land 뒤 ENGINE 레인 — chunk 단위 적재, 관찰 계약 변경 없음 |
-| **세계관 컨셉** (L2-World-Concept) | W1 깊이 · W11 끝없음 → **Rooms**. W5 지역은 하나의 현상 · W8 세계가 질문을 만든다(단서) · W9 플레이어 없이 돈다 → **Rule**. W2 안전은 조건이 만든다 · §16 비주얼 방향 → **Land**. **W4 위험과 보상의 동근원 · §4 숲의 생태 사슬 → Material** | W3 위험 일곱 갈래가 몸에 닿는 것 · W7 지식이 전투력 · W10 강함만으로 안 됨 → 3층. W4 중 **재료의 쓰임**(조합 · 효과 · 수치) → 4층 이후. W6 압도적 존재 → 컨텐츠 층 + 5층. §8 요정/Class → 7층. §14 사회적 분업 발견 → 뒤 층 |
-| **세계 content 구성** (L2-World-Region) | R1 Graph · R3 WorldPosition · R5 중첩 · R6 Connector · R9 진입/이탈 · R12 공간 분리 → **Rooms**. R4 World State 공유 · R7 Region Rule · R8 규칙이 플레이를 만든다 · §10 activation/persistence · §16 Spec 양식 · §17 규칙 가독성 → **Rule**. R11 Terrain 은 결과다 · §13 · §15 9~10 → **Land**. **R10 하나의 Cause 에서 함께 닫힌다 · §15 4·5 의 자원 절 → Material** | §8 Discovery State(개인 지식) · §6 Hard Entry 의 knowledge activation → 3층. §12 Growth Outcome 중 **capability·성장** → 4층 이후 (재료 쪽은 Material 이 받는다). §6 Soft Requirement(체온 등 몸의 값) → 3층 |
-| **재료 생태와 공급 계약** (L2-World-Material) | S1~S12 전부 → **Material** (원천 · 흔적 · 구배 · 생애 · 공급 · 채취 결과 · 흐름 · 도구 보고 ⑩~㉒) | S10 이 미룬 것 — Recipe · 조합 · Item 효과 · 수치 · Class 요구 → 4층 이후. Carrier 중 살아 있는 CREATURE · 채취가 생물 행동에 미치는 것 → 3층 |
-| **세계의 시간과 위상** (L2-World-Time) | T1~T8 전부 → **Time** (시계 · 네 철 · 위상 덧씌움 · 소란 · 발자국 · 압도적 존재의 경로 · 검사 ㉓~㉖) | 시간이 몸에 하는 일 · 생물의 철 따른 행동 → 3층. 압도적 존재와의 접촉 → 3·5층. 날씨 → 두지 않는다(컨텐츠 행). 걷는 숲의 나무 이동 → 그 Region 의 Play |
-| **생명의 성립과 탄생** (L2-World-Life) | F1~F15 전부 → **Life** (생명의 정의 · 네 탄생 방식 · 탄생의 조건과 소비 · 전후의 흔적 · 개체군 값과 관계 · 멸종 없음 · 스폰이 아닌 회복 · 검사 ㉗~㉝) | 태어난 개체의 몸 · 감각 · 지식 · 행동 · 죽음 · 성장 단계 · 능력치 → 3층. 성별과 구체적 번식 · 유전과 변이 → 3층 이후. 플레이어가 탄생에 개입하는 구체적 Action → 3층 이후 (2층의 개입은 채취뿐). 요정의 원리 결속 → 7층. 최초의 생명 → **확정하지 않는다** (F12) |
-| **Region Foundation** (L2-World-Foundation) | G1~G13 → **Remembers** (기억 · 무엇이 무엇을 지우는가의 표 · Condition 한 형 · Opportunity=Event 데이터 · Mutation op 표 · 검사 ㊸~㊼ · 기회 표 · T2 열셋째 답 · T4 결정 나무). 여덟 자리 자체는 앞선 Play 여덟이 이미 세웠다 (§3.1 대응표) | Player Knowledge · 발견 상태 다섯 → 3층. Actor · NPC · participants → 3층. 전투 Opportunity · killed → 5층. 제작 · crafted · Recipe → 4층. Character Growth · Yield 의 열 열 → 4 · 7층. 경제 · 세력 · 협동 · 구조 · 미니게임 · 서사 → 뒤 층 · 컨텐츠 행. Object · Structure 의 State → 컨텐츠 행. 확률 → 5층 이후. Region 자체 성장의 첫 사례 → Life 뒤 |
-| **세계의 요구와 가능성** (L2-World-Access) | K1~K15 전부 → **Access** (Lock 넷 · 성질 어휘 · Seed 의 성질 · 하나의 요구에 여러 종류의 답 · 요구를 알아낼 흔적 · 실패가 정보가 되는 관계의 자리 · 충분성과 밀도의 검사 ㉞~㊷ · time · state Lock 의 판정) | property · knowledge Lock 의 실제 판정 · Actor 가능성 · 관찰자가 요구를 어디까지 이해하는가 → 3층. 가능성을 지니는 것(소지 · 장비 · 섭취 · 동행) · 성질의 수치 · 조합과 상쇄 → 4층. 클래스 · 요정 자체가 가능성이 되는 성장 → 7층. 플레이어 사이의 가능성 공유 → 뒤 층 |
-
-여덟 Play 가 닫히면 2층이 닫힌다. 그 뒤 컨텐츠 층의 행(M1 · M2 와 §5.1 의 이름들)은 요구 축이 서는
-대로 각자의 Play 를 받는다.
+두 표는 여기 없다 — [../PLAYS.md](../PLAYS.md) §1(원본 기획 → Play 덮임 · 남은 것)과 §2(있는 Play 의 상태)가 소유한다.
+이 문서는 **각 Play 가 무엇을 증명하고 어떤 순서로 서는가**만 둔다. 진행은 각 Play 의 Cycle Breakdown 체크박스다.

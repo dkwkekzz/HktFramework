@@ -138,7 +138,11 @@ describe('T2 — 모르는 것은 미답으로 남아 있다 (지어내지 않�
 
     // C014 CHANGED — 견줄 상대가 바뀌었다. 포식수 둥지는 이 Cycle 이 원천을 세우면서
     // 답한 방이 되었으므로, 아직 **모르는** 쪽의 보기는 재료 계통이 닿지 않은 채로 남은 방이다.
-    const silent = briefs.get('TREE_INNER_WORLD')!;
+    // C030 CHANGED — 같은 이유로 한 번 더 옮긴다. 거목 내부 세계도 이 Cycle 이 원천을
+    // 세우면서 답한 방이 되었으므로, 아직 모르는 쪽의 보기는 미로의 심장이다 (재료도
+    // 생물도 규칙도 두지 않은 방). **재는 것은 그대로다** — 없음을 답한 방과 아직 모르는
+    // 방을 형이 구별하는가이고, 견줄 자리만 옮겼다.
+    const silent = briefs.get('MAZE_HEART')!;
     expect(silent.answers.worth.sources).toEqual([]);
     expect(isUnanswered(silent.answers.worth.said)).toBe(true);
   });

@@ -57,6 +57,14 @@
 // 출구 존재에 그 **요구의 코드**가 원천의 조건 코드가 실리는 그 자리로 실린다.
 // **무엇이 그 요구를 채우는지도 · 어디서 나는지도 · 마디가 몇인지도 · 되돌아옴이 왜
 // 빨라졌는지도 싣지 않는다** — 관찰자는 같은 자리에 여러 철에 와 보고 그것을 배운다.
+//
+// C029 CHANGED (RULE-LOCK-TRACE-BODY-001 · RULE-LOCK-REASON-001 · C029 spec R2 · R3) —
+// **여기서도 봉투에 새 자리가 나지 않는다.** 조건 코드가 실리던 그 자리(conditions)를 지는
+// 존재가 셋이 된다: 원천(C012) · 출구 표식(C020) · 그리고 **몸**. 문 앞의 자락에 든 몸에
+// 그 흔적이 밝힌 코드가 실리고, 자락 밖으로 나오면 다음 관찰에서 사라진다 — 저장되는 State 는
+// 하나도 늘지 않는다. 그리고 출구 표식이 지던 코드가 **요구의 이름에서 현상으로** 바뀐다.
+// **어느 것도 요구의 이름도 · 무엇이 그것을 채우는지도 · 답이 어디 있는지도 싣지 않는다** —
+// 세계는 답을 알려 주지 않고, 알려 주는 것은 현상뿐이다.
 
 import type {
   EntityView,
@@ -107,8 +115,9 @@ import {
 } from '../semantic/region-phase';
 import {
   anchorPosition,
-  connectorRequirements,
+  connectorReasonCodes,
   isConnectorOpen,
+  lockTraceCodesAt,
   regionExitsOf,
   regionHash,
   regionSpecOf,
@@ -231,6 +240,22 @@ export function projectObserverView(
     // 모든 Actor 의 모든 속성을 싣는다. 가리는 경계를 두지 않는다
     // (INTENT-ATTRIBUTE-OBSERVE-001). 늘 화면에 띄울지는 View 의 선택이다.
     const modifiers = actorModifiers(actor);
+    // RULE-LOCK-TRACE-BODY-001 (C029 ADDED · C029 spec R2 · SPEC-003) — **문 앞의 현상.**
+    //
+    // 그 방의 Lock 이 **몸에 보일 것을 밝힌** 흔적의 자락 안에 이 몸이 서 있으면 그 코드가
+    // 실린다. 원천의 조건 코드가 실리는 그 자리를 그대로 쓴다 — 봉투에 새 자리를 내지
+    // 않았다 (C020 이 출구 표식에 한 그대로). 걸린 것이 없으면 **자리 자체가 없다**
+    // (빈 배열로 지어내지 않는다).
+    //
+    // **몸에만 싣는다** (경계 ①) — 차가운 것(원천 · 출구 표식)에는 어느 자리에서도 실리지
+    // 않는다. 그것이 이 Cycle 의 대조다: 문 앞의 언 사체 곁 결정에는 김이 없다.
+    // **관찰자 자신의 몸만이 아니다** (경계 ③) — 그 자락에 든 모든 몸에 실리므로, 남이 문
+    // 앞에 선 것을 보고도 같은 것을 읽는다.
+    //
+    // 저장되지 않는 유도된 사실이다 — 자락 밖으로 걸어 나오면 다음 관찰에서 사라진다.
+    // **무엇이 그것을 걸었는지도 · 그 문이 무엇을 묻는지도 · 김이 무엇을 뜻하는지도 싣지
+    // 않는다** (spec Observable) — 관찰자는 자락을 들고 나며 그것을 읽는다.
+    const bodyConditions = lockTraceCodesAt(actor.regionId, actor.position);
 
     entities.push({
       id: actor.id,
@@ -267,6 +292,8 @@ export function projectObserverView(
       },
       ...(progress !== null ? { progress } : {}),
       ...(target ? { targetEntityId: target } : {}),
+      // C029 ADDED — 문 앞의 자락에 든 몸에만 선다 (위 RULE-LOCK-TRACE-BODY-001)
+      ...(bodyConditions.length > 0 ? { conditions: [...bodyConditions] } : {}),
       // Character.Attended — 다른 관찰자의 몸에만 의미가 있다.
       // 거짓이면 그 사람은 떠났고 몸만 세계에 남은 것이다 (INTENT-OBSERVER-LEAVE-001).
       ...(isOtherPlayer ? { attended: isAttended(state, actor.id) } : {}),
@@ -491,7 +518,13 @@ export function projectObserverView(
   // 경계를 가리키는 출구도 state 는 open 이다 (01-spec SPEC-007 경계).
   for (const exit of regionExitsOf(self.regionId)) {
     const here = anchorPosition(exit.here.region, exit.here.anchor);
-    const requirements = connectorRequirements(exit.connector.id);
+    // C031 CHANGED — **몸이 선 자리를 함께 넘긴다** (RULE-LOCK-RELAXED-001 · spec R2).
+    // 그 문의 Lock 이 완화를 밝혔고 자락 안이면 완화된 사유가 **대신** 실린다. 봉투에 새 자리를
+    // 내지 않았다 — 실리는 곳은 아래 conditions 하나 그대로이고, 갈리는 것은 그 코드 하나다.
+    const reasons = connectorReasonCodes(exit.connector.id, {
+      regionId: self.regionId,
+      position: self.position,
+    });
     entities.push({
       id: exit.connector.id,
       role: 'region-exit',
@@ -504,15 +537,26 @@ export function projectObserverView(
         : 'locked',
       kind: exit.connector.transition,
       position: { x: here.x, z: here.z },
-      // RULE-EXIT-REQUIREMENT-001 (C020 ADDED · C020 spec R5 · SPEC-009) — 그 문이 **밝힌
-      // 요구**의 코드들. 원천의 조건 코드가 실리는 그 자리를 그대로 쓴다 — 봉투에 새 자리를
-      // 내지 않았다 (C020 기본형 ⑥). 밝히지 않은 문은 **자리 자체가 없다** (빈 배열로
-      // 지어내지 않는다 · 원천이 그런 그대로).
+      // RULE-LOCK-REASON-001 (C029 CHANGED — C020 의 RULE-EXIT-REQUIREMENT-001 이 서 있던
+      // 그 자리 · C029 spec R3) — 그 문에 걸린 Lock 이 밝힌 **현상**의 코드들. 원천의 조건
+      // 코드가 실리는 그 자리를 그대로 쓴다 — 봉투에 새 자리를 내지 않았다 (C020 기본형 ⑥).
+      // 밝히지 않은 문은 **자리 자체가 없다** (빈 배열로 지어내지 않는다 · 원천이 그런 그대로).
       //
-      // **표시일 뿐이다** (spec R5 경계 ①) — 위의 state(open | locked)는 이 값을 한 값도
-      // 읽지 않는다. 요구를 채워 열리지도, 밝혔다고 잠기지도 않는다.
-      // 무엇이 그것을 채우는지도 어디서 나는지도 싣지 않는다 (경계 ②).
-      ...(requirements.length > 0 ? { conditions: [...requirements] } : {}),
+      // C029 에서 **그 코드가 무엇을 말하는가**가 바뀌었다 — 요구의 이름("저장된 열이 있어야
+      // 한다")에서 현상("체열이 감지된다")으로. 자리도 형도 그대로다: 세계는 무엇을 가져오라
+      // 말하지 않고 그 자리에서 일어나는 일만 말한다 (K8).
+      //
+      // C031 CHANGED — 그 코드가 **몸이 선 자리에 따라 갈린다** (spec SPEC-002). 눈보라 자락
+      // 밖에서 지목하면 「체열이 감지된다」이고 자락 안이면 「눈보라 속에서 약하다」가 **대신**
+      // 실린다 (둘이 함께 서지 않는다). 세계의 값은 한 톨도 달라지지 않고 저장되지도 않는다 —
+      // 걸어 나오면 처음 말로 돌아온다. **무엇이 그것을 무르게 했는지는 싣지 않는다**:
+      // 자락의 이름도 정도도 수치도 없다 (Observable — 이것이 이 Play 의 미지감이다).
+      // 완화를 밝히지 않은 문은 어느 자리에서도 한 글자도 달라지지 않는다.
+      //
+      // **표시일 뿐이다** (spec R3 경계 ①) — 위의 state(open | locked)는 이 값을 한 값도
+      // 읽지 않는다. 요구를 채워 열리지도, 밝혔다고 잠기지도 않으며, 무르게 되어도 그렇다.
+      // 요구의 이름(축:관계)도 · 무엇이 그것을 채우는지도 · 어디서 나는지도 싣지 않는다 (경계 ②).
+      ...(reasons.length > 0 ? { conditions: [...reasons] } : {}),
     });
 
     const failure = evaluateTransitPreconditions(state, self, exit);

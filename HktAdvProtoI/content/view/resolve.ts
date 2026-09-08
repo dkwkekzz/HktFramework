@@ -30,6 +30,9 @@ import {
 import { clockHudEntries, hudPresentation } from './hud-presentation';
 import { interactionPresentation } from './interaction-presentation';
 import { codeText } from './code-text';
+// 문 앞의 자락에 든 몸에 세계가 싣는 조건 코드 — **원본은 데이터 하나다** (C029).
+// 사본을 두면 데이터가 코드를 옮겼을 때 화면이 없는 코드를 계속 찾는다
+import { BREATH_GLOWS } from '../regions/index';
 import { rolePresentation } from './role-presentation';
 import { kindPresentation } from './kind-presentation';
 import { lifeSitePhases } from './life-reading';
@@ -113,6 +116,23 @@ const DESIGNATE_KEY_LABEL =
 function designateHint(): readonly string[] {
   return [codeText('hint.designate', DESIGNATE_KEY_LABEL)];
 }
+
+/**
+ * RULE-LOCK-TRACE-BODY-001 의 몸 쪽 표현 — **문 앞의 자락에 든 몸이 푸르게 물든다**
+ * (C029 R2 · Observable Result ①).
+ *
+ * 기반에 새 자리를 내지 않는다 — 이미 있는 `SceneEntity.tint`(그림에 곱할 색) 하나로 한다.
+ * 세계가 싣는 것은 그 몸의 조건 코드 하나이고, 화면은 실린 것을 옮길 뿐이다: 무엇이
+ * 그것을 빛나게 하는지도, 문이 무엇을 묻는지도 여기서 잇지 않는다 (잇는 것은 관찰자다).
+ *
+ * 색은 **이 세계가 이미 가진 서리의 파랑**(C019 의 서리 바닥 · C021 의 옅어진 산맥이 쓰는
+ * 0xbcd0ec) 그대로다 — 새로 짓지 않는 이유는 그 표들의 규율과 같다: 협곡을 걸어 본 눈이
+ * 이 파랑을 이미 배웠고, 김이 다른 파랑이면 화면에 계열이 하나 더 생긴다.
+ *
+ * **걸리지 않은 몸은 한 픽셀도 달라지지 않는다** — 조건이 없으면 이 함수는 아무것도
+ * 내놓지 않고, 색은 지금까지의 그 색이다.
+ */
+const BREATH_GLOW_TINT = 0xbcd0ec;
 
 /** 관찰자가 쥐고 있는 명령 표면 상태 — 조립 루트가 소유한다 (04 history.owner: observer) */
 export interface CommandSurfaceInput {
@@ -285,7 +305,14 @@ export function resolvePresentation(
       // 종류별 그림 표가 있으면 그것이 role 의 기본 그림보다 우선한다 —
       // 바로 위 색의 규율(tintByKind > tint)과 **같은 차례**다 (C011)
       const sprite = (e.kind !== undefined ? p.spriteByKind?.[e.kind] : undefined) ?? p.sprite;
-      const tint = unattended && p.unattendedTint !== undefined ? p.unattendedTint : baseTint;
+      // 문 앞의 자락에 든 몸의 푸른 빛 (C029 R2) — **자리 비움의 탈색이 이긴다**:
+      // 그 몸에 조종하는 이가 없다는 것은 이 슬롯이 이미 지고 있던 사실이고, 새로 온 것이
+      // 그것을 덮으면 세계에 있는 몸과 아무도 없는 몸이 화면에서 같아진다. 그 아래로는
+      // 김이 종류·역할의 기본 색보다 앞선다 — 기본 색은 그 몸이 늘 지니는 것이고
+      // 이것은 **지금 그 자락 안에 서 있는 동안만** 참인 사실이다 (자락 밖으로 나오면 사라진다)
+      const breathGlow = e.conditions?.includes(BREATH_GLOWS) === true ? BREATH_GLOW_TINT : undefined;
+      const tint =
+        unattended && p.unattendedTint !== undefined ? p.unattendedTint : (breathGlow ?? baseTint);
       const label =
         unattended && p.unattendedLabel !== undefined
           ? p.unattendedLabel

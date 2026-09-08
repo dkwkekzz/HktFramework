@@ -9,23 +9,18 @@
 // 컨텐츠 데이터에서 다시 온다 (C001 02-world R7 · character-catalog 와 같은 성격).
 // 소비처는 이 파일 하나만 import 한다. 경계 규칙 4 — 이 폴더는 engine 만 import 한다.
 
-import type { RegionSpec } from './spec';
-import { BIO_ORE_FIELD_SPEC } from './bio-ore-field';
-import { EXPLORER_RUIN_SPEC } from './explorer-ruin';
-import { FANTASY_MAZE_SPEC } from './fantasy-maze';
-import { FOREST_DEEP_SPEC } from './forest-deep';
-import { FOREST_EDGE_SPEC } from './forest-edge';
-import { FROST_CANYON_SPEC } from './frost-canyon';
-import { HEART_LAKE_SPEC } from './heart-lake';
-import { ICE_CANYON_SPEC } from './ice-canyon';
-import { MAZE_HEART_SPEC } from './maze-heart';
-import { PREDATOR_NEST_SPEC } from './predator-nest';
-import { RED_EYE_TREE_SPEC } from './red-eye-tree';
-import { TREE_INNER_WORLD_SPEC } from './tree-inner-world';
-import { WHITE_KING_DOMAIN_SPEC } from './white-king-domain';
-
 export type { RegionSpec, RegionRuleSpec } from './spec';
 export { ANCHOR_LAYER } from './spec';
+// 세계가 아는 방들의 목록 — C029 에서 이 파일에서 specs.ts 로 **옮겼다** (값도 차례도 그대로).
+// 이 폴더 안에서 방 목록을 읽어야 하는 데이터 파일(access.ts)이 생겼고, 그것이 이 문(門)을
+// 되부르면 순환이 나기 때문이다. 소비처가 읽는 이름과 자리는 한 글자도 달라지지 않는다.
+export { REGION_SPECS, regionSpec } from './specs';
+// 이 세계의 성질 어휘 — 축 다섯 · 관계 일곱 · answers 다섯 (C029 ADDED).
+// terrain-rules · resource-ecology 와 같은 갈래의 "world 와 view 가 함께 읽는 데이터" 다.
+export * from './properties';
+// 방이 묻는 것 — Lock 의 형 · 흔적 · 현상의 코드 · Lock 색인 셋 (C029 ADDED).
+// 문의 활성 조건과 표식의 요구가 여기로 옮겨 왔다 (graph.ts 의 표 둘이 사라졌다).
+export * from './access';
 // 지면의 표면·통행 규칙 표 — world 와 view 가 함께 읽는다 (C006 ADDED).
 // 값의 원본은 terrain-rules.ts 이고, 이 문(門)을 통해 나간다.
 export * from './terrain-rules';
@@ -67,17 +62,13 @@ export {
   WALKING_FOREST_DOOR,
   // C019 ADDED — 협곡 안쪽으로 드는 오솔길
   FROST_CANYON_TRAIL,
-  // C020 ADDED — 빙결 심층으로 드는 문과 그 요구 표
+  // C020 ADDED — 빙결 심층으로 드는 문 (그 문이 묻는 것은 이제 그 방의 access.locks 가 적는다)
   FROST_DEPTH_DOOR,
   RED_WASTE,
   INVERTED_GARDEN,
   WALKING_FOREST,
   FROST_DEPTH,
-  CONNECTOR_ACTIVATIONS,
-  CONNECTOR_REQUIREMENTS,
-  REQUIRES_STORED_HEAT,
 } from './graph';
-export type { ConnectorActivation } from './graph';
 export { WHITE_KING_DOMAIN, WHITE_GIANT_TREE } from './white-king-domain';
 export { FOREST_EDGE } from './forest-edge';
 export { FOREST_DEEP } from './forest-deep';
@@ -112,25 +103,3 @@ export { MAZE_HEART } from './maze-heart';
 // 그 이름은 C019 가 처음 짓고 처음부터 방이다.
 export { ICE_CANYON } from './ice-canyon';
 export { FROST_CANYON } from './frost-canyon';
-
-/** 세계가 아는 Region 들 — graph.regions 와 같은 순서 */
-export const REGION_SPECS: readonly RegionSpec[] = [
-  WHITE_KING_DOMAIN_SPEC,
-  FOREST_EDGE_SPEC,
-  FOREST_DEEP_SPEC,
-  EXPLORER_RUIN_SPEC,
-  PREDATOR_NEST_SPEC,
-  BIO_ORE_FIELD_SPEC,
-  RED_EYE_TREE_SPEC,
-  TREE_INNER_WORLD_SPEC,
-  HEART_LAKE_SPEC,
-  FANTASY_MAZE_SPEC,
-  MAZE_HEART_SPEC,
-  // C019 ADDED — 고개 너머 둘. graph.regions 와 같은 차례로 배열 **끝**에 붙는다.
-  ICE_CANYON_SPEC,
-  FROST_CANYON_SPEC,
-];
-
-export function regionSpec(id: string): RegionSpec | undefined {
-  return REGION_SPECS.find((spec) => spec.id === id);
-}

@@ -147,6 +147,14 @@ export interface ResourceSource {
    * 밝히지 않은 원천은 멎어도 걸리는 것이 한 글자도 늘지 않는다.
    */
   noOwnerCode?: string;
+  /**
+   * **고갈된 동안**의 조건 코드 (C030 ADDED · spec R3) — 데이터의 depletedCode 그대로다.
+   *
+   * 밝히지 않은 원천은 몇 번을 캐도 걸리는 것이 한 글자도 늘지 않는다 (지금 세계의 나머지
+   * 전부) — regrownCode · occurrence · recoverySpeed 를 밝히지 않은 원천이 그 계통 밖인
+   * 것과 같은 규율이다.
+   */
+  depletedCode?: string;
 }
 
 // 방 하나당 엮기 한 번. 원천이 없는 방(백왕령)도 빈 배열로 담는다 — 그것도 답이다.
@@ -223,6 +231,9 @@ export function sourcesInRegion(regionId: string): readonly ResourceSource[] {
       ...(source.recoveryLife === undefined ? {} : { recoveryLife: source.recoveryLife }),
       ...(source.recoveryByLife === undefined ? {} : { recoveryByLife: source.recoveryByLife }),
       ...(source.noOwnerCode === undefined ? {} : { noOwnerCode: source.noOwnerCode }),
+      // C030 ADDED — 고갈된 동안의 조건 코드. 밝히지 않은 원천은 자리 자체가 없다
+      // (빈 글자로 지어내지 않는다 · regrownCode 의 선례 그대로).
+      ...(source.depletedCode === undefined ? {} : { depletedCode: source.depletedCode }),
     });
   }
 
@@ -594,8 +605,8 @@ export function recoveryLifeSpeed(
 }
 
 /**
- * RULE-SOURCE-CONDITION-001 · RULE-SOURCE-REGROWN-001
- * (C013 CHANGED · C021 CHANGED) — 그 원천에 **지금 걸린 조건 코드들**.
+ * RULE-SOURCE-CONDITION-001 · RULE-SOURCE-REGROWN-001 · RULE-SOURCE-DEPLETED-CODE-001
+ * (C013 CHANGED · C021 CHANGED · C024 CHANGED · C030 CHANGED) — 그 원천에 **지금 걸린 조건 코드들**.
  *
  * 매달린 원천이 **available 이 아니면** `recovery-stalled` 하나. 걸린 것이 없으면 빈 배열이다 —
  * 관찰에 실을지 말지는 투영이 정한다 (없으면 자리 자체를 싣지 않는다).
@@ -645,6 +656,14 @@ export function recoveryLifeSpeed(
  * 이것은 "벗을 것이 없다" 다. 이 코드도 **원인**이지만 되돌아옴의 세계 과정이 그것을 읽지는
  * 않는다: 진행에 곱해지는 배속이 0 이라 저절로 멎기 때문이다 (recoveryLifeSpeed) — 판정이
  * 하나이므로 표시와 원인이 갈릴 자리가 없고, 규칙이 데이터의 글자를 알 자리도 생기지 않는다.
+ *
+ * C030 CHANGED (RULE-SOURCE-DEPLETED-CODE-001 · spec R3) — **비었다는 것도 조건이다.**
+ * 고갈된 원천이 고갈의 코드를 밝혔으면 그 코드가 하나 실린다. `regrownCode` 와 **같은
+ * 갈래**다 (거기 있는/없는 자리에 대한 말이지 "지금 없다" 의 사유가 아니다) — 그래서
+ * 되돌아옴의 진행을 한 톨도 멎게 하지 않고, 그 곁에 나란히 붙는다.
+ * 되돌아오는 중이거나 있는 동안에는 실리지 않고(경계 ①), 밝히지 않은 원천은 몇 번을
+ * 캐도 한 글자도 늘지 않는다 (경계 ②). 이미 실리는 코드(recovery-stalled 등)와 겹치면
+ * 걸린 것이 **전부** 실린다 — 차례는 아래의 ⓪ ① ② ③ ④ ⑤ 로 결정적이다 (경계 ③).
  */
 export function sourceConditions(
   states: Record<string, RegionState>,
@@ -758,6 +777,25 @@ export function sourceConditions(
     sourceStateOf(states, source.regionId, source.id).siteIndex !== 0
   ) {
     codes.push(regrown);
+  }
+
+  // ⑤ 비어 있는 자리 (C030 ADDED · RULE-SOURCE-DEPLETED-CODE-001 · spec R3 · SPEC-003) —
+  // 고갈된 원천이 밝힌 코드가 실린다. ④ 와 **같은 갈래**다: 저것은 "그 자리가 처음 자리가
+  // 아니다" 이고 이것은 "그 자리가 지금 비었다" 이며, 둘 다 거기 있는(없는) 것에 대한
+  // 말이지 "왜 없는가" 의 사유가 아니다 — 그래서 되돌아옴의 진행을 한 톨도 멎게 하지
+  // 않는다 (simulation/source-recovery.ts 는 앞의 코드들만 읽는다).
+  //
+  // **되돌아오는 중이거나 있는 동안에는 실리지 않는다** (경계 ①) — phase 가 depleted 인
+  // 그 동안만이다. 밝히지 않은 원천은 몇 번을 캐도 한 글자도 늘지 않는다 (경계 ②).
+  //
+  // 규칙은 그것이 벽의 잉걸인지 이름으로 알지 못한다 — phase 하나와 원천이 밝힌 글자
+  // 하나를 읽을 뿐이다 (C004 가 세운 규율 그대로).
+  const depleted = source.depletedCode;
+  if (
+    depleted !== undefined &&
+    sourceStateOf(states, source.regionId, source.id).phase === 'depleted'
+  ) {
+    codes.push(depleted);
   }
 
   return codes;

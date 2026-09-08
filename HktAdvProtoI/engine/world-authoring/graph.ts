@@ -93,3 +93,26 @@ export function reachableRegions(graph: RegionGraph, startRegion: string): strin
   }
   return reached;
 }
+
+/**
+ * 어떤 이음들을 벽으로 놓고 startRegion 에서 닿는 region 이름들 — `reachableRegions` 의 형제.
+ *
+ * 막을 이음이 하나도 없으면 `reachableRegions` 와 같은 답이다. 벽으로 놓는다는 것은 그
+ * Connector 가 없는 그래프를 도는 것이므로, 방향도 차례도 `reachableRegions` 의 규율을
+ * 그대로 따른다 (결정론).
+ *
+ * **무엇이 왜 막혔는지는 기반이 모른다** — 무엇을 벽으로 놓을지는 부르는 쪽이 정한다.
+ */
+export function reachableRegionsExcept(
+  graph: RegionGraph,
+  startRegion: string,
+  blockedConnectorIds: readonly string[],
+): string[] {
+  if (blockedConnectorIds.length === 0) return reachableRegions(graph, startRegion);
+  const blocked = new Set(blockedConnectorIds);
+  const open: RegionGraph = {
+    ...graph,
+    connectors: graph.connectors.filter((connector) => !blocked.has(connector.id)),
+  };
+  return reachableRegions(open, startRegion);
+}

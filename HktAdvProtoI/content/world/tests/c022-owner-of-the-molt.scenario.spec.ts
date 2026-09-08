@@ -184,7 +184,9 @@ const BASELINE: Readonly<Record<string, RoomBaseline>> = {
     traversable: 1681,
   },
   [TREE_INNER_WORLD]: {
-    hash: '24bc11c0',
+    // C030 CHANGED — 거목 안에 온기의 흔적 셋과 원천 하나가 서서 hash 가 바뀐다
+    // (24bc11c0 → fed501ba). 이 방의 땅은 여전히 평지 그대로다
+    hash: 'fed501ba',
     surface: { flat: 6561 },
     traversable: 6561,
   },
@@ -209,7 +211,9 @@ const BASELINE: Readonly<Record<string, RoomBaseline>> = {
     traversable: 871,
   },
   [FROST_CANYON]: {
-    hash: 'e5d9cd3d',
+    // C029 CHANGED — 빙결 심층의 문 앞에 자락 하나가 서서 이 방의 hash 가 바뀐다
+    // (e5d9cd3d → ba0afb9e). 땅도 표면도 통행도 한 값 그대로다 — 자락은 얹히는 것이다
+    hash: 'ba0afb9e',
     surface: { steep: 902, slope: 72, frost: 697, flat: 10 },
     traversable: 779,
   },

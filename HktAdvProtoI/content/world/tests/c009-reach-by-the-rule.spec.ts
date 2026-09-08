@@ -36,7 +36,7 @@ import {
   COMPILE_RULES,
   FRONTIER_REGIONS,
   REGION_GRAPH,
-  CONNECTOR_ACTIVATIONS,
+  LOCKS,
   REGION_SPECS,
   START_REGION_ID,
   regionSpec,
@@ -719,17 +719,23 @@ describe('SPEC-008 다른 문들은 그대로다', () => {
     return out;
   };
 
-  // C016 CHANGED — 활성 조건 표에 문이 하나 늘었다 (긴 밤에만 열리는 숲 안쪽의 문).
-  // C009 의 주장은 지워지지 않고 그대로다 — **표에 없는 문은 여전히 어디서도 잠기지 않는다.**
-  // 잠긴 표식이 서는 자리가 표를 따른다는 것을 데이터에서 얻어 잰다 (이름을 손으로 세지 않는다).
-  it('S-016 활성 조건 표에 없는 문은 언제나 활성이다 — 표에 있는 문 말고는 어디서도 잠기지 않는다', () => {
+  // C016 CHANGED — 조건을 가진 문이 하나 늘었다 (긴 밤에만 열리는 숲 안쪽의 문).
+  // C029 CHANGED — 그 조건이 사는 자리가 활성 표에서 **Lock** 으로 옮겨 갔다 (그 방의 access).
+  // C009 의 주장은 지워지지 않고 그대로다 — **Lock 이 걸리지 않은 문은 여전히 어디서도 잠기지
+  // 않는다.** 잠긴 표식이 서는 자리가 데이터를 따른다는 것을 데이터에서 얻어 잰다
+  // (이름을 손으로 세지 않는다).
+  it('S-016 Lock 이 걸리지 않은 문은 언제나 활성이다 — Lock 이 걸린 문 말고는 어디서도 잠기지 않는다', () => {
     // Given 지어진 방 전부의 관찰 결과 (미로의 패턴은 처음 그대로다 · 때는 고요다)
-    const conditioned = new Set(Object.keys(CONNECTOR_ACTIVATIONS));
+    // C029 CHANGED — 조건을 가진 문의 목록을 **Lock 색인**에서 얻는다 (활성 표가 사라졌다).
+    // 재는 사실은 한 값도 다르지 않다 — 이름을 손으로 세지 않는다는 규율도 그대로다.
+    const conditioned = new Set(
+      LOCKS.filter((lock) => lock.at.kind === 'connector').map((lock) => lock.at.ref),
+    );
     for (const [id, v] of rooms()) {
       const locked = exitsIn(v)
         .filter((e) => e.state !== 'open')
         .map((e) => e.id);
-      // Then 잠긴 표식은 전부 활성 조건 표에 있는 문이다
+      // Then 잠긴 표식은 전부 Lock 이 걸린 문이다
       for (const one of locked) expect({ region: id, one, conditioned: conditioned.has(one) }).toEqual({ region: id, one, conditioned: true });
       // 그리고 심장 쪽 문은 미로와 심장 두 방에서 실제로 잠겨 있다 (C009 가 세운 그것)
       if (id === FANTASY_MAZE || id === MAZE_HEART) expect(locked).toContain(MAZE_HEART_GATE);

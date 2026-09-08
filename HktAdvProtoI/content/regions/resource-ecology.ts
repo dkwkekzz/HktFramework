@@ -11,6 +11,17 @@
 // (Play 불변 조건 — 코드 변경 없이 폴리싱).
 
 import type { HazardOverlay, SeasonId } from './phases';
+import type { StatementKind } from './properties';
+import {
+  ASPECT_FLESH,
+  ASPECT_HEAT,
+  ASPECT_LIGHT,
+  RELATION_ABSORBS,
+  RELATION_EMITS,
+  RELATION_GROWS_ON,
+  RELATION_STORES,
+  propertyTag,
+} from './properties';
 
 /** 낮밤 둘 — 관찰 계약(WorldClockView.dayPhase)과 같은 글자다 (SeasonId 와 같은 이유로 여기 한 벌) */
 export type DayPhaseId = 'DAY' | 'NIGHT';
@@ -52,6 +63,22 @@ export type SupplyMode =
   | 'event-scarce';
 
 /**
+ * 그 재료가 **가진 성질** 하나 (C029 ADDED · L2-World-Access §4.2 · K7).
+ *
+ * `tag` 는 성질 어휘의 축:관계이고(properties.ts), `from` 은 그것이 그 재료의 **어느 문장에서
+ * 나왔는가**다 (Material §6.1 의 다섯 항). 문장에 없는 성질을 태그가 말하지 않게 하는 자리이고,
+ * 검사 ㉞ 가 그 짝을 묻는다.
+ *
+ * 태그는 **문장의 색인이지 문장이 아니다** — 같은 `light:emits` 라도 생체 광석은 "쌓인 자리를
+ * 붉게 물들인다" 이고 빙정석은 "푸르게 빛난다" 다. 사람이 읽을 말은 View 의 표가 그 재료의
+ * 문장으로 옮긴다 (spec R5 경계 ② · propertyPhraseCode).
+ */
+export interface SeedProperty {
+  tag: string;
+  from: StatementKind;
+}
+
+/**
  * Material Seed — 이 세계가 내는 재료 하나 (A.1).
  *
  * **쓰임을 적지 않는다** (S10 · unresolvedUses). 무엇으로 만드는지는 4층 이후가 정하고,
@@ -69,6 +96,17 @@ export interface MaterialSeed {
   worldCause: string;
   /** 자연 형태 코드들 — 같은 것의 다른 순도다 (종류를 늘린 것이 아니다) */
   forms: readonly string[];
+  /**
+   * 그 재료가 **가진 성질**들 (C029 ADDED · Access §9.2).
+   *
+   * 밝히지 않으면 **성질이 없는 재료**다 — 고래 비늘이 그렇고(Access §9.2 "성질 미정" ·
+   * 빈칸 4) 그것은 결손이 아니라 아직 적히지 않은 자리다. 지목한 판은 그 재료의 이름까지만
+   * 말한다 (spec SPEC-005 경계 ①).
+   *
+   * **규칙 코드는 이 태그를 읽지 않는다** — 성질이 실제로 요구에 답하는가는 3 · 4층의 것이고
+   * (K12), 2층에서 이 값을 읽는 것은 도구의 검사와 지목한 판뿐이다.
+   */
+  properties?: readonly SeedProperty[];
 }
 
 /** 원천 하나가 밝히는 것 — 자리는 여기 없다. 자리는 Description 의 resource point 가 소유한다 */
@@ -255,6 +293,21 @@ export interface ResourceSourceSpec {
    * (경계 ②).
    */
   regrownCode?: string;
+  /**
+   * **고갈된 동안** 실리는 조건 코드 (C030 ADDED · spec R3 · SPEC-003).
+   *
+   * `regrownCode?` 의 **형제**다 — 저것은 "그 자리가 처음 자리가 아니다" 이고 이것은
+   * **"그 자리가 지금 비었다"** 다. 둘 다 원천이 밝혔을 때만 실리고, 둘 다 "지금 없다" 의
+   * 사유(recovery-stalled · condition-unmet · not-this-season)와 갈리는 갈래다:
+   * 저것들은 되돌아옴을 멎게 하는 **원인**이고 이 둘은 그 자리에 대한 **말**이다.
+   *
+   * 되돌아오는 중이거나 있는 동안에는 실리지 않는다 — 바닥난 그 동안만이다 (경계 ①).
+   *
+   * **밝히지 않은 원천은 몇 번을 캐도 한 글자도 늘지 않는다** (지금 세계의 나머지 전부) —
+   * occurrence? · recoverySpeed? · regrownCode? 를 밝히지 않은 원천이 그 계통 밖인 것과
+   * 같은 규율이다.
+   */
+  depletedCode?: string;
 }
 
 /**
@@ -265,6 +318,17 @@ export interface ResourceSourceSpec {
  * 사람이 읽을 문구는 View 의 표가 옮긴다 (조건 코드의 선례 그대로).
  */
 export const FROST_VEIN_REGROWN = 'frost-vein-regrown';
+
+/**
+ * 조건 코드 — **자리가 식었다** (C030 ADDED · Play V25 · spec SPEC-003).
+ *
+ * 다시 자란 자리(FROST_VEIN_REGROWN)와 갈린다 — 저것은 "있는데 그 자리가 처음 자리가
+ * 아니다" 이고 이것은 **"그 자리가 지금 비었다"** 다. 되돌아옴이 멎은 것(RECOVERY_STALLED) ·
+ * 아직 그때가 아닌 것(CONDITION_UNMET)과도 갈린다: 저것들은 **왜 없는가**의 사유이고
+ * 이것은 그 자리가 지금 어떠한가다 (열이 빠져나간 벽이다).
+ * 사람이 읽을 문구는 View 의 표가 옮긴다 (조건 코드의 선례 그대로).
+ */
+export const EMBER_COOLED = 'ember-cooled';
 
 /** 조건 코드 — 되돌아오는 일이 멎었다 (Play §5.5 의 코드 그대로) */
 export const RECOVERY_STALLED = 'recovery-stalled';
@@ -359,6 +423,18 @@ export const GIANT_TREE_FUNGUS = 'GIANT_TREE_FUNGUS';
  */
 export const FROST_CRYSTAL = 'FROST_CRYSTAL';
 
+/**
+ * 열을 저장하는 결정 — 거목 속이 낳는 것 (C030 ADDED · spec SPEC-001).
+ *
+ * 이름은 빙정석이 그랬듯 L2-World-Region §5.1 의 **이름 표에 이미 있는 것**을 그대로 쓴다 —
+ * 지어낸 이름이 아니다. 협곡의 결정이 열을 **먹는** 것과 갈리는 자리가 여기다: 이것은
+ * 살아 있는 것 안에서 열이 **쌓여** 굳은 것이고, 그래서 세계 원인이 숲의 사슬이다
+ * (Access D2 · Play §5.0).
+ * **쓰임은 적지 않는다** (S10) — "빙결 Region 에서 체온을 유지한다" 는 무엇에 쓰이는가이고,
+ * 그것은 4층 이후의 것이다 (spec 기본형 ⑦).
+ */
+export const HEAT_CRYSTAL = 'HEAT_CRYSTAL';
+
 /** 자연 형태 코드 — 같은 Seed 가 자리마다 다른 순도로 난다 (A.1 "같은 것의 세 순도") */
 export const FORM_OUTCROP = 'outcrop';
 export const FORM_ROOT_NODULE = 'root-nodule';
@@ -431,6 +507,14 @@ export const FORM_DRIFT_DUST = 'drift-dust';
 /** 언 사체에 매달려 자란 결정 */
 export const FORM_CORPSE_RIME = 'corpse-rime';
 
+/**
+ * 서리가 앉지 않는 **벽의 잉걸** (C030 ADDED · Play §5.3 Trace).
+ *
+ * 열 결정의 자연 형태 하나뿐이다 — 순도가 여럿인 재료(생체 광석 다섯 · 빙정석 넷)와 달리
+ * 이 재료가 나는 자리가 이 세계에 하나뿐이기 때문이고, 그것은 결손이 아니라 지금의 사실이다.
+ */
+export const FORM_WALL_EMBER = 'wall-ember';
+
 export const MATERIAL_SEEDS: readonly MaterialSeed[] = [
   // 생체 광석 — 거대 수목이 뿌리로 빨아올리는 그 광물. 살아 있는 것을 따라 옮겨 다니며 쌓인다.
   // C014 CHANGED — 형태가 넷이다. 물에 갈린 알갱이와 호수 바닥의 침전도 **같은 Seed** 다
@@ -448,6 +532,14 @@ export const MATERIAL_SEEDS: readonly MaterialSeed[] = [
       FORM_SEEP_CRUST,
       // 여섯째 순도 — 흩어진 자갈 (RoomBearsMaterial 실주행 판정)
       FORM_ORE_PEBBLE,
+    ],
+    // C029 ADDED — 이 재료가 가진 성질 둘 (Access §9.2). **문장에 있는 것만 태그로 옮겼다.**
+    //   flesh:stores  "살아 있는 것의 몸을 따라 옮겨 다니며 쌓인다" (거동)
+    //   light:emits   "쌓인 자리를 붉게 물들인다" (보이는 것)
+    // "물에 갈리면 붉은빛을 잃는다" 는 성질이 아니라 그 성질이 옅어지는 자리라 태그가 없다.
+    properties: [
+      { tag: propertyTag(ASPECT_FLESH, RELATION_STORES), from: 'behavior' },
+      { tag: propertyTag(ASPECT_LIGHT, RELATION_EMITS), from: 'appearance' },
     ],
   },
   // 광식충 허물 — 생체 광석을 먹는 벌레가 벗은 것. 폐허의 선광 더미에 섞인 것도 이것이다
@@ -471,6 +563,9 @@ export const MATERIAL_SEEDS: readonly MaterialSeed[] = [
       // 벗은 것 · 터진 것 곁에 **삭을 것**이 선다 (Play §5.7 · Life §2.2 "생명의 죽음과 사체")
       FORM_CARCASS,
     ],
+    // C029 ADDED — 성질 하나 (Access §9.2). "붉은 결이 있되 옅다" — 먹은 것의 빛이 남아 있다.
+    // "마르면 부서진다" · "밑동 그늘에 모인다" 는 어휘 일곱 중 가리키는 관계가 없어 태그가 없다.
+    properties: [{ tag: propertyTag(ASPECT_LIGHT, RELATION_EMITS), from: 'appearance' }],
   },
   // 거목균 — 포식수의 사체에서만 자라 사체를 삭이고 흙을 붉게 되돌린다 (C014 ADDED · D2).
   // 사슬의 **끝이자 시작**이다: 이것이 멎으면 거목의 축적이 멎고, 그러면 노두도 멎는다
@@ -479,10 +574,20 @@ export const MATERIAL_SEEDS: readonly MaterialSeed[] = [
     worldCause: FOREST_CHAIN,
     // 둘째 형태 — 밤에만 피는 갓 (RoomBearsMaterial 실주행 판정 · 낮밤을 탄다)
     forms: [FORM_NEST_MYCELIUM, FORM_GLOW_CAP],
+    // C029 ADDED — 성질 둘 (Access §9.2).
+    //   flesh:absorbs   "사체에서만 자라 사체를 삭인다" (거동 — 몸을 먹는다)
+    //   light:absorbs   "그늘에서만 산다" (조건에 대한 응답 — 빛이 있으면 서지 못한다)
+    properties: [
+      { tag: propertyTag(ASPECT_FLESH, RELATION_ABSORBS), from: 'behavior' },
+      { tag: propertyTag(ASPECT_LIGHT, RELATION_ABSORBS), from: 'conditionResponse' },
+    ],
   },
   // 고래 비늘 — 이 숲이 낳지 않는 유일한 재료다 (C018 ADDED · 확정 9).
   // 사슬 밖에서 온다: 하늘을 지나가는 것이 흘리고 간 것이고, 그래서 세계 원인이 다르다.
   // **쓰임은 적지 않는다** (S10) — 무엇으로 만드는지는 4층 이후가 정한다.
+  // C029 — **성질도 밝히지 않는다** (Access §9.2 "성질 미정" · 빈칸 4). 이 재료가 무엇을
+  // 가졌는지는 아직 어느 문서도 말하지 않았고, 없는 것을 지어내지 않는다. 지목한 판은
+  // 이름까지만 말한다 (spec SPEC-005 경계 ①).
   {
     id: WHALE_SCALE,
     worldCause: SKY_PASSAGE,
@@ -495,6 +600,36 @@ export const MATERIAL_SEEDS: readonly MaterialSeed[] = [
     id: FROST_CRYSTAL,
     worldCause: CRYSTAL_GROWTH,
     forms: [FORM_RIME, FORM_FROST_VEIN, FORM_DRIFT_DUST, FORM_CORPSE_RIME],
+    // C029 ADDED — 성질 셋 (Access §9.2 · RoomOfAnotherKind 확정 3). 이 세계에서 성질을
+    // 가장 많이 진 재료이고, 셋 다 확정 3 의 문장 셋을 그대로 가리킨다.
+    //   heat:absorbs    "열을 먹는다 — 닿은 것을 식히고 숨이 언다" (거동)
+    //   light:emits     "푸르게 빛난다" (보이는 것)
+    //   heat:grows-on   "열이 닿으면 자란다" (조건에 대한 응답)
+    // **빙결 심층의 문이 묻는 `heat:hides` 에 이 셋 중 하나(heat:absorbs)가 SUPPORTS 로
+    // 답한다** (properties.ts 의 answers) — 그러나 2층은 그것을 판정하지 않고, 이 재료를
+    // 지녀도 그 문은 열리지 않는다 (K12).
+    properties: [
+      { tag: propertyTag(ASPECT_HEAT, RELATION_ABSORBS), from: 'behavior' },
+      { tag: propertyTag(ASPECT_LIGHT, RELATION_EMITS), from: 'appearance' },
+      { tag: propertyTag(ASPECT_HEAT, RELATION_GROWS_ON), from: 'conditionResponse' },
+    ],
+  },
+  // 열을 저장하는 결정 — 거목 속이 낳는 것 (C030 ADDED · spec SPEC-001).
+  // 세계 원인이 **숲의 사슬**이다: 협곡의 결정처럼 그 자리에서 자라는 것이 아니라 살아 있는
+  // 것 안에 열이 쌓여 굳은 것이다 (Access D2 "살아 있는 것 안에 쌓인다").
+  // 형태는 하나 — 이 재료가 나는 자리가 이 세계에 하나뿐이다 (경계 ②).
+  {
+    id: HEAT_CRYSTAL,
+    worldCause: FOREST_CHAIN,
+    forms: [FORM_WALL_EMBER],
+    // C030 ADDED — 성질 하나 (Access §9.2 의 HEAT_CRYSTAL 행).
+    //   heat:stores  "열을 담는다 — 둘레가 식어도 제 열을 지닌다" (거동)
+    // **빙결 심층의 문이 묻는 `heat:hides` 에 이것이 SUPPORTS 로 답한다** (properties.ts 의
+    // answers) — 그러나 2층은 그것을 판정하지 않고, 이 재료를 지녀도 그 문은 열리지 않는다
+    // (K12 · spec SPEC-007). 빙정석의 heat:absorbs 와 **같은 요구에 답하는 다른 성질**이고,
+    // 그래서 답이 둘이 된다 (SPEC-006).
+    // **쓰임은 적지 않는다** (S10) — 무엇으로 만드는지는 4층 이후가 정한다.
+    properties: [{ tag: propertyTag(ASPECT_HEAT, RELATION_STORES), from: 'behavior' }],
   },
 ];
 
@@ -700,22 +835,54 @@ export function frostBreathTag(level: number): string {
   return `${FROST_BREATH_PREFIX}${level}`;
 }
 
+// ── 거목 속의 흔적 어휘 (C030 ADDED · spec R2 · SPEC-002 · 기본형 ④) ──
+//
+// **같은 기제 · 다른 태그**다 — C020 이 협곡의 숨에 쓴 그 판단의 연장이고 여기서 새로
+// 정하는 기제가 하나도 없다. 숲의 흙 사다리가 색이고 협곡의 것이 숨이 어는 정도라면,
+// 거목 속의 것은 **온기가 오르는 정도**다: 원천 둘레가 방 바닥보다 한 단계 짙고, 고갈되면
+// 한 단계 옅어지고, 되돌아오면 제 단계로 돌아온다 (C011 · C012 · C013 이 세운 그것 그대로).
+//
+// 단계를 셋까지만 두는 이유 — 이 사다리는 방 **하나 안에서** 나뉜다 (방 바닥 1 · 원천 쪽
+// 절반 2 · 원천 둘레 3). 숲의 흙은 방 여섯에 걸쳐 다섯 단계를 놓을 자리가 있었지만 여기는
+// 없다. 협곡의 숨이 셋인 것과 같은 이유이고, 그것을 그대로 따랐다.
+//
+// **세 어휘가 한 자리에서 섞이지 않는다** (SPEC-002 경계 ①) — 이 방에는 흙 사다리도 숨의
+// 사다리도 area 가 하나도 없고, 숲과 협곡의 방에는 온기의 area 가 하나도 없다. 그것은
+// 규칙이 아니라 데이터의 사실이고, 그래서 아래 `traceLevel` 은 셋 중 어느 것이든 읽어도 된다.
+
+/** 거목 속 흔적 태그의 접두사. 뒤에 1..3 의 단계가 붙는다 */
+export const EMBER_WARMTH_PREFIX = 'ember-warmth:';
+
+/** 가장 짙은 단계 — 표현의 색 표와 검증이 함께 읽는다 (SOIL_STAIN_MAX · FROST_BREATH_MAX 의 선례) */
+export const EMBER_WARMTH_MAX = 3;
+
+/** 그 단계의 거목 속 흔적 태그 — 데이터도 표현도 이 함수 하나로 이름을 짓는다 */
+export function emberWarmthTag(level: number): string {
+  return `${EMBER_WARMTH_PREFIX}${level}`;
+}
+
 /**
- * RULE-TRACE-STRENGTH-001 (C020 CHANGED · spec R8) — 흔적 태그의 단계.
- * 어휘 **둘 중 어느 것이든** 읽는다. 흔적이 아니면 0 이다.
+ * RULE-TRACE-STRENGTH-001 (C020 CHANGED · C030 CHANGED · spec R2) — 흔적 태그의 단계.
+ * 어휘 **셋 중 어느 것이든** 읽는다. 흔적이 아니면 0 이다.
  *
- * 세계가 흔적의 세기를 묻는 자리는 이제 이 한 함수를 부른다 — 두 벌로 나누면 방마다
- * 어느 어휘를 쓰는지 세계가 알아야 하고, 그러면 규칙이 방을 이름으로 아는 자리가 생긴다
- * (C004 가 세운 규율). 여기가 아는 것은 "이 세계가 아는 흔적 어휘" 둘뿐이고, 어느 방이
+ * 세계가 흔적의 세기를 묻는 자리는 이 한 함수를 부른다 — 여러 벌로 나누면 방마다 어느
+ * 어휘를 쓰는지 세계가 알아야 하고, 그러면 규칙이 방을 이름으로 아는 자리가 생긴다
+ * (C004 가 세운 규율). 여기가 아는 것은 "이 세계가 아는 흔적 어휘" 셋뿐이고, 어느 방이
  * 어느 것을 쓰는지는 그 방 Description 의 태그에만 있다.
  *
- * 흙의 사다리를 **먼저** 묻는다 — 순서가 답을 바꾸지는 않지만(접두사가 서로 다르므로 한
- * 태그가 둘 다일 수 없다) 먼저 선 어휘가 앞이어야 읽는 사람이 무엇이 더해졌는지 안다.
+ * 차례는 **선 차례**다 (흙 · 숨 · 온기) — 순서가 답을 바꾸지는 않지만(접두사가 서로 달라
+ * 한 태그가 둘일 수 없다) 먼저 선 어휘가 앞이어야 읽는 사람이 무엇이 더해졌는지 안다.
+ * 앞의 두 어휘를 읽던 답은 **한 값도 달라지지 않는다** (spec R2 · SPEC-002 경계 ①) —
+ * `soilStainLevel` 은 한 글자도 바뀌지 않았고 숨의 사다리를 읽는 두 줄도 그 자리 그대로다.
  */
 export function traceLevel(tag: string): number {
   const soil = soilStainLevel(tag);
   if (soil > 0) return soil;
-  if (!tag.startsWith(FROST_BREATH_PREFIX)) return 0;
-  const level = Number(tag.slice(FROST_BREATH_PREFIX.length));
+  if (tag.startsWith(FROST_BREATH_PREFIX)) {
+    const level = Number(tag.slice(FROST_BREATH_PREFIX.length));
+    return Number.isFinite(level) && level > 0 ? level : 0;
+  }
+  if (!tag.startsWith(EMBER_WARMTH_PREFIX)) return 0;
+  const level = Number(tag.slice(EMBER_WARMTH_PREFIX.length));
   return Number.isFinite(level) && level > 0 ? level : 0;
 }

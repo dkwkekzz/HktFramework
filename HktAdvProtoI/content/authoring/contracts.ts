@@ -16,6 +16,8 @@
 import type { WorldContracts } from '../../engine/world-authoring/grade';
 import {
   LIFE_FORMATION_MODES,
+  PROPERTY_ASPECTS,
+  PROPERTY_RELATIONS,
   RECOVERY_CARCASS_DECAY,
   RECOVERY_MOLT_CYCLE,
   REGION_GRAPH,
@@ -98,6 +100,16 @@ export const WORLD_CONTRACTS: WorldContracts = {
   transitions: [...new Set(REGION_GRAPH.connectors.map((c) => c.transition))].sort(),
   carriers: CARRIERS,
   roles: ROLES,
+  // 성질의 축과 관계 (C031 ADDED) — 어휘의 출처는 `content/regions/properties.ts` 하나이고
+  // 여기는 그것을 **읽는다** (손으로 옮기지 않는다 · transitions 가 graph 에서 읽는 그 어법).
+  // 두 벌로 적으면 어느 날 하나가 늦는다.
+  //
+  // **판정하는 방식은 한 줄도 바뀌지 않는다** — 등급 판정기는 이 둘을 아직 대조에 쓰지 않고,
+  // 그래서 지금 방들의 등급이 한 값도 달라지지 않는다. brief 가 요구와 답을 성질로 적기
+  // 전에는 대조할 입력이 없기 때문이다 (Out of Scope — 그것은 T2 를 넓히는 Cycle 의 것).
+  // 이 Cycle 이 하는 것은 어휘를 **등록**하는 데까지다 (Play §5.7 의 말 그대로).
+  propertyAspects: PROPERTY_ASPECTS.map((aspect) => aspect.id),
+  propertyRelations: PROPERTY_RELATIONS.map((relation) => relation.id),
   regions: REGION_SPECS.map((spec) => spec.id),
   frontiers: [...(REGION_GRAPH.frontiers ?? [])],
   rules: STANDING_RULES,

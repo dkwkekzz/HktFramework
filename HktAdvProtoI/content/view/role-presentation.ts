@@ -78,6 +78,8 @@ export const ROLE_PRESENTATIONS: Readonly<Record<string, RolePresentation>> = {
       'frost-vein': 'source:frost-vein',
       'drift-dust': 'source:drift-dust',
       'corpse-rime': 'source:corpse-rime',
+      // 거목 속의 것 하나 (C030) — 표에 한 줄이 늘 뿐이다. 열넷이 열다섯이 되어도 어법은 그대로다
+      'wall-ember': 'source:wall-ember',
       // 흩어진 것 셋 (RoomBearsMaterial 실주행 판정) — 표에 세 줄이 늘 뿐이다
       'ore-pebble': 'source:ore-pebble',
       'husk-shard': 'source:husk-shard',

@@ -51,6 +51,7 @@ import {
   HEART_LAKE,
   ICE_CANYON,
   FROST_CANYON,
+  LOCKS,
   PREDATOR_NEST,
   PRESENCE_LAYER,
   RED_EYE_TREE,
@@ -856,10 +857,37 @@ function connectorSpot(connectorId: string, region: string): XZ {
 /** 빙결 심층으로 드는 문 — 이름을 손으로 적지 않고 graph 가 고르게 한다 */
 const depthDoor = () => REGION_GRAPH.connectors.find((c) => c.to.region === FROST_DEPTH);
 
-/** 이 Cycle 이 처음 내는 데이터 문(門) — 없으면 그 항만 붉어진다 */
-const connectorRequirements = (): Record<string, readonly string[]> | undefined =>
-  (REGIONS as unknown as { CONNECTOR_REQUIREMENTS?: Record<string, readonly string[]> })
-    .CONNECTOR_REQUIREMENTS;
+/**
+ * 문마다 그 표식이 지는 코드들 — 밝힌 문만 든다 (C029 CHANGED).
+ *
+ * C020 은 이것을 `CONNECTOR_REQUIREMENTS` 표에서 읽었다. 그 표가 사라지고 같은 사실이 그 방의
+ * Lock 으로 옮겨 갔으므로 여기서도 Lock 을 읽는다 — **재는 사실은 한 값도 다르지 않다**:
+ * 그 문 하나만이 코드를 지고, 그 코드가 표식에 실리며, 열림/잠김을 건드리지 않는다.
+ * (그 코드가 무엇을 말하는가는 C029 에서 요구의 이름에서 현상으로 바뀌었고, 이 시나리오는
+ * 코드의 글자를 손으로 적지 않으므로 그 뜻에 매이지 않는다.)
+ */
+const connectorRequirements = (): Record<string, readonly string[]> | undefined => {
+  const table: Record<string, readonly string[]> = {};
+  for (const lock of LOCKS) {
+    if (lock.at.kind !== 'connector' || lock.reason === undefined) continue;
+    table[lock.at.ref] = [lock.reason];
+  }
+  return table;
+};
+
+/**
+ * **문 앞에 선 몸이** 그 표식에서 읽는 코드들 (C031 AFFECTED).
+ *
+ * 위의 표가 데이터가 밝힌 것이라면 이것은 그 자리에서 읽히는 것이다 — 완화를 밝힌 문은 그
+ * 자락 안에서 밝힌 사유를 **대신하는** 코드를 싣는다 (RULE-LOCK-RELAXED-001). 빙결 심층 문
+ * 앞의 자리는 눈보라 자락 안에 통째로 들어 있어(C031 이 잰 세계의 사실) 거기 선 몸은 늘
+ * 그것을 읽는다. 코드의 글자는 여기서도 손으로 적지 않는다.
+ */
+const reasonsAtDoorFront = (connectorId: string): readonly string[] => {
+  const lock = LOCKS.find((one) => one.at.kind === 'connector' && one.at.ref === connectorId);
+  if (lock?.reason === undefined) return [];
+  return [lock.relaxedReason ?? lock.reason];
+};
 
 // ─────────────────────────────────────────────────────────────────────
 // SPEC-001 — 빙정석 계통이 선다
@@ -1506,9 +1534,13 @@ describe('SPEC-009 협곡이 요구하는 것은 협곡에 없다', () => {
     // When 그 문 앞에 서서 본다
     const w = standingIn(CANYON_INNER, connectorSpot(door!.id, CANYON_INNER));
     // Then 그 출구 존재의 조건 자리에 그 코드가 실린다 (봉투에 새 자리는 나지 않는다)
+    //
+    // C031 AFFECTED — 그 자리는 눈보라 자락 **안**이라 밝힌 사유를 대신하는 완화된 코드가
+    // 실린다. 이 항이 재는 사실은 그대로다: 그 문의 표식이 그 문의 사유 코드를 지고, 그것이
+    // 있던 조건 자리 하나에 실리며, 열림/잠김을 한 값도 건드리지 않는다.
     const seen = exitOf(w.observe(), door!.id) as (EntityView & { conditions?: string[] }) | undefined;
     expect({ id: door!.id, standing: seen !== undefined }).toEqual({ id: door!.id, standing: true });
-    for (const code of codes!) {
+    for (const code of reasonsAtDoorFront(door!.id)) {
       expect({ code, carried: seen!.conditions?.includes(code) ?? false }).toEqual({ code, carried: true });
     }
   });

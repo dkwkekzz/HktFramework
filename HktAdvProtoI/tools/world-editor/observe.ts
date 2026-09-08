@@ -5,9 +5,11 @@
 //   npm run world:observe --graph    같은 것 (인자를 주지 않으면 --graph 로 본다 —
 //                                    C004 에서 이 도구가 아는 것이 그것 하나뿐이었기 때문이다)
 //   npm run world:observe -- --report
-//                                    **세계의 보고** (C021 · SPEC-006) — 검사 스물여섯과
+//                                    **세계의 보고** (C021 · SPEC-006) — 검사 서른다섯과
 //                                    **방마다의 분포**(기회 자리 · 붙잡는 것 · 흐름과 고립)를
-//                                    방 차례로 편다. 두 Region 을 나란히 견주는 자리다
+//                                    방 차례로 편다. 두 Region 을 나란히 견주는 자리다.
+//                                    C030 이 **열쇠 × 자물쇠 표**를 뒤에 더한다 — Lock 마다
+//                                    답의 종류와 그 원천이 선 방을 한 장으로 편다
 //   npm run world:observe -- <방> [--height --surface --traversable --semantic --top-view]
 //                            [--semantic=<layer>] [--report] [--out <dir>] [--at <철>]
 //                                    그 방 하나를 본다 (C007). 그림을 하나도 밝히지 않으면 --report 로 본다
@@ -30,17 +32,23 @@ import {
   ANCHOR_LAYER,
   CLOSED_CONNECTORS,
   COMPILE_RULES,
-  CONNECTOR_ACTIVATIONS,
   REGION_GRAPH,
   REGION_SPECS,
   SETTLEMENT_LAYER,
   START_REGION_ID,
+  lockOfConnector,
   regionSpec,
   type RegionSpec,
   type SeasonId,
 } from '../../content/regions';
 import { pointsOf, type Extent } from '../../engine/world-authoring/description';
-import { checkGraph, type CheckItem } from '../../engine/world-authoring/check';
+import {
+  accessAnswerMap,
+  checkGraph,
+  type AccessAnswerCell,
+  type AccessAnswerRow,
+  type CheckItem,
+} from '../../engine/world-authoring/check';
 import { compileRegion } from '../../engine/world-authoring/compile';
 import type { CompiledRegion, CompiledWorldTerrain } from '../../engine/world-authoring/compiled';
 import {
@@ -53,7 +61,13 @@ import {
   type TerrainSummary,
 } from '../../engine/world-authoring/observe';
 import { encodePng } from './png';
-import { runWorldCheck, SEASON_IDS, WORLD_CHECK_ECOLOGY } from './check';
+import {
+  runWorldCheck,
+  worldCheckInput,
+  SEASON_IDS,
+  WORLD_CHECK_ACCESS,
+  WORLD_CHECK_ECOLOGY,
+} from './check';
 
 // ── 표 그리기 ────────────────────────────────────────────────────────
 //
@@ -503,18 +517,27 @@ function checkBody(checks: readonly CheckLine[]): string[] {
 //
 // 도구는 여기서도 **판정하지 않는다** — 데이터가 밝힌 것을 그 철로 걸러 적을 뿐이다.
 
-/** 그 철에 이 문이 어떠한가 — 활성 표를 읽는다 (판정이 아니라 옮겨 적기다) */
+/**
+ * 그 철에 이 문이 어떠한가 — 그 문에 걸린 Lock 을 읽는다 (판정이 아니라 옮겨 적기다).
+ *
+ * C029 CHANGED — 읽는 자리가 활성 표에서 Lock 으로 바뀌었다 (그 방의 access.locks).
+ * **보고의 글자는 한 자도 달라지지 않는다** — 같은 사실을 새 자리에서 읽을 뿐이다.
+ * 성질 · 아는 것의 요구는 여기에 적지 않는다: 그것은 열림을 판정하지 않으므로 "그 철에 이
+ * 문이 어떠한가" 의 답에 들어올 자리가 없다 (spec R1 경계 ①).
+ */
 function doorAtSeason(connectorId: string, season: SeasonId): string {
   if (isClosed(connectorId)) return '닫힘 (언제나)';
-  const activation = CONNECTOR_ACTIVATIONS[connectorId];
-  if (!activation) return '열림';
+  const lock = lockOfConnector(connectorId);
+  if (!lock) return '열림';
   const parts: string[] = [];
-  if (activation.seasons) {
-    parts.push(activation.seasons.includes(season) ? '열림' : `닫힘 (${activation.seasons.join(' · ')} 에만)`);
+  const seasons = lock.requires.find((one) => one.time)?.time?.seasons;
+  if (seasons) {
+    parts.push(seasons.includes(season) ? '열림' : `닫힘 (${seasons.join(' · ')} 에만)`);
   }
   // 패턴 조건은 방의 지금 State 가 정한다 — 시각으로는 알 수 없으므로 조건만 적는다
-  if (activation.patterns) {
-    parts.push(`패턴 조건 (${activation.region ?? '?'} ${activation.patterns.join(' · ')})`);
+  const state = lock.requires.find((one) => one.state)?.state;
+  if (state) {
+    parts.push(`패턴 조건 (${state.region} ${state.patterns.join(' · ')})`);
   }
   return parts.length === 0 ? '열림' : parts.join(' · ');
 }
@@ -739,8 +762,78 @@ function roomLines(items: readonly CheckItem[]): string[] {
   return lines;
 }
 
+// ── 열쇠 × 자물쇠 (C030 ADDED · SPEC-006) ────────────────────────────
+//
+// Lock 마다 **답의 종류와 그 원천이 선 방**을 한 장으로 편다. 검사 ㉟ ㊴ ㊵ 이 이미 세는
+// 것이고, 그것을 사람이 읽는 행과 열로 놓는 것이 이 절의 전부다.
+//
+// **도구가 하는 일은 글자를 놓는 것뿐이다** — 판정하지 않고(status 도 pass/fail 도 없다)
+// 답을 스스로 고르지도 않는다: 답을 고르는 자리는 기반의 `accessAnswerMap` 하나이고 검사
+// 아홉도 같은 자리를 부른다 (spec R4 경계 ① · 같은 답을 도구가 둘로 세면 보고가 거짓말을
+// 한다). 검사와 **같은 입력**(worldCheckInput)을 받으므로 두 절의 답이 갈릴 자리가 없다.
+//
+// 차례는 전부 데이터의 배열 순서다 (locks · answerKinds · seeds · seedSources) —
+// 두 번 돌리면 글자까지 같다 (경계 ②). 세계를 바꾸지 않는 읽기 전용이다.
+
 /**
- * 세계의 보고 한 장 (C021 ADDED · SPEC-006) — 검사 스물여섯 · 방마다의 분포.
+ * 그 답 하나를 글자로 — `재료 (성질 @ 그 원천이 선 방들)`.
+ *
+ * C031 CHANGED — 성질이 **빈 글자**로 오는 답이 생겼다 (무르게 하는 것은 성질로 답하지 않는다 ·
+ * 기반의 LockAnswer.property 주석). 그때는 성질 자리를 지운다 — 빈 자리를 괄호 안에 남기면
+ * 표가 없는 것을 있는 척한다. 어느 답이 그런지는 이 도구가 알지 못한다: 온 글자를 볼 뿐이다.
+ */
+function answerText(answer: { id: string; property: string; regions: readonly string[] }): string {
+  const where = answer.regions.length === 0 ? '원천 없음' : answer.regions.join(' · ');
+  const what = answer.property === '' ? '' : `${answer.property} `;
+  return `${answer.id} (${what}@ ${where})`;
+}
+
+/** 열쇠 × 자물쇠 표 — Lock 하나가 한 행, 답의 종류가 열, 칸은 그 종류의 답의 수다 */
+function answerMapLines(): string[] {
+  const rows = accessAnswerMap(worldCheckInput());
+  const kinds = WORLD_CHECK_ACCESS.answerKinds;
+  const lines: string[] = [];
+  lines.push(rule());
+  lines.push(
+    `  열쇠 × 자물쇠 ${rows.length} (locks 순서 · 검사 ㉟ ㊴ ㊵ 이 세는 것을 행과 열로 놓는다)`,
+  );
+  if (rows.length === 0) {
+    lines.push('    묻는 것이 하나도 없다');
+    return lines;
+  }
+  const cellOf = (row: AccessAnswerRow, kind: string): AccessAnswerCell | undefined =>
+    row.cells.find((one) => one.kind === kind);
+  // 칸에는 **수**만 둔다 — 이름을 칸에 넣으면 한 답이 길어질 때 표의 다른 행까지 넓어져
+  // 행과 열이 읽히지 않는다. 답이 된 것의 이름과 그 원천의 방은 그 행 아래로 들여쓴다
+  // (방마다의 분포 절이 딸림 목록을 그렇게 다는 그 어법 그대로).
+  lines.push(
+    ...table(
+      ['Lock', '방', '중요', '묻는 것', ...kinds],
+      rows.map((row) => [
+        row.lock,
+        row.region,
+        row.important ? '중요' : '·',
+        row.requirements.length === 0 ? '·' : row.requirements.join(' · '),
+        ...kinds.map((kind) => String(cellOf(row, kind)?.answers.length ?? 0)),
+      ]),
+      '    ',
+    ),
+  );
+  // 딸림 목록 — Lock 차례 · answerKinds 차례 · 그 종류의 답 차례다. 답이 하나도 없는
+  // Lock 은 줄이 나지 않는다 (표의 0 이 이미 그 사실이다).
+  for (const row of rows) {
+    for (const kind of kinds) {
+      for (const answer of cellOf(row, kind)?.answers ?? []) {
+        lines.push(`        · ${row.lock}  ${kind}  ${answerText(answer)}`);
+      }
+    }
+  }
+  return lines;
+}
+
+/**
+ * 세계의 보고 한 장 (C021 ADDED · SPEC-006 / C030 CHANGED) — 검사 서른다섯 ·
+ * 방마다의 분포 · 열쇠 × 자물쇠.
  *
  * 방 하나의 보고(`renderRegionReport`)와 달리 땅을 컴파일하지 않는다 — 여기서 읽는 것은
  * 계통과 검사가 이미 낸 것뿐이다. **읽기 전용**이고 파일을 하나도 쓰지 않는다 (경계 ①).
@@ -755,6 +848,7 @@ export function renderWorldReport(): string {
   lines.push(`  검사 ${checks.length} (판정하지 않는다 — 수와 목록만 적는다)`);
   lines.push(...checkBody(checks));
   lines.push(...roomLines(report.items));
+  lines.push(...answerMapLines());
   lines.push('');
   return lines.join('\n');
 }
@@ -884,7 +978,7 @@ export function parseArgs(args: readonly string[]): Parsed {
   if (positional.length === 0) {
     // 방을 주지 않았다 — 그림은 방이 있어야 한다 (그 자리는 C007 그대로다)
     if (pictures.length > 0) return { kind: 'usage', unknown: ['(방 이름이 없다)'] };
-    // `--report` 하나면 **세계의 보고**다 (C021 SPEC-006) — 검사 스물여섯과 방마다의 분포.
+    // `--report` 하나면 **세계의 보고**다 (C021 SPEC-006) — 검사 서른다섯과 방마다의 분포.
     // 방과 함께 쓰는 것들(--graph · --at)과는 섞이지 않는다: 무엇을 볼지가 갈리기 때문이다
     if (report) {
       if (graph) return { kind: 'usage', unknown: ['--report (--graph 와 함께 쓸 수 없다)'] };
