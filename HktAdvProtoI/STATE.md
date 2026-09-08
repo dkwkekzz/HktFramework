@@ -5,7 +5,7 @@
 
 ## 1. 다음에 할 일 — 레인
 
-한 Cycle = 브랜치 `cycle/C###` = 세션 하나. **말할 것: "C021 진행"**(Frost).
+한 Cycle = 브랜치 `cycle/C###` = 세션 하나. **말할 것: "C022 진행"**(Life).
 `advprotoi-cycle` 이 명세(spec.md) → 실현 → 마감을
 이어 돌리고 UNRESOLVED · GAP 에서만 멈춘다. PR 은 번호 순으로 합친다. 병렬 규칙은
 [Plan-Skill §4 항목 4](design/Plan-Skill-CycleExecutionWorkflow.md). 승인 게이트 없음 — Play 아홉 중 여덟이 승인돼 있다
@@ -26,9 +26,9 @@ design 이 다시 열리는 때는 둘 — ① 2층 Play 실주행에서 DESIGN 
 
 | 레인 | 지금 할 수 있는 것 | 기다리는 것 | 다음 |
 |---|---|---|---|
-| Frost — [RoomOfAnotherKind](content/roadmap/play/RoomOfAnotherKind.md) (컨텐츠 M5) | **C021** 추위가 고개를 넘는다 — Region 간 태그 덧씌움(carrier WIND) · 긴 밤의 빙결 심층 문 · 두 Region 나란한 보고 | — | 이 Play 의 마지막 |
-| Life — [RoomBearsLife](content/roadmap/play/RoomBearsLife.md) | 대기 (계약 · 확정 사항 · 상수는 [L2-World-Life.md](content/roadmap/L2-World-Life.md) 와 Play 에 있다) | Frost 닫힘 — C021 하나가 남았다 (탄생이 소비할 재료 · 탈 주기 · 대조할 갈래가 먼저) | C022 → C025 |
-| Access — [RoomAsksForPossibilities](content/roadmap/play/RoomAsksForPossibilities.md) | 대기 (계약 · 어휘 · 검사 ㉞~㊷ · 위임된 결정 D1~D5 는 [L2-World-Access.md](content/roadmap/L2-World-Access.md) 와 Play 에 있다) | Frost 닫힘 — C021 하나가 남았다 (첫 property Lock 이 협곡에 있다 — C020 이 요구를 표시까지 세웠다). Life 와 **병행** | C029 → C031 |
+| Frost — [RoomOfAnotherKind](content/roadmap/play/RoomOfAnotherKind.md) (컨텐츠 M5) | **닫혔다** — 남은 것은 Play Goal 실주행 확인이다 (C021 TODO X-⑦) | — | — |
+| Life — [RoomBearsLife](content/roadmap/play/RoomBearsLife.md) | 대기 (계약 · 확정 사항 · 상수는 [L2-World-Life.md](content/roadmap/L2-World-Life.md) 와 Play 에 있다) | — (Frost 가 닫혔다 — 탄생이 소비할 재료 · 탈 주기 · 대조할 갈래가 다 섰다) | C022 → C025 |
+| Access — [RoomAsksForPossibilities](content/roadmap/play/RoomAsksForPossibilities.md) | 대기 (계약 · 어휘 · 검사 ㉞~㊷ · 위임된 결정 D1~D5 는 [L2-World-Access.md](content/roadmap/L2-World-Access.md) 와 Play 에 있다) | — (Frost 가 닫혔다 — 첫 property Lock 의 요구가 협곡에 표시까지 서 있다). Life 와 **병행** | C029 → C031 |
 | ENGINE B — [Region 작성기](content/roadmap/L2-World-Tool-Scale.md) (도구 2단계) | 부를 단계가 없다 — T1~T6 이 다 섰다 (검사기 · brief 형 · 뼈대 생성기 절반 · 등급 판정기 · 초안기 · 판정 표면). 미지 한 줄이 방이 되고, 목록 하나가 후보 여럿이 되고, 나란히 놓아 승인/반려한다 | T3 의 나머지 — phases 는 이제 붙일 수 있다 (C016 이 섰다) · 생명 ecology 는 C022 · 템플릿은 Frost(C021) | Play HundredRooms — 그 둘이 선 뒤 |
 
 ## 2. 진행
@@ -42,12 +42,12 @@ design 이 다시 열리는 때는 둘 — ① 2층 Play 실주행에서 DESIGN 
 | RuleBoundRoom | 방은 규칙을 품는다 (환상의 미로 = Region 하나) | C008~C010 | **셋 다 닫힘** — Play Goal 실주행 확인이 남았다 |
 | RoomBearsMaterial | 방이 재료를 낳는다 (거대 악마의 숲 = M3 재료 계통) | C011~C014 | **넷 다 닫힘** — Play Goal 실주행 확인이 남았다 |
 | RoomNeverSame | 같은 방은 두 번 없다 (시계 · 네 철 · 소란 · 경로 = M4) | C015~C018 | **넷 다 닫힘** — Play Goal 실주행 확인이 남았다 |
-| RoomOfAnotherKind | 다른 갈래의 방 (M5 빙결 협곡 · 컨텐츠) | C019~C021 | C019 · C020 닫힘 — C021 이 남았다 |
+| RoomOfAnotherKind | 다른 갈래의 방 (M5 빙결 협곡 · 컨텐츠) | C019~C021 | **셋 다 닫힘** — Play Goal 실주행 확인이 남았다 (C021 TODO X-⑦) |
 | RoomBearsLife | 방이 생명을 낳는다 (허물의 주인 = M6 붉은 알집 · 숲이 값으로 한 바퀴 돈다) | C022~C025 | 대기 |
 | RoomAnswersWhenAsked | 물으면 답한다 (지목 · 대상 프레임 · 기록 · 세계 위 글자 0) | C026~C028 | **셋 다 닫힘** — Play Goal 실주행 확인이 남았다 |
 | RoomAsksForPossibilities | 방이 가능성을 묻는다 (Lock · 성질 어휘 · 여러 종류의 답 · 흔적 = M7 열을 저장하는 결정의 원천) | C029~C031 | 대기 |
 
-**Human 판정 대기 193** — 각 Cycle 의 `TODO.md` (그림은 같은 폴더 `shots/`). `npm run dev` 로 직접 본다.
+**Human 판정 대기 200** — 각 Cycle 의 `TODO.md` (그림은 같은 폴더 `shots/`). `npm run dev` 로 직접 본다.
 [C001](cycles/C001-region-graph-rooms/TODO.md) 8 · [C002](cycles/C002-many-exits/TODO.md) 8 ·
 [C003](cycles/C003-small-door-big-room/TODO.md) 6 · [C004](cycles/C004-polish-is-data/TODO.md) 6 ·
 [C005](cycles/C005-land-rises/TODO.md) 7 · [C006](cycles/C006-land-blocks-and-flows/TODO.md) 9 ·
@@ -57,7 +57,7 @@ design 이 다시 열리는 때는 둘 — ① 2층 Play 실주행에서 DESIGN 
 [C013](cycles/C013-the-world-brings-it-back/TODO.md) 10 · [C014](cycles/C014-condition-and-flow/TODO.md) 9 ·
 [C015](cycles/C015-the-world-has-a-clock/TODO.md) 8 · [C016](cycles/C016-a-season-changes-the-room/TODO.md) 10 ·
 [C017](cycles/C017-others-were-here/TODO.md) 12 · [C018](cycles/C018-something-passes-over/TODO.md) 13 ·
-[C019](cycles/C019-beyond-the-pass/TODO.md) 9 · [C020](cycles/C020-what-the-cold-makes/TODO.md) 8 · [C026](cycles/C026-a-place-answers/TODO.md) 7 ·
+[C019](cycles/C019-beyond-the-pass/TODO.md) 9 · [C020](cycles/C020-what-the-cold-makes/TODO.md) 8 · [C021](cycles/C021-cold-crosses-the-pass/TODO.md) 7 · [C026](cycles/C026-a-place-answers/TODO.md) 7 ·
 [C027](cycles/C027-a-being-stands-too/TODO.md) 7 · [C028](cycles/C028-the-answer-remains/TODO.md) 7.
 
 Play 여섯이 닫혔으므로 **Play 전체 실주행**이 그 위에 여섯 더 있다 —
@@ -73,12 +73,12 @@ RoomNeverSame(고요에 왔다 스밈에 다시 와 깊어진 자락을 보고, 
 ```text
 0 게임 방향   확정   L0-Game.md
 1 세계의 문법  확정   L1-World-Grammar.md
-2 세계 자체   열림   L2-World-Tool · Concept · Region · Material · Time · Life · Access — 세계 절반 기획 닫힘 → Play 아홉 중 여섯 닫힘 (§2)
+2 세계 자체   열림   L2-World-Tool · Concept · Region · Material · Time · Life · Access — 세계 절반 기획 닫힘 → Play 아홉 중 일곱 닫힘 (§2)
               도구 절반 2단계 L2-World-Tool-Scale(Region 작성기) 확정 — T1~T6 다 섰다 (진행표는 README §2.1)
 3 주체와 몸   미주입  ← 2층이 닫히면 다음.   4~7 (물건 · 대결 · 능력 · 성장) 미주입
 ```
 
-컨텐츠 층의 미지 — M1 거대 악마의 숲 · M2 환상의 미로 · M3 숲의 재료 계통(생체 광석 · 광식충 허물 · 거목균) · M4 천공고래의 길 · M5 빙결 협곡(방 · 위험 · 재료가 섰다 · 추위가 고개를 넘는 것은 C021) · M6 붉은 알집 · M7 열을 저장하는 결정의 원천. 정식 이름 표는 [L2-World-Region §5.1](content/roadmap/L2-World-Region.md).
+컨텐츠 층의 미지 — M1 거대 악마의 숲 · M2 환상의 미로 · M3 숲의 재료 계통(생체 광석 · 광식충 허물 · 거목균) · M4 천공고래의 길 · M5 빙결 협곡 · M6 붉은 알집 · M7 열을 저장하는 결정의 원천. 정식 이름 표는 [L2-World-Region §5.1](content/roadmap/L2-World-Region.md).
 주입 순서는 [content/roadmap/README.md](content/roadmap/README.md).
 
 ## 4. 코드에 있는 것
@@ -162,6 +162,12 @@ RoomNeverSame(고요에 왔다 스밈에 다시 와 깊어진 자락을 보고, 
         눈보라의 가루는 스밈과 긴 밤에만 선다 ·
         **문이 요구를 밝힐 수 있다** — 빙결 심층의 표식에 "저장된 열이 있어야 한다" 가 적히고
         그것을 채울 원천은 협곡에 없다(요구는 활성을 판정하지 않는다 — 2층은 표시까지다) ·
+        **추위가 고개를 넘는다**(C021): 위상이 **자기 방을 넘는다** — 한 방의 철이 이음을 넘어
+        다른 방의 조건 자락을 가리킬 수 있다(그 이음이 실제로 잇지 않으면 아무 일도 없다) ·
+        스밈과 긴 밤에 백왕령 산기슭의 안전 코드가 옅어진다(「산맥이 막는다」 → 「산맥이 겨우
+        막는다」 — 사라지지도 위험이 되지도 않는다. 안전은 자리가 아니라 조건이고 조건은 철을 탄다) ·
+        긴 밤에만 빙결 심층의 문이 열린다(철 조건을 가진 문이 둘) · 옆 면에 다시 선 원천이
+        그것을 말한다 ·
         content/regions/ 데이터 · content/authoring/briefs/ 방 열하나의 여덟 답(손으로 역기술 · T3 의 입력) ·
         content/authoring/templates/ 갈래별 땅 · 깊이별 크기와 흔적 · 역할별 원천 기본형(생성기가 받는 게임 명사) ·
         content/authoring/contracts.ts 어휘 일곱·다섯·일곱 · 방 · 경계 · 규칙(판정기가 대조하는 계약 목록)
@@ -176,12 +182,12 @@ RoomNeverSame(고요에 왔다 스밈에 다시 와 깊어진 자락을 보고, 
         world:author (brief 하나 → 방 하나의 뼈대 + 등급과 GAP · --write 로 굳힌다 · 등급 C 는 굳히지 않는다) ·
         world:draft (미지 한 줄 → brief · 구독 로그인의 claude -p · 검사 되먹임 · --batch 로 목록 하나 → 후보 여럿) ·
         world:lab (후보를 한 장에 나란히 — 그림 · 여덟 답 · 등급 · 편중) · world:admit (승인/반려 — 세계에 방이 들어오는 유일한 길) ·
-        world:observe (--graph · 방 하나의 높이·표면·통행·의미 PNG 다섯 + 보고 · --at <철> 로 그 시각의 위상 · 읽기 전용) · world:compile · world:shot ·
+        world:observe (--graph · 방 하나의 높이·표면·통행·의미 PNG 다섯 + 보고 · --at <철> 로 그 시각의 위상 ·
+        방 없는 --report 는 **세계의 보고** — 검사 스물여섯 + 방마다의 기회 자리·붙잡는 것·흐름과 고립 (C021) · 읽기 전용) · world:compile · world:shot ·
         cycle:shot (마감 촬영 · 창 둘로 관찰자 둘) ·
         검증용 손잡이 HKT_SPAWN · HKT_SPAWN_REGION · HKT_NPCS · HKT_REGION_PATTERN · HKT_NPC_REGION ·
         HKT_SOURCE_PHASE · HKT_CLOCK · HKT_DISTURBANCE · HKT_PRESENCE
 없음    전투 공식 · 막기 · 피해 종류 · 살펴봄 · 태도 · 장비 · 스킬 형태 · 성장 · 재료의 쓰임 — design/ 에만 ·
-        철이 두 Region 사이에 서는 것 · 빙결 심층 문의 긴 밤 활성(C021) ·
         생명의 탄생 · 세계의 요구와 가능성(Lock · 성질 어휘 · 검사 ㉞~㊷) — Play 둘 반이 아직 남았다
 미사용   기반에 있으나 컨텐츠가 아직 안 쓰는 것 — 겹침 표면 · 칸 띠 · 터치 입력 · 이펙트 레이어 · 지면 구역 · 세계 영속
 ```
@@ -228,9 +234,11 @@ observers.present 가 방 단위가 아니라 **세계 전체**의 수다 — �
         세계 전체의 채취 합이고 소란은 방마다다 (한 방의 원천은 하나이고 세 번 캐면 180 초를 기다린다)  C017
 자국이 짙은 흙 위에서 잘 보이지 않는다 — 오래된 것(0.22)은 붉은 흙 방에서 거의 묻힌다  C017
 깨어남이 **출현**을 바꾸지 않고 **방을 건너지도** 못한다 — 둘 다 PresenceRoute 위에 선다  C017 → C018
-촬영의 expect 가 **늘 떠 있는 판의 글자를 훑지 못한다** — C019 의 여덟 run · C020 의 네 run 이
-        전부 "없음" 으로 적혔는데 그림에는 그 줄들이 다 서 있다. 훑는 것이 HUD 뿐이다 (판이
-        자기 크기를 계약에 밝히지 않는 것과 같은 뿌리)              C027 ① → C028 ② → C019 → C020
+촬영의 expect 가 **늘 떠 있는 판의 글자를 훑지 못한다** — C019~C021 의 열여섯 run 이 전부
+        "없음" 으로 적혔는데 그림에는 그 줄들이 다 서 있다. 훑는 것이 HUD 뿐이다 (판이 자기
+        크기를 계약에 밝히지 않는 것과 같은 뿌리)             C027 ① → C028 ② → C019 → C020 → C021
+철의 하늘빛이 땅 전체를 물들여 **철이 바꾼 자락을 그림으로 견줄 수 없다** — 두 철의 그림은
+        바닥색이 이미 갈린다. 같은 철 안에 자락 안팎을 견주는 그림이 필요하다              C021
 겨냥이 **화면 자리**로 집어 몸 곁의 표식을 집지 못한다 — 존재 id 로 겨냥할 수 없다는 그 부채가
         C020 에서 두 번째로 걸렸다 (지목한 서리 대신 사람이 집혔다)          C026 ④ → C019 → C020
 검사 ㉓ 가 **철에 매이지 않은 위상을 보지 않는다** — 도구가 phases.seasons 만 훑어 깨어남(C017) ·
