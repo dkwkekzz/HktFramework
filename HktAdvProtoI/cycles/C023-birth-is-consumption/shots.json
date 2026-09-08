@@ -1,0 +1,255 @@
+{
+  "out": "shots",
+  "viewport": [
+    900,
+    660
+  ],
+  "_": "거목의 방 — 알집 (9,1) · 뿌리의 알 (0,3) · 빈 껍질 (12,2) · 작은 껍질 (3,4) · 뿌리혹 (-8,2). 지목(alt+클릭)은 겨냥으로 집으므로 자리를 실제로 찍어 맞춘 값이다(C026 ④ 의 부채). 태어남은 결속 60 세계 초 뒤라 run 2 만 실제로 기다리고(70 초) 나머지는 phase 손잡이로 세운다 — 손잡이는 규칙이 스스로 닿는 State 만 세우고 세계 규칙을 바꾸지 않는다. 겨냥은 실측으로 맞췄다 — 몸에서 x 로 +3 떨어진 것이 화면의 (0.63, 0.51) 에 든다.",
+  "runs": [
+    {
+      "_": "X-① 터지기 전 — 속에서 맺히고 있고 뿌리혹은 아직 그대로다",
+      "region": "RED_EYE_TREE",
+      "spawn": "6,1",
+      "npcs": "none",
+      "clock": "STILL:DAY",
+      "steps": [
+        {
+          "wait": "세계 시간",
+          "tries": 60
+        },
+        {
+          "sleep": 8000,
+          "note": "첫 run 은 vite 가 데워지지 않아 프레임이 느리다"
+        },
+        {
+          "shot": "X-01-before-birth",
+          "note": "X-① 결속 중 — 알집에 붉은 빛이 돌고 빈 껍질은 아직 어디에도 없다. X-02 와 나란히 본다"
+        }
+      ]
+    },
+    {
+      "_": "X-② 터진 뒤 — 실제로 60 세계 초를 기다려 태어나는 것을 지난다",
+      "region": "RED_EYE_TREE",
+      "spawn": "9,2",
+      "npcs": "none",
+      "clock": "STILL:DAY",
+      "steps": [
+        {
+          "wait": "세계 시간",
+          "tries": 60
+        },
+        {
+          "sleep": 70000,
+          "note": "결속 60 세계 초 — 그 사이에 태어난다 (손잡이 없이 세계가 스스로 한다)"
+        },
+        {
+          "shot": "X-02-after-birth",
+          "note": "X-② 같은 방 · 손잡이 없이 70 초 뒤 — 알집이 터진 채(마른 껍질)이고, 그 곁에 **빈 껍질**이 서 있고, 발밑 판의 「소란」이 0 이 아니며 「서 있는 것: 광식충 떼」가 늘었다. X-01 과 나란히 본다"
+        },
+        {
+          "click": [
+            0.63,
+            0.51
+          ],
+          "alt": true
+        },
+        {
+          "sleep": 1500
+        },
+        {
+          "expect": "빈 껍질",
+          "note": "X-②"
+        },
+        {
+          "shot": "X-03-husk-asked",
+          "note": "X-② 남은 것을 지목한 판 — 「터져 벌어진 채 남은 큰 껍질」이 **남아 있다**(캘 수 있다). 광식충 허물의 다른 형태다 (여기서는 손이 닿지 않아 「너무 멀다」가 함께 선다)"
+        }
+      ]
+    },
+    {
+      "_": "X-③ 되돌아온 알집 — 맺힌 채 멎어 있으나 이제 주인이 있다",
+      "region": "RED_EYE_TREE",
+      "spawn": "6,1",
+      "npcs": "none",
+      "clock": "STILL:DAY",
+      "lifePhase": "ROOT_CLUTCH:dormant",
+      "population": "ORE_EATER:1",
+      "steps": [
+        {
+          "wait": "세계 시간",
+          "tries": 60
+        },
+        {
+          "sleep": 3000
+        },
+        {
+          "click": [
+            0.65,
+            0.51
+          ],
+          "alt": true
+        },
+        {
+          "sleep": 1500
+        },
+        {
+          "expect": "이 자리에 이미 주인이 있다",
+          "note": "X-③"
+        },
+        {
+          "shot": "X-04-clutch-has-owner",
+          "note": "X-③ 120 초 뒤 되돌아온 알집 — 다시 맺힌 채 멎어 있지만 「이 자리에 이미 주인이 있다」로 결속이 서지 않는다. 최초는 결속이고 이후는 계승이다"
+        }
+      ]
+    },
+    {
+      "_": "X-④ 뿌리의 알 — 알집 없이 잇는다",
+      "region": "RED_EYE_TREE",
+      "spawn": "-3,3",
+      "npcs": "none",
+      "clock": "STILL:DAY",
+      "population": "ORE_EATER:1",
+      "steps": [
+        {
+          "wait": "세계 시간",
+          "tries": 60
+        },
+        {
+          "sleep": 3000
+        },
+        {
+          "click": [
+            0.63,
+            0.51
+          ],
+          "alt": true
+        },
+        {
+          "sleep": 1500
+        },
+        {
+          "expect": "뿌리",
+          "note": "X-④"
+        },
+        {
+          "shot": "X-05-root-eggs",
+          "note": "X-④ 뿌리 마디의 **작은 붉은 점** — 알집과 다른 이름 · 다른 그림 · 다른 자리다. 지목하면 모자란 것이 없다: 비도 균사도 묻지 않는다"
+        }
+      ]
+    },
+    {
+      "_": "X-⑤ 뿌리혹이 없으면 계승도 서지 않는다",
+      "region": "RED_EYE_TREE",
+      "spawn": "-3,3",
+      "npcs": "none",
+      "clock": "STILL:DAY",
+      "population": "ORE_EATER:1",
+      "sourcePhase": "ROOT_NODULE:depleted",
+      "steps": [
+        {
+          "wait": "세계 시간",
+          "tries": 60
+        },
+        {
+          "sleep": 3000
+        },
+        {
+          "click": [
+            0.63,
+            0.51
+          ],
+          "alt": true
+        },
+        {
+          "sleep": 1500
+        },
+        {
+          "expect": "뿌리에 쌓인 것이 모자라다",
+          "note": "X-⑤"
+        },
+        {
+          "shot": "X-06-eggs-need-material",
+          "note": "X-⑤ 같은 자리 · 뿌리혹을 캐 놓은 세계 — 「뿌리에 쌓인 것이 모자라다」 하나로 계승이 서지 않는다. 캐면 다음 것이 늦어진다"
+        }
+      ]
+    },
+    {
+      "_": "X-⑥ 떼가 도는 자락 — 값이 오를수록 넓어진다",
+      "region": "RED_EYE_TREE",
+      "spawn": "4,-6",
+      "npcs": "none",
+      "clock": "STILL:DAY",
+      "population": "ORE_EATER:1",
+      "steps": [
+        {
+          "wait": "세계 시간",
+          "tries": 60
+        },
+        {
+          "sleep": 3000
+        },
+        {
+          "shot": "X-07-swarm-one",
+          "note": "X-⑥ 광식충이 하나인 숲 — 떼가 도는 자락이 바닥에 하나 눕는다. X-08 과 나란히 본다"
+        }
+      ]
+    },
+    {
+      "_": "X-⑥ 떼가 가득한 숲",
+      "region": "RED_EYE_TREE",
+      "spawn": "4,-6",
+      "npcs": "none",
+      "clock": "STILL:DAY",
+      "population": "ORE_EATER:4",
+      "steps": [
+        {
+          "wait": "세계 시간",
+          "tries": 60
+        },
+        {
+          "sleep": 3000
+        },
+        {
+          "shot": "X-08-swarm-four",
+          "note": "X-⑥ 같은 자리 · 광식충이 가득한 숲 — 자락이 넷 겹쳐 넓다. 세계는 값을 말하지 않는다: 넓이가 그것을 말한다"
+        }
+      ]
+    },
+    {
+      "_": "X-⑦ 작은 껍질 — 계승이 남긴 것",
+      "region": "RED_EYE_TREE",
+      "spawn": "0,4",
+      "npcs": "none",
+      "clock": "STILL:DAY",
+      "population": "ORE_EATER:1",
+      "steps": [
+        {
+          "wait": "세계 시간",
+          "tries": 60
+        },
+        {
+          "sleep": 150000,
+          "note": "계승 90 세계 초 — 촬영 하네스는 세계 시간이 실시간보다 느리게 흐르므로 넉넉히 기다린다"
+        },
+        {
+          "click": [
+            0.63,
+            0.51
+          ],
+          "alt": true
+        },
+        {
+          "sleep": 1500
+        },
+        {
+          "expect": "작은 껍질",
+          "note": "X-⑦"
+        },
+        {
+          "shot": "X-09-egg-husk",
+          "note": "X-⑦ 계승이 지난 자리 — 손잡이 없이 세계 122 초까지 기다렸다. 「뿌리 마디에 남은 작은 껍질」이 **남아 있다**(캘 수 있다)이고, 왼쪽 뿌리혹은 계승이 먹어 비었다. 빈 껍질과 같은 재료의 다른 형태다 (크기로 갈린다)"
+        }
+      ]
+    }
+  ]
+}
