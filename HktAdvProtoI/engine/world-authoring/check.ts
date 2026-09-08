@@ -183,7 +183,7 @@ export interface CheckRef {
 }
 
 export interface CheckItem {
-  /** 번호 — '①'…'㊷'. 번호 밖의 것은 '·' */
+  /** 번호 — '①'…'㊼'. 번호 밖의 것은 '·' */
   mark: string;
   /** 기계가 잡는 이름 — JSON 의 열쇠이므로 번호가 바뀌어도 이것은 그대로다 */
   id: string;
@@ -262,6 +262,8 @@ export interface CheckRegionsInput {
   life?: CheckLife;
   /** ㉞~㊷ 이 볼 접근 쪽 계약 — 주지 않으면 그 아홉이 전부 absent 다 (ecology · time 의 선례 그대로) */
   access?: CheckAccess;
+  /** ㊸ ㊼ 가 볼 기억 쪽 계약 — 주지 않으면 그 둘이 전부 absent 다 (ecology · time 의 선례 그대로) */
+  memory?: CheckMemory;
 }
 
 /** checkGraph 의 코드 → ⑤⑥⑦⑧. 순서가 곧 번호다 */
@@ -550,11 +552,11 @@ function checkCoreRules(input: CheckRegionsInput): CheckItem {
 }
 
 /**
- * 검사 마흔둘을 한 번에 돌린다 — 결과는 기계가 읽는다
- * (T1 의 아홉 + C014 의 열셋 + C018 의 넷 + C022 의 일곱 + C029 의 아홉).
+ * 검사 마흔넷을 한 번에 돌린다 — 결과는 기계가 읽는다
+ * (T1 의 아홉 + C014 의 열셋 + C018 의 넷 + C022 의 일곱 + C029 의 아홉 + C034 의 둘).
  *
- * 순서는 언제나 ①~⑨ · ⑩~㉒ · ㉓~㉖ · ㉗~㉝ · ㉞~㊷ 이고, 각 항목의 refs 는 준 배열 순서다 —
- * 두 번 돌리면 같다.
+ * 순서는 언제나 ①~⑨ · ⑩~㉒ · ㉓~㉖ · ㉗~㉝ · ㉞~㊷ · ㊸ ㊼ 이고, 각 항목의 refs 는 준
+ * 배열 순서다 — 두 번 돌리면 같다.
  * 세계를 바꾸지 않는 읽기 전용 관찰이다.
  */
 export function checkRegions(input: CheckRegionsInput): CheckReport {
@@ -576,6 +578,7 @@ export function checkRegions(input: CheckRegionsInput): CheckReport {
     ...timeItems(input),
     ...lifeItems(input),
     ...accessItems(input),
+    ...memoryItems(input),
   ];
   const counts: Record<CheckStatus, number> = { pass: 0, fail: 0, absent: 0, report: 0 };
   for (const item of items) counts[item.status]++;
@@ -2630,4 +2633,248 @@ export function accessAnswerMap(input: CheckRegionsInput): AccessAnswerRow[] {
       })),
     };
   });
+}
+
+// ── 검사 둘 — 방이 세는 것과 남는 것 (C034 ADDED) ─────────────────────
+//
+// 앞의 마흔둘이 방과 그래프 · 그 위의 재료 계통 · 시각이 거는 것 · 태어나는 자리 · 방이 묻는
+// 것을 재었다면, 이 둘은 **방이 세는 것**을 잰다 — 세어질 수 있는 키가 실제 세계의 것인가(㊸),
+// 그리고 State 마다 무엇이 그것을 지우는가(㊼).
+//
+// ㊸ 가 **양쪽으로** 재는 까닭 — 한쪽만 재면 둘 중 하나를 놓친다. 없는 것을 가리키는 키는
+// 지워지지 않는 셈이 유령을 가리키게 두고(기억은 지워지지 않으므로 그 유령도 지워지지 않는다),
+// 있는데 자리가 없는 것은 **셀 수 없는 일**을 세계에 남긴다. 둘 다 데이터의 결손이다.
+//
+// ㊼ 는 판정하지 않는다 — State 필드 전부가 표에 있는지는 밖에서 알 길이 없고(그것은 형이
+// 붙든다), 지우는 손의 배분이 옳은지는 사람이 본다. 요약 여섯(⑲ ⑳ ㉕ ㉜ ㊵ ㊷)의 어법 그대로다.
+//
+// 여기에도 **게임 명사가 없다.** 어느 방이 무엇을 세는지도, 지우는 손이 몇이고 무엇인지도
+// 기반은 알지 못한다 — `CheckMemory` 가 어휘째로 준다. 기억 쪽 계약을 주지 않으면 둘 다
+// `absent` 다 (잴 것이 없으면 통과로 적지 않는다 — T1 의 규율).
+
+/** 그 방의 기억이 가질 수 있는 키 — 컨텐츠가 건넨다 (㊸) */
+export interface CheckMemoryRegion {
+  id: string;
+  /** 기억이 셀 원천 키들 */
+  sources: readonly string[];
+  /** 기억이 셀 경로 키들 */
+  routes: readonly string[];
+}
+
+/** State 경로 하나와 그것을 지우는 손 (㊼) */
+export interface CheckPersistenceRow {
+  path: string;
+  eraser: string;
+}
+
+/** ㊸ ㊼ 가 볼 기억 쪽 계약 — 주지 않으면 둘 다 absent 다 */
+export interface CheckMemory {
+  regions: readonly CheckMemoryRegion[];
+  persistence: readonly CheckPersistenceRow[];
+  /** 지우는 손의 어휘 (다섯) — 이 목록 밖의 것은 ㊼ 가 "모르는 손" 으로 적는다 */
+  erasers: readonly string[];
+}
+
+/** 둘의 번호·이름 — 이 차례가 곧 보고에 실리는 차례다 (계약이 없을 때의 absent 도 이것을 쓴다) */
+const MEMORY_ITEMS = {
+  refs: { mark: '㊸', id: 'memory-refs', name: '기억이 가리키는 원천과 경로' },
+  persistence: { mark: '㊼', id: 'persistence-summary', name: '남는 것의 종류와 기억의 크기' },
+} as const;
+
+/** 둘이 함께 보는 것 — 한 번만 세어 나눠 쓴다 */
+interface MemoryContext {
+  input: CheckRegionsInput;
+  memory: CheckMemory;
+  /** 검사가 아는 방 */
+  regionIds: ReadonlySet<string>;
+  /** 그 방에 실제로 선 원천들 — ecology 를 주지 않으면 undefined 이고 그때 원천 쪽은 재지 않는다 */
+  sourcesByRegion?: ReadonlyMap<string, readonly string[]>;
+  /** 아는 원천 id 전부 — 유령이 "남의 방 것" 인지 "없는 것" 인지 가른다 */
+  sourceIds?: ReadonlySet<string>;
+  /** 그 방을 지나는 경로들 — time 을 주지 않으면 undefined 이고 그때 경로 쪽은 재지 않는다 */
+  routesByRegion?: ReadonlyMap<string, readonly string[]>;
+  /** 아는 경로 id 전부 */
+  routeIds?: ReadonlySet<string>;
+}
+
+/**
+ * 방마다 그 방에 선 원천들 — ecology.sources 의 차례를 지킨다 (두 번 돌리면 같다).
+ * 원천이 어느 방의 것인지는 계통이 이미 말한다(`CheckEcologySource.region`) — 여기서 다시 고르지 않는다.
+ */
+function memorySourcesByRegion(ecology: CheckEcology): Map<string, string[]> {
+  const out = new Map<string, string[]>();
+  for (const source of ecology.sources) {
+    const mine = out.get(source.region) ?? [];
+    mine.push(source.id);
+    out.set(source.region, mine);
+  }
+  return out;
+}
+
+/**
+ * 방마다 그 방을 지나는 경로들 — time.routes 의 차례를 지킨다.
+ *
+ * "지난다" 는 마디의 **후보**로 그 방이 적혀 있는가다 (㉔ 이 읽는 그 nodes). 어느 후보가
+ * 뽑히는지는 실주행이 정하므로, 기억이 셀 자리는 뽑힐 수 있는 방 전부에 있어야 한다.
+ */
+function memoryRoutesByRegion(time: CheckTime): Map<string, string[]> {
+  const out = new Map<string, string[]>();
+  for (const route of time.routes) {
+    const seen = new Set<string>();
+    for (const node of route.nodes) {
+      for (const candidate of node) {
+        if (seen.has(candidate.region)) continue;
+        seen.add(candidate.region);
+        const mine = out.get(candidate.region) ?? [];
+        mine.push(route.id);
+        out.set(candidate.region, mine);
+      }
+    }
+  }
+  return out;
+}
+
+/**
+ * ㊸ 기억이 가질 키가 실제 원천 · 경로이고, 그 역도 참인가 — 양방향.
+ *
+ * 앞의 잣대(유령)는 `memory.regions` 차례로, 뒤의 잣대(셀 수 없는 것)는 `input.regions`
+ * 차례로 잰다 — 뒤를 방마다 재는 까닭은 **기억 자리가 아예 없는 방**도 그 방의 원천을 셀 수
+ * 없기 때문이다 (기억은 모든 방에 서는 것이므로 목록에서 빠진 방은 빠진 만큼 걸린다).
+ */
+function checkMemoryRefs(cx: MemoryContext): CheckItem {
+  const head = MEMORY_ITEMS.refs;
+  const { regions } = cx.memory;
+  const refs: CheckRef[] = [];
+  const declared = new Map<string, CheckMemoryRegion>();
+  let sourceKeys = 0;
+  let routeKeys = 0;
+
+  for (const room of regions) {
+    sourceKeys += room.sources.length;
+    routeKeys += room.routes.length;
+    if (!cx.regionIds.has(room.id)) {
+      // 모르는 방의 키는 무엇과 견줄 수가 없다 — 방 하나만 적고 그 키들은 재지 않는다
+      refs.push({ where: room.id, detail: `${room.id} 은 아는 방이 아니다` });
+      continue;
+    }
+    declared.set(room.id, room);
+    if (cx.sourcesByRegion && cx.sourceIds) {
+      const mine = cx.sourcesByRegion.get(room.id) ?? [];
+      for (const key of room.sources) {
+        if (mine.includes(key)) continue;
+        refs.push({
+          where: room.id,
+          detail: cx.sourceIds.has(key)
+            ? `원천 ${key} 은 이 방의 것이 아니다`
+            : `원천 ${key} 은 아는 원천이 아니다`,
+        });
+      }
+    }
+    if (cx.routesByRegion && cx.routeIds) {
+      const mine = cx.routesByRegion.get(room.id) ?? [];
+      for (const key of room.routes) {
+        if (mine.includes(key)) continue;
+        refs.push({
+          where: room.id,
+          detail: cx.routeIds.has(key)
+            ? `경로 ${key} 은 이 방을 지나지 않는다`
+            : `경로 ${key} 은 아는 경로가 아니다`,
+        });
+      }
+    }
+  }
+
+  // 셀 수 없는 것 — 방 차례로. 기억 자리를 밝히지 않은 방은 빈 것으로 견준다
+  for (const region of cx.input.regions) {
+    const room = declared.get(region.id);
+    if (cx.sourcesByRegion) {
+      for (const id of cx.sourcesByRegion.get(region.id) ?? []) {
+        if (room?.sources.includes(id)) continue;
+        refs.push({ where: region.id, detail: `원천 ${id} 을 셀 자리가 없다` });
+      }
+    }
+    if (cx.routesByRegion) {
+      for (const id of cx.routesByRegion.get(region.id) ?? []) {
+        if (room?.routes.includes(id)) continue;
+        refs.push({ where: region.id, detail: `이 방을 지나는 경로 ${id} 을 셀 자리가 없다` });
+      }
+    }
+  }
+
+  return {
+    ...head,
+    status: refs.length === 0 ? 'pass' : 'fail',
+    answer: `방 ${regions.length} · 원천 키 ${sourceKeys} · 경로 키 ${routeKeys} · 걸린 것 ${refs.length}`,
+    refs,
+  };
+}
+
+/**
+ * ㊼ 지우는 손마다의 State 경로와 방마다의 기억 크기 — 판정하지 않는다.
+ *
+ * 줄의 차례는 지우는 손 어휘 → 모르는 손(표에 적힌 차례) → 방(기억 목록 차례)이다.
+ * 어휘 밖의 손을 적은 줄은 걸린 것이 아니라 **적어 두는 것**이다 — 사람이 어휘를 늘릴지
+ * 그 줄을 고칠지 고른다.
+ */
+function checkPersistenceSummary(cx: MemoryContext): CheckItem {
+  const head = MEMORY_ITEMS.persistence;
+  const { persistence, erasers, regions } = cx.memory;
+  const known = new Set(erasers);
+  const refs: CheckRef[] = erasers.map((eraser) => {
+    const paths = persistence.filter((row) => row.eraser === eraser).map((row) => row.path);
+    return { where: eraser, detail: namedGroup('State 경로', paths) };
+  });
+  let unknown = 0;
+  for (const row of persistence) {
+    if (known.has(row.eraser)) continue;
+    unknown++;
+    refs.push({ where: row.path, detail: `모르는 손 ${row.eraser} — 지우는 손 어휘에 없다` });
+  }
+
+  // 방마다의 기억 크기 — 원천 키 수 + 경로 키 수. 같은 크기가 둘이면 앞선 방이 가장 큰 방이다
+  let total = 0;
+  let biggest = '';
+  let biggestSize = -1;
+  for (const room of regions) {
+    const size = room.sources.length + room.routes.length;
+    total += size;
+    if (size > biggestSize) {
+      biggest = room.id;
+      biggestSize = size;
+    }
+    refs.push({
+      where: room.id,
+      detail: `기억 크기 ${size} (원천 ${room.sources.length} · 경로 ${room.routes.length})`,
+    });
+  }
+
+  return {
+    ...head,
+    status: 'report',
+    answer:
+      `State 경로 ${persistence.length} · 지우는 손 ${erasers.length} · 모르는 손 ${unknown}` +
+      ` · 방 ${regions.length} · 기억 크기 합 ${total} · 가장 큰 방 ${regions.length === 0 ? '없음' : `${biggest} ${biggestSize}`}`,
+    refs,
+  };
+}
+
+/** ㊸ ㊼ — 기억 쪽 계약을 주지 않으면 둘이 전부 absent 다 (통과가 아니다) */
+function memoryItems(input: CheckRegionsInput): CheckItem[] {
+  const memory = input.memory;
+  if (!memory) {
+    return Object.values(MEMORY_ITEMS).map((head) =>
+      absentItem(head, '기억 쪽 계약이 주어지지 않았다'),
+    );
+  }
+  const { ecology, time } = input;
+  const cx: MemoryContext = {
+    input,
+    memory,
+    regionIds: new Set(input.regions.map((region) => region.id)),
+    sourcesByRegion: ecology ? memorySourcesByRegion(ecology) : undefined,
+    sourceIds: ecology ? new Set(ecology.sources.map((source) => source.id)) : undefined,
+    routesByRegion: time ? memoryRoutesByRegion(time) : undefined,
+    routeIds: time ? new Set(time.routes.map((route) => route.id)) : undefined,
+  };
+  return [checkMemoryRefs(cx), checkPersistenceSummary(cx)];
 }
