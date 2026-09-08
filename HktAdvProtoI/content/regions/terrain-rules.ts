@@ -88,6 +88,32 @@ export const CONDITION_RIVER = 'condition:river';
 export const CONDITION_TREE = 'condition:tree';
 export const CITY_TAG = 'city';
 
+/**
+ * **옅어진 조건의 접두사** (C021 ADDED · spec R1 · SPEC-003).
+ *
+ * `condition:ridge` → `condition-weak:ridge`. 이름은 그대로 지고 접두사만 옅어진다 —
+ * 코드가 사라지지도, 위험의 코드가 되지도 않는다 (경계 ①). 여전히 **안전의 이유**이되
+ * 약해졌다는 것이 그 말이다.
+ *
+ * 안전의 접두사(CONDITION_PREFIX)와 갈리는 글자를 쓰는 이유 — 관찰이 접두사로 조건을
+ * 고르므로, 같은 접두사를 지면 "약해진 것" 이 "그대로인 것" 과 한 벌로 읽힌다.
+ * 갈려 있어야 판이 한 줄로 "약해졌다" 를 말할 수 있다.
+ */
+export const CONDITION_WEAK_PREFIX = 'condition-weak:';
+
+/**
+ * 그 조건 코드의 **옅어진 짝** — 데이터도 표현도 이 함수 하나로 이름을 짓는다
+ * (soilStainTag · frostBreathTag 가 세운 그 선례).
+ *
+ * 조건의 코드가 아니면 **한 글자도 바꾸지 않는다** — 옅어질 것이 없는 것에 옅어진 이름을
+ * 지어내지 않는다 (도시의 태그가 안전의 사유가 아닌 것과 같은 규율). 그래서 이 함수를
+ * 두 번 씌워도 답이 같다.
+ */
+export function weakenedConditionTag(conditionTag: string): string {
+  if (!conditionTag.startsWith(CONDITION_PREFIX)) return conditionTag;
+  return `${CONDITION_WEAK_PREFIX}${conditionTag.slice(CONDITION_PREFIX.length)}`;
+}
+
 // 막힘의 사유 코드 — 세계의 것이다. 문구("너무 가파르다")는 View 의 표가 옮긴다 (C001 부터의 규약).
 export const BLOCK_STEEP = 'too-steep';
 export const BLOCK_WATER = 'deep-water';

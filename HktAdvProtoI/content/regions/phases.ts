@@ -85,10 +85,54 @@ export interface HazardOverlay {
   contact?: string;
 }
 
+/**
+ * **무엇이 실어 오는가** (C021 ADDED · Material §5.10 의 carrier 어법).
+ *
+ * 흐름(RESOURCE_FLOWS)이 무엇을 타고 오는지 밝히듯, 방을 넘는 덧씌움도 무엇에 실려 오는지를
+ * 밝힌다. 규칙은 이 글자를 하나도 읽지 않는다 — 세계 사실이지 기구가 아니고, 사람이 읽을
+ * 문구가 필요해지면 View 의 표가 옮긴다 (recoveryCause · worldCause 가 선 그 자리와 같다).
+ */
+export const CARRIER_WIND = 'wind';
+
+/**
+ * 그 철에 이 방이 **다른 방**에 거는 것 (C021 ADDED · spec R1 · SPEC-001 · SPEC-002).
+ *
+ * **위상이 자기 방을 넘는 첫 자리다.** C016 부터 덧씌움은 언제나 그 방 안의 자락을 가리켰다 —
+ * 깊이도 위험도 그 방의 일이었다. 이것만이 남의 방을 가리키고, 그래서 자리를 묻는 쪽이
+ * 자기 방의 위상만이 아니라 **자기를 가리킨 다른 방의 위상**도 함께 본다 (spec R2).
+ *
+ * 넘는 길을 밝히는 것이 이 형의 뜻이다 — **이음을 통해서만 넘는다** (spec SPEC-002).
+ * 그 이음이 두 방을 실제로 잇지 않으면 아무 일도 일어나지 않고, 세계가 모르는 방 ·
+ * 없는 area · 없는 이음을 가리킨 줄도 조용히 아무 일을 하지 않는다 (경계 ①) —
+ * 끊긴 참조를 오류로 세우지 않는 것은 경계(frontier)의 이름을 정합 오류로 세우지 않는
+ * C002 의 규율 그대로다.
+ *
+ * **밝히지 않은 방은 어느 철에도 다른 방에 아무것도 걸지 않는다** (경계 ②) —
+ * rule?(C008) · resourceEcology?(C011) · standing?(C019) 를 밝히지 않은 방이 그 계통 밖인
+ * 것과 같은 규율이다.
+ *
+ * 방 이름과 이음 이름을 **글자로** 적는다 — 방 파일이 다른 방 파일을 부르면 순환이 난다
+ * (흐름의 from/to · connectorId 가 세운 그 어법 · RESOURCE_FLOWS).
+ */
+export interface ConditionOutflow {
+  /** 어느 방의 */ region: string;
+  /** 어느 condition 자락 — 그 방 Description 의 settlement layer area op id */ areaId: string;
+  /** 어느 이음을 넘어서 오는가 — 실제로 두 방을 잇지 않으면 아무 일도 없다 */ throughConnector: string;
+  /** 무엇이 실어 오는가 */ carrier: string;
+}
+
 /** 그 철에 이 방이 달라지는 것. 밝히지 않은 것은 달라지지 않는다 */
 export interface RegionPhase {
   depthOverlay?: readonly DepthOverlay[];
   hazardExtend?: readonly HazardOverlay[];
+  /**
+   * C021 ADDED — 그 철에 이 방이 **다른 방**에 거는 것들 (spec R1 · R2).
+   *
+   * 앞의 둘과 갈리는 자리가 여기다: 저 둘은 **이 방**의 자락을 가리키고 이것은 **남의 방**의
+   * 자락을 가리킨다. 그래서 이것만이 자기 방 밖에서 읽힌다 — 걸리는 자리를 정하는 것은
+   * 여전히 가리켜진 쪽의 Description 이다 (지어낸 자락에는 아무것도 걸리지 않는다).
+   */
+  outflow?: readonly ConditionOutflow[];
 }
 
 /**

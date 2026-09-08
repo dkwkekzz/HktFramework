@@ -91,7 +91,12 @@ import {
   sourcesInRegion,
 } from '../semantic/resource';
 import { passingIn, passingOverlaysIn } from '../semantic/presence';
-import { depthOverlayAt, hazardEffectsAt, hazardOverlayTagsAt } from '../semantic/region-phase';
+import {
+  depthOverlayAt,
+  hazardEffectsAt,
+  hazardOverlayTagsAt,
+  standingConditionTagsAt,
+} from '../semantic/region-phase';
 import {
   anchorPosition,
   connectorRequirements,
@@ -103,7 +108,8 @@ import {
 import { regionRuleOf } from '../semantic/region-state';
 // 재료 표는 content/regions 의 것이다 — HUD 의 자리 순서를 그 표가 정한다 (C011).
 import { MATERIAL_SEEDS } from '../../regions';
-import { conditionTagsAt } from '../semantic/terrain';
+// C021 CHANGED — 안전의 코드는 이제 standingConditionTagsAt 이 낸다 (그 안에서
+// conditionTagsAt 을 그대로 부른다 — 땅의 것은 여전히 땅의 것이다).
 import { distance } from '../semantic/position';
 import {
   actorOfObserver,
@@ -610,7 +616,13 @@ export function projectObserverView(
     // 않는다 — 나누면 판이 두 번 말한다. 안전의 코드는 한 값도 바뀌지 않고(spec R3 경계 ①),
     // 겹치면 걸린 것이 전부 실린다 (C006 의 경계 그대로).
     standingConditions: [
-      ...conditionTagsAt(self.regionId, self.position),
+      // RULE-CONDITION-WEAKEN-001 (C021 CHANGED · C021 spec R1 · R5 · SPEC-001) — 안전의 코드
+      // 가운데 **이음을 넘어 온 것**에 덮인 자락의 것이 옅어진 채로 실린다. 봉투에 새 자리를
+      // 내지 않았다: 옅어진 것이 안전의 코드를 **대신** 서므로 실리는 개수도 차례도 그대로다
+      // (기본형 ①). 넘어 온 것이 없으면 C006 의 답과 한 값도 다르지 않다.
+      // **무엇이 그것을 약하게 했는지 · 어디서 왔는지 · 무엇이 실어 왔는지는 싣지 않는다**
+      // (기본형 ② · spec Observable) — 그것을 잇는 것이 관찰자의 일이다.
+      ...standingConditionTagsAt(self.regionId, self.position, state.time),
       // C017 CHANGED — 깨어남의 위험 코드가 철의 것과 **함께** 실린다 (spec R4 경계 ②).
       // C018 CHANGED — 거기에 **지나는 것이 건 위험 코드**가 더해진다. 걸린 것이 전부
       // 실린다는 어법은 그대로이고, 원인이 셋이 된 것뿐이다.

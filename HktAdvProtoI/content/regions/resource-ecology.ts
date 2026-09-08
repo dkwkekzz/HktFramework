@@ -185,7 +185,30 @@ export interface ResourceSourceSpec {
    * occurrence 를 밝히지 않은 원천이 어느 철에도 서는 것과 같은 규율이다.
    */
   recoverySpeed?: Readonly<Partial<Record<SeasonId, number>>>;
+  /**
+   * **처음 마디가 아닌 자리에 서 있는 동안** 실리는 조건 코드 (C021 ADDED · spec R3 · SPEC-005).
+   *
+   * "여기서 다시 자란 것이다" 까지이고, **어디서 옮겨 왔는지도 몇 번째 마디인지도 싣지
+   * 않는다** (경계 ③ · C013 · C020 이 세운 규율 그대로). 캔 뒤 한 번 뜨고 마는 것이 아니라
+   * 그 자리에 서 있는 동안 늘 실린다 — 다시 와서 보는 관찰자가 그것을 놓치지 않도록
+   * **자리가 말하게** 두었다 (흔적이 늘 그 자리에 있는 것과 같은 어법 · spec 기본형 ④).
+   *
+   * **밝히지 않은 원천은 어디에 서 있든 아무것도 늘지 않는다** — 마디를 여럿 가진 숲의
+   * 노두가 그렇다 (occurrence? · recoverySpeed? 를 밝히지 않은 원천이 그 계통 밖인 것과
+   * 같은 규율). 마디가 하나뿐인 원천은 옮겨 설 자리가 없으므로 밝혀도 아무 일이 없다
+   * (경계 ②).
+   */
+  regrownCode?: string;
 }
+
+/**
+ * 조건 코드 — **여기서 다시 자랐다** (C021 ADDED · Play V18 · spec SPEC-005).
+ *
+ * 되돌아옴이 멎은 것(RECOVERY_STALLED) · 아직 그때가 아닌 것(CONDITION_UNMET)과 갈린다 —
+ * 저것들은 "지금 없다" 이고 이것은 **"있는데 그 자리가 처음 자리가 아니다"** 다.
+ * 사람이 읽을 문구는 View 의 표가 옮긴다 (조건 코드의 선례 그대로).
+ */
+export const FROST_VEIN_REGROWN = 'frost-vein-regrown';
 
 /** 조건 코드 — 되돌아오는 일이 멎었다 (Play §5.5 의 코드 그대로) */
 export const RECOVERY_STALLED = 'recovery-stalled';

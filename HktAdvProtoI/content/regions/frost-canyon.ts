@@ -44,7 +44,7 @@
 
 import type { RegionSpec } from './spec';
 import { ANCHOR_LAYER } from './spec';
-import { HAZARD_LAYER } from './phases';
+import { CARRIER_WIND, HAZARD_LAYER } from './phases';
 import { FEATURE_LAYER, FROST_TAG } from './terrain-rules';
 import {
   CRYSTAL_GROWTH,
@@ -53,6 +53,7 @@ import {
   FORM_FROST_VEIN,
   FROST_CRYSTAL,
   FROST_VEIN_CURVE_TAG,
+  FROST_VEIN_REGROWN,
   PRESENCE_LAYER,
   RECOVERY_CRYSTAL_GROWTH,
   RECOVERY_NEXT_BLIZZARD,
@@ -423,6 +424,10 @@ export const FROST_CANYON_SPEC: RegionSpec = {
         recoverySpeed: { LONG_NIGHT: 2 },
         // 마디는 결정면의 선이 준다 — 그 선의 점 넷이 곧 마디 넷이다
         siteCurve: FROST_VEIN_CURVE_TAG,
+        // C021 ADDED — **처음 마디가 아닌 자리에 선 동안** 이 코드가 실린다 (spec SPEC-005).
+        // 이 방에서 마디를 여럿 가진 원천은 이것 하나이고, 그래서 밝히는 것도 이것 하나다 —
+        // 눈보라의 가루도 언 사체도 자리를 옮기지 않으므로 밝혀도 아무 일이 없다.
+        regrownCode: FROST_VEIN_REGROWN,
         // 마디 순서 그대로의 둘레 흔적
         traceOps: [
           'trace-frost-vein-0',
@@ -522,6 +527,52 @@ export const FROST_CANYON_SPEC: RegionSpec = {
    * 이 폴더는 그 파일을 읽지 않으므로(경계 규칙 4) 글자로 적는다.
    */
   phases: {
+    /**
+     * C021 ADDED — 그 철에 이 방이 **다른 방**에 거는 것 (spec R1 · R2 · SPEC-001 · SPEC-002).
+     *
+     * 스밈과 긴 밤에 이 협곡의 추위가 고개를 넘어 **백왕령 산기슭의 안전 조건**을 옅게 한다.
+     * 지금까지 위상은 언제나 자기 방 안의 일이었다 — 이 두 줄이 방을 넘는 첫 자리다.
+     *
+     * 열쇠가 둘뿐이므로 다른 철(고요 · 뒤척임)에는 이 방이 남의 방에 아무것도 걸지 않는다 —
+     * 열쇠 없는 철에 달라지는 것이 없다는 규율 그대로다 (spec SPEC-001 경계 ①).
+     * 두 줄의 값이 **같은 것**은 Play §5.4 가 두 철에 같은 일이 일어난다고 적었기 때문이다:
+     * 철이 다르다고 추위가 다른 자락을 덮지 않는다.
+     *
+     * 방 이름과 이음 이름을 **글자로** 적는다 — 이 파일이 white-king-domain.ts 나 graph.ts 를
+     * 부르면 방 파일끼리 순환이 난다 (흐름의 from/to · connectorId 가 세운 그 어법 ·
+     * RESOURCE_FLOWS). 끊긴 참조는 오류가 아니라 **아무 일도 하지 않는 것**이므로
+     * (spec SPEC-002 경계 ①) 세 글자가 다 실제 세계를 가리키는지는 시나리오가 지킨다.
+     *
+     * **타는 이음이 얼음 협곡의 고개인데 나가는 방이 이 방이다** — 두 방은 오솔길로 이어져
+     * 있고 그 너머의 고개가 백왕령으로 난다. 추위는 두 이음을 잇달아 넘지만, 여기가 밝히는
+     * 것은 **백왕령에 닿는 마지막 이음** 하나다 (spec 기본형 ③ — 이음을 잇는 길 전체를
+     * 세우는 것은 이 Cycle 의 일이 아니고 그 길찾기는 세계에 없다).
+     *
+     * 이 방 자신의 조건은 한 값도 달라지지 않는다 — 나가는 쪽이지 받는 쪽이 아니다
+     * (spec Observable ④). 걸리는 자리를 정하는 것은 언제나 **가리켜진 쪽**의 Description 이다.
+     */
+    seasons: {
+      SEEP: {
+        outflow: [
+          {
+            region: 'WHITE_KING_DOMAIN',
+            areaId: 'condition-ridge-foot',
+            throughConnector: 'ICE_CANYON_PASS',
+            carrier: CARRIER_WIND,
+          },
+        ],
+      },
+      LONG_NIGHT: {
+        outflow: [
+          {
+            region: 'WHITE_KING_DOMAIN',
+            areaId: 'condition-ridge-foot',
+            throughConnector: 'ICE_CANYON_PASS',
+            carrier: CARRIER_WIND,
+          },
+        ],
+      },
+    },
     standing: {
       hazardExtend: [
         {

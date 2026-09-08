@@ -4,6 +4,10 @@
 //   npm run world:observe            방 표 · Connector 표 · 중첩 · 경계 · 검사 를 이 순서로 출력한다
 //   npm run world:observe --graph    같은 것 (인자를 주지 않으면 --graph 로 본다 —
 //                                    C004 에서 이 도구가 아는 것이 그것 하나뿐이었기 때문이다)
+//   npm run world:observe -- --report
+//                                    **세계의 보고** (C021 · SPEC-006) — 검사 스물여섯과
+//                                    **방마다의 분포**(기회 자리 · 붙잡는 것 · 흐름과 고립)를
+//                                    방 차례로 편다. 두 Region 을 나란히 견주는 자리다
 //   npm run world:observe -- <방> [--height --surface --traversable --semantic --top-view]
 //                            [--semantic=<layer>] [--report] [--out <dir>] [--at <철>]
 //                                    그 방 하나를 본다 (C007). 그림을 하나도 밝히지 않으면 --report 로 본다
@@ -36,7 +40,7 @@ import {
   type SeasonId,
 } from '../../content/regions';
 import { pointsOf, type Extent } from '../../engine/world-authoring/description';
-import { checkGraph } from '../../engine/world-authoring/check';
+import { checkGraph, type CheckItem } from '../../engine/world-authoring/check';
 import { compileRegion } from '../../engine/world-authoring/compile';
 import type { CompiledRegion, CompiledWorldTerrain } from '../../engine/world-authoring/compiled';
 import {
@@ -49,7 +53,7 @@ import {
   type TerrainSummary,
 } from '../../engine/world-authoring/observe';
 import { encodePng } from './png';
-import { runWorldCheck, SEASON_IDS } from './check';
+import { runWorldCheck, SEASON_IDS, WORLD_CHECK_ECOLOGY } from './check';
 
 // ── 표 그리기 ────────────────────────────────────────────────────────
 //
@@ -462,13 +466,33 @@ interface CheckLine {
   detail?: string[];
 }
 
-function checkLines(): CheckLine[] {
-  return runWorldCheck().items.map((item) => ({
+function checkLinesOf(items: readonly CheckItem[]): CheckLine[] {
+  return items.map((item) => ({
     mark: item.mark,
     name: item.name,
     answer: item.answer,
     detail: item.refs.map((ref) => `${ref.where}  ${ref.detail}`),
   }));
+}
+
+function checkLines(): CheckLine[] {
+  return checkLinesOf(runWorldCheck().items);
+}
+
+/**
+ * 검사 줄들의 몸 — 번호 · 이름 · 답을 한 줄에 두고 딸림 목록만 그 아래로 들여쓴다.
+ *
+ * C021 이 보고 둘(방 하나 · 세계)에서 같은 어법을 쓰려고 뽑아 온 것이다 — 글자는
+ * C007 이 세운 그대로이므로 방 하나의 보고는 한 글자도 달라지지 않는다.
+ */
+function checkBody(checks: readonly CheckLine[]): string[] {
+  const lines: string[] = [];
+  const nameWidth = Math.max(...checks.map((line) => displayWidth(line.name)));
+  for (const line of checks) {
+    lines.push(`    ${line.mark}  ${pad(line.name, nameWidth)}  ${line.answer}`);
+    for (const detail of line.detail ?? []) lines.push(`        · ${detail}`);
+  }
+  return lines;
 }
 
 // ── 그 시각의 위상 (C018 ADDED · SPEC-010) ───────────────────────────
@@ -628,12 +652,109 @@ export function renderRegionReport(
   lines.push(`    의미 그림의 layer 는 ${semanticLayer} · 그 layer 의 area ${semanticAreas}`);
   // 번호 · 이름 · 답을 한 줄에 둔다 — 한 검사가 한 줄이어야 아홉이 한눈에 읽힌다.
   // 딸림 목록(걸린 것들)만 그 아래로 들여쓴다.
-  const checks = checkLines();
-  const nameWidth = Math.max(...checks.map((line) => displayWidth(line.name)));
-  for (const line of checks) {
-    lines.push(`    ${line.mark}  ${pad(line.name, nameWidth)}  ${line.answer}`);
-    for (const detail of line.detail ?? []) lines.push(`        · ${detail}`);
+  lines.push(...checkBody(checkLines()));
+  lines.push('');
+  return lines.join('\n');
+}
+
+// ── 방마다의 분포 (C021 ADDED · SPEC-006) ────────────────────────────
+//
+// 두 Region 을 **나란히 견주는** 절이다 — 협곡 둘을 백왕령 옆에 두고 읽을 수 있어야
+// 계통이 무엇으로 갈리는지 사람이 본다.
+//
+// **새로 세는 것도 판정하는 것도 없다.** 검사 ⑲ ⑳ 이 이미 낸 refs 를 방으로 다시 묶고,
+// ⑱ ㉒ 는 성한 세계에서 refs 가 비므로(끊긴 참조와 이유 없는 고립만 싣는다) 그 둘이 읽는
+// 그 계약(WORLD_CHECK_ECOLOGY 의 flows · regions)을 같은 자리에서 읽는다.
+//
+// 차례는 REGION_SPECS 순서다 — Record 의 열쇠 순회에 기대지 않는다 (두 번 돌리면 같다).
+// **원천이 없는 방도 적는다** — "원천 0" 도 사실이고, 그것이 백왕령과 협곡을 견주게 한다.
+
+/** 검사 ⑲ 의 ref detail 은 `<원천 id> <자리 유형>` 이다 — 마지막 칸이 그 자리 유형이다 */
+function opportunityOf(detail: string): string {
+  const at = detail.lastIndexOf(' ');
+  return at < 0 ? detail : detail.slice(at + 1);
+}
+
+/** 값마다의 수를 처음 나온 차례로 — 기반의 tally · renderTally 와 같은 어법이다 */
+function renderCounts(values: readonly string[]): string {
+  const counts = new Map<string, number>();
+  for (const value of values) counts.set(value, (counts.get(value) ?? 0) + 1);
+  const parts: string[] = [];
+  for (const [key, count] of counts) parts.push(`${key} ${count}`);
+  return parts.join(' · ');
+}
+
+/** 그 번호의 검사가 낸 refs — 없는 검사(absent 이거나 아직 없는 것)면 빈 목록이다 */
+function refsOf(items: readonly CheckItem[], id: string): readonly CheckRefLike[] {
+  return items.find((item) => item.id === id)?.refs ?? [];
+}
+
+/** refsOf 가 돌려주는 것 — 기반의 CheckRef 와 같은 모양이되 이 파일이 읽는 두 칸만 본다 */
+interface CheckRefLike {
+  where: string;
+  detail: string;
+}
+
+/** 방마다의 절 — 방 하나가 세 줄이고, 딸림 목록만 그 아래로 들여쓴다 */
+function roomLines(items: readonly CheckItem[]): string[] {
+  const opportunity = refsOf(items, 'ecology-opportunity');
+  const carrier = refsOf(items, 'ecology-carrier');
+  const { flows, regions } = WORLD_CHECK_ECOLOGY;
+
+  const labels = ['기회 자리 분포', '붙잡는 것 분포', '흐름과 고립'] as const;
+  const labelWidth = Math.max(...labels.map(displayWidth));
+
+  const lines: string[] = [];
+  lines.push(rule());
+  lines.push(
+    `  방마다 ${REGION_SPECS.length} (REGION_SPECS 순서 · 검사 ⑱ ⑲ ⑳ ㉒ 가 낸 것을 방으로 다시 묶는다)`,
+  );
+  for (const spec of REGION_SPECS) {
+    const row = (label: string, value: string): string => `      ${pad(label, labelWidth)}  ${value}`;
+    lines.push(`    ${spec.id}`);
+
+    // ⑲ — 그 방 원천들의 자리 유형별 수. 하나도 없으면 "원천 0" 이 그 방의 사실이다
+    const mine = opportunity.filter((ref) => ref.where === spec.id);
+    lines.push(
+      row(labels[0], mine.length === 0 ? '원천 0' : renderCounts(mine.map((ref) => opportunityOf(ref.detail)))),
+    );
+
+    // ⑳ — 이미 방마다로 적힌 줄이므로 그대로 옮긴다 (원천 수까지 그 검사가 적는다)
+    const carrierRef = carrier.find((ref) => ref.where === spec.id);
+    lines.push(row(labels[1], carrierRef?.detail ?? '원천 0'));
+
+    // ⑱ ㉒ — 드는 것 · 나가는 것 · 고립의 이유. 흐름의 차례는 RESOURCE_FLOWS 배열 순서다
+    const inflow = flows.filter((flow) => flow.to.region === spec.id);
+    const outflow = flows.filter((flow) => flow.from.region === spec.id);
+    const reason = regions.find((region) => region.id === spec.id)?.isolationReason ?? '';
+    lines.push(row(labels[2], `유입 ${inflow.length} · 유출 ${outflow.length}`));
+    for (const flow of inflow) {
+      lines.push(`        · 유입 ${flow.id}  ${flow.from.region} → 이 방  (${flow.connector})`);
+    }
+    for (const flow of outflow) {
+      lines.push(`        · 유출 ${flow.id}  이 방 → ${flow.to.region}  (${flow.connector})`);
+    }
+    if (reason.trim() !== '') lines.push(`        · 고립 이유  ${reason}`);
   }
+  return lines;
+}
+
+/**
+ * 세계의 보고 한 장 (C021 ADDED · SPEC-006) — 검사 스물여섯 · 방마다의 분포.
+ *
+ * 방 하나의 보고(`renderRegionReport`)와 달리 땅을 컴파일하지 않는다 — 여기서 읽는 것은
+ * 계통과 검사가 이미 낸 것뿐이다. **읽기 전용**이고 파일을 하나도 쓰지 않는다 (경계 ①).
+ */
+export function renderWorldReport(): string {
+  const report = runWorldCheck();
+  const checks = checkLinesOf(report.items);
+  const lines: string[] = [];
+  lines.push('');
+  lines.push('  World Observe — 이 세계의 보고 (검사와 방마다의 분포 · 읽기 전용)');
+  lines.push(rule());
+  lines.push(`  검사 ${checks.length} (판정하지 않는다 — 수와 목록만 적는다)`);
+  lines.push(...checkBody(checks));
+  lines.push(...roomLines(report.items));
   lines.push('');
   return lines.join('\n');
 }
@@ -691,6 +812,7 @@ export function observeRegion(
 /** 인자 해석의 결과 — 셋 중 하나다 */
 type Parsed =
   | { kind: 'graph' }
+  | { kind: 'world' }
   | { kind: 'region'; spec: RegionSpec; options: ObserveOptions }
   | { kind: 'usage'; unknown: string[] };
 
@@ -760,8 +882,15 @@ export function parseArgs(args: readonly string[]): Parsed {
 
   if (unknown.length > 0) return { kind: 'usage', unknown };
   if (positional.length === 0) {
-    // 방을 주지 않았다 — 그래프 말고는 볼 것이 없다. 그림·보고를 밝혔다면 방이 빠진 것이다
-    if (pictures.length > 0 || report) return { kind: 'usage', unknown: ['(방 이름이 없다)'] };
+    // 방을 주지 않았다 — 그림은 방이 있어야 한다 (그 자리는 C007 그대로다)
+    if (pictures.length > 0) return { kind: 'usage', unknown: ['(방 이름이 없다)'] };
+    // `--report` 하나면 **세계의 보고**다 (C021 SPEC-006) — 검사 스물여섯과 방마다의 분포.
+    // 방과 함께 쓰는 것들(--graph · --at)과는 섞이지 않는다: 무엇을 볼지가 갈리기 때문이다
+    if (report) {
+      if (graph) return { kind: 'usage', unknown: ['--report (--graph 와 함께 쓸 수 없다)'] };
+      if (season !== undefined) return { kind: 'usage', unknown: [`--at ${season} (방과 함께 쓴다)`] };
+      return { kind: 'world' };
+    }
     return { kind: 'graph' };
   }
   if (positional.length > 1) return { kind: 'usage', unknown: positional.slice(1) };
@@ -783,8 +912,9 @@ export function renderUsage(unknown: readonly string[]): string {
   return [
     '',
     `  모르는 인자: ${unknown.join(' ')}`,
-    '  이 도구가 아는 것은 둘이다.',
+    '  이 도구가 아는 것은 셋이다.',
     '    --graph                       방 · Connector · 중첩 · 경계 · 검사를 표로 읊는다',
+    '    --report                      세계의 보고 — 검사와 방마다의 분포를 읊는다 (방 없이)',
     '    <REGION_ID> [옵션…]           그 방 하나의 땅을 본다',
     '        --height --surface --traversable --semantic --top-view   낼 그림 (여럿 가능)',
     `        --semantic=<layer>        의미 그림의 layer (기본 ${SETTLEMENT_LAYER})`,
@@ -804,6 +934,8 @@ if (process.argv[1] && import.meta.url === `file://${resolve(process.argv[1])}`)
   const parsed = parseArgs(process.argv.slice(2));
   if (parsed.kind === 'graph') {
     console.log(renderGraph());
+  } else if (parsed.kind === 'world') {
+    console.log(renderWorldReport());
   } else if (parsed.kind === 'usage') {
     // 아무것도 하지 않았으므로 성공으로 끝내지 않는다 — world:check 의 어법 그대로 2 다
     // (SPEC-010 경계 ② "모르는 철 이름은 조용히 지금으로 읽지 않는다")

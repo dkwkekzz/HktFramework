@@ -115,6 +115,13 @@ export interface ResourceSource {
    * 어느 철에도 배속 1 이다 — 지금까지의 세계 그대로다.
    */
   recoverySpeed?: Readonly<Partial<Record<SeasonId, number>>>;
+  /**
+   * **다시 자란 자리**의 조건 코드 (C021 ADDED · spec R3) — 데이터의 regrownCode 그대로다.
+   *
+   * 밝히지 않은 원천은 어디에 서 있든 걸리는 것이 한 글자도 늘지 않는다 (숲의 노두가 그렇다) —
+   * occurrence · recoverySpeed 를 밝히지 않은 원천이 그 계통 밖인 것과 같은 규율이다.
+   */
+  regrownCode?: string;
 }
 
 // 방 하나당 엮기 한 번. 원천이 없는 방(백왕령)도 빈 배열로 담는다 — 그것도 답이다.
@@ -180,6 +187,9 @@ export function sourcesInRegion(regionId: string): readonly ResourceSource[] {
       // 자리 자체가 없다 (빈 목록 · 배속 1 로 지어내지 않는다).
       ...(source.depletedHazards === undefined ? {} : { depletedHazards: source.depletedHazards }),
       ...(source.recoverySpeed === undefined ? {} : { recoverySpeed: source.recoverySpeed }),
+      // C021 ADDED — 다시 자란 자리의 조건 코드. 밝히지 않은 원천은 자리 자체가 없다
+      // (빈 글자로 지어내지 않는다 · depletedHazards 의 선례 그대로).
+      ...(source.regrownCode === undefined ? {} : { regrownCode: source.regrownCode }),
     });
   }
 
@@ -468,7 +478,8 @@ export function inflowOf(sourceId: string): ResourceFlowSpec | undefined {
 }
 
 /**
- * RULE-SOURCE-CONDITION-001 (C013 CHANGED) — 그 원천에 **지금 걸린 조건 코드들**.
+ * RULE-SOURCE-CONDITION-001 · RULE-SOURCE-REGROWN-001
+ * (C013 CHANGED · C021 CHANGED) — 그 원천에 **지금 걸린 조건 코드들**.
  *
  * 매달린 원천이 **available 이 아니면** `recovery-stalled` 하나. 걸린 것이 없으면 빈 배열이다 —
  * 관찰에 실을지 말지는 투영이 정한다 (없으면 자리 자체를 싣지 않는다).
@@ -505,6 +516,12 @@ export function inflowOf(sourceId: string): ResourceFlowSpec | undefined {
  *
  * 그래서 **지나감들의 지금을 함께 받는다.** 밝히지 않으면 아무것도 지나고 있지 않은 것으로
  * 친다 — 그것도 답이다 (남기는 원천에는 조건이 걸리고, 나머지 원천은 한 값도 달라지지 않는다).
+ *
+ * C021 CHANGED (RULE-SOURCE-REGROWN-001 · spec R3) — **자리도 조건이다.** 마디를 여럿 가진
+ * 원천이 처음 마디가 아닌 자리에 서 있는 동안 그 원천이 밝힌 코드가 하나 실린다. 앞의
+ * 넷과 갈리는 갈래다 — 저것들은 "지금 없다" 의 사유이고 이것은 **거기 있는 것에 대한 말**
+ * 이라, 여기 실렸어도 되돌아옴의 진행을 멎게 하지 않는다 (표시와 원인이 같은 판정이라는
+ * C013 의 규율에서 처음 갈라지는 자리이고, 그래서 아래에서 **맨 나중**에 붙는다).
  */
 export function sourceConditions(
   states: Record<string, RegionState>,
@@ -556,6 +573,27 @@ export function sourceConditions(
     !isPassingRegion(presences, leaving.id, source.regionId, time)
   ) {
     codes.push(CONDITION_UNMET);
+  }
+
+  // ④ 다시 자란 자리 (C021 ADDED · RULE-SOURCE-REGROWN-001 · spec R3 · SPEC-005) —
+  // 마디를 여럿 가진 원천이 **처음 마디가 아닌 자리에 서 있는 동안** 그 원천이 밝힌 코드가
+  // 실린다. 앞의 셋과 갈리는 자리가 여기다: 저것들은 "지금 없다" 의 사유이고 이것은
+  // **거기 있는 것에 대한 말**이다 — 그래서 되돌아옴의 진행을 한 톨도 멎게 하지 않는다
+  // (simulation/source-recovery.ts 는 앞의 코드들만 읽는다). 캘 수 있는가도 달라지지 않는다.
+  //
+  // **어디서 옮겨 왔는지도 몇 번째 마디인지도 싣지 않는다** (경계 ③) — 실리는 것은 코드
+  // 하나뿐이고, "여기서 다시 자란 것이다" 까지다 (C013 · C020 이 세운 규율 그대로).
+  //
+  // 마디가 하나뿐인 원천 · 처음 마디에 선 원천 · 밝히지 않은 원천에는 걸리지 않는다
+  // (경계 ① ②). 규칙은 그것이 결정면인지 이름으로 알지 못한다 — 마디의 수와 지금 번호,
+  // 그리고 원천이 밝힌 글자 하나를 읽을 뿐이다.
+  const regrown = source.regrownCode;
+  if (
+    regrown !== undefined &&
+    source.sites.length > 1 &&
+    sourceStateOf(states, source.regionId, source.id).siteIndex !== 0
+  ) {
+    codes.push(regrown);
   }
 
   return codes;

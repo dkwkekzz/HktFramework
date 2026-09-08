@@ -10,6 +10,7 @@
 import {
   BIO_ORE,
   BLOCK_COLLAPSED,
+  CONDITION_RIDGE,
   CONDITION_UNMET,
   FLOW_ARRIVED,
   FORM_CORPSE_RIME,
@@ -27,12 +28,14 @@ import {
   FORM_SILT_BED,
   FORM_SPOIL_PILE,
   FROST_CRYSTAL,
+  FROST_VEIN_REGROWN,
   GIANT_TREE_FUNGUS,
   ORE_EATER_MOLT,
   RECOVERY_STALLED,
   REQUIRES_STORED_HEAT,
   frostBreathTag,
   soilStainTag,
+  weakenedConditionTag,
 } from '../regions/index';
 
 const CODE_TEXT: Record<string, string> = {
@@ -218,6 +221,11 @@ const CODE_TEXT: Record<string, string> = {
   // 관찰된 사실은 지금이 어느 때인가 하나뿐이고, 언제 물길이 부는지는 어귀에 가서 안다
   [FLOW_ARRIVED]: '지금 실려 오는 중이다',
   [CONDITION_UNMET]: '아직 그때가 아니다',
+  // 다시 자란 자리 (C021 R3 — **같은 conditions 자리의 코드다**. 새 자리가 없다).
+  // 위의 줄들과 같은 한 마디 어법이다: **어디서 옮겨 왔는지도 몇 번째 마디인지도 적지 않는다**
+  // (spec SPEC-005 경계 ③). 세계가 싣는 것은 "처음 자리가 아니다" 하나이고, 그 원천이 어느
+  // 자리에서 여기로 옮겨 왔는지는 캐 본 관찰자가 잇는다 (흔적을 잇게 한 것과 같은 규율)
+  [FROST_VEIN_REGROWN]: '여기서 다시 자랐다',
   // 문이 밝힌 요구 (C020 R5 — **같은 conditions 자리의 코드다**. 새 자리가 없다).
   // 위의 두 줄과 같은 어법으로 한 마디다: 무엇이 이 요구를 채우는지도, 그것이 어디서 나는지도
   // 적지 않는다 — 세계가 싣지 않고(spec Observable "싣지 않는다" · R5 경계 ②) 확정 4 가
@@ -254,6 +262,15 @@ const CODE_TEXT: Record<string, string> = {
   'condition:ridge': '산맥이 막는다', // 외부 생물의 이동 차단 (Concept §3)
   'condition:river': '강이 먹인다', // 식수 + 농업 (Concept §3)
   'condition:tree': '거목이 포식자를 물린다', // 백색 거목 둘레에는 포식자가 오지 않는다 (Concept §3 · §3.2)
+  // 옅어진 안전한 이유 (C021 R1 — 위의 조건 코드가 서던 **같은 자리에 대신** 선다).
+  // 그래서 위의 셋과 같은 주어 · 같은 갈래의 한 마디여야 한다: 여전히 **안전한 이유**이고
+  // (위험의 말투로 넘어가면 어휘 일곱의 자리가 되어 버린다 — spec SPEC-003 경계 ①),
+  // 막던 것이 그대로 막되 약해졌다는 것만 갈린다.
+  //
+  // **무엇이 그것을 약하게 했는지 적지 않는다** — 협곡도 추위도 바람도 이음도 철도 실려 오지
+  // 않는다 (spec Observable "투영하지 않는 것"). 그것을 잇는 것이 이 Play 다: 관찰자는 협곡에
+  // 가 보고 백왕령에 돌아와서 안다. 얼마나 약해졌는지도 언제 돌아오는지도 마찬가지다
+  [weakenedConditionTag(CONDITION_RIDGE)]: '산맥이 겨우 막는다',
   // 조건 셋이 모인 자리 — 그래서 사람이 산다. 조건(왜)과 결과(그래서)를 다른 말로 둔다
   city: '사람이 사는 자리',
   // 위험한 이유 (C016 R3 — hazard 태그. 어휘 일곱은 content/authoring/contracts.ts 의 것이고

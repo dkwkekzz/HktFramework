@@ -1483,8 +1483,13 @@ describe('SPEC-009 협곡이 요구하는 것은 협곡에 없다', () => {
   });
 
   it('S-093 (경계 ①) 그 너머는 아직 짓지 않은 곳이다 — 건너기 요청은 그렇게 거절된다', () => {
+    // C021 로 좁혀졌다 — 그 문에 철 조건이 붙어 긴 밤에만 열린다 (C021 SPEC-004). 다른 철에는
+    // "이 철이 아니다" 가 먼저 나므로 **문이 열린 때**에 묻는다. "그 너머는 아직 짓지 않았다"
+    // 라는 이 항의 주장은 그대로이고, 물을 수 있는 때가 하나로 좁아졌을 뿐이다.
     const door = depthDoor()!;
-    const w = standingIn(CANYON_INNER, connectorSpot(door.id, CANYON_INNER));
+    const w = standingIn(CANYON_INNER, connectorSpot(door.id, CANYON_INNER), {
+      clock: 'LONG_NIGHT',
+    });
     expect(cross(w, door.id)).toEqual({
       status: 'failure',
       rule: 'RULE-REGION-TRANSIT-001',
@@ -1499,8 +1504,13 @@ describe('SPEC-009 협곡이 요구하는 것은 협곡에 없다', () => {
   });
 
   it('S-094 (경계 ②) 요구는 **표시**다 — 그것 때문에 문이 잠기지도 채워져 열리지도 않는다', () => {
+    // C021 로 좁혀졌다 — 이제 그 문을 잠그는 것이 있다. 다만 그것은 **철**이지 요구가 아니므로
+    // (C021 SPEC-004 경계 ①) 문이 열리는 때에 견주면 이 항의 주장은 그대로 선다:
+    // 요구를 밝힌 문과 밝히지 않은 문의 열림이 같고, 요구를 채워도 달라지는 것이 없다.
     const door = depthDoor()!;
-    const w = standingIn(CANYON_INNER, connectorSpot(door.id, CANYON_INNER));
+    const w = standingIn(CANYON_INNER, connectorSpot(door.id, CANYON_INNER), {
+      clock: 'LONG_NIGHT',
+    });
     const seen = exitOf(w.observe(), door.id)!;
     // Then 요구를 밝히지 않은 다른 문과 열림 상태가 같다 (요구는 활성을 판정하지 않는다)
     const plain = exitsIn(w.observe()).find((e) => e.id !== door.id);
@@ -1509,6 +1519,7 @@ describe('SPEC-009 협곡이 요구하는 것은 협곡에 없다', () => {
     expect(reasonOf(cross(w, door.id))).toBe(REGION_NOT_BUILT);
     // And 요구를 채웠다 해서 달라지는 것도 없다 — 손에 무엇을 들고 와도 같은 대답이다
     const carrying = standingIn(CANYON_INNER, connectorSpot(door.id, CANYON_INNER), {
+      clock: 'LONG_NIGHT',
       actorItems: { pickaxe: 3 },
     });
     expect(reasonOf(cross(carrying, door.id))).toBe(REGION_NOT_BUILT);

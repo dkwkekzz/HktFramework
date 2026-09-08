@@ -396,6 +396,16 @@ export const CONNECTOR_ACTIVATIONS: Readonly<Record<string, ConnectorActivation>
   // 방의 State 를 읽지 않는다: 이 문을 여는 것은 어느 방의 사정도 아니고 세계의 시각이다.
   // 그래서 "잠긴 문" 과 다른 말이 나온다 — 저쪽은 connector-inactive, 이쪽은 not-this-season.
   [WALKING_FOREST_DOOR]: { seasons: ['LONG_NIGHT'] },
+  // C021 ADDED — 빙결 심층으로 드는 문도 **긴 밤에만** 열린다 (Play §5.3 · spec SPEC-004).
+  // 걷는 숲의 문과 **같은 모양**이다: 방의 State 를 읽지 않고 세계의 시각만 읽는다.
+  // 그래서 잠긴 사유도 같다 — connector-inactive 가 아니라 not-this-season 이다.
+  // **판정하는 함수는 한 줄도 바뀌지 않는다** (C016 R4 · C019 의 규율) — 철 조건을 가진
+  // 문이 하나에서 둘이 되었을 뿐이고, 늘어난 것은 이 표의 한 줄이다.
+  //
+  // 이 문이 밝힌 **요구**(CONNECTOR_REQUIREMENTS 의 REQUIRES_STORED_HEAT)는 그대로다 —
+  // 요구는 활성을 판정하지 않으므로(C020 spec R5 경계 ① · C021 spec SPEC-004 경계 ①)
+  // 표식의 그 줄은 어느 철에도 한 값도 달라지지 않는다.
+  [FROST_DEPTH_DOOR]: { seasons: ['LONG_NIGHT'] },
 };
 
 /**

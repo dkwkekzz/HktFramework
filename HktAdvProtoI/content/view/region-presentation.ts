@@ -34,6 +34,7 @@ import {
   SOIL_STAIN_MAX,
   TRACE_LAYER,
   regionSpec,
+  weakenedConditionTag,
 } from '../regions/index';
 import {
   NO_SOURCE_PHASES,
@@ -185,6 +186,28 @@ export const SETTLEMENT_ZONE_PRESENTATIONS: Readonly<
     fillOpacity: 0.22,
     edge: 0x9fb98c,
     edgeOpacity: 0.85,
+    edgeWidth: 0.6,
+  },
+  // 옅어진 산맥 (C021 ADDED) — Play §5.4 의 관찰은 "백왕령 북쪽 산기슭에 **서리**" 다.
+  //
+  // 색의 근거 — 이 세계는 서리의 색을 이미 가지고 있다. 채움은 C019 가 세운 서리 바닥
+  // (SURFACE_FROST 0xbcd0ec · 옅은 파랑 · 아주 밝다) **그 값 그대로**다. 새로 짓지 않는 이유는
+  // 위 표의 규칙과 같다: 조건 zone 의 색은 그것을 만드는 것의 색이고, 이 자락을 덮은 것은
+  // 협곡에서 본 바로 그 서리다 — 협곡을 다녀온 눈이 이 파랑을 이미 배웠다.
+  //
+  // **테두리는 산맥 조건의 것 그대로 둔다** (0x6e6a63 · 짙기도 굵기도 한 값 같다). 이 자락은
+  // 다른 조건이 아니라 **같은 조건이 달라진 것**이므로(spec R1 경계 ① — 이름은 그대로이고
+  // 접두사만 옅어진다), 같은 것임은 윤곽이 지고 달라진 것은 채움 하나가 진다. 윤곽까지 갈면
+  // 화면이 "조건이 하나 더 생겼다" 를 말하게 되어 세계가 하지 않은 말이 된다.
+  //
+  // 채움의 짙기만 0.22 → 0.30 이다. 서리 바닥 색은 밝기가 83% 라 백왕령의 따뜻한 바닥
+  // (civil 0xf0c878) 위에서 0.22 로는 급경사의 무채색과 거의 갈리지 않는다 — 짙기는 여기서
+  // 세기의 눈금이 아니라 **읽힘**이고, 얼마나 약해졌는지는 어디에도 적히지 않는다.
+  [weakenedConditionTag(CONDITION_RIDGE)]: {
+    fill: 0xbcd0ec,
+    fillOpacity: 0.3,
+    edge: 0x6e6a63,
+    edgeOpacity: 0.8,
     edgeWidth: 0.6,
   },
   // 그래서 사람이 산다 — 문명권 바닥과 같은 따뜻한 계열. 채움은 가장 옅고 테두리는 가장 굵다
