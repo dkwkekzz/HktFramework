@@ -15,6 +15,11 @@
 // 앞의 셋 중 어느 것 옆에 놓여도(강은 평지도 비탈도 가로지른다) 계열이 겹치지 않고,
 // 넷 가운데 가장 어두워 강이 방을 가르는 **띠**로 한눈에 읽힌다.
 //
+// C019 가 다섯째를 더한다 — **서리**. 앞의 넷을 가른 것이 경사(초록 → 갈색 → 무채색)와
+// 물(청록)이었다면 이것을 가르는 것은 **추위**다: 색상을 젖음의 청록보다 한 칸 더 파란 쪽으로
+// 옮기고, 젖음이 넷 가운데 가장 어두웠던 것과 정반대로 다섯 가운데 **가장 밝게** 둔다 —
+// 물은 빛을 먹고 서리는 빛을 되쏜다는 같은 이유가 화면에서 두 색을 반대편으로 밀어낸다.
+//
 // C006 ADDED — 땅 위에 서는 것(instance). 색이 지면의 결이라면 이것은 지면에 꽂힌 표식이다.
 // 무엇을 그릴지도(sprite) 얼마나 크게 세울지도(worldHeight) 여기 표가 정한다 — 기반은
 // landmark 태그의 뜻을 모른 채 이 함수만 부른다.
@@ -31,7 +36,14 @@ import { compileRegion } from '../../engine/world-authoring/compile';
 import { pointsOf } from '../../engine/world-authoring/description';
 import { tagsAt } from '../../engine/world-authoring/query';
 import { REGION_SPECS, regionSpec } from '../regions/index';
-import { COMPILE_RULES, SURFACE_FLAT, SURFACE_SLOPE, SURFACE_STEEP, SURFACE_WET } from './biome-rules';
+import {
+  COMPILE_RULES,
+  SURFACE_FLAT,
+  SURFACE_FROST,
+  SURFACE_SLOPE,
+  SURFACE_STEEP,
+  SURFACE_WET,
+} from './biome-rules';
 
 /** surface 태그 → 지면에 곱할 색. 태그가 늘면 여기 한 줄이 는다 */
 export const SURFACE_COLORS: Readonly<Record<string, number>> = {
@@ -47,6 +59,17 @@ export const SURFACE_COLORS: Readonly<Record<string, number>> = {
   // 출구 표식의 물길 색(TRANSITION_TINTS.river = 0x2f9a8f)과 같은 청록 계열이되 지면이므로
   // 훨씬 어둡다 — 표식은 눈에 띄어야 하고 지면은 그 위에 선 것을 가리지 않아야 한다.
   [SURFACE_WET]: 0x39707a,
+  // 서리 — 협곡 골 바닥에 앉은 얼음. 색상은 젖음의 청록(≈189°)에서 한 칸 더 파란 쪽(≈215°)으로
+  // 나가고, 밝기는 다섯 가운데 가장 높다. 젖음이 "물이 밴 흙은 어둡다" 로 가장 어두운 값을
+  // 받았으므로 그 반대의 이유 — 서리는 빛을 되쏜다 — 가 그대로 반대쪽 끝의 값이 된다.
+  // 그래서 숲(초록·갈색)과도 백왕령과도 계열이 겹치지 않고, 방을 갈아탄 것이 바닥 하나로 읽힌다
+  // (SPEC-003 이 관찰시키려는 것이 그것이다).
+  //
+  // **밝기를 벽보다 한 단 올린 이유** — 이 색은 협곡의 급경사 벽(0xa8a49c)과 늘 한 화면에
+  // 나란히 선다. 그 벽은 채도가 거의 없는 무채색이라 색상만으로는 옅은 파랑과 갈리지 않으므로,
+  // 채도를 20% 남짓까지 올리고 밝기도 벽보다 뚜렷이 높였다 — 벽은 맨 얼음바위이고 바닥은
+  // 그 위에 앉은 서리라는 두 사실의 차이가 두 값의 차이 그대로다.
+  [SURFACE_FROST]: 0xbcd0ec,
 };
 
 // 표에 없는 태그의 기본 결정 — 무채색 (DEFAULT_DEPTH_PRESENTATION 과 같은 값·같은 뜻).

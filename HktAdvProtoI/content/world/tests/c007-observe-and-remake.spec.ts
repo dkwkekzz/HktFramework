@@ -404,8 +404,16 @@ describe('SPEC-010 — 새 땅에 새 규칙이 필요하지 않다', () => {
     expect(move(w, bottom.x, bottom.z).status).toBe('success');
   });
 
-  it('S-012 (경계) 나머지 일곱 방은 여전히 평평하다 — 이 Cycle 은 그 방들을 건드리지 않았다', () => {
-    const rest = REGION_SPECS.filter((s) => s.id !== START_REGION_ID && s.id !== FOREST_EDGE);
+  it('S-012 (경계) 나머지 방들은 여전히 평평하다 — 이 Cycle 은 그 방들을 건드리지 않았다', () => {
+    // C019 로 좁혀졌다 — 고개 너머 협곡 둘은 자기 절벽을 품고 섰다. 이 Cycle 이 그 방들을
+    // 건드리지 않았다는 주장은 그대로이고, 나중 Cycle 이 지은 방이 이 무리에서 빠질 뿐이다.
+    const rest = REGION_SPECS.filter(
+      (s) =>
+        s.id !== START_REGION_ID &&
+        s.id !== FOREST_EDGE &&
+        s.id !== 'ICE_CANYON' &&
+        s.id !== 'FROST_CANYON',
+    );
     for (const spec of rest) {
       const world = compiled(spec.id).world;
       expect({ region: spec.id, risen: [...world.height].filter((h) => h !== 0).length }).toEqual({

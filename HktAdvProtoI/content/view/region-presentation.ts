@@ -28,11 +28,13 @@ import {
 } from '../../engine/world-authoring/description';
 import type { GameViewSnapshot, RegionView } from '../protocol/gameview';
 import {
+  FROST_BREATH_PREFIX,
   PRESENCE_LAYER,
   ROOT_CURVE_TAG,
   SOIL_STAIN_MAX,
   TRACE_LAYER,
   regionSpec,
+  weakenedConditionTag,
 } from '../regions/index';
 import {
   NO_SOURCE_PHASES,
@@ -65,6 +67,10 @@ export const REGION_NAMES: Readonly<Record<string, string>> = {
   // C009 — 미로의 중첩 자식. 미로가 감싸고 있던 자리라는 것이 이름 하나로 읽혀야 하므로
   // 방의 이름에 '미로' 를 그대로 둔다 (Play §5.4 "미로의 심장")
   MAZE_HEART: '미로의 심장',
+  // C019 — 고개 너머. 얼음 협곡도 여태 경계 이름이던 것이 지어진 방이 되었다 (FANTASY_MAZE 의 선례)
+  ICE_CANYON: '얼음 협곡',
+  // C019 — 그 안쪽. 두 이름이 나란히 서므로 세계관의 이름 표를 그대로 옮긴다 (L2-World-Region §5.1)
+  FROST_CANYON: '빙결 협곡',
 };
 
 export function regionName(id: string): string {
@@ -180,6 +186,28 @@ export const SETTLEMENT_ZONE_PRESENTATIONS: Readonly<
     fillOpacity: 0.22,
     edge: 0x9fb98c,
     edgeOpacity: 0.85,
+    edgeWidth: 0.6,
+  },
+  // 옅어진 산맥 (C021 ADDED) — Play §5.4 의 관찰은 "백왕령 북쪽 산기슭에 **서리**" 다.
+  //
+  // 색의 근거 — 이 세계는 서리의 색을 이미 가지고 있다. 채움은 C019 가 세운 서리 바닥
+  // (SURFACE_FROST 0xbcd0ec · 옅은 파랑 · 아주 밝다) **그 값 그대로**다. 새로 짓지 않는 이유는
+  // 위 표의 규칙과 같다: 조건 zone 의 색은 그것을 만드는 것의 색이고, 이 자락을 덮은 것은
+  // 협곡에서 본 바로 그 서리다 — 협곡을 다녀온 눈이 이 파랑을 이미 배웠다.
+  //
+  // **테두리는 산맥 조건의 것 그대로 둔다** (0x6e6a63 · 짙기도 굵기도 한 값 같다). 이 자락은
+  // 다른 조건이 아니라 **같은 조건이 달라진 것**이므로(spec R1 경계 ① — 이름은 그대로이고
+  // 접두사만 옅어진다), 같은 것임은 윤곽이 지고 달라진 것은 채움 하나가 진다. 윤곽까지 갈면
+  // 화면이 "조건이 하나 더 생겼다" 를 말하게 되어 세계가 하지 않은 말이 된다.
+  //
+  // 채움의 짙기만 0.22 → 0.30 이다. 서리 바닥 색은 밝기가 83% 라 백왕령의 따뜻한 바닥
+  // (civil 0xf0c878) 위에서 0.22 로는 급경사의 무채색과 거의 갈리지 않는다 — 짙기는 여기서
+  // 세기의 눈금이 아니라 **읽힘**이고, 얼마나 약해졌는지는 어디에도 적히지 않는다.
+  [weakenedConditionTag(CONDITION_RIDGE)]: {
+    fill: 0xbcd0ec,
+    fillOpacity: 0.3,
+    edge: 0x6e6a63,
+    edgeOpacity: 0.8,
     edgeWidth: 0.6,
   },
   // 그래서 사람이 산다 — 문명권 바닥과 같은 따뜻한 계열. 채움은 가장 옅고 테두리는 가장 굵다
@@ -347,24 +375,60 @@ export const NIGHT_TRACE_SOIL_COLOR = 0x9c4a2e;
 export const NIGHT_TRACE_OPACITY_SCALE = 1.6;
 export const NIGHT_TRACE_OPACITY_MAX = 0.72;
 
+// 협곡의 흔적 (C020 ADDED · SPEC-002) — **어휘가 둘이 되었고 갈리는 것은 색뿐이다.**
+//
+// 짙기의 사다리는 위의 한 벌 그대로다 (TRACE_ZONE_OPACITIES · 밤의 배율도 그대로). 표를
+// 두 벌로 만들면 같은 화면 문법(짙을수록 진하다)이 어휘마다 갈라져, 협곡에서 짙어지는 쪽을
+// 따라가는 눈과 숲에서 그렇게 하는 눈이 다른 것을 배우게 된다. 협곡의 어휘는 마디가 셋뿐이므로
+// 그 사다리의 **앞 세 마디**만 쓴다 (얕게 둔 이유는 spec 기본형 ② — 방이 둘뿐이다).
+//
+// 색의 근거 — 이 자락은 C019 가 세운 서리 바닥(SURFACE_FROST 0xbcd0ec · 옅은 파랑 · 아주 밝다)과
+// 급경사 벽(SURFACE_STEEP 0xa8a49c · 채도가 거의 없는 회색) **위에만** 그려진다. 그래서 고른 값이
+// 지켜야 하는 것이 셋이다.
+//   ① 바닥과 갈린다      — 같은 파랑 계열이되 밝기를 바닥의 반대쪽 끝까지 내렸다 (83% → 39%).
+//                          색상만으로는 옅은 파랑과 갈리지 않으므로 서리 바닥이 벽에게서 갈라선
+//                          그 방법(밝기 · 채도)을 반대 방향으로 그대로 쓴다.
+//   ② 벽과 갈린다        — 벽은 채도가 4% 남짓인 무채색이고 이것은 41% 다.
+//   ③ 숲의 흙과 갈린다   — 붉은 흙(0x6b3524 · 색상 ≈ 14°)의 반대쪽 끝(≈ 241°)이다. 두 어휘가
+//                          한 화면에 함께 서는 일은 없지만, 방을 갈아탄 순간 흔적이 **다른 말을
+//                          한다**는 것이 색 하나로 먼저 읽혀야 한다 (SPEC-002 경계 ②).
+// 축이 온도이므로 따뜻한 쪽이 아니라 **찬 쪽 끝**으로 나간 것이고, 짙어질수록 진해지는 것은
+// "여기가 더 차다" 로 읽힌다 — 숨이 어는 자리를 따라가는 그 눈이다 (Play §5.1).
+//
+// 밤의 값은 붉은 흙이 밤에 하는 것과 같은 일을 한다 — 같은 색상을 밝은 쪽으로 올려 어둠에서
+// 읽히게 할 뿐이고, 짙기는 위의 배율 하나를 그대로 곱한다.
+
+/** 협곡 흔적의 색 — 숨이 어는 자리 (세 단계가 이 한 값을 함께 쓴다) */
+export const TRACE_FROST_BREATH_COLOR = 0x3b3a8c;
+
+/** 밤의 협곡 흔적 색 — 같은 색상을 어둠에서 읽히도록 밝은 쪽으로 올린 값 하나 */
+export const NIGHT_TRACE_FROST_BREATH_COLOR = 0x6f6cd8;
+
 /**
  * 그 단계의 흔적 결정 — **모르는 단계는 없다**(undefined). 그리지 않는다.
  * 표 밖의 값을 아무 색으로 그리면 화면이 세계에 없는 짙기를 지어내는 것이 된다
  * (C001 부터의 폴백 규칙: 모르는 것은 자리째 없다).
+ *
+ * `tag` 는 **땅에 놓인 자락의 태그**다 (C020) — 어느 어휘로 그릴지를 화면이 고르지 않는다.
+ * 방 이름으로 가르면 어휘를 옮긴 데이터와 그림이 갈리므로, 답은 언제나 그 자리의 글자다.
  *
  * `night` 는 관찰자가 **때에서** 얻는 값이다 (C015) — 세계가 흔적에 실어 보내는 것이
  * 아니다. 때를 모르면 낮의 그림이다 (옛 장면도 지금 그대로 그려진다).
  */
 export function traceZonePresentation(
   level: number,
+  tag: string,
   night = false,
 ): { color: number; opacity: number } | undefined {
   if (level < 1 || level > SOIL_STAIN_MAX) return undefined;
   const opacity = TRACE_ZONE_OPACITIES[level];
   if (opacity === undefined) return undefined;
-  if (!night) return { color: TRACE_SOIL_COLOR, opacity };
+  const frostBreath = tag.startsWith(FROST_BREATH_PREFIX);
+  if (!night) {
+    return { color: frostBreath ? TRACE_FROST_BREATH_COLOR : TRACE_SOIL_COLOR, opacity };
+  }
   return {
-    color: NIGHT_TRACE_SOIL_COLOR,
+    color: frostBreath ? NIGHT_TRACE_FROST_BREATH_COLOR : NIGHT_TRACE_SOIL_COLOR,
     opacity: Math.min(opacity * NIGHT_TRACE_OPACITY_SCALE, NIGHT_TRACE_OPACITY_MAX),
   };
 }
@@ -560,7 +624,8 @@ export function regionZones(
       // C015 CHANGED — 밤이면 같은 단계가 더 또렷하게 선다 (SPEC-009). **단계를 세는
       // 것은 밤을 모른다** — traceLevelOfArea 에는 때가 넘어가지 않고, 밤이 고르는 것은
       // 그 단계의 그림뿐이다 (세계가 싣는 세기는 한 값도 바뀌지 않는다)
-      const p = traceZonePresentation(traceLevelOfArea(spec.id, area, sources), night);
+      // 색을 가르는 것은 **그 자락에 놓인 태그**다 (C020) — 방이 아니라 땅에 놓인 글자가 답이다
+      const p = traceZonePresentation(traceLevelOfArea(spec.id, area, sources), area.tag, night);
       // 모르는 단계는 **그리지 않는다** — 없는 짙기를 지어내지 않는다 (C001 부터의 폴백 규칙)
       if (!p) return [];
       return [

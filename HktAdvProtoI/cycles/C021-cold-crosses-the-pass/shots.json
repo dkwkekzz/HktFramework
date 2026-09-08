@@ -1,0 +1,102 @@
+{
+  "out": "shots",
+  "viewport": [900, 660],
+  "_": "옅어진 조건은 **같은 자리에 서서 철만 갈아** 견줘야 읽힌다 — 자리를 옮기지 않고 clock 만 다른 run 으로 나란히 둔다. 촬영 하네스의 자판 걸음이 몸을 옮기지 못하므로(C003 부터의 부채) 걸어서 철을 넘기지 않는다.",
+  "runs": [
+    {
+      "_": "X-① 고요의 산기슭 — 산맥이 막는다",
+      "region": "WHITE_KING_DOMAIN",
+      "spawn": "-16,1",
+      "npcs": "none",
+      "clock": "STILL:DAY",
+      "steps": [
+        { "wait": "세계 시간", "tries": 60 },
+        { "sleep": 8000, "note": "첫 run 은 vite 가 데워지지 않아 프레임이 느리다" },
+        { "expect": "산맥이 막는다", "note": "X-①" },
+        { "shot": "X-01-ridge-still", "note": "X-① 고요 — 판의 「걸린 것」에 「산맥이 막는다」와 「강이 먹인다」가 선다. X-02 와 나란히 본다" }
+      ]
+    },
+    {
+      "_": "X-② 스밈의 같은 자리 — 산맥이 겨우 막는다",
+      "region": "WHITE_KING_DOMAIN",
+      "spawn": "-16,1",
+      "npcs": "none",
+      "clock": "SEEP:DAY",
+      "steps": [
+        { "wait": "세계 시간", "tries": 60 },
+        { "sleep": 3000 },
+        { "expect": "산맥이 겨우 막는다", "note": "X-②" },
+        { "shot": "X-02-ridge-weak-seep", "note": "X-② 스밈 — 같은 자리인데 산맥의 줄만 옅어진 것으로 바뀌고 강의 조건은 그대로다. 자락도 서리가 앉은 것으로 갈린다" }
+      ]
+    },
+    {
+      "_": "X-③ 긴 밤의 같은 자리 — 철이 둘이다",
+      "region": "WHITE_KING_DOMAIN",
+      "spawn": "-16,1",
+      "npcs": "none",
+      "clock": "LONG_NIGHT",
+      "steps": [
+        { "wait": "세계 시간", "tries": 60 },
+        { "sleep": 3000 },
+        { "expect": "산맥이 겨우 막는다", "note": "X-③" },
+        { "shot": "X-03-ridge-weak-long-night", "note": "X-③ 긴 밤 — 스밈과 같다. 넘어오는 철은 둘이다" }
+      ]
+    },
+    {
+      "_": "X-④ 자락 밖 — 거목의 조건은 어느 철에도 그대로다",
+      "region": "WHITE_KING_DOMAIN",
+      "spawn": "-5,0",
+      "npcs": "none",
+      "clock": "SEEP:DAY",
+      "steps": [
+        { "wait": "세계 시간", "tries": 60 },
+        { "sleep": 3000 },
+        { "expect": "거목이 포식자를 물린다", "note": "X-④" },
+        { "shot": "X-04-tree-unchanged", "note": "X-④ 스밈의 거목 곁 — 약해진 것은 산맥 하나이고 다른 조건은 한 값도 달라지지 않는다" }
+      ]
+    },
+    {
+      "_": "X-⑤ 고요의 빙결 심층 문 — 잠겨 있다",
+      "region": "FROST_CANYON",
+      "spawn": "0,14",
+      "npcs": "none",
+      "clock": "STILL:DAY",
+      "steps": [
+        { "wait": "세계 시간", "tries": 60 },
+        { "sleep": 3000 },
+        { "click": [0.5, 0.71], "alt": true },
+        { "sleep": 1500 },
+        { "shot": "X-05-depth-door-locked", "note": "X-⑤ 고요 — 문이 잠겨 있고 사유가 「이 철이 아니다」다. 표식의 요구(저장된 열)는 그대로 적혀 있다" }
+      ]
+    },
+    {
+      "_": "X-⑥ 긴 밤의 같은 문 — 열려 있다",
+      "region": "FROST_CANYON",
+      "spawn": "0,14",
+      "npcs": "none",
+      "clock": "LONG_NIGHT",
+      "steps": [
+        { "wait": "세계 시간", "tries": 60 },
+        { "sleep": 3000 },
+        { "click": [0.5, 0.71], "alt": true },
+        { "sleep": 1500 },
+        { "shot": "X-06-depth-door-open", "note": "X-⑥ 긴 밤 — 같은 문이 열려 있다. 요구는 어느 철에도 그대로다" }
+      ]
+    },
+    {
+      "_": "X-⑦ 옆 면에 다시 자란 결정면",
+      "region": "FROST_CANYON",
+      "spawn": "6,-5",
+      "npcs": "none",
+      "clock": "STILL:DAY",
+      "sourcePhase": "CLIFF_FROST_VEIN:recovering",
+      "steps": [
+        { "wait": "세계 시간", "tries": 60 },
+        { "sleep": 3000 },
+        { "click": [0.5, 0.55], "alt": true },
+        { "sleep": 1500 },
+        { "shot": "X-07-frost-vein-regrown", "note": "X-⑦ 마디 0 에서 캐 옆 면에 다시 선 결정면 — 지목하면 「여기서 다시 자랐다」가 읽힌다" }
+      ]
+    }
+  ]
+}

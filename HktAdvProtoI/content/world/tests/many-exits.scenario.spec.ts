@@ -35,10 +35,15 @@ const BUILT_REGIONS = [
   BIO_ORE_FIELD,
 ];
 // C003 이 RED_EYE_TREE 를, C008 이 FANTASY_MAZE 를 지어 경계 목록에서 뺐다 — 남은 경계 둘
-const FRONTIERS = ['ICE_CANYON', 'RED_WASTE'];
+// C019 CHANGED — 얼음 협곡이 지어져 이 목록에서 빠졌다 (RED_EYE_TREE · FANTASY_MAZE 의
+// 선례 그대로). 남은 경계는 붉은 황야 하나다 — 이 파일이 아는 두 고개 중 하나다.
+const FRONTIERS = ['RED_WASTE'];
 /** 관찰 결과에 이름이 실려서는 안 되는 다른 방들 — 경계 둘 + 그 뒤로 지어진 방들 */
 const OTHER_ROOM_NAMES = [
   ...FRONTIERS,
+  // C019 ADDED — 지어진 뒤에도 이름이 실려서는 안 되는 것은 그대로다 (RED_EYE_TREE 의 선례)
+  'ICE_CANYON',
+  'FROST_CANYON',
   'RED_EYE_TREE',
   'TREE_INNER_WORLD',
   'HEART_LAKE',
@@ -352,7 +357,10 @@ describe('S-005 (SPEC-003) — C002 의 Connector 열이 이 순서로 앞에 �
         id: ICE_CANYON_PASS,
         from: { region: WHITE_KING_DOMAIN, anchor: ICE_CANYON_PASS },
         to: { region: 'ICE_CANYON', anchor: 'WHITE_KING_SIDE' },
-        direction: 'one-way',
+        // C019 CHANGED — 고개는 넘어갔다 **돌아오는** 것이므로 양방향이 되었다 (C019 spec
+        // 기본형 ⑥). **자리도 id 도 anchor 도 그대로다** — exitsOf 의 결정론이 이 순서를
+        // 따르므로 배열에서 옮기지 않았고, 백왕령 쪽 출구는 한 자리도 바뀌지 않는다.
+        direction: 'bidirectional',
         transition: 'pass',
       },
     ]);
@@ -374,11 +382,13 @@ describe('S-006 (SPEC-003) — 방마다 나갈 곳의 수가 3 · 3 · 6 · 1 �
 });
 
 describe('S-007 (SPEC-004) — 아직 짓지 않은 곳은 경계(frontier)로 밝혀져 있다', () => {
-  it('frontiers 에 RED_WASTE · ICE_CANYON 이 있다 (지어진 방은 이 목록에서 빠진다)', () => {
+  it('frontiers 에 RED_WASTE 가 있다 (지어진 방은 이 목록에서 빠진다)', () => {
     for (const name of FRONTIERS) expect(graphFrontiers).toContain(name);
-    // 지어진 방은 경계가 아니다 — C003 이 거목을, C008 이 환상의 미로를 그렇게 뺐다
+    // 지어진 방은 경계가 아니다 — C003 이 거목을, C008 이 환상의 미로를,
+    // C019 가 얼음 협곡을 그렇게 뺐다
     expect(graphFrontiers).not.toContain('RED_EYE_TREE');
     expect(graphFrontiers).not.toContain('FANTASY_MAZE');
+    expect(graphFrontiers).not.toContain('ICE_CANYON');
   });
 
   it('Description 없는 끝은 전부 frontier 안에 있고, frontier 중 지어진 방은 없다', () => {
@@ -492,9 +502,9 @@ describe('S-012 (SPEC-006 ⑤) — 고대 문 너머가 지어져 이제 건널 
 });
 
 describe('S-013 (SPEC-006 ⑤) — 아직 없는 곳으로 건너려 하면 region-not-built', () => {
-  it('백왕령의 고개 둘 — RED_WASTE_PASS · ICE_CANYON_PASS', () => {
+  it('백왕령의 고개 — RED_WASTE_PASS (C019 로 좁혀졌다)', () => {
     const w = driveWorld(solo);
-    for (const connector of [RED_WASTE_PASS, ICE_CANYON_PASS]) {
+    for (const connector of [RED_WASTE_PASS]) {
       const at = EXIT_POSITIONS[WHITE_KING_DOMAIN]![connector]!;
       walkTo(w, at.x, at.z);
       expect(transitTo(w.observe(), connector)).toMatchObject({
@@ -507,6 +517,17 @@ describe('S-013 (SPEC-006 ⑤) — 아직 없는 곳으로 건너려 하면 regi
       });
       expect(body(w).regionId).toBe(WHITE_KING_DOMAIN);
     }
+  });
+
+  it('백왕령의 얼음 협곡 고개 — ICE_CANYON_PASS 는 C019 가 그 방을 지어 이제 건너진다', () => {
+    // C002 에서는 region-not-built 였다. 이 Cycle 이 바꾼 것은 방향 한 글자뿐이고(양방향)
+    // 건너지게 만든 것은 **방이 지어졌다는 사실**이다 — ORE_TREE_TRAIL 의 선례 그대로다.
+    // 사유(region-not-built) 자체는 위 붉은 황야 고개가 그대로 지킨다.
+    const w = driveWorld(solo);
+    const at = EXIT_POSITIONS[WHITE_KING_DOMAIN]![ICE_CANYON_PASS]!;
+    walkTo(w, at.x, at.z);
+    expect(askTransit(w, ICE_CANYON_PASS)).toMatchObject({ accepted: true });
+    expect(body(w).regionId).toBe('ICE_CANYON');
   });
 
   it('광석 지대의 거목 쪽 오솔길 — ORE_TREE_TRAIL 은 C003 이 그 방을 지어 이제 건너진다', () => {

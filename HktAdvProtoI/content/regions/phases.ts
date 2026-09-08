@@ -59,12 +59,80 @@ export interface HazardOverlay {
   areaId: string;
   /** 위험의 종류 — 어휘 일곱 안의 값 (content/authoring/contracts.ts 의 HAZARD_KINDS) */
   hazard: string;
+  /**
+   * C019 ADDED — 그 자락에 선 관찰자의 **관찰 범위** (세계 단위 · spec R2 · SPEC-006).
+   *
+   * 위험이 지금까지는 "여기는 무엇인가" 를 말하는 코드 하나였다. 그 자락이 관찰자에게
+   * **실제로 하는 일**을 밝히는 첫 자리다 — 눈보라 안에서는 낮에도 멀리 있는 몸과 원천이
+   * 실리지 않는다. 겹치면 가장 좁은 것이 이기고, 때가 주는 범위(밤 20 · C015)와도 좁은
+   * 쪽이 이긴다.
+   *
+   * **밝히지 않으면 좁히지 않는다** — 지금까지의 자락(숲의 hazard/creature)은 이 자리를
+   * 밝히지 않으므로 관찰이 C015 그대로다. rule?(C008) · resourceEcology?(C011) 를 밝히지
+   * 않은 방이 그 계통 밖인 것과 같은 규율이다.
+   */
+  observeRange?: { day: number; night: number };
+  /**
+   * C019 ADDED — 그 자락에 선 동안 걸린 것에 함께 실리는 **접촉 코드** (spec R3 · SPEC-007).
+   *
+   * 위험의 코드가 "이 자리가 무엇인가" 라면 이것은 "지금 내가 그것에 닿아 있다" 이다 —
+   * 앞의 것은 내가 서지 않아도 참이고 뒤의 것은 내가 서야 참이다. 그래서 두 말이 안전의
+   * 코드 곁에 **함께** 선다 (C016 이 위험의 코드를 안전의 코드 곁에 둔 그 판단의 연장).
+   *
+   * **밝히지 않으면 아무것도 늘지 않는다.** 몸의 값은 한 톨도 달라지지 않는다 —
+   * 2층이 하는 것은 말하는 것까지다 (Play §5.1).
+   */
+  contact?: string;
+}
+
+/**
+ * **무엇이 실어 오는가** (C021 ADDED · Material §5.10 의 carrier 어법).
+ *
+ * 흐름(RESOURCE_FLOWS)이 무엇을 타고 오는지 밝히듯, 방을 넘는 덧씌움도 무엇에 실려 오는지를
+ * 밝힌다. 규칙은 이 글자를 하나도 읽지 않는다 — 세계 사실이지 기구가 아니고, 사람이 읽을
+ * 문구가 필요해지면 View 의 표가 옮긴다 (recoveryCause · worldCause 가 선 그 자리와 같다).
+ */
+export const CARRIER_WIND = 'wind';
+
+/**
+ * 그 철에 이 방이 **다른 방**에 거는 것 (C021 ADDED · spec R1 · SPEC-001 · SPEC-002).
+ *
+ * **위상이 자기 방을 넘는 첫 자리다.** C016 부터 덧씌움은 언제나 그 방 안의 자락을 가리켰다 —
+ * 깊이도 위험도 그 방의 일이었다. 이것만이 남의 방을 가리키고, 그래서 자리를 묻는 쪽이
+ * 자기 방의 위상만이 아니라 **자기를 가리킨 다른 방의 위상**도 함께 본다 (spec R2).
+ *
+ * 넘는 길을 밝히는 것이 이 형의 뜻이다 — **이음을 통해서만 넘는다** (spec SPEC-002).
+ * 그 이음이 두 방을 실제로 잇지 않으면 아무 일도 일어나지 않고, 세계가 모르는 방 ·
+ * 없는 area · 없는 이음을 가리킨 줄도 조용히 아무 일을 하지 않는다 (경계 ①) —
+ * 끊긴 참조를 오류로 세우지 않는 것은 경계(frontier)의 이름을 정합 오류로 세우지 않는
+ * C002 의 규율 그대로다.
+ *
+ * **밝히지 않은 방은 어느 철에도 다른 방에 아무것도 걸지 않는다** (경계 ②) —
+ * rule?(C008) · resourceEcology?(C011) · standing?(C019) 를 밝히지 않은 방이 그 계통 밖인
+ * 것과 같은 규율이다.
+ *
+ * 방 이름과 이음 이름을 **글자로** 적는다 — 방 파일이 다른 방 파일을 부르면 순환이 난다
+ * (흐름의 from/to · connectorId 가 세운 그 어법 · RESOURCE_FLOWS).
+ */
+export interface ConditionOutflow {
+  /** 어느 방의 */ region: string;
+  /** 어느 condition 자락 — 그 방 Description 의 settlement layer area op id */ areaId: string;
+  /** 어느 이음을 넘어서 오는가 — 실제로 두 방을 잇지 않으면 아무 일도 없다 */ throughConnector: string;
+  /** 무엇이 실어 오는가 */ carrier: string;
 }
 
 /** 그 철에 이 방이 달라지는 것. 밝히지 않은 것은 달라지지 않는다 */
 export interface RegionPhase {
   depthOverlay?: readonly DepthOverlay[];
   hazardExtend?: readonly HazardOverlay[];
+  /**
+   * C021 ADDED — 그 철에 이 방이 **다른 방**에 거는 것들 (spec R1 · R2).
+   *
+   * 앞의 둘과 갈리는 자리가 여기다: 저 둘은 **이 방**의 자락을 가리키고 이것은 **남의 방**의
+   * 자락을 가리킨다. 그래서 이것만이 자기 방 밖에서 읽힌다 — 걸리는 자리를 정하는 것은
+   * 여전히 가리켜진 쪽의 Description 이다 (지어낸 자락에는 아무것도 걸리지 않는다).
+   */
+  outflow?: readonly ConditionOutflow[];
 }
 
 /**
@@ -102,4 +170,22 @@ export interface RegionPhases {
    */
   awake?: RegionPhase;
   onTurn?: RegionTurn;
+  /**
+   * **늘 걸리는 덧씌움** (C019 ADDED · spec R1 · SPEC-005).
+   *
+   * 철도(seasons) 소란도(awake) 지나가는 것도 아닌 넷째 자리이고, 방을 바꾸는 **원인이
+   * 하나 더 는 것이 아니라 원인 없이** 걸리는 자리다. 숲의 위험은 무언가가 걸어 왔지만
+   * (철 · 소란 · 지나가는 것) 협곡의 위험은 **방 자체**다 — 눈보라는 그치지 않고 절벽은
+   * 무너지지 않는다.
+   *
+   * 형은 기존 RegionPhase 그대로다 — 달라지는 것은 여전히 그 넷 안이고(T3), 늘어난 것은
+   * "언제 걸리는가" 의 답 하나뿐이다 (언제나).
+   *
+   * 걸리는 차례는 **맨 앞**이다 (상시 → 철 → 깨어남 → 지나가는 것) — 깊이가 겹치면 나중
+   * 것이 이기므로, 늘 서 있는 것은 지나가는 것에 덮인다. 위험은 걸린 것이 전부 실리므로
+   * 차례가 답을 바꾸지 않는다.
+   *
+   * **밝히지 않은 방은 이 Cycle 전과 한 값도 다르지 않다** (spec SPEC-005 경계 ①).
+   */
+  standing?: RegionPhase;
 }

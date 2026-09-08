@@ -1,0 +1,206 @@
+{
+  "out": "shots",
+  "viewport": [
+    900,
+    660
+  ],
+  "_": "촬영 하네스에서 자판 걸음이 몸을 옮기지 못하므로(C003 부터의 부채) 자리를 달리한 run 으로 나눈다. 원천의 이름과 문의 요구는 **지목**해야 판에 서므로 alt+클릭을 쓴다 — 겨냥으로 집으므로 엉뚱한 것이 집힐 수 있고(C026 ④ 의 부채), 그때는 판이 자리를 말한다.",
+  "runs": [
+    {
+      "_": "X-① 고개의 서리 — 협곡의 흔적은 흙이 아니라 숨으로 읽힌다",
+      "region": "ICE_CANYON",
+      "spawn": "7,-15",
+      "npcs": "none",
+      "clock": "STILL:DAY",
+      "steps": [
+        {
+          "wait": "세계 시간",
+          "tries": 60
+        },
+        {
+          "sleep": 8000,
+          "note": "첫 run 은 vite 가 데워지지 않아 프레임이 느리다"
+        },
+        {
+          "expect": "숨이",
+          "note": "X-①"
+        },
+        {
+          "shot": "X-01-pass-rime",
+          "note": "X-① 고개의 서리 곁 — 판의 「흔적」이 흙이 아니라 숨을 말하고, 원천 둘레가 방 바닥보다 한 단계 짙다"
+        },
+        {
+          "click": [
+            0.5,
+            0.55
+          ],
+          "alt": true
+        },
+        {
+          "sleep": 1500
+        },
+        {
+          "shot": "X-02-pass-rime-named",
+          "note": "X-① 그것을 지목한 판 — 자연 형태와 붙잡는 것과 남은 횟수가 읽힌다 (겨냥이 빗나가면 자리가 답한다)"
+        }
+      ]
+    },
+    {
+      "_": "X-② 절벽의 결정면 — 캐기 전",
+      "region": "FROST_CANYON",
+      "spawn": "6,-15",
+      "npcs": "none",
+      "clock": "STILL:DAY",
+      "steps": [
+        {
+          "wait": "세계 시간",
+          "tries": 60
+        },
+        {
+          "sleep": 3000
+        },
+        {
+          "shot": "X-03-frost-vein-intact",
+          "note": "X-② 절벽의 결정면 곁 (캐기 전) — 걸린 것에 절벽뿐이고 결정화의 줄은 없다. X-04 와 나란히 본다"
+        }
+      ]
+    },
+    {
+      "_": "X-③ 깨진 면 — 그 자리가 결정화 위험으로 남고 결정은 옆 면에 선다",
+      "region": "FROST_CANYON",
+      "spawn": "6,-15",
+      "npcs": "none",
+      "clock": "STILL:DAY",
+      "sourcePhase": "CLIFF_FROST_VEIN:depleted",
+      "steps": [
+        {
+          "wait": "세계 시간",
+          "tries": 60
+        },
+        {
+          "sleep": 3000
+        },
+        {
+          "expect": "결정면에 닿아 있다",
+          "note": "X-③"
+        },
+        {
+          "shot": "X-04-frost-vein-broken",
+          "note": "X-③ 마디 0 을 다 캔 세계 — 그 자리에 「결정면이 땅을 뚫고 올라온다」와 「결정면에 닿아 있다」가 서고, 땅은 한 값도 바뀌지 않아 그대로 지날 수 있다"
+        }
+      ]
+    },
+    {
+      "_": "X-④ 고요에는 가루가 없다",
+      "region": "FROST_CANYON",
+      "spawn": "-6,4",
+      "npcs": "none",
+      "clock": "STILL:DAY",
+      "steps": [
+        {
+          "wait": "세계 시간",
+          "tries": 60
+        },
+        {
+          "sleep": 3000
+        },
+        {
+          "shot": "X-05-no-dust-in-still",
+          "note": "X-④ 고요 — 눈보라의 가루가 설 자리에 아무것도 없다. X-06 과 나란히 본다"
+        }
+      ]
+    },
+    {
+      "_": "X-⑤ 스밈에는 가루가 선다",
+      "region": "FROST_CANYON",
+      "spawn": "-6,4",
+      "npcs": "none",
+      "clock": "SEEP:DAY",
+      "steps": [
+        {
+          "wait": "세계 시간",
+          "tries": 60
+        },
+        {
+          "sleep": 3000
+        },
+        {
+          "shot": "X-06-dust-in-seep",
+          "note": "X-⑤ 스밈 — 같은 자리에 눈보라의 가루가 서 있다. 바닥난 것도 되돌아오는 중인 것도 아니라 아직 그때가 아니었을 뿐이다"
+        },
+        {
+          "click": [
+            0.5,
+            0.55
+          ],
+          "alt": true
+        },
+        {
+          "sleep": 1500
+        },
+        {
+          "shot": "X-07-dust-named",
+          "note": "X-⑤ 그것을 지목한 판 — 눈에 섞여 반짝이는 가루이고 붙잡는 것이 **대기**다 (이 세계에서 처음 선다)"
+        }
+      ]
+    },
+    {
+      "_": "X-⑥ 빙결 심층의 문 — 표식에 요구가 적힌다 (겨냥은 화면 자리로 집으므로 표식이 몸에 가리지 않는 아래쪽을 누른다 — C026 ④ 의 부채)",
+      "region": "FROST_CANYON",
+      "spawn": "0,14",
+      "npcs": "none",
+      "clock": "STILL:DAY",
+      "steps": [
+        {
+          "wait": "세계 시간",
+          "tries": 60
+        },
+        {
+          "sleep": 3000
+        },
+        {
+          "click": [
+            0.5,
+            0.71
+          ],
+          "alt": true
+        },
+        {
+          "sleep": 1500
+        },
+        {
+          "expect": "저장된 열이 있어야 한다",
+          "note": "X-⑥"
+        },
+        {
+          "shot": "X-08-depth-door-requirement",
+          "note": "X-⑥ 빙결 심층으로 드는 문을 지목한 판 — 걸린 것에 「저장된 열이 있어야 한다」가 적혀 있다. 그 원천은 협곡 어디에도 없다"
+        }
+      ]
+    },
+    {
+      "_": "X-⑦ 숲은 그대로다 — 흙의 말이 그대로 뜬다 (회귀)",
+      "region": "FOREST_EDGE",
+      "spawn": "-8,6",
+      "npcs": "none",
+      "clock": "STILL:DAY",
+      "steps": [
+        {
+          "wait": "세계 시간",
+          "tries": 60
+        },
+        {
+          "sleep": 2500
+        },
+        {
+          "expect": "흙",
+          "note": "X-⑦"
+        },
+        {
+          "shot": "X-09-forest-unchanged",
+          "note": "X-⑦ 회귀 — 숲의 흔적은 여전히 흙의 말이고 색도 그대로다. 두 어휘가 한 자리에서 섞이지 않는다"
+        }
+      ]
+    }
+  ]
+}

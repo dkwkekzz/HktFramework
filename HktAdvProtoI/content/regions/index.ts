@@ -1,7 +1,9 @@
 // content/regions — 이 팩의 Region 데이터 (C001 ADDED · C002 에서 방 여섯 · Connector 열 ·
 // C003 에서 방 아홉 · Connector 열셋 · 중첩 둘 · C008 에서 방 열 · Connector 열넷 · 경계 둘 ·
 // C009 에서 방 열하나 · Connector 열여섯 · 중첩 셋 · 경계 셋 ·
-// C016 에서 Connector 열일곱 · 경계 넷).
+// C016 에서 Connector 열일곱 · 경계 넷 ·
+// C019 에서 방 열셋 · Connector 열여덟 · 경계 셋 ·
+// C020 에서 Connector 열아홉 · 경계 넷).
 //
 // world 와 view 가 함께 읽는 정적 사실이다. 세계 State 에 들어가지 않고 저장되지도 않는다 —
 // 컨텐츠 데이터에서 다시 온다 (C001 02-world R7 · character-catalog 와 같은 성격).
@@ -13,7 +15,9 @@ import { EXPLORER_RUIN_SPEC } from './explorer-ruin';
 import { FANTASY_MAZE_SPEC } from './fantasy-maze';
 import { FOREST_DEEP_SPEC } from './forest-deep';
 import { FOREST_EDGE_SPEC } from './forest-edge';
+import { FROST_CANYON_SPEC } from './frost-canyon';
 import { HEART_LAKE_SPEC } from './heart-lake';
+import { ICE_CANYON_SPEC } from './ice-canyon';
 import { MAZE_HEART_SPEC } from './maze-heart';
 import { PREDATOR_NEST_SPEC } from './predator-nest';
 import { RED_EYE_TREE_SPEC } from './red-eye-tree';
@@ -56,11 +60,17 @@ export {
   MAZE_HEART_GATE,
   INVERTED_GARDEN_DOOR,
   WALKING_FOREST_DOOR,
+  // C019 ADDED — 협곡 안쪽으로 드는 오솔길
+  FROST_CANYON_TRAIL,
+  // C020 ADDED — 빙결 심층으로 드는 문과 그 요구 표
+  FROST_DEPTH_DOOR,
   RED_WASTE,
-  ICE_CANYON,
   INVERTED_GARDEN,
   WALKING_FOREST,
+  FROST_DEPTH,
   CONNECTOR_ACTIVATIONS,
+  CONNECTOR_REQUIREMENTS,
+  REQUIRES_STORED_HEAT,
 } from './graph';
 export type { ConnectorActivation } from './graph';
 export { WHITE_KING_DOMAIN, WHITE_GIANT_TREE } from './white-king-domain';
@@ -92,6 +102,11 @@ export {
 } from './fantasy-maze';
 // MAZE_HEART 는 C008 까지 이름조차 없던 곳이다 — C009 가 지었다 (01-spec SPEC-001).
 export { MAZE_HEART } from './maze-heart';
+// ICE_CANYON 은 C002 부터 graph.ts 의 경계 이름이었다 — 지어진 지금은 자기 방 파일이 소유한다
+// (RED_EYE_TREE · FANTASY_MAZE 의 선례 · C019). FROST_CANYON 은 경계였던 적이 없다:
+// 그 이름은 C019 가 처음 짓고 처음부터 방이다.
+export { ICE_CANYON } from './ice-canyon';
+export { FROST_CANYON } from './frost-canyon';
 
 /** 세계가 아는 Region 들 — graph.regions 와 같은 순서 */
 export const REGION_SPECS: readonly RegionSpec[] = [
@@ -106,6 +121,9 @@ export const REGION_SPECS: readonly RegionSpec[] = [
   HEART_LAKE_SPEC,
   FANTASY_MAZE_SPEC,
   MAZE_HEART_SPEC,
+  // C019 ADDED — 고개 너머 둘. graph.regions 와 같은 차례로 배열 **끝**에 붙는다.
+  ICE_CANYON_SPEC,
+  FROST_CANYON_SPEC,
 ];
 
 export function regionSpec(id: string): RegionSpec | undefined {

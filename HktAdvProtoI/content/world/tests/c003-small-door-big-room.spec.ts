@@ -723,13 +723,17 @@ describe('SPEC-009 — 검사가 중첩을 알고, 경계가 하나 줄었다', 
     // C009 가 심장에서 나가는 문으로 뒤집힌 정원을 가리켜 새 이름 하나를 더했다 — 경계는 셋이다.
     // C003 의 주장(지어진 방은 경계 목록에 남지 않는다 · 밝힌 경계는 전부 가리켜져 있다)은
     // 한 글자도 바뀌지 않았고 목록만 오갔다.
-    // C016 이 긴 밤의 문으로 걷는 숲을 가리켜 이름 하나를 더했다 — 경계는 넷이다.
+    // C016 이 긴 밤의 문으로 걷는 숲을 가리켜 이름 하나를 더했다 — 경계는 넷이었다.
+    // C019 가 얼음 협곡을 지어 그 이름을 이 목록에서 뺐다 (RED_EYE_TREE · FANTASY_MAZE 의
+    // 선례 그대로). C020 이 빙결 심층을 가리키며 이름 하나를 더했다 — 경계는 넷이다.
+    // 목록만 오갔고 주장은 그대로다.
     expect([...graphFrontiers].sort()).toEqual([
-      'ICE_CANYON',
+      'FROST_DEPTH',
       'INVERTED_GARDEN',
       'RED_WASTE',
       'WALKING_FOREST',
     ]);
+    expect(graphFrontiers).not.toContain('ICE_CANYON');
     expect(graphFrontiers).not.toContain('FANTASY_MAZE');
 
     const pointed = new Set<string>();

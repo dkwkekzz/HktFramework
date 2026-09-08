@@ -271,7 +271,12 @@ function hazardOverlayOf(region: string, season: SeasonId) {
   return regionSpec(region)?.phases?.seasons?.[season]?.hazardExtend?.[0];
 }
 /** 덧씌움을 밝힌 방들 (데이터가 말한다) */
-const PHASE_ROOMS = REGION_SPECS.filter((s) => s.phases).map((s) => s.id);
+// C019 로 좁혀졌다 — 위상을 밝힌 방이 곧 **철을 타는** 방이 아니게 되었다. 협곡 둘은
+// phases.standing 만 밝히고 그것은 철도 소란도 아닌 자리다 (C019 spec R1). 이 목록이 재는
+// 것은 "철에 매인 위상을 밝힌 방" 이므로 seasons · onTurn 을 밝힌 방만 여기 든다.
+const PHASE_ROOMS = REGION_SPECS.filter((s) => s.phases?.seasons ?? s.phases?.onTurn).map(
+  (s) => s.id,
+);
 /** 그 가운데 철별 덧씌움을 밝힌 방 · 뒤척임을 밝힌 방 */
 const SEASON_ROOMS = REGION_SPECS.filter((s) => s.phases?.seasons).map((s) => s.id);
 const TURN_ROOMS = REGION_SPECS.filter((s) => s.phases?.onTurn).map((s) => s.id);
@@ -608,12 +613,33 @@ describe('SPEC-002 스밈에 그 자락이 위험으로 읽힌다', () => {
     }
   });
 
-  it('S-023 (경계 ②) "왜 여기가 안전한가"(C006 의 코드)는 철 넷에서 한 값도 달라지지 않는다', () => {
+  it('S-023 (경계 ②) **철이 건드리지 않는** 안전의 코드는 철 넷에서 한 값도 달라지지 않는다', () => {
+    // C021 로 좁혀졌다 — 다른 방의 위상이 이음을 넘어 어떤 조건 자락을 약하게 할 수 있게
+    // 되었다 (C021 SPEC-001). 이 항이 재는 것은 여전히 "철이 밝히지 않은 것은 흔들지
+    // 않는다" 이므로, **넘어 온 것이 가리킨 자락**은 이 무리에서 뺀다 — 그 자락의 약해짐은
+    // C021 이 잰다. 기대를 낮추는 것이 아니라 자리를 옮기는 것이다 (S-024 의 선례 그대로).
+    const weakened = new Set(
+      REGION_SPECS.flatMap((spec) =>
+        Object.values(spec.phases?.seasons ?? {}).flatMap((phase) =>
+          ((phase as { outflow?: readonly { region: string; areaId: string }[] }).outflow ?? [])
+            .filter((entry) => entry.region === WHITE_KING_DOMAIN)
+            .map((entry) => entry.areaId),
+        ),
+      ),
+    );
+    const weakenedTags = new Set(
+      spaceOf(WHITE_KING_DOMAIN)
+        .ops.filter((op) => weakened.has(op.id) && op.kind === 'area')
+        .map((op) => (op as { tag: string }).tag),
+    );
     // Given 조건이 걸린 자리 — 백왕령의 settlement layer 에서 데이터로 고른다
     const t = terrainOf(WHITE_KING_DOMAIN);
-    const spot = walkableSpots(WHITE_KING_DOMAIN).find(
-      (p) => tagsAt(t, p.x, p.z, SETTLEMENT_LAYER).filter((tag) => tag.startsWith(CONDITION_PREFIX)).length > 0,
-    );
+    const spot = walkableSpots(WHITE_KING_DOMAIN).find((p) => {
+      const tags = tagsAt(t, p.x, p.z, SETTLEMENT_LAYER).filter((tag) =>
+        tag.startsWith(CONDITION_PREFIX),
+      );
+      return tags.length > 0 && tags.every((tag) => !weakenedTags.has(tag));
+    });
     if (!spot) throw new Error('백왕령에 조건이 걸린 설 자리가 없다');
     let expected: string[] | null = null;
     for (const season of SEASONS) {
@@ -643,8 +669,15 @@ describe('SPEC-002 스밈에 그 자락이 위험으로 읽힌다', () => {
         route.nodes.flatMap((node) => node.map((choice) => choice.region)),
       ),
     );
+    // C019 CHANGED — **늘 서 있는 위상**을 밝힌 방도 뺀다. 그 위험은 철이 거는 것이 아니라
+    // 방 자체가 원인 없이 늘 걸고 있는 것이고(C019 spec R1), 이 항이 재는 것은 여전히
+    // "철이 밝히지 않은 방을 흔들지 않는다" 이다. 상시의 위험은 C019 가 잰다.
     for (const spec of REGION_SPECS.filter(
-      (s) => !SEASON_ROOMS.includes(s.id) && s.id !== WHITE_KING_DOMAIN && !ON_A_ROUTE.has(s.id),
+      (s) =>
+        !SEASON_ROOMS.includes(s.id) &&
+        s.id !== WHITE_KING_DOMAIN &&
+        !ON_A_ROUTE.has(s.id) &&
+        s.phases?.standing === undefined,
     )) {
       for (const season of SEASONS) {
         const w = inSeason(season, spec.id);
@@ -1138,8 +1171,12 @@ describe('SPEC-007 규칙은 철의 이름을 모른다', () => {
     }
     // Then 철을 탄 방은 밝힌 방의 부분집합이다
     for (const id of changed) expect({ id, declared: declared.has(id) }).toEqual({ id, declared: true });
-    // And 밝힌 방은 실제로 셋이다 — 지어낸 것도 빠뜨린 것도 없다 (데이터가 말하는 그대로)
-    expect([...declared].sort()).toEqual([BIO_ORE_FIELD, FOREST_DEEP, FOREST_EDGE].sort());
+    // And 밝힌 방은 지어낸 것도 빠뜨린 것도 없다 — 데이터가 말하는 그대로다.
+    // C021 로 넓어졌다 — 빙결 협곡이 철을 밝혀 넷이 되었다 (C021 SPEC-001). 이 항의 주장은
+    // "철을 탄 방은 밝힌 방의 부분집합" 이고 그것은 그대로다: 목록이 자란 것뿐이다.
+    expect([...declared].sort()).toEqual(
+      [BIO_ORE_FIELD, FOREST_DEEP, FOREST_EDGE, 'FROST_CANYON'].sort(),
+    );
     // And 그 셋은 실제로 철을 탔다 (밝혔는데 아무 일도 없는 방이 없다)
     expect([...changed].sort()).toEqual([...declared].sort());
   });

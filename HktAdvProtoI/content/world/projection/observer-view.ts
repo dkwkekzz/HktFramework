@@ -39,6 +39,24 @@
 // 관찰자의 몸에서 OBSERVE_RANGE_NIGHT 보다 먼 **몸과 원천**은 실리지 않고 그것에 걸린
 // 상호작용도 함께 빠진다. 낮에는 C014 까지와 한 줄도 다르지 않고, 밤에도 출구 · 방의 사실 ·
 // standingConditions · HUD 는 자르지 않는다 — 관찰 결과의 **형**은 낮과 밤이 같다.
+//
+// C019 CHANGED (RULE-OBSERVE-RANGE-001 · RULE-STANDING-CONTACT-001 · C019 spec R2 · R3) —
+// **선 자리의 자락도 방 안을 자른다.** 관찰 범위를 밝힌 위험 자락에 서면 그 거리 너머의 몸과
+// 원천이 실리지 않는다 — 낮에도 그렇다. 자르는 자리는 C015 가 자르던 **그 자리 하나 그대로**이고
+// (몸 · 원천 + 거기 걸린 상호작용) 봉투에 새 자리는 나지 않는다. 때가 주는 범위와 자락이 주는
+// 범위 중 **좁은 쪽**이 이기고, 자락 여럿이 겹치면 그중 가장 좁은 것이 이긴다.
+// 그리고 접촉 코드를 밝힌 자락에 선 동안 그 코드가 안전 · 위험의 코드 **뒤에 이어 붙는다** —
+// 여기도 새 자리를 내지 않았다 (C016 이 위험의 코드를 안전의 코드 곁에 둔 그 판단의 연장).
+// **왜 좁아졌는지도 지금 범위가 얼마인지도 어느 자락이 그것을 걸었는지도 싣지 않는다** —
+// 관찰자는 앞이 안 보인다는 것과 발밑이 무엇인가만 알고, 그것을 잇는 것이 플레이다.
+//
+// C020 CHANGED (RULE-DEPLETED-HAZARD-001 · RULE-EXIT-REQUIREMENT-001 · C020 spec R4 · R5 · R6) —
+// **봉투에 새 자리가 하나도 나지 않는다.** 이미 있는 자리의 값이 달라지고 목록이 늘 뿐이다:
+// **깨진 마디**가 건 위험의 코드와 닿음의 코드가 철 · 소란 · 지나가는 것 · 늘 서 있는 것의
+// 것과 **함께** standingConditions 에 실리고(위상을 거는 원인이 다섯째다), 요구를 밝힌 문의
+// 출구 존재에 그 **요구의 코드**가 원천의 조건 코드가 실리는 그 자리로 실린다.
+// **무엇이 그 요구를 채우는지도 · 어디서 나는지도 · 마디가 몇인지도 · 되돌아옴이 왜
+// 빨라졌는지도 싣지 않는다** — 관찰자는 같은 자리에 여러 철에 와 보고 그것을 배운다.
 
 import type {
   EntityView,
@@ -65,6 +83,7 @@ import { projectCommandCatalog } from '../semantic/command-catalog';
 import { hasMiningTool, itemCount } from '../semantic/inventory';
 import type { ItemKind } from '../semantic/item';
 import {
+  depletedOverlaysIn,
   isSourcePresentAt,
   sourceConditions,
   sourcePositionOf,
@@ -72,9 +91,15 @@ import {
   sourcesInRegion,
 } from '../semantic/resource';
 import { passingIn, passingOverlaysIn } from '../semantic/presence';
-import { depthOverlayAt, hazardOverlayTagsAt } from '../semantic/region-phase';
+import {
+  depthOverlayAt,
+  hazardEffectsAt,
+  hazardOverlayTagsAt,
+  standingConditionTagsAt,
+} from '../semantic/region-phase';
 import {
   anchorPosition,
+  connectorRequirements,
   isConnectorOpen,
   regionExitsOf,
   regionHash,
@@ -83,7 +108,8 @@ import {
 import { regionRuleOf } from '../semantic/region-state';
 // 재료 표는 content/regions 의 것이다 — HUD 의 자리 순서를 그 표가 정한다 (C011).
 import { MATERIAL_SEEDS } from '../../regions';
-import { conditionTagsAt } from '../semantic/terrain';
+// C021 CHANGED — 안전의 코드는 이제 standingConditionTagsAt 이 낸다 (그 안에서
+// conditionTagsAt 을 그대로 부른다 — 땅의 것은 여전히 땅의 것이다).
 import { distance } from '../semantic/position';
 import {
   actorOfObserver,
@@ -96,6 +122,18 @@ import {
 } from '../semantic/world-state';
 
 export const SPEC_ID = 'VIEW-BASIC-COMBAT-POLICY-001';
+
+/**
+ * RULE-OBSERVE-RANGE-001 (C019 ADDED · C019 spec R2) — 둘 중 **좁은 쪽**. 없는 것은 무제한이다.
+ *
+ * 때가 주는 범위와 자락이 주는 범위를 견주는 자리이고, 둘 다 없으면 방 전체다 (낮의 C015).
+ * 한 자리에만 두는 이유는 하나다 — "좁은 쪽이 이긴다" 가 두 벌이 되면 낮과 밤이 다른 답을 낸다.
+ */
+function narrower(a: number | undefined, b: number | undefined): number | undefined {
+  if (a === undefined) return b;
+  if (b === undefined) return a;
+  return Math.min(a, b);
+}
 
 // 관찰자가 세계에 없으면 관찰 결과도 없다 — 세계는 모르는 이에게 자신을 보여주지 않는다.
 export function projectObserverView(
@@ -119,15 +157,54 @@ export function projectObserverView(
   // 두 물음에 같은 것을 넘긴다 — 두 번 물으면 한 관찰 안에서 답이 갈릴 수 있다.
   const passingOverlays = passingOverlaysIn(state.presences, self.regionId, state.time);
 
+  // C017 ADDED — 그 방의 소란. **모든 방에 있다** (spec 기본형 ⑩) — 되살린 옛 세계에만 없을 수
+  // 있으므로 물음표로 읽고, 없으면 아무 일도 겪지 않은 것과 같이 낸다 (없는 값을 지어내는 것이
+  // 아니라 State 가 없다는 것이 곧 값 0 · 잠듦이다).
+  // C019 CHANGED — 자리를 위로 옮겼다. 아래 자락의 물음이 이 값을 함께 보기 때문이다 —
+  // 실리는 자리(region.disturbance)도 읽는 값도 한 톨도 달라지지 않는다.
+  const disturbance = state.regionStates[self.regionId]?.disturbance;
+
+  // RULE-DEPLETED-HAZARD-001 (C020 ADDED · C020 spec R4) — 그 방에서 **깨진 마디**들이 건
+  // 덧씌움들. 위상을 거는 원인이 다섯째가 되었다 (철 · 소란 · 지나가는 것 · 늘 서 있는 것 ·
+  // 고갈). passingOverlays 와 **같은 어법**으로 한 번만 얻어 아래 물음들에 같은 것을
+  // 넘긴다 — 두 번 물으면 한 관찰 안에서 답이 갈릴 수 있다.
+  const depletedOverlays = depletedOverlaysIn(state, self.regionId);
+
+  // RULE-OBSERVE-RANGE-001 · RULE-STANDING-CONTACT-001 (C019 ADDED · C019 spec R2 · R3) —
+  // 관찰자가 **선 자리**를 덮은 위험 자락들이 밝힌 것. 한 번만 물어 두 물음(무엇이 실리는가 ·
+  // 걸린 것이 무엇인가)에 같은 것을 넘긴다 — 두 번 물으면 한 관찰 안에서 답이 갈릴 수 있다
+  // (passingOverlays 를 한 번만 얻는 그 어법 그대로).
+  // 낮과 밤 중 어느 수를 읽을지는 여기서 준다 — 때를 아는 자리는 시계 하나다.
+  const hazardEffects = hazardEffectsAt(
+    self.regionId,
+    self.position,
+    state.time,
+    disturbance,
+    passingOverlays,
+    clock.dayPhase !== 'DAY',
+    // C020 ADDED — 깨진 결정면이 건 **접촉의 코드**가 여기로 실린다 (C020 spec R4).
+    depletedOverlays,
+  );
+
   /**
-   * RULE-OBSERVE-PROJECTION (C015 CHANGED · spec R2) — 밤에는 그 방 안을 한 번 더 자른다.
+   * RULE-OBSERVE-PROJECTION (C015 CHANGED · spec R2) · RULE-OBSERVE-RANGE-001
+   * (C019 CHANGED · C019 spec R2) — 방 안을 한 번 더 자른다.
    *
-   * 때가 밤이면 관찰자의 몸에서 OBSERVE_RANGE_NIGHT 보다 먼 것은 실리지 않는다.
-   * 낮에는 언제나 참이다 — 방 전체가 실린다 (C014 까지 그대로).
+   * 자르는 범위는 둘 중 **좁은 쪽**이다.
+   *   때가 주는 것    낮이면 무제한(방 전체) · 밤이면 OBSERVE_RANGE_NIGHT (C015 그대로)
+   *   자락이 주는 것  선 자리를 덮은 자락들이 밝힌 값 중 가장 좁은 것. 밝힌 자락이 없으면 없다
+   * 그래서 자락 밖은 C015 와 한 값도 다르지 않고(경계 ①), 자락 안에서는 **낮에도** 잘린다.
    * 거리는 같은 방 안의 (x, z) 평면 거리다 (RULE-MINE-001 이 재는 그 거리).
+   *
+   * 이름은 C015 가 지은 그대로 둔다 — 자르는 **자리**가 그때와 같은 하나이기 때문이다
+   * (몸 · 원천 + 거기 걸린 상호작용). 이름을 바꾸면 자르는 자리가 늘어난 것처럼 읽힌다.
    */
+  const observeRange = narrower(
+    clock.dayPhase === 'DAY' ? undefined : OBSERVE_RANGE_NIGHT,
+    hazardEffects.observeRange,
+  );
   const withinNightRange = (position: { x: number; z: number }): boolean =>
-    clock.dayPhase === 'DAY' || distance(self.position, position) <= OBSERVE_RANGE_NIGHT;
+    observeRange === undefined || distance(self.position, position) <= observeRange;
 
   // entities.character — 같은 Region 의 모든 Actor 를 같은 계약으로 투영한다 (cardinality: many).
   // role 만 보는 이에 따라 달라진다. 다른 방의 몸은 실리지 않는다 (C001 R6).
@@ -360,6 +437,7 @@ export function projectObserverView(
   // 경계를 가리키는 출구도 state 는 open 이다 (01-spec SPEC-007 경계).
   for (const exit of regionExitsOf(self.regionId)) {
     const here = anchorPosition(exit.here.region, exit.here.anchor);
+    const requirements = connectorRequirements(exit.connector.id);
     entities.push({
       id: exit.connector.id,
       role: 'region-exit',
@@ -372,6 +450,15 @@ export function projectObserverView(
         : 'locked',
       kind: exit.connector.transition,
       position: { x: here.x, z: here.z },
+      // RULE-EXIT-REQUIREMENT-001 (C020 ADDED · C020 spec R5 · SPEC-009) — 그 문이 **밝힌
+      // 요구**의 코드들. 원천의 조건 코드가 실리는 그 자리를 그대로 쓴다 — 봉투에 새 자리를
+      // 내지 않았다 (C020 기본형 ⑥). 밝히지 않은 문은 **자리 자체가 없다** (빈 배열로
+      // 지어내지 않는다 · 원천이 그런 그대로).
+      //
+      // **표시일 뿐이다** (spec R5 경계 ①) — 위의 state(open | locked)는 이 값을 한 값도
+      // 읽지 않는다. 요구를 채워 열리지도, 밝혔다고 잠기지도 않는다.
+      // 무엇이 그것을 채우는지도 어디서 나는지도 싣지 않는다 (경계 ②).
+      ...(requirements.length > 0 ? { conditions: [...requirements] } : {}),
     });
 
     const failure = evaluateTransitPreconditions(state, self, exit);
@@ -391,10 +478,7 @@ export function projectObserverView(
   // 규칙 없는 방에서는 자리 자체가 없다 — 0 으로 지어내지 않는다 (SPEC-007 경계).
   // 임계값(pressureLimit)을 함께 싣는 것은 "얼마나 찼는가" 를 View 가 재기 위해서다.
   // 패턴 표는 싣지 않는다 — 관찰자가 자기 content/regions 에서 읽는다.
-  // C017 ADDED — 그 방의 소란. **모든 방에 있다** (spec 기본형 ⑩) — 되살린 옛 세계에만 없을 수
-  // 있으므로 물음표로 읽고, 없으면 아무 일도 겪지 않은 것과 같이 낸다 (없는 값을 지어내는 것이
-  // 아니라 State 가 없다는 것이 곧 값 0 · 잠듦이다).
-  const disturbance = state.regionStates[self.regionId]?.disturbance;
+  // 그 방의 소란은 위에서 한 번 읽었다 (C017 ADDED · spec 기본형 ⑩ · C019 에서 자리만 위로).
   const disturbanceView: RegionDisturbanceView = {
     value: disturbance?.value ?? 0,
     // 임계를 함께 싣는 것은 "얼마나 찼는가" 를 View 가 재기 위해서다 (pressureLimit 의 선례).
@@ -506,6 +590,9 @@ export function projectObserverView(
             state.time,
             disturbance,
             passingOverlays,
+            // C020 CHANGED — 깨진 마디의 덧씌움까지 함께 본다 (원인 다섯 · C020 spec R4).
+            // 지금 그것을 밝힌 자락은 깊이를 걸지 않으므로 이 값은 한 톨도 달라지지 않는다.
+            depletedOverlays,
           ) ?? region.depth,
       },
     ],
@@ -529,17 +616,32 @@ export function projectObserverView(
     // 않는다 — 나누면 판이 두 번 말한다. 안전의 코드는 한 값도 바뀌지 않고(spec R3 경계 ①),
     // 겹치면 걸린 것이 전부 실린다 (C006 의 경계 그대로).
     standingConditions: [
-      ...conditionTagsAt(self.regionId, self.position),
+      // RULE-CONDITION-WEAKEN-001 (C021 CHANGED · C021 spec R1 · R5 · SPEC-001) — 안전의 코드
+      // 가운데 **이음을 넘어 온 것**에 덮인 자락의 것이 옅어진 채로 실린다. 봉투에 새 자리를
+      // 내지 않았다: 옅어진 것이 안전의 코드를 **대신** 서므로 실리는 개수도 차례도 그대로다
+      // (기본형 ①). 넘어 온 것이 없으면 C006 의 답과 한 값도 다르지 않다.
+      // **무엇이 그것을 약하게 했는지 · 어디서 왔는지 · 무엇이 실어 왔는지는 싣지 않는다**
+      // (기본형 ② · spec Observable) — 그것을 잇는 것이 관찰자의 일이다.
+      ...standingConditionTagsAt(self.regionId, self.position, state.time),
       // C017 CHANGED — 깨어남의 위험 코드가 철의 것과 **함께** 실린다 (spec R4 경계 ②).
       // C018 CHANGED — 거기에 **지나는 것이 건 위험 코드**가 더해진다. 걸린 것이 전부
       // 실린다는 어법은 그대로이고, 원인이 셋이 된 것뿐이다.
+      // C020 CHANGED — 거기에 **깨진 마디가 건 위험 코드**가 더해진다. 걸린 것이 전부
+      // 실린다는 어법은 그대로이고, 원인이 다섯이 된 것뿐이다 (C020 spec R4 경계 ②).
       ...hazardOverlayTagsAt(
         self.regionId,
         self.position,
         state.time,
         disturbance,
         passingOverlays,
+        depletedOverlays,
       ),
+      // RULE-STANDING-CONTACT-001 (C019 ADDED · C019 spec R3) — 접촉 코드가 **안전의 코드 ·
+      // 위험의 코드 뒤**에 이어 붙는다. 봉투에 새 자리를 내지 않았다: 위험의 코드가 "이 자리가
+      // 무엇인가" 라면 이것은 "지금 내가 그것에 닿아 있다" 이고, 둘은 여전히 "여기는 무엇인가"
+      // 라는 한 물음의 얼굴이라 판이 두 번 말하지 않는다. 밝힌 자락이 없으면 한 글자도 늘지
+      // 않고, **몸의 값은 한 톨도 달라지지 않는다** — 2층이 하는 것은 말하는 것까지다.
+      ...hazardEffects.contacts,
     ],
     // 그 방에 남은 자국들 (C017 ADDED · RULE-TRACK-001 · spec R8).
     tracks,

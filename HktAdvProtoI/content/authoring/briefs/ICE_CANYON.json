@@ -1,0 +1,51 @@
+{
+  "id": "ICE_CANYON",
+  "name": "얼음 협곡",
+  "depth": "outer",
+  "kinds": [
+    "hazard/terrain"
+  ],
+  "answers": {
+    "distinction": "고개 하나로만 닿는, 숲과 갈래가 다른 첫 방이다. 바닥이 흙이 아니라 서리이고, 위험이 짐승이 아니라 땅이다 — 숲에서 배운 문법이 여기서는 답이 아니다.",
+    "cause": "골 양옆이 얼음 절벽으로 솟아 걸을 수 있는 곳은 골 바닥뿐이고, 그 골을 따라 서리가 깔린다. 열이 귀한 곳이라 물이 마르지 않고 언다.",
+    "dwelling": {
+      "unanswered": "이 방에는 몸이 하나도 놓이지 않았다 — 체온을 감지하는 포식자는 Concept §6 이 말하지만 생명 계약이 아직 데이터로 서지 않았다 (Play RoomBearsLife · C022~C025)"
+    },
+    "danger": "절벽이 길을 끊는다 — 골 양옆의 급경사가 몸을 세우고, 그 앞에 선 자리가 hazard/terrain 으로 답해진다. 숲의 hazard/creature 와 한 갈래도 겹치지 않는다.",
+    "worth": {
+      "said": "고개를 넘자마자 벽에 앉은 서리가 곧 재료다 — 위험을 만든 그것이 보상이기도 하다. 밟아도 녹지 않고, 밤마다 다시 낀다.",
+      "sources": [
+        {
+          "id": "PASS_RIME",
+          "material": "FROST_CRYSTAL",
+          "heldBy": "phenomenon",
+          "worldCause": "CRYSTAL_GROWTH",
+          "recoveryCause": "night-rime",
+          "form": "rime",
+          "role": "baseline"
+        }
+      ]
+    },
+    "discovery": "고개 너머가 다른 문법이라는 것. 흔적이 흙 색이 아니라 **숨이 어는 정도**로 읽히고, 그 숨이 짙어지는 쪽에 재료가 있다는 것.",
+    "opening": "고개로 백왕령에 돌아가고, 골을 따라 북으로 가면 더 깊은 협곡이 열린다.",
+    "birth": {
+      "said": {
+        "unanswered": "생명 계약(탄생지 · 개체군 · 관계)이 아직 데이터로 서지 않았다 — Play RoomBearsLife(C022~C025)의 것이다"
+      },
+      "born": []
+    }
+  },
+  "neighbours": [
+    {
+      "region": "WHITE_KING_DOMAIN",
+      "transition": "pass",
+      "direction": "bidirectional"
+    },
+    {
+      "region": "FROST_CANYON",
+      "transition": "trail",
+      "direction": "bidirectional"
+    }
+  ],
+  "requires": []
+}

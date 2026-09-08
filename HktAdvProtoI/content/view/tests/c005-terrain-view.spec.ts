@@ -201,14 +201,19 @@ describe('SPEC-004 — 표면이 경사로 갈린다 (컨텐츠의 규칙 표)',
     expect(steepCount).toBeGreaterThan(0);
   });
 
-  it('V-006 (경계 · C006 CHANGED) 경사 말고 다른 것을 묻는 줄은 젖음 하나뿐이고 맨 앞이다', () => {
+  it('V-006 (경계 · C006 · C019 CHANGED) 경사 말고 다른 것을 묻는 줄들이 맨 앞에 모여 있다', () => {
     // C005 때는 확정 5 의 넷 중 셋만 썼다 — 어느 줄도 경사 말고 다른 것을 묻지 않았다.
     // C006 이 넷째(젖음)를 세운다: 강까지의 거리를 묻는 줄이 **하나** 늘고, 강 곁은 경사보다
     // 먼저 젖으므로 그것이 맨 앞이다 (C006 spec SPEC-004).
-    expect(CURVE_RULES.length).toBe(1);
-    expect(RULES.surface[0]).toBe(CURVE_RULES[0]);
-    expect(Object.keys(CURVE_RULES[0]!).sort()).toEqual(['nearCurve', 'tag']);
-    expect(CURVE_RULES[0]!.nearCurve!.maxDistance).toBeGreaterThan(0);
+    // C019 가 다섯째(서리)를 세운다 — 서리 선까지의 거리를 묻는 줄이 하나 더 늘고 그것이
+    // 젖음보다 앞이다 (C019 spec SPEC-003). 이 주장은 지워진 것이 아니라 **넓어진** 것이다:
+    // 곡선을 묻는 줄들은 여전히 표의 맨 앞에 모여 있고 경사를 묻는 줄은 그 뒤 셋 그대로다.
+    expect(CURVE_RULES.length).toBeGreaterThan(0);
+    expect(RULES.surface.slice(0, CURVE_RULES.length)).toEqual(CURVE_RULES);
+    for (const rule of CURVE_RULES) {
+      expect(Object.keys(rule).sort()).toEqual(['nearCurve', 'tag']);
+      expect(rule.nearCurve!.maxDistance).toBeGreaterThan(0);
+    }
     // 나머지 셋은 여전히 경사만 묻는다
     for (const rule of SLOPE_RULES) {
       expect(Object.keys(rule).sort()).toEqual(
@@ -219,8 +224,15 @@ describe('SPEC-004 — 표면이 경사로 갈린다 (컨텐츠의 규칙 표)',
 
   // C007 SPEC-009 가 이 주장을 **좁혔다** — 숲 가장자리에 stamp(basin) 하나가 늘면서 그 방의
   // 표면이 경사를 따라 갈린다. 표(RULES)는 한 글자도 바뀌지 않았고 데이터가 늘었을 뿐이다.
-  it('V-007 (경계) stamp 도 curve 도 없는 일곱 방은 같은 표로도 평지 태그 하나뿐이다 (C007 SPEC-009 로 좁혀졌다)', () => {
-    for (const spec of REGION_SPECS.filter((s) => s.id !== START_REGION_ID && s.id !== 'FOREST_EDGE')) {
+  // C019 가 한 번 더 좁힌다 — 협곡 둘이 절벽(stamp)과 서리 선(curve)을 함께 품고 선다.
+  it('V-007 (경계) stamp 도 curve 도 없는 방들은 같은 표로도 평지 태그 하나뿐이다 (C007 · C019 로 좁혀졌다)', () => {
+    for (const spec of REGION_SPECS.filter(
+      (s) =>
+        s.id !== START_REGION_ID &&
+        s.id !== 'FOREST_EDGE' &&
+        s.id !== 'ICE_CANYON' &&
+        s.id !== 'FROST_CANYON',
+    )) {
       const region = compileRegion(spec.space, RULES);
       const used = [...new Set(region.world.surface)].map((i) => region.world.surfaceTags[i]);
       expect({ region: spec.id, used }).toEqual({ region: spec.id, used: [slopeTag(0)] });
@@ -263,8 +275,15 @@ describe('SPEC-005 — 색은 표가 정한다', () => {
       }
     });
     expect(checked).toBeGreaterThan(0);
-    // 셋이 다 화면에 나온다
-    expect(seen.size).toBe(region.view.surfaceTags.length);
+    // 이 방에 실제로 선 태그가 다 화면에 나온다.
+    // C019 로 좁혀졌다 — 표에 서리 줄이 늘었지만 백왕령에는 서리 선이 없으므로 그 태그는
+    // 이 방의 어느 vertex 에도 붙지 않는다. 주장은 "표의 모든 태그" 가 아니라 "이 방에 선
+    // 모든 태그" 다 — 표가 넓어져도 그린 것과 붙인 것이 같다는 사실은 그대로다.
+    const placed = new Set(
+      [...region.world.surface].map((i) => region.world.surfaceTags[i]!),
+    );
+    expect(seen).toEqual(placed);
+    expect(seen.size).toBeGreaterThan(0);
   });
 
   it('V-010 (경계) 표에 없는 태그가 와도 멈추지 않는다 — 기본색으로 그려진다', () => {

@@ -87,10 +87,15 @@ export interface EntityView extends CoreEntityView {
    */
   material?: string;
   /**
-   * 그 원천에 **지금 걸린 조건 코드들** — resource-source 에만 실린다 (C012 ADDED).
+   * 그 존재에 **지금 걸린 조건 코드들** (C012 ADDED · C020 CHANGED).
    *
    * 걸린 것이 하나도 없으면 **자리 자체가 없다** (빈 배열로 지어내지 않는다).
    * 무엇이 무엇에 매달렸는지는 실리지 않는다 — 세계는 "지금 멎었다" 만 말한다.
+   *
+   * C020 CHANGED — 실리는 존재가 둘이 되었다. 원천에 더해 **출구 표식**이 자기가 밝힌
+   * **요구**를 여기 싣는다 (C020 spec R5). 형은 한 값도 바뀌지 않았고, 코드가 무엇을
+   * 뜻하는지는 여전히 View 의 문구 표만 안다 — 무엇이 그 요구를 채우는지도, 어디서
+   * 나는지도 싣지 않는다.
    */
   conditions?: string[];
   /**

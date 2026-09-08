@@ -15,6 +15,7 @@ import {
   ANCHOR_LAYER,
   CLOSED_CONNECTORS,
   CONNECTOR_ACTIVATIONS,
+  CONNECTOR_REQUIREMENTS,
   REGION_GRAPH,
   START_REGION_ID,
   regionSpec,
@@ -109,6 +110,51 @@ export function isConnectorOpen(
   time: number,
 ): boolean {
   return connectorClosedReason(regionStates, connectorId, time) === null;
+}
+
+/**
+ * RULE-EXIT-REQUIREMENT-001 (C020 ADDED · spec R5 · SPEC-009) —
+ * 그 문이 **밝힌 요구**의 코드들. 밝히지 않았으면 빈 배열이다.
+ *
+ * **활성을 판정하지 않는다** (spec R5 경계 ①). 열림/잠김은 여전히
+ * connectorClosedReason 하나가 내고, 이 값은 그 답을 한 값도 건드리지 않는다 —
+ * 요구를 채워도 열리지 않고, 밝혔다고 잠기지도 않는다. 2층이 하는 것은 **표시**까지다.
+ * 그래서 이 함수는 State 도 세계 시각도 묻지 않는다: 요구는 정적 사실이다.
+ *
+ * **무엇이 그것을 채우는지도 · 어디서 나는지도 내지 않는다** (경계 ②) — 코드 하나뿐이고,
+ * 사람이 읽을 문구는 View 의 표가 옮긴다 (거절 사유 코드의 선례 그대로).
+ *
+ * 규칙은 어느 문이 무엇을 요구하는지 이름으로 알지 못한다 — 아는 것은 "요구를 밝힌 문"
+ * 뿐이고, 그 표는 데이터(content/regions/graph.ts)에만 있다 (C004 가 세운 규율).
+ */
+export function connectorRequirements(connectorId: string): readonly string[] {
+  return CONNECTOR_REQUIREMENTS[connectorId] ?? [];
+}
+
+/**
+ * RULE-CONDITION-WEAKEN-001 (C021 ADDED · spec R1 · SPEC-002) —
+ * **그 이음이 두 방을 잇는가.** 방향은 묻지 않는다.
+ *
+ * 방을 넘는 덧씌움(RegionPhase.outflow)이 자기가 타는 이음을 밝히고, 그것이 실제로 두 방을
+ * 잇지 않으면 아무 일도 일어나지 않는다 — **이음을 통해서만 넘는다** 는 말의 판정이 여기다.
+ * 세계가 모르는 이음을 가리킨 줄은 거짓이고, 그래서 조용히 아무 일을 하지 않는다
+ * (경계 ① — 끊긴 참조를 오류로 세우지 않는 것은 경계의 이름을 정합 오류로 세우지 않는
+ * C002 의 규율 그대로다).
+ *
+ * **방향을 묻지 않는 이유** — 넘는 것은 바람이지 몸이 아니다. 몸은 one-way 를 거슬러 갈 수
+ * 없지만(RULE-REGION-TRANSIT-001) 추위는 길이 난 쪽으로 분다. 여기가 묻는 것은 "두 방이 이
+ * 이음으로 이웃인가" 하나이고, 건널 수 있는가는 여전히 저쪽 판정의 몫이다 — 두 물음을 한
+ * 함수로 합치지 않는다.
+ *
+ * 규칙은 어느 이음이 어느 방을 잇는지 이름으로 알지 못한다 — 데이터(REGION_GRAPH)를 짚을
+ * 뿐이다 (C004 가 세운 규율).
+ */
+export function connectorLinks(connectorId: string, a: string, b: string): boolean {
+  const connector = REGION_GRAPH.connectors.find((entry) => entry.id === connectorId);
+  if (!connector) return false;
+  const from = connector.from.region;
+  const to = connector.to.region;
+  return (from === a && to === b) || (from === b && to === a);
 }
 
 /** 그 Region 의 Local Space — RULE-MOVE-001 전제 1 · 관성 경계가 이것으로 판정한다 */

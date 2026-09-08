@@ -14,8 +14,8 @@
       "said": "이 방은 재료를 낳지 않는다. 재료 계통이 닿지 않는 것과 이 방이 안전한 것은 같은 조건이다 (Play RoomBearsMaterial 확정 5).",
       "sources": []
     },
-    "discovery": "강과 능선이 어디를 막는지, 다리가 어디에 놓였는지. 그리고 아직 갈 수 없는 고개 둘이 동·서에 있다는 것.",
-    "opening": "북쪽 길 하나가 숲을 연다. 고개 둘은 이름만 있고 아직 짓지 않은 곳이다.",
+    "discovery": "강과 능선이 어디를 막는지, 다리가 어디에 놓였는지. 그리고 서쪽 고개 너머가 숲과 갈래가 다른 곳이라는 것.",
+    "opening": "북쪽 길 하나가 숲을 열고, 서쪽 고개 하나가 얼음 협곡을 연다. 동쪽 고개는 아직 이름만 있고 짓지 않은 곳이다.",
     "birth": {
       "said": {
         "unanswered": "생명 계약(탄생지 · 개체군 · 관계)이 아직 데이터로 서지 않았다 — Play RoomBearsLife(C022~C025)의 것이다"
@@ -38,8 +38,7 @@
     {
       "region": "ICE_CANYON",
       "transition": "pass",
-      "direction": "one-way",
-      "frontier": true
+      "direction": "bidirectional"
     }
   ],
   "requires": []

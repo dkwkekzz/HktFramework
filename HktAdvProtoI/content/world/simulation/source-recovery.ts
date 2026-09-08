@@ -1,11 +1,12 @@
-// RULE-SOURCE-RECOVERY-001 — Implements C013 spec R1 (ADDED · 세계 과정) · C014 spec R2 (CHANGED)
+// RULE-SOURCE-RECOVERY-001 · RULE-RECOVERY-SPEED-001 —
+//   Implements C013 spec R1 (ADDED · 세계 과정) · C014 spec R2 (CHANGED) · C020 spec R3 (ADDED)
 // Scope          모든 방의, phase 가 available 이 아닌 원천 전부
 // Trigger        세계의 Tick (dt)
 // Condition      그 원천에 **진행을 멎게 하는 조건**이 걸려 있지 않다 —
 //                매달린 원천이 available 이 아니거나(recovery-stalled) ·
 //                유입 흐름이 지금 실어 오지 않거나(condition-unmet) ·
 //                지금이 그 원천의 철이 아니면(not-this-season · C016) 멎는다
-// Transition     progress += dt.
+// Transition     progress += dt × 배속 (RULE-RECOVERY-SPEED-001 — 밝히지 않은 원천·철은 1).
 //                progress ≥ recoverySeconds × RECOVERY_VISIBLE_FRACTION 이고 depleted 면
 //                    phase = recovering · 자리를 옮기는 원천이면 siteIndex = 무너지지 않은 다음 마디
 //                progress ≥ recoverySeconds 면 phase = available · taken = 0 · progress = 0
@@ -36,7 +37,16 @@
 // 줄도 바뀌지 않았다**: 조건 코드가 이미 그것을 말하고, 무엇이 무엇을 남기는지는 여전히
 // 데이터의 것이다. 넘기는 값 하나(지나감들의 지금)가 늘었을 뿐이다.
 
+// C020 CHANGED (C020 spec R3) — **철이 되돌아옴의 속도를 바꾼다.** 원천이 지금 철의 배속을
+// 밝혔으면 그만큼의 세계 시간이 그 배로 진행에 실린다. **되돌아옴의 길이(recoverySeconds)는
+// 바뀌지 않는다** — 얼마나 남았는가가 빨리 줄 뿐이고, 두 문턱도 그 값 그대로다 (경계).
+// 밝히지 않은 원천 · 밝히지 않은 철은 한 값도 다르지 않다 (숲의 원천 열이 그렇다).
+//
+// **규칙은 철의 이름을 알지 못한다** (Time T4 · C016 R1 이 세운 그 규율) — 데이터의 열쇠와
+// 시계가 낸 지금 철을 맞춰 볼 뿐이고, 어느 원천이 어느 철에 빨라지는지는 데이터에만 있다.
+
 import { CONDITION_UNMET, RECOVERY_STALLED } from '../../regions';
+import { seasonAt } from '../semantic/clock';
 import { NOT_THIS_SEASON } from '../semantic/region-phase';
 import { nextStandableSite, sourceConditions, sourcesInRegion } from '../semantic/resource';
 import { RECOVERY_VISIBLE_FRACTION, type WorldState } from '../semantic/world-state';
@@ -71,7 +81,11 @@ export function ruleSourceRecovery(state: WorldState, dt: number): void {
         continue;
       }
 
-      sourceState.progress += dt;
+      // RULE-RECOVERY-SPEED-001 (C020 ADDED · spec R3) — 지금 철의 배속을 밝혔으면 그만큼
+      // 빨리 진행한다. 밝히지 않은 원천 · 밝히지 않은 철은 1 이므로 한 값도 다르지 않다.
+      // **길이를 바꾸지 않고 진행에 실는다** — 아래 두 문턱은 데이터의 초 그대로다 (경계).
+      const speed = source.recoverySpeed?.[seasonAt(state.time)] ?? 1;
+      sourceState.progress += dt * speed;
 
       // 눈에 보이기 시작하는 문턱 — 그림이 갈리고 흙이 다시 짙어지며, 자리를 옮기는 원천은
       // **여기서** 옮겨 선다. 예보가 서려면 자리가 먼저 서야 하기 때문이다 (spec 기본형 ②).
