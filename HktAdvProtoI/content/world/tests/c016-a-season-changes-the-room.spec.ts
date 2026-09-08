@@ -241,7 +241,10 @@ const ALL_SOURCES = SOURCE_REGIONS.flatMap((region) =>
 /** 철 조건을 밝힌 원천들 (C016 이 더한 것) — 데이터가 말한다 */
 const SEASONAL_SOURCES = ALL_SOURCES.filter((one) => ecologyOf(one.region, one.id).occurrence);
 /** 철 조건이 없는 원천들 — 어느 철에도 지금 그대로다 (SPEC-004 경계 ②) */
-const PLAIN_SOURCES = ALL_SOURCES.filter((one) => !ecologyOf(one.region, one.id).occurrence);
+const PLAIN_SOURCES = ALL_SOURCES.filter(
+  // 낮밤을 타는 원천도 뺀다 — 그것은 철이 아니라 해를 탄다 (RoomBearsMaterial 실주행 판정 · dayPhases)
+  (one) => !ecologyOf(one.region, one.id).occurrence && !ecologyOf(one.region, one.id).dayPhases,
+);
 /** 흐름의 두 끝이 사는 방들 — 그 원천과 흔적은 **세계 시각**으로 바뀐다 (C014) */
 const inflowRegions = new Set(
   RESOURCE_FLOWS.flatMap((flow) => [flow.from.regionId, flow.to.regionId]),
@@ -1174,8 +1177,17 @@ describe('SPEC-007 규칙은 철의 이름을 모른다', () => {
     // And 밝힌 방은 지어낸 것도 빠뜨린 것도 없다 — 데이터가 말하는 그대로다.
     // C021 로 넓어졌다 — 빙결 협곡이 철을 밝혀 넷이 되었다 (C021 SPEC-001). 이 항의 주장은
     // "철을 탄 방은 밝힌 방의 부분집합" 이고 그것은 그대로다: 목록이 자란 것뿐이다.
+    // RoomNeverSame 실주행 판정으로 다시 넓어졌다 — 폐허 · 둥지 · 거목이 철을 밝혀 일곱이 되었다
     expect([...declared].sort()).toEqual(
-      [BIO_ORE_FIELD, FOREST_DEEP, FOREST_EDGE, 'FROST_CANYON'].sort(),
+      [
+        BIO_ORE_FIELD,
+        FOREST_DEEP,
+        FOREST_EDGE,
+        'FROST_CANYON',
+        'EXPLORER_RUIN',
+        'PREDATOR_NEST',
+        'RED_EYE_TREE',
+      ].sort(),
     );
     // And 그 셋은 실제로 철을 탔다 (밝혔는데 아무 일도 없는 방이 없다)
     expect([...changed].sort()).toEqual([...declared].sort());

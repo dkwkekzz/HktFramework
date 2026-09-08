@@ -13,7 +13,7 @@
       "unanswered": "이 세계에 hazard layer 가 아직 놓이지 않았다 — 위험의 갈래는 Concept §3.1 이 어휘를 주었으나 컨텐츠 층 주입이 남았다"
     },
     "worth": {
-      "said": "지나가는 자리이면서 어귀 하나를 가진다 — 물길이 불어난 때만 퇴적이 서고, 그 알갱이는 상류에서 갈려 내려온 같은 재료다.",
+      "said": "지나가는 자리이면서 어귀 하나를 가진다 — 물길이 불어난 때만 퇴적이 서고, 그 알갱이는 상류에서 갈려 내려온 같은 재료다. 흩어진 것 넷(자갈 둘 · 줄기의 껍질 조각 · 밤의 빛 갓)과 스밈에만 배어 나오는 껍질 하나.",
       "sources": [
         {
           "id": "RIVER_SILT",
@@ -22,6 +22,51 @@
           "worldCause": "FOREST_CHAIN",
           "recoveryCause": "flow-arrival",
           "form": "river-grain",
+          "role": "conditional"
+        },
+        {
+          "id": "ORE_PEBBLE_DEEP_1",
+          "material": "BIO_ORE",
+          "heldBy": "terrain",
+          "worldCause": "FOREST_CHAIN",
+          "recoveryCause": "pebble-wash",
+          "form": "ore-pebble",
+          "role": "baseline"
+        },
+        {
+          "id": "ORE_PEBBLE_DEEP_2",
+          "material": "BIO_ORE",
+          "heldBy": "terrain",
+          "worldCause": "FOREST_CHAIN",
+          "recoveryCause": "pebble-wash",
+          "form": "ore-pebble",
+          "role": "baseline"
+        },
+        {
+          "id": "HUSK_SHARD_DEEP",
+          "material": "ORE_EATER_MOLT",
+          "heldBy": "plant",
+          "worldCause": "FOREST_CHAIN",
+          "recoveryCause": "husk-shed",
+          "form": "husk-shard",
+          "role": "baseline"
+        },
+        {
+          "id": "GLOW_CAP_DEEP",
+          "material": "GIANT_TREE_FUNGUS",
+          "heldBy": "fungus",
+          "worldCause": "FOREST_CHAIN",
+          "recoveryCause": "night-bloom",
+          "form": "glow-cap",
+          "role": "by-product"
+        },
+        {
+          "id": "SEEP_CRUST_DEEP",
+          "material": "BIO_ORE",
+          "heldBy": "terrain",
+          "worldCause": "FOREST_CHAIN",
+          "recoveryCause": "tree-uptake",
+          "form": "seep-crust",
           "role": "conditional"
         }
       ]

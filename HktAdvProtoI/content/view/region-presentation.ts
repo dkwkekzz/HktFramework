@@ -485,6 +485,72 @@ export const COLLAPSE_ZONE: SettlementZonePresentation = {
   edgeWidth: 1.2,
 };
 
+// ── 규칙을 품은 방이 **자기 규칙을 말하는** 자리 (RuleBoundRoom 실주행 판정 ADDED) ────────
+//
+// Human 의 실주행 답: "방에 규칙이 있는지 느껴지지 않았다 — 무엇을 해야 하는지 힌트는 있어야
+// 한다." 세계는 규칙을 코드로만 싣는다 (pattern · pressure · pressureLimit). 그것이 **어떤
+// 규칙**인지 사람에게 말하는 것은 표현의 결정이므로 여기 표 하나에 모은다 — 방을 더하거나
+// 규칙을 바꾸는 것은 코드가 아니라 이 표 한 줄이다 (REGION_NAMES 와 같은 어법).
+//
+// 말하는 것은 **규칙의 형**까지다 — 어느 패턴이 어느 문을 여는지는 여전히 말하지 않는다
+// (세계가 싣지 않는다 · Region §17). 힌트는 "무엇을 하면 무엇이 달라지는가" 이지 답이 아니다.
+
+/** Region id → 그 방이 품은 규칙을 사람에게 말하는 한 줄. 규칙 없는 방은 표에 없다 */
+export const REGION_RULE_HINTS: Readonly<Record<string, string>> = {
+  FANTASY_MAZE:
+    '이 방은 걸음을 센다 — 걸을수록 압력이 차고, 넘치면 길이 바뀐다. 검은 띠는 닫힌 길, 밝은 테두리는 열린 길이다. 이름표(고사리)는 바뀌지 않는다',
+};
+
+export function regionRuleHint(regionId: string): string | undefined {
+  return REGION_RULE_HINTS[regionId];
+}
+
+/**
+ * 통로 태그 → 사람이 읽을 이름 (TODO §2 Observe 의 결정 — 통로도 이름을 적는다).
+ *
+ * 구역은 이름을 적고 통로는 열림 여부만 적어 어긋나 있었다. 통로에 이름이 있어야 "길이
+ * 바뀌었다" 가 **어느 길**이 닫혔는지로 읽히고, 판의 통로 줄이 "어느 통로 위에 서 있는가"
+ * 를 말할 수 있다. 이름은 방위와 생김새다 — 구역의 이름(A~D)을 말하지 않는다: 구역의
+ * 이름은 식물이 말한다 (Play §5.3).
+ */
+export const PASSAGE_NAMES: Readonly<Record<string, string>> = {
+  AB: '북쪽 복도',
+  BC: '동쪽 복도',
+  CD: '남쪽 복도',
+  DA: '서쪽 복도',
+  AC: '네거리 빗길(북서↔남동)',
+  BD: '네거리 빗길(북동↔남서)',
+};
+
+export function passageName(tag: string): string {
+  return PASSAGE_NAMES[tag] ?? tag;
+}
+
+/**
+ * 잠긴 출구 표식이 **무엇에 열리는가**의 힌트 — Connector id → 한 줄 (RuleBoundRoom 실주행 판정).
+ *
+ * 세계는 "잠겨 있다 / 이 철이 아니다" 까지만 말한다 (Region §17 — 무엇이 열었는지는 싣지
+ * 않는다). 이 표는 **어느 갈래의 규칙이 이 문을 쥐고 있는가**까지만 보탠다 — 어느 패턴 ·
+ * 어느 철인지는 여전히 적지 않는다. 표에 없는 문은 아무 힌트도 없다.
+ */
+export const EXIT_HINTS: Readonly<Record<string, string>> = {
+  MAZE_HEART_GATE: '이 문은 미로의 길 배열이 연다 — 걸어서 압력을 넘기면 배열이 바뀐다',
+  WALKING_FOREST_DOOR: '이 문은 철이 연다 — 때를 기다려 다시 오자',
+  FROST_DEPTH_DOOR: '이 문은 철이 연다 — 때를 기다려 다시 오자',
+};
+
+export function exitHint(connectorId: string): string | undefined {
+  return EXIT_HINTS[connectorId];
+}
+
+/**
+ * 압력이 이 비율을 넘으면 **곧 바뀐다**고 말한다 (RuleBoundRoom 실주행 판정).
+ *
+ * 0.75 — 임계 120 에서 90 부터다. 남은 30 은 걷기 6/초로 5 초 남짓이라 "곧" 이 참이고,
+ * 그보다 이르면 늘 켜져 있는 배경이 되어 순간이기를 그만둔다 (REARRANGE_PULSE_SECONDS 의 뜻).
+ */
+export const PRESSURE_WARNING_RATIO = 0.75;
+
 /**
  * 재배열의 순간이 화면에 남아 있는 시간 (초).
  *
@@ -524,11 +590,40 @@ export function openPassageTags(
  */
 export function regionNotice(observed: CoreGameViewSnapshot): string | undefined {
   const snapshot = observed as GameViewSnapshot;
-  const at = snapshot.region?.state?.rearrangedAt;
-  if (at === undefined) return undefined;
-  const elapsed = worldTimeOf(snapshot) - at;
-  if (elapsed < 0 || elapsed > REARRANGE_PULSE_SECONDS) return undefined;
-  return codeText('maze-rearranged');
+  const state = snapshot.region?.state;
+  if (!state) return undefined;
+  const at = state.rearrangedAt;
+  if (at !== undefined) {
+    const elapsed = worldTimeOf(snapshot) - at;
+    if (elapsed >= 0 && elapsed <= REARRANGE_PULSE_SECONDS) {
+      // **어느 길이 닫혔는지**를 함께 말한다 (RuleBoundRoom 실주행 판정 — 규칙이 느껴져야 한다).
+      // 닫힌 통로는 관찰자가 자기 패턴 표에서 읽는다 — 세계는 지금 패턴의 이름만 싣는다.
+      const closed = closedPassageNames(snapshot);
+      return closed.length > 0
+        ? codeText('maze-rearranged.closed', closed.join(' · '))
+        : codeText('maze-rearranged');
+    }
+  }
+  // 재배열이 임박했다 — 압력이 임계에 가까우면 발밑이 울린다. 넘치면 위의 말이 이것을 덮고,
+  // 압력이 0 으로 돌아가면 이 말은 스스로 사라진다 (같은 말은 두 번 뜨지 않는다 · app 의 규율)
+  if (state.pressureLimit > 0 && state.pressure / state.pressureLimit >= PRESSURE_WARNING_RATIO) {
+    return codeText('maze-pressure-high');
+  }
+  return undefined;
+}
+
+/**
+ * 지금 패턴이 **닫은** 통로들의 이름 — 패턴 표는 데이터의 것이고, 닫힌 것은 열린 것의 여집합이다.
+ * 규칙 없는 방 · 모르는 패턴이면 빈 목록이다 (닫힘을 지어내지 않는다).
+ */
+export function closedPassageNames(snapshot: GameViewSnapshot): string[] {
+  const spec = regionSpec(snapshot.region.id);
+  if (!spec?.rule) return [];
+  const open = openPassageTags(spec, snapshot.region.state?.pattern);
+  if (open === null) return [];
+  const all = new Set<string>();
+  for (const pattern of spec.rule.patterns) for (const tag of pattern.open) all.add(tag);
+  return [...all].filter((tag) => !open.has(tag)).map(passageName);
 }
 
 /** 방 이름과 깊이(그리고 어긋남)를 잇는 말 — 목록 구분자다(문장을 짓지 않는다) */

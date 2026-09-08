@@ -29,7 +29,7 @@ import { codeText } from './code-text';
 import { SETTLEMENT_LAYER } from './biome-rules';
 import { TRACE_LAYER } from '../regions/index';
 import { interactionPresentation } from './interaction-presentation';
-import { CELL_LAYER, regionName } from './region-presentation';
+import { CELL_LAYER, exitHint, passageName, regionName, regionRuleHint } from './region-presentation';
 import type { Designation } from './pointer-rules';
 import { readPlace, type PlaceAreas, type PlaceReading } from './place-reading';
 
@@ -66,7 +66,8 @@ export const PLACE_ROW_LABELS: Readonly<Record<string, string>> = {
   // 무엇으로 읽히는지는 값이 말한다 (그것이 이 표의 규율이다).
   'place.trace': '흔적',
   'place.passage': '통로',
-  // 규칙이 있나
+  // 규칙이 있나 — 어떤 규칙인지가 먼저 선다 (RuleBoundRoom 실주행 판정: 규칙이 느껴져야 한다)
+  'place.rule': '규칙',
   'place.pattern': '지금 길',
   'place.pressure': '압력',
   // 방이 지금 어떤가 (C017) — 압력이 규칙을 품은 방만의 값인 것과 달리 **어느 방에나 있다**.
@@ -102,6 +103,8 @@ export const BEING_ROW_LABELS: Readonly<Record<string, string>> = {
   // 걸린 것이 자리에 걸리든 존재에 걸리든 관찰자에게는 같은 종류의 사실이므로 다른 말을
   // 짓지 않는다 (쓰러짐 줄이 기존 문구를 그대로 쓴 것과 같은 규율)
   'being.condition': '걸린 것',
+  // 잠긴 문이 **무엇에 열리는가**의 갈래 (RuleBoundRoom 실주행 판정 — 힌트가 있어야 플레이가 된다)
+  'being.hint': '힌트',
   // 무엇을 주는가
   'being.offer': '할 수 있는 것',
 };
@@ -300,6 +303,13 @@ export function beingRows(reading: BeingReading): SceneFrameRow[] {
     rows.push(row('being.condition', conditions.map((c) => codeText(c)).join(VALUE_SEPARATOR)));
   }
 
+  // 잠긴 문의 힌트 (RuleBoundRoom 실주행 판정) — **잠겨 있을 때만** 선다. 열린 문에는 할 말이 없고,
+  // 표에 없는 문도 없다. 어느 갈래의 규칙이 이 문을 쥐고 있는지까지이지 답이 아니다
+  if (reading.state === 'locked') {
+    const hint = exitHint(reading.entityId);
+    if (hint !== undefined) rows.push(row('being.hint', hint));
+  }
+
   // ③ 무엇을 주는가 — 그 대상을 겨냥한 것만, 봉투의 차례 그대로 (SPEC-003)
   for (const offer of reading.offers) rows.push(offerRow(offer));
   return rows;
@@ -370,24 +380,28 @@ export function placeRows(reading: PlaceReading, worldTime?: number): SceneFrame
       if (id) rows.push(row(id, area.tags.map((t) => codeText(t)).join(VALUE_SEPARATOR)));
     }
     for (const passage of g.passages) {
+      // 통로의 이름과 열림을 함께 적는다 (TODO §2 의 결정 — 통로도 이름을 적는다)
       rows.push(
         row(
           'place.passage',
-          codeText(
+          `${passageName(passage.tag)}${VALUE_SEPARATOR}${codeText(
             passage.open === null
               ? 'place.passage.unknown'
               : passage.open
                 ? 'place.passage.open'
                 : 'place.passage.closed',
-          ),
+          )}`,
         ),
       );
     }
   }
 
-  // ④ 규칙이 있나 — 품지 않은 방에는 이 둘이 아예 없다 (SPEC-004 경계)
+  // ④ 규칙이 있나 — 품지 않은 방에는 이 셋이 아예 없다 (SPEC-004 경계)
   const rule = reading.rule;
   if (rule) {
+    // 어떤 규칙인지가 먼저다 (RuleBoundRoom 실주행 판정) — 표에 없는 방은 이 줄이 없다
+    const hint = regionRuleHint(reading.regionId);
+    if (hint !== undefined) rows.push(row('place.rule', hint));
     // 지금 길과 **그 길이 언제부터인지**. 재배열의 나이는 기록 줄과 같은 함수(agoText)가
     // 적는다 — 같은 값이 두 자리에서 다르게 적히면 둘 중 하나를 믿을 수 없다 (압력 줄이
     // HUD 와 같은 형식인 것과 같은 이유). 잰 값이 없으면 길 이름만 선다

@@ -206,7 +206,7 @@ function ecologyOf(region: string, id: string): ResourceSourceSpec {
 function plainSourceIn(region: string): string {
   const found = sourcesInRegion(region)
     .map((s) => s.id)
-    .find((id) => !ecologyOf(region, id).occurrence);
+    .find((id) => !ecologyOf(region, id).occurrence && !ecologyOf(region, id).dayPhases);
   if (!found) throw new Error(`${region} 에 철을 타지 않는 원천이 없다`);
   return found;
 }

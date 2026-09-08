@@ -20,6 +20,7 @@ import {
   tagsAt,
 } from '../../../engine/world-authoring/query';
 import {
+  BLOCK_LANDMARK,
   BLOCK_STEEP,
   BLOCK_WATER,
   COMPILE_RULES,
@@ -29,8 +30,8 @@ import {
 } from '../../regions';
 import type { WorldPosition } from './position';
 
-/** 이 세계의 표(BLOCK_RULES)가 적어 둔 사유는 둘뿐이다 — 기반은 불투명 문자열로만 돌려준다 */
-export type TerrainBlockReason = typeof BLOCK_STEEP | typeof BLOCK_WATER;
+/** 이 세계의 표(BLOCK_RULES)가 적어 둔 사유 셋 — 기반은 불투명 문자열로만 돌려준다 */
+export type TerrainBlockReason = typeof BLOCK_STEEP | typeof BLOCK_WATER | typeof BLOCK_LANDMARK;
 
 // 방 하나당 컴파일 한 번. 값이 null 이면 "Description 을 모르는 id" 이고, 그것도 답이므로
 // 함께 담는다 (모르는 id 를 물을 때마다 regionSpec 을 다시 훑지 않게).

@@ -13,7 +13,7 @@
       "unanswered": "원천이 risk 로 적혀 있고 무너지면 길을 막는다는 것까지가 데이터다. 무엇이 위험한가는 이 세계에 hazard layer 가 아직 놓이지 않았다 — 위험의 갈래는 Concept §3.1 이 어휘를 주었으나 컨텐츠 층 주입이 남았다"
     },
     "worth": {
-      "said": "생체 광석이 노두로 드러나 있다. 위험을 낀 자리이고, 거목의 뿌리혹에 매달려 있다.",
+      "said": "생체 광석이 노두로 드러나 있다. 위험을 낀 자리이고, 거목의 뿌리혹에 매달려 있다. 노두 둘레에 흩어진 붉은 자갈 셋과 줄기의 껍질 조각 하나.",
       "sources": [
         {
           "id": "ORE_OUTCROP",
@@ -23,6 +23,42 @@
           "recoveryCause": "tree-uptake",
           "form": "outcrop",
           "role": "risk"
+        },
+        {
+          "id": "ORE_PEBBLE_ORE_1",
+          "material": "BIO_ORE",
+          "heldBy": "terrain",
+          "worldCause": "FOREST_CHAIN",
+          "recoveryCause": "pebble-wash",
+          "form": "ore-pebble",
+          "role": "baseline"
+        },
+        {
+          "id": "ORE_PEBBLE_ORE_2",
+          "material": "BIO_ORE",
+          "heldBy": "terrain",
+          "worldCause": "FOREST_CHAIN",
+          "recoveryCause": "pebble-wash",
+          "form": "ore-pebble",
+          "role": "baseline"
+        },
+        {
+          "id": "ORE_PEBBLE_ORE_3",
+          "material": "BIO_ORE",
+          "heldBy": "terrain",
+          "worldCause": "FOREST_CHAIN",
+          "recoveryCause": "pebble-wash",
+          "form": "ore-pebble",
+          "role": "baseline"
+        },
+        {
+          "id": "HUSK_SHARD_ORE",
+          "material": "ORE_EATER_MOLT",
+          "heldBy": "plant",
+          "worldCause": "FOREST_CHAIN",
+          "recoveryCause": "husk-shed",
+          "form": "husk-shard",
+          "role": "baseline"
         }
       ]
     },

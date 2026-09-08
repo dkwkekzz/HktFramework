@@ -78,6 +78,10 @@ export const ROLE_PRESENTATIONS: Readonly<Record<string, RolePresentation>> = {
       'frost-vein': 'source:frost-vein',
       'drift-dust': 'source:drift-dust',
       'corpse-rime': 'source:corpse-rime',
+      // 흩어진 것 셋 (RoomBearsMaterial 실주행 판정) — 표에 세 줄이 늘 뿐이다
+      'ore-pebble': 'source:ore-pebble',
+      'husk-shard': 'source:husk-shard',
+      'glow-cap': 'source:glow-cap',
     },
   },
   // 방의 출구 표식 (C001) — anchor 자리에 선 표식 하나. kind(= 전이 종류) 별 색은 region-presentation 의 표.

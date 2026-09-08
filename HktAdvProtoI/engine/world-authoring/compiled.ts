@@ -50,6 +50,12 @@ export interface BlockRule {
   minSlope?: number;
   /** 이 (layer, tag) curve 의 중심선에서 maxDistance **이하**면 막는다 */
   nearCurve?: { layer: string; tag: string; maxDistance: number };
+  /**
+   * 이 layer 의 point 둘레 radius **이하**면 막는다. tag 를 밝히면 그 tag 의 point 만,
+   * 밝히지 않으면 그 layer 의 point 전부다 — 땅에 **서 있는 것**(줄기 · 기둥)이 몸을 막는 자리다.
+   * PassRule 이 point 둘레를 **여는** 것과 정확히 반대의 형이다.
+   */
+  nearPoint?: { layer: string; tag?: string; radius: number };
   /** 막힘의 사유 — 컨텐츠의 코드. 기반은 뜻을 모른다 */
   reason: string;
 }

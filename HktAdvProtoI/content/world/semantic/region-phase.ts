@@ -66,7 +66,7 @@ import {
   type SeasonId,
 } from '../../regions';
 import type { WorldClockView } from '../../protocol/gameview';
-import { seasonAt } from './clock';
+import { dayPhaseAt, seasonAt } from './clock';
 import type { WorldPosition } from './position';
 import { connectorLinks } from './region';
 import type { RegionDisturbanceState } from './region-state';
@@ -80,6 +80,15 @@ import { conditionTagsAt } from './terrain';
  * SPEC-004 경계 ①). 문구는 View 의 표가 옮긴다.
  */
 export const NOT_THIS_SEASON = 'not-this-season';
+
+/**
+ * 조건 · 거절 사유 코드 — **지금은 그 때가 아니다** (낮밤 · RoomBearsMaterial 실주행 판정 ADDED).
+ *
+ * 철의 것(NOT_THIS_SEASON)과 **같은 갈래**이되 축이 다르다 — 저것은 한 바퀴 안의 철이고 이것은
+ * 하루 안의 낮밤이다. 갈라 두는 이유는 말이 다르기 때문이다: "이 철이 아니다" 는 몇 분을 기다려야
+ * 하고 "지금은 때가 아니다" 는 해가 지거나 뜨면 된다. 문구는 View 의 표가 옮긴다.
+ */
+export const NOT_THIS_HOUR = 'not-this-hour';
 
 /**
  * **철의 어휘가 두 벌인 것을 컴파일 때 맞춰 본다** (C016 ADDED).
@@ -462,4 +471,17 @@ export function isSeasonListed(
   time: number,
 ): boolean {
   return seasons === undefined || seasons.includes(seasonAt(time));
+}
+
+/**
+ * 그 원천이 밝힌 낮밤 목록에 **지금이 드는가** (RoomBearsMaterial 실주행 판정 ADDED).
+ *
+ * isSeasonListed 와 같은 어법이다 — **밝히지 않은 것은 언제나 참이다** (낮밤을 타지 않는다는 뜻이고,
+ * 그것이 지금까지의 세계다). 때를 아는 자리는 시계(clock.ts) 하나이고 여기는 그 답을 목록에 맞춰 볼 뿐이다.
+ */
+export function isDayPhaseListed(
+  dayPhases: readonly ('DAY' | 'NIGHT')[] | undefined,
+  time: number,
+): boolean {
+  return dayPhases === undefined || dayPhases.includes(dayPhaseAt(time));
 }

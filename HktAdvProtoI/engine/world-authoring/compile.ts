@@ -12,7 +12,9 @@ import {
   curvesOf,
   descriptionHash,
   nearestCurveDistance,
+  pointsOf,
   type CurveOp,
+  type PointOp,
   type RegionDescription,
 } from './description';
 import type {
@@ -101,6 +103,14 @@ function evaluateBlocked(
     const curvesOfRule: (readonly CurveOp[] | null)[] = blockRules.map((rule) =>
       rule.nearCurve ? curvesOf(description, rule.nearCurve.layer, rule.nearCurve.tag) : null,
     );
+    // point 둘레를 막는 규칙도 볼 point 를 한 번만 골라 둔다 — tag 를 밝히지 않았으면 그 layer 전부다.
+    const pointsOfRule: (readonly PointOp[] | null)[] = blockRules.map((rule) => {
+      const near = rule.nearPoint;
+      if (!near) return null;
+      return pointsOf(description, near.layer).filter(
+        (point) => near.tag === undefined || point.tag === near.tag,
+      );
+    });
     for (let iz = 0; iz < field.rows; iz++) {
       const z = vertexZ(field, iz);
       for (let ix = 0; ix < field.cols; ix++) {
@@ -114,6 +124,11 @@ function evaluateBlocked(
             const curves = curvesOfRule[r];
             if (!curves) continue;
             if (!(nearestCurveDistance(curves, x, z) <= rule.nearCurve.maxDistance)) continue;
+          }
+          if (rule.nearPoint !== undefined) {
+            const points = pointsOfRule[r];
+            // 그 layer 에 point 가 하나도 없는 방에서는 이 규칙이 아무것도 막지 않는다
+            if (!points || !(nearestPointDistance(points, x, z) <= rule.nearPoint.radius)) continue;
           }
           const i = iz * field.cols + ix;
           traversable[i] = 0;
@@ -129,6 +144,16 @@ function evaluateBlocked(
   }
 
   return { traversable, blocked, blockedTags };
+}
+
+/** 가장 가까운 point 까지의 거리 — 하나도 없으면 Infinity (아무것도 막지 않는다) */
+function nearestPointDistance(points: readonly PointOp[], x: number, z: number): number {
+  let best = Infinity;
+  for (const point of points) {
+    const d = Math.hypot(point.position.x - x, point.position.z - z);
+    if (d < best) best = d;
+  }
+  return best;
 }
 
 /** 통과 point 둘레 radius 안을 되돌린다 — 반경의 사각형만 훑는다 */
@@ -288,9 +313,15 @@ function canonicalRules(rules: CompileRules): string {
     .map((rule) => `${JSON.stringify(rule.tag)}<${rule.maxSlope === undefined ? '' : rule.maxSlope}${near(rule.nearCurve)}`)
     .join(',');
   let text = `r=${rules.resolution};s=[${surface}]`;
+  // point 둘레 규칙도 같은 규율로 섞는다 — 밝히지 않은 규칙은 글자를 내지 않으므로
+  // 이 조각이 생기기 전의 규칙 표는 예전과 같은 값을 유지한다.
+  const nearPoint = (n: { layer: string; tag?: string; radius: number } | undefined): string =>
+    n === undefined
+      ? ''
+      : `@${JSON.stringify(n.layer)}${n.tag === undefined ? '' : `/${JSON.stringify(n.tag)}`}~${n.radius}`;
   if (rules.blocked && rules.blocked.length > 0) {
     const blocked = rules.blocked
-      .map((rule) => `${JSON.stringify(rule.reason)}>${rule.minSlope === undefined ? '' : rule.minSlope}${near(rule.nearCurve)}`)
+      .map((rule) => `${JSON.stringify(rule.reason)}>${rule.minSlope === undefined ? '' : rule.minSlope}${near(rule.nearCurve)}${nearPoint(rule.nearPoint)}`)
       .join(',');
     text += `;b=[${blocked}]`;
   }
