@@ -223,6 +223,52 @@
 - 확인: `HKT_SOURCE_PHASE=ORE_OUTCROP:recovering` 으로 노두가 옮겨 선 뒤 지목한다.
 - 원 항목: C021 X-⑤
 
+### RoomAsksForPossibilities (C029~C031) — 방이 가능성을 묻는다 (**진행 중**)
+
+이 Play 는 아직 열려 있다 — 아래는 압축하기 전의 **관찰 항목**이고, C031 이 닫힌 뒤 AI 예심이 질문 대여섯으로
+바꿔 쓴다. 지금 판정하지 않아도 된다. 준비: `npm run dev` · `HKT_SPAWN_REGION` · `HKT_SPAWN` · `HKT_CLOCK`.
+
+```text
+X-① 문 앞의 자락에 들면 몸이 그것을 보인다
+    하기  HKT_SPAWN_REGION=FROST_CANYON HKT_SPAWN=2,16 · 제 몸을 Alt+클릭
+    보기  판의 「걸린 것」에 「김이 푸르게 빛난다」가 서고 몸이 푸르게 물든다
+    그림  cycles/C029-a-room-asks/shots/X-01-breath-inside.png                                    판정 [ ]
+
+X-② 자락 밖에서는 그 줄이 없다 — 김은 자리에 매인 사실이다
+    하기  같은 방 HKT_SPAWN=2,8 · 제 몸을 Alt+클릭
+    보기  같은 몸 같은 철인데 「걸린 것」 줄이 아예 없고 몸도 제 색이다
+    그림  cycles/C029-a-room-asks/shots/X-02-breath-outside.png                                   판정 [ ]
+
+X-③ 문을 지목하면 세계가 **현상**을 말한다 — 요구의 이름도 답의 자리도 없다
+    하기  HKT_SPAWN=0,14 HKT_CLOCK=LONG_NIGHT · 문을 Alt+클릭
+    보기  판의 「걸린 것」이 「체열이 감지된다」다. C021 의 「저장된 열이 있어야 한다」가 있던 그 줄이다
+    그림  cycles/C029-a-room-asks/shots/X-03-door-asks-warmth.png                                 판정 [ ]
+
+X-④ 잠긴 철에도 같은 말을 한다 — 현상은 문의 열림을 판정하지 않는다
+    하기  같은 자리 HKT_CLOCK=STILL
+    보기  문은 잠겼는데 그 줄은 한 값도 다르지 않다
+    그림  cycles/C029-a-room-asks/shots/X-04-door-locked-same-word.png                            판정 [ ]
+
+X-⑤ 차가운 것에는 김이 없다 (대조)
+    하기  HKT_SPAWN=3,-10 · 언 사체의 결정을 Alt+클릭
+    보기  재료와 성질은 서되 「걸린 것」 줄이 없다 — 몸이 아닌 것에는 어느 자리에서도 실리지 않는다
+    그림  cycles/C029-a-room-asks/shots/X-05-frozen-remains-no-breath.png                         판정 [ ]
+
+X-⑥ 판이 재료의 이름과 성질을 말한다 (C011 부채 회수)
+    하기  HKT_SPAWN=2,-15 · 절벽의 결정면을 Alt+클릭
+    보기  「재료 빙정석」과 「성질 열을 먹는다 · 푸르게 빛난다 · 열이 닿으면 자란다」. 쓰임은 어디에도 없다
+    그림  cycles/C029-a-room-asks/shots/X-06-frost-crystal-properties.png                         판정 [ ]
+
+X-⑦ 숲의 원천도 같은 어법 — 같은 태그라도 재료마다 다른 말이다
+    하기  HKT_SPAWN_REGION=BIO_ORE_FIELD HKT_SPAWN=2,-6 · 광맥의 노두를 Alt+클릭
+    보기  「재료 생체 광석」과 성질 둘. 빙정석의 「푸르게 빛난다」와 같은 태그가 여기서는 「쌓인 자리를 붉게 물들인다」다
+    그림  cycles/C029-a-room-asks/shots/X-07-bio-ore-properties.png                               판정 [ ]
+
+X-⑧ 도구가 요구와 가능성을 읊는다 (그림 없음 — 글자다)
+    하기  npm run world:check -- --pretty
+    보기  서른다섯이 나오고 fail 0 · ㉞ ㉟ ㊶ 통과 · ㊳ 이 고아 어휘를, ㊵ 가 「한 종류뿐인 Lock 1」을 적는다   판정 [ ]
+```
+
 ## 2. Human 이 정할 것 — 값 · 규칙 · 방향
 
 §1 의 질문에 안 들어간 결정만. 한 줄이 결정 하나다. 정하면 지운다.
@@ -269,6 +315,16 @@ Time
     (한 방의 원천은 하나 · 세 번 캐면 180초 대기). 값을 두는가 낮추는가                                              C017
   Observable ⑤("지나가기 전에는 그 자리에 없다")와 SPEC-006 경계 ①("지목하면 아직 그때가 아니다") 중 어느 쪽인가 —
     구현은 뒤쪽(고갈로 서고 조건이 걸린다)                                                                         C018
+Access
+  ㉟(요구에 답할 성질의 원천)이 **통과**다 — 어휘 표가 `heat:hides ← heat:absorbs` 도 SUPPORTS 로 적었고
+    빙정석의 원천 넷이 협곡에 이미 서서 그 문을 지나지 않고 닿는다. Access §9.3 의 예보는 heat:stores 하나만
+    보아 GAP 이라 적었다. 어휘의 그 줄을 그대로 두는가 — 두면 C030 의 열 결정은 **둘째** Material 답이다   C029
+  빙결 심층 문 Lock 의 강도를 `hard` 하나로 두었다 — Access §9.1 은 "hard + soft" 라 적었다.
+    요구마다 강도를 두는가, 판정하는 요구(time)의 강도 하나로 두는가                                      C029
+  문 앞 자락의 자리와 크기 — 원 (0, 18) 반지름 4 (걸을 수 있는 vertex 43 을 전부 덮는다). 걸어 보고 바꿀 값인가  C029
+  김이 **곱하는 색조**라 지금 표현은 "빛난다" 가 아니라 "푸르게 물든다" 다. 발광 자리를 둘 것인가          C029
+  자락 안에 든 다른 관찰자·NPC 가 그동안 제 색(호박색 · 연푸른)을 잃는다 — 색조 슬롯 하나를 둘이 다툰다.
+    지금은 김이 앞선다(자리 비움 탈색만 김을 이긴다). 그대로 두는가                                       C029
 Frost
   문의 **요구**는 표시일 뿐 활성을 판정하지 않는다 — 빙결 심층의 문은 요구를 적어 두고도 긴 밤이면 열린다.
     2층은 표시까지라는 분할선을 그대로 두는가 (실제로 여는 것은 Access 의 Lock)                                  C020
@@ -304,7 +360,8 @@ RegionGraphRooms — 떨어지는 자리를 세계가 알리지 않는다. 추�
   없어 C020 이 경로를 짓지 않고 시간으로 대신했다 (Q43)                                                    3층 · 생명
 열을 저장하는 결정이 **어디서** 나는가 — 협곡의 문이 그것을 요구하는데 협곡에 없다. 어디서 나는지는
   정하지 않았다 (Play 확정 4 — 그것이 이 Play 의 미지감이다)                                    M7 · RoomAsksForPossibilities
-요구를 실제로 **채우는** 것 — 성질 Lock · 어휘 · 검사 ㉞~㊷. 2층은 요구를 표시까지 세웠다        RoomAsksForPossibilities
+요구를 실제로 **채우는** 것 — property Lock 의 판정 (몸 · 소지 · 지식). 2층은 어휘 · Lock ·
+  흔적 · 검사 ㉞~㊷ 까지 세웠고(C029) 판정하지 않는다                                                    3 · 4층
 재료의 쓰임 — Recipe · 조합 · 효과 · 수치. 아무것도 정하지 않았다                                         4층 이후
 hazard · phenomenon layer 컨텐츠 주입 — 검사 ①④ 가 그때까지 absent 다                                    컨텐츠 층 주입
 World Event Opportunity · 둘째 흐름 · 유한 원천(FINITE_WORLD_STATE)                                        다음 Region 의 Play
@@ -313,8 +370,19 @@ World Event Opportunity · 둘째 흐름 · 유한 원천(FINITE_WORLD_STATE)   
 
 ## 4. 다음 Cycle 로
 
-비어 있다 — 열린 Play 가 없다. Frost 는 C021 로 닫혔고 그 세 Cycle 이 넘긴 것은 다 소비되었다.
-다음 Play(Life C022 · Access C029)의 첫 Cycle 은 앞 Cycle 이 없으므로, 그 마감이 첫 항목을 적는다.
+열린 Play 는 RoomAsksForPossibilities 하나다 (C029 닫힘 · C030 · C031 이 남았다).
+
+```text
+HEAT_CRYSTAL Seed 와 그 **원천**을 함께 세운다 — C029 는 Seed 만 세우려 했으나 원천 없는 재료는
+  검사 ⑫(C014 에 동결)에서 fail 이 되어 종료 코드를 1 로 만든다. 이 세계의 선례도 같다
+  (원천 없는 공간 왜곡 결정은 MATERIAL_SEEDS 에 서 있지 않다)                                     C030
+㉟ 은 이미 통과다 — C030 이 잴 것은 "GAP 이 통과가 되는 것" 이 아니라 **답이 둘이 되는 것**이다.
+  ㊴ Material 열이 1 에서 2 로, ㊵ 는 여전히 "한 종류뿐" 1 이다 (둘 다 Material 이므로)             C030
+판의 성질 문장은 View 의 표가 짓는다 — 세계 데이터에 문장이 없고 태그의 `from`(다섯 항 중 하나)
+  까지가 세계의 것이다. 열 결정의 문장을 어디에 적을지는 그 Cycle 이 정한다                        C030
+Lock.relaxedBy 와 RegionSpec.access.silence 를 두지 않았다 — 읽는 검사가 없어 죽은 데이터가 된다.
+  relaxedBy 는 눈보라가, silence 는 T4 계약 목록이 받는다                                          C031
+㊴ 의 Environment 열은 지금 0 이다 — 기반은 그 열을 이미 세고 있고, 채우는 것은 relaxedBy 다        C031
 
 ## 5. 공학 부채 — AI 가 소비한다
 
@@ -335,6 +403,8 @@ World Event Opportunity · 둘째 흐름 · 유한 원천(FINITE_WORLD_STATE)   
     C012 X-09 · C013 X-08 은 원천 대신 땅을 찍음 · C026 X-03 · C028 X-02 는 타이밍 ·
     C017 X-07 은 방을 건너 버려 자국의 방향·짙기가 판별 불가 · C018 X-06 · X-07 은 "캘 수 있다" 가 프롬프트에 안 보임(S-061 만 단언)
 화면
+  몸에 걸린 것을 **곱하는 색조**로만 그린다 — "빛난다" 를 밝힐 자리가 SceneEntity 에 없어 "물든다" 까지다.
+    발광은 새 자리(또는 이펙트 레이어)를 요구한다                                                          C029
   이유 없이 못 움직이는 자리가 있다 (Human 실주행 보고 · 어느 방인지 미상). 거절은 전부 문구로 뜨고 기록에 남으므로(C028)
     거절이 아니라 **진행이 멎는** 경우다 — 후보 둘: ① 다른 몸(자율 존재)이 길을 막아 밀리기만 함(몸 충돌 — 요청은
     받아들여지고 아무 말도 없다) ② 방 경계에서 "더 갈 수 없는 곳이다" 가 뜨는데 왜인지 말하지 않음. 재현 정보(방 · 근처의 것)
@@ -353,6 +423,12 @@ World Event Opportunity · 둘째 흐름 · 유한 원천(FINITE_WORLD_STATE)   
   갈래가 땅을 거의 정하지 않는다 — 땅 묶음이 있는 갈래는 일곱 중 둘. 미지 셋이 등급 A 로 섰는데 그림도 원천 자리도
     같았다 (content/authoring/templates/). **Frost 가 닫혔으므로 지금 손볼 수 있다** · 확인은 world:lab 에 갈래 다른 방 둘  T6
 세계 · 규칙
+  검사 ㉟ 은 **실패할 수 없다** (pass | absent) — 답이 없는 것을 GAP 으로 적기로 했으므로, 끊긴 답을
+    fail 로 잡는 자리가 이 검사에 없다. 참조가 실제로 깨진 경우는 ㉞ 이 잡는다                              C029
+  빙결 협곡에 자락 op 하나가 늘어 그 방의 hash 가 바뀐다 — 회귀 시나리오가 그 방만은 hash 를 견줄 수
+    없어 표면 태그와 통행으로 대신 잰다. 방에 무엇을 더할 때마다 되풀이될 자리다                            C029
+  밝힌 op 이 그 방에 없는 흔적(끊긴 참조)을 세울 손잡이가 없다 — 규칙이 조용히 아무 일도 하지 않는다는
+    것을 "지금 밝힌 op 이 실제로 있다" 로만 쟀다 (it.todo)                                                  C029
   이동 진행이 traversable 을 보지 않는다 (막는 것은 요청 판정뿐) — 먼 자리를 한 번에 요청하면 막힌 칸을 지난다     C006
   무너진 자리가 길을 실제로 끊는지 아무도 재지 않는다 — 우회 판정에 길찾기가 필요하다                              C006
   밤의 범위가 관찰만 자르고 상호작용 거리(2.0)는 따로 판정한다 — 둘이 같은 자리에서 나오지 않는다                   C015
@@ -368,6 +444,8 @@ World Event Opportunity · 둘째 흐름 · 유한 원천(FINITE_WORLD_STATE)   
   같은 Tick 안의 두 요청 경합(둘이 마지막 한 번을 다툰다) — dispatch 가 한 요청씩 판정해 하네스로 놓을 수 없다      C012
   spec 기록 — C008 Added 절의 "op 열둘" 은 실제 열여섯 · R6 예외로 ActorState.movedThisTick 한 줄이 늘었다          C008
 도구 · 빌드
+  방 목록을 content/regions/specs.ts 로 옮겼다 — Lock 색인이 폴더 안에서 방들을 읽어야 해 index 순환이
+    났다. 폴더 안에서 방 목록을 읽는 데이터가 더 늘면 이 문이 다시 좁아진다                                 C029
   컴파일을 켤 때마다 두 번 한다(세계 한 번 · 관찰자 한 번) — *.compiled.generated.ts 를 굽지 않는다               C005
   땅을 읽는 파일이 하나 늘어 상한을 셋에서 넷으로 올렸다 — 계속 늘면 상한의 뜻이 없어진다                          C005
   world:observe 는 읽기만 한다 — 편집 · JSON · 필터 없음. world:compile 과 합칠지는 그때 정한다                    C004
