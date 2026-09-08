@@ -1,4 +1,9 @@
-# play/ — 증명 Play 와 일곱 기획의 덮임
+# play/ — 증명 Play 의 목록
+
+```text
+목적    Play 문서들의 목록과 순서 — 어느 Play 가 무엇을 증명하고 어느 미지를 놓으며 왜 그 순서인가.
+기능    Play 표(증명 · 미지 · Cycle) · 순서의 이유. 상태와 덮임은 두지 않는다 — ../PLAYS.md 가 소유한다.
+```
 
 이 폴더의 **"방"은 Region 의 최소 표현**이다. Region 은 크기를 갖지 않는 공간이고 크기는 extent 데이터다 — 한 칸의 방도,
 대평원도, 대륙급 오픈월드도 같은 Region 이며 그 사이를 Connector 가 잇는다 (RegionGraphRooms 불변 조건 넷째).
@@ -48,17 +53,7 @@ Frost 뒤에 오는 이유는 탄생이 **소비할 것**(재료)과 **탈 주�
 Play 일곱 중 다섯(RegionGraphRooms · RoomBecomesLand · RuleBoundRoom · RoomBearsMaterial · RoomNeverSame)과 컨텐츠
 하나(RoomOfAnotherKind)와 일곱째(RoomAsksForPossibilities)는 **승인됐고**, 여섯째(Life)는 주입된 그대로다.
 
-## 일곱 기획의 덮임 지도
+## 기획의 덮임 · Play 의 상태
 
-| 기획 | 2층 Play 가 덮는 것 | 2층 밖 — 어느 층 |
-|---|---|---|
-| **도구** (WE · Plan · L2-World-Tool) | Region Description · anchor/graph · 관찰(observe) · 검사 ⑤~⑨ → **Rooms**. Height Field · Stamp · Curve · Surface 규칙 · traversable · 컴파일 캐시 · Build→Observe 루프 → **Land** | Tree/Rock Kit · scatter 밀도 · 자산 카탈로그 (WE §17~§26) → Land 이후의 폴리싱 (데이터). Streaming → 방 크기의 Region 에는 없다. Region 크기에 상한이 없으므로(Rooms 불변 조건 "방은 공간일 뿐이다") 큰 Region 이 실제로 올 때 Land 뒤 ENGINE 레인 — chunk 단위 적재, 관찰 계약 변경 없음 |
-| **세계관 컨셉** (L2-World-Concept) | W1 깊이 · W11 끝없음 → **Rooms**. W5 지역은 하나의 현상 · W8 세계가 질문을 만든다(단서) · W9 플레이어 없이 돈다 → **Rule**. W2 안전은 조건이 만든다 · §16 비주얼 방향 → **Land**. **W4 위험과 보상의 동근원 · §4 숲의 생태 사슬 → Material** | W3 위험 일곱 갈래가 몸에 닿는 것 · W7 지식이 전투력 · W10 강함만으로 안 됨 → 3층. W4 중 **재료의 쓰임**(조합 · 효과 · 수치) → 4층 이후. W6 압도적 존재 → 컨텐츠 층 + 5층. §8 요정/Class → 7층. §14 사회적 분업 발견 → 뒤 층 |
-| **세계 content 구성** (L2-World-Region) | R1 Graph · R3 WorldPosition · R5 중첩 · R6 Connector · R9 진입/이탈 · R12 공간 분리 → **Rooms**. R4 World State 공유 · R7 Region Rule · R8 규칙이 플레이를 만든다 · §10 activation/persistence · §16 Spec 양식 · §17 규칙 가독성 → **Rule**. R11 Terrain 은 결과다 · §13 · §15 9~10 → **Land**. **R10 하나의 Cause 에서 함께 닫힌다 · §15 4·5 의 자원 절 → Material** | §8 Discovery State(개인 지식) · §6 Hard Entry 의 knowledge activation → 3층. §12 Growth Outcome 중 **capability·성장** → 4층 이후 (재료 쪽은 Material 이 받는다). §6 Soft Requirement(체온 등 몸의 값) → 3층 |
-| **재료 생태와 공급 계약** (L2-World-Material) | S1~S12 전부 → **Material** (원천 · 흔적 · 구배 · 생애 · 공급 · 채취 결과 · 흐름 · 도구 보고 ⑩~㉒) | S10 이 미룬 것 — Recipe · 조합 · Item 효과 · 수치 · Class 요구 → 4층 이후. Carrier 중 살아 있는 CREATURE · 채취가 생물 행동에 미치는 것 → 3층 |
-| **세계의 시간과 위상** (L2-World-Time) | T1~T8 전부 → **Time** (시계 · 네 철 · 위상 덧씌움 · 소란 · 발자국 · 압도적 존재의 경로 · 검사 ㉓~㉖) | 시간이 몸에 하는 일 · 생물의 철 따른 행동 → 3층. 압도적 존재와의 접촉 → 3·5층. 날씨 → 두지 않는다(컨텐츠 행). 걷는 숲의 나무 이동 → 그 Region 의 Play |
-| **생명의 성립과 탄생** (L2-World-Life) | F1~F15 전부 → **Life** (생명의 정의 · 네 탄생 방식 · 탄생의 조건과 소비 · 전후의 흔적 · 개체군 값과 관계 · 멸종 없음 · 스폰이 아닌 회복 · 검사 ㉗~㉝) | 태어난 개체의 몸 · 감각 · 지식 · 행동 · 죽음 · 성장 단계 · 능력치 → 3층. 성별과 구체적 번식 · 유전과 변이 → 3층 이후. 플레이어가 탄생에 개입하는 구체적 Action → 3층 이후 (2층의 개입은 채취뿐). 요정의 원리 결속 → 7층. 최초의 생명 → **확정하지 않는다** (F12) |
-| **세계의 요구와 가능성** (L2-World-Access) | K1~K15 전부 → **Access** (Lock 넷 · 성질 어휘 · Seed 의 성질 · 하나의 요구에 여러 종류의 답 · 요구를 알아낼 흔적 · 실패가 정보가 되는 관계의 자리 · 충분성과 밀도의 검사 ㉞~㊷ · time · state Lock 의 판정) | property · knowledge Lock 의 실제 판정 · Actor 가능성 · 관찰자가 요구를 어디까지 이해하는가 → 3층. 가능성을 지니는 것(소지 · 장비 · 섭취 · 동행) · 성질의 수치 · 조합과 상쇄 → 4층. 클래스 · 요정 자체가 가능성이 되는 성장 → 7층. 플레이어 사이의 가능성 공유 → 뒤 층 |
-
-일곱 Play 가 닫히면 2층이 닫힌다. 그 뒤 컨텐츠 층의 행(M1 · M2 와 §5.1 의 이름들)은 요구 축이 서는
-대로 각자의 Play 를 받는다.
+두 표는 여기 없다 — [../PLAYS.md](../PLAYS.md) §1(원본 기획 → Play 덮임 · 남은 것)과 §2(있는 Play 의 상태)가 소유한다.
+이 문서는 **각 Play 가 무엇을 증명하고 어떤 순서로 서는가**만 둔다. 진행은 각 Play 의 Cycle Breakdown 체크박스다.
