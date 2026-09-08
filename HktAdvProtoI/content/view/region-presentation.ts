@@ -36,6 +36,7 @@ import {
   regionSpec,
   weakenedConditionTag,
 } from '../regions/index';
+import { NO_LIFE_SITES, type LifeSitePhases } from './life-reading';
 import {
   NO_SOURCE_PHASES,
   collapsedAreas,
@@ -591,6 +592,7 @@ export function regionZones(
   worldTime = 0,
   sources: SourcePhases = NO_SOURCE_PHASES,
   night = false,
+  lives: LifeSitePhases = NO_LIFE_SITES,
 ): SceneGroundZone[] {
   if (!region) return [];
   const spec = regionSpec(region.id);
@@ -625,7 +627,15 @@ export function regionZones(
       // 것은 밤을 모른다** — traceLevelOfArea 에는 때가 넘어가지 않고, 밤이 고르는 것은
       // 그 단계의 그림뿐이다 (세계가 싣는 세기는 한 값도 바뀌지 않는다)
       // 색을 가르는 것은 **그 자락에 놓인 태그**다 (C020) — 방이 아니라 땅에 놓인 글자가 답이다
-      const p = traceZonePresentation(traceLevelOfArea(spec.id, area, sources), area.tag, night);
+      // C022 CHANGED — **자락을 거는 것이 원천만이 아니다** (spec R4 · SPEC-003). 탄생지의
+      // 지금이 함께 넘어가고, 그러면 가려진 자락은 서지 않고(부푼 균사) 빨리는 자락은 한
+      // 단계 옅다(옅어지는 흙). 넘기는 어법은 원천의 phase 를 넘기는 그것 그대로이고,
+      // **단계를 세는 것은 여전히 밤도 그림도 모른다** — 여기서 고르는 것은 그 단계의 색뿐이다
+      const p = traceZonePresentation(
+        traceLevelOfArea(spec.id, area, sources, lives),
+        area.tag,
+        night,
+      );
       // 모르는 단계는 **그리지 않는다** — 없는 짙기를 지어내지 않는다 (C001 부터의 폴백 규칙)
       if (!p) return [];
       return [

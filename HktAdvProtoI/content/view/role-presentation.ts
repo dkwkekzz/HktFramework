@@ -80,6 +80,19 @@ export const ROLE_PRESENTATIONS: Readonly<Record<string, RolePresentation>> = {
       'corpse-rime': 'source:corpse-rime',
     },
   },
+  // 탄생지 (C022) — 원천과 **같은 자리에 서는 다른 것**이다. 표의 어법이 그대로인 것은
+  // 그것이 이 세계에서 같은 종류의 것이기 때문이다: 땅에 서 있고, 지목할 수 있고,
+  // **이름표가 없다** (C026 R4 RULE-QUIET-GROUND-001) — 무엇이 맺히는지도 얼마나 찼는지도
+  // 세계 위에 뜨지 않고, 물었을 때 판이 답한다 (target-frame-presentation).
+  // 크기는 원천의 것 그대로(3.4)다 — 걸어가 지목하는 것이므로 사람의 몸과 같은 부피로 선다.
+  // 형태가 늘면 spriteByKind 에 한 줄이 늘 뿐이다 (원천이 넷에서 열넷이 된 그 어법).
+  'life-site': {
+    sprite: 'life',
+    size: 3.4,
+    spriteByKind: {
+      'root-clutch': 'life:root-clutch',
+    },
+  },
   // 방의 출구 표식 (C001) — anchor 자리에 선 표식 하나. kind(= 전이 종류) 별 색은 region-presentation 의 표.
   // 라벨이 없다 — 목적지 이름은 관찰 결과 어디에도 실리지 않는다 ("목적지는 건너야 안다").
   'region-exit': { sprite: 'region-exit', size: 2.0, tintByKind: TRANSITION_TINTS },

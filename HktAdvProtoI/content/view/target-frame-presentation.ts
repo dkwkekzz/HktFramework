@@ -26,6 +26,7 @@ import type { GameViewPosition, GameViewSnapshot } from '../protocol/gameview';
 import { agoText } from './answer-log';
 import { readBeing, type BeingOffer, type BeingReading } from './being-reading';
 import { codeText } from './code-text';
+import { lifeSiteStateCode } from './life-reading';
 import { SETTLEMENT_LAYER } from './biome-rules';
 import { TRACE_LAYER } from '../regions/index';
 import { interactionPresentation } from './interaction-presentation';
@@ -270,8 +271,13 @@ export function beingRows(reading: BeingReading): SceneFrameRow[] {
   }
 
   // ② 어떤 상태인가 — 지금 하는 일, 진행이 있으면 함께
+  //
+  // C022 CHANGED — **어느 말을 할지 형태(kind)가 함께 고른다** (핵심 원칙 2). 세계가 싣는
+  // state 코드는 대상마다 같은 글자가 다른 것을 뜻할 수 있고(탄생지의 dormant 와 방의
+  // 위상 dormant), 그 갈림은 세계의 것이 아니라 화면의 결정이다. 표에 없는 형태는 실려 온
+  // 코드 그대로 지난다 — 사람도 원천도 출구 표식도 한 글자 달라지지 않는다
   rows.push({
-    ...row('being.state', codeText(reading.state)),
+    ...row('being.state', codeText(lifeSiteStateCode(reading.kind, reading.state))),
     ...(reading.progress === undefined ? {} : { progress: reading.progress }),
   });
 

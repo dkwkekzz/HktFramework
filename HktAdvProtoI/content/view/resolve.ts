@@ -32,6 +32,7 @@ import { interactionPresentation } from './interaction-presentation';
 import { codeText } from './code-text';
 import { rolePresentation } from './role-presentation';
 import { kindPresentation } from './kind-presentation';
+import { lifeSitePhases } from './life-reading';
 import { regionZones } from './region-presentation';
 import { clockAmbience } from './terrain-presentation';
 import { sourcePhases } from './resource-reading';
@@ -197,6 +198,10 @@ export function resolvePresentation(
   // **세계가 싣는 것은 state 와 지금 선 마디뿐**이고, 나머지는 관찰자가 자기
   // content/regions 와 이 표로 스스로 얻는다 (C005~C007 의 규율 그대로)
   const sources = sourcePhases(snapshot);
+  // 탄생지들의 지금 (C022) — 서지 않는 자락도 옅어진 흙도 여기서 유도된다. **세계가 싣는
+  // 것은 phase 와 지금 모자란 조건 코드뿐**이고, 나머지는 관찰자가 자기 content/regions 와
+  // 이 표로 스스로 얻는다 (원천의 지금을 읽는 바로 윗줄과 같은 규율)
+  const lives = lifeSitePhases(snapshot);
   // 세계의 때 (C015) — 봉투 최상위의 한 자리다. **때를 모르는 봉투도 있다**: 앞 Cycle 의
   // 관찰 결과에는 이 자리가 없고, 그러면 화면은 지금까지 그대로다 (분위기 없음 · HUD 두
   // 줄 없음 · 낮의 흔적). 여기서 한 번 읽어 네 자리(하늘 · 흔적 · HUD)가 함께 쓴다
@@ -230,7 +235,7 @@ export function resolvePresentation(
     // C008 부터 구역·통로도 여기서 선다 — 재배열이 얼마 전인지를 재려고 세계 시각을 함께 넘긴다
     // C015 CHANGED — 밤이면 흔적만 또렷해진다 (SPEC-009). 다른 구역은 한 값도 다르지 않다
     zones: [
-      ...regionZones(snapshot.region, worldTime, sources, night),
+      ...regionZones(snapshot.region, worldTime, sources, night, lives),
       // 땅에 남은 자국 (C017 R8) — **방의 구역들 위에** 선다. 흔적(흙의 변색)이 방 바닥
       // 바로 위인 것과 갈리는데, 이유는 하나다: 흔적은 넓은 면이고 자국은 한 칸 남짓한
       // 표식이라 그 아래 묻히면 방향도 짙기도 읽히지 않는다. 겹치는 차례는 표현의

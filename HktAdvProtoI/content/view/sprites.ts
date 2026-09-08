@@ -94,6 +94,11 @@ const PALETTE: Record<string, string> = {
   '3': '#5cc8ee', // 빙정의 결정면 (볕) — 이 표에서 가장 푸르다
   '4': '#2a7ec4', // 빙정의 결정 (그늘)
   '5': '#14406e', // 빙정의 가장 깊은 결 — 땅에 닿는 밑동 (깨져도 이것만은 자리에 남는다)
+  // 결속하는 알집의 빛 (C022) — **이 표에서 가장 밝은 붉은 것**이다. 생체 광석의 결정면
+  // (C #f2684a)보다 한 칸 더 밝고 옅으므로, 같은 붉은 계열 안에서 "이것만 빛난다" 가
+  // 색 하나로 읽힌다 (Play §5.2 뿌리 마디의 붉은 빛 · spec SPEC-003 ②).
+  // 멎어 있는 알집에는 이 색이 한 점도 쓰이지 않는다 — 그것이 phase 둘을 눈으로 가른다.
+  '6': '#ffb98a',
   '.': '',
 };
 
@@ -1401,6 +1406,63 @@ const CLUE_BELL_VINE = [
   '.....vvvvv......',
 ];
 
+// ── 탄생지 하나 (C022 ADDED) ─────────────────────────────────────────
+//
+// 원천 열넷과 **같은 자리에 서는 다른 것**이다 (role 이 'life-site' 이고 그림표의 어법은
+// 그대로다). 그래서 실루엣이 원천 어느 것과도, 특히 같은 방에 선 뿌리혹과 갈려야 한다:
+// 뿌리혹은 굵은 뿌리 하나가 **둥근 덩이 하나**로 부푼 것이고, 이것은 뿌리 마디 아래에
+// **작은 알 여럿**이 뭉친 것이다 (하나 대 여럿 · 위 대 아래).
+//
+// phase 둘이 **눈으로 갈린다** (spec SPEC-003 ② — 전조 넷 가운데 하나가 이 그림이다).
+// 실루엣은 한 픽셀도 다르지 않고 **색만 갈린다**: 멎어 있는 것은 마른 붉은 기(x·c·G)뿐이고,
+// 결속하는 것은 결정면의 붉음(C)에 빛(6)이 속에서 돌며 뿌리 마디 위로 샌다.
+// 같은 것이 달라진 것이므로 실루엣을 갈면 화면이 "다른 것이 섰다" 를 말하게 된다
+// (원천의 available → depleted 가 **있던 것이 없어진 것**이라 실루엣부터 갈린 것과 반대다).
+//
+// **얼마나 찼는지 그림이 말하지 않는다** — 진행도 남은 시간도 실려 오지 않고(spec Observable),
+// 무엇이 태어나려 하는지도 그림에 없다. 그림이 말하는 것은 "지금 멎었는가 · 맺히는가" 뿐이다.
+
+// 멎어 있는 알집 — 뿌리 마디 아래 마른 붉은 알 여덟이 뭉쳐 있다
+const LIFE_ROOT_CLUTCH_DORMANT = [
+  '................',
+  '................',
+  'uu............uu',
+  '.uUUu......uUUu.',
+  '..uUUUUuuUUUUu..',
+  '...UUuUUUUuUU...',
+  '.....xx..xx.....',
+  '....xccG.xccG...',
+  '.....GG...GG....',
+  '..xx..xx..xx....',
+  '.xccG.xccG.xccG.',
+  '..GG...GG...GG..',
+  '....xx..xx......',
+  '...xccG.xccG....',
+  '....GG...GG.....',
+  '................',
+];
+
+// 결속하는 알집 — 같은 실루엣에 **붉은 빛이 돈다**. 뿌리 마디 위로 새는 빛이
+// "이 자리에서 무슨 일이 일어나고 있다" 를 멀리서도 말한다
+const LIFE_ROOT_CLUTCH_BINDING = [
+  '................',
+  '................',
+  'uu...66..66...uu',
+  '.uUUu.6666.uUUu.',
+  '..uUUUUuuUUUUu..',
+  '...UUuUUUUuUU...',
+  '.....CC..CC.....',
+  '....C66c.C66c...',
+  '.....cc...cc....',
+  '..CC..CC..CC....',
+  '.C66c.C66c.C66c.',
+  '..cc...cc...cc..',
+  '....CC..CC......',
+  '...C66c.C66c....',
+  '....cc...cc.....',
+  '................',
+];
+
 const PIXEL_MAPS: Record<string, string[]> = {
   'region-exit:open': REGION_EXIT_OPEN,
   'region-exit:locked': REGION_EXIT_LOCKED,
@@ -1475,6 +1537,11 @@ const PIXEL_MAPS: Record<string, string[]> = {
   'source:corpse-rime:available': SOURCE_CORPSE_RIME,
   'source:corpse-rime:depleted': SOURCE_CORPSE_RIME_DEPLETED,
   'source:corpse-rime:recovering': SOURCE_CORPSE_RIME_RECOVERING,
+  // 탄생지 하나 (C022) — 키의 어법도 고르는 규칙도 원천의 것 그대로다
+  // (`<sprite>:<state>` · 어느 그림을 세울지는 role-presentation 의 spriteByKind 가 kind 로 고른다).
+  // 세계가 싣는 state 가 여기서는 탄생지의 phase 이고, 이 Cycle 이 오가는 것은 둘뿐이다
+  'life:root-clutch:dormant': LIFE_ROOT_CLUTCH_DORMANT,
+  'life:root-clutch:binding': LIFE_ROOT_CLUTCH_BINDING,
 };
 
 /** 이 팩의 스프라이트 표 — 조립 루트가 engine 의 registerSprites 에 넘긴다 */
