@@ -196,7 +196,8 @@ spec 이 침묵해 **테스트가 판정 방식을 스스로 정한 자리**(Cyc
 
 ## 3. 뒤 층 · 뒤 Play 로
 
-**실주행 GAP — advprotoi-design 의 입력** (Play 실주행 판정에서 "아니오" 로 돌아온 것. 새 축·새 미지가 아니다)
+**실주행 GAP — advprotoi-design 의 입력** (Play 실주행 판정에서 "아니오" 로 돌아온 것. 새 축·새 미지가 아니다).
+아래 둘은 [play/TrailBehindClueAhead.md](content/roadmap/play/TrailBehindClueAhead.md) 초안이 받았다 — **Human 승인 대기** (STATE §1). 승인되면 지운다.
 
 ```text
 RegionGraphRooms — 깊이만으로는 "어디쯤인가" 가 잡히지 않는다. Play 는 바닥 색 + 상단 문구(문명권 → 경계 → 야생 → 심부)로

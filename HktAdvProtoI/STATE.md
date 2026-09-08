@@ -24,6 +24,11 @@ Play [RoomAnswersWhenAsked](content/roadmap/play/RoomAnswersWhenAsked.md) 가 C0
 순서 T1~T6 은 roadmap README §2.1. **T1~T6 이 다 섰다** — 남은 것은 값이 늘어야 서는 것들뿐이라 이 레인은 지금 부를 단계가 없다.
 design 이 다시 열리는 때는 둘 — ① 2층 Play 실주행에서 DESIGN GAP 이 돌아올 때 (**돌아왔다** — RegionGraphRooms 의 GAP 둘, TODO.md §3) ② T6 이 서서 HundredRooms 를 쓸 때 · 2층이 닫혀 3층을 주입할 때.
 
+**Human 결정 — 승인 대기 하나.** RegionGraphRooms 실주행 GAP 둘의 회수 Play [TrailBehindClueAhead](content/roadmap/play/TrailBehindClueAhead.md)
+(온 길 · 갈 길의 단서 · C032 · C033) 초안이 서 있다 — 문서 끝 Human 질문 여섯에 답하고 승인하면 다음 세션이
+"AdvProtoI 기획 — TrailBehindClueAhead 승인 반영" 으로 play/README 표 · 아래 레인 표(Observe 재개 · Time 과 병행) · TODO §3 GAP 삭제를 하고,
+그 뒤 "C032 진행" 이다. 승인 전에는 시작하지 않는다.
+
 | 레인 | 지금 할 수 있는 것 | 기다리는 것 | 다음 |
 |---|---|---|---|
 | Time — [RoomNeverSame](content/roadmap/play/RoomNeverSame.md) | **C017** 여럿의 누적과 남의 자취 — 소란(미로 압력의 일반화) + 임계 전이(숲이 깨어난다) + track. 관찰자 하나로는 못 넘고 셋이면 넘는다 · 내가 없던 사이의 발자국. 상수는 확정 5 · 11 에 있다 | — | C018 |
