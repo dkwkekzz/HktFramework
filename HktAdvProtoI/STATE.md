@@ -11,8 +11,10 @@
 [Plan-Skill §4 항목 4](design/Plan-Skill-CycleExecutionWorkflow.md). 승인 게이트 없음 — Play 아홉 중 여덟이 승인돼 있다
 (2층 일곱 + 컨텐츠 M5). Life 는 주입된 그대로다.
 
-**design 은 여기까지** — 2층 **세계 절반**의 기획은 닫혔다 (컨셉 · Region · 재료 · 시간 · 생명 · 접근). 더 쌓지 않는다.
-남은 일은 **Cycle 실주행**이다. 실주행 관찰(Material 원문 §7 단계 11)이 다음 기획(3층)의 입력이다.
+**design 이 한 번 더 열렸다 — Human 주입.** 2층 세계 절반의 기획(컨셉 · Region · 재료 · 시간 · 생명 · 접근)은 닫혀 있었는데 Human 이
+**Region Foundation**(②-부속 다섯째 · [L2-World-Foundation.md](content/roadmap/L2-World-Foundation.md) · 초안)을 주입했다 — 축이 아니라 **무대의 문법**이다:
+앞선 계약 전부가 서는 여덟 자리를 이름 짓고(§3.1 대응표 — 새로 세우는 것 없음), 어느 계약도 소유하지 않던 셋(조건의 한 형 · 기억(수명 · History) ·
+기회=Event 데이터 층)을 더한다. 승인되면 그것으로 2층 기획을 닫고, 남은 일은 **Cycle 실주행**이다. 실주행 관찰(Material 원문 §7 단계 11)이 다음 기획(3층)의 입력이다.
 
 **design 이 한 번 다시 열렸다 닫혔다** — C006·C008 실주행이 화면 결손을 돌려보냈고
 Play [RoomAnswersWhenAsked](content/roadmap/play/RoomAnswersWhenAsked.md) 가 C026~C028 로 그것을 회수했다.
@@ -24,10 +26,14 @@ Play [RoomAnswersWhenAsked](content/roadmap/play/RoomAnswersWhenAsked.md) 가 C0
 순서 T1~T6 은 roadmap README §2.1. **T1~T6 이 다 섰다** — 남은 것은 값이 늘어야 서는 것들뿐이라 이 레인은 지금 부를 단계가 없다.
 design 이 다시 열리는 때는 둘 — ① 2층 Play 실주행에서 DESIGN GAP 이 돌아올 때 (**돌아왔다** — RegionGraphRooms 의 GAP 둘, TODO.md §3) ② T6 이 서서 HundredRooms 를 쓸 때 · 2층이 닫혀 3층을 주입할 때.
 
-**Human 결정 — 승인 대기 하나.** RegionGraphRooms 실주행 GAP 둘의 회수 Play [TrailBehindClueAhead](content/roadmap/play/TrailBehindClueAhead.md)
-(온 길 · 갈 길의 단서 · C032 · C033) 초안이 서 있다 — 문서 끝 Human 질문 여섯에 답하고 승인하면 다음 세션이
-"AdvProtoI 기획 — TrailBehindClueAhead 승인 반영" 으로 play/README 표 · 아래 레인 표(Observe 재개 · Time 과 병행) · TODO §3 GAP 삭제를 하고,
-그 뒤 "C032 진행" 이다. 승인 전에는 시작하지 않는다.
+**Human 결정 — 승인 대기 둘.** 둘은 서로 독립이고 각각 문서 끝 Human 질문에 답하고 승인한다. 승인 전에는 시작하지 않는다.
+- ① RegionGraphRooms 실주행 GAP 둘의 회수 Play [TrailBehindClueAhead](content/roadmap/play/TrailBehindClueAhead.md)
+  (온 길 · 갈 길의 단서 · C032 · C033) — Human 질문 여섯. 승인하면 다음 세션이 "AdvProtoI 기획 — TrailBehindClueAhead 승인 반영" 으로
+  play/README 표 · 아래 레인 표(Observe 재개 · Time 과 병행) · TODO §3 GAP 삭제를 하고, 그 뒤 "C032 진행" 이다.
+- ② Region Foundation — [L2-World-Foundation.md](content/roadmap/L2-World-Foundation.md) + Play [RoomRemembersAndOffers](content/roadmap/play/RoomRemembersAndOffers.md)
+  (기억 · 조건의 한 형 · 기회 · C034~C036) — Human 질문 열 (첫째가 "2층을 다시 여는 것을 승인하는가"). 승인하면 다음 세션이
+  "AdvProtoI 기획 — RoomRemembersAndOffers 승인 반영" 으로 로드맵 상태 · play/README 표 · 아래 레인 표(Foundation 레인 — Life · Access 와 병행) ·
+  TODO §2 Time 미결 하나 · §3 "World Event Opportunity" 삭제를 하고, 그 뒤 "C034 진행" 이다.
 
 | 레인 | 지금 할 수 있는 것 | 기다리는 것 | 다음 |
 |---|---|---|---|
@@ -73,6 +79,7 @@ design 이 다시 열리는 때는 둘 — ① 2층 Play 실주행에서 DESIGN 
 0 게임 방향   확정   L0-Game.md
 1 세계의 문법  확정   L1-World-Grammar.md
 2 세계 자체   열림   L2-World-Tool · Concept · Region · Material · Time · Life · Access — 세계 절반 기획 닫힘 → Play 아홉 중 일곱 닫힘 (§2)
+              + L2-World-Foundation(②-부속 다섯째 · 무대의 문법 — 초안 · Play RoomRemembersAndOffers 와 승인 대기)
               도구 절반 2단계 L2-World-Tool-Scale(Region 작성기) 확정 — T1~T6 다 섰다 (진행표는 README §2.1)
 3 주체와 몸   미주입  ← 2층이 닫히면 다음.   4~7 (물건 · 대결 · 능력 · 성장) 미주입
 ```
