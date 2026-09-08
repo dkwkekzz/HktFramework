@@ -82,6 +82,10 @@ export const ROLE_PRESENTATIONS: Readonly<Record<string, RolePresentation>> = {
       'ore-pebble': 'source:ore-pebble',
       'husk-shard': 'source:husk-shard',
       'glow-cap': 'source:glow-cap',
+      // 탄생이 남긴 것 둘 (C023) — 표에 두 줄이 늘 뿐이다. 둘은 **같은 재료의 다른 형태**이므로
+      // 그림도 껍질의 색으로 묶이고 크기로 갈린다 (그것을 정하는 것은 아래 그림표다)
+      'clutch-husk': 'source:clutch-husk',
+      'egg-husk': 'source:egg-husk',
     },
   },
   // 탄생지 (C022) — 원천과 **같은 자리에 서는 다른 것**이다. 표의 어법이 그대로인 것은
@@ -95,6 +99,10 @@ export const ROLE_PRESENTATIONS: Readonly<Record<string, RolePresentation>> = {
     size: 3.4,
     spriteByKind: {
       'root-clutch': 'life:root-clutch',
+      // 탄생지가 둘이 되었다 (C023 · SPEC-008) — 표에 한 줄이 늘 뿐이고 크기도 그대로다.
+      // 큰 알집과 작은 붉은 점은 **다른 그림**이어야 하는데, 그 갈림은 여기가 아니라
+      // 그림표가 진다 — 여기는 어느 그림을 부를지만 정한다 (원천이 넷에서 열여섯이 된 어법)
+      'root-eggs': 'life:root-eggs',
     },
   },
   // 방의 출구 표식 (C001) — anchor 자리에 선 표식 하나. kind(= 전이 종류) 별 색은 region-presentation 의 표.

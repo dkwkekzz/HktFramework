@@ -83,6 +83,12 @@ export const PLACE_ROW_LABELS: Readonly<Record<string, string>> = {
   // 이름표가 무엇이 지나는지도 어디로 가는지도 묻지 않는 것은 세계가 그것을 싣지 않기
   // 때문이다 (Time T8) — 관찰된 사실은 "지금 여기를 이것이 지난다" 하나뿐이다
   'place.presence': '지나는 것',
+  // 무엇이 **서 있는가** (C023) — 바로 위 줄과 **같은 자리에서 온다**(presences). 세계가
+  // 그 둘을 가르는 것은 실린 것이 선(curve)인가 자락(area)인가 하나뿐이고, 그것이 곧
+  // "지나간다" 와 "여기 산다" 의 갈림이다. 이름표를 갈라 두는 것은 그래서다 — 도는 떼를
+  // '지나는 것' 이라 부르면 관찰자가 곧 지나갈 것으로 읽는다.
+  // **몇인지는 없다** (spec SPEC-005 경계 ① — 개체군의 값도 상한도 실리지 않는다)
+  'place.swarm': '서 있는 것',
 };
 
 /**
@@ -475,9 +481,30 @@ export function placeRows(reading: PlaceReading, worldTime?: number): SceneFrame
   // 것이지 판이 읽어 줄 말이 아니다 — 뿌리 선의 자리를 판이 짚어 주지 않는 것과 같다.
   // 언제 다시 오는지도 어디로 가는지도 몇 번째인지도 없다 (세계가 싣지 않는다).
   for (const presence of reading.presences ?? []) {
+    // C023 CHANGED — **선을 실은 줄만** 이 자리에 선다. 같은 목록에 서 있는 떼가 실리기
+    // 시작했고(자락), 그것은 지나가는 것이 아니므로 아래의 제 줄이 진다
+    if (presence.curve === undefined) continue;
     rows.push({
       ...row('place.presence', codeText(presence.presence)),
       id: `place.presence:${presence.presence}`,
+    });
+  }
+
+  // ⑦ 무엇이 **서 있는가** (C023 ADDED — spec SPEC-006).
+  //
+  // **코드마다 한 줄이다.** 자락은 값만큼 여럿 실려 오지만(값이 오를수록 넓어진다) 여기서
+  // 그 수만큼 줄을 세우면 판이 **개체군의 값을 세어 보여 주는 것**이 된다 — 세계가 싣지
+  // 않기로 한 바로 그 값이다 (spec SPEC-005 경계 ① · "투영하지 않는 것"). 판이 답하는
+  // 것은 "여기 이것이 산다" 하나이고, 얼마나 되는지는 땅에 겹친 자락이 눈으로만 말한다.
+  //
+  // 위의 줄들과 같은 어법이다 — 무엇을 먹는지도, 어디서 왔는지도, 언제 는지도 없다.
+  const standing = new Set<string>();
+  for (const presence of reading.presences ?? []) {
+    if (presence.area === undefined || standing.has(presence.presence)) continue;
+    standing.add(presence.presence);
+    rows.push({
+      ...row('place.swarm', codeText(presence.presence)),
+      id: `place.swarm:${presence.presence}`,
     });
   }
   return rows;

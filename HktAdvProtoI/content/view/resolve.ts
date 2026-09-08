@@ -39,7 +39,7 @@ import { sourcePhases } from './resource-reading';
 import { DESIGNATE_MODIFIER, type Designation } from './pointer-rules';
 import { designationHighlight, targetFrame } from './target-frame-presentation';
 import { trackZones } from './track-presentation';
-import { presenceLineZones, shadedAmbience } from './presence-presentation';
+import { presenceAreaZones, presenceLineZones, shadedAmbience } from './presence-presentation';
 import { phaseZones } from './phase-presentation';
 
 // 관찰자 쪽 표시 선택 — 충돌체 디버그 관찰을 켤지. World 에 아무것도 요청하지 않는다.
@@ -253,6 +253,12 @@ export function resolvePresentation(
       // 뿌리 선(regionZones 안)보다 위인 것도 같은 규율이다 — 뿌리는 땅에 박혀 있고
       // 이것은 그 위를 스쳐 지나는 것이다. 지나가고 있지 않으면 목록이 비고, 그러면
       // 화면은 C017 과 한 픽셀도 다르지 않다
+      // 서 있는 떼의 자락 (C023) — **경로 선 바로 아래**다. 자락은 방 바닥에 넓게 깔린
+      // 면이고 선은 그 위를 가로질러 지나는 띠이므로, 순서를 뒤집으면 지나가는 것의
+      // 선이 자락에 묻혀 어디를 지나는지가 읽히지 않는다 (흔적 위에 자국이 서는 것과
+      // 같은 이유). 서 있는 것이 없으면 목록이 비고, 그러면 화면은 C022 와 한 픽셀도
+      // 다르지 않다
+      ...presenceAreaZones(snapshot.region.id, snapshot.presences),
       ...presenceLineZones(snapshot.region.id, snapshot.presences),
       ...trackZones(snapshot.tracks, knownWorldTime),
     ],

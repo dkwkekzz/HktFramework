@@ -17,6 +17,7 @@
 import type { GameViewSnapshot } from '../protocol/gameview';
 import {
   FORM_ROOT_CLUTCH,
+  FORM_ROOT_EGGS,
   regionSpec,
   type LifeSiteSpec,
   type LifeSiteTrace,
@@ -30,6 +31,23 @@ const PHASE_BINDING = 'binding';
 
 /** 멎어 있는 탄생지의 state 코드 — 모르는 탄생지를 이 값으로 읽는다 (아래 DEFAULT_OBSERVED) */
 const PHASE_DORMANT = 'dormant';
+
+/**
+ * 태어난 그 한 tick 의 state 코드 (C023 ADDED).
+ *
+ * **사람이 볼 일이 드물다** — 다섯이 함께 움직이는 그 순간이 BORN 이고 곧 SPENT 가 된다.
+ * 그래도 그림과 문구가 있는 것은, 그 한 tick 이 실려 온 화면에서 코드가 그대로 뜨거나
+ * 그림이 비는 일이 없어야 하기 때문이다 (모르는 것은 지어내지 않되 아는 것은 그린다).
+ */
+const PHASE_BORN = 'born';
+
+/**
+ * 터진 채 남아 있는 state 코드 (C023 ADDED) — **눈에 보이는 "터졌다" 가 이것이다.**
+ *
+ * 눈으로 갈려야 하는 것은 phase 넷이 아니라 셋이다 (맺힌 채 멎음 · 속에서 맺힘 · 터진 것).
+ * BORN 은 한 tick 이라 스쳐 가고, 관찰자가 걸어와 보는 것은 언제나 이 자리다.
+ */
+const PHASE_SPENT = 'spent';
 
 /**
  * 관찰된 그 탄생지의 지금.
@@ -92,6 +110,13 @@ export function lifeSitePhases(snapshot: GameViewSnapshot): LifeSitePhases {
  *      부푼 균사는 뻗어 올 것이 있어야 서기 때문이다.
  *   ② 결속하는 동안(BINDING) 빨리는 자락(fadesWhileBinding)은 **한 단계 옅다** — 재료가
  *      알집으로 가고 있다. 0 아래로는 내려가지 않는다 (고갈된 원천 둘레와 같은 어법).
+ *
+ * C023 CHANGED — 잣대가 셋이 되었다. 밝혀만 두던 `traces.after` 가 일을 한다:
+ *   ③ 태어난 뒤의 자락은 **SPENT 인 동안에만** 선다 (그 밖에는 0). 전조가 "늘 있다가
+ *      가려지는 것" 이라면 이것은 "없다가 그동안만 서는 것" 이다 — 터진 자리에 남은
+ *      붉은 가루이고, 되돌아오면 자리와 함께 사라진다 (spec SPEC-004 경계 ③).
+ * 세계 쪽 lifeTraceOverlayIn 과 **같은 잣대**여야 한다 — 갈리면 바닥에 그려진 색과
+ * 판이 말하는 단계가 어긋난다 (이 파일 머리의 규율 그대로).
  */
 export function lifeTraceLevelOfArea(
   regionId: string,
@@ -102,15 +127,25 @@ export function lifeTraceLevelOfArea(
   if (level <= 0) return 0;
   for (const site of lifeSitesOf(regionId)) {
     const trace = traceOf(site, areaId);
+    if (trace) {
+      const observed = observedLifeSite(lives, site.id);
+      // ① 가려진 자락은 서지 않는다 — 모자란 것에 그 코드가 들어 있으면 흙도 그것을 말하지 않는다
+      if (trace.hiddenWhen !== undefined && observed.conditions.includes(trace.hiddenWhen)) {
+        return 0;
+      }
+      // ② 결속하는 동안만 옅어진다 — 멎어 있는 동안은 데이터 그대로다
+      return trace.fadesWhileBinding && observed.phase === PHASE_BINDING
+        ? Math.max(0, level - 1)
+        : level;
+    }
+    // ③ 태어난 **뒤**의 자락 (C023 ADDED) — 터진 자리에 서는 붉은 가루다.
+    //    **SPENT 인 동안에만 선다**: 아직 태어나지 않았을 때도, 되돌아온 뒤에도 그 자리에
+    //    아무것도 없다 (spec SPEC-004 경계 ③). 전조(before)와 갈리는 자리가 여기다 —
+    //    전조는 늘 있다가 조건에 따라 가려지고, 이것은 없다가 그동안만 선다.
+    if (isAfterTrace(site, areaId)) {
+      return observedLifeSite(lives, site.id).phase === PHASE_SPENT ? level : 0;
+    }
     // 이 탄생지의 자락이 아니다 — 다음 탄생지를 본다 (어느 것의 것도 아니면 데이터 그대로다)
-    if (!trace) continue;
-    const observed = observedLifeSite(lives, site.id);
-    // ① 가려진 자락은 서지 않는다 — 모자란 것에 그 코드가 들어 있으면 흙도 그것을 말하지 않는다
-    if (trace.hiddenWhen !== undefined && observed.conditions.includes(trace.hiddenWhen)) return 0;
-    // ② 결속하는 동안만 옅어진다 — 멎어 있는 동안은 데이터 그대로다
-    return trace.fadesWhileBinding && observed.phase === PHASE_BINDING
-      ? Math.max(0, level - 1)
-      : level;
   }
   return level;
 }
@@ -136,11 +171,27 @@ export function lifeSiteStateCode(kind: string | undefined, state: string): stri
   return LIFE_SITE_STATE_CODES[kind]?.[state] ?? state;
 }
 
-/** 형태 × phase → 문구 코드 (C022 — 알집 하나뿐이다. 형태가 늘면 표에 한 줄이 는다) */
+/**
+ * 형태 × phase → 문구 코드 (C022 — 알집 하나뿐이었다. C023 CHANGED — 형태가 둘 · phase 가 넷).
+ *
+ * **탄생지가 둘이 되어도 표에 한 줄이 늘 뿐이다** (원천이 넷에서 열넷이 된 그 어법 그대로).
+ * 형태마다 자기 말을 갖는 것은 SPEC-008 이 요구하는 것이다 — 큰 알집과 작은 붉은 점은
+ * 다른 이름 · 다른 그림 · 다른 말이고, 같은 phase 라도 무엇이 맺히고 무엇이 터졌는지가
+ * 갈려 읽혀야 한다. **어느 쪽이 결속이고 어느 쪽이 계승인지는 여기서도 말하지 않는다**
+ * (spec Observable "투영하지 않는 것") — 갈리는 것은 생김새이지 방식의 이름이 아니다.
+ */
 const LIFE_SITE_STATE_CODES: Readonly<Record<string, Readonly<Record<string, string>>>> = {
   [FORM_ROOT_CLUTCH]: {
     [PHASE_DORMANT]: 'clutch-dormant',
     [PHASE_BINDING]: 'clutch-binding',
+    [PHASE_BORN]: 'clutch-born',
+    [PHASE_SPENT]: 'clutch-spent',
+  },
+  [FORM_ROOT_EGGS]: {
+    [PHASE_DORMANT]: 'eggs-dormant',
+    [PHASE_BINDING]: 'eggs-binding',
+    [PHASE_BORN]: 'eggs-born',
+    [PHASE_SPENT]: 'eggs-spent',
   },
 };
 
@@ -157,4 +208,15 @@ function lifeSitesOf(regionId: string): readonly LifeSiteSpec[] {
 /** 그 자락이 이 탄생지가 밝힌 전조인가 — 아니면 없다 (원천의 siteOfOp 와 같은 어법) */
 function traceOf(site: LifeSiteSpec, areaId: string): LifeSiteTrace | undefined {
   return site.traces.before.find((trace) => trace.op === areaId);
+}
+
+/**
+ * 그 자락이 이 탄생지가 태어난 **뒤**에 세우는 것인가 (C023 ADDED).
+ *
+ * 전조와 달리 밝히는 것이 op id 하나뿐이므로(조건도 옅어짐도 없다) 목록에 있는지만 본다.
+ * 세계 쪽 잣대와 **같은 것**이어야 한다 — 화면이 세우는 자락과 판이 말하는 단계가
+ * 갈리면 둘 중 하나를 믿을 수 없다 (이 파일 머리의 규율).
+ */
+function isAfterTrace(site: LifeSiteSpec, areaId: string): boolean {
+  return site.traces.after.includes(areaId);
 }

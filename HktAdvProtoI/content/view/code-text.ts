@@ -13,8 +13,10 @@ import {
   CONDITION_RIDGE,
   CONDITION_UNMET,
   FLOW_ARRIVED,
+  FORM_CLUTCH_HUSK,
   FORM_CORPSE_RIME,
   FORM_DRIFT_DUST,
+  FORM_EGG_HUSK,
   FORM_FROST_VEIN,
   FORM_GLOW_CAP,
   FORM_HUSK_SHARD,
@@ -27,6 +29,7 @@ import {
   FORM_RIME,
   FORM_RIVER_GRAIN,
   FORM_ROOT_CLUTCH,
+  FORM_ROOT_EGGS,
   FORM_ROOT_NODULE,
   FORM_SEEP_CRUST,
   FORM_SILT_BED,
@@ -38,8 +41,11 @@ import {
   LIFE_HAS_OWNER,
   LIFE_NEEDS_DECAY,
   LIFE_NEEDS_MATERIAL,
+  LIFE_NEEDS_PARENT,
   LIFE_NEEDS_RAIN,
   ORE_EATER_MOLT,
+  PRESENCE_ORE_EATER_SWARM,
+  RECOVERY_NEXT_BIRTH,
   RECOVERY_STALLED,
   REQUIRES_STORED_HEAT,
   frostBreathTag,
@@ -212,6 +218,14 @@ const CODE_TEXT: Record<string, string> = {
   [FORM_ORE_PEBBLE]: '흙 위에 흩어진 붉은 자갈',
   [FORM_HUSK_SHARD]: '풀줄기에 걸린 껍질 조각',
   [FORM_GLOW_CAP]: '어둠에서 희게 빛나는 갓',
+  // 태어남이 남기고 간 형태 둘 (C023) — 어법은 그대로다: 지목한 것이 **무엇으로 보이는가**만
+  // 적는다. **무엇이 그것을 두고 갔는지도, 무엇이 다시 세우는지도 적지 않는다** — 세계가
+  // 싣지 않고(spec Observable), 터지는 것을 본 관찰자가 스스로 잇는다.
+  //
+  // 둘이 같은 재료라는 것도 적지 않는다 — 크기와 껍질의 색이 그것을 말하고, 묶는 것은
+  // 관찰자의 일이다 (협곡의 넷을 묶어 주지 않은 그 규율 그대로).
+  [FORM_CLUTCH_HUSK]: '터져 벌어진 채 남은 큰 껍질',
+  [FORM_EGG_HUSK]: '뿌리 마디에 남은 작은 껍질',
   // 재료의 이름 (Material Seed 코드 — C011). 소지품 줄의 이름표가 이 말이다.
   // **무엇에 쓰는지는 여기에도 어디에도 없다**
   [BIO_ORE]: '생체 광석',
@@ -240,6 +254,12 @@ const CODE_TEXT: Record<string, string> = {
   // **무엇에 매달렸는지도 언제 풀리는지도 적지 않는다** — 세계가 싣는 것은 코드 하나이고,
   // 무엇이 이것을 멎게 했는지는 같은 방에서 관찰자가 잇는다 (흔적을 잇게 한 것과 같은 규율)
   [RECOVERY_STALLED]: '되돌아옴이 멎었다',
+  // 탄생이 세우는 원천이 밝힌 **되돌아옴의 원인** (C023 · spec R4 CHANGED). 위의 줄들과
+  // 갈리는 자리다: 저것들은 "지금 왜 안 되는가" 이고 이것은 "무엇이 그것을 다시 세우는가"
+  // 다. 이 세계에서 그 답이 **시간이 아닌** 유일한 원천이므로 말도 따로 있다 —
+  // 아무리 기다려도 오지 않고, 저기서 또 하나가 태어나야 여기 다시 선다.
+  // **언제인지는 적지 않는다** (다음 탄생이 언제인지는 실려 오지 않는다 · spec Observable)
+  [RECOVERY_NEXT_BIRTH]: '아직 그 자리에 없다 — 다음 탄생이 세운다',
   // 흐름의 조건 둘 (C014 — 같은 conditions 자리의 코드다. 새 자리가 없다).
   // **얼마나 남았는지도 무엇이 그것을 실어 오는지도 적지 않는다** — 흐름의 주기도 다음
   // 활성까지의 시간도, 그 출발이 어느 방의 무엇인지도 실려 오지 않는다 (spec Observable).
@@ -269,6 +289,11 @@ const CODE_TEXT: Record<string, string> = {
   // "투영하지 않는 것"). 그것을 잇는 것이 이 Play 다: 관찰자는 허물에 주인이 없다는 것을
   // 알아채고 흔적 넷을 따라와 여기에 닿는다.
   [FORM_ROOT_CLUTCH]: '뿌리 마디에 맺힌 붉은 알집',
+  // 탄생지 둘째 (C023 · SPEC-008) — **알집과 갈려야 한다.** 갈리는 것은 크기와 놓임이고
+  // (큰 덩이 하나 vs 작은 점 여럿) 그림이 이미 그것을 말한다. 이 말은 그 그림을 옮길 뿐이다.
+  // **어느 쪽이 결속이고 어느 쪽이 계승인지 적지 않는다** (spec Observable "투영하지 않는 것") —
+  // 알집 없이 맺히는 것을 본 관찰자가 "저희끼리 잇는다" 를 스스로 잇는다
+  [FORM_ROOT_EGGS]: '뿌리 마디에 맺힌 작은 붉은 점',
   // 종류마저 모를 때의 마지막 표 (entity.role) — 원천의 '재료의 원천' 과 같은 자리다.
   // '탄생지' 라고 적지 않는 것은 무엇이 태어나는지를 세계가 싣지 않기 때문이다
   'life-site': '무언가 맺히는 자리',
@@ -282,6 +307,20 @@ const CODE_TEXT: Record<string, string> = {
   // 무엇을 캐면 늦어지고 무엇을 두면 오르는지가 관찰자의 것이 된다 (Play §5.5)
   'clutch-dormant': '맺힌 채 멎어 있다',
   'clutch-binding': '속에서 무언가 맺히고 있다',
+  // C023 — phase 가 넷이 되었다. **눈으로 갈리는 것은 셋**이다: 맺힌 채 멎음 · 속에서
+  // 맺힘 · 터진 것. 태어나는 그 한 tick(born)은 스쳐 가므로 사람이 볼 일이 드물고, 걸어와
+  // 보게 되는 "터졌다" 는 언제나 그 다음(spent)이다 (spec 기본형 ⑦).
+  //
+  // **무엇이 태어났는지 적지 않는다** — 세계가 싣지 않는다. 무엇을 먹었는지도, 언제
+  // 돌아오는지도, 다음이 언제인지도 없다. 이 말이 하는 것은 "지금 저기가 어떤가" 하나다
+  'clutch-born': '알집이 터진다',
+  'clutch-spent': '터진 채 비어 있다',
+  // 뿌리의 알의 짝 (C023) — 같은 phase 넷이되 **그 형태의 말**이다. 알집이 터지는 것과
+  // 점이 터지는 것은 같은 일이지만 관찰자가 보는 것이 다르므로, 화면도 다른 말을 한다
+  'eggs-dormant': '작은 점이 맺힌 채 멎어 있다',
+  'eggs-binding': '점 속에서 무언가 맺히고 있다',
+  'eggs-born': '점이 터진다',
+  'eggs-spent': '터진 채 비어 있다',
   // 지금 **모자란** 조건 넷 (같은 conditions 자리의 코드다 — 새 자리가 없다).
   //
   // 차 있는 조건은 실려 오지 않으므로 여기 서는 것은 늘 **모자란 것**이고, 그래서 넷이
@@ -299,6 +338,12 @@ const CODE_TEXT: Record<string, string> = {
   // 개체군 값도 실려 오지 않는다 — 몇인지가 아니라 **이미 있다**는 사실 하나다.
   // 이 Cycle 의 제목이 그 말이고(허물의 주인), 무엇이 주인인지는 적지 않는다
   [LIFE_HAS_OWNER]: '이 자리에 이미 주인이 있다',
+  // 다섯째 (C023) — 위의 '이미 주인이 있다' 와 **정확히 반대의 자리**다. 결속은 주인이
+  // 있으면 서지 않고, 계승은 이을 것이 없으면 서지 않는다 — 둘이 한 화면에 나란히
+  // 섰을 때 그 반대됨이 읽혀야 관찰자가 "처음은 나무가 낳았고 지금은 저희끼리 잇는다" 를
+  // 잇는다. **무엇을 이어야 하는지도, 몇이면 되는지도 적지 않는다** (개체군의 값은
+  // 어디에도 실리지 않는다 · spec SPEC-005 경계 ①)
+  [LIFE_NEEDS_PARENT]: '이을 것이 없다',
   // 그 자락 위에 선 동안 걸린 것 (standingConditions — 안전 · 위험 · 닿음의 코드와 **같은
   // 자리**다). 그래서 어법도 그대로다: <무엇>이 <어찌한다> 한 마디이고 몸에 무엇을 하는지도
   // 얼마나 센지도 적지 않는다. 무엇이 떨게 하는지도 없다 — 그 자리에 서 본 관찰자가 잇는다
@@ -461,6 +506,13 @@ const CODE_TEXT: Record<string, string> = {
   // (C016 의 그 줄 · 쓰러짐 줄이 기존 문구를 그대로 쓴 것과 같은 규율).
   'sky-whale': '천공고래',
   'blind-hunter': '맹목의 사냥꾼',
+  // 서 있는 떼 (C023) — **같은 자리의 코드**다 (presences[].presence). 위의 둘은 지나가고
+  // 이것은 여기 산다는 것만 다르고, 판이 그 갈림을 이름표로 말한다 ('지나는 것' · '서 있는 것').
+  //
+  // **몇인지 적지 않는다** — 개체군의 값도 상한도 실리지 않는다 (spec SPEC-005 경계 ①).
+  // 무엇을 먹는지도, 어디서 났는지도, 늘고 있는지도 없다. 늘었다는 것은 땅에 겹친 자락이
+  // 눈으로만 말하고, 그것이 무엇의 떼인지는 이 한 마디가 말한다
+  [PRESENCE_ORE_EATER_SWARM]: '광식충 떼',
   // ── 세계의 때가 쓰는 말 (C015 — snapshot.clock 의 코드 둘) ──────
   //
   // 세계는 코드만 싣는다 (DAY · NIGHT · STILL · SEEP · LONG_NIGHT · TURN). 여기서 처음
