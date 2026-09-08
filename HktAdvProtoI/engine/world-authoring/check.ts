@@ -1494,6 +1494,14 @@ export interface CheckLifeRecovery {
   population: string;
 }
 
+/** 탄생지가 하나도 없는 방과 그 사유 — ㉚ 이 함께 싣는다 (C024 ADDED) */
+export interface CheckLifeAbsence {
+  /** 그 방 */
+  region: string;
+  /** 왜 없는가 — 기반은 이 글자를 읽지 않고 그대로 옮긴다 */
+  reason: string;
+}
+
 /** 이 세계의 생명 계통 — 검사 ㉗~㉝ 가 보는 전부 */
 export interface CheckLife {
   formations: readonly CheckLifeFormation[];
@@ -1504,6 +1512,8 @@ export interface CheckLife {
   regionRules: readonly string[];
   /** 개체군이 아닌 관계의 끝은 이것이어야 한다 — 잔류 원천 id 들 (㉜) */
   residueSourceIds: readonly string[];
+  /** 탄생지가 없는 방이 밝힌 사유들 — 밝히지 않으면 ㉚ 은 지금 그대로다 (C024 ADDED) */
+  absences?: readonly CheckLifeAbsence[];
 }
 
 /** 일곱의 번호·이름 — 이 차례가 곧 보고에 실리는 차례다 (계통이 없을 때의 absent 도 이것을 쓴다) */
@@ -1663,7 +1673,6 @@ function checkLifeTracesConsumes(cx: LifeContext): CheckItem {
 function checkLifeModeSpread(cx: LifeContext): CheckItem {
   const head = LIFE_ITEMS.modeSpread;
   const { formations } = cx.life;
-  if (formations.length === 0) return absentItem(head, '탄생지가 없다');
   // 탄생지가 선 방을 처음 나온 차례로 (결정론 — ⑳ 의 어법)
   const rows: string[] = [];
   const seen = new Set<string>();
@@ -1672,6 +1681,9 @@ function checkLifeModeSpread(cx: LifeContext): CheckItem {
     seen.add(formation.region);
     rows.push(formation.region);
   }
+  // 탄생지가 실제로 선 방의 사유는 싣지 않는다 — 모순된 글자를 옮기지 않되 그것으로 판정하지도 않는다
+  const absences = (cx.life.absences ?? []).filter((absence) => !seen.has(absence.region));
+  if (formations.length === 0 && absences.length === 0) return absentItem(head, '탄생지가 없다');
   const kinds = tally(formations.map((formation) => formation.mode));
   const refs: CheckRef[] = rows.map((row) => {
     const mine = formations.filter((formation) => formation.region === row);
@@ -1680,10 +1692,19 @@ function checkLifeModeSpread(cx: LifeContext): CheckItem {
       detail: `탄생지 ${mine.length} · ${renderTally(tally(mine.map((formation) => formation.mode)))}`,
     };
   });
+  // 사유는 방들 뒤에 잇는다 — 준 차례 그대로 (결정론)
+  for (const absence of absences) {
+    refs.push({ where: absence.region, detail: `탄생지 0 — ${absence.reason}` });
+  }
+  const said = absences.length === 0 ? '' : ` · 사유를 밝힌 방 ${absences.length}`;
+  const spread =
+    formations.length === 0
+      ? '방 0 · 탄생지 합 0'
+      : `방 ${rows.length} · 탄생지 합 ${formations.length} · 방식 ${kinds.size} — ${renderTally(kinds)}`;
   return {
     ...head,
     status: 'report',
-    answer: `방 ${rows.length} · 탄생지 합 ${formations.length} · 방식 ${kinds.size} — ${renderTally(kinds)}`,
+    answer: `${spread}${said}`,
     refs,
   };
 }
