@@ -8,6 +8,7 @@
 
 import { describe, expect, it } from 'vitest';
 import {
+  accessAnswerMap,
   checkRegions,
   type CheckAccess,
   type CheckContract,
@@ -395,5 +396,79 @@ describe('㊶ 흔적 — 모든 Lock 이 알아낼 자리를 가졌는가', () =
       'access-trace',
     );
     expect(item.status).toBe('pass');
+  });
+});
+
+// ── C030 — 열쇠 × 자물쇠 표 (accessAnswerMap · R4) ───────────
+//
+// 검사 ㊴ 이 세는 것과 **같은 답**을 행과 열로 낸다. 여기서도 기반은 게임을 모른다 —
+// 축도 답의 종류도 위의 가짜 세계(`a:x` · `thing`)가 지어 준 것뿐이다.
+
+describe('accessAnswerMap — Lock 마다의 답과 그 원천이 선 방 (C030 ADDED)', () => {
+  const mapOf = (over?: CheckAccess) =>
+    accessAnswerMap({ regions: REGIONS, graph: GRAPH, contract: CONTRACT, access: over });
+
+  it('행이 Lock 차례다 — 성질을 묻지 않는 Lock 도 빈 요구로 한 행 선다', () => {
+    const rows = mapOf(access());
+    expect(rows.map((row) => row.lock)).toEqual(['L1', 'L2']);
+    expect(rows[0]).toMatchObject({ region: 'A', important: true, requirements: ['a:x'] });
+    expect(rows[1]).toMatchObject({ region: 'A', important: false, requirements: [] });
+  });
+
+  it('답이 없는 종류도 열로 선다 — answerKinds 차례 그대로다', () => {
+    const rows = mapOf(access());
+    for (const row of rows) {
+      expect(row.cells.map((cell) => cell.kind)).toEqual(['thing', 'life']);
+    }
+    // L1 은 thing 하나로 답을 받았고 life 는 빈 칸이다 (㊴ 의 `thing 1 · life 0` 과 같은 것)
+    expect(rows[0]!.cells[1]!.answers).toEqual([]);
+    // 성질을 묻지 않는 Lock 은 두 열이 다 빈 칸이다
+    expect(rows[1]!.cells.map((cell) => cell.answers)).toEqual([[], []]);
+  });
+
+  it('답이 된 것과 그 원천이 선 방이 칸에 실린다 — 같은 방은 한 번만 선다', () => {
+    const rows = mapOf(
+      bend((a) => ({
+        ...a,
+        seedSources: [
+          { seed: 'S1', region: 'B', source: 'SRC1' },
+          { seed: 'S1', region: 'B', source: 'SRC2' },
+          { seed: 'S1', region: 'A', source: 'SRC3' },
+        ],
+      })),
+    );
+    expect(rows[0]!.cells[0]!.answers).toEqual([
+      { id: 'S1', property: 'a:y', regions: ['B', 'A'] },
+    ]);
+  });
+
+  it('원천이 서지 않은 Seed 는 답이 아니다 — ㊴ 과 같은 자리를 부른다', () => {
+    const rows = mapOf(bend((a) => ({ ...a, seedSources: [] })));
+    expect(rows[0]!.cells.map((cell) => cell.answers)).toEqual([[], []]);
+  });
+
+  it('종류가 다른 답은 제 열에 선다', () => {
+    const rows = mapOf(
+      bend((a) => ({
+        ...a,
+        seeds: [
+          ...a.seeds,
+          { id: 'S3', answerKind: 'life', properties: [{ tag: 'a:y', from: 'act' }] },
+        ],
+        seedSources: [...a.seedSources, { seed: 'S3', region: 'A', source: 'SRC3' }],
+      })),
+    );
+    expect(rows[0]!.cells[0]!.answers.map((answer) => answer.id)).toEqual(['S1']);
+    expect(rows[0]!.cells[1]!.answers).toEqual([
+      { id: 'S3', property: 'a:y', regions: ['A'] },
+    ]);
+  });
+
+  it('계약이 없으면 빈 목록이다', () => {
+    expect(mapOf(undefined)).toEqual([]);
+  });
+
+  it('두 번 돌리면 글자까지 같다 — 세계를 바꾸지 않는 읽기 전용이다', () => {
+    expect(JSON.stringify(mapOf(access()))).toBe(JSON.stringify(mapOf(access())));
   });
 });

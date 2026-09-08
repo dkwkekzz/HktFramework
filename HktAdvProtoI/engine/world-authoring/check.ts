@@ -1537,6 +1537,22 @@ interface AccessContext {
   propertyLocks: readonly CheckAccessLock[];
 }
 
+/** 아홉과 표가 함께 짓는 자리 — 둘이 같은 것을 보게 하려고 한 곳에 둔다 */
+function accessContextOf(input: CheckRegionsInput, access: CheckAccess): AccessContext {
+  const regionById = new Map<string, CheckRegion>();
+  for (const region of input.regions) regionById.set(region.id, region);
+  return {
+    input,
+    access,
+    regionById,
+    connectorIds: new Set(input.graph.connectors.map((connector) => connector.id)),
+    aspectIds: new Set(access.aspects),
+    relationIds: new Set(access.relations),
+    statementKindIds: new Set(access.statementKinds),
+    propertyLocks: access.locks.filter((lock) => propertyRequirements(lock).length > 0),
+  };
+}
+
 /** 그 Lock 이 밝힌 성질 요구의 태그들 — requires 차례 그대로 */
 function propertyRequirements(lock: CheckAccessLock): string[] {
   const out: string[] = [];
@@ -1546,20 +1562,33 @@ function propertyRequirements(lock: CheckAccessLock): string[] {
   return out;
 }
 
+/**
+ * 그 Seed 가 그 요구에 "답이 된다" 로 내미는 성질 — 없으면 undefined.
+ * properties 차례로 처음 걸리는 것 하나다 (둘이 답해도 그 Seed 는 한 번 선다).
+ */
+function answeringProperty(
+  cx: AccessContext,
+  seed: CheckAccessSeed,
+  requirement: string,
+): string | undefined {
+  const { answers, supportKind } = cx.access;
+  for (const property of seed.properties) {
+    const helps = answers.some(
+      (rule) =>
+        rule.kind === supportKind &&
+        rule.requirement === requirement &&
+        rule.property === property.tag,
+    );
+    if (helps) return property.tag;
+  }
+  return undefined;
+}
+
 /** 그 요구에 "답이 된다" 로 이어지는 성질을 가진 Seed 들 — seeds 차례 그대로 */
 function answeringSeeds(cx: AccessContext, requirement: string): CheckAccessSeed[] {
-  const { answers, supportKind } = cx.access;
   const out: CheckAccessSeed[] = [];
   for (const seed of cx.access.seeds) {
-    const helps = seed.properties.some((property) =>
-      answers.some(
-        (rule) =>
-          rule.kind === supportKind &&
-          rule.requirement === requirement &&
-          rule.property === property.tag,
-      ),
-    );
-    if (helps) out.push(seed);
+    if (answeringProperty(cx, seed, requirement) !== undefined) out.push(seed);
   }
   return out;
 }
@@ -1874,19 +1903,43 @@ function checkAccessOrphan(cx: AccessContext): CheckItem {
   };
 }
 
-/** 중요 Lock 하나의 답을 종류별로 센 것 — answerKinds 차례가 곧 열의 차례다 (㊴ ㊵ 가 함께 쓴다) */
-function answerKindCounts(cx: AccessContext, lock: CheckAccessLock): number[] {
-  const counts = cx.access.answerKinds.map(() => 0);
+/** 그 Lock 의 답이 된 것 하나 — 어느 Seed 가 어느 성질로 답했고 그 원천이 어디 섰는가 */
+interface LockAnswer {
+  seed: CheckAccessSeed;
+  /** 그 Seed 가 이 Lock 에 내민 성질 — 처음 걸린 요구의 것이다 */
+  property: string;
+  /** 그 Seed 를 내는 원천이 선 자리들 — seedSources 차례 그대로 */
+  sources: readonly CheckAccessSeedSource[];
+}
+
+/**
+ * 그 Lock 의 답이 된 것들 — 요구 차례 · seeds 차례이고 한 Seed 는 한 번만 선다.
+ * 원천이 선 것만 답이다 (씨만 있고 자리를 얻지 못한 것은 아직 답이 아니다).
+ *
+ * ㊴ ㊵ 와 열쇠 × 자물쇠 표(R4)가 **이 하나를 부른다** — 답을 고르는 자리가 둘이면
+ * 같은 답을 둘로 세고 보고가 갈린다.
+ */
+function answersOfLock(cx: AccessContext, lock: CheckAccessLock): LockAnswer[] {
+  const out: LockAnswer[] = [];
   const counted = new Set<string>();
   for (const requirement of propertyRequirements(lock)) {
     for (const seed of answeringSeeds(cx, requirement)) {
       if (counted.has(seed.id)) continue;
-      // 원천이 선 것만 답으로 센다 — 씨만 있고 자리를 얻지 못한 것은 아직 답이 아니다
-      if (sourcesOfSeed(cx, seed.id).length === 0) continue;
+      const sources = sourcesOfSeed(cx, seed.id);
+      if (sources.length === 0) continue;
       counted.add(seed.id);
-      const column = cx.access.answerKinds.indexOf(seed.answerKind);
-      if (column >= 0) counts[column] = (counts[column] ?? 0) + 1;
+      out.push({ seed, property: answeringProperty(cx, seed, requirement) ?? '', sources });
     }
+  }
+  return out;
+}
+
+/** 중요 Lock 하나의 답을 종류별로 센 것 — answerKinds 차례가 곧 열의 차례다 (㊴ ㊵ 가 함께 쓴다) */
+function answerKindCounts(cx: AccessContext, lock: CheckAccessLock): number[] {
+  const counts = cx.access.answerKinds.map(() => 0);
+  for (const answer of answersOfLock(cx, lock)) {
+    const column = cx.access.answerKinds.indexOf(answer.seed.answerKind);
+    if (column >= 0) counts[column] = (counts[column] ?? 0) + 1;
   }
   return counts;
 }
@@ -2045,18 +2098,7 @@ function accessItems(input: CheckRegionsInput): CheckItem[] {
       absentItem(head, '접근 쪽 계약이 주어지지 않았다'),
     );
   }
-  const regionById = new Map<string, CheckRegion>();
-  for (const region of input.regions) regionById.set(region.id, region);
-  const cx: AccessContext = {
-    input,
-    access,
-    regionById,
-    connectorIds: new Set(input.graph.connectors.map((connector) => connector.id)),
-    aspectIds: new Set(access.aspects),
-    relationIds: new Set(access.relations),
-    statementKindIds: new Set(access.statementKinds),
-    propertyLocks: access.locks.filter((lock) => propertyRequirements(lock).length > 0),
-  };
+  const cx = accessContextOf(input, access);
   return [
     checkAccessRefs(cx),
     checkAccessAnswer(cx),
@@ -2068,4 +2110,72 @@ function accessItems(input: CheckRegionsInput): CheckItem[] {
     checkAccessTrace(cx),
     checkAccessBehind(cx),
   ];
+}
+
+// ── 열쇠 × 자물쇠 — Lock 마다의 답과 그 원천이 선 방 (C030 ADDED · R4) ───────────
+//
+// 검사 ㉟ ㊴ 이 **이미 세는 것**을 행과 열로 낸다. 판정하지 않는다 — status 도 pass/fail 도
+// 내지 않고 수와 이름을 적을 뿐이다 (요약 여섯의 어법 그대로).
+//
+// 여기에도 게임 명사가 없다 — 아홉이 받는 그 계약(`CheckAccess`)을 그대로 받는다.
+// 답을 고르는 자리는 `answersOfLock` 하나이고 ㊴ ㊵ 도 그것을 부른다 — 같은 답을
+// 도구가 둘로 세면 보고가 거짓말을 한다.
+
+/** 열쇠 × 자물쇠 — Lock 하나가 한 행, 답의 종류가 열, 칸은 답이 된 것과 그 원천이 선 방들 */
+export interface AccessAnswerCell {
+  /** 답의 종류 (CheckAccess.answerKinds 의 하나) */
+  kind: string;
+  /** 그 종류로 답이 된 것들 — 지금은 Seed 다 */
+  answers: readonly { id: string; property: string; regions: readonly string[] }[];
+}
+
+export interface AccessAnswerRow {
+  lock: string;
+  region: string;
+  important: boolean;
+  /** 그 Lock 이 묻는 성질들 — property 요구가 없으면 빈 목록이다 */
+  requirements: readonly string[];
+  /** answerKinds 차례 그대로 — 답이 없는 종류도 빈 칸으로 선다 (열이 있다는 것이 약속이다) */
+  cells: readonly AccessAnswerCell[];
+}
+
+/** 그 원천들이 선 방들 — seedSources 차례 그대로이고 같은 방은 한 번만 선다 */
+function sourceRegions(sources: readonly CheckAccessSeedSource[]): string[] {
+  const out: string[] = [];
+  for (const source of sources) {
+    if (!out.includes(source.region)) out.push(source.region);
+  }
+  return out;
+}
+
+/**
+ * 검사 ㉟ ㊴ 이 이미 세는 것을 **행과 열로** 낸다 — 판정하지 않는다.
+ * 계약(access)이 없으면 빈 목록이다.
+ *
+ * 차례는 `access.locks` · `answerKinds` · 준 배열의 차례다 — 두 번 돌리면 글자까지 같다.
+ */
+export function accessAnswerMap(input: CheckRegionsInput): AccessAnswerRow[] {
+  const access = input.access;
+  if (!access) return [];
+  const cx = accessContextOf(input, access);
+  return access.locks.map((lock) => {
+    const answers = answersOfLock(cx, lock);
+    return {
+      lock: lock.id,
+      region: lock.region,
+      important: lock.important,
+      requirements: propertyRequirements(lock),
+      // 답이 없는 종류도 빈 칸으로 선다 — 열이 있다는 것 자체가 표의 약속이다
+      cells: access.answerKinds.map((kind) => ({
+        kind,
+        answers: answers
+          .filter((answer) => answer.seed.answerKind === kind)
+          .map((answer) => ({
+            id: answer.seed.id,
+            property: answer.property,
+            regions: sourceRegions(answer.sources),
+          })),
+      })),
+    };
+  });
 }
