@@ -188,3 +188,25 @@ describe('아직 답하지 않은 질문은 등급을 가르지 않는다', () =
     expect(JSON.stringify(grade())).toBe(JSON.stringify(grade()));
   });
 });
+
+// ── C031 — 계약 목록이 성질 어휘를 안다 (WorldContracts.propertyAspects · propertyRelations · R4) ──
+//
+// 등록되는 데까지다 — brief 가 요구와 답을 성질로 적기 전에는 대조할 입력이 없다.
+// 그래서 이 두 줄은 **판정을 한 값도 바꾸지 않는다**. 그것이 이 시험의 내용이다.
+
+describe('성질 어휘는 목록에 등록될 뿐 등급을 가르지 않는다 (C031 ADDED)', () => {
+  it('어휘를 비우든 채우든 · 늘리든 같은 brief 가 같은 판정을 낸다', () => {
+    const empty: WorldContracts = { ...CONTRACTS, propertyAspects: [], propertyRelations: [] };
+    const wider: WorldContracts = {
+      ...CONTRACTS,
+      propertyAspects: [...CONTRACTS.propertyAspects, 'c'],
+      propertyRelations: [...CONTRACTS.propertyRelations, 'z'],
+    };
+    // 등급 A 인 방과 어휘 밖의 깊이를 쓴 방(C) 둘 다에서 같다
+    for (const over of [{}, { depth: '없는깊이' }]) {
+      const base = JSON.stringify(gradeRegion(brief(over), CONTRACTS));
+      expect(JSON.stringify(gradeRegion(brief(over), empty))).toBe(base);
+      expect(JSON.stringify(gradeRegion(brief(over), wider))).toBe(base);
+    }
+  });
+});
