@@ -14,6 +14,7 @@ import {
   BLOCK_COLLAPSED,
   CONDITION_RIDGE,
   CONDITION_UNMET,
+  EMBER_COOLED,
   FLOW_ARRIVED,
   FORM_CORPSE_RIME,
   FORM_DRIFT_DUST,
@@ -29,9 +30,11 @@ import {
   FORM_SEEP_CRUST,
   FORM_SILT_BED,
   FORM_SPOIL_PILE,
+  FORM_WALL_EMBER,
   FROST_CRYSTAL,
   FROST_VEIN_REGROWN,
   GIANT_TREE_FUNGUS,
+  HEAT_CRYSTAL,
   ORE_EATER_MOLT,
   RECOVERY_STALLED,
   WHALE_SCALE,
@@ -42,6 +45,7 @@ import {
   RELATION_EMITS,
   RELATION_GROWS_ON,
   RELATION_STORES,
+  emberWarmthTag,
   frostBreathTag,
   propertyPhraseCode,
   propertyTag,
@@ -198,6 +202,10 @@ const CODE_TEXT: Record<string, string> = {
   [FORM_FROST_VEIN]: '절벽을 가르고 나온 푸른 결정면',
   [FORM_DRIFT_DUST]: '눈에 섞여 반짝이는 푸른 가루',
   [FORM_CORPSE_RIME]: '언 사체에 돋은 푸른 결정',
+  // 열다섯째 형태 (C030) — 거목 속의 것 하나. 어법도 규율도 그대로다: 지목한 것이 여기서
+  // **무엇으로 보이는가**만 적는다. 무엇에 쓰는지도, 무엇이 그것을 덥히는지도 없다.
+  // 문장은 기획의 것 그대로다 (Play §5.3 Trace — "서리가 앉지 않는 벽의 자리")
+  [FORM_WALL_EMBER]: '서리가 앉지 않는 벽의 잉걸',
   // 재료의 이름 (Material Seed 코드 — C011). 소지품 줄의 이름표가 이 말이다.
   // **무엇에 쓰는지는 여기에도 어디에도 없다**
   [BIO_ORE]: '생체 광석',
@@ -215,6 +223,10 @@ const CODE_TEXT: Record<string, string> = {
   // 이 세계가 아는 것이 갈린다 (지나가는 것들의 이름에 쓴 그 규율 그대로).
   // 앞의 넷과 같은 어법이다 — 어디서 나는지도 무엇에 쓰는지도 없다
   [FROST_CRYSTAL]: '빙정석',
+  // 여섯째 재료 (C030) — 이 세계의 **정식 이름**이다 (L2-World-Region §5.1 이름 표).
+  // 앞의 다섯과 같은 어법이고 새로 짓지 않는다: 어디서 나는지도, 무엇에 쓰는지도,
+  // 어느 문이 그것을 기다리는지도 없다 — 잇는 것은 관찰자다 (spec SPEC-005 경계 ①)
+  [HEAT_CRYSTAL]: '열을 저장하는 결정',
   // ── 재료의 성질 문장 여덟 (C029 ADDED — 판의 '성질' 줄이 이 말들이다) ──────
   //
   // 키를 직접 적지 않고 데이터의 이름을 그대로 받아 쓴다 (이 파일 머리의 규율 그대로) —
@@ -247,6 +259,13 @@ const CODE_TEXT: Record<string, string> = {
   [propertyPhraseCode(FROST_CRYSTAL, propertyTag(ASPECT_LIGHT, RELATION_EMITS))]: '푸르게 빛난다',
   [propertyPhraseCode(FROST_CRYSTAL, propertyTag(ASPECT_HEAT, RELATION_GROWS_ON))]:
     '열이 닿으면 자란다',
+  // 아홉째 성질 문장 (C030) — 여덟 곁에 한 줄이 늘 뿐이고 어법도 규율도 그대로다.
+  // 문장은 기획의 것 그대로다 (Play §6 V25 stores-heat).
+  //
+  // **쓰임은 여기에도 없다** — Play §5.3 의 관찰은 "빙결 Region 에서 체온을 유지한다" 를
+  // 함께 적었으나 그것은 이 재료가 **무엇에 쓰이는가**이고, 그 층은 이 Play 가 세우지
+  // 않는다 (§0 · S10 · spec Out of Scope · 기본형 ⑦). 관찰되는 것은 담는다까지다
+  [propertyPhraseCode(HEAT_CRYSTAL, propertyTag(ASPECT_HEAT, RELATION_STORES))]: '열을 담는다',
   // 사람·짐승의 종류 (CharacterKind) — kind-presentation · character-catalog 와 같은 이름들
   wanderer: '방랑자',
   'rabbit-swordsman': '토끼 검사',
@@ -275,6 +294,12 @@ const CODE_TEXT: Record<string, string> = {
   // (spec SPEC-005 경계 ③). 세계가 싣는 것은 "처음 자리가 아니다" 하나이고, 그 원천이 어느
   // 자리에서 여기로 옮겨 왔는지는 캐 본 관찰자가 잇는다 (흔적을 잇게 한 것과 같은 규율)
   [FROST_VEIN_REGROWN]: '여기서 다시 자랐다',
+  // 다 캐 간 자리 (C030 R3 — **같은 conditions 자리의 코드다**. 새 자리가 없다).
+  // 위의 줄들과 같은 한 마디 어법이다: **언제 다시 더워지는지도 무엇이 그것을 되돌리는지도
+  // 적지 않는다** (실려 오지 않는다). 관찰된 사실은 "지금 이 자리가 식었다" 하나이고,
+  // 무엇을 캐서 그렇게 되었는지는 캔 관찰자가 안다.
+  // 문장은 기획의 것 그대로다 (Play §6 V25 ember-cooled)
+  [EMBER_COOLED]: '자리가 식었다',
   // 문 앞에서 일어나는 **현상** (C029 R3 CHANGED — **같은 conditions 자리의 코드다**. 새 자리가 없다).
   //
   // C020 의 `requires-stored-heat`("저장된 열이 있어야 한다")가 서던 자리이고, 그 줄은 여기서
@@ -400,6 +425,20 @@ const CODE_TEXT: Record<string, string> = {
   [frostBreathTag(1)]: '숨이 하얗게 선다',
   [frostBreathTag(2)]: '숨이 눈앞에서 얼어 머문다',
   [frostBreathTag(3)]: '숨이 알갱이가 되어 떨어진다',
+  // 거목 속의 흔적 셋 (C030 — 같은 자리의 **셋째 어휘**다. trace layer 도 판의 줄도
+  // 그대로이고 갈리는 것은 말과 색뿐이다 · spec SPEC-002).
+  //
+  // **축은 협곡과 같은 온도이되 방향이 반대다** — 협곡의 셋이 "숨이 어디까지 어는가" 라면
+  // 이 셋은 "서리가 어디서 걷히는가" 다 (Play §5.3 Trace: 서리가 앉지 않는 벽 · 오르는 김 ·
+  // 갈수록 따뜻함). 거목 속에서 숨을 말하면 두 어휘가 한 자리에서 섞인다.
+  //
+  // 셋이 한 줄로 세워졌을 때 어느 쪽이 짙은지가 말만 읽고도 갈려야 하는 것은 앞의 둘과
+  // 같다 — 성기고 · 걷히고 · 김이 오른다. **수를 적지 않고**(단계는 데이터의 것이다)
+  // 무엇이 그렇게 만들었는지도 어느 쪽에 그것이 있는지도 적지 않는다 (그것을 잇는 것이
+  // 이 Play 다 · spec Observable "온기의 사다리가 몇 단계인가 · 원천이 어느 쪽인가")
+  [emberWarmthTag(1)]: '서리가 성기다',
+  [emberWarmthTag(2)]: '서리가 걷히고 공기가 미지근하다',
+  [emberWarmthTag(3)]: '벽에서 더운 김이 오른다',
   // ── 방의 소란과 자국이 쓰는 말 (C017 — region.disturbance.phase · 자국의 두 단계) ──
   //
   // 위상 둘은 **세계가 싣는 값 그대로가 코드다** (spec 기본형 ⑧ — 규칙도 코드도 방의

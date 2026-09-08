@@ -48,6 +48,7 @@ import {
   type CheckEcology,
   type CheckEcologySource,
   type CheckRegion,
+  type CheckRegionsInput,
   type CheckReport,
   type CheckTime,
   type CheckTimePhase,
@@ -334,9 +335,15 @@ export const WORLD_CHECK_REGIONS: readonly CheckRegion[] = REGION_SPECS.map((spe
   coreRules: spec.rule ? 1 : 0,
 }));
 
-/** 이 세계의 검사 서른다섯을 돌린다 — 읽기 전용 (C029 CHANGED — 요구와 가능성 아홉이 이어 붙는다) */
-export function runWorldCheck(): CheckReport {
-  return checkRegions({
+/**
+ * 이 세계가 기반에 건네는 입력 한 덩이 (C030 ADDED).
+ *
+ * 위의 계약 넷을 한 값으로 묶은 것이고 **새로 정하는 것이 하나도 없다** — 검사와
+ * 열쇠 × 자물쇠 표(accessAnswerMap)가 **같은 입력**을 받아야 두 도구의 답이 갈리지 않기
+ * 때문이다 (spec R4 경계 ②). 부르는 쪽마다 따로 엮으면 하나가 늦는 날이 온다.
+ */
+export function worldCheckInput(): CheckRegionsInput {
+  return {
     regions: WORLD_CHECK_REGIONS,
     graph: REGION_GRAPH,
     contract: WORLD_CHECK_CONTRACT,
@@ -344,7 +351,12 @@ export function runWorldCheck(): CheckReport {
     ecology: WORLD_CHECK_ECOLOGY,
     time: WORLD_CHECK_TIME,
     access: WORLD_CHECK_ACCESS,
-  });
+  };
+}
+
+/** 이 세계의 검사 서른다섯을 돌린다 — 읽기 전용 (C029 CHANGED — 요구와 가능성 아홉이 이어 붙는다) */
+export function runWorldCheck(): CheckReport {
+  return checkRegions(worldCheckInput());
 }
 
 export function renderCheckJson(report: CheckReport, pretty: boolean): string {

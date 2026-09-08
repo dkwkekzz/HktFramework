@@ -951,9 +951,16 @@ describe('회귀', () => {
     // Then 서로의 관찰에 없다
     expect(w.observe(OBSERVER).entities.some((e) => e.id === PLAYER_2)).toBe(false);
     expect(w.observe(OBSERVER_2).entities.some((e) => e.id === PLAYER)).toBe(false);
-    // 거목 내부 세계에는 내 몸과 출구 둘뿐이다 — 광맥도 자율 존재도 없다
+    // 거목 내부 세계에는 내 몸과 출구, 그리고 이 방이 낳는 것뿐이다 — 광맥도 자율 존재도 없다.
+    // C030 CHANGED — 이 방도 이제 자기 원천 하나를 낳는다 (벽의 잉걸). 이 경계가 묻던 것은
+    // **다른 방의 것**이 보이지 않는가이므로, 보이는 것이 내 몸과 이 방이 낳는 것뿐인지로 잰다
+    // (R-005 가 심장 호수에 대해 C014 에서 옮긴 그 자리 그대로).
     const v = w.observe(OBSERVER);
-    expect(v.entities.filter((e) => e.role !== 'region-exit').map((e) => e.id)).toEqual([PLAYER]);
+    const mine = sourcesInRegion(TREE_INNER_WORLD).map((source) => source.id);
+    expect(v.entities.filter((e) => e.role !== 'region-exit').map((e) => e.id)).toEqual([
+      PLAYER,
+      ...mine,
+    ]);
     expect(v.entities.filter((e) => e.role === 'resource-deposit')).toEqual([]);
     expect(hud(w.observe(OBSERVER_2), 'observers.present')).toBe(2); // 세계에 함께 있는 것은 그대로다
   });

@@ -237,6 +237,21 @@ export interface ResourceSourceSpec {
    * (경계 ②).
    */
   regrownCode?: string;
+  /**
+   * **고갈된 동안** 실리는 조건 코드 (C030 ADDED · spec R3 · SPEC-003).
+   *
+   * `regrownCode?` 의 **형제**다 — 저것은 "그 자리가 처음 자리가 아니다" 이고 이것은
+   * **"그 자리가 지금 비었다"** 다. 둘 다 원천이 밝혔을 때만 실리고, 둘 다 "지금 없다" 의
+   * 사유(recovery-stalled · condition-unmet · not-this-season)와 갈리는 갈래다:
+   * 저것들은 되돌아옴을 멎게 하는 **원인**이고 이 둘은 그 자리에 대한 **말**이다.
+   *
+   * 되돌아오는 중이거나 있는 동안에는 실리지 않는다 — 바닥난 그 동안만이다 (경계 ①).
+   *
+   * **밝히지 않은 원천은 몇 번을 캐도 한 글자도 늘지 않는다** (지금 세계의 나머지 전부) —
+   * occurrence? · recoverySpeed? · regrownCode? 를 밝히지 않은 원천이 그 계통 밖인 것과
+   * 같은 규율이다.
+   */
+  depletedCode?: string;
 }
 
 /**
@@ -247,6 +262,17 @@ export interface ResourceSourceSpec {
  * 사람이 읽을 문구는 View 의 표가 옮긴다 (조건 코드의 선례 그대로).
  */
 export const FROST_VEIN_REGROWN = 'frost-vein-regrown';
+
+/**
+ * 조건 코드 — **자리가 식었다** (C030 ADDED · Play V25 · spec SPEC-003).
+ *
+ * 다시 자란 자리(FROST_VEIN_REGROWN)와 갈린다 — 저것은 "있는데 그 자리가 처음 자리가
+ * 아니다" 이고 이것은 **"그 자리가 지금 비었다"** 다. 되돌아옴이 멎은 것(RECOVERY_STALLED) ·
+ * 아직 그때가 아닌 것(CONDITION_UNMET)과도 갈린다: 저것들은 **왜 없는가**의 사유이고
+ * 이것은 그 자리가 지금 어떠한가다 (열이 빠져나간 벽이다).
+ * 사람이 읽을 문구는 View 의 표가 옮긴다 (조건 코드의 선례 그대로).
+ */
+export const EMBER_COOLED = 'ember-cooled';
 
 /** 조건 코드 — 되돌아오는 일이 멎었다 (Play §5.5 의 코드 그대로) */
 export const RECOVERY_STALLED = 'recovery-stalled';
@@ -327,6 +353,18 @@ export const GIANT_TREE_FUNGUS = 'GIANT_TREE_FUNGUS';
  */
 export const FROST_CRYSTAL = 'FROST_CRYSTAL';
 
+/**
+ * 열을 저장하는 결정 — 거목 속이 낳는 것 (C030 ADDED · spec SPEC-001).
+ *
+ * 이름은 빙정석이 그랬듯 L2-World-Region §5.1 의 **이름 표에 이미 있는 것**을 그대로 쓴다 —
+ * 지어낸 이름이 아니다. 협곡의 결정이 열을 **먹는** 것과 갈리는 자리가 여기다: 이것은
+ * 살아 있는 것 안에서 열이 **쌓여** 굳은 것이고, 그래서 세계 원인이 숲의 사슬이다
+ * (Access D2 · Play §5.0).
+ * **쓰임은 적지 않는다** (S10) — "빙결 Region 에서 체온을 유지한다" 는 무엇에 쓰이는가이고,
+ * 그것은 4층 이후의 것이다 (spec 기본형 ⑦).
+ */
+export const HEAT_CRYSTAL = 'HEAT_CRYSTAL';
+
 /** 자연 형태 코드 — 같은 Seed 가 자리마다 다른 순도로 난다 (A.1 "같은 것의 세 순도") */
 export const FORM_OUTCROP = 'outcrop';
 export const FORM_ROOT_NODULE = 'root-nodule';
@@ -365,6 +403,14 @@ export const FORM_FROST_VEIN = 'frost-vein';
 export const FORM_DRIFT_DUST = 'drift-dust';
 /** 언 사체에 매달려 자란 결정 */
 export const FORM_CORPSE_RIME = 'corpse-rime';
+
+/**
+ * 서리가 앉지 않는 **벽의 잉걸** (C030 ADDED · Play §5.3 Trace).
+ *
+ * 열 결정의 자연 형태 하나뿐이다 — 순도가 여럿인 재료(생체 광석 다섯 · 빙정석 넷)와 달리
+ * 이 재료가 나는 자리가 이 세계에 하나뿐이기 때문이고, 그것은 결손이 아니라 지금의 사실이다.
+ */
+export const FORM_WALL_EMBER = 'wall-ember';
 
 export const MATERIAL_SEEDS: readonly MaterialSeed[] = [
   // 생체 광석 — 거대 수목이 뿌리로 빨아올리는 그 광물. 살아 있는 것을 따라 옮겨 다니며 쌓인다.
@@ -448,6 +494,23 @@ export const MATERIAL_SEEDS: readonly MaterialSeed[] = [
       { tag: propertyTag(ASPECT_LIGHT, RELATION_EMITS), from: 'appearance' },
       { tag: propertyTag(ASPECT_HEAT, RELATION_GROWS_ON), from: 'conditionResponse' },
     ],
+  },
+  // 열을 저장하는 결정 — 거목 속이 낳는 것 (C030 ADDED · spec SPEC-001).
+  // 세계 원인이 **숲의 사슬**이다: 협곡의 결정처럼 그 자리에서 자라는 것이 아니라 살아 있는
+  // 것 안에 열이 쌓여 굳은 것이다 (Access D2 "살아 있는 것 안에 쌓인다").
+  // 형태는 하나 — 이 재료가 나는 자리가 이 세계에 하나뿐이다 (경계 ②).
+  {
+    id: HEAT_CRYSTAL,
+    worldCause: FOREST_CHAIN,
+    forms: [FORM_WALL_EMBER],
+    // C030 ADDED — 성질 하나 (Access §9.2 의 HEAT_CRYSTAL 행).
+    //   heat:stores  "열을 담는다 — 둘레가 식어도 제 열을 지닌다" (거동)
+    // **빙결 심층의 문이 묻는 `heat:hides` 에 이것이 SUPPORTS 로 답한다** (properties.ts 의
+    // answers) — 그러나 2층은 그것을 판정하지 않고, 이 재료를 지녀도 그 문은 열리지 않는다
+    // (K12 · spec SPEC-007). 빙정석의 heat:absorbs 와 **같은 요구에 답하는 다른 성질**이고,
+    // 그래서 답이 둘이 된다 (SPEC-006).
+    // **쓰임은 적지 않는다** (S10) — 무엇으로 만드는지는 4층 이후가 정한다.
+    properties: [{ tag: propertyTag(ASPECT_HEAT, RELATION_STORES), from: 'behavior' }],
   },
 ];
 
@@ -625,22 +688,54 @@ export function frostBreathTag(level: number): string {
   return `${FROST_BREATH_PREFIX}${level}`;
 }
 
+// ── 거목 속의 흔적 어휘 (C030 ADDED · spec R2 · SPEC-002 · 기본형 ④) ──
+//
+// **같은 기제 · 다른 태그**다 — C020 이 협곡의 숨에 쓴 그 판단의 연장이고 여기서 새로
+// 정하는 기제가 하나도 없다. 숲의 흙 사다리가 색이고 협곡의 것이 숨이 어는 정도라면,
+// 거목 속의 것은 **온기가 오르는 정도**다: 원천 둘레가 방 바닥보다 한 단계 짙고, 고갈되면
+// 한 단계 옅어지고, 되돌아오면 제 단계로 돌아온다 (C011 · C012 · C013 이 세운 그것 그대로).
+//
+// 단계를 셋까지만 두는 이유 — 이 사다리는 방 **하나 안에서** 나뉜다 (방 바닥 1 · 원천 쪽
+// 절반 2 · 원천 둘레 3). 숲의 흙은 방 여섯에 걸쳐 다섯 단계를 놓을 자리가 있었지만 여기는
+// 없다. 협곡의 숨이 셋인 것과 같은 이유이고, 그것을 그대로 따랐다.
+//
+// **세 어휘가 한 자리에서 섞이지 않는다** (SPEC-002 경계 ①) — 이 방에는 흙 사다리도 숨의
+// 사다리도 area 가 하나도 없고, 숲과 협곡의 방에는 온기의 area 가 하나도 없다. 그것은
+// 규칙이 아니라 데이터의 사실이고, 그래서 아래 `traceLevel` 은 셋 중 어느 것이든 읽어도 된다.
+
+/** 거목 속 흔적 태그의 접두사. 뒤에 1..3 의 단계가 붙는다 */
+export const EMBER_WARMTH_PREFIX = 'ember-warmth:';
+
+/** 가장 짙은 단계 — 표현의 색 표와 검증이 함께 읽는다 (SOIL_STAIN_MAX · FROST_BREATH_MAX 의 선례) */
+export const EMBER_WARMTH_MAX = 3;
+
+/** 그 단계의 거목 속 흔적 태그 — 데이터도 표현도 이 함수 하나로 이름을 짓는다 */
+export function emberWarmthTag(level: number): string {
+  return `${EMBER_WARMTH_PREFIX}${level}`;
+}
+
 /**
- * RULE-TRACE-STRENGTH-001 (C020 CHANGED · spec R8) — 흔적 태그의 단계.
- * 어휘 **둘 중 어느 것이든** 읽는다. 흔적이 아니면 0 이다.
+ * RULE-TRACE-STRENGTH-001 (C020 CHANGED · C030 CHANGED · spec R2) — 흔적 태그의 단계.
+ * 어휘 **셋 중 어느 것이든** 읽는다. 흔적이 아니면 0 이다.
  *
- * 세계가 흔적의 세기를 묻는 자리는 이제 이 한 함수를 부른다 — 두 벌로 나누면 방마다
- * 어느 어휘를 쓰는지 세계가 알아야 하고, 그러면 규칙이 방을 이름으로 아는 자리가 생긴다
- * (C004 가 세운 규율). 여기가 아는 것은 "이 세계가 아는 흔적 어휘" 둘뿐이고, 어느 방이
+ * 세계가 흔적의 세기를 묻는 자리는 이 한 함수를 부른다 — 여러 벌로 나누면 방마다 어느
+ * 어휘를 쓰는지 세계가 알아야 하고, 그러면 규칙이 방을 이름으로 아는 자리가 생긴다
+ * (C004 가 세운 규율). 여기가 아는 것은 "이 세계가 아는 흔적 어휘" 셋뿐이고, 어느 방이
  * 어느 것을 쓰는지는 그 방 Description 의 태그에만 있다.
  *
- * 흙의 사다리를 **먼저** 묻는다 — 순서가 답을 바꾸지는 않지만(접두사가 서로 다르므로 한
- * 태그가 둘 다일 수 없다) 먼저 선 어휘가 앞이어야 읽는 사람이 무엇이 더해졌는지 안다.
+ * 차례는 **선 차례**다 (흙 · 숨 · 온기) — 순서가 답을 바꾸지는 않지만(접두사가 서로 달라
+ * 한 태그가 둘일 수 없다) 먼저 선 어휘가 앞이어야 읽는 사람이 무엇이 더해졌는지 안다.
+ * 앞의 두 어휘를 읽던 답은 **한 값도 달라지지 않는다** (spec R2 · SPEC-002 경계 ①) —
+ * `soilStainLevel` 은 한 글자도 바뀌지 않았고 숨의 사다리를 읽는 두 줄도 그 자리 그대로다.
  */
 export function traceLevel(tag: string): number {
   const soil = soilStainLevel(tag);
   if (soil > 0) return soil;
-  if (!tag.startsWith(FROST_BREATH_PREFIX)) return 0;
-  const level = Number(tag.slice(FROST_BREATH_PREFIX.length));
+  if (tag.startsWith(FROST_BREATH_PREFIX)) {
+    const level = Number(tag.slice(FROST_BREATH_PREFIX.length));
+    return Number.isFinite(level) && level > 0 ? level : 0;
+  }
+  if (!tag.startsWith(EMBER_WARMTH_PREFIX)) return 0;
+  const level = Number(tag.slice(EMBER_WARMTH_PREFIX.length));
   return Number.isFinite(level) && level > 0 ? level : 0;
 }

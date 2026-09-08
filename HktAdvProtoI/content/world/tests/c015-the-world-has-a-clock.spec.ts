@@ -1308,7 +1308,16 @@ describe('회귀', () => {
     );
     for (const region of SOURCE_REGIONS.filter((id) => !narrowed.has(id))) {
       for (const source of sourcesInRegion(region)) {
-        const world = standingIn(region);
+        // C030 CHANGED — 거목 내부 세계는 한 변이 80 이라 **방 한가운데에서 원천까지가
+        // 밤의 관찰 범위(20)보다 멀다**. 이 항이 재는 것은 "밤이 원천을 지우는가" 이지
+        // 방이 얼마나 넓은가가 아니므로, 그런 원천은 앞 Cycle 들이 원천 곁에 서던 그
+        // 자리(besideSpot)에서 본다 — 기대를 낮추는 것이 아니라 **자리를 옮기는 것**이다
+        // (C016 · C020 이 이 항에 한 그대로). 가운데에서 닿는 원천 열넷은 그 자리 그대로다.
+        const at = pointOf(region, source.id);
+        const world =
+          distanceBetween(at, { x: 0, z: 0 }) > OBSERVE_RANGE_NIGHT
+            ? standingIn(region, besideSpot(at))
+            : standingIn(region);
         runTo(world, MIDNIGHT, 1);
         expect({ region, id: source.id, phase: clockOf(world).dayPhase }).toEqual({
           region,

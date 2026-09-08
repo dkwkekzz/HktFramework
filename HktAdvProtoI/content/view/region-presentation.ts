@@ -28,6 +28,7 @@ import {
 } from '../../engine/world-authoring/description';
 import type { GameViewSnapshot, RegionView } from '../protocol/gameview';
 import {
+  EMBER_WARMTH_PREFIX,
   FROST_BREATH_PREFIX,
   PRESENCE_LAYER,
   ROOT_CURVE_TAG,
@@ -404,6 +405,59 @@ export const TRACE_FROST_BREATH_COLOR = 0x3b3a8c;
 /** 밤의 협곡 흔적 색 — 같은 색상을 어둠에서 읽히도록 밝은 쪽으로 올린 값 하나 */
 export const NIGHT_TRACE_FROST_BREATH_COLOR = 0x6f6cd8;
 
+// 거목 속의 흔적 (C030 ADDED · SPEC-002) — **어휘가 셋이 되었고 갈리는 것은 여전히 색뿐이다.**
+//
+// 짙기의 사다리는 위의 한 벌 그대로다 (TRACE_ZONE_OPACITIES · 밤의 배율도 그대로). 표를 세
+// 벌로 만들면 같은 화면 문법(짙을수록 진하다)이 어휘마다 갈라져, 거목 속에서 짙어지는 쪽을
+// 따라가는 눈과 숲·협곡에서 그렇게 하는 눈이 서로 다른 것을 배우게 된다. 이 어휘도 마디가
+// 셋뿐이므로 그 사다리의 **앞 세 마디**만 쓴다 (협곡의 숨과 같은 자리 · spec 기본형 ④).
+//
+// **앞의 두 색은 한 값도 달라지지 않는다** (SPEC-002 경계 ①) — 아래 표가 접두사로 갈릴 뿐,
+// 흙과 숨이 받던 값도 그 값을 고르던 차례도 그대로다.
+//
+// 색의 근거 — 이 자락이 깔리는 바닥은 거목 내부 세계의 지면 하나뿐이고, 그 방은 표면 데이터가
+// 없으므로 이 세계의 기본 지면(SURFACE_FLAT 0x4e7a3e · 어두운 초록)이다. 그래서 고른 값이
+// 지켜야 하는 것이 셋이다.
+//   ① 바닥과 갈린다      — 초록의 맞은편(호박빛 ≈ 33°)이고 밝기도 지면의 두 배다.
+//   ② 숲의 흙과 갈린다   — 붉은 흙(0x6b3524 · 색상 ≈ 14° · 밝기 42%)과 **같은 따뜻한 쪽**에
+//                          서므로 색상 하나로는 모자란다. 색상을 스무 칸 옮기고(14° → 33°)
+//                          밝기를 두 배로 올려(42% → 85%) 두 값이 어두운 흙과 타는 빛으로
+//                          갈리게 했다 — 물든 흙은 빛을 먹고 잉걸은 빛을 낸다는 두 사실의
+//                          차이가 그대로 두 값의 차이다.
+//   ③ 협곡의 숨과 갈린다 — 남보라(≈ 241°)의 정반대 쪽이다. 축이 온도이므로 숨이 **찬 쪽
+//                          끝**으로 나간 그 자리에서 이것만 **따뜻한 쪽 끝**으로 나간다.
+// 짙어질수록 진해지는 것은 "여기가 더 덥다" 로 읽힌다 — 서리가 걷히는 쪽을 따라가는 눈이다
+// (Play §5.3 Trace).
+//
+// 밤의 값은 앞의 둘이 밤에 하는 것과 같은 일을 한다 — 같은 색상을 밝은 쪽으로 올려 어둠에서
+// 읽히게 할 뿐이고, 짙기는 위의 배율 하나를 그대로 곱한다.
+
+/** 거목 속 흔적의 색 — 잉걸이 덥힌 자리 (세 단계가 이 한 값을 함께 쓴다) */
+export const TRACE_EMBER_WARMTH_COLOR = 0xd98b2b;
+
+/** 밤의 거목 속 흔적 색 — 같은 색상을 어둠에서 읽히도록 밝은 쪽으로 올린 값 하나 */
+export const NIGHT_TRACE_EMBER_WARMTH_COLOR = 0xffb14a;
+
+/**
+ * 흔적 어휘 → 그 어휘의 색 둘 (낮 · 밤). **어휘가 늘면 여기 한 줄이 는다.**
+ *
+ * 접두사로 고르고 표에 없으면 숲의 흙이다 — 어휘가 둘이던 동안 `startsWith(숨)` 하나로
+ * 갈리던 그 판단 그대로이고(모르는 태그는 지금까지도 흙의 색을 받았다), 셋째가 그 곁에
+ * 한 줄로 선다. 값도 차례도 앞의 둘의 것이 먼저다.
+ */
+const TRACE_VOCABULARY_COLORS: readonly { prefix: string; day: number; night: number }[] = [
+  {
+    prefix: FROST_BREATH_PREFIX,
+    day: TRACE_FROST_BREATH_COLOR,
+    night: NIGHT_TRACE_FROST_BREATH_COLOR,
+  },
+  {
+    prefix: EMBER_WARMTH_PREFIX,
+    day: TRACE_EMBER_WARMTH_COLOR,
+    night: NIGHT_TRACE_EMBER_WARMTH_COLOR,
+  },
+];
+
 /**
  * 그 단계의 흔적 결정 — **모르는 단계는 없다**(undefined). 그리지 않는다.
  * 표 밖의 값을 아무 색으로 그리면 화면이 세계에 없는 짙기를 지어내는 것이 된다
@@ -423,12 +477,12 @@ export function traceZonePresentation(
   if (level < 1 || level > SOIL_STAIN_MAX) return undefined;
   const opacity = TRACE_ZONE_OPACITIES[level];
   if (opacity === undefined) return undefined;
-  const frostBreath = tag.startsWith(FROST_BREATH_PREFIX);
+  const vocabulary = TRACE_VOCABULARY_COLORS.find((entry) => tag.startsWith(entry.prefix));
   if (!night) {
-    return { color: frostBreath ? TRACE_FROST_BREATH_COLOR : TRACE_SOIL_COLOR, opacity };
+    return { color: vocabulary?.day ?? TRACE_SOIL_COLOR, opacity };
   }
   return {
-    color: frostBreath ? NIGHT_TRACE_FROST_BREATH_COLOR : NIGHT_TRACE_SOIL_COLOR,
+    color: vocabulary?.night ?? NIGHT_TRACE_SOIL_COLOR,
     opacity: Math.min(opacity * NIGHT_TRACE_OPACITY_SCALE, NIGHT_TRACE_OPACITY_MAX),
   };
 }
