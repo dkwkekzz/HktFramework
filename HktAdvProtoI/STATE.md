@@ -14,7 +14,7 @@
 
 ## 1. 지금 누가 무엇을 — 진입점
 
-한 Cycle = 브랜치 `cycle/C###` = 세션 하나. **말할 것: "C024 진행"**(Life — C022 · C023 닫힘) · **"C029 진행"**(Access) · **"C034 진행"**(Foundation) · **"C037 진행"**(Stage — 이 말이 곧 Play 승인이다) — 넷은 병행할 수 있다.
+한 Cycle = 브랜치 `cycle/C###` = 세션 하나. **말할 것: "C024 진행"**(Life — C022 · C023 닫힘) · **"C034 진행"**(Foundation) · **"C037 진행"**(Stage — 이 말이 곧 Play 승인이다) — 셋은 병행할 수 있다. Access 는 C031 로 닫혔다.
 `advprotoi-cycle` 이 명세(spec.md) → 실현 → 마감을 이어 돌리고 UNRESOLVED · GAP 에서만 멈춘다. PR 은 번호 순으로 합친다.
 병렬 규칙은 [Plan-Skill §4 항목 4](design/Plan-Skill-CycleExecutionWorkflow.md).
 
@@ -23,19 +23,19 @@
 | **Human 승인** | OneStandsOnStage(3층 첫 Play) — "C037 진행" 또는 질문 여섯의 답 | [PLAYS §4-1](content/roadmap/PLAYS.md) · [play/OneStandsOnStage.md](content/roadmap/play/OneStandsOnStage.md) 끝 |
 | **Human 승인** | TrailBehindClueAhead(Rooms GAP 회수) — 질문 여섯의 답 | [PLAYS §4-2](content/roadmap/PLAYS.md) · [play/TrailBehindClueAhead.md](content/roadmap/play/TrailBehindClueAhead.md) 끝 |
 | **Human 판정** | RoomOfAnotherKind 실주행 — Q39~Q44 | [TODO §1](TODO.md) |
+| **Human 판정** | RoomAsksForPossibilities 실주행 — Q45~Q49 (**Play 가 닫혔다** · 예심이 열넷을 지웠다) | [TODO §1](TODO.md) |
 | **Human 결정** | 값 · 규칙 · 방향의 결정 목록 | [TODO §2](TODO.md) |
 | **Human 결정** | 4층 · 7층 Play 를 앞당기는가 · 어느 층에도 자리 없는 것(다중 플레이어의 충분조건 · 번식 · 절벽 낙하)의 층 | [PLAYS §4-5 · §4-10](content/roadmap/PLAYS.md) |
 | 기획 (design) | HundredRooms 초안(이름은 Human) · 승인 반영 · 실주행 GAP 회수 · 다음 층 Play | [PLAYS §3 · §4](content/roadmap/PLAYS.md) |
-| Cycle | Life C024→C025 (C022 · C023 닫힘) · Access C029→C031 · Foundation C034→C036 · Stage C037→C040 (C039 는 C029 뒤 · C040 은 C039 뒤) | 아래 레인 표 · 각 Play 의 Cycle Breakdown |
+| Cycle | Life C024→C025 (C022 · C023 닫힘) · Foundation C034→C036 · Stage C037→C040 (C040 은 C039 뒤) | 아래 레인 표 · 각 Play 의 Cycle Breakdown |
 | ENGINE | 부를 단계가 없다 — T1~T6 이 다 섰다. T3 의 ecology 는 C022 뒤 | [README §2.1](content/roadmap/README.md) |
 | 주입 (Human) | 3층 나머지 절반(몸의 값 전반 · 생물의 앎과 선택) — OneStandsOnStage 판정 뒤. 4~7층은 각 층이 열릴 때 | [README §2](content/roadmap/README.md) · [PLAYS §3](content/roadmap/PLAYS.md) |
 
 | 레인 | 지금 할 수 있는 것 | 기다리는 것 | 다음 |
 |---|---|---|---|
 | Life — [RoomBearsLife](content/roadmap/play/RoomBearsLife.md) | C024 (C022 허물의 주인 · C023 태어남은 소비다 — 닫힘. TODO §4 에 C024 · C025 항목) | — | C024 → C025 |
-| Access — [RoomAsksForPossibilities](content/roadmap/play/RoomAsksForPossibilities.md) | 대기 (계약 · 어휘 · 검사 ㉞~㊷ · 위임된 결정 D1~D5 는 [L2-World-Access.md](content/roadmap/L2-World-Access.md) 와 Play 에 있다) | — (Frost 가 닫혔다 — 첫 property Lock 의 요구가 협곡에 표시까지 서 있다). Life 와 **병행** | C029 → C031 |
-| Foundation — [RoomRemembersAndOffers](content/roadmap/play/RoomRemembersAndOffers.md) | 대기 (계약 · 확정 사항 1~11 · 기억의 항목 · 조건 형 · 기회 형은 [L2-World-Foundation.md](content/roadmap/L2-World-Foundation.md) 와 Play 에 있다) | — (RoomNeverSame · Material · Observe 가 닫혔다). Life · Access · Stage 와 **병행** — 세계 State 에 history 하나가 늘어 STATE_VERSION 이 오르므로 PR 은 번호 순으로 합친다 | C034 → C036 |
-| Stage — [OneStandsOnStage](content/roadmap/play/OneStandsOnStage.md) (**3층**) | C037(편성 · 교체) · C038(온기 · 추위 · Core) — 새 State 라 Life · Access 와 겹치지 않는다 | C039 은 C029(Lock 데이터 계약 W47) · C040 은 C039 | C037 → C040 |
+| Foundation — [RoomRemembersAndOffers](content/roadmap/play/RoomRemembersAndOffers.md) | 대기 (계약 · 확정 사항 1~11 · 기억의 항목 · 조건 형 · 기회 형은 [L2-World-Foundation.md](content/roadmap/L2-World-Foundation.md) 와 Play 에 있다) | — (RoomNeverSame · Material · Observe 가 닫혔다). Life · Stage 와 **병행** — 세계 State 에 history 하나가 늘어 STATE_VERSION 이 오르므로 PR 은 번호 순으로 합친다 | C034 → C036 |
+| Stage — [OneStandsOnStage](content/roadmap/play/OneStandsOnStage.md) (**3층**) | C037(편성 · 교체) · C038(온기 · 추위 · Core) — 새 State 라 Life · Access 와 겹치지 않는다 | C040 은 C039 (C039 이 기다리던 Lock 데이터 계약 W47 은 C029 가 세웠다) | C037 → C040 |
 | ENGINE B — [Region 작성기](content/roadmap/L2-World-Tool-Scale.md) (도구 2단계) | 부를 단계가 없다 — T1~T6 이 다 섰다 (검사기 · brief 형 · 뼈대 생성기 절반 · 등급 판정기 · 초안기 · 판정 표면). 미지 한 줄이 방이 되고, 목록 하나가 후보 여럿이 되고, 나란히 놓아 승인/반려한다 | T3 의 나머지 — 생명 ecology 는 C022 (phases 도 템플릿도 이제 붙일 수 있다) | Play HundredRooms — 그것이 선 뒤 |
 
 ## 2. 코드에 있는 것
@@ -132,6 +132,21 @@
         흩어진 것 셋(자갈 · 줄기의 껍질 조각 · 밤의 빛 갓)이 숲 여섯 방에 열아홉 · 철을 타는 방이 일곱(폐허 · 둥지 · 거목 ·
         숲 안쪽이 늘었다 · 광석 지대는 긴 밤과 깨어남이 같은 자락) · 지금 걸린 위상의 자락이 땅에 선다(phase-presentation) ·
         때가 바뀐 순간 한 마디(clockChangeNotice) · 시점 상하 25°~45° ·
+        **방이 가능성을 묻는다**(C029~C031): 요구가 한 형(Lock)으로 적힌다 — 문 셋이 그 형으로 서고
+        (state · time · time+property) 판정하는 함수는 그대로다 · 성질의 어휘가 세계에 하나(축 다섯 ·
+        관계 일곱 · 요구에 성질이 하는 일 다섯) — 규칙 코드는 그 글자를 하나도 모른다 ·
+        빙결 심층의 문 앞에 서면 **몸에 김이 서고**, 문을 지목하면 요구의 이름이 아니라 **현상**을 말한다
+        (「체열이 감지된다」) · 재료가 성질을 지고 판이 그 이름과 성질 문장을 말한다(C011 부채 회수 —
+        같은 태그라도 재료마다 다른 말이다) ·
+        **답이 세계에 있다**(C030): 미지 M7 — 열을 저장하는 결정의 원천이 거목 내부 세계의 서쪽 벽에 난다.
+        두 미지가 서로를 가리킨다(협곡의 문이 묻는 `heat:hides` 에 숲의 `heat:stores` 가 답한다) — 세계는
+        그 이음을 화면에 그리지 않는다 · 흔적의 어휘가 셋이 되었다(숲은 흙이 물들고 협곡은 숨이 얼고
+        거목 속은 **온기가 오른다** — 문에서 원천까지 단조롭게 짙어져 흔적만으로 닿는다) · 캐면 그 자리가
+        식고, 되돌아옴이 거목균에 매달려 **사슬이 방 셋을 건넌다** ·
+        **답은 하나가 아니다**(C031): 문이 자기를 무르게 하는 자락을 밝힐 수 있고 그 완화는 **몸이 선
+        자리**에서 읽힌다 — 눈보라 밖에서 「체열이 감지된다」, 안에서 「눈보라 속에서 약하다」로 대신 선다.
+        세계의 값은 한 톨도 달라지지 않는다(완화는 판정하지 않는다) · 답의 종류가 재료와 **환경** 둘이
+        되었다 · **문은 끝내 열리지 않는다** — 여는 것은 몸이고 그것은 다음 층이다 ·
         content/regions/ 데이터 · content/authoring/briefs/ 방 열하나의 여덟 답(손으로 역기술 · T3 의 입력) ·
         content/authoring/templates/ 갈래별 땅 · 깊이별 크기와 흔적 · 역할별 원천 기본형(생성기가 받는 게임 명사) ·
         content/authoring/contracts.ts 어휘 일곱·다섯·일곱 · 방 · 경계 · 규칙(판정기가 대조하는 계약 목록)
@@ -139,20 +154,24 @@
         landmark billboard · 입력 해석 정책 · 지목 강조 · 늘 떠 있는 판 — C026 의 셋) · protocol-core ·
         world-authoring(Description · Graph · 중첩 · 경계 · 닿음 · 검사 아홉(기계가 읽는 보고 · 게임 명사는 계약으로 받는다) ·
         RegionBrief 형(여덟 답 · zod · 미답을 답으로 세지 않는다) · 뼈대 생성기(brief → space op · Connector · 이름 · 결정론) ·
-        등급 판정기(A · B · C + 빠진 것을 GAP 형식으로 · 계약 목록은 주입받는다) ·
+        등급 판정기(A · B · C + 빠진 것을 GAP 형식으로 · 계약 목록은 주입받는다 — 성질 어휘도 그 목록에 있다) ·
+        접근 계약(어휘 · Lock · Seed 의 성질 · 완화를 구조로만 받는다) 과 **열쇠 × 자물쇠**(Lock 마다의 답과
+        그 원천의 방 — 검사 ㊴ ㊵ 와 같은 코드 한 벌이 센다) · 이음을 벽으로 놓는 순회 ·
         지형 컴파일러 — height-field ·
         curve/carve · surface · traversable 격자 · areas/points 산출 · tagsAt · compile · hash · observe 래스터)
-도구    world:check (검사 스물여섯(땅 아홉 + 재료 계통 열셋 + 시간 넷) → JSON · ① 은 방 단위로 판정한다 — C019·C020 이 위험과 원천을 더해 이제 방 다섯을 잰다 · 종료 코드가 판정 · npm test 에 붙었다 · 읽기 전용) ·
+도구    world:check (검사 마흔셋(땅 아홉 + 재료 계통 열셋 + 시간 넷 + 생명 일곱 + 요구와 가능성 아홉) → JSON · ① 은 방 단위로 판정한다 — C019·C020 이 위험과 원천을 더해 이제 방 다섯을 잰다 · 종료 코드가 판정 · npm test 에 붙었다 · 읽기 전용) ·
         world:author (brief 하나 → 방 하나의 뼈대 + 등급과 GAP · --write 로 굳힌다 · 등급 C 는 굳히지 않는다) ·
         world:draft (미지 한 줄 → brief · 구독 로그인의 claude -p · 검사 되먹임 · --batch 로 목록 하나 → 후보 여럿) ·
         world:lab (후보를 한 장에 나란히 — 그림 · 여덟 답 · 등급 · 편중) · world:admit (승인/반려 — 세계에 방이 들어오는 유일한 길) ·
         world:observe (--graph · 방 하나의 높이·표면·통행·의미 PNG 다섯 + 보고 · --at <철> 로 그 시각의 위상 ·
-        방 없는 --report 는 **세계의 보고** — 검사 스물여섯 + 방마다의 기회 자리·붙잡는 것·흐름과 고립 (C021) · 읽기 전용) · world:compile · world:shot ·
+        방 없는 --report 는 **세계의 보고** — 검사 마흔셋 + 방마다의 기회 자리·붙잡는 것·흐름과 고립 (C021)
+        + **열쇠 × 자물쇠 표**(Lock 이 묻는 것과 답의 종류별 수 · 딸림 목록에 그 답과 방 · C030) · 읽기 전용) · world:compile · world:shot ·
         cycle:shot (마감 촬영 · 창 둘로 관찰자 둘) ·
         검증용 손잡이 HKT_SPAWN · HKT_SPAWN_REGION · HKT_NPCS · HKT_REGION_PATTERN · HKT_NPC_REGION ·
         HKT_SOURCE_PHASE · HKT_CLOCK · HKT_DISTURBANCE · HKT_PRESENCE
 없음    전투 공식 · 막기 · 피해 종류 · 살펴봄 · 태도 · 장비 · 스킬 형태 · 성장 · 재료의 쓰임 — design/ 에만 ·
-        생명의 탄생 · 세계의 요구와 가능성(Lock · 성질 어휘 · 검사 ㉞~㊷) · 기억과 기회(history · 조건의 한 형 · Opportunity · 검사 ㊸~㊼) — Play 셋 반이 아직 남았다
+        생명의 탄생 · 기억과 기회(history · 조건의 한 형 · Opportunity · 검사 ㊸~㊼) — Play 둘 반이 아직 남았다 ·
+        property Lock 의 **판정**(몸이 요구에 답하는 것) — 2층은 요구를 세우고 답을 세는 데까지다 (3 · 4층)
 미사용   기반에 있으나 컨텐츠가 아직 안 쓰는 것 — 겹침 표면 · 칸 띠 · 터치 입력 · 이펙트 레이어 · 지면 구역 · 세계 영속
 ```
 
@@ -161,7 +180,7 @@
 ```text
 npm run dev · npm test · npm run build · npm run boundary:check
 npm run cycle:shot cycles/C###/shots.json     마감 촬영 (CHROMIUM_PATH 로 브라우저 지정 가능)
-npm run world:check [-- --pretty]             검사 아홉을 JSON 으로 (fail 이 있으면 종료 코드 1)
+npm run world:check [-- --pretty]             검사 마흔셋을 JSON 으로 (fail 이 있으면 종료 코드 1)
 npm run world:author -- <brief.json> [--write] brief 하나에서 방 하나의 뼈대를 낸다
 npm run world:observe -- <방> --report        방 하나의 땅을 읽는다 (읽기 전용)
 ```

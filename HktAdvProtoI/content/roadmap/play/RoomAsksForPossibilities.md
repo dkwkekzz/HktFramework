@@ -201,12 +201,12 @@ property Lock 이 실제로 열리게 한다 (몸 · 소지의 판정)
 ## 7. Cycle Breakdown
 
 ```text
-[ ] C029 — 방이 묻는다: PropertyVocabulary(D1) + Lock 데이터 계약(넷 — 셋은 옮김 또는 함께 읽기 · MAZE_GATE 는 자리) + FROST_DEPTH 의 흔적 둘(D4 —
+[x] C029 — 방이 묻는다: PropertyVocabulary(D1) + Lock 데이터 계약(넷 — 셋은 옮김 또는 함께 읽기 · MAZE_GATE 는 자리) + FROST_DEPTH 의 흔적 둘(D4 —
            문 앞의 김 · 언 사체 곁의 대조) + 문 앞 현상 투영 + 지목하면 현상 사유 코드 + Seed.properties(숲 셋 · 빙정석 · 열 결정은 Seed 만) +
            재료의 판이 성질 문장을 말한다(C011 부채 회수) + 검사 ㉞~㊷ · ㊶ 통과 · ㉟ 은 GAP(열 결정 원천 없음) · ㊴ = Material 1(미배치)
-[ ] C030 — 답이 세계에 있다: HEAT_CRYSTAL 원천 하나 TREE_INNER_WORLD 에(D5) + trace(서리 없는 벽 · 김) + 채취 · 회복(거목균 의존) + 흔적만으로 닿는다 +
+[x] C030 — 답이 세계에 있다: HEAT_CRYSTAL 원천 하나 TREE_INNER_WORLD 에(D5) + trace(서리 없는 벽 · 김) + 채취 · 회복(거목균 의존) + 흔적만으로 닿는다 +
            ㉟ 통과 + ㊴ Material 1(배치) + 열쇠 × 자물쇠 표(E20) + 결정을 들고 문 앞 — 열리지 않는다(완료 확인 ⑥)
-[ ] C031 — 답은 하나가 아니다: Lock.relaxedBy(눈보라 — D3) + 눈보라 속 완화 표시(판 · 김의 빛) + ㊴ Environment 1 · ㊵ ≥ 2 + T4 계약 목록(E21) +
+[x] C031 — 답은 하나가 아니다: Lock.relaxedBy(눈보라 — D3) + 눈보라 속 완화 표시(판 · 김의 빛) + ㊴ Environment 1 · ㊵ ≥ 2 + T4 계약 목록(E21) +
            ㊲ ㊳ ㊷ 요약이 다음 행의 자리(고아 · 문 뒤의 경계)를 보인다 + Play Goal 실주행(백왕령 → 협곡 → 숲 거목 안 → 협곡 눈보라 → 문 앞)
 ```
 
