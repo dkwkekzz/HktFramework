@@ -378,6 +378,29 @@ export function traceStrengthAt(
 }
 
 /**
+ * 그 방의 **흔적 area** 하나가 이 자리를 덮는가 — op id 로 짚는다 (C022 ADDED).
+ *
+ * 흔적 area 를 op id 로 짚는 자리는 이 파일 하나다 (위 traceStrengthAt 이 그렇게 하는 그
+ * 이유 그대로 — 컴파일 결과의 area 는 op id 를 잃는다). 그래서 자락 위에 선 것을 묻는
+ * 다른 자리(semantic/life.ts)도 여기로 와서 묻는다: 땅을 읽는 자리를 늘리지 않는다
+ * (C005 R-009 가 지키는 그 규율).
+ *
+ * **게임 명사를 알지 못한다** — 방과 op 이름과 자리 하나를 받을 뿐이다. 땅을 모르는 방 ·
+ * 그런 op 가 없는 방은 언제나 거짓이다.
+ */
+export function traceAreaCoversAt(
+  regionId: string,
+  opId: string,
+  position: WorldPosition,
+): boolean {
+  const spec = regionSpec(regionId);
+  if (!spec) return false;
+  const area = areasOf(spec.space, TRACE_LAYER).find((it) => it.id === opId);
+  if (!area) return false;
+  return areaCoversPoint(area.shape, position.x, position.z);
+}
+
+/**
  * RULE-SOURCE-COLLAPSE-001 (C013 CHANGED) — 그 자리가 **무너진 자리**인가.
  *
  * 무너짐은 이제 원천이 아니라 **자리**가 기억한다 (spec R5): 그 자리를 덮은 붕괴 area 의

@@ -129,7 +129,8 @@ const MINE_SECONDS = 1.2;
 // "세계가 찍는 판이 팩의 판과 같다" 이므로 값만 따라 올린다
 // C018 CHANGED — 지나감의 지금이 실리며 다시 올랐다 (재는 것은 글자가 아니라
 // "세계가 찍는 판이 팩의 판과 같다" 이므로 값만 따라 올린다)
-const RAISED_STATE_VERSION = 'hkt-adv-proto-i/9';
+// C022 CHANGED — 탄생지와 개체군이 실리며 다시 올랐다 (같은 이유로 값만 따라 올린다)
+const RAISED_STATE_VERSION = 'hkt-adv-proto-i/10';
 /** 그 앞의 버전 — 옛 스냅샷은 되살아나지 않는다 */
 const OLD_STATE_VERSION = 'hkt-adv-proto-i/6';
 
@@ -1474,8 +1475,19 @@ describe('회귀', () => {
     // 흐름에 매달린 두 끝(어귀 · 못)은 세계 시각으로 흔적이 바뀌고(C014), 자리를 옮기는 원천은
     // 뒤척임으로 그 둘레가 따라간다(C013). 그 둘은 **때가 하는 일이 아니므로** 여기서 뺀다 —
     // 남은 방들에서 사다리가 철에 흔들리지 않는가만 본다 (c015 S-091 이 세운 규율).
+    //
+    // C022 CHANGED — **탄생지를 품은 방**도 뺀다. 그 방의 알집 둘레는 결속하는 동안 한 단계
+    // 옅어지고(RULE-LIFE-SITE-PHASE-001) 결속은 비를 요구하며 비는 철을 탄다 — 그러니
+    // 그 자락은 철에 흔들리는 것이 맞다. 앞의 둘과 같은 갈래의 뺌이고, 빠지는 것은 방 하나다.
+    const lifeRooms = new Set(
+      REGION_SPECS.filter((s) => (s.ecology?.lifeFormation?.length ?? 0) > 0).map((s) => s.id),
+    );
     const quiet = SOURCE_REGIONS.filter(
-      (region) => region !== TURN_ROOM && region !== FOREST_DEEP && !inflowRegions.has(region),
+      (region) =>
+        region !== TURN_ROOM &&
+        region !== FOREST_DEEP &&
+        !inflowRegions.has(region) &&
+        !lifeRooms.has(region),
     );
     expect(quiet.length).toBeGreaterThan(0);
     let base: number[][] | null = null;

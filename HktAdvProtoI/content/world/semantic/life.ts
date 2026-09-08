@@ -18,12 +18,10 @@
 // semantic/resource.ts 와 같은 갈래의 세계 사실이고, 그것을 굴리는 것은 여느 세계 과정과
 // 같은 하나다 (simulation/life-binding.ts).
 
-import { areasOf, findPoint } from '../../../engine/world-authoring/description';
-import { areaCoversPoint } from '../../../engine/world-authoring/query';
+import { findPoint } from '../../../engine/world-authoring/description';
 import {
   REGION_SPECS,
   RESOURCE_LAYER,
-  TRACE_LAYER,
   regionSpec,
   type LifeRequirement,
   type LifeSitePhase,
@@ -34,7 +32,7 @@ import {
 import type { WorldPosition } from './position';
 import { isRainingAt } from './rain';
 import type { LifeSiteState, RegionState } from './region-state';
-import { findResourceSource, sourceStateOf } from './resource';
+import { findResourceSource, sourceStateOf, traceAreaCoversAt } from './resource';
 
 /**
  * 거절 사유 코드 — **원천이 아니다** (spec SPEC-002 경계 ①).
@@ -190,8 +188,14 @@ export function lifeUnmetCodes(
  *
  * 자락마다 답은 둘 중 하나다.
  *   hidden  그 자락이 밝힌 조건 코드가 지금 걸려 있다 → **서지 않는다** (단계 0)
- *   faded   그 탄생지가 지금 결속 중이다 → **한 단계 옅어진다** (재료가 그리로 간다)
+ *   faded   그 탄생지가 **결속 중이다**(BINDING) → 한 단계 옅어진다 (재료가 그리로 간다)
  * 둘 다 아닌 자락은 데이터의 단계 그대로다.
+ *
+ * **진행이 아니라 phase 를 묻는다** (통합 판정 · spec 기본형 ④ 가 든 "절반" 을 물리친 자리).
+ * 까닭은 하나다 — 진행은 관찰 결과에 실리지 않으므로(spec Observable) 화면이 그것을 볼 수
+ * 없고, 그러면 바닥에 그려진 색과 이 값이 같은 자리에서 나오지 않는다. 두 벌이 갈리면
+ * 흔적은 "세계가 아는 것" 과 "관찰자가 보는 것" 이 다른 유일한 자리가 된다.
+ * spec 의 판정문("진행에 따라 한 단계 옅어진다")은 그대로 참이다 — 결속 중이 곧 진행 중이다.
  *
  * **땅도 통행 격자도 hash 도 한 값 바뀌지 않는다** (경계 ②) — 이 답은 그 방 Description 의
  * trace area 를 op id 로 가리킬 뿐이다 (원천 둘레가 옅어지는 그 어법 그대로 · C012).
@@ -207,7 +211,8 @@ export function lifeTraceOverlayIn(
   const overlay = new Map<string, { hidden: boolean; faded: boolean }>();
   for (const site of lifeSitesInRegion(regionId)) {
     if (site.traces.length === 0) continue;
-    const binding = lifeSiteStateOf(states, regionId, site.id).phase === 'BINDING';
+    const now = lifeSiteStateOf(states, regionId, site.id);
+    const fading = now.phase === 'BINDING';
     // 가려짐을 물어야 하는 자락이 하나라도 있을 때만 요구를 판정한다 — 없으면 물을 것이 없다.
     const unmet = site.traces.some((trace) => trace.hiddenWhen !== undefined)
       ? lifeUnmetCodes(states, site, time)
@@ -215,7 +220,7 @@ export function lifeTraceOverlayIn(
     for (const trace of site.traces) {
       overlay.set(trace.op, {
         hidden: trace.hiddenWhen !== undefined && unmet.includes(trace.hiddenWhen),
-        faded: binding && trace.fadesWhileBinding === true,
+        faded: fading && trace.fadesWhileBinding === true,
       });
     }
   }
@@ -241,17 +246,15 @@ export function lifeStandingCodesAt(
   regionId: string,
   position: WorldPosition,
 ): string[] {
-  const spec = regionSpec(regionId);
-  if (!spec) return [];
   const codes: string[] = [];
   for (const site of lifeSitesInRegion(regionId)) {
     if (lifeSiteStateOf(states, regionId, site.id).phase !== 'BINDING') continue;
     for (const trace of site.traces) {
       const code = trace.standingCodeWhileBinding;
       if (code === undefined) continue;
-      const area = areasOf(spec.space, TRACE_LAYER).find((it) => it.id === trace.op);
-      if (!area) continue;
-      if (areaCoversPoint(area.shape, position.x, position.z)) codes.push(code);
+      // 그 자락이 이 자리를 덮는가 — 흔적 area 를 op id 로 짚는 자리는 semantic/resource.ts
+      // 하나다 (땅을 읽는 자리를 늘리지 않는다).
+      if (traceAreaCoversAt(regionId, trace.op, position)) codes.push(code);
     }
   }
   return codes;

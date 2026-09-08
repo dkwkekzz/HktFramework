@@ -220,6 +220,18 @@ export interface CheckContract {
   conditionPrefix: string;
   /** ⑰ 원천이 가리키는 흔적 op 가 사는 layer */
   traceLayer: string;
+  /**
+   * ⑩ ㉑ 자원 layer 에 서지만 **원천이 아닌** 것들의 이름 (C022 ADDED).
+   *
+   * 그 layer 에 서는 것이 둘이 되었다 — 원천과 **탄생지**다 (L2-World-Life §3.1: 탄생지는
+   * 재료를 소비하고 잔여물을 낳으므로 원천과 같은 자리에 산다). 두 검사가 묻는 것은 한 줄도
+   * 바뀌지 않았다 — **자리를 얻은 이름을 세계가 아는가**이고, 세계가 아는 이름의 갈래가
+   * 하나 는 것뿐이다. 주지 않으면 이 자리가 비고, 그때의 답은 C021 까지와 한 값도 다르지 않다.
+   *
+   * 계통(`life`)이 아니라 계약이 이것을 주는 까닭 — 계통을 주지 않고 ⑩ ㉑ 만 재는 자리
+   * (후보 방을 나란히 놓고 견주는 T6 의 바탕)에서도 같은 잣대여야 하기 때문이다.
+   */
+  lifeSiteTags?: readonly string[];
   /** ⑧ 여기서부터 닿아야 한다 — 주지 않으면 ⑧ 을 건너뛴다 */
   startRegion?: string;
 }
@@ -696,6 +708,15 @@ interface EcologyContext {
   placements: readonly EcologyPlacement[];
   /** 아는 원천의 id */
   sourceIds: ReadonlySet<string>;
+  /**
+   * 아는 **탄생지**의 id (C022 ADDED).
+   *
+   * 자원 layer 에 서는 것이 둘이 되었다 — 원천과 탄생지다 (L2-World-Life §3.1: 탄생지는 재료를
+   * 소비하고 잔여물을 낳으므로 원천과 같은 자리에 산다). ⑩ 과 ㉑ 이 묻는 것은 한 줄도 바뀌지
+   * 않았다 — **자리를 얻은 이름을 세계가 아는가**이고, 세계가 아는 이름이 한 갈래 는 것뿐이다.
+   * 생명 계통을 주지 않으면 이 집합이 비고, 그때의 답은 C021 까지와 한 값도 다르지 않다.
+   */
+  lifeSiteIds: ReadonlySet<string>;
   /** 아는 재료의 id */
   materialIds: ReadonlySet<string>;
   /** 검사가 아는 방의 id (input.regions) */
@@ -711,18 +732,25 @@ function checkPlacementSource(cx: EcologyContext): CheckItem {
     return absentItem(head, `놓인 것이 없다 — ${layer} 0`);
   }
   const refs: CheckRef[] = [];
+  let lifeSites = 0;
   for (const placement of cx.placements) {
+    // C022 CHANGED — 이 layer 에 서는 것이 둘이 되었다. 탄생지의 이름도 세계가 아는 이름이므로
+    // 모르는 이름으로 세지 않는다 (묻는 것은 그대로다 — 자리를 얻은 이름을 세계가 아는가).
+    if (cx.lifeSiteIds.has(placement.tag)) {
+      lifeSites++;
+      continue;
+    }
     if (!cx.sourceIds.has(placement.tag)) {
       refs.push({
         where: placement.region,
-        detail: `${layer} ${placement.tag} 은 아는 원천이 아니다`,
+        detail: `${layer} ${placement.tag} 은 아는 원천도 탄생지도 아니다`,
       });
     }
   }
   return {
     ...head,
     status: refs.length === 0 ? 'pass' : 'fail',
-    answer: `배치 ${cx.placements.length} · 모르는 이름 ${refs.length}`,
+    answer: `배치 ${cx.placements.length} · 탄생지 ${lifeSites} · 모르는 이름 ${refs.length}`,
     refs,
   };
 }
@@ -1000,8 +1028,10 @@ function checkOrphan(cx: EcologyContext): CheckItem {
   let strayPlacements = 0;
   for (const placement of cx.placements) {
     if (cx.sourceIds.has(placement.tag)) continue;
+    // C022 CHANGED — 탄생지의 자리는 원천이 없어도 외톨이가 아니다 (⑩ 과 같은 까닭).
+    if (cx.lifeSiteIds.has(placement.tag)) continue;
     strayPlacements++;
-    refs.push({ where: placement.region, detail: `배치 ${placement.tag} 에 원천이 없다` });
+    refs.push({ where: placement.region, detail: `배치 ${placement.tag} 에 원천도 탄생지도 없다` });
   }
   let strandedSources = 0;
   for (const source of sources) {
@@ -1052,6 +1082,7 @@ function ecologyItems(input: CheckRegionsInput): CheckItem[] {
     ecology,
     placements: resourcePlacements(input),
     sourceIds: new Set(ecology.sources.map((source) => source.id)),
+    lifeSiteIds: new Set(input.contract.lifeSiteTags ?? []),
     materialIds: new Set(ecology.materials.map((material) => material.id)),
     regionIds: new Set(input.regions.map((region) => region.id)),
     connectorIds: new Set(input.graph.connectors.map((connector) => connector.id)),

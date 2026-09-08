@@ -92,7 +92,13 @@ export interface LifeSiteTrace {
   op: string;
   /** 이 조건 코드가 걸려 있는 동안은 **서지 않는다** (단계 0) — 밝히지 않으면 언제나 선다 */
   hiddenWhen?: string;
-  /** 결속하는 동안 **한 단계 옅어진다** (재료가 그리로 간다) */
+  /**
+   * 결속하는 동안 **한 단계 옅어진다** (재료가 그리로 간다).
+   *
+   * 낮아지는 때는 **결속하는 동안 내내**다 — 진행이 아니라 phase 를 묻는다. 진행은 관찰
+   * 결과에 실리지 않으므로(spec Observable) 화면이 그것을 볼 수 없고, 세계와 화면이 같은
+   * 자리에서 같은 단계를 내야 하기 때문이다.
+   */
   fadesWhileBinding?: boolean;
   /** 결속하는 동안 이 자락에 선 몸의 **걸린 것**에 실리는 코드 */
   standingCodeWhileBinding?: string;

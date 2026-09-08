@@ -58,6 +58,16 @@ const PHENOMENON_LAYER = 'phenomenon';
 /** ③ 사람이 사는 자리로 치는 태그 — city 만 상수가 있고 나머지 둘은 아직 이 세계에 없다 */
 const SETTLEMENT_TAGS = [CITY_TAG, 'village', 'refuge'] as const;
 
+/**
+ * ⑩ ㉑ 자원 layer 에 서지만 원천이 아닌 것 — 이 세계의 **탄생지**들이다 (C022 ADDED).
+ *
+ * 방 차례 · 그 방 데이터 차례로 편다 (결정론). 하나도 없으면 빈 목록이고, 그때의 두 검사는
+ * C021 까지와 한 값도 다르지 않다.
+ */
+const LIFE_SITE_TAGS = REGION_SPECS.flatMap((spec) =>
+  (spec.ecology?.lifeFormation ?? []).map((site) => site.id),
+);
+
 /** 이 세계가 기반에 건네는 계약 — 게임 명사는 전부 여기서 간다 */
 export const WORLD_CHECK_CONTRACT: CheckContract = {
   anchorLayer: ANCHOR_LAYER,
@@ -68,6 +78,7 @@ export const WORLD_CHECK_CONTRACT: CheckContract = {
   settlementTags: SETTLEMENT_TAGS,
   conditionPrefix: CONDITION_PREFIX,
   traceLayer: TRACE_LAYER,
+  lifeSiteTags: LIFE_SITE_TAGS,
   startRegion: START_REGION_ID,
 };
 

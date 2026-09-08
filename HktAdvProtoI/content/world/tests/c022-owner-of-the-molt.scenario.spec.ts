@@ -682,34 +682,40 @@ describe('SPEC-003 전조 흔적 넷이 알집으로 이끈다', () => {
     }
   });
 
-  it('S-033 알집 둘레의 흙이 **진행이 절반을 넘으면** 한 단계 옅어진다', () => {
-    // Given 조건이 다 찬 세계 — 진행 0
+  it('S-033 알집 둘레의 흙이 **결속하는 동안** 한 단계 옅어진다', () => {
+    // Given 결속이 서지 않는 세계 (이미 주인이 있다) — 자락은 데이터의 단계 그대로다
+    const idle = atClutch({ populations: { [POPULATION]: 1 } });
+    wait(idle, 1);
+    const base = traceStrengthAt(statesOf(idle) as never, ROOM, clutchAt());
+    expect({ base: base > 0, phase: phaseOfSite(idle) }).toEqual({ base: true, phase: 'DORMANT' });
+
+    // When 조건이 다 찬 세계에서 결속이 선다 — 진행은 아직 절반에 못 미친다
     const w = atClutch();
-    const base = traceStrengthAt(statesOf(w) as never, ROOM, clutchAt());
-    expect({ base: base > 0 }).toEqual({ base: true });
-    // When 절반에 못 미치게 굴린다
     wait(w, BINDING_SECONDS * 0.4);
-    expect({ progress: progressOfSite(w) < 0.5 }).toEqual({ progress: true });
-    // Then 아직 그대로다
-    expect({ when: '절반 앞', base, trace: traceStrengthAt(statesOf(w) as never, ROOM, clutchAt()) }).toEqual({
-      when: '절반 앞',
-      base,
-      trace: base,
+    expect({ phase: phaseOfSite(w), half: progressOfSite(w) < 0.5 }).toEqual({
+      phase: 'BINDING',
+      half: true,
     });
-    // When 절반을 넘긴다
-    wait(w, BINDING_SECONDS * 0.2);
-    expect({ progress: progressOfSite(w) > 0.5 }).toEqual({ progress: true });
-    // Then 한 단계 옅어진다 (재료가 알집으로 간다)
-    expect({ when: '절반 뒤', base, trace: traceStrengthAt(statesOf(w) as never, ROOM, clutchAt()) }).toEqual({
-      when: '절반 뒤',
-      base,
+    // Then **이미** 한 단계 옅다 — 옅어짐은 진행이 아니라 결속에 매인다.
+    // (spec 기본형 ④ 는 "진행 절반" 을 들었으나 진행은 관찰 결과에 실리지 않는다 —
+    //  세계와 화면이 같은 자리에서 같은 단계를 내야 하므로 phase 를 묻는 것으로 통합했다.
+    //  spec 의 판정문 "진행에 따라 한 단계 옅어진다" 는 그대로 참이다.)
+    expect({ when: '결속 앞쪽', trace: traceStrengthAt(statesOf(w) as never, ROOM, clutchAt()) }).toEqual({
+      when: '결속 앞쪽',
       trace: base - 1,
     });
+
+    // And 더 굴려도 **한 단계**다 — 두 번 옅어지지 않는다
+    wait(w, BINDING_SECONDS * 0.2);
+    expect({ when: '결속 뒤쪽', trace: traceStrengthAt(statesOf(w) as never, ROOM, clutchAt()) }).toEqual({
+      when: '결속 뒤쪽',
+      trace: base - 1,
+    });
+
     // And 그 방의 **바닥** 흔적은 한 값도 달라지지 않는다 (옅어지는 것은 알집 둘레뿐이다)
     const floor = traceStrengthAt(statesOf(w) as never, ROOM, awayFromClutch());
-    const fresh = atClutch({ populations: { [POPULATION]: 1 } });
     expect({ floor }).toEqual({
-      floor: traceStrengthAt(statesOf(fresh) as never, ROOM, awayFromClutch()),
+      floor: traceStrengthAt(statesOf(idle) as never, ROOM, awayFromClutch()),
     });
   });
 

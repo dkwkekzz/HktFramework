@@ -31,7 +31,12 @@ describe('SPEC-009 — 검사 넷이 스물둘 뒤에 선다', () => {
   const report = runWorldCheck();
 
   it('번호 ㉓~㉖ 이 이 차례로 이어 붙고 열쇠가 표 그대로다', () => {
-    const four = report.items.slice(-4);
+    // C022 CHANGED — 넷 뒤에 생명의 일곱(㉗~㉝)이 다시 이어 붙었다. 이 항이 재는 것은
+    // "맨 뒤" 가 아니라 **이 넷이 이 차례로 붙어 있는가** 이므로, 자리를 번호로 찾는다
+    // (검사가 늘 때마다 이 줄이 낡지 않게 하는 자리다).
+    const from = report.items.findIndex((item) => item.id === TIME_IDS[0]);
+    expect(from).toBeGreaterThanOrEqual(0);
+    const four = report.items.slice(from, from + 4);
     expect(four.map((item) => item.mark)).toEqual(['㉓', '㉔', '㉕', '㉖']);
     expect(four.map((item) => item.id)).toEqual(TIME_IDS);
   });

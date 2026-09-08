@@ -418,7 +418,26 @@ describe('checkRegions — ⑩~㉒ 참조를 하나씩 끊는다', () => {
     world.regions[0] = withOps(world.regions[0]!, [seat('S9')]);
     expect(failedIds(world)).toEqual(['ecology-placement-source', 'ecology-orphan']);
     const item = run(world).items.find((i) => i.id === 'ecology-placement-source')!;
-    expect(item.refs).toEqual([{ where: 'A', detail: 'ore S9 은 아는 원천이 아니다' }]);
+    // C022 CHANGED — 그 layer 에 서는 것이 둘이 되어(원천 · 탄생지) 말이 한 갈래 늘었다.
+    // 묻는 것은 그대로다 — 자리를 얻은 이름을 세계가 아는가.
+    expect(item.refs).toEqual([{ where: 'A', detail: 'ore S9 은 아는 원천도 탄생지도 아니다' }]);
+  });
+
+  it('⑩ ㉑ 계약이 밝힌 탄생지의 자리는 모르는 이름이 아니다 (C022)', () => {
+    const world = ecologyWorld();
+    world.regions[0] = withOps(world.regions[0]!, [seat('S9')]);
+    // 그 이름을 계약이 탄생지로 밝히면 둘 다 걸리지 않는다 — 자원 layer 에 서는 것이 둘이다
+    const report = checkRegions({
+      regions: world.regions,
+      graph: world.graph,
+      contract: { ...CONTRACT, lifeSiteTags: ['S9'] },
+      ecology: world.ecology,
+      time: world.time,
+      life: world.life,
+    });
+    expect(report.items.filter((i) => i.status === 'fail').map((i) => i.id)).toEqual([]);
+    const item = report.items.find((i) => i.id === 'ecology-placement-source')!;
+    expect(item.answer).toContain('탄생지 1');
   });
 
   it('⑪ 세계 원인을 가리키지 않는 원천', () => {
