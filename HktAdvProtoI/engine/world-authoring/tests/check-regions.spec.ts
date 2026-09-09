@@ -1081,7 +1081,28 @@ describe('checkRegions — ㉗~㉝ 이 잘못된 데이터를 집어낸다 (SPEC
       'life-recovery-owner',
     );
     expect(unborn.status).toBe('fail');
-    expect(unborn.refs).toEqual([{ where: 'S2', detail: 'P2 을 세우는 탄생지가 없다' }]);
+    expect(unborn.refs).toEqual([{ where: 'S2', detail: 'P2 을 세우는 탄생지도 올리는 관계도 없다' }]);
+  });
+
+  it('㉛ 태어나지 않고 **불려 오는** 개체군도 주인이 있다 — 갈래는 계약이 고른다 (C025)', () => {
+    // Given 탄생지가 없는 개체군 P2 를 전제하는 회복 원인. 그것을 to 로 삼는 관계가 하나 있다
+    const withLink = (raisingLinkKinds?: readonly string[]) =>
+      itemOf(
+        graft((life) => ({
+          ...life,
+          populations: [...life.populations, { id: 'P2', region: 'A' }],
+          lifeRecoveries: [{ sourceId: 'S2', recoveryCause: 'shed', population: 'P2' }],
+          links: [{ from: 'P1', to: 'P2', kind: 'CALLS' }],
+          ...(raisingLinkKinds === undefined ? {} : { raisingLinkKinds }),
+        })),
+        'life-recovery-owner',
+      );
+    // Then 계약이 그 갈래를 "값을 올리는 것" 으로 고르면 통과다
+    expect(withLink(['CALLS']).status).toBe('pass');
+    // And 밝히지 않은 계약의 답은 **한 글자도 달라지지 않는다** — 탄생지만 묻는다
+    expect(withLink().status).toBe('fail');
+    // And 올리지 않는 갈래로 고른 계약도 그대로 잡는다 (기반은 갈래의 뜻을 알지 못한다)
+    expect(withLink(['EATS']).status).toBe('fail');
   });
 
   it('㉛ 생명을 전제하는 회복 원인이 하나도 없으면 absent 다', () => {
