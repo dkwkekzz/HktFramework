@@ -72,6 +72,8 @@ import {
   WHITE_KING_DOMAIN,
   regionSpec,
   type SeasonId,
+  ORE_EATER,
+  TREE_FUNGUS,
 } from '../../regions';
 import type { ActionResult } from '../../protocol/actions';
 import type { EntityView, GameViewSnapshot, InteractionView } from '../../protocol/gameview';
@@ -171,7 +173,7 @@ const BASELINE: Readonly<Record<string, RoomBaseline>> = {
     traversable: 1513,
   },
   [FOREST_DEEP]: {
-    hash: '2b6a4c96',
+    hash: 'b0cabbb8',
     surface: { flat: 1681 },
     traversable: 1681,
   },
@@ -181,7 +183,9 @@ const BASELINE: Readonly<Record<string, RoomBaseline>> = {
     traversable: 1681,
   },
   [PREDATOR_NEST]: {
-    hash: '7e437aff',
+    // C024 CHANGED — 둥지는 C024 가 만졌다 (사체 · 변성지 · 자락 넷). **표면도 통행도 한 값
+    // 달라지지 않았고**(아래 두 수가 그것을 그대로 잰다) 달라진 것은 Description 에 선 자리뿐이다.
+    hash: 'c9a53392',
     surface: { flat: 1681 },
     traversable: 1681,
   },
@@ -468,7 +472,21 @@ type LifeSetup = WorldSetup & {
   populations?: Record<string, number>;
 };
 
-const solo: LifeSetup = { npcs: [] };
+/**
+ * C024 CHANGED — **거목균을 배속 1 의 자리에 세운다.**
+ *
+ * C024 부터 균사의 되돌아옴이 거목균의 수에 매인다 (C024 SPEC-008). 이 파일이 재는 것은
+ * 거목의 방의 결속과 탄생이지 둥지의 생태가 아니므로, **배속이 1 이 되는 값**에 세워
+ * 균사가 C022·C023 이 잰 그 초 그대로 돌아오게 둔다 — 값이 0 이면 아주 멎고 상한이면
+ * 두 배로 빨라지는데, 둘 다 이 파일이 말하려는 것과 무관한 흔들림이다.
+ */
+const solo: LifeSetup = {
+  npcs: [],
+  populations: { [TREE_FUNGUS]: 1 },
+  // 그리고 **둥지의 사체를 비워 둔다** — 그래야 변성이 서지 않아 위의 1 이 재는 동안
+  // 흔들리지 않는다 (변성 한 번이면 값이 2 가 되어 균사가 두 배로 빨라진다).
+  sourcePhases: { NEST_CARCASS: 'depleted' },
+};
 
 const state = (w: WorldDriver) => w.world.snapshot().state as WorldState;
 const statesOf = (w: WorldDriver) => state(w).regionStates as Record<string, unknown>;
@@ -551,6 +569,11 @@ const inRoom = (region: string, at?: XZ, extra: LifeSetup = {}): WorldDriver =>
     actorRegion: region,
     ...(at ? { actorPosition: { x: at.x, z: at.z } } : {}),
     ...extra,
+    // C024 CHANGED — 개체군은 **덮지 않고 겹친다.** 아래의 세움들은 광식충 하나만 말하는데,
+    // 통째로 갈아 끼우면 solo 가 세운 거목균이 함께 사라져 균사가 돌아오지 않게 된다
+    // (C024 SPEC-008). 부르는 쪽이 밝힌 값이 언제나 이긴다.
+    populations: { ...solo.populations, ...extra.populations },
+    sourcePhases: { ...solo.sourcePhases, ...extra.sourcePhases },
   } as WorldSetup);
 const inSeason = (season: SeasonId, region: string, at?: XZ, extra: LifeSetup = {}): WorldDriver =>
   inRoom(region, at, { ...extra, clock: season });
@@ -1832,7 +1855,11 @@ describe('회귀', () => {
 
   it('S-195 숲 어귀의 MOLT_LITTER 의 캐기와 되돌아옴이 그대로다', () => {
     const at = besideIn(FOREST_EDGE, pointOf(FOREST_EDGE, MOLT));
-    const w = inSeason(STILL, FOREST_EDGE, at, { actorItems: { pickaxe: 1 } });
+    // C024 CHANGED — **광식충을 배속 1 의 자리에 세운다.** C024 부터 허물의 되돌아옴이
+    // 벗는 것의 수에 매인다 (C024 SPEC-001): 값이 0 이면 아주 멎고 상한이면 두 배다.
+    // 이 회귀가 말하려는 것은 "이 Cycle 이 그 길이를 건드리지 않았다" 이므로, 배속이 1 이
+    // 되는 값에 세워 아래의 60 이 데이터 그대로임을 그대로 잰다.
+    const w = inSeason(STILL, FOREST_EDGE, at, { actorItems: { pickaxe: 1 }, populations: { [ORE_EATER]: 2 } });
     for (let i = 0; i < 3; i++) {
       expect({ nth: i + 1, ...mineOnce(w, MOLT) }).toEqual({
         nth: i + 1,
@@ -1987,7 +2014,11 @@ describe('회귀', () => {
     }
   }, 60_000);
 
-  it('S-19a 탄생지도 개체군도 거목의 방 하나에만 선다 — 나머지 방은 그대로다', () => {
+  // C024 CHANGED — **밝힌 방이 둘이 되었다** (둥지가 변성지와 거목균을 밝힌다 · C024 SPEC-006).
+  // 이 항이 재는 것은 "하나뿐인가" 가 아니라 **밝히지 않은 방에는 자리 자체가 없는가** 이므로
+  // (빈 것으로 지어내지 않는다 — C022 SPEC-001 경계 ①), 거목의 방이 이 Cycle 이 세운 둘을
+  // 그대로 들고 있는지만 보고 **밝힌 다른 방은 지나간다.**
+  it('S-19a 탄생지도 개체군도 밝힌 방에만 선다 — 밝히지 않은 방은 그대로다', () => {
     for (const spec of REGION_SPECS) {
       const w = inRoom(spec.id, undefined, capped);
       const here = statesOf(w)[spec.id] as
@@ -2003,6 +2034,8 @@ describe('회귀', () => {
         });
         continue;
       }
+      // 뒤의 Cycle 이 밝힌 방 — 그것이 무엇을 세우는지는 그 Cycle 의 시나리오가 잰다
+      if (spec.ecology) continue;
       expect({ region: spec.id, sites, pops }).toEqual({ region: spec.id, sites: [], pops: [] });
       expect({
         region: spec.id,

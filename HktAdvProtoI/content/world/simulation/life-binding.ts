@@ -157,7 +157,9 @@ function ruleLifeBirth(
 
   // ④ 값이 하나 오른다 — 상한을 넘지 않는다 (SPEC-005).
   const populations = (regionStateOf(state.regionStates, population.regionId).populations ??= {});
-  const populationState = (populations[population.id] ??= { value: 0 });
+  // C024 CHANGED — 이 철에 요구가 찼는가도 함께 든다 (없던 자리를 여기서 세울 때의 처음
+  // 값이다 · createRegionStates 와 **같은 값**이어야 한다: 세우는 자리가 둘이면 갈린다)
+  const populationState = (populations[population.id] ??= { value: 0, metThisSeason: false });
   populationState.value = Math.min(population.scale, populationState.value + 1);
 
   // ⑤ 그 방이 술렁인다 — 올리는 일은 C017 의 그 한 자리가 한다 (RULE-DISTURBANCE-001).

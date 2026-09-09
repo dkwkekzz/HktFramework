@@ -23,7 +23,7 @@ import {
   applySourcePhaseSetup,
   createRegionStates,
 } from './semantic/region-state';
-import { clockSetupTime } from './semantic/clock';
+import { clockSetupTime, seasonsStartedAt } from './semantic/clock';
 import { createPresenceStates } from './semantic/presence';
 import { spawnActor } from './semantic/spawn';
 import {
@@ -42,6 +42,7 @@ import { ruleMoveProgress } from './simulation/move-progress';
 import { ruleNpcDecideAll } from './simulation/npc-decide';
 import { applyPresenceSetup, rulePresence } from './simulation/presence';
 import { ruleRegionFall } from './simulation/region-fall';
+import { rulePopulationDecline } from './simulation/population-decline';
 import { ruleSeasonTurn } from './simulation/season-turn';
 import { ruleLifeBinding } from './simulation/life-binding';
 import { ruleSourceRecovery } from './simulation/source-recovery';
@@ -252,6 +253,12 @@ const SYSTEMS: WorldContent<WorldState>['systems'] = [
   // 관찰자와 무관하게 돈다. 뒤척임이 되돌아옴보다 **앞**인 이유: 뒤척인 뒤의 진행은
   // 그 Tick 부터 새로 오른다 (되돌아옴이 먼저 오르면 곧바로 0 으로 지워져 한 Tick 이 헛돈다).
   (state) => ruleSeasonTurn(state), // RULE-SEASON-TURN-001
+  // 값이 내리는 것도 **철을 읽는 세계 과정**이라 뒤척임 곁에 나란히 선다 (C024 spec R3).
+  // 뒤척임 **뒤**인 이유는 되돌아옴이 그랬던 것과 같다: 뒤척인 뒤의 세계에서 요구를 묻는다
+  // (뒤척임이 처음 상태로 되돌린 원천을 그 Tick 에 못 찬 것으로 세지 않는다).
+  // 되돌아옴 **앞**인 이유는 하나다 — 이 Tick 에 내린 값이 그 Tick 의 배속에 들어야
+  // "값이 준 뒤 되돌아옴이 실제로 느려진다" 가 한 Tick 도 밀리지 않는다 (SPEC-004 ②).
+  (state) => rulePopulationDecline(state), // RULE-POPULATION-DECLINE-001
   // 지나가는 것은 **소란보다 앞**이다 (C018 spec R10) — 이 Tick 에 지나는 것이 올린 소란이
   // 그 Tick 에 판정되어야 "지나가는 동안 방이 깨어난다" 가 한 Tick 도 밀리지 않는다.
   // 뒤척임 **뒤**인 이유는 되돌아옴이 그랬던 것과 같다: 뒤척인 뒤의 세계에서 시작하고
@@ -344,6 +351,12 @@ export function createWorld(setup: WorldSetup = {}, restored?: WorldState): Worl
     // 검증용 손잡이가 다른 때를 밝혔어도 0 이다: 그 세계는 그 시각에 **선** 것이고
     // 그때까지의 뒤척임은 일어난 적이 없다.
     turnsApplied: 0,
+    // 이 세계가 **선 그 철**부터 센다 (C024 ADDED · spec R3). 0 이 아니라 지금 시각의 수인
+    // 이유는 turnsApplied 가 0 인 이유와 **같다**: 그 세계는 그 시각에 선 것이고 그때까지의
+    // 철 바뀜은 일어난 적이 없다. 손잡이가 긴 밤에서 세운 세계가 첫 Tick 에 두 철을 몰아
+    // 내리면, 세운 것은 때뿐인데 세계의 규칙이 달라진 것이 된다 (손잡이의 규율).
+    // 되살린 세계는 이 자리에 오지 않는다 — 적용한 수는 저장되는 State 다.
+    seasonsApplied: seasonsStartedAt(clockSetupTime(setup.clock) ?? 0),
     // 아직 아무것도 지나가지 않았다 (C018 ADDED · spec State). 밝힌 경로 전부에 자리가
     // 서고 마친 수는 0 이다. 되살린 세계는 이 자리에 오지 않는다 — 지나감의 지금은
     // 저장되는 State 이므로 스냅샷의 그 값이 그대로 이어진다 (SPEC-008).

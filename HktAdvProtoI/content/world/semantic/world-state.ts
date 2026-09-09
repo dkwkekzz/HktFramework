@@ -59,6 +59,19 @@ export interface WorldState extends CoreWorldState {
    */
   turnsApplied: number;
   /**
+   * World.seasonsApplied — 지금까지 **적용한** 철의 수 (C024 ADDED · spec State · R3).
+   *
+   * **저장된다.** `turnsApplied` 와 **같은 어법 · 같은 이유**다: 때는 세계 시각에서
+   * 유도되지만(semantic/clock.ts 의 seasonsStartedAt) **값이 내리는 것은 사건**이라
+   * 일어났다는 것을 세계가 기억해야 한다 — 그러지 않으면 껐다 켤 때마다 같은 철을 두 번
+   * 세어 개체군이 거듭 내린다 (spec SPEC-003 경계 ⑥).
+   *
+   * 수로 두는 이유도 같다 — 시각만으로는 큰 걸음이 철을 건너뛸 수 있고, "언제 마지막으로"
+   * 로 두면 되살린 세계가 다시 내린다. 수로 두면 두 번 세지도 빠뜨리지도 않는다 (경계 ⑤).
+   * 세계에 하나다 (철이 세계에 하나이므로 · Time 원칙 T1).
+   */
+  seasonsApplied: number;
+  /**
    * World.presences — 지나가는 것 하나의 **지금** (C018 ADDED · spec State · semantic/presence.ts).
    *
    * **저장된다.** 시간표도 마디도 데이터에서 다시 오지만(content/regions), "지금 지나고

@@ -353,6 +353,21 @@ function wait(w: WorldDriver, seconds: number, step = 1) {
     left -= dt;
   }
 }
+/**
+ * 그 원천이 그 phase 에 닿을 때까지 굴린다 — **되돌아옴의 길이를 손으로 적지 않는다.**
+ *
+ * C024 뒤로 되돌아옴의 진행에 **개체군의 배속**이 곱해진다 (RULE-RECOVERY-SPEED-001) —
+ * 그래서 데이터의 `recoverySeconds` 는 더 이상 그 원천이 실제로 걸리는 시간이 아니다
+ * (허물이 그 배속을 밝힌 원천이다). 이 Cycle 이 재는 것은 **셈이 그대로인가**이지
+ * 되돌아옴이 몇 초인가가 아니므로, 문턱을 어림하지 않고 세계가 그 자리에 설 때까지 굴린다.
+ */
+function runUntilPhase(w: WorldDriver, region: string, id: string, phase: string, limit = 600) {
+  for (let i = 0; i < limit; i++) {
+    if (storedOf(w, region, id).phase === phase) return;
+    w.tick(1);
+  }
+  expect({ id, phase: storedOf(w, region, id).phase }).toEqual({ id, phase });
+}
 /** 그 세계 시각까지 굴린다 (c016 ~ c018 선례) */
 function runTo(w: WorldDriver, target: number, step = 60) {
   const left = target - timeOf(w);
@@ -774,9 +789,9 @@ describe('SPEC-002 되돌아옴이 셈을 지우지 않는다', () => {
     const w = atSource(FOREST_EDGE, MOLT_LITTER);
     mineUntilDepleted(w, FOREST_EDGE, MOLT_LITTER);
     const depleted = { ...sourceMemoryOf(w, FOREST_EDGE, MOLT_LITTER)! };
-    // When 절반을 넘겨 되돌아옴이 눈에 보이기 시작하는 자리까지만 굴린다
-    wait(w, recovery() * RECOVERY_VISIBLE_FRACTION + 1);
-    expect(storedOf(w, FOREST_EDGE, MOLT_LITTER).phase).toBe(RECOVERING);
+    // When 되돌아옴이 눈에 보이기 시작하는 자리까지만 굴린다 (문턱은 세계가 정한다 —
+    // C024 뒤로 개체군의 배속이 그 시간을 바꾸므로 데이터의 초를 어림하지 않는다)
+    runUntilPhase(w, FOREST_EDGE, MOLT_LITTER, RECOVERING);
     // Then 셈은 그대로다
     expect(sourceMemoryOf(w, FOREST_EDGE, MOLT_LITTER)).toEqual(depleted);
   });
@@ -1298,9 +1313,9 @@ describe('회귀', () => {
       taken: harvestsOf(FOREST_EDGE, MOLT_LITTER),
     });
     expect(mine(w, MOLT_LITTER)).toMatchObject({ reason: SOURCE_DEPLETED });
-    // 절반을 넘기면 되돌아오는 중이고 그 사유가 갈린다
-    wait(w, recoveryOf(FOREST_EDGE, MOLT_LITTER) * RECOVERY_VISIBLE_FRACTION + 1);
-    expect(storedOf(w, FOREST_EDGE, MOLT_LITTER).phase).toBe(RECOVERING);
+    // 절반을 넘기면 되돌아오는 중이고 그 사유가 갈린다 (그 자리에 설 때까지 굴린다 —
+    // 몇 초인가는 이 항의 주장이 아니다)
+    runUntilPhase(w, FOREST_EDGE, MOLT_LITTER, RECOVERING);
     expect(mine(w, MOLT_LITTER)).toMatchObject({ reason: SOURCE_RECOVERING });
     // 제 길이를 다 채우면 돌아오고 다시 캘 수 있다
     wait(w, recoveryOf(FOREST_EDGE, MOLT_LITTER));

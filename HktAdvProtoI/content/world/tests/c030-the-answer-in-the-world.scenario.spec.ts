@@ -150,7 +150,16 @@ const LONG_NIGHT: SeasonId = 'LONG_NIGHT';
 const TURN: SeasonId = 'TURN';
 const SEASONS: readonly SeasonId[] = [STILL, SEEP, LONG_NIGHT, TURN];
 
-const solo: WorldSetup = { npcs: [] };
+/**
+ * C024 CHANGED — **거목균을 배속 1 의 자리에 세우고 둥지의 사체를 비워 둔다.**
+ *
+ * C024 부터 균사의 되돌아옴이 거목균의 수에 매이고(C024 SPEC-008), 그 값은 둥지의 사체가
+ * 균류로 바뀔 때마다 오른다. 이 파일이 재는 것은 요구와 답이지 둥지의 생태가 아니므로,
+ * 배속이 1 이 되는 값에 세워 균사가 C014 가 잰 그 초 그대로 돌아오게 둔다 (값이 0 이면 아예
+ * 멎고 상한이면 두 배다). **사체는 여기서 건드리지 않는다** — 그것은 세계의 처음 상태이고
+ * 회귀의 기준값이 그것을 그대로 재기 때문이다. 사슬의 길이를 실제로 재는 자리에서만 비운다.
+ */
+const solo: WorldSetup = { npcs: [], populations: { TREE_FUNGUS: 1 } };
 
 // ── 회귀의 기준값 (SPEC-009) ─────────────────────────────────────────
 //
@@ -193,7 +202,7 @@ const BASELINE: Readonly<Record<string, RoomBaseline>> = {
     sources: ['MOLT_LITTER', 'SEEP_CRUST', 'FALLEN_SCALE', 'PREY_REMAINS', 'ORE_PEBBLE_EDGE', 'HUSK_SHARD_EDGE', 'GLOW_CAP_EDGE'],
   },
   [FOREST_DEEP]: {
-    hash: '2b6a4c96',
+    hash: 'b0cabbb8',
     surface: { flat: 1681 },
     traversable: 1681,
     exits: ['DEEP_TRAIL', 'NEST_TRAIL', 'ORE_TRAIL', 'TREE_APPROACH', 'ANCIENT_GATE', 'WALKING_FOREST_DOOR'],
@@ -211,13 +220,16 @@ const BASELINE: Readonly<Record<string, RoomBaseline>> = {
     sources: ['RUIN_SPOIL', 'ORE_PEBBLE_RUIN', 'HUSK_SHARD_RUIN_1', 'HUSK_SHARD_RUIN_2'],
   },
   [PREDATOR_NEST]: {
-    hash: '7e437aff',
+    // C024 CHANGED — 둥지는 C024 가 만졌다 (사체 · 변성지 · 자락 넷). **표면도 통행도 한 값
+    // 달라지지 않았고** 달라진 것은 Description 에 선 자리뿐이라 hash 하나가 바뀌었다.
+    hash: 'c9a53392',
     surface: { flat: 1681 },
     traversable: 1681,
     exits: ['NEST_TRAIL'],
     floorTrace: 2,
     peakTrace: 4,
-    sources: ['NEST_FUNGUS', 'GLOW_CAP_NEST_1', 'GLOW_CAP_NEST_2', 'HUSK_SHARD_NEST'],
+    // C024 CHANGED — 둥지의 사체가 늘었다 (데이터 차례의 끝)
+    sources: ['NEST_FUNGUS', 'GLOW_CAP_NEST_1', 'GLOW_CAP_NEST_2', 'HUSK_SHARD_NEST', 'NEST_CARCASS'],
   },
   [BIO_ORE_FIELD]: {
     hash: 'f111570c',
@@ -302,7 +314,8 @@ const ENTITY_BASELINE: Readonly<Record<string, readonly string[]>> = {
   [FOREST_EDGE]: ['player-1/player-character', 'MOLT_LITTER/resource-source', 'FALLEN_SCALE/resource-source', 'PREY_REMAINS/resource-source', 'ORE_PEBBLE_EDGE/resource-source', 'HUSK_SHARD_EDGE/resource-source', 'FOREST_PATH/region-exit', 'RUIN_TRAIL/region-exit', 'DEEP_TRAIL/region-exit'],
   [FOREST_DEEP]: ['player-1/player-character', 'RIVER_SILT/resource-source', 'ORE_PEBBLE_DEEP_1/resource-source', 'ORE_PEBBLE_DEEP_2/resource-source', 'HUSK_SHARD_DEEP/resource-source', 'DEEP_TRAIL/region-exit', 'NEST_TRAIL/region-exit', 'ORE_TRAIL/region-exit', 'TREE_APPROACH/region-exit', 'ANCIENT_GATE/region-exit', 'WALKING_FOREST_DOOR/region-exit'],
   [BIO_ORE_FIELD]: ['player-1/player-character', 'ORE_OUTCROP/resource-source', 'ORE_PEBBLE_ORE_1/resource-source', 'ORE_PEBBLE_ORE_2/resource-source', 'ORE_PEBBLE_ORE_3/resource-source', 'HUSK_SHARD_ORE/resource-source', 'ORE_TRAIL/region-exit', 'ORE_TREE_TRAIL/region-exit'],
-  [PREDATOR_NEST]: ['player-1/player-character', 'NEST_FUNGUS/resource-source', 'HUSK_SHARD_NEST/resource-source', 'NEST_TRAIL/region-exit'],
+  // C024 CHANGED — 둘이 늘었다: 둥지의 사체(원천)와 그 위의 변성지(탄생지)
+  [PREDATOR_NEST]: ['player-1/player-character', 'NEST_FUNGUS/resource-source', 'HUSK_SHARD_NEST/resource-source', 'NEST_CARCASS/resource-source', 'CARCASS_TO_FUNGUS/life-site', 'NEST_TRAIL/region-exit'],
   [FANTASY_MAZE]: ['player-1/player-character', 'MAZE_GATE_RETURN/region-exit', 'MAZE_HEART_GATE/region-exit'],
   [MAZE_HEART]: ['player-1/player-character', 'MAZE_HEART_GATE/region-exit', 'INVERTED_GARDEN_DOOR/region-exit'],
 };
@@ -336,6 +349,8 @@ const PHASE_BASELINE: Readonly<Record<string, { phase: string; taken: number }>>
   GLOW_CAP_NEST_1: { phase: AVAILABLE, taken: 0 },
   GLOW_CAP_NEST_2: { phase: AVAILABLE, taken: 0 },
   HUSK_SHARD_NEST: { phase: AVAILABLE, taken: 0 },
+  // C024 ADDED — 둥지의 사체 (처음은 거기 있다)
+  NEST_CARCASS: { phase: AVAILABLE, taken: 0 },
   ORE_OUTCROP: { phase: AVAILABLE, taken: 0 },
   ORE_PEBBLE_ORE_1: { phase: AVAILABLE, taken: 0 },
   ORE_PEBBLE_ORE_2: { phase: AVAILABLE, taken: 0 },
@@ -541,6 +556,10 @@ const standingIn = (region: string, at?: XZ, extra: Setup = {}): WorldDriver =>
       actorRegion: region,
       ...(at ? { actorPosition: { x: at.x, z: at.z } } : {}),
       ...extra,
+      // C024 CHANGED — 개체군과 원천 phase 는 **덮지 않고 겹친다.** 통째로 갈아 끼우면
+      // solo 가 잠재워 둔 둥지가 다시 깨어나 균사의 배속이 재는 도중에 바뀐다.
+      populations: { ...solo.populations, ...(extra as WorldSetup).populations },
+      sourcePhases: { ...solo.sourcePhases, ...(extra as WorldSetup).sourcePhases },
     }),
   );
 /** 그 철에서 시작하는 세계 — C015 가 세운 clock 손잡이 (c016 ~ c029 의 inSeason 그대로) */
@@ -988,12 +1007,19 @@ describe('SPEC-003 캐면 그 자리가 식는다', () => {
     }
     // And 실제로 여럿을 쟀다 — 하나도 서지 않아 조용히 통과하는 일이 없도록
     expect(checked).toEqual(expect.arrayContaining(['MOLT_LITTER', 'ORE_OUTCROP', NEST_FUNGUS]));
-    // And 진짜로 캐낸 원천도 마찬가지다 — 그 원천의 조건 자리 자체가 서지 않는다
+    // And 진짜로 캐낸 원천도 마찬가지다 — **이 Cycle 의 코드**는 거기 서지 않는다.
+    //
+    // C024 CHANGED — "조건 자리 자체가 없다" 로 재던 것을 **그 코드가 없다** 로 좁혔다.
+    // 허물은 C024 부터 벗을 것이 없으면 자기 멎음 사유를 지므로(no-molter) 그 자리가 비어
+    // 있지 않다. 이 경계가 말하려는 것은 "밝히지 않은 원천에 **온기의 코드**가 늘지 않는다"
+    // 이고 위의 반쪽이 재는 것도 그것이다 — 남의 Cycle 이 무엇을 걸든 그것과 무관하다.
     const litter = standingIn(FOREST_EDGE, besideIn(FOREST_EDGE, pointOf(FOREST_EDGE, 'MOLT_LITTER')), {
       actorItems: { pickaxe: 1 },
     });
     mineUntilDepleted(litter, 'MOLT_LITTER');
-    expect(sourceEntity(litter.observe(), 'MOLT_LITTER')?.conditions).toBeUndefined();
+    expect(
+      sourceEntity(litter.observe(), 'MOLT_LITTER')?.conditions?.includes(EMBER_COOLED) ?? false,
+    ).toBe(false);
   });
 
   it('S-159 둘레의 온기가 한 단계 옅어지고 되돌아오면 제 단계로 돌아온다', () => {
@@ -1042,7 +1068,9 @@ describe('SPEC-004 되돌아옴이 사슬에 매달린다', () => {
   /** 속의 잉걸과 거목균이 함께 바닥난 세계 (c013 의 bothSpent 어법 그대로) */
   const bothSpent = (region = TREE_INNER_WORLD, at?: XZ) =>
     standingIn(region, at ?? (region === TREE_INNER_WORLD ? besideIn(TREE_INNER_WORLD, EMBER_AT) : undefined), {
-      sourcePhases: { [CORE_EMBER]: DEPLETED, [NEST_FUNGUS]: DEPLETED },
+      // C024 CHANGED — 사체도 함께 비운다. 그러지 않으면 재는 동안 변성이 한 번 일어나
+      // 거목균이 하나 더 늘고, 균사의 되돌아옴 배속이 도중에 두 배가 된다 (C024 SPEC-008).
+      sourcePhases: { [CORE_EMBER]: DEPLETED, [NEST_FUNGUS]: DEPLETED, NEST_CARCASS: DEPLETED },
       populations: { ORE_EATER: ORE_EATER_SCALE },
     });
 

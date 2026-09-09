@@ -1832,6 +1832,180 @@ const SOURCE_EGG_HUSK_RECOVERING = [
   '................',
 ];
 
+// ── 둥지의 사체 — 원천 열일곱째 (C024 ADDED) ─────────────────────────
+//
+// **같은 방에 이미 사체가 하나 있다** (nest-mycelium — 삭은 가죽 위를 흰 실이 넓게 덮은 것).
+// 그러니 이것은 그것과 먼저 갈려야 한다. 갈리는 축 셋 —
+//   ① 색 — 이것에는 **흰 것이 한 점도 없다**. 대신 광식충의 껍질색(m · k)이 등을 덮는다
+//      (이 사체가 낸 재료가 허물이다 · spec 데이터 값 표). 흰 실이 있고 없고가 가장 먼저 읽힌다
+//   ② 실루엣 — 균사의 그것은 낮고 넓게 눕고, 이것은 **부피가 있는 몸 하나**로 솟는다
+//   ③ 놓임 — 저것은 덮개이고 이것은 **아직 덮이지 않은 것**이다 (그래서 갈비뼈 J 가 드러난다)
+//
+// 세 상태의 규율은 원천 열여섯의 그것 그대로다 — 있음 > 되돌아오는 중 > 바닥남 으로 색의
+// 양이 줄고, 바닥나도 자국(e)이 남고, 되돌아올 때 그 자국 위에 새것이 얹힌다.
+// **무엇이 그것을 되돌리는지 그림이 말하지 않는다** — 물었을 때 판이 말한다.
+
+// 둥지에 눕은 사체 — 등을 덮은 껍질(m · k)과 붉은 결(x) 아래로 삭은 가죽(j)이 눕고,
+// 열린 옆구리로 갈비뼈(J)가 드러났다
+const SOURCE_CARCASS = [
+  '................',
+  '.....mmkkk......',
+  '...mmkkkkkkk....',
+  '..mkkjjjjkkkkx..',
+  '.mkjjJjjjjJjjkx.',
+  '.kjJjjJjjjjJjjk.',
+  '.jjJjjJjjjjJjjj.',
+  '.jjjjjjjjjjjjjj.',
+  '..jjjjjjjjjjjj..',
+  '...jjjjjjjjjj...',
+  '....jj....jj....',
+  '....jj....jj....',
+  '................',
+  '................',
+  '................',
+  '................',
+];
+// 물어 갔다 — 몸이 통째로 없고 눌린 자국(e)과 껍질 조각(k) 몇만 남았다
+const SOURCE_CARCASS_DEPLETED = [
+  '................',
+  '................',
+  '................',
+  '................',
+  '................',
+  '.....k..........',
+  '....ee...e......',
+  '...eeee.eee.....',
+  '..eeeeeeeee.k...',
+  '...eeeeeeee.....',
+  '....eee.ee......',
+  '................',
+  '................',
+  '................',
+  '................',
+  '................',
+];
+// 되돌아오는 중 — 눌린 자국은 그대로 남고 그 위에 작은 것 하나가 다시 놓였다.
+// 있음의 그것보다 작고 껍질도 적다 (다 온 것은 아니다)
+const SOURCE_CARCASS_RECOVERING = [
+  '................',
+  '................',
+  '................',
+  '................',
+  '................',
+  '......mkk.......',
+  '....eemkjjke....',
+  '...eejjJjjke....',
+  '..eeejjjjjeek...',
+  '...eeejjjeee....',
+  '....eee.ee......',
+  '................',
+  '................',
+  '................',
+  '................',
+  '................',
+];
+
+// ── 변성지 — 탄생지 셋째 (C024 ADDED · SPEC-006) ─────────────────────
+//
+// **알집·뿌리의 알과 계통부터 갈린다.** 저 둘은 뿌리에 맺힌 **붉은 것**이고 이것은 사체에
+// 돋은 **흰 것**이다 (거목균만은 이 세계의 붉은 사다리 밖이다 — 그 색의 규율은 C014 가
+// 균사를 세울 때 이미 적어 두었다). 실루엣도 갈린다: 저 둘은 뿌리라는 가로줄에 매달리고,
+// 이것은 갈비뼈(J)가 세운 **세로의 우리** 안에서 부푼다.
+//
+// phase 가 **눈으로 갈린다** — 알집이 한 그대로의 어법이다:
+//   맺힘의 두 때(dormant · binding)는 **실루엣이 같고 색만 갈린다** — 멎어 있는 것은
+//   빛나지 않는 흰 것(z)뿐이고, 맺히는 것은 흰 것이 빛나며(w) 갈비뼈 위로 샌다.
+//   z 와 w 를 그렇게 쓰는 것은 이 세계가 이미 그렇게 쓰고 있기 때문이다 —
+//   빛 갓(glow-cap)이 되돌아오는 중일 때 z 이고 다 서면 w 다 (C014 · RoomBearsMaterial).
+//   터진 뒤(spent)는 **실루엣부터 갈린다** — 우리가 무너지고 낮게 눕는다 (알집의 그 어법).
+//
+// **얼마나 찼는지도 무엇이 태어나는지도 그림이 말하지 않는다** (spec Observable).
+
+// 멎어 있는 변성지 — 갈비뼈 우리 안에 빛나지 않는 흰 것(z)이 엉겨 있을 뿐이다
+const LIFE_CARCASS_BLOOM_DORMANT = [
+  '................',
+  '.....zz..zz.....',
+  '...J.zzzzzz.J...',
+  '...J..zzzz..J...',
+  '..J...zzzz...J..',
+  '..J..zzzzzz..J..',
+  '..J.zzzzzzzz.J..',
+  '.jJj.zzzzzz.jJj.',
+  '.jjjjzzzzzzjjjj.',
+  '..jjjjjjjjjjjj..',
+  '...jjjjjjjjjj...',
+  '................',
+  '................',
+  '................',
+  '................',
+  '................',
+];
+
+// 맺히는 변성지 — 같은 우리 · 같은 자리이고 흰 것이 **빛난다**(w). 빛이 갈비뼈 위로
+// 새어 나가 "이 자리에서 무슨 일이 일어나고 있다" 를 멀리서도 말한다 (알집의 그 어법)
+const LIFE_CARCASS_BLOOM_BINDING = [
+  '....w.wwww.w....',
+  '..w..wwwwww..w..',
+  '...J.wwwwww.J...',
+  '...J..wwww..J...',
+  '..J...wwww...J..',
+  '..J..wwwwww..J..',
+  '..J.wwwwwwww.J..',
+  '.jJj.wwwwww.jJj.',
+  '.jjjjwwwwwwjjjj.',
+  '..jjjjjjjjjjjj..',
+  '...jjjjjjjjjj...',
+  '................',
+  '................',
+  '................',
+  '................',
+  '................',
+];
+
+// 태어나는 그 한 tick — 흰 것이 우리를 넘어 터진다. 사람이 볼 일은 드물지만 그 한 tick 이
+// 실려 온 화면에서 그림이 비면 안 된다 (알집의 born 과 같은 이유)
+const LIFE_CARCASS_BLOOM_BORN = [
+  '.w.ww.wwww.ww.w.',
+  'w.wwwwwwwwwwww.w',
+  '.wJwwwwwwwwwwJw.',
+  '.wwJ.wwwwww.Jww.',
+  '..J.wwwwwwww.J..',
+  '..J.wwwwwwww.J..',
+  '..J.wwwwwwww.J..',
+  '.jJj.wwwwww.jJj.',
+  '.jjjjwwwwwwjjjj.',
+  '..jjjjjjjjjjjj..',
+  '...jjjjjjjjjj...',
+  '................',
+  '................',
+  '................',
+  '................',
+  '................',
+];
+
+// 터진 뒤 — **실루엣부터 갈린다.** 우리가 무너져 갈비뼈가 눕고, 빛나던 흰 것은 삭은
+// 자국(z) 몇으로만 남았다. 서 있던 것이 없어진 자리라는 것이 멀리서도 먼저 읽힌다.
+// 붉게 되돌아온 흙은 여기 없다 — 그것은 그림이 아니라 **땅에 서는 자락**이고, 같은 사실을
+// 두 번 말하지 않는다 (자락은 세계가 놓고 화면이 흙의 사다리로 그린다)
+const LIFE_CARCASS_BLOOM_SPENT = [
+  '................',
+  '................',
+  '................',
+  '................',
+  '................',
+  '................',
+  '................',
+  '................',
+  '...z.....z......',
+  '..J.J...J..J.J..',
+  '.jJjjJjjjJjjJjj.',
+  '..jjJjjjjjJjjj..',
+  '................',
+  '................',
+  '................',
+  '................',
+];
+
 // ── 흩어진 것 셋 (RoomBearsMaterial 실주행 판정 ADDED) ────────────────────
 //
 // 방마다 여럿이 서는 **작은 것**들이다. 원천 하나가 방의 중심이던 것(노두 · 뿌리혹)과 갈리게
@@ -2108,6 +2282,12 @@ const PIXEL_MAPS: Record<string, string[]> = {
   'life:root-eggs:binding': LIFE_ROOT_EGGS_BINDING,
   'life:root-eggs:born': LIFE_ROOT_EGGS_BORN,
   'life:root-eggs:spent': LIFE_ROOT_EGGS_SPENT,
+  // 탄생지가 셋이 되었다 (C024) — 표에 네 줄이 늘 뿐이고 키의 어법도 고르는 규칙도 그대로다.
+  // 눈으로 갈려야 하는 것도 그대로 **셋**이다 (맺힌 채 멎음 · 속에서 맺힘 · 터진 것)
+  'life:carcass-bloom:dormant': LIFE_CARCASS_BLOOM_DORMANT,
+  'life:carcass-bloom:binding': LIFE_CARCASS_BLOOM_BINDING,
+  'life:carcass-bloom:born': LIFE_CARCASS_BLOOM_BORN,
+  'life:carcass-bloom:spent': LIFE_CARCASS_BLOOM_SPENT,
   // 탄생이 남기는 원천 둘 (C023) — 표에 여섯 줄이 늘 뿐이다. 열넷이 열여섯이 되어도 어법은 그대로다
   'source:clutch-husk:available': SOURCE_CLUTCH_HUSK,
   'source:clutch-husk:depleted': SOURCE_CLUTCH_HUSK_DEPLETED,
@@ -2125,6 +2305,10 @@ const PIXEL_MAPS: Record<string, string[]> = {
   'source:glow-cap:available': SOURCE_GLOW_CAP,
   'source:glow-cap:depleted': SOURCE_GLOW_CAP_DEPLETED,
   'source:glow-cap:recovering': SOURCE_GLOW_CAP_RECOVERING,
+  // 둥지의 사체 (C024) — 표에 세 줄이 늘 뿐이다. 열여섯이 열일곱이 되어도 어법은 그대로다
+  'source:carcass:available': SOURCE_CARCASS,
+  'source:carcass:depleted': SOURCE_CARCASS_DEPLETED,
+  'source:carcass:recovering': SOURCE_CARCASS_RECOVERING,
 };
 
 /** 이 팩의 스프라이트 표 — 조립 루트가 engine 의 registerSprites 에 넘긴다 */

@@ -6,7 +6,8 @@
 //                매달린 원천이 available 이 아니거나(recovery-stalled) ·
 //                유입 흐름이 지금 실어 오지 않거나(condition-unmet) ·
 //                지금이 그 원천의 철이 아니면(not-this-season · C016) 멎는다
-// Transition     progress += dt × 배속 (RULE-RECOVERY-SPEED-001 — 밝히지 않은 원천·철은 1).
+// Transition     progress += dt × 철의 배속 × **개체군의 배속** (RULE-RECOVERY-SPEED-001 —
+//                밝히지 않은 원천·철·개체군은 1. 배속이 0 이면 한 톨도 오르지 않는다 · C024).
 //                progress ≥ recoverySeconds × RECOVERY_VISIBLE_FRACTION 이고 depleted 면
 //                    phase = recovering · 자리를 옮기는 원천이면 siteIndex = 무너지지 않은 다음 마디
 //                progress ≥ recoverySeconds 면 phase = available · taken = 0 · progress = 0
@@ -45,11 +46,24 @@
 // **규칙은 철의 이름을 알지 못한다** (Time T4 · C016 R1 이 세운 그 규율) — 데이터의 열쇠와
 // 시계가 낸 지금 철을 맞춰 볼 뿐이고, 어느 원천이 어느 철에 빨라지는지는 데이터에만 있다.
 
+// C024 CHANGED (C024 spec R1) — **살아 있는 것이 되돌아옴의 속도를 좌우한다.** 값마다의
+// 배속과 그 개체군을 밝힌 원천은 그 값에 따라 빨라지고 느려지며, 값이 0 이면 **아주 멎는다**
+// (기다린다고 오지 않는다 — 벗을 것이 있어야 허물이 쌓인다). 되돌아옴의 **길이도 두 문턱도**
+// 한 값 바뀌지 않는 것은 철의 배속과 같다.
+//
+// **규칙은 어떤 생명도 이름으로 알지 못한다** (Life F13 · R13) — 곱하는 수 하나를 받을 뿐이고,
+// 어느 원천이 무엇에 매였는지 · 어느 값에서 얼마나 빨라지는지는 전부 데이터에만 있다.
+
 import { CONDITION_UNMET, RECOVERY_STALLED } from '../../regions';
 import { seasonAt } from '../semantic/clock';
 import { NOT_THIS_HOUR, NOT_THIS_SEASON } from '../semantic/region-phase';
 import { standSourceState } from '../semantic/region-state';
-import { nextStandableSite, sourceConditions, sourcesInRegion } from '../semantic/resource';
+import {
+  nextStandableSite,
+  recoveryLifeSpeed,
+  sourceConditions,
+  sourcesInRegion,
+} from '../semantic/resource';
 import { RECOVERY_VISIBLE_FRACTION, type WorldState } from '../semantic/world-state';
 
 export function ruleSourceRecovery(state: WorldState, dt: number): void {
@@ -84,11 +98,19 @@ export function ruleSourceRecovery(state: WorldState, dt: number): void {
         continue;
       }
 
-      // RULE-RECOVERY-SPEED-001 (C020 ADDED · spec R3) — 지금 철의 배속을 밝혔으면 그만큼
-      // 빨리 진행한다. 밝히지 않은 원천 · 밝히지 않은 철은 1 이므로 한 값도 다르지 않다.
+      // RULE-RECOVERY-SPEED-001 (C020 ADDED · C024 CHANGED · spec R1) — 지금 철의 배속에
+      // **그 개체군의 배속**이 곱해진다. 둘 다 밝히지 않은 원천은 1 × 1 이므로 한 값도
+      // 다르지 않다 (숲의 원천 열 가운데 여덟이 그렇다).
       // **길이를 바꾸지 않고 진행에 실는다** — 아래 두 문턱은 데이터의 초 그대로다 (경계).
-      const speed = source.recoverySpeed?.[seasonAt(state.time)] ?? 1;
-      sourceState.progress += dt * speed;
+      //
+      // 개체군의 값이 0 이고 데이터가 첫 자리를 0 으로 두었으면 배속이 0 이라 **진행이 한
+      // 톨도 오르지 않는다** — Respawn Timer 가 세계 안의 원인으로 갈아 끼워지는 자리다.
+      // 위의 조건 코드 목록을 여기서 다시 보지 않는 이유가 그것이다: 멎게 하는 것은 코드가
+      // 아니라 배속 0 이고, 관찰에 실리는 멎음 코드(`no-molter` …)는 **같은 하나**를 읽어
+      // 걸린다 (semantic/resource.ts 의 recoveryLifeSpeed · spec R2). 그래서 규칙이 데이터의
+      // 글자를 알아야 할 자리가 생기지 않는다 (R13).
+      const seasonSpeed = source.recoverySpeed?.[seasonAt(state.time)] ?? 1;
+      sourceState.progress += dt * seasonSpeed * recoveryLifeSpeed(state.regionStates, source);
 
       // 눈에 보이기 시작하는 문턱 — 그림이 갈리고 흙이 다시 짙어지며, 자리를 옮기는 원천은
       // **여기서** 옮겨 선다. 예보가 서려면 자리가 먼저 서야 하기 때문이다 (spec 기본형 ②).

@@ -153,6 +153,35 @@ export interface ResourceSourceSpec {
    */
   recoveryLife?: string;
   /**
+   * 그 개체군의 **값마다의 되돌아옴 배속** (C024 ADDED · spec R1 · SPEC-001 · 확정 6).
+   *
+   * `recoveryLife` 가 가리킨 개체군의 지금 값으로 색인한다 — 값 0 이 목록의 첫 자리다.
+   * 세계 시간 1 초가 진행에 `배속[값] × 철의 배속` 만큼 실린다: **되돌아옴의 길이
+   * (recoverySeconds)는 한 값도 바뀌지 않는다** (철의 배속이 그런 그대로 · spec R1 경계).
+   *
+   * 값이 목록보다 크면 **목록의 마지막**이 답이다. 그래서 목록의 길이는 상한 + 1 이면
+   * 넉넉하고, 짧아도 세계가 깨지지 않는다.
+   *
+   * 첫 자리를 0 으로 두면 **그 개체군이 하나도 없는 동안 진행이 한 톨도 오르지 않는다** —
+   * Respawn Timer 가 세계 안의 원인으로 갈아 끼워지는 자리가 여기다 (Play §5.7).
+   * 곡선을 데이터에 두었으므로 폴리싱이 코드 변경 없이 된다 (기본형 ③).
+   *
+   * **밝히지 않은 원천은 한 값도 달라지지 않는다** (배속 1 · spec SPEC-001 경계 ④) —
+   * recoverySpeed 를 밝히지 않은 원천이 어느 철에도 1 인 것과 같은 규율이다.
+   */
+  recoveryByLife?: readonly number[];
+  /**
+   * 그 배속이 **0 이라 멎어 있는 동안** 지는 조건 코드 (C024 ADDED · spec R2 · SPEC-002).
+   *
+   * 표시가 아니라 **원인**이다 — 되돌아옴을 멎게 하는 그 판정(배속 0)과 관찰에 실리는 이
+   * 코드가 **같은 하나**다 (C013 이 `recovery-stalled` 에 세운 그 규율 그대로).
+   *
+   * **거기 서 있는(available) 원천에는 걸리지 않는다** — 아직 없는 것에만 묻는다
+   * (C014 의 흐름 · C018 의 지나감 · C023 의 세움이 다 그렇다). 밝히지 않은 원천은 멎어도
+   * 한 글자도 늘지 않는다 (spec SPEC-002 경계 ④).
+   */
+  noOwnerCode?: string;
+  /**
    * 한 원천에서 **몇 번 캘 수 있는가** (C012 ADDED · 위임된 결정 D4).
    * 그만큼 캐면 phase 가 depleted 가 된다.
    */
@@ -310,6 +339,20 @@ export const FLOW_ARRIVED = 'flow-arrived';
 /** 조건 코드 — 아직 그때가 아니다 (C014 ADDED · 유입 흐름이 활성이 아닌 동안) */
 export const CONDITION_UNMET = 'condition-unmet';
 
+// ── C024 ADDED — **멎음 코드** 둘 (spec R2 · SPEC-002 · 데이터 값 표) ─────
+//
+// 되돌아옴이 멎은 것(RECOVERY_STALLED)과 갈리는 말이다: 저것은 **매달린 원천이 없다** 이고
+// 이것은 **살아 있는 것이 없다** 다. 밑동의 허물이 바닥나고도 돌아오지 않을 때, 그 사유가
+// "아래가 끊겼다" 가 아니라 "벗을 것이 없다" 여야 관찰자가 개체군을 의심한다 (Play §5.7).
+//
+// 사람이 읽을 문구는 View 의 표가 옮긴다 (조건 코드의 선례 그대로 · 기본형 ⑦).
+
+/** 조건 코드 — 벗을 것이 없다 (MOLT_LITTER · 광식충이 하나도 없다) */
+export const NO_MOLTER = 'no-molter';
+
+/** 조건 코드 — 삭일 것이 없다 (NEST_FUNGUS · 거목균이 하나도 없다) */
+export const NO_DECOMPOSER = 'no-decomposer';
+
 /** 거절 사유 코드 — 무너진 자리라 지날 수 없다 (Play §5.4 의 코드 그대로) */
 export const BLOCK_COLLAPSED = 'collapsed';
 
@@ -440,6 +483,15 @@ export const FORM_CLUTCH_HUSK = 'clutch-husk';
 /** 뿌리 마디의 작은 껍질 — 계승이 낳은 것의 자리에 선다 */
 export const FORM_EGG_HUSK = 'egg-husk';
 
+/**
+ * **사체** — 둥지의 주인이 사냥해 두고 간 것 (C024 ADDED · Play §5.7 · Life §2.2).
+ *
+ * **새 Seed 가 아니다** — 광식충 허물(ORE_EATER_MOLT)의 일곱째 형태다 (A.1 "같은 것의 여러
+ * 순도" · 먹이 잔해 · 터진 껍질이 그런 그대로). 벗은 것도 터진 것도 아니라 **삭을 것**
+ * 이라는 것만 다르다: 이 자리에서 균류가 나므로 사슬의 시작이 여기다 (Concept §4).
+ */
+export const FORM_CARCASS = 'carcass';
+
 // 빙정석의 자연 형태 넷 (C020 ADDED · spec SPEC-001 · 기본형 ⑦).
 //
 // Design 은 사람이 읽을 이름만 준다 (서리 결정 · 결정면 · 결정 가루 · 언 사체 곁의 결정) —
@@ -507,6 +559,9 @@ export const MATERIAL_SEEDS: readonly MaterialSeed[] = [
       FORM_HUSK_SHARD,
       FORM_CLUTCH_HUSK,
       FORM_EGG_HUSK,
+      // C024 CHANGED — 일곱이다. 둥지의 사체도 **같은 Seed** 이고 순도만 다르다 (A.1) —
+      // 벗은 것 · 터진 것 곁에 **삭을 것**이 선다 (Play §5.7 · Life §2.2 "생명의 죽음과 사체")
+      FORM_CARCASS,
     ],
     // C029 ADDED — 성질 하나 (Access §9.2). "붉은 결이 있되 옅다" — 먹은 것의 빛이 남아 있다.
     // "마르면 부서진다" · "밑동 그늘에 모인다" 는 어휘 일곱 중 가리키는 관계가 없어 태그가 없다.
@@ -625,6 +680,16 @@ export const RECOVERY_NIGHT_BLOOM = 'night-bloom';
  * 이 멎게 한다), 그 자리를 다시 세우는 것은 그 탄생지가 한 번 더 터지는 일이다.
  */
 export const RECOVERY_NEXT_BIRTH = 'next-birth';
+
+/**
+ * **둥지의 주인이 다시 사냥한다** (NEST_CARCASS · C024 ADDED · Play §5.7 · A.2 회복 원인).
+ *
+ * 사체가 하나 삭아 없어지면 다음 사냥이 또 하나를 두고 간다 — 그것이 이 자리가 마르지 않는
+ * 까닭이다. **되돌리는 것은 지금 시간**이다: 그 사냥을 하는 포식수는 아직 세계에 서지 않았고
+ * (C025), 그래서 이 원인은 무엇을 전제하는지 아직 밝히지 않는다 — 밝히지 않은 것을 결손으로
+ * 세지 않는다 (검사 ㉛ 의 규율 · C018 이 지나간 자리의 원천에 한 그대로).
+ */
+export const RECOVERY_NEST_KILL = 'nest-kill';
 
 // 협곡의 되돌아옴 원인 넷 (C020 ADDED · A.2 회복 원인 · spec 데이터 값 표).
 //

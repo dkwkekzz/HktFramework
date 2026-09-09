@@ -22,7 +22,13 @@ import {
   POPULATION_DECLINE_CONDITION_LOST,
   RULE_FOREST_CLUTCH,
 } from './ecology';
-import { FORM_ROOT_CLUTCH, FORM_ROOT_EGGS, ORE_EATER, PRESENCE_ORE_EATER_SWARM } from './lives';
+import {
+  BIG_BIRD,
+  FORM_ROOT_CLUTCH,
+  FORM_ROOT_EGGS,
+  ORE_EATER,
+  PRESENCE_ORE_EATER_SWARM,
+} from './lives';
 import {
   BIO_ORE,
   FOREST_CHAIN,
@@ -619,8 +625,19 @@ export const RED_EYE_TREE_SPEC: RegionSpec = {
         id: ORE_EATER,
         // 이 방이 감당하는 수 (확정 6)
         scale: 4,
-        // 값이 내리는 세계 안의 원인 — 조건 결핍. 실제로 내리는 규칙은 C024 다
+        // 값이 내리는 세계 안의 원인 — 조건 결핍 (C024 CHANGED — 그 규칙이 이제 선다)
         declineCause: POPULATION_DECLINE_CONDITION_LOST,
+        // **이것이 차 있어야 산다** (C024 ADDED · spec R3 · SPEC-003 · 확정 6) —
+        // 먹을 것이 뿌리에 쌓여 있어야 광식충이 산다. 한 철 내내 한 번도 뿌리혹이 서지
+        // 않으면 철이 바뀔 때 값이 1 준다 (0 미만은 없다).
+        //
+        // **한 번이라도 찼으면 내리지 않는다** — 태어남이 뿌리혹을 잠깐 먹어 비는 것으로는
+        // 줄지 않는다 (그렇지 않으면 값이 결코 자라지 못한다 · spec 기본형 ②).
+        // 사슬을 끊는 길은 그래서 뿌리혹 하나가 아니라 **둥지의 균사까지**다: 균사를 캐
+        // 놓으면 뿌리혹의 되돌아옴이 멎어(recovery-stalled · C013) 한 철 내내 서지 못한다
+        declineWhen: [
+          { kind: 'source-available', sourceId: 'ROOT_NODULE', unmetCode: LIFE_NEEDS_MATERIAL },
+        ],
         // C023 ADDED — 떼가 이 방에 선다 (Play §5.3 ⑥ · V21). 관찰 결과에 실리는 것은
         // 이 코드와 지금 선 자락의 이름뿐이고, 값도 상한도 실리지 않는다
         presence: PRESENCE_ORE_EATER_SWARM,
@@ -631,6 +648,18 @@ export const RED_EYE_TREE_SPEC: RegionSpec = {
         birthDisturbance: 5,
       },
     ],
+    /**
+     * 이 방의 떼가 **거는** 관계 하나 (C025 ADDED · spec 데이터 값 표 · SPEC-001 · SPEC-005).
+     *
+     * **사슬의 첫 마디**다 — 광식충이 상한(4)의 절반, 곧 둘 이상인 채로 철이 바뀌면 숲 안쪽에
+     * 새가 든다. 값이 오르는 것은 **새가 사는 방**이고 이 방은 한 값도 달라지지 않는다
+     * (SPEC-005 경계 ③) — 그래서 거목의 방에서는 아무 일도 일어나지 않은 것처럼 보인다.
+     *
+     * 방을 넘으므로 이음을 밝힌다 — 그 이음이 실제로 두 방을 잇지 않으면 이 관계는 아무 일도
+     * 하지 않는다. 문 이름을 **글자로** 적는다: graph.ts 가 이 방을 부르고 있으므로
+     * 되부르면 순환이 난다 (다른 방들이 세운 어법 그대로).
+     */
+    links: [{ from: ORE_EATER, to: BIG_BIRD, kind: 'CALLS', via: 'TREE_APPROACH' }],
   },
   /**
    * 이 방이 철을 타는 방식 (RoomNeverSame 실주행 판정 ADDED).

@@ -318,6 +318,30 @@ const standingIn = (region: string, at?: XZ, extra: Setup = {}): WorldDriver =>
     }),
   );
 
+/**
+ * C024 CHANGED — 되돌아옴이 **살아 있는 것의 수**에 매인 원천이 생겼다 (허물 · C024 SPEC-001).
+ *
+ * 이 파일이 재는 것은 "되돌아옴의 길이가 원천마다 다르다" 이지 "누가 살아 있는가" 가 아니다.
+ * 그래서 그런 원천을 세울 때만 **배속이 1 이 되는 값**에 개체군을 함께 세워 둔다 — 그 값에서
+ * 아래의 초는 C013 이 적은 그대로이고 한 줄도 고칠 것이 없다.
+ * 값이 0 이면 되돌아옴이 아예 멎는다는 것은 C024 시나리오가 따로 잰다.
+ */
+/** 배속이 1 이 되는 값 — 이 값에서 허물의 길이는 C013 이 적은 초 그대로다 */
+const ORE_EATER_UNIT = 2;
+/** 상한 — 값을 올릴 수 없으므로 **태어남이 한 번도 서지 않는다** (C023 SPEC-005 경계) */
+const ORE_EATER_FULL = 4;
+
+/**
+ * 그 원천을 재는 세계의 개체군.
+ *
+ * 허물은 자기 배속이 걸린 당사자이므로 **1 이 되는 값**에 세우고, 나머지 셋은 **상한**에
+ * 세운다 — 상한에서는 알집도 알도 서지 않아 뿌리혹과 균사가 태어남에 먹히지 않고,
+ * 그래서 매달린 사슬(노두 ← 뿌리혹 ← 균사)의 길이가 C013 이 잰 그대로 남는다.
+ */
+const baselineFor = (id: string): Record<string, number> => ({
+  ORE_EATER: id === MOLT_LITTER ? ORE_EATER_UNIT : ORE_EATER_FULL,
+});
+
 /** 그 자리의 손 닿는 곳 — InteractionRange 안이다 (좌표를 적지 않고 한 걸음 옆으로 선다) */
 const besideSpot = (at: XZ): XZ => ({ x: at.x + INTERACTION_RANGE / 2, z: at.z });
 
@@ -497,7 +521,10 @@ describe('SPEC-001 고갈된 원천이 세계의 과정으로 되돌아온다', 
   it('S-012 (경계) 임계에 이르기 전에는 available 이 아니다 — 미리 돌아오지 않는다', () => {
     for (const one of FOUR) {
       // Given 그 원천만 고갈된 세계 (매달린 것은 available 이므로 진행이 멎지 않는다)
-      const world = standingIn(one.region, undefined, { sourcePhases: { [one.id]: DEPLETED } });
+      const world = standingIn(one.region, undefined, {
+        sourcePhases: { [one.id]: DEPLETED },
+        populations: baselineFor(one.id),
+      });
       const full = recoveryOf(one.id);
       // When 임계 직전까지 진행시킨다
       wait(world, full - 1);
@@ -532,7 +559,10 @@ describe('SPEC-002 되돌아옴의 길이는 원천마다 다르다', () => {
     // Given 넷이 모두 고갈된 세계
     const phases: Record<string, string> = {};
     for (const one of FOUR) phases[one.id] = DEPLETED;
-    const world = standingIn(FOREST_EDGE, undefined, { sourcePhases: phases });
+    const world = standingIn(FOREST_EDGE, undefined, {
+      sourcePhases: phases,
+      populations: baselineFor(MOLT_LITTER),
+    });
 
     // When 짧은 것부터 차례로 그 길이만큼 진행시킨다
     const order = [...independent].sort((a, b) => recoveryOf(a.id) - recoveryOf(b.id));
@@ -602,6 +632,7 @@ describe('SPEC-003 되돌아오는 중이 눈에 보인다', () => {
     const world = standingIn(oneOf(id).region, undefined, {
       ...extra,
       sourcePhases: { [id]: DEPLETED },
+      populations: baselineFor(id),
     });
     wait(world, visibleAt(id));
     return world;
@@ -623,7 +654,10 @@ describe('SPEC-003 되돌아오는 중이 눈에 보인다', () => {
 
   it('S-032 (경계) 절반에 이르기 전에는 아직 depleted 다 — 보이기 시작하는 때가 있다', () => {
     for (const one of FOUR) {
-      const world = standingIn(one.region, undefined, { sourcePhases: { [one.id]: DEPLETED } });
+      const world = standingIn(one.region, undefined, {
+        sourcePhases: { [one.id]: DEPLETED },
+        populations: baselineFor(one.id),
+      });
       wait(world, visibleAt(one.id) - 1);
       expect({ id: one.id, phase: phaseOf(world, one.id).phase }).toEqual({
         id: one.id,

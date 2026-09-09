@@ -715,20 +715,24 @@ describe('S-020 (SPEC-008 경계) — 막다른 방 셋에는 남의 몸이 없�
   // 하나씩 서 있기 때문이다 (RoomBearsMaterial A.3 — 경계부 하나 · 핵심부 하나).
   // 이 경계가 원래 묻던 것은 **다른 방의 것이 새어 오지 않는가** 이고 그것은 그대로다.
   it('셋 다 관찰자 자신 + 출구 + 그 방이 낳는 원천뿐이다', () => {
-    for (const [region, exitCount, sourceCount] of [
+    for (const [region, exitCount, sourceCount, lifeCount] of [
       // C014 CHANGED — 둥지도 이제 자기 원천 하나를 낳는다 (사슬의 부산물)
       // RoomBearsMaterial 실주행 판정 CHANGED — 흩어진 것들이 늘었다. 둥지의 빛 갓 둘은 밤에만 서므로
       // 세계가 서는 낮에는 넷 중 둘만 실린다
-      [EXPLORER_RUIN, 1, 4],
-      [PREDATOR_NEST, 1, 2],
-      [BIO_ORE_FIELD, 2, 5],
+      // C024 CHANGED — 둥지에 둘이 늘었다: 사체(원천)와 그 위의 변성지(탄생지).
+      // 이 경계가 묻는 것은 여전히 **다른 방의 것이 새어 오지 않는가** 이므로,
+      // 그 방이 낳는 것이 무엇이든 그 셋만으로 목록이 채워지는지를 그대로 잰다
+      [EXPLORER_RUIN, 1, 4, 0],
+      [PREDATOR_NEST, 1, 3, 1],
+      [BIO_ORE_FIELD, 2, 5, 0],
     ] as const) {
       const v = rooms()[region]!;
       expect(v.scene).toBe(region);
       expect(rolesOf(v, 'player-character').map((e) => e.id)).toEqual([PLAYER]);
       expect(exits(v).length).toBe(exitCount);
       expect(rolesOf(v, 'resource-source').length).toBe(sourceCount);
-      expect(v.entities.length).toBe(1 + exitCount + sourceCount);
+      expect(rolesOf(v, 'life-site').length).toBe(lifeCount);
+      expect(v.entities.length).toBe(1 + exitCount + sourceCount + lifeCount);
       expect(rolesOf(v, 'npc-character').length).toBe(0);
       expect(rolesOf(v, 'other-player-character').length).toBe(0);
       expect(hud(v, 'region.depth')).toBe('wild');

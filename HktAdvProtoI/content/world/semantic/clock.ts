@@ -31,6 +31,9 @@ export const STILL_SECONDS = STILL_DAYS * DAY_TOTAL_SECONDS; // 1080
 export const SEEP_SECONDS = SEEP_DAYS * DAY_TOTAL_SECONDS; // 720
 export const LONG_NIGHT_SECONDS = LONG_NIGHT_DAYS * DAY_TOTAL_SECONDS; // 360
 
+/** 한 바퀴 안의 철의 수 — 넷이 순서대로 한 번씩 온다 (C024 ADDED · seasonsStartedAt 이 읽는다) */
+export const SEASONS_PER_CYCLE = 4;
+
 // 한 바퀴 2220 초 · 그 안에서 시작되는 하루 6 개 (고요 3 + 스밈 2 + 긴 밤 1)
 export const CYCLE_SECONDS = STILL_SECONDS + SEEP_SECONDS + LONG_NIGHT_SECONDS + TURN_SECONDS;
 export const CYCLE_DAYS = STILL_DAYS + SEEP_DAYS + LONG_NIGHT_DAYS;
@@ -137,6 +140,26 @@ export function worldClockAt(time: number): WorldClockView {
 export function turnsStartedAt(time: number): number {
   const { season, seasonCycle } = worldClockAt(time);
   return seasonCycle + (season === 'TURN' ? 1 : 0);
+}
+
+/**
+ * RULE-POPULATION-DECLINE-001 (C024 ADDED · spec R3) — 세계가 선 뒤 지금까지 **바뀐** 철의 수.
+ *
+ * 뒤척임의 수(turnsStartedAt)와 **같은 갈래**다: 세계 시각에서 유도되고 저장되지 않으며,
+ * 저장되는 것은 "그 가운데 몇 번을 적용했는가" 하나뿐이다 (World.seasonsApplied).
+ * 값이 내리는 것은 **사건**이라 세계가 그것만은 기억해야 하기 때문이다 — 시각만으로 두면
+ * 큰 걸음이 철을 건너뛰고, "언제 마지막으로" 로 두면 되살린 세계가 다시 내린다 (경계 ⑤ ⑥).
+ *
+ * **세계가 처음 선 그 철은 세지 않는다** — 그 철은 세계와 함께 시작했으므로 **바뀐** 적이
+ * 없다. 그래서 t = 0 에서 0 이고, 철이 한 번 바뀔 때마다 하나 오른다: 한 바퀴에 네 철이
+ * 반드시 한 번씩 오므로(SPEC-002 경계 ②) 지나온 바퀴에 이번 바퀴의 자리를 얹으면 된다.
+ *
+ * 철 이름을 아는 자리는 이 파일 하나다 (T4) — 세계 과정은 여기가 낸 **수**만 읽는다.
+ */
+export function seasonsStartedAt(time: number): number {
+  const { season, seasonCycle } = worldClockAt(time);
+  const within = season === 'STILL' ? 0 : season === 'SEEP' ? 1 : season === 'LONG_NIGHT' ? 2 : 3;
+  return seasonCycle * SEASONS_PER_CYCLE + within;
 }
 
 /**

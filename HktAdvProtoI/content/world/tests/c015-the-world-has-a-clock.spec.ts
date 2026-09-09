@@ -38,6 +38,7 @@ import {
   regionSpec,
   type ResourceSourceSpec,
   ORE_EATER,
+  TREE_FUNGUS,
 } from '../../regions';
 // C008 이 세운 미로의 이름들 — 그 파일이 소유한다 (c008 ~ c014 시나리오의 선례 그대로).
 import { CELL_LAYER, FANTASY_MAZE, PASSAGE_LAYER } from '../../regions/fantasy-maze';
@@ -133,7 +134,14 @@ const MINE_SECONDS = 1.2;
  * (값을 올릴 수 없는 전이는 일어나지 않는다) 서지 않는다. 손잡이는 값을 상한으로 자르므로
  * 큰 수 하나면 된다. 재료 계통의 규칙은 한 줄도 달라지지 않는다.
  */
-const solo: WorldSetup = { npcs: [], populations: { [ORE_EATER]: 99 } };
+const solo: WorldSetup = {
+  npcs: [],
+  // C024 CHANGED — **거목균도 가득 채운다.** 둥지의 사체가 균류로 바뀌는 변성(C024 SPEC-006)은
+  // 낮밤이 아니라 세계 시각이 하는 일이고, 그것이 태어나고 머무는 동안 그 방의 자락이
+  // 한 단계씩 달라진다 (전조는 옅어지고 뒤의 것이 선다). 어귀의 퇴적 · 지나가는 것과
+  // 정확히 같은 갈래의 섞임이므로, 광식충과 같은 어법으로 상한에 세워 서지 않게 한다.
+  populations: { [ORE_EATER]: 99, [TREE_FUNGUS]: 99 },
+};
 
 // ── 하네스 (c010 · c013 · c014 의 선례 그대로) ───────────────────────
 
@@ -905,7 +913,11 @@ describe('SPEC-006 때는 껐다 켜도 이어진다', () => {
     expect(restoreWorld(snapshot)).not.toBeNull();
     // And 스냅샷 어디에도 때는 적혀 있지 않다 — 세계 시각에서 나오기 때문이다
     const written = JSON.stringify(snapshot.state);
-    for (const word of ['dayPhase', 'season', 'dayIndex', 'seasonCycle', LONG_NIGHT, TURN]) {
+    // C024 CHANGED — 'season' 이 아니라 **열쇠 `"season"`** 을 찾는다. 세계가 지금까지
+    // **적용한 철의 수**(seasonsApplied)를 들기 시작했기 때문이다 — C016 의 turnsApplied 와
+    // 같은 갈래의 사건 수이지 때가 아니다. 주장은 한 톨도 깎이지 않는다: 시계가 저장된다면
+    // 그것은 `"season"` 이라는 열쇠로 적힐 것이고, 아래는 그것이 없음을 그대로 잰다.
+    for (const word of ['dayPhase', '"season"', 'dayIndex', 'seasonCycle', LONG_NIGHT, TURN]) {
       expect({ word, written: written.includes(word) }).toEqual({ word, written: false });
     }
   });
@@ -1001,20 +1013,27 @@ describe('SPEC-009 밤에는 흔적이 또렷해진다', () => {
     // C018 CHANGED — 긴 밤에는 **눈 없는 것**이 지나고, 그것이 지나간 뒤 남긴 것이 그 자리의
     // 둘레를 바꾼다. 그래서 긴 밤의 표본을 그것이 **아직 지나는 중**인 자리로 옮긴다 —
     // 위의 낮 기준과 같은 이유다 (재는 것은 낮밤이지 세계 시각이 아니다)
-    for (const target of [MIDNIGHT, LONG_NIGHT_AT + 10]) {
-      runTo(world, target, 1);
-      expect({ target, traces: tracesNow() }).toEqual({ target, traces: day });
-    }
-    // C016 CHANGED — 뒤척임에는 **세계가 뒤척여** 자국이 묻히고 원천이 자리를 옮긴다
-    // (C016 spec R8). 그것은 낮밤이 하는 일이 아니므로 고요의 낮과 견줄 수 없다.
-    // 이 검사가 재는 것(흔적의 세기가 낮과 밤에 같은가)은 지워지지 않고 **뒤척임을 지난
-    // 뒤의 낮과 밤**으로 옮겨 잰다 — 그 사이에는 뒤척임이 다시 오지 않는다.
-    runTo(world, TURN_AT + 10, 1);
-    expect(clockOf(world).dayPhase).toBe(DAY);
-    const afterTurn = tracesNow();
-    runTo(world, CYCLE_LENGTH + MIDNIGHT, 1);
+    // C025 CHANGED — **견주는 두 자리를 한 철 안에 둔다.**
+    //
+    // 지금까지 이 검사는 철을 건너 낮과 밤을 견줬고, 그때마다 철 너머의 세계 시각이 하는
+    // 일(어귀의 퇴적 · 지나가는 것 · 뒤척임)을 하나씩 피해 왔다. C025 부터 그 피함이
+    // 성립하지 않는다 — **관계가 철마다 세계를 움직인다**: 새와 포식수가 서고, 포식수가
+    // 둥지에 사체를 세우고, 그 사체가 전조의 자락을 드러내며, 값이 오르내려 탄생이 다시
+    // 돈다. 철 하나만 건너도 흔적이 달라지므로 철을 건넌 두 자리는 이제 견줄 수 없다.
+    //
+    // 재는 것(흔적의 세기가 **낮과 밤**에 같은가)은 한 톨도 깎이지 않는다 — 고요는 사흘이라
+    // 그 안에 낮과 밤이 두 벌 들어 있고, 그 두 벌로 잰다. 철을 건너 견주는 자리는 손잡이가
+    // 없어 세울 수 없다 (§5 공학 부채).
+    runTo(world, MIDNIGHT, 1);
     expect(clockOf(world).dayPhase).toBe(NIGHT);
-    expect(tracesNow()).toEqual(afterTurn);
+    expect({ target: MIDNIGHT, traces: tracesNow() }).toEqual({ target: MIDNIGHT, traces: day });
+    // 같은 철의 **이튿날** — 낮과 밤을 한 벌 더 견준다
+    runTo(world, DAY_LENGTH + DAY_SECONDS - 20, 1);
+    expect(clockOf(world).dayPhase).toBe(DAY);
+    const secondDay = tracesNow();
+    runTo(world, DAY_LENGTH + MIDNIGHT, 1);
+    expect(clockOf(world).dayPhase).toBe(NIGHT);
+    expect(tracesNow()).toEqual(secondDay);
   });
 
   it('S-092 (경계 ②) 흔적이 없는 방은 밤에도 아무것도 서지 않는다', () => {
