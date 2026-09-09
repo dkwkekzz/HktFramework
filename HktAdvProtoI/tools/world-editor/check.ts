@@ -55,6 +55,8 @@ import {
   type CheckLifeFormation,
   type CheckLifePopulation,
   type CheckLifeRecovery,
+  type CheckMemory,
+  type CheckMemoryRegion,
   type CheckRegion,
   type CheckRegionsInput,
   type CheckReport,
@@ -62,6 +64,12 @@ import {
   type CheckTimePhase,
   type CheckTimeRoute,
 } from '../../engine/world-authoring/check';
+// 수명 표는 세계가 소유한다 (content/world/semantic/persistence.ts) — 이 도구는 그것을
+// 형만 바꿔 건넬 뿐이고, 표에서 빠진 State 필드를 잡는 것은 검사가 아니라 그쪽의 형이다.
+import {
+  ERASERS,
+  PERSISTENCE_TABLE,
+} from '../../content/world/semantic/persistence';
 import { compileRegion } from '../../engine/world-authoring/compile';
 
 // hazard · phenomenon 은 **이 세계에 아직 없어** 상수도 없다 (컨텐츠 층 주입의 것).
@@ -434,6 +442,32 @@ export const WORLD_CHECK_ACCESS: CheckAccess = {
   ),
 };
 
+// ── 기억 쪽 계약 (C034 ADDED — 검사 ㊸ ㊼ 가 이것을 읽는다) ──────────
+//
+// 계통(WORLD_CHECK_ECOLOGY) · 시간(WORLD_CHECK_TIME)과 **같은 어법**이다 — 여기서 판정하는
+// 것이 하나도 없고 데이터를 형만 바꿔 옮긴다. 기반은 이 세계의 원천도 경로도 알지 못하고,
+// State 에 어떤 필드가 있는지도 알지 못한다 (그것은 형이지 데이터가 아니다).
+
+/** 이 세계의 기억 쪽 계약 — 방마다 셀 수 있는 열쇠들 · State 경로마다 지우는 손 */
+export const WORLD_CHECK_MEMORY: CheckMemory = {
+  // 방 차례 · 그 방 데이터 차례 · 경로 데이터 차례로 편다 (결정론)
+  regions: REGION_SPECS.map(
+    (spec): CheckMemoryRegion => ({
+      id: spec.id,
+      // 그 방의 원천 — 캔 적 있는 것만 실제로 셈을 가지지만, 열쇠가 될 수 있는 것은 이 전부다
+      sources: (spec.resourceEcology?.sources ?? []).map((source) => source.id),
+      // 그 방을 지나는 경로 — 마디의 후보에 그 방이 한 번이라도 든 경로들이다.
+      // 휨(bend)은 후보 가운데 하나를 고르는 것이므로, 후보에 든 방은 지날 수 있는 방이다
+      routes: presenceRoutes
+        .filter((route) => route.nodes.some((node) => node.some((it) => it.region === spec.id)))
+        .map((route) => route.id),
+    }),
+  ),
+  // 수명 표 — 세계가 소유한 그 표를 줄마다 그대로 옮긴다 (여기서 짓는 줄이 하나도 없다)
+  persistence: PERSISTENCE_TABLE.map((row) => ({ path: row.path, eraser: row.eraser })),
+  erasers: [...ERASERS],
+};
+
 /**
  * 컨텐츠의 RegionSpec → 검사가 보는 방. `coreRules` 는 이 세계의 세는 법이다 —
  * 지금 한 방은 규칙을 하나까지 품는다 (RegionSpec.rule 하나). 그 형이 늘면 이 줄이 늘어난다.
@@ -462,6 +496,7 @@ export function worldCheckInput(): CheckRegionsInput {
     time: WORLD_CHECK_TIME,
     life: WORLD_CHECK_LIFE,
     access: WORLD_CHECK_ACCESS,
+    memory: WORLD_CHECK_MEMORY,
   };
 }
 

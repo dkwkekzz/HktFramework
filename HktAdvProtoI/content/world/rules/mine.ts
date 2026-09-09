@@ -10,13 +10,16 @@
 //                                  not-a-source — C022 ADDED: 지목한 것이 탄생지다)
 //
 // RULE-MINE-COMPLETE-001 — Implements INTENT-MINING-001 · INTENT-ACTION-PROGRESS-001
-//                           (C013 CHANGED · C017 CHANGED — 캔 것이 그 방의 소란이 된다)
+//                           (C013 CHANGED · C017 CHANGED — 캔 것이 그 방의 소란이 된다 ·
+//                            C034 CHANGED — 캔 것을 그 방이 **센다**)
 // Input          채굴 행동이 Duration 을 채운 Actor
 // Preconditions  대상 원천을 세계가 알고 그 phase 가 available
 // Transition     Inventory.Items[그 원천의 materialId] += 1 · sources[id].taken += 1 ·
 //                taken 이 harvests 에 이르면 phase = depleted ·
 //                그 원천이 무너지는 것이면 collapsedSites 에 **지금 마디**를 더한다 (C013 ADDED) ·
-//                그 방의 소란 += DISTURBANCE_PER_HARVEST (C017 ADDED · RULE-DISTURBANCE-001)
+//                그 방의 소란 += DISTURBANCE_PER_HARVEST (C017 ADDED · RULE-DISTURBANCE-001) ·
+//                그 방의 기억에 takenTotal += 1, 고갈로 이어졌으면 depletedTimes += 1 과
+//                lastDepletedAt = 지금 (C034 ADDED · RULE-REGION-MEMORY-001)
 // Result         Success | Failure(unknown-source | source-depleted)
 //
 // **캐는 것은 세계를 바꾸는 것이다** (C012). 원천마다 캘 수 있는 횟수가 있고(D4), 다 캐면
@@ -39,7 +42,12 @@ import {
   type ResourceSource,
 } from '../semantic/resource';
 import { NOT_A_SOURCE, findLifeSite } from '../semantic/life';
-import { addDisturbance, depleteSourceState, regionStateOf } from '../semantic/region-state';
+import {
+  addDisturbance,
+  depleteSourceState,
+  regionStateOf,
+  remember,
+} from '../semantic/region-state';
 import { NOT_THIS_HOUR, isSeasonListed } from '../semantic/region-phase';
 import {
   DISTURBANCE_PER_HARVEST,
@@ -163,6 +171,16 @@ export function ruleMineComplete(state: WorldState, actor: ActorState): ActionRe
 
   // 캔 자국 — 마지막 한 번까지는 available 이다 (SPEC-001 경계: 미리 고갈되지 않는다).
   sourceState.taken += 1;
+  // RULE-REGION-MEMORY-001 (C034 ADDED · spec R2) — **캐면 그 방이 센다.**
+  // taken 이 오르는 그 자리다: 캐지 못한 요청(거절 · 중단)은 여기 오지 않으므로 세지 않는
+  // 것이 저절로 된다 (spec R2 경계 ① · 기본형 ④). taken 은 되돌아오면 0 이 되지만 이 셈은
+  // 남는다 — 그것이 이 세계에서 처음으로 지워지지 않는 것이다 (SPEC-002).
+  // 세는 일은 그 한 자리가 한다 (semantic/region-state.ts 의 remember) — **누가 캤는지는
+  // 넘기지 않는다** (spec R1 경계 ②).
+  remember(state.regionStates, source.regionId, state.time, {
+    kind: 'taken',
+    sourceId: source.id,
+  });
   if (sourceState.taken >= source.harvests) {
     // C013 ADDED — 고갈되는 순간 **그 마디**가 무너진다 (spec R6). 원천이 나중에 다음 마디로
     // 옮겨 가도 이 자리는 무너진 채 남는다 — 무너짐은 원천이 아니라 자리가 기억한다.
@@ -175,6 +193,13 @@ export function ruleMineComplete(state: WorldState, actor: ActorState): ActionRe
     // 캔 것과 먹힌 것의 State 가 **글자 하나 다르지 않아야** 하기 때문이다 — 여기서 하던
     // 일(캔 횟수 · phase · 되돌아옴 진행 · 무너진 마디)이 한 값도 달라지지 않고 그리로 갔다.
     depleteSourceState(source, sourceState);
+    // RULE-REGION-MEMORY-001 (C034 ADDED · spec R2) — 그 채취가 **고갈로 이어졌으면** 그것도
+    // 센다. 고갈은 캐인 것과 다른 사건이므로 셈도 따로다 (한 번에 둘이 오른다 · SPEC-002 ②).
+    // 시각을 여기서 짓지 않는다 — 지금 세계 시각을 넘기고 적는 것은 그 한 자리가 한다.
+    remember(state.regionStates, source.regionId, state.time, {
+      kind: 'depleted',
+      sourceId: source.id,
+    });
   }
 
   // RULE-DISTURBANCE-001 (C017 ADDED · spec R1 · R11) — **캔 것이 그 방의 소란이 된다.**

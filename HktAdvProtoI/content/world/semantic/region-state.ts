@@ -17,6 +17,11 @@
 // 무관하게 어느 방에나 있는 값이기 때문이다 (Time §2.5). 그래서 지금까지 State 자체가 없던
 // 방(백왕령)에도 State 가 생긴다. 자국은 있을 때만 자리를 가진다 (하나도 없으면 자리가 없다).
 //
+// C034 CHANGED — 방 하나가 **자기에게 일어난 일을 센다** (RegionState.history). 소란과 같은
+// 어법으로 **모든 방에 선다** (물음표가 없다 · spec 기본형 ⑥) — 어느 방에나 있는 값이기
+// 때문이다. 다른 것은 하나다: 이 셈은 **지워지지 않는다** (spec State 의 수명 표 · G7 의
+// 다섯째 칸). 되돌아옴이 taken 을 0 으로 되돌려도, 뒤척임이 자국을 묻어도 셈은 그대로다.
+//
 // C012 CHANGED — 방 하나의 State 가 규칙과 원천을 **함께** 든다 (RegionState). 규칙은 통로의
 // 열림/닫힘을 들고, 원천은 "몇 번 캤고 고갈되었는가" 를 든다. 둘 다 세계가 겪은 일의 결과이므로
 // 저장되고, 둘 다 **없는 방에는 자리 자체가 없다** — 규칙 없는 방에 rule 을, 원천 없는 방에
@@ -157,7 +162,57 @@ export interface PopulationState {
 }
 
 /**
- * 방 하나가 기억하는 것 (C012 CHANGED · C017 CHANGED) — 규칙 · 원천 · 소란 · 자국을 함께 든다.
+ * 그 **원천**에 일어난 일의 셈 (C034 ADDED · spec State · D4).
+ *
+ * `ResourceSourceState.taken` 과 갈리는 자리다 — 저것은 "지금 몇 번 캤는가" 라 되돌아오면
+ * 0 이 되고, 이것은 "여태 몇 번 캐였는가" 라 **아무것도 지우지 못한다**.
+ *
+ * 나이를 들지 않고 시각을 드는 것은 Track.at · RegionRuleState.rearrangedAt 의 선례
+ * 그대로다 — **나이는 관찰자가 잰다**. 누가 캤는지는 여기 없다 (spec World Change 4).
+ */
+export interface SourceMemory {
+  /** 캐인 횟수 누계 — 상한이 없다 (spec 기본형 ⑦) */
+  takenTotal: number;
+  /** 고갈된 횟수 — 캐서든 먹혀서든 다 캐진 그 순간마다 하나 */
+  depletedTimes: number;
+  /** 마지막 고갈의 세계 시각. 한 번도 고갈된 적 없으면 자리가 없다 */
+  lastDepletedAt?: number;
+}
+
+/**
+ * 횟수와 마지막 시각 하나 (C034 ADDED) — 깨어남과 지나감이 같은 형을 쓴다.
+ *
+ * 한 번도 없었으면 `times` 가 0 이고 시각의 자리가 없다 — "한 번도 없었다" 는 저장된 표시가
+ * 아니라 그 둘에서 읽는 것이다 (spec State 유도되는 것).
+ */
+export interface MemoryCount {
+  times: number;
+  lastAt?: number;
+}
+
+/**
+ * 방 하나에 일어난 일의 셈 — **기억** (C034 ADDED · spec State · Foundation §4.3).
+ *
+ * **누가 했는지는 세지 않는다** (spec World Change 4 · T2.7) — 관찰자의 이름도 수도 여기
+ * 없고, 셈을 올리는 자리도 몸을 넘겨받지 않는다. 방이 세는 것은 **우리**가 한 일이다.
+ *
+ * **판정하지 않는다** — 이 Cycle 에서 이 값을 읽는 규칙은 하나도 없다 (spec R1 경계 ④).
+ * 자리가 있는 것과 값이 찬 것이 다르다: 아무 일도 없던 방의 기억은 비어 있다 (SPEC-001 ③).
+ */
+export interface RegionMemory {
+  /** 그 방의 원천마다 (원천 id → 셈) — **캔 적 있는 원천만** 자리를 가진다 */
+  sources: Record<string, SourceMemory>;
+  /** 이 방이 겪은 뒤척임의 수 — 뒤척임은 세계의 순간이므로 모든 방이 함께 센다 (spec R3 ②) */
+  turns: number;
+  /** 이 방이 깨어난 횟수와 마지막 시각 — 잠듦 → 깨어남의 **전이**만 센다 (spec R4) */
+  awakenings: MemoryCount;
+  /** 지나간 것마다 (경로 id → 셈) — **지난 적 있는 경로만** 자리를 가진다 (spec SPEC-004 ③) */
+  passages: Record<string, MemoryCount>;
+}
+
+/**
+ * 방 하나가 기억하는 것 (C012 CHANGED · C017 CHANGED · C034 CHANGED) —
+ * 규칙 · 원천 · 소란 · 자국 · 기억을 함께 든다.
  *
  * 규칙과 원천과 자국은 있을 때만 자리를 가진다 — 규칙 없는 방의 rule 도 원천 없는 방의
  * sources 도 자국 없는 방의 tracks 도 지어내지 않는다.
@@ -181,6 +236,13 @@ export interface RegionState {
   lifeSites?: Record<string, LifeSiteState>;
   /** 그 방의 개체군들의 지금 (개체군 id → State) — 개체군 없는 방에는 없다 (C022 ADDED) */
   populations?: Record<string, PopulationState>;
+  /**
+   * 그 방의 **기억** — **모든 방에 있다** (C034 ADDED · 소란과 같은 어법 · 물음표가 없다).
+   *
+   * 갈리는 이유는 소란의 그것과 같다: 무엇을 품었는지와 무관하게 어느 방에나 있는 값이다.
+   * 그리고 **아무것도 이것을 지우지 못한다** (spec State 수명 표) — 되돌아옴도 뒤척임도.
+   */
+  history: RegionMemory;
 }
 
 /** 아직 아무 일도 겪지 않은 방의 소란 — 값 0 · 잠듦 (C017 ADDED) */
@@ -189,17 +251,107 @@ export function initialDisturbanceState(): RegionDisturbanceState {
 }
 
 /**
+ * 아직 아무 일도 겪지 않은 방의 기억 — 셈 0 · 시각 없음 · 키 없음 (C034 ADDED).
+ *
+ * **짓는 자리는 하나다** (initialDisturbanceState 의 선례) — 두 벌로 만들면 기억 없는
+ * State 가 생겨 형이 거짓말을 한다. 원천과 경로의 자리는 **여기서 짓지 않는다**:
+ * 한 번도 캔 적 없는 원천 · 한 번도 지난 적 없는 경로에는 자리가 없는 것이 그 사실이고,
+ * 자리를 미리 깔면 "아무 일도 없었다" 와 "0 번 일어났다" 가 갈리지 않는다 (SPEC-001 ③).
+ */
+export function initialMemory(): RegionMemory {
+  return { sources: {}, turns: 0, awakenings: { times: 0 }, passages: {} };
+}
+
+/**
  * 그 방의 State — 없으면 **여기서 세운다** (C017 ADDED).
  *
  * 소란이 모든 방에 서므로 "State 가 없는 방" 은 이제 되살린 옛 세계나 데이터에 없는 방뿐이다.
  * 그런 자리에서도 규칙이 소란을 올리거나 자국을 남길 수 있어야 하므로, State 를 짓는 자리를
  * 하나로 둔다 — 두 벌로 만들면 소란이 없는 State 가 생겨 형이 거짓말을 한다.
+ *
+ * C034 CHANGED — **빈 기억도 함께 짓는다.** 기억도 모든 방에 서므로 같은 이유로 여기가
+ * 그 자리다 (짓는 자리는 하나다).
  */
 export function regionStateOf(
   regionStates: Record<string, RegionState>,
   regionId: string,
 ): RegionState {
-  return (regionStates[regionId] ??= { disturbance: initialDisturbanceState() });
+  return (regionStates[regionId] ??= {
+    disturbance: initialDisturbanceState(),
+    history: initialMemory(),
+  });
+}
+
+/**
+ * 셀 만한 일 하나 — 다섯뿐이다 (C034 ADDED · spec World Change 3 · W54).
+ *
+ * **누가 했는지가 없다** (spec R1 경계 ②) — 몸을 넘겨주는 자리 자체를 두지 않았다.
+ * 어느 방인지는 이 값이 아니라 부르는 쪽이 말한다 (addDisturbance 가 그런 그대로).
+ */
+export type MemoryEvent =
+  | { kind: 'taken'; sourceId: string }
+  | { kind: 'depleted'; sourceId: string }
+  | { kind: 'turn' }
+  | { kind: 'awakening' }
+  | { kind: 'passage'; routeId: string };
+
+/**
+ * RULE-REGION-MEMORY-001 (C034 ADDED · spec R1) — **일어난 일이 그 방의 셈이 된다**.
+ *
+ * 올리는 자리는 다섯(채취의 완료 · 고갈 · 뒤척임 · 깨어남 · 경로 통과)이지만 **올리는 일은
+ * 여기 하나**가 한다 — 다섯 자리에서 각자 세면 자리 없던 키를 내는 법도 시각을 적는 법도
+ * 다섯 벌이 되어 방이 여러 말을 한다 (addDisturbance 가 소란에 대해 하는 그 자리다).
+ *
+ * **조건이 없다** (spec R1 경계 ①) — 관찰자가 있는지도, 어느 철인지도, 어느 방인지도 묻지
+ * 않는다. 뒤척임 · 깨어남 · 지나감은 아무도 보고 있지 않아도 도는 것이고, 방이 세는 것은
+ * 본 사람이 아니라 **일어난 일**이다.
+ *
+ * **아무것도 판정하지 않는다** (경계 ④) — 이 셈을 읽는 규칙은 이 Cycle 에 하나도 없다.
+ * 상한도 두지 않고(기본형 ⑦), 오래된 것을 버리지도 않는다.
+ *
+ * 자리가 없던 키는 **그 순간 난다** (경계 ③) — 한 번도 캔 적 없는 원천 · 한 번도 지난 적
+ * 없는 경로에 자리가 없다는 것이 그 사실이므로, 미리 깔지 않고 일이 일어날 때 낸다.
+ */
+export function remember(
+  regionStates: Record<string, RegionState>,
+  regionId: string,
+  at: number,
+  event: MemoryEvent,
+): void {
+  const history = regionStateOf(regionStates, regionId).history;
+  switch (event.kind) {
+    case 'taken': {
+      memoryOfSource(history, event.sourceId).takenTotal += 1;
+      return;
+    }
+    case 'depleted': {
+      const source = memoryOfSource(history, event.sourceId);
+      source.depletedTimes += 1;
+      source.lastDepletedAt = at;
+      return;
+    }
+    case 'turn': {
+      // 시각을 적지 않는다 — 뒤척임은 세계의 순간이고 "언제 뒤척였는가" 는 시계가 답한다.
+      history.turns += 1;
+      return;
+    }
+    case 'awakening': {
+      history.awakenings.times += 1;
+      history.awakenings.lastAt = at;
+      return;
+    }
+    case 'passage': {
+      const passage = (history.passages[event.routeId] ??= { times: 0 });
+      passage.times += 1;
+      passage.lastAt = at;
+      return;
+    }
+  }
+}
+
+/** 그 원천의 셈 — 없으면 그 순간 난다 (아직 아무 일도 없던 원천은 자리가 없다) */
+function memoryOfSource(history: RegionMemory, sourceId: string): SourceMemory {
+  return (history.sources[sourceId] ??= { takenTotal: 0, depletedTimes: 0 });
 }
 
 /**
@@ -329,7 +481,11 @@ export function createRegionStates(): Record<string, RegionState> {
   const states: Record<string, RegionState> = {};
   for (const spec of REGION_SPECS) {
     // 소란은 모든 방에 선다 — 값 0 · 잠듦 (C017 CHANGED).
-    const state: RegionState = { disturbance: initialDisturbanceState() };
+    // C034 CHANGED — 기억도 그렇다: 빈 기억이 함께 선다 (셈 0 · 시각 없음 · 키 없음).
+    const state: RegionState = {
+      disturbance: initialDisturbanceState(),
+      history: initialMemory(),
+    };
 
     const first = spec.rule?.patterns[0];
     if (first) state.rule = { pattern: first.name, pressure: 0 };

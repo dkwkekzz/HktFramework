@@ -9,6 +9,7 @@
 //                요구가 모자라면 → DORMANT · **진행은 그 자리에 멎는다** (지워지지 않는다)
 //                요구가 다 차면 → BINDING · progress += dt / 결속의 길이 (1 을 넘지 않는다)
 //                진행이 다 차고 값이 상한보다 작으면 → **한 Tick 에 다섯**
+//                  (C034 CHANGED — ② 의 고갈은 그 방의 기억에도 한 번으로 센다)
 //                  ① phase = BORN · 진행 0  ② 밝힌 소비 원천이 고갈된다
 //                  ③ 밝힌 leaves 원천이 선다  ④ 개체군의 값 += 1  ⑤ 그 방의 소란이 오른다
 // Result         (없음 — 세계가 맺고 터질 뿐이다. 무엇이 달라졌는지는 흔적과 조건 코드가 말한다)
@@ -51,6 +52,7 @@ import {
   depleteSourceState,
   initialSourceState,
   regionStateOf,
+  remember,
   standSourceState,
   type LifeSiteState,
 } from '../semantic/region-state';
@@ -133,6 +135,14 @@ function ruleLifeBirth(
     const regionSources = (regionStateOf(state.regionStates, source.regionId).sources ??= {});
     const sourceState = (regionSources[source.id] ??= initialSourceState(source));
     depleteSourceState(source, sourceState);
+    // RULE-REGION-MEMORY-001 (C034 ADDED · spec R1) — **먹혀 고갈된 것도 그 방이 센다.**
+    // 고갈은 캔 것과 원인만 다르고 같은 사건이므로 같은 셈이 오른다 (SPEC-002 의 규율 —
+    // 캔 것과 먹힌 것의 State 가 갈리지 않는 그대로). 다만 **캔 것이 아니므로 takenTotal 은
+    // 오르지 않는다**: 이 자리에서 아무도 캐지 않았다.
+    remember(state.regionStates, source.regionId, state.time, {
+      kind: 'depleted',
+      sourceId: source.id,
+    });
   }
 
   // ③ 밝힌 것을 세운다 — 거기 없던 것이 선다 (SPEC-004). 그 원천은 시간이 되돌리지

@@ -6,10 +6,13 @@
 // Result         (없음 — 세계가 잊을 뿐이다. 얼마나 남았는지는 관찰 결과가 말한다)
 //
 // RULE-DISTURBANCE-PHASE-001 — Implements C017 spec R3 (ADDED · 세계 과정)
+//                              · C034 spec R4 (CHANGED — 깨어나는 전이를 그 방이 **센다**)
 // Scope          모든 방
 // Trigger        세계의 Tick
 // Condition      잠든 방의 소란이 임계에 닿았다 · 깨어난 방의 소란이 0 에 닿았다
-// Transition     앞이면 위상 = 깨어남 · 뒤면 위상 = 잠듦
+// Transition     앞이면 위상 = 깨어남 **그리고** 그 방의 history.awakenings 가 하나 오르고
+//                지금 세계 시각이 적힌다 (C034 ADDED · RULE-REGION-MEMORY-001) ·
+//                뒤면 위상 = 잠듦 (세지 않는다)
 // Result         (없음 — 방이 달라졌다는 것은 관찰 결과의 깊이와 위험이 말한다)
 //
 // **관찰자와 무관하다** (spec R2 경계 ①) — 그 방에 몸이 없어도, 세계 어디에도 관찰자가 없어도
@@ -29,6 +32,7 @@
 
 import { DISTURBANCE_DECAY_SEASONS } from '../../regions';
 import { isSeasonListed } from '../semantic/region-phase';
+import { remember } from '../semantic/region-state';
 import {
   DISTURBANCE_DECAY_PER_SECOND,
   DISTURBANCE_THRESHOLD,
@@ -79,12 +83,22 @@ function isSeasonListedForDecay(time: number): boolean {
  *
  * 위상은 방마다 따로다 (SPEC-003 경계 ③) — 한 방이 깨어나도 다른 방은 잠듦 그대로다.
  * 무엇이 그 방을 깨웠는지 규칙은 알지 못한다 (SPEC-005 경계 ④).
+ *
+ * C034 CHANGED (spec R4) — **깨어나는 그 전이를 그 방이 센다** (RULE-REGION-MEMORY-001).
+ * 판정은 한 줄도 바뀌지 않았다: 셈 하나가 그 전이 곁에 늘 뿐이다. 방 id 가 필요해
+ * `Object.values` 가 `Object.entries` 가 된 것이 이 파일에서 달라진 전부다.
  */
 export function ruleDisturbancePhase(state: WorldState): void {
-  for (const regionState of Object.values(state.regionStates)) {
+  for (const [regionId, regionState] of Object.entries(state.regionStates)) {
     const disturbance = regionState.disturbance;
     if (disturbance.phase === 'dormant') {
-      if (disturbance.value >= DISTURBANCE_THRESHOLD) disturbance.phase = 'awake';
+      if (disturbance.value >= DISTURBANCE_THRESHOLD) {
+        disturbance.phase = 'awake';
+        // **전이만 센다** (spec R4 경계 ①) — 깨어 있는 동안 값이 오르내려도 한 번이다.
+        // 0 에 닿아 잠들고 다시 넘어야 두 번이고, 깨어남 → 잠듦은 세지 않는다 (경계 ②).
+        // 이 판정 자리가 위상이 갈리는 유일한 자리이므로 셈도 여기 하나다.
+        remember(state.regionStates, regionId, state.time, { kind: 'awakening' });
+      }
     } else if (disturbance.value <= 0) {
       disturbance.phase = 'dormant';
     }
