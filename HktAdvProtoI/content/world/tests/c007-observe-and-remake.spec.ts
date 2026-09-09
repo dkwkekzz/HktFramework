@@ -540,8 +540,11 @@ describe('회귀', () => {
     const w = driveWorld(solo);
     // 백왕령은 규칙을 품지 않은 방이라 region.state 가 실리지 않는다 (C008 SPEC-007 경계).
     // C017 CHANGED — 소란은 그것과 갈려 **모든 방에** 실리므로 disturbance 하나가 는다
-    // (C017 spec 기본형 ⑩). C007 이 못박은 것은 그대로다: 여기에 땅은 한 조각도 없다
-    expect(Object.keys(w.observe().region).sort()).toEqual(['disturbance', 'hash', 'id']);
+    // (C017 spec 기본형 ⑩). C034 CHANGED — 방의 기억도 같은 어법으로 **늘** 실려 memory 가 는다.
+    // C007 이 못박은 것은 그대로다: 여기에 땅은 한 조각도 없다
+    expect(Object.keys(w.observe().region).sort()).toEqual(
+      ['disturbance', 'hash', 'id', 'memory'].sort(),
+    );
     // C007 은 STATE_VERSION 을 손대지 않았다. C008 이 Region State 를 저장하며 올렸으므로
     // (spec R5) 글자를 재는 것은 더 이상 C007 의 주장이 아니다 —
     // 남은 것은 "세계가 찍는 판이 팩의 판과 같다" 다

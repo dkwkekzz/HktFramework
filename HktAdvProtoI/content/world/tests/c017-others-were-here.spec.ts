@@ -110,7 +110,8 @@ const AFTER_SWING_OPEN = SWING_BEGIN * SKILL_DEFINITIONS.attack.baseDuration + 2
 // C018 CHANGED — 지나감의 지금이 실리며 다시 올랐다. 이 항이 재는 것은 글자가 아니라
 // "세계가 찍는 판이 팩의 판과 같다" 이므로 값만 따라 올린다
 // C022 CHANGED — 탄생지와 개체군이 실리며 다시 올랐다 (같은 이유로 값만 따라 올린다)
-const RAISED_STATE_VERSION = 'hkt-adv-proto-i/10';
+// C034 CHANGED — 방의 기억(history)이 실리며 다시 올랐다 (같은 이유로 값만 따라 올린다)
+const RAISED_STATE_VERSION = 'hkt-adv-proto-i/11';
 /** 그 앞의 버전(C016) — 옛 스냅샷은 되살아나지 않는다 */
 const OLD_STATE_VERSION = 'hkt-adv-proto-i/8';
 

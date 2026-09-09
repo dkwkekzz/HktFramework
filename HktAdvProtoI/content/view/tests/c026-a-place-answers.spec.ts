@@ -108,7 +108,7 @@ function mazeSnapshot(state?: RegionStateView, hash?: string): GameViewSnapshot 
   return {
     specId: 'VIEW-STONE-MINING-001',
     scene: MAZE,
-    region: { id: MAZE, hash: hash ?? hashOf(MAZE), disturbance: { value: 0, threshold: 300, phase: 'dormant' as const }, ...(state ? { state } : {}) },
+    region: { id: MAZE, hash: hash ?? hashOf(MAZE), disturbance: { value: 0, threshold: 300, phase: 'dormant' as const }, memory: { turns: 0, awakenings: { times: 0 }, passages: [] }, ...(state ? { state } : {}) },
     standingConditions: [],
     // C017 — 봉투에 그 방의 소란과 자국이 실린다. 이 시나리오가 보는 것은 그 둘이 아니므로
     // 아무 일도 겪지 않은 방(잠듦 · 자국 없음)으로 둔다

@@ -119,6 +119,65 @@ export interface EntityView extends CoreEntityView {
    * 아니라 **자리**가 기억한다. 하나도 없으면 자리 자체가 없다 (빈 배열로 지어내지 않는다).
    */
   collapsedSites?: number[];
+  /**
+   * 그 원천에 **일어난 일의 셈** — resource-source 에만 실린다 (C034 ADDED).
+   *
+   * 한 번도 캔 적 없는 원천에는 **자리 자체가 없다** (빈 값으로 지어내지 않는다 —
+   * `conditions?` 와 같은 어법).
+   *
+   * `taken`(캘 횟수)이 되돌아오면 0 으로 돌아가는 것과 달리 이것은 **지워지지 않는다** —
+   * 되돌아옴도 뒤척임도 묻지 못한다 (Foundation G7 의 다섯째 칸). **누가 캤는지는 없다**
+   * (T2.7 의 규율 — 관찰자의 이름도 수도 실리지 않는다).
+   *
+   * 나이를 싣지 않고 시각을 싣는 것은 `TrackView.since` · `RegionStateView.rearrangedAt` 의
+   * 선례 그대로다 — "얼마나 오래됐는가" 는 관찰자가 잰다.
+   */
+  memory?: SourceMemoryView;
+}
+
+/**
+ * 그 원천에 일어난 일의 셈 — C034 ADDED (Foundation §4.3 · D4).
+ *
+ * 세계가 세는 것은 **횟수와 시각**뿐이다. 무엇이 다음에 일어나는지도, 이 셈이 무엇의
+ * 조건인지도 여기 없다.
+ */
+export interface SourceMemoryView {
+  /** 캐인 횟수 누계 — 되돌아와도 줄지 않는다 */
+  takenTotal: number;
+  /** 고갈된 횟수 */
+  depletedTimes: number;
+  /** 마지막 고갈의 세계 시각 (한 번도 고갈된 적 없으면 없다) */
+  lastDepletedAt?: number;
+}
+
+/** 횟수와 마지막 시각 하나 — C034 ADDED. 한 번도 없었으면 times 가 0 이고 시각이 없다 */
+export interface MemoryCountView {
+  times: number;
+  lastAt?: number;
+}
+
+/** 그 경로가 이 방을 지난 셈 하나 — C034 ADDED. 지난 적 없는 경로는 목록에 없다 */
+export interface PassageMemoryView extends MemoryCountView {
+  /** 무엇이 지났는가 — 의미 코드 (문구는 View 의 표가 옮긴다) */
+  presence: string;
+}
+
+/**
+ * 그 방에 일어난 일의 셈 — C034 ADDED (Foundation G8 · §4.3).
+ *
+ * **모든 방에 실린다** — `disturbance` 와 같은 어법이다 (어느 방에나 있는 값이다).
+ * 아무 일도 없던 방은 셈이 0 이고 시각도 목록도 없다.
+ *
+ * **누가 했는지는 없다.** 방이 세는 것은 우리가 한 일이지 누구의 일이 아니다.
+ * 언제 다시 일어나는지도 싣지 않는다 — 세계는 지나간 것만 말한다.
+ */
+export interface RegionMemoryView {
+  /** 이 방이 겪은 뒤척임의 수 */
+  turns: number;
+  /** 이 방이 깨어난 횟수와 마지막 시각 */
+  awakenings: MemoryCountView;
+  /** 무엇이 몇 번 지났는가 — 지난 적 있는 것만, 데이터 순서 그대로 */
+  passages: PassageMemoryView[];
 }
 
 export interface InteractionView extends CoreInteractionView {
@@ -229,6 +288,12 @@ export interface RegionView {
    * (spec 기본형 ⑩ · Time §2.5 "모든 Region 의 일반 State").
    */
   disturbance: RegionDisturbanceView;
+  /**
+   * 그 방의 **기억** (C034 ADDED) — `disturbance` 와 같이 **늘 실린다.**
+   *
+   * 어느 방에나 있는 값이기 때문이다 (Foundation G8). 아무 일도 없던 방은 셈이 0 이다.
+   */
+  memory: RegionMemoryView;
 }
 
 // 이 팩의 관찰 결과 — 봉투에 타격 결과가 더해지고, 존재/interaction 이 팩 형으로 좁혀진다.

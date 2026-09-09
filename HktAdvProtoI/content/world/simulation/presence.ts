@@ -8,6 +8,8 @@
 // Result         (없음 — 세계에 무엇이 지나가기 시작할 뿐이다. 그것은 관찰 결과가 말한다)
 //
 // RULE-PRESENCE-PASS-001 — Implements C018 spec R2 (ADDED · 세계 과정)
+//                          · C034 spec R5 (CHANGED — 방에 **드는 전이**를 그 방이 센다:
+//                            이번 Tick 이 덮는 구간에 든 마디마다 그 방의 passages 가 오른다)
 // Scope          지나고 있는 경로 전부
 // Trigger        세계의 Tick (dt)
 // Condition      지난 시간이 마디 수 × PRESENCE_SECONDS_PER_NODE 에 닿았다
@@ -37,7 +39,7 @@
 // **큰 걸음으로 통째로 지나가도 남긴다** (spec R2 경계 ①) — 끝났는지는 "지난 시간이 닿았는가"
 // 로 재므로 Tick 이 마디 몇 개를 한꺼번에 건너뛰어도 마침이 빠지지 않는다.
 
-import { addDisturbance } from '../semantic/region-state';
+import { addDisturbance, remember } from '../semantic/region-state';
 import {
   PRESENCE_ROUTES,
   type PresenceRoute,
@@ -52,7 +54,7 @@ import {
   type PresencePassState,
 } from '../semantic/presence';
 import { findResourceSource } from '../semantic/resource';
-import type { WorldState } from '../semantic/world-state';
+import { PRESENCE_SECONDS_PER_NODE, type WorldState } from '../semantic/world-state';
 
 /**
  * 세계 과정 하나 — 시간표로 시작하고(R1) · 지나는 동안 하고(R5) · 끝나면 남긴다(R2).
@@ -68,6 +70,10 @@ export function rulePresence(state: WorldState, dt: number): void {
     const pass = (state.presences[route.id] ??= { passes: 0 });
     ruleStartBySchedule(state, route, pass);
     ruleDisturbWhilePassing(state, route, pass, dt);
+    // 드는 것을 세는 자리는 **시작과 마침 사이**다 (C034 ADDED) — 시작 뒤라야 이번 Tick 에
+    // 시작한 지나감의 첫 마디가 서고, 마침 앞이라야 마치는 Tick 의 마지막 마디가 빠지지
+    // 않는다 (마치는 순간 startedAt 과 route 가 지워진다).
+    ruleRememberPassing(state, route, pass, dt);
     ruleFinishAndLeave(state, route, pass);
   }
 }
@@ -130,6 +136,55 @@ function ruleDisturbWhilePassing(
   const here = passingRegionOf(pass, state.time);
   if (here === undefined) return;
   addDisturbance(state.regionStates, here, perSecond * dt);
+}
+
+/**
+ * RULE-PRESENCE-PASS-001 (C034 CHANGED · spec R5) · RULE-REGION-MEMORY-001 —
+ * **지나가면 그 방이 센다**.
+ *
+ * 세는 것은 **방에 드는 전이**다 (spec R5 경계 ① ②) — 한 지나감이 지나는 방마다 한 번씩이고,
+ * 한 방에 머무는 동안 두 번 세지 않는다.
+ *
+ * **새 State 를 만들지 않고 시각으로 유도한다.** 세계는 "몇 번째 마디인가" 를 저장하지 않고
+ * (semantic/presence.ts 가 시작 시각 하나에서 그것을 낸다), 저장하기 시작하면 같은 사실이
+ * 두 벌이 되어 되살린 세계에서 갈릴 수 있다. 마디 k 에 드는 시각은 언제나
+ * `startedAt + k × PRESENCE_SECONDS_PER_NODE` 이므로, **이번 Tick 이 덮는 구간**에 든 k 를
+ * 세면 된다.
+ *
+ * 구간은 `(state.time − dt, state.time]` 이다 — 세계 시각은 시스템이 다 돈 **뒤**에 오르므로
+ * (RULE-WORLD-TICK-001 의 3번), 이 자리에서 보이는 `state.time` 은 이번 Tick 이 시작한 시각이고
+ * 지난 Tick 이 본 것은 그보다 dt 앞이다. 왼쪽을 열어 두는 것이 "두 번 세지 않는다" 이고
+ * (한 Tick 의 오른쪽 끝은 다음 Tick 의 왼쪽 끝이다), 구간이 마디 여럿을 덮을 수 있게 둔 것이
+ * "큰 걸음이 건너뛰어도 빠뜨리지 않는다" 다 (경계 ③ 의 어법 그대로 · SPEC-004 경계 ②).
+ *
+ * 불러서 일으킨 지나감도 여기로 온다 (경계 ③) — 부르기는 시작 시각을 세울 뿐이고
+ * (rules/summon-presence.ts 의 beginPass), 세는 것은 언제나 이 한 자리다. 손잡이가 규칙을
+ * 우회하지 않는다.
+ */
+function ruleRememberPassing(
+  state: WorldState,
+  route: PresenceRoute,
+  pass: PresencePassState,
+  dt: number,
+): void {
+  const chosen = pass.route;
+  const startedAt = pass.startedAt;
+  if (startedAt === undefined || !chosen) return;
+
+  // 지난 Tick 이 본 시각까지는 이미 세어졌다 — 그 뒤부터 지금까지 든 마디들이 이번 몫이다.
+  const seen = (state.time - dt - startedAt) / PRESENCE_SECONDS_PER_NODE;
+  const now = (state.time - startedAt) / PRESENCE_SECONDS_PER_NODE;
+  const first = Math.max(0, Math.floor(seen) + 1);
+  // 마디 수를 넘는 것은 이 지나감의 것이 아니다 — 그 뒤는 마침의 일이다.
+  const last = Math.min(chosen.length - 1, Math.floor(now));
+
+  for (let node = first; node <= last; node++) {
+    const regionId = chosen[node];
+    if (regionId === undefined) continue;
+    // 세는 일은 그 한 자리가 한다 — **무엇이 지났는지도 넘기지 않는다**: 방이 기억하는
+    // 열쇠는 경로 id 이고, 그것이 무엇인지는 데이터가 안다 (규칙은 이름을 모른다 · R13).
+    remember(state.regionStates, regionId, state.time, { kind: 'passage', routeId: route.id });
+  }
 }
 
 /**
