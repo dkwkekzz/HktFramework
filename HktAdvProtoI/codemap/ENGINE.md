@@ -294,7 +294,7 @@ Region Description(순서 있는 op 목록)을 Source of Truth 로 두고, 컴�
 | `query.ts` | 컴파일 결과에 자리로 묻기 (통행·사유·표면·area 태그) |
 | `observe.ts` | 컴파일 결과를 raster 판·요약 수치로 |
 | `graph.ts` | Region 사이의 Connector/Containment 와 도달 계산 |
-| `check.ts` | 검사 ①~㊻ (`checkGraph` · `checkRegions`) 와 열쇠×자물쇠 표 — ㊸ 은 태어남의 키도 잰다 |
+| `check.ts` | 검사 ①~㊻ (`checkGraph` · `checkRegions`) 와 열쇠×자물쇠 표 — ㊸ 은 원천 · 경로 · 태어남을 **양쪽으로** 잰다 |
 | `condition.ts` | Condition 형(Target · Query · Operator · Value · Qualifier · all/any) 과 평가기 — 게임 명사 0 · 저장 0 |
 | `opportunity.ts` | Opportunity 형(id · region · availability · discovery · target · possibleActions · progress · outcomes) · Mutation op 어휘 · Event 판별(`isEventOpportunity` — 시간 qualifier 가 있는가) · 기계 표기 — 게임 명사 0 · 판정 0 |
 | `candidate.ts` | 두 CheckReport 의 달라진 줄 |
