@@ -13,7 +13,7 @@
 
 import { descriptionHash } from '../../engine/world-authoring/description';
 import { blockedReasonAt, isTraversableAt, surfaceAt, tagsAt } from '../../engine/world-authoring/query';
-import type { GameViewSnapshot, PresenceView } from '../protocol/gameview';
+import type { GameViewSnapshot, PresenceView, RegionMemoryView } from '../protocol/gameview';
 import { BLOCK_COLLAPSED, TRACE_LAYER, regionSpec } from '../regions/index';
 import { SETTLEMENT_LAYER } from './biome-rules';
 import { lifeSitePhases } from './life-reading';
@@ -101,6 +101,22 @@ export interface PlaceReading {
    * 지나는 선의 이름뿐이다.
    */
   presences?: PresenceView[];
+  /**
+   * 그 방이 **겪은 일의 셈** — C034 ADDED (spec Observable · Foundation §4.3).
+   *
+   * 위의 `disturbance?` 가 C017 에서 선 그 자리 · 그 규율이다: 봉투에서 **그대로** 읽고,
+   * 물음표가 붙은 이유는 **앞 Cycle 의 봉투에 이 자리가 없기 때문**이지(폴백 규칙: 모르는
+   * 것은 자리째 없다) 세계가 어느 방에서 이 값을 빼기 때문이 아니다 — 기억은 어느 방에나
+   * 실린다 (protocol 의 `RegionView.memory` 에 물음표가 없다).
+   *
+   * `presences?` 와 갈리는 것이 하나 있다 — 여기 오는 것은 **지금**이 아니라 **여기 무슨
+   * 일이 있었나**다. 지나는 것은 지나가면 자리째 사라지지만 지나간 셈은 남는다
+   * (지워지지 않는 것 · Foundation G7 의 다섯째 칸).
+   *
+   * **나이는 없다.** 세계가 싣는 것은 시각이고 "N초 전" 은 표현이 잰다 (rearrangedAt 의
+   * 선례 그대로). **누가 했는지도 없고 언제 다시 일어나는지도 없다** — 세계가 세지 않는다.
+   */
+  memory?: RegionMemoryView;
 }
 
 const DEPTH_HUD_ID = 'region.depth';
@@ -130,6 +146,10 @@ export function readPlace(
   // 배열이다. 둘 다 **자리 없음**으로 읽는다 — 빈 목록을 들고 다니면 "지나는 것이 없다"
   // 라는 줄을 세울 유혹이 생기는데, 없는 것에는 줄이 없다 (아래 base 의 마지막 자리)
   const presences = snapshot.presences;
+  // C034 — 방의 기억. 소란과 **같은 자리 · 같은 규율**이다: 늘 실리는 값이지만 앞 Cycle 의
+  // 봉투에는 없으므로, 없으면 없는 채로 둔다 (셈이 0 인 방과 자리가 없는 봉투를 여기서
+  // 가르지 않는다 — 무엇을 말하지 않을지는 판이 정한다)
+  const memory = snapshot.region.memory;
   const base: PlaceReading = {
     regionId,
     ...(typeof depth === 'string' ? { depth } : {}),
@@ -154,6 +174,17 @@ export function readPlace(
     // (다시 정렬하지 않는다: 세계가 데이터 순서로 싣고 있고 그것이 결정론이다)
     ...(presences && presences.length > 0
       ? { presences: presences.map((p) => ({ ...p })) }
+      : {}),
+    // 기억도 **봉투의 것**이다 — 소란과 같은 자리에 서고, 지나간 것들의 차례는 실려 온
+    // 차례 그대로다 (다시 정렬하지 않는다: 세계가 데이터 순서로 싣고 그것이 결정론이다)
+    ...(memory
+      ? {
+          memory: {
+            turns: memory.turns,
+            awakenings: { ...memory.awakenings },
+            passages: memory.passages.map((p) => ({ ...p })),
+          },
+        }
       : {}),
   };
 

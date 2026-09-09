@@ -25,7 +25,12 @@ import type {
   SceneHighlight,
   SceneTargetFrame,
 } from '../../engine/view-kernel/scene/scene-state';
-import type { GameViewPosition, GameViewSnapshot } from '../protocol/gameview';
+import type {
+  GameViewPosition,
+  GameViewSnapshot,
+  RegionMemoryView,
+  SourceMemoryView,
+} from '../protocol/gameview';
 import { agoText } from './answer-log';
 import { readBeing, type BeingOffer, type BeingReading } from './being-reading';
 import { codeText } from './code-text';
@@ -80,6 +85,15 @@ export const PLACE_ROW_LABELS: Readonly<Record<string, string>> = {
   'place.disturbance': '소란',
   // 그 방의 지금 위상 — 값이 없는 줄이 아니라 잠듦/깨어남 한 마디가 값이다
   'place.phase': '지금',
+  // 여기 무슨 일이 있었나 (C034) — **위의 둘 뒤 · 아래의 '지나는 것' 앞**에 선다.
+  // 앞의 것들(어디인가 · 땅 · 걸린 것 · 규칙 · 소란 · 지금)이 전부 **지금**이라면 이 줄
+  // 하나만이 **지나간 일**이고, 뒤의 것들(지나는 것 · 서 있는 것)은 다시 지금이다.
+  // 그 사이가 이 줄의 자리다 — 방의 값들이 끝나는 자리이자 순간의 사실이 시작되기 전이다.
+  //
+  // 이름표가 소란·지금과 갈리는 것은 물음이 다르기 때문이다: 저 둘은 "이 방이 지금
+  // 어떤가" 이고 이것은 "이 방에 무엇이 있었나" 다. **한 번도 없던 것은 서지 않고**,
+  // 셋(뒤척임 · 깨어남 · 지나감)이 다 없으면 줄 자체가 없다 (spec SPEC-006 경계 ①)
+  'place.memory': '기억',
   // 무엇이 지나는가 (C018) — 위의 둘과 갈리는 자리다. 소란도 위상도 **어느 방에나 늘**
   // 있는 값이라 줄이 늘 서지만, 이 줄은 지나가고 있을 때만 선다 (지나는 것이 없으면
   // 줄 자체가 없다 — 없는 것을 지어내지 않는다).
@@ -127,6 +141,14 @@ export const BEING_ROW_LABELS: Readonly<Record<string, string>> = {
   'being.condition': '걸린 것',
   // 잠긴 문이 **무엇에 열리는가**의 갈래 (RuleBoundRoom 실주행 판정 — 힌트가 있어야 플레이가 된다)
   'being.hint': '힌트',
+  // 거기 무슨 일이 있었나 (C034) — **"어떤 상태인가" 의 마지막 줄**이다: 하는 일 · 생명 ·
+  // 걸린 것이 **지금** 그것이 어떤가라면 이것은 **지나간 일**이고, 둘 다 "무엇인가"(종류 ·
+  // 재료)도 "무엇을 주는가"(행동)도 아니다. 그래서 상태 줄들의 뒤 · 행동 줄들의 앞이다.
+  //
+  // 자리의 「기억」(place.memory)과 **같은 이름표**인 것은 같은 종류의 사실이기 때문이다 —
+  // 걸린 것이 자리에 걸리든 존재에 걸리든 같은 말을 쓰는 그 규율 그대로다.
+  // **한 번도 캔 적 없는 원천에는 줄 자체가 없다** (spec SPEC-006 경계 ①)
+  'being.memory': '기억',
   // 무엇을 주는가
   'being.offer': '할 수 있는 것',
 };
@@ -195,7 +217,10 @@ export function targetFrame(
 ): SceneTargetFrame | undefined {
   if (designation && 'entityId' in designation) {
     const being = readBeing(snapshot, designation.entityId);
-    return being ? beingFrame(being) : standingFrame(snapshot, worldTime);
+    // C034 CHANGED — 존재의 판도 세계 시각을 받는다 (spec SPEC-006 경계 ②). 원천의 기억
+    // 줄이 마지막 고갈이 얼마 전인지를 그 값으로 재기 때문이다. 자리의 판이 재배열의
+    // 나이를 재는 것과 **같은 값 · 같은 함수**이고, 모르면 때를 지어내지 않는다
+    return being ? beingFrame(being, worldTime) : standingFrame(snapshot, worldTime);
   }
   if (designation) return placeFrame(snapshot, designation.ground, worldTime);
   return standingFrame(snapshot, worldTime);
@@ -265,8 +290,8 @@ function standingReading(snapshot: GameViewSnapshot, reading: PlaceReading): Pla
 }
 
 /** 지목한 존재의 판 — 제목은 사람이 읽을 이름이다 (SPEC-001) */
-function beingFrame(reading: BeingReading): SceneTargetFrame {
-  return { title: beingTitle(reading), rows: beingRows(reading) };
+function beingFrame(reading: BeingReading, worldTime: number | undefined): SceneTargetFrame {
+  return { title: beingTitle(reading), rows: beingRows(reading, worldTime) };
 }
 
 /**
@@ -285,8 +310,12 @@ function beingTitle(reading: BeingReading): string {
 /**
  * 존재의 사실 → 판의 줄들. **차례가 곧 이 함수의 차례다**:
  * 무엇인가 → 어떤 상태인가 → 무엇을 주는가.
+ *
+ * C034 CHANGED — 지금 세계 시각을 함께 받는다 (spec SPEC-006). 원천의 「기억」 줄이 마지막
+ * 고갈이 얼마 전인지를 그 값으로 재기 때문이다. 모르면(넘기지 않으면) 때를 지어내지 않는다
+ * — 자리의 판이 재배열의 나이를 다루는 것과 같은 규율이다.
  */
-export function beingRows(reading: BeingReading): SceneFrameRow[] {
+export function beingRows(reading: BeingReading, worldTime?: number): SceneFrameRow[] {
   const rows: SceneFrameRow[] = [];
   // ① 무엇인가 — **이름이 곧 종류인 것에는 이 줄이 없다.** 제목이 이미 그 말이고,
   // 같은 사실을 두 자리에 적지 않는다 (SPEC-006 의 어법)
@@ -352,6 +381,17 @@ export function beingRows(reading: BeingReading): SceneFrameRow[] {
     if (hint !== undefined) rows.push(row('being.hint', hint));
   }
 
+  // 거기 무슨 일이 있었나 (C034 ADDED — spec SPEC-006 · Observable Result ① · ②).
+  //
+  // **상태 줄들의 마지막이다.** 앞의 것들(하는 일 · 생명 · 걸린 것)이 지금 그것이 어떤가라면
+  // 이것은 지나간 일이고, 그래도 "무엇을 주는가"(행동)보다는 앞이다 — 행동은 나에게 무엇이
+  // 가능한가이고 이것은 여전히 그 존재에 대한 사실이기 때문이다.
+  //
+  // **한 번도 캔 적 없는 원천에는 줄이 아예 없다** (봉투에 자리가 없다 — 생명 없는 것에
+  // 0 을 지어내지 않는 그 규율). 몸에도 출구 표식에도 이 줄은 서지 않는다.
+  const beingMemory = reading.memory === undefined ? undefined : sourceMemoryText(reading.memory, worldTime);
+  if (beingMemory !== undefined) rows.push(row('being.memory', beingMemory));
+
   // ③ 무엇을 주는가 — 그 대상을 겨냥한 것만, 봉투의 차례 그대로 (SPEC-003)
   for (const offer of reading.offers) rows.push(offerRow(offer));
   return rows;
@@ -373,6 +413,69 @@ function materialPhrases(materialId: string): string[] {
   return (seed?.properties ?? []).map((property) =>
     codeText(propertyPhraseCode(materialId, property.tag)),
   );
+}
+
+/**
+ * 그 원천이 겪은 일 한 줄의 말 (C034 ADDED — spec SPEC-006 · Observable Result ① · ②).
+ *
+ * 마디는 둘이다: **몇 번 캐였는가**와 **마지막 고갈이 얼마 전인가**. 마디를 ' · ' 로 잇는
+ * 것은 겹친 조건과 재료의 성질이 잇는 그 어법 그대로다 (하나로 줄이면 무엇이 사실인지가
+ * 화면에서 사라진다).
+ *
+ * **한 번도 없던 것은 마디가 서지 않는다** (SPEC-006 경계 ① — 0 을 말하지 않는다):
+ * 한 번도 고갈된 적 없으면 뒤 마디가 없고, 둘 다 없으면 **줄 자체가 없다**(undefined).
+ * 나이를 잴 수 없을 때(세계 시각을 모를 때)도 뒤 마디가 서지 않는다 — 판의 규칙 줄이
+ * 재배열의 나이를 모르면 길 이름만 세우는 것과 같은 규율이다 (때를 지어내지 않는다).
+ *
+ * **몇 번 고갈되었는지는 적지 않는다** — spec 이 부른 값은 캐인 횟수와 마지막 고갈의
+ * 나이 둘이고, 고갈의 셈은 그 마디가 서는가를 가를 뿐이다. **누가 캤는지도 없다.**
+ */
+function sourceMemoryText(memory: SourceMemoryView, worldTime: number | undefined): string | undefined {
+  const marks: string[] = [];
+  if (memory.takenTotal > 0) marks.push(codeText('memory.taken', String(memory.takenTotal)));
+  // 고갈된 적이 있어야 그 나이를 묻는다 — 시각만 있고 셈이 0 인 일은 세계에 없지만,
+  // 판이 묻는 것은 "고갈된 적이 있는가" 이므로 그 셈으로 묻는다
+  const depleted = memory.depletedTimes > 0 ? agoText(memory.lastDepletedAt, worldTime) : undefined;
+  if (depleted !== undefined) marks.push(codeText('memory.depleted-last', depleted));
+  return marks.length > 0 ? marks.join(VALUE_SEPARATOR) : undefined;
+}
+
+/**
+ * 그 방이 겪은 일 한 줄의 말 (C034 ADDED — spec SPEC-006 · Observable Result ④ · ⑤).
+ *
+ * 마디의 차례는 **뒤척임 → 깨어남 → 지나감**이다: 앞의 둘은 방 자체에 일어난 일이고
+ * 지나감은 밖에서 든 것이며, 지나감만 여럿일 수 있어 뒤에 선다. 지나간 것들의 차례는
+ * 봉투에 실려 온 차례 그대로다 (다시 정렬하면 화면이 세계가 하지 않은 정렬을 한다).
+ *
+ * **한 번도 없던 것은 마디가 서지 않고**, 셋 다 없으면 **줄 자체가 없다**(undefined) —
+ * 처음 든 방마다 "뒤척임 0번 · 깨어남 0번" 이 서면 판이 길어지고, 판이 세로로 길면 몸을
+ * 가린다 (SPEC-006 경계 ①).
+ *
+ * 지나감의 마디는 **여럿이어도 한 줄 안에 선다** — 지나는 것마다 줄이 따로 서는 '지나는
+ * 것'(place.presence)과 갈리는 자리다. 저것은 지금 일어나고 있는 **사건 여럿**이지만
+ * 이것은 "여기 무슨 일이 있었나" **한 사실의 여러 마디**이기 때문이다.
+ *
+ * **누가 했는지도, 언제 다시 지나는지도 없다** — 세계가 세지 않는다.
+ */
+function regionMemoryText(memory: RegionMemoryView, worldTime: number | undefined): string | undefined {
+  const marks: string[] = [];
+  if (memory.turns > 0) marks.push(codeText('memory.turns', String(memory.turns)));
+  // 깨어남은 **셈만** 선다 — 마지막이 언제인지는 세계가 싣지만 Playable Goal 의 문장이
+  // 셈까지이고, 한 줄에 담을 마디를 늘리지 않는다 (판이 몸을 가린다는 부채)
+  if (memory.awakenings.times > 0) {
+    marks.push(codeText('memory.awakenings', String(memory.awakenings.times)));
+  }
+  for (const passage of memory.passages) {
+    if (passage.times <= 0) continue;
+    // 지나는 것의 이름은 **이미 있는 표**의 것이다 (place.presence 줄이 부르는 그 말) —
+    // 같은 것이 두 자리에서 다른 이름으로 불리면 둘 중 하나를 믿을 수 없다.
+    // 이름과 셈 사이를 ' · ' 로 가르지 않는 것은 그 둘이 한 마디이기 때문이다
+    const passed = `${codeText(passage.presence)} ${codeText('memory.passage', String(passage.times))}`;
+    const last = agoText(passage.lastAt, worldTime);
+    // 나이를 잴 수 없으면 그 마디가 없다 — 몇 번 지났는지는 그대로 선다 (때만 지어내지 않는다)
+    marks.push(last === undefined ? passed : `${passed} ${codeText('memory.passage-last', last)}`);
+  }
+  return marks.length > 0 ? marks.join(VALUE_SEPARATOR) : undefined;
 }
 
 /**
@@ -513,7 +616,21 @@ export function placeRows(reading: PlaceReading, worldTime?: number): SceneFrame
     rows.push(row('place.phase', codeText(disturbance.phase)));
   }
 
-  // ⑥ 무엇이 지나는가 (C018 ADDED — spec Observable Result ①).
+  // ⑥ 여기 무슨 일이 있었나 (C034 ADDED — spec SPEC-006 · Observable Result ④ · ⑤).
+  //
+  // **소란 · 지금 뒤 · 지나는 것 앞**이다. 앞의 것들은 전부 "이 방이 지금 어떤가" 이고
+  // 뒤의 것들도 "지금 무엇이 지나는가" 인데, 이 한 줄만이 **"여기 무슨 일이 있었나"** 다.
+  // 지금들 사이에 끼우지 않고 그 경계에 세우는 것은 그래서다 — 방의 값들이 끝나는 자리다.
+  //
+  // 지목한 자리의 판에도 선다. 기억은 **방의 것**이므로(spec 기본형 ⑧) 그 방 어느 자리를
+  // 물어도 같은 답이고, 자리 읽기를 두 벌로 만들지 않는 C026 의 규율이 그것을 그대로 지킨다.
+  //
+  // **한 번도 없던 것은 서지 않는다** — 셋(뒤척임 · 깨어남 · 지나감)이 다 0 이면 줄 자체가
+  // 없고, 앞 Cycle 의 봉투에 자리가 없으면 없는 채로 둔다 (SPEC-006 경계 ①).
+  const memory = reading.memory === undefined ? undefined : regionMemoryText(reading.memory, worldTime);
+  if (memory !== undefined) rows.push(row('place.memory', memory));
+
+  // ⑦ 무엇이 지나는가 (C018 ADDED — spec Observable Result ①).
   //
   // **가장 뒤에 선다.** 앞의 것들은 그 방이 늘 지니고 있는 값(어디인가 · 땅 · 걸린 것 ·
   // 규칙 · 소란)이고 이것만이 **지금 이 순간에만 있는 사실**이다 — 지나가면 이 줄이
@@ -538,7 +655,7 @@ export function placeRows(reading: PlaceReading, worldTime?: number): SceneFrame
     });
   }
 
-  // ⑦ 무엇이 **서 있는가** (C023 ADDED — spec SPEC-006).
+  // ⑧ 무엇이 **서 있는가** (C023 ADDED — spec SPEC-006).
   //
   // **코드마다 한 줄이다.** 자락은 값만큼 여럿 실려 오지만(값이 오를수록 넓어진다) 여기서
   // 그 수만큼 줄을 세우면 판이 **개체군의 값을 세어 보여 주는 것**이 된다 — 세계가 싣지

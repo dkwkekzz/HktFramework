@@ -52,7 +52,7 @@ function snapshot(
   return {
     specId: 'VIEW-STONE-MINING-001',
     scene: regionId,
-    region: { id: regionId, hash: spec ? descriptionHash(spec.space) : '00000000', disturbance: { value: 0, threshold: 300, phase: 'dormant' as const } },
+    region: { id: regionId, hash: spec ? descriptionHash(spec.space) : '00000000', disturbance: { value: 0, threshold: 300, phase: 'dormant' as const }, memory: { turns: 0, awakenings: { times: 0 }, passages: [] } },
     standingConditions: [], // C006 ADDED — 조건 area 밖에 선 관찰자는 빈 목록이다
     // C017 — 봉투에 그 방의 자국이 실린다. 이 시나리오가 보는 것이 아니므로 빈 목록이다
     tracks: [],

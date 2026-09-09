@@ -19,15 +19,15 @@ HktAdvProtoI — 목적 트리 기반 오픈월드 어드벤처 프로토타입 
 ## 작업 공정
 
 ```text
-기획서(content/roadmap/L<N> · M<N> · design/) → 묶음 + 첫 spec (AI 제안) → Human "C### 진행" → Cycle → … → AI 예심 → Human 실주행 판정
-advprotoi-cycle  하나뿐인 스킬 — "<기획서> 로 묶음 잘라"(묶음 + 첫 spec) · "C### 진행"(spec 동결 → E ∥ W ∥ V ∥ T → npm test → 마감)
+기획서(content/roadmap/L<N> · M<N> · design/) → 묶음 + Cycle 전부의 spec (AI 제안) → Human "C### 진행" → Cycle → … → AI 예심 → Human 실주행 판정
+advprotoi-cycle  하나뿐인 스킬 — "<기획서> 로 묶음 잘라"(묶음 + Cycle 전부의 spec — 첫 것은 동결 후보 · 뒤 것은 초안) · "C### 진행"(spec 동결 → E ∥ W ∥ V ∥ T → npm test → 마감)
 ```
 
 - 공정 원본: [Design-CycleExecutionWorkflow.md](design/Design-CycleExecutionWorkflow.md) (Cycle) ·
   [Design-DesignAuthoringWorkflow.md](design/Design-DesignAuthoringWorkflow.md) (주입 → 묶음 → 판정) ·
   [Plan-Skill-CycleExecutionWorkflow.md](design/Plan-Skill-CycleExecutionWorkflow.md) (스킬 분할 · 회수 규칙 · 병렬)
 - **기획서와 Cycle 사이에 문서 층이 없다.** 묶음(기획서에서 자른 플레이 하나 — Goal · Intent · Breath · Cycle 목록 · 미지 · 질문)은
-  첫 Cycle 의 `spec.md` 머리 블록이다. 의미의 출처는 기획서 하나이고 spec 은 그것을 인용한다. Play 문서는 없다.
+  첫 Cycle 의 `spec.md` 머리 블록이고, 묶음의 Cycle 전부가 spec(첫 것은 동결 후보 · 뒤 것은 초안)으로 함께 선다. 의미의 출처는 기획서 하나이고 spec 은 그것을 인용한다. Play 문서는 없다.
 - **작업 관리는 `plan/` 하나다** — 관점 셋(design · 묶음 · cycle)으로 나뉜다.
   ```text
   plan/STATE.md    지금 어디까지 — §0 트랙과 순서(어느 트랙에서 무엇을 어떤 순서로) · 관점별 요약 표 (진입점 — 새 세션은 이것부터)

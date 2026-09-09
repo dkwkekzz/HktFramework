@@ -1,9 +1,12 @@
 // RULE-SEASON-TURN-001 — Implements C016 spec R8 (ADDED · 세계 과정)
 //                        · C017 spec R7 (CHANGED — 뒤척임이 **자국도** 묻는다)
-// Scope          onTurn 을 밝힌 방
+//                        · C034 spec R3 (CHANGED — 뒤척임을 **모든 방이 센다**)
+// Scope          세는 것은 모든 방 · 묻고 옮기는 것은 onTurn 을 밝힌 방
 // Trigger        세계의 Tick
 // Condition      지금까지 **시작된** 뒤척임의 수가 **적용한** 수보다 많다
-// Transition     밝힌 방마다 onTurn 을 적용한다 —
+// Transition     **모든 방**의 history.turns 가 하나 오르고 (C034 ADDED ·
+//                RULE-REGION-MEMORY-001 — history 는 묻지 않는다),
+//                밝힌 방마다 onTurn 을 적용한다 —
 //                  burySigns 면 그 방 원천의 phase · taken · progress · collapsedSites 를 **처음 상태**로
 //                  그리고 그 방에 남은 **자국(tracks)도 한꺼번에** 없다 (C017 ADDED)
 //                  migrateSources 의 원천은 **다음 마디**로 (C013 의 nextStandableSite 그대로)
@@ -35,7 +38,7 @@
 
 import { REGION_SPECS } from '../../regions';
 import { turnsStartedAt } from '../semantic/clock';
-import { initialSourceState } from '../semantic/region-state';
+import { initialSourceState, remember } from '../semantic/region-state';
 import { nextStandableSite, sourcesInRegion } from '../semantic/resource';
 import type { WorldState } from '../semantic/world-state';
 
@@ -49,8 +52,24 @@ export function ruleSeasonTurn(state: WorldState): void {
   state.turnsApplied = started;
 }
 
-/** 뒤척임 한 번 — 밝힌 방마다 자국을 묻고 옮길 원천을 옮긴다 (REGION_SPECS 순서 · 결정론) */
+/**
+ * 뒤척임 한 번 — **모든 방이 세고**, 밝힌 방마다 자국을 묻고 옮길 원천을 옮긴다
+ * (REGION_SPECS 순서 · 결정론).
+ */
 function applyOneTurn(state: WorldState): void {
+  // RULE-REGION-MEMORY-001 (C034 ADDED · spec R3) — **뒤척임은 묻고 센다.**
+  //
+  // 세는 것은 **모든 방**이다 — burySigns 를 밝힌 방만이 아니다 (spec R3 경계 ②).
+  // 뒤척임은 세계의 순간이지 방의 선택이 아니기 때문이다: 아무것도 묻지 않은 방도
+  // 그 철을 함께 지났다. 그래서 아래의 "밝힌 방만" 도는 자리와 갈라 둔다.
+  //
+  // 건너뛴 뒤척임도 지난 만큼 센다 (경계 ②의 어법 그대로) — 이 함수가 뒤척임 하나마다
+  // 한 번 불리므로 저절로 그렇게 된다. 같은 뒤척임을 두 번 세지 않는 것도 마찬가지로
+  // 위의 turnsApplied 가 이미 세운 규율을 그대로 탄다 (spec SPEC-003 경계 ① ②).
+  for (const spec of REGION_SPECS) {
+    remember(state.regionStates, spec.id, state.time, { kind: 'turn' });
+  }
+
   for (const spec of REGION_SPECS) {
     const onTurn = spec.phases?.onTurn;
     if (!onTurn) continue;

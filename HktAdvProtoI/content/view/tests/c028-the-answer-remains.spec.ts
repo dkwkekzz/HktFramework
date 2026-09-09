@@ -217,7 +217,7 @@ function made(options: Made = {}): GameViewSnapshot {
     region: {
       id: region,
       hash: hashOf(region),
-      disturbance: { value: 0, threshold: 300, phase: 'dormant' as const },
+      disturbance: { value: 0, threshold: 300, phase: 'dormant' as const }, memory: { turns: 0, awakenings: { times: 0 }, passages: [] },
       ...(options.state ? { state: options.state } : {}),
     },
     standingConditions: [],

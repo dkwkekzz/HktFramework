@@ -1,6 +1,6 @@
 ---
 name: advprotoi-cycle
-description: HktAdvProtoI 의 하나뿐인 공정 스킬 — ① 묶음("<기획서> 로 묶음 잘라"): 기획서(content/roadmap/L<N>·M<N>·design/)에서 플레이 하나를 잘라 첫 Cycle 의 cycles/C###/spec.md 머리에 묶음 블록(Goal·Intent·Breath·Cycle 목록·미지·질문)을 쓰고 같은 파일에 첫 spec 을 이어 쓴다 — UNRESOLVED 에 묶음 질문 전부 · Human 반환. ② Cycle("C### 진행" = 묶음 승인 + spec 동결): 실현(관찰 계약 + 기구/의미 분해 → E ∥ W ∥ V ∥ T fan-out → npm test → 7항) → 마감(촬영 shots/ · plan/ 기입 · 커밋 · 그림 보고). ③ 예심(묶음의 마지막 Cycle 뒤): 관찰 항목을 판정 질문 대여섯으로. Play 문서는 없다 — 의미의 출처는 기획서 하나. 정지는 UNRESOLVED 와 DESIGN/ENGINE GAP 뿐. 사용자가 "묶음 잘라 / <기획서> 로 시작 / C### 진행 / 다음 Cycle 진행 / Cycle 돌려 / AdvProtoI 진행 / 예심" 을 요청하면 사용.
+description: HktAdvProtoI 의 하나뿐인 공정 스킬 — ① 묶음("<기획서> 로 묶음 잘라"): 기획서(content/roadmap/L<N>·M<N>·design/)에서 플레이 하나를 잘라 첫 Cycle 의 cycles/C###/spec.md 머리에 묶음 블록(Goal·Intent·Breath·Cycle 목록·미지·질문)을 쓰고 같은 파일에 첫 spec 을, 뒤 Cycle 들의 spec 은 자기 폴더에 초안으로 함께 쓴다 — UNRESOLVED 에 묶음 질문 전부 · Human 반환. ② Cycle("C### 진행" = 묶음 승인 + spec 동결): 실현(관찰 계약 + 기구/의미 분해 → E ∥ W ∥ V ∥ T fan-out → npm test → 7항) → 마감(촬영 shots/ · plan/ 기입 · 커밋 · 그림 보고). ③ 예심(묶음의 마지막 Cycle 뒤): 관찰 항목을 판정 질문 대여섯으로. Play 문서는 없다 — 의미의 출처는 기획서 하나. 정지는 UNRESOLVED 와 DESIGN/ENGINE GAP 뿐. 사용자가 "묶음 잘라 / <기획서> 로 시작 / C### 진행 / 다음 Cycle 진행 / Cycle 돌려 / AdvProtoI 진행 / 예심" 을 요청하면 사용.
 ---
 
 # HktAdvProtoI Cycle — 묶음 → 명세 → 실현 → 마감 → 예심
@@ -13,7 +13,7 @@ description: HktAdvProtoI 의 하나뿐인 공정 스킬 — ① 묶음("<기획
 이 스킬의 입구는 셋이다 — 말이 고른다:
 
 ```text
-"<기획서> 로 묶음 잘라"   §0.5 묶음 — 기획서에서 플레이 하나를 잘라 첫 Cycle 의 spec 머리 블록 + 첫 spec 을 쓰고 Human 에게 올린다
+"<기획서> 로 묶음 잘라"   §0.5 묶음 — 기획서에서 플레이 하나를 잘라 첫 Cycle 의 spec 머리 블록 + 첫 spec + 뒤 Cycle 의 spec 초안을 쓰고 Human 에게 올린다
 "C### 진행"              §0~§3 Cycle — (첫 Cycle 이면 묶음 승인이자) spec 동결 → 실현 → 마감
 "예심" / 마지막 Cycle 합침   §3 끝 — 묶음의 관찰 항목을 판정 질문 대여섯으로 압축해 Human 에게 청한다
 ```
@@ -66,7 +66,7 @@ ENGINE GAP       (실현)   기존 engine 계약 변경 필요 → 승인 요청
 Goal       플레이어가 실제로 무엇을 하는지 한 문장 — 완료를 직접 확인할 수 있게
 Intent     Start / End
 Breath     감정 전이 사슬 (강도 숫자 금지)
-Cycle      C### — 한 줄 목표 (2~4개 · 순서는 의존성 + Breath 의 점진 완성 · 각각 작다/플레이 가능/World 변화 분명/관찰 가능/검증 가능/재사용 가능)
+Cycle      C### — 한 줄 목표 · spec 경로 (2~4개 · 순서는 의존성 + Breath 의 점진 완성 · 각각 작다/플레이 가능/World 변화 분명/관찰 가능/검증 가능/재사용 가능)
 미지       놓는 미지 하나
 검사       (컨텐츠 행이면) 열 질문 ①~⑩ 의 답
 질문       게임 의미 — 수치 · 확률 · 시간 · 범위 · 원리의 확정 · 세계관 사실 · 이름. 묶음 전체의 것 = 첫 spec 의 UNRESOLVED
@@ -75,6 +75,9 @@ Cycle      C### — 한 줄 목표 (2~4개 · 순서는 의존성 + Breath 의 �
 - **AI 가 자른다** — Goal · Intent · Breath · Cycle 분할 · 사건마다 World Cause. 방향 한 줄만 와도 이 층은 AI 가 지어 올린다.
 - **Human 이 정한다** — 게임 의미. 지어내지 않고 "질문" 에 모은다. 주입물의 의도를 크게 벌리는 선택도 질문에 함께.
 - 묶음 하나는 행 하나만 세운다. 확정되지 않은 축의 의미가 필요해지면 Required 가 아니라 질문으로.
+- **Cycle 전부의 spec 을 함께 쓴다** — 첫 Cycle 의 spec 은 묶음 블록 아래에(동결 후보), 뒤 Cycle 의 spec 은 자기 폴더 `cycles/C###-이름/spec.md` 에
+  **초안**으로 (머리에 첫 spec 링크 + "초안 — 앞 Cycle 의 「다음 Cycle 로」 를 받아 자기 차례에 동결" · UNRESOLVED 에는 "묶음 질문 Q<n> 의 답이 든다" 와
+  새로 생긴 의미만). spec 하나만 쓰고 멈추지 않는다 — 이어서 진행할 수 없다. 뒤 spec 의 동결은 §1 의 규칙 그대로 자기 차례에.
 
 **게이트** — 묶음 블록 + 첫 spec + 질문 목록을 한 번에 Human 에게 올리고 멈춘다. Human 이 답과 함께 "C### 진행" 이라 말하면
 묶음이 승인되고 spec 이 동결된다 (§1 의 UNRESOLVED 규칙 그대로). 승인 직후 main 에서 `plan/` 을 갱신한다 — `CYCLES.md` §1 레인 한 줄 ·

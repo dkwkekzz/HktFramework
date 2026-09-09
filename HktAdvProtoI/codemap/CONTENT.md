@@ -63,9 +63,10 @@ CLAUDE.md "기반이 컨텐츠에게 요구하는 것" 이 지목한 파일들.
 | `command-catalog.ts` | `COMMAND_CATALOG` · `CommandDefinition` · `projectCommandCatalog` | 세계 밖에서 세계에 손댈 수 있는 것의 목록 |
 | `position.ts` | `WorldPosition` · `WorldBounds` · `inBounds` | 좌표 |
 | `region.ts` | `START_REGION` · `regionSpecOf` · `isConnectorOpen` · `connectorClosedReason` · `connectorReasonCodes` · `lockTraceCodesAt` · `regionExitsOf` · `anchorPosition` · `regionHash` | Region 데이터(content/regions) 를 세계가 읽는 유도 사실 — State 에 넣지 않는다 |
-| `region-state.ts` | `RegionState` { rule? · sources? · disturbance · tracks? · lifeSites? · populations? } · `RegionRuleState` · `ResourceSourceState` · `RegionDisturbanceState` · `Track` · `LifeSiteState` · `PopulationState` · `createRegionStates` · `apply*Setup` | 방 하나가 기억하는 것 (저장된다) |
+| `region-state.ts` | `RegionState` { rule? · sources? · disturbance · tracks? · lifeSites? · populations? · history } · `RegionHistory`(sources[id]{takenTotal · depletedTimes · lastDepletedAt?} · turns · awakenings · passages[routeId] · births 자리) · `recordMemory`(셈을 올리는 한 자리 — RULE-REGION-MEMORY-001) · `RegionRuleState` · `ResourceSourceState` · `RegionDisturbanceState` · `Track` · `LifeSiteState` · `PopulationState` · `createRegionStates` · `apply*Setup` | 방 하나가 기억하는 것 (저장된다) |
 | `region-phase.ts` | `regionPhaseAt` · `depthOverlayAt` · `hazardOverlayTagsAt` · `hazardEffectsAt` · `standingConditionTagsAt` | 방이 시계를 읽어 얻는 위상(깊이 · 위험 · 선 자리 조건) |
 | `terrain.ts` | `regionTerrain` · `isTraversable` · `blockedReason` · `conditionTagsAt` · `TerrainBlockReason` | Description 을 `compileRegion(space, COMPILE_RULES)` 로 컴파일한 유도 사실 (통행 · 막힘 사유 · 조건) |
+| `persistence.ts` | `PERSISTENCE_TABLE` · `PersistenceRow` · `ERASER_*`(transient · observer-held · buried-by-turn · kept · indelible) | State 경로마다 "무엇이 그것을 지우는가" 하나 — 검사 ㊼ 의 입력 (Foundation G7) |
 | `clock.ts` | `seasonAt` · `dayPhaseAt` · `worldClockAt` · `turnsStartedAt` · `seasonsStartedAt` · `clockSetupTime` · 상수(DAY/NIGHT/철 길이 · CYCLE_SECONDS) | 때(낮밤 · 철 · 며칠째 · 몇 바퀴째)는 `state.time` 에서 유도된다 |
 | `rain.ts` | `isRainingAt(time)` | 지금 비가 오는가 (물음 하나) |
 | `resource.ts` | `ResourceSource` · `sourcesInRegion` · `findResourceSource` · `sourceStateOf` · `sourcePositionOf` · `nextStandableSite` · `traceStrengthAt` · `isCollapsedAt` · `inflowOf` · `recoveryLifeSpeed` · `sourceConditions` · `depletedOverlaysIn` | 원천(이 방이 무엇을 낳는가)과 흙의 흔적 |
@@ -80,7 +81,7 @@ CLAUDE.md "기반이 컨텐츠에게 요구하는 것" 이 지목한 파일들.
 | `attack.ts` | 피격 반응 — 행동 중단 → hit (ACTION-BEGIN 을 거치지 않는 유일한 진입) | RULE-HIT-001 |
 | `attribute-set.ts` | DebugAuthority 아래 속성 변경 | RULE-ATTRIBUTE-SET-001 |
 | `emergency-return.ts` | 세계 밖에서 거는 비상 자리(emergencyAnchor)로의 옮김 | RULE-EMERGENCY-RETURN-001 |
-| `mine.ts` | 채취 시작(원천 존재 · 거리 · 도구 · phase) 과 완료(소지품 · 원천 고갈 · 소란) | RULE-MINE-001 · RULE-MINE-COMPLETE-001 |
+| `mine.ts` | 채취 시작(원천 존재 · 거리 · 도구 · phase) 과 완료(소지품 · 원천 고갈 · 소란 · 기억) | RULE-MINE-001 · RULE-MINE-COMPLETE-001 · RULE-REGION-MEMORY-001 |
 | `move-mode.ts` | walk ↔ run 전환 (run 은 Cp > 0 · 쓰러지지 않음) | RULE-MOVE-MODE-001 |
 | `move.ts` | 이동 시작 — 목표가 Region extent 안 · 통행 판정 | RULE-MOVE-001 |
 | `observer-body.ts` | 관찰자 몸 생성(종류 · 자리 · 소지품) — `spawnObserverBody` · `DEFAULT_BODY` | RULE-OBSERVER-JOIN-001 (몸 부분) |
@@ -117,7 +118,7 @@ CLAUDE.md "기반이 컨텐츠에게 요구하는 것" 이 지목한 파일들.
 | 파일 | 하는 일 |
 |---|---|
 | `actions/interactions.ts` | `INTERACTIONS` — `InteractionHandler` 목록: move · mine · attack · skill-heavy · move-mode · transit · set-attribute · emergency-return · summon-presence. 파라미터 검증은 핸들러가 한다 |
-| `projection/observer-view.ts` | `projectObserverView(state, observerId)` · `SPEC_ID` — 관찰자 한 사람의 Semantic Snapshot. 방으로 잘리고(같은 Region 의 몸 · 원천 · 출구), 밤엔 OBSERVE_RANGE_NIGHT 로 한 번 더 잘린다. 의미 코드만 싣는다 (표현 없음). 안에서 부르는 id: RULE-OBSERVE-PROJECTION · RULE-OBSERVE-RANGE-001 · RULE-REGION-PHASE-001 · RULE-STANDING-CONDITIONS-001 · RULE-LOCK-REASON-001 · RULE-EXIT-REQUIREMENT-001 · RULE-RESOURCE-PLACEMENT-001 · RULE-SOURCE-CONDITION-001 · RULE-LIFE-SITE-PHASE-001 · RULE-WORLD-CLOCK-001 등 |
+| `projection/observer-view.ts` | `projectObserverView(state, observerId)` · `SPEC_ID` — 관찰자 한 사람의 Semantic Snapshot. 방으로 잘리고(같은 Region 의 몸 · 원천 · 출구), 밤엔 OBSERVE_RANGE_NIGHT 로 한 번 더 잘린다. 의미 코드만 싣는다 (표현 없음). 안에서 부르는 id: RULE-OBSERVE-PROJECTION · RULE-OBSERVE-RANGE-001 · RULE-REGION-PHASE-001 · RULE-STANDING-CONDITIONS-001 · RULE-LOCK-REASON-001 · RULE-EXIT-REQUIREMENT-001 · RULE-RESOURCE-PLACEMENT-001 · RULE-SOURCE-CONDITION-001 · RULE-LIFE-SITE-PHASE-001 · RULE-WORLD-CLOCK-001 · RULE-OBSERVE-MEMORY-001(원천의 셈 · 방의 셈이 봉투에) 등 |
 
 ### tests/ — 시나리오 · 단위
 
@@ -166,7 +167,7 @@ CLAUDE.md "기반이 컨텐츠에게 요구하는 것" 이 지목한 파일들.
 
 | 파일 | 봉투 확장 내용 |
 |---|---|
-| `gameview.ts` | `GameViewSnapshot extends CoreGameViewSnapshot` — entities: `EntityView`(+ vitality · attributes · material · conditions · siteIndex · collapsedSites) · interactions: `InteractionView`(+ profile) · strikes: `StrikeEventView[]` · region: `RegionView`{ id · hash · state?: `RegionStateView`(pattern · pressure · pressureLimit · rearrangedAt) · disturbance: `RegionDisturbanceView`(value · threshold · phase) } · standingConditions · tracks: `TrackView[]`(at · heading · since) · presences: `PresenceView[]`(presence · curve? · area?) · clock: `WorldClockView`(dayPhase · season · dayIndex · seasonCycle) |
+| `gameview.ts` | `GameViewSnapshot extends CoreGameViewSnapshot` — entities: `EntityView`(+ vitality · attributes · material · conditions · siteIndex · collapsedSites · memory?: `SourceMemoryView`) · interactions: `InteractionView`(+ profile) · strikes: `StrikeEventView[]` · region: `RegionView`{ id · hash · state?: `RegionStateView`(pattern · pressure · pressureLimit · rearrangedAt) · disturbance: `RegionDisturbanceView`(value · threshold · phase) · memory: `RegionMemoryView`(turns · awakenings · passages[]: `PassageMemoryView`) } · standingConditions · tracks: `TrackView[]`(at · heading · since) · presences: `PresenceView[]`(presence · curve? · area?) · clock: `WorldClockView`(dayPhase · season · dayIndex · seasonCycle) |
 | `actions.ts` | `ActionRequest extends CoreActionRequest` — `mode?: 'walk'|'run'` · `attribute?: { id, value }` · `ActionResult` 재수출 |
 | `semantic-id.ts` | engine 소유 id(RULE_OBSERVER_JOIN/LEAVE/MARK · RULE_REQUEST_REPLY · RULE_WORLD_TICK) 재수출 + `semantic-id-core` 전체 — 소비처는 이 파일 하나만 import |
 | `semantic-id-core.ts` | 이 팩의 `RULE_*` · `INTENT_*` 식별자 (몸 · 이동 · 행동 · 명령 · 링크 · 채광 · 전투 · 전이) |
@@ -251,7 +252,7 @@ CLAUDE.md "기반이 컨텐츠에게 요구하는 것" 이 지목한 파일들.
 | `boundary:check` | `tools/boundary/` | engine/content/조립/regions import 그래프 경계 검사 |
 | `catalog` · `catalog:check` | `tools/catalog/print.ts` | CharacterKind 3원소(카탈로그 · 표현 · motions/) 병합 출력 / 정합 검사 (`tests/catalog.spec.ts`) |
 | `motions:scan` · `motions:check` | `tools/motion-atlas/` (scan · build-atlas · detect-frames · png-alpha · emit · vite-plugin) | 모션 시트 프레임 검출 → `view/motion-atlas.generated.ts` / 최신 여부 확인 (`tests/detect.spec.ts`) |
-| `world:check` | `tools/world-editor/check.ts` | 세계 검사 묶음 → 기계가 읽는 JSON |
+| `world:check` | `tools/world-editor/check.ts` | 세계 검사 묶음(마흔다섯 — ①~㊷ + ㊸ memory-refs · ㊼ persistence-summary · `CheckMemory` 계약) → 기계가 읽는 JSON |
 | `world:observe` | `tools/world-editor/observe.ts` | Region 그래프 표 · 방 하나의 땅 그림/보고 (`png.ts`) |
 | `world:compile` | `tools/world-editor/compile.ts` | 같은 방 두 번 컴파일 → hash 동일 확인 |
 | `world:shot` | `tools/world-editor/shot.ts` | 띄운 게임의 그 방을 찍는다 (HKT_SPAWN_REGION · HKT_SPAWN 사용) |

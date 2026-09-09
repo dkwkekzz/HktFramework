@@ -42,7 +42,7 @@
 
 ```text
 advprotoi-cycle   묶음     "<기획서> 로 묶음 잘라" — 기획서에서 플레이 하나를 잘라 첫 Cycle 의 spec.md 머리에 묶음 블록(Goal · Intent · Breath ·
-                          Cycle 목록 · 미지 · 질문)을 쓰고 같은 파일에 첫 spec 을 이어 쓴다. UNRESOLVED 에 묶음 질문 전부 → Human 반환
+                          Cycle 목록 · 미지 · 질문)을 쓰고 같은 파일에 첫 spec 을, 뒤 Cycle 의 spec 은 자기 폴더에 초안으로 함께 쓴다. UNRESOLVED 에 묶음 질문 전부 → Human 반환
                   Cycle    "C### 진행" — spec 동결 → 실현(관찰 계약 · 기구/의미 분해 → E ∥ W ∥ V ∥ T fan-out → npm test → 7항)
                           → 마감(촬영 shots/ · plan/ 에 분류해 기입 · 마감 커밋 · 그림 보고 → PR)
                   예심     묶음의 마지막 Cycle 이 합쳐진 뒤 — 관찰 항목을 판정 질문 대여섯으로 압축해 Human 에게 청한다
@@ -202,7 +202,7 @@ spec.md 동결 (Observable 절 = 관찰 계약)
 
 ### advprotoi-cycle
 
-0. 묶음: Human 이 기획서를 지목하면 첫 Cycle 의 spec.md 머리에 묶음 블록(위층 문서 §5) + 첫 spec + UNRESOLVED(묶음 질문 전부) → Human 반환.
+0. 묶음: Human 이 기획서를 지목하면 첫 Cycle 의 spec.md 머리에 묶음 블록(위층 문서 §5) + 첫 spec + 뒤 Cycle 의 spec 초안 + UNRESOLVED(묶음 질문 전부) → Human 반환.
    "C### 진행" 이 승인. 열 질문(컨텐츠 행) · 로드맵의 열린 층 판정은 plan/DESIGN.md 로
 1. 시작 조건: plan/CYCLES.md 레인 표에서 "기다리는 것"이 빈 Cycle · 브랜치 `cycle/C###` · 재개 판정(파일이 말한다)
 2. 명세 → spec.md 한 번에: 범위(Playable Goal · Intent · World Change · Observable Result · Reuse · Out of Scope)
@@ -238,8 +238,8 @@ spec.md 동결 (Observable 절 = 관찰 계약)
 
 1. **묶음 블록의 Cycle 목록 항목이 cycle 명세 단계의 표준 입력이다.** SOURCE = 기획서 절 (+ 묶음의 첫 spec). Human 이 직접
    Goal 을 지정하는 예외 경로는 유지한다.
-2. **첫 spec 의 UNRESOLVED 가 묶음 질문 전부다** — 뒤 Cycle 의 것도 여기서 한 번에 묻는다. 뒤 Cycle 은 그 답을 물려받고
-   자기 spec 에서 새로 생긴 의미만 묻는다.
+2. **첫 spec 의 UNRESOLVED 가 묶음 질문 전부다** — 뒤 Cycle 의 것도 여기서 한 번에 묻는다. 뒤 Cycle 의 spec 은 묶음 제안 때 초안으로 함께 서고,
+   그 답을 물려받아 자기 차례에 앞 마감의 「다음 Cycle 로」 를 반영해 동결한다. 자기 spec 에서 새로 생긴 의미만 묻는다.
 3. **cycle 마감이 plan/ 에 남긴다** — 관찰 항목 · 결정 · 다음 Cycle 로는 `plan/CYCLES.md` 그 묶음 절, 뒤 층으로는 `plan/DESIGN.md`
    그 원본의 "남은 것", 부채는 `plan/CYCLES.md` §5. 묶음의 마지막 Cycle 이 합쳐지면 AI 예심이 관찰 항목을 판정 질문
    대여섯으로 바꿔 쓴다 (§3 회수 규칙).

@@ -19,7 +19,7 @@
 |---|---|---|---|---|---|
 | 0 | 게임 방향 | [L0-Game.md](../content/roadmap/L0-Game.md) | 없음 — 판단 기준 | **확정** | 미증명 넷 (§3 L0) |
 | 1 | 세계의 문법 | [L1-World-Grammar.md](../content/roadmap/L1-World-Grammar.md) | 없음 — 코드가 이미 이 문법 위 | **확정** | 없음 |
-| 2 | 세계 자체 | [L2-World-Tool](../content/roadmap/L2-World-Tool.md) · [Tool-Scale](../content/roadmap/L2-World-Tool-Scale.md) · [Concept](../content/roadmap/L2-World-Concept.md) · [Region](../content/roadmap/L2-World-Region.md) · [Material](../content/roadmap/L2-World-Material.md) · [Time](../content/roadmap/L2-World-Time.md) · [Life](../content/roadmap/L2-World-Life.md) · [Access](../content/roadmap/L2-World-Access.md) · [Foundation](../content/roadmap/L2-World-Foundation.md) | C001~C031 ([CYCLES §3.1](CYCLES.md)) | **다음** — 기획은 닫혔다 (더 쌓을 기획 없음) | Foundation 이 코드에 없다(묶음 후보 1) · Rooms GAP 둘(후보 3) · 판정 대기 셋 · 도구 묶음 HundredRooms |
+| 2 | 세계 자체 | [L2-World-Tool](../content/roadmap/L2-World-Tool.md) · [Tool-Scale](../content/roadmap/L2-World-Tool-Scale.md) · [Concept](../content/roadmap/L2-World-Concept.md) · [Region](../content/roadmap/L2-World-Region.md) · [Material](../content/roadmap/L2-World-Material.md) · [Time](../content/roadmap/L2-World-Time.md) · [Life](../content/roadmap/L2-World-Life.md) · [Access](../content/roadmap/L2-World-Access.md) · [Foundation](../content/roadmap/L2-World-Foundation.md) | C001~C034 ([CYCLES §3.1](CYCLES.md)) | **다음** — 기획은 닫혔다 (더 쌓을 기획 없음) | Foundation 의 조건 · 기회 · Event(C035~C037 진행 중) · Rooms GAP 둘(후보 3) · 판정 대기 셋 · 도구 묶음 HundredRooms |
 | 3 | 주체와 몸 | [L7 §3](../content/roadmap/L7-Fairy-Growth-Combination.md) 의 3층 몫 (편성 · 무대의 한 명 · Core 가 몸의 State 로) | 없음 | **다음** — Human 결정으로 2층 판정과 **병행** | 3층 몫 묶음(후보 2) · 나머지 절반(몸의 값 전반 · 생물의 앎과 선택)은 별도 주입 |
 | 4 | 자원과 물건 | — | 없음 | 미주입 | L7 4층 몫 · Material 쓰임 · Access 4층 몫 (§3) |
 | 5 | 대결 | — | 없음 | 미주입 | L7 5층 몫 · Concept W6 · W7 |
@@ -180,9 +180,10 @@
 ### L2-World-Foundation — Region Foundation (②-부속 다섯째)
 
 ```text
-덮음      없음 — 코드에 없다 (옛 공정의 Play 문서까지만 섰다)
-남은 것   전부 → 묶음 후보 1: G1~G13 — 여덟 자리 · 기억(history · 수명 표 · 뒤척임도 못 묻는 셈) · 조건의 한 형(흩어진 자리 넷) ·
-          기회=데이터 · Event=때 있는 기회(첫 Event 는 비늘 채집) · Mutation op 표 · 검사 ㊸~㊼ · T2 열셋째 답 · T4 결정 나무 · 최소 완성 기준 25
+덮음      C034(닫힘 — G7 수명 표 · G8 기억 · §4.3 · §4.4 · ㊸ ㊼ · D4 · D5) · C035~C037(묶음 「방은 기억하고 때가 되면 내민다」 — 승인 대기 · CYCLES §3.4)
+덮인 것   기억(history · 되돌아옴 · 뒤척임이 못 묻는다) · 수명 표 · 검사 ㊸ ㊼ · 판의 「기억」 줄
+남은 것   C035 조건의 한 형(G5 · §4.1 · ㊹ · 빈칸 2) · C036 기회=데이터(G3 · §4.5 · ㊺ ㊻ · 기회 표) · C037 Event(G4 · D3 비늘) · op 표(G6) · Yield 표(G11) ·
+          T2 열셋째 답 · T4 결정 나무 · T6 ㊻ · 최소 완성 기준 23 · 24 (G13)                                → C035~C037
           §5.5 Player Knowledge · 발견 상태 다섯 · knowledge Lock          → 3층 둘째 (G10)
           Actor · NPC · participants                                  → 3층 몫 묶음(첫 개체) · 3층 둘째
           전투 Opportunity · Boss 탄생 조건 · killed                     → 5층
@@ -251,7 +252,7 @@ Q2  떨어지는 자리를 세계가 알리지 않는다 — 추락은 거목 �
 
 | 순서 | 층 / 행 | 묶음 (가칭) | 기획서 | Goal (방향) | 받는 것 | 전제 | 그때 필요한 주입 · 미지 | Cycle | 상태 |
 |---|---|---|---|---|---|---|---|---|---|
-| 1 | L2 Foundation | 방은 기억하고 때가 되면 내민다 | [L2-World-Foundation](../content/roadmap/L2-World-Foundation.md) §2.8 · §5 · Time 2.6~2.7 | 방이 자기에게 일어난 일을 세고(기억), 조건이 한 형으로 적혀 기억을 읽고, 때가 있는 기회(Event — 비늘 채집)를 내민다 | Foundation 전부 · Time 2.6~2.7 | 없음 — 지금 | 없음 (옛 Play 의 확정 1~11 은 git history — spec 의 UNRESOLVED 로 다시 묻는다) | 셋 안팎 | **쓸 수 있음** |
+| 1 | L2 Foundation | 방은 기억하고 때가 되면 내민다 | [L2-World-Foundation](../content/roadmap/L2-World-Foundation.md) §3~§5 · Time 2.6~2.7 | 방이 자기에게 일어난 일을 세고(기억 — C034 닫힘), 조건이 한 형으로 적혀 기억을 읽고, 방이 기회를 내밀고, 때가 있는 기회(Event — 비늘 채집)로 선다 | Foundation 전부 · Time 2.6~2.7 | — | 묶음 질문 Q1~Q9 (C035 spec) | C034~C037 | **진행 — C035 승인 대기** ([CYCLES §3.4](CYCLES.md)) |
 | 2 | **L3** · M8 | 한 명만 무대에 선다 | [L7](../content/roadmap/L7-Fairy-Growth-Combination.md) §9~§11 · §20 · §4~§5 · [Access](../content/roadmap/L2-World-Access.md) §14.1 · §15 · K12 · [M5](../content/roadmap/M5-FrostCanyon.md) | 요정 둘을 편성해 협곡을 지난다 — 추위가 무대의 몸을 깎고, 교체하면 다른 Core 의 몸이 서고, 문이 몸의 성질을 묻고(property Lock 의 첫 판정), 열을 쫓는 것이 따뜻한 몸만 본다 | L7 3층 몫 · Access property Lock 판정 · Life F10 첫 개체 · M5 남은 것 | 없음 — 2층 판정과 병행 (Human 결정) | 미지 M8 의 이름(Human) · 시작 편성 둘 · 온기 값 (질문으로) | 넷 안팎 | **쓸 수 있음** |
 | 3 | L2 회수 | 온 길은 남고, 갈 길에는 단서가 있다 | [Region](../content/roadmap/L2-World-Region.md) §11 · §17 · Concept §19-07 · 실주행 GAP Q1 · Q2 | 관찰자가 방 전이를 기록하고 판에서 되읽는다 · 출구를 지목하면 종류와 방향이 선다 · 추락 자리의 땅이 예고한다 | Rooms GAP 둘 | 없음 — 지금 | 위치 감각의 형태(지도 · 이정표 · 흔적 · 깊이 감각만) · 추락 예고를 둘지 (질문으로) | 둘 | **쓸 수 있음** |
 | 4 | L2 도구 | HundredRooms | [Tool-Scale §5](../content/roadmap/L2-World-Tool-Scale.md) | 미지 백 줄 → 방 백 개가 검사를 통과하고 관찰자가 열 곳을 걸어 흔적 → 원천 → 철 → 탄생지를 본다. 코드 diff 0 | Tool-Scale 의 HundredRooms | T3 ecology | 미지 백 줄의 **이름**(Human — 또는 초안기 후보를 Human 이 고른다) | 셋 안팎 | 기다림 — T3 ecology |
@@ -262,7 +263,7 @@ Q2  떨어지는 자리를 세계가 알리지 않는다 — 추락은 거목 �
 | 9 | L7 | (가칭) 보석 하나가 답을 바꾼다 | L7 전문 · Growth-Balance | 보석 하나로 Class 가 바뀌어 못 풀던 자리를 새 방법으로 푼다 · Knowledge 하나가 숨겨진 관계를 연다 · 미증명 ③ | L7 7층 몫 · Life F11 · Access 7층 몫 · Material S10 의 Class 요구 | 후보 8 · 6 | 7층 주입 · D1 + 미지: 보석 하나의 Region 과 원인 · Knowledge 하나 | — | 기다림 — **Human 결정으로 앞당길 수 있다** |
 | — | 컨텐츠 행 | (대부분 묶음 없음) | `M<N>-*.md` | 보석 여덟 · 보류 계열 일곱 · 클래스 · 아이템 · 지식 · 지역 — 등급 A 면 작성기 · Spec · 검사 · Human 판정 / B 면 Cycle 하나 / C 면 기반 층 | §3 의 "컨텐츠 행" 전부 | Human 이 이름 · 종류 · 세계관 사실을 확정 | 미지 하나씩 | — | Human 이 이름을 줄 때마다 |
 
-8층(화면)은 묶음이 없다 — 각 묶음의 Required 로 들어온다. 후보 1 · 2 · 3 은 Reuse 가 겹치지 않아 **병행**할 수 있다 (PR 은 번호 순으로 합친다).
+8층(화면)은 묶음이 없다 — 각 묶음의 Required 로 들어온다. 후보 1(진행 중) · 2 · 3 은 Reuse 가 겹치지 않아 **병행**할 수 있다 (PR 은 번호 순으로 합친다).
 6층 · 9층 후보는 앞당겨도 되는 둘이다 — 앞당기면 질문이 많은 채로 서고, 앞 층의 실주행이 전제를 바꾸면 다시 손본다.
 
 ## 6. 코드에 아직 없는 축
@@ -271,7 +272,7 @@ design/ 에만 있는 것 — 그 층이 열릴 때 묶음이 세운다.
 
 ```text
 전투 공식 · 막기 · 피해 종류 · 살펴봄 · 태도 · 장비 · 스킬 형태 · 성장 · 재료의 쓰임          4~7층
-기억과 기회(history · 조건의 한 형 · Opportunity · 검사 ㊸~㊼)                                  묶음 후보 1
+조건의 한 형 · 기회 · Event(Condition · Opportunity · 검사 ㊹ ㊺ ㊻) — 기억(history · ㊸ ㊼)은 코드에 있다        묶음 후보 1 (C035~C037)
 편성 · 무대의 한 명 · 온기 · property Lock 의 판정(몸이 요구에 답하는 것)                        묶음 후보 2 · 4층(소지)
 온 길의 기록 · 갈 길의 단서                                                                묶음 후보 3
 ```

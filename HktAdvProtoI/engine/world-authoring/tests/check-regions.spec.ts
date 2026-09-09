@@ -103,7 +103,7 @@ const itemOf = (world: World, id: string) =>
   run(world).items.find((item) => item.id === id)!;
 
 describe('checkRegions — 보고의 형', () => {
-  it('①~⑨ 다음에 ⑩~㉒ · ㉓~㉖ · ㉗~㉝ · ㉞~㊷ 이 번호 순으로 실리고, 번호 밖의 코드도 숨지 않는다', () => {
+  it('①~⑨ 다음에 ⑩~㉒ · ㉓~㉖ · ㉗~㉝ · ㉞~㊷ · ㊸ ㊼ 이 번호 순으로 실리고, 번호 밖의 코드도 숨지 않는다', () => {
     const report = run(soundWorld());
     expect(report.items.map((item) => item.mark)).toEqual([
       '①', '②', '③', '④', '⑤', '⑥', '⑦', '⑧', '·', '⑨',
@@ -111,6 +111,8 @@ describe('checkRegions — 보고의 형', () => {
       '㉓', '㉔', '㉕', '㉖',
       '㉗', '㉘', '㉙', '㉚', '㉛', '㉜', '㉝',
       '㉞', '㉟', '㊱', '㊲', '㊳', '㊴', '㊵', '㊶', '㊷',
+      // ㊹ ㊺ ㊻ 은 아직 서지 않았다 (C035 · C036 의 자리) — 번호는 비어도 차례는 이어진다
+      '㊸', '㊼',
     ]);
     // 기계가 잡는 열쇠는 번호가 아니라 id 다 — 번호가 바뀌어도 이것은 그대로다
     expect(new Set(report.items.map((item) => item.id)).size).toBe(report.items.length);
@@ -175,6 +177,9 @@ describe('checkRegions — 보고의 형', () => {
       'access-answer-variety',
       'access-trace',
       'access-behind-lock',
+      // ㊸ ㊼ — 기억 쪽 계약을 주지 않았으므로 둘 다 (C034)
+      'memory-refs',
+      'persistence-summary',
     ]);
   });
 });

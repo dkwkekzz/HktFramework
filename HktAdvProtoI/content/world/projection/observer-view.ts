@@ -58,6 +58,14 @@
 // **무엇이 그 요구를 채우는지도 · 어디서 나는지도 · 마디가 몇인지도 · 되돌아옴이 왜
 // 빨라졌는지도 싣지 않는다** — 관찰자는 같은 자리에 여러 철에 와 보고 그것을 배운다.
 //
+// C034 CHANGED (RULE-OBSERVE-MEMORY-001 · RULE-OBSERVE-PROJECTION · C034 spec R6 · R7) —
+// **방과 원천이 자기에게 일어난 일을 말한다.** 실리는 자리 둘이 난다: 캔 적 있는 원천의
+// 셈(entities[].memory — 없으면 자리째 없다)과 그 방의 셈(region.memory — 소란처럼 늘 실린다).
+// **무엇을 실을지 고르는 규칙은 한 줄도 바뀌지 않는다** (spec R7) — 밤의 범위도 자락의 범위도
+// 그대로이고, 실리지 않는 방·원천의 기억은 따라서 실리지 않는다. **나이는 싣지 않는다**:
+// 세계는 시각만 말하고 "N초 전" 은 관찰자가 짓는다 (자국의 since · rearrangedAt 의 선례).
+// **누가 했는가는 실을 것이 없다** — 세계가 그것을 세지 않기 때문이다 (spec R6 경계 ③).
+//
 // C029 CHANGED (RULE-LOCK-TRACE-BODY-001 · RULE-LOCK-REASON-001 · C029 spec R2 · R3) —
 // **여기서도 봉투에 새 자리가 나지 않는다.** 조건 코드가 실리던 그 자리(conditions)를 지는
 // 존재가 셋이 된다: 원천(C012) · 출구 표식(C020) · 그리고 **몸**. 문 앞의 자락에 든 몸에
@@ -70,9 +78,12 @@ import type {
   EntityView,
   GameViewSnapshot,
   InteractionView,
+  PassageMemoryView,
   PresenceView,
   RegionDisturbanceView,
+  RegionMemoryView,
   RegionStateView,
+  SourceMemoryView,
   TrackView,
 } from '../../protocol/gameview';
 import { actionProgress, actionTargetId } from '../semantic/action';
@@ -122,9 +133,15 @@ import {
   regionHash,
   regionSpecOf,
 } from '../semantic/region';
-import { regionRuleOf } from '../semantic/region-state';
+import {
+  initialMemory,
+  regionRuleOf,
+  type RegionMemory,
+  type SourceMemory,
+} from '../semantic/region-state';
 // 재료 표는 content/regions 의 것이다 — HUD 의 자리 순서를 그 표가 정한다 (C011).
-import { MATERIAL_SEEDS } from '../../regions';
+// 경로 표도 그 폴더의 것이다 — 방의 기억이 펴지는 차례를 그 표가 정한다 (C034).
+import { MATERIAL_SEEDS, PRESENCE_ROUTES } from '../../regions';
 // C021 CHANGED — 안전의 코드는 이제 standingConditionTagsAt 이 낸다 (그 안에서
 // conditionTagsAt 을 그대로 부른다 — 땅의 것은 여전히 땅의 것이다).
 import { distance } from '../semantic/position';
@@ -150,6 +167,57 @@ function narrower(a: number | undefined, b: number | undefined): number | undefi
   if (a === undefined) return b;
   if (b === undefined) return a;
   return Math.min(a, b);
+}
+
+/**
+ * RULE-OBSERVE-MEMORY-001 (C034 ADDED · spec R6) — 그 **원천**의 셈.
+ *
+ * 한 번도 캔 적 없는 원천에는 자리 자체가 없다 — 그 방의 기억에 그 열쇠가 없다는 것이
+ * 그 사실이고, 여기서 0 으로 지어내면 "아무 일도 없었다" 와 "0 번 일어났다" 가 갈리지 않는다
+ * (conditions? · collapsedSites? 가 그런 그대로).
+ *
+ * **나이를 싣지 않는다** (경계 ①) — 시각만 싣고 "N초 전" 은 관찰자가 잰다 (C028 의 어법).
+ * **누가 캤는가는 실을 것이 없다** (경계 ③) — 세계가 세지 않기 때문이다.
+ */
+function sourceMemoryView(memory: SourceMemory | undefined): SourceMemoryView | undefined {
+  if (!memory) return undefined;
+  return {
+    takenTotal: memory.takenTotal,
+    depletedTimes: memory.depletedTimes,
+    ...(memory.lastDepletedAt === undefined ? {} : { lastDepletedAt: memory.lastDepletedAt }),
+  };
+}
+
+/**
+ * RULE-OBSERVE-MEMORY-001 (C034 ADDED · spec R6) — 그 **방**의 셈.
+ *
+ * 원천의 것과 갈린다: 이것은 **늘 실린다** (disturbance 의 어법 그대로 — 어느 방에나 있는
+ * 값이다). 아무 일도 없던 방은 셈이 0 이고 시각도 목록도 없다.
+ *
+ * 지나감은 **데이터 차례**(PRESENCE_ROUTES)로 편다 — State 의 열쇠 순회에 기대지 않는다
+ * (결정론). 지난 적 있는 것만 서고, 실리는 것은 경로의 id 가 아니라 **지나는 것의 코드**다:
+ * 관찰자가 알아야 하는 것은 "무엇이 몇 번 지났는가" 이고, 그 코드를 말로 옮기는 것은
+ * View 의 표다 (원칙 2 · presences[] 가 싣는 그 코드와 같은 것).
+ */
+function regionMemoryView(memory: RegionMemory): RegionMemoryView {
+  const passages: PassageMemoryView[] = [];
+  for (const route of PRESENCE_ROUTES) {
+    const passage = memory.passages[route.id];
+    if (!passage) continue;
+    passages.push({
+      presence: route.presence,
+      times: passage.times,
+      ...(passage.lastAt === undefined ? {} : { lastAt: passage.lastAt }),
+    });
+  }
+  return {
+    turns: memory.turns,
+    awakenings: {
+      times: memory.awakenings.times,
+      ...(memory.awakenings.lastAt === undefined ? {} : { lastAt: memory.awakenings.lastAt }),
+    },
+    passages,
+  };
 }
 
 // 관찰자가 세계에 없으면 관찰 결과도 없다 — 세계는 모르는 이에게 자신을 보여주지 않는다.
@@ -180,6 +248,12 @@ export function projectObserverView(
   // C019 CHANGED — 자리를 위로 옮겼다. 아래 자락의 물음이 이 값을 함께 보기 때문이다 —
   // 실리는 자리(region.disturbance)도 읽는 값도 한 톨도 달라지지 않는다.
   const disturbance = state.regionStates[self.regionId]?.disturbance;
+
+  // C034 ADDED — 그 방의 **기억** (RULE-OBSERVE-MEMORY-001 · spec R6). 소란과 같은 어법으로
+  // 모든 방에 있으므로 같은 자리에서 같이 읽는다 — 되살린 옛 세계에만 없을 수 있어 물음표로
+  // 읽고, 없으면 아무 일도 겪지 않은 것과 같이 낸다 (State 가 없다는 것이 곧 빈 기억이다).
+  // 아래에서 원천의 셈도 이것에서 꺼낸다 — 한 관찰 안에서 두 번 읽지 않는다.
+  const history = state.regionStates[self.regionId]?.history ?? initialMemory();
 
   // RULE-DEPLETED-HAZARD-001 (C020 ADDED · C020 spec R4) — 그 방에서 **깨진 마디**들이 건
   // 덧씌움들. 위상을 거는 원인이 다섯째가 되었다 (철 · 소란 · 지나가는 것 · 늘 서 있는 것 ·
@@ -418,6 +492,8 @@ export function projectObserverView(
     // (C015 CHANGED · spec R2). 거리는 **지금 마디**로 잰다 (RULE-MINE-001 과 같은 자리).
     if (!withinNightRange(here)) continue;
     const collapsedSites = sourceState.collapsedSites;
+    // C034 ADDED — 그 원천에 일어난 일의 셈. 한 번도 캔 적 없으면 undefined 다.
+    const sourceMemory = sourceMemoryView(history.sources[source.id]);
 
     entities.push({
       id: source.id,
@@ -440,6 +516,11 @@ export function projectObserverView(
       ...(collapsedSites && collapsedSites.length > 0
         ? { collapsedSites: [...collapsedSites] }
         : {}),
+      // RULE-OBSERVE-MEMORY-001 (C034 ADDED · spec R6) — **캔 적 있는 원천에만** 그 셈이
+      // 함께 실린다. 한 번도 캔 적 없으면 자리 자체가 없다 (위 sourceMemoryView).
+      // 실리지 않는 원천(밤의 범위 · 눈보라)의 기억도 실리지 않는다 — 자르는 규칙은 위
+      // withinNightRange 하나 그대로이고 여기서 한 줄도 바뀌지 않았다 (경계 ②).
+      ...(sourceMemory ? { memory: sourceMemory } : {}),
       // labelValue 를 싣지 않는다 — 세계 위에 글자가 없다 (C026 R4 RULE-QUIET-GROUND-001).
       // 되돌아오는 중인 자리에도 글자는 없다 (C013 R9) — 예보는 흙과 그림이 말하고,
       // 이름과 사유는 물었을 때 판이 답한다.
@@ -716,6 +797,10 @@ export function projectObserverView(
       // 자리이고, 갈리는 이유는 하나다: 소란은 그 방이 무엇을 품었는지와 무관하게 어느 방에나
       // 있는 값이다. 무엇이 그것을 올렸는지도 무엇이 방을 깨웠는지도 싣지 않는다.
       disturbance: disturbanceView,
+      // 그 방의 **기억** — 소란과 같이 **늘 실린다** (C034 ADDED · spec R6). 어느 방에나
+      // 있는 값이기 때문이다. **누가 했는가는 실을 것이 없고**(세계가 세지 않는다) 나이도
+      // 싣지 않는다 — 시각만 싣고 "N초 전" 은 관찰자가 잰다 (자국의 since 가 그런 그대로).
+      memory: regionMemoryView(history),
     },
     // RULE-SAFEBY-001 (C006 R4) — 몸이 선 자리에 걸린 안전의 조건들.
     // 매 관찰마다 그 방의 땅에서 유도된다 — 세계 State 에는 없다. 아무 area 에도 들지 않았으면

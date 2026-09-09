@@ -131,7 +131,8 @@ const MINE_SECONDS = 1.2;
 // C018 CHANGED — 지나감의 지금이 실리며 다시 올랐다 (재는 것은 글자가 아니라
 // "세계가 찍는 판이 팩의 판과 같다" 이므로 값만 따라 올린다)
 // C022 CHANGED — 탄생지와 개체군이 실리며 다시 올랐다 (같은 이유로 값만 따라 올린다)
-const RAISED_STATE_VERSION = 'hkt-adv-proto-i/10';
+// C034 CHANGED — 방의 기억(history)이 실리며 다시 올랐다 (같은 이유로 값만 따라 올린다)
+const RAISED_STATE_VERSION = 'hkt-adv-proto-i/11';
 /** 그 앞의 버전 — 옛 스냅샷은 되살아나지 않는다 */
 const OLD_STATE_VERSION = 'hkt-adv-proto-i/6';
 
@@ -1143,7 +1144,13 @@ function roomFacts(w: WorldDriver, region: string) {
     exits: exitsIn(v)
       .map((e) => `${e.id}/${e.state}@${e.position.x},${e.position.z}`)
       .sort(),
-    regionView: JSON.stringify(v.region),
+    // C034 CHANGED — 봉투의 region 에 **기억**이 늘 실린다. 여기서 빼는 것은 그것이
+    // 철을 타서가 아니라 **세계가 지나온 시간**을 세기 때문이다: 철 넷을 견주려면
+    // 세계를 서로 다른 시각에 세워야 하고, 그러면 그때까지 지난 뒤척임의 수가 다르다.
+    // 뒤척임은 방의 선택이 아니라 세계의 순간이므로 밝히지 않은 방도 함께 센다
+    // (C034 spec R3 경계 ② · SPEC-003). 이 항이 재는 것 — 깊이 · 걸린 것 · 문 · 원천 ·
+    // 그 방의 값 — 은 한 값도 달라지지 않았다.
+    regionView: JSON.stringify({ ...v.region, memory: undefined }),
     sources: sourcesInRegion(region).map((s) => {
       const at = sourcePositionOf(statesOf(w), s);
       const held = storedOf(w, region, s.id);
