@@ -75,7 +75,7 @@
       ]
     },
     {
-      "_": "X-③ 눈에 보이는 기회 — 걷는 숲으로 나가는 문(Lock 이 걸린 문 · cross 기회 · VISIBLE). anchor 는 (13, 13)",
+      "_": "X-③ 눈에 보이는 기회 — 걷는 숲으로 나가는 문(Lock 이 걸린 문 · cross 기회 · VISIBLE). anchor 는 (13, 13) 이고 몸 바로 아래-오른쪽에 선다",
       "region": "FOREST_DEEP",
       "spawn": "12,11.6",
       "npcs": "none",
@@ -89,8 +89,8 @@
         },
         {
           "click": [
-            0.55,
-            0.45
+            0.56,
+            0.6
           ],
           "alt": true
         },
