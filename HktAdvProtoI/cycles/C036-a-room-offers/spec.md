@@ -67,8 +67,9 @@ Added:
 - World · `content/world/semantic/mutation.ts` — `MUTATION_BINDINGS`(지금 그것인 Transition ↔ op — RULE id 로 인용) · `RULE-OPPORTUNITY-NAME-001`(관찰의 Interaction 에 기회 id · discovery 를 붙인다).
 - Protocol · `InteractionView.opportunity?: { id, discovery }`.
 - View · 「할 수 있는 것」 줄의 discovery 한 마디 — discovery 코드 셋의 문구(`code-text`). 세계 위 글자 0.
-- 데이터 (content/regions) · `content/regions/opportunity.ts` — `RegionOpportunity` 목록 · `opportunitiesOf(regionId)`(기본형 유도 + 데이터 덮어쓰기) · `ALL_OPPORTUNITIES` 색인 ·
-  `RegionSpec.opportunities?`. 데이터로 적는 것: 숲 가장자리 비늘의 기회(discovery SIGNAL · availability = 기억 조건) · Lock 이 걸린 문 셋의 cross 기회.
+- 데이터 (content/regions) · `content/regions/opportunity.ts` — `opportunitiesOf(regionId)`(기본형 유도 + 데이터 덮어쓰기) · `ALL_OPPORTUNITIES` 색인 · `RegionSpec.opportunities?`.
+  이 Cycle 에 데이터로 적는 기회는 없다 — 원천 전부와 Lock 이 걸린 문 셋이 기본형으로 유도되고, 숲 가장자리 비늘도 그 유도가 덮는다
+  (역할 world-event → discovery SIGNAL · availability = 그 원천이 밝힌 기억 조건). 데이터가 기본형을 덮는 길(SPEC-002 경계)은 형과 유도 함수로 서고 단위 시험이 잰다.
 - 도구 · `world:observe --report` 기회 표 · 수명 표.
 
 ## Out of Scope
@@ -113,8 +114,7 @@ Added:
 ```text
 새 State 없음. STATE_VERSION 그대로(11). 기회는 데이터와 유도된 사실이고 저장되지 않는다.
 데이터 (content/regions)
-  RegionSpec.opportunities?       기본형 밖의 것만 — FOREST_EDGE 비늘(discovery SIGNAL · availability = 기억 조건) ·
-                                  FOREST_DEEP · FROST_CANYON · FANTASY_MAZE 의 문 셋의 cross 기회
+  RegionSpec.opportunities?       기본형 밖의 것만 — 이 Cycle 에는 비어 있다 (원천도 문 셋도 기본형이 덮는다)
   MUTATION_BINDINGS               지금 그것인 Transition ↔ op (content/world/semantic — RULE id 로 인용)
 유도되는 것 (저장하지 않는다)
   원천마다의 채집 기회 · Lock 이 걸린 문마다의 건너기 기회      opportunitiesOf(regionId)

@@ -180,8 +180,28 @@ export interface RegionMemoryView {
   passages: PassageMemoryView[];
 }
 
+/**
+ * 그 행동이 **어느 기회의 것인가** — C036 ADDED (Foundation G3 · §4.5 · spec Observable).
+ *
+ * 기회는 판정하지 않는다 — 이 자리는 이미 판정된 Interaction 에 **이름**(어느 기회인가)과
+ * **어떻게 알게 되는 것인가**(discovery)를 붙일 뿐이고, `available` 도 `reason` 도 이것을
+ * 한 값도 읽지 않는다.
+ *
+ * 싣지 않는 것 — 그 기회의 availability(조건) · outcomes · progress 값 · target ·
+ * possibleActions 전체 · "언제 열리는가" · 그 방의 기회 전체 목록. 판은 지목한 대상의 것만
+ * 말한다 (C027 의 어법 그대로).
+ */
+export interface OpportunityView {
+  /** 기회의 id — 유도된 것은 `gather:<원천>` · `cross:<문>` (코드의 자리이지 사람이 읽을 이름이 아니다) */
+  id: string;
+  /** 어떻게 알게 되는가 — 의미 코드 (VISIBLE · SIGNAL · TRACE · HIDDEN). 문구는 View 의 표가 옮긴다 */
+  discovery: string;
+}
+
 export interface InteractionView extends CoreInteractionView {
   profile?: SkillProfileView;
+  /** 그 행동이 속한 기회 — 기회가 없는 행동(이동 · 스킬 · 명령)에는 자리 자체가 없다 (C036) */
+  opportunity?: OpportunityView;
 }
 
 // 규칙을 품은 방이 기억하는 것 — C008 (spec Observable: region.state.*).
