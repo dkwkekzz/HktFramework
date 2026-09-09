@@ -1504,6 +1504,14 @@ export interface CheckLifeRecovery {
   population: string;
 }
 
+/** 탄생지가 하나도 없는 방과 그 사유 — ㉚ 이 함께 싣는다 (C024 ADDED) */
+export interface CheckLifeAbsence {
+  /** 그 방 */
+  region: string;
+  /** 왜 없는가 — 기반은 이 글자를 읽지 않고 그대로 옮긴다 */
+  reason: string;
+}
+
 /** 이 세계의 생명 계통 — 검사 ㉗~㉝ 가 보는 전부 */
 export interface CheckLife {
   formations: readonly CheckLifeFormation[];
@@ -1514,6 +1522,16 @@ export interface CheckLife {
   regionRules: readonly string[];
   /** 개체군이 아닌 관계의 끝은 이것이어야 한다 — 잔류 원천 id 들 (㉜) */
   residueSourceIds: readonly string[];
+  /**
+   * 값을 **올리는** 관계의 갈래들 (C025 ADDED · ㉛).
+   *
+   * 기반은 관계의 갈래 이름을 알지 못하므로(㉜ 이 같은 규율을 적어 두었다) 어느 갈래가
+   * 개체군을 세우는 쪽인지는 계약이 고른다. 밝히지 않으면 ㉛ 은 지금까지처럼 **탄생지만**
+   * 묻는다 — 밝히지 않은 계약의 답이 한 글자도 달라지지 않는다.
+   */
+  raisingLinkKinds?: readonly string[];
+  /** 탄생지가 없는 방이 밝힌 사유들 — 밝히지 않으면 ㉚ 은 지금 그대로다 (C024 ADDED) */
+  absences?: readonly CheckLifeAbsence[];
 }
 
 /** 일곱의 번호·이름 — 이 차례가 곧 보고에 실리는 차례다 (계통이 없을 때의 absent 도 이것을 쓴다) */
@@ -1673,7 +1691,6 @@ function checkLifeTracesConsumes(cx: LifeContext): CheckItem {
 function checkLifeModeSpread(cx: LifeContext): CheckItem {
   const head = LIFE_ITEMS.modeSpread;
   const { formations } = cx.life;
-  if (formations.length === 0) return absentItem(head, '탄생지가 없다');
   // 탄생지가 선 방을 처음 나온 차례로 (결정론 — ⑳ 의 어법)
   const rows: string[] = [];
   const seen = new Set<string>();
@@ -1682,6 +1699,9 @@ function checkLifeModeSpread(cx: LifeContext): CheckItem {
     seen.add(formation.region);
     rows.push(formation.region);
   }
+  // 탄생지가 실제로 선 방의 사유는 싣지 않는다 — 모순된 글자를 옮기지 않되 그것으로 판정하지도 않는다
+  const absences = (cx.life.absences ?? []).filter((absence) => !seen.has(absence.region));
+  if (formations.length === 0 && absences.length === 0) return absentItem(head, '탄생지가 없다');
   const kinds = tally(formations.map((formation) => formation.mode));
   const refs: CheckRef[] = rows.map((row) => {
     const mine = formations.filter((formation) => formation.region === row);
@@ -1690,10 +1710,19 @@ function checkLifeModeSpread(cx: LifeContext): CheckItem {
       detail: `탄생지 ${mine.length} · ${renderTally(tally(mine.map((formation) => formation.mode)))}`,
     };
   });
+  // 사유는 방들 뒤에 잇는다 — 준 차례 그대로 (결정론)
+  for (const absence of absences) {
+    refs.push({ where: absence.region, detail: `탄생지 0 — ${absence.reason}` });
+  }
+  const said = absences.length === 0 ? '' : ` · 사유를 밝힌 방 ${absences.length}`;
+  const spread =
+    formations.length === 0
+      ? '방 0 · 탄생지 합 0'
+      : `방 ${rows.length} · 탄생지 합 ${formations.length} · 방식 ${kinds.size} — ${renderTally(kinds)}`;
   return {
     ...head,
     status: 'report',
-    answer: `방 ${rows.length} · 탄생지 합 ${formations.length} · 방식 ${kinds.size} — ${renderTally(kinds)}`,
+    answer: `${spread}${said}`,
     refs,
   };
 }
@@ -1703,6 +1732,8 @@ function checkLifeRecoveryOwner(cx: LifeContext): CheckItem {
   const head = LIFE_ITEMS.recoveryOwner;
   const rows = cx.life.lifeRecoveries;
   if (rows.length === 0) return absentItem(head, '생명을 전제하는 회복 원인이 없다');
+  // 값을 올리는 관계의 갈래 — 계약이 고른다. 밝히지 않으면 빈 목록이고 탄생지만 묻는다.
+  const raising = new Set(cx.life.raisingLinkKinds ?? []);
   const refs: CheckRef[] = [];
   for (const row of rows) {
     const where = row.sourceId;
@@ -1714,9 +1745,25 @@ function checkLifeRecoveryOwner(cx: LifeContext): CheckItem {
       refs.push({ where, detail: `${row.population} 은 아는 개체군이 아니다` });
       continue;
     }
+    // 그 개체군이 **세계 안에서 서는 길**이 있는가 — 둘 중 하나면 된다.
+    //
+    //   ① 그것을 낳는 탄생지가 있다
+    //   ② 그것을 **값이 오르는 쪽으로 삼는 관계**가 있다 (C025 CHANGED)
+    //
+    // 둘째가 늘어난 까닭은 하나다 — 값이 오르는 길이 탄생 하나가 아니기 때문이다: 어떤
+    // 개체군은 태어나지 않고 이웃에서 불려 온다. 탄생지로만 물으면 그런 개체군을 전제한
+    // 회복 원인이 영원히 "주인 없음" 으로 걸려, 이 검사가 막으려던 구멍(무엇이 그것을
+    // 잇는지 세계가 말하지 않는 자리)이 아니라 **멀쩡한 세계**를 잡는다.
+    //
+    // **어느 갈래가 값을 올리는지는 계약이 고른다** (`raisingLinkKinds`) — 기반은 관계의
+    // 갈래 이름을 알지 못한다 (아래 ㉜ 가 같은 자리에서 그렇게 적어 두었다). 밝히지 않은
+    // 계약에서는 이 물음이 서지 않고 지금까지처럼 탄생지 하나만 묻는다.
     const born = cx.life.formations.some((formation) => formation.population === row.population);
-    if (!born) {
-      refs.push({ where, detail: `${row.population} 을 세우는 탄생지가 없다` });
+    const raised = cx.life.links.some(
+      (link) => raising.has(link.kind) && link.to === row.population,
+    );
+    if (!born && !raised) {
+      refs.push({ where, detail: `${row.population} 을 세우는 탄생지도 올리는 관계도 없다` });
     }
   }
   return {

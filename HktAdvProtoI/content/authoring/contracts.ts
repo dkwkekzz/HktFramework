@@ -18,6 +18,8 @@ import {
   LIFE_FORMATION_MODES,
   PROPERTY_ASPECTS,
   PROPERTY_RELATIONS,
+  RECOVERY_CARCASS_DECAY,
+  RECOVERY_NEST_KILL,
   RECOVERY_MOLT_CYCLE,
   REGION_GRAPH,
   REGION_SPECS,
@@ -80,11 +82,31 @@ export const LIFE_FORMATION_KINDS: readonly string[] = LIFE_FORMATION_MODES;
  * 그런지는 **이 계약이 고른다** — 기반은 그 어휘를 알지 못하고, 검사 ㉛ 은 여기 든 원인을
  * 밝힌 원천에게만 "무엇이 그것을 잇는가" 를 묻는다.
  *
- * 지금은 하나다 — 탈피 주기(`molt-cycle`). `carcass-decay` 는 아직 들지 않는다: 사체를
- * 남기는 것이 세계에 없어 무엇을 전제하는지 세계가 알지 못하고, **밝히지 않은 것을 결손으로
- * 세지 않는다** (spec 기본형 ⑦ · RegionBrief 의 "미답을 답으로 세지 않는다" 와 같은 규율).
+ * C024 CHANGED — **둘이다.** 탈피 주기(`molt-cycle`) 곁에 사체의 분해(`carcass-decay`)가 선다:
+ * 이 Cycle 이 둥지에 사체와 그것을 삭이는 거목균을 세웠으므로, 그 원인이 무엇을 전제하는지를
+ * 이제 세계가 안다 (C022 가 "사체를 남기는 것이 세계에 없어" 비워 둔 자리다).
+ *
+ * C025 CHANGED — 사체 자신의 원인(`nest-kill`)이 **셋째로 든다.** 그것을 두고 가는 포식수가
+ * 세계에 섰기 때문이다 (NEST_CARCASS.recoveryLife = PREDATOR). 포식수는 태어나지 않고
+ * 이웃에서 **불려 오므로**(CALLS), 기반의 ㉛ 이 "탄생지가 있는가" 만 묻던 것을 "값을 올리는
+ * 관계가 있는가" 까지 묻도록 넓혔다 (ENGINE GAP · Human 승인). 어느 갈래가 값을 올리는지는
+ * 기반이 알지 못하므로 아래 `RAISING_LINK_KINDS` 가 그것을 고른다.
  */
-export const LIFE_BOUND_RECOVERY_CAUSES: readonly string[] = [RECOVERY_MOLT_CYCLE];
+export const LIFE_BOUND_RECOVERY_CAUSES: readonly string[] = [
+  RECOVERY_MOLT_CYCLE,
+  RECOVERY_CARCASS_DECAY,
+  RECOVERY_NEST_KILL,
+];
+
+/**
+ * 개체군의 값을 **올리는** 관계의 갈래들 (C025 ADDED · 검사 ㉛).
+ *
+ * 기반은 관계의 갈래 이름을 알지 못한다 (㉜ 이 같은 자리에 세운 규율) — 그래서 "무엇이 그
+ * 개체군을 세우는가" 를 물을 때 어느 갈래를 세울 쪽으로 볼지는 이 세계가 고른다.
+ * 부르는 것(CALLS)만이 값을 올린다 — 먹는 것은 내리고, 남기는 것은 개체군이 아니라 원천을
+ * 세운다 (Life F14).
+ */
+export const RAISING_LINK_KINDS: readonly string[] = ['CALLS'];
 
 export const WORLD_CONTRACTS: WorldContracts = {
   hazardKinds: HAZARD_KINDS,

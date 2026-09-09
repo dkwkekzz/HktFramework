@@ -1081,7 +1081,28 @@ describe('checkRegions — ㉗~㉝ 이 잘못된 데이터를 집어낸다 (SPEC
       'life-recovery-owner',
     );
     expect(unborn.status).toBe('fail');
-    expect(unborn.refs).toEqual([{ where: 'S2', detail: 'P2 을 세우는 탄생지가 없다' }]);
+    expect(unborn.refs).toEqual([{ where: 'S2', detail: 'P2 을 세우는 탄생지도 올리는 관계도 없다' }]);
+  });
+
+  it('㉛ 태어나지 않고 **불려 오는** 개체군도 주인이 있다 — 갈래는 계약이 고른다 (C025)', () => {
+    // Given 탄생지가 없는 개체군 P2 를 전제하는 회복 원인. 그것을 to 로 삼는 관계가 하나 있다
+    const withLink = (raisingLinkKinds?: readonly string[]) =>
+      itemOf(
+        graft((life) => ({
+          ...life,
+          populations: [...life.populations, { id: 'P2', region: 'A' }],
+          lifeRecoveries: [{ sourceId: 'S2', recoveryCause: 'shed', population: 'P2' }],
+          links: [{ from: 'P1', to: 'P2', kind: 'CALLS' }],
+          ...(raisingLinkKinds === undefined ? {} : { raisingLinkKinds }),
+        })),
+        'life-recovery-owner',
+      );
+    // Then 계약이 그 갈래를 "값을 올리는 것" 으로 고르면 통과다
+    expect(withLink(['CALLS']).status).toBe('pass');
+    // And 밝히지 않은 계약의 답은 **한 글자도 달라지지 않는다** — 탄생지만 묻는다
+    expect(withLink().status).toBe('fail');
+    // And 올리지 않는 갈래로 고른 계약도 그대로 잡는다 (기반은 갈래의 뜻을 알지 못한다)
+    expect(withLink(['EATS']).status).toBe('fail');
   });
 
   it('㉛ 생명을 전제하는 회복 원인이 하나도 없으면 absent 다', () => {
@@ -1186,5 +1207,87 @@ describe('checkRegions — ㉚ ㉝ 은 판정하지 않는다 (SPEC-008)', () =>
     expect(status('life-mode-spread')).toBe('absent');
     expect(status('life-link-spread')).toBe('absent');
     expect(status('life-formation-refs')).toBe('absent');
+  });
+});
+
+describe('checkRegions — ㉚ 이 탄생지 없는 방의 사유를 함께 싣는다 (C024)', () => {
+  it('사유를 밝히지 않으면 ㉚ 이 한 글자도 달라지지 않는다', () => {
+    const world = graft((life) => ({
+      ...life,
+      formations: [
+        life.formations[0]!,
+        { ...life.formations[0]!, id: 'L2', region: 'B', mode: 'inherited' },
+      ],
+    }));
+    const before = itemOf(world, 'life-mode-spread');
+    // 빈 목록을 준 것도 밝히지 않은 것과 같다
+    const empty = itemOf({ ...world, life: { ...world.life!, absences: [] } }, 'life-mode-spread');
+    expect(JSON.stringify(empty)).toBe(JSON.stringify(before));
+    expect(before.answer).toBe('방 2 · 탄생지 합 2 · 방식 2 — binding 1 · inherited 1');
+  });
+
+  it('탄생지 0 인 방의 사유가 방들 뒤에 이어 실린다 — 준 차례 그대로', () => {
+    const world = graft((life) => ({
+      ...life,
+      absences: [
+        { region: 'C', reason: '열을 먹는 것이 있어 남는 것이 없다' },
+        { region: 'B', reason: '물이 닿지 않는다' },
+      ],
+    }));
+    const item = itemOf(world, 'life-mode-spread');
+    expect(item.status).toBe('report');
+    expect(item.answer).toBe('방 1 · 탄생지 합 1 · 방식 1 — binding 1 · 사유를 밝힌 방 2');
+    expect(item.refs).toEqual([
+      { where: 'A', detail: '탄생지 1 · binding 1' },
+      { where: 'C', detail: '탄생지 0 — 열을 먹는 것이 있어 남는 것이 없다' },
+      { where: 'B', detail: '탄생지 0 — 물이 닿지 않는다' },
+    ]);
+    expect(run(world).ok).toBe(true);
+  });
+
+  it('탄생지가 서 있는 방의 사유는 싣지 않는다 — 그것으로 판정하지도 않는다', () => {
+    const world = graft((life) => ({
+      ...life,
+      absences: [
+        { region: 'A', reason: '이 방에는 탄생지가 서 있다 — 모순된 글자다' },
+        { region: 'C', reason: '얼어 있다' },
+      ],
+    }));
+    const item = itemOf(world, 'life-mode-spread');
+    expect(item.answer).toBe('방 1 · 탄생지 합 1 · 방식 1 — binding 1 · 사유를 밝힌 방 1');
+    expect(item.refs).toEqual([
+      { where: 'A', detail: '탄생지 1 · binding 1' },
+      { where: 'C', detail: '탄생지 0 — 얼어 있다' },
+    ]);
+    expect(run(world).ok).toBe(true);
+  });
+
+  it('탄생지가 하나도 없어도 사유가 있으면 report 다 — 사유마저 없을 때만 absent', () => {
+    const said = itemOf(
+      graft((life) => ({
+        ...life,
+        formations: [],
+        absences: [{ region: 'A', reason: '얼어 있다' }],
+      })),
+      'life-mode-spread',
+    );
+    expect(said.status).toBe('report');
+    expect(said.answer).toBe('방 0 · 탄생지 합 0 · 사유를 밝힌 방 1');
+    expect(said.refs).toEqual([{ where: 'A', detail: '탄생지 0 — 얼어 있다' }]);
+
+    const silent = itemOf(
+      graft((life) => ({ ...life, formations: [], absences: [] })),
+      'life-mode-spread',
+    );
+    expect(silent.status).toBe('absent');
+    expect(silent.answer).toBe('탄생지가 없다');
+  });
+
+  it('사유를 실은 세계도 두 번 돌리면 글자까지 같다', () => {
+    const world = graft((life) => ({
+      ...life,
+      absences: [{ region: 'C', reason: '얼어 있다' }],
+    }));
+    expect(JSON.stringify(run(world))).toBe(JSON.stringify(run(world)));
   });
 });

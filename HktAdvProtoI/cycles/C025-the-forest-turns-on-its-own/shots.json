@@ -1,0 +1,73 @@
+{
+  "out": "shots",
+  "viewport": [900, 660],
+  "_": "개체군 셋은 저마다 제 방에 산다 — 광식충(거목의 방) · 대형 조류(숲 안쪽) · 포식수(둥지). 셋이 한 화면에 겹치지 않으므로 자락은 방을 갈아탈 때 갈린다. 값은 손잡이(HKT_POPULATION)로 세운다 — 한 철이 1080 세계 초라 촬영이 기다릴 수 없다. 손잡이는 규칙이 스스로 닿는 State 만 세우고 세계 규칙을 바꾸지 않는다. 사체는 LEAVES 가 세우는 것이라 포식수 값으로 갈린다.",
+  "runs": [
+    {
+      "_": "X-① 아직 아무도 오지 않은 숲 안쪽 — 새의 자락이 없다",
+      "region": "FOREST_DEEP",
+      "spawn": "-6,7",
+      "npcs": "none",
+      "clock": "STILL:DAY",
+      "population": "ORE_EATER:0,BIG_BIRD:0,PREDATOR:0",
+      "steps": [
+        { "wait": "세계 시간", "tries": 60 },
+        { "sleep": 8000, "note": "첫 run 은 vite 가 데워지지 않아 프레임이 느리다" },
+        { "shot": "X-01-no-bird", "note": "X-① 숲 안쪽 — 도는 것이 아무것도 없다. X-02 와 나란히 본다" }
+      ]
+    },
+    {
+      "_": "X-② 광식충이 부른 새가 들었다 — 같은 자리, 값 하나만 다르다",
+      "region": "FOREST_DEEP",
+      "spawn": "-6,7",
+      "npcs": "none",
+      "clock": "STILL:DAY",
+      "population": "ORE_EATER:4,BIG_BIRD:2,PREDATOR:0",
+      "steps": [
+        { "wait": "세계 시간", "tries": 60 },
+        { "sleep": 4000 },
+        { "shot": "X-02-bird-arrived", "note": "X-② 같은 자리 · 같은 때 — 새의 자락이 두 겹 서서 푸르게 든다. X-01 과 나란히 본다: 세계가 값을 말하지 않고 넓이로만 말한다" }
+      ]
+    },
+    {
+      "_": "X-③ 둥지 — 포식수가 없고 사체도 없다",
+      "region": "PREDATOR_NEST",
+      "spawn": "-12,8",
+      "npcs": "none",
+      "clock": "STILL:DAY",
+      "population": "PREDATOR:0,TREE_FUNGUS:1",
+      "sourcePhase": "NEST_CARCASS:depleted",
+      "steps": [
+        { "wait": "세계 시간", "tries": 60 },
+        { "sleep": 4000 },
+        { "shot": "X-03-no-predator", "note": "X-③ 둥지 — 사체가 있던 자리가 비었고 도는 것도 없다. X-04 와 나란히 본다" }
+      ]
+    },
+    {
+      "_": "X-④ 포식수가 왔고 사체를 남겼다",
+      "region": "PREDATOR_NEST",
+      "spawn": "-12,8",
+      "npcs": "none",
+      "clock": "STILL:DAY",
+      "population": "PREDATOR:1,TREE_FUNGUS:1",
+      "steps": [
+        { "wait": "세계 시간", "tries": 60 },
+        { "sleep": 4000 },
+        { "shot": "X-04-predator-and-carcass", "note": "X-④ 같은 자리 — 포식수의 자락이 어둡게 깔리고 그 안에 사체가 누웠다. X-03 과 나란히 본다: 남긴 것이 원천이 되는 자리다" }
+      ]
+    },
+    {
+      "_": "X-⑤ 거목의 방 — 새가 먹어 떼가 줄었다",
+      "region": "RED_EYE_TREE",
+      "spawn": "6,1",
+      "npcs": "none",
+      "clock": "STILL:DAY",
+      "population": "ORE_EATER:1,BIG_BIRD:2",
+      "steps": [
+        { "wait": "세계 시간", "tries": 60 },
+        { "sleep": 4000 },
+        { "shot": "X-05-swarm-eaten", "note": "X-⑤ 거목의 방 — 떼의 자락이 한 겹뿐이다. 그것을 줄인 것은 내가 아니라 두 방 건너의 새다" }
+      ]
+    }
+  ]
+}

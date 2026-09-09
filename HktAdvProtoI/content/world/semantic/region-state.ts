@@ -149,11 +149,36 @@ export interface LifeSiteState {
  *
  * C023 CHANGED — **태어남이 이 값을 1 올린다** (RULE-LIFE-BIRTH-001 ④). 상한에서 멈추고,
  * 상한에 닿으면 태어남 자체가 일어나지 않는다 (반만 일어나는 자리를 만들지 않는다).
- * 값을 내리는 것은 아직 세계에 없다 (C024).
+ *
+ * C024 CHANGED — **값이 내린다** (RULE-POPULATION-DECLINE-001). 그래서 값 곁에 하나가 더
+ * 선다: 이 철에 요구가 한 번이라도 다 찼는가. 상한도 내리는 원인도 여전히 여기 없다.
  */
 export interface PopulationState {
   /** 0 과 그 개체군의 상한 사이 */
   value: number;
+  /**
+   * 이 철에 요구(declineWhen)가 **한 번이라도** 다 찼는가 (C024 ADDED · spec State · R3).
+   *
+   * **저장된다.** 철이 바뀌는 순간에만 읽히지만 그 순간까지 한 철 내내 쌓인 답이라,
+   * 껐다 켠 세계가 이것을 잃으면 못 찬 것으로 읽혀 값이 억울하게 내린다.
+   *
+   * 철이 바뀔 때마다 **거짓으로 되돌아간다** — 그 철의 답이지 세계의 답이 아니다.
+   * 요구를 밝히지 않은 개체군에서는 아무도 이 값을 건드리지 않는다 (경계 ④).
+   */
+  metThisSeason: boolean;
+  /**
+   * 그 철에 값이 **어느 쪽으로 움직였는가** (C025 ADDED · spec State · SPEC-006).
+   *
+   * 철이 바뀌는 자리에서 그 철의 **처음과 끝**을 견주어 적힌다 — 오르고 내려 제자리면
+   * 멈춤이다 (한 철의 결과만 본다 · 경계 ③). 오르는 것과 내리는 것이 둘 이상이 되어야
+   * 방향이 뜻을 가지므로 C022~C024 가 비워 둔 자리다 (Life §3.2).
+   *
+   * **저장된다.** 아직 한 철도 지나지 않은 개체군에는 자리 자체가 없다 — 방향이 없는 것과
+   * 멈춤은 다른 말이다 (없는 것을 지어내지 않는 그 규율).
+   *
+   * **투영되지 않는다** (spec Observable) — 세계 안의 값이고 읽는 것은 도구뿐이다.
+   */
+  trend?: 'rising' | 'falling' | 'steady';
 }
 
 /**
@@ -256,6 +281,12 @@ export function regionRuleOf(regionId: string): RegionRuleSpec | undefined {
  * 생기는 것과 **같은 사실**이기 때문이다: 세계가 설 때 아직 아무것도 지나가지 않았으므로
  * 거기 없고, 관찰자에게 "아직 지나가지 않았다" 와 "다 캐 갔다" 는 같은 것 — 거기 지금 없다.
  * phase 를 넷으로 늘리지 않고 C013 의 셋으로 같은 것을 말한다.
+ *
+ * C025 는 이 자리를 **한 글자도 건드리지 않는다** (spec REUSED · SPEC-003). 관계가 남기는
+ * 원천(둥지의 사체)은 세계가 설 때 **거기 있다** — spec 이 처음을 고갈이라 말하지 않았고,
+ * 밝히지 않은 것을 지어내지 않는다. 갈아 끼워진 것은 처음이 아니라 **되돌아옴**이다: 한 번
+ * 없어지고 나면 시간이 그것을 되돌리지 않고 `condition-unmet` 이 걸린 채 다음 사냥을
+ * 기다린다 (RULE-SOURCE-CONDITION-001 · semantic/resource.ts).
  *
  * **어느 원천인지 이름으로 알지 못한다** — 아는 것은 "유입 흐름을 가진 원천" 과 "누군가
  * 지나가며 남기는 원천" 이라는 형 둘뿐이고, 흐름의 표도 경로의 표도 데이터의 것이다.
@@ -360,7 +391,12 @@ export function createRegionStates(): Record<string, RegionState> {
     const populations = spec.ecology?.populations ?? [];
     if (populations.length > 0) {
       const populationStates: Record<string, PopulationState> = {};
-      for (const population of populations) populationStates[population.id] = { value: 0 };
+      // C024 CHANGED — 이 철에 요구가 찼는지도 함께 든다. 아직 아무 일도 겪지 않은 세계는
+      // **거짓**에서 선다 — 없는 것을 찬 것으로 읽지 않는다 (원천이 available 로 서는 것과
+      // 반대쪽이지만 같은 규율이다: 그 철이 시작된 뒤 실제로 차야 참이 된다).
+      for (const population of populations) {
+        populationStates[population.id] = { value: 0, metThisSeason: false };
+      }
       state.populations = populationStates;
     }
 

@@ -15,7 +15,7 @@
       "unanswered": "이름이 갈래를 hazard/creature 로 가리키지만 이 세계에 hazard layer 가 아직 놓이지 않았다 — 위험의 갈래는 Concept §3.1 이 어휘를 주었으나 컨텐츠 층 주입이 남았다"
     },
     "worth": {
-      "said": "사체 위의 균사가 셋째 재료를 낸다 — 누가 놓아 둔 것이 아니라 사냥의 부산물이고, 한 번에 다 뜯긴다. 둥지 곁에 밤에만 희게 빛나는 갓 둘과 줄기의 껍질 조각 하나.",
+      "said": "사체 위의 균사가 셋째 재료를 낸다 — 누가 놓아 둔 것이 아니라 사냥의 부산물이고, 한 번에 다 뜯긴다. 둥지 곁에 밤에만 희게 빛나는 갓 둘과 줄기의 껍질 조각 하나. 그리고 그 균사가 자라는 **사체** 자신이 넷째 자리로 선다 — 다음 사냥이 또 하나를 두고 간다.",
       "sources": [
         {
           "id": "NEST_FUNGUS",
@@ -52,6 +52,15 @@
           "recoveryCause": "husk-shed",
           "form": "husk-shard",
           "role": "baseline"
+        },
+        {
+          "id": "NEST_CARCASS",
+          "material": "ORE_EATER_MOLT",
+          "heldBy": "residue",
+          "worldCause": "FOREST_CHAIN",
+          "recoveryCause": "nest-kill",
+          "form": "carcass",
+          "role": "by-product"
         }
       ]
     },

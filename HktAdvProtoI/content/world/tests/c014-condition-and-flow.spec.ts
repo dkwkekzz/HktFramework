@@ -59,6 +59,7 @@ import {
   regionSpec,
   type ResourceSourceSpec,
   ORE_EATER,
+  TREE_FUNGUS,
 } from '../../regions';
 // C008 이 세운 미로의 이름들 — 그 파일이 소유한다 (c008 ~ c013 시나리오의 선례 그대로).
 import { CELL_LAYER, FANTASY_MAZE, PASSAGE_LAYER } from '../../regions/fantasy-maze';
@@ -142,7 +143,27 @@ const MINE_SECONDS = 1.2;
  * (값을 올릴 수 없는 전이는 일어나지 않는다) 서지 않는다. 손잡이는 값을 상한으로 자르므로
  * 큰 수 하나면 된다. 재료 계통의 규칙은 한 줄도 달라지지 않는다.
  */
-const solo: WorldSetup = { npcs: [], populations: { [ORE_EATER]: 99 } };
+const solo: WorldSetup = {
+  npcs: [],
+  // C024 CHANGED — **거목균도 가득 채운다.** 사체가 균류로 바뀌는 변성(C024 SPEC-006)이
+  // 이 시나리오들이 기다리는 동안 한 번 일어나면 균사의 되돌아옴 배속이 도중에 바뀐다.
+  // 상한이면 그 요구("값이 하나 이하")가 차지 않아 변성이 서지 않는다 — 광식충을 가득
+  // 채운 것과 **정확히 같은 어법**이고, 재료 계통의 규칙은 여전히 한 줄도 달라지지 않는다.
+  populations: { [ORE_EATER]: 99, [TREE_FUNGUS]: 99 },
+};
+
+/**
+ * C024 ADDED — 개체군이 가득한 이 세계에서의 **되돌아옴 배속** (C024 SPEC-001 ①③).
+ *
+ * 되돌아옴의 **길이**(recoverySeconds)는 데이터 그대로이고 바뀐 것이 없다 — 그 길이에
+ * 이르기까지 흐르는 세계 초를 배속이 나눌 뿐이다 (C020 이 철에 세운 그 어법 그대로).
+ * 값이 목록보다 크면 마지막이 답이므로, 상한에 세운 이 세계의 배속은 목록의 끝이다.
+ * 매임을 밝히지 않은 원천은 1 이라 아래의 초가 한 값도 달라지지 않는다.
+ */
+const lifeSpeedOf = (id: string): number => ecologyOf(id).recoveryByLife?.at(-1) ?? 1;
+
+/** 그 원천이 실제로 걸리는 세계 초 — 데이터의 길이를 배속이 나눈다 */
+const secondsOf = (id: string): number => recoveryOf(id) / lifeSpeedOf(id);
 
 // ── 계약이 준 형 (spec State 절 · Observable 절 그대로 적어 둔다) ─────
 
@@ -563,7 +584,7 @@ describe('SPEC-002 사슬이 셋이 된다', () => {
     });
     mineUntilDepleted(world, NEST_FUNGUS);
     // When 뿌리혹의 제 길이를 넘겨 진행시킨다 (균사가 돌아오기 전까지)
-    const until = Math.min(recoveryOf(NEST_FUNGUS), recoveryOf(ROOT_NODULE) * 1.5) - 1;
+    const until = Math.min(secondsOf(NEST_FUNGUS), secondsOf(ROOT_NODULE) * 1.5) - 1;
     const tree = moveBody(world, RED_EYE_TREE, walkableSpots(RED_EYE_TREE)[0]!);
     wait(tree, until);
     // Then 진행이 오르지 않아 아직 바닥난 채다
@@ -582,7 +603,7 @@ describe('SPEC-002 사슬이 셋이 된다', () => {
       },
     });
     // When 노두의 제 길이를 넘겨 진행시킨다
-    const until = Math.min(recoveryOf(NEST_FUNGUS), recoveryOf(ORE_OUTCROP) * 1.5) - 1;
+    const until = Math.min(secondsOf(NEST_FUNGUS), secondsOf(ORE_OUTCROP) * 1.5) - 1;
     wait(world, until);
     // Then 노두도 멎어 있다 — 사슬의 끝을 끊으면 두 마디 위가 멎는다
     expect(phaseOf(world, ORE_OUTCROP).phase).toBe(DEPLETED);
@@ -612,12 +633,12 @@ describe('SPEC-002 사슬이 셋이 된다', () => {
     // **판정 방식** — 한 걸음(1 세계 초)의 여유를 둔다. spec 은 한 Tick 안에서 사슬의 앞뒤가
     // 어느 차례로 굴러가는지 말하지 않으므로, 마디를 넘길 때마다 한 걸음이 어긋날 수 있다
     // (그것을 못 박는 것은 이 층이 아니라 구현의 몫이다 · 하네스 결손에 함께 적었다).
-    expectSpan('균사', fungusAt, recoveryOf(NEST_FUNGUS), 0);
-    expectSpan('뿌리혹', noduleAt, recoveryOf(NEST_FUNGUS) + recoveryOf(ROOT_NODULE), 1);
+    expectSpan('균사', fungusAt, secondsOf(NEST_FUNGUS), 0);
+    expectSpan('뿌리혹', noduleAt, secondsOf(NEST_FUNGUS) + secondsOf(ROOT_NODULE), 1);
     expectSpan(
       '노두',
       outcropAt,
-      recoveryOf(NEST_FUNGUS) + recoveryOf(ROOT_NODULE) + recoveryOf(ORE_OUTCROP),
+      secondsOf(NEST_FUNGUS) + secondsOf(ROOT_NODULE) + secondsOf(ORE_OUTCROP),
       2,
     );
     expect(phaseOf(world, ORE_OUTCROP)).toMatchObject({ phase: AVAILABLE, taken: 0 });
@@ -762,7 +783,7 @@ describe('SPEC-004 물길이 불어난 때만 실려 온다', () => {
     for (const one of OUTSIDE_FLOW) {
       // Given 그 원천만 고갈된 세계 (매달린 것은 available 이므로 멎지 않는다)
       const world = standingIn(one.region, undefined, { sourcePhases: { [one.id]: DEPLETED } });
-      const full = recoveryOf(one.id);
+      const full = secondsOf(one.id);
       wait(world, full - 1);
       expect({ id: one.id, phase: phaseOf(world, one.id).phase }).not.toEqual({
         id: one.id,

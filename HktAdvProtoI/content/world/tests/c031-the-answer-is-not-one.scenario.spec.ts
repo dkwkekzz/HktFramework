@@ -151,7 +151,7 @@ const BASELINE: Readonly<Record<string, RoomBaseline>> = {
     sources: ['MOLT_LITTER', 'SEEP_CRUST', 'FALLEN_SCALE', 'PREY_REMAINS', 'ORE_PEBBLE_EDGE', 'HUSK_SHARD_EDGE', 'GLOW_CAP_EDGE'],
   },
   [FOREST_DEEP]: {
-    hash: '2b6a4c96',
+    hash: 'b0cabbb8',
     surface: { flat: 1681 },
     traversable: 1681,
     exits: ['DEEP_TRAIL', 'NEST_TRAIL', 'ORE_TRAIL', 'TREE_APPROACH', 'ANCIENT_GATE', 'WALKING_FOREST_DOOR'],
@@ -169,13 +169,16 @@ const BASELINE: Readonly<Record<string, RoomBaseline>> = {
     sources: ['RUIN_SPOIL', 'ORE_PEBBLE_RUIN', 'HUSK_SHARD_RUIN_1', 'HUSK_SHARD_RUIN_2'],
   },
   [PREDATOR_NEST]: {
-    hash: '7e437aff',
+    // C024 CHANGED — 둥지는 C024 가 만졌다 (사체 · 변성지 · 자락 넷). **표면도 통행도 한 값
+    // 달라지지 않았고** 달라진 것은 Description 에 선 자리뿐이라 hash 하나가 바뀌었다.
+    hash: 'c9a53392',
     surface: { flat: 1681 },
     traversable: 1681,
     exits: ['NEST_TRAIL'],
     floorTrace: 2,
     peakTrace: 4,
-    sources: ['NEST_FUNGUS', 'GLOW_CAP_NEST_1', 'GLOW_CAP_NEST_2', 'HUSK_SHARD_NEST'],
+    // C024 CHANGED — 둥지의 사체가 늘었다 (데이터 차례의 끝)
+    sources: ['NEST_FUNGUS', 'GLOW_CAP_NEST_1', 'GLOW_CAP_NEST_2', 'HUSK_SHARD_NEST', 'NEST_CARCASS'],
   },
   [BIO_ORE_FIELD]: {
     hash: 'f111570c',
@@ -257,7 +260,8 @@ const ENTITY_BASELINE: Readonly<Record<string, readonly string[]>> = {
   [FOREST_EDGE]: ['player-1/player-character', 'MOLT_LITTER/resource-source', 'FALLEN_SCALE/resource-source', 'PREY_REMAINS/resource-source', 'ORE_PEBBLE_EDGE/resource-source', 'HUSK_SHARD_EDGE/resource-source', 'FOREST_PATH/region-exit', 'RUIN_TRAIL/region-exit', 'DEEP_TRAIL/region-exit'],
   [FOREST_DEEP]: ['player-1/player-character', 'RIVER_SILT/resource-source', 'ORE_PEBBLE_DEEP_1/resource-source', 'ORE_PEBBLE_DEEP_2/resource-source', 'HUSK_SHARD_DEEP/resource-source', 'DEEP_TRAIL/region-exit', 'NEST_TRAIL/region-exit', 'ORE_TRAIL/region-exit', 'TREE_APPROACH/region-exit', 'ANCIENT_GATE/region-exit', 'WALKING_FOREST_DOOR/region-exit'],
   [EXPLORER_RUIN]: ['player-1/player-character', 'RUIN_SPOIL/resource-source', 'ORE_PEBBLE_RUIN/resource-source', 'HUSK_SHARD_RUIN_1/resource-source', 'HUSK_SHARD_RUIN_2/resource-source', 'RUIN_TRAIL/region-exit'],
-  [PREDATOR_NEST]: ['player-1/player-character', 'NEST_FUNGUS/resource-source', 'HUSK_SHARD_NEST/resource-source', 'NEST_TRAIL/region-exit'],
+  // C024 CHANGED — 둘이 늘었다: 둥지의 사체(원천)와 그 위의 변성지(탄생지)
+  [PREDATOR_NEST]: ['player-1/player-character', 'NEST_FUNGUS/resource-source', 'HUSK_SHARD_NEST/resource-source', 'NEST_CARCASS/resource-source', 'CARCASS_TO_FUNGUS/life-site', 'NEST_TRAIL/region-exit'],
   [BIO_ORE_FIELD]: ['player-1/player-character', 'ORE_OUTCROP/resource-source', 'ORE_PEBBLE_ORE_1/resource-source', 'ORE_PEBBLE_ORE_2/resource-source', 'ORE_PEBBLE_ORE_3/resource-source', 'HUSK_SHARD_ORE/resource-source', 'ORE_TRAIL/region-exit', 'ORE_TREE_TRAIL/region-exit'],
   [RED_EYE_TREE]: ['player-1/player-character', 'ROOT_NODULE/resource-source', 'ORE_PEBBLE_TREE/resource-source', 'CLUTCH_HUSK/resource-source', 'EGG_HUSK/resource-source', 'ROOT_CLUTCH/life-site', 'ROOT_EGGS/life-site', 'TREE_APPROACH/region-exit', 'ORE_TREE_TRAIL/region-exit', 'TREE_INNER_DOOR/region-exit'],
   [TREE_INNER_WORLD]: ['player-1/player-character', 'CORE_EMBER/resource-source', 'TREE_INNER_DOOR/region-exit', 'TREE_FALL/region-exit'],
@@ -297,6 +301,8 @@ const PHASE_BASELINE: Readonly<Record<string, { phase: string; taken: number }>>
   GLOW_CAP_NEST_1: { phase: 'available', taken: 0 },
   GLOW_CAP_NEST_2: { phase: 'available', taken: 0 },
   HUSK_SHARD_NEST: { phase: 'available', taken: 0 },
+  // C024 ADDED — 둥지의 사체 (처음은 거기 있다)
+  NEST_CARCASS: { phase: 'available', taken: 0 },
   ORE_OUTCROP: { phase: 'available', taken: 0 },
   ORE_PEBBLE_ORE_1: { phase: 'available', taken: 0 },
   ORE_PEBBLE_ORE_2: { phase: 'available', taken: 0 },

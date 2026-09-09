@@ -1,0 +1,97 @@
+{
+  "out": "shots",
+  "viewport": [900, 660],
+  "_": "둥지 — 사체 (-15,10) · 변성지 (-14,15) · 균사 (-6,4). 숲 어귀 — 허물 (-8,6). 변성은 결속 120 세계 초라 실제로 기다리지 않고 phase 손잡이로 세운다 (손잡이는 규칙이 스스로 닿는 State 만 세우고 세계 규칙을 바꾸지 않는다). 허물의 두 장은 **같은 세계 · 같은 자리 · 같은 기다림**이고 개체군 값 하나만 다르다 — 그것이 이 Cycle 의 주장이다. 촬영 하네스의 세계 시간은 실시간보다 느리므로(C023 부채) 30 세계 초를 넉넉히 기다린다.",
+  "runs": [
+    {
+      "_": "X-① 둥지의 사체와 그 곁의 삭는 자리 — 아직 아무 일도 일어나지 않았다",
+      "region": "PREDATOR_NEST",
+      "spawn": "-13,12",
+      "npcs": "none",
+      "clock": "STILL:DAY",
+      "population": "TREE_FUNGUS:0",
+      "steps": [
+        { "wait": "세계 시간", "tries": 60 },
+        { "sleep": 8000, "note": "첫 run 은 vite 가 데워지지 않아 프레임이 느리다" },
+        {
+          "shot": "X-01-carcass-and-rot",
+          "note": "X-① 둥지에 **사체**가 눕고 그 곁에 흰 것이 돋은 자리가 있다. 둘레 흙이 삭는 모양과 냄새의 자리로 두 단계 짙다. X-02 · X-03 과 나란히 본다"
+        }
+      ]
+    },
+    {
+      "_": "X-② 변성이 맺히는 중 — 흰 것이 사체를 덮어 간다",
+      "region": "PREDATOR_NEST",
+      "spawn": "-13,14",
+      "npcs": "none",
+      "clock": "STILL:DAY",
+      "lifePhase": "CARCASS_TO_FUNGUS:binding",
+      "population": "TREE_FUNGUS:0",
+      "steps": [
+        { "wait": "세계 시간", "tries": 60 },
+        { "sleep": 4000 },
+        {
+          "shot": "X-02-transform-binding",
+          "note": "X-② 결속 중 — 흰 것이 부풀고, 전조의 자락이 한 단계 옅어진다 (재료가 그리로 간다). X-01 과 나란히 본다"
+        }
+      ]
+    },
+    {
+      "_": "X-③ 터진 뒤 — 붉게 되돌아온 흙",
+      "region": "PREDATOR_NEST",
+      "spawn": "-13,14",
+      "npcs": "none",
+      "clock": "STILL:DAY",
+      "lifePhase": "CARCASS_TO_FUNGUS:spent",
+      "population": "TREE_FUNGUS:1",
+      "steps": [
+        { "wait": "세계 시간", "tries": 60 },
+        { "sleep": 4000 },
+        {
+          "shot": "X-03-transform-spent",
+          "note": "X-③ 터진 뒤 — 흰 것이 삭아 내려앉고, 그 자리에 **붉게 되돌아온 흙**(사다리의 가장 짙은 눈금)이 선다. 그 자락은 이때만 서고 X-01 · X-02 에는 없다"
+        }
+      ]
+    },
+    {
+      "_": "X-④ 벗을 것이 없는 숲 — 다 캔 허물이 돌아오지 않는다",
+      "region": "FOREST_EDGE",
+      "spawn": "-6,6",
+      "npcs": "none",
+      "clock": "STILL:DAY",
+      "sourcePhase": "MOLT_LITTER:depleted",
+      "population": "ORE_EATER:0",
+      "steps": [
+        { "wait": "세계 시간", "tries": 60 },
+        { "sleep": 60000, "note": "허물의 길이(60)보다 넉넉히 — 개체군이 0 이면 진행이 한 톨도 오르지 않는다" },
+        { "click": [0.5, 0.55], "alt": true },
+        { "sleep": 1500 },
+        { "expect": "벗을 것이 없다", "note": "X-④ 판이 멎은 사유를 말하는가 (판의 글자를 촬영이 훑지 못하는 부채가 있다 — 없다고 적혀도 그림을 본다)" },
+        {
+          "shot": "X-04-no-molter",
+          "note": "X-④ 밑동의 허물이 **다 캔 그대로**다 — 길이의 곱절을 기다렸는데도 돌아오지 않는다. 지목하면 판이 「벗을 것이 없다」 를 말한다. X-05 와 나란히 본다"
+        }
+      ]
+    },
+    {
+      "_": "X-⑤ 벗는 것이 있는 숲 — 같은 자리 · 같은 기다림 · 값 하나만 다르다",
+      "region": "FOREST_EDGE",
+      "spawn": "-6,6",
+      "npcs": "none",
+      "clock": "STILL:DAY",
+      "sourcePhase": "MOLT_LITTER:depleted",
+      "population": "ORE_EATER:4",
+      "steps": [
+        { "wait": "세계 시간", "tries": 60 },
+        { "sleep": 60000, "note": "같은 기다림 — 상한에서는 배속이 두 배라 그 사이에 돌아온다" },
+        { "click": [0.5, 0.55], "alt": true },
+        { "sleep": 1500 },
+        { "expect": "벗을 것이 없다", "note": "X-⑤ 이제는 없어야 한다 — 돌아온 원천에는 멎음의 사유가 걸리지 않는다" },
+        {
+          "shot": "X-05-molt-returned",
+          "note": "X-⑤ 허물이 **돌아왔다** — 다시 캘 수 있고 둘레 흙이 짙다. X-04 와 나란히 본다: 세계도 자리도 기다림도 같고 다른 것은 살아 있는 것의 수뿐이다"
+        }
+      ]
+    }
+  ]
+}

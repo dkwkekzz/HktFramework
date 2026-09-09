@@ -146,9 +146,12 @@ const BASELINE: Readonly<Record<string, RoomBaseline>> = {
     traversable: 1328,
   },
   [FOREST_EDGE]: { hash: 'da66b8e9', surface: { flat: 1386, slope: 127, steep: 168 }, traversable: 1513 },
-  [FOREST_DEEP]: { hash: '2b6a4c96', surface: { flat: 1681 }, traversable: 1681 },
+  [FOREST_DEEP]: { hash: 'b0cabbb8', surface: { flat: 1681 }, traversable: 1681 },
   [BIO_ORE_FIELD]: { hash: 'f111570c', surface: { flat: 1681 }, traversable: 1681 },
-  [PREDATOR_NEST]: { hash: '7e437aff', surface: { flat: 1681 }, traversable: 1681 },
+  // C024 CHANGED — 둥지는 C024 가 만졌다 (사체 · 변성지 · 자락 넷). **표면도 통행도 한 값
+  // 달라지지 않았고**(아래 두 수가 그것을 그대로 잰다) 달라진 것은 Description 에 선 자리뿐이라
+  // hash 하나가 바뀌었다.
+  [PREDATOR_NEST]: { hash: 'c9a53392', surface: { flat: 1681 }, traversable: 1681 },
   [FANTASY_MAZE]: { hash: '53ca6a70', surface: { flat: 6561 }, traversable: 6561 },
   [MAZE_HEART]: { hash: 'b9b77a14', surface: { flat: 1681 }, traversable: 1681 },
   [ICE_CANYON]: {

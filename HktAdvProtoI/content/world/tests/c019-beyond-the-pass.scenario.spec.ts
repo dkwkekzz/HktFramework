@@ -174,7 +174,7 @@ const BASELINE: Readonly<Record<string, RoomBaseline>> = {
   },
   [FOREST_DEEP]: {
     depth: 'wild',
-    hash: '2b6a4c96',
+    hash: 'b0cabbb8',
     exits: ['DEEP_TRAIL', 'NEST_TRAIL', 'ORE_TRAIL', 'TREE_APPROACH', 'ANCIENT_GATE', 'WALKING_FOREST_DOOR'],
     entities: [
       'player-1/player-character',

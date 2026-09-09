@@ -193,7 +193,7 @@ const BASELINE: Readonly<Record<string, RoomBaseline>> = {
     ],
   },
   [FOREST_DEEP]: {
-    hash: '2b6a4c96',
+    hash: 'b0cabbb8',
     surface: { flat: 1681 },
     traversable: 1681,
     exits: ['DEEP_TRAIL', 'NEST_TRAIL', 'ORE_TRAIL', 'TREE_APPROACH', 'ANCIENT_GATE', 'WALKING_FOREST_DOOR'],
@@ -228,14 +228,19 @@ const BASELINE: Readonly<Record<string, RoomBaseline>> = {
     ],
   },
   [PREDATOR_NEST]: {
-    hash: '7e437aff',
+    // C024 CHANGED — 둥지는 C024 가 만졌다 (사체 · 변성지 · 자락 넷). **표면도 통행도 한 값
+    // 달라지지 않았고** 달라진 것은 Description 에 선 자리뿐이라 hash 하나가 바뀌었다.
+    hash: 'c9a53392',
     surface: { flat: 1681 },
     traversable: 1681,
     exits: ['NEST_TRAIL'],
+    // C024 CHANGED — 둘이 늘었다: 둥지의 사체(원천)와 그 위의 변성지(탄생지).
     entities: [
       'player-1/player-character',
       'NEST_FUNGUS/resource-source',
       'HUSK_SHARD_NEST/resource-source',
+      'NEST_CARCASS/resource-source',
+      'CARCASS_TO_FUNGUS/life-site',
       'NEST_TRAIL/region-exit',
     ],
   },
@@ -291,7 +296,14 @@ const SOURCE_BASELINE: Readonly<Record<string, readonly string[]>> = {
   [FOREST_EDGE]: ['MOLT_LITTER', 'SEEP_CRUST', 'FALLEN_SCALE', 'PREY_REMAINS', 'ORE_PEBBLE_EDGE', 'HUSK_SHARD_EDGE', 'GLOW_CAP_EDGE'],
   [FOREST_DEEP]: ['RIVER_SILT', 'ORE_PEBBLE_DEEP_1', 'ORE_PEBBLE_DEEP_2', 'HUSK_SHARD_DEEP', 'GLOW_CAP_DEEP', 'SEEP_CRUST_DEEP'],
   [BIO_ORE_FIELD]: ['ORE_OUTCROP', 'ORE_PEBBLE_ORE_1', 'ORE_PEBBLE_ORE_2', 'ORE_PEBBLE_ORE_3', 'HUSK_SHARD_ORE'],
-  [PREDATOR_NEST]: ['NEST_FUNGUS', 'GLOW_CAP_NEST_1', 'GLOW_CAP_NEST_2', 'HUSK_SHARD_NEST'],
+  // C024 CHANGED — 둥지의 사체가 늘었다 (데이터 차례의 끝)
+  [PREDATOR_NEST]: [
+    'NEST_FUNGUS',
+    'GLOW_CAP_NEST_1',
+    'GLOW_CAP_NEST_2',
+    'HUSK_SHARD_NEST',
+    'NEST_CARCASS',
+  ],
   [ICE_CANYON]: ['PASS_RIME'],
   [FROST_CANYON]: ['CLIFF_FROST_VEIN', 'SNOW_DRIFT_DUST', 'FROZEN_REMAINS'],
 };
