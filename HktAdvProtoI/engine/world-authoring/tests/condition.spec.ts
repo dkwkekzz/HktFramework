@@ -492,6 +492,20 @@ describe('㊹ 조건이 가리키는 것', () => {
     expect(itemOf(sound()).refs).toEqual([]);
   });
 
+  it('① 자리만인 갈래(actor)는 어휘에 있으면 ref 없이 서고 · ref 를 밝혔으면 어휘의 id 이어야 한다', () => {
+    const world = sound();
+    const vocabulary: CheckCondition['vocabulary'] = {
+      targets: { ...world.vocabulary.targets, actor: [] },
+      queries: [...world.vocabulary.queries, { target: 'actor', query: 'capability' }],
+    };
+    const noRef = withLeaf({ target: { kind: 'actor' }, query: { kind: 'capability', path: 'c1' }, operator: 'EXISTS', value: undefined });
+    expect(itemOf({ ...noRef, vocabulary }).refs).toEqual([]);
+    const ghost = withLeaf({ target: { kind: 'actor', ref: 'x' }, query: { kind: 'capability', path: 'c1' }, operator: 'EXISTS', value: undefined });
+    expect(itemOf({ ...ghost, vocabulary }).refs).toEqual([
+      { where: 'extra', detail: 'actor(x).capability(c1) EXISTS — ref x 은 아는 actor 이 아니다' },
+    ]);
+  });
+
   it('① 어휘에 없는 갈래는 잡히고 그 query 는 재지 않는다 (자리만인 갈래도)', () => {
     const item = itemOf(withLeaf({ target: { kind: 'actor', ref: 'x' } }));
     expect(item.refs).toEqual([

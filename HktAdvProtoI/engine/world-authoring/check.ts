@@ -24,6 +24,7 @@ import {
   CONDITION_OPERATORS,
   conditionLeaves,
   formatConditionLeaf,
+  DEFERRED_TARGET_KINDS,
   SINGLETON_TARGET_KINDS,
   TIME_QUALIFIER_MODES,
   VALUELESS_OPERATORS,
@@ -3004,8 +3005,14 @@ function conditionLeafFaults(leaf: ConditionLeaf, vocabulary: CheckConditionVoca
   if (!knownKind) {
     faults.push(`Target 갈래 ${target.kind} 은 어휘에 없다`);
   } else if (!SINGLETON_TARGET_KINDS.includes(target.kind)) {
-    if (target.ref === undefined) faults.push(`Target ${target.kind} 에 ref 가 없다`);
-    else if (!ids.includes(target.ref)) faults.push(`ref ${target.ref} 은 아는 ${target.kind} 이 아니다`);
+    // 자리만인 갈래(actor · player · faction)는 아직 id 가 없다 — ref 를 요구하지 않는다.
+    // 밝혔으면 어휘의 id 이어야 하는 것은 같다 (그 층이 오면 목록이 찬다)
+    const deferred = DEFERRED_TARGET_KINDS.includes(target.kind);
+    if (target.ref === undefined) {
+      if (!deferred) faults.push(`Target ${target.kind} 에 ref 가 없다`);
+    } else if (!ids.includes(target.ref)) {
+      faults.push(`ref ${target.ref} 은 아는 ${target.kind} 이 아니다`);
+    }
   }
 
   // ② Query — 그 갈래에 허용된 query 인가 · paths 를 밝혔으면 path 가 그 안에 있는가.
