@@ -5,7 +5,7 @@ HktAdvProtoI — 목적 트리 기반 오픈월드 어드벤처 프로토타입 
 
 이 문서는 **규약**만 둔다. 지금의 상태는 [plan/STATE.md](plan/STATE.md) 가, 할 일은 [plan/TODO.md](plan/TODO.md) 가, 코드에 있는 것은 [codemap/](codemap/README.md) 가 소유한다.
 
-## 게임의 목적 (Human 원문 — 모든 기획·Play·Cycle 의 상위 판단 기준)
+## 게임의 목적 (Human 원문 — 모든 기획·묶음·Cycle 의 상위 판단 기준)
 
 > 플레이어는 요정들을 모으고 성장시키며 미지의 세계를 탐험해나간다 — 무대에 서서 직접 조작되는 것은 언제나 한 명이다.
 > 미지의 세계는 플레이어에게 다양한 위험과 그것을 극복할 재료를 제공함으로써 플레이어에게 경험을 제공한다.
@@ -14,34 +14,35 @@ HktAdvProtoI — 목적 트리 기반 오픈월드 어드벤처 프로토타입 
 
 세부는 [content/roadmap/L0-Game.md](content/roadmap/L0-Game.md) (둘째 원문의 전문은 [content/roadmap/L7-Fairy-Growth-Combination.md](content/roadmap/L7-Fairy-Growth-Combination.md)). 아직 증명되지 않은 것 넷 — 한 지역을 여러 번
 방문해도 재미있는가 · 수많은 플레이어가 같은 세계에 존재해야만 하는 이유가 있는가 · 요정을 성장시키는 선택에
-애착과 고민이 생기는가 · 세계가 발견된 뒤에도 계속 살아 움직이는가. 새 기획과 Play 는 이 넷 중 무엇에 닿는지 말해야 한다.
+애착과 고민이 생기는가 · 세계가 발견된 뒤에도 계속 살아 움직이는가. 새 기획과 묶음은 이 넷 중 무엇에 닿는지 말해야 한다.
 
 ## 작업 공정
 
 ```text
-advprotoi-design  기획   방향/기획서/미지 주입 → Play Design(content/roadmap/play/*.md) → Human 승인 1회 → plan/ 갱신
-advprotoi-cycle   Cycle  "C### 진행" — spec.md 동결 → E ∥ W ∥ V ∥ T → npm test → 마감(촬영 · plan/ 기입 · 커밋 · PR)
+기획서(content/roadmap/L<N> · M<N> · design/) → 묶음 + 첫 spec (AI 제안) → Human "C### 진행" → Cycle → … → AI 예심 → Human 실주행 판정
+advprotoi-cycle  하나뿐인 스킬 — "<기획서> 로 묶음 잘라"(묶음 + 첫 spec) · "C### 진행"(spec 동결 → E ∥ W ∥ V ∥ T → npm test → 마감)
 ```
 
-- 공정 원본: [Design-CycleExecutionWorkflow.md](design/Design-CycleExecutionWorkflow.md) ·
-  [Design-DesignAuthoringWorkflow.md](design/Design-DesignAuthoringWorkflow.md) ·
-  [Plan-Skill-CycleExecutionWorkflow.md](design/Plan-Skill-CycleExecutionWorkflow.md)
-- **작업 관리는 `plan/` 하나다** — 관점 셋(design · play · cycle)으로 나뉜다.
+- 공정 원본: [Design-CycleExecutionWorkflow.md](design/Design-CycleExecutionWorkflow.md) (Cycle) ·
+  [Design-DesignAuthoringWorkflow.md](design/Design-DesignAuthoringWorkflow.md) (주입 → 묶음 → 판정) ·
+  [Plan-Skill-CycleExecutionWorkflow.md](design/Plan-Skill-CycleExecutionWorkflow.md) (스킬 분할 · 회수 규칙 · 병렬)
+- **기획서와 Cycle 사이에 문서 층이 없다.** 묶음(기획서에서 자른 플레이 하나 — Goal · Intent · Breath · Cycle 목록 · 미지 · 질문)은
+  첫 Cycle 의 `spec.md` 머리 블록이다. 의미의 출처는 기획서 하나이고 spec 은 그것을 인용한다. Play 문서는 없다.
+- **작업 관리는 `plan/` 하나다** — 관점 셋(design · 묶음 · cycle)으로 나뉜다.
   ```text
   plan/STATE.md    지금 어디까지 — §0 트랙과 순서(어느 트랙에서 무엇을 어떤 순서로) · 관점별 요약 표 (진입점 — 새 세션은 이것부터)
-  plan/TODO.md     앞으로 할 일 — 트랙(Human · design · cycle · engine)마다 순서대로 한 줄씩
-  plan/DESIGN.md   기획 관점 상세 — 층 · 행 · 원본 기획 → Play 덮임과 남은 것 · 쓸 Play
-  plan/PLAYS.md    Play 관점 상세 — Play 마다 상태 · Human 판정 질문 · 결정 대기 · 다음 Cycle 로
-  plan/CYCLES.md   Cycle 관점 상세 — 레인 표 · 병렬 규칙 · 공학 부채
+  plan/TODO.md     앞으로 할 일 — 트랙(Human · cycle · engine)마다 순서대로 한 줄씩
+  plan/DESIGN.md   기획 관점 상세 — 층 · 행 · 원본 기획 → Cycle 덮임과 남은 것 · 다음 묶음 후보
+  plan/CYCLES.md   Cycle 관점 상세 — 레인 표 · 병렬 규칙 · 묶음 대장(판정 질문 · 결정 대기 · 다음 Cycle 로) · 공학 부채
   codemap/         코드에 있는 것 — ENGINE.md(기반 API 명세) · CONTENT.md(컨텐츠 코드 구조) · README.md(실행 · 손잡이)
   ```
-- 다음에 **만들** 것은 승인된 Play 의 Cycle Breakdown 과 `plan/CYCLES.md` 레인 표가, 다음에 **주입할** 것은
-  `plan/DESIGN.md` 가 답한다. 주입의 규약은 [content/roadmap/README.md](content/roadmap/README.md).
+- 다음에 **만들** 것은 승인된 첫 spec 의 묶음 블록(Cycle 목록)과 `plan/CYCLES.md` 레인 표가, 다음에 **자를** 것은
+  `plan/DESIGN.md` §5 가 답한다. 주입의 규약은 [content/roadmap/README.md](content/roadmap/README.md).
 - `cycles/<CycleId>/` 에는 `spec.md` · `shots.json` + `shots/` 만 둔다. 코드 뒤에 남는 것은 전부 `plan/` 에 쓴다 —
-  관찰 항목 · 결정 · 같은 Play 의 다음 Cycle 로 → `PLAYS.md` 그 Play 절, 공학 부채 → `CYCLES.md`, 뒤 층 · 뒤 Play 로 → `DESIGN.md` 의 "남은 것".
+  관찰 항목 · 결정 · 같은 묶음의 다음 Cycle 로 → `CYCLES.md` 그 묶음 절, 공학 부채 → `CYCLES.md` §5, 뒤 층 · 뒤 묶음으로 → `DESIGN.md` §3 의 "남은 것".
   Cycle 별 TODO 없음. 구현 노트·검증 산문은 만들지 않는다 — 코드 주석의 `RULE-*` id · 시나리오 테스트 · 커밋 메시지가 원본이다.
-- **한 사실 한 집** — 요약 문서(STATE · TODO)는 링크하고 복사하지 않는다. 층 · 행 · 덮임은 `DESIGN.md`, Play 의 상태 · 질문 · 결정은
-  `PLAYS.md`, 레인 · 부채는 `CYCLES.md`, 코드는 `codemap/`. 회수 규칙(누가 언제 읽고 지우는가)은 Plan-Skill §3.
+- **한 사실 한 집** — 요약 문서(STATE · TODO)는 링크하고 복사하지 않는다. 층 · 행 · 덮임 · 후보는 `DESIGN.md`, 묶음의 상태 · 질문 · 결정 ·
+  레인 · 부채는 `CYCLES.md`, 코드는 `codemap/`. 회수 규칙(누가 언제 읽고 지우는가)은 Plan-Skill §3.
 - 병렬 Cycle 규칙(브랜치 `cycle/C###` = 세션 하나 · plan/ 은 main 에서만 · engine 먼저 합침)은
   Plan-Skill §4 항목 4 가 소유한다.
 
@@ -123,9 +124,9 @@ Return To  View 부족 → protocol/ · Spec 부족 → world/semantic/ · Seman
 
 | 문서 | 내용 |
 |---|---|
-| [plan/STATE.md](plan/STATE.md) | **진입점** — 트랙과 순서 · design/play/cycle 관점 요약 (살아 있는 문서) |
+| [plan/STATE.md](plan/STATE.md) | **진입점** — 트랙과 순서 · design/묶음/cycle 관점 요약 (살아 있는 문서) |
 | [plan/TODO.md](plan/TODO.md) | 앞으로 할 일 — 트랙마다 순서대로 |
-| [plan/DESIGN.md](plan/DESIGN.md) · [PLAYS.md](plan/PLAYS.md) · [CYCLES.md](plan/CYCLES.md) | 관점별 상세 — 기획서 덮임 · Play 판정 질문과 결정 · 레인과 부채 |
+| [plan/DESIGN.md](plan/DESIGN.md) · [CYCLES.md](plan/CYCLES.md) | 관점별 상세 — 기획서 덮임과 다음 묶음 후보 · 묶음 대장(판정 질문 · 결정) · 레인과 부채 |
 | [codemap/README.md](codemap/README.md) | 코드에 있는 것 — engine API 명세 · content 코드 구조 · 실행과 손잡이 |
 | [design/README.md](design/README.md) | 설계 문서 목록과 갈래 |
-| [content/roadmap/README.md](content/roadmap/README.md) | 주입의 규약 — 층의 정의 · 주입 방식 · 열 질문 · 결과물(L0~ · M<N> · play/) |
+| [content/roadmap/README.md](content/roadmap/README.md) | 주입의 규약 — 층의 정의 · 주입 방식 · 열 질문 · 결과물(L0~ · M<N>) |

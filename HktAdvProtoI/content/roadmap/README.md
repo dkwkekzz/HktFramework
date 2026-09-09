@@ -2,10 +2,10 @@
 
 이 세계(`content/`)를 기획으로 점진 완성하는 **주입 순서(Roadmap)** 의 규약과, 각 주입이 낳은
 **결과물**이 한자리에 있다. [design/Design-DesignAuthoringWorkflow.md](../../design/Design-DesignAuthoringWorkflow.md)
-§8.5 주입 경로의 순서 규칙이다 — 무엇을 주입하는가는 그 문서가, 어떤 순서로 주입하는가는 이 문서가 답한다.
+§10 주입의 순서 규칙이다 — 무엇을 주입하는가는 그 문서가, 어떤 순서로 주입하는가는 이 문서가 답한다.
 
 이 문서는 **규약**만 둔다 — 층의 정의 · 주입 방식 · 열 질문. 층과 행이 지금 어디까지 왔는가는
-[plan/DESIGN.md](../../plan/DESIGN.md) 가, Play 의 상태는 [plan/PLAYS.md](../../plan/PLAYS.md) 가 소유한다.
+[plan/DESIGN.md](../../plan/DESIGN.md) 가, 묶음의 상태는 [plan/CYCLES.md](../../plan/CYCLES.md) 가 소유한다.
 
 ```text
 content/roadmap/
@@ -14,7 +14,6 @@ content/roadmap/
   L1-World-Grammar.md  1층 결과물 — 세계의 문법 (확정 범위 · 경계 · 코드 대응)
   L<N>-<이름>.md        기반 층의 결과물 — 그 층에서 Human 이 확정한 문서 (한 층에 여럿일 수 있다)
   M<N>-<이름>.md        컨텐츠 층의 결과물 — 그 미지에 대해 Human 이 준 세계관 사실
-  play/<PlayName>.md   증명 Play (Level 2, AI 초안 + Human 승인 1회) — 목록은 play/README.md
 ```
 
 `design/` 은 재료(시스템 기획 원본)이고, 이 폴더는 그 재료를 순서대로 들여 확정한
@@ -40,23 +39,23 @@ content/  그 위에 놓이는 이 세계          컨텐츠 층  미지를 놓�
   확장성은 여기서 나온다. 열거된 그래프(Master Graph)를 두지 않는다.
 
 ```text
-행 하나 = 주입 하나 = 그 행만 증명하는 Play 하나 = 그 Play 의 Cycle 들
+행 하나 = 주입 하나 = 그 행만 세우는 묶음 하나(첫 Cycle 의 spec 머리 블록) = 그 묶음의 Cycle 들
 ```
 
-- **행을 건너뛰는 Play 는 만들지 않는다.** 기반 층 Play 는 열린 층의 축 하나를 증명하고,
-  컨텐츠 층 Play 는 미지 하나를 놓는다. 한 Play 가 두 축을 동시에 세우면 정리되지 않는다.
-- 기반 층의 증명 Play 는 축을 세우면서 **미지를 하나 놓는다** — 그 미지가 컨텐츠 층의
-  첫 행들이다. 2층 Play 는 이름 있는 지역 하나, 3층 Play 는 무엇을 원하는지 아는 생물
-  하나, 4층 Play 는 어디서 나는지 정해진 자원 하나.
-- 아직 확정되지 않은 축의 의미가 Play 에 필요해지면 Required 에 올리지 않고 Human
+- **행을 건너뛰는 묶음은 만들지 않는다.** 기반 층 묶음은 열린 층의 축 하나를 세우고,
+  컨텐츠 층 묶음은 미지 하나를 놓는다. 한 묶음이 두 축을 동시에 세우면 정리되지 않는다.
+- 기반 층의 묶음은 축을 세우면서 **미지를 하나 놓는다** — 그 미지가 컨텐츠 층의
+  첫 행들이다. 2층은 이름 있는 지역 하나, 3층은 무엇을 원하는지 아는 생물
+  하나, 4층은 어디서 나는지 정해진 자원 하나.
+- 아직 확정되지 않은 축의 의미가 묶음에 필요해지면 Required 에 올리지 않고 Human
   질문으로만 남긴다.
-- 그 행의 Play 가 실제로 플레이되면 행이 닫힌다 — "실제로 플레이됨" 은 그 Play 의 Cycle 들이
-  `plan/PLAYS.md` 그 Play 절에 남긴 Human 판정 질문이 실주행 판정으로 전부 비는 것이다
+- 그 행의 묶음이 실제로 플레이되면 행이 닫힌다 — "실제로 플레이됨" 은 그 묶음의 Cycle 들이
+  `plan/CYCLES.md` 그 묶음 절에 남긴 Human 판정 질문이 실주행 판정으로 전부 비는 것이다
   (회수 규칙은 [design/Plan-Skill-CycleExecutionWorkflow.md](../../design/Plan-Skill-CycleExecutionWorkflow.md) §3).
 
 ## 2. 기반 층 — 축의 정의
 
-| 순서 | 층 | 주입 내용 (Human 문서) | 재료가 될 `design/` 문서 | 증명 Play 의 방향 |
+| 순서 | 층 | 주입 내용 (Human 문서) | 재료가 될 `design/` 문서 | 묶음의 방향 |
 |---|---|---|---|---|
 | 0 | 게임 방향 | 핵심 경험 한 단락 + Core Breath + 핵심 문장 | `L0-Game.md` 가 원문을 소유한다 | 없음 — 판단 기준일 뿐 |
 | 1 | 세계의 문법 | 무엇이 존재하고 무엇이 변하는가 — 존재·상태·주체·법칙·시간 (주체가 행동을 **고르는** 과정은 3층) | `Design-Concept.md` | 없음 — 코드가 이미 이 문법 위에 있음 |
@@ -66,7 +65,7 @@ content/  그 위에 놓이는 이 세계          컨텐츠 층  미지를 놓�
 | 5 | 대결 | 공격·방어·피해 종류·지목 · **정해진 전투 Phase 없음 — 대상의 World State 를 생성·제거·변화·전달·소비·증폭하는 것이 전투의 문법 · 하나의 문제에 여러 답** (L7 §13 · §14 · §16) | `Design-Combat-*.md` · `Design-Targeting-R0.md` · **`L7` §13 · §14** | 처음으로 맞서 이긴다 — 같은 적을 두 가지 상태 순서로 |
 | 6 | 능력 | 스킬 체계·실행 형태·효과 · **Class 는 Core 를 쓰는 방법 · Active/Entry/Leave/Off-field 의 내용 · Leave 가 남긴 것이 다음 요정의 능력과 반응한다** (L7 §5 · §6 · §11 · §19) | `Design-Skill-*.md` · **`L7` §6 · §11** | 능력 표현이 세계에 닿는다 — 한 Core 가 두 Class 로 갈리고, 장판이 반응한다 |
 | 7 | 성장 | 요정 성장·밸런스·클래스 — **성장 = 유효한 조합과 세계 개입 가능성의 확장**: 요정 컬렉션 · Class Change(Fairy + Gem + 조건) · Knowledge = 숨겨진 관계의 해금 · Fairy Build 와 편성 · 고정 역할 없음 | **`L7-Fairy-Growth-Combination.md`** (원문 — 충돌하는 자리에서 `Design-Fairy-*.md` 를 이긴다, L7 §2.2) · `Design-Growth-Balance-R0.md` · `Design-Subject-Decision.md` §20·§23 | 자원 관계에서 성장이 나온다 — 보석 하나로 Class 가 바뀌어 못 풀던 자리를 새 방법으로 푼다 |
-| 8 | 화면 | UX | `Design-View-*.md` | 별도 주입 없음 — 각 행의 Play 의 Required 로 들어온다 |
+| 8 | 화면 | UX | `Design-View-*.md` | 별도 주입 없음 — 각 묶음의 Required 로 들어온다 |
 
 2층은 절반이 둘이다 — **도구가 먼저, 세계가 다음**. 도구 절반(`L2-World-Tool.md` · 2단계 `L2-World-Tool-Scale.md`)은 게임 명사를
 모르므로 ENGINE 레인으로 선다. 세계 절반은 ① `L2-World-Concept.md` ② `L2-World-Region.md` 와 ②-부속 다섯(`L2-World-Material.md` ·
@@ -91,11 +90,11 @@ content/  그 위에 놓이는 이 세계          컨텐츠 층  미지를 놓�
 ```text
 ① 문서 확정   그 층의 design/ 재료를 지목하고 빠진 것만 채워 이 폴더에 결과물로 둔다.
              세계관 사실(이름·존재)은 AI 가 지어낼 수 없으므로 여기서 준다.
-② 방향 한 줄  "이 층으로 이런 것을 보게 하라" → advprotoi-design 이 그 층만의 Play 를
-             play/ 에 구체화한다 (승인 1회). 이 Play 가 놓는 미지 하나를 plan/DESIGN.md §2 에 행으로 올린다.
-③ 완성 판정   그 Play 의 마지막 Cycle 이 합쳐진 뒤 Human 이 Play 실주행 판정을 한다 — Play Goal 을
-             한 번 플레이하며 plan/PLAYS.md 그 Play 절의 질문(AI 예심이 압축한 대여섯)에 답한다. 전부 비면 층이 닫힌다 →
-             상태를 갱신하고 다음 층을 주입한다. 실패한 항목은 DESIGN GAP 으로 advprotoi-design 에 준다.
+② 방향 한 줄  "이 층으로 이런 것을 보게 하라" → advprotoi-cycle 이 그 층만의 묶음을 첫 Cycle 의 spec 머리에
+             자른다 → Human "C### 진행" (승인 1회). 이 묶음이 놓는 미지 하나를 plan/DESIGN.md §2 에 행으로 올린다.
+③ 완성 판정   그 묶음의 마지막 Cycle 이 합쳐진 뒤 Human 이 실주행 판정을 한다 — Goal 을
+             한 번 플레이하며 plan/CYCLES.md 그 묶음 절의 질문(AI 예심이 압축한 대여섯)에 답한다. 전부 비면 층이 닫힌다 →
+             상태를 갱신하고 다음 층을 주입한다. 실패한 항목은 DESIGN GAP 으로 실주행 GAP 주입이 된다.
 ```
 
 ### 컨텐츠 층
@@ -104,13 +103,13 @@ content/  그 위에 놓이는 이 세계          컨텐츠 층  미지를 놓�
 ① 미지 하나   Human 이 미지 하나를 준다 — 이름 · 종류 · 세계관 사실. 이 폴더에 M<N>-*.md 로
              보존하고 plan/DESIGN.md §2 에 행을 올린다. 요구 축이 전부 확정이어야 한다.
 ①' 등급 판정  먼저 세 등급 중 어디인지 가른다 (L2-World-Tool-Scale.md §2) —
-             A 데이터만 (Play·Cycle 없음 — Spec 한 장 + 검사 + Human 판정) ·
-             B 규칙 하나 (Cycle 하나 · Play 아님) · C 새 축 (컨텐츠 행이 아니다 — 기반 층을 기다린다).
-             **대부분의 지역은 A 다.** Play 를 쓰는 것은 B 의 첫 사례이거나 계약을 처음 일반화할 때뿐이다.
-② 열 질문     advprotoi-design 이 아래 열 질문에 통과시켜 (A 면 Spec 을, B 면 Play 를) 구체화한다 (승인 1회).
+             A 데이터만 (묶음·Cycle 없음 — Spec 한 장 + 검사 + Human 판정) ·
+             B 규칙 하나 (Cycle 하나 · 묶음 아님) · C 새 축 (컨텐츠 행이 아니다 — 기반 층을 기다린다).
+             **대부분의 지역은 A 다.** 묶음을 자르는 것은 B 의 첫 사례이거나 계약을 처음 일반화할 때뿐이다.
+② 열 질문     advprotoi-cycle 이 아래 열 질문에 통과시켜 (A 면 Spec 을, B 면 묶음 + 첫 spec 을) 구체화한다 (승인 1회).
              답이 주입물·design/ 에 없으면 지어내지 않고 Human 질문으로 남긴다 — 이름과 "그것이 무엇인지에서
              나오는 것" 은 위임됐다 (Region §5.5).
-③ 완성 판정   A 는 검사 통과 + 걸어 본 것으로, B 는 plan/PLAYS.md 의 그 질문이
+③ 완성 판정   A 는 검사 통과 + 걸어 본 것으로, B 는 plan/CYCLES.md 의 그 질문이
              실주행 판정으로 비면 행이 닫힌다 (기반 층 ③ 과 같은 방식).
 ```
 
@@ -130,8 +129,8 @@ content/  그 위에 놓이는 이 세계          컨텐츠 층  미지를 놓�
   ⑩ Core Breath 의 어느 전이인가   미지에서 새로운 미지까지 어느 구간을 만드는가
 ```
 
-①~③ 이 Play 의 World Cause 가 되고, ④~⑥ 이 Play Goal 과 Required 가 되며, ⑦~⑩ 이
-그 Play 가 이 게임의 것인지 판정한다. 열 답이 다 서면 Play 문서(7단계)를 쓴다.
+①~③ 이 묶음의 World Cause 가 되고, ④~⑥ 이 Goal 과 Required 가 되며, ⑦~⑩ 이
+그 묶음이 이 게임의 것인지 판정한다. 열 답이 다 서면 묶음 블록과 첫 spec 을 쓴다.
 
 이 열 질문은 **검사**다. 미지 하나를 **쓰는 순서**는 [L2-World-Concept.md](L2-World-Concept.md) §17 의
 일곱 단계가 정한다 — 그 순서로 쓰고 이 열로 검사한다. 둘은 같은 관문의 앞뒤다.

@@ -2,7 +2,7 @@
 //
 // 세계 + 클라이언트를 한 프로세스(vite)에서 띄우고, 시나리오 JSON 의 걸음대로 키를 누르고
 // HUD 글자를 기다리며 PNG 를 남긴다. 게임 명사를 모른다 — 무엇을 찍을지는 전부 시나리오가 준다.
-// 판정하지 않는다 — expect 는 HUD 글자의 유무를 **기록**할 뿐, 판단은 Human(plan/PLAYS.md 의 판정 질문)의 몫이다.
+// 판정하지 않는다 — expect 는 HUD 글자의 유무를 **기록**할 뿐, 판단은 Human(plan/CYCLES.md 의 판정 질문)의 몫이다.
 //
 // 사용: node tools/cycle-shot/shot.cjs <scenario.json>
 //
@@ -276,6 +276,6 @@ async function runOne(run, index, report) {
   }
   if (process.env.FXLAB_TRACE) for (const r of report) if (r.hud) console.error(`[hud run${r.run}] ${r.hud}`);
   const shots = report.filter((r) => r.kind === 'shot' && r.ok).length;
-  console.log(`\n찍은 장수 ${shots} · 판정은 하지 않는다 — plan/PLAYS.md 그 Play 절의 관찰 항목에 붙인다`);
+  console.log(`\n찍은 장수 ${shots} · 판정은 하지 않는다 — plan/CYCLES.md 그 묶음 절의 관찰 항목에 붙인다`);
   setTimeout(() => process.exit(0), 500).unref();
 })().catch((e) => { console.error(e); process.exit(1); });

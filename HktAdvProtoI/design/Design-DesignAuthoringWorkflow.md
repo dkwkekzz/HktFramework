@@ -1,52 +1,50 @@
-# Design — Design Authoring → Cycle Workflow
+# Design — 주입 → 묶음 → Cycle Workflow
 
-상태: 승인 (Human 원문 제공)
+상태: 승인
 원본 관계: [Design-CycleExecutionWorkflow.md](Design-CycleExecutionWorkflow.md) 의 **위층 확장**이다.
-Cycle 이후(PLAN → BUILD → VERIFY)는 그 문서가 그대로 소유한다 — 이 문서는
-사람의 아이디어에서 승인된 Play 와 레인 표까지의 기획 공정만 정의한다. Cycle 범위(§6)는
-그 Play 의 Cycle Breakdown 한 항목을 Cycle 공정이 잘라 spec.md 의 첫 절들로 쓴다.
+Cycle 자체(명세 → 실현 → 마감)는 그 문서가 그대로 소유한다 — 이 문서는 사람의 기획서에서
+**첫 Cycle 의 spec** 까지, 그리고 Cycle 들이 끝난 뒤의 **실주행 판정**까지만 정의한다.
 
 ## 1. 목적
 
-게임의 큰 방향과 시스템 기획으로부터 **실제 플레이 경험**을 설계하고, 이를 작은
-Cycle 단위로 분할하여 기존 구현 Workflow 로 전달한다.
+게임의 큰 방향과 시스템 기획으로부터 **실제 플레이 경험 하나**를 잘라 내고, 그것을 작은
+Cycle 들로 구현 Workflow 에 전달한다.
 
-핵심 원칙: **큰 기획을 기능 목록으로 직접 분해하지 않는다.** 큰 기획을 실제 플레이
-경험으로 구체화한 뒤, 그 경험을 만드는 데 필요한 World 변화만 Cycle 로 구현한다.
+핵심 원칙: **큰 기획을 기능 목록으로 직접 분해하지 않는다.** 기획서에서 "실제로 플레이되는
+결과 하나" 를 먼저 자르고, 그 경험을 만드는 데 필요한 World 변화만 Cycle 로 구현한다.
 
 ```text
-Game Direction → System Design → Play Design → Cycle Breakdown
-→ Cycle(spec.md: 범위 + 명세 → 실현 → 마감) → 다음 Cycle
+기획서(L<N> · M<N> · design/) → 묶음 (첫 Cycle 의 spec.md 머리 블록) → Cycle → Cycle → … → 실주행 판정
 ```
 
-별도의 Master Graph · Intent Graph · Capability Graph 는 사용하지 않는다.
+기획서와 Cycle 사이에 별도 문서 층을 두지 않는다 — Play Design · Master Graph · Intent Graph ·
+Capability Graph 는 없다. 의미의 출처는 기획서 하나이고, spec 은 기획서를 직접 인용한다.
 
 ## 2. 계층과 산출물
 
 ```text
 design/
-  Design-*.md 등 기존   시스템 기획 = Level 1 (이 저장소는 systems/ 폴더 대신
-                       기존 design/ 문서 체계를 System Design 층으로 그대로 쓴다)
-content/roadmap/       주입 순서(README.md)와 그 결과물 — 이 세계의 것이므로 content/ 에 둔다.
-                       로드맵은 두 층이다 — 기반 층(축의 순서) · 컨텐츠 층(미지의 목록)
-  L0-Game.md           게임 전체 경험 방향 1개 (Level 0)
-  L<N>-*.md            기반 층 — 층별로 Human 이 확정한 문서
-  M<N>-*.md            컨텐츠 층 — 미지(지역·생물·자원·구조) 하나에 대해 Human 이 준 세계관 사실
-  play/<PlayName>.md   실제 플레이 경험 1개당 1문서 (Level 2) — 로드맵의 행 하나를 증명한다
+  Design-*.md            시스템 기획 = 각 영역이 어떤 원리로 작동하는가 (Human 원본)
+content/roadmap/         주입의 규약(README.md)과 그 결과물 — 이 세계의 것이므로 content/ 에 둔다
+  L0-Game.md             게임 전체 경험 방향 1개
+  L<N>-*.md              기반 층 — 층별로 Human 이 확정한 문서
+  M<N>-*.md              컨텐츠 층 — 미지(지역·생물·자원·구조) 하나에 대해 Human 이 준 세계관 사실
 cycles/C###-이름/
-  spec.md              이번에 플레이 가능하게 만들 최소 단위(Level 3 = 범위 절) + 명세 — Cycle 공정이 한 번에 쓴다
-  shots/               마감 촬영
-TODO.md                코드 뒤에 남는 것 — 저장소 루트에 하나 (Human 질문 · Human 결정 · 뒤 층으로 · 다음 Cycle 로 · 공학 부채)
+  spec.md                이번 Cycle 의 범위 + 명세 — Cycle 공정이 한 번에 쓴다.
+                         묶음의 첫 Cycle 이면 머리에 "묶음" 블록이 있다 (§5)
+  shots/                 마감 촬영
+plan/                    작업 관리 — STATE(어디까지) · TODO(할 일) · DESIGN(기획서 덮임) · CYCLES(묶음 · 레인 · 판정 · 부채)
+codemap/                 코드에 있는 것 — API 명세와 구조
 ```
 
 | 계층 | 질문 |
 |---|---|
 | L0-Game.md | 이 게임은 궁극적으로 어떤 경험인가? |
-| design/*.md (시스템) | 각 영역이 어떤 원리로 작동하는가? |
+| design/*.md · L<N>-*.md (시스템 · 층) | 각 영역이 어떤 원리로 작동하는가? |
 | M<N>-*.md (미지) | 이 세계에 무엇이 존재하는가 — 지역·생물·자원·구조 하나 |
-| play/*.md | 그 시스템들이 실제 플레이 하나에서 어떻게 만나는가? |
-| spec.md 범위 절 | 지금 무엇을 작게 플레이 가능하게 만들 것인가? (Cycle 공정의 첫 일) |
-| 명세 / 실현 / 마감 | (기존 Cycle 공정 그대로 — advprotoi-cycle) |
+| spec.md 의 묶음 블록 | 그 기획에서 지금 어떤 플레이 하나를 세우는가 — 어느 Cycle 들로? |
+| spec.md 범위 절 | 이번 Cycle 에 무엇을 작게 플레이 가능하게 만드는가? |
+| 명세 / 실현 / 마감 | (Cycle 공정 그대로 — advprotoi-cycle) |
 
 ## 3. Level 0 — Game Direction (`content/roadmap/L0-Game.md`)
 
@@ -54,9 +52,9 @@ TODO.md                코드 뒤에 남는 것 — 저장소 루트에 하나 (
 Core Experience 한 단락 + **Core Breath**(게임 전체의 가장 큰 호흡, 예:
 미지 → 호기심 → 접촉 → 위험 → 관찰 → 이해 → 시도 → 극복 → 성장 → 새로운 미지)를
 담는다. Core Breath 는 모든 플레이가 그대로 따라야 하는 틀이 아니라, 새 시스템·
-플레이를 기획할 때 "이것이 우리 게임이 추구하는 경험과 맞는가"를 판단하는 상위 기준이다.
+묶음을 자를 때 "이것이 우리 게임이 추구하는 경험과 맞는가"를 판단하는 상위 기준이다.
 
-## 4. Level 1 — System Design (기존 `design/` 문서들)
+## 4. Level 1 — System Design (`design/` · `L<N>-*.md`)
 
 특정 지역·몬스터가 아니라 각 영역(World·Player·Exploration·Combat·Growth·Item·NPC …)
 이 **어떤 원리로 플레이 경험을 만들어내는지** 정의한다. 완료 조건:
@@ -66,226 +64,139 @@ Core Experience 한 단락 + **Core Breath**(게임 전체의 가장 큰 호흡,
 세계 안에서 어떤 원리로 작동하는가? / 다른 시스템과 어떤 방식으로 만나는가?
 ```
 
-세부 콘텐츠·구현 명세까지 작성하지 않는다.
+세부 콘텐츠·구현 명세까지 작성하지 않는다. Human 원본이다 — Agent 는 고치지 않는다.
 
-## 5. Level 2 — Play Design (`content/roadmap/play/<PlayName>.md`)
+## 5. 묶음 — 기획서에서 플레이 하나를 자른다 (첫 Cycle 의 spec.md 머리)
 
-**큰 기획과 Cycle 을 연결하는 핵심 단계.** System Design 들은 각각 독립적인 원리를
-정의하고, Play Design 은 그것들을 하나의 실제 플레이 상황에서 결합한다.
-작성 순서는 7단계 고정:
-
-### Step 1 — Play Goal
-
-플레이어가 실제로 무엇을 하는지 한 문장. 완료 여부를 직접 확인할 수 있어야 한다.
-("숲의 공포를 경험한다" ✗ / "포식자를 죽이지 않고 영역 내부의 자원을 획득한다" ○)
-
-### Step 2 — Experience Intent
-
-플레이 전후 플레이어의 경험 상태 변화(Start/End). 구현 요구사항이 아니라 이후 모든
-Play Structure 를 판단하는 기준이다.
-
-### Step 3 — Breath
-
-Experience Intent 가 플레이 시간 안에서 어떻게 변화하는가.
-(예: 신비 → 위화감 → 불안 → 공포 → 의문 → 관찰 → 이해 → 재시도 → 통제 → 성취 → 새로운 미지)
-감정의 강도를 숫자로 만들지 않는다 — 각 감정이 **어떤 경험 이후** 다음 상태로 변하는지
-정의한다.
-
-### Step 4 — Play Structure
-
-각 Breath 를 실제 게임 사건으로 변환한다. (예: 위화감 = "작은 생물들이 갑자기 같은
-방향으로 도망간다. 플레이어는 아직 Predator 를 볼 수 없다.")
-
-### Step 5 — World Cause
-
-모든 중요한 플레이 사건에 **세계 안의 원인**을 부여한다. 질문 6개:
+**기획서와 Cycle 을 잇는 유일한 단계.** 기획서는 원리를 말하고, 묶음은 그 원리들이 실제
+플레이 하나에서 어떻게 만나는지를 말한다. 별도 문서가 아니라 **첫 Cycle 의 `spec.md` 머리 블록**이다
+— 뒤 Cycle 의 spec 은 그것을 SOURCE 로 인용만 한다.
 
 ```text
-무엇이 존재하는가? / 어떤 상태를 가지는가? / 어떤 조건에서 행동하는가?
-플레이어는 무엇을 관찰하는가? / 그 관찰로 무엇을 추론할 수 있는가?
-플레이어의 행동에 세계는 어떻게 반응하는가?
+## 묶음 — <이름>
+기획서     content/roadmap/L2-World-Foundation.md §2.8 · §5 (+ 지목한 design/ 문서)   ← 의미의 유일한 출처
+행         기반 층 L<N> 또는 컨텐츠 층 M<N> — 이 묶음이 세우는 로드맵의 행 하나 (기반 층이면 놓는 미지 M<N> 도)
+Goal       플레이어가 실제로 무엇을 하는지 한 문장 — 완료를 직접 확인할 수 있게
+           ("숲의 공포를 경험한다" ✗ / "포식자를 죽이지 않고 영역 내부의 자원을 획득한다" ○)
+Intent     Start / End — 플레이 전후 경험 상태의 변화. 뒤 Cycle 의 범위 판단 기준
+Breath     감정 전이 사슬 (강도 숫자 금지 — 어떤 경험 뒤에 다음 상태로 넘어가는지)
+Cycle      C### 이름 — 한 줄 목표   (2~4개 · 순서는 의존성 + Breath 의 점진 완성. 번호는 예정 — 실제는 전 이름공간 최대+1)
+           C### …
+미지       이 묶음이 놓는 미지 하나 (2층: 지역 · 3층: 생물 · 4층: 자원) — 이름은 Human
+검사       컨텐츠 행이면 로드맵 열 질문 ①~⑩ 의 답 (README §4). 없는 답은 아래 질문으로
+질문       게임 의미 — 수치 · 확률 · 시간 · 범위 · 원리의 확정 · 세계관 사실. 이 묶음 전체의 것을 여기 모은다.
+           첫 Cycle 의 UNRESOLVED 가 곧 이 목록이다
 ```
 
-이로써 "불안감을 준다" 같은 추상 기획이 Threat Detection · Flee Behavior ·
-Observable Direction 같은 구현 가능한 세계 변화로 변한다.
+- **AI 가 자른다** — Goal · Intent · Breath · Cycle 분할 · World Cause(사건마다 세계 안의 원인). 방향 한 줄만
+  주입돼도 이 층은 AI 가 지어 올린다 (승인으로 확정되므로 창작이되 독단이 아니다).
+- **Human 이 정한다** — 게임 의미. AI 는 지어내지 않고 "질문" 에 모은다. 판단이 서지 않으면 질문으로 올린다 —
+  주입물의 의도를 크게 벌리는 선택(목표 자체를 바꾸는 갈래)도 질문에 함께 적는다.
+- 묶음 하나는 로드맵의 **행 하나**만 세운다. 확정되지 않은 축의 의미가 필요해지면 Required 가 아니라 질문으로 남긴다.
+- 기획서가 커서 묶음 하나에 안 담기면 묶음 여럿을 순서대로 제안한다 — 첫 묶음만 첫 spec 까지 쓰고, 나머지는
+  `plan/DESIGN.md` 의 "다음 묶음 후보" 에 한 줄씩.
+- 각 Cycle 은 작다 · 플레이 가능하다 · World 변화가 분명하다 · 화면 또는 상태로 확인할 수 있다 · 검증할 수 있다 ·
+  이후 Cycle 에서 재사용할 수 있다.
 
-### Step 6 — Required Capability
+## 6. 첫 Cycle 의 spec — 같은 파일에 이어 쓴다
 
-Play Structure 구현에 필요한 기능을 Existing / Required 로 나눠 **Play 문서 안에서**
-간단히 관리한다. 별도 Capability Graph 를 만들지 않는다.
-
-### Step 7 — Cycle Breakdown
-
-Play 전체를 한 번에 구현하지 않는다. 각 Cycle 조건:
-
-```text
-작다 / 플레이 가능하다 / World 변화가 분명하다 / 화면 또는 상태로 확인할 수 있다 /
-완료 여부를 검증할 수 있다 / 이후 Cycle 에서 재사용할 수 있다
-```
-
-순서는 구현 의존성뿐 아니라 **Play Breath 가 점진적으로 완성되도록** 정한다.
-체크박스 목록으로 관리한다 (`[ ] C001 — 생물의 위험 감지와 도주`).
-
-### Play Design 문서 골격
-
-```text
-# <PlayName>
-## 0. Row               (로드맵의 행 하나 — 기반 층 L<N> 또는 컨텐츠 층 M<N>;
-                         기반 층이면 이 Play 가 놓는 미지 M<N> 도 함께)
-## 1. References        (L0-Game.md + 관련 시스템 문서 + 미지 문서)
-## 2. Play Goal
-## 3. Experience Intent  (Start / End)
-## 4. Breath
-## 5. Play Structure     (Breath 단계별 사건 + World Cause)
-## 6. Required Capability (Existing / Required)
-## 7. Cycle Breakdown    (체크박스 목록)
-```
-
-## 6. Level 3 — Cycle 범위 (`cycles/<CycleId>/spec.md` 의 첫 절들)
-
-Cycle 하나를 선택하면 그 범위를 `spec.md` 의 첫 절들로 쓴다. 이것은 Design 공정의 일이 아니라
-**Cycle 공정의 첫 일**이다 — Play 승인 뒤에는 Human 게이트가 없고, 같은 AI 가 같은 파일에
-명세를 이어 쓰기 때문이다. Play Design 전체를 다시 설명하지 않는다 — **이번 구현에 필요한 것만**
-가져온다.
+묶음 블록 아래에 첫 Cycle 의 spec 을 그대로 쓴다 (Cycle 공정의 형식 — 범위 절 · SPEC · State · Rule · Observable · UNRESOLVED).
+**UNRESOLVED 에 묶음 질문 전부**를 둔다 — 뒤 Cycle 의 것도 여기서 한 번에 묻는다.
 
 ```text
 # C### — <이름>
-CYCLE / SOURCE / SELECTED_FROM   Trace 블록 — SOURCE 는 content/roadmap/play/<PlayName>.md (+ 근거 시스템 문서)
+## 묶음 — <이름>            (§5 의 블록 — 묶음의 첫 Cycle 에만)
+CYCLE / SOURCE / SELECTED_FROM   SOURCE = 기획서 절 (+ 근거 design/ 문서) · SELECTED_FROM = 묶음의 Cycle 목록 또는 "Human"
 ## Playable Goal     이번에 성립할 플레이 결과 한두 문장
-## Experience Intent 이 Cycle 이 만드는 경험 전환
+## Experience Intent 이 Cycle 이 만드는 경험 전환 — 묶음 Breath 의 어느 구간
 ## World Change      세계에서 무엇이 어떻게 변하는가
 ## Observable Result 화면/상태에서 무엇을 직접 확인하는가
 ## Reuse             Existing / Added
-## Out of Scope      이번에 하지 않는 것
-(이어서 SPEC · State · Rule · Observable · UNRESOLVED — 기존 Cycle 공정)
+## Out of Scope      이번에 하지 않는 것과 그것을 받을 Cycle
+(이어서 SPEC · State · Rule · Observable · UNRESOLVED — Cycle 공정)
 ```
 
-Design 공정은 승인된 Play 와 레인 표에서 끝난다. Cycle 공정은 Experience Intent 를 다시
-해석하지 않고, 이미 결정된 플레이 기획을 범위와 명세로 폐쇄하고 동결한다. 코드 뒤에는
-`shots/`(마감 촬영)와 루트 `TODO.md` 의 항목(Human 판정 대기 · 부채)만 남는다.
+## 7. 게이트 — "C### 진행" 하나
 
-## 7. Verification 의 두 층
+Human 게이트는 **묶음마다 한 번**이다: 묶음 블록 + 첫 spec + 질문 목록을 한 번에 올리고, Human 이 답과 함께
+"C### 진행" 이라 말하면 묶음이 승인되고 spec 이 동결된다. Goal · Intent · Breath · Cycle 목록에 개별 게이트를 두지 않는다.
+답이 오지 않은 질문이 남으면 spec 은 동결되지 않는다 (UNRESOLVED > 0 — Cycle 공정의 정지 규칙 그대로).
 
-검증에 관점 하나를 더한다.
+뒤 Cycle 은 게이트가 없다 — 첫 spec 의 답을 물려받고, 자기 spec 에서 새로 생긴 의미만 UNRESOLVED 로 묻는다.
 
-- **Functional Verification** — 자동 검증 가능한 World State 변화 (기존 그대로).
-- **Experience Verification** — 실제 플레이에서 spec.md 의 Experience Intent 가
-  성립하는지 관찰한다. 감정을 숫자로 검증하는 것이 아니라 **의도한 인지·행동 변화가
-  실제로 발생하는지** 본다. 판단은 Human 의 몫이다 — Cycle 마감이 관찰 항목을 루트
-  `TODO.md` §1 의 그 Play 소절에 남기고, Human 이 **Play 단위**로 판정한 뒤 지운다 (§8 의 Play 실주행 판정 —
-  Cycle 마다 판정하지 않는다).
+## 8. Verification 의 두 층
 
-## 8. Cycle 완료 후 처리
+- **Functional Verification** — 자동 검증 가능한 World State 변화 (Cycle 공정 그대로).
+- **Experience Verification** — 실제 플레이에서 묶음의 Intent 가 성립하는지 관찰한다. 감정을 숫자로 검증하는
+  것이 아니라 **의도한 인지·행동 변화가 실제로 발생하는지** 본다. 판단은 Human 의 몫이다 — Cycle 마감이 관찰
+  항목을 `plan/CYCLES.md` 그 묶음 절에 남기고, Human 이 **묶음 단위**로 판정한 뒤 지운다 (§9 — Cycle 마다 판정하지 않는다).
 
-Cycle 이 완료되면 Play Design 문서의 Cycle Breakdown **체크박스만** 갱신한다
-(`[x]`). Graph 를 갱신하거나 새로운 관리 artifact 를 만들지 않는다. 완료된 Cycle 의
-World Capability 는 이후 Cycle 에서 그대로 재사용한다. 다음 Cycle 의 명세는 루트
-`TODO.md` §4(다음 Cycle 로)를 입력으로 받는다 — 회수 규칙은
-[Plan-Skill §3](Plan-Skill-CycleExecutionWorkflow.md).
+## 9. 묶음의 마지막 Cycle 뒤 — 실주행 판정
 
-모든 핵심 Cycle 이 완료되면 원래 Play Goal 을 실제로 수행할 수 있어야 하고, Breath
-가 실제 플레이에서 어느 정도 성립하는지 확인한다 — 그때 그 Play 가 완료된 것이다.
-이것이 **Play 실주행 판정**이다: AI 가 먼저 예심한다 — 그림·테스트가 이미 단언하는 항목은 닫고, 사람
-눈과 Human 결정이 필요한 것만 Play 당 질문 대여섯으로 압축한다 (Plan-Skill §3). Human 은 `npm run dev` 로
-Play Goal 을 한 번 플레이하면서 그 질문에 답한다. 통과한 항목은 지우고,
-실패한 항목은 DESIGN GAP 으로 §8.5 의 셋째 주입이 된다. 그 Play 의 판정 절이 전부 비면
-로드맵의 행이 닫힌다. 완료된 Capability 는 다음 Play 에서 다시 사용하며, 이 반복으로
-게임 전체가 점진 확장된다.
-
-## 8.5 주입 경로 — 방향/기획서 → Cycle (기본 진입점)
-
-이 공정의 기본 사용법은 **주입 한 번 → Cycle 생성**이다. 과정을 복잡하게 만들지
-않는다 — 단계는 셋뿐이고 Human 승인은 한 번이다.
+묶음의 마지막 Cycle 이 합쳐지면 원래 Goal 을 실제로 수행할 수 있어야 하고, Breath 가 실제 플레이에서 어느
+정도 성립하는지 확인한다. 이것이 **실주행 판정**이다:
 
 ```text
-① 주입    Human 이 방향 한 줄이든 기획서 전문이든 준다 (채팅 텍스트·파일 무관).
-          채팅으로 온 주입물은 content/roadmap/ 에 그 층의 결과물로 보존한다 —
-          그것이 Source 가 된다.
-② 구체화  AI 가 주입물을 Play Design 1문서(7단계)로 구체화한다 (§22 의 AI 수행
-          영역 — Play Structure 구체화와 Experience → World Cause 변환). 즉
-          **플레이 층은 AI 가 제안하고 승인으로 확정**한다. 다만 게임 의미의
-          결정(수치·확률·시간 · 시스템 원리의 확정 · 세계관 사실)은 AI 의 것이
-          아니다 — 지어내지 않고 문서 끝 "Human 질문" 목록에 모은다.
-          → Human 승인 1회 (Play 문서 통짜 — Goal·Intent·Breath·Breakdown 개별
-          게이트를 두지 않는다. 질문 목록이 있으면 답과 함께 승인된다)
-③ 레인    승인 즉시 STATE.md §1 에 "다음에 할 일"을 병렬 레인 표로 적는다 → "C### 진행" 이
-          advprotoi-cycle 을 부른다 (범위 절부터 spec.md 를 쓴다).
+AI 예심    관찰 항목을 셋으로 가른다 — A 그림·테스트가 이미 단언하는 것(닫는다) · B 사람 눈이 필요한 것 ·
+          C Human 이 값·규칙을 정할 것. B·C 를 묶음당 질문 대여섯으로 압축해 plan/CYCLES.md 그 묶음 절에 둔다
+Human     npm run dev 로 Goal 을 한 번 플레이하며 그 질문에 답한다 — 예 / 아니오 / 값
+반영      통과는 지운다. 실패는 DESIGN GAP 이 되어 §10 의 셋째 주입이 된다. 질문이 전부 비면 로드맵의 행이 닫힌다
 ```
 
-전제 조건 완화 — **L0-Game.md 와 시스템 문서는 있으면 참조하고, 없어도 막지 않는다.**
-주입물 자체가 그 자리의 근거다. 시스템 원리는 주입물이 쌓일수록 design/ 에
-점진적으로 두꺼워진다 (한 번에 Game → System 을 완성할 수 없다는 전제).
-큰 주입물이면 Play 를 여러 개로 나눠 제안하되, 승인은 여전히 문서당 1회다.
+완료된 Capability 는 다음 묶음에서 다시 사용하며, 이 반복으로 게임 전체가 점진 확장된다.
 
-주입의 **순서**는 [content/roadmap/README.md](../content/roadmap/README.md) 가 소유한다.
-로드맵은 코드의 기반/컨텐츠 분리와 같은 두 층이고, 주입도 두 종류다.
+## 10. 주입 — 세 종류
+
+이 공정의 기본 사용법은 **주입 한 번 → 묶음 + 첫 spec → "C### 진행"** 이다.
 
 ```text
-기반 층 주입    축 하나 — 방향 한 줄 · 기획서 · design/ 문서 지목.
-              위에서 아래로 하나씩, 열린 층만 받는다. 그 층의 증명 Play 는 축을
-              세우면서 미지를 하나 놓는다 (2층: 지역 · 3층: 생물 · 4층: 자원).
-컨텐츠 층 주입  미지 하나 — 지역 · 생물 · 자원 · 구조 (이름 + 종류 + 세계관 사실).
-              요구 축이 전부 확정이면 언제든 받는다 — 기반 층 전체를 기다리지 않는다.
-              Play 로 구체화하기 전에 로드맵 §4 의 열 질문(세계 인과 여섯 + L0-Game.md §4 넷)을
-              통과시킨다 — ①~③ 이 World Cause, ④~⑥ 이 Goal·Required, ⑦~⑩ 이 판정.
-              새 축을 요구하는 미지는 컨텐츠 행이 아니라 기반 층의 새 행이다.
-실주행 GAP 주입  Play 실주행 판정(§8)에서 실패한 Human 판정 항목 — Human 이 그 항목을 DESIGN GAP 으로
-              준다. 새 축도 새 미지도 아니다 — 이미 선 축이 관찰되지 않거나 다르게 겪힌 것이다.
-              기존 Play 에 Cycle 을 더하거나, 여럿에 걸치면 관찰 가능성 Play 하나로 묶는다
-              (선례: RoomAnswersWhenAsked). 로드맵의 행은 새로 올리지 않는다.
+기반 층 주입    축 하나 — 방향 한 줄 · 기획서 · design/ 문서 지목. 위에서 아래로 하나씩, 열린 층만 받는다
+              (열린 층은 plan/DESIGN.md §1). 그 층의 묶음은 축을 세우면서 미지를 하나 놓는다.
+컨텐츠 층 주입  미지 하나 — 지역 · 생물 · 자원 · 구조 (이름 + 종류 + 세계관 사실). 요구 축이 전부 확정이면 언제든.
+              먼저 등급을 가른다 (L2-World-Tool-Scale §2) — A 데이터만(묶음 없음 · Spec + 검사 + Human 판정) ·
+              B 규칙 하나(Cycle 하나) · C 새 축(기반 층의 새 행). 로드맵 열 질문 ①~⑩ 을 통과시킨다.
+실주행 GAP 주입  §9 에서 "아니오" 로 돌아온 질문 — 새 축도 새 미지도 아니다. 기존 묶음에 Cycle 을 더하거나,
+              여럿에 걸치면 관찰 가능성 묶음 하나로 자른다. 로드맵의 행은 새로 올리지 않는다.
 ```
 
-한 Play 는 행 하나만 증명한다. 확정되지 않은 축의 의미가 필요해지면 Required 가
-아니라 Human 질문으로 남긴다. 확장성은 열거된 그래프가 아니라 `선 축들 × 미지들` 의
-조합에서 나온다 — 미지가 하나 늘 때마다 모든 축과 곱해진다.
+- 채팅으로 온 주입물은 `content/roadmap/` 에 그 층의 결과물(`L<N>-*.md` · `M<N>-*.md`)로 보존한다 — 그것이 Source 다.
+- **L0-Game.md 와 시스템 문서는 있으면 참조하고, 없어도 막지 않는다.** 주입물 자체가 그 자리의 근거다.
+- 주입의 **순서**는 [content/roadmap/README.md](../content/roadmap/README.md) 가, 층 · 행의 상태와 기획서의 덮임 ·
+  남은 것은 `plan/DESIGN.md` 가 소유한다. 확장성은 열거된 그래프가 아니라 `선 축들 × 미지들` 의 조합에서 나온다.
 
-## 9. Human / AI 역할
+## 11. Human / AI 역할
 
 ```text
-Human   결정: 게임 전체 방향 / 시스템 핵심 원칙 / 게임 의미(수치·확률·시간·범위,
-        세계관 사실) / 실제 플레이 경험 판단
-        승인: Play Goal · Experience Intent · Breath · Cycle 범위 — AI 가 제안한
-        것을 승인·수정한다 (§8.5 의 승인 1회 게이트)
-AI      수행: 기획 문서 읽기 / Play Structure 구체화 / Experience → World Cause 변환 /
-        Capability 분석 / Cycle 후보 분할 / Cycle 문서 작성 / PLAN / BUILD / 검증
-        제안: Play Goal · Experience Intent · Breath (주입물이 말하지 않았으면)
+Human   결정: 게임 전체 방향 / 시스템 핵심 원칙 / 게임 의미(수치·확률·시간·범위, 세계관 사실) / 실주행 판정
+        승인: 묶음(Goal · Intent · Breath · Cycle 목록) — AI 가 제안한 것을 "C### 진행" 으로 승인·수정한다
+AI      수행: 기획서 읽기 / 묶음 자르기 / Experience → World Cause 변환 / Cycle 분할 / spec 작성 / 실현 / 검증 / 예심
+        제안: Goal · Intent · Breath (주입물이 말하지 않았으면)
 ```
 
-"결정"과 "제안"의 경계가 이 공정의 핵심이다. **플레이 층**(무엇을 하게 할 것인가,
-어떤 호흡으로, 어떤 사건과 세계 인과로)은 AI 가 지어 올리고 Human 이 승인한다 —
-방향 한 줄만 주입돼도 공정이 굴러가는 이유다. **게임 의미**(그 사건이 성립하는
-수치·원리·세계관 사실)는 AI 가 정하지 않는다 — Human 질문으로 올라간다.
+**플레이 층**(무엇을 하게 할 것인가, 어떤 호흡으로, 어떤 사건과 세계 인과로)은 AI 가 지어 올리고 Human 이
+승인한다. **게임 의미**(그 사건이 성립하는 수치·원리·세계관 사실)는 AI 가 정하지 않는다 — 질문으로 올라간다.
 
-Human 은 게임이 무엇이어야 하는가를 결정하고, AI 는 그것을 구현 가능한 인과와 작은
-작업 단위로 폐쇄한다.
+문서 소유권: `L0-Game.md` · `L<N>-*.md` · `M<N>-*.md` · 시스템 문서는 Human 원본이다. `spec.md` 는 AI 가 쓰고
+동결 뒤 아무도 고치지 않는다 (의미를 바꿔야 하면 새 Cycle). `plan/` 은 공정이 갱신하는 살아 있는 문서다.
 
-문서 소유권: `L0-Game.md` 와 시스템 문서는 Human 원본이다. `play/*.md` 는 AI 가
-초안을 작성하고 Human 이 문서 통짜로 1회 승인하는 **공동 문서**다 (§8.5) —
-승인 전에는 Cycle 을 시작하지 않는다. 승인 후 Agent 가 play 문서를 만질 수 있는
-자리는 Cycle Breakdown 체크박스 갱신(§8)뿐이다.
-
-## 10. Artifact 생성 규칙
+## 12. Artifact 생성 규칙
 
 ```text
-생성한다      시스템 문서 (영역별 1개) · L<N>-*.md (기반 층별 1개 — 0층이 `L0-Game.md`) ·
-             M<N>-*.md (미지별 1개) · play/*.md (플레이별 1개) · cycles/C###/spec.md
-             (Cycle 마감이 남기는 shots/ 와 루트 TODO.md 의 항목 — TODO 는 저장소에 하나뿐인 살아 있는 문서, 절이 비면 절을 지운다)
-생성하지 않는다  Master Graph · Intent Graph · Possibility Graph · Capability Graph ·
-             Experience Graph · Frontier 문서 · 별도 Breath/World Cause 문서
+생성한다      시스템 문서 (영역별 1개) · L<N>-*.md (기반 층별) · M<N>-*.md (미지별) · cycles/C###/spec.md · shots/ ·
+             plan/ 의 항목 (절이 비면 절을 지운다)
+생성하지 않는다  Play 문서 · Master Graph · Intent Graph · Possibility Graph · Capability Graph · Experience Graph ·
+             Frontier 문서 · 별도 Breath/World Cause 문서 · 구현 노트 · 검증 산문
 ```
 
-Breath · Capability · Cycle 후보는 전부 해당 `play/*.md` 안에서 관리한다.
-Master Graph 탐색 공정(advprotoi-master)은 이 공정으로 **대체·제거**한다 —
-"다음에 무엇을 만들까"는 승인된 Play Design 의 Cycle Breakdown 이 답하고,
-Play Design 이 하나도 없으면 첫 Play 를 기획하는 것(advprotoi-design)이 곧 탐색이다.
+"다음에 무엇을 만들까" 는 첫 spec 의 묶음 블록(Cycle 목록)과 `plan/CYCLES.md` 레인 표가 답한다. 열린 묶음이
+없으면 Human 이 기획서를 지목하고 AI 가 묶음을 자르는 것이 곧 탐색이다.
 
-## 11. 공정의 핵심 규칙 6개
+## 13. 공정의 핵심 규칙 6개
 
 1. 큰 시스템을 기능 목록으로 직접 분해하지 않는다 (Combat → Parry/Counter/Break 식 금지).
-2. 항상 실제 Play 를 먼저 만든다.
-3. Play 에는 반드시 경험의 호흡(Breath)이 존재한다.
+2. 항상 실제로 플레이되는 결과 하나(묶음)를 먼저 자른다.
+3. 묶음에는 반드시 경험의 호흡(Breath)이 존재한다.
 4. 모든 중요한 감정 변화에는 게임 안의 원인(World Cause)이 있어야 한다.
 5. Cycle 은 기능 단위가 아니라 **최소 Playable Experience 단위**다
    ("ThreatDetection 구현"이 아니라 "주변 생물의 행동으로 보이지 않는 위험을 알아차릴 수 있다").
-6. 구현 Workflow 는 건드리지 않는다 — 이 공정은 승인된 Play 와 레인 표까지만 담당하고,
-   이후는 기존 Cycle 공정(spec.md 명세 → 실현 → 마감)을 그대로 사용한다.
+6. 의미의 출처는 기획서 하나다 — 묶음도 spec 도 기획서를 인용하지 다시 쓰지 않는다. 구현 Workflow 는 건드리지 않는다.
