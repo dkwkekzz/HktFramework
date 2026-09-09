@@ -343,7 +343,8 @@ describe('C036 어떻게 알게 되는가의 문구 셋', () => {
   });
 
   it('게임 내부의 말이 하나도 섞이지 않는다 (코드 글자 · 기회 · id)', () => {
-    for (const value of [VISIBLE, SIGNAL, TRACE, HIDDEN]) {
+    // HIDDEN 은 빠졌다 — C038 부터 세계가 그 값을 실어 보내지 않아 표에 말이 없다
+    for (const value of [VISIBLE, SIGNAL, TRACE]) {
       const text = codeText(discoveryCode(value));
       expect(text).not.toContain(value);
       expect(text).not.toContain('기회');
@@ -351,10 +352,13 @@ describe('C036 어떻게 알게 되는가의 문구 셋', () => {
     }
   });
 
-  it('HIDDEN 도 말을 가진다 — 다만 이 Cycle 의 데이터에 없어 그 줄이 서지 않는다', () => {
-    // 문구는 있다 (표에 없으면 코드 글자가 화면에 뜬다 — 그 자리를 잡는 눈금)
-    expect(codeText(discoveryCode(HIDDEN))).not.toBe(discoveryCode(HIDDEN));
-    // 그러나 이 Cycle 의 어떤 봉투도 그 값을 싣지 않는다 (spec SPEC-001 경계 ② · 기본형 ④)
+  it('HIDDEN 은 화면에 닿지 않는다 — 세계가 그 값을 실어 보내지 않는다 (C038 CHANGED)', () => {
+    // C036 때는 "말은 있되 줄이 서지 않는다" 였다. C038 이 거름을 세계에 세우면서
+    // 그 값이 화면에 닿을 길이 없어졌고, 닿지 않는 말은 표에서 지웠다 (C038 기본형 ⑤).
+    // 표에 없으면 코드 글자가 그대로 뜨는 것이 이 표의 규율이고, 여기서는 그것이 옳다 —
+    // 세계가 보내지 않는 값이 화면에 뜨는 일 자체가 없어야 하기 때문이다.
+    expect(codeText(discoveryCode(HIDDEN))).toBe(discoveryCode(HIDDEN));
+    // 그리고 어떤 봉투도 그 값을 싣지 않는다 (spec SPEC-001)
     const scene = point(
       made([
         harvest(MOLT.id, { opportunity: opportunityOf(MOLT_OPPORTUNITY, TRACE) }),

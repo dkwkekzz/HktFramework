@@ -32,6 +32,15 @@ export const DECIDABLE_DISCOVERY_KINDS: readonly OpportunityDiscovery[] = [
 /** 자리만인 discovery — 3층(사람과 앎)이 오면 어휘가 연다 */
 export const DEFERRED_DISCOVERY_KINDS: readonly OpportunityDiscovery[] = ['NPC', 'KNOWLEDGE'];
 
+/**
+ * **아직 드러나지 않았다** — 넷 가운데 하나이되 다른 셋과 갈리는 값이다 (C038 ADDED).
+ *
+ * 다른 셋(보인다 · 흔적 · 신호)은 "이렇게 알게 된다" 이고 이것은 "아직 알 수 없다" 다. 그래서
+ * 이 값을 가진 기회는 **관찰에 실리지 않아야** 하고, 그 거름은 컨텐츠의 투영이 한다 (기반은
+ * 무엇을 숨길지 정하지 않는다 — 여기는 그 값의 이름을 한 자리에 둘 뿐이다).
+ */
+export const HIDDEN_DISCOVERY: OpportunityDiscovery = 'HIDDEN';
+
 /** 기회가 걸리는 것의 갈래 다섯 — 무엇을 향한 기회인가 */
 export type OpportunityTargetKind = 'source' | 'area' | 'connector' | 'route' | 'process';
 

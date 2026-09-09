@@ -110,6 +110,15 @@ function ruleLeftBehindFade(state: WorldState, route: PresenceRoute): void {
     sourceState.phase = 'depleted';
     sourceState.taken = 0;
     sourceState.progress = 0;
+    // C038 ADDED (spec SPEC-008) — **스러진 것도 그 방의 기억에 남는다.**
+    //
+    // 「먹혀서 비워진 것도 고갈로 센다」(C034 의 결정)와 **같은 잣대**다: 그 자리가 비었다는
+    // 사실은 하나이고, 누가 비웠는지로 셈을 가르면 세계가 같은 사실을 두 말로 하게 된다.
+    // 캔 것(takenTotal)은 오르지 않는다 — 아무도 캐지 않았다.
+    remember(state.regionStates, source.regionId, state.time, {
+      kind: 'depleted',
+      sourceId: source.id,
+    });
   }
 }
 

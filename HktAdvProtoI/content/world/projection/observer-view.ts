@@ -89,6 +89,7 @@ import type {
   TrackView,
 } from '../../protocol/gameview';
 import { actionProgress, actionTargetId } from '../semantic/action';
+import { HIDDEN_DISCOVERY } from '../../../engine/world-authoring/opportunity';
 import { opportunityStanding } from '../semantic/opportunity-open';
 import { worldClockAt } from '../semantic/clock';
 import { actionCollider } from '../semantic/collision';
@@ -258,6 +259,15 @@ function regionMemoryView(regionId: string, memory: RegionMemory): RegionMemoryV
  *
  * availability 도 outcomes 도 progress 도 target 도 possibleActions 도 싣지 않는다 — 판은
  * 지목한 대상의 **이름과 발견**까지만 말한다 (spec Observable).
+ *
+ * C038 CHANGED (spec SPEC-001) — **아직 드러나지 않은 기회는 이름도 실리지 않는다.**
+ * `HIDDEN` 은 "어떻게 알게 되는가" 의 넷째 값이고 그 뜻은 **아직 알 수 없다** 인데, 그것을
+ * 실어 보내면 세계가 숨긴 것을 스스로 흘리게 된다. 거르는 자리를 판이 아니라 **여기**에 두는
+ * 까닭은 원칙 1 · 3 이다 — View 는 독립 Client 이므로, 판이 그리지 않기로 하는 것으로는
+ * 다른 Client 가 그것을 보는 것을 막지 못한다.
+ *
+ * **숨는 것은 기회의 이름이지 행동이 아니다** (SPEC-001 경계 ①) — 그 Interaction 은 지금처럼
+ * 서고 available 도 reason 도 한 값 달라지지 않는다. 무엇이 그것을 드러내는가는 3층의 일이다.
  */
 function opportunityNameOf(
   state: WorldState,
@@ -267,6 +277,7 @@ function opportunityNameOf(
 ): { opportunity: OpportunityView } | Record<string, never> {
   const opportunity = opportunityForAction(regionId, action, targetRef);
   if (opportunity === undefined) return {};
+  if (opportunity.discovery === HIDDEN_DISCOVERY) return {};
   return {
     opportunity: {
       id: opportunity.id,
