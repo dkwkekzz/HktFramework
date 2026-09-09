@@ -417,6 +417,82 @@ describe('SPEC-005 — 어휘가 함께 넓어진다 (㊹ 이 그 잎을 잰다)
   });
 });
 
+// ─────────────────────────────────────────────────────────────────────
+//
+// **모르는 이름은 갈래를 가리지 않고 판정 불가다** (Human 결정 · C038).
+//
+// 전에는 갈래마다 답이 갈렸다 — 새 셋(문 · 자락 · 되돌아옴)은 판정 불가였고 기존 둘(원천 ·
+// 경로)과 방은 **없는 것**(undefined → 비교의 거짓)이었다. 그래서 같은 없는 id 를 어느 갈래로
+// 묻느냐로 답이 달라졌다. 이제 하나다: 세계가 **모르는 이름**이면 어느 갈래든 판정 불가다.
+//
+// 갈리는 자리를 함께 못 박는다 — **아는 것에 아직 값이 없는 것**은 판정 불가가 아니라 없는
+// 것이다 (한 번도 지나지 않은 경로의 기억 · 규칙 없는 방의 패턴). 없는 것과 모르는 것은 다르다.
+
+describe('모르는 이름은 갈래를 가리지 않고 판정 불가다 (Human 결정)', () => {
+  const GHOST = 'NO_SUCH_NAME_AT_ALL';
+
+  it('U-101 갈래 여덟이 모르는 이름에 똑같이 판정 불가를 낸다', () => {
+    const s = worldState({ npcs: [] });
+    const ghosts: readonly ConditionLeaf[] = [
+      { target: { kind: 'region', ref: GHOST }, query: { kind: 'state', path: 'pattern' }, operator: '==', value: 'P1' },
+      { target: { kind: 'region', ref: GHOST }, query: { kind: 'count', path: `population.${GHOST}` }, operator: '>=', value: 1 },
+      { target: { kind: 'source', ref: GHOST }, query: { kind: 'exists' }, operator: 'EXISTS' },
+      { target: { kind: 'source', ref: GHOST }, query: { kind: 'state', path: 'phase' }, operator: '==', value: 'available' },
+      { target: { kind: 'history', ref: GHOST }, query: { kind: 'history', path: 'turns' }, operator: '>=', value: 0 },
+      { target: { kind: 'route', ref: GHOST }, query: { kind: 'state', path: 'passing' }, operator: '==', value: true },
+      { target: { kind: 'connector', ref: GHOST }, query: { kind: 'state', path: 'open' }, operator: '==', value: true },
+      { target: { kind: 'area', ref: GHOST }, query: { kind: 'state', path: 'active' }, operator: '==', value: true },
+      { target: { kind: 'process', ref: GHOST }, query: { kind: 'state', path: 'phase' }, operator: '==', value: 'available' },
+    ];
+    for (const leaf of ghosts) {
+      expect({ kind: leaf.target.kind, query: leaf.query.kind, verdict: verdict(s, leaf) }).toEqual({
+        kind: leaf.target.kind,
+        query: leaf.query.kind,
+        verdict: 'undecidable',
+      });
+    }
+  });
+
+  it('U-102 (경계) 아는 것에 아직 값이 없는 것은 **없는 것**이다 — 판정 불가가 아니다', () => {
+    const s = worldState({ npcs: [] });
+    const room = REGION_SPECS[0]!.id;
+    const route = PRESENCE_ROUTES[0]!.id;
+    // 한 번도 지나지 않은 경로의 기억 — 그 방은 알고 그 경로도 아는데 아직 마디가 없다
+    const neverPassed: ConditionLeaf = {
+      target: { kind: 'history', ref: room },
+      query: { kind: 'history', path: `passages.${route}` },
+      operator: 'EXISTS',
+    };
+    expect({ verdict: verdict(s, neverPassed) }).toEqual({ verdict: 'unmet' });
+    // 규칙 없는 방의 패턴 — 그 방은 아는데 규칙이 없다
+    const ruleless = REGION_SPECS.find((spec) => spec.rule === undefined)!.id;
+    const noPattern: ConditionLeaf = {
+      target: { kind: 'region', ref: ruleless },
+      query: { kind: 'state', path: 'pattern' },
+      operator: 'EXISTS',
+    };
+    expect({ region: ruleless, verdict: verdict(s, noPattern) }).toEqual({ region: ruleless, verdict: 'unmet' });
+  });
+
+  it('U-103 (회귀) 아는 이름은 전과 같이 답한다 — 통일이 세계의 답을 바꾸지 않는다', () => {
+    const s = worldState({ npcs: [] });
+    const source = findResourceSource(sourceIds()[0]!)!;
+    const stands: ConditionLeaf = {
+      target: { kind: 'source', ref: source.id },
+      query: { kind: 'state', path: 'phase' },
+      operator: '==',
+      value: sourceStateOf(s.regionStates, source.regionId, source.id).phase,
+    };
+    expect({ verdict: verdict(s, stands) }).toEqual({ verdict: 'met' });
+    const exists: ConditionLeaf = {
+      target: { kind: 'source', ref: source.id },
+      query: { kind: 'exists' },
+      operator: 'EXISTS',
+    };
+    expect({ verdict: verdict(s, exists) }).toEqual({ verdict: 'met' });
+  });
+});
+
 // ── 검사를 부르는 자리 ────────────────────────────────────────────────
 
 /** 검사의 입력에 자리 하나를 더한다 — 세계의 데이터는 한 글자도 손대지 않는다 (c035 의 어법) */

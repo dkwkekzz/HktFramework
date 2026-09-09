@@ -459,6 +459,17 @@ function readLeaf(state: WorldState, leaf: ConditionLeaf): ConditionValue | unde
 }
 
 /** clock — 시계와 비에서 유도된다 (저장되지 않는다) */
+/**
+ * 세계가 아는 방인가 — **모르는 이름과 없는 것을 가르는 자리** (C038 Human 결정).
+ *
+ * 세계 State 의 `regionStates` 로 묻지 않는다: 그 자리는 세계가 서면서 방마다 나므로 있고
+ * 없음이 데이터가 아니라 초기화의 결과다. 방의 **데이터**가 아는가로 묻는다 — 검사 ㊹ 이
+ * 어휘로 견주는 그 목록과 같은 자다.
+ */
+function knowsRegion(ref: string): boolean {
+  return REGION_SPECS.some((spec) => spec.id === ref);
+}
+
 function readClock(
   time: number,
   kind: ConditionLeaf['query']['kind'],
@@ -484,11 +495,16 @@ function readRegion(
   kind: ConditionLeaf['query']['kind'],
   path: readonly string[],
 ): ConditionValue | undefined | Unreadable {
+  // 모르는 방은 **판정 불가**다 (C038 Human 결정 — 갈래를 가리지 않고 하나로).
+  // 아는 방인데 규칙이 없는 것은 다르다: 그것은 **없는 것**이고 비교의 거짓이다.
+  if (ref !== undefined && !knowsRegion(ref)) return UNREADABLE;
   if (kind === 'state' && path.length === 1 && path[0] === REGION_PATTERN) {
     if (ref === undefined) return UNREADABLE;
     return state.regionStates[ref]?.rule?.pattern;
   }
   if (kind === 'count' && path.length === 2 && path[0] === REGION_POPULATION) {
+    // 모르는 개체군의 값을 0 으로 읽지 않는다 — 0 은 "없다" 가 아니라 "아무것도 없는 만큼 있다" 다
+    if (findPopulation(path[1]!) === undefined) return UNREADABLE;
     return populationValueOf(state.regionStates, path[1]!);
   }
   return UNREADABLE;
@@ -502,10 +518,12 @@ function readSource(
   path: readonly string[],
 ): ConditionValue | undefined | Unreadable {
   if (ref === undefined) return UNREADABLE;
+  // 모르는 원천은 **판정 불가**다 (C038 Human 결정) — 전에는 "없는 것" 으로 읽어 exists 가
+  // 거짓이 되고 phase 비교가 거짓이 되었다. 없는 것과 모르는 것은 다르다
   const source = findResourceSource(ref);
-  if (kind === 'exists' && path.length === 0) return source === undefined ? undefined : true;
+  if (source === undefined) return UNREADABLE;
+  if (kind === 'exists' && path.length === 0) return true;
   if (kind === 'state' && path.length === 1 && path[0] === SOURCE_PHASE) {
-    if (source === undefined) return undefined;
     return sourceStateOf(state.regionStates, source.regionId, source.id).phase;
   }
   return UNREADABLE;
@@ -526,6 +544,9 @@ function readHistory(
   path: readonly string[],
 ): ConditionValue | undefined | Unreadable {
   if (kind !== 'history' || ref === undefined) return UNREADABLE;
+  // 모르는 방의 기억은 **판정 불가**다 (C038 Human 결정). 아는 방에 아직 그 마디가 없는 것은
+  // 다르다 — 그것은 **없는 것**이고 EXISTS 의 거짓이다 (한 번도 지나지 않았다 · 캔 적 없다)
+  if (!knowsRegion(ref)) return UNREADABLE;
   const history: RegionMemory | undefined = state.regionStates[ref]?.history;
   switch (path[0]) {
     case HISTORY_PASSAGES: {
@@ -566,7 +587,8 @@ function readRoute(
   if (ref === undefined || kind !== 'state' || path.length !== 1 || path[0] !== ROUTE_PASSING) {
     return UNREADABLE;
   }
-  if (!PRESENCE_ROUTES.some((route) => route.id === ref)) return undefined;
+  // 모르는 경로는 **판정 불가**다 (C038 Human 결정 — 전에는 "없는 것" 으로 읽었다)
+  if (!PRESENCE_ROUTES.some((route) => route.id === ref)) return UNREADABLE;
   return passingRegionOf(presenceStateOf(state.presences, ref), state.time) !== undefined;
 }
 
