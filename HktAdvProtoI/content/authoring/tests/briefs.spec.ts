@@ -20,6 +20,7 @@ import {
   type RegionBrief,
 } from '../../../engine/world-authoring/brief';
 import { REGION_GRAPH, REGION_SPECS } from '../../regions';
+import { DECISION_TREE, OPPORTUNITY_CONTRACT, WORLD_CONTRACTS } from '../contracts';
 import { REGION_NAMES } from '../../view/region-presentation';
 
 const DIR = fileURLToPath(new URL('../briefs/', import.meta.url));
@@ -145,5 +146,85 @@ describe('T2 — 모르는 것은 미답으로 남아 있다 (지어내지 않�
     const silent = briefs.get('MAZE_HEART')!;
     expect(silent.answers.worth.sources).toEqual([]);
     expect(isUnanswered(silent.answers.worth.said)).toBe(true);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────
+// T4 — **결정 나무** (C037 ADDED · spec SPEC-008 · 기획서 §14 의 일곱 질문)
+//
+// 여기서 재는 것은 데이터 하나다: 요구의 갈래마다 가지가 하나씩 있고 그 등급이 기획서가 적은
+// 그것인가. 등급 판정기가 그것으로 무엇을 하는지는 T4 의 시험(tools/world-editor)이 잰다.
+
+describe('T4 — 요구의 갈래마다 가지 하나 (결정 나무)', () => {
+  it('갈래 여덟이 다 서고 겹치지 않는다', () => {
+    expect(DECISION_TREE.map((branch) => branch.kind)).toEqual([
+      'rule',
+      'axis',
+      'contract',
+      'fact',
+      'process',
+      'space',
+      'observation',
+      'persistence',
+    ]);
+    expect(new Set(DECISION_TREE.map((branch) => branch.kind)).size).toBe(DECISION_TREE.length);
+  });
+
+  it('등급이 기획서 §5.4 의 그것이다 — 데이터면 A · Cycle 하나면 B · 층이 와야 하면 C', () => {
+    expect(
+      Object.fromEntries(DECISION_TREE.map((branch) => [branch.kind, branch.grade])),
+    ).toEqual({
+      rule: 'B',
+      axis: 'C',
+      contract: 'C',
+      fact: 'A',
+      process: 'B',
+      space: 'A',
+      observation: 'A',
+      persistence: 'A',
+    });
+  });
+
+  it('가지마다 돌려보낼 곳과 까닭이 한 마디 이상 서 있다 (빈 자리로 두지 않는다)', () => {
+    for (const branch of DECISION_TREE) {
+      expect({
+        kind: branch.kind,
+        returnTo: branch.returnTo.length > 0,
+        because: branch.because.length > 0,
+      }).toEqual({ kind: branch.kind, returnTo: true, because: true });
+    }
+  });
+
+  it('계약이 그 나무를 건넨다 — 판정기가 기본 나무(셋)로 떨어지지 않는다', () => {
+    expect(WORLD_CONTRACTS.decisionTree).toBe(DECISION_TREE);
+  });
+});
+
+describe('기회 계약 — 방이 무엇을 내미는가를 적을 말 (C037 ADDED)', () => {
+  it('discovery 는 지금 서는 넷과 자리만인 둘이다', () => {
+    expect(OPPORTUNITY_CONTRACT.discovery.standing).toEqual([
+      'VISIBLE',
+      'SIGNAL',
+      'TRACE',
+      'HIDDEN',
+    ]);
+    expect(OPPORTUNITY_CONTRACT.discovery.deferred).toEqual(['NPC', 'KNOWLEDGE']);
+  });
+
+  it('동사는 이미 있는 넷이고, op 표는 §4.2 에서 2층에 서는 짝들이다', () => {
+    expect(OPPORTUNITY_CONTRACT.actions).toEqual(['observe', 'gather', 'cross', 'move']);
+    expect(OPPORTUNITY_CONTRACT.ops).toContain('opportunity OPEN');
+    expect(OPPORTUNITY_CONTRACT.ops).toContain('ownership GRANT');
+    expect(OPPORTUNITY_CONTRACT.ops.every((line) => line.split(' ').length === 2)).toBe(true);
+  });
+
+  it('Yield 열은 열넷이고 앞 넷만 이 층의 것이다', () => {
+    expect(OPPORTUNITY_CONTRACT.yields.length).toBe(14);
+    expect(OPPORTUNITY_CONTRACT.yields.filter((column) => column.standing).map((c) => c.kind)).toEqual([
+      'Material',
+      'Access',
+      'Discovery',
+      'WorldInfluence',
+    ]);
   });
 });

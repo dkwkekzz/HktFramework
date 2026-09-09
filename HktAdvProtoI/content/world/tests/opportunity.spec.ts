@@ -285,9 +285,16 @@ describe('SPEC-006 — op 이름표', () => {
     }
   });
 
-  it('U-019 다섯 군이 다 서 있고 자리만인 군(opportunity · knowledge)은 서지 않는다', () => {
+  it('U-019 (C037 CHANGED) 여섯 군이 서 있고 자리만인 군(knowledge)은 서지 않는다', () => {
+    // C036 은 다섯이었다 — 기회의 열림 · 닫힘 · 완료가 실제로 일어나는 이 Cycle 에
+    // opportunity 군이 여섯째로 선다. knowledge 는 통째로 3층이라 여전히 자리만이다
     const groups = new Set(MUTATION_BINDINGS.map((it) => it.group));
-    expect([...groups].sort()).toEqual(['entity', 'ownership', 'process', 'property', 'relation']);
+    expect([...groups].sort()).toEqual(
+      ['entity', 'opportunity', 'ownership', 'process', 'property', 'relation'].sort(),
+    );
+    expect(
+      MUTATION_BINDINGS.filter((it) => it.group === 'opportunity').map((it) => it.op),
+    ).toEqual(['OPEN', 'CLOSE', 'COMPLETE']);
   });
 
   it('U-020 기회의 outcomes 에 쓰인 op 도 전부 표 안이다', () => {

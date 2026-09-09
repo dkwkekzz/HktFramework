@@ -1160,12 +1160,16 @@ describe('SPEC-006 지목하면 셈이 읽힌다', () => {
     const w = standingIn(FANTASY_MAZE);
     const fresh = seenRegionMemory(w);
     // Then 자리는 늘 있고 (disturbance 와 같은 어법 · 기본형 ⑥)
-    expect(Object.keys(fresh).sort()).toEqual(['awakenings', 'passages', 'turns'].sort());
+    // C037 CHANGED — 마디가 하나 늘었다 (태어남의 셈). 나머지는 한 값도 달라지지 않는다
+    expect(Object.keys(fresh).sort()).toEqual(
+      ['awakenings', 'births', 'passages', 'turns'].sort(),
+    );
     expect(fresh.turns).toBe(0);
     // And (경계 ①) 한 번도 없던 것은 시각도 목록도 없다
     expect(fresh.awakenings.times).toBe(0);
     expect(noTime(fresh.awakenings.lastAt)).toBe(true);
     expect(fresh.passages).toEqual([]);
+    expect(fresh.births).toEqual([]);
 
     // When 고래가 지나는 방으로 옮겨 그 지나감이 끝날 때까지 둔다
     const rooms = routeRoomsOf(w, SKY_WHALE_ROUTE);

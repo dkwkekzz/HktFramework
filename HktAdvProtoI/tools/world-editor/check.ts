@@ -496,6 +496,10 @@ export const WORLD_CHECK_MEMORY: CheckMemory = {
       routes: presenceRoutes
         .filter((route) => route.nodes.some((node) => node.some((it) => it.region === spec.id)))
         .map((route) => route.id),
+      // 그 방의 탄생지 — 기억이 셀 수 있는 셋째 열쇠다 (C037 ADDED · spec SPEC-007 경계 ③).
+      // 원천 · 경로와 **같은 어법**이다: 실제로 태어난 적 있는 것만 셈을 가지지만, 열쇠가 될
+      // 수 있는 것은 그 방이 데이터로 밝힌 탄생지 전부다. ㊸ 이 그것으로 유령을 잡는다
+      formations: (spec.ecology?.lifeFormation ?? []).map((site) => site.id),
     }),
   ),
   // 수명 표 — 세계가 소유한 그 표를 줄마다 그대로 옮긴다 (여기서 짓는 줄이 하나도 없다)

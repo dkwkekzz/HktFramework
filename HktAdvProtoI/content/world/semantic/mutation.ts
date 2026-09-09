@@ -14,8 +14,14 @@
 //      grep 하면 그 규칙 머리의 Transition 절이 나온다. 표가 규칙보다 앞서지 않는다.
 //   ② **모든 줄의 (group, op) 는 `MUTATION_OPS` 안이다** — 표 밖의 이름을 여기서 짓지 않는다
 //      (단위 시험이 잰다).
-//   ③ **없는 군은 적지 않는다** — 지금 이 세계에 opportunity 군(OPEN · CLOSE · COMPLETE)의
-//      전이가 없다. 없는 것을 채워 다섯을 일곱으로 만들지 않는다 (C037 이 그것을 세운다).
+//   ③ **없는 군은 적지 않는다** — C036 까지 이 세계에 opportunity 군(OPEN · CLOSE · COMPLETE)의
+//      전이가 없었다. 없는 것을 채워 다섯을 일곱으로 만들지 않았다.
+//
+// C037 CHANGED — **여섯째 군이 선다** (opportunity). 기회의 열림과 닫힘과 완료가 이 Cycle 에
+// 실제로 일어나기 때문이다. 다만 앞의 다섯과 갈리는 것이 하나 있다: 이 셋은 **저장되는 State 의
+// 전이가 아니라 유도**다 (RULE-OPPORTUNITY-OPEN-001 · 문의 활성 CONNECT · DISCONNECT 이 매 tick
+// 유도되는 그 어법 그대로). 그래도 표에 서는 이유는 같다 — 세계에 실제로 일어나는 일이고,
+// 그 이름이 무엇을 가리키는지 사람이 한 자리에서 볼 수 있어야 한다.
 
 import type { MutationGroup, MutationOp } from '../../../engine/world-authoring/opportunity';
 import { RULE_CONNECTOR_ACTIVATION, RULE_MINE_COMPLETE } from '../../protocol/semantic-id';
@@ -40,12 +46,13 @@ const RULE_DISTURBANCE_DECAY = 'RULE-DISTURBANCE-DECAY-001';
 const RULE_MAZE_CONNECTION = 'RULE-MAZE-CONNECTION-001';
 const RULE_SOURCE_RECOVERY = 'RULE-SOURCE-RECOVERY-001';
 const RULE_RECOVERY_SPEED = 'RULE-RECOVERY-SPEED-001';
+const RULE_OPPORTUNITY_OPEN = 'RULE-OPPORTUNITY-OPEN-001';
 
 /**
- * 지금 이 세계에 있는 전이 **다섯 군**과 그 op 이름 (spec SPEC-006).
+ * 지금 이 세계에 있는 전이 **여섯 군**과 그 op 이름 (C036 spec SPEC-006 · C037 CHANGED).
  *
- * 차례는 §4.2 표의 군 차례다 (property → entity → relation → process → ownership) —
- * 두 번 읽어도 글자까지 같다.
+ * 차례는 §4.2 표의 군 차례다 (property → entity → relation → process → opportunity →
+ * ownership) — 두 번 읽어도 글자까지 같다.
  */
 export const MUTATION_BINDINGS: readonly MutationBinding[] = [
   // ── ① 소란 (property) ──
@@ -146,7 +153,29 @@ export const MUTATION_BINDINGS: readonly MutationBinding[] = [
     ruleId: RULE_SOURCE_RECOVERY,
     what: '다 되돌아온 원천의 진행과 캔 셈이 0 으로 돌아간다',
   },
-  // ── ⑤ 채취 (ownership) ──
+  // ── ⑤ 기회의 열림 (opportunity) — C037 ADDED ──
+  // 세 op 이 다 선다. OPEN · CLOSE 는 availability 의 판정 셋에서 유도되고(참이면 열림 ·
+  // 거짓이면 닫힘 · 판정 불가는 열지 않는다), COMPLETE 는 다 캔 그 순간이다 — 그 기회가
+  // 내민 것을 붙잡은 자리이므로 채취의 완료와 **같은 전이**이고 원인이 하나다.
+  {
+    group: 'opportunity',
+    op: 'OPEN',
+    ruleId: RULE_OPPORTUNITY_OPEN,
+    what: 'availability 가 참인 기회는 지금 열려 있는 것으로 읽힌다',
+  },
+  {
+    group: 'opportunity',
+    op: 'CLOSE',
+    ruleId: RULE_OPPORTUNITY_OPEN,
+    what: 'availability 가 참이 아닌 기회는 열려 있지 않은 것으로 읽힌다',
+  },
+  {
+    group: 'opportunity',
+    op: 'COMPLETE',
+    ruleId: RULE_MINE_COMPLETE,
+    what: '다 캔 그 순간 그 기회가 내민 것이 붙잡힌다',
+  },
+  // ── ⑥ 채취 (ownership) ──
   // 세계의 것이 캔 사람의 것이 된다. 이 세계에서 소유가 옮겨 가는 자리는 여기 하나뿐이다.
   {
     group: 'ownership',

@@ -233,6 +233,15 @@ export interface RegionMemory {
   awakenings: MemoryCount;
   /** 지나간 것마다 (경로 id → 셈) — **지난 적 있는 경로만** 자리를 가진다 (spec SPEC-004 ③) */
   passages: Record<string, MemoryCount>;
+  /**
+   * 태어난 것마다 (탄생지 id → 셈) — **태어난 적 있는 탄생지만** 자리를 가진다
+   * (C037 ADDED · spec SPEC-007 · Foundation G8 의 마지막 마디 · passages 와 같은 어법).
+   *
+   * **옛 스냅샷에는 이 자리가 없다** — STATE_VERSION 을 올리지 않았기 때문이다 (spec 기본형 ④).
+   * 그래서 읽는 쪽은 언제나 없을 수 있는 것으로 다뤄야 한다 (되살리기가 그 자리를 세운다 ·
+   * semantic/persistence 의 되살리기 경로 · 셈은 0 에서 시작한다).
+   */
+  births: Record<string, MemoryCount>;
 }
 
 /**
@@ -284,7 +293,7 @@ export function initialDisturbanceState(): RegionDisturbanceState {
  * 자리를 미리 깔면 "아무 일도 없었다" 와 "0 번 일어났다" 가 갈리지 않는다 (SPEC-001 ③).
  */
 export function initialMemory(): RegionMemory {
-  return { sources: {}, turns: 0, awakenings: { times: 0 }, passages: {} };
+  return { sources: {}, turns: 0, awakenings: { times: 0 }, passages: {}, births: {} };
 }
 
 /**
@@ -308,7 +317,7 @@ export function regionStateOf(
 }
 
 /**
- * 셀 만한 일 하나 — 다섯뿐이다 (C034 ADDED · spec World Change 3 · W54).
+ * 셀 만한 일 하나 — 여섯뿐이다 (C034 ADDED · C037 CHANGED — 태어남이 여섯째다).
  *
  * **누가 했는지가 없다** (spec R1 경계 ②) — 몸을 넘겨주는 자리 자체를 두지 않았다.
  * 어느 방인지는 이 값이 아니라 부르는 쪽이 말한다 (addDisturbance 가 그런 그대로).
@@ -318,7 +327,9 @@ export type MemoryEvent =
   | { kind: 'depleted'; sourceId: string }
   | { kind: 'turn' }
   | { kind: 'awakening' }
-  | { kind: 'passage'; routeId: string };
+  | { kind: 'passage'; routeId: string }
+  // C037 ADDED (spec R2 · SPEC-007) — 그 방의 탄생지에서 하나가 태어났다
+  | { kind: 'birth'; formationId: string };
 
 /**
  * RULE-REGION-MEMORY-001 (C034 ADDED · spec R1) — **일어난 일이 그 방의 셈이 된다**.
@@ -369,6 +380,19 @@ export function remember(
       const passage = (history.passages[event.routeId] ??= { times: 0 });
       passage.times += 1;
       passage.lastAt = at;
+      return;
+    }
+    case 'birth': {
+      // C037 ADDED — 지나감과 **같은 어법**이다: 자리가 없던 열쇠는 그 순간 나고, 횟수와
+      // 마지막 시각을 함께 든다. 무엇이 태어났는지는 세지 않는다 — 방이 세는 것은 그 자리에
+      // 일어난 일이고, 그 탄생지가 무엇을 낳는지는 데이터가 안다 (규칙은 이름을 모른다).
+      //
+      // 옛 스냅샷을 되살리면 이 자리 자체가 없을 수 있다 (STATE_VERSION 을 올리지 않았다) —
+      // `??=` 가 그때 빈 표를 세우므로 셈은 0 에서 시작한다 (SPEC-007 경계 ②).
+      const births = (history.births ??= {});
+      const birth = (births[event.formationId] ??= { times: 0 });
+      birth.times += 1;
+      birth.lastAt = at;
       return;
     }
   }

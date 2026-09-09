@@ -75,6 +75,7 @@
 // 세계는 답을 알려 주지 않고, 알려 주는 것은 현상뿐이다.
 
 import type {
+  BirthMemoryView,
   EntityView,
   GameViewSnapshot,
   InteractionView,
@@ -88,6 +89,7 @@ import type {
   TrackView,
 } from '../../protocol/gameview';
 import { actionProgress, actionTargetId } from '../semantic/action';
+import { opportunityStanding } from '../semantic/opportunity-open';
 import { worldClockAt } from '../semantic/clock';
 import { actionCollider } from '../semantic/collision';
 import { evaluateAttributeSetAvailability } from '../rules/attribute-set';
@@ -202,7 +204,7 @@ function sourceMemoryView(memory: SourceMemory | undefined): SourceMemoryView | 
  * 관찰자가 알아야 하는 것은 "무엇이 몇 번 지났는가" 이고, 그 코드를 말로 옮기는 것은
  * View 의 표다 (원칙 2 · presences[] 가 싣는 그 코드와 같은 것).
  */
-function regionMemoryView(memory: RegionMemory): RegionMemoryView {
+function regionMemoryView(regionId: string, memory: RegionMemory): RegionMemoryView {
   const passages: PassageMemoryView[] = [];
   for (const route of PRESENCE_ROUTES) {
     const passage = memory.passages[route.id];
@@ -213,6 +215,23 @@ function regionMemoryView(memory: RegionMemory): RegionMemoryView {
       ...(passage.lastAt === undefined ? {} : { lastAt: passage.lastAt }),
     });
   }
+  // C037 ADDED (spec SPEC-007) — 태어남도 **데이터 차례**(그 방의 탄생지 차례)로 편다.
+  // **태어난 적 있는 것만** 서고, 실리는 것은 탄생지의 id 가 아니라 **그 자리의 의미 코드**
+  // (form)다 — 지나감이 경로의 id 대신 지나는 것의 코드를 싣는 그 어법 그대로이고, 문구로
+  // 옮기는 것은 View 의 표다 (원칙 2 · 관찰 계약이 `formation` 을 의미 코드로 못 박았다).
+  //
+  // 되살린 옛 세계에는 이 자리 자체가 없을 수 있다 (STATE_VERSION 을 올리지 않았다 ·
+  // spec 기본형 ④) — 그때는 아무것도 태어난 적이 없는 것과 같은 답이다 (셈이 0 · 목록이 비어 있다).
+  const births: BirthMemoryView[] = [];
+  for (const site of lifeSitesInRegion(regionId)) {
+    const birth = memory.births?.[site.id];
+    if (!birth) continue;
+    births.push({
+      formation: site.form,
+      times: birth.times,
+      ...(birth.lastAt === undefined ? {} : { lastAt: birth.lastAt }),
+    });
+  }
   return {
     turns: memory.turns,
     awakenings: {
@@ -220,6 +239,7 @@ function regionMemoryView(memory: RegionMemory): RegionMemoryView {
       ...(memory.awakenings.lastAt === undefined ? {} : { lastAt: memory.awakenings.lastAt }),
     },
     passages,
+    births,
   };
 }
 
@@ -240,13 +260,23 @@ function regionMemoryView(memory: RegionMemory): RegionMemoryView {
  * 지목한 대상의 **이름과 발견**까지만 말한다 (spec Observable).
  */
 function opportunityNameOf(
+  state: WorldState,
   regionId: string,
   action: string,
   targetRef: string,
 ): { opportunity: OpportunityView } | Record<string, never> {
   const opportunity = opportunityForAction(regionId, action, targetRef);
   if (opportunity === undefined) return {};
-  return { opportunity: { id: opportunity.id, discovery: opportunity.discovery } };
+  return {
+    opportunity: {
+      id: opportunity.id,
+      discovery: opportunity.discovery,
+      // C037 ADDED — 때가 있는가와 지금 열려 있는가 (RULE-OPPORTUNITY-OPEN-001 · 유도).
+      // **판정(available · reason)은 이 둘을 한 값도 읽지 않는다** — 위 판정은 이미 났고
+      // 여기는 그 곁에 세계의 사실 둘을 놓을 뿐이다 (C036 이 이름을 놓은 그 자리).
+      ...opportunityStanding(state, opportunity),
+    },
+  };
 }
 
 // 관찰자가 세계에 없으면 관찰 결과도 없다 — 세계는 모르는 이에게 자신을 보여주지 않는다.
@@ -569,7 +599,7 @@ export function projectObserverView(
       available: failure === null,
       ...(failure ? { reason: failure } : {}),
       // RULE-OPPORTUNITY-NAME-001 — 그 원천의 채집 기회. 위 판정(failure)은 이 줄을 읽지 않는다.
-      ...opportunityNameOf(self.regionId, 'gather', source.id),
+      ...opportunityNameOf(state, self.regionId, 'gather', source.id),
     });
   }
 
@@ -684,7 +714,7 @@ export function projectObserverView(
       ...(failure ? { reason: failure } : {}),
       // RULE-OPPORTUNITY-NAME-001 — **묻는 문**에만 기회가 있다 (Lock 이 없는 문은 자리가 없다).
       // 위 판정(failure)도 표식(state)도 이 줄을 읽지 않는다.
-      ...opportunityNameOf(self.regionId, 'cross', exit.connector.id),
+      ...opportunityNameOf(state, self.regionId, 'cross', exit.connector.id),
     });
   }
 
@@ -838,7 +868,7 @@ export function projectObserverView(
       // 그 방의 **기억** — 소란과 같이 **늘 실린다** (C034 ADDED · spec R6). 어느 방에나
       // 있는 값이기 때문이다. **누가 했는가는 실을 것이 없고**(세계가 세지 않는다) 나이도
       // 싣지 않는다 — 시각만 싣고 "N초 전" 은 관찰자가 잰다 (자국의 since 가 그런 그대로).
-      memory: regionMemoryView(history),
+      memory: regionMemoryView(self.regionId, history),
     },
     // RULE-SAFEBY-001 (C006 R4) — 몸이 선 자리에 걸린 안전의 조건들.
     // 매 관찰마다 그 방의 땅에서 유도된다 — 세계 State 에는 없다. 아무 area 에도 들지 않았으면

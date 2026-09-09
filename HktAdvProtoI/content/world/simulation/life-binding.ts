@@ -8,10 +8,12 @@
 //                SPENT  → 그만큼의 세계 시간이 진행에 실리고, 다 차면 DORMANT · 진행 0
 //                요구가 모자라면 → DORMANT · **진행은 그 자리에 멎는다** (지워지지 않는다)
 //                요구가 다 차면 → BINDING · progress += dt / 결속의 길이 (1 을 넘지 않는다)
-//                진행이 다 차고 값이 상한보다 작으면 → **한 Tick 에 다섯**
+//                진행이 다 차고 값이 상한보다 작으면 → **한 Tick 에 여섯**
 //                  (C034 CHANGED — ② 의 고갈은 그 방의 기억에도 한 번으로 센다)
+//                  (C037 CHANGED — ⑥ 태어남 자체도 그 방의 기억에 한 번으로 센다)
 //                  ① phase = BORN · 진행 0  ② 밝힌 소비 원천이 고갈된다
 //                  ③ 밝힌 leaves 원천이 선다  ④ 개체군의 값 += 1  ⑤ 그 방의 소란이 오른다
+//                  ⑥ 그 방의 births[탄생지] 가 오른다
 // Result         (없음 — 세계가 맺고 터질 뿐이다. 무엇이 달라졌는지는 흔적과 조건 코드가 말한다)
 //
 // **관찰자와 무관하다** (spec SPEC-001 · SPEC-003) — 그 방에 몸이 없어도, 세계 어디에도
@@ -167,6 +169,15 @@ function ruleLifeBirth(
   if (population.birthDisturbance !== undefined) {
     addDisturbance(state.regionStates, regionId, population.birthDisturbance);
   }
+
+  // ⑥ RULE-REGION-MEMORY-001 (C037 ADDED · spec R2 · SPEC-007) — **태어난 것도 그 방이 센다.**
+  // 세는 일은 C034 의 그 한 자리(remember)가 한다 — 자리가 없던 열쇠를 내는 법도 시각을 적는
+  // 법도 거기 하나다. 오르는 것은 **그 일이 일어난 방**이고 열쇠는 그 탄생지다.
+  //
+  // 소비의 고갈(② 의 remember)과 갈린다: 저것은 먹힌 원천이 사는 방이 세는 것이고(다른 방일
+  // 수 있다) 이것은 **태어난 방**이 세는 것이다. 밝힌 소비가 하나도 없는 탄생지도 이것은 센다.
+  // 규칙은 그 탄생지가 무엇을 낳는지 이름으로 알지 못한다 — 열쇠 하나를 건넬 뿐이다 (R13).
+  remember(state.regionStates, regionId, state.time, { kind: 'birth', formationId: site.id });
 }
 
 /**
