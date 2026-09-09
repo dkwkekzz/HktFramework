@@ -1,6 +1,6 @@
 ---
 name: advprotoi-design
-description: HktAdvProtoI 의 기획(Design Authoring) 단계를 실행한다 — Human 이 방향 한 줄·기획서(기반 층의 축) 또는 미지 하나(컨텐츠 층의 행 — 지역·생물·자원·구조)를 주입하면 그것을 Play Design(content/roadmap/play/<name>.md)으로 구체화하고, 승인 1회 후 STATE.md §1 에 병렬 레인 표(다음에 할 일)를 정리한다. 플레이 층(Breath·사건·World Cause)은 AI 가 제안하고, 게임 의미의 결정(수치·원리·세계관 사실)은 지어내지 않고 Human 질문 목록으로 모은다. 코드·cycles/ 는 만지지 않는다 — Cycle 은 advprotoi-cycle 이 돌린다. 사용자가 "AdvProtoI 기획 / 기획 주입 / 이 방향으로 만들어줘 / Play Design 작성 / 레인 정리 / design 진행" 을 요청하면 사용.
+description: HktAdvProtoI 의 기획(Design Authoring) 단계를 실행한다 — Human 이 방향 한 줄·기획서(기반 층의 축) 또는 미지 하나(컨텐츠 층의 행 — 지역·생물·자원·구조)를 주입하면 그것을 Play Design(content/roadmap/play/<name>.md)으로 구체화하고, 승인 1회 후 plan/(STATE 트랙 표 · TODO · DESIGN · PLAYS · CYCLES 레인 표)를 정리한다. 플레이 층(Breath·사건·World Cause)은 AI 가 제안하고, 게임 의미의 결정(수치·원리·세계관 사실)은 지어내지 않고 Human 질문 목록으로 모은다. 코드·cycles/ 는 만지지 않는다 — Cycle 은 advprotoi-cycle 이 돌린다. 사용자가 "AdvProtoI 기획 / 기획 주입 / 이 방향으로 만들어줘 / Play Design 작성 / 레인 정리 / design 진행" 을 요청하면 사용.
 ---
 
 # HktAdvProtoI Design — 주입 → Play Design → 레인
@@ -9,27 +9,27 @@ description: HktAdvProtoI 의 기획(Design Authoring) 단계를 실행한다 �
 [design/Design-DesignAuthoringWorkflow.md](../../../HktAdvProtoI/design/Design-DesignAuthoringWorkflow.md)
 (특히 §8.5 주입 경로) — 이 스킬과 어긋나면 원본이 이긴다.
 
-이 스킬의 사용법은 하나다: **Human 이 방향/기획을 주입하면 승인된 Play 와 레인 표가 나온다.**
-단계는 셋(주입 → 구체화 → 레인), Human 승인은 한 번이다. 코드·`content/` 의 코드·`engine/`·
-`cycles/` 를 만지지 않는다 — `content/roadmap/` 의 문서와 STATE.md §1 만 쓴다. Cycle 자체(명세 →
+이 스킬의 사용법은 하나다: **Human 이 방향/기획을 주입하면 승인된 Play 와 갱신된 plan/ 이 나온다.**
+단계는 셋(주입 → 구체화 → plan 갱신), Human 승인은 한 번이다. 코드·`content/` 의 코드·`engine/`·
+`cycles/` 를 만지지 않는다 — `content/roadmap/` 의 문서와 `plan/` 만 쓴다. Cycle 자체(명세 →
 실현 → 마감)는 `advprotoi-cycle` 이 돌린다 — Play 의 Cycle Breakdown 한 항목이 그 입력이다.
 
 ## ① 주입 받기
 
 주입은 세 종류다 — 로드맵의 두 층에 대응하는 둘과, 실주행이 돌려보내는 하나
 ([content/roadmap/README.md](../../../HktAdvProtoI/content/roadmap/README.md) §1 · 원본 §8.5).
-먼저 어느 종류의 주입인지 판정한다.
+먼저 어느 종류의 주입인지 판정한다. 층 · 행이 지금 어디까지 왔는가는 [plan/DESIGN.md](../../../HktAdvProtoI/plan/DESIGN.md) 가 답한다.
 
 ```text
 기반 층 주입    축 하나 — 방향 한 줄 · 기획서 · design/ 문서 지목
-              → README §2 표에서 열린 층("다음") 하나만 받는다
+              → plan/DESIGN.md §1 표에서 열린 층("다음") 하나만 받는다
 컨텐츠 층 주입  미지 하나 — 지역 · 생물 · 자원 · 구조 (이름 + 종류 + 세계관 사실)
-              → README §3 표에 행을 올린다. 요구 축이 전부 확정이어야 받는다
-실주행 GAP 주입  Play 실주행 판정에서 실패한 루트 `TODO.md` §1 의 질문 — Human 이 DESIGN GAP 으로 준다.
+              → plan/DESIGN.md §2 표에 행을 올린다. 요구 축이 전부 확정이어야 받는다
+실주행 GAP 주입  Play 실주행 판정에서 실패한 `plan/PLAYS.md` 의 판정 질문 — Human 이 DESIGN GAP 으로 준다.
               새 축도 새 미지도 아니다 → 로드맵 행을 올리지 않는다.
               기존 Play 에 Cycle 을 더하거나, 여럿에 걸치면 관찰 가능성 Play 하나로 묶는다
-              (선례: RoomAnswersWhenAsked). 승인되면 그 질문은 TODO 에서 지운다.
-              TODO §3「뒤 층 · 뒤 Play 로」 는 그 층·Play 를 기획할 때의 입력이다 — 받으면 지운다
+              (선례: RoomAnswersWhenAsked). 승인되면 그 질문은 PLAYS.md 에서 지운다.
+              plan/DESIGN.md §3 의 "남은 것" 은 그 층·Play 를 기획할 때의 입력이다 — Play 가 받으면 "덮인 것" 으로 옮긴다
 ```
 
 공통 규칙:
@@ -51,14 +51,14 @@ description: HktAdvProtoI 의 기획(Design Authoring) 단계를 실행한다 �
 - 그 층의 증명 Play 는 축을 세우면서 **미지를 하나 놓는다** (2층: 이름 있는 지역 하나 ·
   3층: 무엇을 원하는지 아는 생물 하나 · 4층: 어디서 나는지 정해진 자원 하나). 그 미지의
   이름·존재는 Human 이 준다 — 주입물에 없으면 Human 질문으로 올린다. 승인되면
-  README §3 에 행으로 올린다.
+  plan/DESIGN.md §2 에 행으로 올린다.
 - 층이 Play 없이 닫히는 경우(0·1층: 문서 확정만)는 ②·③ 없이 로드맵의 상태 열을
   갱신하고 끝낸다.
 
 컨텐츠 층 주입:
 
 - 미지의 이름·종류·세계관 사실은 Human 만이 짓는다 — 주입물에 없는 것은 지어내지
-  않는다. 요구 축을 판정해 README §3 행에 적는다. 요구 축 중 미확정이 있으면 받지
+  않는다. 요구 축을 판정해 plan/DESIGN.md §2 행에 적는다. 요구 축 중 미확정이 있으면 받지
   않고 보고한다.
 - 미지가 **새 축을 요구하면** 컨텐츠 행이 아니다 — 기반 층의 새 행이 필요하다고
   보고하고 Human 판단을 받는다.
@@ -115,32 +115,37 @@ Human 이 정한다    게임 의미 — 수치·확률·시간·범위, 시스�
   모은다 — 단계마다 정지하지 않는다. 플레이 층은 제안으로 채워 문서를 완성한다.
 - Cycle Breakdown 각 항목은 6조건(작다/플레이 가능/World 변화 분명/관찰 가능/
   검증 가능/재사용 가능), 순서는 의존성 + Breath 점진 완성. CycleId 는 전
-  이름공간(cycles/ + 코드 주석) 최대 번호 +1. Existing 판정은 STATE.md §2 의
-  "코드에 있는 것" + 기존 `cycles/*/spec.md` 의 ADDED.
+  이름공간(cycles/ + 코드 주석) 최대 번호 +1. Existing 판정은 `codemap/ENGINE.md` ·
+  `codemap/CONTENT.md` + 기존 `cycles/*/spec.md` 의 ADDED.
 - 주입물이 커서 Play 하나에 안 담기면 여러 Play 로 나눠 제안한다 — 승인은
   여전히 문서당 1회다.
 
 **승인 게이트 (유일한 정지 지점)**: 문서 전체 + Human 질문 목록을 한 번에 올린다.
 Goal·Intent·Breath·Breakdown 개별 게이트를 두지 않는다. 답과 수정 지시를 반영해
-승인되면 README 의 해당 행(§2 또는 §3)에 Play 를 적고 ③ 으로. 기반 층 Play 가 놓는
-미지는 이때 §3 에 행으로 올린다.
+승인되면 plan/DESIGN.md 의 해당 행(§1 또는 §2)에 Play 를 적고 ③ 으로. 기반 층 Play 가 놓는
+미지는 이때 §2 에 행으로 올린다.
 
-## ③ 레인 정리 → `STATE.md` §1 · `content/roadmap/PLAYS.md`
+## ③ plan 갱신 → `plan/`
 
-Play 승인 직후(그리고 Cycle 이 main 에 합쳐질 때마다) "다음에 할 일"을 **병렬 레인 표**로 STATE.md §1 에 적는다 —
-함께 `content/roadmap/PLAYS.md`(기획 작업의 단일 출처 — §1 원본 덮임 · §2 Play 상태 · §3 쓸 Play · §4 큐)를 고치고, STATE §1 의
-주체별 표는 **링크만** 갱신한다 (내용을 복사하지 않는다 — 한 사실 한 집). TODO §3 의 줄을 받으면 PLAYS §1 로 옮기고 TODO 에서 지운다.
+Play 승인 직후(그리고 실주행 판정을 반영할 때) `plan/` 을 고친다 — 한 사실 한 집, 요약은 링크만.
 
-design 이 만지는 유일한 STATE 절이다. 병렬 규칙은 Plan-Skill §4 항목 4 가 소유한다.
+```text
+DESIGN.md   §1 · §2 그 층·행의 상태 · §3 그 원본의 "남은 것" → "덮인 것" (Play 가 받은 절) · §5 쓸 Play 표에서 그 Play 를 지운다
+PLAYS.md    §1 표에 행 · §2 에 그 Play 절(상태 · 다음 Cycle 로는 비움). 판정 반영이면 통과한 질문을 지우고 실패는 GAP 으로 받는다
+CYCLES.md   §1 레인 표 — 레인 하나 · 지금 할 수 있는 것 · 기다리는 것(무엇이 합쳐지면 풀리는가) · 다음
+STATE.md    §0 트랙 표의 그 트랙 줄과 순서 그림 · §1 · §2 · §3 요약
+TODO.md     §1 Human 줄(승인 · 판정 · 결정) · §2 design 줄 · §3 cycle 줄 — 끝난 줄은 지운다
+```
+
+design 이 만지는 plan/ 은 위 다섯이 전부다 (codemap/ 은 Cycle 이 만진다). 병렬 규칙은 Plan-Skill §4 항목 4 가 소유한다.
 
 ```text
 레인 판정   같은 Play 의 Cycle 은 한 레인(순차). 다른 Play 의 Cycle 은 spec 의 Reuse/Existing 이
            요구하는 Capability 가 main 에 있을 때 실현 가능 — 명세(spec.md)는 그 전에도 가능.
            ENGINE 레인(게임 명사 없는 기구)은 언제나 병행.
-표 한 장    레인 · 지금 할 수 있는 것 · 기다리는 것(무엇이 합쳐지면 풀리는가) · 다음
-Human 결정  승인된 Play 순서를 깨는 병렬은 제안하지 않는다 — "Human 결정" 줄에 올린다
+표 한 장    레인 · 지금 할 수 있는 것 · 기다리는 것 · 다음 — 한 레인에 한 줄, 닫힌 것은 지운다
+Human 결정  승인된 Play 순서를 깨는 병렬은 제안하지 않는다 — TODO.md §1 의 결정 줄에 올린다
 ```
 
-표는 핵심만 — 한 레인에 한 줄, 닫힌 것은 지운다. 한 Cycle = 브랜치 `cycle/C###` = 세션 하나라는
-기제와 "말할 것" 한 줄("C### 진행" → `advprotoi-cycle`)을 §1 머리에 둔다 — 새 세션이 그것만 보고
-시작한다. 종료 보고: 레인 표 + Human 결정 줄. Cycle 을 이어 시작하지 않는다.
+한 Cycle = 브랜치 `cycle/C###` = 세션 하나라는 기제와 "말할 것" 한 줄("C### 진행" → `advprotoi-cycle`)을 STATE §0 끝에 둔다 —
+새 세션이 그것만 보고 시작한다. 종료 보고: STATE §0 트랙 표 + TODO §1 Human 줄. Cycle 을 이어 시작하지 않는다.

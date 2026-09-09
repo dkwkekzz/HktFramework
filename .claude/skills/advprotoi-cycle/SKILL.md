@@ -1,6 +1,6 @@
 ---
 name: advprotoi-cycle
-description: HktAdvProtoI 의 Cycle 하나를 끝까지 돌린다 — 명세(cycles/<CycleId>/spec.md 한 파일에 범위 · SPEC · State/Rule · Observable 을 한 번에 쓰고 동결. Design 에 없는 게임 의미는 UNRESOLVED 로 정지·Human 반환) → 실현(관찰 계약 확정 + 기구/의미 분해 → E(engine) ∥ W(World) ∥ V(GameView) ∥ T(시나리오 테스트) 병렬 fan-out → npm test → 완료 조건 7항) → 마감(촬영 shots/ · TODO.md · 마감 커밋 · 그림 보고). 정지는 UNRESOLVED 와 DESIGN/ENGINE GAP 뿐. 시작 전 STATE.md §1 레인 표와 브랜치 cycle/C### 을 확인한다. 사용자가 "C### 진행 / 다음 Cycle 진행 / Cycle 돌려 / AdvProtoI 진행 / build 진행" 을 요청하면 사용.
+description: HktAdvProtoI 의 Cycle 하나를 끝까지 돌린다 — 명세(cycles/<CycleId>/spec.md 한 파일에 범위 · SPEC · State/Rule · Observable 을 한 번에 쓰고 동결. Design 에 없는 게임 의미는 UNRESOLVED 로 정지·Human 반환) → 실현(관찰 계약 확정 + 기구/의미 분해 → E(engine) ∥ W(World) ∥ V(GameView) ∥ T(시나리오 테스트) 병렬 fan-out → npm test → 완료 조건 7항) → 마감(촬영 shots/ · plan/ 기입 · 마감 커밋 · 그림 보고). 정지는 UNRESOLVED 와 DESIGN/ENGINE GAP 뿐. 시작 전 plan/CYCLES.md 레인 표와 브랜치 cycle/C### 을 확인한다. 사용자가 "C### 진행 / 다음 Cycle 진행 / Cycle 돌려 / AdvProtoI 진행 / build 진행" 을 요청하면 사용.
 ---
 
 # HktAdvProtoI Cycle — 명세 → 실현 → 마감
@@ -10,8 +10,8 @@ description: HktAdvProtoI 의 Cycle 하나를 끝까지 돌린다 — 명세(cyc
 어긋나면 원본이 이긴다. 경로 규약·기반/컨텐츠 경계·GAP 형식은 `HktAdvProtoI/CLAUDE.md`.
 
 Cycle 디렉터리 `cycles/<CycleId>/` 에 두는 것은 둘뿐이다 — `spec.md`(코드 전, 동결) · `shots.json` + `shots/`
-(마감 촬영). 코드 뒤에 남는 것은 **저장소 루트의 `TODO.md` 하나**에 쓴다 (모든 Cycle 이 공유 · 다섯 절 · Cycle 별
-파일 없음). 그 밖의 문서(구현 노트 · GameView 표 · 검증 산문)는 만들지 않는다 — 원본은 코드 주석의 `RULE-*` id ·
+(마감 촬영). 코드 뒤에 남는 것은 **`plan/` 의 관점별 문서**에 쓴다 — 관찰 항목 · 결정 · 다음 Cycle 로는 `plan/PLAYS.md` 그 Play 절,
+공학 부채는 `plan/CYCLES.md` §4, 뒤 층 · 뒤 Play 로는 `plan/DESIGN.md` §3 (모든 Cycle 이 공유 · Cycle 별 파일 없음). 그 밖의 문서(구현 노트 · GameView 표 · 검증 산문)는 만들지 않는다 — 원본은 코드 주석의 `RULE-*` id ·
 `content/view` 의 표 · 시나리오 테스트 · 커밋 메시지다. 대화 History 는 Source of Truth 가 아니다 — 파일만이 단계 간
 인터페이스다.
 
@@ -26,11 +26,11 @@ ENGINE GAP       (실현)   기존 engine 계약 변경 필요 → 승인 요청
 
 ## 0. 시작 조건
 
-1. **Cycle** — Human 이 `C###` 을 지정하면 그것. 아니면 STATE.md §1 레인 표에서 "기다리는 것"이 빈
+1. **Cycle** — Human 이 `C###` 을 지정하면 그것. 아니면 plan/CYCLES.md §1 레인 표에서 "기다리는 것"이 빈
    첫 레인의 Cycle. "기다리는 것"이 남은 Cycle 은 시작하지 않고 보고한다 (Human 결정 줄의 것은
    Human 이 정한 뒤에만). CycleId 는 Play 의 Cycle Breakdown 이 정한 번호 그대로 (`C###-이름`).
 2. **브랜치** — `cycle/C###` (없으면 main 에서 만든다). 브랜치 안에서 만지는 것은 자기
-   `cycles/C###/` 와 코드뿐 — STATE.md · Play 체크박스는 main 에 합친 직후에만 (§4).
+   `cycles/C###/` 와 코드뿐 — plan/ · codemap/ · Play 체크박스는 main 에 합친 직후에만 (§4).
 3. **재개** — `spec.md` 가 동결돼 있으면 1 을 건너뛰고 2 부터. `shots/` 와 마감 커밋이 있으면
    "닫힘 — 합침 대기" 보고로 끝난다. 판정은 파일이 말한다.
 
@@ -38,12 +38,12 @@ ENGINE GAP       (실현)   기존 engine 계약 변경 필요 → 승인 요청
 
 입력은 승인된 Play 문서(`content/roadmap/play/<PlayName>.md`)의 Cycle Breakdown 한 항목과
 그 Play 의 §5 Play Structure · §6 Required Capability · 확정 사항, 그리고 그것들이 지목한
-`content/roadmap/*.md` · `design/` 문서, 그리고 **루트 `TODO.md` §4「다음 Cycle 로」** (§1 Human 질문은 읽지
+`content/roadmap/*.md` · `design/` 문서, 그리고 **`plan/PLAYS.md` 그 Play 절의「다음 Cycle 로」** (판정 질문은 읽지
 않는다 — 그것은 Play 단위 Human 몫이다). Play 를 재해석하지 않는다 — 이번 것만 잘라 검증 가능한 문장으로
-**폐쇄**한다. 코드는 보지 않는다 (Existing 판정은 STATE.md §2 "코드에 있는 것" + 기존 `cycles/*/spec.md` 의 ADDED 로).
+**폐쇄**한다. 코드는 보지 않는다 (Existing 판정은 `codemap/ENGINE.md` · `codemap/CONTENT.md` + 기존 `cycles/*/spec.md` 의 ADDED 로).
 
-§4 의 항목은 하나씩 판정한다 — 이번 Cycle 이 받는 것은 SPEC/Reuse 로 들어오고, 받지 않는 것은 Out of Scope 에
-받을 Cycle 을 적는다 (받을 Cycle 이 없으면 §2 · §3 · §5 중 맞는 절로 옮긴다). 회수 규칙의 원본은 Plan-Skill §3.
+「다음 Cycle 로」의 항목은 하나씩 판정한다 — 이번 Cycle 이 받는 것은 SPEC/Reuse 로 들어오고, 받지 않는 것은 Out of Scope 에
+받을 Cycle 을 적는다 (받을 Cycle 이 없으면 결정 대기 · DESIGN.md 남은 것 · CYCLES.md 부채 중 맞는 자리로 옮긴다). 회수 규칙의 원본은 Plan-Skill §3.
 
 ```text
 # C### — <이름>
@@ -161,7 +161,7 @@ Agent 별 규칙:
 1. GAP 처리 — IMPLEMENTATION GAP 은 본체가 최소 범위로 해소 · ENGINE GAP 은 모아 Human 승인 뒤 분리
    커밋 · DESIGN GAP 은 모아 Human 반환(정지). 해소 전에는 완료로 표시하지 않는다.
 2. T 의 `it.todo('GAP: …')` 를 푼다 — 하네스 보강(IMPLEMENTATION GAP)으로 실제 테스트로, 자동으로
-   놓을 수 없는 것만 Human 실주행 항목(루트 TODO.md §1)으로.
+   놓을 수 없는 것만 Human 실주행 항목(plan/PLAYS.md 그 Play 절)으로.
 3. `npm test` · `npm run build`. 실측은 **테스트 결과**다 — 산문으로 옮기지 않는다.
 4. 확장 Cycle 이면 REUSED Rule 의 기존 시나리오 재실행 (원본 §18 · 원칙 8).
 
@@ -174,7 +174,7 @@ Agent 별 규칙:
 Design Trace / Scope / Semantic / Rule   spec.md 의 SOURCE · Playable Goal · State · Rule
 Implementation                           모든 R# 에 RULE id 주석이 달린 함수가 있다 (grep)
 Observable                               관찰 계약 + V 의 표
-Verification                             시나리오 테스트 전부 PASS + 루트 TODO.md §1 의 관찰 항목
+Verification                             시나리오 테스트 전부 PASS + plan/PLAYS.md 그 Play 절의 관찰 항목
 ```
 
 7항 전부 + 시나리오 전부 PASS 여야 완료다. 미달이면 미완 항목과 반환 대상을 보고하고 완료
@@ -182,57 +182,59 @@ Verification                             시나리오 테스트 전부 PASS + �
 
 **관찰 촬영** — Observable Result 를 실제 게임에서 찍어 Human 에게 보여준다. `cycles/<CycleId>/shots.json`
 (형식은 `tools/cycle-shot/shot.cjs` 머리 주석 — run 마다 `spawn` · `npcs` · 걸음) →
-`npm run cycle:shot cycles/<CycleId>/shots.json` → `shots/*.png`. 파일명은 TODO §1 의 관찰 항목 번호
+`npm run cycle:shot cycles/<CycleId>/shots.json` → `shots/*.png`. 파일명은 관찰 항목 번호
 (X-##). 도구는 판정하지 않는다 — expect 는 기록이다. 소프트웨어 GPU 라 걷기가 이어지지 않으므로
 먼 자리는 `spawn`, 자율 존재가 방해하면 `npcs: "none"` (둘 다 `vite.config.ts` 의 검증용 손잡이 —
 세계 규칙은 그대로). 그림에 안 보이는 결과(State 값)는 테스트가 증거다 — 억지로 찍지 않는다.
 
-**루트 `TODO.md`** — 코드 뒤에 남는 유일한 문서, 저장소에 하나 (`HktAdvProtoI/TODO.md`). Cycle 별 파일을 만들지
-않는다. 이 Cycle 이 남기는 것을 다섯 절에 **바로 분류해** 적는다 (형식은 그 파일의 머리와 기존 항목을 따른다):
+**`plan/` 기입** — 코드 뒤에 남는 것은 `plan/` 의 관점별 문서에 쓴다 (`HktAdvProtoI/plan/`). Cycle 별 파일을 만들지
+않는다. 이 Cycle 이 남기는 것을 **바로 분류해** 적는다 (형식은 그 파일의 머리와 기존 항목을 따른다):
 
 ```text
-§1 Human 에게        이 Play 의 소절에 Experience Verification 관찰 항목 — 하기/보기/그림(cycles/C###/shots/X-##)/판정[ ].
-                     spec 의 Experience Intent(Start/End) 와 Observable Result 에서 뽑는다. 판단은 Human 몫 — 판정 칸은 비워 둔다
-§2 Human 이 정할 것   이 Cycle 이 Human 결정으로 돌린 값·규칙·방향 (spec 의 기본형으로 둔 것 중 실제 결정이 걸린 것)
-§3 뒤 층·뒤 Play 로   이 Cycle 이 받을 수 없어 다른 층·다른 Region 의 Play 로 보내는 것
-§4 다음 Cycle 로      spec 이 침묵해 테스트가 피해 간 자리 · 이월한 관측 (T 의 보고에서) · 받을 Cycle
-§5 공학 부채          기구·도구·촬영의 결손 — "C###" 표기 하나
+PLAYS.md 그 Play 절   관찰 항목 — Experience Verification (하기/보기/그림 cycles/C###/shots/X-##/판정[ ]). spec 의 Experience Intent 와
+                      Observable Result 에서 뽑는다. 판정은 Human 몫 — 판정 칸은 비워 둔다. Play 절이 없으면 §2 에 절을 만든다
+                      결정 대기 — 이 Cycle 이 Human 결정으로 돌린 값·규칙·방향 (spec 의 기본형으로 둔 것 중 실제 결정이 걸린 것)
+                      다음 Cycle 로 — spec 이 침묵해 테스트가 피해 간 자리 · 이월한 관측 (T 의 보고에서) · 받을 Cycle
+DESIGN.md §3         뒤 층 · 뒤 Play 로 — 이 Cycle 이 받을 수 없어 다른 층·다른 Region 의 Play 로 보내는 것 → 그 원본 기획의 "남은 것" 에 받는 자리와 함께
+CYCLES.md §4         공학 부채 — 기구·도구·촬영의 결손 — "C###" 표기 하나
 ```
 
 회수 규칙 (Plan-Skill §3) — 항목은 **한 번만** 적힌다. 앞 Cycle 의 부채를 이 Cycle 이 다시 만났어도 다시 적지
 않는다 (`C006 → C009 → C016` 식 사슬 금지 — 원칙 10). 테스트가 판정 방식을 스스로 정한 자리는 적지 않는다
-(시나리오 단언과 마감 커밋이 그것을 소유한다) — 실제 결정이 걸린 것만 §2 로.
+(시나리오 단언과 마감 커밋이 그것을 소유한다) — 실제 결정이 걸린 것만 결정 대기로.
 
 **마감 보고** — Human 이 보는 유일한 결과다. 그림(`shots/*.png` 를 SendUserFile 로) · 판정 한 줄 ·
-TODO 항목 수 · "PR 을 올려 번호 순으로 합친다". 공정 설명을 반복하지 않고, 다음 Cycle 을 이어
+plan/ 에 적은 항목 수 · "PR 을 올려 번호 순으로 합친다". 공정 설명을 반복하지 않고, 다음 Cycle 을 이어
 시작하지 않는다 — 합침이 먼저다.
 
 **합친 직후 (main 에서)** — Play 문서의 Cycle Breakdown 체크박스만 `[x]` (Play 문서에서 Agent 가
-만지는 유일한 자리) · 이 Cycle 의 spec 이 받은 TODO §4 항목을 지운다 · STATE.md §2 코드에 있는 것 ·
-§1 레인 표에서 이 Cycle 을 지우고 이것을 기다리던 레인의 "기다리는 것"을 비운다 · `content/roadmap/PLAYS.md` §2 의 그 Play 상태. 현재 상태만 — 경위를 쌓지 않는다 (원칙 10).
+만지는 유일한 자리) · `plan/PLAYS.md` 그 Play 절에서 이 Cycle 의 spec 이 받은「다음 Cycle 로」항목을 지우고 상태 줄을 고친다 ·
+`plan/CYCLES.md` §1 레인 표에서 이 Cycle 을 지우고 이것을 기다리던 레인의 "기다리는 것"을 비운다 · `plan/STATE.md` §0 트랙 표 · §2 · §3 과
+`plan/TODO.md` §3 의 그 줄 · `codemap/ENGINE.md` · `codemap/CONTENT.md` 에 **API 나 구조가 바뀐 것만** 한 줄씩 (새 기구 · 새 State · 새 Rule id · 새 방 —
+Cycle 번호 없이). 현재 상태만 — 경위를 쌓지 않는다 (원칙 10).
 
-**Play 의 마지막 Cycle 이면 — AI 예심** — Human 에게 항목 전부를 읽히지 않는다. TODO §1 그 Play 소절의 관찰 항목을
+**Play 의 마지막 Cycle 이면 — AI 예심** — Human 에게 항목 전부를 읽히지 않는다. `plan/PLAYS.md` 그 Play 절의 관찰 항목을
 셋으로 가른다: **A** 그 항목의 `cycles/C###/shots/X-##.png` 를 실제로 열어 보거나 지목된 시나리오 테스트가 단언해 이미
-닫힌 것 (지운다 — 근거는 마감 커밋 메시지에 · 그림이 항목과 불일치하면 §5 촬영 부채로) · **B** 사람 눈이 필요한 것
+닫힌 것 (지운다 — 근거는 마감 커밋 메시지에 · 그림이 항목과 불일치하면 CYCLES.md §4 촬영 부채로) · **B** 사람 눈이 필요한 것
 (느낌 · 읽히는가 · 타이밍 · 걸어야 아는 것) · **C** Human 이 값·규칙을 정할 것. B·C 를 **Play 당 질문 대여섯**으로 압축해
-그 소절을 **바꿔 쓴다**. 질문 형식: **굵은 한 줄** — 게임 내부 용어 없이, "예/아니오/값" 으로 답할 수 있게 · **전제** 한 줄 — 세계가 그것을
+그 절을 **판정 질문**으로 **바꿔 쓴다** (번호는 `<Play 약칭>-N` — Play 사이에 겹치지 않게). 질문 형식: **굵은 한 줄** — 게임 내부 용어 없이, "예/아니오/값" 으로 답할 수 있게 · **전제** 한 줄 — 세계가 그것을
 어떻게 보여 주는지("깊이는 바닥 색과 상단 문구로만 보인다") — 전제를 숨긴 질문은 "무슨 말인지 모르겠다" 를 돌려받고
 그것은 판정이 아니다 · 무엇을 묻나 (왜 사람이 봐야 하는지 두세 문장) · 확인 방법 (`npm run dev` 자리 · 손잡이 · 견줄
 그림 한 줄) · 원 항목 번호. Human 이 "알아서 확인해 봐" 로 위임한 질문은 Agent 가 지금 빌드를 실제로 띄워(촬영 하네스)
 보고 판정한다 — 옛 그림으로 답하지 않는다.
-받을 Cycle 이 없는 부채는 §2 · §3 · §5 로 옮긴다. `content/roadmap/PLAYS.md` §2 에 그 Play 를 "판정 대기 — 질문 N" 으로 올리고
-STATE.md §1 의 Human 판정 줄이 그것을 링크하게 하여
-Human 에게 청한다. 통과는 지우고, 실패는 DESIGN GAP 으로 `advprotoi-design` 에 준다. 그 소절이 비면 로드맵의 행이
+받을 Cycle 이 없는 부채는 결정 대기 · DESIGN.md 남은 것 · CYCLES.md 부채로 옮긴다. `plan/PLAYS.md` §1 표와 그 Play 절을 "판정 대기 — 질문 N" 으로 올리고
+`plan/STATE.md` §0 · §2 와 `plan/TODO.md` §1 의 Human 판정 줄이 그것을 링크하게 하여
+Human 에게 청한다. 통과는 지우고, 실패는 DESIGN GAP 으로 `advprotoi-design` 에 준다. 그 절의 질문이 비면 로드맵의 행이
 닫힌다 — Agent 는 A 만 닫고 B·C 는 판정하지 않는다.
 
 ## 4. Cycle 간 병렬 (Plan-Skill §4 항목 4)
 
-한 Cycle = 브랜치 `cycle/C###` = 세션 하나. 어느 레인이 돌 수 있는지는 STATE.md §1 이 답한다.
+한 Cycle = 브랜치 `cycle/C###` = 세션 하나. 어느 레인이 돌 수 있는지는 plan/CYCLES.md §1 이 답한다.
 
 ```text
 ① 공용 표 파일(regions/graph.ts · regions/index.ts · view/code-text.ts · view/*-presentation.ts ·
    world/semantic/world-state.ts · protocol/*)은 항목 추가만 — 기존 항목 변경은 spec 의 CHANGED 뿐
-② STATE.md · Play 체크박스는 main 에 합친 직후에만 — 브랜치 안에서는 자기 cycles/C###/ 만
+② plan/ · codemap/ · Play 체크박스는 main 에 합친 직후에만 — 브랜치 안에서는 자기 cycles/C###/ 만
 ③ 시나리오 테스트는 전체 개수를 단언하지 않는다
 ④ engine 커밋은 분리해 먼저 합친다 · 기존 engine 계약 변경(ENGINE GAP)은 병렬 중 금지
 ```
