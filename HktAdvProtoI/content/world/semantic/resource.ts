@@ -30,6 +30,7 @@
 // 원천은 어느 철에도 지금 그대로다. 방마다의 캐시는 **정적 사실의 것**이고 철은 정적이 아니므로,
 // 거르는 자리는 캐시 밖에 따로 둔다 (spec R6).
 
+import type { Condition } from '../../../engine/world-authoring/condition';
 import { areasOf, curvesOf, findPoint } from '../../../engine/world-authoring/description';
 import { areaCoversPoint } from '../../../engine/world-authoring/query';
 import {
@@ -160,6 +161,14 @@ export interface ResourceSource {
    * 것과 같은 규율이다.
    */
   depletedCode?: string;
+  /**
+   * 원천이 밝힌 **조건** (C035 ADDED · SPEC-006) — 데이터의 condition 그대로다.
+   *
+   * 이 파일은 이것을 **읽지 않는다** — phase · 되돌아옴 · 채취 판정(sourceConditions 포함)은 한 값도
+   * 달라지지 않는다. 읽는 자리는 semantic/condition.ts(형으로 판정) 와 관찰의 투영뿐이다 (경계 ①).
+   * 밝히지 않은 원천은 자리 자체가 없다 (depletedCode 의 선례 그대로).
+   */
+  condition?: Condition;
 }
 
 // 방 하나당 엮기 한 번. 원천이 없는 방(백왕령)도 빈 배열로 담는다 — 그것도 답이다.
@@ -239,6 +248,9 @@ export function sourcesInRegion(regionId: string): readonly ResourceSource[] {
       // C030 ADDED — 고갈된 동안의 조건 코드. 밝히지 않은 원천은 자리 자체가 없다
       // (빈 글자로 지어내지 않는다 · regrownCode 의 선례 그대로).
       ...(source.depletedCode === undefined ? {} : { depletedCode: source.depletedCode }),
+      // C035 ADDED — 원천이 밝힌 조건. 밝히지 않은 원천은 자리 자체가 없다 (depletedCode 의 선례 그대로).
+      // 여기서 읽지 않는다 — 형으로 판정하는 자리는 semantic/condition.ts 하나다.
+      ...(source.condition === undefined ? {} : { condition: source.condition }),
     });
   }
 

@@ -79,8 +79,9 @@ describe('world:observe --report 의 조건 표', () => {
   const report = renderWorldReport();
 
   it('열쇠 × 자물쇠 표 곁에 조건 표의 머리가 선다', () => {
-    const keys = report.indexOf('  열쇠 × 자물쇠 ');
-    const conditions = report.indexOf('  조건 ');
+    // 머리는 줄머리에서 잰다 — 검사의 이름에도 '조건' 이 든다
+    const keys = report.indexOf('\n  열쇠 × 자물쇠 ');
+    const conditions = report.search(/\n {2}조건 \d+ \(조건 자리 순/);
     expect(keys).toBeGreaterThan(-1);
     expect(conditions).toBeGreaterThan(keys);
     expect(report).toContain('어디에');

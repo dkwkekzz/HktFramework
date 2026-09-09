@@ -20,17 +20,36 @@
 //   ③ **규칙 코드에 이름이 없다** (SPEC-007) — 방 · 원천 · 경로 · 철의 이름 글자가 이 파일에 없다.
 //      어느 방의 어느 원천이 어느 경로의 기억을 읽는지는 데이터에만 있다.
 
-import type {
-  Condition,
-  ConditionRead,
-  ConditionVerdict,
+import {
+  UNREADABLE,
+  evaluateCondition,
+  type Condition,
+  type ConditionLeaf,
+  type ConditionRead,
+  type ConditionValue,
+  type ConditionVerdict,
+  type Unreadable,
 } from '../../../engine/world-authoring/condition';
 import type {
+  CheckConditionQueryRule,
   CheckConditionSite,
   CheckConditionVocabulary,
 } from '../../../engine/world-authoring/check';
-import type { LifeRequirement, Lock, SeasonId } from '../../regions';
-import type { ResourceSource } from './resource';
+import {
+  LOCKS,
+  PRESENCE_ROUTES,
+  REGION_GRAPH,
+  REGION_SPECS,
+  type LifeRequirement,
+  type Lock,
+  type SeasonId,
+} from '../../regions';
+import { CYCLE_SECONDS, TURN_SECONDS, dayPhaseAt, seasonAt } from './clock';
+import { findPopulation, lifeSitesInRegion, populationValueOf, populationsInRegion } from './life';
+import { passingRegionOf, presenceStateOf } from './presence';
+import { isRainingAt } from './rain';
+import type { RegionMemory } from './region-state';
+import { findResourceSource, sourceStateOf, sourcesInRegion, type ResourceSource } from './resource';
 import type { WorldState } from './world-state';
 
 /**
@@ -52,6 +71,38 @@ export const CONDITION_SITE_PHASE = 'phase';
 export const CONDITION_SITE_LIFE = 'life';
 export const CONDITION_SITE_SOURCE_MEMORY = 'source-memory';
 
+// ── 읽는 자리의 어휘 — 형의 **속성 이름**이지 세계의 이름이 아니다 (SPEC-007) ──
+//
+// 시계가 내는 값 셋 · 방의 State 필드 · 원천의 State 필드 · 경로의 지금 · 기억의 경로 마디.
+// 읽기(worldConditionReader)와 어휘(worldConditionVocabulary)가 **같은 글자**를 쓰도록 한 자리에
+// 둔다 — 두 벌로 적으면 검사 ㊹ 이 통과시킨 잎을 읽기가 모르는 날이 온다.
+
+/** clock · property — 지금 철 · 지금 낮밤 · 지금 비가 오는가 */
+const CLOCK_SEASON = 'season';
+const CLOCK_DAY_PHASE = 'dayPhase';
+const CLOCK_RAIN = 'rain';
+/** region · state — 그 방 규칙의 지금 패턴 (RegionRuleState.pattern) */
+const REGION_PATTERN = 'pattern';
+/** region · count — `population.<개체군 id>` 의 머리 */
+const REGION_POPULATION = 'population';
+/** source · state — 원천의 지금 phase (ResourceSourceState.phase) · 결속이 묻는 값 */
+const SOURCE_PHASE = 'phase';
+const SOURCE_PHASE_AVAILABLE = 'available';
+/** route · state — 그 경로가 지금 지나고 있는가 */
+const ROUTE_PASSING = 'passing';
+/** history · history — RegionMemory 의 경로 마디들 (semantic/region-state.ts 의 필드 이름 그대로) */
+const HISTORY_PASSAGES = 'passages';
+const HISTORY_TURNS = 'turns';
+const HISTORY_AWAKENINGS = 'awakenings';
+const HISTORY_SOURCES = 'sources';
+const HISTORY_TIMES = 'times';
+const HISTORY_LAST_AT = 'lastAt';
+const HISTORY_TAKEN_TOTAL = 'takenTotal';
+const HISTORY_DEPLETED_TIMES = 'depletedTimes';
+const HISTORY_LAST_DEPLETED_AT = 'lastDepletedAt';
+/** 경로 마디를 잇는 글자 (기반의 ConditionQuery.path 어법 — 점으로 잇는다) */
+const PATH_SEPARATOR = '.';
+
 /**
  * RULE-CONDITION-READ-001 (spec R1) — **문의 요구를 형으로 읽는다** (Lock.requires · C029).
  *
@@ -63,8 +114,44 @@ export const CONDITION_SITE_SOURCE_MEMORY = 'source-memory';
  * 항이 하나도 없는 Lock 은 undefined 다 (묻지 않는 것과 같다).
  */
 export function lockCondition(lock: Lock): Condition | undefined {
-  void lock;
-  throw new Error('lockCondition — Agent W 가 구현한다');
+  const requirements: Condition[] = [];
+  for (const requirement of lock.requires) {
+    const items: Condition[] = [];
+    // 항의 차례는 형(LockRequirement)이 적은 차례다 — property · time · state · knowledge
+    if (requirement.property !== undefined) {
+      items.push({
+        target: { kind: 'actor' },
+        query: { kind: 'capability', path: requirement.property },
+        operator: 'EXISTS',
+      });
+    }
+    if (requirement.time !== undefined) {
+      items.push({
+        target: { kind: 'clock' },
+        query: { kind: 'property', path: CLOCK_SEASON },
+        operator: 'IN',
+        value: requirement.time.seasons,
+      });
+    }
+    if (requirement.state !== undefined) {
+      items.push({
+        target: { kind: 'region', ref: requirement.state.region },
+        query: { kind: 'state', path: REGION_PATTERN },
+        operator: 'IN',
+        value: requirement.state.patterns,
+      });
+    }
+    if (requirement.knowledge !== undefined) {
+      items.push({
+        target: { kind: 'actor' },
+        query: { kind: 'knowledge', path: requirement.knowledge },
+        operator: 'EXISTS',
+      });
+    }
+    const one = allOf(items);
+    if (one !== undefined) requirements.push(one);
+  }
+  return allOf(requirements);
 }
 
 /**
@@ -75,8 +162,25 @@ export function lockCondition(lock: Lock): Condition | undefined {
  * 둘 다 밝혔으면 all. 둘 다 밝히지 않은 원천은 undefined 다 (어느 때에도 선다).
  */
 export function sourceOccurrenceCondition(source: ResourceSource): Condition | undefined {
-  void source;
-  throw new Error('sourceOccurrenceCondition — Agent W 가 구현한다');
+  const items: Condition[] = [];
+  // 철이 먼저, 낮밤이 다음 — sourceConditions 가 묻는 차례 그대로다
+  if (source.occurrenceSeasons !== undefined) {
+    items.push({
+      target: { kind: 'clock' },
+      query: { kind: 'property', path: CLOCK_SEASON },
+      operator: 'IN',
+      value: source.occurrenceSeasons,
+    });
+  }
+  if (source.occurrenceDayPhases !== undefined) {
+    items.push({
+      target: { kind: 'clock' },
+      query: { kind: 'property', path: CLOCK_DAY_PHASE },
+      operator: 'IN',
+      value: source.occurrenceDayPhases,
+    });
+  }
+  return allOf(items);
 }
 
 /**
@@ -86,8 +190,12 @@ export function sourceOccurrenceCondition(source: ResourceSource): Condition | u
  * regionPhaseAt(regionId, time) 이 그 철의 덧씌움을 낸다.
  */
 export function phaseSeasonCondition(season: SeasonId): Condition {
-  void season;
-  throw new Error('phaseSeasonCondition — Agent W 가 구현한다');
+  return {
+    target: { kind: 'clock' },
+    query: { kind: 'property', path: CLOCK_SEASON },
+    operator: '==',
+    value: season,
+  };
 }
 
 /**
@@ -100,8 +208,31 @@ export function phaseSeasonCondition(season: SeasonId): Condition {
  * (개체군의 방은 findPopulation 이 안다 — 세계가 모르는 개체군은 값 0 으로 읽힌다 · 지금 함수 그대로)
  */
 export function lifeRequirementCondition(requirement: LifeRequirement): Condition {
-  void requirement;
-  throw new Error('lifeRequirementCondition — Agent W 가 구현한다');
+  if (requirement.kind === 'rain') {
+    return {
+      target: { kind: 'clock' },
+      query: { kind: 'property', path: CLOCK_RAIN },
+      operator: '==',
+      value: true,
+    };
+  }
+  if (requirement.kind === 'population-at-most' || requirement.kind === 'population-at-least') {
+    // 개체군의 방은 findPopulation 이 안다. 세계가 모르는 개체군은 방이 없다 — ref 를 지어내지
+    // 않고 비워 둔다 (검사 ㊹ 이 그것을 유령으로 잡는다 · 읽기는 지금 함수 그대로 값 0 이다).
+    const region = findPopulation(requirement.populationId)?.regionId;
+    return {
+      target: { kind: 'region', ...(region === undefined ? {} : { ref: region }) },
+      query: { kind: 'count', path: joinPath(REGION_POPULATION, requirement.populationId) },
+      operator: requirement.kind === 'population-at-most' ? '<=' : '>=',
+      value: requirement.value,
+    };
+  }
+  return {
+    target: { kind: 'source', ref: requirement.sourceId },
+    query: { kind: 'state', path: SOURCE_PHASE },
+    operator: '==',
+    value: SOURCE_PHASE_AVAILABLE,
+  };
 }
 
 /**
@@ -122,15 +253,15 @@ export function lifeRequirementCondition(requirement: LifeRequirement): Conditio
  * `now` 는 state.time. previous · heldSince 는 주지 않는다 (이 Cycle 에 change · FOR 를 쓰는 조건이 없다).
  */
 export function worldConditionReader(state: WorldState): ConditionRead {
-  void state;
-  throw new Error('worldConditionReader — Agent W 가 구현한다');
+  return {
+    now: state.time,
+    value: (leaf) => readLeaf(state, leaf),
+  };
 }
 
 /** 이 세계에서 조건 하나를 판정한다 — evaluateCondition(condition, worldConditionReader(state)) */
 export function worldConditionVerdict(state: WorldState, condition: Condition): ConditionVerdict {
-  void state;
-  void condition;
-  throw new Error('worldConditionVerdict — Agent W 가 구현한다');
+  return evaluateCondition(condition, worldConditionReader(state));
 }
 
 /**
@@ -141,9 +272,8 @@ export function worldConditionVerdict(state: WorldState, condition: Condition): 
  * 빈 목록이다. **관찰의 투영만 읽는다** — 원천의 phase · 되돌아옴 · 채취는 한 값도 달라지지 않는다.
  */
 export function sourceMemoryConditionCodes(state: WorldState, source: ResourceSource): string[] {
-  void state;
-  void source;
-  throw new Error('sourceMemoryConditionCodes — Agent W 가 구현한다');
+  if (source.condition === undefined) return [];
+  return worldConditionVerdict(state, source.condition) === 'unmet' ? [NEEDS_PASSAGE] : [];
 }
 
 /**
@@ -155,7 +285,53 @@ export function sourceMemoryConditionCodes(state: WorldState, source: ResourceSo
  * `life:<siteId>/<n>` · `source-memory:<sourceId>`.
  */
 export function worldConditionSites(): CheckConditionSite[] {
-  throw new Error('worldConditionSites — Agent W 가 구현한다');
+  const sites: CheckConditionSite[] = [];
+  // ① 문의 요구 — LOCKS 의 차례 (방 차례 · 그 방이 적은 Lock 차례)
+  for (const lock of LOCKS) {
+    const condition = lockCondition(lock);
+    if (condition === undefined) continue;
+    sites.push({ where: siteName(CONDITION_SITE_LOCK, lock.id), condition });
+  }
+  // ② 원천의 때 — 방 차례 · 원천 차례. 세계에 실제로 선 원천만 (sourcesInRegion 의 판정 그대로)
+  for (const spec of REGION_SPECS) {
+    for (const source of sourcesInRegion(spec.id)) {
+      const condition = sourceOccurrenceCondition(source);
+      if (condition === undefined) continue;
+      sites.push({ where: siteName(CONDITION_SITE_SOURCE_OCCURRENCE, source.id), condition });
+    }
+  }
+  // ③ 방의 철 위상 — 방 차례 · 철 차례 (철의 차례는 시계가 안다 · 이 파일은 철의 이름을 모른다)
+  const seasons = seasonOrder();
+  for (const spec of REGION_SPECS) {
+    const listed = spec.phases?.seasons;
+    if (!listed) continue;
+    for (const season of seasons) {
+      if (listed[season] === undefined) continue;
+      sites.push({
+        where: siteName(CONDITION_SITE_PHASE, `${spec.id}/${season}`),
+        condition: phaseSeasonCondition(season),
+      });
+    }
+  }
+  // ④ 결속의 요구 — 방 차례 · 탄생지 차례 · 요구 차례 (요구 하나가 자리 하나다)
+  for (const spec of REGION_SPECS) {
+    for (const site of lifeSitesInRegion(spec.id)) {
+      site.requires.forEach((requirement, index) => {
+        sites.push({
+          where: siteName(CONDITION_SITE_LIFE, `${site.id}/${index}`),
+          condition: lifeRequirementCondition(requirement),
+        });
+      });
+    }
+  }
+  // ⑤ 원천이 밝힌 기억 조건 — 방 차례 · 원천 차례. 밝힌 원천만 (데이터를 형 그대로 싣는다)
+  for (const spec of REGION_SPECS) {
+    for (const source of sourcesInRegion(spec.id)) {
+      if (source.condition === undefined) continue;
+      sites.push({ where: siteName(CONDITION_SITE_SOURCE_MEMORY, source.id), condition: source.condition });
+    }
+  }
+  return sites;
 }
 
 /**
@@ -170,5 +346,232 @@ export function worldConditionSites(): CheckConditionSite[] {
  *          actor/capability (paths 없음) · actor/knowledge (paths 없음)
  */
 export function worldConditionVocabulary(): CheckConditionVocabulary {
-  throw new Error('worldConditionVocabulary — Agent W 가 구현한다');
+  const regionIds = REGION_SPECS.map((spec) => spec.id);
+  // 세계에 실제로 선 원천 — 읽기(findResourceSource)가 아는 것과 같은 목록이어야 한다
+  const sourceIds = REGION_SPECS.flatMap((spec) => sourcesInRegion(spec.id).map((source) => source.id));
+  const routeIds = PRESENCE_ROUTES.map((route) => route.id);
+  const populationIds = REGION_SPECS.flatMap((spec) =>
+    populationsInRegion(spec.id).map((population) => population.id),
+  );
+  const queries: CheckConditionQueryRule[] = [
+    { target: 'clock', query: 'property', paths: [CLOCK_SEASON, CLOCK_DAY_PHASE, CLOCK_RAIN] },
+    { target: 'region', query: 'state', paths: [REGION_PATTERN] },
+    {
+      target: 'region',
+      query: 'count',
+      paths: populationIds.map((id) => joinPath(REGION_POPULATION, id)),
+    },
+    { target: 'source', query: 'state', paths: [SOURCE_PHASE] },
+    { target: 'source', query: 'exists' },
+    { target: 'route', query: 'state', paths: [ROUTE_PASSING] },
+    {
+      target: 'history',
+      query: 'history',
+      paths: [
+        ...routeIds.flatMap((id) => [
+          joinPath(HISTORY_PASSAGES, id),
+          joinPath(HISTORY_PASSAGES, id, HISTORY_LAST_AT),
+        ]),
+        HISTORY_TURNS,
+        joinPath(HISTORY_AWAKENINGS, HISTORY_TIMES),
+        joinPath(HISTORY_AWAKENINGS, HISTORY_LAST_AT),
+        ...sourceIds.flatMap((id) => [
+          joinPath(HISTORY_SOURCES, id, HISTORY_TAKEN_TOTAL),
+          joinPath(HISTORY_SOURCES, id, HISTORY_DEPLETED_TIMES),
+          joinPath(HISTORY_SOURCES, id, HISTORY_LAST_DEPLETED_AT),
+        ]),
+      ],
+    },
+    // 자리만인 것 — 갈래는 있되 판정 불가다 (2층은 판정하지 않는다 · K12)
+    { target: 'actor', query: 'capability' },
+    { target: 'actor', query: 'knowledge' },
+  ];
+  return {
+    targets: {
+      region: regionIds,
+      connector: REGION_GRAPH.connectors.map((connector) => connector.id),
+      source: sourceIds,
+      route: routeIds,
+      clock: [],
+      history: regionIds,
+      actor: [],
+      player: [],
+      faction: [],
+    },
+    queries,
+  };
+}
+
+// ── 안쪽 ─────────────────────────────────────────────────────────────
+
+/** 항 여럿을 all 로 — 하나면 그것 그대로, 없으면 undefined (묻지 않는 것과 같다) */
+function allOf(items: readonly Condition[]): Condition | undefined {
+  if (items.length === 0) return undefined;
+  if (items.length === 1) return items[0];
+  return { all: items };
+}
+
+/** 검사 ㊹ 이 읽는 자리 이름 — `<갈래>:<id>` */
+function siteName(kind: string, id: string): string {
+  return `${kind}:${id}`;
+}
+
+/** 경로 마디를 점으로 잇는다 — 어휘와 읽기가 같은 글자를 쓴다 */
+function joinPath(...segments: readonly string[]): string {
+  return segments.join(PATH_SEPARATOR);
+}
+
+/**
+ * 철의 차례 — **시계에서 유도한다** (이 파일은 철의 이름을 한 글자도 들지 않는다 · SPEC-007).
+ *
+ * 한 바퀴를 가장 짧은 철(뒤척임)의 길이로 걸으며 처음 만나는 차례로 편다. 한 바퀴에 네 철이
+ * 반드시 한 번씩 오므로(RULE-WORLD-CLOCK-001) 결과는 언제나 같다 (결정론).
+ */
+function seasonOrder(): SeasonId[] {
+  const order: SeasonId[] = [];
+  for (let time = 0; time < CYCLE_SECONDS; time += TURN_SECONDS) {
+    const season = seasonAt(time);
+    if (!order.includes(season)) order.push(season);
+  }
+  return order;
+}
+
+/**
+ * RULE-CONDITION-READ-001 · RULE-CONDITION-HISTORY-001 (spec R1 · R2) — 잎 하나의 지금 값.
+ *
+ * 없는 것은 undefined(EXISTS 의 거짓 · 비교의 거짓), 모르는 것은 UNREADABLE(판정 불가) —
+ * 둘을 갈라 준다 (기반이 지키는 것 ③). Target 갈래마다 값이 어디서 오는지는 위
+ * worldConditionReader 의 표 그대로다.
+ */
+function readLeaf(state: WorldState, leaf: ConditionLeaf): ConditionValue | undefined | Unreadable {
+  const { target, query } = leaf;
+  const path = query.path === undefined ? [] : query.path.split(PATH_SEPARATOR);
+  switch (target.kind) {
+    case 'clock':
+      return readClock(state.time, query.kind, path);
+    case 'region':
+      return readRegion(state, target.ref, query.kind, path);
+    case 'source':
+      return readSource(state, target.ref, query.kind, path);
+    case 'history':
+      return readHistory(state, target.ref, query.kind, path);
+    case 'route':
+      return readRoute(state, target.ref, query.kind, path);
+    // area · connector · process — 이 Cycle 에 읽는 조건이 없다 (판정 불가 · 거짓이 아니다)
+    // actor · player · faction — 자리만이다
+    default:
+      return UNREADABLE;
+  }
+}
+
+/** clock — 시계와 비에서 유도된다 (저장되지 않는다) */
+function readClock(
+  time: number,
+  kind: ConditionLeaf['query']['kind'],
+  path: readonly string[],
+): ConditionValue | undefined | Unreadable {
+  if (kind !== 'property' || path.length !== 1) return UNREADABLE;
+  switch (path[0]) {
+    case CLOCK_SEASON:
+      return seasonAt(time);
+    case CLOCK_DAY_PHASE:
+      return dayPhaseAt(time);
+    case CLOCK_RAIN:
+      return isRainingAt(time);
+    default:
+      return UNREADABLE;
+  }
+}
+
+/** region — 규칙의 지금 패턴(규칙 없는 방은 없음) · 개체군의 값(모르는 개체군은 0 · 지금 함수 그대로) */
+function readRegion(
+  state: WorldState,
+  ref: string | undefined,
+  kind: ConditionLeaf['query']['kind'],
+  path: readonly string[],
+): ConditionValue | undefined | Unreadable {
+  if (kind === 'state' && path.length === 1 && path[0] === REGION_PATTERN) {
+    if (ref === undefined) return UNREADABLE;
+    return state.regionStates[ref]?.rule?.pattern;
+  }
+  if (kind === 'count' && path.length === 2 && path[0] === REGION_POPULATION) {
+    return populationValueOf(state.regionStates, path[1]!);
+  }
+  return UNREADABLE;
+}
+
+/** source — 세계가 모르는 원천은 없음(undefined)이다 (결속의 요구가 그렇게 읽는 그대로) */
+function readSource(
+  state: WorldState,
+  ref: string | undefined,
+  kind: ConditionLeaf['query']['kind'],
+  path: readonly string[],
+): ConditionValue | undefined | Unreadable {
+  if (ref === undefined) return UNREADABLE;
+  const source = findResourceSource(ref);
+  if (kind === 'exists' && path.length === 0) return source === undefined ? undefined : true;
+  if (kind === 'state' && path.length === 1 && path[0] === SOURCE_PHASE) {
+    if (source === undefined) return undefined;
+    return sourceStateOf(state.regionStates, source.regionId, source.id).phase;
+  }
+  return UNREADABLE;
+}
+
+/**
+ * RULE-CONDITION-HISTORY-001 (spec R2 · SPEC-006) — **기억의 그 경로를 준다.**
+ *
+ * IF target 이 history THEN RegionState.history 의 그 경로의 값 — 없으면 없음(undefined · EXISTS 의
+ * 거짓). 한 번도 지난 적 없는 경로 · 캔 적 없는 원천에는 자리가 없고(SPEC-001 ③), 그것이 곧 답이다.
+ * 되살린 세계도 같은 답이다 — history 가 PERSISTENT 이므로 (SPEC-006 경계 ②).
+ * 경로의 모양이 어휘 밖이면 UNREADABLE 이다 (없는 것과 모르는 것은 다르다).
+ */
+function readHistory(
+  state: WorldState,
+  ref: string | undefined,
+  kind: ConditionLeaf['query']['kind'],
+  path: readonly string[],
+): ConditionValue | undefined | Unreadable {
+  if (kind !== 'history' || ref === undefined) return UNREADABLE;
+  const history: RegionMemory | undefined = state.regionStates[ref]?.history;
+  switch (path[0]) {
+    case HISTORY_PASSAGES: {
+      if (path.length < 2 || path.length > 3) return UNREADABLE;
+      if (path.length === 3 && path[2] !== HISTORY_LAST_AT) return UNREADABLE;
+      const passage = history?.passages[path[1]!];
+      if (passage === undefined) return undefined;
+      return path.length === 2 ? passage.times : passage.lastAt;
+    }
+    case HISTORY_TURNS:
+      if (path.length !== 1) return UNREADABLE;
+      return history?.turns;
+    case HISTORY_AWAKENINGS:
+      if (path.length !== 2) return UNREADABLE;
+      if (path[1] === HISTORY_TIMES) return history?.awakenings.times;
+      if (path[1] === HISTORY_LAST_AT) return history?.awakenings.lastAt;
+      return UNREADABLE;
+    case HISTORY_SOURCES: {
+      if (path.length !== 3) return UNREADABLE;
+      const memory = history?.sources[path[1]!];
+      if (path[2] === HISTORY_TAKEN_TOTAL) return memory?.takenTotal;
+      if (path[2] === HISTORY_DEPLETED_TIMES) return memory?.depletedTimes;
+      if (path[2] === HISTORY_LAST_DEPLETED_AT) return memory?.lastDepletedAt;
+      return UNREADABLE;
+    }
+    default:
+      return UNREADABLE;
+  }
+}
+
+/** route — 그 경로가 지금 어느 방이든 지나고 있는가. 세계가 모르는 경로는 없음이다 */
+function readRoute(
+  state: WorldState,
+  ref: string | undefined,
+  kind: ConditionLeaf['query']['kind'],
+  path: readonly string[],
+): ConditionValue | undefined | Unreadable {
+  if (ref === undefined || kind !== 'state' || path.length !== 1 || path[0] !== ROUTE_PASSING) {
+    return UNREADABLE;
+  }
+  if (!PRESENCE_ROUTES.some((route) => route.id === ref)) return undefined;
+  return passingRegionOf(presenceStateOf(state.presences, ref), state.time) !== undefined;
 }

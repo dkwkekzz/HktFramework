@@ -10,6 +10,7 @@
 // 재료를 하나 더 만드는 것 · 원천을 더하는 것 · 흔적을 옮기는 것은 전부 데이터 편집이다
 // (Play 불변 조건 — 코드 변경 없이 폴리싱).
 
+import type { Condition } from '../../engine/world-authoring/condition';
 import type { HazardOverlay, SeasonId } from './phases';
 import type { StatementKind } from './properties';
 import {
@@ -308,6 +309,16 @@ export interface ResourceSourceSpec {
    * 같은 규율이다.
    */
   depletedCode?: string;
+  /**
+   * 원천이 밝힌 **조건** (C035 ADDED · spec SPEC-006 · L2-World-Foundation G8) — 기반의 한 형(Condition)
+   * 그대로다. **기억을 읽는 첫 사례**다: `{ target: history <이 방>, query: history passages.<경로>, operator: EXISTS }`
+   * 가 "그것이 이 방을 지난 적이 있는가" 를 묻는다.
+   *
+   * **관찰의 투영만 읽는다** (SPEC-006 경계 ①) — 서지 않으면 그 원천의 conditions 에 코드 하나가 실릴 뿐,
+   * phase · 되돌아옴 · 채취는 한 값도 달라지지 않는다. 여는 것은 C036 의 기회 availability 다.
+   * 밝히지 않은 원천은 어느 값도 다르지 않다 (occurrence? · depletedCode? 를 밝히지 않은 원천의 규율 그대로).
+   */
+  condition?: Condition;
 }
 
 /**
