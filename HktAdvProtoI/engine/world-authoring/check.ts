@@ -19,6 +19,7 @@
 // 경계(frontier)로 밝힌 이름은 Description 이 없어도 정상이다 — 그 끝의 anchor 도 보지 않는다.
 
 import type { CompiledWorldTerrain } from './compiled';
+import type { Condition, ConditionQueryKind, ConditionTargetKind } from './condition';
 import { areasOf, curvesOf, findPoint, pointsOf, type RegionDescription } from './description';
 import {
   exitsOf,
@@ -264,6 +265,8 @@ export interface CheckRegionsInput {
   access?: CheckAccess;
   /** ㊸ ㊼ 가 볼 기억 쪽 계약 — 주지 않으면 그 둘이 전부 absent 다 (ecology · time 의 선례 그대로) */
   memory?: CheckMemory;
+  /** ㊹ 가 볼 조건 쪽 계약 — 주지 않으면 absent 다 (memory 의 선례 그대로) */
+  condition?: CheckCondition;
 }
 
 /** checkGraph 의 코드 → ⑤⑥⑦⑧. 순서가 곧 번호다 */
@@ -2924,4 +2927,64 @@ function memoryItems(input: CheckRegionsInput): CheckItem[] {
     routeIds: time ? new Set(time.routes.map((route) => route.id)) : undefined,
   };
   return [checkMemoryRefs(cx), checkPersistenceSummary(cx)];
+}
+
+// ── 검사 ㊹ — 조건의 참조 무결 (C035 ADDED) ────────────────────────────
+//
+// 세계의 조건 자리 넷(문의 요구 · 원천의 때 · 방의 철 위상 · 결속의 요구)과 기억을 읽는 조건이
+// **한 형**(condition.ts 의 Condition)으로 읽힌 뒤, 그 잎 하나하나가 실제로 있는 것을 가리키는가를
+// 한 검사로 잰다 — ㉓ · ㉖ · ㉞ 이 각자 보던 것의 일반형이다 (겹쳐 보되 그 셋을 지우지 않는다).
+//
+// 기반은 어느 방 · 원천 · 경로가 있는지도, history 에 어떤 경로가 있는지도 모른다 — 컨텐츠가
+// `CheckConditionVocabulary` 로 **어휘째** 준다. 조건 쪽 계약을 주지 않으면 absent 다.
+//
+// 잎 하나가 걸리는 것 (fail):
+//   ① target.kind 가 어휘의 targets 에 없거나(자리만인 갈래 포함 — 어휘에 없으면 걸린다),
+//      ref 가 필요한 갈래(SINGLETON 밖)인데 ref 가 없거나, ref 가 그 갈래의 id 목록에 없다
+//   ② query.kind 가 그 Target 갈래에 허용된 query 목록에 없거나, 그 query 가 paths 를 밝혔는데
+//      query.path 가 그 목록에 없다 (paths 를 밝히지 않은 query 는 path 를 재지 않는다)
+//   ③ operator 가 아홉 밖이거나 · EXISTS/NOT_EXISTS 인데 value 가 있거나 · 나머지인데 value 가 없거나 ·
+//      IN 인데 value 가 목록이 아니거나 · IN 밖인데 value 가 목록이다
+//   ④ qualifier 가 형에 어긋난다 — time 의 mode 가 다섯 밖 · seconds 가 유한한 0 이상의 수가 아님 ·
+//      change 의 mode 가 넷 밖
+// answer 는 `자리 N · 잎 N · 걸린 것 N` 이고 refs 의 where 는 그 자리(site.where) · detail 은
+// `formatConditionLeaf` + 걸린 까닭이다.
+
+/** 조건이 서 있는 자리 하나 — where 는 컨텐츠가 짓는 자리 이름 (`lock:<id>` · `source:<id>` 식) */
+export interface CheckConditionSite {
+  where: string;
+  condition: Condition;
+}
+
+/** Target 갈래 하나에 허용되는 Query 와 그 경로 목록 */
+export interface CheckConditionQueryRule {
+  target: ConditionTargetKind;
+  query: ConditionQueryKind;
+  /** 밝히면 query.path 가 이 안에 있어야 한다. 밝히지 않으면 path 를 재지 않는다 */
+  paths?: readonly string[];
+}
+
+/** 조건의 어휘 — 컨텐츠가 건넨다 */
+export interface CheckConditionVocabulary {
+  /** Target 갈래 → 실제 id 목록. ref 없는 갈래(clock)는 빈 목록으로 둔다 — 갈래가 있다는 뜻이다 */
+  targets: Readonly<Partial<Record<ConditionTargetKind, readonly string[]>>>;
+  queries: readonly CheckConditionQueryRule[];
+}
+
+/** ㊹ 가 볼 조건 쪽 계약 — 주지 않으면 absent 다 */
+export interface CheckCondition {
+  sites: readonly CheckConditionSite[];
+  vocabulary: CheckConditionVocabulary;
+}
+
+/** ㊹ 의 번호·이름 — 계약이 없을 때의 absent 도 이것을 쓴다 */
+export const CONDITION_ITEM = { mark: '㊹', id: 'condition-refs', name: '조건이 가리키는 것' } as const;
+
+/**
+ * ㊹ 조건의 참조 무결 — Agent E 가 구현하고 `checkRegions` 의 items 에 `...memoryItems(input)` 뒤에 잇는다.
+ * (기억 ㊸ 과 ㊼ 사이의 번호이지만 실리는 차례는 계약이 는 차례다 — ㉓~㉖ 이 ⑩~㉒ 뒤에 선 그 어법)
+ */
+export function conditionItems(input: CheckRegionsInput): CheckItem[] {
+  void input;
+  throw new Error('conditionItems — Agent E 가 구현한다');
 }
