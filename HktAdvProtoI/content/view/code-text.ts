@@ -56,7 +56,9 @@ import {
   NO_DECOMPOSER,
   NO_MOLTER,
   ORE_EATER_MOLT,
+  PRESENCE_BIG_BIRD,
   PRESENCE_ORE_EATER_SWARM,
+  PRESENCE_PREDATOR,
   RECOVERY_NEXT_BIRTH,
   RECOVERY_STALLED,
   WHALE_SCALE,
@@ -690,6 +692,23 @@ const CODE_TEXT: Record<string, string> = {
   // 무엇을 먹는지도, 어디서 났는지도, 늘고 있는지도 없다. 늘었다는 것은 땅에 겹친 자락이
   // 눈으로만 말하고, 그것이 무엇의 떼인지는 이 한 마디가 말한다
   [PRESENCE_ORE_EATER_SWARM]: '광식충 떼',
+  // C025 CHANGED — **서 있는 것이 셋이 되었다.** 늘어난 것은 이 표의 두 줄뿐이고, 위의 한
+  // 줄이 지키던 규율은 한 글자도 달라지지 않는다 (같은 자리 · 같은 어법 · 같은 침묵).
+  //
+  // 이름은 **이 세계가 이미 부르는 말**이다 — 새로 짓지 않는다 (지나가는 것 둘에 쓴 그
+  // 규율 그대로). 대형 조류는 Concept §4 숲의 생태 사슬이 부르는 말이고, 포식수는 방
+  // 이름이 이미 쓰고 있는 정식 이름이다 (PREDATOR_NEST 포식수 둥지).
+  //
+  // **무엇이 무엇을 부르고 먹는지 적지 않는다** — 새가 광식충을 먹는 것도, 포식수가
+  // 새를 줄이는 것도, 그것이 사체를 남긴다는 것도 여기 없다 (spec Observable
+  // "투영하지 않는 것": 관계도 문턱도 실리지 않는다). 사슬은 자락이 넓어지고 좁아지는
+  // 것과 둥지에 무엇이 서는 것을 여러 철 보아 온 관찰자가 스스로 잇는다.
+  //
+  // 포식수에만 '떼' 가 붙지 않는 것은 **세계가 그렇게 부르기 때문이다** — 코드가 도는
+  // 것(prowl)이지 떼(swarm · flock)가 아니다. 표현이 그 갈림을 지우면 세계가 하지 않은
+  // 말을 하는 것이 되고, 붙여 준다고 더 아는 것도 없다 (몇인지는 어차피 실리지 않는다)
+  [PRESENCE_BIG_BIRD]: '대형 조류 떼',
+  [PRESENCE_PREDATOR]: '포식수',
   // ── 세계의 때가 쓰는 말 (C015 — snapshot.clock 의 코드 둘) ──────
   //
   // 세계는 코드만 싣는다 (DAY · NIGHT · STILL · SEEP · LONG_NIGHT · TURN). 여기서 처음

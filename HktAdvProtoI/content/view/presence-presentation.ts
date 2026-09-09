@@ -21,7 +21,13 @@ import {
 } from '../../engine/world-authoring/description';
 import type { SceneAmbience, SceneGroundZone } from '../../engine/view-kernel/scene/scene-state';
 import type { PresenceView } from '../protocol/gameview';
-import { PRESENCE_LAYER, regionSpec } from '../regions/index';
+import {
+  PRESENCE_BIG_BIRD,
+  PRESENCE_LAYER,
+  PRESENCE_ORE_EATER_SWARM,
+  PRESENCE_PREDATOR,
+  regionSpec,
+} from '../regions/index';
 import { CLOCK_AMBIENCES } from './terrain-presentation';
 
 // ── 그늘 (spec Observable Result ①) ──────────────────────────────────
@@ -208,11 +214,19 @@ export function presenceLineZones(
 // 읽는 유일한 길이다 (수도 상한도 다음 탄생도 화면에 없다).
 //
 // **경로 선과 갈려야 한다** — 같은 layer 에 눕는 두 그림이므로 갈리는 축 셋을 둔다.
-//   색    선은 차갑고 옅은 무채-청색(스쳐 지나는 것)이고, 이쪽은 이 세계의 붉은 계통이다 —
-//         살아 있는 것이 이 방에 눌러앉은 자락이므로 흙과 알집이 쓰는 그 색 계열로 눕힌다
+//   색    선은 차갑고 옅은 무채-청색(스쳐 지나는 것)이고, 처음 선 자락은 이 세계의 붉은
+//         계통이다 — 땅에서 난 것이 이 방에 눌러앉은 자락이므로 흙과 알집이 쓰는 그 계열이다
 //   모양  선은 방을 가로지르는 좁고 긴 띠이고, 자락은 데이터가 준 넓은 면이다
 //   짙기  하나로는 아주 옅다(0.12) — **겹쳐야 짙어진다.** 한 자락이 이미 짙으면 하나와
 //         넷이 눈에서 갈리지 않고, 그러면 "넓어졌다" 를 읽을 수 없다
+//
+// C025 CHANGED — **자락이 셋이 되었고 갈리는 것은 색뿐이다.** 셋은 같은 layer 에 같은
+// 방식으로 서고(값만큼의 면이 겹친다) 같은 짙기 하나를 쓰므로, 남는 축은 색 하나다.
+// 그 색을 새로 짓지 않는다: 이 세계는 이미 **땅에서 난 것의 붉음** · **하늘의 것의 찬빛** ·
+// **밟고 간 자리의 어두움** 셋을 쓰고 있고, 도는 것 셋이 그 셋에 하나씩 앉는다
+// (아래 PRESENCE_AREA_COLORS). 셋이 한 방에 함께 서는 일은 지금 없지만 — 개체군은 저마다
+// 제 방에 산다 — 방을 갈아탄 순간 **다른 것이 돈다**는 것이 색 하나로 먼저 읽혀야 한다
+// (흔적의 어휘 셋이 방마다 갈리는 그 규율 그대로 · region-presentation).
 //
 // 이름표도 테두리도 없다 (C026 R4 — RULE-QUIET-GROUND-001). 무엇이 여기 사는지는 물었을
 // 때 판이 답하고, 몇인지는 물어도 답하지 않는다 (세계가 싣지 않는다).
@@ -220,12 +234,71 @@ export function presenceLineZones(
 /**
  * 떼의 자락 색 — 붉은 흙(TRACE_SOIL_COLOR 0x6b3524)보다 밝고 알집의 결정(C 0xf2684a)보다
  * 어둡다. 흔적 위에 겹쳐도 흔적의 사다리를 흉내 내지 않고, 그 위에 선 몸도 덮지 않는다.
+ *
+ * **표에 없는 코드가 받는 값이기도 하다** — 지면의 기본색(DEFAULT_SURFACE_COLOR)과 같은
+ * 자리다. 자락이 실려 왔다는 것은 세계의 사실이므로 모르는 코드라고 그리지 않을 수는 없고,
+ * 그때 아무 색이나 새로 짓는 대신 이미 서 있던 것의 색을 준다.
  */
 export const PRESENCE_AREA_COLOR = 0xb4553a;
 
 /**
+ * **하늘에서 든 것의 자락 색** (C025 ADDED) — 지나가는 것의 선(PRESENCE_LINE_COLOR)과
+ * **같은 값**이다. 새 색을 짓지 않는 것이 이 값의 근거다: 이 세계에서 차갑고 옅은 무채-청색은
+ * 이미 **하늘의 것**이 쓰는 대역이고(위 경로 선의 근거 그대로), 대형 조류는 지나가든
+ * 내려앉든 그 대역의 것이다.
+ *
+ * 같은 방에 함께 설 수 있는 **지나는 것의 선과는 색이 아닌 두 축으로 갈린다** — 모양(방을
+ * 가로지르는 좁고 긴 띠 · 데이터가 준 넓은 면)과 짙기(0.34 · 0.12)다. 위의 떼가 선과 갈릴 때
+ * 든 축 셋 가운데 둘이고, 나머지 하나(색)를 여기서 쓰지 않는 이유가 방금 그것이다:
+ * 색은 **무엇의 대역인가**를 말하지 지나는가 서 있는가를 말하지 않는다.
+ */
+export const PRESENCE_AREA_SKY_COLOR = PRESENCE_LINE_COLOR;
+
+/**
+ * **땅을 도는 것의 자락 색** (C025 ADDED) — 자국의 색(TRACK_COLOR 0x2e2b26)과 **같은 값**이다.
+ * 이것도 새 색이 아니다: 이 세계에서 어두운 무채 갈색은 **짐승이 밟고 간 자리**의 것이고
+ * (track-presentation), 둥지 둘레를 도는 것이 땅에 만드는 자리가 바로 그것이다.
+ *
+ * 앞의 둘과 갈리는 축이 하나 더 있다 — **이것만 지면을 어둡게 한다.** 흙의 붉음도 하늘의
+ * 찬빛도 이 세계의 지면(0x4e7a3e)보다 밝아 겹치면 땅이 밝아지는데, 이 값만 그 반대로 간다.
+ * 그래서 짙기가 셋 다 같아도 "무엇이 도는가" 가 색 하나로 먼저 읽힌다.
+ *
+ * 그 방의 위험 자락(HAZARD_ZONE 0xd63a3a · 선홍)과 섞이지 않는 것도 같은 이유다 —
+ * 위험은 밝고 채도가 높은 붉음이고 이것은 채도가 거의 없는 어두움이다. 도는 것과 위험한
+ * 것은 같은 자리에 함께 서지만 같은 말이 아니다.
+ */
+export const PRESENCE_AREA_PROWL_COLOR = 0x2e2b26;
+
+/**
+ * **어느 자락이 어느 색인가** — 코드의 표다 (세계는 이것을 싣지 않는다).
+ *
+ * 그늘의 표(SHADING_PRESENCES)와 같은 자리이고 같은 어법이다: 세계가 말하는 것은 "여기
+ * 이것이 돈다" 하나뿐이고, 그것이 땅에서 난 것인지 하늘에서 든 것인지 밟고 도는 것인지는
+ * 이 세계를 아는 표현이 정한다 (원칙 2). **코드가 늘면 여기 한 줄이 는다** — 흔적의 어휘가
+ * 는 자리(TRACE_VOCABULARY_COLORS)와 같은 모양의 표다.
+ */
+export const PRESENCE_AREA_COLORS: Readonly<Record<string, number>> = {
+  // 땅에서 나 땅을 파먹는 것 — 흙의 붉음 (C023 · 한 값도 달라지지 않는다)
+  [PRESENCE_ORE_EATER_SWARM]: PRESENCE_AREA_COLOR,
+  // 하늘에서 든 것 — 지나가는 것들이 쓰는 그 찬빛 (C025)
+  [PRESENCE_BIG_BIRD]: PRESENCE_AREA_SKY_COLOR,
+  // 둥지 둘레를 밟고 도는 것 — 자국의 어두움 (C025)
+  [PRESENCE_PREDATOR]: PRESENCE_AREA_PROWL_COLOR,
+};
+
+/** 그 자락의 색 — 표에 없으면 이미 서 있던 것의 색이다 (surfaceColor 와 같은 폴백) */
+export function presenceAreaColor(presence: string): number {
+  return PRESENCE_AREA_COLORS[presence] ?? PRESENCE_AREA_COLOR;
+}
+
+/**
  * 하나의 자락이 지니는 짙기 — **겹치라고 옅다.** 넷이 다 겹친 자리도 0.45 를 넘지 않아
  * 그 위에 선 것(원천 · 탄생지 · 몸)을 덮지 않는다.
+ *
+ * **셋이 이 한 값을 함께 쓴다** (C025). 코드마다 짙기를 갈라 두면 같은 화면 문법(겹칠수록
+ * 짙다 = 늘었다)이 자락마다 다른 눈금을 갖게 되고, 한 방에서 넓어지는 쪽을 따라가던 눈이
+ * 다른 방에서 다른 것을 배운다 — 흔적의 어휘 셋이 짙기의 사다리 한 벌을 함께 쓰는 것과
+ * 같은 이유다 (region-presentation TRACE_ZONE_OPACITIES). 갈리는 것은 색뿐이다.
  */
 export const PRESENCE_AREA_OPACITY = 0.12;
 
@@ -257,7 +330,9 @@ export function presenceAreaZones(
         // 자락마다 이름이 갈리므로 하나가 걷히면 그 면만 사라진다 (경로 선과 같은 어법)
         id: `swarm:${regionId}:${presence.presence}:${area.id}`,
         shape: area.shape,
-        fill: { color: PRESENCE_AREA_COLOR, opacity: PRESENCE_AREA_OPACITY },
+        // **무엇이 도는가에 따라 색이 갈린다** (C025) — 짙기는 셋이 같은 값을 쓴다.
+        // 여기서도 값을 세지 않는다: 실려 온 줄마다 한 면이고, 그 면의 색은 코드가 정한다
+        fill: { color: presenceAreaColor(presence.presence), opacity: PRESENCE_AREA_OPACITY },
         // 테두리도 이름표도 없다 — 사람이 그은 구역이 아니라 무엇이 도는 자리다
       });
     }
