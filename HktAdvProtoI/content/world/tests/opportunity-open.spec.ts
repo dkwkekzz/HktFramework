@@ -68,16 +68,23 @@ describe('SPEC-001 · SPEC-005 — Event 의 데이터 (데이터가 기본형�
           operator: 'EXISTS',
           qualifier: { kind: 'time', mode: 'WITHIN', seconds: 240 },
         },
+        // Human 판정 (C037) — 지금 그 자리에 **서 있는가**. 이 잎이 없으면 판이 거짓말을 한다
+        { target: { kind: 'source', ref: SCALE }, query: { kind: 'state', path: 'phase' }, operator: '==', value: 'available' },
       ],
     });
   });
 
-  it('U-022 먹이 잔해는 C036 이 짓는 조건이 없으므로 시간 잎 하나가 availability 전부다', () => {
+  it('U-022 먹이 잔해는 C036 이 짓는 조건이 없으므로 시간 잎과 서 있음 둘이 availability 전부다', () => {
     expect(preyOpportunity().availability).toEqual({
-      target: { kind: 'history', ref: FOREST_EDGE },
-      query: { kind: 'history', path: passageLastAtPath(HUNTER_ROUTE) },
-      operator: 'EXISTS',
-      qualifier: { kind: 'time', mode: 'WITHIN', seconds: 240 },
+      all: [
+        {
+          target: { kind: 'history', ref: FOREST_EDGE },
+          query: { kind: 'history', path: passageLastAtPath(HUNTER_ROUTE) },
+          operator: 'EXISTS',
+          qualifier: { kind: 'time', mode: 'WITHIN', seconds: 240 },
+        },
+        { target: { kind: 'source', ref: PREY }, query: { kind: 'state', path: 'phase' }, operator: '==', value: 'available' },
+      ],
     });
   });
 
@@ -280,26 +287,20 @@ describe('SPEC-002 — 열림의 답과 원천의 phase 판정 (실측)', () => 
     return out;
   }
 
-  it('U-034 비늘 — 열림과 캘 수 있음이 **갈리는 구간이 있다** (SPEC-002 가 요구한 일치가 아니다)', () => {
+  it('U-034 비늘 — 열림과 캘 수 있음이 **언제나 같다** (Human 판정 뒤 · SPEC-002)', () => {
     const rows = walk({ presences: [SKY_WHALE_ROUTE.id] }, SCALE, scaleOpportunity, 400);
-    // 실측 그대로 — 고래가 이 방에 드는 시각(45)에 기억이 오르고, 원천이 서는 것은 그
-    // 지나감이 **끝나는** 시각(180)이다. 그리고 240 이 지나면 기억 조건이 닫히지만 원천은
-    // 아무도 캐지 않는 한 그대로 서 있다.
+    // 고래가 드는 시각(45)에 기억이 오르지만 원천이 서는 것은 지나감이 **끝나는** 시각(180)이고,
+    // 머무는 동안(240)이 지나면 RULE-PRESENCE-LEFT-FADE-001 이 그 자리를 거둔다.
+    // 그래서 열려 있는 구간과 캘 수 있는 구간이 한 초도 갈리지 않는다.
     expect(segments(rows)).toEqual([
       '1: open=false minable=false',
-      '46: open=true minable=false',
       '181: open=true minable=true',
-      '286: open=false minable=true',
+      '286: open=false minable=false',
     ]);
-    const split = rows.filter((row) => row.open !== row.minable);
-    expect({
-      splits: split.length,
-      openButNotMinable: split.filter((row) => row.open).length,
-      minableButNotOpen: split.filter((row) => row.minable).length,
-    }).toEqual({ splits: 250, openButNotMinable: 135, minableButNotOpen: 115 });
+    expect({ splits: rows.filter((row) => row.open !== row.minable).length }).toEqual({ splits: 0 });
   });
 
-  it('U-035 먹이 잔해 — 같은 잣대로 재면 같은 갈래의 두 구간이 선다', () => {
+  it('U-035 먹이 잔해 — 같은 잣대로 재도 한 초도 갈리지 않는다', () => {
     const rows = walk(
       { clock: 'LONG_NIGHT', presences: [HUNTER_ROUTE] },
       PREY,
@@ -308,16 +309,10 @@ describe('SPEC-002 — 열림의 답과 원천의 phase 판정 (실측)', () => 
     );
     expect(segments(rows)).toEqual([
       '1801: open=false minable=false',
-      '1846: open=true minable=false',
       '1891: open=true minable=true',
-      '2086: open=false minable=true',
+      '2086: open=false minable=false',
     ]);
-    const split = rows.filter((row) => row.open !== row.minable);
-    expect({
-      splits: split.length,
-      openButNotMinable: split.filter((row) => row.open).length,
-      minableButNotOpen: split.filter((row) => row.minable).length,
-    }).toEqual({ splits: 160, openButNotMinable: 45, minableButNotOpen: 115 });
+    expect({ splits: rows.filter((row) => row.open !== row.minable).length }).toEqual({ splits: 0 });
   });
 });
 

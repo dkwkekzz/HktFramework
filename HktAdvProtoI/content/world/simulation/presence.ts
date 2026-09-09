@@ -75,6 +75,41 @@ export function rulePresence(state: WorldState, dt: number): void {
     // 않는다 (마치는 순간 startedAt 과 route 가 지워진다).
     ruleRememberPassing(state, route, pass, dt);
     ruleFinishAndLeave(state, route, pass);
+    ruleLeftBehindFade(state, route);
+  }
+}
+
+/**
+ * RULE-PRESENCE-LEFT-FADE-001 (C037 ADDED · Human 판정) — **지나간 것이 남긴 것은 한동안만 머문다**.
+ *
+ * 고래가 두고 간 비늘도 눈 없는 것이 남긴 잔해도 주워 가지 않으면 그 자리에 영영 서 있었다.
+ * 그래서 「때가 있는 기회」 가 화면에서 거짓이 되었다 — 판은 「지금은 없다」 라는데 손은
+ * 닿았다. 이 규칙이 그 어긋남을 세계 쪽에서 없앤다: **머무는 동안이 지나면 스러진다.**
+ *
+ * 머무는 동안은 그 원천이 이미 밝힌 `recoverySeconds` 하나다 — 새 값을 두지 않는다
+ * (기회의 availability 가 읽는 그 초와 같은 값이어야 판과 세계가 갈리지 않는다).
+ * 재는 자리도 같다: 그 방의 기억이 든 **경로가 이 방에 든 시각**(`passages[route].lastAt`).
+ *
+ * 스러진 자리는 `depleted` 다 — 다 캐 간 자리와 같은 State 이고, 되돌리는 것은 시간이 아니라
+ * **다시 지나가는 것**이다 (되돌아옴의 원인이 그 경로이므로 저절로 돌아오지 않는다).
+ * 무엇도 세지 않는다 — 아무도 캐지 않았으므로 기억은 오르지 않는다.
+ */
+function ruleLeftBehindFade(state: WorldState, route: PresenceRoute): void {
+  for (const sourceId of route.leavesBehind ?? []) {
+    const source = findResourceSource(sourceId);
+    if (!source) continue;
+    const stay = source.recoverySeconds;
+    if (stay === undefined) continue;
+    const regionState = state.regionStates[source.regionId];
+    const sourceState = regionState?.sources?.[source.id];
+    if (!sourceState || sourceState.phase !== 'available') continue;
+    const lastAt = regionState?.history?.passages?.[route.id]?.lastAt;
+    // 한 번도 지나지 않았는데 서 있는 자리는 이 규칙의 것이 아니다 (손잡이로 세운 자리 등)
+    if (lastAt === undefined) continue;
+    if (state.time - lastAt < stay) continue;
+    sourceState.phase = 'depleted';
+    sourceState.taken = 0;
+    sourceState.progress = 0;
   }
 }
 

@@ -35,6 +35,10 @@ export const CONDITION_PATH_SEASON = 'season';
 export const CONDITION_PATH_DAY_PHASE = 'dayPhase';
 /** region · state — 그 방 규칙의 지금 패턴 (RegionRuleState.pattern) */
 const REGION_PATTERN = 'pattern';
+/** source · state — 그 원천의 지금 phase (ResourceSourceState.phase) */
+export const SOURCE_STATE_PHASE = 'phase';
+/** 그 phase 의 값 하나 — 지금 그 자리에 서 있다 (캘 수 있다) */
+export const SOURCE_PHASE_AVAILABLE = 'available';
 /** 기억(RegionMemory)의 경로 마디 — 원천들 */
 export const HISTORY_SOURCES = 'sources';
 /** 기억의 경로 마디 — 그 원천에서 여태 캔 총량 */
@@ -256,8 +260,18 @@ export function timedGatherOpportunity(input: TimedGatherInput): Opportunity {
     operator: 'EXISTS',
     qualifier: { kind: 'time', mode: 'WITHIN', seconds: withinSeconds },
   };
+  // 그리고 **지금 그 자리에 서 있는가** (C037 Human 판정) — 이 잎이 없으면 판이 거짓말을 한다:
+  // 지나감이 끝나기 전에는 아직 서지 않았고, 주워 간 뒤에는 없는데 때만으로는 둘 다 "열림" 이다.
+  // 세계 쪽에서는 RULE-PRESENCE-LEFT-FADE-001 이 머무는 동안이 지나면 그 자리를 거두므로,
+  // 이 셋(지났다 · 그 초 안이다 · 서 있다)이 함께여야 열림과 **실제로 할 수 있는 것**이 같다.
+  const standing: Condition = {
+    target: { kind: 'source', ref: source.id },
+    query: { kind: 'state', path: SOURCE_STATE_PHASE },
+    operator: '==',
+    value: SOURCE_PHASE_AVAILABLE,
+  };
   const availability = allOf(
-    [base.availability, within].filter((it): it is Condition => it !== undefined),
+    [base.availability, within, standing].filter((it): it is Condition => it !== undefined),
   );
   return {
     ...base,

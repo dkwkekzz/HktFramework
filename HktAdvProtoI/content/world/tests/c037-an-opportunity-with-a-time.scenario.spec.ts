@@ -566,7 +566,10 @@ describe('SPEC-002 열림 — 지난 시각으로부터 그 초 안', () => {
     const again = passages();
     expect({ times: (again?.times ?? 0) >= 2 }).toEqual({ times: true });
     expect(again!.lastAt!).toBeGreaterThan(first);
-    // Then 그 자리가 다시 열린다 — 지나감이 되돌린다
+    // And 지나감이 **끝나야** 그 자리에 선다 — 드는 시각(lastAt)은 마디를 다 지나기 전이다.
+    // 그때까지 굴린다 (머무는 동안 안이다 — RULE-PRESENCE-LEFT-FADE-001 이 거두기 전).
+    runUntil(w, () => seenGather(w, SCALE)?.open === true, 300, '다시 지난 뒤 비늘이 그 자리에 서는 것');
+    // Then 그 자리가 다시 열린다 — 지나감이 되돌린다 (시간이 아니다)
     const seen = seenGather(w, SCALE);
     expect(seen, '다시 지난 뒤 비늘의 채취가 관찰에 실리지 않았다').toBeDefined();
     expect({ event: seen!.event, open: seen!.open }).toEqual({ event: true, open: true });

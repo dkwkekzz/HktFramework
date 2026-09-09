@@ -46,6 +46,8 @@ import {
   REGION_SPECS,
   lockCondition,
   occurrenceCondition,
+  SOURCE_PHASE_AVAILABLE,
+  SOURCE_STATE_PHASE,
   sourceTakenTotalPath,
   type LifeRequirement,
   type SeasonId,
@@ -95,8 +97,9 @@ const REGION_PATTERN = 'pattern';
 /** region · count — `population.<개체군 id>` 의 머리 */
 const REGION_POPULATION = 'population';
 /** source · state — 원천의 지금 phase (ResourceSourceState.phase) · 결속이 묻는 값 */
-const SOURCE_PHASE = 'phase';
-const SOURCE_PHASE_AVAILABLE = 'available';
+// 글자의 원본은 content/regions/opportunity-shape.ts 다 — 조건의 형을 짓는 쪽이 소유한다
+// (C037 — 기회의 availability 가 같은 잎을 짓기 때문에 두 벌로 적으면 어느 날 갈린다).
+const SOURCE_PHASE = SOURCE_STATE_PHASE;
 /** route · state — 그 경로가 지금 지나고 있는가 */
 const ROUTE_PASSING = 'passing';
 /** history · history — RegionMemory 의 경로 마디들 (semantic/region-state.ts 의 필드 이름 그대로) */
