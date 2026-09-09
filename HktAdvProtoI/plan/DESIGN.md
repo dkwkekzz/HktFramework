@@ -180,7 +180,7 @@
 ### L2-World-Foundation — Region Foundation (②-부속 다섯째)
 
 ```text
-덮음      C034(닫힘 — G7 수명 표 · G8 기억 · §4.3 · §4.4 · ㊸ ㊼ · D4 · D5) · C035~C037(묶음 「방은 기억하고 때가 되면 내민다」 — 승인 대기 · CYCLES §3.4)
+덮음      C034(닫힘 — G7 수명 표 · G8 기억 · §4.3 · §4.4 · ㊸ ㊼ · D4 · D5) · C035~C037(묶음 「방은 기억하고 때가 되면 내민다」 — 승인 · C035 진행 중 · CYCLES §3.4)
 덮인 것   기억(history · 되돌아옴 · 뒤척임이 못 묻는다) · 수명 표 · 검사 ㊸ ㊼ · 판의 「기억」 줄
 남은 것   C035 조건의 한 형(G5 · §4.1 · ㊹ · 빈칸 2) · C036 기회=데이터(G3 · §4.5 · ㊺ ㊻ · 기회 표) · C037 Event(G4 · D3 비늘) · op 표(G6) · Yield 표(G11) ·
           T2 열셋째 답 · T4 결정 나무 · T6 ㊻ · 최소 완성 기준 23 · 24 (G13)                                → C035~C037
@@ -252,7 +252,7 @@ Q2  떨어지는 자리를 세계가 알리지 않는다 — 추락은 거목 �
 
 | 순서 | 층 / 행 | 묶음 (가칭) | 기획서 | Goal (방향) | 받는 것 | 전제 | 그때 필요한 주입 · 미지 | Cycle | 상태 |
 |---|---|---|---|---|---|---|---|---|---|
-| 1 | L2 Foundation | 방은 기억하고 때가 되면 내민다 | [L2-World-Foundation](../content/roadmap/L2-World-Foundation.md) §3~§5 · Time 2.6~2.7 | 방이 자기에게 일어난 일을 세고(기억 — C034 닫힘), 조건이 한 형으로 적혀 기억을 읽고, 방이 기회를 내밀고, 때가 있는 기회(Event — 비늘 채집)로 선다 | Foundation 전부 · Time 2.6~2.7 | — | 묶음 질문 Q1~Q9 (C035 spec) | C034~C037 | **진행 — C035 승인 대기** ([CYCLES §3.4](CYCLES.md)) |
+| 1 | L2 Foundation | 방은 기억하고 때가 되면 내민다 | [L2-World-Foundation](../content/roadmap/L2-World-Foundation.md) §3~§5 · Time 2.6~2.7 | 방이 자기에게 일어난 일을 세고(기억 — C034 닫힘), 조건이 한 형으로 적혀 기억을 읽고, 방이 기회를 내밀고, 때가 있는 기회(Event — 비늘 채집)로 선다 | Foundation 전부 · Time 2.6~2.7 | — | 묶음 질문 Q1~Q9 (C035 spec) | C034~C037 | **진행 — C035 진행 중** ([CYCLES §3.4](CYCLES.md)) |
 | 2 | **L3** · M8 | 한 명만 무대에 선다 | [L7](../content/roadmap/L7-Fairy-Growth-Combination.md) §9~§11 · §20 · §4~§5 · [Access](../content/roadmap/L2-World-Access.md) §14.1 · §15 · K12 · [M5](../content/roadmap/M5-FrostCanyon.md) | 요정 둘을 편성해 협곡을 지난다 — 추위가 무대의 몸을 깎고, 교체하면 다른 Core 의 몸이 서고, 문이 몸의 성질을 묻고(property Lock 의 첫 판정), 열을 쫓는 것이 따뜻한 몸만 본다 | L7 3층 몫 · Access property Lock 판정 · Life F10 첫 개체 · M5 남은 것 | 없음 — 2층 판정과 병행 (Human 결정) | 미지 M8 의 이름(Human) · 시작 편성 둘 · 온기 값 (질문으로) | 넷 안팎 | **쓸 수 있음** |
 | 3 | L2 회수 | 온 길은 남고, 갈 길에는 단서가 있다 | [Region](../content/roadmap/L2-World-Region.md) §11 · §17 · Concept §19-07 · 실주행 GAP Q1 · Q2 | 관찰자가 방 전이를 기록하고 판에서 되읽는다 · 출구를 지목하면 종류와 방향이 선다 · 추락 자리의 땅이 예고한다 | Rooms GAP 둘 | 없음 — 지금 | 위치 감각의 형태(지도 · 이정표 · 흔적 · 깊이 감각만) · 추락 예고를 둘지 (질문으로) | 둘 | **쓸 수 있음** |
 | 4 | L2 도구 | HundredRooms | [Tool-Scale §5](../content/roadmap/L2-World-Tool-Scale.md) | 미지 백 줄 → 방 백 개가 검사를 통과하고 관찰자가 열 곳을 걸어 흔적 → 원천 → 철 → 탄생지를 본다. 코드 diff 0 | Tool-Scale 의 HundredRooms | T3 ecology | 미지 백 줄의 **이름**(Human — 또는 초안기 후보를 Human 이 고른다) | 셋 안팎 | 기다림 — T3 ecology |

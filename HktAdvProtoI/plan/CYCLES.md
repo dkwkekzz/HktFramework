@@ -19,7 +19,7 @@
 
 | 레인 | 지금 할 수 있는 것 | 기다리는 것 | 다음 |
 |---|---|---|---|
-| Foundation — 방은 기억하고 때가 되면 내민다 (§3.4) | **C035** spec 이 승인 대기 — [cycles/C035-one-shape-of-condition/spec.md](../cycles/C035-one-shape-of-condition/spec.md) (묶음 블록 · UNRESOLVED Q1~Q9 · C036 · C037 초안도 섰다) | Human "C035 진행" + Q1~Q9 답 | C035 → C036 → C037 → AI 예심 → 판정 |
+| Foundation — 방은 기억하고 때가 되면 내민다 (§3.4) | **C035 진행 중** — [cycles/C035-one-shape-of-condition/spec.md](../cycles/C035-one-shape-of-condition/spec.md) 동결 (묶음 승인 · Q1~Q9 제안대로 · 기반 집중 — 컨텐츠는 어댑터와 예제 한 줄) | — | C036 → C037 → AI 예심 → 판정 |
 | (다음 묶음) | 묶음 제안 — 후보 2(3층 편성과 무대) · 3(Rooms GAP 회수) | Human 이 지목 | C038~ |
 | ENGINE B — Region 작성기 | T3 의 ecology 산출(생명이 코드에 있다 — phases 도 템플릿도 붙일 수 있다) · 갈래별 땅 묶음 templates 손질 | — | 그 뒤 HundredRooms 묶음 |
 
@@ -55,7 +55,7 @@ C001~C031 은 옛 공정(Play 문서)으로 돌았다. spec 의 SOURCE 가 가�
 | 생명 · 붉은 알집 | C022~C025 | L2 · M6 | RoomBearsLife | **판정 대기** — Life-1~6 (§3.2.2) |
 | 관찰 | C026~C028 | L2 회수 | RoomAnswersWhenAsked | 닫힘 — 결정 대기 일곱 |
 | 요구와 가능성 | C029~C031 | L2 · M7 | RoomAsksForPossibilities | **판정 대기** — Access-1~5 (§3.2.3) |
-| 방은 기억하고 때가 되면 내민다 | C034~C037 | L2 Foundation | RoomRemembersAndOffers (C034 만 옛 공정) | **진행** — C034 닫힘 · C035 승인 대기 (§3.4) |
+| 방은 기억하고 때가 되면 내민다 | C034~C037 | L2 Foundation | RoomRemembersAndOffers (C034 만 옛 공정) | **진행** — C034 닫힘 · C035 진행 중 (§3.4) |
 
 옛 공정에서 Play 문서까지만 서고 Cycle 이 시작되지 않은 둘(3층 편성과 무대의 한 명 · Rooms GAP 회수)은 묶음이 아니다 —
 그 기획서를 새 공정으로 다시 자른다 ([DESIGN.md §5](DESIGN.md)).
@@ -282,7 +282,7 @@ spec 이 침묵해 **테스트가 판정 방식을 스스로 정한 자리**(Cyc
 ### 3.4 진행 중 — 방은 기억하고 때가 되면 내민다 (L2 Foundation · C034~C037)
 
 ```text
-상태        C034 닫힘 (main) · C035 spec 승인 대기 (묶음 블록 · Q1~Q9) · C036 · C037 spec 초안
+상태        묶음 승인 (Q1~Q9 제안대로 · 방향: 컨텐츠 층 전까지 기반 집중 — 컨텐츠는 기반을 표현할 예제만) · C034 닫힘 (main) · C035 진행 중 (spec 동결) · C036 · C037 spec 초안
 Cycle       C034 방이 기억한다 → C035 조건은 하나의 형이다 → C036 방이 기회를 내민다 → C037 때가 있는 기회 (마지막 — 뒤에 AI 예심)
 기획서      L2-World-Foundation · L2-World-Time 2.6~2.7 · L2-World-Access §4.3
 ```
@@ -302,7 +302,7 @@ C034 — 방이 기억한다
 [ ] X-⑦ 세계를 저장하고 되살려도 셈이 그대로다 · 옛 스냅샷은 되살아나지 않는다 (그림 없음 · 시나리오 S-222~S-224)
 ```
 
-결정 대기 (C034 가 남긴 것 — C035 spec Q9 가 이것을 가리킨다):
+결정 대기 (C034 가 남긴 것 — Q9 의 답 "제안대로" = 이 묶음의 판정 때 함께 답한다):
 
 ```text
 먹혀서 고갈된 것도 고갈로 센다 — 광식충이 뿌리혹을 먹어 비운 자리가 depletedTimes 를 올린다 (takenTotal 은 아니다). 캔 것만 세면 같은 사실을
