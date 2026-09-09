@@ -171,6 +171,11 @@ export interface PassageMemoryView extends MemoryCountView {
  * **누가 했는지는 없다.** 방이 세는 것은 우리가 한 일이지 누구의 일이 아니다.
  * 언제 다시 일어나는지도 싣지 않는다 — 세계는 지나간 것만 말한다.
  */
+export interface BirthMemoryView extends MemoryCountView {
+  /** 어디서 태어났는가 — 그 탄생지의 의미 코드 (문구는 View 의 표가 옮긴다) */
+  formation: string;
+}
+
 export interface RegionMemoryView {
   /** 이 방이 겪은 뒤척임의 수 */
   turns: number;
@@ -178,6 +183,13 @@ export interface RegionMemoryView {
   awakenings: MemoryCountView;
   /** 무엇이 몇 번 지났는가 — 지난 적 있는 것만, 데이터 순서 그대로 */
   passages: PassageMemoryView[];
+  /**
+   * 무엇이 몇 번 태어났는가 — C037 ADDED (Foundation G8 · §4.3 의 마지막 마디).
+   *
+   * **태어난 적 있는 것만** 실린다 (`passages` 의 어법 그대로) — 한 번도 태어나지 않은
+   * 탄생지는 자리 자체가 없다. 무엇이 태어났는지도 · 언제 다시 태어나는지도 없다.
+   */
+  births: BirthMemoryView[];
 }
 
 /**
@@ -196,6 +208,18 @@ export interface OpportunityView {
   id: string;
   /** 어떻게 알게 되는가 — 의미 코드 (VISIBLE · SIGNAL · TRACE · HIDDEN). 문구는 View 의 표가 옮긴다 */
   discovery: string;
+  /**
+   * **때가 있는 기회인가** — C037 ADDED (Foundation G4). availability 에 시간 qualifier 가
+   * 있으면 참이다. 무엇이 그 때를 정하는지도 · 언제인지도 싣지 않는다.
+   */
+  event: boolean;
+  /**
+   * **지금 열려 있는가** — C037 ADDED (RULE-OPPORTUNITY-OPEN-001 · 유도 · 저장되지 않는다).
+   *
+   * 판정 불가(3 · 4층이 채울 갈래를 묻는 조건)는 **거짓**이다 — 세계는 "열려 있지 않다" 까지만
+   * 말하고 왜인지는 말하지 않는다. 언제 열리는가 · 남은 시간도 싣지 않는다 (spec Observable).
+   */
+  open: boolean;
 }
 
 export interface InteractionView extends CoreInteractionView {
