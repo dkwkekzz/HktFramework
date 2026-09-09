@@ -27,7 +27,7 @@
 ## 2. cycle — 돌릴 것
 
 ```text
-1  Cycle      C035 합침 뒤 C036 — 초안을 C035 의 「다음 Cycle 로」 로 손봐 동결 → 실현 → 마감, 이어 C037                             CYCLES.md §1 · §3.4
+1  Cycle      C036 합침 뒤 C037 — 초안을 C036 의 「다음 Cycle 로」 로 손봐 동결 → 실현 → 마감 (묶음의 마지막 · 뒤에 예심)              CYCLES.md §1 · §3.4
 2  묶음 제안   §1-1 지목 즉시 — 첫 spec(C038~) 머리에 묶음 블록 + Cycle 전부의 spec · UNRESOLVED 에 묶음 질문 전부 → Human 에게 올린다   Design-DesignAuthoringWorkflow §5~§7
 3  예심       묶음의 마지막 Cycle 이 합쳐지면 — 관찰 항목을 질문 대여섯으로 압축해 CYCLES.md §3.2 에 · STATE · TODO §1 에 판정 줄
 4  GAP 회수   §1-2 · 3 · 4 에서 "아니오" 가 오면 — 그 묶음에 Cycle 을 더하거나 관찰 가능성 묶음 하나로 자른다

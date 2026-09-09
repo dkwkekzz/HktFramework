@@ -180,13 +180,17 @@
 ### L2-World-Foundation — Region Foundation (②-부속 다섯째)
 
 ```text
-덮음      C034(닫힘 — G7 수명 표 · G8 기억 · §4.3 · §4.4 · ㊸ ㊼ · D4 · D5) · C035(닫힘 — G5 조건의 한 형 · §4.1 · ㊹ · 빈칸 2 · G8 첫 사례 비늘) · C036~C037(묶음 「방은 기억하고 때가 되면 내민다」 — 진행 · CYCLES §3.4)
+덮음      C034(닫힘 — G7 수명 표 · G8 기억 · §4.3 · §4.4 · ㊸ ㊼ · D4 · D5) · C035(닫힘 — G5 조건의 한 형 · §4.1 · ㊹ · 빈칸 2 · G8 첫 사례 비늘) ·
+          C036(닫힘 — G3 기회 · §4.5 · G6 op 이름 · G9 관계 다섯 · ㊺ ㊻ · 기회 표 · 수명 표) · C037(묶음 「방은 기억하고 때가 되면 내민다」 — 진행 · CYCLES §3.4)
 덮인 것   기억(history · 되돌아옴 · 뒤척임이 못 묻는다) · 수명 표 · 검사 ㊸ ㊼ · 판의 「기억」 줄 · Condition 형(Target 여덟 + 자리 셋 · Query 다섯 + 자리 다섯 · Operator 아홉 · Qualifier · all/any) ·
-          게임 명사 없는 평가기(판정 셋 — 참 · 거짓 · 판정 불가) · 조건 자리 넷의 어댑터(읽기만) · 기억을 읽는 첫 조건(비늘 → `needs-passage`) · 검사 ㊹ · observe 조건 표
-남은 것   C036 기회=데이터(G3 · §4.5 · ㊺ ㊻ · 기회 표) · C037 Event(G4 · D3 비늘) · op 표(G6) · Yield 표(G11) ·
-          T2 열셋째 답 · T4 결정 나무 · T6 ㊻ · 최소 완성 기준 23 · 24 (G13)                                → C036~C037
+          게임 명사 없는 평가기(판정 셋 — 참 · 거짓 · 판정 불가) · 조건 자리 넷의 어댑터(읽기만) · 기억을 읽는 첫 조건(비늘 → `needs-passage`) · 검사 ㊹ · observe 조건 표 ·
+          Opportunity 형(항목 여덟 — participants · rules 는 자리만) · 원천마다 · Lock 이 걸린 문마다의 기본형 유도 · Interaction 에 붙는 기회 이름과 discovery ·
+          판의 「할 수 있는 것」 이 "어떻게 알게 되는가" 를 말한다 · Mutation op 이름표 · 관계 다섯 갈래의 목록 · 검사 ㊺ ㊻ · observe 기회 표 · 수명 표
+남은 것   C037 Event(G4 · D3 비늘 — 시간 qualifier · progress 값 · outcomes 의 실제 op · Yield 열 넷 G11) · Opportunity 의 OPEN/CLOSE/COMPLETE 와 availability 의 평가 ·
+          T2 열셋째 답 · T4 결정 나무 · 최소 완성 기준 23 · 24 (G13)                                       → C037
           chance(빈칸 1) · 조건 자리 넷을 형으로 **옮기는** 것(Q1 읽기만으로 닫음 — 옮길 이유가 생기면 그때)   → 5층 이후 · 결정 대기
           §5.5 Player Knowledge · 발견 상태 다섯 · knowledge Lock          → 3층 둘째 (G10)
+          discovery 의 NPC · KNOWLEDGE 갈래 · HIDDEN 기회가 드러나는 절차   → 3층 둘째 (C036 이 형에 자리만 두었다)
           Actor · NPC · participants                                  → 3층 몫 묶음(첫 개체) · 3층 둘째
           전투 Opportunity · Boss 탄생 조건 · killed                     → 5층
           제작 · Recipe · Item · Currency                              → 4층

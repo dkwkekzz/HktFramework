@@ -19,7 +19,7 @@
 
 | 레인 | 지금 할 수 있는 것 | 기다리는 것 | 다음 |
 |---|---|---|---|
-| Foundation — 방은 기억하고 때가 되면 내민다 (§3.4) | **C036** — [cycles/C036-a-room-offers/spec.md](../cycles/C036-a-room-offers/spec.md) 초안을 C035 의 「다음 Cycle 로」 로 손봐 동결 → 실현 (C035 닫힘 — 합침 대기) | C035 의 합침 | C037 → AI 예심 → 판정 |
+| Foundation — 방은 기억하고 때가 되면 내민다 (§3.4) | **C037** — [cycles/C037-an-opportunity-with-a-time/spec.md](../cycles/C037-an-opportunity-with-a-time/spec.md) 초안을 C036 의 「다음 Cycle 로」 로 손봐 동결 → 실현 (묶음의 마지막 — 뒤에 AI 예심) | C036 의 합침 | AI 예심 → 판정 |
 | (다음 묶음) | 묶음 제안 — 후보 2(3층 편성과 무대) · 3(Rooms GAP 회수) | Human 이 지목 | C038~ |
 | ENGINE B — Region 작성기 | T3 의 ecology 산출(생명이 코드에 있다 — phases 도 템플릿도 붙일 수 있다) · 갈래별 땅 묶음 templates 손질 | — | 그 뒤 HundredRooms 묶음 |
 
@@ -55,7 +55,7 @@ C001~C031 은 옛 공정(Play 문서)으로 돌았다. spec 의 SOURCE 가 가�
 | 생명 · 붉은 알집 | C022~C025 | L2 · M6 | RoomBearsLife | **판정 대기** — Life-1~6 (§3.2.2) |
 | 관찰 | C026~C028 | L2 회수 | RoomAnswersWhenAsked | 닫힘 — 결정 대기 일곱 |
 | 요구와 가능성 | C029~C031 | L2 · M7 | RoomAsksForPossibilities | **판정 대기** — Access-1~5 (§3.2.3) |
-| 방은 기억하고 때가 되면 내민다 | C034~C037 | L2 Foundation | RoomRemembersAndOffers (C034 만 옛 공정) | **진행** — C034 · C035 닫힘 · C036 다음 (§3.4) |
+| 방은 기억하고 때가 되면 내민다 | C034~C037 | L2 Foundation | RoomRemembersAndOffers (C034 만 옛 공정) | **진행** — C034 · C035 · C036 닫힘 · C037 다음 (§3.4) |
 
 옛 공정에서 Play 문서까지만 서고 Cycle 이 시작되지 않은 둘(3층 편성과 무대의 한 명 · Rooms GAP 회수)은 묶음이 아니다 —
 그 기획서를 새 공정으로 다시 자른다 ([DESIGN.md §5](DESIGN.md)).
@@ -282,7 +282,7 @@ spec 이 침묵해 **테스트가 판정 방식을 스스로 정한 자리**(Cyc
 ### 3.4 진행 중 — 방은 기억하고 때가 되면 내민다 (L2 Foundation · C034~C037)
 
 ```text
-상태        묶음 승인 (Q1~Q9 제안대로 · 방향: 컨텐츠 층 전까지 기반 집중 — 컨텐츠는 기반을 표현할 예제만) · C034 닫힘 (main) · C035 닫힘 (합침 대기) · C036 · C037 spec 초안
+상태        묶음 승인 (Q1~Q9 제안대로 · 방향: 컨텐츠 층 전까지 기반 집중 — 컨텐츠는 기반을 표현할 예제만) · C034 · C035 닫힘 (main) · C036 닫힘 (합침 대기) · C037 spec 초안
 Cycle       C034 방이 기억한다 → C035 조건은 하나의 형이다 → C036 방이 기회를 내민다 → C037 때가 있는 기회 (마지막 — 뒤에 AI 예심)
 기획서      L2-World-Foundation · L2-World-Time 2.6~2.7 · L2-World-Access §4.3
 ```
@@ -309,6 +309,20 @@ C035 — 조건은 하나의 형이다
         HKT_SPAWN_REGION=FOREST_EDGE HKT_SPAWN=-14.4,-12 HKT_NPCS=none (지나기 전 · 마디 0) / HKT_SPAWN=-0.4,6 (지난 뒤 · 마디 2) · 그림 C035 X-03a · X-03b
 [ ] X-④ `npm run world:observe -- --report` 의 열쇠 × 자물쇠 표 곁에 **조건 표**(어디에 · target · query · operator value · qualifier · 지금)가 선다 — 갓 선 세계의 값.
         판정 불가(actor capability)가 거짓으로 눌리지 않고 「판정 불가」 로 적힌다 (그림 없음 · 도구 출력 · S-268)
+
+C036 — 방이 기회를 내민다
+[ ] X-① 숲 가장자리에서 밑동의 허물을 지목(Alt+클릭)하면 「할 수 있는 것  채취 · **흔적이 말한다**」 — 무엇을 할 수 있는지 곁에 그것을 어떻게 아는지가 선다.
+        HKT_SPAWN_REGION=FOREST_EDGE HKT_SPAWN=-6.4,6 HKT_NPCS=none · 그림 C036 X-01
+[ ] X-② 같은 방의 비늘 자리를 지목하면 「채취 · 남은 것이 없다 · **신호로 온다**」 — 같은 방의 두 원천이 알려지는 방식으로 갈린다 (X-01 과 나란히 본다).
+        HKT_SPAWN=-14.4,-12 · 그림 C036 X-02
+[ ] X-③ 숲 안쪽에서 걷는 숲의 문을 지목하면 「건너기 · 이 철이 아니다 · **눈에 보인다**」 — 문의 요구와 열림 판정은 C029 · C016 과 한 값도 다르지 않다.
+        HKT_SPAWN_REGION=FOREST_DEEP HKT_SPAWN=12,11.6 HKT_NPCS=none · 그림 C036 X-03
+[ ] X-④ `npm run world:check` 마흔여덟 — ㊺ 통과(기회 41 · 걸린 것 0) · ㊻ 요약(기회 0 인 방 2 · Event 0 · 관계 갈래 5 · 사회는 닿는 방 0).
+        유령 target · 표 밖 op · 없는 progress 경로 · 없는 동사는 ㊺ fail (그림 없음 · S-324~S-329 · S-342)
+[ ] X-⑤ `npm run world:observe -- --report` 의 조건 표 뒤에 **기회 표**(41행 — 어디에 · id · discovery · Event · target · 동사 · yield)와
+        **수명 표**(17행 — 지우는 손 · State 경로)가 선다 (그림 없음 · 도구 출력 · S-335)
+[ ] X-⑥ 방 열셋의 판정이 C035 와 한 값도 다르지 않다 — interaction 141 줄의 available · reason · role · 순서 · 방 hash · 조건 자리 넷
+        (그림 없음 — 회귀는 시나리오 S-330~S-334 가 증거)
 ```
 
 결정 대기 (C034 가 남긴 것 — Q9 의 답 "제안대로" = 이 묶음의 판정 때 함께 답한다):
@@ -325,23 +339,30 @@ C035 — 조건은 하나의 형이다
   그때 정한다                                                                                                       C035
 비늘의 기억 조건은 「지나간 것이 있어야 한다」 로 말해질 뿐 열고 닫지 않는다 — 한 번 지난 뒤에는 다시 오지 않는 동안에도 그 줄이 없다 (과거의 사실).
   「아직 그때가 아니다」(지금의 사실)와 나란히 서는 것이 읽히는가                                                             C035
+discovery 문구 셋을 표현이 지었다 — 「눈에 보인다」 · 「흔적이 말한다」 · 「신호로 온다」 (말의 출처는 spec 의 문장). 감사할 자리          C036
+그 마디가 줄 **끝**에 붙는다 — 「채취 · 남은 것이 없다 · 흔적이 말한다」. 거절 사유와 나란히 읽혀도 좋은가, 앞에 서야 하는가        C036
+역할 다섯 가운데 world-event 만 SIGNAL 이고 넷(baseline · by-product · risk · conditional)이 TRACE 다 (Q3 제안대로) —
+  위험한 자리(risk)도 흔적으로 알려지는 것이 이 세계의 사실인가                                                            C036
+Lock 이 없는 문에는 건너기 기회가 서지 않는다 — 문 열아홉 가운데 이름을 얻은 것은 셋뿐이다. 2층은 "묻는 문" 에만 이름을 주는가      C036
+기회 id 가 관찰 봉투에 실린다 (`gather:<원천>` · `cross:<문>`) — 화면에는 서지 않지만 봉투가 코드의 자리를 나른다.
+  그 때문에 c029 S-133(건너간 뒤의 방 이름이 실리지 않는다)의 걸러내기를 `cross:<문>` 까지 넓혀야 했다. 그대로 두는가             C036
+관계 다섯 갈래의 이름을 컨텐츠가 정했다 (spatial · environment · ecology · event · social) — 사회는 닿는 방이 0 이고
+  그 사실이 표에 선다 (지워지지 않는다)                                                                                C036
 ```
 
-다음 Cycle 로 (C034 · C035 마감이 남긴 것 — C036 spec 이 동결할 때 하나씩 판정한다):
+다음 Cycle 로 (C034 · C035 · C036 마감이 남긴 것 — C037 spec 이 동결할 때 하나씩 판정한다):
 
 ```text
-C036  기억 조건은 관찰의 투영에서만 읽힌다 (sourceMemoryConditionCodes — observer-view 한 자리) · 원천의 phase · 되돌아옴 · 채취는 읽지 않는다.
-      기회의 availability 가 Condition 을 놓을 때 그 자리가 "여는" 첫 자리다 — 판정 불가를 닫힘으로 읽는가는 결정 대기 (C035 spec 기본형 ④)
-C036  Condition 의 자리만인 것(actor · player · faction Target · capability · knowledge · distance · contains · relation Query · chance)은 형에 있되 평가기가
-      판정 불가를 낸다 — 기회의 discovery · availability 가 그 갈래를 쓰지 않도록 (2층 · C035 SPEC-001 경계 ①)
-C036  `worldConditionReader` 는 area · connector · process Target 을 UNREADABLE 로 둔다 (이 Cycle 에 읽는 조건이 없다) — 문의 cross 기회가 connector 를 Target 으로
-      쓰면 그때 읽기가 는다 (어휘 `worldConditionVocabulary` 도 함께)
-C036  observe 조건 표의 「지금」 은 갓 선 세계(t=0)의 값이다 — `--at <철>` 을 받지 않는다 (C035 spec 기본형 ⑤). 기회 표(C036 World Change)가 같은 자리에 서면 함께 볼 것
 C037  time qualifier(WITHIN · AFTER 는 now · FOR 는 heldSince) · change qualifier(previous)는 평가기에 있고 이 세계의 읽기는 now 만 준다 —
       비늘 Event 의 `passages.<routeId>.lastAt WITHIN 240` 이 첫 사용처다 (읽기는 lastAt 경로를 이미 준다 · 어휘도)
 C037  CROSSED 는 다른 qualifier 와 같이 base operator 가 참인 뒤에만 건다 — Event 의 progress 가 "값이 문턱을 넘었다" 를 쓸 때 이 어법이 맞는지 본다
-C036  history.births 는 자리만 두었다 — 개체군이 선 지금 그 형에 한 줄이 는다 (C034 spec State)
-C036  수명 표(content/world/semantic/persistence.ts)가 아직 world:observe --report 에 서지 않는다 — 검사 ㊼ 만 읽는다 → C036 World Change 7
+C037  history.births 는 자리만 두었다 — 개체군이 선 지금 그 형에 한 줄이 는다 (C034 spec State · C036 은 그 경로를 progress 로 쓰는 기회가 없어 받지 않았다)
+C037  기회의 availability 가 **처음으로 평가된다** — 지금은 데이터로 적히고 참조 무결만 잰다(C036 기본형 ①). 판정 불가를 닫힘으로 읽는가가 그때 정해진다 (C035 spec 기본형 ④)
+C037  Opportunity 의 OPEN/CLOSE/COMPLETE 전이 — op 이름표(`MUTATION_BINDINGS`)가 opportunity 군을 적지 않는다. 그 전이가 세계에 없어서다 (C036 W 판정)
+C037  observe 조건 표와 기회 표의 「지금」 — 조건 표는 갓 선 세계(t=0)의 값이고 기회 표에는 그 열이 없다(availability 를 평가하지 않아서).
+      availability 가 평가되면 두 표를 함께 볼 것 (`--at <철>` 도 그때)
+C037  탄생지의 채취(harvest-source)에는 기회가 없다 — 유도가 원천만 훑고 탄생지는 원천이 아니다. 결속을 기회로 세울 자리인가
+C037  문의 저쪽 끝에서는 cross 기회가 서지 않는다 — Lock 이 선 방에서만 이름이 붙는다 (미로의 심장에서 같은 문을 지목하면 이름이 없다). 그대로 두는가
 ```
 
 ## 4. 묶음 없는 다음 Cycle
@@ -429,6 +450,8 @@ Region 작성기의 T2 를 넓히는 Cycle
 도구 · 빌드
   검사 ㊹ 이 자리만인 Target 의 ref 를 재지 않는다 — actor · player · faction 은 아직 id 가 없어 어휘의 목록이 비어 있다. 그 층이 오면 목록이 차고 그때 ref 를 요구할 것    C035
   ㊹ 의 검사 항목 차례가 번호와 다르다 — ㊹ 이 ㊼ 뒤에 선다 (계약이 는 차례 · ㉓~㉖ 의 선례). 번호 순으로 정렬하는 것은 보고 쪽의 일               C035
+  spec 기록 — C036 spec 의 Added 가 `opportunityRefs(opportunity)`(참조 잎 펴기)를 적었으나 세우지 않았다. 검사 ㊺ 가 안에서 직접 편다 —
+    컨텐츠가 그 잎 목록을 실제로 부르려 할 때 형을 정해 더한다                                                                        C036
   동결된 spec 의 이름과 코드의 이름이 갈렸다 — C034 spec 은 CheckHistory · 검사 ㊸ history-refs 라 적었고 코드는 CheckMemory · memory-refs 다
     (기구 API 를 병렬 Agent 와 맞춘 자리). 동결된 spec 은 고치지 않으므로 이 줄이 그 대응을 소유한다 — 검사 id 는 보고의 기계 열쇠라 나중에 바꾸면
     도구와 시나리오가 함께 흔들린다                                                                                                 C034
