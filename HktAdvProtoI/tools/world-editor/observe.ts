@@ -867,10 +867,14 @@ function answerMapLines(): string[] {
 // 읽힌 것을 잎마다 한 행으로 편다. 행의 출처는 worldConditionSites() 하나다 — 이 도구는 조건을
 // 하나도 스스로 짓지 않고, 검사 ㊹ 이 세는 그 잎을 그 차례로 놓는다.
 //
-// "지금" 열은 판정이 아니라 **평가기가 낸 것을 옮긴 것**이다 (도구는 판정하지 않는다). 그 값은
-// **갓 선 세계**(createWorld() · t=0 · 아무것도 지나지 않았고 아무도 들지 않은)의 것이다 —
-// 방 하나의 보고가 받는 `--at <철>` 은 이 표에 닿지 않는다: 조건 표는 보고에만 서고(기본형 ⑤)
-// 세계의 보고는 시각을 받지 않는다. 그래서 두 번 돌리면 글자까지 같다.
+// "지금" 열은 판정이 아니라 **평가기가 낸 것을 옮긴 것**이다 (도구는 판정하지 않는다).
+//
+// C038 CHANGED — 그 값이 어느 때의 것인지를 `--at <철>` 이 고른다 (spec SPEC-007). 밝히지 않으면
+// **갓 선 세계**(createWorld() · t=0 · 아무것도 지나지 않았고 아무도 들지 않은)이고, 밝히면 그
+// 철이 시작하는 자리에 선 세계다 (createWorld({ clock }) — 촬영 손잡이와 **같은 자리**이고
+// 세계의 규칙을 하나도 바꾸지 않는다). 표 머리가 어느 때인지 밝히고, 조건 표와 기회 표가
+// **같은 State** 를 받는다 — 한쪽만 철을 따르면 두 표가 다른 때를 말한다.
+// 같은 인자로 두 번 돌리면 글자까지 같다.
 
 /** Target · Query 를 한 칸으로 — `clock` · `region FOREST_EDGE` · `history passages.R1` 식 */
 function conditionTargetText(leaf: ConditionLeaf): string {
@@ -905,29 +909,46 @@ function conditionVerdictText(verdict: ConditionVerdict): string {
   return verdict === 'met' ? '참' : verdict === 'unmet' ? '거짓' : '판정 불가';
 }
 
+/**
+ * 표의 「지금」 이 **어느 때의 값인가** (C038 ADDED · SPEC-007).
+ *
+ * 조건 표와 기회 표가 같은 글자를 쓴다 — 두 표가 같은 State 를 읽으므로 어느 때인지도 하나다.
+ */
+function whenText(season: SeasonId | undefined): string {
+  return season === undefined ? '갓 선 세계의' : `철 ${season} 의`;
+}
+
+/**
+ * 표들이 읽을 세계 한 벌 (C038 ADDED).
+ *
+ * 철을 밝히면 그 철이 시작하는 자리에 세계를 세운다 — 손잡이는 이미 있는 것이고
+ * (`WorldSetup.clock` · 촬영 하네스와 같은 자리) 도구는 판정을 하나도 새로 짓지 않는다.
+ */
+function tableState(season: SeasonId | undefined): WorldState {
+  const world = season === undefined ? createWorld() : createWorld({ clock: season });
+  return world.snapshot().state as WorldState;
+}
+
 /** 조건 표 — 잎 하나가 한 행. 자리(where) 차례 · 그 조건에 적힌 잎 차례 */
-function conditionTableLines(): string[] {
+function conditionTableLines(state: WorldState, season: SeasonId | undefined): string[] {
   const sites = worldConditionSites();
   const rows: string[][] = [];
-  if (sites.length > 0) {
-    const state = createWorld().snapshot().state as WorldState;
-    for (const site of sites) {
-      for (const leaf of conditionLeaves(site.condition)) {
-        rows.push([
-          site.where,
-          conditionTargetText(leaf),
-          conditionQueryText(leaf),
-          conditionOperatorText(leaf),
-          conditionQualifierText(leaf),
-          conditionVerdictText(worldConditionVerdict(state, leaf)),
-        ]);
-      }
+  for (const site of sites) {
+    for (const leaf of conditionLeaves(site.condition)) {
+      rows.push([
+        site.where,
+        conditionTargetText(leaf),
+        conditionQueryText(leaf),
+        conditionOperatorText(leaf),
+        conditionQualifierText(leaf),
+        conditionVerdictText(worldConditionVerdict(state, leaf)),
+      ]);
     }
   }
   const lines: string[] = [];
   lines.push(rule());
   lines.push(
-    `  조건 ${rows.length} (조건 자리 순 · 검사 ㊹ 이 세는 잎을 행으로 놓는다 · 지금 은 갓 선 세계의 것)`,
+    `  조건 ${rows.length} (조건 자리 순 · 검사 ㊹ 이 세는 잎을 행으로 놓는다 · 지금 은 ${whenText(season)} 것)`,
   );
   if (rows.length === 0) {
     lines.push('    조건이 하나도 없다');
@@ -946,9 +967,9 @@ function conditionTableLines(): string[] {
 // 같은 것의 두 얼굴이기 때문이다: 저기는 **언제 참인가**의 잎들이고 여기는 **무엇을 내미는가**다.
 //
 // C037 CHANGED — **「지금」 열이 선다** (spec SPEC-008 · C036 이 미룬 자리). 조건 표의 「지금」 과
-// 같은 어법이다: 값은 **갓 선 세계**(createWorld() · t=0 · 아무것도 지나지 않았고 아무도 들지
-// 않은)의 것이고 표 머리가 그것을 밝힌다. 두 표가 같은 State 를 읽으므로 잎의 참·거짓과 기회의
-// 열림이 한 화면에서 이어진다.
+// 같은 어법이다: 표 머리가 어느 때의 값인지 밝힌다. C038 CHANGED — 그 때를 `--at <철>` 이 고른다
+// (밝히지 않으면 갓 선 세계 · t=0). 두 표가 **같은 State 한 벌**을 받으므로 잎의 참·거짓과
+// 기회의 열림이 한 화면에서 이어진다 — 한쪽만 철을 따르면 두 표가 다른 때를 말한다.
 //
 // **도구는 글자를 놓을 뿐이다** — 기회를 스스로 짓지 않고(출처는 컨텐츠의 ALL_OPPORTUNITIES
 // 하나다) Event 여부도 열림도 스스로 세지 않는다 (기반의 isEventOpportunity 와 세계의
@@ -978,19 +999,18 @@ function opportunityOpenText(open: boolean): string {
 }
 
 /** 기회 표 — 기회 하나가 한 행. 방 차례 · 그 방의 기회 차례 */
-function opportunityTableLines(): string[] {
+function opportunityTableLines(state: WorldState, season: SeasonId | undefined): string[] {
   const lines: string[] = [];
   lines.push(rule());
   lines.push(
-    `  기회 ${ALL_OPPORTUNITIES.length} (방 차례 · 그 방의 기회 차례 · 검사 ㊻ 이 세는 것을 행으로 놓는다 · 지금 은 갓 선 세계의 것)`,
+    `  기회 ${ALL_OPPORTUNITIES.length} (방 차례 · 그 방의 기회 차례 · 검사 ㊻ 이 세는 것을 행으로 놓는다 · 지금 은 ${whenText(season)} 것)`,
   );
   if (ALL_OPPORTUNITIES.length === 0) {
     lines.push('    내미는 것이 하나도 없다');
     return lines;
   }
-  // 조건 표와 **같은 State** 다 (갓 선 세계 · t=0) — 두 표가 다른 세계를 읽으면 한 화면에서
-  // 잎의 참·거짓과 기회의 열림이 이어지지 않는다
-  const state = createWorld().snapshot().state as WorldState;
+  // 조건 표와 **같은 State** 다 (부르는 쪽이 한 벌을 세워 둘에 건넨다) — 두 표가 다른 세계를
+  // 읽으면 한 화면에서 잎의 참·거짓과 기회의 열림이 이어지지 않는다
   lines.push(
     ...table(
       ['어디에', 'id', 'discovery', 'Event', '지금', 'target', 'possibleActions', 'yield'],
@@ -1072,13 +1092,17 @@ function persistenceTableLines(): string[] {
 }
 
 /**
- * 세계의 보고 한 장 (C021 ADDED · SPEC-006 / C030 · C035 · C036 · C037 CHANGED) — 검사 ·
+ * 세계의 보고 한 장 (C021 ADDED · SPEC-006 / C030 · C035 · C036 · C037 · C038 CHANGED) — 검사 ·
  * 방마다의 분포 · 열쇠 × 자물쇠 · 조건 표 · 기회 표 · Yield 표 · 수명 표.
  *
  * 방 하나의 보고(`renderRegionReport`)와 달리 땅을 컴파일하지 않는다 — 여기서 읽는 것은
  * 계통과 검사가 이미 낸 것뿐이다. **읽기 전용**이고 파일을 하나도 쓰지 않는다 (경계 ①).
+ *
+ * C038 CHANGED — `season` 을 밝히면 「지금」 을 가진 두 표(조건 · 기회)가 **그 철의 값**을 낸다
+ * (spec SPEC-007). 밝히지 않으면 갓 선 세계이고 글자가 전과 한 자도 다르지 않다. 검사 · 분포 ·
+ * 열쇠 × 자물쇠 · Yield · 수명은 데이터를 읽는 것이므로 철에 달라지지 않는다.
  */
-export function renderWorldReport(): string {
+export function renderWorldReport(season?: SeasonId): string {
   const report = runWorldCheck();
   const checks = checkLinesOf(report.items);
   const lines: string[] = [];
@@ -1089,13 +1113,15 @@ export function renderWorldReport(): string {
   lines.push(...checkBody(checks));
   lines.push(...roomLines(report.items));
   lines.push(...answerMapLines());
-  lines.push(...conditionTableLines());
+  // 「지금」 을 가진 두 표가 읽을 세계 한 벌 — 여기서 한 번만 세워 둘에 건넨다 (C038)
+  const state = tableState(season);
+  lines.push(...conditionTableLines(state, season));
   // 조건 표 곁에 선다 (C036) — 언제 참인가의 잎들 다음에 무엇을 내미는가가, 그다음에
   // 무엇이 얼마나 남는가가 온다.
   //
   // C037 CHANGED — 기회 표 바로 뒤에 **Yield 표**가 선다: 저 표가 기회마다 무엇을 내는가를
   // 적고 이 표가 그것을 열로 세운 것이므로, 둘 사이에 다른 표를 끼우면 같은 사실이 갈린다
-  lines.push(...opportunityTableLines());
+  lines.push(...opportunityTableLines(state, season));
   lines.push(...yieldTableLines());
   lines.push(...persistenceTableLines());
   lines.push('');
@@ -1155,7 +1181,8 @@ export function observeRegion(
 /** 인자 해석의 결과 — 셋 중 하나다 */
 type Parsed =
   | { kind: 'graph' }
-  | { kind: 'world' }
+  /** 세계의 보고 — `--at <철>` 을 밝히면 「지금」 을 가진 표들이 그 철의 값을 낸다 (C038) */
+  | { kind: 'world'; season?: SeasonId }
   | { kind: 'region'; spec: RegionSpec; options: ObserveOptions }
   | { kind: 'usage'; unknown: string[] };
 
@@ -1228,11 +1255,13 @@ export function parseArgs(args: readonly string[]): Parsed {
     // 방을 주지 않았다 — 그림은 방이 있어야 한다 (그 자리는 C007 그대로다)
     if (pictures.length > 0) return { kind: 'usage', unknown: ['(방 이름이 없다)'] };
     // `--report` 하나면 **세계의 보고**다 (C021 SPEC-006) — 검사 서른다섯과 방마다의 분포.
-    // 방과 함께 쓰는 것들(--graph · --at)과는 섞이지 않는다: 무엇을 볼지가 갈리기 때문이다
+    // --graph 와는 섞이지 않는다: 무엇을 볼지가 갈리기 때문이다.
+    //
+    // C038 CHANGED — `--at <철>` 을 함께 받는다 (spec SPEC-007). 방 하나의 보고가 이미 받는
+    // **그 인자 · 그 철 어휘**를 쓴다 (두 벌로 짓지 않는다) — 보고의 「지금」 이 그 철의 값이 된다
     if (report) {
       if (graph) return { kind: 'usage', unknown: ['--report (--graph 와 함께 쓸 수 없다)'] };
-      if (season !== undefined) return { kind: 'usage', unknown: [`--at ${season} (방과 함께 쓴다)`] };
-      return { kind: 'world' };
+      return season === undefined ? { kind: 'world' } : { kind: 'world', season };
     }
     return { kind: 'graph' };
   }
@@ -1258,6 +1287,7 @@ export function renderUsage(unknown: readonly string[]): string {
     '  이 도구가 아는 것은 셋이다.',
     '    --graph                       방 · Connector · 중첩 · 경계 · 검사를 표로 읊는다',
     '    --report                      세계의 보고 — 검사와 방마다의 분포를 읊는다 (방 없이)',
+    '        --at <철>                 「지금」 을 가진 표(조건 · 기회)를 그 철의 값으로 낸다',
     '    <REGION_ID> [옵션…]           그 방 하나의 땅을 본다',
     '        --height --surface --traversable --semantic --top-view   낼 그림 (여럿 가능)',
     `        --semantic=<layer>        의미 그림의 layer (기본 ${SETTLEMENT_LAYER})`,
@@ -1278,7 +1308,7 @@ if (process.argv[1] && import.meta.url === `file://${resolve(process.argv[1])}`)
   if (parsed.kind === 'graph') {
     console.log(renderGraph());
   } else if (parsed.kind === 'world') {
-    console.log(renderWorldReport());
+    console.log(renderWorldReport(parsed.season));
   } else if (parsed.kind === 'usage') {
     // 아무것도 하지 않았으므로 성공으로 끝내지 않는다 — world:check 의 어법 그대로 2 다
     // (SPEC-010 경계 ② "모르는 철 이름은 조용히 지금으로 읽지 않는다")

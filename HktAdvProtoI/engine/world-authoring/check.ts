@@ -2758,9 +2758,10 @@ export interface CheckMemory {
   /**
    * 이 세계의 **탄생지** id 목록 — ㊸ 이 태어남의 키를 이것에 견준다.
    *
-   * 주지 않으면 태어남 키는 재지 않는다 (수만 세고 견주지 않는다) — 없는 계약을 거짓으로 읽지
-   * 않는 어법 그대로다. 원천 · 경로와 달리 어느 방의 것인가까지는 견주지 않는다: 태어남은
-   * 그 방에서 일어나는 것이므로 키가 실재하는가만 잰다 (SPEC-007 경계 ③).
+   * C038 CHANGED — 이것은 이제 **생명 계통이 없을 때의 잣대**다. 계통(`CheckRegionsInput.life`)을
+   * 주면 ㊸ 은 그 계통이 말하는 방마다의 탄생지로 원천 · 경로와 **같은 잣대**를 양쪽으로 재고
+   * (그때 이 목록은 읽지 않는다), 계통도 이 목록도 없으면 태어남 키는 재지 않는다 (수만 세고
+   * 견주지 않는다) — 없는 계약을 거짓으로 읽지 않는 어법 그대로다.
    */
   formations?: readonly string[];
 }
@@ -2785,6 +2786,13 @@ interface MemoryContext {
   routesByRegion?: ReadonlyMap<string, readonly string[]>;
   /** 아는 경로 id 전부 */
   routeIds?: ReadonlySet<string>;
+  /**
+   * 그 방에 선 탄생지들 — 생명 계통을 주지 않으면 undefined 이고 그때 태어남의 뒷면도
+   * 앞면의 방 대조도 재지 않는다 (원천 · 경로와 같은 규율 · C038 ADDED)
+   */
+  formationsByRegion?: ReadonlyMap<string, readonly string[]>;
+  /** 아는 탄생지 id 전부 — 유령이 "남의 방 것" 인지 "없는 것" 인지 가른다 */
+  formationIds?: ReadonlySet<string>;
 }
 
 /**
@@ -2825,23 +2833,44 @@ function memoryRoutesByRegion(time: CheckTime): Map<string, string[]> {
 }
 
 /**
+ * 방마다 그 방에 선 탄생지들 — life.formations 의 차례를 지킨다 (두 번 돌리면 같다).
+ * 탄생지가 어느 방의 것인지는 생명 계통이 이미 말한다(`CheckLifeFormation.region`) —
+ * 여기서 다시 고르지 않는다 (원천의 `memorySourcesByRegion` 과 같은 어법 · C038 ADDED).
+ */
+function memoryFormationsByRegion(life: CheckLife): Map<string, string[]> {
+  const out = new Map<string, string[]>();
+  for (const formation of life.formations) {
+    const mine = out.get(formation.region) ?? [];
+    mine.push(formation.id);
+    out.set(formation.region, mine);
+  }
+  return out;
+}
+
+/**
  * ㊸ 기억이 가질 키가 실제 원천 · 경로 · 탄생지이고, 그 역도 참인가 — 양방향.
  *
  * 앞의 잣대(유령)는 `memory.regions` 차례로, 뒤의 잣대(셀 수 없는 것)는 `input.regions`
  * 차례로 잰다 — 뒤를 방마다 재는 까닭은 **기억 자리가 아예 없는 방**도 그 방의 원천을 셀 수
  * 없기 때문이다 (기억은 모든 방에 서는 것이므로 목록에서 빠진 방은 빠진 만큼 걸린다).
  *
- * 태어남의 키는 앞의 잣대만 잰다 — 탄생지가 어느 방의 것인가를 계약이 주지 않기 때문이다.
- * 없는 것을 가리키는 키는 잡되, 주지 않은 진리로 뒷면을 재지 않는다 (원천·경로에 계통·시간이
- * 없으면 그 쪽을 재지 않는 것과 같은 규율).
+ * C038 CHANGED — 태어남의 키도 **양쪽으로** 잰다. 앞선 주석은 "탄생지가 어느 방의 것인가를
+ * 계약이 주지 않는다" 고 적었으나 그것은 사실이 아니었다: 생명 계통이 탄생지마다 `region` 을
+ * 이미 든다(`CheckLifeFormation.region`). 그래서 계통을 주면 원천 · 경로와 **완전히 같은 어법**
+ * 으로 잰다 — 그 방의 것이 아닌 키 · 아는 탄생지가 아닌 키 · 셀 자리가 없는 탄생지.
+ * 계통을 주지 않으면 뒷면도 앞면의 방 대조도 재지 않고 계약이 준 전역 목록(`memory.formations`)
+ * 으로 앞면만 잰다 — 주지 않은 진리로 재지 않는 규율은 그대로다.
  */
 function checkMemoryRefs(cx: MemoryContext): CheckItem {
   const head = MEMORY_ITEMS.refs;
   const { regions } = cx.memory;
   const refs: CheckRef[] = [];
   const declared = new Map<string, CheckMemoryRegion>();
-  /** 태어남의 잣대 — 계약이 탄생지를 주지 않으면 undefined 이고 그때 태어남 쪽은 재지 않는다 */
-  const formationIds = cx.memory.formations ? new Set(cx.memory.formations) : undefined;
+  /**
+   * 계통이 없을 때의 태어남 잣대 — 계약이 준 전역 목록. 계통이 있으면 이것은 읽지 않는다
+   * (그때는 `cx.formationIds` 가 방까지 갈라 본다). 둘 다 없으면 태어남 쪽은 재지 않는다
+   */
+  const declaredFormations = cx.memory.formations ? new Set(cx.memory.formations) : undefined;
   let sourceKeys = 0;
   let routeKeys = 0;
   let birthKeys = 0;
@@ -2880,9 +2909,22 @@ function checkMemoryRefs(cx: MemoryContext): CheckItem {
         });
       }
     }
-    if (formationIds) {
+    if (cx.formationsByRegion && cx.formationIds) {
+      // 계통이 있다 — 원천 · 경로와 같은 어법으로 방까지 갈라 본다
+      const mine = cx.formationsByRegion.get(room.id) ?? [];
       for (const key of room.formations ?? []) {
-        if (formationIds.has(key)) continue;
+        if (mine.includes(key)) continue;
+        refs.push({
+          where: room.id,
+          detail: cx.formationIds.has(key)
+            ? `탄생지 ${key} 은 이 방의 것이 아니다`
+            : `탄생지 ${key} 은 아는 탄생지가 아니다`,
+        });
+      }
+    } else if (declaredFormations) {
+      // 계통이 없다 — 키가 실재하는가만 잰다 (어느 방의 것인가는 알 길이 없다)
+      for (const key of room.formations ?? []) {
+        if (declaredFormations.has(key)) continue;
         refs.push({ where: room.id, detail: `탄생지 ${key} 은 아는 탄생지가 아니다` });
       }
     }
@@ -2901,6 +2943,12 @@ function checkMemoryRefs(cx: MemoryContext): CheckItem {
       for (const id of cx.routesByRegion.get(region.id) ?? []) {
         if (room?.routes.includes(id)) continue;
         refs.push({ where: region.id, detail: `이 방을 지나는 경로 ${id} 을 셀 자리가 없다` });
+      }
+    }
+    if (cx.formationsByRegion) {
+      for (const id of cx.formationsByRegion.get(region.id) ?? []) {
+        if (room?.formations?.includes(id)) continue;
+        refs.push({ where: region.id, detail: `탄생지 ${id} 을 셀 자리가 없다` });
       }
     }
   }
@@ -2972,7 +3020,7 @@ function memoryItems(input: CheckRegionsInput): CheckItem[] {
       absentItem(head, '기억 쪽 계약이 주어지지 않았다'),
     );
   }
-  const { ecology, time } = input;
+  const { ecology, time, life } = input;
   const cx: MemoryContext = {
     input,
     memory,
@@ -2981,6 +3029,9 @@ function memoryItems(input: CheckRegionsInput): CheckItem[] {
     sourceIds: ecology ? new Set(ecology.sources.map((source) => source.id)) : undefined,
     routesByRegion: time ? memoryRoutesByRegion(time) : undefined,
     routeIds: time ? new Set(time.routes.map((route) => route.id)) : undefined,
+    // 계통이 탄생지마다 방을 이미 든다 — ecology · time 과 같은 자리 · 같은 어법 (C038 ADDED)
+    formationsByRegion: life ? memoryFormationsByRegion(life) : undefined,
+    formationIds: life ? new Set(life.formations.map((formation) => formation.id)) : undefined,
   };
   return [checkMemoryRefs(cx), checkPersistenceSummary(cx)];
 }
