@@ -19,7 +19,19 @@
 // 경계(frontier)로 밝힌 이름은 Description 이 없어도 정상이다 — 그 끝의 anchor 도 보지 않는다.
 
 import type { CompiledWorldTerrain } from './compiled';
-import type { Condition, ConditionQueryKind, ConditionTargetKind } from './condition';
+import {
+  CHANGE_QUALIFIER_MODES,
+  CONDITION_OPERATORS,
+  conditionLeaves,
+  formatConditionLeaf,
+  SINGLETON_TARGET_KINDS,
+  TIME_QUALIFIER_MODES,
+  VALUELESS_OPERATORS,
+  type Condition,
+  type ConditionLeaf,
+  type ConditionQueryKind,
+  type ConditionTargetKind,
+} from './condition';
 import { areasOf, curvesOf, findPoint, pointsOf, type RegionDescription } from './description';
 import {
   exitsOf,
@@ -558,7 +570,7 @@ function checkCoreRules(input: CheckRegionsInput): CheckItem {
  * 검사 마흔넷을 한 번에 돌린다 — 결과는 기계가 읽는다
  * (T1 의 아홉 + C014 의 열셋 + C018 의 넷 + C022 의 일곱 + C029 의 아홉 + C034 의 둘).
  *
- * 순서는 언제나 ①~⑨ · ⑩~㉒ · ㉓~㉖ · ㉗~㉝ · ㉞~㊷ · ㊸ ㊼ 이고, 각 항목의 refs 는 준
+ * 순서는 언제나 ①~⑨ · ⑩~㉒ · ㉓~㉖ · ㉗~㉝ · ㉞~㊷ · ㊸ ㊼ · ㊹ 이고, 각 항목의 refs 는 준
  * 배열 순서다 — 두 번 돌리면 같다.
  * 세계를 바꾸지 않는 읽기 전용 관찰이다.
  */
@@ -582,6 +594,7 @@ export function checkRegions(input: CheckRegionsInput): CheckReport {
     ...lifeItems(input),
     ...accessItems(input),
     ...memoryItems(input),
+    ...conditionItems(input),
   ];
   const counts: Record<CheckStatus, number> = { pass: 0, fail: 0, absent: 0, report: 0 };
   for (const item of items) counts[item.status]++;
@@ -2980,11 +2993,105 @@ export interface CheckCondition {
 /** ㊹ 의 번호·이름 — 계약이 없을 때의 absent 도 이것을 쓴다 */
 export const CONDITION_ITEM = { mark: '㊹', id: 'condition-refs', name: '조건이 가리키는 것' } as const;
 
+/** 잎 하나가 걸린 까닭들 — ①~④ 의 차례로 (빈 배열이면 성하다) */
+function conditionLeafFaults(leaf: ConditionLeaf, vocabulary: CheckConditionVocabulary): string[] {
+  const faults: string[] = [];
+  const { target, query, operator, value, qualifier } = leaf;
+
+  // ① Target — 갈래가 어휘에 있는가 · ref 가 있어야 하는가 · ref 가 실제 id 인가
+  const ids = vocabulary.targets[target.kind];
+  const knownKind = ids !== undefined;
+  if (!knownKind) {
+    faults.push(`Target 갈래 ${target.kind} 은 어휘에 없다`);
+  } else if (!SINGLETON_TARGET_KINDS.includes(target.kind)) {
+    if (target.ref === undefined) faults.push(`Target ${target.kind} 에 ref 가 없다`);
+    else if (!ids.includes(target.ref)) faults.push(`ref ${target.ref} 은 아는 ${target.kind} 이 아니다`);
+  }
+
+  // ② Query — 그 갈래에 허용된 query 인가 · paths 를 밝혔으면 path 가 그 안에 있는가.
+  // 모르는 갈래의 query 는 무엇과 견줄 수가 없다 — ① 만 적고 재지 않는다 (㊸ 의 어법)
+  if (knownKind) {
+    const rule = vocabulary.queries.find(
+      (row) => row.target === target.kind && row.query === query.kind,
+    );
+    if (rule === undefined) {
+      faults.push(`Query ${query.kind} 은 ${target.kind} 에 허용되지 않는다`);
+    } else if (rule.paths !== undefined) {
+      if (query.path === undefined) faults.push(`${target.kind}.${query.kind} 은 path 를 요구한다`);
+      else if (!rule.paths.includes(query.path)) {
+        faults.push(`path ${query.path} 은 ${target.kind}.${query.kind} 의 경로에 없다`);
+      }
+    }
+  }
+
+  // ③ Operator 와 Value 의 짝
+  if (!CONDITION_OPERATORS.includes(operator)) {
+    faults.push(`operator ${operator} 은 아홉 밖이다`);
+  } else if (VALUELESS_OPERATORS.includes(operator)) {
+    if (value !== undefined) faults.push(`${operator} 은 value 를 받지 않는다`);
+  } else if (value === undefined) {
+    faults.push(`${operator} 은 value 를 요구한다`);
+  } else if (operator === 'IN') {
+    if (!Array.isArray(value)) faults.push('IN 의 value 는 목록이어야 한다');
+  } else if (Array.isArray(value)) {
+    faults.push(`${operator} 의 value 는 목록일 수 없다`);
+  }
+
+  // ④ Qualifier 의 형
+  if (qualifier !== undefined) {
+    if (qualifier.kind === 'time') {
+      if (!TIME_QUALIFIER_MODES.includes(qualifier.mode)) {
+        faults.push(`time qualifier 의 mode ${qualifier.mode} 은 다섯 밖이다`);
+      }
+      const { seconds } = qualifier;
+      if (typeof seconds !== 'number' || !Number.isFinite(seconds) || seconds < 0) {
+        faults.push(`time qualifier 의 seconds ${String(seconds)} 은 유한한 0 이상의 수가 아니다`);
+      }
+    } else if (qualifier.kind === 'change') {
+      if (!CHANGE_QUALIFIER_MODES.includes(qualifier.mode)) {
+        faults.push(`change qualifier 의 mode ${qualifier.mode} 은 넷 밖이다`);
+      }
+    } else {
+      faults.push(`qualifier 의 kind ${String((qualifier as { kind: unknown }).kind)} 은 time · change 밖이다`);
+    }
+  }
+
+  return faults;
+}
+
 /**
- * ㊹ 조건의 참조 무결 — Agent E 가 구현하고 `checkRegions` 의 items 에 `...memoryItems(input)` 뒤에 잇는다.
- * (기억 ㊸ 과 ㊼ 사이의 번호이지만 실리는 차례는 계약이 는 차례다 — ㉓~㉖ 이 ⑩~㉒ 뒤에 선 그 어법)
+ * ㊹ 조건의 참조 무결 — 자리마다 그 조건의 잎 전부를 어휘에 견준다.
+ *
+ * refs 의 차례는 자리(sites) → 잎(적힌 차례) → 까닭(①~④) 이다 — 두 번 돌리면 같다.
+ * 잎 하나에 까닭이 여럿이면 줄도 여럿이다 (무엇이 어긋났는지 다 적는다).
+ */
+function checkConditionRefs(condition: CheckCondition): CheckItem {
+  const refs: CheckRef[] = [];
+  let leafCount = 0;
+  for (const site of condition.sites) {
+    for (const leaf of conditionLeaves(site.condition)) {
+      leafCount++;
+      const line = formatConditionLeaf(leaf);
+      for (const reason of conditionLeafFaults(leaf, condition.vocabulary)) {
+        refs.push({ where: site.where, detail: `${line} — ${reason}` });
+      }
+    }
+  }
+  return {
+    ...CONDITION_ITEM,
+    status: refs.length === 0 ? 'pass' : 'fail',
+    answer: `자리 ${condition.sites.length} · 잎 ${leafCount} · 걸린 것 ${refs.length}`,
+    refs,
+  };
+}
+
+/**
+ * ㊹ — 조건 쪽 계약을 주지 않으면 absent 다 (통과가 아니다). `checkRegions` 의 items 에
+ * `...memoryItems(input)` 뒤에 선다 (기억 ㊸ 과 ㊼ 사이의 번호이지만 실리는 차례는 계약이 는
+ * 차례다 — ㉓~㉖ 이 ⑩~㉒ 뒤에 선 그 어법).
  */
 export function conditionItems(input: CheckRegionsInput): CheckItem[] {
-  void input;
-  throw new Error('conditionItems — Agent E 가 구현한다');
+  const condition = input.condition;
+  if (!condition) return [absentItem(CONDITION_ITEM, '조건 쪽 계약이 주어지지 않았다')];
+  return [checkConditionRefs(condition)];
 }

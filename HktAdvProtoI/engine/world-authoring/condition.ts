@@ -230,6 +230,158 @@ export function isConditionGroup(condition: Condition): condition is ConditionAl
   return 'all' in condition || 'any' in condition;
 }
 
+/** 스칼라인가 — 문자열 · 수 · 참거짓 */
+function isScalar(value: unknown): value is ConditionScalar {
+  return typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean';
+}
+
+/** 값의 목록인가 (IN 이 읽는 쪽) */
+function isList(value: unknown): value is readonly ConditionScalar[] {
+  return Array.isArray(value);
+}
+
+/** 유한한 수인가 — 시각 · 견줌에 쓸 수 있는 수 */
+function isFiniteNumber(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value);
+}
+
+/**
+ * 스칼라 둘을 operator 로 견준다 — 수는 여섯 전부, 문자열 · 참거짓은 == · != 만.
+ * 형이 어긋나면(수 대 문자열 · 문자열에 >) 판정 불가다 — 거짓으로 눌리지 않는다.
+ */
+function compareScalars(
+  operator: ConditionOperator,
+  current: ConditionScalar,
+  expected: ConditionScalar,
+): ConditionVerdict {
+  if (typeof current !== typeof expected) return 'undecidable';
+  if (typeof current === 'number' && typeof expected === 'number') {
+    switch (operator) {
+      case '==':
+        return current === expected ? 'met' : 'unmet';
+      case '!=':
+        return current !== expected ? 'met' : 'unmet';
+      case '>':
+        return current > expected ? 'met' : 'unmet';
+      case '>=':
+        return current >= expected ? 'met' : 'unmet';
+      case '<':
+        return current < expected ? 'met' : 'unmet';
+      case '<=':
+        return current <= expected ? 'met' : 'unmet';
+      default:
+        return 'undecidable';
+    }
+  }
+  switch (operator) {
+    case '==':
+      return current === expected ? 'met' : 'unmet';
+    case '!=':
+      return current !== expected ? 'met' : 'unmet';
+    default:
+      return 'undecidable';
+  }
+}
+
+/**
+ * qualifier 를 걸기 전의 판정 — operator 와 잎의 value 로 읽힌 값 하나를 본다.
+ * 없는 것(undefined)은 EXISTS 의 거짓이고 비교의 거짓이다. IN 은 value 가 목록이어야 하고
+ * 나머지는 스칼라여야 한다 — 형이 어긋나면 판정 불가다. (BECAME 이 직전 값에도 이것을 건다)
+ */
+function baseVerdict(leaf: ConditionLeaf, current: ConditionValue | undefined): ConditionVerdict {
+  const { operator, value } = leaf;
+  if (operator === 'EXISTS') return current !== undefined ? 'met' : 'unmet';
+  if (operator === 'NOT_EXISTS') return current === undefined ? 'met' : 'unmet';
+  if (operator === 'IN') {
+    if (!isList(value)) return 'undecidable';
+    if (current === undefined) return 'unmet';
+    if (!isScalar(current)) return 'undecidable';
+    return value.includes(current) ? 'met' : 'unmet';
+  }
+  if (!CONDITION_OPERATORS.includes(operator)) return 'undecidable';
+  if (!isScalar(value)) return 'undecidable';
+  if (current === undefined) return 'unmet';
+  if (!isScalar(current)) return 'undecidable';
+  return compareScalars(operator, current, value);
+}
+
+/** 시간 qualifier — 읽힌 값이 시각(유한한 수)이어야 한다. 표는 `TimeQualifier` 의 주석 */
+function timeVerdict(
+  leaf: ConditionLeaf,
+  qualifier: TimeQualifier,
+  current: ConditionValue | undefined,
+  read: ConditionRead,
+): ConditionVerdict {
+  if (!isFiniteNumber(current)) return 'undecidable';
+  const { mode, seconds } = qualifier;
+  if (mode === 'SINCE') return current >= seconds ? 'met' : 'unmet';
+  if (mode === 'BEFORE') return current < seconds ? 'met' : 'unmet';
+  const now = read.now;
+  if (!isFiniteNumber(now)) return 'undecidable';
+  if (mode === 'WITHIN') return now - current <= seconds ? 'met' : 'unmet';
+  if (mode === 'AFTER') return now - current > seconds ? 'met' : 'unmet';
+  // FOR — 그 값이 언제부터 유지됐는가를 호출자가 준다
+  const heldSince = read.heldSince?.(leaf);
+  if (!isFiniteNumber(heldSince)) return 'undecidable';
+  return now - heldSince >= seconds ? 'met' : 'unmet';
+}
+
+/** 변화 qualifier — 직전 값을 호출자가 주어야 한다 (기반은 저장하지 않는다) */
+function changeVerdict(
+  leaf: ConditionLeaf,
+  qualifier: ChangeQualifier,
+  current: ConditionValue | undefined,
+  read: ConditionRead,
+): ConditionVerdict {
+  if (!read.previous) return 'undecidable';
+  const previous = read.previous(leaf);
+  if (previous === UNREADABLE) return 'undecidable';
+  const { mode } = qualifier;
+  if (mode === 'BECAME') {
+    // 직전에는 거짓이고 지금은 참 — 지금 참인 것은 호출자가 이미 확인했다
+    const before = baseVerdict(leaf, previous);
+    if (before === 'undecidable') return 'undecidable';
+    return before === 'unmet' ? 'met' : 'unmet';
+  }
+  if (!isFiniteNumber(current) || !isFiniteNumber(previous)) return 'undecidable';
+  if (mode === 'INCREASED') return current > previous ? 'met' : 'unmet';
+  if (mode === 'DECREASED') return current < previous ? 'met' : 'unmet';
+  // CROSSED — 직전 값과 지금 값 사이에 value 가 있다 (한쪽은 미만 · 한쪽은 이상)
+  const pivot = leaf.value;
+  if (!isFiniteNumber(pivot)) return 'undecidable';
+  const crossed = (previous < pivot && current >= pivot) || (previous >= pivot && current < pivot);
+  return crossed ? 'met' : 'unmet';
+}
+
+/** 잎 하나 — 주석의 차례 ①~⑤ 그대로 */
+function evaluateLeaf(leaf: ConditionLeaf, read: ConditionRead): ConditionVerdict {
+  // ① 자리만인 것은 판정 불가다 — 거짓이 아니다
+  if (DEFERRED_TARGET_KINDS.includes(leaf.target.kind)) return 'undecidable';
+  if (DEFERRED_QUERY_KINDS.includes(leaf.query.kind)) return 'undecidable';
+  if (leaf.chance !== undefined) return 'undecidable';
+  // ② 읽는다 — 모르는 것은 판정 불가, 없는 것은 undefined 로 아래에 흐른다
+  const current = read.value(leaf);
+  if (current === UNREADABLE) return 'undecidable';
+  // ③ ④ operator 의 판정 — 거짓이면 qualifier 를 묻지 않고 거짓이다
+  const base = baseVerdict(leaf, current);
+  if (base !== 'met') return base;
+  // ⑤ qualifier 를 덧건다
+  const { qualifier } = leaf;
+  if (qualifier === undefined) return 'met';
+  if (qualifier.kind === 'time') return timeVerdict(leaf, qualifier, current, read);
+  if (qualifier.kind === 'change') return changeVerdict(leaf, qualifier, current, read);
+  return 'undecidable';
+}
+
+/** 집합의 어법 — `ConditionVerdict` 의 주석 그대로. 판정 불가는 위로 오른다 */
+function combine(verdicts: readonly ConditionVerdict[], mode: 'all' | 'any'): ConditionVerdict {
+  const short: ConditionVerdict = mode === 'all' ? 'unmet' : 'met';
+  const rest: ConditionVerdict = mode === 'all' ? 'met' : 'unmet';
+  if (verdicts.includes(short)) return short;
+  if (verdicts.includes('undecidable')) return 'undecidable';
+  return rest;
+}
+
 /**
  * 조건 하나를 판정한다 — 게임 명사 0 · 저장 0.
  *
@@ -240,23 +392,43 @@ export function isConditionGroup(condition: Condition): condition is ConditionAl
  * 집합은 위 `ConditionVerdict` 의 어법.
  */
 export function evaluateCondition(condition: Condition, read: ConditionRead): ConditionVerdict {
-  void condition;
-  void read;
-  throw new Error('evaluateCondition — Agent E 가 구현한다');
+  if ('all' in condition) {
+    return combine(
+      condition.all.map((child) => evaluateCondition(child, read)),
+      'all',
+    );
+  }
+  if ('any' in condition) {
+    return combine(
+      condition.any.map((child) => evaluateCondition(child, read)),
+      'any',
+    );
+  }
+  return evaluateLeaf(condition, read);
 }
 
 /** 그 조건의 잎 전부 — 적힌 차례 그대로 (검사 ㊹ 과 조건 표가 읽는다) */
 export function conditionLeaves(condition: Condition): ConditionLeaf[] {
-  void condition;
-  throw new Error('conditionLeaves — Agent E 가 구현한다');
+  if ('all' in condition) return condition.all.flatMap(conditionLeaves);
+  if ('any' in condition) return condition.any.flatMap(conditionLeaves);
+  return [condition];
 }
 
 /**
  * 잎 하나를 한 줄로 — 사람이 읽을 말이 아니라 **기계가 읽는 표기**다 (검사의 refs · 조건 표가
- * 그대로 싣는다). `clock.property(season) IN [STILL,SEEP]` · `history(FOREST).history(passages.R1) EXISTS`
+ * 그대로 싣는다). `clock.property(season) IN [s1,s2]` · `history(A).history(passages.R1) EXISTS`
  * · qualifier 는 뒤에 `WITHIN 240` · `BECAME` 식으로 붙는다.
  */
 export function formatConditionLeaf(leaf: ConditionLeaf): string {
-  void leaf;
-  throw new Error('formatConditionLeaf — Agent E 가 구현한다');
+  const { target, query, operator, value, qualifier } = leaf;
+  const targetText = target.ref === undefined ? target.kind : `${target.kind}(${target.ref})`;
+  const queryText = query.path === undefined ? query.kind : `${query.kind}(${query.path})`;
+  let line = `${targetText}.${queryText} ${operator}`;
+  if (value !== undefined) {
+    line += isList(value) ? ` [${value.map(String).join(',')}]` : ` ${String(value)}`;
+  }
+  if (qualifier !== undefined) {
+    line += qualifier.kind === 'time' ? ` ${qualifier.mode} ${qualifier.seconds}` : ` ${qualifier.mode}`;
+  }
+  return line;
 }
