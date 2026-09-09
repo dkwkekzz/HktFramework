@@ -279,7 +279,7 @@ export function sourceMemoryConditionCodes(state: WorldState, source: ResourceSo
 /**
  * 이 세계의 조건 자리 전부 — 검사 ㊹ 과 observe 의 조건 표가 읽는다 (읽기 전용 · 결정론 차례).
  *
- * 차례: Lock (LOCKS 순) → 원천의 때 (방 순 · 원천 순) → 방의 철 위상 (방 순 · 철 순 STILL·SEEP·LONG_NIGHT·TURN) →
+ * 차례: Lock (LOCKS 순) → 원천의 때 (방 순 · 원천 순) → 방의 철 위상 (방 순 · 철 순 — 시계의 철 차례) →
  * 결속 (방 순 · 탄생지 순 · 요구 순) → 원천의 기억 조건 (방 순 · 원천 순).
  * where 는 `<갈래>:<id>` — `lock:<lockId>` · `source-occurrence:<sourceId>` · `phase:<regionId>/<season>` ·
  * `life:<siteId>/<n>` · `source-memory:<sourceId>`.
