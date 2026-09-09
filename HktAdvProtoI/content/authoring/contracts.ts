@@ -85,8 +85,13 @@ export const LIFE_FORMATION_KINDS: readonly string[] = LIFE_FORMATION_MODES;
  * 이 Cycle 이 둥지에 사체와 그것을 삭이는 거목균을 세웠으므로, 그 원인이 무엇을 전제하는지를
  * 이제 세계가 안다 (C022 가 "사체를 남기는 것이 세계에 없어" 비워 둔 자리다).
  *
- * 사체 자신의 원인(`nest-kill`)은 아직 들지 않는다 — 그것을 두고 가는 포식수가 세계에 서지
- * 않았고, **밝히지 않은 것을 결손으로 세지 않는다** (spec 기본형 ④ · 넣는 것은 C025 다).
+ * 사체 자신의 원인(`nest-kill`)은 **아직 들지 않는다.** C025 가 그것을 두고 가는 포식수를
+ * 세웠으므로 이제 이 목록에 들 자격을 갖추었으나(NEST_CARCASS.recoveryLife = PREDATOR),
+ * 넣으면 검사 ㉛ 이 **fail** 이다 — ㉛ 은 "그 개체군을 세우는 **탄생지**가 있는가" 를 묻고
+ * 포식수를 세우는 것은 탄생지가 아니라 **관계**(CALLS)이기 때문이다. 그 물음을 넓히는 것은
+ * 기반의 일이므로(engine/world-authoring/check.ts) C025 는 여기를 그대로 두었다 —
+ * **밝히지 않은 것을 결손으로 세지 않는다** (C024 가 세운 그 규율 그대로). 기반이 관계를
+ * 함께 묻게 되는 날 이 목록에 `RECOVERY_NEST_KILL` 한 줄이 늘고 ㉛ 의 대상이 셋이 된다.
  */
 export const LIFE_BOUND_RECOVERY_CAUSES: readonly string[] = [
   RECOVERY_MOLT_CYCLE,

@@ -54,6 +54,7 @@ import {
   type CheckLife,
   type CheckLifeAbsence,
   type CheckLifeFormation,
+  type CheckLifeLink,
   type CheckLifePopulation,
   type CheckLifeRecovery,
   type CheckRegion,
@@ -326,9 +327,21 @@ export const WORLD_CHECK_LIFE: CheckLife = {
       (population): CheckLifePopulation => ({ id: population.id, region: spec.id }),
     ),
   ),
-  // 개체군 사이의 관계는 이 세계에 아직 하나도 없다 — ㉜ 는 잴 것이 없어 `absent` 이고,
-  // 그것을 통과로 적지 않는 것이 옳다 (spec SPEC-008 경계 ① · 검사 ⑮ 의 선례). C025 가 세운다
-  links: [],
+  // 개체군 사이의 **관계** (C025 CHANGED — C022 가 비워 둔 자리가 찬다). 방 차례 · 그 방
+  // 데이터 차례로 편다 (결정론). 여기서 판정하는 것이 하나도 없다 — 양 끝이 실재하는지도
+  // 밝힌 이음이 아는 Connector 인지도 기반이 잰다 (㉜). 갈래의 이름(CALLS · EATS · LEAVES)은
+  // 기반이 읽지 않는 컨텐츠의 글자이고, `to` 가 개체군이 아니면 **잔류 원천**이어야 한다는
+  // 것이 ㉜ 의 물음이다 (무엇이 잔류인지는 아래 residueSourceIds 가 답한다)
+  links: REGION_SPECS.flatMap((spec) =>
+    (spec.ecology?.links ?? []).map(
+      (link): CheckLifeLink => ({
+        from: link.from,
+        to: link.to,
+        kind: link.kind,
+        ...(link.via === undefined ? {} : { via: link.via }),
+      }),
+    ),
+  ),
   // 회복 원인이 **살아 있는 것을 전제하는** 원천들 — 어느 코드가 그런지는 계약이 고른다
   // (content/authoring/contracts.ts). 밝히지 않은 원천은 그 목록에 들지 않으므로 ㉛ 의
   // 대상이 아니고, 밝힌 원천이 개체군을 비워 두면 그것이 결손이다 (SPEC-008 경계 ②)

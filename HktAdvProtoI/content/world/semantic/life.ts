@@ -20,6 +20,7 @@
 
 import { findPoint } from '../../../engine/world-authoring/description';
 import {
+  REGION_GRAPH,
   REGION_SPECS,
   RESOURCE_LAYER,
   regionSpec,
@@ -27,6 +28,7 @@ import {
   type LifeSitePhase,
   type LifeSiteSpec,
   type LifeSiteTrace,
+  type PopulationLink,
   type PopulationSpec,
 } from '../../regions';
 import type { WorldPosition } from './position';
@@ -82,6 +84,9 @@ export interface Population extends PopulationSpec {
 
 // 방 하나당 엮기 한 번. 탄생지가 없는 방도 빈 배열로 담는다 — 그것도 답이다.
 const SITES_BY_REGION = new Map<string, readonly LifeSite[]>();
+
+// 세계가 아는 관계 전부 — 첫 물음에 한 번 편다 (아래 populationLinks).
+let LINK_LIST: readonly PopulationLink[] | null = null;
 
 // id → 탄생지 · id → 개체군. 세계가 아는 전부를 한 번 훑어 만든다 (아래 안쪽 두 함수).
 let SITE_INDEX: Map<string, LifeSite> | null = null;
@@ -298,6 +303,78 @@ export function leavingLifeSiteOf(sourceId: string): LifeSite | undefined {
 }
 
 /**
+ * RULE-POPULATION-LINK-001 (C025 ADDED · spec R1 · SPEC-004) —
+ * 세계가 아는 **관계 전부** (개체군 사이의 것 · Life F14).
+ *
+ * 방 차례 · 그 방 데이터 차례로 편다 (결정론). 관계를 밝히지 않은 방은 아무것도 내지 않고,
+ * 하나도 없으면 빈 목록이다 — 그때 관계의 규칙은 한 값도 건드리지 않는다.
+ *
+ * **여기서 판정하지 않는다** — 그 관계가 실제로 서는지(끊긴 참조 · 이음)는 아래
+ * `populationLinkStands` 가 답하고, 문턱과 값의 오르내림은 규칙이 안다.
+ */
+export function populationLinks(): readonly PopulationLink[] {
+  if (LINK_LIST) return LINK_LIST;
+  const links: PopulationLink[] = [];
+  for (const spec of REGION_SPECS) {
+    for (const link of spec.ecology?.links ?? []) links.push(link);
+  }
+  LINK_LIST = links;
+  return links;
+}
+
+/**
+ * RULE-POPULATION-LINK-001 (C025 ADDED · spec R1 경계 · SPEC-005) —
+ * 그 관계가 **실제로 서는가**.
+ *
+ * 묻는 것은 둘이다.
+ *   ① **양 끝이 세계에 있는가** — from 은 언제나 개체군이고, to 는 갈래가 정한다
+ *      (CALLS · EATS 는 개체군, LEAVES 는 원천). 세계가 모르는 것을 가리킨 관계는
+ *      **아무 일도 하지 않는다** (끊긴 참조는 조용하다 · C021 R3 의 어법).
+ *   ② **두 방을 잇는 이음이 있는가** — 두 끝이 다른 방에 살면 밝힌 이음이 그 두 방을
+ *      실제로 이어야 선다. 밝히지 않았거나 그 이음이 다른 두 방의 것이면 서지 않는다
+ *      (Flow 의 anchor 가 그런 그대로). 같은 방의 관계는 이음을 묻지 않는다.
+ *
+ * 이음의 **방향은 묻지 않는다** — 부르고 먹는 것은 걸어 지나가는 일이 아니라 두 방이
+ * 맞닿아 있는가의 일이므로, 어느 끝이 from 인지는 여기서 뜻을 가지지 않는다.
+ *
+ * **규칙은 어떤 개체군도 어떤 원천도 이름으로 알지 못한다** (Life F13 · R13) — 여기가 아는
+ * 것은 "관계의 갈래" 라는 형뿐이고, 누가 누구를 부르고 먹는지는 데이터에만 있다.
+ */
+export function populationLinkStands(link: PopulationLink): boolean {
+  const from = findPopulation(link.from);
+  if (!from) return false;
+  const toRegion = linkTargetRegion(link);
+  if (toRegion === undefined) return false;
+  if (from.regionId === toRegion) return true;
+  return link.via !== undefined && connectorJoins(link.via, from.regionId, toRegion);
+}
+
+/**
+ * RULE-SOURCE-CONDITION-001 (C025 ADDED · spec R3) — 그 원천을 **어느 관계가 남기는가**.
+ *
+ * 아무도 남기지 않는 원천은 undefined 다. `leavingLifeSiteOf` 의 **짝이고 같은 어법**이다 —
+ * 원천은 자기가 어디서 오는지 말하지 않고, 무엇이 무엇을 남기는지는 남기는 쪽의 데이터가
+ * 안다 (흐름을 흐름 표에서 · 남기는 경로를 경로 표에서 찾는 그것과 같다).
+ *
+ * 이것을 읽는 자리는 **하나뿐이다** — 되돌아옴을 멎게 하는 조건(sourceConditions). 짝과
+ * 갈리는 자리가 거기다: 탄생이 세우는 원천은 세계가 설 때부터 고갈이지만(그때는 아직 아무것도
+ * 태어나지 않았다), 관계가 남기는 원천은 **거기 있는 채로** 선다 — spec 이 처음을 고갈이라
+ * 말하지 않았고 밝히지 않은 것을 지어내지 않기 때문이다 (initialSourceState 는 그대로다).
+ * 갈아 끼워진 것은 처음이 아니라 **되돌아옴**이다: 한 번 없어지고 나면 시간이 되돌리지
+ * 않고 다음 사냥을 기다린다 — 그 사냥은 RULE-POPULATION-LINK-001 이 한다.
+ *
+ * **서지 않는 관계는 답이 되지 못한다** (경계) — 끊긴 참조나 잇지 않는 이음을 밝힌 관계는
+ * 그 원천을 세우지 못하므로, 그것이 있다고 원천을 고갈로 세우면 아무도 되돌리지 못할 것을
+ * 세우는 셈이 된다. 차례는 데이터의 차례이므로 여럿이 같은 원천을 남기면 앞선 것이 답이다.
+ */
+export function leavingLinkOf(sourceId: string): PopulationLink | undefined {
+  for (const link of populationLinks()) {
+    if (link.kind === 'LEAVES' && link.to === sourceId && populationLinkStands(link)) return link;
+  }
+  return undefined;
+}
+
+/**
  * RULE-POPULATION-DECLINE-001 (C024 ADDED · spec R3 · SPEC-003) —
  * 그 개체군이 밝힌 요구(declineWhen)가 **지금 다 차 있는가**.
  *
@@ -407,6 +484,23 @@ function isRequirementMet(
   const source = findResourceSource(requirement.sourceId);
   if (!source) return false;
   return sourceStateOf(states, source.regionId, source.id).phase === 'available';
+}
+
+/**
+ * 그 관계의 **받는 쪽이 사는 방** — 갈래가 정한다 (C025 ADDED).
+ * 세계가 모르는 개체군 · 원천을 가리켰으면 undefined 다 (끊긴 참조는 조용하다).
+ */
+function linkTargetRegion(link: PopulationLink): string | undefined {
+  if (link.kind === 'LEAVES') return findResourceSource(link.to)?.regionId;
+  return findPopulation(link.to)?.regionId;
+}
+
+/** 그 이음이 **그 두 방을 잇는가** — 모르는 이음이면 거짓이다 (C025 ADDED) */
+function connectorJoins(connectorId: string, one: string, other: string): boolean {
+  const connector = REGION_GRAPH.connectors.find((entry) => entry.id === connectorId);
+  if (!connector) return false;
+  const ends = [connector.from.region, connector.to.region];
+  return ends.includes(one) && ends.includes(other);
 }
 
 /** 세계가 아는 모든 방의 탄생지를 id 로 엮은 표 — 첫 물음에 한 번 만든다 */

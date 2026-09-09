@@ -51,7 +51,12 @@ import {
   type SeasonId,
   type SupplyMode,
 } from '../../regions';
-import { leavingLifeSiteOf, lifeTraceOverlayIn, populationValueOf } from './life';
+import {
+  leavingLifeSiteOf,
+  leavingLinkOf,
+  lifeTraceOverlayIn,
+  populationValueOf,
+} from './life';
 import type { WorldPosition } from './position';
 import { isPassingRegion, leavingRouteOf, type PresencePassState } from './presence';
 import { NOT_THIS_HOUR, NOT_THIS_SEASON, isDayPhaseListed, isSeasonListed } from './region-phase';
@@ -730,8 +735,15 @@ export function sourceConditions(
   // **아직 없는 원천에만 묻는 것도 ② ③ 그대로다** — 터진 뒤 서 있는 껍질은 캘 수 있고,
   // 그때 이 코드는 걸리지 않는다. 규칙은 무엇이 그것을 세우는지 이름으로 알지 못한다:
   // "어느 탄생지가 세우는 원천" 이라는 형뿐이고, 무엇이 무엇을 세우는지는 데이터에만 있다.
+  //
+  // C025 CHANGED (spec R3 · SPEC-003 경계 ④) — **어느 관계가 `LEAVES` 로 남기는 원천도
+  // 같은 자리에 선다.** 물길이 오지 않은 것 · 아직 지나가지 않은 것 · 아직 태어나지 않은
+  // 것과 **같은 사실**이기 때문이다: 거기 지금 없다. 그래서 **같은 코드**이고 같은 자리이며,
+  // 실린 동안 되돌아옴의 진행이 오르지 않는다 — 되돌리는 것은 시간이 아니라 **다음 사냥**
+  // 이고 그것은 RULE-POPULATION-LINK-001 이 한다. 두 갈래가 같은 원천을 남겨도 코드는
+  // 하나다 (걸린 것은 "거기 없다" 는 한 사실이므로 두 번 실을 것이 없다).
   if (
-    leavingLifeSiteOf(source.id) &&
+    (leavingLifeSiteOf(source.id) || leavingLinkOf(source.id)) &&
     sourceStateOf(states, source.regionId, source.id).phase !== 'available'
   ) {
     codes.push(CONDITION_UNMET);

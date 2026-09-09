@@ -15,9 +15,16 @@ import {
   LIFE_NEEDS_CARCASS,
   LIFE_ROLE_DECAY_SUPPLY,
   POPULATION_DECLINE_CONDITION_LOST,
+  POPULATION_DECLINE_EATEN,
   RULE_NEST_TRANSFORM,
 } from './ecology';
-import { FORM_CARCASS_BLOOM, TREE_FUNGUS } from './lives';
+import {
+  BIG_BIRD,
+  FORM_CARCASS_BLOOM,
+  PREDATOR,
+  PRESENCE_PREDATOR,
+  TREE_FUNGUS,
+} from './lives';
 import {
   FOREST_CHAIN,
   FORM_CARCASS,
@@ -27,6 +34,7 @@ import {
   GIANT_TREE_FUNGUS,
   NO_DECOMPOSER,
   ORE_EATER_MOLT,
+  PRESENCE_LAYER,
   RECOVERY_CARCASS_DECAY,
   RECOVERY_HUSK_SHED,
   RECOVERY_NEST_KILL,
@@ -232,6 +240,29 @@ export const PREDATOR_NEST_SPEC: RegionSpec = {
         tag: 'NEST_FUNGUS',
         shape: { kind: 'circle', center: { x: -6, z: 4 }, radius: 9 },
       },
+      // ── C025 ADDED — **포식수가 도는 자락 하나** (Play §5.7 · V21 · spec World Change 8) ──
+      //
+      // 상한이 1 이므로 자락도 하나다 — 거목의 방이 떼에 세운 동심원(presence-swarm-*)의
+      // 가장 작은 꼴이고, 값이 0 이면 하나도 서지 않는다.
+      //
+      // **중심 (-10, 7) · 반경 8 의 근거** — 이 방에서 포식수가 하는 일은 둘이다: 굴에 있고,
+      // 사냥한 것을 사체로 두고 간다. 그래서 그 둘 **사이**에 선다 — 균사가 핀 굴(-6, 4)에서
+      // 5.0 · 사체(-15, 10)에서 5.83 이라 자락 하나가 두 자리를 함께 품는다.
+      //   · 하나뿐인 출구 NEST_TRAIL(18, 0) 에서 28.9 — 들어서자마자 밟는 자리가 아니다.
+      //   · 컴파일해 격자를 훑어 확인했다 — 중심과 반지름 8 의 여덟 방위가 전부 통행 가능한
+      //     평지(surface=flat · 높이 0)다. 이 방은 anchor 와 흔적뿐이라 어디나 평지다.
+      //   · 자락이 extent(-20..20) 안에 온전히 든다 — x -18..-2 · z -1..15.
+      //   · **이 layer 에 이미 선 것이 하나도 없다** — 이 방의 첫 presence op 다.
+      //
+      // 흔적 layer 가 아닌 것은 거목의 방 · 숲 안쪽과 같은 까닭이다: 흙이 짙어지는 것이
+      // 아니라 **그것이 거기 돈다**는 말이고, 높이도 표면도 통행도 한 값 건드리지 않는다.
+      {
+        id: 'presence-predator-1',
+        kind: 'area',
+        layer: PRESENCE_LAYER,
+        tag: PRESENCE_PREDATOR,
+        shape: { kind: 'circle', center: { x: -10, z: 7 }, radius: 8 },
+      },
     ],
   },
   // 생태 **부산물** — 이 세계의 넷째 기회 자리다 (A.3). 사냥의 결과로 남은 것이지
@@ -331,8 +362,18 @@ export const PREDATOR_NEST_SPEC: RegionSpec = {
         // 사냥이라는 **사건**이 되돌린다 (기다린다고 오는 것이 아니다)
         supply: 'event-scarce',
         recoveryCause: RECOVERY_NEST_KILL,
+        // C025 ADDED — **그 사냥을 무엇이 하는가**가 이름으로 선다 (Play §5.7 · spec 데이터 값 표).
+        // C022 가 허물에, C024 가 균사에 세운 그 자리와 같은 자리다: 이 원인이 무엇을
+        // 전제하는지를 이제 세계가 안다 (C024 가 "그 포식수가 세계에 서면" 이라 적어 둔 자리).
+        recoveryLife: PREDATOR,
         // 사체 하나 = 한 번. 캐면 그 자리에 아무것도 남지 않는다 (D4 의 어법)
         harvests: 1,
+        // C025 CHANGED — **시간이 되돌리지 않는다.** 이 원천을 세우는 것은 포식수가 거는
+        // LEAVES 관계이고(아래 links · spec SPEC-003), 아직 서지 않은 동안에는
+        // `condition-unmet` 이 걸려 되돌아옴의 진행이 한 톨도 오르지 않는다 — 탄생이 세우는
+        // 원천(EGG_HUSK)과 지나가는 것이 남기는 원천이 그런 그대로다. 그래서 이 길이는
+        // 이제 아무 데도 쓰이지 않지만 지운다고 세계가 달라지지 않으므로 값을 그대로 둔다:
+        // 되돌아옴의 원인이 다시 시간이 되는 날에 이 눈금이 답이다 (D3 · 이 방의 가장 긴 값)
         recoverySeconds: 240,
         traceOps: ['trace-nest-carcass'],
       },
@@ -416,6 +457,40 @@ export const PREDATOR_NEST_SPEC: RegionSpec = {
         // **떼의 자락도 소란도 밝히지 않는다** — 균류는 돌지 않는다 (spec 데이터 값 표).
         // 밝히지 않은 개체군은 아무것도 서지 않고 방을 술렁이게 하지도 않는다
       },
+      // ── C025 ADDED — 둥지의 주인 (Play §5.7 · Concept §4 의 사슬) ──────────
+      {
+        id: PREDATOR,
+        // 이 방이 감당하는 수 — 하나다 (확정 6 의 눈금 4 · 2 · 1 에서 가장 작은 것).
+        // 굴 하나에 주인은 하나이고, 그래서 자락도 하나다
+        scale: 1,
+        // 값이 내리는 세계 안의 원인 — **먹힘**이다. 이 사슬에서 이것을 먹는 것은 아직
+        // 없으므로 지금은 내리지 않는다: 밝혀만 두는 자리이고 규칙은 읽지 않는다
+        declineCause: POPULATION_DECLINE_EATEN,
+        // **declineWhen 도 소란도 밝히지 않는다** (spec 기본형 ⑤ ⑥) — 이 값을 굴리는 것은
+        // 관계이고, 이것은 태어나지 않으므로 방을 술렁이게 할 탄생이 없다
+        presence: PRESENCE_PREDATOR,
+        // 상한이 1 이므로 자락도 하나다 — 값이 0 이면 하나도 서지 않는다
+        presenceOps: ['presence-predator-1'],
+      },
+    ],
+    /**
+     * 이 방의 주인이 **거는** 관계 둘 (spec 데이터 값 표 · SPEC-002 · SPEC-003).
+     *
+     * 하나는 방을 넘고(새를 먹는다 — 그 값이 주는 것은 **숲 안쪽**이다) 하나는 이 방
+     * 안이다(사체를 남긴다 — 같은 방이므로 밝힐 이음이 없다).
+     *
+     * **사슬이 여기서 닫힌다** — 남긴 사체가 위의 변성(CARCASS_TO_FUNGUS)을 먹여 거목균을
+     * 세우고, 거목균이 균사(NEST_FUNGUS)를 되돌리고, 그 균사가 거목의 뿌리혹을 되살려
+     * 다음 탄생이 선다 (spec SPEC-008). 관찰자가 하나도 없는 채로 그렇게 된다.
+     *
+     * 문 이름을 **글자로** 적는다 — graph.ts 가 이 방을 부르고 있으므로 되부르면 순환이 난다.
+     */
+    links: [
+      // 둥지의 주인이 새를 먹는다 — 값이 주는 것은 새가 사는 **숲 안쪽**이다 (SPEC-005 경계 ③)
+      { from: PREDATOR, to: BIG_BIRD, kind: 'EATS', via: 'NEST_TRAIL' },
+      // 그리고 먹은 자리에 **사체를 남긴다** — 같은 방이므로 이음이 없다.
+      // 세워지는 것은 개체군이 아니라 **잔류 원천**이다 (검사 ㉜ 이 그것을 묻는다)
+      { from: PREDATOR, to: 'NEST_CARCASS', kind: 'LEAVES' },
     ],
   },
   /**

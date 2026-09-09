@@ -4,8 +4,9 @@
 // 새 layer 도 새 Rule 문법도 별도 Life System 도 만들지 않는다 (F13): 방이 규칙을 품고
 // (rule? · C008) 재료를 낳는(resourceEcology? · C011) 그 자리 곁에 하나가 더 서는 것뿐이다.
 //
-// **밝히지 않은 방은 한 값도 달라지지 않는다** — 지금 이것을 밝힌 방은 셋이다 (C024 CHANGED):
-// 거목의 방과 포식수 둥지가 탄생지를, 빙결 협곡이 **탄생지가 없는 사유**를 밝힌다 (SPEC-001 경계 ①).
+// **밝히지 않은 방은 한 값도 달라지지 않는다** — 지금 이것을 밝힌 방은 넷이다 (C025 CHANGED):
+// 거목의 방과 포식수 둥지가 탄생지를, 빙결 협곡이 **탄생지가 없는 사유**를 밝히고 (SPEC-001 경계 ①),
+// 숲 안쪽은 탄생지 없이 **개체군과 관계**만 밝힌다 — 거기 나는 것은 없고 드는 것만 있다.
 // rule? · resourceEcology? · phases? 를 밝히지 않은 방이 그 계통 밖인 것과 같은 규율이다.
 //
 // **규칙 코드는 어떤 탄생지도 이름으로 알지 못한다** — 아는 것은 "탄생지를 밝힌 방" ·
@@ -91,8 +92,18 @@ export const GROUND_TREMOR = 'ground-tremor';
 /** 재료가 아닌 **세계 상태**로 가리킨 것 — 비 (검사는 이 갈래를 판정하지 않는다) */
 export const LIFE_SOURCE_RAIN = 'rain';
 
-/** 개체군의 값이 내리는 세계 안의 원인 — 조건 결핍 (확정 6 · 먹힘은 C025) */
+/** 개체군의 값이 내리는 세계 안의 원인 — 조건 결핍 (확정 6) */
 export const POPULATION_DECLINE_CONDITION_LOST = 'CONDITION_LOST';
+
+/**
+ * 개체군의 값이 내리는 세계 안의 원인 — **먹힘** (C025 ADDED · Concept §4 의 사슬).
+ *
+ * C022 가 위 한 줄에 "먹힘은 C025" 라 적어 둔 그 자리다. `CONDITION_LOST` 와 같은 갈래의
+ * 코드이고 **규칙은 읽지 않는다** — 밝혀만 두는 자리다 (원천의 recoveryCause 의 어법).
+ * 갈리는 것은 무엇이 그 값을 내리는가다: 저것은 조건이 끊겨 마르는 것이고 이것은
+ * 다른 개체군이 먹는 것이다 (RULE-POPULATION-LINK-001 의 EATS).
+ */
+export const POPULATION_DECLINE_EATEN = 'EATEN';
 
 /**
  * 그 탄생이 생태에서 맡은 자리 — 허물 공급의 원인이 된다 (Play §5.2).
@@ -294,14 +305,61 @@ export interface PopulationSpec {
 }
 
 /**
- * 그 방이 품은 생명 계통 — 없으면 이 계통이 닿지 않는 방이다 (지금 밝힌 방은 하나다).
+ * 개체군 사이의 **관계**가 무엇을 하는가 — 갈래 셋 (C025 ADDED · Life F14 · 확정 9).
  *
- * 둘 다 있을 때만 자리를 가진다 — 탄생지 없는 방에 lifeFormation 을, 개체군 없는 방에
- * populations 를 지어내지 않는다 (resourceEcology 의 어법 그대로).
+ *   CALLS   부른다 — from 이 그 상한의 절반 이상이면 to 의 값이 1 오른다
+ *   EATS    먹는다 — from 이 1 이상이면 to 의 값이 1 준다
+ *   LEAVES  남긴다 — from 이 1 이상이면 to 인 **잔류 원천**이 선다
+ *
+ * 문턱은 여기 없다 — **갈래가 곧 문턱**이고 그 값은 규칙의 머리 상수가 든다
+ * (simulation/population-link.ts). 어느 개체군이 어느 개체군을 부르고 먹는지만 데이터의 것이다.
+ */
+export type PopulationLinkKind = 'CALLS' | 'EATS' | 'LEAVES';
+
+/**
+ * 개체군 사이의 관계 하나 (C025 ADDED · Life §3.2 links · spec R1 · SPEC-005).
+ *
+ * **그 관계를 밝히는 것은 `from` 이 사는 방이다** — 값을 굴리는 쪽이 자기가 무엇을 하는지
+ * 적는다 (흐름이 출발 쪽에 적히지 않는 것과 갈리는 자리이고, 여기서는 "부르는 것 · 먹는 것 ·
+ * 남기는 것" 이 전부 from 의 일이기 때문이다).
+ *
+ * `to` 는 갈래가 정한다 — CALLS · EATS 는 **개체군의 id**, LEAVES 는 **원천의 id** 다
+ * (탄생지의 `leaves` 가 원천을 가리키는 그 어법 그대로).
+ *
+ * **두 끝이 다른 방에 살면 이음을 밝혀야 한다** (`via` · SPEC-005) — 밝히지 않았거나 밝힌
+ * 이음이 그 두 방을 실제로 잇지 않으면 그 관계는 **아무 일도 하지 않는다** (Flow 의 anchor 가
+ * 그런 그대로 · C021 R3 의 어법). 같은 방의 관계는 밝힐 이음이 없다.
+ *
+ * **규칙은 어느 개체군도 어느 원천도 이름으로 알지 못한다** (Life F13 · R13) — 아는 것은
+ * "관계를 밝힌 방" 과 "관계의 갈래" 라는 형뿐이고, 누가 누구를 부르고 먹는지는 여기 데이터에만 있다.
+ */
+export interface PopulationLink {
+  /** 값을 굴리는 쪽 — 이 방의 개체군이다 */
+  from: string;
+  /** 굴려지는 쪽 — 개체군의 id (CALLS · EATS) 또는 잔류 원천의 id (LEAVES) */
+  to: string;
+  kind: PopulationLinkKind;
+  /** 두 끝이 다른 방에 살 때 그 사이의 Connector id — 같은 방이면 밝히지 않는다 */
+  via?: string;
+}
+
+/**
+ * 그 방이 품은 생명 계통 — 없으면 이 계통이 닿지 않는 방이다 (지금 밝힌 방은 넷이다).
+ *
+ * 셋 다 있을 때만 자리를 가진다 — 탄생지 없는 방에 lifeFormation 을, 개체군 없는 방에
+ * populations 를, 관계 없는 방에 links 를 지어내지 않는다 (resourceEcology 의 어법 그대로).
  */
 export interface RegionEcology {
   lifeFormation?: readonly LifeSiteSpec[];
   populations?: readonly PopulationSpec[];
+  /**
+   * 이 방의 개체군이 **거는** 관계들 (C025 ADDED · Life §3.2 · spec R1).
+   *
+   * 밝히지 않은 방은 한 값도 달라지지 않는다 — lifeFormation? · populations? 와 같은 규율이다.
+   * 세계가 모르는 개체군 · 원천 · 이음을 가리킨 관계는 **아무 일도 하지 않는다** (끊긴 참조는
+   * 조용하다) — 검사 ㉜ 가 그것을 잡는다.
+   */
+  links?: readonly PopulationLink[];
   /**
    * 탄생지가 **하나도 없는 방**이 밝히는 사유 (C024 ADDED · Life F6 · spec SPEC-009).
    *

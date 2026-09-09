@@ -18,6 +18,8 @@ import type { RegionSpec } from './spec';
 import { ANCHOR_LAYER } from './spec';
 import { DEPTH_LAYER, HAZARD_LAYER } from './phases';
 import { HUNTER_CURVE_TAG, WHALE_CURVE_TAG } from './presence-routes';
+import { POPULATION_DECLINE_EATEN } from './ecology';
+import { BIG_BIRD, ORE_EATER, PREDATOR, PRESENCE_BIG_BIRD } from './lives';
 import {
   BIO_ORE,
   FOREST_CHAIN,
@@ -340,6 +342,38 @@ export const FOREST_DEEP_SPEC: RegionSpec = {
         tag: 'SEEP_CRUST_DEEP',
         position: { x: 12, z: 4 },
       },
+      // ── C025 ADDED — **새가 드는 자락 둘** (Play §5.6 · V21 · spec World Change 8) ─────
+      //
+      // 개체군의 값 1 · 2 마다 하나씩 넓어진다 — 거목의 방이 떼에 세운 그 형 그대로의
+      // 동심원이고(presence-swarm-*), 갈리는 것은 값의 눈금(상한 2)과 중심뿐이다.
+      //
+      // **중심 (-6, 11) 의 근거** — 이 방에서 새가 드는 뜻은 "거목 쪽에서 와서 둥지 쪽으로
+      // 불린다" 이므로, 거목으로 나가는 문 TREE_APPROACH(0, 18)과 둥지로 나가는 문
+      // NEST_TRAIL(-18, 0) **사이**의 북서 안쪽이다 (두 문에서 8.6 · 16.3).
+      //   · 컴파일해 격자를 훑어 확인했다 — 중심과 두 반지름의 여덟 방위가 전부 통행 가능한
+      //     평지(surface=flat · 높이 0)다. 이 방은 anchor 와 흔적뿐이라 어디나 평지다.
+      //   · 자락이 extent(-20..20) 안에 온전히 든다 — r=4 x -10..-2 z 7..15 ·
+      //     r=7 x -13..1 z 4..18.
+      //   · **이 layer 에 이미 선 것과 겹치지 않는다** — 하늘의 선(가장 가까운 마디 (2, 6)
+      //     까지 9.43)과 눈 없는 것의 선((4, 6) 까지 11.18)이 둘 다 바깥 원 밖이다.
+      //     고대 문 anchor(-13, 13)도 7.28 로 밖이다 (그 문 언저리의 자락과 갈린다).
+      //
+      // **흔적 layer 가 아닌 것도 거목의 방과 같은 까닭이다** — 흙이 짙어지는 것이 아니라
+      // **새가 거기 돈다**는 말이고, 그래서 높이도 표면도 통행도 한 값 건드리지 않는다.
+      {
+        id: 'presence-bird-1',
+        kind: 'area',
+        layer: PRESENCE_LAYER,
+        tag: PRESENCE_BIG_BIRD,
+        shape: { kind: 'circle', center: { x: -6, z: 11 }, radius: 4 },
+      },
+      {
+        id: 'presence-bird-2',
+        kind: 'area',
+        layer: PRESENCE_LAYER,
+        tag: PRESENCE_BIG_BIRD,
+        shape: { kind: 'circle', center: { x: -6, z: 11 }, radius: 7 },
+      },
     ],
   },
   // 조건부 기회 하나 — 이 세계에서 **세계 시각이 여는** 유일한 자리다 (A.3 "조건부 상태").
@@ -442,6 +476,51 @@ export const FOREST_DEEP_SPEC: RegionSpec = {
         traceOps: ['trace-deep-seep-crust'],
         occurrence: { seasons: ['SEEP'] },
       },
+    ],
+  },
+  /**
+   * 이 방이 품은 **생명 계통** (C025 ADDED · Play §5.6 · Concept §4 의 숲의 생태 사슬).
+   *
+   * **탄생지가 없는 방이 처음으로 개체군을 밝힌다.** 여기서 나는 것은 없고 **드는 것**만
+   * 있기 때문이다 — 새는 광식충이 불어난 뒤에 오고, 오게 하는 것은 탄생이 아니라
+   * **관계**다 (spec World Change 1 · 2). 그래서 이 방의 계통에는 lifeFormation 이 없다:
+   * 없는 것을 지어내지 않는다 (탄생지 없는 방에 lifeFormation 을 두지 않는 그 규율).
+   */
+  ecology: {
+    populations: [
+      {
+        id: BIG_BIRD,
+        // 이 방이 감당하는 수 (확정 6 의 눈금 4 · 2 · 1 에서 가운데)
+        scale: 2,
+        // 값이 내리는 세계 안의 원인 — **먹힘**이다 (포식수가 먹는다 · C025 ADDED).
+        // 광식충 · 거목균과 갈리는 자리다: 저 둘은 조건이 끊겨 마르고 이것은 먹혀서 준다
+        declineCause: POPULATION_DECLINE_EATEN,
+        // **declineWhen 을 밝히지 않는다** (spec 기본형 ⑤) — 이 값을 굴리는 것이 관계이기
+        // 때문이다. 조건 결핍으로 마르는 것은 광식충과 거목균 둘뿐이고(확정 6), 밝히지 않은
+        // 개체군은 철이 바뀌어도 내리지 않는다 (RULE-POPULATION-DECLINE-001 경계 ④)
+        //
+        // **소란도 밝히지 않는다** (spec 기본형 ⑥) — 소란을 올리는 것은 탄생의 일이고
+        // 이것은 태어나지 않는다 (관계가 값을 옮길 뿐이다)
+        presence: PRESENCE_BIG_BIRD,
+        // 값 1 · 2 마다 하나씩 — 값만큼이 앞에서부터 서므로 값이 오를수록 넓어진다
+        presenceOps: ['presence-bird-1', 'presence-bird-2'],
+      },
+    ],
+    /**
+     * 이 방의 새가 **거는** 관계 둘 (spec 데이터 값 표 · SPEC-005).
+     *
+     * 둘 다 **방을 넘는다** — 먹는 것은 거목의 방에 있고 부르는 것은 둥지에 있다. 그래서
+     * 둘 다 이음을 밝힌다: 그 이음이 실제로 두 방을 잇지 않으면 이 관계는 아무 일도 하지
+     * 않는다 (Flow 의 anchor 가 그런 그대로).
+     *
+     * 문 이름을 **글자로** 적는다 — graph.ts 가 이 방을 부르고 있으므로 되부르면 순환이
+     * 난다 (위 access.locks 가 세운 어법 그대로).
+     */
+    links: [
+      // 새가 광식충을 먹는다 — 거목의 방의 값이 준다 (값이 달라지는 것은 **to 의 방**이다)
+      { from: BIG_BIRD, to: ORE_EATER, kind: 'EATS', via: 'TREE_APPROACH' },
+      // 새가 모이면 둥지의 주인이 온다 — 사슬의 다음 마디다
+      { from: BIG_BIRD, to: PREDATOR, kind: 'CALLS', via: 'NEST_TRAIL' },
     ],
   },
   /**
