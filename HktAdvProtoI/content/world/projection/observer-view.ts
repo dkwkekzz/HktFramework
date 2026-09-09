@@ -78,6 +78,7 @@ import type {
   EntityView,
   GameViewSnapshot,
   InteractionView,
+  OpportunityView,
   PassageMemoryView,
   PresenceView,
   RegionDisturbanceView,
@@ -142,7 +143,8 @@ import {
 } from '../semantic/region-state';
 // 재료 표는 content/regions 의 것이다 — HUD 의 자리 순서를 그 표가 정한다 (C011).
 // 경로 표도 그 폴더의 것이다 — 방의 기억이 펴지는 차례를 그 표가 정한다 (C034).
-import { MATERIAL_SEEDS, PRESENCE_ROUTES } from '../../regions';
+// 기회의 표도 그 폴더의 것이다 — 어느 행동이 어느 기회에 속하는지를 그 표가 안다 (C036).
+import { MATERIAL_SEEDS, PRESENCE_ROUTES, opportunityForAction } from '../../regions';
 // C021 CHANGED — 안전의 코드는 이제 standingConditionTagsAt 이 낸다 (그 안에서
 // conditionTagsAt 을 그대로 부른다 — 땅의 것은 여전히 땅의 것이다).
 import { distance } from '../semantic/position';
@@ -219,6 +221,32 @@ function regionMemoryView(memory: RegionMemory): RegionMemoryView {
     },
     passages,
   };
+}
+
+/**
+ * RULE-OPPORTUNITY-NAME-001 (C036 ADDED · spec R1 · SPEC-004) — **이미 판정된 행동에 기회의
+ * 이름을 붙인다.**
+ *
+ * IF 관찰이 어떤 Interaction 을 싣는다 AND 그 행동(동사)이 어느 기회의 possibleActions 에
+ * 속하고 그 기회의 target 이 그 대상이다 THEN 그 Interaction 에 기회의 id 와 discovery 가
+ * 실린다.
+ *
+ * **판정은 이 함수가 만지지 않는다** (경계) — available 도 reason 도 role 도 targetEntityId 도
+ * 차례도 한 값 달라지지 않는다. 기회는 판정하지 않고 이름만 붙기 때문이다 (§4.5).
+ * 그 대상에 기회가 없으면 **자리 자체가 없다** — 빈 값으로 지어내지 않는다 (조건 코드가
+ * 그런 그대로). 탄생지의 채집은 원천이 아니므로 여기서 언제나 빈 자리다.
+ *
+ * availability 도 outcomes 도 progress 도 target 도 possibleActions 도 싣지 않는다 — 판은
+ * 지목한 대상의 **이름과 발견**까지만 말한다 (spec Observable).
+ */
+function opportunityNameOf(
+  regionId: string,
+  action: string,
+  targetRef: string,
+): { opportunity: OpportunityView } | Record<string, never> {
+  const opportunity = opportunityForAction(regionId, action, targetRef);
+  if (opportunity === undefined) return {};
+  return { opportunity: { id: opportunity.id, discovery: opportunity.discovery } };
 }
 
 // 관찰자가 세계에 없으면 관찰 결과도 없다 — 세계는 모르는 이에게 자신을 보여주지 않는다.
@@ -540,6 +568,8 @@ export function projectObserverView(
       targetEntityId: source.id,
       available: failure === null,
       ...(failure ? { reason: failure } : {}),
+      // RULE-OPPORTUNITY-NAME-001 — 그 원천의 채집 기회. 위 판정(failure)은 이 줄을 읽지 않는다.
+      ...opportunityNameOf(self.regionId, 'gather', source.id),
     });
   }
 
@@ -652,6 +682,9 @@ export function projectObserverView(
       targetEntityId: exit.connector.id,
       available: failure === null,
       ...(failure ? { reason: failure } : {}),
+      // RULE-OPPORTUNITY-NAME-001 — **묻는 문**에만 기회가 있다 (Lock 이 없는 문은 자리가 없다).
+      // 위 판정(failure)도 표식(state)도 이 줄을 읽지 않는다.
+      ...opportunityNameOf(self.regionId, 'cross', exit.connector.id),
     });
   }
 

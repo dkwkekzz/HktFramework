@@ -36,12 +36,18 @@ import type {
   CheckConditionVocabulary,
 } from '../../../engine/world-authoring/check';
 import {
+  CONDITION_PATH_DAY_PHASE,
+  CONDITION_PATH_SEASON,
+  HISTORY_SOURCES,
+  HISTORY_TAKEN_TOTAL,
   LOCKS,
   PRESENCE_ROUTES,
   REGION_GRAPH,
   REGION_SPECS,
+  lockCondition,
+  occurrenceCondition,
+  sourceTakenTotalPath,
   type LifeRequirement,
-  type Lock,
   type SeasonId,
 } from '../../regions';
 import { CYCLE_SECONDS, TURN_SECONDS, dayPhaseAt, seasonAt } from './clock';
@@ -78,8 +84,11 @@ export const CONDITION_SITE_SOURCE_MEMORY = 'source-memory';
 // 둔다 — 두 벌로 적으면 검사 ㊹ 이 통과시킨 잎을 읽기가 모르는 날이 온다.
 
 /** clock · property — 지금 철 · 지금 낮밤 · 지금 비가 오는가 */
-const CLOCK_SEASON = 'season';
-const CLOCK_DAY_PHASE = 'dayPhase';
+// C036 CHANGED — 철과 낮밤의 경로는 **content/regions 가 원본**이다 (opportunity.ts). 기회의
+// availability 를 그 폴더가 지어야 하는데 content/regions 는 content/world 를 부를 수 없어서,
+// 조건의 형을 짓는 자리가 그리로 갔다. 여기서 두 벌로 적지 않고 그 글자를 받아 쓴다.
+const CLOCK_SEASON = CONDITION_PATH_SEASON;
+const CLOCK_DAY_PHASE = CONDITION_PATH_DAY_PHASE;
 const CLOCK_RAIN = 'rain';
 /** region · state — 그 방 규칙의 지금 패턴 (RegionRuleState.pattern) */
 const REGION_PATTERN = 'pattern';
@@ -94,10 +103,10 @@ const ROUTE_PASSING = 'passing';
 const HISTORY_PASSAGES = 'passages';
 const HISTORY_TURNS = 'turns';
 const HISTORY_AWAKENINGS = 'awakenings';
-const HISTORY_SOURCES = 'sources';
 const HISTORY_TIMES = 'times';
 const HISTORY_LAST_AT = 'lastAt';
-const HISTORY_TAKEN_TOTAL = 'takenTotal';
+// C036 CHANGED — 원천의 셈이 사는 마디 둘(sources · takenTotal)은 content/regions 가 원본이다
+// (기회의 progress.ref 가 그 경로다 — 위 CLOCK_SEASON 과 같은 까닭).
 const HISTORY_DEPLETED_TIMES = 'depletedTimes';
 const HISTORY_LAST_DEPLETED_AT = 'lastDepletedAt';
 /** 경로 마디를 잇는 글자 (기반의 ConditionQuery.path 어법 — 점으로 잇는다) */
@@ -106,81 +115,21 @@ const PATH_SEPARATOR = '.';
 /**
  * RULE-CONDITION-READ-001 (spec R1) — **문의 요구를 형으로 읽는다** (Lock.requires · C029).
  *
- * time 항 → `{ target: clock, query: property 'season', operator: IN, value: seasons }`
- * state 항 → `{ target: region <ref>, query: state 'pattern', operator: IN, value: patterns }`
- * property 항 → `{ target: actor, query: capability <tag>, operator: EXISTS }` (자리만 — 판정 불가)
- * knowledge 항 → `{ target: actor, query: knowledge <name>, operator: EXISTS }` (자리만 — 판정 불가)
- * 요구 하나의 항들은 all 로, 요구 여럿도 all 로 묶는다 (K2 — 전부 참이어야 열린다).
- * 항이 하나도 없는 Lock 은 undefined 다 (묻지 않는 것과 같다).
+ * C036 CHANGED — 그 형을 짓는 자리가 `content/regions/opportunity.ts` 로 **옮겨 갔다**
+ * (건너기 기회의 availability 가 바로 이 조건이고, content/regions 는 content/world 를 부를 수
+ * 없다). 여기 서 있는 것은 그 이름 하나이고 답은 한 값도 다르지 않다 — 두 벌로 적지 않는다.
  */
-export function lockCondition(lock: Lock): Condition | undefined {
-  const requirements: Condition[] = [];
-  for (const requirement of lock.requires) {
-    const items: Condition[] = [];
-    // 항의 차례는 형(LockRequirement)이 적은 차례다 — property · time · state · knowledge
-    if (requirement.property !== undefined) {
-      items.push({
-        target: { kind: 'actor' },
-        query: { kind: 'capability', path: requirement.property },
-        operator: 'EXISTS',
-      });
-    }
-    if (requirement.time !== undefined) {
-      items.push({
-        target: { kind: 'clock' },
-        query: { kind: 'property', path: CLOCK_SEASON },
-        operator: 'IN',
-        value: requirement.time.seasons,
-      });
-    }
-    if (requirement.state !== undefined) {
-      items.push({
-        target: { kind: 'region', ref: requirement.state.region },
-        query: { kind: 'state', path: REGION_PATTERN },
-        operator: 'IN',
-        value: requirement.state.patterns,
-      });
-    }
-    if (requirement.knowledge !== undefined) {
-      items.push({
-        target: { kind: 'actor' },
-        query: { kind: 'knowledge', path: requirement.knowledge },
-        operator: 'EXISTS',
-      });
-    }
-    const one = allOf(items);
-    if (one !== undefined) requirements.push(one);
-  }
-  return allOf(requirements);
-}
+export { lockCondition };
 
 /**
  * RULE-CONDITION-READ-001 (spec R1) — **원천의 때를 형으로 읽는다** (occurrenceSeasons · occurrenceDayPhases · C016).
  *
- * seasons → `{ target: clock, query: property 'season', operator: IN, value: seasons }`
- * dayPhases → `{ target: clock, query: property 'dayPhase', operator: IN, value: dayPhases }`
- * 둘 다 밝혔으면 all. 둘 다 밝히지 않은 원천은 undefined 다 (어느 때에도 선다).
+ * C036 CHANGED — 형을 짓는 알맹이는 `content/regions/opportunity.ts` 의 `occurrenceCondition`
+ * 하나다 (채집 기회의 availability 가 그것이다 · lockCondition 과 같은 까닭). 이 함수가 하는
+ * 일은 세계가 아는 원천에서 그 두 값을 꺼내 건네는 것뿐이고, 답은 한 값도 다르지 않다.
  */
 export function sourceOccurrenceCondition(source: ResourceSource): Condition | undefined {
-  const items: Condition[] = [];
-  // 철이 먼저, 낮밤이 다음 — sourceConditions 가 묻는 차례 그대로다
-  if (source.occurrenceSeasons !== undefined) {
-    items.push({
-      target: { kind: 'clock' },
-      query: { kind: 'property', path: CLOCK_SEASON },
-      operator: 'IN',
-      value: source.occurrenceSeasons,
-    });
-  }
-  if (source.occurrenceDayPhases !== undefined) {
-    items.push({
-      target: { kind: 'clock' },
-      query: { kind: 'property', path: CLOCK_DAY_PHASE },
-      operator: 'IN',
-      value: source.occurrenceDayPhases,
-    });
-  }
-  return allOf(items);
+  return occurrenceCondition(source.occurrenceSeasons, source.occurrenceDayPhases);
 }
 
 /**
@@ -376,7 +325,9 @@ export function worldConditionVocabulary(): CheckConditionVocabulary {
         joinPath(HISTORY_AWAKENINGS, HISTORY_TIMES),
         joinPath(HISTORY_AWAKENINGS, HISTORY_LAST_AT),
         ...sourceIds.flatMap((id) => [
-          joinPath(HISTORY_SOURCES, id, HISTORY_TAKEN_TOTAL),
+          // C036 CHANGED — 이 경로 하나는 기회의 progress.ref 이기도 하다. 짓는 자리를 하나로
+          // 둔다 (content/regions/opportunity.ts) — 검사 ㊺ 이 그 경로를 이 어휘에서 찾는다.
+          sourceTakenTotalPath(id),
           joinPath(HISTORY_SOURCES, id, HISTORY_DEPLETED_TIMES),
           joinPath(HISTORY_SOURCES, id, HISTORY_LAST_DEPLETED_AT),
         ]),
@@ -404,12 +355,8 @@ export function worldConditionVocabulary(): CheckConditionVocabulary {
 
 // ── 안쪽 ─────────────────────────────────────────────────────────────
 
-/** 항 여럿을 all 로 — 하나면 그것 그대로, 없으면 undefined (묻지 않는 것과 같다) */
-function allOf(items: readonly Condition[]): Condition | undefined {
-  if (items.length === 0) return undefined;
-  if (items.length === 1) return items[0];
-  return { all: items };
-}
+// C036 — 항 여럿을 all 로 묶던 자리(allOf)는 조건의 형을 짓는 두 함수와 함께
+// content/regions/opportunity.ts 로 옮겨 갔다. 이 파일은 이제 형을 짓지 않고 읽기만 한다.
 
 /** 검사 ㊹ 이 읽는 자리 이름 — `<갈래>:<id>` */
 function siteName(kind: string, id: string): string {
