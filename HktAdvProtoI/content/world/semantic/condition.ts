@@ -46,18 +46,27 @@ import {
   REGION_SPECS,
   lockCondition,
   occurrenceCondition,
+  regionSpec,
   SOURCE_PHASE_AVAILABLE,
   SOURCE_STATE_PHASE,
   sourceTakenTotalPath,
   type LifeRequirement,
+  type RegionPhase,
   type SeasonId,
 } from '../../regions';
 import { CYCLE_SECONDS, TURN_SECONDS, dayPhaseAt, seasonAt } from './clock';
 import { findPopulation, lifeSitesInRegion, populationValueOf, populationsInRegion } from './life';
-import { passingRegionOf, presenceStateOf } from './presence';
+import { passingOverlaysIn, passingRegionOf, presenceStateOf } from './presence';
 import { isRainingAt } from './rain';
+import { isConnectorOpen } from './region';
 import type { RegionMemory } from './region-state';
-import { findResourceSource, sourceStateOf, sourcesInRegion, type ResourceSource } from './resource';
+import {
+  depletedOverlaysIn,
+  findResourceSource,
+  sourceStateOf,
+  sourcesInRegion,
+  type ResourceSource,
+} from './resource';
 import type { WorldState } from './world-state';
 
 /**
@@ -99,7 +108,16 @@ const REGION_POPULATION = 'population';
 /** source · state — 원천의 지금 phase (ResourceSourceState.phase) · 결속이 묻는 값 */
 // 글자의 원본은 content/regions/opportunity-shape.ts 다 — 조건의 형을 짓는 쪽이 소유한다
 // (C037 — 기회의 availability 가 같은 잎을 짓기 때문에 두 벌로 적으면 어느 날 갈린다).
+// C038 — **되돌아옴의 마디도 같은 글자다.** process 가 묻는 것은 그 원천의 State 필드
+// (ResourceSourceState.phase) 하나이고, source 가 묻는 것과 **같은 자리**다 — 갈래가 둘인 것은
+// 묻는 눈이 둘이기 때문이지(그 자리에 서 있는가 · 되돌아오는 중인가) 값이 둘이어서가 아니다.
 const SOURCE_PHASE = SOURCE_STATE_PHASE;
+/** process · property — 되돌아옴의 진행 (ResourceSourceState.progress · C038 ADDED) */
+const PROCESS_PROGRESS = 'progress';
+/** connector · state — 그 문이 지금 열려 있는가 (isConnectorOpen 의 답 · C038 ADDED) */
+const CONNECTOR_OPEN = 'open';
+/** area · state — 그 자락이 지금 방의 위상으로 걸려 있는가 (C038 ADDED) */
+const AREA_ACTIVE = 'active';
 /** route · state — 그 경로가 지금 지나고 있는가 */
 const ROUTE_PASSING = 'passing';
 /** history · history — RegionMemory 의 경로 마디들 (semantic/region-state.ts 의 필드 이름 그대로) */
@@ -200,8 +218,12 @@ export function lifeRequirementCondition(requirement: LifeRequirement): Conditio
  *                  passages.<routeId>.lastAt → lastAt · turns → turns · awakenings.times / lastAt ·
  *                  sources.<sourceId>.takenTotal / depletedTimes / lastDepletedAt
  *   route <id>     state passing → 그 경로가 지금 지나고 있는가 (presences)
- *   area · connector · process   이 Cycle 에 읽는 조건이 없다 — UNREADABLE 을 준다 (판정 불가 · 거짓이 아니다)
+ *   connector <id> state open → isConnectorOpen (C038 ADDED — 판정은 그 함수 하나가 낸다)
+ *   area <id>      state active → 그 자락이 지금 어느 위상에라도 걸려 있는가 (C038 ADDED · 걸지 않으면 거짓)
+ *   process <id>   state phase → sourceStateOf(...).phase · property progress → …progress (C038 ADDED)
  *   actor · player · faction     UNREADABLE (자리만)
+ * 세계가 모르는 이름(없는 문 · 없는 자락 · 없는 원천)은 셋 다 UNREADABLE 이다 — 없는 것을 "닫혀 있다 ·
+ * 걸려 있지 않다" 로 말하지 않는다 (C038 SPEC-004 경계 · 없는 것과 모르는 것은 다르다).
  * `now` 는 state.time. previous · heldSince 는 주지 않는다 (이 Cycle 에 change · FOR 를 쓰는 조건이 없다).
  */
 export function worldConditionReader(state: WorldState): ConditionRead {
@@ -290,12 +312,19 @@ export function worldConditionSites(): CheckConditionSite[] {
  * 이 세계의 조건 어휘 — 검사 ㊹ 이 잎을 견줄 실제 id 와 허용 query.
  *
  * targets: region → 방 id 전부 · source → 원천 id 전부 · route → 경로 id 전부 · connector → 문 id 전부 ·
- *          history → 방 id 전부 · clock → [] (갈래만) · area · process 는 이 Cycle 에 조건이 없어 비운다(넣지 않는다) ·
+ *          history → 방 id 전부 · clock → [] (갈래만) ·
+ *          area → 이 세계가 밝힌 자락 전부 · process → 원천 전부 (되돌아옴이 원천의 과정이므로 · C038 ADDED) ·
  *          actor · player · faction → [] (자리만 — 갈래는 있다)
  * queries: clock/property paths [season, dayPhase, rain] · region/state [pattern] · region/count [population.<pid>…] ·
- *          source/state [phase] · source/exists · route/state [passing] · history/history [passages.<routeId>, passages.<routeId>.lastAt,
+ *          area/state [active] · connector/state [open] · source/state [phase] · source/exists ·
+ *          process/state [phase] · process/property [progress] · route/state [passing] ·
+ *          history/history [passages.<routeId>, passages.<routeId>.lastAt,
  *          turns, awakenings.times, awakenings.lastAt, sources.<sourceId>.takenTotal, …depletedTimes, …lastDepletedAt] ·
  *          actor/capability (paths 없음) · actor/knowledge (paths 없음)
+ *
+ * C038 — 세 갈래(area · connector · process)가 함께 열린다. **읽기가 여는 것만 어휘가 연다** —
+ * 검사 ㊹ 이 통과시킨 잎을 읽기가 모르는 날이 오지 않게, 경로의 글자는 위 상수 한 벌에서 온다.
+ * 지금 데이터에는 이 갈래의 조건이 하나도 없으므로 ㊹ 의 답(자리 · 잎 · 걸린 것)은 달라지지 않는다.
  */
 export function worldConditionVocabulary(): CheckConditionVocabulary {
   const regionIds = REGION_SPECS.map((spec) => spec.id);
@@ -313,8 +342,13 @@ export function worldConditionVocabulary(): CheckConditionVocabulary {
       query: 'count',
       paths: populationIds.map((id) => joinPath(REGION_POPULATION, id)),
     },
+    // C038 ADDED — 형이 이미 여덟이던 셋. 값은 세계가 이미 아는 것뿐이다
+    { target: 'area', query: 'state', paths: [AREA_ACTIVE] },
+    { target: 'connector', query: 'state', paths: [CONNECTOR_OPEN] },
     { target: 'source', query: 'state', paths: [SOURCE_PHASE] },
     { target: 'source', query: 'exists' },
+    { target: 'process', query: 'state', paths: [SOURCE_PHASE] },
+    { target: 'process', query: 'property', paths: [PROCESS_PROGRESS] },
     { target: 'route', query: 'state', paths: [ROUTE_PASSING] },
     {
       target: 'history',
@@ -343,8 +377,12 @@ export function worldConditionVocabulary(): CheckConditionVocabulary {
   return {
     targets: {
       region: regionIds,
+      // C038 ADDED — 이 세계가 밝힌 자락 전부 (읽기가 보는 그 목록 그대로)
+      area: worldAreaIds(),
       connector: REGION_GRAPH.connectors.map((connector) => connector.id),
       source: sourceIds,
+      // C038 ADDED — 되돌아옴은 **원천의 과정**이므로 목록이 원천 전부다 (source 와 같은 한 벌)
+      process: sourceIds,
       route: routeIds,
       clock: [],
       history: regionIds,
@@ -407,7 +445,13 @@ function readLeaf(state: WorldState, leaf: ConditionLeaf): ConditionValue | unde
       return readHistory(state, target.ref, query.kind, path);
     case 'route':
       return readRoute(state, target.ref, query.kind, path);
-    // area · connector · process — 이 Cycle 에 읽는 조건이 없다 (판정 불가 · 거짓이 아니다)
+    // C038 ADDED — 형이 이미 여덟이던 셋이 열린다 (판정 함수는 하나도 바뀌지 않는다)
+    case 'connector':
+      return readConnector(state, target.ref, query.kind, path);
+    case 'area':
+      return readArea(state, target.ref, query.kind, path);
+    case 'process':
+      return readProcess(state, target.ref, query.kind, path);
     // actor · player · faction — 자리만이다
     default:
       return UNREADABLE;
@@ -524,4 +568,141 @@ function readRoute(
   }
   if (!PRESENCE_ROUTES.some((route) => route.id === ref)) return undefined;
   return passingRegionOf(presenceStateOf(state.presences, ref), state.time) !== undefined;
+}
+
+/**
+ * RULE-CONDITION-READ-001 (C038 ADDED · spec SPEC-002) — **그 문이 지금 열려 있는가.**
+ *
+ * 판정은 `isConnectorOpen` 하나가 낸다 — 여기가 하는 일은 그 답을 조건의 값으로 옮기는 것뿐이고,
+ * 무엇이 그 문을 열고 닫는지(정적 사실 · 철 · 배열)는 이 파일에 한 글자도 없다. 그래서 이 잎의
+ * 답은 모든 철 · 모든 패턴에서 문의 열림 · 잠김 표식과 **한 값도 다르지 않다**.
+ *
+ * 세계가 모르는 이음은 UNREADABLE 이다 — 판정 함수는 Lock 없는 이음을 "열림" 으로 읽으므로
+ * (없는 이음도 그렇게 읽힌다), 없는 것을 열려 있다고 말하지 않으려면 여기서 먼저 가려야 한다.
+ */
+function readConnector(
+  state: WorldState,
+  ref: string | undefined,
+  kind: ConditionLeaf['query']['kind'],
+  path: readonly string[],
+): ConditionValue | undefined | Unreadable {
+  if (ref === undefined || kind !== 'state' || path.length !== 1 || path[0] !== CONNECTOR_OPEN) {
+    return UNREADABLE;
+  }
+  if (!REGION_GRAPH.connectors.some((connector) => connector.id === ref)) return UNREADABLE;
+  return isConnectorOpen(state.regionStates, ref, state.time);
+}
+
+/**
+ * RULE-CONDITION-READ-001 (C038 ADDED · spec SPEC-003) — **그 자락이 지금 걸려 있는가.**
+ *
+ * 세계가 자락을 거는 자리는 위상(RegionPhase)이 이름으로 가리키는 셋뿐이다 — 깊이 덧씌움 ·
+ * 위험 덧씌움 · 남의 방에 거는 조건 자락(outflow). 셋을 **같은 잣대**로 본다: 지금 걸린 위상
+ * 가운데 그 자락의 id 를 가리킨 줄이 하나라도 있으면 참이다.
+ *
+ * **어느 위상도 걸지 않는 자락은 거짓이다** (spec SPEC-003 경계) — 모른다가 아니다: 그 자락은
+ * 세계에 있고 지금 걸려 있지 않을 뿐이다. 그래서 세계가 아는 자락(어느 방 Description 의 area
+ * op)인지를 먼저 가리고, 그 밖의 이름만 UNREADABLE 이다.
+ *
+ * **자리를 묻지 않는다** — "걸려 있는가" 는 그 자락에 대한 물음이고 "선 자리가 그 자락 안인가"
+ * 는 몸에 대한 물음이다 (그것에 답하는 자리는 depthOverlayAt · hazardOverlayTagsAt 이고 여기가
+ * 아니다). 그래서 이 잎은 관찰자가 없어도 답이 있다.
+ */
+function readArea(
+  state: WorldState,
+  ref: string | undefined,
+  kind: ConditionLeaf['query']['kind'],
+  path: readonly string[],
+): ConditionValue | undefined | Unreadable {
+  if (ref === undefined || kind !== 'state' || path.length !== 1 || path[0] !== AREA_ACTIVE) {
+    return UNREADABLE;
+  }
+  if (!worldAreaIds().includes(ref)) return UNREADABLE;
+  return hungAreaIds(state).has(ref);
+}
+
+/**
+ * RULE-CONDITION-READ-001 (C038 ADDED · spec SPEC-004) — **그 원천의 되돌아옴이 지금 어디인가.**
+ *
+ * 되돌아옴은 원천의 **과정**이므로 process 의 ref 는 원천의 id 다 (어휘의 목록이 원천 전부인
+ * 까닭). 값은 `sourceStateOf` 가 그대로 낸다 — 마디(phase)와 진행(progress)이고, 세는 자리도
+ * 되돌리는 자리도 여기가 아니다 (RULE-SOURCE-RECOVERY-001 이 그것을 소유한다).
+ *
+ * 세계가 모르는 이름은 UNREADABLE 이다 (spec SPEC-004 경계) — 없는 과정의 마디를 지어내지 않는다.
+ */
+function readProcess(
+  state: WorldState,
+  ref: string | undefined,
+  kind: ConditionLeaf['query']['kind'],
+  path: readonly string[],
+): ConditionValue | undefined | Unreadable {
+  if (ref === undefined || path.length !== 1) return UNREADABLE;
+  const source = findResourceSource(ref);
+  if (source === undefined) return UNREADABLE;
+  const process = sourceStateOf(state.regionStates, source.regionId, source.id);
+  if (kind === 'state' && path[0] === SOURCE_PHASE) return process.phase;
+  if (kind === 'property' && path[0] === PROCESS_PROGRESS) return process.progress;
+  return UNREADABLE;
+}
+
+/**
+ * 지금 세계에 **걸려 있는 자락들의 id** (C038 ADDED · spec SPEC-003).
+ *
+ * 방마다 지금 걸린 위상을 훑어 그 위상이 이름으로 가리킨 자락을 모은다. 위상을 거는 원인
+ * 다섯(상시 · 철 · 깨어남 · 지나는 것 · 깨진 마디)은 자리를 묻는 쪽(region-phase.ts 의
+ * activePhasesAt)이 세운 그 차례 그대로이고, 여기서 새로 판정하는 것은 하나도 없다 — 지나는
+ * 것과 깨진 마디는 그것을 모으는 함수(passingOverlaysIn · depletedOverlaysIn)를 그대로 부른다.
+ *
+ * outflow 는 **남의 방**을 가리키므로 방 전부를 훑어야 한다 (C021 이 세운 그 사정) — 그래서
+ * 훑는 것은 그 자락이 사는 방 하나가 아니라 세계의 방 전부다. 자락의 id 를 그대로 모으는
+ * 까닭도 같다: 거는 쪽은 id 로만 가리킨다.
+ */
+function hungAreaIds(state: WorldState): Set<string> {
+  const hung = new Set<string>();
+  for (const spec of REGION_SPECS) {
+    for (const phase of activePhasesIn(state, spec.id)) {
+      for (const entry of phase.depthOverlay ?? []) hung.add(entry.areaId);
+      for (const entry of phase.hazardExtend ?? []) hung.add(entry.areaId);
+      for (const entry of phase.outflow ?? []) hung.add(entry.areaId);
+    }
+  }
+  return hung;
+}
+
+/** 그 방에 지금 걸린 위상들 — 상시 → 철 → 깨어남 → 지나는 것 → 깨진 마디 (걸린 차례 그대로) */
+function activePhasesIn(state: WorldState, regionId: string): RegionPhase[] {
+  const phases = regionSpec(regionId)?.phases;
+  const active: RegionPhase[] = [];
+  if (phases) {
+    if (phases.standing) active.push(phases.standing);
+    const season = phases.seasons?.[seasonAt(state.time)];
+    if (season) active.push(season);
+    const awake = state.regionStates[regionId]?.disturbance.phase === 'awake';
+    if (awake && phases.awake) active.push(phases.awake);
+  }
+  active.push(...passingOverlaysIn(state.presences, regionId, state.time));
+  active.push(...depletedOverlaysIn(state, regionId));
+  return active;
+}
+
+/**
+ * **이 세계가 밝힌 자락 전부** — 어느 방 Description 의 area op 든 (C038 ADDED).
+ *
+ * layer 를 묻지 않는다 — 위상이 거는 자락은 깊이 · 위험 · settlement 셋에 걸쳐 있고, 자락은
+ * layer 하나에 갇히지 않는다 (lockTraceCodesAt 이 op 를 id 로 짚는 그 어법 그대로).
+ * 읽기와 어휘가 **같은 목록**을 본다 — 어휘가 통과시킨 이름을 읽기가 모르는 날이 오지 않게.
+ * 같은 id 를 두 방이 쓰면 한 번만 센다 (차례는 방 차례 · op 차례 — 결정론).
+ */
+let areaIdCache: string[] | undefined;
+function worldAreaIds(): string[] {
+  if (areaIdCache) return areaIdCache;
+  const ids: string[] = [];
+  for (const spec of REGION_SPECS) {
+    for (const op of spec.space.ops) {
+      if (op.kind !== 'area' || ids.includes(op.id)) continue;
+      ids.push(op.id);
+    }
+  }
+  areaIdCache = ids;
+  return ids;
 }
