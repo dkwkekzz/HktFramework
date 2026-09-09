@@ -19,7 +19,7 @@
 |---|---|---|---|---|---|
 | 0 | 게임 방향 | [L0-Game.md](../content/roadmap/L0-Game.md) | 없음 — 판단 기준 | **확정** | 미증명 넷 (§3 L0) |
 | 1 | 세계의 문법 | [L1-World-Grammar.md](../content/roadmap/L1-World-Grammar.md) | 없음 — 코드가 이미 이 문법 위 | **확정** | 없음 |
-| 2 | 세계 자체 | [L2-World-Tool](../content/roadmap/L2-World-Tool.md) · [Tool-Scale](../content/roadmap/L2-World-Tool-Scale.md) · [Concept](../content/roadmap/L2-World-Concept.md) · [Region](../content/roadmap/L2-World-Region.md) · [Material](../content/roadmap/L2-World-Material.md) · [Time](../content/roadmap/L2-World-Time.md) · [Life](../content/roadmap/L2-World-Life.md) · [Access](../content/roadmap/L2-World-Access.md) · [Foundation](../content/roadmap/L2-World-Foundation.md) | C001~C034 ([CYCLES §3.1](CYCLES.md)) | **다음** — 기획은 닫혔다 (더 쌓을 기획 없음) | Foundation 의 조건 · 기회 · Event(C035~C037 진행 중) · Rooms GAP 둘(후보 3) · 판정 대기 셋 · 도구 묶음 HundredRooms |
+| 2 | 세계 자체 | [L2-World-Tool](../content/roadmap/L2-World-Tool.md) · [Tool-Scale](../content/roadmap/L2-World-Tool-Scale.md) · [Concept](../content/roadmap/L2-World-Concept.md) · [Region](../content/roadmap/L2-World-Region.md) · [Material](../content/roadmap/L2-World-Material.md) · [Time](../content/roadmap/L2-World-Time.md) · [Life](../content/roadmap/L2-World-Life.md) · [Access](../content/roadmap/L2-World-Access.md) · [Foundation](../content/roadmap/L2-World-Foundation.md) | C001~C037 ([CYCLES §3.1](CYCLES.md)) | **다음** — 기획은 닫혔다 (더 쌓을 기획 없음) | Rooms GAP 둘(후보 3) · 판정 대기 넷(협곡 · 생명 · 요구와 가능성 · Foundation) · 도구 묶음 HundredRooms |
 | 3 | 주체와 몸 | [L7 §3](../content/roadmap/L7-Fairy-Growth-Combination.md) 의 3층 몫 (편성 · 무대의 한 명 · Core 가 몸의 State 로) | 없음 | **다음** — Human 결정으로 2층 판정과 **병행** | 3층 몫 묶음(후보 2) · 나머지 절반(몸의 값 전반 · 생물의 앎과 선택)은 별도 주입 |
 | 4 | 자원과 물건 | — | 없음 | 미주입 | L7 4층 몫 · Material 쓰임 · Access 4층 몫 (§3) |
 | 5 | 대결 | — | 없음 | 미주입 | L7 5층 몫 · Concept W6 · W7 |
@@ -180,14 +180,17 @@
 ### L2-World-Foundation — Region Foundation (②-부속 다섯째)
 
 ```text
-덮음      C034(닫힘 — G7 수명 표 · G8 기억 · §4.3 · §4.4 · ㊸ ㊼ · D4 · D5) · C035(닫힘 — G5 조건의 한 형 · §4.1 · ㊹ · 빈칸 2 · G8 첫 사례 비늘) ·
-          C036(닫힘 — G3 기회 · §4.5 · G6 op 이름 · G9 관계 다섯 · ㊺ ㊻ · 기회 표 · 수명 표) · C037(묶음 「방은 기억하고 때가 되면 내민다」 — 진행 · CYCLES §3.4)
+덮음      C034(G7 수명 표 · G8 기억 · §4.3 · §4.4 · ㊸ ㊼ · D4 · D5) · C035(G5 조건의 한 형 · §4.1 · ㊹ · 빈칸 2 · G8 첫 사례 비늘) ·
+          C036(G3 기회 · §4.5 · G6 op 이름 · G9 관계 다섯 · ㊺ ㊻ · 기회 표 · 수명 표) · C037(G4 Event · G8 births · G11 Yield 표 · G13 · T2 · T4 · T6) —
+          묶음 「방은 기억하고 때가 되면 내민다」 는 **판정 대기** (CYCLES §3.4 Offer-1~6)
 덮인 것   기억(history · 되돌아옴 · 뒤척임이 못 묻는다) · 수명 표 · 검사 ㊸ ㊼ · 판의 「기억」 줄 · Condition 형(Target 여덟 + 자리 셋 · Query 다섯 + 자리 다섯 · Operator 아홉 · Qualifier · all/any) ·
           게임 명사 없는 평가기(판정 셋 — 참 · 거짓 · 판정 불가) · 조건 자리 넷의 어댑터(읽기만) · 기억을 읽는 첫 조건(비늘 → `needs-passage`) · 검사 ㊹ · observe 조건 표 ·
           Opportunity 형(항목 여덟 — participants · rules 는 자리만) · 원천마다 · Lock 이 걸린 문마다의 기본형 유도 · Interaction 에 붙는 기회 이름과 discovery ·
-          판의 「할 수 있는 것」 이 "어떻게 알게 되는가" 를 말한다 · Mutation op 이름표 · 관계 다섯 갈래의 목록 · 검사 ㊺ ㊻ · observe 기회 표 · 수명 표
-남은 것   C037 Event(G4 · D3 비늘 — 시간 qualifier · progress 값 · outcomes 의 실제 op · Yield 열 넷 G11) · Opportunity 의 OPEN/CLOSE/COMPLETE 와 availability 의 평가 ·
-          T2 열셋째 답 · T4 결정 나무 · 최소 완성 기준 23 · 24 (G13)                                       → C037
+          판의 「할 수 있는 것」 이 "어떻게 알게 되는가" 를 말한다 · Mutation op 이름표 · 관계 다섯 갈래의 목록 · 검사 ㊺ ㊻ · observe 기회 표 · 수명 표 ·
+          Event(시간 qualifier 를 가진 기회 — 열림·닫힘·완료는 유도) · **지나간 것이 남긴 것은 한동안만 머문다**(Human 판정 · 세계 규칙 한 줄) ·
+          판의 「지금은 없다」 · 태어남의 셈(births) · Yield 표 열 열넷 · 기회 계약과 T4 결정 나무 · brief 의 아홉째 답 · lab 의 ㊻ · 기회 표의 「지금」 열
+남은 것   판정 "아니오"                                                                              → GAP 회수 (Offer-1~6)
+          탄생지의 채취를 기회로 세우는 것 · change qualifier(CROSSED)의 실사용 · 스러짐의 셈           → Life 를 다시 여는 묶음 · 그 어법을 쓰는 Cycle
           chance(빈칸 1) · 조건 자리 넷을 형으로 **옮기는** 것(Q1 읽기만으로 닫음 — 옮길 이유가 생기면 그때)   → 5층 이후 · 결정 대기
           §5.5 Player Knowledge · 발견 상태 다섯 · knowledge Lock          → 3층 둘째 (G10)
           discovery 의 NPC · KNOWLEDGE 갈래 · HIDDEN 기회가 드러나는 절차   → 3층 둘째 (C036 이 형에 자리만 두었다)

@@ -294,13 +294,13 @@ Region Description(순서 있는 op 목록)을 Source of Truth 로 두고, 컴�
 | `query.ts` | 컴파일 결과에 자리로 묻기 (통행·사유·표면·area 태그) |
 | `observe.ts` | 컴파일 결과를 raster 판·요약 수치로 |
 | `graph.ts` | Region 사이의 Connector/Containment 와 도달 계산 |
-| `check.ts` | 검사 ①~㊻ (`checkGraph` · `checkRegions`) 와 열쇠×자물쇠 표 |
+| `check.ts` | 검사 ①~㊻ (`checkGraph` · `checkRegions`) 와 열쇠×자물쇠 표 — ㊸ 은 태어남의 키도 잰다 |
 | `condition.ts` | Condition 형(Target · Query · Operator · Value · Qualifier · all/any) 과 평가기 — 게임 명사 0 · 저장 0 |
-| `opportunity.ts` | Opportunity 형(id · region · availability · discovery · target · possibleActions · progress · outcomes) · Mutation op 어휘 · Event 판별 · 기계 표기 — 게임 명사 0 · 판정 0 |
+| `opportunity.ts` | Opportunity 형(id · region · availability · discovery · target · possibleActions · progress · outcomes) · Mutation op 어휘 · Event 판별(`isEventOpportunity` — 시간 qualifier 가 있는가) · 기계 표기 — 게임 명사 0 · 판정 0 |
 | `candidate.ts` | 두 CheckReport 의 달라진 줄 |
-| `brief.ts` | `RegionBrief`(여덟 답) zod 스키마와 파서 |
+| `brief.ts` | `RegionBrief`(아홉 답 — 아홉째는 내밂) zod 스키마와 파서 |
 | `author.ts` | brief + 템플릿 → 방 뼈대(Description·Connector·원천) |
-| `grade.ts` | brief 를 계약 목록과 대조해 A/B/C |
+| `grade.ts` | brief 를 계약 목록과 **결정 나무**(요구의 갈래 → 등급)로 대조해 A/B/C |
 | `draft.ts` | 미지 한 줄 → brief 되먹임 고리와 시스템 글 |
 
 | export | 종류 | 시그니처 요약 | 용도 | 사용처 |
@@ -335,7 +335,7 @@ Region Description(순서 있는 op 목록)을 Source of Truth 로 두고, 컴�
 | `CheckAccess` (+ `CheckAccessAnswerRule` · `CheckAccessRequirement` · `CheckAccessLock` · `CheckAccessSeed` · `CheckAccessSeedProperty` · `CheckAccessSeedSource`) | type | `{ aspects; relations; tagSeparator; statementKinds; answerKinds; supportKind; connectorLockKind; areaLockKind; answers; locks; seeds; seedSources }` | 접근 계약 (㉞~㊷) | tools / — ×6 |
 | `accessAnswerMap` · `AccessAnswerRow` · `AccessAnswerCell` | fn/type | `(input: CheckRegionsInput) => AccessAnswerRow[]` · `{ lock; region; important; requirements; cells }` · `{ kind; answers[{id;property;regions}] }` | 열쇠×자물쇠 표 | tools |
 | `checkShifts` · `CheckShift` | fn/type | `(before: CheckReport, after: CheckReport) => CheckShift[]` · `{ mark; id; name; before?; after; broke }` | 후보 전후 차이 | tools |
-| `RegionBriefSchema` · `RegionBrief` | const/type | zod strictObject `{ id; name; depth; kinds; parent?; answers: RegionAnswers; neighbours; requires }` | 여덟 답 형 | tools / engine,tools |
+| `RegionBriefSchema` · `RegionBrief` | const/type | zod strictObject `{ id; name; depth; kinds; parent?; answers: RegionAnswers; neighbours; requires }` | 아홉 답 형 (아홉째 `offering` 은 없으면 미답) | tools / engine,tools |
 | `AnswerSchema`·`WorthSchema`·`BirthSchema`·`RegionAnswersSchema`·`NeighbourSchema`·`RequirementSchema` (+ `z.infer` 타입 `Answer`·`Worth`·`Birth`·`RegionAnswers`·`Neighbour`·`Requirement`) | const/type | 답 = 문장 또는 `{ unanswered }` · 귀함(sources[]) · 탄생(born[]) · 이웃 · 요구(`kind: 'rule'\|'axis'\|'contract'`) | 하위 스키마 | — |
 | `parseRegionBrief` · `BriefParse` · `BriefProblem` | fn/type | `(value: unknown) => BriefParse` · `{ok:true;brief}\|{ok:false;problems}` · `{ path; message }` | 던지지 않는 파서 | engine,tools / — / — |
 | `ANSWER_ORDER` · `AnswerKey` · `answerOf` · `isUnanswered` · `unansweredKeys` | const/type/fn | 여덟 키 순서 · 그 합집합 · `(brief, key) => Answer` · `(answer) => boolean` · `(brief) => AnswerKey[]` | 답 접근 | engine,tools / engine / engine,tools / engine,tools / engine |
