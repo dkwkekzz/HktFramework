@@ -29,8 +29,9 @@ describe('T4 — 셋이 A · B · C 로 갈린다', () => {
   it('가스 마을은 걸린 것이 하나도 없다 — 데이터만으로 선다', () => {
     const result = gradeFromFile(at('GAS_VILLAGE'));
     expect(result.blocking).toEqual([]);
-    // 다만 여덟째(탄생)는 아직 답이 없다. 등급 A 의 방도 그것을 적어야 실제로 선다 (Life §3.5 F2)
-    expect(result.pending.map((g) => g.required.split('가운데 ')[1])).toEqual(['birth']);
+    // 다만 여덟째(탄생)와 아홉째(내밂)는 아직 답이 없다. 등급 A 의 방도 그것을 적어야 실제로 선다
+    // (Life §3.5 F2 · Foundation §5.4 T2 — 아홉째는 C037 이 더한 자리라 옛 brief 는 전부 미답이다)
+    expect(result.pending.map((g) => g.required.split('가운데 ')[1])).toEqual(['birth', 'offering']);
   });
 });
 
@@ -55,8 +56,8 @@ describe('T4 — B · C 의 빠진 것이 정확히 적힌다', () => {
     }
     expect(result.blocking.map((g) => g.required).join(' ')).toContain('6층');
     expect(result.blocking.map((g) => g.required).join(' ')).toContain('3층');
-    // 축이 없으므로 여덟 답을 하나도 적지 못한다 — 그것이 C 의 모습이다
-    expect(result.pending.length).toBe(8);
+    // 축이 없으므로 아홉 답을 하나도 적지 못한다 — 그것이 C 의 모습이다
+    expect(result.pending.length).toBe(9);
   });
 
   it('GAP 이 CLAUDE.md 의 네 줄로 적힌다', () => {

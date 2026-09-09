@@ -236,6 +236,8 @@ const worldNames = (): ReadonlySet<string> =>
     ...ALL_SOURCES.map((s) => s.id),
     ...REGION_SPECS.flatMap((s) => regionExitsOf(s.id).map((e) => e.connector.id)),
     ...ALL_SITES.map((s) => s.id),
+    // C037 이 Ownership GRANT 의 ref 로 **재료**를 적었다 — 원천이 낳는 것도 세계가 아는 이름이다
+    ...ALL_SOURCES.map((s) => s.materialId),
   ]);
 
 // ── 관찰 결과를 읽는 자리 (spec Observable 의 점 경로) ─────────────────
@@ -262,11 +264,16 @@ function runTool(script: string, args: readonly string[]) {
 // ─────────────────────────────────────────────────────────────────────
 
 describe('SPEC-001 형이 선다 — 기회 하나가 항목 여덟으로 적힌다', () => {
-  it('S-308 방마다 기회 목록이 서고, 기회마다 항목이 다 있다 (기본형 밖의 데이터는 이 Cycle 에 없다)', () => {
-    // Given 데이터에는 기본형 밖의 기회가 하나도 적혀 있지 않다 (spec State 절)
+  it('S-308 방마다 기회 목록이 서고, 기회마다 항목이 다 있다 (데이터에 적힌 것은 같은 자리에 선다)', () => {
+    // Given 데이터에 적힌 기회는 유도된 목록에 **같은 id 로** 선다 (SPEC-002 경계 — 데이터가 이긴다).
+    // C036 때는 그 데이터가 하나도 없었고 C037 이 Event 둘을 적었다 — 이 항이 묻는 것은
+    // "데이터가 있느냐" 가 아니라 "적힌 것이 그 방의 기회로 서느냐" 다.
     for (const spec of REGION_SPECS) {
-      const written = (spec as { opportunities?: readonly unknown[] }).opportunities ?? [];
-      expect({ region: spec.id, written: [...written] }).toEqual({ region: spec.id, written: [] });
+      const written = ((spec as { opportunities?: readonly { id: string }[] }).opportunities ?? []).map((o) => o.id);
+      const stood = opportunitiesIn(spec.id).map((o) => o.id);
+      for (const id of written) {
+        expect({ region: spec.id, id, stood: stood.includes(id) }).toEqual({ region: spec.id, id, stood: true });
+      }
     }
     // Then 그래도 기회는 선다 — 유도된 것이다 (기본형 ②)
     const all = allOpportunities();
@@ -380,25 +387,42 @@ describe('SPEC-002 채집 기회의 기본형 유도', () => {
       const parts = [sourceOccurrenceCondition(source), memoryConditionOf(source)].filter(
         (c): c is Condition => c !== undefined,
       );
-      // 잎이 그 원천의 조건 잎 그대로다 — 더 지어내지도 빠뜨리지도 않는다
-      expect({ source: source.id, leaves: leafBag(one.availability) }).toEqual({
-        source: source.id,
-        leaves: parts.flatMap((c) => leafBag(c)).sort(),
-      });
-      // 그리고 자리는 조건이 있을 때만 선다 — 없는 것은 "묻지 않음 = 늘 참" 이다 (S-308 의 읽기)
-      expect({ source: source.id, stood: 'availability' in one }).toEqual({
-        source: source.id,
-        stood: parts.length > 0,
-      });
-      // 그리고 판정이 그 조건들의 all 과 같다 (조건이 없으면 늘 참이다)
+      // 그 원천의 조건 잎이 **하나도 빠지지 않고** 들어 있다. 같은지가 아니라 빠지지 않았는지를
+      // 묻는다 — 뒤 Cycle 이 그 위에 잎을 더할 수 있기 때문이다 (C037 의 Event 가 시간 잎을 더했다).
+      const stoodLeaves = leafBag(one.availability);
+      for (const leaf of parts.flatMap((c) => leafBag(c))) {
+        expect({ source: source.id, leaf, kept: stoodLeaves.includes(leaf) }).toEqual({
+          source: source.id,
+          leaf,
+          kept: true,
+        });
+      }
+      // 그리고 조건이 있는 원천에는 자리가 선다 — 없는 것은 "묻지 않음 = 늘 참" 이다 (S-308 의 읽기).
+      // 조건이 없는데도 자리가 섰다면 그것은 데이터가 적은 기회다 (C037 의 먹이 잔해).
+      if (parts.length > 0) {
+        expect({ source: source.id, stood: 'availability' in one }).toEqual({ source: source.id, stood: true });
+      }
+      // 그리고 그 원천의 조건이 서지 않는 때에는 기회도 서지 않는다. **같은가**가 아니라
+      // **원천의 조건이 여전히 문을 잡는가**를 묻는다 — 데이터가 그 위에 잎을 더할 수 있기
+      // 때문이다 (C037 의 Event 둘이 시간 잎을 더했다). 잎이 그대로인 기회는 두 답이 같다.
+      const untouched = leafBag(one.availability).length === parts.flatMap((c) => leafBag(c)).length;
       for (const sample of TIME_GRID) {
         const s = at(state(w), sample.time);
-        const expected = parts.length === 0 ? 'met' : worldConditionVerdict(s, { all: parts });
-        expect({ source: source.id, ...sample, verdict: verdictOf(s, one.availability ?? { all: [] }) }).toEqual({
-          source: source.id,
-          ...sample,
-          verdict: expected,
-        });
+        const sourceVerdict = parts.length === 0 ? 'met' : worldConditionVerdict(s, { all: parts });
+        const stood = verdictOf(s, one.availability ?? { all: [] });
+        if (untouched) {
+          expect({ source: source.id, ...sample, verdict: stood }).toEqual({
+            source: source.id,
+            ...sample,
+            verdict: sourceVerdict,
+          });
+        } else if (sourceVerdict !== 'met') {
+          expect({ source: source.id, ...sample, verdict: stood }).not.toEqual({
+            source: source.id,
+            ...sample,
+            verdict: 'met',
+          });
+        }
       }
     }
   });
@@ -528,9 +552,11 @@ describe('SPEC-004 이름이 붙는다 — 관찰의 Interaction 에 기회 id �
       for (const source of sourcesInRegion(spec.id)) {
         const seen = harvestOf(list, source.id);
         if (!seen) continue; // 그때 관찰에 서지 않는 원천은 이 항의 물음이 아니다
-        expect({ source: source.id, opportunity: seen.opportunity }).toEqual({
+        // 이 항이 묻는 것은 **이름과 발견**이다 — 뒤 Cycle 이 그 자리에 더 실을 수 있다 (C037 의 event · open)
+        expect({ source: source.id, id: seen.opportunity?.id, discovery: seen.opportunity?.discovery }).toEqual({
           source: source.id,
-          opportunity: { id: `${GATHER}${source.id}`, discovery: DISCOVERY_BY_ROLE[source.opportunity] },
+          id: `${GATHER}${source.id}`,
+          discovery: DISCOVERY_BY_ROLE[source.opportunity],
         });
         if (seen.opportunity!.discovery === SIGNAL) signalSeen++;
         else traceSeen++;
@@ -545,9 +571,10 @@ describe('SPEC-004 이름이 붙는다 — 관찰의 Interaction 에 기회 id �
       if (lock.at.kind !== 'connector') continue;
       const seen = transitOf(seenIn(lock.region), lock.at.ref);
       expect({ lock: lock.id, listed: seen !== undefined }).toEqual({ lock: lock.id, listed: true });
-      expect({ lock: lock.id, opportunity: seen!.opportunity }).toEqual({
+      expect({ lock: lock.id, id: seen!.opportunity?.id, discovery: seen!.opportunity?.discovery }).toEqual({
         lock: lock.id,
-        opportunity: { id: `${CROSS}${lock.at.ref}`, discovery: VISIBLE },
+        id: `${CROSS}${lock.at.ref}`,
+        discovery: VISIBLE,
       });
     }
   });
@@ -817,12 +844,12 @@ describe('SPEC-008 검사 ㊻ — 방마다 무엇을 내미는가 (판정 없�
     for (const discovery of [VISIBLE, SIGNAL, TRACE]) {
       expect({ discovery, listed: text.includes(discovery) }).toEqual({ discovery, listed: true });
     }
-    // Event 는 0 이다 — availability 에 시간 qualifier 를 가진 기회가 데이터에 하나도 없다
-    for (const one of allOpportunities()) {
-      for (const leaf of conditionLeaves(one.availability ?? { all: [] })) {
-        expect({ id: one.id, qualifier: leaf.qualifier?.kind }).not.toEqual({ id: one.id, qualifier: 'time' });
-      }
-    }
+    // Event 인 기회 = availability 에 시간 qualifier 를 가진 기회. C036 때는 0 이었고 C037 이 둘을 세웠다 —
+    // 이 항이 묻는 것은 그 수가 아니라 **표가 세는 것과 데이터가 말하는 것이 같은가** 다.
+    const timed = allOpportunities().filter((one) =>
+      conditionLeaves(one.availability ?? { all: [] }).some((leaf) => leaf.qualifier?.kind === 'time'),
+    );
+    expect({ counted: text.includes(`Event ${timed.length}`) }).toEqual({ counted: true });
   });
 
   // 통합에서 푼 GAP — spec 이 관계 다섯의 **코드 어휘**를 밝히지 않아 T 가 이름으로 잴 자가

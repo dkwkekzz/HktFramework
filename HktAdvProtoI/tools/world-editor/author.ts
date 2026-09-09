@@ -15,7 +15,13 @@
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { COMPILE_RULES, MATERIAL_SEEDS, REGION_GRAPH } from '../../content/regions';
+import {
+  ALL_OPPORTUNITIES,
+  COMPILE_RULES,
+  gatherOpportunity,
+  MATERIAL_SEEDS,
+  REGION_GRAPH,
+} from '../../content/regions';
 import { WORLD_AUTHOR_TEMPLATES, WORLD_CONTRACTS } from '../../content/authoring';
 import { authorRegion, type AuthoredRegion } from '../../engine/world-authoring/author';
 import { parseRegionBrief, type RegionBrief } from '../../engine/world-authoring/brief';
@@ -27,9 +33,16 @@ import {
   type CheckReport,
 } from '../../engine/world-authoring/check';
 import type { RegionOp } from '../../engine/world-authoring/description';
+import type { Opportunity } from '../../engine/world-authoring/opportunity';
+import type { ResourceSourceSpec } from '../../content/regions';
 import { gradeRegion, type GradeResult } from '../../engine/world-authoring/grade';
 import { compileRegion } from '../../engine/world-authoring/compile';
-import { WORLD_CHECK_CONTRACT, WORLD_CHECK_ECOLOGY, WORLD_CHECK_REGIONS } from './check';
+import {
+  WORLD_CHECK_CONTRACT,
+  WORLD_CHECK_ECOLOGY,
+  WORLD_CHECK_OPPORTUNITY,
+  WORLD_CHECK_REGIONS,
+} from './check';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
 
@@ -155,6 +168,13 @@ export function checkAuthored(authored: AuthoredRegion): CheckReport {
         { id: authored.spec.id, isolationReason: '' },
       ],
     },
+    // 후보가 내미는 것 — 그 방의 원천마다 채집 기회 하나 (세계의 기본형과 같은 유도다).
+    // 뼈대의 원천은 어휘가 아직 좁혀지지 않은 값(carrier · opportunity 가 string)이라 형으로
+    // 좁혀 건넨다 — 유도가 읽는 것은 id · 자리 역할 · 때 · 조건뿐이다.
+    [
+      ...ALL_OPPORTUNITIES,
+      ...sources.map((source) => gatherOpportunity(authored.spec.id, source as unknown as ResourceSourceSpec)),
+    ],
   );
 }
 
@@ -172,6 +192,7 @@ function checkBeside(
   regions: readonly CheckRegion[],
   graph: typeof REGION_GRAPH,
   ecology: CheckEcology,
+  opportunities: readonly Opportunity[] = ALL_OPPORTUNITIES,
 ): CheckReport {
   return checkRegions({
     regions,
@@ -179,6 +200,26 @@ function checkBeside(
     contract: WORLD_CHECK_CONTRACT,
     compile: (region) => compileRegion(region.space, COMPILE_RULES).world,
     ecology,
+    // 기회 쪽 계약도 **양쪽에 같은 잣대로** 건넨다 (T6 · C037) — 한쪽만 걸면 편중 요약이
+    // 후보 때문인지 잣대 때문인지 갈리지 않는다. 후보의 기회는 그 방의 원천에서 유도한다.
+    opportunity: {
+      ...WORLD_CHECK_OPPORTUNITY,
+      opportunities,
+      vocabulary: {
+        ...WORLD_CHECK_OPPORTUNITY.vocabulary,
+        targets: {
+          ...WORLD_CHECK_OPPORTUNITY.vocabulary.targets,
+          source: [
+            ...(WORLD_CHECK_OPPORTUNITY.vocabulary.targets.source ?? []),
+            ...opportunities.flatMap((one) => (one.target.kind === 'source' ? [one.target.ref] : [])),
+          ],
+        },
+        progressPaths: [
+          ...(WORLD_CHECK_OPPORTUNITY.vocabulary.progressPaths ?? []),
+          ...opportunities.flatMap((one) => (one.progress.ref ? [one.progress.ref] : [])),
+        ],
+      },
+    },
   });
 }
 

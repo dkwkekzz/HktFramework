@@ -220,7 +220,7 @@ describe('T3 — 두 번 내면 같다 · 굳힌 것은 데이터다', () => {
   });
 
   it('아직 답하지 못한 질문이 굳힌 파일에 적힌다 — 뼈대가 비어 있다는 것을 숨기지 않는다', () => {
-    expect(authored.unanswered).toEqual(['birth']);
+    expect(authored.unanswered).toEqual(['birth', 'offering']);
     expect(renderRegionModule(authored)).toContain('birth');
   });
 });

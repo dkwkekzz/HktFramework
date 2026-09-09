@@ -120,7 +120,10 @@ export type Birth = z.infer<typeof BirthSchema>;
  * `unansweredKeys` 가 그것을 세고 T4 의 `pending` 에 오른다 (지어내지 않고 비어 있음을 남기는
  * 규율 그대로 — 검사 아홉의 `absent` 와 같다).
  */
-export const OfferingSchema = AnswerSchema.default({ unanswered: '아직 적지 않았다' });
+export const OfferingSchema = AnswerSchema.default({
+  // 까닭은 한 마디로 선다 — 미답에도 "왜 아직 없는가" 가 달려야 한다는 것이 T2 의 규율이다.
+  unanswered: '아직 적지 않았다 — 이 방이 무엇을 내밀고 무엇을 기억하는가',
+});
 
 /** 아홉 답 */
 export const RegionAnswersSchema = z.strictObject({
