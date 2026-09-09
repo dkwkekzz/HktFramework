@@ -228,7 +228,7 @@ function made(options: Made = {}): GameViewSnapshot {
   return {
     specId: 'VIEW-BASIC-COMBAT-POLICY-001',
     scene: region,
-    region: { id: region, hash: hashOf(region), disturbance: { value: 0, threshold: 300, phase: 'dormant' as const } },
+    region: { id: region, hash: hashOf(region), disturbance: { value: 0, threshold: 300, phase: 'dormant' as const }, memory: { turns: 0, awakenings: { times: 0 }, passages: [] } },
     standingConditions: [],
     // C017 — 봉투에 그 방의 소란과 자국이 실린다. 이 시나리오가 보는 것은 그 둘이 아니므로
     // 아무 일도 겪지 않은 방(잠듦 · 자국 없음)으로 둔다

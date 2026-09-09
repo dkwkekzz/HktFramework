@@ -8,6 +8,13 @@
       "value": 0,
       "threshold": 300,
       "phase": "dormant"
+    },
+    "memory": {
+      "turns": 0,
+      "awakenings": {
+        "times": 0
+      },
+      "passages": []
     }
   },
   "observer": {

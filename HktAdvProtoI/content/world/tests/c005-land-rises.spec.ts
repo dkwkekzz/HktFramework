@@ -628,7 +628,7 @@ describe('SPEC-007 — 데이터가 없는 방은 평평하다', () => {
     const frontier = (REGION_GRAPH as unknown as { frontiers?: string[] }).frontiers?.[0] ?? 'NO_SUCH_REGION';
     expect(regionSpec(frontier)).toBeUndefined();
     // Then 그릴 근거가 없다 — 바닥 polygon 도 나오지 않는다 (C001 부터의 폴백 규칙)
-    expect(regionZones({ id: frontier, hash: '00000000', disturbance: { value: 0, threshold: 300, phase: 'dormant' as const } })).toEqual([]);
+    expect(regionZones({ id: frontier, hash: '00000000', disturbance: { value: 0, threshold: 300, phase: 'dormant' as const }, memory: { turns: 0, awakenings: { times: 0 }, passages: [] } })).toEqual([]);
     expect(regionZones(undefined)).toEqual([]);
   });
 });
@@ -644,9 +644,11 @@ describe('SPEC-008 — 세계는 땅을 싣지 않는다', () => {
       // 그 밖은 한 글자도 그대로다
       ['specId', 'scene', 'region', 'observer', 'entities', 'interactions', 'hud', 'strikes', 'debug', 'commands', 'standingConditions', 'clock', 'tracks', 'presences'].sort(),
     );
-    // C017 CHANGED — 소란이 모든 방에 실리므로 disturbance 하나가 는다. 이 항이 지키는 것은
-    // 그대로다: **땅은 한 조각도 실리지 않는다** (height · surface · traversable · areas 없음).
-    expect(Object.keys(v.region).sort()).toEqual(['disturbance', 'hash', 'id']);
+    // C017 CHANGED — 소란이 모든 방에 실리므로 disturbance 하나가 는다.
+    // C034 CHANGED — 방의 기억이 소란과 같은 어법으로 **늘** 실리므로 memory 하나가 는다.
+    // 이 항이 지키는 것은 그대로다: **땅은 한 조각도 실리지 않는다**
+    // (height · surface · traversable · areas 없음).
+    expect(Object.keys(v.region).sort()).toEqual(['disturbance', 'hash', 'id', 'memory'].sort());
   });
 
   it('S-030 이 Cycle 은 저장되는 State 를 늘리지 않았다 — 땅은 스냅샷에 실리지 않는다', () => {
