@@ -193,7 +193,7 @@ const BASELINE: Readonly<Record<string, RoomBaseline>> = {
     ],
   },
   [FOREST_DEEP]: {
-    hash: '2b6a4c96',
+    hash: 'b0cabbb8',
     surface: { flat: 1681 },
     traversable: 1681,
     exits: ['DEEP_TRAIL', 'NEST_TRAIL', 'ORE_TRAIL', 'TREE_APPROACH', 'ANCIENT_GATE', 'WALKING_FOREST_DOOR'],
@@ -230,7 +230,7 @@ const BASELINE: Readonly<Record<string, RoomBaseline>> = {
   [PREDATOR_NEST]: {
     // C024 CHANGED — 둥지는 C024 가 만졌다 (사체 · 변성지 · 자락 넷). **표면도 통행도 한 값
     // 달라지지 않았고** 달라진 것은 Description 에 선 자리뿐이라 hash 하나가 바뀌었다.
-    hash: '010d1f16',
+    hash: 'c9a53392',
     surface: { flat: 1681 },
     traversable: 1681,
     exits: ['NEST_TRAIL'],

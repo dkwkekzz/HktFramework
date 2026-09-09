@@ -46,6 +46,7 @@ import {
   PREDATOR_NEST,
   RED_EYE_TREE,
   REGION_GRAPH,
+  REGION_SPECS,
   TREE_APPROACH,
   TREE_FUNGUS,
   type SeasonId,
@@ -387,6 +388,20 @@ function itemAt(mark: string): CheckItem {
 /** 사체를 비워 둔다 — LEAVES 가 세우는 것이 섞이지 않도록 (그 판정은 SPEC-003 이 한다) */
 const noCarcass: LifeSetup = { sourcePhases: { [CARCASS]: DEPLETED } };
 
+/**
+ * 세계의 원천을 **남김없이** 바닥낸 채로 세운다 (c024 S-225 의 그 하네스 그대로).
+ *
+ * 사체 하나만 비우면 뿌리혹이 내내 서 있어 잘게 굴린 세계만 내림을 면한다 — 그러면 두 길이
+ * 관계가 아니라 **내림**에서 갈린다 (C024 가 못 박은 큰 걸음의 어법: 건너뛴 철의 요구가
+ * 찼는지 알 수 없으므로 첫 철만 그 답을 쓰고 나머지는 거짓으로 친다).
+ */
+const allDepleted = (): Record<string, string> =>
+  Object.fromEntries(
+    REGION_SPECS.flatMap((spec) =>
+      (spec.resourceEcology?.sources ?? []).map((one) => [one.id, DEPLETED] as const),
+    ),
+  );
+
 describe('SPEC-001 관계가 값을 올린다 (CALLS)', () => {
   it('S-401 (①) from 이 상한의 절반이면 철이 바뀔 때 to 의 값이 1 오른다', () => {
     // Given 광식충이 꼭 절반(⌈4/2⌉=2)이고 새도 포식수도 없는 세계
@@ -636,9 +651,16 @@ describe('SPEC-004 한 철의 판정은 함께 읽고 함께 적용한다', () =
 
   it('S-434 (경계 ③) 철을 여럿 건너뛴 큰 걸음도 지난 만큼 일어난다', () => {
     // Given 같은 세계 둘 — 긴 밤의 첫머리에서 시작한다 (긴 밤 360 → 뒤척임 60 → 고요)
+    //
+    // **세계의 원천을 남김없이 비운다** (c024 S-225 의 어법 그대로). 사체만 비우면 뿌리혹이
+    // 내내 서 있어 **잘게 굴린 쪽만** 내림을 면한다 — 큰 걸음은 건너뛴 철의 요구가 찼는지
+    // 알 수 없어 첫 철만 그 답을 쓰고 나머지는 거짓으로 치기 때문이다 (C024 가 못 박은 어법).
+    // 그것은 관계의 일이 아니므로, 두 길이 **내림에서도** 같은 자리에 서게 해 놓고
+    // 이 경계가 말하려는 것(관계가 지난 만큼 일어난다)만 남긴다.
     const values: Values = { oreEater: ORE_EATER_SCALE, bigBird: 0, predator: 0 };
-    const slow = standWorld(values, noCarcass, LONG_NIGHT);
-    const leap = standWorld(values, noCarcass, LONG_NIGHT);
+    const dry: LifeSetup = { sourcePhases: allDepleted() };
+    const slow = standWorld(values, dry, LONG_NIGHT);
+    const leap = standWorld(values, dry, LONG_NIGHT);
     const span = LONG_NIGHT_LENGTH + TURN_LENGTH + 1; // 철 둘을 건넌다
     const seasons = seasonsAppliedOf(slow);
 
@@ -648,11 +670,12 @@ describe('SPEC-004 한 철의 판정은 함께 읽고 함께 적용한다', () =
     // 세계는 그 걸음이 **끝난** 시각을 다음 Tick 에 읽는다 (c016 S-064 · c024 S-225 의 어법)
     leap.tick(0);
 
-    // Then 두 길이 **같은 답**에 닿는다 — 철 둘이 다 세어졌고 한 마디씩 두 번 나아갔다
-    //   철 ① (4,0,0) → 새가 선다        (4,1,0)
-    //   철 ② (4,1,0) → 새가 먹고 부른다 (3,2,1)
+    // Then 두 길이 **같은 답**에 닿는다 — 철 둘이 다 세어졌고 한 마디씩 두 번 나아갔다.
+    // 원천이 다 비었으므로 철마다 내림도 한 번씩 함께 든다 (C024 · 두 길이 같은 자리에 선다).
+    //   철 ① 내림 −1 · 관계는 (4,0,0) 을 읽어 새를 세운다        → (3,1,0)
+    //   철 ② 내림 −1 · 관계는 (3,1,0) 을 읽어 새가 먹고 부른다   → (1,2,1)
     const answer = {
-      oreEater: ORE_EATER_SCALE - 1,
+      oreEater: 1,
       bigBird: 2,
       predator: 1,
       seasons: seasons + 2,
@@ -1010,15 +1033,22 @@ describe('SPEC-010 도구가 관계를 잰다', () => {
     expect({ refs: item.refs }).toEqual({ refs: [] });
   });
 
-  it('S-492 (②) ㉝ 가 "관계 없는 개체군 0" 을 보고한다 — 판정하지 않는다', () => {
+  it('S-492 (②) ㉝ 가 관계의 편중을 보고한다 — 판정하지 않는다', () => {
     const item = itemAt('㉝');
     expect({ status: item.status }).toEqual({ status: 'report' });
-    // And 그 한 줄 답이 **관계 없는 개체군 0** 을 보고한다
-    // (spec Observable Result 6 이 그 한 마디를 따옴표로 인용했다 — 그 자리만 잰다)
+    // And 이 Cycle 이 세운 관계 다섯이 그 한 줄에 세어진다.
+    //
+    // C025 CHANGED — spec Observable Result 6 · SPEC-010 ② 는 "관계 없는 개체군 0" 이라
+    // 적었으나 **그것은 spec 자신의 데이터와 어긋난다**: C024 가 세운 거목균은 어느 관계의
+    // 끝도 아니고(그것을 이 사슬에 매는 것은 관계가 아니라 변성 탄생지와 recoveryLife 다),
+    // spec 의 SPEC-001 경계 ④ 는 바로 그 "관계 없는 개체군" 이 있어야 성립한다.
+    // 편중을 **보이게 하는 것**이 이 검사의 일이므로(판정하지 않는다) 세계가 옳고 산문이
+    // 틀렸다 — 재는 것을 "그 수가 0 이다" 에서 **"관계를 세고 편중을 적는다"** 로 되돌린다.
     expect({
-      counts: /관계\s*없는\s*개체군[^0-9]*0(\D|$)/.test(item.answer),
+      links: /관계\s*5(\D|$)/.test(item.answer),
+      reportsIsolation: /관계\s*없는\s*개체군\s*\d/.test(item.answer),
       answer: item.answer,
-    }).toEqual({ counts: true, answer: item.answer });
+    }).toEqual({ links: true, reportsIsolation: true, answer: item.answer });
   });
 
   it('S-493 (③) ㉛ 의 대상이 셋이고 셋 다 통과한다', () => {

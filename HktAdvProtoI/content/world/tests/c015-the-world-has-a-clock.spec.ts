@@ -1013,20 +1013,27 @@ describe('SPEC-009 밤에는 흔적이 또렷해진다', () => {
     // C018 CHANGED — 긴 밤에는 **눈 없는 것**이 지나고, 그것이 지나간 뒤 남긴 것이 그 자리의
     // 둘레를 바꾼다. 그래서 긴 밤의 표본을 그것이 **아직 지나는 중**인 자리로 옮긴다 —
     // 위의 낮 기준과 같은 이유다 (재는 것은 낮밤이지 세계 시각이 아니다)
-    for (const target of [MIDNIGHT, LONG_NIGHT_AT + 10]) {
-      runTo(world, target, 1);
-      expect({ target, traces: tracesNow() }).toEqual({ target, traces: day });
-    }
-    // C016 CHANGED — 뒤척임에는 **세계가 뒤척여** 자국이 묻히고 원천이 자리를 옮긴다
-    // (C016 spec R8). 그것은 낮밤이 하는 일이 아니므로 고요의 낮과 견줄 수 없다.
-    // 이 검사가 재는 것(흔적의 세기가 낮과 밤에 같은가)은 지워지지 않고 **뒤척임을 지난
-    // 뒤의 낮과 밤**으로 옮겨 잰다 — 그 사이에는 뒤척임이 다시 오지 않는다.
-    runTo(world, TURN_AT + 10, 1);
-    expect(clockOf(world).dayPhase).toBe(DAY);
-    const afterTurn = tracesNow();
-    runTo(world, CYCLE_LENGTH + MIDNIGHT, 1);
+    // C025 CHANGED — **견주는 두 자리를 한 철 안에 둔다.**
+    //
+    // 지금까지 이 검사는 철을 건너 낮과 밤을 견줬고, 그때마다 철 너머의 세계 시각이 하는
+    // 일(어귀의 퇴적 · 지나가는 것 · 뒤척임)을 하나씩 피해 왔다. C025 부터 그 피함이
+    // 성립하지 않는다 — **관계가 철마다 세계를 움직인다**: 새와 포식수가 서고, 포식수가
+    // 둥지에 사체를 세우고, 그 사체가 전조의 자락을 드러내며, 값이 오르내려 탄생이 다시
+    // 돈다. 철 하나만 건너도 흔적이 달라지므로 철을 건넌 두 자리는 이제 견줄 수 없다.
+    //
+    // 재는 것(흔적의 세기가 **낮과 밤**에 같은가)은 한 톨도 깎이지 않는다 — 고요는 사흘이라
+    // 그 안에 낮과 밤이 두 벌 들어 있고, 그 두 벌로 잰다. 철을 건너 견주는 자리는 손잡이가
+    // 없어 세울 수 없다 (§5 공학 부채).
+    runTo(world, MIDNIGHT, 1);
     expect(clockOf(world).dayPhase).toBe(NIGHT);
-    expect(tracesNow()).toEqual(afterTurn);
+    expect({ target: MIDNIGHT, traces: tracesNow() }).toEqual({ target: MIDNIGHT, traces: day });
+    // 같은 철의 **이튿날** — 낮과 밤을 한 벌 더 견준다
+    runTo(world, DAY_LENGTH + DAY_SECONDS - 20, 1);
+    expect(clockOf(world).dayPhase).toBe(DAY);
+    const secondDay = tracesNow();
+    runTo(world, DAY_LENGTH + MIDNIGHT, 1);
+    expect(clockOf(world).dayPhase).toBe(NIGHT);
+    expect(tracesNow()).toEqual(secondDay);
   });
 
   it('S-092 (경계 ②) 흔적이 없는 방은 밤에도 아무것도 서지 않는다', () => {

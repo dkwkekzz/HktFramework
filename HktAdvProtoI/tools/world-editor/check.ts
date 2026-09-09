@@ -44,7 +44,8 @@ import {
   lockOfConnector,
   type SeasonId,
 } from '../../content/regions';
-import { LIFE_BOUND_RECOVERY_CAUSES } from '../../content/authoring/contracts';
+import { LIFE_BOUND_RECOVERY_CAUSES,
+  RAISING_LINK_KINDS } from '../../content/authoring/contracts';
 import {
   checkRegions,
   type CheckAccess,
@@ -375,6 +376,8 @@ export const WORLD_CHECK_LIFE: CheckLife = {
       source.carrier === 'residue' ? [source.id] : [],
     ),
   ),
+  // 값을 **올리는** 관계의 갈래 — 기반은 갈래의 이름을 알지 못하므로 이 세계가 고른다 (㉛)
+  raisingLinkKinds: RAISING_LINK_KINDS,
 };
 
 /**

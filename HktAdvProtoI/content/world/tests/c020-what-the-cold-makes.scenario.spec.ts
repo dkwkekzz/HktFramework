@@ -408,7 +408,7 @@ const BASELINE: Readonly<Record<string, RoomBaseline>> = {
   },
   [FOREST_DEEP]: {
     depth: 'wild',
-    hash: '2b6a4c96',
+    hash: 'b0cabbb8',
     exits: ['DEEP_TRAIL', 'NEST_TRAIL', 'ORE_TRAIL', 'TREE_APPROACH', 'ANCIENT_GATE', 'WALKING_FOREST_DOOR'],
     entities: [
       'player-1/player-character',
@@ -472,7 +472,7 @@ const BASELINE: Readonly<Record<string, RoomBaseline>> = {
   },
   [PREDATOR_NEST]: {
     depth: 'wild',
-    hash: '010d1f16',
+    hash: 'c9a53392',
     exits: ['NEST_TRAIL'],
     // C024 CHANGED — 둘이 늘었다: 둥지의 사체(원천)와 그 위의 변성지(탄생지).
     entities: [

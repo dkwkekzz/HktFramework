@@ -702,9 +702,15 @@ describe('SPEC-003 값이 내린다 — 한 철 내내 모자랐을 때', () => 
     // 세계는 그 걸음이 **끝난** 시각을 다음 Tick 에 읽는다 (c016 S-064 가 세운 그 어법)
     w.tick(0);
 
-    // Then 셋이 다 세어졌다 — 하나도 빠지지 않았다
-    expect({ value: oreEaters(w), seasons: seasonsAppliedOf(w) }).toEqual({
-      value: before - 3,
+    // Then 셋이 다 세어졌다 — 하나도 빠지지 않았다.
+    //
+    // C025 CHANGED — 값이 **꼭 셋** 줄었다고 재던 것을 **셋 이상**으로 바꿨다. 값을 내리는
+    // 원인이 둘이 되었기 때문이다: 이 Cycle 이 세운 조건 결핍과, C025 가 세운 새의 먹힘
+    // (관계도 철마다 한 번 든다). 이 경계가 말하려는 것은 "건너뛴 철이 하나도 빠지지 않고
+    // 세어졌는가" 이고 그것을 재는 것은 **철의 수**다 — 그 수는 여전히 꼭 셋이다.
+    // 내림이 한 철에 꼭 하나씩이라는 것은 위의 S-221 · S-222 가 철 하나로 재고 있다.
+    expect({ dropped: before - oreEaters(w) >= 3, seasons: seasonsAppliedOf(w) }).toEqual({
+      dropped: true,
       seasons: seasonsBefore + 3,
     });
   }, 60_000);
@@ -1245,9 +1251,15 @@ describe('SPEC-010 ㉛ 의 대상이 둘이고 둘 다 통과한다', () => {
     const item = itemAt('㉛');
     // Then 판정이 pass 다 — 둘 다 개체군을 밝히고 그 개체군을 세우는 탄생지가 세계에 있다
     expect({ status: item.status }).toEqual({ status: 'pass' });
-    // And 그 한 줄 답이 대상 **둘**을 센다 (C022 는 하나였다)
-    expect({ counts: /(^|\D)2(\D|$)/.test(item.answer), answer: item.answer }).toEqual({
-      counts: true,
+    // And 그 한 줄 답이 **주인 없는 것 0** 을 센다.
+    //
+    // C025 CHANGED — 대상을 "꼭 둘" 로 재던 것을 지웠다. 이 Cycle 이 세운 것은 허물 곁에
+    // 균사가 주인을 얻은 것(둘째)이고, 뒤의 Cycle 이 셋째(사체)를 세웠다 — 대상의 수는
+    // 자라는 값이라 그것을 못 박으면 뒤의 Cycle 이 이 항을 밟는다. 이 항이 말하려는 것은
+    // **주인 없는 회복 원인이 없다** 이고, 아래 두 줄이 그것을 그대로 잰다
+    // (이 Cycle 이 둘째를 세웠다는 것은 위의 S-281 · S-282 가 데이터로 잰다).
+    expect({ unowned: /주인\s*없는\s*것\s*0(\D|$)/.test(item.answer), answer: item.answer }).toEqual({
+      unowned: true,
       answer: item.answer,
     });
     // And 걸린 자리가 하나도 없다 (통과한 검사는 짚을 것이 없다)
