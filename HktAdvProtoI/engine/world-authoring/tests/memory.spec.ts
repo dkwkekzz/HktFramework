@@ -174,11 +174,11 @@ describe('checkRegions — 기억 쪽 둘의 형', () => {
   });
 });
 
-describe('㊸ 기억이 가리키는 원천과 경로', () => {
+describe('㊸ 기억이 가리키는 원천과 경로와 탄생지', () => {
   it('방마다 셀 것이 다 있고 유령이 없으면 통과이고 수가 적힌다', () => {
     const item = itemOf(sound(), 'memory-refs');
     expect(item.status).toBe('pass');
-    expect(item.answer).toBe('방 2 · 원천 키 2 · 경로 키 3 · 걸린 것 0');
+    expect(item.answer).toBe('방 2 · 원천 키 2 · 경로 키 3 · 태어남 키 0 · 걸린 것 0');
     expect(item.refs).toEqual([]);
   });
 
@@ -255,6 +255,44 @@ describe('㊸ 기억이 가리키는 원천과 경로', () => {
     expect(item.status).toBe('fail');
     // S9 도 A 의 빈 원천 자리도 적히지 않는다 — 원천의 진리를 주지 않았기 때문이다
     expect(item.refs).toEqual([{ where: 'A', detail: '경로 R2 은 이 방을 지나지 않는다' }]);
+  });
+
+  // C037 — 방이 태어난 것도 센다. 그 키도 같은 잣대로 재어진다 (SPEC-007 경계 ③)
+
+  it('태어남의 키가 아는 탄생지면 통과이고 그 수가 답에 선다', () => {
+    const world = sound();
+    world.memory!.formations = ['F1', 'F2'];
+    world.memory!.regions = [
+      { id: 'A', sources: ['S1'], routes: ['R1'], formations: ['F1'] },
+      { id: 'B', sources: ['S2'], routes: ['R1', 'R2'], formations: ['F2'] },
+    ];
+    const item = itemOf(world, 'memory-refs');
+    expect(item.status).toBe('pass');
+    expect(item.answer).toBe('방 2 · 원천 키 2 · 경로 키 3 · 태어남 키 2 · 걸린 것 0');
+  });
+
+  it('유령을 가리키는 태어남 키가 잡힌다', () => {
+    const world = sound();
+    world.memory!.formations = ['F1'];
+    world.memory!.regions = [
+      { id: 'A', sources: ['S1'], routes: ['R1'], formations: ['F1', 'F9'] },
+      { id: 'B', sources: ['S2'], routes: ['R1', 'R2'] },
+    ];
+    const item = itemOf(world, 'memory-refs');
+    expect(item.status).toBe('fail');
+    expect(item.refs).toEqual([{ where: 'A', detail: '탄생지 F9 은 아는 탄생지가 아니다' }]);
+  });
+
+  it('탄생지를 주지 않으면 태어남 키를 재지 않는다 — 없는 계약을 거짓으로 읽지 않는다', () => {
+    const world = sound();
+    world.memory!.regions = [
+      { id: 'A', sources: ['S1'], routes: ['R1'], formations: ['F9'] },
+      { id: 'B', sources: ['S2'], routes: ['R1', 'R2'] },
+    ];
+    const item = itemOf(world, 'memory-refs');
+    expect(item.status).toBe('pass');
+    // 재지는 않되 세기는 한다 — 없다는 사실이 답에 선다
+    expect(item.answer).toBe('방 2 · 원천 키 2 · 경로 키 3 · 태어남 키 1 · 걸린 것 0');
   });
 
   it('시간 쪽 계약을 주지 않으면 경로 쪽 잣대를 재지 않는다 — 원천 쪽은 그대로 잰다', () => {

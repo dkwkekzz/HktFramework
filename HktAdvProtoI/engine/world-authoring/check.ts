@@ -2718,8 +2718,8 @@ export function accessAnswerMap(input: CheckRegionsInput): AccessAnswerRow[] {
 // ── 검사 둘 — 방이 세는 것과 남는 것 (C034 ADDED) ─────────────────────
 //
 // 앞의 마흔둘이 방과 그래프 · 그 위의 재료 계통 · 시각이 거는 것 · 태어나는 자리 · 방이 묻는
-// 것을 재었다면, 이 둘은 **방이 세는 것**을 잰다 — 세어질 수 있는 키가 실제 세계의 것인가(㊸),
-// 그리고 State 마다 무엇이 그것을 지우는가(㊼).
+// 것을 재었다면, 이 둘은 **방이 세는 것**을 잰다 — 세어질 수 있는 키(원천 · 경로 · 탄생지)가
+// 실제 세계의 것인가(㊸), 그리고 State 마다 무엇이 그것을 지우는가(㊼).
 //
 // ㊸ 가 **양쪽으로** 재는 까닭 — 한쪽만 재면 둘 중 하나를 놓친다. 없는 것을 가리키는 키는
 // 지워지지 않는 셈이 유령을 가리키게 두고(기억은 지워지지 않으므로 그 유령도 지워지지 않는다),
@@ -2739,6 +2739,8 @@ export interface CheckMemoryRegion {
   sources: readonly string[];
   /** 기억이 셀 경로 키들 */
   routes: readonly string[];
+  /** 기억이 셀 탄생지 키들 — 밝히지 않으면 세는 자리가 없는 것이다 (빈 것으로 견준다) */
+  formations?: readonly string[];
 }
 
 /** State 경로 하나와 그것을 지우는 손 (㊼) */
@@ -2753,11 +2755,19 @@ export interface CheckMemory {
   persistence: readonly CheckPersistenceRow[];
   /** 지우는 손의 어휘 (다섯) — 이 목록 밖의 것은 ㊼ 가 "모르는 손" 으로 적는다 */
   erasers: readonly string[];
+  /**
+   * 이 세계의 **탄생지** id 목록 — ㊸ 이 태어남의 키를 이것에 견준다.
+   *
+   * 주지 않으면 태어남 키는 재지 않는다 (수만 세고 견주지 않는다) — 없는 계약을 거짓으로 읽지
+   * 않는 어법 그대로다. 원천 · 경로와 달리 어느 방의 것인가까지는 견주지 않는다: 태어남은
+   * 그 방에서 일어나는 것이므로 키가 실재하는가만 잰다 (SPEC-007 경계 ③).
+   */
+  formations?: readonly string[];
 }
 
 /** 둘의 번호·이름 — 이 차례가 곧 보고에 실리는 차례다 (계약이 없을 때의 absent 도 이것을 쓴다) */
 const MEMORY_ITEMS = {
-  refs: { mark: '㊸', id: 'memory-refs', name: '기억이 가리키는 원천과 경로' },
+  refs: { mark: '㊸', id: 'memory-refs', name: '기억이 가리키는 원천과 경로와 탄생지' },
   persistence: { mark: '㊼', id: 'persistence-summary', name: '남는 것의 종류와 기억의 크기' },
 } as const;
 
@@ -2815,23 +2825,31 @@ function memoryRoutesByRegion(time: CheckTime): Map<string, string[]> {
 }
 
 /**
- * ㊸ 기억이 가질 키가 실제 원천 · 경로이고, 그 역도 참인가 — 양방향.
+ * ㊸ 기억이 가질 키가 실제 원천 · 경로 · 탄생지이고, 그 역도 참인가 — 양방향.
  *
  * 앞의 잣대(유령)는 `memory.regions` 차례로, 뒤의 잣대(셀 수 없는 것)는 `input.regions`
  * 차례로 잰다 — 뒤를 방마다 재는 까닭은 **기억 자리가 아예 없는 방**도 그 방의 원천을 셀 수
  * 없기 때문이다 (기억은 모든 방에 서는 것이므로 목록에서 빠진 방은 빠진 만큼 걸린다).
+ *
+ * 태어남의 키는 앞의 잣대만 잰다 — 탄생지가 어느 방의 것인가를 계약이 주지 않기 때문이다.
+ * 없는 것을 가리키는 키는 잡되, 주지 않은 진리로 뒷면을 재지 않는다 (원천·경로에 계통·시간이
+ * 없으면 그 쪽을 재지 않는 것과 같은 규율).
  */
 function checkMemoryRefs(cx: MemoryContext): CheckItem {
   const head = MEMORY_ITEMS.refs;
   const { regions } = cx.memory;
   const refs: CheckRef[] = [];
   const declared = new Map<string, CheckMemoryRegion>();
+  /** 태어남의 잣대 — 계약이 탄생지를 주지 않으면 undefined 이고 그때 태어남 쪽은 재지 않는다 */
+  const formationIds = cx.memory.formations ? new Set(cx.memory.formations) : undefined;
   let sourceKeys = 0;
   let routeKeys = 0;
+  let birthKeys = 0;
 
   for (const room of regions) {
     sourceKeys += room.sources.length;
     routeKeys += room.routes.length;
+    birthKeys += room.formations?.length ?? 0;
     if (!cx.regionIds.has(room.id)) {
       // 모르는 방의 키는 무엇과 견줄 수가 없다 — 방 하나만 적고 그 키들은 재지 않는다
       refs.push({ where: room.id, detail: `${room.id} 은 아는 방이 아니다` });
@@ -2862,6 +2880,12 @@ function checkMemoryRefs(cx: MemoryContext): CheckItem {
         });
       }
     }
+    if (formationIds) {
+      for (const key of room.formations ?? []) {
+        if (formationIds.has(key)) continue;
+        refs.push({ where: room.id, detail: `탄생지 ${key} 은 아는 탄생지가 아니다` });
+      }
+    }
   }
 
   // 셀 수 없는 것 — 방 차례로. 기억 자리를 밝히지 않은 방은 빈 것으로 견준다
@@ -2884,7 +2908,9 @@ function checkMemoryRefs(cx: MemoryContext): CheckItem {
   return {
     ...head,
     status: refs.length === 0 ? 'pass' : 'fail',
-    answer: `방 ${regions.length} · 원천 키 ${sourceKeys} · 경로 키 ${routeKeys} · 걸린 것 ${refs.length}`,
+    answer:
+      `방 ${regions.length} · 원천 키 ${sourceKeys} · 경로 키 ${routeKeys}` +
+      ` · 태어남 키 ${birthKeys} · 걸린 것 ${refs.length}`,
     refs,
   };
 }

@@ -15,7 +15,7 @@ import {
   type RegionBrief,
 } from '../brief';
 
-/** 여덟 답이 다 서 있는 가장 작은 brief */
+/** 아홉 답이 다 서 있는 가장 작은 brief */
 function sound(): unknown {
   return {
     id: 'A_ROOM',
@@ -43,6 +43,7 @@ function sound(): unknown {
       discovery: '이것을 알게 된다',
       opening: '이것이 열린다',
       birth: { said: '이것이 태어난다', born: [{ id: 'L', from: 'M' }] },
+      offering: '이것을 내밀고 이것을 기억한다',
     },
   };
 }
@@ -54,7 +55,7 @@ const parsed = (over: (b: Record<string, unknown>) => void = () => {}) => {
 };
 
 describe('RegionBrief — 형이 받는 것', () => {
-  it('여덟 답이 선 brief 를 받고, 적지 않은 목록은 빈 목록이 된다', () => {
+  it('아홉 답이 선 brief 를 받고, 적지 않은 목록은 빈 목록이 된다', () => {
     const result = parsed();
     expect(result.ok).toBe(true);
     if (!result.ok) return;
@@ -72,7 +73,7 @@ describe('RegionBrief — 형이 받는 것', () => {
     });
   });
 
-  it('여덟 답의 순서가 형에 한 번만 적혀 있다', () => {
+  it('아홉 답의 순서가 형에 한 번만 적혀 있다', () => {
     const result = parsed();
     expect(result.ok).toBe(true);
     if (!result.ok) return;
@@ -106,13 +107,24 @@ describe('RegionBrief — 형이 물리치는 것', () => {
     expect(result.ok).toBe(false);
   });
 
-  it('여덟 중 하나가 없으면 물리친다 — 탄생도 마찬가지다 (Life §3.5)', () => {
-    for (const key of ANSWER_ORDER) {
+  it('앞의 여덟 중 하나가 없으면 물리친다 — 탄생도 마찬가지다 (Life §3.5)', () => {
+    for (const key of ANSWER_ORDER.filter((k) => k !== 'offering')) {
       const result = parsed((b) => {
         delete (b.answers as Record<string, unknown>)[key];
       });
       expect({ key, ok: result.ok }).toEqual({ key, ok: false });
     }
+  });
+
+  it('아홉째(내밂)만은 없어도 받는다 — 대신 **미답으로 센다** (T2 규율 · 옛 brief 가 그대로 선다)', () => {
+    const result = parsed((b) => {
+      delete (b.answers as Record<string, unknown>).offering;
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    // 통과시키는 것이 아니라 비어 있음을 남기는 것이다 — T4 의 pending 이 이것을 읊는다
+    expect(isUnanswered(result.brief.answers.offering)).toBe(true);
+    expect(unansweredKeys(result.brief)).toEqual(['offering']);
   });
 
   it('형에 없는 필드를 물리친다 — 형 밖의 뜻이 몰래 실리지 않는다', () => {
@@ -154,7 +166,7 @@ describe('RegionBrief — 형이 물리치는 것', () => {
     expect(result.ok).toBe(false);
   });
 
-  it('요구의 갈래는 셋 중 하나이고 까닭이 있어야 한다', () => {
+  it('요구의 갈래는 여덟 중 하나이고 까닭이 있어야 한다', () => {
     expect(
       parsed((b) => {
         b.requires = [{ kind: 'mood', what: 'x', why: 'y' }];

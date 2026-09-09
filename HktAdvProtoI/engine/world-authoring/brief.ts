@@ -1,10 +1,10 @@
 // World Authoring — RegionBrief 형 (T2 ADDED).
 //
-// 방 하나를 짓기 전에 **사람이 답하는 여덟 답**의 형이다. 뼈대 생성기(T3)가 읽는 입력이고,
+// 방 하나를 짓기 전에 **사람이 답하는 아홉 답**의 형이다. 뼈대 생성기(T3)가 읽는 입력이고,
 // 등급 판정기(T4)가 재는 대상이며, 초안기(T5)가 자유 문장이 아니라 이 형으로 낸다.
 //
-// 여덟 답은 Concept §17 의 일곱 질문(L2-World-Tool.md §3.2 가 옮겨 적었다)에
-// Life §3.5 가 더한 여덟째다.
+// 아홉 답은 Concept §17 의 일곱 질문(L2-World-Tool.md §3.2 가 옮겨 적었다)에
+// Life §3.5 가 더한 여덟째, Foundation §5.4 가 더한 아홉째다.
 //
 //   ① 특별함  이곳은 무엇이 특별한가        distinction
 //   ② 원인    왜 이런 환경이 되었는가        cause
@@ -14,6 +14,7 @@
 //   ⑥ 발견    무엇을 발견하는가             discovery
 //   ⑦ 열림    어떤 가능성이 열리는가         opening
 //   ⑧ 탄생    무엇이 태어나는가             birth   (Life §3.5 — 없으면 도구가 짓는 방 백 개에 생명이 없다)
+//   ⑨ 내밂    무엇을 내밀고 무엇을 기억하는가  offering (Foundation §5.4 — 도구 표의 열셋째 질문)
 //
 // **게임 명사가 없다.** 필드 이름이 전부 일반명이라 이 형은 기반에 선다 — 어느 방이 무슨 갈래이고
 // 어떤 재료가 나는지는 값이지 형이 아니다. 그래서 다른 세계도 같은 형으로 적을 수 있다.
@@ -111,7 +112,17 @@ export const BirthSchema = z.strictObject({
 });
 export type Birth = z.infer<typeof BirthSchema>;
 
-/** 여덟 답 */
+/**
+ * ⑨ 내밂 — 무엇을 내밀고 무엇을 기억하는가 (Foundation §5.4).
+ *
+ * **없으면 미답으로 센다.** 앞의 여덟과 달리 이 답에는 기본값이 있다 — 그 자리가 서기 전에 적힌
+ * brief 들이 그대로 파싱되어야 하기 때문이다. 그렇다고 통과시키지는 않는다: 기본값이 미답의 꼴이라
+ * `unansweredKeys` 가 그것을 세고 T4 의 `pending` 에 오른다 (지어내지 않고 비어 있음을 남기는
+ * 규율 그대로 — 검사 아홉의 `absent` 와 같다).
+ */
+export const OfferingSchema = AnswerSchema.default({ unanswered: '아직 적지 않았다' });
+
+/** 아홉 답 */
 export const RegionAnswersSchema = z.strictObject({
   distinction: AnswerSchema,
   cause: AnswerSchema,
@@ -121,6 +132,7 @@ export const RegionAnswersSchema = z.strictObject({
   discovery: AnswerSchema,
   opening: AnswerSchema,
   birth: BirthSchema,
+  offering: OfferingSchema,
 });
 export type RegionAnswers = z.infer<typeof RegionAnswersSchema>;
 
@@ -138,10 +150,28 @@ export type Neighbour = z.infer<typeof NeighbourSchema>;
 /**
  * 요구 — 이 방이 성립하려면 세계에 무엇이 있어야 하는가.
  * 비어 있으면 **데이터만으로 서는 방**이다 (등급 A). T4 가 이것을 읽어 A · B · C 로 가른다.
+ *
+ * 갈래가 는 까닭 — 설계 경계의 일곱 질문(Foundation §14 · §5.4 가 결정 나무로 옮겨 적었다)이
+ * "무엇이 없어서 이 방이 못 서는가" 를 그만큼으로 가르기 때문이다.
+ * **어느 갈래가 어느 등급인가는 여기서 정하지 않는다** — 그것은 이 세계의 판단이라 계약이
+ * 결정 나무로 건넨다 (T4). 값이 느는 것뿐이라 옛 brief 는 그대로 선다.
  */
 export const RequirementSchema = z.strictObject({
-  /** rule 이 방만의 규칙 하나 · axis 아직 없는 층의 의미 · contract 공통 계약 중 없는 것 */
-  kind: z.enum(['rule', 'axis', 'contract']),
+  /**
+   * rule 이 방만의 규칙 하나 · axis 아직 없는 층의 의미 · contract 공통 계약 중 없는 것 ·
+   * fact 세계의 사실(Contents · State · Relation 의 값) · process 스스로 일어나는 변화 ·
+   * space 새 공간적 의미 · observation 알게 되는 방식 · persistence 남는 것의 종류
+   */
+  kind: z.enum([
+    'rule',
+    'axis',
+    'contract',
+    'fact',
+    'process',
+    'space',
+    'observation',
+    'persistence',
+  ]),
   what: z.string().trim().min(1),
   why: z.string().trim().min(1),
 });
@@ -169,7 +199,7 @@ export function isUnanswered(answer: Answer): answer is { unanswered: string } {
   return typeof answer !== 'string';
 }
 
-/** 여덟 답을 형에 적힌 순서로 — T4 와 보고가 같은 순서로 읊게 하는 유일한 자리 */
+/** 아홉 답을 형에 적힌 순서로 — T4 와 보고가 같은 순서로 읊게 하는 유일한 자리 */
 export const ANSWER_ORDER = [
   'distinction',
   'cause',
@@ -179,6 +209,7 @@ export const ANSWER_ORDER = [
   'discovery',
   'opening',
   'birth',
+  'offering',
 ] as const;
 export type AnswerKey = (typeof ANSWER_ORDER)[number];
 
