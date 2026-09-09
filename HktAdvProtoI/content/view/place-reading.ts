@@ -183,6 +183,11 @@ export function readPlace(
             turns: memory.turns,
             awakenings: { ...memory.awakenings },
             passages: memory.passages.map((p) => ({ ...p })),
+            // 태어난 것들도 지나간 것들과 **같은 자리 · 같은 차례**다 (C037) — 실려 온 차례
+            // 그대로이고 다시 정렬하지 않는다. 앞 Cycle 의 봉투에는 이 자리가 아예 없으므로
+            // 빈 목록으로 읽는다: 그것은 "태어난 적 없다" 와 같은 말이고, 판은 둘 다에서
+            // 아무 마디도 세우지 않는다 (0 을 말하지 않는 그 규율)
+            births: (memory.births ?? []).map((b) => ({ ...b })),
           },
         }
       : {}),

@@ -89,7 +89,7 @@ describe('② 방 이름 — id → 이름 표', () => {
     const unknown: GameViewSnapshot = {
       ...civil,
       scene: 'UNCHARTED',
-      region: { id: 'UNCHARTED', hash: '00000000', disturbance: { value: 0, threshold: 300, phase: 'dormant' as const }, memory: { turns: 0, awakenings: { times: 0 }, passages: [] } },
+      region: { id: 'UNCHARTED', hash: '00000000', disturbance: { value: 0, threshold: 300, phase: 'dormant' as const }, memory: { turns: 0, awakenings: { times: 0 }, passages: [], births: [] } },
     };
 
     const plan = resolvePresentation(unknown);

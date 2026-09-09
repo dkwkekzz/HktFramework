@@ -47,6 +47,28 @@ export interface BeingOffer {
    * (spec SPEC-005 경계 ②: 판정은 규칙의 것이다).
    */
   discovery?: string;
+  /**
+   * 그것이 **때가 있는 기회인가** — 봉투의 `interaction.opportunity.event` 그대로
+   * (C037 ADDED · spec SPEC-004).
+   *
+   * 위의 `discovery?` 와 **같은 자리 · 같은 규율**이다: 기회에 속하지 않는 행동에는 자리
+   * 자체가 없고, 실려 오는 것은 참·거짓 하나이며, 그것이 무슨 말이 되는지는 표현의 표가
+   * 정한다. **무엇이 그 때를 정하는지는 실려 오지 않는다** — 고래도 240 초도 봉투에 없다.
+   */
+  event?: boolean;
+  /**
+   * 그 기회가 **지금 열려 있는가** — 봉투의 `interaction.opportunity.open` 그대로
+   * (C037 ADDED · spec SPEC-003 · SPEC-004).
+   *
+   * **판정 불가는 거짓이다** — 세계가 "열려 있지 않다" 까지만 말하고 왜인지는 말하지 않으므로
+   * (protocol 의 `OpportunityView.open`), 이 자리도 그 이상을 알지 못한다. 언제 열리는지도
+   * 남은 시간도 없다.
+   *
+   * **위의 available 과 갈리는 자리다** — 저것은 지금 이 행동을 걸 수 있는가(규칙의 판정)이고
+   * 이것은 그 기회가 지금 서 있는가(유도)다. 둘을 섞지 않는다: 이 값은 available 도 reason 도
+   * 한 값도 바꾸지 않는다 (discovery 가 그러한 그대로).
+   */
+  open?: boolean;
 }
 
 export interface BeingReading {
@@ -171,7 +193,15 @@ function readOffers(snapshot: GameViewSnapshot, entityId: string): BeingOffer[] 
       available: i.available,
       ...(i.reason === undefined ? {} : { reason: i.reason }),
       // 기회에 속하지 않는 행동에는 봉투에 자리가 없고, 없는 채로 둔다 (C036 — 걸린 것 ·
-      // 기억과 같은 규율). 싣는 것은 discovery 하나다: id 는 코드의 자리이지 판의 말이 아니다
-      ...(i.opportunity === undefined ? {} : { discovery: i.opportunity.discovery }),
+      // 기억과 같은 규율). id 는 여전히 싣지 않는다: 코드의 자리이지 판의 말이 아니다.
+      // C037 CHANGED — 실리는 것이 셋이 되었다 (discovery · event · open). 셋 다 봉투의
+      // 것을 **그대로** 옮길 뿐이고, 이 자리가 스스로 판정하는 것은 여전히 하나도 없다
+      ...(i.opportunity === undefined
+        ? {}
+        : {
+            discovery: i.opportunity.discovery,
+            event: i.opportunity.event,
+            open: i.opportunity.open,
+          }),
     }));
 }

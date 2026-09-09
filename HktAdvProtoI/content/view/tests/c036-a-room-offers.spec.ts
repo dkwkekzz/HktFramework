@@ -117,10 +117,30 @@ const DOOR: EntityView = {
 
 const MOVE: InteractionView = { id: 'move', role: 'move-to', available: true };
 
+/**
+ * C037 CHANGED — 봉투의 기회가 `event` · `open` 을 함께 싣는다 (관찰 계약 2.1).
+ *
+ * 이 파일이 세우는 기회는 전부 **때가 없고 열려 있다** (event: false · open: true) —
+ * C036 이 재는 것은 discovery 한 마디이고, 그 값에서 판의 줄이 한 글자도 달라지지 않아야
+ * 한다는 것이 C037 SPEC-004 경계의 회귀다. 때가 있는 기회의 줄은 c037 시험이 잰다.
+ */
+function opportunityOf(id: string, discovery: string): {
+  id: string;
+  discovery: string;
+  event: boolean;
+  open: boolean;
+} {
+  return { id, discovery, event: false, open: true };
+}
+
 /** 채취 하나 — 기회의 이름을 밝히거나(discovery) 밝히지 않거나 */
 function harvest(
   target: string,
-  options: { available?: boolean; reason?: string; opportunity?: { id: string; discovery: string } } = {},
+  options: {
+    available?: boolean;
+    reason?: string;
+    opportunity?: { id: string; discovery: string; event: boolean; open: boolean };
+  } = {},
 ): InteractionView {
   return {
     id: 'mine',
@@ -133,7 +153,9 @@ function harvest(
 }
 
 /** 건너기 하나 — 문의 줄이 기회에서 온다 (spec Observable Result ②) */
-function cross(options: { opportunity?: { id: string; discovery: string } } = {}): InteractionView {
+function cross(
+  options: { opportunity?: { id: string; discovery: string; event: boolean; open: boolean } } = {},
+): InteractionView {
   return {
     id: 'transit',
     role: 'transit-connector',
@@ -159,7 +181,7 @@ function made(interactions: InteractionView[]): GameViewSnapshot {
       id: FOREST_EDGE,
       hash: hashOf(FOREST_EDGE),
       disturbance: { value: 0, threshold: 300, phase: 'dormant' as const },
-      memory: { turns: 0, awakenings: { times: 0 }, passages: [] },
+      memory: { turns: 0, awakenings: { times: 0 }, passages: [], births: [] },
     },
     standingConditions: [],
     tracks: [],
@@ -211,9 +233,9 @@ function frameTexts(scene: Scene): string[] {
 describe('C036 판의 「할 수 있는 것」 줄이 어떻게 알게 되는지를 함께 진다', () => {
   const scene = point(
     made([
-      harvest(MOLT.id, { opportunity: { id: MOLT_OPPORTUNITY, discovery: TRACE } }),
-      harvest(SCALE.id, { opportunity: { id: SCALE_OPPORTUNITY, discovery: SIGNAL } }),
-      cross({ opportunity: { id: DOOR_OPPORTUNITY, discovery: VISIBLE } }),
+      harvest(MOLT.id, { opportunity: opportunityOf(MOLT_OPPORTUNITY, TRACE) }),
+      harvest(SCALE.id, { opportunity: opportunityOf(SCALE_OPPORTUNITY, SIGNAL) }),
+      cross({ opportunity: opportunityOf(DOOR_OPPORTUNITY, VISIBLE) }),
     ]),
     MOLT.id,
   );
@@ -225,8 +247,8 @@ describe('C036 판의 「할 수 있는 것」 줄이 어떻게 알게 되는지
   it('같은 방의 비늘은 신호로 온다 — 두 원천이 갈려 읽힌다', () => {
     const scaleScene = point(
       made([
-        harvest(MOLT.id, { opportunity: { id: MOLT_OPPORTUNITY, discovery: TRACE } }),
-        harvest(SCALE.id, { opportunity: { id: SCALE_OPPORTUNITY, discovery: SIGNAL } }),
+        harvest(MOLT.id, { opportunity: opportunityOf(MOLT_OPPORTUNITY, TRACE) }),
+        harvest(SCALE.id, { opportunity: opportunityOf(SCALE_OPPORTUNITY, SIGNAL) }),
       ]),
       SCALE.id,
     );
@@ -237,7 +259,7 @@ describe('C036 판의 「할 수 있는 것」 줄이 어떻게 알게 되는지
 
   it('문(건너기)의 줄도 기회에서 온다 — 잠긴 문은 사유 뒤에 그 마디가 선다', () => {
     const doorScene = point(
-      made([cross({ opportunity: { id: DOOR_OPPORTUNITY, discovery: VISIBLE } })]),
+      made([cross({ opportunity: opportunityOf(DOOR_OPPORTUNITY, VISIBLE) })]),
       DOOR.id,
     );
     expect(offerLines(doorScene)).toEqual([
@@ -263,7 +285,7 @@ describe('C036 줄의 앞부분은 한 글자도 달라지지 않는다', () => 
       made([
         harvest(MOLT.id, {
           ...(reason === undefined ? {} : { available: false, reason }),
-          opportunity: { id: MOLT_OPPORTUNITY, discovery },
+          opportunity: opportunityOf(MOLT_OPPORTUNITY, discovery),
         }),
       ]),
       MOLT.id,
@@ -335,9 +357,9 @@ describe('C036 어떻게 알게 되는가의 문구 셋', () => {
     // 그러나 이 Cycle 의 어떤 봉투도 그 값을 싣지 않는다 (spec SPEC-001 경계 ② · 기본형 ④)
     const scene = point(
       made([
-        harvest(MOLT.id, { opportunity: { id: MOLT_OPPORTUNITY, discovery: TRACE } }),
-        harvest(SCALE.id, { opportunity: { id: SCALE_OPPORTUNITY, discovery: SIGNAL } }),
-        cross({ opportunity: { id: DOOR_OPPORTUNITY, discovery: VISIBLE } }),
+        harvest(MOLT.id, { opportunity: opportunityOf(MOLT_OPPORTUNITY, TRACE) }),
+        harvest(SCALE.id, { opportunity: opportunityOf(SCALE_OPPORTUNITY, SIGNAL) }),
+        cross({ opportunity: opportunityOf(DOOR_OPPORTUNITY, VISIBLE) }),
       ]),
       MOLT.id,
     );

@@ -40,7 +40,17 @@ interface TargetFrame {
   rows: TargetFrameRow[];
 }
 type Scene = SceneState & { targetFrame?: TargetFrame };
-type Opportunity = { id: string; discovery: string };
+// C037 CHANGED — 봉투의 기회가 `event` · `open` 을 함께 싣는다 (관찰 계약 2.1). 이 파일이 재는
+// 것은 **C036 의 경계**이므로 여기 서는 기회는 전부 때가 없고(event: false) 열려 있다(open: true) —
+// 그 값에서 판의 줄이 C036 과 한 값도 다르지 않아야 한다는 것이 C037 SPEC-004 경계의 회귀다
+type Opportunity = { id: string; discovery: string; event: boolean; open: boolean };
+/** 때가 없는 기회 하나 — 이 파일의 모든 기회가 이것이다 */
+const opportunityOf = (id: string, discovery: string): Opportunity => ({
+  id,
+  discovery,
+  event: false,
+  open: true,
+});
 type SeenInteraction = InteractionView & { opportunity?: Opportunity };
 
 /** spec 이 못 박은 discovery 셋 (이 Cycle 의 데이터에 HIDDEN 은 없다 · SPEC-001 경계 ②) */
@@ -121,7 +131,7 @@ const withoutFrame = (scene: Scene): string =>
 /** 그 봉투의 화면 — 기회를 붙인 것과 붙이지 않은 것 */
 const bare = () => point(BASE, SOURCE_ID);
 const carrying = (discovery: string) =>
-  point(withOpportunity(SOURCE_ID, { id: `gather:${SOURCE_ID}`, discovery }), SOURCE_ID);
+  point(withOpportunity(SOURCE_ID, opportunityOf(`gather:${SOURCE_ID}`, discovery)), SOURCE_ID);
 
 // ─────────────────────────────────────────────────────────────────────
 
@@ -192,14 +202,14 @@ describe('SPEC-005 판이 discovery 를 말한다', () => {
       });
     }
     // 지목하지 않은 화면도 그대로다 — 판은 지목한 대상의 것만 말한다
-    expect(JSON.stringify(look(withOpportunity(SOURCE_ID, { id: `gather:${SOURCE_ID}`, discovery: TRACE })))).toBe(
+    expect(JSON.stringify(look(withOpportunity(SOURCE_ID, opportunityOf(`gather:${SOURCE_ID}`, TRACE))))).toBe(
       JSON.stringify(look(BASE)),
     );
   });
 
   it('S-341 문(건너기)의 줄도 기회에서 온다 — VISIBLE 한 마디가 붙고 기회가 없는 줄은 지금 그대로다', () => {
     const plain = point(withGate(), GATE_ID);
-    const locked = point(withGate({ id: `cross:${GATE_ID}`, discovery: VISIBLE }), GATE_ID);
+    const locked = point(withGate(opportunityOf(`cross:${GATE_ID}`, VISIBLE)), GATE_ID);
     // Lock 이 걸린 문 — 한 마디가 붙는다
     expect(frameText(locked)).not.toBe(frameText(plain));
     for (const id of rowIds(plain)) {

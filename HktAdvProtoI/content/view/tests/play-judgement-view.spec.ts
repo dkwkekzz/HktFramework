@@ -47,7 +47,7 @@ function snapshotOf(
     region: {
       id: region,
       hash: descriptionHash(regionSpec(region)!.space),
-      disturbance: { value: 0, threshold: 300, phase: 'dormant' }, memory: { turns: 0, awakenings: { times: 0 }, passages: [] },
+      disturbance: { value: 0, threshold: 300, phase: 'dormant' }, memory: { turns: 0, awakenings: { times: 0 }, passages: [], births: [] },
       ...(state ? { state } : {}),
     },
     standingConditions: [],

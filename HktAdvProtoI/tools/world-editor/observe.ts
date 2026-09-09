@@ -13,6 +13,9 @@
 //                                    C035 가 그 곁에 **조건 표**를 더한다 — 조건 자리 넷 + 기억
 //                                    조건에서 읽힌 Condition 의 잎마다 한 행 (어디에 · target ·
 //                                    query · operator value · qualifier · 지금)
+//                                    C037 이 기회 표에 **「지금」 열**을 세우고(갓 선 세계의 값 —
+//                                    조건 표의 「지금」 과 같은 어법) 그 뒤에 **Yield 표**(열 열넷 ·
+//                                    2층은 앞 넷만 값을 가진다)를 더한다
 //   npm run world:observe -- <방> [--height --surface --traversable --semantic --top-view]
 //                            [--semantic=<layer>] [--report] [--out <dir>] [--at <철>]
 //                                    그 방 하나를 본다 (C007). 그림을 하나도 밝히지 않으면 --report 로 본다
@@ -34,6 +37,7 @@ import { join, resolve } from 'node:path';
 import {
   ALL_OPPORTUNITIES,
   ANCHOR_LAYER,
+  OPPORTUNITY_YIELD_TABLE,
   CLOSED_CONNECTORS,
   COMPILE_RULES,
   REGION_GRAPH,
@@ -69,6 +73,8 @@ import {
   worldConditionSites,
   worldConditionVerdict,
 } from '../../content/world/semantic/condition';
+// 열림 판정은 **세계의 자리**를 불러 쓴다 (C037 · RULE-OPPORTUNITY-OPEN-001) — 도구가 다시 짓지 않는다
+import { isOpportunityOpen } from '../../content/world/semantic/opportunity-open';
 import {
   ERASERS,
   PERSISTENCE_TABLE,
@@ -939,13 +945,15 @@ function conditionTableLines(): string[] {
 // 기회 차례다 (ALL_OPPORTUNITIES 가 이미 그 차례로 선다). 조건 표 곁에 서는 것은 두 표가
 // 같은 것의 두 얼굴이기 때문이다: 저기는 **언제 참인가**의 잎들이고 여기는 **무엇을 내미는가**다.
 //
-// **「지금 참인가」 열은 없다** (spec Out of Scope 마지막 줄) — 이 Cycle 은 availability 를
-// 평가하지 않는다. 조건 표의 「지금」 이 갓 선 세계의 값인 것과 같은 자리이고, 여기 열을 두면
-// 도구가 세계가 하지 않은 판정을 한 것이 된다.
+// C037 CHANGED — **「지금」 열이 선다** (spec SPEC-008 · C036 이 미룬 자리). 조건 표의 「지금」 과
+// 같은 어법이다: 값은 **갓 선 세계**(createWorld() · t=0 · 아무것도 지나지 않았고 아무도 들지
+// 않은)의 것이고 표 머리가 그것을 밝힌다. 두 표가 같은 State 를 읽으므로 잎의 참·거짓과 기회의
+// 열림이 한 화면에서 이어진다.
 //
 // **도구는 글자를 놓을 뿐이다** — 기회를 스스로 짓지 않고(출처는 컨텐츠의 ALL_OPPORTUNITIES
-// 하나다) Event 여부도 스스로 세지 않는다 (기반의 isEventOpportunity 가 판정한다 · 같은 것을
-// 도구가 둘로 세면 보고가 거짓말을 한다). 두 번 돌리면 글자까지 같다.
+// 하나다) Event 여부도 열림도 스스로 세지 않는다 (기반의 isEventOpportunity 와 세계의
+// RULE-OPPORTUNITY-OPEN-001 이 판정한다 · 같은 것을 도구가 둘로 세면 보고가 거짓말을 한다).
+// 두 번 돌리면 글자까지 같다.
 
 /** 목록 한 칸 — 비면 `·` 다 (조건 표의 qualifier 칸과 같은 어법) */
 function opportunityListText(values: readonly string[]): string {
@@ -957,30 +965,76 @@ function opportunityTargetText(opportunity: Opportunity): string {
   return `${opportunity.target.kind}(${opportunity.target.ref})`;
 }
 
+/**
+ * 「지금」 한 칸 (C037) — 세계가 낸 답을 옮길 뿐이다.
+ *
+ * 세계가 말하는 것은 **열려 있는가** 하나이고 그 답은 참·거짓뿐이다 (판정 불가도 열지
+ * 않는다 · RULE-OPPORTUNITY-OPEN-001 ③). 그래서 거짓 쪽을 '거짓' 이 아니라 '열리지 않음'
+ * 으로 적는다 — 조건 표의 '판정 불가' 가 거짓이 아니듯, 열리지 않은 것이 곧 닫혔다고
+ * 말해진 것은 아니기 때문이다 (왜인지는 세계도 화면도 말하지 않는다).
+ */
+function opportunityOpenText(open: boolean): string {
+  return open ? '열림' : '열리지 않음';
+}
+
 /** 기회 표 — 기회 하나가 한 행. 방 차례 · 그 방의 기회 차례 */
 function opportunityTableLines(): string[] {
   const lines: string[] = [];
   lines.push(rule());
   lines.push(
-    `  기회 ${ALL_OPPORTUNITIES.length} (방 차례 · 그 방의 기회 차례 · 검사 ㊻ 이 세는 것을 행으로 놓는다 · 지금 참인가는 묻지 않는다)`,
+    `  기회 ${ALL_OPPORTUNITIES.length} (방 차례 · 그 방의 기회 차례 · 검사 ㊻ 이 세는 것을 행으로 놓는다 · 지금 은 갓 선 세계의 것)`,
   );
   if (ALL_OPPORTUNITIES.length === 0) {
     lines.push('    내미는 것이 하나도 없다');
     return lines;
   }
+  // 조건 표와 **같은 State** 다 (갓 선 세계 · t=0) — 두 표가 다른 세계를 읽으면 한 화면에서
+  // 잎의 참·거짓과 기회의 열림이 이어지지 않는다
+  const state = createWorld().snapshot().state as WorldState;
   lines.push(
     ...table(
-      ['어디에', 'id', 'discovery', 'Event', 'target', 'possibleActions', 'yield'],
+      ['어디에', 'id', 'discovery', 'Event', '지금', 'target', 'possibleActions', 'yield'],
       ALL_OPPORTUNITIES.map((opportunity) => [
         opportunity.region,
         opportunity.id,
         opportunity.discovery,
-        // 시간 qualifier 를 가진 것만 Event 다 (G4) — 이 Cycle 의 데이터에는 0 이다
+        // 시간 qualifier 를 가진 것만 Event 다 (G4)
         isEventOpportunity(opportunity) ? 'Event' : '·',
+        // 열림 판정은 **세계의 것**이다 (RULE-OPPORTUNITY-OPEN-001) — 도구가 다시 짓지 않는다
+        opportunityOpenText(isOpportunityOpen(state, opportunity)),
         opportunityTargetText(opportunity),
         opportunityListText(opportunity.possibleActions),
         opportunityListText(opportunity.outcomes.yield),
       ]),
+      '    ',
+    ),
+  );
+  return lines;
+}
+
+// ── Yield 표 (C037 · spec SPEC-006 · Foundation G11) ──────────────────
+//
+// **무엇이 붙잡는 사람에게 남는가**를 한 장으로 편다 — 열 열넷이고 2층은 앞 넷(Material ·
+// Access · Discovery · WorldInfluence)만 값을 가진다. 뒤 열 열은 0 인 채로 서고 **지워지지
+// 않는다**: 없다는 사실이 표에 서야 그 층이 올 자리가 보인다 (㊴ 의 Actor 열과 같은 약속 ·
+// spec 기본형 ⑥).
+//
+// 표의 데이터는 컨텐츠의 `OPPORTUNITY_YIELD_TABLE` 하나다 — 도구는 열을 스스로 정하지도,
+// 수를 스스로 세지도 않는다. 두 번 돌리면 글자까지 같다 (열의 차례가 데이터의 차례다).
+
+/** Yield 표 — 열 열넷 · 이 세계가 그 열에 내는 기회의 수 한 줄 */
+function yieldTableLines(): string[] {
+  const standing = OPPORTUNITY_YIELD_TABLE.filter((column) => column.standing).length;
+  const lines: string[] = [];
+  lines.push(rule());
+  lines.push(
+    `  Yield ${OPPORTUNITY_YIELD_TABLE.length} (열 = 무엇이 남는가 · 이 층이 값을 가지는 열 ${standing} ·` +
+      ` 뒤 열은 0 인 채로 선다 — 없다는 사실이 표에 선다)`,
+  );
+  lines.push(
+    ...table(
+      OPPORTUNITY_YIELD_TABLE.map((column) => column.kind),
+      [OPPORTUNITY_YIELD_TABLE.map((column) => String(column.count))],
       '    ',
     ),
   );
@@ -1018,8 +1072,8 @@ function persistenceTableLines(): string[] {
 }
 
 /**
- * 세계의 보고 한 장 (C021 ADDED · SPEC-006 / C030 · C035 · C036 CHANGED) — 검사 ·
- * 방마다의 분포 · 열쇠 × 자물쇠 · 조건 표 · 기회 표 · 수명 표.
+ * 세계의 보고 한 장 (C021 ADDED · SPEC-006 / C030 · C035 · C036 · C037 CHANGED) — 검사 ·
+ * 방마다의 분포 · 열쇠 × 자물쇠 · 조건 표 · 기회 표 · Yield 표 · 수명 표.
  *
  * 방 하나의 보고(`renderRegionReport`)와 달리 땅을 컴파일하지 않는다 — 여기서 읽는 것은
  * 계통과 검사가 이미 낸 것뿐이다. **읽기 전용**이고 파일을 하나도 쓰지 않는다 (경계 ①).
@@ -1037,8 +1091,12 @@ export function renderWorldReport(): string {
   lines.push(...answerMapLines());
   lines.push(...conditionTableLines());
   // 조건 표 곁에 선다 (C036) — 언제 참인가의 잎들 다음에 무엇을 내미는가가, 그다음에
-  // 무엇이 얼마나 남는가가 온다
+  // 무엇이 얼마나 남는가가 온다.
+  //
+  // C037 CHANGED — 기회 표 바로 뒤에 **Yield 표**가 선다: 저 표가 기회마다 무엇을 내는가를
+  // 적고 이 표가 그것을 열로 세운 것이므로, 둘 사이에 다른 표를 끼우면 같은 사실이 갈린다
   lines.push(...opportunityTableLines());
+  lines.push(...yieldTableLines());
   lines.push(...persistenceTableLines());
   lines.push('');
   return lines.join('\n');
