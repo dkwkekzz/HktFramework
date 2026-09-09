@@ -429,9 +429,9 @@ describe('SPEC-002 채집 기회의 기본형 유도', () => {
     }
   });
 
-  it.todo(
-    'GAP: "데이터에 같은 id 를 적으면 데이터가 이긴다"(SPEC-002 경계)는 이 하네스로 놓을 수 없다 — opportunitiesOf(regionId) 는 방 id 하나만 받고, 이 Cycle 의 데이터에는 덮어쓰는 기회가 하나도 없다(spec Reuse). 덮어쓰기를 세우려면 RegionSpec 을 손으로 짓는 길(engine 의 유도 함수를 직접 부르는 단위 시험)이 있어야 하고, 그것은 spec 이 W 레인의 단위 시험에 맡긴 자리다',
-  );
+  // SPEC-002 경계("데이터에 같은 id 를 적으면 데이터가 이긴다")는 이 하네스로 놓을 수 없다 —
+  // 이 Cycle 의 데이터에 덮어쓰는 기회가 하나도 없어 세계를 세워서는 그 자리를 만들 수 없다.
+  // 유도 함수를 직접 부르는 단위 시험이 잰다: content/world/tests/opportunity.spec.ts U-009 ~ U-011.
 });
 
 // ─────────────────────────────────────────────────────────────────────
@@ -621,9 +621,9 @@ describe('SPEC-004 이름이 붙는다 — 관찰의 Interaction 에 기회 id �
     }
   });
 
-  it.todo(
-    'GAP: SPEC-005(판의 「할 수 있는 것」 줄에 discovery 한 마디가 붙는다)의 **문구**는 이 하네스로 놓을 수 없다 — 문구는 content/view 의 code-text 가 짓는다. 세계 쪽에서 잴 수 있는 것은 그 판이 읽는 값(interactions[].opportunity)까지다. 줄 자체는 content/view/tests/c036-a-room-offers.spec.ts 가 잰다',
-  );
+  // SPEC-005 의 **문구**는 세계 쪽에서 잴 수 없다 — 문구는 content/view 의 code-text 가 짓는다.
+  // 여기서 잴 수 있는 것은 그 판이 읽는 값(interactions[].opportunity)까지이고, 줄 자체는
+  // content/view/tests/c036-a-room-offers.spec.ts(문구 셋)와 같은 폴더의 scenario 가 잰다.
 });
 
 // ─────────────────────────────────────────────────────────────────────
@@ -825,9 +825,25 @@ describe('SPEC-008 검사 ㊻ — 방마다 무엇을 내미는가 (판정 없�
     }
   });
 
-  it.todo(
-    'GAP: ㊻ 의 「관계 다섯 갈래(공간 · 환경 · 생태 · 사건 · 사회)」 열은 이름으로 잴 수 없다 — spec 이 그 다섯의 **코드 어휘**를 밝히지 않아(한국어인지 영문 코드인지, 어느 이름인지) 표에서 그것을 찾을 자가 없다. 잴 수 있는 것은 표가 결정론이고 방마다 한 줄이 선다는 것까지다 (S-328 · S-329)',
-  );
+  // 통합에서 푼 GAP — spec 이 관계 다섯의 **코드 어휘**를 밝히지 않아 T 가 이름으로 잴 자가
+  // 없었다. 어휘는 컨텐츠가 정했고(`relation:<갈래>` 다섯), 세계가 실제로 낸 그 이름으로 잰다.
+  it('S-342 (경계) 관계 다섯 갈래가 그 표에 서고, 하나도 닿지 않는 갈래(사회)도 지워지지 않는다', () => {
+    const item = runWorldCheck().items.find((i) => i.id === SUMMARY_ID)!;
+    const kinds = item.refs.filter((ref) => ref.where.startsWith('relation:'));
+    // 다섯이다 — 갈래가 늘거나 줄면 이 줄이 걸린다 (G9 "다섯 갈래로 이미 서 있다")
+    expect({ kinds: kinds.map((ref) => ref.where) }).toEqual({
+      kinds: [
+        'relation:spatial',
+        'relation:environment',
+        'relation:ecology',
+        'relation:event',
+        'relation:social',
+      ],
+    });
+    // 사회는 아직 어느 방에도 닿지 않는다 — **없다는 사실이 표에 선다** (지워지지 않는다)
+    const social = kinds.find((ref) => ref.where === 'relation:social')!;
+    expect({ reaches: social.detail.includes('닿는 방 0') }).toEqual({ reaches: true });
+  });
 });
 
 // ─────────────────────────────────────────────────────────────────────
