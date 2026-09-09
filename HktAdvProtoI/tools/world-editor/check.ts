@@ -49,6 +49,7 @@ import { LIFE_BOUND_RECOVERY_CAUSES,
 import {
   checkRegions,
   type CheckAccess,
+  type CheckCondition,
   type CheckContract,
   type CheckEcology,
   type CheckEcologySource,
@@ -73,6 +74,12 @@ import {
   ERASERS,
   PERSISTENCE_TABLE,
 } from '../../content/world/semantic/persistence';
+// 조건 자리 넷과 기억 조건을 **한 형**으로 읽는 어댑터는 세계가 소유한다 (content/world/semantic/condition.ts) —
+// 이 도구는 그것이 편 자리와 어휘를 그대로 건넬 뿐이다 (수명 표와 같은 어법).
+import {
+  worldConditionSites,
+  worldConditionVocabulary,
+} from '../../content/world/semantic/condition';
 import { compileRegion } from '../../engine/world-authoring/compile';
 
 // hazard · phenomenon 은 **이 세계에 아직 없어** 상수도 없다 (컨텐츠 층 주입의 것).
@@ -494,6 +501,19 @@ export const WORLD_CHECK_MEMORY: CheckMemory = {
   erasers: [...ERASERS],
 };
 
+// ── 조건 쪽 계약 (C035 ADDED — 검사 ㊹ 가 이것을 읽는다) ──────────
+//
+// 기억(WORLD_CHECK_MEMORY)과 **같은 어법**이다 — 여기서 판정하는 것이 하나도 없고, 세계의 어댑터가
+// 조건 자리 넷(문의 요구 · 원천의 때 · 방의 철 위상 · 결속의 요구)과 원천의 기억 조건을 한 형으로
+// 읽어 편 자리들과, 그 잎을 견줄 어휘(실제 id · 허용 query · 경로)를 그대로 건넨다. 기반은 이 세계의
+// 방도 원천도 경로도 알지 못한다 — 어휘째로 받는다.
+
+/** 이 세계의 조건 쪽 계약 — 조건이 선 자리 전부 · 잎을 견줄 어휘 */
+export const WORLD_CHECK_CONDITION: CheckCondition = {
+  sites: worldConditionSites(),
+  vocabulary: worldConditionVocabulary(),
+};
+
 /**
  * 컨텐츠의 RegionSpec → 검사가 보는 방. `coreRules` 는 이 세계의 세는 법이다 —
  * 지금 한 방은 규칙을 하나까지 품는다 (RegionSpec.rule 하나). 그 형이 늘면 이 줄이 늘어난다.
@@ -523,6 +543,7 @@ export function worldCheckInput(): CheckRegionsInput {
     life: WORLD_CHECK_LIFE,
     access: WORLD_CHECK_ACCESS,
     memory: WORLD_CHECK_MEMORY,
+    condition: WORLD_CHECK_CONDITION,
   };
 }
 

@@ -15,7 +15,7 @@
 import type { RegionSpec } from './spec';
 import { ANCHOR_LAYER } from './spec';
 import { DEPTH_LAYER, HAZARD_LAYER } from './phases';
-import { HUNTER_CURVE_TAG, WHALE_CURVE_TAG } from './presence-routes';
+import { HUNTER_CURVE_TAG, SKY_WHALE_ROUTE, WHALE_CURVE_TAG } from './presence-routes';
 import { ORE_EATER } from './lives';
 import {
   BIO_ORE,
@@ -497,6 +497,14 @@ export const FOREST_EDGE_SPEC: RegionSpec = {
           'trace-edge-scale-2',
           'trace-edge-scale-3',
         ],
+        // C035 ADDED (spec SPEC-006 · Q2) — **기억을 읽는 첫 조건**: 고래가 이 방을 한 번이라도 지났는가.
+        // 지금 코드의 사실(비늘은 고래가 지나야 난다)을 형으로 적은 것이라 새 사실이 아니고,
+        // 말해질 뿐 열고 닫지 않는다 (경계 ①). 경로는 세계 State 의 열쇠(routeId)로 가리킨다.
+        condition: {
+          target: { kind: 'history', ref: FOREST_EDGE },
+          query: { kind: 'history', path: `passages.${SKY_WHALE_ROUTE.id}` },
+          operator: 'EXISTS',
+        },
       },
       {
         id: 'PREY_REMAINS',

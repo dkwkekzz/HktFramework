@@ -9,7 +9,10 @@
 //                                    **방마다의 분포**(기회 자리 · 붙잡는 것 · 흐름과 고립)를
 //                                    방 차례로 편다. 두 Region 을 나란히 견주는 자리다.
 //                                    C030 이 **열쇠 × 자물쇠 표**를 뒤에 더한다 — Lock 마다
-//                                    답의 종류와 그 원천이 선 방을 한 장으로 편다
+//                                    답의 종류와 그 원천이 선 방을 한 장으로 편다.
+//                                    C035 가 그 곁에 **조건 표**를 더한다 — 조건 자리 넷 + 기억
+//                                    조건에서 읽힌 Condition 의 잎마다 한 행 (어디에 · target ·
+//                                    query · operator value · qualifier · 지금)
 //   npm run world:observe -- <방> [--height --surface --traversable --semantic --top-view]
 //                            [--semantic=<layer>] [--report] [--out <dir>] [--at <철>]
 //                                    그 방 하나를 본다 (C007). 그림을 하나도 밝히지 않으면 --report 로 본다
@@ -50,6 +53,18 @@ import {
   type CheckItem,
 } from '../../engine/world-authoring/check';
 import { compileRegion } from '../../engine/world-authoring/compile';
+import {
+  conditionLeaves,
+  type ConditionLeaf,
+  type ConditionValue,
+  type ConditionVerdict,
+} from '../../engine/world-authoring/condition';
+import { createWorld } from '../../content/world';
+import {
+  worldConditionSites,
+  worldConditionVerdict,
+} from '../../content/world/semantic/condition';
+import type { WorldState } from '../../content/world/semantic/world-state';
 import type { CompiledRegion, CompiledWorldTerrain } from '../../engine/world-authoring/compiled';
 import {
   rasterHeight,
@@ -831,9 +846,87 @@ function answerMapLines(): string[] {
   return lines;
 }
 
+// ── 조건 표 (C035 · Observable Result 4 · 기본형 ⑤) ─────────────────
+//
+// 조건 자리 넷(문의 요구 · 원천의 때 · 방의 철 위상 · 결속의 요구)과 기억 조건이 **한 형**으로
+// 읽힌 것을 잎마다 한 행으로 편다. 행의 출처는 worldConditionSites() 하나다 — 이 도구는 조건을
+// 하나도 스스로 짓지 않고, 검사 ㊹ 이 세는 그 잎을 그 차례로 놓는다.
+//
+// "지금" 열은 판정이 아니라 **평가기가 낸 것을 옮긴 것**이다 (도구는 판정하지 않는다). 그 값은
+// **갓 선 세계**(createWorld() · t=0 · 아무것도 지나지 않았고 아무도 들지 않은)의 것이다 —
+// 방 하나의 보고가 받는 `--at <철>` 은 이 표에 닿지 않는다: 조건 표는 보고에만 서고(기본형 ⑤)
+// 세계의 보고는 시각을 받지 않는다. 그래서 두 번 돌리면 글자까지 같다.
+
+/** Target · Query 를 한 칸으로 — `clock` · `region FOREST_EDGE` · `history passages.R1` 식 */
+function conditionTargetText(leaf: ConditionLeaf): string {
+  return leaf.target.ref === undefined ? leaf.target.kind : `${leaf.target.kind} ${leaf.target.ref}`;
+}
+
+function conditionQueryText(leaf: ConditionLeaf): string {
+  return leaf.query.path === undefined ? leaf.query.kind : `${leaf.query.kind} ${leaf.query.path}`;
+}
+
+/** 값 — 목록은 `[a · b]`, 스칼라는 글자 그대로. 값이 없는 operator(EXISTS 류)는 operator 만 */
+function conditionValueText(value: ConditionValue | undefined): string {
+  if (value === undefined) return '';
+  if (Array.isArray(value)) return `[${value.map(String).join(' · ')}]`;
+  return String(value);
+}
+
+function conditionOperatorText(leaf: ConditionLeaf): string {
+  const value = conditionValueText(leaf.value);
+  return value === '' ? leaf.operator : `${leaf.operator} ${value}`;
+}
+
+/** qualifier — `WITHIN 240` · `BECAME` · 없으면 `·` */
+function conditionQualifierText(leaf: ConditionLeaf): string {
+  const qualifier = leaf.qualifier;
+  if (qualifier === undefined) return '·';
+  return qualifier.kind === 'time' ? `${qualifier.mode} ${qualifier.seconds}` : qualifier.mode;
+}
+
+/** 판정 셋을 글자로 — 판정 불가는 거짓이 아니다 (engine condition 의 지키는 것 ②) */
+function conditionVerdictText(verdict: ConditionVerdict): string {
+  return verdict === 'met' ? '참' : verdict === 'unmet' ? '거짓' : '판정 불가';
+}
+
+/** 조건 표 — 잎 하나가 한 행. 자리(where) 차례 · 그 조건에 적힌 잎 차례 */
+function conditionTableLines(): string[] {
+  const sites = worldConditionSites();
+  const rows: string[][] = [];
+  if (sites.length > 0) {
+    const state = createWorld().snapshot().state as WorldState;
+    for (const site of sites) {
+      for (const leaf of conditionLeaves(site.condition)) {
+        rows.push([
+          site.where,
+          conditionTargetText(leaf),
+          conditionQueryText(leaf),
+          conditionOperatorText(leaf),
+          conditionQualifierText(leaf),
+          conditionVerdictText(worldConditionVerdict(state, leaf)),
+        ]);
+      }
+    }
+  }
+  const lines: string[] = [];
+  lines.push(rule());
+  lines.push(
+    `  조건 ${rows.length} (조건 자리 순 · 검사 ㊹ 이 세는 잎을 행으로 놓는다 · 지금 은 갓 선 세계의 것)`,
+  );
+  if (rows.length === 0) {
+    lines.push('    조건이 하나도 없다');
+    return lines;
+  }
+  lines.push(
+    ...table(['어디에', 'target', 'query', 'operator value', 'qualifier', '지금'], rows, '    '),
+  );
+  return lines;
+}
+
 /**
- * 세계의 보고 한 장 (C021 ADDED · SPEC-006 / C030 CHANGED) — 검사 서른다섯 ·
- * 방마다의 분포 · 열쇠 × 자물쇠.
+ * 세계의 보고 한 장 (C021 ADDED · SPEC-006 / C030 · C035 CHANGED) — 검사 서른다섯 ·
+ * 방마다의 분포 · 열쇠 × 자물쇠 · 조건 표.
  *
  * 방 하나의 보고(`renderRegionReport`)와 달리 땅을 컴파일하지 않는다 — 여기서 읽는 것은
  * 계통과 검사가 이미 낸 것뿐이다. **읽기 전용**이고 파일을 하나도 쓰지 않는다 (경계 ①).
@@ -849,6 +942,7 @@ export function renderWorldReport(): string {
   lines.push(...checkBody(checks));
   lines.push(...roomLines(report.items));
   lines.push(...answerMapLines());
+  lines.push(...conditionTableLines());
   lines.push('');
   return lines.join('\n');
 }

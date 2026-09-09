@@ -19,6 +19,20 @@
 // 경계(frontier)로 밝힌 이름은 Description 이 없어도 정상이다 — 그 끝의 anchor 도 보지 않는다.
 
 import type { CompiledWorldTerrain } from './compiled';
+import {
+  CHANGE_QUALIFIER_MODES,
+  CONDITION_OPERATORS,
+  conditionLeaves,
+  formatConditionLeaf,
+  DEFERRED_TARGET_KINDS,
+  SINGLETON_TARGET_KINDS,
+  TIME_QUALIFIER_MODES,
+  VALUELESS_OPERATORS,
+  type Condition,
+  type ConditionLeaf,
+  type ConditionQueryKind,
+  type ConditionTargetKind,
+} from './condition';
 import { areasOf, curvesOf, findPoint, pointsOf, type RegionDescription } from './description';
 import {
   exitsOf,
@@ -264,6 +278,8 @@ export interface CheckRegionsInput {
   access?: CheckAccess;
   /** ㊸ ㊼ 가 볼 기억 쪽 계약 — 주지 않으면 그 둘이 전부 absent 다 (ecology · time 의 선례 그대로) */
   memory?: CheckMemory;
+  /** ㊹ 가 볼 조건 쪽 계약 — 주지 않으면 absent 다 (memory 의 선례 그대로) */
+  condition?: CheckCondition;
 }
 
 /** checkGraph 의 코드 → ⑤⑥⑦⑧. 순서가 곧 번호다 */
@@ -555,7 +571,7 @@ function checkCoreRules(input: CheckRegionsInput): CheckItem {
  * 검사 마흔넷을 한 번에 돌린다 — 결과는 기계가 읽는다
  * (T1 의 아홉 + C014 의 열셋 + C018 의 넷 + C022 의 일곱 + C029 의 아홉 + C034 의 둘).
  *
- * 순서는 언제나 ①~⑨ · ⑩~㉒ · ㉓~㉖ · ㉗~㉝ · ㉞~㊷ · ㊸ ㊼ 이고, 각 항목의 refs 는 준
+ * 순서는 언제나 ①~⑨ · ⑩~㉒ · ㉓~㉖ · ㉗~㉝ · ㉞~㊷ · ㊸ ㊼ · ㊹ 이고, 각 항목의 refs 는 준
  * 배열 순서다 — 두 번 돌리면 같다.
  * 세계를 바꾸지 않는 읽기 전용 관찰이다.
  */
@@ -579,6 +595,7 @@ export function checkRegions(input: CheckRegionsInput): CheckReport {
     ...lifeItems(input),
     ...accessItems(input),
     ...memoryItems(input),
+    ...conditionItems(input),
   ];
   const counts: Record<CheckStatus, number> = { pass: 0, fail: 0, absent: 0, report: 0 };
   for (const item of items) counts[item.status]++;
@@ -2924,4 +2941,164 @@ function memoryItems(input: CheckRegionsInput): CheckItem[] {
     routeIds: time ? new Set(time.routes.map((route) => route.id)) : undefined,
   };
   return [checkMemoryRefs(cx), checkPersistenceSummary(cx)];
+}
+
+// ── 검사 ㊹ — 조건의 참조 무결 (C035 ADDED) ────────────────────────────
+//
+// 세계의 조건 자리 넷(문의 요구 · 원천의 때 · 방의 철 위상 · 결속의 요구)과 기억을 읽는 조건이
+// **한 형**(condition.ts 의 Condition)으로 읽힌 뒤, 그 잎 하나하나가 실제로 있는 것을 가리키는가를
+// 한 검사로 잰다 — ㉓ · ㉖ · ㉞ 이 각자 보던 것의 일반형이다 (겹쳐 보되 그 셋을 지우지 않는다).
+//
+// 기반은 어느 방 · 원천 · 경로가 있는지도, history 에 어떤 경로가 있는지도 모른다 — 컨텐츠가
+// `CheckConditionVocabulary` 로 **어휘째** 준다. 조건 쪽 계약을 주지 않으면 absent 다.
+//
+// 잎 하나가 걸리는 것 (fail):
+//   ① target.kind 가 어휘의 targets 에 없거나(자리만인 갈래 포함 — 어휘에 없으면 걸린다),
+//      ref 가 필요한 갈래(SINGLETON 밖)인데 ref 가 없거나, ref 가 그 갈래의 id 목록에 없다
+//   ② query.kind 가 그 Target 갈래에 허용된 query 목록에 없거나, 그 query 가 paths 를 밝혔는데
+//      query.path 가 그 목록에 없다 (paths 를 밝히지 않은 query 는 path 를 재지 않는다)
+//   ③ operator 가 아홉 밖이거나 · EXISTS/NOT_EXISTS 인데 value 가 있거나 · 나머지인데 value 가 없거나 ·
+//      IN 인데 value 가 목록이 아니거나 · IN 밖인데 value 가 목록이다
+//   ④ qualifier 가 형에 어긋난다 — time 의 mode 가 다섯 밖 · seconds 가 유한한 0 이상의 수가 아님 ·
+//      change 의 mode 가 넷 밖
+// answer 는 `자리 N · 잎 N · 걸린 것 N` 이고 refs 의 where 는 그 자리(site.where) · detail 은
+// `formatConditionLeaf` + 걸린 까닭이다.
+
+/** 조건이 서 있는 자리 하나 — where 는 컨텐츠가 짓는 자리 이름 (`lock:<id>` · `source:<id>` 식) */
+export interface CheckConditionSite {
+  where: string;
+  condition: Condition;
+}
+
+/** Target 갈래 하나에 허용되는 Query 와 그 경로 목록 */
+export interface CheckConditionQueryRule {
+  target: ConditionTargetKind;
+  query: ConditionQueryKind;
+  /** 밝히면 query.path 가 이 안에 있어야 한다. 밝히지 않으면 path 를 재지 않는다 */
+  paths?: readonly string[];
+}
+
+/** 조건의 어휘 — 컨텐츠가 건넨다 */
+export interface CheckConditionVocabulary {
+  /** Target 갈래 → 실제 id 목록. ref 없는 갈래(clock)는 빈 목록으로 둔다 — 갈래가 있다는 뜻이다 */
+  targets: Readonly<Partial<Record<ConditionTargetKind, readonly string[]>>>;
+  queries: readonly CheckConditionQueryRule[];
+}
+
+/** ㊹ 가 볼 조건 쪽 계약 — 주지 않으면 absent 다 */
+export interface CheckCondition {
+  sites: readonly CheckConditionSite[];
+  vocabulary: CheckConditionVocabulary;
+}
+
+/** ㊹ 의 번호·이름 — 계약이 없을 때의 absent 도 이것을 쓴다 */
+export const CONDITION_ITEM = { mark: '㊹', id: 'condition-refs', name: '조건이 가리키는 것' } as const;
+
+/** 잎 하나가 걸린 까닭들 — ①~④ 의 차례로 (빈 배열이면 성하다) */
+function conditionLeafFaults(leaf: ConditionLeaf, vocabulary: CheckConditionVocabulary): string[] {
+  const faults: string[] = [];
+  const { target, query, operator, value, qualifier } = leaf;
+
+  // ① Target — 갈래가 어휘에 있는가 · ref 가 있어야 하는가 · ref 가 실제 id 인가
+  const ids = vocabulary.targets[target.kind];
+  const knownKind = ids !== undefined;
+  if (!knownKind) {
+    faults.push(`Target 갈래 ${target.kind} 은 어휘에 없다`);
+  } else if (!SINGLETON_TARGET_KINDS.includes(target.kind)) {
+    // 자리만인 갈래(actor · player · faction)는 아직 id 가 없다 — ref 를 요구하지 않는다.
+    // 밝혔으면 어휘의 id 이어야 하는 것은 같다 (그 층이 오면 목록이 찬다)
+    const deferred = DEFERRED_TARGET_KINDS.includes(target.kind);
+    if (target.ref === undefined) {
+      if (!deferred) faults.push(`Target ${target.kind} 에 ref 가 없다`);
+    } else if (!ids.includes(target.ref)) {
+      faults.push(`ref ${target.ref} 은 아는 ${target.kind} 이 아니다`);
+    }
+  }
+
+  // ② Query — 그 갈래에 허용된 query 인가 · paths 를 밝혔으면 path 가 그 안에 있는가.
+  // 모르는 갈래의 query 는 무엇과 견줄 수가 없다 — ① 만 적고 재지 않는다 (㊸ 의 어법)
+  if (knownKind) {
+    const rule = vocabulary.queries.find(
+      (row) => row.target === target.kind && row.query === query.kind,
+    );
+    if (rule === undefined) {
+      faults.push(`Query ${query.kind} 은 ${target.kind} 에 허용되지 않는다`);
+    } else if (rule.paths !== undefined) {
+      if (query.path === undefined) faults.push(`${target.kind}.${query.kind} 은 path 를 요구한다`);
+      else if (!rule.paths.includes(query.path)) {
+        faults.push(`path ${query.path} 은 ${target.kind}.${query.kind} 의 경로에 없다`);
+      }
+    }
+  }
+
+  // ③ Operator 와 Value 의 짝
+  if (!CONDITION_OPERATORS.includes(operator)) {
+    faults.push(`operator ${operator} 은 아홉 밖이다`);
+  } else if (VALUELESS_OPERATORS.includes(operator)) {
+    if (value !== undefined) faults.push(`${operator} 은 value 를 받지 않는다`);
+  } else if (value === undefined) {
+    faults.push(`${operator} 은 value 를 요구한다`);
+  } else if (operator === 'IN') {
+    if (!Array.isArray(value)) faults.push('IN 의 value 는 목록이어야 한다');
+  } else if (Array.isArray(value)) {
+    faults.push(`${operator} 의 value 는 목록일 수 없다`);
+  }
+
+  // ④ Qualifier 의 형
+  if (qualifier !== undefined) {
+    if (qualifier.kind === 'time') {
+      if (!TIME_QUALIFIER_MODES.includes(qualifier.mode)) {
+        faults.push(`time qualifier 의 mode ${qualifier.mode} 은 다섯 밖이다`);
+      }
+      const { seconds } = qualifier;
+      if (typeof seconds !== 'number' || !Number.isFinite(seconds) || seconds < 0) {
+        faults.push(`time qualifier 의 seconds ${String(seconds)} 은 유한한 0 이상의 수가 아니다`);
+      }
+    } else if (qualifier.kind === 'change') {
+      if (!CHANGE_QUALIFIER_MODES.includes(qualifier.mode)) {
+        faults.push(`change qualifier 의 mode ${qualifier.mode} 은 넷 밖이다`);
+      }
+    } else {
+      faults.push(`qualifier 의 kind ${String((qualifier as { kind: unknown }).kind)} 은 time · change 밖이다`);
+    }
+  }
+
+  return faults;
+}
+
+/**
+ * ㊹ 조건의 참조 무결 — 자리마다 그 조건의 잎 전부를 어휘에 견준다.
+ *
+ * refs 의 차례는 자리(sites) → 잎(적힌 차례) → 까닭(①~④) 이다 — 두 번 돌리면 같다.
+ * 잎 하나에 까닭이 여럿이면 줄도 여럿이다 (무엇이 어긋났는지 다 적는다).
+ */
+function checkConditionRefs(condition: CheckCondition): CheckItem {
+  const refs: CheckRef[] = [];
+  let leafCount = 0;
+  for (const site of condition.sites) {
+    for (const leaf of conditionLeaves(site.condition)) {
+      leafCount++;
+      const line = formatConditionLeaf(leaf);
+      for (const reason of conditionLeafFaults(leaf, condition.vocabulary)) {
+        refs.push({ where: site.where, detail: `${line} — ${reason}` });
+      }
+    }
+  }
+  return {
+    ...CONDITION_ITEM,
+    status: refs.length === 0 ? 'pass' : 'fail',
+    answer: `자리 ${condition.sites.length} · 잎 ${leafCount} · 걸린 것 ${refs.length}`,
+    refs,
+  };
+}
+
+/**
+ * ㊹ — 조건 쪽 계약을 주지 않으면 absent 다 (통과가 아니다). `checkRegions` 의 items 에
+ * `...memoryItems(input)` 뒤에 선다 (기억 ㊸ 과 ㊼ 사이의 번호이지만 실리는 차례는 계약이 는
+ * 차례다 — ㉓~㉖ 이 ⑩~㉒ 뒤에 선 그 어법).
+ */
+export function conditionItems(input: CheckRegionsInput): CheckItem[] {
+  const condition = input.condition;
+  if (!condition) return [absentItem(CONDITION_ITEM, '조건 쪽 계약이 주어지지 않았다')];
+  return [checkConditionRefs(condition)];
 }

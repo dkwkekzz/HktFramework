@@ -118,6 +118,7 @@ import {
   swarmAreasIn,
 } from '../semantic/life';
 import { passingIn, passingOverlaysIn } from '../semantic/presence';
+import { sourceMemoryConditionCodes } from '../semantic/condition';
 import {
   depthOverlayAt,
   hazardEffectsAt,
@@ -485,6 +486,10 @@ export function projectObserverView(
       state.time,
       state.presences,
     );
+    // C035 ADDED · RULE-CONDITION-HISTORY-001 — 원천이 밝힌 **기억 조건**이 서지 않을 때의 코드 하나가
+    // 곁에 실린다. 기억 조건은 읽히고 말해질 뿐 열고 닫지 않는다 (spec SPEC-006 경계 ①) —
+    // phase · 되돌아옴 · mine 의 전제는 이 줄을 읽지 않는다. 맨 나중에 붙는다 (차례는 결정적이다).
+    conditions.push(...sourceMemoryConditionCodes(state, source));
     const sourceState = sourceStateOf(state.regionStates, self.regionId, source.id);
     // C013 ADDED — 지금 선 자리. 원천이 마디를 옮겨 다니므로 데이터의 마디 0 이 아니다.
     const here = sourcePositionOf(state.regionStates, source);
