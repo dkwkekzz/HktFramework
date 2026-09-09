@@ -3,7 +3,8 @@
 // place-reading.ts 의 형제다. 세계에 아무것도 묻지 않는다 (SPEC-009 — 패킷도 왕복도 0):
 // 이 파일이 모으는 것은 전부 **이미 매 tick 봉투에 실려 온** 것이다.
 //   entities[]      이름 · 종류 · 역할 · 지금 하는 일과 그 진행 · 생명 · 쓰러짐 · 재료
-//   interactions[]  그 존재를 targetEntityId 로 겨냥한 것들 — 걸 수 있는가 · 없으면 왜
+//   interactions[]  그 존재를 targetEntityId 로 겨냥한 것들 — 걸 수 있는가 · 없으면 왜 ·
+//                   그 행동을 어떻게 알게 되는가 (C036 — 기회에 속한 것에만)
 //
 // 이 파일은 **줄을 만들지 않는다** — 순서도 이름표도 문구도 target-frame-presentation 의
 // 표가 정한다. 여기 있는 것은 "그 존재에 무엇이 참인가" 뿐이다.
@@ -30,6 +31,22 @@ export interface BeingOffer {
   available: boolean;
   /** 걸 수 없다면 그 사유 코드 — 문구는 표현이 옮긴다 */
   reason?: string;
+  /**
+   * 그 행동을 **어떻게 알게 되는가** — 봉투의 `interaction.opportunity.discovery` 그대로
+   * (C036 ADDED · spec SPEC-005).
+   *
+   * 기회에 속하지 않는 행동(이동 · 스킬 · 명령)에는 **자리 자체가 없다** — 빈 글자로
+   * 지어내지 않는다 (생명 없는 것에 0 을 만들지 않는 그 규율). 실려 오는 것은 코드
+   * 하나이고, 그것이 무슨 말이 되는지는 표현의 표가 정한다.
+   *
+   * **기회의 id 는 여기 없다.** 봉투는 그것도 싣지만(`opportunity.id`) 그 글자는 코드의
+   * 자리이지 사람이 읽을 이름이 아니고(spec 기본형 ⑥), 판이 말하는 것은 "어떻게 알게
+   * 되는 것인가" 하나다. 그 기회가 언제 열리는지도 무엇을 내는지도 실려 오지 않는다.
+   *
+   * **판정은 이것과 무관하다** — available 도 reason 도 이 값을 한 번도 읽지 않는다
+   * (spec SPEC-005 경계 ②: 판정은 규칙의 것이다).
+   */
+  discovery?: string;
 }
 
 export interface BeingReading {
@@ -153,5 +170,8 @@ function readOffers(snapshot: GameViewSnapshot, entityId: string): BeingOffer[] 
       role: i.role,
       available: i.available,
       ...(i.reason === undefined ? {} : { reason: i.reason }),
+      // 기회에 속하지 않는 행동에는 봉투에 자리가 없고, 없는 채로 둔다 (C036 — 걸린 것 ·
+      // 기억과 같은 규율). 싣는 것은 discovery 하나다: id 는 코드의 자리이지 판의 말이 아니다
+      ...(i.opportunity === undefined ? {} : { discovery: i.opportunity.discovery }),
     }));
 }

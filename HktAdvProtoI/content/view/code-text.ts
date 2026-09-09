@@ -751,6 +751,32 @@ const CODE_TEXT: Record<string, string> = {
   // (뒤척임 · 깨어남 · 지나감 여럿) 이 나이가 **바로 앞의 지나감의 것**임이 갈려야 하기
   // 때문이다 — 원천의 판은 마디가 둘뿐이라 괄호가 필요 없다
   'memory.passage-last': '(마지막 {})',
+  // ── 그것을 **어떻게 알게 되는가** (C036 — 판의 「할 수 있는 것」 줄 끝의 한 마디) ──────
+  //
+  // 위의 줄들이 "지금 여기가 어떤가" 와 "여기 무슨 일이 있었나" 라면 이 넷은 **"이것을
+  // 내가 어떻게 아는가"** 다. 그래서 말투가 또 갈린다 — 앞의 것들은 세계의 사실을 적지만
+  // 이 넷은 그 사실이 **나에게 오는 길**을 적는다.
+  //
+  // 말은 **사람의 말**이어야 한다 (이 표의 규율) — 코드 글자(VISIBLE · TRACE · SIGNAL)도,
+  // 기회라는 말도, 그 기회의 id(`gather:…` · `cross:…`)도 화면에 나오지 않는다. 셋이
+  // 나란히 서는 한 벌이므로 어법도 한 벌이다: **주어를 밝힌 한 마디 현재형**이고, 무엇이
+  // 보이게 하는지도 · 무엇이 흔적을 남겼는지도 · 어디서 신호가 오는지도 적지 않는다
+  // (spec Observable "투영하지 않는 것" — 실려 오는 것은 코드 하나다).
+  //
+  // 셋의 갈림이 곧 이 Cycle 이 놓으려는 것이다 (spec Experience Intent): 같은 방의 두
+  // 원천이 하나는 흔적으로 하나는 신호로 읽힌다. 그래서 '보인다' 한 낱말로 두지 않고
+  // **무엇을 통해 아는가**를 셋 다 앞머리에 세운다 — 눈 · 흔적 · 신호.
+  //
+  // **discovery 는 무엇을 할 수 있는가를 바꾸지 않는다** (spec SPEC-005 경계 ②) — 이
+  // 말들은 판정이 아니라 그 판정이 나에게 알려진 길이고, 거절 사유의 문구와 나란히 선다
+  'discovery-visible': '눈에 보인다',
+  'discovery-trace': '흔적이 말한다',
+  'discovery-signal': '신호로 온다',
+  // 넷째는 **이 Cycle 의 데이터에 없다** (spec SPEC-001 경계 ② · 기본형 ④) — HIDDEN 인 기회가
+  // 하나도 없으므로 이 말이 붙은 줄은 서지 않는다. 그래도 표에 두는 것은 세계가 그 값을
+  // 실어 오는 날 화면이 코드 글자를 뱉지 않게 하려는 것이고, 말이 "무엇이 숨겼는지" 를
+  // 묻지 않는 것은 위 셋과 같은 규율이다 (발견의 절차는 이 층에 없다)
+  'discovery-hidden': '아직 드러나지 않는다',
   // ── 세계의 때가 쓰는 말 (C015 — snapshot.clock 의 코드 둘) ──────
   //
   // 세계는 코드만 싣는다 (DAY · NIGHT · STILL · SEEP · LONG_NIGHT · TURN). 여기서 처음
@@ -850,4 +876,20 @@ export function codeText(code: string, detail?: string): string {
   const text = CODE_TEXT[code];
   if (text === undefined) return detail === undefined ? code : `${code}: ${detail}`;
   return detail === undefined ? text : text.replace('{}', detail);
+}
+
+/**
+ * 어떻게 알게 되는가의 **코드 글자를 짓는다** — C036 ADDED (spec SPEC-005).
+ *
+ * 세계가 싣는 것은 자기 어휘의 값(`VISIBLE` · `SIGNAL` · `TRACE` · `HIDDEN`)이고, 위 표의
+ * 열쇠는 이 함수가 그 값에서 짓는다 (`TRACE` → `discovery-trace`). 표에 그 값의 글자를
+ * 그대로 적지 않는 것은 세계의 어휘와 화면의 코드가 **다른 두 이름**이기 때문이고
+ * (soilStainTag 가 데이터의 이름으로 열쇠를 짓는 그 어법), 짓는 자리가 하나여야 세계가
+ * 값을 하나 더 실어 올 때 화면이 조용히 옛 말을 하지 않는다.
+ *
+ * 표에 없는 값(자리만인 NPC · KNOWLEDGE)은 지어낸 말이 아니라 **코드 그대로** 뜬다 —
+ * 표현 누락이 판을 멈추지 않고, 무엇이 빠졌는지가 화면에 드러난다 (이 파일의 규율).
+ */
+export function discoveryCode(discovery: string): string {
+  return `discovery-${discovery.toLowerCase()}`;
 }

@@ -32,6 +32,7 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import {
+  ALL_OPPORTUNITIES,
   ANCHOR_LAYER,
   CLOSED_CONNECTORS,
   COMPILE_RULES,
@@ -59,11 +60,19 @@ import {
   type ConditionValue,
   type ConditionVerdict,
 } from '../../engine/world-authoring/condition';
+import {
+  isEventOpportunity,
+  type Opportunity,
+} from '../../engine/world-authoring/opportunity';
 import { createWorld } from '../../content/world';
 import {
   worldConditionSites,
   worldConditionVerdict,
 } from '../../content/world/semantic/condition';
+import {
+  ERASERS,
+  PERSISTENCE_TABLE,
+} from '../../content/world/semantic/persistence';
 import type { WorldState } from '../../content/world/semantic/world-state';
 import type { CompiledRegion, CompiledWorldTerrain } from '../../engine/world-authoring/compiled';
 import {
@@ -924,9 +933,93 @@ function conditionTableLines(): string[] {
   return lines;
 }
 
+// ── 기회 표 (C036 · Observable Result ⑤ · World Change 7) ────────────
+//
+// **방이 무엇을 내미는가**를 한 장으로 편다 — 행이 기회 하나이고 차례는 방 차례 · 그 방의
+// 기회 차례다 (ALL_OPPORTUNITIES 가 이미 그 차례로 선다). 조건 표 곁에 서는 것은 두 표가
+// 같은 것의 두 얼굴이기 때문이다: 저기는 **언제 참인가**의 잎들이고 여기는 **무엇을 내미는가**다.
+//
+// **「지금 참인가」 열은 없다** (spec Out of Scope 마지막 줄) — 이 Cycle 은 availability 를
+// 평가하지 않는다. 조건 표의 「지금」 이 갓 선 세계의 값인 것과 같은 자리이고, 여기 열을 두면
+// 도구가 세계가 하지 않은 판정을 한 것이 된다.
+//
+// **도구는 글자를 놓을 뿐이다** — 기회를 스스로 짓지 않고(출처는 컨텐츠의 ALL_OPPORTUNITIES
+// 하나다) Event 여부도 스스로 세지 않는다 (기반의 isEventOpportunity 가 판정한다 · 같은 것을
+// 도구가 둘로 세면 보고가 거짓말을 한다). 두 번 돌리면 글자까지 같다.
+
+/** 목록 한 칸 — 비면 `·` 다 (조건 표의 qualifier 칸과 같은 어법) */
+function opportunityListText(values: readonly string[]): string {
+  return values.length === 0 ? '·' : values.join(' · ');
+}
+
+/** target 한 칸 — `source(MOLT_LITTER)` · `connector(WALKING_FOREST_DOOR)` */
+function opportunityTargetText(opportunity: Opportunity): string {
+  return `${opportunity.target.kind}(${opportunity.target.ref})`;
+}
+
+/** 기회 표 — 기회 하나가 한 행. 방 차례 · 그 방의 기회 차례 */
+function opportunityTableLines(): string[] {
+  const lines: string[] = [];
+  lines.push(rule());
+  lines.push(
+    `  기회 ${ALL_OPPORTUNITIES.length} (방 차례 · 그 방의 기회 차례 · 검사 ㊻ 이 세는 것을 행으로 놓는다 · 지금 참인가는 묻지 않는다)`,
+  );
+  if (ALL_OPPORTUNITIES.length === 0) {
+    lines.push('    내미는 것이 하나도 없다');
+    return lines;
+  }
+  lines.push(
+    ...table(
+      ['어디에', 'id', 'discovery', 'Event', 'target', 'possibleActions', 'yield'],
+      ALL_OPPORTUNITIES.map((opportunity) => [
+        opportunity.region,
+        opportunity.id,
+        opportunity.discovery,
+        // 시간 qualifier 를 가진 것만 Event 다 (G4) — 이 Cycle 의 데이터에는 0 이다
+        isEventOpportunity(opportunity) ? 'Event' : '·',
+        opportunityTargetText(opportunity),
+        opportunityListText(opportunity.possibleActions),
+        opportunityListText(opportunity.outcomes.yield),
+      ]),
+      '    ',
+    ),
+  );
+  return lines;
+}
+
+// ── 수명 표 (C034 의 PERSISTENCE_TABLE · C036 World Change 7) ─────────
+//
+// 이 세계가 **무엇을 붙들고 무엇을 흘려보내는가**를 한 장으로 편다. 표의 출처는 컨텐츠의
+// PERSISTENCE_TABLE 하나이고(지금까지 그것을 읽는 것은 검사 ㊼ 뿐이었다), 여기는 그 줄을
+// **지우는 손마다 묶어** 놓을 뿐이다 — 도구는 수명을 스스로 정하지 않는다.
+//
+// 차례는 ERASERS 차례(= 얼마나 오래 남는가)이고 한 손 안에서는 그 표의 차례 그대로다.
+// 판정이 없다 — 좋다/나쁘다도, 빠진 경로도 여기서 말하지 않는다 (형이 그것을 잡는다).
+
+/** 수명 표 — State 경로 하나가 한 행. 지우는 손 차례 · 그 손이 묶은 것끼리 붙어 선다 */
+function persistenceTableLines(): string[] {
+  const rows: string[][] = [];
+  for (const eraser of ERASERS) {
+    for (const row of PERSISTENCE_TABLE) {
+      if (row.eraser === eraser) rows.push([eraser, row.path]);
+    }
+  }
+  const lines: string[] = [];
+  lines.push(rule());
+  lines.push(
+    `  수명 ${rows.length} (지우는 손 차례 = 얼마나 오래 남는가 · 검사 ㊼ 가 읽는 그 표다 · 판정 없음)`,
+  );
+  if (rows.length === 0) {
+    lines.push('    수명을 물은 자리가 하나도 없다');
+    return lines;
+  }
+  lines.push(...table(['지우는 손', 'State 경로'], rows, '    '));
+  return lines;
+}
+
 /**
- * 세계의 보고 한 장 (C021 ADDED · SPEC-006 / C030 · C035 CHANGED) — 검사 서른다섯 ·
- * 방마다의 분포 · 열쇠 × 자물쇠 · 조건 표.
+ * 세계의 보고 한 장 (C021 ADDED · SPEC-006 / C030 · C035 · C036 CHANGED) — 검사 ·
+ * 방마다의 분포 · 열쇠 × 자물쇠 · 조건 표 · 기회 표 · 수명 표.
  *
  * 방 하나의 보고(`renderRegionReport`)와 달리 땅을 컴파일하지 않는다 — 여기서 읽는 것은
  * 계통과 검사가 이미 낸 것뿐이다. **읽기 전용**이고 파일을 하나도 쓰지 않는다 (경계 ①).
@@ -943,6 +1036,10 @@ export function renderWorldReport(): string {
   lines.push(...roomLines(report.items));
   lines.push(...answerMapLines());
   lines.push(...conditionTableLines());
+  // 조건 표 곁에 선다 (C036) — 언제 참인가의 잎들 다음에 무엇을 내미는가가, 그다음에
+  // 무엇이 얼마나 남는가가 온다
+  lines.push(...opportunityTableLines());
+  lines.push(...persistenceTableLines());
   lines.push('');
   return lines.join('\n');
 }

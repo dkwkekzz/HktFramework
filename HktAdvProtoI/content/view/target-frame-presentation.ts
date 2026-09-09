@@ -33,7 +33,7 @@ import type {
 } from '../protocol/gameview';
 import { agoText } from './answer-log';
 import { readBeing, type BeingOffer, type BeingReading } from './being-reading';
-import { codeText } from './code-text';
+import { codeText, discoveryCode } from './code-text';
 import { lifeSiteStateCode } from './life-reading';
 import { SETTLEMENT_LAYER } from './biome-rules';
 import { materialSeed, propertyPhraseCode, TRACE_LAYER } from '../regions/index';
@@ -149,7 +149,9 @@ export const BEING_ROW_LABELS: Readonly<Record<string, string>> = {
   // 걸린 것이 자리에 걸리든 존재에 걸리든 같은 말을 쓰는 그 규율 그대로다.
   // **한 번도 캔 적 없는 원천에는 줄 자체가 없다** (spec SPEC-006 경계 ①)
   'being.memory': '기억',
-  // 무엇을 주는가
+  // 무엇을 주는가 — C036 부터 그 줄의 **값**이 한 마디 는다 (이름 · 사유 · 어떻게 알게
+  // 되는가). 이름표는 그대로다: 늘어난 마디도 여전히 "내가 여기서 무엇을 할 수 있는가" 의
+  // 일부이고, 갈래를 물어 줄을 가르면 판이 같은 물음에 두 번 답한다 (걸린 것의 그 규율)
   'being.offer': '할 수 있는 것',
 };
 
@@ -491,11 +493,25 @@ function offerRow(offer: BeingOffer): SceneFrameRow {
  *
  * 행동의 이름은 이미 있는 표(interaction-presentation)의 것이다. 이름이 없는 행동은 role
  * 코드 그대로 뜨고, 세계가 사유를 주지 않았으면 사유 없이 이름만 선다 (지어내지 않는다).
+ *
+ * C036 CHANGED — 그 행동이 어느 기회에 속하면 **어떻게 알게 되는가** 한 마디가 뒤에 붙는다
+ * (spec SPEC-005). 앞의 것들은 한 글자도 달라지지 않는다: 이름이 먼저이고 못 하는 사유가
+ * 그다음이며(C027 · C028 의 형식 · 순서 · 문구 그대로 — 경계 ①), 이 마디는 그 뒤에 같은
+ * 구분자로 선다. 붙는 자리가 끝인 것은 앞의 둘이 **무엇을 할 수 있는가**이고 이것만이
+ * **그것을 어떻게 아는가**이기 때문이다 — 판정과 섞이는 자리에 두면 discovery 가 사유의
+ * 하나로 읽힌다 (경계 ②: discovery 는 무엇을 할 수 있는가를 바꾸지 않는다).
+ *
+ * **기회가 없는 줄은 지금 그대로다** — 이동에도 스킬에도 마디가 붙지 않는다. 기회의 id 도
+ * 붙지 않는다: 그 글자는 코드의 자리이지 사람이 읽을 이름이 아니다 (spec 기본형 ⑥).
  */
 function offerText(offer: BeingOffer): string {
   const name = interactionPresentation(offer.role).prompt ?? offer.role;
-  if (offer.available || offer.reason === undefined) return name;
-  return `${name}${VALUE_SEPARATOR}${codeText(offer.reason)}`;
+  const known =
+    offer.available || offer.reason === undefined
+      ? name
+      : `${name}${VALUE_SEPARATOR}${codeText(offer.reason)}`;
+  if (offer.discovery === undefined) return known;
+  return `${known}${VALUE_SEPARATOR}${codeText(discoveryCode(offer.discovery))}`;
 }
 
 /** 자리를 부르는 말은 좌표다 — 어느 칸인지가 갈리는 자릿수까지 */
