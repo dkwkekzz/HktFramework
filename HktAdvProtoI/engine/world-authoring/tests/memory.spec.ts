@@ -155,14 +155,14 @@ const itemOf = (world: World, id: string) => run(world).items.find((item) => ite
 
 describe('checkRegions — 기억 쪽 둘의 형', () => {
   it('㊸ ㊼ 이 ㊷ 다음에 번호 순으로 붙는다', () => {
-    // ㊹(C035 · 조건)이 그 뒤에 선다 — 둘은 끝에서 셋째 · 둘째다
-    const items = run(sound()).items.slice(-3, -1);
+    // ㊹(C035 · 조건) · ㊺ ㊻(C036 · 기회)이 그 뒤에 선다 — 둘은 끝에서 다섯째 · 넷째다
+    const items = run(sound()).items.slice(-5, -3);
     expect(items.map((item) => item.mark)).toEqual(['㊸', '㊼']);
     expect(items.map((item) => item.id)).toEqual(['memory-refs', 'persistence-summary']);
   });
 
   it('기억 쪽 계약을 주지 않으면 둘이 전부 absent 다 — 통과로 적지 않는다', () => {
-    const two = run({ ecology: ecology(), time: time() }).items.slice(-3, -1);
+    const two = run({ ecology: ecology(), time: time() }).items.slice(-5, -3);
     expect(two.map((item) => item.status)).toEqual(['absent', 'absent']);
     expect(two.map((item) => item.answer)).toEqual(
       Array(2).fill('기억 쪽 계약이 주어지지 않았다'),

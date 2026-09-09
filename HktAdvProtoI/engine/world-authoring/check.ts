@@ -43,6 +43,18 @@ import {
   type RegionGraph,
 } from './graph';
 import { rasterSemantic } from './observe';
+import {
+  DECIDABLE_DISCOVERY_KINDS,
+  DEFERRED_DISCOVERY_KINDS,
+  formatOpportunity,
+  isEventOpportunity,
+  MUTATION_OPS,
+  OPPORTUNITY_PROGRESS_KINDS,
+  OPPORTUNITY_YIELD_KINDS,
+  type Opportunity,
+  type OpportunityAction,
+  type OpportunityTargetKind,
+} from './opportunity';
 import { tagsAt } from './query';
 
 export type GraphIssueCode =
@@ -280,6 +292,8 @@ export interface CheckRegionsInput {
   memory?: CheckMemory;
   /** ㊹ 가 볼 조건 쪽 계약 — 주지 않으면 absent 다 (memory 의 선례 그대로) */
   condition?: CheckCondition;
+  /** ㊺ ㊻ 이 볼 기회 쪽 계약 — 주지 않으면 그 둘이 전부 absent 다 (memory · condition 의 선례 그대로) */
+  opportunity?: CheckOpportunity;
 }
 
 /** checkGraph 의 코드 → ⑤⑥⑦⑧. 순서가 곧 번호다 */
@@ -568,10 +582,11 @@ function checkCoreRules(input: CheckRegionsInput): CheckItem {
 }
 
 /**
- * 검사 마흔넷을 한 번에 돌린다 — 결과는 기계가 읽는다
- * (T1 의 아홉 + C014 의 열셋 + C018 의 넷 + C022 의 일곱 + C029 의 아홉 + C034 의 둘).
+ * 검사 마흔일곱을 한 번에 돌린다 — 결과는 기계가 읽는다
+ * (T1 의 아홉 + C014 의 열셋 + C018 의 넷 + C022 의 일곱 + C029 의 아홉 + C034 의 둘 +
+ * C035 의 하나 + C036 의 둘).
  *
- * 순서는 언제나 ①~⑨ · ⑩~㉒ · ㉓~㉖ · ㉗~㉝ · ㉞~㊷ · ㊸ ㊼ · ㊹ 이고, 각 항목의 refs 는 준
+ * 순서는 언제나 ①~⑨ · ⑩~㉒ · ㉓~㉖ · ㉗~㉝ · ㉞~㊷ · ㊸ ㊼ · ㊹ · ㊺ ㊻ 이고, 각 항목의 refs 는 준
  * 배열 순서다 — 두 번 돌리면 같다.
  * 세계를 바꾸지 않는 읽기 전용 관찰이다.
  */
@@ -596,6 +611,7 @@ export function checkRegions(input: CheckRegionsInput): CheckReport {
     ...accessItems(input),
     ...memoryItems(input),
     ...conditionItems(input),
+    ...opportunityItems(input),
   ];
   const counts: Record<CheckStatus, number> = { pass: 0, fail: 0, absent: 0, report: 0 };
   for (const item of items) counts[item.status]++;
@@ -3101,4 +3117,252 @@ export function conditionItems(input: CheckRegionsInput): CheckItem[] {
   const condition = input.condition;
   if (!condition) return [absentItem(CONDITION_ITEM, '조건 쪽 계약이 주어지지 않았다')];
   return [checkConditionRefs(condition)];
+}
+
+// ── 검사 ㊺ ㊻ — 방이 내미는 것 (C036 ADDED) ──────────────────────────
+//
+// ㊹ 이 "언제 참인가" 를 한 형으로 재었다면, 이 둘은 **방이 무엇을 내미는가**(opportunity.ts 의
+// Opportunity)를 잰다 — ㊺ 는 그 데이터가 유령을 가리키지 않는가(통과/실패)를, ㊻ 은 방마다
+// 얼마나 내미는가와 방 사이 관계가 어떻게 뻗어 있는가(판정 없음)를 본다.
+//
+// 여기에도 게임 명사가 없다. 어느 원천 · 문 · 경로가 실재하는지, 어느 동사가 실제 Interaction
+// role 인지, progress 로 읽을 수 있는 경로가 무엇인지 기반은 모른다 — 컨텐츠가
+// `CheckOpportunityVocabulary` 로 **어휘째** 준다 (㊹ 의 어법 그대로). 기회 쪽 계약을 주지
+// 않으면 둘 다 absent 다 — 잴 것이 없으면 통과로 적지 않는다.
+//
+// **기회는 판정하지 않는다** — availability 가 지금 참인가는 여기서 묻지 않는다. ㊺ 이 그것에
+// 대해 묻는 것은 오직 "그 조건의 잎이 있는 것을 가리키는가" 이고, 그 잣대는 ㊹ 의
+// `conditionLeafFaults` 를 **그대로** 쓴다 (같은 잣대를 두 벌로 적지 않는다).
+
+/** 동사 하나와 그것이 되는 Interaction role — role 의 이름은 이 세계의 것이다 */
+export interface CheckOpportunityActionRole {
+  action: OpportunityAction;
+  role: string;
+}
+
+/** 기회의 어휘 — 컨텐츠가 건넨다 (㊹ 의 `CheckConditionVocabulary` 와 같은 자리) */
+export interface CheckOpportunityVocabulary {
+  /** Target 갈래 → 실제 id 목록. 갈래를 적지 않으면 그 갈래를 향한 기회가 걸린다 */
+  targets: Readonly<Partial<Record<OpportunityTargetKind, readonly string[]>>>;
+  actions: readonly CheckOpportunityActionRole[];
+  /** progress.ref 로 허용되는 경로 (counter · phase) — 밝히지 않으면 ref 를 재지 않는다 */
+  progressPaths?: readonly string[];
+  /** availability 를 ㊹ 과 같은 잣대로 재기 위한 조건 어휘 */
+  condition: CheckConditionVocabulary;
+}
+
+/**
+ * 방 사이 관계 한 갈래 (G9 의 다섯 — 공간 · 환경 · 생태 · 사건 · 사회)와 그 관계가 닿는 방들.
+ *
+ * 갈래의 이름도 컨텐츠의 것이다 — 기반은 다섯이라는 수도 이름도 모르고, 준 차례로 한 줄씩 낸다.
+ */
+export interface CheckOpportunityRelation {
+  kind: string;
+  regions: readonly string[];
+}
+
+/** ㊺ ㊻ 이 볼 기회 쪽 계약 — 주지 않으면 둘 다 absent 다 */
+export interface CheckOpportunity {
+  /** 방 차례 · 그 방이 내미는 차례 (refs 의 차례가 곧 이 차례다) */
+  opportunities: readonly Opportunity[];
+  vocabulary: CheckOpportunityVocabulary;
+  relations: readonly CheckOpportunityRelation[];
+}
+
+/** ㊺ ㊻ 의 번호·이름 — 계약이 없을 때의 absent 도 이것을 쓴다 */
+export const OPPORTUNITY_ITEM = {
+  mark: '㊺',
+  id: 'opportunity-refs',
+  name: '기회가 가리키는 것',
+} as const;
+export const OPPORTUNITY_SUMMARY_ITEM = {
+  mark: '㊻',
+  id: 'opportunity-summary',
+  name: '방마다 내미는 것과 관계',
+} as const;
+
+/**
+ * 기회 하나가 걸린 까닭들 — ①~⑦ 의 차례로 (빈 배열이면 성하다).
+ *
+ *   ① target 의 갈래가 어휘에 없거나 ref 가 그 갈래의 id 가 아니다
+ *   ② discovery 가 지금 서는 넷 밖이다 (자리만인 NPC · KNOWLEDGE 도 지금은 걸린다)
+ *   ③ possibleActions 가 비었거나 이 세계의 Interaction role 이 아닌 동사가 있다
+ *   ④ progress 의 kind 가 셋 밖 · 경로를 요구하는데 없음 · none 인데 있음 · 읽을 수 없는 경로
+ *   ⑤ outcomes 의 (군, op) 짝이 §4.2 표 밖 · yield 가 넷 밖
+ *   ⑥ availability 의 잎이 ㊹ 의 잣대에 걸린다
+ *   ⑦ id 가 비었거나 겹치거나 · region 이 아는 방이 아니다
+ *
+ * ⑦ 이 뒤에 선 것은 게으름이 아니다 — 무엇이 걸렸는지를 **기회의 속부터** 적고 그 기회가 어디에
+ * 어떤 이름으로 섰는가를 마지막에 적는 차례다 (한 줄로 읽으면 안에서 밖으로).
+ */
+function opportunityFaults(
+  opportunity: Opportunity,
+  vocabulary: CheckOpportunityVocabulary,
+  regionIds: ReadonlySet<string>,
+  idCounts: ReadonlyMap<string, number>,
+): string[] {
+  const faults: string[] = [];
+  const { id, region, availability, discovery, target, possibleActions, progress, outcomes } =
+    opportunity;
+
+  // ① Target — 갈래가 어휘에 있는가 · ref 가 그 갈래의 실제 id 인가
+  const ids = vocabulary.targets[target.kind];
+  if (ids === undefined) {
+    faults.push(`Target 갈래 ${target.kind} 은 어휘에 없다`);
+  } else if (!ids.includes(target.ref)) {
+    faults.push(`ref ${target.ref} 은 아는 ${target.kind} 이 아니다`);
+  }
+
+  // ② discovery — 자리만인 것(NPC · KNOWLEDGE)은 그 층이 와서 어휘가 열기 전까지 걸린다
+  if (!DECIDABLE_DISCOVERY_KINDS.includes(discovery)) {
+    const deferred = DEFERRED_DISCOVERY_KINDS.includes(discovery);
+    faults.push(
+      deferred
+        ? `discovery ${discovery} 은 아직 자리만이다`
+        : `discovery ${discovery} 은 아는 갈래가 아니다`,
+    );
+  }
+
+  // ③ possibleActions — 하나도 없는 기회는 내미는 것이 없다 · 동사는 실제 Interaction role 이어야 한다
+  if (possibleActions.length === 0) {
+    faults.push('possibleActions 가 비었다');
+  }
+  for (const action of possibleActions) {
+    if (!vocabulary.actions.some((row) => row.action === action)) {
+      faults.push(`동사 ${action} 은 이 세계의 Interaction role 이 아니다`);
+    }
+  }
+
+  // ④ progress — 값이 아니라 경로다 (opportunity.ts 지키는 것 ②)
+  if (!OPPORTUNITY_PROGRESS_KINDS.includes(progress.kind)) {
+    faults.push(`progress 의 kind ${progress.kind} 은 셋 밖이다`);
+  } else if (progress.kind === 'none') {
+    if (progress.ref !== undefined) faults.push('progress none 은 ref 를 받지 않는다');
+  } else if (progress.ref === undefined) {
+    faults.push(`progress ${progress.kind} 은 ref 를 요구한다`);
+  } else if (vocabulary.progressPaths !== undefined && !vocabulary.progressPaths.includes(progress.ref)) {
+    faults.push(`progress 의 ref ${progress.ref} 은 읽을 수 있는 경로에 없다`);
+  }
+
+  // ⑤ outcomes — 이름만 붙는 층이지만 그 이름은 §4.2 표 안이어야 한다
+  for (const mutation of outcomes.world) {
+    if (!MUTATION_OPS.some((row) => row.group === mutation.group && row.op === mutation.op)) {
+      faults.push(`${mutation.group} ${mutation.op} 은 op 표에 없는 짝이다`);
+    }
+  }
+  for (const kind of outcomes.yield) {
+    if (!OPPORTUNITY_YIELD_KINDS.includes(kind)) faults.push(`yield ${kind} 은 넷 밖이다`);
+  }
+
+  // ⑥ availability — ㊹ 의 잣대 그대로. 밝히지 않은 기회는 늘 있는 것이라 잴 잎이 없다
+  if (availability !== undefined) {
+    for (const leaf of conditionLeaves(availability)) {
+      const line = formatConditionLeaf(leaf);
+      for (const reason of conditionLeafFaults(leaf, vocabulary.condition)) {
+        faults.push(`availability ${line} — ${reason}`);
+      }
+    }
+  }
+
+  // ⑦ 이름과 자리 — 겹친 id 는 겹친 쪽 모두에 적는다 (어느 쪽을 고칠지는 사람이 본다)
+  if (id.trim() === '') faults.push('id 가 비었다');
+  else if ((idCounts.get(id) ?? 0) > 1) faults.push(`id ${id} 이 둘 이상이다`);
+  if (!regionIds.has(region)) faults.push(`region ${region} 은 아는 방이 아니다`);
+
+  return faults;
+}
+
+/**
+ * ㊺ 기회의 참조 무결 — 기회마다 그 속을 어휘에 견준다.
+ *
+ * refs 의 차례는 기회(준 차례) → 까닭(①~⑦) 이다 — 두 번 돌리면 같다. 기회 하나에 까닭이
+ * 여럿이면 줄도 여럿이다 (무엇이 어긋났는지 다 적는다 — ㊹ 의 어법).
+ */
+function checkOpportunityRefs(input: CheckRegionsInput, opportunity: CheckOpportunity): CheckItem {
+  const { opportunities, vocabulary } = opportunity;
+  const regionIds = new Set(input.regions.map((region) => region.id));
+  const idCounts = new Map<string, number>();
+  for (const row of opportunities) idCounts.set(row.id, (idCounts.get(row.id) ?? 0) + 1);
+
+  const refs: CheckRef[] = [];
+  for (const row of opportunities) {
+    const line = formatOpportunity(row);
+    for (const reason of opportunityFaults(row, vocabulary, regionIds, idCounts)) {
+      refs.push({ where: `opportunity:${row.id}`, detail: `${line} — ${reason}` });
+    }
+  }
+  return {
+    ...OPPORTUNITY_ITEM,
+    status: refs.length === 0 ? 'pass' : 'fail',
+    answer: `기회 ${opportunities.length} · 걸린 것 ${refs.length}`,
+    refs,
+  };
+}
+
+/**
+ * ㊻ 방마다 내미는 것과 방 사이 관계 — 판정하지 않는다 (많고 적음은 사람이 본다).
+ *
+ * 줄의 차례는 방(input.regions 차례) → 관계 갈래(준 차례)다. 방 줄은 기회가 0 이어도 선다 —
+ * **내미는 것이 없는 방이 눈에 띄어야** 이 요약이 일을 한다 (관계도 같다: 어느 방에도 닿지 않는
+ * 갈래와, 그 갈래가 닿지 않는 방이 그 줄에 드러난다).
+ *
+ * 아는 방 밖을 region 으로 적은 기회는 여기 어느 줄에도 서지 않는다 — 그것은 ㊺ 가 잡을 일이고,
+ * 요약이 유령 방의 줄을 지어내면 표가 거짓말을 한다.
+ */
+function checkOpportunitySummary(input: CheckRegionsInput, opportunity: CheckOpportunity): CheckItem {
+  const { opportunities, relations } = opportunity;
+  const discoveryKinds = [...DECIDABLE_DISCOVERY_KINDS, ...DEFERRED_DISCOVERY_KINDS];
+
+  let emptyRooms = 0;
+  let events = 0;
+  const refs: CheckRef[] = input.regions.map((region) => {
+    const mine = opportunities.filter((row) => row.region === region.id);
+    if (mine.length === 0) emptyRooms++;
+    const eventCount = mine.filter(isEventOpportunity).length;
+    events += eventCount;
+    // discovery 별 수 — 갈래의 차례로, 하나도 없는 갈래는 적지 않는다 (줄이 길어지지 않도록)
+    const spread = discoveryKinds
+      .map((kind) => ({ kind, count: mine.filter((row) => row.discovery === kind).length }))
+      .filter((row) => row.count > 0)
+      .map((row) => `${row.kind} ${row.count}`);
+    return {
+      where: region.id,
+      detail: `기회 ${mine.length} · Event ${eventCount} · ${spread.length === 0 ? '갈래 없음' : spread.join(' ')}`,
+    };
+  });
+
+  for (const relation of relations) {
+    const touched = new Set(relation.regions);
+    const untouched = input.regions
+      .map((region) => region.id)
+      .filter((regionId) => !touched.has(regionId));
+    refs.push({
+      where: `relation:${relation.kind}`,
+      detail: `닿는 방 ${touched.size} · ${namedGroup('닿지 않는 방', untouched)}`,
+    });
+  }
+
+  return {
+    ...OPPORTUNITY_SUMMARY_ITEM,
+    status: 'report',
+    answer:
+      `기회 ${opportunities.length} · 기회 0 인 방 ${emptyRooms} · Event ${events}` +
+      ` · 관계 갈래 ${relations.length}`,
+    refs,
+  };
+}
+
+/**
+ * ㊺ ㊻ — 기회 쪽 계약을 주지 않으면 둘 다 absent 다 (통과가 아니다). `checkRegions` 의 items 에
+ * `...conditionItems(input)` 뒤에 선다 (번호가 아니라 계약이 는 차례 — ㊹ 이 ㊼ 뒤에 선 그 어법).
+ */
+export function opportunityItems(input: CheckRegionsInput): CheckItem[] {
+  const opportunity = input.opportunity;
+  if (!opportunity) {
+    return [
+      absentItem(OPPORTUNITY_ITEM, '기회 쪽 계약이 주어지지 않았다'),
+      absentItem(OPPORTUNITY_SUMMARY_ITEM, '기회 쪽 계약이 주어지지 않았다'),
+    ];
+  }
+  return [checkOpportunityRefs(input, opportunity), checkOpportunitySummary(input, opportunity)];
 }

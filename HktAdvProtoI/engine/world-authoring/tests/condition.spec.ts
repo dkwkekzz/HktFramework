@@ -452,8 +452,9 @@ function withLeaf(partial: Partial<ConditionLeaf>): CheckCondition {
 describe('㊹ 조건이 가리키는 것', () => {
   it('㊹ 이 ㊼ 뒤에 선다 — 번호가 아니라 계약이 는 차례다', () => {
     const items = run(sound()).items;
-    expect(items[items.length - 1]!).toMatchObject({ mark: '㊹', id: 'condition-refs' });
-    expect(items[items.length - 2]!.mark).toBe('㊼');
+    // ㊺ ㊻(C036 · 기회)이 그 뒤에 섰다 — ㊹ 은 끝에서 셋째다
+    expect(items[items.length - 3]!).toMatchObject({ mark: '㊹', id: 'condition-refs' });
+    expect(items[items.length - 4]!.mark).toBe('㊼');
   });
 
   it('조건 쪽 계약을 주지 않으면 absent 다 — 통과로 적지 않는다', () => {
@@ -601,6 +602,10 @@ describe('㊹ 조건이 가리키는 것', () => {
     const withIt = run(sound()).items;
     const without = run(undefined).items;
     expect(withIt.length).toBe(without.length);
-    for (let i = 0; i < withIt.length - 1; i++) expect(withIt[i]).toEqual(without[i]);
+    // 뒤에 선 ㊺ ㊻(C036)은 기회 쪽 계약을 주지 않았으므로 양쪽 다 같은 absent 다
+    for (let i = 0; i < withIt.length; i++) {
+      if (withIt[i]!.id === 'condition-refs') continue;
+      expect(withIt[i]).toEqual(without[i]);
+    }
   });
 });
