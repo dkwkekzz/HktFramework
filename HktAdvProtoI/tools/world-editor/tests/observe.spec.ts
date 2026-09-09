@@ -5,7 +5,7 @@
 
 import { describe, expect, it } from 'vitest';
 import { REGION_GRAPH, REGION_SPECS } from '../../../content/regions';
-import { renderGraph, renderUsage } from '../observe';
+import { renderGraph, renderUsage, renderWorldReport } from '../observe';
 
 const output = renderGraph();
 
@@ -70,5 +70,30 @@ describe('world:observe 의 다른 인자', () => {
     expect(usage).toContain('--json');
     expect(usage).toContain('--graph');
     expect(usage).toContain('아무것도 하지 않았다');
+  });
+});
+
+// 세계의 보고에 조건 표가 선다 (C035 Observable Result 4). 총수는 재지 않는다 —
+// 조건 자리는 데이터가 늘리는 것이고 이 검사는 표가 서는가와 기억 조건이 한 행으로 읽히는가만 본다.
+describe('world:observe --report 의 조건 표', () => {
+  const report = renderWorldReport();
+
+  it('열쇠 × 자물쇠 표 곁에 조건 표의 머리가 선다', () => {
+    const keys = report.indexOf('  열쇠 × 자물쇠 ');
+    const conditions = report.indexOf('  조건 ');
+    expect(keys).toBeGreaterThan(-1);
+    expect(conditions).toBeGreaterThan(keys);
+    expect(report).toContain('어디에');
+    expect(report).toContain('qualifier');
+  });
+
+  it('기억을 읽는 조건(history)이 한 행으로 실린다 (SPEC-006)', () => {
+    const rows = report.split('\n').filter((line) => line.startsWith('    source-memory:'));
+    expect(rows.length).toBeGreaterThan(0);
+    expect(rows.some((row) => row.includes('history'))).toBe(true);
+  });
+
+  it('두 번 읊어도 글자까지 같다', () => {
+    expect(renderWorldReport()).toBe(report);
   });
 });
