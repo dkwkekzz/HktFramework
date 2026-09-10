@@ -22,7 +22,17 @@
           "worldCause": "FOREST_CHAIN",
           "recoveryCause": "tree-uptake",
           "form": "outcrop",
-          "role": "risk"
+          "role": "risk",
+          "properties": [
+            {
+              "tag": "flesh:stores",
+              "from": "behavior"
+            },
+            {
+              "tag": "light:emits",
+              "from": "appearance"
+            }
+          ]
         },
         {
           "id": "ORE_PEBBLE_ORE_1",
@@ -31,7 +41,17 @@
           "worldCause": "FOREST_CHAIN",
           "recoveryCause": "pebble-wash",
           "form": "ore-pebble",
-          "role": "baseline"
+          "role": "baseline",
+          "properties": [
+            {
+              "tag": "flesh:stores",
+              "from": "behavior"
+            },
+            {
+              "tag": "light:emits",
+              "from": "appearance"
+            }
+          ]
         },
         {
           "id": "ORE_PEBBLE_ORE_2",
@@ -40,7 +60,17 @@
           "worldCause": "FOREST_CHAIN",
           "recoveryCause": "pebble-wash",
           "form": "ore-pebble",
-          "role": "baseline"
+          "role": "baseline",
+          "properties": [
+            {
+              "tag": "flesh:stores",
+              "from": "behavior"
+            },
+            {
+              "tag": "light:emits",
+              "from": "appearance"
+            }
+          ]
         },
         {
           "id": "ORE_PEBBLE_ORE_3",
@@ -49,7 +79,17 @@
           "worldCause": "FOREST_CHAIN",
           "recoveryCause": "pebble-wash",
           "form": "ore-pebble",
-          "role": "baseline"
+          "role": "baseline",
+          "properties": [
+            {
+              "tag": "flesh:stores",
+              "from": "behavior"
+            },
+            {
+              "tag": "light:emits",
+              "from": "appearance"
+            }
+          ]
         },
         {
           "id": "HUSK_SHARD_ORE",
@@ -58,7 +98,13 @@
           "worldCause": "FOREST_CHAIN",
           "recoveryCause": "husk-shed",
           "form": "husk-shard",
-          "role": "baseline"
+          "role": "baseline",
+          "properties": [
+            {
+              "tag": "light:emits",
+              "from": "appearance"
+            }
+          ]
         }
       ]
     },
@@ -69,6 +115,12 @@
         "unanswered": "생명 계약(탄생지 · 개체군 · 관계)은 이제 데이터로 서 있다 (C022~C025) — 광석을 먹는 것이 무엇인가는 답해졌다: 광식충이고 거목의 뿌리에서 태어난다. 그 떼가 이 방에도 드는지 · 노두 곁에서 무엇이 태어나는지는 어느 방도 아직 밝히지 않았다 — 지어내지 않는다"
       },
       "born": []
+    },
+    "asking": {
+      "said": {
+        "unanswered": "묻지 않는 방이다 — 내미는 길(ORE_TREE_TRAIL)도 들어온 길(ORE_TRAIL)도 조건 없이 열린다. 캔 자리가 무너져 지나갈 수 없게 되는 것까지가 데이터이고 그것은 문이 묻는 것이 아니라 땅이 막는 것이다 — 이 방이 왜 묻지 않는가는 답해진 적이 없다"
+      },
+      "locks": []
     }
   },
   "neighbours": [

@@ -203,7 +203,7 @@ CLAUDE.md "기반이 컨텐츠에게 요구하는 것" 이 지목한 파일들.
 | `graph.ts` | `REGION_GRAPH` — Connector 열아홉(FOREST_PATH … FROST_DEPTH_DOOR) · `FRONTIER_REGIONS`(RED_WASTE · INVERTED_GARDEN · WALKING_FOREST · FROST_DEPTH — 이름만 있는 경계) · `CLOSED_CONNECTORS` · `START_REGION_ID` |
 | `terrain-rules.ts` | 지면 규칙 표 — `SURFACE_RULES` · `BLOCK_RULES` · `PASS_RULES` · `COMPILE_RULES` · 레이어/태그 상수(FEATURE · LANDMARK · CLUE · SETTLEMENT · CONDITION_*) · `weakenedConditionTag` |
 | `phases.ts` | 철이 방을 바꾸는 방식 — `RegionPhases` · `RegionPhase`(DepthOverlay · HazardOverlay · ConditionOutflow) · `RegionTurn` · `SeasonId` |
-| `access.ts` | 방이 묻는 것 — `RegionAccess` · `Lock`(LOCK_AT_CONNECTOR · LOCK_AT_AREA) · `LockRequirement` · `LockTrace` · `LOCKS` · `locksOfRegion` · `lockOfConnector` |
+| `access.ts` | 방이 묻는 것 — `RegionAccess`(`locks?` · `silence?` — 묻지 않는 방이 그 까닭을 밝힌다) · `Lock`(LOCK_AT_CONNECTOR · LOCK_AT_AREA) · `LockRequirement` · `LockTrace` · `LOCKS` · `locksOfRegion` · `lockOfConnector` |
 | `properties.ts` | 성질 어휘(세계에 하나) — `PROPERTY_VOCABULARY` · ASPECT_* · RELATION_* · ANSWER_* · `propertyTag` · `propertyPhraseCode` |
 | `resource-ecology.ts` | 재료 계통 — `MaterialSeed`/`MATERIAL_SEEDS` · `ResourceSourceSpec`(`condition?` — 원천이 밝힌 Condition · 기억을 읽는 첫 사례는 숲 가장자리 비늘 `passages.SKY_WHALE_ROUTE EXISTS`) · FORM_* · RECOVERY_* · `RESOURCE_FLOWS` · 흔적 태그(`soilStainTag` · `frostBreathTag` · `emberWarmthTag` · `traceLevel`) · 레이어 상수 |
 | `lives.ts` | 생명 계통 — `LifeSeed`/`LIFE_SEEDS`(ORE_EATER · TREE_FUNGUS · BIG_BIRD · PREDATOR) · FORM_* · PRESENCE_* · `LIFE_FORMATION_MODES` |

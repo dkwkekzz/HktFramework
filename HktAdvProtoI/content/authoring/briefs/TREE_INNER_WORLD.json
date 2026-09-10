@@ -25,7 +25,13 @@
           "worldCause": "FOREST_CHAIN",
           "recoveryCause": "tree-uptake",
           "form": "wall-ember",
-          "role": "risk"
+          "role": "risk",
+          "properties": [
+            {
+              "tag": "heat:stores",
+              "from": "behavior"
+            }
+          ]
         }
       ]
     },
@@ -36,6 +42,12 @@
         "unanswered": "생명 계약(탄생지 · 개체군 · 관계)은 이제 데이터로 서 있다 (C022~C025) — 이 방에서 무엇이 태어나고 무엇이 사는지는 아직 답해지지 않았다. 밖의 거목이 뿌리에서 낳는다는 것까지가 데이터이고, 그 안에서 무엇이 사는지는 적히지 않았다"
       },
       "born": []
+    },
+    "asking": {
+      "said": {
+        "unanswered": "묻지 않는 방이다 — 나가는 길이 돌아올 수 없는 추락 하나(TREE_FALL)이고 조건이 없다. 떨어지는 길에 무엇을 물을 수 있는가부터가 이 세계에 서지 않았다 (묻는 문 셋은 셋 다 door 다)"
+      },
+      "locks": []
     }
   },
   "neighbours": [

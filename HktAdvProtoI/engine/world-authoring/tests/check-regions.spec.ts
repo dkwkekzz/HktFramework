@@ -103,14 +103,15 @@ const itemOf = (world: World, id: string) =>
   run(world).items.find((item) => item.id === id)!;
 
 describe('checkRegions — 보고의 형', () => {
-  it('①~⑨ 다음에 ⑩~㉒ · ㉓~㉖ · ㉗~㉝ · ㉞~㊷ · ㊸ ㊼ 이 번호 순으로 실리고, 번호 밖의 코드도 숨지 않는다', () => {
+  it('①~⑨ 다음에 ⑩~㉒ · ㉓~㉖ · ㉗~㉝ · ㉞~㊷ ㊽ · ㊸ ㊼ 이 번호 순으로 실리고, 번호 밖의 코드도 숨지 않는다', () => {
     const report = run(soundWorld());
     expect(report.items.map((item) => item.mark)).toEqual([
       '①', '②', '③', '④', '⑤', '⑥', '⑦', '⑧', '·', '⑨',
       '⑩', '⑪', '⑫', '⑬', '⑭', '⑮', '⑯', '⑰', '⑱', '⑲', '⑳', '㉑', '㉒',
       '㉓', '㉔', '㉕', '㉖',
       '㉗', '㉘', '㉙', '㉚', '㉛', '㉜', '㉝',
-      '㉞', '㉟', '㊱', '㊲', '㊳', '㊴', '㊵', '㊶', '㊷',
+      // ㊽(T2 확장)이 ㊷ 뒤에 선다 — 번호가 뛰어도 **한 계약의 항목은 함께 선다**
+      '㉞', '㉟', '㊱', '㊲', '㊳', '㊴', '㊵', '㊶', '㊷', '㊽',
       // ㊹ 은 기억 둘 뒤에 선다 — 번호가 아니라 계약이 는 차례다 (㉓~㉖ 이 ⑩~㉒ 뒤에 선 그 어법)
       // ㊺ ㊻(C036 · 기회)이 그 뒤를 잇는다 — 같은 어법이다
       '㊸', '㊼', '㊹', '㊺', '㊻',
@@ -168,7 +169,7 @@ describe('checkRegions — 보고의 형', () => {
       'life-recovery-owner',
       'life-link-refs',
       'life-link-spread',
-      // ㉞~㊷ — 접근 쪽 계약을 주지 않았으므로 아홉 전부 (C029)
+      // ㉞~㊷ ㊽ — 접근 쪽 계약을 주지 않았으므로 열 전부 (C029 · T2 확장)
       'access-refs',
       'access-answer',
       'access-property-spread',
@@ -178,6 +179,7 @@ describe('checkRegions — 보고의 형', () => {
       'access-answer-variety',
       'access-trace',
       'access-behind-lock',
+      'access-silence',
       // ㊸ ㊼ — 기억 쪽 계약을 주지 않았으므로 둘 다 (C034)
       'memory-refs',
       'persistence-summary',

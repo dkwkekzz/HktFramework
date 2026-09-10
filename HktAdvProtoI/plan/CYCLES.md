@@ -27,7 +27,7 @@
 | 레인 | 지금 할 수 있는 것 | 기다리는 것 | 다음 |
 |---|---|---|---|
 | (다음 기획서) | spec 제안 — 후보 2(3층 편성과 무대) · 3(Rooms GAP 회수) | Human 이 지목 | C039~ |
-| ENGINE B — Region 작성기 | T2 확장 — 요구와 답을 구조로 · access.silence (§3) | — | 그 뒤 HundredRooms |
+| ENGINE B — Region 작성기 | — (T1~T6 이 다 실측되었다) | **Human 이 미지 백 줄의 이름을** (TODO §1) | HundredRooms (DESIGN §5 후보 4) |
 
 다음에 자를 기획서와 순서는 [DESIGN.md §5](DESIGN.md).
 
@@ -46,13 +46,12 @@
 
 ## 3. 기획서 없는 다음 Cycle — 도구 · ENGINE 레인
 
-받을 기획서가 아직 없는 것 — 도구 레인의 것이다. HundredRooms 나 T2 확장이 받는다.
+받을 기획서가 아직 없는 것 — 도구 레인의 것이다. HundredRooms(DESIGN §5 후보 4)가 받는다.
 
 ```text
-Region 작성기의 T2 를 넓히는 Cycle
-  brief 가 요구와 답을 구조로 적는 자리 (Access §5.4 의 아홉째~열두째 질문). C031 은 계약 목록에 성질 어휘를 등록하는 데까지 했고,
-    판정할 입력이 아직 없다
-  RegionSpec.access.silence — 왜 묻지 않는가. 읽는 검사가 그 질문과 함께 선다
+없다 — T1~T6 이 다 실측되었다 (일곱 줄을 돌려 배치 · 후보 · 판정 표면 · 승인 · 반려까지 한 바퀴).
+남은 것은 도구의 일이 아니라 **미지 백 줄의 이름**이고 그것은 Human 의 자리다 (TODO §1) —
+이름이 오면 HundredRooms 가 그 자리에서 열린다.
 ```
 
 ## 4. 공학 부채 — AI 가 소비한다
@@ -101,8 +100,9 @@ Region 작성기의 T2 를 넓히는 Cycle
   잠깐 뜨는 알림의 자리가 기반 SceneState 에 없다 — hud.notice 로 보낸다                                                   C008
 도구 (Region 작성기)
   갈래가 땅을 거의 정하지 않는다 — 다시 재고도 땅 표가 있는 갈래는 일곱 중 둘이다. 나머지 다섯은 잴 방이 없다(creature 는 stamp 0 ·
-    matter 의 벽은 terrain 의 것 · phenomenon·knowledge 의 벽은 polygon · ecology 는 밝힌 방 자체가 없다). **분지인가 협곡 벽인가**는
-    재서 나올 답이 아니라 Human 이 정할 것이다 (DESIGN §3 Tool-Scale 결정 대기)                                                              T3
+    matter 의 벽은 terrain 의 것 · phenomenon·knowledge 의 벽은 polygon · ecology 는 밝힌 방 자체가 없다). **이것은 뼈대의 기본형이지
+    세계의 뜻이 아니다** — 어느 방도 이 표에 매달려 있지 않고, 실제로 방을 들이는 사람이 그 위에 자기 땅을 얹는다. 갈래를 밝힌
+    방이 늘면 (brief 의 kinds) 저절로 넓어질 자리라 지금 정할 것이 없다                                                        T3
   갈래별 철도 잰 자리가 하나뿐이다 (포식수 둥지) — 갈래를 밝힌 방이 넷뿐이고 그 셋은 철에 덧씌움을 걸지 않는다. 갈래를 밝히지 않은
     방(kinds: [])이 아홉이라 근거가 얇다 — brief 의 kinds 를 채우는 것이 이 표를 넓히는 길이다                                    T3
   탄생지의 모자람 코드가 방식마다 하나다 — 방은 소비하는 원천마다 다른 코드를 준다 (뿌리혹은 재료 · 둥지의 균사는 삭음).

@@ -29,6 +29,10 @@ import { authorRegion, type AuthoredRegion } from '../../engine/world-authoring/
 import { parseRegionBrief, type RegionBrief } from '../../engine/world-authoring/brief';
 import {
   checkRegions,
+  type CheckAccess,
+  type CheckAccessLock,
+  type CheckAccessSeed,
+  type CheckAccessSeedSource,
   type CheckEcology,
   type CheckEcologySource,
   type CheckLife,
@@ -45,6 +49,7 @@ import type { ResourceSourceSpec } from '../../content/regions';
 import { gradeRegion, type GradeResult } from '../../engine/world-authoring/grade';
 import { compileRegion } from '../../engine/world-authoring/compile';
 import {
+  WORLD_CHECK_ACCESS,
   WORLD_CHECK_CONTRACT,
   WORLD_CHECK_ECOLOGY,
   WORLD_CHECK_LIFE,
@@ -88,13 +93,29 @@ export function renderGrade(grade: GradeResult): string {
   return lines.join('\n');
 }
 
+/**
+ * 뼈대를 낸 brief 를 뼈대 곁에 매어 두는 자리 — **⑩ 의 성질이 뼈대에 실려 나오지 못해서다**.
+ *
+ * 성질은 **재료의 것**이고(`MaterialSeed.properties`) 원천의 것이 아니다. 그래서 생성기는 그것을
+ * 낼 자리가 없다 — 원천에 실으면 굳힌 방 파일이 서지 못한다 (`ResourceSourceSpec` 에 없는 키다).
+ * 그렇다고 버려 두면 검사 ㉞ ㉟ 이 후보의 새 재료를 **성질 없는 재료**로 읽어, 답을 적은 brief 와
+ * 적지 않은 brief 가 한 답으로 보인다.
+ *
+ * 그래서 도구가 붙잡아 둔다: 뼈대를 내는 자리가 하나(`authorBrief`)이므로 뼈대 하나에 brief 하나가
+ * 맞물린다. 손으로 지은 뼈대에는 답이 없고, 그때의 성질은 빈 목록이다 (지어내지 않는다).
+ * 기반이 성질을 지고 나오게 되면 이 자리는 지운다.
+ */
+const BRIEF_OF = new WeakMap<AuthoredRegion, RegionBrief>();
+
 /** brief 하나 → 뼈대 하나. 이 세계의 템플릿과 컴파일 규칙을 건네는 자리다 */
 export function authorBrief(brief: RegionBrief): AuthoredRegion {
-  return authorRegion({
+  const authored = authorRegion({
     brief,
     templates: WORLD_AUTHOR_TEMPLATES,
     compile: (space) => compileRegion(space, COMPILE_RULES).world,
   });
+  BRIEF_OF.set(authored, brief);
+  return authored;
 }
 
 /** brief 파일 하나 → 뼈대 하나 */
@@ -117,6 +138,9 @@ export function authorFromFile(path: string): AuthoredRegion {
  * **생명 검사(㉗~㉝)도 같은 어법으로 건다** (T3 CHANGED — 생성기가 `ecology` 를 내게 되었다).
  * 건네지 않으면 일곱이 전부 `absent` 라, 탄생지가 없는 것과 탄생지를 재지 않은 것이 한 답으로
  * 보인다. 무엇을 실어 주는지는 `authoredLife` 가 적는다.
+ *
+ * **접근 검사(㉞~㊷)도 같은 어법이다** (T2 확장 ADDED — 생성기가 `access` 를 내게 되었다).
+ * 무엇을 실어 주는지는 `authoredAccess` 가 적는다.
  */
 export function checkAuthored(authored: AuthoredRegion): CheckReport {
   const anchorOps: RegionOp[] = authored.neighbourAnchors.map((a) => ({
@@ -188,7 +212,92 @@ export function checkAuthored(authored: AuthoredRegion): CheckReport {
       ...ALL_OPPORTUNITIES,
       ...sources.map((source) => gatherOpportunity(authored.spec.id, source as unknown as ResourceSourceSpec)),
     ],
+    authoredAccess(authored),
   );
+}
+
+/**
+ * 후보가 **묻는 것**을 지금 세계의 것 곁에 세운다 (검사 ㉞~㊷ 이 이것을 읽는다).
+ *
+ * 계통 · 생명을 건네는 어법 그대로다 — 세계의 계약(`WORLD_CHECK_ACCESS`)에 후보의 것을 이어
+ * 붙인다. 이어 붙이는 것은 셋이다:
+ *
+ *   `locks`        그 방이 묻는 것. 요구는 **밝힌 갈래마다 한 줄**로 편다 (세계의 계약이 세운
+ *                  어법 그대로 — 갈래를 글자로 가르지 않고 어느 필드를 밝혔는가로 가른다).
+ *   `seeds`        그 방이 **새로 낳는 재료**와 그 성질 (⑩). 이것을 실어 주지 않으면 ㉟ 이
+ *                  "요구에 답할 성질의 원천이 없다" 로 읽는다 — 답을 적은 brief 가 적지 않은
+ *                  brief 와 한 답으로 보이는 자리다.
+ *   `seedSources`  그 재료를 내는 원천이 **어느 방에 섰는가**. ㉟ 이 "그 Lock 을 지나지 않고
+ *                  닿는가" 를 여기서 읽으므로, 성질만 실어 주고 자리를 대지 않으면 답이 놓인 적
+ *                  없는 것이 된다. 새 재료가 아닌 원천도 함께 댄다 — 이미 아는 재료를 그 방이
+ *                  새로 내미는 것도 답의 자리이기 때문이다.
+ *
+ * `silences` 는 **판정되지 않는다** — 묻지 않는 방이 밝힌 사유를 보고에 그대로 옮길 뿐이다
+ * (생명의 `absences` 가 선 그 자리 그대로). 밝히지 않은 방은 여기 오지 않는다.
+ *
+ * `relaxations` 에는 후보가 더할 것이 없다 — 생성기는 무르게 하는 자락을 내지 않는다
+ * (brief 가 그것을 묻지 않는다). 잰 적 없는 것을 지어내지 않는다.
+ */
+function authoredAccess(authored: AuthoredRegion): CheckAccess {
+  const region = authored.spec.id;
+  const access = authored.spec.access;
+  const sources = authored.spec.resourceEcology?.sources ?? [];
+  // 답의 종류 — 재료가 첫째다. 어느 것이 재료인가를 두 자리가 다르게 고르지 않도록 세계의
+  // 계약이 이미 고른 그 자리(check.ts 의 seeds)를 그대로 따른다
+  const materialKind = WORLD_CHECK_ACCESS.answerKinds[0] ?? '';
+  return {
+    ...WORLD_CHECK_ACCESS,
+    locks: [
+      ...WORLD_CHECK_ACCESS.locks,
+      ...(access?.locks ?? []).map(
+        (lock): CheckAccessLock => ({
+          id: lock.id,
+          region,
+          at: { kind: lock.at.kind, ref: lock.at.ref },
+          important: lock.important ?? false,
+          requires: lock.requires.flatMap((requirement) => {
+            const out: { property?: string; kind: string }[] = [];
+            if (requirement.property !== undefined) {
+              out.push({ property: requirement.property, kind: 'property' });
+            }
+            if (requirement.time !== undefined) out.push({ kind: 'time' });
+            if (requirement.state !== undefined) out.push({ kind: 'state' });
+            if (requirement.knowledge !== undefined) out.push({ kind: 'knowledge' });
+            return out;
+          }),
+          traces: lock.traces.map((trace) => trace.op),
+          relaxations: [],
+        }),
+      ),
+    ],
+    seeds: [
+      ...WORLD_CHECK_ACCESS.seeds,
+      ...freshMaterials(authored).map(
+        (seed): CheckAccessSeed => ({
+          id: seed.id,
+          answerKind: materialKind,
+          properties: (seed.properties ?? []).map((property) => ({
+            tag: property.tag,
+            from: property.from,
+          })),
+        }),
+      ),
+    ],
+    seedSources: [
+      ...WORLD_CHECK_ACCESS.seedSources,
+      ...sources.map(
+        (source): CheckAccessSeedSource => ({
+          seed: source.materialId,
+          region,
+          source: source.id,
+        }),
+      ),
+    ],
+    silences: [
+      ...(WORLD_CHECK_ACCESS.silences ?? []),
+      ...(access?.silence ? [{ region, reason: access.silence }] : []),
+    ],
+  };
 }
 
 /**
@@ -266,8 +375,8 @@ function authoredLife(authored: AuthoredRegion): CheckLife {
 /**
  * 후보 **없이** 같은 검사를 돌린다 — 편중 요약이 견줄 바탕이다 (T6).
  *
- * `checkAuthored` 와 **같은 잣대**여야 한다. 한쪽만 재료 계통(⑩~㉒)이나 생명 계통(㉗~㉝)을
- * 걸면 견준 차이가 후보 때문인지 잣대 때문인지 갈리지 않는다. 그래서 둘 다 같은
+ * `checkAuthored` 와 **같은 잣대**여야 한다. 한쪽만 재료 계통(⑩~㉒) · 생명 계통(㉗~㉝) ·
+ * 접근(㉞~㊷)을 걸면 견준 차이가 후보 때문인지 잣대 때문인지 갈리지 않는다. 그래서 둘 다 같은
  * 자리(`checkBeside`)를 지나고, 이쪽은 지금 세계의 계약을 손대지 않은 채로 건넨다.
  */
 export function checkBaseline(): CheckReport {
@@ -280,6 +389,9 @@ function checkBeside(
   ecology: CheckEcology,
   life: CheckLife,
   opportunities: readonly Opportunity[] = ALL_OPPORTUNITIES,
+  // 접근 쪽 계약도 **양쪽에 같은 잣대로** 건넨다 (T2 확장) — 바탕은 지금 세계의 것 그대로이고,
+  // 후보 쪽은 그 위에 자기 Lock · 새 재료의 성질 · 침묵을 얹은 것이다
+  access: CheckAccess = WORLD_CHECK_ACCESS,
 ): CheckReport {
   return checkRegions({
     regions,
@@ -288,6 +400,7 @@ function checkBeside(
     compile: (region) => compileRegion(region.space, COMPILE_RULES).world,
     ecology,
     life,
+    access,
     // 기회 쪽 계약도 **양쪽에 같은 잣대로** 건넨다 (T6 · C037) — 한쪽만 걸면 편중 요약이
     // 후보 때문인지 잣대 때문인지 갈리지 않는다. 후보의 기회는 그 방의 원천에서 유도한다.
     opportunity: {
@@ -358,11 +471,19 @@ const LAYER_CONSTANTS: readonly { layer: string; constant: string; from: string 
   // 철이 붙으면 늘어나는 것 — 깊이 · 위험 덧씌움 (T3 ADDED)
   { layer: WORLD_AUTHOR_TEMPLATES.depthLayer, constant: 'DEPTH_LAYER', from: './phases' },
   { layer: WORLD_AUTHOR_TEMPLATES.hazardLayer, constant: 'HAZARD_LAYER', from: './phases' },
+  // 물음이 붙으면 늘어나는 것 — 흔적이 사는 자락 (T2 확장 ADDED).
+  //
+  // 이 이름의 **소유는 환상 미로**다 (content/regions/fantasy-maze.ts 가 짓고, 묶음
+  // index.ts 가 그 파일의 것을 그대로 내보낸다 — 템플릿이 집는 것도 그것이다).
+  // 규칙 표(terrain-rules.ts)에 같은 글자가 한 벌 더 있으나 그것은 **그리는 쪽으로 내보낼
+  // layer 목록**을 위한 사본이고(표가 방 파일을 import 하지 않으려고 글자로 든다), 굳힌 방이
+  // 짚어야 할 것은 사본이 아니라 소유자다.
+  { layer: WORLD_AUTHOR_TEMPLATES.clueLayer, constant: 'CLUE_LAYER', from: './fantasy-maze' },
 ];
 
 /** 방 하나의 파일 — content/regions/<slug>.ts 에 그대로 들어간다 */
 export function renderRegionModule(authored: AuthoredRegion): string {
-  const { spec } = authored;
+  const spec = authored.spec;
   const missing = authored.unanswered.length;
   // **실제로 쓰인 layer 만** 되돌린다 — 생명도 철도 없는 방에는 그 셋의 op 이 아예 오지 않고,
   // 쓰지 않는 이름을 import 하면 굳힌 파일이 쓰이지 않는 것을 지고 선다 (굳힌 파일은 반드시
@@ -417,12 +538,35 @@ export function renderRegionModule(authored: AuthoredRegion): string {
  * 그래도 **도구가 그 표를 고치지 않는다.** 무엇이 이 세계의 재료인가는 방 하나의 사정이 아니라
  * 계통의 일이고(재료 셋이 사슬 하나에 매달려 있다 — A.1), 그 판단은 사람의 것이다.
  * 도구가 하는 일은 graph 줄과 view 줄에 한 것과 같다: **어디에 무엇을 붙여야 하는지 정확히 대는 것**.
+ *
+ * **성질(⑩)도 함께 댄다** (T2 확장 ADDED). 성질은 원천이 아니라 **재료**의 것이므로 붙을 자리가
+ * 여기다 — brief 가 `worth.sources[].properties` 로 적은 것을 그 재료의 줄에 얹는다.
+ * 밝히지 않은 재료에는 키를 두지 않는다 (재료 표가 그런 그대로 — 성질 없는 재료는 결손이 아니다).
  */
 export function freshMaterials(
   authored: AuthoredRegion,
-): { id: string; worldCause: string; forms: string[] }[] {
+): {
+  id: string;
+  worldCause: string;
+  forms: string[];
+  properties?: { tag: string; from: string }[];
+}[] {
   const known = new Set(MATERIAL_SEEDS.map((seed) => seed.id));
-  const fresh = new Map<string, { id: string; worldCause: string; forms: string[] }>();
+  // ⑩ — 그 원천이 내는 것의 성질. **재료마다** 모은다: 같은 재료를 원천 둘이 내면 밝힌 것을
+  // 이어 붙이되 같은 태그는 한 번만 선다 (순도가 갈려도 성질은 그 재료의 것이다)
+  const properties = new Map<string, { tag: string; from: string }[]>();
+  for (const source of BRIEF_OF.get(authored)?.answers.worth.sources ?? []) {
+    const rows = properties.get(source.material) ?? [];
+    for (const property of source.properties) {
+      if (rows.some((row) => row.tag === property.tag)) continue;
+      rows.push({ tag: property.tag, from: property.from });
+    }
+    properties.set(source.material, rows);
+  }
+  const fresh = new Map<
+    string,
+    { id: string; worldCause: string; forms: string[]; properties?: { tag: string; from: string }[] }
+  >();
   for (const source of authored.spec.resourceEcology?.sources ?? []) {
     if (known.has(source.materialId)) continue;
     const seed = fresh.get(source.materialId) ?? {
@@ -433,6 +577,11 @@ export function freshMaterials(
     // 같은 재료가 여러 형태로 난다 — 종류를 늘린 것이 아니라 순도를 늘린 것이다 (A.1)
     if (!seed.forms.includes(source.form)) seed.forms.push(source.form);
     fresh.set(source.materialId, seed);
+  }
+  // 성질은 **마지막에** 얹는다 — 굳힌 글자의 키 차례가 재료 표(MaterialSeed)의 차례여야 한다
+  for (const seed of fresh.values()) {
+    const rows = properties.get(seed.id) ?? [];
+    if (rows.length > 0) seed.properties = rows;
   }
   return [...fresh.values()];
 }
@@ -508,6 +657,89 @@ export function crossingLinks(
   return crossing;
 }
 
+/**
+ * 그 방이 **처음 쓰는 성질 태그**들 — 세계의 어느 재료도 가지지 않고 어느 답 규칙도 말하지 않은 것.
+ *
+ * 새 재료 · 새 개체군과 같은 자리다 (`freshMaterials` 의 어법 그대로). 태그 하나가 서는 것은 방
+ * 하나의 사정이 아니라 **어휘의 일**이고, 그 판단은 사람의 것이다 — 무엇이 무엇에 답하는가를
+ * 세계가 적지 않으면 그 성질은 아무 요구에도 닿지 않고(검사 ㉟) 그 요구는 답 없는 요구가 된다.
+ *
+ * 축·관계가 어휘에 있는지도 함께 낸다: 없으면 등급 판정기(T4)가 먼저 잡는 자리라 사람이
+ * 어디부터 붙여야 하는지가 갈린다.
+ */
+export function freshProperties(
+  authored: AuthoredRegion,
+): { tag: string; where: string; inVocabulary: boolean }[] {
+  const { aspects, relations, tagSeparator, answers, seeds } = WORLD_CHECK_ACCESS;
+  const aspectIds = new Set(aspects);
+  const relationIds = new Set(relations);
+  // 이 세계가 이미 말한 태그들 — 재료가 가진 것과 답 규칙이 양쪽 열에서 부르는 것
+  const known = new Set<string>();
+  for (const seed of seeds) for (const property of seed.properties) known.add(property.tag);
+  for (const answer of answers) {
+    known.add(answer.requirement);
+    known.add(answer.property);
+  }
+  const fresh: { tag: string; where: string; inVocabulary: boolean }[] = [];
+  const seen = new Set<string>();
+  const add = (tag: string, where: string): void => {
+    if (known.has(tag) || seen.has(tag)) return;
+    seen.add(tag);
+    const parts = tagSeparator === '' ? [] : tag.split(tagSeparator);
+    fresh.push({
+      tag,
+      where,
+      inVocabulary:
+        parts.length === 2 && aspectIds.has(parts[0] ?? '') && relationIds.has(parts[1] ?? ''),
+    });
+  };
+  // 새 재료가 가진 성질 먼저, 그 다음이 Lock 의 요구다 (뼈대가 낸 차례 그대로)
+  for (const material of freshMaterials(authored)) {
+    for (const property of material.properties ?? []) add(property.tag, `새 재료 ${material.id}`);
+  }
+  for (const lock of authored.spec.access?.locks ?? []) {
+    for (const requirement of lock.requires) {
+      if (requirement.property !== undefined) add(requirement.property, `Lock ${lock.id} 의 요구`);
+    }
+  }
+  return fresh;
+}
+
+/**
+ * Lock 이 가리키는 자리 가운데 **실제로 서 있지 않은** 것들 (검사 ㉞ 이 잡는 그 자리).
+ *
+ * 생성기는 brief 가 댄 이름을 그대로 옮길 뿐이고, 그 이름의 문·자락이 세계에 있는지는 모른다.
+ * 문이면 세계의 Connector 표(그 방이 새로 들이는 것까지)에, 자락이면 **그 방 Description 의
+ * area op** 에 그 이름이 있어야 한다 — 기반이 보는 것과 같은 두 자리를 같은 규칙으로 본다.
+ *
+ * 그 둘이 아닌 갈래는 묻지 않는다: 무엇을 찾을지 기반이 모르는 자리이고, 갈래의 이름이
+ * 성립하는지는 등급 판정기가 대조한다.
+ */
+export function unplacedLocks(
+  authored: AuthoredRegion,
+): { lock: string; kind: string; ref: string }[] {
+  const { connectorLockKind, areaLockKind } = WORLD_CHECK_ACCESS;
+  const connectorIds = new Set([
+    ...REGION_GRAPH.connectors.map((connector) => connector.id),
+    ...authored.connectors.map((connector) => connector.id),
+  ]);
+  const areaIds = new Set(
+    authored.spec.space.ops.flatMap((op) => (op.kind === 'area' ? [op.id] : [])),
+  );
+  const unplaced: { lock: string; kind: string; ref: string }[] = [];
+  for (const lock of authored.spec.access?.locks ?? []) {
+    const { kind, ref } = lock.at;
+    const stands =
+      kind === connectorLockKind
+        ? connectorIds.has(ref)
+        : kind === areaLockKind
+          ? areaIds.has(ref)
+          : true;
+    if (!stands) unplaced.push({ lock: lock.id, kind, ref });
+  }
+  return unplaced;
+}
+
 /** 방 이름 → 파일 이름 — 굳히는 자리와 이음을 대는 자리가 같은 답을 내야 한다 */
 function regionSlug(id: string): string {
   return id.toLowerCase().replace(/_/g, '-');
@@ -577,6 +809,34 @@ export function renderSeams(authored: AuthoredRegion): string {
         link.livesIn === ''
           ? `      ${link.to} 는 세계에 아직 없다 — 어느 방에 세울지가 먼저다 (위 LIFE_SEEDS 줄)`
           : `      ${link.to} 는 ${link.livesIn} 에 산다 — 두 방을 잇는 Connector 이름을 via 에`,
+      );
+    }
+  }
+  const properties = freshProperties(authored);
+  if (properties.length > 0) {
+    lines.push('');
+    lines.push('  content/regions/properties.ts — PROPERTY_ANSWERS 에 아래 태그의 줄을 더한다');
+    lines.push('  (이 세계가 **아직 말하지 않은 성질**이다. 무엇이 무엇에 답하는가를 적지 않으면');
+    lines.push('   그 성질은 아무 요구에도 닿지 않고, 그 요구는 답 없는 요구가 된다 — 검사 ㉟)');
+    for (const property of properties) {
+      lines.push(`    ${property.tag}   ${property.where}`);
+      if (!property.inVocabulary) {
+        lines.push(
+          '      ↑ 축·관계가 어휘에 없다 — PROPERTY_ASPECTS · PROPERTY_RELATIONS 이 먼저다 (등급도 여기서 갈린다)',
+        );
+      }
+    }
+  }
+  const unplaced = unplacedLocks(authored);
+  if (unplaced.length > 0) {
+    lines.push('');
+    lines.push('  Lock 이 가리키는 자리가 서 있지 않다 — 자리를 세우거나 가리키는 이름을 고친다');
+    lines.push('  (놓지 않으면 world:check 의 ㉞ 이 잡는다 — 없는 문 · 없는 자락에 걸린 물음이다)');
+    for (const lock of unplaced) {
+      lines.push(
+        lock.kind === WORLD_CHECK_ACCESS.connectorLockKind
+          ? `    ${lock.lock}  ${lock.ref} 은 아는 Connector 가 아니다 — graph.ts 의 connectors 에 그 이름이 있어야 한다`
+          : `    ${lock.lock}  ${lock.ref} 이 이 방의 area op 로 없다 — 그 자락을 Description 에 세운다`,
       );
     }
   }

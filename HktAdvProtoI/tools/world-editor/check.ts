@@ -475,6 +475,14 @@ export const WORLD_CHECK_ACCESS: CheckAccess = {
       source: source.id,
     })),
   ),
+  // **묻지 않는 방이 밝힌 사유들** (T2 확장 ADDED · 원문 §12 아홉째 — "없으면 없다고 적는다").
+  //
+  // 생명의 `absences` 가 선 그 자리 그대로다: 방 차례로 펴고, 밝히지 않은 방은 여기 오지 않으며
+  // 그때의 셈은 밝히기 전과 한 값도 다르지 않다 (**밝히지 않은 것을 결손으로 세지 않는다**).
+  // 판정하지 않는다 — 기반은 이 글자를 읽지 않고 보고에 그대로 옮긴다 (경계 ③).
+  silences: REGION_SPECS.flatMap((spec) =>
+    spec.access?.silence ? [{ region: spec.id, reason: spec.access.silence }] : [],
+  ),
 };
 
 // ── 기억 쪽 계약 (C034 ADDED — 검사 ㊸ ㊼ 가 이것을 읽는다) ──────────

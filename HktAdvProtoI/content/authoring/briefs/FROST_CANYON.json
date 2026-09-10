@@ -24,7 +24,21 @@
           "worldCause": "CRYSTAL_GROWTH",
           "recoveryCause": "crystal-growth",
           "form": "frost-vein",
-          "role": "risk"
+          "role": "risk",
+          "properties": [
+            {
+              "tag": "heat:absorbs",
+              "from": "behavior"
+            },
+            {
+              "tag": "light:emits",
+              "from": "appearance"
+            },
+            {
+              "tag": "heat:grows-on",
+              "from": "conditionResponse"
+            }
+          ]
         },
         {
           "id": "SNOW_DRIFT_DUST",
@@ -33,7 +47,21 @@
           "worldCause": "CRYSTAL_GROWTH",
           "recoveryCause": "next-blizzard",
           "form": "drift-dust",
-          "role": "conditional"
+          "role": "conditional",
+          "properties": [
+            {
+              "tag": "heat:absorbs",
+              "from": "behavior"
+            },
+            {
+              "tag": "light:emits",
+              "from": "appearance"
+            },
+            {
+              "tag": "heat:grows-on",
+              "from": "conditionResponse"
+            }
+          ]
         },
         {
           "id": "FROZEN_REMAINS",
@@ -42,7 +70,21 @@
           "worldCause": "CRYSTAL_GROWTH",
           "recoveryCause": "predator-passage",
           "form": "corpse-rime",
-          "role": "by-product"
+          "role": "by-product",
+          "properties": [
+            {
+              "tag": "heat:absorbs",
+              "from": "behavior"
+            },
+            {
+              "tag": "light:emits",
+              "from": "appearance"
+            },
+            {
+              "tag": "heat:grows-on",
+              "from": "conditionResponse"
+            }
+          ]
         }
       ]
     },
@@ -52,6 +94,35 @@
       "said": "열을 먹는 결정이 있어 결속에 쓸 열이 남지 않는다 — 여기서는 맺히는 대신 자란다.",
       "born": [],
       "populations": []
+    },
+    "asking": {
+      "said": "빙결 심층으로 드는 문 하나를 묻고, 요구가 둘이며 전부 참이어야 연다 — 긴 밤일 것 · 체열을 숨길 것(heat:hides). 그러나 지금 판정되는 것은 철 하나뿐이다: 성질은 밝혀도 잠기지 않고 채워도 열리지 않으며 하는 것은 표시까지다. 세계에서 **중요**로 세운 유일한 물음이라 답의 종류를 세는 검사가 이 문을 센다 — 지금 그 요구에 답하는 성질은 빙정석의 heat:absorbs 와 열을 저장하는 결정의 heat:stores 둘이고, 그 둘은 서로 다른 원천에서 난다. 흔적 둘이 대조를 이룬다: 문 앞의 자락은 든 몸에 김을 걸고 언 사체의 자리는 아무것도 걸지 않는다 — \"살아 있는 것이 아니라 따뜻한 것을 본다\" 는 그 둘을 본 사람이 읽는 것이고 세계는 그 말을 어디에서도 하지 않는다. 지목하면 판이 현상 하나를 말한다(asks-warmth) — 요구의 이름이 아니라 그 자리에서 일어나는 일이다. **이 형이 담지 못하는 것이 둘 있다**: 문 앞의 흔적이 몸에 거는 코드(breath-glows)와, 눈보라 자락이 그 사유를 무르게 대신하는 것(asks-warmth-weak). 지어내지 않고 여기에 적어 둔다.",
+      "locks": [
+        {
+          "id": "FROST_DEPTH_DOOR",
+          "at": {
+            "kind": "connector",
+            "ref": "FROST_DEPTH_DOOR"
+          },
+          "strength": "hard",
+          "important": true,
+          "requires": [
+            {
+              "seasons": [
+                "LONG_NIGHT"
+              ]
+            },
+            {
+              "property": "heat:hides"
+            }
+          ],
+          "traces": [
+            "DOOR_BREATH",
+            "FROZEN_REMAINS_BREATH"
+          ],
+          "reason": "asks-warmth"
+        }
+      ]
     }
   },
   "neighbours": [
