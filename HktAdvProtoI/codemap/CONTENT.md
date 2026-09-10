@@ -272,6 +272,25 @@ CLAUDE.md "기반이 컨텐츠에게 요구하는 것" 이 지목한 파일들.
 | — | `tools/content-root.ts` | 도구가 컨텐츠 자리를 읽는 유일한 경로 |
 | — | `tools/world-editor/tests/` | author · check · draft · grade · lab · observe · run · c007/c014/c018/c021 |
 
+## 경험 손잡이 — 컨텐츠가 코드 없이 바꾸는 것
+
+기반 Cycle 이 세운 축마다, 경험을 가르는 값 · 문구 · 표시 · 배치가 **어느 데이터 · 어느 표**에 사는가 (Design-CycleExecutionWorkflow §21 — 경험은 데이터로 조절된다).
+기반 검토가 "손잡이가 컨텐츠 작업에 충분한가" 를 이 표로 묻고, 컨텐츠 묶음이 여기서 값을 바꾼다. 검증 · 촬영용 손잡이(`HKT_*`)는 아래 절 — 세계 규칙을 바꾸지 않는 것이라 다르다.
+자리가 함수 안의 상수면 손잡이가 아니다 — 그 자리는 공학 부채(plan/CYCLES.md §5)다.
+
+| 축 | 손잡이 | 자리 |
+|---|---|---|
+| 기억 | State 경로마다 무엇이 그것을 지우는가 (다섯 지우개) | `world/semantic/persistence.ts` `PERSISTENCE_TABLE` |
+| 기억 | 판의 「기억」 줄 — 문구 · 숫자 표기(세는 말의 표를 둘지) · 어느 셈을 세우나(깨어난 시각 · 고갈 횟수는 봉투에 있고 표가 안 세운다) · 순서 | `view/code-text.ts`(기억의 말) · `view/place-reading.ts`(방) · `view/target-frame-presentation.ts`(원천) |
+| 조건 | 문 · 원천 · 위상 · 결속의 조건 값 (어댑터가 형으로 읽는 넷 — 데이터 모양은 그대로) | `regions/*` — `Lock.requires` · `ResourceSourceSpec.occurrence` · `RegionPhases.seasons` · `LifeSite.requires` |
+| 조건 | 원천이 밝힌 조건 한 줄 (기억을 읽는 첫 사례 — 비늘 `passages.SKY_WHALE_ROUTE EXISTS`) | `regions/resource-ecology.ts` `ResourceSourceSpec.condition` |
+| 조건 | 조건의 결과 코드 → 문구 (`needs-passage` 등) · 코드 둘이 나란히 설 때의 순서 | `view/code-text.ts` |
+| 기회 | 어느 방이 무엇을 내미는가 — 기본형(원천마다 `gather:` · Lock 걸린 문마다 `cross:`) 밖의 기회 · 같은 id 로 덮어쓰기 · discovery(VISIBLE · SIGNAL · TRACE · HIDDEN) · target · possibleActions · outcomes | `regions/<방>.ts` `RegionSpec.opportunities` (형은 `regions/opportunity-shape.ts` · 유도는 `regions/opportunity.ts`) |
+| 기회 | 판의 「할 수 있는 것」 줄의 문구 · discovery 를 말하는 어법 | `view/code-text.ts` |
+| Event | 어느 기회가 때가 있는가 · 그 창(WITHIN 값) · 무엇이 여는가(history 경로) · progress 가 가리키는 셈 · yield 열 | 같은 자리 — `RegionSpec.opportunities[<id>].availability` (`timedGatherOpportunity` 가 기본형) |
+| Event | 닫힌 Event 의 문구 (「지금은 없다」) | `view/code-text.ts` |
+| 조건 | 검사 ㊹ · observe 조건 표가 아는 어휘 (Target 종류마다 실제 id · query 마다 허용 속성) | `world/semantic/condition.ts` `worldConditionVocabulary` |
+
 ## 검증 손잡이
 
 `vite.config.ts` 의 환경 변수 — 걸어서·캐서·기다려서 닿을 수 있는 State 를 그렇게 하지 않고 시작하기 위한 **검증·촬영용**이며 세계 규칙을 하나도 바꾸지 않는다 (모르는 이름·값은 세계가 조용히 무시). `WorldSetup` 으로 넘어간다.

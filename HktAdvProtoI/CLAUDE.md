@@ -26,6 +26,9 @@ advprotoi-cycle  하나뿐인 스킬 — "<기획서> 로 묶음 잘라"(묶음 
 - 공정 원본: [Design-CycleExecutionWorkflow.md](design/Design-CycleExecutionWorkflow.md) (Cycle) ·
   [Design-DesignAuthoringWorkflow.md](design/Design-DesignAuthoringWorkflow.md) (주입 → 묶음 → 판정) ·
   [Plan-Skill-CycleExecutionWorkflow.md](design/Plan-Skill-CycleExecutionWorkflow.md) (스킬 분할 · 회수 규칙 · 병렬)
+- **묶음의 종류는 행이 가른다** ([Design-CycleExecutionWorkflow §21](design/Design-CycleExecutionWorkflow.md)) — 기반 묶음(L<N>)은 축(기구 + 계약 + 예제 하나)을
+  세우고 **제공 · 작동 · 손잡이**로 닫는다: 경험은 판정하지 않고 데이터(손잡이)로 내려가 그 축을 처음 쓰는 컨텐츠 묶음이 판정한다. 컨텐츠 묶음(M<N>)은 플레이 하나를
+  세우고 실주행으로 닫는다. 기반 묶음이 경험 값(문구 · 표기 · 표시 여부 · 임계 · 배치)을 Human 결정으로 올리면 그 자리에 손잡이가 없다는 뜻이다.
 - **기획서와 Cycle 사이에 문서 층이 없다.** 묶음(기획서에서 자른 플레이 하나 — Goal · Intent · Breath · Cycle 목록 · 미지 · 질문)은
   첫 Cycle 의 `spec.md` 머리 블록이고, 묶음의 Cycle 전부가 spec(첫 것은 동결 후보 · 뒤 것은 초안)으로 함께 선다. 의미의 출처는 기획서 하나이고 spec 은 그것을 인용한다. Play 문서는 없다.
 - **작업 관리는 `plan/` 하나다** — 관점 셋(design · 묶음 · cycle)으로 나뉜다.
@@ -103,7 +106,8 @@ npm run cycle:shot <cycles/C###/shots.json>   마감 촬영 → cycles/C###/shot
  6. 시뮬레이션 상수는 헤더 상수로 고정한다.
  7. 새 규칙·표현에는 REUSED / ADDED / CHANGED / AFFECTED 를 명시한다.
  8. 영향을 받는 기존 Rule 과 플레이 Scenario 도 함께 검증한다.
- 9. 완료 조건은 코드가 아니라 실제로 플레이되는가다.
+ 9. 완료 조건은 코드가 아니라 실제로 플레이되는가다 — 컨텐츠 Cycle 에서. 기반 Cycle 의 완료는 제공 · 작동 · 손잡이다
+    (경험은 데이터로 조절되고, 그 판정은 컨텐츠 Cycle 이 진다).
 10. 살아 있는 문서(plan/ · codemap/ · README)에는 현재 상태만 — 진행 상태는 CLAUDE.md 가 아니라 plan/ 에.
 11. 코드 주석은 한국어로 쓴다.
 ```

@@ -27,7 +27,8 @@
 ```text
 1  Cycle      돌 수 있는 레인이 없다 — Foundation 묶음이 닫혔다. 다음은 §2-2 묶음 제안 · Human 지목을 기다린다                CYCLES.md §1
 2  묶음 제안   §1-1 지목 즉시 — 첫 spec(C039~) 머리에 묶음 블록 + Cycle 전부의 spec · UNRESOLVED 에 묶음 질문 전부 → Human 에게 올린다   Design-DesignAuthoringWorkflow §5~§7
-3  예심       묶음의 마지막 Cycle 이 합쳐지면 — 관찰 항목을 질문 대여섯으로 압축해 CYCLES.md 그 묶음 절에 · STATE · TODO §1 에 판정 줄
+3  예심       묶음의 마지막 Cycle 이 합쳐지면 — 컨텐츠 묶음은 관찰 항목을 질문 대여섯으로 · 기반 묶음은 기반 검토 항목을 기반 질문 서넛으로(경험 질문 없음)
+              → CYCLES.md 그 묶음 절에 · STATE · TODO §1 에 판정/검토 줄                                                    Design-CycleExecutionWorkflow §21
 4  GAP 회수   §1-2 · 3 · 4 에서 "아니오" 가 오면 — 그 묶음에 Cycle 을 더하거나 관찰 가능성 묶음 하나로 자른다
 합친 직후  CYCLES 레인 · 묶음 절 · DESIGN §3 덮인 것 · STATE · codemap(API · 구조가 바뀐 것만)
 ```

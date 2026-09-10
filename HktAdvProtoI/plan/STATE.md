@@ -34,6 +34,7 @@
 
 한 Cycle = 브랜치 `cycle/C###` = 세션 하나. **말할 것: "<기획서> 로 묶음 잘라"**(다음 묶음 제안 — 후보 2 · 3) · 판정 넷의 답.
 `advprotoi-cycle` 이 묶음 → 명세 → 실현 → 마감을 이어 돌리고 UNRESOLVED · GAP 에서만 멈춘다.
+묶음의 종류는 행이 가른다 — 기반 묶음(L<N>)은 제공 · 작동 · 손잡이로 닫고 경험은 데이터로 내린다 · 컨텐츠 묶음(M<N>)은 실주행으로 닫는다 ([Design-CycleExecutionWorkflow §21](../design/Design-CycleExecutionWorkflow.md)).
 
 ## 1. design 관점 — 어떤 기획서가 얼마나 반영되었는가
 
