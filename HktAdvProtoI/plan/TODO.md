@@ -16,7 +16,8 @@
 2  판정  빙결 협곡 실주행 — Frost-1 ~ Frost-6 (그 절의 "결정 대기" 값 · 규칙을 함께 본다)                                        CYCLES.md §3.2.1
 3  판정  생명 · 붉은 알집 실주행 — Life-1 ~ Life-6 (〃)                                                                      CYCLES.md §3.2.2
 4  판정  요구와 가능성 실주행 — Access-1 ~ Access-5 (〃)                                                                     CYCLES.md §3.2.3
-5  이름  HundredRooms 의 미지 백 줄 — 직접 주거나 초안기(world:draft --batch) 후보를 고른다                                       DESIGN.md §5 후보 4
+5  이름  HundredRooms 의 미지 백 줄 — 직접 주거나 초안기(world:draft --batch) 후보를 고른다. **도구는 다 섰다** —
+         일곱 줄로 배치 → 판정 표면 → 승인까지 한 바퀴 돌려 보았고, 이름만 오면 그대로 백 줄이 돈다              DESIGN.md §5 후보 4
 6  주입  3층 나머지 절반 — 몸의 값 전반 · 생물의 앎과 선택 (후보 2 판정 뒤)                                                       DESIGN.md §1 · §5 후보 5
 7  이름  컨텐츠 행 — 보석 여덟 · 보류 계열 일곱 · Region §5.1 나머지 … 하나씩                                                   DESIGN.md §3 "컨텐츠 행"
 ```
@@ -35,6 +36,6 @@
 ## 3. engine · 도구
 
 ```text
-1  묶음 없는 다음 Cycle — T6 대량 후보 (world:draft --batch → world:lab · HundredRooms 의 바로 앞)   CYCLES.md §4
+1  (없다) — T1~T6 이 다 실측되었다. 도구 레인은 **미지 백 줄의 이름**(§1)을 기다린다                CYCLES.md §4
 2  공학 부채 — 그 자리를 만지는 Cycle 이 갚는다                                            CYCLES.md §5
 ```
