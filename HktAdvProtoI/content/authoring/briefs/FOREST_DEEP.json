@@ -22,7 +22,17 @@
           "worldCause": "FOREST_CHAIN",
           "recoveryCause": "flow-arrival",
           "form": "river-grain",
-          "role": "conditional"
+          "role": "conditional",
+          "properties": [
+            {
+              "tag": "flesh:stores",
+              "from": "behavior"
+            },
+            {
+              "tag": "light:emits",
+              "from": "appearance"
+            }
+          ]
         },
         {
           "id": "ORE_PEBBLE_DEEP_1",
@@ -31,7 +41,17 @@
           "worldCause": "FOREST_CHAIN",
           "recoveryCause": "pebble-wash",
           "form": "ore-pebble",
-          "role": "baseline"
+          "role": "baseline",
+          "properties": [
+            {
+              "tag": "flesh:stores",
+              "from": "behavior"
+            },
+            {
+              "tag": "light:emits",
+              "from": "appearance"
+            }
+          ]
         },
         {
           "id": "ORE_PEBBLE_DEEP_2",
@@ -40,7 +60,17 @@
           "worldCause": "FOREST_CHAIN",
           "recoveryCause": "pebble-wash",
           "form": "ore-pebble",
-          "role": "baseline"
+          "role": "baseline",
+          "properties": [
+            {
+              "tag": "flesh:stores",
+              "from": "behavior"
+            },
+            {
+              "tag": "light:emits",
+              "from": "appearance"
+            }
+          ]
         },
         {
           "id": "HUSK_SHARD_DEEP",
@@ -49,7 +79,13 @@
           "worldCause": "FOREST_CHAIN",
           "recoveryCause": "husk-shed",
           "form": "husk-shard",
-          "role": "baseline"
+          "role": "baseline",
+          "properties": [
+            {
+              "tag": "light:emits",
+              "from": "appearance"
+            }
+          ]
         },
         {
           "id": "GLOW_CAP_DEEP",
@@ -58,7 +94,17 @@
           "worldCause": "FOREST_CHAIN",
           "recoveryCause": "night-bloom",
           "form": "glow-cap",
-          "role": "by-product"
+          "role": "by-product",
+          "properties": [
+            {
+              "tag": "flesh:absorbs",
+              "from": "behavior"
+            },
+            {
+              "tag": "light:absorbs",
+              "from": "conditionResponse"
+            }
+          ]
         },
         {
           "id": "SEEP_CRUST_DEEP",
@@ -67,7 +113,17 @@
           "worldCause": "FOREST_CHAIN",
           "recoveryCause": "tree-uptake",
           "form": "seep-crust",
-          "role": "conditional"
+          "role": "conditional",
+          "properties": [
+            {
+              "tag": "flesh:stores",
+              "from": "behavior"
+            },
+            {
+              "tag": "light:emits",
+              "from": "appearance"
+            }
+          ]
         }
       ]
     },
@@ -82,6 +138,30 @@
           "scale": 2,
           "declineCause": "EATEN",
           "presence": "big-bird-flock"
+        }
+      ]
+    },
+    "asking": {
+      "said": "걷는 숲으로 나가는 문 하나를 묻는다 — 긴 밤에만 열리고 다른 철에는 \"이 철이 아니다\" 로 잠긴다. 방의 상태를 읽지 않는다: 이 문을 여는 것은 어느 방의 사정도 아니고 세계의 시각이다. 세게 묻는다(hard). 알아낼 것은 이 방의 흙 하나다 — 철을 말하는 것 셋(하늘 · 흙 · 발자국) 가운데 이 방에 자리로 놓인 것이 그것뿐이고, 하늘은 놓인 자리가 아니며 발자국은 그때그때 나는 것이다. 몸에 걸리는 것은 없다: 흙은 보는 것이지 몸에 서리는 것이 아니다. 이 방에 걸린 나머지 이음 일곱은 아무것도 묻지 않는다 — 묻는 것은 아직 짓지 않은 곳으로 나가는 이 문 하나다.",
+      "locks": [
+        {
+          "id": "WALKING_FOREST_DOOR",
+          "at": {
+            "kind": "connector",
+            "ref": "WALKING_FOREST_DOOR"
+          },
+          "strength": "hard",
+          "important": false,
+          "requires": [
+            {
+              "seasons": [
+                "LONG_NIGHT"
+              ]
+            }
+          ],
+          "traces": [
+            "FOREST_DEEP_SOIL"
+          ]
         }
       ]
     }

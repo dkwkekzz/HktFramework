@@ -22,7 +22,17 @@
           "worldCause": "FOREST_CHAIN",
           "recoveryCause": "tree-uptake",
           "form": "root-nodule",
-          "role": "risk"
+          "role": "risk",
+          "properties": [
+            {
+              "tag": "flesh:stores",
+              "from": "behavior"
+            },
+            {
+              "tag": "light:emits",
+              "from": "appearance"
+            }
+          ]
         },
         {
           "id": "GLOW_CAP_TREE",
@@ -31,7 +41,17 @@
           "worldCause": "FOREST_CHAIN",
           "recoveryCause": "night-bloom",
           "form": "glow-cap",
-          "role": "by-product"
+          "role": "by-product",
+          "properties": [
+            {
+              "tag": "flesh:absorbs",
+              "from": "behavior"
+            },
+            {
+              "tag": "light:absorbs",
+              "from": "conditionResponse"
+            }
+          ]
         },
         {
           "id": "ORE_PEBBLE_TREE",
@@ -40,7 +60,17 @@
           "worldCause": "FOREST_CHAIN",
           "recoveryCause": "pebble-wash",
           "form": "ore-pebble",
-          "role": "baseline"
+          "role": "baseline",
+          "properties": [
+            {
+              "tag": "flesh:stores",
+              "from": "behavior"
+            },
+            {
+              "tag": "light:emits",
+              "from": "appearance"
+            }
+          ]
         },
         {
           "id": "CLUTCH_HUSK",
@@ -49,7 +79,13 @@
           "worldCause": "FOREST_CHAIN",
           "recoveryCause": "next-birth",
           "form": "clutch-husk",
-          "role": "by-product"
+          "role": "by-product",
+          "properties": [
+            {
+              "tag": "light:emits",
+              "from": "appearance"
+            }
+          ]
         },
         {
           "id": "EGG_HUSK",
@@ -58,7 +94,13 @@
           "worldCause": "FOREST_CHAIN",
           "recoveryCause": "next-birth",
           "form": "egg-husk",
-          "role": "by-product"
+          "role": "by-product",
+          "properties": [
+            {
+              "tag": "light:emits",
+              "from": "appearance"
+            }
+          ]
         }
       ]
     },
@@ -128,6 +170,12 @@
           "presence": "ore-eater-swarm"
         }
       ]
+    },
+    "asking": {
+      "said": {
+        "unanswered": "묻지 않는 방이다 — 밑동의 작은 문(TREE_INNER_DOOR)이 조건 없이 열린다. 탄생지 둘이 선 방이라 요구는 여럿이지만 그것은 태어남의 요구이지 지나감의 요구가 아니다 — 그 문이 왜 아무것도 묻지 않는지는 데이터에 없다"
+      },
+      "locks": []
     }
   },
   "neighbours": [

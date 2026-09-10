@@ -22,7 +22,21 @@
           "worldCause": "CRYSTAL_GROWTH",
           "recoveryCause": "night-rime",
           "form": "rime",
-          "role": "baseline"
+          "role": "baseline",
+          "properties": [
+            {
+              "tag": "heat:absorbs",
+              "from": "behavior"
+            },
+            {
+              "tag": "light:emits",
+              "from": "appearance"
+            },
+            {
+              "tag": "heat:grows-on",
+              "from": "conditionResponse"
+            }
+          ]
         }
       ]
     },
@@ -33,6 +47,12 @@
         "unanswered": "생명 계약(탄생지 · 개체군 · 관계)은 이제 데이터로 서 있다 (C022~C025) — 이 방에서 무엇이 태어나고 무엇이 사는지는 아직 답해지지 않았다. 이웃한 빙결 협곡은 없음의 사유(열을 먹는 결정)까지 답했지만 이 방이 같은 사유인지는 어디에도 적혀 있지 않다 — 옮겨 적지 않는다"
       },
       "born": []
+    },
+    "asking": {
+      "said": {
+        "unanswered": "묻지 않는 방이다 — 이 방이 내미는 길 하나(FROST_CANYON_TRAIL)가 조건 없이 열린다. 고개 너머 첫 방이고 빙정석이 처음 나는 방이지만, 그 안쪽 협곡이 묻는 것(체열)을 이 방이 미리 묻지 않는 까닭은 데이터가 아니라 아직 정해지지 않은 것이다"
+      },
+      "locks": []
     }
   },
   "neighbours": [

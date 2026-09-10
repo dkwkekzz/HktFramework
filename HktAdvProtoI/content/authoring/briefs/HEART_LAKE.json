@@ -23,7 +23,17 @@
           "worldCause": "FOREST_CHAIN",
           "recoveryCause": "lake-settling",
           "form": "silt-bed",
-          "role": "risk"
+          "role": "risk",
+          "properties": [
+            {
+              "tag": "flesh:stores",
+              "from": "behavior"
+            },
+            {
+              "tag": "light:emits",
+              "from": "appearance"
+            }
+          ]
         }
       ]
     },
@@ -34,6 +44,12 @@
         "unanswered": "생명 계약(탄생지 · 개체군 · 관계)은 이제 데이터로 서 있다 (C022~C025) — 이 방에서 무엇이 태어나고 무엇이 사는지는 아직 답해지지 않았다"
       },
       "born": []
+    },
+    "asking": {
+      "said": {
+        "unanswered": "묻지 않는 방이다 — 드는 길이 추락 하나이고 나가는 길이 물길 하나(HEART_RIVER)이며 둘 다 조건이 없다. 이 방은 지나가는 자리로 서 있고, 왜 묻지 않는가를 세계가 말한 적이 없다"
+      },
+      "locks": []
     }
   },
   "neighbours": [

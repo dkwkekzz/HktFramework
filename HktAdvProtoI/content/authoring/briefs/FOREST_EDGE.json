@@ -20,7 +20,13 @@
           "worldCause": "FOREST_CHAIN",
           "recoveryCause": "molt-cycle",
           "form": "molt-litter",
-          "role": "baseline"
+          "role": "baseline",
+          "properties": [
+            {
+              "tag": "light:emits",
+              "from": "appearance"
+            }
+          ]
         },
         {
           "id": "SEEP_CRUST",
@@ -29,7 +35,17 @@
           "worldCause": "FOREST_CHAIN",
           "recoveryCause": "tree-uptake",
           "form": "seep-crust",
-          "role": "conditional"
+          "role": "conditional",
+          "properties": [
+            {
+              "tag": "flesh:stores",
+              "from": "behavior"
+            },
+            {
+              "tag": "light:emits",
+              "from": "appearance"
+            }
+          ]
         },
         {
           "id": "FALLEN_SCALE",
@@ -38,7 +54,8 @@
           "worldCause": "SKY_PASSAGE",
           "recoveryCause": "whale-passage",
           "form": "fallen-scale",
-          "role": "world-event"
+          "role": "world-event",
+          "properties": []
         },
         {
           "id": "PREY_REMAINS",
@@ -47,7 +64,13 @@
           "worldCause": "FOREST_CHAIN",
           "recoveryCause": "hunter-passage",
           "form": "prey-remains",
-          "role": "by-product"
+          "role": "by-product",
+          "properties": [
+            {
+              "tag": "light:emits",
+              "from": "appearance"
+            }
+          ]
         },
         {
           "id": "ORE_PEBBLE_EDGE",
@@ -56,7 +79,17 @@
           "worldCause": "FOREST_CHAIN",
           "recoveryCause": "pebble-wash",
           "form": "ore-pebble",
-          "role": "baseline"
+          "role": "baseline",
+          "properties": [
+            {
+              "tag": "flesh:stores",
+              "from": "behavior"
+            },
+            {
+              "tag": "light:emits",
+              "from": "appearance"
+            }
+          ]
         },
         {
           "id": "HUSK_SHARD_EDGE",
@@ -65,7 +98,13 @@
           "worldCause": "FOREST_CHAIN",
           "recoveryCause": "husk-shed",
           "form": "husk-shard",
-          "role": "baseline"
+          "role": "baseline",
+          "properties": [
+            {
+              "tag": "light:emits",
+              "from": "appearance"
+            }
+          ]
         },
         {
           "id": "GLOW_CAP_EDGE",
@@ -74,7 +113,17 @@
           "worldCause": "FOREST_CHAIN",
           "recoveryCause": "night-bloom",
           "form": "glow-cap",
-          "role": "by-product"
+          "role": "by-product",
+          "properties": [
+            {
+              "tag": "flesh:absorbs",
+              "from": "behavior"
+            },
+            {
+              "tag": "light:absorbs",
+              "from": "conditionResponse"
+            }
+          ]
         }
       ]
     },
@@ -85,6 +134,12 @@
         "unanswered": "생명 계약(탄생지 · 개체군 · 관계)은 이제 데이터로 서 있다 (C022~C025) — 허물을 남긴 광식충이 어디서 태어나는지는 거목의 방이 답했다(붉은 알집과 뿌리의 알). 그 떼가 이 가장자리까지 내려와 여기서 허물을 벗는지는 아직 적히지 않았다 — 지어내지 않는다"
       },
       "born": []
+    },
+    "asking": {
+      "said": {
+        "unanswered": "묻지 않는 방이다 — 이 방이 내미는 길 둘(RUIN_TRAIL · DEEP_TRAIL)이 조건 없이 열린다. 재료가 처음 나고 안쪽으로 가는 길이 갈리는 방이지만, 왜 그 길들이 아무것도 묻지 않는가를 이 방의 데이터가 말한 적이 없다"
+      },
+      "locks": []
     }
   },
   "neighbours": [

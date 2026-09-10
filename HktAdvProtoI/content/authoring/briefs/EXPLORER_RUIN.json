@@ -22,7 +22,13 @@
           "worldCause": "FOREST_CHAIN",
           "recoveryCause": "pile-erosion",
           "form": "spoil-pile",
-          "role": "baseline"
+          "role": "baseline",
+          "properties": [
+            {
+              "tag": "light:emits",
+              "from": "appearance"
+            }
+          ]
         },
         {
           "id": "ORE_PEBBLE_RUIN",
@@ -31,7 +37,17 @@
           "worldCause": "FOREST_CHAIN",
           "recoveryCause": "pebble-wash",
           "form": "ore-pebble",
-          "role": "baseline"
+          "role": "baseline",
+          "properties": [
+            {
+              "tag": "flesh:stores",
+              "from": "behavior"
+            },
+            {
+              "tag": "light:emits",
+              "from": "appearance"
+            }
+          ]
         },
         {
           "id": "HUSK_SHARD_RUIN_1",
@@ -40,7 +56,13 @@
           "worldCause": "FOREST_CHAIN",
           "recoveryCause": "husk-shed",
           "form": "husk-shard",
-          "role": "baseline"
+          "role": "baseline",
+          "properties": [
+            {
+              "tag": "light:emits",
+              "from": "appearance"
+            }
+          ]
         },
         {
           "id": "HUSK_SHARD_RUIN_2",
@@ -49,7 +71,13 @@
           "worldCause": "FOREST_CHAIN",
           "recoveryCause": "husk-shed",
           "form": "husk-shard",
-          "role": "baseline"
+          "role": "baseline",
+          "properties": [
+            {
+              "tag": "light:emits",
+              "from": "appearance"
+            }
+          ]
         }
       ]
     },
@@ -60,6 +88,12 @@
         "unanswered": "생명 계약(탄생지 · 개체군 · 관계)은 이제 데이터로 서 있다 (C022~C025) — 이 방에서 무엇이 태어나고 무엇이 사는지는 아직 답해지지 않았다. 스밈에 이 폐허가 무너져 삭는다는 것까지가 데이터이고, 그 삭임을 무엇이 하는지는 적히지 않았다"
       },
       "born": []
+    },
+    "asking": {
+      "said": {
+        "unanswered": "묻지 않는 방이다 — 잇는 것이 들어온 길 하나(RUIN_TRAIL)뿐이라 문에 걸 자리가 없다. 다만 자락에 무르게 묻는 길이 형에는 이미 있고(area · soft) 이 세계에 그렇게 묻는 방이 하나도 없으므로, \"걸 문이 없어 묻지 않는다\" 와 \"묻지 않기로 한 방이다\" 가 아직 갈리지 않는다 — 어느 쪽인지를 세계가 말한 적이 없다"
+      },
+      "locks": []
     }
   },
   "neighbours": [
