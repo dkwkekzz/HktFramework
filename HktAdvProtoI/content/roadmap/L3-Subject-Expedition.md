@@ -1,6 +1,6 @@
-# L3 — 원정 편성과 무대의 한 명 (기반 층 3 · 기획서 · 대기)
+# L3 — 원정 편성과 무대의 한 명 (기반 층 3 · 재료 — L3-Subject-Body 의 Cycle C 가 읽는다)
 
-상태: **대기** — 3층은 열려 있으나(2층 판정과 병행 — [plan/DESIGN.md](../../plan/DESIGN.md) §1) 아직 잘리지 않았다. 열린 층보다 먼저 온 7층 원문([L7-Fairy-Growth-Combination.md](L7-Fairy-Growth-Combination.md) §3 배분 · 확정 12)에서 3층의 것으로 판정된 절을 옮겨 세웠다. 3층 이하의 기획서는 2층이 축마다 문서 하나였던 것과 같은 방식으로 **주제마다 하나**다.
+상태: **재료** — 3층의 기획서는 [L3-Subject-Body.md](L3-Subject-Body.md) 하나다 (Human 확정 — 그 문서 §3). 이 문서는 행이 아니라 그 Cycle C(Expedition & Stage)의 재료로 든다. 아래 머리 블록의 "자르는 때 · 놓는 미지" 는 그 결정 전의 것이다 — §3 이 지금이다. 열린 층보다 먼저 온 7층 원문([L7-Fairy-Growth-Combination.md](L7-Fairy-Growth-Combination.md) §3 배분 · 확정 12)에서 3층의 것으로 판정된 절을 옮겨 세웠다. 3층 이하의 기획서는 2층이 축마다 문서 하나였던 것과 같은 방식으로 **주제마다 하나**다.
 옮긴 절은 **글자 그대로**다 — 제목 수준만 맞췄고, 절마다 출처를 적었고, 원래 자리에는 포인터가 있다 (규칙: [design/Design-DesignAuthoringWorkflow.md §5](../../design/Design-DesignAuthoringWorkflow.md) "기획서의 층" · [README.md §1](README.md)).
 §1 이 원문이다. 검토 · 계약 절(§2 이후)은 이 기획서를 자를 때 선다 — Human 의 주입물(방향 한 줄 · 빈칸의 답)이 오면 `advprotoi-inject` 가 이 문서에 **덧붙인다** (새 파일을 만들지 않는다). Human 이 언제든 고친다.
 
@@ -170,3 +170,9 @@ Active Fairy 구조는 탐험에도 그대로 적용한다.
 Foundation §8 Opportunity      participants — 형에 자리만(C036) · 채우는 것은 이 기획서 (몸이 서야 "여럿" 이 센다)
 Foundation §4.6 행동 조건       entered · crossed 는 2층 · 몸이 하는 것(moved · observed)은 여기 — 형(C035)에 줄을 더한다 · 옮기지 않는다
 ```
+
+## 3. 주입 — 3층 원문이 왔고, 이 문서는 그 재료가 됐다
+
+Human 의 3층 기획서 전문이 [L3-Subject-Body.md](L3-Subject-Body.md) 에 보존됐다. 그 원문 §15 Core · §16~§19 Expedition · 무대의 한 명 · 교체 · Presence · §22 Bag(원정 단위)이 이 문서의 주제와 같다.
+Human 이 그 문서 하나를 3층의 행으로 정했다 (그 문서 §3 "가"). 이 문서의 §1 원문(L7 §9 · §10 · §11 의 자리 · §20)과 머리의 "받는 것"(Access property Lock 판정 · Life F10 · M5 남은 것)은 그 문서의 Cycle C 가 SOURCE 로 함께 읽는다.
+놓는 미지는 없다 — M8 은 컨텐츠 행으로 남는다 (Human 확정). "L3-Subject-Expedition 으로 spec 써" 는 더 이상 말할 것이 아니다 — "L3-Subject-Body 로 spec 써" 다.

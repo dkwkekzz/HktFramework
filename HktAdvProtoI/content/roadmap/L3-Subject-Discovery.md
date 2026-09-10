@@ -1,6 +1,6 @@
-# L3 — 생물의 행동과 발견 상태 (기반 층 3 · 기획서 · 대기)
+# L3 — 생물의 행동과 발견 상태 (기반 층 3 · 재료 — L3-Subject-Body 의 Cycle B 가 읽는다)
 
-상태: **대기** — 3층 둘째 기획서 — 후보 2 의 판정 뒤 · 3층 나머지 절반(몸의 값 · 생물의 앎과 선택)의 주입과 함께 ([plan/DESIGN.md](../../plan/DESIGN.md) §5 후보 5). 2층 [L2-World-Foundation.md](L2-World-Foundation.md) 원문에서 3층의 것으로 판정된 절(Foundation §7 표 · G10 · G12 · D2)을 옮겨 세웠다. 3층 이하의 기획서는 2층이 축마다 문서 하나였던 것과 같은 방식으로 **주제마다 하나**다.
+상태: **재료** — 3층의 기획서는 [L3-Subject-Body.md](L3-Subject-Body.md) 하나다 (Human 확정 — 그 문서 §3). 이 문서는 행이 아니라 그 Cycle B(Knowledge & Action)의 재료로 든다. 아래 머리 블록의 "자르는 때 · 놓는 미지" 는 그 결정 전의 것이다 — §3 이 지금이다. 2층 [L2-World-Foundation.md](L2-World-Foundation.md) 원문에서 3층의 것으로 판정된 절(Foundation §7 표 · G10 · G12 · D2)을 옮겨 세웠다. 3층 이하의 기획서는 2층이 축마다 문서 하나였던 것과 같은 방식으로 **주제마다 하나**다.
 옮긴 절은 **글자 그대로**다 — 제목 수준만 맞췄고, 절마다 출처를 적었고, 원래 자리에는 포인터가 있다 (규칙: [design/Design-DesignAuthoringWorkflow.md §5](../../design/Design-DesignAuthoringWorkflow.md) "기획서의 층" · [README.md §1](README.md)).
 §1 이 원문이다. 검토 · 계약 절(§2 이후)은 이 기획서를 자를 때 선다 — Human 의 주입물(방향 한 줄 · 빈칸의 답)이 오면 `advprotoi-inject` 가 이 문서에 **덧붙인다** (새 파일을 만들지 않는다). Human 이 언제든 고친다.
 
@@ -109,3 +109,11 @@ Foundation §5 Mutation Knowledge 군  REVEAL · HIDE · REFINE · CONFIRM — �
 Foundation §8 discovery 의 NPC · KNOWLEDGE 갈래 · §2.3 State 의 Society 이름공간 · §7.8 지식 퍼즐 · §11 떠돌이 NPC(문법 설명용 예) ·
   §8 최소 완성 기준 6 · 10 · 11 · 12 · 15 · 22 의 3층 몫 · G12 둘째 사례(폐허 → 마을 — NPC 뒤) · §2.6 관찰 수단의 NPC 정보     원문 자리에
 ```
+
+## 3. 주입 — 3층 원문이 왔고, 이 문서는 그 재료가 됐다
+
+Human 의 3층 기획서 전문이 [L3-Subject-Body.md](L3-Subject-Body.md) 에 보존됐다. 그 원문 §7 Awareness · §8~§9 Knowledge(learn / forget / knows) · §10 Condition target:actor · §11~§14 Action Port(Controller 와 무관한 행동 입구)가
+이 문서의 주제와 겹친다. "몸의 값" 은 그 원문 §3~§6 이 받았다 — 이 문서가 "Human 주입" 으로 미뤄 두던 몫이다.
+Human 이 그 문서 하나를 3층의 행으로 정했다 (그 문서 §3 "가"). 이 문서의 §1 원문(Foundation §2.5 · §2.6 · §7.7 · §7.9)은 그 문서의 Cycle B 가 SOURCE 로 함께 읽는다.
+Knowledge 의 주인 — **Actor 와 관찰자(원정) 둘 다 소유할 수 있게 한다** (Human 확정: "둘다 소유할 수 있도록. 이후 유연하게 대응"). 원문 §8 의 Actor Knowledge 와 이 문서의 발견 상태 다섯(G10)은 같은 것으로 합치지도, 하나를 버리지도 않는다.
+놓는 미지는 없다 (Human 확정). "L3-Subject-Discovery 로 spec 써" 는 더 이상 말할 것이 아니다 — "L3-Subject-Body 로 spec 써" 다.
