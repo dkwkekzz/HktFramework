@@ -16,7 +16,7 @@
 //
 // 이 방의 brief 는 아직 2 가지를 답하지 못했다: birth · offering.
 //
-// seed 1670963080 는 brief 를 해시한 값이다 — 같은 brief 는 언제나 같은 방을 낸다.
+// seed 1612982154 는 brief 를 해시한 값이다 — 같은 brief 는 언제나 같은 방을 낸다.
 
 import type { RegionSpec } from '../../../../content/regions/spec';
 import { ANCHOR_LAYER } from '../../../../content/regions/spec';
@@ -35,7 +35,7 @@ export const GAS_VILLAGE_SPEC: RegionSpec = {
       minZ: -20,
       maxZ: 20,
     },
-    seed: 1670963080,
+    seed: 1612982154,
     ops: [
       {
         id: 'anchor-gas-village-white-king-domain',
@@ -94,8 +94,8 @@ export const GAS_VILLAGE_SPEC: RegionSpec = {
         shape: {
           kind: 'circle',
           center: {
-            x: 0,
-            z: 9,
+            x: -6.36,
+            z: 6.36,
           },
           radius: 7,
         },
@@ -106,8 +106,8 @@ export const GAS_VILLAGE_SPEC: RegionSpec = {
         layer: RESOURCE_LAYER,
         tag: 'GAS_RESIDUE',
         position: {
-          x: 0,
-          z: 9,
+          x: -6.36,
+          z: 6.36,
         },
       },
     ],

@@ -45,7 +45,7 @@ function brief(over: Partial<RegionBrief> = {}): RegionBrief {
       worth: { said: said('이것이 귀하다'), sources: [] },
       discovery: said('이것을 안다'),
       opening: said('이것이 열린다'),
-      birth: { said: said('이것이 난다'), born: [] },
+      birth: { said: said('이것이 난다'), born: [], populations: [] },
       offering: said('이것을 내민다'),
     },
     neighbours: [{ region: 'HOME', transition: 'path', direction: 'bidirectional', frontier: false }],
@@ -169,7 +169,7 @@ describe('아직 답하지 않은 질문은 등급을 가르지 않는다', () =
     const result = grade({
       answers: {
         ...brief().answers,
-        birth: { said: { unanswered: '생명 계약이 아직 없다' }, born: [] },
+        birth: { said: { unanswered: '생명 계약이 아직 없다' }, born: [], populations: [] },
       },
     });
     expect(result.grade).toBe('A');

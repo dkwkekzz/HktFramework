@@ -112,10 +112,18 @@ describe('T2 — 모르는 것은 미답으로 남아 있다 (지어내지 않�
     }
   });
 
-  it('여덟째(탄생)는 아직 어느 방도 답하지 못한다 — 생명 계약이 서지 않았기 때문이다', () => {
-    // 이 줄이 뒤집히는 날이 RoomBearsLife(C022~C025) 가 닫히는 날이다
-    const answered = [...briefs.values()].filter((b) => !isUnanswered(b.answers.birth.said));
-    expect(answered.map((b) => b.id)).toEqual([]);
+  it('여덟째(탄생)는 생명을 밝힌 방만 답했다 — 세계에 없는 것을 brief 가 지어내지 않는다', () => {
+    // C022~C025 로 생명이 코드에 서면서 이 줄이 뒤집혔다. 뒤집힌 뒤의 잣대는 개수가 아니라
+    // **대응**이다: 탄생을 답한 brief 의 집합과 ecology 를 밝힌 방의 집합이 같아야 한다.
+    // 한쪽만 늘면 둘 중 하나가 거짓이다 — brief 가 없는 것을 적었거나, 선 방을 안 적었거나
+    const answered = [...briefs.values()]
+      .filter((b) => !isUnanswered(b.answers.birth.said))
+      .map((b) => b.id)
+      .sort();
+    const withEcology = REGION_SPECS.filter((spec) => briefs.has(spec.id) && spec.ecology !== undefined)
+      .map((spec) => spec.id)
+      .sort();
+    expect(answered).toEqual(withEcology);
   });
 
   it('재료를 낳는 방은 귀함을 반드시 답했다 — 낳는 것을 모른다고 적을 수는 없다', () => {
