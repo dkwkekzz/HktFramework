@@ -19,6 +19,7 @@
 5  이름  HundredRooms 의 미지 백 줄 — 직접 주거나 초안기(world:draft --batch) 후보를 고른다                                       DESIGN.md §5 후보 4
 6  주입  3층 나머지 절반 — 몸의 값 전반 · 생물의 앎과 선택 (후보 2 판정 뒤)                                                       DESIGN.md §1 · §5 후보 5
 7  이름  컨텐츠 행 — 보석 여덟 · 보류 계열 일곱 · Region §5.1 나머지 … 하나씩                                                   DESIGN.md §3 "컨텐츠 행"
+8  결정  도구 — 갈래 hazard/terrain 의 땅이 분지인가 협곡 벽인가 · 방 아홉의 kinds 를 채우는가 (묶음이 아니라 작성기의 것)            CYCLES.md §3.3 "도구"
 ```
 
 ## 2. cycle — 돌릴 것
@@ -34,8 +35,6 @@
 ## 3. engine · 도구
 
 ```text
-1  T3 ecology 산출 — 생명이 코드에 있어 붙일 수 있다 (phases · 템플릿도)                     L2-World-Tool-Scale.md §3
-2  갈래별 땅 묶음 — templates 손질 (땅 묶음이 있는 갈래는 일곱 중 둘) · 확인은 world:lab      CYCLES.md §5 화면 (T6)
-3  묶음 없는 다음 Cycle — T2 확장(요구와 답을 구조로 · access.silence)                       CYCLES.md §4
-4  공학 부채 — 그 자리를 만지는 Cycle 이 갚는다                                            CYCLES.md §5
+1  묶음 없는 다음 Cycle — T2 확장(요구와 답을 구조로 · access.silence)                       CYCLES.md §4
+2  공학 부채 — 그 자리를 만지는 Cycle 이 갚는다                                            CYCLES.md §5
 ```
