@@ -19,8 +19,10 @@ import {
   ALL_OPPORTUNITIES,
   COMPILE_RULES,
   gatherOpportunity,
+  LIFE_SEEDS,
   MATERIAL_SEEDS,
   REGION_GRAPH,
+  REGION_RULE_IDS,
 } from '../../content/regions';
 import { WORLD_AUTHOR_TEMPLATES, WORLD_CONTRACTS } from '../../content/authoring';
 import { authorRegion, type AuthoredRegion } from '../../engine/world-authoring/author';
@@ -29,6 +31,11 @@ import {
   checkRegions,
   type CheckEcology,
   type CheckEcologySource,
+  type CheckLife,
+  type CheckLifeAbsence,
+  type CheckLifeFormation,
+  type CheckLifeLink,
+  type CheckLifePopulation,
   type CheckRegion,
   type CheckReport,
 } from '../../engine/world-authoring/check';
@@ -40,6 +47,7 @@ import { compileRegion } from '../../engine/world-authoring/compile';
 import {
   WORLD_CHECK_CONTRACT,
   WORLD_CHECK_ECOLOGY,
+  WORLD_CHECK_LIFE,
   WORLD_CHECK_OPPORTUNITY,
   WORLD_CHECK_REGIONS,
 } from './check';
@@ -105,6 +113,10 @@ export function authorFromFile(path: string): AuthoredRegion {
  * **재료 계통 검사(⑩~㉒)도 함께 건다.** 그러려면 그 방이 새로 낳는 재료가 재료 표에 있어야 하므로
  * 여기서 실어 준다 — 이웃 쪽 anchor 를 놓아 주는 것과 같은 어법이다 (사람이 붙일 줄을
  * `renderSeams` 가 대고, 이 검사는 붙인 뒤를 잰다). 그래서 편중(⑲ ⑳ ㉒)이 후보에게도 잡힌다.
+ *
+ * **생명 검사(㉗~㉝)도 같은 어법으로 건다** (T3 CHANGED — 생성기가 `ecology` 를 내게 되었다).
+ * 건네지 않으면 일곱이 전부 `absent` 라, 탄생지가 없는 것과 탄생지를 재지 않은 것이 한 답으로
+ * 보인다. 무엇을 실어 주는지는 `authoredLife` 가 적는다.
  */
 export function checkAuthored(authored: AuthoredRegion): CheckReport {
   const anchorOps: RegionOp[] = authored.neighbourAnchors.map((a) => ({
@@ -168,6 +180,7 @@ export function checkAuthored(authored: AuthoredRegion): CheckReport {
         { id: authored.spec.id, isolationReason: '' },
       ],
     },
+    authoredLife(authored),
     // 후보가 내미는 것 — 그 방의 원천마다 채집 기회 하나 (세계의 기본형과 같은 유도다).
     // 뼈대의 원천은 어휘가 아직 좁혀지지 않은 값(carrier · opportunity 가 string)이라 형으로
     // 좁혀 건넨다 — 유도가 읽는 것은 id · 자리 역할 · 때 · 조건뿐이다.
@@ -179,19 +192,93 @@ export function checkAuthored(authored: AuthoredRegion): CheckReport {
 }
 
 /**
+ * 후보의 생명 계통을 지금 세계의 것 **곁에 세운다** (검사 ㉗~㉝ 이 이것을 읽는다).
+ *
+ * 재료 계통을 건네는 어법 그대로다 — 세계의 계약(`WORLD_CHECK_LIFE`)에 후보의 것을 이어
+ * 붙인다. 기반이 보는 것은 하나의 세계이므로, 후보의 탄생지가 **다른 방의** 원천 · 개체군을
+ * 가리켜도 그대로 재어진다 (붉은 눈의 거목이 둥지의 균사를 가리키는 그 자리다).
+ *
+ * `regionRules` 도 함께 는다: 탄생지가 가리키는 규칙이 세계의 표에 서 있지 않으면 ㉗ 이
+ * 잡는데, 그 걸림은 brief 를 고쳐서 풀리지 않는다 — **사람이 붙일 줄**이기 때문이다
+ * (새 재료와 같은 자리다. `renderSeams` 가 그것을 댄다).
+ *
+ * `lifeRecoveries` 와 `residueSourceIds` 에는 후보가 더할 것이 없다 — 뼈대의 원천은
+ * 회복을 잇는 개체군도 잔류 표시도 내지 않는다. 잰 적 없는 것을 지어내지 않는다.
+ */
+function authoredLife(authored: AuthoredRegion): CheckLife {
+  const region = authored.spec.id;
+  const ecology = authored.spec.ecology;
+  const sites = ecology?.lifeFormation ?? [];
+  return {
+    ...WORLD_CHECK_LIFE,
+    formations: [
+      ...WORLD_CHECK_LIFE.formations,
+      ...sites.map(
+        (site): CheckLifeFormation => ({
+          id: site.id,
+          region,
+          mode: site.mode,
+          worldCause: site.worldCause,
+          regionRule: site.condition.regionRule,
+          sourceMaterialIds: site.source.materials,
+          sourceStateCodes: site.source.states,
+          // 요구를 **어느 필드를 밝혔는가**로 가른다 — 요구의 kind 는 이 세계의 어휘이고
+          // (템플릿이 정한다) 기반의 형은 가리키는 것을 필드로 나눠 두었다. 글자로 가르면
+          // 어휘가 하나 늘 때마다 이 줄이 조용히 틀린다
+          requiredSourceIds: site.condition.requires.flatMap((requirement) =>
+            requirement.sourceId ? [requirement.sourceId] : [],
+          ),
+          requiredPopulationIds: site.condition.requires.flatMap((requirement) =>
+            requirement.populationId ? [requirement.populationId] : [],
+          ),
+          consumesSourceIds: site.consumes,
+          // 전조와 태어난 뒤의 자락을 함께 편다 (세계의 계약이 세운 어법 그대로 — ㉗ 은
+          // 그 op 이 그 방 Description 에 실제로 서 있는가를 본다)
+          traceOpIds: [...site.traces.before.map((trace) => trace.op), ...site.traces.after],
+          population: site.population,
+        }),
+      ),
+    ],
+    populations: [
+      ...WORLD_CHECK_LIFE.populations,
+      ...(ecology?.populations ?? []).map(
+        (population): CheckLifePopulation => ({ id: population.id, region }),
+      ),
+    ],
+    // 생성기는 `via` 를 내지 않는다 — 두 끝이 어느 방에 사는지를 brief 하나로는 알 수 없다.
+    // 방을 넘는 관계라면 사람이 이음을 붙여야 하고, 그 자리를 `renderSeams` 가 댄다
+    links: [
+      ...WORLD_CHECK_LIFE.links,
+      ...(ecology?.links ?? []).map(
+        (link): CheckLifeLink => ({ from: link.from, to: link.to, kind: link.kind }),
+      ),
+    ],
+    absences: [
+      ...(WORLD_CHECK_LIFE.absences ?? []),
+      ...(ecology?.absenceReason
+        ? [{ region, reason: ecology.absenceReason } satisfies CheckLifeAbsence]
+        : []),
+    ],
+    regionRules: [...WORLD_CHECK_LIFE.regionRules, ...freshRegionRules(authored)],
+  };
+}
+
+/**
  * 후보 **없이** 같은 검사를 돌린다 — 편중 요약이 견줄 바탕이다 (T6).
  *
- * `checkAuthored` 와 **같은 잣대**여야 한다. 한쪽만 재료 계통 검사를 걸면 견준 차이가
- * 후보 때문인지 잣대 때문인지 갈리지 않는다. 그래서 둘 다 같은 자리(`checkBeside`)를 지난다.
+ * `checkAuthored` 와 **같은 잣대**여야 한다. 한쪽만 재료 계통(⑩~㉒)이나 생명 계통(㉗~㉝)을
+ * 걸면 견준 차이가 후보 때문인지 잣대 때문인지 갈리지 않는다. 그래서 둘 다 같은
+ * 자리(`checkBeside`)를 지나고, 이쪽은 지금 세계의 계약을 손대지 않은 채로 건넨다.
  */
 export function checkBaseline(): CheckReport {
-  return checkBeside(WORLD_CHECK_REGIONS, REGION_GRAPH, WORLD_CHECK_ECOLOGY);
+  return checkBeside(WORLD_CHECK_REGIONS, REGION_GRAPH, WORLD_CHECK_ECOLOGY, WORLD_CHECK_LIFE);
 }
 
 function checkBeside(
   regions: readonly CheckRegion[],
   graph: typeof REGION_GRAPH,
   ecology: CheckEcology,
+  life: CheckLife,
   opportunities: readonly Opportunity[] = ALL_OPPORTUNITIES,
 ): CheckReport {
   return checkRegions({
@@ -200,6 +287,7 @@ function checkBeside(
     contract: WORLD_CHECK_CONTRACT,
     compile: (region) => compileRegion(region.space, COMPILE_RULES).world,
     ecology,
+    life,
     // 기회 쪽 계약도 **양쪽에 같은 잣대로** 건넨다 (T6 · C037) — 한쪽만 걸면 편중 요약이
     // 후보 때문인지 잣대 때문인지 갈리지 않는다. 후보의 기회는 그 방의 원천에서 유도한다.
     opportunity: {
@@ -246,10 +334,47 @@ function asSource(text: string): string {
   return text.replace(/"([A-Za-z_][A-Za-z0-9_]*)":/g, '$1:').replace(/"/g, "'");
 }
 
+/**
+ * 굳힌 파일이 layer 이름을 **글자가 아니라 상수로** 지도록 하는 표 — 어느 상수가 어느 파일에서
+ * 오는지는 이 저장소의 사정이므로 도구가 안다 (기반은 layer 이름만 낸다).
+ *
+ * 값은 템플릿이 준 것을 쓴다. 컨텐츠의 표가 바뀌면 템플릿이 따라가고 이 표는 그대로다 —
+ * 여기서 정하는 것은 "그 값이 어느 이름으로 어디서 오는가" 하나뿐이다.
+ */
+const LAYER_CONSTANTS: readonly { layer: string; constant: string; from: string }[] = [
+  { layer: WORLD_AUTHOR_TEMPLATES.anchorLayer, constant: 'ANCHOR_LAYER', from: './spec' },
+  {
+    layer: WORLD_AUTHOR_TEMPLATES.resourceLayer,
+    constant: 'RESOURCE_LAYER',
+    from: './resource-ecology',
+  },
+  { layer: WORLD_AUTHOR_TEMPLATES.traceLayer, constant: 'TRACE_LAYER', from: './resource-ecology' },
+  // 생명이 붙으면 늘어나는 것 — 떼의 자락 (T3 ADDED)
+  {
+    layer: WORLD_AUTHOR_TEMPLATES.presenceLayer,
+    constant: 'PRESENCE_LAYER',
+    from: './resource-ecology',
+  },
+  // 철이 붙으면 늘어나는 것 — 깊이 · 위험 덧씌움 (T3 ADDED)
+  { layer: WORLD_AUTHOR_TEMPLATES.depthLayer, constant: 'DEPTH_LAYER', from: './phases' },
+  { layer: WORLD_AUTHOR_TEMPLATES.hazardLayer, constant: 'HAZARD_LAYER', from: './phases' },
+];
+
 /** 방 하나의 파일 — content/regions/<slug>.ts 에 그대로 들어간다 */
 export function renderRegionModule(authored: AuthoredRegion): string {
   const { spec } = authored;
   const missing = authored.unanswered.length;
+  // **실제로 쓰인 layer 만** 되돌린다 — 생명도 철도 없는 방에는 그 셋의 op 이 아예 오지 않고,
+  // 쓰지 않는 이름을 import 하면 굳힌 파일이 쓰이지 않는 것을 지고 선다 (굳힌 파일은 반드시
+  // 컴파일되어야 한다 — 이 파일 머리가 선언한 완료 조건이다)
+  const used = LAYER_CONSTANTS.filter((entry) =>
+    spec.space.ops.some((op) => 'layer' in op && op.layer === entry.layer),
+  );
+  // import 줄은 파일마다 하나 — 위 표의 차례가 곧 줄의 차례다 (같은 뼈대는 같은 글자를 낸다)
+  const imports = [...new Set(used.map((entry) => entry.from))].map((from) => {
+    const names = used.filter((entry) => entry.from === from).map((entry) => entry.constant);
+    return `import { ${names.join(', ')} } from '${from}';`;
+  });
   const body = [
     `// ${authored.name} — depth ${spec.depth}. **world:author 가 낸 뼈대다** (T3).`,
     '//',
@@ -264,22 +389,21 @@ export function renderRegionModule(authored: AuthoredRegion): string {
     `// seed ${spec.space.seed} 는 brief 를 해시한 값이다 — 같은 brief 는 언제나 같은 방을 낸다.`,
     '',
     "import type { RegionSpec } from './spec';",
-    "import { ANCHOR_LAYER } from './spec';",
-    "import { RESOURCE_LAYER, TRACE_LAYER } from './resource-ecology';",
+    ...imports,
     '',
     `export const ${spec.id} = '${spec.id}';`,
     '',
     `export const ${spec.id}_SPEC: RegionSpec = ${literal(spec, '')};`,
     '',
   ].join('\n');
-  // layer 이름과 방 이름을 글자가 아니라 상수로 — 컨텐츠의 표가 바뀌면 이 파일도 따라간다
-  return asSource(
-    body
-      .replace(new RegExp(`"${WORLD_AUTHOR_TEMPLATES.anchorLayer}"`, 'g'), 'ANCHOR_LAYER')
-      .replace(new RegExp(`"${WORLD_AUTHOR_TEMPLATES.resourceLayer}"`, 'g'), 'RESOURCE_LAYER')
-      .replace(new RegExp(`"${WORLD_AUTHOR_TEMPLATES.traceLayer}"`, 'g'), 'TRACE_LAYER')
-      .replace(new RegExp(`"${spec.id}"`, 'g'), spec.id),
-  );
+  // layer 이름과 방 이름을 글자가 아니라 상수로 — 컨텐츠의 표가 바뀌면 이 파일도 따라간다.
+  // **`layer:` 자리에서만** 되돌린다: 철이 붙으면서 같은 글자가 값이 아닌 자리에도 서기
+  // 때문이다 (`depth: 'deep'` · `hazard: 'hazard/creature'` — 그 둘은 layer 가 아니다)
+  let text = body;
+  for (const entry of used) {
+    text = text.replace(new RegExp(`layer: "${entry.layer}"`, 'g'), `layer: ${entry.constant}`);
+  }
+  return asSource(text.replace(new RegExp(`"${spec.id}"`, 'g'), spec.id));
 }
 
 /** graph 와 view 표에 이어 붙일 줄들 — 손으로 옮겨 넣는 자리를 정확히 댄다 */
@@ -313,6 +437,82 @@ export function freshMaterials(
   return [...fresh.values()];
 }
 
+/**
+ * 그 방이 **올리는 개체군** 가운데 세계가 아직 모르는 것들 — Life Seed 표(LIFE_SEEDS)에 없는 것.
+ *
+ * 재료와 같은 자리다 (`freshMaterials` 의 어법 그대로). 방 하나가 개체군을 올린다고 해서
+ * 그것이 세계에 사는 것이 되지는 않는다 — 무엇이 이 세계에 사는가는 방 하나의 사정이 아니라
+ * 사슬의 일이고(넷이 하나의 원인 아래 선다 — lives.ts), 그 판단은 사람의 것이다.
+ *
+ * 세계 원인은 **지어내지 않는다** — 그 개체군을 올리는 탄생지가 밝힌 것을 그대로 옮기고,
+ * 올리는 탄생지가 없으면 비워 둔다 (무엇에 매달려 사는지를 사람이 밝혀야 한다).
+ */
+export function freshLives(authored: AuthoredRegion): { id: string; worldCause: string }[] {
+  const known = new Set(LIFE_SEEDS.map((seed) => seed.id));
+  const sites = authored.spec.ecology?.lifeFormation ?? [];
+  const fresh = new Map<string, { id: string; worldCause: string }>();
+  for (const population of authored.spec.ecology?.populations ?? []) {
+    if (known.has(population.id) || fresh.has(population.id)) continue;
+    const raising = sites.find((site) => site.population === population.id);
+    fresh.set(population.id, { id: population.id, worldCause: raising?.worldCause ?? '' });
+  }
+  return [...fresh.values()];
+}
+
+/**
+ * 그 방의 탄생지가 가리키는 **Region Rule id** 가운데 세계가 아직 모르는 것들.
+ *
+ * 더하지 않으면 검사 ㉗ 이 잡는다 — 세계가 모르는 규칙이 일으키는 탄생이 되기 때문이다.
+ * 그래도 도구가 그 표를 고치지 않는다: 어느 규칙이 이 세계에 서는가는 규칙 코드가 실제로
+ * 굴러야 성립하는 일이고(ecology.ts 의 RULE_* 상수와 그것을 도는 시스템), 방 하나가
+ * 이름을 댔다고 규칙이 서지는 않는다.
+ */
+export function freshRegionRules(authored: AuthoredRegion): string[] {
+  const known = new Set(REGION_RULE_IDS);
+  const fresh: string[] = [];
+  for (const site of authored.spec.ecology?.lifeFormation ?? []) {
+    const rule = site.condition.regionRule;
+    if (known.has(rule) || fresh.includes(rule)) continue;
+    fresh.push(rule);
+  }
+  return fresh;
+}
+
+/**
+ * **방을 넘는 관계들** — 생성기가 이음(`via`)을 내지 못한 자리.
+ *
+ * 생성기는 brief 하나만 보므로 관계의 두 끝이 어느 방에 사는지 모른다. 그래서 관계는 언제나
+ * 이음 없이 나오고, 끝이 **다른 방의 개체군**이면 사람이 이음 이름을 붙여야 한다 —
+ * 밝히지 않으면 그 관계는 아무 일도 하지 않는다 (붉은 눈의 거목이 세운 어법: 방을 넘는
+ * 관계는 `via` 로 문 이름을 밝힌다).
+ *
+ * `livesIn` 이 비었으면 그 끝이 **세계에 아직 없는 개체군**이다 — 어느 방에 세울지가 먼저다.
+ */
+export function crossingLinks(
+  authored: AuthoredRegion,
+): { from: string; to: string; kind: string; livesIn: string }[] {
+  const region = authored.spec.id;
+  // 어느 개체군이 어느 방에 사는가 — 지금 세계의 것에 후보의 것을 얹는다 (검사와 같은 봄이다)
+  const regionOf = new Map(WORLD_CHECK_LIFE.populations.map((one) => [one.id, one.region]));
+  for (const population of authored.spec.ecology?.populations ?? []) {
+    regionOf.set(population.id, region);
+  }
+  const crossing: { from: string; to: string; kind: string; livesIn: string }[] = [];
+  for (const link of authored.spec.ecology?.links ?? []) {
+    if (link.via !== undefined) continue;
+    const livesIn = regionOf.get(link.to) ?? '';
+    // 같은 방 안의 관계는 밝힐 이음이 없다 — 댈 것이 없으면 대지 않는다
+    if (livesIn === region) continue;
+    crossing.push({ from: link.from, to: link.to, kind: link.kind, livesIn });
+  }
+  return crossing;
+}
+
+/** 방 이름 → 파일 이름 — 굳히는 자리와 이음을 대는 자리가 같은 답을 내야 한다 */
+function regionSlug(id: string): string {
+  return id.toLowerCase().replace(/_/g, '-');
+}
+
 export function renderSeams(authored: AuthoredRegion): string {
   const lines: string[] = [];
   lines.push('  content/regions/graph.ts — regions 에 이름 하나, connectors 끝에 아래를 이어 붙인다');
@@ -340,6 +540,46 @@ export function renderSeams(authored: AuthoredRegion): string {
       lines.push(`    ${asSource(literal(material, '    '))},`);
     }
   }
+  const lives = freshLives(authored);
+  if (lives.length > 0) {
+    lines.push('');
+    lines.push('  content/regions/lives.ts — LIFE_SEEDS 에 아래를 더한다 (개체군의 id 상수도 함께)');
+    lines.push('  (그 방이 **올리는 개체군** 가운데 세계가 아직 모르는 것이다. 더하지 않으면 방은');
+    lines.push('   값을 올리는데 무엇이 어느 원인에서 사는지는 세계 어디에도 적히지 않은 것이 된다)');
+    for (const life of lives) {
+      lines.push(`    ${asSource(literal(life, '    '))},`);
+      if (life.worldCause === '') {
+        lines.push('      ↑ 세계 원인이 비었다 — 이 방에 그 개체군을 올리는 탄생지가 없다. 사람이 밝힌다');
+      }
+    }
+  }
+  const rules = freshRegionRules(authored);
+  if (rules.length > 0) {
+    lines.push('');
+    lines.push('  content/regions/ecology.ts — REGION_RULE_IDS 에 아래를 더한다 (RULE_* 상수도 함께)');
+    lines.push('  (탄생지를 일으키는 규칙이다. 더하지 않으면 world:check 의 ㉗ 이 잡는다 —');
+    lines.push('   세계가 모르는 규칙이 일으키는 탄생이 된다)');
+    for (const rule of rules) {
+      lines.push(`    ${rule}`);
+    }
+  }
+  const crossing = crossingLinks(authored);
+  if (crossing.length > 0) {
+    lines.push('');
+    lines.push(
+      `  content/regions/${regionSlug(authored.spec.id)}.ts — ecology.links 의 via 를 밝힌다`,
+    );
+    lines.push('  (생성기는 두 끝이 어느 방에 사는지 모르므로 이음을 내지 않는다. 방을 넘는 관계에');
+    lines.push('   이음을 밝히지 않으면 **그 관계는 아무 일도 하지 않는다**)');
+    for (const link of crossing) {
+      lines.push(`    ${link.from} --${link.kind}--> ${link.to}`);
+      lines.push(
+        link.livesIn === ''
+          ? `      ${link.to} 는 세계에 아직 없다 — 어느 방에 세울지가 먼저다 (위 LIFE_SEEDS 줄)`
+          : `      ${link.to} 는 ${link.livesIn} 에 산다 — 두 방을 잇는 Connector 이름을 via 에`,
+      );
+    }
+  }
   return lines.join('\n');
 }
 
@@ -350,8 +590,7 @@ export function renderSeams(authored: AuthoredRegion): string {
  * 승인 표면(T6 의 world:admit)도 같은 자리를 지난다 — 세계에 방이 들어오는 길은 하나여야 한다.
  */
 export function writeRegionModule(authored: AuthoredRegion, dir = 'content/regions'): string {
-  const slug = authored.spec.id.toLowerCase().replace(/_/g, '-');
-  const path = `${dir}/${slug}.ts`;
+  const path = `${dir}/${regionSlug(authored.spec.id)}.ts`;
   const out = resolve(ROOT, path);
   mkdirSync(dirname(out), { recursive: true });
   writeFileSync(out, renderRegionModule(authored), 'utf8');
