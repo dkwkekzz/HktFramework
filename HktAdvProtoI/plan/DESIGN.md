@@ -431,11 +431,14 @@ Opportunity(데이터만으로 새 것이 선다 · 기본형 유도 · 판이 "
 ### M5-FrostCanyon — 빙결 협곡 (컨텐츠)
 
 ```text
-덮음      C019~C021 (판정 대기)
-덮인 것   협곡 방 둘 · 위험 갈래 셋 · 빙정석 계통 · 문의 요구 표시 · 철이 고개를 넘는다
+덮음      C019~C021(세계관 사실 표 일곱 · 열 질문 ①~④ · ⑦ · ⑧ · ⑩ — 판정 대기) · C029~C031(열 질문 ⑥ — 다른 Region 의 재료가 연다 · 빙결 심층 문의 Lock · 눈보라 완화 — Access M7)
+덮인 것   협곡 방 둘(ICE_CANYON · FROST_CANYON — 이름 표 그대로 · 얼음 협곡은 경계에서 방이 됐다) · 위험 갈래 넷(climate · terrain · matter + creature 의 흔적 FROZEN_REMAINS) ·
+          빙정석 계통(원천 넷 — CLIFF_FROST_VEIN · PASS_RIME · SNOW_DRIFT_DUST · FROZEN_REMAINS) · 문의 요구 표시(FROST_DEPTH_DOOR) · 철이 고개(ICE_CANYON_PASS)를 넘는다
 남은 것   추위가 몸에 하는 일 · 체온을 쫓는 포식자(Cause Network 의 마지막 마디 · FROZEN_REMAINS)   → 후보 2 (3층 몫)
           결정면 접촉이 몸에 하는 일(crystallizing)                                        → 3층 둘째
-          판정 "아니오"                                                                  → GAP 회수
+          열 질문 ⑨ 요정이 무엇으로 자라는가 — 정하지 않았다                                  → 7층
+          컨텐츠 행에 남은 절 없음 — 재주입 대조(사실 표 일곱 · 열 질문 ①~⑩ ↔ C019~C021 · C029~C031 spec SOURCE · 코드의 id · hazard 태그 · 시나리오 PASS) 결과.
+          행이 닫히는 것은 Frost-1~6 의 답이다 — "아니오" 는 GAP 회수 (advprotoi-spec)
 ```
 
 판정 — Human 실주행 (M5 · C019~C021 · AI 예심이 남긴 것만. 예면 지운다 · 아니오면 DESIGN GAP → advprotoi-spec 이 회수한다. 준비는 §3 읽는 법)
