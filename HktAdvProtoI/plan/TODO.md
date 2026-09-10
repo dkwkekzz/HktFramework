@@ -6,7 +6,7 @@
 목적    "다음에 무엇을 하는가" 의 큐. 트랙(주체)마다 절 하나, 위가 먼저다. 한 줄이 일 하나 — 내용은 복사하지 않고 상세 문서를 링크한다.
         어디까지 왔는가는 STATE.md, 왜 그 순서인가는 STATE §0 의 그림.
 기능    §1 Human · §2 cycle · §3 engine · 도구
-쓰는 이  advprotoi-cycle(묶음 승인 · 합친 직후 · 판정 반영 때) · Human(답하고 지운다)
+쓰는 이  advprotoi-inject(주입 질문) · advprotoi-cycle(묶음 승인 · 합친 직후 · 판정 반영 때) · Human(답하고 지운다)
 ```
 
 ## 1. Human — 답할 것 (순서대로)

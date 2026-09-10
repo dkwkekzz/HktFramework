@@ -50,6 +50,8 @@ codemap/                 코드에 있는 것 — API 명세와 구조
 | spec.md 범위 절 | 이번 Cycle 에 무엇을 작게 플레이 가능하게 만드는가? |
 | 명세 / 실현 / 마감 | (Cycle 공정 그대로 — advprotoi-cycle) |
 
+스킬은 단계를 따른다 — 주입은 `advprotoi-inject`, 묶음과 spec 은 `advprotoi-spec`, "C### 진행" 부터는 `advprotoi-cycle` (경계와 이어 돌리기는 [Plan-Skill §2](Plan-Skill-CycleExecutionWorkflow.md)).
+
 ## 3. Level 0 — Game Direction (`content/roadmap/L0-Game.md`)
 
 게임 전체에서 변하지 않는 **경험 방향**만 정의한다. 기능·콘텐츠를 정의하지 않는다.
@@ -186,7 +188,8 @@ Human     codemap 의 계약 표 · 손잡이 표 · `npm run world:check` 를 �
               여럿에 걸치면 관찰 가능성 묶음 하나로 자른다. 로드맵의 행은 새로 올리지 않는다.
 ```
 
-- 채팅으로 온 주입물은 `content/roadmap/` 에 그 층의 결과물(`L<N>-*.md` · `M<N>-*.md`)로 보존한다 — 그것이 Source 다.
+- 채팅으로 온 주입물은 `content/roadmap/` 에 그 층의 결과물(`L<N>-*.md` · `M<N>-*.md`)로 보존한다 — 그것이 Source 다. 이 보존과 층 · 행 · 등급 판정이
+  `advprotoi-inject` 의 전부다 — 번역이지 탐색이 아니고, 묶음을 자르지 않고 멈출 수 있다. 실주행 GAP 주입은 행을 올리지 않으므로 `advprotoi-spec` 이 받는다.
 - **L0-Game.md 와 시스템 문서는 있으면 참조하고, 없어도 막지 않는다.** 주입물 자체가 그 자리의 근거다.
 - 주입의 **순서**는 [content/roadmap/README.md](../content/roadmap/README.md) 가, 층 · 행의 상태와 기획서의 덮임 ·
   남은 것은 `plan/DESIGN.md` 가 소유한다. 확장성은 열거된 그래프가 아니라 `선 축들 × 미지들` 의 조합에서 나온다.

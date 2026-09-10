@@ -1,6 +1,6 @@
 # Plan — Cycle Execution Workflow Skill 작성 계획
 
-상태: 승인 — 스킬 하나(`advprotoi-cycle`) · Play 층 제거 (§7)
+상태: 승인 — 스킬 셋(`advprotoi-inject` · `advprotoi-spec` · `advprotoi-cycle`) · Play 층 제거 (§7)
 원본: [Design-CycleExecutionWorkflow.md](Design-CycleExecutionWorkflow.md) ·
 기획 위층: [Design-DesignAuthoringWorkflow.md](Design-DesignAuthoringWorkflow.md) (주입 → 묶음 → 판정 — §7)
 
@@ -36,25 +36,41 @@
 | 19 | 완료 조건 7항 (§19) | 검증 단계의 완료 체크리스트 |
 | 20 | 기반 Cycle 은 제공 · 작동 · 손잡이로 닫고 경험은 손잡이(데이터)로 내려간다 — 판정은 기반 검토 (§21) | spec 의 Foundation Goal · Data Knobs · Module Check 절 + 손잡이 SPEC · T 의 `describe('손잡이')` · CYCLES.md 의 기반 검토 항목 · 예심의 기반 질문 · codemap/CONTENT.md 경험 손잡이 표 |
 
-## 2. 스킬 구성 — 하나
+## 2. 스킬 구성 — 셋 (주입 · spec · Cycle)
 
-문서의 6단계를 스킬 6개로 만들지 않는다. 경계는 **Human 게이트**다 — 게이트는 하나뿐이다: 묶음의 첫 spec 동결("C### 진행" =
-묶음 승인 + UNRESOLVED 답). 그래서 스킬도 하나다.
+문서의 6단계를 스킬 6개로 만들지 않는다. 경계는 **파일과 게이트**다 — 단계마다 입력 · 출력 · 만지는 파일이 다르고, Human 게이트는
+하나뿐이다: 묶음의 첫 spec 동결("C### 진행" = 묶음 승인 + UNRESOLVED 답). 그 게이트 앞의 일을 둘로(주입 · spec), 뒤의 일을 하나로(Cycle) 둔다.
+셋은 따로 돌거나 이어 돈다.
 
 ```text
-advprotoi-cycle   묶음     "<기획서> 로 묶음 잘라" — 기획서에서 플레이 하나를 잘라 첫 Cycle 의 spec.md 머리에 묶음 블록(Goal · Intent · Breath ·
-                          Cycle 목록 · 미지 · 질문)을 쓰고 같은 파일에 첫 spec 을, 뒤 Cycle 의 spec 은 자기 폴더에 초안으로 함께 쓴다. UNRESOLVED 에 묶음 질문 전부 → Human 반환
-                  Cycle    "C### 진행" — spec 동결 → 실현(관찰 계약 · 기구/의미 분해 → E ∥ W ∥ V ∥ T fan-out → npm test → 7항)
-                          → 마감(촬영 shots/ · plan/ 에 분류해 기입 · 마감 커밋 · 그림 보고 → PR)
+advprotoi-inject  주입     "주입 / 로드맵에 넣어" — Human 의 의도(방향 한 줄 · 기획서 · design/ 지목 · 미지 하나)를 content/roadmap/ 에 그 행의 결과물
+                          (L<N>-*.md · M<N>-*.md)로 보존하고 층 · 행 · 등급을 판정해 plan/DESIGN.md 의 행을 올린다. 번역만 — 지어내지 않는다.
+                          문서 확정만으로 닫히는 층(0 · 1층)과 컨텐츠 A 등급의 접수도 여기. 만지는 것: content/roadmap/ · plan/DESIGN · STATE §1 · TODO
+advprotoi-spec    묶음/spec "<기획서> 로 묶음 잘라" — 기획서에서 플레이 하나를 잘라 첫 Cycle 의 spec.md 머리에 묶음 블록(Goal · Intent · Breath ·
+                          Cycle 목록 · 미지 · 질문)을 쓰고 같은 파일에 첫 spec 을, 뒤 Cycle 의 spec 은 자기 폴더에 초안으로 함께 쓴다. UNRESOLVED 에 묶음 질문 전부 → Human 반환.
+                          실주행 GAP 회수 · A 등급의 Spec 한 장 · Human 직접 Goal 의 묶음 없는 Cycle 도 여기. spec 의 형식 · 의미 규칙의 소유자.
+                          만지는 것: cycles/C###/spec.md 뿐 (plan/ 은 쓰지 않는다 — 승인 기입은 cycle)
+advprotoi-cycle   Cycle    "C### 진행" — (첫 Cycle 이면 묶음 승인 + plan/ 승인 기입) spec 동결 → 실현(관찰 계약 · 기구/의미 분해 → E ∥ W ∥ V ∥ T fan-out
+                          → npm test → 7항) → 마감(촬영 shots/ · plan/ 에 분류해 기입 · 마감 커밋 · 그림 보고 → PR). spec 이 없으면 시작하지 않는다
                   예심     묶음의 마지막 Cycle 이 합쳐진 뒤 — 관찰 항목을 판정 질문 대여섯으로 압축해 Human 에게 청한다
-                  산출물: cycles/C###/spec.md · 코드·시나리오 테스트 커밋 · shots/ · plan/ 의 항목 · codemap/ 의 갱신
+                  산출물: 코드·시나리오 테스트 커밋 · shots/ · plan/ 의 항목 · codemap/ 의 갱신
+```
+
+이어 돌리는 규칙:
+
+```text
+inject → spec    Human 이 "주입하고 묶음까지" 라 하면 inject 가 판정 셋(층 · 요구 축 · 등급)을 전부 통과했을 때만 spec 을 이어 부른다.
+                 미지의 이름 · 종류가 질문으로 남았으면 잇지 않는다 — 이름 없는 미지로 자르면 spec 이 지어낸다
+spec → cycle     자동으로 잇지 않는다. "C### 진행" 은 묶음 승인이다 — UNRESOLVED 가 비어 있어도 Human 이 말한다
 ```
 
 이렇게 두는 이유:
 
 - **기획서와 Cycle 사이에 문서 층을 두지 않는다.** 옛 Play 문서는 기획서를 다시 쓰고 spec 이 그것을 또 썼다 — 의미의 출처가
-  둘이 되어 어긋났고, 승인이 병목이었다. 묶음은 자르기 · 순서 · 게이트 위치 · 판정 단위만 남긴 것이고 spec 의 일부다.
-- **묶음 제안과 Cycle 은 같은 AI 가 같은 파일에 이어 쓰는 일이다.** 게이트가 하나면 스킬도 하나다.
+  둘이 되어 어긋났고, 승인이 병목이었다. 묶음은 자르기 · 순서 · 게이트 위치 · 판정 단위만 남긴 것이고 spec 의 일부다. 스킬을 셋으로 나눠도
+  문서 층은 늘지 않는다 — 셋이 만나는 파일은 기획서(content/roadmap/)와 spec 둘뿐이다.
+- **단계마다 만지는 파일이 다르다.** 주입은 content/roadmap/ 과 DESIGN 의 행, spec 은 cycles/C###/spec.md, Cycle 은 코드 · shots/ · plan/.
+  한 스킬에 있으면 주입 한 번에 Cycle 의 fan-out 규칙까지 로드하고, 주입만 하고 멈추는 길이 없었다.
 - **탐색 스킬은 두지 않는다.** "다음에 무엇을 만들까"는 첫 spec 의 묶음 블록(Cycle 목록)과 plan/CYCLES.md 레인 표가 답하고,
   열린 묶음이 없으면 Human 이 기획서를 지목한다 (plan/DESIGN.md §5 후보 표).
 
@@ -82,7 +98,7 @@ advprotoi-cycle   묶음     "<기획서> 로 묶음 잘라" — 기획서에서
 | Human 에게 — 판정 질문 (`CYCLES.md` §3 그 묶음 절) | **Human** — 단, AI 예심 뒤 | **묶음 단위** — 그 묶음의 마지막 Cycle 이 합쳐진 직후의 실주행 판정 (위층 문서 §9). Cycle 마다 판정하지 않는다 | Cycle 마감은 Experience Verification 관찰 항목(하기/보기/판정)을 그 Play 절에 쌓는다. Play 의 마지막 Cycle 마감이 **AI 예심**을 한다: 항목을 셋으로 가른다 — A 그림(`shots/`)·테스트가 이미 단언하는 것은 근거를 달아 닫는다(Human 은 표본만 본다) · B 사람 눈이 필요한 것(느낌 · 이해되는가 · 타이밍) · C Human 이 값·규칙을 정할 것. B·C 를 **Play 당 질문 대여섯**으로 압축해 그 절을 바꿔 쓴다. 질문 형식: **굵은 한 줄**(게임 용어 없이 답할 수 있게) + 전제 한 줄(세계가 그것을 **어떻게** 보여 주는지 — "깊이는 바닥 색과 상단 문구로만 보인다" 처럼. 질문이 전제를 숨기면 Human 은 "무슨 말인지 모르겠다" 로 답하게 되고 그것은 판정이 아니다) + 무엇을 묻나 + 확인 방법 + 원 항목 번호. Human 은 그 질문만 답한다. 통과한 질문은 지운다. 실패한 질문은 DESIGN GAP 으로 advprotoi-design 의 주입물이 된다 (위층 문서 §8.5 셋째 주입) |
 | Human 에게 — 기반 질문 (`CYCLES.md` §3 그 기반 묶음 절) | **Human** — AI 예심 뒤 | 묶음 단위 — 기반 묶음의 마지막 Cycle 이 합쳐진 직후의 **기반 검토** (위층 문서 §9 · 원본 §21). 걷지 않는다 | Cycle 마감은 **기반 검토 항목**(모듈 · 제공 — codemap 어디 · 작동 — 무엇이 단언하나 · 손잡이 — 데이터 자리 · 판정[ ])을 그 묶음 절에 쌓는다. 마지막 Cycle 마감의 AI 예심이 셋으로 가른다 — A 테스트 · 검사 · grep · 도구 출력이 단언하는 것(닫는다) · B 계약 판단(축 · 경계 · 손잡이의 충분함) · C 계약 결정. B·C 를 **묶음당 서넛**으로. 질문 형식은 판정 질문과 같되 전제는 "계약이 어디에 어떻게 서 있는가"(codemap 줄 · 손잡이 줄)이고 확인 방법은 codemap 절 · `world:check` · 손잡이 하나를 바꿔 보는 명령 · 예제 그림 한 장이다. **경험 질문은 만들지 않는다** — 남아 있으면 손잡이로 내리고(codemap 손잡이 표 한 줄) 그 축을 처음 쓰는 컨텐츠 묶음으로 이월한다. 실패는 ENGINE/DESIGN GAP → 이 묶음에 Cycle 을 더한다 |
 | Human 이 정할 것 — 결정 대기 (`CYCLES.md` §3 그 묶음 절) | **Human** | 언제든 — 실주행 판정 · 기반 검토 때 함께 보는 것이 싸다 | 값·규칙·방향의 결정 한 줄씩. §1 의 질문과 겹치지 않는 것만. 정하면 지우고, 결정은 그 값이 사는 자리(데이터 · spec · 기획서)로 간다. **기반 묶음에서는 계약 결정만** 올린다(형 · 축 · 경계) — 경험 값(문구 · 표기 · 표시 여부 · 임계 · 배치)은 결정 대기가 아니라 손잡이다: 기본값을 두고 codemap 손잡이 표에 적는다 |
-| 뒤 층 · 뒤 묶음으로 (`DESIGN.md` §3 그 원본의 "남은 것") | **묶음 제안** (advprotoi-cycle) | 그 층·묶음을 자를 때 입력 | 지금 Cycle 이 받을 수 없는 것(다른 층의 의미 · 다른 Region 의 Play). Cycle 마감이 바로 그 원본 아래에 적고, 기획이 Play 로 받으면 "덮인 것" 으로 옮긴다 |
+| 뒤 층 · 뒤 묶음으로 (`DESIGN.md` §3 그 원본의 "남은 것") | **묶음 제안** (advprotoi-spec) | 그 층·묶음을 자를 때 입력 | 지금 Cycle 이 받을 수 없는 것(다른 층의 의미 · 다른 Region 의 Play). Cycle 마감이 바로 그 원본 아래에 적고, 기획이 Play 로 받으면 "덮인 것" 으로 옮긴다 |
 | 다음 Cycle 로 (`CYCLES.md` §3 그 묶음 절 · 묶음 없는 것은 §4) | **같은 묶음의 다음 Cycle** 명세 단계 | 그 Cycle 의 spec.md 를 쓸 때 — 이 절이 명세 입력이다 | 이번에 받는 것은 SPEC/Reuse 로, 받지 않는 것은 Out of Scope 에 받을 Cycle 을 적는다. 받은 항목은 그 Cycle 을 main 에 합친 직후 지운다 |
 | 공학 부채 (`CYCLES.md` §5) | **AI** — 다음 Cycle · ENGINE 레인 · 화면 레인 | 그 자리를 만지는 Cycle 이 갚는다 | 처음 난 자리(C###)를 하나만 적는다. 갚으면 지운다 |
 
@@ -205,16 +221,31 @@ spec.md 동결 (Observable 절 = 관찰 계약)
 
 ## 5. 각 스킬에 담을 내용 (목차 수준)
 
-### advprotoi-cycle
+### advprotoi-inject
+
+1. 종류 판정: 기반 층(열린 층만) · 컨텐츠 층(요구 축 전부 확정) · 실주행 GAP(이 스킬의 것이 아니다 — spec 으로)
+2. 보존: 채팅으로 온 주입물을 content/roadmap/L<N>-*.md · M<N>-*.md 로 — 문장 그대로, 빠진 것은 채우지 않는다 (위층 문서 §10 · README §4)
+3. 판정: 층 · 행 · 등급(Tool-Scale §2 A/B/C) · 요구 축 · 새 축 요구(→ 기반 층의 새 행 보고) · 문서 확정만으로 닫히는 층(0 · 1층)
+4. 질문: 세계관 사실 · 이름 · 종류 · 축 확정 여부만 (수치 · 확률은 spec 의 UNRESOLVED 가 묻는다 — 두 번 묻지 않는다)
+5. 갱신 · 보고: plan/DESIGN.md §1/§2/§3 · STATE §1 · TODO §1 → 다음 단계 한 줄("묶음 잘라" / "Spec 써" / 다음 층 주입 / 막힌 것)
+
+### advprotoi-spec
 
 0. 묶음: Human 이 기획서를 지목하면 첫 Cycle 의 spec.md 머리에 묶음 블록(위층 문서 §5) + 첫 spec + 뒤 Cycle 의 spec 초안 + UNRESOLVED(묶음 질문 전부) → Human 반환.
-   "C### 진행" 이 승인. 열 질문(컨텐츠 행) · 로드맵의 열린 층 판정은 plan/DESIGN.md 로
-1. 시작 조건: plan/CYCLES.md 레인 표에서 "기다리는 것"이 빈 Cycle · 브랜치 `cycle/C###` · 재개 판정(파일이 말한다)
-2. 명세 → spec.md 한 번에: 범위(Playable Goal · Intent · World Change · Observable Result · Reuse · Out of Scope)
+   열 질문(컨텐츠 행) · 로드맵의 열린 층 판정은 plan/DESIGN.md 로. 보존되지 않은 주입물이면 먼저 inject
+1. 명세 → spec.md 한 번에: 범위(Playable Goal · Intent · World Change · Observable Result · Reuse · Out of Scope)
    + SPEC-### + State/Rule(코드 클래스 금지 · REUSED/ADDED/CHANGED/AFFECTED §18) + Observable(관찰 계약) + UNRESOLVED
    + 범위 게이트(Goal 한두 문장 · SPEC 10항 이내) + Design 침묵의 판정
-3. **정지 규칙**: Design 에 없는 의미 → `UNRESOLVED` 기록 후 Human 반환. 수치·시간·확률은 전부 여기 (§5 의
-   PerfectGuardWindow 예 그대로) → 없으면 동결
+2. **정지 규칙**: Design 에 없는 의미 → `UNRESOLVED` 기록 후 Human 반환. 수치·시간·확률은 전부 여기 (§5 의
+   PerfectGuardWindow 예 그대로)
+3. 실주행 GAP 회수(기존 묶음에 Cycle 하나 · 관찰 가능성 묶음 하나) · A 등급의 Spec 한 장(M<N> 문서의 절 — cycles/ 없음) · Human 직접 Goal
+4. 반환: spec 파일들을 main 에 커밋하고 멈춘다 — plan/ 은 쓰지 않는다. 마지막 줄은 "답과 함께 C### 진행"
+
+### advprotoi-cycle
+
+1. 시작 조건: plan/CYCLES.md 레인 표에서 "기다리는 것"이 빈 Cycle · 브랜치 `cycle/C###` · 재개 판정(파일이 말한다) · spec 이 없으면 시작하지 않는다
+2. 동결: Human 답을 spec 에 반영 · 뒤 Cycle 은 「다음 Cycle 로」 회수(§3) · 범위 게이트 재확인 → UNRESOLVED = 없음이면 동결
+3. 승인 기입: 묶음의 첫 Cycle 이면 main 에서 plan/(CYCLES §1 · §3 · DESIGN §1/§2/§3/§5 · STATE · TODO) — 브랜치 전에
 4. 실현: 관찰 계약 확정(protocol/) + 기구/의미 분해(§4.5) → §4 의 fan-out(Agent tool, 단일 메시지 동시 발사 —
    담당 파일 경계 · spec.md · 금지 규칙 · GAP 삼분법) → 통합: npm test → 7항 판정(§19)은 마감 커밋 메시지 한 줄
 5. Trace: 모든 R# 에 `RULE-*` id 주석이 달린 함수가 있는지 grep (§9)
@@ -225,18 +256,20 @@ spec.md 동결 (Observable 절 = 관찰 계약)
 
 | 순서 | 작업 | 비고 |
 |---|---|---|
-| 1 | Human 이 이 계획 승인 (§2 의 스킬 하나 · §3 산출물 규약 · §7 의 Play 층 제거) | 완료 |
-| 2 | `advprotoi-cycle` SKILL.md 작성 (묶음 모드 포함) | 완료 |
+| 1 | Human 이 이 계획 승인 (§2 의 스킬 셋 · §3 산출물 규약 · §7 의 Play 층 제거) | 완료 |
+| 2 | `advprotoi-inject` · `advprotoi-spec` · `advprotoi-cycle` SKILL.md 작성 | 완료 |
 | 3 | CLAUDE.md "작업 공정" 절에 스킬 진입점 등록 | 완료 |
-| 4 | 첫 묶음 실주행 (기획서 → 묶음 + 첫 spec → Cycle) → 드러난 마찰만 스킬에 반영 | 공정 검증은 문서가 아니라 실주행 |
+| 4 | 첫 실주행 (주입 → 묶음 + 첫 spec → Cycle) → 드러난 마찰만 스킬에 반영 | 공정 검증은 문서가 아니라 실주행 |
 
 ## 7. 위층 — 주입 → 묶음 → 판정 (Play 층 없음)
 
 [Design-DesignAuthoringWorkflow.md](Design-DesignAuthoringWorkflow.md) 가 Cycle 공정의 위층이다. 기획서와 Cycle 사이에
-문서를 두지 않는다 — 옛 Play Design 문서(`content/roadmap/play/`)와 기획 스킬(`advprotoi-design`)은 제거됐다.
+문서를 두지 않는다 — 옛 Play Design 문서(`content/roadmap/play/`)와 그것을 쓰던 기획 스킬(`advprotoi-design`)은 제거됐다.
+주입은 `advprotoi-inject` 가 번역만 한다(§2) — Play 를 되살리지 않는다.
 
 ```text
-기획서(L<N> · M<N> · design/) → 묶음(첫 Cycle 의 spec.md 머리 블록) → "C### 진행" → Cycle → … → AI 예심 → Human 실주행 판정
+주입(L<N> · M<N> 보존) → 묶음(첫 Cycle 의 spec.md 머리 블록) → "C### 진행" → Cycle → … → AI 예심 → Human 실주행 판정
+   inject                  spec                                    cycle
 ```
 
 연결 규칙:

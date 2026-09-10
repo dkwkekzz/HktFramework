@@ -19,13 +19,16 @@ HktAdvProtoI — 목적 트리 기반 오픈월드 어드벤처 프로토타입 
 ## 작업 공정
 
 ```text
-기획서(content/roadmap/L<N> · M<N> · design/) → 묶음 + Cycle 전부의 spec (AI 제안) → Human "C### 진행" → Cycle → … → AI 예심 → Human 실주행 판정
-advprotoi-cycle  하나뿐인 스킬 — "<기획서> 로 묶음 잘라"(묶음 + Cycle 전부의 spec — 첫 것은 동결 후보 · 뒤 것은 초안) · "C### 진행"(spec 동결 → E ∥ W ∥ V ∥ T → npm test → 마감)
+주입(content/roadmap/L<N> · M<N>) → 묶음 + Cycle 전부의 spec (AI 제안) → Human "C### 진행" → Cycle → … → AI 예심 → Human 실주행 판정
+advprotoi-inject  주입     "주입 / 로드맵에 넣어" — Human 의 의도(방향 · 기획서 · 미지)를 content/roadmap/ 에 보존 · 층 · 행 · 등급 판정 · plan/DESIGN.md 행. 번역만 — 지어내지 않는다
+advprotoi-spec    spec     "<기획서> 로 묶음 잘라 / Spec 써 / GAP 회수" — 묶음 블록 + Cycle 전부의 spec (첫 것은 동결 후보 · 뒤 것은 초안) → Human 반환
+advprotoi-cycle   Cycle    "C### 진행" — (첫 Cycle 이면 묶음 승인) spec 동결 → E ∥ W ∥ V ∥ T → npm test → 마감 → 예심
+셋은 따로 돌거나 이어 돈다 — 경계는 파일(content/roadmap/ · cycles/C###/spec.md)이다. inject → spec 은 "주입하고 묶음까지" 로 잇고, spec → cycle 은 언제나 Human 의 "C### 진행" 이다
 ```
 
 - 공정 원본: [Design-CycleExecutionWorkflow.md](design/Design-CycleExecutionWorkflow.md) (Cycle) ·
   [Design-DesignAuthoringWorkflow.md](design/Design-DesignAuthoringWorkflow.md) (주입 → 묶음 → 판정) ·
-  [Plan-Skill-CycleExecutionWorkflow.md](design/Plan-Skill-CycleExecutionWorkflow.md) (스킬 분할 · 회수 규칙 · 병렬)
+  [Plan-Skill-CycleExecutionWorkflow.md](design/Plan-Skill-CycleExecutionWorkflow.md) (스킬 셋의 경계 · 회수 규칙 · 병렬)
 - **묶음의 종류는 행이 가른다** ([Design-CycleExecutionWorkflow §21](design/Design-CycleExecutionWorkflow.md)) — 기반 묶음(L<N>)은 축(기구 + 계약 + 예제 하나)을
   세우고 **제공 · 작동 · 손잡이**로 닫는다: 경험은 판정하지 않고 데이터(손잡이)로 내려가 그 축을 처음 쓰는 컨텐츠 묶음이 판정한다. 컨텐츠 묶음(M<N>)은 플레이 하나를
   세우고 실주행으로 닫는다. 기반 묶음이 경험 값(문구 · 표기 · 표시 여부 · 임계 · 배치)을 Human 결정으로 올리면 그 자리에 손잡이가 없다는 뜻이다.

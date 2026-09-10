@@ -20,7 +20,7 @@ Human 이 작성·개정한 **원본**이다. Agent 는 이 문서들을 바꾸�
 | `Design-Subject-Decision.md` | 주체의 의사결정 — 지식·숙련·경험·선호·목적·가능성 그래프, 주체가 어느 행동을 고르는가 (로드맵 3층 재료) |
 | `Design-DesignAuthoringWorkflow.md` | **기획 위층 공정** — 기획서 → 묶음(첫 Cycle 의 spec 머리) → Cycle → 실주행 판정 |
 | `Design-CycleExecutionWorkflow.md` | **Cycle 실행 공정 원본** — SPEC → SEMANTIC/RULE → IMPL → VERIFY |
-| `Plan-Skill-CycleExecutionWorkflow.md` | 공정의 스킬 계획 (advprotoi-cycle 하나) · plan/ 회수 규칙 · 병렬 |
+| `Plan-Skill-CycleExecutionWorkflow.md` | 공정의 스킬 계획 (advprotoi-inject · spec · cycle 셋 — 경계와 이어 돌리기) · plan/ 회수 규칙 · 병렬 |
 | `Design-Workflow.md` | Goal/Possibility 기반 Observable World 구현 Workflow (이전 기준선 참고 문서) |
 | `Design-System-Content-Separation.md` | **기반(engine) / 컨텐츠(content) 분리** — 지금 코드가 선 자리 |
 | `Design-World-Persistence.md` | 세계 스냅샷과 복구 |

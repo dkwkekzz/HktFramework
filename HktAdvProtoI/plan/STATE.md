@@ -16,7 +16,7 @@
 | 트랙 | 주체 | 지났다 | **지금** | 다음 | 그 다음 |
 |---|---|---|---|---|---|
 | Human — 지목 · 승인 · 판정 · 주입 | Human | L0 · L1 · L2 아홉 · M1~M8 · L7 주입 · C001~C031 의 묶음 여섯 판정 반영 · Foundation 지목 · Foundation 묶음 승인 (Q1~Q9 제안대로 · 기반 집중) | **판정 셋** — 협곡 · 생명 · 요구와 가능성 (컨텐츠 행 — 실주행) · **지목** — 다음 묶음(후보 2 · 3) | 판정 답의 반영 | 3층 나머지 절반 주입(후보 2 판정 뒤) · HundredRooms 미지 백 줄의 이름 · 4~7층은 층이 열릴 때 |
-| Cycle — 묶음 제안 → spec → 실현 → 마감 | AI (advprotoi-cycle) | C001~C038 (묶음 열 · Foundation 닫힘) | **다음 묶음 제안** — Human 이 기획서를 지목하면 (후보 2 · 3) | C039~ | 그 묶음의 예심 → 판정 |
+| Cycle — 묶음 제안 → spec → 실현 → 마감 | AI (advprotoi-spec → advprotoi-cycle) | C001~C038 (묶음 열 · Foundation 닫힘) | **다음 묶음 제안** — Human 이 기획서를 지목하면 (후보 2 · 3) | C039~ | 그 묶음의 예심 → 판정 |
 | ENGINE — 게임 명사 없는 기구 | AI | Region 작성기 T1~T6 · T3 이 생명과 철을 낸다 | **T2 확장** — 요구와 답을 구조로 · access.silence | HundredRooms 묶음의 전제 | 큰 Region 이 올 때 chunk 적재 |
 
 ```text
@@ -33,7 +33,7 @@
 ```
 
 한 Cycle = 브랜치 `cycle/C###` = 세션 하나. **말할 것: "<기획서> 로 묶음 잘라"**(다음 묶음 제안 — 후보 2 · 3) · 판정 넷의 답.
-`advprotoi-cycle` 이 묶음 → 명세 → 실현 → 마감을 이어 돌리고 UNRESOLVED · GAP 에서만 멈춘다.
+기획서가 채팅으로 오면 `advprotoi-inject` 가 먼저 보존한다. `advprotoi-spec` 이 묶음 + spec 을 쓰고 Human 반환에서 멈추고, "C### 진행" 부터 `advprotoi-cycle` 이 동결 → 실현 → 마감을 이어 돌리며 UNRESOLVED · GAP 에서만 멈춘다.
 묶음의 종류는 행이 가른다 — 기반 묶음(L<N>)은 제공 · 작동 · 손잡이로 닫고 경험은 데이터로 내린다 · 컨텐츠 묶음(M<N>)은 실주행으로 닫는다 ([Design-CycleExecutionWorkflow §21](../design/Design-CycleExecutionWorkflow.md)).
 
 ## 1. design 관점 — 어떤 기획서가 얼마나 반영되었는가
