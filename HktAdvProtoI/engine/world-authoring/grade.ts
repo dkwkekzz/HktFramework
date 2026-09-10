@@ -18,6 +18,12 @@
 // 나눔이 아니라 계약이 건네는 **결정 나무**(`DecisionBranch[]`)가 답한다. 나무를 주지 않는
 // 세계에는 지금까지의 판정을 그대로 쓰는 기본 표가 선다 — 계약이 없으면 absent 로 두는 검사의
 // 어법과 달리 여기서는 판정이 멈추면 안 되기 때문이다 (등급 없는 brief 는 공정을 세운다).
+//
+// **⑪(중요한 요구에 서로 다른 원천의 답이 있는가)은 여기서 재지 않는다** (T2 확장). 판정기는
+// brief **하나**만 보고, "다른 원천의 답이 있는가" 는 이 방 밖의 원천까지 세어야 답이 나오는
+// **세계 전체의 일**이다 — 재는 자리는 이미 있다: 검사 ㊴ ㊵ (`engine/world-authoring/check.ts`).
+// 여기에 넣으면 방 하나짜리 눈으로 세계를 판정하게 되고, 같은 셈이 두 자리에 서게 된다.
+// 다음에 이 파일을 여는 사람도 넣지 말 것 — 넣을 자리는 저기다.
 
 import {
   ANSWER_ORDER,
@@ -75,14 +81,31 @@ export interface WorldContracts {
   /** 원천이 맡는 자리 */
   roles: readonly string[];
   /**
-   * 성질의 축 어휘 (C031 ADDED).
+   * 성질의 축 어휘 (C031 ADDED · T2 확장 CHANGED — 이제 실제로 대조한다).
    *
-   * 판정하는 방식은 한 줄도 바뀌지 않는다 — 이 둘은 아직 **등록**될 뿐이다. brief 가 요구와 답을
-   * 성질로 적기 전에는 대조할 입력이 없기 때문이고, 그 자리가 서면 여기가 그 대조의 어휘가 된다.
+   * C031 은 이 둘을 **등록**만 해 두었다: brief 가 요구와 답을 성질로 적기 전에는 대조할 입력이
+   * 없었기 때문이다. 그 자리가 섰으므로(⑨ 물음의 requires[].property · ⑩ 원천의 properties[].tag)
+   * 이제 여기가 그 대조의 어휘다 — 태그 "축:관계" 의 앞쪽을 이것에 견준다.
    */
   propertyAspects: readonly string[];
-  /** 성질의 관계 어휘 — propertyAspects 와 같은 까닭으로 아직 대조에 쓰이지 않는다 */
+  /** 성질의 관계 어휘 — 태그 "축:관계" 의 뒤쪽을 이것에 견준다 */
   propertyRelations: readonly string[];
+  /**
+   * 성질 태그 "축:관계" 를 가르는 글자 (T2 확장 ADDED).
+   *
+   * **주지 않으면 태그의 꼴도 축도 관계도 묻지 않는다.** 가를 글자를 기반이 지어낼 수 없기
+   * 때문이다 — ':' 도 게임 명사다. 결정 나무(`decisionTree?`)가 기본형을 세우는 것과 이유가
+   * 갈리는 자리가 여기다: 등급은 멈추면 안 되지만 **대조는 어휘 없이 설 수 없다**. 그래서
+   * 아래 넷은 "없으면 기본형" 이 아니라 "없으면 그 갈래를 묻지 않는다" 다 (계약을 주지 않은
+   * 계통을 absent 로 두는 검사의 어법 · 밝히지 않은 계약의 답은 지금까지와 한 값도 다르지 않다).
+   */
+  propertyTagSeparator?: string;
+  /** 성질이 나올 수 있는 문장의 갈래들 (⑩ 의 from) — 주지 않으면 문장을 묻지 않는다 */
+  propertyStatements?: readonly string[];
+  /** 물음이 걸리는 자리의 갈래들 (⑨ 의 at.kind) — 주지 않으면 자리의 갈래를 묻지 않는다 */
+  lockAtKinds?: readonly string[];
+  /** 물음의 세기 어휘 (⑨ 의 strength) — 주지 않으면 세기를 묻지 않는다 */
+  lockStrengths?: readonly string[];
   /** 이미 지어진 방들 */
   regions: readonly string[];
   /** 아직 짓지 않은 곳 — 이웃으로 가리켜도 된다 */
@@ -98,7 +121,10 @@ export interface WorldContracts {
   decisionTree?: readonly DecisionBranch[];
   /** 갈래마다 어디로 돌려보내는가 */
   returnTo: {
-    /** 어휘 밖의 값을 돌려보내는 곳 — 성질의 축·관계(propertyAspects · propertyRelations)도 여기다 */
+    /**
+     * 어휘 밖의 값을 돌려보내는 곳 — 성질의 축·관계·문장도, 물음의 자리와 세기도 여기다
+     * (propertyAspects · propertyRelations · propertyStatements · lockAtKinds · lockStrengths)
+     */
     vocabulary: string;
     rule: string;
     axis: string;
@@ -173,13 +199,69 @@ function vocabularyGap(
   };
 }
 
+/**
+ * 어휘를 **준** 세계에서만 서는 대조 — 주지 않으면 그 갈래를 묻지 않는다 (T2 확장 ADDED).
+ *
+ * 기본형을 여기서 짓지 않는 까닭은 하나다: 어느 글자가 자리의 갈래이고 어느 글자가 세기인지는
+ * 게임 명사라 기반이 지어낼 수 없다. 지어내면 이 파일이 세계의 어휘를 쥐게 된다.
+ */
+function optionalVocabularyGap(
+  what: string,
+  value: string,
+  vocabulary: readonly string[] | undefined,
+  where: string,
+  returnTo: string,
+): Gap | undefined {
+  if (vocabulary === undefined) return undefined;
+  return vocabularyGap(what, value, vocabulary, where, returnTo);
+}
+
+/**
+ * 성질 태그 하나를 대조한다 — 꼴이 "축:관계" 인가 · 축과 관계가 어휘 안인가 (T2 확장 ADDED).
+ *
+ * **꼴이 아니면 그 하나만 걸고 축·관계는 묻지 않는다.** 가르지 못한 글자를 어휘에 견주면 걸린
+ * 것이 셋으로 불어나 어느 것이 원인인지 알 수 없기 때문이다 (검사 ㉞ 이 선 그 어법 그대로).
+ * 가르는 글자를 주지 않은 세계에서는 아무것도 묻지 않는다 — 가를 수가 없다.
+ */
+function propertyTagGaps(tag: string, where: string, contracts: WorldContracts): Gap[] {
+  const separator = contracts.propertyTagSeparator;
+  if (separator === undefined || separator === '') return [];
+  const returnTo = contracts.returnTo.vocabulary;
+  const parts = tag.split(separator);
+  const aspect = parts[0] ?? '';
+  const relation = parts[1] ?? '';
+  if (parts.length !== 2 || aspect.trim() === '' || relation.trim() === '') {
+    return [
+      {
+        required: `${where} 가 성질 태그로 '${tag}' 를 쓴다`,
+        missing: `그것이 "축${separator}관계" 꼴이 아니다`,
+        reason: '축과 관계를 가르지 못하면 어느 어휘에 견줄지조차 알 수 없다',
+        returnTo,
+      },
+    ];
+  }
+  const gaps: Gap[] = [];
+  const aspectGap = vocabularyGap('성질의 축', aspect, contracts.propertyAspects, where, returnTo);
+  if (aspectGap) gaps.push(aspectGap);
+  const relationGap = vocabularyGap(
+    '성질의 관계',
+    relation,
+    contracts.propertyRelations,
+    where,
+    returnTo,
+  );
+  if (relationGap) gaps.push(relationGap);
+  return gaps;
+}
+
 /** 아직 답하지 않은 질문 하나 — 등급을 가르지는 않지만 비어 있다는 것이 남는다 */
 function pendingGap(brief: RegionBrief, key: AnswerKey, returnTo: string): Gap {
   // 형을 거치지 않고 온 값에는 자리 자체가 없을 수 있다 (기본값이 붙기 전에 적힌 brief) —
   // 그것도 미답이고, 까닭은 적힌 것이 없으므로 비운다
   const answer = answerOf(brief, key) as Answer | undefined;
   return {
-    required: `${brief.id} 의 아홉 답 가운데 ${key}`,
+    // 답의 수를 세지 않는다 — 형이 넓어질 때마다 이 글자가 거짓이 된다 (아홉이었다가 열이 되었다)
+    required: `${brief.id} 의 답 가운데 ${key}`,
     missing: '아직 답이 없다',
     reason: answer !== undefined && isUnanswered(answer) ? answer.unanswered : '',
     returnTo,
@@ -189,8 +271,8 @@ function pendingGap(brief: RegionBrief, key: AnswerKey, returnTo: string): Gap {
 /**
  * brief 하나를 계약 목록과 대조한다 — 읽기만 하고 아무것도 고치지 않는다.
  *
- * 걸린 것들의 순서는 언제나 같다: 깊이 → 갈래 → 이웃 → 원천 → 요구.
- * 그래야 같은 brief 가 언제나 같은 보고를 낸다.
+ * 걸린 것들의 순서는 언제나 같다: 깊이 → 갈래 → 이웃 → 원천(붙잡는 것 · 맡은 자리 · 성질) →
+ * 물음 → 요구. 그래야 같은 brief 가 언제나 같은 보고를 낸다.
  */
 export function gradeRegion(brief: RegionBrief, contracts: WorldContracts): GradeResult {
   const blocking: Gap[] = [];
@@ -254,9 +336,52 @@ export function gradeRegion(brief: RegionBrief, contracts: WorldContracts): Grad
       returnTo.vocabulary,
     );
     if (role) block(role);
+    // ⑩ 그 원천이 내는 것의 성질 — 태그의 꼴과 축·관계, 그리고 그것이 난 문장 (T2 확장 ADDED).
+    // 성질이 없는 원천은 아무것도 걸지 않는다 — 없음은 결핍이 아니다 (brief 가 그렇게 적었다)
+    for (const property of source.properties) {
+      const where = `${brief.id} 의 ${source.id} 의 성질 ${property.tag}`;
+      for (const gap of propertyTagGaps(property.tag, where, contracts)) block(gap);
+      const from = optionalVocabularyGap(
+        '성질이 난 문장',
+        property.from,
+        contracts.propertyStatements,
+        where,
+        returnTo.vocabulary,
+      );
+      if (from) block(from);
+    }
   }
 
-  // ⑤ 요구 — 이 방이 성립하려면 세계에 무엇이 있어야 하는가.
+  // ⑤ 물음 — 어디에 걸리는가 · 얼마나 세게 묻는가 · 무엇을 묻는가 (T2 확장 ADDED · ⑨).
+  // 묻지 않는 방은 아무것도 걸지 않는다 — 빈 목록이 곧 답이고, 그 까닭은 said 가 진다.
+  // **무엇이 그 물음에 답하는가는 여기서 묻지 않는다** — 그것이 위에 적은 ⑪ 의 경계다
+  for (const lock of brief.answers.asking.locks) {
+    const where = `${brief.id} 의 ${lock.id}`;
+    const at = optionalVocabularyGap(
+      '걸리는 자리의 갈래',
+      lock.at.kind,
+      contracts.lockAtKinds,
+      where,
+      returnTo.vocabulary,
+    );
+    if (at) block(at);
+    const strength = optionalVocabularyGap(
+      '물음의 세기',
+      lock.strength,
+      contracts.lockStrengths,
+      where,
+      returnTo.vocabulary,
+    );
+    if (strength) block(strength);
+    for (const requirement of lock.requires) {
+      // 성질로 묻지 않는 요구가 있다 (철 · 그 방의 패턴 · 아는 것) — 그것은 대조할 어휘가 없다
+      if (requirement.property === undefined) continue;
+      const asked = `${where} 가 묻는 성질 ${requirement.property}`;
+      for (const gap of propertyTagGaps(requirement.property, asked, contracts)) block(gap);
+    }
+  }
+
+  // ⑥ 요구 — 이 방이 성립하려면 세계에 무엇이 있어야 하는가.
   // 갈래를 등급으로 옮기는 것은 코드가 아니라 결정 나무다 (T4 CHANGED)
   for (const requirement of brief.requires) {
     if (requirement.kind === 'rule' && contracts.rules.includes(requirement.what)) continue; // 이미 선 규칙이다

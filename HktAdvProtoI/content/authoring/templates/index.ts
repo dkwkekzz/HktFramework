@@ -21,7 +21,7 @@ import type {
   TerrainRecipe,
 } from '../../../engine/world-authoring/author';
 import { ANCHOR_LAYER } from '../../regions';
-import { RESOURCE_LAYER, TRACE_LAYER, soilStainTag } from '../../regions';
+import { CLUE_LAYER, RESOURCE_LAYER, TRACE_LAYER, soilStainTag } from '../../regions';
 import { DEPTH_LAYER, HAZARD_LAYER, PRESENCE_LAYER } from '../../regions';
 import {
   LIFE_FUNGUS_CROWDED,
@@ -231,10 +231,39 @@ const PHASE_BY_KIND: Record<string, readonly PhaseRecipe[]> = {
   ],
 };
 
+/**
+ * **물음의 흔적이 사는 layer** (T2 확장 ADDED).
+ *
+ * 흔적은 layer 하나에 갇히지 않는다 (access.ts 의 `LockTrace` 가 적어 둔 그대로) — 그러나
+ * 생성기가 낼 자리는 하나이므로 **지금 세계에서 재어** 하나를 골랐다. 묻는 방 셋의 Lock 이
+ * 가리키는 흔적 일곱이 어느 layer 에 사는지가 그 실측이다.
+ *
+ *   clue    넷 — 미로의 식물 넷(clue-a · b · c · d). 이 layer 에 사는 op 가 세계를 통틀어
+ *           그 넷뿐이고, **넷이 전부 Lock 의 흔적이다**.
+ *   trace   셋 — 숲 안쪽의 방 바닥(trace-deep-base) · 협곡의 언 사체 곁(trace-frozen-remains) ·
+ *           문 앞의 자락(trace-frost-depth-door). 그런데 이 layer 에 사는 op 는 열 방에
+ *           일흔하나이고, 흔적으로 지목된 것은 그 가운데 **셋**이다. 나머지 예순여덟은
+ *           원천 둘레의 흙 얼룩·숨의 사다리이고, 이 표가 이미 `traceLayer` · `traceTag` 로
+ *           그것을 낸다.
+ *
+ * 그래서 `clue` 다 — 가르는 잣대는 수가 아니라 **무엇 전용인가**이고, 이 세계에서
+ * "알아낼 흔적" 만 사는 layer 는 clue 하나다. 물음의 흔적을 trace 에 내면 그것이 같은 방에
+ * 이 표가 낸 흙 얼룩과 같은 layer 에 서서, 읽는 쪽이 "짙기를 말하는 자락" 과 "알아낼 것을
+ * 말하는 자락" 을 갈라 볼 자리가 없어진다 (협곡이 문 앞 자락에 짙기가 아닌 태그 하나를
+ * 따로 붙여 그 둘을 손으로 가른 것이 그 사정을 이미 말한다).
+ *
+ * **재어 남은 어긋남 하나** — 이 layer 에 지금 선 넷은 point(식물)이고 생성기가 내는 흔적은
+ * area(원)다. 그리는 쪽은 이 layer 에서 point 만 집으므로(view/terrain-presentation) 생성된
+ * 자락은 미로의 식물처럼 서지 않는다. 자락을 그리는 규칙을 여기서 지어내지 않는다 — 무엇으로
+ * 보일지는 그 방이 서는 날 그 방이 정한다.
+ */
+const ASKING_CLUE_LAYER = CLUE_LAYER;
+
 export const WORLD_AUTHOR_TEMPLATES: AuthorTemplates = {
   anchorLayer: ANCHOR_LAYER,
   resourceLayer: RESOURCE_LAYER,
   traceLayer: TRACE_LAYER,
+  clueLayer: ASKING_CLUE_LAYER,
   traceTag: soilStainTag,
   byDepth: BY_DEPTH,
   depthFallback: { half: 20, traceBase: 0 },

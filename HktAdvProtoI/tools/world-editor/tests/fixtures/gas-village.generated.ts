@@ -14,9 +14,9 @@
 // 생성기가 댄 것은 서기는 하는 방 하나다 — 검사 아홉을 통과하고, 놓인 원천에 걸어 닿는다.
 // 값을 손으로 고치는 순간 이 파일은 생성물이 아니라 손으로 쓴 방이 된다 (그래도 좋다).
 //
-// 이 방의 brief 는 아직 2 가지를 답하지 못했다: birth · offering.
+// 이 방의 brief 는 아직 3 가지를 답하지 못했다: birth · asking · offering.
 //
-// seed 1612982154 는 brief 를 해시한 값이다 — 같은 brief 는 언제나 같은 방을 낸다.
+// seed 3797701442 는 brief 를 해시한 값이다 — 같은 brief 는 언제나 같은 방을 낸다.
 
 import type { RegionSpec } from '../../../../content/regions/spec';
 import { ANCHOR_LAYER } from '../../../../content/regions/spec';
@@ -35,7 +35,7 @@ export const GAS_VILLAGE_SPEC: RegionSpec = {
       minZ: -20,
       maxZ: 20,
     },
-    seed: 1612982154,
+    seed: 3797701442,
     ops: [
       {
         id: 'anchor-gas-village-white-king-domain',
@@ -94,8 +94,8 @@ export const GAS_VILLAGE_SPEC: RegionSpec = {
         shape: {
           kind: 'circle',
           center: {
-            x: -6.36,
-            z: 6.36,
+            x: 6.36,
+            z: -6.36,
           },
           radius: 7,
         },
@@ -106,8 +106,8 @@ export const GAS_VILLAGE_SPEC: RegionSpec = {
         layer: RESOURCE_LAYER,
         tag: 'GAS_RESIDUE',
         position: {
-          x: -6.36,
-          z: 6.36,
+          x: 6.36,
+          z: -6.36,
         },
       },
     ],

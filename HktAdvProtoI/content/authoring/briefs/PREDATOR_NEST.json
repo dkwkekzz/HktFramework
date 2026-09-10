@@ -24,7 +24,17 @@
           "worldCause": "FOREST_CHAIN",
           "recoveryCause": "carcass-decay",
           "form": "nest-mycelium",
-          "role": "by-product"
+          "role": "by-product",
+          "properties": [
+            {
+              "tag": "flesh:absorbs",
+              "from": "behavior"
+            },
+            {
+              "tag": "light:absorbs",
+              "from": "conditionResponse"
+            }
+          ]
         },
         {
           "id": "GLOW_CAP_NEST_1",
@@ -33,7 +43,17 @@
           "worldCause": "FOREST_CHAIN",
           "recoveryCause": "night-bloom",
           "form": "glow-cap",
-          "role": "by-product"
+          "role": "by-product",
+          "properties": [
+            {
+              "tag": "flesh:absorbs",
+              "from": "behavior"
+            },
+            {
+              "tag": "light:absorbs",
+              "from": "conditionResponse"
+            }
+          ]
         },
         {
           "id": "GLOW_CAP_NEST_2",
@@ -42,7 +62,17 @@
           "worldCause": "FOREST_CHAIN",
           "recoveryCause": "night-bloom",
           "form": "glow-cap",
-          "role": "by-product"
+          "role": "by-product",
+          "properties": [
+            {
+              "tag": "flesh:absorbs",
+              "from": "behavior"
+            },
+            {
+              "tag": "light:absorbs",
+              "from": "conditionResponse"
+            }
+          ]
         },
         {
           "id": "HUSK_SHARD_NEST",
@@ -51,7 +81,13 @@
           "worldCause": "FOREST_CHAIN",
           "recoveryCause": "husk-shed",
           "form": "husk-shard",
-          "role": "baseline"
+          "role": "baseline",
+          "properties": [
+            {
+              "tag": "light:emits",
+              "from": "appearance"
+            }
+          ]
         },
         {
           "id": "NEST_CARCASS",
@@ -60,7 +96,13 @@
           "worldCause": "FOREST_CHAIN",
           "recoveryCause": "nest-kill",
           "form": "carcass",
-          "role": "by-product"
+          "role": "by-product",
+          "properties": [
+            {
+              "tag": "light:emits",
+              "from": "appearance"
+            }
+          ]
         }
       ]
     },
@@ -105,6 +147,12 @@
           "presence": "predator-prowl"
         }
       ]
+    },
+    "asking": {
+      "said": {
+        "unanswered": "묻지 않는 방이다 — 잇는 것이 들어온 길 하나(NEST_TRAIL)뿐이다. 사체와 그것을 삭이는 균이 있고 주인이 이웃에서 불려 오는 방이지만, 그 가운데 무엇도 \"이 방은 묻지 않는다\" 를 말하지 않는다 (막다른 방이라는 것은 그 까닭이 아니라 지금의 모양이다)"
+      },
+      "locks": []
     }
   },
   "neighbours": [

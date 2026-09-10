@@ -1,4 +1,5 @@
-// World Authoring — 뼈대 생성기 (T3 CHANGED · space · graph · resourceEcology · phases · ecology).
+// World Authoring — 뼈대 생성기 (T3 CHANGED · space · graph · resourceEcology · phases · ecology ·
+// T2 확장 CHANGED · access).
 //
 // **굳힌 파일이 컴파일되는 것까지가 이 생성기의 일이다.** 값이 맞아도 형이 다르면 방은 서지 못한다 —
 // 그래서 AuthoredSource 는 컨텐츠의 원천 표와 같은 형이고, 시험이 굳힌 파일을 실제로 컴파일한다.
@@ -143,6 +144,13 @@ export interface AuthorTemplates {
   population: PopulationDefaults;
   /** 갈래별 철 덧씌움 */
   phaseByKind: Readonly<Record<string, readonly PhaseRecipe[]>>;
+  /**
+   * 물음의 흔적이 사는 layer (T2 확장 ADDED).
+   *
+   * 흔적은 layer 하나에 갇히지 않으나(손으로 쓴 방들은 trace 와 clue 에 나눠 두었다) **생성기가
+   * 낼 자리는 하나**다 — 어느 흔적이 어느 layer 로 읽혀야 하는지는 잰 적이 없어 지어내지 않는다.
+   */
+  clueLayer: string;
 }
 
 /** 생성기가 내는 원천 하나 — 컨텐츠의 원천 표와 같은 이름들이다 */
@@ -274,13 +282,59 @@ export interface AuthoredPhases {
   seasons: Record<string, AuthoredPhaseSeason>;
 }
 
+/**
+ * 요구 하나 — 컨텐츠의 요구 표와 **같은 형 · 같은 키 차례**다 (T2 확장 ADDED).
+ *
+ * 넷 다 선택이고, 밝힌 갈래가 전부 참이어야 그 Lock 이 열린다. **아무것도 밝히지 않은 요구는
+ * 생성기가 내지 않는다** — 요구가 없는 것과 같은 것을 굳혀 두면 형이 거짓말을 한다.
+ */
+export interface AuthoredLockRequirement {
+  property?: string;
+  time?: { seasons: string[] };
+  state?: { region: string; patterns: string[] };
+  knowledge?: string;
+}
+
+/**
+ * 그 요구를 알아낼 흔적 하나 — 가리키는 것은 그 방 Description 의 **op id** 다.
+ * `showsOnBody` 는 내지 않는다: 무엇이 몸에 걸려야 하는지는 brief 가 답하지 않았다.
+ */
+export interface AuthoredLockTrace {
+  op: string;
+}
+
+/** 생성기가 내는 Lock 하나 — 컨텐츠의 Lock 표와 같은 이름 · 같은 형 · 같은 차례다 */
+export interface AuthoredLock {
+  id: string;
+  at: { kind: string; ref: string };
+  strength: string;
+  requires: AuthoredLockRequirement[];
+  /** 거짓이면 키를 두지 않는다 — 밝히지 않은 것과 밝혀서 거짓인 것을 가르지 않는다 */
+  important?: boolean;
+  traces: AuthoredLockTrace[];
+  reason?: string;
+}
+
+/**
+ * 그 방이 묻는 것 — 낼 것이 하나도 없으면 이 자리 자체를 내지 않는다 (ecology 의 어법).
+ *
+ * 둘은 **함께 서지 않는다**: 묻는 방이면 `locks` 이고, 묻지 않는 방이면 `silence` 다.
+ */
+export interface AuthoredAccess {
+  locks?: AuthoredLock[];
+  /** 왜 묻지 않는가 — 묻지 않는 방만 (ecology.absenceReason 의 어법) */
+  silence?: string;
+}
+
 export interface AuthoredSpec {
   id: string;
   depth: string;
   space: RegionDescription;
   resourceEcology?: { sources: AuthoredSource[] };
-  /** 키 차례는 컨텐츠의 RegionSpec 그대로다 — resourceEcology 다음 · ecology 앞 */
+  /** 키 차례는 컨텐츠의 RegionSpec 그대로다 — resourceEcology 다음 · access 앞 */
   phases?: AuthoredPhases;
+  /** 키 차례는 컨텐츠의 RegionSpec 그대로다 — phases 다음 · ecology 앞 */
+  access?: AuthoredAccess;
   ecology?: AuthoredEcology;
 }
 
@@ -392,7 +446,7 @@ export interface AuthorInput {
  * brief 하나 → 방 하나의 뼈대.
  *
  * op 순서는 언제나 같다: anchor → 땅 → 흔적 바탕 → 원천 둘레 흔적 → 원천 →
- * 철 덧씌움 area → 탄생지 전조 자락 → 탄생지 point → 떼의 자락.
+ * 철 덧씌움 area → 탄생지 전조 자락 → 탄생지 point → 떼의 자락 → 물음의 흔적.
  * 순서가 다르면 다른 Description 이므로 (description.ts) 이 순서가 곧 결정론의 일부다.
  */
 export function authorRegion(input: AuthorInput): AuthoredRegion {
@@ -681,6 +735,87 @@ export function authorRegion(input: AuthorInput): AuthoredRegion {
     born.calls.map((called) => ({ from: born.population, to: called, kind: 'CALLS' })),
   );
 
+  // ── 물음 — 이 방이 묻는 것을 옮기고, 그것을 **알아낼 흔적의 자리**를 낸다 (T2 확장 ADDED).
+  //
+  // brief 는 흔적의 **이름**만 대고 자리는 대지 않는다 (원천 · 탄생지가 그런 그대로) — 어느
+  // 자락이 어디 서야 하는가는 땅의 일이라 생성기가 낸다. 흔적 없는 Lock 은 알아낼 길이 없는
+  // 요구이므로(검사 ㊶) Lock 마다 **하나 이상**을 낸다.
+  //
+  // 여기서 컴파일을 다시 하지 않는다 — 물음만 있고 원천도 탄생도 없는 방은 위에서 잰 적이
+  // 없으므로(`placing`) 자리를 고르되 걸어 닿는지는 재지 않는다. `placing` 을 물음까지 넓히면
+  // 그 방에 흔적 바탕 한 겹이 새로 깔려 지금 서 있는 방들의 땅이 달라진다 — 물음을 적자고
+  // 땅을 바꾸지 않는다 (컴파일러를 주지 않았을 때와 같은 자리다: 잰 적이 없을 뿐이다).
+  const asking = brief.answers.asking;
+  const clueOps: AreaOp[] = [];
+  const locks: AuthoredLock[] = asking.locks.map((lock, index) => {
+    // **문에 걸린 물음인가** — 그 방이 낸 Connector 의 id 를 가리키면 그 문의 anchor 자리다.
+    // 문 곁에 그 문의 흔적이 서는 것이 이 규칙의 뜻이라, 고리에서 다시 고르지 않는다.
+    // `at.kind` 로 가리지 않는 것은 갈래의 어휘를 engine 이 알지 못하기 때문이다 (계약의 것이다)
+    const anchor = anchorOps.find((op) => op.tag === lock.at.ref);
+    const at =
+      anchor === undefined ? place(0.55, index, asking.locks.length) : { ...anchor.position };
+    // 이름을 댄 만큼, 대지 않았으면 하나 — 그때 흔적의 이름은 그 물음 자신의 이름이다
+    const names = lock.traces.length === 0 ? [lock.id] : lock.traces;
+    const traces: AuthoredLockTrace[] = names.map((name, n) => {
+      const id = `clue-${slug(lock.id)}-${n + 1}`;
+      clueOps.push({
+        id,
+        kind: 'area',
+        layer: templates.clueLayer,
+        tag: name,
+        // 탄생지 전조와 **같은 반지름**이다 — 자리 하나를 가리키는 자락이라는 뜻이 같다
+        shape: { kind: 'circle', center: { ...at }, radius: round2(half * 0.25) },
+      });
+      return { op: id };
+    });
+    const requires: AuthoredLockRequirement[] = lock.requires.flatMap((requirement) => {
+      // **아무 갈래도 밝히지 않은 요구는 거른다** — 요구가 없는 것과 같은 것을 굳혀 두면
+      // 형이 거짓말을 한다 (밝히지 않은 것과 밝혀서 빈 것을 가르는 그 규율의 반대편이다)
+      const said =
+        requirement.property !== undefined ||
+        requirement.seasons.length > 0 ||
+        requirement.state !== undefined ||
+        requirement.knowledge !== undefined;
+      if (!said) return [];
+      // 키 차례가 컨텐츠의 요구 표와 같다 — 성질 → 철 → 그 방의 지금 → 아는 것
+      return [
+        {
+          ...(requirement.property === undefined ? {} : { property: requirement.property }),
+          ...(requirement.seasons.length === 0
+            ? {}
+            : { time: { seasons: [...requirement.seasons] } }),
+          ...(requirement.state === undefined
+            ? {}
+            : {
+                state: {
+                  region: requirement.state.region,
+                  patterns: [...requirement.state.patterns],
+                },
+              }),
+          ...(requirement.knowledge === undefined ? {} : { knowledge: requirement.knowledge }),
+        },
+      ];
+    });
+    // 키 차례가 컨텐츠의 Lock 표와 같다 — 원천 · 탄생지가 그런 그대로다
+    return {
+      id: lock.id,
+      at: { kind: lock.at.kind, ref: lock.at.ref },
+      strength: lock.strength,
+      requires,
+      // 중요하지 않으면 키를 두지 않는다 — 거짓을 굳히면 "밝히지 않았다" 와 갈리지 않는다
+      ...(lock.important ? { important: true } : {}),
+      traces,
+      ...(lock.reason === undefined ? {} : { reason: lock.reason }),
+    };
+  });
+
+  // 침묵과 물음은 **함께 서지 않는다**. 묻는 방이면 물음 하나이고, 묻지 않는다고 **답했으면**
+  // 그 답이 곧 사유다 (탄생의 absenceReason 이 선 그 자리 그대로 — 없음이 침묵이 아니라 답이
+  // 된다). 미답은 사유가 아니다: 아직 답하지 않은 것을 굳히면 도구가 "여기는 원래 묻지 않는다"
+  // 와 "여기는 아직 안 정했다" 를 갈라 읽지 못한다 — 그때는 이 자리 자체를 내지 않는다
+  const access: AuthoredAccess | undefined =
+    locks.length > 0 ? { locks } : isUnanswered(asking.said) ? undefined : { silence: asking.said };
+
   // ── 생명 계통 — 낼 것이 하나도 없으면 이 자리 자체를 내지 않는다 (resourceEcology 의 어법).
   // 키 차례는 컨텐츠의 RegionEcology 그대로다
   const ecology: AuthoredEcology = {
@@ -711,11 +846,14 @@ export function authorRegion(input: AuthorInput): AuthoredRegion {
           ...siteTraceOps,
           ...siteOps,
           ...presenceOps,
+          ...clueOps,
         ],
       },
       ...(sources.length === 0 ? {} : { resourceEcology: { sources: authored } }),
       // 갈래가 철을 말하지 않았거나 걸 자락이 없으면 위상을 내지 않는다
       ...(Object.keys(seasons).length === 0 ? {} : { phases: { seasons } }),
+      // 묻지도 않고 왜 묻지 않는지도 답하지 않은 방은 이 자리 자체가 없다
+      ...(access === undefined ? {} : { access }),
       ...(Object.keys(ecology).length === 0 ? {} : { ecology }),
     },
     connectors,

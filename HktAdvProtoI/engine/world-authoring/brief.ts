@@ -1,10 +1,11 @@
-// World Authoring — RegionBrief 형 (T2 ADDED).
+// World Authoring — RegionBrief 형 (T2 ADDED · T2 확장 CHANGED — 물음 ⑨~⑫).
 //
-// 방 하나를 짓기 전에 **사람이 답하는 아홉 답**의 형이다. 뼈대 생성기(T3)가 읽는 입력이고,
+// 방 하나를 짓기 전에 **사람이 답하는 열 답**의 형이다. 뼈대 생성기(T3)가 읽는 입력이고,
 // 등급 판정기(T4)가 재는 대상이며, 초안기(T5)가 자유 문장이 아니라 이 형으로 낸다.
 //
-// 아홉 답은 Concept §17 의 일곱 질문(L2-World-Tool.md §3.2 가 옮겨 적었다)에
-// Life §3.5 가 더한 여덟째, Foundation §5.4 가 더한 아홉째다.
+// 열 답은 Concept §17 의 일곱 질문(L2-World-Tool.md §3.2 가 옮겨 적었다)에 Life §3.5 가 더한
+// 여덟째, Access 원문 §12 가 더한 아홉째~열두째, Foundation §5.4 가 더한 열셋째다.
+// 답이 열인데 질문이 열셋인 것은 ⑨~⑫ 넷이 **한 자리(asking)에 모여 살기** 때문이다.
 //
 //   ① 특별함  이곳은 무엇이 특별한가        distinction
 //   ② 원인    왜 이런 환경이 되었는가        cause
@@ -14,7 +15,15 @@
 //   ⑥ 발견    무엇을 발견하는가             discovery
 //   ⑦ 열림    어떤 가능성이 열리는가         opening
 //   ⑧ 탄생    무엇이 태어나는가             birth   (Life §3.5 — 없으면 도구가 짓는 방 백 개에 생명이 없다)
-//   ⑨ 내밂    무엇을 내밀고 무엇을 기억하는가  offering (Foundation §5.4 — 도구 표의 열셋째 질문)
+//   ⑨ 물음    이 방은 무엇을 묻는가          asking  (Access §12 — 없으면 없다고 적는다)
+//   ⑫ 흔적    그 요구를 알아낼 흔적은 무엇인가  asking.locks[].traces
+//   ⑬ 내밂    무엇을 내밀고 무엇을 기억하는가  offering (Foundation §5.4 — 도구 표의 열셋째 질문)
+//
+// 나머지 둘은 이 표의 **다른 줄에 얹힌다** — 물어야 할 자리가 거기이기 때문이다.
+//   ⑩ 무엇이 그 요구에 답할 성질을 가지는가   worth.sources[].properties (귀함이 낳는 것의 성질이다)
+//   ⑪ 중요한 요구에 서로 다른 원천의 답이 있을 여지가 있는가
+//      asking.said 의 산문이 사람의 말로 지고, 재는 것은 이 형이 아니라 **세계 전체**를 보는
+//      검사 ㊴ ㊵ 다 (brief 하나로는 다른 방에 답이 있는지 알 수 없다 · Access §5.4)
 //
 // **게임 명사가 없다.** 필드 이름이 전부 일반명이라 이 형은 기반에 선다 — 어느 방이 무슨 갈래이고
 // 어떤 재료가 나는지는 값이지 형이 아니다. 그래서 다른 세계도 같은 형으로 적을 수 있다.
@@ -81,6 +90,22 @@ export const WorthSchema = z.strictObject({
          * 같은 목록이 두 자리에 있게 된다. 붙잡는 것(heldBy)과 같은 규율이다
          */
         role: z.string().trim().min(1),
+        /**
+         * 이 원천이 내는 것이 **어떤 성질을 가지는가** (T2 확장 ADDED · ⑩) — 요구에 답할 여지가
+         * 여기서 난다. `tag` 는 "축:관계", `from` 은 그것이 그 재료의 어느 문장에서 나오는가.
+         * 빈 목록이면 이 원천이 내는 것에 아직 성질이 없다 (없음이 결핍이 아니다).
+         *
+         * **어휘를 형에 박지 않는다** — 어느 축이 · 어느 관계가 · 어느 문장이 성립하는지는 이
+         * 세계의 계약 목록이 알고 등급 판정기가 대조한다 (role 이 세운 그 규율 그대로).
+         */
+        properties: z
+          .array(
+            z.strictObject({
+              tag: z.string().trim().min(1),
+              from: z.string().trim().min(1),
+            }),
+          )
+          .default([]),
       }),
     )
     .default([]),
@@ -156,6 +181,62 @@ export const BirthSchema = z.strictObject({
 export type Birth = z.infer<typeof BirthSchema>;
 
 /**
+ * ⑨~⑫ 물음 — 이 방은 무엇을 묻는가 (T2 확장 ADDED · Access 원문 §12).
+ *
+ * 빈 목록이면 **묻지 않는 방**이고 `said` 가 그 까닭을 진다 (탄생의 `born` 과 같은 어법 —
+ * 없음이 침묵이 아니라 답이 된다). 목적은 원문 §12 가 적은 그것이다: "열쇠 없는 문 백 개" 와
+ * "문마다 전용 열쇠 하나" 를 함께 막는 것 — 그러려면 무엇을 묻는지도(⑨) 무엇이 답할 성질을
+ * 가지는지도(⑩ · worth) 알아낼 흔적이 무엇인지도(⑫) 방을 짓기 전에 적혀 있어야 한다.
+ *
+ * **어휘를 형에 박지 않는다** — 걸리는 자리의 갈래도 세기도 전부 글자다. 어느 이름이
+ * 성립하는지는 이 세계의 계약 목록이 알고 등급 판정기가 대조한다 (원천의 role 이 세운 규율).
+ */
+export const AskingSchema = z.strictObject({
+  said: AnswerSchema,
+  locks: z
+    .array(
+      z.strictObject({
+        id: z.string().trim().min(1),
+        /** 어디에 걸리는가 — 갈래도 값이다 (어휘를 형에 박지 않는다) */
+        at: z.strictObject({
+          kind: z.string().trim().min(1),
+          ref: z.string().trim().min(1),
+        }),
+        /** 무르게 묻는가 세게 묻는가 — 어휘는 계약이 안다 */
+        strength: z.string().trim().min(1),
+        /** 중요한 물음인가 — ⑪ 이 이것에 걸린다 */
+        important: z.boolean().default(false),
+        /** 무엇을 묻는가. 하나 이상이 **전부 참이어야** 열린다 */
+        requires: z
+          .array(
+            z.strictObject({
+              /** 성질 태그 "축:관계" */
+              property: z.string().trim().min(1).optional(),
+              /** 그 철에만 */
+              seasons: z.array(z.string().trim().min(1)).default([]),
+              /** 그 방의 지금 패턴 */
+              state: z
+                .strictObject({
+                  region: z.string().trim().min(1),
+                  patterns: z.array(z.string().trim().min(1)).default([]),
+                })
+                .optional(),
+              /** 아는 것 */
+              knowledge: z.string().trim().min(1).optional(),
+            }),
+          )
+          .default([]),
+        /** ⑫ 알아낼 흔적의 **이름들** — 자리는 생성기가 낸다 (원천·탄생지가 그런 그대로) */
+        traces: z.array(z.string().trim().min(1)).default([]),
+        /** 지목했을 때 판이 말하는 현상의 코드 — 요구의 이름을 말하지 않는다 (K8) */
+        reason: z.string().trim().min(1).optional(),
+      }),
+    )
+    .default([]),
+});
+export type Asking = z.infer<typeof AskingSchema>;
+
+/**
  * ⑨ 내밂 — 무엇을 내밀고 무엇을 기억하는가 (Foundation §5.4).
  *
  * **없으면 미답으로 센다.** 앞의 여덟과 달리 이 답에는 기본값이 있다 — 그 자리가 서기 전에 적힌
@@ -168,7 +249,7 @@ export const OfferingSchema = AnswerSchema.default({
   unanswered: '아직 적지 않았다 — 이 방이 무엇을 내밀고 무엇을 기억하는가',
 });
 
-/** 아홉 답 */
+/** 열 답 — 원문 번호 차례다 (asking 이 ⑨~⑫, offering 이 ⑬) */
 export const RegionAnswersSchema = z.strictObject({
   distinction: AnswerSchema,
   cause: AnswerSchema,
@@ -178,6 +259,13 @@ export const RegionAnswersSchema = z.strictObject({
   discovery: AnswerSchema,
   opening: AnswerSchema,
   birth: BirthSchema,
+  asking: AskingSchema.default({
+    // ⑨~⑫ 는 ⑬ 내밂과 같은 자리에 선다 — 그 자리가 서기 전에 적힌 brief 가 그대로 파싱되어야
+    // 하기 때문이다. 통과시키는 것은 아니다: 기본값이 미답의 꼴이라 `unansweredKeys` 가 그것을
+    // 세고 T4 의 `pending` 에 오른다 (OfferingSchema 가 세운 그 규율 그대로).
+    said: { unanswered: '아직 적지 않았다 — 이 방이 무엇을 묻고 그것을 무엇으로 알아내는가' },
+    locks: [],
+  }),
   offering: OfferingSchema,
 });
 export type RegionAnswers = z.infer<typeof RegionAnswersSchema>;
@@ -245,7 +333,7 @@ export function isUnanswered(answer: Answer): answer is { unanswered: string } {
   return typeof answer !== 'string';
 }
 
-/** 아홉 답을 형에 적힌 순서로 — T4 와 보고가 같은 순서로 읊게 하는 유일한 자리 */
+/** 열 답을 형에 적힌 순서로 — T4 와 보고가 같은 순서로 읊게 하는 유일한 자리 */
 export const ANSWER_ORDER = [
   'distinction',
   'cause',
@@ -255,12 +343,13 @@ export const ANSWER_ORDER = [
   'discovery',
   'opening',
   'birth',
+  'asking',
   'offering',
 ] as const;
 export type AnswerKey = (typeof ANSWER_ORDER)[number];
 
 /**
- * 그 질문의 답 하나 — 귀함과 탄생은 딸린 목록을 가지므로 답이 `said` 안에 있다.
+ * 그 질문의 답 하나 — 귀함 · 탄생 · 물음은 딸린 목록을 가지므로 답이 `said` 안에 있다.
  * 그 갈래를 읽는 쪽마다 다시 가르지 않도록 여기 한 번만 적는다.
  */
 export function answerOf(brief: RegionBrief, key: AnswerKey): Answer {

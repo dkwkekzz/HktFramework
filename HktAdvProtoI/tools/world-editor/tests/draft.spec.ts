@@ -13,10 +13,11 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { WORLD_CONTRACTS } from '../../../content/authoring';
 import { draftRegion, type DraftAsk } from '../../../engine/world-authoring/draft';
-import { parseRegionBrief } from '../../../engine/world-authoring/brief';
+import { parseRegionBrief, type RegionBrief } from '../../../engine/world-authoring/brief';
 import { gradeRegion } from '../../../engine/world-authoring/grade';
 import { authorBrief, checkAuthored } from '../author';
-import { briefPathOf, draftSchema, draftSystem, runDraft, trialBrief } from '../draft';
+import { briefPathOf, draftSchema, draftSystem, renderBatch, runDraft, trialBrief } from '../draft';
+import type { Candidate } from '../candidates';
 
 const example = (name: string): Record<string, unknown> =>
   JSON.parse(
@@ -155,6 +156,61 @@ describe('T5 — 지어낸 것은 되먹이고, 없는 의미를 요구하면 �
   });
 });
 
+describe('T6 — 되물을 것과 돌려보낼 것을 가른다', () => {
+  // 갈림은 **세계가 자라야 하는가** 다. 규칙·축이 서야 하면 Cycle 의 일이라 돌려보내고,
+  // "적으면 서는 것"(fact — 등급을 낮추지 않는다)을 요구로 적었을 뿐이면 되묻는다.
+  // T6 실주행에서 난 자리다: 쓰러진 거목 하나가 등급 A 인 채로 한 바퀴 만에 돌아왔다.
+  /** 등급 A 의 본보기 하나에 요구만 얹는다 — 갈리는 것이 요구뿐이어야 갈림을 잰다 */
+  const withRequires = (requires: RegionBrief['requires']): RegionBrief => {
+    const parsed = parseRegionBrief(example('GAS_VILLAGE'));
+    if (!parsed.ok) throw new Error('본보기가 형을 통과하지 못했다');
+    return { ...parsed.brief, requires };
+  };
+
+  it('등급을 낮추지 않은 요구(fact)는 **되묻는다** — 한 바퀴만 더 돌면 설 방을 사람에게 미루지 않는다', () => {
+    const trial = trialBrief(
+      withRequires([{ kind: 'fact', what: '그것이 세계의 사실인가', why: '이 방이 그 위에 선다' }]),
+    );
+    expect({ ok: trial.ok, retry: trial.retry }).toEqual({ ok: false, retry: true });
+    // 등급이 A 인 채로 걸린 것이 있다 — 그것이 이 갈림의 뜻이다
+    const graded = gradeRegion(withRequires([{ kind: 'fact', what: 'x', why: 'y' }]), WORLD_CONTRACTS);
+    expect({ grade: graded.grade, blocked: graded.blocking.length > 0 }).toEqual({ grade: 'A', blocked: true });
+  });
+
+  it('규칙이나 축을 요구하면 **돌려보낸다** — 그것은 Cycle 의 일이다', () => {
+    for (const kind of ['rule', 'axis'] as const) {
+      const trial = trialBrief(
+        withRequires([{ kind, what: '아직 없는 것', why: '이 방이 그것을 부른다' }]),
+      );
+      expect({ kind, ok: trial.ok, retry: trial.retry }).toEqual({ kind, ok: false, retry: false });
+    }
+  });
+});
+
+describe('T6 — 목록을 돌린 뒤의 보고', () => {
+  it('등급을 **그 무리 안에서** 센다 — 섰는가와 등급은 다른 축이다', () => {
+    // 전체에서 세면 "선 것 4 (A 5)" 처럼 읽혀 어느 등급이 어느 무리의 것인지 갈리지 않는다.
+    // 등급 A 인 채로 돌아오는 방이 실제로 있다 (실주행에서 그렇게 나왔다)
+    const candidate = (key: string, outcome: string, grade: string): Candidate => ({
+      key,
+      judgement: { unknown: key, outcome, grade, blocking: [], pending: [], shifts: [], rounds: [] },
+    } as unknown as Candidate);
+    const text = renderBatch(
+      [
+        candidate('P1', 'passed', 'A'),
+        candidate('R1', 'returned', 'A'),
+        candidate('R2', 'returned', 'B'),
+      ],
+      'out/candidates',
+    );
+    expect(text).toContain('선 것 1 (A 1)');
+    expect(text).toContain('돌아온 것 2 (A 1 · B 1)');
+    // 없는 무리에는 괄호를 두지 않는다
+    expect(text).toContain('못 선 것 0');
+    expect(text).not.toContain('못 선 것 0 (');
+  });
+});
+
 describe('T5 — 모델에게 무엇을 건네는가', () => {
   it('답의 형은 T2 의 schema 그대로다 — 손으로 옮겨 적은 형이 아니다', () => {
     const schema = draftSchema() as {
@@ -173,6 +229,7 @@ describe('T5 — 모델에게 무엇을 건네는가', () => {
       'discovery',
       'opening',
       'birth',
+      'asking',
       'offering',
     ]);
     // 형이 실제로 이 세계의 brief 를 받아들인다
@@ -197,6 +254,37 @@ describe('T5 — 모델에게 무엇을 건네는가', () => {
     );
     // 본보기 하나
     expect(system).toContain('── 본보기 (content/authoring/examples/GAS_VILLAGE.json)');
+  });
+
+  it('판정기가 대조하는 어휘가 **전부** 시스템 글에도 실린다 — 갈리면 초안기는 모르는 채로 틀린다', () => {
+    // 실주행에서 실제로 걸린 자리다. T2 확장이 성질(축:관계) · 문장 갈래 · 물음의 자리와 세기를
+    // T4 의 대조 대상으로 세웠는데 초안기의 어휘 목록에는 넣지 않아, 모델이 성질 태그 자리에
+    // 설명하는 문장을 적고 한 바퀴를 통째로 버렸다. 판정하는 어휘와 알려 주는 어휘는 같아야 한다.
+    const system = draftSystem();
+    const judged: readonly (readonly string[] | undefined)[] = [
+      WORLD_CONTRACTS.propertyAspects,
+      WORLD_CONTRACTS.propertyRelations,
+      WORLD_CONTRACTS.propertyStatements,
+      WORLD_CONTRACTS.lockAtKinds,
+      WORLD_CONTRACTS.lockStrengths,
+      WORLD_CONTRACTS.carriers,
+      WORLD_CONTRACTS.roles,
+      WORLD_CONTRACTS.hazardKinds,
+      WORLD_CONTRACTS.transitions,
+    ];
+    for (const names of judged) {
+      for (const name of names ?? []) {
+        expect({ name, told: system.includes(name) }).toEqual({ name, told: true });
+      }
+    }
+    // 그리고 꼴 자체를 말해 준다 — 목록만 주면 "축" 과 "관계" 를 어떻게 잇는지는 여전히 모른다
+    expect(system).toContain('"축:관계"');
+  });
+
+  it('brief 가 묻는 질문의 원문이 확정 문서로 실린다 — 묻는 것을 적으라면서 그 문서를 주지 않으면 지어낸다', () => {
+    const system = draftSystem();
+    // ⑨~⑫ 는 Access 원문 §12 의 것이다 (T2 확장). 그 문서가 빠져 있던 것이 실주행에서 드러났다
+    expect(system).toContain('── 확정 문서 (content/roadmap/L2-World-Access.md)');
   });
 
   it('runDraft 는 도구가 짓는 시스템 글과 형을 함께 건넨다', async () => {

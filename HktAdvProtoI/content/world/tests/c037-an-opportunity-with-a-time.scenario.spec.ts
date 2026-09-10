@@ -95,8 +95,15 @@ const HISTORY_REFS_MARK = '㊸';
 const REFS_ID = 'opportunity-refs';
 const SUMMARY_ID = 'opportunity-summary';
 const SUMMARY_MARK = '㊻';
-/** 검사는 마흔여덟 그대로다 — spec SPEC-009 (C036 이 못 박은 값) */
-const CHECK_COUNT = 48;
+/**
+ * 검사의 수 — 그 Cycle 의 spec 이 **마흔여덟**로 못 박았고, 그 뒤 T2 확장이 접근 계통에 ㊽ 을
+ * 더해 마흔아홉이 되었다.
+ *
+ * 동결된 spec 을 고쳐 읽는 것이 아니다 — 그때 마흔여덟이었다는 것은 그대로 참이고, 이 줄이
+ * 재는 것은 "지금도 그 수가 맞는가" 다. 총수를 못 박은 것은 그 spec 이 예외로 둔 자리이므로
+ * (그래서 다른 시나리오는 전체 개수를 단언하지 않는다) 검사가 늘 때마다 여기가 함께 움직인다.
+ */
+const CHECK_COUNT = 49;
 /** 이 세계의 Event 는 둘이다 — spec SPEC-001 */
 const EVENT_COUNT = 2;
 /**
@@ -860,15 +867,16 @@ describe('SPEC-007 방이 태어난 것을 센다', () => {
 // ─────────────────────────────────────────────────────────────────────
 describe('SPEC-008 도구 셋 — brief · 등급 · lab · observe', () => {
   it('S-361 brief 에 열셋째 답의 자리가 있고, 적지 않은 brief 는 그것을 미답으로 센다', () => {
-    // C036 의 여덟 뒤에 답이 하나 더 선다 — 본보기 셋은 그것을 적지 않았으므로 미답으로 센다
+    // C036 의 여덟 뒤에 답이 더 선다 — 본보기 셋은 그것을 적지 않았으므로 미답으로 센다.
+    // T2 확장 CHANGED — 하나가 아니라 **둘**이다: ⑨~⑫ 물음(asking)이 ⑬ 내밂 곁에 섰다
     const keys = pendingKeys('MAGIC_CITY'); // 축이 없어 여덟을 하나도 적지 못하는 방
     for (const answer of ANSWERS_BEFORE) {
       expect({ answer, pending: keys.includes(answer) }).toEqual({ answer, pending: true });
     }
     const added = keys.filter((key) => !(ANSWERS_BEFORE as readonly string[]).includes(key));
-    expect({ added: added.length }).toEqual({ added: 1 });
-    // 그리고 다 적은 방(등급 A)도 그것만은 미답이다 — 자리가 있으면 세어진다는 뜻이다
-    expect(pendingKeys('GAS_VILLAGE')).toContain(added[0]!);
+    expect({ added: added.length }).toEqual({ added: 2 });
+    // 그리고 다 적은 방(등급 A)도 그것들만은 미답이다 — 자리가 있으면 세어진다는 뜻이다
+    for (const key of added) expect(pendingKeys('GAS_VILLAGE')).toContain(key);
   });
 
   it('S-362 등급이 A · B · C 로 갈리고 본보기 셋의 등급이 달라지지 않는다 (결정 나무의 답)', () => {
@@ -1120,7 +1128,7 @@ describe('회귀', () => {
     }
   });
 
-  it('S-366 (SPEC-009) 검사가 마흔여덟 그대로이고 통과이며, 두 번 돌려도 글자까지 같다 · ㊻ 에 Event 둘', () => {
+  it('S-366 (SPEC-009) 검사가 마흔아홉이고 통과이며, 두 번 돌려도 글자까지 같다 · ㊻ 에 Event 둘', () => {
     const first: CheckReport = runWorldCheck();
     expect(first.items.length).toBe(CHECK_COUNT);
     expect({ fail: first.counts.fail, ok: first.ok }).toEqual({ fail: 0, ok: true });

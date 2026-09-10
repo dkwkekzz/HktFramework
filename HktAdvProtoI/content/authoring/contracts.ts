@@ -20,16 +20,21 @@ import {
   MUTATION_OPS,
   OPPORTUNITY_ACTIONS,
 } from '../../engine/world-authoring/opportunity';
+import type { Lock } from '../regions';
 import {
   LIFE_FORMATION_MODES,
+  LOCK_AT_AREA,
+  LOCK_AT_CONNECTOR,
   OPPORTUNITY_YIELD_TABLE,
   PROPERTY_ASPECTS,
   PROPERTY_RELATIONS,
+  PROPERTY_TAG_SEPARATOR,
   RECOVERY_CARCASS_DECAY,
   RECOVERY_NEST_KILL,
   RECOVERY_MOLT_CYCLE,
   REGION_GRAPH,
   REGION_SPECS,
+  STATEMENT_KINDS,
 } from '../regions';
 
 /** Concept §3.1 — §5 의 일곱 갈래가 그대로 hazard layer 의 태그다 */
@@ -104,6 +109,20 @@ export const LIFE_BOUND_RECOVERY_CAUSES: readonly string[] = [
   RECOVERY_CARCASS_DECAY,
   RECOVERY_NEST_KILL,
 ];
+
+/**
+ * 물음의 **세기** 둘 — `soft` 와 `hard` (T2 확장 ADDED · Access 원문 §3).
+ *
+ * 앞의 목록들과 달리 **읽어 올 값이 없다.** 이 어휘가 사는 자리는 `content/regions/access.ts`
+ * 의 `Lock.strength` 인데 그것은 형(union)이지 값이 아니라, 자리 갈래가 상수 둘
+ * (LOCK_AT_CONNECTOR · LOCK_AT_AREA)로 서 있는 것과 갈린다. 형은 실행 때 읽히지 않으므로
+ * transitions 가 graph 에서 읽는 그 어법을 여기서는 쓸 수 없다.
+ *
+ * 그래서 **글자를 다시 적되 형에 매단다** — `Lock['strength']` 로 받으므로 그 union 에 없는
+ * 말을 적으면 그 자리에서 컴파일이 걸린다. 다만 union 에 셋째가 늘어도 이 줄은 조용하다:
+ * 세기가 느는 날 이 줄도 손으로 는다 (어휘를 넓히는 것은 층의 일이라는 규율 그대로).
+ */
+const LOCK_STRENGTHS: readonly Lock['strength'][] = ['soft', 'hard'];
 
 /**
  * 개체군의 값을 **올리는** 관계의 갈래들 (C025 ADDED · 검사 ㉛).
@@ -219,12 +238,29 @@ export const WORLD_CONTRACTS: WorldContracts = {
   // 여기는 그것을 **읽는다** (손으로 옮기지 않는다 · transitions 가 graph 에서 읽는 그 어법).
   // 두 벌로 적으면 어느 날 하나가 늦는다.
   //
-  // **판정하는 방식은 한 줄도 바뀌지 않는다** — 등급 판정기는 이 둘을 아직 대조에 쓰지 않고,
-  // 그래서 지금 방들의 등급이 한 값도 달라지지 않는다. brief 가 요구와 답을 성질로 적기
-  // 전에는 대조할 입력이 없기 때문이다 (Out of Scope — 그것은 T2 를 넓히는 Cycle 의 것).
-  // 이 Cycle 이 하는 것은 어휘를 **등록**하는 데까지다 (Play §5.7 의 말 그대로).
+  // T2 확장 CHANGED — C031 이 "brief 가 요구와 답을 성질로 적기 전에는 대조할 입력이 없다" 며
+  // **등록**만 해 둔 자리다. 그 입력이 이제 있으므로 판정기가 이 둘을 실제로 대조한다
+  // (아래 넷과 같은 자리에서 쓰인다). 지금 방들의 등급은 그래도 한 값도 달라지지 않았다 —
+  // 열세 brief 가 쓰는 축·관계가 전부 이 목록 안에 있기 때문이고, 그것이 대조의 뜻이다.
   propertyAspects: PROPERTY_ASPECTS.map((aspect) => aspect.id),
   propertyRelations: PROPERTY_RELATIONS.map((relation) => relation.id),
+  // 성질과 물음의 어휘 넷 (T2 확장 ADDED) — C031 이 **등록만** 해 둔 축·관계를 판정기가 드디어
+  // 대조한다. brief 가 요구와 답을 성질로 적게 되었으므로 대조할 입력이 이제 있다.
+  //
+  // 넷 다 **출처가 하나이고 여기는 그것을 읽는다** (위 두 줄과 같은 어법 · 두 벌로 적으면
+  // 어느 날 하나가 늦는다):
+  //   propertyTagSeparator  properties.ts 의 `PROPERTY_TAG_SEPARATOR` — 태그를 짓는 함수
+  //                         `propertyTag` 가 쓰는 바로 그 글자다
+  //   propertyStatements    properties.ts 의 `STATEMENT_KINDS` — 재료가 관찰되는 문장 다섯 항
+  //                         (Material §6.1). ⑩ 의 `from` 이 이 다섯 중 하나여야 한다
+  //   lockAtKinds           access.ts 의 `LOCK_AT_CONNECTOR` · `LOCK_AT_AREA` — 도구의 계약이
+  //                         이미 그대로 받아 쓰던 상수 둘이다 (tools/world-editor/check.ts)
+  //   lockStrengths         위 `LOCK_STRENGTHS` — 이 넷 가운데 유일하게 읽어 올 값이 없어
+  //                         형에 매달아 적었다 (그 까닭은 그 상수의 주석에)
+  propertyTagSeparator: PROPERTY_TAG_SEPARATOR,
+  propertyStatements: STATEMENT_KINDS,
+  lockAtKinds: [LOCK_AT_CONNECTOR, LOCK_AT_AREA],
+  lockStrengths: LOCK_STRENGTHS,
   regions: REGION_SPECS.map((spec) => spec.id),
   frontiers: [...(REGION_GRAPH.frontiers ?? [])],
   rules: STANDING_RULES,
