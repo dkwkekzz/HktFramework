@@ -34,6 +34,8 @@ advprotoi-cycle   Cycle    "C### 진행" — (첫 Cycle 이면 Cycle 목록 승�
   세우고 실주행으로 닫는다. 기반 Cycle 이 경험 값(문구 · 표기 · 표시 여부 · 임계 · 배치)을 Human 결정으로 올리면 그 자리에 손잡이가 없다는 뜻이다.
 - **기획서와 Cycle 사이에 아무 단위도 없다.** Cycle 을 세는 단위는 기획서 하나(content/roadmap 의 문서 하나)이고, 그 Cycle 전부가 spec(첫 것은 동결 후보 · Trace 에 Cycle 목록 · 뒤 것은 초안)으로
   함께 선다. 한 세션에서 Cycle 로 자를 수 없을 만큼 큰 기획서는 기획서를 나눈다. 의미의 출처는 기획서 하나이고 spec 은 그것을 인용한다. Play · 묶음 문서는 없다.
+- **기획서 하나는 층 하나의 것이다.** 뒤 층의 절은 `content/roadmap/L<N>-Handoff.md` 로 옮기고(글자 그대로 · 자리에 포인터) 그 층이 열리면 주입이 먼저 받는다.
+  뒤 층의 것을 더미로 구현하지 않는다 — 형의 자리(슬롯)까지가 지금 층이고 동작은 그 층이다 ([Design-DesignAuthoringWorkflow §5](design/Design-DesignAuthoringWorkflow.md)).
 - **작업 관리는 `plan/` 하나다** — 관점 셋(design · 판정 · cycle)으로 나뉜다.
   ```text
   plan/STATE.md    지금 어디까지 — §0 트랙과 순서(어느 트랙에서 무엇을 어떤 순서로) · 관점별 요약 표 (진입점 — 새 세션은 이것부터)

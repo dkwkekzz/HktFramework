@@ -20,11 +20,11 @@
 | 0 | 게임 방향 | [L0-Game.md](../content/roadmap/L0-Game.md) | 없음 — 판단 기준 | **확정** | 미증명 넷 (§3 L0) |
 | 1 | 세계의 문법 | [L1-World-Grammar.md](../content/roadmap/L1-World-Grammar.md) | 없음 — 코드가 이미 이 문법 위 | **확정** | 없음 |
 | 2 | 세계 자체 | [L2-World-Tool](../content/roadmap/L2-World-Tool.md) · [Tool-Scale](../content/roadmap/L2-World-Tool-Scale.md) · [Concept](../content/roadmap/L2-World-Concept.md) · [Region](../content/roadmap/L2-World-Region.md) · [Material](../content/roadmap/L2-World-Material.md) · [Time](../content/roadmap/L2-World-Time.md) · [Life](../content/roadmap/L2-World-Life.md) · [Access](../content/roadmap/L2-World-Access.md) · [Foundation](../content/roadmap/L2-World-Foundation.md) | C001~C038 (§3 의 각 기획서 절) | **다음** — 기획은 닫혔다 (더 쌓을 기획 없음) | Rooms GAP 둘(후보 3) · 판정 대기 셋(협곡 · 생명 · 요구와 가능성 — 컨텐츠 행) · 도구 HundredRooms |
-| 3 | 주체와 몸 | [L7 §3](../content/roadmap/L7-Fairy-Growth-Combination.md) 의 3층 몫 (편성 · 무대의 한 명 · Core 가 몸의 State 로) | 없음 | **다음** — Human 결정으로 2층 판정과 **병행** | 후보 2 (3층 몫) · 나머지 절반(몸의 값 전반 · 생물의 앎과 선택)은 별도 주입 |
-| 4 | 자원과 물건 | — | 없음 | 미주입 | L7 4층 몫 · Material 쓰임 · Access 4층 몫 (§3) |
-| 5 | 대결 | — | 없음 | 미주입 | L7 5층 몫 · Concept W6 · W7 |
-| 6 | 능력 | — | 없음 | 미주입 | L7 6층 몫 |
-| 7 | 성장 | [L7-Fairy-Growth-Combination.md](../content/roadmap/L7-Fairy-Growth-Combination.md) (원문 · 배분 확정) | 없음 | 미주입 — 원문은 확정 | L7 7층 몫 · 보류 계열 일곱 |
+| 3 | 주체와 몸 | [L3-Handoff.md](../content/roadmap/L3-Handoff.md) — L7 · Foundation 의 3층 몫 (편성 · 무대의 한 명 · Core 가 몸의 State 로 · 발견 상태 · NPC 의 행동) · 주입 때 `L3-*.md` 로 선다 | 없음 | **다음** — Human 결정으로 2층 판정과 **병행** | 후보 2 (3층 몫) · 나머지 절반(몸의 값 전반 · 생물의 앎과 선택)은 별도 주입 |
+| 4 | 자원과 물건 | [L4-Handoff.md](../content/roadmap/L4-Handoff.md) (대기) | 없음 | 미주입 | Material 쓰임 · Access 4층 몫 (§3 — 3층 주입 때 Handoff 로) |
+| 5 | 대결 | [L5-Handoff.md](../content/roadmap/L5-Handoff.md) (대기) | 없음 | 미주입 | Concept W6 · W7 (§3 — 3층 주입 때 Handoff 로) |
+| 6 | 능력 | [L6-Handoff.md](../content/roadmap/L6-Handoff.md) (대기) | 없음 | 미주입 | — |
+| 7 | 성장 | [L7-Fairy-Growth-Combination.md](../content/roadmap/L7-Fairy-Growth-Combination.md) (원문 — 7층 몫만 남았다) · [L7-Handoff.md](../content/roadmap/L7-Handoff.md) | 없음 | 미주입 — 원문은 확정 | 보류 계열 일곱 |
 | 8 | 화면 | — | — | — | 별도 주입 없음 — 각 기획서의 Cycle 이 Required 로 받는다 |
 
 2층의 도구 절반 2단계(Region 작성기 T1~T6)는 전부 섰다 — 남은 것은 HundredRooms 뿐. 단계 정의는 [Tool-Scale §3](../content/roadmap/L2-World-Tool-Scale.md).
@@ -53,6 +53,8 @@
   덮음      그 원본을 SOURCE 로 쓴 Cycle 들과 그 상태 — 승인된 Cycle 목록이 여기 선다
   덮인 것   그 Cycle 들이 세웠거나 세우는 중인 원본의 절
   남은 것   아직 어느 Cycle 도 받지 않은 원본의 절 → 받는 자리(후보 · 층 · 컨텐츠 행 · 도구 · 두지 않음). 비면 그 원본은 다 덮인 것이다
+          뒤 층인 것은 원문 절 단위로 그 층의 content/roadmap/L<N>-Handoff.md 로 옮긴다(글자 그대로 · 원문 자리에 포인터) — 여기에는 "→ L<N>-Handoff §…" 만 남는다.
+          형의 자리만 있는 것(그 층이 같은 형에 줄을 더한다)과 층이 없는 것(§4)은 옮기지 않는다. Foundation · L7 은 옮겼고 나머지 2층 일곱 문서는 3층 주입 때 옮긴다
 갱신      새 주입 · Cycle 목록 승인 · Cycle 이 main 에 합쳐짐 · 예심 · 판정 반영 — 이때 고친다.
           Cycle 마감이 "뒤 층 · 뒤 기획서로" 보내는 것은 그 원본의 "남은 것" 에 바로 적는다 (다른 곳에 두지 않는다)
 재주입    기획서를 새 공정으로 다시 자를 때 "덮인 것" 은 Existing(codemap) 이고 "남은 것" 이 그 Cycle 들의 Goal 후보다
@@ -393,21 +395,18 @@ Cycle 셋이 닫혔다. 관찰 항목 열아홉 가운데 그림과 시나리오
           G12 Region 자체 성장의 첫 사례(둥지 → 군락 — Life 개체군이 방의 standing 을 바꾼다 · 빈칸 3) — 전제 Life 는 닫혔다 · §8 기준 17 의 2층 몫   → 후보 3.5 (Foundation 둘째)
           탄생지의 채취를 기회로 세우는 것 · change qualifier(CROSSED)의 실사용 — 형은 있고 쓰는 데이터가 없다                          → 후보 3.5 에 함께
           빈칸 6 · §8 기준 14 — Object(레버 · 장치 · 함정) · Structure 의 State 가 처음 오는 자리                                          → 컨텐츠 행 (2층 — 그 방의 퍼즐 · 이름은 Human)
-          **뒤 층의 것** (2층에서 하면 기반이 는다 — 원문 §14 가 설계 오류로 정의):
-          HIDDEN 이 **발견되는** 절차 (거름은 C038 이 세웠다)                                        → 3층 둘째 (발견 상태 다섯)
-          chance(빈칸 1) · 조건 자리 넷을 형으로 **옮기는** 것(Q1 읽기만으로 닫음 — 옮길 이유가 생기면 그때)   → 5층 이후 · 결정 대기
-          §5.5 Player Knowledge · 발견 상태 다섯 · knowledge Lock          → 3층 둘째 (G10)
-          discovery 의 NPC · KNOWLEDGE 갈래 · HIDDEN 기회가 드러나는 절차   → 3층 둘째 (C036 이 형에 자리만 두었다)
-          Actor · NPC · participants                                  → 후보 2(첫 개체) · 3층 둘째
-          전투 Opportunity · Boss 탄생 조건 · killed                     → 5층
-          제작 · Recipe · Item · Currency                              → 4층
-          Character Growth · Mastery · Class Progress · Capability      → 7층
-          G12 의 둘째 사례 이후(폐허 → 마을 — NPC 가 있어야)                → 3층 NPC 뒤
-          경제 · 세력 · 협동 · 구조 · 미니게임 · 서사 · NPC 조우              → 자리 없음 (§4)
-          §7 지도 · lineOfSight · 비행 · 수영 — 요구가 없다                    → 그 갈래의 컨텐츠 행 · 후보 3(Trail Q1)
+          **뒤 층의 것** — 원문 절은 그 층의 Handoff 로 옮겼다 (원문 자리에 포인터 · 2층에서 하면 기반이 는다 — 원문 §14 가 설계 오류로 정의):
+          §2.5 NPC Process · §2.6 발견 상태 · §7.7 조우 · §7.9 Investigation / Knowledge     → L3-Handoff §3 (3층 둘째 — 후보 5 · G10 · HIDDEN 이 발견되는 절차 · Actor · participants)
+          §7.6 제작 / 변환                                                                  → L4-Handoff §3
+          §7.4 전투 / 사냥                                                                  → L5-Handoff §3 (전투 Opportunity · Boss 탄생 조건 · killed)
+          §7.5 Character Growth                                                             → L7-Handoff §3 (Mastery · Class Progress · Capability)
+          형의 자리만 있는 것 — 옮기지 않는다 · 그 층이 같은 형에 줄을 더한다 (D2): §4.6 killed · crafted · talked · traded · §5 Knowledge 군 · Ownership 의 Item 이후 ·
+          §8 discovery 의 NPC · KNOWLEDGE · participants · §9 Yield 열 열(값 0 · G11) · §4.7 chance(빈칸 1 — 확률을 처음 쓰는 층 · L1 §3) ·
+          조건 자리 넷을 형으로 **옮기는** 것(Q1 읽기만으로 닫음 — 옮길 이유가 생기면 그때 · 결정 대기) · G12 둘째 사례(폐허 → 마을 — 3층 NPC 뒤)
+          층이 없는 것 — 옮기지 않는다 (§4): §2.5 사회 Process · §2.7 사회 관계 · §7.7 상호작용 · 관계 변화 · 결과 · §7.12~§7.17 (경제 · 세력 · 협동 · 구조 · 미니게임 · 서사)
+          §7 표의 지도 · lineOfSight · 비행 · 수영 — 요구가 없다                                → 그 갈래의 컨텐츠 행 · 후보 3(Trail Q1)
           2층의 축은 다 섰다 — 재주입 대조(G1~G13 · §4 계약 · 검사 ㊸~㊼ · D1~D5 · 빈칸 ↔ C034~C038 spec SOURCE · world:check ㊸~㊼ pass/report) 결과. 2층에 남은 것은 위의 셋(후보 3.5 · 컨텐츠 행)이다.
-          2087 줄이라 지금 규칙(§5 크기)이면 주입 때 나눴을 문서다. 원문의 활동군 열여섯 중 2층이 받은 것은 여섯(탐험 · 이동 · 채집 · 발견 · 추적 · Event)과 세계 변경의 절반 —
-          나머지(전투 · 성장 · 제작 · NPC · 퍼즐의 지식 쪽 · 경제 · 세력 · 협동 · 구조 · 미니게임 · 서사)는 구현되지 않았고 그 층의 주입이 같은 형에 넣는다 (D2 · §8 표)
+          원문의 활동군 열여섯 중 2층이 받은 것은 여섯(탐험 · 이동 · 채집 · 발견 · 추적 · Event)과 세계 변경의 절반 — 나머지는 구현되지 않았고 그 층의 Handoff(3 · 4 · 5 · 7층) 또는 §4(층 없음)에 있다 (D2 · §8 표)
 ```
 
 닫힘 — 기반 검토 끝 (C034~C037 + 정비 C038). 결정은 전부 그 값이 사는 자리로 갔다. 아래 실측 항목은 **다음 기반 층 예심이 같은 것을 재는 잣대**다.
@@ -531,20 +530,18 @@ Q2  떨어지는 자리를 세계가 알리지 않는다 — 추락은 거목 �
 ### L7-Fairy-Growth-Combination — 요정 성장·조합 모델 (확정 · 3~7층에 배분)
 
 ```text
-3층 몫    §9 편성 · §10 무대의 한 명 · §11 Entry/Leave/Off-field 의 자리 · §20 탐험에서도 교체 · §4~§5 Core 가 몸의 State 로 ·
-          확정 3 · 4 · 5 · 10 · 11 · 위임 D1(이 몫) · D5                                                                   → 후보 2
-4층 몫    §8 보석 = 성장 재료 · §17 Item = 행동을 바꾸는 장치 · §24 스탯 부착물 금지 · §16 · 확정 6(보석 여덟 후보) · 확정 10 · D2 · D4   → 4층
-5층 몫    §13 정해진 Phase 없음 · World State 어휘 열하나(확정 8) · §14 창발 전투 · §16 여러 답 · §23 Monster · D3(지식 슬롯)        → 5층
-6층 몫    §6 Class = Core 를 쓰는 방법 · §11 의 내용 · §5 · §19 탐험 조합 · D5(Off-field 시간 규모)                               → 6층
-7층 몫    §1~§3 컬렉션 넷 · §7 Class Change(확정 7) · §8 순환 · §12 · §18 Knowledge(확정 9) · §21 Build · §22 · §25~§27 · 확정 2 · D1   → 7층
+3층 몫    → L3-Handoff §2 (§4 · §5 · §9 · §10 · §11 의 자리 · §20 — 옮겼다) · 확정 3 · 4 · 5 · 10 · 11 · 12 · 위임 D1 · D5 는 L7 문서에 그대로         → 후보 2 (3층 주입이 기획서로 세운다)
+4층 몫    → L4-Handoff §2 (§8 · §16 · §17 · §24 — 옮겼다 · 5 · 7층 몫이 걸쳐 있다) · 확정 6 · 10 · D2 · D4                                       → 후보 6
+5층 몫    → L5-Handoff §2 (§13 · §14 — 옮겼다 · §16 여러 답 · §23 Monster 는 포인터) · 확정 8 · D3                                             → 후보 7
+6층 몫    → L6-Handoff §2 (§6 · §19 — 옮겼다 · §5 · §11 의 내용은 L3-Handoff 에 걸쳐 있다) · D5                                                 → 후보 8
+7층 몫    L7 문서에 남는 것 — §1~§3 컬렉션 넷 · §7 Class Change(확정 7) · §12 · §18 Knowledge(확정 9) · §21 Build · §22 · §23 · §25~§27 · 확정 2 · D1 + L7-Handoff §3(Foundation §7.5)   → 후보 9
           보류된 계열 일곱                                                                                          → 컨텐츠 행(요정) — Human 이 하나씩
           §6 컨텐츠 행 후보 — 계열 여섯(정식 · 확정 2) · 보석 여덟(후보 · 확정 6 · D2 빙결정 = 빙정석?) · 클래스 · 아이템 셋 · 지식 하나 · 지역 셋(독성 밀림 · 거대 얼음 장벽 · 거대 갑각수)
                                                                                                                     → 요구 축 3 이상 — 그 층이 열린 뒤 Human 이 하나씩 이름을 확정
 덮음      없음 — Cycle 도 코드도 없다 (2층 Cycle 어느 것도 L7 을 SOURCE 로 쓰지 않았다). 확정 1(L0 둘째 원문)과 §2.2 의 처분(design/ 성장 재료는 기구만 남긴다)만 문서에 반영됐다
 대조      재주입 대조(확정 1~13 · D1~D5 · §3 배분 · §6 후보 ↔ DESIGN §1 3~7층 · §5 후보 2 · 5~9) 결과 — 어긋남 없음. 확정 3(3층 Play 는 요정 둘)을 3층 몫에 더했다.
-          **크기** — 856 줄 · 행 다섯(3~7층)의 원본을 한 문서에 담고 있어 지금 규칙(§5 한 기획서 = 행 하나)과 맞지 않는다. 지금 나누지 않는다 —
-          §3 배분 표가 "각 층이 열릴 때 그 층의 주입이 이 표를 받는다" 고 정했으므로, 3층 주입 때 inject 가 3층 몫(§9~§11 · §20 · §4~§5 · 확정 3 · 4 · 5 · 10 · 11 · D1 · D5)을
-          Human 이 주는 나머지 절반(몸의 값)과 함께 L3-*.md 로 옮겨 세운다 — 옮기기이지 다시 쓰기가 아니다. 4~7층도 같은 방식. L7 은 7층 몫만 남을 때까지 원문으로 선다
+          **크기** — 856 줄 · 행 다섯의 원본이었다. 3~6층 몫의 절은 그 층의 Handoff 로 옮겼고(원문 자리에 포인터 · 걸친 절은 먼저 열리는 층에) L7 문서에는 7층 몫 · §2~§6 대조 · 확정 사항이 남는다.
+          각 층이 열릴 때 그 층의 주입이 Handoff 를 먼저 받는다 — 3층은 방향 한 줄이면 L3-Handoff §2 가 그대로 기획서의 원문이다
 ```
 
 ## 4. 어느 층에도 자리가 없는 것
@@ -557,7 +554,7 @@ Q2  떨어지는 자리를 세계가 알리지 않는다 — 추락은 거목 �
 
 ```text
 다중 플레이어의 충분조건 — 분업 · 거래 · 정보 공유 · 가능성 공유    L0 ② · Concept §14 · Access   가장 가까운 자리: 사회 축(새 층)
-사회 — 경제 · 세력 · 협동 · 구조 · 미니게임 · 서사 · NPC 조우         Foundation §5.5              가장 가까운 자리: 같은 사회 축 — 위와 한 주입
+사회 — 경제 · 세력 · 협동 · 구조 · 미니게임 · 서사 · NPC 상호작용    Foundation 원문 §2.5 사회 Process · §2.7 사회 관계 · §7.7 상호작용~결과 · §7.12~§7.17 (원문 자리 그대로 — 층이 없어 Handoff 없음)   가장 가까운 자리: 같은 사회 축 — 위와 한 주입
 생물의 성별 · 번식 · 유전과 변이                                  Life                        가장 가까운 자리: Life 를 다시 여는 컨텐츠 행
 절벽 낙하                                                    Rooms GAP 밖                 가장 가까운 자리: 3층(몸에 하는 일)
 ```
@@ -570,14 +567,14 @@ Q2  떨어지는 자리를 세계가 알리지 않는다 — 추락은 거목 �
 
 | 순서 | 층 / 행 | 이름 (가칭) | 기획서 | Goal (방향) | 받는 것 | 전제 | 그때 필요한 주입 · 미지 | Cycle | 상태 |
 |---|---|---|---|---|---|---|---|---|---|
-| 2 | **L3** · M8 | 한 명만 무대에 선다 | [L7](../content/roadmap/L7-Fairy-Growth-Combination.md) §9~§11 · §20 · §4~§5 · [Access](../content/roadmap/L2-World-Access.md) §14.1 · §15 · K12 · [M5](../content/roadmap/M5-FrostCanyon.md) | 요정 둘을 편성해 협곡을 지난다 — 추위가 무대의 몸을 깎고, 교체하면 다른 Core 의 몸이 서고, 문이 몸의 성질을 묻고(property Lock 의 첫 판정), 열을 쫓는 것이 따뜻한 몸만 본다 | L7 3층 몫 · Access property Lock 판정 · Life F10 첫 개체 · M5 남은 것 | 없음 — 2층 판정과 병행 (Human 결정) | 미지 M8 의 이름(Human) · 시작 편성 둘 · 온기 값 (질문으로) | 넷 안팎 | **쓸 수 있음** |
+| 2 | **L3** · M8 | 한 명만 무대에 선다 | [L3-Handoff §2](../content/roadmap/L3-Handoff.md) (L7 §4 · §5 · §9~§11 · §20 — 3층 주입이 `L3-*.md` 로 세운다) · [Access](../content/roadmap/L2-World-Access.md) §14.1 · §15 · K12 · [M5](../content/roadmap/M5-FrostCanyon.md) | 요정 둘을 편성해 협곡을 지난다 — 추위가 무대의 몸을 깎고, 교체하면 다른 Core 의 몸이 서고, 문이 몸의 성질을 묻고(property Lock 의 첫 판정), 열을 쫓는 것이 따뜻한 몸만 본다 | L7 3층 몫 · Access property Lock 판정 · Life F10 첫 개체 · M5 남은 것 | 없음 — 2층 판정과 병행 (Human 결정) | 미지 M8 의 이름(Human) · 시작 편성 둘 · 온기 값 (질문으로) | 넷 안팎 | **쓸 수 있음** — 먼저 "3층 주입 — <방향 한 줄>" 로 L3-Handoff §2 를 기획서로 세운다 |
 | 3 | L2 회수 | 온 길은 남고, 갈 길에는 단서가 있다 | [Region](../content/roadmap/L2-World-Region.md) §11 · §17 · Concept §19-07 · 실주행 GAP Q1 · Q2 | 관찰자가 방 전이를 기록하고 판에서 되읽는다 · 출구를 지목하면 종류와 방향이 선다 · 추락 자리의 땅이 예고한다 | Rooms GAP 둘 | 없음 — 지금 | 위치 감각의 형태(지도 · 이정표 · 흔적 · 깊이 감각만) · 추락 예고를 둘지 (질문으로) | 둘 | **쓸 수 있음** |
 | 4 | L2 도구 | HundredRooms | [Tool-Scale §5](../content/roadmap/L2-World-Tool-Scale.md) | 미지 백 줄 → 방 백 개가 검사를 통과하고 관찰자가 열 곳을 걸어 흔적 → 원천 → 철 → 탄생지를 본다. 코드 diff 0 | Tool-Scale 의 HundredRooms | T2 확장 (CYCLES §3 — 요구와 답을 구조로) | 미지 백 줄의 **이름**(Human — 또는 초안기 후보를 Human 이 고른다) | 셋 안팎 | 기다림 — 이름 · T2 확장 |
-| 5 | L3 둘째 | (가칭) 몸이 알고 원한다 | 3층 나머지 절반 주입 + Subject-Decision · Autonomous-Behavior · Creature-Behavior | 몸이 무엇을 가지는가(피로 · 밤 · 결정면) · 생물이 무엇을 알고 어떻게 고르는가 · knowledge Lock · Discovery State | §3 의 "3층 둘째" 전부 | 후보 2 의 판정 | 3층 주입 + 미지: 무엇을 원하는지 아는 생물 하나 더 | 넷 안팎 | 기다림 |
-| 6 | L4 | (가칭) 캐서 지니면 갈 수 있는 곳이 늘어난다 | 4층 주입 + Item-* · Inventory-D1 · Resource-Catalog · L7 §8 · §17 | 보석 하나를 캐서 지니고, 물건 하나가 같은 행동을 다른 행동으로 바꾼다 → 세 계통의 답(몸 · 소지 · 환경)이 한 문에 실제로 선다 | L7 4층 몫 · Material S10 · Access 4층 몫 · Region §12 | 후보 2 | 4층 주입 · D2 · D4 + 미지: 어디서 나는지 정해진 자원 하나 | 넷 안팎 | 기다림 (차례대로) |
-| 7 | L5 | (가칭) 처음으로 맞서 이긴다 | 5층 주입 + Combat-* · Targeting · L7 §13 · §14 | 같은 적을 두 가지 상태 순서로 쓰러뜨린다 | L7 5층 몫 · Concept W6 · W7 · Time 접촉 | 후보 5 · 6 | 5층 주입 · D3 + 미지: 여러 해법을 허용하는 몬스터 하나 | — | 기다림 |
-| 8 | L6 | (가칭) 한 Core 가 두 Class 로 | 6층 주입 + Skill-* · L7 §6 · §11 | 한 Core 가 두 Class 로 다른 Law 가 되고, Leave 가 남긴 장판이 다음 요정의 능력과 반응한다 | L7 6층 몫 | 후보 7 | 6층 주입 · D5 + Class 둘의 정식 이름 | — | 기다림 |
-| 9 | L7 | (가칭) 보석 하나가 답을 바꾼다 | L7 전문 · Growth-Balance | 보석 하나로 Class 가 바뀌어 못 풀던 자리를 새 방법으로 푼다 · Knowledge 하나가 숨겨진 관계를 연다 · 미증명 ③ | L7 7층 몫 · Life F11 · Access 7층 몫 · Material S10 의 Class 요구 | 후보 8 · 6 | 7층 주입 · D1 + 미지: 보석 하나의 Region 과 원인 · Knowledge 하나 | — | 기다림 (차례대로) |
+| 5 | L3 둘째 | (가칭) 몸이 알고 원한다 | 3층 나머지 절반 주입 + [L3-Handoff §3](../content/roadmap/L3-Handoff.md) (Foundation 3층 몫) + Subject-Decision · Autonomous-Behavior · Creature-Behavior | 몸이 무엇을 가지는가(피로 · 밤 · 결정면) · 생물이 무엇을 알고 어떻게 고르는가 · knowledge Lock · Discovery State | §3 의 "3층 둘째" 전부 | 후보 2 의 판정 | 3층 주입 + 미지: 무엇을 원하는지 아는 생물 하나 더 | 넷 안팎 | 기다림 |
+| 6 | L4 | (가칭) 캐서 지니면 갈 수 있는 곳이 늘어난다 | 4층 주입 + [L4-Handoff](../content/roadmap/L4-Handoff.md) (L7 §8 · §16 · §17 · §24 · Foundation §7.6) + Item-* · Inventory-D1 · Resource-Catalog | 보석 하나를 캐서 지니고, 물건 하나가 같은 행동을 다른 행동으로 바꾼다 → 세 계통의 답(몸 · 소지 · 환경)이 한 문에 실제로 선다 | L7 4층 몫 · Material S10 · Access 4층 몫 · Region §12 | 후보 2 | 4층 주입 · D2 · D4 + 미지: 어디서 나는지 정해진 자원 하나 | 넷 안팎 | 기다림 (차례대로) |
+| 7 | L5 | (가칭) 처음으로 맞서 이긴다 | 5층 주입 + [L5-Handoff](../content/roadmap/L5-Handoff.md) (L7 §13 · §14 · Foundation §7.4) + Combat-* · Targeting | 같은 적을 두 가지 상태 순서로 쓰러뜨린다 | L7 5층 몫 · Concept W6 · W7 · Time 접촉 | 후보 5 · 6 | 5층 주입 · D3 + 미지: 여러 해법을 허용하는 몬스터 하나 | — | 기다림 |
+| 8 | L6 | (가칭) 한 Core 가 두 Class 로 | 6층 주입 + [L6-Handoff](../content/roadmap/L6-Handoff.md) (L7 §6 · §19 · §11 의 내용) + Skill-* | 한 Core 가 두 Class 로 다른 Law 가 되고, Leave 가 남긴 장판이 다음 요정의 능력과 반응한다 | L7 6층 몫 | 후보 7 | 6층 주입 · D5 + Class 둘의 정식 이름 | — | 기다림 |
+| 9 | L7 | (가칭) 보석 하나가 답을 바꾼다 | L7 (7층 몫) · [L7-Handoff](../content/roadmap/L7-Handoff.md) (Foundation §7.5) · Growth-Balance | 보석 하나로 Class 가 바뀌어 못 풀던 자리를 새 방법으로 푼다 · Knowledge 하나가 숨겨진 관계를 연다 · 미증명 ③ | L7 7층 몫 · Life F11 · Access 7층 몫 · Material S10 의 Class 요구 | 후보 8 · 6 | 7층 주입 · D1 + 미지: 보석 하나의 Region 과 원인 · Knowledge 하나 | — | 기다림 (차례대로) |
 | 3.5 | L2 Foundation 둘째 | (가칭) 둥지가 군락이 된다 | [Foundation](../content/roadmap/L2-World-Foundation.md) G12 · 빈칸 3 · §8 기준 17 · CROSSED · 탄생지 기회 | 개체군이 문턱을 넘으면 둥지 방의 standing 위상이 바뀌어 판 · 땅 · 문이 달라지고, 되돌아오면 되돌아간다 — 코드 diff 는 형 위의 데이터와 규칙 하나 | Foundation §3 "2층에서 지금 할 수 있는 것" | Life 닫힘 (있음) | 군락의 문턱 값 · 위상 이름은 Human | 둘 안팎 | **Human 이 순서를 정한다** — 2 · 3 과 병행 가능 |
 | — | 컨텐츠 행 | (대부분 Cycle 없음) | `M<N>-*.md` | 보석 여덟 · 보류 계열 일곱 · 클래스 · 아이템 · 지식 · 지역 — 등급 A 면 작성기 · Spec · 검사 · Human 판정 / B 면 Cycle 하나 / C 면 기반 층 | §3 의 "컨텐츠 행" 전부 | Human 이 이름 · 종류 · 세계관 사실을 확정 | 미지 하나씩 | — | Human 이 이름을 줄 때마다 |
 
@@ -589,7 +586,7 @@ Q2  떨어지는 자리를 세계가 알리지 않는다 — 추락은 거목 �
 design/ 에만 있는 것 — 그 층이 열릴 때 그 기획서의 Cycle 들이 세운다.
 
 ```text
-전투 공식 · 막기 · 피해 종류 · 살펴봄 · 태도 · 장비 · 스킬 형태 · 성장 · 재료의 쓰임          4~7층
+전투 공식 · 막기 · 피해 종류 · 살펴봄 · 태도 · 장비 · 스킬 형태 · 성장 · 재료의 쓰임          4~7층 (원문 절은 L4~L7-Handoff)
 조건의 한 형 · 기회 · Event(Condition · Opportunity · 검사 ㊹ ㊺ ㊻) — 기억(history · ㊸ ㊼)은 코드에 있다        후보 1 (C035~C037)
 편성 · 무대의 한 명 · 온기 · property Lock 의 판정(몸이 요구에 답하는 것)                        후보 2 · 4층(소지)
 온 길의 기록 · 갈 길의 단서                                                                후보 3

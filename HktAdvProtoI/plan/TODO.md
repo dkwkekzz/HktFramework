@@ -12,12 +12,12 @@
 ## 1. Human — 답할 것 (순서대로)
 
 ```text
-1  지목  다음 기획서 — 후보 2 편성과 무대(3층) · 3 Rooms GAP 회수 · 3.5 둥지가 군락이 된다(Foundation 둘째 — 순서 배치는 Human) → AI 가 그 기획서의 Cycle 전부를 spec 으로 (C039~)   DESIGN.md §5
+1  지목  다음 기획서 — 후보 2 편성과 무대(3층 — 먼저 "3층 주입 — <방향 한 줄>" 로 L3-Handoff §2 를 기획서로) · 3 Rooms GAP 회수 · 3.5 둥지가 군락이 된다(Foundation 둘째 — 순서 배치는 Human) → AI 가 그 기획서의 Cycle 전부를 spec 으로 (C039~)   DESIGN.md §5
 2  판정  빙결 협곡 실주행 — Frost-1 ~ Frost-6 (그 절의 "결정 대기" 값 · 규칙을 함께 본다)                                        DESIGN.md §3 M5-FrostCanyon
 3  판정  생명 · 붉은 알집 실주행 — Life-1 ~ Life-6 (〃)                                                                      DESIGN.md §3 L2-World-Life
 4  판정  요구와 가능성 실주행 — Access-1 ~ Access-5 (〃)                                                                     DESIGN.md §3 L2-World-Access
 5  이름  HundredRooms 의 미지 백 줄 — 직접 주거나 초안기(world:draft --batch) 후보를 고른다                                       DESIGN.md §5 후보 4
-6  주입  3층 나머지 절반 — 몸의 값 전반 · 생물의 앎과 선택 (후보 2 판정 뒤)                                                       DESIGN.md §1 · §5 후보 5
+6  주입  3층 나머지 절반 — 몸의 값 전반 · 생물의 앎과 선택 (후보 2 판정 뒤 · L3-Handoff §3 과 합친다 · 그때 2층 나머지 일곱 문서의 뒤 층 절도 Handoff 로)   DESIGN.md §1 · §5 후보 5
 7  이름  컨텐츠 행 — 보석 여덟 · 보류 계열 일곱 · Region §5.1 나머지 … 하나씩                                                   DESIGN.md §3 "컨텐츠 행"
 8  결정  도구 — 갈래 hazard/terrain 의 땅이 분지인가 협곡 벽인가 · 방 아홉의 kinds 를 채우는가 (Cycle 이 아니라 작성기의 것)            DESIGN.md §3 Tool-Scale "결정 대기 — 도구"
 ```
