@@ -87,7 +87,7 @@ CYCLES         C### <한 줄 목표> → C### <한 줄 목표> → C### <한 줄
 행             L<N> 또는 M<N> — 이 기획서가 세우는 로드맵의 행 하나 (기반 층이면 놓는 미지 M<N> 도 — 이름은 Human)
 ```
 
-- **AI 가 자른다** — 각 Cycle 의 Playable Goal · Experience Intent · World Change · 사건마다 World Cause. 방향 한 줄만
+- **AI 가 자른다** — 각 Cycle 의 Playable Goal · Experience Intent · 규칙 표(조건 + 변형 쌍) · 쌍마다 World Cause. 방향 한 줄만
   주입돼도 이 층은 AI 가 지어 올린다 (승인으로 확정되므로 창작이되 독단이 아니다). Cycle 순서는 의존성 + 경험의 점진 완성.
   각 Cycle 은 작다 · 플레이 가능하다 · World 변화가 분명하다 · 화면 또는 상태로 확인할 수 있다 · 검증할 수 있다 · 이후 Cycle 에서 재사용할 수 있다.
 - **Human 이 정한다** — 게임 의미(수치 · 확률 · 시간 · 범위 · 원리의 확정 · 세계관 사실 · 이름). AI 는 지어내지 않고 첫 spec 의
@@ -115,7 +115,7 @@ spec 단계에서 자를 수 없다고 판정되면 spec 을 쓰지 않고 나�
 
 ## 6. Cycle 들의 spec — 첫 것은 동결 후보 · 뒤 것은 초안
 
-Cycle 마다 `cycles/C###-이름/spec.md` 를 Cycle 공정의 형식으로 쓴다 (범위 절 · SPEC · State · Rule · Observable · UNRESOLVED).
+Cycle 마다 `cycles/C###-이름/spec.md` 를 Cycle 공정의 형식으로 쓴다 (범위 절 · 규칙 표 · 데이터 · 이름표 · UNRESOLVED — Cycle 공정 §7 · §8).
 첫 spec 의 UNRESOLVED 에 **이 기획서의 질문 전부**를 둔다. 뒤 Cycle 의 spec 은 같은 형식의 **초안**이다 — 머리에 첫 spec 링크와
 "초안" 표시, UNRESOLVED 에는 "첫 spec 의 질문 Q<n> 의 답이 이 spec 에 든다" 와 그 spec 에서 새로 생긴 의미만.
 
@@ -124,11 +124,12 @@ Cycle 마다 `cycles/C###-이름/spec.md` 를 Cycle 공정의 형식으로 쓴�
 CYCLE / SOURCE / SELECTED_FROM / CYCLES / 행   Trace 블록 하나 (§5 — CYCLES 줄은 기획서의 첫 Cycle 에만)
 ## Playable Goal     이번에 성립할 플레이 결과 한두 문장
 ## Experience Intent 이 Cycle 이 만드는 경험 전환 — Start / End
-## World Change      세계에서 무엇이 어떻게 변하는가
 ## Observable Result 화면/상태에서 무엇을 직접 확인하는가
-## Reuse             Existing / Added
 ## Out of Scope      이번에 하지 않는 것과 그것을 받을 Cycle
-(이어서 SPEC · State · Rule · Observable · UNRESOLVED — Cycle 공정)
+## 규칙              규칙 = (조건 + 변형) × n — 사람이 읽는 표 (Cycle 공정 §7)
+## 데이터            이 Cycle 의 값 표 — 값과 근거
+## 이름표            규칙의 낱말 → 코드 · Existing / Added · REUSED / ADDED / CHANGED / AFFECTED — 구현자만 읽는다 (Cycle 공정 §8)
+## UNRESOLVED
 ```
 
 ## 7. 게이트 — "C### 진행" 하나

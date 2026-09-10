@@ -62,12 +62,12 @@ ENGINE GAP       (실현)   기존 engine 계약 변경 필요 → 승인 요청
 spec 의 형식 · 의미 규칙(Design 침묵의 판정 · 범위 게이트 · 확장 Cycle · 코드 구조 금지 · 기반 Cycle 의 경험 값은 Data Knobs)은
 [advprotoi-spec §2](../advprotoi-spec/SKILL.md) 그대로다 — 여기서 다시 쓰지 않는다.
 
-1. **답 반영** — UNRESOLVED 의 항목마다 Human 답을 그 자리(State 값 표 · Rule · 검사)에 옮기고 목록에서 지운다.
+1. **답 반영** — UNRESOLVED 의 항목마다 Human 답을 그 자리(규칙 표의 빈 칸 · 데이터 표 · 이름표)에 옮기고 목록에서 지운다.
    답이 기획서에 없던 세계관 사실이면 먼저 `content/roadmap/` 그 행의 문서에 Human 의 문장으로 덧붙인다 (Design 에 반영됐음을 확인한 뒤 spec 에).
-2. **「다음 Cycle 로」 회수** (뒤 Cycle) — 항목을 하나씩 판정한다: 이번 Cycle 이 받는 것은 SPEC/Reuse 로, 받지 않는 것은 Out of Scope 에 받을 Cycle 을
+2. **「다음 Cycle 로」 회수** (뒤 Cycle) — 항목을 하나씩 판정한다: 이번 Cycle 이 받는 것은 규칙 표/이름표 로, 받지 않는 것은 Out of Scope 에 받을 Cycle 을
    적는다 (받을 Cycle 이 없으면 결정 대기 · DESIGN.md 남은 것 · CYCLES.md 부채 중 맞는 자리로 옮긴다). 회수 규칙의 원본은 Plan-Skill §3. 초안 머리의
    "초안" 표시를 지운다.
-3. **범위 게이트 재확인** — Playable Goal 한두 문장 · SPEC 열 항 이내. 답을 받으며 커졌으면 쪼개 후보를 내고 Human 선택을 받는다.
+3. **범위 게이트 재확인** — Playable Goal 한두 문장 · 규칙 열 · 쌍 마흔 이내. 답을 받으며 커졌으면 쪼개 후보를 내고 Human 선택을 받는다.
 4. **판정** —
    `UNRESOLVED = 없음` → **동결**. 이후 아무도 고치지 않는다 (의미를 바꿔야 하면 새 Cycle). 바로 1.5 로.
    `UNRESOLVED > 0` → 목록을 Human 질의로 올리고 **정지**. 답이 오면 1 부터 다시.
@@ -86,7 +86,7 @@ Human 직접 Goal 의 Cycle(SELECTED_FROM = "Human")은 그 SOURCE 기획서 절
 
 ### 2.1 관찰 계약 확정 + 기구/의미 분해 (fan-out 전 단일 작업)
 
-**관찰 계약**: spec.md 의 Observable 절을 `content/protocol/` 로 옮긴다 — **기계적 변환**이어야 하며,
+**관찰 계약**: spec.md 이름표의 관찰 봉투 자리를 `content/protocol/` 로 옮긴다 — **기계적 변환**이어야 하며,
 여기서 투영 대상을 새로 판단하게 되면 spec 의 결손이다 (DESIGN GAP). 컨텐츠를 조립에 잇는 자리는
 `content/active*.ts` 뿐이다.
 
@@ -136,19 +136,19 @@ Agent 별 규칙:
 - **E**: 이름·데이터는 매개변수와 제네릭으로 받는다. 구현한 기구 목록(무엇을 · 어떤 요구에서)을
   보고한다 — engine 커밋 메시지의 재료다.
 - **W**: State 변경은 World Rule 의 Transition 에서만 (원칙 4). 팩 시스템은 `engine/physics`
-  솔버를 조합한다. **Rule ↔ 코드 Trace 는 코드 주석** — 각 R# 를 실현하는 함수 머리에 `RULE-…`
-  id 를 한국어 주석으로. grep 이 곧 매핑 표다. R# 전부가 어느 함수에 닿는지 보고한다.
+  솔버를 조합한다. **Rule ↔ 코드 Trace 는 코드 주석** — 규칙 표의 각 규칙을 실현하는 함수 머리에 `RULE-…`
+  id 를 한국어 주석으로. grep 이 곧 매핑 표다. 규칙 전부가 어느 함수에 닿는지 보고한다. 낱말 → 코드는 이름표를 따른다.
 - **V**: 새 의미를 만들지 않는다 (원본 §12). `view/resolve.ts` · `code-text.ts` 등 팩 계약 자리를
   따른다. State → 표현의 대응은 `content/view` 의 표 자체가 원본이다. 기반 Cycle 이면 예제 하나만 보이게 하고,
   경험을 가르는 것(문구 · 표기 · 어느 코드를 세우나 · 순서)은 spec 의 Data Knobs 가 지목한 **표**에 둔다 — 함수 안의 상수로 두지 않는다.
-- **T**: **Black-box** — 읽는 것은 spec.md 뿐 (SPEC = 무엇을 · State/Rule/Observable = 어떤 State 를).
+- **T**: **Black-box** — 읽는 것은 spec.md 뿐 (규칙 표 = 무엇을 · 이름표 = 어떤 State 를).
   새 코드·W/V 결과는 보지 않고 **기존 하네스**(createWorld · driveWorld · 관찰 봉투 · 기존
   spec/fixture 선례)만 쓴다. 하네스로 놓을 수 없는 Given 은 `it.todo('GAP: …')`.
-  형식: `describe('SPEC-00x <이름>')` 안 `it('S-0xx <한 줄>')` — Given/When/Then 을 주석으로,
-  단언은 spec 의 점 경로로. REUSED/AFFECTED 의 기존 행동(회귀)도 `describe('회귀')` 로.
+  형식: `describe('<RULE id> <규칙 이름>')` 안 `it('① <조건 → 변형 한 줄>')` — **쌍 하나가 it 하나**. 조건이 Given · 변형이 Then 이고
+  단언은 이름표의 점 경로로. REUSED/AFFECTED 의 기존 행동(회귀)도 `describe('회귀')` 로.
   **전체 개수를 단언하지 않는다** — 이 Cycle 이 더한 것의 존재와 행동만. spec 이 침묵해 판정 방식을
   정해야 했던 자리는 보고에 목록으로. 기반 Cycle 이면 `describe('손잡이')` 를 둔다 — Data Knobs 하나를 바꾼
-  데이터(변형 방 · 변형 표 — 선례 `c004` 의 `VARIANT_ROOM`)로 세계를 세워 행동이 따라 바뀜을 단언한다 (손잡이 SPEC · 코드 0).
+  데이터(변형 방 · 변형 표 — 선례 `c004` 의 `VARIANT_ROOM`)로 세계를 세워 행동이 따라 바뀜을 단언한다 (손잡이 규칙 · 코드 0).
 
 ### 2.3 통합·검증
 
@@ -165,11 +165,11 @@ Agent 별 규칙:
 (예: `시나리오 33/33 PASS · 7항 충족 · Human 판정 대기 8`). 문서에 체크리스트를 남기지 않는다.
 
 ```text
-Design Trace / Scope / Semantic / Rule   spec.md 의 SOURCE · Playable Goal(기반: Foundation Goal) · State · Rule
-Implementation                           모든 R# 에 RULE id 주석이 달린 함수가 있다 (grep)
+Design Trace / Scope / Semantic / Rule   spec.md 의 SOURCE · Playable Goal(기반: Foundation Goal) · 규칙 표 · 데이터 · 이름표
+Implementation                           규칙 표의 모든 규칙에 RULE id 주석이 달린 함수가 있다 (grep)
 Observable                               관찰 계약 + V 의 표 (기반: 검사 JSON · observe 보고 · 봉투가 먼저 — 화면은 예제 하나)
 Verification                             시나리오 테스트 전부 PASS + plan/DESIGN.md §3 그 기획서 절의 관찰 항목
-                                         (기반: + 손잡이 SPEC · 명사 0 SPEC PASS + Module Check 의 모듈마다 단언이 있다 + 기반 검토 항목)
+                                         (기반: + 손잡이 규칙 · 명사 0 규칙 PASS + Module Check 의 모듈마다 단언이 있다 + 기반 검토 항목)
 ```
 
 7항 전부 + 시나리오 전부 PASS 여야 완료다. 미달이면 미완 항목과 반환 대상을 보고하고 완료

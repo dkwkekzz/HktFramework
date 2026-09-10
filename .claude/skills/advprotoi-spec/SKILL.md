@@ -49,7 +49,7 @@ description: HktAdvProtoI 공정의 둘째 단계 — 주입된 기획서 하나
   "첫 것만 쓰고 나머지는 다음에" 는 없다 — 나눌 자리(절 번호 · 갈래 이름 · 갈래마다 서는 플레이 한 줄)를 제안해 Human 에게 돌려보내고,
   Human 이 나누면(또는 inject 에 시키면) 나뉜 문서 하나로 다시 시작한다.
 - **Cycle 순서** — 의존성 + 경험의 점진 완성. 각 Cycle 은 작다 · 플레이 가능 · World 변화 분명 · 관찰 가능 · 검증 가능 · 재사용 가능
-  (기반 Cycle 은 축의 의존성 — 각각 기구 하나 또는 계약 하나 + 예제 · 손잡이 SPEC 가능 · 회귀 가능).
+  (기반 Cycle 은 축의 의존성 — 각각 기구 하나 또는 계약 하나 + 예제 · 손잡이 규칙 가능 · 회귀 가능).
 
 **실주행 GAP 회수**이면 입력은 `plan/DESIGN.md` §3 그 기획서 절의 "아니오" 판정 질문이다. 새 축도 새 미지도 아니다 — 로드맵 행을 올리지 않는다.
 질문 하나가 그 기획서의 자리에 들어가면 Cycle 하나를 더한다(§2 — SOURCE 에 그 질문 번호). 여럿에 걸치면 관찰 가능성 Cycle 하나로 자른다 —
@@ -63,7 +63,7 @@ CYCLES         C### <한 줄 목표> → C### <한 줄 목표> → C### <한 줄
 행             L<N> 또는 M<N> (기반 층이면 놓는 미지 M<N> 도 — 이름은 Human)
 ```
 
-- **AI 가 자른다** — 각 Cycle 의 Playable Goal · Experience Intent · World Change · 사건마다 World Cause. 방향 한 줄만 와도 이 층은 AI 가 지어 올린다.
+- **AI 가 자른다** — 각 Cycle 의 Playable Goal · Experience Intent · 규칙 표(조건 + 변형 쌍) · 쌍마다 World Cause. 방향 한 줄만 와도 이 층은 AI 가 지어 올린다.
 - **Human 이 정한다** — 게임 의미. 지어내지 않고 첫 spec 의 UNRESOLVED 에 모은다 — 뒤 Cycle 의 것도 여기서 한 번에. 주입물의 의도를 크게 벌리는 선택도 질문에 함께.
 - 기획서 하나는 행 하나만 세운다. 확정되지 않은 축의 의미가 필요해지면 Required 가 아니라 질문으로.
 - **Cycle 전부의 spec 을 함께 쓴다** — 첫 Cycle 의 spec 은 동결 후보, 뒤 Cycle 의 spec 은 자기 폴더 `cycles/C###-이름/spec.md` 에
@@ -77,7 +77,7 @@ Human 직접 Goal · GAP 회수의 Cycle 하나이면 입력은 그 Goal 과 **`
 읽지 않는다 — 그것은 기획서 단위 Human 몫이다). 기획서를 재해석하지 않는다 — 이번 것만 잘라 검증 가능한 문장으로 **폐쇄**한다.
 코드는 보지 않는다 (Existing 판정은 `codemap/ENGINE.md` · `codemap/CONTENT.md` + 기존 `cycles/*/spec.md` 의 ADDED 로).
 
-「다음 Cycle 로」의 항목은 하나씩 판정한다 — 이번 Cycle 이 받는 것은 SPEC/Reuse 로 들어오고, 받지 않는 것은 Out of Scope 에
+「다음 Cycle 로」의 항목은 하나씩 판정한다 — 이번 Cycle 이 받는 것은 규칙 표/이름표 로 들어오고, 받지 않는 것은 Out of Scope 에
 받을 Cycle 을 적는다 (받을 Cycle 이 없으면 보고에 "결정 대기 · DESIGN.md 남은 것 · CYCLES.md 부채 중 어디로" 를 적는다 — 옮기는 것은 cycle 의 승인 기입). 회수 규칙의 원본은 Plan-Skill §3.
 
 ```text
@@ -88,20 +88,25 @@ CYCLE / SOURCE / SELECTED_FROM / CYCLES / 행   Trace 블록 하나 (SOURCE = �
    (기반 Cycle: ## Foundation Goal — 기구(engine 에 무엇이) · 계약(컨텐츠가 데이터로 무엇을 채우나) · 예제(이 세계의 데이터 한 줄 — 무엇이 보이나) 세 줄)
 ## Experience Intent    Start / End — 이 Cycle 이 만드는 경험의 전환
    (기반 Cycle: ## Data Knobs — 표: 손잡이(컨텐츠가 코드 없이 바꾸는 것) · 자리(어느 파일 · 어느 표) · 기본값. 경험을 가르는 값 · 문구 · 표시 · 배치가 여기 없으면 spec 의 결손)
-## World Change         세계에서 무엇이 어떻게 변하는가 (번호 목록)
-## Observable Result    화면/상태에서 무엇을 직접 확인하는가 (번호 목록 — 기반 Cycle 은 도구 · State(검사 JSON · observe 보고 · 봉투)가 먼저, 화면은 예제 하나)
-   (기반 Cycle: ## Module Check — 표: 모듈(기구 · 어댑터 · 검사 · 투영 · 표 · 도구) · 무엇이 단언하나(engine 테스트 · 시나리오 SPEC · world:check · 도구 테스트 · grep))
-## Reuse                Existing(그대로 쓴다) / Added(이 Cycle 이 세운다 — World · Protocol · Data · View · Engine)
+## Observable Result    화면/상태에서 무엇을 직접 확인하는가 (번호 목록 — 규칙 표의 변형을 플레이 순서로 다시 읽은 것.
+                        기반 Cycle 은 도구 · State(검사 JSON · observe 보고 · 봉투)가 먼저, 화면은 예제 하나)
+   (기반 Cycle: ## Module Check — 표: 모듈(기구 · 어댑터 · 검사 · 투영 · 표 · 도구) · 무엇이 단언하나(engine 테스트 · 시나리오 · world:check · 도구 테스트 · grep))
 ## Out of Scope         이번에 하지 않는 것과 그것을 받을 Cycle
-## SPEC                 SPEC-001 … — World Change·Observable Result 를 참·거짓을 가릴 문장으로 폐쇄.
-                        각 항은 조건 하나 + 기대 하나, 경계(성립하지 않는 경우)도 최소 한 항.
-                        기반 Cycle 은 반드시 둘을 둔다 — 손잡이 SPEC(Data Knobs 하나를 데이터로 바꾸면 행동이 따라 바뀐다 · 코드 diff 0) · 명사 0 SPEC(engine 과 규칙 코드에 게임 명사 글자가 없다 · grep)
-## State                존재와 상태를 점 경로로 (Wolf.knowledge.fireDanger 식) + 이 Cycle 의 데이터 값 표
-## Rule                 R1, R2… — IF <상태 + 사건 + 조건> THEN <새 상태>. Design 의 언어와 직접 대응.
-                        기존 Rule 은 CHANGED(전제/전이 변경) / AFFECTED(대상 집합만) 로 표시
-## REUSED / ADDED       REUSED(이름만 인용 · 재정의 금지) · ADDED · CHANGED · AFFECTED
-## Observable (관찰 계약)  투영할 State 를 점 경로로 열거 — 실현 단계가 그대로 protocol/ 로 옮긴다.
-                        투영하지 않는 것도 한 줄 (그것이 미지감인 경우가 많다)
+## 규칙                 규칙 = (조건 + 변형) × n — Cycle 원본 §7 의 형식 그대로. **사람이 읽는 표**다.
+                          규칙  <한 줄 이름>   <RULE id · ADDED | CHANGED | 데이터(기존 규칙 id 위)>   근거 <기획서 절>
+                            ① 조건  <장면 — 손으로 만들 수 있는 세계 상태 하나 · 현재형>
+                               변형  <보이는 차이 — 눈이나 도구로 확인되는 것>
+                        한 쌍에 조건 하나 · 변형 하나. 반대 조건의 쌍(성립하지 않는 경우)이 규칙마다 최소 하나.
+                        코드 이름 · 점 경로 · 약어 · 데이터 선언("~를 밝혔다")을 쓰지 않는다 — 그것은 이름표의 것.
+                        사례로 쓴다(일반형은 문장에 두지 않는다). 숫자는 그 숫자가 의미일 때만 · 기획서에 없는 값은 칸을 비우고 UNRESOLVED.
+                        회귀도 규칙 하나 (조건: 이 Cycle 이 들어갔다 · 변형: 앞 세계의 무엇이 그대로다).
+                        기반 Cycle 은 반드시 둘을 둔다 — 손잡이 규칙(조건: Data Knobs 하나를 데이터로 바꿨다 · 변형: 행동이 따라 바뀐다 · 코드 diff 0) ·
+                        명사 0 규칙(조건: engine 과 규칙 코드를 grep 한다 · 변형: 게임 명사 글자가 없다).
+## 데이터               이 Cycle 의 데이터 값 표 — 값과 근거(기획서 절 · 기본형 번호). 규칙 문장의 숫자는 여기서 온다.
+## 이름표               **구현자만 읽는다** — Cycle 원본 §8. 규칙 문장의 낱말 → 코드 (존재와 상태의 점 경로 · 데이터 자리 · 관찰 봉투의 자리 ·
+                        재는 테스트 — 규칙 하나 = describe · 쌍 하나 = it) · 투영하지 않는 것 한 줄 (그것이 미지감인 경우가 많다) ·
+                        Existing(그대로 쓴다 · 이름만 인용 · 재정의 금지) / Added(World · Protocol · Data · View · Engine) · REUSED / ADDED / CHANGED / AFFECTED.
+                        실현 단계가 관찰 봉투의 자리를 그대로 protocol/ 로 옮긴다.
 ## UNRESOLVED           Design 에 없어 결정하지 못한 의미 (없으면 "없음") + 기본형으로 둔 것의 목록
 ```
 
@@ -114,13 +119,16 @@ CYCLE / SOURCE / SELECTED_FROM / CYCLES / 행   Trace 블록 하나 (SOURCE = �
 - **Design 침묵의 판정** — 이번 Cycle 이 성립하는 데 그 답이 **필요하면** UNRESOLVED, 답 **없이도
   성립하면** Out of Scope 로 돌리고 기본형(기존 Rule 그대로 · Design 이 준 이름만)으로 둔다.
   기본형으로 둔 것은 UNRESOLVED 아래 목록으로 — Human 이 감사할 자리다.
-- **범위 게이트** — Playable Goal 을 한두 문장으로 말할 수 없거나 SPEC 이 열 항을 넘으면 크다.
+- **범위 게이트** — Playable Goal 을 한두 문장으로 말할 수 없거나 규칙이 열을 넘거나 쌍이 마흔을 넘으면 크다.
   쪼개 후보를 내고 Human 선택을 받는다. 기획서 전체가 Cycle 넷을 넘어가면 §1 의 "한 세션에 잘리는가" 로 돌아간다 — 기획서를 나눈다.
 - **확장 Cycle** (원본 §18) — 기존 `cycles/*/spec.md` 의 Semantic/Rule 을 복사·재작성하지 않고
-  그 위에 추가함을 SOURCE 에 적는다.
+  그 위에 추가함을 SOURCE 에 적는다. 기존 규칙은 규칙 표에 다시 쓰지 않는다 — 그 위에 놓는 데이터의 쌍만 쓰고 규칙 id 를 인용한다.
 - **금지** (원본 §6) — Service · Repository · Manager · Component 같은 코드 구조를 여기 쓰지 않는다.
-  모든 State/Rule 은 컨텐츠의 의미다 — 기반(engine)은 게임 명사를 모른다. 기구 추출은 실현(cycle)의 몫.
+  모든 규칙 · 이름표의 State 는 컨텐츠의 의미다 — 기반(engine)은 게임 명사를 모른다. 기구 추출은 실현(cycle)의 몫.
+- **좋은 쌍의 잣대** (원본 §7) — "이 조건을 세계에서 만들 수 있고, 이 변형을 눈이나 도구로 확인할 수 있는가". 하나라도 아니면 쌍을 다시 쓴다.
+  규칙 표만 읽고 테스트를 쓸 수 있어야 한다 — 이름표를 봐야 뜻이 통하는 문장은 규칙 표의 결손이다.
 - 컨텐츠 행(미지)의 Cycle 이면 README §4 열 질문의 답이 첫 spec 에 있는지 본다 — 없으면 UNRESOLVED.
+- **시범** — 이 형식으로 옮긴 선례는 [C020 spec.rules-draft.md](../../../HktAdvProtoI/cycles/C020-what-the-cold-makes/spec.rules-draft.md) (동결된 spec.md 는 옛 형식 그대로 · 새 형식은 C039 부터).
 - **기반 Cycle 의 경험 값은 UNRESOLVED 가 아니다** — 문구 · 숫자 표기 · 무엇을 판에 세우나 · 임계 · 자락 크기처럼 경험을 가르는 값은 Human 에게
   묻지 않고 **Data Knobs 에 자리와 기본값**으로 둔다 (기본값은 기존 코드의 값 · 기획서가 준 값 · 없으면 가장 단순한 것). 묻는 것은 계약 결정(형 · 축 · 경계)뿐.
 
