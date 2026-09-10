@@ -171,14 +171,17 @@
 ### L2-World-Material — 재료 생태와 공급 계약
 
 ```text
-덮음      C011~C014(S1~S12) · C019~C021(둘째 적용 — 판정 대기) · C022~C025(RESIDUE 의 주인 — 판정 대기)
+덮음      C011~C014(S1~S12 · 검사 ⑩~㉒ · §10 양식 · 위임 ①~④) · C019~C021(둘째 적용 — S9 흐름 · 판정 대기) · C022~C025(RESIDUE 의 주인 · A.2 회복 원인 — 판정 대기) ·
+          C029~C030(§6.1 observableProperties · S10 의 경계) · C036(§3.3 Resource Opportunity 역할) · 실주행 판정 회수(S13 흩어진 것 — Cycle 없이 데이터로, 숲 여섯 방에 열아홉)
 덮인 것   원천 · 흔적 · 구배 · 생애 · 공급 · 채취 결과 · 흐름 · 도구 보고 ⑩~㉒
 남은 것   S10 이 미룬 쓰임(Recipe · 조합 · Item 효과 · 수치 · Class 요구)                    → 4층 · 7층
-          CREATURE Carrier 의 살아 있는 쪽 · 채취가 생물 행동에 미치는 것 · §4 "주변 생물의 행동"   → 3층 둘째
+          CREATURE Carrier 의 살아 있는 쪽 · MIGRATORY 공급의 운반체 · 채취가 생물 행동에 미치는 것 · §4 "주변 생물의 행동"   → 3층 둘째
           §2.2 플레이어 지식 상태                                                        → 3층 둘째
           살아 있는 생물(광식충 · 조류 · 포식수)에 매달린 원천 일곱 — 몸과 행동                  → 3층
-          둘째 흐름 · 유한 원천(FINITE_WORLD_STATE)                                       → 다음 Region 의 컨텐츠 행
-          hazard · phenomenon layer 컨텐츠 주입 — 검사 ①④ 가 그때까지 absent                → 컨텐츠 층 주입
+          유한 원천(FINITE_WORLD_STATE · 위임 ⑤) — 검사 ⑮ 가 그때까지 absent("다 쓰면 끝나는 원천이 없다")   → 다음 Region 의 컨텐츠 행
+          phenomenon layer 컨텐츠 주입 — 검사 ④ 가 그때까지 absent (① 은 협곡이 채웠다)              → 컨텐츠 층 주입
+          2층에 남은 절 없음 — 재주입 대조(S1~S13 · 검사 ⑩~㉒ · 위임 ①~⑤ ↔ C011~C014 · C019~C025 · C029~C030 · C036 spec SOURCE · world:check pass 31 · fail 0 · absent 2) 결과.
+          기획서를 나누지 않는다. C011~C013 의 SOURCE 는 옛 Play(RoomBearsMaterial)를 가리킨다 — 그 Play 가 S 를 옮긴 번역이었고 git history 에 있다
 ```
 
 결정 대기 — 재료 (C011~C014) · 값 · 규칙 · 방향. Human 이 정하면 지우고 그 값이 사는 자리(데이터 · spec · 기획서)로 보낸다
