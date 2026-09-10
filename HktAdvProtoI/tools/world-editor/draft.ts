@@ -133,7 +133,16 @@ export function trialBrief(brief: RegionBrief): DraftTrial {
     return {
       ok: false,
       problems: grade.blocking.map(gapLine),
-      retry: stripped.blocking.length > 0,
+      // 되물을 것인가 돌려보낼 것인가 — 갈림은 **세계가 자라야 하는가**다.
+      //
+      //   요구를 다 지워도 걸린 것이 남는다  → 그 방 자체의 일이라 되묻는다
+      //   요구가 등급을 낮추지 않았다(A)     → 되묻는다. "적으면 서는 것" 을 요구로 적었을 뿐이고
+      //                                     (fact 갈래) 규율은 이미 글로 서 있다 — 프롬프트 규율 7
+      //   그 밖(B · C)                     → 돌려보낸다. 규칙이나 축이 서야 하고 그것은 Cycle 의 일이다
+      //
+      // 둘째 줄이 T6 실주행에서 났다 — 쓰러진 거목 하나가 "죽은 거목이 사체에 드는가" 를 요구로
+      // 적어 등급 A 인 채로 돌아왔다. 되묻지 않으면 한 바퀴만 더 돌면 설 방을 사람에게 미룬다.
+      retry: stripped.blocking.length > 0 || grade.grade === 'A',
     };
   }
 
@@ -342,15 +351,29 @@ export function renderDraft(result: DraftResult, grade?: GradeResult): string {
 
 /** 목록 하나를 돌린 뒤의 보고 — 몇이 섰고 몇이 돌아왔는가, 그리고 다음에 무엇을 하는가 */
 export function renderBatch(candidates: readonly Candidate[], dir: string): string {
-  const count = (outcome: string) =>
-    candidates.filter((c) => c.judgement.outcome === outcome).length;
-  const gradeCount = (grade: string) =>
-    candidates.filter((c) => c.judgement.grade === grade).length;
+  const of = (outcome: string) => candidates.filter((c) => c.judgement.outcome === outcome);
+  const count = (outcome: string) => of(outcome).length;
+  // 등급은 **그 무리 안에서** 센다 — 전체에서 세면 "선 것 4 (A 5)" 처럼 읽혀
+  // 어느 등급이 어느 무리의 것인지 갈리지 않는다 (T6 실주행에서 실제로 그렇게 나왔다).
+  // 섰는가와 등급은 다른 축이다: 등급 A 인 채로 돌아오는 방이 있다 (요구를 적었으나 그것이
+  // 등급을 낮추지 않은 경우) — 그 사실이 이 줄에서 보여야 한다
+  const graded = (outcome: string, grade: string) =>
+    of(outcome).filter((c) => c.judgement.grade === grade).length;
+  const spread = (outcome: string) =>
+    ['A', 'B', 'C']
+      .map((grade) => [grade, graded(outcome, grade)] as const)
+      .filter(([, n]) => n > 0)
+      .map(([grade, n]) => `${grade} ${n}`)
+      .join(' · ');
+  const withSpread = (label: string, outcome: string) => {
+    const inner = spread(outcome);
+    return `${label} ${count(outcome)}${inner === '' ? '' : ` (${inner})`}`;
+  };
   return [
     '',
-    `  ${candidates.length} 줄을 돌렸다 — 선 것 ${count('passed')} (A ${gradeCount('A')}) ·` +
-      ` 돌아온 것 ${count('returned')} (B ${gradeCount('B')} · C ${gradeCount('C')}) ·` +
-      ` 못 선 것 ${count('exhausted')}`,
+    `  ${candidates.length} 줄을 돌렸다 — ${withSpread('선 것', 'passed')} ·` +
+      ` ${withSpread('돌아온 것', 'returned')} ·` +
+      ` ${withSpread('못 선 것', 'exhausted')}`,
     `  후보가 머무는 자리: ${dir}`,
     '',
     '  나란히 놓고 보려면:',
