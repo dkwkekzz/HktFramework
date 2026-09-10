@@ -431,6 +431,13 @@ function materialPhrases(materialId: string): string[] {
  *
  * **몇 번 고갈되었는지는 적지 않는다** — spec 이 부른 값은 캐인 횟수와 마지막 고갈의
  * 나이 둘이고, 고갈의 셈은 그 마디가 서는가를 가를 뿐이다. **누가 캤는지도 없다.**
+ *
+ * **판이 말하지 않는 것 — 확정** (Human 결정): 고갈된 횟수도 깨어난 시각도 판에 세우지
+ * 않는다. 세계는 둘 다 싣지만 판은 세로로 자랄수록 몸을 가리고, 그 둘은 "지금 무엇을 할 수
+ * 있는가" 를 가르지 않는다. 물어야 할 날이 오면 그때 마디를 늘린다.
+ *
+ * **셈은 아라비아 숫자로 적는다 — 확정** (Human 결정): 셈에 상한이 없어 세는 말의 표
+ * (한 번 · 두 번 …)를 두면 큰 수에서 말을 잃는다. 숫자는 어느 수에서도 읽힌다.
  */
 function sourceMemoryText(memory: SourceMemoryView, worldTime: number | undefined): string | undefined {
   const marks: string[] = [];

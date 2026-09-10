@@ -354,6 +354,13 @@ export function remember(
   at: number,
   event: MemoryEvent,
 ): void {
+  // **무엇을 무엇으로 세는가 — 확정** (Human 결정):
+  //   `taken` 은 **사람이 캔 것**만이다.
+  //   `depleted` 는 **그 자리가 비었다**는 사실 하나다 — 캐서 비든, 먹혀서 비든(광식충이
+  //   뿌리혹을 먹는다), 스러져서 비든(지나간 것이 남긴 것이 머무는 동안을 다한다) 한 셈으로
+  //   센다. 누가 비웠는지로 셈을 가르면 같은 사실을 세계가 여러 말로 하게 된다.
+  //   `turn` 은 **밝히지 않은 방도** 센다 — 자국을 묻는 것은 밝힌 방만이지만 뒤척임은
+  //   세계의 순간이고, 방은 자기에게 일어난 일이 아니라 **일어난 일**을 센다.
   const history = regionStateOf(regionStates, regionId).history;
   switch (event.kind) {
     case 'taken': {
