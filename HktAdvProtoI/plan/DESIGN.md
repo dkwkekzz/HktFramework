@@ -27,7 +27,7 @@
 | 7 | 성장 | [L7-Fairy-Growth-Combination.md](../content/roadmap/L7-Fairy-Growth-Combination.md) (원문 · 배분 확정) | 없음 | 미주입 — 원문은 확정 | L7 7층 몫 · 보류 계열 일곱 |
 | 8 | 화면 | — | — | — | 별도 주입 없음 — 각 기획서의 Cycle 이 Required 로 받는다 |
 
-2층의 도구 절반 2단계(Region 작성기 T1~T6)는 전부 섰다 — 남은 것은 T3 의 ecology 산출(생명이 코드에 있어 이제 붙일 수 있다)과 HundredRooms뿐. 단계 정의는 [Tool-Scale §3](../content/roadmap/L2-World-Tool-Scale.md).
+2층의 도구 절반 2단계(Region 작성기 T1~T6)는 전부 섰다 — 남은 것은 HundredRooms 뿐. 단계 정의는 [Tool-Scale §3](../content/roadmap/L2-World-Tool-Scale.md).
 
 ## 2. 컨텐츠 행 — 미지의 목록
 
@@ -103,9 +103,8 @@
 
 ```text
 덮음      ENGINE 레인 T1~T6 (섰다 — Cycle 아님)
-덮인 것   검사기 · brief 형 · 뼈대 생성기(절반) · 등급 판정기 · 초안기 · 판정 표면
+덮인 것   검사기 · brief 형(답 아홉) · 뼈대 생성기(생명 · 철까지) · 등급 판정기 · 초안기 · 판정 표면
 남은 것   HundredRooms (§5 후보 4 — 코드 diff 0)
-          T3 의 ecology 산출                                       → ENGINE 레인 지금
           갈래별 땅 묶음의 분기(§7 "땅이 같다")                        → templates 손질 — Cycle 없음 · 지금 손볼 수 있다
 ```
 
@@ -220,14 +219,18 @@ Connector 활성 집합의 교대표 — 어느 문이 어느 철에 교대하�
 ### L2-World-Life — 생명의 성립과 탄생
 
 ```text
-덮음      C022~C025(F1~F15 — 판정 대기)
-덮인 것   생명의 정의 · 네 탄생 방식 · 소비와 흔적 · 개체군 값과 관계 · 멸종 없음 · 회복 · 검사 ㉗~㉝
+덮음      C022~C025(F1~F6 · F8~F10 · F13~F15 · 검사 ㉗~㉝ · 위임 ①~④ — 판정 대기) · ENGINE 레인 T3(§3.5 작성기가 생명을 안다 — brief ⑧ 탄생 · ecology 산출) ·
+          C029(F13 ecology 위의 성질 어휘)
+덮인 것   생명의 정의 · 네 탄생 방식(셋이 섰다 — ㉚) · 원인 없는 탄생 금지(㉘) · 소비와 흔적 · 개체군 값과 관계 · 멸종 없음 · 회복 · 검사 ㉗~㉝ · 작성기의 생명
 남은 것   F10 태어난 개체의 몸 · 감각 · 지식 · 행동 · 죽음 · 성장 단계 · 능력치   → 후보 2(M8 — 첫 개체) · 3층 둘째(나머지)
           성별 · 번식 · 유전과 변이                                      → 자리 없음 (§4)
           플레이어가 탄생에 개입하는 Action(Exploit)                        → 3층 둘째 이후
           F11 요정의 원리 결속                                          → 7층(D1 요정 획득)
           F12 최초의 생명                                              → 확정하지 않는다
-          §3.5 작성기가 생명을 안다                                       → T3 ecology (지금)
+          F7 deep · abyss 의 재료(기억 · 그림자 · 소리 · 공간의 반복 · 죽은 것) — 2층 사례 없음             → deep 이하 Region 의 컨텐츠 행
+          분화형 SEPARATION 의 첫 사례 — 거대 수목 · 걷는 숲이 스스로 생명인가 (Human 질문 1 · ㉚ 에 방식 셋뿐)   → Human · 그 Region 의 컨텐츠 행
+          2층에 남은 절 없음 — 재주입 대조(F1~F15 · 검사 ㉗~㉝ · 위임 ①~④ ↔ C022~C025 spec SOURCE · world:check ㉗~㉝ pass/report) 결과. 기획서를 나누지 않는다.
+          C022~C025 의 SOURCE 는 옛 Play(RoomBearsLife)를 가리킨다 — git history 에 있다
 ```
 
 판정 — Human 실주행 (M6 · C022~C025 · AI 예심이 남긴 것만. 예면 지운다 · 아니오면 DESIGN GAP → advprotoi-spec 이 회수한다. 준비는 §3 읽는 법)
