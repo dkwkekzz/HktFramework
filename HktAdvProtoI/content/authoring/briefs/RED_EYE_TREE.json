@@ -65,10 +65,69 @@
     "discovery": "같은 재료가 땅에서도 나고 식물에서도 난다는 것. 그리고 나무 밑동에 작은 문이 있다는 것.",
     "opening": "거목 내부 세계가 열린다 — 문 하나가 방보다 큰 방으로 든다.",
     "birth": {
-      "said": {
-        "unanswered": "생명 계약(탄생지 · 개체군 · 관계)이 아직 데이터로 서지 않았다 — Play RoomBearsLife(C022~C025)의 것이다 — 붉은 알집(M6)이 이 갈래에 설 자리로 이름만 놓여 있다"
-      },
-      "born": []
+      "said": "거목의 뿌리에서 광식충이 태어난다 — 두 길이다. 최초는 결속이다: 뿌리혹의 축적과 둥지에서 뻗은 균사가 비와 함께 맺혀 붉은 알집이 서고, 아직 광식충이 하나도 없을 때만 맺힌다. 터지면 빈 껍질 하나를 남긴다. 그 뒤의 대는 계승이다: 알집 없이 뿌리 마디에 저희끼리 맺히고, 균사도 비도 묻지 않으며 뿌리혹 하나만 먹고 작은 껍질을 남긴다. 떼가 자라 둘을 넘기면 숲 안쪽에 새가 든다.",
+      "born": [
+        {
+          "id": "ROOT_CLUTCH",
+          "mode": "ENVIRONMENTAL_BINDING",
+          "worldCause": "FOREST_CHAIN",
+          "form": "root-clutch",
+          "regionRule": "RULE_FOREST_CLUTCH",
+          "from": {
+            "materials": [
+              "BIO_ORE",
+              "GIANT_TREE_FUNGUS"
+            ],
+            "states": [
+              "rain"
+            ]
+          },
+          "consumes": [
+            "ROOT_NODULE",
+            "NEST_FUNGUS"
+          ],
+          "leaves": [
+            "CLUTCH_HUSK"
+          ],
+          "calls": [
+            "BIG_BIRD"
+          ],
+          "population": "ORE_EATER",
+          "ecologicalRole": "molt-supply"
+        },
+        {
+          "id": "ROOT_EGGS",
+          "mode": "INHERITED",
+          "worldCause": "FOREST_CHAIN",
+          "form": "root-eggs",
+          "regionRule": "RULE_FOREST_CLUTCH",
+          "from": {
+            "materials": [
+              "BIO_ORE"
+            ],
+            "states": [
+              "ORE_EATER"
+            ]
+          },
+          "consumes": [
+            "ROOT_NODULE"
+          ],
+          "leaves": [
+            "EGG_HUSK"
+          ],
+          "calls": [],
+          "population": "ORE_EATER",
+          "ecologicalRole": "molt-supply"
+        }
+      ],
+      "populations": [
+        {
+          "id": "ORE_EATER",
+          "scale": 4,
+          "declineCause": "CONDITION_LOST",
+          "presence": "ore-eater-swarm"
+        }
+      ]
     }
   },
   "neighbours": [
