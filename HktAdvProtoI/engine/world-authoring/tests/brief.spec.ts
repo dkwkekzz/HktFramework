@@ -42,7 +42,24 @@ function sound(): unknown {
       },
       discovery: '이것을 알게 된다',
       opening: '이것이 열린다',
-      birth: { said: '이것이 태어난다', born: [{ id: 'L', from: 'M' }] },
+      birth: {
+        said: '이것이 태어난다',
+        // 탄생 하나가 서려면 이름과 재료만으로는 모자란다 — 어떻게 맺히고 · 무엇이 낳았고 ·
+        // 어느 규칙이 일으키고 · 무엇의 값을 올리는가까지 함께 있어야 한다 (T3 CHANGED)
+        born: [
+          {
+            id: 'L',
+            mode: 'ONE_WAY',
+            worldCause: '이것이 낳는다',
+            form: '난 것',
+            regionRule: 'RULE_ONE',
+            from: { materials: ['M'] },
+            population: 'P',
+            ecologicalRole: '이 자리를 맡는다',
+          },
+        ],
+        populations: [{ id: 'P', scale: 2, declineCause: '이것이 값을 내린다' }],
+      },
       offering: '이것을 내밀고 이것을 기억한다',
     },
   };
@@ -63,13 +80,20 @@ describe('RegionBrief — 형이 받는 것', () => {
     expect(result.brief.neighbours).toEqual([]);
     expect(result.brief.requires).toEqual([]);
     expect(result.brief.parent).toBeUndefined();
-    // 태어나는 것의 세 목록도 적지 않으면 빈 목록이다 — 없는 것을 undefined 로 남기지 않는다
+    // 태어나는 것의 세 목록도 적지 않으면 빈 목록이다 — 없는 것을 undefined 로 남기지 않는다.
+    // 무엇으로 맺히는가도 마찬가지다: 재료만 적으면 상태 쪽이 빈 목록으로 선다
     expect(result.brief.answers.birth.born[0]).toEqual({
       id: 'L',
-      from: 'M',
+      mode: 'ONE_WAY',
+      worldCause: '이것이 낳는다',
+      form: '난 것',
+      regionRule: 'RULE_ONE',
+      from: { materials: ['M'], states: [] },
       consumes: [],
       leaves: [],
       calls: [],
+      population: 'P',
+      ecologicalRole: '이 자리를 맡는다',
     });
   });
 
@@ -78,6 +102,38 @@ describe('RegionBrief — 형이 받는 것', () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(Object.keys(result.brief.answers)).toEqual([...ANSWER_ORDER]);
+  });
+
+  it('탄생과 개체군을 따로 답한다 — 나는 것 없이 드는 것만 있는 방이 있기 때문이다', () => {
+    const result = parsed((b) => {
+      const a = b.answers as Record<string, unknown>;
+      a.birth = {
+        said: '여기서 나는 것은 없고 드는 것만 있다',
+        born: [],
+        populations: [{ id: 'P', scale: 1, declineCause: '이것이 값을 내린다' }],
+      };
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    // 태어나는 것이 없어도 사는 것은 있다 — 둘을 한 목록으로 묶으면 이 방을 적을 수 없다
+    expect(result.brief.answers.birth.born).toEqual([]);
+    expect(result.brief.answers.birth.populations).toEqual([
+      { id: 'P', scale: 1, declineCause: '이것이 값을 내린다' },
+    ]);
+  });
+
+  it('떼의 의미는 밝히지 않아도 받는다 — 밝히지 않은 개체군은 자락이 서지 않는다 (그 일은 T3 이 한다)', () => {
+    const result = parsed();
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.brief.answers.birth.populations[0]!.presence).toBeUndefined();
+    const said = parsed((b) => {
+      const a = b.answers as Record<string, any>;
+      a.birth.populations = [{ id: 'P', scale: 1, declineCause: '내린다', presence: '여기 무엇이 돈다' }];
+    });
+    expect(said.ok).toBe(true);
+    if (!said.ok) return;
+    expect(said.brief.answers.birth.populations[0]!.presence).toBe('여기 무엇이 돈다');
   });
 
   it('답 자리에 미답을 적을 수 있다 — 까닭과 함께', () => {
@@ -125,6 +181,37 @@ describe('RegionBrief — 형이 물리치는 것', () => {
     // 통과시키는 것이 아니라 비어 있음을 남기는 것이다 — T4 의 pending 이 이것을 읊는다
     expect(isUnanswered(result.brief.answers.offering)).toBe(true);
     expect(unansweredKeys(result.brief)).toEqual(['offering']);
+  });
+
+  it('탄생 하나에서 한 자리라도 빠지면 물리친다 — 이름과 재료만으로는 탄생지가 서지 못한다', () => {
+    const born = ['id', 'mode', 'worldCause', 'form', 'regionRule', 'from', 'population', 'ecologicalRole'];
+    for (const key of born) {
+      const result = parsed((b) => {
+        const a = b.answers as Record<string, any>;
+        delete a.birth.born[0][key];
+      });
+      expect({ key, ok: result.ok }).toEqual({ key, ok: false });
+    }
+  });
+
+  it('개체군의 수는 **양의 정수**다 — 0 마리가 사는 개체군도 반 마리도 세계에 없다', () => {
+    for (const scale of [0, -1, 1.5]) {
+      const result = parsed((b) => {
+        const a = b.answers as Record<string, any>;
+        a.birth.populations = [{ id: 'P', scale, declineCause: '내린다' }];
+      });
+      expect({ scale, ok: result.ok }).toEqual({ scale, ok: false });
+    }
+  });
+
+  it('탄생 안의 형에 없는 필드도 물리친다 — 걸린 자리를 탄생지까지 짚어 준다', () => {
+    const result = parsed((b) => {
+      const a = b.answers as Record<string, any>;
+      a.birth.born[0].colour = '붉다';
+    });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.problems.map((p) => p.path)).toContain('answers.birth.born.0.colour');
   });
 
   it('형에 없는 필드를 물리친다 — 형 밖의 뜻이 몰래 실리지 않는다', () => {

@@ -12,7 +12,26 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { COMPILE_RULES, REGION_GRAPH, TRACE_LAYER, soilStainLevel } from '../../../content/regions';
+import {
+  BIG_BIRD,
+  BIO_ORE,
+  COMPILE_RULES,
+  FOREST_CHAIN,
+  FORM_ROOT_CLUTCH,
+  FORM_ROOT_NODULE,
+  LIFE_FORMATION_MODES,
+  LIFE_ROLE_MOLT_SUPPLY,
+  ORE_EATER,
+  POPULATION_DECLINE_CONDITION_LOST,
+  POPULATION_DECLINE_EATEN,
+  PRESENCE_ORE_EATER_SWARM,
+  RECOVERY_TREE_UPTAKE,
+  RED_EYE_TREE,
+  REGION_GRAPH,
+  REGION_RULE_IDS,
+  TRACE_LAYER,
+  soilStainLevel,
+} from '../../../content/regions';
 import { WORLD_AUTHOR_TEMPLATES } from '../../../content/authoring/templates';
 import { checkRegions, type CheckRegion } from '../../../engine/world-authoring/check';
 import { compileRegion } from '../../../engine/world-authoring/compile';
@@ -21,7 +40,7 @@ import { isTraversableAt } from '../../../engine/world-authoring/query';
 import { WORLD_CHECK_CONTRACT, WORLD_CHECK_REGIONS } from '../check';
 import { authorRegion } from '../../../engine/world-authoring/author';
 import { parseRegionBrief } from '../../../engine/world-authoring/brief';
-import { authorFromFile, renderRegionModule, renderSeams } from '../author';
+import { authorBrief, authorFromFile, checkAuthored, renderRegionModule, renderSeams } from '../author';
 
 const BRIEF = fileURLToPath(new URL('../../../content/authoring/examples/GAS_VILLAGE.json', import.meta.url));
 const authored = authorFromFile(BRIEF);
@@ -223,4 +242,417 @@ describe('T3 — 두 번 내면 같다 · 굳힌 것은 데이터다', () => {
     expect(authored.unanswered).toEqual(['birth', 'offering']);
     expect(renderRegionModule(authored)).toContain('birth');
   });
+});
+
+// ── 생명과 철 (T3 CHANGED — 생성기가 ecology 와 phases 를 낸다) ──────────────
+//
+// 여기서부터 쓰는 brief 는 **시험 안에서 값으로 짓는다.** content/authoring 의 brief 파일에
+// 기대지 않는다 — 그 파일들은 다른 레인의 것이고, 기대면 이 시험이 남의 손에 매인다.
+//
+// **어휘를 지어내지 않는다.** 탄생 방식 · 세계 상태 · 갈래는 이 세계의 표에서 골라 오고
+// (WORLD_AUTHOR_TEMPLATES), 재료 · 규칙 · 형태 · 개체군은 지금 서 있는 방들이 쓰는 이름을
+// 그대로 쓴다 (content/regions). 그래서 표가 바뀌면 이 시험이 따라간다 — 시험이 어휘를
+// 쥐면 같은 목록이 두 자리에 있게 된다 (형이 어휘를 쥐지 않는 그 규율 그대로).
+
+const T = WORLD_AUTHOR_TEMPLATES;
+
+/** 표가 아는 탄생 방식 하나 — 어느 것인지는 표가 정한다 */
+const KNOWN_MODE = Object.keys(T.birthByMode)[0]!;
+/** 표가 **모르는** 방식 하나 — 세계의 어휘 넷 가운데 표에 없는 것 (지금은 분화다) */
+const UNKNOWN_MODE = LIFE_FORMATION_MODES.find((mode) => !(mode in T.birthByMode)) ?? 'NO_SUCH_MODE';
+/** 표가 요구로 옮길 줄 아는 세계 상태 하나 */
+const KNOWN_STATE = Object.keys(T.stateRequirement)[0]!;
+/**
+ * 표에 **없는** 세계 상태 하나 — 지어낸 이름이 아니라 이 세계가 실제로 쓰는 것이다:
+ * 뿌리의 알이 부모 개체군을 `source.states` 에 적되 요구는 방식이 건다 (표가 그렇게 적어 두었다).
+ */
+const UNKNOWN_STATE = ORE_EATER;
+/** 철을 말하는 갈래 하나 */
+const PHASE_KIND = Object.keys(T.phaseByKind)[0]!;
+
+const SITE_ID = 'AUTHORED_CLUTCH';
+const SOURCE_ID = 'AUTHORED_NODULE';
+
+/** 탄생과 철을 밝힌 brief 하나 — 값이다 (파일이 아니다) */
+function lifeBriefValue(): Record<string, unknown> {
+  return {
+    id: 'AUTHORED_LIFE_ROOM',
+    name: '시험이 지은 탄생의 방',
+    depth: 'wild',
+    kinds: [PHASE_KIND],
+    answers: {
+      distinction: '뿌리가 지나가는 자리에 무엇이 맺힌다.',
+      cause: '숲의 사슬이 이 자리를 지나며 쌓인다.',
+      dwelling: '쌓인 것을 먹는 것이 돌고, 그것을 부르는 것이 든다.',
+      danger: '맺히는 동안 땅이 떨린다.',
+      worth: {
+        said: '뿌리에 쌓인 것이 귀하다.',
+        sources: [
+          {
+            id: SOURCE_ID,
+            material: BIO_ORE,
+            heldBy: 'terrain',
+            worldCause: FOREST_CHAIN,
+            recoveryCause: RECOVERY_TREE_UPTAKE,
+            form: FORM_ROOT_NODULE,
+            role: 'conditional',
+          },
+        ],
+      },
+      discovery: '무엇이 여기서 태어나는가를 알게 된다.',
+      opening: '태어나는 때를 알면 그 자리가 열린다.',
+      birth: {
+        said: '쌓인 것이 맺혀 태어난다.',
+        born: [
+          {
+            id: SITE_ID,
+            mode: KNOWN_MODE,
+            worldCause: FOREST_CHAIN,
+            form: FORM_ROOT_CLUTCH,
+            regionRule: REGION_RULE_IDS[0],
+            // 재료 하나와, 재료가 아닌 상태 둘 — 하나는 표가 알고 하나는 모른다
+            from: { materials: [BIO_ORE], states: [KNOWN_STATE, UNKNOWN_STATE] },
+            consumes: [SOURCE_ID],
+            calls: [BIG_BIRD],
+            population: ORE_EATER,
+            ecologicalRole: LIFE_ROLE_MOLT_SUPPLY,
+          },
+        ],
+        populations: [
+          {
+            id: ORE_EATER,
+            scale: 2,
+            declineCause: POPULATION_DECLINE_CONDITION_LOST,
+            presence: PRESENCE_ORE_EATER_SWARM,
+          },
+          // 떼의 의미를 밝히지 않은 개체군 — 자락이 서지 않아야 한다
+          { id: BIG_BIRD, scale: 1, declineCause: POPULATION_DECLINE_EATEN },
+        ],
+      },
+      offering: '무엇이 태어났는지를 내밀고, 언제 태어났는지를 기억한다.',
+    },
+    neighbours: [{ region: RED_EYE_TREE, transition: 'road', direction: 'bidirectional' }],
+  };
+}
+
+/** 그 brief 를 이 세계의 표와 컴파일 규칙으로 낸다 — 기존 하네스 그대로다 */
+function authorLife(over: (b: Record<string, unknown>) => void = () => {}) {
+  const value = lifeBriefValue();
+  over(value);
+  const parsed = parseRegionBrief(value);
+  if (!parsed.ok) {
+    throw new Error(parsed.problems.map((p) => `${p.path} ${p.message}`).join('\n'));
+  }
+  return authorBrief(parsed.brief);
+}
+
+const life = authorLife();
+/** 그 방 Description 의 op 하나 — 자락이 실제로 그 방에 있는지 묻는 자리 */
+const opById = (id: string): Record<string, unknown> | undefined =>
+  life.spec.space.ops.find((op) => op.id === id) as unknown as Record<string, unknown> | undefined;
+
+/** 컨텐츠의 탄생지 표가 적은 키 차례 — 굳힌 글자가 이 차례여야 그 방이 컴파일된다 */
+const SITE_KEYS = [
+  'id',
+  'mode',
+  'worldCause',
+  'form',
+  'source',
+  'condition',
+  'transition',
+  'consumes',
+  'leaves',
+  'spentSeconds',
+  'traces',
+  'ecologicalRole',
+  'population',
+  'bindingSeconds',
+];
+
+describe('T3 — 탄생을 밝힌 brief 가 생명을 낸다', () => {
+  const site = life.spec.ecology!.lifeFormation![0]!;
+
+  it('탄생지가 선다 — 키와 차례가 컨텐츠의 탄생지 표와 같다 (값이 맞아도 형이 다르면 방이 서지 못한다)', () => {
+    expect(life.spec.ecology!.lifeFormation!.map((one) => one.id)).toEqual([SITE_ID]);
+    // 차례가 표 그대로다 — 밝히지 않은 자리(leaves · spentSeconds)만 빠질 수 있다
+    expect(Object.keys(site)).toEqual(SITE_KEYS.filter((key) => key in site));
+    expect(
+      SITE_KEYS.filter((key) => key !== 'leaves' && key !== 'spentSeconds' && !(key in site)),
+    ).toEqual([]);
+    // 남기는 것을 밝히지 않았으므로 그 키가 없다 — 빈 목록을 굳히면 없음이 목록으로 읽힌다
+    expect('leaves' in site).toBe(false);
+    // 방이 밝힌 것은 brief 에서, 시간 규모와 다 찬 뒤의 자리는 방식별 기본형에서 온다
+    const defaults = T.birthByMode[KNOWN_MODE]!;
+    expect({
+      mode: site.mode,
+      worldCause: site.worldCause,
+      form: site.form,
+      source: site.source,
+      consumes: site.consumes,
+      ecologicalRole: site.ecologicalRole,
+      population: site.population,
+      transition: site.transition,
+      bindingSeconds: site.bindingSeconds,
+      spentSeconds: site.spentSeconds,
+    }).toEqual({
+      mode: KNOWN_MODE,
+      worldCause: FOREST_CHAIN,
+      form: FORM_ROOT_CLUTCH,
+      source: { materials: [BIO_ORE], states: [KNOWN_STATE, UNKNOWN_STATE] },
+      consumes: [SOURCE_ID],
+      ecologicalRole: LIFE_ROLE_MOLT_SUPPLY,
+      population: ORE_EATER,
+      transition: defaults.transition,
+      bindingSeconds: defaults.bindingSeconds,
+      spentSeconds: defaults.spentSeconds,
+    });
+    // 방의 키 차례도 컨텐츠의 RegionSpec 그대로다 — 철이 생태 앞에 선다
+    expect(Object.keys(life.spec)).toEqual(
+      ['id', 'depth', 'space', 'resourceEcology', 'phases', 'ecology'].filter(
+        (key) => key in life.spec,
+      ),
+    );
+  });
+
+  it('자리는 Description 이 소유한다 — 탄생지마다 point 가 서고 그 tag 가 탄생지의 id 다', () => {
+    // 원천이 세운 규율 그대로다: 자리는 땅의 일이라 Description 이 쥐어야
+    // 컴파일 · 관찰 · 검사가 다 같은 것을 본다
+    const op = opById(`site-${SITE_ID.toLowerCase().replace(/_/g, '-')}`)!;
+    expect({ kind: op.kind, layer: op.layer, tag: op.tag }).toEqual({
+      kind: 'point',
+      layer: T.resourceLayer,
+      tag: SITE_ID,
+    });
+    expect(op.position).toBeDefined();
+  });
+
+  it('전조 자락이 그 방에 **실제로 있다** — 검사 ㉙ 이 묻는 것이 이것이다', () => {
+    expect(site.traces.before.length).toBeGreaterThan(0);
+    for (const trace of site.traces.before) {
+      const op = opById(trace.op);
+      expect({ op: trace.op, kind: op?.kind, layer: op?.layer }).toEqual({
+        op: trace.op,
+        kind: 'area',
+        layer: T.traceLayer,
+      });
+    }
+    // 뒤에 남는 것은 밝히지 않았다 — 자락이 무엇을 뜻하는지 잰 적이 없으므로 지어내지 않는다
+    expect(site.traces.after).toEqual([]);
+  });
+
+  it('요구가 소비와 상태와 방식에서 난다 — **표에 없는 상태는 요구가 되지 않는다**', () => {
+    const defaults = T.birthByMode[KNOWN_MODE]!;
+    const state = T.stateRequirement[KNOWN_STATE]!;
+    // 차례도 뜻이다: 무엇을 먹는가 → 무엇이 그때인가 → 누가 아직 없는가(또는 있는가)
+    expect(site.condition.requires).toEqual([
+      { kind: 'source-available', sourceId: SOURCE_ID, unmetCode: defaults.sourceUnmetCode },
+      { kind: state.kind, unmetCode: state.unmetCode },
+      ...(defaults.populationRequirement
+        ? [
+            {
+              kind: defaults.populationRequirement.kind,
+              populationId: ORE_EATER,
+              value: defaults.populationRequirement.value,
+              unmetCode: defaults.populationRequirement.unmetCode,
+            },
+          ]
+        : []),
+    ]);
+    // 모르는 상태는 **걸러지고 지나간다** — 요구로 지어내면 세계가 묻지 않을 것을 묻게 된다.
+    // (그 이름이 개체군 요구의 자리에 서는 것은 방식이 건 것이지 상태가 낳은 것이 아니다)
+    expect(site.condition.requires.map((one) => one.kind)).not.toContain(UNKNOWN_STATE);
+    expect(site.condition.requires.filter((one) => one.unmetCode === undefined)).toEqual([]);
+    expect(site.condition.regionRule).toBe(REGION_RULE_IDS[0]);
+  });
+
+  it('기본형이 없는 방식은 서지 않는다 — 지어내는 대신 **왜 못 냈는지**가 남는다', () => {
+    const orphan = authorLife((b) => {
+      const answers = b.answers as Record<string, any>;
+      answers.birth.born[0].mode = UNKNOWN_MODE;
+    });
+    expect(orphan.spec.ecology?.lifeFormation).toBeUndefined();
+    // 못 낸 자리가 조용히 사라지지 않는다 — 무엇을 왜 못 냈는지가 값으로 남는다
+    expect(orphan.unauthored.length).toBeGreaterThan(0);
+    for (const one of orphan.unauthored) {
+      expect({ what: one.what.length > 0, why: one.why.length > 0 }).toEqual({
+        what: true,
+        why: true,
+      });
+    }
+    const said = JSON.stringify(orphan.unauthored);
+    expect(said).toContain(SITE_ID);
+    expect(said).toContain(UNKNOWN_MODE);
+    // 아는 방식만 적은 방은 남길 것이 없다
+    expect(life.unauthored).toEqual([]);
+  });
+
+  it('떼의 자락이 값만큼 선다 — 밝히지 않은 개체군은 자락이 없다 (실을 이름이 없다)', () => {
+    const swarm = life.spec.ecology!.populations!.find((one) => one.id === ORE_EATER)!;
+    const quiet = life.spec.ecology!.populations!.find((one) => one.id === BIG_BIRD)!;
+    expect(swarm.presenceOps).toHaveLength(swarm.scale);
+    expect({ presence: quiet.presence, ops: quiet.presenceOps }).toEqual({
+      presence: undefined,
+      ops: undefined,
+    });
+    // 자락도 그 방 Description 이 소유한다 — 개체군은 op id 만 든다
+    const half = T.byDepth[life.spec.depth]!.half;
+    const at = opById(`site-${SITE_ID.toLowerCase().replace(/_/g, '-')}`)!.position;
+    swarm.presenceOps!.forEach((id, index) => {
+      const op = opById(id)!;
+      expect({ id, kind: op.kind, layer: op.layer, tag: op.tag, shape: op.shape }).toEqual({
+        id,
+        kind: 'area',
+        layer: T.presenceLayer,
+        tag: swarm.presence,
+        shape: {
+          kind: 'circle',
+          center: at,
+          radius: Math.round(half * T.population.radiusStep * (index + 1) * 100) / 100,
+        },
+      });
+    });
+  });
+
+  it('관계는 **이음을 내지 않는다** — 두 끝이 어느 방에 사는지를 생성기는 모른다', () => {
+    expect(life.spec.ecology!.links).toEqual([
+      { from: ORE_EATER, to: BIG_BIRD, kind: 'CALLS' },
+    ]);
+    // 같은 방이면 밝힐 이음이 없고, 방을 넘으면 사람이 붙인다 (renderSeams 가 그 자리를 댄다)
+    for (const link of life.spec.ecology!.links!) {
+      expect('via' in link).toBe(false);
+    }
+  });
+
+  it('없음이 답이 된다 — 밝힌 사유가 서고, 미답이면 생태 자체가 나오지 않는다', () => {
+    const reason = '여기서 태어나는 것이 없다 — 맺힐 열이 남지 않기 때문이다';
+    const barren = authorLife((b) => {
+      const answers = b.answers as Record<string, unknown>;
+      answers.birth = { said: reason, born: [], populations: [] };
+    });
+    expect(barren.spec.ecology).toEqual({ absenceReason: reason });
+    // 미답은 사유가 아니다 — "아직 안 만들었다" 와 "원래 없다" 를 갈라 읽어야 한다
+    const silent = authorLife((b) => {
+      const answers = b.answers as Record<string, unknown>;
+      answers.birth = {
+        said: { unanswered: '무엇이 태어나는가를 아직 답하지 못했다' },
+        born: [],
+        populations: [],
+      };
+    });
+    expect(silent.spec.ecology).toBeUndefined();
+  });
+});
+
+describe('T3 — 갈래가 철을 고른다', () => {
+  it('갈래가 철을 말하면 phases 가 서고, 덧씌움이 가리킨 area 가 그 방에 실제로 있다', () => {
+    const phases = life.spec.phases!;
+    expect(phases).toBeDefined();
+    for (const recipe of T.phaseByKind[PHASE_KIND]!) {
+      const season = phases.seasons[recipe.season]!;
+      if (recipe.depth !== undefined) {
+        const overlay = season.depthOverlay!.find((one) => one.depth === recipe.depth)!;
+        const op = opById(overlay.areaId);
+        expect({ season: recipe.season, depth: overlay?.depth, layer: op?.layer }).toEqual({
+          season: recipe.season,
+          depth: recipe.depth,
+          layer: T.depthLayer,
+        });
+      }
+      if (recipe.hazard !== undefined) {
+        const overlay = season.hazardExtend!.find((one) => one.hazard === recipe.hazard)!;
+        const op = opById(overlay.areaId);
+        expect({ season: recipe.season, hazard: overlay?.hazard, layer: op?.layer }).toEqual({
+          season: recipe.season,
+          hazard: recipe.hazard,
+          layer: T.hazardLayer,
+        });
+      }
+    }
+  });
+
+  it('갈래가 철을 말하지 않으면 phases 가 없다 — 없는 철을 지어 걸지 않는다', () => {
+    const flat = authorLife((b) => {
+      b.kinds = [];
+    });
+    expect(flat.spec.phases).toBeUndefined();
+  });
+
+  it('원천이 없는 방은 철 덧씌움을 내지 않는다 — 걸 자락이 없다', () => {
+    const bare = authorLife((b) => {
+      const answers = b.answers as Record<string, any>;
+      answers.worth.sources = [];
+    });
+    expect(bare.spec.phases).toBeUndefined();
+  });
+});
+
+describe('T3 — 생성한 방이 생명 검사 ㉗~㉝ 을 지난다', () => {
+  // 후보를 지금 세계 곁에 세워 재는 자리는 하나다 (checkAuthored) — 이웃 anchor 를 놓아 주고
+  // 그 방이 새로 낳는 것을 실어 주는, 사람이 붙일 줄을 붙인 뒤의 세계다.
+  const report = checkAuthored(life);
+  const LIFE_IDS = [
+    'life-formation-refs',
+    'life-world-cause',
+    'life-traces-consumes',
+    'life-mode-spread',
+    'life-recovery-owner',
+    'life-link-refs',
+    'life-link-spread',
+  ];
+  const itemOf = (id: string) => report.items.find((item) => item.id === id)!;
+
+  it('일곱 중 하나도 무너지지 않는다 — 그래서 이 방을 세계에 **들일 수 있다**', () => {
+    const fell = LIFE_IDS.map((id) => ({ id, status: itemOf(id).status })).filter(
+      (one) => one.status === 'fail',
+    );
+    expect(fell).toEqual([]);
+  });
+
+  it('㉗ ㉘ ㉙ 이 통과한다 — 가리킨 것이 다 세계에 있고, 전조도 소비도 비지 않았다', () => {
+    for (const id of ['life-formation-refs', 'life-world-cause', 'life-traces-consumes']) {
+      const item = itemOf(id);
+      expect({ id, status: item.status, refs: item.refs }).toEqual({
+        id,
+        status: 'pass',
+        refs: [],
+      });
+    }
+  });
+
+  it('일곱이 이 방을 **실제로 재고 있다** — 계통을 주지 않아 조용히 지나간 것이 아니다', () => {
+    // absent 는 통과가 아니다 (기반이 그렇게 적어 두었다). 그러니 이 방이 두 보고에 이름으로 서야
+    // 위의 두 시험이 빈 것을 잰 것이 아님이 밝혀진다
+    expect(itemOf('life-mode-spread').refs.map((ref) => ref.where)).toContain(life.spec.id);
+    expect(itemOf('life-link-spread').refs.map((ref) => ref.where)).toContain(ORE_EATER);
+  });
+});
+
+describe('T3 — 생명과 철이 붙어도 두 번 내면 같고, 굳힌 것은 여전히 데이터다', () => {
+  it('같은 brief 를 두 번 넣으면 두 방이 **깊은 수준에서** 같다 — 시각도 난수도 쓰지 않는다', () => {
+    const again = authorLife();
+    expect(again).toEqual(life);
+    // 키 차례까지 같아야 굳힌 글자가 같다 (toEqual 은 차례를 묻지 않는다)
+    expect(JSON.stringify(again)).toBe(JSON.stringify(life));
+    expect(renderRegionModule(again)).toBe(renderRegionModule(life));
+  });
+
+  it('굳힌 글자에 생명과 철이 **값으로** 실린다 — 규칙도 함수도 늘지 않는다', () => {
+    const module = renderRegionModule(life);
+    expect(module).not.toMatch(/\bfunction\b|\bclass\b|\bif\s*\(|=>/);
+    expect(module.match(/^export /gm)?.length).toBe(2);
+    // 방 하나가 느는 데 규칙 코드는 한 줄도 늘지 않는다 — 탄생지도 철도 그 방의 데이터다
+    for (const said of [SITE_ID, ORE_EATER, 'lifeFormation', 'phases']) {
+      expect({ said, in: module.includes(said) }).toEqual({ said, in: true });
+    }
+  });
+
+  // GAP — 굳힌 파일을 **tsc 가 재는** 자리는 fixtures/ 의 굳힌 글자 하나다
+  // (gas-village.generated.ts 가 그 일을 한다: 시험은 생성기가 같은 글자를 내는지만 보고,
+  // 형이 맞는지는 저장소 컴파일이 잰다). 생명·철이 붙은 방으로 그 잣대를 세우려면 굳힌 파일
+  // 하나와 그것을 낳는 brief 파일 하나가 저장소에 서야 하는데, 그 둘은 이 시험의 담당 밖이다
+  // (fixtures 는 굳힌 생성물이고 brief 는 content/authoring 의 것이다).
+  // 그동안 여기서 재는 것은 **키와 차례**다 — tsc 가 잡을 것을 값으로 잡는다 (위 첫 시험).
+  it.todo(
+    'GAP: 생명·철이 붙은 방의 굳힌 파일이 컴파일된다 — fixtures 의 굳힌 글자와 그것을 낳는 brief 파일이 필요하다',
+  );
 });
