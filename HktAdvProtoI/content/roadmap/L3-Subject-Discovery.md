@@ -109,3 +109,9 @@ Foundation §5 Mutation Knowledge 군  REVEAL · HIDE · REFINE · CONFIRM — �
 Foundation §8 discovery 의 NPC · KNOWLEDGE 갈래 · §2.3 State 의 Society 이름공간 · §7.8 지식 퍼즐 · §11 떠돌이 NPC(문법 설명용 예) ·
   §8 최소 완성 기준 6 · 10 · 11 · 12 · 15 · 22 의 3층 몫 · G12 둘째 사례(폐허 → 마을 — NPC 뒤) · §2.6 관찰 수단의 NPC 정보     원문 자리에
 ```
+
+## 3. 주입 — 3층 원문이 왔다 (포인터)
+
+Human 의 3층 기획서 전문이 [L3-Subject-Body.md](L3-Subject-Body.md) 에 보존됐다. 그 원문 §7 Awareness · §8~§9 Knowledge(learn / forget / knows) · §10 Condition target:actor · §11~§14 Action Port(Controller 와 무관한 행동 입구)가
+이 문서의 주제와 겹치고, 그 §26 Cycle B(Knowledge & Action)가 이 문서의 후보 5 와 겹친다. "몸의 값" 은 그 원문 §3~§6 이 처음 받았다 — 이 문서가 "Human 주입" 으로 미뤄 두던 몫이다.
+원문의 Knowledge 는 Actor 마다의 것이고 이 문서의 것은 Player Knowledge 와 발견 상태 다섯(G10) — 둘의 관계는 원문에 없다. 문장은 옮기지 않았다 — Human 이 정한다 ([plan/DESIGN.md](../../plan/DESIGN.md) §3 L3-Subject-Body 절의 질문 1 · 4).

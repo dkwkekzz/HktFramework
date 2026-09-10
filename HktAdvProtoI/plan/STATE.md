@@ -15,7 +15,7 @@
 
 | 트랙 | 주체 | 지났다 | **지금** | 다음 | 그 다음 |
 |---|---|---|---|---|---|
-| Human — 지목 · 승인 · 판정 · 주입 | Human | L0 · L1 · L2 아홉 · M1~M8 · L7 주입 · C001~C031 기획서 여섯의 판정 반영 · Foundation 지목 · Foundation Cycle 목록 승인 (Q1~Q9 제안대로 · 기반 집중) | **판정 셋** — 협곡 · 생명 · 요구와 가능성 (컨텐츠 행 — 실주행) · **지목** — 다음 기획서(후보 2 · 3) | 판정 답의 반영 | 3층 나머지 절반 주입(후보 2 판정 뒤) · HundredRooms 미지 백 줄의 이름 · 4~7층은 층이 열릴 때 |
+| Human — 지목 · 승인 · 판정 · 주입 | Human | L0 · L1 · L2 아홉 · M1~M8 · L7 주입 · C001~C031 기획서 여섯의 판정 반영 · Foundation 지목 · Foundation Cycle 목록 승인 (Q1~Q9 제안대로 · 기반 집중) | **결정** — 3층 원문(L3-Subject-Body · 주입됨)과 후보 2 · 5 의 관계 · 순서 · 미지 · Knowledge 의 주인 (DESIGN §3 질문 1~4) · **판정 셋** — 협곡 · 생명 · 요구와 가능성 (컨텐츠 행 — 실주행) · **지목** — 다음 기획서(후보 2 · 2' · 3) | 판정 답의 반영 | HundredRooms 미지 백 줄의 이름 · 4~7층은 층이 열릴 때 |
 | Cycle — spec 제안 → 동결 → 실현 → 마감 | AI (advprotoi-spec → advprotoi-cycle) | C001~C038 (기획서 열 · Foundation 닫힘) | **다음 spec 제안** — Human 이 기획서를 지목하면 (후보 2 · 3) | C039~ | 그 기획서의 예심 → 판정 |
 | ENGINE — 게임 명사 없는 기구 | AI | Region 작성기 **T1~T6 다 실측** (열세 질문 · 미지 한 줄이 사람 손 없이 선다 · 목록 일곱 줄이 배치→판정 표면→승인까지 돈다) | — | **Human 의 미지 백 줄**을 기다린다 (TODO §1) | 큰 Region 이 올 때 chunk 적재 |
 
@@ -28,11 +28,11 @@
   Human 판정 협곡 · 생명 · 요구와 가능성 ──→ 예: 행 닫힘 / 아니오: GAP 회수 ──→ Cycle ──→ 판정
   ENGINE T1~T6 다 실측 (닫힘 — 목록 한 벌이 배치 → 판정 표면 → 승인까지 돈다) ──→ **Human 이 미지 백 줄의 이름** ──→ HundredRooms(후보 4) ──→ "C### 진행" ──→ Cycle (코드 diff 0)
 
-  기획서 순서     (1 Foundation — 닫힘) → 2 편성과 무대(3층) ∥ 3 Rooms GAP 회수  →  4 HundredRooms  →  5 3층 둘째  →  6 · 7 · 8 · 9 (4 · 5 · 6 · 7층)
+  기획서 순서     (1 Foundation — 닫힘) → 2 편성과 무대(3층) · 2' 주체와 몸(3층 원문 — 2 와의 관계 · 순서는 Human) ∥ 3 Rooms GAP 회수  →  4 HundredRooms  →  5 3층 둘째  →  6 · 7 · 8 · 9 (4 · 5 · 6 · 7층)
   층의 순서       2층 닫힘(판정 셋 + 후보 3) → 3층(후보 2 + 5) → 4층 → 5층 → 6층 → 7층 — **이 차례대로 간다**(확정). 앞당길 일이 생기면 그때 Human 이 뒤집는다.
 ```
 
-한 Cycle = 브랜치 `cycle/C###` = 세션 하나. **말할 것: "<기획서> 로 spec 써"**(다음 spec 제안 — 후보 2 L3-Subject-Expedition · 3 · 3.5) · 판정 넷의 답.
+한 Cycle = 브랜치 `cycle/C###` = 세션 하나. **말할 것: "<기획서> 로 spec 써"**(다음 spec 제안 — 후보 2 L3-Subject-Expedition · 2' L3-Subject-Body · 3 · 3.5 — 2 · 2' 는 질문 1 · 2 의 답이 먼저) · 판정 넷의 답.
 기획서가 채팅으로 오면 `advprotoi-inject` 가 먼저 보존한다. `advprotoi-spec` 이 그 기획서의 Cycle 전부를 spec 으로 쓰고 Human 반환에서 멈추고, "C### 진행" 부터 `advprotoi-cycle` 이 동결 → 실현 → 마감을 이어 돌리며 UNRESOLVED · GAP 에서만 멈춘다.
 Cycle 의 종류는 행이 가른다 — 기반 Cycle(L<N>)은 제공 · 작동 · 손잡이로 닫고 경험은 데이터로 내린다 · 컨텐츠 Cycle(M<N>)은 실주행으로 닫는다 ([Design-CycleExecutionWorkflow §21](../design/Design-CycleExecutionWorkflow.md)).
 
@@ -44,7 +44,7 @@ Cycle 의 종류는 행이 가른다 — 기반 Cycle(L<N>)은 제공 · 작동 
 |---|---|---|
 | 0 게임 방향 · 1 세계의 문법 | 확정 | 판단 기준 · 코드가 이미 그 위. L0 미증명 넷은 컨텐츠 행 · 3층 · 7층 · 실주행이 채운다 |
 | 2 세계 자체 | **다음** | 기획 아홉 문서가 다 코드에 있고 Foundation 은 닫혔다. 판정 셋(컨텐츠 행 M5·M6·M7) · Rooms GAP 둘(후보 3) · 도구 하나(HundredRooms)가 남았다 |
-| 3 주체와 몸 | **다음** (병행) | L3-Subject-Expedition(후보 2 — 지금 자를 수 있다) · L3-Subject-Discovery(후보 5)가 대기 기획서다. 나머지 절반(몸의 값)은 주입 대기 |
+| 3 주체와 몸 | **다음** (병행) | 3층 원문 L3-Subject-Body 가 주입됐다(몸 · 성질 유도 · 앎 · 행동 · 편성 · 슬롯 · Bag — Cycle A~D 제안). L3-Subject-Expedition(후보 2) · L3-Subject-Discovery(후보 5)는 대기. 세 문서의 관계는 Human 결정(DESIGN §3 L3-Subject-Body 질문 1~4) — 답이 오면 spec |
 | 4 · 5 · 6 | 미주입 | 각 층의 대기 기획서(L4-Item-Gem · L4-Item-Craft · L5-Combat-Emergent · L6-Skill-Class)가 입력이다 — Foundation · L7 의 몫은 옮겼고, 2층 나머지 일곱 문서의 뒤 층 절은 3층 주입 때 옮긴다 (DESIGN §3) |
 | 7 성장 | 미주입 (원문 확정) | L7 원문의 7층 몫 + L7-Growth-Experience(Foundation §7.5) |
 | 자리 없는 것 | Human 결정 | 다중 플레이어의 충분조건 · 사회 · 번식 · 절벽 낙하 — 9층인가 3~7층인가 (DESIGN §4) |

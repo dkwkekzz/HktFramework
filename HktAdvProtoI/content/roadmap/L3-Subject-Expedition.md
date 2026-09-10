@@ -170,3 +170,9 @@ Active Fairy 구조는 탐험에도 그대로 적용한다.
 Foundation §8 Opportunity      participants — 형에 자리만(C036) · 채우는 것은 이 기획서 (몸이 서야 "여럿" 이 센다)
 Foundation §4.6 행동 조건       entered · crossed 는 2층 · 몸이 하는 것(moved · observed)은 여기 — 형(C035)에 줄을 더한다 · 옮기지 않는다
 ```
+
+## 3. 주입 — 3층 원문이 왔다 (포인터)
+
+Human 의 3층 기획서 전문이 [L3-Subject-Body.md](L3-Subject-Body.md) 에 보존됐다. 그 원문 §15 Core · §16~§19 Expedition · 무대의 한 명 · 교체 · Presence · §22 Bag(원정 단위) 이 이 문서의 주제와 같고,
+그 §26 Cycle C(Expedition & Stage)가 이 문서의 후보 2 와 겹친다. 문장은 옮기지 않았다 — 어느 문서가 행이 되는가는 Human 이 정한다 ([plan/DESIGN.md](../../plan/DESIGN.md) §3 L3-Subject-Body 절의 질문 1 · 2).
+답이 오면 이 문서의 상태와 "자르는 때" 를 그 답대로 고친다.
