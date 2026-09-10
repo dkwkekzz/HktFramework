@@ -133,7 +133,8 @@
 ### L2-World-Region — 세계 content 구성 ②
 
 ```text
-덮음      C001~C004(R1 · R3 · R5 · R6 · R9 · R12) · C008~C010(R4 · R7 · R8 · §10 · §16 · §17) · C005~C007(R11 · §13) · C011~C014(R10 · §15)
+덮음      C001~C004(R1 · R2 · R3 · R5 · R6 · R9 · R12 · R13 · §5.4) · C008~C010(R4 · R7 · R8 · §10 · §16 · §17) · C005~C007(R11 · §13 · §3.2 검사 ⑤~⑨) · C011~C014(R10 · R13 · §15) ·
+          C026~C028(R14 · §17 규칙 가독성) — 전부 닫힘 · 결정 대기만 남았다 (아래)
 덮인 것   Graph · WorldPosition · 중첩 · Connector · 진입/이탈 · 공간 분리 · State 공유 · Rule · Spec 양식 · 규칙 가독성 · Terrain 은 결과 · 하나의 Cause
 남은 것   §8 Discovery State(개인 지식) · §6 Hard Entry 의 knowledge activation   → 3층 둘째 (knowledge Lock 판정)
           §12 Growth Outcome 의 capability                                      → 4층 · 7층
@@ -141,6 +142,13 @@
           §5.1 이름 표의 나머지(거꾸로 된 정원 · 걷는 숲 · …)                          → 컨텐츠 행 — Human 이 하나씩
           거꾸로 된 정원의 문 저쪽 anchor 'MAZE_HEART_SIDE'                          → 정원을 짓는 Cycle 이 가져간다
           §11 미지 여섯 · §17 "실패가 정보로" — 온 길의 기록 · 갈 길의 단서                 → 후보 3 (Rooms GAP 회수)
+          §5.1 이름 표에서 코드에 없는 것 — 호수에 비친 달 · 거인의 초원 · 침묵의 계곡 · 유리 사막 · 티탄 해골 · 공간 왜곡 결정   → 컨텐츠 행 (Human 하나씩 · 위의 "나머지" 가 이것이다)
+          R6 Connector 열 항목 중 fallback · discovery — 코드의 Connector 에 없다 (discovery 는 Foundation C036 이 기회에 붙였다)   → 요구가 오는 Cycle · 3층 둘째(discovery)
+          §3.3 §13 Rule Primitive 기구 추출 후보 — 뽑지 않았다 (Condition 한 형 C035 가 절반)                → ENGINE 레인 — 두 번째 Region Rule 때
+          §3.3 §9 Local 3D Space 의 y — position 은 (x, z) · 높이는 컴파일 height 로 읽는다                    → 두지 않음 — 요구가 오는 Region 의 컨텐츠 행
+          §2.1 벽 ③ 보고를 사람이 읽는 것(요약 · 추리기)                                              → 후보 4 (HundredRooms)
+          2층에 남은 절 없음 — 재주입 대조(R1~R14 · 검사 ⑤~⑨ · §16 양식 ↔ C001~C014 · C026~C028 spec SOURCE · 테스트 PASS) 결과. 기획서를 나누지 않는다.
+          거대 악마의 숲(GIANT_DEMON_FOREST)은 코드에서 FOREST_EDGE · FOREST_DEEP(depth outer · wild)로 선다 — C001 의 결정 · 덮인 것
 ```
 
 결정 대기 — 방들의 그래프 (C001~C004) · 값 · 규칙 · 방향. Human 이 정하면 지우고 그 값이 사는 자리(데이터 · spec · 기획서)로 보낸다
