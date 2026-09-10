@@ -1,6 +1,6 @@
 # L3 — 주체와 몸 (기반 층 3 · 기획서 · 주입됨)
 
-상태: **주입됨 — 자를 자리는 Human 결정 대기** — 3층은 열려 있다(2층 판정과 병행 — [plan/DESIGN.md](../../plan/DESIGN.md) §1). Human 이 채팅으로 준 3층 기획서 전문을 그대로 보존했다 (`advprotoi-inject`). 3층에는 앞 층이 옮겨 세운 대기 기획서 둘([L3-Subject-Expedition.md](L3-Subject-Expedition.md) · [L3-Subject-Discovery.md](L3-Subject-Discovery.md))이 있고, 이 원문은 그 둘의 주제(편성 · 무대 · 앎 · 행동)와 그 둘이 소유하지 않던 **몸의 값**을 한 문서로 묶어 왔다. 원문의 §23~§27 이 전체에 걸쳐 있어 어디서 가를지 애매하므로 나누지 않았다 — 세 문서의 관계는 Human 이 정한다 ([plan/DESIGN.md](../../plan/DESIGN.md) §3 이 문서 절의 질문 · [plan/TODO.md](../../plan/TODO.md) §1).
+상태: **주입됨 — 3층의 기획서 (Human 확정)** — 3층은 열려 있다(2층 판정과 병행 — [plan/DESIGN.md](../../plan/DESIGN.md) §1). Human 이 채팅으로 준 3층 기획서 전문을 그대로 보존했다 (`advprotoi-inject`). 3층에는 앞 층이 옮겨 세운 대기 문서 둘([L3-Subject-Expedition.md](L3-Subject-Expedition.md) · [L3-Subject-Discovery.md](L3-Subject-Discovery.md))이 있었고, Human 이 **이 문서 하나가 3층의 행(Cycle A~D)** 이라고 정했다 (§3) — 그 둘은 이 문서의 재료("함께 읽는다")다. 자르는 것은 이 문서로 한다.
 §1 이 원문이다 — **글자 그대로**, 제목 수준만 맞췄다 (규칙: [design/Design-DesignAuthoringWorkflow.md §5 · §10](../../design/Design-DesignAuthoringWorkflow.md) · [README.md §4](README.md)). 검토 · 계약 절은 이 기획서를 자를 때 선다. Human 이 언제든 고친다.
 
 ```text
@@ -12,11 +12,12 @@
                         Aura Allocation · Ability Rule · Skill · Active/Entry/Leave/Off-field 의 내용(6층 — [L6-Skill-Class.md](L6-Skill-Class.md)) · Core 성장 · Class Change(7층 — [L7-Fairy-Growth-Combination.md](L7-Fairy-Growth-Combination.md)) ·
                         Player Input Mapping · NPC AI 의사결정(별도 Controller — 원문 §2.2) · 화면(8층 · Required 로)
 함께 읽는다 (옮기지 않는다)  [L3-Subject-Expedition.md](L3-Subject-Expedition.md)(L7 §4 · §5 · §9~§11 · §20 — 편성 · 무대 · Core) · [L3-Subject-Discovery.md](L3-Subject-Discovery.md)(Foundation §2.5 · §2.6 · §7.7 · §7.9 — 발견 상태 · NPC 행동) ·
+                        (두 문서의 §1 원문 — L7 §9 원정 편성 · §10 무대의 한 명 · §11 Entry/Leave/Off-field 의 자리 · §20 탐험의 교체는 Cycle C 의 재료, Foundation §2.5 NPC Process · §2.6 발견 상태 · §7.9 Investigation 은 Cycle B 의 재료) ·
                         L7 확정 3 · 4 · 5 · 10 · 11 · 12 · 위임 D1 · [Access](L2-World-Access.md) §14.1 · §15 · K12(몸이 답한다) · [Life](L2-World-Life.md) F10 · [M5](M5-FrostCanyon.md) ·
                         design/Design-Subject-Decision · Design-Autonomous-Behavior-Knowledge-R0 · Design-Creature-Behavior-R0 · Design-Inventory-Equipment-D1 ·
                         코드의 지금 — `content/world/semantic/actor.ts` ActorState(hp · cp · perceptionRange 가 고정 상수로 있다) · `combat.ts` actorModifiers · `condition.ts` target:'actor' 자리(C035) — [codemap](../../codemap/CONTENT.md)
-놓는 미지                 원문에 없다 — 3층 Cycle 이 놓을 "무엇을 원하는지 아는 생물 하나"(README §1)는 후보 2 의 M8 이 맡고 있다. 이 문서의 몫인지는 Human (질문)
-자르는 때                 Human 이 세 문서의 관계를 정한 뒤 — "L3-Subject-Body 로 spec 써" (Cycle 은 원문 §26 의 넷이 후보)
+놓는 미지                 **놓지 않는다** (Human 확정 — §3). M8 협곡의 열을 쫓는 것은 컨텐츠 행으로 남아 3층이 닫힌 뒤 Human 이 이름을 줄 때 선다 ([plan/DESIGN.md](../../plan/DESIGN.md) §2)
+자르는 때                 지금 — "L3-Subject-Body 로 spec 써" (Cycle 은 원문 §26 의 넷 — A Body · B Knowledge & Action · C Expedition & Stage · D Attachment)
 ```
 
 ## 1. 원문 — 주입물 (글자 그대로)
@@ -1254,16 +1255,27 @@ HP와 CP는 얼마인가?
 ## 2. 걸친 절 — 다른 문서와 나눠 갖거나 옮기지 않은 것
 
 원문에 뒤 층의 절은 없다 — §2.2 · §9 · §18 · §21 · §22 · §27 의 4~7층 언급은 경계 서술이지 그 층의 기획이 아니다. 옮긴 것이 없다.
-같은 층의 대기 문서 둘과 겹치는 절은 아래와 같다 — 문장은 옮기지 않았다. 세 문서의 관계는 Human 이 정한다 (질문 — [plan/DESIGN.md](../../plan/DESIGN.md) §3 이 문서 절).
+같은 층의 문서 둘과 겹치는 절은 아래와 같다 — 문장은 옮기지 않았다. Human 이 이 문서 하나를 3층의 행으로 정했으므로(§3) 그 둘은 재료다.
 
 ```text
 §15 Core · §16~§19 Expedition · 무대의 한 명 · 교체 · Presence · §22 Bag(원정 단위)   L3-Subject-Expedition 의 주제 (L7 §9 · §10 · §11 의 자리 · §20 과 같은 것 — 그 문서 §3 이 여기를 가리킨다).
-                                                                            원문 §26 Cycle C 가 그 문서의 후보 2 와 겹친다 — 어느 쪽이 행인가는 Human
+                                                                            그 문서의 §1 원문(L7 §9 · §10 · §11 · §20)은 Cycle C 의 재료 · 그 문서가 받기로 했던 것(Access property Lock 판정 · Life F10 첫 개체 · M5 남은 것)도 이 문서의 Cycle 이 받는다
 §7 Awareness · §8~§9 Knowledge · §10 Condition target:actor · §11~§14 Action Port    L3-Subject-Discovery 의 주제 (Foundation §2.5 NPC Process · §2.6 발견 상태 · §7.9 Investigation — 그 문서 §3 이 여기를 가리킨다).
-                                                                            원문 §26 Cycle B 가 그 문서의 후보 5 와 겹친다. 원문의 Knowledge 는 Actor 의 것(learn / forget / knows)이고 Discovery 의 것은
-                                                                            Player Knowledge 와 발견 상태 다섯(G10) — 둘의 관계는 원문에 없다 (질문)
+                                                                            그 문서의 §1 원문(Foundation §2.5 · §2.6 · §7.7 · §7.9)은 Cycle B 의 재료. Knowledge 는 **Actor 와 관찰자(원정) 둘 다 소유할 수 있다** (Human 확정 — §3)
 §3~§6 Body State · Body Property · §5 HP/CP · §20~§21 장착 슬롯 6               어느 대기 문서도 소유하지 않던 몫("몸의 값" — 두 문서가 "Human 주입" 으로 미룬 것). 이 문서가 처음 받는다
 §10 Condition target:actor · §20~§22 장착 슬롯 · Bag                          형의 자리 — Condition 은 C035 의 형에 이 층이 줄을 더한다(Discovery §2 와 같은 자리). 슬롯 · Bag 은 이 층이 자리를, 4층(L4-Item-Gem · L4-Item-Craft)이 내용을. 옮기지 않는다
 §3.1 "현재 존재하는 상태"                                                       코드의 ActorState 와 대조는 spec 이 Reuse/Existing 으로 한다 — 여기서 고치지 않는다 (hp · cp · perceptionRange · currentAction 이 있고, R2 의 유도 구조는 없다)
 §7 Awareness → Observation                                                  Foundation §2.6 의 2층 몫(World Truth → Observable Signal)은 세워졌다(C034~C038). 이 문서는 "누가 얼마나 멀리 감지하는가" 만 — 관찰 표면은 8층 · Required
+```
+
+## 3. 주입의 답 — Human 이 정한 것 (Human 의 문장)
+
+주입 때 올린 질문에 Human 이 답했다. 원문(§1)은 손대지 않는다 — 이 절이 그 위의 확정이다.
+
+```text
+관계        가 — 이 문서 하나가 3층의 행(Cycle A~D)이다. L3-Subject-Expedition · L3-Subject-Discovery 는 "함께 읽는다" 로 그 Cycle 에 든다 (Cycle C 가 편성 · Cycle B 가 앎과 행동)
+순서        (가 로 사라짐) — 원문 §26 의 순서 A → B → C → D
+놓는 미지    "안 놓을것" — 이 기획서의 Cycle 은 미지를 놓지 않는다. M8 은 컨텐츠 행으로 남는다
+Knowledge   "둘다 소유할 수 있도록. 이후 유연하게 대응" — Actor 의 Knowledge(원문 §8 learn / forget / knows)와 관찰자(원정)의 Knowledge · 발견 상태(Discovery G10)를 둘 다 둘 수 있게 한다.
+            어느 쪽이 무엇을 아는가는 뒤 층 · 컨텐츠 행이 정한다 — 지금은 둘 다 놓일 수 있는 형까지
 ```
