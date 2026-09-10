@@ -200,6 +200,37 @@ describe('T5 — 모델에게 무엇을 건네는가', () => {
     expect(system).toContain('── 본보기 (content/authoring/examples/GAS_VILLAGE.json)');
   });
 
+  it('판정기가 대조하는 어휘가 **전부** 시스템 글에도 실린다 — 갈리면 초안기는 모르는 채로 틀린다', () => {
+    // 실주행에서 실제로 걸린 자리다. T2 확장이 성질(축:관계) · 문장 갈래 · 물음의 자리와 세기를
+    // T4 의 대조 대상으로 세웠는데 초안기의 어휘 목록에는 넣지 않아, 모델이 성질 태그 자리에
+    // 설명하는 문장을 적고 한 바퀴를 통째로 버렸다. 판정하는 어휘와 알려 주는 어휘는 같아야 한다.
+    const system = draftSystem();
+    const judged: readonly (readonly string[] | undefined)[] = [
+      WORLD_CONTRACTS.propertyAspects,
+      WORLD_CONTRACTS.propertyRelations,
+      WORLD_CONTRACTS.propertyStatements,
+      WORLD_CONTRACTS.lockAtKinds,
+      WORLD_CONTRACTS.lockStrengths,
+      WORLD_CONTRACTS.carriers,
+      WORLD_CONTRACTS.roles,
+      WORLD_CONTRACTS.hazardKinds,
+      WORLD_CONTRACTS.transitions,
+    ];
+    for (const names of judged) {
+      for (const name of names ?? []) {
+        expect({ name, told: system.includes(name) }).toEqual({ name, told: true });
+      }
+    }
+    // 그리고 꼴 자체를 말해 준다 — 목록만 주면 "축" 과 "관계" 를 어떻게 잇는지는 여전히 모른다
+    expect(system).toContain('"축:관계"');
+  });
+
+  it('brief 가 묻는 질문의 원문이 확정 문서로 실린다 — 묻는 것을 적으라면서 그 문서를 주지 않으면 지어낸다', () => {
+    const system = draftSystem();
+    // ⑨~⑫ 는 Access 원문 §12 의 것이다 (T2 확장). 그 문서가 빠져 있던 것이 실주행에서 드러났다
+    expect(system).toContain('── 확정 문서 (content/roadmap/L2-World-Access.md)');
+  });
+
   it('runDraft 는 도구가 짓는 시스템 글과 형을 함께 건넨다', async () => {
     const model = port([answered('GAS_VILLAGE')]);
     const result = await runDraft('가스로 가득 찬 마을', model.ask, 1);

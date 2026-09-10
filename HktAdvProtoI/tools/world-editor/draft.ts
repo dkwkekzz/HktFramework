@@ -89,6 +89,13 @@ export function draftWorldFacts(): DraftWorldFacts {
       { of: '이미 지어진 방 (neighbours[].region)', names: WORLD_CONTRACTS.regions },
       { of: '아직 짓지 않은 곳 (neighbours[].region)', names: WORLD_CONTRACTS.frontiers },
       { of: '이미 선 규칙', names: WORLD_CONTRACTS.rules },
+      // T2 확장 ADDED — 판정기(T4)가 대조하는 어휘와 여기 실리는 어휘는 **같아야 한다.**
+      // 갈리면 초안기는 모르는 채로 틀리고 한 바퀴를 버린다 (실주행에서 실제로 그랬다).
+      { of: '성질의 축 (properties[].tag 의 앞자리)', names: WORLD_CONTRACTS.propertyAspects },
+      { of: '성질의 관계 (properties[].tag 의 뒷자리)', names: WORLD_CONTRACTS.propertyRelations },
+      { of: '성질이 난 문장 (properties[].from)', names: WORLD_CONTRACTS.propertyStatements ?? [] },
+      { of: '물음이 걸리는 자리 (asking.locks[].at.kind)', names: WORLD_CONTRACTS.lockAtKinds ?? [] },
+      { of: '물음의 세기 (asking.locks[].strength)', names: WORLD_CONTRACTS.lockStrengths ?? [] },
     ],
     standing: [
       ...REGION_SPECS.map((spec) => `방 ${spec.id} — 깊이 ${spec.depth}`),

@@ -260,7 +260,8 @@ function pendingGap(brief: RegionBrief, key: AnswerKey, returnTo: string): Gap {
   // 그것도 미답이고, 까닭은 적힌 것이 없으므로 비운다
   const answer = answerOf(brief, key) as Answer | undefined;
   return {
-    required: `${brief.id} 의 아홉 답 가운데 ${key}`,
+    // 답의 수를 세지 않는다 — 형이 넓어질 때마다 이 글자가 거짓이 된다 (아홉이었다가 열이 되었다)
+    required: `${brief.id} 의 답 가운데 ${key}`,
     missing: '아직 답이 없다',
     reason: answer !== undefined && isUnanswered(answer) ? answer.unanswered : '',
     returnTo,
