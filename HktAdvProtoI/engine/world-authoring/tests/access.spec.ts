@@ -141,13 +141,14 @@ describe('reachableRegionsExcept — 어떤 이음을 벽으로 놓고 도는 �
   });
 });
 
-describe('checkRegions — 접근 쪽 아홉의 형', () => {
-  // 뒤의 다섯(㊸ ㊼ — C034 · ㊹ — C035 · ㊺ ㊻ — C036)을 뺀 아홉이 이 아홉이다
-  it('㉞~㊷ 이 ㉝ 다음에 번호 순으로 붙는다', () => {
+describe('checkRegions — 접근 쪽 열의 형', () => {
+  // 뒤의 다섯(㊸ ㊼ — C034 · ㊹ — C035 · ㊺ ㊻ — C036)을 뺀 열이 이 열이다
+  // T2 확장 CHANGED — ㊽(묻지 않는 방의 사유)이 ㊷ 뒤에 서서 아홉이 열이 되었다
+  it('㉞~㊷ ㊽ 이 ㉝ 다음에 번호 순으로 붙는다', () => {
     const marks = run(access()).items.map((item) => item.mark);
-    expect(marks.slice(-14, -5)).toEqual(['㉞', '㉟', '㊱', '㊲', '㊳', '㊴', '㊵', '㊶', '㊷']);
+    expect(marks.slice(-15, -5)).toEqual(['㉞', '㉟', '㊱', '㊲', '㊳', '㊴', '㊵', '㊶', '㊷', '㊽']);
     const ids = run(access()).items.map((item) => item.id);
-    expect(ids.slice(-14, -5)).toEqual([
+    expect(ids.slice(-15, -5)).toEqual([
       'access-refs',
       'access-answer',
       'access-property-spread',
@@ -157,15 +158,16 @@ describe('checkRegions — 접근 쪽 아홉의 형', () => {
       'access-answer-variety',
       'access-trace',
       'access-behind-lock',
+      'access-silence',
     ]);
     expect(new Set(ids).size).toBe(ids.length);
   });
 
-  it('접근 쪽 계약을 주지 않으면 아홉이 전부 absent 다 — 통과로 적지 않는다', () => {
-    const nine = run(undefined).items.slice(-14, -5);
-    expect(nine.map((item) => item.status)).toEqual(Array(9).fill('absent'));
-    expect(nine.map((item) => item.answer)).toEqual(
-      Array(9).fill('접근 쪽 계약이 주어지지 않았다'),
+  it('접근 쪽 계약을 주지 않으면 열이 전부 absent 다 — 통과로 적지 않는다', () => {
+    const ten = run(undefined).items.slice(-15, -5);
+    expect(ten.map((item) => item.status)).toEqual(Array(10).fill('absent'));
+    expect(ten.map((item) => item.answer)).toEqual(
+      Array(10).fill('접근 쪽 계약이 주어지지 않았다'),
     );
   });
 

@@ -173,6 +173,7 @@ describe('T5 — 모델에게 무엇을 건네는가', () => {
       'discovery',
       'opening',
       'birth',
+      'asking',
       'offering',
     ]);
     // 형이 실제로 이 세계의 brief 를 받아들인다

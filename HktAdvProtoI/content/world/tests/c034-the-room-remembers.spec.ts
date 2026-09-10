@@ -1248,7 +1248,7 @@ describe('SPEC-006 지목하면 셈이 읽힌다', () => {
 describe('SPEC-007 검사가 기억을 본다 — ㊸ ㊼', () => {
   const HISTORY_REFS = '㊸';
   const PERSISTENCE_SUMMARY = '㊼';
-  /** 이 Cycle 앞의 마지막 번호 — 새 검사가 그 뒤에 이어 붙는다 */
+  /** 이 Cycle 앞의 마지막 번호 — 기억의 검사 둘이 그 **뒤에** 선다 */
   const LAST_BEFORE = '㊷';
 
   const plain = runTool(CHECK, []);
@@ -1260,11 +1260,14 @@ describe('SPEC-007 검사가 기억을 본다 — ㊸ ㊼', () => {
     return found;
   };
 
-  it('S-229 ㊸ 가 앞의 마지막 번호 뒤에 이어 붙고 ㊼ 가 그 뒤에 선다', () => {
+  it('S-229 ㊸ 가 앞의 마지막 번호 뒤에 서고 ㊼ 가 그 뒤에 선다', () => {
+    // **붙어 있음이 아니라 차례를 잰다** — 뒤 Cycle 이 앞 계통에 검사를 더하면 그 번호가 둘
+    // 사이에 끼는데(접근 계통의 ㊽ 이 그랬다), 이 시나리오가 말하려는 것은 "기억의 검사가 그
+    // 뒤에 선다" 이지 "바로 다음 칸이다" 가 아니다. 붙어 있음을 재면 남의 계통이 늘 때마다 깨진다
     const marks = numbered().map((i) => i.mark);
     const at = marks.indexOf(LAST_BEFORE);
     expect(at).toBeGreaterThanOrEqual(0);
-    expect(marks[at + 1]).toBe(HISTORY_REFS);
+    expect(marks.indexOf(HISTORY_REFS)).toBeGreaterThan(at);
     expect(marks.indexOf(PERSISTENCE_SUMMARY)).toBeGreaterThan(marks.indexOf(HISTORY_REFS));
   });
 
