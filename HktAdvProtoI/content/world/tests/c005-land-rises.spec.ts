@@ -628,7 +628,7 @@ describe('SPEC-007 — 데이터가 없는 방은 평평하다', () => {
     const frontier = (REGION_GRAPH as unknown as { frontiers?: string[] }).frontiers?.[0] ?? 'NO_SUCH_REGION';
     expect(regionSpec(frontier)).toBeUndefined();
     // Then 그릴 근거가 없다 — 바닥 polygon 도 나오지 않는다 (C001 부터의 폴백 규칙)
-    expect(regionZones({ id: frontier, hash: '00000000', disturbance: { value: 0, threshold: 300, phase: 'dormant' as const }, memory: { turns: 0, awakenings: { times: 0 }, passages: [] } })).toEqual([]);
+    expect(regionZones({ id: frontier, hash: '00000000', disturbance: { value: 0, threshold: 300, phase: 'dormant' as const }, memory: { turns: 0, awakenings: { times: 0 }, passages: [], births: [] } })).toEqual([]);
     expect(regionZones(undefined)).toEqual([]);
   });
 });

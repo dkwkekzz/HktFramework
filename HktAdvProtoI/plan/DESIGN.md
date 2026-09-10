@@ -19,7 +19,7 @@
 |---|---|---|---|---|---|
 | 0 | 게임 방향 | [L0-Game.md](../content/roadmap/L0-Game.md) | 없음 — 판단 기준 | **확정** | 미증명 넷 (§3 L0) |
 | 1 | 세계의 문법 | [L1-World-Grammar.md](../content/roadmap/L1-World-Grammar.md) | 없음 — 코드가 이미 이 문법 위 | **확정** | 없음 |
-| 2 | 세계 자체 | [L2-World-Tool](../content/roadmap/L2-World-Tool.md) · [Tool-Scale](../content/roadmap/L2-World-Tool-Scale.md) · [Concept](../content/roadmap/L2-World-Concept.md) · [Region](../content/roadmap/L2-World-Region.md) · [Material](../content/roadmap/L2-World-Material.md) · [Time](../content/roadmap/L2-World-Time.md) · [Life](../content/roadmap/L2-World-Life.md) · [Access](../content/roadmap/L2-World-Access.md) · [Foundation](../content/roadmap/L2-World-Foundation.md) | C001~C034 ([CYCLES §3.1](CYCLES.md)) | **다음** — 기획은 닫혔다 (더 쌓을 기획 없음) | Foundation 의 조건 · 기회 · Event(C035~C037 진행 중) · Rooms GAP 둘(후보 3) · 판정 대기 셋 · 도구 묶음 HundredRooms |
+| 2 | 세계 자체 | [L2-World-Tool](../content/roadmap/L2-World-Tool.md) · [Tool-Scale](../content/roadmap/L2-World-Tool-Scale.md) · [Concept](../content/roadmap/L2-World-Concept.md) · [Region](../content/roadmap/L2-World-Region.md) · [Material](../content/roadmap/L2-World-Material.md) · [Time](../content/roadmap/L2-World-Time.md) · [Life](../content/roadmap/L2-World-Life.md) · [Access](../content/roadmap/L2-World-Access.md) · [Foundation](../content/roadmap/L2-World-Foundation.md) | C001~C038 ([CYCLES §3.1](CYCLES.md)) | **다음** — 기획은 닫혔다 (더 쌓을 기획 없음) | Rooms GAP 둘(후보 3) · 판정 대기 셋(협곡 · 생명 · 요구와 가능성 — 컨텐츠 행) · 도구 묶음 HundredRooms |
 | 3 | 주체와 몸 | [L7 §3](../content/roadmap/L7-Fairy-Growth-Combination.md) 의 3층 몫 (편성 · 무대의 한 명 · Core 가 몸의 State 로) | 없음 | **다음** — Human 결정으로 2층 판정과 **병행** | 3층 몫 묶음(후보 2) · 나머지 절반(몸의 값 전반 · 생물의 앎과 선택)은 별도 주입 |
 | 4 | 자원과 물건 | — | 없음 | 미주입 | L7 4층 몫 · Material 쓰임 · Access 4층 몫 (§3) |
 | 5 | 대결 | — | 없음 | 미주입 | L7 5층 몫 · Concept W6 · W7 |
@@ -180,15 +180,20 @@
 ### L2-World-Foundation — Region Foundation (②-부속 다섯째)
 
 ```text
-덮음      C034(닫힘 — G7 수명 표 · G8 기억 · §4.3 · §4.4 · ㊸ ㊼ · D4 · D5) · C035(닫힘 — G5 조건의 한 형 · §4.1 · ㊹ · 빈칸 2 · G8 첫 사례 비늘) · C036~C037(묶음 「방은 기억하고 때가 되면 내민다」 — 진행 · CYCLES §3.4)
+덮음      C034(G7 수명 표 · G8 기억 · §4.3 · §4.4 · ㊸ ㊼ · D4 · D5) · C035(G5 조건의 한 형 · §4.1 · ㊹ · 빈칸 2 · G8 첫 사례 비늘) ·
+          C036(G3 기회 · §4.5 · G6 op 이름 · G9 관계 다섯 · ㊺ ㊻ · 기회 표 · 수명 표) · C037(G4 Event · G8 births · G11 Yield 표 · G13 · T2 · T4 · T6) —
+          묶음 「방은 기억하고 때가 되면 내민다」 는 **닫힘** (CYCLES §3.4 — 기반 검토 · 결손 채움 · 결정 확정) + 정비 C038
 덮인 것   기억(history · 되돌아옴 · 뒤척임이 못 묻는다) · 수명 표 · 검사 ㊸ ㊼ · 판의 「기억」 줄 · Condition 형(Target 여덟 + 자리 셋 · Query 다섯 + 자리 다섯 · Operator 아홉 · Qualifier · all/any) ·
-          게임 명사 없는 평가기(판정 셋 — 참 · 거짓 · 판정 불가) · 조건 자리 넷의 어댑터(읽기만) · 기억을 읽는 첫 조건(비늘 → `needs-passage`) · 검사 ㊹ · observe 조건 표
-남은 것   C036 기회=데이터(G3 · §4.5 · ㊺ ㊻ · 기회 표) · C037 Event(G4 · D3 비늘) · op 표(G6) · Yield 표(G11) ·
-          T2 열셋째 답 · T4 결정 나무 · T6 ㊻ · 최소 완성 기준 23 · 24 (G13)                                → C036~C037
-          기억 · 조건 · 기회 · Event 의 **경험 판정** — 판의 「기억」 줄이 읽히는가 · 숫자 표기 · 어느 셈을 세우나 · 「지나간 것이 있어야 한다」 와
-          「아직 그때가 아니다」 가 나란히 읽히는가 · 「— 지금은 없다」 가 기다림으로 읽히는가 (기반 묶음은 묻지 않는다 — 손잡이는 codemap/CONTENT.md)   → 이 축을 처음 쓰는 컨텐츠 묶음
+          게임 명사 없는 평가기(판정 셋 — 참 · 거짓 · 판정 불가) · 조건 자리 넷의 어댑터(읽기만) · 기억을 읽는 첫 조건(비늘 → `needs-passage`) · 검사 ㊹ · observe 조건 표 ·
+          Opportunity 형(항목 여덟 — participants · rules 는 자리만) · 원천마다 · Lock 이 걸린 문마다의 기본형 유도 · Interaction 에 붙는 기회 이름과 discovery ·
+          판의 「할 수 있는 것」 이 "어떻게 알게 되는가" 를 말한다 · Mutation op 이름표 · 관계 다섯 갈래의 목록 · 검사 ㊺ ㊻ · observe 기회 표 · 수명 표 ·
+          Event(시간 qualifier 를 가진 기회 — 열림·닫힘·완료는 유도) · **지나간 것이 남긴 것은 한동안만 머문다**(Human 판정 · 세계 규칙 한 줄) ·
+          판의 「지금은 없다」 · 태어남의 셈(births) · Yield 표 열 열넷 · 기회 계약과 T4 결정 나무 · brief 의 아홉째 답 · lab 의 ㊻ · 기회 표의 「지금」 열
+남은 것   탄생지의 채취를 기회로 세우는 것 · change qualifier(CROSSED)의 실사용                       → Life 를 다시 여는 묶음 · 그 어법을 쓰는 Cycle
+          HIDDEN 이 **발견되는** 절차 (거름은 C038 이 세웠다)                                        → 3층 둘째 (발견 상태 다섯)
           chance(빈칸 1) · 조건 자리 넷을 형으로 **옮기는** 것(Q1 읽기만으로 닫음 — 옮길 이유가 생기면 그때)   → 5층 이후 · 결정 대기
           §5.5 Player Knowledge · 발견 상태 다섯 · knowledge Lock          → 3층 둘째 (G10)
+          discovery 의 NPC · KNOWLEDGE 갈래 · HIDDEN 기회가 드러나는 절차   → 3층 둘째 (C036 이 형에 자리만 두었다)
           Actor · NPC · participants                                  → 3층 몫 묶음(첫 개체) · 3층 둘째
           전투 Opportunity · Boss 탄생 조건 · killed                     → 5층
           제작 · Recipe · Item · Currency                              → 4층
@@ -240,31 +245,35 @@ Q2  떨어지는 자리를 세계가 알리지 않는다 — 추락은 거목 �
 
 ## 4. 어느 층에도 자리가 없는 것
 
-원본이 "뒤 층" 이라고만 한 것 — 새 주입이 있어야 한다. 로드맵 8층은 화면이라 이것들의 층이 아니다. **9층 이상을 세울지, 3~7층 어딘가에 넣을지는 Human 결정** ([TODO.md](TODO.md) §1).
+원본이 "뒤 층" 이라고만 한 것 — 새 주입이 있어야 한다. 로드맵 8층은 화면이라 이것들의 층이 아니다.
+
+**층을 미리 세우지 않는다 (확정)** — 넷은 **주입이 올 때 그 주입이 자기 층을 데려온다**. 지금 9층을 세우면 아무것도 없는 층이 하나
+생기고, 3~7층 어딘가에 억지로 넣으면 그 층의 축이 흐려진다. 그래서 여기 목록으로만 두고, Human 이 그 기획서를 쓸 때 층이 정해진다
+(그것이 이 트랙이 층을 여는 방식이다 — [README §1](../content/roadmap/README.md)). 아래 "가장 가까운 자리" 는 그때의 출발점 제안이다.
 
 ```text
-다중 플레이어의 충분조건 — 분업 · 거래 · 정보 공유 · 가능성 공유    L0 ② · Concept §14 · Access
-사회 — 경제 · 세력 · 협동 · 구조 · 미니게임 · 서사 · NPC 조우         Foundation §5.5
-생물의 성별 · 번식 · 유전과 변이                                  Life
-절벽 낙하                                                    Rooms GAP 밖
+다중 플레이어의 충분조건 — 분업 · 거래 · 정보 공유 · 가능성 공유    L0 ② · Concept §14 · Access   가장 가까운 자리: 사회 축(새 층)
+사회 — 경제 · 세력 · 협동 · 구조 · 미니게임 · 서사 · NPC 조우         Foundation §5.5              가장 가까운 자리: 같은 사회 축 — 위와 한 주입
+생물의 성별 · 번식 · 유전과 변이                                  Life                        가장 가까운 자리: Life 를 다시 여는 컨텐츠 행
+절벽 낙하                                                    Rooms GAP 밖                 가장 가까운 자리: 3층(몸에 하는 일)
 ```
 
 ## 5. 다음 묶음 후보 — 순서대로
 
 묶음은 문서가 아니다 — Human 이 기획서를 지목하면 AI 가 첫 Cycle 의 spec 머리에 묶음 블록을 쓰고 "C### 진행" 이 승인이다 ([Design-DesignAuthoringWorkflow §5~§7](../design/Design-DesignAuthoringWorkflow.md)).
-번호는 예정이다 — 실제는 승인 때 "전 이름공간 최대 + 1" (지금 C032). "받는 것" 이 §3 의 "남은 것" 과 짝이다. 순서는 제안이고 Human 이 정한다.
+번호는 예정이다 — 실제는 승인 때 "전 이름공간 최대 + 1" (지금 C039). "받는 것" 이 §3 의 "남은 것" 과 짝이다.
+**순서는 이 표 그대로 간다 (확정)** — 앞당길 일이 생기면 그때 Human 이 뒤집는다. 지금 열려 있는 것은 2 · 3 둘이고 병행할 수 있다.
 
 | 순서 | 층 / 행 | 묶음 (가칭) | 기획서 | Goal (방향) | 받는 것 | 전제 | 그때 필요한 주입 · 미지 | Cycle | 상태 |
 |---|---|---|---|---|---|---|---|---|---|
-| 1 | L2 Foundation | 방은 기억하고 때가 되면 내민다 | [L2-World-Foundation](../content/roadmap/L2-World-Foundation.md) §3~§5 · Time 2.6~2.7 | 방이 자기에게 일어난 일을 세고(기억 — C034 닫힘), 조건이 한 형으로 적혀 기억을 읽고, 방이 기회를 내밀고, 때가 있는 기회(Event — 비늘 채집)로 선다 | Foundation 전부 · Time 2.6~2.7 | — | 묶음 질문 Q1~Q9 (C035 spec) | C034~C037 | **진행 — C034 · C035 닫힘 · C036 다음** ([CYCLES §3.4](CYCLES.md)) |
 | 2 | **L3** · M8 | 한 명만 무대에 선다 | [L7](../content/roadmap/L7-Fairy-Growth-Combination.md) §9~§11 · §20 · §4~§5 · [Access](../content/roadmap/L2-World-Access.md) §14.1 · §15 · K12 · [M5](../content/roadmap/M5-FrostCanyon.md) | 요정 둘을 편성해 협곡을 지난다 — 추위가 무대의 몸을 깎고, 교체하면 다른 Core 의 몸이 서고, 문이 몸의 성질을 묻고(property Lock 의 첫 판정), 열을 쫓는 것이 따뜻한 몸만 본다 | L7 3층 몫 · Access property Lock 판정 · Life F10 첫 개체 · M5 남은 것 | 없음 — 2층 판정과 병행 (Human 결정) | 미지 M8 의 이름(Human) · 시작 편성 둘 · 온기 값 (질문으로) | 넷 안팎 | **쓸 수 있음** |
 | 3 | L2 회수 | 온 길은 남고, 갈 길에는 단서가 있다 | [Region](../content/roadmap/L2-World-Region.md) §11 · §17 · Concept §19-07 · 실주행 GAP Q1 · Q2 | 관찰자가 방 전이를 기록하고 판에서 되읽는다 · 출구를 지목하면 종류와 방향이 선다 · 추락 자리의 땅이 예고한다 | Rooms GAP 둘 | 없음 — 지금 | 위치 감각의 형태(지도 · 이정표 · 흔적 · 깊이 감각만) · 추락 예고를 둘지 (질문으로) | 둘 | **쓸 수 있음** |
 | 4 | L2 도구 | HundredRooms | [Tool-Scale §5](../content/roadmap/L2-World-Tool-Scale.md) | 미지 백 줄 → 방 백 개가 검사를 통과하고 관찰자가 열 곳을 걸어 흔적 → 원천 → 철 → 탄생지를 본다. 코드 diff 0 | Tool-Scale 의 HundredRooms | T3 ecology | 미지 백 줄의 **이름**(Human — 또는 초안기 후보를 Human 이 고른다) | 셋 안팎 | 기다림 — T3 ecology |
 | 5 | L3 둘째 | (가칭) 몸이 알고 원한다 | 3층 나머지 절반 주입 + Subject-Decision · Autonomous-Behavior · Creature-Behavior | 몸이 무엇을 가지는가(피로 · 밤 · 결정면) · 생물이 무엇을 알고 어떻게 고르는가 · knowledge Lock · Discovery State | §3 의 "3층 둘째" 전부 | 후보 2 의 판정 | 3층 주입 + 미지: 무엇을 원하는지 아는 생물 하나 더 | 넷 안팎 | 기다림 |
-| 6 | L4 | (가칭) 캐서 지니면 갈 수 있는 곳이 늘어난다 | 4층 주입 + Item-* · Inventory-D1 · Resource-Catalog · L7 §8 · §17 | 보석 하나를 캐서 지니고, 물건 하나가 같은 행동을 다른 행동으로 바꾼다 → 세 계통의 답(몸 · 소지 · 환경)이 한 문에 실제로 선다 | L7 4층 몫 · Material S10 · Access 4층 몫 · Region §12 | 후보 2 | 4층 주입 · D2 · D4 + 미지: 어디서 나는지 정해진 자원 하나 | 넷 안팎 | 기다림 — **Human 결정으로 앞당길 수 있다** |
+| 6 | L4 | (가칭) 캐서 지니면 갈 수 있는 곳이 늘어난다 | 4층 주입 + Item-* · Inventory-D1 · Resource-Catalog · L7 §8 · §17 | 보석 하나를 캐서 지니고, 물건 하나가 같은 행동을 다른 행동으로 바꾼다 → 세 계통의 답(몸 · 소지 · 환경)이 한 문에 실제로 선다 | L7 4층 몫 · Material S10 · Access 4층 몫 · Region §12 | 후보 2 | 4층 주입 · D2 · D4 + 미지: 어디서 나는지 정해진 자원 하나 | 넷 안팎 | 기다림 (차례대로) |
 | 7 | L5 | (가칭) 처음으로 맞서 이긴다 | 5층 주입 + Combat-* · Targeting · L7 §13 · §14 | 같은 적을 두 가지 상태 순서로 쓰러뜨린다 | L7 5층 몫 · Concept W6 · W7 · Time 접촉 | 후보 5 · 6 | 5층 주입 · D3 + 미지: 여러 해법을 허용하는 몬스터 하나 | — | 기다림 |
 | 8 | L6 | (가칭) 한 Core 가 두 Class 로 | 6층 주입 + Skill-* · L7 §6 · §11 | 한 Core 가 두 Class 로 다른 Law 가 되고, Leave 가 남긴 장판이 다음 요정의 능력과 반응한다 | L7 6층 몫 | 후보 7 | 6층 주입 · D5 + Class 둘의 정식 이름 | — | 기다림 |
-| 9 | L7 | (가칭) 보석 하나가 답을 바꾼다 | L7 전문 · Growth-Balance | 보석 하나로 Class 가 바뀌어 못 풀던 자리를 새 방법으로 푼다 · Knowledge 하나가 숨겨진 관계를 연다 · 미증명 ③ | L7 7층 몫 · Life F11 · Access 7층 몫 · Material S10 의 Class 요구 | 후보 8 · 6 | 7층 주입 · D1 + 미지: 보석 하나의 Region 과 원인 · Knowledge 하나 | — | 기다림 — **Human 결정으로 앞당길 수 있다** |
+| 9 | L7 | (가칭) 보석 하나가 답을 바꾼다 | L7 전문 · Growth-Balance | 보석 하나로 Class 가 바뀌어 못 풀던 자리를 새 방법으로 푼다 · Knowledge 하나가 숨겨진 관계를 연다 · 미증명 ③ | L7 7층 몫 · Life F11 · Access 7층 몫 · Material S10 의 Class 요구 | 후보 8 · 6 | 7층 주입 · D1 + 미지: 보석 하나의 Region 과 원인 · Knowledge 하나 | — | 기다림 (차례대로) |
 | — | 컨텐츠 행 | (대부분 묶음 없음) | `M<N>-*.md` | 보석 여덟 · 보류 계열 일곱 · 클래스 · 아이템 · 지식 · 지역 — 등급 A 면 작성기 · Spec · 검사 · Human 판정 / B 면 Cycle 하나 / C 면 기반 층 | §3 의 "컨텐츠 행" 전부 | Human 이 이름 · 종류 · 세계관 사실을 확정 | 미지 하나씩 | — | Human 이 이름을 줄 때마다 |
 
 8층(화면)은 묶음이 없다 — 각 묶음의 Required 로 들어온다. 후보 1(진행 중) · 2 · 3 은 Reuse 가 겹치지 않아 **병행**할 수 있다 (PR 은 번호 순으로 합친다).

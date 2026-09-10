@@ -43,6 +43,18 @@ import {
   type RegionGraph,
 } from './graph';
 import { rasterSemantic } from './observe';
+import {
+  DECIDABLE_DISCOVERY_KINDS,
+  DEFERRED_DISCOVERY_KINDS,
+  formatOpportunity,
+  isEventOpportunity,
+  MUTATION_OPS,
+  OPPORTUNITY_PROGRESS_KINDS,
+  OPPORTUNITY_YIELD_KINDS,
+  type Opportunity,
+  type OpportunityAction,
+  type OpportunityTargetKind,
+} from './opportunity';
 import { tagsAt } from './query';
 
 export type GraphIssueCode =
@@ -280,6 +292,8 @@ export interface CheckRegionsInput {
   memory?: CheckMemory;
   /** ㊹ 가 볼 조건 쪽 계약 — 주지 않으면 absent 다 (memory 의 선례 그대로) */
   condition?: CheckCondition;
+  /** ㊺ ㊻ 이 볼 기회 쪽 계약 — 주지 않으면 그 둘이 전부 absent 다 (memory · condition 의 선례 그대로) */
+  opportunity?: CheckOpportunity;
 }
 
 /** checkGraph 의 코드 → ⑤⑥⑦⑧. 순서가 곧 번호다 */
@@ -568,10 +582,11 @@ function checkCoreRules(input: CheckRegionsInput): CheckItem {
 }
 
 /**
- * 검사 마흔넷을 한 번에 돌린다 — 결과는 기계가 읽는다
- * (T1 의 아홉 + C014 의 열셋 + C018 의 넷 + C022 의 일곱 + C029 의 아홉 + C034 의 둘).
+ * 검사 마흔일곱을 한 번에 돌린다 — 결과는 기계가 읽는다
+ * (T1 의 아홉 + C014 의 열셋 + C018 의 넷 + C022 의 일곱 + C029 의 아홉 + C034 의 둘 +
+ * C035 의 하나 + C036 의 둘).
  *
- * 순서는 언제나 ①~⑨ · ⑩~㉒ · ㉓~㉖ · ㉗~㉝ · ㉞~㊷ · ㊸ ㊼ · ㊹ 이고, 각 항목의 refs 는 준
+ * 순서는 언제나 ①~⑨ · ⑩~㉒ · ㉓~㉖ · ㉗~㉝ · ㉞~㊷ · ㊸ ㊼ · ㊹ · ㊺ ㊻ 이고, 각 항목의 refs 는 준
  * 배열 순서다 — 두 번 돌리면 같다.
  * 세계를 바꾸지 않는 읽기 전용 관찰이다.
  */
@@ -596,6 +611,7 @@ export function checkRegions(input: CheckRegionsInput): CheckReport {
     ...accessItems(input),
     ...memoryItems(input),
     ...conditionItems(input),
+    ...opportunityItems(input),
   ];
   const counts: Record<CheckStatus, number> = { pass: 0, fail: 0, absent: 0, report: 0 };
   for (const item of items) counts[item.status]++;
@@ -2702,8 +2718,8 @@ export function accessAnswerMap(input: CheckRegionsInput): AccessAnswerRow[] {
 // ── 검사 둘 — 방이 세는 것과 남는 것 (C034 ADDED) ─────────────────────
 //
 // 앞의 마흔둘이 방과 그래프 · 그 위의 재료 계통 · 시각이 거는 것 · 태어나는 자리 · 방이 묻는
-// 것을 재었다면, 이 둘은 **방이 세는 것**을 잰다 — 세어질 수 있는 키가 실제 세계의 것인가(㊸),
-// 그리고 State 마다 무엇이 그것을 지우는가(㊼).
+// 것을 재었다면, 이 둘은 **방이 세는 것**을 잰다 — 세어질 수 있는 키(원천 · 경로 · 탄생지)가
+// 실제 세계의 것인가(㊸), 그리고 State 마다 무엇이 그것을 지우는가(㊼).
 //
 // ㊸ 가 **양쪽으로** 재는 까닭 — 한쪽만 재면 둘 중 하나를 놓친다. 없는 것을 가리키는 키는
 // 지워지지 않는 셈이 유령을 가리키게 두고(기억은 지워지지 않으므로 그 유령도 지워지지 않는다),
@@ -2723,6 +2739,8 @@ export interface CheckMemoryRegion {
   sources: readonly string[];
   /** 기억이 셀 경로 키들 */
   routes: readonly string[];
+  /** 기억이 셀 탄생지 키들 — 밝히지 않으면 세는 자리가 없는 것이다 (빈 것으로 견준다) */
+  formations?: readonly string[];
 }
 
 /** State 경로 하나와 그것을 지우는 손 (㊼) */
@@ -2737,11 +2755,20 @@ export interface CheckMemory {
   persistence: readonly CheckPersistenceRow[];
   /** 지우는 손의 어휘 (다섯) — 이 목록 밖의 것은 ㊼ 가 "모르는 손" 으로 적는다 */
   erasers: readonly string[];
+  /**
+   * 이 세계의 **탄생지** id 목록 — ㊸ 이 태어남의 키를 이것에 견준다.
+   *
+   * C038 CHANGED — 이것은 이제 **생명 계통이 없을 때의 잣대**다. 계통(`CheckRegionsInput.life`)을
+   * 주면 ㊸ 은 그 계통이 말하는 방마다의 탄생지로 원천 · 경로와 **같은 잣대**를 양쪽으로 재고
+   * (그때 이 목록은 읽지 않는다), 계통도 이 목록도 없으면 태어남 키는 재지 않는다 (수만 세고
+   * 견주지 않는다) — 없는 계약을 거짓으로 읽지 않는 어법 그대로다.
+   */
+  formations?: readonly string[];
 }
 
 /** 둘의 번호·이름 — 이 차례가 곧 보고에 실리는 차례다 (계약이 없을 때의 absent 도 이것을 쓴다) */
 const MEMORY_ITEMS = {
-  refs: { mark: '㊸', id: 'memory-refs', name: '기억이 가리키는 원천과 경로' },
+  refs: { mark: '㊸', id: 'memory-refs', name: '기억이 가리키는 원천과 경로와 탄생지' },
   persistence: { mark: '㊼', id: 'persistence-summary', name: '남는 것의 종류와 기억의 크기' },
 } as const;
 
@@ -2759,6 +2786,13 @@ interface MemoryContext {
   routesByRegion?: ReadonlyMap<string, readonly string[]>;
   /** 아는 경로 id 전부 */
   routeIds?: ReadonlySet<string>;
+  /**
+   * 그 방에 선 탄생지들 — 생명 계통을 주지 않으면 undefined 이고 그때 태어남의 뒷면도
+   * 앞면의 방 대조도 재지 않는다 (원천 · 경로와 같은 규율 · C038 ADDED)
+   */
+  formationsByRegion?: ReadonlyMap<string, readonly string[]>;
+  /** 아는 탄생지 id 전부 — 유령이 "남의 방 것" 인지 "없는 것" 인지 가른다 */
+  formationIds?: ReadonlySet<string>;
 }
 
 /**
@@ -2799,23 +2833,52 @@ function memoryRoutesByRegion(time: CheckTime): Map<string, string[]> {
 }
 
 /**
- * ㊸ 기억이 가질 키가 실제 원천 · 경로이고, 그 역도 참인가 — 양방향.
+ * 방마다 그 방에 선 탄생지들 — life.formations 의 차례를 지킨다 (두 번 돌리면 같다).
+ * 탄생지가 어느 방의 것인지는 생명 계통이 이미 말한다(`CheckLifeFormation.region`) —
+ * 여기서 다시 고르지 않는다 (원천의 `memorySourcesByRegion` 과 같은 어법 · C038 ADDED).
+ */
+function memoryFormationsByRegion(life: CheckLife): Map<string, string[]> {
+  const out = new Map<string, string[]>();
+  for (const formation of life.formations) {
+    const mine = out.get(formation.region) ?? [];
+    mine.push(formation.id);
+    out.set(formation.region, mine);
+  }
+  return out;
+}
+
+/**
+ * ㊸ 기억이 가질 키가 실제 원천 · 경로 · 탄생지이고, 그 역도 참인가 — 양방향.
  *
  * 앞의 잣대(유령)는 `memory.regions` 차례로, 뒤의 잣대(셀 수 없는 것)는 `input.regions`
  * 차례로 잰다 — 뒤를 방마다 재는 까닭은 **기억 자리가 아예 없는 방**도 그 방의 원천을 셀 수
  * 없기 때문이다 (기억은 모든 방에 서는 것이므로 목록에서 빠진 방은 빠진 만큼 걸린다).
+ *
+ * C038 CHANGED — 태어남의 키도 **양쪽으로** 잰다. 앞선 주석은 "탄생지가 어느 방의 것인가를
+ * 계약이 주지 않는다" 고 적었으나 그것은 사실이 아니었다: 생명 계통이 탄생지마다 `region` 을
+ * 이미 든다(`CheckLifeFormation.region`). 그래서 계통을 주면 원천 · 경로와 **완전히 같은 어법**
+ * 으로 잰다 — 그 방의 것이 아닌 키 · 아는 탄생지가 아닌 키 · 셀 자리가 없는 탄생지.
+ * 계통을 주지 않으면 뒷면도 앞면의 방 대조도 재지 않고 계약이 준 전역 목록(`memory.formations`)
+ * 으로 앞면만 잰다 — 주지 않은 진리로 재지 않는 규율은 그대로다.
  */
 function checkMemoryRefs(cx: MemoryContext): CheckItem {
   const head = MEMORY_ITEMS.refs;
   const { regions } = cx.memory;
   const refs: CheckRef[] = [];
   const declared = new Map<string, CheckMemoryRegion>();
+  /**
+   * 계통이 없을 때의 태어남 잣대 — 계약이 준 전역 목록. 계통이 있으면 이것은 읽지 않는다
+   * (그때는 `cx.formationIds` 가 방까지 갈라 본다). 둘 다 없으면 태어남 쪽은 재지 않는다
+   */
+  const declaredFormations = cx.memory.formations ? new Set(cx.memory.formations) : undefined;
   let sourceKeys = 0;
   let routeKeys = 0;
+  let birthKeys = 0;
 
   for (const room of regions) {
     sourceKeys += room.sources.length;
     routeKeys += room.routes.length;
+    birthKeys += room.formations?.length ?? 0;
     if (!cx.regionIds.has(room.id)) {
       // 모르는 방의 키는 무엇과 견줄 수가 없다 — 방 하나만 적고 그 키들은 재지 않는다
       refs.push({ where: room.id, detail: `${room.id} 은 아는 방이 아니다` });
@@ -2846,6 +2909,25 @@ function checkMemoryRefs(cx: MemoryContext): CheckItem {
         });
       }
     }
+    if (cx.formationsByRegion && cx.formationIds) {
+      // 계통이 있다 — 원천 · 경로와 같은 어법으로 방까지 갈라 본다
+      const mine = cx.formationsByRegion.get(room.id) ?? [];
+      for (const key of room.formations ?? []) {
+        if (mine.includes(key)) continue;
+        refs.push({
+          where: room.id,
+          detail: cx.formationIds.has(key)
+            ? `탄생지 ${key} 은 이 방의 것이 아니다`
+            : `탄생지 ${key} 은 아는 탄생지가 아니다`,
+        });
+      }
+    } else if (declaredFormations) {
+      // 계통이 없다 — 키가 실재하는가만 잰다 (어느 방의 것인가는 알 길이 없다)
+      for (const key of room.formations ?? []) {
+        if (declaredFormations.has(key)) continue;
+        refs.push({ where: room.id, detail: `탄생지 ${key} 은 아는 탄생지가 아니다` });
+      }
+    }
   }
 
   // 셀 수 없는 것 — 방 차례로. 기억 자리를 밝히지 않은 방은 빈 것으로 견준다
@@ -2863,12 +2945,20 @@ function checkMemoryRefs(cx: MemoryContext): CheckItem {
         refs.push({ where: region.id, detail: `이 방을 지나는 경로 ${id} 을 셀 자리가 없다` });
       }
     }
+    if (cx.formationsByRegion) {
+      for (const id of cx.formationsByRegion.get(region.id) ?? []) {
+        if (room?.formations?.includes(id)) continue;
+        refs.push({ where: region.id, detail: `탄생지 ${id} 을 셀 자리가 없다` });
+      }
+    }
   }
 
   return {
     ...head,
     status: refs.length === 0 ? 'pass' : 'fail',
-    answer: `방 ${regions.length} · 원천 키 ${sourceKeys} · 경로 키 ${routeKeys} · 걸린 것 ${refs.length}`,
+    answer:
+      `방 ${regions.length} · 원천 키 ${sourceKeys} · 경로 키 ${routeKeys}` +
+      ` · 태어남 키 ${birthKeys} · 걸린 것 ${refs.length}`,
     refs,
   };
 }
@@ -2930,7 +3020,7 @@ function memoryItems(input: CheckRegionsInput): CheckItem[] {
       absentItem(head, '기억 쪽 계약이 주어지지 않았다'),
     );
   }
-  const { ecology, time } = input;
+  const { ecology, time, life } = input;
   const cx: MemoryContext = {
     input,
     memory,
@@ -2939,6 +3029,9 @@ function memoryItems(input: CheckRegionsInput): CheckItem[] {
     sourceIds: ecology ? new Set(ecology.sources.map((source) => source.id)) : undefined,
     routesByRegion: time ? memoryRoutesByRegion(time) : undefined,
     routeIds: time ? new Set(time.routes.map((route) => route.id)) : undefined,
+    // 계통이 탄생지마다 방을 이미 든다 — ecology · time 과 같은 자리 · 같은 어법 (C038 ADDED)
+    formationsByRegion: life ? memoryFormationsByRegion(life) : undefined,
+    formationIds: life ? new Set(life.formations.map((formation) => formation.id)) : undefined,
   };
   return [checkMemoryRefs(cx), checkPersistenceSummary(cx)];
 }
@@ -3101,4 +3194,252 @@ export function conditionItems(input: CheckRegionsInput): CheckItem[] {
   const condition = input.condition;
   if (!condition) return [absentItem(CONDITION_ITEM, '조건 쪽 계약이 주어지지 않았다')];
   return [checkConditionRefs(condition)];
+}
+
+// ── 검사 ㊺ ㊻ — 방이 내미는 것 (C036 ADDED) ──────────────────────────
+//
+// ㊹ 이 "언제 참인가" 를 한 형으로 재었다면, 이 둘은 **방이 무엇을 내미는가**(opportunity.ts 의
+// Opportunity)를 잰다 — ㊺ 는 그 데이터가 유령을 가리키지 않는가(통과/실패)를, ㊻ 은 방마다
+// 얼마나 내미는가와 방 사이 관계가 어떻게 뻗어 있는가(판정 없음)를 본다.
+//
+// 여기에도 게임 명사가 없다. 어느 원천 · 문 · 경로가 실재하는지, 어느 동사가 실제 Interaction
+// role 인지, progress 로 읽을 수 있는 경로가 무엇인지 기반은 모른다 — 컨텐츠가
+// `CheckOpportunityVocabulary` 로 **어휘째** 준다 (㊹ 의 어법 그대로). 기회 쪽 계약을 주지
+// 않으면 둘 다 absent 다 — 잴 것이 없으면 통과로 적지 않는다.
+//
+// **기회는 판정하지 않는다** — availability 가 지금 참인가는 여기서 묻지 않는다. ㊺ 이 그것에
+// 대해 묻는 것은 오직 "그 조건의 잎이 있는 것을 가리키는가" 이고, 그 잣대는 ㊹ 의
+// `conditionLeafFaults` 를 **그대로** 쓴다 (같은 잣대를 두 벌로 적지 않는다).
+
+/** 동사 하나와 그것이 되는 Interaction role — role 의 이름은 이 세계의 것이다 */
+export interface CheckOpportunityActionRole {
+  action: OpportunityAction;
+  role: string;
+}
+
+/** 기회의 어휘 — 컨텐츠가 건넨다 (㊹ 의 `CheckConditionVocabulary` 와 같은 자리) */
+export interface CheckOpportunityVocabulary {
+  /** Target 갈래 → 실제 id 목록. 갈래를 적지 않으면 그 갈래를 향한 기회가 걸린다 */
+  targets: Readonly<Partial<Record<OpportunityTargetKind, readonly string[]>>>;
+  actions: readonly CheckOpportunityActionRole[];
+  /** progress.ref 로 허용되는 경로 (counter · phase) — 밝히지 않으면 ref 를 재지 않는다 */
+  progressPaths?: readonly string[];
+  /** availability 를 ㊹ 과 같은 잣대로 재기 위한 조건 어휘 */
+  condition: CheckConditionVocabulary;
+}
+
+/**
+ * 방 사이 관계 한 갈래 (G9 의 다섯 — 공간 · 환경 · 생태 · 사건 · 사회)와 그 관계가 닿는 방들.
+ *
+ * 갈래의 이름도 컨텐츠의 것이다 — 기반은 다섯이라는 수도 이름도 모르고, 준 차례로 한 줄씩 낸다.
+ */
+export interface CheckOpportunityRelation {
+  kind: string;
+  regions: readonly string[];
+}
+
+/** ㊺ ㊻ 이 볼 기회 쪽 계약 — 주지 않으면 둘 다 absent 다 */
+export interface CheckOpportunity {
+  /** 방 차례 · 그 방이 내미는 차례 (refs 의 차례가 곧 이 차례다) */
+  opportunities: readonly Opportunity[];
+  vocabulary: CheckOpportunityVocabulary;
+  relations: readonly CheckOpportunityRelation[];
+}
+
+/** ㊺ ㊻ 의 번호·이름 — 계약이 없을 때의 absent 도 이것을 쓴다 */
+export const OPPORTUNITY_ITEM = {
+  mark: '㊺',
+  id: 'opportunity-refs',
+  name: '기회가 가리키는 것',
+} as const;
+export const OPPORTUNITY_SUMMARY_ITEM = {
+  mark: '㊻',
+  id: 'opportunity-summary',
+  name: '방마다 내미는 것과 관계',
+} as const;
+
+/**
+ * 기회 하나가 걸린 까닭들 — ①~⑦ 의 차례로 (빈 배열이면 성하다).
+ *
+ *   ① target 의 갈래가 어휘에 없거나 ref 가 그 갈래의 id 가 아니다
+ *   ② discovery 가 지금 서는 넷 밖이다 (자리만인 NPC · KNOWLEDGE 도 지금은 걸린다)
+ *   ③ possibleActions 가 비었거나 이 세계의 Interaction role 이 아닌 동사가 있다
+ *   ④ progress 의 kind 가 셋 밖 · 경로를 요구하는데 없음 · none 인데 있음 · 읽을 수 없는 경로
+ *   ⑤ outcomes 의 (군, op) 짝이 §4.2 표 밖 · yield 가 넷 밖
+ *   ⑥ availability 의 잎이 ㊹ 의 잣대에 걸린다
+ *   ⑦ id 가 비었거나 겹치거나 · region 이 아는 방이 아니다
+ *
+ * ⑦ 이 뒤에 선 것은 게으름이 아니다 — 무엇이 걸렸는지를 **기회의 속부터** 적고 그 기회가 어디에
+ * 어떤 이름으로 섰는가를 마지막에 적는 차례다 (한 줄로 읽으면 안에서 밖으로).
+ */
+function opportunityFaults(
+  opportunity: Opportunity,
+  vocabulary: CheckOpportunityVocabulary,
+  regionIds: ReadonlySet<string>,
+  idCounts: ReadonlyMap<string, number>,
+): string[] {
+  const faults: string[] = [];
+  const { id, region, availability, discovery, target, possibleActions, progress, outcomes } =
+    opportunity;
+
+  // ① Target — 갈래가 어휘에 있는가 · ref 가 그 갈래의 실제 id 인가
+  const ids = vocabulary.targets[target.kind];
+  if (ids === undefined) {
+    faults.push(`Target 갈래 ${target.kind} 은 어휘에 없다`);
+  } else if (!ids.includes(target.ref)) {
+    faults.push(`ref ${target.ref} 은 아는 ${target.kind} 이 아니다`);
+  }
+
+  // ② discovery — 자리만인 것(NPC · KNOWLEDGE)은 그 층이 와서 어휘가 열기 전까지 걸린다
+  if (!DECIDABLE_DISCOVERY_KINDS.includes(discovery)) {
+    const deferred = DEFERRED_DISCOVERY_KINDS.includes(discovery);
+    faults.push(
+      deferred
+        ? `discovery ${discovery} 은 아직 자리만이다`
+        : `discovery ${discovery} 은 아는 갈래가 아니다`,
+    );
+  }
+
+  // ③ possibleActions — 하나도 없는 기회는 내미는 것이 없다 · 동사는 실제 Interaction role 이어야 한다
+  if (possibleActions.length === 0) {
+    faults.push('possibleActions 가 비었다');
+  }
+  for (const action of possibleActions) {
+    if (!vocabulary.actions.some((row) => row.action === action)) {
+      faults.push(`동사 ${action} 은 이 세계의 Interaction role 이 아니다`);
+    }
+  }
+
+  // ④ progress — 값이 아니라 경로다 (opportunity.ts 지키는 것 ②)
+  if (!OPPORTUNITY_PROGRESS_KINDS.includes(progress.kind)) {
+    faults.push(`progress 의 kind ${progress.kind} 은 셋 밖이다`);
+  } else if (progress.kind === 'none') {
+    if (progress.ref !== undefined) faults.push('progress none 은 ref 를 받지 않는다');
+  } else if (progress.ref === undefined) {
+    faults.push(`progress ${progress.kind} 은 ref 를 요구한다`);
+  } else if (vocabulary.progressPaths !== undefined && !vocabulary.progressPaths.includes(progress.ref)) {
+    faults.push(`progress 의 ref ${progress.ref} 은 읽을 수 있는 경로에 없다`);
+  }
+
+  // ⑤ outcomes — 이름만 붙는 층이지만 그 이름은 §4.2 표 안이어야 한다
+  for (const mutation of outcomes.world) {
+    if (!MUTATION_OPS.some((row) => row.group === mutation.group && row.op === mutation.op)) {
+      faults.push(`${mutation.group} ${mutation.op} 은 op 표에 없는 짝이다`);
+    }
+  }
+  for (const kind of outcomes.yield) {
+    if (!OPPORTUNITY_YIELD_KINDS.includes(kind)) faults.push(`yield ${kind} 은 넷 밖이다`);
+  }
+
+  // ⑥ availability — ㊹ 의 잣대 그대로. 밝히지 않은 기회는 늘 있는 것이라 잴 잎이 없다
+  if (availability !== undefined) {
+    for (const leaf of conditionLeaves(availability)) {
+      const line = formatConditionLeaf(leaf);
+      for (const reason of conditionLeafFaults(leaf, vocabulary.condition)) {
+        faults.push(`availability ${line} — ${reason}`);
+      }
+    }
+  }
+
+  // ⑦ 이름과 자리 — 겹친 id 는 겹친 쪽 모두에 적는다 (어느 쪽을 고칠지는 사람이 본다)
+  if (id.trim() === '') faults.push('id 가 비었다');
+  else if ((idCounts.get(id) ?? 0) > 1) faults.push(`id ${id} 이 둘 이상이다`);
+  if (!regionIds.has(region)) faults.push(`region ${region} 은 아는 방이 아니다`);
+
+  return faults;
+}
+
+/**
+ * ㊺ 기회의 참조 무결 — 기회마다 그 속을 어휘에 견준다.
+ *
+ * refs 의 차례는 기회(준 차례) → 까닭(①~⑦) 이다 — 두 번 돌리면 같다. 기회 하나에 까닭이
+ * 여럿이면 줄도 여럿이다 (무엇이 어긋났는지 다 적는다 — ㊹ 의 어법).
+ */
+function checkOpportunityRefs(input: CheckRegionsInput, opportunity: CheckOpportunity): CheckItem {
+  const { opportunities, vocabulary } = opportunity;
+  const regionIds = new Set(input.regions.map((region) => region.id));
+  const idCounts = new Map<string, number>();
+  for (const row of opportunities) idCounts.set(row.id, (idCounts.get(row.id) ?? 0) + 1);
+
+  const refs: CheckRef[] = [];
+  for (const row of opportunities) {
+    const line = formatOpportunity(row);
+    for (const reason of opportunityFaults(row, vocabulary, regionIds, idCounts)) {
+      refs.push({ where: `opportunity:${row.id}`, detail: `${line} — ${reason}` });
+    }
+  }
+  return {
+    ...OPPORTUNITY_ITEM,
+    status: refs.length === 0 ? 'pass' : 'fail',
+    answer: `기회 ${opportunities.length} · 걸린 것 ${refs.length}`,
+    refs,
+  };
+}
+
+/**
+ * ㊻ 방마다 내미는 것과 방 사이 관계 — 판정하지 않는다 (많고 적음은 사람이 본다).
+ *
+ * 줄의 차례는 방(input.regions 차례) → 관계 갈래(준 차례)다. 방 줄은 기회가 0 이어도 선다 —
+ * **내미는 것이 없는 방이 눈에 띄어야** 이 요약이 일을 한다 (관계도 같다: 어느 방에도 닿지 않는
+ * 갈래와, 그 갈래가 닿지 않는 방이 그 줄에 드러난다).
+ *
+ * 아는 방 밖을 region 으로 적은 기회는 여기 어느 줄에도 서지 않는다 — 그것은 ㊺ 가 잡을 일이고,
+ * 요약이 유령 방의 줄을 지어내면 표가 거짓말을 한다.
+ */
+function checkOpportunitySummary(input: CheckRegionsInput, opportunity: CheckOpportunity): CheckItem {
+  const { opportunities, relations } = opportunity;
+  const discoveryKinds = [...DECIDABLE_DISCOVERY_KINDS, ...DEFERRED_DISCOVERY_KINDS];
+
+  let emptyRooms = 0;
+  let events = 0;
+  const refs: CheckRef[] = input.regions.map((region) => {
+    const mine = opportunities.filter((row) => row.region === region.id);
+    if (mine.length === 0) emptyRooms++;
+    const eventCount = mine.filter(isEventOpportunity).length;
+    events += eventCount;
+    // discovery 별 수 — 갈래의 차례로, 하나도 없는 갈래는 적지 않는다 (줄이 길어지지 않도록)
+    const spread = discoveryKinds
+      .map((kind) => ({ kind, count: mine.filter((row) => row.discovery === kind).length }))
+      .filter((row) => row.count > 0)
+      .map((row) => `${row.kind} ${row.count}`);
+    return {
+      where: region.id,
+      detail: `기회 ${mine.length} · Event ${eventCount} · ${spread.length === 0 ? '갈래 없음' : spread.join(' ')}`,
+    };
+  });
+
+  for (const relation of relations) {
+    const touched = new Set(relation.regions);
+    const untouched = input.regions
+      .map((region) => region.id)
+      .filter((regionId) => !touched.has(regionId));
+    refs.push({
+      where: `relation:${relation.kind}`,
+      detail: `닿는 방 ${touched.size} · ${namedGroup('닿지 않는 방', untouched)}`,
+    });
+  }
+
+  return {
+    ...OPPORTUNITY_SUMMARY_ITEM,
+    status: 'report',
+    answer:
+      `기회 ${opportunities.length} · 기회 0 인 방 ${emptyRooms} · Event ${events}` +
+      ` · 관계 갈래 ${relations.length}`,
+    refs,
+  };
+}
+
+/**
+ * ㊺ ㊻ — 기회 쪽 계약을 주지 않으면 둘 다 absent 다 (통과가 아니다). `checkRegions` 의 items 에
+ * `...conditionItems(input)` 뒤에 선다 (번호가 아니라 계약이 는 차례 — ㊹ 이 ㊼ 뒤에 선 그 어법).
+ */
+export function opportunityItems(input: CheckRegionsInput): CheckItem[] {
+  const opportunity = input.opportunity;
+  if (!opportunity) {
+    return [
+      absentItem(OPPORTUNITY_ITEM, '기회 쪽 계약이 주어지지 않았다'),
+      absentItem(OPPORTUNITY_SUMMARY_ITEM, '기회 쪽 계약이 주어지지 않았다'),
+    ];
+  }
+  return [checkOpportunityRefs(input, opportunity), checkOpportunitySummary(input, opportunity)];
 }

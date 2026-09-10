@@ -69,10 +69,42 @@
       "unanswered": "이 방에는 anchor 말고 아무 것도 놓이지 않았다 — Design 이 준 것이 거기까지이고 없는 의미를 지어내지 않는다"
     },
     "birth": {
-      "said": {
-        "unanswered": "생명 계약(탄생지 · 개체군 · 관계)이 아직 데이터로 서지 않았다 — Play RoomBearsLife(C022~C025)의 것이다 — 둥지는 여덟째 답이 가장 먼저 설 자리다"
-      },
-      "born": []
+      "said": "사체가 균류로 **바뀐다** — 이 방은 낳지 않고 바꾼다. 포식수가 두고 간 사체 곁에서 삭는 모양이 서고, 다 삭으면 그 자리에 거목균이 선다: 사체는 그 순간 먹혀 없어지고 붉게 되돌아온 흙만 한동안 남는다. 이미 다 핀 뒤(상한)에는 바뀌지 않는다. 굴의 주인인 포식수는 여기서 태어나지 않는다 — 하나가 이미 살고 있고, 숲 안쪽의 새가 모여야 온다.",
+      "born": [
+        {
+          "id": "CARCASS_TO_FUNGUS",
+          "mode": "TRANSFORMATION",
+          "worldCause": "FOREST_CHAIN",
+          "form": "carcass-bloom",
+          "regionRule": "RULE_NEST_TRANSFORM",
+          "from": {
+            "materials": [
+              "ORE_EATER_MOLT"
+            ],
+            "states": []
+          },
+          "consumes": [
+            "NEST_CARCASS"
+          ],
+          "leaves": [],
+          "calls": [],
+          "population": "TREE_FUNGUS",
+          "ecologicalRole": "decay-supply"
+        }
+      ],
+      "populations": [
+        {
+          "id": "TREE_FUNGUS",
+          "scale": 2,
+          "declineCause": "CONDITION_LOST"
+        },
+        {
+          "id": "PREDATOR",
+          "scale": 1,
+          "declineCause": "EATEN",
+          "presence": "predator-prowl"
+        }
+      ]
     }
   },
   "neighbours": [

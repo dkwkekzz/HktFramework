@@ -13,9 +13,16 @@
 // 하나 선다. 땅은 한 값도 달라지지 않는다 — 덧씌움이지 재컴파일이 아니다 (T4 · T6).
 
 import type { RegionSpec } from './spec';
+import { timedGatherOpportunity } from './opportunity-shape';
+import type { ResourceSourceSpec } from './resource-ecology';
 import { ANCHOR_LAYER } from './spec';
 import { DEPTH_LAYER, HAZARD_LAYER } from './phases';
-import { HUNTER_CURVE_TAG, SKY_WHALE_ROUTE, WHALE_CURVE_TAG } from './presence-routes';
+import {
+  BLIND_HUNTER_ROUTE,
+  HUNTER_CURVE_TAG,
+  SKY_WHALE_ROUTE,
+  WHALE_CURVE_TAG,
+} from './presence-routes';
 import { ORE_EATER } from './lives';
 import {
   BIO_ORE,
@@ -46,6 +53,78 @@ import {
 } from './resource-ecology';
 
 export const FOREST_EDGE = 'FOREST_EDGE';
+
+// ── C018 ADDED — 지나간 자리에만 나는 것 둘 (spec R6 · R7 · 기본형 ⑤ ⑩) ──
+//
+// 둘 다 **처음이 고갈**이다 — 세계가 설 때는 아직 아무것도 지나가지 않았으므로 거기 없다
+// (C014 의 흐름에 매달린 원천과 같은 어법). 그것을 밝히는 것은 이 자리가 아니라 경로 데이터의
+// leavesBehind 다: 원천은 자기가 무엇에 매달렸는지 말하지 않고, 무엇이 무엇을 남기는지는
+// 지나가는 것 쪽이 안다 (규칙은 양쪽 다 이름으로 모른다).
+//
+// 되돌아옴의 **길이**는 한 번의 지나감보다 길게 둔다 — 되돌리는 것은 시간이 아니라 다시
+// 지나가는 것이기 때문이다 (spec SPEC-006 경계 ②). 고래의 한 번은 180 세계 초(마디 넷 × 45)
+// 이고 눈 없는 것의 한 번은 90 초이므로, 240 은 그 어느 것보다 길다.
+//
+// C037 CHANGED — 둘이 **자리 있는 이름**으로 섰다. 아래 opportunities 가 이 둘의 기회를
+// 덮어 적으려면 그 원천의 값(특히 recoverySeconds)을 **한 자리에서** 읽어야 하기 때문이다:
+// 두 벌로 적으면 240 이 두 곳에 살게 되어 어느 날 하나가 늦는다. 값도 형도 한 글자 바뀌지
+// 않았다 — 자리만 옮겼다.
+const FALLEN_SCALE_SOURCE: ResourceSourceSpec = {
+  id: 'FALLEN_SCALE',
+  materialId: WHALE_SCALE,
+  // 숲의 사슬이 아니다 — 바깥에서 지나가며 두고 간 것이다 (C018 ADDED · §5.0 밖)
+  worldCause: SKY_PASSAGE,
+  form: FORM_FALLEN_SCALE,
+  // 몸도 생명도 아닌 것이 지고 있다 (Material §6.3 의 칸 · 기본형 ⑨)
+  carrier: 'phenomenon',
+  // 때를 맞춰야만 얻는 자리 (Material §6.2 의 칸)
+  opportunity: 'world-event',
+  // 사건이 되풀이될 때만 온다 (§5.6 의 넷째 · M7)
+  supply: 'event-scarce',
+  // 고래가 다시 지난다 (A.2 회복 원인)
+  recoveryCause: RECOVERY_WHALE_PASSAGE,
+  // 한 번 지나갈 때 하나 (확정 9)
+  harvests: 1,
+  recoverySeconds: 240,
+  // 마디는 하늘의 선이 준다 — 그 선의 점 넷이 곧 마디 넷이다
+  siteCurve: WHALE_CURVE_TAG,
+  // 마디 순서 그대로의 둘레 흔적 (C013 의 어법)
+  traceOps: [
+    'trace-edge-scale-0',
+    'trace-edge-scale-1',
+    'trace-edge-scale-2',
+    'trace-edge-scale-3',
+  ],
+  // C035 ADDED (spec SPEC-006 · Q2) — **기억을 읽는 첫 조건**: 고래가 이 방을 한 번이라도 지났는가.
+  // 지금 코드의 사실(비늘은 고래가 지나야 난다)을 형으로 적은 것이라 새 사실이 아니고,
+  // 말해질 뿐 열고 닫지 않는다 (경계 ①). 경로는 세계 State 의 열쇠(routeId)로 가리킨다.
+  condition: {
+    target: { kind: 'history', ref: FOREST_EDGE },
+    query: { kind: 'history', path: `passages.${SKY_WHALE_ROUTE.id}` },
+    operator: 'EXISTS',
+  },
+};
+
+const PREY_REMAINS_SOURCE: ResourceSourceSpec = {
+  id: 'PREY_REMAINS',
+  // **새 Seed 를 만들지 않는다** — 광식충 허물의 다른 형태다 (확정 13 · 기본형 ⑩)
+  materialId: ORE_EATER_MOLT,
+  // 재료는 이 숲의 사슬에서 난 것이다 — 그것을 여기 세운 것이 지나가는 것일 뿐이다
+  worldCause: FOREST_CHAIN,
+  form: FORM_PREY_REMAINS,
+  // 먹다 남긴 것 — 잔류다 (허물과 같은 갈래 · A.2 Carrier)
+  carrier: 'residue',
+  // 그것이 지나가며 떨어뜨린 부산물 (A.3)
+  opportunity: 'by-product',
+  supply: 'event-scarce',
+  // 그것이 다시 지난다 (A.2 회복 원인)
+  recoveryCause: RECOVERY_HUNTER_PASSAGE,
+  harvests: 1,
+  recoverySeconds: 240,
+  // 마디는 눈 없는 것의 선이 준다
+  siteCurve: HUNTER_CURVE_TAG,
+  traceOps: ['trace-edge-remains-0', 'trace-edge-remains-1', 'trace-edge-remains-2'],
+};
 
 export const FOREST_EDGE_SPEC: RegionSpec = {
   id: FOREST_EDGE,
@@ -461,71 +540,9 @@ export const FOREST_EDGE_SPEC: RegionSpec = {
         // **그 철에만 선다** — 다른 철에는 이 자리에 아무것도 없다 (C016 ADDED · spec R6)
         occurrence: { seasons: ['SEEP'] },
       },
-      // ── C018 ADDED — 지나간 자리에만 나는 것 둘 (spec R6 · R7 · 기본형 ⑤ ⑩) ──
-      //
-      // 둘 다 **처음이 고갈**이다 — 세계가 설 때는 아직 아무것도 지나가지 않았으므로 거기
-      // 없다 (C014 의 흐름에 매달린 원천과 같은 어법). 그것을 밝히는 것은 이 자리가 아니라
-      // 경로 데이터의 leavesBehind 다: 원천은 자기가 무엇에 매달렸는지 말하지 않고,
-      // 무엇이 무엇을 남기는지는 지나가는 것 쪽이 안다 (규칙은 양쪽 다 이름으로 모른다).
-      //
-      // 되돌아옴의 **길이**는 한 번의 지나감보다 길게 둔다 — 되돌리는 것은 시간이 아니라
-      // 다시 지나가는 것이기 때문이다 (spec SPEC-006 경계 ②). 고래의 한 번은 180 세계 초
-      // (마디 넷 × 45) 이고 눈 없는 것의 한 번은 90 초이므로, 240 은 그 어느 것보다 길다.
-      {
-        id: 'FALLEN_SCALE',
-        materialId: WHALE_SCALE,
-        // 숲의 사슬이 아니다 — 바깥에서 지나가며 두고 간 것이다 (C018 ADDED · §5.0 밖)
-        worldCause: SKY_PASSAGE,
-        form: FORM_FALLEN_SCALE,
-        // 몸도 생명도 아닌 것이 지고 있다 (Material §6.3 의 칸 · 기본형 ⑨)
-        carrier: 'phenomenon',
-        // 때를 맞춰야만 얻는 자리 (Material §6.2 의 칸)
-        opportunity: 'world-event',
-        // 사건이 되풀이될 때만 온다 (§5.6 의 넷째 · M7)
-        supply: 'event-scarce',
-        // 고래가 다시 지난다 (A.2 회복 원인)
-        recoveryCause: RECOVERY_WHALE_PASSAGE,
-        // 한 번 지나갈 때 하나 (확정 9)
-        harvests: 1,
-        recoverySeconds: 240,
-        // 마디는 하늘의 선이 준다 — 그 선의 점 넷이 곧 마디 넷이다
-        siteCurve: WHALE_CURVE_TAG,
-        // 마디 순서 그대로의 둘레 흔적 (C013 의 어법)
-        traceOps: [
-          'trace-edge-scale-0',
-          'trace-edge-scale-1',
-          'trace-edge-scale-2',
-          'trace-edge-scale-3',
-        ],
-        // C035 ADDED (spec SPEC-006 · Q2) — **기억을 읽는 첫 조건**: 고래가 이 방을 한 번이라도 지났는가.
-        // 지금 코드의 사실(비늘은 고래가 지나야 난다)을 형으로 적은 것이라 새 사실이 아니고,
-        // 말해질 뿐 열고 닫지 않는다 (경계 ①). 경로는 세계 State 의 열쇠(routeId)로 가리킨다.
-        condition: {
-          target: { kind: 'history', ref: FOREST_EDGE },
-          query: { kind: 'history', path: `passages.${SKY_WHALE_ROUTE.id}` },
-          operator: 'EXISTS',
-        },
-      },
-      {
-        id: 'PREY_REMAINS',
-        // **새 Seed 를 만들지 않는다** — 광식충 허물의 다른 형태다 (확정 13 · 기본형 ⑩)
-        materialId: ORE_EATER_MOLT,
-        // 재료는 이 숲의 사슬에서 난 것이다 — 그것을 여기 세운 것이 지나가는 것일 뿐이다
-        worldCause: FOREST_CHAIN,
-        form: FORM_PREY_REMAINS,
-        // 먹다 남긴 것 — 잔류다 (허물과 같은 갈래 · A.2 Carrier)
-        carrier: 'residue',
-        // 그것이 지나가며 떨어뜨린 부산물 (A.3)
-        opportunity: 'by-product',
-        supply: 'event-scarce',
-        // 그것이 다시 지난다 (A.2 회복 원인)
-        recoveryCause: RECOVERY_HUNTER_PASSAGE,
-        harvests: 1,
-        recoverySeconds: 240,
-        // 마디는 눈 없는 것의 선이 준다
-        siteCurve: HUNTER_CURVE_TAG,
-        traceOps: ['trace-edge-remains-0', 'trace-edge-remains-1', 'trace-edge-remains-2'],
-      },
+      // 지나간 자리에만 나는 것 둘 — 이 파일 머리의 두 이름이 그것이다 (C018 ADDED · C037 CHANGED)
+      FALLEN_SCALE_SOURCE,
+      PREY_REMAINS_SOURCE,
       // ── RoomBearsMaterial 실주행 판정 ADDED — 흩어진 것들 (자리는 위의 point 가 소유한다) ──
       // 흙 위에 흩어진 붉은 자갈 — 뿌리가 밀어 올린 조각이 비에 씻겨 드러난다. 한 알이 한 번이고 곧 되돌아온다
       {
@@ -573,6 +590,32 @@ export const FOREST_EDGE_SPEC: RegionSpec = {
       },
     ],
   },
+  /**
+   * 이 방이 내미는 것 가운데 **데이터로 적히는 둘** (C037 ADDED · spec SPEC-001 · SPEC-005).
+   *
+   * 이 세계에서 `opportunities` 를 밝히는 첫 방이다. 나머지 기회는 여전히 유도되고(원천마다
+   * 하나 · 묻는 문마다 하나), 여기 적힌 둘은 **같은 id 로 그 기본형을 덮는다** — 자리도 차례도
+   * 그대로이고 달라지는 것은 availability 와 outcomes 둘뿐이다 (timedGatherOpportunity).
+   *
+   * **이 세계의 Event 는 이 둘이다** (SPEC-001) — availability 에 시간 qualifier 를 가진 기회.
+   * 그 초는 각 원천의 `recoverySeconds` 를 그대로 옮긴 것이고(둘 다 240), 어느 경로의 지나감을
+   * 읽는가는 그것을 두고 가는 경로가 안다 (presence-routes 의 leavesBehind — 여기서는 그 경로의
+   * id 를 가리킬 뿐이다).
+   */
+  opportunities: [
+    timedGatherOpportunity({
+      region: FOREST_EDGE,
+      source: FALLEN_SCALE_SOURCE,
+      routeId: SKY_WHALE_ROUTE.id,
+      withinSeconds: FALLEN_SCALE_SOURCE.recoverySeconds,
+    }),
+    timedGatherOpportunity({
+      region: FOREST_EDGE,
+      source: PREY_REMAINS_SOURCE,
+      routeId: BLIND_HUNTER_ROUTE.id,
+      withinSeconds: PREY_REMAINS_SOURCE.recoverySeconds,
+    }),
+  ],
   /**
    * 이 방이 철을 타는 방식 (C016 ADDED · spec SPEC-001 · SPEC-002).
    *

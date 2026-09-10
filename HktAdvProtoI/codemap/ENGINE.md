@@ -294,12 +294,13 @@ Region Description(순서 있는 op 목록)을 Source of Truth 로 두고, 컴�
 | `query.ts` | 컴파일 결과에 자리로 묻기 (통행·사유·표면·area 태그) |
 | `observe.ts` | 컴파일 결과를 raster 판·요약 수치로 |
 | `graph.ts` | Region 사이의 Connector/Containment 와 도달 계산 |
-| `check.ts` | 검사 ①~㊼ (`checkGraph` · `checkRegions`) 와 열쇠×자물쇠 표 |
+| `check.ts` | 검사 ①~㊻ (`checkGraph` · `checkRegions`) 와 열쇠×자물쇠 표 — ㊸ 은 원천 · 경로 · 태어남을 **양쪽으로** 잰다 |
 | `condition.ts` | Condition 형(Target · Query · Operator · Value · Qualifier · all/any) 과 평가기 — 게임 명사 0 · 저장 0 |
+| `opportunity.ts` | Opportunity 형(id · region · availability · discovery · target · possibleActions · progress · outcomes) · Mutation op 어휘 · Event 판별(`isEventOpportunity` — 시간 qualifier 가 있는가) · 기계 표기 — 게임 명사 0 · 판정 0 |
 | `candidate.ts` | 두 CheckReport 의 달라진 줄 |
-| `brief.ts` | `RegionBrief`(여덟 답) zod 스키마와 파서 |
-| `author.ts` | brief + 템플릿 → 방 뼈대(Description·Connector·원천) |
-| `grade.ts` | brief 를 계약 목록과 대조해 A/B/C |
+| `brief.ts` | `RegionBrief`(아홉 답 — 여덟째 탄생은 탄생지·개체군까지, 아홉째는 내밂) zod 스키마와 파서 |
+| `author.ts` | brief + 템플릿 → 방 뼈대(Description·Connector·원천·생명·철) |
+| `grade.ts` | brief 를 계약 목록과 **결정 나무**(요구의 갈래 → 등급)로 대조해 A/B/C |
 | `draft.ts` | 미지 한 줄 → brief 되먹임 고리와 시스템 글 |
 
 | export | 종류 | 시그니처 요약 | 용도 | 사용처 |
@@ -334,13 +335,15 @@ Region Description(순서 있는 op 목록)을 Source of Truth 로 두고, 컴�
 | `CheckAccess` (+ `CheckAccessAnswerRule` · `CheckAccessRequirement` · `CheckAccessLock` · `CheckAccessSeed` · `CheckAccessSeedProperty` · `CheckAccessSeedSource`) | type | `{ aspects; relations; tagSeparator; statementKinds; answerKinds; supportKind; connectorLockKind; areaLockKind; answers; locks; seeds; seedSources }` | 접근 계약 (㉞~㊷) | tools / — ×6 |
 | `accessAnswerMap` · `AccessAnswerRow` · `AccessAnswerCell` | fn/type | `(input: CheckRegionsInput) => AccessAnswerRow[]` · `{ lock; region; important; requirements; cells }` · `{ kind; answers[{id;property;regions}] }` | 열쇠×자물쇠 표 | tools |
 | `checkShifts` · `CheckShift` | fn/type | `(before: CheckReport, after: CheckReport) => CheckShift[]` · `{ mark; id; name; before?; after; broke }` | 후보 전후 차이 | tools |
-| `RegionBriefSchema` · `RegionBrief` | const/type | zod strictObject `{ id; name; depth; kinds; parent?; answers: RegionAnswers; neighbours; requires }` | 여덟 답 형 | tools / engine,tools |
+| `RegionBriefSchema` · `RegionBrief` | const/type | zod strictObject `{ id; name; depth; kinds; parent?; answers: RegionAnswers; neighbours; requires }` | 아홉 답 형 (아홉째 `offering` 은 없으면 미답) | tools / engine,tools |
 | `AnswerSchema`·`WorthSchema`·`BirthSchema`·`RegionAnswersSchema`·`NeighbourSchema`·`RequirementSchema` (+ `z.infer` 타입 `Answer`·`Worth`·`Birth`·`RegionAnswers`·`Neighbour`·`Requirement`) | const/type | 답 = 문장 또는 `{ unanswered }` · 귀함(sources[]) · 탄생(born[]) · 이웃 · 요구(`kind: 'rule'\|'axis'\|'contract'`) | 하위 스키마 | — |
 | `parseRegionBrief` · `BriefParse` · `BriefProblem` | fn/type | `(value: unknown) => BriefParse` · `{ok:true;brief}\|{ok:false;problems}` · `{ path; message }` | 던지지 않는 파서 | engine,tools / — / — |
 | `ANSWER_ORDER` · `AnswerKey` · `answerOf` · `isUnanswered` · `unansweredKeys` | const/type/fn | 여덟 키 순서 · 그 합집합 · `(brief, key) => Answer` · `(answer) => boolean` · `(brief) => AnswerKey[]` | 답 접근 | engine,tools / engine / engine,tools / engine,tools / engine |
-| `authorRegion` · `AuthorInput` · `AuthoredRegion` | fn/type | `(input) => AuthoredRegion` · `{ brief; templates: AuthorTemplates; compile?: (space) => CompiledWorldTerrain }` · `{ spec: AuthoredSpec; connectors: AuthoredConnector[]; name; neighbourAnchors; unanswered }` | brief → 뼈대 (seed = briefSeed) | tools / — / tools |
-| `AuthorTemplates` | type | `{ anchorLayer; resourceLayer; traceLayer; traceTag(level); byDepth: Record<depth, DepthDefaults>; depthFallback; terrainByKind: Record<kind, TerrainRecipe[]>; terrainFallback; sourceByRole: Record<role, SourceDefaults> }` | 컨텐츠가 주는 템플릿 | content |
-| `TerrainRecipe` · `DepthDefaults` · `SourceDefaults` · `AuthoredSpec` · `AuthoredSource` · `AuthoredConnector` · `briefSeed` | type/fn | `{ id; stamp; center(비율); radius; height; falloff? }` · `{ half; traceBase }` · `{ supply; harvests; collapses?; recoverySeconds }` · `{ id; depth; space; resourceEcology? }` · 컨텐츠 원천 표와 같은 키 · Connector 와 같은 형 · `(brief) => number` | 템플릿·뼈대 원소 · 해시 | content / — ×6 |
+| `authorRegion` · `AuthorInput` · `AuthoredRegion` | fn/type | `(input) => AuthoredRegion` · `{ brief; templates: AuthorTemplates; compile?: (space) => CompiledWorldTerrain }` · `{ spec: AuthoredSpec; connectors: AuthoredConnector[]; name; neighbourAnchors; unanswered; unauthored }` | brief → 뼈대 (seed = briefSeed) | tools / — / tools |
+| `AuthorTemplates` | type | `{ anchorLayer; resourceLayer; traceLayer; presenceLayer; depthLayer; hazardLayer; traceTag(level); byDepth: Record<depth, DepthDefaults>; depthFallback; terrainByKind: Record<kind, TerrainRecipe[]>; terrainFallback; sourceByRole: Record<role, SourceDefaults>; birthByMode: Record<mode, BirthDefaults>; stateRequirement: Record<state, StateRequirement>; population: PopulationDefaults; phaseByKind: Record<kind, PhaseRecipe[]> }` | 컨텐츠가 주는 템플릿 | content |
+| `BirthDefaults` · `StateRequirement` · `PopulationDefaults` · `PhaseRecipe` | type | `{ bindingSeconds; spentSeconds?; transition; populationRequirement?; sourceUnmetCode }` · `{ kind; unmetCode }` · `{ birthDisturbance?; radiusStep }` · `{ season; depth?; hazard? }` | 탄생 방식별·상태별·개체군·갈래별 철의 기본형 (전부 컨텐츠가 준다) | content |
+| `AuthoredEcology` · `AuthoredLifeSite` · `AuthoredLifeRequirement` · `AuthoredPopulation` · `AuthoredLink` · `AuthoredPhases` · `AuthoredPhaseSeason` | type | `{ lifeFormation?; populations?; links?; absenceReason? }` · 컨텐츠 탄생지 표와 같은 키 차례 · `{ kind; sourceId?; populationId?; value?; unmetCode }` · `{ id; scale; declineCause; presence?; presenceOps?; birthDisturbance? }` · `{ from; to; kind; via? }` · `{ seasons }` · `{ depthOverlay?; hazardExtend? }` | 생성기가 내는 생명·철 (굳힌 글자가 컨텐츠 형으로 컴파일된다) | tools / — ×6 |
+| `TerrainRecipe` · `DepthDefaults` · `SourceDefaults` · `AuthoredSpec` · `AuthoredSource` · `AuthoredConnector` · `briefSeed` | type/fn | `{ id; stamp; center(비율); radius; height; falloff? }` · `{ half; traceBase }` · `{ supply; harvests; collapses?; recoverySeconds }` · `{ id; depth; space; resourceEcology?; phases?; ecology? }` · 컨텐츠 원천 표와 같은 키 · Connector 와 같은 형 · `(brief) => number` | 템플릿·뼈대 원소 · 해시 | content / — ×6 |
 | `gradeRegion` · `GradeResult` · `Grade` · `Gap` | fn/type | `(brief, contracts: WorldContracts) => GradeResult` · `{ grade; blocking: Gap[]; pending: Gap[]; because }` · `'A'\|'B'\|'C'` · `{ required; missing; reason; returnTo }` | 등급 판정 | tools |
 | `WorldContracts` | type | `{ hazardKinds; depths; transitions; carriers; roles; propertyAspects; propertyRelations; regions; frontiers; rules; returnTo: {vocabulary;rule;axis;contract;brief;pending} }` | 컨텐츠가 주는 어휘·계약 목록 | content |
 | `draftRegion` · `DraftInput` · `DraftResult` · `DraftRound` · `DraftOutcome` · `DraftStage` | fn/type | `(input) => Promise<DraftResult>` · `{ unknown; system; schema; ask: DraftPort; trial: DraftTrialFn; attempts? }` · `{ outcome; brief?; rounds }` · `{ round; asked; stage?; problems }` · `'passed'\|'returned'\|'exhausted'` · `'shape'\|'world'` | 물어 → 형 검사 → trial → 되묻기 (기본 3회) | tools / — / tools / — / tools / — |

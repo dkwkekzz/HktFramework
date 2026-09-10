@@ -21,6 +21,10 @@ export * from './properties';
 // 방이 묻는 것 — Lock 의 형 · 흔적 · 현상의 코드 · Lock 색인 셋 (C029 ADDED).
 // 문의 활성 조건과 표식의 요구가 여기로 옮겨 왔다 (graph.ts 의 표 둘이 사라졌다).
 export * from './access';
+// 방이 내미는 것 — 기회의 기본형 유도 · 색인 · 조회, 그리고 조건의 형을 짓는 두 함수 (C036 ADDED).
+// 조건 함수(lockCondition · occurrenceCondition)의 **원본이 이 폴더에 있다** — 기회의
+// availability 가 그 두 조건이고 content/regions 는 content/world 를 부를 수 없기 때문이다.
+export * from './opportunity';
 // 지면의 표면·통행 규칙 표 — world 와 view 가 함께 읽는다 (C006 ADDED).
 // 값의 원본은 terrain-rules.ts 이고, 이 문(門)을 통해 나간다.
 export * from './terrain-rules';

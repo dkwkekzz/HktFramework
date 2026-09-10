@@ -112,8 +112,8 @@ describe('checkRegions — 보고의 형', () => {
       '㉗', '㉘', '㉙', '㉚', '㉛', '㉜', '㉝',
       '㉞', '㉟', '㊱', '㊲', '㊳', '㊴', '㊵', '㊶', '㊷',
       // ㊹ 은 기억 둘 뒤에 선다 — 번호가 아니라 계약이 는 차례다 (㉓~㉖ 이 ⑩~㉒ 뒤에 선 그 어법)
-      // ㊺ ㊻ 은 아직 서지 않았다 (C036 의 자리) — 번호는 비어도 차례는 이어진다
-      '㊸', '㊼', '㊹',
+      // ㊺ ㊻(C036 · 기회)이 그 뒤를 잇는다 — 같은 어법이다
+      '㊸', '㊼', '㊹', '㊺', '㊻',
     ]);
     // 기계가 잡는 열쇠는 번호가 아니라 id 다 — 번호가 바뀌어도 이것은 그대로다
     expect(new Set(report.items.map((item) => item.id)).size).toBe(report.items.length);
@@ -183,6 +183,9 @@ describe('checkRegions — 보고의 형', () => {
       'persistence-summary',
       // ㊹ — 조건 쪽 계약을 주지 않았으므로 (C035)
       'condition-refs',
+      // ㊺ ㊻ — 기회 쪽 계약을 주지 않았으므로 둘 다 (C036)
+      'opportunity-refs',
+      'opportunity-summary',
     ]);
   });
 });

@@ -33,7 +33,7 @@ import type {
 } from '../protocol/gameview';
 import { agoText } from './answer-log';
 import { readBeing, type BeingOffer, type BeingReading } from './being-reading';
-import { codeText } from './code-text';
+import { codeText, discoveryCode } from './code-text';
 import { lifeSiteStateCode } from './life-reading';
 import { SETTLEMENT_LAYER } from './biome-rules';
 import { materialSeed, propertyPhraseCode, TRACE_LAYER } from '../regions/index';
@@ -149,7 +149,9 @@ export const BEING_ROW_LABELS: Readonly<Record<string, string>> = {
   // 걸린 것이 자리에 걸리든 존재에 걸리든 같은 말을 쓰는 그 규율 그대로다.
   // **한 번도 캔 적 없는 원천에는 줄 자체가 없다** (spec SPEC-006 경계 ①)
   'being.memory': '기억',
-  // 무엇을 주는가
+  // 무엇을 주는가 — C036 부터 그 줄의 **값**이 한 마디 는다 (이름 · 사유 · 어떻게 알게
+  // 되는가). 이름표는 그대로다: 늘어난 마디도 여전히 "내가 여기서 무엇을 할 수 있는가" 의
+  // 일부이고, 갈래를 물어 줄을 가르면 판이 같은 물음에 두 번 답한다 (걸린 것의 그 규율)
   'being.offer': '할 수 있는 것',
 };
 
@@ -429,6 +431,13 @@ function materialPhrases(materialId: string): string[] {
  *
  * **몇 번 고갈되었는지는 적지 않는다** — spec 이 부른 값은 캐인 횟수와 마지막 고갈의
  * 나이 둘이고, 고갈의 셈은 그 마디가 서는가를 가를 뿐이다. **누가 캤는지도 없다.**
+ *
+ * **판이 말하지 않는 것 — 확정** (Human 결정): 고갈된 횟수도 깨어난 시각도 판에 세우지
+ * 않는다. 세계는 둘 다 싣지만 판은 세로로 자랄수록 몸을 가리고, 그 둘은 "지금 무엇을 할 수
+ * 있는가" 를 가르지 않는다. 물어야 할 날이 오면 그때 마디를 늘린다.
+ *
+ * **셈은 아라비아 숫자로 적는다 — 확정** (Human 결정): 셈에 상한이 없어 세는 말의 표
+ * (한 번 · 두 번 …)를 두면 큰 수에서 말을 잃는다. 숫자는 어느 수에서도 읽힌다.
  */
 function sourceMemoryText(memory: SourceMemoryView, worldTime: number | undefined): string | undefined {
   const marks: string[] = [];
@@ -456,6 +465,13 @@ function sourceMemoryText(memory: SourceMemoryView, worldTime: number | undefine
  * 이것은 "여기 무슨 일이 있었나" **한 사실의 여러 마디**이기 때문이다.
  *
  * **누가 했는지도, 언제 다시 지나는지도 없다** — 세계가 세지 않는다.
+ *
+ * C037 CHANGED — **태어남**이 마디로 는다 (spec SPEC-007 · Foundation §4.3 의 마지막 마디).
+ * 차례의 끝인 것은 그것이 기억의 마지막 마디이기 때문이고, 어법은 지나감의 것 그대로다 —
+ * 무엇이 몇 번인지가 한 마디이고 마지막이 얼마 전인지가 괄호로 그 뒤에 붙는다 (여럿일 수
+ * 있는 마디 둘이 나란히 서므로 어법이 갈리면 어느 것이 어느 것의 셈인지가 흐려진다).
+ * **태어난 적 없으면 그 마디가 없다** (0 을 말하지 않는다 — 위의 셋과 같은 규율이고, 판이
+ * 세로로 길면 몸을 가린다는 부채가 그대로 있어 마디를 늘리되 줄은 늘리지 않는다).
  */
 function regionMemoryText(memory: RegionMemoryView, worldTime: number | undefined): string | undefined {
   const marks: string[] = [];
@@ -475,6 +491,15 @@ function regionMemoryText(memory: RegionMemoryView, worldTime: number | undefine
     // 나이를 잴 수 없으면 그 마디가 없다 — 몇 번 지났는지는 그대로 선다 (때만 지어내지 않는다)
     marks.push(last === undefined ? passed : `${passed} ${codeText('memory.passage-last', last)}`);
   }
+  // 태어남이 마지막 마디다 (C037) — 지나감과 **같은 어법**이므로 같은 모양으로 짓는다:
+  // 탄생지의 이름은 이미 있는 표의 것이고(같은 것이 두 자리에서 다르게 불리지 않는다),
+  // 이름과 셈 사이를 가르지 않으며, 나이를 잴 수 없으면 그 괄호만 서지 않는다
+  for (const birth of memory.births ?? []) {
+    if (birth.times <= 0) continue;
+    const born = `${codeText(birth.formation)} ${codeText('memory.birth', String(birth.times))}`;
+    const last = agoText(birth.lastAt, worldTime);
+    marks.push(last === undefined ? born : `${born} ${codeText('memory.birth-last', last)}`);
+  }
   return marks.length > 0 ? marks.join(VALUE_SEPARATOR) : undefined;
 }
 
@@ -491,11 +516,44 @@ function offerRow(offer: BeingOffer): SceneFrameRow {
  *
  * 행동의 이름은 이미 있는 표(interaction-presentation)의 것이다. 이름이 없는 행동은 role
  * 코드 그대로 뜨고, 세계가 사유를 주지 않았으면 사유 없이 이름만 선다 (지어내지 않는다).
+ *
+ * C036 CHANGED — 그 행동이 어느 기회에 속하면 **어떻게 알게 되는가** 한 마디가 뒤에 붙는다
+ * (spec SPEC-005). 앞의 것들은 한 글자도 달라지지 않는다: 이름이 먼저이고 못 하는 사유가
+ * 그다음이며(C027 · C028 의 형식 · 순서 · 문구 그대로 — 경계 ①), 이 마디는 그 뒤에 같은
+ * 구분자로 선다. 붙는 자리가 끝인 것은 앞의 둘이 **무엇을 할 수 있는가**이고 이것만이
+ * **그것을 어떻게 아는가**이기 때문이다 — 판정과 섞이는 자리에 두면 discovery 가 사유의
+ * 하나로 읽힌다 (경계 ②: discovery 는 무엇을 할 수 있는가를 바꾸지 않는다).
+ *
+ * **기회가 없는 줄은 지금 그대로다** — 이동에도 스킬에도 마디가 붙지 않는다. 기회의 id 도
+ * 붙지 않는다: 그 글자는 코드의 자리이지 사람이 읽을 이름이 아니다 (spec 기본형 ⑥).
+ *
+ * C037 CHANGED — **때가 있는 기회가 닫혀 있으면** 「지금은 없다」 한 마디가 는다 (spec
+ * SPEC-004 · Observable Result ①). 그 마디는 **사유 다음 · discovery 앞**에 선다: 앞의 둘
+ * (이름 · 못 하는 사유)과 이것은 전부 **지금 무엇을 할 수 있는가**의 말이고, discovery 만이
+ * **그것을 어떻게 아는가**여서 끝자리는 여전히 그것의 것이기 때문이다 (C036 이 끝에 둔 까닭
+ * 그대로 — 그 마디가 판정 쪽으로 딸려 들어오면 discovery 가 사유의 하나로 읽힌다).
+ *
+ * **열려 있으면 붙지 않고, Event 가 아닌 기회에는 아예 붙지 않는다** (SPEC-004 · SPEC-003
+ * 경계) — 판정 불가는 세계가 `open: false` 로만 말하지만 그 기회는 Event 가 아니므로 이
+ * 마디를 얻지 못한다. 그래서 문의 cross 줄은 C029 · C036 과 한 글자도 다르지 않다.
+ *
+ * **언제까지도 왜도 말하지 않는다** — 봉투에 그것이 실려 오지 않고(spec Observable
+ * "투영하지 않는 것"), 없는 것을 판이 지어내지 않는다.
  */
 function offerText(offer: BeingOffer): string {
   const name = interactionPresentation(offer.role).prompt ?? offer.role;
-  if (offer.available || offer.reason === undefined) return name;
-  return `${name}${VALUE_SEPARATOR}${codeText(offer.reason)}`;
+  const known =
+    offer.available || offer.reason === undefined
+      ? name
+      : `${name}${VALUE_SEPARATOR}${codeText(offer.reason)}`;
+  // 때가 있는 기회가 닫혀 있을 때만이다 — 앞 Cycle 의 봉투(그 자리가 없는 것)에서는 둘 다
+  // 실려 오지 않으므로 아무 마디도 서지 않는다 (모르는 것을 닫힘으로 읽지 않는다)
+  const timed =
+    offer.event === true && offer.open === false
+      ? `${known}${VALUE_SEPARATOR}${codeText('opportunity.closed')}`
+      : known;
+  if (offer.discovery === undefined) return timed;
+  return `${timed}${VALUE_SEPARATOR}${codeText(discoveryCode(offer.discovery))}`;
 }
 
 /** 자리를 부르는 말은 좌표다 — 어느 칸인지가 갈리는 자릿수까지 */
