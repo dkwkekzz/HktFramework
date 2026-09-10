@@ -35,6 +35,6 @@
 ## 3. engine · 도구
 
 ```text
-1  묶음 없는 다음 Cycle — T2 확장(요구와 답을 구조로 · access.silence)                       CYCLES.md §4
+1  묶음 없는 다음 Cycle — T5 초안기 실주행 · T6 대량 후보 (HundredRooms 의 바로 앞)          CYCLES.md §4
 2  공학 부채 — 그 자리를 만지는 Cycle 이 갚는다                                            CYCLES.md §5
 ```

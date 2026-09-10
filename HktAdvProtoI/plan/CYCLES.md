@@ -27,7 +27,7 @@
 | 레인 | 지금 할 수 있는 것 | 기다리는 것 | 다음 |
 |---|---|---|---|
 | (다음 묶음) | 묶음 제안 — 후보 2(3층 편성과 무대) · 3(Rooms GAP 회수) | Human 이 지목 | C039~ |
-| ENGINE B — Region 작성기 | T2 확장 — 요구와 답을 구조로 · access.silence (§4) | — | 그 뒤 HundredRooms 묶음 |
+| ENGINE B — Region 작성기 | T5 초안기 실주행 (미지 한 줄 → brief) · T6 대량 후보 | — | 그 뒤 HundredRooms 묶음 |
 
 묶음 후보와 순서는 [DESIGN.md §5](DESIGN.md).
 
@@ -313,13 +313,12 @@ Opportunity(데이터만으로 새 것이 선다 · 기본형 유도 · 판이 "
 
 ## 4. 묶음 없는 다음 Cycle
 
-받을 묶음이 아직 없는 것 — 도구 레인의 것이다. HundredRooms 묶음이나 T2 확장이 받는다.
+받을 묶음이 아직 없는 것 — 도구 레인의 것이다. HundredRooms 묶음이 받는다.
 
 ```text
-Region 작성기의 T2 를 넓히는 Cycle
-  brief 가 요구와 답을 구조로 적는 자리 (Access §5.4 의 아홉째~열두째 질문). C031 은 계약 목록에 성질 어휘를 등록하는 데까지 했고,
-    판정할 입력이 아직 없다
-  RegionSpec.access.silence — 왜 묻지 않는가. 읽는 검사가 그 질문과 함께 선다
+T5 초안기를 실제로 돌린다 — 미지 한 줄 → claude -p → brief → T3 → T1. 고리는 섰고(draft.ts) 실주행이 남았다.
+  T2 가 열세 질문을 다 담게 되었으므로 초안기가 낼 것도 그만큼이다
+T6 대량 — world:draft --batch 로 후보를 여럿 내고 world:lab 에 나란히 놓는다. HundredRooms 의 바로 앞 자리다
 ```
 
 ## 5. 공학 부채 — AI 가 소비한다
@@ -381,6 +380,15 @@ Region 작성기의 T2 를 넓히는 Cycle
     지금 brief 에는 그런 방이 없어 걸리지 않는다                                                                          T3
   SEPARATION 으로 선 탄생지가 세계에 없어 그 방식의 기본형을 잴 수 없다 — 그 방식을 적은 brief 는 탄생지가 서지 않고
     unauthored 로 남는다 (지어내지 않는 것이 옳은 답이고, 분화가 처음 서는 날 그 방에서 잰다)                                    T3
+  brief 의 물음이 협곡의 것을 다 담지 못한다 — 흔적의 showsOnBody(숨이 푸르게 빛난다)와 relaxedBy/relaxedReason(눈보라 자락이
+    요구를 무르게 한다)에 자리가 없다. 그 방을 이 brief 로 다시 내면 그 둘이 빠진다 (협곡 brief 의 said 에 적어 두었다)      T2 확장
+  lockStrengths 만 값으로 읽어 오지 못한다 — soft/hard 가 Lock['strength'] 의 union 형이라 실행 때 읽을 목록이 없다.
+    형에 매달아 틀린 글자는 컴파일이 걸리게 했으나, union 에 셋째가 늘면 이 줄은 조용하다 (access.ts 에 상수 둘이 서면 풀린다)  T2 확장
+  뼈대가 ⑩ 성질을 지고 나오지 않는다 — 성질은 MaterialSeed 의 것이라 AuthoredSource 에 실으면 굳힌 방이 형에서 멎는다.
+    도구가 뼈대 하나에 brief 하나를 맞물려 우회했다 (기반이 성질을 지고 나오면 그 우회를 지운다)                            T2 확장
+  clue layer 에 지금 선 넷은 point 인데 생성기가 내는 물음의 흔적은 area 다 — 그리는 쪽이 이 layer 에서 point 만 집는다      T2 확장
+  옛 시나리오 셋이 **검사의 총수**를 못 박는다 (c036 · c037 · c038 의 CHECK_COUNT) — 그 spec 이 예외로 둔 자리라
+    검사가 늘 때마다 셋이 함께 움직인다. 병렬 규칙 ③ 이 뒤 시나리오에 금한 그것이다                                       T2 확장
 세계 · 규칙
   자락 id 가 전역으로 유일하지 않다 — 셋이 두 방에 같은 이름으로 있다 (hazard-ice-cliff-west · -east · trace-canyon-base).
     위상이 방을 밝히지 않고 id 로만 가리켜 조건의 읽기도 어휘도 전역으로 다룬다. 지금은 둘 다 상시라 답이 갈리지 않는다        C038
