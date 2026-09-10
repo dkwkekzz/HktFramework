@@ -87,10 +87,13 @@
 ### L2-World-Tool — 도구 절반 1단계 (WE · Plan)
 
 ```text
-덮음      C001~C007 (방들의 그래프 · 땅)
+덮음      ENGINE 레인 A(§4 설 자리 — Description · Compiler · Observation · 경계 · 영속) · C001~C007 (방들의 그래프 · 땅 · §3.3 발판의 대체) · C037(§3.2 space 위의 기회 표)
 덮인 것   Description · Graph · 관찰 · 검사 ⑤~⑨ · Height Field · Stamp · Curve · Surface · traversable · 컴파일 캐시 · Build→Observe 루프
 남은 것   Tree/Rock Kit · scatter 밀도 · 자산 카탈로그(WE §17~§26)   → 폴리싱(데이터) — Cycle 없음
           Streaming                                              → 큰 Region 이 실제로 올 때 ENGINE 레인(chunk 적재) — Cycle 없음
+          §2 "땅이 시간에 따라 바뀌는가" — 도구는 정적 땅 (Time T6)        → 걷는 숲의 컨텐츠 행 (Time 절과 같은 자리)
+          §2 Connector 의 discovery · fallback                       → Region 절의 같은 줄
+          2층에 남은 절 없음 — 재주입 대조(확정 표 열셋 · 함께 확정한 결정 일곱 ↔ engine/world-authoring · C001~C007 spec SOURCE) 결과. 기획서를 나누지 않는다
 ```
 
 결정 대기 — 땅 (C005~C007) · 값 · 규칙 · 방향. Human 이 정하면 지우고 그 값이 사는 자리(데이터 · spec · 기획서)로 보낸다
@@ -102,10 +105,11 @@
 ### L2-World-Tool-Scale — 도구 2단계 · Region 작성기
 
 ```text
-덮음      ENGINE 레인 T1~T6 (섰다 — Cycle 아님)
+덮음      ENGINE 레인 T1~T6 (섰다 — Cycle 아님 · §6 "남은 것은 값이 늘어야 서는 것뿐") · C037(T2 아홉째 답 · T4 결정 나무 · T6 ㊻) · §2 등급 셋은 README §4 의 규약
 덮인 것   검사기 · brief 형(답 아홉) · 뼈대 생성기(생명 · 철까지) · 등급 판정기 · 초안기 · 판정 표면
 남은 것   HundredRooms (§5 후보 4 — 코드 diff 0)
           갈래별 땅 묶음의 분기(§7 "땅이 같다")                        → templates 손질 — Cycle 없음 · 지금 손볼 수 있다
+          2층에 남은 절 없음 — 재주입 대조(T1~T6 · §3.1 자리 ↔ engine/world-authoring · tools/world-editor · content/authoring) 결과. 남은 것은 HundredRooms 하나뿐
 ```
 
 결정 대기 — 도구 (Region 작성기 · Cycle 이 아니다) · 값 · 규칙 · 방향. Human 이 정하면 지우고 그 값이 사는 자리(데이터 · spec · 기획서)로 보낸다
@@ -119,7 +123,8 @@
 ### L2-World-Concept — 세계관 컨셉 ①
 
 ```text
-덮음      C001~C004(W1 · W11) · C008~C010(W5 · W8 · W9) · C005~C007(W2 · §16) · C011~C014(W4 · §4)
+덮음      C001~C004(W1 · W11 · §3.2 depth) · C008~C010(W5 · W8 · W9) · C005~C007(W2 · §16 · §3.1 hazard) · C011~C014(W4 · §4 · §3.5 trace · resource) ·
+          C015~C018(W6 의 경로 — presence · §3.5) · C019~C021(W3 갈래 둘째 · W5 협곡의 현상) · C026~C028(W8 — 세계가 질문하고 판이 답한다) · 검사 ①~③ (④ 는 아래)
 덮인 것   깊이 · 끝없음 · 지역은 하나의 현상 · 단서 · 플레이어 없이 돈다 · 안전은 조건 · 비주얼 방향 · 동근원 · 숲의 사슬
 남은 것   W3 위험 일곱 갈래가 몸에 닿는 것 — 추위는 후보 2 (3층 몫) · 나머지(지형 · 물질 · 생물 · 생태 …)  → 3층 둘째 · 5층
           W7 지식이 전투력 · W10 강함만으로 안 됨                                                  → 3층 둘째 · 5층
@@ -127,6 +132,9 @@
           W6 압도적 존재와의 접촉                                                                 → 컨텐츠 행 + 5층
           §14 사회적 분업                                                                        → 자리 없음 (§4)
           §16 비주얼 세부                                                                        → content/view 결정 Layer (도구 아님)
+          확정 3 depth 다섯 중 abyss — 코드에 civil · outer · wild · deep 넷뿐                                → deep 이하 Region 의 컨텐츠 행
+          확정 4 layer 다섯 중 phenomenon — 비어 있다 (검사 ④ absent · W5 "지역은 하나의 현상")                  → 컨텐츠 행의 현상 주입 (Material 절과 같은 자리)
+          2층에 남은 절 없음 — 재주입 대조(W1~W11 · 확정 1~6 · 검사 ①~④ ↔ C001~C028 spec SOURCE · world:check) 결과. 기획서를 나누지 않는다
 ```
 
 ### L2-World-Region — 세계 content 구성 ②
@@ -194,15 +202,17 @@
 ### L2-World-Time — 세계의 시간과 위상
 
 ```text
-덮음      C015~C018(T1~T8) · C019~C021(둘째 적용 — 철이 안전 조건에 닿는다)
+덮음      C015~C018(T1~T8 · §3 계약 · 검사 ㉓~㉖) · C019~C021(둘째 적용 — 철이 안전 조건에 닿는다) · C022~C025(철을 타는 탄생 · presence · 소란) ·
+          C034~C038(2.6 · 2.7 — 지나간 것이 남긴 것과 기억 · onTurn 이 못 묻는 것 · `--at`) · C035 · C037(clock 조건 · Event 의 시간 qualifier) ·
+          실주행 판정 회수(T8 뒷머리 — 지금 걸린 자락이 땅에 선다 · phase-presentation)
 덮인 것   시계 · 네 철 · 위상 덧씌움 · 소란 · 발자국 · 압도적 존재의 경로 · 검사 ㉓~㉖
-남은 것   2.6 지나가는 것 · 2.7 — 지나간 뒤 남긴 것을 세계가 기억하고 때가 되면 내민다(비늘)   → 후보 1 (Foundation)
-          §5 밤과 철이 몸을 깎는 것(추위 · 피로 · 긴 밤 버티기)   → 후보 2(추위만) · 3층 둘째(피로 · 밤)
+남은 것   §5 밤과 철이 몸을 깎는 것(추위 · 피로 · 긴 밤 버티기)   → 후보 2(추위만) · 3층 둘째(피로 · 밤)
           생물의 철 따른 이동 · 번식 · 동면                       → 3층 둘째 · Life 실주행
           압도적 존재와의 접촉이 몸에 하는 일                       → 3층 둘째 · 5층
           지식이 철의 규칙을 연다                                 → 3층 둘째
           날씨                                                → 두지 않는다 (컨텐츠 행의 현상으로)
-          걷는 숲의 나무 이동                                    → 그 Region 의 컨텐츠 행
+          걷는 숲의 나무 이동                                    → 그 Region 의 컨텐츠 행 (T6 의 예외를 그때)
+          2층에 남은 절 없음 — 재주입 대조(T1~T8 · §3 계약 · 검사 ㉓~㉖ ↔ C015~C025 · C034~C038 spec SOURCE · world:check ㉓~㉖ pass/report) 결과. 기획서를 나누지 않는다
 ```
 
 결정 대기 — 시간과 위상 (C015~C018) · 값 · 규칙 · 방향. Human 이 정하면 지우고 그 값이 사는 자리(데이터 · spec · 기획서)로 보낸다
@@ -390,6 +400,10 @@ Cycle 셋이 닫혔다. 관찰 항목 열아홉 가운데 그림과 시나리오
           Character Growth · Mastery · Class Progress · Capability      → 7층
           G12 Region 자체 성장(둥지 → 군락 · 폐허 → 마을)                   → Life 개체군 + 3층 NPC 뒤
           경제 · 세력 · 협동 · 구조 · 미니게임 · 서사 · NPC 조우              → 자리 없음 (§4)
+          빈칸 6 — Object(레버 · 장치) · Structure 의 State 가 처음 오는 자리        → 컨텐츠 행 (그 방의 퍼즐 — 이름은 Human)
+          §7 지도 · lineOfSight · 비행 · 수영 — 요구가 없다                    → 그 갈래의 컨텐츠 행 · 후보 3(Trail Q1)
+          2층에 남은 절 없음 — 재주입 대조(G1~G13 · §4 계약 · 검사 ㊸~㊼ · D1~D5 · 빈칸 ↔ C034~C038 spec SOURCE · world:check ㊸~㊼ pass/report) 결과.
+          2087 줄이라 지금 규칙(§5 크기)이면 주입 때 나눴을 문서지만 Cycle 이 닫혔으므로 나누지 않는다
 ```
 
 닫힘 — 기반 검토 끝 (C034~C037 + 정비 C038). 결정은 전부 그 값이 사는 자리로 갔다. 아래 실측 항목은 **다음 기반 층 예심이 같은 것을 재는 잣대**다.
