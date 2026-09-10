@@ -276,6 +276,6 @@ async function runOne(run, index, report) {
   }
   if (process.env.FXLAB_TRACE) for (const r of report) if (r.hud) console.error(`[hud run${r.run}] ${r.hud}`);
   const shots = report.filter((r) => r.kind === 'shot' && r.ok).length;
-  console.log(`\n찍은 장수 ${shots} · 판정은 하지 않는다 — plan/CYCLES.md 그 묶음 절의 관찰 항목에 붙인다`);
+  console.log(`\n찍은 장수 ${shots} · 판정은 하지 않는다 — plan/DESIGN.md §3 그 기획서 절의 관찰 항목에 붙인다`);
   setTimeout(() => process.exit(0), 500).unref();
 })().catch((e) => { console.error(e); process.exit(1); });
