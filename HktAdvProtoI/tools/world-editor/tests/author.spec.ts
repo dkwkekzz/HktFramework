@@ -13,14 +13,21 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import {
+  ASKS_WARMTH,
+  ASPECT_HEAT,
+  ASPECT_LIGHT,
   BIG_BIRD,
   BIO_ORE,
   COMPILE_RULES,
+  FANTASY_MAZE,
   FOREST_CHAIN,
   FORM_ROOT_CLUTCH,
   FORM_ROOT_NODULE,
   LIFE_FORMATION_MODES,
   LIFE_ROLE_MOLT_SUPPLY,
+  LOCK_AT_AREA,
+  LOCK_AT_CONNECTOR,
+  MAZE_PATTERN_P2,
   ORE_EATER,
   POPULATION_DECLINE_CONDITION_LOST,
   POPULATION_DECLINE_EATEN,
@@ -29,7 +36,11 @@ import {
   RED_EYE_TREE,
   REGION_GRAPH,
   REGION_RULE_IDS,
+  RELATION_EMITS,
+  RELATION_HIDES,
+  STATEMENT_KINDS,
   TRACE_LAYER,
+  propertyTag,
   soilStainLevel,
 } from '../../../content/regions';
 import { WORLD_AUTHOR_TEMPLATES } from '../../../content/authoring/templates';
@@ -239,7 +250,9 @@ describe('T3 — 두 번 내면 같다 · 굳힌 것은 데이터다', () => {
   });
 
   it('아직 답하지 못한 질문이 굳힌 파일에 적힌다 — 뼈대가 비어 있다는 것을 숨기지 않는다', () => {
-    expect(authored.unanswered).toEqual(['birth', 'offering']);
+    // 목록 **전체**를 단언하지 않는다 — 답이 몇인가는 형이 넓어질 때마다 달라지고
+    // (여덟 → 아홉 → 열), 이 brief 파일은 다른 레인의 것이다. 재는 것은 "빈 것이 적힌다" 다
+    expect(authored.unanswered).toEqual(expect.arrayContaining(['birth', 'offering']));
     expect(renderRegionModule(authored)).toContain('birth');
   });
 });
@@ -272,11 +285,45 @@ const PHASE_KIND = Object.keys(T.phaseByKind)[0]!;
 
 const SITE_ID = 'AUTHORED_CLUTCH';
 const SOURCE_ID = 'AUTHORED_NODULE';
+const ROOM_ID = 'AUTHORED_LIFE_ROOM';
+
+// ── 물음이 쓰는 이 세계의 어휘 (T2 확장 ADDED) ────────────────────────────
+//
+// 여기서도 어휘를 지어내지 않는다 — 걸리는 자리의 갈래도 세기도 성질 태그도 철도 배열도
+// 이 세계가 실제로 쓰는 것이다 (content/regions/access.ts · properties.ts · phases.ts).
+
+/** 생성기가 이웃 하나에 내는 문의 이름 — 이름 규칙은 이미 T3 이 세웠다 (`<방>_<이웃>`) */
+const DOOR = `${ROOM_ID}_${RED_EYE_TREE}`;
+const DOOR_ANCHOR_OP = `anchor-${DOOR.toLowerCase().replace(/_/g, '-')}`;
+const LOCK_DOOR = 'AUTHORED_DEPTH_DOOR';
+/** 그 문이 묻는 성질 — 빙결 협곡의 문이 묻는 것과 같은 태그다 */
+const ASKED_PROPERTY = propertyTag(ASPECT_HEAT, RELATION_HIDES);
+/** 이 세계의 철 하나 (content/regions/phases.ts 의 SeasonId 넷 가운데 하나) */
+const LONG_NIGHT = 'LONG_NIGHT';
+/** 흔적의 이름 둘 — 자리는 생성기가 낸다 (brief 는 이름만 댄다) */
+const CLUE_NAMES = ['갈라진 김', '언 자국'];
+
+/** 그 방이 묻는 것 하나 — 값이다 (파일이 아니다) */
+function doorLockValue(): Record<string, unknown> {
+  return {
+    id: LOCK_DOOR,
+    at: { kind: LOCK_AT_CONNECTOR, ref: DOOR },
+    strength: 'hard',
+    important: true,
+    requires: [
+      { property: ASKED_PROPERTY },
+      { seasons: [LONG_NIGHT] },
+      { state: { region: FANTASY_MAZE, patterns: [MAZE_PATTERN_P2] } },
+    ],
+    traces: CLUE_NAMES,
+    reason: ASKS_WARMTH,
+  };
+}
 
 /** 탄생과 철을 밝힌 brief 하나 — 값이다 (파일이 아니다) */
 function lifeBriefValue(): Record<string, unknown> {
   return {
-    id: 'AUTHORED_LIFE_ROOM',
+    id: ROOM_ID,
     name: '시험이 지은 탄생의 방',
     depth: 'wild',
     kinds: [PHASE_KIND],
@@ -296,6 +343,9 @@ function lifeBriefValue(): Record<string, unknown> {
             recoveryCause: RECOVERY_TREE_UPTAKE,
             form: FORM_ROOT_NODULE,
             role: 'conditional',
+            // ⑩ 이 원천이 내는 것이 어떤 성질을 가지는가 — 요구에 답할 여지가 여기서 난다.
+            // 태그만으로는 모자라 그 재료의 **어느 문장**이 그것을 말하는가까지 든다
+            properties: [{ tag: propertyTag(ASPECT_LIGHT, RELATION_EMITS), from: STATEMENT_KINDS[0] }],
           },
         ],
       },
@@ -328,6 +378,11 @@ function lifeBriefValue(): Record<string, unknown> {
           // 떼의 의미를 밝히지 않은 개체군 — 자락이 서지 않아야 한다
           { id: BIG_BIRD, scale: 1, declineCause: POPULATION_DECLINE_EATEN },
         ],
+      },
+      // ⑨~⑫ 이 방이 묻는 것 — 문 하나에 물음 하나 (access.ts 가 세운 어법)
+      asking: {
+        said: '깊은 자리로 드는 문이 몸에 남은 열을 묻는다.',
+        locks: [doorLockValue()],
       },
       offering: '무엇이 태어났는지를 내밀고, 언제 태어났는지를 기억한다.',
     },
@@ -408,7 +463,7 @@ describe('T3 — 탄생을 밝힌 brief 가 생명을 낸다', () => {
     });
     // 방의 키 차례도 컨텐츠의 RegionSpec 그대로다 — 철이 생태 앞에 선다
     expect(Object.keys(life.spec)).toEqual(
-      ['id', 'depth', 'space', 'resourceEcology', 'phases', 'ecology'].filter(
+      ['id', 'depth', 'space', 'resourceEcology', 'phases', 'access', 'ecology'].filter(
         (key) => key in life.spec,
       ),
     );
@@ -641,7 +696,7 @@ describe('T3 — 생명과 철이 붙어도 두 번 내면 같고, 굳힌 것은
     expect(module).not.toMatch(/\bfunction\b|\bclass\b|\bif\s*\(|=>/);
     expect(module.match(/^export /gm)?.length).toBe(2);
     // 방 하나가 느는 데 규칙 코드는 한 줄도 늘지 않는다 — 탄생지도 철도 그 방의 데이터다
-    for (const said of [SITE_ID, ORE_EATER, 'lifeFormation', 'phases']) {
+    for (const said of [SITE_ID, ORE_EATER, LOCK_DOOR, 'lifeFormation', 'phases', 'access']) {
       expect({ said, in: module.includes(said) }).toEqual({ said, in: true });
     }
   });
@@ -655,4 +710,176 @@ describe('T3 — 생명과 철이 붙어도 두 번 내면 같고, 굳힌 것은
   it.todo(
     'GAP: 생명·철이 붙은 방의 굳힌 파일이 컴파일된다 — fixtures 의 굳힌 글자와 그것을 낳는 brief 파일이 필요하다',
   );
+});
+
+// ── 물음 (T2 확장 CHANGED — 생성기가 access 를 낸다) ──────────────────────
+//
+// 목적은 원문 §12 가 든 둘을 막는 것이다 — **열쇠 없는 문 백 개**와 **문마다 전용 열쇠 하나**.
+// 그래서 여기서 재는 것도 그 둘이다: 물음마다 알아낼 흔적이 실제로 서는가(㊶) · 그 흔적이
+// 물음이 걸린 자리 곁에 서는가. 답이 여럿인가는 이 방 하나로 알 수 없으므로 재지 않는다 (⑪).
+
+/** 그 방 Description 의 op 하나 */
+const opOf = (region: typeof life, id: string): Record<string, unknown> | undefined =>
+  region.spec.space.ops.find((op) => op.id === id) as unknown as Record<string, unknown> | undefined;
+
+/** 컨텐츠의 Lock 이 적은 키 차례 (content/regions/access.ts) — 굳힌 글자가 이 차례여야 방이 컴파일된다 */
+const LOCK_KEYS = ['id', 'at', 'strength', 'requires', 'important', 'traces', 'reason'];
+
+describe('T3 — 물음을 밝힌 brief 가 access 를 낸다', () => {
+  const lock = life.spec.access!.locks![0]!;
+
+  it('물음이 선다 — 키와 차례가 컨텐츠의 Lock 과 같다 (값이 맞아도 형이 다르면 그 방이 서지 못한다)', () => {
+    expect(life.spec.access!.locks!.map((one) => one.id)).toEqual([LOCK_DOOR]);
+    expect(Object.keys(lock)).toEqual(LOCK_KEYS.filter((key) => key in lock));
+    // 밝힌 것은 brief 에서 그대로 온다 — 생성기가 어디에 걸리는지도 얼마나 센지도 정하지 않는다
+    expect({
+      at: lock.at,
+      strength: lock.strength,
+      important: lock.important,
+      reason: lock.reason,
+    }).toEqual({
+      at: { kind: LOCK_AT_CONNECTOR, ref: DOOR },
+      strength: 'hard',
+      important: true,
+      reason: ASKS_WARMTH,
+    });
+  });
+
+  it('요구를 그대로 옮긴다 — 밝힌 갈래만 싣고, 철은 비지 않을 때만 든다', () => {
+    expect(lock.requires).toEqual([
+      { property: ASKED_PROPERTY },
+      { time: { seasons: [LONG_NIGHT] } },
+      { state: { region: FANTASY_MAZE, patterns: [MAZE_PATTERN_P2] } },
+    ]);
+  });
+
+  it('**아무 갈래도 밝히지 않은 요구는 걸러진다** — 빈 요구를 굳혀 두면 요구가 없는 것을 요구로 읽는다', () => {
+    const knowledge = '깊은 자리로 드는 길을 안다';
+    const filtered = authorLife((b) => {
+      const asking = (b.answers as Record<string, any>).asking;
+      asking.locks = [{ ...doorLockValue(), requires: [{}, { knowledge }] }];
+    });
+    expect(filtered.spec.access!.locks![0]!.requires).toEqual([{ knowledge }]);
+  });
+
+  it('물음마다 흔적이 하나 이상이고 그 op 이 그 방에 **실제로 있다** — 검사 ㊶ 이 묻는 것이 이것이다', () => {
+    // brief 가 이름을 대면 그 수만큼 선다 — 이름 하나에 자락 하나
+    expect(lock.traces).toHaveLength(CLUE_NAMES.length);
+    lock.traces.forEach((trace, index) => {
+      const op = opOf(life, trace.op);
+      expect({ op: trace.op, kind: op?.kind, layer: op?.layer, tag: op?.tag }).toEqual({
+        op: trace.op,
+        kind: 'area',
+        layer: T.clueLayer,
+        tag: CLUE_NAMES[index],
+      });
+    });
+  });
+
+  it('이름을 대지 않으면 흔적 하나가 선다 — **열쇠 없는 문**을 내지 않는다 (지어내는 것과 다르다)', () => {
+    const unnamed = authorLife((b) => {
+      const one = (b.answers as Record<string, any>).asking.locks[0];
+      delete one.traces;
+    });
+    const traces = unnamed.spec.access!.locks![0]!.traces;
+    expect(traces).toHaveLength(1);
+    // 실을 이름이 없으므로 그 물음의 이름이 선다 — 자락은 서되 무엇을 뜻하는지는 지어내지 않는다
+    expect(opOf(unnamed, traces[0]!.op)!.tag).toBe(LOCK_DOOR);
+  });
+
+  it('**문에 걸린 물음의 흔적은 그 문 곁에 선다** — 알아낼 자리가 물어보는 자리에서 멀면 알 수 없다', () => {
+    const anchor = opOf(life, DOOR_ANCHOR_OP)!.position;
+    expect(anchor).toBeDefined();
+    const half = T.byDepth[life.spec.depth]!.half;
+    for (const trace of lock.traces) {
+      const op = opOf(life, trace.op)!;
+      expect(op.shape).toEqual({
+        kind: 'circle',
+        center: anchor,
+        // 탄생지 전조와 같은 반지름 — 자락의 크기는 물음마다 정하는 것이 아니다
+        radius: Math.round(half * 0.25 * 100) / 100,
+      });
+    }
+  });
+
+  it('문에 걸리지 않은 물음의 흔적은 그 문에서 떨어져 선다 — 자리를 고르는 되풀이가 다르다', () => {
+    // 자락에 걸리는 물음은 그 방에 **이미 선 자락**을 가리켜야 한다 (㉞ 이 실재를 묻는다) —
+    // 그래서 위에서 이미 선 흔적 하나를 가리킨다
+    const ref = lock.traces[0]!.op;
+    const asked = authorLife((b) => {
+      (b.answers as Record<string, any>).asking.locks.push({
+        id: 'AUTHORED_FIELD_ASK',
+        at: { kind: LOCK_AT_AREA, ref },
+        strength: 'soft',
+        requires: [{ property: ASKED_PROPERTY }],
+      });
+    });
+    const field = asked.spec.access!.locks![1]!;
+    expect(field.id).toBe('AUTHORED_FIELD_ASK');
+    // 밝히지 않은 중요는 키를 두지 않는다 — 거짓을 굳혀 두면 "밝히지 않았다" 가 지워진다
+    expect('important' in field).toBe(false);
+    const clue = opOf(asked, field.traces[0]!.op)!;
+    expect((clue.shape as Record<string, unknown>).center).not.toEqual(opOf(asked, DOOR_ANCHOR_OP)!.position);
+  });
+
+  it('**침묵이 답이 된다** — 묻지 않는 방은 사유가 서고, 미답이면 access 자체가 나오지 않는다', () => {
+    const reason = '여기는 아무것도 묻지 않는다 — 걸릴 것이 남지 않았기 때문이다';
+    const quiet = authorLife((b) => {
+      (b.answers as Record<string, unknown>).asking = { said: reason, locks: [] };
+    });
+    expect(quiet.spec.access).toEqual({ silence: reason });
+    // 미답은 사유가 아니다 — "아직 안 적었다" 와 "원래 묻지 않는다" 를 갈라 읽어야 한다
+    // (탄생의 absenceReason 이 선 그 자리 그대로)
+    const silent = authorLife((b) => {
+      (b.answers as Record<string, unknown>).asking = {
+        said: { unanswered: '이 방이 무엇을 묻는가를 아직 답하지 못했다' },
+        locks: [],
+      };
+    });
+    expect(silent.spec.access).toBeUndefined();
+    // 침묵과 물음은 **함께 서지 않는다** — 묻는 방에 "왜 묻지 않는가" 가 실리면 둘 다 거짓이 된다
+    expect('silence' in life.spec.access!).toBe(false);
+  });
+
+  it('물음이 붙어도 두 번 내면 **깊은 수준에서** 같다 — 시각도 난수도 쓰지 않는다', () => {
+    const again = authorLife();
+    expect(again.spec.access).toEqual(life.spec.access);
+    // 키 차례까지 같아야 굳힌 글자가 같다 (toEqual 은 차례를 묻지 않는다)
+    expect(JSON.stringify(again.spec.access)).toBe(JSON.stringify(life.spec.access));
+  });
+});
+
+describe('T3 — 생성한 방이 접근 검사 ㉞~㊷ 을 지난다', () => {
+  const report = checkAuthored(life);
+  const ACCESS_IDS = [
+    'access-refs',
+    'access-answer',
+    'access-property-spread',
+    'access-answer-distance',
+    'access-orphan-property',
+    'access-answer-kinds',
+    'access-answer-variety',
+    'access-trace',
+    'access-behind-lock',
+  ];
+  const itemOf = (id: string) => report.items.find((item) => item.id === id);
+
+  it('아홉 중 하나도 무너지지 않는다 — 그래서 이 방을 세계에 **들일 수 있다**', () => {
+    const fell = ACCESS_IDS.map((id) => ({ id, status: itemOf(id)?.status })).filter(
+      (one) => one.status === 'fail',
+    );
+    expect(fell).toEqual([]);
+  });
+
+  it('㊶ 이 이 방의 물음을 **실제로 재고 있다** — 계통을 주지 않아 absent 로 지나간 것이 아니다', () => {
+    // absent 는 통과가 아니다 (기반이 그렇게 적어 두었다). 그러니 흔적 검사가 pass 로 서야
+    // 위 시험이 빈 것을 잰 것이 아님이 밝혀진다
+    expect(itemOf('access-trace')?.status).toBe('pass');
+  });
+
+  it('보고에 이 방의 물음이 **이름으로 선다** — 세는 항목 둘이 그것을 읊는다', () => {
+    // ㊲ 은 성질을 묻는 Lock 을, ㊴ 은 중요한 Lock 을 센다 — 이 방의 물음은 둘 다다
+    expect(itemOf('access-answer-distance')?.refs.map((ref) => ref.where)).toContain(LOCK_DOOR);
+    expect(itemOf('access-answer-kinds')?.refs.map((ref) => ref.where)).toContain(LOCK_DOOR);
+  });
 });
