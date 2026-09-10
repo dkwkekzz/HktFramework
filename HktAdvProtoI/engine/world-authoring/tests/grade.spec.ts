@@ -7,7 +7,7 @@
 
 import { describe, expect, it } from 'vitest';
 import type { RegionBrief } from '../brief';
-import { gradeRegion, type WorldContracts } from '../grade';
+import { defaultDecisionTree, gradeRegion, type DecisionBranch, type WorldContracts } from '../grade';
 
 const CONTRACTS: WorldContracts = {
   hazardKinds: ['danger/cold', 'danger/beast'],
@@ -45,7 +45,8 @@ function brief(over: Partial<RegionBrief> = {}): RegionBrief {
       worth: { said: said('이것이 귀하다'), sources: [] },
       discovery: said('이것을 안다'),
       opening: said('이것이 열린다'),
-      birth: { said: said('이것이 난다'), born: [] },
+      birth: { said: said('이것이 난다'), born: [], populations: [] },
+      offering: said('이것을 내민다'),
     },
     neighbours: [{ region: 'HOME', transition: 'path', direction: 'bidirectional', frontier: false }],
     requires: [],
@@ -168,14 +169,14 @@ describe('아직 답하지 않은 질문은 등급을 가르지 않는다', () =
     const result = grade({
       answers: {
         ...brief().answers,
-        birth: { said: { unanswered: '생명 계약이 아직 없다' }, born: [] },
+        birth: { said: { unanswered: '생명 계약이 아직 없다' }, born: [], populations: [] },
       },
     });
     expect(result.grade).toBe('A');
     expect(result.blocking).toEqual([]);
     expect(result.pending).toEqual([
       {
-        required: 'A_ROOM 의 여덟 답 가운데 birth',
+        required: 'A_ROOM 의 아홉 답 가운데 birth',
         missing: '아직 답이 없다',
         reason: '생명 계약이 아직 없다',
         returnTo: '나중에',
@@ -193,6 +194,83 @@ describe('아직 답하지 않은 질문은 등급을 가르지 않는다', () =
 //
 // 등록되는 데까지다 — brief 가 요구와 답을 성질로 적기 전에는 대조할 입력이 없다.
 // 그래서 이 두 줄은 **판정을 한 값도 바꾸지 않는다**. 그것이 이 시험의 내용이다.
+
+// ── C037 — 갈래를 등급으로 옮기는 것은 코드가 아니라 결정 나무다 (T4 CHANGED) ──
+//
+// 판정의 자리가 코드에서 **데이터**로 옮겨졌다. 그래서 여기서 재는 것은 셋이다:
+// 표를 주지 않아도 답이 그대로인가 · 표를 바꾸면 답이 바뀌는가 · 표에 없는 갈래를 어떻게 다루는가.
+
+describe('결정 나무 — 요구의 갈래가 무엇을 뜻하는가는 계약이 정한다 (C037 ADDED)', () => {
+  const REQUIRES = [
+    { kind: 'rule' as const, what: '새 규칙', why: '이 방만의 규칙이다' },
+    { kind: 'fact' as const, what: '새 사실', why: '세계의 값 하나가 없다' },
+  ];
+
+  it('표를 주지 않으면 기본 표가 서고 판정이 지금까지와 같다 — 셋의 등급도 돌려보내는 곳도', () => {
+    for (const [kind, expected] of [
+      ['rule', 'B'],
+      ['axis', 'C'],
+      ['contract', 'C'],
+    ] as const) {
+      const bare = grade({ requires: [{ kind, what: '없는 것', why: '까닭' }] });
+      const withTree = gradeRegion(
+        brief({ requires: [{ kind, what: '없는 것', why: '까닭' }] }),
+        { ...CONTRACTS, decisionTree: defaultDecisionTree(CONTRACTS.returnTo) },
+      );
+      expect(bare.grade).toBe(expected);
+      expect(JSON.stringify(withTree)).toBe(JSON.stringify(bare));
+    }
+  });
+
+  it('요구마다 어느 가지를 탔는지가 요구 차례 그대로 남는다', () => {
+    const tree: DecisionBranch[] = [
+      ...defaultDecisionTree(CONTRACTS.returnTo),
+      { kind: 'fact', grade: 'A', returnTo: '적은 사람', because: '그 사실이 아직 데이터에 없다' },
+    ];
+    const result = gradeRegion(brief({ requires: REQUIRES }), { ...CONTRACTS, decisionTree: tree });
+    expect(result.decided).toEqual([
+      { what: '새 규칙', kind: 'rule', grade: 'B' },
+      { what: '새 사실', kind: 'fact', grade: 'A' },
+    ]);
+    // A 로 치는 갈래는 등급을 밀지 않는다 — 그래도 아직 적히지 않은 것이므로 걸린 것에는 선다
+    expect(result.grade).toBe('B');
+    expect(result.blocking[1]).toEqual({
+      required: 'A_ROOM 가 새 사실 를 요구한다',
+      missing: '그 사실이 아직 데이터에 없다',
+      reason: '세계의 값 하나가 없다',
+      returnTo: '적은 사람',
+    });
+  });
+
+  it('표가 달라지면 같은 brief 의 등급이 달라진다 — 무엇을 A 로 칠지는 이 세계의 판단이다', () => {
+    const harsh: DecisionBranch[] = [
+      { kind: 'rule', grade: 'C', returnTo: '기반', because: '이 세계는 규칙 하나도 층의 일로 친다' },
+    ];
+    const result = gradeRegion(
+      brief({ requires: [{ kind: 'rule', what: '새 규칙', why: '이 방만의 규칙이다' }] }),
+      { ...CONTRACTS, decisionTree: harsh },
+    );
+    expect({ grade: result.grade, returnTo: result.blocking[0]!.returnTo }).toEqual({
+      grade: 'C',
+      returnTo: '기반',
+    });
+  });
+
+  it('이미 선 규칙은 가지를 타지 않는다 — 요구가 아니기 때문이다', () => {
+    const result = grade({
+      requires: [{ kind: 'rule', what: '이미 선 규칙', why: '이 방이 그 규칙 위에 선다' }],
+    });
+    expect({ grade: result.grade, decided: result.decided }).toEqual({ grade: 'A', decided: [] });
+  });
+
+  it('표에 없는 갈래는 가장 무거운 쪽으로 두고 그 사실을 적는다 — 모르는 것을 가볍게 치지 않는다', () => {
+    const result = grade({ requires: [{ kind: 'observation', what: '새 관찰', why: '알 길이 없다' }] });
+    expect(result.grade).toBe('C');
+    expect(result.decided).toEqual([{ what: '새 관찰', kind: 'observation', grade: 'C' }]);
+    expect(result.blocking[0]!.missing).toContain('결정 나무에 없다');
+    expect(result.blocking[0]!.returnTo).toBe('어휘');
+  });
+});
 
 describe('성질 어휘는 목록에 등록될 뿐 등급을 가르지 않는다 (C031 ADDED)', () => {
   it('어휘를 비우든 채우든 · 늘리든 같은 brief 가 같은 판정을 낸다', () => {

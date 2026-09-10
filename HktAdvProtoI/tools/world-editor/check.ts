@@ -16,6 +16,7 @@
 import { resolve } from 'node:path';
 import * as RegionsContent from '../../content/regions';
 import {
+  ALL_OPPORTUNITIES,
   ANCHOR_LAYER,
   ANSWER_KINDS,
   ANSWER_KIND_ENVIRONMENT,
@@ -61,6 +62,7 @@ import {
   type CheckLifeRecovery,
   type CheckMemory,
   type CheckMemoryRegion,
+  type CheckOpportunity,
   type CheckRegion,
   type CheckRegionsInput,
   type CheckReport,
@@ -494,6 +496,10 @@ export const WORLD_CHECK_MEMORY: CheckMemory = {
       routes: presenceRoutes
         .filter((route) => route.nodes.some((node) => node.some((it) => it.region === spec.id)))
         .map((route) => route.id),
+      // 그 방의 탄생지 — 기억이 셀 수 있는 셋째 열쇠다 (C037 ADDED · spec SPEC-007 경계 ③).
+      // 원천 · 경로와 **같은 어법**이다: 실제로 태어난 적 있는 것만 셈을 가지지만, 열쇠가 될
+      // 수 있는 것은 그 방이 데이터로 밝힌 탄생지 전부다. ㊸ 이 그것으로 유령을 잡는다
+      formations: (spec.ecology?.lifeFormation ?? []).map((site) => site.id),
     }),
   ),
   // 수명 표 — 세계가 소유한 그 표를 줄마다 그대로 옮긴다 (여기서 짓는 줄이 하나도 없다)
@@ -512,6 +518,135 @@ export const WORLD_CHECK_MEMORY: CheckMemory = {
 export const WORLD_CHECK_CONDITION: CheckCondition = {
   sites: worldConditionSites(),
   vocabulary: worldConditionVocabulary(),
+};
+
+// ── 기회 쪽 계약 (C036 ADDED — 검사 ㊺ ㊻ 이 이것을 읽는다) ──────────
+//
+// 조건(WORLD_CHECK_CONDITION)과 **같은 어법**이다 — 여기서 판정하는 것이 하나도 없고, 세계에
+// 이미 선 것(방마다 유도된 기회 · 조건 어휘 · 관계 다섯 갈래)을 형만 바꿔 건넨다.
+//
+// **어휘를 두 벌로 적지 않는다** — 실제로 선 원천 id · 문 id · 경로 id 도, 기억 경로도
+// ㊹ 이 쓰는 그 어휘(worldConditionVocabulary)에서 그대로 꺼낸다. 두 검사가 같은 목록을 봐야
+// 하나가 통과시킨 잎을 다른 하나가 유령이라 부르는 날이 오지 않는다.
+
+/** ㊹ 과 ㊺ 이 함께 보는 어휘 한 벌 — 여기서 새로 세는 것이 없다 */
+const conditionVocabulary = WORLD_CHECK_CONDITION.vocabulary;
+
+/**
+ * progress.ref 로 허용되는 경로 — **기억의 경로 그대로**다.
+ *
+ * ㊹ 의 어휘가 이미 짓는 `history / history` 의 paths 를 그대로 쓴다 (`sources.<id>.takenTotal`
+ * 류가 거기 있다) — 두 벌로 적지 않는다. 지금 기회의 progress 는 counter 하나뿐이고 그 ref 가
+ * 전부 이 목록 안이다. state 경로(phase)를 쓰는 기회는 이 Cycle 에 없다.
+ */
+const PROGRESS_PATHS: readonly string[] =
+  conditionVocabulary.queries.find(
+    (query) => query.target === 'history' && query.query === 'history',
+  )?.paths ?? [];
+
+/** 관계 다섯 갈래의 이름 — 갈래의 이름도 이 세계의 것이다 (기반은 다섯이라는 수도 모른다) */
+const RELATION_SPATIAL = 'spatial';
+const RELATION_ENVIRONMENT = 'environment';
+const RELATION_ECOLOGY = 'ecology';
+const RELATION_EVENT = 'event';
+const RELATION_SOCIAL = 'social';
+
+/** 아는 방만 · 준 차례대로 · 한 번씩 (모르는 이름은 관계의 끝으로 세지 않는다) */
+function knownRegions(candidates: readonly string[]): readonly string[] {
+  const known = new Set(REGION_SPECS.map((spec) => spec.id));
+  const out: string[] = [];
+  for (const candidate of candidates) {
+    if (!known.has(candidate) || out.includes(candidate)) continue;
+    out.push(candidate);
+  }
+  return out;
+}
+
+/** 개체군 · 원천이 사는 방 — 관계의 저쪽 끝이 어느 방인가를 여기서 찾는다 */
+function regionOfPopulation(populationId: string): string | undefined {
+  return REGION_SPECS.find((spec) =>
+    (spec.ecology?.populations ?? []).some((population) => population.id === populationId),
+  )?.id;
+}
+
+function regionOfSource(sourceId: string): string | undefined {
+  return REGION_SPECS.find((spec) =>
+    (spec.resourceEcology?.sources ?? []).some((source) => source.id === sourceId),
+  )?.id;
+}
+
+/**
+ * 이 세계의 기회 쪽 계약 — 방마다 내미는 것 · 잴 어휘 · 관계 다섯 갈래.
+ *
+ * 관계 다섯은 **이미 있는 데이터에서 센다** (G9) — 새 데이터를 짓지 않는다:
+ *   공간 = Connector · 환경 = 재료의 흐름 · 생태 = 개체군 관계 · 사건 = 지나가는 것의 경로 ·
+ *   사회 = **없다**. 사회를 빼지 않고 빈 목록으로 실제로 넣는다 — 없다는 사실이 ㊻ 의 보고에
+ *   서야 하기 때문이다 (기회가 0 인 방 · 관계가 0 인 방이 그 표에서 드러난다 · SPEC-008 경계).
+ */
+export const WORLD_CHECK_OPPORTUNITY: CheckOpportunity = {
+  // 방 차례 · 그 방이 내미는 차례 — 유도의 차례 그대로다 (content/regions/opportunity.ts)
+  opportunities: ALL_OPPORTUNITIES,
+  vocabulary: {
+    // Target 갈래마다 실제 id — 조건 어휘에서 그대로 꺼낸다 (세계에 실제로 선 것들이다).
+    // area · process 는 적지 않는다: 그 갈래를 향한 기회가 이 Cycle 에 하나도 없고, 어휘를
+    // 비워 두면 그런 기회가 생기는 날 ㊺ 이 그것을 잡는다 (없는 것을 미리 열어 두지 않는다).
+    targets: {
+      source: conditionVocabulary.targets.source ?? [],
+      connector: conditionVocabulary.targets.connector ?? [],
+      route: conditionVocabulary.targets.route ?? [],
+    },
+    // 동사 → 이 세계의 Interaction role. 기반은 role 의 이름을 모른다 (관찰의 그 글자 그대로)
+    actions: [
+      { action: 'gather', role: 'harvest-source' },
+      { action: 'cross', role: 'transit-connector' },
+      { action: 'move', role: 'move-to' },
+    ],
+    progressPaths: PROGRESS_PATHS,
+    condition: conditionVocabulary,
+  },
+  relations: [
+    // 공간 — 방과 방을 잇는 문. 아직 짓지 않은 곳(frontier)은 방으로 세지 않는다
+    {
+      kind: RELATION_SPATIAL,
+      regions: knownRegions(
+        REGION_GRAPH.connectors.flatMap((connector) => [
+          connector.from.region,
+          connector.to.region,
+        ]),
+      ),
+    },
+    // 환경 — 재료가 방을 건너 실려 오는 길
+    {
+      kind: RELATION_ENVIRONMENT,
+      regions: knownRegions(
+        RESOURCE_FLOWS.flatMap((flow) => [flow.from.regionId, flow.to.regionId]),
+      ),
+    },
+    // 생태 — 개체군이 거는 관계. 거는 쪽은 그 관계를 밝힌 방이고, 받는 쪽은 그 개체군(CALLS ·
+    // EATS)이나 잔류 원천(LEAVES)이 사는 방이다. 세계가 모르는 끝은 방으로 서지 않는다
+    {
+      kind: RELATION_ECOLOGY,
+      regions: knownRegions(
+        REGION_SPECS.flatMap((spec) =>
+          (spec.ecology?.links ?? []).flatMap((link) => [
+            spec.id,
+            regionOfPopulation(link.to) ?? regionOfSource(link.to) ?? '',
+          ]),
+        ),
+      ),
+    },
+    // 사건 — 지나가는 것이 지날 수 있는 방들 (마디의 후보에 한 번이라도 든 방)
+    {
+      kind: RELATION_EVENT,
+      regions: knownRegions(
+        presenceRoutes.flatMap((route) =>
+          route.nodes.flatMap((node) => node.map((candidate) => candidate.region)),
+        ),
+      ),
+    },
+    // 사회 — **이 세계에 없다**. 빈 목록이 곧 그 사실이다 (지어내지 않고, 빼지도 않는다)
+    { kind: RELATION_SOCIAL, regions: [] },
+  ],
 };
 
 /**
@@ -544,6 +679,7 @@ export function worldCheckInput(): CheckRegionsInput {
     access: WORLD_CHECK_ACCESS,
     memory: WORLD_CHECK_MEMORY,
     condition: WORLD_CHECK_CONDITION,
+    opportunity: WORLD_CHECK_OPPORTUNITY,
   };
 }
 

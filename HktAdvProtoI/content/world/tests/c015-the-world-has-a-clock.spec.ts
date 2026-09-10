@@ -1007,7 +1007,11 @@ describe('SPEC-009 밤에는 흔적이 또렷해진다', () => {
     // C018 CHANGED — 첫 낮에는 **하늘을 지나는 것**이 방들 위를 지나고, 그것이 지나간 뒤
     // 남긴 것이 그 자리의 둘레를 한 단계 짙게 한다. 어귀의 퇴적과 같은 갈래로 **세계 시각이
     // 하는 일**이지 낮밤이 하는 일이 아니므로, 기준을 그것이 지나간 **뒤의 낮**으로 옮긴다.
-    runTo(world, DAY_SECONDS - 20, 1);
+    // C037 CHANGED — **지나간 것이 남긴 것은 한동안만 머문다**(RULE-PRESENCE-LEFT-FADE-001).
+    // 그 거둠도 어귀의 퇴적 · 지나감과 같은 갈래로 **세계 시각이 하는 일**이고, 첫 낮과
+    // 한밤 사이(t=285)에 떨어져 두 표본을 갈랐다. 그래서 두 자리를 **같은 철의 이튿날**로
+    // 옮긴다 — 거둠이 이미 지난 뒤라 둘이 그 일의 같은 쪽에 선다 (고요는 사흘이다).
+    runTo(world, DAY_LENGTH + DAY_SECONDS - 20, 1);
     expect(clockOf(world).dayPhase).toBe(DAY);
     const day = tracesNow();
     // C018 CHANGED — 긴 밤에는 **눈 없는 것**이 지나고, 그것이 지나간 뒤 남긴 것이 그 자리의
@@ -1024,14 +1028,14 @@ describe('SPEC-009 밤에는 흔적이 또렷해진다', () => {
     // 재는 것(흔적의 세기가 **낮과 밤**에 같은가)은 한 톨도 깎이지 않는다 — 고요는 사흘이라
     // 그 안에 낮과 밤이 두 벌 들어 있고, 그 두 벌로 잰다. 철을 건너 견주는 자리는 손잡이가
     // 없어 세울 수 없다 (§5 공학 부채).
-    runTo(world, MIDNIGHT, 1);
+    runTo(world, DAY_LENGTH + MIDNIGHT, 1);
     expect(clockOf(world).dayPhase).toBe(NIGHT);
-    expect({ target: MIDNIGHT, traces: tracesNow() }).toEqual({ target: MIDNIGHT, traces: day });
-    // 같은 철의 **이튿날** — 낮과 밤을 한 벌 더 견준다
-    runTo(world, DAY_LENGTH + DAY_SECONDS - 20, 1);
+    expect({ target: DAY_LENGTH + MIDNIGHT, traces: tracesNow() }).toEqual({ target: DAY_LENGTH + MIDNIGHT, traces: day });
+    // 같은 철의 **사흗날** — 낮과 밤을 한 벌 더 견준다 (고요는 사흘이다)
+    runTo(world, DAY_LENGTH * 2 + DAY_SECONDS - 20, 1);
     expect(clockOf(world).dayPhase).toBe(DAY);
     const secondDay = tracesNow();
-    runTo(world, DAY_LENGTH + MIDNIGHT, 1);
+    runTo(world, DAY_LENGTH * 2 + MIDNIGHT, 1);
     expect(clockOf(world).dayPhase).toBe(NIGHT);
     expect(tracesNow()).toEqual(secondDay);
   });

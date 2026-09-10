@@ -13,9 +13,16 @@
 // 이 목록을 넓히는 것이 곧 문법을 넓히는 일이다 (Tool-Scale §4). 그래서 이 파일을 고치는 것은
 // 방 하나를 더하는 일이 아니라 층의 일이고, 확정 문서가 먼저 움직여야 한다.
 
-import type { WorldContracts } from '../../engine/world-authoring/grade';
+import type { DecisionBranch, WorldContracts } from '../../engine/world-authoring/grade';
+import {
+  DECIDABLE_DISCOVERY_KINDS,
+  DEFERRED_DISCOVERY_KINDS,
+  MUTATION_OPS,
+  OPPORTUNITY_ACTIONS,
+} from '../../engine/world-authoring/opportunity';
 import {
   LIFE_FORMATION_MODES,
+  OPPORTUNITY_YIELD_TABLE,
   PROPERTY_ASPECTS,
   PROPERTY_RELATIONS,
   RECOVERY_CARCASS_DECAY,
@@ -108,6 +115,99 @@ export const LIFE_BOUND_RECOVERY_CAUSES: readonly string[] = [
  */
 export const RAISING_LINK_KINDS: readonly string[] = ['CALLS'];
 
+// ── 기회 계약 (C037 ADDED · spec SPEC-008 · Foundation §4.5 · §4.2 · §9) ──
+//
+// 방이 **무엇을 내미는가**를 적을 때 쓸 수 있는 말의 전부다 — 어떻게 알게 되는가(discovery) ·
+// 무엇을 할 수 있는가(동사) · 세계에 무엇이 일어나는가(op 표) · 무엇이 남는가(Yield 열).
+//
+// 앞의 목록들과 **같은 어법**이다 (HAZARD_KINDS · CARRIERS · ROLES): 어휘가 사는 자리가 이
+// 파일이고, 값의 출처는 기반의 형과 이 세계의 데이터다 — 손으로 옮기지 않고 읽는다.
+// 등급 판정기(WorldContracts)는 아직 이 넷을 묻지 않는다: 물으려면 기반의 형이 늘어야 하고
+// 그것은 이 Cycle 의 일이 아니다 (LIFE_FORMATION_KINDS 가 선 그 규율 · 선행 추상화 금지).
+
+/** 어떻게 알게 되는가 — 지금 서는 넷과 자리만인 둘 (3층이 오면 뒤의 둘이 열린다) */
+export const OPPORTUNITY_CONTRACT = {
+  discovery: {
+    standing: [...DECIDABLE_DISCOVERY_KINDS],
+    deferred: [...DEFERRED_DISCOVERY_KINDS],
+  },
+  /** 할 수 있는 것 — **이미 있는 동사만**이다 (기반이 든 넷) */
+  actions: [...OPPORTUNITY_ACTIONS],
+  /** 세계에 남는 변화의 (군, op) 짝 — §4.2 표에서 2층에 서는 것들 */
+  ops: MUTATION_OPS.map((pair) => `${pair.group} ${pair.op}`),
+  /** 무엇이 남는가 — 열 열넷 (앞 넷만 값을 가진다 · 뒤 열은 0 이고 지워지지 않는다) */
+  yields: OPPORTUNITY_YIELD_TABLE.map((column) => ({
+    kind: column.kind,
+    standing: column.standing,
+  })),
+} as const;
+
+/**
+ * **T4 의 결정 나무** — 요구의 갈래 여덟이 저마다 어느 등급인가 (C037 ADDED · 기획서 §14 ·
+ * L2-World-Foundation §5.4).
+ *
+ * 판정기는 "요구에 갈래가 있다" 는 형만 안다 — **무엇을 A 로 치는가는 이 세계의 판단**이므로
+ * 계약이 나무를 건넨다 (등급 판정기의 `defaultDecisionTree` 를 이것이 대신한다).
+ *
+ * 가르는 잣대는 하나다 — **그것이 없으면 무엇을 해야 서는가**.
+ *   A  데이터로 적으면 선다 (fact · space · observation · persistence — 세계의 형이 이미 그 자리를 가졌다)
+ *   B  Cycle 하나로 선다 (rule · process — 규칙 하나 · 세계 과정 하나를 세우면 된다)
+ *   C  층이 와야 선다 (axis · contract — 지금 없는 의미를 요구한다)
+ *
+ * **지금 있는 brief 셋의 등급은 한 값도 달라지지 않는다** (SPEC-008 경계) — 그 셋이 쓰는 갈래는
+ * rule · axis · contract 뿐이고, 그 셋의 등급이 앞의 기본 나무와 같기 때문이다.
+ */
+export const DECISION_TREE: readonly DecisionBranch[] = [
+  {
+    kind: 'rule',
+    grade: 'B',
+    returnTo: 'Cycle 하나 (Play 아님) — 그 규칙을 세우고 나면 이 방은 데이터가 된다',
+    because: '그 규칙이 아직 세계에 없다',
+  },
+  {
+    kind: 'axis',
+    grade: 'C',
+    returnTo: '기반 층의 그 행 — 그 축이 서면 이 방은 등급 A 로 온다',
+    because: '그 층의 의미가 아직 서지 않았다',
+  },
+  {
+    kind: 'contract',
+    grade: 'C',
+    returnTo: '그 공통 계약을 세우는 Play/Cycle',
+    because: '그 공통 계약이 아직 데이터로 서지 않았다',
+  },
+  {
+    kind: 'fact',
+    grade: 'A',
+    returnTo: 'brief 를 쓴 사람 — 세계의 사실은 데이터다 (적으면 선다)',
+    because: '세계의 사실(Contents · State · Relation 의 값)은 이미 데이터로 적을 수 있다',
+  },
+  {
+    kind: 'process',
+    grade: 'B',
+    returnTo: 'Cycle 하나 — 세계 과정 하나를 세우면 이 방은 데이터가 된다',
+    because: '스스로 일어나는 변화는 세계 과정 하나가 서야 돈다',
+  },
+  {
+    kind: 'space',
+    grade: 'A',
+    returnTo: 'brief 를 쓴 사람 — 공간은 Description 의 op 으로 적는다',
+    because: '공간의 의미는 이미 땅을 짓는 어휘 안에 있다',
+  },
+  {
+    kind: 'observation',
+    grade: 'A',
+    returnTo: 'brief 를 쓴 사람 — 알게 되는 방식은 discovery 로 적는다',
+    because: '무엇을 어떻게 알게 되는가는 기회의 discovery 가 이미 든다',
+  },
+  {
+    kind: 'persistence',
+    grade: 'A',
+    returnTo: 'brief 를 쓴 사람 — 남는 것의 종류는 수명 표의 손 다섯 가운데 하나다',
+    because: '남는 것의 종류는 이미 다섯으로 서 있다 (수명 표)',
+  },
+];
+
 export const WORLD_CONTRACTS: WorldContracts = {
   hazardKinds: HAZARD_KINDS,
   depths: DEPTHS,
@@ -128,6 +228,9 @@ export const WORLD_CONTRACTS: WorldContracts = {
   regions: REGION_SPECS.map((spec) => spec.id),
   frontiers: [...(REGION_GRAPH.frontiers ?? [])],
   rules: STANDING_RULES,
+  // 요구의 갈래 여덟을 등급으로 옮기는 표 (C037 ADDED · T4) — 위 DECISION_TREE 가 그것이다.
+  // 주지 않으면 판정기가 셋짜리 기본 나무를 쓰고, 그때 새 갈래 다섯은 전부 C 로 떨어진다.
+  decisionTree: DECISION_TREE,
   returnTo: {
     vocabulary: 'design/ · Human — 어휘를 넓히는 것은 층의 일이다',
     rule: 'Cycle 하나 (Play 아님) — 그 규칙을 세우고 나면 이 방은 데이터가 된다',

@@ -1197,8 +1197,13 @@ describe('SPEC-004 지목하면 현상을 말한다', () => {
     // **문의 id 는 세지 않는다**: 출구 표식의 id 는 그 Connector 의 id 이고(C001 부터),
     // 그 이름이 저쪽 방의 이름을 품은 것은 C020 이 그 문을 그렇게 부른 결과다 —
     // 문의 이름이지 목적지의 투영이 아니다.
+    // C036 — 그 문의 건너기 기회 id(`cross:<문>`)도 세지 않는다. 같은 까닭이다:
+    // 문의 이름에 붙인 코드의 자리이지 목적지의 투영이 아니다 (C036 spec 기본형 ⑥).
     const doorId = depthDoor().id;
-    const beyond = JSON.stringify(v, (_k, value) => (value === doorId ? '' : value));
+    const doorNames = [doorId, `cross:${doorId}`];
+    const beyond = JSON.stringify(v, (_k, value) =>
+      typeof value === 'string' && doorNames.includes(value) ? '' : value,
+    );
     expect({ where: beyond.includes(FROST_DEPTH) }).toEqual({ where: false });
   });
 

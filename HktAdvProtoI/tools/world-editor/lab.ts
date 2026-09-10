@@ -11,6 +11,10 @@
 // 한쪽으로 쏠리는 것이, 어느 Carrier 만 느는 것이, 고립된 방이 는 것이 보인다. 그 수는 검사(T1)가
 // 이미 세고 있으므로 새로 세지 않고, 후보를 넣기 전과 넣은 뒤를 견주어 **움직인 줄만** 싣는다.
 //
+// C037 CHANGED — 그 곁에 **㊻ 방마다 내미는 것**(기회의 수 · discovery 별 수 · Event 수)이 선다.
+// 카드 안이 아니라 페이지 머리에 한 번 서는데, 그것이 후보가 미는 수가 아니라 **세계의 지금 값**
+// 이기 때문이다 (아래 offeringPanel 의 까닭). 여기서도 도구는 세지 않는다 — 검사가 낸 줄을 옮긴다.
+//
 // 페이지는 파일 하나다 — 그림도 안에 담는다(data URI). 띄울 서버가 없어야 어디서든 열린다.
 // 그래서 이 페이지는 아무것도 쓰지 못한다: 승인은 `world:admit` 이 하고, 페이지는 그 명령을
 // 방마다 적어 둘 뿐이다. **쓰는 자는 언제나 도구 하나**여야 한다.
@@ -19,7 +23,12 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { ANSWER_ORDER, isUnanswered, answerOf } from '../../engine/world-authoring/brief';
+import {
+  OPPORTUNITY_SUMMARY_ITEM,
+  type CheckItem,
+} from '../../engine/world-authoring/check';
 import { CANDIDATES_DIR, readCandidates, type Candidate } from './candidates';
+import { runWorldCheck } from './check';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
 
@@ -47,7 +56,39 @@ const ANSWER_NAMES: Record<string, string> = {
  */
 const NOT_MEASURED =
   '<p class="none">아직 재지 못하는 편중 — 철(㉕ ㉖) · 생명(㉚ ㉝) · 접근(㊱~㊵ ㊷). ' +
-  '그 검사들은 아직 세계에 없다 (C018 · C022 · C025 · Access).</p>';
+  '그 검사들은 아직 세계에 없다 (C018 · C022 · C025 · Access). ' +
+  '내미는 것의 편중(㊻)은 이 방들이 아니라 <b>세계의 지금 값</b>으로 위에 선다 — 후보의 기회는 아직 유도되지 않는다.</p>';
+
+/**
+ * ㊻ 방마다 내미는 것 — **세계의 지금 값** (C037 ADDED · spec SPEC-008 · T6).
+ *
+ * 편중 요약(카드의 「이 방이 세계를 미는 자리」)과 **같은 어법**이다: 번호와 이름이 앞에 서고
+ * 값이 뒤에 서며, 도구는 판정하지 않고 검사가 낸 줄을 옮길 뿐이다. 다른 것은 **누구의 수인가**
+ * 하나다 — 저기는 후보 하나가 움직인 줄이고 여기는 지금 선 세계가 내미는 것이다.
+ *
+ * 후보의 카드 안이 아니라 페이지 머리에 서는 까닭도 그것이다: 지금 후보의 검사에는 기회 쪽
+ * 계약이 들어가지 않아(그 방의 기회가 아직 유도되지 않는다) 이 수는 후보를 넣어도 움직이지
+ * 않는다. 움직이지 않는 수를 카드마다 되풀이하면 「미는 자리」 가 미는 자리가 아니게 된다.
+ *
+ * **판정하지 않는다** — 많고 적음도, 기회가 0 인 방이 좋은지도 여기서 말하지 않는다.
+ * 방마다의 줄이 그대로 서는 것이 이 표가 일하는 방식이다 (내미는 것이 없는 방이 눈에 띈다).
+ */
+function offeringPanel(item: CheckItem | undefined): string {
+  if (!item || item.status === 'absent') return '';
+  const rows = item.refs
+    .map(
+      (ref) =>
+        `<tr><th>${escapeHtml(ref.where)}</th><td>${escapeHtml(ref.detail)}</td></tr>`,
+    )
+    .join('');
+  return (
+    '<section class="world">' +
+    `<h3>${OPPORTUNITY_SUMMARY_ITEM.mark} ${escapeHtml(item.name)} — 세계가 지금 내미는 것</h3>` +
+    `<p class="none">${escapeHtml(item.answer)}</p>` +
+    (rows === '' ? '' : `<table class="shifts">${rows}</table>`) +
+    '</section>'
+  );
+}
 
 function escapeHtml(text: string): string {
   return text
@@ -218,6 +259,9 @@ td { padding: 3px 0; vertical-align: top; }
 .sources { color: #8b96a8; font-size: 11px; margin: 6px 0 0;
            font-family: ui-monospace, monospace; }
 .none { color: #5d6879; font-size: 11px; margin: 2px 0; }
+.world { background: #0d1018; border: 1px solid #1c2231; border-radius: 8px;
+         padding: 10px 16px 14px; margin: 0 0 16px; }
+.world h3 { margin-top: 6px; }
 ul { margin: 4px 0; padding-left: 18px; }
 .gaps li { margin-bottom: 8px; }
 .gaps i { color: #8b96a8; font-style: normal; }
@@ -244,6 +288,8 @@ export function renderLab(candidates: readonly Candidate[]): string {
     `<p class="lead">후보 ${candidates.length} — 선 것 ${passed} · 돌아온 것 ${returned} · 못 선 것 ${failed}.
      판정하지 않는다. 무엇을 세계에 들일지는 사람이 정하고, 이 화면은 그 판정에 필요한 것을 모을 뿐이다.
      한 방만 보면 다 그럴듯하다 — 나란히 놓아야 편중이 보인다.</p>` +
+    // ㊻ 은 세계의 지금 값이므로 후보들 앞에 한 번 선다 (C037 — offeringPanel 의 까닭)
+    offeringPanel(runWorldCheck().items.find((item) => item.id === OPPORTUNITY_SUMMARY_ITEM.id)) +
     (candidates.length === 0
       ? '<p class="none">후보가 없다. <code>npm run world:draft -- --batch &lt;목록파일&gt;</code> 로 낸다.</p>'
       : `<div class="grid">${candidates.map(card).join('')}</div>`) +

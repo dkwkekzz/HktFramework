@@ -1,0 +1,111 @@
+{
+  "out": "shots",
+  "viewport": [
+    900,
+    660
+  ],
+  "_": "이 Cycle 의 Observable Result 다섯 중 그림이 되는 것은 첫째와 둘째(판의 「할 수 있는 것」 줄이 discovery 한 마디를 진다)뿐이다 — 셋째(회귀)와 넷째(검사 ㊺ ㊻)와 다섯째(observe 기회 표 · 수명 표)는 시나리오와 도구 출력이 증거다. 지목은 Alt+클릭이고, 촬영의 expect 는 HUD 만 훑어 판에 선 줄을 잡지 못한다(§5 부채 C019) — 여기 적은 expect 는 기록이지 판정이 아니다.",
+  "runs": [
+    {
+      "_": "X-① 흔적이 말하는 기회 — 밑동의 허물(역할 baseline → TRACE). 자리는 C034 X-01 과 같다",
+      "region": "FOREST_EDGE",
+      "spawn": "-6.4,6",
+      "npcs": "none",
+      "steps": [
+        {
+          "wait": "세계 시간",
+          "tries": 60
+        },
+        {
+          "sleep": 8000,
+          "note": "첫 run 은 vite 가 데워지지 않아 프레임이 느리다"
+        },
+        {
+          "click": [
+            0.4,
+            0.52
+          ],
+          "alt": true
+        },
+        {
+          "sleep": 2000
+        },
+        {
+          "expect": "흔적이 말한다",
+          "note": "X-① 판의 「할 수 있는 것」 줄이 discovery 를 진다 (TRACE)"
+        },
+        {
+          "shot": "X-01-trace-offer",
+          "note": "X-① 밑동의 허물을 지목 — 「할 수 있는 것: 채취 · 흔적이 말한다」. 줄의 형식 · 순서 · 거절 사유는 C027 · C028 과 같고 한 마디가 끝에 붙었다"
+        }
+      ]
+    },
+    {
+      "_": "X-② 신호로 오는 기회 — 비늘(역할 world-event → SIGNAL). 고래가 지나기 전 마디 0 에 선다 (C035 X-03a 와 같은 자리)",
+      "region": "FOREST_EDGE",
+      "spawn": "-14.4,-12",
+      "npcs": "none",
+      "clock": "STILL:DAY",
+      "steps": [
+        {
+          "wait": "세계 시간",
+          "tries": 60
+        },
+        {
+          "sleep": 8000
+        },
+        {
+          "click": [
+            0.4,
+            0.52
+          ],
+          "alt": true
+        },
+        {
+          "sleep": 2000
+        },
+        {
+          "expect": "신호로 온다",
+          "note": "X-② 같은 방의 두 원천이 discovery 로 갈린다 (SIGNAL)"
+        },
+        {
+          "shot": "X-02-signal-offer",
+          "note": "X-② 비늘 자리를 지목 — 「채취 · 신호로 온다」. X-01 과 나란히 놓으면 같은 방의 두 원천이 어떻게 알려지는가로 갈린다 (「지나간 것이 있어야 한다」 는 C035 의 조건 줄로 그대로 선다)"
+        }
+      ]
+    },
+    {
+      "_": "X-③ 눈에 보이는 기회 — 걷는 숲으로 나가는 문(Lock 이 걸린 문 · cross 기회 · VISIBLE). anchor 는 (13, 13) 이고 몸 바로 아래-오른쪽에 선다",
+      "region": "FOREST_DEEP",
+      "spawn": "12,11.6",
+      "npcs": "none",
+      "steps": [
+        {
+          "wait": "세계 시간",
+          "tries": 60
+        },
+        {
+          "sleep": 8000
+        },
+        {
+          "click": [
+            0.56,
+            0.6
+          ],
+          "alt": true
+        },
+        {
+          "sleep": 2000
+        },
+        {
+          "expect": "눈에 보인다",
+          "note": "X-③ Lock 이 걸린 문의 건너기 줄이 cross 기회의 discovery 를 진다 (VISIBLE)"
+        },
+        {
+          "shot": "X-03-visible-cross",
+          "note": "X-③ 걷는 숲의 문을 지목 — 「건너기 · … · 눈에 보인다」. 문의 요구(「이 철이 아니다」 류)와 열림 판정은 C029 · C016 과 한 값도 다르지 않다"
+        }
+      ]
+    }
+  ]
+}

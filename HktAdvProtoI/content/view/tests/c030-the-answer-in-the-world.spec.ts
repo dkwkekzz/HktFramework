@@ -118,7 +118,7 @@ function made(entities: EntityView[]): GameViewSnapshot {
     region: {
       id: TREE_INNER,
       hash: hashOf(TREE_INNER),
-      disturbance: { value: 0, threshold: 300, phase: 'dormant' as const }, memory: { turns: 0, awakenings: { times: 0 }, passages: [] },
+      disturbance: { value: 0, threshold: 300, phase: 'dormant' as const }, memory: { turns: 0, awakenings: { times: 0 }, passages: [], births: [] },
     },
     standingConditions: [],
     tracks: [],

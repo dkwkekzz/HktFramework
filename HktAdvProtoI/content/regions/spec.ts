@@ -7,6 +7,7 @@
 // 경계 규칙 4 — content/regions 는 engine 만 import 한다. world 와 view 가 함께 읽는 데이터 폴더다.
 
 import type { RegionDescription } from '../../engine/world-authoring/description';
+import type { Opportunity } from '../../engine/world-authoring/opportunity';
 import type { RegionAccess } from './access';
 import type { RegionEcology } from './ecology';
 import type { RegionPhases } from './phases';
@@ -111,6 +112,20 @@ export interface RegionSpec {
    * 방" 뿐이고, 무엇이 무엇인지는 여기에만 있다 (C004 가 세운 규율).
    */
   ecology?: RegionEcology;
+  /**
+   * 그 방이 **내미는 것** — 기본형 밖의 기회들 (C036 ADDED · L2-World-Foundation §4.5).
+   *
+   * 없으면 **유도된 것이 전부**다 (원천마다 채집 하나 · Lock 이 걸린 문마다 건너기 하나 —
+   * opportunity.ts 의 `opportunitiesOf`). 지금 이것을 밝힌 방은 하나도 없고, 그래도 방마다
+   * 기회가 선다: 데이터에 적는 것은 **기본형이 짓지 못하는 것**뿐이다 (spec World Change 2).
+   *
+   * 같은 id 를 적으면 그 자리에서 유도를 **덮고**, 새 id 는 뒤에 붙는다 (SPEC-002 경계).
+   *
+   * **State 가 아니다** — 저장되지 않고 세계가 굴러도 달라지지 않는다. 기회는 판정하지도
+   * 않는다: availability 는 형으로 적힐 뿐이고 무엇을 할 수 있는가는 여전히 규칙이 낸다
+   * (rule? · access? 가 그런 그대로 · C004 가 세운 규율).
+   */
+  opportunities?: readonly Opportunity[];
 }
 
 /** "드나드는 곳" 을 적는 layer 이름 — Connector 의 anchor 는 이 layer 의 point 다 */

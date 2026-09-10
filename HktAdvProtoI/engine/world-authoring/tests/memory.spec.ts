@@ -13,6 +13,7 @@ import {
   type CheckContract,
   type CheckEcology,
   type CheckEcologySource,
+  type CheckLife,
   type CheckMemory,
   type CheckRegion,
   type CheckTime,
@@ -132,9 +133,39 @@ function memory(): CheckMemory {
   };
 }
 
+/**
+ * F1 은 A 에, F2 는 B 에 선다 — ㊸ 이 보는 것은 id 와 region 뿐이므로 나머지는 채우기만 한다
+ * (C038 — 태어남의 뒷면을 재는 잣대가 이 계통에서 온다)
+ */
+function life(): CheckLife {
+  const formation = (id: string, region: string) => ({
+    id,
+    region,
+    mode: 'm',
+    worldCause: 'c1',
+    regionRule: 'r',
+    sourceMaterialIds: [],
+    sourceStateCodes: [],
+    requiredSourceIds: [],
+    requiredPopulationIds: [],
+    consumesSourceIds: [],
+    traceOpIds: [],
+    population: 'p',
+  });
+  return {
+    formations: [formation('F1', 'A'), formation('F2', 'B')],
+    populations: [{ id: 'p', region: 'A' }],
+    links: [],
+    lifeRecoveries: [],
+    regionRules: ['r'],
+    residueSourceIds: [],
+  };
+}
+
 interface World {
   ecology?: CheckEcology;
   time?: CheckTime;
+  life?: CheckLife;
   memory?: CheckMemory;
 }
 
@@ -145,6 +176,7 @@ const run = (world: World) =>
     contract: CONTRACT,
     ecology: world.ecology,
     time: world.time,
+    life: world.life,
     memory: world.memory,
   });
 
@@ -155,14 +187,14 @@ const itemOf = (world: World, id: string) => run(world).items.find((item) => ite
 
 describe('checkRegions — 기억 쪽 둘의 형', () => {
   it('㊸ ㊼ 이 ㊷ 다음에 번호 순으로 붙는다', () => {
-    // ㊹(C035 · 조건)이 그 뒤에 선다 — 둘은 끝에서 셋째 · 둘째다
-    const items = run(sound()).items.slice(-3, -1);
+    // ㊹(C035 · 조건) · ㊺ ㊻(C036 · 기회)이 그 뒤에 선다 — 둘은 끝에서 다섯째 · 넷째다
+    const items = run(sound()).items.slice(-5, -3);
     expect(items.map((item) => item.mark)).toEqual(['㊸', '㊼']);
     expect(items.map((item) => item.id)).toEqual(['memory-refs', 'persistence-summary']);
   });
 
   it('기억 쪽 계약을 주지 않으면 둘이 전부 absent 다 — 통과로 적지 않는다', () => {
-    const two = run({ ecology: ecology(), time: time() }).items.slice(-3, -1);
+    const two = run({ ecology: ecology(), time: time() }).items.slice(-5, -3);
     expect(two.map((item) => item.status)).toEqual(['absent', 'absent']);
     expect(two.map((item) => item.answer)).toEqual(
       Array(2).fill('기억 쪽 계약이 주어지지 않았다'),
@@ -174,11 +206,11 @@ describe('checkRegions — 기억 쪽 둘의 형', () => {
   });
 });
 
-describe('㊸ 기억이 가리키는 원천과 경로', () => {
+describe('㊸ 기억이 가리키는 원천과 경로와 탄생지', () => {
   it('방마다 셀 것이 다 있고 유령이 없으면 통과이고 수가 적힌다', () => {
     const item = itemOf(sound(), 'memory-refs');
     expect(item.status).toBe('pass');
-    expect(item.answer).toBe('방 2 · 원천 키 2 · 경로 키 3 · 걸린 것 0');
+    expect(item.answer).toBe('방 2 · 원천 키 2 · 경로 키 3 · 태어남 키 0 · 걸린 것 0');
     expect(item.refs).toEqual([]);
   });
 
@@ -255,6 +287,129 @@ describe('㊸ 기억이 가리키는 원천과 경로', () => {
     expect(item.status).toBe('fail');
     // S9 도 A 의 빈 원천 자리도 적히지 않는다 — 원천의 진리를 주지 않았기 때문이다
     expect(item.refs).toEqual([{ where: 'A', detail: '경로 R2 은 이 방을 지나지 않는다' }]);
+  });
+
+  // C037 — 방이 태어난 것도 센다. 그 키도 같은 잣대로 재어진다 (SPEC-007 경계 ③)
+
+  it('태어남의 키가 아는 탄생지면 통과이고 그 수가 답에 선다', () => {
+    const world = sound();
+    world.memory!.formations = ['F1', 'F2'];
+    world.memory!.regions = [
+      { id: 'A', sources: ['S1'], routes: ['R1'], formations: ['F1'] },
+      { id: 'B', sources: ['S2'], routes: ['R1', 'R2'], formations: ['F2'] },
+    ];
+    const item = itemOf(world, 'memory-refs');
+    expect(item.status).toBe('pass');
+    expect(item.answer).toBe('방 2 · 원천 키 2 · 경로 키 3 · 태어남 키 2 · 걸린 것 0');
+  });
+
+  it('유령을 가리키는 태어남 키가 잡힌다', () => {
+    const world = sound();
+    world.memory!.formations = ['F1'];
+    world.memory!.regions = [
+      { id: 'A', sources: ['S1'], routes: ['R1'], formations: ['F1', 'F9'] },
+      { id: 'B', sources: ['S2'], routes: ['R1', 'R2'] },
+    ];
+    const item = itemOf(world, 'memory-refs');
+    expect(item.status).toBe('fail');
+    expect(item.refs).toEqual([{ where: 'A', detail: '탄생지 F9 은 아는 탄생지가 아니다' }]);
+  });
+
+  it('탄생지를 주지 않으면 태어남 키를 재지 않는다 — 없는 계약을 거짓으로 읽지 않는다', () => {
+    const world = sound();
+    world.memory!.regions = [
+      { id: 'A', sources: ['S1'], routes: ['R1'], formations: ['F9'] },
+      { id: 'B', sources: ['S2'], routes: ['R1', 'R2'] },
+    ];
+    const item = itemOf(world, 'memory-refs');
+    expect(item.status).toBe('pass');
+    // 재지는 않되 세기는 한다 — 없다는 사실이 답에 선다
+    expect(item.answer).toBe('방 2 · 원천 키 2 · 경로 키 3 · 태어남 키 1 · 걸린 것 0');
+  });
+
+  // C038 — 태어남의 키를 **양쪽으로** 잰다. 방마다의 진리는 생명 계통이 준다
+  // (`CheckLifeFormation.region`) — 원천 · 경로와 완전히 같은 어법이다 (SPEC-006)
+
+  it('계통을 주면 방마다의 태어남 키가 통과하고 그 수가 답에 선다', () => {
+    const world = sound();
+    world.life = life();
+    world.memory!.regions = [
+      { id: 'A', sources: ['S1'], routes: ['R1'], formations: ['F1'] },
+      { id: 'B', sources: ['S2'], routes: ['R1', 'R2'], formations: ['F2'] },
+    ];
+    const item = itemOf(world, 'memory-refs');
+    expect(item.status).toBe('pass');
+    expect(item.answer).toBe('방 2 · 원천 키 2 · 경로 키 3 · 태어남 키 2 · 걸린 것 0');
+    expect(item.refs).toEqual([]);
+  });
+
+  it('유령을 가리키는 태어남 키가 잡힌다 — 남의 방 것과 없는 것을 갈라 적는다 (앞면)', () => {
+    const world = sound();
+    world.life = life();
+    world.memory!.regions = [
+      { id: 'A', sources: ['S1'], routes: ['R1'], formations: ['F1', 'F2', 'F9'] },
+      { id: 'B', sources: ['S2'], routes: ['R1', 'R2'], formations: ['F2'] },
+    ];
+    const item = itemOf(world, 'memory-refs');
+    expect(item.status).toBe('fail');
+    expect(item.refs).toEqual([
+      { where: 'A', detail: '탄생지 F2 은 이 방의 것이 아니다' },
+      { where: 'A', detail: '탄생지 F9 은 아는 탄생지가 아니다' },
+    ]);
+  });
+
+  it('그 방에 있는데 셀 자리가 없는 탄생지가 잡힌다 (뒷면)', () => {
+    const world = sound();
+    world.life = life();
+    world.memory!.regions = [
+      { id: 'A', sources: ['S1'], routes: ['R1'] },
+      { id: 'B', sources: ['S2'], routes: ['R1', 'R2'], formations: ['F2'] },
+    ];
+    const item = itemOf(world, 'memory-refs');
+    expect(item.status).toBe('fail');
+    expect(item.refs).toEqual([{ where: 'A', detail: '탄생지 F1 을 셀 자리가 없다' }]);
+  });
+
+  it('기억 자리를 아예 밝히지 않은 방의 탄생지도 그만큼 걸린다', () => {
+    const world = sound();
+    world.life = life();
+    world.memory!.regions = [{ id: 'A', sources: ['S1'], routes: ['R1'], formations: ['F1'] }];
+    const item = itemOf(world, 'memory-refs');
+    expect(item.status).toBe('fail');
+    expect(item.refs).toEqual([
+      { where: 'B', detail: '원천 S2 을 셀 자리가 없다' },
+      { where: 'B', detail: '이 방을 지나는 경로 R1 을 셀 자리가 없다' },
+      { where: 'B', detail: '이 방을 지나는 경로 R2 을 셀 자리가 없다' },
+      { where: 'B', detail: '탄생지 F2 을 셀 자리가 없다' },
+    ]);
+  });
+
+  it('계통을 주지 않으면 뒷면도 방 대조도 재지 않는다 — 전역 목록으로 앞면만 잰다', () => {
+    const world = sound();
+    world.memory!.formations = ['F1', 'F2'];
+    world.memory!.regions = [
+      // F2 는 B 의 것이지만 계통이 없으므로 그 사실을 알 길이 없다 — 걸리지 않는다
+      { id: 'A', sources: ['S1'], routes: ['R1'], formations: ['F2'] },
+      // B 에 F2 가 서는데 셀 자리를 두지 않았다 — 그것도 알 길이 없다
+      { id: 'B', sources: ['S2'], routes: ['R1', 'R2'] },
+    ];
+    const item = itemOf(world, 'memory-refs');
+    expect(item.status).toBe('pass');
+    expect(item.answer).toBe('방 2 · 원천 키 2 · 경로 키 3 · 태어남 키 1 · 걸린 것 0');
+  });
+
+  it('계통이 있으면 전역 목록은 읽지 않는다 — 방까지 갈라 보는 잣대가 이긴다', () => {
+    const world = sound();
+    world.life = life();
+    // 전역 목록이 F9 를 아는 탄생지라 우겨도 계통에 없으면 아는 탄생지가 아니다
+    world.memory!.formations = ['F1', 'F2', 'F9'];
+    world.memory!.regions = [
+      { id: 'A', sources: ['S1'], routes: ['R1'], formations: ['F1', 'F9'] },
+      { id: 'B', sources: ['S2'], routes: ['R1', 'R2'], formations: ['F2'] },
+    ];
+    const item = itemOf(world, 'memory-refs');
+    expect(item.status).toBe('fail');
+    expect(item.refs).toEqual([{ where: 'A', detail: '탄생지 F9 은 아는 탄생지가 아니다' }]);
   });
 
   it('시간 쪽 계약을 주지 않으면 경로 쪽 잣대를 재지 않는다 — 원천 쪽은 그대로 잰다', () => {

@@ -75,9 +75,11 @@
 // 세계는 답을 알려 주지 않고, 알려 주는 것은 현상뿐이다.
 
 import type {
+  BirthMemoryView,
   EntityView,
   GameViewSnapshot,
   InteractionView,
+  OpportunityView,
   PassageMemoryView,
   PresenceView,
   RegionDisturbanceView,
@@ -87,6 +89,8 @@ import type {
   TrackView,
 } from '../../protocol/gameview';
 import { actionProgress, actionTargetId } from '../semantic/action';
+import { HIDDEN_DISCOVERY } from '../../../engine/world-authoring/opportunity';
+import { opportunityStanding } from '../semantic/opportunity-open';
 import { worldClockAt } from '../semantic/clock';
 import { actionCollider } from '../semantic/collision';
 import { evaluateAttributeSetAvailability } from '../rules/attribute-set';
@@ -142,7 +146,8 @@ import {
 } from '../semantic/region-state';
 // 재료 표는 content/regions 의 것이다 — HUD 의 자리 순서를 그 표가 정한다 (C011).
 // 경로 표도 그 폴더의 것이다 — 방의 기억이 펴지는 차례를 그 표가 정한다 (C034).
-import { MATERIAL_SEEDS, PRESENCE_ROUTES } from '../../regions';
+// 기회의 표도 그 폴더의 것이다 — 어느 행동이 어느 기회에 속하는지를 그 표가 안다 (C036).
+import { MATERIAL_SEEDS, PRESENCE_ROUTES, opportunityForAction } from '../../regions';
 // C021 CHANGED — 안전의 코드는 이제 standingConditionTagsAt 이 낸다 (그 안에서
 // conditionTagsAt 을 그대로 부른다 — 땅의 것은 여전히 땅의 것이다).
 import { distance } from '../semantic/position';
@@ -200,7 +205,7 @@ function sourceMemoryView(memory: SourceMemory | undefined): SourceMemoryView | 
  * 관찰자가 알아야 하는 것은 "무엇이 몇 번 지났는가" 이고, 그 코드를 말로 옮기는 것은
  * View 의 표다 (원칙 2 · presences[] 가 싣는 그 코드와 같은 것).
  */
-function regionMemoryView(memory: RegionMemory): RegionMemoryView {
+function regionMemoryView(regionId: string, memory: RegionMemory): RegionMemoryView {
   const passages: PassageMemoryView[] = [];
   for (const route of PRESENCE_ROUTES) {
     const passage = memory.passages[route.id];
@@ -211,6 +216,23 @@ function regionMemoryView(memory: RegionMemory): RegionMemoryView {
       ...(passage.lastAt === undefined ? {} : { lastAt: passage.lastAt }),
     });
   }
+  // C037 ADDED (spec SPEC-007) — 태어남도 **데이터 차례**(그 방의 탄생지 차례)로 편다.
+  // **태어난 적 있는 것만** 서고, 실리는 것은 탄생지의 id 가 아니라 **그 자리의 의미 코드**
+  // (form)다 — 지나감이 경로의 id 대신 지나는 것의 코드를 싣는 그 어법 그대로이고, 문구로
+  // 옮기는 것은 View 의 표다 (원칙 2 · 관찰 계약이 `formation` 을 의미 코드로 못 박았다).
+  //
+  // 되살린 옛 세계에는 이 자리 자체가 없을 수 있다 (STATE_VERSION 을 올리지 않았다 ·
+  // spec 기본형 ④) — 그때는 아무것도 태어난 적이 없는 것과 같은 답이다 (셈이 0 · 목록이 비어 있다).
+  const births: BirthMemoryView[] = [];
+  for (const site of lifeSitesInRegion(regionId)) {
+    const birth = memory.births?.[site.id];
+    if (!birth) continue;
+    births.push({
+      formation: site.form,
+      times: birth.times,
+      ...(birth.lastAt === undefined ? {} : { lastAt: birth.lastAt }),
+    });
+  }
   return {
     turns: memory.turns,
     awakenings: {
@@ -218,6 +240,53 @@ function regionMemoryView(memory: RegionMemory): RegionMemoryView {
       ...(memory.awakenings.lastAt === undefined ? {} : { lastAt: memory.awakenings.lastAt }),
     },
     passages,
+    births,
+  };
+}
+
+/**
+ * RULE-OPPORTUNITY-NAME-001 (C036 ADDED · spec R1 · SPEC-004) — **이미 판정된 행동에 기회의
+ * 이름을 붙인다.**
+ *
+ * IF 관찰이 어떤 Interaction 을 싣는다 AND 그 행동(동사)이 어느 기회의 possibleActions 에
+ * 속하고 그 기회의 target 이 그 대상이다 THEN 그 Interaction 에 기회의 id 와 discovery 가
+ * 실린다.
+ *
+ * **판정은 이 함수가 만지지 않는다** (경계) — available 도 reason 도 role 도 targetEntityId 도
+ * 차례도 한 값 달라지지 않는다. 기회는 판정하지 않고 이름만 붙기 때문이다 (§4.5).
+ * 그 대상에 기회가 없으면 **자리 자체가 없다** — 빈 값으로 지어내지 않는다 (조건 코드가
+ * 그런 그대로). 탄생지의 채집은 원천이 아니므로 여기서 언제나 빈 자리다.
+ *
+ * availability 도 outcomes 도 progress 도 target 도 possibleActions 도 싣지 않는다 — 판은
+ * 지목한 대상의 **이름과 발견**까지만 말한다 (spec Observable).
+ *
+ * C038 CHANGED (spec SPEC-001) — **아직 드러나지 않은 기회는 이름도 실리지 않는다.**
+ * `HIDDEN` 은 "어떻게 알게 되는가" 의 넷째 값이고 그 뜻은 **아직 알 수 없다** 인데, 그것을
+ * 실어 보내면 세계가 숨긴 것을 스스로 흘리게 된다. 거르는 자리를 판이 아니라 **여기**에 두는
+ * 까닭은 원칙 1 · 3 이다 — View 는 독립 Client 이므로, 판이 그리지 않기로 하는 것으로는
+ * 다른 Client 가 그것을 보는 것을 막지 못한다.
+ *
+ * **숨는 것은 기회의 이름이지 행동이 아니다** (SPEC-001 경계 ①) — 그 Interaction 은 지금처럼
+ * 서고 available 도 reason 도 한 값 달라지지 않는다. 무엇이 그것을 드러내는가는 3층의 일이다.
+ */
+function opportunityNameOf(
+  state: WorldState,
+  regionId: string,
+  action: string,
+  targetRef: string,
+): { opportunity: OpportunityView } | Record<string, never> {
+  const opportunity = opportunityForAction(regionId, action, targetRef);
+  if (opportunity === undefined) return {};
+  if (opportunity.discovery === HIDDEN_DISCOVERY) return {};
+  return {
+    opportunity: {
+      id: opportunity.id,
+      discovery: opportunity.discovery,
+      // C037 ADDED — 때가 있는가와 지금 열려 있는가 (RULE-OPPORTUNITY-OPEN-001 · 유도).
+      // **판정(available · reason)은 이 둘을 한 값도 읽지 않는다** — 위 판정은 이미 났고
+      // 여기는 그 곁에 세계의 사실 둘을 놓을 뿐이다 (C036 이 이름을 놓은 그 자리).
+      ...opportunityStanding(state, opportunity),
+    },
   };
 }
 
@@ -540,6 +609,8 @@ export function projectObserverView(
       targetEntityId: source.id,
       available: failure === null,
       ...(failure ? { reason: failure } : {}),
+      // RULE-OPPORTUNITY-NAME-001 — 그 원천의 채집 기회. 위 판정(failure)은 이 줄을 읽지 않는다.
+      ...opportunityNameOf(state, self.regionId, 'gather', source.id),
     });
   }
 
@@ -652,6 +723,9 @@ export function projectObserverView(
       targetEntityId: exit.connector.id,
       available: failure === null,
       ...(failure ? { reason: failure } : {}),
+      // RULE-OPPORTUNITY-NAME-001 — **묻는 문**에만 기회가 있다 (Lock 이 없는 문은 자리가 없다).
+      // 위 판정(failure)도 표식(state)도 이 줄을 읽지 않는다.
+      ...opportunityNameOf(state, self.regionId, 'cross', exit.connector.id),
     });
   }
 
@@ -805,7 +879,7 @@ export function projectObserverView(
       // 그 방의 **기억** — 소란과 같이 **늘 실린다** (C034 ADDED · spec R6). 어느 방에나
       // 있는 값이기 때문이다. **누가 했는가는 실을 것이 없고**(세계가 세지 않는다) 나이도
       // 싣지 않는다 — 시각만 싣고 "N초 전" 은 관찰자가 잰다 (자국의 since 가 그런 그대로).
-      memory: regionMemoryView(history),
+      memory: regionMemoryView(self.regionId, history),
     },
     // RULE-SAFEBY-001 (C006 R4) — 몸이 선 자리에 걸린 안전의 조건들.
     // 매 관찰마다 그 방의 땅에서 유도된다 — 세계 State 에는 없다. 아무 area 에도 들지 않았으면

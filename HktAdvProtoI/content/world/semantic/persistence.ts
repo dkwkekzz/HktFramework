@@ -94,7 +94,15 @@ const PERSISTENCE: Record<keyof RegionState | OtherStatePath, readonly Persisten
   lifeSites: [{ path: 'region.lifeSites[]', eraser: ERASER_KEPT }],
   populations: [{ path: 'region.populations[]', eraser: ERASER_KEPT }],
   // 지워지지 않는 것 — 그 Region 의 결정만이 이 값을 만든다 (G7 의 다섯째 칸)
-  history: [{ path: 'region.history', eraser: ERASER_INDELIBLE }],
+  //
+  // C037 CHANGED — 기억의 마지막 마디(태어남의 셈)가 **한 줄로 선다**. 기억 전체가 이미
+  // indelible 이므로 수명이 새로 생기는 것은 아니고, 이 표가 "무엇이 남는가" 를 사람이 읽는
+  // 자리이므로 **새로 저장되기 시작한 것은 그 이름으로 서야 한다** (원천의 다섯 값이 한 줄이
+  // 아닌 그 까닭). 되돌아옴도 뒤척임도 이것을 묻지 못한다 (SPEC-007 경계 ①).
+  history: [
+    { path: 'region.history', eraser: ERASER_INDELIBLE },
+    { path: 'region.history.births[]', eraser: ERASER_INDELIBLE },
+  ],
 };
 
 /**
