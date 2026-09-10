@@ -29,7 +29,9 @@
 > `@HktAdvProtoI/content/roadmap/README.md` 아래 내용을 반영하여 세계 무대 기획을 고도화한다. 현재 상태를 파악하고 연결 및 강화하여
 > /advprotoi-design 로 작업한다.
 
-주입물은 아래 전문이다. 글자는 그대로이고 제목 수준만 이 문서 안에 들어가도록 낮췄다.
+주입물은 아래 전문이다. 글자는 그대로이고 제목 수준만 이 문서 안에 들어가도록 낮췄다. 뒤 층의 것으로 판정된 절 일곱(§2.5 NPC Process · §2.6 발견 상태 · §7.4 · §7.5 · §7.6 ·
+§7.7 조우 · §7.9)은 그 층의 기획서([L3-Subject-Discovery](L3-Subject-Discovery.md) · [L4-Item-Craft](L4-Item-Craft.md) · [L5-Combat-Emergent](L5-Combat-Emergent.md) · [L7-Growth-Experience](L7-Growth-Experience.md))로 옮겨 세웠다 — 글자 그대로 · 자리에 포인터 (§7 표).
+층이 없는 절(사회 · 경제 · 세력 …)과 형의 자리만 있는 목록(§4.6 · §5 · §9)은 그대로다.
 
 ### Region Foundation R1 — 지역 세계 문법과 플레이 가능성
 
@@ -394,16 +396,7 @@ Process는 그 Rule을 사용하여 **시간에 따라 실제 세계를 변화�
 ```
 Albion의 오픈월드 몬스터가 방치될수록 성장하여 더 강하고 가치 있는 개체가 되는 사례처럼, 콘텐츠 자체가 시간에 따라 달라질 수도 있다.
 ##### NPC Process
-```text
-이동
-노동
-휴식
-거래
-사냥
-탐색
-도망
-집결
-```
+> → [L3-Subject-Discovery.md](L3-Subject-Discovery.md) §1.1 로 옮겼다 (3층 기획서 · 글자 그대로 · 제목 수준만 맞췄다).
 ##### 사회 Process
 ```text
 마을 성장
@@ -464,32 +457,7 @@ NPC 정보
 직접 실험
 ```
 ##### 발견 상태
-```text
-UNKNOWN
-SUSPECTED
-DISCOVERED
-UNDERSTOOD
-MASTERED
-```
-예:
-```text
-WORLD TRUTH
-"붉은 안개는 출혈한 생물을 추적하는 포식자를 끌어들인다."
-```
-처음에는:
-```text
-UNKNOWN
-```
-플레이어는
-```text
-출혈
-→ 붉은 안개
-→ 이상한 울음소리
-→ 포식자 등장
-```
-만 경험한다.
-이후 지식을 얻어 법칙을 이해한다.
-이 때문에 **지역의 법칙 자체가 탐험 콘텐츠**가 된다.
+> → [L3-Subject-Discovery.md](L3-Subject-Discovery.md) §1.2 로 옮겼다 (3층 기획서 · 글자 그대로 · 제목 수준만 맞췄다).
 ---
 #### 2.7 Relations — 다른 세계와의 관계
 Region은 독립된 섬이 아니다.
@@ -931,100 +899,18 @@ Processes
 ```
 ---
 #### 7.4 전투 / 사냥
-전투도 Opportunity 중 하나다.
-```text
-일반 사냥
-희귀 개체
-Elite
-Boss
-매복
-추적 사냥
-방어
-호위
-Territory 전투
-세력전
-PvP
-PvPvE
-환경 이용 전투
-퍼즐 전투
-생태 개입 전투
-```
-###### 기반
-```text
-Actor
-Space
-Rules
-State
-Processes
-```
+> → [L5-Combat-Emergent.md](L5-Combat-Emergent.md) §1.3 로 옮겼다 (5층 기획서 · 글자 그대로 · 제목 수준만 맞췄다).
 ---
 #### 7.5 Character Growth — 플레이어 자체 성장
-Region은 아이템만 주는 장소가 아니다.
-지역 경험 그 자체가 캐릭터 성장이 될 수 있어야 한다.
-##### 성장 결과
-```text
-Class Progress
-Class Change Requirement
-Skill 습득
-Skill 숙련
-Capability 획득
-Knowledge 습득
-Affinity 성장
-NPC 관계 성장
-Faction Reputation
-전투 숙련
-탐험 숙련
-채집 숙련
-```
-###### 예
-```text
-절벽 지대에서 장기간 비행
-→ 공중 이동 숙련 상승
-```
-```text
-독 환경을 조사하고 생존
-→ 독 환경 지식 획득
-```
-```text
-고대 정령과 여러 차례 조우
-→ 특정 Class Change 조건 충족
-```
-즉:
-> **지역은 성장 재료뿐 아니라 성장 경험도 제공한다.**
+> → [L7-Growth-Experience.md](L7-Growth-Experience.md) §1.1 로 옮겼다 (7층 기획서 · 글자 그대로 · 제목 수준만 맞췄다).
 ---
 #### 7.6 제작 / 변환
-지역의 환경 자체를 제작 도구로 사용할 수 있다.
-```text
-제작
-정제
-조합
-요리
-연금
-마력 부여
-아이템 성장
-수리
-분해
-```
-그리고:
-```text
-용암에서만 정제 가능
-폭풍 속에서 충전
-특정 생물 내부에서 숙성
-월광 아래에서 변이
-```
-같은 **지역 의존 제작**도 가능하다.
+> → [L4-Item-Craft.md](L4-Item-Craft.md) §1.1 로 옮겼다 (4층 기획서 · 글자 그대로 · 제목 수준만 맞췄다).
 ---
 #### 7.7 NPC 조우 / 사회적 상호작용
 NPC는 Quest 버튼이 아니다.
 ###### 조우
-```text
-우연히 만남
-찾아감
-구조
-추적
-매복당함
-동행
-```
+> → [L3-Subject-Discovery.md](L3-Subject-Discovery.md) §1.3 로 옮겼다 (3층 기획서 · 글자 그대로 · 제목 수준만 맞췄다).
 ###### 상호작용
 ```text
 대화
@@ -1113,26 +999,7 @@ NPC
 이 구조는 우리 프로젝트의 **조합의 재미**와 직접 연결된다.
 ---
 #### 7.9 Investigation / Knowledge
-탐험과 별도로 **이해하는 행위**를 하나의 플레이 축으로 둔다.
-```text
-흔적 조사
-시체 조사
-생물 관찰
-환경 실험
-NPC 증언
-문헌 발견
-반복 관찰
-```
-결과:
-```text
-World Fact 발견
-Weakness 발견
-Resource 획득법 발견
-Rule 발견
-Hidden Region 발견
-Recipe 발견
-Class Change 조건 발견
-```
+> → [L3-Subject-Discovery.md](L3-Subject-Discovery.md) §1.4 로 옮겼다 (3층 기획서 · 글자 그대로 · 제목 수준만 맞췄다).
 ---
 #### 7.10 Tracking / Hunting
 우리 게임과 특히 잘 맞는 별도 활동군.
@@ -1977,15 +1844,15 @@ Region §4 · Material §4 · Life §4 · Access §6 의 대응표에 그대로 
 
 | 무엇 | 왜 | 어디 |
 |---|---|---|
-| Player Knowledge · 발견 상태 다섯(UNKNOWN…MASTERED) · Investigation 의 결과(Rule 발견 · Weakness) | 주체가 무엇을 아는가 | 3층 (Region §8 · Access §7) |
-| Actor 군(Monster · NPC · Merchant · Boss …) · NPC Process · 조우 · 관계 변화 | 몸 · 행동 · 사회 | 3층 이후 |
-| 전투 · 사냥 · killed · Boss 제거 · PvP | 대결 | 5층 |
-| 제작 · 정제 · 지역 의존 제작 · crafted · Recipe | 재료의 쓰임 | 4층 이후 |
-| Character Growth · Yield 의 열 열(Item … Reputation) | 성장 | 4 · 7층 — 열은 있고 값 0 |
-| 경제 · 세력 · 협동 · 구조 요청 · 미니게임 · 서사 | 사회 · 컨텐츠 | 뒤 층 · 컨텐츠 행 |
+| Player Knowledge · 발견 상태 다섯(UNKNOWN…MASTERED) · Investigation 의 결과(Rule 발견 · Weakness) | 주체가 무엇을 아는가 | 3층 — [L3-Subject-Discovery](L3-Subject-Discovery.md) §1.2 · §1.4 (Region §8 · Access §7 과 같은 것) |
+| Actor 군(Monster · NPC · Merchant · Boss …) · NPC Process · 조우 · 관계 변화 | 몸 · 행동 · 사회 | 3층 — [L3-Subject-Discovery](L3-Subject-Discovery.md) §1.1 · §1.3 (NPC Process · 조우) · 상호작용 · 관계 변화는 층이 없다 (plan/DESIGN.md §4) |
+| 전투 · 사냥 · killed · Boss 제거 · PvP | 대결 | 5층 — [L5-Combat-Emergent](L5-Combat-Emergent.md) §1.3 |
+| 제작 · 정제 · 지역 의존 제작 · crafted · Recipe | 재료의 쓰임 | 4층 — [L4-Item-Craft](L4-Item-Craft.md) §1.1 |
+| Character Growth · Yield 의 열 열(Item … Reputation) | 성장 | 7층 — [L7-Growth-Experience](L7-Growth-Experience.md) §1.1 (Yield 의 열은 있고 값 0 — 4 · 7층이 채운다) |
+| 경제 · 세력 · 협동 · 구조 요청 · 미니게임 · 서사 | 사회 · 컨텐츠 | 층이 없다 — 원문 자리에 그대로 (§2.5 사회 Process · §2.7 사회 관계 · §7.7 상호작용 · §7.12~§7.17) · plan/DESIGN.md §4 |
 | Object(레버 · 상자 · 장치 · 함정) · Structure 의 State | 세계 사실 — 이름은 Human 것 | 컨텐츠 행 (그 방의 퍼즐) |
 | 원문 §2.3 의 Property 이름들 | 예시 어휘 — 이름은 그것을 쓰는 Play 와 함께 | §2 ③ |
-| 확률(CHANCE · WEIGHTED_SELECT · SEEDED_RANDOM) | 난수 State 가 없다 — 결정론을 지키는 방식과 함께 | 5층 이후 (L1 §3) |
+| 확률(CHANCE · WEIGHTED_SELECT · SEEDED_RANDOM) | 난수 State 가 없다 — 결정론을 지키는 방식과 함께 | 확률을 처음 쓰는 층 (L1 §3) — 원문 자리에 · L5-Combat-Emergent §2 가 가리킨다 |
 | Region 자체 성장의 첫 사례 | 개체군(Life) 또는 NPC(3층)가 먼저 | G12 · 빈칸 3 |
 | 지도 · lineOfSight · 비행 · 수영 | 요구가 없다 | 그 갈래의 컨텐츠 행 · Trail 초안 Q1 |
 

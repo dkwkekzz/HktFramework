@@ -18,9 +18,9 @@ Human 이 작성·개정한 **원본**이다. Agent 는 이 문서들을 바꾸�
 |---|---|
 | `Design-Concept.md` | MMORPG 세계 문법 — 존재·상태·주체·법칙·시간, 무엇이 존재하고 어떻게 변하는가 (Level 1 · 로드맵 1층) |
 | `Design-Subject-Decision.md` | 주체의 의사결정 — 지식·숙련·경험·선호·목적·가능성 그래프, 주체가 어느 행동을 고르는가 (로드맵 3층 재료) |
-| `Design-DesignAuthoringWorkflow.md` | **기획 위층 공정** — 기획서 → 묶음(첫 Cycle 의 spec 머리) → Cycle → 실주행 판정 |
+| `Design-DesignAuthoringWorkflow.md` | **기획 위층 공정** — 기획서 하나 → 그 Cycle 전부의 spec → Cycle → 실주행 판정 (기획서는 한 세션에 잘리는 크기 — 크면 나눈다) |
 | `Design-CycleExecutionWorkflow.md` | **Cycle 실행 공정 원본** — SPEC → SEMANTIC/RULE → IMPL → VERIFY |
-| `Plan-Skill-CycleExecutionWorkflow.md` | 공정의 스킬 계획 (advprotoi-cycle 하나) · plan/ 회수 규칙 · 병렬 |
+| `Plan-Skill-CycleExecutionWorkflow.md` | 공정의 스킬 계획 (advprotoi-inject · spec · cycle 셋 — 경계와 이어 돌리기) · plan/ 회수 규칙 · 병렬 |
 | `Design-Workflow.md` | Goal/Possibility 기반 Observable World 구현 Workflow (이전 기준선 참고 문서) |
 | `Design-System-Content-Separation.md` | **기반(engine) / 컨텐츠(content) 분리** — 지금 코드가 선 자리 |
 | `Design-World-Persistence.md` | 세계 스냅샷과 복구 |
@@ -29,11 +29,11 @@ Human 이 작성·개정한 **원본**이다. Agent 는 이 문서들을 바꾸�
 | `Plan-World-Authoring-Engine.md` | WE 를 이 저장소의 engine/content 위에 세우는 설계 (확정) — 받는 것·바꾸는 것·구조·1단계 범위. 결과물은 `content/roadmap/L2-World-Tool.md` |
 | `Plan-Place-Observation-Surface.md` | **자리를 관찰하는 표면** (승인 — C026~C028 이 회수했다) — 세계에 뿌리는 글자를 어디에 둘 것인가 · 관찰 상호작용 · 기존 지목(TG) 기반과의 겹침 판정 |
 
-## 묶음
+## 기획서와 Cycle
 
-기획서와 Cycle 사이에 문서 층은 없다. 기획서에서 자른 플레이 하나(묶음 — Goal · Intent · Breath · Cycle 목록 · 미지 · 질문)는
-첫 Cycle 의 `cycles/C###/spec.md` 머리 블록이고, "C### 진행" 이 승인이다 (Design-DesignAuthoringWorkflow.md §5~§7).
-묶음 하나는 로드맵의 열린 층 하나만 세운다.
+기획서와 Cycle 사이에 아무 단위도 없다. Cycle 을 세는 단위는 `content/roadmap/` 의 기획서 하나이고, 그 Cycle 전부가 `cycles/C###/spec.md` 로
+함께 선다 (첫 spec 의 Trace 에 Cycle 목록). "C### 진행" 이 승인이다 (Design-DesignAuthoringWorkflow.md §5~§7).
+기획서 하나는 로드맵의 행 하나만 세운다 — 한 세션에서 Cycle 로 자를 수 없으면 기획서를 나눈다.
 
 ## 컨텐츠 기획
 
