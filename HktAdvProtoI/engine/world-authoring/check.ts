@@ -209,7 +209,7 @@ export interface CheckRef {
 }
 
 export interface CheckItem {
-  /** 번호 — '①'…'㊼'. 번호 밖의 것은 '·' */
+  /** 번호 — '①'…'㊽'. 번호 밖의 것은 '·' */
   mark: string;
   /** 기계가 잡는 이름 — JSON 의 열쇠이므로 번호가 바뀌어도 이것은 그대로다 */
   id: string;
@@ -286,7 +286,7 @@ export interface CheckRegionsInput {
   time?: CheckTime;
   /** ㉗~㉝ 이 볼 생명 계통 — 주지 않으면 그 일곱이 전부 absent 다 (ecology 의 선례 그대로) */
   life?: CheckLife;
-  /** ㉞~㊷ 이 볼 접근 쪽 계약 — 주지 않으면 그 아홉이 전부 absent 다 (ecology · time 의 선례 그대로) */
+  /** ㉞~㊷ · ㊽ 이 볼 접근 쪽 계약 — 주지 않으면 그 열이 전부 absent 다 (ecology · time 의 선례 그대로) */
   access?: CheckAccess;
   /** ㊸ ㊼ 가 볼 기억 쪽 계약 — 주지 않으면 그 둘이 전부 absent 다 (ecology · time 의 선례 그대로) */
   memory?: CheckMemory;
@@ -582,11 +582,11 @@ function checkCoreRules(input: CheckRegionsInput): CheckItem {
 }
 
 /**
- * 검사 마흔일곱을 한 번에 돌린다 — 결과는 기계가 읽는다
+ * 검사 마흔여덟을 한 번에 돌린다 — 결과는 기계가 읽는다
  * (T1 의 아홉 + C014 의 열셋 + C018 의 넷 + C022 의 일곱 + C029 의 아홉 + C034 의 둘 +
- * C035 의 하나 + C036 의 둘).
+ * C035 의 하나 + C036 의 둘 + T2 확장의 하나).
  *
- * 순서는 언제나 ①~⑨ · ⑩~㉒ · ㉓~㉖ · ㉗~㉝ · ㉞~㊷ · ㊸ ㊼ · ㊹ · ㊺ ㊻ 이고, 각 항목의 refs 는 준
+ * 순서는 언제나 ①~⑨ · ⑩~㉒ · ㉓~㉖ · ㉗~㉝ · ㉞~㊷ ㊽ · ㊸ ㊼ · ㊹ · ㊺ ㊻ 이고, 각 항목의 refs 는 준
  * 배열 순서다 — 두 번 돌리면 같다.
  * 세계를 바꾸지 않는 읽기 전용 관찰이다.
  */
@@ -1903,7 +1903,7 @@ function lifeItems(input: CheckRegionsInput): CheckItem[] {
   ];
 }
 
-// ── 검사 아홉 — 방이 묻는 것과 세계가 가진 답 (C029 ADDED) ───────────
+// ── 검사 열 — 방이 묻는 것과 세계가 가진 답 (C029 ADDED · T2 확장 CHANGED) ───────────
 //
 // 검사 아홉(T1)이 방과 그래프를, 열셋(C014)이 그 위에 얹힌 재료 계통을, 넷(C018)이 시각이
 // 거는 것을 재었다면, 이 아홉은 **방이 무엇을 묻고 세계가 그것에 답할 것을 가졌는가**를 잰다 —
@@ -1912,7 +1912,11 @@ function lifeItems(input: CheckRegionsInput): CheckItem[] {
 //
 // 여기에도 **게임 명사가 없다.** 어느 축이 무엇이고 어느 글자가 "답이 된다" 를 뜻하는지
 // 기반은 알지 못한다 — `CheckAccess` 가 어휘째로 준다. 그래서 이 아홉은 축이 다섯인 세계에도
-// 스물인 세계에도 그대로 선다. 접근 쪽 계약을 주지 않으면 아홉이 전부 `absent` 다.
+// 스물인 세계에도 그대로 선다. 접근 쪽 계약을 주지 않으면 열이 전부 `absent` 다.
+//
+// **T2 확장 CHANGED — 열째(㊽)가 방을 단위로 센다.** 앞의 아홉은 Lock · 성질 · 문을 세므로
+// **묻지 않는 방이 어느 셈에도 나타나지 않는다** (Lock 이 없으므로). 침묵을 실을 자리가 없어서
+// 자리를 낸 것이고, 새 판정을 낸 것이 아니다 — ㊽ 은 판정하지 않는다.
 //
 // **㉟ 의 부정은 실패가 아니라 GAP 이다** — 잴 것(답의 원천)이 아직 놓이지 않은 것이므로
 // `absent` 로 적고 통과로도 적지 않는다 (⑮ 의 선례). 종료 코드는 fail 하나가 정한다.
@@ -1973,7 +1977,15 @@ export interface CheckAccessSeedSource {
   source: string;
 }
 
-/** ㉞~㊷ 이 볼 접근 쪽 계약 — 주지 않으면 아홉이 다 absent 다 */
+/** Lock 이 하나도 없는 방과 그 사유 — ㊽ 이 함께 싣는다 (㉚ 의 CheckLifeAbsence 와 같은 형) */
+export interface CheckAccessSilence {
+  /** 그 방 */
+  region: string;
+  /** 왜 묻지 않는가 — 기반은 이 글자를 읽지 않고 그대로 옮긴다 */
+  reason: string;
+}
+
+/** ㉞~㊷ · ㊽ 이 볼 접근 쪽 계약 — 주지 않으면 열이 다 absent 다 */
 export interface CheckAccess {
   aspects: readonly string[];
   relations: readonly string[];
@@ -1993,9 +2005,16 @@ export interface CheckAccess {
   locks: readonly CheckAccessLock[];
   seeds: readonly CheckAccessSeed[];
   seedSources: readonly CheckAccessSeedSource[];
+  /**
+   * 묻지 않는 방이 밝힌 사유들 (T2 확장 ADDED · ㊽) — 밝히지 않으면 ㊽ 은 지금 그대로다.
+   *
+   * **판정하지 않는다.** 사유가 있든 없든 `report` 이고, 사유를 밝히지 않은 방도 함께 선다
+   * (㉚ 이 탄생지 없는 방의 사유에 세운 그 규율 그대로 — 없음은 결손이 아니다).
+   */
+  silences?: readonly CheckAccessSilence[];
 }
 
-/** 아홉의 번호·이름 — 이 차례가 곧 보고에 실리는 차례다 (계약이 없을 때의 absent 도 이것을 쓴다) */
+/** 열의 번호·이름 — 이 차례가 곧 보고에 실리는 차례다 (계약이 없을 때의 absent 도 이것을 쓴다) */
 const ACCESS_ITEMS = {
   refs: { mark: '㉞', id: 'access-refs', name: '성질과 자리의 참조' },
   answer: { mark: '㉟', id: 'access-answer', name: '요구에 답할 성질의 원천' },
@@ -2006,6 +2025,10 @@ const ACCESS_ITEMS = {
   variety: { mark: '㊵', id: 'access-answer-variety', name: '답의 다양함' },
   trace: { mark: '㊶', id: 'access-trace', name: 'Lock 마다의 흔적' },
   behind: { mark: '㊷', id: 'access-behind-lock', name: 'Lock 뒤에만 있는 것' },
+  // 번호가 ㊷ 에 잇대지 않고 ㊽ 로 뛴 까닭 — 번호는 **선 차례**이지 무리의 이름이 아니다
+  // (㊸ 곁에 ㊼ 이 서고 그 뒤에 ㊹ 이 온 그 선례). 이미 나간 번호를 밀면 밖에서 읽는 쪽이
+  // 어제의 ㊸ 과 오늘의 ㊸ 을 같은 것으로 읽는다
+  silence: { mark: '㊽', id: 'access-silence', name: '묻는 방과 묻지 않는 방' },
 } as const;
 
 /** 그 방의 Description 에 이 id 의 area op 이 있는가 (㉞ 의 자락 참조). layer 는 묻지 않는다 */
@@ -2030,7 +2053,7 @@ function splitPropertyTag(
   return { aspect, relation };
 }
 
-/** 아홉이 함께 보는 것 — 한 번만 세어 나눠 쓴다 */
+/** 열이 함께 보는 것 — 한 번만 세어 나눠 쓴다 */
 interface AccessContext {
   input: CheckRegionsInput;
   access: CheckAccess;
@@ -2043,7 +2066,7 @@ interface AccessContext {
   propertyLocks: readonly CheckAccessLock[];
 }
 
-/** 아홉과 표가 함께 짓는 자리 — 둘이 같은 것을 보게 하려고 한 곳에 둔다 */
+/** 열과 표가 함께 짓는 자리 — 둘이 같은 것을 보게 하려고 한 곳에 둔다 */
 function accessContextOf(input: CheckRegionsInput, access: CheckAccess): AccessContext {
   const regionById = new Map<string, CheckRegion>();
   for (const region of input.regions) regionById.set(region.id, region);
@@ -2622,7 +2645,56 @@ function checkAccessBehind(cx: AccessContext): CheckItem {
   };
 }
 
-/** ㉞~㊷ — 접근 쪽 계약을 주지 않으면 아홉이 전부 absent 다 (통과가 아니다) */
+/**
+ * ㊽ 묻는 방과 묻지 않는 방을 함께 센다 — **판정하지 않는다** (T2 확장 ADDED).
+ *
+ * 사유가 있든 없든 `report` 다 (㉚ 이 탄생지 없는 방에 대해 그런 그대로). 묻지 않는 것은
+ * 결손이 아니다 — 방마다 묻게 하면 원문 §12 가 막으려던 "열쇠 없는 문 백 개" 의 반대쪽으로
+ * 넘어간다. 사유를 밝혔는가로도 판정하지 않는다: 밝히지 않은 방은 그렇게 적히고 사람이 본다.
+ *
+ * Lock 이 하나도 없어도 **absent 가 아니다** — 앞의 아홉과 갈리는 자리가 여기다. 저쪽은 잴 것이
+ * Lock 이라 없으면 잴 것이 없지만, 이쪽이 재는 것은 **방**이고 묻지 않는 방도 방이다.
+ */
+function checkAccessSilence(cx: AccessContext): CheckItem {
+  const head = ACCESS_ITEMS.silence;
+  const { locks } = cx.access;
+  // 묻는 방 — Lock 이 처음 나온 차례로 (결정론 · ㉚ 의 어법)
+  const asking: string[] = [];
+  for (const lock of locks) {
+    if (!asking.includes(lock.region)) asking.push(lock.region);
+  }
+  // 묻는 방이 밝힌 사유는 싣지 않는다 — 모순된 글자를 옮기지 않되 그것으로 판정하지도 않는다 (㉚)
+  const silences = (cx.access.silences ?? []).filter((silence) => !asking.includes(silence.region));
+  const said = new Map(silences.map((silence) => [silence.region, silence.reason]));
+  // 묻지 않는 방 — 검사가 아는 방 차례로. 사유를 밝히지 않은 방도 함께 선다 (침묵도 읽는다)
+  const silent = cx.input.regions
+    .map((region) => region.id)
+    .filter((region) => !asking.includes(region));
+  if (locks.length === 0 && silent.length === 0) return absentItem(head, '방도 Lock 도 없다');
+  const refs: CheckRef[] = asking.map((region) => {
+    const mine = locks.filter((lock) => lock.region === region);
+    const important = mine.filter((lock) => lock.important).length;
+    return { where: region, detail: `Lock ${mine.length} · 중요 ${important}` };
+  });
+  // 묻는 방들 뒤에 잇는다 (㉚ 이 사유를 방들 뒤에 잇는 그 차례)
+  for (const region of silent) {
+    const reason = said.get(region);
+    refs.push({
+      where: region,
+      detail: reason === undefined ? 'Lock 0 — 사유를 밝히지 않았다' : `Lock 0 — ${reason}`,
+    });
+  }
+  return {
+    ...head,
+    status: 'report',
+    answer:
+      `묻는 방 ${asking.length} / 방 ${cx.input.regions.length} · Lock 합 ${locks.length} · ` +
+      `묻지 않는 방 ${silent.length} · 사유를 밝힌 방 ${silences.length}`,
+    refs,
+  };
+}
+
+/** ㉞~㊷ ㊽ — 접근 쪽 계약을 주지 않으면 열이 전부 absent 다 (통과가 아니다) */
 function accessItems(input: CheckRegionsInput): CheckItem[] {
   const access = input.access;
   if (!access) {
@@ -2641,6 +2713,7 @@ function accessItems(input: CheckRegionsInput): CheckItem[] {
     checkAccessVariety(cx),
     checkAccessTrace(cx),
     checkAccessBehind(cx),
+    checkAccessSilence(cx),
   ];
 }
 
