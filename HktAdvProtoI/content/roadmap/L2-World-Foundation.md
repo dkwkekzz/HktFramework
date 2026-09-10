@@ -30,7 +30,7 @@
 > /advprotoi-design 로 작업한다.
 
 주입물은 아래 전문이다. 글자는 그대로이고 제목 수준만 이 문서 안에 들어가도록 낮췄다. 뒤 층의 것으로 판정된 절 일곱(§2.5 NPC Process · §2.6 발견 상태 · §7.4 · §7.5 · §7.6 ·
-§7.7 조우 · §7.9)은 그 층의 Handoff([L3](L3-Handoff.md) · [L4](L4-Handoff.md) · [L5](L5-Handoff.md) · [L7](L7-Handoff.md))로 옮겼다 — 글자 그대로 · 자리에 포인터 (§7 표).
+§7.7 조우 · §7.9)은 그 층의 기획서([L3-Subject-Discovery](L3-Subject-Discovery.md) · [L4-Item-Craft](L4-Item-Craft.md) · [L5-Combat-Emergent](L5-Combat-Emergent.md) · [L7-Growth-Experience](L7-Growth-Experience.md))로 옮겨 세웠다 — 글자 그대로 · 자리에 포인터 (§7 표).
 층이 없는 절(사회 · 경제 · 세력 …)과 형의 자리만 있는 목록(§4.6 · §5 · §9)은 그대로다.
 
 ### Region Foundation R1 — 지역 세계 문법과 플레이 가능성
@@ -396,7 +396,7 @@ Process는 그 Rule을 사용하여 **시간에 따라 실제 세계를 변화�
 ```
 Albion의 오픈월드 몬스터가 방치될수록 성장하여 더 강하고 가치 있는 개체가 되는 사례처럼, 콘텐츠 자체가 시간에 따라 달라질 수도 있다.
 ##### NPC Process
-> → [L3-Handoff.md](L3-Handoff.md) §3.1 로 옮겼다 (3층 몫 · 글자 그대로 · 제목 수준만 맞췄다).
+> → [L3-Subject-Discovery.md](L3-Subject-Discovery.md) §1.1 로 옮겼다 (3층 기획서 · 글자 그대로 · 제목 수준만 맞췄다).
 ##### 사회 Process
 ```text
 마을 성장
@@ -457,7 +457,7 @@ NPC 정보
 직접 실험
 ```
 ##### 발견 상태
-> → [L3-Handoff.md](L3-Handoff.md) §3.2 로 옮겼다 (3층 몫 · 글자 그대로 · 제목 수준만 맞췄다).
+> → [L3-Subject-Discovery.md](L3-Subject-Discovery.md) §1.2 로 옮겼다 (3층 기획서 · 글자 그대로 · 제목 수준만 맞췄다).
 ---
 #### 2.7 Relations — 다른 세계와의 관계
 Region은 독립된 섬이 아니다.
@@ -899,18 +899,18 @@ Processes
 ```
 ---
 #### 7.4 전투 / 사냥
-> → [L5-Handoff.md](L5-Handoff.md) §3.1 로 옮겼다 (5층 몫 · 글자 그대로 · 제목 수준만 맞췄다).
+> → [L5-Combat-Emergent.md](L5-Combat-Emergent.md) §1.3 로 옮겼다 (5층 기획서 · 글자 그대로 · 제목 수준만 맞췄다).
 ---
 #### 7.5 Character Growth — 플레이어 자체 성장
-> → [L7-Handoff.md](L7-Handoff.md) §3.1 로 옮겼다 (7층 몫 · 글자 그대로 · 제목 수준만 맞췄다).
+> → [L7-Growth-Experience.md](L7-Growth-Experience.md) §1.1 로 옮겼다 (7층 기획서 · 글자 그대로 · 제목 수준만 맞췄다).
 ---
 #### 7.6 제작 / 변환
-> → [L4-Handoff.md](L4-Handoff.md) §3.1 로 옮겼다 (4층 몫 · 글자 그대로 · 제목 수준만 맞췄다).
+> → [L4-Item-Craft.md](L4-Item-Craft.md) §1.1 로 옮겼다 (4층 기획서 · 글자 그대로 · 제목 수준만 맞췄다).
 ---
 #### 7.7 NPC 조우 / 사회적 상호작용
 NPC는 Quest 버튼이 아니다.
 ###### 조우
-> → [L3-Handoff.md](L3-Handoff.md) §3.3 로 옮겼다 (3층 몫 · 글자 그대로 · 제목 수준만 맞췄다).
+> → [L3-Subject-Discovery.md](L3-Subject-Discovery.md) §1.3 로 옮겼다 (3층 기획서 · 글자 그대로 · 제목 수준만 맞췄다).
 ###### 상호작용
 ```text
 대화
@@ -999,7 +999,7 @@ NPC
 이 구조는 우리 프로젝트의 **조합의 재미**와 직접 연결된다.
 ---
 #### 7.9 Investigation / Knowledge
-> → [L3-Handoff.md](L3-Handoff.md) §3.4 로 옮겼다 (3층 몫 · 글자 그대로 · 제목 수준만 맞췄다).
+> → [L3-Subject-Discovery.md](L3-Subject-Discovery.md) §1.4 로 옮겼다 (3층 기획서 · 글자 그대로 · 제목 수준만 맞췄다).
 ---
 #### 7.10 Tracking / Hunting
 우리 게임과 특히 잘 맞는 별도 활동군.
@@ -1844,15 +1844,15 @@ Region §4 · Material §4 · Life §4 · Access §6 의 대응표에 그대로 
 
 | 무엇 | 왜 | 어디 |
 |---|---|---|
-| Player Knowledge · 발견 상태 다섯(UNKNOWN…MASTERED) · Investigation 의 결과(Rule 발견 · Weakness) | 주체가 무엇을 아는가 | 3층 — [L3-Handoff](L3-Handoff.md) §3.2 · §3.4 (Region §8 · Access §7 과 같은 것) |
-| Actor 군(Monster · NPC · Merchant · Boss …) · NPC Process · 조우 · 관계 변화 | 몸 · 행동 · 사회 | 3층 — [L3-Handoff](L3-Handoff.md) §3.1 · §3.3 (NPC Process · 조우) · 상호작용 · 관계 변화는 층이 없다 (plan/DESIGN.md §4) |
-| 전투 · 사냥 · killed · Boss 제거 · PvP | 대결 | 5층 — [L5-Handoff](L5-Handoff.md) §3.1 |
-| 제작 · 정제 · 지역 의존 제작 · crafted · Recipe | 재료의 쓰임 | 4층 — [L4-Handoff](L4-Handoff.md) §3.1 |
-| Character Growth · Yield 의 열 열(Item … Reputation) | 성장 | 7층 — [L7-Handoff](L7-Handoff.md) §3.1 (Yield 의 열은 있고 값 0 — 4 · 7층이 채운다) |
+| Player Knowledge · 발견 상태 다섯(UNKNOWN…MASTERED) · Investigation 의 결과(Rule 발견 · Weakness) | 주체가 무엇을 아는가 | 3층 — [L3-Subject-Discovery](L3-Subject-Discovery.md) §1.2 · §1.4 (Region §8 · Access §7 과 같은 것) |
+| Actor 군(Monster · NPC · Merchant · Boss …) · NPC Process · 조우 · 관계 변화 | 몸 · 행동 · 사회 | 3층 — [L3-Subject-Discovery](L3-Subject-Discovery.md) §1.1 · §1.3 (NPC Process · 조우) · 상호작용 · 관계 변화는 층이 없다 (plan/DESIGN.md §4) |
+| 전투 · 사냥 · killed · Boss 제거 · PvP | 대결 | 5층 — [L5-Combat-Emergent](L5-Combat-Emergent.md) §1.3 |
+| 제작 · 정제 · 지역 의존 제작 · crafted · Recipe | 재료의 쓰임 | 4층 — [L4-Item-Craft](L4-Item-Craft.md) §1.1 |
+| Character Growth · Yield 의 열 열(Item … Reputation) | 성장 | 7층 — [L7-Growth-Experience](L7-Growth-Experience.md) §1.1 (Yield 의 열은 있고 값 0 — 4 · 7층이 채운다) |
 | 경제 · 세력 · 협동 · 구조 요청 · 미니게임 · 서사 | 사회 · 컨텐츠 | 층이 없다 — 원문 자리에 그대로 (§2.5 사회 Process · §2.7 사회 관계 · §7.7 상호작용 · §7.12~§7.17) · plan/DESIGN.md §4 |
 | Object(레버 · 상자 · 장치 · 함정) · Structure 의 State | 세계 사실 — 이름은 Human 것 | 컨텐츠 행 (그 방의 퍼즐) |
 | 원문 §2.3 의 Property 이름들 | 예시 어휘 — 이름은 그것을 쓰는 Play 와 함께 | §2 ③ |
-| 확률(CHANCE · WEIGHTED_SELECT · SEEDED_RANDOM) | 난수 State 가 없다 — 결정론을 지키는 방식과 함께 | 확률을 처음 쓰는 층 (L1 §3) — 원문 자리에 · L5-Handoff §4 가 가리킨다 |
+| 확률(CHANCE · WEIGHTED_SELECT · SEEDED_RANDOM) | 난수 State 가 없다 — 결정론을 지키는 방식과 함께 | 확률을 처음 쓰는 층 (L1 §3) — 원문 자리에 · L5-Combat-Emergent §2 가 가리킨다 |
 | Region 자체 성장의 첫 사례 | 개체군(Life) 또는 NPC(3층)가 먼저 | G12 · 빈칸 3 |
 | 지도 · lineOfSight · 비행 · 수영 | 요구가 없다 | 그 갈래의 컨텐츠 행 · Trail 초안 Q1 |
 

@@ -13,7 +13,7 @@ content/roadmap/
   L0-Game.md           0층 결과물 — 게임 방향
   L1-World-Grammar.md  1층 결과물 — 세계의 문법 (확정 범위 · 경계 · 코드 대응)
   L<N>-<이름>.md        기반 층의 결과물 — 그 층에서 Human 이 확정한 문서 (한 층에 여럿일 수 있다)
-  L<N>-Handoff.md       그 층이 열릴 때 받는 절 — 앞 층 기획서 · 먼저 온 원문에서 옮긴 것 (기획서가 아니다 · 그 층의 주입이 L<N>-*.md 로 세우고 지운다)
+  L<N>-<주제>.md (대기)  아직 열리지 않은 층의 기획서 — 앞 층 기획서 · 먼저 온 원문에서 그 층의 것으로 판정된 절을 옮겨 세운 것. 그 층이 열리면 주입이 덧붙여 그대로 자른다
   M<N>-<이름>.md        컨텐츠 층의 결과물 — 그 미지에 대해 Human 이 준 세계관 사실
 ```
 
@@ -45,10 +45,11 @@ content/  그 위에 놓이는 이 세계          컨텐츠 층  미지를 놓�
 
 - **행을 건너뛰는 기획서는 만들지 않는다.** 기반 층의 기획서는 열린 층의 축 하나를 세우고,
   컨텐츠 층의 기획서는 미지 하나를 놓는다. 한 기획서가 두 축을 동시에 세우면 정리되지 않는다 — 기획서를 나눈다.
-- **기획서 하나는 층 하나의 것이다.** 주입물에 뒤 층의 절이 섞여 있으면 그 절은 그 층의 `L<N>-Handoff.md` 로 옮긴다 — 글자 그대로 ·
-  원문 자리에 포인터 · 한 절이 두 층에 걸치면 먼저 열리는 층에. 형의 자리(슬롯)까지는 지금 층이 세우고 동작은 그 층이 세운다 —
-  뒤 층의 것을 더미로 구현하지 않는다 (현재 의미보다 앞선 구현 금지). 층이 없는 절은 옮기지 않고 `plan/DESIGN.md` §4 가 가리킨다.
-  그 층이 열리면 주입이 Handoff 를 **먼저** 받는다 — 방향 한 줄이면 옮겨진 원문이 그대로 기획서의 원문이다.
+- **기획서 하나는 층 하나의 것이다.** 주입물에 뒤 층의 절이 섞여 있으면 그 절은 **그 층의 주제 문서** `L<N>-<주제>.md` 로 옮겨 세운다 —
+  2층이 축마다 문서 하나(Material · Time · Life · Access …)였던 것과 같은 방식. 글자 그대로 · 원문 자리에 포인터 · 한 절이 두 층에 걸치면 먼저 열리는 층에.
+  옮겨 세운 문서는 상태 "대기" 인 그 층의 기획서다 — 그 층이 열리면 주입이 그 문서를 **먼저** 받아 Human 의 주입물(방향 한 줄이면 된다)을 덧붙이고
+  (새 파일을 만들지 않는다) 그대로 spec 을 자른다. 형의 자리(슬롯)까지는 지금 층이 세우고 동작은 그 층이 세운다 — 뒤 층의 것을 더미로 구현하지 않는다
+  (현재 의미보다 앞선 구현 금지). 층이 없는 절은 옮기지 않고 `plan/DESIGN.md` §4 가 가리킨다.
 - 기반 층의 Cycle 들은 축을 세우면서 **미지를 하나 놓는다** — 그 미지가 컨텐츠 층의
   첫 행들이다. 2층은 이름 있는 지역 하나, 3층은 무엇을 원하는지 아는 생물
   하나, 4층은 어디서 나는지 정해진 자원 하나.
@@ -65,11 +66,11 @@ content/  그 위에 놓이는 이 세계          컨텐츠 층  미지를 놓�
 | 0 | 게임 방향 | 핵심 경험 한 단락 + Core Breath + 핵심 문장 | `L0-Game.md` 가 원문을 소유한다 | 없음 — 판단 기준일 뿐 |
 | 1 | 세계의 문법 | 무엇이 존재하고 무엇이 변하는가 — 존재·상태·주체·법칙·시간 (주체가 행동을 **고르는** 과정은 3층) | `Design-Concept.md` | 없음 — 코드가 이미 이 문법 위에 있음 |
 | 2 | 세계 자체 | **도구 절반** — 세계를 쓰는 문법과 컴파일러(engine) · 2단계 Region 작성기 · **세계 절반** — ① 세계관 컨셉 ② 세계 content 구성(Region Graph · Rule · Connector · 중첩) ②-부속 다섯: 재료 생태와 공급 계약 · 시간과 위상 · 생명의 성립과 탄생 · 요구와 가능성 · Region Foundation | 도구: `Design-World-Editor-Terrain-Compiler.md` (WE) · `Plan-World-Authoring-Engine.md` · 세계: 주입 원문은 결과물 안에 | 안전권을 나서 깊이가 달라지는 것을 본다 — 백왕령(civil) ⇄ 거대 악마의 숲(outer) |
-| 3 | 주체와 몸 | 요정의 몸은 무엇을 가지는가(깎이고 회복되는 값) · 생물은 무엇을 알고 어떻게 행동하는가 · **원정 편성과 무대의 한 명** · 교체 = 세계에 개입하는 방법을 바꾸는 행동 · Entry/Leave/Off-field 의 자리 · 요정 Core 가 몸의 State 로 적혀 property Lock 에 답한다 (L7 §3 의 3층 몫) | **`L3-Handoff.md`** (L7 §4 · §5 · §9~§11 · §20 · Foundation §2.5 · §2.6 · §7.7 · §7.9) · `Design-Subject-Decision.md` · `Design-Autonomous-Behavior-Knowledge-R0.md` · `Design-Creature-Behavior-R0.md` | 한 명만 무대에 선다 — 요정 둘을 편성해 협곡을 지난다 |
-| 4 | 자원과 물건 | 소지·장비·가공 사슬 · 조합과 쓰임 ("무엇이 어디서 나는가" 는 2층 ②-부속이 닫았다) · **보석은 세계의 특성이 응축된 성장 재료(Material Seed) · 물건은 행동을 바꾸는 장치이지 스탯 부착물이 아니다** (L7 §8 · §17 · §24) | **`L4-Handoff.md`** (L7 §8 · §16 · §17 · §24 · Foundation §7.6) · `Design-Resource-Catalog-R0.md` · `Design-Item-*.md` · `Design-Inventory-Equipment-D1.md` | 캐서 지니면 갈 수 있는 곳이 늘어난다 |
-| 5 | 대결 | 공격·방어·피해 종류·지목 · **정해진 전투 Phase 없음 — 대상의 World State 를 생성·제거·변화·전달·소비·증폭하는 것이 전투의 문법 · 하나의 문제에 여러 답** (L7 §13 · §14 · §16) | **`L5-Handoff.md`** (L7 §13 · §14 · Foundation §7.4) · `Design-Combat-*.md` · `Design-Targeting-R0.md` | 처음으로 맞서 이긴다 — 같은 적을 두 가지 상태 순서로 |
-| 6 | 능력 | 스킬 체계·실행 형태·효과 · **Class 는 Core 를 쓰는 방법 · Active/Entry/Leave/Off-field 의 내용 · Leave 가 남긴 것이 다음 요정의 능력과 반응한다** (L7 §5 · §6 · §11 · §19) | **`L6-Handoff.md`** (L7 §6 · §19) · `Design-Skill-*.md` | 능력 표현이 세계에 닿는다 — 한 Core 가 두 Class 로 갈리고, 장판이 반응한다 |
-| 7 | 성장 | 요정 성장·밸런스·클래스 — **성장 = 유효한 조합과 세계 개입 가능성의 확장**: 요정 컬렉션 · Class Change(Fairy + Gem + 조건) · Knowledge = 숨겨진 관계의 해금 · Fairy Build 와 편성 · 고정 역할 없음 | **`L7-Fairy-Growth-Combination.md`** (원문의 7층 몫 — 충돌하는 자리에서 `Design-Fairy-*.md` 를 이긴다, L7 §2.2) · `L7-Handoff.md` (Foundation §7.5) · `Design-Growth-Balance-R0.md` · `Design-Subject-Decision.md` §20·§23 | 자원 관계에서 성장이 나온다 — 보석 하나로 Class 가 바뀌어 못 풀던 자리를 새 방법으로 푼다 |
+| 3 | 주체와 몸 | 요정의 몸은 무엇을 가지는가(깎이고 회복되는 값) · 생물은 무엇을 알고 어떻게 행동하는가 · **원정 편성과 무대의 한 명** · 교체 = 세계에 개입하는 방법을 바꾸는 행동 · Entry/Leave/Off-field 의 자리 · 요정 Core 가 몸의 State 로 적혀 property Lock 에 답한다 (L7 §3 의 3층 몫) | **`L3-Subject-Expedition.md`** (L7 §4 · §5 · §9~§11 · §20) · **`L3-Subject-Discovery.md`** (Foundation §2.5 · §2.6 · §7.7 · §7.9) · `Design-Subject-Decision.md` · `Design-Autonomous-Behavior-Knowledge-R0.md` · `Design-Creature-Behavior-R0.md` | 한 명만 무대에 선다 — 요정 둘을 편성해 협곡을 지난다 |
+| 4 | 자원과 물건 | 소지·장비·가공 사슬 · 조합과 쓰임 ("무엇이 어디서 나는가" 는 2층 ②-부속이 닫았다) · **보석은 세계의 특성이 응축된 성장 재료(Material Seed) · 물건은 행동을 바꾸는 장치이지 스탯 부착물이 아니다** (L7 §8 · §17 · §24) | **`L4-Item-Gem.md`** (L7 §8 · §16 · §17 · §24) · **`L4-Item-Craft.md`** (Foundation §7.6) · `Design-Resource-Catalog-R0.md` · `Design-Item-*.md` · `Design-Inventory-Equipment-D1.md` | 캐서 지니면 갈 수 있는 곳이 늘어난다 |
+| 5 | 대결 | 공격·방어·피해 종류·지목 · **정해진 전투 Phase 없음 — 대상의 World State 를 생성·제거·변화·전달·소비·증폭하는 것이 전투의 문법 · 하나의 문제에 여러 답** (L7 §13 · §14 · §16) | **`L5-Combat-Emergent.md`** (L7 §13 · §14 · Foundation §7.4) · `Design-Combat-*.md` · `Design-Targeting-R0.md` | 처음으로 맞서 이긴다 — 같은 적을 두 가지 상태 순서로 |
+| 6 | 능력 | 스킬 체계·실행 형태·효과 · **Class 는 Core 를 쓰는 방법 · Active/Entry/Leave/Off-field 의 내용 · Leave 가 남긴 것이 다음 요정의 능력과 반응한다** (L7 §5 · §6 · §11 · §19) | **`L6-Skill-Class.md`** (L7 §6 · §19) · `Design-Skill-*.md` | 능력 표현이 세계에 닿는다 — 한 Core 가 두 Class 로 갈리고, 장판이 반응한다 |
+| 7 | 성장 | 요정 성장·밸런스·클래스 — **성장 = 유효한 조합과 세계 개입 가능성의 확장**: 요정 컬렉션 · Class Change(Fairy + Gem + 조건) · Knowledge = 숨겨진 관계의 해금 · Fairy Build 와 편성 · 고정 역할 없음 | **`L7-Fairy-Growth-Combination.md`** (원문의 7층 몫 — 충돌하는 자리에서 `Design-Fairy-*.md` 를 이긴다, L7 §2.2) · `L7-Growth-Experience.md` (Foundation §7.5) · `Design-Growth-Balance-R0.md` · `Design-Subject-Decision.md` §20·§23 | 자원 관계에서 성장이 나온다 — 보석 하나로 Class 가 바뀌어 못 풀던 자리를 새 방법으로 푼다 |
 | 8 | 화면 | UX | `Design-View-*.md` | 별도 주입 없음 — 각 Cycle 의 Required 로 들어온다 |
 
 2층은 절반이 둘이다 — **도구가 먼저, 세계가 다음**. 도구 절반(`L2-World-Tool.md` · 2단계 `L2-World-Tool-Scale.md`)은 게임 명사를
@@ -80,8 +81,8 @@ content/  그 위에 놓이는 이 세계          컨텐츠 층  미지를 놓�
 수십~수백 규모의 지역은 사람이 아니라 **Region 작성기**가 쓴다 — 단계 T1~T6 은 `L2-World-Tool-Scale.md` §3 이 소유한다.
 
 **7층의 주입물이 열린 층보다 먼저 왔다** — `L7-Fairy-Growth-Combination.md`. 층을 앞당기지 않는다. 원문을 그 자리에 보존하고
-원문의 절들이 3 · 4 · 5 · 6 · 7층 어디로 가는지를 그 문서 §3 이 배분했고, 3~6층 몫의 절은 그 층의 `L<N>-Handoff.md` 로 옮겨 두었다 —
-**각 층이 열릴 때 그 층의 주입은 Handoff 를 먼저 받는다** (위 표의 3~7 행에 굵게 적힌 것). L7 문서에는 7층 몫과 배분 표 · 확정 사항이 남는다. 원문은 기존 `design/` 성장 문서와 어긋나는 자리에서 **이긴다** (L7 §2.2).
+원문의 절들이 3 · 4 · 5 · 6 · 7층 어디로 가는지를 그 문서 §3 이 배분했고, 3~6층 몫의 절은 그 층의 주제 문서(`L3-Subject-Expedition` · `L4-Item-Gem` · `L5-Combat-Emergent` · `L6-Skill-Class` — 대기)로 옮겨 세워 두었다 —
+**각 층이 열릴 때 그 층의 주입은 그 문서를 먼저 받는다** (위 표의 3~7 행에 굵게 적힌 것). L7 문서에는 7층 몫과 배분 표 · 확정 사항이 남는다. 원문은 기존 `design/` 성장 문서와 어긋나는 자리에서 **이긴다** (L7 §2.2).
 
 ## 3. 컨텐츠 층 — 미지의 목록
 
@@ -93,8 +94,8 @@ content/  그 위에 놓이는 이 세계          컨텐츠 층  미지를 놓�
 ### 기반 층
 
 ```text
-① 문서 확정   그 층의 L<N>-Handoff.md 가 있으면 먼저 받는다 — 주입물과 합쳐 결과물로 세우고 Handoff 에서 지운다. 그 층의 design/ 재료를 지목하고
-             빠진 것만 채워 이 폴더에 결과물로 둔다 (advprotoi-inject 가 보존 · 판정한다 — 지어내지 않는다). 뒤 층의 절이 섞여 있으면 그 층의 Handoff 로 (§1).
+① 문서 확정   그 층에 대기 중인 기획서(L<N>-<주제>.md — 앞 층이 옮겨 세운 것)가 있으면 먼저 받는다 — 주입물을 그 문서에 덧붙인다(§2 이후 · 새 파일 없음). 그 층의 design/ 재료를 지목하고
+             빠진 것만 채워 이 폴더에 결과물로 둔다 (advprotoi-inject 가 보존 · 판정한다 — 지어내지 않는다). 뒤 층의 절이 섞여 있으면 그 층의 주제 문서로 (§1).
              세계관 사실(이름·존재)은 AI 가 지어낼 수 없으므로 여기서 준다. 문서 확정만으로 닫히는 층(0 · 1층)은 여기서 끝난다.
 ② 방향 한 줄  "이 층으로 이런 것을 보게 하라" → advprotoi-spec 이 그 층 기획서의 Cycle 전부를 spec 으로
              쓴다 → Human "C### 진행" (승인 1회). 이 Cycle 들이 놓는 미지 하나를 plan/DESIGN.md §2 에 행으로 올린다.
