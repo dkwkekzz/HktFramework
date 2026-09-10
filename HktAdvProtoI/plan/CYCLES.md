@@ -9,7 +9,10 @@
 쓰는 이  advprotoi-cycle — 시작 조건은 §1 에서 읽고, 묶음 승인 때 §3 에 절을 만들고, 마감이 §3(관찰 항목 · 결정 · 다음 Cycle 로)과
         §5(부채)에 적고, 합친 직후 §1 을 갱신한다. AI 예심이 관찰 항목을 판정 질문 대여섯으로 바꿔 쓴다.
 묶음     기획서에서 자른 플레이 하나 = 첫 Cycle 의 spec.md 머리 블록 (Design-DesignAuthoringWorkflow §5). 문서가 아니라 spec 의 일부다.
-상태 어휘  닫힘(실주행 판정 반영) · 판정 대기(Cycle 다 닫힘 · Human 실주행) · 진행(Cycle 도는 중) · 제안 대기(첫 spec 이 "C### 진행" 을 기다린다)
+상태 어휘  닫힘(실주행 판정 · 기반 검토 반영) · 판정 대기(컨텐츠 묶음 — Cycle 다 닫힘 · Human 실주행) · 검토 대기(기반 묶음 — Cycle 다 닫힘 · Human 기반 검토 — 걷지 않는다) ·
+        진행(Cycle 도는 중) · 제안 대기(첫 spec 이 "C### 진행" 을 기다린다)
+종류     행이 가른다 (Design-CycleExecutionWorkflow §21) — 기반 묶음(L<N>)은 기반 검토 항목(모듈 · 제공 · 작동 · 손잡이)을 쌓고 경험은 손잡이로 내린다 ·
+        컨텐츠 묶음(M<N>)은 관찰 항목을 쌓는다
 ```
 
 ## 1. 레인 표
@@ -19,7 +22,7 @@
 
 | 레인 | 지금 할 수 있는 것 | 기다리는 것 | 다음 |
 |---|---|---|---|
-| Foundation — 방은 기억하고 때가 되면 내민다 (§3.4) | **C036** — [cycles/C036-a-room-offers/spec.md](../cycles/C036-a-room-offers/spec.md) 초안을 C035 의 「다음 Cycle 로」 로 손봐 동결 → 실현 (C035 닫힘 — 합침 대기) | C035 의 합침 | C037 → AI 예심 → 판정 |
+| Foundation — 방은 기억하고 때가 되면 내민다 (§3.4 · **기반 묶음**) | **C036** — [cycles/C036-a-room-offers/spec.md](../cycles/C036-a-room-offers/spec.md) 초안(기반 형식 — Foundation Goal · Data Knobs · Module Check · 손잡이 SPEC)을 C035 의 「다음 Cycle 로」 로 손봐 동결 → 실현 | — | C037 → AI 기반 예심 → 기반 검토 |
 | (다음 묶음) | 묶음 제안 — 후보 2(3층 편성과 무대) · 3(Rooms GAP 회수) | Human 이 지목 | C038~ |
 | ENGINE B — Region 작성기 | T3 의 ecology 산출(생명이 코드에 있다 — phases 도 템플릿도 붙일 수 있다) · 갈래별 땅 묶음 templates 손질 | — | 그 뒤 HundredRooms 묶음 |
 
@@ -55,7 +58,7 @@ C001~C031 은 옛 공정(Play 문서)으로 돌았다. spec 의 SOURCE 가 가�
 | 생명 · 붉은 알집 | C022~C025 | L2 · M6 | RoomBearsLife | **판정 대기** — Life-1~6 (§3.2.2) |
 | 관찰 | C026~C028 | L2 회수 | RoomAnswersWhenAsked | 닫힘 — 결정 대기 일곱 |
 | 요구와 가능성 | C029~C031 | L2 · M7 | RoomAsksForPossibilities | **판정 대기** — Access-1~5 (§3.2.3) |
-| 방은 기억하고 때가 되면 내민다 | C034~C037 | L2 Foundation | RoomRemembersAndOffers (C034 만 옛 공정) | **진행** — C034 · C035 닫힘 · C036 다음 (§3.4) |
+| 방은 기억하고 때가 되면 내민다 (**기반 묶음**) | C034~C037 | L2 Foundation | RoomRemembersAndOffers (C034 만 옛 공정) | **진행** — C034 · C035 닫힘 · C036 다음 (§3.4) · 닫는 것은 기반 검토 |
 
 옛 공정에서 Play 문서까지만 서고 Cycle 이 시작되지 않은 둘(3층 편성과 무대의 한 명 · Rooms GAP 회수)은 묶음이 아니다 —
 그 기획서를 새 공정으로 다시 자른다 ([DESIGN.md §5](DESIGN.md)).
@@ -279,52 +282,65 @@ Cycle 셋이 닫혔다. 관찰 항목 열아홉 가운데 그림과 시나리오
 
 spec 이 침묵해 **테스트가 판정 방식을 스스로 정한 자리**(Cycle 마다 5~12 건)는 여기 옮기지 않는다 — 각 시나리오 테스트의 단언과 마감 커밋이 그 선택을 적고 있다. 결정이 걸린 것만 올린다.
 
-### 3.4 진행 중 — 방은 기억하고 때가 되면 내민다 (L2 Foundation · C034~C037)
+### 3.4 진행 중 — 방은 기억하고 때가 되면 내민다 (L2 Foundation · C034~C037 · **기반 묶음**)
 
 ```text
-상태        묶음 승인 (Q1~Q9 제안대로 · 방향: 컨텐츠 층 전까지 기반 집중 — 컨텐츠는 기반을 표현할 예제만) · C034 닫힘 (main) · C035 닫힘 (합침 대기) · C036 · C037 spec 초안
-Cycle       C034 방이 기억한다 → C035 조건은 하나의 형이다 → C036 방이 기회를 내민다 → C037 때가 있는 기회 (마지막 — 뒤에 AI 예심)
+상태        묶음 승인 (Q1~Q9 제안대로 · 방향: 컨텐츠 층 전까지 기반 집중 — 컨텐츠는 기반을 표현할 예제만) · C034 · C035 닫힘 (main) · C036 · C037 spec 초안(기반 형식)
+Cycle       C034 방이 기억한다 → C035 조건은 하나의 형이다 → C036 방이 기회를 내민다 → C037 때가 있는 기회 (마지막 — 뒤에 AI 기반 예심 → Human 기반 검토)
 기획서      L2-World-Foundation · L2-World-Time 2.6~2.7 · L2-World-Access §4.3
+닫는 것     기반 검토 (Design-CycleExecutionWorkflow §21) — 제공 · 작동 · 손잡이. 경험(판의 문구 · 표기 · 읽히는가)은 판정하지 않는다 → 손잡이로 내려가
+           그 축을 처음 쓰는 컨텐츠 묶음이 판정한다 (DESIGN §3 Foundation "남은 것")
 ```
 
-관찰 항목 (AI 예심 전 — C037 뒤에 질문 대여섯으로 압축된다. 지금 답할 필요는 없고, 걸어 보다가 어긋나면 그 줄에 적어 둔다):
+기반 검토 항목 (AI 기반 예심 전 — C037 뒤에 기반 질문 서넛으로 압축된다. 형식: 모듈 · **제공**(계약이 codemap 어디에) · **작동**(무엇이 단언하나) ·
+**손잡이**(컨텐츠가 코드 없이 바꾸는 자리 — 현재 표는 [codemap/CONTENT.md 경험 손잡이](../codemap/CONTENT.md)) · 판정[ ]):
 
 ```text
 C034 — 방이 기억한다
-[ ] X-① 한 번도 캐지 않은 원천을 지목하면(Alt+클릭) 판에 「기억」 줄이 아예 없다 — 0 을 말하지 않는다
-        HKT_SPAWN_REGION=FOREST_EDGE HKT_SPAWN=-6.4,6 HKT_NPCS=none · 그림 C034 X-01
-[ ] X-② 세 번 캐(E) 고갈시킨 뒤 같은 원천을 지목하면 「기억 3번 캐였다 · 마지막 고갈 N초 전」 · 그림 C034 X-02
-[ ] X-③ 60 세계 초를 기다려 되돌아온 뒤 — 다시 캘 수 있는데(「할 수 있는 것: 채취」) 「기억」 줄은 X-02 와 같다 · 그림 C034 X-03
-[ ] X-④ 내가 선 자리의 판에 「기억 뒤척임 N번 · 깨어남 N번 · 천공고래 N번 지났다 (마지막 N초 전)」이 선다 — 셋 다 관찰자가 한 일이 아니다.
-        HKT_CLOCK=TURN HKT_DISTURBANCE=WHITE_KING_DOMAIN:300 HKT_PRESENCE=SKY_WHALE_ROUTE · 그림 C034 X-04
-[ ] X-⑤ 아무 일도 없던 방(미로)은 소란 · 규칙 · 압력이 다 서는데 「기억」 줄만 없다 · 그림 C034 X-05
-[ ] X-⑥ 뒤척임이 발자국과 캔 자국을 묻어도 셈은 그대로다 (그림 없음 — 촬영이 뒤척임을 일으킬 수 없다 §5 · 시나리오 S-212~S-216 이 증거)
-[ ] X-⑦ 세계를 저장하고 되살려도 셈이 그대로다 · 옛 스냅샷은 되살아나지 않는다 (그림 없음 · 시나리오 S-222~S-224)
+[ ] F-① history 형 · recordMemory        제공 CONTENT.md world/semantic/region-state.ts (RegionHistory · RULE-REGION-MEMORY-001)
+                                        작동 c034 S-203~S-208(셈 다섯 자리 · 경계 셋) · S-212~S-216(뒤척임이 못 묻는다) · S-222~S-224(저장 · 되살림) · ㊸ memory-refs(engine memory.spec)
+                                        손잡이 — (셈의 종류는 형이다 · 늘리는 것은 코드)
+[ ] F-② 수명 표 PERSISTENCE_TABLE          제공 CONTENT.md world/semantic/persistence.ts (ERASER_* 다섯)      작동 ㊼ persistence-summary (engine memory.spec)
+                                        손잡이 State 경로마다 지우개 한 줄 (데이터)
+[ ] F-③ 투영 memory (원천 · 방)            제공 CONTENT.md protocol/gameview.ts (SourceMemoryView · RegionMemoryView) · RULE-OBSERVE-MEMORY-001
+                                        작동 c034 봉투 단언 (S-205~S-207 — 없는 방은 자리가 없다)                              손잡이 —
+[ ] F-④ 판의 「기억」 줄                     제공 view/code-text.ts(기억의 말) · view/place-reading.ts(방의 기억 줄) · target-frame(원천의 기억 줄)
+                                        작동 예제 그림 C034 X-02(원천 · 「3번 캐였다 · 마지막 고갈 N초 전」) · X-04(방 · 뒤척임 · 깨어남 · 지나감) · X-01/X-05(없으면 줄 없음)
+                                        손잡이 문구 · 숫자 표기 · 어느 셈을 세우나(깨어난 시각 · 고갈 횟수는 봉투에 있고 표가 안 세운다) · 순서 — 전부 view 표
 
 C035 — 조건은 하나의 형이다
-[ ] X-① 문 · 원천 · 결속 · 위상이 C034 까지의 세계와 한 값도 다르지 않다 — 철 넷 × 낮밤 둘 (그림 없음 — 회귀는 시나리오 S-245 · S-249 · S-250 · S-252 · S-264~S-267 이 증거)
-[ ] X-② `npm run world:check` 에 ㊹ `condition-refs` 가 선다 (마흔여섯 · 자리 30 · 잎 31 · 통과). 유령 ref 는 fail (그림 없음 · S-254~S-257)
-[ ] X-③ 숲 가장자리 비늘 자리를 지목(Alt+클릭)하면 — 고래가 한 번도 지나지 않은 세계에서는 「아직 그때가 아니다」 곁에 **「지나간 것이 있어야 한다」** 가 서고,
-        고래가 한 번 지난 뒤(HKT_PRESENCE=SKY_WHALE_ROUTE · 약 4 분)에는 그 줄이 없다. 채취 · 되돌아옴은 그대로다.
-        HKT_SPAWN_REGION=FOREST_EDGE HKT_SPAWN=-14.4,-12 HKT_NPCS=none (지나기 전 · 마디 0) / HKT_SPAWN=-0.4,6 (지난 뒤 · 마디 2) · 그림 C035 X-03a · X-03b
-[ ] X-④ `npm run world:observe -- --report` 의 열쇠 × 자물쇠 표 곁에 **조건 표**(어디에 · target · query · operator value · qualifier · 지금)가 선다 — 갓 선 세계의 값.
-        판정 불가(actor capability)가 거짓으로 눌리지 않고 「판정 불가」 로 적힌다 (그림 없음 · 도구 출력 · S-268)
+[ ] F-① Condition 형 · evaluateCondition   제공 ENGINE.md world-authoring/condition.ts (Target 여덟 · Query 다섯 · Operator 아홉 · Qualifier · all/any · 판정 셋)
+                                        작동 engine/world-authoring/tests/condition.spec.ts · c035 SPEC-001(판정 불가는 거짓이 아니다) · SPEC-007 명사 0 (grep)   손잡이 —
+[ ] F-② 어댑터 넷 (읽기만)                  제공 CONTENT.md world/semantic/condition.ts (lockCondition · sourceOccurrenceCondition · phaseSeasonCondition · lifeRequirementCondition — RULE-CONDITION-READ-001)
+                                        작동 S-245 · S-249 · S-250 · S-252 · S-264~S-267 (철 넷 × 낮밤 둘 — 판정 함수 넷과 한 값도 다르지 않다)
+                                        손잡이 조건 값은 넷의 데이터 그대로 (Lock.requires · ResourceSourceSpec.occurrence · RegionPhases.seasons · LifeSite.requires)
+[ ] F-③ 검사 ㊹ condition-refs             제공 tools world:check (CheckCondition · WORLD_CHECK_CONDITION 계약)      작동 S-254~S-257 (유령 ref · 없는 속성 · 어긋난 qualifier 가 fail)
+                                        손잡이 어휘 worldConditionVocabulary (Target 종류마다 실제 id · query 마다 허용 속성 — 데이터)
+[ ] F-④ history Target 읽기 · 기억 조건    제공 CONTENT.md condition.ts (worldConditionReader · RULE-CONDITION-HISTORY-001 · sourceMemoryConditionCodes → needs-passage)
+                                        작동 c035 SPEC-006 (지나기 전 거짓 · 지난 뒤 참 · 되살려도 같다 · phase 는 그대로) · 예제 그림 C035 X-03a/X-03b
+                                        손잡이 원천의 condition 한 줄 (regions/resource-ecology ResourceSourceSpec.condition) · 코드 → 문구 (code-text)
+[ ] F-⑤ observe 조건 표                     제공 tools world:observe --report (어디에 · target · query · operator value · qualifier · 지금)      작동 S-268      손잡이 —
 ```
 
-결정 대기 (C034 가 남긴 것 — Q9 의 답 "제안대로" = 이 묶음의 판정 때 함께 답한다):
+결정 대기 — **계약 결정만** (Q9 의 답 "제안대로" = 이 묶음의 기반 검토 때 함께 답한다. 경험 값은 여기 두지 않는다 — 아래 "손잡이로 내린 것"):
 
 ```text
 먹혀서 고갈된 것도 고갈로 센다 — 광식충이 뿌리혹을 먹어 비운 자리가 depletedTimes 를 올린다 (takenTotal 은 아니다). 캔 것만 세면 같은 사실을
-  세계가 두 말로 하게 된다. 그대로 두는가                                                                                 C034
-뒤척임은 밝히지 않은 방도 센다 — 자국을 묻는 것은 밝힌 방만이지만 셈은 방 열셋 전부가 올린다 (뒤척임은 세계의 순간)                     C034
-판이 셈을 아라비아 숫자로 적는다 (「3번 캐였다」) — 셈에 상한이 없어 세는 말의 표를 두면 큰 수에서 말을 잃는다                          C034
-판이 깨어난 시각과 고갈된 횟수를 말하지 않는다 — 세계는 둘 다 싣는다. 판이 세로로 길면 몸을 가린다는 부채 때문에 마디를 늘리지 않았다. 세울 것인가   C034
+  세계가 두 말로 하게 된다. 그대로 두는가 (history 형의 뜻)                                                                C034
+뒤척임은 밝히지 않은 방도 센다 — 자국을 묻는 것은 밝힌 방만이지만 셈은 방 열셋 전부가 올린다 (뒤척임은 세계의 순간 — history 형의 뜻)            C034
 (시간과 위상의 결정 대기 "고래의 시간표" 에 부연) C034 의 기억이 그것을 세어 보였다 — 첫 바퀴에 백왕령의 고래가 두 번 선다: t=0 의 고요 낮과 뒤척임의 새벽이 둘 다 시간표에 든다
 판정 불가는 거짓이 아니다 — 자리만인 조건(actor · player · faction · capability · knowledge · chance)을 all 로 묶으면 그 집합이 「판정 불가」 로 오른다.
   문의 열림은 여전히 time · state 만 정하므로(2층은 표시까지) 세계의 답은 달라지지 않지만, C036 의 availability 가 판정 불가를 어떻게 읽을지(열지 않는다 = 닫힘으로 읽는가)는
-  그때 정한다                                                                                                       C035
-비늘의 기억 조건은 「지나간 것이 있어야 한다」 로 말해질 뿐 열고 닫지 않는다 — 한 번 지난 뒤에는 다시 오지 않는 동안에도 그 줄이 없다 (과거의 사실).
-  「아직 그때가 아니다」(지금의 사실)와 나란히 서는 것이 읽히는가                                                             C035
+  그때 정한다 (Condition 형의 경계)                                                                                    C035
+```
+
+손잡이로 내린 것 (경험 값 — Human 결정이 아니라 데이터 자리다. 기본값은 지금 코드의 것 · 판정은 이 축을 처음 쓰는 컨텐츠 묶음 · 자리는 codemap 손잡이 표):
+
+```text
+판이 셈을 아라비아 숫자로 적는다 (「3번 캐였다」) — 세는 말의 표를 두는가는 view 표의 일 (code-text 기억의 말)                                C034
+판이 깨어난 시각과 고갈된 횟수를 말하지 않는다 — 봉투는 둘 다 싣는다. 어느 셈을 세우나는 view 표의 일 (place-reading · target-frame)             C034
+비늘의 기억 조건 「지나간 것이 있어야 한다」(과거의 사실)가 「아직 그때가 아니다」(지금의 사실)와 나란히 서는 것이 읽히는가 — 코드 둘의 문구 · 순서는
+  code-text 의 일 · 읽히는가는 컨텐츠 묶음의 판정                                                                          C035
 ```
 
 다음 Cycle 로 (C034 · C035 마감이 남긴 것 — C036 spec 이 동결할 때 하나씩 판정한다):

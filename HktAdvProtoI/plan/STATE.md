@@ -15,15 +15,16 @@
 
 | 트랙 | 주체 | 지났다 | **지금** | 다음 | 그 다음 |
 |---|---|---|---|---|---|
-| Human — 지목 · 승인 · 판정 · 주입 | Human | L0 · L1 · L2 아홉 · M1~M8 · L7 주입 · C001~C031 의 묶음 여섯 판정 반영 · Foundation 지목 · Foundation 묶음 승인 (Q1~Q9 제안대로 · 기반 집중) | **판정 셋** — 협곡 · 생명 · 요구와 가능성 · **지목** — 다음 묶음(후보 2 편성과 무대 · 3 Rooms GAP — 병행 가능) | 판정 답의 반영 · Foundation 실주행 판정(C037 뒤) | 3층 나머지 절반 주입(후보 2 판정 뒤) · HundredRooms 미지 백 줄의 이름 · 4~7층은 층이 열릴 때 |
-| Cycle — 묶음 제안 → spec → 실현 → 마감 | AI (advprotoi-cycle) | C001~C034 (묶음 아홉 + Foundation 의 첫 Cycle — 옛 공정) · Foundation 묶음 승인 · C035 (닫힘 — 합침 대기) | **C036** — 방이 기회를 내민다 (초안을 「다음 Cycle 로」 로 손봐 동결 → 실현) | C037 → AI 예심 | 다음 묶음 (C038~) |
+| Human — 지목 · 승인 · 판정 · 주입 | Human | L0 · L1 · L2 아홉 · M1~M8 · L7 주입 · C001~C031 의 묶음 여섯 판정 반영 · Foundation 지목 · Foundation 묶음 승인 (Q1~Q9 제안대로 · 기반 집중) | **판정 셋** — 협곡 · 생명 · 요구와 가능성 · **지목** — 다음 묶음(후보 2 편성과 무대 · 3 Rooms GAP — 병행 가능) | 판정 답의 반영 · Foundation **기반 검토**(C037 뒤 — 걷지 않는다 · 계약 · 경계 · 손잡이) | 3층 나머지 절반 주입(후보 2 판정 뒤) · HundredRooms 미지 백 줄의 이름 · 4~7층은 층이 열릴 때 |
+| Cycle — 묶음 제안 → spec → 실현 → 마감 | AI (advprotoi-cycle) | C001~C034 (묶음 아홉 + Foundation 의 첫 Cycle — 옛 공정) · Foundation 묶음 승인 · C035 (닫힘) | **C036** — 방이 기회를 내민다 (기반 형식 초안을 「다음 Cycle 로」 로 손봐 동결 → 실현) | C037 → AI 기반 예심 | 다음 묶음 (C038~) |
 | ENGINE — 게임 명사 없는 기구 | AI | Region 작성기 T1~T6 | **T3 ecology 산출** · 갈래별 땅 묶음 templates | HundredRooms 묶음의 전제 | 큰 Region 이 올 때 chunk 적재 |
 
 ```text
 순서 — 트랙 사이의 의존 (왼쪽이 먼저 · 병행은 나란히)
 
-  (지금) Foundation 묶음 — C034 · C035 닫힘 ──→ C036(다음) → C037 ──→ AI 예심 ──→ Human 실주행 판정 ──→ 2층 Foundation 닫힘
-                                                                                                                └─ 아니오 → GAP 주입 → 새 묶음/Cycle
+  (지금) Foundation 묶음(기반) — C034 · C035 닫힘 ──→ C036(다음) → C037 ──→ AI 기반 예심 ──→ Human 기반 검토(계약 · 경계 · 손잡이 — 걷지 않는다) ──→ 2층 Foundation 닫힘
+                                                                                                    └─ 아니오 → ENGINE/DESIGN GAP → 이 묶음에 Cycle 추가
+                                                                                                    경험(문구 · 표기 · 읽히는가)은 손잡이로 → 그 축을 처음 쓰는 컨텐츠 묶음이 판정
   Human 기획서 지목(후보 2 · 3) ──→ AI 묶음 + Cycle 전부의 spec (C038~) ──→ Human "C### 진행" ──→ Cycle → … ──→ 예심 ──→ 판정
   Human 판정 협곡 · 생명 · 요구와 가능성 ──→ 예: 행 닫힘 / 아니오: GAP 주입 ──→ 묶음 ──→ 판정
   ENGINE T3 ecology ──→ HundredRooms 묶음(Human 이름) ──→ "C### 진행" ──→ Cycle (코드 diff 0)
@@ -34,6 +35,7 @@
 
 한 Cycle = 브랜치 `cycle/C###` = 세션 하나. **말할 것: "<기획서> 로 묶음 잘라"**(다음 묶음 제안 — 후보 2 · 3) · 판정 셋의 답. C036 · C037 은 게이트 없이 앞 Cycle 의 마감을 받아 이어진다.
 `advprotoi-cycle` 이 묶음 → 명세 → 실현 → 마감을 이어 돌리고 UNRESOLVED · GAP 에서만 멈춘다.
+묶음의 종류는 행이 가른다 — 기반 묶음(L<N>)은 제공 · 작동 · 손잡이로 닫고 경험은 데이터로 내린다 · 컨텐츠 묶음(M<N>)은 실주행으로 닫는다 ([Design-CycleExecutionWorkflow §21](../design/Design-CycleExecutionWorkflow.md)).
 
 ## 1. design 관점 — 어떤 기획서가 얼마나 반영되었는가
 
@@ -61,7 +63,7 @@
 | 빙결 협곡 (M5) | C019~C021 | **판정 대기** — Frost-1~6 |
 | 생명 · 붉은 알집 (M6) | C022~C025 | **판정 대기** — Life-1~6 |
 | 요구와 가능성 (M7) | C029~C031 | **판정 대기** — Access-1~5 |
-| 방은 기억하고 때가 되면 내민다 (Foundation) | C034~C037 | **진행** — C034 · C035 닫힘 · C036 다음 · C037 초안 |
+| 방은 기억하고 때가 되면 내민다 (Foundation · 기반 묶음) | C034~C037 | **진행** — C034 · C035 닫힘 · C036 다음 · C037 초안 · 닫는 것은 기반 검토(경험 판정 없음) |
 | (다음) 후보 2 · 3 | C038~ | **제안 전** — Human 지목 대기 |
 
 ## 3. cycle 관점 — 지금 돌 수 있는 것
@@ -70,7 +72,7 @@
 
 | 레인 | 지금 | 기다리는 것 |
 |---|---|---|
-| Foundation | C036 (C035 닫힘 — 합침 대기) | C035 의 합침 |
+| Foundation (기반) | C036 — 기반 형식 초안 동결 → 실현 | — |
 | (다음 묶음) | 묶음 제안 + spec 들 | Human 이 기획서를 지목 |
 | ENGINE B | T3 ecology · templates | — |
 

@@ -2,6 +2,7 @@
 
 묶음 「방은 기억하고 때가 되면 내민다」 의 셋째 Cycle — 묶음 블록은 [C035 spec](../C035-one-shape-of-condition/spec.md) 머리에 있다.
 **초안** — C035 마감이 남긴 「다음 Cycle 로」 를 받아 자기 차례("C036 진행")에 동결한다. 묶음 질문 Q3 · Q4 · Q5 의 답이 이 spec 에 든다.
+**기반 Cycle** (행 L2 · Design-CycleExecutionWorkflow §21) — 닫는 것은 제공 · 작동 · 손잡이다. 경험(판의 문구 · 줄의 순서 · 읽히는가)은 판정하지 않고 Data Knobs 로 내린다.
 
 ```text
 CYCLE          C036-a-room-offers
@@ -11,16 +12,28 @@ SOURCE         L2-World-Foundation §3 G2 · G3 · G11 · §4.5 Opportunity · �
 SELECTED_FROM  묶음 Cycle 목록 3 — "방이 기회를 내민다"
 ```
 
-## Playable Goal
+## Foundation Goal
 
-숲 가장자리에 서서 자리를 지목하면 판의 「할 수 있는 것」 줄이 **기회 데이터**에서 온다 — 「채취 · 밑동의 허물」 · 「채취 · 비늘」 · 「건너기 · 숲 안쪽으로」 —
-그리고 각 줄이 언제 · 어떻게 알게 되는가(discovery)를 진다. 걸어가 거절당하기 전에 그 방이 무엇을 내미는지 안다. 세계가 판정하는 것은 지금과 같다 —
-기회는 판정하지 않고 **이름 · 발견 · 남는 것**만 붙는다. `world:check` ㊻ 이 기회가 하나도 없는 방을 보인다.
+- **기구** (engine) — 검사 ㊺ `opportunity-refs`(참조 무결 · op 표 대조 · possibleActions 가 실제 role) · ㊻ `opportunity-summary`(방마다 기회 수 · discovery 별 · Event 수 · 관계 다섯 갈래 — 판정 없음).
+  계약 목록(op 표 · Interaction role · discovery 어휘)은 컨텐츠가 건넨다 — 게임 명사 0.
+- **계약** (컨텐츠가 데이터로 채운다) — Opportunity 형(§4.5 항목 여덟 · 둘은 자리만) · `RegionSpec.opportunities`(기본형 밖의 것만) · 원천 → 채집 기회 **기본형 유도**(`opportunitiesOf(region)`) ·
+  원천 역할 → discovery 기본형 표(Q3) · Mutation op 이름 표(G6) · `InteractionView.opportunity { id, discovery }`. 기회는 **판정하지 않는다** — 이름 · 발견 · 남는 것만 붙는다.
+- **예제** (이 세계의 데이터 한 줄) — 숲 가장자리: 원천 여덟의 채집 기회(유도 · TRACE) · 비늘(데이터 · SIGNAL · availability = C035 의 기억 조건) · Lock 있는 문의 cross 기회(Q4).
+  판의 「할 수 있는 것」 줄이 그 데이터에서 선다. 백왕령은 건너기뿐 — ㊻ 이 "기회 1 · gather 0" 으로 보인다.
 
-## Experience Intent
+## Data Knobs
 
-- Start — 무엇을 할 수 있는지는 원천에 다가가 「채취 · 너무 멀다」 를 보아야 안다. 방은 내미는 것이 없다.
-- End — 방이 내민다. 어떤 것은 보이고(VISIBLE) 어떤 것은 흔적이 말하고(TRACE) 어떤 것은 신호로만 온다(SIGNAL) (묶음 Breath 의 "할 수 있는 것이 판에 선다").
+컨텐츠가 코드 없이 바꾸는 것 — 자리가 함수 안의 상수면 spec 미달이다. 기본값은 이 Cycle 의 예제다.
+
+```text
+손잡이                                          자리                                                          기본값
+어느 방이 무엇을 내미는가 (기본형 밖의 기회 · 덮어쓰기)   RegionSpec.opportunities (content/regions/<방>.ts)                  FOREST_EDGE 비늘 · 문의 cross 만
+원천 역할 → discovery 기본형                          content/regions 의 표 하나 (역할 다섯 → discovery)                    baseline·by-product·risk·conditional → TRACE · world-event → SIGNAL (Q3)
+cross 기회를 세우는 문                               유도 — Lock 이 있는 문 전부 · 데이터로 빼거나 더한다 (같은 id 는 데이터가 이긴다)   Lock 있는 문 전부 (Q4)
+Mutation op 표 (군 · op · 지금 그것인 Transition)       content 데이터 (§4.2 표 그대로)                                       기획서 §4.2
+discovery 별 판의 표현 · 줄 형식 · 순서 · HIDDEN 을 숨김   content/view 표 · code-text                                         C027 의 줄 형식 그대로 · HIDDEN 만 숨김
+기회 표 · 수명 표의 열                                tools observe 보고 (읽기 전용)                                        —
+```
 
 ## World Change
 
@@ -38,11 +51,31 @@ SELECTED_FROM  묶음 Cycle 목록 3 — "방이 기회를 내민다"
 
 ## Observable Result
 
-1. 숲 가장자리의 판 「할 수 있는 것」 — 원천 여덟의 채집 기회(TRACE) · 비늘(SIGNAL) · 문의 건너기(cross — Lock 이 있는 문만 · Q4) 가 기회 데이터에서 선다. 줄 형식은 C027 과 같다.
-2. 백왕령의 판 — 「할 수 있는 것」 이 건너기뿐이다 (원천이 없는 방 · 기획서 "결핍이 아니라 조건"). ㊻ 이 "기회 1 · gather 0" 으로 보인다.
-3. 같은 원천에 다가가 캐면 지금과 똑같이 된다 — 거절 사유 · 거리 · 도구 · phase 판정이 한 값도 다르지 않다. 기회의 이름이 그 판정에 붙어 있을 뿐이다.
-4. `world:check` 마흔여덟 — ㊺ 통과 · ㊻ 요약. 일부러 없는 원천을 target 으로 한 기회를 넣으면 ㊺ fail. op 표 밖의 이름을 outcomes 에 넣으면 fail.
-5. `world:observe --report` 기회 표 · 수명 표.
+도구 · State 가 먼저다 — 화면은 예제 하나.
+
+1. `world:check` 마흔여덟 — ㊺ 통과 · ㊻ 요약(방마다 기회 수 · discovery 별 · Event 0 · 관계 갈래). 일부러 없는 원천을 target 으로 한 기회를 넣으면 ㊺ fail. op 표 밖의 이름을 outcomes 에 넣으면 fail.
+2. `world:observe --report` 기회 표(행이 방 · 열이 기회 — discovery · Event 여부 · target · yield) · 수명 표(C034 의 PERSISTENCE_TABLE).
+3. 관찰 봉투 — harvest-source · transit-connector Interaction 에 `opportunity { id, discovery }` 가 실린다. move-to · skill 에는 없다.
+4. 같은 원천에 다가가 캐면 지금과 똑같이 된다 — 거절 사유 · 거리 · 도구 · phase 판정이 한 값도 다르지 않다 (회귀). 기회의 이름이 그 판정에 붙어 있을 뿐이다.
+5. 예제 화면 — 숲 가장자리의 판 「할 수 있는 것」 이 기회 데이터에서 선다: 원천 여덟의 채집(TRACE) · 비늘(SIGNAL) · Lock 있는 문의 건너기(cross). 줄 형식은 C027 과 같다.
+   백왕령은 건너기뿐 (원천이 없는 방 · 기획서 "결핍이 아니라 조건"). 그림은 이 둘.
+
+## Module Check
+
+모듈마다 무엇이 단언하나 — 하나라도 비면 "작동" 미달.
+
+```text
+모듈                                     단언
+검사 ㊺ ㊻ (engine)                       engine/world-authoring/tests (check) — 통과 · 유령 target fail · op 표 밖 fail · 두 번 돌려도 같다 · 계약 목록 없이는 absent
+Opportunity 형 · 기본형 유도 (world)        시나리오 SPEC-001 · SPEC-002 (원천마다 하나 · 같은 id 는 데이터가 이긴다)
+RULE-OPPORTUNITY-NAME-001 (world)          SPEC-003 + 회귀 (available/reason 불변 — C011~C014 · C029 시나리오 재실행)
+관찰 봉투 opportunity (protocol)            SPEC-003 의 봉투 단언 (있는 행동 · 없는 행동)
+판의 「할 수 있는 것」 (view)                content/view/tests — discovery 별로 선다 · HIDDEN 은 안 선다 · 줄 형식 · 순서는 C027 과 같다
+op 이름 표 (data)                          SPEC-005 (Transition 다섯 군이 표 안이다 — 코드는 안 옮겼다)
+observe 기회 표 · 수명 표 (tools)            tools/world-editor/tests (observe) — 열 · 두 번 돌려도 같다
+손잡이                                     SPEC-009
+명사 0                                    SPEC-008 (grep)
+```
 
 ## Reuse
 
@@ -79,7 +112,10 @@ Added:
   코드는 옮기지 않는다. 검사 ㊺ 가 outcomes.world 의 op 를 이 표로 대조한다.
 - SPEC-006 검사 ㊺ — availability 의 Condition 참조(㊹ 재사용) · target.ref 실재 · outcomes.world 의 op 가 표 안 · possibleActions 가 실제 role. 어느 하나 어긋나면 fail.
 - SPEC-007 검사 ㊻ — 방마다 기회 수 · discovery 별 수 · Event 수(availability 에 시간 qualifier 가 있는 것 — 이 Cycle 은 0) · 관계 다섯 갈래(공간 · 환경 · 생태 · 사건 · 사회) 목록. 판정 없음 · 두 번 돌려도 같다.
-- SPEC-008 회귀 — 검사 마흔여섯의 답 · hash · 모든 판정이 C035 와 같다. 규칙 코드에 기회의 이름 글자가 없다.
+- SPEC-008 회귀 · 명사 0 — 검사 마흔여섯의 답 · hash · 모든 판정이 C035 와 같다. 규칙 코드 · 검사 ㊺ ㊻ · 유도기에 방 · 원천 · 문 · 기회의 이름 글자가 없다 (grep).
+- SPEC-009 손잡이 (데이터 교체 · 코드 diff 0) — 변형 방 하나(선례 c004 `VARIANT_ROOM`)에 ① 기본형 밖의 기회를 데이터로 더하고 ② 유도된 채집 기회 하나를 같은 id 로 덮어써 discovery 를 바꾸고
+  ③ 역할 → discovery 표의 한 줄을 바꾸면 — 봉투의 `opportunity` · ㊻ 의 수 · 판의 줄이 그것을 따른다. world · view 코드는 한 줄도 바뀌지 않는다.
+  경계 — 표 밖의 discovery 값 · 없는 원천을 가리키는 덮어쓰기는 ㊺ 가 fail 로 잡는다 (조용히 무시하지 않는다).
 
 ## State
 
@@ -111,3 +147,5 @@ interaction.opportunity?          { id, discovery }   — 그 행동이 속한 �
 
 묶음 질문 Q3 · Q4 · Q5 (C035 spec) 의 답이 이 spec 에 든다. 동결은 자기 차례 — C035 마감이 남긴 「다음 Cycle 로」 를 반영한 뒤.
 이 spec 에서 새로 생긴 의미: 없음 (기본형 ① — 기본형 유도의 discovery 는 Q3 · 이름 `gather:<sourceId>` 는 코드의 자리이지 게임 의미가 아니다).
+경험 값은 묻지 않는다 — discovery 별 표현 · 줄의 순서 · 문구는 Data Knobs 의 view 표에 기본값으로 둔다 (판정은 이 축을 처음 쓰는 컨텐츠 묶음).
+계약 결정으로 묻는 것 하나 — **availability 가 「판정 불가」 를 어떻게 읽는가** (C035 결정 대기 · 기본형: 닫힘으로 읽지 않는다 — 판정 불가는 "이 층이 답하지 않는다" 이고 기회는 판정하지 않으므로 값이 없다). 기반 검토 때 답한다.

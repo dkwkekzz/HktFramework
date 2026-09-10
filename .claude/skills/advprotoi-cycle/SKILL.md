@@ -1,6 +1,6 @@
 ---
 name: advprotoi-cycle
-description: HktAdvProtoI 의 하나뿐인 공정 스킬 — ① 묶음("<기획서> 로 묶음 잘라"): 기획서(content/roadmap/L<N>·M<N>·design/)에서 플레이 하나를 잘라 첫 Cycle 의 cycles/C###/spec.md 머리에 묶음 블록(Goal·Intent·Breath·Cycle 목록·미지·질문)을 쓰고 같은 파일에 첫 spec 을, 뒤 Cycle 들의 spec 은 자기 폴더에 초안으로 함께 쓴다 — UNRESOLVED 에 묶음 질문 전부 · Human 반환. ② Cycle("C### 진행" = 묶음 승인 + spec 동결): 실현(관찰 계약 + 기구/의미 분해 → E ∥ W ∥ V ∥ T fan-out → npm test → 7항) → 마감(촬영 shots/ · plan/ 기입 · 커밋 · 그림 보고). ③ 예심(묶음의 마지막 Cycle 뒤): 관찰 항목을 판정 질문 대여섯으로. Play 문서는 없다 — 의미의 출처는 기획서 하나. 정지는 UNRESOLVED 와 DESIGN/ENGINE GAP 뿐. 사용자가 "묶음 잘라 / <기획서> 로 시작 / C### 진행 / 다음 Cycle 진행 / Cycle 돌려 / AdvProtoI 진행 / 예심" 을 요청하면 사용.
+description: HktAdvProtoI 의 하나뿐인 공정 스킬 — ① 묶음("<기획서> 로 묶음 잘라"): 기획서(content/roadmap/L<N>·M<N>·design/)에서 플레이 하나(컨텐츠 묶음 M<N>) 또는 축 하나(기반 묶음 L<N> — 기구 + 계약 + 예제)를 잘라 첫 Cycle 의 cycles/C###/spec.md 머리에 묶음 블록(Goal·Intent·Breath 또는 손잡이·Cycle 목록·미지·질문)을 쓰고 같은 파일에 첫 spec 을, 뒤 Cycle 들의 spec 은 자기 폴더에 초안으로 함께 쓴다 — UNRESOLVED 에 묶음 질문 전부 · Human 반환. ② Cycle("C### 진행" = 묶음 승인 + spec 동결): 실현(관찰 계약 + 기구/의미 분해 → E ∥ W ∥ V ∥ T fan-out → npm test → 7항) → 마감(촬영 shots/ · plan/ 기입 · 커밋 · 보고). 기반 Cycle 은 제공 · 작동 · 손잡이(경험은 데이터로)로 닫고 경험을 판정하지 않는다. ③ 예심(묶음의 마지막 Cycle 뒤): 컨텐츠 묶음은 관찰 항목을 판정 질문 대여섯으로 · 기반 묶음은 기반 검토 항목을 기반 질문 서넛으로. Play 문서는 없다 — 의미의 출처는 기획서 하나. 정지는 UNRESOLVED 와 DESIGN/ENGINE GAP 뿐. 사용자가 "묶음 잘라 / <기획서> 로 시작 / C### 진행 / 다음 Cycle 진행 / Cycle 돌려 / AdvProtoI 진행 / 예심 / 기반 검토" 를 요청하면 사용.
 ---
 
 # HktAdvProtoI Cycle — 묶음 → 명세 → 실현 → 마감 → 예심
@@ -15,7 +15,16 @@ description: HktAdvProtoI 의 하나뿐인 공정 스킬 — ① 묶음("<기획
 ```text
 "<기획서> 로 묶음 잘라"   §0.5 묶음 — 기획서에서 플레이 하나를 잘라 첫 Cycle 의 spec 머리 블록 + 첫 spec + 뒤 Cycle 의 spec 초안을 쓰고 Human 에게 올린다
 "C### 진행"              §0~§3 Cycle — (첫 Cycle 이면 묶음 승인이자) spec 동결 → 실현 → 마감
-"예심" / 마지막 Cycle 합침   §3 끝 — 묶음의 관찰 항목을 판정 질문 대여섯으로 압축해 Human 에게 청한다
+"예심" / 마지막 Cycle 합침   §3 끝 — 묶음의 관찰 항목을 판정 질문 대여섯으로(컨텐츠 묶음) · 기반 검토 항목을 기반 질문 서넛으로(기반 묶음) 압축해 Human 에게 청한다
+```
+
+**묶음의 종류는 행이 가른다** (원본 §21 — 공정은 하나 · 완료를 재는 것이 다르다). 이 스킬의 모든 절에서 "기반 Cycle" 로 표시된 규칙은 행이 L<N> 일 때만 적용된다.
+
+```text
+기반 묶음   행 = L<N>.  세우는 것은 축 — 게임 명사 없는 기구(engine) + 컨텐츠가 데이터로 채우는 계약 + 그것을 표현할 예제 하나.
+           닫는 것은 셋 — 제공(계약이 codemap 에 섰다) · 작동(모듈마다 테스트 · 검사 · 도구가 단언한다) · 손잡이(경험을 가르는 값 · 문구 · 표시 · 배치가
+           전부 데이터이고 하나를 바꾸면 행동이 따라 바뀐다 — 코드 diff 0). 경험은 판정하지 않는다 — 손잡이로 내려가 그 축을 처음 쓰는 컨텐츠 묶음이 판정한다.
+컨텐츠 묶음  행 = M<N> · 실주행 GAP 회수.  플레이 하나 · Breath · 관찰 항목 · 실주행 판정 — 아래 절의 기본 규칙 그대로.
 ```
 
 Cycle 디렉터리 `cycles/<CycleId>/` 에 두는 것은 둘뿐이다 — `spec.md`(코드 전, 동결) · `shots.json` + `shots/`
@@ -64,9 +73,12 @@ ENGINE GAP       (실현)   기존 engine 계약 변경 필요 → 승인 요청
 기획서     그 절들 (+ 지목한 design/ 문서)   ← 의미의 유일한 출처. 재해석하지 않고 인용한다
 행         L<N> 또는 M<N> (기반 층이면 놓는 미지 M<N> 도 — 이름은 Human)
 Goal       플레이어가 실제로 무엇을 하는지 한 문장 — 완료를 직접 확인할 수 있게
-Intent     Start / End
-Breath     감정 전이 사슬 (강도 숫자 금지)
-Cycle      C### — 한 줄 목표 · spec 경로 (2~4개 · 순서는 의존성 + Breath 의 점진 완성 · 각각 작다/플레이 가능/World 변화 분명/관찰 가능/검증 가능/재사용 가능)
+           기반 묶음: 축 — 무엇이 기구로 서고 컨텐츠가 무엇을 데이터로 주어 그 위에 놓이는가 한 문장 + 그것을 표현할 예제 하나 (이 세계의 데이터 한 줄)
+Intent     Start / End (기반 묶음은 세계 · 컨텐츠 작업의 전후 — "조건이 넷의 모양 → 한 형")
+Breath     감정 전이 사슬 (강도 숫자 금지) — 컨텐츠 묶음
+손잡이     기반 묶음 (Breath 대신) — 이 축 위에서 컨텐츠가 코드 없이 바꿀 수 있어야 하는 것: 값 · 문구 · 표시 · 배치. Cycle 마다의 상세는 spec 의 Data Knobs
+Cycle      C### — 한 줄 목표 · spec 경로 (2~4개 · 순서는 의존성 + Breath 의 점진 완성 · 각각 작다/플레이 가능/World 변화 분명/관찰 가능/검증 가능/재사용 가능.
+           기반 묶음은 축의 의존성 — 각각 기구 하나 또는 계약 하나 + 예제 · 손잡이 SPEC 가능 · 회귀 가능)
 미지       놓는 미지 하나
 검사       (컨텐츠 행이면) 열 질문 ①~⑩ 의 답
 질문       게임 의미 — 수치 · 확률 · 시간 · 범위 · 원리의 확정 · 세계관 사실 · 이름. 묶음 전체의 것 = 첫 spec 의 UNRESOLVED
@@ -99,13 +111,17 @@ Cycle      C### — 한 줄 목표 · spec 경로 (2~4개 · 순서는 의존성
 CYCLE / SOURCE / SELECTED_FROM   Trace 블록 하나 (SOURCE = 기획서 절 + 묶음의 첫 spec · SELECTED_FROM = 묶음 Cycle 목록 항목 또는 "Human")
 
 ## Playable Goal        이번에 성립할 플레이 결과 한두 문장 — 완료를 직접 확인 가능
+   (기반 Cycle: ## Foundation Goal — 기구(engine 에 무엇이) · 계약(컨텐츠가 데이터로 무엇을 채우나) · 예제(이 세계의 데이터 한 줄 — 무엇이 보이나) 세 줄)
 ## Experience Intent    Start / End — 묶음의 Breath 중 이 Cycle 이 만드는 구간
+   (기반 Cycle: ## Data Knobs — 표: 손잡이(컨텐츠가 코드 없이 바꾸는 것) · 자리(어느 파일 · 어느 표) · 기본값. 경험을 가르는 값 · 문구 · 표시 · 배치가 여기 없으면 spec 의 결손)
 ## World Change         세계에서 무엇이 어떻게 변하는가 (번호 목록)
-## Observable Result    화면/상태에서 무엇을 직접 확인하는가 (번호 목록)
+## Observable Result    화면/상태에서 무엇을 직접 확인하는가 (번호 목록 — 기반 Cycle 은 도구 · State(검사 JSON · observe 보고 · 봉투)가 먼저, 화면은 예제 하나)
+   (기반 Cycle: ## Module Check — 표: 모듈(기구 · 어댑터 · 검사 · 투영 · 표 · 도구) · 무엇이 단언하나(engine 테스트 · 시나리오 SPEC · world:check · 도구 테스트 · grep))
 ## Reuse                Existing(그대로 쓴다) / Added(이 Cycle 이 세운다 — World · Protocol · Data · View · Engine)
 ## Out of Scope         이번에 하지 않는 것과 그것을 받을 Cycle
 ## SPEC                 SPEC-001 … — World Change·Observable Result 를 참·거짓을 가릴 문장으로 폐쇄.
-                        각 항은 조건 하나 + 기대 하나, 경계(성립하지 않는 경우)도 최소 한 항
+                        각 항은 조건 하나 + 기대 하나, 경계(성립하지 않는 경우)도 최소 한 항.
+                        기반 Cycle 은 반드시 둘을 둔다 — 손잡이 SPEC(Data Knobs 하나를 데이터로 바꾸면 행동이 따라 바뀐다 · 코드 diff 0) · 명사 0 SPEC(engine 과 규칙 코드에 게임 명사 글자가 없다 · grep)
 ## State                존재와 상태를 점 경로로 (Wolf.knowledge.fireDanger 식) + 이 Cycle 의 데이터 값 표
 ## Rule                 R1, R2… — IF <상태 + 사건 + 조건> THEN <새 상태>. Design 의 언어와 직접 대응.
                         기존 Rule 은 CHANGED(전제/전이 변경) / AFFECTED(대상 집합만) 로 표시
@@ -131,6 +147,8 @@ CYCLE / SOURCE / SELECTED_FROM   Trace 블록 하나 (SOURCE = 기획서 절 + �
 - **금지** (원본 §6) — Service · Repository · Manager · Component 같은 코드 구조를 여기 쓰지 않는다.
   모든 State/Rule 은 컨텐츠의 의미다 — 기반(engine)은 게임 명사를 모른다. 기구 추출은 2 의 몫.
 - 컨텐츠 층 묶음(미지)의 Cycle 이면 README §4 열 질문의 답이 묶음 블록에 있는지 본다 — 없으면 UNRESOLVED.
+- **기반 Cycle 의 경험 값은 UNRESOLVED 가 아니다** — 문구 · 숫자 표기 · 무엇을 판에 세우나 · 임계 · 자락 크기처럼 경험을 가르는 값은 Human 에게
+  묻지 않고 **Data Knobs 에 자리와 기본값**으로 둔다 (기본값은 기존 코드의 값 · 기획서가 준 값 · 없으면 가장 단순한 것). 묻는 것은 계약 결정(형 · 축 · 경계)뿐.
 
 `UNRESOLVED = 없음` → **동결**. 이후 아무도 고치지 않는다 (의미를 바꿔야 하면 새 Cycle). 바로 2 로.
 `UNRESOLVED > 0` → 목록을 Human 질의로 올리고 **정지**. Human 답을 (Design 에 반영됐음을 확인한 뒤)
@@ -196,14 +214,16 @@ Agent 별 규칙:
   솔버를 조합한다. **Rule ↔ 코드 Trace 는 코드 주석** — 각 R# 를 실현하는 함수 머리에 `RULE-…`
   id 를 한국어 주석으로. grep 이 곧 매핑 표다. R# 전부가 어느 함수에 닿는지 보고한다.
 - **V**: 새 의미를 만들지 않는다 (원본 §12). `view/resolve.ts` · `code-text.ts` 등 팩 계약 자리를
-  따른다. State → 표현의 대응은 `content/view` 의 표 자체가 원본이다.
+  따른다. State → 표현의 대응은 `content/view` 의 표 자체가 원본이다. 기반 Cycle 이면 예제 하나만 보이게 하고,
+  경험을 가르는 것(문구 · 표기 · 어느 코드를 세우나 · 순서)은 spec 의 Data Knobs 가 지목한 **표**에 둔다 — 함수 안의 상수로 두지 않는다.
 - **T**: **Black-box** — 읽는 것은 spec.md 뿐 (SPEC = 무엇을 · State/Rule/Observable = 어떤 State 를).
   새 코드·W/V 결과는 보지 않고 **기존 하네스**(createWorld · driveWorld · 관찰 봉투 · 기존
   spec/fixture 선례)만 쓴다. 하네스로 놓을 수 없는 Given 은 `it.todo('GAP: …')`.
   형식: `describe('SPEC-00x <이름>')` 안 `it('S-0xx <한 줄>')` — Given/When/Then 을 주석으로,
   단언은 spec 의 점 경로로. REUSED/AFFECTED 의 기존 행동(회귀)도 `describe('회귀')` 로.
   **전체 개수를 단언하지 않는다** — 이 Cycle 이 더한 것의 존재와 행동만. spec 이 침묵해 판정 방식을
-  정해야 했던 자리는 보고에 목록으로.
+  정해야 했던 자리는 보고에 목록으로. 기반 Cycle 이면 `describe('손잡이')` 를 둔다 — Data Knobs 하나를 바꾼
+  데이터(변형 방 · 변형 표 — 선례 `c004` 의 `VARIANT_ROOM`)로 세계를 세워 행동이 따라 바뀜을 단언한다 (손잡이 SPEC · 코드 0).
 
 ### 2.3 통합·검증
 
@@ -220,16 +240,19 @@ Agent 별 규칙:
 (예: `시나리오 33/33 PASS · 7항 충족 · Human 판정 대기 8`). 문서에 체크리스트를 남기지 않는다.
 
 ```text
-Design Trace / Scope / Semantic / Rule   spec.md 의 SOURCE · Playable Goal · State · Rule
+Design Trace / Scope / Semantic / Rule   spec.md 의 SOURCE · Playable Goal(기반: Foundation Goal) · State · Rule
 Implementation                           모든 R# 에 RULE id 주석이 달린 함수가 있다 (grep)
-Observable                               관찰 계약 + V 의 표
+Observable                               관찰 계약 + V 의 표 (기반: 검사 JSON · observe 보고 · 봉투가 먼저 — 화면은 예제 하나)
 Verification                             시나리오 테스트 전부 PASS + plan/CYCLES.md 그 묶음 절의 관찰 항목
+                                         (기반: + 손잡이 SPEC · 명사 0 SPEC PASS + Module Check 의 모듈마다 단언이 있다 + 기반 검토 항목)
 ```
 
 7항 전부 + 시나리오 전부 PASS 여야 완료다. 미달이면 미완 항목과 반환 대상을 보고하고 완료
-선언하지 않는다.
+선언하지 않는다. 기반 Cycle 은 셋을 더 본다 — **제공**(Added 의 기구 · 계약이 codemap 에 적힐 형인가) · **작동**(Module Check 의 모듈마다
+단언이 하나 이상인가) · **손잡이**(Data Knobs 의 줄마다 자리가 실제 데이터 · 표인가 — 함수 안의 상수면 미달).
 
-**관찰 촬영** — Observable Result 를 실제 게임에서 찍어 Human 에게 보여준다. `cycles/<CycleId>/shots.json`
+**관찰 촬영** — Observable Result 를 실제 게임에서 찍어 Human 에게 보여준다. 기반 Cycle 은 **예제 한 장**(둘까지)만 찍는다 —
+나머지 증거는 테스트 · `world:check` · `world:observe --report` 이고, 화면이 안 바뀌면 찍지 않는다. `cycles/<CycleId>/shots.json`
 (형식은 `tools/cycle-shot/shot.cjs` 머리 주석 — run 마다 `spawn` · `npcs` · 걸음) →
 `npm run cycle:shot cycles/<CycleId>/shots.json` → `shots/*.png`. 파일명은 관찰 항목 번호
 (X-##). 도구는 판정하지 않는다 — expect 는 기록이다. 소프트웨어 GPU 라 걷기가 이어지지 않으므로
@@ -242,10 +265,15 @@ Verification                             시나리오 테스트 전부 PASS + pl
 ```text
 CYCLES.md §3 그 묶음 절   관찰 항목 — Experience Verification (하기/보기/그림 cycles/C###/shots/X-##/판정[ ]). spec 의 Experience Intent 와
                          Observable Result 에서 뽑는다. 판정은 Human 몫 — 판정 칸은 비워 둔다
-                         결정 대기 — 이 Cycle 이 Human 결정으로 돌린 값·규칙·방향 (spec 의 기본형으로 둔 것 중 실제 결정이 걸린 것)
+                         기반 Cycle 은 관찰 항목 대신 **기반 검토 항목** — F-# 모듈 · 제공(계약이 codemap 어디에) · 작동(무엇이 단언하나 — 테스트 id · 검사 번호 · 도구) ·
+                         손잡이(데이터 자리 — 없으면 "—") · 판정[ ]. spec 의 Module Check 와 Data Knobs 에서 뽑는다. 예제 그림은 그 줄에 링크
+                         결정 대기 — 이 Cycle 이 Human 결정으로 돌린 값·규칙·방향 (spec 의 기본형으로 둔 것 중 실제 결정이 걸린 것).
+                         기반 Cycle 은 **계약 결정만**(형 · 축 · 경계) — 경험 값(문구 · 표기 · 표시 여부 · 임계 · 배치)은 여기 올리지 않고 손잡이로 내린다
                          다음 Cycle 로 — spec 이 침묵해 테스트가 피해 간 자리 · 이월한 관측 (T 의 보고에서) · 받을 Cycle
-DESIGN.md §3            뒤 층 · 뒤 묶음으로 — 이 Cycle 이 받을 수 없어 다른 층·다른 Region 의 묶음으로 보내는 것 → 그 원본 기획의 "남은 것" 에 받는 자리와 함께
+DESIGN.md §3            뒤 층 · 뒤 묶음으로 — 이 Cycle 이 받을 수 없어 다른 층·다른 Region 의 묶음으로 보내는 것 → 그 원본 기획의 "남은 것" 에 받는 자리와 함께.
+                         기반 Cycle 이 손잡이로 내린 경험의 판정("읽히는가 · 이 값이 맞는가")도 여기 — 받는 자리는 "그 축을 처음 쓰는 컨텐츠 묶음"
 CYCLES.md §5            공학 부채 — 기구·도구·촬영의 결손 — "C###" 표기 하나
+codemap/CONTENT.md      경험 손잡이 표 — 기반 Cycle 의 Data Knobs 를 축 · 손잡이 · 자리로 (합친 직후 · Cycle 번호 없이 · 현재 상태만)
 ```
 
 회수 규칙 (Plan-Skill §3) — 항목은 **한 번만** 적힌다. 앞 Cycle 의 부채를 이 Cycle 이 다시 만났어도 다시 적지
@@ -274,6 +302,16 @@ Cycle 번호 없이). 현재 상태만 — 경위를 쌓지 않는다 (원칙 10
 `plan/STATE.md` §0 · §2 와 `plan/TODO.md` §1 의 Human 판정 줄이 그것을 링크하게 하여
 Human 에게 청한다. 통과는 지우고, 실패는 DESIGN GAP 이 되어 실주행 GAP 주입(§0.5 — 이 묶음에 Cycle 을 더하거나 관찰 가능성 묶음 하나로)이 된다.
 그 절의 질문이 비면 로드맵의 행이 닫힌다 — Agent 는 A 만 닫고 B·C 는 판정하지 않는다.
+
+**기반 묶음의 마지막 Cycle 이면 — AI 기반 예심** (실주행 예심 대신 · 원본 §21) — 그 묶음 절의 **기반 검토 항목**을 셋으로 가른다:
+**A** 테스트 id · 검사 번호 · grep · 도구 출력이 단언하는 것 — 실제로 `npm test` · `npm run world:check` 를 돌려 확인하고 지운다 (근거는 마감 커밋) ·
+**B** 계약 판단 — 축이 기획서의 자리(여덟 자리 · 계약 표)에 맞게 섰는가 · 경계 — 무엇을 기반에 두지 않았는가가 맞는가 · **손잡이 표가 컨텐츠 작업에 충분한가** ·
+**C** 계약 결정 — 결정 대기의 형 · 축 · 경계. B·C 를 **묶음당 기반 질문 서넛**으로 압축해 그 절을 바꿔 쓴다 (번호 `<묶음 약칭>-N`).
+질문 형식은 판정 질문과 같되 — **전제**는 "계약이 어디에 어떻게 서 있는가"(codemap 의 줄 · 손잡이 표의 줄) · **확인 방법**은 codemap 절 ·
+`npm run world:check` · 손잡이 하나를 바꿔 보는 명령 · 예제 그림 한 장. **경험 질문은 만들지 않는다** — "읽히는가 · 느낌 · 이 값이 맞는가" 가
+항목에 남아 있으면 손잡이로 내리고(codemap 손잡이 표 한 줄 · 기본값 그대로) DESIGN.md §3 그 원본의 "남은 것" 에 "그 축을 처음 쓰는 컨텐츠 묶음이
+판정" 으로 이월한다. 상태는 "검토 대기 — 기반 질문 N". Human 은 걷지 않는다 — 계약 표 · 손잡이 표 · 검사 결과를 읽고 답한다 (예제를 띄워 보는 것은 선택).
+실패는 ENGINE GAP(기구 · 계약) 또는 DESIGN GAP(기획서의 자리)이 되어 이 묶음에 Cycle 을 더한다. 질문이 비면 행이 닫힌다.
 
 ## 4. Cycle 간 병렬 (Plan-Skill §4 항목 4)
 

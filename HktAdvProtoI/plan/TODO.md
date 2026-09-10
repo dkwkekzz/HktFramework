@@ -16,7 +16,7 @@
 2  판정  빙결 협곡 실주행 — Frost-1 ~ Frost-6                                                                              CYCLES.md §3.2.1
 3  판정  생명 · 붉은 알집 실주행 — Life-1 ~ Life-6                                                                          CYCLES.md §3.2.2
 4  판정  요구와 가능성 실주행 — Access-1 ~ Access-5                                                                         CYCLES.md §3.2.3
-5  결정  값 · 규칙 — 판정 때 함께 보는 것이 싸다. C034 가 남긴 넷은 Foundation 판정 때 함께 (Q9 제안대로)                                                   CYCLES.md §3.2 각 절의 "결정 대기" · §3.3 · §3.4
+5  결정  값 · 규칙 — 판정 때 함께 보는 것이 싸다. Foundation 의 계약 결정 셋은 기반 검토 때 함께 (Q9 제안대로 · 경험 값은 손잡이로 내렸다)                        CYCLES.md §3.2 각 절의 "결정 대기" · §3.3 · §3.4
 6  결정  4층 · 7층 묶음을 앞당기는가                                                                                        DESIGN.md §5 (후보 6 · 9)
 7  결정  자리 없는 것(다중 플레이어의 충분조건 · 사회 · 번식 · 절벽 낙하)을 어느 층에 둘 것인가 · 9층을 세우는가                        DESIGN.md §4
 8  이름  HundredRooms 의 미지 백 줄 — 직접 주거나 초안기(world:draft --batch) 후보를 고른다                                       DESIGN.md §5 후보 4
@@ -27,9 +27,10 @@
 ## 2. cycle — 돌릴 것
 
 ```text
-1  Cycle      C035 합침 뒤 C036 — 초안을 C035 의 「다음 Cycle 로」 로 손봐 동결 → 실현 → 마감, 이어 C037                             CYCLES.md §1 · §3.4
+1  Cycle      C036 — 기반 형식 초안(Foundation Goal · Data Knobs · Module Check · 손잡이 SPEC)을 C035 의 「다음 Cycle 로」 로 손봐 동결 → 실현 → 마감, 이어 C037   CYCLES.md §1 · §3.4
 2  묶음 제안   §1-1 지목 즉시 — 첫 spec(C038~) 머리에 묶음 블록 + Cycle 전부의 spec · UNRESOLVED 에 묶음 질문 전부 → Human 에게 올린다   Design-DesignAuthoringWorkflow §5~§7
-3  예심       묶음의 마지막 Cycle 이 합쳐지면 — 관찰 항목을 질문 대여섯으로 압축해 CYCLES.md §3.2 에 · STATE · TODO §1 에 판정 줄
+3  예심       묶음의 마지막 Cycle 이 합쳐지면 — 컨텐츠 묶음은 관찰 항목을 질문 대여섯으로 · 기반 묶음(Foundation)은 기반 검토 항목을 기반 질문 서넛으로 (경험 질문 없음)
+              → CYCLES.md §3.2 에 · STATE · TODO §1 에 판정/검토 줄                                                          Design-CycleExecutionWorkflow §21
 4  GAP 회수   §1-2 · 3 · 4 에서 "아니오" 가 오면 — 그 묶음에 Cycle 을 더하거나 관찰 가능성 묶음 하나로 자른다
 합친 직후  CYCLES 레인 · 묶음 절 · DESIGN §3 덮인 것 · STATE · codemap(API · 구조가 바뀐 것만)
 ```
