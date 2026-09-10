@@ -12,7 +12,7 @@
 ## 1. Human — 답할 것 (순서대로)
 
 ```text
-1  지목  다음 기획서 — 후보 2 편성과 무대(3층) · 3 Rooms GAP 회수 → AI 가 그 기획서의 Cycle 전부를 spec 으로 (C039~)   DESIGN.md §5
+1  지목  다음 기획서 — 후보 2 편성과 무대(3층) · 3 Rooms GAP 회수 · 3.5 둥지가 군락이 된다(Foundation 둘째 — 순서 배치는 Human) → AI 가 그 기획서의 Cycle 전부를 spec 으로 (C039~)   DESIGN.md §5
 2  판정  빙결 협곡 실주행 — Frost-1 ~ Frost-6 (그 절의 "결정 대기" 값 · 규칙을 함께 본다)                                        DESIGN.md §3 M5-FrostCanyon
 3  판정  생명 · 붉은 알집 실주행 — Life-1 ~ Life-6 (〃)                                                                      DESIGN.md §3 L2-World-Life
 4  판정  요구와 가능성 실주행 — Access-1 ~ Access-5 (〃)                                                                     DESIGN.md §3 L2-World-Access

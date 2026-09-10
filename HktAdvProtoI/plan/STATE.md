@@ -32,7 +32,7 @@
   층의 순서       2층 닫힘(판정 셋 + 후보 3) → 3층(후보 2 + 5) → 4층 → 5층 → 6층 → 7층 — **이 차례대로 간다**(확정). 앞당길 일이 생기면 그때 Human 이 뒤집는다.
 ```
 
-한 Cycle = 브랜치 `cycle/C###` = 세션 하나. **말할 것: "<기획서> 로 spec 써"**(다음 spec 제안 — 후보 2 · 3) · 판정 넷의 답.
+한 Cycle = 브랜치 `cycle/C###` = 세션 하나. **말할 것: "<기획서> 로 spec 써"**(다음 spec 제안 — 후보 2 · 3 · 3.5) · 판정 넷의 답.
 기획서가 채팅으로 오면 `advprotoi-inject` 가 먼저 보존한다. `advprotoi-spec` 이 그 기획서의 Cycle 전부를 spec 으로 쓰고 Human 반환에서 멈추고, "C### 진행" 부터 `advprotoi-cycle` 이 동결 → 실현 → 마감을 이어 돌리며 UNRESOLVED · GAP 에서만 멈춘다.
 Cycle 의 종류는 행이 가른다 — 기반 Cycle(L<N>)은 제공 · 작동 · 손잡이로 닫고 경험은 데이터로 내린다 · 컨텐츠 Cycle(M<N>)은 실주행으로 닫는다 ([Design-CycleExecutionWorkflow §21](../design/Design-CycleExecutionWorkflow.md)).
 
