@@ -19,7 +19,6 @@
 5  이름  HundredRooms 의 미지 백 줄 — 직접 주거나 초안기(world:draft --batch) 후보를 고른다                                       DESIGN.md §5 후보 4
 6  주입  3층 나머지 절반 — 몸의 값 전반 · 생물의 앎과 선택 (후보 2 판정 뒤)                                                       DESIGN.md §1 · §5 후보 5
 7  이름  컨텐츠 행 — 보석 여덟 · 보류 계열 일곱 · Region §5.1 나머지 … 하나씩                                                   DESIGN.md §3 "컨텐츠 행"
-8  결정  도구 — 갈래 hazard/terrain 의 땅이 분지인가 협곡 벽인가 · 방 아홉의 kinds 를 채우는가 (묶음이 아니라 작성기의 것)            CYCLES.md §3.3 "도구"
 ```
 
 ## 2. cycle — 돌릴 것
