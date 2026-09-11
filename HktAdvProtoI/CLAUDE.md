@@ -109,7 +109,7 @@ npm run cycle:shot <cycles/C###/shots.json>   마감 촬영 → cycles/C###/shot
  4. State 변경은 World Rule 의 Transition 에서만 일어난다.
  5. 기반은 컨텐츠를 부르지 않는다 — 컨텐츠가 계약으로 자신을 등록한다.
  6. 시뮬레이션 상수는 헤더 상수로 고정한다.
- 7. 새 규칙·표현에는 REUSED / ADDED / CHANGED / AFFECTED 를 명시한다.
+ 7. 규칙 머리에 ADDED / CHANGED / 데이터(기존 규칙 id 위)를 명시한다 — 기존 규칙에 미치는 영향은 회귀 규칙이 잰다.
  8. 영향을 받는 기존 Rule 과 플레이 Scenario 도 함께 검증한다.
  9. 완료 조건은 코드가 아니라 실제로 플레이되는가다 — 컨텐츠 Cycle 에서. 기반 Cycle 의 완료는 제공 · 작동 · 손잡이다
     (경험은 데이터로 조절되고, 그 판정은 컨텐츠 Cycle 이 진다).

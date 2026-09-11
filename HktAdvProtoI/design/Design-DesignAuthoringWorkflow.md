@@ -87,7 +87,7 @@ CYCLES         C### <한 줄 목표> → C### <한 줄 목표> → C### <한 줄
 행             L<N> 또는 M<N> — 이 기획서가 세우는 로드맵의 행 하나 (기반 층이면 놓는 미지 M<N> 도 — 이름은 Human)
 ```
 
-- **AI 가 자른다** — 각 Cycle 의 Playable Goal · Experience Intent · 규칙 표(조건 + 변형 쌍) · 쌍마다 World Cause. 방향 한 줄만
+- **AI 가 자른다** — 각 Cycle 의 목표 · 규칙(조건 + 변형 쌍) · 쌍마다 World Cause. 방향 한 줄만
   주입돼도 이 층은 AI 가 지어 올린다 (승인으로 확정되므로 창작이되 독단이 아니다). Cycle 순서는 의존성 + 경험의 점진 완성.
   각 Cycle 은 작다 · 플레이 가능하다 · World 변화가 분명하다 · 화면 또는 상태로 확인할 수 있다 · 검증할 수 있다 · 이후 Cycle 에서 재사용할 수 있다.
 - **Human 이 정한다** — 게임 의미(수치 · 확률 · 시간 · 범위 · 원리의 확정 · 세계관 사실 · 이름). AI 는 지어내지 않고 첫 spec 의
@@ -115,21 +115,16 @@ spec 단계에서 자를 수 없다고 판정되면 spec 을 쓰지 않고 나�
 
 ## 6. Cycle 들의 spec — 첫 것은 동결 후보 · 뒤 것은 초안
 
-Cycle 마다 `cycles/C###-이름/spec.md` 를 Cycle 공정의 형식으로 쓴다 (범위 절 · 규칙 표 · 데이터 · 이름표 · UNRESOLVED — Cycle 공정 §7 · §8).
+Cycle 마다 `cycles/C###-이름/spec.md` 를 Cycle 공정의 형식으로 쓴다 (목표 · 규칙 · UNRESOLVED — Cycle 공정 §7 · §8).
 첫 spec 의 UNRESOLVED 에 **이 기획서의 질문 전부**를 둔다. 뒤 Cycle 의 spec 은 같은 형식의 **초안**이다 — 머리에 첫 spec 링크와
 "초안" 표시, UNRESOLVED 에는 "첫 spec 의 질문 Q<n> 의 답이 이 spec 에 든다" 와 그 spec 에서 새로 생긴 의미만.
 
 ```text
 # C### — <이름>
 CYCLE / SOURCE / SELECTED_FROM / CYCLES / 행   Trace 블록 하나 (§5 — CYCLES 줄은 기획서의 첫 Cycle 에만)
-## Playable Goal     이번에 성립할 플레이 결과 한두 문장
-## Experience Intent 이 Cycle 이 만드는 경험 전환 — Start / End
-## Observable Result 화면/상태에서 무엇을 직접 확인하는가
-## Out of Scope      이번에 하지 않는 것과 그것을 받을 Cycle
-## 규칙              규칙 = (조건 + 변형) × n — 사람이 읽는 표 (Cycle 공정 §7)
-## 데이터            이 Cycle 의 값 표 — 값과 근거
-## 이름표            규칙의 낱말 → 코드 · Existing / Added · REUSED / ADDED / CHANGED / AFFECTED — 구현자만 읽는다 (Cycle 공정 §8)
-## UNRESOLVED
+## 목표              이번에 성립할 플레이 한두 문장 · Start → End 한 줄 · 하지 않는 것과 받을 Cycle · 숨기는 것
+## 규칙              규칙 = (조건 + 변형) × n — 조건은 상태 · 변형은 상태 값 (Cycle 공정 §7 의 문법)
+## UNRESOLVED        `___` 로 비운 값의 물음 + 기본형으로 둔 것
 ```
 
 ## 7. 게이트 — "C### 진행" 하나
@@ -144,7 +139,7 @@ Human 게이트는 **기획서마다 한 번**이다: Cycle 전부의 spec + 질
 ## 8. Verification 의 두 층
 
 - **Functional Verification** — 자동 검증 가능한 World State 변화 (Cycle 공정 그대로).
-- **Experience Verification** — 실제 플레이에서 각 Cycle 의 Experience Intent 가 성립하는지 관찰한다. 감정을 숫자로 검증하는
+- **Experience Verification** — 실제 플레이에서 각 Cycle 의 목표가 말한 경험의 전환(Start → End)이 성립하는지 관찰한다. 감정을 숫자로 검증하는
   것이 아니라 **의도한 인지·행동 변화가 실제로 발생하는지** 본다. 판단은 Human 의 몫이다 — Cycle 마감이 관찰
   항목을 `plan/DESIGN.md` §3 그 기획서 절에 남기고, Human 이 **기획서 단위**로 판정한 뒤 지운다 (§9 — Cycle 마다 판정하지 않는다).
 - **Foundation Verification** — 기반 층의 Cycle 은 Experience Verification 을 **하지 않는다**. 대신 Cycle 마감이 **기반 검토 항목**
@@ -230,7 +225,7 @@ AI      수행: 기획서 읽기 / Cycle 자르기 / Experience → World Cause 
 
 1. 큰 시스템을 기능 목록으로 직접 분해하지 않는다 (Combat → Parry/Counter/Break 식 금지).
 2. 항상 실제로 플레이되는 결과 하나를 먼저 자른다 — 기획서 하나가 그 단위다.
-3. 각 Cycle 에는 반드시 경험의 전환(Experience Intent — Start / End)이 존재한다.
+3. 각 Cycle 에는 반드시 경험의 전환(목표의 Start → End 한 줄)이 존재한다.
 4. 모든 중요한 감정 변화에는 게임 안의 원인(World Cause)이 있어야 한다.
 5. Cycle 은 기능 단위가 아니라 **최소 Playable Experience 단위**다
    ("ThreatDetection 구현"이 아니라 "주변 생물의 행동으로 보이지 않는 위험을 알아차릴 수 있다").
