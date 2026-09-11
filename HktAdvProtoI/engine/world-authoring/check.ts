@@ -209,7 +209,7 @@ export interface CheckRef {
 }
 
 export interface CheckItem {
-  /** 번호 — '①'…'㊽'. 번호 밖의 것은 '·' */
+  /** 번호 — '①'…'㊾'. 번호 밖의 것은 '·' */
   mark: string;
   /** 기계가 잡는 이름 — JSON 의 열쇠이므로 번호가 바뀌어도 이것은 그대로다 */
   id: string;
@@ -659,6 +659,13 @@ export interface CheckEcologySource {
   opportunity: string;
   /** 무엇이 지고 있는가 (⑳ 이 센다) */
   carrier: string;
+  /**
+   * 캘 수 있는 횟수 — 1 이상의 정수가 아니면 ㊾.
+   *
+   * 0 이하나 소수는 세계가 굴릴 수는 있어도 뜻이 없다: 0 은 첫 채취에 바로 바닥나 "한 번" 과
+   * 갈리지 않고, 음수는 영영 바닥나지 않는다. 그런 값은 폴리싱이 아니라 오타이므로 검사가 잡는다.
+   */
+  harvests: number;
 }
 
 /** 흐름 하나 — 검사 ⑱ 이 본다 */
@@ -671,7 +678,7 @@ export interface CheckEcologyFlow {
   connector: string;
 }
 
-/** 이 세계의 재료 계통 — 검사 ⑩~㉒ 가 보는 전부 */
+/** 이 세계의 재료 계통 — 검사 ⑩~㉒ · ㊾ 가 보는 전부 */
 export interface CheckEcology {
   materials: readonly CheckEcologyMaterial[];
   sources: readonly CheckEcologySource[];
@@ -680,7 +687,7 @@ export interface CheckEcology {
   regions: readonly { id: string; isolationReason: string }[];
 }
 
-/** 열셋의 번호·이름 — 이 차례가 곧 보고에 실리는 차례다 (계통이 없을 때의 absent 도 이것을 쓴다) */
+/** 열넷의 번호·이름 — 이 차례가 곧 보고에 실리는 차례다 (계통이 없을 때의 absent 도 이것을 쓴다). ㊾ 는 뒤에 늘어 ㉒ 뒤에 선다 (계약이 는 차례 · ㊹ 의 선례) */
 const ECOLOGY_ITEMS = {
   placementSource: { mark: '⑩', id: 'ecology-placement-source', name: '모르는 원천을 가리키는 배치' },
   sourceRefs: { mark: '⑪', id: 'ecology-source-refs', name: '원천이 가리키는 원인과 재료' },
@@ -695,6 +702,7 @@ const ECOLOGY_ITEMS = {
   carrier: { mark: '⑳', id: 'ecology-carrier', name: '방마다의 Carrier 분포와 원천 수' },
   orphan: { mark: '㉑', id: 'ecology-orphan', name: '원천 없는 배치와 재료 없는 원천' },
   isolation: { mark: '㉒', id: 'ecology-isolation', name: '유입도 원천도 이유도 없는 방' },
+  harvests: { mark: '㊾', id: 'ecology-harvests', name: '캘 횟수 없는 원천' },
 } as const;
 
 /** 잴 것이 놓이지 않았다 — 통과가 아니다 */
@@ -924,6 +932,33 @@ function checkDepletion(cx: EcologyContext): CheckItem {
   };
 }
 
+/**
+ * ㊾ 원천의 캘 횟수가 1 이상의 정수인가.
+ *
+ * 값의 크기는 묻지 않는다 — 몇 번이 알맞은지는 Human 의 것이다 (⑲ ⑳ 이 편중을 보이기만 하는
+ * 그 규율). 기계가 잡는 것은 **뜻이 없는 값**뿐이다: 0 · 음수 · 소수 · 수가 아닌 것.
+ */
+function checkHarvests(cx: EcologyContext): CheckItem {
+  const head = ECOLOGY_ITEMS.harvests;
+  const { sources } = cx.ecology;
+  if (sources.length === 0) return absentItem(head, '원천이 없다');
+  const refs: CheckRef[] = [];
+  for (const source of sources) {
+    if (!Number.isInteger(source.harvests) || source.harvests < 1) {
+      refs.push({
+        where: source.id,
+        detail: `캘 횟수가 ${String(source.harvests)} 다 — 1 이상의 정수여야 한다`,
+      });
+    }
+  }
+  return {
+    ...head,
+    status: refs.length === 0 ? 'pass' : 'fail',
+    answer: `원천 ${sources.length} · 캘 횟수 없는 원천 ${refs.length}`,
+    refs,
+  };
+}
+
 /** ⑯ 원천에 흔적 참조가 있는가 */
 function checkTraceRef(cx: EcologyContext): CheckItem {
   const head = ECOLOGY_ITEMS.traceRef;
@@ -1147,6 +1182,7 @@ function ecologyItems(input: CheckRegionsInput): CheckItem[] {
     checkCarrier(cx),
     checkOrphan(cx),
     checkIsolation(cx),
+    checkHarvests(cx),
   ];
 }
 

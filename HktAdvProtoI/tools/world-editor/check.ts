@@ -117,7 +117,7 @@ export const WORLD_CHECK_CONTRACT: CheckContract = {
 };
 
 /**
- * 이 세계의 **재료 계통**을 기반에 건네는 자리 (C014 ADDED — 검사 ⑩~㉒ 가 이것을 읽는다).
+ * 이 세계의 **재료 계통**을 기반에 건네는 자리 (C014 ADDED — 검사 ⑩~㉒ · ㊾ 가 이것을 읽는다).
  *
  * 여기서 세는 것이 없다 — content/regions 의 데이터를 형만 바꿔 옮긴다. 판정은 전부 기반의
  * 것이고, 이 도구는 "이 세계에서 무엇이 재료이고 무엇이 원천인가" 를 말할 뿐이다.
@@ -149,6 +149,7 @@ export const WORLD_CHECK_ECOLOGY: CheckEcology = {
         traces: source.traceOps ?? [],
         opportunity: source.opportunity,
         carrier: source.carrier,
+        harvests: source.harvests,
       }),
     ),
   ),

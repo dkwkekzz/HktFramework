@@ -21,7 +21,7 @@ CONTENT.md   컨텐츠 코드 구조 — 계약 파일 · world/(State · Rule i
 ```text
 npm run dev · npm test · npm run build · npm run boundary:check
 npm run cycle:shot cycles/C###/shots.json     마감 촬영 (CHROMIUM_PATH 로 브라우저 지정 가능)
-npm run world:check [-- --pretty]             검사 마흔셋을 JSON 으로 (fail 이 있으면 종료 코드 1)
+npm run world:check [-- --pretty]             검사 마흔아홉을 JSON 으로 (fail 이 있으면 종료 코드 1)
 npm run world:author -- <brief.json> [--write] brief 하나에서 방 하나의 뼈대를 낸다
 npm run world:observe -- <방> --report        방 하나의 땅을 읽는다 (읽기 전용) · 방 없이 --report 는 세계의 보고
 npm run world:run -- --cycles 2               관찰자 0 으로 세계를 돌려 개체군 궤적을 낸다

@@ -1547,9 +1547,10 @@ describe('SPEC-009 검사 넷이 선다', () => {
     return found;
   };
 
-  it('S-091 검사 넷이 ㉒ 뒤에 번호 순으로 이어 붙는다', () => {
+  it('S-091 검사 넷이 재료 계통 뒤에 번호 순으로 이어 붙는다', () => {
     const marks = numbered().map((i) => i.mark);
-    const at = marks.indexOf('㉒');
+    // 재료 계통의 끝은 ㉒ 가 아니라 그 뒤에 는 ㊾(캘 횟수)다 — 한 계약의 항목은 함께 선다
+    const at = marks.indexOf('㊾');
     expect(at).toBeGreaterThanOrEqual(0);
     expect(marks.slice(at + 1, at + 1 + ADDED_MARKS.length)).toEqual([...ADDED_MARKS]);
   });

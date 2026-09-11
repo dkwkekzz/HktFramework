@@ -195,6 +195,7 @@ export function checkAuthored(authored: AuthoredRegion): CheckReport {
             traces: source.traceOps,
             opportunity: source.opportunity,
             carrier: source.carrier,
+            harvests: source.harvests,
           }),
         ),
       ],

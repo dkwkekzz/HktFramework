@@ -38,8 +38,8 @@
 
 import { REGION_SPECS } from '../../regions';
 import { turnsStartedAt } from '../semantic/clock';
-import { initialSourceState, remember } from '../semantic/region-state';
-import { nextStandableSite, sourcesInRegion } from '../semantic/resource';
+import { remember } from '../semantic/region-state';
+import { initialSourceState, nextStandableSite, sourcesInRegion } from '../semantic/resource';
 import type { WorldState } from '../semantic/world-state';
 
 export function ruleSeasonTurn(state: WorldState): void {

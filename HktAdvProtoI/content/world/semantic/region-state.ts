@@ -39,7 +39,7 @@ import { leavingRouteOf } from './presence';
 import type { WorldPosition } from './position';
 import { DISTURBANCE_THRESHOLD, RECOVERY_VISIBLE_FRACTION } from './world-state';
 import {
-  inflowOf,
+  initialSourceState,
   nextStandableSite,
   remembersBrokenSites,
   sourcesInRegion,
@@ -438,46 +438,6 @@ export const PASSAGE_CLOSED = 'passage-closed';
 /** 그 방이 품은 규칙 — 없으면 규칙 없는 방이다 (State 도 서지 않는다) */
 export function regionRuleOf(regionId: string): RegionRuleSpec | undefined {
   return regionSpec(regionId)?.rule;
-}
-
-/**
- * **아직 아무 일도 겪지 않은 원천의 State** (C012 ADDED · C013 · C014 CHANGED · C016 CHANGED).
- *
- * 캘 수 있고 · 한 번도 캐지 않았고 · 되돌아올 것이 없고(progress 0) · 첫 마디에 선다.
- * 무너진 마디는 하나도 없으므로 collapsedSites 는 자리 자체가 없다 (빈 배열로 지어내지 않는다).
- *
- * 다만 **유입 흐름을 가진 원천은 처음이 고갈이다** (C014 · spec R4). 실려 와야 생기는 것이므로
- * 세계가 설 때는 아직 거기 없고, 관찰자에게 "아직 실려 오지 않았다" 와 "다 캐 갔다" 는 같은
- * 사실이다 — 거기 지금 없다는 것. phase 를 넷으로 늘리지 않고 C013 의 셋으로 같은 것을 말한다.
- * 규칙이 스스로 도달할 수 있는 State 만 세운다: 다 캔 것과 한 값도 다르지 않다
- * (taken = harvests · progress 0).
- *
- * **어느 원천인지 이름으로 알지 못한다** — 아는 것은 "유입 흐름을 가진 원천" 이라는 형뿐이고,
- * 흐름의 표는 데이터의 것이다 (C014 R13).
- *
- * C016 CHANGED — 이 자리가 **둘에게 쓰인다.** 세계가 설 때(createRegionStates)와 세계가
- * 뒤척일 때(RULE-SEASON-TURN-001 의 자국 묻기)가 같은 "처음 상태" 를 물으므로 한 자리에서
- * 답한다 — 두 벌로 만들면 갈린다. 묻는다는 것이 "다 채워 준다" 가 아니라 "없던 일로 한다"
- * 라는 뜻인 것이 여기서 나온다 (spec 기본형 ⑦): 처음이 고갈인 원천은 고갈로 돌아간다.
- *
- * C018 CHANGED (spec R6 · 기본형 ⑧) — **지나가야만 서는 원천도 처음이 고갈이다.** 실려 와야
- * 생기는 것과 **같은 사실**이기 때문이다: 세계가 설 때 아직 아무것도 지나가지 않았으므로
- * 거기 없고, 관찰자에게 "아직 지나가지 않았다" 와 "다 캐 갔다" 는 같은 것 — 거기 지금 없다.
- * phase 를 넷으로 늘리지 않고 C013 의 셋으로 같은 것을 말한다.
- *
- * C025 는 이 자리를 **한 글자도 건드리지 않는다** (spec REUSED · SPEC-003). 관계가 남기는
- * 원천(둥지의 사체)은 세계가 설 때 **거기 있다** — spec 이 처음을 고갈이라 말하지 않았고,
- * 밝히지 않은 것을 지어내지 않는다. 갈아 끼워진 것은 처음이 아니라 **되돌아옴**이다: 한 번
- * 없어지고 나면 시간이 그것을 되돌리지 않고 `condition-unmet` 이 걸린 채 다음 사냥을
- * 기다린다 (RULE-SOURCE-CONDITION-001 · semantic/resource.ts).
- *
- * **어느 원천인지 이름으로 알지 못한다** — 아는 것은 "유입 흐름을 가진 원천" 과 "누군가
- * 지나가며 남기는 원천" 이라는 형 둘뿐이고, 흐름의 표도 경로의 표도 데이터의 것이다.
- */
-export function initialSourceState(source: ResourceSource): ResourceSourceState {
-  return inflowOf(source.id) || leavingRouteOf(source.id) || leavingLifeSiteOf(source.id)
-    ? { phase: 'depleted', taken: source.harvests, progress: 0, siteIndex: 0 }
-    : { phase: 'available', taken: 0, progress: 0, siteIndex: 0 };
 }
 
 /**

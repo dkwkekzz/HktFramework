@@ -1084,6 +1084,24 @@ function walkUntil(w: WorldDriver, path: readonly XZ[], stop: () => boolean, lim
 }
 
 describe('회귀', () => {
+  it('R-000 State 가 없는 원천을 물으면 세계가 설 때와 같은 답이다 — 실려 오는 것은 고갈, 나머지는 있음', () => {
+    // Given 아무 State 도 없는 세계 (데이터가 바뀐 뒤 되살린 옛 스냅샷이 이런 자리다)
+    const none = {} as never;
+    // Then 실려 와야 생기는 원천(흐름의 도착 끝)은 고갈로 읽힌다 — 캘 수 있는 것으로 읽히면
+    // 세계가 두 말을 한다 (spec R4 · initialSourceState 가 세계가 설 때 내는 그 답)
+    expect(sourceStateOf(none, FOREST_DEEP, RIVER_SILT)).toMatchObject({
+      phase: DEPLETED,
+      taken: harvestsOf(RIVER_SILT),
+    });
+    // 그리고 흐름의 출발 끝도 · 흐름 밖의 것도 있음 · 한 번도 캐지 않은 것으로 읽힌다 (C012 그대로)
+    for (const [region, id] of [
+      [HEART_LAKE, LAKE_SILT_BED],
+      [BIO_ORE_FIELD, ORE_OUTCROP],
+    ] as const) {
+      expect({ id, ...sourceStateOf(none, region, id) }).toMatchObject({ id, phase: AVAILABLE, taken: 0 });
+    }
+  });
+
   it('R-001 (C011) 캐지 않은 세계의 흔적 사다리가 그대로다', () => {
     const w = driveWorld(solo);
     const s = statesOf(w);

@@ -103,11 +103,12 @@ const itemOf = (world: World, id: string) =>
   run(world).items.find((item) => item.id === id)!;
 
 describe('checkRegions — 보고의 형', () => {
-  it('①~⑨ 다음에 ⑩~㉒ · ㉓~㉖ · ㉗~㉝ · ㉞~㊷ ㊽ · ㊸ ㊼ 이 번호 순으로 실리고, 번호 밖의 코드도 숨지 않는다', () => {
+  it('①~⑨ 다음에 ⑩~㉒ ㊾ · ㉓~㉖ · ㉗~㉝ · ㉞~㊷ ㊽ · ㊸ ㊼ 이 번호 순으로 실리고, 번호 밖의 코드도 숨지 않는다', () => {
     const report = run(soundWorld());
     expect(report.items.map((item) => item.mark)).toEqual([
       '①', '②', '③', '④', '⑤', '⑥', '⑦', '⑧', '·', '⑨',
-      '⑩', '⑪', '⑫', '⑬', '⑭', '⑮', '⑯', '⑰', '⑱', '⑲', '⑳', '㉑', '㉒',
+      // ㊾(캘 횟수)가 ㉒ 뒤에 선다 — 재료 계통에 뒤에 늘었고 **한 계약의 항목은 함께 선다**
+      '⑩', '⑪', '⑫', '⑬', '⑭', '⑮', '⑯', '⑰', '⑱', '⑲', '⑳', '㉑', '㉒', '㊾',
       '㉓', '㉔', '㉕', '㉖',
       '㉗', '㉘', '㉙', '㉚', '㉛', '㉜', '㉝',
       // ㊽(T2 확장)이 ㊷ 뒤에 선다 — 번호가 뛰어도 **한 계약의 항목은 함께 선다**
@@ -142,7 +143,7 @@ describe('checkRegions — 보고의 형', () => {
       'resource-hazard-origin',
       'settlement-condition',
       'region-phenomenon',
-      // ⑩~㉒ — 계통을 주지 않았으므로 열셋 전부 (C014)
+      // ⑩~㉒ · ㊾ — 계통을 주지 않았으므로 열넷 전부 (C014 · ㊾ 는 뒤에 늘었다)
       'ecology-placement-source',
       'ecology-source-refs',
       'ecology-material-source',
@@ -156,6 +157,7 @@ describe('checkRegions — 보고의 형', () => {
       'ecology-carrier',
       'ecology-orphan',
       'ecology-isolation',
+      'ecology-harvests',
       // ㉓~㉖ — 시간 쪽 계약을 주지 않았으므로 넷 전부 (C018)
       'time-phase-refs',
       'time-route-refs',
@@ -312,6 +314,7 @@ function source(
     traces: [`hint-${id}`],
     opportunity: 'baseline',
     carrier: 'soil',
+    harvests: 1,
     ...over,
   };
 }
@@ -384,9 +387,9 @@ function tear(edit: (world: World, ecology: CheckEcology) => CheckEcology | void
 }
 
 describe('checkRegions — ⑩~㉒ 온전한 계통', () => {
-  it('열셋이 ①~⑨ 뒤에 번호 순으로 붙고 id 가 표 그대로다', () => {
-    // 뒤에 붙은 넷(㉓~㉖)은 이 시험의 것이 아니다 — 열셋의 차례만 본다
-    const ids = run(ecologyWorld()).items.slice(10, 23).map((item) => item.id);
+  it('열셋이 ①~⑨ 뒤에 번호 순으로 붙고 id 가 표 그대로다 — 뒤에 는 ㊾ 가 그 뒤에 선다', () => {
+    // 뒤에 붙은 넷(㉓~㉖)은 이 시험의 것이 아니다 — 열셋과 그 뒤에 는 하나의 차례만 본다
+    const ids = run(ecologyWorld()).items.slice(10, 24).map((item) => item.id);
     expect(ids).toEqual([
       'ecology-placement-source',
       'ecology-source-refs',
@@ -401,10 +404,11 @@ describe('checkRegions — ⑩~㉒ 온전한 계통', () => {
       'ecology-carrier',
       'ecology-orphan',
       'ecology-isolation',
+      'ecology-harvests',
     ]);
   });
 
-  it('참조 무결성 열하나가 pass 이고, 잴 것 없는 ⑮ 만 absent 다', () => {
+  it('참조 무결성 열둘이 pass 이고, 잴 것 없는 ⑮ 만 absent 다', () => {
     const report = run(ecologyWorld());
     const status = (id: string) => report.items.find((item) => item.id === id)!.status;
     expect(status('ecology-placement-source')).toBe('pass');
@@ -419,14 +423,15 @@ describe('checkRegions — ⑩~㉒ 온전한 계통', () => {
     expect(status('ecology-flow-valid')).toBe('pass');
     expect(status('ecology-orphan')).toBe('pass');
     expect(status('ecology-isolation')).toBe('pass');
+    expect(status('ecology-harvests')).toBe('pass');
     expect(report.ok).toBe(true);
   });
 
-  it('계통을 주지 않으면 열셋이 전부 absent 이고 ok 는 그대로다', () => {
+  it('계통을 주지 않으면 열넷이 전부 absent 이고 ok 는 그대로다', () => {
     const bare = run(soundWorld());
-    const thirteen = bare.items.slice(10, 23);
-    expect(thirteen).toHaveLength(13);
-    expect(thirteen.every((item) => item.status === 'absent')).toBe(true);
+    const fourteen = bare.items.slice(10, 24);
+    expect(fourteen).toHaveLength(14);
+    expect(fourteen.every((item) => item.status === 'absent')).toBe(true);
     expect(bare.ok).toBe(true);
   });
 
@@ -501,6 +506,24 @@ describe('checkRegions — ⑩~㉒ 참조를 하나씩 끊는다', () => {
       sources: [{ ...ecology.sources[0]!, supply: '' }, ecology.sources[1]!],
     }));
     expect(failedIds(world)).toEqual(['ecology-supply-mode']);
+  });
+
+  it('㊾ 캘 횟수가 1 이상의 정수가 아닌 원천 — 0 · 음수 · 소수가 걸리고 크기는 묻지 않는다', () => {
+    for (const bad of [0, -1, 1.5, Number.NaN]) {
+      const world = tear((_, ecology) => ({
+        ...ecology,
+        sources: [{ ...ecology.sources[0]!, harvests: bad }, ecology.sources[1]!],
+      }));
+      expect({ bad, failed: failedIds(world) }).toEqual({ bad, failed: ['ecology-harvests'] });
+      const item = run(world).items.find((i) => i.id === 'ecology-harvests')!;
+      expect(item.refs.map((ref) => ref.where)).toEqual([world.ecology!.sources[0]!.id]);
+    }
+    // 크기는 묻지 않는다 — 큰 값도 통과다
+    const many = tear((_, ecology) => ({
+      ...ecology,
+      sources: ecology.sources.map((s) => ({ ...s, harvests: 40 })),
+    }));
+    expect(failedIds(many)).toEqual([]);
   });
 
   it('⑭ 되돌아오는데 그 원인이 없는 원천 — 되돌아오지 않는 원천에는 묻지 않는다', () => {
