@@ -1083,9 +1083,22 @@ describe('손잡이 — 경험 값은 데이터가 돌린다 (규칙 8)', () => 
     expect(bodyOf(state(revive(renamed))).core).toBe('c039-variant-core');
   });
 
-  it.todo(
-    'GAP: 「눈보라 자락이 거는 상한 줄을 지운다」(규칙 8 ②의 뒷절)는 이 하네스로 놓을 수 없다 — 자락이 거는 상한은 그 방의 데이터(content/regions/frost-canyon.ts 의 area observeRange)에 있고, 이 Cycle 의 계약(BodyPropertyTables · WorldSetup.actorSources)에는 그 줄을 값으로 지우는 손잡이가 없다. 잴 수 있는 것은 때의 줄을 갈아 끼운 앞절까지다',
-  );
+  it('② (뒷절) 눈보라 자락이 거는 상한 줄을 지운다 → 자락 안에서도 때의 값 그대로가 된다', () => {
+    // Given 밤 · 눈보라 자락 안에 선 몸 — 지금은 자락의 상한(10)이 때의 상한(20)보다 좁아 이긴다
+    const inside = blizzardSpot();
+    const s = state(standingIn(FROST_CANYON, inside, { clock: NIGHT_CLOCK }));
+    const body = bodyOf(s);
+    expect(bodyAwareness(s, body)).toBe(BLIZZARD_NIGHT_CAP);
+    // Given 표에서 **자락이 거는 상한의 줄을 지운다** (코드 diff 0 — 어느 자락도 감각을 걸지 않는 표)
+    const variant: BodyPropertyTables = { ...BODY_PROPERTY_TABLES, areaAwarenessCap: () => undefined };
+    // Then 어느 자락이 감각을 거는가는 규칙이 아니라 데이터의 줄이다 — 남는 것은 때의 값뿐이다
+    expect(bodyAwareness(s, body, variant)).toBe(NIGHT_AWARENESS_CAP);
+    // 그 줄을 지워도 낮은 여전히 제한 없음이다 (때의 줄이 낮에는 없다)
+    const day = state(standingIn(FROST_CANYON, inside, { clock: DAY_CLOCK }));
+    expect(bodyAwareness(day, bodyOf(day), variant)).toBe(Infinity);
+    // 지금 표는 한 값도 달라지지 않았다
+    expect(bodyAwareness(s, body)).toBe(BLIZZARD_NIGHT_CAP);
+  });
 });
 
 // ─────────────────────────────────────────────────────────────────────
