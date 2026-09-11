@@ -41,9 +41,9 @@ CLAUDE.md "기반이 컨텐츠에게 요구하는 것" 이 지목한 파일들.
 
 | 항목 | 내용 |
 |---|---|
-| `WorldSetup` | actorPosition · actorRegion · actorItems · actorCharacterKind · npcs · debugAuthority · npcRegion · regionPatterns · sourcePhases · disturbances · clock · presences · lifeSitePhases · populations (검증·촬영용 초기 배치 — 세계 규칙을 바꾸지 않는다) |
+| `WorldSetup` | actorPosition · actorRegion · actorItems · actorCharacterKind · actorSources(관찰자의 몸에 걸릴 `PropertySource[]`) · npcs(`NpcSetup` — id · name · characterKind · position · wanderPath · perceptionRange · sources) · debugAuthority · npcRegion · regionPatterns · sourcePhases · disturbances · clock · presences · lifeSitePhases · populations (검증·촬영용 초기 배치 — 세계 규칙을 바꾸지 않는다) |
 | `DEFAULT_NPCS` | wanderer 둘 (npc-1 · npc-2, 순회 경로 포함) |
-| `SYSTEMS` | Tick 순서 하나의 배열 — npc-decide → move-progress → maze-connection → track-lay → season-turn → population-decline → presence → disturbance-decay → track-fade → source-recovery → life-binding → action-progress → swing-strike → body-push → body-momentum → cp-run-drain → region-fall |
+| `SYSTEMS` | Tick 순서 하나의 배열 — npc-decide → move-progress → maze-connection → track-lay → season-turn → population-decline → presence → disturbance-decay → track-fade → source-recovery → life-binding → action-progress → swing-strike → body-push → body-momentum → cp-run-drain → clamp-body-vitals(`semantic/body-property.ts` `clampBodyVitalsAll`) → region-fall |
 | `POST_TIME_SYSTEMS` | strike-event-expire |
 | `createWorld` | setup 또는 restored State 로 `WorldState` 를 조립해 `createWorldKernel(state, content)` |
 | `restoreWorld` | `restoreState(snapshot, STATE_VERSION)` — 버전 불일치면 null |
@@ -53,21 +53,22 @@ CLAUDE.md "기반이 컨텐츠에게 요구하는 것" 이 지목한 파일들.
 | 파일 | 주요 타입 · export | 하는 일 |
 |---|---|---|
 | `world-state.ts` | `WorldState extends CoreWorldState` { actors · strikeEvents · debugAuthority · regionStates · turnsApplied · seasonsApplied · presences } · `TICK_INTERVAL` · `STATE_VERSION` · `SPAWN_POINTS` · 상수(INTERACTION_RANGE · OBSERVE_RANGE_NIGHT · DISTURBANCE_* · TRACK_* · PRESENCE_SECONDS_PER_NODE …) | 세계 State 의 전체 형과 결정론 상수 (헤더 상수 고정) |
-| `actor.ts` | `ActorState` (id · name · characterKind · control · regionId · position · body* · facing · velocity · hp/cp · moveMode · tempo · wanderPath · inventory · currentAction …) · `ActorControl` | 몸 하나의 State |
+| `actor.ts` | `ActorState` (id · name · characterKind · control · regionId · position · body* · facing · velocity · hp/cp · core · propertySources · moveMode · tempo · wanderPath · inventory · currentAction …) · `ActorControl` | 몸 하나의 State |
 | `action.ts` | `ActionKind`(idle·move·attack·heavy-attack·mine·hit·downed) · `CurrentAction` · `ACTION_DEFINITIONS` | 모든 Actor 는 언제나 행동 하나 안에 있다 |
 | `combat.ts` | `MoveMode` · `SkillKind` · `SKILL_DEFINITIONS` · `StrikeEvent` · `Modifiers` · `MUTABLE_ATTRIBUTES` · 상수(RUN_CP_DRAIN · STRIKE_EVENT_TTL …) | 전투 자원 · 스킬 · 템포 배율 합성 |
 | `collision.ts` | `ActionCollider` · `actionCollider` · `faceToward` · 상수(PUSH_STIFFNESS · SWING_* …) | 캡슐 몸의 밀어냄 · 휘두름 판정 상수 |
-| `character-catalog.ts` | `CHARACTER_CATALOG` · `DEFAULT_CHARACTER` · `CharacterDefinition`(Body·Tempo·Resource) | CharacterKind 정적 시뮬 데이터의 단일 출처 |
+| `character-catalog.ts` | `CHARACTER_CATALOG` · `DEFAULT_CHARACTER` · `CharacterDefinition`(Body·Tempo·Resource·attackRange·perceptionRange·core) · `CORE_BEAST` · `CORE_UNDECLARED` | CharacterKind 정적 시뮬 데이터의 단일 출처 — `perceptionRange` 는 고정값이 아니라 그 종류가 인지에 거는 **상한**(`+Infinity` 는 제한 없음) · `core` 는 계열 코드(빈 글자가 「말하지 않았다」) |
 | `spawn.ts` | `spawnActor(ActorSpawn)` | 카탈로그에서 몸을 만드는 유일한 경로 |
+| `body-property.ts` | 성질 이름 셋(`PROPERTY_MAX_HP` · `PROPERTY_MAX_CP` · `PROPERTY_AWARENESS` · `BODY_PROPERTY_NAMES`) · 출처 코드 넷(`PROPERTY_ORIGIN_KIND`/`_BODY`/`_TIME`/`_AREA`) · 표(`BodyPropertyTables` · `BODY_PROPERTY_TABLES` · `TIME_AWARENESS_CAPS` · `awarenessCapSource`) · `bodyPropertySources` · `bodyProperty` · `bodyMaxHp` · `bodyMaxCp` · `bodyAwareness` · `bodyHazardEffects` · `StandingBody`/`standingBody` · `clampBodyVitals`/`clampBodyVitalsAll` | 몸의 성질은 저장된 필드가 아니라 **묻는 것**이다 — 종류 → 몸에 걸린 것 → 때 → 자락 차례로 Source 를 모으고 합치는 산수는 기반(engine/world-authoring/property)이 한다. 이름의 뜻과 표 셋을 이 파일이 소유하고, 현재값을 성질에 자르는 자리도 하나다 |
 | `inventory.ts` · `item.ts` | `Inventory`(plain object) · `ItemKind`(pickaxe · BIO_ORE · ORE_EATER_MOLT) · `hasMiningCapability` | 소지품 |
 | `command-catalog.ts` | `COMMAND_CATALOG` · `CommandDefinition` · `projectCommandCatalog` | 세계 밖에서 세계에 손댈 수 있는 것의 목록 |
 | `position.ts` | `WorldPosition` · `WorldBounds` · `inBounds` | 좌표 |
-| `region.ts` | `START_REGION` · `regionSpecOf` · `isConnectorOpen` · `connectorClosedReason` · `connectorReasonCodes` · `lockTraceCodesAt` · `regionExitsOf` · `anchorPosition` · `regionHash` | Region 데이터(content/regions) 를 세계가 읽는 유도 사실 — State 에 넣지 않는다 |
+| `region.ts` | `START_REGION` · `regionSpecOf` · `isConnectorOpen`/`connectorClosedReason`(문 앞의 몸 `StandingBody` 를 받는다 — Lock 이 밝힌 성질 요구를 그 몸에게 묻고, 몸이 없으면 닫힌다) · `connectorReasonCodes` · `lockTraceCodesAt` · `regionExitsOf` · `anchorPosition` · `regionHash` | Region 데이터(content/regions) 를 세계가 읽는 유도 사실 — State 에 넣지 않는다 |
 | `region-state.ts` | `RegionState` { rule? · sources? · disturbance · tracks? · lifeSites? · populations? · history } · `RegionMemory`(sources[id]{takenTotal · depletedTimes · lastDepletedAt?} · turns · awakenings · passages[routeId] · births[탄생지]) · `recordMemory`(셈을 올리는 한 자리 — RULE-REGION-MEMORY-001) · `RegionRuleState` · `ResourceSourceState` · `RegionDisturbanceState` · `Track` · `LifeSiteState` · `PopulationState` · `createRegionStates` · `apply*Setup` | 방 하나가 기억하는 것 (저장된다) |
 | `region-phase.ts` | `regionPhaseAt` · `depthOverlayAt` · `hazardOverlayTagsAt` · `hazardEffectsAt` · `standingConditionTagsAt` | 방이 시계를 읽어 얻는 위상(깊이 · 위험 · 선 자리 조건) |
 | `terrain.ts` | `regionTerrain` · `isTraversable` · `blockedReason` · `conditionTagsAt` · `TerrainBlockReason` | Description 을 `compileRegion(space, COMPILE_RULES)` 로 컴파일한 유도 사실 (통행 · 막힘 사유 · 조건) |
 | `persistence.ts` | `PERSISTENCE_TABLE` · `PersistenceRow` · `ERASER_*`(transient · observer-held · buried-by-turn · kept · indelible) | State 경로마다 "무엇이 그것을 지우는가" 하나 — 검사 ㊼ 의 입력 (Foundation G7) |
-| `condition.ts` | `lockCondition`(원본은 regions/opportunity.ts — 여기서 재수출) · `sourceOccurrenceCondition` · `phaseSeasonCondition` · `lifeRequirementCondition`(RULE-CONDITION-READ-001 — 조건 자리 넷을 engine Condition 형으로 **읽는다** · 데이터는 그대로) · `worldConditionReader`(clock · region · source · route · history · **area**(자락이 지금 걸려 있는가) · **connector**(문이 열려 있는가) · **process**(되돌아옴의 마디 · 진행) Target 의 값 — **모르는 이름은 여덟 갈래 모두 판정 불가** · 아는 것에 값이 없는 것은 없는 것(EXISTS 의 거짓) — RULE-CONDITION-HISTORY-001: history 는 `RegionState.history` 의 경로 `passages.<routeId>` · `turns` · `awakenings.*` · `sources.<id>.*`) · `worldConditionVerdict` · `sourceMemoryConditionCodes`(원천이 밝힌 기억 조건이 서지 않으면 `needs-passage` — 투영만 읽는다) · `worldConditionSites` · `worldConditionVocabulary`(검사 ㊹ · observe 조건 표의 입력) · `NEEDS_PASSAGE` | 조건은 하나의 형이다 — 판정은 지금의 함수(connectorClosedReason · sourceConditions · regionPhaseAt · lifeUnmetCodes)와 같다 · 문 · 원천 · 결속을 열고 닫지 않는다 |
+| `condition.ts` | `lockCondition`(원본은 regions/opportunity.ts — 여기서 재수출) · `sourceOccurrenceCondition` · `phaseSeasonCondition` · `lifeRequirementCondition`(RULE-CONDITION-READ-001 — 조건 자리 넷을 engine Condition 형으로 **읽는다** · 데이터는 그대로) · `worldConditionReader`(clock · region · source · route · history · **area**(자락이 지금 걸려 있는가) · **connector**(문이 열려 있는가) · **process**(되돌아옴의 마디 · 진행) · **actor**(property = 성질의 값 그대로 · capability = 그 성질을 가졌는가 · state = hp·cp·moveMode·currentAction·core · exists — **ref 가 없으면 판정 불가**, 자리로 고르는 것은 판정하는 쪽이 고른다) Target 의 값 — **모르는 이름은 아홉 갈래 모두 판정 불가** · 아는 것에 값이 없는 것은 없는 것(EXISTS 의 거짓) — RULE-CONDITION-HISTORY-001: history 는 `RegionState.history` 의 경로 `passages.<routeId>` · `turns` · `awakenings.*` · `sources.<id>.*`) · `worldConditionVerdict` · `sourceMemoryConditionCodes`(원천이 밝힌 기억 조건이 서지 않으면 `needs-passage` — 투영만 읽는다) · `worldConditionSites` · `worldConditionVocabulary`(검사 ㊹ · observe 조건 표의 입력 — actor 의 id 는 **몸의 종류 목록** · property 는 `BODY_PROPERTY_NAMES` · capability 는 축×관계로 지은 성질 태그 전부) · `NEEDS_PASSAGE` | 조건은 하나의 형이다 — 판정은 지금의 함수(connectorClosedReason · sourceConditions · regionPhaseAt · lifeUnmetCodes)와 같다 · 문 · 원천 · 결속을 열고 닫지 않는다 |
 | `mutation.ts` | `MUTATION_BINDINGS` — 지금 그것인 Transition 이 §4.2 표의 어느 op 인가 (군 여섯 · op · RULE id · 무엇). 코드를 옮기지 않고 이름만 준다 |
 | `opportunity-open.ts` | 기회가 지금 열려 있는가 — `isOpportunityOpen` · `opportunityStanding`(availability 를 평가해 **유도**한다 · 판정 불가는 열지 않는다 · 저장 0 — RULE-OPPORTUNITY-OPEN-001) |
 | `clock.ts` | `seasonAt` · `dayPhaseAt` · `worldClockAt` · `turnsStartedAt` · `seasonsStartedAt` · `clockSetupTime` · 상수(DAY/NIGHT/철 길이 · CYCLE_SECONDS) | 때(낮밤 · 철 · 며칠째 · 몇 바퀴째)는 `state.time` 에서 유도된다 |
@@ -87,7 +88,7 @@ CLAUDE.md "기반이 컨텐츠에게 요구하는 것" 이 지목한 파일들.
 | `mine.ts` | 채취 시작(원천 존재 · 거리 · 도구 · phase) 과 완료(소지품 · 원천 고갈 · 소란 · 기억) | RULE-MINE-001 · RULE-MINE-COMPLETE-001 · RULE-REGION-MEMORY-001 |
 | `move-mode.ts` | walk ↔ run 전환 (run 은 Cp > 0 · 쓰러지지 않음) | RULE-MOVE-MODE-001 |
 | `move.ts` | 이동 시작 — 목표가 Region extent 안 · 통행 판정 | RULE-MOVE-001 |
-| `observer-body.ts` | 관찰자 몸 생성(종류 · 자리 · 소지품) — `spawnObserverBody` · `DEFAULT_BODY` | RULE-OBSERVER-JOIN-001 (몸 부분) |
+| `observer-body.ts` | 관찰자 몸 생성(종류 · 자리 · 소지품 · 몸에 걸릴 Source) — `spawnObserverBody` · `DEFAULT_BODY` | RULE-OBSERVER-JOIN-001 (몸 부분) |
 | `skill.ts` | 스킬 시작 전제(기력 · 쓰러짐 · 템포) 와 기력 예산 | RULE-SKILL-BEGIN-001 · RULE-SKILL-BUDGET-001 |
 | `strike-damage.ts` | 스킬의 고정 피해 적용(소란 가산) 과 쓰러짐 | RULE-STRIKE-DAMAGE-001 · RULE-DOWNED-001 |
 | `summon-presence.ts` | 세계 밖에서 거는 지나가기의 시작 | RULE-PRESENCE-SUMMON-001 |
@@ -130,7 +131,7 @@ CLAUDE.md "기반이 컨텐츠에게 요구하는 것" 이 지목한 파일들.
 | 시나리오 파일 |
 |---|
 | c003-small-door-big-room · c004-polish-is-data · c005-land-rises · c006-land-blocks-and-flows · c007-observe-and-remake · c008-a-room-with-a-rule · c009-reach-by-the-rule · c010-one-world · c011-trace-leads-to-source · c012-the-mark-remains · c013-the-world-brings-it-back · c014-condition-and-flow · c015-the-world-has-a-clock · c016-a-season-changes-the-room · c017-others-were-here · c018-something-passes-over |
-| c036-a-room-offers.scenario · c019-beyond-the-pass.scenario · c020-what-the-cold-makes.scenario · c021-cold-crosses-the-pass.scenario · c022-owner-of-the-molt.scenario · c023-birth-is-consumption.scenario · c024-not-a-spawn-but-a-recovery.scenario · c025-the-forest-turns-on-its-own.scenario · c029-a-room-asks.scenario · c030-the-answer-in-the-world.scenario · c031-the-answer-is-not-one.scenario · many-exits.scenario |
+| c036-a-room-offers.scenario · c019-beyond-the-pass.scenario · c020-what-the-cold-makes.scenario · c021-cold-crosses-the-pass.scenario · c022-owner-of-the-molt.scenario · c023-birth-is-consumption.scenario · c024-not-a-spawn-but-a-recovery.scenario · c025-the-forest-turns-on-its-own.scenario · c029-a-room-asks.scenario · c030-the-answer-in-the-world.scenario · c031-the-answer-is-not-one.scenario · c039-a-body-stands-in-the-world.scenario · many-exits.scenario |
 | 단위: action · attack · collision · combat · command · mine · move · npc · observer · observer-mark · persistence · play-judgement-rooms · region · world-tick |
 
 ## view/
@@ -290,6 +291,12 @@ CLAUDE.md "기반이 컨텐츠에게 요구하는 것" 이 지목한 파일들.
 | Event | 어느 기회가 때가 있는가 · 그 창(WITHIN 값) · 무엇이 여는가(history 경로) · progress 가 가리키는 셈 · yield 열 | 같은 자리 — `RegionSpec.opportunities[<id>].availability` (`timedGatherOpportunity` 가 기본형) |
 | Event | 닫힌 Event 의 문구 (「지금은 없다」) | `view/code-text.ts` |
 | 조건 | 검사 ㊹ · observe 조건 표가 아는 어휘 (Target 종류마다 실제 id · query 마다 허용 속성) | `world/semantic/condition.ts` `worldConditionVocabulary` |
+| 몸의 성질 | 몸의 종류마다 최대 HP · 최대 CP · 인지 상한(`+Infinity` 는 제한 없음) · 계열(Core) | `world/semantic/character-catalog.ts` `CHARACTER_CATALOG` (기본은 `DEFAULT_CHARACTER`) |
+| 인지 | **때**가 인지에 거는 상한의 줄 (지금 한 줄 — 밤이면 20 · 줄이 없는 때는 아무것도 걸지 않는다) | `world/semantic/body-property.ts` `TIME_AWARENESS_CAPS` |
+| 인지 | **자락**이 인지에 거는 상한 — 그 자락이 밝힌 값과 그것을 읽는 줄 하나 | `regions/<방>.ts` hazard `observeRange`(눈보라 `{day 20 · night 10}`) · `world/semantic/body-property.ts` `BodyPropertyTables.areaAwarenessCap` |
+| 문이 묻는 성질 | 어느 문이 무슨 성질을 묻는가 (성질 태그는 축×관계 — `regions/properties.ts` `propertyTag`) | `regions/<방>.ts` `access.locks[].requires[].property` |
+| 문이 묻는 성질 | 서지 않을 때 읽히는 말 — 사유 코드의 문구 · 그 문의 힌트 한 줄 | `view/code-text.ts`(`connector-inactive` 등) · `view/region-presentation.ts` `EXIT_HINTS` |
+| 몸에 걸린 Source | 그 몸에 **더 걸리는** Source 들 — 성질의 최종값이 아니라 **원인**의 자리 (`ActorState.propertySources` 로 들어간다) | `world/index.ts` `WorldSetup.actorSources` · `NpcSetup.sources` |
 
 ## 검증 손잡이
 
