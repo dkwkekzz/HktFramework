@@ -20,7 +20,7 @@
 | 0 | 게임 방향 | [L0-Game.md](../content/roadmap/L0-Game.md) | 없음 — 판단 기준 | **확정** | 미증명 넷 (§3 L0) |
 | 1 | 세계의 문법 | [L1-World-Grammar.md](../content/roadmap/L1-World-Grammar.md) | 없음 — 코드가 이미 이 문법 위 | **확정** | 없음 |
 | 2 | 세계 자체 | [L2-World-Tool](../content/roadmap/L2-World-Tool.md) · [Tool-Scale](../content/roadmap/L2-World-Tool-Scale.md) · [Concept](../content/roadmap/L2-World-Concept.md) · [Region](../content/roadmap/L2-World-Region.md) · [Material](../content/roadmap/L2-World-Material.md) · [Time](../content/roadmap/L2-World-Time.md) · [Life](../content/roadmap/L2-World-Life.md) · [Access](../content/roadmap/L2-World-Access.md) · [Foundation](../content/roadmap/L2-World-Foundation.md) · [Observation](../content/roadmap/L2-World-Observation.md) | C001~C038 (§3 의 각 기획서 절) | **다음** — 기획은 닫혔다 (더 쌓을 기획 없음) | Rooms GAP 둘(후보 3) · 판정 대기 셋(협곡 · 생명 · 요구와 가능성 — 컨텐츠 행) · 도구 HundredRooms |
-| 3 | 주체와 몸 | [L3-Subject-Body](../content/roadmap/L3-Subject-Body.md) (**3층의 기획서 — Human 확정** — 몸의 State 와 유도되는 성질 · HP/CP · Awareness · Knowledge · Action Port · Core · 편성 · 교체 · 슬롯 6 · Bag 자리 — 원문 §26 Cycle A~D) · 재료: [L3-Subject-Expedition](../content/roadmap/L3-Subject-Expedition.md) (Cycle C 가 읽는다) · [L3-Subject-Discovery](../content/roadmap/L3-Subject-Discovery.md) (Cycle B 가 읽는다) | 없음 — 제안 전 | **다음** — 2층 판정과 **병행** · **spec 을 쓸 수 있다** | 전체 (§3 L3-Subject-Body) — "L3-Subject-Body 로 spec 써" |
+| 3 | 주체와 몸 | [L3-Subject-Body](../content/roadmap/L3-Subject-Body.md) (**3층의 기획서 — Human 확정** — 몸의 State 와 유도되는 성질 · HP/CP · Awareness · Knowledge · Action Port · Core · 편성 · 교체 · 슬롯 6 · Bag 자리 — 원문 §26 Cycle A~D) · 재료: [L3-Subject-Expedition](../content/roadmap/L3-Subject-Expedition.md) (Cycle C 가 읽는다) · [L3-Subject-Discovery](../content/roadmap/L3-Subject-Discovery.md) (Cycle B 가 읽는다) | C039~C042 (§3 L3-Subject-Body — Cycle 목록 승인 · C039 동결) | **진행** — 2층 판정과 **병행** | 없음 — 원문 §1~§28 전부가 Cycle 넷에 배분됐다 (§3) |
 | 4 | 자원과 물건 | [L4-Item-Gem](../content/roadmap/L4-Item-Gem.md) · [L4-Item-Craft](../content/roadmap/L4-Item-Craft.md) (대기) | 없음 | 미주입 | Material 쓰임 · Access 4층 몫 (§3 — 3층 주입 때 그 문서로) |
 | 5 | 대결 | [L5-Combat-Emergent](../content/roadmap/L5-Combat-Emergent.md) (대기) | 없음 | 미주입 | Concept W6 · W7 (§3 — 3층 주입 때 그 문서로) |
 | 6 | 능력 | [L6-Skill-Class](../content/roadmap/L6-Skill-Class.md) (대기) | 없음 | 미주입 | — |
@@ -42,7 +42,7 @@
 | M5 빙결 협곡 | 지역 | [M5-FrostCanyon.md](../content/roadmap/M5-FrostCanyon.md) | 2 | C019~C021 | **판정 대기** |
 | M6 붉은 알집 | 구조 | [Life §5](../content/roadmap/L2-World-Life.md) | 2 | C022~C025 | **판정 대기** — 거목 내부 세계 서쪽 벽(`CORE_EMBER`)에 놓였다 |
 | M7 열을 저장하는 결정의 원천 | 자원 | [Access D2](../content/roadmap/L2-World-Access.md) | 2 | C029~C031 | **판정 대기** |
-| M8 협곡의 열을 쫓는 것 | 생물 | Concept §6 · Frost Cause Network · M5 | 2 · 3 | 없음 | 컨텐츠 행으로 남는다 — 3층 기획서는 미지를 놓지 않는다(Human 확정 · §3 L3-Subject-Body). 3층이 닫힌 뒤 Human 이 이름을 줄 때 (코드 후보 `HEAT_STALKER`) |
+| M8 협곡의 열을 쫓는 것 | 생물 | Concept §6 · Frost Cause Network · M5 | 2 · 3 | 없음 | 컨텐츠 행으로 남는다 — 3층 기획서는 미지를 놓지 않는다(Human 확정 · §3 L3-Subject-Body). 추위가 몸을 깎는 값(Q3)도 이 행이 데이터로 놓는다. 3층이 닫힌 뒤 Human 이 이름을 줄 때 (코드 후보 `HEAT_STALKER`) |
 | (이후) | 지역 · 생물 · 자원 · 구조 | `M<N>-*.md` | 2 · 3 · … | 그 미지 하나를 만나는 Cycle 들 | Human 이 이름을 줄 때마다 등급 판정(A/B/C) |
 
 ## 3. 원본 기획 → Cycle 덮임 · 남은 것
@@ -542,17 +542,22 @@ Q2  떨어지는 자리를 세계가 알리지 않는다 — 추락은 거목 �
 ### L3-Subject-Body — 주체와 몸 (3층의 기획서 · Human 확정)
 
 ```text
-덮음      없음 — Cycle 도 spec 도 없다 → "L3-Subject-Body 로 spec 써"
-덮인 것   없음
-남은 것   전체 — 원문 §1~§28. Cycle 은 원문 §26 의 넷 — A Body Foundation(Actor · HP/CP · Core · Body Property · Condition target:actor · Awareness) ·
-          B Knowledge & Action(Awareness → Observation · Knowledge · ActorActionRequest · Current Action) · C Expedition & Stage(편성 · Active · Reserve · Switch · Observer) · D Attachment Foundation(슬롯 6 · Bag · Ability Source 자리)
-          재료(SOURCE 에 함께) — L3-Subject-Expedition §1(L7 §9 · §10 · §11 의 자리 · §20) + 그 문서가 받기로 했던 것(L7 3층 몫 · Access property Lock 판정 · Life F10 첫 개체 · M5 남은 것 — 추위 · 체온을 쫓는 포식자) → Cycle C · A
-          재료 — L3-Subject-Discovery §1(Foundation §2.5 · §2.6 · §7.7 · §7.9) + knowledge Lock · Discovery State · Concept W3 위험이 몸에 닿는 것 → Cycle B · A
-          형의 자리 — §10 Condition target:actor(C035 의 형에 줄을) · §20~§22 슬롯 · Bag(이 층이 자리 · 4층이 내용)                     → 이 문서의 Cycle · 4층
+덮음      **C039** 몸이 세계에 선다(A — 동결 · 진행 가능) → C040 감지하고 알고 요청한다(B — 초안) → C041 무대에 서는 것은 하나다(C — 초안) → C042 붙일 자리가 있다(D — 초안) — Cycle 목록 승인 · 질문 여섯 답 기입 · UNRESOLVED 없음
+덮인 것   (세우는 중) A — §3~§6 몸의 State 와 유도되는 성질(최대 HP · 최대 CP · 인지 범위 = Source 셋의 합) · §5 HP/CP · §7 인지 범위(때 · 자락 Source) · §10 Condition target:actor · §15 Core · Access property Lock 판정(빙결 심층 문이 몸에 묻는다 — K12)
+          B — §7 Awareness → 관찰 · §8~§9 Knowledge(learn · forget · knows · 발견 상태 다섯의 어휘 · 「모름 → 발견됨」) · §11~§14 Action Port(요청 한 형 · 생명주기 넷 · 「살핀다」 행동 표) · Discovery §1.4 Investigation(살핌) · Access §7 네 단계(아는 몸에게 요구가 드러난다) · knowledge Lock 판정 기구
+          C — §16~§19 Expedition · 무대의 한 명 · 교체 · Presence · Expedition §1.3~§1.6(L7 §9 · §10 · §11 자리 · §20) · 확정 3 · 4 · 5 · 위임 D1(야수계 · 수목계) · 원정의 앎 자리(확정 ④)
+          D — §20~§22 슬롯 여섯 · Bag 소유(소지품 옮김) · Source 가 붙을 자리
+남은 것   추위가 몸을 깎는 값 · 결정면 접촉이 몸에 하는 일 · 체온을 쫓는 것 (M5 남은 것 · Concept W3)           → 컨텐츠 행 M8 (Q3 — Source 자리는 C039 규칙 4 · 값은 데이터)
+          Life F10 태어난 개체의 몸 · 행동 (탄생지의 셈이 몸을 얻는 것)                                        → 컨텐츠 행 (3층은 미지를 놓지 않는다)
+          앎 요구를 밝힌 첫 문 · 발견 상태 「짐작 · 이해함 · 통달」로 오르는 원인 · Mutation Knowledge 군의 동작        → 컨텐츠 행 · 뒤 층 (Q4 — 기구는 C040)
+          Discovery §1.1 NPC Process(노동 · 휴식 · 거래 …) · §1.3 조우 · 자율 존재의 결정 방식                    → 컨텐츠 행 (M8 이 첫 사례) · 별도 Controller (원문 §2.2)
+          형의 자리 — 플레이어 · 세력 대상의 조건 · 「포함」 물음 · Entry / Leave / Off-field 의 내용 · 「장착」 행동     → 층 없음 · 4 · 6층
           뒤 층의 절 — 없다 (§2.2 · §9 · §18 · §21 · §27 은 경계 서술) · 옮긴 것 없음
 확정      (Human — 그 문서 §3) ① 이 문서 하나가 3층의 행 · Cycle A~D · 두 대기 문서는 재료 ② 순서는 A → B → C → D ③ 이 기획서는 미지를 놓지 않는다 — M8 은 컨텐츠 행으로
           ④ Knowledge 는 Actor 와 관찰자(원정) 둘 다 소유할 수 있게 — 형은 둘 다 · 무엇을 누가 아는가는 뒤에서 유연하게
-결정 대기  없음 — 값(슬롯 6 · HP/CP 둘뿐 · Active 하나)은 원문이 정했다. 수치 · 범위 · 시작 편성 둘 · 온기 값은 spec 의 UNRESOLVED 가 묻는다
+          (Human — spec 질문 여섯 · C039 spec UNRESOLVED 에 기입) Q1 빙결 심층 문의 성질 요구를 몸이 판정한다(4층 전이라 긴 밤에도 잠김 — M7 Access-1 의 한 바퀴가 바뀐다) ·
+          Q2 첫째 요정 「야수계」 · 둘째 「수목계」 · Q3 추위가 몸을 깎는 것은 넣지 않는다 · Q4 앎 요구 문은 지금 두지 않는다(기구 + 변형 데이터 실측) · Q5 살핌은 문의 자락 안에서 배운다 · Q6 소지품을 원정의 Bag 으로 옮긴다
+결정 대기  없음 — 값은 원문 · 코드 · Q1~Q6 이 정했고 나머지 경험 값은 손잡이다 (각 spec 의 손잡이 규칙 · 기본형 목록이 감사 자리)
 ```
 
 ## 4. 어느 층에도 자리가 없는 것
@@ -574,21 +579,20 @@ Q2  떨어지는 자리를 세계가 알리지 않는다 — 추락은 거목 �
 
 기획서와 Cycle 사이에 아무것도 없다 — Human 이 기획서를 지목하면 AI 가 그 기획서의 Cycle 전부를 spec 으로 쓰고(첫 spec 의 Trace 에 Cycle 목록), "C### 진행" 이 승인이다 ([Design-DesignAuthoringWorkflow §5~§7](../design/Design-DesignAuthoringWorkflow.md)). 한 세션에서 Cycle 로 못 자를 만큼 큰 기획서는 기획서를 나눈다.
 번호는 예정이다 — 실제는 승인 때 "전 이름공간 최대 + 1" (지금 C039). "받는 것" 이 §3 의 "남은 것" 과 짝이다.
-**순서는 이 표 그대로 간다 (확정)** — 앞당길 일이 생기면 그때 Human 이 뒤집는다. 지금 열려 있는 것은 2 · 3 둘이고 병행할 수 있다.
+**순서는 이 표 그대로 간다 (확정)** — 앞당길 일이 생기면 그때 Human 이 뒤집는다. 후보 2(L3-Subject-Body)는 C039~C042 로 승인되어 §3 으로 갔다 — 지금 자를 수 있는 것은 3 · 3.5 이고 3층 Cycle 과 병행할 수 있다.
 
 | 순서 | 층 / 행 | 이름 (가칭) | 기획서 | Goal (방향) | 받는 것 | 전제 | 그때 필요한 주입 · 미지 | Cycle | 상태 |
 |---|---|---|---|---|---|---|---|---|---|
-| 2 | **L3** | 주체와 몸 | [L3-Subject-Body](../content/roadmap/L3-Subject-Body.md) (원문 §26 Cycle A~D) + 재료 [L3-Subject-Expedition](../content/roadmap/L3-Subject-Expedition.md) · [L3-Subject-Discovery](../content/roadmap/L3-Subject-Discovery.md) · [Access](../content/roadmap/L2-World-Access.md) §14.1 · §15 · K12 · [M5](../content/roadmap/M5-FrostCanyon.md) · Subject-Decision · Autonomous-Behavior · Creature-Behavior | Actor 의 몸이 세계에 서서 HP/CP 와 열린 Body Property 를 가진다 → 감지하고 알며 출처와 무관하게 행동을 요청한다 → 원정을 편성해 무대의 몸을 교체한다(요정 둘 · 협곡 — 추위가 무대의 몸을 깎고 문이 몸의 성질을 묻는다) → 슬롯 6 · Bag 자리가 선다 (원문 §26 의 증명 넷) | §3 "L3-Subject-Body" 전체 (옛 후보 2 · 5 의 "받는 것" 포함) | 없음 — 2층 판정과 병행 (Human 결정) | 미지 없음(Human 확정) · 시작 편성 둘 · 온기 값 (spec 의 질문으로) | 넷 (원문 §26) | **쓸 수 있음** — "L3-Subject-Body 로 spec 써" |
 | 3 | L2 회수 | 온 길은 남고, 갈 길에는 단서가 있다 | [Region](../content/roadmap/L2-World-Region.md) §11 · §17 · Concept §19-07 · 실주행 GAP Q1 · Q2 | 관찰자가 방 전이를 기록하고 판에서 되읽는다 · 출구를 지목하면 종류와 방향이 선다 · 추락 자리의 땅이 예고한다 | Rooms GAP 둘 | 없음 — 지금 | 위치 감각의 형태(지도 · 이정표 · 흔적 · 깊이 감각만) · 추락 예고를 둘지 (질문으로) | 둘 | **쓸 수 있음** |
 | 4 | L2 도구 | HundredRooms | [Tool-Scale §5](../content/roadmap/L2-World-Tool-Scale.md) | 미지 백 줄 → 방 백 개가 검사를 통과하고 관찰자가 열 곳을 걸어 흔적 → 원천 → 철 → 탄생지를 본다. 코드 diff 0 | Tool-Scale 의 HundredRooms | 없음 — T1~T6 다 실측 (T2 확장 · T5 · T6 실주행까지) | 미지 백 줄의 **이름**(Human — 또는 초안기 후보를 Human 이 고른다) | 셋 안팎 | 기다림 — 이름뿐 |
-| 6 | L4 | (가칭) 캐서 지니면 갈 수 있는 곳이 늘어난다 | [L4-Item-Gem](../content/roadmap/L4-Item-Gem.md) · [L4-Item-Craft](../content/roadmap/L4-Item-Craft.md) + 4층 주입 + Item-* · Inventory-D1 · Resource-Catalog | 보석 하나를 캐서 지니고, 물건 하나가 같은 행동을 다른 행동으로 바꾼다 → 세 계통의 답(몸 · 소지 · 환경)이 한 문에 실제로 선다 | L7 4층 몫 · Material S10 · Access 4층 몫 · Region §12 | 후보 2 | 4층 주입 · D2 · D4 + 미지: 어디서 나는지 정해진 자원 하나 | 넷 안팎 | 기다림 (차례대로) |
-| 7 | L5 | (가칭) 처음으로 맞서 이긴다 | [L5-Combat-Emergent](../content/roadmap/L5-Combat-Emergent.md) + 5층 주입 + Combat-* · Targeting | 같은 적을 두 가지 상태 순서로 쓰러뜨린다 | L7 5층 몫 · Concept W6 · W7 · Time 접촉 | 후보 2 · 6 | 5층 주입 · D3 + 미지: 여러 해법을 허용하는 몬스터 하나 | — | 기다림 |
+| 6 | L4 | (가칭) 캐서 지니면 갈 수 있는 곳이 늘어난다 | [L4-Item-Gem](../content/roadmap/L4-Item-Gem.md) · [L4-Item-Craft](../content/roadmap/L4-Item-Craft.md) + 4층 주입 + Item-* · Inventory-D1 · Resource-Catalog | 보석 하나를 캐서 지니고, 물건 하나가 같은 행동을 다른 행동으로 바꾼다 → 세 계통의 답(몸 · 소지 · 환경)이 한 문에 실제로 선다 | L7 4층 몫 · Material S10 · Access 4층 몫 · Region §12 | 3층 닫힘 (C039~C042) | 4층 주입 · D2 · D4 + 미지: 어디서 나는지 정해진 자원 하나 | 넷 안팎 | 기다림 (차례대로) |
+| 7 | L5 | (가칭) 처음으로 맞서 이긴다 | [L5-Combat-Emergent](../content/roadmap/L5-Combat-Emergent.md) + 5층 주입 + Combat-* · Targeting | 같은 적을 두 가지 상태 순서로 쓰러뜨린다 | L7 5층 몫 · Concept W6 · W7 · Time 접촉 | 3층 닫힘 · 6 | 5층 주입 · D3 + 미지: 여러 해법을 허용하는 몬스터 하나 | — | 기다림 |
 | 8 | L6 | (가칭) 한 Core 가 두 Class 로 | [L6-Skill-Class](../content/roadmap/L6-Skill-Class.md) + 6층 주입 + Skill-* | 한 Core 가 두 Class 로 다른 Law 가 되고, Leave 가 남긴 장판이 다음 요정의 능력과 반응한다 | L7 6층 몫 | 후보 7 | 6층 주입 · D5 + Class 둘의 정식 이름 | — | 기다림 |
 | 9 | L7 | (가칭) 보석 하나가 답을 바꾼다 | L7 (7층 몫) · [L7-Growth-Experience](../content/roadmap/L7-Growth-Experience.md) · 7층 주입 · Growth-Balance | 보석 하나로 Class 가 바뀌어 못 풀던 자리를 새 방법으로 푼다 · Knowledge 하나가 숨겨진 관계를 연다 · 미증명 ③ | L7 7층 몫 · Life F11 · Access 7층 몫 · Material S10 의 Class 요구 | 후보 8 · 6 | 7층 주입 · D1 + 미지: 보석 하나의 Region 과 원인 · Knowledge 하나 | — | 기다림 (차례대로) |
 | 3.5 | L2 Foundation 둘째 | (가칭) 둥지가 군락이 된다 | [Foundation](../content/roadmap/L2-World-Foundation.md) G12 · 빈칸 3 · §8 기준 17 · CROSSED · 탄생지 기회 | 개체군이 문턱을 넘으면 둥지 방의 standing 위상이 바뀌어 판 · 땅 · 문이 달라지고, 되돌아오면 되돌아간다 — 코드 diff 는 형 위의 데이터와 규칙 하나 | Foundation §3 "2층에서 지금 할 수 있는 것" | Life 닫힘 (있음) | 군락의 문턱 값 · 위상 이름은 Human | 둘 안팎 | **Human 이 순서를 정한다** — 2 · 3 과 병행 가능 |
 | — | 컨텐츠 행 | (대부분 Cycle 없음) | `M<N>-*.md` | 보석 여덟 · 보류 계열 일곱 · 클래스 · 아이템 · 지식 · 지역 — 등급 A 면 작성기 · Spec · 검사 · Human 판정 / B 면 Cycle 하나 / C 면 기반 층 | §3 의 "컨텐츠 행" 전부 | Human 이 이름 · 종류 · 세계관 사실을 확정 | 미지 하나씩 | — | Human 이 이름을 줄 때마다 |
 
-8층(화면)은 기획서가 없다 — 각 Cycle 의 Required 로 들어온다. 후보 1(진행 중) · 2 · 3 은 Reuse 가 겹치지 않아 **병행**할 수 있다 (PR 은 번호 순으로 합친다).
+8층(화면)은 기획서가 없다 — 각 Cycle 의 Required 로 들어온다. 3층 Cycle(C039~) 과 후보 3 은 Reuse 가 겹치지 않아 **병행**할 수 있다 (PR 은 번호 순으로 합친다).
 6층 · 9층 후보는 앞당겨도 되는 둘이다 — 앞당기면 질문이 많은 채로 서고, 앞 층의 실주행이 전제를 바꾸면 다시 손본다.
 
 ## 6. 코드에 아직 없는 축
@@ -598,7 +602,7 @@ design/ 에만 있는 것 — 그 층이 열릴 때 그 기획서의 Cycle 들�
 ```text
 전투 공식 · 막기 · 피해 종류 · 살펴봄 · 태도 · 장비 · 스킬 형태 · 성장 · 재료의 쓰임          4~7층 (원문 절은 그 층의 대기 기획서 — §1)
 조건의 한 형 · 기회 · Event(Condition · Opportunity · 검사 ㊹ ㊺ ㊻) — 기억(history · ㊸ ㊼)은 코드에 있다        후보 1 (C035~C037)
-편성 · 무대의 한 명 · 온기 · property Lock 의 판정(몸이 요구에 답하는 것)                        후보 2 (L3-Subject-Body Cycle C · A) · 4층(소지)
-몸의 성질 유도(Body Property Resolver — 지금은 hpMax · perceptionRange 가 닫힌 필드) · Actor · 관찰자 Knowledge · Controller 와 무관한 Action Port · 장착 슬롯 6 · Expedition Bag 자리    후보 2 (L3-Subject-Body)
+편성 · 무대의 한 명 · property Lock 의 판정(몸이 요구에 답하는 것)                              C041 · C039 (L3-Subject-Body — 승인됨 · 코드는 아직) · 온기(추위의 값)는 컨텐츠 행 M8 · 4층(소지)
+몸의 성질 유도(Body Property Resolver — 지금은 hpMax · perceptionRange 가 닫힌 필드) · Actor · 관찰자 Knowledge · Controller 와 무관한 Action Port · 장착 슬롯 6 · Expedition Bag 자리    C039~C042 (L3-Subject-Body — 승인됨 · 코드는 아직)
 온 길의 기록 · 갈 길의 단서                                                                후보 3
 ```
