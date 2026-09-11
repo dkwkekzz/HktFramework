@@ -36,6 +36,7 @@ import type { ItemKind } from '../semantic/item';
 import { distance } from '../semantic/position';
 import {
   findResourceSource,
+  initialSourceState,
   isSourcePresentAt,
   sourcePositionOf,
   sourceStateOf,
@@ -149,17 +150,14 @@ export function ruleMineComplete(state: WorldState, actor: ActorState): ActionRe
   const source = sourceId ? findResourceSource(sourceId) : undefined;
   if (!source) return { status: 'failure', rule: RULE_MINE_COMPLETE, reason: 'unknown-source' };
 
-  // 그 방의 원천 State — 없으면 여기서 세운다 (available · 아직 한 번도 캐지 않았다).
+  // 그 방의 원천 State — 없으면 여기서 세운다 (아직 아무 일도 겪지 않은 처음 상태).
   // C017 CHANGED — 방의 State 를 짓는 자리는 하나다 (semantic/region-state.ts 의 regionStateOf) —
   // 소란이 모든 방에 서므로 소란 없는 State 를 여기서 지어내면 형이 거짓말을 한다.
+  // 원천의 처음 상태를 짓는 자리도 하나다 (semantic/resource.ts 의 initialSourceState) —
+  // 세계가 설 때와 여기가 다른 답을 내면 실려 와야 생기는 원천이 여기서만 캘 수 있는 것이 된다.
   const regionState = regionStateOf(state.regionStates, source.regionId);
   const sources = (regionState.sources ??= {});
-  const sourceState = (sources[source.id] ??= {
-    phase: 'available',
-    taken: 0,
-    progress: 0,
-    siteIndex: 0,
-  });
+  const sourceState = (sources[source.id] ??= initialSourceState(source));
 
   if (sourceState.phase === 'depleted') {
     return { status: 'failure', rule: RULE_MINE_COMPLETE, reason: 'source-depleted' };

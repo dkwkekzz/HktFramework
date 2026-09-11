@@ -76,6 +76,7 @@ function source(id: string, region: string): CheckEcologySource {
     traces: [],
     opportunity: 'o',
     carrier: 'k',
+    harvests: 1,
   };
 }
 

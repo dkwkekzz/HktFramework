@@ -43,7 +43,7 @@ Cycle 의 종류는 행이 가른다 — 기반 Cycle(L<N>)은 제공 · 작동 
 | 층 | 상태 | 한 줄 |
 |---|---|---|
 | 0 게임 방향 · 1 세계의 문법 | 확정 | 판단 기준 · 코드가 이미 그 위. L0 미증명 넷은 컨텐츠 행 · 3층 · 7층 · 실주행이 채운다 |
-| 2 세계 자체 | **다음** | 기획 아홉 문서가 다 코드에 있고 Foundation 은 닫혔다. 판정 셋(컨텐츠 행 M5·M6·M7) · Rooms GAP 둘(후보 3) · 도구 하나(HundredRooms)가 남았다 |
+| 2 세계 자체 | **다음** | 기획 열 문서가 다 코드에 있고 Foundation 은 닫혔다. 판정 셋(컨텐츠 행 M5·M6·M7) · Rooms GAP 둘(후보 3) · 도구 하나(HundredRooms)가 남았다 |
 | 3 주체와 몸 | **다음** (병행) | 기획서는 L3-Subject-Body 하나(Human 확정 — 몸 · 성질 유도 · 앎 · 행동 · 편성 · 슬롯 · Bag · Cycle A~D · 미지 없음 · Knowledge 는 Actor 와 관찰자 둘 다). L3-Subject-Expedition · L3-Subject-Discovery 는 그 재료. **spec 을 쓸 수 있다** |
 | 4 · 5 · 6 | 미주입 | 각 층의 대기 기획서(L4-Item-Gem · L4-Item-Craft · L5-Combat-Emergent · L6-Skill-Class)가 입력이다 — Foundation · L7 의 몫은 옮겼고, 2층 나머지 일곱 문서의 뒤 층 절은 3층 주입 때 옮긴다 (DESIGN §3) |
 | 7 성장 | 미주입 (원문 확정) | L7 원문의 7층 몫 + L7-Growth-Experience(Foundation §7.5) |

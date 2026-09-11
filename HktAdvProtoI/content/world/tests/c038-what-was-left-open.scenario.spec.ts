@@ -119,13 +119,13 @@ const CONDITION_REFS_ID = 'condition-refs';
 const CONDITION_REFS_MARK = '㊹';
 /**
  * 검사의 수 — 그 Cycle 의 spec 이 **마흔여덟**로 못 박았고, 그 뒤 T2 확장이 접근 계통에 ㊽ 을
- * 더해 마흔아홉이 되었다.
+ * 더해 마흔아홉이, 재료 계통에 ㊾(캘 횟수)이 더해져 쉰이 되었다.
  *
  * 동결된 spec 을 고쳐 읽는 것이 아니다 — 그때 마흔여덟이었다는 것은 그대로 참이고, 이 줄이
  * 재는 것은 "지금도 그 수가 맞는가" 다. 총수를 못 박은 것은 그 spec 이 예외로 둔 자리이므로
  * (그래서 다른 시나리오는 전체 개수를 단언하지 않는다) 검사가 늘 때마다 여기가 함께 움직인다.
  */
-const CHECK_COUNT = 49;
+const CHECK_COUNT = 50;
 /** 관찰의 role 둘 — C036 SPEC-004 그대로 */
 const HARVEST = 'harvest-source';
 /** 철 넷 (C015 · C016 그대로) */
@@ -1148,7 +1148,7 @@ describe('회귀', () => {
     }
   });
 
-  it('S-682 (SPEC-009) 검사가 마흔아홉이고 통과이며, 두 번 돌려도 글자까지 같다', () => {
+  it('S-682 (SPEC-009) 검사가 쉰이고 통과이며, 두 번 돌려도 글자까지 같다', () => {
     const first: CheckReport = runWorldCheck();
     expect(first.items.length).toBe(CHECK_COUNT);
     expect({ fail: first.counts.fail, ok: first.ok }).toEqual({ fail: 0, ok: true });

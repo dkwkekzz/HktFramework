@@ -52,13 +52,12 @@ import {
 import {
   addDisturbance,
   depleteSourceState,
-  initialSourceState,
   regionStateOf,
   remember,
   standSourceState,
   type LifeSiteState,
 } from '../semantic/region-state';
-import { findResourceSource } from '../semantic/resource';
+import { findResourceSource, initialSourceState } from '../semantic/resource';
 import { PROGRESS_EPSILON, type WorldState } from '../semantic/world-state';
 
 export function ruleLifeBinding(state: WorldState, dt: number): void {

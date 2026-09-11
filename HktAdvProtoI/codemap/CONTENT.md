@@ -257,7 +257,7 @@ CLAUDE.md "기반이 컨텐츠에게 요구하는 것" 이 지목한 파일들.
 | `boundary:check` | `tools/boundary/` | engine/content/조립/regions import 그래프 경계 검사 |
 | `catalog` · `catalog:check` | `tools/catalog/print.ts` | CharacterKind 3원소(카탈로그 · 표현 · motions/) 병합 출력 / 정합 검사 (`tests/catalog.spec.ts`) |
 | `motions:scan` · `motions:check` | `tools/motion-atlas/` (scan · build-atlas · detect-frames · png-alpha · emit · vite-plugin) | 모션 시트 프레임 검출 → `view/motion-atlas.generated.ts` / 최신 여부 확인 (`tests/detect.spec.ts`) |
-| `world:check` | `tools/world-editor/check.ts` | 세계 검사 묶음(마흔여덟 — ①~㊷ + ㊸ memory-refs · ㊼ persistence-summary · ㊹ condition-refs · ㊺ opportunity-refs · ㊻ opportunity-summary · `CheckMemory` · `CheckCondition` · `CheckOpportunity`(`WORLD_CHECK_*`) 계약) → 기계가 읽는 JSON |
+| `world:check` | `tools/world-editor/check.ts` | 세계 검사 묶음(마흔아홉 — ①~㊷ + ㊸ memory-refs · ㊼ persistence-summary · ㊹ condition-refs · ㊺ opportunity-refs · ㊻ opportunity-summary · ㊾ ecology-harvests · `CheckMemory` · `CheckCondition` · `CheckOpportunity`(`WORLD_CHECK_*`) 계약) → 기계가 읽는 JSON |
 | `world:observe` | `tools/world-editor/observe.ts` | Region 그래프 표 · 방 하나의 땅 그림/보고 (`png.ts`) · `--report [--at <철>]` 에 열쇠 × 자물쇠 표 · **조건 표**(잎마다 어디에 · target · query · operator value · qualifier · 지금 — 갓 선 세계) · **기회 표**(어디에 · id · discovery · Event · 지금 · target · 동사 · yield) · **Yield 표**(열 열넷 · 2층 값 넷) · **수명 표**(지우는 손 · State 경로) |
 | `world:compile` | `tools/world-editor/compile.ts` | 같은 방 두 번 컴파일 → hash 동일 확인 |
 | `world:shot` | `tools/world-editor/shot.ts` | 띄운 게임의 그 방을 찍는다 (HKT_SPAWN_REGION · HKT_SPAWN 사용) |

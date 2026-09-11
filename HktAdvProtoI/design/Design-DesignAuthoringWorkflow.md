@@ -14,11 +14,13 @@ Cycle 들로 구현 Workflow 에 전달한다.
 결과 하나" 를 먼저 자르고, 그 경험을 만드는 데 필요한 World 변화만 Cycle 로 구현한다.
 
 ```text
-기획서(L<N> · M<N> · design/) → Cycle 전부의 spec (첫 것은 동결 후보 · 뒤 것은 초안) → "C### 진행" → Cycle → … → 실주행 판정
+기획서(content/roadmap/ 의 L<N> · M<N> 하나) → Cycle 전부의 spec (첫 것은 동결 후보 · 뒤 것은 초안) → "C### 진행" → Cycle → … → 실주행 판정
 ```
 
 기획서와 Cycle 사이에 **아무 단위도 두지 않는다** — Play Design · Master Graph · Intent Graph · Capability Graph · 묶음은 없다.
 Cycle 을 세는 단위는 **기획서 하나**(content/roadmap 의 문서 하나)다. 의미의 출처는 기획서 하나이고, spec 은 기획서를 직접 인용한다.
+**`design/` 문서는 기획서가 아니라 재료다** — 지목되면 주입(§10)이 그 층의 결과물로 보존하고, spec 의 SOURCE 는 그 결과물을 가리킨다.
+`design/` 에서 바로 Cycle 로 가면 그 축이 로드맵에 서지 않아 뒤 Cycle 들이 집 없는 계약을 인용하게 된다 (L2-World-Observation 이 그 사례 · §6).
 기획서 하나의 Cycle 들은 한 세션에서 한 번에 spec 으로 선다 — 그러지 못할 만큼 큰 기획서는 **기획서를 나눈다** (§5).
 
 **Cycle 의 종류는 행이 가른다.** 컨텐츠 층(M<N>)의 Cycle 은 위 원칙 그대로 플레이 하나를 자른다. 기반 층(L<N>)의 Cycle 은
