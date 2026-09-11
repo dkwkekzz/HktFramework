@@ -1,282 +1,126 @@
 # C011 — 흔적이 원천으로 데려간다
 
 ```text
-CYCLE          C011
-SOURCE         content/roadmap/play/RoomBearsMaterial.md (승인됨)
-               — §2 Play Goal · §4 Breath(이상함 · 추측 · 추적) · §5.1 · §5.2 · §5.3 ·
-                 §6 Required(W17 · W19 · W24 · V9 · V10 · V11 · E12) · 확정 사항 2·3·5·7·8 ·
-                 위임된 결정 D1(이름) · D2(성질) · 부록 A.1 · A.2 · A.3
-               content/roadmap/L2-World-Concept.md §4 숲의 생태 사슬 (World Cause 원본) · §3.5 layer
-               content/roadmap/L2-World-Region.md R13 데이터에 상한 없음 · §5.1 이름 표
-SELECTED_FROM  Play §7 Cycle Breakdown 의 첫 항목 (C011)
+CYCLE          C011-trace-leads-to-source
+SOURCE         content/roadmap/L2-World-Material.md §2 S1(Resource Web) · S2(원천 없는 배치 금지) · S3(구배) · S4(흔적이 먼저다) · S10(쓰임은 넘기지 않는다) ·
+               §3.1(layer 넷에 의미를 맨다 — resource · trace) · §3.2(resourceEcology 는 데이터 · 규칙은 이름을 모른다) ·
+               §5.1~§5.4 · §5.6(Trace Network) · §6.1 · §6.2 · §11(거대 악마의 숲 — 사슬이 낳는 원천 후보) · §6 위임 ①(이름) · ②(성질) ·
+               content/roadmap/L2-World-Concept.md §4(숲의 생태 사슬 — 이 계통의 World Cause) · §3.5(layer) ·
+               content/roadmap/L2-World-Region.md §2.1 R13(방도 연결도 데이터다) · §5.1(이름 표) ·
+               plan/DESIGN.md §3 L2-World-Material "덮인 것"(원천 · 흔적 · 구배) · §2 미지 M3
+SELECTED_FROM  CYCLES 의 첫 항목
+CYCLES         C011 흔적이 원천으로 데려간다 → C012 캐면 세계가 달라진다 → C013 세계가 되돌린다 → C014 조건과 흐름, 그리고 보고     (L2-World-Material 의 Cycle 전부 — DESIGN §3 "덮음")
+행             L2 — 기반 층 (세계 자체) · 놓는 미지 M3 숲의 재료 계통
 ```
 
-## Playable Goal
+닫힌 Cycle 이다 — 동결 · 실현 · 마감이 끝났다. 이 문서는 그 spec 을 목표 · 규칙 형식으로 다시 쓴 것이고 의미는 기획서와 DESIGN 의 결정에서만 왔다
+(옛 spec 의 SOURCE 는 그 사이에 있던 Play 문서를 가리켰다 — 그 문서가 옮긴 것이 여기 S 와 § 다).
 
-관찰자가 재료 아이콘도 좌표 안내도 없는 채로, 흙 변색이 **짙어지는 쪽**을 따라 백왕령 → 숲 가장자리 →
-탐험대 폐허 · 숲 깊은 곳 → 생체 광석 지대 · 붉은 눈의 거목으로 방을 건너 **네 원천**에 닿아 캐고,
-캔 것이 **재료의 이름**으로 손에 들어온다. 백왕령에는 이 계통이 하나도 없다.
+## 목표
 
-## Experience Intent
+관찰자의 몸이 재료 표식도 좌표 안내도 없는 채로 **흙 변색이 짙어지는 쪽**을 따라 백왕령 → 숲 가장자리 → 탐험대 폐허 · 숲 안쪽 → 생체 광석 지대 ·
+붉은 눈의 거목으로 건너 **원천 넷**에 닿아 캐고, 캔 것이 **재료의 이름**으로 손에 들어온다. 백왕령에는 이 계통이 하나도 없다.
 
 ```text
-Start   재료는 광맥이다 — 아이콘이 있고, 그것 하나가 시작 방에 놓여 있다.
-End     재료는 숲이 만들고 있는 것이다. 흙 색이 다른 자리가 먼저 오고, 그 색은 방향을 가지며,
-        따라가면 서로 다른 형태의 원천 넷이 서 있다. 손에 든 것이 무엇에 쓰이는지는 아직 모른다.
+Start → End    재료는 광맥이다 — 표식이 있고 그것 하나가 시작 방에 놓여 있다 → 재료는 숲이 만들고 있는 것이다. 흙 색이 다른 자리가 먼저 오고, 그 색은 방향을 가지며, 따라가면 서로 다른 형태의 원천 넷이 서 있다
+하지 않는 것    캘 수 있는 횟수 · 바닥남 · 캔 자국(외형 · 옅어짐 · 통행 · 의존)                 → C012
+               되돌아옴 · 공급 유형의 진행 · 자리를 옮기는 원천                                → C013
+               세 번째 재료 · 부산물 · 조건부 기회 · 방을 넘는 흐름 · 고립의 이유 · 도구 보고 ⑩~㉒   → C014
+               재료의 쓰임(Recipe · 조합 · Item 효과 · 수치 · Class 요구)                       → 4층 · 7층 (S10)
+               살아 움직이는 광식충 · 조류 · 포식수 — 남긴 것만 여기 있다                        → 3층 (§2.2)
+숨기는 것       흔적의 세기 — 관찰에 수로 실리지 않는다. 관찰자는 자기 데이터로 땅과 같이 스스로 얻는다 (짙기는 보이고 값은 없다)
+               그 재료가 무엇에 쓰이는가 — 캐서 손에 들었는데 쓸 자리가 세계 어디에도 없다 (S10 · 그것이 미지감이다)
 ```
 
-## World Change
+기반 Cycle 로 읽으면 — 기구: 데이터에서 유도되는 원천의 자리 · 겹친 변색에서 그 자리의 세기를 얻는 것 · 채취의 대상이 데이터의 원천이 되는 것.
+계약: 재료 표 · 원천 표(방 · 재료 · 형태 · 기회 · 운반체 · 공급) · 흔적의 단계가 전부 데이터. 예제: 재료 둘 · 원천 넷 · 다섯 방의 흔적 사다리.
 
-1. 시작 방의 광맥(`Deposit`)이 사라진다. **원인 없이 놓인 Loot Node** 는 이 세계에서 없어진다
-   (Play §6 Existing — S2 가 금지한 그것). 백왕령에는 이 계통이 유입되지 않는다 (확정 5).
-2. 이 숲에 **재료 계통**이 생긴다 — Material Seed 둘(`BIO_ORE` 생체 광석 · `ORE_EATER_MOLT` 광식충 허물)이
-   서로 다른 자연 형태로 네 자리에 난다 (D1 · A.1).
-3. 네 **Resource Source** 가 자기 방에 선다 — 경계부 둘(`MOLT_LITTER` · `RUIN_SPOIL`)과
-   핵심부 둘(`ORE_OUTCROP` · `ROOT_NODULE`). 자리도 성질도 `content/regions` 의 데이터다.
-4. 방 다섯의 땅에 **흔적**(흙의 변색)이 깔린다. 세기는 경계부 → 중간부 → 핵심부 → 원천 둘레로
-   **단조롭게 짙어진다** — 그것이 방향이다.
-5. 채광 규칙의 대상이 광맥에서 **원천**으로 바뀐다. 얻는 것은 `stone` 이 아니라 그 원천의 **재료**다.
-6. 소지품의 품목이 재료가 된다 — `stone` 은 이 세계에서 사라진다.
-
-## Observable Result
-
-1. 백왕령에 캘 것이 하나도 없고 흙 변색도 없다.
-2. 숲 가장자리의 서쪽 나무 밑동에 **흩어진 껍질 조각**이 있고, 그 둘레 흙 색이 방의 나머지보다 짙다.
-3. 탐험대 폐허의 **헐린 더미**에서 캐면 숲 가장자리와 **같은 재료**가 들어온다.
-4. 숲 깊은 곳은 방 전체가 가장자리보다 짙고, 동쪽(광석 지대 쪽)과 북쪽(거목 쪽) 출구 둘레가
-   더 짙다. 서쪽(둥지 쪽)은 짙어지지 않는다.
-5. 생체 광석 지대의 **노두**와 붉은 눈의 거목의 **뿌리혹**은 방 바닥보다 더 짙은 변색 한가운데 서 있고,
-   뿌리혹 둘레가 이 세계에서 가장 짙다.
-6. 원천을 지목하면 판이 그것의 종류와 줄 수 있는 행동(채취)을 답한다 — 세계 위에 이름표는 없다.
-7. 캐고 나면 HUD 에 그 **재료의 이름**과 수가 뜬다. 무엇에 쓰는지는 아무 데도 없다.
-
-## Reuse
+## 규칙
 
 ```text
-Existing (그대로 쓴다)
-  RegionGraphRooms 전부 — 방 열하나 · Connector 열여섯 · 건너기 · 방으로 잘리는 투영 · depth
-  RoomBecomesLand — Description(point · area · polygon) · compile · tagsAt · SceneGroundZone · 조건 area
-  RuleBoundRoom — Region State · 컴파일 위의 덧씌움 · 다중 관찰자 · 세계 영속
-  RoomAnswersWhenAsked — 자리 지목(C026) · 존재 지목과 대상 프레임과 그 대상이 주는 행동(C027) ·
-                        늘 떠 있는 판 · 세계 위 글자 0(RULE-QUIET-GROUND-001)
-  채광 — RULE-MINE-001 / RULE-MINE-COMPLETE-001 (대상만 바뀐다) · 행동 진행 · 소지품 · InteractionRange
-Added
-  Data      content/regions/materials.ts (Material Seed 표) · RegionSpec.resourceEcology ·
-            방 다섯의 Description 에 resource layer point 넷 · trace layer area 열
-  World     semantic/resource.ts — 원천 목록과 자리를 데이터에서 유도한다 · 흔적 세기 유도
-  Protocol  EntityView.material — 그 원천이 내는 Material Seed 의 코드
-  View      원천 표현(형태별 그림 넷) · 흔적 표현(단계별 지면 색) · 문구
-Engine
-  없음 — E12 그대로다. resource · trace 는 이미 Description 의 layer 이고 새 op 도 새 layer 종류도 없다
-```
+규칙 1  재료 둘과 원천 넷이 데이터로 선다                       데이터 · ADDED                     근거 §5.2 · §5.3 · §6.1 · §6.2 · §11 · 위임 ① ②
+  ① 조건  세계가 처음 선다
+     변형  재료가 「생체 광석」과 「광식충 허물」 둘이 된다 — 둘의 세계 원인이 「숲의 생태 사슬」 하나가 된다
+           그 재료의 쓰임(무엇과 조합하는가 · 어떤 효과인가 · 몇인가)은 세계 어디에도 없음
+  ② 조건  세계가 처음 선다
+     변형  원천이 넷이 된다 — 숲 가장자리의 「흩어진 허물」 · 탐험대 폐허의 「버려진 더미」 · 생체 광석 지대의 「노두」 · 붉은 눈의 거목의 「뿌리혹」
+           「흩어진 허물」과 「버려진 더미」가 내는 재료가 「광식충 허물」이 되고, 「노두」와 「뿌리혹」이 내는 재료가 「생체 광석」이 된다 — 같은 재료가 다른 형태로 두 자리에 난다
+           기회의 자리가 경계부 둘 「그저 있는 것」 · 핵심부 둘 「위험한 것」이 된다
+  ③ 조건  세계가 처음 선다
+     변형  시작 방의 「광맥」이 「없음」이 된다 · 소지품의 품목 「돌」이 「없음」이 된다 — 원인 없이 놓인 채집물이 이 세계에서 사라진다
+  ④ 조건  관찰자의 몸의 방이 「백왕령」이다
+     변형  없음 — 원천도 흙 변색도 하나 없다. 능선 · 강 · 다리 · 도시 · 조건 셋은 한 값도 다르지 않다
 
-## Out of Scope
+규칙 2  원천의 자리는 데이터가 정한다                           RULE-RESOURCE-PLACEMENT-001 · ADDED   근거 §3.1 · §6.5(공간이 의미에서 나온다) · R13
+  ① 조건  어느 방의 자리 표에 원천 하나의 이름이 붙은 자리가 「있음」이 된다
+     변형  그 원천이 그 방의 그 자리에 선다
+  ② 조건  어느 원천의 자리가 그 방의 자리 표에 「없음」이다
+     변형  없음 — 그 원천은 서지 않는다. 자리를 지어내지 않는다
+  ③ 조건  관찰자의 몸의 방이 「숲 안쪽」이다
+     변형  없음 — 그 방에는 원천이 하나도 없다. 흔적만 있는 중간부다 (구배 — S3)
 
-```text
-Source 의 phase 와 채취 단위 · 캔 자국(외형 · 흔적 옅어짐 · 통행 막힘 · 의존)   → C012 (D4 가 여기 붙는다)
-회복 · Supply Mode 의 실제 진행 · MIGRATORY 의 자리 이동 · 뿌리 곡선(presence)  → C013 (D3 가 여기 붙는다)
-조건부 기회(RIVER_SILT) · 부산물(NEST_FUNGUS) · 호수 침전 · Resource Flow ·
-  Isolation Reason 의 명시 · world:observe --report ⑩~㉒ 와 분포 요약 ⑲⑳          → C014
-재료의 쓰임 — Recipe · 조합 · 효과 · 수치                                     → 4층 이후 (S10 · unresolvedUses)
-살아 움직이는 광식충 · 조류 · 포식수                                          → 3층 (확정 2)
-```
+규칙 3  그 자리의 흔적 세기                                     RULE-TRACE-STRENGTH-001 · ADDED       근거 §4 M4 · §5.6
+  ① 조건  한 자리를 덮은 흙 변색이 「3」 하나다
+     변형  그 자리의 흔적 세기가 「3」이 된다
+  ② 조건  한 자리를 덮은 흙 변색이 「3」과 「1」 둘이 된다
+     변형  그 자리의 흔적 세기가 「3」이 된다 — 겹침은 짙기이지 양이 아니다 (합하지 않는다)
+  ③ 조건  한 자리를 덮은 흙 변색이 「없음」이다
+     변형  그 자리의 흔적 세기가 「0」이 된다
 
-**이 Cycle 의 원천은 캐도 줄지 않는다.** 채취 단위(D4)와 고갈은 C012 가 phase 와 함께 세운다 —
-Play 가 그 둘을 한 자리에 묶어 두었고(§5.4 · D4 "C012 헤더 고정"), 여기서 수만 먼저 깎으면
-"캐면 세계가 달라진다" 의 절반이 이 Cycle 에 흩어진다. TODO 의 부채로 남긴다.
+규칙 4  흔적이 방을 건너 짙어진다                               데이터 · 규칙 3 위                    근거 §4 M3(구배) · M4 · §5.4 · §11
+  ① 조건  세계가 처음 선다
+     변형  방 바닥의 흔적 세기가 숲 가장자리 · 탐험대 폐허 「1」 · 숲 안쪽 「2」 · 생체 광석 지대 · 붉은 눈의 거목 「3」이 된다 — 경계부에서 핵심부로 단조롭게 짙어진다
+  ② 조건  세계가 처음 선다
+     변형  원천 넷의 둘레가 자기 방 바닥보다 짙어진다 — 「2 · 2 · 4 · 5」. 「뿌리혹」 둘레만 두 단계 올라 이 세계에서 가장 짙은 자리가 된다
+  ③ 조건  세계가 처음 선다
+     변형  숲 안쪽의 광석 지대 쪽 출구 둘레와 거목 쪽 출구 둘레가 「3」이 된다 — 방 안에서도 짙기가 방향이다
+  ④ 조건  자리가 숲 안쪽의 둥지 쪽 출구 둘레다
+     변형  없음 — 방 바닥 「2」 그대로다. 그 쪽에는 아직 원천이 없으므로 없는 방향을 가리키지 않는다 (C014 가 세운다)
+  ⑤ 조건  자리가 백왕령 안의 어느 자리다
+     변형  없음 — 흔적 세기가 「0」이다
 
-## SPEC
+규칙 5  캐면 그 원천의 재료가 손에 들어온다                      RULE-MINE-001 · RULE-MINE-COMPLETE-001 · CHANGED   근거 §4 M2 · §5.3 · §5.8
+  ① 조건  곡괭이를 지닌 몸이 같은 방 원천의 「닿는 거리」이고, 몸의 요청이 「채취」가 된다
+     변형  몸의 지금 행동이 「그 원천의 채취」가 된다
+  ② 조건  몸의 채취 행동이 「끝」이 된다
+     변형  소지품의 그 원천이 내는 재료의 수가 「하나 는다」 — 다른 재료는 늘지 않는다
+  ③ 조건  몸의 채취 행동이 「하는 중」이다
+     변형  없음 — 끝나기 전에는 아무것도 손에 들어오지 않는다 (곧바로 얻는 것이 아니다)
+  ④ 조건  몸의 요청이 「채취」인데 곡괭이가 「없음」 · 거리가 「밖」 · 지금 행동이 「바꿀 수 없는 것」 · 대상이 「모르는 것」 가운데 하나가 된다
+     변형  요청의 답이 「거절 · 곡괭이 없음」 · 「거절 · 멀다」 · 「거절 · 하는 중」 · 「거절 · 모르는 대상」이 된다
+           소지품은 없음
+  ⑤ 조건  대상이 다른 방의 원천이고 몸의 요청이 「채취」가 된다
+     변형  요청의 답이 「거절 · 멀다」가 된다 — 자리가 방마다 따로다 (C001 규칙 2)
 
-```text
-SPEC-001  네 원천이 자기 방에 선다
-          조건  관찰자가 FOREST_EDGE · EXPLORER_RUIN · BIO_ORE_FIELD · RED_EYE_TREE 에 선다
-          기대  그 방의 관찰 결과에 role = 'resource-source' 인 존재가 정확히 하나 있고,
-                그 자리는 그 방 Description 의 resource layer point 자리와 같다
-          경계  WHITE_KING_DOMAIN · FOREST_DEEP · PREDATOR_NEST · HEART_LAKE 에는 하나도 없다
+규칙 6  물으면 원천이 답하고 세계 위에는 글자가 없다              RULE-BEING-READING-001 · RULE-TARGET-OFFERS-001 · RULE-QUIET-GROUND-001 위   근거 §4 M2 · Region §14.2
+  ① 조건  몸의 지목이 「원천 하나」가 된다
+     변형  판의 대상이 그 원천의 「종류」가 되고, 그 대상이 주는 행동이 「채취」가 된다 — 걸 수 없으면 그 자리에 사유가 선다
+  ② 조건  원천이 선 방이 그려진다
+     변형  없음 — 원천 위에 이름표 · 수량 · 지면 표식이 하나도 없다. 이름은 물었을 때 판이 답한다
+  ③ 조건  소지품에 어떤 재료가 「없음」이다
+     변형  없음 — 화면에 그 재료의 자리가 서지 않는다. 「0」으로 지어내지 않는다 (하나 캐면 그때 자리가 하나 생긴다)
 
-SPEC-002  원천은 자기가 무엇을 내는지 밝힌다
-          조건  원천 하나를 관찰한다
-          기대  material 이 그 원천의 Material Seed 코드이고 kind 가 자연 형태 코드다
-                MOLT_LITTER · RUIN_SPOIL → ORE_EATER_MOLT · ORE_OUTCROP · ROOT_NODULE → BIO_ORE
-          경계  쓰임(Recipe · 효과 · 수치)은 관찰 결과 어디에도 없다
+규칙 7  규칙 코드는 재료와 원천의 이름을 모른다                  명사 0 규칙                           근거 §3.2 · R13
+  ① 조건  코드가 「규칙 코드 · 기반 코드」다
+     변형  없음 — 재료 · 원천 · 흔적의 이름 글자가 거기 없다 (grep 0). 이름을 아는 자리는 데이터와 View 의 표뿐이다
+  ② 조건  원천 하나를 더한 변형 데이터로 세계가 선다 (코드 diff 0)
+     변형  그 원천이 자기 방에 서고 캐진다 — 앞의 규칙 전부가 그 원천에도 그대로 든다
 
-SPEC-003  흔적이 방을 건너 짙어진다
-          조건  방마다 원천에서 먼 자리(방 바닥)의 흔적 세기를 잰다
-          기대  FOREST_EDGE = EXPLORER_RUIN(1) < FOREST_DEEP(2) < BIO_ORE_FIELD = RED_EYE_TREE(3)
-          경계  WHITE_KING_DOMAIN 은 어느 자리에서도 0 이다
-
-SPEC-004  흔적이 방 안에서도 방향을 준다
-          조건  한 방 안의 두 자리를 견준다
-          기대  ① FOREST_DEEP — ORE_TRAIL(동) · TREE_APPROACH(북) 둘레가 NEST_TRAIL(서) 둘레보다 짙다
-                ② 원천 넷은 저마다 자기 방 바닥보다 짙은 자리 위에 서 있다
-                ③ ROOT_NODULE 자리가 세계에서 가장 짙다
-          경계  겹친 흔적이 여럿이면 **가장 짙은 것**이 그 자리의 세기다 (합하지 않는다)
-
-SPEC-005  캐면 그 원천의 재료가 손에 들어온다
-          조건  곡괭이를 지닌 몸이 원천의 InteractionRange 안에서 mine 을 걸고 행동이 끝난다
-          기대  소지품의 그 Material Seed 수가 1 늘고, 다른 재료는 늘지 않는다
-          경계  행동이 끝나기 전에는 아무것도 늘지 않는다 (즉시 획득이 아니다 — 기존 채광 그대로)
-
-SPEC-006  채취의 거절
-          조건  전제를 하나씩 깬다
-          기대  곡괭이 없음 → no-mining-tool · 거리 밖 → out-of-range · 다른 행동 중 → action-busy ·
-                모르는 대상 → unknown-source. 어느 경우에도 소지품이 늘지 않는다
-          경계  다른 방의 원천을 대상으로 걸면 out-of-range 다 (자리가 방마다 따로이므로)
-
-SPEC-007  백왕령에는 이 계통이 없다
-          조건  관찰자가 WHITE_KING_DOMAIN 에 선다
-          기대  캘 수 있는 존재가 하나도 없고 mine interaction 도 하나도 없다
-          경계  방은 그대로 산다 — 능선 · 강 · 다리 · 도시 · 조건 셋은 한 값도 바뀌지 않는다
-
-SPEC-008  화면에 재료 표식이 없다
-          조건  원천이 선 방을 그린다
-          기대  원천 위에 글자(라벨 · 이름표 · 수량)가 하나도 없고, 지면 표식도 미니맵도 없다
-          경계  원천의 그림 자체는 그 자리에 선다 — 그것은 표식이 아니라 실물이다
-
-SPEC-009  물으면 원천이 답한다
-          조건  원천을 지목한다 (C027 의 존재 지목)
-          기대  판에 그 종류가 서고, 그 대상이 주는 행동으로 채취가 서며, 걸 수 없으면 사유가 그 자리에 있다
-          경계  지목을 풀면 판은 내 몸으로 돌아간다 (C027 그대로 — 이 Cycle 이 바꾸지 않는다)
-
-SPEC-010  가지지 않은 재료의 자리는 없다
-          조건  아무것도 캐지 않은 관찰자의 HUD 를 본다
-          기대  재료 자리가 하나도 없다. 하나 캐면 그 재료의 자리 하나가 생긴다
-          경계  0 으로 지어내지 않는다 — 세지 않은 것과 없는 것을 화면이 가르지 않게
-```
-
-## State
-
-**이 Cycle 은 세계 State 를 하나도 더하지 않는다.** 원천은 저장되는 것이 아니라 데이터에서
-유도되는 사실이다 (semantic/terrain.ts · semantic/region.ts 와 같은 갈래).
-
-```text
-사라지는 것   World.deposits          — 광맥 목록. 시작 방의 `deposit-1` 과 함께 없어진다
-             Actor.currentAction.targetDepositId → targetSourceId 로 이름이 바뀐다
-             Item.Kind 'stone'        → 재료 코드 둘로 바뀐다
-유도되는 것   ResourceSource(regionId · id · material · form · carrier · opportunity · supply · position)
-             — content/regions 의 resourceEcology + 그 방 Description 의 resource point 에서
-             흔적 세기(자리 하나의 정수 0..5) — 그 방 Description 의 trace area 에서
-```
-
-`STATE_VERSION` 은 `hkt-adv-proto-i/3` → `hkt-adv-proto-i/4`. deposits 가 사라지고 소지품의 품목이
-바뀌므로 옛 스냅샷은 복구되지 않는다.
-
-### 데이터 값 (content/regions)
-
-Material Seed — 이름과 성질은 D1 · D2 의 것이다. 쓰임은 없다.
-
-```text
-BIO_ORE           생체 광석    형태  outcrop(노두 원석) · root-nodule(뿌리혹 축적체)
-ORE_EATER_MOLT    광식충 허물  형태  molt-litter(나무 밑동의 허물) · spoil-pile(버려진 선광 더미)
-```
-
-`spoil-pile` 이 광식충 허물인 근거는 Play §4 Breath 의 **추측** 그대로다 — "탐험대 폐허의 버려진 더미에도
-**같은 것이 섞여 있다**". 같은 것이 두 자리에 있어야 §5.1 의 추론("이 숲에 계통이 하나 있다")이 선다.
-`GIANT_TREE_FUNGUS` 는 이 Cycle 에 원천이 없으므로 표에도 두지 않는다 (없는 것을 미리 세우지 않는다).
-
-Resource Source 넷 — 성질은 A.2 의 줄 그대로. supply · opportunity · carrier 는 **밝혀만 두고**
-이 Cycle 의 규칙은 읽지 않는다 (C013 의 회복과 C014 의 보고가 읽는다).
-
-```text
-id            방                material          form          carrier  opportunity  supply                 자리
-MOLT_LITTER   FOREST_EDGE      ORE_EATER_MOLT    molt-litter   residue  baseline     baseline-renewable     (-8, 6)
-RUIN_SPOIL    EXPLORER_RUIN    ORE_EATER_MOLT    spoil-pile    residue  baseline     baseline-renewable     (-4, 4)
-ORE_OUTCROP   BIO_ORE_FIELD    BIO_ORE           outcrop       terrain  risk         migratory              (8, -6)
-ROOT_NODULE   RED_EYE_TREE     BIO_ORE           root-nodule   plant    risk         conditional-renewable  (-8, 2)
-```
-
-흔적 — trace layer 의 area 태그 `soil-stain:<단계>`. 단계는 1..5 이고 겹치면 큰 쪽이 이긴다.
-
-```text
-방                 바닥(polygon = extent)   더 짙은 자리(circle)
-FOREST_EDGE       1                        MOLT_LITTER 둘레 r7 → 2
-EXPLORER_RUIN     1                        RUIN_SPOIL 둘레 r7 → 2
-FOREST_DEEP       2                        ORE_TRAIL(18,0) r8 → 3 · TREE_APPROACH(0,18) r8 → 3
-BIO_ORE_FIELD     3                        ORE_OUTCROP 둘레 r7 → 4
-RED_EYE_TREE      3                        ROOT_NODULE 둘레 r7 → 5
-WHITE_KING_DOMAIN 없음                      없음 (확정 5 — 산과 강이 막는다)
-PREDATOR_NEST · HEART_LAKE · 미로 셋  없음   C014 와 뒤의 Play 가 채운다
-```
-
-단계 수와 반경은 **배치 데이터**다 (C005 의 능선 · C006 의 강과 같은 갈래). Design 이 준 것은
-순서(경계부 옅음 → 중간부 → 핵심부 → 뿌리혹이 가장 짙음)이고, 그 순서를 지키는 한 값은 폴리싱이다.
-
-## Rule
-
-```text
-R1  CHANGED  RULE-MINE-001 — 채광의 대상이 원천이 된다
-    IF  곡괭이를 지닌 Actor 가 같은 방의 Resource Source 를 InteractionRange 안에서 걸고,
-        지금 행동이 대체 가능하다
-    THEN CurrentAction = mine(sourceId)
-    거절  no-mining-tool | out-of-range | action-busy | unknown-source
-
-R2  CHANGED  RULE-MINE-COMPLETE-001 — 캔 것은 그 원천의 재료다
-    IF  mine 행동이 Duration 을 채웠고 대상 원천을 세계가 안다
-    THEN Inventory.Items[그 원천의 material] += 1
-    거절  unknown-source
-
-R3  ADDED    RULE-RESOURCE-PLACEMENT-001 — 원천의 자리는 데이터가 정한다
-    IF  방 하나를 묻는다
-    THEN 그 방 resourceEcology 의 원천마다, 같은 id 를 tag 로 가진 resource layer point 의 자리에 선다
-    경계  그런 point 가 없는 원천은 **서지 않는다** — 자리를 지어내지 않는다
-
-R4  ADDED    RULE-TRACE-STRENGTH-001 — 그 자리의 흔적 세기
-    IF  방과 자리 하나를 묻는다
-    THEN trace layer 의 `soil-stain:<n>` 태그 가운데 **가장 큰 n**. 하나도 없으면 0
-    경계  합하지 않는다 — 겹침은 짙기이지 양이 아니다
-
-R5  AFFECTED RULE-OBSERVE-PROJECTION — 관찰은 방으로 잘린다 (C001 R6 그대로)
-    광맥이 있던 자리에 원천이 온다. 다른 방의 원천은 실리지 않는다
-
-R6  AFFECTED RULE-QUIET-GROUND-001 (C026 R4) — 세계 위에 글자가 없다
-    원천에도 라벨을 달지 않는다. 남은 양도 이름도 판이 물었을 때 답한다
-```
-
-## REUSED / ADDED / CHANGED / AFFECTED
-
-```text
-REUSED    RULE-ACTION-BEGIN-001 · RULE-ACTION-PROGRESS-001 · RULE-MOVE-001 · RULE-TRANSIT-001 ·
-          RULE-TERRAIN-COMPILE-001 · RULE-SAFEBY-001 · RULE-PLACE-READING-001 · RULE-BEING-READING-001 ·
-          RULE-TARGET-OFFERS-001 · RULE-POINTER-INTENT-001 · tagsAt · areasOf · findPoint
-ADDED     RULE-RESOURCE-PLACEMENT-001 · RULE-TRACE-STRENGTH-001
-CHANGED   RULE-MINE-001 · RULE-MINE-COMPLETE-001 (대상과 산출)
-AFFECTED  RULE-OBSERVE-PROJECTION (광맥 → 원천) · RULE-QUIET-GROUND-001 (새 존재에도 글자가 없다) ·
-          RULE-OBSERVER-JOIN-001 (몸의 초기 소지품에서 stone 이 사라진다)
-```
-
-## Observable (관찰 계약)
-
-```text
-싣는다
-  entities[].role          'resource-source'
-  entities[].id            원천의 id
-  entities[].kind          자연 형태 코드 (molt-litter | spoil-pile | outcrop | root-nodule)
-  entities[].material      Material Seed 코드 (BIO_ORE | ORE_EATER_MOLT)      ← protocol 의 새 자리
-  entities[].state         'available'
-  entities[].position      그 방 Local Space 의 자리
-  interactions[] id 'mine' · role 'harvest-source' · targetEntityId · available · reason
-  hud[] `inventory.<MaterialSeed>` — kind 'counter'. **지닌 재료마다 하나** (0 이면 자리가 없다)
-
-싣지 않는다
-  원천의 남은 양 · 재료의 쓰임 · 흔적의 세기 · 다른 방의 원천 · 원천으로 가는 방향이나 거리 ·
-  아이콘 지시 · Material Seed 표 자체
-  흔적은 **땅과 같은 규율**로 관찰자가 자기 content/regions 를 컴파일해 스스로 얻는다
-  (C005~C007 이 높이·표면·통행에, C026 이 area 에 세운 그대로). 세계 State 가 아니므로
-  투영할 것이 없다 — phase 가 흔적을 흔들기 시작하는 C012 가 그때 이 자리를 연다
+규칙 8  앞의 세계는 그대로다                                    회귀                                  근거 원칙 8
+  ① 조건  이 Cycle 이 들어갔다
+     변형  없음 — 방 아홉과 이음(C001~C004) · 땅의 높이 · 표면 · 통행(C005~C007) · 방이 품는 규칙과 세계 하나됨(C008~C010)이 한 값도 다르지 않다
 ```
 
 ## UNRESOLVED
 
-없음.
+**없음** — 닫힌 Cycle. 기획서(§5 · §6 · §11)와 위임 ① ② 로 답이 다 있다.
 
-기본형으로 둔 것 (Human 이 감사할 자리):
+기본형으로 둔 것 (Human 이 감사할 자리).
 
 ```text
-① 흔적의 단계 수(5)와 각 방의 값 · 원천 둘레 반경(7 · 8)   — Design 이 준 것은 짙기의 **순서**뿐이다.
-                                                            순서를 지키는 배치 데이터로 두었다
-② 원천 넷의 좌표                                          — 배치 데이터. 통행 가능하고 출구에서
-                                                            걸어 닿는 자리로 골랐다
-③ `spoil-pile` 의 Material Seed = ORE_EATER_MOLT           — 근거는 Play §4 Breath 의 추측 (위 State 절)
-④ 형태 코드 넷의 이름                                      — A.1 의 자연 형태를 코드로 옮긴 것
-⑤ mine interaction 의 role 이름 'harvest-source'           — 행위는 하나 그대로다 (확정 3). 이름만 대상에 맞췄다
+① 흔적의 단계 수(다섯)와 방마다의 값 · 원천 둘레의 반경 — 기획서가 준 것은 짙기의 **순서**(경계부 옅음 → 핵심부 → 뿌리혹이 가장 짙다)뿐이다. 순서를 지키는 배치 데이터로 두었다
+② 원천 넷의 좌표 — 배치 데이터. 통행 가능하고 출구에서 걸어 닿는 자리로 골랐다
+③ 「버려진 더미」가 「광식충 허물」을 내는 것 — §11 의 사슬이 "조류가 옮긴 곤충 잔해" 를 후보로 주고, 같은 재료가 두 자리에 있어야 "이 숲에 계통이 하나 있다" 는 추론이 선다 (S1)
+④ 자연 형태 넷의 이름(흩어진 허물 · 버려진 더미 · 노두 · 뿌리혹) — §11 의 후보 목록을 이 세계의 이름으로 옮긴 것 (위임 ①)
+⑤ 「거목균」을 이 Cycle 의 재료 표에 두지 않는다 — 원천이 아직 없다. 없는 것을 미리 세우지 않는다 (C014 가 세운다)
 ```
