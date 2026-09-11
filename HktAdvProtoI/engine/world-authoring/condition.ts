@@ -10,14 +10,14 @@
 // 지키는 것 셋.
 //   ① **아무것도 저장하지 않는다** — change qualifier 의 직전 값은 호출자가 든다 (유도).
 //      같은 조건 · 같은 읽기면 언제나 같은 답이다 (결정론).
-//   ② **자리만인 것은 "판정 불가"** 다 — 거짓으로 읽지 않는다. actor · player · faction Target,
-//      distance · contains · relation · capability · knowledge Query, chance 는 형에 있되
+//   ② **자리만인 것은 "판정 불가"** 다 — 거짓으로 읽지 않는다. player · faction Target,
+//      distance · contains · relation · knowledge Query, chance 는 형에 있되
 //      그 층이 오기 전까지 평가기가 `undecidable` 을 낸다.
 //   ③ **읽을 수 없는 것도 판정 불가** 다 — 호출자의 read 가 그 Target 을 모르면(undefined 가
 //      아니라 `unreadable`) 거짓이 아니라 판정 불가다. **없는 것**(undefined)은 EXISTS 의 거짓이다 —
 //      둘은 다르다: 없다는 사실과 알 수 없다는 사실.
 
-/** Target 의 갈래 여덟 + 자리만인 셋 (actor · player · faction) */
+/** Target 의 갈래 아홉 + 자리만인 둘 (player · faction) */
 export type ConditionTargetKind =
   | 'region'
   | 'area'
@@ -41,15 +41,30 @@ export const DECIDABLE_TARGET_KINDS: readonly ConditionTargetKind[] = [
   'route',
   'clock',
   'history',
+  'actor',
 ];
 
-/** 자리만인 Target — 평가기가 `undecidable` 을 낸다 (3 · 4층의 것) */
-export const DEFERRED_TARGET_KINDS: readonly ConditionTargetKind[] = ['actor', 'player', 'faction'];
+/** 자리만인 Target — 평가기가 `undecidable` 을 낸다 (그 층이 오면 빠진다) */
+export const DEFERRED_TARGET_KINDS: readonly ConditionTargetKind[] = ['player', 'faction'];
 
 /** ref 없이 서는 Target — 세계에 하나뿐인 것 */
 export const SINGLETON_TARGET_KINDS: readonly ConditionTargetKind[] = ['clock'];
 
-/** Query 의 갈래 다섯 + 자리만인 다섯 */
+/**
+ * ref 없이 **설 수 있는** Target — 그 대상을 id 로 가리키지 않고 **부르는 쪽이 자리로 고르는**
+ * 것이다 (「문 앞의 몸」처럼 판정하는 자리가 대상을 고른다). 밝혔으면 어휘의 id 이어야 하는 것은
+ * 같다.
+ *
+ * 세계에 하나뿐이라 ref 가 **없는** `SINGLETON_TARGET_KINDS` 와 갈리고, 평가기가 판정하지
+ * 못하는 `DEFERRED_TARGET_KINDS` 와도 갈린다 — 판정 가능한 갈래도 자리로 골라지는 것일 수 있다.
+ */
+export const REF_OPTIONAL_TARGET_KINDS: readonly ConditionTargetKind[] = [
+  'actor',
+  'player',
+  'faction',
+];
+
+/** Query 의 갈래 여섯 + 자리만인 넷 */
 export type ConditionQueryKind =
   | 'property'
   | 'exists'
@@ -68,13 +83,13 @@ export const DECIDABLE_QUERY_KINDS: readonly ConditionQueryKind[] = [
   'count',
   'state',
   'history',
+  'capability',
 ];
 
 export const DEFERRED_QUERY_KINDS: readonly ConditionQueryKind[] = [
   'distance',
   'contains',
   'relation',
-  'capability',
   'knowledge',
 ];
 

@@ -124,11 +124,13 @@ export interface StrikeEvent {
 // MutableAttribute — 바꿀 수 있는 속성의 목록과 각자의 허용 범위.
 // 파생 상태(Downed · Modifiers)와 정체성(Id · Name · CharacterKind · Control)은 없다 —
 // 유도되는 값이거나 존재를 존재이게 하는 값이다.
+// C039 CHANGED — **HpMax · CpMax 가 목록에서 빠진다** (spec 규칙 3 · R2). 그 둘은 이제
+// 저장된 필드가 아니라 몸의 성질(유도값)이고, **유도되는 값은 밖에서 넣을 수 없다** —
+// 넣을 자리가 없다. 그것을 바꾸는 길은 몸에 걸리는 Source 다 (semantic/body-property.ts ·
+// 변형 데이터 · WorldSetup.actorSources). Hp · Cp 는 그대로 남고, 넣은 값은 그 성질에 잘린다.
 export type MutableAttributeId =
   | 'hp'
-  | 'hpMax'
   | 'cp'
-  | 'cpMax'
   | 'moveSpeed'
   | 'runSpeedMultiplier'
   | 'actionSpeed'
@@ -145,9 +147,7 @@ export interface MutableAttribute {
 
 export const MUTABLE_ATTRIBUTES: readonly MutableAttribute[] = [
   { id: 'hp', min: 0, max: 100000 },
-  { id: 'hpMax', min: 1, max: 100000 },
   { id: 'cp', min: 0, max: 100000 },
-  { id: 'cpMax', min: 1, max: 100000 },
   { id: 'moveSpeed', min: 0, max: 100 },
   { id: 'runSpeedMultiplier', min: 0.1, max: 10 },
   { id: 'actionSpeed', min: 0.1, max: 10 },

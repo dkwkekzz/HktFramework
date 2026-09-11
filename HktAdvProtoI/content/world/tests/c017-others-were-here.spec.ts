@@ -55,6 +55,7 @@ import type { EntityView, GameViewSnapshot, TrackView } from '../../protocol/gam
 import { createWorld, restoreWorld, type World, type WorldSetup } from '../index';
 import { idleAction } from '../semantic/action';
 import type { ActorState } from '../semantic/actor';
+import { awarenessCapSource } from '../semantic/body-property';
 import { SWING_BEGIN } from '../semantic/collision';
 import { SKILL_DEFINITIONS } from '../semantic/combat';
 import {
@@ -111,7 +112,9 @@ const AFTER_SWING_OPEN = SWING_BEGIN * SKILL_DEFINITIONS.attack.baseDuration + 2
 // "세계가 찍는 판이 팩의 판과 같다" 이므로 값만 따라 올린다
 // C022 CHANGED — 탄생지와 개체군이 실리며 다시 올랐다 (같은 이유로 값만 따라 올린다)
 // C034 CHANGED — 방의 기억(history)이 실리며 다시 올랐다 (같은 이유로 값만 따라 올린다)
-const RAISED_STATE_VERSION = 'hkt-adv-proto-i/11';
+// C039 — 몸의 State 에서 자리 셋이 사라지고 둘이 섰다 (최대값 둘 · 인지 범위 → 묻는 것 ·
+// core · propertySources). 옛 스냅샷을 그대로 읽으면 틀린 세계가 되므로 판이 올랐다.
+const RAISED_STATE_VERSION = 'hkt-adv-proto-i/12';
 /** 그 앞의 버전(C016) — 옛 스냅샷은 되살아나지 않는다 */
 const OLD_STATE_VERSION = 'hkt-adv-proto-i/8';
 
@@ -638,7 +641,8 @@ function placeNpc(
   npc.velocity = { x: 0, z: 0 };
   npc.wanderPath = (opts.wanderPath ?? []).map((p) => ({ x: p.x, z: p.z }));
   npc.wanderIndex = 0;
-  npc.perceptionRange = opts.perceptionRange ?? 0;
+  // C039 — 인지 재정의가 몸에 걸리는 Source 한 줄이 되었다 (뜻도 값도 그대로다)
+  npc.propertySources = [awarenessCapSource(opts.perceptionRange ?? 0)];
   npc.currentAction = idleAction();
 }
 

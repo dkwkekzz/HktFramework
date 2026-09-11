@@ -82,6 +82,8 @@ import { idleAction } from '../semantic/action';
 import type { ActorState } from '../semantic/actor';
 import { TICK_INTERVAL, type WorldState } from '../semantic/world-state';
 import { sourceStateOf, traceStrengthAt } from '../semantic/resource';
+import type { PropertySource } from '../../../engine/world-authoring/property';
+import { ASPECT_HEAT, RELATION_HIDES, propertyTag } from '../../regions/properties';
 import { driveWorld, OBSERVER, OBSERVER_2, type WorldDriver } from './drive';
 
 // ── spec 이 이름으로 못 박은 것들 (State 의 「데이터 값」 표) ──────────
@@ -444,6 +446,15 @@ const standingIn = (region: string, at?: XZ, extra: WorldSetup = {}): WorldDrive
     actorRegion: region,
     ...(at ? { actorPosition: { x: at.x, z: at.z } } : {}),
   });
+// C039 CHANGED — 빙결 심층의 문이 문 앞 몸에게 「체열이 숨겨지는가」를 묻게 되어(C039 규칙 6 ①)
+// 답할 Source 가 없는 몸 앞에서는 긴 밤에도 잠긴다. 이 파일이 그 문에서 재는 것은 「**완화**가 열림도
+// 사유도 건드리지 않는다」이므로, 그 물음에 답하는 몸을 세워 C029 의 답을 그대로 잰다 (C039 규칙 6 ②).
+const HEAT_HIDDEN_SOURCE: PropertySource = {
+  origin: 'c031:heat-hidden',
+  property: propertyTag(ASPECT_HEAT, RELATION_HIDES),
+  share: { kind: 'flag', value: true },
+};
+
 /** 그 철에서 시작하는 세계 — C015 가 세운 clock 손잡이 (c016 ~ c030 의 inSeason 그대로) */
 const inSeason = (season: SeasonId, region: string, at?: XZ, extra: WorldSetup = {}): WorldDriver =>
   standingIn(region, at, { ...extra, clock: season });
@@ -1002,8 +1013,10 @@ describe('SPEC-003 완화는 판정하지 않는다', () => {
   it('S-190 (경계 ①) 문의 열림 · 잠김이 자락 안팎에서 같고, 어느 철에서도 C029 의 답 그대로다', () => {
     const id = depthDoor().id;
     for (const season of SEASONS) {
-      const inside = exitOf(inSeason(season, DOOR_ROOM, depthDoorSpot()).observe(), id);
-      const outside = exitOf(inSeason(season, DOOR_ROOM, enteredSpot()).observe(), id);
+      // C039 CHANGED — 그 문이 이제 몸에게도 묻는다. 재는 것은 완화이므로 답하는 몸으로 선다
+      const body = { actorSources: [HEAT_HIDDEN_SOURCE] };
+      const inside = exitOf(inSeason(season, DOOR_ROOM, depthDoorSpot(), body).observe(), id);
+      const outside = exitOf(inSeason(season, DOOR_ROOM, enteredSpot(), body).observe(), id);
       // Then 자락 안팎에서 같은 값이고, 긴 밤에만 열린다 (C029 S-123 · S-135 의 그 답)
       expect({ season, inside: inside?.state, outside: outside?.state }).toEqual({
         season,
@@ -1016,7 +1029,9 @@ describe('SPEC-003 완화는 판정하지 않는다', () => {
   it('S-191 (경계 ①) 건너기의 거절 사유가 한 값 달라지지 않는다 — 완화가 붙은 자리에서도 C029 의 답 그대로다', () => {
     const id = depthDoor().id;
     for (const season of SEASONS) {
-      const w = inSeason(season, DOOR_ROOM, depthDoorSpot());
+      // C039 CHANGED — 그 문이 이제 몸에게도 묻는다. 재는 것은 완화가 붙은 자리의 **사유**이므로
+      // 그 물음에 답하는 몸으로 서서 C029 의 답을 그대로 잰다
+      const w = inSeason(season, DOOR_ROOM, depthDoorSpot(), { actorSources: [HEAT_HIDDEN_SOURCE] });
       // Given 그 자리에서 완화된 사유가 서 있다 (Given 이 헛돌지 않는다)
       expect({ season, codes: codesOn(exitOf(w.observe(), id)) }).toEqual({
         season,
@@ -1233,7 +1248,10 @@ describe('회귀', () => {
     ];
     for (const door of seasonal) {
       for (const season of SEASONS) {
-        const v = inSeason(season, door.region, connectorSpot(door.id, door.region)).observe();
+        // C039 CHANGED — 빙결 심층의 문이 이제 몸에게도 묻는다. 이 항이 재는 것은 철이므로 답하는 몸으로 선다
+        const v = inSeason(season, door.region, connectorSpot(door.id, door.region), {
+          actorSources: [HEAT_HIDDEN_SOURCE],
+        }).observe();
         expect({ id: door.id, season, state: exitOf(v, door.id)?.state }).toEqual({
           id: door.id,
           season,

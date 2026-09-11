@@ -22,6 +22,7 @@
 
 import { isDowned, skillDefinition, type SkillKind } from '../semantic/combat';
 import type { ActorState } from '../semantic/actor';
+import { clampBodyVitals } from '../semantic/body-property';
 import { addDisturbance } from '../semantic/region-state';
 import { DISTURBANCE_PER_STRIKE, type WorldState } from '../semantic/world-state';
 import { beginAction } from './action-begin';
@@ -57,6 +58,11 @@ export function ruleStrikeDamage(
   // 여기까지 오지 않으므로 한 값도 오르지 않는다 — **닿은** 것만이 방을 흔든다.
   // 오르는 방은 맞은 몸이 선 방이다 (때린 몸과 같은 방이다 — 다른 방의 몸은 맞지 않는다 · C001 R5).
   addDisturbance(state.regionStates, target.regionId, DISTURBANCE_PER_STRIKE);
+
+  // C039 ADDED — **현재값은 성질을 넘지 않는다** (spec 규칙 3 ②③ · 이 규칙 id 위의 데이터).
+  // 타격의 산수는 한 줄도 바뀌지 않았다: 값이 바뀐 뒤 그 값이 지금의 최대를 넘었는지만 본다
+  // (변형 데이터로 최대가 줄면 그 자리에서 잘린다 · semantic/body-property.ts).
+  clampBodyVitals(state, target);
 
   if (target.hp === 0) ruleDowned(target);
 

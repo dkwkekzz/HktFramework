@@ -12,11 +12,11 @@
 ## 1. Human — 답할 것 (순서대로)
 
 ```text
-1  진행  "C039 진행" — 3층 첫 Cycle(몸이 세계에 선다) 실현 시작. spec 동결됨 · 질문 없음                                              CYCLES.md §1 · cycles/C039-a-body-stands-in-the-world/spec.md
+1  진행  "C040 진행" — 3층 둘째 Cycle(감지하고 알고 요청한다). 초안을 C039 의 「다음 Cycle 로」 로 다듬어 동결한다 · 질문 없음                CYCLES.md §1 · cycles/C040-it-senses-knows-and-asks/spec.md
 2  지목  다음 기획서 — 후보 3 Rooms GAP 회수 · 3.5 둥지가 군락이 된다(Foundation 둘째 — 순서 배치는 Human) → AI 가 그 기획서의 Cycle 전부를 spec 으로 (C043~)   DESIGN.md §5
 3  판정  빙결 협곡 실주행 — Frost-1 ~ Frost-6 (그 절의 "결정 대기" 값 · 규칙을 함께 본다)                                        DESIGN.md §3 M5-FrostCanyon
 4  판정  생명 · 붉은 알집 실주행 — Life-1 ~ Life-6 (〃)                                                                      DESIGN.md §3 L2-World-Life
-5  판정  요구와 가능성 실주행 — Access-1 ~ Access-5 (〃 — C039 가 들어가면 빙결 심층 문이 긴 밤에도 잠긴다 · Q1)                      DESIGN.md §3 L2-World-Access
+5  판정  요구와 가능성 실주행 — Access-1 ~ Access-5 (〃 — **C039 가 들어갔다**: 빙결 심층 문이 긴 밤에도 잠긴다 · Q1)                    DESIGN.md §3 L2-World-Access
 6  이름  HundredRooms 의 미지 백 줄 — 직접 주거나 초안기(world:draft --batch) 후보를 고른다. **도구는 다 섰다** —
          일곱 줄로 배치 → 판정 표면 → 승인까지 한 바퀴 돌려 보았고, 이름만 오면 그대로 백 줄이 돈다              DESIGN.md §5 후보 4
 7  이름  컨텐츠 행 — 보석 여덟 · 보류 계열 일곱 · Region §5.1 나머지 … 하나씩                                                   DESIGN.md §3 "컨텐츠 행"
@@ -25,7 +25,7 @@
 ## 2. cycle — 돌릴 것
 
 ```text
-1  Cycle      C039 몸이 세계에 선다 — "C039 진행" 즉시 (동결됨 · 기반 Cycle · 브랜치 cycle/C039) → C040 → C041 → C042 순차 (초안을 앞 마감의 「다음 Cycle 로」 로 다듬어 동결)   CYCLES.md §1
+1  Cycle      C040 감지하고 알고 요청한다 — "C040 진행" 즉시 (기반 Cycle · 브랜치 cycle/C040 · 초안을 C039 의 「다음 Cycle 로」 로 다듬어 동결) → C041 → C042 순차   CYCLES.md §1
 2  spec 제안   §1-2 지목 즉시 — 그 기획서의 Cycle 전부를 spec 으로(첫 spec 의 Trace 에 Cycle 목록 · UNRESOLVED 에 질문 전부) → Human 에게 올린다   Design-DesignAuthoringWorkflow §5~§7
 3  예심       기획서의 마지막 Cycle 이 합쳐지면 — 컨텐츠 Cycle 은 관찰 항목을 질문 대여섯으로 · 기반 Cycle 은 기반 검토 항목을 기반 질문 서넛으로(경험 질문 없음)
               → DESIGN.md §3 그 기획서 절에 · STATE §2 · TODO §1 에 판정/검토 줄                                                    Design-CycleExecutionWorkflow §21

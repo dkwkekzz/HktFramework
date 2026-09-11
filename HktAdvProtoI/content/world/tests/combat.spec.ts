@@ -19,6 +19,7 @@ import {
 } from '../semantic/combat';
 import { SWING_BEGIN } from '../semantic/collision';
 import { TICK_INTERVAL } from '../semantic/world-state';
+import { PROPERTY_MAX_HP } from '../semantic/body-property';
 import { driveWorld, PLAYER, type WorldDriver } from './drive';
 
 const BASIC = SKILL_DEFINITIONS.attack;
@@ -465,11 +466,11 @@ describe('INTENT-ATTRIBUTE-MUTATE-001 — 세계가 허용하면 속성을 바�
     const attribute = view.commands
       .find((command) => command.id === 'set-attribute')
       ?.parameters.find((parameter) => parameter.id === 'attribute');
+    // C039 CHANGED — 목록에서 hpMax · cpMax 가 빠졌다: 최대치는 이제 저장되는 값이 아니라
+    // 몸의 Source 들이 답하는 **유도값**이고, 유도되는 값은 밖에서 넣을 수 없다 (C039 규칙 2 · R2 · R3).
     expect(attribute?.domain.options?.map((option) => option.name)).toEqual([
       'hp',
-      'hpMax',
       'cp',
-      'cpMax',
       'moveSpeed',
       'runSpeedMultiplier',
       'actionSpeed',
@@ -554,8 +555,15 @@ describe('INTENT-ATTRIBUTE-MUTATE-001 — 세계가 허용하면 속성을 바�
   });
 
   it('최대치를 낮추면 현재값도 함께 들어온다', () => {
-    const world = soloWorld();
-    world.dispatch({ interactionId: 'set-attribute', attribute: { id: 'hpMax', value: 50 } });
+    // C039 CHANGED — 최대치를 낮추는 **손잡이**가 바뀌었다: 최대 HP 는 밖에서 넣는 값이 아니라
+    // 몸에 걸린 Source 들이 답하는 유도값이므로(C039 규칙 2 · R2), 상한 50 을 거는 Source 하나로
+    // 최대를 낮춘다. 재는 뜻은 그대로다 — 최대가 지금 HP 보다 작아지면 HP 가 새 최대가 된다
+    // (C039 규칙 3 ③)
+    const world = driveWorld({
+      npcs: [],
+      actorSources: [{ origin: 'combat:cap', property: PROPERTY_MAX_HP, share: { kind: 'cap', value: 50 } }],
+    });
+    tickFor(world, 0.5);
 
     expect(hud(world.observe(), 'self.hp')).toBe(50);
     expect(hud(world.observe(), 'self.hpMax')).toBe(50);
