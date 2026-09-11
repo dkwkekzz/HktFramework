@@ -19,13 +19,13 @@
 |---|---|---|---|---|---|
 | 0 | 게임 방향 | [L0-Game.md](../content/roadmap/L0-Game.md) | 없음 — 판단 기준 | **확정** | 미증명 넷 (§3 L0) |
 | 1 | 세계의 문법 | [L1-World-Grammar.md](../content/roadmap/L1-World-Grammar.md) | 없음 — 코드가 이미 이 문법 위 | **확정** | 없음 |
-| 2 | 세계 자체 | [L2-World-Tool](../content/roadmap/L2-World-Tool.md) · [Tool-Scale](../content/roadmap/L2-World-Tool-Scale.md) · [Concept](../content/roadmap/L2-World-Concept.md) · [Region](../content/roadmap/L2-World-Region.md) · [Material](../content/roadmap/L2-World-Material.md) · [Time](../content/roadmap/L2-World-Time.md) · [Life](../content/roadmap/L2-World-Life.md) · [Access](../content/roadmap/L2-World-Access.md) · [Foundation](../content/roadmap/L2-World-Foundation.md) | C001~C038 (§3 의 각 기획서 절) | **다음** — 기획은 닫혔다 (더 쌓을 기획 없음) | Rooms GAP 둘(후보 3) · 판정 대기 셋(협곡 · 생명 · 요구와 가능성 — 컨텐츠 행) · 도구 HundredRooms |
+| 2 | 세계 자체 | [L2-World-Tool](../content/roadmap/L2-World-Tool.md) · [Tool-Scale](../content/roadmap/L2-World-Tool-Scale.md) · [Concept](../content/roadmap/L2-World-Concept.md) · [Region](../content/roadmap/L2-World-Region.md) · [Material](../content/roadmap/L2-World-Material.md) · [Time](../content/roadmap/L2-World-Time.md) · [Life](../content/roadmap/L2-World-Life.md) · [Access](../content/roadmap/L2-World-Access.md) · [Foundation](../content/roadmap/L2-World-Foundation.md) · [Observation](../content/roadmap/L2-World-Observation.md) | C001~C038 (§3 의 각 기획서 절) | **다음** — 기획은 닫혔다 (더 쌓을 기획 없음) | Rooms GAP 둘(후보 3) · 판정 대기 셋(협곡 · 생명 · 요구와 가능성 — 컨텐츠 행) · 도구 HundredRooms |
 | 3 | 주체와 몸 | [L3-Subject-Body](../content/roadmap/L3-Subject-Body.md) (**3층의 기획서 — Human 확정** — 몸의 State 와 유도되는 성질 · HP/CP · Awareness · Knowledge · Action Port · Core · 편성 · 교체 · 슬롯 6 · Bag 자리 — 원문 §26 Cycle A~D) · 재료: [L3-Subject-Expedition](../content/roadmap/L3-Subject-Expedition.md) (Cycle C 가 읽는다) · [L3-Subject-Discovery](../content/roadmap/L3-Subject-Discovery.md) (Cycle B 가 읽는다) | 없음 — 제안 전 | **다음** — 2층 판정과 **병행** · **spec 을 쓸 수 있다** | 전체 (§3 L3-Subject-Body) — "L3-Subject-Body 로 spec 써" |
 | 4 | 자원과 물건 | [L4-Item-Gem](../content/roadmap/L4-Item-Gem.md) · [L4-Item-Craft](../content/roadmap/L4-Item-Craft.md) (대기) | 없음 | 미주입 | Material 쓰임 · Access 4층 몫 (§3 — 3층 주입 때 그 문서로) |
 | 5 | 대결 | [L5-Combat-Emergent](../content/roadmap/L5-Combat-Emergent.md) (대기) | 없음 | 미주입 | Concept W6 · W7 (§3 — 3층 주입 때 그 문서로) |
 | 6 | 능력 | [L6-Skill-Class](../content/roadmap/L6-Skill-Class.md) (대기) | 없음 | 미주입 | — |
 | 7 | 성장 | [L7-Fairy-Growth-Combination.md](../content/roadmap/L7-Fairy-Growth-Combination.md) (원문 — 7층 몫만 남았다) · [L7-Growth-Experience](../content/roadmap/L7-Growth-Experience.md) (대기) | 없음 | 미주입 — 원문은 확정 | 보류 계열 일곱 |
-| 8 | 화면 | — | — | — | 별도 주입 없음 — 각 기획서의 Cycle 이 Required 로 받는다 |
+| 8 | — | — | — | — | **층이 아니다** — 화면은 각 기획서의 Cycle 이 Required 로 받고, 화면 **축**이 필요해지면 그 층의 ②-부속으로 선다 ([L2-World-Observation](../content/roadmap/L2-World-Observation.md) 이 그 첫 사례) |
 
 2층의 도구 절반 2단계(Region 작성기 T1~T6)는 전부 섰다 — 남은 것은 HundredRooms 뿐. 단계 정의는 [Tool-Scale §3](../content/roadmap/L2-World-Tool-Scale.md).
 
@@ -488,11 +488,14 @@ Opportunity(데이터만으로 새 것이 선다 · 기본형 유도 · 판이 "
 ```
 
 
-### design/Plan-Place-Observation-Surface — 자리를 관찰하는 표면
+### L2-World-Observation — 자리를 관찰하는 표면 (②-부속 여섯째)
 
 ```text
-덮음      C026~C028 (닫힘 — 확정 열하나 · 실주행 반영)
-남은 것   없음 — 남은 결손은 Human 결정 (아래 결정 대기 — 관찰)
+덮음      C026~C028 (닫힘 — 확정 열넷 · 실주행 반영)
+덮인 것   세 자리 규약(눈 · 손 · 귀) · 세계 이름표를 걷는 규약 · 지목(대상 둘 · 수명 · 해제) · 판(줄 · 기록 · 「지금 알 수 없다」) ·
+          답의 출처(세계에 새로 묻지 않는다 — O8) · 클릭의 뜻을 정하는 정책 · 몸 위 이름표를 좁히는 것 — O1~O14
+남은 것   없음 — 남은 결손은 Human 결정 (아래 결정 대기 — 관찰). 뒤 층의 것(가림 · 관찰의 대가 · 표식 · 지도)은 그 문서 §2
+재료      design/Plan-Place-Observation-Surface.md (실측 · 진단 · 겹침 판정) — 결과물은 위 문서다
 ```
 
 결정 대기 — 관찰 (C026~C028) · 값 · 규칙 · 방향. Human 이 정하면 지우고 그 값이 사는 자리(데이터 · spec · 기획서)로 보낸다

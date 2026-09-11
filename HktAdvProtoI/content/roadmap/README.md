@@ -65,17 +65,17 @@ content/  그 위에 놓이는 이 세계          컨텐츠 층  미지를 놓�
 |---|---|---|---|---|
 | 0 | 게임 방향 | 핵심 경험 한 단락 + Core Breath + 핵심 문장 | `L0-Game.md` 가 원문을 소유한다 | 없음 — 판단 기준일 뿐 |
 | 1 | 세계의 문법 | 무엇이 존재하고 무엇이 변하는가 — 존재·상태·주체·법칙·시간 (주체가 행동을 **고르는** 과정은 3층) | `Design-Concept.md` | 없음 — 코드가 이미 이 문법 위에 있음 |
-| 2 | 세계 자체 | **도구 절반** — 세계를 쓰는 문법과 컴파일러(engine) · 2단계 Region 작성기 · **세계 절반** — ① 세계관 컨셉 ② 세계 content 구성(Region Graph · Rule · Connector · 중첩) ②-부속 다섯: 재료 생태와 공급 계약 · 시간과 위상 · 생명의 성립과 탄생 · 요구와 가능성 · Region Foundation | 도구: `Design-World-Editor-Terrain-Compiler.md` (WE) · `Plan-World-Authoring-Engine.md` · 세계: 주입 원문은 결과물 안에 | 안전권을 나서 깊이가 달라지는 것을 본다 — 백왕령(civil) ⇄ 거대 악마의 숲(outer) |
+| 2 | 세계 자체 | **도구 절반** — 세계를 쓰는 문법과 컴파일러(engine) · 2단계 Region 작성기 · **세계 절반** — ① 세계관 컨셉 ② 세계 content 구성(Region Graph · Rule · Connector · 중첩) ②-부속 여섯: 재료 생태와 공급 계약 · 시간과 위상 · 생명의 성립과 탄생 · 요구와 가능성 · Region Foundation · 자리를 관찰하는 표면 | 도구: `Design-World-Editor-Terrain-Compiler.md` (WE) · `Plan-World-Authoring-Engine.md` · 세계: 주입 원문은 결과물 안에 | 안전권을 나서 깊이가 달라지는 것을 본다 — 백왕령(civil) ⇄ 거대 악마의 숲(outer) |
 | 3 | 주체와 몸 | 요정의 몸은 무엇을 가지는가(깎이고 회복되는 값) · 생물은 무엇을 알고 어떻게 행동하는가 · **원정 편성과 무대의 한 명** · 교체 = 세계에 개입하는 방법을 바꾸는 행동 · Entry/Leave/Off-field 의 자리 · 요정 Core 가 몸의 State 로 적혀 property Lock 에 답한다 (L7 §3 의 3층 몫) | **`L3-Subject-Expedition.md`** (L7 §4 · §5 · §9~§11 · §20) · **`L3-Subject-Discovery.md`** (Foundation §2.5 · §2.6 · §7.7 · §7.9) · `Design-Subject-Decision.md` · `Design-Autonomous-Behavior-Knowledge-R0.md` · `Design-Creature-Behavior-R0.md` | 한 명만 무대에 선다 — 요정 둘을 편성해 협곡을 지난다 |
 | 4 | 자원과 물건 | 소지·장비·가공 사슬 · 조합과 쓰임 ("무엇이 어디서 나는가" 는 2층 ②-부속이 닫았다) · **보석은 세계의 특성이 응축된 성장 재료(Material Seed) · 물건은 행동을 바꾸는 장치이지 스탯 부착물이 아니다** (L7 §8 · §17 · §24) | **`L4-Item-Gem.md`** (L7 §8 · §16 · §17 · §24) · **`L4-Item-Craft.md`** (Foundation §7.6) · `Design-Resource-Catalog-R0.md` · `Design-Item-*.md` · `Design-Inventory-Equipment-D1.md` | 캐서 지니면 갈 수 있는 곳이 늘어난다 |
 | 5 | 대결 | 공격·방어·피해 종류·지목 · **정해진 전투 Phase 없음 — 대상의 World State 를 생성·제거·변화·전달·소비·증폭하는 것이 전투의 문법 · 하나의 문제에 여러 답** (L7 §13 · §14 · §16) | **`L5-Combat-Emergent.md`** (L7 §13 · §14 · Foundation §7.4) · `Design-Combat-*.md` · `Design-Targeting-R0.md` | 처음으로 맞서 이긴다 — 같은 적을 두 가지 상태 순서로 |
 | 6 | 능력 | 스킬 체계·실행 형태·효과 · **Class 는 Core 를 쓰는 방법 · Active/Entry/Leave/Off-field 의 내용 · Leave 가 남긴 것이 다음 요정의 능력과 반응한다** (L7 §5 · §6 · §11 · §19) | **`L6-Skill-Class.md`** (L7 §6 · §19) · `Design-Skill-*.md` | 능력 표현이 세계에 닿는다 — 한 Core 가 두 Class 로 갈리고, 장판이 반응한다 |
 | 7 | 성장 | 요정 성장·밸런스·클래스 — **성장 = 유효한 조합과 세계 개입 가능성의 확장**: 요정 컬렉션 · Class Change(Fairy + Gem + 조건) · Knowledge = 숨겨진 관계의 해금 · Fairy Build 와 편성 · 고정 역할 없음 | **`L7-Fairy-Growth-Combination.md`** (원문의 7층 몫 — 충돌하는 자리에서 `Design-Fairy-*.md` 를 이긴다, L7 §2.2) · `L7-Growth-Experience.md` (Foundation §7.5) · `Design-Growth-Balance-R0.md` · `Design-Subject-Decision.md` §20·§23 | 자원 관계에서 성장이 나온다 — 보석 하나로 Class 가 바뀌어 못 풀던 자리를 새 방법으로 푼다 |
-| 8 | 화면 | UX | `Design-View-*.md` | 별도 주입 없음 — 각 Cycle 의 Required 로 들어온다 |
+| 8 | — | — | — | **층이 아니다.** 화면의 낱낱(문구 · 색 · 배치)은 각 Cycle 의 Required 로 들어온다. 그러나 **화면의 축**(정보가 서는 자리의 규약 · 지목 같은 것)이 필요해지면 그것은 Required 가 아니라 **그 층의 기획서**다 — 열린 층의 ②-부속으로 세운다 (`L2-World-Observation.md` 가 그 첫 사례). `Design-View-*.md` 는 그때의 재료다 |
 
 2층은 절반이 둘이다 — **도구가 먼저, 세계가 다음**. 도구 절반(`L2-World-Tool.md` · 2단계 `L2-World-Tool-Scale.md`)은 게임 명사를
-모르므로 ENGINE 레인으로 선다. 세계 절반은 ① `L2-World-Concept.md` ② `L2-World-Region.md` 와 ②-부속 다섯(`L2-World-Material.md` ·
-`L2-World-Time.md` · `L2-World-Life.md` · `L2-World-Access.md` · `L2-World-Foundation.md`)이다 — 부속은 새 층이 아니라 ② 의 확장 계약이고,
+모르므로 ENGINE 레인으로 선다. 세계 절반은 ① `L2-World-Concept.md` ② `L2-World-Region.md` 와 ②-부속 여섯(`L2-World-Material.md` ·
+`L2-World-Time.md` · `L2-World-Life.md` · `L2-World-Access.md` · `L2-World-Foundation.md` · `L2-World-Observation.md`)이다 — 부속은 새 층이 아니라 ② 의 확장 계약이고,
 각각이 문서 머리에서 자기가 어느 구멍을 메우는지 말한다. 주입이 도구의 어느 자리(layer · tag · op)에 닿는지는 `L2-World-Tool.md` §3 이 정한다.
 각 Region 의 내용은 ①②②-부속에 있는 것만으로 쓴다 — 없는 것은 지어내지 않고 Human 질문으로 남긴다.
 수십~수백 규모의 지역은 사람이 아니라 **Region 작성기**가 쓴다 — 단계 T1~T6 은 `L2-World-Tool-Scale.md` §3 이 소유한다.
