@@ -42,6 +42,9 @@ import {
   HISTORY_TAKEN_TOTAL,
   LOCKS,
   PRESENCE_ROUTES,
+  PROPERTY_ASPECTS,
+  PROPERTY_RELATIONS,
+  propertyTag,
   REGION_GRAPH,
   REGION_SPECS,
   lockCondition,
@@ -57,6 +60,8 @@ import {
 import { CYCLE_SECONDS, TURN_SECONDS, dayPhaseAt, seasonAt } from './clock';
 import { findPopulation, lifeSitesInRegion, populationValueOf, populationsInRegion } from './life';
 import { passingOverlaysIn, passingRegionOf, presenceStateOf } from './presence';
+import { bodyProperty, BODY_PROPERTY_NAMES } from './body-property';
+import { CHARACTER_CATALOG } from './character-catalog';
 import { isRainingAt } from './rain';
 import { isConnectorOpen } from './region';
 import type { RegionMemory } from './region-state';
@@ -67,7 +72,7 @@ import {
   sourcesInRegion,
   type ResourceSource,
 } from './resource';
-import type { WorldState } from './world-state';
+import { findActor, type WorldState } from './world-state';
 
 /**
  * 조건 코드 — **지나간 것이 있어야 한다** (C035 ADDED · spec Observable · SPEC-006).
@@ -130,6 +135,18 @@ const HISTORY_LAST_AT = 'lastAt';
 // (기회의 progress.ref 가 그 경로다 — 위 CLOCK_SEASON 과 같은 까닭).
 const HISTORY_DEPLETED_TIMES = 'depletedTimes';
 const HISTORY_LAST_DEPLETED_AT = 'lastDepletedAt';
+/**
+ * actor · state — 그 몸의 **저장된** 값 다섯 (C039 ADDED · spec 규칙 5 ②).
+ *
+ * 유도되는 것(최대 HP · 최대 CP · 인지 범위)은 여기 없다 — 그것을 묻는 것은 `capability` 다.
+ * 글자는 ActorState 의 필드 이름 그대로이고, 지금 행동은 그 행동의 갈래(kind)다.
+ */
+const ACTOR_HP = 'hp';
+const ACTOR_CP = 'cp';
+const ACTOR_MOVE_MODE = 'moveMode';
+const ACTOR_CURRENT_ACTION = 'currentAction';
+const ACTOR_CORE = 'core';
+
 /** 경로 마디를 잇는 글자 (기반의 ConditionQuery.path 어법 — 점으로 잇는다) */
 const PATH_SEPARATOR = '.';
 
@@ -221,7 +238,13 @@ export function lifeRequirementCondition(requirement: LifeRequirement): Conditio
  *   connector <id> state open → isConnectorOpen (C038 ADDED — 판정은 그 함수 하나가 낸다)
  *   area <id>      state active → 그 자락이 지금 어느 위상에라도 걸려 있는가 (C038 ADDED · 걸지 않으면 거짓)
  *   process <id>   state phase → sourceStateOf(...).phase · property progress → …progress (C038 ADDED)
- *   actor · player · faction     UNREADABLE (자리만)
+ *   actor <몸 id>  property <성질 이름> → bodyProperty 의 답 그대로 (수) ·
+ *                  capability <성질> → 그 답이 참일 때만 있음 · state hp|cp|moveMode|
+ *                  currentAction|core → 그 몸의 저장된 값 · exists → 그 몸이 세계에 있는가 (C039 ADDED).
+ *                  **ref 가 없으면 UNREADABLE** — 그것은 「자리로 고르는 것」이고 고르는 자리는
+ *                  판정하는 쪽이다 (문 앞의 몸 · RULE-LOCK-ACTIVATION-001 · spec 기본형 ⑧).
+ *                  knowledge 는 기반이 자리만으로 두므로 저절로 판정 불가다 (C040 이 연다)
+ *   player · faction             UNREADABLE (자리만)
  * 세계가 모르는 이름(없는 문 · 없는 자락 · 없는 원천)은 셋 다 UNREADABLE 이다 — 없는 것을 "닫혀 있다 ·
  * 걸려 있지 않다" 로 말하지 않는다 (C038 SPEC-004 경계 · 없는 것과 모르는 것은 다르다).
  * `now` 는 state.time. previous · heldSince 는 주지 않는다 (이 Cycle 에 change · FOR 를 쓰는 조건이 없다).
@@ -320,7 +343,15 @@ export function worldConditionSites(): CheckConditionSite[] {
  *          process/state [phase] · process/property [progress] · route/state [passing] ·
  *          history/history [passages.<routeId>, passages.<routeId>.lastAt,
  *          turns, awakenings.times, awakenings.lastAt, sources.<sourceId>.takenTotal, …depletedTimes, …lastDepletedAt] ·
- *          actor/capability (paths 없음) · actor/knowledge (paths 없음)
+ *          actor/property [이 세계가 유도하는 성질 이름들] · actor/capability [이 세계의 성질 태그 전부] ·
+ *          actor/state [hp, cp, moveMode, currentAction, core] · actor/exists ·
+ *          actor/knowledge (paths 없음 — 자리만)
+ *
+ * C039 — **행위자 갈래가 열린다** (spec 규칙 5 ⑤). targets.actor 가 **몸의 종류 목록**인 까닭:
+ * 데이터가 이름으로 가리킬 수 있는 몸은 종류뿐이다 (개체의 id 는 세계가 순번으로 짓는 것이라
+ * 데이터에 적힐 수 없다). 지금 데이터의 행위자 잎은 문의 성질 요구 하나뿐이고 그것은 ref 를
+ * 밝히지 않는다 — 자리로 고르는 것이므로 ㊹ 이 ref 를 요구하지 않는다
+ * (REF_OPTIONAL_TARGET_KINDS · 기반이 그렇게 센다).
  *
  * C038 — 세 갈래(area · connector · process)가 함께 열린다. **읽기가 여는 것만 어휘가 연다** —
  * 검사 ㊹ 이 통과시킨 잎을 읽기가 모르는 날이 오지 않게, 경로의 글자는 위 상수 한 벌에서 온다.
@@ -370,8 +401,22 @@ export function worldConditionVocabulary(): CheckConditionVocabulary {
         ]),
       ],
     },
-    // 자리만인 것 — 갈래는 있되 판정 불가다 (2층은 판정하지 않는다 · K12)
-    { target: 'actor', query: 'capability' },
+    // C039 ADDED — 행위자가 판정된다 (spec 규칙 5). **성질을 읽는 눈이 둘이고 어휘도 둘이다.**
+    //   property    이 세계가 **유도하는 성질의 이름**들 (semantic/body-property.ts 가 소유한다 —
+    //               이름을 하나 더하면 이 어휘가 저절로 따라 는다 · 규칙 9 ②).
+    //   capability  이 세계가 **말할 수 있는 성질 태그 전부** (축 × 관계 · content/regions 의 어휘).
+    // 뒤엣것을 통째로 세는 까닭 — 문이 묻는 성질이 그 한 벌에서 오고, 그 성질에 답할 Source 는
+    // 아직 어느 몸에도 걸려 있지 않다: 어휘가 **걸린 것**이 아니라 **말할 수 있는 것**을 세지
+    // 않으면 ㊹ 이 지금 서 있는 문의 잎을 유령으로 잡는다.
+    { target: 'actor', query: 'property', paths: [...BODY_PROPERTY_NAMES] },
+    { target: 'actor', query: 'capability', paths: worldPropertyTags() },
+    {
+      target: 'actor',
+      query: 'state',
+      paths: [ACTOR_HP, ACTOR_CP, ACTOR_MOVE_MODE, ACTOR_CURRENT_ACTION, ACTOR_CORE],
+    },
+    { target: 'actor', query: 'exists' },
+    // 자리만인 것 — 갈래는 있되 판정 불가다 (앎은 C040 이 연다)
     { target: 'actor', query: 'knowledge' },
   ];
   return {
@@ -386,7 +431,8 @@ export function worldConditionVocabulary(): CheckConditionVocabulary {
       route: routeIds,
       clock: [],
       history: regionIds,
-      actor: [],
+      // C039 ADDED — **몸의 종류 목록**이다 (개체의 id 가 아니다 — 위 주석)
+      actor: Object.keys(CHARACTER_CATALOG),
       player: [],
       faction: [],
     },
@@ -402,6 +448,19 @@ export function worldConditionVocabulary(): CheckConditionVocabulary {
 /** 검사 ㊹ 이 읽는 자리 이름 — `<갈래>:<id>` */
 function siteName(kind: string, id: string): string {
   return `${kind}:${id}`;
+}
+
+/**
+ * **이 세계가 말할 수 있는 성질 태그 전부** — 축 × 관계 (C039 ADDED · spec 규칙 5 ⑤).
+ *
+ * 짓는 함수는 어휘를 소유한 쪽 하나다 (`content/regions/properties.ts` 의 propertyTag) —
+ * 여기서 글자를 두 벌로 적지 않는다. 이 파일은 축의 이름도 관계의 이름도 모른다: 목록을
+ * 받아 곱할 뿐이다 (SPEC-007 — 규칙 코드에 이름이 없다).
+ */
+function worldPropertyTags(): string[] {
+  return PROPERTY_ASPECTS.flatMap((aspect) =>
+    PROPERTY_RELATIONS.map((relation) => propertyTag(aspect.id, relation.id)),
+  );
 }
 
 /** 경로 마디를 점으로 잇는다 — 어휘와 읽기가 같은 글자를 쓴다 */
@@ -452,7 +511,10 @@ function readLeaf(state: WorldState, leaf: ConditionLeaf): ConditionValue | unde
       return readArea(state, target.ref, query.kind, path);
     case 'process':
       return readProcess(state, target.ref, query.kind, path);
-    // actor · player · faction — 자리만이다
+    // C039 ADDED — **조건이 처음으로 행위자를 가리킨다** (spec 규칙 5)
+    case 'actor':
+      return readActor(state, target.ref, query, path);
+    // player · faction — 자리만이다
     default:
       return UNREADABLE;
   }
@@ -601,6 +663,12 @@ function readRoute(
  *
  * 세계가 모르는 이음은 UNREADABLE 이다 — 판정 함수는 Lock 없는 이음을 "열림" 으로 읽으므로
  * (없는 이음도 그렇게 읽힌다), 없는 것을 열려 있다고 말하지 않으려면 여기서 먼저 가려야 한다.
+ *
+ * C039 — **몸을 주지 않는다.** 이 잎이 묻는 것은 「그 문이 지금 열려 있는가」이고 거기에는
+ * 자리로 고를 몸이 없다 (문 앞에 선 몸을 아는 것은 건너기 · 떨어짐 · 출구 표식이다). 그래서
+ * 성질을 밝힌 문은 이 잎에 언제나 **닫힘**으로 읽힌다 — 몸 없이 열리지 않는다는 그 규율
+ * 그대로다 (규칙 6 ⑤). 지금 데이터에 `connector.open` 을 읽는 조건은 하나도 없으므로
+ * (그 잎을 짓는 것은 시험뿐이다) 세계의 답이 이것 때문에 갈리는 자리는 없다.
  */
 function readConnector(
   state: WorldState,
@@ -664,6 +732,65 @@ function readProcess(
   const process = sourceStateOf(state.regionStates, source.regionId, source.id);
   if (kind === 'state' && path[0] === SOURCE_PHASE) return process.phase;
   if (kind === 'property' && path[0] === PROCESS_PROGRESS) return process.progress;
+  return UNREADABLE;
+}
+
+/**
+ * RULE-CONDITION-READ-001 (C039 CHANGED · spec 규칙 5) — **그 몸이 뭐라고 답하는가.**
+ *
+ * 지키는 것 넷.
+ *   ① **ref 가 없으면 판정 불가**다 (규칙 5 · 기본형 ⑧) — ref 없는 행위자 잎은 「자리로
+ *      고르는 것」이고(「문 앞의 몸」), 그 몸을 고르는 것은 판정하는 자리의 몫이다
+ *      (connectorClosedReason 이 StandingBody 를 받아 스스로 묻는다). 그래서 조건 하나를
+ *      세계에 대고 물을 때 — 검사 ㊹ 도 observe 의 조건 표도 — 그 잎의 답은 **판정 불가**이고,
+ *      그것은 C038 까지와 한 값도 다르지 않다 (회귀).
+ *   ② 세계에 **없는 몸**도 판정 불가다 (규칙 5 ③ · C035 그대로) — 없는 것과 모르는 것이 다르다.
+ *   ③ **성질**은 참일 때만 「있음」이다 (규칙 5 ①) — 거짓이거나 답할 Source 가 없으면
+ *      `undefined` 를 준다. 그래야 문의 요구가 쓰는 `EXISTS` 가 「그 성질을 가졌는가」로
+ *      읽힌다: 「거짓이라고 답할 Source 를 가졌는가」가 아니다. 수로 답하는 성질(최대 HP ·
+ *      인지 범위)은 그 수가 그대로 값이 되어 견줌(`>=` 따위)에 든다.
+ *   ④ **상태 다섯은 저장된 값 그대로**다 (규칙 5 ②) — 유도되는 것은 여기 오지 않는다.
+ *      Core 가 빈 글자인 몸은 「없음」이다: 이 세계가 그 계열을 아직 말하지 않은 것이고,
+ *      빈 글자를 값으로 세우면 EXISTS 가 참이 되어 「말하지 않은 것」이 「가진 것」이 된다.
+ */
+function readActor(
+  state: WorldState,
+  ref: string | undefined,
+  query: ConditionLeaf['query'],
+  path: readonly string[],
+): ConditionValue | undefined | Unreadable {
+  if (ref === undefined) return UNREADABLE; // ① 자리로 고르는 것 — 고르는 자리가 판정한다
+  const actor = findActor(state, ref);
+  if (actor === undefined) return UNREADABLE; // ② 없는 몸
+  if (query.kind === 'exists' && path.length === 0) return true;
+  // ③ 성질을 읽는 **눈이 둘**이다 — 같은 물음(bodyProperty)을 다르게 읽는다.
+  //   property   그 성질의 **값 그대로** (수). 「얼마인가」를 묻고 견줌(>= 따위)에 든다.
+  //   capability **가졌는가** — 참이면 있음(true) · 거짓이거나 답할 Source 가 없으면 없음.
+  //              문의 요구가 쓰는 EXISTS 가 「그 성질을 가졌는가」로 읽히는 자리다
+  //              (「거짓이라고 답할 Source 를 가졌는가」가 아니다).
+  // 성질의 이름은 점으로 나누지 않는다 — 이 세계의 성질 태그는 축과 관계를 잇는 한 글자다.
+  if (query.kind === 'property' || query.kind === 'capability') {
+    if (query.path === undefined) return UNREADABLE;
+    const answer = bodyProperty(state, actor, query.path);
+    if (query.kind === 'property') return answer;
+    return answer === true ? true : undefined;
+  }
+  if (query.kind === 'state' && path.length === 1) {
+    switch (path[0]) {
+      case ACTOR_HP:
+        return actor.hp;
+      case ACTOR_CP:
+        return actor.cp;
+      case ACTOR_MOVE_MODE:
+        return actor.moveMode;
+      case ACTOR_CURRENT_ACTION:
+        return actor.currentAction.kind;
+      case ACTOR_CORE:
+        return actor.core === '' ? undefined : actor.core; // ④ 말하지 않은 계열은 없음이다
+      default:
+        return UNREADABLE;
+    }
+  }
   return UNREADABLE;
 }
 

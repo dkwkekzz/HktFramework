@@ -69,11 +69,11 @@ describe('INTENT-COMMAND-CATALOG-001 — 세계가 걸 수 있는 것을 밝힌�
     const command = setAttribute(driveWorld({ npcs: [] }).observe())!;
     const names = command.parameters[1]!.domain.options!.map((option) => option.name);
 
+    // C039 CHANGED — 목록에서 hpMax · cpMax 가 빠졌다: 최대치는 이제 저장되는 값이 아니라
+    // 몸의 Source 들이 답하는 **유도값**이고, 유도되는 값은 밖에서 넣을 수 없다 (C039 규칙 2 · R2 · R3).
     expect(names).toEqual([
       'hp',
-      'hpMax',
       'cp',
-      'cpMax',
       'moveSpeed',
       'runSpeedMultiplier',
       'actionSpeed',

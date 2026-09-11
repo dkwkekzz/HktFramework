@@ -54,7 +54,12 @@ export interface PersistenceRow {
  * 유도된 것을 표에 적는 이유는 하나다: "무엇이 그것을 걷어 가는가" 를 묻는 사람에게
  * "저장되지 않아 물을 것이 없다" 가 아니라 **원인이 걷히면 걷힌다** 를 답해야 하기 때문이다.
  */
-type OtherStatePath = 'actor.distanceSinceTrack' | 'observer.held' | 'region.phases';
+type OtherStatePath =
+  | 'actor.distanceSinceTrack'
+  | 'actor.core'
+  | 'actor.propertySources'
+  | 'observer.held'
+  | 'region.phases';
 
 /**
  * 수명 표 — **RegionState 의 필드 전부**와 그 밖의 경로들이 열쇠다.
@@ -68,6 +73,17 @@ const PERSISTENCE: Record<keyof RegionState | OtherStatePath, readonly Persisten
   'actor.distanceSinceTrack': [
     { path: 'actor.distanceSinceTrack', eraser: ERASER_TRANSIENT },
   ],
+  // C039 ADDED — 몸이 새로 저장하기 시작한 둘. **새로 저장되기 시작한 것은 그 이름으로 선다**
+  // (C037 이 births 에 세운 그 규율).
+  //
+  // 둘 다 **세계에 남는 것**(kept)이다 — 시간도 뒤척임도 건드리지 않는다.
+  //   Core            지우는 손이 **없다** (spec 규칙 7 ② — 방을 건너도 HP 가 줄어도 그대로다).
+  //                   indelible 이 아닌 까닭: 그 자리는 「그 Region 의 결정만이 그 값을 만든다」
+  //                   는 뜻이고(깨진 마디 · 기억), Core 는 방이 아니라 **태어남**이 준다.
+  //   PropertySources 그 몸에 걸린 **원인**들 (최종값이 아니다). 지금 거는 것은 태어남뿐이고,
+  //                   거두어 가는 손은 아직 없다 — 장착 · 소지가 서는 4 · 6층이 그 손을 낸다.
+  'actor.core': [{ path: 'actor.core', eraser: ERASER_KEPT }],
+  'actor.propertySources': [{ path: 'actor.propertySources[]', eraser: ERASER_KEPT }],
   // 관찰자만 쥐는 것 — 세계 State 가 아니다
   'observer.held': [{ path: 'observer.panel|log|target', eraser: ERASER_OBSERVER_HELD }],
   // 소란은 값과 위상이 갈린다 — 값은 고요에 가라앉고 위상은 0 에 닿기 전까지 남는다

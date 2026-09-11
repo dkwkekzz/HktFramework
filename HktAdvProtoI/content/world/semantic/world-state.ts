@@ -101,6 +101,11 @@ export const INTERACTION_RANGE = 2.0;
  * 결정론에 영향을 주는 시뮬레이션 상수이므로 CVar 가 아니라 헤더 상수로 고정한다 (원칙 6).
  */
 export const OBSERVE_RANGE_NIGHT = 20;
+//
+// C039 — **같은 수가 두 자리에 선다.** 이 수는 여전히 「관찰이 무엇을 싣는가」의 것이고,
+// 「몸이 무엇을 감지하는가」의 밤 상한은 semantic/body-property.ts 의 TIME_AWARENESS_CAPS
+// 한 줄이다. 둘은 C040 에서 하나가 된다 — 관찰이 몸의 인지 범위를 읽게 되는 것이 그 Cycle 의
+// 일이고, 그때 이 상수가 그 줄로 옮겨 간다. 그때까지 두 자리는 각자의 물음에 답한다.
 
 /**
  * 되돌아옴이 **눈에 보이기 시작하는** 지점 — recoverySeconds 에 대한 비율 (C013 ADDED).
@@ -230,9 +235,14 @@ export const TICK_INTERVAL = 1 / 30;
 // C034 — 방의 State 에 **기억**(history)이 실린다 — 모든 방에 서고 아무것도 그것을 지우지
 //        않는다. 형태가 바뀌므로 옛 스냅샷은 복구되지 않는다 (spec SPEC-005 경계).
 //
+// C039 — 몸의 State 에서 **자리 셋이 사라진다** (hpMax · cpMax · perceptionRange — 이제 묻는
+//        것이다) 하고 둘이 선다 (core · propertySources). 사라진 자리는 옛 값을 그대로 읽으면
+//        틀린 세계가 되므로(옛 몸에는 core 도 걸린 것도 없고 최대값 필드만 있다) 버전을 올린다
+//        — 아래 확정의 둘째 갈래다.
+//
 // **언제 올리는가 — 확정** (Human 결정 · C024 가 물었고 C037 이 세 번째로 만났다):
 //   되살릴 수 없게 될 때만 올린다. 저장되는 것이 **늘기만** 하고 없는 자리를 0 · 빈 것으로
 //   읽을 수 있으면 올리지 않는다 — 그러면 옛 스냅샷이 그대로 서고 셈만 0 에서 다시 시작한다.
 //   자리가 **사라지거나 뜻이 바뀌어** 옛 값을 그대로 읽으면 틀린 세계가 되는 때에만 올린다.
 //   그래서 C037 의 births 는 올리지 않았다 (11 그대로) — 없으면 0 으로 읽는다.
-export const STATE_VERSION = 'hkt-adv-proto-i/11';
+export const STATE_VERSION = 'hkt-adv-proto-i/12';

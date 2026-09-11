@@ -7,7 +7,9 @@
 // Transition     그 속성에 새 값을 넣는다.
 //                Hp 가 0 이 되면 RULE-DOWNED-001 이 이어서 일어나고,
 //                쓰러진 몸의 Hp 를 올리면 다시 일어난다 (downed → idle).
-//                HpMax/CpMax 를 낮추면 현재값도 함께 그 안으로 들어온다.
+//                C039 CHANGED — **HpMax/CpMax 는 더 넣을 수 없다** (spec 규칙 3 · R2):
+//                그 둘은 몸의 성질(유도값)이 되었고, 넣은 Hp · Cp 는 그 성질에 잘린다
+//                (clampBodyVitals — 이 규칙 id 위의 데이터).
 // Result         Success | Failure(debug-closed | unknown-target | unknown-attribute |
 //                                  value-out-of-range)
 //                사유 코드가 value- 로 시작하는 이유: out-of-range 는 채광이 이미
@@ -23,6 +25,7 @@ import type { ActionResult } from '../../protocol/actions';
 import { RULE_ATTRIBUTE_SET } from '../../protocol/semantic-id';
 import { idleAction } from '../semantic/action';
 import type { ActorState } from '../semantic/actor';
+import { clampBodyVitals } from '../semantic/body-property';
 import { findMutableAttribute, isDowned, type MoveMode } from '../semantic/combat';
 import { findActor, type WorldState } from '../semantic/world-state';
 import { ruleDowned } from './strike-damage';
@@ -72,6 +75,11 @@ export function ruleAttributeSet(
     applyNumeric(target, attribute.id, value);
   }
 
+  // C039 ADDED — **현재값은 성질을 넘지 않는다** (spec 규칙 3 ②③ · 이 규칙 id 위의 데이터).
+  // 밖에서 넣은 Hp · Cp 도 그 몸의 지금 최대에 잘린다 — 넣은 수가 그보다 크면 최대가 된다
+  // (전에는 필드를 읽어 여기서 잘랐다 · 이제 묻는 자리 하나가 그 최대를 안다).
+  clampBodyVitals(state, target);
+
   // 값이 바뀐 뒤에도 세계는 자기 규칙대로 간다.
   if (target.hp === 0) ruleDowned(target);
   // 쓰러진 몸에 생명이 돌아오면 일어난다 — 규칙이 되돌리지 않는 것을 밖에서 되돌린 것이다.
@@ -82,19 +90,12 @@ export function ruleAttributeSet(
 
 function applyNumeric(actor: ActorState, id: string, value: number): void {
   switch (id) {
+    // 넣은 값을 그대로 둔다 — 성질에 자르는 것은 위 한 자리(clampBodyVitals)가 한다
     case 'hp':
-      actor.hp = Math.min(value, actor.hpMax);
-      return;
-    case 'hpMax':
-      actor.hpMax = value;
-      actor.hp = Math.min(actor.hp, actor.hpMax); // 최대치를 낮추면 현재값도 따라 들어온다
+      actor.hp = value;
       return;
     case 'cp':
-      actor.cp = Math.min(value, actor.cpMax);
-      return;
-    case 'cpMax':
-      actor.cpMax = value;
-      actor.cp = Math.min(actor.cp, actor.cpMax);
+      actor.cp = value;
       return;
     case 'moveSpeed':
       actor.moveSpeed = value;

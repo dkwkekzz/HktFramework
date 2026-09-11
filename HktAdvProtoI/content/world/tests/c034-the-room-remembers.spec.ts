@@ -121,7 +121,9 @@ const DORMANT = 'dormant';
 const AWAKE = 'awake';
 
 /** spec 이 적은 State 형 버전 — 이 Cycle 이 여기까지 올린다 (SPEC-005) */
-const RAISED_STATE_VERSION = 'hkt-adv-proto-i/11';
+// C039 — 몸의 State 에서 자리 셋이 사라지고 둘이 섰다 (최대값 둘 · 인지 범위 → 묻는 것 ·
+// core · propertySources). 옛 스냅샷을 그대로 읽으면 틀린 세계가 되므로 판이 올랐다.
+const RAISED_STATE_VERSION = 'hkt-adv-proto-i/12';
 /** 그 앞의 판 — 옛 스냅샷은 되살아나지 않는다 (spec Observable 6) */
 const OLD_STATE_VERSION = 'hkt-adv-proto-i/10';
 

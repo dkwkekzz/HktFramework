@@ -47,6 +47,7 @@ import { describe, expect, it } from 'vitest';
 import {
   DECIDABLE_QUERY_KINDS,
   DECIDABLE_TARGET_KINDS,
+  REF_OPTIONAL_TARGET_KINDS,
   conditionLeaves,
   type Condition,
   type ConditionVerdict,
@@ -317,13 +318,22 @@ function withinSecondsOf(one: OpportunityShape): number {
 /** 조건을 그 State 로 판정한다 — 없는 조건은 "묻지 않음" 이다 */
 const verdictOf = (s: WorldState, condition: Condition | undefined): ConditionVerdict =>
   condition === undefined ? 'met' : worldConditionVerdict(s, condition);
-/** 판정 불가 잎을 가졌는가 — 2층이 채우지 못하는 갈래를 묻는 기회다 */
+/**
+ * 판정 불가 잎을 가졌는가 — 세계가 채우지 못하는 것을 묻는 기회다.
+ *
+ * C039 CHANGED — 까닭이 **갈래에서 ref 로** 옮겨 왔다. C038 까지는 자리만인 Target · Query 가 곧
+ * 판정 불가였는데, C039 가 행위자 Target 과 성질(capability) Query 를 판정 가능으로 세웠다
+ * (C039 규칙 5). 그래도 문이 묻는 성질 잎은 여전히 세계가 판정하지 못한다 — **ref 가 없는**
+ * 행위자 잎이고, 그것은 「문 앞의 몸」처럼 부르는 쪽이 **자리로 고르는** 것이기 때문이다
+ * (engine 의 REF_OPTIONAL_TARGET_KINDS · C039 기본형 ⑧). 이 항이 재는 사실은 그대로다.
+ */
 const hasDeferredLeaf = (one: OpportunityShape): boolean =>
   conditionLeaves(one.availability ?? { all: [] }).some(
     (leaf) =>
       !DECIDABLE_TARGET_KINDS.includes(leaf.target.kind) ||
       !DECIDABLE_QUERY_KINDS.includes(leaf.query.kind) ||
-      leaf.chance !== undefined,
+      leaf.chance !== undefined ||
+      (REF_OPTIONAL_TARGET_KINDS.includes(leaf.target.kind) && leaf.target.ref === undefined),
   );
 
 /** 그 값 안의 글자 전부 — 형을 모르는 채로 "무슨 이름을 쓰는가" 만 본다 (c036 그대로) */

@@ -80,6 +80,8 @@ import type { EntityView, GameViewSnapshot, InteractionView } from '../../protoc
 import { createWorld, restoreWorld, type World, type WorldSetup } from '../index';
 import { INTERACTION_RANGE, TICK_INTERVAL, type WorldState } from '../semantic/world-state';
 import { sourceStateOf } from '../semantic/resource';
+import type { PropertySource } from '../../../engine/world-authoring/property';
+import { ASPECT_HEAT, RELATION_HIDES, propertyTag } from '../../regions/properties';
 import { driveWorld, OBSERVER, PLAYER, type WorldDriver } from './drive';
 
 // ── spec 이 이름으로 못 박은 것들 (State 의 데이터 값 표) ──────────────
@@ -337,6 +339,15 @@ const standingIn = (region: string, at?: XZ, extra: WorldSetup = {}): WorldDrive
     ...(at ? { actorPosition: { x: at.x, z: at.z } } : {}),
     ...extra,
   });
+// C039 CHANGED — 빙결 심층의 문이 문 앞 몸에게 「체열이 숨겨지는가」를 묻게 되어(C039 규칙 6 ①)
+// 답할 Source 가 없는 몸 앞에서는 긴 밤에도 잠긴다. 이 파일이 그 문에서 재는 것은 **철**이 그 열림을
+// 정하는가이므로, 그 물음에 답하는 몸을 세워 철의 답을 그대로 잰다 (C039 규칙 6 ② · ③).
+const HEAT_HIDDEN_SOURCE: PropertySource = {
+  origin: 'c021:heat-hidden',
+  property: propertyTag(ASPECT_HEAT, RELATION_HIDES),
+  share: { kind: 'flag', value: true },
+};
+
 /** 그 철에서 시작하는 세계 — C015 가 세운 clock 손잡이 (c016 의 inSeason 그대로) */
 const inSeason = (season: SeasonId, region: string, at?: XZ, extra: WorldSetup = {}): WorldDriver =>
   standingIn(region, at, { ...extra, clock: season });
@@ -848,13 +859,14 @@ describe('SPEC-004 긴 밤에만 빙결 심층의 문이 열린다', () => {
     const seasons = lockOfConnector(id)?.requires.find((one) => one.time)?.time?.seasons;
     expect({ id, seasons: seasons ? [...seasons] : undefined }).toEqual({ id, seasons: [LONG_NIGHT] });
     // When 긴 밤에 그 문 앞에 선다 / Then 열려 있다
-    const night = inSeason(LONG_NIGHT, room, doorSpot());
+    // C039 CHANGED — 그 문이 이제 몸에게도 묻는다. 재는 것은 철이므로 그 물음에 답하는 몸으로 선다
+    const night = inSeason(LONG_NIGHT, room, doorSpot(), { actorSources: [HEAT_HIDDEN_SOURCE] });
     expect(exitOf(night.observe(), id)?.state).toBe('open');
     // And 건너기의 거절은 철이 아니라 "아직 짓지 않았다" 다 (그 너머는 경계다 · C020)
     expect(reasonOf(cross(night, id))).toBe(REGION_NOT_BUILT);
-    // When 다른 철에 같은 자리에 선다 / Then 잠긴다
+    // When 다른 철에 같은 자리에 선다 / Then 잠긴다 — 답하는 몸이어도 철이 아니면 잠긴다 (C039 규칙 6 ③)
     for (const season of SEASONS.filter((s) => s !== LONG_NIGHT)) {
-      const w = inSeason(season, room, doorSpot());
+      const w = inSeason(season, room, doorSpot(), { actorSources: [HEAT_HIDDEN_SOURCE] });
       expect({ season, state: exitOf(w.observe(), id)?.state }).toEqual({ season, state: 'locked' });
     }
   });

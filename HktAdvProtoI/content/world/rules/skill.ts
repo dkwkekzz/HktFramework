@@ -15,7 +15,9 @@
 // RULE-SKILL-BUDGET-001 — Implements INTENT-SKILL-BUDGET-001
 // Input          공격자 Actor, SkillKind
 // Preconditions  이 휘두름에서 아직 정산하지 않았다 (첫 타격에서만 정산한다)
-// Transition     Cp = clamp(Cp + Charge × Modifiers.CpCharge - Cost × Modifiers.CpConsume, 0, CpMax)
+// Transition     Cp = clamp(Cp + Charge × Modifiers.CpCharge - Cost × Modifiers.CpConsume, 0, 최대 CP)
+//                C039 CHANGED — **최대 CP 는 저장된 필드가 아니라 몸의 성질이다** (규칙 3 ②) —
+//                묻는 자리 하나(bodyMaxCp)가 답하고, 수지의 산수는 한 줄도 바뀌지 않았다.
 // Result         Settled
 //
 // 허공을 가른 휘두름은 정산하지 않는다 — 맞아야 기력이 돈다 (붉은보석식 수지).
@@ -23,6 +25,7 @@
 import type { ActionResult } from '../../protocol/actions';
 import { RULE_SKILL_BEGIN, RULE_SKILL_BUDGET } from '../../protocol/semantic-id';
 import type { ActorState } from '../semantic/actor';
+import { bodyMaxCp } from '../semantic/body-property';
 import {
   actorModifiers,
   clamp,
@@ -31,6 +34,7 @@ import {
   skillDuration,
   type SkillKind,
 } from '../semantic/combat';
+import type { WorldState } from '../semantic/world-state';
 import { beginAction, evaluateActionBegin, type ActionBusyReason } from './action-begin';
 
 export type SkillFailureReason = ActionBusyReason | 'downed' | 'insufficient-cp';
@@ -67,7 +71,11 @@ export function ruleSkillBegin(actor: ActorState, kind: SkillKind): ActionResult
 
 // 한 휘두름은 여러 몸을 때려도 기력 수지를 한 번만 낸다.
 // 충전과 소모는 각자의 배율을 받아 같은 순간에 함께 적용된다 — 서로 상쇄하지 않는다.
-export function ruleSkillBudget(actor: ActorState, kind: SkillKind): ActionResult | null {
+export function ruleSkillBudget(
+  state: WorldState,
+  actor: ActorState,
+  kind: SkillKind,
+): ActionResult | null {
   const action = actor.currentAction;
   if (action.budgetSettled) return null;
 
@@ -76,7 +84,7 @@ export function ruleSkillBudget(actor: ActorState, kind: SkillKind): ActionResul
   const charged = skill.cpCharge * modifiers.cpCharge;
   const consumed = skill.cpCost * modifiers.cpConsume;
 
-  actor.cp = clamp(actor.cp + charged - consumed, 0, actor.cpMax);
+  actor.cp = clamp(actor.cp + charged - consumed, 0, bodyMaxCp(state, actor));
   action.budgetSettled = true;
 
   return { status: 'success', rule: RULE_SKILL_BUDGET };

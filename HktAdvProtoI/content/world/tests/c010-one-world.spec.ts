@@ -51,6 +51,7 @@ import type {
 } from '../../protocol/gameview';
 import { idleAction } from '../semantic/action';
 import type { ActorState } from '../semantic/actor';
+import { awarenessCapSource } from '../semantic/body-property';
 import { STATE_VERSION, TICK_INTERVAL, type WorldState } from '../semantic/world-state';
 import { driveWorld, OBSERVER, OBSERVER_2, PLAYER, PLAYER_2, type WorldDriver } from './drive';
 
@@ -895,7 +896,7 @@ describe('SPEC-008 세계는 플레이어 없이도 돈다', () => {
       npc.position = { x: path[0]!.x, z: path[0]!.z };
       npc.wanderPath = path.map((p) => ({ x: p.x, z: p.z }));
       npc.wanderIndex = 0;
-      npc.perceptionRange = 0;
+      npc.propertySources = [awarenessCapSource(0)]; // C039 — 인지 재정의가 Source 한 줄이 되었다
       npc.currentAction = idleAction();
       s.regionStates[FANTASY_MAZE]!.rule!.pressure = pressure;
     });

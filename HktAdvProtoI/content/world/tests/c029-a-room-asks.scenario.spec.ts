@@ -76,6 +76,8 @@ import type { EntityView, GameViewSnapshot, InteractionView } from '../../protoc
 import { createWorld, restoreWorld, type World, type WorldSetup } from '../index';
 import { TICK_INTERVAL, type WorldState } from '../semantic/world-state';
 import { sourceStateOf } from '../semantic/resource';
+import type { PropertySource } from '../../../engine/world-authoring/property';
+import { ASPECT_HEAT, RELATION_HIDES, propertyTag } from '../../regions/properties';
 import { driveWorld, OBSERVER, type WorldDriver } from './drive';
 
 // ── spec 이 이름으로 못 박은 것들 (State 의 「데이터 값」 표) ──────────
@@ -421,6 +423,16 @@ const standingIn = (region: string, at?: XZ, extra: WorldSetup = {}): WorldDrive
     ...(at ? { actorPosition: { x: at.x, z: at.z } } : {}),
     ...extra,
   });
+// C039 CHANGED — 빙결 심층의 문의 성질 요구를 이제 **몸이 판정한다** (C039 규칙 6 ① — 2층까지는
+// 표시였다). 아래 세 항이 재는 것은 「철이 그 열림을 정한다」 · 「성질을 밝힌 문과 밝히지 않은 문의
+// 답이 같다」 · 「사유 코드가 열림을 건드리지 않는다」이므로, 그 물음에 **답하는 몸**을 세워 옛 답을
+// 그대로 잰다 (C039 규칙 6 ② 의 선례).
+const HEAT_HIDDEN_SOURCE: PropertySource = {
+  origin: 'c029:heat-hidden',
+  property: propertyTag(ASPECT_HEAT, RELATION_HIDES),
+  share: { kind: 'flag', value: true },
+};
+
 /** 그 철에서 시작하는 세계 — C015 가 세운 clock 손잡이 (c016 ~ c021 의 inSeason 그대로) */
 const inSeason = (season: SeasonId, region: string, at?: XZ, extra: WorldSetup = {}): WorldDriver =>
   standingIn(region, at, { ...extra, clock: season });
@@ -930,7 +942,8 @@ describe('SPEC-002 요구가 한 형으로 적히고 문의 열림은 그대로�
     const id = depthDoor().id;
     const room = depthDoor().from.region;
     for (const season of SEASONS) {
-      const w = inSeason(season, room, depthDoorSpot());
+      // C039 CHANGED — 그 문이 이제 몸에게도 묻는다. 재는 것은 철이므로 답하는 몸으로 선다
+      const w = inSeason(season, room, depthDoorSpot(), { actorSources: [HEAT_HIDDEN_SOURCE] });
       const open = season === LONG_NIGHT;
       expect({ season, state: exitOf(w.observe(), id)?.state }).toEqual({
         season,
@@ -973,7 +986,11 @@ describe('SPEC-002 요구가 한 형으로 적히고 문의 열림은 그대로�
     }).toEqual({ depthProperty: true, forestProperty: false });
     const forestDoor = REGION_GRAPH.connectors.find((c) => c.id === WALKING_FOREST_DOOR)!;
     for (const season of SEASONS) {
-      const asked = inSeason(season, depthDoor().from.region, depthDoorSpot());
+      // C039 CHANGED — 성질 요구를 몸이 판정하게 되었으므로 그 물음에 답하는 몸으로 선다.
+      // 그러면 이 항의 주장(성질을 물었다고 열림이 갈리지 않는다)이 한 글자도 바뀌지 않고 선다
+      const asked = inSeason(season, depthDoor().from.region, depthDoorSpot(), {
+        actorSources: [HEAT_HIDDEN_SOURCE],
+      });
       const plain = inSeason(
         season,
         forestDoor.from.region,
@@ -986,9 +1003,12 @@ describe('SPEC-002 요구가 한 형으로 적히고 문의 열림은 그대로�
       });
     }
     // And 손에 무엇을 들고 와도 같은 답이다 (요구를 채우는 것은 이 층의 일이 아니다 · K12)
-    const empty = inSeason(LONG_NIGHT, depthDoor().from.region, depthDoorSpot());
+    const empty = inSeason(LONG_NIGHT, depthDoor().from.region, depthDoorSpot(), {
+      actorSources: [HEAT_HIDDEN_SOURCE],
+    });
     const carrying = inSeason(LONG_NIGHT, depthDoor().from.region, depthDoorSpot(), {
       actorItems: { pickaxe: 3 },
+      actorSources: [HEAT_HIDDEN_SOURCE],
     });
     expect(exitOf(carrying.observe(), depthDoor().id)?.state).toBe(
       exitOf(empty.observe(), depthDoor().id)?.state,
@@ -1240,7 +1260,9 @@ describe('SPEC-004 지목하면 현상을 말한다', () => {
     const room = depthDoor().from.region;
     const forestDoor = REGION_GRAPH.connectors.find((c) => c.id === WALKING_FOREST_DOOR)!;
     for (const season of SEASONS) {
-      const asked = inSeason(season, room, depthDoorSpot());
+      // C039 CHANGED — 그 문이 이제 몸에게도 묻는다. 재는 것은 「사유 코드가 열림을 건드리지
+      // 않는다」이므로 그 물음에 답하는 몸으로 서서 옛 답을 그대로 잰다
+      const asked = inSeason(season, room, depthDoorSpot(), { actorSources: [HEAT_HIDDEN_SOURCE] });
       const plain = inSeason(
         season,
         forestDoor.from.region,
