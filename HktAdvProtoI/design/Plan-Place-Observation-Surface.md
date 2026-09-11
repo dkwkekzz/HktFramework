@@ -2,7 +2,7 @@
 
 | 항목 | 내용 |
 |---|---|
-| **상태** | **승인 · Play 로 넘어갔다** — 회수는 [play/RoomAnswersWhenAsked.md](../content/roadmap/play/RoomAnswersWhenAsked.md) (C026~C028). 이 문서는 그 Play 의 재료(측정과 판정)로 남는다. **§5.4 의 "세계에게 묻는다" 는 뒤집혔다 — 아래 주석** |
+| **상태** | **승인 · 회수됨** — 결과물은 [content/roadmap/L2-World-Observation.md](../content/roadmap/L2-World-Observation.md) (확정 O1~O14), 세운 Cycle 은 C026~C028. 이 문서는 그 축의 **재료**(측정과 판정)로 남는다. **§5.4 의 "세계에게 묻는다" 는 뒤집혔다 — 아래 주석 · 결과물의 O8** |
 | **재료** | C006·C008 의 실제 화면(`cycles/C00*/shots/`) · [Design-Targeting-R0.md](Design-Targeting-R0.md) (TG) · [L2-World-Region §17 규칙 가독성](../content/roadmap/L2-World-Region.md) · [Design-System-Content-Separation.md](Design-System-Content-Separation.md) |
 | **자리** | **화면(View) 레인**. 세계의 규칙·State·투영 의미는 이 문서가 바꾸지 않는다 — 다만 §5.4 의 관찰 요청 하나는 세계에 새 계약을 요구한다 |
 | **소유** | 이 문서가 제안하는 것은 `engine/` 의 기구 셋과 `content/view` 의 결정 표다. 무엇이 어떤 말로 뜨는가(문구·수치·세계 사실)는 컨텐츠와 Human 의 것이다 |
@@ -267,7 +267,7 @@ TG 를 통째로 먼저 짓지 않는다. TG 의 절반(적대 · Tab 순환 · 
 > **Q1 의 답이 이 절을 하나 고친다.** Human 이 고른 것은 MMORPG 의 대상 프레임 — **늘 떠 있고
 > 자판을 잡지 않는 자리**다. SceneSurface 는 열리면 자판을 잡으므로 그 자리가 아니다
 > (`hud/surface.ts`). 늘 떠 있는 판 하나가 기구로 늘어난다 —
-> [play/RoomAnswersWhenAsked.md](../content/roadmap/play/RoomAnswersWhenAsked.md) §5.5 · E3.
+> 결과물 [L2-World-Observation.md](../content/roadmap/L2-World-Observation.md) O5.
 > 표면은 나중에 더 큰 관찰이 올 때의 것으로 남는다.
 
 ```text

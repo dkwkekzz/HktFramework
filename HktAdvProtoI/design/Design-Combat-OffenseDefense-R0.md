@@ -17,9 +17,10 @@
    그것을 옮겨 받아 소유한다.
 5. 옛 Master Layer 산출물(`master/graph` · `overlay` · `frontier` · `constraints`)은 이
    기준선에서 걷어냈다. 이 문서의 Goal/Possibility/Capability 의미를 받는 자리는 이제
-   `content/roadmap/play/` 다. 구 Constraint 이름(PLAYER-CAUSALITY · ONE-FORMULA ·
+   `content/roadmap/L5-Combat-Emergent.md`(대기) 다 — 5층이 열릴 때 주입이 그것을 먼저 받는다.
+   구 Constraint 이름(PLAYER-CAUSALITY · ONE-FORMULA ·
    ONE-LAYER-AT-A-TIME · SHARED-BUDGET · MATCHUP-SOFT)은 이 파일과
-   `Design-Combat-DamageType-R0.md` 가 근거였다 — 필요해지면 Play Design 의 판단
+   `Design-Combat-DamageType-R0.md` 가 근거였다 — 필요해지면 그 기획서의 판단
    기준으로 되살린다.
 -->
 
