@@ -16,8 +16,14 @@ import {
 } from '../check';
 import {
   conditionLeaves,
+  DECIDABLE_QUERY_KINDS,
+  DECIDABLE_TARGET_KINDS,
+  DEFERRED_QUERY_KINDS,
+  DEFERRED_TARGET_KINDS,
   evaluateCondition,
   formatConditionLeaf,
+  REF_OPTIONAL_TARGET_KINDS,
+  SINGLETON_TARGET_KINDS,
   UNREADABLE,
   type Condition,
   type ConditionLeaf,
@@ -111,13 +117,13 @@ describe('evaluateCondition — 잎의 operator', () => {
 
 describe('evaluateCondition — 자리만인 것', () => {
   it('자리만인 Target 은 판정 불가다 — 값이 읽혀도', () => {
-    for (const kind of ['actor', 'player', 'faction'] as const) {
+    for (const kind of ['player', 'faction'] as const) {
       expect(met(leaf({ target: { kind, ref: 'x' } }), reading(1))).toBe('undecidable');
     }
   });
 
   it('자리만인 Query 는 판정 불가다', () => {
-    for (const kind of ['distance', 'contains', 'relation', 'capability', 'knowledge'] as const) {
+    for (const kind of ['distance', 'contains', 'relation', 'knowledge'] as const) {
       expect(met(leaf({ query: { kind } }), reading(1))).toBe('undecidable');
     }
   });
@@ -135,8 +141,62 @@ describe('evaluateCondition — 자리만인 것', () => {
         return 1;
       },
     };
-    met(leaf({ target: { kind: 'actor', ref: 'x' } }), read);
+    met(leaf({ target: { kind: 'player', ref: 'x' } }), read);
     expect(calls).toBe(0);
+  });
+});
+
+// ── 행위자 갈래 ────────────────────────────────────────────────────
+//
+// actor Target 과 capability Query 가 자리만에서 빠졌다 — 값이 읽히면 판정되고, 읽는 쪽이
+// 모르면(UNREADABLE) 판정 불가다. knowledge 는 자리만 그대로다 (read 와 무관하게 판정 불가).
+
+describe('evaluateCondition — 행위자 갈래', () => {
+  /** 「문 앞의 몸에게 성질 하나를 묻는다」 — ref 없이 서는 잎 */
+  const asking: ConditionLeaf = {
+    target: { kind: 'actor' },
+    query: { kind: 'capability', path: 'x' },
+    operator: 'EXISTS',
+  };
+
+  it('actor 의 capability 는 read 가 값을 주면 판정된다', () => {
+    expect(met(asking, reading(true))).toBe('met');
+    expect(met(asking, reading(undefined))).toBe('unmet');
+  });
+
+  it('actor 의 capability 는 read 가 모르면 판정 불가다 — 거짓이 아니다', () => {
+    expect(met(asking, reading(UNREADABLE))).toBe('undecidable');
+  });
+
+  it('actor 의 state · property 도 같은 길로 흐른다', () => {
+    const state: ConditionLeaf = {
+      target: { kind: 'actor', ref: 'a1' },
+      query: { kind: 'state', path: 's' },
+      operator: '==',
+      value: 'up',
+    };
+    expect(met(state, reading('up'))).toBe('met');
+    expect(met(state, reading('down'))).toBe('unmet');
+    expect(met(state, reading(UNREADABLE))).toBe('undecidable');
+  });
+
+  it('knowledge 는 read 가 값을 주어도 판정 불가다 — 자리만 그대로', () => {
+    const knowing: ConditionLeaf = {
+      target: { kind: 'actor' },
+      query: { kind: 'knowledge', path: 'k' },
+      operator: 'EXISTS',
+    };
+    expect(met(knowing, reading(true))).toBe('undecidable');
+    expect(met(knowing, reading(UNREADABLE))).toBe('undecidable');
+  });
+
+  it('actor 는 판정 가능한 갈래이고 ref 없이 설 수 있는 갈래이기도 하다 — 둘은 다른 목록이다', () => {
+    expect(DECIDABLE_TARGET_KINDS).toContain('actor');
+    expect(DEFERRED_TARGET_KINDS).not.toContain('actor');
+    expect(REF_OPTIONAL_TARGET_KINDS).toContain('actor');
+    expect(SINGLETON_TARGET_KINDS).not.toContain('actor');
+    expect(DECIDABLE_QUERY_KINDS).toContain('capability');
+    expect(DEFERRED_QUERY_KINDS).toContain('knowledge');
   });
 });
 
@@ -493,7 +553,7 @@ describe('㊹ 조건이 가리키는 것', () => {
     expect(itemOf(sound()).refs).toEqual([]);
   });
 
-  it('① 자리만인 갈래(actor)는 어휘에 있으면 ref 없이 서고 · ref 를 밝혔으면 어휘의 id 이어야 한다', () => {
+  it('① ref 없이 설 수 있는 갈래(actor)는 어휘에 있으면 ref 없이 서고 · ref 를 밝혔으면 어휘의 id 이어야 한다', () => {
     const world = sound();
     const vocabulary: CheckCondition['vocabulary'] = {
       targets: { ...world.vocabulary.targets, actor: [] },
@@ -507,7 +567,7 @@ describe('㊹ 조건이 가리키는 것', () => {
     ]);
   });
 
-  it('① 어휘에 없는 갈래는 잡히고 그 query 는 재지 않는다 (자리만인 갈래도)', () => {
+  it('① 어휘에 없는 갈래는 잡히고 그 query 는 재지 않는다 (ref 없이 설 수 있는 갈래도)', () => {
     const item = itemOf(withLeaf({ target: { kind: 'actor', ref: 'x' } }));
     expect(item.refs).toEqual([
       { where: 'extra', detail: 'actor(x).state(pattern) == p1 — Target 갈래 actor 은 어휘에 없다' },

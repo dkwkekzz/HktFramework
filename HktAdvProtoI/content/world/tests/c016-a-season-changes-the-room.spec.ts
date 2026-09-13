@@ -86,6 +86,8 @@ import {
   sourcesInRegion,
   traceStrengthAt,
 } from '../semantic/resource';
+import type { PropertySource } from '../../../engine/world-authoring/property';
+import { ASPECT_HEAT, RELATION_HIDES, propertyTag } from '../../regions/properties';
 import { driveWorld, OBSERVER, OBSERVER_2, PLAYER, PLAYER_2, type WorldDriver } from './drive';
 
 // ── 철의 이름과 자리 (clock.ts 의 상수에서 유도한다 — 손으로 적는 수가 없다) ─────
@@ -132,7 +134,9 @@ const MINE_SECONDS = 1.2;
 // "세계가 찍는 판이 팩의 판과 같다" 이므로 값만 따라 올린다)
 // C022 CHANGED — 탄생지와 개체군이 실리며 다시 올랐다 (같은 이유로 값만 따라 올린다)
 // C034 CHANGED — 방의 기억(history)이 실리며 다시 올랐다 (같은 이유로 값만 따라 올린다)
-const RAISED_STATE_VERSION = 'hkt-adv-proto-i/11';
+// C039 — 몸의 State 에서 자리 셋이 사라지고 둘이 섰다 (최대값 둘 · 인지 범위 → 묻는 것 ·
+// core · propertySources). 옛 스냅샷을 그대로 읽으면 틀린 세계가 되므로 판이 올랐다.
+const RAISED_STATE_VERSION = 'hkt-adv-proto-i/12';
 /** 그 앞의 버전 — 옛 스냅샷은 되살아나지 않는다 */
 const OLD_STATE_VERSION = 'hkt-adv-proto-i/6';
 
@@ -148,6 +152,16 @@ const OLD_STATE_VERSION = 'hkt-adv-proto-i/6';
  * 큰 수 하나면 된다. 재료 계통의 규칙은 한 줄도 달라지지 않는다.
  */
 const solo: WorldSetup = { npcs: [], populations: { [ORE_EATER]: 99 } };
+
+// C039 CHANGED — 빙결 심층의 문이 문 앞 몸에게 「체열이 숨겨지는가」를 묻게 되어(C039 규칙 6 ①)
+// 답할 Source 가 없는 몸 앞에서는 긴 밤에도 잠긴다. 이 파일이 재는 것은 「철이 방을 바꾼다」이지
+// 「몸이 답하는가」가 아니므로, 그 물음에 **답하는 몸**을 세워 철의 답을 그대로 잰다
+// (C039 규칙 6 ② — 답이 들어오면 긴 밤에 열린다).
+const HEAT_HIDDEN_SOURCE: PropertySource = {
+  origin: 'c016:heat-hidden',
+  property: propertyTag(ASPECT_HEAT, RELATION_HIDES),
+  share: { kind: 'flag', value: true },
+};
 
 // ── 계약이 준 형 (spec State 절 그대로 적어 둔다) ────────────────────
 interface SourceStateShape {
@@ -1196,7 +1210,10 @@ describe('SPEC-007 규칙은 철의 이름을 모른다', () => {
       for (const at of probeSpots(spec.id)) {
         let expected: string | null = null;
         for (const season of SEASONS) {
-          const seen = JSON.stringify(roomFacts(inSeason(season, spec.id, at), spec.id));
+          // C039 CHANGED — 문이 몸에게 묻게 되었으므로 그 물음에 답하는 몸으로 선다 (위 HEAT_HIDDEN_SOURCE)
+          const seen = JSON.stringify(
+            roomFacts(inSeason(season, spec.id, at, { actorSources: [HEAT_HIDDEN_SOURCE] }), spec.id),
+          );
           if (expected === null) expected = seen;
           else if (seen !== expected) changed.add(spec.id);
         }

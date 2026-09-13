@@ -12,6 +12,7 @@
 // C001 AFFECTED — 인지 후보는 같은 Region 의 몸뿐이다. 다른 방의 몸은 좌표가 겹쳐도 인지하지 않는다 (R5).
 
 import type { ActorState } from '../semantic/actor';
+import { bodyAwareness } from '../semantic/body-property';
 import { faceToward } from '../semantic/collision';
 import { distance, type WorldPosition } from '../semantic/position';
 import type { WorldState } from '../semantic/world-state';
@@ -22,18 +23,25 @@ import { isDowned } from '../semantic/combat';
 
 const ARRIVAL_EPSILON = 1e-6;
 
-// 인지 대상 — PerceptionRange 안의 가장 가까운 다른 Actor.
+// 인지 대상 — 인지 범위 안의 가장 가까운 다른 Actor.
 // 거리가 같으면 Actor.Id 사전순으로 앞선 쪽 (결정론).
+//
+// RULE-AWARENESS-001 (C039 CHANGED · spec 규칙 4 ③④) — **인지 범위가 유도값이 된다.**
+// 저장된 필드를 읽던 자리가 묻는 자리(bodyAwareness) 하나로 바뀌었고, **답은 한 값도
+// 다르지 않다**: 떠도는 자의 종류가 거는 상한 9 가 때(밤 20)와 자락(눈보라 20/10)이 거는
+// 어느 상한보다도 작으므로, 밤에도 눈보라 속에서도 9 다. 한 번만 묻는다 — 같은 결정 안에서
+// 두 번 물으면 답이 갈릴 수 있다 (투영이 자락을 한 번만 얻는 그 어법 그대로).
 export function perceivedTarget(state: WorldState, actor: ActorState): ActorState | null {
   let best: ActorState | null = null;
   let bestDistance = Infinity;
+  const awareness = bodyAwareness(state, actor);
 
   for (const other of state.actors) {
     if (other.id === actor.id) continue;
     if (other.regionId !== actor.regionId) continue; // 다른 방의 몸은 없는 것과 같다 (C001 R5)
     if (isDowned(other)) continue; // 쓰러진 존재는 인지 대상이 되지 않는다
     const d = distance(actor.position, other.position);
-    if (d > actor.perceptionRange) continue;
+    if (d > awareness) continue;
 
     if (d < bestDistance - ARRIVAL_EPSILON) {
       best = other;

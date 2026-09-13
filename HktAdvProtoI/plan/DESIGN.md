@@ -305,7 +305,8 @@ BORN 이 한 tick 이다 — 눈에 보이는 "터졌다" 는 SPENT 다
 ```text
 덮음      C029~C031(K1~K15 — 판정 대기)
 덮인 것   Lock 넷 · 성질 어휘 · Seed 의 성질 · 여러 종류의 답 · 흔적 · 검사 ㉞~㊷ · time/state 판정
-남은 것   property Lock 의 판정 — 몸이 요구에 답한다(§14.1 FROST_DEPTH `heat:hides` · §15 Actor: 체열 억제 · K12)   → C039 규칙 6 (승인됨 · Q1 — 4층 전이라 긴 밤에도 잠긴다)
+남은 것   property Lock 의 판정 — 몸이 요구에 답한다(§14.1 FROST_DEPTH `heat:hides` · §15 Actor: 체열 억제 · K12)   → **C039 규칙 6 이 세웠다** (Q1 — 4층 전이라 긴 밤에도 잠긴다)
+          그 문의 힌트 문구가 「때를 기다려 다시 오자」 그대로다 — 이제 때가 맞아도 몸이 답해야 열린다 (손잡이 한 줄)   → Access-1 과 함께 판정 (C039 가 내려보낸 경험 판정)
           knowledge Lock 의 판정 · 관찰자가 요구를 어디까지 이해하는가(§7 네 단계)             → 3층 L3-Subject-Body
           가능성을 지니는 것(소지 · 장비 · 섭취 · 동행) · 성질 상속 · 수치 · 조합과 상쇄 · SUPPORTS/OPPOSES 효과   → 4층
           클래스 · 요정 자체가 가능성이 되는 성장                                             → 7층
@@ -542,8 +543,8 @@ Q2  떨어지는 자리를 세계가 알리지 않는다 — 추락은 거목 �
 ### L3-Subject-Body — 주체와 몸 (3층의 기획서 · Human 확정)
 
 ```text
-덮음      **C039** 몸이 세계에 선다(A — 동결 · 진행 가능) → C040 감지하고 알고 요청한다(B — 초안) → C041 무대에 서는 것은 하나다(C — 초안) → C042 붙일 자리가 있다(D — 초안) — Cycle 목록 승인 · 질문 여섯 답 기입 · UNRESOLVED 없음
-덮인 것   (세우는 중) A — §3~§6 몸의 State 와 유도되는 성질(최대 HP · 최대 CP · 인지 범위 = Source 셋의 합) · §5 HP/CP · §7 인지 범위(때 · 자락 Source) · §10 Condition target:actor · §15 Core · Access property Lock 판정(빙결 심층 문이 몸에 묻는다 — K12)
+덮음      **C039** 몸이 세계에 선다(A — **닫힘**) → **C040** 감지하고 알고 요청한다(B — 초안 · 다음) → C041 무대에 서는 것은 하나다(C — 초안) → C042 붙일 자리가 있다(D — 초안) — 질문 여섯 답 기입 · UNRESOLVED 없음
+덮인 것   A — §3~§6 몸의 State 와 유도되는 성질(최대 HP · 최대 CP · 인지 범위 = Source 들의 합) · §5 HP/CP · §7 인지 범위(종류 · 때 · 자락 · 몸에 걸린 것의 상한) · §10 Condition target:actor · §15 Core · Access property Lock 판정(빙결 심층 문이 몸에 묻는다 — K12)
           B — §7 Awareness → 관찰 · §8~§9 Knowledge(learn · forget · knows · 발견 상태 다섯의 어휘 · 「모름 → 발견됨」) · §11~§14 Action Port(요청 한 형 · 생명주기 넷 · 「살핀다」 행동 표) · Discovery §1.4 Investigation(살핌) · Access §7 네 단계(아는 몸에게 요구가 드러난다) · knowledge Lock 판정 기구
           C — §16~§19 Expedition · 무대의 한 명 · 교체 · Presence · Expedition §1.3~§1.6(L7 §9 · §10 · §11 자리 · §20) · 확정 3 · 4 · 5 · 위임 D1(야수계 · 수목계) · 원정의 앎 자리(확정 ④)
           D — §20~§22 슬롯 여섯 · Bag 소유(소지품 옮김) · Source 가 붙을 자리
@@ -557,7 +558,41 @@ Q2  떨어지는 자리를 세계가 알리지 않는다 — 추락은 거목 �
           ④ Knowledge 는 Actor 와 관찰자(원정) 둘 다 소유할 수 있게 — 형은 둘 다 · 무엇을 누가 아는가는 뒤에서 유연하게
           (Human — spec 질문 여섯 · C039 spec UNRESOLVED 에 기입) Q1 빙결 심층 문의 성질 요구를 몸이 판정한다(4층 전이라 긴 밤에도 잠김 — M7 Access-1 의 한 바퀴가 바뀐다) ·
           Q2 첫째 요정 「야수계」 · 둘째 「수목계」 · Q3 추위가 몸을 깎는 것은 넣지 않는다 · Q4 앎 요구 문은 지금 두지 않는다(기구 + 변형 데이터 실측) · Q5 살핌은 문의 자락 안에서 배운다 · Q6 소지품을 원정의 Bag 으로 옮긴다
-결정 대기  없음 — 값은 원문 · 코드 · Q1~Q6 이 정했고 나머지 경험 값은 손잡이다 (각 spec 의 손잡이 규칙 · 기본형 목록이 감사 자리)
+```
+
+기반 검토 항목 — **Human 은 걷지 않는다.** 계약 표 · 손잡이 표 · 검사 결과를 읽고 답한다. 판정은 C042 가 합쳐진 뒤 AI 예심이 **기반 질문 서넛**으로 압축해 청한다 (그 전까지 쌓인다).
+
+```text
+F-1 성질 물음      제공  codemap/ENGINE.md world-authoring/property.ts (몫 셋 — 상한 · 더함 · 참거짓 · 답할 Source 0 이면 「없음」) ·
+                        codemap/CONTENT.md world/semantic/body-property.ts (성질 이름 셋 · Source 넷의 출처)
+                  작동  c039 시나리오 「RULE-BODY-PROPERTY-001」 ①~⑤ · engine property.spec 13
+                  손잡이 몸의 종류 표 (character-catalog — 최대 HP · 최대 CP · 인지 상한 · 계열) · WorldSetup.actorSources          판정[ ]
+F-2 인지 범위      제공  CONTENT.md body-property.ts bodyAwareness — 종류 · 때 · 자락 · 몸에 걸린 것의 상한 가운데 작은 것
+                  작동  c039 「RULE-AWARENESS-001」 ①~⑥ · 회귀(떠도는 자는 밤에도 눈보라 속에서도 9)
+                  손잡이 때가 거는 상한의 줄 (TIME_AWARENESS_CAPS) · 자락이 거는 상한의 줄 (그 방의 hazard observeRange · 표의 areaAwarenessCap) · 종류의 상한  판정[ ]
+F-3 행위자 조건    제공  ENGINE.md condition.ts (actor Target · capability Query 가 판정 가능 · REF_OPTIONAL_TARGET_KINDS) ·
+                        CONTENT.md condition.ts 의 actor 읽기(성질 · 가졌는가 · 상태 다섯 · 있음)와 어휘
+                  작동  c039 「RULE-CONDITION-READ-001」 ①~⑤ · 검사 ㊹ 자리 30 · 잎 31 · 걸린 것 0 (C038 과 같은 답)
+                  손잡이 — (어휘가 성질 이름 · 성질 태그에서 유도된다 — 이름을 더하면 저절로 넓어진다)                              판정[ ]
+F-4 문이 몸에게 묻는다 · Core
+                  제공  CONTENT.md region.ts connectorClosedReason(문 앞의 몸) · ActorState.core
+                  작동  c039 「RULE-LOCK-ACTIVATION-001」 ①~⑤ · 「RULE-BODY-CORE-001」 ①~③ · 그림 cycles/C039-a-body-stands-in-the-world/shots/X-01-asks-the-body.png
+                  손잡이 그 문이 묻는 성질의 이름 (그 방 access.locks) · 서지 않을 때의 문구 표 · 종류 표의 계열                      판정[ ]
+```
+
+```text
+결정 대기  (C039 — **계약 결정만**. 경험 값은 손잡이로 내렸다)
+  ① 「이 몸에 걸린 Source 들」을 몸의 저장 상태에 두었다 — 최종값이 아니라 **원인**이라 R2 에 걸리지 않는다고 읽었다. 4 · 6층의 장착 · Aura 가 같은 자리로 온다
+  ② 유도되는 성질의 이름을 셋으로 시작했다 (최대 HP · 최대 CP · 인지 범위) — 이동 속도 · 무게는 데이터로 언제든 (규칙 9 ②)
+  ③ 최대치를 밖에서 넣던 손잡이(set-attribute 의 hpMax · cpMax)를 없앴다 — 유도값은 넣을 자리가 없다. 바꾸는 길은 Source 하나다
+  ④ 떠도는 자의 계열을 **빈 글자**로 두었다 — 기획서에 없어 지어내지 않았고, 조건에서 「없음」으로 읽힌다 (C041 이 둘째 Core 를 세울 때 함께 본다)
+다음 Cycle 로 (C039 → )
+  관찰이 몸의 인지 범위를 읽는 것 — 지금 밤의 상한 20 이 투영(OBSERVE_RANGE_NIGHT)과 인지(TIME_AWARENESS_CAPS) **두 자리**에 산다  → C040 이 하나로 합친다
+  앎 물음(actor.knowledge)이 판정 불가로 서 있다 · 앎 요구를 밝힌 문이 아직 없다                                            → C040 (Q4 — 기구 + 변형 데이터)
+  Core 가 무엇을 여는가 · 둘째 Core(수목계)                                                                              → C041 · 6 · 7층
+뒤 기획서로
+  문의 힌트 문구 「이 문은 철이 연다 — 때를 기다려 다시 오자」가 **몸이 답해야 열리는 문에도 그대로 선다** (긴 밤에 서서 읽어도 그 말이다).
+  손잡이는 content/view/region-presentation.ts 의 그 줄이고, 「읽히는가」의 판정은 그 축을 처음 쓰는 컨텐츠 Cycle 이 진다        → M5-FrostCanyon · L2-World-Access 의 남은 것 (M7 Access-1 과 함께 본다)
 ```
 
 ## 4. 어느 층에도 자리가 없는 것

@@ -41,6 +41,7 @@ import { describe, expect, it } from 'vitest';
 import {
   DECIDABLE_QUERY_KINDS,
   DECIDABLE_TARGET_KINDS,
+  REF_OPTIONAL_TARGET_KINDS,
   conditionLeaves,
   type Condition,
   type ConditionLeaf,
@@ -208,6 +209,29 @@ const verdictOf = (s: WorldState, condition: Condition | undefined): ConditionVe
 const leafBag = (condition: Condition | undefined): string[] =>
   (condition === undefined ? [] : conditionLeaves(condition)).map((l) => JSON.stringify(l)).sort();
 
+/**
+ * **세계가 판정할 수 있는 잎인가** — C039 CHANGED.
+ *
+ * C038 까지는 「갈래」가 곧 답이었다: 자리만인 Target · Query 가 판정 불가였다. C039 가 행위자
+ * Target 과 성질(capability) Query 를 판정 가능으로 세우면서(C039 규칙 5) 갈래만으로는 갈리지
+ * 않는다 — 문이 묻는 성질 잎은 **ref 가 없는** 행위자 잎이고, 그것은 「문 앞의 몸」처럼 부르는
+ * 쪽이 **자리로 고르는** 것이라 세계의 조건 읽기가 판정하지 못한다 (engine 의
+ * REF_OPTIONAL_TARGET_KINDS · C039 기본형 ⑧). 판정 불가의 까닭이 갈래에서 **ref** 로 옮겨 왔을
+ * 뿐, 이 파일이 재는 사실(그 잎은 문이 이미 묻던 것이고 세계는 그것을 판정하지 않는다)은 그대로다.
+ */
+/**
+ * **문이 묻는 것에 다 답하는 몸** (C039 ADDED · 규칙 6 ②) — 문의 판정이 받는 얼굴은 「이 성질에
+ * 뭐라고 답하는가」 하나뿐이다 (semantic/body-property 의 StandingBody). 성질의 이름을 손으로
+ * 적지 않으려고 **무엇을 묻든 참**으로 답한다 — 이 파일이 재는 것은 몸이 아니라 문의 열림이다.
+ */
+const ANSWERING_BODY = { property: (): boolean => true };
+
+const worldDecidable = (leaf: ConditionLeaf): boolean =>
+  DECIDABLE_TARGET_KINDS.includes(leaf.target.kind) &&
+  DECIDABLE_QUERY_KINDS.includes(leaf.query.kind) &&
+  leaf.chance === undefined &&
+  !(REF_OPTIONAL_TARGET_KINDS.includes(leaf.target.kind) && leaf.target.ref === undefined);
+
 /** 그 값 안의 글자 전부 — 형을 모르는 채로 "무슨 이름을 쓰는가" 만 본다 */
 function stringsIn(value: unknown, into: Set<string> = new Set()): Set<string> {
   if (typeof value === 'string') into.add(value);
@@ -312,11 +336,8 @@ describe('SPEC-001 형이 선다 — 기회 하나가 항목 여덟으로 적힌
         one.id.startsWith(CROSS) ? leafBag(lockCondition(lockOf(one.id.slice(CROSS.length))!)) : [],
       );
       for (const leaf of conditionLeaves(one.availability ?? { all: [] })) {
-        const decidable =
-          DECIDABLE_TARGET_KINDS.includes(leaf.target.kind) &&
-          DECIDABLE_QUERY_KINDS.includes(leaf.query.kind) &&
-          leaf.chance === undefined;
-        if (decidable) continue;
+        // C039 CHANGED — 판정 불가의 까닭이 갈래에서 ref 로 옮겨 왔다 (worldDecidable 의 주석)
+        if (worldDecidable(leaf)) continue;
         deferredSeen++;
         // 자리만인 잎은 그 문이 이미 묻던 것 그대로다 — 이 Cycle 이 지은 것이 아니다
         expect({ id: one.id, leaf: JSON.stringify(leaf), inherited: inherited.has(JSON.stringify(leaf)) }).toEqual({
@@ -1090,17 +1111,15 @@ describe('회귀', () => {
     // ① 문의 열림 — Lock 의 판정 가능한 항이 isConnectorOpen 과 같다
     for (const lock of LOCKS) {
       if (lock.at.kind !== 'connector') continue;
-      const decidable: Condition = {
-        all: conditionLeaves(lockCondition(lock)!).filter(
-          (leaf) =>
-            DECIDABLE_TARGET_KINDS.includes(leaf.target.kind) &&
-            DECIDABLE_QUERY_KINDS.includes(leaf.query.kind) &&
-            leaf.chance === undefined,
-        ),
-      };
+      // C039 CHANGED — 판정 불가의 까닭이 갈래에서 ref 로 옮겨 왔다 (worldDecidable 의 주석):
+      // 문이 묻는 성질 잎은 ref 없는 행위자 잎이라 세계의 조건 읽기가 판정하지 않는다
+      const decidable: Condition = { all: conditionLeaves(lockCondition(lock)!).filter(worldDecidable) };
       for (const sample of TIME_GRID) {
         const s = at(state(w), sample.time);
-        const open = isConnectorOpen(s.regionStates, lock.at.ref, sample.time);
+        // C039 CHANGED — 그 성질 잎은 이제 **문 앞의 몸**이 답한다 (C039 규칙 6 ①). 이 항이 재는 것은
+        // 「Lock 의 판정 가능한 항이 문의 열림과 같다」이므로, 문이 묻는 것에 답하는 몸을 세워
+        // 옛 답(철이 정하는 열림)을 그대로 잰다 (C039 규칙 6 ②)
+        const open = isConnectorOpen(s.regionStates, lock.at.ref, sample.time, ANSWERING_BODY);
         expect({ lock: lock.id, ...sample, judged: worldConditionVerdict(s, decidable) }).toEqual({
           lock: lock.id,
           ...sample,

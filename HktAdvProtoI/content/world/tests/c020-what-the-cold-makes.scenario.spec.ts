@@ -78,6 +78,8 @@ import type { EntityView, GameViewSnapshot, InteractionView } from '../../protoc
 import { createWorld, type WorldSetup } from '../index';
 import { INTERACTION_RANGE, TICK_INTERVAL, type WorldState } from '../semantic/world-state';
 import { isCollapsedAt, sourceStateOf, traceStrengthAt } from '../semantic/resource';
+import type { PropertySource } from '../../../engine/world-authoring/property';
+import { ASPECT_HEAT, RELATION_HIDES, propertyTag } from '../../regions/properties';
 import { driveWorld, OBSERVER, type WorldDriver } from './drive';
 
 // ── spec 이 이름으로 못 박은 것들 (World Change · State 의 데이터 값 표) ──
@@ -747,6 +749,16 @@ const standingIn = (region: string, at?: XZ, extra: WorldSetup = {}): WorldDrive
     ...(at ? { actorPosition: { x: at.x, z: at.z } } : {}),
     ...extra,
   });
+// C039 CHANGED — 빙결 심층의 문이 문 앞 몸에게 「체열이 숨겨지는가」를 묻게 되어(C039 규칙 6 ①)
+// 답할 Source 가 없는 몸 앞에서는 긴 밤에도 잠긴다. 이 파일이 그 문에서 재는 것은 「그 너머가 아직
+// 경계다」와 「요구를 밝힌 문이 밝히지 않은 문과 같은 답을 낸다」이므로, 그 물음에 **답하는 몸**을
+// 세워 옛 답을 그대로 잰다 (C039 규칙 6 ② — 답이 들어오면 긴 밤에 열린다).
+const HEAT_HIDDEN_SOURCE: PropertySource = {
+  origin: 'c020:heat-hidden',
+  property: propertyTag(ASPECT_HEAT, RELATION_HIDES),
+  share: { kind: 'flag', value: true },
+};
+
 /** 그 철에서 시작하는 세계 (C015 가 세운 clock 손잡이 · c016 의 inSeason 그대로) */
 const inSeason = (season: SeasonId, region: string, at?: XZ, extra: WorldSetup = {}): WorldDriver =>
   standingIn(region, at, { ...extra, clock: season });
@@ -1580,8 +1592,11 @@ describe('SPEC-009 협곡이 요구하는 것은 협곡에 없다', () => {
     // "이 철이 아니다" 가 먼저 나므로 **문이 열린 때**에 묻는다. "그 너머는 아직 짓지 않았다"
     // 라는 이 항의 주장은 그대로이고, 물을 수 있는 때가 하나로 좁아졌을 뿐이다.
     const door = depthDoor()!;
+    // C039 CHANGED — 그 문이 이제 몸에게 성질을 묻는다. 재는 것은 「그 너머는 아직 짓지 않았다」이므로
+    // 그 물음에 답하는 몸으로 서서 문이 열린 때에 묻는다 (C039 규칙 6 ②)
     const w = standingIn(CANYON_INNER, connectorSpot(door.id, CANYON_INNER), {
       clock: 'LONG_NIGHT',
+      actorSources: [HEAT_HIDDEN_SOURCE],
     });
     expect(cross(w, door.id)).toEqual({
       status: 'failure',
@@ -1601,8 +1616,11 @@ describe('SPEC-009 협곡이 요구하는 것은 협곡에 없다', () => {
     // (C021 SPEC-004 경계 ①) 문이 열리는 때에 견주면 이 항의 주장은 그대로 선다:
     // 요구를 밝힌 문과 밝히지 않은 문의 열림이 같고, 요구를 채워도 달라지는 것이 없다.
     const door = depthDoor()!;
+    // C039 CHANGED — 그 문이 이제 몸에게 성질을 묻는다. 이 항이 재는 것은 「요구를 밝힌 문이 밝히지
+    // 않은 문과 같은 답을 내고, 손에 든 것이 그 답을 바꾸지 않는다」이므로 그 물음에 답하는 몸으로 선다
     const w = standingIn(CANYON_INNER, connectorSpot(door.id, CANYON_INNER), {
       clock: 'LONG_NIGHT',
+      actorSources: [HEAT_HIDDEN_SOURCE],
     });
     const seen = exitOf(w.observe(), door.id)!;
     // Then 요구를 밝히지 않은 다른 문과 열림 상태가 같다 (요구는 활성을 판정하지 않는다)
@@ -1614,6 +1632,7 @@ describe('SPEC-009 협곡이 요구하는 것은 협곡에 없다', () => {
     const carrying = standingIn(CANYON_INNER, connectorSpot(door.id, CANYON_INNER), {
       clock: 'LONG_NIGHT',
       actorItems: { pickaxe: 3 },
+      actorSources: [HEAT_HIDDEN_SOURCE],
     });
     expect(reasonOf(cross(carrying, door.id))).toBe(REGION_NOT_BUILT);
     expect(exitOf(carrying.observe(), door.id)?.state).toBe(seen.state);

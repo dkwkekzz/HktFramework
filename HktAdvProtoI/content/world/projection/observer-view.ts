@@ -122,10 +122,15 @@ import {
   swarmAreasIn,
 } from '../semantic/life';
 import { passingIn, passingOverlaysIn } from '../semantic/presence';
+import {
+  bodyHazardEffects,
+  bodyMaxCp,
+  bodyMaxHp,
+  standingBody,
+} from '../semantic/body-property';
 import { sourceMemoryConditionCodes } from '../semantic/condition';
 import {
   depthOverlayAt,
-  hazardEffectsAt,
   hazardOverlayTagsAt,
   standingConditionTagsAt,
 } from '../semantic/region-phase';
@@ -336,16 +341,15 @@ export function projectObserverView(
   // 걸린 것이 무엇인가)에 같은 것을 넘긴다 — 두 번 물으면 한 관찰 안에서 답이 갈릴 수 있다
   // (passingOverlays 를 한 번만 얻는 그 어법 그대로).
   // 낮과 밤 중 어느 수를 읽을지는 여기서 준다 — 때를 아는 자리는 시계 하나다.
-  const hazardEffects = hazardEffectsAt(
-    self.regionId,
-    self.position,
-    state.time,
-    disturbance,
-    passingOverlays,
-    clock.dayPhase !== 'DAY',
+  // C039 CHANGED — 인자를 조립하는 자리가 **한 함수**로 갔다 (semantic/body-property.ts 의
+  // bodyHazardEffects). 몸의 인지 범위를 묻는 자리(자락이 거는 상한)가 같은 답을 보아야 하고,
+  // 두 벌로 적으면 어느 날 갈린다. 이미 한 번 얻어 둔 덧씌움 둘은 그대로 넘긴다 — 답도
+  // 인자도 한 값 다르지 않다 (낮밤은 저쪽이 같은 시계에서 읽는다).
+  const hazardEffects = bodyHazardEffects(state, self, {
+    passing: passingOverlays,
     // C020 ADDED — 깨진 결정면이 건 **접촉의 코드**가 여기로 실린다 (C020 spec R4).
-    depletedOverlays,
-  );
+    depleted: depletedOverlays,
+  });
 
   /**
    * RULE-OBSERVE-PROJECTION (C015 CHANGED · spec R2) · RULE-OBSERVE-RANGE-001
@@ -414,12 +418,14 @@ export function projectObserverView(
       position: { x: actor.position.x, z: actor.position.z },
       vitality: {
         health: actor.hp,
-        healthMaximum: actor.hpMax,
+        // C039 CHANGED — 최대는 저장된 필드가 아니라 **묻는 것**이다 (RULE-BODY-PROPERTY-001).
+        // 실리는 자리도 값도 그대로다 — 봉투는 한 자리도 바뀌지 않았다.
+        healthMaximum: bodyMaxHp(state, actor),
         downed: isDowned(actor),
       },
       attributes: {
         energy: actor.cp,
-        energyMaximum: actor.cpMax,
+        energyMaximum: bodyMaxCp(state, actor), // C039 CHANGED — 위와 같은 까닭
         moveMode: actor.moveMode,
         control: actor.control,
         tempoStats: {
@@ -689,7 +695,15 @@ export function projectObserverView(
       // **무엇이 그것을 열었는지는 말하지 않는다** (spec SPEC-003 경계 ④) — 어느 철에
       // 열리는지도, 잠긴 것과 지금이 그때가 아닌 것의 차이도 표식에는 없다.
       // 그 갈림은 붙어서 물었을 때 요청의 대답(reason)으로만 드러난다.
-      state: isConnectorOpen(state.regionStates, exit.connector.id, state.time)
+      // C039 CHANGED — **관찰자의 몸을 함께 넘긴다** (RULE-LOCK-ACTIVATION-001 · C039 규칙 6).
+      // 문이 성질을 묻는다면 그 물음은 이 판 앞에 선 몸에게 가고, 그래서 같은 문이 몸에 따라
+      // 달리 읽힌다. 표식은 여전히 열림/잠김 둘뿐이고 **무엇을 물었는지는 말하지 않는다**.
+      state: isConnectorOpen(
+        state.regionStates,
+        exit.connector.id,
+        state.time,
+        standingBody(state, self),
+      )
         ? 'open'
         : 'locked',
       kind: exit.connector.transition,
@@ -830,9 +844,10 @@ export function projectObserverView(
       // hud.self — 같은 값을 남에 대해서도 볼 수 있다 (entities[].attributes).
       // 여기가 특별한 것은 "늘 눈앞에 있다" 는 점뿐이다.
       { id: 'self.hp', kind: 'counter', value: self.hp },
-      { id: 'self.hpMax', kind: 'counter', value: self.hpMax },
+      // C039 CHANGED — 묻는 값이 실린다 (자리도 값도 그대로 · RULE-BODY-PROPERTY-001)
+      { id: 'self.hpMax', kind: 'counter', value: bodyMaxHp(state, self) },
       { id: 'self.cp', kind: 'counter', value: self.cp },
-      { id: 'self.cpMax', kind: 'counter', value: self.cpMax },
+      { id: 'self.cpMax', kind: 'counter', value: bodyMaxCp(state, self) },
       { id: 'self.downed', kind: 'flag', value: isDowned(self) },
       { id: 'self.moveMode', kind: 'label', value: self.moveMode },
       { id: 'self.tempo.moveSpeed', kind: 'counter', value: self.moveSpeed },

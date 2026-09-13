@@ -24,7 +24,7 @@ import {
   CONDITION_OPERATORS,
   conditionLeaves,
   formatConditionLeaf,
-  DEFERRED_TARGET_KINDS,
+  REF_OPTIONAL_TARGET_KINDS,
   SINGLETON_TARGET_KINDS,
   TIME_QUALIFIER_MODES,
   VALUELESS_OPERATORS,
@@ -3207,11 +3207,11 @@ function conditionLeafFaults(leaf: ConditionLeaf, vocabulary: CheckConditionVoca
   if (!knownKind) {
     faults.push(`Target 갈래 ${target.kind} 은 어휘에 없다`);
   } else if (!SINGLETON_TARGET_KINDS.includes(target.kind)) {
-    // 자리만인 갈래(actor · player · faction)는 아직 id 가 없다 — ref 를 요구하지 않는다.
-    // 밝혔으면 어휘의 id 이어야 하는 것은 같다 (그 층이 오면 목록이 찬다)
-    const deferred = DEFERRED_TARGET_KINDS.includes(target.kind);
+    // ref 없이 설 수 있는 갈래(actor · player · faction)는 부르는 쪽이 자리로 고른다
+    // (「문 앞의 몸」) — ref 를 요구하지 않는다. 밝혔으면 어휘의 id 이어야 하는 것은 같다
+    const refOptional = REF_OPTIONAL_TARGET_KINDS.includes(target.kind);
     if (target.ref === undefined) {
-      if (!deferred) faults.push(`Target ${target.kind} 에 ref 가 없다`);
+      if (!refOptional) faults.push(`Target ${target.kind} 에 ref 가 없다`);
     } else if (!ids.includes(target.ref)) {
       faults.push(`ref ${target.ref} 은 아는 ${target.kind} 이 아니다`);
     }

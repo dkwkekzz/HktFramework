@@ -119,7 +119,9 @@ const AVAILABLE = 'available';
 // C022 CHANGED — 탄생지와 개체군이 실리며 다시 올랐다. 이 항이 재는 것은 글자가 아니라
 // "세계가 찍는 판이 팩의 판과 같다" 이므로 값만 따라 올린다 (C017 · C018 이 한 그대로)
 // C034 CHANGED — 방의 기억(history)이 실리며 다시 올랐다 (같은 이유로 값만 따라 올린다)
-const RAISED_STATE_VERSION = 'hkt-adv-proto-i/11';
+// C039 — 몸의 State 에서 자리 셋이 사라지고 둘이 섰다 (최대값 둘 · 인지 범위 → 묻는 것 ·
+// core · propertySources). 옛 스냅샷을 그대로 읽으면 틀린 세계가 되므로 판이 올랐다.
+const RAISED_STATE_VERSION = 'hkt-adv-proto-i/12';
 /** 그 앞의 버전(C017) — 옛 스냅샷은 되살아나지 않는다 */
 const OLD_STATE_VERSION = 'hkt-adv-proto-i/8';
 

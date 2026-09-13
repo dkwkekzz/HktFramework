@@ -23,6 +23,7 @@ import {
   regionSpec,
   type RegionSpec,
 } from '../../regions';
+import type { StandingBody } from './body-property';
 import { isSeasonListed } from './region-phase';
 import type { WorldPosition } from './position';
 import type { RegionState } from './region-state';
@@ -69,10 +70,20 @@ export function isRegionBuilt(id: string): boolean {
  *      목록에 있을 때만 활성이다 (C009 그대로).
  * Lock 이 없는 문 · 요구를 하나도 밝히지 않은 Lock 은 언제나 활성이다 (지금까지의 세계 그대로).
  *
- * **property · knowledge 요구는 이 판정에 들어오지 않는다** (C029 spec R1 경계 ① · K12) —
- * 밝혔다고 잠기지 않고 채웠다고 열리지 않는다. 2층이 하는 것은 표시까지이고, 그것을 실제로
- * 판정하는 것은 몸과 소지와 아는 것이 서는 3층의 일이다. 그래서 성질을 밝힌 문도 밝히지
- * 않은 문과 **같은 답**을 낸다 — 이 파일은 어느 축도 어느 관계도 이름으로 알지 못한다.
+ * RULE-LOCK-ACTIVATION-001 (C039 CHANGED · C039 spec 규칙 6) — **성질 요구가 몸에게 묻는다.**
+ * 3층이 왔으므로 넷째 갈래가 판정에 든다 (C029 가 "3층의 일" 로 미뤄 둔 바로 그것 · K12).
+ *   ④ 성질 요구 — Lock 이 property 를 밝혔으면, **문 앞에 선 몸**이 그 성질에 참으로 답해야
+ *      활성이다. 몸을 주지 않으면 닫힌다 (규칙 6 ⑤ — 요구가 있는 문은 몸 없이 열리지 않는다).
+ * 판정 차례는 지금 그대로다 (철 → 배열 → 성질) — 앞의 둘에 걸린 문의 사유는 한 값도 달라지지
+ * 않는다. 사유 코드도 **새로 나지 않는다**: 성질에 걸린 문은 배열에 걸린 문과 같은 `inactive`
+ * 다 (사유는 여전히 「체열이 감지된다」 현상 하나로 말해진다 · Q1 · connectorReasonCodes).
+ *
+ * **몸을 무엇으로 받는가** — `StandingBody` 하나다: 「이 성질에 뭐라고 답하는가」 만 묻는
+ * 얼굴이고(semantic/body-property.ts), 그래서 이 파일은 HP 도 인지도 Core 도 알지 못하고
+ * **어느 성질의 이름도 알지 못한다** — 묻는 이름은 데이터(Lock 의 요구)에서 온다.
+ *
+ * **knowledge 요구는 여전히 이 판정에 들어오지 않는다** (C029 경계 ① 그대로 · 규칙 6 ④) —
+ * 밝혔다고 잠기지 않는다. 앎이 서는 것은 C040 이다.
  *
  * 철을 먼저 보고 배열을 나중에 보는 것은 C016 이 세운 그 차례 그대로다 — 지금 데이터에는
  * 둘을 함께 밝힌 Lock 이 없으므로 답이 갈리는 자리는 없고, 차례를 지키는 것은 하나를 밝힌
@@ -97,6 +108,7 @@ export function connectorClosedReason(
   regionStates: Record<string, RegionState>,
   connectorId: string,
   time: number,
+  body?: StandingBody,
 ): ConnectorClosedReason | null {
   if (CLOSED_CONNECTORS.includes(connectorId)) return 'inactive';
   const lock = lockOfConnector(connectorId);
@@ -113,6 +125,14 @@ export function connectorClosedReason(
     if (!rule) return 'inactive';
     if (!state.patterns.includes(rule.pattern)) return 'inactive';
   }
+  // ④ 성질 — 밝힌 문만 본다 (C039 ADDED · 규칙 6 ① ② ⑤). 몸이 없으면 묻지 못하므로 닫힌다:
+  // 요구가 있는 문은 **몸이 서야** 열림을 물을 수 있다. 답이 참이 아니면(거짓이거나 답할
+  // Source 가 없으면) 닫힌다 — 답이 들어올 자리는 실재하고, 그 자리를 채우는 것은 데이터다.
+  for (const requirement of lock.requires) {
+    if (requirement.property === undefined) continue;
+    if (!body) return 'inactive';
+    if (body.property(requirement.property) !== true) return 'inactive';
+  }
   return null;
 }
 
@@ -128,8 +148,9 @@ export function isConnectorOpen(
   regionStates: Record<string, RegionState>,
   connectorId: string,
   time: number,
+  body?: StandingBody,
 ): boolean {
-  return connectorClosedReason(regionStates, connectorId, time) === null;
+  return connectorClosedReason(regionStates, connectorId, time, body) === null;
 }
 
 /**

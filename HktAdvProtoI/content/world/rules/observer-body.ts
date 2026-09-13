@@ -6,6 +6,7 @@
 // 세계 밖에서 온 문자열이 세계 안 존재의 이름이 되어서는 안 된다.
 // C001 CHANGED — 새 몸은 START_REGION(백왕령)에 선다. 자리는 SPAWN_POINTS 그대로 (02-world R3).
 
+import type { PropertySource } from '../../../engine/world-authoring/property';
 import type { CharacterKind } from '../semantic/actor';
 import { createInventory } from '../semantic/inventory';
 import type { ItemKind } from '../semantic/item';
@@ -21,6 +22,8 @@ export interface BodyDefaults {
   spawnPoints: WorldPosition[];
   /** 새 몸이 설 Region — 밝히지 않으면 START_REGION(백왕령)이다 (C002 관측용) */
   spawnRegion?: string;
+  /** 그 몸에 **걸릴** Source 들 — 검증 · 촬영용 손잡이 (C039 ADDED · WorldSetup.actorSources) */
+  sources?: readonly PropertySource[];
 }
 
 export const DEFAULT_BODY: BodyDefaults = {
@@ -47,6 +50,7 @@ export function spawnObserverBody(
     regionId: defaults.spawnRegion ?? START_REGION,
     position: { x: spawn.x, z: spawn.z },
     inventory: createInventory(defaults.items),
+    ...(defaults.sources ? { sources: defaults.sources } : {}),
   });
 
   state.actors.push(body);

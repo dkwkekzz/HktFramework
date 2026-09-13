@@ -49,6 +49,7 @@ import { REGION_GRAPH } from '../../regions';
 import { idleAction } from '../semantic/action';
 import type { ActorState } from '../semantic/actor';
 import { distance } from '../semantic/position';
+import { standingBody } from '../semantic/body-property';
 import { anchorPosition, connectorClosedReason, isRegionBuilt } from '../semantic/region';
 import { addDisturbance } from '../semantic/region-state';
 import {
@@ -82,7 +83,15 @@ export function evaluateTransitPreconditions(
   // C002 ADDED — 닫힌 문이 먼저다. 열려 있어도 건너간 뒤가 아직 지어지지 않았으면 갈 수 없다.
   // C009 CHANGED — 그 열림을 세계 State 가 함께 정한다. 자리도 사유도 그대로다.
   // C016 CHANGED — 세계 시각도 함께 본다. **자리는 그대로**이고 사유만 둘로 갈린다 (spec R5).
-  const closed = connectorClosedReason(state.regionStates, exit.connector.id, state.time);
+  // C039 CHANGED — **건너는 몸을 함께 넘긴다** (RULE-LOCK-ACTIVATION-001 · C039 규칙 6).
+  // 문이 성질을 묻는다면 묻는 상대는 바로 이 몸이다. 성질을 밝히지 않은 문의 답은 한 값도
+  // 달라지지 않는다 (몸을 보지 않는다).
+  const closed = connectorClosedReason(
+    state.regionStates,
+    exit.connector.id,
+    state.time,
+    standingBody(state, actor),
+  );
   if (closed) return closed === 'season' ? 'not-this-season' : 'connector-inactive';
   if (!isRegionBuilt(exit.there.region)) return 'region-not-built';
   return evaluateActionBegin(actor);

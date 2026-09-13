@@ -59,7 +59,7 @@ export function ruleSwingStrike(state: WorldState): number {
 
       // 고정 피해가 들어가고, 이 휘두름의 첫 타격이면 기력 수지를 낸다.
       ruleStrikeDamage(state, attacker, target, skill);
-      ruleSkillBudget(attacker, skill);
+      ruleSkillBudget(state, attacker, skill);
 
       struckCount++;
     }

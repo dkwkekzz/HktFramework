@@ -18,6 +18,25 @@
 // C017 변경: 몸이 지나가면 땅에 자국이 남는다 (RULE-TRACK-001).
 //   ADDED   DistanceSinceTrack — 마지막 자국 뒤로 걸은 거리. 표본 간격에 닿으면 자국 하나가 난다.
 
+// C039 변경: **몸이 세계에 선다** — 저장되는 것과 유도되는 것이 갈린다 (규칙 1 · R2 · R3).
+//   REMOVED HpMax · CpMax · PerceptionRange — 그 셋은 이제 **묻는 것**이다
+//           (semantic/body-property.ts · RULE-BODY-PROPERTY-001 · RULE-AWARENESS-001).
+//   ADDED   Core — 몸에 귀속된 지속 상태 (RULE-BODY-CORE-001). 지우는 손이 없다.
+//   ADDED   PropertySources — **이 몸에 걸린 Source 들**. 최종값이 아니라 **원인**의 자리다
+//           (R2 가 금하는 것은 닫힌 최종값 필드다 — 개체별 인지 재정의가 여기로 들어온다).
+//
+// **여덟 자리의 형** (spec 규칙 1 ① — 아래 필드를 이 자리별로 묶어 둔다).
+//   ① 정체       누구인가 · 어떤 종류인가 · 누가 결정하는가 (id · name · characterKind · control)
+//   ② 있음       세계의 어디에 어떤 몸으로 서 있는가 (regionId · position · body* · facing · velocity)
+//   ③ 몸 상태     지금의 값들 (hp · cp · moveMode · 템포 · 걸음의 셈)
+//   ④ Core       몸에 귀속된 지속 상태 (core)
+//   ⑤ 인지       무엇을 감지하는가 — **저장되지 않는다** (propertySources 가 그 원인이다)
+//   ⑥ 앎         **빈 자리** — C040 이 채운다
+//   ⑦ 지금 행동   currentAction (· wanderPath · wanderIndex 가 자율 존재의 다음을 정한다)
+//   ⑧ 장착 자리   **빈 자리** — C042 가 채운다
+// 종류 · 이름 · 조종 방식을 「정체」에 함께 두는 것은 실현의 몫이다 (spec 기본형 ⑨).
+
+import type { PropertySource } from '../../../engine/world-authoring/property';
 import type { CurrentAction } from './action';
 import type { MoveMode } from './combat';
 import type { Inventory } from './inventory';
@@ -43,18 +62,35 @@ export interface ActorState {
   bodyMass: number; // Body.Mass — 고정 상수
   facing: WorldPosition; // 몸이 향한 방향 (단위 벡터) — RULE-BODY-FACING-001 만이 바꾼다
   velocity: WorldPosition; // 힘이 만든 물리 속도 — RULE-BODY-PUSH/SWING-STRIKE 만이 더한다
-  // 전투 자원 — 생명은 타격만이, 기력은 스킬 수지와 달리기만이 바꾼다
+  // ③ 몸 상태 — 전투 자원. 생명은 타격만이, 기력은 스킬 수지와 달리기만이 바꾼다.
+  // **최대는 여기 없다** (C039 REMOVED · 규칙 1 ②) — 최대 HP · 최대 CP 는 묻는 것이다
+  // (bodyMaxHp · bodyMaxCp). 현재값은 그 답을 넘지 않는다 (clampBodyVitals · 규칙 3 ②③).
   hp: number;
-  hpMax: number;
   cp: number;
-  cpMax: number;
   // 템포 능력치 — 존재 종류가 정하는 고정값. 세계의 속도를 정한다
   moveMode: MoveMode; // walk | run — RULE-MOVE-MODE-001 만이 바꾼다
   moveSpeed: number; // TempoStats.MoveSpeed — 고정 상수가 아니라 배율이 걸리는 능력치다
   runSpeedMultiplier: number; // 달릴 때 이동 속도에 곱해지는 값
   actionSpeed: number; // 스킬 행동 길이에 걸리는 배율 (클수록 빠르다)
   attackRange: number; // 고정 상수
-  perceptionRange: number; // 고정 상수 — control = autonomous 일 때만 의미가 있다
+  /**
+   * ④ Core — 몸에 귀속된 **지속 상태** (C039 ADDED · RULE-BODY-CORE-001 · spec 규칙 7).
+   *
+   * 계열 하나를 가리키는 **코드**다 (사람이 읽는 말이 아니다 — 그 말은 View 의 표가 옮긴다).
+   * 저장되고, 방을 건너도 · HP 가 줄어도 · 세계가 껐다 켜져도 그대로다: 지우는 손이 없다.
+   * **아무것도 열지 않는다** — 능력 · 성장 · Class 는 6 · 7층의 것이고 여기는 자리다.
+   * 이 세계가 그 몸의 계열을 아직 말하지 않았으면 빈 글자다 (character-catalog 의 기본값).
+   */
+  core: string;
+  /**
+   * ⑤ 인지 · 그 밖 — **이 몸에 걸린 Source 들** (C039 ADDED · RULE-BODY-PROPERTY-001).
+   *
+   * 성질의 **최종값이 아니라 원인**이다: 개체별 인지 재정의(ActorSpawn.perceptionRange)가
+   * 여기 「인지에 상한 하나」로 들어오고, 앞으로 장착 · 소지 · 조건이 거는 것도 이 자리로
+   * 온다 (4 · 6층 — 지금은 자리만이다). 무엇이 걸렸는지는 저장되고, 그것을 합친 **답**은
+   * 저장되지 않는다 (bodyProperty).
+   */
+  propertySources: PropertySource[];
   wanderPath: WorldPosition[]; // 고정 — control = autonomous 일 때만 의미가 있다
   wanderIndex: number;
   /**

@@ -120,9 +120,14 @@ import { driveWorld, OBSERVER, type WorldDriver } from './drive';
 const SKY_WHALE_ROUTE = 'SKY_WHALE_ROUTE';
 /** 판의 조건 줄이 싣는 코드 — spec Observable (가칭 그대로 semantic 이 확정했다) */
 const CODE_NEEDS_PASSAGE = 'needs-passage';
-/** 형의 크기 — spec SPEC-001 "Target 여덟 · Query 다섯 · Operator 아홉" */
-const TARGET_KINDS_DECIDABLE = 8;
-const QUERY_KINDS_DECIDABLE = 5;
+/**
+ * 형의 크기 — spec SPEC-001 "Target 여덟 · Query 다섯 · Operator 아홉".
+ *
+ * C039 CHANGED — **아홉 · 여섯**이 되었다: 행위자(actor) Target 과 성질(capability) Query 가
+ * 판정 가능해졌다 (C039 규칙 5). 기대값이 아니라 **세계의 형을 세는 수**다.
+ */
+const TARGET_KINDS_DECIDABLE = 9;
+const QUERY_KINDS_DECIDABLE = 6;
 const OPERATOR_COUNT = 9;
 /** 검사 ㊹ 의 id 와 그 앞의 셋 — spec SPEC-005 경계 (㉓ · ㉖ · ㉞ 의 답은 그대로다) */
 const CONDITION_REFS_ID = 'condition-refs';
@@ -665,6 +670,11 @@ describe('SPEC-002 Lock 이 형으로 읽힌다', () => {
   it('S-245 모든 문 · 모든 철 × 낮밤 · 모든 패턴에서 판정이 isConnectorOpen 과 같다', () => {
     for (const lock of LOCKS) {
       if (lock.at.kind !== 'connector') continue;
+      // C039 CHANGED — **성질 · 앎을 밝힌 문은 여기서 재지 않는다** (아래 S-246 이 잰다).
+      // 그 문의 열림은 이제 **문 앞에 선 몸**이 함께 정하고(규칙 6), 조건 하나는 몸을 자리로
+      // 고르지 못한다(ref 없는 행위자 잎 = 판정 불가 · 규칙 5) — 그래서 조건의 답과 문의
+      // 열림이 같을 수 없는 갈래가 생겼다. 나머지 문(철 · 배열만 묻는 문)의 답은 그대로다.
+      if (deferredClauses(lock).length > 0) continue;
       const condition = lockCondition(lock)!;
       const decidable = decidablePart(condition);
       for (const { label, w } of lockWorlds(lock)) {
@@ -685,31 +695,40 @@ describe('SPEC-002 Lock 이 형으로 읽힌다', () => {
     }
   });
 
-  it('S-246 (경계) property · knowledge 항을 가진 문은 읽되 판정 불가다 — 열림은 time · state 만 정한다', () => {
+  it('S-246 (경계) property · knowledge 항을 가진 문은 조건으로는 판정 불가다 — 열림은 문 앞의 몸이 함께 정한다', () => {
     const asking = LOCKS.filter((lock) => deferredClauses(lock).length > 0);
     // 데이터에 그런 문이 있다 (없으면 이 경계는 잴 것이 없다 — 그것도 밝힌다)
     expect({ asking: asking.length > 0 }).toEqual({ asking: true });
     for (const lock of asking) {
       if (lock.at.kind !== 'connector') continue;
       const condition = lockCondition(lock)!;
-      expect(hasDeferred(condition)).toBe(true);
-      // 자리만인 잎은 actor 를 가리킨다 (2층이 판정하지 않는 것)
+      // C039 CHANGED — 그 잎은 이제 **판정 가능한 갈래**(actor · capability)이고, 판정 불가인
+      // 까닭이 갈래가 아니라 **ref 가 없다는 것**으로 옮겼다: 자리로 고르는 것이고 고르는
+      // 자리는 문의 판정이다 (규칙 5 · 기본형 ⑧). 그래서 형의 크기를 재던 두 줄을 뺀다.
+      expect(hasDeferred(condition)).toBe(false);
       for (const one of conditionLeaves(condition)) {
-        if (DECIDABLE_TARGET_KINDS.includes(one.target.kind)) continue;
-        expect(DEFERRED_TARGET_KINDS).toContain(one.target.kind);
+        if (one.target.kind !== 'actor') continue;
+        expect(one.target.ref).toBeUndefined();
       }
       for (const { label, w } of lockWorlds(lock)) {
         for (const sample of TIME_GRID) {
           const s = at(state(w), sample.time);
           const open = isConnectorOpen(s.regionStates, lock.at.ref, sample.time);
           const whole = worldConditionVerdict(s, condition);
-          // 열려 있으면(time · state 가 참) 전체는 판정 불가 — 요구를 **표시**만 한다. 닫혀 있으면 거짓이다
+          // 몸을 가리키지 않는 나머지 항들(철 · 배열)의 답
+          const others = worldConditionVerdict(s, {
+            all: conditionLeaves(condition).filter((leaf) => leaf.target.kind !== 'actor'),
+          });
+          // C039 CHANGED — **몸 없이 물으면 그 문은 어느 철에도 잠김이다** (규칙 6 ⑤ · 규칙 10 ②):
+          // 여기 isConnectorOpen 은 몸을 주지 않으므로 성질 요구가 서지 않는다. 조건 하나로 묻는
+          // 전체는 나머지가 참일 때 **판정 불가**이고(몸의 잎이 자리로 골라지지 않았다),
+          // 나머지가 거짓이면 거짓이다 (지금 그대로).
           expect({ lock: lock.id, world: label, ...sample, open, whole }).toEqual({
             lock: lock.id,
             world: label,
             ...sample,
-            open,
-            whole: open ? 'undecidable' : 'unmet',
+            open: false,
+            whole: others === 'met' ? 'undecidable' : others,
           });
         }
       }

@@ -11,7 +11,9 @@ import { restoreState, type WorldSnapshot } from '../../engine/world-kernel/pers
 import { INTERACTIONS } from './actions/interactions';
 import { projectObserverView } from './projection/observer-view';
 import { DEFAULT_BODY, spawnObserverBody, type BodyDefaults } from './rules/observer-body';
+import type { PropertySource } from '../../engine/world-authoring/property';
 import type { ActorState } from './semantic/actor';
+import { clampBodyVitalsAll } from './semantic/body-property';
 import type { ItemKind } from './semantic/item';
 import type { WorldPosition } from './semantic/position';
 import { START_REGION } from './semantic/region';
@@ -58,7 +60,10 @@ export interface NpcSetup {
   characterKind?: string;
   position: WorldPosition;
   wanderPath?: WorldPosition[];
+  /** 개체별 인지 재정의 — 그 몸의 propertySources 에 「인지에 상한 하나」로 들어간다 (C039) */
   perceptionRange?: number;
+  /** 그 몸에 **더 걸릴** Source 들 — actorSources 와 같은 갈래의 손잡이 (C039 ADDED) */
+  sources?: readonly PropertySource[];
 }
 
 export interface WorldSetup {
@@ -68,6 +73,15 @@ export interface WorldSetup {
   actorRegion?: string;
   actorItems?: Partial<Record<ItemKind, number>>;
   actorCharacterKind?: string;
+  /**
+   * 관찰자의 몸에 **걸릴 Source 들** — 검증 · 촬영용 손잡이 (C039 ADDED · spec 규칙 8).
+   *
+   * actorItems · actorCharacterKind 와 **같은 갈래**다: 세계의 규칙을 하나도 바꾸지 않고,
+   * 걸어서 닿을 수 없는 몸의 사정(체열을 숨기는 것 · 더 버티는 몸)을 세우기 위한 것이다.
+   * 걸린 뒤로는 성질을 묻는 자리(bodyProperty)가 그것을 다른 Source 들과 **같은 잣대**로
+   * 합칠 뿐이다 — 그래서 이 손잡이로 세운 세계도 규칙대로 굴러간다.
+   */
+  actorSources?: readonly PropertySource[];
   npcs?: NpcSetup[];
   /** 속성 변경을 허용할 것인가 (World.DebugAuthority). 요청으로는 바꿀 수 없다 */
   debugAuthority?: boolean;
@@ -281,6 +295,12 @@ const SYSTEMS: WorldContent<WorldState>['systems'] = [
   (state, dt) => ruleBodyPush(state, dt), // RULE-BODY-PUSH-001
   (state, dt) => ruleBodyMomentum(state, dt), // RULE-BODY-MOMENTUM-001
   (state, dt) => ruleCpRunDrain(state, dt), // RULE-CP-RUN-DRAIN-001
+  // C039 ADDED — **현재값은 성질을 넘지 않는다** (spec 규칙 3 ②③). 새 규칙이 아니라
+  // RULE-STRIKE-DAMAGE-001 · RULE-SKILL-BUDGET-001 · RULE-ATTRIBUTE-SET-001 **위의 데이터**다:
+  // 값을 바꾸는 규칙은 한 줄도 옮기지 않았고, 이 Tick 의 값이 다 정해진 뒤 그 값이 지금의
+  // 성질을 넘었는지만 본다. 변형 데이터로 최대가 줄면 다음 Tick 에 그 자리에서 잘린다 —
+  // 그래서 자르는 자리가 값을 바꾸는 규칙마다 흩어지지 않는다.
+  (state) => clampBodyVitalsAll(state),
   // 이 Tick 의 자리가 다 정해진 뒤에 세계가 떨어질 사람을 본다 — 그래서 맨 끝이다 (C003 R1).
   (state) => ruleRegionFall(state), // RULE-REGION-FALL-001
 ];
@@ -315,6 +335,7 @@ export function createWorld(setup: WorldSetup = {}, restored?: WorldState): Worl
       position: npc.position,
       wanderPath: npc.wanderPath,
       ...(npc.perceptionRange === undefined ? {} : { perceptionRange: npc.perceptionRange }),
+      ...(npc.sources === undefined ? {} : { sources: npc.sources }),
     }),
   );
 
@@ -379,6 +400,7 @@ export function createWorld(setup: WorldSetup = {}, restored?: WorldState): Worl
       ? [{ x: setup.actorPosition.x, z: setup.actorPosition.z }, ...SPAWN_POINTS.slice(1)]
       : SPAWN_POINTS,
     ...(setup.actorRegion ? { spawnRegion: setup.actorRegion } : {}),
+    ...(setup.actorSources ? { sources: setup.actorSources } : {}),
   };
 
   const content: WorldContent<WorldState> = {
