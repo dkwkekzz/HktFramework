@@ -7,6 +7,19 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 
+/**
+ * tsc 를 `pnpm exec` 로 부르지 않는다. Windows 에서 `pnpm` 은 `pnpm.CMD` 이고,
+ * Node 는 CVE-2024-27980 대응 이후 `.cmd`/`.bat` 을 `shell: true` 없이 spawn 하면
+ * EINVAL 로 던진다 — tsc 가 돌기도 전에 전 모듈이 "실패" 로 찍힌다.
+ * 로컬에 설치된 tsc 의 **JS 진입점을 node 로 직접** 실행하면 셸을 타지 않아 어디서든 같다.
+ */
+const TSC = join(ROOT, 'node_modules', 'typescript', 'bin', 'tsc');
+if (!existsSync(TSC)) {
+  console.error(`[typecheck] tsc 를 찾지 못했다: ${TSC}`);
+  console.error('[typecheck] 먼저 `pnpm install` 을 실행할 것.');
+  process.exit(2);
+}
+
 const projects = [];
 const collect = (dir, depth) => {
   if (!existsSync(dir)) return;
@@ -32,13 +45,15 @@ let failed = false;
 for (const project of projects) {
   const label = relative(ROOT, project);
   try {
-    execFileSync('pnpm', ['exec', 'tsc', '-p', join(project, 'tsconfig.json')], {
+    execFileSync(process.execPath, [TSC, '-p', join(project, 'tsconfig.json')], {
       cwd: ROOT,
       stdio: 'inherit',
     });
     console.log(`[typecheck] ${label}: 통과`);
-  } catch {
+  } catch (error) {
+    // 원인을 삼키지 않는다 — tsc 가 낸 타입 오류인지, 실행 자체가 실패한 것인지 구별되어야 한다.
     console.error(`[typecheck] ${label}: 실패`);
+    if (typeof error.status !== 'number') console.error(`[typecheck]   실행 실패 — ${error.message}`);
     failed = true;
   }
 }

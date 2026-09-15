@@ -1,7 +1,7 @@
 {
   "moduleId": "V4",
   "moduleVersion": "0.1.0",
-  "sourceHash": "sha256:fb22b1fed3a17541c0de9d7b90a0d8c297def1cb9433da988e3d00a45b33c700",
+  "sourceHash": "sha256:7a26cff412f98092f7b0813ea66ad507a3aba8881bd59b3b437544007326ff45",
   "contractHash": "sha256:3775d824cd1eb2673017b7e8d89259bdc9730e6168fc2e49d83f5f06edcd8c1b",
   "dependencyVersions": {
     "V0": "0.1.0",
@@ -17,7 +17,7 @@
   },
   "staticCheck": {
     "passed": true,
-    "command": "pnpm run typecheck"
+    "command": "node tools/typecheck.mjs"
   },
   "unitTests": {
     "passed": 47,
@@ -114,7 +114,7 @@
       "name": "증거 게이트",
       "measured": true,
       "passed": true,
-      "detail": "정적 검사 통과 · 코드 해시 sha256:fb22b1f…"
+      "detail": "정적 검사 통과 · 코드 해시 sha256:7a26cff…"
     }
   ],
   "status": "VERIFIED",
