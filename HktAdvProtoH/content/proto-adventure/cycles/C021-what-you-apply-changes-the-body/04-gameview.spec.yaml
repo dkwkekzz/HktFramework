@@ -1,0 +1,357 @@
+# CYCLE C021 — GameView Specification
+#
+# 이 계약이 처음으로 **"가지고 있다" 와 "지금 몸에 있다" 를 다른 자리에 싣는다.**
+#
+# 지금까지 화면이 아는 것은 소지품 하나뿐이었다 — 무엇이 몇 개 있는가. 그래서 화면에는
+# "이 곡괭이가 지금 내 몸에 닿아 있는가" 를 물을 자리가 없었고, 물을 필요도 없었다.
+# 세계가 그 둘을 구분하지 않았기 때문이다.
+#
+# 이 Cycle 이 세우는 자리는 셋이다.
+#   ① equipment — **자리** 그 자체가 관찰된다. 빈 자리도 비어 있다고 관찰된다.
+#   ② inventory[].equipped — 소지품 항목이 "지금 차고 있는가" 에 답한다.
+#   ③ inventory[].actions 에 장착이 더해진다 — 쓰기와 **나란한 자리**이며, 새 표시 장치를
+#      만들지 않는다. 한 항목이 두 물음에 답한다.
+#
+# 능력치 칸은 하나도 늘지 않는다. 이름도 자리도 그대로이고, **실리는 값이 유효값**이 될
+# 뿐이다 (기본값 + 지금 적용된 것들의 기여). 그래서 원복은 새 표시가 아니라 같은 칸의
+# 같은 수로 관찰된다.
+#
+# 이 계약을 받은 View 는 아이템 종류도 자리 이름도 하나도 알지 못한 채 장비를 그릴 수
+# 있어야 한다.
+id: VIEW-WHAT-YOU-APPLY-CHANGES-THE-BODY-001
+observer: player
+
+delta:
+  reused:
+    - scene.mining-field
+    - entities.character                      # 위치·역할·이름·종류·모션·body·swing 그대로
+    - entities.deposit
+    - entityHud
+    - entities.character.vitality
+    - interactions.move / moveMode / setAttribute
+    - interactions.attack / skillHeavy / skillAura
+    - interactions.guardBegin / guardRelease
+    - interactions.observe / forgetAcquaintance
+    - interactions.selectTarget / clearTarget
+    - interactions.mine                       # 값도 사유 코드도 그대로 — 답만 달라진다
+    - currentTarget
+    - commandCatalog
+    - strikeEvents / unharmedContacts / cancels
+    - inventory[].kind / count / category / origin / stackable    # C020 그대로
+    - inventory[].actions[].id / role / available / unavailableReason   # 형태 그대로
+    - debugObserve / debugAuthority
+    - observer / session / delivery / identity / telemetry
+  added:
+    - equipment                               # 몸의 자리들 — 이 Cycle 이 세우는 자리
+    - equipment[].item                        # 그 자리에 지금 놓인 것 (없을 수 있다)
+    - equipment[].contributions               # 그 물건이 지금 주고 있는 것
+    - equipment[].actions                     # 해제 요청과 그 가능/사유
+    - inventory[].equipped                    # 지금 차고 있는가
+    - inventory[].actions[].role = equip-item # 쓰기 옆에 나란히 선다
+    - entities.character.state = equip        # 장비를 바꾸는 중이라는 의미 상태
+  changed:
+    - hud.self.combat.*                       # 자리도 이름도 그대로. **값이 유효값이 된다**
+    - hud.self.insight                        # 같은 이유
+    - entities.character.attributes.*         # 남의 몸에 실리는 값도 유효값이다
+    - inventory[].actions                     # 항목이 최대 둘이 될 수 있다 (쓰기 · 장착)
+  removed: []                                 # 사라지는 칸이 없다
+
+scene: mining-field
+
+# ─────────────────────────────────────────────────────────────────
+# equipment — 이 Cycle 이 세우는 자리
+#
+#   내 몸의 것만 실린다 (INTENT-PER-OBSERVER-PROJECTION-001). 남이 무엇을 차고 있는지는
+#   오지 않는다 — 이 Cycle 은 그것을 열지 않는다. (남의 능력치 **값**은 이미 실리고 있고,
+#   그 값이 유효값이 되므로 "무언가 차서 세다" 는 것은 값으로 드러난다. 무엇을 찼는지가
+#   실리지 않을 뿐이다.)
+#
+#   **빈 자리도 항목으로 온다.** 자리가 있다는 사실 자체가 세계의 상태이기 때문이다 —
+#   비어 있는 자리를 보여줄 수 없으면 "여기에 무언가를 놓을 수 있다" 를 화면이 말할 수 없다.
+#
+#   **View 는 자리 이름을 알지 못해도 된다.** place 는 표시할 이름을 고르는 열쇠일 뿐이고,
+#   모르면 place 문자열을 그대로 보여도 화면이 성립한다. 자리가 하나에서 여럿으로 늘어도
+#   이 계약의 형태는 바뀌지 않는다 — 항목이 늘 뿐이다.
+# ─────────────────────────────────────────────────────────────────
+equipment:
+  cardinality: many
+  source: Actor.Equipment (관찰자의 몸) + World.EquipPlaces
+  ordering: 세계가 아는 자리의 순서 — 같은 세계 상태면 언제나 같은 순서다
+
+  fields:
+    place:
+      source: World.EquipPlaces[].Id
+      meaning: 자리 식별자 (의미 코드). 표시 이름은 View 책임
+    item:
+      source: Actor.Equipment[place]
+      optional: true
+      meaning: >
+        그 자리에 지금 놓인 종류. **없으면 자리가 비어 있다는 뜻이다.**
+        값의 형태는 inventory[].kind 와 같은 의미 코드이므로, 화면은 두 자리를 같은
+        방식으로 이름 붙일 수 있다.
+    contributions:
+      cardinality: many
+      source: ItemDefinition.Equip.Contributions
+      optional: true
+      meaning: >
+        그 물건이 **지금 주고 있는 것** — 능력치 이름과 더해지는 값의 목록.
+        빈 목록일 수 있다 (자리를 차지하되 값을 주지 않는 물건).
+        세계가 싣는 이유는 하나다 — 화면이 "이 값이 어디서 왔는가" 를 계산하지 않게
+        하기 위해서다. 화면은 유효값(hud)과 기여(여기)를 각각 받아 그대로 보여준다.
+      fields:
+        attribute:
+          meaning: 능력치 이름 (의미 코드) — hud.self.combat.* 와 같은 이름을 쓴다
+        amount:
+          meaning: 기본값에 더해지는 값
+
+  actions:
+    cardinality: many
+    source: RULE-EQUIP-001 (해제 갈래)
+    meaning: 이 자리에 지금 할 수 있는 것들. 빈 자리에는 할 수 있는 것이 없다
+    fields:
+      id:
+        meaning: 요청에 실어 보낼 식별자 — 세계가 준 것을 그대로 되돌린다
+      role:
+        values: [unequip-item]
+        meaning: 의미 역할. 문구 변환은 View 책임
+      available:
+        source: RULE-EQUIP-001 의 판정
+        meaning: 지금 되는가. **관찰과 실행이 같은 판정이다**
+      unavailableReason:
+        source: RULE-EQUIP-001 의 실패 사유
+        optional: true
+        values:
+          - place-empty     # 그 자리가 이미 비어 있다
+          - action-busy     # 지금 하는 행동을 대체할 수 없다
+
+# ─────────────────────────────────────────────────────────────────
+# inventory — 항목이 답하는 물음이 하나 는다
+#
+#   C020 이 세운 형태를 그대로 쓴다. 새 목록도 새 자리도 만들지 않는다 —
+#   장착은 가진 것에 붙는 일이므로 가진 것 옆에 둔다.
+# ─────────────────────────────────────────────────────────────────
+inventory:
+  reused: true                  # kind · count · category · origin · stackable 그대로
+
+  fields:
+    equipped:
+      added: true
+      source: Actor.Equipment 에 그 종류가 놓여 있는가
+      meaning: >
+        **지금 차고 있는가.** 차고 있어도 count 는 줄지 않는다 — 자리에 놓인 것도 여전히
+        가진 것이다 (INTENT-APPLIED-IS-STILL-CARRIED-001). 화면이 "3개 중 1개를 차고
+        있다" 를 보이고 싶으면 count 와 이 값을 함께 쓴다.
+
+  actions:
+    changed: true
+    meaning: >
+      항목마다의 목록에 장착이 더해진다. 쓸 수 있으면서 찰 수도 있는 물건은 항목이 둘이고,
+      쓸 수만 있으면 하나이며, 둘 다 아니면 빈 목록이다. **형태는 C020 그대로다.**
+    fields:
+      role:
+        values: [use-item, equip-item]      # equip-item 이 더해진다
+        meaning: 의미 역할. 문구 변환은 View 책임
+      available:
+        source: RULE-ITEM-USE-001 (쓰기) · RULE-EQUIP-001 (장착)
+      unavailableReason:
+        source: 같은 규칙의 실패 사유
+        optional: true
+        values:
+          # ── 쓰기 (C020 그대로) ────────────────────────────
+          - unknown-item
+          - not-usable
+          - not-enough
+          - no-target-selected
+          - target-kind-mismatch
+          - out-of-range
+          - action-busy
+          - deposit-depleted
+          - no-mining-tool        # C021 — 차지 않은 곡괭이를 쓰려 할 때 위임 갈래가 답한다
+          # ── 장착 (C021 ADDED) ─────────────────────────────
+          - not-equippable        # 장착할 수 있는 물건이 아니다 (정의에 Equip 이 없다 — 돌)
+          - place-mismatch        # 그 물건이 들어가는 자리가 아니다
+          - not-carried           # 지니고 있지 않다 (정상적으로는 오지 않는다)
+          - already-equipped      # 그 자리에 이미 그것이 놓여 있다
+          - unknown-place         # 세계가 모르는 자리다 (정상적으로는 오지 않는다)
+        meaning: >
+          사유의 단일 출처는 세계다. View 는 사유를 만들지 않고 받은 코드를 문구로 옮긴다.
+          모르는 코드를 만나면 코드를 그대로 보여도 화면이 성립해야 한다.
+
+      target:
+        added: true
+        optional: true
+        meaning: >
+          장착 요청이 향하는 **자리**. 세계가 실어 준다 — 화면이 "이 물건은 어느 자리에
+          들어가는가" 를 알아내지 않는다. 정의가 자리를 밝히고, 계약이 그것을 옮긴다.
+          쓰기 행동에는 이 자리가 없다.
+
+# ─────────────────────────────────────────────────────────────────
+# entities — 한 상태값이 늘고, 실리는 능력치 값의 출처가 바뀐다
+# ─────────────────────────────────────────────────────────────────
+entities:
+  character:
+    cardinality: many
+    source: World.Actors
+    state:
+      changed: true
+      source: Actor.CurrentAction.Kind
+      values:
+        - idle
+        - move
+        - attack
+        - heavy-attack
+        - aura-strike
+        - mine
+        - observe
+        - use-item
+        - equip                   # C021 ADDED — 장비를 바꾸는 중이다
+        - hit
+        - downed
+      meaning: >
+        장비를 바꾸는 중이라는 것이 **남에게도 보인다.** 다른 행동과 같은 자리이며
+        진행도도 같은 자리에 실린다. 무엇을 어느 자리에 놓는 중인지는 실리지 않는다 —
+        이 Cycle 은 남의 장비를 열지 않으므로, 남이 무엇을 바꾸는 중인지도 열지 않는다.
+
+        이 값이 보인다는 것이 이 Cycle 의 대가를 관찰 가능하게 만든다 — 상대가 장비를
+        바꾸는 순간은 상대가 무방비인 순간이다.
+    attributes:
+      changed: true
+      meaning: >
+        자리도 이름도 그대로다. **실리는 값이 유효값이 된다** — 그 몸이 지금 차고 있는
+        것들의 기여가 이미 더해진 값이다. 화면은 아무것도 고치지 않아도 되고,
+        C016 의 가려짐 관문도 그대로 걸린다.
+    progress:
+      reused: true
+
+  deposit:
+    cardinality: many
+    source: World.Deposits
+    reused: true
+
+# ─────────────────────────────────────────────────────────────────
+# interactions — 새 항목이 없다
+#
+#   장착 요청은 **소지품 항목이** 지니고 (inventory[].actions), 해제 요청은 **자리가**
+#   지닌다 (equipment[].actions). interactions 에 항목을 늘리지 않는 이유는 C020 과 같다 —
+#   그러면 종류 이름이나 자리 이름이 이 계약의 다른 곳에 다시 박힌다.
+# ─────────────────────────────────────────────────────────────────
+interactions:
+  mine:
+    reused: true
+    meaning: >
+      값도 사유 코드도 이 Cycle 전과 같다. 달라진 것은 `no-mining-tool` 의 답이
+      "지녔는가" 가 아니라 **"차고 있는가"** 에서 나온다는 것뿐이다.
+      화면은 아무것도 고치지 않아도 된다.
+  attack: { reused: true }
+  skillHeavy: { reused: true }
+  skillAura: { reused: true }
+  guardBegin: { reused: true }
+  guardRelease: { reused: true }
+  observe: { reused: true }
+  forgetAcquaintance: { reused: true }
+  selectTarget: { reused: true }
+  clearTarget: { reused: true }
+  move: { reused: true }
+  moveMode: { reused: true }
+  setAttribute:
+    reused: true
+    meaning: >
+      **기본값을 세우는 길로 남는다.** 이 요청이 세우는 것은 기본값이고, 화면에 보이는
+      것은 유효값이다. 그래서 무언가를 찬 채로 값을 세우면 화면의 수는 세운 값과 다르다 —
+      그것이 오류가 아니라 이 Cycle 이 세운 사실이다.
+
+# ─────────────────────────────────────────────────────────────────
+# hud — 칸이 하나도 늘지 않는다. 값의 출처만 바뀐다
+# ─────────────────────────────────────────────────────────────────
+hud:
+  changed:
+    self.combat.*:
+      meaning: >
+        physicalAttack · auraAttack · armor · resistance · 관통 둘 · 치명 둘 —
+        **이름도 자리도 그대로이고 값이 유효값이 된다.**
+        차기 전과 푼 뒤의 수가 같은 것으로 원복이 관찰된다. 새 칸을 만들지 않는 이유가
+        여기 있다 — 같은 칸의 같은 수로 돌아오는 것이 이 Cycle 이 보여야 할 사실이다.
+    self.insight:
+      meaning: 같은 이유. 지금 이 값에 기여하는 물건은 없으나 문은 같은 문이다
+
+  reused:
+    - player.action                # equip 도 여기에 그대로 실린다
+    - world.time
+    - observers.present
+    - self.hp / self.hpMax / self.cp / self.cpMax
+    - self.downed / self.moveMode
+    - self.guard.guarding / self.guard.broken
+
+  added: []                        # 새 막대도 새 줄도 없다
+
+# ─────────────────────────────────────────────────────────────────
+# designer — 같은 계약을 쓴다
+# ─────────────────────────────────────────────────────────────────
+designer:
+  uses: 이 계약 그대로. World 로 가는 별도 경로를 만들지 않는다
+  goal:
+    - GOAL-HOLDING-IS-NOT-APPLYING
+    - GOAL-WHAT-IS-APPLIED-MAKES-THE-BODY
+    - GOAL-THE-WORLD-SHOWS-WHAT-IS-ON-THE-BODY
+  possibility:
+    - POSSIBILITY-THE-BODY-HAS-PLACES
+    - POSSIBILITY-A-PLACE-TAKES-ONLY-WHAT-FITS
+    - POSSIBILITY-APPLYING-IS-AN-ACT
+    - POSSIBILITY-EXCHANGE-IS-ONE-UNIT
+    - POSSIBILITY-APPLIED-IS-STILL-CARRIED
+    - POSSIBILITY-EVERY-JUDGEMENT-READS-THE-EFFECTIVE-VALUE
+    - POSSIBILITY-THE-BASE-IS-NEVER-TOUCHED
+    - POSSIBILITY-RELEASING-RESTORES-EXACTLY
+    - POSSIBILITY-A-USE-COMES-FROM-WHAT-IS-APPLIED
+  observes:
+    availability:
+      - inventory[].actions[].available          # 찰 수 있는가
+      - equipment[].actions[].available          # 풀 수 있는가
+      - interactions.mine.available              # 지금 캘 수 있는가 (용도의 결과)
+    preconditions:
+      - inventory[].actions[].unavailableReason
+      - equipment[].actions[].unavailableReason
+    before_after:
+      - hud.self.combat.*                        # 차기 전 · 찬 뒤 · 푼 뒤의 같은 칸
+      - equipment[].item                         # 자리가 비었다 → 찼다 → 다시 비었다
+      - inventory[].equipped
+      - inventory[].count                        # **바뀌지 않는다** — 적용은 소모가 아니다
+      - interactions.mine.available              # 거짓 → 참 → 다시 거짓
+    reason:
+      - inventory[].actions[].unavailableReason
+      - equipment[].actions[].unavailableReason
+      - interactions.mine.unavailableReason      # no-mining-tool
+
+# ─────────────────────────────────────────────────────────────────
+# VIEW CLOSURE — 이 계약만으로 Cycle Goal 을 플레이할 수 있는가
+# ─────────────────────────────────────────────────────────────────
+closure:
+  - 몸에 어떤 자리가 있는지 안다                equipment[].place
+  - 그 자리가 비었는지 찼는지 안다              equipment[].item (없으면 비었다)
+  - 무엇을 찰 수 있는지 안다                   inventory[].actions[] role=equip-item + available
+  - 왜 못 차는지 안다                         같은 항목의 unavailableReason
+  - 어느 자리에 들어가는지 안다                 같은 항목의 target
+  - 찰 것을 고르고 요청할 수 있다               같은 항목의 id
+  - 지금 차고 있는 것을 안다                   inventory[].equipped · equipment[].item
+  - 풀 수 있고 그 요청을 보낼 수 있다            equipment[].actions[] role=unequip-item
+  - 바꾸는 중임을 안다                        entities.character.state = equip + progress
+  - 무엇이 달라졌는지 본다                     hud.self.combat.* 의 전후 차이 ·
+                                            interactions.mine.available 의 전후 차이
+  - 그 물건이 주는 것이 무엇인지 안다            equipment[].contributions
+  - 풀면 정확히 돌아온 것을 본다                hud.self.combat.* 가 차기 전과 **같은 수**다
+  - 가진 양은 그대로임을 본다                  inventory[].count 가 바뀌지 않는다
+  - 캐기가 자리에 매인 것을 안다                interactions.mine 의 available 과
+                                            no-mining-tool 사유
+
+# ─────────────────────────────────────────────────────────────────
+# NOT IN THIS CONTRACT — 싣지 않는 것과 그 이유
+# ─────────────────────────────────────────────────────────────────
+excluded:
+  남의 장비: 이 Cycle 은 내 몸의 자리만 싣는다 (INTENT-PER-OBSERVER-PROJECTION-001).
+           남이 무언가 차서 세다는 것은 능력치 값으로 드러나지만, 무엇을 찼는지는 오지 않는다
+  남이 무엇을 바꾸는 중인지: 위와 같은 이유. 바꾸는 중이라는 것까지만 보인다
+  기본값과 유효값의 분리 표시: 화면에 두 수를 나란히 싣지 않는다. 유효값 한 수와 기여
+           목록이면 "이 값이 왜 이만큼인가" 에 답할 수 있고, 두 수를 다 실으면 화면이
+           둘을 견주는 층을 열게 된다 — 이 Cycle 의 의미가 아니다
+  소지 한도 · 칸 · 무게: 세계에 없다 (01-cycle.md SCOPE NOTE ①)
+  개체 상태 (내구도 · 강화 · 귀속): 세계에 없다. 자리에 놓인 것도 여전히 종류와 수량이다
