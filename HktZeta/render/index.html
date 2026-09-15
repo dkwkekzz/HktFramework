@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>HktZeta 궤적 3D</title>
+  <style>
+    html, body { margin: 0; height: 100%; overflow: hidden; background: #0a0e18; }
+    #hud { position: fixed; left: 12px; top: 10px; color: #cdd6f4; font: 13px/1.5 ui-monospace, monospace; opacity: 0.85; pointer-events: none; }
+    #hud b { color: #89dceb; }
+  </style>
+</head>
+<body>
+  <div id="hud"></div>
+  <script type="module">
+    import './app.mjs';
+    const view = new URLSearchParams(location.search).get('view') || 'field';
+    const label = { field: 'FIELD — XZ=위치, Y=에너지(성장), 몸=존재, 꼬리=궤적',
+                    terrain: 'TERRAIN — 정수 산술 지형 (높이=Ω(n), 색=μ(n))',
+                    worm: 'WORM — (x, t, y) 시공 궤적 (시간↑)' }[view] || view;
+    document.getElementById('hud').innerHTML = `<b>HktZeta</b> · ${label}`;
+  </script>
+</body>
+</html>
