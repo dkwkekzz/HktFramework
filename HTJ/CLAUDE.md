@@ -38,7 +38,7 @@ step 한 바퀴의 실행 절차(논의→구현→검증→기록)는 `htj-step
 | ┗ [design/environment.md](design/environment.md) | **환경 설계(오픈월드·권위)** — sphere-world 위에 *딛고 다닐 광활한 환경*(산·바다·강)을 같은 원소로. 로드맵 TW1~TW4 | |
 | ┗ [design/merge-dna.md](design/merge-dna.md) | **병합·형태 DNA 설계(권위)** — 뭉친 원소를 한 개체로 병합(수박게임)하되 형태는 정규화된 hash 로 세계 사전에서 공유. 로드맵 M1~M4 |
 | ┗ [design/scene-unify.md](design/scene-unify.md) | **장면 통일 설계(작업 방식 개선·권위)** — capture.js↔viewer 를 *시나리오 1벌*로 일원화(per-step capture.js 폐지)·verify=새 법칙만(보존·결정론은 공용 가드). engine·물리 불변(확인용 트랙). 로드맵 U1~U4·**닫은 step 소급 안 함** | |
-| ┗ [design/rigid-ground.md](design/rigid-ground.md) | **강체 지면·구조 설계(부채 해소·권위)** — 곡면 위 굴곡/경사/바위 블로커(0113·0114·0118)를 *고정 없이* = 단일 무거운 shapeDNA 강체 + 구성원 충돌 표면 + 부모 반작용. 자유 물체 조합이 막다른 길임(15+ 실험) 확인. 로드맵 RG1~RG4 | |
+| ┗ [design/rigid-ground.md](design/rigid-ground.md) | **강체 지면·구조 설계(부채 해소·권위)** — 곡면 위 굴곡/경사/바위 블로커(0113·0114·0118)를 *고정 없이* = 합쳐진 분자 하나(단일 무거운 강체) + 그 분자의 DNA 구조를 충돌 껍질로 + 반작용은 분자 하나로 합산(쪼개기 0·방향 θ 결정). 자유 물체 조합이 막다른 길임(15+ 실험) 확인. 로드맵 RG1~RG4 | |
 | `engine/` | **세계(법칙·시뮬) src** — 한 곳에서 관리, step마다 가법적 확장. *확인용 코드 금지* | step마다 |
 | `viewer/scenes/` | **시나리오 SSOT** — `viewer/scenes/step_NNNN.js`(한 벌). **헤드리스 캡처가 읽어 capture.png 를 뽑는다**(AI 눈 검증용). `viewer.html` 라이브 갤러리(per-step 사용자 브라우징)는 **폐기**(유지보수 중단)·사용자용 viewer 는 PW 마일스톤 도달 시에만 큐레이트 제공([design/playable-world.md](design/playable-world.md)) | step마다 |
 | `tools/` | **확인용 도구** — 범용 헤드리스 캡처(`htj-render-capture.js` — 시나리오 1벌→PNG·per-step capture.js 대체) · PNG 헬퍼(`htj-capture.js`) · verify 공용 가드(`htj-verify-lib.js` — 보존·결정론·항등) | 거의 불변 |
