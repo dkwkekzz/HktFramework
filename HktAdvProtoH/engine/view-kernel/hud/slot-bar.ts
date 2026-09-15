@@ -19,6 +19,7 @@
 //   · **사람이 읽을 말** — 부를 수 없다는 말도, 부르는 자리를 무엇이라 이르는지도
 //     짓지 않는다. 코드로 부르고 팩의 문구 표가 말을 준다 (문구 반전 ⑤)
 
+import { hudLayout } from './hud-layout';
 import { RAW_CODE, type CodeTextFn } from '../presentation/code-text';
 import type { SceneSlotBar } from '../scene/scene-state';
 
@@ -83,7 +84,9 @@ export function createSlotBarLayer(
 ): SlotBarLayer {
   const root = document.createElement('div');
   root.id = 'slotbars';
-  container.appendChild(root);
+  // 자리는 HUD 패널과 **같은 판**에서 받는다 (hud-layout.ts) — 화면 아래 가운데다.
+  // 예전에는 이 띠도 자기 상수(bottom: 16px)로 떠 있어서 안내 줄과 겹칠 수 있었다.
+  hudLayout(container).place(root, 'bottom-center');
 
   root.addEventListener('pointerdown', (ev) => {
     const target = ev.target as HTMLElement | null;

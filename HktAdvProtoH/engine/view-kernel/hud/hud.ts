@@ -5,6 +5,7 @@
 // 축하하는 말도, 조작 안내의 줄도 전부 실려 온다 — 짓는 자리는 팩의 문구 표 하나다
 // (design/Design-System-Content-Separation.md 반전 ⑤ 문구).
 
+import { hudLayout } from './hud-layout';
 import type { SessionPresentation } from '../presentation/session-presentation';
 import type { SceneHudItem, SceneState } from '../scene/scene-state';
 
@@ -138,32 +139,49 @@ function createHudElement(className: string, tag = 'div'): HTMLElement {
 }
 
 export function createHud(container: HTMLElement): Hud {
-  const root = document.createElement('div');
-  root.id = 'hud';
-  root.innerHTML = `
-    <div class="hud-panel" id="hud-items"></div>
-    <div class="hud-keys" id="hud-keys"></div>
-    <div id="hud-labels"></div>
-    <div id="hud-plates"></div>
-    <div id="hud-strikes"></div>
-    <div class="hud-self" id="hud-self"></div>
-    <div class="hud-toast" id="hud-toast"></div>
-    <div class="hud-hint" id="hud-mine-hint"></div>
-    <div class="hud-link" id="hud-link"></div>
-    <div class="hud-linkpanel" id="hud-linkpanel"></div>
-  `;
-  container.appendChild(root);
+  // 자리는 이 파일이 짓지 않는다 — 자리판이 지닌다 (hud-layout.ts).
+  // 여기서 정하는 것은 **무엇이 어느 자리에 놓이는가**뿐이고, 놓인 것들이 서로
+  // 포개지지 않는 것은 자리판이 보장한다.
+  const layout = hudLayout(container);
 
-  const items = root.querySelector('#hud-items') as HTMLElement;
-  const keys = root.querySelector('#hud-keys') as HTMLElement;
-  const labelLayer = root.querySelector('#hud-labels') as HTMLElement;
-  const plateLayer = root.querySelector('#hud-plates') as HTMLElement;
-  const strikeLayer = root.querySelector('#hud-strikes') as HTMLElement;
-  const selfPanel = root.querySelector('#hud-self') as HTMLElement;
-  const toast = root.querySelector('#hud-toast') as HTMLElement;
-  const hint = root.querySelector('#hud-mine-hint') as HTMLElement;
-  const link = root.querySelector('#hud-link') as HTMLElement;
-  const linkPanel = root.querySelector('#hud-linkpanel') as HTMLElement;
+  const panel = (className: string, id: string): HTMLElement => {
+    const element = createHudElement(className);
+    element.id = id;
+    return element;
+  };
+
+  const items = panel('hud-panel', 'hud-items');
+  const keys = panel('hud-keys', 'hud-keys');
+  const selfPanel = panel('hud-self', 'hud-self');
+  const toast = panel('hud-toast', 'hud-toast');
+  const hint = panel('hud-hint', 'hud-mine-hint');
+  const link = panel('hud-link', 'hud-link');
+  const linkPanel = panel('hud-linkpanel', 'hud-linkpanel');
+
+  // 왼쪽 위 — 세계의 값과 이어짐 표시. 위에서 아래로 쌓인다
+  layout.place(items, 'top-left');
+  layout.place(link, 'top-left');
+  // 오른쪽 위 — 키 안내. 손가락 기기에는 아예 뜨지 않는다 (그리기 규칙)
+  layout.place(keys, 'top-right');
+  // 왼쪽 아래 — 내 몸
+  layout.place(selfPanel, 'bottom-left');
+  // 가운데 아래 — 방금 얻은 것, 그리고 지금 할 수 있는 것
+  layout.place(toast, 'bottom-center');
+  layout.place(hint, 'bottom-center');
+  // 오른쪽 아래 — 이어짐 수치. 손가락 기기에서는 그 자리를 행동 버튼이 쓰므로 왼쪽 위로
+  layout.place(linkPanel, 'bottom-right', 'top-left');
+
+  // 몸에 붙어 다니는 표시 — 자리 배분 밖이다. 화면 전체를 쓰고 좌표는 세계가 정한다
+  const root = createHudElement('');
+  root.id = 'hud';
+  const labelLayer = createHudElement('');
+  const plateLayer = createHudElement('');
+  const strikeLayer = createHudElement('');
+  labelLayer.id = 'hud-labels';
+  plateLayer.id = 'hud-plates';
+  strikeLayer.id = 'hud-strikes';
+  root.append(labelLayer, plateLayer, strikeLayer);
+  layout.overlay(root);
 
   const lastCounters = new Map<string, number>();
   let toastUntil = 0;
@@ -259,7 +277,12 @@ export function createHud(container: HTMLElement): Hud {
         }
       }
       items.innerHTML = parts.join('');
-      toast.style.opacity = performance.now() < toastUntil ? '1' : '0';
+      // 축하는 잠깐 떴다 사라진다. **사라진 뒤에는 글자까지 비운다** — 자리판에서
+      // 빈 것은 자리를 차지하지 않으므로(:empty), 지나간 축하가 그 아래 안내 줄을
+      // 계속 밀어 올리는 일이 없다. 옅어지는 동안(0.35s)은 글자가 남아 있어야 한다.
+      const now = performance.now();
+      toast.style.opacity = now < toastUntil ? '1' : '0';
+      if (now > toastUntil + 400 && toast.textContent) setText(toast, '');
 
       // 조작 안내 — 실려 온 줄 + 키 지시가 있는 interaction.
       // 같은 키·프롬프트가 대상 수만큼 오더라도 안내는 한 줄이다.
