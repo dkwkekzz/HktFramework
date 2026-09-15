@@ -23,6 +23,8 @@ MAT = {
     'bark':    ((0.47, 0.33, 0.20), (0.18, 0.12, 0.07)),
     'leaf':    ((0.30, 0.55, 0.27), (0.12, 0.24, 0.11)),
     'rock':    ((0.55, 0.53, 0.47), (0.22, 0.21, 0.18)),
+    'hide':    ((0.45, 0.30, 0.20), (0.18, 0.10, 0.06)),   # 동물 가죽
+    'berry':   ((0.78, 0.16, 0.20), (0.30, 0.05, 0.07)),   # 빨간 베리
 }
 WATER_COL = ((0.16, 0.42, 0.72), (0.40, 0.66, 0.92))  # deep, foam
 SKY = (0.94, 0.95, 0.97)
@@ -104,7 +106,7 @@ def render_scene(w, scale=4.0, smin_k=1.2, outline=0.6, supersample=2):
         by_mat.setdefault(s.get('mat', 'skin'), []).append(s)
 
     # 그리는 순서: 뒤(머리카락/옷) → 피부. 단순화를 위해 재질 순서 고정.
-    order = ['leaf', 'bark', 'hair', 'cloth', 'rock', 'skin']
+    order = ['leaf', 'bark', 'hair', 'cloth', 'rock', 'hide', 'skin', 'berry']
     for mat in order + [m for m in by_mat if m not in order]:
         prims = by_mat.get(mat)
         if not prims:
