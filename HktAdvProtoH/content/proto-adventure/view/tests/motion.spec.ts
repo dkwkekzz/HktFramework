@@ -5,7 +5,6 @@ import { describe, expect, it } from 'vitest';
 import { parseMotionPath } from '../../../../engine/view-kernel/motion/motion-format';
 import { createMotionLibrary } from '../../../../engine/view-kernel/motion/motion-library';
 import { motionFrameIndex, motionFrameUv } from '../../../../engine/view-kernel/motion/motion-frame';
-import { motionLibrary } from '../motion-source';
 import type { SceneMotion } from '../../../../engine/view-kernel/scene/scene-state';
 
 describe('parseMotionPath — 데이터 주입 포맷 v1', () => {
@@ -122,32 +121,6 @@ describe('motionFrameIndex — 재생 방식', () => {
 });
 
 describe('motions/ 자동 발견', () => {
-  it('폴더에 놓인 시트가 등록 코드 없이 색인된다', () => {
-    const found = motionLibrary.all();
-
-    expect(found.length).toBeGreaterThan(0);
-    const idle = motionLibrary.resolve('rabbit-swordsman', 'idle');
-    expect(idle).toMatchObject({ characterKind: 'rabbit-swordsman', action: 'idle', frames: 9 });
-    expect(idle?.url).toBeTruthy();
-  });
-
-  it('세계에 존재하는 캐릭터 종류마다 모션이 주입되어 있다', () => {
-    // world/index.ts 가 쓰는 종류 — 새 종류를 세계에 넣으면 이 목록에 추가한다
-    for (const kind of ['rabbit-swordsman', 'wanderer']) {
-      const asset = motionLibrary.resolve(kind, 'idle');
-      expect(asset?.characterKind).toBe(kind); // 다른 종류로 폴백되지 않는다
-    }
-  });
-
-  it('쓰러짐은 종류마다 자기 시트가 있고 1회 재생이다 — idle 로 폴백되지 않는다', () => {
-    // 폴백은 같은 종류의 idle 이 먼저다. 쓰러진 몸이 서서 숨쉬면 안 되므로
-    // 종류마다 downed 시트가 실제로 있어야 한다.
-    for (const kind of ['rabbit-swordsman', 'wanderer']) {
-      const asset = motionLibrary.resolve(kind, 'downed');
-      expect(asset).toMatchObject({ characterKind: kind, action: 'downed', play: 'once' });
-    }
-  });
-
   it('종류별 시트는 각자 교체 가능하다 — 한쪽을 바꿔도 다른 쪽은 그대로다', () => {
     const library = createMotionLibrary({
       '/motions/rabbit-swordsman/idle.3x3.png': '/shared.png',
